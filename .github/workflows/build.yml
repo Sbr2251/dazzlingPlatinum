@@ -1,72 +1,52 @@
-name: build
+name: Build Platinum ROM
 
 on:
   push:
-    branches: [ main ]
-    paths-ignore:
-      - '**.md'
-  pull_request:
-    paths-ignore:
-      - '**.md'
-
-env:
-  LM_LICENSE_FILE: "${{ github.workspace }}/tools/cw/license.dat"
-  BUILD: /var/tmp/pokeplatinum
+    branches: [ "master", "main" ]
+  workflow_dispatch: # Allows you to manually trigger the build from the Actions tab
 
 jobs:
   build:
-    permissions:
-      contents: write
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitarm:latest # Official image with devkitARM pre-installed
+
     steps:
-      - name: Install Software
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y bison flex g++ gcc-arm-none-eabi git make ninja-build pkg-config python3 wget xz-utils
-
-      - name: Checkout Repo
-        uses: actions/checkout@v2
-
-      - name: Install Metroskrew
-        run: sudo make skrew
-
-      - name: Configure Repo
-        run: make configure
-
-      - name: Build Repo
-        run: make check
-
-      - name: Checkout xMAP
-        if: ${{ github.event_name == 'push' }}
+      # 1. Checkout the repository and submodules
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          path: 'xmap'
-          ref: 'xmap'
+          submodules: recursive # Crucial: Pulls in necessary sub-tools
 
-      - name: Move xMAP
-        if: ${{ github.event_name == 'push' }}
+      # 2. Install dependencies specific to PokePlatinum
+      # libpng-dev is needed for graphics tools; git/make are standard
+      - name: Install System Dependencies
         run: |
-          mkdir -p xmap
-          cp "$BUILD"/*.xMAP xmap/platinumus.xMAP
-          echo "XMAP_COMMIT_MSG=$( git log --format=%s ${GITHUB_SHA} )" >> $GITHUB_ENV
+          sudo apt-get update
+          sudo apt-get install -y build-essential git libpng-dev libxml2-dev
 
-      - name: Update xMAP
-        if: ${{ github.event_name == 'push' }}
-        uses: EndBug/add-and-commit@v9
-        with:
-          cwd: "./xmap"
-          add: "*.xMAP"
-          message: ${{ env.XMAP_COMMIT_MSG }}
+      # 3. (Optional but Recommended) Verify Compilers exist
+      # This step helps you debug if the build fails due to missing MWCC
+      - name: Verify MWCC Compilers
+        run: |
+          if [ ! -d "tools/mwccarm" ]; then
+            echo "::error::MetroWerks compilers not found in tools/mwccarm!"
+            echo "You must commit the compilers to your repo for CI to work."
+            exit 1
+          fi
 
-      - name: Post error archive
-        if: failure()
-        continue-on-error: true
-        run: tar czf failure.tar.gz "$BUILD"
+      # 4. Build the ROM
+      # -j$(nproc) tells make to use all available CPU cores on the GitHub runner
+      - name: Compile ROM
+        run: make -j$(nproc)
 
-      - name: Post error upload
-        if: failure()
+      # 5. Upload the built artifacts
+      # This saves the .nds file so you can download it from the GitHub website
+      - name: Upload ROM Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pokeplatinum-failure-${{ github.run_id }}
-          path: failure.tar.gz
-          retention-days: 1
+          name: platinum-rom
+          path: |
+            *.nds
+            *.xmap
+            build/platinum.us/main.elf
