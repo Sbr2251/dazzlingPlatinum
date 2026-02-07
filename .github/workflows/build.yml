@@ -8,8 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: devkitpro/devkitarm:latest # Official image with devkitARM pre-installed
 
     steps:
       # 1. Checkout the repository and submodules
@@ -19,34 +17,40 @@ jobs:
           submodules: recursive # Crucial: Pulls in necessary sub-tools
 
       # 2. Install dependencies specific to PokePlatinum
-      # libpng-dev is needed for graphics tools; git/make are standard
+      # The project uses Meson + Ninja build system with ARM cross-compilation
       - name: Install System Dependencies
         run: |
+          sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y build-essential git libpng-dev libxml2-dev
+          sudo apt-get install -y \
+            bison \
+            flex \
+            g++ \
+            gcc-arm-none-eabi \
+            git \
+            make \
+            ninja-build \
+            pkg-config \
+            wget \
+            python3 \
+            xz-utils \
+            nasm \
+            libc6:i386 \
+            p7zip-full
 
-      # 3. (Optional but Recommended) Verify Compilers exist
-      # This step helps you debug if the build fails due to missing MWCC
-      - name: Verify MWCC Compilers
-        run: |
-          if [ ! -d "tools/mwccarm" ]; then
-            echo "::error::MetroWerks compilers not found in tools/mwccarm!"
-            echo "You must commit the compilers to your repo for CI to work."
-            exit 1
-          fi
-
-      # 4. Build the ROM
+      # 3. Build the ROM
+      # The Makefile handles downloading metroskrew (MetroWerks compiler) automatically
       # -j$(nproc) tells make to use all available CPU cores on the GitHub runner
       - name: Compile ROM
         run: make -j$(nproc)
 
-      # 5. Upload the built artifacts
-      # This saves the .nds file so you can download it from the GitHub website
+      # 4. Upload the built artifacts
+      # This saves the .nds file so you can download it from the GitHub Actions page
       - name: Upload ROM Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: platinum-rom
+          name: dazzlingPlatinum-rom
           path: |
-            *.nds
-            *.xmap
-            build/platinum.us/main.elf
+            build/dazzlingPlatinum.us.nds
+            build/dazzlingPlatinum.us.xmap
+            build/dazzlingPlatinum.us/main.elf
