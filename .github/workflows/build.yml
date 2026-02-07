@@ -1,4 +1,4 @@
-name: Build Platinum ROM
+name: Build DazzlingPlatinum ROM
 
 on:
   push:
