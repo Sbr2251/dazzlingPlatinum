@@ -49,8 +49,8 @@ jobs:
       - name: Upload ROM Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dazzlingPlatinum-rom
+          name: platinum-rom
           path: |
-            build/dazzlingPlatinum.us.nds
-            build/dazzlingPlatinum.us.xmap
-            build/dazzlingPlatinum.us/main.elf
+            build/pokeplatinum.us.nds
+            build/pokeplatinum.us.xmap
+            build/platinum.us/main.elf
