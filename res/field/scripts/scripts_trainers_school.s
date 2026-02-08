@@ -169,8 +169,8 @@ _01E7:
     Message 10
     CloseMessage
     GetPlayerStarterSpecies VAR_RESULT
-    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, _0220
-    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, _022E
+    GoToIfEq VAR_RESULT, SPECIES_GIBLE, _0220
+    GoToIfEq VAR_RESULT, SPECIES_BAGON, _022E
     GoTo _0212
     End
 
@@ -262,8 +262,8 @@ _031A:
     Message 16
     CloseMessage
     GetPlayerStarterSpecies VAR_RESULT
-    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, _0353
-    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, _0361
+    GoToIfEq VAR_RESULT, SPECIES_GIBLE, _0353
+    GoToIfEq VAR_RESULT, SPECIES_BAGON, _0361
     GoTo _0345
     End
 

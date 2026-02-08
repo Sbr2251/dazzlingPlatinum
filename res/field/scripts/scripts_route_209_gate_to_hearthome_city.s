@@ -32,23 +32,23 @@ _001D:
     Message 1
     CloseMessage
     GetPlayerStarterSpecies VAR_RESULT
-    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, _00B3
-    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, _00C1
+    GoToIfEq VAR_RESULT, SPECIES_GIBLE, _00B3
+    GoToIfEq VAR_RESULT, SPECIES_BAGON, _00C1
     GoTo _00A5
     End
 
 _00A5:
-    StartTrainerBattle TRAINER_RIVAL_ROUTE_209_PIPLUP
+    StartTrainerBattle TRAINER_RIVAL_ROUTE_209_DRATINI
     GoTo _00CF
     End
 
 _00B3:
-    StartTrainerBattle TRAINER_RIVAL_ROUTE_209_TURTWIG
+    StartTrainerBattle TRAINER_RIVAL_ROUTE_209_GIBLE
     GoTo _00CF
     End
 
 _00C1:
-    StartTrainerBattle TRAINER_RIVAL_ROUTE_209_CHIMCHAR
+    StartTrainerBattle TRAINER_RIVAL_ROUTE_209_BAGON
     GoTo _00CF
     End
 

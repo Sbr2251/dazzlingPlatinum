@@ -358,21 +358,21 @@ Route201_StartRivalBattle:
     CloseMessage
     SetMovementType LOCALID_RIVAL, MOVEMENT_TYPE_LOOK_SOUTH
     GetPlayerStarterSpecies VAR_RESULT
-    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, Route201_StartFirstBattleTurtwig
-    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, Route201_StartFirstBattleChimchar
+    GoToIfEq VAR_RESULT, SPECIES_GIBLE, Route201_StartFirstBattleTurtwig
+    GoToIfEq VAR_RESULT, SPECIES_BAGON, Route201_StartFirstBattleChimchar
     GoTo Route201_StartFirstBattlePiplup
     End
 
 Route201_StartFirstBattlePiplup:
-    StartFirstBattle TRAINER_RIVAL_ROUTE_201_PIPLUP
+    StartFirstBattle TRAINER_RIVAL_ROUTE_201_DRATINI
     GoTo Route201_HandleRivalBattleEnd
 
 Route201_StartFirstBattleTurtwig:
-    StartFirstBattle TRAINER_RIVAL_ROUTE_201_TURTWIG
+    StartFirstBattle TRAINER_RIVAL_ROUTE_201_GIBLE
     GoTo Route201_HandleRivalBattleEnd
 
 Route201_StartFirstBattleChimchar:
-    StartFirstBattle TRAINER_RIVAL_ROUTE_201_CHIMCHAR
+    StartFirstBattle TRAINER_RIVAL_ROUTE_201_BAGON
     GoTo Route201_HandleRivalBattleEnd
 
 Route201_HandleRivalBattleEnd:

@@ -77,12 +77,12 @@ u16 SystemVars_GetRivalStarter(VarsFlags *varsFlags)
     u16 rivalStarter;
     u16 playerStarter = TryGetVarValue(varsFlags, VAR_PLAYER_STARTER);
 
-    if (playerStarter == SPECIES_TURTWIG) {
-        rivalStarter = SPECIES_CHIMCHAR;
-    } else if (playerStarter == SPECIES_CHIMCHAR) {
-        rivalStarter = SPECIES_PIPLUP;
+    if (playerStarter == SPECIES_GIBLE) {
+        rivalStarter = SPECIES_BAGON;
+    } else if (playerStarter == SPECIES_BAGON) {
+        rivalStarter = SPECIES_DRATINI;
     } else {
-        rivalStarter = SPECIES_TURTWIG;
+        rivalStarter = SPECIES_GIBLE;
     }
 
     return rivalStarter;
@@ -93,12 +93,12 @@ u16 SystemVars_GetPlayerCounterpartStarter(VarsFlags *varsFlags)
     u16 counterpartStarter;
     u16 playerStarter = TryGetVarValue(varsFlags, VAR_PLAYER_STARTER);
 
-    if (playerStarter == SPECIES_TURTWIG) {
-        counterpartStarter = SPECIES_PIPLUP;
-    } else if (playerStarter == SPECIES_CHIMCHAR) {
-        counterpartStarter = SPECIES_TURTWIG;
+    if (playerStarter == SPECIES_GIBLE) {
+        counterpartStarter = SPECIES_DRATINI;
+    } else if (playerStarter == SPECIES_BAGON) {
+        counterpartStarter = SPECIES_GIBLE;
     } else {
-        counterpartStarter = SPECIES_CHIMCHAR;
+        counterpartStarter = SPECIES_BAGON;
     }
 
     return counterpartStarter;

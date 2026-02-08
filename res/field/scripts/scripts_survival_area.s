@@ -167,8 +167,8 @@ _01BE:
     Message 2
     CloseMessage
     GetPlayerStarterSpecies VAR_RESULT
-    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, _0236
-    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, _0272
+    GoToIfEq VAR_RESULT, SPECIES_GIBLE, _0236
+    GoToIfEq VAR_RESULT, SPECIES_BAGON, _0272
     GoTo _01FA
     End
 
@@ -179,12 +179,12 @@ _01FA:
     End
 
 _021A:
-    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_1_PIPLUP
+    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_1_DRATINI
     GoTo _02AE
     End
 
 _0228:
-    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_2_PIPLUP
+    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_2_DRATINI
     GoTo _02AE
     End
 
@@ -195,12 +195,12 @@ _0236:
     End
 
 _0256:
-    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_1_TURTWIG
+    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_1_GIBLE
     GoTo _02AE
     End
 
 _0264:
-    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_2_TURTWIG
+    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_2_GIBLE
     GoTo _02AE
     End
 
@@ -211,12 +211,12 @@ _0272:
     End
 
 _0292:
-    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_1_CHIMCHAR
+    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_1_BAGON
     GoTo _02AE
     End
 
 _02A0:
-    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_2_CHIMCHAR
+    StartTrainerBattle TRAINER_RIVAL_SURVIVAL_AREA_2_BAGON
     GoTo _02AE
     End
 

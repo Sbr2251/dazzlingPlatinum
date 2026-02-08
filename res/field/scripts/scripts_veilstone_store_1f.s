@@ -88,9 +88,9 @@ VeilstoneStore1F_Socialite:
     FacePlayer
     GoToIfSet FLAG_VEILSTONE_STORE_1F_RECEIVED_MASK, VeilstoneStore1F_Socialite_AfterMaskGiven
     GetPlayerStarterSpecies VAR_RESULT
-    CallIfEq VAR_RESULT, SPECIES_TURTWIG, VeilstoneStore1F_Socialite_Turtwig
-    CallIfEq VAR_RESULT, SPECIES_CHIMCHAR, VeilstoneStore1F_Socialite_Chimchar
-    CallIfEq VAR_RESULT, SPECIES_PIPLUP, VeilstoneStore1F_Socialite_Piplup
+    CallIfEq VAR_RESULT, SPECIES_GIBLE, VeilstoneStore1F_Socialite_Turtwig
+    CallIfEq VAR_RESULT, SPECIES_BAGON, VeilstoneStore1F_Socialite_Chimchar
+    CallIfEq VAR_RESULT, SPECIES_DRATINI, VeilstoneStore1F_Socialite_Piplup
     SetVar VAR_VEILSTONE_STORE_MASK, LOCALID_ACCESSORY_ID
     BufferAccessoryNameWithArticle 0, LOCALID_ACCESSORY_ID
     Message VeilstoneStore1F_Text_IMadeAnAccessory

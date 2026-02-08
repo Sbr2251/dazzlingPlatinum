@@ -713,19 +713,19 @@ AmitySquare_CheckPartyHasSpecies:
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_HAPPINY
     GoToIfEq VAR_RESULT, TRUE, _01B6
-    CheckPartyHasSpecies VAR_RESULT, SPECIES_TURTWIG
+    CheckPartyHasSpecies VAR_RESULT, SPECIES_GIBLE
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_GROTLE
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_TORTERRA
     GoToIfEq VAR_RESULT, TRUE, _01B6
-    CheckPartyHasSpecies VAR_RESULT, SPECIES_CHIMCHAR
+    CheckPartyHasSpecies VAR_RESULT, SPECIES_BAGON
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_MONFERNO
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_INFERNAPE
     GoToIfEq VAR_RESULT, TRUE, _01B6
-    CheckPartyHasSpecies VAR_RESULT, SPECIES_PIPLUP
+    CheckPartyHasSpecies VAR_RESULT, SPECIES_DRATINI
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_PRINPLUP
     GoToIfEq VAR_RESULT, TRUE, _01B6
@@ -757,19 +757,19 @@ AmitySquare_CheckPartyHasSpecies_NationalDex:
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_SHROOMISH
     GoToIfEq VAR_RESULT, TRUE, _01B6
-    CheckPartyHasSpecies VAR_RESULT, SPECIES_TURTWIG
+    CheckPartyHasSpecies VAR_RESULT, SPECIES_GIBLE
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_GROTLE
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_TORTERRA
     GoToIfEq VAR_RESULT, TRUE, _01B6
-    CheckPartyHasSpecies VAR_RESULT, SPECIES_CHIMCHAR
+    CheckPartyHasSpecies VAR_RESULT, SPECIES_BAGON
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_MONFERNO
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_INFERNAPE
     GoToIfEq VAR_RESULT, TRUE, _01B6
-    CheckPartyHasSpecies VAR_RESULT, SPECIES_PIPLUP
+    CheckPartyHasSpecies VAR_RESULT, SPECIES_DRATINI
     GoToIfEq VAR_RESULT, TRUE, _01B6
     CheckPartyHasSpecies VAR_RESULT, SPECIES_PRINPLUP
     GoToIfEq VAR_RESULT, TRUE, _01B6
@@ -787,13 +787,13 @@ AmitySquare_CheckAllowedMon:
     GoToIfEq VAR_RESULT, SPECIES_DRIFLOON, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_BUNEARY, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_HAPPINY, AmitySquare_SetMonAllowedFlag
-    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, AmitySquare_SetMonAllowedFlag
+    GoToIfEq VAR_RESULT, SPECIES_GIBLE, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_GROTLE, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_TORTERRA, AmitySquare_SetMonAllowedFlag
-    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, AmitySquare_SetMonAllowedFlag
+    GoToIfEq VAR_RESULT, SPECIES_BAGON, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_MONFERNO, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_INFERNAPE, AmitySquare_SetMonAllowedFlag
-    GoToIfEq VAR_RESULT, SPECIES_PIPLUP, AmitySquare_SetMonAllowedFlag
+    GoToIfEq VAR_RESULT, SPECIES_DRATINI, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_PRINPLUP, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_EMPOLEON, AmitySquare_SetMonAllowedFlag
     SetVar VAR_RESULT, FALSE
@@ -816,13 +816,13 @@ AmitySquare_CheckAllowedMon_NationalDex:
     GoToIfEq VAR_RESULT, SPECIES_TORCHIC, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_SKITTY, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_SHROOMISH, AmitySquare_SetMonAllowedFlag
-    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, AmitySquare_SetMonAllowedFlag
+    GoToIfEq VAR_RESULT, SPECIES_GIBLE, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_GROTLE, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_TORTERRA, AmitySquare_SetMonAllowedFlag
-    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, AmitySquare_SetMonAllowedFlag
+    GoToIfEq VAR_RESULT, SPECIES_BAGON, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_MONFERNO, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_INFERNAPE, AmitySquare_SetMonAllowedFlag
-    GoToIfEq VAR_RESULT, SPECIES_PIPLUP, AmitySquare_SetMonAllowedFlag
+    GoToIfEq VAR_RESULT, SPECIES_DRATINI, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_PRINPLUP, AmitySquare_SetMonAllowedFlag
     GoToIfEq VAR_RESULT, SPECIES_EMPOLEON, AmitySquare_SetMonAllowedFlag
     SetVar VAR_RESULT, FALSE
@@ -841,13 +841,13 @@ AmitySquare_SetFollowerGfx:
     GoToIfEq VAR_0x8008, SPECIES_JIGGLYPUFF, AmitySquare_SetFollowerGfx_Jigglypuff
     GoToIfEq VAR_0x8008, SPECIES_SKITTY, AmitySquare_SetFollowerGfx_Skitty
     GoToIfEq VAR_0x8008, SPECIES_SHROOMISH, AmitySquare_SetFollowerGfx_Shroomish
-    GoToIfEq VAR_0x8008, SPECIES_TURTWIG, AmitySquare_SetFollowerGfx_Turtwig
+    GoToIfEq VAR_0x8008, SPECIES_GIBLE, AmitySquare_SetFollowerGfx_Turtwig
     GoToIfEq VAR_0x8008, SPECIES_GROTLE, AmitySquare_SetFollowerGfx_Grottle
     GoToIfEq VAR_0x8008, SPECIES_TORTERRA, AmitySquare_SetFollowerGfx_Torterra
-    GoToIfEq VAR_0x8008, SPECIES_CHIMCHAR, AmitySquare_SetFollowerGfx_Chimchar
+    GoToIfEq VAR_0x8008, SPECIES_BAGON, AmitySquare_SetFollowerGfx_Chimchar
     GoToIfEq VAR_0x8008, SPECIES_MONFERNO, AmitySquare_SetFollowerGfx_Monferno
     GoToIfEq VAR_0x8008, SPECIES_INFERNAPE, AmitySquare_SetFollowerGfx_Infernape
-    GoToIfEq VAR_0x8008, SPECIES_PIPLUP, AmitySquare_SetFollowerGfx_Piplup
+    GoToIfEq VAR_0x8008, SPECIES_DRATINI, AmitySquare_SetFollowerGfx_Piplup
     GoToIfEq VAR_0x8008, SPECIES_PRINPLUP, AmitySquare_SetFollowerGfx_Prinplup
     GoToIfEq VAR_0x8008, SPECIES_EMPOLEON, AmitySquare_SetFollowerGfx_Empoleon
     GoTo _02BB

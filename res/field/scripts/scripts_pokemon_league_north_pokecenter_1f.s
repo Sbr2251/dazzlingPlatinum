@@ -150,20 +150,20 @@ PokemonLeagueNorthPokecenter1F_RivalIntro:
     Message PokemonLeagueNorthPokecenter1F_Text_RivalIntro
     CloseMessage
     GetPlayerStarterSpecies VAR_RESULT
-    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, PokemonLeagueNorthPokecenter1F_StartRivalTurtwigBattle
-    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, PokemonLeagueNorthPokecenter1F_StartRivalChimcharBattle
+    GoToIfEq VAR_RESULT, SPECIES_GIBLE, PokemonLeagueNorthPokecenter1F_StartRivalTurtwigBattle
+    GoToIfEq VAR_RESULT, SPECIES_BAGON, PokemonLeagueNorthPokecenter1F_StartRivalChimcharBattle
     GoTo PokemonLeagueNorthPokecenter1F_StartRivalPiplupBattle
 
 PokemonLeagueNorthPokecenter1F_StartRivalPiplupBattle:
-    StartTrainerBattle TRAINER_RIVAL_POKEMON_LEAGUE_PIPLUP
+    StartTrainerBattle TRAINER_RIVAL_POKEMON_LEAGUE_DRATINI
     GoTo PokemonLeagueNorthPokecenter1F_RivalPostBattle
 
 PokemonLeagueNorthPokecenter1F_StartRivalTurtwigBattle:
-    StartTrainerBattle TRAINER_RIVAL_POKEMON_LEAGUE_TURTWIG
+    StartTrainerBattle TRAINER_RIVAL_POKEMON_LEAGUE_GIBLE
     GoTo PokemonLeagueNorthPokecenter1F_RivalPostBattle
 
 PokemonLeagueNorthPokecenter1F_StartRivalChimcharBattle:
-    StartTrainerBattle TRAINER_RIVAL_POKEMON_LEAGUE_CHIMCHAR
+    StartTrainerBattle TRAINER_RIVAL_POKEMON_LEAGUE_BAGON
     GoTo PokemonLeagueNorthPokecenter1F_RivalPostBattle
 
 PokemonLeagueNorthPokecenter1F_RivalPostBattle:
