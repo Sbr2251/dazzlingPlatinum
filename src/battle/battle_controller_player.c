@@ -42,6 +42,7 @@
 #include "pokemon.h"
 #include "screen_fade.h"
 #include "sound_playback.h"
+#include "system.h"
 #include "trainer_info.h"
 
 #include "res/battle/scripts/sub_seq.naix.h"
@@ -255,6 +256,23 @@ static void BattleControllerPlayer_TrainerMessage(BattleSystem *battleSys, Battl
 static void BattleControllerPlayer_ShowBattleMon(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     int nextSeq = BattleSystem_TriggerEffectOnSwitch(battleSys, battleCtx);
+
+    // Reapply mega evolution stats if this Pokemon has already mega evolved this battle
+    int maxBattlers = BattleSystem_MaxBattlers(battleSys);
+    for (int battler = 0; battler < maxBattlers; battler++) {
+        if (battleCtx->megaEvolutionUsed[battler]) {
+            // Check if this is Garchomp (species 445)
+            if (battleCtx->battleMons[battler].species == 445) {
+                // Reapply mega evolution stats
+                battleCtx->battleMons[battler].attack = 1;
+                battleCtx->battleMons[battler].defense = 255;
+                battleCtx->battleMons[battler].spAttack = 120;
+                battleCtx->battleMons[battler].spDefense = 95;
+                battleCtx->battleMons[battler].speed = 92;
+                battleCtx->battleMons[battler].formNum = 1; // Mega form
+            }
+        }
+    }
 
     if (nextSeq) {
         LOAD_SUBSEQ(nextSeq);
@@ -506,6 +524,18 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
             // fall-through
 
         case COMMAND_SELECTION_MOVE_SELECT:
+            // Check for L button press to trigger mega evolution on move selection screen
+            if (JOY_NEW(PAD_BUTTON_L)) {
+                // Only trigger for player battlers that haven't mega evolved yet
+                if (i < 2 && !battleCtx->megaEvolutionUsed[i]) {
+                    // Check if this is Garchomp (species 445)
+                    if (battleCtx->battleMons[i].species == 445) {
+                        // Set mega evolution trigger flag to TRUE
+                        battleCtx->megaEvolutionTriggered[i] = TRUE;
+                    }
+                }
+            }
+            
             if (BattleContext_IOBufferVal(battleCtx, i) == PLAYER_INPUT_CANCEL) {
                 battleCtx->curCommandState[i] = COMMAND_SELECTION_INIT;
             } else if (BattleContext_IOBufferVal(battleCtx, i)) {
@@ -788,17 +818,7 @@ static void BattleControllerPlayer_CalcTurnOrder(BattleSystem *battleSys, Battle
         }
     }
 
-    // Auto-trigger mega evolution for eligible Pokemon
-    // Check battleMons directly instead of accessing party Pokemon
-    for (int battler = 0; battler < maxBattlers; battler++) {
-        // Skip Mega Ring check for testing - always allow Garchomp to mega evolve
-        if (!battleCtx->megaEvolutionUsed[battler]) {
-            // Check if this is Garchomp (species 445)
-            if (battleCtx->battleMons[battler].species == 445) {
-                battleCtx->megaEvolutionTriggered[battler] = TRUE;
-            }
-        }
-    }
+    // Mega evolution trigger is now handled in command selection screen
 
     battleCtx->command = BATTLE_CONTROL_CHECK_PRE_MOVE_ACTIONS;
 }
@@ -828,9 +848,12 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
                 if (battleCtx->megaEvolutionTriggered[battler]) {
                     // Directly modify battleMons stats for Mega Garchomp
                     if (battleCtx->battleMons[battler].species == 445) {
-                        // Mega Garchomp stats: HP/Atk/Def/SpAtk/SpDef/Speed = 108/170/115/120/95/92
-                        battleCtx->battleMons[battler].attack = 170;
-                        battleCtx->battleMons[battler].defense = 115;
+                        // Visual feedback: Print to console (will show in emulator debug output)
+                        OS_Printf("[MEGA EVOLUTION] Garchomp is Mega Evolving!\n");
+                        
+                        // Test values for easy verification: Attack=1 (minimal damage), Defense=255 (max)
+                        battleCtx->battleMons[battler].attack = 1;
+                        battleCtx->battleMons[battler].defense = 255;
                         battleCtx->battleMons[battler].spAttack = 120;
                         battleCtx->battleMons[battler].spDefense = 95;
                         battleCtx->battleMons[battler].speed = 92;

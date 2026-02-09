@@ -3188,6 +3188,19 @@ static void ov16_02260C00(SysTask *param0, void *param1)
             }
 
             v8.unk_10 = v0->unk_1E;
+            
+            // Check if mega evolution is available for this battler
+            {
+                BattleContext *battleCtx = BattleSystem_Context(v0->unk_00);
+                int battler = v0->unk_1D;
+                v8.megaEvolutionAvailable = 0;
+                
+                if (battler < 2 && !battleCtx->megaEvolutionUsed[battler]) {
+                    if (battleCtx->battleMons[battler].species == 445) {
+                        v8.megaEvolutionAvailable = 1;
+                    }
+                }
+            }
 
             ov16_02268C04(v10, v11, v2, 11, 0, &v8);
             NARC_dtor(v10);

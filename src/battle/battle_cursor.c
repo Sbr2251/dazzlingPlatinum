@@ -2911,6 +2911,22 @@ static void DrawMoveTypeIcons(UnkStruct_ov16_02268A14 *param0)
             }
         }
     }
+    
+    // Add MEGA indicator sprite if mega evolution is available
+    if (v4->megaEvolutionAvailable) {
+        // Create a simple sprite to indicate mega evolution is available
+        // Position it in the bottom right area of the move selection screen
+        spriteTemplate.resources[0] = 20029; // Use an available resource ID
+        spriteTemplate.x = 200; // Bottom right X position
+        spriteTemplate.y = 160; // Bottom right Y position
+        
+        // Use ROCK type icon as visual indicator (placeholder for custom MEGA graphic)
+        param0->moveSelectSprites[4] = TypeIcon_NewTypeIconSprite(spriteSys, spriteMan, 6, &spriteTemplate); // Type 6 = Rock
+        
+        if (param0->moveSelectSprites[4] != NULL) {
+            ManagedSprite_SetPositionXYWithSubscreenOffset(param0->moveSelectSprites[4], spriteTemplate.x, spriteTemplate.y, (192 + 80) << FX32_SHIFT);
+        }
+    }
 }
 
 static void ov16_0226AFF4(UnkStruct_ov16_02268A14 *param0)
@@ -2919,7 +2935,7 @@ static void ov16_0226AFF4(UnkStruct_ov16_02268A14 *param0)
     SpriteSystem *v1 = BattleSystem_GetSpriteSystem(param0->battleSys);
     SpriteManager *v2 = BattleSystem_GetSpriteManager(param0->battleSys);
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 5; i++) {
         if (param0->moveSelectSprites[i] != NULL) {
             TypeIcon_DeleteSprite(param0->moveSelectSprites[i]);
             param0->moveSelectSprites[i] = NULL;

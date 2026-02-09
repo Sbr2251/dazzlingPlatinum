@@ -6,6 +6,7 @@ typedef struct {
     u8 unk_08[4];
     u8 unk_0C[4];
     u8 unk_10;
+    u8 megaEvolutionAvailable;
 } UnkStruct_ov16_02260C00;
 
 #endif // POKEPLATINUM_STRUCT_OV16_02260C00_H
