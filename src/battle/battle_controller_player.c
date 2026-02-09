@@ -791,9 +791,9 @@ static void BattleControllerPlayer_CalcTurnOrder(BattleSystem *battleSys, Battle
     // Auto-trigger mega evolution for eligible Pokemon
     // Check battleMons directly instead of accessing party Pokemon
     for (int battler = 0; battler < maxBattlers; battler++) {
-        int side = battler & 1; // 0 = player side, 1 = opponent side
-        if (battleCtx->hasMegaRing[side] && !battleCtx->megaEvolutionUsed[battler]) {
-            // Check if this is Garchomp (species 445) with ITEM_NONE
+        // Skip Mega Ring check for testing - always allow Garchomp to mega evolve
+        if (!battleCtx->megaEvolutionUsed[battler]) {
+            // Check if this is Garchomp (species 445)
             if (battleCtx->battleMons[battler].species == 445) {
                 battleCtx->megaEvolutionTriggered[battler] = TRUE;
             }
@@ -828,7 +828,7 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
                 if (battleCtx->megaEvolutionTriggered[battler]) {
                     // Directly modify battleMons stats for Mega Garchomp
                     if (battleCtx->battleMons[battler].species == 445) {
-                        // Mega Garchomp stats: 108/170/115/120/95/92
+                        // Mega Garchomp stats: HP/Atk/Def/SpAtk/SpDef/Speed = 108/170/115/120/95/92
                         battleCtx->battleMons[battler].attack = 170;
                         battleCtx->battleMons[battler].defense = 115;
                         battleCtx->battleMons[battler].spAttack = 120;
