@@ -104,4 +104,12 @@
 #define EGG_FORM_MANAPHY 1
 #define EGG_FORM_COUNT   2
 
+// Mega Evolution Forms
+// Note: Form IDs are species-specific and can overlap between species
+#define MEGA_FORM_GARCHOMP 0
+// Add more mega forms here as needed
+
+// Bit flag to identify mega evolution forms (prevents conflicts with regular forms)
+#define FORM_FLAG_MEGA (1 << 15)
+
 #endif
