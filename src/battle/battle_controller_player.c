@@ -797,7 +797,7 @@ static void BattleControllerPlayer_CalcTurnOrder(BattleSystem *battleSys, Battle
         int side = battler & 1; // 0 = player side, 1 = opponent side
         if (battleCtx->hasMegaRing[side] && !battleCtx->megaEvolutionUsed[battler]) {
             Pokemon *mon = BattleSystem_PartyPokemon(battleSys, battler, battleCtx->selectedPartySlot[battler]);
-            if (Pokemon_CanMegaEvolve(mon)) {
+            if (mon != NULL && Pokemon_CanMegaEvolve(mon)) {
                 battleCtx->megaEvolutionTriggered[battler] = TRUE;
             }
         }
@@ -830,8 +830,10 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
             for (battler = 0; battler < maxBattlers; battler++) {
                 if (battleCtx->megaEvolutionTriggered[battler]) {
                     Pokemon *mon = BattleSystem_PartyPokemon(battleSys, battler, battleCtx->selectedPartySlot[battler]);
-                    Pokemon_MegaEvolve(mon);
-                    battleCtx->megaEvolutionUsed[battler] = TRUE;
+                    if (mon != NULL) {
+                        Pokemon_MegaEvolve(mon);
+                        battleCtx->megaEvolutionUsed[battler] = TRUE;
+                    }
                     battleCtx->megaEvolutionTriggered[battler] = FALSE;
                     // TODO: Add mega evolution animation/message here
                 }
