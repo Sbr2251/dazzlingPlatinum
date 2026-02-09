@@ -19,7 +19,7 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .megaForm = MEGA_FORM_GARCHOMP,
         .requiredItem = ITEM_NONE,  // Placeholder: will be ITEM_GARCHOMPITE
         .baseStats = {108, 170, 115, 120, 95, 92},
-        .ability = ABILITY_SAND_VEIL,  // Placeholder: Sand Force doesn't exist in Gen 4
+        .ability = ABILITY_SAND_FORCE,
         .type1 = TYPE_DRAGON,
         .type2 = TYPE_GROUND,
     },

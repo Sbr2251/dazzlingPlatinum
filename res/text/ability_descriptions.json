@@ -862,8 +862,15 @@
     {
       "id": "pl_msg_00000612_00123",
       "en_US": [
-        "Reduces a sleeping foe’s\n",
-        "HP."
+        "Reduces HP of sleeping\n",
+        "foes."
+      ]
+    },
+    {
+      "id": "pl_msg_00000612_00124",
+      "en_US": [
+        "Boosts Rock, Ground, and\n",
+        "Steel moves in a sandstorm."
       ]
     }
   ]
