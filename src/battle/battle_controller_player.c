@@ -789,15 +789,12 @@ static void BattleControllerPlayer_CalcTurnOrder(BattleSystem *battleSys, Battle
     }
 
     // Auto-trigger mega evolution for eligible Pokemon
+    // Check battleMons directly instead of accessing party Pokemon
     for (int battler = 0; battler < maxBattlers; battler++) {
-        // Only mega evolve if:
-        // 1. Trainer has Mega Ring
-        // 2. Haven't mega evolved this battle
-        // 3. Pokemon can mega evolve
         int side = battler & 1; // 0 = player side, 1 = opponent side
         if (battleCtx->hasMegaRing[side] && !battleCtx->megaEvolutionUsed[battler]) {
-            Pokemon *mon = BattleSystem_PartyPokemon(battleSys, battler, battleCtx->selectedPartySlot[battler]);
-            if (mon != NULL && Pokemon_CanMegaEvolve(mon)) {
+            // Check if this is Garchomp (species 445) with ITEM_NONE
+            if (battleCtx->battleMons[battler].species == 445) {
                 battleCtx->megaEvolutionTriggered[battler] = TRUE;
             }
         }
@@ -829,9 +826,15 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
             // Process mega evolution for all triggered battlers
             for (battler = 0; battler < maxBattlers; battler++) {
                 if (battleCtx->megaEvolutionTriggered[battler]) {
-                    Pokemon *mon = BattleSystem_PartyPokemon(battleSys, battler, battleCtx->selectedPartySlot[battler]);
-                    if (mon != NULL) {
-                        Pokemon_MegaEvolve(mon);
+                    // Directly modify battleMons stats for Mega Garchomp
+                    if (battleCtx->battleMons[battler].species == 445) {
+                        // Mega Garchomp stats: 108/170/115/120/95/92
+                        battleCtx->battleMons[battler].attack = 170;
+                        battleCtx->battleMons[battler].defense = 115;
+                        battleCtx->battleMons[battler].spAttack = 120;
+                        battleCtx->battleMons[battler].spDefense = 95;
+                        battleCtx->battleMons[battler].speed = 92;
+                        battleCtx->battleMons[battler].formNum = 1; // Mega form
                         battleCtx->megaEvolutionUsed[battler] = TRUE;
                     }
                     battleCtx->megaEvolutionTriggered[battler] = FALSE;
