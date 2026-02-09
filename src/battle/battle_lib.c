@@ -2035,6 +2035,15 @@ void BattleContext_InitCounters(BattleSystem *battleSys, BattleContext *battleCt
 
     battleCtx->safariCatchStage = 6;
     battleCtx->safariEscapeCount = 6;
+
+    // Initialize mega evolution tracking
+    for (int i = 0; i < MAX_BATTLERS; i++) {
+        battleCtx->megaEvolutionUsed[i] = FALSE;
+        battleCtx->megaEvolutionTriggered[i] = FALSE;
+    }
+    // For now, assume player always has Mega Ring for testing
+    battleCtx->hasMegaRing[0] = TRUE;  // Player
+    battleCtx->hasMegaRing[1] = FALSE; // Opponent
 }
 
 void BattleSystem_UpdateAfterSwitch(BattleSystem *battleSys, BattleContext *battleCtx, int battler)

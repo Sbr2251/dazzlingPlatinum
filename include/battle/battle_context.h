@@ -310,6 +310,11 @@ struct BattleContext {
 
     u32 battleProgressFlag : 1;
     u32 padding3154_01 : 31;
+
+    // Mega Evolution tracking
+    u8 megaEvolutionUsed[MAX_BATTLERS];      // Has each battler used mega evolution this battle?
+    u8 megaEvolutionTriggered[MAX_BATTLERS]; // Will each battler mega evolve this turn?
+    BOOL hasMegaRing[2];                     // Does each trainer have the Mega Ring? (0=Player, 1=Opponent)
 };
 
 #endif // POKEPLATINUM_BATTLE_CONTEXT_H

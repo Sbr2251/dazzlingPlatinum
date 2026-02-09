@@ -25,6 +25,7 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
 #include "battle/battle_script.h"
+#include "battle/mega_evolution.h"
 #include "battle/common.h"
 #include "battle/ov16_0223B140.h"
 #include "battle/ov16_0223DF00.h"
@@ -787,13 +788,29 @@ static void BattleControllerPlayer_CalcTurnOrder(BattleSystem *battleSys, Battle
         }
     }
 
+    // Auto-trigger mega evolution for eligible Pokemon
+    for (int battler = 0; battler < maxBattlers; battler++) {
+        // Only mega evolve if:
+        // 1. Trainer has Mega Ring
+        // 2. Haven't mega evolved this battle
+        // 3. Pokemon can mega evolve
+        int side = battler & 1; // 0 = player side, 1 = opponent side
+        if (battleCtx->hasMegaRing[side] && !battleCtx->megaEvolutionUsed[battler]) {
+            Pokemon *mon = BattleSystem_PartyPokemon(battleSys, battler, battleCtx->selectedPartySlot[battler]);
+            if (Pokemon_CanMegaEvolve(mon)) {
+                battleCtx->megaEvolutionTriggered[battler] = TRUE;
+            }
+        }
+    }
+
     battleCtx->command = BATTLE_CONTROL_CHECK_PRE_MOVE_ACTIONS;
 }
 
 enum PreMoveActionState {
     PRE_MOVE_ACTION_START = 0,
 
-    PRE_MOVE_ACTION_STATE_TIGHTEN_FOCUS = PRE_MOVE_ACTION_START,
+    PRE_MOVE_ACTION_STATE_MEGA_EVOLUTION = PRE_MOVE_ACTION_START,
+    PRE_MOVE_ACTION_STATE_TIGHTEN_FOCUS,
     PRE_MOVE_ACTION_STATE_CHECK_RAGE_FLAG,
     PRE_MOVE_ACTION_STATE_SPEED_RNG,
 
@@ -808,6 +825,20 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
 
     do {
         switch (battleCtx->turnStartCheckState) {
+        case PRE_MOVE_ACTION_STATE_MEGA_EVOLUTION:
+            // Process mega evolution for all triggered battlers
+            for (battler = 0; battler < maxBattlers; battler++) {
+                if (battleCtx->megaEvolutionTriggered[battler]) {
+                    Pokemon *mon = BattleSystem_PartyPokemon(battleSys, battler, battleCtx->selectedPartySlot[battler]);
+                    Pokemon_MegaEvolve(mon);
+                    battleCtx->megaEvolutionUsed[battler] = TRUE;
+                    battleCtx->megaEvolutionTriggered[battler] = FALSE;
+                    // TODO: Add mega evolution animation/message here
+                }
+            }
+            battleCtx->turnStartCheckState++;
+            break;
+
         case PRE_MOVE_ACTION_STATE_TIGHTEN_FOCUS:
             while (battleCtx->turnStartCheckTemp < maxBattlers) {
                 battler = battleCtx->battlerActionOrder[battleCtx->turnStartCheckTemp];
@@ -4042,6 +4073,15 @@ static void BattleControllerPlayer_ScreenWipe(BattleSystem *battleSys, BattleCon
 static void BattleControllerPlayer_EndFight(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     u32 battleType = BattleSystem_BattleType(battleSys);
+
+    // Revert all mega evolutions at battle end
+    int maxBattlers = BattleSystem_MaxBattlers(battleSys);
+    for (int battler = 0; battler < maxBattlers; battler++) {
+        Pokemon *mon = BattleSystem_PartyPokemon(battleSys, battler, battleCtx->selectedPartySlot[battler]);
+        if (mon != NULL) {
+            Pokemon_RevertMegaEvolution(mon);
+        }
+    }
 
     if ((battleType & BATTLE_TYPE_LINK) == FALSE) {
         Party *playerParty = BattleSystem_Party(battleSys, BATTLER_US);
