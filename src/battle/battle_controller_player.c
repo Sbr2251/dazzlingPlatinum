@@ -852,9 +852,9 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
                         // Visual feedback: Print to console (will show in emulator debug output)
                         OS_Printf("[MEGA EVOLUTION] Garchomp is Mega Evolving!\n");
                         
-                        // Test values for easy verification: Attack=1 (minimal damage), Defense=255 (max)
-                        battleCtx->battleMons[battler].attack = 1;
-                        battleCtx->battleMons[battler].defense = 255;
+                        // Official Mega Garchomp stats
+                        battleCtx->battleMons[battler].attack = 170;
+                        battleCtx->battleMons[battler].defense = 115;
                         battleCtx->battleMons[battler].spAttack = 120;
                         battleCtx->battleMons[battler].spDefense = 95;
                         battleCtx->battleMons[battler].speed = 92;
