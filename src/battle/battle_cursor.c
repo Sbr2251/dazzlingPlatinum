@@ -289,6 +289,7 @@ static int ov16_0226A318(UnkStruct_ov16_02268A14 *param0, int param1, int param2
 static int ov16_0226A3F4(UnkStruct_ov16_02268A14 *param0, int param1, int param2);
 static void ov16_022699AC(UnkStruct_ov16_02268A14 *param0, int param1, int param2);
 static void DrawMoveTypeIcons(UnkStruct_ov16_02268A14 *param0);
+static void UpdateMegaIconState(UnkStruct_ov16_02268A14 *param0);
 static void ov16_0226AFF4(UnkStruct_ov16_02268A14 *param0);
 static void ov16_0226B028(UnkStruct_ov16_02268A14 *param0);
 static void ov16_0226B2BC(SysTaskFunc param0, UnkStruct_ov16_02268A14 *param1);
@@ -1606,6 +1607,11 @@ int BattleSystem_MenuInput(UnkStruct_ov16_02268A14 *param0)
 
     GF_ASSERT(v4->unk_18 != NULL);
 
+    // Update mega icon state if on move selection screen (menu 11)
+    if (param0->unk_66B == 11) {
+        UpdateMegaIconState(param0);
+    }
+    
     if (BattleSystem_BattleType(param0->battleSys) & BATTLE_TYPE_CATCH_TUTORIAL) {
         v1 = ov16_0226CD18(param0);
     } else {
@@ -2870,6 +2876,25 @@ static void ov16_0226AEA0(UnkStruct_ov16_02268A14 *param0, const String *param1,
     Text_AddPrinterWithParamsColorAndSpacing(&param3->unk_00, param2, param1, 0, 0, TEXT_SPEED_NO_TRANSFER, param4, 0, 0, NULL);
 }
 
+// Helper function to update mega icon palette when toggle state changes
+static void UpdateMegaIconState(UnkStruct_ov16_02268A14 *param0)
+{
+    BattleContext *battleCtx = BattleSystem_GetContext(param0->battleSys);
+    int battler = BattleSystem_GetBattlerIdPartner(param0->battleSys, 0);
+    
+    // Check if mega icon exists (sprite slot 4)
+    if (param0->moveSelectSprites[4] != NULL) {
+        // Change palette index based on megaEvolutionTriggered state
+        if (battleCtx->megaEvolutionTriggered[battler]) {
+            // Activated state - use different palette (e.g., palette 1 instead of 0)
+            Sprite_SetPaletteIndex(param0->moveSelectSprites[4]->sprite, 1);
+        } else {
+            // Normal state - use default palette
+            Sprite_SetPaletteIndex(param0->moveSelectSprites[4]->sprite, 0);
+        }
+    }
+}
+
 static void DrawMoveTypeIcons(UnkStruct_ov16_02268A14 *param0)
 {
     int i;
@@ -2920,8 +2945,8 @@ static void DrawMoveTypeIcons(UnkStruct_ov16_02268A14 *param0)
         spriteTemplate.x = 200; // Bottom right X position
         spriteTemplate.y = 160; // Bottom right Y position
         
-        // Use ROCK type icon as visual indicator (placeholder for custom MEGA graphic)
-        param0->moveSelectSprites[4] = TypeIcon_NewTypeIconSprite(spriteSys, spriteMan, 6, &spriteTemplate); // Type 6 = Rock
+        // Use DRAGON type icon as visual indicator for mega evolution
+        param0->moveSelectSprites[4] = TypeIcon_NewTypeIconSprite(spriteSys, spriteMan, 16, &spriteTemplate); // Type 16 = Dragon
         
         if (param0->moveSelectSprites[4] != NULL) {
             ManagedSprite_SetPositionXYWithSubscreenOffset(param0->moveSelectSprites[4], spriteTemplate.x, spriteTemplate.y, (192 + 80) << FX32_SHIFT);

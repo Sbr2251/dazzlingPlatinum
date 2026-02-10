@@ -524,14 +524,15 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
             // fall-through
 
         case COMMAND_SELECTION_MOVE_SELECT:
-            // Check for L button press to trigger mega evolution on move selection screen
+            // Check for L button press to toggle mega evolution on move selection screen
             if (JOY_NEW(PAD_BUTTON_L)) {
                 // Only trigger for player battlers that haven't mega evolved yet
                 if (i < 2 && !battleCtx->megaEvolutionUsed[i]) {
                     // Check if this is Garchomp (species 445)
                     if (battleCtx->battleMons[i].species == 445) {
-                        // Set mega evolution trigger flag to TRUE
-                        battleCtx->megaEvolutionTriggered[i] = TRUE;
+                        // Toggle mega evolution trigger flag (can press L multiple times)
+                        battleCtx->megaEvolutionTriggered[i] = !battleCtx->megaEvolutionTriggered[i];
+                        OS_Printf("[MEGA] L pressed - megaEvolutionTriggered[%d] = %d\n", i, battleCtx->megaEvolutionTriggered[i]);
                     }
                 }
             }
