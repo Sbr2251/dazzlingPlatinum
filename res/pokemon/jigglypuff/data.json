@@ -7,7 +7,7 @@
         "special_attack": 45,
         "special_defense": 25
     },
-    "types": [ "TYPE_NORMAL", "TYPE_NORMAL" ],
+    "types": [ "TYPE_NORMAL", "TYPE_FAIRY" ],
     "catch_rate": 170,
     "base_exp_reward": 76,
     "ev_yields": {

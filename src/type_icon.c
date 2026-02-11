@@ -12,7 +12,7 @@
 #include "sprite_system.h"
 
 ALIGN_4 static const u32 sMoveTypeIconIndex[] = {
-    0xEA, // 0 to 17 are pokemon types
+    0xEA, // 0 to 18 are pokemon types
     0xE1,
     0xE3,
     0xEB,
@@ -30,7 +30,8 @@ ALIGN_4 static const u32 sMoveTypeIconIndex[] = {
     0xE6,
     0xDD,
     0xE0,
-    0xF0, // 18 to 22 are contest types
+    0xE0, // TYPE_FAIRY - placeholder, reuse DARK icon until Fairy graphic is added
+    0xF0, // 19 to 23 are contest types
     0xDB,
     0xDC,
     0xE8,
@@ -38,7 +39,7 @@ ALIGN_4 static const u32 sMoveTypeIconIndex[] = {
 };
 
 ALIGN_4 static const u8 sMoveTypeIconPaletteIndex[] = {
-    0x0, // 0 to 17 are pokemon types
+    0x0, // 0 to 18 are pokemon types
     0x0,
     0x1,
     0x1,
@@ -56,7 +57,8 @@ ALIGN_4 static const u8 sMoveTypeIconPaletteIndex[] = {
     0x1,
     0x2,
     0x0,
-    0x0, // 18 to 22 are contest types
+    0x1, // TYPE_FAIRY - placeholder palette
+    0x0, // 19 to 23 are contest types
     0x1,
     0x1,
     0x2,

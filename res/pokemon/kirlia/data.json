@@ -7,7 +7,7 @@
         "special_attack": 65,
         "special_defense": 55
     },
-    "types": [ "TYPE_PSYCHIC", "TYPE_PSYCHIC" ],
+    "types": [ "TYPE_PSYCHIC", "TYPE_FAIRY" ],
     "catch_rate": 120,
     "base_exp_reward": 140,
     "ev_yields": {

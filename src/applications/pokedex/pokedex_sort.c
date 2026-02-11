@@ -57,6 +57,7 @@ enum PokedexDataSortIndex {
     PDSI_ICE,
     PDSI_DRAGON,
     PDSI_DARK,
+    PDSI_FAIRY,
     PDSI_QUADRUPED,
     PDSI_BIPEDALTAILLESS,
     PDSI_BIPEDALTAILED,
@@ -875,6 +876,9 @@ static void FilterByType(int typeFilter, u16 *resultingPokedex, int *numResultin
         break;
     case FT_DARK:
         pokedexFromFile = PokedexFromNARC(heapID, PDSI_DARK, &pokedexLength);
+        break;
+    case FT_FAIRY:
+        pokedexFromFile = PokedexFromNARC(heapID, PDSI_FAIRY, &pokedexLength);
         break;
     default:
         GF_ASSERT(0);

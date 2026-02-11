@@ -921,6 +921,9 @@ static void FilterTypeMessage(PokedexGraphicData **param0, int typeFilter, enum 
     case FT_DARK:
         entryID = pl_msg_pokedex_dark;
         break;
+    case FT_FAIRY:
+        entryID = pl_msg_pokedex_fairy;
+        break;
     }
 
     String *filterMessage = PokedexMain_GetMessage(entryID, heapID);

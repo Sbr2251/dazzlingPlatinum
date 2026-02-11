@@ -1,7 +1,7 @@
 {
     "name": "Sweet Kiss",
     "class": "CLASS_STATUS",
-    "type": "TYPE_NORMAL",
+    "type": "TYPE_FAIRY",
     "power": 0,
     "accuracy": 75,
     "pp": 10,

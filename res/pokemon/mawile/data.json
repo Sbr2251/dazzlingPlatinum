@@ -7,7 +7,7 @@
         "special_attack": 55,
         "special_defense": 55
     },
-    "types": [ "TYPE_STEEL", "TYPE_STEEL" ],
+    "types": [ "TYPE_STEEL", "TYPE_FAIRY" ],
     "catch_rate": 45,
     "base_exp_reward": 98,
     "ev_yields": {

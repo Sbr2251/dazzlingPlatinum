@@ -54,6 +54,7 @@ enum FilterType {
     FT_ICE,
     FT_DRAGON,
     FT_DARK,
+    FT_FAIRY,
     MAX_FILTER_TYPE
 };
 
