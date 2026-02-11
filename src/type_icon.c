@@ -30,7 +30,7 @@ ALIGN_4 static const u32 sMoveTypeIconIndex[] = {
     0xE6,
     0xDD,
     0xE0,
-    0xE0, // TYPE_FAIRY - placeholder, reuse DARK icon until Fairy graphic is added
+    0x157, // TYPE_FAIRY
     0xF0, // 19 to 23 are contest types
     0xDB,
     0xDC,
@@ -57,7 +57,7 @@ ALIGN_4 static const u8 sMoveTypeIconPaletteIndex[] = {
     0x1,
     0x2,
     0x0,
-    0x1, // TYPE_FAIRY - placeholder palette
+    0x1, // TYPE_FAIRY
     0x0, // 19 to 23 are contest types
     0x1,
     0x1,
