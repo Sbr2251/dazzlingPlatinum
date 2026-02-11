@@ -849,16 +849,32 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
                 if (battleCtx->megaEvolutionTriggered[battler]) {
                     // Directly modify battleMons stats for Mega Garchomp
                     if (battleCtx->battleMons[battler].species == 445) {
-                        // Visual feedback: Print to console (will show in emulator debug output)
-                        OS_Printf("[MEGA EVOLUTION] Garchomp is Mega Evolving!\n");
+                        // Test value: Attack=1 for easy verification
+                        u16 newAttack = 1;
+                        u16 newDefense = 115;
+                        u16 newSpAttack = 120;
+                        u16 newSpDefense = 95;
+                        u16 newSpeed = 92;
                         
-                        // Official Mega Garchomp stats
-                        battleCtx->battleMons[battler].attack = 170;
-                        battleCtx->battleMons[battler].defense = 115;
-                        battleCtx->battleMons[battler].spAttack = 120;
-                        battleCtx->battleMons[battler].spDefense = 95;
-                        battleCtx->battleMons[battler].speed = 92;
+                        // Update battleMons stats (for battle calculations)
+                        battleCtx->battleMons[battler].attack = newAttack;
+                        battleCtx->battleMons[battler].defense = newDefense;
+                        battleCtx->battleMons[battler].spAttack = newSpAttack;
+                        battleCtx->battleMons[battler].spDefense = newSpDefense;
+                        battleCtx->battleMons[battler].speed = newSpeed;
                         battleCtx->battleMons[battler].formNum = 1; // Mega form
+                        
+                        // Update party Pokemon stats (for status screen display)
+                        Party *party = BattleSystem_Party(battleSys, battler);
+                        int partySlot = battleCtx->selectedPartySlot[battler];
+                        Pokemon *partyMon = Party_GetPokemonBySlotIndex(party, partySlot);
+                        
+                        Pokemon_SetValue(partyMon, MON_DATA_ATK, &newAttack);
+                        Pokemon_SetValue(partyMon, MON_DATA_DEF, &newDefense);
+                        Pokemon_SetValue(partyMon, MON_DATA_SPATK, &newSpAttack);
+                        Pokemon_SetValue(partyMon, MON_DATA_SPDEF, &newSpDefense);
+                        Pokemon_SetValue(partyMon, MON_DATA_SPEED, &newSpeed);
+                        
                         battleCtx->megaEvolutionUsed[battler] = TRUE;
                     }
                     battleCtx->megaEvolutionTriggered[battler] = FALSE;

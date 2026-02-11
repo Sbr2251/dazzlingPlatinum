@@ -2941,8 +2941,11 @@ static void DrawMoveTypeIcons(UnkStruct_ov16_02268A14 *param0)
         spriteTemplate.x = 200; // Bottom right X position
         spriteTemplate.y = 160; // Bottom right Y position
         
+        // Load DRAGON type character data into the resource
+        TypeIcon_LoadChar(spriteSys, spriteMan, NNS_G2D_VRAM_TYPE_2DSUB, TYPE_DRAGON, 20029);
+        
         // Use DRAGON type icon as visual indicator for mega evolution
-        param0->moveSelectSprites[4] = TypeIcon_NewTypeIconSprite(spriteSys, spriteMan, 16, &spriteTemplate); // Type 16 = Dragon
+        param0->moveSelectSprites[4] = TypeIcon_NewTypeIconSprite(spriteSys, spriteMan, TYPE_DRAGON, &spriteTemplate);
         
         if (param0->moveSelectSprites[4] != NULL) {
             ManagedSprite_SetPositionXYWithSubscreenOffset(param0->moveSelectSprites[4], spriteTemplate.x, spriteTemplate.y, (192 + 80) << FX32_SHIFT);
@@ -3832,6 +3835,24 @@ static int BattleSystem_MenuKeys(UnkStruct_ov16_02268A14 *param0)
         return 0xffffffff;
     }
 
+    // Check for L button press to toggle mega evolution
+    if (gSystem.pressedKeys & PAD_BUTTON_L) {
+        BattleContext *battleCtx = BattleSystem_Context(param0->battleSys);
+        int battler = 0; // Player is always battler 0
+        
+        // Toggle mega evolution
+        battleCtx->megaEvolutionTriggered[battler] = !battleCtx->megaEvolutionTriggered[battler];
+        
+        // Change icon palette if icon exists
+        if (param0->moveSelectSprites[4] != NULL) {
+            // Toggle between palette 0 and palette 1
+            int newPalette = battleCtx->megaEvolutionTriggered[battler] ? 1 : 0;
+            ManagedSprite_SetExplicitPalette(param0->moveSelectSprites[4], newPalette);
+        }
+        
+        Sound_PlayEffect(SEQ_SE_CONFIRM);
+    }
+    
     if (!cursor->isActive) { // Check if the cursor is inactive
         if ((param0->unk_6C0 == 1) || (gSystem.pressedKeys & (PAD_BUTTON_A | PAD_BUTTON_B | PAD_BUTTON_X | PAD_BUTTON_Y | PAD_KEY_RIGHT | PAD_KEY_LEFT | PAD_KEY_UP | PAD_KEY_DOWN))) {
             if (param0->unk_6C0 == 0) { // If a key was pressed, play sfx
