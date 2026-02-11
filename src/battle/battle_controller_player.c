@@ -871,8 +871,8 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
                         
                         Pokemon_SetValue(partyMon, MON_DATA_ATK, &newAttack);
                         Pokemon_SetValue(partyMon, MON_DATA_DEF, &newDefense);
-                        Pokemon_SetValue(partyMon, MON_DATA_SPATK, &newSpAttack);
-                        Pokemon_SetValue(partyMon, MON_DATA_SPDEF, &newSpDefense);
+                        Pokemon_SetValue(partyMon, MON_DATA_SP_ATK, &newSpAttack);
+                        Pokemon_SetValue(partyMon, MON_DATA_SP_DEF, &newSpDefense);
                         Pokemon_SetValue(partyMon, MON_DATA_SPEED, &newSpeed);
                         
                         battleCtx->megaEvolutionUsed[battler] = TRUE;
