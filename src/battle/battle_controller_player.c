@@ -4180,9 +4180,13 @@ static void BattleControllerPlayer_EndFight(BattleSystem *battleSys, BattleConte
 {
     u32 battleType = BattleSystem_BattleType(battleSys);
 
-    // Mega evolution reversion not needed - we only modify battleMons, not party Pokemon
-    // The battleMons array is discarded after battle ends anyway
-    // TODO: When we implement proper party Pokemon modification, add reversion here
+    // Revert any mega evolved Pokemon back to their base forms
+    {
+        Party *party = BattleSystem_Party(battleSys, BATTLER_US);
+        for (int i = 0; i < Party_GetCurrentCount(party); i++) {
+            Pokemon_RevertMegaEvolution(Party_GetPokemonBySlotIndex(party, i));
+        }
+    }
 
     if ((battleType & BATTLE_TYPE_LINK) == FALSE) {
         Party *playerParty = BattleSystem_Party(battleSys, BATTLER_US);
