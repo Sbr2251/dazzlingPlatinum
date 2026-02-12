@@ -8485,8 +8485,26 @@
     {
       "id": "pl_msg_00000368_01268",
       "en_US": [
-        "The Distortion World’s {STRVAR_1 1, 0, 0}\n",
+        "The Distortion World's {STRVAR_1 1, 0, 0}\n",
         "appeared!\r"
+      ]
+    },
+    {
+      "id": "pl_msg_00000368_01269",
+      "en_US": "{STRVAR_1 1, 0, 0} Mega Evolved!"
+    },
+    {
+      "id": "pl_msg_00000368_01270",
+      "en_US": [
+        "The wild {STRVAR_1 1, 0, 0}\n",
+        "Mega Evolved!"
+      ]
+    },
+    {
+      "id": "pl_msg_00000368_01271",
+      "en_US": [
+        "The foe's {STRVAR_1 1, 0, 0}\n",
+        "Mega Evolved!"
       ]
     }
   ]

@@ -916,8 +916,11 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
     do {
         switch (battleCtx->turnStartCheckState) {
         case PRE_MOVE_ACTION_STATE_MEGA_EVOLUTION:
-            // Process mega evolution for all triggered battlers
-            for (battler = 0; battler < maxBattlers; battler++) {
+            // Process mega evolution for all triggered battlers (one at a time with animation)
+            while (battleCtx->turnStartCheckTemp < maxBattlers) {
+                battler = battleCtx->turnStartCheckTemp;
+                battleCtx->turnStartCheckTemp++;
+
                 if (battleCtx->megaEvolutionTriggered[battler]) {
                     int species = battleCtx->battleMons[battler].species;
                     int heldItem = battleCtx->battleMons[battler].heldItem;
@@ -928,9 +931,17 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
                         battleCtx->megaEvolutionUsed[battler] = TRUE;
                     }
                     battleCtx->megaEvolutionTriggered[battler] = FALSE;
-                    // TODO: Add mega evolution animation/message here
+
+                    // Play mega evolution animation
+                    battleCtx->msgBattlerTemp = battler;
+                    LOAD_SUBSEQ(subscript_mega_evolution);
+                    battleCtx->commandNext = battleCtx->command;
+                    battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
+                    return;
                 }
             }
+
+            battleCtx->turnStartCheckTemp = 0;
             battleCtx->turnStartCheckState++;
             break;
 
