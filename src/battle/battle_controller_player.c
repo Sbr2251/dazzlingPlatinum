@@ -926,18 +926,19 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
                     int heldItem = battleCtx->battleMons[battler].heldItem;
                     const MegaEvolutionData *megaData = GetMegaEvolutionData(species, heldItem);
 
+                    battleCtx->megaEvolutionTriggered[battler] = FALSE;
+
                     if (megaData != NULL) {
                         ApplyMegaEvolutionStats(battleSys, battleCtx, battler, megaData);
                         battleCtx->megaEvolutionUsed[battler] = TRUE;
-                    }
-                    battleCtx->megaEvolutionTriggered[battler] = FALSE;
 
-                    // Play mega evolution animation
-                    battleCtx->msgBattlerTemp = battler;
-                    LOAD_SUBSEQ(subscript_mega_evolution);
-                    battleCtx->commandNext = battleCtx->command;
-                    battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
-                    return;
+                        // Play mega evolution animation
+                        battleCtx->msgBattlerTemp = battler;
+                        LOAD_SUBSEQ(subscript_mega_evolution);
+                        battleCtx->commandNext = battleCtx->command;
+                        battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
+                        return;
+                    }
                 }
             }
 
