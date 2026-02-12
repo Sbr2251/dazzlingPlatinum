@@ -2043,7 +2043,7 @@ void BattleContext_InitCounters(BattleSystem *battleSys, BattleContext *battleCt
     }
     // For now, assume player always has Mega Ring for testing
     battleCtx->hasMegaRing[0] = TRUE;  // Player
-    battleCtx->hasMegaRing[1] = FALSE; // Opponent
+    battleCtx->hasMegaRing[1] = TRUE;  // Opponent
 }
 
 void BattleSystem_UpdateAfterSwitch(BattleSystem *battleSys, BattleContext *battleCtx, int battler)
