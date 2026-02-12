@@ -1,0 +1,23 @@
+{
+    "name": "Play Rough",
+    "class": "CLASS_PHYSICAL",
+    "type": "TYPE_FAIRY",
+    "power": 90,
+    "accuracy": 90,
+    "pp": 10,
+    "effect": {
+        "type": "BATTLE_EFFECT_LOWER_ATTACK_HIT",
+        "chance": 10
+    },
+    "range": "RANGE_SINGLE_TARGET",
+    "priority": 0,
+    "flags": [
+        "MOVE_FLAG_MAKES_CONTACT",
+        "MOVE_FLAG_CAN_PROTECT",
+        "MOVE_FLAG_CAN_MIRROR_MOVE"
+    ],
+    "contest": {
+        "effect": "CONTEST_EFFECT_VOLTAGE",
+        "type": "CONTEST_TYPE_CUTE"
+    }
+}
