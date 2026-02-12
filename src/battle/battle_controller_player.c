@@ -433,6 +433,17 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
             if (Battler_BootState(BattleSystem_BattlerData(battleSys, i)) == BATTLER_BOOT_STATE_AI || battleCtx->totalTurns) {
                 BattleController_EmitSetCommandSelection(battleSys, battleCtx, i, battleCtx->selectedPartySlot[i]);
                 battleCtx->curCommandState[i] = COMMAND_SELECTION_SELECT;
+
+                // Auto-trigger mega evolution for AI battlers
+                if (Battler_BootState(BattleSystem_BattlerData(battleSys, i)) == BATTLER_BOOT_STATE_AI
+                    && !battleCtx->megaEvolutionUsed[i]
+                    && !battleCtx->megaEvolutionTriggered[i]) {
+                    int species = battleCtx->battleMons[i].species;
+                    int heldItem = battleCtx->battleMons[i].heldItem;
+                    if (GetMegaEvolutionData(species, heldItem) != NULL) {
+                        battleCtx->megaEvolutionTriggered[i] = TRUE;
+                    }
+                }
             } else {
                 battleCtx->curCommandState[i] = COMMAND_SELECTION_SELECT2;
             }

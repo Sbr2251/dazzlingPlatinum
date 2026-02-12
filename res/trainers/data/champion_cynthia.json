@@ -88,7 +88,7 @@
             "species": "SPECIES_GARCHOMP",
             "form": 0,
             "level": 62,
-            "item": "ITEM_SITRUS_BERRY",
+            "item": "ITEM_GARCHOMPITE",
             "moves": [
                 "MOVE_DRAGON_RUSH",
                 "MOVE_EARTHQUAKE",
