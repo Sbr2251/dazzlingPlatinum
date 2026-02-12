@@ -112,11 +112,7 @@
         ]
     },
     "evolutions": [
-        [
-            "EVO_TRADE_WITH_HELD_ITEM",
-            "ITEM_METAL_COAT",
-            "SPECIES_STEELIX"
-        ]
+        [ "EVO_LEVEL", 30, "SPECIES_STEELIX" ]
     ],
     "offspring": "SPECIES_ONIX",
     "footprint": {

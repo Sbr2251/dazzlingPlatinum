@@ -92,11 +92,7 @@
         ]
     },
     "evolutions": [
-        [
-            "EVO_TRADE_WITH_HELD_ITEM",
-            "ITEM_DRAGON_SCALE",
-            "SPECIES_KINGDRA"
-        ]
+        [ "EVO_LEVEL", 42, "SPECIES_KINGDRA" ]
     ],
     "offspring": "SPECIES_HORSEA",
     "footprint": {

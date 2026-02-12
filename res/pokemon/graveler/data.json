@@ -100,7 +100,7 @@
         ]
     },
     "evolutions": [
-        [ "EVO_TRADE", "SPECIES_GOLEM" ]
+        [ "EVO_LEVEL", 37, "SPECIES_GOLEM" ]
     ],
     "offspring": "SPECIES_GEODUDE",
     "footprint": {

@@ -98,7 +98,7 @@
         ]
     },
     "evolutions": [
-        [ "EVO_TRADE", "SPECIES_MACHAMP" ]
+        [ "EVO_LEVEL", 37, "SPECIES_MACHAMP" ]
     ],
     "offspring": "SPECIES_MACHOP",
     "footprint": {
