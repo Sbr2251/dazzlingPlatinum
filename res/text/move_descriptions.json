@@ -4580,7 +4580,7 @@
         "of the moon, the user\n",
         "attacks the target.\n",
         "It may also lower the\n",
-        "target's Sp. Atk."
+        "target’s Sp. Atk."
       ]
     },
     {
@@ -4597,7 +4597,7 @@
         "Letting out a charming\n",
         "cry, the user does\n",
         "emotional damage to\n",
-        "opposing Pok\u00e9mon.\n",
+        "opposing Pokémon.\n",
         "This attack never misses."
       ]
     },
@@ -4605,8 +4605,8 @@
       "id": "pl_msg_00000646_00471",
       "en_US": [
         "The user steals the\n",
-        "target's energy with a\n",
-        "kiss. The user's HP\n",
+        "target’s energy with a\n",
+        "kiss. The user’s HP\n",
         "is restored by over\n",
         "half the damage taken."
       ]
@@ -4618,14 +4618,14 @@
         "with the target and\n",
         "attacks it. This may\n",
         "also lower the\n",
-        "target's Attack stat."
+        "target’s Attack stat."
       ]
     },
     {
       "id": "pl_msg_00000646_00473",
       "en_US": [
         "The user damages\n",
-        "opposing Pok\u00e9mon by\n",
+        "opposing Pokémon by\n",
         "emitting a powerful\n",
         "flash."
       ]
