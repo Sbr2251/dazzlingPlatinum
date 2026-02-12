@@ -38,6 +38,7 @@
             [ 2, "MOVE_CHARM" ],
             [ 7, "MOVE_TAIL_WHIP" ],
             [ 10, "MOVE_BUBBLE" ],
+            [ 13, "MOVE_DISARMING_VOICE" ],
             [ 15, "MOVE_SLAM" ],
             [ 18, "MOVE_WATER_GUN" ]
         ],

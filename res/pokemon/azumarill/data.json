@@ -45,6 +45,7 @@
             [ 20, "MOVE_BUBBLE_BEAM" ],
             [ 27, "MOVE_AQUA_RING" ],
             [ 33, "MOVE_DOUBLE_EDGE" ],
+            [ 33, "MOVE_PLAY_ROUGH" ],
             [ 40, "MOVE_RAIN_DANCE" ],
             [ 47, "MOVE_AQUA_TAIL" ],
             [ 54, "MOVE_HYDRO_PUMP" ]

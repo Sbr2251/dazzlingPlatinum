@@ -41,6 +41,7 @@
             [ 17, "MOVE_ROLLOUT" ],
             [ 21, "MOVE_DOUBLE_SLAP" ],
             [ 25, "MOVE_REST" ],
+            [ 26, "MOVE_DRAINING_KISS" ],
             [ 29, "MOVE_BODY_SLAM" ],
             [ 33, "MOVE_GYRO_BALL" ],
             [ 37, "MOVE_WAKE_UP_SLAP" ],

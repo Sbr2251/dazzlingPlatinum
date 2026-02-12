@@ -45,6 +45,7 @@
             [ 22, "MOVE_WAKE_UP_SLAP" ],
             [ 25, "MOVE_COSMIC_POWER" ],
             [ 28, "MOVE_LUCKY_CHANT" ],
+            [ 28, "MOVE_DRAINING_KISS" ],
             [ 31, "MOVE_METRONOME" ],
             [ 34, "MOVE_GRAVITY" ],
             [ 37, "MOVE_MOONLIGHT" ],

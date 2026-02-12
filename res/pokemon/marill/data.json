@@ -40,6 +40,7 @@
             [ 10, "MOVE_WATER_GUN" ],
             [ 15, "MOVE_ROLLOUT" ],
             [ 18, "MOVE_BUBBLE_BEAM" ],
+            [ 20, "MOVE_DRAINING_KISS" ],
             [ 23, "MOVE_AQUA_RING" ],
             [ 27, "MOVE_DOUBLE_EDGE" ],
             [ 32, "MOVE_RAIN_DANCE" ],

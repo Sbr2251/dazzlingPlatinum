@@ -45,6 +45,7 @@
             [ 22, "MOVE_MAGICAL_LEAF" ],
             [ 25, "MOVE_CALM_MIND" ],
             [ 31, "MOVE_PSYCHIC" ],
+            [ 33, "MOVE_DAZZLING_GLEAM" ],
             [ 36, "MOVE_IMPRISON" ],
             [ 39, "MOVE_FUTURE_SIGHT" ],
             [ 45, "MOVE_CHARM" ],

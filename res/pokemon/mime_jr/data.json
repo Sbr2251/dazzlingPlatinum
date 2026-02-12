@@ -40,6 +40,7 @@
             [ 4, "MOVE_COPYCAT" ],
             [ 8, "MOVE_MEDITATE" ],
             [ 11, "MOVE_ENCORE" ],
+            [ 13, "MOVE_DISARMING_VOICE" ],
             [ 15, "MOVE_DOUBLE_SLAP" ],
             [ 18, "MOVE_MIMIC" ],
             [ 22, "MOVE_LIGHT_SCREEN" ],

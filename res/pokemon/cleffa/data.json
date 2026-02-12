@@ -39,6 +39,7 @@
             [ 4, "MOVE_ENCORE" ],
             [ 7, "MOVE_SING" ],
             [ 10, "MOVE_SWEET_KISS" ],
+            [ 10, "MOVE_FAIRY_WIND" ],
             [ 13, "MOVE_COPYCAT" ],
             [ 16, "MOVE_MAGICAL_LEAF" ]
         ],

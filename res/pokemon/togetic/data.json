@@ -44,6 +44,7 @@
             [ 15, "MOVE_YAWN" ],
             [ 19, "MOVE_ENCORE" ],
             [ 24, "MOVE_FOLLOW_ME" ],
+            [ 24, "MOVE_DRAINING_KISS" ],
             [ 28, "MOVE_WISH" ],
             [ 33, "MOVE_ANCIENT_POWER" ],
             [ 37, "MOVE_SAFEGUARD" ],

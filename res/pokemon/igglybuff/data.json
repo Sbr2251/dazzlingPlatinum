@@ -38,6 +38,7 @@
             [ 1, "MOVE_CHARM" ],
             [ 5, "MOVE_DEFENSE_CURL" ],
             [ 9, "MOVE_POUND" ],
+            [ 12, "MOVE_DISARMING_VOICE" ],
             [ 13, "MOVE_SWEET_KISS" ],
             [ 17, "MOVE_COPYCAT" ]
         ],

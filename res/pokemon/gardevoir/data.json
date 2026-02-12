@@ -47,6 +47,7 @@
             [ 25, "MOVE_CALM_MIND" ],
             [ 33, "MOVE_PSYCHIC" ],
             [ 40, "MOVE_IMPRISON" ],
+            [ 42, "MOVE_DAZZLING_GLEAM" ],
             [ 45, "MOVE_FUTURE_SIGHT" ],
             [ 48, "MOVE_MOONBLAST" ],
             [ 53, "MOVE_CAPTIVATE" ],
