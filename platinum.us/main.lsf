@@ -287,6 +287,7 @@ Static main
 	Object main.nef.p/src_unk_02073700.c.o
 	Object main.nef.p/src_simple3d.c.o
 	Object main.nef.p/src_pokemon.c.o
+	Object main.nef.p/src_pokemon_mega_data.c.o
 	Object main.nef.p/src_move_table.c.o
 	Object main.nef.p/src_trainer_data.c.o
 	Object main.nef.p/src_pc_boxes.c.o
@@ -705,6 +706,7 @@ Overlay battle
 	Object main.nef.p/src_battle_ov16_0226DB7C.c.o
 	Object main.nef.p/src_battle_ov16_0226DE44.c.o
 	Object main.nef.p/src_battle_ov16_0226E148.c.o
+	Object main.nef.p/src_battle_mega_evolution.c.o
 }
 
 Overlay overlay17
