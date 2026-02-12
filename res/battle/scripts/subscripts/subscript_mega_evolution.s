@@ -1,4 +1,5 @@
 #include "macros/btlcmd.inc"
+#include "generated/trainer_message_types.h"
 
 
 _000:
