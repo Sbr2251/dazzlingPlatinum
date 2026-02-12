@@ -1,5 +1,11 @@
 # Dazzling Platinum ROM Hack
 
+## Important: Text Encoding
+
+- **Always use straight/ASCII apostrophes** (`'` U+0027) in all text files, never curly/smart apostrophes (`'` `'` U+2018/U+2019)
+- Curly apostrophes cause build errors in the NDS text compiler
+- When adding text to JSON files (`res/text/*.json`), double-check for curly quotes/apostrophes before saving
+
 ## Adding a New Move
 
 To add a new move (e.g., Moonblast), follow these steps:
