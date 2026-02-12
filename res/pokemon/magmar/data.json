@@ -93,11 +93,7 @@
         ]
     },
     "evolutions": [
-        [
-            "EVO_TRADE_WITH_HELD_ITEM",
-            "ITEM_MAGMARIZER",
-            "SPECIES_MAGMORTAR"
-        ]
+        [ "EVO_LEVEL", 42, "SPECIES_MAGMORTAR" ]
     ],
     "offspring": "SPECIES_MAGBY",
     "footprint": {

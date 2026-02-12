@@ -108,7 +108,7 @@
         ]
     },
     "evolutions": [
-        [ "EVO_TRADE", "SPECIES_GENGAR" ]
+        [ "EVO_LEVEL", 36, "SPECIES_GENGAR" ]
     ],
     "offspring": "SPECIES_GASTLY",
     "footprint": {

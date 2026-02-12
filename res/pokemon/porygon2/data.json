@@ -100,11 +100,7 @@
         ]
     },
     "evolutions": [
-        [
-            "EVO_TRADE_WITH_HELD_ITEM",
-            "ITEM_DUBIOUS_DISC",
-            "SPECIES_PORYGON_Z"
-        ]
+        [ "EVO_LEVEL", 48, "SPECIES_PORYGON_Z" ]
     ],
     "offspring": "SPECIES_PORYGON",
     "footprint": {
