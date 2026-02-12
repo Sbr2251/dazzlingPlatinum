@@ -745,9 +745,6 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
         .paletteID = none_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-        .paletteID = none_NCLR,
-        .gen3ID = GBA_ITEM_NONE,
-    },
     [ITEM_UNUSED_120] = {
         .dataID = 0x0,
         .iconID = none_NCGR,
