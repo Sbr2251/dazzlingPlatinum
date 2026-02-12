@@ -13,10 +13,10 @@ otherpoke_index += {
     '89': files('forms/east_sea/back.png'),
     '90': files('forms/base/front.png'),
     '91': files('forms/east_sea/front.png'),
-    '184': files('forms/base/normal.pal'),
-    '185': files('forms/base/shiny.pal'),
-    '186': files('forms/east_sea/normal.pal'),
-    '187': files('forms/east_sea/shiny.pal'),
+    '196': files('forms/base/normal.pal'),
+    '197': files('forms/base/shiny.pal'),
+    '198': files('forms/east_sea/normal.pal'),
+    '199': files('forms/east_sea/shiny.pal'),
 }
 
 pokefoot_files += files('footprint.png')

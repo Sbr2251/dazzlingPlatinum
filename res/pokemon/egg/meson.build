@@ -6,6 +6,6 @@ manaphy_egg_icon = files('forms/manaphy/icon.png')
 otherpoke_index += {
     '132': files('front.png'),
     '133': files('forms/manaphy/front.png'),
-    '228': files('normal.pal'),
-    '229': files('forms/manaphy/normal.pal'),
+    '240': files('normal.pal'),
+    '241': files('forms/manaphy/normal.pal'),
 }

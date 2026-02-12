@@ -16,12 +16,12 @@ otherpoke_index += {
     '75': files('forms/sandy/front.png'),
     '76': files('forms/trash/back.png'),
     '77': files('forms/trash/front.png'),
-    '168': files('forms/base/normal.pal'),
-    '169': files('forms/base/shiny.pal'),
-    '170': files('forms/sandy/normal.pal'),
-    '171': files('forms/sandy/shiny.pal'),
-    '172': files('forms/trash/normal.pal'),
-    '173': files('forms/trash/shiny.pal'),
+    '180': files('forms/base/normal.pal'),
+    '181': files('forms/base/shiny.pal'),
+    '182': files('forms/sandy/normal.pal'),
+    '183': files('forms/sandy/shiny.pal'),
+    '184': files('forms/trash/normal.pal'),
+    '185': files('forms/trash/shiny.pal'),
 }
 
 pokefoot_files += files('footprint.png')

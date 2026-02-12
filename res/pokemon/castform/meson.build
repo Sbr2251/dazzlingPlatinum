@@ -16,14 +16,14 @@ otherpoke_index += {
     '69': files('forms/sunny/front.png'),
     '70': files('forms/rainy/front.png'),
     '71': files('forms/snowy/front.png'),
-    '160': files('forms/base/normal.pal'),
-    '161': files('forms/sunny/normal.pal'),
-    '162': files('forms/rainy/normal.pal'),
-    '163': files('forms/snowy/normal.pal'),
-    '164': files('forms/base/shiny.pal'),
-    '165': files('forms/sunny/shiny.pal'),
-    '166': files('forms/rainy/shiny.pal'),
-    '167': files('forms/snowy/shiny.pal'),
+    '172': files('forms/base/normal.pal'),
+    '173': files('forms/sunny/normal.pal'),
+    '174': files('forms/rainy/normal.pal'),
+    '175': files('forms/snowy/normal.pal'),
+    '176': files('forms/base/shiny.pal'),
+    '177': files('forms/sunny/shiny.pal'),
+    '178': files('forms/rainy/shiny.pal'),
+    '179': files('forms/snowy/shiny.pal'),
 }
 
 pokefoot_files += files('footprint.png')

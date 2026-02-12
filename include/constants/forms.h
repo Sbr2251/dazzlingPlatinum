@@ -108,7 +108,18 @@
 // Note: Form IDs are species-specific and can overlap between species
 #define MEGA_FORM_GARCHOMP 1
 #define GARCHOMP_FORM_COUNT 2
-// Add more mega forms here as needed
+#define MEGA_FORM_LUCARIO 1
+#define LUCARIO_FORM_COUNT 2
+#define MEGA_FORM_GENGAR 1
+#define GENGAR_FORM_COUNT 2
+#define MEGA_FORM_GARDEVOIR 1
+#define GARDEVOIR_FORM_COUNT 2
+#define MEGA_FORM_ALAKAZAM 1
+#define ALAKAZAM_FORM_COUNT 2
+#define MEGA_FORM_GYARADOS 1
+#define GYARADOS_FORM_COUNT 2
+#define MEGA_FORM_SCIZOR 1
+#define SCIZOR_FORM_COUNT 2
 
 // Bit flag to identify mega evolution forms (prevents conflicts with regular forms)
 #define FORM_FLAG_MEGA (1 << 15)

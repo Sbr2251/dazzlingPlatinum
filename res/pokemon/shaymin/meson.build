@@ -12,10 +12,10 @@ otherpoke_index += {
     '135': files('forms/base/front.png'),
     '136': files('forms/sky/back.png'),
     '137': files('forms/sky/front.png'),
-    '230': files('forms/base/normal.pal'),
-    '231': files('forms/base/shiny.pal'),
-    '232': files('forms/sky/normal.pal'),
-    '233': files('forms/sky/shiny.pal'),
+    '242': files('forms/base/normal.pal'),
+    '243': files('forms/base/shiny.pal'),
+    '244': files('forms/sky/normal.pal'),
+    '245': files('forms/sky/shiny.pal'),
 }
 
 pokefoot_files += files('footprint.png')

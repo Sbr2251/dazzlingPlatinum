@@ -703,45 +703,48 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
         .paletteID = griseous_orb_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_113] = {
-        .dataID = 0x0,
+    [ITEM_GARCHOMPITE] = {
+        .dataID = 0x1BE,
         .iconID = none_NCGR,
         .paletteID = none_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_114] = {
-        .dataID = 0x0,
+    [ITEM_LUCARIONITE] = {
+        .dataID = 0x1BF,
         .iconID = none_NCGR,
         .paletteID = none_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_115] = {
-        .dataID = 0x0,
+    [ITEM_GENGARITE] = {
+        .dataID = 0x1C0,
         .iconID = none_NCGR,
         .paletteID = none_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_116] = {
-        .dataID = 0x0,
+    [ITEM_GARDEVOIRITE] = {
+        .dataID = 0x1C1,
         .iconID = none_NCGR,
         .paletteID = none_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_117] = {
-        .dataID = 0x0,
+    [ITEM_ALAKAZITE] = {
+        .dataID = 0x1C2,
         .iconID = none_NCGR,
         .paletteID = none_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_118] = {
-        .dataID = 0x0,
+    [ITEM_GYARADOSITE] = {
+        .dataID = 0x1C3,
         .iconID = none_NCGR,
         .paletteID = none_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_119] = {
-        .dataID = 0x0,
+    [ITEM_SCIZORITE] = {
+        .dataID = 0x1C4,
         .iconID = none_NCGR,
+        .paletteID = none_NCLR,
+        .gen3ID = GBA_ITEM_NONE,
+    },
         .paletteID = none_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
