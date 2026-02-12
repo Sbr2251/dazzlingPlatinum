@@ -18,6 +18,7 @@ _016:
     Wait
     // Swap to mega form sprite
     ChangeForm BTLSCR_MSG_TEMP
+    Wait
     // Clear mosaic first — no animations between ChangeForm and SetMosaic 0
     PlaySound BTLSCR_MSG_TEMP, 1984
     SetMosaic BTLSCR_MSG_TEMP, 0, 1
