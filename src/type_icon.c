@@ -57,7 +57,7 @@ ALIGN_4 static const u8 sMoveTypeIconPaletteIndex[] = {
     0x1,
     0x2,
     0x0,
-    0x1, // TYPE_FAIRY
+    0x3, // TYPE_FAIRY
     0x0, // 19 to 23 are contest types
     0x1,
     0x1,
@@ -116,12 +116,12 @@ void TypeIcon_LoadChar(SpriteSystem *spriteSys, SpriteManager *spriteMan, NNS_G2
 
 void TypeIcon_LoadPlttSrc(SpriteSystem *spriteSys, SpriteManager *spriteMan, NNS_G2D_VRAM_TYPE vramType, u32 resourceID)
 {
-    SpriteSystem_LoadPlttResObj(spriteSys, spriteMan, TypeIcon_GetNARC(), TypeIcon_GetPlttSrc(), FALSE, PLTT_3, vramType, resourceID);
+    SpriteSystem_LoadPlttResObj(spriteSys, spriteMan, TypeIcon_GetNARC(), TypeIcon_GetPlttSrc(), FALSE, PLTT_4, vramType, resourceID);
 }
 
 void TypeIcon_LoadPltt(PaletteData *paletteData, enum PaletteBufferID bufferID, SpriteSystem *spriteSys, SpriteManager *spriteMan, NNS_G2D_VRAM_TYPE vramType, u32 resourceID)
 {
-    SpriteSystem_LoadPaletteBuffer(paletteData, bufferID, spriteSys, spriteMan, TypeIcon_GetNARC(), TypeIcon_GetPlttSrc(), FALSE, PLTT_3, vramType, resourceID);
+    SpriteSystem_LoadPaletteBuffer(paletteData, bufferID, spriteSys, spriteMan, TypeIcon_GetNARC(), TypeIcon_GetPlttSrc(), FALSE, PLTT_4, vramType, resourceID);
 }
 
 void TypeIcon_LoadAnim(SpriteSystem *spriteSys, SpriteManager *spriteMan, u32 cellResourceID, u32 animResourceID)
