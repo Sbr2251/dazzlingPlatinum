@@ -345,6 +345,25 @@ ALIGN_4 static const u16 sMovePaletteDark[] = {
     RGB(0, 0, 0),
 };
 
+ALIGN_4 static const u16 sMovePaletteFairy[] = {
+    RGB(13, 14, 29),
+    RGB(31, 31, 31),
+    RGB(31, 25, 28),
+    RGB(31, 22, 26),
+    RGB(30, 19, 24),
+    RGB(28, 15, 21),
+    RGB(25, 12, 18),
+    RGB(21, 9, 15),
+    RGB(17, 7, 12),
+    RGB(31, 27, 29),
+    RGB(6, 6, 6),
+    RGB(0, 0, 0),
+    RGB(12, 12, 12),
+    RGB(28, 26, 13),
+    RGB(30, 29, 21),
+    RGB(0, 0, 0),
+};
+
 ALIGN_4 static const u16 sMovePaletteNone[] = {
     RGB(13, 14, 29),
     RGB(25, 25, 29),
@@ -403,7 +422,8 @@ ALIGN_4 static const u16 *const sMovePaletteTable[] = {
     sMovePalettePsychic,
     sMovePaletteIce,
     sMovePaletteDragon,
-    sMovePaletteDark
+    sMovePaletteDark,
+    sMovePaletteFairy
 };
 
 void include_unk_ov11_0221FBAC();
