@@ -18,10 +18,12 @@ _016:
     Wait
     // Swap to mega form sprite
     ChangeForm BTLSCR_MSG_TEMP
-    // Sparkle effect on reveal
-    PlayBattleAnimation BTLSCR_MSG_TEMP, BATTLE_ANIMATION_SHINY
+    // Clear mosaic first — no animations between ChangeForm and SetMosaic 0
     PlaySound BTLSCR_MSG_TEMP, 1984
     SetMosaic BTLSCR_MSG_TEMP, 0, 1
+    Wait
+    // Sparkle effect after sprite is fully loaded
+    PlayBattleAnimation BTLSCR_MSG_TEMP, BATTLE_ANIMATION_SHINY
     Wait
     // {0} Mega Evolved!
     PrintMessage pl_msg_00000368_01269, TAG_NICKNAME, BTLSCR_MSG_TEMP
