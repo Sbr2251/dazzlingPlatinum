@@ -50,7 +50,8 @@
             [ 37, "MOVE_MOONLIGHT" ],
             [ 40, "MOVE_LIGHT_SCREEN" ],
             [ 43, "MOVE_METEOR_MASH" ],
-            [ 46, "MOVE_HEALING_WISH" ]
+            [ 46, "MOVE_HEALING_WISH" ],
+            [ 49, "MOVE_MOONBLAST" ]
         ],
         "by_tm": [
             "TM01",

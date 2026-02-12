@@ -53,7 +53,8 @@
             [ 39, "MOVE_PSYCHIC" ],
             [ 43, "MOVE_ROLE_PLAY" ],
             [ 46, "MOVE_BATON_PASS" ],
-            [ 50, "MOVE_SAFEGUARD" ]
+            [ 50, "MOVE_SAFEGUARD" ],
+            [ 53, "MOVE_MOONBLAST" ]
         ],
         "by_tm": [
             "TM01",

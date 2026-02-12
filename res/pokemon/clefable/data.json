@@ -37,7 +37,8 @@
             [ 1, "MOVE_SING" ],
             [ 1, "MOVE_DOUBLE_SLAP" ],
             [ 1, "MOVE_MINIMIZE" ],
-            [ 1, "MOVE_METRONOME" ]
+            [ 1, "MOVE_METRONOME" ],
+            [ 1, "MOVE_MOONBLAST" ]
         ],
         "by_tm": [
             "TM01",

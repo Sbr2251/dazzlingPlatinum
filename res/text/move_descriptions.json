@@ -4572,6 +4572,16 @@
         "It hits even if the\n",
         "foe used Protect."
       ]
+    },
+    {
+      "id": "pl_msg_00000646_00468",
+      "en_US": [
+        "Borrowing the power\n",
+        "of the moon, the user\n",
+        "attacks the target.\n",
+        "It may also lower the\n",
+        "target's Sp. Atk."
+      ]
     }
   ]
 }

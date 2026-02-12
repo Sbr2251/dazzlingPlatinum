@@ -48,6 +48,7 @@
             [ 33, "MOVE_PSYCHIC" ],
             [ 40, "MOVE_IMPRISON" ],
             [ 45, "MOVE_FUTURE_SIGHT" ],
+            [ 48, "MOVE_MOONBLAST" ],
             [ 53, "MOVE_CAPTIVATE" ],
             [ 60, "MOVE_HYPNOSIS" ],
             [ 65, "MOVE_DREAM_EATER" ]
