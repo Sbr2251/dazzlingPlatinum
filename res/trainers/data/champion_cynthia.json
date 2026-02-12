@@ -101,6 +101,13 @@
     ],
     "messages": [
         {
+            "type": "TRMSG_MEGA_EVOLUTION",
+            "en_US": [
+                "Now... witness the true power\n",
+                "of my partner!\n"
+            ]
+        },
+        {
             "type": "TRMSG_LAST_BATTLER",
             "en_US": [
                 "I can’t remember the last time I\n",

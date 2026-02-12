@@ -2,6 +2,11 @@
 
 
 _000:
+    // Show trainer mega evolution dialog if the trainer has one
+    PrintTrainerMessage BTLSCR_MSG_TEMP, TRMSG_MEGA_EVOLUTION
+    Wait
+    WaitButtonABTime 30
+
     // Handle substitute: remove it temporarily before animation
     CompareMonDataToValue OPCODE_FLAG_NOT, BTLSCR_MSG_TEMP, BATTLEMON_VOLATILE_STATUS, VOLATILE_CONDITION_SUBSTITUTE, _016
     PlayBattleAnimation BTLSCR_MSG_TEMP, BATTLE_ANIMATION_SUB_OUT
