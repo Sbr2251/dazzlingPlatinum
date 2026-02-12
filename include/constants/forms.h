@@ -106,7 +106,7 @@
 
 // Mega Evolution Forms
 // Note: Form IDs are species-specific and can overlap between species
-#define MEGA_FORM_GARCHOMP 1
+#define MEGA_FORM_GARCHOMP 0
 // Add more mega forms here as needed
 
 // Bit flag to identify mega evolution forms (prevents conflicts with regular forms)
