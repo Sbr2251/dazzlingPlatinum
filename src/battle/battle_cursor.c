@@ -1955,6 +1955,14 @@ static void ov16_022699AC(UnkStruct_ov16_02268A14 *param0, int param1, int param
         String_Free(v5);
     }
 
+    // Clear left half of bottom bar tilemap when mega evo button is shown
+    if (v0->megaEvolutionAvailable) {
+        BgConfig *v6 = BattleSystem_BGL(param0->battleSys);
+
+        Bg_FillTilemapRect(v6, 4, 0x6000 / 0x20 - 1, 0x1, 0x13, 0xF, 0x5, 17);
+        Bg_ScheduleTilemapTransfer(v6, 4);
+    }
+
     {
         int moveType;
 
