@@ -1948,9 +1948,10 @@ static void ov16_022699AC(UnkStruct_ov16_02268A14 *param0, int param1, int param
 
     {
         String *v5;
+        int backTextX = v0->megaEvolutionAvailable ? 188 : 128;
 
         v5 = MessageLoader_GetNewString(messageLoader, 929);
-        ov16_0226A98C(param0, &param0->unk_4CC[4], v5, FONT_SUBSCREEN, TEXT_COLOR(10, 11, 12), 2, 20023, 188, 178, 1, NULL);
+        ov16_0226A98C(param0, &param0->unk_4CC[4], v5, FONT_SUBSCREEN, TEXT_COLOR(10, 11, 12), 2, 20023, backTextX, 178, 1, NULL);
         String_Free(v5);
     }
 
@@ -4028,6 +4029,7 @@ static int BattleSystem_Cursor_Moves(UnkStruct_ov16_02268A14 *param0, BOOL curso
     int v3, i;
     u8 v5[3][2];
     UnkStruct_ov16_02260C00 *v6;
+    int curLeft, curRight, curTop, curBot;
     UnkStruct_ov16_0226C378 *v7 = ov16_02263B0C(BattleSystem_BattlerData(param0->battleSys, BattleSystem_BattlerOfType(param0->battleSys, param0->unk_66A)));
     cursor = &param0->cursor;
     v2 = &Unk_ov16_02270670[param0->unk_66B];
@@ -4052,7 +4054,17 @@ static int BattleSystem_Cursor_Moves(UnkStruct_ov16_02268A14 *param0, BOOL curso
             v3 = sMoveMenuButtonLayout[cursor->y][cursor->x];
         }
 
-        BattleSystem_DrawCursor(param0->unk_6B8, v2->unk_14[v3].rect.left + 8, v2->unk_14[v3].rect.right - 8, v2->unk_14[v3].rect.top + 8, v2->unk_14[v3].rect.bottom - 8, (192 + 80) << FX32_SHIFT);
+        curLeft = v2->unk_14[v3].rect.left;
+        curRight = v2->unk_14[v3].rect.right;
+        curTop = v2->unk_14[v3].rect.top;
+        curBot = v2->unk_14[v3].rect.bottom;
+
+        // Back button uses full-width cursor when mega is not available
+        if (v3 == 0 && !v6->megaEvolutionAvailable) {
+            curLeft = 0x8;
+        }
+
+        BattleSystem_DrawCursor(param0->unk_6B8, curLeft + 8, curRight - 8, curTop + 8, curBot - 8, (192 + 80) << FX32_SHIFT);
         return 0xffffffff;
     }
 
@@ -4071,7 +4083,16 @@ static int BattleSystem_Cursor_Moves(UnkStruct_ov16_02268A14 *param0, BOOL curso
     case PAD_KEY_LEFT:
     case PAD_KEY_RIGHT:
         v3 = v5[cursor->y][cursor->x];
-        BattleSystem_DrawCursor(param0->unk_6B8, v2->unk_14[v3].rect.left + 8, v2->unk_14[v3].rect.right - 8, v2->unk_14[v3].rect.top + 8, v2->unk_14[v3].rect.bottom - 8, (192 + 80) << FX32_SHIFT);
+        curLeft = v2->unk_14[v3].rect.left;
+        curRight = v2->unk_14[v3].rect.right;
+        curTop = v2->unk_14[v3].rect.top;
+        curBot = v2->unk_14[v3].rect.bottom;
+
+        if (v3 == 0 && !v6->megaEvolutionAvailable) {
+            curLeft = 0x8;
+        }
+
+        BattleSystem_DrawCursor(param0->unk_6B8, curLeft + 8, curRight - 8, curTop + 8, curBot - 8, (192 + 80) << FX32_SHIFT);
         break;
     case PAD_BUTTON_A:
         return v5[cursor->y][cursor->x];
