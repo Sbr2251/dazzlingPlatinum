@@ -1,5 +1,10 @@
 # Dazzling Platinum ROM Hack
 
+## Build & Test Workflow
+
+- **Do NOT build locally.** The project requires a cross-compilation toolchain (MetroSkrew/mwccarm) that runs on a separate VM.
+- When changes are ready to test, commit and push to the branch. The user will build and test on their VM.
+
 ## Important: Text Encoding
 
 - **Always use straight/ASCII apostrophes** (`'` U+0027) in all text files, never curly/smart apostrophes (`'` `'` U+2018/U+2019)
