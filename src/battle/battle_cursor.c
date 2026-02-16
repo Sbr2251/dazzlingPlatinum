@@ -2008,7 +2008,10 @@ static void ov16_022699AC(UnkStruct_ov16_02268A14 *param0, int param1, int param
         LoadMegaButtonPalette(param0, isActive);
 
         // Change left-half tiles to use palette slot 2 (keeps tile graphics, changes color)
-        Bg_ChangeTilemapRectPalette(v6, 4, 0x1, 0x13, 0xF, 0x5, 2);
+        // Width 0xE (14 tiles) instead of 0xF to leave a 1-tile gap before CANCEL
+        Bg_ChangeTilemapRectPalette(v6, 4, 0x1, 0x13, 0xE, 0x5, 2);
+        // Clear the gap column (col 15) to create visual separation
+        Bg_FillTilemapRect(v6, 4, 0, 0xF, 0x13, 0x1, 0x5, 0);
         Bg_ScheduleTilemapTransfer(v6, 4);
 
         // Add "MEGA" text label via FontOAM
