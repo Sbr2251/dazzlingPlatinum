@@ -36,6 +36,8 @@
 #include "item.h"
 #include "item_use_functions.h"
 #include "items.h"
+#include "journal.h"
+#include "location.h"
 #include "mail.h"
 #include "map_header.h"
 #include "map_header_data.h"
@@ -56,11 +58,13 @@
 #include "system_flags.h"
 #include "system_vars.h"
 #include "terrain_collision_manager.h"
+#include "unk_0203A7D8.h"
 #include "unk_0203C954.h"
 #include "unk_0203D1B8.h"
 #include "unk_020553DC.h"
 #include "unk_0205F180.h"
 #include "unk_0206B9D8.h"
+#include "unk_0207064C.h"
 #include "vars_flags.h"
 
 #include "res/text/bank/location_names.h"
@@ -135,6 +139,10 @@ static BOOL RegisteredItem_GoToApp(FieldTask *task);
 static BOOL sub_020690F0(FieldTask *task);
 static BOOL sub_020685AC(FieldTask *task);
 static void PrintRegisteredKeyItemError(ItemFieldUseContext *usageContext, u32 param1);
+static void UseFlyWhistleFromMenu(ItemMenuUseContext *usageContext, const ItemUseContext *additionalContext);
+static BOOL UseFlyWhistleInField(ItemFieldUseContext *usageContext);
+static enum ItemUseCheckResult CanUseFlyWhistle(const ItemUseContext *usageContext);
+static BOOL FlyWhistleFieldTask(FieldTask *task);
 
 // clang-format off
 static const ItemUseFuncDat sItemUseFuncs[] = {
@@ -163,6 +171,7 @@ static const ItemUseFuncDat sItemUseFuncs[] = {
     [ITEM_USE_FUNC_AZURE_FLUTE]  = { UseAzureFluteFromMenu,  UseAzureFluteInField,  CanUseAzureFlute  },
     [ITEM_USE_FUNC_VS_RECORDER]  = { UseVsRecorderFromMenu,  UseVsRecorderInField,  NULL              },
     [ITEM_USE_FUNC_GRACIDEA]     = { UseGracideaFromMenu,    UseGracideaInField,    NULL              },
+    [ITEM_USE_FUNC_FLY_WHISTLE]  = { UseFlyWhistleFromMenu,  UseFlyWhistleInField,  CanUseFlyWhistle  },
 };
 // clang-format on
 
@@ -1167,4 +1176,118 @@ static void RegisteredItem_CreateGoToAppTask(ItemFieldUseContext *usageContext, 
 {
     usageContext->unk_20 = param1;
     FieldSystem_CreateTask(usageContext->fieldSystem, RegisteredItem_GoToApp, usageContext);
+}
+
+typedef struct FlyWhistleTaskEnv {
+    FieldSystem *fieldSystem;
+    TownMapContext *townMapCtx;
+    int state;
+} FlyWhistleTaskEnv;
+
+static enum ItemUseCheckResult CanUseFlyWhistle(const ItemUseContext *usageContext)
+{
+    if (usageContext->hasPartner) {
+        return ITEM_USE_CANNOT_USE_WITH_PARTNER;
+    }
+
+    if (MapHeader_IsFlyAllowed(usageContext->mapHeaderID) == FALSE) {
+        return ITEM_USE_CANNOT_DISMOUNT;
+    }
+
+    return ITEM_USE_CAN_USE;
+}
+
+static BOOL UseFlyWhistleInField(ItemFieldUseContext *usageContext)
+{
+    FlyWhistleTaskEnv *env = Heap_AllocAtEnd(HEAP_ID_FIELD2, sizeof(FlyWhistleTaskEnv));
+
+    memset(env, 0, sizeof(FlyWhistleTaskEnv));
+    env->fieldSystem = usageContext->fieldSystem;
+
+    FieldSystem_CreateTask(usageContext->fieldSystem, FlyWhistleFieldTask, env);
+    Heap_Free(usageContext);
+
+    return TRUE;
+}
+
+static BOOL FlyWhistleFieldTask(FieldTask *task)
+{
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+    FlyWhistleTaskEnv *env = FieldTask_GetEnv(task);
+
+    switch (env->state) {
+    case 0:
+        MapObjectMan_PauseAllMovement(fieldSystem->mapObjMan);
+        FieldMap_FadeScreen(FADE_TYPE_BRIGHTNESS_OUT);
+        env->state = 1;
+        break;
+    case 1:
+        if (IsScreenFadeDone()) {
+            env->townMapCtx = Heap_AllocAtEnd(HEAP_ID_FIELD2, sizeof(TownMapContext));
+            TownMapContext_Init(fieldSystem, env->townMapCtx, TOWN_MAP_MODE_FLY);
+            FieldSystem_OpenTownMap(fieldSystem, env->townMapCtx);
+            env->state = 2;
+        }
+        break;
+    case 2:
+        if (FieldSystem_IsRunningApplication(fieldSystem)) {
+            break;
+        }
+
+        if (env->townMapCtx->flyLocationSelected) {
+            void *flyData;
+            void *journalEntry;
+
+            flyData = sub_0207064C(HEAP_ID_FIELD2, fieldSystem, NULL,
+                                   env->townMapCtx->flyLocationMapHeader,
+                                   env->townMapCtx->flyLocationX * 32 + 16,
+                                   env->townMapCtx->flyLocationZ * 32 + 16);
+
+            journalEntry = JournalEntry_CreateEventUsedMove(
+                LOCATION_EVENT_FLEW_TO_LOCATION - LOCATION_EVENT_USED_CUT,
+                env->townMapCtx->flyLocationMapHeader, HEAP_ID_FIELD2);
+
+            JournalEntry_SaveData(fieldSystem->journalEntry, journalEntry, JOURNAL_LOCATION);
+
+            Heap_Free(env->townMapCtx);
+            FieldSystem_StartFieldMap(fieldSystem);
+
+            FieldSystem_CreateTask(fieldSystem, sub_02070680, flyData);
+
+            Heap_Free(env);
+            return TRUE;
+        } else {
+            Heap_Free(env->townMapCtx);
+            FieldSystem_StartFieldMap(fieldSystem);
+            env->state = 3;
+        }
+        break;
+    case 3:
+        if (FieldSystem_IsRunningFieldMap(fieldSystem)) {
+            MapObjectMan_PauseAllMovement(fieldSystem->mapObjMan);
+            FieldMap_FadeScreen(FADE_TYPE_BRIGHTNESS_IN);
+            env->state = 4;
+        }
+        break;
+    case 4:
+        if (IsScreenFadeDone()) {
+            MapObjectMan_UnpauseAllMovement(fieldSystem->mapObjMan);
+            Heap_Free(env);
+            return TRUE;
+        }
+        break;
+    }
+
+    return FALSE;
+}
+
+static void UseFlyWhistleFromMenu(ItemMenuUseContext *usageContext, const ItemUseContext *additionalContext)
+{
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(usageContext->fieldTask);
+    StartMenu *menu = FieldTask_GetEnv(usageContext->fieldTask);
+
+    menu->taskData = Heap_AllocAtEnd(HEAP_ID_FIELD2, sizeof(TownMapContext));
+    TownMapContext_Init(fieldSystem, menu->taskData, TOWN_MAP_MODE_FLY);
+    FieldSystem_OpenTownMap(fieldSystem, menu->taskData);
+    sub_0203B674(menu, sub_0203C434);
 }

@@ -125,7 +125,7 @@ _01C3:
     CallIfEq VAR_0x8004, 10, _02FA
     CallIfEq VAR_0x8004, 11, _0343
     Message 13
-    SetVar VAR_0x8004, ITEM_HM03
+    SetVar VAR_0x8004, ITEM_TM95
     SetVar VAR_0x8005, 1
     GiveItemQuantity
     SetFlag FLAG_UNK_0x01AC

@@ -11,7 +11,7 @@ _0006:
     FacePlayer
     GoToIfSet FLAG_UNK_0x00D2, _00C7
     GoToIfSet FLAG_UNK_0x00E8, _004F
-    CheckItem ITEM_HM05, 1, VAR_RESULT
+    CheckItem ITEM_TM97, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, 1, _0044
     Message 0
     WaitABXPadPress

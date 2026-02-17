@@ -94,7 +94,7 @@ _00FC:
     FacePlayer
     BufferPlayerName 0
     Message 0
-    SetVar VAR_0x8004, ITEM_HM04
+    SetVar VAR_0x8004, ITEM_TM96
     SetVar VAR_0x8005, 1
     GiveItemQuantity
     CheckBadgeAcquired BADGE_ID_MINE, VAR_RESULT

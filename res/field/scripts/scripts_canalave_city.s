@@ -698,7 +698,7 @@ _09BC:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    CheckItem ITEM_HM04, 1, VAR_RESULT
+    CheckItem ITEM_TM96, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, 1, CanalaveCity_RIVAL_EnterLibrary
     FindPartySlotWithMove VAR_RESULT, MOVE_STRENGTH
     GoToIfNe VAR_RESULT, 6, CanalaveCity_RIVAL_EnterLibrary

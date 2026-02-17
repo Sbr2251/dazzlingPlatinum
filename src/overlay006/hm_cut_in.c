@@ -6,6 +6,8 @@
 
 #include "constants/heap.h"
 
+#include "generated/species.h"
+
 #include "struct_decls/struct_02061AB4_decl.h"
 
 #include "field/field_system.h"
@@ -59,6 +61,7 @@ typedef struct HMCutIn {
     fx32 windowDelta;
     fx32 pokemonSpriteDeltaX;
     Pokemon *mon;
+    Pokemon *allocatedBidoof;
     FieldSystem *fieldSystem;
     NNSG2dScreenData *g2dScreenData;
     NNSG2dCharacterData *g2dCharData;
@@ -1040,7 +1043,11 @@ SysTask *SysTask_HMCutIn_New(FieldSystem *fieldSystem, BOOL isNotFly, Pokemon *s
     SysTask *task;
     HMCutIn *cutIn = CreateHMCutIn(fieldSystem);
 
-    cutIn->mon = shownPokemon;
+    Pokemon *bidoof = Pokemon_New(HEAP_ID_FIELD1);
+    Pokemon_InitWith(bidoof, SPECIES_BIDOOF, 5, INIT_IVS_RANDOM, FALSE, 0, OTID_NOT_SHINY, 0);
+
+    cutIn->mon = bidoof;
+    cutIn->allocatedBidoof = bidoof;
     cutIn->playerGender = playerGender;
     cutIn->_1 = isNotFly;
 
@@ -1079,6 +1086,10 @@ static HMCutIn *CreateHMCutIn(FieldSystem *fieldSystem)
 
 static void FreeHMCutIn(HMCutIn *cutIn)
 {
+    if (cutIn->allocatedBidoof != NULL) {
+        Heap_Free(cutIn->allocatedBidoof);
+    }
+
     Heap_Free(cutIn);
 }
 

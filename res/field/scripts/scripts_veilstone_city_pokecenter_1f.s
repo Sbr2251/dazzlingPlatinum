@@ -15,7 +15,7 @@ _001A:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    BufferTMHMMoveName 0, ITEM_HM03
+    BufferTMHMMoveName 0, ITEM_TM95
     Message 0
     WaitABXPadPress
     CloseMessage
