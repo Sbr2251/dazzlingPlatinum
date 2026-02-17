@@ -928,7 +928,7 @@ _0CB6:
     End
 
 _0CCA:
-    SetVar VAR_0x8008, ITEM_HM05
+    SetVar VAR_0x8008, ITEM_TM97
     SetVar VAR_0x8009, 1
     GoTo _1EAE
     End
@@ -1306,7 +1306,7 @@ _11A2:
     End
 
 _11B6:
-    SetVar VAR_0x8008, ITEM_HM08
+    SetVar VAR_0x8008, ITEM_TM100
     SetVar VAR_0x8009, 1
     GoTo _1EAE
     End
@@ -1756,7 +1756,7 @@ _177E:
     End
 
 _1792:
-    SetVar VAR_0x8008, ITEM_HM02
+    SetVar VAR_0x8008, ITEM_TM94
     SetVar VAR_0x8009, 1
     GoTo _1EAE
     End

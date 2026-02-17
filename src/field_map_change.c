@@ -7,6 +7,8 @@
 #include "constants/heap.h"
 #include "constants/overworld_weather.h"
 
+#include "generated/badges.h"
+
 #include "struct_decls/struct_0203A790_decl.h"
 #include "struct_defs/map_load_mode.h"
 #include "struct_defs/struct_0205EC34.h"
@@ -260,9 +262,15 @@ void FieldMapChange_UpdateGameData(FieldSystem *fieldSystem, BOOL noWarp)
 
     VarsFlags *varsFlags = SaveData_GetVarsFlags(fieldSystem->saveData);
     u16 weather = FieldSystem_GetWeather(fieldSystem, mapId);
+    TrainerInfo *trainerInfo = SaveData_GetTrainerInfo(fieldSystem->saveData);
 
-    if ((weather == OVERWORLD_WEATHER_FOG && SystemFlag_CheckDefogActive(varsFlags) == TRUE)
-        || (weather == OVERWORLD_WEATHER_DARK_FLASH && SystemFlag_CheckFlashActive(varsFlags) == TRUE)) {
+    if (weather == OVERWORLD_WEATHER_DARK_FLASH) {
+        SystemFlag_SetFlashActive(varsFlags);
+        weather = OVERWORLD_WEATHER_CLEAR;
+    }
+
+    if (weather == OVERWORLD_WEATHER_FOG && TrainerInfo_HasBadge(trainerInfo, BADGE_ID_RELIC)) {
+        SystemFlag_SetDefogActive(varsFlags);
         weather = OVERWORLD_WEATHER_CLEAR;
     }
 

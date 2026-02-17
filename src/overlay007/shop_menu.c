@@ -653,7 +653,7 @@ static void Shop_InitItemsList(ShopMenu *shopMenu)
     for (i = 0; i < shopMenu->itemsCount; i++) {
         itemId = Shop_GetItemId(shopMenu, shopMenu->itemsPtr[i]);
 
-        if ((itemId <= ITEM_HM01) && (itemId >= ITEM_TM01)) {
+        if ((itemId <= ITEM_TM100) && (itemId >= ITEM_TM01)) {
             string = MessageLoader_GetNewString(moveNames, Item_MoveForTMHM(itemId));
             StringList_AddFromString(shopMenu->itemsList, string, shopMenu->itemsPtr[i]);
             String_Free(string);
@@ -680,7 +680,7 @@ static void Shop_InitItemsList(ShopMenu *shopMenu)
 
     listTemplate = sShop_ItemListMenuTemplate;
 
-    if ((itemId <= ITEM_HM01) && (itemId >= ITEM_TM01)) {
+    if ((itemId <= ITEM_TM100) && (itemId >= ITEM_TM01)) {
         listTemplate.textXOffset = 35;
     } else {
         listTemplate.textXOffset = 0;
@@ -767,7 +767,7 @@ static void Shop_MenuPrintCallback(ListMenu *menu, u32 index, u8 yOffset)
         u32 price, strWidth;
         u16 itemId = index;
 
-        if ((itemId <= ITEM_HM01) && (itemId >= ITEM_TM01)) {
+        if ((itemId <= ITEM_TM100) && (itemId >= ITEM_TM01)) {
             itemId = itemId - ITEM_TM01 + 1;
 
             FontSpecialChars_DrawPartyScreenText(shopMenu->unk_2B4, 2, itemId, 2, 2, &shopMenu->windows[SHOP_WINDOW_ITEM_LIST], 0, yOffset + 4);
@@ -1077,7 +1077,7 @@ static u8 Shop_ShowPurchaseMessage(ShopMenu *shopMenu)
     StringTemplate_SetNumber(shopMenu->strTemplate, 1, shopMenu->itemAmount, 2, PADDING_MODE_NONE, CHARSET_MODE_EN);
     StringTemplate_SetNumber(shopMenu->strTemplate, 2, shopMenu->itemPrice * shopMenu->itemAmount, 6, PADDING_MODE_NONE, CHARSET_MODE_EN);
 
-    if ((shopMenu->itemId <= ITEM_HM01) && (shopMenu->itemId >= ITEM_TM01)) {
+    if ((shopMenu->itemId <= ITEM_TM100) && (shopMenu->itemId >= ITEM_TM01)) {
         u16 move = Item_MoveForTMHM(shopMenu->itemId);
 
         StringTemplate_SetMoveName(shopMenu->strTemplate, 3, move);

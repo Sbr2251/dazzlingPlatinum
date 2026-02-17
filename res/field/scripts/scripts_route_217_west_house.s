@@ -10,7 +10,7 @@ _0006:
     LockAll
     FacePlayer
     GoToIfSet FLAG_UNK_0x00DE, _0039
-    CheckItem ITEM_HM08, 1, VAR_RESULT
+    CheckItem ITEM_TM100, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, 1, _0044
     Message 0
     WaitABXPadPress

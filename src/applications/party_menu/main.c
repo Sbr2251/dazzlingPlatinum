@@ -1809,7 +1809,10 @@ static u8 GetContextMenuEntriesForPartyMon(PartyMenuApplication *application, u8
 
                 fieldEffect = GetElementIndex(move);
 
-                if (fieldEffect != 0xff) {
+                // Skip HM field moves (indices 16-24: Cut, Fly, Surf, Strength,
+                // Waterfall, Rock Smash, Defog, Rock Climb, Flash) —
+                // these are now triggered by overworld interaction
+                if (fieldEffect != 0xff && fieldEffect >= 25) {
                     menuEntriesBuffer[count] = fieldEffect;
                     count++;
                     PartyMenu_SetKnownFieldMove(application, move, fieldMoveIndex);

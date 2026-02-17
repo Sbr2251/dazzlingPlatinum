@@ -2545,49 +2545,49 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
         .paletteID = tm_psychic_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_HM01] = {
+    [ITEM_TM93] = {
         .dataID = 0x18E,
         .iconID = hm_NCGR,
         .paletteID = tm_normal_NCLR,
         .gen3ID = GBA_ITEM_HM01,
     },
-    [ITEM_HM02] = {
+    [ITEM_TM94] = {
         .dataID = 0x18F,
         .iconID = hm_NCGR,
         .paletteID = tm_flying_NCLR,
         .gen3ID = GBA_ITEM_HM02,
     },
-    [ITEM_HM03] = {
+    [ITEM_TM95] = {
         .dataID = 0x190,
         .iconID = hm_NCGR,
         .paletteID = tm_water_NCLR,
         .gen3ID = GBA_ITEM_HM03,
     },
-    [ITEM_HM04] = {
+    [ITEM_TM96] = {
         .dataID = 0x191,
         .iconID = hm_NCGR,
         .paletteID = tm_normal_NCLR,
         .gen3ID = GBA_ITEM_HM04,
     },
-    [ITEM_HM05] = {
+    [ITEM_TM97] = {
         .dataID = 0x192,
         .iconID = hm_NCGR,
         .paletteID = tm_water_NCLR,
         .gen3ID = GBA_ITEM_HM05,
     },
-    [ITEM_HM06] = {
+    [ITEM_TM98] = {
         .dataID = 0x193,
         .iconID = hm_NCGR,
         .paletteID = tm_fighting_NCLR,
         .gen3ID = GBA_ITEM_HM06,
     },
-    [ITEM_HM07] = {
+    [ITEM_TM99] = {
         .dataID = 0x194,
         .iconID = hm_NCGR,
         .paletteID = tm_water_NCLR,
         .gen3ID = GBA_ITEM_HM07,
     },
-    [ITEM_HM08] = {
+    [ITEM_TM100] = {
         .dataID = 0x195,
         .iconID = hm_NCGR,
         .paletteID = tm_normal_NCLR,
@@ -2832,6 +2832,12 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
         .iconID = secret_key_NCGR,
         .paletteID = secret_key_NCLR,
         .gen3ID = GBA_ITEM_SECRET_KEY,
+    },
+    [ITEM_FLY_WHISTLE] = {
+        .dataID = 0x1BE,
+        .iconID = azure_flute_NCGR,
+        .paletteID = azure_flute_NCLR,
+        .gen3ID = GBA_ITEM_NONE,
     },
 };
 
@@ -3298,7 +3304,7 @@ static s32 ItemPartyParam_Get(ItemPartyParam *partyParam, enum ItemDataParam att
 
 const u16 Item_MoveForTMHM(u16 item)
 {
-    if (item < ITEM_TM01 || item > ITEM_HM08) {
+    if (item < ITEM_TM01 || item > ITEM_TM100) {
         return MOVE_NONE;
     }
 
@@ -3308,18 +3314,12 @@ const u16 Item_MoveForTMHM(u16 item)
 
 u8 Item_IsHMMove(u16 move)
 {
-    for (u8 i = 0; i < NUM_HMS; i++) {
-        if (sTMHMMoves[NUM_TMS + i] == move) {
-            return TRUE;
-        }
-    }
-
     return FALSE;
 }
 
 u8 Item_TMHMNumber(u16 item)
 {
-    if (item < ITEM_TM01 || item > ITEM_HM08) {
+    if (item < ITEM_TM01 || item > ITEM_TM100) {
         return ITEM_NONE;
     }
 

@@ -57,6 +57,24 @@ VeilstoneGym_MayleneTryGiveTM60:
     Message VeilstoneGym_Text_MayleneExplainTM60
     WaitABXPadPress
     CloseMessage
+    GoTo VeilstoneGym_MayleneTryGiveFlyWhistle
+    End
+
+VeilstoneGym_MayleneTryGiveFlyWhistle:
+    SetVar VAR_0x8004, ITEM_FLY_WHISTLE
+    SetVar VAR_0x8005, 1
+    GoToIfCannotFitItem VAR_0x8004, VAR_0x8005, VAR_RESULT, VeilstoneGym_MayleneCannotGiveFlyWhistle
+    GiveItemQuantity
+    SetFlag FLAG_OBTAINED_FLY_WHISTLE
+    Message VeilstoneGym_Text_MayleneExplainFlyWhistle
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+VeilstoneGym_MayleneCannotGiveFlyWhistle:
+    MessageBagIsFull
+    CloseMessage
     ReleaseAll
     End
 
@@ -68,6 +86,7 @@ VeilstoneGym_MayleneCannotGiveTM60:
 
 VeilstoneGym_MayleneAfterBadge:
     GoToIfUnset FLAG_OBTAINED_MAYLENE_TM60, VeilstoneGym_MayleneTryGiveTM60
+    GoToIfUnset FLAG_OBTAINED_FLY_WHISTLE, VeilstoneGym_MayleneTryGiveFlyWhistle
     BufferPlayerName 0
     Message VeilstoneGym_Text_MayleneAfterBadge
     WaitABXPadPress
