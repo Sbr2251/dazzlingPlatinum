@@ -69,6 +69,8 @@
 
 #include "res/text/bank/location_names.h"
 
+#include "generated/journal_location_events.h"
+
 typedef struct ItemUseFuncDat {
     ItemMenuUseFunc useItemFromMenuFunc;
     ItemFieldUseFunc useItemInFieldFunc;
