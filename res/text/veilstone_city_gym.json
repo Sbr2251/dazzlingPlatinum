@@ -53,7 +53,7 @@
         "That {STRVAR_1 8, 0, 0} contains the move\n",
         "{STRVAR_1 6, 1, 0}.\r",
         "Um... That move inflicts damage,\n",
-        "and it robs the target's HP."
+        "and it robs the target’s HP."
       ]
     },
     {
@@ -61,7 +61,7 @@
       "en_US": [
         "And this is a Fly Whistle.\n",
         "Use it to summon a Pokémon to fly\f",
-        "you to any town you've visited.\r",
+        "you to any town you’ve visited.\r",
         "You can register it for quick use,\n",
         "too. I hope it helps!"
       ]
