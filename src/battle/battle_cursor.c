@@ -572,7 +572,7 @@ static const TouchScreenRect Unk_ov16_0227038C[] = {
     { 0x18, 0x50, 0x80, 0xFF },  // 2: Move 2 (top-right)
     { 0x58, 0x90, 0x0, 0x80 },   // 3: Move 3 (bottom-left)
     { 0x58, 0x90, 0x80, 0xFF },  // 4: Move 4 (bottom-right)
-    { 0x98, 0xC0, 0x8, 0x80 },   // 5: Mega Evo button (left half of bottom bar)
+    { 0x98, 0xC0, 0x8, 0x78 },   // 5: Mega Evo button (left half of bottom bar)
     { 0xFF, 0x0, 0x0, 0x0 }
 };
 
@@ -1990,7 +1990,7 @@ static void ov16_022699AC(UnkStruct_ov16_02268A14 *param0, int param1, int param
 
     {
         String *v5;
-        int backTextX = v0->megaEvolutionAvailable ? 192 : 128;
+        int backTextX = v0->megaEvolutionAvailable ? 200 : 128;
 
         v5 = MessageLoader_GetNewString(messageLoader, 929);
         ov16_0226A98C(param0, &param0->unk_4CC[4], v5, FONT_SUBSCREEN, TEXT_COLOR(10, 11, 12), 2, 20023, backTextX, 178, 1, NULL);
