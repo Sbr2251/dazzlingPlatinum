@@ -3,6 +3,7 @@
 #include <nitro.h>
 #include <string.h>
 
+#include "constants/colors.h"
 #include "constants/moves.h"
 #include "generated/moves.h"
 #include "generated/pokemon_types.h"
@@ -207,7 +208,7 @@ typedef struct UnkStruct_ov16_02268A14_t {
     SysTask *unk_64;
     UnkStruct_ov16_0226ABD4 unk_68[4];
     UnkStruct_02012744 *unk_4C8;
-    UnkStruct_ov16_0226A98C unk_4CC[13];
+    UnkStruct_ov16_0226A98C unk_4CC[14];
     UnkStruct_02012B20 *unk_5B8;
     ManagedSprite *unk_5BC[6];
     ManagedSprite *unk_5D4[6];
@@ -365,6 +366,7 @@ static void inline_ov16_0226B314(SysTaskFunc param0, UnkStruct_ov16_02268A14 *pa
 static void inline_ov16_0226B318_1(SysTask *param0, void *param1);
 static void inline_ov16_0226B318_1_sub(UnkStruct_ov16_02268A14 *param0);
 static void inline_ov16_0226B314_1(SysTask *param0, void *param1);
+static void LoadMegaButtonPalette(UnkStruct_ov16_02268A14 *param0, BOOL isActive);
 
 __attribute__((aligned(4))) static const u16 Unk_ov16_02270264[] = {
     0x31,
@@ -374,6 +376,46 @@ __attribute__((aligned(4))) static const u16 Unk_ov16_02270264[] = {
     0x2C,
     0x30,
     0x2D
+};
+
+// Mega Evolution button palette - inactive (pinkish-purple gradient)
+static const u16 sMegaButtonPalette_Inactive[16] = {
+    RGB( 0,  0,  0),   //  0: transparent
+    RGB( 8,  2, 14),   //  1: dark outline
+    RGB(12,  4, 18),   //  2: outline 2
+    RGB(22,  8, 26),   //  3: fill dark
+    RGB(24, 10, 28),   //  4: fill mid-dark
+    RGB(26, 12, 30),   //  5: fill mid
+    RGB(28, 14, 31),   //  6: fill mid-light
+    RGB(30, 18, 31),   //  7: fill light
+    RGB(31, 22, 31),   //  8: fill bright
+    RGB(31, 26, 31),   //  9: highlight
+    RGB(16,  6, 22),   // 10: shadow
+    RGB(20,  8, 24),   // 11: mid shadow
+    RGB(31, 28, 31),   // 12: bright highlight
+    RGB( 6,  1, 10),   // 13: darkest
+    RGB(10,  3, 16),   // 14: dark accent
+    RGB(31, 31, 31),   // 15: white
+};
+
+// Mega Evolution button palette - active/triggered (brighter, warmer pink)
+static const u16 sMegaButtonPalette_Active[16] = {
+    RGB( 0,  0,  0),   //  0: transparent
+    RGB(10,  4, 16),   //  1: dark outline
+    RGB(14,  6, 20),   //  2: outline 2
+    RGB(28, 14, 22),   //  3: fill (warmer pink)
+    RGB(30, 16, 24),   //  4: fill
+    RGB(31, 18, 26),   //  5: fill
+    RGB(31, 22, 28),   //  6: fill
+    RGB(31, 26, 30),   //  7: fill bright
+    RGB(31, 28, 31),   //  8: fill brightest
+    RGB(31, 31, 31),   //  9: highlight (white)
+    RGB(20, 10, 18),   // 10: shadow
+    RGB(24, 12, 20),   // 11: mid shadow
+    RGB(31, 30, 31),   // 12: near-white
+    RGB( 8,  3, 12),   // 13: darkest
+    RGB(14,  5, 18),   // 14: dark accent
+    RGB(31, 31, 31),   // 15: white
 };
 
 __attribute__((aligned(4))) static const u16 Unk_ov16_022702B4[][2] = {
@@ -525,34 +567,37 @@ __attribute__((aligned(4))) static const u8 palParkMenuButtonLayout[2][1] = {
 };
 
 static const TouchScreenRect Unk_ov16_0227038C[] = {
-    { 0x98, 0xC0, 0x8, 0xF8 },
-    { 0x18, 0x50, 0x0, 0x80 },
-    { 0x18, 0x50, 0x80, 0xFF },
-    { 0x58, 0x90, 0x0, 0x80 },
-    { 0x58, 0x90, 0x80, 0xFF },
+    { 0x98, 0xC0, 0x80, 0xF8 },  // 0: Back button (right half of bottom bar)
+    { 0x18, 0x50, 0x0, 0x80 },   // 1: Move 1 (top-left)
+    { 0x18, 0x50, 0x80, 0xFF },  // 2: Move 2 (top-right)
+    { 0x58, 0x90, 0x0, 0x80 },   // 3: Move 3 (bottom-left)
+    { 0x58, 0x90, 0x80, 0xFF },  // 4: Move 4 (bottom-right)
+    { 0x98, 0xC0, 0x8, 0x78 },   // 5: Mega Evo button (left half of bottom bar)
     { 0xFF, 0x0, 0x0, 0x0 }
 };
 
 static const int Unk_ov16_02270364[NELEMS(Unk_ov16_0227038C) - 1] = {
-    0xFF,
-    0x1,
-    0x2,
-    0x3,
-    0x4
+    0xFF,  // 0: Back
+    0x1,   // 1: Move 1
+    0x2,   // 2: Move 2
+    0x3,   // 3: Move 3
+    0x4,   // 4: Move 4
+    0xFE   // 5: Mega Evo
 };
 
 __attribute__((aligned(4))) static const u8 Unk_ov16_02270A14[NELEMS(Unk_ov16_0227038C) - 1] = {
-    0x4,
-    0x8,
-    0x9,
-    0xA,
-    0xB
+    0x4,   // 0: Back event
+    0x8,   // 1: Move 1
+    0x9,   // 2: Move 2
+    0xA,   // 3: Move 3
+    0xB,   // 4: Move 4
+    0x4    // 5: Mega Evo event (same as back - handler intercepts before use)
 };
 
 __attribute__((aligned(4))) static const u8 sMoveMenuButtonLayout[3][2] = {
-    { 0x1, 0x2 },
-    { 0x3, 0x4 },
-    { 0x0, 0x0 }
+    { 0x1, 0x2 },  // Row 0: Move 1, Move 2
+    { 0x3, 0x4 },  // Row 1: Move 3, Move 4
+    { 0x5, 0x0 }   // Row 2: Mega Evo (left), Back (right)
 };
 
 static const TouchScreenRect Unk_ov16_0227024C[] = {
@@ -1124,7 +1169,7 @@ void *ov16_022687C8(NARC *param0, NARC *param1, BattleSystem *battleSys, int par
         GF_ASSERT(0);
     }
 
-    v0->unk_4C8 = sub_02012744(13, HEAP_ID_BATTLE);
+    v0->unk_4C8 = sub_02012744(14, HEAP_ID_BATTLE);
     v0->unk_678 = SysTask_Start(ov16_0226BCE4, v0, 1310);
 
     {
@@ -1945,10 +1990,53 @@ static void ov16_022699AC(UnkStruct_ov16_02268A14 *param0, int param1, int param
 
     {
         String *v5;
+        int backTextX = v0->megaEvolutionAvailable ? 192 : 128;
 
         v5 = MessageLoader_GetNewString(messageLoader, 929);
-        ov16_0226A98C(param0, &param0->unk_4CC[4], v5, FONT_SUBSCREEN, TEXT_COLOR(10, 11, 12), 2, 20023, 128, 178, 1, NULL);
+        ov16_0226A98C(param0, &param0->unk_4CC[4], v5, FONT_SUBSCREEN, TEXT_COLOR(10, 11, 12), 2, 20023, backTextX, 178, 1, NULL);
         String_Free(v5);
+    }
+
+    // Draw mega evo button on left half of bottom bar (palette-based, no sprite)
+    if (v0->megaEvolutionAvailable) {
+        BgConfig *v6 = BattleSystem_BGL(param0->battleSys);
+        BattleContext *battleCtx = BattleSystem_Context(param0->battleSys);
+        int battler = BattleSystem_BattlerOfType(param0->battleSys, param0->unk_66A);
+        BOOL isActive = battleCtx->megaEvolutionTriggered[battler];
+
+        // Load custom mega palette into VRAM slot 2
+        LoadMegaButtonPalette(param0, isActive);
+
+        // Change palette for MEGA button fill area (cols 1-14) to mega palette slot 2
+        Bg_ChangeTilemapRectPalette(v6, 4, 0x1, 0x13, 0xE, 0x5, 2);
+
+        // Split the bottom bar into two bordered buttons matching the move button style.
+        // Border tile IDs from the pre-built tilemap (cols 2-3 of the bottom bar):
+        //   outer = corner/edge tiles, inner = transition tiles
+        {
+            static const u16 sBorderOuter[] = { 61, 93, 125, 125, 157 };
+            static const u16 sBorderInner[] = { 62, 94, 126, 126, 158 };
+            int row;
+            for (row = 0; row < 5; row++) {
+                // MEGA right border (cols 13-14, h-flipped, palette 2)
+                Bg_FillTilemapRect(v6, 4, sBorderInner[row] | (1 << 10), 0xD, 0x13 + row, 1, 1, 2);
+                Bg_FillTilemapRect(v6, 4, sBorderOuter[row] | (1 << 10), 0xE, 0x13 + row, 1, 1, 2);
+                // CANCEL left border (cols 16-17, palette 4)
+                Bg_FillTilemapRect(v6, 4, sBorderOuter[row], 0x10, 0x13 + row, 1, 1, 4);
+                Bg_FillTilemapRect(v6, 4, sBorderInner[row], 0x11, 0x13 + row, 1, 1, 4);
+            }
+        }
+        // Clear gap column between buttons (col 15)
+        Bg_FillTilemapRect(v6, 4, 0, 0xF, 0x13, 0x1, 0x5, 0);
+        Bg_ScheduleTilemapTransfer(v6, 4);
+
+        // Add "MEGA" text label via FontOAM
+        {
+            String *megaText = MessageLoader_GetNewString(messageLoader, 1272);
+            ov16_0226A98C(param0, &param0->unk_4CC[13], megaText, FONT_SUBSCREEN,
+                          TEXT_COLOR(10, 11, 12), 2, 20023, 64, 178, 1, NULL);
+            String_Free(megaText);
+        }
     }
 
     {
@@ -2293,6 +2381,25 @@ static int ov16_0226A3F4(UnkStruct_ov16_02268A14 *param0, int param1, int param2
 
     if (param1 == 0xffffffff) {
         return param1;
+    }
+
+    // Mega Evolution button: toggle mega evo and stay on move selection
+    if (param1 == 0xFE) {
+        UnkStruct_ov16_02260C00 *megaData = &param0->unk_1A.val2;
+        if (!megaData->megaEvolutionAvailable) {
+            // Mega unavailable — treat as back button
+            param1 = 0xFF;
+        } else {
+            BattleContext *battleCtx = BattleSystem_Context(param0->battleSys);
+            int battler = BattleSystem_BattlerOfType(param0->battleSys, param0->unk_66A);
+
+            battleCtx->megaEvolutionTriggered[battler] = !battleCtx->megaEvolutionTriggered[battler];
+
+            LoadMegaButtonPalette(param0, battleCtx->megaEvolutionTriggered[battler]);
+
+            Sound_PlayEffect(SEQ_SE_CONFIRM);
+            return 0xffffffff;
+        }
     }
 
     v0 = &param0->unk_1A.val2;
@@ -2700,7 +2807,7 @@ static void ov16_0226AAC0(UnkStruct_ov16_02268A14 *param0)
 {
     int i;
 
-    for (i = 0; i < 13; i++) {
+    for (i = 0; i < 14; i++) {
         if (param0->unk_4CC[i].unk_00 != NULL) {
             sub_02012870(param0->unk_4CC[i].unk_00);
             CharTransfer_ClearRange(&param0->unk_4CC[i].unk_04);
@@ -2876,18 +2983,23 @@ static void ov16_0226AEA0(UnkStruct_ov16_02268A14 *param0, const String *param1,
     Text_AddPrinterWithParamsColorAndSpacing(&param3->unk_00, param2, param1, 0, 0, TEXT_SPEED_NO_TRANSFER, param4, 0, 0, NULL);
 }
 
-// Helper function to update mega icon palette when toggle state changes
+// Load mega evolution button palette into VRAM BG palette slot 2
+static void LoadMegaButtonPalette(UnkStruct_ov16_02268A14 *param0, BOOL isActive)
+{
+    PaletteData *paletteSys = BattleSystem_PaletteSys(param0->battleSys);
+    const u16 *palette = isActive ? sMegaButtonPalette_Active : sMegaButtonPalette_Inactive;
+    PaletteData_LoadBuffer(paletteSys, palette, PLTTBUF_SUB_BG, 2 * 16, 0x20);
+}
+
+// Sync mega button palette with current megaEvolutionTriggered state
 static void UpdateMegaIconState(UnkStruct_ov16_02268A14 *param0)
 {
-    UnkStruct_ov16_02260C00 *v4 = &param0->unk_1A.val2;
-    
-    // Check if mega icon exists (sprite slot 4) and mega evolution is available
-    if (param0->moveSelectSprites[4] != NULL && v4->megaEvolutionAvailable) {
-        // Change palette based on megaEvolutionTriggered state
-        // For now, we'll use a simple visual change by adjusting the sprite's draw priority
-        // This creates a subtle visual feedback without needing palette manipulation
-        // TODO: Implement proper palette switching when we have the correct palette functions
-        // The L button toggle in battle_controller_player.c already handles the megaEvolutionTriggered flag
+    UnkStruct_ov16_02260C00 *v0 = &param0->unk_1A.val2;
+    if (v0->megaEvolutionAvailable) {
+        BattleContext *battleCtx = BattleSystem_Context(param0->battleSys);
+        int battler = BattleSystem_BattlerOfType(param0->battleSys, param0->unk_66A);
+        BOOL isActive = battleCtx->megaEvolutionTriggered[battler];
+        LoadMegaButtonPalette(param0, isActive);
     }
 }
 
@@ -2932,25 +3044,6 @@ static void DrawMoveTypeIcons(UnkStruct_ov16_02268A14 *param0)
             }
         }
     }
-    
-    // Add MEGA indicator sprite if mega evolution is available
-    if (v4->megaEvolutionAvailable) {
-        // Create a simple sprite to indicate mega evolution is available
-        // Position it in the bottom right area of the move selection screen
-        spriteTemplate.resources[0] = 20029; // Use an available resource ID
-        spriteTemplate.x = 200; // Bottom right X position
-        spriteTemplate.y = 160; // Bottom right Y position
-        
-        // Load DRAGON type character data into the resource
-        TypeIcon_LoadChar(spriteSys, spriteMan, NNS_G2D_VRAM_TYPE_2DSUB, TYPE_DRAGON, 20029);
-        
-        // Use DRAGON type icon as visual indicator for mega evolution
-        param0->moveSelectSprites[4] = TypeIcon_NewTypeIconSprite(spriteSys, spriteMan, TYPE_DRAGON, &spriteTemplate);
-        
-        if (param0->moveSelectSprites[4] != NULL) {
-            ManagedSprite_SetPositionXYWithSubscreenOffset(param0->moveSelectSprites[4], spriteTemplate.x, spriteTemplate.y, (192 + 80) << FX32_SHIFT);
-        }
-    }
 }
 
 static void ov16_0226AFF4(UnkStruct_ov16_02268A14 *param0)
@@ -2959,7 +3052,7 @@ static void ov16_0226AFF4(UnkStruct_ov16_02268A14 *param0)
     SpriteSystem *v1 = BattleSystem_GetSpriteSystem(param0->battleSys);
     SpriteManager *v2 = BattleSystem_GetSpriteManager(param0->battleSys);
 
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < 4; i++) {
         if (param0->moveSelectSprites[i] != NULL) {
             TypeIcon_DeleteSprite(param0->moveSelectSprites[i]);
             param0->moveSelectSprites[i] = NULL;
@@ -3836,21 +3929,18 @@ static int BattleSystem_MenuKeys(UnkStruct_ov16_02268A14 *param0)
     }
 
     // Check for L button press to toggle mega evolution
-    if (gSystem.pressedKeys & PAD_BUTTON_L) {
-        BattleContext *battleCtx = BattleSystem_Context(param0->battleSys);
-        int battler = 0; // Player is always battler 0
-        
-        // Toggle mega evolution
-        battleCtx->megaEvolutionTriggered[battler] = !battleCtx->megaEvolutionTriggered[battler];
-        
-        // Change icon palette if icon exists
-        if (param0->moveSelectSprites[4] != NULL) {
-            // Toggle between palette 0 and palette 1
-            int newPalette = battleCtx->megaEvolutionTriggered[battler] ? 1 : 0;
-            ManagedSprite_SetExplicitPalette(param0->moveSelectSprites[4], newPalette);
+    {
+        UnkStruct_ov16_02260C00 *megaCheck = &param0->unk_1A.val2;
+        if ((gSystem.pressedKeys & PAD_BUTTON_L) && megaCheck->megaEvolutionAvailable) {
+            BattleContext *battleCtx = BattleSystem_Context(param0->battleSys);
+            int battler = BattleSystem_BattlerOfType(param0->battleSys, param0->unk_66A);
+
+            battleCtx->megaEvolutionTriggered[battler] = !battleCtx->megaEvolutionTriggered[battler];
+
+            LoadMegaButtonPalette(param0, battleCtx->megaEvolutionTriggered[battler]);
+
+            Sound_PlayEffect(SEQ_SE_CONFIRM);
         }
-        
-        Sound_PlayEffect(SEQ_SE_CONFIRM);
     }
     
     if (!cursor->isActive) { // Check if the cursor is inactive
@@ -4014,6 +4104,7 @@ static int BattleSystem_Cursor_Moves(UnkStruct_ov16_02268A14 *param0, BOOL curso
     int v3, i;
     u8 v5[3][2];
     UnkStruct_ov16_02260C00 *v6;
+    int curLeft, curRight, curTop, curBot;
     UnkStruct_ov16_0226C378 *v7 = ov16_02263B0C(BattleSystem_BattlerData(param0->battleSys, BattleSystem_BattlerOfType(param0->battleSys, param0->unk_66A)));
     cursor = &param0->cursor;
     v2 = &Unk_ov16_02270670[param0->unk_66B];
@@ -4024,7 +4115,13 @@ static int BattleSystem_Cursor_Moves(UnkStruct_ov16_02268A14 *param0, BOOL curso
         cursor->y = v7->unk_03;
         v3 = sMoveMenuButtonLayout[cursor->y][cursor->x];
 
-        if ((v3 != 0) && (v6->moveIDs[v3 - 1] == 0)) {
+        if (v3 == 5 && !v6->megaEvolutionAvailable) {
+            v7->unk_02 = 1;
+            cursor->x = 1;
+            v3 = sMoveMenuButtonLayout[cursor->y][cursor->x];
+        }
+
+        if ((v3 >= 1) && (v3 <= 4) && (v6->moveIDs[v3 - 1] == 0)) {
             v7->unk_02 = 0;
             v7->unk_03 = 0;
             cursor->x = 0;
@@ -4032,11 +4129,27 @@ static int BattleSystem_Cursor_Moves(UnkStruct_ov16_02268A14 *param0, BOOL curso
             v3 = sMoveMenuButtonLayout[cursor->y][cursor->x];
         }
 
-        BattleSystem_DrawCursor(param0->unk_6B8, v2->unk_14[v3].rect.left + 8, v2->unk_14[v3].rect.right - 8, v2->unk_14[v3].rect.top + 8, v2->unk_14[v3].rect.bottom - 8, (192 + 80) << FX32_SHIFT);
+        curLeft = v2->unk_14[v3].rect.left;
+        curRight = v2->unk_14[v3].rect.right;
+        curTop = v2->unk_14[v3].rect.top;
+        curBot = v2->unk_14[v3].rect.bottom;
+
+        // Back button uses full-width cursor when mega is not available
+        if (v3 == 0 && !v6->megaEvolutionAvailable) {
+            curLeft = 0x8;
+        }
+
+        BattleSystem_DrawCursor(param0->unk_6B8, curLeft + 8, curRight - 8, curTop + 8, curBot - 8, (192 + 80) << FX32_SHIFT);
         return 0xffffffff;
     }
 
     MI_CpuCopy8(sMoveMenuButtonLayout, v5, 3 * 2);
+
+    // If mega evolution is not available, replace mega button with back in the grid
+    if (!v6->megaEvolutionAvailable) {
+        v5[2][0] = 0x0;
+    }
+
     v1 = BattleSystem_MoveCursor(cursor, 2, 3, v5[0]);
 
     switch (v1) {
@@ -4044,11 +4157,20 @@ static int BattleSystem_Cursor_Moves(UnkStruct_ov16_02268A14 *param0, BOOL curso
     case PAD_KEY_DOWN:
     case PAD_KEY_LEFT:
     case PAD_KEY_RIGHT:
-        v3 = sMoveMenuButtonLayout[cursor->y][cursor->x];
-        BattleSystem_DrawCursor(param0->unk_6B8, v2->unk_14[v3].rect.left + 8, v2->unk_14[v3].rect.right - 8, v2->unk_14[v3].rect.top + 8, v2->unk_14[v3].rect.bottom - 8, (192 + 80) << FX32_SHIFT);
+        v3 = v5[cursor->y][cursor->x];
+        curLeft = v2->unk_14[v3].rect.left;
+        curRight = v2->unk_14[v3].rect.right;
+        curTop = v2->unk_14[v3].rect.top;
+        curBot = v2->unk_14[v3].rect.bottom;
+
+        if (v3 == 0 && !v6->megaEvolutionAvailable) {
+            curLeft = 0x8;
+        }
+
+        BattleSystem_DrawCursor(param0->unk_6B8, curLeft + 8, curRight - 8, curTop + 8, curBot - 8, (192 + 80) << FX32_SHIFT);
         break;
     case PAD_BUTTON_A:
-        return sMoveMenuButtonLayout[cursor->y][cursor->x];
+        return v5[cursor->y][cursor->x];
     case PAD_BUTTON_B:
         for (i = 0; i < v2->unk_14[i].rect.top != 0xff; i++) {
             if (0xff == v2->unk_18[i]) {

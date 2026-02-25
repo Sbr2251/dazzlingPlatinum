@@ -49,10 +49,21 @@ void Pokemon_MegaEvolve(Pokemon *mon);
 void Pokemon_RevertMegaEvolution(Pokemon *mon);
 
 /**
+ * @brief Get mega evolution data for a species (regardless of held item)
+ *
+ * Searches the mega evolution table for a matching species.
+ * Used for re-applying mega stats when the held item may have changed.
+ *
+ * @param species The base species ID
+ * @return Pointer to MegaEvolutionData if found, NULL otherwise
+ */
+const MegaEvolutionData* GetMegaEvolutionDataBySpecies(int species);
+
+/**
  * @brief Check if a Pokémon is currently mega evolved
- * 
+ *
  * Checks if the Pokémon's current form has the FORM_FLAG_MEGA flag.
- * 
+ *
  * @param mon Pointer to the Pokémon to check
  * @return TRUE if mega evolved, FALSE otherwise
  */

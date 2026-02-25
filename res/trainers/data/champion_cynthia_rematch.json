@@ -88,7 +88,7 @@
             "species": "SPECIES_GARCHOMP",
             "form": 0,
             "level": 78,
-            "item": "ITEM_SITRUS_BERRY",
+            "item": "ITEM_GARCHOMPITE",
             "moves": [
                 "MOVE_DRAGON_RUSH",
                 "MOVE_EARTHQUAKE",
@@ -100,6 +100,13 @@
         }
     ],
     "messages": [
+        {
+            "type": "TRMSG_MEGA_EVOLUTION",
+            "en_US": [
+                "Now... witness the true power\n",
+                "of my partner!\n"
+            ]
+        },
         {
             "type": "TRMSG_LAST_BATTLER",
             "en_US": [

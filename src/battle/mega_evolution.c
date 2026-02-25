@@ -18,27 +18,36 @@ BOOL Pokemon_CanMegaEvolve(const Pokemon *mon)
     int heldItem = Pokemon_GetValue((Pokemon *)mon, MON_DATA_HELD_ITEM, NULL);
     int currentForm = Pokemon_GetValue((Pokemon *)mon, MON_DATA_FORM, NULL);
 
-    // Cannot mega evolve if already mega evolved
-    if (currentForm & FORM_FLAG_MEGA) {
+    // Check if this species + item combination exists in the table
+    const MegaEvolutionData *megaData = GetMegaEvolutionData(species, heldItem);
+    if (megaData == NULL) {
         return FALSE;
     }
 
-    // Check if this species + item combination exists in the table
-    for (int i = 0; i < sMegaEvolutionTableSize; i++) {
-        if (sMegaEvolutionTable[i].baseSpecies == species && 
-            sMegaEvolutionTable[i].requiredItem == heldItem) {
-            return TRUE;
-        }
+    // Cannot mega evolve if already in mega form
+    if (currentForm == megaData->megaForm) {
+        return FALSE;
     }
 
-    return FALSE;
+    return TRUE;
 }
 
 const MegaEvolutionData* GetMegaEvolutionData(int species, int heldItem)
 {
     for (int i = 0; i < sMegaEvolutionTableSize; i++) {
-        if (sMegaEvolutionTable[i].baseSpecies == species && 
+        if (sMegaEvolutionTable[i].baseSpecies == species &&
             sMegaEvolutionTable[i].requiredItem == heldItem) {
+            return &sMegaEvolutionTable[i];
+        }
+    }
+
+    return NULL;
+}
+
+const MegaEvolutionData* GetMegaEvolutionDataBySpecies(int species)
+{
+    for (int i = 0; i < sMegaEvolutionTableSize; i++) {
+        if (sMegaEvolutionTable[i].baseSpecies == species) {
             return &sMegaEvolutionTable[i];
         }
     }
@@ -78,10 +87,12 @@ void Pokemon_RevertMegaEvolution(Pokemon *mon)
         return;
     }
 
+    int species = Pokemon_GetValue(mon, MON_DATA_SPECIES, NULL);
     int currentForm = Pokemon_GetValue(mon, MON_DATA_FORM, NULL);
 
-    // Only revert if currently mega evolved
-    if (!(currentForm & FORM_FLAG_MEGA)) {
+    // Check if this species has a mega evolution and is currently in mega form
+    const MegaEvolutionData *megaData = GetMegaEvolutionDataBySpecies(species);
+    if (megaData == NULL || currentForm != megaData->megaForm) {
         return;
     }
 
@@ -99,6 +110,13 @@ BOOL Pokemon_IsMegaEvolved(const Pokemon *mon)
         return FALSE;
     }
 
+    int species = Pokemon_GetValue((Pokemon *)mon, MON_DATA_SPECIES, NULL);
     int currentForm = Pokemon_GetValue((Pokemon *)mon, MON_DATA_FORM, NULL);
-    return (currentForm & FORM_FLAG_MEGA) != 0;
+
+    const MegaEvolutionData *megaData = GetMegaEvolutionDataBySpecies(species);
+    if (megaData == NULL) {
+        return FALSE;
+    }
+
+    return currentForm == megaData->megaForm;
 }

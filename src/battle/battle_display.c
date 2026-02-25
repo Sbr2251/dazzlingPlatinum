@@ -18,6 +18,7 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
 #include "battle/healthbar.h"
+#include "battle/mega_evolution.h"
 #include "battle/message_defs.h"
 #include "battle/move_display_info.h"
 #include "battle/ov16_0223B140.h"
@@ -3194,9 +3195,11 @@ static void ov16_02260C00(SysTask *param0, void *param1)
                 BattleContext *battleCtx = BattleSystem_Context(v0->unk_00);
                 int battler = v0->unk_1D;
                 v8.megaEvolutionAvailable = 0;
-                
+
                 if (battler < 2 && !battleCtx->megaEvolutionUsed[battler]) {
-                    if (battleCtx->battleMons[battler].species == 445) {
+                    int species = battleCtx->battleMons[battler].species;
+                    int heldItem = battleCtx->battleMons[battler].heldItem;
+                    if (GetMegaEvolutionData(species, heldItem) != NULL) {
                         v8.megaEvolutionAvailable = 1;
                     }
                 }
