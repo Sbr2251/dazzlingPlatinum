@@ -1990,7 +1990,7 @@ static void ov16_022699AC(UnkStruct_ov16_02268A14 *param0, int param1, int param
 
     {
         String *v5;
-        int backTextX = v0->megaEvolutionAvailable ? 200 : 128;
+        int backTextX = v0->megaEvolutionAvailable ? 196 : 128;
 
         v5 = MessageLoader_GetNewString(messageLoader, 929);
         ov16_0226A98C(param0, &param0->unk_4CC[4], v5, FONT_SUBSCREEN, TEXT_COLOR(10, 11, 12), 2, 20023, backTextX, 178, 1, NULL);
