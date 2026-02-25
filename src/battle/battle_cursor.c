@@ -1990,7 +1990,7 @@ static void ov16_022699AC(UnkStruct_ov16_02268A14 *param0, int param1, int param
 
     {
         String *v5;
-        int backTextX = v0->megaEvolutionAvailable ? 188 : 128;
+        int backTextX = v0->megaEvolutionAvailable ? 192 : 128;
 
         v5 = MessageLoader_GetNewString(messageLoader, 929);
         ov16_0226A98C(param0, &param0->unk_4CC[4], v5, FONT_SUBSCREEN, TEXT_COLOR(10, 11, 12), 2, 20023, backTextX, 178, 1, NULL);
@@ -2007,10 +2007,26 @@ static void ov16_022699AC(UnkStruct_ov16_02268A14 *param0, int param1, int param
         // Load custom mega palette into VRAM slot 2
         LoadMegaButtonPalette(param0, isActive);
 
-        // Change left-half tiles to use palette slot 2 (keeps tile graphics, changes color)
-        // Width 0xE (14 tiles) instead of 0xF to leave a 1-tile gap before CANCEL
+        // Change palette for MEGA button fill area (cols 1-14) to mega palette slot 2
         Bg_ChangeTilemapRectPalette(v6, 4, 0x1, 0x13, 0xE, 0x5, 2);
-        // Clear the gap column (col 15) to create visual separation
+
+        // Split the bottom bar into two bordered buttons matching the move button style.
+        // Border tile IDs from the pre-built tilemap (cols 2-3 of the bottom bar):
+        //   outer = corner/edge tiles, inner = transition tiles
+        {
+            static const u16 sBorderOuter[] = { 61, 93, 125, 125, 157 };
+            static const u16 sBorderInner[] = { 62, 94, 126, 126, 158 };
+            int row;
+            for (row = 0; row < 5; row++) {
+                // MEGA right border (cols 13-14, h-flipped, palette 2)
+                Bg_FillTilemapRect(v6, 4, sBorderInner[row] | (1 << 10), 0xD, 0x13 + row, 1, 1, 2);
+                Bg_FillTilemapRect(v6, 4, sBorderOuter[row] | (1 << 10), 0xE, 0x13 + row, 1, 1, 2);
+                // CANCEL left border (cols 16-17, palette 4)
+                Bg_FillTilemapRect(v6, 4, sBorderOuter[row], 0x10, 0x13 + row, 1, 1, 4);
+                Bg_FillTilemapRect(v6, 4, sBorderInner[row], 0x11, 0x13 + row, 1, 1, 4);
+            }
+        }
+        // Clear gap column between buttons (col 15)
         Bg_FillTilemapRect(v6, 4, 0, 0xF, 0x13, 0x1, 0x5, 0);
         Bg_ScheduleTilemapTransfer(v6, 4);
 
