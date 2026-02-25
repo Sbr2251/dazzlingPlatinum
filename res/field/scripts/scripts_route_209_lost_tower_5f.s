@@ -11,13 +11,13 @@ _000A:
     LockAll
     FacePlayer
     GoToIfUnset FLAG_UNK_0x007B, _0067
-    GoToIfSet FLAG_UNK_0x00A1, _005C
+    GoToIfSet FLAG_UNK_0x00A4, _005C
     Message 0
     SetVar VAR_0x8004, ITEM_SPELL_TAG
     SetVar VAR_0x8005, 1
     GoToIfCannotFitItem VAR_0x8004, VAR_0x8005, VAR_RESULT, _00CF
     GiveItemQuantity
-    SetFlag FLAG_UNK_0x00A1
+    SetFlag FLAG_UNK_0x00A4
     GoTo _005C
     End
 
