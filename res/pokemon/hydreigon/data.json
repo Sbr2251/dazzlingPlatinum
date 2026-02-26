@@ -1,0 +1,244 @@
+{
+    "base_stats": {
+        "hp": 92,
+        "attack": 105,
+        "defense": 90,
+        "speed": 98,
+        "special_attack": 125,
+        "special_defense": 90
+    },
+    "types": [
+        "TYPE_DARK",
+        "TYPE_DRAGON"
+    ],
+    "catch_rate": 45,
+    "base_exp_reward": 270,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 0,
+        "defense": 0,
+        "speed": 0,
+        "special_attack": 3,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 40,
+    "base_friendship": 35,
+    "exp_rate": "EXP_RATE_SLOW",
+    "egg_groups": [
+        "EGG_GROUP_DRAGON",
+        "EGG_GROUP_DRAGON"
+    ],
+    "abilities": [
+        "ABILITY_LEVITATE",
+        "ABILITY_LEVITATE"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_BLUE",
+    "flip_sprite": false,
+    "icon_palette": 0,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_BITE"
+            ],
+            [
+                1,
+                "MOVE_DRAGON_RAGE"
+            ],
+            [
+                1,
+                "MOVE_FOCUS_ENERGY"
+            ],
+            [
+                1,
+                "MOVE_TRI_ATTACK"
+            ],
+            [
+                12,
+                "MOVE_HEADBUTT"
+            ],
+            [
+                17,
+                "MOVE_DRAGON_BREATH"
+            ],
+            [
+                20,
+                "MOVE_ROAR"
+            ],
+            [
+                25,
+                "MOVE_CRUNCH"
+            ],
+            [
+                28,
+                "MOVE_SLAM"
+            ],
+            [
+                32,
+                "MOVE_DRAGON_PULSE"
+            ],
+            [
+                38,
+                "MOVE_SCARY_FACE"
+            ],
+            [
+                42,
+                "MOVE_BODY_SLAM"
+            ],
+            [
+                48,
+                "MOVE_HYPER_VOICE"
+            ],
+            [
+                55,
+                "MOVE_OUTRAGE"
+            ],
+            [
+                68,
+                "MOVE_HYPER_BEAM"
+            ]
+        ],
+        "by_tm": [
+            "TM02",
+            "TM05",
+            "TM06",
+            "TM10",
+            "TM11",
+            "TM12",
+            "TM15",
+            "TM17",
+            "TM18",
+            "TM21",
+            "TM23",
+            "TM26",
+            "TM27",
+            "TM32",
+            "TM35",
+            "TM38",
+            "TM39",
+            "TM40",
+            "TM41",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM46",
+            "TM56",
+            "TM58",
+            "TM59",
+            "TM66",
+            "TM68",
+            "TM71",
+            "TM73",
+            "TM78",
+            "TM79",
+            "TM82",
+            "TM83",
+            "TM87",
+            "TM90",
+            "HM02",
+            "HM03",
+            "HM04",
+            "HM05"
+        ],
+        "by_tutor": [
+            "MOVE_SNORE",
+            "MOVE_SPITE",
+            "MOVE_OUTRAGE",
+            "MOVE_EARTH_POWER",
+            "MOVE_ZEN_HEADBUTT",
+            "MOVE_SUPERPOWER",
+            "MOVE_HEAT_WAVE",
+            "MOVE_AQUA_TAIL",
+            "MOVE_IRON_HEAD"
+        ],
+        "egg_moves": []
+    },
+    "evolutions": [],
+    "offspring": "SPECIES_DEINO",
+    "footprint": {
+        "has": true,
+        "size": "FOOTPRINT_MEDIUM",
+        "type": "FOOTPRINT_TYPE_SCARY"
+    },
+    "pokedex_data": {
+        "height": 18,
+        "weight": 1600,
+        "body_shape": "SHAPE_WINGED",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 256,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 256,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 6,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 6,
+        "en": {
+            "name": "HYDREIGON",
+            "category": "Brutal Pokémon",
+            "entry_text": [
+                "The heads on its arms do not have\n",
+                "brains. It destroys everything in\n",
+                "its path, consuming all in flames."
+            ]
+        },
+        "fr": {
+            "name": "TRIOXHYDRE",
+            "category": "Pokémon Brutal",
+            "entry_text": [
+                "Les têtes de ses bras n’ont pas de\n",
+                "cerveau. Il détruit tout sur son\n",
+                "passage et consume tout en flammes."
+            ]
+        },
+        "de": {
+            "name": "TRIKEPHALO",
+            "category": "Brutal",
+            "entry_text": [
+                "Die Köpfe an seinen Armen haben\n",
+                "kein Gehirn. Es zerstört alles auf\n",
+                "seinem Weg und verbrennt alles."
+            ]
+        },
+        "it": {
+            "name": "HYDREIGON",
+            "category": "Pokémon Brutale",
+            "entry_text": [
+                "Le teste sulle braccia non hanno\n",
+                "cervello. Distrugge tutto ciò che\n",
+                "incontra, consumando tutto in fiamme."
+            ]
+        },
+        "es": {
+            "name": "HYDREIGON",
+            "category": "Pokémon Brutal",
+            "entry_text": [
+                "Las cabezas de sus brazos no\n",
+                "tienen cerebro. Destruye todo a\n",
+                "su paso, consumiendo todo en llamas."
+            ]
+        },
+        "jp": {
+            "name": "サザンドラ",
+            "category": "づんよくポケモン",
+            "entry_text": [
+                "うでの　アタマには　のうが　ない。\n",
+                "すべてを　はかいし　やきつくす\n",
+                "きょうぼうな　ポケモンだ。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NORTH_EAST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 80,
+        "rarity": 10,
+        "unused": 4112
+    }
+}

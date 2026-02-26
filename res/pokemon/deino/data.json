@@ -1,0 +1,231 @@
+{
+    "base_stats": {
+        "hp": 52,
+        "attack": 65,
+        "defense": 50,
+        "speed": 38,
+        "special_attack": 45,
+        "special_defense": 50
+    },
+    "types": [
+        "TYPE_DARK",
+        "TYPE_DRAGON"
+    ],
+    "catch_rate": 45,
+    "base_exp_reward": 60,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 1,
+        "defense": 0,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 40,
+    "base_friendship": 35,
+    "exp_rate": "EXP_RATE_SLOW",
+    "egg_groups": [
+        "EGG_GROUP_DRAGON",
+        "EGG_GROUP_DRAGON"
+    ],
+    "abilities": [
+        "ABILITY_HUSTLE",
+        "ABILITY_HUSTLE"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_BLUE",
+    "flip_sprite": false,
+    "icon_palette": 0,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_TACKLE"
+            ],
+            [
+                1,
+                "MOVE_DRAGON_RAGE"
+            ],
+            [
+                4,
+                "MOVE_FOCUS_ENERGY"
+            ],
+            [
+                9,
+                "MOVE_BITE"
+            ],
+            [
+                12,
+                "MOVE_HEADBUTT"
+            ],
+            [
+                17,
+                "MOVE_DRAGON_BREATH"
+            ],
+            [
+                20,
+                "MOVE_ROAR"
+            ],
+            [
+                25,
+                "MOVE_CRUNCH"
+            ],
+            [
+                28,
+                "MOVE_SLAM"
+            ],
+            [
+                32,
+                "MOVE_DRAGON_PULSE"
+            ],
+            [
+                38,
+                "MOVE_SCARY_FACE"
+            ],
+            [
+                42,
+                "MOVE_BODY_SLAM"
+            ],
+            [
+                48,
+                "MOVE_HYPER_VOICE"
+            ],
+            [
+                52,
+                "MOVE_OUTRAGE"
+            ]
+        ],
+        "by_tm": [
+            "TM05",
+            "TM06",
+            "TM10",
+            "TM11",
+            "TM12",
+            "TM17",
+            "TM18",
+            "TM21",
+            "TM27",
+            "TM32",
+            "TM41",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM46",
+            "TM66",
+            "TM82",
+            "TM83",
+            "TM87"
+        ],
+        "by_tutor": [
+            "MOVE_SNORE",
+            "MOVE_SPITE",
+            "MOVE_OUTRAGE",
+            "MOVE_EARTH_POWER",
+            "MOVE_ZEN_HEADBUTT",
+            "MOVE_SUPERPOWER"
+        ],
+        "egg_moves": [
+            "MOVE_DARK_PULSE",
+            "MOVE_EARTH_POWER",
+            "MOVE_FIRE_FANG",
+            "MOVE_ICE_FANG",
+            "MOVE_THUNDER_FANG",
+            "MOVE_DOUBLE_HIT",
+            "MOVE_ASSURANCE",
+            "MOVE_SCREECH"
+        ]
+    },
+    "evolutions": [
+        [
+            "EVO_LEVEL",
+            50,
+            "SPECIES_ZWEILOUS"
+        ]
+    ],
+    "offspring": "SPECIES_DEINO",
+    "footprint": {
+        "has": true,
+        "size": "FOOTPRINT_MEDIUM",
+        "type": "FOOTPRINT_TYPE_SCARY"
+    },
+    "pokedex_data": {
+        "height": 8,
+        "weight": 173,
+        "body_shape": "SHAPE_QUADRUPED",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 300,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 300,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 14,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 14,
+        "en": {
+            "name": "DEINO",
+            "category": "Irate Pokémon",
+            "entry_text": [
+                "Lacking sight, it’s unaware of\n",
+                "its surroundings, so it bumps into\n",
+                "things and eats anything that moves."
+            ]
+        },
+        "fr": {
+            "name": "SOLOCHI",
+            "category": "Pokémon Hargneux",
+            "entry_text": [
+                "Privé de la vue, il explore son\n",
+                "environnement en mordant tout\n",
+                "ce qui se trouve à sa portée."
+            ]
+        },
+        "de": {
+            "name": "KAPUNO",
+            "category": "Wirrkopf",
+            "entry_text": [
+                "Da es nichts sehen kann, nimmt\n",
+                "es seine Umgebung wahr, indem\n",
+                "es in alles hineinbeißt."
+            ]
+        },
+        "it": {
+            "name": "DEINO",
+            "category": "Pokémon Irascibile",
+            "entry_text": [
+                "Non potendo vedere, esplora\n",
+                "l’ambiente circostante mordendo\n",
+                "tutto ciò che gli capita a tiro."
+            ]
+        },
+        "es": {
+            "name": "DEINO",
+            "category": "Pokémon Iracundo",
+            "entry_text": [
+                "Al no poder ver, explora su\n",
+                "entorno mordiendo todo lo que\n",
+                "encuentra a su paso."
+            ]
+        },
+        "jp": {
+            "name": "モノズ",
+            "category": "かみつきポケモン",
+            "entry_text": [
+                "めが　みえないので　まわりの\n",
+                "ものに　かみついて　その　すがたを\n",
+                "たしかめている。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NORTH_EAST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 80,
+        "rarity": 10,
+        "unused": 4112
+    }
+}
