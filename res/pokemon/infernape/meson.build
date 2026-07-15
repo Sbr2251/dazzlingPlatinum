@@ -7,4 +7,10 @@ pokegra_files += files('male_back.png')
 pokegra_files += files('female_front.png')
 pokegra_files += files('male_front.png')
 
+otherpoke_index += {
+    '278': files('forms/mega/back.png'),
+    '279': files('forms/mega/front.png'),
+    '284': files('forms/mega/normal.pal'),
+    '285': files('forms/mega/shiny.pal'),
+}
 pokefoot_files += files('footprint.png')

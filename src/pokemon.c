@@ -3001,6 +3001,42 @@ void BuildPokemonSpriteTemplate(PokemonSpriteTemplate *spriteTemplate, u16 speci
         }
         break;
 
+    case SPECIES_TORTERRA:
+        if (form == MEGA_FORM_TORTERRA) {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
+            spriteTemplate->character = 276 + (face / 2);
+            spriteTemplate->palette = 282 + shiny;
+        } else {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
+            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
+            spriteTemplate->palette = species * 6 + 4 + shiny;
+        }
+        break;
+
+    case SPECIES_INFERNAPE:
+        if (form == MEGA_FORM_INFERNAPE) {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
+            spriteTemplate->character = 278 + (face / 2);
+            spriteTemplate->palette = 284 + shiny;
+        } else {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
+            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
+            spriteTemplate->palette = species * 6 + 4 + shiny;
+        }
+        break;
+
+    case SPECIES_EMPOLEON:
+        if (form == MEGA_FORM_EMPOLEON) {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
+            spriteTemplate->character = 280 + (face / 2);
+            spriteTemplate->palette = 286 + shiny;
+        } else {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
+            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
+            spriteTemplate->palette = species * 6 + 4 + shiny;
+        }
+        break;
+
     default:
         spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
         spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0); // ternary must remain to match
@@ -3114,6 +3150,21 @@ u8 Pokemon_SanitizeFormId(u16 monSpecies, u8 monForm)
         break;
     case SPECIES_SCIZOR:
         if (monForm > SCIZOR_FORM_COUNT - 1) {
+            monForm = 0;
+        }
+        break;
+    case SPECIES_TORTERRA:
+        if (monForm > TORTERRA_FORM_COUNT - 1) {
+            monForm = 0;
+        }
+        break;
+    case SPECIES_INFERNAPE:
+        if (monForm > INFERNAPE_FORM_COUNT - 1) {
+            monForm = 0;
+        }
+        break;
+    case SPECIES_EMPOLEON:
+        if (monForm > EMPOLEON_FORM_COUNT - 1) {
             monForm = 0;
         }
         break;
@@ -3328,6 +3379,42 @@ static void BuildPokemonSpriteTemplateDP(PokemonSpriteTemplate *spriteTemplate, 
             spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
             spriteTemplate->character = 166 + (face / 2);
             spriteTemplate->palette = 274 + shiny;
+        } else {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__POKEGRA;
+            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
+            spriteTemplate->palette = species * 6 + 4 + shiny;
+        }
+        break;
+
+    case SPECIES_TORTERRA:
+        if (form == MEGA_FORM_TORTERRA) {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
+            spriteTemplate->character = 276 + (face / 2);
+            spriteTemplate->palette = 282 + shiny;
+        } else {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__POKEGRA;
+            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
+            spriteTemplate->palette = species * 6 + 4 + shiny;
+        }
+        break;
+
+    case SPECIES_INFERNAPE:
+        if (form == MEGA_FORM_INFERNAPE) {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
+            spriteTemplate->character = 278 + (face / 2);
+            spriteTemplate->palette = 284 + shiny;
+        } else {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__POKEGRA;
+            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
+            spriteTemplate->palette = species * 6 + 4 + shiny;
+        }
+        break;
+
+    case SPECIES_EMPOLEON:
+        if (form == MEGA_FORM_EMPOLEON) {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
+            spriteTemplate->character = 280 + (face / 2);
+            spriteTemplate->palette = 286 + shiny;
         } else {
             spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__POKEGRA;
             spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);

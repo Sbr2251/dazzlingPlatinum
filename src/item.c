@@ -745,22 +745,22 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
         .paletteID = mega_stone_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_120] = {
-        .dataID = 0x0,
-        .iconID = none_NCGR,
-        .paletteID = none_NCLR,
+    [ITEM_TORTERRITE] = {
+        .dataID = 0x1C5,
+        .iconID = mega_stone_NCGR,
+        .paletteID = mega_stone_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_121] = {
-        .dataID = 0x0,
-        .iconID = none_NCGR,
-        .paletteID = none_NCLR,
+    [ITEM_INFERNAPITE] = {
+        .dataID = 0x1C6,
+        .iconID = mega_stone_NCGR,
+        .paletteID = mega_stone_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_122] = {
-        .dataID = 0x0,
-        .iconID = none_NCGR,
-        .paletteID = none_NCLR,
+    [ITEM_EMPOLEONITE] = {
+        .dataID = 0x1C7,
+        .iconID = mega_stone_NCGR,
+        .paletteID = mega_stone_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
     [ITEM_UNUSED_123] = {

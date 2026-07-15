@@ -36,30 +36,31 @@ output_dir = pathlib.Path(args.output_dir)
 
 private_dir.mkdir(parents=True, exist_ok=True)
 
-# The first batch of files should all be sprites
-for i in range(args.sprite_entries):
-    infile = args.files[i]
-    target = private_dir / f'pl_otherpoke_{i:04}.NCGR'
-    subprocess.run([
-        args.nitrogfx,
-        infile,
-        target,
-        '-encodefronttoback',
-        '-scan',
-    ])
-
-# The next batch of files should all be palettes
-for i in range(args.sprite_entries, args.sprite_entries + args.palette_entries):
-    infile = args.files[i]
-    target = private_dir / f'pl_otherpoke_{i:04}.NCLR'
-    subprocess.run([
-        args.nitrogfx,
-        infile,
-        target,
-        '-bitdepth', '8',
-        '-nopad',
-        '-comp', '10'
-    ])
+# Core archive entries are normally sprites followed by palettes. New form
+# resources may be appended without renumbering canonical entries, so choose
+# the converter from the source extension rather than the numeric range.
+core_entries = args.sprite_entries + args.palette_entries
+for i in range(core_entries):
+    infile = pathlib.Path(args.files[i])
+    if infile.suffix.lower() == '.pal':
+        target = private_dir / f'pl_otherpoke_{i:04}.NCLR'
+        subprocess.run([
+            args.nitrogfx,
+            infile,
+            target,
+            '-bitdepth', '8',
+            '-nopad',
+            '-comp', '10'
+        ], check=True)
+    else:
+        target = private_dir / f'pl_otherpoke_{i:04}.NCGR'
+        subprocess.run([
+            args.nitrogfx,
+            infile,
+            target,
+            '-encodefronttoback',
+            '-scan',
+        ], check=True)
 
 # The last five entries are the Substitute sprite and in-battle shadows
 sub_back = args.files[-5]

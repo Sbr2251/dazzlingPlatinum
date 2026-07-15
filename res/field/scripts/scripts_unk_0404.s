@@ -337,6 +337,9 @@
     ScriptEntry _mega_alakazite
     ScriptEntry _mega_gyaradosite
     ScriptEntry _mega_scizorite
+    ScriptEntry _mega_torterrite
+    ScriptEntry _mega_infernapite
+    ScriptEntry _mega_empoleonite
     ScriptEntryEnd
 
 _0522:
@@ -2466,6 +2469,24 @@ _mega_alakazite:
 
 _mega_gyaradosite:
     SetVar VAR_0x8008, ITEM_GYARADOSITE
+    SetVar VAR_0x8009, 1
+    GoTo _1EAE
+    End
+
+_mega_torterrite:
+    SetVar VAR_0x8008, ITEM_TORTERRITE
+    SetVar VAR_0x8009, 1
+    GoTo _1EAE
+    End
+
+_mega_infernapite:
+    SetVar VAR_0x8008, ITEM_INFERNAPITE
+    SetVar VAR_0x8009, 1
+    GoTo _1EAE
+    End
+
+_mega_empoleonite:
+    SetVar VAR_0x8008, ITEM_EMPOLEONITE
     SetVar VAR_0x8009, 1
     GoTo _1EAE
     End

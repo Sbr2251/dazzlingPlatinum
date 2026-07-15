@@ -100,7 +100,46 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .type1 = TYPE_BUG,
         .type2 = TYPE_STEEL,
     },
+    // Mega Torterra
+    // Base stats: 95 HP, 149 Atk, 145 Def, 85 SpAtk, 115 SpDef, 36 Speed
+    // Ability: Thick Fat
+    // Type: Grass/Ground (unchanged)
+    {
+        .baseSpecies = SPECIES_TORTERRA,
+        .megaForm = MEGA_FORM_TORTERRA,
+        .requiredItem = ITEM_TORTERRITE,
+        .baseStats = {95, 149, 145, 85, 115, 36},
+        .ability = ABILITY_THICK_FAT,
+        .type1 = TYPE_GRASS,
+        .type2 = TYPE_GROUND,
+    },
+    // Mega Infernape
+    // Base stats: 76 HP, 134 Atk, 81 Def, 134 SpAtk, 81 SpDef, 128 Speed
+    // Ability: Adaptability
+    // Type: Fire/Fighting (unchanged)
+    {
+        .baseSpecies = SPECIES_INFERNAPE,
+        .megaForm = MEGA_FORM_INFERNAPE,
+        .requiredItem = ITEM_INFERNAPITE,
+        .baseStats = {76, 134, 81, 134, 81, 128},
+        .ability = ABILITY_ADAPTABILITY,
+        .type1 = TYPE_FIRE,
+        .type2 = TYPE_FIGHTING,
+    },
+    // Mega Empoleon
+    // Base stats: 84 HP, 106 Atk, 118 Def, 141 SpAtk, 121 SpDef, 60 Speed
+    // Ability: Filter
+    // Type: Water/Steel (unchanged)
+    {
+        .baseSpecies = SPECIES_EMPOLEON,
+        .megaForm = MEGA_FORM_EMPOLEON,
+        .requiredItem = ITEM_EMPOLEONITE,
+        .baseStats = {84, 106, 118, 141, 121, 60},
+        .ability = ABILITY_FILTER,
+        .type1 = TYPE_WATER,
+        .type2 = TYPE_STEEL,
+    },
 };
 
 // Size of the mega evolution table
-const int sMegaEvolutionTableSize = 7;
+const int sMegaEvolutionTableSize = 10;

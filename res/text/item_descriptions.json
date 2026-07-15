@@ -952,15 +952,24 @@
     },
     {
       "id": "pl_msg_00000391_00120",
-      "garbage": 0
+      "en_US": [
+        "A stone that enables Torterra to\n",
+        "Mega Evolve during battle when held."
+      ]
     },
     {
       "id": "pl_msg_00000391_00121",
-      "garbage": 0
+      "en_US": [
+        "A stone that enables Infernape to\n",
+        "Mega Evolve during battle when held."
+      ]
     },
     {
       "id": "pl_msg_00000391_00122",
-      "garbage": 0
+      "en_US": [
+        "A stone that enables Empoleon to\n",
+        "Mega Evolve during battle when held."
+      ]
     },
     {
       "id": "pl_msg_00000391_00123",
