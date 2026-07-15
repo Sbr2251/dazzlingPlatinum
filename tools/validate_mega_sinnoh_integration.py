@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate mechanics and resource wiring for the three Sinnoh starter Megas."""
+"""Validate mechanics and resource wiring for the Sinnoh Megas."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ MEGAS = {
         "item_id": 120,
         "script": 7335,
         "flag": "FLAG_UNK_0x0543",
+        "expected_delta": 100,
     },
     "infernape": {
         "species": "SPECIES_INFERNAPE",
@@ -32,6 +33,7 @@ MEGAS = {
         "item_id": 121,
         "script": 7336,
         "flag": "FLAG_UNK_0x0544",
+        "expected_delta": 100,
     },
     "empoleon": {
         "species": "SPECIES_EMPOLEON",
@@ -44,6 +46,20 @@ MEGAS = {
         "item_id": 122,
         "script": 7337,
         "flag": "FLAG_UNK_0x0545",
+        "expected_delta": 100,
+    },
+    "staraptor": {
+        "species": "SPECIES_STARAPTOR",
+        "form": "MEGA_FORM_STARAPTOR",
+        "stone": "ITEM_STARAPTITE",
+        "ability": "ABILITY_CONTRARY",
+        "types": ("TYPE_FIGHTING", "TYPE_FLYING"),
+        "stats": (85, 140, 100, 60, 90, 110),
+        "resources": (288, 289, 290, 291),
+        "item_id": 123,
+        "script": 7338,
+        "flag": "FLAG_UNK_0x0546",
+        "expected_delta": 110,
     },
 }
 
@@ -80,7 +96,11 @@ def main() -> None:
         mega_stats = expected["stats"]
         base_bst = sum(base_ordered)
         mega_bst = sum(mega_stats)
-        require(mega_bst - base_bst == 100, f"{species}: Mega spread adds {mega_bst - base_bst}, expected 100", failures)
+        require(
+            mega_bst - base_bst == expected["expected_delta"],
+            f"{species}: Mega spread adds {mega_bst - base_bst}, expected {expected['expected_delta']}",
+            failures,
+        )
         require(expected["ability"] in abilities, f"{species}: missing existing ability {expected['ability']}", failures)
         require(all(type_name in types for type_name in expected["types"]), f"{species}: missing type identifier", failures)
         require(items[expected["item_id"]] == expected["stone"], f"{species}: stone is not item ID {expected['item_id']}", failures)
@@ -125,9 +145,16 @@ def main() -> None:
             f"stone={expected['stone']}({expected['item_id']}) resources={expected['resources']}"
         )
 
-    require("const int sMegaEvolutionTableSize = 10;" in mega_source, "Mega table size is not 10", failures)
-    require("'--sprite-entries', '174'" in (ROOT / "res/pokemon/meson.build").read_text(), "Archive sprite count is not 174", failures)
-    require("'--palette-entries', '114'" in (ROOT / "res/pokemon/meson.build").read_text(), "Archive palette count is not 114", failures)
+    battle_script = (ROOT / "src/battle/battle_script.c").read_text()
+    require("const int sMegaEvolutionTableSize = 11;" in mega_source, "Mega table size is not 11", failures)
+    require("'--sprite-entries', '176'" in (ROOT / "res/pokemon/meson.build").read_text(), "Archive sprite count is not 176", failures)
+    require("'--palette-entries', '116'" in (ROOT / "res/pokemon/meson.build").read_text(), "Archive palette count is not 116", failures)
+    require(
+        "if (mon->ability == ABILITY_CONTRARY)" in battle_script
+        and "stageChange = -stageChange;" in battle_script,
+        "Contrary is not wired into the centralized stat-stage handler",
+        failures,
+    )
 
     print("\n".join(rows))
     if failures:
@@ -135,7 +162,7 @@ def main() -> None:
         for failure in failures:
             print(f"- {failure}")
         raise SystemExit(1)
-    print("\nAll Mega Sinnoh starter mechanics and integration checks passed.")
+    print("\nAll Mega Sinnoh mechanics and integration checks passed.")
 
 
 if __name__ == "__main__":

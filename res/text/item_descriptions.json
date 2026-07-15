@@ -973,7 +973,10 @@
     },
     {
       "id": "pl_msg_00000391_00123",
-      "garbage": 0
+      "en_US": [
+        "A stone that enables Staraptor to\n",
+        "Mega Evolve during battle when held."
+      ]
     },
     {
       "id": "pl_msg_00000391_00124",

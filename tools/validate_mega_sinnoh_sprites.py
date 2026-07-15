@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Validate native-format Mega Sinnoh starter sprite assets."""
+"""Validate native-format Mega Sinnoh battle-sprite assets."""
 
 from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-SPECIES = ("torterra", "infernape", "empoleon")
+SPECIES = ("torterra", "infernape", "empoleon", "staraptor")
 FACES = ("front", "back")
 
 
@@ -106,7 +106,7 @@ def main() -> None:
         for failure in failures:
             print(f"- {failure}")
         raise SystemExit(1)
-    print("\nAll six Mega Sinnoh starter sprite sheets passed native-format validation.")
+    print("\nAll eight Mega Sinnoh sprite sheets passed native-format validation.")
 
 
 if __name__ == "__main__":

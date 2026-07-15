@@ -3037,6 +3037,18 @@ void BuildPokemonSpriteTemplate(PokemonSpriteTemplate *spriteTemplate, u16 speci
         }
         break;
 
+    case SPECIES_STARAPTOR:
+        if (form == MEGA_FORM_STARAPTOR) {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
+            spriteTemplate->character = 288 + (face / 2);
+            spriteTemplate->palette = 290 + shiny;
+        } else {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
+            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
+            spriteTemplate->palette = species * 6 + 4 + shiny;
+        }
+        break;
+
     default:
         spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
         spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0); // ternary must remain to match
@@ -3165,6 +3177,11 @@ u8 Pokemon_SanitizeFormId(u16 monSpecies, u8 monForm)
         break;
     case SPECIES_EMPOLEON:
         if (monForm > EMPOLEON_FORM_COUNT - 1) {
+            monForm = 0;
+        }
+        break;
+    case SPECIES_STARAPTOR:
+        if (monForm > STARAPTOR_FORM_COUNT - 1) {
             monForm = 0;
         }
         break;
@@ -3415,6 +3432,18 @@ static void BuildPokemonSpriteTemplateDP(PokemonSpriteTemplate *spriteTemplate, 
             spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
             spriteTemplate->character = 280 + (face / 2);
             spriteTemplate->palette = 286 + shiny;
+        } else {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__POKEGRA;
+            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
+            spriteTemplate->palette = species * 6 + 4 + shiny;
+        }
+        break;
+
+    case SPECIES_STARAPTOR:
+        if (form == MEGA_FORM_STARAPTOR) {
+            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
+            spriteTemplate->character = 288 + (face / 2);
+            spriteTemplate->palette = 290 + shiny;
         } else {
             spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__POKEGRA;
             spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);

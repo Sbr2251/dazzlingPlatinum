@@ -139,7 +139,20 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .type1 = TYPE_WATER,
         .type2 = TYPE_STEEL,
     },
+    // Mega Staraptor
+    // Base stats: 85 HP, 140 Atk, 100 Def, 60 SpAtk, 90 SpDef, 110 Speed
+    // Ability: Contrary
+    // Type: Fighting/Flying
+    {
+        .baseSpecies = SPECIES_STARAPTOR,
+        .megaForm = MEGA_FORM_STARAPTOR,
+        .requiredItem = ITEM_STARAPTITE,
+        .baseStats = {85, 140, 100, 60, 90, 110},
+        .ability = ABILITY_CONTRARY,
+        .type1 = TYPE_FIGHTING,
+        .type2 = TYPE_FLYING,
+    },
 };
 
 // Size of the mega evolution table
-const int sMegaEvolutionTableSize = 10;
+const int sMegaEvolutionTableSize = 11;

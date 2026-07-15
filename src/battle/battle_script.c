@@ -3063,6 +3063,15 @@ static BOOL BtlCmd_ChangeStatStage(BattleSystem *battleSys, BattleContext *battl
         battleCtx->scriptTemp = BATTLE_ANIMATION_STAT_BOOST;
     }
 
+    // Contrary reverses ordinary stat-stage raises and drops. This centralized
+    // hook deliberately does not affect stage copies, swaps, or resets.
+    if (mon->ability == ABILITY_CONTRARY) {
+        stageChange = -stageChange;
+        battleCtx->scriptTemp = stageChange > 0
+            ? BATTLE_ANIMATION_STAT_BOOST
+            : BATTLE_ANIMATION_STAT_DROP;
+    }
+
     if (stageChange > 0) {
         if (mon->statBoosts[BATTLE_STAT_ATTACK + statOffset] == MAX_STAT_STAGE) {
             battleCtx->battleStatusMask |= SYSCTL_FAIL_STAT_STAGE_CHANGE;
