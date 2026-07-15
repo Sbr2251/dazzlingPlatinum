@@ -1,0 +1,13 @@
+# First-Pass Maquette Review
+
+## Mega Torterra v1
+
+**Status: retain as a design source, reject as a direct sprite source.** The transformation finally changes the outer silhouette: the shell reads as a stone fortress, the body is substantially heavier, the tree is rooted through the shell, and the large faceted green plate is visible. Front and rear proportions are broadly consistent. However, the canopy occupies nearly half the entire character height and is too wide and finely scalloped to survive an 80×80 frame. The conversion must reduce the canopy to three or four connected masses, shorten the crown by roughly one quarter, preserve a visible head/neck corridor, and limit the stone spikes to a few landmarks. Direct reduction is expected to fail through foliage noise and loss of the small head.
+
+## Mega Infernape v1
+
+**Status: retain as the primary design source, reject direct reduction without spatial compression.** The maquette has a substantially new Monkey King silhouette, dark martial body, large white mane, gold armor, blue extremities, and one continuous staff contacting both hands. The rear is a true rear view and preserves armor, mane, tail, and grip locations. It is far better aligned with the approved reference than the currently promoted base-derived sprite. The remaining blockers are target-size composition: the mane is so large that it would erase the head and shoulders at 80×80, while the long staff and two flames would force the body to become too small. Target reconstruction must reduce the mane by approximately 15–20%, keep the face at least 8–10 pixels wide, compact the staff diagonally within the frame, and render each end flame as one small attached cluster rather than a detailed flame illustration.
+
+## Mega Empoleon v1
+
+**Status: retain as the primary design source, reject direct reduction without mantle and wing simplification.** The maquette achieves the required broad emperor silhouette: the torso is no longer a thin column, both blade wings are visibly attached at the shoulders, the gold mask-trident integrates around the face, and the pale-blue mantle creates a large royal mass in both views. The rear is genuinely rear-facing and preserves the same crown, wing, mantle, and stance landmarks. The target-size risks are the mantle’s many interior curls, very long thin crown tines, and large wing tips, all of which could become disconnected or force the torso too small. The DS reconstruction must compress the mantle into two or three connected pale-blue clusters, thicken and shorten the crown prongs, keep each wing as one dark plane with one gold rim cluster, and reserve enough interior width for an immediately readable penguin torso and feet.

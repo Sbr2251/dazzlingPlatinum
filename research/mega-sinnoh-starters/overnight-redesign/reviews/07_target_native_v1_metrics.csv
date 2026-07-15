@@ -1,0 +1,7 @@
+sheet,colors,format,mean_base_iou,max_base_iou,animation_iou,components_f0,components_f1,orphans,tiny_components,edge_contacts,largest_component_min
+empoleon_back_v1,14,PASS,0.5143,0.5202,1.0,1,1,0,0,0,1.0
+empoleon_front_v1,15,PASS,0.5935,0.5974,1.0,1,1,0,0,0,1.0
+infernape_back_v1,15,PASS,0.3957,0.4133,1.0,1,1,0,0,0,1.0
+infernape_front_v1,15,PASS,0.4904,0.5053,1.0,1,1,0,0,0,1.0
+torterra_back_v1,11,PASS,0.5787,0.5835,1.0,1,1,0,0,0,1.0
+torterra_front_v1,14,PASS,0.7065,0.7102,1.0,1,1,0,0,0,1.0

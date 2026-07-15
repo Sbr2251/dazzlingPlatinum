@@ -1,0 +1,425 @@
+{
+  "candidate_root": "target-native-v9-nearest-sheets",
+  "species": {
+    "torterra": {
+      "normal_palette_size": 16,
+      "shiny_palette_size": 16,
+      "front": {
+        "mode": "P",
+        "size": [
+          160,
+          80
+        ],
+        "used_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "frames": [
+          {
+            "bbox": [
+              3,
+              3,
+              77,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              3,
+              3,
+              3
+            ],
+            "occupied": 5476,
+            "component_sizes": [
+              5476
+            ],
+            "largest_component_share": 1.0
+          },
+          {
+            "bbox": [
+              3,
+              2,
+              77,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              2,
+              3,
+              3
+            ],
+            "occupied": 5550,
+            "component_sizes": [
+              5550
+            ],
+            "largest_component_share": 1.0
+          }
+        ],
+        "animation_xor_pixels": 74,
+        "animation_iou": 0.9866666666666667
+      },
+      "back": {
+        "mode": "P",
+        "size": [
+          160,
+          80
+        ],
+        "used_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          15
+        ],
+        "frames": [
+          {
+            "bbox": [
+              3,
+              3,
+              77,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              3,
+              3,
+              3
+            ],
+            "occupied": 3962,
+            "component_sizes": [
+              3962
+            ],
+            "largest_component_share": 1.0
+          },
+          {
+            "bbox": [
+              3,
+              2,
+              77,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              2,
+              3,
+              3
+            ],
+            "occupied": 4017,
+            "component_sizes": [
+              4017
+            ],
+            "largest_component_share": 1.0
+          }
+        ],
+        "animation_xor_pixels": 177,
+        "animation_iou": 0.9565963707699853
+      },
+      "front_rear_iou": 0.7235208181154127,
+      "mega_base_front_iou": 0.6430780425686738
+    },
+    "infernape": {
+      "normal_palette_size": 16,
+      "shiny_palette_size": 16,
+      "front": {
+        "mode": "P",
+        "size": [
+          160,
+          80
+        ],
+        "used_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "frames": [
+          {
+            "bbox": [
+              3,
+              3,
+              77,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              3,
+              3,
+              3
+            ],
+            "occupied": 2678,
+            "component_sizes": [
+              2678
+            ],
+            "largest_component_share": 1.0
+          },
+          {
+            "bbox": [
+              3,
+              2,
+              77,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              2,
+              3,
+              3
+            ],
+            "occupied": 2706,
+            "component_sizes": [
+              2706
+            ],
+            "largest_component_share": 1.0
+          }
+        ],
+        "animation_xor_pixels": 300,
+        "animation_iou": 0.8944405348346235
+      },
+      "back": {
+        "mode": "P",
+        "size": [
+          160,
+          80
+        ],
+        "used_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "frames": [
+          {
+            "bbox": [
+              3,
+              7,
+              77,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              7,
+              3,
+              3
+            ],
+            "occupied": 2067,
+            "component_sizes": [
+              2067
+            ],
+            "largest_component_share": 1.0
+          },
+          {
+            "bbox": [
+              3,
+              6,
+              77,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              6,
+              3,
+              3
+            ],
+            "occupied": 2103,
+            "component_sizes": [
+              2103
+            ],
+            "largest_component_share": 1.0
+          }
+        ],
+        "animation_xor_pixels": 296,
+        "animation_iou": 0.8674429019256605
+      },
+      "front_rear_iou": 0.4164179104477612,
+      "mega_base_front_iou": 0.4916420845624385
+    },
+    "empoleon": {
+      "normal_palette_size": 16,
+      "shiny_palette_size": 16,
+      "front": {
+        "mode": "P",
+        "size": [
+          160,
+          80
+        ],
+        "used_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "frames": [
+          {
+            "bbox": [
+              3,
+              3,
+              76,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              3,
+              4,
+              3
+            ],
+            "occupied": 2656,
+            "component_sizes": [
+              2656
+            ],
+            "largest_component_share": 1.0
+          },
+          {
+            "bbox": [
+              3,
+              2,
+              76,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              2,
+              4,
+              3
+            ],
+            "occupied": 2693,
+            "component_sizes": [
+              2693
+            ],
+            "largest_component_share": 1.0
+          }
+        ],
+        "animation_xor_pixels": 187,
+        "animation_iou": 0.932442196531792
+      },
+      "back": {
+        "mode": "P",
+        "size": [
+          160,
+          80
+        ],
+        "used_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "frames": [
+          {
+            "bbox": [
+              3,
+              4,
+              77,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              4,
+              3,
+              3
+            ],
+            "occupied": 2567,
+            "component_sizes": [
+              2567
+            ],
+            "largest_component_share": 1.0
+          },
+          {
+            "bbox": [
+              3,
+              3,
+              77,
+              77
+            ],
+            "margins_ltrb": [
+              3,
+              3,
+              3,
+              3
+            ],
+            "occupied": 2604,
+            "component_sizes": [
+              2604
+            ],
+            "largest_component_share": 1.0
+          }
+        ],
+        "animation_xor_pixels": 203,
+        "animation_iou": 0.9244510606624489
+      },
+      "front_rear_iou": 0.6021472392638036,
+      "mega_base_front_iou": 0.5711297071129707
+    }
+  },
+  "failures": []
+}

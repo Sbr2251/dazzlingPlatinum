@@ -1,0 +1,5 @@
+torterra  BST 525->625 (+100) ability=ABILITY_THICK_FAT types=TYPE_GRASS/TYPE_GROUND stone=ITEM_TORTERRITE(120) resources=(276, 277, 282, 283)
+infernape BST 534->634 (+100) ability=ABILITY_ADAPTABILITY types=TYPE_FIRE/TYPE_FIGHTING stone=ITEM_INFERNAPITE(121) resources=(278, 279, 284, 285)
+empoleon  BST 530->630 (+100) ability=ABILITY_FILTER types=TYPE_WATER/TYPE_STEEL stone=ITEM_EMPOLEONITE(122) resources=(280, 281, 286, 287)
+
+All Mega Sinnoh starter mechanics and integration checks passed.

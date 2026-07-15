@@ -1,0 +1,66 @@
+--- rowan diff ---
+--- promoted sheet dimensions/checksums ---
+res/pokemon/torterra/forms/mega/front.png 160x80 TrueColorAlpha
+48714ff71ec975436d266953cae11d1eb86a2725c7ec55e3e987c30a62d00f4d  res/pokemon/torterra/forms/mega/front.png
+res/pokemon/torterra/forms/mega/back.png 160x80 TrueColorAlpha
+5c1a537c4e454b2d0a82c53c8882be8dca2b2deaa69426254abcf447b41103b4  res/pokemon/torterra/forms/mega/back.png
+res/pokemon/infernape/forms/mega/front.png 160x80 TrueColorAlpha
+35b7adc209ce65c65bae695e3df871ffa56e22738abb277261c0c4542a1ffad3  res/pokemon/infernape/forms/mega/front.png
+res/pokemon/infernape/forms/mega/back.png 160x80 TrueColorAlpha
+d17dfbac9cd88eab8b86c08735fb434470648a31f8cb29b032235499e0f21436  res/pokemon/infernape/forms/mega/back.png
+res/pokemon/empoleon/forms/mega/front.png 160x80 TrueColorAlpha
+6fe4f6921934db611fd36675ea579ffeec6d3cd7e872e56b14f1453fb01466c3  res/pokemon/empoleon/forms/mega/front.png
+res/pokemon/empoleon/forms/mega/back.png 160x80 TrueColorAlpha
+d050f76c311d3856e60a7d69d75e118a66ae8df3b573cfb0af9720f7cad09d0c  res/pokemon/empoleon/forms/mega/back.png
+--- git status ---
+ [31mM[m res/pokemon/empoleon/forms/mega/back.png
+ [31mM[m res/pokemon/empoleon/forms/mega/back.png.key
+ [31mM[m res/pokemon/empoleon/forms/mega/front.png
+ [31mM[m res/pokemon/empoleon/forms/mega/front.png.key
+ [31mM[m res/pokemon/empoleon/forms/mega/normal.pal
+ [31mM[m res/pokemon/empoleon/forms/mega/shiny.pal
+ [31mM[m res/pokemon/infernape/forms/mega/back.png
+ [31mM[m res/pokemon/infernape/forms/mega/back.png.key
+ [31mM[m res/pokemon/infernape/forms/mega/front.png
+ [31mM[m res/pokemon/infernape/forms/mega/front.png.key
+ [31mM[m res/pokemon/infernape/forms/mega/normal.pal
+ [31mM[m res/pokemon/infernape/forms/mega/shiny.pal
+ [31mM[m res/pokemon/torterra/forms/mega/back.png
+ [31mM[m res/pokemon/torterra/forms/mega/back.png.key
+ [31mM[m res/pokemon/torterra/forms/mega/front.png
+ [31mM[m res/pokemon/torterra/forms/mega/front.png.key
+ [31mM[m res/pokemon/torterra/forms/mega/normal.pal
+ [31mM[m res/pokemon/torterra/forms/mega/shiny.pal
+[31m??[m research/mega-sinnoh-starters/MEGA_SINNOH_STARTERS_SCOPE.md
+[31m??[m research/mega-sinnoh-starters/STRICT_SPRITE_REVIEW.md
+[31m??[m research/mega-sinnoh-starters/VALIDATION_REPORT.md
+[31m??[m research/mega-sinnoh-starters/emulator/
+[31m??[m research/mega-sinnoh-starters/generated/
+[31m??[m research/mega-sinnoh-starters/mega_sinnoh_ingame_asset_preview.png
+[31m??[m research/mega-sinnoh-starters/native-derived/
+[31m??[m research/mega-sinnoh-starters/native-grid-references/
+[31m??[m research/mega-sinnoh-starters/overnight-redesign/
+[31m??[m research/mega-sinnoh-starters/redesign/
+[31m??[m research/mega-sinnoh-starters/references/
+[31m??[m tools/build_mega_sinnoh_sprites.py
+[31m??[m tools/build_mega_sinnoh_sprites_redesign.py
+[31m??[m tools/inspect_generated_sprites.py
+[31m??[m tools/inspect_mega_sinnoh_redesign_sources.py
+[31m??[m tools/inspect_native_base_sprites.py
+[31m??[m tools/integrate_mega_sinnoh_starters.py
+[31m??[m tools/make_native_sprite_grids.py
+--- validation tails ---
+torterra  front mode=P size=160x80 indices=16/15 key=4 frame1=(3, 3, 77, 77) edges=none frame2=(3, 2, 77, 77) edges=none
+torterra  back  mode=P size=160x80 indices=15/15 key=4 frame1=(3, 3, 77, 77) edges=none frame2=(3, 2, 77, 77) edges=none
+infernape front mode=P size=160x80 indices=16/15 key=4 frame1=(3, 3, 77, 77) edges=none frame2=(3, 2, 77, 77) edges=none
+infernape back  mode=P size=160x80 indices=16/15 key=4 frame1=(3, 7, 77, 77) edges=none frame2=(3, 6, 77, 77) edges=none
+empoleon  front mode=P size=160x80 indices=16/15 key=4 frame1=(3, 3, 76, 77) edges=none frame2=(3, 2, 76, 77) edges=none
+empoleon  back  mode=P size=160x80 indices=16/15 key=4 frame1=(3, 4, 77, 77) edges=none frame2=(3, 3, 77, 77) edges=none
+
+All six Mega Sinnoh starter sprite sheets passed native-format validation.
+torterra  BST 525->625 (+100) ability=ABILITY_THICK_FAT types=TYPE_GRASS/TYPE_GROUND stone=ITEM_TORTERRITE(120) resources=(276, 277, 282, 283)
+infernape BST 534->634 (+100) ability=ABILITY_ADAPTABILITY types=TYPE_FIRE/TYPE_FIGHTING stone=ITEM_INFERNAPITE(121) resources=(278, 279, 284, 285)
+empoleon  BST 530->630 (+100) ability=ABILITY_FILTER types=TYPE_WATER/TYPE_STEEL stone=ITEM_EMPOLEONITE(122) resources=(280, 281, 286, 287)
+
+All Mega Sinnoh starter mechanics and integration checks passed.
+ff5bbee49a82f819ac6993ed4f592548d5472e1437e4503c2b9852292a21848a  build/pokeplatinum.us.nds

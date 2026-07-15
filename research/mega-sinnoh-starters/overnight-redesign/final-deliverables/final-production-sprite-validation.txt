@@ -1,0 +1,8 @@
+torterra  front mode=P size=160x80 indices=16/15 key=4 frame1=(3, 3, 77, 77) edges=none frame2=(3, 2, 77, 77) edges=none
+torterra  back  mode=P size=160x80 indices=15/15 key=4 frame1=(3, 3, 77, 77) edges=none frame2=(3, 2, 77, 77) edges=none
+infernape front mode=P size=160x80 indices=16/15 key=4 frame1=(3, 3, 77, 77) edges=none frame2=(3, 2, 77, 77) edges=none
+infernape back  mode=P size=160x80 indices=16/15 key=4 frame1=(3, 7, 77, 77) edges=none frame2=(3, 6, 77, 77) edges=none
+empoleon  front mode=P size=160x80 indices=16/15 key=4 frame1=(3, 3, 76, 77) edges=none frame2=(3, 2, 76, 77) edges=none
+empoleon  back  mode=P size=160x80 indices=16/15 key=4 frame1=(3, 4, 77, 77) edges=none frame2=(3, 3, 77, 77) edges=none
+
+All six Mega Sinnoh starter sprite sheets passed native-format validation.
