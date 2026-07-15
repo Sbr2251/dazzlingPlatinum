@@ -45,7 +45,9 @@ typedef struct Pokedex {
     u8 burmyFormsSeen;
     u8 wormadamFormsSeen;
     u8 unownFormsSeen[UNOWN_FORM_COUNT];
-    u8 recordedLanguages[MAX_SPECIES + 1];
+    // Keep the vanilla save footprint. Species added after Arceus still use the
+    // expanded seen/caught bitfields, but do not persist per-language flags.
+    u8 recordedLanguages[SPECIES_ARCEUS + 1];
     u8 canDetectForms;
     u8 canDetectLanguages;
     u8 pokedexObtained;
@@ -607,7 +609,7 @@ static void UpdateLanguage(Pokedex *pokedexData, u16 species, u32 language)
     int bitIndex = species;
     int languageIndex = PokedexLanguage_LanguageToIndex(language);
 
-    if (languageIndex == NUM_LANGUAGES) {
+    if (species > SPECIES_ARCEUS || languageIndex == NUM_LANGUAGES) {
         return;
     }
 
@@ -1115,6 +1117,10 @@ BOOL Pokedex_IsLanguageObtained(const Pokedex *pokedexData, u16 species, u32 lan
     GF_ASSERT(languageIndex < 8);
 
     CheckPokedexIntegrity(pokedexData);
+
+    if (species > SPECIES_ARCEUS) {
+        return FALSE;
+    }
 
     bitIndex = species;
     languageIndex = PokedexLanguage_LanguageToIndex(languageIndex);
