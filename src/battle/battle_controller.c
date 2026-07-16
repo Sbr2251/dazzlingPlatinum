@@ -1585,6 +1585,18 @@ void BattleController_EmitSetMosaic(BattleSystem *battleSys, int battlerId, int 
  * @param battleSys
  * @param battler
  */
+void BattleController_EmitAffinePulse(BattleSystem *battleSys, int battlerId, int stage)
+{
+    AffinePulseMessage message;
+
+    message.command = BATTLE_COMMAND_AFFINE_PULSE;
+    message.stage = stage;
+    message.species = battleSys->battleCtx->battleMons[battlerId].species;
+    message.form = battleSys->battleCtx->battleMons[battlerId].formNum;
+
+    SendMessage(battleSys, COMM_RECIPIENT_CLIENT, battlerId, &message, sizeof(AffinePulseMessage));
+}
+
 void BattleController_EmitChangeWeatherForm(BattleSystem *battleSys, int battlerId)
 {
     MonChangeFormMessage message;

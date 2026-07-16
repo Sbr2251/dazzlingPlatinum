@@ -310,6 +310,7 @@ static BOOL BtlCmd_CheckCurMoveIsType(BattleSystem *battleSys, BattleContext *ba
 static BOOL BtlCmd_LoadArchivedMonData(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BtlCmd_RefreshMonData(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BtlCmd_End(BattleSystem *battleSys, BattleContext *battleCtx);
+static BOOL BtlCmd_AffinePulse(BattleSystem *battleSys, BattleContext *battleCtx);
 
 static int BattleScript_Read(BattleContext *battleCtx);
 static void BattleScript_Iter(BattleContext *battleCtx, int i);
@@ -569,7 +570,8 @@ static const BtlCmd sBattleCommands[] = {
     BtlCmd_CheckCurMoveIsType,
     BtlCmd_LoadArchivedMonData,
     BtlCmd_RefreshMonData,
-    BtlCmd_End
+    BtlCmd_End,
+    BtlCmd_AffinePulse
 };
 
 BOOL BattleScript_Exec(BattleSystem *battleSys, BattleContext *battleCtx)
@@ -8727,6 +8729,17 @@ static BOOL BtlCmd_SetMosaic(BattleSystem *battleSys, BattleContext *battleCtx)
  * @param battleCtx
  * @return FALSE
  */
+static BOOL BtlCmd_AffinePulse(BattleSystem *battleSys, BattleContext *battleCtx)
+{
+    BattleScript_Iter(battleCtx, 1);
+    int inBattler = BattleScript_Read(battleCtx);
+    int stage = BattleScript_Read(battleCtx);
+    int battler = BattleScript_Battler(battleSys, battleCtx, inBattler);
+
+    BattleController_EmitAffinePulse(battleSys, battler, stage);
+    return FALSE;
+}
+
 static BOOL BtlCmd_ChangeForm(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     BattleScript_Iter(battleCtx, 1);

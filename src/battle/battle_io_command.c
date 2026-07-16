@@ -110,6 +110,7 @@ static void ov16_0225CA4C(BattleSystem *battleSys, BattlerData *param1);
 static void ov16_0225CA60(BattleSystem *battleSys, BattlerData *param1);
 static void ov16_0225CA74(BattleSystem *battleSys, BattlerData *param1);
 static void ov16_0225CB80(BattleSystem *battleSys, BattlerData *param1);
+static void BtlIOCmd_AffinePulse(BattleSystem *battleSys, BattlerData *battlerData);
 static void ZeroDataBuffer(BattlerData *param0);
 
 extern const u8 Unk_ov16_0226F174[];
@@ -227,7 +228,8 @@ static const UnkFuncPtr_ov16_0226F068 Unk_ov16_0226F068[] = {
     [BATTLE_COMMAND_FLY_MOVE_HIT_SOUND_EFFECT] = ov16_0225CA4C,
     [BATTLE_COMMAND_PLAY_MUSIC] = ov16_0225CA60,
     [BATTLE_COMMAND_SUBMIT_RESULT] = ov16_0225CA74,
-    [BATTLE_COMMAND_CLEAR_MESSAGE_BOX] = ov16_0225CB80
+    [BATTLE_COMMAND_CLEAR_MESSAGE_BOX] = ov16_0225CB80,
+    [BATTLE_COMMAND_AFFINE_PULSE] = BtlIOCmd_AffinePulse
 };
 
 void ov16_0225C0DC(BattleSystem *battleSys, BattlerData *param1)
@@ -677,6 +679,14 @@ static void ov16_0225C670(BattleSystem *battleSys, BattlerData *param1)
 
     ov16_0225E0F4(battleSys, param1, v0);
     ZeroDataBuffer(param1);
+}
+
+static void BtlIOCmd_AffinePulse(BattleSystem *battleSys, BattlerData *battlerData)
+{
+    AffinePulseMessage *message = (AffinePulseMessage *)&battlerData->data[0];
+
+    BattleDisplay_StartAffinePulse(battleSys, battlerData, message);
+    ZeroDataBuffer(battlerData);
 }
 
 static void ov16_0225C684(BattleSystem *battleSys, BattlerData *param1)

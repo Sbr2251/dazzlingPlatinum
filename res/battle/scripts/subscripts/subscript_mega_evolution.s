@@ -18,18 +18,18 @@ _000:
     Wait
 
 _016:
-    // Flash and mosaic pixelate
+    // Affine Pulse charge: dim, whiten, compress, and conceal the base form
     PlaySound BTLSCR_MSG_TEMP, 1980
-    SetMosaic BTLSCR_MSG_TEMP, 8, 1
+    AffinePulse BTLSCR_MSG_TEMP, 0
     Wait
-    // Swap to mega form sprite
+    // Swap forms only while the sprite is fully concealed
     ChangeForm BTLSCR_MSG_TEMP
     Wait
-    // Clear mosaic first — no animations between ChangeForm and SetMosaic 0
+    // Affine Pulse reveal: flash, elastic overshoot, settle, and restore
     PlaySound BTLSCR_MSG_TEMP, 1984
-    SetMosaic BTLSCR_MSG_TEMP, 0, 1
+    AffinePulse BTLSCR_MSG_TEMP, 1
     Wait
-    // Sparkle effect after sprite is fully loaded
+    // Sparkle effect after the Mega sprite has settled
     PlayBattleAnimation BTLSCR_MSG_TEMP, BATTLE_ANIMATION_SHINY
     Wait
     // {0} Mega Evolved!

@@ -62,6 +62,7 @@ void BattleController_EmitStopGaugeAnimation(BattleSystem *battleSys, int battle
 void BattleController_EmitRefreshPartyStatus(BattleSystem *battleSys, BattleContext *battleCtx, int battler, int move);
 void BattleController_EmitForgetMove(BattleSystem *battleSys, int battlerId, int move, int slot);
 void BattleController_EmitSetMosaic(BattleSystem *battleSys, int battlerId, int param2, int wait);
+void BattleController_EmitAffinePulse(BattleSystem *battleSys, int battlerId, int stage);
 void BattleController_EmitChangeWeatherForm(BattleSystem *battleSys, int battlerId);
 void BattleController_EmitUpdateBG(BattleSystem *battleSys, int battlerId);
 void BattleController_EmitClearTouchScreen(BattleSystem *battleSys, int battlerId);

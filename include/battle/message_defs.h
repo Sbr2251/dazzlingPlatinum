@@ -333,6 +333,14 @@ typedef struct MosaicSetMessage {
     u8 padding_03;
 } MosaicSetMessage;
 
+typedef struct AffinePulseMessage {
+    u8 command;
+    u8 stage;
+    u16 species;
+    u8 form;
+    u8 padding_05[3];
+} AffinePulseMessage;
+
 typedef struct MonChangeFormMessage {
     u8 command;
     u8 formNum;

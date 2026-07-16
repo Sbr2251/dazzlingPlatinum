@@ -158,6 +158,7 @@ static void ov16_02262FC0(SysTask *param0, void *param1);
 static void ov16_02263014(SysTask *param0, void *param1);
 static void ov16_022633A4(SysTask *param0, void *param1);
 static void ov16_022634DC(SysTask *param0, void *param1);
+static void AffinePulseTask(SysTask *task, void *data);
 static void ShowPartyGaugeTask(SysTask *param0, void *param1);
 static void HidePartyGaugeTask(SysTask *param0, void *param1);
 static void ov16_02263688(SysTask *param0, void *param1);
@@ -1195,6 +1196,36 @@ void ov16_0225E0F4(BattleSystem *battleSys, BattlerData *param1, MosaicSetMessag
     v0->unk_0D = message->wait;
 
     SysTask_Start(ov16_022634DC, v0, 0);
+}
+
+typedef struct AffinePulseTaskData {
+    BattleSystem *battleSys;
+    PokemonSprite *sprite;
+    u8 command;
+    u8 battler;
+    u16 species;
+    u8 form;
+    u8 stage;
+    u8 state;
+    u8 frame;
+    s16 baseYOffset;
+} AffinePulseTaskData;
+
+void BattleDisplay_StartAffinePulse(BattleSystem *battleSys, BattlerData *battlerData, AffinePulseMessage *message)
+{
+    AffinePulseTaskData *data = Heap_Alloc(HEAP_ID_BATTLE, sizeof(AffinePulseTaskData));
+
+    MI_CpuClear8(data, sizeof(AffinePulseTaskData));
+    data->battleSys = battleSys;
+    data->sprite = battlerData->unk_20;
+    data->command = message->command;
+    data->battler = battlerData->battler;
+    data->species = message->species;
+    data->form = message->form;
+    data->stage = message->stage;
+    data->baseYOffset = PokemonSprite_GetAttribute(data->sprite, MON_SPRITE_Y_OFFSET);
+
+    SysTask_Start(AffinePulseTask, data, 0);
 }
 
 typedef struct PartyGaugeTask {
@@ -5232,6 +5263,125 @@ static void ov16_022634DC(SysTask *param0, void *param1)
         BattleController_EmitClearCommand(v0->unk_00, v0->unk_09, v0->unk_08);
         Heap_Free(param1);
         SysTask_Done(param0);
+        break;
+    }
+}
+
+static void AffinePulseTask(SysTask *task, void *taskData)
+{
+    AffinePulseTaskData *data = taskData;
+    PokemonSprite *sprite = data->sprite;
+    const int screenPlanes = GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 |
+        GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 |
+        GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD;
+
+    if (data->stage == 0) {
+        switch (data->state) {
+        case 0:
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 0);
+            PokemonSprite_StartFade(sprite, 0, 16, 1, RGB(31, 31, 31));
+            BrightnessController_StartTransition(8, -6, 0, screenPlanes, BRIGHTNESS_MAIN_SCREEN);
+            data->state++;
+            break;
+        case 1:
+            if (data->frame < 12) {
+                PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_X, -8);
+                PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_Y, -14);
+                PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset + data->frame / 2);
+                if ((data->frame & 3) == 3) {
+                    PokemonSprite_AddAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 1);
+                }
+                data->frame++;
+            } else if (PokemonSprite_IsFadeActive(sprite) == FALSE &&
+                BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) {
+                PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, TRUE);
+                data->frame = 0;
+                data->state++;
+            }
+            break;
+        case 2:
+            if (data->frame < 8) {
+                data->frame++;
+            } else {
+                data->state++;
+            }
+            break;
+        default:
+            BattleController_EmitClearCommand(data->battleSys, data->battler, data->command);
+            Heap_Free(data);
+            SysTask_Done(task);
+            break;
+        }
+        return;
+    }
+
+    switch (data->state) {
+    case 0:
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_X, 0x220);
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_Y, 0x220);
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset - 16);
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 3);
+        PokemonSprite_StartFade(sprite, 16, 0, 1, RGB(31, 31, 31));
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
+        BrightnessController_StartTransition(3, 16, -6, screenPlanes, BRIGHTNESS_MAIN_SCREEN);
+        data->state++;
+        break;
+    case 1:
+        if (BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) {
+            Sound_PlayPokemonCry(data->species, data->form);
+            BrightnessController_StartTransition(8, 0, 16, screenPlanes, BRIGHTNESS_MAIN_SCREEN);
+            data->frame = 0;
+            data->state++;
+        }
+        break;
+    case 2:
+        if (data->frame < 12) {
+            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_X, -24);
+            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_Y, -24);
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset - 16 + (data->frame * 4 / 3));
+            if ((data->frame & 3) == 3) {
+                PokemonSprite_AddAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, -1);
+            }
+            data->frame++;
+        } else if (PokemonSprite_IsFadeActive(sprite) == FALSE &&
+            BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) {
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_X, 0xE0);
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_Y, 0xE0);
+            data->frame = 0;
+            data->state++;
+        }
+        break;
+    case 3:
+        if (data->frame < 4) {
+            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_X, 12);
+            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_Y, 12);
+            data->frame++;
+        } else {
+            data->frame = 0;
+            data->state++;
+        }
+        break;
+    case 4:
+        if (data->frame < 3) {
+            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_X, -5);
+            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_Y, -5);
+            data->frame++;
+        } else if (PokemonSprite_IsFadeActive(sprite) == FALSE &&
+            BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) {
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_X, 0x100);
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_Y, 0x100);
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset);
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 0);
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
+            PokemonSprite_ClearFade(sprite);
+            data->state++;
+        }
+        break;
+    default:
+        BattleController_EmitClearCommand(data->battleSys, data->battler, data->command);
+        Heap_Free(data);
+        SysTask_Done(task);
         break;
     }
 }
