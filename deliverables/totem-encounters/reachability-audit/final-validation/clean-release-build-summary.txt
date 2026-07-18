@@ -1,0 +1,5 @@
+Clean release build: PASS
+ROM: build/pokeplatinum.us.nds
+Size: 134217728 bytes
+Timestamp: 2026-07-18 02:49:38.074972952 +0000
+SHA-256: ae5e0cf00ac2ddf1676b410831c118d60b0dc036a022df22dd33811576510787

@@ -1,0 +1,5 @@
+85d5f6d8ac31e5d3cca7c85c7cf0de5b5c365dd0384d93f65d5543cd3cce4d27  deliverables/totem-encounters/reachability-audit/final-validation/clean-rom-contact-sheets/blackouts.png
+6ae13df8c604bd5ebdf88ccb4037b6abb6764312e2fecbdc33de1a589d43dca6  deliverables/totem-encounters/reachability-audit/final-validation/clean-rom-contact-sheets/immediate-removal.png
+e14595f79ad870ed43fb37c76259392a830ecccc4b692c0ac945e979e4b092d8  deliverables/totem-encounters/reachability-audit/final-validation/clean-rom-contact-sheets/loss-battles.png
+4bf4b6f33559c84b1355809ccfdf5bc0fbf5e9da10c85eb61ab99cf97ce654b5  deliverables/totem-encounters/reachability-audit/final-validation/clean-rom-contact-sheets/reload-removal.png
+136c8824a8849969bd1dbd05cb676a929636474e708fca60325a50d7d515d29b  deliverables/totem-encounters/reachability-audit/final-validation/clean-rom-contact-sheets/victory-battles.png

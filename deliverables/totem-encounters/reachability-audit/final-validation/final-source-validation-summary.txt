@@ -1,0 +1,23 @@
+Final source validation: PASS
+
+Eight-species encounter validator: PASS
+Skarmory final coordinates: object (726,664), level 35, script 5
+Lapras final coordinates: object (715,830), level 36, script 9
+Mamoswine final coordinates: object (312,243), level 44, script 5
+Flag allocation: PASS, no failures; reserved defeated/hide range 0x0900-0x090F
+Victory-only flagging and loss branches: PASS
+Script registration and map-header assignment: PASS
+
+Python syntax: PASS
+- tools/audit_totem_map_reachability.py
+- tools/build_totem_location_save_generator.py
+- tools/integrate_totem_encounters.py
+- tools/validate_totem_encounter_sources.py
+
+Shell syntax: PASS
+- tools/validate_totem_walk_reachability.sh
+
+Authoritative integrator idempotency: PASS
+Tracked working-tree diff SHA-256 before: 083aa70d5dc9893b81ea25acb613643cbd936fa9e1480bd48cd0bf530a0e205a
+Tracked working-tree diff SHA-256 after:  083aa70d5dc9893b81ea25acb613643cbd936fa9e1480bd48cd0bf530a0e205a
+Post-integrator source validation: PASS

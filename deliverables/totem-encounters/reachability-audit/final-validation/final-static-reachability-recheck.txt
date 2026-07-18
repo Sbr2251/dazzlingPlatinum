@@ -1,0 +1,24 @@
+Final static reachability recheck
+
+Skarmory
+header=MAP_HEADER_ROUTE_214
+events=res/field/events/events_route_214.json
+entry=(718, 646) entry_value=0x0000
+target=(725, 664) value=0x0000 foot_reachable=1 path_steps=25
+path_runs=Down:18,Right:7
+
+Lapras
+header=MAP_HEADER_ROUTE_213
+events=res/field/events/events_route_213.json
+entry=(647, 812) entry_value=0x0000
+target=(714, 830) value=0x0021 foot_reachable=1 path_steps=99
+path_runs=Down:4,Right:23,Down:6,Right:1,Down:6,Left:2,Down:6,Right:3,Down:1,Right:6,Up:1,Right:1,Up:2,Right:21,Up:2,Right:14
+
+Mamoswine
+header=MAP_HEADER_ACUITY_LAKEFRONT
+events=res/field/events/events_acuity_lakefront.json
+entry=(310, 243) entry_value=0x00A8
+target=(311, 243) value=0x00A8 foot_reachable=1 path_steps=1
+path_runs=Right:1
+
+Verdict: PASS, 3/3 final player approach tiles are statically connected to ordinary map entrances. Runtime emulator live-walk evidence remains authoritative for model and directional collision not represented by the terrain grid.
