@@ -1,0 +1,3 @@
+postbuild_source_validation=PASS
+persistence_audit=PASS_8_OF_8
+contact_sheet_checksums=PASS

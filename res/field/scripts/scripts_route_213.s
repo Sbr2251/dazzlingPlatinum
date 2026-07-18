@@ -10,6 +10,7 @@
     ScriptEntry _0435
     ScriptEntry _044C
     ScriptEntry _0463
+    ScriptEntry TotemLapras_Encounter
     ScriptEntryEnd
 
 _0022:
@@ -353,6 +354,30 @@ _044C:
 
 _0463:
     ShowLandmarkSign 12
+    End
+
+    .balign 4, 0
+
+TotemLapras_Encounter:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    PlayCry SPECIES_LAPRAS
+    WaitCry
+    SetFlag FLAG_MAP_LOCAL
+    StartLegendaryBattle SPECIES_LAPRAS, 36
+    ClearFlag FLAG_MAP_LOCAL
+    CheckWonBattle VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, TotemLapras_Encounter_LostBattle
+    SetFlag FLAG_TOTEM_LAPRAS_DEFEATED
+    SetFlag FLAG_HIDE_TOTEM_LAPRAS
+    RemoveObject VAR_LAST_TALKED
+    ReleaseAll
+    End
+
+TotemLapras_Encounter_LostBattle:
+    BlackOutFromBattle
+    ReleaseAll
     End
 
     .balign 4, 0

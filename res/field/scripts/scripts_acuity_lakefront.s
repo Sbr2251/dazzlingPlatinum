@@ -6,6 +6,7 @@
     ScriptEntry _0012
     ScriptEntry _0083
     ScriptEntry _009A
+    ScriptEntry TotemMamoswine_Encounter
     ScriptEntryEnd
 
 _0012:
@@ -76,3 +77,27 @@ _00F8:
     WalkNormalWest
     WalkNormalNorth 4
     EndMovement
+
+TotemMamoswine_Encounter:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    PlayCry SPECIES_MAMOSWINE
+    WaitCry
+    SetFlag FLAG_MAP_LOCAL
+    StartLegendaryBattle SPECIES_MAMOSWINE, 44
+    ClearFlag FLAG_MAP_LOCAL
+    CheckWonBattle VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, TotemMamoswine_Encounter_LostBattle
+    SetFlag FLAG_TOTEM_MAMOSWINE_DEFEATED
+    SetFlag FLAG_HIDE_TOTEM_MAMOSWINE
+    RemoveObject VAR_LAST_TALKED
+    ReleaseAll
+    End
+
+TotemMamoswine_Encounter_LostBattle:
+    BlackOutFromBattle
+    ReleaseAll
+    End
+
+    .balign 4, 0

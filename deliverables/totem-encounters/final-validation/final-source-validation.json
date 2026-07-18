@@ -1,0 +1,126 @@
+{
+  "encounters": [
+    {
+      "key": "hitmonlee",
+      "species": "HITMONLEE",
+      "map_events": "events_ravaged_path.json",
+      "coordinates": [
+        19,
+        0,
+        45
+      ],
+      "script_id": 2,
+      "level": 20,
+      "story_gate": null,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "key": "vespiquen",
+      "species": "VESPIQUEN",
+      "map_events": "events_eterna_forest.json",
+      "coordinates": [
+        84,
+        0,
+        36
+      ],
+      "script_id": 13,
+      "level": 25,
+      "story_gate": "FLAG_TRAVELED_WITH_CHERYL",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "key": "skarmory",
+      "species": "SKARMORY",
+      "map_events": "events_route_214.json",
+      "coordinates": [
+        714,
+        0,
+        660
+      ],
+      "script_id": 5,
+      "level": 35,
+      "story_gate": null,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "key": "lapras",
+      "species": "LAPRAS",
+      "map_events": "events_route_213.json",
+      "coordinates": [
+        695,
+        0,
+        850
+      ],
+      "script_id": 9,
+      "level": 36,
+      "story_gate": null,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "key": "spiritomb",
+      "species": "SPIRITOMB",
+      "map_events": "events_route_209_lost_tower_2f.json",
+      "coordinates": [
+        6,
+        0,
+        8
+      ],
+      "script_id": 1,
+      "level": 30,
+      "story_gate": null,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "key": "aggron",
+      "species": "AGGRON",
+      "map_events": "events_iron_island_b3f.json",
+      "coordinates": [
+        10,
+        0,
+        8
+      ],
+      "script_id": 5,
+      "level": 42,
+      "story_gate": "FLAG_TRAVELED_WITH_RILEY",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "key": "mamoswine",
+      "species": "MAMOSWINE",
+      "map_events": "events_acuity_lakefront.json",
+      "coordinates": [
+        315,
+        0,
+        240
+      ],
+      "script_id": 5,
+      "level": 44,
+      "story_gate": null,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "key": "kingdra",
+      "species": "KINGDRA",
+      "map_events": "events_route_223.json",
+      "coordinates": [
+        853,
+        0,
+        739
+      ],
+      "script_id": 1,
+      "level": 50,
+      "story_gate": null,
+      "status": "PASS",
+      "failures": []
+    }
+  ],
+  "flag_failures": [],
+  "overall": "PASS"
+}

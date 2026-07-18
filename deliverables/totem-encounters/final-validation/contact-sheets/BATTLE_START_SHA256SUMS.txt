@@ -1,0 +1,2 @@
+aeef6ea4dab6a65f44ccce079a5bc5be6f0010d4c6712d1123a3057ac05d2701  deliverables/totem-encounters/final-validation/contact-sheets/battle-start-field.png
+56cf5cde89e3f79cd185f92c31f9c4214de06bd3d26bd2c396ed81d1b877d97c  deliverables/totem-encounters/final-validation/contact-sheets/battle-start-opponents.png

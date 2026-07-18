@@ -5,6 +5,7 @@
     ScriptEntry _00B9
     ScriptEntry _0075
     ScriptEntry _0012
+    ScriptEntry TotemSkarmory_Encounter
     ScriptEntryEnd
 
 _0012:
@@ -43,3 +44,27 @@ _00A2:
 _00B9:
     ShowArrowSign 1
     End
+
+TotemSkarmory_Encounter:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    PlayCry SPECIES_SKARMORY
+    WaitCry
+    SetFlag FLAG_MAP_LOCAL
+    StartLegendaryBattle SPECIES_SKARMORY, 35
+    ClearFlag FLAG_MAP_LOCAL
+    CheckWonBattle VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, TotemSkarmory_Encounter_LostBattle
+    SetFlag FLAG_TOTEM_SKARMORY_DEFEATED
+    SetFlag FLAG_HIDE_TOTEM_SKARMORY
+    RemoveObject VAR_LAST_TALKED
+    ReleaseAll
+    End
+
+TotemSkarmory_Encounter_LostBattle:
+    BlackOutFromBattle
+    ReleaseAll
+    End
+
+    .balign 4, 0

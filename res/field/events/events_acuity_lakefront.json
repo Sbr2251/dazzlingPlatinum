@@ -62,6 +62,21 @@
             "x": 323,
             "z": 235,
             "y": 0
+        },
+        {
+            "id": "ACUITY_LAKEFRONT_TOTEM_MAMOSWINE_4",
+            "graphics_id": "OBJ_EVENT_GFX_TOTEM_MAMOSWINE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_TOTEM_MAMOSWINE",
+            "script": 5,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 315,
+            "z": 240,
+            "y": 0
         }
     ],
     "warp_events": [

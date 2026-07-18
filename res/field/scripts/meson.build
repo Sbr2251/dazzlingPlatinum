@@ -1157,6 +1157,8 @@ scr_seq_files = files(
     'scripts_route_226.s',
     'scripts_route_226_house.s',
     'scripts_route_230.s',
+    'scripts_route_209_lost_tower_2f.s',
+    'scripts_route_223.s',
 )
 
 scr_seq_narc_order = files('scripts.order')

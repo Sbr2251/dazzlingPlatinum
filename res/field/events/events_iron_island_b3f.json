@@ -15,6 +15,21 @@
             "x": 14,
             "z": 7,
             "y": 0
+        },
+        {
+            "id": "IRON_ISLAND_B3F_TOTEM_AGGRON_1",
+            "graphics_id": "OBJ_EVENT_GFX_TOTEM_AGGRON",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_TOTEM_AGGRON",
+            "script": 5,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 10,
+            "z": 8,
+            "y": 0
         }
     ],
     "warp_events": [

@@ -1,0 +1,3 @@
+exact_runtime_file_count=20
+integrator_exact_scope_idempotent=PASS
+b7d5b13ef1387494c432778200b00cb5f9e57e3dd7b750aed85cacf5b2846adb  work/exact-totem-idempotency/integrator.json
