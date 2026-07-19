@@ -1,4 +1,5 @@
 #include "macros/scrcmd.inc"
+#include "constants/totem_battle.h"
 
 
     ScriptEntry TotemKingdra_Encounter
@@ -11,7 +12,7 @@ TotemKingdra_Encounter:
     PlayCry SPECIES_KINGDRA
     WaitCry
     SetFlag FLAG_MAP_LOCAL
-    StartLegendaryBattle SPECIES_KINGDRA, 50
+    StartTotemBattle TOTEM_ENCOUNTER_KINGDRA
     ClearFlag FLAG_MAP_LOCAL
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, TotemKingdra_Encounter_LostBattle

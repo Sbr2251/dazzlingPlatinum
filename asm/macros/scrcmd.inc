@@ -4186,6 +4186,11 @@
     .short \level
     .endm
 
+    .macro StartTotemBattle encounterID
+    .short 840
+    .short \encounterID
+    .endm
+
     .macro GetTrainerCardLevel destVar
     .short 702
     .short \destVar

@@ -1,4 +1,5 @@
 #include "macros/scrcmd.inc"
+#include "constants/totem_battle.h"
 
 
     ScriptEntry _00A2
@@ -52,7 +53,7 @@ TotemSkarmory_Encounter:
     PlayCry SPECIES_SKARMORY
     WaitCry
     SetFlag FLAG_MAP_LOCAL
-    StartLegendaryBattle SPECIES_SKARMORY, 35
+    StartTotemBattle TOTEM_ENCOUNTER_SKARMORY
     ClearFlag FLAG_MAP_LOCAL
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, TotemSkarmory_Encounter_LostBattle

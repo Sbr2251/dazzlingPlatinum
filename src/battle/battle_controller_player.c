@@ -43,7 +43,8 @@
 #include "screen_fade.h"
 #include "sound_playback.h"
 #include "system.h"
-#include "trainer_info.h"
+#include "trainer_data.h"
+#include "totem_battle.h"
 
 #include "res/battle/scripts/sub_seq.naix.h"
 
@@ -114,6 +115,7 @@ static int BattleControllerPlayer_CheckMoveHitOverrides(BattleSystem *battleSys,
 static BOOL BattleControllerPlayer_MoveStolen(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BattleControllerPlayer_ReplaceFainted(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BattleControllerPlayer_CheckBattleOver(BattleSystem *battleSys, BattleContext *battleCtx);
+static BOOL BattleControllerPlayer_TrySummonTotemAlly(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BattleControllerPlayer_MustSelectTarget(BattleSystem *battleSys, BattleContext *battleCtx, u8 battler, u32 battleType, int *range, int moveSlot, u32 *target);
 static void BattleControllerPlayer_ClearFlags(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BattleControllerPlayer_AnyFainted(BattleContext *battleCtx, int nextCmd, int nextCmdNoFainted, BOOL onlyFaint);
@@ -226,7 +228,18 @@ void BattleControllerPlayer_CheckMoveHit(BattleSystem *battleSys, BattleContext 
 static void BattleControllerPlayer_InitBattleMons(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     int maxBattlers = BattleSystem_MaxBattlers(battleSys);
+
+    if (TotemBattle_IsActive(battleSys)) {
+        battleCtx->selectedPartySlot[BATTLER_PLAYER_2] = MAX_PARTY_SIZE;
+        battleCtx->selectedPartySlot[BATTLER_ENEMY_2] = MAX_PARTY_SIZE;
+        battleCtx->battlersSwitchingMask |= FlagIndex(BATTLER_PLAYER_2) | FlagIndex(BATTLER_ENEMY_2);
+    }
+
     for (int i = 0; i < maxBattlers; i++) {
+        if (TotemBattle_IsInactiveBattler(battleSys, battleCtx, i)) {
+            continue;
+        }
+
         BattleSystem_InitBattleMon(battleSys, battleCtx, i, battleCtx->selectedPartySlot[i]);
     }
 
@@ -236,6 +249,11 @@ static void BattleControllerPlayer_InitBattleMons(BattleSystem *battleSys, Battl
 
 static void BattleControllerPlayer_StartEncounter(BattleSystem *battleSys, BattleContext *battleCtx)
 {
+    if (TotemBattle_IsActive(battleSys)) {
+        battleCtx->sideEffectMon = BATTLER_ENEMY_1;
+        battleCtx->sideEffectType = SIDE_EFFECT_TYPE_INDIRECT;
+    }
+
     LOAD_SUBSEQ(subscript_start_encounter);
     battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
     battleCtx->commandNext = BATTLE_CONTROL_TRAINER_MESSAGE;
@@ -1994,10 +2012,12 @@ static void BattleControllerPlayer_TurnEnd(BattleSystem *battleSys, BattleContex
 {
     if (BattleControllerPlayer_AnyExpPayout(battleCtx, battleCtx->command, battleCtx->command) == TRUE
         || BattleControllerPlayer_CheckBattleOver(battleSys, battleCtx) == TRUE
-        || BattleControllerPlayer_ReplaceFainted(battleSys, battleCtx) == TRUE) {
+        || BattleControllerPlayer_ReplaceFainted(battleSys, battleCtx) == TRUE
+        || BattleControllerPlayer_TrySummonTotemAlly(battleSys, battleCtx) == TRUE) {
         return;
     }
 
+    battleCtx->totemSummonAttempted = FALSE;
     battleCtx->totalTurns++;
     battleCtx->meFirstTurnOrder++;
 
@@ -4236,6 +4256,17 @@ static BOOL BattleControllerPlayer_ReplaceFainted(BattleSystem *battleSys, Battl
     for (i = 0; i < maxBattlers; i++) {
         battleCtx->battlerStatusFlags[i] &= ~BATTLER_STATUS_SWITCHING;
 
+        if (TotemBattle_IsPermanentlyInactiveBattler(battleSys, i)) {
+            continue;
+        }
+
+        if (TotemBattle_IsActive(battleSys) && i == BATTLER_ENEMY_2 && battleCtx->battleMons[i].curHP == 0) {
+            battleCtx->battlersSwitchingMask |= FlagIndex(i);
+            battleCtx->selectedPartySlot[i] = MAX_PARTY_SIZE;
+            battleCtx->switchedPartySlot[i] = MAX_PARTY_SIZE;
+            continue;
+        }
+
         if (((battleType & BATTLE_TYPE_DOUBLES) && (battleType & BATTLE_TYPE_2vs2_TAG) == FALSE)
             || ((battleType & BATTLE_TYPE_TAG) && Battler_Side(battleSys, i) == FALSE)) {
             // If both of this side's mons have been defeated, replace slot 1 first.
@@ -4336,12 +4367,63 @@ static BOOL BattleControllerPlayer_ReplaceFainted(BattleSystem *battleSys, Battl
  * @return TRUE if the battle is over (regardless of the result); FALSE if the
  * battle is still in-progress.
  */
+static BOOL BattleControllerPlayer_TrySummonTotemAlly(BattleSystem *battleSys, BattleContext *battleCtx)
+{
+    if (TotemBattle_IsActive(battleSys) == FALSE
+        || battleCtx->battleMons[BATTLER_ENEMY_1].curHP == 0
+        || battleCtx->totemSummonAttempted
+        || battleCtx->totemSummonsUsed >= TOTEM_MAX_ALLY_SUMMONS
+        || battleCtx->selectedPartySlot[BATTLER_ENEMY_2] != MAX_PARTY_SIZE) {
+        return FALSE;
+    }
+
+    battleCtx->switchedMon = BATTLER_ENEMY_2;
+    battleCtx->switchedPartySlot[BATTLER_ENEMY_2] = battleCtx->totemSummonsUsed + 1;
+    battleCtx->battlerStatusFlags[BATTLER_ENEMY_2] |= BATTLER_STATUS_SWITCHING;
+    battleCtx->totemSummonsUsed++;
+    battleCtx->totemSummonAttempted = TRUE;
+
+    LOAD_SUBSEQ(subscript_totem_summon_ally);
+    battleCtx->commandNext = battleCtx->command;
+    battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
+    return TRUE;
+}
+
 static BOOL BattleControllerPlayer_CheckBattleOver(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     int i;
     int maxBattlers = BattleSystem_MaxBattlers(battleSys);
     u32 battleType = BattleSystem_BattleType(battleSys);
     u8 battleResult = BATTLE_IN_PROGRESS;
+
+    if (TotemBattle_IsActive(battleSys)) {
+        int totalPartyHP = 0;
+        Party *party = BattleSystem_Party(battleSys, BATTLER_PLAYER_1);
+
+        if (battleCtx->battleMons[BATTLER_ENEMY_1].curHP == 0) {
+            battleResult |= BATTLE_RESULT_WIN;
+        }
+
+        for (i = 0; i < Party_GetCurrentCount(party); i++) {
+            Pokemon *mon = Party_GetPokemonBySlotIndex(party, i);
+
+            if (Pokemon_GetValue(mon, MON_DATA_SPECIES_OR_EGG, NULL) != SPECIES_NONE
+                && Pokemon_GetValue(mon, MON_DATA_SPECIES_OR_EGG, NULL) != SPECIES_EGG) {
+                totalPartyHP += Pokemon_GetValue(mon, MON_DATA_HP, NULL);
+            }
+        }
+
+        if (totalPartyHP == 0) {
+            battleResult |= BATTLE_RESULT_LOSE;
+        }
+
+        if (battleResult != BATTLE_IN_PROGRESS) {
+            BattleSystem_SetResultFlag(battleSys, battleResult);
+            return TRUE;
+        }
+
+        return FALSE;
+    }
 
     for (i = 0; i < maxBattlers; i++) {
         if ((battleType == BATTLE_TYPE_TRAINER_WITH_AI_PARTNER || battleType == BATTLE_TYPE_AI_PARTNER)

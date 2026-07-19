@@ -288,6 +288,7 @@ Static main
 	Object main.nef.p/src_simple3d.c.o
 	Object main.nef.p/src_pokemon.c.o
 	Object main.nef.p/src_pokemon_mega_data.c.o
+	Object main.nef.p/src_totem_battle.c.o
 	Object main.nef.p/src_move_table.c.o
 	Object main.nef.p/src_trainer_data.c.o
 	Object main.nef.p/src_pc_boxes.c.o

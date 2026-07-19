@@ -54,6 +54,10 @@ tap Return 0.15
 sleep 4
 tap x 0.12
 sleep 4
+# Platinum may open the journal automatically when the save date changes. B closes it;
+# on an already loaded overworld this tap has no persistent effect.
+tap z 0.12
+sleep 1
 shot 00_overworld_loaded
 
 # Face the adjacent stationary Totem when requested, then press the DS A button (keyboard X).

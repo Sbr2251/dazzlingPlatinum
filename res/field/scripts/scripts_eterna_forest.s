@@ -1,4 +1,5 @@
 #include "macros/scrcmd.inc"
+#include "constants/totem_battle.h"
 #include "res/text/bank/eterna_forest.h"
 
 
@@ -451,7 +452,7 @@ TotemVespiquen_Encounter:
     PlayCry SPECIES_VESPIQUEN
     WaitCry
     SetFlag FLAG_MAP_LOCAL
-    StartLegendaryBattle SPECIES_VESPIQUEN, 25
+    StartTotemBattle TOTEM_ENCOUNTER_VESPIQUEN
     ClearFlag FLAG_MAP_LOCAL
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, TotemVespiquen_Encounter_LostBattle

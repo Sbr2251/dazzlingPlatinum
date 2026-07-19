@@ -1,4 +1,5 @@
 #include "macros/scrcmd.inc"
+#include "constants/totem_battle.h"
 
 
     ScriptEntry _0006
@@ -21,7 +22,7 @@ TotemHitmonlee_Encounter:
     PlayCry SPECIES_HITMONLEE
     WaitCry
     SetFlag FLAG_MAP_LOCAL
-    StartLegendaryBattle SPECIES_HITMONLEE, 20
+    StartTotemBattle TOTEM_ENCOUNTER_HITMONLEE
     ClearFlag FLAG_MAP_LOCAL
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, TotemHitmonlee_Encounter_LostBattle

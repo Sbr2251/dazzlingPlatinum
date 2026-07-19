@@ -245,7 +245,7 @@ def encounter_block(encounter: Encounter) -> str:
     PlayCry SPECIES_{encounter.species}
     WaitCry
     SetFlag FLAG_MAP_LOCAL
-    StartLegendaryBattle SPECIES_{encounter.species}, {encounter.level}
+    StartTotemBattle TOTEM_ENCOUNTER_{encounter.key.upper()}
     ClearFlag FLAG_MAP_LOCAL
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, {lost}
@@ -290,6 +290,18 @@ def ensure_script(encounter: Encounter) -> int:
         if not encounter.new_script_bank:
             raise FileNotFoundError(path)
         text = '#include "macros/scrcmd.inc"\n\n\n    ScriptEntryEnd\n'
+
+    constants_include = '#include "constants/totem_battle.h"'
+    if constants_include not in text:
+        macro_include = '#include "macros/scrcmd.inc"'
+        if macro_include not in text:
+            raise RuntimeError(f"missing {macro_include} in {path}")
+        text = text.replace(macro_include, f"{macro_include}\n{constants_include}", 1)
+
+    old_launch = f"    StartLegendaryBattle SPECIES_{encounter.species}, {encounter.level}"
+    new_launch = f"    StartTotemBattle TOTEM_ENCOUNTER_{encounter.key.upper()}"
+    if old_launch in text:
+        text = text.replace(old_launch, new_launch, 1)
 
     entries = script_entries(text)
     if encounter.label not in entries:

@@ -1,4 +1,5 @@
 #include "macros/scrcmd.inc"
+#include "constants/totem_battle.h"
 
 
     ScriptEntry _0032
@@ -51,7 +52,7 @@ TotemAggron_Encounter:
     PlayCry SPECIES_AGGRON
     WaitCry
     SetFlag FLAG_MAP_LOCAL
-    StartLegendaryBattle SPECIES_AGGRON, 42
+    StartTotemBattle TOTEM_ENCOUNTER_AGGRON
     ClearFlag FLAG_MAP_LOCAL
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, TotemAggron_Encounter_LostBattle

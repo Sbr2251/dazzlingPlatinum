@@ -1,4 +1,5 @@
 #include "macros/scrcmd.inc"
+#include "constants/totem_battle.h"
 #include "res/text/bank/acuity_lakefront.h"
 
 
@@ -85,7 +86,7 @@ TotemMamoswine_Encounter:
     PlayCry SPECIES_MAMOSWINE
     WaitCry
     SetFlag FLAG_MAP_LOCAL
-    StartLegendaryBattle SPECIES_MAMOSWINE, 44
+    StartTotemBattle TOTEM_ENCOUNTER_MAMOSWINE
     ClearFlag FLAG_MAP_LOCAL
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, TotemMamoswine_Encounter_LostBattle

@@ -2,6 +2,7 @@
 
 
 _000:
+    CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_SYS_STATUS, BATTLE_STATUS_TOTEM, TotemEncounter
     CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_TYPE, BATTLE_TYPE_TRAINER, _118
     CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_TYPE, BATTLE_TYPE_SAFARI, _215
     CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_TYPE, BATTLE_TYPE_PAL_PARK, _237
@@ -65,6 +66,31 @@ _100:
     Wait 
     OAMToSprite BTLSCR_ENEMY
     Wait 
+    GoTo _258
+
+TotemEncounter:
+    SetPokemonEncounter BTLSCR_ENEMY_SLOT_1
+    SetTrainerEncounter BTLSCR_PLAYER_SLOT_1
+    PlayEncounterAnimation
+    WaitTime 122
+    HealthbarSlideInDelay BTLSCR_ENEMY_SLOT_1
+    Wait
+    // A wild {0} appeared!
+    PrintGlobalMessage pl_msg_00000368_01246, TAG_NICKNAME, BTLSCR_ENEMY_SLOT_1
+    Wait
+    WaitButtonABTime 30
+    // Go! {0}!
+    PrintMessage pl_msg_00000368_00979, TAG_NICKNAME, BTLSCR_PLAYER_SLOT_1
+    SpriteToOAM BTLSCR_ENEMY_SLOT_1
+    Wait
+    ThrowPokeball BTLSCR_PLAYER_SLOT_1, BTLSCR_THROW_POKE_BALL
+    PokemonSlideIn BTLSCR_PLAYER_SLOT_1
+    WaitTime 96
+    HealthbarSlideInDelay BTLSCR_PLAYER_SLOT_1
+    Wait
+    OAMToSprite BTLSCR_ENEMY_SLOT_1
+    Wait
+    Call BATTLE_SUBSCRIPT_BOOST_ALL_STATS
     GoTo _258
 
 _118:

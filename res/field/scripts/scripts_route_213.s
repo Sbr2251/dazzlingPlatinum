@@ -1,4 +1,5 @@
 #include "macros/scrcmd.inc"
+#include "constants/totem_battle.h"
 #include "res/text/bank/route_213.h"
 
 
@@ -365,7 +366,7 @@ TotemLapras_Encounter:
     PlayCry SPECIES_LAPRAS
     WaitCry
     SetFlag FLAG_MAP_LOCAL
-    StartLegendaryBattle SPECIES_LAPRAS, 36
+    StartTotemBattle TOTEM_ENCOUNTER_LAPRAS
     ClearFlag FLAG_MAP_LOCAL
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, TotemLapras_Encounter_LostBattle

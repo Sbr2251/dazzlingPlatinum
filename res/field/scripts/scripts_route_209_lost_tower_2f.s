@@ -1,4 +1,5 @@
 #include "macros/scrcmd.inc"
+#include "constants/totem_battle.h"
 
 
     ScriptEntry TotemSpiritomb_Encounter
@@ -11,7 +12,7 @@ TotemSpiritomb_Encounter:
     PlayCry SPECIES_SPIRITOMB
     WaitCry
     SetFlag FLAG_MAP_LOCAL
-    StartLegendaryBattle SPECIES_SPIRITOMB, 30
+    StartTotemBattle TOTEM_ENCOUNTER_SPIRITOMB
     ClearFlag FLAG_MAP_LOCAL
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, TotemSpiritomb_Encounter_LostBattle
