@@ -366,6 +366,66 @@ def check_battle_results(root: Path) -> CheckResult:
     )
 
 
+def check_test_save_flag_mapping(root: Path) -> CheckResult:
+    flag_names = [line.strip() for line in read(root, "generated/vars_flags.txt").splitlines()]
+    builder = read(root, "tools/build_totem_mode_test_save.py")
+    inspector = read(root, "tools/inspect_totem_save_flags.py")
+    vars_offset_match = re.search(r"^VARS_FLAGS_OFFSET\s*=\s*(0x[0-9A-Fa-f]+)\s*$", inspector, re.M)
+    num_vars_match = re.search(r"^NUM_VARS\s*=\s*(0x[0-9A-Fa-f]+)\s*$", inspector, re.M)
+    default_offset_match = re.search(
+        r'"--vars-flags-rel".*?default\s*=\s*(0x[0-9A-Fa-f]+)',
+        builder,
+        re.S,
+    )
+    expected_flags_offset = (
+        int(vars_offset_match.group(1), 16) + int(num_vars_match.group(1), 16) * 2
+        if vars_offset_match and num_vars_match
+        else None
+    )
+    builder_flags_offset = (
+        int(default_offset_match.group(1), 16) if default_offset_match else None
+    )
+    found = {
+        species: (int(defeated, 16), int(hidden, 16))
+        for species, defeated, hidden in re.findall(
+            r'^\s*"([a-z]+)":\s*\(0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+)\),\s*$',
+            builder,
+            re.M,
+        )
+    }
+    species_names = (
+        "hitmonlee",
+        "vespiquen",
+        "skarmory",
+        "lapras",
+        "spiritomb",
+        "aggron",
+        "mamoswine",
+        "kingdra",
+    )
+    expected = {
+        species: (
+            flag_names.index(f"FLAG_TOTEM_{species.upper()}_DEFEATED"),
+            flag_names.index(f"FLAG_HIDE_TOTEM_{species.upper()}"),
+        )
+        for species in species_names
+    }
+    valid = (
+        found == expected
+        and expected_flags_offset == 0x0FEC
+        and builder_flags_offset == expected_flags_offset
+        and "TOTEM_OUTCOME_FLAGS_BY_SPECIES[species]" in builder
+        and "0x0900 + encounter_index" not in builder
+        and "0x0908 + encounter_index" not in builder
+    )
+    return result(
+        "test-save outcome-flag mapping",
+        valid,
+        "all 8 deterministic save fixtures use the exact generated defeated/hide pairs and the proven 0x0FEC serialized flag-array offset",
+        f"save-builder mismatch: found={found}, expected={expected}, builder_offset={builder_flags_offset}, expected_offset={expected_flags_offset}",
+    )
+
+
 def check_tracked_artifacts(root: Path) -> CheckResult:
     forbidden_suffixes = (
         ".nds",
@@ -436,6 +496,7 @@ def main() -> int:
         ("turn-end ally summoning", check_turn_end_summoning),
         ("ally send-out subscript", check_summon_script),
         ("Totem battle result semantics", check_battle_results),
+        ("test-save outcome-flag mapping", check_test_save_flag_mapping),
         ("branch artifact hygiene", check_tracked_artifacts),
     )
     results = [run_check(name, check, root) for name, check in checks]

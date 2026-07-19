@@ -38,6 +38,7 @@ enum FieldMoveError {
     FIELD_MOVE_ERROR_BADGE,
     FIELD_MOVE_ERROR_PARTNER,
     FIELD_MOVE_ERROR_STATE,
+    FIELD_MOVE_ERROR_TOTEM,
 };
 
 enum TaskOrError {

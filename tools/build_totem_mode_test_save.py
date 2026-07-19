@@ -48,15 +48,15 @@ TEST_STAT = 999
 TEST_MOVES = (MOVE_SPLASH, MOVE_AERIAL_ACE, MOVE_SPLASH, MOVE_SPLASH)
 TEST_PP = (40, 20, 40, 40)
 
-TOTEM_INDEX_BY_SPECIES = {
-    "hitmonlee": 0,
-    "vespiquen": 1,
-    "spiritomb": 2,
-    "skarmory": 3,
-    "lapras": 4,
-    "aggron": 5,
-    "mamoswine": 6,
-    "kingdra": 7,
+TOTEM_OUTCOME_FLAGS_BY_SPECIES = {
+    "hitmonlee": (0x0900, 0x0908),
+    "vespiquen": (0x0901, 0x0909),
+    "skarmory": (0x0902, 0x090A),
+    "lapras": (0x0903, 0x090B),
+    "spiritomb": (0x0904, 0x090C),
+    "aggron": (0x0905, 0x090D),
+    "mamoswine": (0x0906, 0x090E),
+    "kingdra": (0x0907, 0x090F),
 }
 
 
@@ -70,9 +70,7 @@ def clear_outcome_flags(
     species: str,
     vars_flags_rel: int,
 ) -> dict[str, int]:
-    encounter_index = TOTEM_INDEX_BY_SPECIES[species]
-    defeated_flag = 0x0900 + encounter_index
-    hide_flag = 0x0908 + encounter_index
+    defeated_flag, hide_flag = TOTEM_OUTCOME_FLAGS_BY_SPECIES[species]
 
     for flag_id in (defeated_flag, hide_flag):
         byte_offset = base + vars_flags_rel + (flag_id >> 3)
@@ -179,15 +177,15 @@ def main() -> int:
     parser.add_argument("output", type=Path)
     parser.add_argument(
         "--species",
-        choices=sorted(TOTEM_INDEX_BY_SPECIES),
+        choices=sorted(TOTEM_OUTCOME_FLAGS_BY_SPECIES),
         default="hitmonlee",
         help="Totem outcome flags to clear in the generated test save",
     )
     parser.add_argument(
         "--vars-flags-rel",
         type=lambda value: int(value, 0),
-        default=0xFDC,
-        help="Relative start of the vars/flags block in the general save block",
+        default=0xFEC,
+        help="Relative start of the flags bit array in the general save block (default: 0x0FEC)",
     )
     args = parser.parse_args()
 

@@ -890,6 +890,9 @@ static void sub_02084808(PartyMenuApplication *windowLayout, int *param1)
     case 4:
         v2 = 102;
         break;
+    case FIELD_MOVE_ERROR_TOTEM:
+        v2 = 205;
+        break;
     }
 
     Window_EraseMessageBox(&windowLayout->windows[33], 1);

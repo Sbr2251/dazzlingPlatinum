@@ -136,6 +136,19 @@ static inline BOOL PlayerHasRequiredBadge(const FieldMoveContext *fieldMoveConte
     return TrainerInfo_HasBadge(SaveData_GetTrainerInfo(fieldMoveContext->fieldSystem->saveData), badge);
 }
 
+static enum FieldMoveError FieldMoves_CheckProgression(const FieldMoveContext *fieldMoveContext, enum Badge badge, u16 totemDefeatedFlag)
+{
+    if (PlayerHasRequiredBadge(fieldMoveContext, badge) == FALSE) {
+        return FIELD_MOVE_ERROR_BADGE;
+    }
+
+    if (VarsFlags_CheckFlag(SaveData_GetVarsFlags(fieldMoveContext->fieldSystem->saveData), totemDefeatedFlag) == FALSE) {
+        return FIELD_MOVE_ERROR_TOTEM;
+    }
+
+    return FIELD_MOVE_ERROR_NONE;
+}
+
 static inline BOOL PlayerTravellingWithPartner(const FieldMoveContext *fieldMoveContext)
 {
     return SystemFlag_CheckHasPartner(SaveData_GetVarsFlags(fieldMoveContext->fieldSystem->saveData));
@@ -273,12 +286,15 @@ static void FieldMoves_FreeTaskData(FieldMoveTaskData *taskData)
 
 static enum FieldMoveError FieldMoves_CheckCut(const FieldMoveContext *fieldMoveContext)
 {
+    enum FieldMoveError progressionError;
+
     if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
-    if (PlayerHasRequiredBadge(fieldMoveContext, BADGE_ID_FOREST) == FALSE) {
-        return FIELD_MOVE_ERROR_BADGE;
+    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_FOREST, FLAG_TOTEM_VESPIQUEN_DEFEATED);
+    if (progressionError != FIELD_MOVE_ERROR_NONE) {
+        return progressionError;
     }
 
     if (FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_CUT)) {
@@ -314,12 +330,15 @@ static BOOL FieldMoves_CutTask(FieldTask *taskMan)
 
 static enum FieldMoveError FieldMoves_CheckFly(const FieldMoveContext *fieldMoveContext)
 {
+    enum FieldMoveError progressionError;
+
     if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
-    if (PlayerHasRequiredBadge(fieldMoveContext, BADGE_ID_COBBLE) == FALSE) {
-        return FIELD_MOVE_ERROR_BADGE;
+    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_COBBLE, FLAG_TOTEM_SKARMORY_DEFEATED);
+    if (progressionError != FIELD_MOVE_ERROR_NONE) {
+        return progressionError;
     }
 
     if (MapHeader_IsFlyAllowed(fieldMoveContext->mapId) == FALSE) {
@@ -355,12 +374,15 @@ static void FieldMoves_SetFlyTask(FieldMovePokemon *fieldMoveMon, const FieldMov
 
 static enum FieldMoveError FieldMoves_CheckSurf(const FieldMoveContext *fieldMoveContext)
 {
+    enum FieldMoveError progressionError;
+
     if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
-    if (PlayerHasRequiredBadge(fieldMoveContext, BADGE_ID_FEN) == FALSE) {
-        return FIELD_MOVE_ERROR_BADGE;
+    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_FEN, FLAG_TOTEM_LAPRAS_DEFEATED);
+    if (progressionError != FIELD_MOVE_ERROR_NONE) {
+        return progressionError;
     }
 
     if (PlayerAvatar_GetPlayerState(fieldMoveContext->fieldSystem->playerAvatar) == 0x2) {
@@ -404,12 +426,15 @@ static BOOL FieldMoves_SurfTask(FieldTask *taskMan)
 
 static enum FieldMoveError FieldMoves_CheckStrength(const FieldMoveContext *fieldMoveContext)
 {
+    enum FieldMoveError progressionError;
+
     if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
-    if (PlayerHasRequiredBadge(fieldMoveContext, BADGE_ID_MINE) == FALSE) {
-        return FIELD_MOVE_ERROR_BADGE;
+    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_MINE, FLAG_TOTEM_AGGRON_DEFEATED);
+    if (progressionError != FIELD_MOVE_ERROR_NONE) {
+        return progressionError;
     }
 
     if (FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_STRENGTH)) {
@@ -445,12 +470,15 @@ static BOOL FieldMoves_StrengthTask(FieldTask *param0)
 
 static enum FieldMoveError FieldMoves_CheckDefog(const FieldMoveContext *fieldMoveContext)
 {
+    enum FieldMoveError progressionError;
+
     if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
-    if (PlayerHasRequiredBadge(fieldMoveContext, BADGE_ID_RELIC) == FALSE) {
-        return FIELD_MOVE_ERROR_BADGE;
+    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_RELIC, FLAG_TOTEM_SPIRITOMB_DEFEATED);
+    if (progressionError != FIELD_MOVE_ERROR_NONE) {
+        return progressionError;
     }
 
     if (FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_DEFOG)) {
@@ -486,12 +514,15 @@ static BOOL FieldMoves_DefogTask(FieldTask *taskMan)
 
 static enum FieldMoveError FieldMoves_CheckRockSmash(const FieldMoveContext *fieldMoveContext)
 {
+    enum FieldMoveError progressionError;
+
     if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
-    if (PlayerHasRequiredBadge(fieldMoveContext, BADGE_ID_COAL) == FALSE) {
-        return FIELD_MOVE_ERROR_BADGE;
+    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_COAL, FLAG_TOTEM_HITMONLEE_DEFEATED);
+    if (progressionError != FIELD_MOVE_ERROR_NONE) {
+        return progressionError;
     }
 
     if (PlayerAvatar_GetPlayerState(fieldMoveContext->fieldSystem->playerAvatar) == 0x2) {
@@ -531,12 +562,15 @@ static BOOL FieldMoves_RockSmashTask(FieldTask *taskMan)
 
 static enum FieldMoveError FieldMoves_CheckWaterfall(const FieldMoveContext *fieldMoveContext)
 {
+    enum FieldMoveError progressionError;
+
     if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
-    if (PlayerHasRequiredBadge(fieldMoveContext, BADGE_ID_BEACON) == FALSE) {
-        return FIELD_MOVE_ERROR_BADGE;
+    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_BEACON, FLAG_TOTEM_KINGDRA_DEFEATED);
+    if (progressionError != FIELD_MOVE_ERROR_NONE) {
+        return progressionError;
     }
 
     if (FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_WATERFALL)) {
@@ -572,12 +606,15 @@ static BOOL FieldMoves_WaterfallTask(FieldTask *param0)
 
 static enum FieldMoveError FieldMoves_CheckRockClimb(const FieldMoveContext *fieldMoveContext)
 {
+    enum FieldMoveError progressionError;
+
     if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
-    if (PlayerHasRequiredBadge(fieldMoveContext, BADGE_ID_ICICLE) == FALSE) {
-        return FIELD_MOVE_ERROR_BADGE;
+    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_ICICLE, FLAG_TOTEM_MAMOSWINE_DEFEATED);
+    if (progressionError != FIELD_MOVE_ERROR_NONE) {
+        return progressionError;
     }
 
     if (!(FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_ROCK_CLIMB))) {
