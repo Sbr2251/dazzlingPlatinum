@@ -1,0 +1,144 @@
+{
+  "status": "PASS",
+  "input_mtls": [
+    "/home/ubuntu/dazzlingPlatinum-story/land_data_integration/everspring_model_sources/Everspring_Sanctuary_00_00.mtl",
+    "/home/ubuntu/dazzlingPlatinum-story/land_data_integration/everspring_model_sources/Everspring_Sanctuary_01_00.mtl"
+  ],
+  "output_obj": "/home/ubuntu/dazzlingPlatinum-story/land_data_integration/everspring_model_sources/Everspring_shared_textures.obj",
+  "output_mtl": "/home/ubuntu/dazzlingPlatinum-story/land_data_integration/everspring_model_sources/Everspring_shared_textures.mtl",
+  "texture_count": 26,
+  "textures": [
+    {
+      "name": "beachp_lm23.png",
+      "sha256": "577934af235d7676c9826e97c4473421ead507dd136e48223cd2040686f39ead",
+      "bytes": 329
+    },
+    {
+      "name": "c4_road_lm1.png",
+      "sha256": "8b050a96606690386d89661a4d8de34115712db9327e98f71a99d46fade46325",
+      "bytes": 86
+    },
+    {
+      "name": "conttree_b_lm2.png",
+      "sha256": "41816bff76884e9f85cfc1ee9ad34961536f2485660244feaffc378ab7554bd8",
+      "bytes": 856
+    },
+    {
+      "name": "conttree_t_lm2.png",
+      "sha256": "f0d2d61d07a524056098505bf898f41975f9edb83db3ef3334945ed02a393d59",
+      "bytes": 743
+    },
+    {
+      "name": "file1Material.png",
+      "sha256": "88fb42b44155dc28db70b1a304bf8960c01cdcaef58a678c1ca8621da5afd16a",
+      "bytes": 501
+    },
+    {
+      "name": "file2Material.png",
+      "sha256": "8f01ecc67841fb92483e0215d63753bd540658d5090be9fb85cb0bf4fcf52ed3",
+      "bytes": 481
+    },
+    {
+      "name": "lake_lm2.png",
+      "sha256": "5f97dce519aeac6f42ea395946e562184ead33ecd4dff788775195ca3b667df3",
+      "bytes": 108
+    },
+    {
+      "name": "nectgr_lm42.png",
+      "sha256": "f15538020170a7971266346557be199b8825a0037897befb43dd070a010287b2",
+      "bytes": 289
+    },
+    {
+      "name": "newstep_lm21.png",
+      "sha256": "64f630af627e3894a651a9a06c42afa87e661fd57d04d917108b08c1be0c1188",
+      "bytes": 328
+    },
+    {
+      "name": "ngrass_lm2.png",
+      "sha256": "18103fd1f4e5e185686f4ab40590e1f19b5f2a996233f8448fcecea16560880a",
+      "bytes": 208
+    },
+    {
+      "name": "nhana.png",
+      "sha256": "207b2dc5dda40b434383da4c9016671232017721a768f60a11df2af47772f20a",
+      "bytes": 244
+    },
+    {
+      "name": "nsand_lm2.png",
+      "sha256": "2c477d12c806a7af8d0a5b84ddfa3b992809efd1dbc85b1165bff018bb917228",
+      "bytes": 156
+    },
+    {
+      "name": "puddle_b_lm2.png",
+      "sha256": "585ab028ac88c2936493e093b8e45b87fb607bce892261a5a903426d1bba4b50",
+      "bytes": 86
+    },
+    {
+      "name": "puddlep.png",
+      "sha256": "2aa0e8695d5b5908a908628700b49febbea6f48db3ad7543f109aac63f57ee36",
+      "bytes": 440
+    },
+    {
+      "name": "shana.png",
+      "sha256": "d2ffbbcafdd332c9cf48894d4e718564c23f34dd334dfb28a16b45d2ead8ffad",
+      "bytes": 214
+    },
+    {
+      "name": "t21.png",
+      "sha256": "bed97f308f818c90e7940ef815cd68709071ad358802742b489a6030257b9306",
+      "bytes": 883
+    },
+    {
+      "name": "t22.png",
+      "sha256": "569c3a3d00466c285def262e668ba945357864268eead899859068f3a0575b7c",
+      "bytes": 748
+    },
+    {
+      "name": "t23.png",
+      "sha256": "9da11e990a41d3db9d836a9523fcb49730c2c74e4ed9141e2740049171de5270",
+      "bytes": 1179
+    },
+    {
+      "name": "t3_fl_b_lm21.png",
+      "sha256": "701acf71b5dbd5acf8045c41993a32ef5daa04d079616d080149ce4882760b28",
+      "bytes": 166
+    },
+    {
+      "name": "t3_fl_g_lm21.png",
+      "sha256": "d0680db4cbfd12342f5ae62f7cf9c00176ddc937d5fb8a67d0708d1f43842baf",
+      "bytes": 254
+    },
+    {
+      "name": "t3_fl_p_lm21.png",
+      "sha256": "4a238fe46b93d3413538d1cef7edf4433780eea7ac6db03fb5a99579b2784d69",
+      "bytes": 152
+    },
+    {
+      "name": "t3_fl_r_lm21.png",
+      "sha256": "5bbcacc6bc0f2e63d9d5b2e6159cec20b71ba5d87f8c74fc3aa0d572712cf9af",
+      "bytes": 170
+    },
+    {
+      "name": "t3_fl_y_lm21.png",
+      "sha256": "29cf09dfef179dbf5b3e738f861d3bb018778b1ec93487b64ab64324d36da07b",
+      "bytes": 158
+    },
+    {
+      "name": "tree01_lm2.png",
+      "sha256": "0bb025a7121ec75a0ef7e85387275420eb6ea3d55c0c15b2fb7c9620a6d4f2ad",
+      "bytes": 1217
+    },
+    {
+      "name": "tree04_2_lm1.png",
+      "sha256": "d8c7d77fcd80ddf3babd3b7d10610d71ed0ed206bf05d4f6463b41235052b803",
+      "bytes": 1314
+    },
+    {
+      "name": "tshadow_lm2.png",
+      "sha256": "1525a3ea60be099b0deddc67601e071bfa7d14c48c1edb90d52b31c599a4ee51",
+      "bytes": 300
+    }
+  ],
+  "obj_sha256": "2c7ce947be79ff82dc76c00786092ce9236d2663657ab6608e1789f9830aa529",
+  "mtl_sha256": "53b33e29cd2880f10606feeccd94936f31aae1f94394df3579d69fa38f583062"
+}

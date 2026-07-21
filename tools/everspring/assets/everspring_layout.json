@@ -1,0 +1,307 @@
+{
+  "area": "Everspring Sanctuary",
+  "replaces": "MAP_HEADER_ROUTE_218",
+  "dimensions_tiles": [
+    64,
+    32
+  ],
+  "global_origin": [
+    64,
+    736
+  ],
+  "terrain_members": [
+    {
+      "name": "MAP_050",
+      "file": "map_data_050.bin",
+      "local_rect": [
+        0,
+        0,
+        32,
+        32
+      ]
+    },
+    {
+      "name": "MAP_051",
+      "file": "map_data_051.bin",
+      "local_rect": [
+        32,
+        0,
+        32,
+        32
+      ]
+    }
+  ],
+  "legend": {
+    "T": {
+      "name": "tree_wall",
+      "walkable": false,
+      "encounter": false,
+      "surf": false,
+      "color": "#174f38"
+    },
+    "G": {
+      "name": "short_grass",
+      "walkable": true,
+      "encounter": false,
+      "surf": false,
+      "color": "#72c97f"
+    },
+    "P": {
+      "name": "pale_path",
+      "walkable": true,
+      "encounter": false,
+      "surf": false,
+      "color": "#e7d09a"
+    },
+    "F": {
+      "name": "flower_encounter",
+      "walkable": true,
+      "encounter": true,
+      "surf": false,
+      "color": "#df73b4"
+    },
+    "W": {
+      "name": "reflective_water",
+      "walkable": false,
+      "encounter": false,
+      "surf": true,
+      "color": "#58a8dd"
+    },
+    "L": {
+      "name": "terrace_ledge",
+      "walkable": false,
+      "encounter": false,
+      "surf": false,
+      "color": "#3b965d"
+    },
+    "S": {
+      "name": "stone_stairs",
+      "walkable": true,
+      "encounter": false,
+      "surf": false,
+      "color": "#afbb9d"
+    },
+    "R": {
+      "name": "rift_shrine",
+      "walkable": false,
+      "encounter": false,
+      "surf": false,
+      "color": "#8e73d8"
+    }
+  },
+  "preserved_warps": [
+    {
+      "name": "canalave_gate_north",
+      "local": [
+        6,
+        18
+      ],
+      "global": [
+        70,
+        754
+      ],
+      "destination": "MAP_HEADER_ROUTE_218_GATE_TO_CANALAVE_CITY",
+      "destination_warp": 1
+    },
+    {
+      "name": "canalave_gate_south",
+      "local": [
+        6,
+        19
+      ],
+      "global": [
+        70,
+        755
+      ],
+      "destination": "MAP_HEADER_ROUTE_218_GATE_TO_CANALAVE_CITY",
+      "destination_warp": 1
+    },
+    {
+      "name": "jubilife_gate_north",
+      "local": [
+        57,
+        22
+      ],
+      "global": [
+        121,
+        758
+      ],
+      "destination": "MAP_HEADER_ROUTE_218_GATE_TO_JUBILIFE_CITY",
+      "destination_warp": 0
+    },
+    {
+      "name": "jubilife_gate_south",
+      "local": [
+        57,
+        23
+      ],
+      "global": [
+        121,
+        759
+      ],
+      "destination": "MAP_HEADER_ROUTE_218_GATE_TO_JUBILIFE_CITY",
+      "destination_warp": 0
+    }
+  ],
+  "event_anchors": [
+    {
+      "name": "rift_shrine",
+      "kind": "prop",
+      "local": [
+        31,
+        15
+      ],
+      "global": [
+        95,
+        751
+      ]
+    },
+    {
+      "name": "rival",
+      "kind": "object",
+      "local": [
+        33,
+        19
+      ],
+      "global": [
+        97,
+        755
+      ]
+    },
+    {
+      "name": "rival_scene_trigger",
+      "kind": "coord_event",
+      "local_rect": [
+        27,
+        21,
+        10,
+        2
+      ],
+      "global_rect": [
+        91,
+        757,
+        10,
+        2
+      ]
+    },
+    {
+      "name": "researcher",
+      "kind": "object",
+      "local": [
+        25,
+        13
+      ],
+      "global": [
+        89,
+        749
+      ]
+    },
+    {
+      "name": "clefairy_west",
+      "kind": "object",
+      "local": [
+        20,
+        25
+      ],
+      "global": [
+        84,
+        761
+      ]
+    },
+    {
+      "name": "clefairy_east",
+      "kind": "object",
+      "local": [
+        44,
+        13
+      ],
+      "global": [
+        108,
+        749
+      ]
+    },
+    {
+      "name": "item_west_terrace",
+      "kind": "item",
+      "local": [
+        14,
+        9
+      ],
+      "global": [
+        78,
+        745
+      ]
+    },
+    {
+      "name": "item_east_pond",
+      "kind": "item",
+      "local": [
+        48,
+        8
+      ],
+      "global": [
+        112,
+        744
+      ]
+    },
+    {
+      "name": "canalave_sign",
+      "kind": "sign",
+      "local": [
+        8,
+        17
+      ],
+      "global": [
+        72,
+        753
+      ]
+    },
+    {
+      "name": "jubilife_sign",
+      "kind": "sign",
+      "local": [
+        55,
+        21
+      ],
+      "global": [
+        119,
+        757
+      ]
+    }
+  ],
+  "rows": [
+    "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+    "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+    "TTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTT",
+    "TTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTT",
+    "TTGGGFFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGGGFFFFFFFFFFFFFFFFFFGGGTT",
+    "TTGGGFFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGGGFFFFFFFFFFFFFFFFFFGGGTT",
+    "TTGGGFFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGGGFFFFFFFFWWWWWWFFFFGGGTT",
+    "TTGGGFFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGGGFFFFFFFFWWWWWWFFFFGGGTT",
+    "TTGGGFFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGGGFFFFFFFFWWWWWWFFFFGGGTT",
+    "TTGGGFFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGGGFFFFFFFFWWWWWWFFFFGGGTT",
+    "TTGGGFFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGGGFFFFFFFFFFFFFFFFFFGGGTT",
+    "TTGGGFFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGGGFFFFFFFFFFFFFFFFFFGGGTT",
+    "TTGGLLLLLLLLLLSSSLLLLLLLLLGGGGGGGGGGGGLLLLLLLLLSSSLLLLLLLLLLGGTT",
+    "TTGGGGGGGGGGGGGGGGGGGGGGGGGPPPPPPPPPPGGGGGGGGGGGGGGGGGGGGGGGGGTT",
+    "TTGGGGGGGGGGGGGGGGGWWWWWWWWPPGGGGGGPPWWWWWWWWGGGGGGGGGGGGGGGGGTT",
+    "TTGGGGGGGGGGGGGGGGGWWWWWWWWPPGGRRGGPPWWWWWWWWGGGGGGGGGGGGGGGGGTT",
+    "TTGGGGGGGGGGGGGGGGGWWWWWWWWPPGGRRGGPPWWWWWWWWGGGGGGGGGGGGGGGGGTT",
+    "TTPPPPPPPPPPPPPPPPPPPPPPPGGPPGGGGGGPPGGGGGGGGGGGGGGGGGGGGGGGGGTT",
+    "TTPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPGGGGGGGGGGGGGGGGGGGGGTT",
+    "TTPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPGGGGGGGGGGGGGGGGGGGGGTT",
+    "TTPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPWWWWGGGGGGGGGGGGGGGGGTT",
+    "TTGGGGGGGGGGGGGGGGGWWWWPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPTT",
+    "TTGGGGGGGGGGGGGGGGGWWWWPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPTT",
+    "TTGGLLLLLLLLLLLSSSLLLLLPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPTT",
+    "TTGGGGGFFFFFFFFFFFFFFFFFGGGPPPPPPPPPPGGPPPPPPPPPPPPPPPPPPPPPPPTT",
+    "TTGGGGGFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGFFFFFGGGGGGGGFFFFGGGGGTT",
+    "TTGGGGGFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGFFFFFGGGGGGGGFFFFGGGGGTT",
+    "TTGGGGGFFFFFFFFFFFFFFFFFGGGGGGGGGGGGGGGGFFFFFGGGGGGGGFFFFGGGGGTT",
+    "TTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTT",
+    "TTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTT",
+    "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+    "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"
+  ],
+  "production_note": "Recreate this behavior grid and matching geometry in Pokemon DS Map Studio; export NSBMD, BDHC, attributes, and props into the two existing land-data members."
+}
