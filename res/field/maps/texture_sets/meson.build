@@ -72,8 +72,7 @@ map_texture_set_files = copy_gen.process(files(
     'map_texture_set_070.nsbtx',
     'map_texture_set_071.nsbtx',
     'map_texture_set_072.nsbtx',
-    'map_texture_set_073.nsbtx',
-    'map_texture_set_074.nsbtx'
+    'map_texture_set_073.nsbtx'
 ))
 
 map_texture_set_order = files('map_texture_set.order')
