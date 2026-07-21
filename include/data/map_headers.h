@@ -8550,7 +8550,7 @@ static const MapHeader sMapHeaders[] = {
         .isFlyAllowed = FALSE,
     },
     [MAP_HEADER_ROUTE_218] = {
-        .areaDataArchiveID = 0xF,
+        .areaDataArchiveID = 0x4B,
         .unk_01 = 0x9,
         .mapMatrixID = 0x0,
         .scriptsArchiveID = scripts_route_218,
