@@ -108,7 +108,7 @@
             "y": 0,
             "width": 1,
             "length": 1,
-            "var": "VAR_UNK_0x4098",
+            "var": "VAR_SPEAR_PILLAR_PARALLEL_SCENE_STATE",
             "value": 0
         },
         {
@@ -118,7 +118,7 @@
             "y": 0,
             "width": 3,
             "length": 1,
-            "var": "VAR_UNK_0x4098",
+            "var": "VAR_SPEAR_PILLAR_PARALLEL_SCENE_STATE",
             "value": 1
         },
         {

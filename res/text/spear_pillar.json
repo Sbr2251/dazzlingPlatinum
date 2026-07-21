@@ -113,20 +113,10 @@
     {
       "id": "pl_msg_00000234_00013",
       "en_US": [
-        "Cyrus: ...\n",
-        "...\r",
-        "Everything is ready for the creation\n",
-        "of a new world.\r",
-        "Now, all will end.\n",
-        "And everything will begin.\r",
-        "With this, the Red Chain made from the\n",
-        "crystals of the three lake Pokémon...\r",
-        "And this, the Red Chain I replicated\n",
-        "with technological means...\r",
-        "With these Red Chains I will pry open\n",
-        "the portal to another dimension.\r",
-        "I command that you unleash your power\n",
-        "for me...\r"
+        "Cyrus: You have done it.\n",
+        "The Totems have fallen.\r",
+        "Each local rift is closing.\n",
+        "But the central tear remains.\r"
       ]
     },
     {
@@ -155,16 +145,10 @@
     {
       "id": "pl_msg_00000234_00018",
       "en_US": [
-        "Cyrus: I’ve waited so long for this\n",
-        "moment, DIALGA and PALKIA.\r",
-        "Shaping this world is a double spiral\n",
-        "of time and space.\r",
-        "Yes, the very things that you have the\n",
-        "ability to control!\r",
-        "You will do my bidding!\n",
-        "I will have your abilities as mine!\r",
-        "With the power I wield, I will create\n",
-        "an entirely new world!\r"
+        "Cyrus: I confess the truth.\n",
+        "I am not of this world.\r",
+        "In my reality, I tried to\n",
+        "erase spirit itself.\r"
       ]
     },
     {
@@ -183,11 +167,10 @@
     {
       "id": "pl_msg_00000234_00020",
       "en_US": [
-        "Cyrus: ...I should have expected as\n",
-        "much.\r",
-        "UXIE, “The Being of Knowledge.”\r",
-        "AZELF, “The Being of Willpower.”\r",
-        "And MESPRIT, “The Being of Emotion”...\r"
+        "I failed and was cast into\n",
+        "the Distortion World.\r",
+        "My escape fractured Sinnoh.\n",
+        "I am the anomaly.\r"
       ]
     },
     {
@@ -234,9 +217,9 @@
     {
       "id": "pl_msg_00000234_00024",
       "en_US": [
-        "Cyrus: Interesting.\r",
-        "So, there is a Pokémon that can only\n",
-        "appear as a shadow.\r"
+        "Return to the void?\n",
+        "Not after you showed us\n",
+        "the key to this power.\r"
       ]
     },
     {
@@ -251,33 +234,61 @@
     {
       "id": "pl_msg_00000234_00026",
       "en_US": [
-        "I, Cyrus, won’t have any more\n",
-        "interferererererere...!"
+        "You were right about one thing.\n",
+        "The Totems were seals.\r",
+        "They kept the rift’s power\n",
+        "contained, not open!\r"
       ]
     },
     {
       "id": "pl_msg_00000234_00027",
-      "garbage": 13
+      "en_US": [
+        "My father tried to control\n",
+        "the cosmos, and he failed.\r",
+        "He lacked the vision.\n",
+        "I will not.\r"
+      ]
     },
     {
       "id": "pl_msg_00000234_00028",
-      "garbage": 11
+      "en_US": [
+        "I am Team Galactic’s\n",
+        "true heir!\r",
+        "That power belongs to me!\n",
+        "Neither of you will stop me!\r"
+      ]
     },
     {
       "id": "pl_msg_00000234_00029",
-      "garbage": 12
+      "en_US": [
+        "No! It’s rejecting me!\n",
+        "The power is too much!\r",
+        "I... I was wrong.\n",
+        "I nearly destroyed everything.\r"
+      ]
     },
     {
       "id": "pl_msg_00000234_00030",
-      "garbage": 12
+      "en_US": [
+        "Cyrus: The rift is collapsing!\r",
+        "Subdue the creature, now!\n",
+        "I will hold the gate open!\r"
+      ]
     },
     {
       "id": "pl_msg_00000234_00031",
-      "garbage": 247
+      "en_US": [
+        "The eight seals answer at once.\r",
+        "The central rift is opening...\r"
+      ]
     },
     {
       "id": "pl_msg_00000234_00032",
-      "garbage": 74
+      "en_US": [
+        "A crushing pressure bars the way.\r",
+        "The Totems’ seals have not all\n",
+        "been broken.\r"
+      ]
     },
     {
       "id": "pl_msg_00000234_00033",

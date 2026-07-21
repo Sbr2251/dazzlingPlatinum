@@ -3,6 +3,8 @@
 
 
     ScriptEntry _0006
+    ScriptEntry _RivalEncounter
+    ScriptEntry _RivalEncounter
     ScriptEntryEnd
 
 _0006:
@@ -24,9 +26,76 @@ _0006:
     ApplyMovement 6, _0080
     WaitMovement
     RemoveObject 6
+    SetFlag FLAG_UNK_0x01AB
+    SetVar VAR_CINDER_RIFT_CYRUS_SCENE_STATE, 1
+    SetVar VAR_CINDER_RIFT_UPPER_RIVAL_SCENE_STATE, 1
     SetVar VAR_UNK_0x4096, 1
     ReleaseAll
     End
+
+_RivalEncounter:
+    LockAll
+    SetRivalBGM
+    BufferRivalName 0
+    ApplyMovement 7, _RivalNoticesPlayer
+    WaitMovement
+    Message 3
+    WaitABXPadPress
+    CloseMessage
+    Message 4
+    WaitABXPadPress
+    CloseMessage
+    Message 5
+    WaitABXPadPress
+    CloseMessage
+    GetPlayerStarterSpecies VAR_RESULT
+    GoToIfEq VAR_RESULT, SPECIES_GIBLE, _RivalBattleGible
+    GoToIfEq VAR_RESULT, SPECIES_BAGON, _RivalBattleBagon
+    StartTrainerBattle TRAINER_RIVAL_ROUTE_209_DRATINI
+    GoTo _RivalBattleResult
+    End
+
+_RivalBattleGible:
+    StartTrainerBattle TRAINER_RIVAL_ROUTE_209_GIBLE
+    GoTo _RivalBattleResult
+    End
+
+_RivalBattleBagon:
+    StartTrainerBattle TRAINER_RIVAL_ROUTE_209_BAGON
+    GoTo _RivalBattleResult
+    End
+
+_RivalBattleResult:
+    CheckWonBattle VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, _RivalBattleLoss
+    BufferRivalName 0
+    Message 6
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement 7, _RivalLeaves
+    WaitMovement
+    RemoveObject 7
+    SetFlag FLAG_HIDE_CINDER_RIFT_UPPER_RIVAL
+    SetVar VAR_CINDER_RIFT_UPPER_RIVAL_SCENE_STATE, 2
+    SetVar VAR_UNK_0x4096, 2
+    ReleaseAll
+    End
+
+_RivalBattleLoss:
+    BlackOutFromBattle
+    ReleaseAll
+    End
+
+    .balign 4, 0
+_RivalNoticesPlayer:
+    EmoteExclamationMark
+    WalkOnSpotNormalSouth
+    EndMovement
+
+    .balign 4, 0
+_RivalLeaves:
+    WalkNormalNorth 2
+    EndMovement
 
     .balign 4, 0
 _0064:

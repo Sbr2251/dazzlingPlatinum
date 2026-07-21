@@ -35,6 +35,41 @@
         "Seek the Totems. Defeat them,\n",
         "and stabilize the region."
       ]
+    },
+    {
+      "id": "pl_msg_00000230_00003",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Hey!\n",
+        "Did you see that guy in\n",
+        "the dark coat down there?\r"
+      ]
+    },
+    {
+      "id": "pl_msg_00000230_00004",
+      "en_US": [
+        "He talks like he owns the place.\r",
+        "He says this energy is dangerous.\n",
+        "He’s right--but he doesn’t\n",
+        "know the half of it.\r"
+      ]
+    },
+    {
+      "id": "pl_msg_00000230_00005",
+      "en_US": [
+        "My old man always said true\n",
+        "power demands a sacrifice.\r",
+        "Enough talk! Show me how much\n",
+        "stronger you have become!\r"
+      ]
+    },
+    {
+      "id": "pl_msg_00000230_00006",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Tch.\n",
+        "Still holding back? Whatever.\r",
+        "I have bigger things to solve\n",
+        "than a few glowing rocks.\r"
+      ]
     }
   ]
 }

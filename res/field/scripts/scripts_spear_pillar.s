@@ -16,6 +16,8 @@
 
 _0022:
     SetFlag FLAG_FIRST_ARRIVAL_SPEAR_PILLAR
+    SetFlag FLAG_UNK_0x01C8
+    SetFlag FLAG_UNK_0x01C9
     Call _00C7
     Call _0062
     GetPlayerGender VAR_MAP_LOCAL_0
@@ -82,44 +84,27 @@ SpearPillar_Unused2:
 
 _0154:
     LockAll
-    ApplyMovement 0, _01E4
-    ApplyMovement 3, _01F4
-    WaitMovement
-    CheckHasTwoAliveMons VAR_RESULT
-    GoToIfNe VAR_RESULT, 0, _01A6
-    GoTo _0181
-    End
-
-_0181:
-    Message 1
-    CloseMessage
-    ApplyMovement LOCALID_PLAYER, _0204
-    WaitMovement
-    ApplyMovement 0, _01EC
-    ApplyMovement 3, _01FC
-    WaitMovement
-    ReleaseAll
-    End
-
-_01A6:
-    Call _01CA
-    GoToIfEq VAR_RESULT, FALSE, _01DB
-    SetVar VAR_UNK_0x4098, 1
-    Message 2
+    GoToIfUnset FLAG_TOTEM_HITMONLEE_DEFEATED, _TotemsRemain
+    GoToIfUnset FLAG_TOTEM_VESPIQUEN_DEFEATED, _TotemsRemain
+    GoToIfUnset FLAG_TOTEM_SKARMORY_DEFEATED, _TotemsRemain
+    GoToIfUnset FLAG_TOTEM_LAPRAS_DEFEATED, _TotemsRemain
+    GoToIfUnset FLAG_TOTEM_SPIRITOMB_DEFEATED, _TotemsRemain
+    GoToIfUnset FLAG_TOTEM_AGGRON_DEFEATED, _TotemsRemain
+    GoToIfUnset FLAG_TOTEM_MAMOSWINE_DEFEATED, _TotemsRemain
+    GoToIfUnset FLAG_TOTEM_KINGDRA_DEFEATED, _TotemsRemain
+    SetVar VAR_SPEAR_PILLAR_PARALLEL_SCENE_STATE, 1
+    Message 31
     WaitABXPadPress
     CloseMessage
     ReleaseAll
     End
 
-_01CA:
-    Message 0
+_TotemsRemain:
+    Message 32
+    WaitABXPadPress
     CloseMessage
-    StartTrainerBattle TRAINER_GALACTIC_GRUNT_SPEAR_PILLAR_1, TRAINER_GALACTIC_GRUNT_SPEAR_PILLAR_2
-    CheckWonBattle VAR_RESULT
-    Return
-
-_01DB:
-    BlackOutFromBattle
+    ApplyMovement LOCALID_PLAYER, _0204
+    WaitMovement
     ReleaseAll
     End
 
@@ -181,41 +166,48 @@ _0236:
 
 _0249:
     LockAll
-    Call _036F
-    Message 3
-    Message 4
-    CloseMessage
     Call _02DC
-    BufferRivalName 0
-    Message 5
-    Message 7
-    Message 8
-    Message 9
+    Message 13
+    WaitABXPadPress
     CloseMessage
+    Message 18
+    WaitABXPadPress
+    CloseMessage
+    Message 20
+    WaitABXPadPress
+    CloseMessage
+    Message 24
+    WaitABXPadPress
+    CloseMessage
+    Message 26
+    WaitABXPadPress
+    CloseMessage
+    Message 27
+    WaitABXPadPress
+    CloseMessage
+    Message 28
+    WaitABXPadPress
+    CloseMessage
+    SetRivalBGM
     Call SpearPillar_SetRivalPartnerTeam
-    StartTagBattle VAR_0x8004, TRAINER_COMMANDER_MARS_SPEAR_PILLAR, TRAINER_COMMANDER_JUPITER_SPEAR_PILLAR
+    StartTrainerBattle VAR_0x8004
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, _02D0
-    Call _0456
-    BufferRivalName 0
-    BufferPlayerName 1
-    Message 10
-    PlaySound SEQ_ASA
-    WaitSound
-    HealParty
-    Message 11
-    Message 12
+    Message 29
+    WaitABXPadPress
     CloseMessage
-    ScrCmd_18C 0xFF, 1
-    ApplyMovement 5, _0500
-    WaitMovement
+    Message 30
+    WaitABXPadPress
+    CloseMessage
+    HealParty
     RemoveObject 5
-    SetVar VAR_UNK_0x4098, 2
+    SetFlag FLAG_UNK_0x01C5
+    SetVar VAR_SPEAR_PILLAR_PARALLEL_SCENE_STATE, 2
     GoTo _0508
     End
 
 _02D0:
-    SetVar VAR_UNK_0x4098, 1
+    SetVar VAR_SPEAR_PILLAR_PARALLEL_SCENE_STATE, 1
     BlackOutFromBattle
     ReleaseAll
     End
@@ -407,6 +399,7 @@ _0567:
     SetFlag FLAG_UNK_0x01C9
     SetFlag FLAG_UNK_0x01CA
     SetVar VAR_UNK_0x4098, 3
+    SetVar VAR_SPEAR_PILLAR_PARALLEL_SCENE_STATE, 3
     SetFlag FLAG_UNLOCKED_VS_SEEKER_LVL_3
     ClearFlag FLAG_UNK_0x01C7
     SetFlag FLAG_UNK_0x0132

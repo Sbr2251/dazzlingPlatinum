@@ -4,20 +4,60 @@
     {
       "id": "pl_msg_00000510_00000",
       "en_US": [
-        "This shrine... It isn’t natural.\r",
-        "It looks just like the energy\n",
-        "conduits my father’s people built."
+        "That’s right, CLEFAIRY!\n",
+        "Cuter, now!"
       ]
     },
     {
       "id": "pl_msg_00000510_00001",
+      "en_US": "CLEFAIRY: Pippiih!"
+    },
+    {
+      "id": "pl_msg_00000510_00002",
+      "en_US": "CLEFAIRY: Pippippiih!"
+    },
+    {
+      "id": "pl_msg_00000510_00003",
+      "en_US": "PIKACHU: Puhppikaah!"
+    },
+    {
+      "id": "pl_msg_00000510_00004",
       "en_US": [
-        "But that’s impossible.\n",
+        "PIKACHU! Try to keep up!\n",
+        "You need to dazzle!"
+      ]
+    },
+    {
+      "id": "pl_msg_00000510_00005",
+      "en_US": [
+        "Rt. 218\n",
+        "Canalave City"
+      ]
+    },
+    {
+      "id": "pl_msg_00000510_00006",
+      "en_US": [
+        "Rt. 218\n",
+        "Jubilife City"
+      ]
+    },
+    {
+      "id": "pl_msg_00000510_00007",
+      "en_US": [
+        "These stone conduits... They aren’t\n",
+        "natural. They match the energy\r",
+        "relays my father’s people built."
+      ]
+    },
+    {
+      "id": "pl_msg_00000510_00008",
+      "en_US": [
+        "That’s impossible.\n",
         "They were disbanded years ago."
       ]
     },
     {
-      "id": "pl_msg_00000510_00002",
+      "id": "pl_msg_00000510_00009",
       "en_US": [
         "Wait... You’ve been talking to\n",
         "that Cyrus guy again, haven’t you?\r",
@@ -26,7 +66,7 @@
       ]
     },
     {
-      "id": "pl_msg_00000510_00003",
+      "id": "pl_msg_00000510_00010",
       "en_US": [
         "Don’t trust him. He knows too much\n",
         "about these rifts to be a scholar.\r",
@@ -35,41 +75,21 @@
       ]
     },
     {
-      "id": "pl_msg_00000510_00004",
+      "id": "pl_msg_00000510_00011",
       "en_US": [
-        "Still... If the Totems are holding\n",
-        "the rifts open, maybe their energy\r",
+        "Still... If the Totems hold the\n",
+        "rifts open, maybe their energy\r",
         "could be used instead of sealed.\r",
         "Forget I said that. I’ll find my\n",
         "own answers."
       ]
     },
     {
-      "id": "pl_msg_00000510_00005",
+      "id": "pl_msg_00000510_00012",
       "en_US": [
-        "The flowers react whenever the\n",
-        "rift pulses. Their glow forms the\r",
-        "same spiral every time.\n",
-        "This is no ordinary meadow."
-      ]
-    },
-    {
-      "id": "pl_msg_00000510_00006",
-      "en_US": [
-        "EVERSRING SANCTUARY\n",
-        "West: Canalave  East: Jubilife"
-      ]
-    },
-    {
-      "id": "pl_msg_00000510_00007",
-      "en_US": "CLEFAIRY: Pippippiih!"
-    },
-    {
-      "id": "pl_msg_00000510_00008",
-      "en_US": [
-        "The shrine’s crystal is warm.\n",
-        "A faint vibration answers from\r",
-        "deep below."
+        "The old machinery gives off a\n",
+        "faint, rhythmic vibration.\r",
+        "The nearby flowers lean toward it."
       ]
     }
   ]
