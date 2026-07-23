@@ -343,17 +343,13 @@ static BOOL TitleScreen_Main(ApplicationManager *appMan, int *state)
         if (TitleScreen_LoadGfx(&appData->titleScreen, appData->bgConfig, appData->heapID) == TRUE) {
             appData->titleScreen.state = INTRO_STATE_FADE_FROM_BLACK;
 
-            if (!gSystem.showTitleScreenIntro) {
-                appData->inputEnableDelay = TITLE_SCREEN_INPUT_DISABLE_FRAMES;
-                appData->titleScreen.giratinaShown = TRUE;
-                appData->titleScreen.introShown = FALSE;
-                *state = TITLE_SCREEN_APP_STATE_INIT_SOUND;
-            } else {
-                appData->inputEnableDelay = 0;
-                gSystem.showTitleScreenIntro = FALSE;
-                appData->titleScreen.introShown = TRUE;
-                *state = TITLE_SCREEN_APP_STATE_SHOW_INTRO;
-            }
+            // The reconstructed title presents Giratina and the logo directly,
+            // matching the supplied reference instead of replaying the stock portal.
+            appData->inputEnableDelay = TITLE_SCREEN_INPUT_DISABLE_FRAMES;
+            appData->titleScreen.giratinaShown = TRUE;
+            appData->titleScreen.introShown = FALSE;
+            gSystem.showTitleScreenIntro = FALSE;
+            *state = TITLE_SCREEN_APP_STATE_INIT_SOUND;
         }
         break;
     case TITLE_SCREEN_APP_STATE_SHOW_INTRO:
@@ -526,27 +522,38 @@ static void TitleScreen_Load3DGfx(TitleScreenGraphics *gfx, int giratinaModel, i
     HeapExp_FndInitAllocator(&gfx->allocator, heapID, 4);
 
     gfx->giratinaModelRes = NARC_AllocAndReadWholeMemberByIndexPair(NARC_INDEX_DEMO__TITLE__TITLEDEMO, giratinaModel, heapID);
-    gfx->giratinaTexAnimRes = NARC_AllocAndReadWholeMemberByIndexPair(NARC_INDEX_DEMO__TITLE__TITLEDEMO, giratinaTexAnim, heapID);
+    // The replacement title model is vertex-colored and has no texture set.
+    // Do not bind the stock NSBTA, whose material tracks target the vanilla
+    // textured model and are incompatible with this render object.
+    (void)giratinaTexAnim;
+    gfx->giratinaTexAnimRes = NULL;
+    // The replacement NSBCA supplies the front-facing bind correction and
+    // six-tendril loop. The unanimated model's authoring pose is edge-on in
+    // Nitro coordinates, matching the stock model's dependence on its JNT0.
     gfx->giratinaAnimRes = NARC_AllocAndReadWholeMemberByIndexPair(NARC_INDEX_DEMO__TITLE__TITLEDEMO, giratina_nsbca, heapID);
+
+    // The stock textured model is cache-flushed by NNS_G3dResDefaultSetup.
+    // This replacement has no TEX0 block, so Easy3D skips that setup path.
+    // Its shape display lists are submitted directly by GX DMA and must be
+    // flushed explicitly or the GPU reads stale memory and draws nothing.
+    DC_FlushRange(gfx->giratinaModelRes, gfx->giratinaModelRes->fileSize);
 
     Easy3D_InitRenderObjFromResource(&gfx->giratinaRenderObj, &gfx->giratinaModel, &gfx->giratinaModelRes);
 
-    void *texAnim = NNS_G3dGetAnmByIdx(gfx->giratinaTexAnimRes, 0);
+    gfx->giratinaTexAnim = NULL;
+
     void *skeletalAnim = NNS_G3dGetAnmByIdx(gfx->giratinaAnimRes, 0);
-
-    gfx->giratinaTexAnim = NNS_G3dAllocAnmObj(&gfx->allocator, texAnim, gfx->giratinaModel);
     gfx->giratinaAnim = NNS_G3dAllocAnmObj(&gfx->allocator, skeletalAnim, gfx->giratinaModel);
-
-    NNSG3dResTex *texRes = NNS_G3dGetTex(gfx->giratinaModelRes);
-
-    NNS_G3dAnmObjInit(gfx->giratinaTexAnim, texAnim, gfx->giratinaModel, texRes);
-    NNS_G3dAnmObjInit(gfx->giratinaAnim, skeletalAnim, gfx->giratinaModel, texRes);
-    NNS_G3dRenderObjAddAnmObj(&gfx->giratinaRenderObj, gfx->giratinaTexAnim);
+    NNS_G3dAnmObjInit(gfx->giratinaAnim, skeletalAnim, gfx->giratinaModel, NULL);
     NNS_G3dRenderObjAddAnmObj(&gfx->giratinaRenderObj, gfx->giratinaAnim);
 
+    // Keep the reconstructed model at its authored origin. Final composition is
+    // controlled by a depth-neutral title-camera translation below.
     VecFx32 pos = { 0, 0, 0 };
-    VecFx32 scale = { FX32_ONE, FX32_ONE, FX32_ONE };
-    VecFx32 rot = { 0, 0, 0 };
+    VecFx32 scale = { FX32_ONE * 8, FX32_ONE * 8, FX32_ONE * 8 };
+    // NNS export leaves the reconstructed frontal plane in the XZ basis.
+    // Rotate it into the screen plane, then turn it to the readable front view.
+    VecFx32 rot = { 0x4000, 0, 0x8000 };
 
     gfx->giratinaPos = pos;
     gfx->giratinaScale = scale;
@@ -612,11 +619,19 @@ static void TitleScreen_Release3DGfx(TitleScreenGraphics *gfx)
 {
     TitleScreen_ReleaseIntro3DGfx(gfx);
 
-    NNS_G3dFreeAnmObj(&gfx->allocator, gfx->giratinaTexAnim);
-    NNS_G3dFreeAnmObj(&gfx->allocator, gfx->giratinaAnim);
+    if (gfx->giratinaTexAnim != NULL) {
+        NNS_G3dFreeAnmObj(&gfx->allocator, gfx->giratinaTexAnim);
+    }
+    if (gfx->giratinaAnim != NULL) {
+        NNS_G3dFreeAnmObj(&gfx->allocator, gfx->giratinaAnim);
+    }
 
-    Heap_Free(gfx->giratinaTexAnimRes);
-    Heap_Free(gfx->giratinaAnimRes);
+    if (gfx->giratinaTexAnimRes != NULL) {
+        Heap_Free(gfx->giratinaTexAnimRes);
+    }
+    if (gfx->giratinaAnimRes != NULL) {
+        Heap_Free(gfx->giratinaAnimRes);
+    }
     Heap_Free(gfx->giratinaModelRes);
 }
 
@@ -676,28 +691,24 @@ static void TitleScreen_Render(TitleScreen *titleScreen, TitleScreenGraphics *gf
             Easy3D_DrawRenderObj(&gfx->giratinaRenderObj, &gfx->giratinaPos, &rotationMatrix, &gfx->giratinaScale);
         }
 
-        switch (gfx->giratinaAnimState) {
-        case GIRATINA_ANIM_STATE_DISABLED:
-            gfx->giratinaTexAnim->frame = 0;
-            gfx->giratinaAnim->frame = 0;
-            break;
-        case GIRATINA_ANIM_STATE_STOP:
-            if (gfx->giratinaTexAnim->frame == 0) {
-                gfx->giratinaAnimState = GIRATINA_ANIM_STATE_DISABLED;
+        if (gfx->giratinaAnim != NULL) {
+            switch (gfx->giratinaAnimState) {
+            case GIRATINA_ANIM_STATE_DISABLED:
+                gfx->giratinaAnim->frame = 0;
+                break;
+            case GIRATINA_ANIM_STATE_STOP:
+                if (gfx->giratinaAnim->frame == 0) {
+                    gfx->giratinaAnimState = GIRATINA_ANIM_STATE_DISABLED;
+                    break;
+                }
+            case GIRATINA_ANIM_STATE_PLAY:
+                gfx->giratinaAnim->frame += FX32_ONE;
+
+                if (gfx->giratinaAnim->frame == NNS_G3dAnmObjGetNumFrame(gfx->giratinaAnim)) {
+                    gfx->giratinaAnim->frame = 0;
+                }
                 break;
             }
-        case GIRATINA_ANIM_STATE_PLAY:
-            gfx->giratinaTexAnim->frame += FX32_ONE;
-            gfx->giratinaAnim->frame += FX32_ONE;
-
-            if (gfx->giratinaTexAnim->frame == NNS_G3dAnmObjGetNumFrame(gfx->giratinaTexAnim)) {
-                gfx->giratinaTexAnim->frame = 0;
-            }
-
-            if (gfx->giratinaAnim->frame == NNS_G3dAnmObjGetNumFrame(gfx->giratinaAnim)) {
-                gfx->giratinaAnim->frame = 0;
-            }
-            break;
         }
 
         G3_RequestSwapBuffers(GX_SORTMODE_MANUAL, GX_BUFFERMODE_W);
@@ -1387,21 +1398,24 @@ static void TitleScreen_UpdateLight1(TitleScreen *titleScreen)
 
 static void TitleScreen_InitCoordinates(TitleScreen *titleScreen)
 {
-    titleScreen->titleCamStartPos.x = FX32_CONST(0);
-    titleScreen->titleCamStartPos.y = FX32_CONST(192);
-    titleScreen->titleCamStartPos.z = FX32_CONST(600);
+    // Translate each eye/target pair by the same vector to compose the enlarged
+    // Giratina without changing camera direction or model depth. Relative to the
+    // stock camera, this moves the view 60 units up and about 14 units left.
+    titleScreen->titleCamStartPos.x = FX32_CONST(-14);
+    titleScreen->titleCamStartPos.y = FX32_CONST(132);
+    titleScreen->titleCamStartPos.z = FX32_CONST(609.5);
 
-    titleScreen->titleCamEndPos.x = FX32_CONST(-64);
-    titleScreen->titleCamEndPos.y = FX32_CONST(192);
-    titleScreen->titleCamEndPos.z = FX32_CONST(484);
+    titleScreen->titleCamEndPos.x = FX32_CONST(-78);
+    titleScreen->titleCamEndPos.y = FX32_CONST(132);
+    titleScreen->titleCamEndPos.z = FX32_CONST(493.5);
 
-    titleScreen->titleCamStartTarget.x = FX32_CONST(0);
-    titleScreen->titleCamStartTarget.y = FX32_CONST(100);
-    titleScreen->titleCamStartTarget.z = FX32_CONST(-18);
+    titleScreen->titleCamStartTarget.x = FX32_CONST(-14);
+    titleScreen->titleCamStartTarget.y = FX32_CONST(40);
+    titleScreen->titleCamStartTarget.z = FX32_CONST(-8.5);
 
-    titleScreen->titleCamEndTarget.x = FX32_CONST(0);
-    titleScreen->titleCamEndTarget.y = FX32_CONST(100);
-    titleScreen->titleCamEndTarget.z = FX32_CONST(-18);
+    titleScreen->titleCamEndTarget.x = FX32_CONST(-14);
+    titleScreen->titleCamEndTarget.y = FX32_CONST(40);
+    titleScreen->titleCamEndTarget.z = FX32_CONST(-8.5);
 
     titleScreen->light0Dir.x = FX32_CONST(0.5534);
     titleScreen->light0Dir.y = -FX32_CONST(0.4768);
