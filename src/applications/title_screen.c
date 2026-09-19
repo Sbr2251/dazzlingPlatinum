@@ -56,6 +56,11 @@ FS_EXTERN_OVERLAY(d_startmenu);
 #define TITLE_SCREEN_REPLAY_OPENING_FRAMES  900 // After how long the opening cutscene is replayed
 #define TITLE_SCREEN_EXIT_FADE_DELAY_FRAMES 10 // After how long the title screen is faded out after pressing Start
 
+#define TITLE_GIRATINA_ANTICIPATION_FRAME 240
+#define TITLE_GIRATINA_LUNGE_FRAME        300
+#define TITLE_GIRATINA_RETREAT_FRAME      320
+#define TITLE_GIRATINA_LOOP_FRAMES        484 // Four loops of the existing 121-frame joint animation
+
 #define LIGHT1_BRIGHTNESS_MIN  5
 #define LIGHT1_BRIGHTNESS_MAX  31
 #define LIGHT1_BRIGHTNESS_STEP 2
@@ -192,7 +197,7 @@ typedef struct TitleScreen {
     BOOL giratinaShown; // Giratina 3D model shown
     BOOL introShown; // Sky pillar portal with Giratina face shown
     int titleCamMoveInCounter;
-    int giratinaHoverAngle;
+    int giratinaMotionFrame;
     int unused1;
 } TitleScreen;
 
@@ -241,6 +246,7 @@ static void TitleScreen_Load2DGfx(BgConfig *bgConfig, enum HeapID heapID, TitleS
 static void TitleScreen_Release2DGfx(BgConfig *bgConfig, enum HeapID heapID, TitleScreen *titleScreen);
 static void TitleScreen_InitCoordinates(TitleScreen *titleScreen);
 static void TitleScreen_UpdateLight1(TitleScreen *titleScreen);
+static void TitleScreen_UpdateGiratinaMotion(TitleScreen *titleScreen);
 
 const ApplicationManagerTemplate gTitleScreenAppTemplate = {
     .init = TitleScreen_Init,
@@ -364,6 +370,8 @@ static BOOL TitleScreen_Main(ApplicationManager *appMan, int *state)
         *state = TITLE_SCREEN_APP_STATE_MAIN;
         break;
     case TITLE_SCREEN_APP_STATE_MAIN:
+        TitleScreen_UpdateGiratinaMotion(&appData->titleScreen);
+
         if (appData->inputEnableDelay) {
             appData->inputEnableDelay--;
 
@@ -659,15 +667,6 @@ static void TitleScreen_Render(TitleScreen *titleScreen, TitleScreenGraphics *gf
         Camera_ComputeProjectionMatrix(CAMERA_PROJECTION_PERSPECTIVE, gfx->titleCamera);
         Camera_SetAsActive(gfx->titleCamera);
     }
-
-    titleScreen->giratinaHoverAngle += 2;
-    titleScreen->giratinaHoverAngle %= 360;
-
-    // BUG: This should pass the value in directly, since the function takes degrees as input, not an index.
-    // But in practice this just slightly reduces the range of the hover so it isn't very noticeable.
-    fx32 offset = CalcSineDegrees_Wraparound((titleScreen->giratinaHoverAngle * 0xFFFF) / 360);
-    offset *= 0.3;
-    gfx->giratinaPos.y -= offset;
 
     switch (gfx->renderState) {
     case RENDER_STATE_OFF:
@@ -1233,6 +1232,66 @@ static BOOL TitleScreen_ShowIntro(TitleScreen *titleScreen, BgConfig *bgConfig, 
     return done;
 }
 
+static fx32 TitleScreen_EaseGiratinaMotion(int frame, int duration)
+{
+    fx32 progress = (frame * FX32_ONE) / duration;
+
+    return FX_Mul(FX_Mul(progress, progress), 3 * FX32_ONE - 2 * progress);
+}
+
+static void TitleScreen_UpdateGiratinaMotion(TitleScreen *titleScreen)
+{
+    TitleScreenGraphics *gfx = &titleScreen->graphics;
+    int frame = titleScreen->giratinaMotionFrame;
+    fx32 progress;
+
+    // Root-motion proof over the existing joint animation. Assign absolute poses
+    // so neither the hover nor repeated loops can drift out of the title view.
+    if (frame < TITLE_GIRATINA_ANTICIPATION_FRAME) {
+        progress = TitleScreen_EaseGiratinaMotion(frame, TITLE_GIRATINA_ANTICIPATION_FRAME);
+        u16 angle = (progress * 0x10000) / FX32_ONE;
+        fx32 sway = FX_SinIdx(angle);
+
+        gfx->giratinaPos.x = 5 * sway;
+        gfx->giratinaPos.y = 2 * FX_SinIdx((u16)(angle * 2));
+        gfx->giratinaPos.z = -6 * (FX32_ONE - FX_CosIdx(angle));
+        gfx->giratinaRot.z = 0x8000 + FX_Mul(sway, ANGLE(1.5));
+    } else if (frame < TITLE_GIRATINA_LUNGE_FRAME) {
+        progress = TitleScreen_EaseGiratinaMotion(
+            frame - TITLE_GIRATINA_ANTICIPATION_FRAME,
+            TITLE_GIRATINA_LUNGE_FRAME - TITLE_GIRATINA_ANTICIPATION_FRAME);
+
+        gfx->giratinaPos.x = 4 * progress;
+        gfx->giratinaPos.y = 3 * progress;
+        gfx->giratinaPos.z = -24 * progress;
+        gfx->giratinaRot.z = 0x8000 + FX_Mul(progress, ANGLE(3));
+    } else if (frame < TITLE_GIRATINA_RETREAT_FRAME) {
+        progress = TitleScreen_EaseGiratinaMotion(
+            frame - TITLE_GIRATINA_LUNGE_FRAME,
+            TITLE_GIRATINA_RETREAT_FRAME - TITLE_GIRATINA_LUNGE_FRAME);
+
+        gfx->giratinaPos.x = FX32_CONST(4) - 10 * progress;
+        gfx->giratinaPos.y = FX32_CONST(3) + 6 * progress;
+        gfx->giratinaPos.z = -FX32_CONST(24) + 72 * progress;
+        gfx->giratinaRot.z = 0x8000 + ANGLE(3) - FX_Mul(progress, ANGLE(3) + ANGLE(2));
+    } else {
+        progress = FX32_ONE - TitleScreen_EaseGiratinaMotion(
+            frame - TITLE_GIRATINA_RETREAT_FRAME,
+            TITLE_GIRATINA_LOOP_FRAMES - TITLE_GIRATINA_RETREAT_FRAME);
+
+        gfx->giratinaPos.x = -6 * progress;
+        gfx->giratinaPos.y = 9 * progress;
+        gfx->giratinaPos.z = 48 * progress;
+        gfx->giratinaRot.z = 0x8000 - FX_Mul(progress, ANGLE(2));
+    }
+
+    titleScreen->giratinaMotionFrame++;
+
+    if (titleScreen->giratinaMotionFrame == TITLE_GIRATINA_LOOP_FRAMES) {
+        titleScreen->giratinaMotionFrame = 0;
+    }
+}
+
 static BOOL TitleScreen_RenderMain(TitleScreen *titleScreen, BgConfig *bgConfig, enum HeapID heapID)
 {
     BOOL result = FALSE;
@@ -1251,6 +1310,7 @@ static BOOL TitleScreen_RenderMain(TitleScreen *titleScreen, BgConfig *bgConfig,
         ResetScreenMasterBrightness(DS_SCREEN_SUB);
 
         titleScreen->graphics.giratinaAnimState = GIRATINA_ANIM_STATE_PLAY;
+        titleScreen->graphics.giratinaAnim->frame = 0;
         NNS_G3dGlbLightColor(GX_LIGHTID_1, COLOR_WHITE);
 
         TitleScreen_LoadTopScreenBg(bgConfig, heapID);
@@ -1398,6 +1458,8 @@ static void TitleScreen_UpdateLight1(TitleScreen *titleScreen)
 
 static void TitleScreen_InitCoordinates(TitleScreen *titleScreen)
 {
+    titleScreen->giratinaMotionFrame = 0;
+
     // Translate each eye/target pair by the same vector to compose the enlarged
     // Giratina without changing camera direction or model depth. Relative to the
     // stock camera, this moves the view 60 units up and about 14 units left.
