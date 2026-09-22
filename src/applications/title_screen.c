@@ -51,6 +51,42 @@ FS_EXTERN_OVERLAY(d_startmenu);
 #define TITLE_SCREEN_LAYER_LOGO        BG_LAYER_SUB_2
 #define TITLE_SCREEN_LAYER_LOGO_BG     BG_LAYER_SUB_3
 
+// When set, the title Giratina is a pre-rendered loop of the Blender intro
+// (res/graphics/title_screen/giratina_prerender.bin, built by
+// tools/giratina_title/pack_frames.py) streamed onto an 8bpp BG instead of the
+// real-time 3D model. The intro cutscene (portal/face) still uses 3D.
+// Set to 0 to restore the real-time 3D Giratina.
+#ifndef TITLE_GIRATINA_PRERENDERED
+#define TITLE_GIRATINA_PRERENDERED 1
+#endif
+
+#if TITLE_GIRATINA_PRERENDERED
+// The prerender needs ~120KB of buffers on top of the stock 0x40000. The
+// opening cutscene creates a 0xA0000 heap from HEAP_ID_APPLICATION in the same
+// boot flow, so 0x70000 is known to fit.
+#define TITLE_SCREEN_HEAP_SIZE 0x70000
+#else
+#define TITLE_SCREEN_HEAP_SIZE 0x40000
+#endif
+
+#define TITLE_SCREEN_LAYER_PRERENDER BG_LAYER_MAIN_2
+
+#define PRERENDER_MAGIC            ('G' | ('T' << 8) | ('P' << 16) | ('R' << 24))
+#define PRERENDER_VERSION          1
+#define PRERENDER_HEADER_SIZE      0x20
+#define PRERENDER_NUM_TILES        (32 * 24)
+#define PRERENDER_FB_SIZE          (PRERENDER_NUM_TILES * 64)
+#define PRERENDER_MASK_SIZE        (PRERENDER_NUM_TILES / 8)
+#define PRERENDER_PALETTE_SIZE     (256 * sizeof(u16))
+#define PRERENDER_EXT_PLTT_OFFSET  0x4000 // BG2 uses extended palette slot 2
+#define PRERENDER_CHAR_OFFSET_A    0x10000 // VRAM B (free: BG3 uses 0x0-0x27FF, BG1 0x3800-0xBFFF)
+#define PRERENDER_CHAR_OFFSET_B    0x20000 // VRAM D
+#define PRERENDER_CHARBASE_A       GX_BG_CHARBASE_0x10000
+#define PRERENDER_CHARBASE_B       GX_BG_CHARBASE_0x20000
+#define PRERENDER_SCRBASE          GX_BG_SCRBASE_0x2800
+#define PRERENDER_STEP_SIZE_MASK   0xFFFFFF
+#define PRERENDER_STEP_HOLD_SHIFT  24
+
 #define TITLE_CAM_MOVE_IN_FRAMES            60 // How long the title camera takes to move in
 #define TITLE_SCREEN_INPUT_DISABLE_FRAMES   30 // How long the inputs are disabled for after the intro
 #define TITLE_SCREEN_REPLAY_OPENING_FRAMES  900 // After how long the opening cutscene is replayed
@@ -173,6 +209,35 @@ typedef struct TitleScreenUnusedStruct {
     TitleScreenGraphics unused1;
 } TitleScreenUnusedStruct;
 
+// Mirrors the header written by tools/giratina_title/pack_frames.py.
+typedef struct TitleScreenPrerenderHeader {
+    u32 magic;
+    u16 version;
+    u16 numSteps;
+    u32 paletteOffset;
+    u32 keyframeOffset;
+    u32 keyframeSize;
+    u32 maxChunkSize;
+    u32 maxRawSize;
+    u32 totalVBlanks;
+} TitleScreenPrerenderHeader;
+
+typedef struct TitleScreenPrerender {
+    NARC *narc;
+    TitleScreenPrerenderHeader header;
+    u32 *stepTable; // numSteps x { offset, compressedSize | (holdVBlanks << 24) }
+    u8 *framebuffer; // PRERENDER_FB_SIZE, the current frame as 768 8bpp tiles
+    u8 *chunk; // compressed step, maxChunkSize bytes
+    u8 *raw; // decompressed step, maxRawSize bytes
+    u16 nextStep;
+    u16 pendingHold;
+    u8 frontSlot; // 0 = char slot A displayed, 1 = slot B
+    volatile BOOL playing;
+    volatile BOOL flipPending; // back slot holds the next frame, flip in VBlank
+    volatile u32 vblankCount;
+    volatile u32 nextFlipAt;
+} TitleScreenPrerender;
+
 typedef struct TitleScreen {
     int state;
     TitleScreenGraphics graphics;
@@ -199,6 +264,7 @@ typedef struct TitleScreen {
     int titleCamMoveInCounter;
     int giratinaMotionFrame;
     int unused1;
+    TitleScreenPrerender *volatile prerender; // NULL unless TITLE_GIRATINA_PRERENDERED
 } TitleScreen;
 
 typedef struct TitleScreenAppData {
@@ -247,6 +313,13 @@ static void TitleScreen_Release2DGfx(BgConfig *bgConfig, enum HeapID heapID, Tit
 static void TitleScreen_InitCoordinates(TitleScreen *titleScreen);
 static void TitleScreen_UpdateLight1(TitleScreen *titleScreen);
 static void TitleScreen_UpdateGiratinaMotion(TitleScreen *titleScreen);
+#if TITLE_GIRATINA_PRERENDERED
+static void TitleScreen_LoadPrerender(TitleScreen *titleScreen, BgConfig *bgConfig, enum HeapID heapID);
+static void TitleScreen_StartPrerender(TitleScreen *titleScreen);
+static void TitleScreen_PrerenderPrepareNext(TitleScreenPrerender *prerender);
+static void TitleScreen_PrerenderVBlank(TitleScreenPrerender *prerender);
+static void TitleScreen_ReleasePrerender(TitleScreen *titleScreen);
+#endif
 
 const ApplicationManagerTemplate gTitleScreenAppTemplate = {
     .init = TitleScreen_Init,
@@ -258,6 +331,11 @@ const ApplicationManagerTemplate gTitleScreenAppTemplate = {
 static inline void ToggleGiratinaLayer(BOOL enable)
 {
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG0, enable);
+}
+
+static inline void TogglePrerenderLayer(BOOL enable)
+{
+    GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG2, enable);
 }
 
 static inline void ToggleGiratinaBgLayer(BOOL enable)
@@ -321,7 +399,7 @@ static BOOL TitleScreen_Init(ApplicationManager *appMan, int *unused)
 
     SetAutorepeat(4, 8);
 
-    Heap_Create(HEAP_ID_APPLICATION, HEAP_ID_DISTORTION_WORLD_WARP, 0x40000);
+    Heap_Create(HEAP_ID_APPLICATION, HEAP_ID_DISTORTION_WORLD_WARP, TITLE_SCREEN_HEAP_SIZE);
 
     TitleScreenAppData *appData = ApplicationManager_NewData(appMan, sizeof(TitleScreenAppData), HEAP_ID_DISTORTION_WORLD_WARP);
     memset(appData, 0, sizeof(TitleScreenAppData));
@@ -485,13 +563,28 @@ static void TitleScreen_VBlank(void *param)
 {
     TitleScreenAppData *appData = param;
     Bg_RunScheduledUpdates(appData->bgConfig);
+
+#if TITLE_GIRATINA_PRERENDERED
+    TitleScreenPrerender *prerender = appData->titleScreen.prerender;
+
+    if (prerender != NULL) {
+        TitleScreen_PrerenderVBlank(prerender);
+    }
+#endif
 }
 
 static void TitleScreen_SetVRAMBanks(void)
 {
     GXBanks banks = {
+#if TITLE_GIRATINA_PRERENDERED
+        // B+D give main BG 256KB for the two 48KB prerender char slots;
+        // E holds the BG extended palettes (slot 2 = the 256-color prerender).
+        GX_VRAM_BG_256_BD,
+        GX_VRAM_BGEXTPLTT_0123_E,
+#else
         GX_VRAM_BG_128_B,
         GX_VRAM_BGEXTPLTT_NONE,
+#endif
         GX_VRAM_SUB_BG_128_C,
         GX_VRAM_SUB_BGEXTPLTT_0123_H,
         GX_VRAM_OBJ_NONE,
@@ -668,6 +761,10 @@ static void TitleScreen_Render(TitleScreen *titleScreen, TitleScreenGraphics *gf
         Camera_SetAsActive(gfx->titleCamera);
     }
 
+#if TITLE_GIRATINA_PRERENDERED
+    TitleScreen_PrerenderPrepareNext(titleScreen->prerender);
+#endif
+
     switch (gfx->renderState) {
     case RENDER_STATE_OFF:
         break;
@@ -686,8 +783,10 @@ static void TitleScreen_Render(TitleScreen *titleScreen, TitleScreenGraphics *gf
                 TitleScreen_RenderIntroGraphics(gfx);
             }
         } else {
+#if !TITLE_GIRATINA_PRERENDERED
             DC_FlushAll();
             Easy3D_DrawRenderObj(&gfx->giratinaRenderObj, &gfx->giratinaPos, &rotationMatrix, &gfx->giratinaScale);
+#endif
         }
 
         if (gfx->giratinaAnim != NULL) {
@@ -838,6 +937,27 @@ static void TitleScreen_InitBgs(TitleScreenAppData *appData)
     };
     Bg_InitFromTemplate(appData->bgConfig, TITLE_SCREEN_LAYER_GIRATINA_BG, &bgMain3, BG_TYPE_STATIC);
 
+#if TITLE_GIRATINA_PRERENDERED
+    // Pre-rendered Giratina: 256-color text BG over an identity tilemap. The
+    // char base is flipped between two slots in VBlank (double buffering).
+    // Priority 2 keeps the copyright (BG1, priority 0) above it.
+    BgTemplate bgMain2 = {
+        .x = 0,
+        .y = 0,
+        .bufferSize = 0x800,
+        .baseTile = 0,
+        .screenSize = BG_SCREEN_SIZE_256x256,
+        .colorMode = GX_BG_COLORMODE_256,
+        .screenBase = PRERENDER_SCRBASE,
+        .charBase = PRERENDER_CHARBASE_A,
+        .bgExtPltt = GX_BG_EXTPLTT_23,
+        .priority = 2,
+        .areaOver = 0,
+        .mosaic = FALSE
+    };
+    Bg_InitFromTemplate(appData->bgConfig, TITLE_SCREEN_LAYER_PRERENDER, &bgMain2, BG_TYPE_STATIC);
+#endif
+
     BgTemplate bgSub3 = {
         .x = 0,
         .y = 0,
@@ -868,6 +988,9 @@ static void TitleScreen_ReleaseBgs(TitleScreenAppData *appData)
     Bg_FreeTilemapBuffer(appData->bgConfig, TITLE_SCREEN_LAYER_LOGO);
     Bg_FreeTilemapBuffer(appData->bgConfig, TITLE_SCREEN_LAYER_COPYRIGHT);
     Bg_FreeTilemapBuffer(appData->bgConfig, TITLE_SCREEN_LAYER_GIRATINA_BG);
+#if TITLE_GIRATINA_PRERENDERED
+    Bg_FreeTilemapBuffer(appData->bgConfig, TITLE_SCREEN_LAYER_PRERENDER);
+#endif
     Bg_FreeTilemapBuffer(appData->bgConfig, TITLE_SCREEN_LAYER_LOGO_BG);
 
     Heap_Free(appData->bgConfig);
@@ -932,6 +1055,9 @@ static BOOL TitleScreen_LoadGfx(TitleScreen *titleScreen, BgConfig *bgConfig, en
     TitleScreen_InitCoordinates(titleScreen);
     TitleScreen_Load2DGfx(bgConfig, heapID, titleScreen);
     TitleScreen_Load3DGfx(&titleScreen->graphics, giratina_nsbmd, giratina_nsbta, heapID);
+#if TITLE_GIRATINA_PRERENDERED
+    TitleScreen_LoadPrerender(titleScreen, bgConfig, heapID);
+#endif
 
     G3X_AntiAlias(TRUE);
     G3X_AlphaBlend(TRUE);
@@ -1193,6 +1319,9 @@ static BOOL TitleScreen_ShowIntro(TitleScreen *titleScreen, BgConfig *bgConfig, 
         // Slowly fade in the Giratina model
         StartScreenFade(FADE_MAIN_ONLY, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, COLOR_BLACK, 48, 1, heapID);
         ToggleGiratinaBgLayer(TRUE);
+#if TITLE_GIRATINA_PRERENDERED
+        TitleScreen_StartPrerender(titleScreen);
+#endif
         titleScreen->state = INTRO_STATE_MOVE_IN_TITLE_CAMERA;
         titleScreen->titleCamMoveInCounter = 0;
         break;
@@ -1300,7 +1429,11 @@ static BOOL TitleScreen_RenderMain(TitleScreen *titleScreen, BgConfig *bgConfig,
     case MAIN_STATE_CONFIGURE_BGS:
         Camera_SetTarget(&titleScreen->titleCamEndTarget, titleScreen->graphics.titleCamera);
         Camera_SetPosition(&titleScreen->titleCamEndPos, titleScreen->graphics.titleCamera);
+#if TITLE_GIRATINA_PRERENDERED
+        TitleScreen_StartPrerender(titleScreen);
+#else
         ToggleGiratinaLayer(TRUE);
+#endif
         ToggleGiratinaBgLayer(TRUE);
         ToggleLogoBgLayer(TRUE);
         ToggleLogoLayer(TRUE);
@@ -1310,7 +1443,11 @@ static BOOL TitleScreen_RenderMain(TitleScreen *titleScreen, BgConfig *bgConfig,
         ResetScreenMasterBrightness(DS_SCREEN_SUB);
 
         titleScreen->graphics.giratinaAnimState = GIRATINA_ANIM_STATE_PLAY;
-        titleScreen->graphics.giratinaAnim->frame = 0;
+
+        if (titleScreen->graphics.giratinaAnim != NULL) {
+            titleScreen->graphics.giratinaAnim->frame = 0;
+        }
+
         NNS_G3dGlbLightColor(GX_LIGHTID_1, COLOR_WHITE);
 
         TitleScreen_LoadTopScreenBg(bgConfig, heapID);
@@ -1344,6 +1481,9 @@ static BOOL TitleScreen_ReleaseGfx(TitleScreen *titleScreen, BgConfig *bgConfig,
     Camera_Delete(titleScreen->graphics.titleCamera);
     Camera_Delete(titleScreen->graphics.introCamera);
 
+#if TITLE_GIRATINA_PRERENDERED
+    TitleScreen_ReleasePrerender(titleScreen);
+#endif
     TitleScreen_Release3DGfx(&titleScreen->graphics);
     TitleScreen_Release2DGfx(bgConfig, heapID, titleScreen);
 
@@ -1502,3 +1642,172 @@ static void EmptyCameraFunction(Camera *camera)
 {
     return;
 }
+
+#if TITLE_GIRATINA_PRERENDERED
+
+static inline void *TitleScreen_PrerenderSlotAddress(u8 slot)
+{
+    return (void *)(HW_BG_VRAM + (slot == 0 ? PRERENDER_CHAR_OFFSET_A : PRERENDER_CHAR_OFFSET_B));
+}
+
+static void TitleScreen_LoadPrerender(TitleScreen *titleScreen, BgConfig *bgConfig, enum HeapID heapID)
+{
+    TitleScreenPrerender *prerender = Heap_Alloc(heapID, sizeof(TitleScreenPrerender));
+
+    GF_ASSERT(prerender != NULL);
+    memset(prerender, 0, sizeof(TitleScreenPrerender));
+
+    // The archive stays open for the lifetime of the title screen; each step
+    // is a small synchronous read from the giratina_prerender_bin member.
+    prerender->narc = NARC_ctor(NARC_INDEX_DEMO__TITLE__TITLEDEMO, heapID);
+    NARC_ReadFromMember(prerender->narc, giratina_prerender_bin, 0, sizeof(TitleScreenPrerenderHeader), &prerender->header);
+
+    GF_ASSERT(prerender->header.magic == PRERENDER_MAGIC);
+    GF_ASSERT(prerender->header.version == PRERENDER_VERSION);
+    GF_ASSERT(prerender->header.numSteps > 1);
+    GF_ASSERT(prerender->header.maxChunkSize >= PRERENDER_PALETTE_SIZE);
+    GF_ASSERT(prerender->header.maxRawSize <= PRERENDER_MASK_SIZE + PRERENDER_FB_SIZE);
+
+    u32 tableSize = prerender->header.numSteps * 2 * sizeof(u32);
+
+    prerender->stepTable = Heap_Alloc(heapID, tableSize);
+    prerender->framebuffer = Heap_Alloc(heapID, PRERENDER_FB_SIZE);
+    prerender->chunk = Heap_Alloc(heapID, prerender->header.maxChunkSize);
+    prerender->raw = Heap_Alloc(heapID, prerender->header.maxRawSize);
+
+    GF_ASSERT(prerender->stepTable != NULL && prerender->framebuffer != NULL);
+    GF_ASSERT(prerender->chunk != NULL && prerender->raw != NULL);
+
+    NARC_ReadFromMember(prerender->narc, giratina_prerender_bin, PRERENDER_HEADER_SIZE, tableSize, prerender->stepTable);
+
+    // Shared 256-color palette -> BG2 extended palette slot (index 0 unused)
+    NARC_ReadFromMember(prerender->narc, giratina_prerender_bin, prerender->header.paletteOffset, PRERENDER_PALETTE_SIZE, prerender->chunk);
+    DC_FlushRange(prerender->chunk, PRERENDER_PALETTE_SIZE);
+    GX_BeginLoadBGExtPltt();
+    GX_LoadBGExtPltt(prerender->chunk, PRERENDER_EXT_PLTT_OFFSET, PRERENDER_PALETTE_SIZE);
+    GX_EndLoadBGExtPltt();
+
+    // Keyframe (step 0) straight into the framebuffer, then into slot A
+    NARC_ReadFromMember(prerender->narc, giratina_prerender_bin, prerender->header.keyframeOffset, prerender->header.keyframeSize, prerender->chunk);
+    MI_UncompressLZ8(prerender->chunk, prerender->framebuffer);
+    MI_CpuCopyFast(prerender->framebuffer, TitleScreen_PrerenderSlotAddress(0), PRERENDER_FB_SIZE);
+
+    // Identity tilemap: screen tile N shows char N. Rows 24-31 stay 0 (offscreen).
+    u16 *tilemap = Bg_GetTilemapBuffer(bgConfig, TITLE_SCREEN_LAYER_PRERENDER);
+
+    for (u16 i = 0; i < PRERENDER_NUM_TILES; i++) {
+        tilemap[i] = i;
+    }
+
+    Bg_CopyTilemapBufferToVRAM(bgConfig, TITLE_SCREEN_LAYER_PRERENDER);
+    G2_SetBG2ControlText(GX_BG_SCRSIZE_TEXT_256x256, GX_BG_COLORMODE_256, PRERENDER_SCRBASE, PRERENDER_CHARBASE_A);
+
+    prerender->frontSlot = 0;
+    prerender->nextStep = 1;
+    prerender->flipPending = FALSE;
+    prerender->playing = FALSE;
+
+    titleScreen->prerender = prerender;
+}
+
+static void TitleScreen_StartPrerender(TitleScreen *titleScreen)
+{
+    TitleScreenPrerender *prerender = titleScreen->prerender;
+
+    if (prerender == NULL) {
+        return;
+    }
+
+    if (prerender->playing == FALSE) {
+        // Show the keyframe for its hold, then let VBlank pace the loop
+        prerender->nextFlipAt = prerender->vblankCount + (prerender->stepTable[1] >> PRERENDER_STEP_HOLD_SHIFT);
+        prerender->playing = TRUE;
+    }
+
+    // Nothing is drawn in 3D any more, so keep BG0 out of the way of BG2
+    ToggleGiratinaLayer(FALSE);
+    TogglePrerenderLayer(TRUE);
+}
+
+// Called once per main-loop frame. Builds the next frame into the hidden
+// char slot; the VBlank handler makes it visible when its time comes.
+static void TitleScreen_PrerenderPrepareNext(TitleScreenPrerender *prerender)
+{
+    if (prerender == NULL || prerender->playing == FALSE || prerender->flipPending == TRUE) {
+        return;
+    }
+
+    u16 step = prerender->nextStep;
+    u32 offset = prerender->stepTable[step * 2];
+    u32 sizeAndHold = prerender->stepTable[step * 2 + 1];
+    u32 size = sizeAndHold & PRERENDER_STEP_SIZE_MASK;
+
+    GF_ASSERT(size <= prerender->header.maxChunkSize);
+
+    NARC_ReadFromMember(prerender->narc, giratina_prerender_bin, offset, size, prerender->chunk);
+    MI_UncompressLZ8(prerender->chunk, prerender->raw);
+
+    // raw = 96-byte change bitmask (bit N = tile N, LSB first) + changed tiles
+    const u8 *mask = prerender->raw;
+    const u8 *tiles = prerender->raw + PRERENDER_MASK_SIZE;
+
+    for (int tile = 0; tile < PRERENDER_NUM_TILES; tile++) {
+        if (mask[tile >> 3] & (1 << (tile & 7))) {
+            MI_CpuCopyFast(tiles, prerender->framebuffer + tile * 64, 64);
+            tiles += 64;
+        }
+    }
+
+    MI_CpuCopyFast(prerender->framebuffer, TitleScreen_PrerenderSlotAddress(prerender->frontSlot ^ 1), PRERENDER_FB_SIZE);
+
+    prerender->pendingHold = sizeAndHold >> PRERENDER_STEP_HOLD_SHIFT;
+    prerender->nextStep = (step + 1 == prerender->header.numSteps) ? 0 : step + 1;
+    prerender->flipPending = TRUE;
+}
+
+static void TitleScreen_PrerenderVBlank(TitleScreenPrerender *prerender)
+{
+    prerender->vblankCount++;
+
+    if (prerender->playing == FALSE || prerender->flipPending == FALSE) {
+        return;
+    }
+
+    if ((s32)(prerender->vblankCount - prerender->nextFlipAt) < 0) {
+        return;
+    }
+
+    prerender->frontSlot ^= 1;
+    G2_SetBG2ControlText(GX_BG_SCRSIZE_TEXT_256x256, GX_BG_COLORMODE_256, PRERENDER_SCRBASE, prerender->frontSlot ? PRERENDER_CHARBASE_B : PRERENDER_CHARBASE_A);
+
+    prerender->nextFlipAt += prerender->pendingHold;
+
+    // If a slow card read made us fall behind, resync instead of rushing
+    if ((s32)(prerender->vblankCount - prerender->nextFlipAt) >= 0) {
+        prerender->nextFlipAt = prerender->vblankCount + 1;
+    }
+
+    prerender->flipPending = FALSE;
+}
+
+static void TitleScreen_ReleasePrerender(TitleScreen *titleScreen)
+{
+    TitleScreenPrerender *prerender = titleScreen->prerender;
+
+    if (prerender == NULL) {
+        return;
+    }
+
+    // Detach first so the VBlank handler stops touching it before it is freed
+    titleScreen->prerender = NULL;
+    TogglePrerenderLayer(FALSE);
+
+    NARC_dtor(prerender->narc);
+    Heap_Free(prerender->raw);
+    Heap_Free(prerender->chunk);
+    Heap_Free(prerender->framebuffer);
+    Heap_Free(prerender->stepTable);
+    Heap_Free(prerender);
+}
+
+#endif // TITLE_GIRATINA_PRERENDERED
