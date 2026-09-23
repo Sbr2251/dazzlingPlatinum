@@ -246,6 +246,8 @@ typedef struct UnkStruct_ov16_02268A14_t {
         u8 unk_05;
         u8 unk_06;
     } unk_6C4;
+    u8 megaBorderFrame;
+    u8 megaBorderWasActive;
 } UnkStruct_ov16_02268A14_t;
 
 typedef struct {
@@ -367,6 +369,8 @@ static void inline_ov16_0226B318_1(SysTask *param0, void *param1);
 static void inline_ov16_0226B318_1_sub(UnkStruct_ov16_02268A14 *param0);
 static void inline_ov16_0226B314_1(SysTask *param0, void *param1);
 static void LoadMegaButtonPalette(UnkStruct_ov16_02268A14 *param0, BOOL isActive);
+static void ResetMegaButtonBorder(UnkStruct_ov16_02268A14 *param0);
+static void UpdateMegaButtonBorder(UnkStruct_ov16_02268A14 *param0);
 
 __attribute__((aligned(4))) static const u16 Unk_ov16_02270264[] = {
     0x31,
@@ -416,6 +420,67 @@ static const u16 sMegaButtonPalette_Active[16] = {
     RGB( 8,  3, 12),   // 13: darkest
     RGB(14,  5, 18),   // 14: dark accent
     RGB(31, 31, 31),   // 15: white
+};
+
+// Energy Border palette banks. The move-menu NSCR layouts do not use BG
+// palette banks 14 or 15, so these banks can highlight individual border tiles
+// without changing the MEGA fill, CANCEL, or move-button palettes.
+static const u16 sMegaButtonPalette_EnergyTrail[16] = {
+    RGB( 0,  0,  0),
+    RGB(22, 10, 24), // outline energy
+    RGB(28, 16, 29), // secondary outline energy
+    RGB(28, 14, 22),
+    RGB(30, 16, 24),
+    RGB(31, 18, 26),
+    RGB(31, 22, 28),
+    RGB(31, 26, 30),
+    RGB(31, 28, 31),
+    RGB(31, 31, 31),
+    RGB(28, 14, 24), // border shadow energy
+    RGB(31, 18, 27), // border mid-shadow energy
+    RGB(31, 30, 31),
+    RGB(18,  7, 20), // darkest border energy
+    RGB(26, 11, 25), // dark border accent energy
+    RGB(31, 31, 31),
+};
+
+static const u16 sMegaButtonPalette_EnergyHead[16] = {
+    RGB( 0,  0,  0),
+    RGB(31, 18, 28), // bright outline energy
+    RGB(31, 27, 31), // white-hot secondary outline
+    RGB(28, 14, 22),
+    RGB(30, 16, 24),
+    RGB(31, 18, 26),
+    RGB(31, 22, 28),
+    RGB(31, 26, 30),
+    RGB(31, 28, 31),
+    RGB(31, 31, 31),
+    RGB(31, 20, 28), // bright border shadow energy
+    RGB(31, 25, 30), // bright border mid-shadow energy
+    RGB(31, 30, 31),
+    RGB(24, 10, 24), // bright darkest-border energy
+    RGB(31, 17, 28), // bright dark-accent energy
+    RGB(31, 31, 31),
+};
+
+#define MEGA_BORDER_BASE_PALETTE 2
+#define MEGA_BORDER_TRAIL_PALETTE 14
+#define MEGA_BORDER_HEAD_PALETTE 15
+#define MEGA_BORDER_PATH_LENGTH 34
+#define MEGA_BORDER_STEP_FRAMES 2
+#define MEGA_BORDER_TRAVEL_FRAMES (MEGA_BORDER_PATH_LENGTH * MEGA_BORDER_STEP_FRAMES)
+#define MEGA_BORDER_SURGE_FRAMES 6
+#define MEGA_BORDER_QUIET_FRAMES 10
+#define MEGA_BORDER_TOTAL_FRAMES (MEGA_BORDER_TRAVEL_FRAMES + MEGA_BORDER_SURGE_FRAMES + MEGA_BORDER_QUIET_FRAMES)
+
+// Clockwise outer-ring path around the 14 x 5 MEGA button tile rectangle.
+static const u8 sMegaBorderPath[MEGA_BORDER_PATH_LENGTH][2] = {
+    { 1, 0x13 }, { 2, 0x13 }, { 3, 0x13 }, { 4, 0x13 }, { 5, 0x13 }, { 6, 0x13 }, { 7, 0x13 },
+    { 8, 0x13 }, { 9, 0x13 }, { 10, 0x13 }, { 11, 0x13 }, { 12, 0x13 }, { 13, 0x13 }, { 14, 0x13 },
+    { 14, 0x14 }, { 14, 0x15 }, { 14, 0x16 }, { 14, 0x17 },
+    { 13, 0x17 }, { 12, 0x17 }, { 11, 0x17 }, { 10, 0x17 }, { 9, 0x17 }, { 8, 0x17 },
+    { 7, 0x17 }, { 6, 0x17 }, { 5, 0x17 }, { 4, 0x17 }, { 3, 0x17 }, { 2, 0x17 }, { 1, 0x17 },
+    { 1, 0x16 }, { 1, 0x15 }, { 1, 0x14 },
 };
 
 __attribute__((aligned(4))) static const u16 Unk_ov16_022702B4[][2] = {
@@ -2395,7 +2460,7 @@ static int ov16_0226A3F4(UnkStruct_ov16_02268A14 *param0, int param1, int param2
 
             battleCtx->megaEvolutionTriggered[battler] = !battleCtx->megaEvolutionTriggered[battler];
 
-            LoadMegaButtonPalette(param0, battleCtx->megaEvolutionTriggered[battler]);
+            UpdateMegaIconState(param0);
 
             Sound_PlayEffect(SEQ_SE_CONFIRM);
             return 0xffffffff;
@@ -2983,23 +3048,111 @@ static void ov16_0226AEA0(UnkStruct_ov16_02268A14 *param0, const String *param1,
     Text_AddPrinterWithParamsColorAndSpacing(&param3->unk_00, param2, param1, 0, 0, TEXT_SPEED_NO_TRANSFER, param4, 0, 0, NULL);
 }
 
-// Load mega evolution button palette into VRAM BG palette slot 2
+// Load the MEGA button base palette and the two Energy Border palette banks.
 static void LoadMegaButtonPalette(UnkStruct_ov16_02268A14 *param0, BOOL isActive)
 {
     PaletteData *paletteSys = BattleSystem_PaletteSys(param0->battleSys);
     const u16 *palette = isActive ? sMegaButtonPalette_Active : sMegaButtonPalette_Inactive;
-    PaletteData_LoadBuffer(paletteSys, palette, PLTTBUF_SUB_BG, 2 * 16, 0x20);
+
+    PaletteData_LoadBuffer(paletteSys, palette, PLTTBUF_SUB_BG, MEGA_BORDER_BASE_PALETTE * 16, 0x20);
+
+    if (isActive) {
+        PaletteData_LoadBuffer(paletteSys, sMegaButtonPalette_EnergyTrail, PLTTBUF_SUB_BG, MEGA_BORDER_TRAIL_PALETTE * 16, 0x20);
+        PaletteData_LoadBuffer(paletteSys, sMegaButtonPalette_EnergyHead, PLTTBUF_SUB_BG, MEGA_BORDER_HEAD_PALETTE * 16, 0x20);
+    }
 }
 
-// Sync mega button palette with current megaEvolutionTriggered state
+static void SetMegaButtonBorderPalette(UnkStruct_ov16_02268A14 *param0, int pathIndex, int palette)
+{
+    BgConfig *bgConfig = BattleSystem_BGL(param0->battleSys);
+    int x = sMegaBorderPath[pathIndex][0];
+    int y = sMegaBorderPath[pathIndex][1];
+
+    Bg_ChangeTilemapRectPalette(bgConfig, 4, x, y, 1, 1, palette);
+}
+
+static void ResetMegaButtonBorder(UnkStruct_ov16_02268A14 *param0)
+{
+    BgConfig *bgConfig = BattleSystem_BGL(param0->battleSys);
+    int i;
+
+    for (i = 0; i < MEGA_BORDER_PATH_LENGTH; i++) {
+        SetMegaButtonBorderPalette(param0, i, MEGA_BORDER_BASE_PALETTE);
+    }
+
+    Bg_ScheduleTilemapTransfer(bgConfig, 4);
+}
+
+static void DrawMegaButtonBorderFrame(UnkStruct_ov16_02268A14 *param0, int frame)
+{
+    BgConfig *bgConfig = BattleSystem_BGL(param0->battleSys);
+    int travelStep;
+    int i;
+
+    if (frame < MEGA_BORDER_TRAVEL_FRAMES) {
+        if ((frame % MEGA_BORDER_STEP_FRAMES) != 0) {
+            return;
+        }
+
+        travelStep = frame / MEGA_BORDER_STEP_FRAMES;
+        for (i = 0; i < MEGA_BORDER_PATH_LENGTH; i++) {
+            SetMegaButtonBorderPalette(param0, i, MEGA_BORDER_BASE_PALETTE);
+        }
+
+        SetMegaButtonBorderPalette(param0, (travelStep + MEGA_BORDER_PATH_LENGTH - 2) % MEGA_BORDER_PATH_LENGTH, MEGA_BORDER_TRAIL_PALETTE);
+        SetMegaButtonBorderPalette(param0, (travelStep + MEGA_BORDER_PATH_LENGTH - 1) % MEGA_BORDER_PATH_LENGTH, MEGA_BORDER_TRAIL_PALETTE);
+        SetMegaButtonBorderPalette(param0, travelStep, MEGA_BORDER_HEAD_PALETTE);
+        Bg_ScheduleTilemapTransfer(bgConfig, 4);
+        return;
+    }
+
+    if (frame == MEGA_BORDER_TRAVEL_FRAMES) {
+        for (i = 0; i < MEGA_BORDER_PATH_LENGTH; i++) {
+            SetMegaButtonBorderPalette(param0, i, MEGA_BORDER_TRAIL_PALETTE);
+        }
+        SetMegaButtonBorderPalette(param0, 0, MEGA_BORDER_HEAD_PALETTE);
+        SetMegaButtonBorderPalette(param0, 13, MEGA_BORDER_HEAD_PALETTE);
+        SetMegaButtonBorderPalette(param0, 17, MEGA_BORDER_HEAD_PALETTE);
+        SetMegaButtonBorderPalette(param0, 30, MEGA_BORDER_HEAD_PALETTE);
+        Bg_ScheduleTilemapTransfer(bgConfig, 4);
+    } else if (frame == MEGA_BORDER_TRAVEL_FRAMES + MEGA_BORDER_SURGE_FRAMES) {
+        ResetMegaButtonBorder(param0);
+    }
+}
+
+static void UpdateMegaButtonBorder(UnkStruct_ov16_02268A14 *param0)
+{
+    DrawMegaButtonBorderFrame(param0, param0->megaBorderFrame);
+
+    param0->megaBorderFrame++;
+    if (param0->megaBorderFrame >= MEGA_BORDER_TOTAL_FRAMES) {
+        param0->megaBorderFrame = 0;
+    }
+}
+
+// Sync the MEGA selected state and advance the Energy Border while menu 11 is active.
 static void UpdateMegaIconState(UnkStruct_ov16_02268A14 *param0)
 {
     UnkStruct_ov16_02260C00 *v0 = &param0->unk_1A.val2;
+
     if (v0->megaEvolutionAvailable) {
         BattleContext *battleCtx = BattleSystem_Context(param0->battleSys);
         int battler = BattleSystem_BattlerOfType(param0->battleSys, param0->unk_66A);
         BOOL isActive = battleCtx->megaEvolutionTriggered[battler];
-        LoadMegaButtonPalette(param0, isActive);
+
+        if (isActive) {
+            if (param0->megaBorderWasActive == FALSE) {
+                LoadMegaButtonPalette(param0, TRUE);
+                param0->megaBorderFrame = 0;
+                param0->megaBorderWasActive = TRUE;
+            }
+            UpdateMegaButtonBorder(param0);
+        } else if (param0->megaBorderWasActive) {
+            ResetMegaButtonBorder(param0);
+            LoadMegaButtonPalette(param0, FALSE);
+            param0->megaBorderFrame = 0;
+            param0->megaBorderWasActive = FALSE;
+        }
     }
 }
 
@@ -3937,7 +4090,7 @@ static int BattleSystem_MenuKeys(UnkStruct_ov16_02268A14 *param0)
 
             battleCtx->megaEvolutionTriggered[battler] = !battleCtx->megaEvolutionTriggered[battler];
 
-            LoadMegaButtonPalette(param0, battleCtx->megaEvolutionTriggered[battler]);
+            UpdateMegaIconState(param0);
 
             Sound_PlayEffect(SEQ_SE_CONFIRM);
         }

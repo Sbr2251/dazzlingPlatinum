@@ -74,6 +74,7 @@ void ov16_0225DF6C(BattleSystem *battleSys, BattlerData *param1, AlertMsgMessage
 void ov16_0225E008(BattleSystem *battleSys, BattlerData *param1, RefreshHPGaugeMessage *message);
 void ov16_0225E0BC(BattleSystem *battleSys, BattlerData *param1, ForgetMoveMessage *message);
 void ov16_0225E0F4(BattleSystem *battleSys, BattlerData *param1, MosaicSetMessage *message);
+void BattleDisplay_StartAffinePulse(BattleSystem *battleSys, BattlerData *battlerData, AffinePulseMessage *message);
 
 /**
  * @brief Show the start-of-battle party gauge.

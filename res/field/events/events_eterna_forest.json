@@ -400,6 +400,21 @@
             "x": 73,
             "z": 33,
             "y": 0
+        },
+        {
+            "id": "ETERNA_FOREST_TOTEM_VESPIQUEN_25",
+            "graphics_id": "OBJ_EVENT_GFX_TOTEM_VESPIQUEN",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_TOTEM_VESPIQUEN",
+            "script": 13,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 84,
+            "z": 36,
+            "y": 0
         }
     ],
     "warp_events": [

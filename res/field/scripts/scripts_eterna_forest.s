@@ -1,4 +1,5 @@
 #include "macros/scrcmd.inc"
+#include "constants/totem_battle.h"
 #include "res/text/bank/eterna_forest.h"
 
 
@@ -14,9 +15,11 @@
     ScriptEntry _050C
     ScriptEntry _0032
     ScriptEntry _051D
+    ScriptEntry TotemVespiquen_Encounter
     ScriptEntryEnd
 
 _0032:
+    Call TotemVespiquen_UpdateVisibility
     GoToIfUnset FLAG_TRAVELED_WITH_CHERYL, _003F
     End
 
@@ -441,3 +444,39 @@ _051D:
 _053C:
     WalkOnSpotNormalNorth
     EndMovement
+
+TotemVespiquen_Encounter:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    PlayCry SPECIES_VESPIQUEN
+    WaitCry
+    SetFlag FLAG_MAP_LOCAL
+    StartTotemBattle TOTEM_ENCOUNTER_VESPIQUEN
+    ClearFlag FLAG_MAP_LOCAL
+    CheckWonBattle VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, TotemVespiquen_Encounter_LostBattle
+    SetFlag FLAG_TOTEM_VESPIQUEN_DEFEATED
+    SetFlag FLAG_HIDE_TOTEM_VESPIQUEN
+    RemoveObject VAR_LAST_TALKED
+    ReleaseAll
+    End
+
+TotemVespiquen_Encounter_LostBattle:
+    BlackOutFromBattle
+    ReleaseAll
+    End
+
+    .balign 4, 0
+
+TotemVespiquen_UpdateVisibility:
+    GoToIfUnset FLAG_TRAVELED_WITH_CHERYL, TotemVespiquen_Hide
+    GoToIfSet FLAG_TOTEM_VESPIQUEN_DEFEATED, TotemVespiquen_Hide
+    ClearFlag FLAG_HIDE_TOTEM_VESPIQUEN
+    Return
+
+TotemVespiquen_Hide:
+    SetFlag FLAG_HIDE_TOTEM_VESPIQUEN
+    Return
+
+    .balign 4, 0

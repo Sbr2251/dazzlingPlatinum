@@ -84,6 +84,14 @@
     {
       "id": "MainMenuOptions_Text_WiiMessageSettings",
       "en_US": "Wii MESSAGE SETTINGS"
+    },
+    {
+      "id": "MainMenuOptions_Text_Level",
+      "en_US": "Lv{STRVAR_1 52, 0, 0}"
+    },
+    {
+      "id": "MainMenuOptions_Text_NoPokedex",
+      "en_US": "---"
     }
   ]
 }

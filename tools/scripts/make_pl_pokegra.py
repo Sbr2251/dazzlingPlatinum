@@ -5,6 +5,11 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import narc_pack  # noqa: E402
 
 SPECIES_DIRS = os.environ['SPECIES'].split(';')
 
@@ -85,3 +90,7 @@ for i, subdir in enumerate(SPECIES_DIRS):
     ])
 
 subprocess.run([args.narc, 'create', '--output', output_dir / 'pl_pokegra.narc', private_dir])
+
+# Most species' female sprites are copies of the male ones; store each distinct member once
+narc_path = output_dir / 'pl_pokegra.narc'
+narc_path.write_bytes(narc_pack.dedupe(narc_path.read_bytes()))

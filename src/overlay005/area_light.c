@@ -12,13 +12,23 @@
 #include "ascii_util.h"
 #include "graphics.h"
 #include "heap.h"
+#include "math_util.h"
 #include "rtc.h"
 
-#define AREA_LIGHT_FILE_COUNT 4
+#define AREA_LIGHT_FILE_COUNT 5
 #define SCRATCH_BUFFER_SIZE   256
 #define INVALID_LIGHT_COLOR   0xFFFF
 
+// Mt. Coronet 1F South's lava light flickers like firelight: two layered sines, 0.7 s and 1.9 s
+#define AREA_LIGHT_LAVA          4
+#define FLICKER_PERIOD_FAST      42
+#define FLICKER_PERIOD_SLOW      114
+#define FLICKER_LIGHT_RED        2
+#define FLICKER_LIGHT_GREEN      1
+#define FLICKER_EMISSION_RED     1
+
 static void AreaLightManager_ApplyActiveTemplateToAreaModelAttrs(AreaLightManager *areaLightMan);
+static void AreaLightManager_Flicker(AreaLightManager *areaLightMan);
 static u32 AreaLightTemplate_New(u32 archiveID, AreaLightTemplate **templates);
 static void AreaLightTemplate_Free(AreaLightTemplate **template);
 static char *AreaLightTemplate_ParseLightAttrs(char *fileIter, GXRgb *lightColor, VecFx16 *lightVector);
@@ -33,6 +43,8 @@ AreaLightManager *AreaLightManager_New(ModelAttributes *areaModelAttrs, const u8
     areaLightMan->areaModelAttrs = areaModelAttrs;
     areaLightMan->templateCount = AreaLightTemplate_New(archiveID, &areaLightMan->templates);
     areaLightMan->activeTemplateIndex = 0;
+    areaLightMan->flicker = archiveID == AREA_LIGHT_LAVA;
+    areaLightMan->flickerFrame = 0;
 
     int currentTime = GetSecondsSinceMidnight() / 2;
 
@@ -84,6 +96,33 @@ void AreaLightManager_UpdateActiveTemplate(AreaLightManager *areaLightMan)
             }
         }
     }
+
+    if (areaLightMan->flicker && areaLightMan->applyToAreaModelAttrs) {
+        AreaLightManager_Flicker(areaLightMan);
+    }
+}
+
+static GXRgb ShiftColor(GXRgb color, fx32 wave, int redAmplitude, int greenAmplitude)
+{
+    int r = ((color >> GX_RGB_R_SHIFT) & 31) + ((wave * redAmplitude + FX32_ONE / 2) >> FX32_SHIFT);
+    int g = ((color >> GX_RGB_G_SHIFT) & 31) + ((wave * greenAmplitude + FX32_ONE / 2) >> FX32_SHIFT);
+    int b = (color >> GX_RGB_B_SHIFT) & 31;
+
+    return GX_RGB(MATH_CLAMP(r, 0, 31), MATH_CLAMP(g, 0, 31), b);
+}
+
+static void AreaLightManager_Flicker(AreaLightManager *areaLightMan)
+{
+    const AreaLightTemplate *template = &areaLightMan->templates[areaLightMan->activeTemplateIndex];
+    u32 frame = areaLightMan->flickerFrame++;
+    fx32 wave = CalcSineDegrees_Wraparound(frame % FLICKER_PERIOD_FAST * 360 / FLICKER_PERIOD_FAST) * 3 / 5
+        + CalcSineDegrees_Wraparound(frame % FLICKER_PERIOD_SLOW * 360 / FLICKER_PERIOD_SLOW) * 2 / 5;
+
+    if (template->validLightsMask & 1) {
+        ModelAttributes_SetLightColor(areaLightMan->areaModelAttrs, 0, ShiftColor(template->lightColors[0], wave, FLICKER_LIGHT_RED, FLICKER_LIGHT_GREEN));
+    }
+
+    ModelAttributes_SetEmissionColor(areaLightMan->areaModelAttrs, ShiftColor(template->emissionColor, wave, FLICKER_EMISSION_RED, 0), TRUE);
 }
 
 void AreaLightTemplate_ApplyToModelAttributes(const AreaLightTemplate *template, ModelAttributes *modelAttrs)

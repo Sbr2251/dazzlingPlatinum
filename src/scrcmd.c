@@ -445,6 +445,7 @@ static BOOL ScrCmd_Unused_122(ScriptContext *ctx);
 static BOOL ScrCmd_LoadPokedexRating(ScriptContext *ctx);
 static BOOL ScrCmd_StartWildBattle(ScriptContext *ctx);
 static BOOL ScrCmd_StartLegendaryBattle(ScriptContext *ctx);
+static BOOL ScrCmd_StartTotemBattle(ScriptContext *ctx);
 static BOOL ScrCmd_StartFatefulEncounter(ScriptContext *ctx);
 static BOOL ScrCmd_StartFirstBattle(ScriptContext *ctx);
 static BOOL ScrCmd_StartCatchingTutorial(ScriptContext *ctx);
@@ -1608,6 +1609,7 @@ const ScrCmdFunc Unk_020EAC58[] = {
     ScrCmd_BufferBallSealNamePlural,
     ScrCmd_CapitalizeFirstLetter,
     ScrCmd_BufferFloorNumber,
+    ScrCmd_StartTotemBattle,
 };
 
 const u32 Unk_020EAB80 = NELEMS(Unk_020EAC58);
@@ -4861,6 +4863,15 @@ static BOOL ScrCmd_StartLegendaryBattle(ScriptContext *ctx)
     u8 level = (u8)ScriptContext_GetVar(ctx);
 
     Encounter_NewVsSpeciesAtLevel(ctx->task, species, level, battleResultMaskPtr, TRUE);
+    return TRUE;
+}
+
+static BOOL ScrCmd_StartTotemBattle(ScriptContext *ctx)
+{
+    int *battleResultMaskPtr = FieldSystem_GetScriptMemberPtr(ctx->fieldSystem, SCRIPT_MANAGER_BATTLE_RESULT);
+    u8 encounterID = (u8)ScriptContext_GetVar(ctx);
+
+    Encounter_NewTotemBattle(ctx->task, encounterID, battleResultMaskPtr);
     return TRUE;
 }
 

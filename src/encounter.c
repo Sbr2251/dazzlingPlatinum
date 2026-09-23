@@ -46,6 +46,7 @@
 #include "system_flags.h"
 #include "system_vars.h"
 #include "trainer_data.h"
+#include "totem_battle.h"
 #include "tv_episode_segment.h"
 #include "unk_0202F1D4.h"
 #include "unk_0203D1B8.h"
@@ -562,6 +563,32 @@ void Encounter_NewVsSpeciesAtLevel(FieldTask *task, u16 species, u8 level, int *
     if (isLegendary) {
         dto->battleStatusMask |= BATTLE_STATUS_LEGENDARY;
     }
+
+    GameRecords_IncrementRecordValue(SaveData_GetGameRecords(fieldSystem->saveData), RECORD_WILD_BATTLES_FOUGHT);
+    StartEncounter(task, dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);
+}
+
+void Encounter_NewTotemBattle(FieldTask *task, u8 encounterID, int *resultMaskPtr)
+{
+    FieldBattleDTO *dto;
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+    const TotemEncounterConfig *config = TotemBattle_GetEncounterConfig(encounterID);
+
+    GF_ASSERT(config != NULL);
+    if (config == NULL) {
+        return;
+    }
+
+    RadarChain_Clear(fieldSystem->chain);
+
+    dto = FieldBattleDTO_New(HEAP_ID_FIELD2, BATTLE_TYPE_WILD_MON | BATTLE_TYPE_DOUBLES);
+    FieldBattleDTO_Init(dto, fieldSystem);
+
+    for (int i = 0; i < TOTEM_PARTY_SIZE; i++) {
+        CreateWildMon_Scripted(fieldSystem, config->party[i].species, config->party[i].level, dto);
+    }
+
+    dto->battleStatusMask |= BATTLE_STATUS_LEGENDARY | BATTLE_STATUS_TOTEM;
 
     GameRecords_IncrementRecordValue(SaveData_GetGameRecords(fieldSystem->saveData), RECORD_WILD_BATTLES_FOUGHT);
     StartEncounter(task, dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);

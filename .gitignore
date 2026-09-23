@@ -1,6 +1,9 @@
 # Build directory
 /build/
 
+# Copied ROM output (make rom / release)
+/out/
+
 # Metroskrew artifacts
 /metroskrew-*.tar.xz
 /metroskrew-*.7z

@@ -310,6 +310,7 @@ static BOOL BtlCmd_CheckCurMoveIsType(BattleSystem *battleSys, BattleContext *ba
 static BOOL BtlCmd_LoadArchivedMonData(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BtlCmd_RefreshMonData(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BtlCmd_End(BattleSystem *battleSys, BattleContext *battleCtx);
+static BOOL BtlCmd_AffinePulse(BattleSystem *battleSys, BattleContext *battleCtx);
 
 static int BattleScript_Read(BattleContext *battleCtx);
 static void BattleScript_Iter(BattleContext *battleCtx, int i);
@@ -569,7 +570,8 @@ static const BtlCmd sBattleCommands[] = {
     BtlCmd_CheckCurMoveIsType,
     BtlCmd_LoadArchivedMonData,
     BtlCmd_RefreshMonData,
-    BtlCmd_End
+    BtlCmd_End,
+    BtlCmd_AffinePulse
 };
 
 BOOL BattleScript_Exec(BattleSystem *battleSys, BattleContext *battleCtx)
@@ -621,7 +623,6 @@ static BOOL BtlCmd_SetPokemonEncounter(BattleSystem *battleSys, BattleContext *b
 
     int battlerIn = BattleScript_Read(battleCtx);
     switch (battlerIn) {
-    default:
     case BTLSCR_ALL_BATTLERS:
         for (i = 0; i < maxBattlers; i++) {
             BattleController_EmitSetEncounter(battleSys, i);
@@ -641,6 +642,12 @@ static BOOL BtlCmd_SetPokemonEncounter(BattleSystem *battleSys, BattleContext *b
                 BattleSystem_DexFlagSeen(battleSys, i);
             }
         }
+        break;
+
+    default:
+        i = BattleScript_Battler(battleSys, battleCtx, battlerIn);
+        BattleController_EmitSetEncounter(battleSys, i);
+        BattleSystem_DexFlagSeen(battleSys, i);
         break;
     }
 
@@ -669,7 +676,6 @@ static BOOL BtlCmd_PokemonSlideIn(BattleSystem *battleSys, BattleContext *battle
 
     int battlerIn = BattleScript_Read(battleCtx);
     switch (battlerIn) {
-    default:
     case BTLSCR_ALL_BATTLERS:
         for (i = 0; i < maxBattlers; i++) {
             BattleController_EmitShowEncounter(battleSys, i);
@@ -747,6 +753,22 @@ static BOOL BtlCmd_PokemonSlideIn(BattleSystem *battleSys, BattleContext *battle
 
         BattleSystem_DexFlagSeen(battleSys, battleCtx->switchedMon);
         BattleController_EmitShowEncounter(battleSys, battleCtx->switchedMon);
+        break;
+
+    default:
+        i = BattleScript_Battler(battleSys, battleCtx, battlerIn);
+        battlerData = BattleSystem_BattlerData(battleSys, i);
+
+        if ((battlerData->battlerType & BATTLER_TYPE_SOLO_ENEMY) == FALSE) {
+            BattleSystem_FlagBattlerExpGain(battleSys, battleCtx, BATTLER_ENEMY_1);
+            BattleSystem_FlagBattlerExpGain(battleSys, battleCtx, BATTLER_ENEMY_2);
+        } else {
+            BattleSystem_ClearSideExpGain(battleCtx, i);
+            BattleSystem_FlagBattlerExpGain(battleSys, battleCtx, i);
+        }
+
+        BattleSystem_DexFlagSeen(battleSys, i);
+        BattleController_EmitShowEncounter(battleSys, i);
         break;
     }
 
@@ -957,7 +979,6 @@ static BOOL BtlCmd_SetTrainerEncounter(BattleSystem *battleSys, BattleContext *b
     int battlerIn = BattleScript_Read(battleCtx);
 
     switch (battlerIn) {
-    default:
     case BTLSCR_ALL_BATTLERS:
         if (BattleSystem_BattleType(battleSys) & BATTLE_TYPE_TAG) {
             for (i = 0; i < maxBattlers; i++) {
@@ -1009,6 +1030,11 @@ static BOOL BtlCmd_SetTrainerEncounter(BattleSystem *battleSys, BattleContext *b
             }
         }
         break;
+
+    default:
+        i = BattleScript_Battler(battleSys, battleCtx, battlerIn);
+        BattleController_EmitSetTrainerEncounter(battleSys, i);
+        break;
     }
 
     return FALSE;
@@ -1040,7 +1066,6 @@ static BOOL BtlCmd_ThrowPokeball(BattleSystem *battleSys, BattleContext *battleC
     int ballTypeIn = BattleScript_Read(battleCtx);
 
     switch (battlerIn) {
-    default:
     case BTLSCR_ALL_BATTLERS:
         for (i = 0; i < maxBattlers; i++) {
             if ((BattleSystem_BattleType(battleSys) & BATTLE_TYPE_2vs2) == FALSE
@@ -1082,6 +1107,11 @@ static BOOL BtlCmd_ThrowPokeball(BattleSystem *battleSys, BattleContext *battleC
                 }
             }
         }
+        break;
+
+    default:
+        i = BattleScript_Battler(battleSys, battleCtx, battlerIn);
+        BattleController_EmitThrowTrainerBall(battleSys, i, ballTypeIn);
         break;
     }
 
@@ -3061,6 +3091,15 @@ static BOOL BtlCmd_ChangeStatStage(BattleSystem *battleSys, BattleContext *battl
         statOffset = battleCtx->sideEffectParam - MOVE_SUBSCRIPT_PTR_ATTACK_UP_1_STAGE;
         stageChange = 1;
         battleCtx->scriptTemp = BATTLE_ANIMATION_STAT_BOOST;
+    }
+
+    // Contrary reverses ordinary stat-stage raises and drops. This centralized
+    // hook deliberately does not affect stage copies, swaps, or resets.
+    if (mon->ability == ABILITY_CONTRARY) {
+        stageChange = -stageChange;
+        battleCtx->scriptTemp = stageChange > 0
+            ? BATTLE_ANIMATION_STAT_BOOST
+            : BATTLE_ANIMATION_STAT_DROP;
     }
 
     if (stageChange > 0) {
@@ -8718,6 +8757,17 @@ static BOOL BtlCmd_SetMosaic(BattleSystem *battleSys, BattleContext *battleCtx)
  * @param battleCtx
  * @return FALSE
  */
+static BOOL BtlCmd_AffinePulse(BattleSystem *battleSys, BattleContext *battleCtx)
+{
+    BattleScript_Iter(battleCtx, 1);
+    int inBattler = BattleScript_Read(battleCtx);
+    int stage = BattleScript_Read(battleCtx);
+    int battler = BattleScript_Battler(battleSys, battleCtx, inBattler);
+
+    BattleController_EmitAffinePulse(battleSys, battler, stage);
+    return FALSE;
+}
+
 static BOOL BtlCmd_ChangeForm(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     BattleScript_Iter(battleCtx, 1);

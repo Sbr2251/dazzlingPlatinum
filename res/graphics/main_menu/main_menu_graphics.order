@@ -44,3 +44,16 @@ main_menu_scroll_arrows_cell.NCER.lz
 main_menu_scroll_arrows.NCGR.lz
 wireless_icons.NCGR
 wireless_icons.NCLR
+menu_top_continue.NCGR
+menu_top_continue.NCLR
+menu_top_continue.NSCR
+menu_top_continue_female.NSCR
+menu_top_new_game.NCGR
+menu_top_new_game.NCLR
+menu_top_new_game.NSCR
+menu_bottom_continue.NCGR
+menu_bottom_continue.NCLR
+menu_bottom_continue.NSCR
+menu_bottom_new_game.NCGR
+menu_bottom_new_game.NCLR
+menu_bottom_new_game.NSCR

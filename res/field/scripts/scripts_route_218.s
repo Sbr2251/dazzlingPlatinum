@@ -2,75 +2,101 @@
 #include "res/text/bank/route_218.h"
 
 
-    ScriptEntry _001E
-    ScriptEntry _0035
-    ScriptEntry _004C
-    ScriptEntry _005D
-    ScriptEntry _006E
-    ScriptEntry _008B
-    ScriptEntry _00A8
+    ScriptEntry _Researcher
+    ScriptEntry _ClefairyWest
+    ScriptEntry _ClefairyEast
+    ScriptEntry _RiftShrine
+    ScriptEntry _RivalScene
+    ScriptEntry _RivalTalk
+    ScriptEntry _SanctuarySign
     ScriptEntryEnd
 
-_001E:
-    ShowArrowSign 5
-    End
-
-_0035:
-    ShowArrowSign 6
-    End
-
-_004C:
+_Researcher:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
+    FacePlayer
+    Message 5
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+_ClefairyWest:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    WaitFanfare SEQ_SE_CONFIRM
+    PlayCry SPECIES_CLEFAIRY
+    Message 7
+    WaitCry
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+_ClefairyEast:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    WaitFanfare SEQ_SE_CONFIRM
+    PlayCry SPECIES_CLEFAIRY
+    Message 7
+    WaitCry
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+_RiftShrine:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message 8
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+_RivalScene:
+    LockAll
+    ApplyMovement 0, _RivalNoticesPlayer
+    WaitMovement
+    SetRivalBGM
+    Message 0
+    WaitABXPadPress
+    CloseMessage
+    Message 1
+    WaitABXPadPress
+    CloseMessage
+    Message 2
+    WaitABXPadPress
+    CloseMessage
+    Message 3
+    WaitABXPadPress
+    CloseMessage
+    Message 4
+    WaitABXPadPress
+    CloseMessage
+    RemoveObject 0
+    SetFlag FLAG_HIDE_EVERSPRING_RIVAL
+    SetVar VAR_EVERSPRING_RIVAL_SCENE_STATE, 1
+    ReleaseAll
+    End
+
+_RivalTalk:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
     Message 0
     WaitABXPadPress
     CloseMessage
     ReleaseAll
     End
 
-_005D:
-    PlayFanfare SEQ_SE_CONFIRM
-    LockAll
-    Message 4
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
-    End
-
-_006E:
-    PlayFanfare SEQ_SE_CONFIRM
-    LockAll
-    WaitFanfare SEQ_SE_CONFIRM
-    PlayCry SPECIES_CLEFAIRY
-    Message 1
-    WaitCry
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
-    End
-
-_008B:
-    PlayFanfare SEQ_SE_CONFIRM
-    LockAll
-    WaitFanfare SEQ_SE_CONFIRM
-    PlayCry SPECIES_CLEFAIRY
-    Message 2
-    WaitCry
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
-    End
-
-_00A8:
-    PlayFanfare SEQ_SE_CONFIRM
-    LockAll
-    WaitFanfare SEQ_SE_CONFIRM
-    PlayCry SPECIES_PIKACHU
-    Message 3
-    WaitCry
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
+_SanctuarySign:
+    ShowScrollingSign 6
     End
 
     .balign 4, 0
+_RivalNoticesPlayer:
+    EmoteExclamationMark
+    Delay8
+    FaceSouth
+    EndMovement

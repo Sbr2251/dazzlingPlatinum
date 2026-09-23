@@ -872,6 +872,13 @@
         "Boosts Rock, Ground, and\n",
         "Steel moves in a sandstorm."
       ]
+    },
+    {
+      "id": "pl_msg_00000612_00125",
+      "en_US": [
+        "Reverses all changes\n",
+        "to its stats."
+      ]
     }
   ]
 }

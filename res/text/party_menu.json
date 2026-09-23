@@ -1006,6 +1006,13 @@
         "The {STRVAR_1 8, 0, 0} cannot be\n",
         "given here.\n"
       ]
+    },
+    {
+      "id": "pl_msg_00000453_00205",
+      "en_US": [
+        "This can’t be used until the area’s\n",
+        "Totem has been defeated."
+      ]
     }
   ]
 }

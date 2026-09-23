@@ -315,6 +315,11 @@ struct BattleContext {
     u8 megaEvolutionUsed[MAX_BATTLERS];      // Has each battler used mega evolution this battle?
     u8 megaEvolutionTriggered[MAX_BATTLERS]; // Will each battler mega evolve this turn?
     BOOL hasMegaRing[2];                     // Does each trainer have the Mega Ring? (0=Player, 1=Opponent)
+
+    // Totem battle tracking
+    u8 totemSummonsUsed;
+    u8 totemSummonAttempted;
+    u8 totemPadding[2];
 };
 
 #endif // POKEPLATINUM_BATTLE_CONTEXT_H

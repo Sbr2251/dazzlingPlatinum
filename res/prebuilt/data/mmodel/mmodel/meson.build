@@ -468,7 +468,16 @@ mmodel_files = files(
     'mmodel_00000466.bin',
     'mmodel_00000467.bin',
     'mmodel_00000468.bin',
-    'mmodel_00000469.bin'
+    'mmodel_00000469.bin',
+    'mmodel_00000470.bin',
+    'mmodel_00000471.bin',
+    'mmodel_00000472.bin',
+    'mmodel_00000473.bin',
+    'mmodel_00000474.bin',
+    'mmodel_00000475.bin',
+    'mmodel_00000476.bin',
+    'mmodel_00000477.bin',
+
 )
 
 mmodel_files_targets = []

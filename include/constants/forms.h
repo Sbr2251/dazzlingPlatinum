@@ -126,6 +126,8 @@
 #define INFERNAPE_FORM_COUNT 2
 #define MEGA_FORM_EMPOLEON 1
 #define EMPOLEON_FORM_COUNT 2
+#define MEGA_FORM_STARAPTOR 1
+#define STARAPTOR_FORM_COUNT 2
 
 // Bit flag to identify mega evolution forms (prevents conflicts with regular forms)
 #define FORM_FLAG_MEGA (1 << 15)

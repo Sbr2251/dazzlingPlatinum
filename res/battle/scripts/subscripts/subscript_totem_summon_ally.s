@@ -1,0 +1,21 @@
+#include "macros/btlcmd.inc"
+
+
+_000:
+    SwitchAndUpdateMon BTLSCR_SWITCHED_MON
+    // A wild {0} appeared!
+    PrintGlobalMessage pl_msg_00000368_00965, TAG_NICKNAME, BTLSCR_SWITCHED_MON
+    Wait
+    PokemonSendOut BTLSCR_SWITCHED_MON
+    WaitTime 72
+    HealthbarSlideIn BTLSCR_SWITCHED_MON
+    Wait
+    Call BATTLE_SUBSCRIPT_HAZARDS_CHECK
+    CompareVarToValue OPCODE_GT, BTLVAR_FAINTED_MON, BATTLER_ENEMY_2, _End
+    UpdateVarFromVar OPCODE_FLAG_INDEX, BTLVAR_SCRIPT_TEMP, BTLVAR_FAINTED_MON
+    UpdateVar OPCODE_LEFT_SHIFT, BTLVAR_SCRIPT_TEMP, 24
+    CompareVarToVar OPCODE_FLAG_NOT, BTLVAR_BATTLE_CTX_STATUS, BTLVAR_SCRIPT_TEMP, _End
+    Call BATTLE_SUBSCRIPT_FAINT_MON
+
+_End:
+    End

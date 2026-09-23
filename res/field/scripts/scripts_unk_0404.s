@@ -340,6 +340,7 @@
     ScriptEntry _mega_torterrite
     ScriptEntry _mega_infernapite
     ScriptEntry _mega_empoleonite
+    ScriptEntry _mega_staraptite
     ScriptEntryEnd
 
 _0522:
@@ -2493,6 +2494,12 @@ _mega_empoleonite:
 
 _mega_scizorite:
     SetVar VAR_0x8008, ITEM_SCIZORITE
+    SetVar VAR_0x8009, 1
+    GoTo _1EAE
+    End
+
+_mega_staraptite:
+    SetVar VAR_0x8008, ITEM_STARAPTITE
     SetVar VAR_0x8009, 1
     GoTo _1EAE
     End
