@@ -250,6 +250,12 @@ void ov16_0225C104(BattleSystem *battleSys, BattlerData *param1, int param2)
         Sprite_DeleteAndFreeResources(param1->unk_18);
     }
 
+    // A ball that was never thrown (the Totem battle's unused player slot) would leave its task running in the field
+    if (param1->unk_84) {
+        ov12_0223783C(param1->unk_84);
+        param1->unk_84 = NULL;
+    }
+
     ov16_022647D8(param1);
 
     NARC_dtor(param1->unk_1A0);
