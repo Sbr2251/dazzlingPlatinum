@@ -1380,7 +1380,6 @@ static BOOL TitleScreen_ShowIntro(TitleScreen *titleScreen, BgConfig *bgConfig, 
             ToggleLogoLayer(TRUE);
             TitleScreen_LoadTopScreenBg(bgConfig, heapID);
             StartScreenFade(FADE_SUB_ONLY, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, COLOR_WHITE, 16, 3, heapID);
-            ToggleCopyrightLayer(TRUE);
             ToggleLogoBgLayer(TRUE);
 
             titleScreen->delay = 90;
@@ -1481,7 +1480,6 @@ static BOOL TitleScreen_RenderMain(TitleScreen *titleScreen, BgConfig *bgConfig,
         ToggleGiratinaBgLayer(TRUE);
         ToggleLogoBgLayer(TRUE);
         ToggleLogoLayer(TRUE);
-        ToggleCopyrightLayer(TRUE);
 
         ResetScreenMasterBrightness(DS_SCREEN_MAIN);
         ResetScreenMasterBrightness(DS_SCREEN_SUB);
