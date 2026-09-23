@@ -26,6 +26,8 @@ typedef struct AreaLightManager {
     int activeTemplateIndex;
     ModelAttributes *areaModelAttrs;
     BOOL applyToAreaModelAttrs;
+    BOOL flicker;
+    u32 flickerFrame;
 } AreaLightManager;
 
 AreaLightManager *AreaLightManager_New(ModelAttributes *areaModelAttrs, const u8 archiveID);

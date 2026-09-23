@@ -2,7 +2,8 @@
 
 Usage: python3 tools/coronet_lava/add_area_light.py
   Light 4 = stock cave light 2 with warmer colours; directions are unchanged. Re-running rewrites it in place.
-  AREA_LIGHT_FILE_COUNT in src/overlay005/area_light.c must cover it.
+  AREA_LIGHT_FILE_COUNT in src/overlay005/area_light.c must cover it; AREA_LIGHT_LAVA there makes it flicker.
+  Map materials have lighting off, so this light only reaches sprites; tint_lava_glow.py lights the room.
 
 Each light file is text: blocks of "endTime," then 4 lines "valid,r,g,b,x,y,z," (one per GX light) and
 4 lines "r,g,b," (diffuse, ambient, specular, emission), colours in 5-bit units, ending with "EOF".
@@ -22,7 +23,7 @@ LAVA_LIGHT = 4
 
 # block line index -> replacement; 1-4 are the GX lights (only the colour is replaced, direction kept),
 # 5-8 are diffuse, ambient, specular, emission
-LIGHT_COLOURS = {1: (10, 7, 8)}  # key light 0: blue (7,7,12) -> dim ember
+LIGHT_COLOURS = {1: (12, 8, 7)}  # key light 0: blue (7,7,12) -> ember
 MATERIAL_COLOURS = {
     5: (16, 14, 14),  # diffuse (14,14,16): about +15% R, -10% B
     6: (10, 6, 6),    # ambient (10,10,10)
