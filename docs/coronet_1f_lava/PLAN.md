@@ -213,6 +213,13 @@ Two pools currently require Surf (see the table above). Lava is not surfable, so
 1. Change `encounters_mt_coronet_1f_south`. Keep the level range and swap about half the slots to Slugma, Numel, Houndour and Magby. Put Torkoal in a rarer slot.
 2. Leave `battleBG` as `BACKGROUND_CAVE_2`.
 
+## Implementation notes (deviations from the steps above)
+
+- **Flow frames: 16, not 8.** A +1 px/frame drift over a 16 px tile only wraps after 16 frames. Same speed and per-swap cost (128 bytes); 2 KB total. `make_lava.py` writes them to `lava_frames.bin`.
+- **dun_sea palette is appended, not rewritten in place.** Set 068's `dun_sea` palette slot holds only 8 colours. `make_texset.py` appends the 16-colour lava palette at the end of TEX0 (offset 0x520 in the palette block) and repoints `dun_sea`'s palette dictionary entry at it. Step 4b/4c uploads must target that slot.
+- **Recolour stats use only the palette indices the texels reference** (stock palettes pad unused slots with white). Holes, entrances and the lit `*2` wall variants fade back to their stock colour above luminance 150, so exits still glow.
+- **Warm light is area light 4** (`add_area_light.py`), with `AREA_LIGHT_FILE_COUNT` raised to 5. Beyond Step 5's diffuse/ambient change, emission (8,8,11 → 9,7,7) and key light 0 (7,7,12 → 10,7,8) were also warmed, since those were the main blue sources.
+
 ## Commit order
 
 Each commit should build on its own:
