@@ -14,7 +14,7 @@
 #include "heap.h"
 #include "rtc.h"
 
-#define AREA_LIGHT_FILE_COUNT 4
+#define AREA_LIGHT_FILE_COUNT 5
 #define SCRATCH_BUFFER_SIZE   256
 #define INVALID_LIGHT_COLOR   0xFFFF
 
