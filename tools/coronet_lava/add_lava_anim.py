@@ -32,12 +32,12 @@ TEX_PARAM = (3 << 26) | (1 << 20) | (1 << 23)
 TEX_EXTRA = 0x80008010
 
 
-def frame_btx(frames, pal):
+def frame_btx(frames, pal, name=NAME):
     texels = b"".join(make_lava.texels_4bpp(f) for f in frames)
-    names = [NAME + b".%d" % (i + 1) for i in range(len(frames))]
+    names = [name + b".%d" % (i + 1) for i in range(len(frames))]
     tex_dict = nnsdict.build(names, [struct.pack("<II", TEX_PARAM | (i * 128 >> 3), TEX_EXTRA)
                                      for i in range(len(frames))])
-    pal_dict = nnsdict.build([NAME], [b"\0\0\0\0"])
+    pal_dict = nnsdict.build([name], [b"\0\0\0\0"])
     pal_data = b"".join(struct.pack("<H", make_lava.bgr555(c)) for c in pal)
 
     tex_dict_o = 0x3C
@@ -54,18 +54,20 @@ def frame_btx(frames, pal):
     return struct.pack("<4sHHIHHI", b"BTX0", 0xFEFF, 1, 0x14 + len(tex0), 0x10, 1, 0x14) + tex0
 
 
-def update_fldtanime():
+def update_fldtanime(name=NAME, frames=None, pal=None, vblanks=make_lava.FRAME_VBLANKS):
+    """Adds or replaces the animation entry for texture `name`; returns its table index."""
+    frames = frames or make_lava.frames()
+    pal = pal or make_lava.palette()
     header, btnf, files = narc.read_files(FLDTANIME)
     table = bytearray(files[0])
     count = struct.unpack_from("<I", table, 0)[0]
     names = [bytes(table[4 + i * ENTRY_SIZE:20 + i * ENTRY_SIZE]).rstrip(b"\0") for i in range(count)]
-    frames = make_lava.frames()
     assert len(frames) < 18
-    entry = bytearray(NAME.ljust(16, b"\0") + b"\xff" * 36)
+    entry = bytearray(name.ljust(16, b"\0") + b"\xff" * 36)
     for i in range(len(frames)):
-        entry[16 + 2 * i:18 + 2 * i] = bytes((i, make_lava.FRAME_VBLANKS))
-    if NAME in names:
-        idx = names.index(NAME)
+        entry[16 + 2 * i:18 + 2 * i] = bytes((i, vblanks))
+    if name in names:
+        idx = names.index(name)
         table[4 + idx * ENTRY_SIZE:4 + (idx + 1) * ENTRY_SIZE] = entry
     else:
         idx = count
@@ -74,7 +76,7 @@ def update_fldtanime():
         assert len(files) == count + 1, "member count does not match the animation table"
         files.append(b"")
     files[0] = bytes(table)
-    files[idx + 1] = frame_btx(frames, make_lava.palette())
+    files[idx + 1] = frame_btx(frames, pal, name)
     narc.write_files(FLDTANIME, header, btnf, files)
     return idx
 
