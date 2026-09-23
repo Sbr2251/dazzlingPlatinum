@@ -3,7 +3,7 @@
 ## Build & Test Workflow
 
 - **Build on the devserver**, in `/data/repos/dazzlingPlatinum`. The toolchain is already installed: MetroSkrew/mwccarm under `subprojects/metroskrew`, meson and ninja. There is no separate VM, and nothing is built on the Mac.
-- Build with `make release`. The ROM is copied to `out/dazzlingPlatinum.nds`, outside `build/`. Meson's own output, `build/pokeplatinum.us.nds`, is still there; set `OUT=<dir>` to copy somewhere else.
+- Build with `make release`. The ROM is hardlinked to `out/dazzlingPlatinum.nds`, outside `build/`. Meson's own output, `build/pokeplatinum.us.nds`, is still there; set `OUT=<dir>` to put it somewhere else.
   - Don't use plain `make` (`make all`). It also runs `check`, which compares the ROM against the vanilla SHA1 and always fails for this hack.
   - Only one build can use `build/` at a time. "Some other Meson process is already using this build directory" means another build is running; wait for it rather than deleting the lock.
 - Smoke-test the ROM headlessly with py-desmume: `~/.venvs/desmume/bin/python` (Python 3.12). `~/.venvs/desmume39` is a Python 3.9 copy.
