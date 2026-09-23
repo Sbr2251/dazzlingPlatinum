@@ -8,6 +8,9 @@ Rock and floor textures are recoloured by rewriting their palettes in place (tex
 dun_sea gets the lava tile from make_lava.py. Its stock palette slot only holds 8 colours, so a new
 16-colour palette is appended to the end of the palette block and dun_sea's palette dictionary entry
 is repointed at it. Palette data is the last thing in TEX0, so nothing else moves.
+The dun_sea texture (not its palette) is renamed to dun_mag: fldtanime.narc animates any texture named
+dun_sea with water frames, and add_lava_anim.py registers lava frames under dun_mag instead.
+dun_sside (the shore rim) gets new texels and palette from make_lava.py.
 """
 import os
 import struct
@@ -18,6 +21,7 @@ sys.path.insert(0, HERE)
 
 import btx  # noqa: E402
 import make_lava  # noqa: E402
+import nnsdict  # noqa: E402
 
 ROOT = os.path.join(HERE, "..", "..")
 SRC = os.path.join(ROOT, "res/field/maps/texture_sets/map_texture_set_068.nsbtx")
@@ -25,7 +29,6 @@ DST = os.path.join(ROOT, "res/field/maps/texture_sets/map_texture_set_074.nsbtx"
 
 CLIFF = [(20, 18, 32), (39, 35, 60), (52, 47, 78), (66, 60, 96), (82, 76, 115)]
 FLOOR = [(42, 32, 40), (56, 44, 54), (66, 52, 64), (78, 62, 74), (92, 74, 86)]
-SHORE = [(60, 16, 14), (150, 30, 10), (230, 90, 20)]
 HANGER = [CLIFF[0], CLIFF[2], (170, 60, 18), (240, 120, 30), (255, 190, 80)]
 OBSIDIAN = [(8, 6, 12), (20, 17, 30), (36, 32, 52), (62, 56, 86), (118, 108, 150)]
 
@@ -40,18 +43,21 @@ FLOOR_PALS = ["dun_floor", "dun_floor2", "dun_floor3"]  # dun_floor4 shares dun_
 GROUPS = [
     (CLIFF, CLIFF_PALS + GLOW_PALS),
     (FLOOR, FLOOR_PALS),
-    (SHORE, ["seaside3"]),
     (HANGER, ["dun_hanger"]),
     (OBSIDIAN, ["searock", "dun_imped"]),
 ]
 # palettes whose index 0 is the transparent colour of a colour-0-transparent texture
 TRANSPARENT0 = {"dun_apeak", "dun_dhole", "dun_dhole2", "dun_dhole3", "dun_down", "searock", "seaside3",
                 "dun_imped", "bridge", "dun_bridge"}
-# glow colours fade from the rock ramp (at GLOW_LO) back to their stock colour (at GLOW_HI)
-GLOW_LO, GLOW_HI = 150, 220
+# glow colours (stock luminance >= GLOW_LO) map onto a warm ember ramp instead of the stock white
+GLOW_LO = 150
+GLOW = [CLIFF[-1], (132, 74, 72), (196, 118, 84), (228, 166, 118)]
+# dun_light is the translucent light shaft at the exits; stock is flat white
+LIGHT = (232, 160, 108)
+LAVA_TEX = b"dun_mag"
 # textures whose palette name differs from the texture name
 PAL_OF_TEX = {"dun_allpeak": "dun_apeak", "dun_sside": "seaside3", "dun_srock": "searock",
-              "dun_shadow": "shadowchip"}
+              "dun_shadow": "shadowchip", "dun_mag": "dun_sea"}
 
 
 def lum(c):
@@ -130,6 +136,17 @@ class TexSet:
         a = self.t + self.info["texData"] + t["off"]
         self.d[a:a + size] = data
 
+    def rename_tex(self, old, new):
+        """Renames a texture dictionary entry in place and checks the patricia tree still finds every name."""
+        nodes, names, offs = nnsdict.parse(self.d, self.t + self.info["texInfo"])
+        i = names.index(old.encode().ljust(16, b"\0"))
+        self.d[offs[i]:offs[i] + 16] = new.ljust(16, b"\0")
+        names[i] = new.ljust(16, b"\0")
+        assert all(nnsdict.lookup(nodes, names, n.rstrip(b"\0")) == k for k, n in enumerate(names)), new
+        for t in self.texs:
+            if t["name"] == old:
+                t["name"] = new.decode()
+
     def append_pal(self, name, colours):
         """Appends a palette to the end of TEX0 and repoints name's dictionary entry at it."""
         pal_size_o = self.t + 0x30
@@ -146,11 +163,6 @@ class TexSet:
         self.pal_len[old] = len(colours)
 
 
-def lerp(a, b, u):
-    u = max(0.0, min(1.0, u))
-    return tuple(round(a[k] + (b[k] - a[k]) * u) for k in range(3))
-
-
 def recolour(ts):
     for stops, names in GROUPS:
         # normalise luminance over the whole group so relative brightness between textures survives
@@ -164,13 +176,14 @@ def recolour(ts):
                     continue
                 entries.append(lum(pal[i]))
         lo, hi = min(entries), max(entries)
+        glow_hi = max([lum(c) for nm in names if nm in GLOW_PALS for c in ts.get_pal(nm)] or [255])
         for nm in names:
             out = []
             for i, c in enumerate(ts.get_pal(nm)):
                 if i == 0 and nm in TRANSPARENT0:
                     out.append(c)
                 elif nm in GLOW_PALS and lum(c) >= GLOW_LO:
-                    out.append(lerp(stops[-1], c, (lum(c) - GLOW_LO) / (GLOW_HI - GLOW_LO)))
+                    out.append(ramp((lum(c) - GLOW_LO) / (glow_hi - GLOW_LO), GLOW))
                 else:
                     out.append(ramp((lum(c) - lo) / (hi - lo or 1), stops))
             ts.set_pal(nm, out)
@@ -181,6 +194,10 @@ def build():
     recolour(ts)
     ts.set_texels("dun_sea", make_lava.texels_4bpp(make_lava.frames()[0]))
     ts.append_pal("dun_sea", make_lava.palette())
+    ts.set_texels("dun_sside", make_lava.texels_4bpp(make_lava.shore_texels()))
+    ts.set_pal("seaside3", make_lava.shore_palette(ts.get_pal("seaside3")[0]))
+    ts.set_pal("dun_light", [LIGHT] * len(ts.get_pal("dun_light")))
+    ts.rename_tex("dun_sea", LAVA_TEX)
     with open(DST, "wb") as f:
         f.write(ts.d)
     return DST
@@ -198,6 +215,8 @@ def contact_sheet(out_path):
         tex, info, texs, pals = btx.load(path)
         pals = dict(pals)
         for i, nm in enumerate(names):
+            if nm == "dun_sea" and path == DST:
+                nm = LAVA_TEX.decode()
             t = next(x for x in texs if x["name"] == nm)
             px = btx.decode(tex, info, t, pals[PAL_OF_TEX.get(nm, nm)])
             im = Image.new("RGBA", (t["w"], t["h"]))
