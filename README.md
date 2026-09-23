@@ -2,6 +2,8 @@
 
 This is a WIP decompilation of Pokémon Platinum. For instructions on how to set up the repository, please read [`INSTALL.md`](INSTALL.md).
 
+**Dazzling Platinum builds run on the devserver** (`/data/repos/dazzlingPlatinum`), not on a local machine or a separate VM. The toolchain is already set up there. Run `make release`; the ROM is copied to `out/dazzlingPlatinum.nds`. See the Build & Test Workflow section of [`CLAUDE.md`](CLAUDE.md).
+
 If you are interested in contributing, please read [`CONTRIBUTING.md`](/CONTRIBUTING.md).
 
 This repository builds the following ROMs:

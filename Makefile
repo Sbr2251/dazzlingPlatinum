@@ -35,6 +35,10 @@ GIT ?= git
 BUILD ?= build
 ROOT_INI := $(BUILD)/root.ini
 
+# Finished ROMs are copied here, outside the build directory
+OUT ?= out
+OUT_ROM := $(OUT)/dazzlingPlatinum.nds
+
 UNAME_R := $(shell uname -r)
 UNAME_S := $(shell uname -s)
 CWD := $(shell pwd)
@@ -111,6 +115,8 @@ check: rom
 # with compiling the ROM code.
 rom: $(BUILD)/build.ninja data
 	$(NINJA) -C $(BUILD) pokeplatinum.us.nds
+	mkdir -p $(OUT)
+	cp $(BUILD)/pokeplatinum.us.nds $(OUT_ROM)
 
 data: $(BUILD)/build.ninja
 	$(NINJA) -C $(BUILD) data
