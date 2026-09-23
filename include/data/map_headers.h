@@ -4568,7 +4568,7 @@ static const MapHeader sMapHeaders[] = {
         .isFlyAllowed = FALSE,
     },
     [MAP_HEADER_MT_CORONET_1F_SOUTH] = {
-        .areaDataArchiveID = 0x45,
+        .areaDataArchiveID = 0x4B,
         .unk_01 = 0xF,
         .mapMatrixID = 9,
         .scriptsArchiveID = scripts_mt_coronet_1f_south,

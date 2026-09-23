@@ -1,6 +1,7 @@
 import struct
 def load(path):
-    d=open(path,'rb').read()
+    return load_bytes(open(path,'rb').read())
+def load_bytes(d):
     t=struct.unpack('<I',d[16:20])[0]; tex=d[t:]
     u16=lambda o:struct.unpack('<H',tex[o:o+2])[0]
     u32=lambda o:struct.unpack('<I',tex[o:o+4])[0]
