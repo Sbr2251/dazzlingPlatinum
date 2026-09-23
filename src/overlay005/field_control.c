@@ -690,6 +690,10 @@ u16 Field_TileBehaviorToScript(FieldSystem *fieldSystem, u8 behavior)
 
         if (PlayerAvatar_CanUseSurf(fieldSystem->playerAvatar, distortionBehavior, behavior) && TrainerInfo_HasBadge(info, 3)) {
             if (Party_HasMonWithMove(SaveData_GetParty(fieldSystem->saveData), MOVE_SURF) != PARTY_SLOT_NONE) {
+                if (VarsFlags_CheckFlag(SaveData_GetVarsFlags(fieldSystem->saveData), FLAG_TOTEM_LAPRAS_DEFEATED) == FALSE) {
+                    return 10016;
+                }
+
                 return 10004;
             }
         }

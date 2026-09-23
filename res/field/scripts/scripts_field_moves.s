@@ -18,6 +18,7 @@
     ScriptEntry FieldMoves_UseWaterfallFromMenu
     ScriptEntry FieldMoves_UseDefogFromMenu
     ScriptEntry FieldMoves_UseFlashFromMenu
+    ScriptEntry FieldMoves_WaterTotemNotDefeated
     ScriptEntryEnd
 
 FieldMoves_CutTree:
@@ -28,6 +29,7 @@ FieldMoves_CutTree:
     GoToIfEq VAR_RESULT, 6, _008E
     CheckBadgeAcquired BADGE_ID_FOREST, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _008E
+    GoToIfUnset FLAG_TOTEM_VESPIQUEN_DEFEATED, FieldMoves_TotemNotDefeated
     Message FieldMoves_Text_WouldYouLikeToUseCut
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, _00AE
@@ -133,6 +135,7 @@ FieldMoves_Rock:
     GoToIfEq VAR_RESULT, 6, _0275
     CheckBadgeAcquired BADGE_ID_COAL, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0275
+    GoToIfUnset FLAG_TOTEM_HITMONLEE_DEFEATED, FieldMoves_TotemNotDefeated
     Message FieldMoves_Text_WouldYouLikeToUseRockSmash
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, _0284
@@ -190,6 +193,7 @@ FieldMoves_Boulder:
     GoToIfEq VAR_RESULT, 6, _0372
     CheckBadgeAcquired BADGE_ID_MINE, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0372
+    GoToIfUnset FLAG_TOTEM_AGGRON_DEFEATED, FieldMoves_TotemNotDefeated
     Message FieldMoves_Text_WouldYouLikeToUseStrength
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, _0381
@@ -250,6 +254,7 @@ FieldMoves_RockyWall:
     GoToIfEq VAR_RESULT, 6, _0469
     CheckBadgeAcquired BADGE_ID_ICICLE, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0469
+    GoToIfUnset FLAG_TOTEM_MAMOSWINE_DEFEATED, FieldMoves_TotemNotDefeated
     CheckHasPartner VAR_RESULT
     GoToIfEq VAR_RESULT, 1, _0478
     Message FieldMoves_Text_WouldYouLikeToUseRockClimb
@@ -421,6 +426,7 @@ FieldMoves_Waterfall:
     GoToIfEq VAR_RESULT, 6, _06C3
     CheckBadgeAcquired BADGE_ID_BEACON, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _06C3
+    GoToIfUnset FLAG_TOTEM_KINGDRA_DEFEATED, FieldMoves_TotemNotDefeated
     Message FieldMoves_Text_WouldYouLikeToUseWaterfall
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, _06D2
@@ -461,6 +467,16 @@ FieldMoves_UseWaterfallFromMenu:
     End
 
 FieldMoves_Dummy:
+    End
+
+FieldMoves_WaterTotemNotDefeated:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+FieldMoves_TotemNotDefeated:
+    Message FieldMoves_Text_TotemNotDefeated
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
     End
 
     .balign 4, 0

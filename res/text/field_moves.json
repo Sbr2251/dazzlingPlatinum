@@ -160,6 +160,13 @@
     {
       "id": "FieldMoves_Text_PokemonUsedFlash",
       "en_US": "{STRVAR_1 0, 0, 0} used Flash!\r"
+    },
+    {
+      "id": "FieldMoves_Text_TotemNotDefeated",
+      "en_US": [
+        "This can’t be used until the area’s\n",
+        "Totem has been defeated."
+      ]
     }
   ]
 }
