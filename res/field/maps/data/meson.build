@@ -1,4 +1,12 @@
-map_data_files = copy_gen.process(files(
+# The map model section of each land data file is LZ10-compressed at build
+# time and decompressed in place when the field loads it; the source files
+# stay uncompressed. See tools/scripts/compress_land_data.py.
+compress_land_data_gen = generator(compress_land_data_py,
+    arguments: [ '@INPUT@', '@OUTPUT@', ],
+    output: '@PLAINNAME@'
+)
+
+map_data_files = compress_land_data_gen.process(files(
     'map_data_000.bin',
     'map_data_001.bin',
     'map_data_002.bin',

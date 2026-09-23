@@ -5,6 +5,9 @@
 
 #define LOADED_MAP_BUFFERS_FILE_COUNT 4
 
+// Must match DEFAULT_MAP_MODEL_BUFFER_SIZE in tools/scripts/compress_land_data.py.
+#define MAP_MODEL_FILE_SIZE 0xF000
+
 typedef struct LoadedMapBuffers {
     u16 mapModelAllocType;
     u16 bdhcAllocType;

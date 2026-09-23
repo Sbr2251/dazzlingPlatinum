@@ -30,6 +30,12 @@
 #define MAP_LAZY_LOADER_MANAGER_COUNT         2
 #define MAP_MODEL_LAZY_LOADER_DATA_CHUNK_SIZE 0xE000
 
+// The map model section of a land data file is either a plain NSBMD file or,
+// in this hack, an LZ10 stream (see tools/scripts/compress_land_data.py).
+#define MAP_MODEL_NSBMD_MAGIC    ('B' | ('M' << 8) | ('D' << 16) | ('0' << 24))
+#define MAP_MODEL_LZ10_TYPE      0x10
+#define MAP_MODEL_LZ10_TYPE_MASK 0xFF
+
 #define LAND_DATA_LOADER_ASSERT_MAP_MATRIX_INDEX(index, matrixWidth, matrixHeight) \
     if (index < 0 || index >= matrixWidth * matrixHeight) {                        \
         return;                                                                    \
@@ -151,6 +157,8 @@ typedef struct MapModelLoaderTaskContext {
     BOOL killLoadTask;
     int *loadTaskRunning;
     u32 bytesRead;
+    u8 *mapModelStream;
+    BOOL mapModelCompressed;
 } MapModelLoaderTaskContext;
 
 enum LazyLoaderSubTask {
@@ -165,7 +173,8 @@ enum MapModelLoadSubTask {
     MAP_MODEL_LOADER_SUBTASK_FILE_READ,
     MAP_MODEL_LOADER_SUBTASK_BIND_TEXTURE,
     MAP_MODEL_LOADER_SUBTASK_INIT_RENDER_OBJ,
-    MAP_MODEL_LOADER_SUBTASK_END_TASK = 5
+    MAP_MODEL_LOADER_SUBTASK_DECOMPRESS,
+    MAP_MODEL_LOADER_SUBTASK_END_TASK
 };
 
 enum Direction {
@@ -1858,6 +1867,56 @@ void LandDataManager_SetMapLoadedCallback(LandDataManager *landDataMan, MapLoade
     landDataMan->mapLoadedCbUserData = cbUserData;
 }
 
+/*
+ * Reads the first word of a map model section to tell a plain NSBMD file from an
+ * LZ10 stream, and returns where the whole section must be read to. The first
+ * word has already been stored there, so the caller reads the remaining
+ * mapModelDataSize - sizeof(u32) bytes right after it.
+ *
+ * A plain model is read straight into the model buffer. A compressed one is read
+ * into the tail of the buffer, so that it ends at the end of the buffer, and
+ * LandData_FinishMapModelRead decompresses it in place to the start of the
+ * buffer. The build tool only compresses a model if that overlap is safe.
+ */
+static u8 *LandData_BeginMapModelRead(NARC *landDataNARC, const int mapModelDataSize, void *mapModelFile, BOOL *compressed)
+{
+    u32 magic;
+    u8 *stream;
+
+    NARC_ReadFile(landDataNARC, sizeof(magic), &magic);
+
+    if (magic == MAP_MODEL_NSBMD_MAGIC) {
+        *compressed = FALSE;
+        stream = mapModelFile;
+    } else {
+        GF_ASSERT((magic & MAP_MODEL_LZ10_TYPE_MASK) == MAP_MODEL_LZ10_TYPE);
+        GF_ASSERT(mapModelDataSize <= MAP_MODEL_FILE_SIZE);
+        GF_ASSERT((magic >> 8) <= MAP_MODEL_FILE_SIZE);
+
+        *compressed = TRUE;
+        stream = (u8 *)mapModelFile + MAP_MODEL_FILE_SIZE - mapModelDataSize;
+    }
+
+    *(u32 *)stream = magic;
+    return stream;
+}
+
+static void LandData_FinishMapModelRead(void *mapModelFile, const u8 *stream, const BOOL compressed)
+{
+    if (compressed == FALSE) {
+        return;
+    }
+
+    // The decompressed data overwrites the stream, so read its size first.
+    u32 mapModelFileSize = MI_GetUncompressedSize(stream);
+
+    MI_UncompressLZ8(stream, mapModelFile);
+
+    // The CPU wrote the model through the data cache; the geometry engine
+    // reads its display lists from main memory with DMA.
+    DC_FlushRange(mapModelFile, mapModelFileSize);
+}
+
 static void LandDataManager_KillLoadMapModel(SysTask *sysTask)
 {
     MapModelLoaderTaskContext *ctx = SysTask_GetParam(sysTask);
@@ -1875,17 +1934,19 @@ static void LandDataManager_LazyLoadMapModelTask(SysTask *sysTask, void *sysTask
     switch (ctx->currentSubTask) {
     case MAP_MODEL_LOADER_SUBTASK_FIRST_FILE_READ: {
         int bytesToRead;
-        ctx->bytesRead = 0;
+
+        ctx->mapModelStream = LandData_BeginMapModelRead(ctx->landDataNARC, ctx->mapModelDataSize, *ctx->mapModelFile, &ctx->mapModelCompressed);
+        ctx->bytesRead = sizeof(u32);
 
         if (ctx->mapModelDataSize <= MAP_MODEL_LAZY_LOADER_DATA_CHUNK_SIZE) {
-            bytesToRead = ctx->mapModelDataSize;
-            ctx->currentSubTask = MAP_MODEL_LOADER_SUBTASK_BIND_TEXTURE;
+            bytesToRead = ctx->mapModelDataSize - ctx->bytesRead;
+            ctx->currentSubTask = ctx->mapModelCompressed ? MAP_MODEL_LOADER_SUBTASK_DECOMPRESS : MAP_MODEL_LOADER_SUBTASK_BIND_TEXTURE;
         } else {
-            bytesToRead = MAP_MODEL_LAZY_LOADER_DATA_CHUNK_SIZE;
+            bytesToRead = MAP_MODEL_LAZY_LOADER_DATA_CHUNK_SIZE - ctx->bytesRead;
             ctx->currentSubTask = MAP_MODEL_LOADER_SUBTASK_FILE_READ;
         }
 
-        void *buffer = &((u8 *)*ctx->mapModelFile)[ctx->bytesRead];
+        void *buffer = &ctx->mapModelStream[ctx->bytesRead];
         NARC_ReadFile(ctx->landDataNARC, bytesToRead, buffer);
         ctx->bytesRead += bytesToRead;
 
@@ -1903,14 +1964,21 @@ static void LandDataManager_LazyLoadMapModelTask(SysTask *sysTask, void *sysTask
             finishedReading = TRUE;
         }
 
-        void *buffer = &((u8 *)*ctx->mapModelFile)[ctx->bytesRead];
+        void *buffer = &ctx->mapModelStream[ctx->bytesRead];
         NARC_ReadFile(ctx->landDataNARC, bytesToRead, buffer);
 
         if (finishedReading) {
-            ctx->currentSubTask = MAP_MODEL_LOADER_SUBTASK_BIND_TEXTURE;
+            ctx->currentSubTask = ctx->mapModelCompressed ? MAP_MODEL_LOADER_SUBTASK_DECOMPRESS : MAP_MODEL_LOADER_SUBTASK_BIND_TEXTURE;
         } else {
             ctx->bytesRead += bytesToRead;
         }
+
+        break;
+    }
+
+    case MAP_MODEL_LOADER_SUBTASK_DECOMPRESS: {
+        LandData_FinishMapModelRead(*ctx->mapModelFile, ctx->mapModelStream, ctx->mapModelCompressed);
+        ctx->currentSubTask = MAP_MODEL_LOADER_SUBTASK_BIND_TEXTURE;
 
         break;
     }
@@ -1968,13 +2036,20 @@ SysTask *LandDataManager_LazyLoadMapModel(NARC *landDataNARC, const int mapModel
     *ctx->loadedMapValid = FALSE;
     ctx->loadTaskRunning = loadTaskRunning;
     ctx->killLoadTask = FALSE;
+    ctx->bytesRead = 0;
+    ctx->mapModelStream = NULL;
+    ctx->mapModelCompressed = FALSE;
 
     return SysTask_Start(LandDataManager_LazyLoadMapModelTask, ctx, 1);
 }
 
 NNSG3dResMdl *LandDataManager_LoadMapModel(NARC *landDataNARC, const int mapModelFileSize, NNSG3dRenderObj *mapRenderObj, NNSG3dResFileHeader **mapModelFile, NNSG3dResTex *mapTexture)
 {
-    NARC_ReadFile(landDataNARC, mapModelFileSize, *mapModelFile);
+    BOOL compressed;
+    u8 *stream = LandData_BeginMapModelRead(landDataNARC, mapModelFileSize, *mapModelFile, &compressed);
+
+    NARC_ReadFile(landDataNARC, mapModelFileSize - sizeof(u32), stream + sizeof(u32));
+    LandData_FinishMapModelRead(*mapModelFile, stream, compressed);
 
     if (mapTexture != NULL) {
         if (Easy3D_IsTextureUploadedToVRAM(mapTexture) == TRUE) {
@@ -2128,7 +2203,8 @@ static void LandDataManager_DistortionWorldLoad(const int mapMatrixIndex, const 
     int bytesToSkip = TERRAIN_ATTRIBUTES_SIZE + landDataHeader.mapPropsSize;
     NARC_Seek(landDataMan->landDataNARC, bytesToSkip);
 
-    DC_FlushRange(landDataMan->loadedMaps[loadedMapIndex]->mapModelFile, landDataHeader.mapModelSize);
+    // A compressed model is read into the tail of the buffer, so flush all of it.
+    DC_FlushRange(landDataMan->loadedMaps[loadedMapIndex]->mapModelFile, MAP_MODEL_FILE_SIZE);
     NNSG3dResMdl *mapModel = LandDataManager_LoadMapModel(landDataMan->landDataNARC, landDataHeader.mapModelSize, &landDataMan->loadedMaps[loadedMapIndex]->mapRenderObj, &landDataMan->loadedMaps[loadedMapIndex]->mapModelFile, AreaDataManager_GetMapTexture(areaDataMan));
 
     if (isOutdoorsLighting == TRUE) {
