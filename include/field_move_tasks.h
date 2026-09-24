@@ -6,6 +6,7 @@
 #include "field/field_system_decl.h"
 
 #include "field_task.h"
+#include "pokemon.h"
 
 typedef struct FieldMoveContext {
     u32 mapId;
@@ -51,5 +52,7 @@ typedef enum FieldMoveError (*FieldMoveErrContext)(const FieldMoveContext *);
 
 void *FieldMove_GetTaskOrError(u16 taskOrError, u16 fieldMove);
 void FieldMoves_SetUsableMoves(FieldSystem *fieldSystem, FieldMoveContext *fieldMoveContext);
+BOOL FieldMoves_IsHMUnlocked(FieldSystem *fieldSystem, u16 move);
+Pokemon *FieldMoves_GetHMPerformer(FieldSystem *fieldSystem, int partySlot);
 
 #endif // POKEPLATINUM_FIELD_MOVE_TASKS_H

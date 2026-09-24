@@ -106,6 +106,7 @@
 #include "encounter.h"
 #include "field_comm_manager.h"
 #include "field_map_change.h"
+#include "field_move_tasks.h"
 #include "field_message.h"
 #include "field_overworld_state.h"
 #include "field_script_context.h"
@@ -4530,7 +4531,7 @@ static BOOL ScrCmd_0C5(ScriptContext *ctx)
     void **v1 = FieldSystem_GetScriptMemberPtr(ctx->fieldSystem, SCRIPT_MANAGER_DATA_PTR);
     u16 v2 = ScriptContext_GetVar(ctx);
 
-    Pokemon *v0 = Party_GetPokemonBySlotIndex(SaveData_GetParty(ctx->fieldSystem->saveData), v2);
+    Pokemon *v0 = FieldMoves_GetHMPerformer(ctx->fieldSystem, v2);
     *v1 = SysTask_HMCutIn_New(ctx->fieldSystem, 0, v0, PlayerAvatar_Gender(ctx->fieldSystem->playerAvatar));
 
     ScriptContext_Pause(ctx, sub_02042C80);

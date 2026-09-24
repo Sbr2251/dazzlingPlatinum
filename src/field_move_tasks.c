@@ -5,11 +5,15 @@
 
 #include "constants/field/dynamic_map_features.h"
 #include "constants/field/map_load.h"
+#include "constants/scrcmd.h"
+#include "constants/species.h"
 #include "generated/badges.h"
 #include "generated/journal_location_events.h"
+#include "generated/moves.h"
 #include "generated/object_events_gfx.h"
 
 #include "struct_decls/struct_02061AB4_decl.h"
+#include "struct_defs/pokemon.h"
 #include "struct_defs/struct_020708E0.h"
 #include "struct_defs/struct_020711C8.h"
 
@@ -27,6 +31,7 @@
 #include "map_header.h"
 #include "map_object.h"
 #include "map_tile_behavior.h"
+#include "party.h"
 #include "persisted_map_features_init.h"
 #include "player_avatar.h"
 #include "save_player.h"
@@ -147,6 +152,53 @@ static enum FieldMoveError FieldMoves_CheckProgression(const FieldMoveContext *f
     }
 
     return FIELD_MOVE_ERROR_NONE;
+}
+
+typedef struct {
+    u16 move;
+    u8 badge;
+    u16 totemDefeatedFlag;
+} HMProgression;
+
+static const HMProgression sHMProgression[] = {
+    { MOVE_CUT, BADGE_ID_FOREST, FLAG_TOTEM_VESPIQUEN_DEFEATED },
+    { MOVE_FLY, BADGE_ID_COBBLE, FLAG_TOTEM_SKARMORY_DEFEATED },
+    { MOVE_SURF, BADGE_ID_FEN, FLAG_TOTEM_LAPRAS_DEFEATED },
+    { MOVE_STRENGTH, BADGE_ID_MINE, FLAG_TOTEM_AGGRON_DEFEATED },
+    { MOVE_DEFOG, BADGE_ID_RELIC, FLAG_TOTEM_SPIRITOMB_DEFEATED },
+    { MOVE_ROCK_SMASH, BADGE_ID_COAL, FLAG_TOTEM_HITMONLEE_DEFEATED },
+    { MOVE_WATERFALL, BADGE_ID_BEACON, FLAG_TOTEM_KINGDRA_DEFEATED },
+    { MOVE_ROCK_CLIMB, BADGE_ID_ICICLE, FLAG_TOTEM_MAMOSWINE_DEFEATED },
+};
+
+// The Bidoof that performs HMs from the overworld. The HM cut-in keeps a pointer to it, so it can't live on the heap.
+static Pokemon sHMBidoof;
+static BOOL sHMBidoofReady = FALSE;
+
+BOOL FieldMoves_IsHMUnlocked(FieldSystem *fieldSystem, u16 move)
+{
+    for (int i = 0; i < NELEMS(sHMProgression); i++) {
+        if (sHMProgression[i].move == move) {
+            return TrainerInfo_HasBadge(SaveData_GetTrainerInfo(fieldSystem->saveData), sHMProgression[i].badge)
+                && VarsFlags_CheckFlag(SaveData_GetVarsFlags(fieldSystem->saveData), sHMProgression[i].totemDefeatedFlag);
+        }
+    }
+
+    return FALSE;
+}
+
+Pokemon *FieldMoves_GetHMPerformer(FieldSystem *fieldSystem, int partySlot)
+{
+    if (partySlot != HM_PERFORMER_BIDOOF) {
+        return Party_GetPokemonBySlotIndex(SaveData_GetParty(fieldSystem->saveData), partySlot);
+    }
+
+    if (sHMBidoofReady == FALSE) {
+        Pokemon_InitWith(&sHMBidoof, SPECIES_BIDOOF, 15, INIT_IVS_RANDOM, TRUE, 0xFF, OTID_NOT_SHINY, 0);
+        sHMBidoofReady = TRUE;
+    }
+
+    return &sHMBidoof;
 }
 
 static inline BOOL PlayerTravellingWithPartner(const FieldMoveContext *fieldMoveContext)

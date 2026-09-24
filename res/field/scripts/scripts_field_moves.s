@@ -25,8 +25,6 @@ FieldMoves_CutTree:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    FindPartySlotWithMove VAR_RESULT, MOVE_CUT
-    GoToIfEq VAR_RESULT, 6, _008E
     CheckBadgeAcquired BADGE_ID_FOREST, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _008E
     GoToIfUnset FLAG_TOTEM_VESPIQUEN_DEFEATED, FieldMoves_TotemNotDefeated
@@ -47,9 +45,8 @@ _008E:
     End
 
 _00AE:
-    FindPartySlotWithMove VAR_RESULT, MOVE_CUT
-    SetVar VAR_0x8004, VAR_RESULT
-    BufferPartyMonNickname 0, VAR_RESULT
+    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
+    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
     Message FieldMoves_Text_PokemonUsedCut
     CloseMessage
     ScrCmd_0C5 VAR_0x8004
@@ -130,9 +127,6 @@ FieldMoves_Rock:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    FindPartySlotWithMove VAR_RESULT, MOVE_ROCK_SMASH
-    SetVar VAR_0x8004, VAR_RESULT
-    GoToIfEq VAR_RESULT, 6, _0275
     CheckBadgeAcquired BADGE_ID_COAL, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0275
     GoToIfUnset FLAG_TOTEM_HITMONLEE_DEFEATED, FieldMoves_TotemNotDefeated
@@ -151,7 +145,8 @@ _0275:
     End
 
 _0284:
-    BufferPartyMonNickname 0, VAR_0x8004
+    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
+    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
     Message FieldMoves_Text_PokemonUsedRockSmash
     CloseMessage
     ScrCmd_0C5 VAR_0x8004
@@ -189,8 +184,6 @@ FieldMoves_Boulder:
     FacePlayer
     Strength 2, VAR_RESULT
     GoToIfEq VAR_RESULT, 1, _03BD
-    FindPartySlotWithMove VAR_RESULT, MOVE_STRENGTH
-    GoToIfEq VAR_RESULT, 6, _0372
     CheckBadgeAcquired BADGE_ID_MINE, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0372
     GoToIfUnset FLAG_TOTEM_AGGRON_DEFEATED, FieldMoves_TotemNotDefeated
@@ -210,9 +203,8 @@ _0372:
 
 _0381:
     Strength 1
-    FindPartySlotWithMove VAR_RESULT, MOVE_STRENGTH
-    SetVar VAR_0x8004, VAR_RESULT
-    BufferPartyMonNickname 0, VAR_RESULT
+    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
+    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
     Message FieldMoves_Text_PokemonUsedStrength
     ScrCmd_0C5 VAR_0x8004
     CloseMessage
@@ -250,8 +242,6 @@ FieldMoves_UseStrengthFromMenu:
 FieldMoves_RockyWall:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
-    FindPartySlotWithMove VAR_RESULT, MOVE_ROCK_CLIMB
-    GoToIfEq VAR_RESULT, 6, _0469
     CheckBadgeAcquired BADGE_ID_ICICLE, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0469
     GoToIfUnset FLAG_TOTEM_MAMOSWINE_DEFEATED, FieldMoves_TotemNotDefeated
@@ -279,9 +269,8 @@ _0478:
     End
 
 _0487:
-    FindPartySlotWithMove VAR_RESULT, MOVE_ROCK_CLIMB
-    SetVar VAR_0x8004, VAR_RESULT
-    BufferPartyMonNickname 0, VAR_RESULT
+    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
+    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
     Message FieldMoves_Text_PokemonUsedRockClimb
     CloseMessage
     UseRockClimb VAR_0x8004
@@ -320,9 +309,8 @@ _0512:
     GoTo _0671
 
 _051F:
-    FindPartySlotWithMove VAR_RESULT, MOVE_SURF
-    SetVar VAR_0x8004, VAR_RESULT
-    BufferPartyMonNickname 0, VAR_RESULT
+    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
+    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
     Message FieldMoves_Text_PokemonUsedSurf
     CloseMessage
     UseSurf VAR_0x8004
@@ -422,8 +410,6 @@ _0675:
 FieldMoves_Waterfall:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
-    FindPartySlotWithMove VAR_RESULT, MOVE_WATERFALL
-    GoToIfEq VAR_RESULT, 6, _06C3
     CheckBadgeAcquired BADGE_ID_BEACON, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _06C3
     GoToIfUnset FLAG_TOTEM_KINGDRA_DEFEATED, FieldMoves_TotemNotDefeated
@@ -442,9 +428,8 @@ _06C3:
     End
 
 _06D2:
-    FindPartySlotWithMove VAR_RESULT, MOVE_WATERFALL
-    SetVar VAR_0x8004, VAR_RESULT
-    BufferPartyMonNickname 0, VAR_RESULT
+    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
+    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
     Message FieldMoves_Text_PokemonUsedWaterfall
     CloseMessage
     UseWaterfall VAR_0x8004

@@ -23,6 +23,9 @@
 
 #define NUM_MASSAGE_GIRL_ACCESSORIES (ACCESSORY_GLITTER_POWDER - ACCESSORY_PRETTY_DEWDROP + 1)
 
+// Passed in place of a party slot to field move commands: the HM is performed by Bidoof instead of a party Pokemon
+#define HM_PERFORMER_BIDOOF 0xFE
+
 #define SAFARI_GAME_ACTIVE   0
 #define SAFARI_GAME_INACTIVE 1
 

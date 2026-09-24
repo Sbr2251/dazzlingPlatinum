@@ -37,6 +37,7 @@
 #include "encounter.h"
 #include "field_comm_manager.h"
 #include "field_map_change.h"
+#include "field_move_tasks.h"
 #include "field_overworld_state.h"
 #include "game_records.h"
 #include "inlines.h"
@@ -212,7 +213,7 @@ BOOL FieldInput_Process(const FieldInput *input, FieldSystem *fieldSystem)
             playerEvent |= PLAYER_EVENT_USED_STRENGTH;
         }
 
-        if (Party_HasMonWithMove(SaveData_GetParty(fieldSystem->saveData), MOVE_WATERFALL) != PARTY_SLOT_NONE) {
+        if (FieldMoves_IsHMUnlocked(fieldSystem, MOVE_WATERFALL)) {
             playerEvent |= PLAYER_EVENT_USED_WATERFALL;
         }
 
@@ -689,13 +690,11 @@ u16 Field_TileBehaviorToScript(FieldSystem *fieldSystem, u8 behavior)
         u32 distortionBehavior = PlayerAvatar_GetDistortionCurrTileBehaviour(fieldSystem->playerAvatar);
 
         if (PlayerAvatar_CanUseSurf(fieldSystem->playerAvatar, distortionBehavior, behavior) && TrainerInfo_HasBadge(info, 3)) {
-            if (Party_HasMonWithMove(SaveData_GetParty(fieldSystem->saveData), MOVE_SURF) != PARTY_SLOT_NONE) {
-                if (VarsFlags_CheckFlag(SaveData_GetVarsFlags(fieldSystem->saveData), FLAG_TOTEM_LAPRAS_DEFEATED) == FALSE) {
-                    return 10016;
-                }
-
-                return 10004;
+            if (VarsFlags_CheckFlag(SaveData_GetVarsFlags(fieldSystem->saveData), FLAG_TOTEM_LAPRAS_DEFEATED) == FALSE) {
+                return 10016;
             }
+
+            return 10004;
         }
     }
 
