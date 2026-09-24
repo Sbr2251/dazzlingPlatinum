@@ -15,6 +15,11 @@ _020:
 
 _031:
     GetCurrentMoveData MOVEATTRIBUTE_TYPE
+    // Pixilate turns Normal-type moves (other than Struggle) into Fairy-type moves
+    CheckAbility CHECK_NOT_HAVE, BTLSCR_ATTACKER, ABILITY_PIXILATE, _033
+    CompareVarToValue OPCODE_NEQ, BTLVAR_CALC_TEMP, TYPE_NORMAL, _033
+    CompareVarToValue OPCODE_EQU, BTLVAR_CURRENT_MOVE, MOVE_STRUGGLE, _033
+    UpdateVar OPCODE_SET, BTLVAR_CALC_TEMP, TYPE_FAIRY
 
 _033:
     GetItemHoldEffect BTLSCR_MSG_TEMP, BTLVAR_SCRIPT_TEMP

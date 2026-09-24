@@ -25,6 +25,7 @@
 #include "battle/battle_message.h"
 #include "battle/battle_mon.h"
 #include "battle/common.h"
+#include "battle/mega_evolution.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/struct_ov16_0225BFFC_decl.h"
 
@@ -2606,6 +2607,7 @@ int BattleSystem_ApplyTypeChart(BattleSystem *battleSys, BattleContext *battleCt
         moveType = MOVE_DATA(move).type;
     }
 
+    moveType = Move_AbilityAdjustedType(Battler_Ability(battleCtx, attacker), move, moveType);
     movePower = MOVE_DATA(move).power;
 
     if ((battleCtx->battleStatusMask & SYSCTL_IGNORE_TYPE_CHECKS) == FALSE && MON_HAS_TYPE(attacker, moveType)) {
@@ -2714,6 +2716,8 @@ void BattleSystem_CalcEffectiveness(BattleContext *battleCtx, int move, int inTy
         moveType = MOVE_DATA(move).type;
     }
 
+    moveType = Move_AbilityAdjustedType(attackerAbility, move, moveType);
+
     if (attackerAbility != ABILITY_MOLD_BREAKER
         && defenderAbility == ABILITY_LEVITATE
         && moveType == TYPE_GROUND
@@ -2759,6 +2763,18 @@ void BattleSystem_CalcEffectiveness(BattleContext *battleCtx, int move, int inTy
     }
 
     return;
+}
+
+int Move_AbilityAdjustedType(int attackerAbility, int move, int moveType)
+{
+    // Pixilate turns Normal-type moves into Fairy-type moves; Struggle is left alone
+    if (attackerAbility == ABILITY_PIXILATE
+        && moveType == TYPE_NORMAL
+        && move != MOVE_STRUGGLE) {
+        return TYPE_FAIRY;
+    }
+
+    return moveType;
 }
 
 /**
@@ -3076,7 +3092,8 @@ BOOL BattleSystem_CanStealItem(BattleSystem *battleSys, BattleContext *battleCtx
 
     if (battleCtx->battleMons[battler].heldItem
         && (battleCtx->sideConditions[side].knockedOffItemsMask & FlagIndex(battleCtx->selectedPartySlot[battler])) == FALSE
-        && Item_IsMail(battleCtx->battleMons[battler].heldItem) == FALSE) {
+        && Item_IsMail(battleCtx->battleMons[battler].heldItem) == FALSE
+        && Item_IsMegaStone(battleCtx->battleMons[battler].heldItem) == FALSE) {
         result = TRUE;
     }
 
@@ -3515,6 +3532,8 @@ int BattleSystem_TriggerImmunityAbility(BattleContext *battleCtx, int attacker, 
     } else {
         moveType = CURRENT_MOVE_DATA.type;
     }
+
+    moveType = Move_AbilityAdjustedType(Battler_Ability(battleCtx, attacker), battleCtx->moveCur, moveType);
 
     if (Battler_IgnorableAbility(battleCtx, attacker, defender, ABILITY_VOLT_ABSORB) == TRUE
         && moveType == TYPE_ELECTRIC
@@ -4258,6 +4277,8 @@ BOOL BattleSystem_TriggerAbilityOnHit(BattleSystem *battleSys, BattleContext *ba
         } else {
             moveType = CURRENT_MOVE_DATA.type;
         }
+
+        moveType = Move_AbilityAdjustedType(Battler_Ability(battleCtx, battleCtx->attacker), battleCtx->moveCur, moveType);
 
         if (DEFENDING_MON.curHP
             && (battleCtx->moveStatusFlags & MOVE_STATUS_NO_EFFECTS) == FALSE
@@ -5513,6 +5534,11 @@ s32 Battler_ItemFlingPower(BattleContext *battleCtx, int battler)
         return 0;
     }
 
+    // Mega Stones cannot be flung
+    if (Item_IsMegaStone(battleCtx->battleMons[battler].heldItem)) {
+        return 0;
+    }
+
     return BattleSystem_GetItemData(battleCtx, battleCtx->battleMons[battler].heldItem, ITEM_PARAM_FLING_POWER);
 }
 
@@ -6706,6 +6732,12 @@ int BattleSystem_CalcMoveDamage(BattleSystem *battleSys,
     GF_ASSERT(battleCtx->powerMul >= 10);
     movePower = movePower * battleCtx->powerMul / 10;
 
+    // Pixilate also powers up the moves whose type it changes
+    if (Move_AbilityAdjustedType(attackerParams.ability, move, moveType) != moveType) {
+        moveType = Move_AbilityAdjustedType(attackerParams.ability, move, moveType);
+        movePower = movePower * 13 / 10;
+    }
+
     if ((battleCtx->battleMons[attacker].moveEffectsMask & MOVE_EFFECT_CHARGE) && moveType == TYPE_ELECTRIC) {
         movePower *= 2;
     }
@@ -6940,6 +6972,12 @@ int BattleSystem_CalcMoveDamage(BattleSystem *battleSys,
     if (NO_CLOUD_NINE) {
         if ((fieldConditions & FIELD_CONDITION_SUNNY) && attackerParams.ability == ABILITY_SOLAR_POWER) {
             spAttackStat = spAttackStat * 15 / 10;
+        }
+
+        if ((fieldConditions & FIELD_CONDITION_SANDSTORM)
+            && attackerParams.ability == ABILITY_SAND_FORCE
+            && (moveType == TYPE_ROCK || moveType == TYPE_GROUND || moveType == TYPE_STEEL)) {
+            movePower = movePower * 13 / 10;
         }
 
         if ((fieldConditions & FIELD_CONDITION_SANDSTORM)
