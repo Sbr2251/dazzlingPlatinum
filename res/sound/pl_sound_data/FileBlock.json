@@ -1018,7 +1018,7 @@
         {
             "name": "SEQ_PL_BA_TOTEM.sseq",
             "type": "SEQ",
-            "MD5": "da50bceadf9156553631a0015bdf3dc3"
+            "MD5": "ac566bf1deb4aafb67eed8c16e942e21"
         },
         {
             "name": "SEQ_PL_MTKAKKO.sseq",
@@ -7341,6 +7341,11 @@
             "MD5": "e89240ee5ab1036b5b8b36798b1de199"
         },
         {
+            "name": "BANK_BGM_TOTEM.sbnk",
+            "type": "BANK",
+            "MD5": "d57e4fa1b9d568655b6810dd45c2ffa6"
+        },
+        {
             "name": "BANK_SE_FIELD.sbnk",
             "type": "BANK",
             "MD5": "67845b29dd3414ac15e9f2b44be15cbc"
@@ -11647,6 +11652,38 @@
                 "07.swav",
                 "08.swav",
                 "09.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_BGM_TOTEM.swar",
+            "type": "WAVARC",
+            "MD5": "63d6ffc0bfcfb9526cdb728027333a2f",
+            "subFile": [
+                "00.swav",
+                "01.swav",
+                "02.swav",
+                "03.swav",
+                "04.swav",
+                "05.swav",
+                "06.swav",
+                "07.swav",
+                "08.swav",
+                "09.swav",
+                "0A.swav",
+                "0B.swav",
+                "0C.swav",
+                "0D.swav",
+                "0E.swav",
+                "0F.swav",
+                "10.swav",
+                "11.swav",
+                "12.swav",
+                "13.swav",
+                "14.swav",
+                "15.swav",
+                "16.swav",
+                "17.swav",
+                "18.swav"
             ]
         },
         {

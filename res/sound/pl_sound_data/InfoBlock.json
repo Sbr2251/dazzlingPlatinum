@@ -3421,8 +3421,8 @@
             "name": "SEQ_PL_BA_TOTEM",
             "fileName": "SEQ_PL_BA_TOTEM.sseq",
             "unkA": 0,
-            "bnk": "BANK_BGM_BATTLE",
-            "vol": 110,
+            "bnk": "BANK_BGM_TOTEM",
+            "vol": 98,
             "cpr": 30,
             "ppr": 64,
             "ply": "PLAYER_BGM",
@@ -17472,7 +17472,16 @@
                 "",
                 ""]
         },
-        {"name": ""},
+        {
+            "name": "BANK_BGM_TOTEM",
+            "fileName": "BANK_BGM_TOTEM.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_BASIC",
+                "WAVE_ARC_BGM_TOTEM",
+                "",
+                ""]
+        },
         {"name": ""},
         {"name": ""},
         {"name": ""},
@@ -20434,7 +20443,11 @@
             "fileName": "WAVE_ARC_BGM_DEMO01.swar",
             "unkA": 0
         },
-        {"name": ""},
+        {
+            "name": "WAVE_ARC_BGM_TOTEM",
+            "fileName": "WAVE_ARC_BGM_TOTEM.swar",
+            "unkA": 0
+        },
         {"name": ""},
         {"name": ""},
         {"name": ""},
