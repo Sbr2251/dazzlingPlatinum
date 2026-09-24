@@ -1210,6 +1210,7 @@ typedef struct AffinePulseTaskData {
     u8 stage;
     u8 state;
     u8 frame;
+    u8 isEnemy;
     s16 baseYOffset;
 } AffinePulseTaskData;
 
@@ -1226,6 +1227,7 @@ void BattleDisplay_StartAffinePulse(BattleSystem *battleSys, BattlerData *battle
     data->form = message->form;
     data->stage = message->stage;
     data->baseYOffset = PokemonSprite_GetAttribute(data->sprite, MON_SPRITE_Y_OFFSET);
+    data->isEnemy = Battler_Side(battleSys, battlerData->battler) != 0;
 
     SysTask_Start(AffinePulseTask, data, 0);
 }
@@ -5297,122 +5299,201 @@ static void ov16_022634DC(SysTask *param0, void *param1)
     }
 }
 
+// The Mega Evolution sequence dims and flashes the scene through the brightness blend. BG0 (the 3D layer holding the
+// Pokemon sprites and particles) and BG1 (the message window) are left out of the 1st target, so the evolving
+// Pokemon stays pure white and the message stays readable; the other battlers are dimmed through their palettes
+// instead. The 2nd targets must stay set: translucent 3D pixels (such as a Totem aura) only alpha-blend with
+// 2nd-target layers, and without any they are drawn fully opaque.
+#define AFFINE_PULSE_BRIGHTNESS_PLANES (BATTLE_BG_BLENDMASK_BASE | BATTLE_BG_BLENDMASK_EFFECT | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD)
+#define AFFINE_PULSE_BLEND_2ND_PLANES  (BATTLE_BG_BLENDMASK_ALL | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD)
+
+#define AFFINE_PULSE_DIM            8
+#define AFFINE_PULSE_CHARGE_SQUEEZE 6
+#define AFFINE_PULSE_CHARGE_HIDE    18
+#define AFFINE_PULSE_CHARGE_END     20
+#define AFFINE_PULSE_REVEAL_CRY     3
+#define AFFINE_PULSE_REVEAL_UNFADE  4
+
+// Reveal scale per tick: pop from a small point up to 1.5x, then a damped settle onto 1.0x.
+static const u16 sAffinePulseRevealScale[] = {
+    0x040, 0x090, 0x0D8, 0x118, 0x14C, 0x170, 0x180, 0x17A,
+    0x166, 0x148, 0x124, 0x104, 0x0F0, 0x0E8, 0x0EB, 0x0F5,
+    0x100, 0x107, 0x108, 0x104, 0x100
+};
+
+// Reveal scene brightness per tick: a short white flash that clears quickly, so the still-white Pokemon stands out
+// against the scene while it grows.
+static const s8 sAffinePulseRevealFlash[] = {
+    6, 14, 16, 14, 11, 9, 7, 5, 4, 3, 2, 1
+};
+
+static void AffinePulse_SetBrightness(int brightness)
+{
+    G2_SetBlendBrightnessExt(AFFINE_PULSE_BRIGHTNESS_PLANES, AFFINE_PULSE_BLEND_2ND_PLANES, 8, 8, brightness);
+}
+
+static void AffinePulse_SetScale(AffinePulseTaskData *data, int scale)
+{
+    // Scaling happens around the sprite's center. While the sprite is larger than normal, shift it up so that the
+    // growth goes mostly upward instead of sinking into the ground or the message window.
+    int anchor = data->isEnemy ? 10 : 24;
+    int yOffset = data->baseYOffset;
+
+    if (scale > 0x100) {
+        yOffset -= ((scale - 0x100) * anchor) >> 8;
+    }
+
+    PokemonSprite_SetAttribute(data->sprite, MON_SPRITE_SCALE_X, scale);
+    PokemonSprite_SetAttribute(data->sprite, MON_SPRITE_SCALE_Y, scale);
+    PokemonSprite_SetAttribute(data->sprite, MON_SPRITE_Y_OFFSET, yOffset);
+}
+
+static PokemonSprite *AffinePulse_OtherSprite(AffinePulseTaskData *data, int battler)
+{
+    PokemonSprite *sprite;
+
+    if (battler == data->battler) {
+        return NULL;
+    }
+
+    sprite = BattleSystem_BattlerData(data->battleSys, battler)->unk_20;
+
+    if (sprite == NULL || sprite == data->sprite || PokemonSprite_IsActive(sprite) == FALSE) {
+        return NULL;
+    }
+
+    return sprite;
+}
+
+static void AffinePulse_FadeOthers(AffinePulseTaskData *data, int initAlpha, int targetAlpha, int color)
+{
+    for (int i = 0; i < BattleSystem_MaxBattlers(data->battleSys); i++) {
+        PokemonSprite *sprite = AffinePulse_OtherSprite(data, i);
+
+        if (sprite != NULL) {
+            PokemonSprite_StartFade(sprite, initAlpha, targetAlpha, 0, color);
+        }
+    }
+}
+
+static BOOL AffinePulse_OthersFading(AffinePulseTaskData *data)
+{
+    for (int i = 0; i < BattleSystem_MaxBattlers(data->battleSys); i++) {
+        PokemonSprite *sprite = AffinePulse_OtherSprite(data, i);
+
+        if (sprite != NULL && PokemonSprite_IsFadeActive(sprite)) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static void AffinePulse_ClearOthers(AffinePulseTaskData *data)
+{
+    for (int i = 0; i < BattleSystem_MaxBattlers(data->battleSys); i++) {
+        PokemonSprite *sprite = AffinePulse_OtherSprite(data, i);
+
+        if (sprite != NULL) {
+            PokemonSprite_ClearFade(sprite);
+        }
+    }
+}
+
+// Stage 0 (charge): the scene dims while the battler turns white, then it squeezes into a point and vanishes. The
+// scene is left dimmed for stage 1, which runs right after ChangeForm has swapped in the new sprite.
+static BOOL AffinePulse_Charge(AffinePulseTaskData *data)
+{
+    PokemonSprite *sprite = data->sprite;
+    int t = data->frame;
+
+    if (t == 0) {
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 0);
+        // Start part of the way to white so the Pokemon reads as glowing white rather than pale grey.
+        PokemonSprite_StartFade(sprite, 4, 16, 0, RGB(31, 31, 31));
+        AffinePulse_FadeOthers(data, 0, AFFINE_PULSE_DIM, RGB(0, 0, 0));
+    }
+
+    AffinePulse_SetBrightness(-(t + 1 < AFFINE_PULSE_DIM ? t + 1 : AFFINE_PULSE_DIM));
+
+    if (t >= AFFINE_PULSE_CHARGE_SQUEEZE && t < AFFINE_PULSE_CHARGE_HIDE) {
+        // Ease in: slow at first, then collapse quickly.
+        int p = t - AFFINE_PULSE_CHARGE_SQUEEZE + 1;
+        int n = AFFINE_PULSE_CHARGE_HIDE - AFFINE_PULSE_CHARGE_SQUEEZE;
+        int squeeze = 0x100 - (0xE0 * p * p) / (n * n);
+
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_X, squeeze);
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_Y, squeeze);
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset + ((0x100 - squeeze) * 6 >> 8));
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, p > n * 2 / 3 ? 2 : (p > n / 3 ? 1 : 0));
+    } else if (t == AFFINE_PULSE_CHARGE_HIDE) {
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, TRUE);
+    } else if (t >= AFFINE_PULSE_CHARGE_END && PokemonSprite_IsFadeActive(sprite) == FALSE && AffinePulse_OthersFading(data) == FALSE) {
+        return TRUE;
+    }
+
+    if (data->frame < 0xFF) {
+        data->frame++;
+    }
+
+    return FALSE;
+}
+
+// Stage 1 (reveal): a white flash, the new sprite pops out of a point of light and eases back to its normal size and
+// colors while the scene brightness returns to normal. Blending is fully reset at the end.
+static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
+{
+    PokemonSprite *sprite = data->sprite;
+    int t = data->frame;
+    int last = NELEMS(sAffinePulseRevealScale) - 1;
+
+    if (t == 0) {
+        PokemonSprite_StartFade(sprite, 16, 16, 0, RGB(31, 31, 31));
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
+        AffinePulse_FadeOthers(data, 12, 0, RGB(31, 31, 31));
+    } else if (t == AFFINE_PULSE_REVEAL_CRY) {
+        Sound_PlayPokemonCry(data->species, data->form);
+    } else if (t == AFFINE_PULSE_REVEAL_UNFADE) {
+        PokemonSprite_StartFade(sprite, 16, 0, 0, RGB(31, 31, 31));
+    }
+
+    if (t <= last) {
+        AffinePulse_SetBrightness(t < NELEMS(sAffinePulseRevealFlash) ? sAffinePulseRevealFlash[t] : 0);
+        AffinePulse_SetScale(data, sAffinePulseRevealScale[t]);
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, t < 3 ? 2 : (t < 6 ? 1 : 0));
+    } else if (PokemonSprite_IsFadeActive(sprite) == FALSE && AffinePulse_OthersFading(data) == FALSE) {
+        AffinePulse_SetScale(data, 0x100);
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 0);
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
+        PokemonSprite_ClearFade(sprite);
+        AffinePulse_ClearOthers(data);
+        G2_BlendNone();
+        return TRUE;
+    }
+
+    if (data->frame < 0xFF) {
+        data->frame++;
+    }
+
+    return FALSE;
+}
+
 static void AffinePulseTask(SysTask *task, void *taskData)
 {
     AffinePulseTaskData *data = taskData;
-    PokemonSprite *sprite = data->sprite;
-    const int screenPlanes = GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 |
-        GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 |
-        GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD;
+    BOOL done;
 
     if (data->stage == 0) {
-        switch (data->state) {
-        case 0:
-            PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
-            PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 0);
-            PokemonSprite_StartFade(sprite, 0, 16, 1, RGB(31, 31, 31));
-            BrightnessController_StartTransition(8, -6, 0, screenPlanes, BRIGHTNESS_MAIN_SCREEN);
-            data->state++;
-            break;
-        case 1:
-            if (data->frame < 12) {
-                PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_X, -8);
-                PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_Y, -14);
-                PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset + data->frame / 2);
-                if ((data->frame & 3) == 3) {
-                    PokemonSprite_AddAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 1);
-                }
-                data->frame++;
-            } else if (PokemonSprite_IsFadeActive(sprite) == FALSE &&
-                BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) {
-                PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, TRUE);
-                data->frame = 0;
-                data->state++;
-            }
-            break;
-        case 2:
-            if (data->frame < 8) {
-                data->frame++;
-            } else {
-                data->state++;
-            }
-            break;
-        default:
-            BattleController_EmitClearCommand(data->battleSys, data->battler, data->command);
-            Heap_Free(data);
-            SysTask_Done(task);
-            break;
-        }
-        return;
+        done = AffinePulse_Charge(data);
+    } else {
+        done = AffinePulse_Reveal(data);
     }
 
-    switch (data->state) {
-    case 0:
-        PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_X, 0x220);
-        PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_Y, 0x220);
-        PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset - 16);
-        PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 3);
-        PokemonSprite_StartFade(sprite, 16, 0, 1, RGB(31, 31, 31));
-        PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
-        BrightnessController_StartTransition(3, 16, -6, screenPlanes, BRIGHTNESS_MAIN_SCREEN);
-        data->state++;
-        break;
-    case 1:
-        if (BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) {
-            Sound_PlayPokemonCry(data->species, data->form);
-            BrightnessController_StartTransition(8, 0, 16, screenPlanes, BRIGHTNESS_MAIN_SCREEN);
-            data->frame = 0;
-            data->state++;
-        }
-        break;
-    case 2:
-        if (data->frame < 12) {
-            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_X, -24);
-            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_Y, -24);
-            PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset - 16 + (data->frame * 4 / 3));
-            if ((data->frame & 3) == 3) {
-                PokemonSprite_AddAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, -1);
-            }
-            data->frame++;
-        } else if (PokemonSprite_IsFadeActive(sprite) == FALSE &&
-            BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) {
-            PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_X, 0xE0);
-            PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_Y, 0xE0);
-            data->frame = 0;
-            data->state++;
-        }
-        break;
-    case 3:
-        if (data->frame < 4) {
-            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_X, 12);
-            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_Y, 12);
-            data->frame++;
-        } else {
-            data->frame = 0;
-            data->state++;
-        }
-        break;
-    case 4:
-        if (data->frame < 3) {
-            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_X, -5);
-            PokemonSprite_AddAttribute(sprite, MON_SPRITE_SCALE_Y, -5);
-            data->frame++;
-        } else if (PokemonSprite_IsFadeActive(sprite) == FALSE &&
-            BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) {
-            PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_X, 0x100);
-            PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_Y, 0x100);
-            PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset);
-            PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 0);
-            PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
-            PokemonSprite_ClearFade(sprite);
-            data->state++;
-        }
-        break;
-    default:
+    if (done) {
         BattleController_EmitClearCommand(data->battleSys, data->battler, data->command);
         Heap_Free(data);
         SysTask_Done(task);
-        break;
     }
 }
 

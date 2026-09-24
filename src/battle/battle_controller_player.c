@@ -877,6 +877,25 @@ enum PreMoveActionState {
     PRE_MOVE_ACTION_END
 };
 
+/**
+ * @brief Check if the trainer behind a Mega Evolving battler has something to say about it.
+ *
+ * Only opposing trainers have trainer messages, and looking one up reads from the ROM, so this rules out the
+ * player's side and battles without trainer messages before doing so.
+ */
+static BOOL BattleControllerPlayer_HasMegaEvolutionMessage(BattleSystem *battleSys, int battler)
+{
+    u32 battleType = BattleSystem_BattleType(battleSys);
+
+    if ((battleType & BATTLE_TYPE_TRAINER) == FALSE
+        || (battleType & BATTLE_TYPE_NO_TRAINER_MESSAGES)
+        || Battler_Side(battleSys, battler) == 0) {
+        return FALSE;
+    }
+
+    return Trainer_HasMessageType(Battler_TrainerID(battleSys, battler), TRMSG_MEGA_EVOLUTION, HEAP_ID_BATTLE);
+}
+
 static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     int state = STATE_PROCESSING;
@@ -916,8 +935,13 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
                 if (MegaEvolveBattler(battleSys, battleCtx, battler, megaData)) {
                     BattleContext_SetMegaEvolutionUsed(battleSys, battleCtx, battler);
 
-                    // Play mega evolution animation
+                    // Play mega evolution animation. Take down the command prompt first so it is not left on
+                    // screen until the first message of the sequence prints.
+                    BattleController_EmitClearMessageBox(battleSys);
                     battleCtx->msgBattlerTemp = battler;
+                    battleCtx->msgTemp = BattleControllerPlayer_HasMegaEvolutionMessage(battleSys, battler)
+                        ? TRMSG_MEGA_EVOLUTION
+                        : 0;
                     LOAD_SUBSEQ(subscript_mega_evolution);
                     battleCtx->commandNext = battleCtx->command;
                     battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;

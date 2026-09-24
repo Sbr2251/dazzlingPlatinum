@@ -124,20 +124,30 @@ BOOL Trainer_HasMessageType(int trainerID, enum TrainerMessageType msgType, enum
     return result;
 }
 
+// trtbl stores each trainer's messages as one contiguous run of (trainerID, msgType) pairs, and trtblofs points at
+// the start of that run. Trainers without any messages point at offset 0, which belongs to some other trainer. So
+// once an entry for a different trainer is read there is nothing left to find; scanning on to the end of the table
+// costs one blocking ROM read per entry and stalls the game for seconds.
 void Trainer_LoadMessage(int trainerID, enum TrainerMessageType msgType, String *string, enum HeapID heapID)
 {
-    NARC *narc; // must declare up here to match
+    NARC *narc;
     u16 offset, data[2];
+    BOOL found = FALSE;
 
     int size = NARC_GetMemberSizeByIndexPair(NARC_INDEX_POKETOOL__TRMSG__TRTBL, 0);
     NARC_ReadFromMemberByIndexPair(&offset, NARC_INDEX_POKETOOL__TRMSG__TRTBLOFS, 0, trainerID * 2, 2);
     narc = NARC_ctor(NARC_INDEX_POKETOOL__TRMSG__TRTBL, heapID);
 
-    while (offset != size) {
+    while (offset < size) {
         NARC_ReadFromMember(narc, 0, offset, 4, data);
 
-        if (data[0] == trainerID && data[1] == msgType) {
+        if (data[0] != trainerID) {
+            break;
+        }
+
+        if (data[1] == msgType) {
             MessageBank_GetStringFromNARC(NARC_INDEX_MSGDATA__PL_MSG, TEXT_BANK_NPC_TRAINER_MESSAGES, offset / 4, heapID, string);
+            found = TRUE;
             break;
         }
 
@@ -146,7 +156,7 @@ void Trainer_LoadMessage(int trainerID, enum TrainerMessageType msgType, String 
 
     NARC_dtor(narc);
 
-    if (offset == size) {
+    if (!found) {
         String_Clear(string);
     }
 }
