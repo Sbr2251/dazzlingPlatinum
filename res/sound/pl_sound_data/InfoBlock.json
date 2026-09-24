@@ -8524,25 +8524,25 @@
             "unkB": [0,0]
         },
         {
-            "name": "SEQ_SE_DP_DUMMY16",
-            "fileName": "SEQ_PL_DMY10.sseq",
+            "name": "SEQ_SE_MEGA_CHARGE",
+            "fileName": "SEQ_SE_MEGA_CHARGE.sseq",
             "unkA": 0,
-            "bnk": "BANK_SE_BATTLE",
-            "vol": 90,
-            "cpr": 104,
+            "bnk": "BANK_SE_MEGA",
+            "vol": 127,
+            "cpr": 89,
             "ppr": 64,
-            "ply": "PLAYER_SE_1",
+            "ply": "PLAYER_SE_2",
             "unkB": [0,0]
         },
         {
-            "name": "SEQ_SE_DP_DUMMY17",
-            "fileName": "SEQ_PL_DMY10.sseq",
+            "name": "SEQ_SE_MEGA_BURST",
+            "fileName": "SEQ_SE_MEGA_BURST.sseq",
             "unkA": 0,
-            "bnk": "BANK_SE_BATTLE",
-            "vol": 90,
-            "cpr": 104,
+            "bnk": "BANK_SE_MEGA",
+            "vol": 125,
+            "cpr": 89,
             "ppr": 64,
-            "ply": "PLAYER_SE_1",
+            "ply": "PLAYER_SE_2",
             "unkB": [0,0]
         },
         {
@@ -17482,7 +17482,16 @@
                 "",
                 ""]
         },
-        {"name": ""},
+        {
+            "name": "BANK_SE_MEGA",
+            "fileName": "BANK_SE_MEGA.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_SE_MEGA",
+                "",
+                "",
+                ""]
+        },
         {"name": ""},
         {"name": ""},
         {"name": ""},
@@ -20448,7 +20457,11 @@
             "fileName": "WAVE_ARC_BGM_TOTEM.swar",
             "unkA": 0
         },
-        {"name": ""},
+        {
+            "name": "WAVE_ARC_SE_MEGA",
+            "fileName": "WAVE_ARC_SE_MEGA.swar",
+            "unkA": 0
+        },
         {"name": ""},
         {"name": ""},
         {"name": ""},
@@ -20731,7 +20744,7 @@
         },
         {
             "name": "GROUP_SE_BATTLE",
-            "count": 10,
+            "count": 12,
             "subGroup": [
                 {"type": 1792, "entry": 1788},
                 {"type": 1792, "entry": 1789},
@@ -20742,7 +20755,9 @@
                 {"type": 1792, "entry": 1798},
                 {"type": 1792, "entry": 1803},
                 {"type": 1792, "entry": 1804},
-                {"type": 1792, "entry": 1807}]
+                {"type": 1792, "entry": 1807},
+                {"type": 1792, "entry": 1793},
+                {"type": 1792, "entry": 1794}]
         },
         {
             "name": "GROUP_SE_BAG",

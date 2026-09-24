@@ -4831,6 +4831,16 @@
             "MD5": "2ab9c51ead7ee2e7dc3e6c89db2aaeee"
         },
         {
+            "name": "SEQ_SE_MEGA_CHARGE.sseq",
+            "type": "SEQ",
+            "MD5": "1a1899992342fcb878429e6cea54aeb7"
+        },
+        {
+            "name": "SEQ_SE_MEGA_BURST.sseq",
+            "type": "SEQ",
+            "MD5": "86d7d550870f95f5173eaed9e250b12a"
+        },
+        {
             "name": "SEQ_SE_DP_GASHIN.sseq",
             "type": "SEQ",
             "MD5": "b30b03c1837ba7d1b0d294154f110d5b"
@@ -7344,6 +7354,11 @@
             "name": "BANK_BGM_TOTEM.sbnk",
             "type": "BANK",
             "MD5": "d57e4fa1b9d568655b6810dd45c2ffa6"
+        },
+        {
+            "name": "BANK_SE_MEGA.sbnk",
+            "type": "BANK",
+            "MD5": "886d8b252fd6c2fb8e60ec6ff5356c0e"
         },
         {
             "name": "BANK_SE_FIELD.sbnk",
@@ -11684,6 +11699,15 @@
                 "16.swav",
                 "17.swav",
                 "18.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_SE_MEGA.swar",
+            "type": "WAVARC",
+            "MD5": "eff51166d13a4c3ba493a2bfdd2fba16",
+            "subFile": [
+                "00.swav",
+                "01.swav"
             ]
         },
         {
