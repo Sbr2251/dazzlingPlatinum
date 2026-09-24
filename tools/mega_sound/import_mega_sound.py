@@ -15,8 +15,9 @@ The clip is used as is, not resynthesised. It is 5 s long: a rising charge (0-3.
 at 3.54 s whose sparkle tail decays by 5 s. It is cut in two so each half lines up with a step of the Mega
 Evolution script (res/battle/scripts/subscripts/subscript_mega_evolution.s).
 
-  - SEQ_SE_MEGA_CHARGE plays with the charge (AffinePulse 0, about 92 frames). It uses the last 1.45 s of the
-    charge, with a fade-in, and starts after a short rest so that it runs straight into the burst.
+  - SEQ_SE_MEGA_CHARGE plays with the charge (AffinePulse 0 and ChangeForm). The script plays the burst 47
+    frames after the charge (measured in battle), so this uses the last 47 frames (0.79 s) of the charge at
+    its original speed: a fade-in over its quiet stretch, then the swell that peaks straight into the burst.
   - SEQ_SE_MEGA_BURST plays with the reveal (AffinePulse 1). The new form's cry starts about 6 frames later, so
     the burst keeps its full-level crack for 0.1 s and then ducks its tail 9 dB, leaving the cry on top.
   - Both are on PLAYER_SE_2 at the same priority, like the SEQ_SE_DP_W100/W107 pair they replace. Starting the
@@ -59,10 +60,12 @@ TIMER = 16756991 // RATE
 BANK = "BANK_SE_MEGA"
 WAVE_ARC = "WAVE_ARC_SE_MEGA"
 BURST_AT = 3.54  # seconds into the clip
+CHARGE_FRAMES = 47  # frames from the charge PlaySound to the burst PlaySound in subscript_mega_evolution.s
+FPS = 59.8261
 
 # name, SWAV/program index, clip window (s), fade in (s), fade out (s), rest before the note (ticks)
 SOUNDS = [
-    ("SEQ_SE_MEGA_CHARGE", 0, BURST_AT - 1.45, BURST_AT, 0.25, 0.01, 10),
+    ("SEQ_SE_MEGA_CHARGE", 0, BURST_AT - CHARGE_FRAMES / FPS, BURST_AT, 0.25, 0.01, 0),
     ("SEQ_SE_MEGA_BURST", 1, BURST_AT - 0.005, BURST_AT + 0.70, 0.005, 0.30, 0),
 ]
 BURST_DUCK = (0.10, 0.20, -9.0)  # full level until 0.10 s, then down 9 dB by 0.20 s
@@ -262,6 +265,12 @@ def main():
         open(os.path.join(out, f"{i:02X}.swav"), "wb").write(data)
     update_file_block(swavs)
     update_meson(len(swavs))
+    # SDATTool never rebuilds a .swar that already exists in the build folder (its newest-SWAV check keeps
+    # max_mtime at 0), so delete the built copy to make the next build pick up the new samples.
+    stale = os.path.join(ROOT, "build", "res/sound", os.path.relpath(out, SOUND) + ".swar")
+    if os.path.exists(stale):
+        os.remove(stale)
+        print(f"removed stale {os.path.relpath(stale, ROOT)}")
     print(f"{WAVE_ARC}: {len(swavs)} samples, {sum(map(len, swavs))} bytes")
 
 
