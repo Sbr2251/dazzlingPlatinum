@@ -50,14 +50,14 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
     },
     // Mega Gardevoir
     // Base stats: 68 HP, 85 Atk, 65 Def, 165 SpAtk, 135 SpDef, 100 Speed
-    // Ability: Trace (Pixilate not available in Gen 4)
+    // Ability: Pixilate
     // Type: Psychic/Fairy
     {
         .baseSpecies = SPECIES_GARDEVOIR,
         .megaForm = MEGA_FORM_GARDEVOIR,
         .requiredItem = ITEM_GARDEVOIRITE,
         .baseStats = {68, 85, 65, 165, 135, 100},
-        .ability = ABILITY_TRACE,
+        .ability = ABILITY_PIXILATE,
         .type1 = TYPE_PSYCHIC,
         .type2 = TYPE_FAIRY,
     },

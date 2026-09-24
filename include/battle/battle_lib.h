@@ -482,6 +482,19 @@ int BattleSystem_ApplyTypeChart(BattleSystem *battleSys, BattleContext *battleCt
 void BattleSystem_CalcEffectiveness(BattleContext *battleCtx, int move, int inType, int attackerAbility, int defenderAbility, int defenderItemEffect, int defenderType1, int defenderType2, u32 *moveStatusMask);
 
 /**
+ * @brief Apply the attacker's type-changing ability to a move's resolved type.
+ *
+ * Pixilate turns Normal-type moves (other than Struggle) into Fairy-type moves.
+ *
+ * @param attackerAbility
+ * @param move
+ * @param moveType          The move's type after Normalize and variable-type
+ *                          effects have been resolved
+ * @return The move's type after applying the attacker's ability
+ */
+int Move_AbilityAdjustedType(int attackerAbility, int move, int moveType);
+
+/**
  * @brief Check if a battler's move failed to execute for the turn.
  *
  * @param battleCtx

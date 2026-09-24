@@ -3795,7 +3795,7 @@ static inline int CalcCurrentMoveType(BattleContext *battleCtx)
         return battleCtx->moveType;
     }
 
-    return CURRENT_MOVE_DATA.type;
+    return Move_AbilityAdjustedType(Battler_Ability(battleCtx, battleCtx->attacker), battleCtx->moveCur, CURRENT_MOVE_DATA.type);
 }
 
 enum AfterMoveEffectState {

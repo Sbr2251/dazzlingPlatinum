@@ -879,6 +879,13 @@
         "Reverses all changes\n",
         "to its stats."
       ]
+    },
+    {
+      "id": "pl_msg_00000612_00126",
+      "en_US": [
+        "Turns Normal-type moves\n",
+        "into Fairy-type moves."
+      ]
     }
   ]
 }

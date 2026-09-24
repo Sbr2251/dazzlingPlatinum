@@ -69,4 +69,15 @@ const MegaEvolutionData* GetMegaEvolutionDataBySpecies(int species);
  */
 BOOL Pokemon_IsMegaEvolved(const Pokemon *mon);
 
+/**
+ * @brief Check if an item is a Mega Stone
+ *
+ * An item is a Mega Stone if it is the required item of any entry
+ * in the mega evolution data table.
+ *
+ * @param item The item ID to check
+ * @return TRUE if the item is a Mega Stone, FALSE otherwise
+ */
+BOOL Item_IsMegaStone(int item);
+
 #endif // POKEPLATINUM_BATTLE_MEGA_EVOLUTION_H

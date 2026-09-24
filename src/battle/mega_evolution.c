@@ -120,3 +120,14 @@ BOOL Pokemon_IsMegaEvolved(const Pokemon *mon)
 
     return currentForm == megaData->megaForm;
 }
+
+BOOL Item_IsMegaStone(int item)
+{
+    for (int i = 0; i < sMegaEvolutionTableSize; i++) {
+        if (sMegaEvolutionTable[i].requiredItem == item) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}

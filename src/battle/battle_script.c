@@ -35,6 +35,7 @@
 #include "battle/battle_mon.h"
 #include "battle/btlcmd.h"
 #include "battle/common.h"
+#include "battle/mega_evolution.h"
 #include "battle/ov16_0223B140.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02268520.h"
@@ -5381,6 +5382,9 @@ static BOOL BtlCmd_TryStealItem(BattleSystem *battleSys, BattleContext *battleCt
     } else if (DEFENDING_MON.heldItem == ITEM_GRISEOUS_ORB) {
         // The defender is holding a Griseous Orb.
         BattleScript_Iter(battleCtx, jumpOnFail);
+    } else if (Item_IsMegaStone(DEFENDING_MON.heldItem)) {
+        // The defender is holding a Mega Stone.
+        BattleScript_Iter(battleCtx, jumpOnFail);
     } else if (DEFENDING_MON.moveEffectsData.custapBerry || DEFENDING_MON.moveEffectsData.quickClaw) {
         // The defender activated a Custap Berry or a Quick Claw this turn.
         BattleScript_Iter(battleCtx, jumpOnFail);
@@ -5847,6 +5851,7 @@ static BOOL BtlCmd_EndOfTurnWeatherEffect(BattleSystem *battleSys, BattleContext
             && type1 != TYPE_GROUND && type2 != TYPE_GROUND
             && battleCtx->battleMons[battler].curHP
             && Battler_Ability(battleCtx, battler) != ABILITY_SAND_VEIL
+            && Battler_Ability(battleCtx, battler) != ABILITY_SAND_FORCE
             && (battleCtx->battleMons[battler].moveEffectsMask & MOVE_EFFECT_NO_WEATHER_DAMAGE) == FALSE) {
             battleCtx->msgMoveTemp = MOVE_SANDSTORM;
             battleCtx->hpCalcTemp = BattleSystem_Divide(battleCtx->battleMons[battler].maxHP * -1, 16);
@@ -6592,6 +6597,7 @@ static BOOL BtlCmd_TryHelpingHand(BattleSystem *battleSys, BattleContext *battle
  * Knock Off
  * - Neither the attacker nor defender are holding an item
  * - Either the attacker or defender are holding Mail
+ * - Either the attacker or defender are holding a Mega Stone
  * - The defender has Sticky Hold, and the attacker does not have Mold
  * Breaker
  *
@@ -6621,6 +6627,8 @@ static BOOL BtlCmd_TrySwapItems(BattleSystem *battleSys, BattleContext *battleCt
     } else if ((ATTACKING_MON.heldItem == ITEM_NONE && DEFENDING_MON.heldItem == ITEM_NONE)
         || BattleSystem_NotHoldingMail(battleCtx, battleCtx->attacker) == FALSE
         || BattleSystem_NotHoldingMail(battleCtx, battleCtx->defender) == FALSE) {
+        BattleScript_Iter(battleCtx, jumpOnFail);
+    } else if (Item_IsMegaStone(ATTACKING_MON.heldItem) || Item_IsMegaStone(DEFENDING_MON.heldItem)) {
         BattleScript_Iter(battleCtx, jumpOnFail);
     } else if (Battler_IgnorableAbility(battleCtx, battleCtx->attacker, battleCtx->defender, ABILITY_STICKY_HOLD) == TRUE) {
         BattleScript_Iter(battleCtx, jumpStickyHold);
@@ -6864,7 +6872,8 @@ static BOOL BtlCmd_TryYawn(BattleSystem *battleSys, BattleContext *battleCtx)
  * @brief Try to knock off the target's held item.
  *
  * Inputs:
- * 1. The distance to jump if the defender does not have a held item.
+ * 1. The distance to jump if the defender does not have a held item, or is
+ * holding a Mega Stone.
  *
  * Side effects:
  * - CompareVarToValue the target has a held item and does not have Sticky Hold, the mask
@@ -6881,7 +6890,10 @@ static BOOL BtlCmd_TryKnockOff(BattleSystem *battleSys, BattleContext *battleCtx
     int jumpOnFail = BattleScript_Read(battleCtx);
     int defending = Battler_Side(battleSys, battleCtx->defender);
 
-    if (DEFENDING_MON.heldItem && Battler_IgnorableAbility(battleCtx, battleCtx->attacker, battleCtx->defender, ABILITY_STICKY_HOLD) == TRUE) {
+    if (Item_IsMegaStone(DEFENDING_MON.heldItem)) {
+        // Mega Stones cannot be knocked off
+        BattleScript_Iter(battleCtx, jumpOnFail);
+    } else if (DEFENDING_MON.heldItem && Battler_IgnorableAbility(battleCtx, battleCtx->attacker, battleCtx->defender, ABILITY_STICKY_HOLD) == TRUE) {
         battleCtx->msgBuffer.id = BattleStrings_Text_PokemonsAbilityMadeMoveIneffective; // "{0}'s {1} made {2} ineffective!"
         battleCtx->msgBuffer.tags = TAG_NICKNAME_ABILITY_MOVE;
         battleCtx->msgBuffer.params[0] = BattleSystem_NicknameTag(battleCtx, battleCtx->defender);
