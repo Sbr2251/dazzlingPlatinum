@@ -23,14 +23,14 @@ _000:
 
 _016:
     // Affine Pulse charge: dim, whiten, compress, and conceal the base form
-    PlaySound BTLSCR_MSG_TEMP, 1980
+    PlaySound BTLSCR_MSG_TEMP, SEQ_SE_MEGA_CHARGE
     AffinePulse BTLSCR_MSG_TEMP, 0
     Wait
     // Swap forms only while the sprite is fully concealed
     ChangeForm BTLSCR_MSG_TEMP
     Wait
     // Affine Pulse reveal: flash, elastic overshoot, settle, and restore
-    PlaySound BTLSCR_MSG_TEMP, 1984
+    PlaySound BTLSCR_MSG_TEMP, SEQ_SE_MEGA_BURST
     AffinePulse BTLSCR_MSG_TEMP, 1
     Wait
     // Sparkle effect after the Mega sprite has settled
