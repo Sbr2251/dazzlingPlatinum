@@ -132,6 +132,7 @@ sdat_resources = files([
     seq_folder / 'SEQ_PL_BA_BRAIN.mid',
     seq_folder / 'SEQ_PL_BA_GIRA.mid',
     seq_folder / 'SEQ_PL_BA_REGI.mid',
+    seq_folder / 'SEQ_PL_BA_TOTEM.mid',
     seq_folder / 'SEQ_PL_BF_CASTLE02.mid',
     seq_folder / 'SEQ_PL_BF_CASTLE.mid',
     seq_folder / 'SEQ_PL_BF_FACTORY.mid',

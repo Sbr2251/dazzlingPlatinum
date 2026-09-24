@@ -63,6 +63,7 @@ enum EncEffectsPairID {
     ENCEFF_DOUBLE_WILD,
     ENCEFF_FRONTIER_BRAIN,
     ENCEFF_DOUBLE_LEADER,
+    ENCEFF_TOTEM,
 
     ENCEFF_NORMAL_TRAINER,
     ENCEFF_NORMAL_WILD,
@@ -70,7 +71,7 @@ enum EncEffectsPairID {
     ENCEFF_MAX,
 };
 
-static const EncEffectsPair sEncEffectsTable[35] = {
+static const EncEffectsPair sEncEffectsTable[ENCEFF_MAX] = {
     [ENCEFF_LEADER_ROARK] = { ENCEFF_CUTIN_LEADER_ROARK, SEQ_BATTLE_GYM_LEADER },
     [ENCEFF_LEADER_GARDENIA] = { ENCEFF_CUTIN_LEADER_GARDENIA, SEQ_BATTLE_GYM_LEADER },
     [ENCEFF_LEADER_WAKE] = { ENCEFF_CUTIN_LEADER_WAKE, SEQ_BATTLE_GYM_LEADER },
@@ -104,6 +105,7 @@ static const EncEffectsPair sEncEffectsTable[35] = {
     [ENCEFF_DOUBLE_WILD] = { ENCEFF_CUTIN_DOUBLE, SEQ_BATTLE_WILD_POKEMON },
     [ENCEFF_FRONTIER_BRAIN] = { ENCEFF_CUTIN_FRONTIER, SEQ_BATTLE_FRONTIER_BRAIN },
     [ENCEFF_DOUBLE_LEADER] = { ENCEFF_CUTIN_DOUBLE, SEQ_BATTLE_GYM_LEADER },
+    [ENCEFF_TOTEM] = { ENCEFF_CUTIN_USE_LOCAL, SEQ_BATTLE_TOTEM },
     [ENCEFF_NORMAL_TRAINER] = { ENCEFF_CUTIN_USE_LOCAL, SEQ_BATTLE_TRAINER },
     [ENCEFF_NORMAL_WILD] = { ENCEFF_CUTIN_USE_LOCAL, SEQ_BATTLE_WILD_POKEMON }
 };
@@ -161,6 +163,10 @@ static u32 EncEffects_GetEffectPair(const FieldBattleDTO *dto)
         }
 
         return trainerEffect;
+    }
+
+    if (dto->battleStatusMask & BATTLE_STATUS_TOTEM) {
+        return ENCEFF_TOTEM;
     }
 
     u32 pokemonEffect = EncEffects_WildPokemonEffect(dto->parties[1], dto->mapHeaderID);

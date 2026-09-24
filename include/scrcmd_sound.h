@@ -5,6 +5,7 @@
 
 BOOL ScrCmd_IsSequencePlaying(ScriptContext *ctx);
 BOOL ScrCmd_PlayMusic(ScriptContext *ctx);
+BOOL ScrCmd_PlayBattleMusic(ScriptContext *ctx);
 BOOL ScrCmd_StopMusic(ScriptContext *ctx);
 BOOL ScrCmd_PlayDefaultMusic(ScriptContext *ctx);
 BOOL ScrCmd_SetSpecialBGM(ScriptContext *ctx);

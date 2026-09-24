@@ -1016,6 +1016,11 @@
             "MD5": "8a2544473e9d867342a4910dace2a279"
         },
         {
+            "name": "SEQ_PL_BA_TOTEM.sseq",
+            "type": "SEQ",
+            "MD5": "da50bceadf9156553631a0015bdf3dc3"
+        },
+        {
             "name": "SEQ_PL_MTKAKKO.sseq",
             "type": "SEQ",
             "MD5": "60c8f9994dbdf01db0d7c1a8f9e4bca2"

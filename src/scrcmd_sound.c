@@ -32,6 +32,14 @@ BOOL ScrCmd_PlayMusic(ScriptContext *ctx)
     return FALSE;
 }
 
+// Switches to the battle sound scene ahead of the encounter, so the battle theme starts on
+// interaction. The encounter transition then finds the scene already set and doesn't restart it.
+BOOL ScrCmd_PlayBattleMusic(ScriptContext *ctx)
+{
+    Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, ScriptContext_ReadHalfWord(ctx), 1);
+    return FALSE;
+}
+
 BOOL ScrCmd_StopMusic(ScriptContext *ctx)
 {
     u16 dummy = ScriptContext_ReadHalfWord(ctx);

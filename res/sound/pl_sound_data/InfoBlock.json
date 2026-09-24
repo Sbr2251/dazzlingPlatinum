@@ -3418,11 +3418,11 @@
             "unkB": [0,0]
         },
         {
-            "name": "SEQ_PL_DMY10",
-            "fileName": "SEQ_PL_DMY10.sseq",
+            "name": "SEQ_PL_BA_TOTEM",
+            "fileName": "SEQ_PL_BA_TOTEM.sseq",
             "unkA": 0,
-            "bnk": "BANK_BGM_DEMO01",
-            "vol": 127,
+            "bnk": "BANK_BGM_BATTLE",
+            "vol": 110,
             "cpr": 30,
             "ppr": 64,
             "ply": "PLAYER_BGM",

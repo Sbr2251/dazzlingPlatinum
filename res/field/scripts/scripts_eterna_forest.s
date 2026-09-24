@@ -449,6 +449,8 @@ TotemVespiquen_Encounter:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    WaitFanfare SEQ_SE_CONFIRM
+    PlayBattleMusic SEQ_BATTLE_TOTEM
     PlayCry SPECIES_VESPIQUEN
     WaitCry
     SetFlag FLAG_MAP_LOCAL

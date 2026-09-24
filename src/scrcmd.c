@@ -1611,6 +1611,7 @@ const ScrCmdFunc Unk_020EAC58[] = {
     ScrCmd_CapitalizeFirstLetter,
     ScrCmd_BufferFloorNumber,
     ScrCmd_StartTotemBattle,
+    ScrCmd_PlayBattleMusic,
 };
 
 const u32 Unk_020EAB80 = NELEMS(Unk_020EAC58);

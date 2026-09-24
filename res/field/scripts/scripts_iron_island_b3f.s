@@ -49,6 +49,8 @@ TotemAggron_Encounter:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    WaitFanfare SEQ_SE_CONFIRM
+    PlayBattleMusic SEQ_BATTLE_TOTEM
     PlayCry SPECIES_AGGRON
     WaitCry
     SetFlag FLAG_MAP_LOCAL

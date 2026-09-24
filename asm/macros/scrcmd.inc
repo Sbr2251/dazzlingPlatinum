@@ -4191,6 +4191,11 @@
     .short \encounterID
     .endm
 
+    .macro PlayBattleMusic seqID
+    .short 841
+    .short \seqID
+    .endm
+
     .macro GetTrainerCardLevel destVar
     .short 702
     .short \destVar
