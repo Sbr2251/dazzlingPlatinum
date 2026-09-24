@@ -24,7 +24,6 @@ new form springs out.
 Two stock greyscale textures are copied from absorb.spa. The ring, the shard, the orb, the fill, the ribbon and the
 Mega symbol are drawn here: the round ones as a quarter that the hardware mirrors into a whole, the symbol in colour.
 """
-import colorsys
 import math
 import os
 import struct
@@ -186,85 +185,65 @@ def ribbon_texture():
     return texture(FMT_A5I3, 2, data, [WHITE, 0], PAL_COLOR0)
 
 
-# The Mega symbol: a teardrop, tip up and to the right, with a rainbow band inside a dark outline and a
-# white core crossed by a two-stranded helix. Shapes are signed distances in texture units ([-1, 1], y up).
-SYMBOL_CENTRE = (-0.08, -0.27)  # centre of the round part
-SYMBOL_RADIUS = 0.62
-SYMBOL_TIP_DISTANCE = 1.12
-SYMBOL_TIP_ANGLE = math.radians(58)
-SYMBOL_OUTLINE_WIDTH = 0.09
-SYMBOL_BAND_WIDTH = 0.15
-SYMBOL_HELIX_WIDTH = 0.065
-SYMBOL_OUTLINE = (3, 3, 12)
-SYMBOL_CORE = (31, 31, 31)
-SYMBOL_HELIX = (14, 4, 22)
-SYMBOL_HUES = 28
+# The Mega symbol: a rainbow DNA helix, an S-shaped band cut by a triangle at each end and two rungs between them.
+# Traced from the official symbol (Bulbapedia, File:Mega_Evolution_symbol.png), in its pixel units: 56 wide, 74
+# tall, y down. The colours run diagonally, orange to yellow-green to sky blue to magenta, along x + 0.3y.
+SYMBOL_SIZE = (56, 74)
+SYMBOL_OUTLINE = [
+    (29, 0), (36, 0), (35.5, 5), (34, 9), (33.2, 12), (33.2, 15), (34, 17.5), (35.5, 19.5), (37.5, 21.5),
+    (40.5, 24.5), (44, 28), (48, 31.5), (51.5, 35), (54.3, 38.5), (55.8, 42), (56, 47), (55.8, 51.5),
+    (55, 55), (53, 58), (50.5, 61.5), (47.5, 64.5), (44, 67.5), (39.5, 70.5), (34.5, 72.8), (29.5, 74), (27, 74),
+    (26.5, 70), (27, 64.5), (26, 61), (24.5, 58), (22, 55.5), (18, 52.3), (13.5, 48.8), (9, 45), (5, 40.5),
+    (2, 36), (0.3, 31), (0, 26), (1, 21.5), (3, 17.5), (5.3, 14.3), (8.3, 11), (12.3, 7.8), (17, 5), (22.5, 2.3),
+]
+SYMBOL_HOLES = [
+    [(25.8, 9.8), (25.8, 19.8), (15.5, 15)],
+    [(8.5, 22.5), (11, 20.8), (18, 23.8), (26, 26.8), (35, 30), (38.8, 32.6), (41.6, 35.4), (43.6, 38.6),
+     (34, 36.2), (25, 33.2), (17, 30.2), (11, 27.2), (8.5, 25)],
+    [(10, 34.5), (12, 36), (15, 37), (18, 38), (21, 39), (26, 41), (30, 42.5), (35, 44), (40, 45.2), (44, 46.2),
+     (47.6, 47), (47.6, 53.2), (45, 52.6), (40, 51.2), (36, 50.2), (30, 48.6), (26, 47.2), (19, 44.2),
+     (15, 41.2), (12, 38.6), (10.5, 36.5)],
+    [(32.6, 56.5), (32.6, 63.6), (41.5, 59)],
+]
+SYMBOL_STOPS = [(8, (27, 18, 8)), (16, (26, 20, 8)), (24, (23, 23, 9)), (32, (20, 24, 12)), (40, (16, 23, 20)),
+                (48, (12, 22, 27)), (56, (17, 17, 23)), (64, (22, 11, 19)), (72, (25, 8, 17))]
 
 
-def hue_rgb(h):
-    r, g, b = colorsys.hsv_to_rgb(h % 1.0, 0.8, 1.0)
-    return (round(r * 31), round(g * 31), round(b * 31))
+def point_in_polygon(poly, x, y):
+    inside = False
+    for i in range(len(poly)):
+        (ax, ay), (bx, by) = poly[i], poly[i - 1]
+        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay):
+            inside = not inside
+    return inside
 
 
-def segment_distance(px, py, ax, ay, bx, by):
-    vx, vy = bx - ax, by - ay
-    t = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy)))
-    return math.hypot(px - ax - t * vx, py - ay - t * vy)
-
-
-def _symbol_geometry():
-    cx, cy = SYMBOL_CENTRE
-    ux, uy = math.cos(SYMBOL_TIP_ANGLE), math.sin(SYMBOL_TIP_ANGLE)
-    tip = (cx + ux * SYMBOL_TIP_DISTANCE, cy + uy * SYMBOL_TIP_DISTANCE)
-    spread = math.pi / 2 - math.asin(SYMBOL_RADIUS / SYMBOL_TIP_DISTANCE)
-    tangents = [(cx + SYMBOL_RADIUS * math.cos(SYMBOL_TIP_ANGLE + s * spread),
-                 cy + SYMBOL_RADIUS * math.sin(SYMBOL_TIP_ANGLE + s * spread)) for s in (1, -1)]
-    steps = 48
-    # strands in the local frame: v along the tip axis, w across it
-    strands = [[(0.3 - 0.6 * i / steps, sign * 0.14 * math.sin(math.pi * 1.5 * i / steps)) for i in range(steps + 1)]
-               for sign in (1, -1)]
-    return (ux, uy), [tip] + tangents, strands
-
-
-SYMBOL_AXIS, SYMBOL_CONE, SYMBOL_STRANDS = _symbol_geometry()
-
-
-def symbol_distance(x, y):
-    """Signed distance to the teardrop's edge, negative inside."""
-    cx, cy = SYMBOL_CENTRE
-    circle = math.hypot(x - cx, y - cy) - SYMBOL_RADIUS
-    pts = SYMBOL_CONE
-    edge = min(segment_distance(x, y, *pts[i], *pts[(i + 1) % 3]) for i in range(3))
-    sides = [(pts[(i + 1) % 3][0] - pts[i][0]) * (y - pts[i][1]) - (pts[(i + 1) % 3][1] - pts[i][1]) * (x - pts[i][0])
-             for i in range(3)]
-    inside = all(s >= 0 for s in sides) or all(s <= 0 for s in sides)
-    return min(circle, -edge if inside else edge)
+def symbol_gradient(t):
+    stops = SYMBOL_STOPS
+    t = max(stops[0][0], min(stops[-1][0], t))
+    for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
+        if t <= t1:
+            f = (t - t0) / (t1 - t0)
+            return tuple(c0[i] + (c1[i] - c0[i]) * f for i in range(3))
 
 
 def symbol_sample(x, y):
-    """Returns an RGB triple (5-bit channels) or None where the texel is empty."""
-    d = symbol_distance(x, y)
-    if d > 0:
+    """Returns an RGB triple (5-bit channels) or None where the texel is empty. x and y are in [-1, 1], y up."""
+    w, h = SYMBOL_SIZE
+    scale = h / 31  # symbol pixels per texel: the symbol is 31 texels tall, centred in the 32x32 texture
+    sx = ((x + 1) * 16 - 16) * scale + w / 2
+    sy = ((1 - y) * 16 - 16) * scale + h / 2
+    if not point_in_polygon(SYMBOL_OUTLINE, sx, sy) or any(point_in_polygon(hole, sx, sy) for hole in SYMBOL_HOLES):
         return None
-    if d > -SYMBOL_OUTLINE_WIDTH:
-        return SYMBOL_OUTLINE
-    cx, cy = SYMBOL_CENTRE
-    dx, dy = x - cx, y - cy
-    band = hue_rgb(0.15 - ((math.atan2(dy, dx) - SYMBOL_TIP_ANGLE) % (2 * math.pi)) / (2 * math.pi))
-    v = dx * SYMBOL_AXIS[0] + dy * SYMBOL_AXIS[1]
-    w = -dx * SYMBOL_AXIS[1] + dy * SYMBOL_AXIS[0]
-    if d > -SYMBOL_OUTLINE_WIDTH - SYMBOL_BAND_WIDTH or v > 0.5:
-        return band
-    for strand in SYMBOL_STRANDS:
-        if any(segment_distance(v, w, *strand[i], *strand[i + 1]) < SYMBOL_HELIX_WIDTH for i in range(len(strand) - 1)):
-            return SYMBOL_HELIX
-    return SYMBOL_CORE
+    return symbol_gradient(sx + 0.3 * sy)
 
 
 def symbol_texture():
-    """32x32 A3I5: 3-bit coverage alpha, 5-bit index into outline, core, helix and a ring of hues."""
+    """32x32 A3I5: 3-bit coverage alpha, 5-bit index into 31 steps along the symbol's gradient."""
     side, n = 32, 4
-    palette = [SYMBOL_OUTLINE, SYMBOL_CORE, SYMBOL_HELIX] + [hue_rgb(0.15 - i / SYMBOL_HUES) for i in range(SYMBOL_HUES)]
+    first, last = SYMBOL_STOPS[0][0], SYMBOL_STOPS[-1][0]
+    palette = [symbol_gradient(first + (last - first) * i / 30) for i in range(31)]
+    palette = [tuple(round(v) for v in c) for c in palette]
     palette.append((0, 0, 0))  # unused, pads the palette to 32 entries
     data = bytearray()
     for ty in range(side):
