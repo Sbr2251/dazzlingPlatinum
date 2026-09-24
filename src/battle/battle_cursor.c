@@ -4081,8 +4081,8 @@ static int BattleSystem_MenuKeys(UnkStruct_ov16_02268A14 *param0)
         return 0xffffffff;
     }
 
-    // Check for L button press to toggle mega evolution
-    {
+    // Check for L button press to toggle mega evolution, only on the move selection menu
+    if (param0->unk_66B == 11) {
         UnkStruct_ov16_02260C00 *megaCheck = &param0->unk_1A.val2;
         if ((gSystem.pressedKeys & PAD_BUTTON_L) && megaCheck->megaEvolutionAvailable) {
             BattleContext *battleCtx = BattleSystem_Context(param0->battleSys);

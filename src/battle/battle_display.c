@@ -3263,15 +3263,7 @@ static void ov16_02260C00(SysTask *param0, void *param1)
             {
                 BattleContext *battleCtx = BattleSystem_Context(v0->unk_00);
                 int battler = v0->unk_1D;
-                v8.megaEvolutionAvailable = 0;
-
-                if (battler < 2 && !battleCtx->megaEvolutionUsed[battler]) {
-                    int species = battleCtx->battleMons[battler].species;
-                    int heldItem = battleCtx->battleMons[battler].heldItem;
-                    if (GetMegaEvolutionData(species, heldItem) != NULL) {
-                        v8.megaEvolutionAvailable = 1;
-                    }
-                }
+                v8.megaEvolutionAvailable = Battler_CanMegaEvolve(v0->unk_00, battleCtx, battler);
             }
 
             ov16_02268C04(v10, v11, v2, 11, 0, &v8);

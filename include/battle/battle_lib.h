@@ -354,6 +354,40 @@ void BattleContext_Init(BattleContext *battleCtx);
 void BattleContext_InitCounters(BattleSystem *battleSys, BattleContext *battleCtx);
 
 /**
+ * @brief Set which battlers' trainers are able to mega evolve this battle.
+ *
+ * The player can only mega evolve while carrying the Key Stone. Every other
+ * trainer can, but wild Pokemon never do.
+ *
+ * @param battleSys
+ * @param battleCtx
+ */
+void BattleContext_InitKeyStones(BattleSystem *battleSys, BattleContext *battleCtx);
+
+/**
+ * @brief Check if a battler can be picked to mega evolve this turn.
+ *
+ * Each trainer can mega evolve once per battle, and only one of a trainer's
+ * battlers can be picked to mega evolve in a given turn.
+ *
+ * @param battleSys
+ * @param battleCtx
+ * @param battler
+ * @return TRUE if the battler can mega evolve, FALSE if not
+ */
+BOOL Battler_CanMegaEvolve(BattleSystem *battleSys, BattleContext *battleCtx, int battler);
+
+/**
+ * @brief Record that a battler mega evolved, using up its trainer's mega
+ * evolution for the rest of the battle.
+ *
+ * @param battleSys
+ * @param battleCtx
+ * @param battler
+ */
+void BattleContext_SetMegaEvolutionUsed(BattleSystem *battleSys, BattleContext *battleCtx, int battler);
+
+/**
  * @brief Update relevant buffers for a battler after a switch.
  *
  * This handles all of the logic for what effects are zero'd out due to a

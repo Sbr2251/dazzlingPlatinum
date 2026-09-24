@@ -8531,6 +8531,14 @@
         "Totem {STRVAR_1 1, 0, 0}’s aura\n",
         "flared to life! Its stats rose!"
       ]
+    },
+    {
+      "id": "BattleStrings_Text_MegaEvolutionReacting",
+      "en_US": [
+        "{STRVAR_1 1, 0, 0}'s {STRVAR_1 8, 1, 0}\n",
+        "is reacting to {STRVAR_1 3, 2, 0}'s\f",
+        "Key Stone!"
+      ]
     }
   ]
 }

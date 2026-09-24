@@ -980,7 +980,11 @@
     },
     {
       "id": "pl_msg_00000391_00124",
-      "garbage": 0
+      "en_US": [
+        "A stone that lets Pokémon holding a\n",
+        "Mega Stone Mega Evolve in battle. It\n",
+        "reacts to the bond with its owner."
+      ]
     },
     {
       "id": "pl_msg_00000391_00125",

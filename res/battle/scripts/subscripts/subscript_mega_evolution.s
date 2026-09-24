@@ -7,6 +7,10 @@ _000:
     PrintTrainerMessage BTLSCR_MSG_TEMP, TRMSG_MEGA_EVOLUTION
     Wait
     WaitButtonABTime 30
+    // {0}'s {1} is reacting to {2}'s Key Stone!
+    PrintMessage BattleStrings_Text_MegaEvolutionReacting, TAG_NICKNAME_ITEM_TRNAME, BTLSCR_MSG_TEMP, BTLSCR_MSG_BATTLER_TEMP, BTLSCR_MSG_TEMP
+    Wait
+    WaitButtonABTime 30
 
     // Handle substitute: remove it temporarily before animation
     CompareMonDataToValue OPCODE_FLAG_NOT, BTLSCR_MSG_TEMP, BATTLEMON_VOLATILE_STATUS, VOLATILE_CONDITION_SUBSTITUTE, _016

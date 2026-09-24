@@ -25,9 +25,11 @@
 #include "battle/battle_message.h"
 #include "battle/battle_mon.h"
 #include "battle/common.h"
+#include "battle/mega_evolution.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/struct_ov16_0225BFFC_decl.h"
 
+#include "bag.h"
 #include "charcode_util.h"
 #include "flags.h"
 #include "heap.h"
@@ -2036,14 +2038,88 @@ void BattleContext_InitCounters(BattleSystem *battleSys, BattleContext *battleCt
     battleCtx->safariCatchStage = 6;
     battleCtx->safariEscapeCount = 6;
 
-    // Initialize mega evolution tracking
+    // Initialize mega evolution tracking; Key Stones are checked once the battlers exist
     for (int i = 0; i < MAX_BATTLERS; i++) {
         battleCtx->megaEvolutionUsed[i] = FALSE;
         battleCtx->megaEvolutionTriggered[i] = FALSE;
+        battleCtx->megaEvolutionTrainerUsed[i] = FALSE;
+        battleCtx->hasKeyStone[i] = FALSE;
     }
-    // For now, assume player always has Mega Ring for testing
-    battleCtx->hasMegaRing[0] = TRUE;  // Player
-    battleCtx->hasMegaRing[1] = TRUE;  // Opponent
+}
+
+void BattleContext_InitKeyStones(BattleSystem *battleSys, BattleContext *battleCtx)
+{
+    int maxBattlers = BattleSystem_MaxBattlers(battleSys);
+    u32 battleType = BattleSystem_BattleType(battleSys);
+    Bag *bag = BattleSystem_Bag(battleSys);
+
+    for (int i = 0; i < maxBattlers; i++) {
+        if (Battler_BootState(BattleSystem_BattlerData(battleSys, i)) == BATTLER_BOOT_STATE_NORMAL) {
+            // The player needs a Key Stone in their bag
+            battleCtx->hasKeyStone[i] = bag != NULL && Bag_GetItemQuantity(bag, ITEM_KEY_STONE, HEAP_ID_BATTLE) > 0;
+        } else {
+            // Other trainers always carry one, but wild Pokemon never mega evolve
+            battleCtx->hasKeyStone[i] = (battleType & BATTLE_TYPE_TRAINER) != FALSE;
+        }
+    }
+}
+
+/**
+ * @brief Check if two battlers are controlled by the same trainer.
+ *
+ * Mirrors the trainer lookup of BattleSystem_GetTrainer: each battler has its
+ * own trainer in 2vs2 battles and on the enemy side of tag battles, and
+ * otherwise one trainer controls a whole side.
+ */
+static BOOL Battlers_ShareTrainer(BattleSystem *battleSys, int battler1, int battler2)
+{
+    u32 battleType = BattleSystem_BattleType(battleSys);
+
+    if (battler1 == battler2) {
+        return TRUE;
+    }
+
+    if (Battler_Side(battleSys, battler1) != Battler_Side(battleSys, battler2)) {
+        return FALSE;
+    }
+
+    if ((battleType & BATTLE_TYPE_2vs2)
+        || ((battleType & BATTLE_TYPE_TAG) && Battler_Side(battleSys, battler1) == BATTLE_SIDE_ENEMY)) {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+BOOL Battler_CanMegaEvolve(BattleSystem *battleSys, BattleContext *battleCtx, int battler)
+{
+    int maxBattlers = BattleSystem_MaxBattlers(battleSys);
+
+    if (battleCtx->hasKeyStone[battler] == FALSE || battleCtx->megaEvolutionTrainerUsed[battler]) {
+        return FALSE;
+    }
+
+    // Only one of a trainer's battlers can be picked to mega evolve each turn
+    for (int i = 0; i < maxBattlers; i++) {
+        if (i != battler && battleCtx->megaEvolutionTriggered[i] && Battlers_ShareTrainer(battleSys, battler, i)) {
+            return FALSE;
+        }
+    }
+
+    return GetMegaEvolutionData(battleCtx->battleMons[battler].species, battleCtx->battleMons[battler].heldItem) != NULL;
+}
+
+void BattleContext_SetMegaEvolutionUsed(BattleSystem *battleSys, BattleContext *battleCtx, int battler)
+{
+    int maxBattlers = BattleSystem_MaxBattlers(battleSys);
+
+    battleCtx->megaEvolutionUsed[battler] = TRUE;
+
+    for (int i = 0; i < maxBattlers; i++) {
+        if (Battlers_ShareTrainer(battleSys, battler, i)) {
+            battleCtx->megaEvolutionTrainerUsed[i] = TRUE;
+        }
+    }
 }
 
 void BattleSystem_UpdateAfterSwitch(BattleSystem *battleSys, BattleContext *battleCtx, int battler)
