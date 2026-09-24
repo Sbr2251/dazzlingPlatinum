@@ -69,6 +69,7 @@
 #include "sys_task.h"
 #include "system.h"
 #include "text.h"
+#include "totem_battle.h"
 #include "touch_screen.h"
 #include "trainer_data.h"
 #include "trainer_info.h"
@@ -2052,7 +2053,12 @@ static BOOL BtlCmd_PlayFaintAnimation(BattleSystem *battleSys, BattleContext *ba
 
     BattleController_EmitPlayFaintingSequence(battleSys, battleCtx, battleCtx->faintedMon);
     battleCtx->battleStatusMask &= (FlagIndex(battleCtx->faintedMon) << SYSCTL_MON_FAINTED_SHIFT) ^ 0xFFFFFFFF;
-    battleCtx->battleStatusMask2 |= FlagIndex(battleCtx->faintedMon) << SYSCTL_PAYOUT_EXP_SHIFT;
+
+    // A Totem's summoned allies give no EXP
+    if (TotemBattle_IsActive(battleSys) == FALSE || battleCtx->faintedMon != BATTLER_ENEMY_2) {
+        battleCtx->battleStatusMask2 |= FlagIndex(battleCtx->faintedMon) << SYSCTL_PAYOUT_EXP_SHIFT;
+    }
+
     battleCtx->battlerActions[battleCtx->faintedMon][BATTLE_ACTION_PICK_COMMAND] = BATTLE_CONTROL_MOVE_END;
 
     BattleSystem_CleanupFaintedMon(battleSys, battleCtx, battleCtx->faintedMon);

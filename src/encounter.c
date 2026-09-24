@@ -588,7 +588,7 @@ void Encounter_NewTotemBattle(FieldTask *task, u8 encounterID, int *resultMaskPt
         CreateWildMon_Scripted(fieldSystem, config->party[i].species, config->party[i].level, dto);
     }
 
-    dto->battleStatusMask |= BATTLE_STATUS_LEGENDARY | BATTLE_STATUS_TOTEM;
+    dto->battleStatusMask |= BATTLE_STATUS_LEGENDARY | BATTLE_STATUS_TOTEM | BATTLE_STATUS_NO_RUNNING;
 
     GameRecords_IncrementRecordValue(SaveData_GetGameRecords(fieldSystem->saveData), RECORD_WILD_BATTLES_FOUGHT);
     StartEncounter(task, dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);

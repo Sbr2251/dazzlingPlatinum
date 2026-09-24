@@ -8517,6 +8517,20 @@
         "{STRVAR_1 1, 0, 0} summoned\n",
         "an ally!"
       ]
+    },
+    {
+      "id": "BattleStrings_Text_NoRunningFromTotem",
+      "en_US": [
+        "You can’t escape from\n",
+        "a Totem Pokémon!\r"
+      ]
+    },
+    {
+      "id": "BattleStrings_Text_TotemAuraFlared",
+      "en_US": [
+        "Totem {STRVAR_1 1, 0, 0}’s aura\n",
+        "flared to life! Its stats rose!"
+      ]
     }
   ]
 }

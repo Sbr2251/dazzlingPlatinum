@@ -229,6 +229,13 @@
         "It’s no good! It’s impossible to aim\n",
         "at a Pokémon that’s not in sight!"
       ]
+    },
+    {
+      "id": "BattleBag_Text_CantUseBallTotem",
+      "en_US": [
+        "It’s no good! A Totem Pokémon and\n",
+        "its allies can’t be caught!"
+      ]
     }
   ]
 }

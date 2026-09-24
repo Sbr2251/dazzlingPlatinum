@@ -47,6 +47,7 @@
 #include "totem_battle.h"
 
 #include "res/battle/scripts/sub_seq.naix.h"
+#include "res/text/bank/battle_strings.h"
 
 enum BattleControllerState {
     STATE_PROCESSING = 0,
@@ -748,6 +749,13 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
                     battleCtx->curCommandState[i] = COMMAND_SELECTION_ALERT_MESSAGE_WAIT;
                     battleCtx->nextCommandState[i] = COMMAND_SELECTION_INIT;
                 }
+            } else if (BattleSystem_BattleStatus(battleSys) & BATTLE_STATUS_NO_RUNNING) {
+                msg.tags = TAG_NONE;
+                msg.id = BattleStrings_Text_NoRunningFromTotem; // "You can't escape from a Totem Pokémon!"
+                BattleController_EmitSetAlertMessage(battleSys, i, msg);
+
+                battleCtx->curCommandState[i] = COMMAND_SELECTION_ALERT_MESSAGE_WAIT;
+                battleCtx->nextCommandState[i] = COMMAND_SELECTION_INIT;
             } else if (Battler_IsTrappedMsg(battleSys, battleCtx, i, &msg)) {
                 if (BattleSystem_BattleStatus(battleSys) & BATTLE_STATUS_RECORDING) {
                     BattleSystem_SetStopRecording(battleSys, 1);
@@ -4260,7 +4268,10 @@ static BOOL BattleControllerPlayer_ReplaceFainted(BattleSystem *battleSys, Battl
             continue;
         }
 
-        if (TotemBattle_IsActive(battleSys) && i == BATTLER_ENEMY_2 && battleCtx->battleMons[i].curHP == 0) {
+        // Neither the Totem nor its ally is replaced; the Totem's other allies only come in by summon
+        if (TotemBattle_IsActive(battleSys)
+            && (i == BATTLER_ENEMY_1 || i == BATTLER_ENEMY_2)
+            && battleCtx->battleMons[i].curHP == 0) {
             battleCtx->battlersSwitchingMask |= FlagIndex(i);
             battleCtx->selectedPartySlot[i] = MAX_PARTY_SIZE;
             battleCtx->switchedPartySlot[i] = MAX_PARTY_SIZE;
@@ -4400,7 +4411,10 @@ static BOOL BattleControllerPlayer_CheckBattleOver(BattleSystem *battleSys, Batt
         int totalPartyHP = 0;
         Party *party = BattleSystem_Party(battleSys, BATTLER_PLAYER_1);
 
-        if (battleCtx->battleMons[BATTLER_ENEMY_1].curHP == 0) {
+        // The Totem's ally must be defeated too if it's still standing
+        if (battleCtx->battleMons[BATTLER_ENEMY_1].curHP == 0
+            && (battleCtx->selectedPartySlot[BATTLER_ENEMY_2] == MAX_PARTY_SIZE
+                || battleCtx->battleMons[BATTLER_ENEMY_2].curHP == 0)) {
             battleResult |= BATTLE_RESULT_WIN;
         }
 

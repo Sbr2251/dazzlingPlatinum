@@ -90,7 +90,7 @@ TotemEncounter:
     Wait
     OAMToSprite BTLSCR_ENEMY_SLOT_1
     Wait
-    Call BATTLE_SUBSCRIPT_BOOST_ALL_STATS
+    Call BATTLE_SUBSCRIPT_TOTEM_AURA
     GoTo _258
 
 _118:

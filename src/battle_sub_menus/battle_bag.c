@@ -36,6 +36,7 @@
 #include "sys_task_manager.h"
 #include "system.h"
 #include "text.h"
+#include "totem_battle.h"
 #include "touch_screen.h"
 #include "unk_0200679C.h"
 
@@ -431,7 +432,7 @@ static u8 TryUseItem(BattleBag *battleBag)
             UseBagItem(context->battleSystem, context->selectedBattleBagItem, battleBag->currentBattlePocket, context->heapID);
             return TASK_STATE_EXIT;
         } else if (itemBattleUse == 3) {
-            if (!(BattleSystem_BattleType(context->battleSystem) & BATTLE_TYPE_TRAINER)) {
+            if (!(BattleSystem_BattleType(context->battleSystem) & BATTLE_TYPE_TRAINER) && !TotemBattle_IsActive(context->battleSystem)) {
                 UseBagItem(context->battleSystem, context->selectedBattleBagItem, battleBag->currentBattlePocket, context->heapID);
                 return TASK_STATE_EXIT;
             } else {
@@ -452,6 +453,13 @@ static u8 TryUseItem(BattleBag *battleBag)
             return TASK_STATE_AWAITING_TEXT_FINISH;
         }
     } else if (battleBag->currentBattlePocket == ITEM_BATTLE_CATEGORY_POKE_BALLS) {
+        if (TotemBattle_IsActive(context->battleSystem)) {
+            MessageLoader_GetString(battleBag->messageLoader, BattleBag_Text_CantUseBallTotem, battleBag->string);
+            BattleBagText_DisplayMessage(battleBag);
+            battleBag->queuedState = TASK_STATE_CLEAR_ERROR_MESSAGE;
+            return TASK_STATE_AWAITING_TEXT_FINISH;
+        }
+
         if (context->hasTwoOpponents == TRUE) {
             MessageLoader_GetString(battleBag->messageLoader, BattleBag_Text_CantUseBallTwoPokemon, battleBag->string);
             BattleBagText_DisplayMessage(battleBag);
