@@ -487,6 +487,7 @@ battle_particle_files = files(
     'ominous_wind.spa',
     'shadow_force.spa',
     'totem_aura.spa',
+    'mega_evolution.spa',
 )
 
 battle_particles_basename = 'battle_particles'

@@ -23,6 +23,8 @@ _000:
 
 _016:
     // Affine Pulse charge: dim, whiten, compress, and conceal the base form
+    // Rainbow energy converges into a cocoon; runs alongside the pulse, whose Wait covers both
+    PlayBattleAnimation BTLSCR_MSG_TEMP, BATTLE_ANIMATION_MEGA_EVOLUTION_CHARGE
     PlaySound BTLSCR_MSG_TEMP, 1980
     AffinePulse BTLSCR_MSG_TEMP, 0
     Wait
@@ -30,11 +32,10 @@ _016:
     ChangeForm BTLSCR_MSG_TEMP
     Wait
     // Affine Pulse reveal: flash, elastic overshoot, settle, and restore
+    // The cocoon shatters and the Mega symbol appears; runs alongside the pulse
+    PlayBattleAnimation BTLSCR_MSG_TEMP, BATTLE_ANIMATION_MEGA_EVOLUTION
     PlaySound BTLSCR_MSG_TEMP, 1984
     AffinePulse BTLSCR_MSG_TEMP, 1
-    Wait
-    // Sparkle effect after the Mega sprite has settled
-    PlayBattleAnimation BTLSCR_MSG_TEMP, BATTLE_ANIMATION_SHINY
     Wait
     // {0} Mega Evolved!
     PrintMessage pl_msg_00000368_01269, TAG_NICKNAME, BTLSCR_MSG_TEMP

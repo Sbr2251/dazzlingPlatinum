@@ -16,6 +16,8 @@ void BattleAnimScriptFunc_FadeBattlerSprite(BattleAnimSystem *system);
 void BattleAnimScriptFunc_ScalePokemonSprite(BattleAnimSystem *system);
 void BattleAnimScriptFunc_ScaleBattlerSprite(BattleAnimSystem *system);
 void BattleAnimScriptFunc_AlphaFadePokemonSprite(BattleAnimSystem *system);
+void BattleAnimScriptFunc_KeepTranslucent(BattleAnimSystem *system);
+void BattleAnimScriptFunc_SkipSoundEffectWait(BattleAnimSystem *system);
 void BattleAnimScriptFunc_HideBattler(BattleAnimSystem *system);
 void BattleAnimScriptFunc_BlinkAttacker(BattleAnimSystem *system);
 void BattleAnimScriptFunc_MoveBattlerX(BattleAnimSystem *system);

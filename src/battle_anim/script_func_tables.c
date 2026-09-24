@@ -100,7 +100,9 @@ static const BattleAnimScriptFunc sBattleAnimScriptFuncs[] = {
     BattleAnimScriptFunc_StatChangeUp,
     BattleAnimScriptFunc_StatChangeDown,
     BattleAnimScriptFunc_StatChangeHeal,
-    BattleAnimScriptFunc_StatChangeMetal
+    BattleAnimScriptFunc_StatChangeMetal,
+    BattleAnimScriptFunc_KeepTranslucent,
+    BattleAnimScriptFunc_SkipSoundEffectWait
 };
 
 static const BattleAnimScriptSpriteFunc sBattleAnimScriptSpriteFuncs[] = {
