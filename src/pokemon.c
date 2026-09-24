@@ -44,6 +44,7 @@
 #include "palette.h"
 #include "party.h"
 #include "pokemon_anim.h"
+#include "pokemon_mega_data.h"
 #include "pokemon_sprite.h"
 #include "rtc.h"
 #include "sound_chatot.h"
@@ -2261,9 +2262,7 @@ void SpeciesData_Free(SpeciesData *speciesData)
 
 u32 SpeciesData_GetFormValue(int monSpecies, int monForm, enum SpeciesDataParam param)
 {
-    monSpecies = Pokemon_GetFormNarcIndex(monSpecies, monForm);
-
-    SpeciesData *speciesData = SpeciesData_FromMonSpecies(monSpecies, HEAP_ID_SYSTEM);
+    SpeciesData *speciesData = SpeciesData_FromMonForm(monSpecies, monForm, HEAP_ID_SYSTEM);
     u32 result = SpeciesData_GetValue(speciesData, param);
 
     SpeciesData_Free(speciesData);
@@ -2827,6 +2826,14 @@ void BuildPokemonSpriteTemplate(PokemonSpriteTemplate *spriteTemplate, u16 speci
     spriteTemplate->personality = 0;
     form = Pokemon_SanitizeFormId(species, form);
 
+    const MegaEvolutionData *megaData = MegaEvolution_GetFormData(species, form);
+    if (megaData != NULL) {
+        spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
+        spriteTemplate->character = megaData->spriteCharacter + (face / 2);
+        spriteTemplate->palette = megaData->spritePalette + shiny;
+        return;
+    }
+
     switch (species) {
     case SPECIES_BURMY:
         spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
@@ -2910,138 +2917,6 @@ void BuildPokemonSpriteTemplate(PokemonSpriteTemplate *spriteTemplate, u16 speci
         spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
         spriteTemplate->character = 150 + (face / 2) + form * 2;
         spriteTemplate->palette = 258 + shiny + form * 2;
-        break;
-
-    case SPECIES_GARCHOMP:
-        if (form == MEGA_FORM_GARCHOMP) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 154 + (face / 2);
-            spriteTemplate->palette = 262 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
-        break;
-
-    case SPECIES_LUCARIO:
-        if (form == MEGA_FORM_LUCARIO) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 156 + (face / 2);
-            spriteTemplate->palette = 264 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
-        break;
-
-    case SPECIES_GENGAR:
-        if (form == MEGA_FORM_GENGAR) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 158 + (face / 2);
-            spriteTemplate->palette = 266 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
-        break;
-
-    case SPECIES_GARDEVOIR:
-        if (form == MEGA_FORM_GARDEVOIR) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 160 + (face / 2);
-            spriteTemplate->palette = 268 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
-        break;
-
-    case SPECIES_ALAKAZAM:
-        if (form == MEGA_FORM_ALAKAZAM) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 162 + (face / 2);
-            spriteTemplate->palette = 270 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
-        break;
-
-    case SPECIES_GYARADOS:
-        if (form == MEGA_FORM_GYARADOS) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 164 + (face / 2);
-            spriteTemplate->palette = 272 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
-        break;
-
-    case SPECIES_SCIZOR:
-        if (form == MEGA_FORM_SCIZOR) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 166 + (face / 2);
-            spriteTemplate->palette = 274 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
-        break;
-
-    case SPECIES_TORTERRA:
-        if (form == MEGA_FORM_TORTERRA) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 276 + (face / 2);
-            spriteTemplate->palette = 282 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
-        break;
-
-    case SPECIES_INFERNAPE:
-        if (form == MEGA_FORM_INFERNAPE) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 278 + (face / 2);
-            spriteTemplate->palette = 284 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
-        break;
-
-    case SPECIES_EMPOLEON:
-        if (form == MEGA_FORM_EMPOLEON) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 280 + (face / 2);
-            spriteTemplate->palette = 286 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
-        break;
-
-    case SPECIES_STARAPTOR:
-        if (form == MEGA_FORM_STARAPTOR) {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
-            spriteTemplate->character = 288 + (face / 2);
-            spriteTemplate->palette = 290 + shiny;
-        } else {
-            spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
-            spriteTemplate->character = species * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
-            spriteTemplate->palette = species * 6 + 4 + shiny;
-        }
         break;
 
     default:
@@ -4734,8 +4609,26 @@ static void SpeciesData_LoadSpecies(int monSpecies, SpeciesData *speciesData)
 
 static void SpeciesData_LoadForm(int monSpecies, int monForm, SpeciesData *speciesData)
 {
+    // Mega forms have no personal data of their own: they share the base
+    // species' entry, with base stats, types and ability taken from the
+    // mega evolution table
+    const MegaEvolutionData *megaData = MegaEvolution_GetFormData(monSpecies, monForm);
+
     monSpecies = Pokemon_GetFormNarcIndex(monSpecies, monForm);
     NARC_ReadWholeMemberByIndexPair(speciesData, NARC_INDEX_POKETOOL__PERSONAL__PL_PERSONAL, monSpecies);
+
+    if (megaData != NULL) {
+        speciesData->baseStats.hp = megaData->baseStats[0];
+        speciesData->baseStats.attack = megaData->baseStats[1];
+        speciesData->baseStats.defense = megaData->baseStats[2];
+        speciesData->baseStats.spAttack = megaData->baseStats[3];
+        speciesData->baseStats.spDefense = megaData->baseStats[4];
+        speciesData->baseStats.speed = megaData->baseStats[5];
+        speciesData->types[0] = megaData->type1;
+        speciesData->types[1] = megaData->type2;
+        speciesData->abilities[0] = megaData->ability;
+        speciesData->abilities[1] = megaData->ability;
+    }
 }
 
 static void LoadSpeciesEvolutions(int monSpecies, SpeciesEvolution speciesEvolutions[MAX_EVOLUTIONS])

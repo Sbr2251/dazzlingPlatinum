@@ -6,6 +6,8 @@
 #include "generated/items.h"
 #include "struct_defs/pokemon_mega_data.h"
 
+#include "pokemon_mega_data.h"
+
 // Mega Evolution data table
 // Each entry defines the properties of a mega-evolved Pokémon
 const MegaEvolutionData sMegaEvolutionTable[] = {
@@ -21,6 +23,8 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_SAND_FORCE,
         .type1 = TYPE_DRAGON,
         .type2 = TYPE_GROUND,
+        .spriteCharacter = 154,
+        .spritePalette = 262,
     },
     // Mega Lucario
     // Base stats: 70 HP, 145 Atk, 88 Def, 140 SpAtk, 70 SpDef, 112 Speed
@@ -34,6 +38,8 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_ADAPTABILITY,
         .type1 = TYPE_FIGHTING,
         .type2 = TYPE_STEEL,
+        .spriteCharacter = 156,
+        .spritePalette = 264,
     },
     // Mega Gengar
     // Base stats: 60 HP, 65 Atk, 80 Def, 170 SpAtk, 95 SpDef, 130 Speed
@@ -47,6 +53,8 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_SHADOW_TAG,
         .type1 = TYPE_GHOST,
         .type2 = TYPE_POISON,
+        .spriteCharacter = 158,
+        .spritePalette = 266,
     },
     // Mega Gardevoir
     // Base stats: 68 HP, 85 Atk, 65 Def, 165 SpAtk, 135 SpDef, 100 Speed
@@ -60,6 +68,8 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_TRACE,
         .type1 = TYPE_PSYCHIC,
         .type2 = TYPE_FAIRY,
+        .spriteCharacter = 160,
+        .spritePalette = 268,
     },
     // Mega Alakazam
     // Base stats: 55 HP, 50 Atk, 65 Def, 175 SpAtk, 105 SpDef, 150 Speed
@@ -73,6 +83,8 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_TRACE,
         .type1 = TYPE_PSYCHIC,
         .type2 = TYPE_PSYCHIC,
+        .spriteCharacter = 162,
+        .spritePalette = 270,
     },
     // Mega Gyarados
     // Base stats: 95 HP, 155 Atk, 109 Def, 70 SpAtk, 130 SpDef, 81 Speed
@@ -86,6 +98,8 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_MOLD_BREAKER,
         .type1 = TYPE_WATER,
         .type2 = TYPE_DARK,
+        .spriteCharacter = 164,
+        .spritePalette = 272,
     },
     // Mega Scizor
     // Base stats: 70 HP, 150 Atk, 140 Def, 65 SpAtk, 100 SpDef, 75 Speed
@@ -99,6 +113,8 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_TECHNICIAN,
         .type1 = TYPE_BUG,
         .type2 = TYPE_STEEL,
+        .spriteCharacter = 166,
+        .spritePalette = 274,
     },
     // Mega Torterra
     // Base stats: 95 HP, 149 Atk, 145 Def, 85 SpAtk, 115 SpDef, 36 Speed
@@ -112,6 +128,8 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_THICK_FAT,
         .type1 = TYPE_GRASS,
         .type2 = TYPE_GROUND,
+        .spriteCharacter = 276,
+        .spritePalette = 282,
     },
     // Mega Infernape
     // Base stats: 76 HP, 134 Atk, 81 Def, 134 SpAtk, 81 SpDef, 128 Speed
@@ -125,6 +143,8 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_ADAPTABILITY,
         .type1 = TYPE_FIRE,
         .type2 = TYPE_FIGHTING,
+        .spriteCharacter = 278,
+        .spritePalette = 284,
     },
     // Mega Empoleon
     // Base stats: 84 HP, 106 Atk, 118 Def, 141 SpAtk, 121 SpDef, 60 Speed
@@ -138,6 +158,8 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_FILTER,
         .type1 = TYPE_WATER,
         .type2 = TYPE_STEEL,
+        .spriteCharacter = 280,
+        .spritePalette = 286,
     },
     // Mega Staraptor
     // Base stats: 85 HP, 140 Atk, 100 Def, 60 SpAtk, 90 SpDef, 110 Speed
@@ -151,8 +173,22 @@ const MegaEvolutionData sMegaEvolutionTable[] = {
         .ability = ABILITY_CONTRARY,
         .type1 = TYPE_FIGHTING,
         .type2 = TYPE_FLYING,
+        .spriteCharacter = 288,
+        .spritePalette = 290,
     },
 };
 
 // Size of the mega evolution table
-const int sMegaEvolutionTableSize = 11;
+const int sMegaEvolutionTableSize = NELEMS(sMegaEvolutionTable);
+
+const MegaEvolutionData *MegaEvolution_GetFormData(int species, int form)
+{
+    for (int i = 0; i < sMegaEvolutionTableSize; i++) {
+        if (sMegaEvolutionTable[i].baseSpecies == species
+            && sMegaEvolutionTable[i].megaForm == form) {
+            return &sMegaEvolutionTable[i];
+        }
+    }
+
+    return NULL;
+}

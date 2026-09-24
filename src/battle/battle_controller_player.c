@@ -109,7 +109,7 @@ static BOOL BattleControllerPlayer_HasNoTarget(BattleSystem *battleSys, BattleCo
 static int BattleControllerPlayer_CheckTypeChart(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BattleControllerPlayer_CheckStatusDisruption(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BattleControllerPlayer_TriggerImmunityAbilities(BattleSystem *battleSys, BattleContext *battleCtx);
-static void ApplyMegaEvolutionStats(BattleSystem *battleSys, BattleContext *battleCtx, int battler, const MegaEvolutionData *megaData);
+static void MegaEvolveBattler(BattleSystem *battleSys, BattleContext *battleCtx, int battler, const MegaEvolutionData *megaData);
 static BOOL BattleControllerPlayer_LoadQuickClawCheck(BattleSystem *battleSys, BattleContext *battleCtx);
 static int BattleControllerPlayer_CheckMoveHitAccuracy(BattleSystem *battleSys, BattleContext *battleCtx, int attacker, int defender, int move);
 static int BattleControllerPlayer_CheckMoveHitOverrides(BattleSystem *battleSys, BattleContext *battleCtx, int attacker, int defender, int move);
@@ -273,97 +273,34 @@ static void BattleControllerPlayer_TrainerMessage(BattleSystem *battleSys, Battl
     BattleSystem_SortMonSpeedOrder(battleSys, battleCtx);
 }
 
-// Apply nature modifier to a stat value
-// statIndex: 0=ATK, 1=DEF, 2=SPEED, 3=SPATK, 4=SPDEF
-static u16 MegaEvo_ApplyNature(u8 nature, u16 statValue, u8 statIndex)
+// Mega evolve the battler's party Pokemon, then refresh the battler's stats,
+// ability, types and form from it. HP, stat stages, status and volatile
+// conditions are kept as they are.
+static void MegaEvolveBattler(BattleSystem *battleSys, BattleContext *battleCtx, int battler, const MegaEvolutionData *megaData)
 {
-    u8 boosted = nature / 5;
-    u8 reduced = nature % 5;
+    Pokemon *partyMon = BattleSystem_PartyPokemon(battleSys, battler, battleCtx->selectedPartySlot[battler]);
 
-    if (statIndex == boosted && statIndex != reduced) {
-        return (u16)(statValue * 110 / 100);
-    } else if (statIndex == reduced && statIndex != boosted) {
-        return (u16)(statValue * 90 / 100);
+    if (Pokemon_MegaEvolve(partyMon, megaData) == FALSE) {
+        return;
     }
-    return statValue;
-}
 
-// Calculate and apply mega evolution stats from the MegaEvolutionData table
-// to both the battleMon and the party Pokemon
-static void ApplyMegaEvolutionStats(BattleSystem *battleSys, BattleContext *battleCtx, int battler, const MegaEvolutionData *megaData)
-{
-    Party *party = BattleSystem_Party(battleSys, battler);
-    int partySlot = battleCtx->selectedPartySlot[battler];
-    Pokemon *partyMon = Party_GetPokemonBySlotIndex(party, partySlot);
+    battleCtx->battleMons[battler].attack = Pokemon_GetValue(partyMon, MON_DATA_ATK, NULL);
+    battleCtx->battleMons[battler].defense = Pokemon_GetValue(partyMon, MON_DATA_DEF, NULL);
+    battleCtx->battleMons[battler].speed = Pokemon_GetValue(partyMon, MON_DATA_SPEED, NULL);
+    battleCtx->battleMons[battler].spAttack = Pokemon_GetValue(partyMon, MON_DATA_SP_ATK, NULL);
+    battleCtx->battleMons[battler].spDefense = Pokemon_GetValue(partyMon, MON_DATA_SP_DEF, NULL);
+    battleCtx->battleMons[battler].type1 = Pokemon_GetValue(partyMon, MON_DATA_TYPE_1, NULL);
+    battleCtx->battleMons[battler].type2 = Pokemon_GetValue(partyMon, MON_DATA_TYPE_2, NULL);
+    battleCtx->battleMons[battler].formNum = Pokemon_GetValue(partyMon, MON_DATA_FORM, NULL);
 
-    int level = Pokemon_GetValue(partyMon, MON_DATA_LEVEL, NULL);
-    u8 nature = Pokemon_GetNature(partyMon);
-
-    // Get IVs
-    int atkIV = Pokemon_GetValue(partyMon, MON_DATA_ATK_IV, NULL);
-    int defIV = Pokemon_GetValue(partyMon, MON_DATA_DEF_IV, NULL);
-    int spdIV = Pokemon_GetValue(partyMon, MON_DATA_SPEED_IV, NULL);
-    int spAtkIV = Pokemon_GetValue(partyMon, MON_DATA_SPATK_IV, NULL);
-    int spDefIV = Pokemon_GetValue(partyMon, MON_DATA_SPDEF_IV, NULL);
-
-    // Get EVs
-    int atkEV = Pokemon_GetValue(partyMon, MON_DATA_ATK_EV, NULL);
-    int defEV = Pokemon_GetValue(partyMon, MON_DATA_DEF_EV, NULL);
-    int spdEV = Pokemon_GetValue(partyMon, MON_DATA_SPEED_EV, NULL);
-    int spAtkEV = Pokemon_GetValue(partyMon, MON_DATA_SPATK_EV, NULL);
-    int spDefEV = Pokemon_GetValue(partyMon, MON_DATA_SPDEF_EV, NULL);
-
-    // Calculate stats from mega base stats using standard Pokemon stat formula
-    // baseStats layout: [HP, ATK, DEF, SPATK, SPDEF, SPEED]
-    u16 newAtk = (u16)((2 * megaData->baseStats[1] + atkIV + atkEV / 4) * level / 100 + 5);
-    newAtk = MegaEvo_ApplyNature(nature, newAtk, 0);
-
-    u16 newDef = (u16)((2 * megaData->baseStats[2] + defIV + defEV / 4) * level / 100 + 5);
-    newDef = MegaEvo_ApplyNature(nature, newDef, 1);
-
-    u16 newSpeed = (u16)((2 * megaData->baseStats[5] + spdIV + spdEV / 4) * level / 100 + 5);
-    newSpeed = MegaEvo_ApplyNature(nature, newSpeed, 2);
-
-    u16 newSpAtk = (u16)((2 * megaData->baseStats[3] + spAtkIV + spAtkEV / 4) * level / 100 + 5);
-    newSpAtk = MegaEvo_ApplyNature(nature, newSpAtk, 3);
-
-    u16 newSpDef = (u16)((2 * megaData->baseStats[4] + spDefIV + spDefEV / 4) * level / 100 + 5);
-    newSpDef = MegaEvo_ApplyNature(nature, newSpDef, 4);
-
-    // Apply to battleMon
-    battleCtx->battleMons[battler].attack = newAtk;
-    battleCtx->battleMons[battler].defense = newDef;
-    battleCtx->battleMons[battler].spAttack = newSpAtk;
-    battleCtx->battleMons[battler].spDefense = newSpDef;
-    battleCtx->battleMons[battler].speed = newSpeed;
-    battleCtx->battleMons[battler].ability = megaData->ability;
-    battleCtx->battleMons[battler].type1 = megaData->type1;
-    battleCtx->battleMons[battler].type2 = megaData->type2;
-    battleCtx->battleMons[battler].formNum = megaData->megaForm;
-
-    // Apply to party Pokemon for summary screen
-    Pokemon_SetValue(partyMon, MON_DATA_ATK, &newAtk);
-    Pokemon_SetValue(partyMon, MON_DATA_DEF, &newDef);
-    Pokemon_SetValue(partyMon, MON_DATA_SP_ATK, &newSpAtk);
-    Pokemon_SetValue(partyMon, MON_DATA_SP_DEF, &newSpDef);
-    Pokemon_SetValue(partyMon, MON_DATA_SPEED, &newSpeed);
-    Pokemon_SetValue(partyMon, MON_DATA_FORM, &megaData->megaForm);
+    if ((BattleSystem_BattleType(battleSys) & BATTLE_TYPE_NO_ABILITIES) == FALSE) {
+        battleCtx->battleMons[battler].ability = Pokemon_GetValue(partyMon, MON_DATA_ABILITY, NULL);
+    }
 }
 
 static void BattleControllerPlayer_ShowBattleMon(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     int nextSeq = BattleSystem_TriggerEffectOnSwitch(battleSys, battleCtx);
-
-    // Reapply mega evolution stats if this Pokemon has already mega evolved this battle
-    int maxBattlers = BattleSystem_MaxBattlers(battleSys);
-    for (int battler = 0; battler < maxBattlers; battler++) {
-        if (battleCtx->megaEvolutionUsed[battler]) {
-            const MegaEvolutionData *megaData = GetMegaEvolutionDataBySpecies(battleCtx->battleMons[battler].species);
-            if (megaData != NULL) {
-                ApplyMegaEvolutionStats(battleSys, battleCtx, battler, megaData);
-            }
-        }
-    }
 
     if (nextSeq) {
         LOAD_SUBSEQ(nextSeq);
@@ -966,7 +903,7 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
                     battleCtx->megaEvolutionTriggered[battler] = FALSE;
 
                     if (megaData != NULL) {
-                        ApplyMegaEvolutionStats(battleSys, battleCtx, battler, megaData);
+                        MegaEvolveBattler(battleSys, battleCtx, battler, megaData);
                         battleCtx->megaEvolutionUsed[battler] = TRUE;
 
                         // Play mega evolution animation

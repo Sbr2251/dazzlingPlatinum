@@ -11,6 +11,8 @@ typedef struct {
     u8  ability;          // Mega form ability
     u8  type1;            // Primary type
     u8  type2;            // Secondary type
+    u16 spriteCharacter;  // pl_otherpoke character of the back sprite (front = +1)
+    u16 spritePalette;    // pl_otherpoke palette of the normal colors (shiny = +1)
 } MegaEvolutionData;
 
 #endif // POKEPLATINUM_STRUCT_DEFS_POKEMON_MEGA_DATA_H
