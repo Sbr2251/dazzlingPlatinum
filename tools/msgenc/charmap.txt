@@ -438,6 +438,8 @@
 01B0=·
 01B1=/
 01B2=‘
+// ASCII apostrophe encodes like the curly one; listed first so decoding still yields the curly one
+01B3='
 01B3=’
 01B4=“
 01B5=”

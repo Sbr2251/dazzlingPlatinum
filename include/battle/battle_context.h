@@ -312,9 +312,10 @@ struct BattleContext {
     u32 padding3154_01 : 31;
 
     // Mega Evolution tracking
-    u8 megaEvolutionUsed[MAX_BATTLERS];      // Has each battler used mega evolution this battle?
-    u8 megaEvolutionTriggered[MAX_BATTLERS]; // Will each battler mega evolve this turn?
-    BOOL hasMegaRing[2];                     // Does each trainer have the Mega Ring? (0=Player, 1=Opponent)
+    u8 megaEvolutionUsed[MAX_BATTLERS];        // Has each battler used mega evolution this battle?
+    u8 megaEvolutionTriggered[MAX_BATTLERS];   // Will each battler mega evolve this turn?
+    u8 megaEvolutionTrainerUsed[MAX_BATTLERS]; // Has the trainer controlling each battler used their mega evolution?
+    u8 hasKeyStone[MAX_BATTLERS];              // Can the trainer controlling each battler mega evolve at all?
 
     // Totem battle tracking
     u8 totemSummonsUsed;

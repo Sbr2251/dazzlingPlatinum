@@ -109,7 +109,7 @@ static BOOL BattleControllerPlayer_HasNoTarget(BattleSystem *battleSys, BattleCo
 static int BattleControllerPlayer_CheckTypeChart(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BattleControllerPlayer_CheckStatusDisruption(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BattleControllerPlayer_TriggerImmunityAbilities(BattleSystem *battleSys, BattleContext *battleCtx);
-static void MegaEvolveBattler(BattleSystem *battleSys, BattleContext *battleCtx, int battler, const MegaEvolutionData *megaData);
+static BOOL MegaEvolveBattler(BattleSystem *battleSys, BattleContext *battleCtx, int battler, const MegaEvolutionData *megaData);
 static BOOL BattleControllerPlayer_LoadQuickClawCheck(BattleSystem *battleSys, BattleContext *battleCtx);
 static int BattleControllerPlayer_CheckMoveHitAccuracy(BattleSystem *battleSys, BattleContext *battleCtx, int attacker, int defender, int move);
 static int BattleControllerPlayer_CheckMoveHitOverrides(BattleSystem *battleSys, BattleContext *battleCtx, int attacker, int defender, int move);
@@ -244,6 +244,8 @@ static void BattleControllerPlayer_InitBattleMons(BattleSystem *battleSys, Battl
         BattleSystem_InitBattleMon(battleSys, battleCtx, i, battleCtx->selectedPartySlot[i]);
     }
 
+    BattleContext_InitKeyStones(battleSys, battleCtx);
+
     battleCtx->hpTemp = battleCtx->battleMons[BATTLER_THEM].curHP;
     battleCtx->command = BATTLE_CONTROL_START_ENCOUNTER;
 }
@@ -275,13 +277,15 @@ static void BattleControllerPlayer_TrainerMessage(BattleSystem *battleSys, Battl
 
 // Mega evolve the battler's party Pokemon, then refresh the battler's stats,
 // ability, types and form from it. HP, stat stages, status and volatile
-// conditions are kept as they are.
-static void MegaEvolveBattler(BattleSystem *battleSys, BattleContext *battleCtx, int battler, const MegaEvolutionData *megaData)
+// conditions are kept as they are. Returns FALSE if the Pokemon can't Mega
+// Evolve (no matching stone, or its party Pokemon is a different species,
+// e.g. a transformed Ditto).
+static BOOL MegaEvolveBattler(BattleSystem *battleSys, BattleContext *battleCtx, int battler, const MegaEvolutionData *megaData)
 {
     Pokemon *partyMon = BattleSystem_PartyPokemon(battleSys, battler, battleCtx->selectedPartySlot[battler]);
 
     if (Pokemon_MegaEvolve(partyMon, megaData) == FALSE) {
-        return;
+        return FALSE;
     }
 
     battleCtx->battleMons[battler].attack = Pokemon_GetValue(partyMon, MON_DATA_ATK, NULL);
@@ -296,6 +300,8 @@ static void MegaEvolveBattler(BattleSystem *battleSys, BattleContext *battleCtx,
     if ((BattleSystem_BattleType(battleSys) & BATTLE_TYPE_NO_ABILITIES) == FALSE) {
         battleCtx->battleMons[battler].ability = Pokemon_GetValue(partyMon, MON_DATA_ABILITY, NULL);
     }
+
+    return TRUE;
 }
 
 static void BattleControllerPlayer_ShowBattleMon(BattleSystem *battleSys, BattleContext *battleCtx)
@@ -374,6 +380,9 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
                 break;
             }
 
+            // Backing out to the command menu cancels any mega evolution picked for this battler
+            battleCtx->megaEvolutionTriggered[i] = FALSE;
+
             if (battleCtx->battlersSwitchingMask & FlagIndex(i)) {
                 battleCtx->curCommandState[i] = COMMAND_SELECTION_WAIT;
                 battleCtx->battlerActions[i][BATTLE_ACTION_PICK_COMMAND] = BATTLE_CONTROL_MOVE_END;
@@ -392,13 +401,8 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
 
                 // Auto-trigger mega evolution for AI battlers
                 if (Battler_BootState(BattleSystem_BattlerData(battleSys, i)) == BATTLER_BOOT_STATE_AI
-                    && !battleCtx->megaEvolutionUsed[i]
-                    && !battleCtx->megaEvolutionTriggered[i]) {
-                    int species = battleCtx->battleMons[i].species;
-                    int heldItem = battleCtx->battleMons[i].heldItem;
-                    if (GetMegaEvolutionData(species, heldItem) != NULL) {
-                        battleCtx->megaEvolutionTriggered[i] = TRUE;
-                    }
+                    && Battler_CanMegaEvolve(battleSys, battleCtx, i)) {
+                    battleCtx->megaEvolutionTriggered[i] = TRUE;
                 }
             } else {
                 battleCtx->curCommandState[i] = COMMAND_SELECTION_SELECT2;
@@ -563,19 +567,6 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
             // fall-through
 
         case COMMAND_SELECTION_MOVE_SELECT:
-            // Check for L button press to toggle mega evolution on move selection screen
-            if (JOY_NEW(PAD_BUTTON_L)) {
-                // Only trigger for player battlers that haven't mega evolved yet
-                if (i < 2 && !battleCtx->megaEvolutionUsed[i]) {
-                    int species = battleCtx->battleMons[i].species;
-                    int heldItem = battleCtx->battleMons[i].heldItem;
-                    if (GetMegaEvolutionData(species, heldItem) != NULL) {
-                        battleCtx->megaEvolutionTriggered[i] = !battleCtx->megaEvolutionTriggered[i];
-                        OS_Printf("[MEGA] L pressed - megaEvolutionTriggered[%d] = %d\n", i, battleCtx->megaEvolutionTriggered[i]);
-                    }
-                }
-            }
-            
             if (BattleContext_IOBufferVal(battleCtx, i) == PLAYER_INPUT_CANCEL) {
                 battleCtx->curCommandState[i] = COMMAND_SELECTION_INIT;
             } else if (BattleContext_IOBufferVal(battleCtx, i)) {
@@ -728,6 +719,11 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
             break;
 
         case COMMAND_SELECTION_WAIT:
+            // Only battlers using a move can mega evolve
+            if (battleCtx->battlerActions[i][BATTLE_ACTION_PICK_COMMAND] != BATTLE_CONTROL_FIGHT) {
+                battleCtx->megaEvolutionTriggered[i] = FALSE;
+            }
+
             BattleController_EmitStopGaugeAnimation(battleSys, i);
 
             if (battleType == BATTLE_TYPE_LINK_DOUBLES) {
@@ -890,30 +886,47 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
     do {
         switch (battleCtx->turnStartCheckState) {
         case PRE_MOVE_ACTION_STATE_MEGA_EVOLUTION:
-            // Process mega evolution for all triggered battlers (one at a time with animation)
-            while (battleCtx->turnStartCheckTemp < maxBattlers) {
-                battler = battleCtx->turnStartCheckTemp;
-                battleCtx->turnStartCheckTemp++;
-
-                if (battleCtx->megaEvolutionTriggered[battler]) {
-                    int species = battleCtx->battleMons[battler].species;
-                    int heldItem = battleCtx->battleMons[battler].heldItem;
-                    const MegaEvolutionData *megaData = GetMegaEvolutionData(species, heldItem);
-
-                    battleCtx->megaEvolutionTriggered[battler] = FALSE;
-
-                    if (megaData != NULL) {
-                        MegaEvolveBattler(battleSys, battleCtx, battler, megaData);
-                        battleCtx->megaEvolutionUsed[battler] = TRUE;
-
-                        // Play mega evolution animation
-                        battleCtx->msgBattlerTemp = battler;
-                        LOAD_SUBSEQ(subscript_mega_evolution);
-                        battleCtx->commandNext = battleCtx->command;
-                        battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
-                        return;
+            // Process mega evolution for all triggered battlers in speed order (one at a time with animation)
+            if (battleCtx->turnStartCheckTemp == 0) {
+                for (battler = 0; battler < maxBattlers; battler++) {
+                    if (battleCtx->megaEvolutionTriggered[battler]) {
+                        BattleSystem_SortMonSpeedOrder(battleSys, battleCtx);
+                        break;
                     }
                 }
+            }
+
+            while (battleCtx->turnStartCheckTemp < maxBattlers) {
+                battler = battleCtx->monSpeedOrder[battleCtx->turnStartCheckTemp];
+                battleCtx->turnStartCheckTemp++;
+
+                // Only battlers using a move can mega evolve
+                if (battleCtx->megaEvolutionTriggered[battler] == FALSE
+                    || battleCtx->battlerActions[battler][BATTLE_ACTION_PICK_COMMAND] != BATTLE_CONTROL_FIGHT
+                    || (battleCtx->battlersSwitchingMask & FlagIndex(battler))) {
+                    continue;
+                }
+
+                int species = battleCtx->battleMons[battler].species;
+                int heldItem = battleCtx->battleMons[battler].heldItem;
+                const MegaEvolutionData *megaData = GetMegaEvolutionData(species, heldItem);
+
+                battleCtx->megaEvolutionTriggered[battler] = FALSE;
+
+                if (MegaEvolveBattler(battleSys, battleCtx, battler, megaData)) {
+                    BattleContext_SetMegaEvolutionUsed(battleSys, battleCtx, battler);
+
+                    // Play mega evolution animation
+                    battleCtx->msgBattlerTemp = battler;
+                    LOAD_SUBSEQ(subscript_mega_evolution);
+                    battleCtx->commandNext = battleCtx->command;
+                    battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
+                    return;
+                }
+            }
+
+            for (battler = 0; battler < maxBattlers; battler++) {
+                battleCtx->megaEvolutionTriggered[battler] = FALSE;
             }
 
             battleCtx->turnStartCheckTemp = 0;

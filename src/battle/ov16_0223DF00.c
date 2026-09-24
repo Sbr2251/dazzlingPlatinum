@@ -1731,6 +1731,7 @@ static void BattleMessage_CheckSide(BattleSystem *battleSys, BattleMessage *batt
     case TAG_TRCLASS_TRNAME:
     case TAG_TRNAME_NICKNAME_NICKNAME:
     case TAG_TRCLASS_TRNAME_NICKNAME:
+    case TAG_NICKNAME_ITEM_TRNAME:
     case TAG_TRCLASS_TRNAME_ITEM:
     case TAG_TRNAME_NICKNAME_TRNAME_NICKNAME:
     case TAG_TRCLASS_TRNAME_NICKNAME_NICKNAME:
@@ -2115,6 +2116,12 @@ static void BattleMessage_FillFormatBuffers(BattleSystem *battleSys, BattleMessa
         BattleMessage_TrainerClassName(battleSys, 0, battleMsg->params[0]);
         BattleMessage_TrainerName(battleSys, 1, battleMsg->params[1]);
         BattleMessage_Nickname(battleSys, 2, battleMsg->params[2]);
+        break;
+
+    case TAG_NICKNAME_ITEM_TRNAME:
+        BattleMessage_Nickname(battleSys, 0, battleMsg->params[0]);
+        BattleMessage_ItemName(battleSys, 1, battleMsg->params[1]);
+        BattleMessage_TrainerName(battleSys, 2, battleMsg->params[2]);
         break;
 
     case TAG_TRCLASS_TRNAME_ITEM:
