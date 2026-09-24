@@ -104,6 +104,7 @@
 #include "sys_task_manager.h"
 #include "system.h"
 #include "text.h"
+#include "totem_battle.h"
 #include "trainer_info.h"
 #include "unk_0201567C.h"
 
@@ -1890,32 +1891,62 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
     }
 }
 
+// The Totem's ally is summoned rather than sent out, so it fades in from white with no ball
+static void BattleDisplay_SummonTotemAlly(UnkStruct_ov16_0225EA80 *param0)
+{
+    PokemonSpriteManager *v0 = BattleSystem_GetPokemonSpriteManager(param0->unk_00);
+    SpriteAnimFrame v1[10];
+    u8 v2;
+
+    PokemonSprite_LoadAnimFrames(param0->unk_04->unk_1A0, &v1[0], param0->unk_86, param0->unk_82);
+    param0->unk_04->unk_20 = ov16_02263B30(param0->unk_00, v0, &param0->unk_14, Unk_ov12_0223B0A0[param0->unk_82][0], Unk_ov12_0223B0B8[param0->unk_82][1], Unk_ov12_0223B0B8[param0->unk_82][2], param0->unk_85, param0->unk_90, param0->unk_91, param0->unk_93, param0->unk_81, &v1[0], NULL);
+
+    param0->unk_0C = NULL;
+    param0->unk_08 = NULL;
+    param0->unk_10 = NULL;
+
+    PokemonSprite_InitAnim(param0->unk_04->unk_20, 1);
+    PokemonSprite_SetAttribute(param0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
+    PokemonSprite_LoadCryDelay(param0->unk_04->unk_1A0, &v2, param0->unk_86, param0->unk_82);
+    Species_PlayDelayedCry(BattleSystem_ChatotVoice(param0->unk_00, param0->unk_81), param0->unk_88, param0->unk_86, param0->unk_97, 117, 127, NULL, 5, v2);
+    PokemonSprite_LoadAnim(param0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(param0->unk_00), param0->unk_04->unk_20, param0->unk_86, param0->unk_84, 0, param0->unk_81);
+    PokemonSprite_StartFade(param0->unk_04->unk_20, 16, 0, 1, 0x7FFF);
+
+    param0->unk_83 = 5;
+}
+
 static void ov16_0225F0C0(SysTask *param0, void *param1)
 {
     UnkStruct_ov16_0225EA80 *v0 = (UnkStruct_ov16_0225EA80 *)param1;
     BattleAnimSystem *v1 = ov16_0223E008(v0->unk_00);
 
     switch (v0->unk_83) {
-    case 0: {
-        BallThrow v2;
-
-        v2.type = Unk_ov16_0226F174[v0->unk_82];
-        v2.heapID = HEAP_ID_BATTLE;
-        v2.target = v0->unk_81;
-        v2.ballID = v0->unk_8E;
-        v2.cellActorSys = BattleSystem_GetSpriteSystem(v0->unk_00);
-        v2.paletteSys = BattleSystem_PaletteSys(v0->unk_00);
-        v2.bgPrio = 1;
-        v2.surface = 0;
-
-        if (v0->unk_94 == 1) {
-            v2.mode = 1;
-        } else {
-            v2.mode = 0;
+    case 0:
+        if (TotemBattle_IsActive(v0->unk_00) && v0->unk_81 == BATTLER_ENEMY_2) {
+            BattleDisplay_SummonTotemAlly(v0);
+            break;
         }
 
-        v0->unk_0C = ov12_02237728(&v2);
-    }
+        {
+            BallThrow v2;
+
+            v2.type = Unk_ov16_0226F174[v0->unk_82];
+            v2.heapID = HEAP_ID_BATTLE;
+            v2.target = v0->unk_81;
+            v2.ballID = v0->unk_8E;
+            v2.cellActorSys = BattleSystem_GetSpriteSystem(v0->unk_00);
+            v2.paletteSys = BattleSystem_PaletteSys(v0->unk_00);
+            v2.bgPrio = 1;
+            v2.surface = 0;
+
+            if (v0->unk_94 == 1) {
+                v2.mode = 1;
+            } else {
+                v2.mode = 0;
+            }
+
+            v0->unk_0C = ov12_02237728(&v2);
+        }
         {
             PokemonSpriteManager *v3;
             SpriteAnimFrame v4[10];
@@ -2040,14 +2071,16 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
         }
         break;
     case 5:
-        if (ov12_022363C4(v0->unk_08) == 0) {
+        if (v0->unk_08 == NULL || ov12_022363C4(v0->unk_08) == 0) {
             v0->unk_83 = 6;
         }
         break;
     case 6:
         if ((PokemonAnimManager_HasAnimCompleted(BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_81) == TRUE) && (PokemonSprite_IsAnimActive(v0->unk_04->unk_20) == 0)) {
-            ov12_0223783C(v0->unk_0C);
-            ov12_02236428(v0->unk_08);
+            if (v0->unk_0C != NULL) {
+                ov12_0223783C(v0->unk_0C);
+                ov12_02236428(v0->unk_08);
+            }
 
             if (v0->unk_92) {
                 {
@@ -2544,9 +2577,11 @@ static void ov16_0225FD5C(SysTask *param0, void *param1)
 
                         v7 = BattleSystem_BattlerData(v0->unk_00, BattleSystem_Partner(v0->unk_00, v0->unk_09));
 
-                        ov12_02237E0C(v7->unk_84, 1);
-                        ov12_0223786C(v7->unk_84, 0);
-                        ov12_02237E4C(v7->unk_84, 12);
+                        if (v7->unk_84 != NULL) {
+                            ov12_02237E0C(v7->unk_84, 1);
+                            ov12_0223786C(v7->unk_84, 0);
+                            ov12_02237E4C(v7->unk_84, 12);
+                        }
                     }
                 }
             } else if (v1 >= (256 + 40)) {
@@ -2592,10 +2627,12 @@ static void ov16_0225FD5C(SysTask *param0, void *param1)
 
                             v9 = BattleSystem_BattlerData(v0->unk_00, BattleSystem_Partner(v0->unk_00, v0->unk_09));
 
-                            ov12_02237E18(v9->unk_84, v1 + v5[v0->unk_0C][v3][0], v2 + v5[v0->unk_0C][v3][1]);
-                            ov12_02237E0C(v9->unk_84, 1);
-                            ov12_0223786C(v9->unk_84, 0);
-                            ov12_02237E30(v9->unk_84, 1);
+                            if (v9->unk_84 != NULL) {
+                                ov12_02237E18(v9->unk_84, v1 + v5[v0->unk_0C][v3][0], v2 + v5[v0->unk_0C][v3][1]);
+                                ov12_02237E0C(v9->unk_84, 1);
+                                ov12_0223786C(v9->unk_84, 0);
+                                ov12_02237E30(v9->unk_84, 1);
+                            }
                         }
                     }
                 }

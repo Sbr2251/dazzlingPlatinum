@@ -2,10 +2,10 @@
 
 
 _000:
-    SwitchAndUpdateMon BTLSCR_SWITCHED_MON
-    // A wild {0} appeared!
-    PrintGlobalMessage pl_msg_00000368_00965, TAG_NICKNAME, BTLSCR_SWITCHED_MON
+    // {0} summoned an ally!
+    PrintGlobalMessage pl_msg_00000368_01273, TAG_NICKNAME, BTLSCR_ENEMY_SLOT_1
     Wait
+    SwitchAndUpdateMon BTLSCR_SWITCHED_MON
     PokemonSendOut BTLSCR_SWITCHED_MON
     WaitTime 72
     HealthbarSlideIn BTLSCR_SWITCHED_MON

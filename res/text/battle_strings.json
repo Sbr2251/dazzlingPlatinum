@@ -8510,6 +8510,13 @@
     {
       "id": "pl_msg_00000368_01272",
       "en_US": "MEGA"
+    },
+    {
+      "id": "pl_msg_00000368_01273",
+      "en_US": [
+        "{STRVAR_1 1, 0, 0} summoned\n",
+        "an ally!"
+      ]
     }
   ]
 }

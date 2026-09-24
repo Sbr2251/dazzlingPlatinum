@@ -73,6 +73,7 @@
 #include "sys_task_manager.h"
 #include "system.h"
 #include "text.h"
+#include "totem_battle.h"
 #include "touch_pad.h"
 #include "trainer_info.h"
 #include "unk_0202419C.h"
@@ -951,6 +952,11 @@ static void ov16_0223C210(BattleSystem *battleSys)
     v3 = BattleSystem_Context(battleSys);
 
     for (v1 = 0; v1 < battleSys->maxBattlers; v1++) {
+        // The Totem's unused player slot is never sent out, so the player throws only one ball
+        if (TotemBattle_IsPermanentlyInactiveBattler(battleSys, v1)) {
+            continue;
+        }
+
         v2 = BattleContext_Get(battleSys, v3, 2, v1);
         v4 = BattleSystem_PartyPokemon(battleSys, v1, v2);
         ov16_0225C038(battleSys, battleSys->battlers[v1], Pokemon_GetValue(v4, MON_DATA_POKEBALL, NULL), v2);
