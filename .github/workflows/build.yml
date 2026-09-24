@@ -1,8 +1,9 @@
 name: Build DazzlingPlatinum ROM
 
+# Builds only when asked for: pushing to main no longer triggers a build
 on:
   push:
-    branches: [ "master", "main" ]
+    tags: [ "v*" ] # e.g. git tag v1.2 && git push origin v1.2
   workflow_dispatch: # Allows you to manually trigger the build from the Actions tab
 
 jobs:
