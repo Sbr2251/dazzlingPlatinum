@@ -2039,6 +2039,53 @@ void BattleAnimScriptFunc_AlphaFadePokemonSprite(BattleAnimSystem *system)
     BattleAnimSystem_StartAnimTask(ctx->battleAnimSys, BattleAnimTask_AlphaFadePokemonSprite, ctx);
 }
 
+// -------------------------------------------------------------------
+// Keep Translucent
+// -------------------------------------------------------------------
+enum KeepTranslucentVar {
+    KEEP_TRANSLUCENT_VAR_FRAMES = 0,
+};
+
+typedef struct KeepTranslucentContext {
+    BattleAnimSystem *battleAnimSys;
+    int frames;
+} KeepTranslucentContext;
+
+// Without 2nd blend targets the 3D layer drops per-pixel alpha, so translucent particles render opaque. Tasks that
+// run alongside the animation (like AffinePulse) may turn blending off entirely; put the default back when they do.
+// Brightness and alpha effects set by anyone else are left alone.
+static void BattleAnimTask_KeepTranslucent(SysTask *task, void *param)
+{
+    KeepTranslucentContext *ctx = param;
+
+    if (reg_G2_BLDCNT == 0) {
+        BattleAnimSystem_SetDefaultAlphaBlending();
+    }
+
+    if (--ctx->frames <= 0) {
+        BattleAnimSystem_EndAnimTask(ctx->battleAnimSys, task);
+        Heap_Free(ctx);
+    }
+}
+
+void BattleAnimScriptFunc_KeepTranslucent(BattleAnimSystem *system)
+{
+    KeepTranslucentContext *ctx = BattleAnimUtil_Alloc(system, sizeof(KeepTranslucentContext));
+
+    ctx->battleAnimSys = system;
+    ctx->frames = BattleAnimSystem_GetScriptVar(system, KEEP_TRANSLUCENT_VAR_FRAMES);
+
+    BattleAnimSystem_StartAnimTask(ctx->battleAnimSys, BattleAnimTask_KeepTranslucent, ctx);
+}
+
+// End waits for every sound effect to finish (giving up after 90 frames), even ones this animation did not play.
+// Starting End with that wait already used up lets an animation that runs alongside a longer sound end when its own
+// work is done. Use it just before End, after the emitters and tasks are finished: End resets it while they run.
+void BattleAnimScriptFunc_SkipSoundEffectWait(BattleAnimSystem *system)
+{
+    system->soundEffectWaitTimer = 90;
+}
+
 void BattleAnimScriptFunc_HideBattler(BattleAnimSystem *system)
 {
     int i; // required to match

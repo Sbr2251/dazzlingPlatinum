@@ -611,3 +611,16 @@
     .macro Func_StatChangeMetal mode:req
     CallFunc 83, 3, \mode
     .endm
+
+    // Keeps particles translucent while other tasks run alongside the animation: whenever 2D blending has been
+    // turned off, restores the default alpha blend (8, 8). Leaves any other blend effect alone.
+    // frames: How many frames to keep this up for; keep it within the animation, which waits for it before ending
+    .macro Func_KeepTranslucent frames:req
+    CallFunc 84, \frames
+    .endm
+
+    // Makes the End that follows skip waiting for sound effects that are still playing, so an animation that runs
+    // alongside a longer sound ends when its own work is done. Use it just before End.
+    .macro Func_SkipSoundEffectWait
+    CallFunc 85
+    .endm
