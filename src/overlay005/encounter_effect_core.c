@@ -3,7 +3,9 @@
 #include <nitro.h>
 #include <string.h>
 
+#include "constants/field/map.h"
 #include "constants/heap.h"
+#include "constants/map_object.h"
 #include "generated/trainer_classes.h"
 
 #include "field/field_system.h"
@@ -26,6 +28,7 @@
 #include "gx_layers.h"
 #include "heap.h"
 #include "message.h"
+#include "player_avatar.h"
 #include "save_player.h"
 #include "screen_fade.h"
 #include "screen_scroll_manager.h"
@@ -2579,6 +2582,140 @@ void EncounterEffect_Legendary(SysTask *task, void *param)
 
         EncounterEffect_Finish(encEffect, task);
         SetScreenColorBrightness(DS_SCREEN_SUB, COLOR_WHITE);
+        break;
+    }
+}
+
+// EncounterEffect_Totem
+#define TOTEM_SHAKE_FRAMES     18
+#define TOTEM_SHAKE_AMPLITUDE  (FX32_ONE * 6)
+#define TOTEM_WOBBLE_AMPLITUDE (FX32_ONE * 2)
+#define TOTEM_ZOOM_FRAMES      16
+#define TOTEM_FADE_START_FRAME 14
+#define TOTEM_FADE_STEPS       8
+
+typedef struct TotemEncounterEffect {
+    FieldMotionBlur *motionBlur;
+    Camera *camera;
+    QuadraticInterpolationTaskFX32 distanceInterpolation;
+    LinearInterpolationTaskFX32 approachInterpolation;
+    VecFx32 towardTotem;
+    VecFx32 cameraOffset;
+    s32 counter;
+} TotemEncounterEffect;
+
+// Offsets the camera from where it started: a left-right shake plus the approach toward the Totem.
+static void EncounterEffect_SetTotemCameraOffset(TotemEncounterEffect *totemEffect, fx32 shake, fx32 approach)
+{
+    VecFx32 offset = {
+        shake + FX_Mul(totemEffect->towardTotem.x, approach),
+        0,
+        FX_Mul(totemEffect->towardTotem.z, approach),
+    };
+    VecFx32 delta;
+
+    VEC_Subtract(&offset, &totemEffect->cameraOffset, &delta);
+    Camera_Move(&delta, totemEffect->camera);
+    totemEffect->cameraOffset = offset;
+}
+
+static fx32 EncounterEffect_TotemShake(s32 frame, fx32 amplitude)
+{
+    return (frame & 1) ? amplitude : -amplitude;
+}
+
+// The Totem roars and shakes the ground, a double flash goes off, then the camera winds back and
+// lunges at the Totem with motion blur and bursts into white.
+void EncounterEffect_Totem(SysTask *task, void *param)
+{
+    EncounterEffect *encEffect = param;
+    TotemEncounterEffect *totemEffect = encEffect->param;
+    fx32 amplitude;
+    BOOL done;
+
+    switch (encEffect->state) {
+    case 0:
+        encEffect->param = Heap_Alloc(HEAP_ID_FIELD1, sizeof(TotemEncounterEffect));
+        memset(encEffect->param, 0, sizeof(TotemEncounterEffect));
+        totemEffect = encEffect->param;
+        totemEffect->camera = encEffect->fieldSystem->camera;
+
+        switch (PlayerAvatar_GetDir(encEffect->fieldSystem->playerAvatar)) {
+        case DIR_NORTH:
+            totemEffect->towardTotem.z = -FX32_ONE;
+            break;
+        case DIR_SOUTH:
+            totemEffect->towardTotem.z = FX32_ONE;
+            break;
+        case DIR_WEST:
+            totemEffect->towardTotem.x = -FX32_ONE;
+            break;
+        case DIR_EAST:
+            totemEffect->towardTotem.x = FX32_ONE;
+            break;
+        }
+
+        GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, 0);
+        GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG2, 0);
+        GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG3, 0);
+        encEffect->state++;
+        break;
+
+    case 1:
+        amplitude = TOTEM_SHAKE_AMPLITUDE - (TOTEM_SHAKE_AMPLITUDE - TOTEM_WOBBLE_AMPLITUDE) * totemEffect->counter / TOTEM_SHAKE_FRAMES;
+        EncounterEffect_SetTotemCameraOffset(totemEffect, EncounterEffect_TotemShake(totemEffect->counter, amplitude), 0);
+
+        if (++totemEffect->counter >= TOTEM_SHAKE_FRAMES) {
+            EncounterEffect_Flash(SCREEN_TOP, 16, -16, &encEffect->effectComplete, 2);
+            encEffect->state++;
+        }
+
+        break;
+
+    case 2:
+        EncounterEffect_SetTotemCameraOffset(totemEffect, EncounterEffect_TotemShake(totemEffect->counter++, TOTEM_WOBBLE_AMPLITUDE), 0);
+
+        if (encEffect->effectComplete) {
+            fx32 distance = Camera_GetDistance(totemEffect->camera);
+
+            totemEffect->motionBlur = FieldMotionBlur_Start(9, 7);
+            QuadraticInterpolationTaskFX32_Init(&totemEffect->distanceInterpolation, distance, FX_Mul(distance, FX32_CONST(0.45)), distance / 64, TOTEM_ZOOM_FRAMES);
+            LinearInterpolationTaskFX32_Init(&totemEffect->approachInterpolation, 0, MAP_OBJECT_TILE_SIZE, TOTEM_ZOOM_FRAMES);
+            totemEffect->counter = 0;
+            encEffect->state++;
+        }
+
+        break;
+
+    case 3:
+        done = QuadraticInterpolationTaskFX32_Update(&totemEffect->distanceInterpolation);
+        LinearInterpolationTaskFX32_Update(&totemEffect->approachInterpolation);
+        Camera_SetDistance(totemEffect->distanceInterpolation.currentValue, totemEffect->camera);
+        // The field camera is orthographic, where only the projection (sized by the distance) zooms.
+        Camera_ComputeProjectionMatrix(totemEffect->camera->projection, totemEffect->camera);
+        EncounterEffect_SetTotemCameraOffset(totemEffect, EncounterEffect_TotemShake(totemEffect->counter, TOTEM_WOBBLE_AMPLITUDE), totemEffect->approachInterpolation.currentValue);
+
+        if (++totemEffect->counter == TOTEM_FADE_START_FRAME) {
+            StartScreenFade(FADE_MAIN_ONLY, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, COLOR_WHITE, TOTEM_FADE_STEPS, 1, HEAP_ID_FIELD1);
+        }
+
+        if (done == TRUE && totemEffect->counter > TOTEM_FADE_START_FRAME && IsScreenFadeDone()) {
+            encEffect->state++;
+        }
+
+        break;
+
+    case 4:
+        EncounterEffect_SetTotemCameraOffset(totemEffect, 0, 0);
+        FieldMotionBlur_Stop(&totemEffect->motionBlur);
+        G2_BlendNone();
+
+        if (encEffect->done != NULL) {
+            *(encEffect->done) = TRUE;
+        }
+
+        EncounterEffect_Finish(encEffect, task);
+        SetScreenColorBrightness(DS_SCREEN_SUB, COLOR_BLACK);
         break;
     }
 }

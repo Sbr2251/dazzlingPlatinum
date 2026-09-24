@@ -7,9 +7,12 @@ Source: sm_vs_ultra_beast.mid, "Battle! VS Ultra Beast" (Pokemon Sun/Moon) seque
 
 The output follows the conventions SDATTool's MIDI reader expects:
   - 48 ticks per beat, one MIDI track per channel, channels in ascending track order, tempo on the first track
+  - every track opens with CC127, which SDATTool turns into "Poly 0" (poly mode). Without it a track stays in
+    note-wait mode, where each note holds up the track until it ends, so chords smear and timing drifts
   - only controllers SDATTool maps (volume, pan, pitch bend range, priority) and explicit note-offs
   - the loop is a "Label_" text meta at the loop start and "Jump|Label_" + "TrackEnd" at the loop end
-GM programs are remapped onto BANK_BGM_BATTLE, whose instrument slots roughly follow the GM layout.
+BANK_BGM_BATTLE does not follow the GM layout, so each GM program is mapped to the slot vanilla battle themes use
+for the same role (bass, strings, guitar, ...). Its drum kit 1 does follow the GM key layout.
 """
 import os
 
@@ -30,7 +33,21 @@ DRUM_RANGE = range(28, 89)
 DRUM_MAX_LEN = TPB // 2  # drum samples are one-shots; long note-offs only eat voices
 
 # Source GM program -> BANK_BGM_BATTLE instrument. None drops the channel.
-PROGRAMS = {4: 4, 18: 18, 29: 29, 30: 30, 35: 35, 38: 38, 48: 48, 52: 52, 55: 55, 80: 80, 81: 81, 104: 25, 122: None}
+PROGRAMS = {
+    4: 29,  # electric piano -> piano (the Champion theme's piano)
+    18: 17,  # rock organ -> sustained lead
+    29: 20,  # overdrive guitar -> electric guitar (the Frontier Brain theme's guitar)
+    30: 20,  # distortion guitar -> electric guitar
+    35: 37,  # fretless bass -> bass (Galactic/legendary themes)
+    38: 39,  # synth bass -> bass (Champion/Rival/Gym themes)
+    48: 48,  # strings -> strings
+    52: 60,  # choir -> sustained pad
+    55: 81,  # orchestra hit -> orchestra hit
+    80: 31,  # square lead -> PSG square wave
+    81: 18,  # saw lead -> lead
+    104: 14,  # sitar -> plucked keysplit
+    122: None,  # seashore
+}
 PRIORITY = {0: 80, 5: 80, 1: 72, 2: 72}
 
 EV_OFF, EV_LABEL, EV_CTRL, EV_ON = range(4)
@@ -122,8 +139,8 @@ def convert_channel(ch, events):
     ):
         out.append((loop, EV_LABEL, msg))
 
-    head = [mido.Message("control_change", channel=ch, control=22, value=PRIORITY.get(ch, 64))]
-    out += [(0, EV_CTRL, msg) for msg in head]
+    out.append((0, -2, mido.Message("control_change", channel=ch, control=127, value=0)))
+    out.append((0, EV_CTRL, mido.Message("control_change", channel=ch, control=22, value=PRIORITY.get(ch, 64))))
 
     end = scale(LOOP_END)
     out.append((end, EV_ON + 1, mido.MetaMessage("text", text=f"Jump|{label}")))

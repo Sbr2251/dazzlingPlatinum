@@ -76,8 +76,8 @@ def build():
 
     flames = resource(
         flags={"emissionType": 6, "hasSpinBehavior": 1, "hasRandomBehavior": 1},
-        posY=fx(-0.9), radius=fx(1.3), length=fx(0.9), color=GOLD,
-        initVelPosAmplifier=fx(-0.02), initVelAxisAmplifier=fx(0.085), baseScale=fx(0.55),
+        posY=fx(-0.9), radius=fx(1.3), length=fx(0.72), color=GOLD,
+        initVelPosAmplifier=fx(-0.02), initVelAxisAmplifier=fx(0.068), baseScale=fx(0.44),
         particleLifeTime=22, misc=misc(2, TEX_FLAME, tile_s=1, scale_dir=2, air=0x7C),
         scaleAnim=scale_anim(0.5, 1.0, 0.25, 0x40, 0xB0),
         colorAnim=color_anim(WHITE_GOLD, RED, 0x10, 0x60, 0xE0),
@@ -107,7 +107,7 @@ def build():
     flare = resource(
         flags={"emissionType": 1, "selfMaintaining": 1, "hasGravityBehavior": 1},
         posY=fx(-0.2), radius=fx(0.7), emissionCount=fx(3), color=GOLD,
-        initVelPosAmplifier=fx(0.11), baseScale=fx(0.7), emitterLifeTime=12, particleLifeTime=22,
+        initVelPosAmplifier=fx(0.088), baseScale=fx(0.56), emitterLifeTime=12, particleLifeTime=22,
         misc=misc(1, TEX_FLAME, tile_s=1, air=0x70),
         scaleAnim=scale_anim(0.6, 1.1, 0.2, 0x30, 0xA0),
         colorAnim=color_anim(WHITE_GOLD, RED, 0x08, 0x50, 0xE0),

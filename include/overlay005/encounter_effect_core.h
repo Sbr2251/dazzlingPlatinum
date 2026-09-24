@@ -21,6 +21,7 @@ void EncounterEffect_GalacticGrunt(SysTask *task, void *param);
 void EncounterEffect_GalacticBoss(SysTask *task, void *param);
 void EncounterEffect_Mythical(SysTask *task, void *param);
 void EncounterEffect_Legendary(SysTask *task, void *param);
+void EncounterEffect_Totem(SysTask *task, void *param);
 void EncounterEffect_LeaderRoark(SysTask *task, void *param);
 void EncounterEffect_LeaderGardenia(SysTask *task, void *param);
 void EncounterEffect_LeaderWake(SysTask *task, void *param);
