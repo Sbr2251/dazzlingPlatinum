@@ -61,6 +61,7 @@
 #include "battle/struct_ov16_02265BBC.h"
 #include "battle/struct_ov16_022674C4.h"
 #include "battle/struct_ov16_02268A14_decl.h"
+#include "battle/totem_aura.h"
 #include "battle/struct_ov16_02269668.h"
 #include "battle/struct_ov16_0226C378.h"
 #include "battle/struct_ov16_0226D160_decl.h"
@@ -6296,6 +6297,10 @@ static void ov16_02264408(BattleSystem *battleSys, BattlerData *param1, BattleAn
     battlerContext.battleBgRef.paletteSrcSize = 8;
 
     BattleAnimSystem_StartMove(battleAnimSystem, animation, move, &battlerContext);
+
+    if (animation->unk_4C != 0 && animation->unk_50 == BATTLE_ANIMATION_TOTEM_AURA) {
+        TotemAura_Start(battleSys);
+    }
 }
 
 static void ov16_02264530(BattleSystem *battleSys, MoveAnimation *animation, UnkStruct_ov12_022380DC *param2, int param3)

@@ -27,6 +27,7 @@
 #include "battle/struct_ov16_0223C2C0.h"
 #include "battle/struct_ov16_0225BFFC_decl.h"
 #include "battle/struct_ov16_022674C4.h"
+#include "battle/totem_aura.h"
 #include "battle_anim/battle_anim_system.h"
 #include "overlay010/ov10_0221F800.h"
 #include "overlay010/struct_ov10_0221F800.h"
@@ -751,6 +752,7 @@ static void ov16_0223BCB4(ApplicationManager *appMan)
     MessageLoader_Free(battleSystem->unk_10);
     StringTemplate_Free(battleSystem->strFormatter);
     PokemonAnimManager_Free(battleSystem->monAnimMan);
+    TotemAura_Stop();
     ParticleSystem_FreeAll();
 
     BattleAnimSystem_Delete(battleSystem->unk_8C);
