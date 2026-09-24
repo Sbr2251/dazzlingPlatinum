@@ -1585,14 +1585,24 @@ void BattleController_EmitSetMosaic(BattleSystem *battleSys, int battlerId, int 
  * @param battleSys
  * @param battler
  */
-void BattleController_EmitAffinePulse(BattleSystem *battleSys, int battlerId, int stage)
+void BattleController_EmitAffinePulse(BattleSystem *battleSys, int battlerId)
 {
     AffinePulseMessage message;
 
+    // The pulse swaps in the new form's sprite partway through, so it carries the same sprite data as
+    // BattleController_EmitChangeWeatherForm
     message.command = BATTLE_COMMAND_AFFINE_PULSE;
-    message.stage = stage;
     message.species = battleSys->battleCtx->battleMons[battlerId].species;
     message.form = battleSys->battleCtx->battleMons[battlerId].formNum;
+    message.isShiny = battleSys->battleCtx->battleMons[battlerId].isShiny;
+
+    if (battleSys->battleCtx->battleMons[battlerId].statusVolatile & VOLATILE_CONDITION_TRANSFORM) {
+        message.gender = battleSys->battleCtx->battleMons[battlerId].moveEffectsData.transformedGender;
+        message.personality = battleSys->battleCtx->battleMons[battlerId].moveEffectsData.transformedPID;
+    } else {
+        message.gender = battleSys->battleCtx->battleMons[battlerId].gender;
+        message.personality = battleSys->battleCtx->battleMons[battlerId].personality;
+    }
 
     SendMessage(battleSys, COMM_RECIPIENT_CLIENT, battlerId, &message, sizeof(AffinePulseMessage));
 }

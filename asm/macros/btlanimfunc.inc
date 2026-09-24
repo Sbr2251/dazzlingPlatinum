@@ -624,3 +624,10 @@
     .macro Func_SkipSoundEffectWait
     CallFunc 85
     .endm
+
+    // Tells the Mega Evolution AffinePulse task that the animation has reached a step, so the sprite keeps in step
+    // with the particles however long they took to load
+    // cue: MEGA_EVOLUTION_CUE_CHARGE or MEGA_EVOLUTION_CUE_BURST
+    .macro Func_MegaEvolutionCue cue:req
+    CallFunc 86, \cue
+    .endm

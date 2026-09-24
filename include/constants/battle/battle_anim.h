@@ -4,6 +4,11 @@
 #include "constants/battle.h"
 
 // clang-format off
+// Cues from the Mega Evolution animation to the AffinePulse task (Func_MegaEvolutionCue), which keep the sprite in step
+#define MEGA_EVOLUTION_CUE_NONE   0
+#define MEGA_EVOLUTION_CUE_CHARGE 1 //< The orb is forming: start the charge
+#define MEGA_EVOLUTION_CUE_BURST  2 //< The orb is bursting: reveal the new form
+
 #define BATTLE_ANIM_VAR_BG_MOVE_STEP_X  0 //< Step size for background movement in X direction (BATTLE_BG_SWITCH_FLAG_MOVE)
 #define BATTLE_ANIM_VAR_BG_MOVE_STEP_Y  1 //< Step size for background movement in Y direction (BATTLE_BG_SWITCH_FLAG_MOVE)
 #define BATTLE_ANIM_VAR_BG_MOVE_START_X 2 //< Starting position for background movement on X axis (BATTLE_BG_SWITCH_FLAG_MOVE)

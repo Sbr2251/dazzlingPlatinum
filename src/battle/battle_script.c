@@ -8766,16 +8766,17 @@ static BOOL BtlCmd_SetMosaic(BattleSystem *battleSys, BattleContext *battleCtx)
 }
 
 /**
- * @brief Play one stage of the Mega Evolution sprite animation on a battler.
+ * @brief Play the Mega Evolution sprite animation on a battler.
  *
- * Stage 0 charges the battler: the rest of the scene dims while the battler
- * turns white, compresses and disappears. Stage 1 reveals the new sprite with
- * a flash, its cry and an eased pop back to normal size. ChangeForm is
- * expected to run between the two stages.
+ * The rest of the scene dims while the battler turns white and slightly
+ * compresses inside the orb of BATTLE_ANIMATION_MEGA_EVOLUTION. Once the orb
+ * hides it, the sprite is swapped for the battler's current form (so no
+ * ChangeForm is needed), and it is revealed with a flash, its cry and an
+ * eased pop back to normal size when the orb bursts. Play the animation just
+ * before this: the two keep in step through BattleDisplay_SetMegaEvolutionCue.
  *
  * Inputs:
  * 1. The battler to animate.
- * 2. The stage to play: 0 = charge, 1 = reveal.
  *
  * @param battleSys
  * @param battleCtx
@@ -8785,10 +8786,9 @@ static BOOL BtlCmd_AffinePulse(BattleSystem *battleSys, BattleContext *battleCtx
 {
     BattleScript_Iter(battleCtx, 1);
     int inBattler = BattleScript_Read(battleCtx);
-    int stage = BattleScript_Read(battleCtx);
     int battler = BattleScript_Battler(battleSys, battleCtx, inBattler);
 
-    BattleController_EmitAffinePulse(battleSys, battler, stage);
+    BattleController_EmitAffinePulse(battleSys, battler);
     return FALSE;
 }
 

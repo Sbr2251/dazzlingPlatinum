@@ -3,6 +3,7 @@
 #include <nitro.h>
 #include <string.h>
 
+#include "constants/battle/battle_anim.h"
 #include "constants/heap.h"
 #include "constants/species.h"
 #include "generated/items.h"
@@ -1202,16 +1203,19 @@ void ov16_0225E0F4(BattleSystem *battleSys, BattlerData *param1, MosaicSetMessag
 
 typedef struct AffinePulseTaskData {
     BattleSystem *battleSys;
+    BattlerData *battlerData;
     PokemonSprite *sprite;
     u8 command;
     u8 battler;
     u16 species;
     u8 form;
-    u8 stage;
+    u8 gender;
+    u8 isShiny;
     u8 state;
     u8 frame;
     u8 isEnemy;
     s16 baseYOffset;
+    u32 personality;
 } AffinePulseTaskData;
 
 void BattleDisplay_StartAffinePulse(BattleSystem *battleSys, BattlerData *battlerData, AffinePulseMessage *message)
@@ -1220,16 +1224,43 @@ void BattleDisplay_StartAffinePulse(BattleSystem *battleSys, BattlerData *battle
 
     MI_CpuClear8(data, sizeof(AffinePulseTaskData));
     data->battleSys = battleSys;
+    data->battlerData = battlerData;
     data->sprite = battlerData->unk_20;
     data->command = message->command;
     data->battler = battlerData->battler;
     data->species = message->species;
     data->form = message->form;
-    data->stage = message->stage;
+    data->gender = message->gender;
+    data->isShiny = message->isShiny;
+    data->personality = message->personality;
     data->baseYOffset = PokemonSprite_GetAttribute(data->sprite, MON_SPRITE_Y_OFFSET);
     data->isEnemy = Battler_Side(battleSys, battlerData->battler) != 0;
 
     SysTask_Start(AffinePulseTask, data, 0);
+}
+
+void BattleDisplay_ReloadFormSprite(BattleSystem *battleSys, BattlerData *battlerData, int species, int gender, int isShiny, int form, u32 personality)
+{
+    int face = (battlerData->battlerType & 0x1) ? 2 : 0;
+    PokemonSpriteTemplate template;
+    PokemonSpriteTemplate *spriteTemplate;
+    int yOffset;
+
+    BuildPokemonSpriteTemplate(&template, species, gender, face, isShiny, form, personality);
+
+    spriteTemplate = PokemonSprite_GetTemplate(battlerData->unk_20);
+    *spriteTemplate = template;
+
+    PokemonSprite_ScheduleReloadFromNARC(battlerData->unk_20);
+    CharacterSprite_LoadPokemonSprite(spriteTemplate->narcID, spriteTemplate->character, HEAP_ID_BATTLE, ov16_0223F2B8(ov16_0223E0C8(battleSys), battlerData->battler), personality, FALSE, face, spriteTemplate->spindaSpots);
+    PokemonSpriteData_SetNarcID(ov16_0223E0C8(battleSys), battlerData->battler, spriteTemplate->narcID);
+    PokemonSpriteData_SetPalette(ov16_0223E0C8(battleSys), battlerData->battler, spriteTemplate->palette);
+
+    yOffset = LoadPokemonSpriteYOffset(species, gender, face, form, personality);
+    PokemonSpriteData_SetYOffset(ov16_0223E0C8(battleSys), battlerData->battler, yOffset);
+
+    yOffset = ov12_022384CC(battlerData->battlerType, 1) + yOffset;
+    PokemonSprite_SetAttribute(battlerData->unk_20, MON_SPRITE_Y_CENTER, yOffset);
 }
 
 typedef struct PartyGaugeTask {
@@ -5307,18 +5338,37 @@ static void ov16_022634DC(SysTask *param0, void *param1)
 #define AFFINE_PULSE_BRIGHTNESS_PLANES (BATTLE_BG_BLENDMASK_BASE | BATTLE_BG_BLENDMASK_EFFECT | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD)
 #define AFFINE_PULSE_BLEND_2ND_PLANES  (BATTLE_BG_BLENDMASK_ALL | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD)
 
-#define AFFINE_PULSE_DIM            8
-#define AFFINE_PULSE_CHARGE_SQUEEZE 6
-#define AFFINE_PULSE_CHARGE_HIDE    18
-#define AFFINE_PULSE_CHARGE_END     20
-#define AFFINE_PULSE_REVEAL_CRY     3
-#define AFFINE_PULSE_REVEAL_UNFADE  4
+#define AFFINE_PULSE_DIM 8
 
-// Reveal scale per tick: pop from a small point up to 1.5x, then a damped settle onto 1.0x.
+// Charge timeline, in frames from the charge cue. The Pokemon stays visible inside the orb, glowing whiter and
+// shrinking slightly, until the orb's fill has gone opaque; then it is hidden and the new form's sprite swapped in.
+#define AFFINE_PULSE_CHARGE_SQUEEZE     6
+#define AFFINE_PULSE_CHARGE_SQUEEZE_END 26
+#define AFFINE_PULSE_CHARGE_WHITEN      26
+#define AFFINE_PULSE_CHARGE_HIDE        30
+#define AFFINE_PULSE_CHARGE_SWAP        31
+// Where the burst lands when there is no cue to follow (animations off). Matches the Delay in mega_evolution.s.
+#define AFFINE_PULSE_CHARGE_LENGTH      36
+
+// How long to wait for a cue before going ahead without it, in case the animation never sends one
+#define AFFINE_PULSE_CHARGE_CUE_TIMEOUT 60
+#define AFFINE_PULSE_BURST_CUE_TIMEOUT  (AFFINE_PULSE_CHARGE_LENGTH + 30)
+
+#define AFFINE_PULSE_REVEAL_CRY    3
+#define AFFINE_PULSE_REVEAL_UNFADE 4
+
+enum AffinePulseState {
+    AFFINE_PULSE_STATE_WAIT_CHARGE = 0,
+    AFFINE_PULSE_STATE_CHARGE,
+    AFFINE_PULSE_STATE_REVEAL,
+};
+
+// Reveal scale per tick: the new form bursts out of the orb a little smaller than normal, overshoots to 1.25x, then
+// makes a damped settle onto 1.0x.
 static const u16 sAffinePulseRevealScale[] = {
-    0x040, 0x090, 0x0D8, 0x118, 0x14C, 0x170, 0x180, 0x17A,
-    0x166, 0x148, 0x124, 0x104, 0x0F0, 0x0E8, 0x0EB, 0x0F5,
-    0x100, 0x107, 0x108, 0x104, 0x100
+    0x0B0, 0x0E0, 0x108, 0x128, 0x13C, 0x144, 0x140, 0x134,
+    0x122, 0x110, 0x100, 0x0F6, 0x0F2, 0x0F4, 0x0F9, 0x0FE,
+    0x102, 0x103, 0x102, 0x100
 };
 
 // Reveal scene brightness per tick: a short white flash that clears quickly, so the still-white Pokemon stands out
@@ -5327,9 +5377,24 @@ static const s8 sAffinePulseRevealFlash[] = {
     6, 14, 16, 14, 11, 9, 7, 5, 4, 3, 2, 1
 };
 
+// Set by the Mega Evolution animation (Func_MegaEvolutionCue) as it reaches each step, so the sprite follows the
+// particles however long they took to load
+static u8 sMegaEvolutionCue = MEGA_EVOLUTION_CUE_NONE;
+
+void BattleDisplay_SetMegaEvolutionCue(int cue)
+{
+    sMegaEvolutionCue = cue;
+}
+
 static void AffinePulse_SetBrightness(int brightness)
 {
     G2_SetBlendBrightnessExt(AFFINE_PULSE_BRIGHTNESS_PLANES, AFFINE_PULSE_BLEND_2ND_PLANES, 8, 8, brightness);
+}
+
+// Panned towards the battler's side, like BattleController_EmitPlaySound
+static void AffinePulse_PlaySound(AffinePulseTaskData *data, u16 seqID)
+{
+    Sound_PlayPannedEffect(seqID, data->isEnemy ? 117 : -117);
 }
 
 static void AffinePulse_SetScale(AffinePulseTaskData *data, int scale)
@@ -5400,8 +5465,9 @@ static void AffinePulse_ClearOthers(AffinePulseTaskData *data)
     }
 }
 
-// Stage 0 (charge): the scene dims while the battler turns white, then it squeezes into a point and vanishes. The
-// scene is left dimmed for stage 1, which runs right after ChangeForm has swapped in the new sprite.
+// Charge: the scene dims while the orb forms around the battler, which glows white and shrinks a little inside it.
+// Once the orb has gone opaque the battler is hidden and the new form's sprite is loaded behind it. Returns TRUE when
+// it is time to burst.
 static BOOL AffinePulse_Charge(AffinePulseTaskData *data)
 {
     PokemonSprite *sprite = data->sprite;
@@ -5410,27 +5476,42 @@ static BOOL AffinePulse_Charge(AffinePulseTaskData *data)
     if (t == 0) {
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 0);
-        // Start part of the way to white so the Pokemon reads as glowing white rather than pale grey.
-        PokemonSprite_StartFade(sprite, 4, 16, 0, RGB(31, 31, 31));
+        PokemonSprite_StartFade(sprite, 0, 12, 1, RGB(31, 31, 31));
         AffinePulse_FadeOthers(data, 0, AFFINE_PULSE_DIM, RGB(0, 0, 0));
+        AffinePulse_PlaySound(data, SEQ_SE_MEGA_CHARGE);
     }
 
     AffinePulse_SetBrightness(-(t + 1 < AFFINE_PULSE_DIM ? t + 1 : AFFINE_PULSE_DIM));
 
-    if (t >= AFFINE_PULSE_CHARGE_SQUEEZE && t < AFFINE_PULSE_CHARGE_HIDE) {
-        // Ease in: slow at first, then collapse quickly.
-        int p = t - AFFINE_PULSE_CHARGE_SQUEEZE + 1;
-        int n = AFFINE_PULSE_CHARGE_HIDE - AFFINE_PULSE_CHARGE_SQUEEZE;
-        int squeeze = 0x100 - (0xE0 * p * p) / (n * n);
+    if (t >= AFFINE_PULSE_CHARGE_SQUEEZE && t <= AFFINE_PULSE_CHARGE_SQUEEZE_END) {
+        // Ease out: shrink steadily, slowing as it reaches 7/8 size.
+        int p = AFFINE_PULSE_CHARGE_SQUEEZE_END - t;
+        int n = AFFINE_PULSE_CHARGE_SQUEEZE_END - AFFINE_PULSE_CHARGE_SQUEEZE;
+        int squeeze = 0xE0 + (0x20 * p * p) / (n * n);
 
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_X, squeeze);
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_Y, squeeze);
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset + ((0x100 - squeeze) * 6 >> 8));
-        PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, p > n * 2 / 3 ? 2 : (p > n / 3 ? 1 : 0));
+    }
+
+    if (t == AFFINE_PULSE_CHARGE_WHITEN) {
+        PokemonSprite_StartFade(sprite, 12, 16, 0, RGB(31, 31, 31));
     } else if (t == AFFINE_PULSE_CHARGE_HIDE) {
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, TRUE);
-    } else if (t >= AFFINE_PULSE_CHARGE_END && PokemonSprite_IsFadeActive(sprite) == FALSE && AffinePulse_OthersFading(data) == FALSE) {
-        return TRUE;
+    } else if (t == AFFINE_PULSE_CHARGE_SWAP) {
+        BattleDisplay_ReloadFormSprite(data->battleSys, data->battlerData, data->species, data->gender, data->isShiny, data->form, data->personality);
+        // The new form can sit at a different height; the reveal scales around its own resting position.
+        data->baseYOffset = PokemonSprite_GetAttribute(sprite, MON_SPRITE_Y_OFFSET);
+    }
+
+    if (t > AFFINE_PULSE_CHARGE_SWAP) {
+        if (BattleSystem_AnimationsOn(data->battleSys) == FALSE) {
+            return t >= AFFINE_PULSE_CHARGE_LENGTH;
+        }
+
+        if (sMegaEvolutionCue == MEGA_EVOLUTION_CUE_BURST || t >= AFFINE_PULSE_BURST_CUE_TIMEOUT) {
+            return TRUE;
+        }
     }
 
     if (data->frame < 0xFF) {
@@ -5440,8 +5521,8 @@ static BOOL AffinePulse_Charge(AffinePulseTaskData *data)
     return FALSE;
 }
 
-// Stage 1 (reveal): a white flash, the new sprite pops out of a point of light and eases back to its normal size and
-// colors while the scene brightness returns to normal. Blending is fully reset at the end.
+// Reveal: a white flash, the new sprite bursts out of the orb and eases back to its normal size and colors while the
+// scene brightness returns to normal. Blending is fully reset at the end.
 static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
 {
     PokemonSprite *sprite = data->sprite;
@@ -5452,6 +5533,7 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
         PokemonSprite_StartFade(sprite, 16, 16, 0, RGB(31, 31, 31));
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
         AffinePulse_FadeOthers(data, 12, 0, RGB(31, 31, 31));
+        AffinePulse_PlaySound(data, SEQ_SE_MEGA_BURST);
     } else if (t == AFFINE_PULSE_REVEAL_CRY) {
         Sound_PlayPokemonCry(data->species, data->form);
     } else if (t == AFFINE_PULSE_REVEAL_UNFADE) {
@@ -5461,10 +5543,8 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
     if (t <= last) {
         AffinePulse_SetBrightness(t < NELEMS(sAffinePulseRevealFlash) ? sAffinePulseRevealFlash[t] : 0);
         AffinePulse_SetScale(data, sAffinePulseRevealScale[t]);
-        PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, t < 3 ? 2 : (t < 6 ? 1 : 0));
     } else if (PokemonSprite_IsFadeActive(sprite) == FALSE && AffinePulse_OthersFading(data) == FALSE) {
         AffinePulse_SetScale(data, 0x100);
-        PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 0);
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
         PokemonSprite_ClearFade(sprite);
         AffinePulse_ClearOthers(data);
@@ -5479,18 +5559,37 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
     return FALSE;
 }
 
+// Runs the whole Mega Evolution sprite sequence for BtlCmd_AffinePulse alongside the Mega Evolution animation: wait for
+// the orb to start forming, charge, swap in the new form, then burst out when the orb does.
 static void AffinePulseTask(SysTask *task, void *taskData)
 {
     AffinePulseTaskData *data = taskData;
-    BOOL done;
+    BOOL done = FALSE;
 
-    if (data->stage == 0) {
-        done = AffinePulse_Charge(data);
-    } else {
+    switch (data->state) {
+    case AFFINE_PULSE_STATE_WAIT_CHARGE:
+        if (BattleSystem_AnimationsOn(data->battleSys) == FALSE
+            || sMegaEvolutionCue != MEGA_EVOLUTION_CUE_NONE
+            || ++data->frame >= AFFINE_PULSE_CHARGE_CUE_TIMEOUT) {
+            data->frame = 0;
+            data->state = AFFINE_PULSE_STATE_CHARGE;
+            AffinePulse_Charge(data);
+        }
+        break;
+    case AFFINE_PULSE_STATE_CHARGE:
+        if (AffinePulse_Charge(data)) {
+            data->frame = 0;
+            data->state = AFFINE_PULSE_STATE_REVEAL;
+            done = AffinePulse_Reveal(data);
+        }
+        break;
+    case AFFINE_PULSE_STATE_REVEAL:
         done = AffinePulse_Reveal(data);
+        break;
     }
 
     if (done) {
+        sMegaEvolutionCue = MEGA_EVOLUTION_CUE_NONE;
         BattleController_EmitClearCommand(data->battleSys, data->battler, data->command);
         Heap_Free(data);
         SysTask_Done(task);

@@ -335,10 +335,12 @@ typedef struct MosaicSetMessage {
 
 typedef struct AffinePulseMessage {
     u8 command;
-    u8 stage;
-    u16 species;
     u8 form;
-    u8 padding_05[3];
+    u16 species;
+    u8 gender;
+    u8 isShiny;
+    u8 padding_06[2];
+    u32 personality;
 } AffinePulseMessage;
 
 typedef struct MonChangeFormMessage {

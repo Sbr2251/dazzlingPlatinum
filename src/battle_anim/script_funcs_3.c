@@ -11,6 +11,7 @@
 #include "battle_anim/battle_anim_helpers.h"
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
+#include "battle/battle_display.h"
 #include "global/utility.h"
 
 #include "battle_script_battlers.h"
@@ -2084,6 +2085,11 @@ void BattleAnimScriptFunc_KeepTranslucent(BattleAnimSystem *system)
 void BattleAnimScriptFunc_SkipSoundEffectWait(BattleAnimSystem *system)
 {
     system->soundEffectWaitTimer = 90;
+}
+
+void BattleAnimScriptFunc_MegaEvolutionCue(BattleAnimSystem *system)
+{
+    BattleDisplay_SetMegaEvolutionCue(BattleAnimSystem_GetScriptVar(system, 0));
 }
 
 void BattleAnimScriptFunc_HideBattler(BattleAnimSystem *system)

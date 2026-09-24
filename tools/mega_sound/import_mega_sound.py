@@ -13,12 +13,13 @@ Source and credit:
 
 The clip is used as is, not resynthesised. It is 5 s long: a rising charge (0-3.54 s), then a crystalline burst
 at 3.54 s whose sparkle tail decays by 5 s. It is cut in two so each half lines up with a step of the Mega
-Evolution script (res/battle/scripts/subscripts/subscript_mega_evolution.s).
+Evolution sequence. AffinePulse (src/battle/battle_display.c) plays both, on the cues from
+res/battle/scripts/common_anims/mega_evolution.s.
 
-  - SEQ_SE_MEGA_CHARGE plays with the charge (AffinePulse 0 and ChangeForm). The script plays the burst 47
-    frames after the charge (measured in battle), so this uses the last 47 frames (0.79 s) of the charge at
-    its original speed: a fade-in over its quiet stretch, then the swell that peaks straight into the burst.
-  - SEQ_SE_MEGA_BURST plays with the reveal (AffinePulse 1). The new form's cry starts about 6 frames later, so
+  - SEQ_SE_MEGA_CHARGE plays as the orb forms. The burst comes 36 battle frames (72 frames at 60 Hz) later, the
+    Delay in mega_evolution.s, so this uses the last 72 frames (1.2 s) of the charge at its original speed: a
+    fade-in over its quiet stretch, then the swell that peaks straight into the burst.
+  - SEQ_SE_MEGA_BURST plays as the orb bursts. The new form's cry starts about 6 frames later, so
     the burst keeps its full-level crack for 0.1 s and then ducks its tail 9 dB, leaving the cry on top.
   - Both are on PLAYER_SE_2 at the same priority, like the SEQ_SE_DP_W100/W107 pair they replace. Starting the
     burst therefore cuts off whatever is left of the charge.
@@ -60,7 +61,7 @@ TIMER = 16756991 // RATE
 BANK = "BANK_SE_MEGA"
 WAVE_ARC = "WAVE_ARC_SE_MEGA"
 BURST_AT = 3.54  # seconds into the clip
-CHARGE_FRAMES = 47  # frames from the charge PlaySound to the burst PlaySound in subscript_mega_evolution.s
+CHARGE_FRAMES = 72  # 60 Hz frames from the charge cue to the burst cue in mega_evolution.s
 FPS = 59.8261
 
 # name, SWAV/program index, clip window (s), fade in (s), fade out (s), rest before the note (ticks)

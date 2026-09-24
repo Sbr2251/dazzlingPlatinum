@@ -2,22 +2,27 @@
 
 Usage: python3 tools/mega_evolution/make_mega_evolution_spa.py  (safe to re-run)
 
-It is played in two parts, over AffinePulse's two stages (subscript_mega_evolution.s):
-  common_anims/mega_evolution_charge.s  (emitters 0-4)
+It is played by common_anims/mega_evolution.s, alongside AffinePulse (subscript_mega_evolution.s), in the style
+of the X and Y games: an orb forms round the Pokemon, which glows white inside it, then the orb bursts and the
+new form springs out.
+  charge (emitters 0-7, from the charge cue)
     0, 1: rainbow streaks spiralling in onto the Pokemon (three hues each, picked per particle)
-    2:    orbs swirling round it and tightening into a cocoon
-    3:    the light sphere at the centre, swelling and then collapsing with the squeezed sprite
-    4:    a magenta halo pulsing round the sphere
-  common_anims/mega_evolution.s  (emitters 5-13)
-    5:    the white flash as the sphere breaks
-    6, 7: two shockwave rings
-    8, 9: rainbow shards of the shell flying outward
-    10:   sparkles scattered round the new form
-    11:   the soft glow behind the Mega symbol
-    12:   the Mega symbol itself, stamped in above the Pokemon, held, then faded
-    13:   twinkles round the symbol
-Two stock greyscale textures are copied from absorb.spa. The ring, the shard and the Mega symbol are drawn
-here: the ring and shard as a quarter that the hardware mirrors into a whole, the symbol in colour.
+    2:    orbs swirling round it and tightening in
+    3, 4: purple and pink ribbons circling the orb in opposite directions
+    5:    the orb: a sprite-sized bubble with a white-pink rim and a see-through middle, held until the burst
+    6:    a glow breathing round the orb
+    7:    the orb's fill, turning opaque white at the end so the new form can be swapped in unseen
+  burst (emitters 8-16, from the burst cue)
+    8:    the white flash as the orb breaks
+    9, 10: two shockwave rings
+    11:   rainbow sparks flying outward
+    12:   large pieces of the orb's shell flying apart
+    13:   sparkles scattered round the new form
+    14:   the soft glow behind the Mega symbol
+    15:   the Mega symbol itself, stamped in above the Pokemon, held, then faded
+    16:   twinkles round the symbol
+Two stock greyscale textures are copied from absorb.spa. The ring, the shard, the orb, the fill, the ribbon and the
+Mega symbol are drawn here: the round ones as a quarter that the hardware mirrors into a whole, the symbol in colour.
 """
 import colorsys
 import math
@@ -33,7 +38,7 @@ import spa  # noqa: E402
 PARTICLES = os.path.join(HERE, "..", "..", "res/battle/particles")
 OUT = os.path.join(PARTICLES, "mega_evolution.spa")
 
-TEX_GLOW, TEX_STAR, TEX_RING, TEX_SHARD, TEX_SYMBOL = range(5)
+TEX_GLOW, TEX_STAR, TEX_RING, TEX_SHARD, TEX_SYMBOL, TEX_ORB, TEX_FILL, TEX_RIBBON = range(8)
 
 FMT_A3I5, FMT_A5I3 = 1, 6
 REPEAT_FLIP_ST = 0xF << 12  # repeat and mirror in S and T, so a quarter texture draws as a whole
@@ -46,6 +51,8 @@ def rgb(r, g, b):
 
 WHITE = rgb(31, 31, 31)
 PALE_PINK = rgb(31, 26, 31)
+ORB_PINK = rgb(31, 22, 30)
+PINK = rgb(31, 14, 26)
 MAGENTA = rgb(29, 10, 31)
 VIOLET = rgb(18, 8, 31)
 RED = rgb(31, 8, 10)
@@ -141,6 +148,42 @@ def shard_coverage(dx, dy):
     # a tall rhombus, brightest along its spine
     d = dx / 0.55 + dy
     return 0.0 if d > 1 else 0.55 + 0.45 * (1 - dx / 0.55)
+
+
+def orb_coverage(dx, dy):
+    # a bright rim with a soft outer glow, round a faint middle that thickens towards the edge like a bubble
+    d = math.hypot(dx, dy)
+    if d > 1:
+        return 0.0
+    rim = math.exp(-((d - ORB_RIM) / 0.05) ** 2)
+    inner = 0.12 + 0.4 * (d / ORB_RIM) ** 3 if d < ORB_RIM else 0.0
+    outer = 0.35 * math.exp(-(d - ORB_RIM) / 0.05) if d >= ORB_RIM else 0.0
+    return min(1.0, rim + inner + outer)
+
+
+def fill_coverage(dx, dy):
+    d = math.hypot(dx, dy)
+    return max(0.0, min(1.0, (ORB_RIM + 0.02 - d) / 0.12))
+
+
+ORB_RIM = 0.86
+RIBBON_RADIUS = 0.8
+RIBBON_SPAN = math.radians(130)
+
+
+def ribbon_texture():
+    """32x32 A5I3: an arc a third of the way round, thickest and brightest in its middle and tapering to both ends."""
+    def coverage(x, y):
+        a = math.atan2(y, x) % (2 * math.pi)
+        if a > RIBBON_SPAN:
+            return 0.0
+        taper = math.sin(math.pi * a / RIBBON_SPAN)
+        width = 0.02 + 0.09 * taper ** 0.8
+        return max(0.0, 1 - abs(math.hypot(x, y) - RIBBON_RADIUS) / width) * (0.4 + 0.6 * taper)
+
+    grid = supersample(32, coverage)
+    data = bytes(min(31, int(round(a * 31))) << 3 for row in grid for a in row)
+    return texture(FMT_A5I3, 2, data, [WHITE, 0], PAL_COLOR0)
 
 
 # The Mega symbol: a teardrop, tip up and to the right, with a rainbow band inside a dark outline and a
@@ -245,53 +288,79 @@ def symbol_texture():
 def build():
     absorb = spa.read(os.path.join(PARTICLES, "absorb.spa"))
     textures = [absorb["textures"][0], absorb["textures"][1], a5i3_quarter(1, ring_coverage),
-                a5i3_quarter(0, shard_coverage), symbol_texture()]
+                a5i3_quarter(0, shard_coverage), symbol_texture(), a5i3_quarter(2, orb_coverage),
+                a5i3_quarter(1, fill_coverage), ribbon_texture()]
 
-    # Timings are in particle frames, which advance at 30 Hz like AffinePulse's ticks.
-    # --- charge: every particle is gone by frame 8. The animation starts about 8 ticks into AffinePulse stage 0
-    # (20 ticks), and its End turns blending off, so it has to finish before the stage's last dim write or the
-    # screen would undim while the form changes. The sphere collapses with the squeezed sprite ---
-    def streaks(colors, delay):
+    # Timings are in particle frames, which advance at 30 Hz like AffinePulse's ticks. The charge emitters start at
+    # the charge cue and the burst emitters at the burst cue, CHARGE frames later (the Delay in mega_evolution.s).
+    CHARGE = 36
+    ORB_SCALE = 3.2  # about the size of a battle sprite
+
+    # --- charge: the orb forms round the Pokemon and holds until the burst, with ribbons of light circling it.
+    # AffinePulse hides the Pokemon under the fill at frame 30 and swaps in the new form ---
+    def streaks(colors):
         return resource(
             flags={"emissionType": 2, "drawType": 1, "hasSpinBehavior": 1},
-            radius=fx(2.4), emissionCount=fx(3), color=colors[1], initVelPosAmplifier=fx(-0.3), baseScale=fx(0.13),
-            startDelay=delay, emitterLifeTime=3, particleLifeTime=5, randomAttenuation=attenuation(vel=0x30),
-            misc=misc(1, TEX_GLOW, tile=1, dbb=3.0),
+            radius=fx(2.6), emissionCount=fx(2), color=colors[1], initVelPosAmplifier=fx(-0.3), baseScale=fx(0.13),
+            emitterLifeTime=CHARGE - 8, particleLifeTime=6, randomAttenuation=attenuation(vel=0x30),
+            misc=misc(2, TEX_GLOW, tile=1, dbb=3.0),
             scaleAnim=scale_anim(1.0, 1.0, 0.5, 0x00, 0xA0),
             colorAnim=color_anim(colors[0], colors[2], random_start=True),
             alphaAnim=alpha_anim(8, 31, 8, 0x30, 0xC0),
             spin=struct.pack("<HH", 0x0500, 2),
         )
 
-    streaks_a = streaks((RED, YELLOW, CYAN), 0)
-    streaks_b = streaks((ORANGE, GREEN, VIOLET), 0)
+    streaks_a = streaks((RED, YELLOW, CYAN))
+    streaks_b = streaks((ORANGE, GREEN, VIOLET))
     cocoon = resource(
         flags={"emissionType": 2, "hasSpinBehavior": 1, "hasConvergenceBehavior": 1},
-        radius=fx(1.4), emissionCount=fx(2), color=MAGENTA, baseScale=fx(0.2), startDelay=1, emitterLifeTime=2,
-        particleLifeTime=5, randomAttenuation=attenuation(scale=0x40), misc=misc(1, TEX_GLOW, tile=1),
+        radius=fx(1.6), emissionCount=fx(2), color=MAGENTA, baseScale=fx(0.2), startDelay=2,
+        emitterLifeTime=CHARGE - 12, particleLifeTime=7, randomAttenuation=attenuation(scale=0x40),
+        misc=misc(2, TEX_GLOW, tile=1),
         scaleAnim=scale_anim(0.4, 1.0, 0.6, 0x30, 0xC0),
         colorAnim=color_anim(CYAN, YELLOW, random_start=True),
         alphaAnim=alpha_anim(8, 28, 0, 0x40, 0xB0),
         spin=struct.pack("<HH", 0x0900, 2),
-        convergence=struct.pack("<iiihH", 0, 0, 0, fx(0.15), 0),
-    )
-    sphere = resource(
-        flags={"emissionType": 0}, posZ=fx(0.5), color=WHITE, baseScale=fx(1.35), particleLifeTime=8,
-        misc=misc(1, TEX_GLOW, tile=1),
-        scaleAnim=scale_anim(0.2, 1.0, 0.05, 0x60, 0xB0),
-        colorAnim=color_anim(PALE_PINK, WHITE, 0x00, 0x80, 0xFF),
-        alphaAnim=alpha_anim(10, 30, 30, 0x40, 0xFF),
-    )
-    halo = resource(
-        flags={"emissionType": 0}, posZ=fx(0.4), color=MAGENTA, baseScale=fx(2.0), startDelay=1,
-        emitterLifeTime=2, particleLifeTime=5, misc=misc(2, TEX_GLOW, tile=1),
-        scaleAnim=scale_anim(0.7, 1.0, 1.1, 0x40, 0xC0),
-        colorAnim=color_anim(MAGENTA, VIOLET, 0x00, 0x80, 0xFF),
-        alphaAnim=alpha_anim(0, 12, 0, 0x50, 0x90),
+        convergence=struct.pack("<iiihH", 0, 0, 0, fx(0.12), 0),
     )
 
-    # --- burst and symbol: done by frame 58. AffinePulse stage 1 is 22 ticks; the rest replaces the shiny
-    # sparkle animation that used to follow it (about 60 ticks), so the sequence ends sooner than before ---
+    def ribbons(colors, scale, rotation, delay):
+        return resource(
+            flags={"emissionType": 0, "hasRotation": 1, "randomInitAngle": 1}, posZ=fx(0.6), color=colors[1],
+            baseScale=fx(scale), minRotation=rotation[0], maxRotation=rotation[1], startDelay=delay,
+            emitterLifeTime=CHARGE - 4 - delay, particleLifeTime=12, randomAttenuation=attenuation(scale=0x20),
+            misc=misc(4, TEX_RIBBON),
+            scaleAnim=scale_anim(0.9, 1.0, 1.05, 0x40, 0xC0),
+            colorAnim=color_anim(colors[0], colors[2], random_start=True),
+            alphaAnim=alpha_anim(0, 26, 0, 0x50, 0xA0),
+        )
+
+    ribbons_a = ribbons((MAGENTA, PINK, PALE_PINK), ORB_SCALE * 1.15, (0x0700, 0x0A00), 2)
+    ribbons_b = ribbons((VIOLET, MAGENTA, PINK), ORB_SCALE * 1.3, (-0x0A00, -0x0700), 4)
+    orb = resource(
+        flags={"emissionType": 0}, posZ=fx(0.5), color=ORB_PINK, baseScale=fx(ORB_SCALE), particleLifeTime=CHARGE,
+        misc=misc(1, TEX_ORB, tile=1),
+        scaleAnim=scale_anim(0.5, 1.0, 1.0, 0x48, 0xFF),
+        colorAnim=color_anim(MAGENTA, WHITE, 0x00, 0x48, 0xE0),
+        alphaAnim=alpha_anim(0, 31, 31, 0x48, 0xFF),
+    )
+    orb_pulse = resource(
+        flags={"emissionType": 0}, posZ=fx(0.4), color=MAGENTA, baseScale=fx(ORB_SCALE * 1.2), startDelay=6,
+        emitterLifeTime=CHARGE - 12, particleLifeTime=8, misc=misc(8, TEX_ORB, tile=1),
+        scaleAnim=scale_anim(0.9, 1.0, 1.1, 0x40, 0xFF),
+        colorAnim=color_anim(PINK, VIOLET, 0x00, 0x80, 0xFF),
+        alphaAnim=alpha_anim(0, 14, 0, 0x60, 0x80),
+    )
+    # opaque from frame 29, just before AffinePulse hides the Pokemon, until the burst
+    orb_fill = resource(
+        flags={"emissionType": 0, "hasScaleAnim": 0}, posZ=fx(0.45), color=WHITE, baseScale=fx(ORB_SCALE), startDelay=16,
+        particleLifeTime=CHARGE - 16, misc=misc(1, TEX_FILL, tile=1),
+        colorAnim=color_anim(PALE_PINK, WHITE, 0x00, 0x80, 0xFF),
+        alphaAnim=alpha_anim(0, 31, 31, 0xA0, 0xFF),
+    )
+
+    # --- burst and symbol: done by frame 58 after the burst cue. AffinePulse's reveal is about 22 ticks; the rest
+    # replaces the shiny sparkle animation that used to follow it (about 60 ticks) ---
     flash = resource(
         flags={"emissionType": 0}, posZ=fx(0.6), color=WHITE, baseScale=fx(3.4), particleLifeTime=12,
         misc=misc(1, TEX_GLOW, tile=1),
@@ -312,20 +381,27 @@ def build():
     ring_a = ring(WHITE, MAGENTA, 2.6, 0)
     ring_b = ring(CYAN, VIOLET, 3.4, 3)
 
-    def shards(colors):
-        return resource(
-            flags={"emissionType": 2, "hasRotation": 1, "randomInitAngle": 1, "hasGravityBehavior": 1},
-            radius=fx(0.5), emissionCount=fx(9), color=colors[1], initVelPosAmplifier=fx(0.22),
-            baseScale=fx(0.26), minRotation=-2400, maxRotation=2400, particleLifeTime=20,
-            randomAttenuation=attenuation(scale=0x60, life=0x40, vel=0x90), misc=misc(1, TEX_SHARD, tile=1, air=0x70),
-            scaleAnim=scale_anim(1.0, 1.0, 0.4, 0x00, 0x90),
-            colorAnim=color_anim(colors[0], colors[2], random_start=True),
-            alphaAnim=alpha_anim(31, 31, 0, 0x00, 0x90),
-            gravity=struct.pack("<hhhH", 0, fx(-0.006), 0, 0),
-        )
-
-    shards_a = shards((RED, YELLOW, CYAN))
-    shards_b = shards((ORANGE, GREEN, VIOLET))
+    shards = resource(
+        flags={"emissionType": 2, "hasRotation": 1, "randomInitAngle": 1, "hasGravityBehavior": 1},
+        radius=fx(0.5), emissionCount=fx(12), color=YELLOW, initVelPosAmplifier=fx(0.24),
+        baseScale=fx(0.24), minRotation=-2400, maxRotation=2400, particleLifeTime=18,
+        randomAttenuation=attenuation(scale=0x60, life=0x40, vel=0x90), misc=misc(1, TEX_SHARD, tile=1, air=0x70),
+        scaleAnim=scale_anim(1.0, 1.0, 0.4, 0x00, 0x90),
+        colorAnim=color_anim(RED, CYAN, random_start=True),
+        alphaAnim=alpha_anim(31, 31, 0, 0x00, 0x90),
+        gravity=struct.pack("<hhhH", 0, fx(-0.006), 0, 0),
+    )
+    # the orb's shell breaking into a handful of big pieces from round its rim
+    shell = resource(
+        flags={"emissionType": 2, "hasRotation": 1, "randomInitAngle": 1, "hasGravityBehavior": 1},
+        radius=fx(ORB_SCALE * 0.4), emissionCount=fx(7), color=ORB_PINK, initVelPosAmplifier=fx(0.14),
+        baseScale=fx(0.65), minRotation=-1200, maxRotation=1200, particleLifeTime=20,
+        randomAttenuation=attenuation(scale=0x40, life=0x30, vel=0x50), misc=misc(1, TEX_SHARD, tile=1, air=0x78),
+        scaleAnim=scale_anim(1.0, 1.0, 0.6, 0x00, 0xA0),
+        colorAnim=color_anim(WHITE, PINK, 0x00, 0x60, 0xFF),
+        alphaAnim=alpha_anim(31, 28, 0, 0x60, 0xA0),
+        gravity=struct.pack("<hhhH", 0, fx(-0.004), 0, 0),
+    )
     sparkles = resource(
         flags={"emissionType": 5}, radius=fx(1.5), emissionCount=fx(2), posZ=fx(0.5), color=WHITE,
         baseScale=fx(0.3), startDelay=3, emitterLifeTime=14, particleLifeTime=12,
@@ -335,7 +411,7 @@ def build():
         alphaAnim=alpha_anim(31, 31, 31, 0x00, 0xFF),
     )
 
-    # the symbol arrives as the new form settles (stage 1 tick 14) and fades out by frame 58
+    # the symbol arrives as the new form settles (reveal tick 14) and fades out by frame 58
     SYMBOL_Y, SYMBOL_DELAY, SYMBOL_LIFE = fx(1.9), 14, 44
     symbol_glow = resource(
         flags={"emissionType": 0}, posY=SYMBOL_Y, posZ=fx(0.6), color=MAGENTA, baseScale=fx(1.1),
@@ -360,8 +436,8 @@ def build():
         alphaAnim=alpha_anim(31, 31, 31, 0x00, 0xFF),
     )
 
-    resources = [streaks_a, streaks_b, cocoon, sphere, halo, flash, ring_a, ring_b, shards_a, shards_b, sparkles,
-                 symbol_glow, symbol, symbol_twinkles]
+    resources = [streaks_a, streaks_b, cocoon, ribbons_a, ribbons_b, orb, orb_pulse, orb_fill,
+                 flash, ring_a, ring_b, shards, shell, sparkles, symbol_glow, symbol, symbol_twinkles]
     return {"magic": absorb["magic"], "version": absorb["version"], "resources": resources, "textures": textures}
 
 

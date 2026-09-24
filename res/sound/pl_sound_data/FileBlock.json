@@ -4833,7 +4833,7 @@
         {
             "name": "SEQ_SE_MEGA_CHARGE.sseq",
             "type": "SEQ",
-            "MD5": "1a1899992342fcb878429e6cea54aeb7"
+            "MD5": "113716946d0fc7044d8c5eeeaa795dec"
         },
         {
             "name": "SEQ_SE_MEGA_BURST.sseq",
@@ -11704,7 +11704,7 @@
         {
             "name": "WAVE_ARC_SE_MEGA.swar",
             "type": "WAVARC",
-            "MD5": "eff51166d13a4c3ba493a2bfdd2fba16",
+            "MD5": "75b10eb4ee9fb2cafcb40248a4170fdd",
             "subFile": [
                 "00.swav",
                 "01.swav"

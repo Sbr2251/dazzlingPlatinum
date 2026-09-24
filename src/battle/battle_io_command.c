@@ -698,33 +698,8 @@ static void BtlIOCmd_AffinePulse(BattleSystem *battleSys, BattlerData *battlerDa
 static void ov16_0225C684(BattleSystem *battleSys, BattlerData *param1)
 {
     MonChangeFormMessage *message = (MonChangeFormMessage *)&param1->data[0];
-    PokemonSpriteTemplate v1;
-    PokemonSpriteTemplate *v2;
-    int v3;
-    int v4;
 
-    if (param1->battlerType & 0x1) {
-        v4 = 2;
-    } else {
-        v4 = 0;
-    }
-
-    BuildPokemonSpriteTemplate(&v1, message->species, message->gender, v4, message->isShiny, message->formNum, message->personality);
-
-    v2 = PokemonSprite_GetTemplate(param1->unk_20);
-    *v2 = v1;
-
-    PokemonSprite_ScheduleReloadFromNARC(param1->unk_20);
-    CharacterSprite_LoadPokemonSprite(v2->narcID, v2->character, HEAP_ID_BATTLE, ov16_0223F2B8(ov16_0223E0C8(battleSys), param1->battler), message->personality, FALSE, v4, v2->spindaSpots);
-
-    PokemonSpriteData_SetNarcID(ov16_0223E0C8(battleSys), param1->battler, v2->narcID);
-    PokemonSpriteData_SetPalette(ov16_0223E0C8(battleSys), param1->battler, v2->palette);
-
-    v3 = LoadPokemonSpriteYOffset(message->species, message->gender, v4, message->formNum, message->personality);
-    PokemonSpriteData_SetYOffset(ov16_0223E0C8(battleSys), param1->battler, v3);
-
-    v3 = ov12_022384CC(param1->battlerType, 1) + v3;
-    PokemonSprite_SetAttribute(param1->unk_20, MON_SPRITE_Y_CENTER, v3);
+    BattleDisplay_ReloadFormSprite(battleSys, param1, message->species, message->gender, message->isShiny, message->formNum, message->personality);
 
     BattleController_EmitClearCommand(battleSys, param1->battler, message->command);
     ZeroDataBuffer(param1);

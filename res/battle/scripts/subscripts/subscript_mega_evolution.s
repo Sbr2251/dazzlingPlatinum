@@ -27,20 +27,11 @@ _key_stone:
     Wait
 
 _016:
-    // Affine Pulse charge: dim, whiten, compress, and conceal the base form
-    // Rainbow energy converges into a cocoon; runs alongside the pulse, whose Wait covers both
-    PlayBattleAnimation BTLSCR_MSG_TEMP, BATTLE_ANIMATION_MEGA_EVOLUTION_CHARGE
-    PlaySound BTLSCR_MSG_TEMP, SEQ_SE_MEGA_CHARGE
-    AffinePulse BTLSCR_MSG_TEMP, 0
-    Wait
-    // Swap forms only while the sprite is fully concealed
-    ChangeForm BTLSCR_MSG_TEMP
-    Wait
-    // Affine Pulse reveal: flash, elastic overshoot, settle, and restore
-    // The cocoon shatters and the Mega symbol appears; runs alongside the pulse
+    // An orb forms round the Pokemon, which glows white inside it and is swapped for its Mega form while the orb
+    // hides it; then the orb bursts and the Mega form springs out. The animation cues the pulse at each step, and the
+    // pulse also plays the sounds and the cry. Wait covers both.
     PlayBattleAnimation BTLSCR_MSG_TEMP, BATTLE_ANIMATION_MEGA_EVOLUTION
-    PlaySound BTLSCR_MSG_TEMP, SEQ_SE_MEGA_BURST
-    AffinePulse BTLSCR_MSG_TEMP, 1
+    AffinePulse BTLSCR_MSG_TEMP
     Wait
     // {0} Mega Evolved!
     PrintMessage pl_msg_00000368_01269, TAG_NICKNAME, BTLSCR_MSG_TEMP

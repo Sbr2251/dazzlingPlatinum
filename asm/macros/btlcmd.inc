@@ -1233,10 +1233,9 @@
     .long 222
     .endm
 
-    .macro AffinePulse battler, stage
+    .macro AffinePulse battler
     .long 223
     .long \battler
-    .long \stage
     .endm
 
     .text

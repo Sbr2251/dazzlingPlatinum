@@ -10,31 +10,45 @@
     EmitterOffsetPosParams BATTLE_PTCL_FLIP_DISABLE, \x, \y, 0
     .endm
 
-    .macro MegaBurst x:req, y:req, symbolY:req
+    .macro MegaSequence x:req, y:req, symbolY:req
+    // The orb forms round the Pokemon while ribbons of light circle it
+    Func_MegaEvolutionCue MEGA_EVOLUTION_CUE_CHARGE
+    MegaEmitter 0, \x, \y
+    MegaEmitter 1, \x, \y
+    MegaEmitter 2, \x, \y
+    MegaEmitter 7, \x, \y
     MegaEmitter 5, \x, \y
     MegaEmitter 6, \x, \y
-    MegaEmitter 7, \x, \y
+    MegaEmitter 3, \x, \y
+    MegaEmitter 4, \x, \y
+    // The charge's length; AffinePulse's timings (and SEQ_SE_MEGA_CHARGE) are built round it
+    Delay 36
+    // The orb bursts and the new form springs out, then the Mega symbol appears above it
+    Func_MegaEvolutionCue MEGA_EVOLUTION_CUE_BURST
     MegaEmitter 8, \x, \y
     MegaEmitter 9, \x, \y
     MegaEmitter 10, \x, \y
-    MegaEmitter 11, \x, \symbolY
-    MegaEmitter 12, \x, \symbolY
-    MegaEmitter 13, \x, \symbolY
+    MegaEmitter 11, \x, \y
+    MegaEmitter 12, \x, \y
+    MegaEmitter 13, \x, \y
+    MegaEmitter 14, \x, \symbolY
+    MegaEmitter 15, \x, \symbolY
+    MegaEmitter 16, \x, \symbolY
     .endm
 
-// Mega Evolution burst, played alongside the second AffinePulse in subscript_mega_evolution.s:
-// the cocoon shatters in a flash and shock rings, then the Mega symbol appears above the Pokemon.
+// Mega Evolution, played alongside AffinePulse in subscript_mega_evolution.s, in the style of the X and Y games.
+// The cues keep the pulse's sprite changes in step with the particles, however long they took to load.
 L_0:
     LoadParticleResource 0, 486 // mega_evolution_spa
     JumpIfBattlerSide BATTLER_ROLE_ATTACKER, L_enemy, L_player
 
 L_player:
-    MegaBurst 614, 4506, 4506 // (0.15, 1.1)
+    MegaSequence 614, 4506, 4506 // (0.15, 1.1)
     Jump L_blend
 
 L_enemy:
-    // An enemy's head sits higher above this point, so the symbol (emitters 11-13) is raised to clear it
-    MegaBurst 0, 819, 3686 // (0, 0.2), symbol (0, 0.9)
+    // An enemy's head sits higher above this point, so the symbol (emitters 14-16) is raised to clear it
+    MegaSequence 0, 819, 3686 // (0, 0.2), symbol (0, 0.9)
 
 L_blend:
     // The pulse turns blending off when it finishes, which would draw the particles (and a Totem's aura) opaque

@@ -75,6 +75,8 @@ void ov16_0225E008(BattleSystem *battleSys, BattlerData *param1, RefreshHPGaugeM
 void ov16_0225E0BC(BattleSystem *battleSys, BattlerData *param1, ForgetMoveMessage *message);
 void ov16_0225E0F4(BattleSystem *battleSys, BattlerData *param1, MosaicSetMessage *message);
 void BattleDisplay_StartAffinePulse(BattleSystem *battleSys, BattlerData *battlerData, AffinePulseMessage *message);
+void BattleDisplay_SetMegaEvolutionCue(int cue);
+void BattleDisplay_ReloadFormSprite(BattleSystem *battleSys, BattlerData *battlerData, int species, int gender, int isShiny, int form, u32 personality);
 
 /**
  * @brief Show the start-of-battle party gauge.
