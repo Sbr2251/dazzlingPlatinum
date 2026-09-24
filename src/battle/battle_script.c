@@ -8766,10 +8766,16 @@ static BOOL BtlCmd_SetMosaic(BattleSystem *battleSys, BattleContext *battleCtx)
 }
 
 /**
- * @brief Signals that a form change should occur due to the field's weather.
+ * @brief Play one stage of the Mega Evolution sprite animation on a battler.
+ *
+ * Stage 0 charges the battler: the rest of the scene dims while the battler
+ * turns white, compresses and disappears. Stage 1 reveals the new sprite with
+ * a flash, its cry and an eased pop back to normal size. ChangeForm is
+ * expected to run between the two stages.
  *
  * Inputs:
- * 1. The battler whose form should be changed.
+ * 1. The battler to animate.
+ * 2. The stage to play: 0 = charge, 1 = reveal.
  *
  * @param battleSys
  * @param battleCtx
@@ -8786,6 +8792,16 @@ static BOOL BtlCmd_AffinePulse(BattleSystem *battleSys, BattleContext *battleCtx
     return FALSE;
 }
 
+/**
+ * @brief Signals that a form change should occur due to the field's weather.
+ *
+ * Inputs:
+ * 1. The battler whose form should be changed.
+ *
+ * @param battleSys
+ * @param battleCtx
+ * @return FALSE
+ */
 static BOOL BtlCmd_ChangeForm(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     BattleScript_Iter(battleCtx, 1);
