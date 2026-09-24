@@ -7,6 +7,7 @@
 #include "constants/graphics.h"
 #include "constants/heap.h"
 
+#include "battle/mega_evolution.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/struct_ov16_022674C4.h"
 
@@ -55,6 +56,11 @@
 #define HEALTHBAR_NAME_BYTE_SIZE        (HEALTHBAR_NAME_BLOCK_COUNT_X * HEALTHBAR_NAME_BLOCK_COUNT_Y * HEALTHBAR_WINDOW_BLOCK_SIZE)
 #define HEALTHBAR_NAME_BACKGROUND_COLOR 0xF
 #define HEALTHBAR_NAME_TEXT_COLOR       TEXT_COLOR(14, 2, HEALTHBAR_NAME_BACKGROUND_COLOR)
+
+#define HEALTHBAR_MEGA_ICON_WIDTH  10
+#define HEALTHBAR_MEGA_ICON_HEIGHT 12
+#define HEALTHBAR_MEGA_ICON_Y      2
+#define HEALTHBAR_MEGA_NAME_X      (HEALTHBAR_MEGA_ICON_WIDTH + 1)
 
 #define VRAM_TRANSFER_DST(vram, transferTable, index_0, index_1, imgProxy) ( \
     (void *)((u32)vram + transferTable[index_0][index_1].pos + imgProxy->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]))
@@ -1136,6 +1142,51 @@ static void ScrollHealthbarTask(SysTask *task, void *data)
     }
 }
 
+// The Mega Evolution symbol, a rainbow-ringed orb with a helix inside, in healthbar palette indices. 0 keeps the name
+// background. It is centered on the capital letters of the name that follows it.
+static const u8 sHealthbarMegaIcon[HEALTHBAR_MEGA_ICON_HEIGHT][HEALTHBAR_MEGA_ICON_WIDTH] = {
+    { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x2 },
+    { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x8, 0x2 },
+    { 0x0, 0x0, 0x0, 0x0, 0x2, 0x2, 0x2, 0x8, 0x8, 0x2 },
+    { 0x0, 0x0, 0x2, 0x2, 0x6, 0x6, 0x6, 0xE, 0x8, 0x2 },
+    { 0x0, 0x2, 0xC, 0x6, 0xE, 0xE, 0xE, 0xE, 0x8, 0x2 },
+    { 0x2, 0xC, 0xE, 0xE, 0xE, 0xB, 0xB, 0xE, 0x7, 0x2 },
+    { 0x2, 0xB, 0xE, 0xE, 0xB, 0xE, 0xD, 0xE, 0x7, 0x2 },
+    { 0x2, 0xB, 0xE, 0xD, 0xE, 0xB, 0xE, 0xE, 0x7, 0x2 },
+    { 0x2, 0xB, 0xE, 0xB, 0xB, 0xE, 0xE, 0xE, 0xA, 0x2 },
+    { 0x0, 0x2, 0xD, 0xE, 0xE, 0xE, 0xE, 0xA, 0x2, 0x0 },
+    { 0x0, 0x0, 0x2, 0xD, 0xD, 0xA, 0xA, 0x2, 0x0, 0x0 },
+    { 0x0, 0x0, 0x0, 0x2, 0x2, 0x2, 0x2, 0x0, 0x0, 0x0 },
+};
+
+/**
+ * @brief Draw the Mega Evolution symbol into the left edge of the name window's 4bpp tiles.
+ *
+ * @param pixels The name window's pixel buffer
+ */
+static void Healthbar_DrawMegaIcon(u8 *pixels)
+{
+    for (int y = 0; y < HEALTHBAR_MEGA_ICON_HEIGHT; y++) {
+        int py = HEALTHBAR_MEGA_ICON_Y + y;
+
+        for (int x = 0; x < HEALTHBAR_MEGA_ICON_WIDTH; x++) {
+            u8 color = sHealthbarMegaIcon[y][x];
+
+            if (color == 0) {
+                continue;
+            }
+
+            u8 *p = &pixels[((py / 8) * HEALTHBAR_NAME_BLOCK_COUNT_X + x / 8) * HEALTHBAR_WINDOW_BLOCK_SIZE + (py % 8) * 4 + (x % 8) / 2];
+
+            if (x & 1) {
+                *p = (*p & 0x0F) | (color << 4);
+            } else {
+                *p = (*p & 0xF0) | color;
+            }
+        }
+    }
+}
+
 /**
  * @brief Draw the battler's name onto the healthbar.
  *
@@ -1152,6 +1203,7 @@ static void Healthbar_DrawBattlerName(Healthbar *healthbar)
     Pokemon *mon;
     BoxPokemon *boxMon;
     StringTemplate *strFormatter;
+    BOOL isMega;
 
     bgl = BattleSystem_BGL(healthbar->battleSys);
     msgLoader = BattleSystem_GetMessageLoader(healthbar->battleSys);
@@ -1167,8 +1219,14 @@ static void Healthbar_DrawBattlerName(Healthbar *healthbar)
     StringTemplate_Format(strFormatter, nickname, template);
 
     Window_AddToTopLeftCorner(bgl, &window, HEALTHBAR_NAME_BLOCK_COUNT_X, HEALTHBAR_NAME_BLOCK_COUNT_Y, HEALTHBAR_NAME_WINDOW_OFFSET, HEALTHBAR_NAME_BACKGROUND_COLOR);
-    Text_AddPrinterWithParamsColorAndSpacing(&window, FONT_SYSTEM, nickname, 0, 0, TEXT_SPEED_NO_TRANSFER, HEALTHBAR_NAME_TEXT_COLOR, 0, 0, NULL);
+    // A Mega-evolved Pokemon gets the Mega symbol in front of its name.
+    isMega = Pokemon_IsMegaEvolved(mon);
+    Text_AddPrinterWithParamsColorAndSpacing(&window, FONT_SYSTEM, nickname, isMega ? HEALTHBAR_MEGA_NAME_X : 0, 0, TEXT_SPEED_NO_TRANSFER, HEALTHBAR_NAME_TEXT_COLOR, 0, 0, NULL);
     buf = window.pixels;
+
+    if (isMega) {
+        Healthbar_DrawMegaIcon(buf);
+    }
 
     // copy the window's data into VRAM over the painted healthbar
     {

@@ -5534,6 +5534,8 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
         AffinePulse_FadeOthers(data, 12, 0, RGB(31, 31, 31));
         AffinePulse_PlaySound(data, SEQ_SE_MEGA_BURST);
+        // The name is redrawn with the Mega symbol in front of it.
+        Healthbar_DrawInfo(&data->battlerData->healthbar, data->battlerData->healthbar.curHP, HEALTHBAR_INFO_NAME);
     } else if (t == AFFINE_PULSE_REVEAL_CRY) {
         Sound_PlayPokemonCry(data->species, data->form);
     } else if (t == AFFINE_PULSE_REVEAL_UNFADE) {
