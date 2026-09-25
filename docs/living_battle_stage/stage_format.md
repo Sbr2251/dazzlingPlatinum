@@ -71,6 +71,22 @@ critic's A/B pixel diff can tune it.
 - `BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL` meshes mirror the BG3 x/y offset through the
   texture matrix, with texgen = TEXCOORD and texture repeat on.
 
+## Debug views
+
+`BattleStage_SetDebugView`, cycled by holding L+R and pressing B at the command menu:
+
+| View | Camera |
+|---|---|
+| 0 | home pose |
+| 1 | orbit 20 degrees left (yaw) around `camTarget` |
+| 2 | orbit 20 degrees right |
+| 3 | orbit 15 degrees up (pitch), and 20% closer to `camTarget` |
+
+The arena must have no holes in views 1-3: the panorama and ground reach wide enough,
+and texture coordinates past the classic screen edge mirror (`FLIP`) rather than tile.
+The tool's preview renders the same four views. The move tester returns to view 0
+before it plays an animation.
+
 ## Platforms
 
 Platform meshes carry `FOLLOW_PLATFORM_PLAYER`/`_ENEMY`. Each frame the renderer reads

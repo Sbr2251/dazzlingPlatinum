@@ -35,6 +35,12 @@ enum BattleStageMeshFlag {
     BATTLE_STAGE_MESH_COLOR0_TRANSPARENT = 1 << 2,
     // Scroll the texture with the BG3 offset (texture matrix), like the classic backdrop
     BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL = 1 << 3,
+    // Texture wrap outside 0..size (GX_TEXREPEAT_* / GX_TEXFLIP_*); without these the
+    // texture clamps
+    BATTLE_STAGE_MESH_REPEAT_S = 1 << 4,
+    BATTLE_STAGE_MESH_REPEAT_T = 1 << 5,
+    BATTLE_STAGE_MESH_FLIP_S = 1 << 6, // mirror on repeat, needs REPEAT_S
+    BATTLE_STAGE_MESH_FLIP_T = 1 << 7,
 };
 
 typedef struct BattleStageFileHeader {
