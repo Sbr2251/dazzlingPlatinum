@@ -93,7 +93,7 @@ For each chunk:
 | Lead | main session | Owns this plan and the interfaces between pieces, splits the work, merges, runs the ONE `make release`, commits/pushes, tells the user the ROM is ready |
 | Implementers | 2-4 subagents, each in its own git worktree | Each owns disjoint files (e.g. tool vs renderer vs compatibility). They write code and do NOT run `make release` in the main tree |
 | Reviewer | 1 subagent per merge | Adversarial review against DS constraints: fixed-point overflow, geometry FIFO/polygon budget, VRAM layout and menu bank swap, matrix stack push/pop balance, and preserving every `MON_SPRITE_*` attribute |
-| Visual critic (optional) | 1 subagent | Only if the user opts in: headless py-desmume captures of scripted battles, scored like the Mega sprite loop. Default is no emulator; the user validates |
+| Visual critic | 1 subagent per chunk | Runs `tools/battle_stage/emu/critic.py` on the built ROM (headless py-desmume, scripted scenarios through the debug combos), inspects the contact sheets, and reports obvious breakage (black or garbled screens, freezes, missing sprites, broken menus) before the ROM reaches the user. Issues go back to the implementers |
 | Move fixers (chunk 6) | 1 subagent per breakage category, with a critic | Redo the broken moves |
 
 Chunk 6 runs as a workflow (parallel per category, loop with the critic).
@@ -109,14 +109,16 @@ each chunk.
 Build:
 - `BATTLE_STAGE_3D` config header, and `src/battle/battle_stage.c/.h` skeleton hooked into
   battle init/teardown/draw (draws nothing yet).
-- **Debug quick-battle** (debug builds / flag only): on the overworld, SELECT+L/R
-  cycles a background+terrain pair (shown on screen), SELECT+START starts a
-  wild battle there against a chosen species. The party gets Key Stone +
-  a Mega-capable mon so Mega can be tested anywhere. A second combo starts the
-  Totem intro.
-- **Debug move tester:** in battle, SELECT+L/R picks a move ID, SELECT+A plays its
-  animation without running the move (loops through all ~470).
-- **In-battle A/B toggle:** SELECT+B flips the 3D stage on/off live.
+- **Debug quick-battle** (`DEBUG_BATTLE_TOOLS` only). In the overworld, hold L+R and press:
+  UP/DOWN to cycle a background+terrain pair (shown on screen), LEFT/RIGHT to
+  cycle the opponent species, A to start a wild battle there, X to start a Totem
+  battle with its intro, START to get the debug party (Key Stone + a Mega-capable
+  mon holding its stone). SELECT stays free for the registered item.
+- **Debug move tester:** in battle, at the command menu, hold L+R: LEFT/RIGHT
+  changes the move ID by 1, UP/DOWN by 10, A plays its animation player->enemy
+  without running the move, Y enemy->player.
+- **In-battle A/B toggle:** hold L+R and press SELECT to flip the 3D stage on/off live.
+- **Critic harness:** `tools/battle_stage/emu/` (scenarios, contact sheets, report).
 
 User validates: normal play is unchanged. The debug combos work: backgrounds
 cycle, the move tester plays animations, the Totem combo starts the intro.
