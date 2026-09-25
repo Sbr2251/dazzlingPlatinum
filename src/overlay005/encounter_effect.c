@@ -1326,6 +1326,13 @@ u32 CutInEffects_ForBattle(const FieldBattleDTO *param0)
     case TERRAIN_CAVE:
         v1 = 2 * 2;
         break;
+    default:
+        // The Elite Four, Distortion World, Frontier and Giratina terrains
+        // never reach here in vanilla (those battles have fixed cut-ins), but
+        // leaving v1 unset returns an out-of-range cut-in that hangs the
+        // transition. Use the plain-terrain cut-in.
+        v1 = 0 * 2;
+        break;
     }
 
     if (v0 > 0) {
