@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Give the Mega Empoleon front and back sprites a real idle frame.
+"""Give the Mega Empoleon back sprite a real idle frame.
+
+(The front sprite's frame 2 is now the "guard sweep" pose from
+animate_empoleon_guard.py; this script only writes back.png.)
 
 Frame 2 of each sheet was frame 1 nudged up a pixel, so the battle idle
 looked static. This rebuilds frame 2 from frame 1 as a breath in:
@@ -41,12 +44,6 @@ HEAD_LIFT = 2
 #     line (x, y), (x, y) along its inner edge; pixels left of it swing.
 #   wing: pivot, angle, and a function giving the soft mask for a pixel.
 SHEETS = {
-    'front.png': {
-        'hips': 50, 'feet': 64,
-        'head': (24, 58, 22, 29),
-        'blade': {'pivot': (36, 40), 'angle': 2.4, 'edge': ((40, 38), (19, 68))},
-        'wing': {'pivot': (56, 22), 'angle': -2.8, 'mask': 'front_wing'},
-    },
     'back.png': {
         'hips': 50, 'feet': 64,
         'head': (22, 58, 24, 30),
