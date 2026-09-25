@@ -4,9 +4,9 @@
 Commit d9f8565c3 reordered the Mega Gyarados palette. The front was remapped
 to match, but the back was not, so the back rendered as red/green noise and
 palette slot 1 became a second copy of the background green. This restores
-the front, back and both palettes from 2bb0d86b2, where all four agree. The
-d9f8565c3 reorder changed no colours, so normal and shiny look the same as it
-intended.
+the front and both palettes from 2bb0d86b2, where they agree. The d9f8565c3
+reorder changed no colours, so normal and shiny look the same as it intended.
+The back is rebuilt by fix_gyarados_back.py, which must run after this.
 
 The 2bb0d86b2 front has a 1-px border (index 15) drawn around both frames.
 Long straight runs of it are erased, then any tiny index-15 fragments that
@@ -126,7 +126,9 @@ def main() -> None:
     shiny = read_palette(git_show("shiny.pal"))
     assert normal[0] == (0, 128, 0) and normal[1] != normal[0]
 
-    for name in ("front.png", "back.png"):
+    # The back is rebuilt from the Smogon Sprite Project art by
+    # fix_gyarados_back.py; run that after this.
+    for name in ("front.png",):
         pixels = load_indices(git_show(name))
         for frame in range(FRAME_COUNT):
             x0 = frame * FRAME_SIZE
