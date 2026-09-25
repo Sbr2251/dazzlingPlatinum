@@ -709,6 +709,7 @@ Overlay battle
 	Object main.nef.p/src_battle_ov16_0226E148.c.o
 	Object main.nef.p/src_battle_mega_evolution.c.o
 	Object main.nef.p/src_battle_totem_aura.c.o
+	Object main.nef.p/src_battle_battle_stage.c.o
 }
 
 Overlay overlay17

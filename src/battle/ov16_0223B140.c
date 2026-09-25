@@ -21,6 +21,7 @@
 #include "battle/battle_display.h"
 #include "battle/battle_io_command.h"
 #include "battle/battle_lib.h"
+#include "battle/battle_stage.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02268520.h"
 #include "battle/ov16_0226E148.h"
@@ -596,6 +597,7 @@ static void ov16_0223B790(ApplicationManager *appMan)
 
     ov16_0223F36C(battleSys);
     ov16_0223CE28();
+    BattleStage_Init(battleSys);
 
     battleSys->unk_8C = BattleAnimSystem_New(HEAP_ID_BATTLE);
 
@@ -753,6 +755,7 @@ static void ov16_0223BCB4(ApplicationManager *appMan)
     StringTemplate_Free(battleSystem->strFormatter);
     PokemonAnimManager_Free(battleSystem->monAnimMan);
     TotemAura_Stop();
+    BattleStage_Free();
     ParticleSystem_FreeAll();
 
     BattleAnimSystem_Delete(battleSystem->unk_8C);
@@ -1540,6 +1543,8 @@ static void ov16_0223CF48(SysTask *param0, void *param1)
     sub_02038A1C(5, v0->unk_04);
 
     if ((v0->unk_23F9 == 0) || (v0->unk_23F9 == 3)) {
+        BattleStage_Draw();
+
         if (v0->unk_23F9 == 0) {
             ParticleHelper_DrawParticleSystems();
         }
