@@ -3,6 +3,7 @@
 #include <nitro.h>
 #include <string.h>
 
+#include "config/battle_stage.h"
 #include "constants/field/dynamic_map_features.h"
 #include "constants/field_poison.h"
 #include "constants/player_avatar.h"
@@ -34,6 +35,7 @@
 #include "communication_information.h"
 #include "communication_system.h"
 #include "daycare_save.h"
+#include "debug_quick_battle.h"
 #include "encounter.h"
 #include "field_comm_manager.h"
 #include "field_map_change.h"
@@ -204,6 +206,12 @@ BOOL FieldInput_Process(const FieldInput *input, FieldSystem *fieldSystem)
             return TRUE;
         }
     }
+
+#if DEBUG_BATTLE_TOOLS
+    if (DebugQuickBattle_TryStart(fieldSystem, input->heldKeys)) {
+        return TRUE;
+    }
+#endif
 
     if (input->dummy5 == FALSE) {
         int playerEvent = PLAYER_EVENT_NONE;

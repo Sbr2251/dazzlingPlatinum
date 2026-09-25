@@ -19,6 +19,7 @@
 #include "struct_defs/trainer.h"
 
 #include "applications/pokemon_summary_screen/main.h"
+#include "config/battle_stage.h"
 #include "field/field_system.h"
 #include "savedata/save_table.h"
 
@@ -62,6 +63,23 @@
 
 static int CalcTerrain(const FieldSystem *fieldSystem, enum BattleBackground background);
 static void SetBackgroundAndTerrain(FieldBattleDTO *dto, const FieldSystem *fieldSystem);
+
+#if DEBUG_BATTLE_TOOLS
+typedef struct DebugBackgroundOverride {
+    BOOL active;
+    enum BattleBackground background;
+    enum BattleTerrain terrain;
+} DebugBackgroundOverride;
+
+static DebugBackgroundOverride sDebugBackgroundOverride;
+
+void FieldBattleDTO_SetDebugBackgroundOverride(enum BattleBackground background, enum BattleTerrain terrain)
+{
+    sDebugBackgroundOverride.active = TRUE;
+    sDebugBackgroundOverride.background = background;
+    sDebugBackgroundOverride.terrain = terrain;
+}
+#endif
 
 FieldBattleDTO *FieldBattleDTO_New(enum HeapID heapID, u32 battleType)
 {
@@ -504,6 +522,15 @@ static void SetBackgroundAndTerrain(FieldBattleDTO *dto, const FieldSystem *fiel
     }
 
     dto->terrain = CalcTerrain(fieldSystem, dto->background);
+
+#if DEBUG_BATTLE_TOOLS
+    // One-shot: only the next battle set up from the field uses the override.
+    if (sDebugBackgroundOverride.active) {
+        dto->background = sDebugBackgroundOverride.background;
+        dto->terrain = sDebugBackgroundOverride.terrain;
+        sDebugBackgroundOverride.active = FALSE;
+    }
+#endif
 }
 
 void FieldBattleDTO_SetWaterTerrain(FieldBattleDTO *dto)

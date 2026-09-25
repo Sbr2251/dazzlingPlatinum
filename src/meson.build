@@ -275,6 +275,7 @@ pokeplatinum_c = files(
     'pokemon.c',
     'pokemon_mega_data.c',
     'totem_battle.c',
+    'debug_quick_battle.c',
     'trainer_data.c',
     'pc_boxes.c',
     'pokemon_icon.c',
