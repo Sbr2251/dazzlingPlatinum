@@ -1,6 +1,7 @@
 #ifndef POKEPLATINUM_FIELD_BATTLE_DATA_TRANSFER_H
 #define POKEPLATINUM_FIELD_BATTLE_DATA_TRANSFER_H
 
+#include "config/battle_stage.h"
 #include "constants/battle.h"
 #include "generated/evolution_methods.h"
 #include "generated/map_headers.h"
@@ -111,5 +112,10 @@ BOOL CheckPlayerWonBattle(u32 battleResult);
 BOOL CheckPlayerLostBattle(u32 battleResult);
 BOOL CheckPlayerDidNotCaptureWildMon(u32 battleResult);
 void FieldBattleDTO_CopyPlayerInfoToTrainerData(FieldBattleDTO *dto);
+
+#if DEBUG_BATTLE_TOOLS
+// The next battle set up from the field uses this background and terrain instead of the map's.
+void FieldBattleDTO_SetDebugBackgroundOverride(enum BattleBackground background, enum BattleTerrain terrain);
+#endif
 
 #endif // POKEPLATINUM_FIELD_BATTLE_DATA_TRANSFER_H
