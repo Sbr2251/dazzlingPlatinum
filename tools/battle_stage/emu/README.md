@@ -56,7 +56,7 @@ Measured on the devserver against the 2026-09-25 15:16 ROM. The emulator runs at
 | quick_battle (default `--bgs 0,1,29`) | 22 s, about 7 s per battle |
 | totem_battle | 12 s |
 | debug_party | 7 s |
-| move_tester | 16 s up to the soft lock on this ROM. With a working tester, expect 10 s of setup plus 2-4 s per move |
+| move_tester | about 10 s of setup, 2-4 s per move, then 10 s for the two turns after the tester (55 s with the 13 moves in `--moves 1,19,33,52,57,85,89,91,94,126,242,337,382`) |
 | stage_toggle | 15 s |
 | default set (boot, wild_battle, quick_battle, move_tester, stage_toggle) | 78 s |
 
@@ -87,7 +87,7 @@ Every scenario boots from the save and adds two checks at the end:
 | `quick_battle` | for each `--bgs` entry: holds L+R in the field, moves the selector the short way (DOWN +1, UP -1, both wrap), presses A (wild battle), records the transition and intro, then runs | L+R panel opened; the panel responds to the d-pad; L+R+A started a battle; battle menu reached; screens sane; not frozen; returned to the overworld |
 | `totem_battle` | not in the default set. L+R+X on entry 0: Totem doubles | L+R+X started a battle; battle menu reached; screens sane. Totem battles cannot be fled, so the scenario ends in battle |
 | `debug_party` | not in the default set. L+R+START in the field | the party in RAM changed (Key Stone and a Lv50 Mega mon); still in the overworld |
-| `move_tester` | wild battle, then at the command menu: hold L+R (overlay "Move NNN: name"), step to each move (UP/DOWN +-10, RIGHT/LEFT +-1), A (Y with `--reverse`), release L+R, record every 3 frames until the overlay hides (that is when the animation ends) | overlay shown; **animation drew something**: the scene, with the healthbar boxes masked, differs by more than 0.3% from idle; the animation finished (overlay hidden) within `--anim-frames`; the battle text is restored 90 frames later; if not, the command menu still responds (touching FIGHT opens the move list); the command menu responds at the end; run away |
+| `move_tester` | wild battle, then at the command menu: hold L+R (overlay "Move NNN: name"), step to each move (UP/DOWN +-10, RIGHT/LEFT +-1), A (Y with `--reverse`), release L+R, record every 3 frames until the overlay hides (that is when the animation ends) | overlay shown; **animation drew something**: the scene, with the healthbar boxes masked, differs by more than 0.3% from idle; the animation finished (overlay hidden) within `--anim-frames`; the battle text is restored 90 frames later; if not, the command menu still responds (touching FIGHT opens the move list). Then a real turn: FIGHT -> False Swipe plays and the menu comes back; the tester again on turn 2 (Pound: drew, finished, text restored), when the AI picks its move while the menu is already up; a second real turn; run away |
 | `stage_toggle` | wild battle; L+R overlay; SELECT twice (3D stage ON <-> OFF). After each SELECT: release, snapshot the scene, then play Pound | SELECT changed the overlay text; screens sane after each toggle; battle text restored; Pound finished; battle text restored 90 frames after Pound, or the menu still responds; two SELECTs restore the original ON/OFF text (WARN); command menu responds; run away |
 
 When the debug combos are missing, `quick_battle`, `move_tester` and `stage_toggle` report a single FAIL ("holding L+R changed nothing ... not in this ROM") and move on. That happens when the ROM lacks the feature or the save uses the "L=A" button mode.

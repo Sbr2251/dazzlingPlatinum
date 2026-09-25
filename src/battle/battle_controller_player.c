@@ -778,6 +778,24 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
     }
 }
 
+#if DEBUG_BATTLE_TOOLS
+BOOL BattleControllerPlayer_AIDoneSelecting(BattleSystem *battleSys, BattleContext *battleCtx)
+{
+    if (battleCtx->command != BATTLE_CONTROL_COMMAND_SELECTION_INPUT) {
+        return FALSE;
+    }
+
+    for (int i = 0; i < BattleSystem_MaxBattlers(battleSys); i++) {
+        if (Battler_BootState(BattleSystem_BattlerData(battleSys, i)) == BATTLER_BOOT_STATE_AI
+            && battleCtx->curCommandState[i] != COMMAND_SELECTION_END) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+#endif
+
 static void BattleControllerPlayer_CalcTurnOrder(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     int battler, i, j; // Must declare these here to match.

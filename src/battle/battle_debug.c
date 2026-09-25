@@ -13,10 +13,14 @@
 #include "constants/heap.h"
 #include "generated/moves.h"
 
+#include "struct_defs/battle_system.h"
+
 #include "battle/battle_context.h"
 #include "battle/battle_controller.h"
+#include "battle/battle_controller_player.h"
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
+#include "battle/ov16_0223B140.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02264798.h"
 #include "battle/struct_ov16_0225BFFC_t.h"
@@ -46,6 +50,7 @@ typedef struct MoveTester {
     BOOL animPlaying;
     BOOL healthbarsHidden;
     BOOL shadowsHidden;
+    BOOL swappedOverlay; // the battle_anim overlay was loaded in place of trainer_ai for the animation
     // Out-of-sequence animations can end with a battler hidden (e.g. the charge turn of Fly or Dig, Roar)
     BOOL spriteHidden[MAX_BATTLERS];
 } MoveTester;
@@ -156,6 +161,15 @@ static int PickBattler(BattleSystem *battleSys, int battler, int partner)
     return battler;
 }
 
+static BOOL CanStartTestAnimation(BattleSystem *battleSys)
+{
+    if (BattleSystem_BattleType(battleSys) & BATTLE_TYPE_LINK) {
+        return FALSE;
+    }
+
+    return BattleControllerPlayer_AIDoneSelecting(battleSys, BattleSystem_Context(battleSys));
+}
+
 // Mirrors the move-animation battle command (ov16_0225D9A8), minus the Substitute swap
 static void StartTestAnimation(BattleSystem *battleSys, BattlerData *commandBattler, int attacker, int defender)
 {
@@ -186,6 +200,14 @@ static void StartTestAnimation(BattleSystem *battleSys, BattlerData *commandBatt
 
     if (sMoveTester.shadowsHidden) {
         PokemonSpriteManager_HideShadows(BattleSystem_GetPokemonSpriteManager(battleSys));
+    }
+
+    // During command selection the trainer AI overlay sits where the animation code lives; swap
+    // it out the same way the ball throw does, and swap it back once the animation is over
+    sMoveTester.swappedOverlay = battleSys->overlayFlags != 0;
+
+    if (sMoveTester.swappedOverlay) {
+        BattleSystem_LoadFightOverlay(battleSys, 0);
     }
 
     BattleDisplay_StartMoveAnimation(battleSys, attacker, &animation);
@@ -220,6 +242,12 @@ static BOOL UpdateTestAnimation(BattleSystem *battleSys, BattlerData *commandBat
         if (sprite != NULL) {
             PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, sMoveTester.spriteHidden[battler]);
         }
+    }
+
+    // The script has ended, and with it every task running animation code
+    if (sMoveTester.swappedOverlay) {
+        BattleSystem_LoadFightOverlay(battleSys, 1);
+        sMoveTester.swappedOverlay = FALSE;
     }
 
     ov16_02264798(commandBattler, battleSys);
@@ -297,6 +325,12 @@ BOOL BattleDebug_UpdateCommandMenu(BattleSystem *battleSys, BattlerData *command
 
     int player = PickBattler(battleSys, BATTLER_PLAYER_1, BATTLER_PLAYER_2);
     int enemy = PickBattler(battleSys, BATTLER_ENEMY_1, BATTLER_ENEMY_2);
+
+    // The AI may still be picking its move (it runs alongside the menu after the first turn, from the
+    // overlay the animation needs); ignore the press until it is done
+    if (CanStartTestAnimation(battleSys) == FALSE) {
+        return TRUE;
+    }
 
     if (gSystem.pressedKeys & PAD_BUTTON_A) {
         StartTestAnimation(battleSys, commandBattler, player, enemy);

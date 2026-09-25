@@ -3,6 +3,8 @@
 
 #include "struct_decls/battle_system.h"
 
+#include "config/battle_stage.h"
+
 #include "battle/battle_context.h"
 
 enum BattleControlSequence {
@@ -141,5 +143,20 @@ void BattleContext_Free(BattleContext *battleCtx);
  * @param move
  */
 void BattleControllerPlayer_CheckMoveHit(BattleSystem *battleSys, BattleContext *battleCtx, int attacker, int defender, int move);
+
+#if DEBUG_BATTLE_TOOLS
+/**
+ * @brief Check that every AI battler has finished picking its command for the turn.
+ *
+ * The trainer AI runs in an overlay that shares its address with the battle
+ * animation overlay, and it may take several frames; the debug move tester can
+ * only swap the animation overlay in while no AI is running.
+ *
+ * @param battleSys
+ * @param battleCtx
+ * @return TRUE if no AI battler is still selecting a command; FALSE otherwise.
+ */
+BOOL BattleControllerPlayer_AIDoneSelecting(BattleSystem *battleSys, BattleContext *battleCtx);
+#endif
 
 #endif // POKEPLATINUM_BATTLE_CONTROLLER_H

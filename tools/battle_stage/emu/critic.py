@@ -40,6 +40,7 @@ from emu import (  # noqa: E402
 from PIL import Image, ImageChops  # noqa: E402
 
 DEFAULT_SAV = HERE / "saves" / "eterna_forest_grass.sav"
+MOVE_ID_POUND = 1
 FALSE_SWIPE_SLOT = 3                   # the committed save's lead has False Swipe here (never KOs)
 MOVE_ID_MAX = 473                      # move tester wraps within 1..473
 QB_ENTRIES = 30                        # quick-battle background entries 0..29
@@ -528,14 +529,76 @@ def _nav_move(e: Emu, cur: int, target: int) -> None:
     e.run(4)
 
 
+def _fight_turn(sc: Scenario, e: Emu, args, what: str) -> bool:
+    """Uses False Swipe and waits for the turn (ours and the enemy's) to play out. Returns True
+    once the command menu is back. After the move tester this proves the battle still runs a
+    real turn: the tester swaps the trainer AI overlay out for the animation overlay and back,
+    and a wrong swap only shows up when the turn ends and the battle swaps them itself."""
+    if not sc.check(f"{what}: FIGHT opened the move list", e.battle_fight(FALSE_SWIPE_SLOT),
+                    why="touching FIGHT did not open the move list: the command menu is soft-locked"):
+        return False
+    anim = e.record(args.max_anim_frames, every=3, label="fight", stop=lambda em: em.battle_menu_up(), min_frames=60)
+    distinct = len(dedupe(anim, "top"))
+    sc.sheet(anim, what.replace(" ", "_"), f"{what}: FIGHT -> False Swipe + enemy turn, every 3 frames (deduped)",
+             screen="top", dedupe_screen="top")
+    sc.check(f"{what}: move animation played", distinct >= 10, f"{distinct} distinct top frames over {len(anim) * 3} frames")
+    return sc.check(f"{what}: menu returned after the turn", e.battle_menu_up(),
+                    why=f"no command menu within {args.max_anim_frames} frames of picking the move")
+
+
+def _tester_move(sc: Scenario, e: Emu, args, ov: "Overlay", baseline: tuple, cur: int, mid: int,
+                 direction: str, key: str, tag: str, overlays: List[Frame], after: List[Frame]) -> bool:
+    """Picks move `mid` in the tester (currently on `cur`), plays it with `key` and checks that it
+    drew, ended and gave the battle text back. Returns False if the battle is stuck."""
+    idle, base_boxes = baseline
+    if not ov.up() and not ov.show():
+        sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay back")
+        return True
+    _nav_move(e, cur, mid)
+    e.snap(f"overlay {mid:03d}", overlays)
+    anim, done = ov.play(key, args.anim_frames, f"{mid:03d}{direction}")
+    if froze(sc, e, anim, f"playing move {mid} with L+R+{key}"):
+        sc.sheet(anim[:1] + [e.snap("frozen")], f"{tag.replace(' ', '_')}_frozen",
+                 f"move {mid}: frozen screen", scale=1.0)
+        return False
+    change = max((min_diff(idle, scene(f.img)) for f in anim), default=0.0)
+    sc.check(f"{tag} ({key}): animation drew something", change > 0.003,
+             f"up to {change:.1%} of the scene (HUD masked) differs from idle, "
+             f"{len(dedupe(anim, 'top'))} distinct frames",
+             why="nothing moved on screen while the tester said an animation was playing")
+    bad = noisy_frames(anim)
+    if bad:
+        sc.warn(f"{tag}: frames look sane", f"{len(bad)} noisy: {', '.join(bad[:4])}")
+    sc.sheet(anim, tag.replace(" ", "_"),
+             f"{tag}: {'player->enemy' if key == 'A' else 'enemy->player'}, every 3 frames (deduped)",
+             screen="top", dedupe_screen="top")
+    if not sc.check(f"{tag}: animation finished", done is not None,
+                    f"overlay hidden {done} frames after L+R+{key}" if done is not None else
+                    f"overlay still up {len(anim) * 3} frames after L+R+{key}: the animation never "
+                    "ended, so the command menu keeps ignoring input"):
+        return False
+    # The text comes back first; a broken state can garble it a few dozen frames later.
+    e.run(10)
+    e.snap(f"{tag} +10", after)
+    e.run(80)
+    shot = e.snap(f"{tag} +90", after)
+    d = min_diff(base_boxes, text_box(shot.img))
+    if not sc.check(f"{tag}: battle text restored", d < 0.02,
+                    f"{d:.1%} of the text box differs from before the overlay (90 frames after)",
+                    why="the message box was not restored (garbled or blank; see sheet_after)"):
+        if not sc.check(f"{tag}: command menu still responds", menu_responds(e),
+                        why="touching FIGHT no longer opens the move list: the battle is soft-locked"):
+            return False
+    return True
+
+
 def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
     if not _battle_ready(sc, e):
         return
     ov = Overlay(e)
     e.run(30)                                # let the menu's text box icons appear
     idle_frames = e.record(60, every=5, label="idle")
-    idle = [scene(f.img) for f in idle_frames]
-    base_boxes = [text_box(f.img) for f in idle_frames]
+    baseline = ([scene(f.img) for f in idle_frames], [text_box(f.img) for f in idle_frames])
     overlays: List[Frame] = []
     after: List[Frame] = []
     if not ov.show():
@@ -543,67 +606,40 @@ def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
         run_away(sc, e)
         return
     e.snap("overlay (start, expect Move 001)", overlays)
-    cur, stuck = 1, False
+    cur, ok = 1, True
     for mid in args.moves:
         mid = max(1, min(MOVE_ID_MAX, mid))
         for direction, key in (("fwd", "A"), ("rev", "Y"))[: 2 if args.reverse else 1]:
-            tag = f"move {mid:03d} {direction}"
-            if not ov.up() and not ov.show():
-                sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay back")
-                continue
-            _nav_move(e, cur, mid)
+            ok = _tester_move(sc, e, args, ov, baseline, cur, mid, direction, key,
+                              f"move {mid:03d} {direction}", overlays, after)
             cur = mid
-            e.snap(f"overlay {mid:03d}", overlays)
-            anim, done = ov.play(key, args.anim_frames, f"{mid:03d}{direction}")
-            if froze(sc, e, anim, f"playing move {mid} with L+R+{key}"):
-                sc.sheet(anim[:1] + [e.snap("frozen")], f"move_{mid:03d}_{direction}_frozen",
-                         f"move {mid}: frozen screen", scale=1.0)
-                stuck = True
+            if not ok:
                 break
-            change = max((min_diff(idle, scene(f.img)) for f in anim), default=0.0)
-            sc.check(f"{tag} ({key}): animation drew something", change > 0.003,
-                     f"up to {change:.1%} of the scene (HUD masked) differs from idle, "
-                     f"{len(dedupe(anim, 'top'))} distinct frames",
-                     why="nothing moved on screen while the tester said an animation was playing")
-            bad = noisy_frames(anim)
-            if bad:
-                sc.warn(f"{tag}: frames look sane", f"{len(bad)} noisy: {', '.join(bad[:4])}")
-            sc.sheet(anim, f"move_{mid:03d}_{direction}",
-                     f"move {mid} {'player->enemy' if key == 'A' else 'enemy->player'}, every 3 frames (deduped)",
-                     screen="top", dedupe_screen="top")
-            if not sc.check(f"{tag}: animation finished", done is not None,
-                            f"overlay hidden {done} frames after L+R+{key}" if done is not None else
-                            f"overlay still up {len(anim) * 3} frames after L+R+{key}: the animation never "
-                            "ended, so the command menu keeps ignoring input"):
-                stuck = True
-                break
-            # The text comes back first; a broken state can garble it a few dozen frames later.
-            e.run(10)
-            e.snap(f"after {mid:03d} +10", after)
-            e.run(80)
-            shot = e.snap(f"after {mid:03d} +90", after)
-            d = min_diff(base_boxes, text_box(shot.img))
-            if not sc.check(f"{tag}: battle text restored", d < 0.02,
-                            f"{d:.1%} of the text box differs from before the overlay (90 frames after)",
-                            why="the message box was not restored (garbled or blank; see sheet_after)"):
-                if not sc.check(f"{tag}: command menu still responds", menu_responds(e),
-                                why="touching FIGHT no longer opens the move list: the battle is soft-locked"):
-                    stuck = True
-                    break
-        if stuck:
+        if not ok:
             break
+
+    # A real turn after the tester, then the tester again on turn 2: from then on the AI picks its
+    # move while the menu is already up, so the tester has to wait for it before swapping overlays.
+    if ok:
+        if not e.battle_menu_up():
+            e.wait_battle_menu(timeout=1800, advance_text=True)
+        ok = e.battle_menu_up() and _fight_turn(sc, e, args, "turn 1 after tester")
+    if ok:
+        e.run(30)
+        ok = _tester_move(sc, e, args, ov, baseline, cur, MOVE_ID_POUND, "fwd", "A",
+                          "turn 2 move 001 fwd", overlays, after)
+        cur = MOVE_ID_POUND
+    if ok:
+        ok = _fight_turn(sc, e, args, "turn 2 after tester")
+
     sc.sheet(overlays, "overlays", "L+R overlay before each animation (check the move name)",
              screen="top", cols=4, scale=1.0)
     sc.sheet(after, "after", "battle text 10 and 90 frames after each animation (should read 'What will ... do?')",
              screen="top", cols=4, scale=1.0)
-    if stuck:
+    if not ok:
         sc.note("Skipped running away: the command menu is stuck or frozen.")
         return
-    if not e.battle_menu_up():
-        e.wait_battle_menu(timeout=1800, advance_text=True)
-    if sc.check("command menu responds after the tester", e.battle_menu_up() and menu_responds(e),
-                why="touching FIGHT did not open the move list"):
-        run_away(sc, e)
+    run_away(sc, e)
 
 
 def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:

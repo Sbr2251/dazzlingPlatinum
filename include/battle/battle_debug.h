@@ -8,6 +8,7 @@
 // In-battle debug tools (DEBUG_BATTLE_TOOLS only). At the Fight/Bag/Pokemon/Run menu, hold L+R and press:
 //   LEFT/RIGHT  move ID -1/+1        UP/DOWN  move ID +10/-10
 //   A           play the move's animation, player -> enemy (the move is not used)
+//               (ignored for the few frames the AI may still be picking its move)
 //   Y           play it enemy -> player
 //   SELECT      toggle the 3D battle stage
 // Called every frame the command menu waits for input. Returns TRUE when the tools used this
