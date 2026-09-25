@@ -6,6 +6,7 @@
 #include "constants/battle/battle_anim.h"
 #include "constants/heap.h"
 #include "constants/species.h"
+#include "config/battle_stage.h"
 #include "generated/items.h"
 
 #include "struct_decls/battle_system.h"
@@ -16,6 +17,7 @@
 #include "battle/battle_context.h"
 #include "battle/battle_controller.h"
 #include "battle/battle_cursor.h"
+#include "battle/battle_debug.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
 #include "battle/healthbar.h"
@@ -3048,6 +3050,13 @@ static void ov16_022604C8(SysTask *param0, void *param1)
         v0->unk_0A = 5;
         break;
     case 5:
+#if DEBUG_BATTLE_TOOLS
+        // While L+R is held (or a test animation plays) the move tester owns the keys
+        if (BattleDebug_UpdateCommandMenu(v0->unk_00, v3)) {
+            break;
+        }
+#endif
+
         if (gSystem.pressedKeys & PAD_BUTTON_START) {
             BattlerData *v14;
             int i;
@@ -6622,3 +6631,10 @@ static u8 ov16_02264768(BattleSystem *battleSys, u8 param1, u8 param2)
 
     return param2;
 }
+
+#if DEBUG_BATTLE_TOOLS
+void BattleDisplay_StartMoveAnimation(BattleSystem *battleSys, int attacker, MoveAnimation *animation)
+{
+    ov16_02264408(battleSys, BattleSystem_BattlerData(battleSys, attacker), ov16_0223E008(battleSys), animation);
+}
+#endif
