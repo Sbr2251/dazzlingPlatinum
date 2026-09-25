@@ -7,6 +7,8 @@
 
 #include "constants/battle.h"
 #include "constants/heap.h"
+
+#include "config/battle_stage.h"
 #include "generated/game_records.h"
 #include "generated/trainer_classes.h"
 
@@ -17,6 +19,7 @@
 #include "battle/battle_context.h"
 #include "battle/battle_controller.h"
 #include "battle/battle_controller_player.h"
+#include "battle/battle_debug.h"
 #include "battle/battle_cursor.h"
 #include "battle/battle_display.h"
 #include "battle/battle_io_command.h"
@@ -598,6 +601,9 @@ static void ov16_0223B790(ApplicationManager *appMan)
     ov16_0223F36C(battleSys);
     ov16_0223CE28();
     BattleStage_Init(battleSys);
+#if DEBUG_BATTLE_TOOLS
+    BattleDebug_Init();
+#endif
 
     battleSys->unk_8C = BattleAnimSystem_New(HEAP_ID_BATTLE);
 
@@ -756,6 +762,9 @@ static void ov16_0223BCB4(ApplicationManager *appMan)
     PokemonAnimManager_Free(battleSystem->monAnimMan);
     TotemAura_Stop();
     BattleStage_Free();
+#if DEBUG_BATTLE_TOOLS
+    BattleDebug_Free();
+#endif
     ParticleSystem_FreeAll();
 
     BattleAnimSystem_Delete(battleSystem->unk_8C);

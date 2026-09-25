@@ -41,16 +41,17 @@
 #define MOVE_FLAG_HIDE_SHADOWS 0x80
 
 typedef struct MoveTester {
-    BattleSystem *battleSys; // the battle the state below belongs to
-    u16 move;
     BOOL overlayShown;
     void *savedTextPixels; // the message window as it was before the overlay covered it
     BOOL animPlaying;
     BOOL healthbarsHidden;
     BOOL shadowsHidden;
+    // Out-of-sequence animations can end with a battler hidden (e.g. the charge turn of Fly or Dig, Roar)
+    BOOL spriteHidden[MAX_BATTLERS];
 } MoveTester;
 
 static MoveTester sMoveTester;
+static u16 sTestMove; // kept across battles
 
 static u16 WrapMove(int move)
 {
@@ -113,12 +114,12 @@ static void DrawOverlay(BattleSystem *battleSys)
     Window *window = BattleSystem_Window(battleSys, 0);
     String *line = String_Init(64, HEAP_ID_BATTLE);
     String *number = String_Init(8, HEAP_ID_BATTLE);
-    String *moveName = MessageUtil_MoveName(sMoveTester.move, HEAP_ID_BATTLE);
+    String *moveName = MessageUtil_MoveName(sTestMove, HEAP_ID_BATTLE);
 
     Window_FillTilemap(window, 0xFF);
 
     AppendAscii(line, "Move ");
-    String_FormatInt(number, sMoveTester.move, 3, PADDING_MODE_ZEROES, CHARSET_MODE_EN);
+    String_FormatInt(number, sTestMove, 3, PADDING_MODE_ZEROES, CHARSET_MODE_EN);
     String_Concat(line, number);
     AppendAscii(line, ": ");
     String_Concat(line, moveName);
@@ -133,6 +134,11 @@ static void DrawOverlay(BattleSystem *battleSys)
     String_Free(moveName);
     String_Free(number);
     String_Free(line);
+}
+
+static PokemonSprite *BattlerSprite(BattleSystem *battleSys, int battler)
+{
+    return BattleSystem_BattlerData(battleSys, battler)->unk_20;
 }
 
 static BOOL BattlerIsAlive(BattleSystem *battleSys, int battler)
@@ -154,10 +160,10 @@ static int PickBattler(BattleSystem *battleSys, int battler, int partner)
 static void StartTestAnimation(BattleSystem *battleSys, BattlerData *commandBattler, int attacker, int defender)
 {
     MoveAnimation animation;
-    u32 moveFlags = MoveTable_LoadParam(sMoveTester.move, MOVEATTRIBUTE_FLAGS);
+    u32 moveFlags = MoveTable_LoadParam(sTestMove, MOVEATTRIBUTE_FLAGS);
 
     MI_CpuClear8(&animation, sizeof(MoveAnimation));
-    BattleController_SetMoveAnimation(battleSys, BattleSystem_Context(battleSys), &animation, 0, 0, attacker, defender, sMoveTester.move);
+    BattleController_SetMoveAnimation(battleSys, BattleSystem_Context(battleSys), &animation, 0, 0, attacker, defender, sTestMove);
     animation.isSubstitute = FALSE;
 
     // The idle bob would fight the animation over the sprite's Y offset
@@ -165,6 +171,12 @@ static void StartTestAnimation(BattleSystem *battleSys, BattlerData *commandBatt
 
     sMoveTester.healthbarsHidden = (moveFlags & MOVE_FLAG_KEEP_HEALTHBARS) == 0;
     sMoveTester.shadowsHidden = (moveFlags & MOVE_FLAG_HIDE_SHADOWS) != 0;
+
+    for (int battler = 0; battler < BattleSystem_MaxBattlers(battleSys); battler++) {
+        PokemonSprite *sprite = BattlerSprite(battleSys, battler);
+
+        sMoveTester.spriteHidden[battler] = sprite != NULL && PokemonSprite_GetAttribute(sprite, MON_SPRITE_HIDE);
+    }
 
     BattleSystem_SetRedHPSoundFlag(battleSys, 2);
 
@@ -202,23 +214,38 @@ static BOOL UpdateTestAnimation(BattleSystem *battleSys, BattlerData *commandBat
         PokemonSpriteManager_ShowShadows(BattleSystem_GetPokemonSpriteManager(battleSys));
     }
 
+    for (int battler = 0; battler < BattleSystem_MaxBattlers(battleSys); battler++) {
+        PokemonSprite *sprite = BattlerSprite(battleSys, battler);
+
+        if (sprite != NULL) {
+            PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, sMoveTester.spriteHidden[battler]);
+        }
+    }
+
     ov16_02264798(commandBattler, battleSys);
     sMoveTester.animPlaying = FALSE;
 
     return FALSE;
 }
 
+void BattleDebug_Init(void)
+{
+    MI_CpuClear8(&sMoveTester, sizeof(MoveTester));
+}
+
+// The battle is ending, possibly with the overlay up or an animation playing; the anim system cleans up after itself
+void BattleDebug_Free(void)
+{
+    if (sMoveTester.savedTextPixels != NULL) {
+        Heap_Free(sMoveTester.savedTextPixels);
+    }
+
+    MI_CpuClear8(&sMoveTester, sizeof(MoveTester));
+}
+
 BOOL BattleDebug_UpdateCommandMenu(BattleSystem *battleSys, BattlerData *commandBattler)
 {
     BOOL redraw = FALSE;
-
-    // A new battle: drop the previous one's overlay state (its heap is gone), keep the move ID
-    if (sMoveTester.battleSys != battleSys) {
-        sMoveTester.battleSys = battleSys;
-        sMoveTester.overlayShown = FALSE;
-        sMoveTester.savedTextPixels = NULL;
-        sMoveTester.animPlaying = FALSE;
-    }
 
     if (sMoveTester.animPlaying) {
         if (UpdateTestAnimation(battleSys, commandBattler) == FALSE && (gSystem.heldKeys & MOVE_TESTER_KEYS) != MOVE_TESTER_KEYS) {
@@ -236,8 +263,8 @@ BOOL BattleDebug_UpdateCommandMenu(BattleSystem *battleSys, BattlerData *command
         return FALSE;
     }
 
-    if (sMoveTester.move == MOVE_NONE) {
-        sMoveTester.move = MOVE_POUND;
+    if (sTestMove == MOVE_NONE) {
+        sTestMove = MOVE_POUND;
     }
 
     if (sMoveTester.overlayShown == FALSE) {
@@ -246,16 +273,16 @@ BOOL BattleDebug_UpdateCommandMenu(BattleSystem *battleSys, BattlerData *command
     }
 
     if (gSystem.pressedKeysRepeatable & PAD_KEY_LEFT) {
-        sMoveTester.move = WrapMove(sMoveTester.move - 1);
+        sTestMove = WrapMove(sTestMove - 1);
         redraw = TRUE;
     } else if (gSystem.pressedKeysRepeatable & PAD_KEY_RIGHT) {
-        sMoveTester.move = WrapMove(sMoveTester.move + 1);
+        sTestMove = WrapMove(sTestMove + 1);
         redraw = TRUE;
     } else if (gSystem.pressedKeysRepeatable & PAD_KEY_UP) {
-        sMoveTester.move = WrapMove(sMoveTester.move + 10);
+        sTestMove = WrapMove(sTestMove + 10);
         redraw = TRUE;
     } else if (gSystem.pressedKeysRepeatable & PAD_KEY_DOWN) {
-        sMoveTester.move = WrapMove(sMoveTester.move - 10);
+        sTestMove = WrapMove(sTestMove - 10);
         redraw = TRUE;
     }
 

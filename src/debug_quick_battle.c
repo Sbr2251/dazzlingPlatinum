@@ -365,16 +365,19 @@ static const char *GiveMegaMon(FieldSystem *fieldSystem)
         Pokemon_ResetMoveSlot(mon, megaMon->moves[i], i);
     }
 
+    const char *status = "Got Mega mon + Key Stone";
+
     if (Party_GetCurrentCount(party) < MAX_PARTY_SIZE) {
         Party_AddPokemon(party, mon);
     } else {
         Party_AddPokemonBySlotIndex(party, DEBUG_MON_FULL_SLOT, mon);
+        status = "Party full: slot 6 replaced";
     }
 
     SaveData_UpdateCatchRecords(saveData, mon);
     Heap_Free(mon);
 
-    return "Got Mega mon + Key Stone";
+    return status;
 }
 
 static void StartBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBattle *quickBattle, BOOL totem)

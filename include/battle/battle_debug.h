@@ -12,6 +12,8 @@
 //   SELECT      toggle the 3D battle stage
 // Called every frame the command menu waits for input. Returns TRUE when the tools used this
 // frame (L+R held or a test animation playing); the menu must then ignore input.
+void BattleDebug_Init(void);
+void BattleDebug_Free(void);
 BOOL BattleDebug_UpdateCommandMenu(BattleSystem *battleSys, BattlerData *commandBattler);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_DEBUG_H
