@@ -132,4 +132,8 @@ UnkStruct_ov16_0226C378 *ov16_02263B0C(BattlerData *param0);
 void ov16_02263B10(BattlerData *param0);
 void ov16_02263B20(BattlerData *param0, int param1);
 
+// Debug move tester: start a move animation from the given MoveAnimation, like the move-animation
+// battle command does. The caller runs BattleAnimSystem_ExecuteScript until the move is done.
+void BattleDisplay_StartMoveAnimation(BattleSystem *battleSys, int attacker, MoveAnimation *animation);
+
 #endif // POKEPLATINUM_OV16_0225CBB8_H
