@@ -419,7 +419,9 @@ def _qb_start(sc: Scenario, e: Emu, key: str, entries_down: int, species_right: 
     e.run(4)
     e.snap(f"{label} selected", panel)
     if entries_down or species_right:
-        changed = diff_fraction(before, text_box(e.screens())) > 0.01
+        # The panel is static, so an unchanged box diffs at 0.0. Changing only a digit or two
+        # ("07/29 Indoors 1" -> "08/29 Indoors 2") touches ~0.25% of the box, under 1%.
+        changed = diff_fraction(before, text_box(e.screens())) > 0.001
         sc.check(f"{label}: panel responds to the d-pad", changed,
                  f"{'DOWN' if entries_down >= 0 else 'UP'} x{abs(entries_down)}, RIGHT x{species_right}" + ("" if changed else " did not change the panel text"),
                  warn_only=True)
@@ -450,6 +452,24 @@ def sc_quick_battle(sc: Scenario, e: Emu, args) -> None:
             e.run(60)
             if not e.in_overworld():
                 e.battle_escape()
+                continue
+            # Tell a hung game and a half-run transition apart here; otherwise the next entry
+            # misreports either one as "panel not in this ROM".
+            responds = _turn_changes(e)
+            e.snap(f"{label} after failed combo", panel)
+            if not sc.check(f"{label}: overworld still takes input after the failed combo", responds,
+                            "the player turns" if responds else
+                            "the player no longer turns: the game hung or a field task is stuck. Stopping here."):
+                break
+            reopened = hold_overlay(e, threshold=0.10) is not None
+            e.snap(f"{label} panel reopened", panel)
+            e.release("L+R")
+            e.run(10)
+            if not sc.check(f"{label}: L+R panel reopens after the failed combo", reopened,
+                            "the panel is back" if reopened else
+                            "holding L+R no longer shows the panel: the failed transition left the field "
+                            "display broken (e.g. BG layers off). Stopping here."):
+                break
             continue
         intro: List[Frame] = []
         waited = e.wait_battle_menu(timeout=2400, snap_every=8, label="intro", into=intro)
