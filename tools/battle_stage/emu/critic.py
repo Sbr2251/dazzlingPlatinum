@@ -81,6 +81,10 @@ SPRITE_MOVES = [
 # Sprite moves whose look lasts after the animation in a real battle (the doll until it breaks, the
 # copied look until the switch): the move tester leaves it on screen, so "normal look restored" only WARNs.
 LASTING_MOVES = {164: "the Substitute doll", 144: "the Transform look"}
+# Two-turn scripts (BtlAnimCmd_013) whose background switch is only in the branch the move tester never
+# plays: the audit's bg_switch (and a redo expect fade) is for that branch, so the tester's run keeps the arena
+FIRST_BRANCH_MOVES = {143: "the tester plays the charge turn (FadeBg only; SwitchBg is in the attack turn)",
+                      264: "the tester plays the focus branch (no background change; SwitchBg is in the punch branch)"}
 
 
 # --------------------------------------------------------------------------- result bookkeeping
@@ -3164,7 +3168,8 @@ def fade_required(m: Optional[dict]) -> bool:
     """A switch_bg move whose audit `suppress` list has bg_switch: the engine hid the arena for its background
     switch, and chunk 5 (F6) turns that hide into a fade, so no fade is a FAIL. Moves with an empty `suppress`
     list (Fake Out) or only bg2_effect may keep the arena up without a fade: a WARN."""
-    return bool(m) and "switch_bg" in m.get("mechanisms", []) and "bg_switch" in m.get("suppress", [])
+    return bool(m) and m.get("id") not in FIRST_BRANCH_MOVES and "switch_bg" in m.get("mechanisms", []) \
+        and "bg_switch" in m.get("suppress", [])
 
 
 def audit_index(args) -> dict:
@@ -3698,6 +3703,8 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
     """One move_redo move: played with the stage on (the checks), then with it off (the classic row).
     True = go on, False = the battle is stuck, None = the overlay is gone."""
     mid, expect = m["id"], m["expect"]
+    if mid in FIRST_BRANCH_MOVES:
+        expect = "kept"
     tag = f"{tod} {mid:03d} {m.get('name', '')}".rstrip()
     missing = [n for n in m.get("needs", []) if n not in cats]
     print(f"  [move] {tag}", flush=True)              # the parent attributes CPU exceptions by these lines
@@ -3729,6 +3736,8 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
     after_c = ram.compat()
     d = compat_delta(before, after_c)
     info = f" (info: needs {', '.join(missing)}, which has no redo file on this branch)" if missing else ""
+    if mid in FIRST_BRANCH_MOVES:
+        info += f"; {FIRST_BRANCH_MOVES[mid]}"
     if d is not None:
         counts = f"hardPops +{d['hardPops']}, fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}"
         sc.check(f"{tag}: no hard pop (hardPops unchanged)", d["hardPops"] == 0, counts,
