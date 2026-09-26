@@ -10,6 +10,7 @@
 
 #include "narc.h"
 #include "palette.h"
+#include "sprite.h"
 #include "sprite_system.h"
 
 static const SpriteTemplate Unk_ov16_022700CC[] = {
@@ -38,6 +39,9 @@ static const SpriteTemplate Unk_ov16_022700CC[] = {
         0x0,
     },
 };
+
+// Where the platforms come to rest after sliding in (see battle_display.c)
+static const s16 sPlatformHomeX[] = { 64, 192 };
 
 __attribute__((aligned(4))) static const u16 Unk_ov16_0227009C[] = {
     0x87,
@@ -283,4 +287,25 @@ void ov16_02268700(UnkStruct_ov16_02268520 *param0)
     ov16_02268660(param0);
     ov16_02268674(param0);
     MI_CpuClearFast(param0, sizeof(UnkStruct_ov16_02268520));
+}
+
+int BattlePlatform_GetOffsetX(UnkStruct_ov16_02268520 *platform)
+{
+    s16 x, y;
+
+    if (platform->unk_00 == NULL) {
+        return 0;
+    }
+
+    ManagedSprite_GetPositionXY(platform->unk_00, &x, &y);
+    return x - sPlatformHomeX[platform->unk_08];
+}
+
+int BattlePlatform_GetPaletteRow(UnkStruct_ov16_02268520 *platform)
+{
+    if (platform->unk_00 == NULL) {
+        return -1;
+    }
+
+    return Sprite_GetExplicitPalette(platform->unk_00->sprite);
 }
