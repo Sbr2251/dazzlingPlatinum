@@ -92,8 +92,9 @@ camera, or disable depth writes with `GX_POLYGON_ATTR_MISC_XLU_DEPTH_UPDATE` off
 | +44 | `u32 wobbleMask` | bit n set while battler n wobbles |
 | +48 | `u32 blobShadows` | number of blob shadows drawn in the last frame |
 
-Every field is reset in `BattleStage_Init`, except `debugFlags`, which survives battles so
-the critic can set it once at the overworld.
+Every field, `debugFlags` included, is zeroed when a battle loads: `sBattleStage` is cleared
+in `BattleStage_Init`. The critic therefore writes `debugFlags` inside each battle, once the
+stage is up, and waits about 10 frames before it compares anything.
 
 ## Budget
 
