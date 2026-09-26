@@ -102,3 +102,105 @@ like the other prebuilt battle NARCs, and registered in `platinum.us/filesys.csv
 the local `meson.build`. The members are listed in the format header. Pieces not
 generated yet are empty (`numMeshes == 0`). In chunk 1 only `BACKGROUND_PLAIN` and
 `TERRAIN_PLAIN` have real pieces.
+
+# Chunk 2: light, atmosphere and all backgrounds (format v2)
+
+`BATTLE_STAGE_VERSION` is 2. The renderer only accepts v2. The changes from v1:
+
+- `BattleStageFileHeader.atmosphereOffset` points at a `BattleStageFileAtmosphere`. Only the
+  backdrop piece has one; platform pieces write 0. With 0 the arena is unlit white with no
+  fog, as in v1.
+- `BattleStageFileVertex.padding` became `u32 normal` (GX_VECFX10). The vertex is still 16 bytes.
+- `BattleStageFileMesh` gained `scrollAmplitude[2]` and `scrollPeriod` (16 bytes).
+- New mesh flags: `LIT`, `FOG` and `SCROLL`.
+
+## Every background and terrain
+
+Every NARC member is a real piece: all 23 backdrops and all 24 platform terrains. The
+projection mapping stays as it is: at the home pose the texture coordinates reproduce the
+classic art. Only the geometry and the atmosphere differ per background:
+
+- Outdoor art (plain, water, city, forest, mountain, snow) is split at its horizon row into
+  ground and panorama, as the plain one is.
+- Indoor rooms, Elite Four and Champion rooms, and the Frontier facilities use a floor and a
+  back wall. They can use a box, the camera-facing side walls optional.
+- Caves use the same split with a darker, closer fog.
+- In the Distortion World the art is a void, so a panorama without a real floor is fine.
+- Water: the ground mesh under the water gets `SCROLL`, a slow sway of a few texels. Keep the
+  scrolling region away from the edges of the mesh so there is no visible seam.
+
+Each terrain's platform piece samples that terrain's platform OBJ art (`PLATFORM_CHAR` and
+the `[terrain][tod]` palette table in `classic.py`). The runtime palette comes from the
+live OBJ row, as before.
+
+Budget: at most 64 KB of textures per battle (backdrop plus platform), and at most
+`STAGE_MAX_MESHES` meshes per piece.
+
+## Light
+
+`LIT` meshes send `G3C_Normal` for each vertex instead of `G3C_Color`, with
+`GX_LIGHTMASK_0`. The renderer sets these once per frame from
+`atmosphere.lighting[ov16_0223EC04(battleSys)]`:
+
+- light 0 with `G3_LightColor` and `G3_LightVector`;
+- the material with `G3_MaterialColorDiffAmb(diffuse, ambient, FALSE)` and
+  `G3_MaterialColorSpecEmi(black, emission, FALSE)`.
+
+Light 0 is set after the view matrix is loaded in `GX_MTXMODE_POSITION_VECTOR`, so
+`lightDir` is in world space. The DS lighting per channel is
+`min(31, emission + ambient*light/32 + diffuse*light*max(0, -dot(lightDir, normal))/32)`.
+
+Keep the home pose close to the classic art. The fallback to BG3 (`BattleStage_Suppress`)
+must not visibly jump:
+
+- Day, column 0: surfaces that face the camera or face up (ground, panorama, disc tops)
+  saturate to white. Shading shows on disc sides and on surfaces that turn away from the
+  light when the camera moves.
+- Twilight and night: a gentle tint and dimming on top of the classic palettes, which are
+  already darker, so the effect does not double.
+
+## Fog
+
+`FOG` meshes get `GX_POLYGON_ATTR_MISC_FOG`. Every arena mesh sets it. Nothing else in the
+battle uses fog, and the clear colour has fog off.
+
+With `fogEnabled` set, the renderer calls:
+
+- `G3X_SetFog(TRUE, GX_FOGBLEND_COLOR_ALPHA, fogShift, fogOffset)`;
+- `G3X_SetFogColor(fogColor, fogAlpha)`;
+- `G3X_SetFogTable`.
+
+It turns fog off whenever the arena is not drawn.
+
+Battles use `GX_BUFFERMODE_Z`, and the arena's depth is remapped into
+[`STAGE_DEPTH_NEAR`, `STAGE_DEPTH_FAR`]/4096 of NDC, so the tool must compute
+`fogOffset`/`fogShift` from the remapped 15-bit depth. Fog is meant for distance: caves,
+snow haze and the far panorama. It must stay light at the home pose, so the arena keeps
+roughly matching BG3.
+
+## Brightness (Mega flash)
+
+The Mega Evolution sequence dims and flashes the scene with the 2D brightness blend, which
+skips BG0. `BattleStage_SetBrightness(int brightness)` (-16..16, the same scale as
+`G2_SetBlendBrightness`) applies the same effect to the arena through fog.
+
+While the brightness is not 0, it overrides the atmosphere fog:
+
+- the fog colour is black for a negative brightness and white for a positive one;
+- alpha is 31;
+- every table entry is `min(127, |brightness| * 8)`;
+- `fogOffset` is 0.
+
+The fog blend `(fog*d + pixel*(128-d))/128` is then exactly the 2D brightness formula.
+The sprites and particles carry no fog bit, so the evolving Pokemon stays white, as the
+2D planes intend. The Affine Pulse calls `BattleStage_SetBrightness` alongside
+`G2_SetBlendBrightnessExt` and resets it to 0 at the end. It no longer suppresses the stage.
+
+## Checking it
+
+- The quick-battle launcher gets a time-of-day override: map clock, morning/day, twilight,
+  night.
+- The critic cycles all 29 launcher backgrounds at each time of day, at the home pose and
+  in the debug views, and checks for holes, missing arena, garbage and palette errors.
+- `stage_ab` compares against the classic art with a tolerance, not exactly.
+- A Mega scenario checks that the stage stays visible and dims during the pulse.
