@@ -4,8 +4,9 @@ Run inside Blender (needs bpy + numpy, both bundled with Blender):
 
     blender -b -P tools/moonblast_sprite/build_moonblast_sprite.py
 
-or, from a live Blender session, exec() this file. Everything is procedural, so
-the output only depends on this script.
+Everything is procedural, so the output only depends on this script. To preview
+the animation in an open Blender session instead, exec() this file with
+MOONBLAST_GUI=True in its globals and call build_gui_preview().
 
 Outputs (in res/graphics/battle/moves/):
     moonblast.png        64 x (64 * frames), 4-bit indexed, index 0 transparent
@@ -63,8 +64,14 @@ PINK = (1.0, 0.42, 0.74, 1.0)
 HALO_PINK = (1.0, 0.45, 0.78, 1.0)
 
 
-def reset_scene():
-    bpy.ops.wm.read_factory_settings(use_empty=True)
+def reset_scene(factory=True):
+    if factory:
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+    else:
+        # Live session: clear the scene but keep add-ons (and the MCP socket) alive.
+        for obj in list(bpy.data.objects):
+            bpy.data.objects.remove(obj, do_unlink=True)
+        bpy.data.orphans_purge(do_recursive=True)
     scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
     scene.cycles.device = 'CPU'
@@ -212,8 +219,8 @@ def halo_material():
     return mat
 
 
-def build_scene():
-    scene = reset_scene()
+def build_scene(factory=True):
+    scene = reset_scene(factory)
     add_camera(scene)
     add_sun(scene)
 
@@ -230,15 +237,29 @@ def build_scene():
     return scene, moon, halo
 
 
-def render_frame(scene, moon, halo, spec, index):
+def apply_frame(moon, halo, spec, key_frame=None):
     radius, rim, halo_r, pink, rot = spec
+    nodes = moon.data.materials[0].node_tree.nodes
     moon.scale = (radius, radius, radius)
-    mat = moon.data.materials[0]
-    mat.node_tree.nodes['RimStrength'].inputs[1].default_value = rim
-    mat.node_tree.nodes['PinkWash'].inputs['Factor'].default_value = pink
-    mat.node_tree.nodes['CraterMapping'].inputs['Rotation'].default_value[2] = math.radians(rot)
+    nodes['RimStrength'].inputs[1].default_value = rim
+    nodes['PinkWash'].inputs['Factor'].default_value = pink
+    nodes['CraterMapping'].inputs['Rotation'].default_value[2] = math.radians(rot)
     halo.hide_render = halo_r <= 0.0
+    halo.hide_viewport = halo_r <= 0.0
     halo.scale = (max(halo_r, 0.01),) * 3
+
+    if key_frame is not None:
+        moon.keyframe_insert('scale', frame=key_frame)
+        nodes['RimStrength'].inputs[1].keyframe_insert('default_value', frame=key_frame)
+        nodes['PinkWash'].inputs['Factor'].keyframe_insert('default_value', frame=key_frame)
+        nodes['CraterMapping'].inputs['Rotation'].keyframe_insert('default_value', index=2, frame=key_frame)
+        halo.keyframe_insert('hide_render', frame=key_frame)
+        halo.keyframe_insert('hide_viewport', frame=key_frame)
+        halo.keyframe_insert('scale', frame=key_frame)
+
+
+def render_frame(scene, moon, halo, spec, index):
+    apply_frame(moon, halo, spec)
 
     os.makedirs(PREVIEW_DIR, exist_ok=True)
     path = os.path.join(PREVIEW_DIR, f'frame_{index:02d}.png')
@@ -340,6 +361,102 @@ def anim_json(num_frames, sequence):
     }
 
 
+def add_sprite_preview_plane(scene):
+    """Plane showing the packed in-game sprite (moonblast.png), stepping through
+    SEQUENCE exactly as the NANR plays it. Palette index 0 (black) is transparent."""
+    img = bpy.data.images.load(os.path.join(OUT_DIR, 'moonblast.png'), check_existing=True)
+    img.reload()
+
+    bpy.ops.mesh.primitive_plane_add(size=2.2, location=(2.4, 0, 0), rotation=(math.radians(90), 0, 0))
+    plane = bpy.context.active_object
+    plane.name = 'InGameSprite'
+
+    mat = bpy.data.materials.new('InGameSprite')
+    mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    nodes.clear()
+    out = nodes.new('ShaderNodeOutputMaterial')
+    uv = nodes.new('ShaderNodeTexCoord')
+    mapping = nodes.new('ShaderNodeMapping')
+    mapping.name = 'SheetMapping'
+    mapping.inputs['Scale'].default_value = (1.0, 1.0 / len(FRAMES), 1.0)
+    tex = nodes.new('ShaderNodeTexImage')
+    tex.image = img
+    tex.interpolation = 'Closest'
+    bw = nodes.new('ShaderNodeRGBToBW')
+    opaque = nodes.new('ShaderNodeMath')
+    opaque.operation = 'GREATER_THAN'
+    opaque.inputs[1].default_value = 0.001
+    emit = nodes.new('ShaderNodeEmission')
+    transp = nodes.new('ShaderNodeBsdfTransparent')
+    mix = nodes.new('ShaderNodeMixShader')
+    links.new(uv.outputs['UV'], mapping.inputs['Vector'])
+    links.new(mapping.outputs['Vector'], tex.inputs['Vector'])
+    links.new(tex.outputs['Color'], emit.inputs['Color'])
+    links.new(tex.outputs['Color'], bw.inputs['Color'])
+    links.new(bw.outputs['Val'], opaque.inputs[0])
+    links.new(opaque.outputs['Value'], mix.inputs['Fac'])
+    links.new(transp.outputs['BSDF'], mix.inputs[1])
+    links.new(emit.outputs['Emission'], mix.inputs[2])
+    links.new(mix.outputs['Shader'], out.inputs['Surface'])
+    plane.data.materials.append(mat)
+    return mapping
+
+
+def action_fcurves(id_block):
+    ad = id_block.animation_data
+    if ad is None or ad.action is None:
+        return []
+    if hasattr(ad.action, 'fcurves'):
+        return list(ad.action.fcurves)
+    # Blender 5 slotted actions
+    from bpy_extras.anim_utils import action_get_channelbag_for_slot
+    channelbag = action_get_channelbag_for_slot(ad.action, ad.action_slot)
+    return list(channelbag.fcurves) if channelbag else []
+
+
+def build_gui_preview():
+    """Build the moon in the open Blender session with SEQUENCE keyed on a 60fps
+    timeline (constant interpolation, like the sprite), next to the packed
+    in-game sprite. Preview only; the sprite files still come from main()."""
+    scene, moon, halo = build_scene(factory=False)
+    sheet_mapping = add_sprite_preview_plane(scene)
+
+    # Frame both the 3D moon (x=0) and the in-game sprite (x=2.4).
+    scene.camera.location.x = 1.2
+    scene.camera.data.ortho_scale = 4.8
+    scene.render.resolution_x = SIZE * 2
+    scene.render.resolution_y = SIZE
+    scene.cycles.preview_samples = 16
+
+    frame = 1
+    for index, delay in SEQUENCE:
+        apply_frame(moon, halo, FRAMES[index], key_frame=frame)
+        loc = sheet_mapping.inputs['Location']
+        loc.default_value[1] = (len(FRAMES) - 1 - index) / len(FRAMES)
+        loc.keyframe_insert('default_value', index=1, frame=frame)
+        frame += delay
+
+    # Sprite frames are discrete, so hold each key instead of tweening.
+    for id_block in (moon, halo, moon.data.materials[0].node_tree, sheet_mapping.id_data):
+        for fcurve in action_fcurves(id_block):
+            for point in fcurve.keyframe_points:
+                point.interpolation = 'CONSTANT'
+
+    scene.render.fps = 60
+    scene.frame_start = 1
+    scene.frame_end = frame - 1
+    scene.frame_set(1)
+
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == 'VIEW_3D':
+                space = area.spaces.active
+                space.region_3d.view_perspective = 'CAMERA'
+                space.shading.type = 'RENDERED'
+    return scene
+
+
 def main():
     scene, moon, halo = build_scene()
     frames = [render_frame(scene, moon, halo, spec, i) for i, spec in enumerate(FRAMES)]
@@ -358,4 +475,5 @@ def main():
     print(f'moonblast sprite: {len(FRAMES)} frames, {sum(d for _, d in SEQUENCE)} ticks, palette {palette}')
 
 
-main()
+if not globals().get('MOONBLAST_GUI'):
+    main()
