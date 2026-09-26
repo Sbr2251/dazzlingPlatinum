@@ -69,6 +69,18 @@ DEFAULT_MOVES = [
     399,  # Dark Pulse
     63,   # Hyper Beam     - big beam + recharge visuals
 ]
+# Moves that hide, shrink, replace or swap a battler's sprite (chunk 3: the sprite mesh must follow them
+# and come back). move_tester plays them after --moves (--sprite-moves) and checks the normal look returns.
+SPRITE_MOVES = [
+    107,  # Minimize       - sprite scale
+    91,   # Dig            - attacker hides underground
+    19,   # Fly            - attacker leaves the screen
+    164,  # Substitute     - sprite replaced by the doll
+    144,  # Transform      - sprite swap
+]
+# Sprite moves whose look lasts after the animation in a real battle (the doll until it breaks, the
+# copied look until the switch): the move tester leaves it on screen, so "normal look restored" only WARNs.
+LASTING_MOVES = {164: "the Substitute doll", 144: "the Transform look"}
 
 
 # --------------------------------------------------------------------------- result bookkeeping
@@ -382,6 +394,7 @@ def sc_wild_battle(sc: Scenario, e: Emu, args) -> None:
     # Bag round trip: the bag swaps VRAM; the battle scene must come back identical.
     bag: List[Frame] = []
     if e.battle_menu_up():
+        _sprite_flags(sc, e, args, FREEZE_IDLE)   # compared against idle frames below
         before = idle_samples(e)
         e.snap("before bag", bag)
         opened = e.battle_open_bag()
@@ -585,9 +598,11 @@ def _fight_turn(sc: Scenario, e: Emu, args, what: str) -> bool:
 
 
 def _tester_move(sc: Scenario, e: Emu, args, ov: "Overlay", baseline: tuple, cur: int, mid: int,
-                 direction: str, key: str, tag: str, overlays: List[Frame], after: List[Frame]) -> bool:
+                 direction: str, key: str, tag: str, overlays: List[Frame], after: List[Frame],
+                 restore: bool = False) -> bool:
     """Picks move `mid` in the tester (currently on `cur`), plays it with `key` and checks that it
-    drew, ended and gave the battle text back. Returns False if the battle is stuck."""
+    drew, ended and gave the battle text back (with `restore`, also the scene: see restore_check).
+    Returns False if the battle is stuck."""
     idle, base_boxes = baseline
     if not ov.up() and not ov.show():
         sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay back")
@@ -620,6 +635,12 @@ def _tester_move(sc: Scenario, e: Emu, args, ov: "Overlay", baseline: tuple, cur
     e.snap(f"{tag} +10", after)
     e.run(80)
     shot = e.snap(f"{tag} +90", after)
+    if restore:
+        later = None
+        if mid in LASTING_MOVES:
+            e.run(60)
+            later = e.snap(f"{tag} +150", after).img
+        restore_check(sc, tag, idle, shot.img, mid, later)
     d = min_diff(base_boxes, text_box(shot.img))
     if not sc.check(f"{tag}: battle text restored", d < 0.02,
                     f"{d:.1%} of the text box differs from before the overlay (90 frames after)",
@@ -630,11 +651,33 @@ def _tester_move(sc: Scenario, e: Emu, args, ov: "Overlay", baseline: tuple, cur
     return True
 
 
+def restore_check(sc: Scenario, tag: str, idle: List[Image.Image], img: Image.Image, mid: int = 0,
+                  later: Optional[Image.Image] = None) -> bool:
+    """90 frames after a move the scene (HUD masked, above the text box) must be back to an idle frame:
+    PASS <= RESTORE_PASS of the pixels differ from the closest one, WARN <= RESTORE_WARN, else FAIL.
+    A LASTING_MOVES move (`later` = the scene 60 frames on) may leave its look behind as in a real
+    battle, so its idle comparison is at most a WARN; instead the scene must have settled (+90 vs +150)."""
+    d = min_diff(idle, scene(img))
+    detail = f"{d:.2%} of the scene (HUD masked) differs from the closest idle frame, 90 frames after"
+    if mid not in LASTING_MOVES or later is None:
+        return sc.check(f"{tag}: normal look restored", d <= RESTORE_PASS, detail, warn_only=d <= RESTORE_WARN,
+                        why="a sprite is still hidden, shrunk, replaced or swapped (see sheet_after)")
+    s = diff_fraction(scene(img), scene(later))
+    sc.check(f"{tag}: scene settled after the move", s <= RESTORE_PASS,
+             f"{s:.2%} of the scene differs between +90 and +150 frames", warn_only=s <= RESTORE_WARN,
+             why="the sprites are still changing: the animation left something running")
+    return sc.check(f"{tag}: normal look restored", d <= RESTORE_PASS, detail, warn_only=True,
+                    why=f"{LASTING_MOVES[mid]} stays as in a real battle, so this is only a WARN; if the mons are "
+                        "flat boxes, the doll graphics never loaded (a move tester bug that the pre-chunk-3 main ROM "
+                        "has too; see sheet_after)")
+
+
 def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
     if not _battle_ready(sc, e):
         return
     ov = Overlay(e)
     e.run(30)                                # let the menu's text box icons appear
+    _sprite_flags(sc, e, args, FREEZE_IDLE)  # the restore checks compare against these idle frames
     idle_frames = e.record(60, every=5, label="idle")
     baseline = ([scene(f.img) for f in idle_frames], [text_box(f.img) for f in idle_frames])
     overlays: List[Frame] = []
@@ -645,11 +688,18 @@ def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
         return
     e.snap("overlay (start, expect Move 001)", overlays)
     cur, ok = 1, True
-    for mid in args.moves:
+    order = args.moves + [m for m in args.sprite_moves if m not in args.moves]
+    # Substitute and Transform leave their look behind for the rest of the battle (and on the main
+    # ROM the move tester's Substitute turns both mons into flat boxes), so they go last: every
+    # other "normal look restored" check still compares against the idle frames from before.
+    order = [m for m in order if m not in LASTING_MOVES] + [m for m in order if m in LASTING_MOVES]
+    if order != args.moves + [m for m in args.sprite_moves if m not in args.moves]:
+        sc.note("Substitute and Transform are played last: their look lasts for the rest of the battle")
+    for mid in order:
         mid = max(1, min(MOVE_ID_MAX, mid))
         for direction, key in (("fwd", "A"), ("rev", "Y"))[: 2 if args.reverse else 1]:
             ok = _tester_move(sc, e, args, ov, baseline, cur, mid, direction, key,
-                              f"move {mid:03d} {direction}", overlays, after)
+                              f"move {mid:03d} {direction}", overlays, after, restore=mid in args.sprite_moves)
             cur = mid
             if not ok:
                 break
@@ -896,6 +946,8 @@ def sc_stage_ab(sc: Scenario, e: Emu, args) -> None:
     # the palette or the tolerance between runs
     if not _plain_battle(sc, e, args.stage_tod):
         return
+    # Sprites at rest and the classic shadow: then the day home pose must match classic exactly
+    _sprite_flags(sc, e, args, FREEZE_IDLE | NO_BLOB_SHADOWS)
     ov = Overlay(e)
     shots: List[Frame] = []
     e.snap("initial (stage ON)", shots)
@@ -933,6 +985,7 @@ def sc_stage_ab(sc: Scenario, e: Emu, args) -> None:
 def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
     if not _plain_battle(sc, e, args.stage_tod):
         return
+    _sprite_flags(sc, e, args, FREEZE_IDLE)       # "normal look restored" compares against idle frames
     ov = Overlay(e)
     idle_frames = e.record(60, every=5, label="idle")
     idle = [scene(f.img) for f in idle_frames]
@@ -1020,6 +1073,7 @@ def _menu_round_trip(sc: Scenario, e: Emu, what: str, button: tuple, shots: List
 def sc_bag_party(sc: Scenario, e: Emu, args) -> None:
     if not _plain_battle(sc, e, args.stage_tod):
         return
+    _sprite_flags(sc, e, args, FREEZE_IDLE)       # the round trips compare against idle frames
     shots: List[Frame] = []
     e.snap("menu", shots)
     ok = _menu_round_trip(sc, e, "bag", BTN_BAG, shots, inside=BAG_POCKET_HP)
@@ -1034,6 +1088,7 @@ def sc_bag_party(sc: Scenario, e: Emu, args) -> None:
 def sc_debug_views(sc: Scenario, e: Emu, args) -> None:
     if not _plain_battle(sc, e, args.stage_tod):
         return
+    _sprite_flags(sc, e, args, FREEZE_IDLE)       # the views are compared against view 0
     ov = Overlay(e)
     if not ov.show():
         _no_combo(sc, "L+R overlay shown", "the in-battle move tester / debug views")
@@ -1076,9 +1131,25 @@ def sc_debug_views(sc: Scenario, e: Emu, args) -> None:
 
 # ---- RAM through the xMAP (optional) ---------------------------------------------------------
 
-# BattleStage in src/battle/battle_stage.c, one s32/pointer per field; brightness is format v2 only
-STAGE_FIELDS = ("battleSys", "arena", "enabled", "suppressed", "view", "visible", "platformsHidden", "brightness")
+# BattleStage in src/battle/battle_stage.c, one s32/pointer per field; brightness is format v2 only,
+# debugFlags..blobShadows (+32..+48) chunk 3 only (docs/living_battle_stage/sprites.md)
+STAGE_FIELDS = ("battleSys", "arena", "enabled", "suppressed", "view", "visible", "platformsHidden", "brightness",
+                "debugFlags", "spriteMeshes", "idleFrames", "wobbleMask", "blobShadows")
+STAGE_SIZE_BRIGHTNESS = 32               # sBattleStage at least this big: has brightness
+STAGE_SIZE_SPRITES = 52                  # ... and the chunk 3 sprite debug fields
+DEBUG_FLAGS_OFFSET = 32
 SUPPRESS_BRIGHTNESS = 4                  # BATTLE_STAGE_SUPPRESS_BRIGHTNESS
+# debugFlags bits, written by the critic. sBattleStage is in the battle overlay's .bss, which is zeroed
+# on every battle load, so they must be written inside each battle (after the command menu is up);
+# the renderer reads them every frame, so a write takes effect on the next drawn frame.
+FREEZE_IDLE = 1                          # no breathing and no hit wobble (sprites at the rest pose)
+NO_BLOB_SHADOWS = 2                      # blob shadows off, classic shadow back
+CLASSIC_SPRITES = 4                      # sprites take the old unlit path even while the arena shows
+FLAG_NAMES = ((FREEZE_IDLE, "FREEZE_IDLE"), (NO_BLOB_SHADOWS, "NO_BLOB_SHADOWS"), (CLASSIC_SPRITES, "CLASSIC_SPRITES"))
+
+
+def flag_names(flags: int) -> str:
+    return "|".join(n for b, n in FLAG_NAMES if flags & b) or "0"
 
 
 def find_xmap(args) -> Optional[str]:
@@ -1108,7 +1179,22 @@ class StageRam:
 
     @property
     def has_brightness(self) -> bool:
-        return self.ok and self.stage[1] >= 4 * len(STAGE_FIELDS)
+        return self.ok and self.stage[1] >= STAGE_SIZE_BRIGHTNESS
+
+    @property
+    def has_sprites(self) -> bool:
+        """sBattleStage has the chunk 3 debug fields (debugFlags .. blobShadows at +32..+48)."""
+        return self.ok and self.stage[1] >= STAGE_SIZE_SPRITES
+
+    @property
+    def sprite_why(self) -> str:
+        """Why the sprite debug fields cannot be used ("" if they can)."""
+        if not self.ok:
+            return self.why
+        if not self.has_sprites:
+            return (f"sBattleStage is {self.stage[1]} bytes in {self.xmap}, under {STAGE_SIZE_SPRITES}: a ROM from "
+                    "before chunk 3, without the sprite debug fields")
+        return ""
 
     def read(self) -> Optional[dict]:
         if not self.ok:
@@ -1117,9 +1203,17 @@ class StageRam:
         n = min(size, 4 * len(STAGE_FIELDS)) // 4
         return dict(zip(STAGE_FIELDS, struct.unpack(f"<{n}i", self.e.read(addr, 4 * n))))
 
+    def field(self, name: str) -> Optional[int]:
+        """One field (None if the RAM checks are off or this build's sBattleStage lacks it)."""
+        st = self.read()
+        return None if st is None else st.get(name)
+
     def validate(self, st: Optional[dict]) -> bool:
         """Call in a battle: drops the RAM checks if sBattleStage does not look like one."""
         if not self.ok:
+            return False
+        if st["battleSys"] == 0:
+            self.why = "sBattleStage is not set up in this battle (no 3D stage here)"
             return False
         good = (RAM_BASE <= st["battleSys"] < RAM_END and st["enabled"] in (0, 1) and st["visible"] in (0, 1)
                 and 0 <= st["view"] < DEBUG_VIEWS)
@@ -1128,10 +1222,33 @@ class StageRam:
             self.why = f"sBattleStage in {self.xmap} reads {st}: the xMAP is not from this ROM's build"
         return good
 
+    def set_flags(self, flags: int, settle: int = 4) -> bool:
+        """Writes debugFlags (sBattleStage+32) and runs `settle` frames so the renderer draws with them.
+        Call in a battle, at the command menu. False (nothing written) on a ROM without the field or
+        when sBattleStage does not validate, so a wrong xMAP never corrupts RAM."""
+        if not self.has_sprites or not self.validate(self.read()):
+            return False
+        self.e.write(self.stage[0] + DEBUG_FLAGS_OFFSET, struct.pack("<I", flags))
+        self.e.run(settle)
+        return True
+
     def byte(self, name: str) -> Optional[int]:
         if not self.ok or name not in self.syms:
             return None
         return self.e.read(self.syms[name][0], 1)[0]
+
+
+def _sprite_flags(sc: Scenario, e: Emu, args, flags: int, ram: Optional[StageRam] = None) -> StageRam:
+    """At the command menu of a battle: sets sBattleStage.debugFlags (see FREEZE_IDLE) where the ROM has it,
+    so comparisons against earlier frames are not thrown off by breathing, wobble or blob shadows.
+    On an older ROM (or without a usable xMAP) it only notes why; those ROMs have no idle motion anyway."""
+    ram = ram or StageRam(e, find_xmap(args))
+    if ram.set_flags(flags):
+        sc.note(f"debugFlags = {flag_names(flags)} (sBattleStage+{DEBUG_FLAGS_OFFSET} at {ram.stage[0]:#x})")
+    else:
+        sc.note(f"debugFlags {flag_names(flags)} not set: {ram.sprite_why or ram.why}; comparisons use the "
+                "scene as drawn")
+    return ram
 
 
 # ---- all backgrounds and times of day (chunk 2) ----------------------------------------------
@@ -1208,10 +1325,12 @@ def _bg_battle(sc: Scenario, e: Emu, args, ram: StageRam, tod: str, bg: int, row
     Returns the measurements (None if the overlay never came up)."""
     tag = f"{tod} {bg:02d} {QB_NAMES[bg]}"
     rec: dict = {"tod": tod, "bg": bg, "name": QB_NAMES[bg], "problems": []}
-    home = idle_samples(e, n=10, every=3)
     st = ram.read()
     if st is not None and ram.validate(st):
         rec["ram_home"] = st
+        # Home vs classic needs the sprites at rest and the classic shadow, as in stage_ab
+        ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS)
+    home = idle_samples(e, n=10, every=3)
     bg0 = top(e.render_layers(LAYER_BG0, marker=True)).crop(SCENE)
     rec["cover"] = 1.0 - uncovered(bg0)
     rows.append(Frame(f"{bg:02d} {QB_NAMES[bg]}", e.frame, home[-1]))
@@ -1716,6 +1835,471 @@ def sc_mega(sc: Scenario, e: Emu, args) -> None:
     _finish(sc, e)
 
 
+# ---- lit, deformable sprites (chunk 3) -------------------------------------------------------
+
+# Where each mon is looked for on the top screen (inside SCENE), and the box used if the marker trick
+# finds nothing there. The enemy stands at about (192, 70), the player's back sprite at about (64, 120).
+SPRITE_WINDOWS = {"enemy": (136, 8, 256, 120), "player": (0, 40, 136, 144)}
+SPRITE_FALLBACK = {"enemy": (152, 30, 232, 110), "player": (24, 72, 112, 144)}
+BOX_PAD = 4                              # pixels added around the measured sprite boxes
+BOX_MIN, BOX_MAX = 16, 120               # sane box width/height
+IDLE_RECORD, IDLE_EVERY = 180, 6         # 3 s of command-menu idle, sampled every 6 frames
+BREATHE_MIN = 0.01                       # least share of the enemy box that breathing must change in 3 s
+REST_PASS, REST_WARN = 0.002, 0.01       # ... while the scene outside the boxes (HUD masked) stays within this
+FREEZE_STILL = 0.002                     # FREEZE_IDLE: the enemy box changes at most this much in 60 frames
+IDLE_ADVANCE_MIN = 30                    # idleFrames must advance this much in 180 frames
+IDLE_STOP_MAX = 2                        # idleFrames may advance this much while a tester move plays
+BLOB_DARKER = 8                          # a ground pixel counts as darker by more than this (luma) ...
+BLOB_PIXELS = 30                         # ... and at least this many must be, with the mean luma lower
+BLOB_BELOW = 10                          # the "under the mon" region reaches this far below the box
+NIGHT_TINT_MIN = 4.0                     # night: mean max-channel difference on the mon's pixels vs stage off
+NIGHT_BLACK = (24.0, 0.35)               # ... and not black: mean brightness >= 24 and >= 35% of stage off
+SPRITE_COUNT = 2                         # singles: spriteMeshes and blobShadows at the home pose
+
+
+def _marker_mask(img: Image.Image) -> Image.Image:
+    """L image, 255 where a BG0-only marker render drew something (not the magenta backdrop)."""
+    r, g, b = img.convert("RGB").split()
+    hit = ImageChops.multiply(ImageChops.multiply(r.point(lambda v: 255 if v >= 240 else 0),
+                                                  g.point(lambda v: 255 if v <= 8 else 0)),
+                              b.point(lambda v: 255 if v >= 240 else 0))
+    return ImageChops.invert(hit)
+
+
+def sprite_boxes(e: Emu, n: int = 12, every: int = 5) -> tuple:
+    """With the stage OFF only the sprites and their shadows draw on BG0, so the union of a few
+    BG0-only marker renders (spanning the idle bob) is the sprite mask. Returns ({mon: box}, mask, found):
+    boxes in top-screen coordinates (inside SCENE), `found` the mons actually measured (the others get
+    SPRITE_FALLBACK)."""
+    mask = None
+    for _ in range(n):
+        m = _marker_mask(top(e.render_layers(LAYER_BG0, marker=True)).crop(SCENE))
+        mask = m if mask is None else ImageChops.lighter(mask, m)
+        e.run(every)
+    boxes, found = {}, []
+    for mon, win in SPRITE_WINDOWS.items():
+        bb = mask.crop(win).getbbox()
+        if bb and BOX_MIN <= bb[2] - bb[0] <= BOX_MAX and BOX_MIN <= bb[3] - bb[1] <= BOX_MAX:
+            boxes[mon] = (max(0, win[0] + bb[0] - BOX_PAD), max(0, win[1] + bb[1] - BOX_PAD),
+                          min(SCENE[2], win[0] + bb[2] + BOX_PAD), min(SCENE[3], win[1] + bb[3] + BOX_PAD))
+            found.append(mon)
+        else:
+            boxes[mon] = SPRITE_FALLBACK[mon]
+    return boxes, mask, found
+
+
+def outside_boxes(img: Image.Image, boxes: dict) -> Image.Image:
+    """scene() with the sprite boxes blacked out too."""
+    out = scene(img)
+    for box in boxes.values():
+        out.paste((0, 0, 0), box)
+    return out
+
+
+def box_change(frames: List[Image.Image], box: tuple) -> float:
+    """Largest share of the box that differs from the first frame."""
+    first = frames[0].crop(box)
+    return max((diff_fraction(first, f.crop(box)) for f in frames[1:]), default=0.0)
+
+
+def box_motion(frames: List[Image.Image], box: tuple) -> float:
+    """Mean share of the box that differs from the first frame: breathing moves the sprite in most frames,
+    a classic sprite's own brief idle changes (a blink) only in a few."""
+    first = frames[0].crop(box)
+    ds = [diff_fraction(first, f.crop(box)) for f in frames[1:]]
+    return sum(ds) / len(ds) if ds else 0.0
+
+
+def box_novelty(frames: List[Image.Image], ref: List[Image.Image], box: tuple) -> float:
+    """Median, over `frames`, of the share of the box that differs from the closest `ref` frame. A
+    classic sprite cycles through a few idle states (a blink, the player's bob), which all show up
+    in a 3 s reference recording, so this is about 0 whatever the phase; breathing squashes the
+    sprite into shapes the classic recording never shows, in most frames."""
+    refs = [r.crop(box) for r in ref]
+    ds = sorted(min(diff_fraction(r, f.crop(box)) for r in refs) for f in frames) if refs else []
+    return ds[len(ds) // 2] if ds else 0.0
+
+
+def _luma(img: Image.Image) -> List[int]:
+    return list(img.convert("L").getdata())
+
+
+def under_box(box: tuple) -> tuple:
+    """The ground under a mon: the lower quarter of its box and BLOB_BELOW pixels below it."""
+    x0, y0, x1, y1 = box
+    return (x0, y1 - (y1 - y0) // 4, x1, min(SCENE[3], y1 + BLOB_BELOW))
+
+
+def masked_stats(on: Image.Image, off: Image.Image, mask: Image.Image) -> dict:
+    """Over the mask's pixels: mean max-channel difference ON vs OFF, and the mean brightness of each."""
+    d = list(pixel_diff(on, off)["map"].getdata())
+    idx = [i for i, v in enumerate(mask.getdata()) if v]
+    if not idx:
+        return {"n": 0, "diff": 0.0, "on": 0.0, "off": 0.0}
+    lon, loff = _luma(on), _luma(off)
+    k = float(len(idx))
+    return {"n": len(idx), "diff": sum(d[i] for i in idx) / k,
+            "on": sum(lon[i] for i in idx) / k, "off": sum(loff[i] for i in idx) / k}
+
+
+def crop_sheet(cells: List[tuple], path: pathlib.Path, title: str, cols: int, zoom: int = 2) -> str:
+    """A labelled grid of (label, image) crops of any size, each drawn `zoom` times as big."""
+    cw = max(i.size[0] for _, i in cells) * zoom
+    ch = max(i.size[1] for _, i in cells) * zoom
+    lab, head = 12, 16
+    rows = (len(cells) + cols - 1) // cols
+    out = Image.new("RGB", (max(cols * (cw + 4) + 4, 8 * len(title)), head + rows * (ch + lab + 4) + 4), (32, 32, 32))
+    d = ImageDraw.Draw(out)
+    d.text((4, 2), title, fill=(230, 230, 230))
+    for n, (label, img) in enumerate(cells):
+        x, y = 4 + (n % cols) * (cw + 4), head + (n // cols) * (ch + lab + 4)
+        d.text((x, y), label, fill=(230, 230, 120))
+        out.paste(img.convert("RGB").resize((img.size[0] * zoom, img.size[1] * zoom), Image.NEAREST), (x, y + lab))
+    out.save(path)
+    return str(path)
+
+
+def _crop_sheet(sc: Scenario, cells: List[tuple], key: str, title: str, cols: int, zoom: int = 2) -> Optional[str]:
+    if not cells:
+        return None
+    path = crop_sheet(cells, sc.dir / f"sheet_{key}.png", f"{sc.name}: {title}", cols, zoom)
+    sc.sheets.append({"sheet": path, "title": title, "frames": len(cells), "screen": "top (crops)"})
+    return path
+
+
+def _play_polled(e: Emu, ov: Overlay, ram: StageRam, key: str, frames: int, label: str, live: bool) -> tuple:
+    """Overlay.play that also reads sBattleStage on every frame (when `live`).
+    Returns (frames every 3, finished_after or None, [(frame, idleFrames, wobbleMask)])."""
+    start = e.frame
+    e.hold(key, 6, 0)
+    e.release("L+R")
+    anim: List[Frame] = []
+    polls: List[tuple] = []
+    while e.frame - start < frames:
+        e.run(1)
+        t = e.frame - start
+        if live:
+            st = ram.read()
+            polls.append((t, st["idleFrames"], st["wobbleMask"]))
+        if t % 3 == 0:
+            f = e.snap(f"{label}+{t}")
+            anim.append(f)
+            if t >= 12 and not ov.up(f.img):
+                break
+    return anim, (e.frame - start if not ov.up() else None), polls
+
+
+def _turn_polled(sc: Scenario, e: Emu, args, ram: StageRam, live: bool, what: str) -> tuple:
+    """A real False Swipe turn (ours and the enemy's) with wobbleMask read every frame.
+    Returns (menu back, OR of wobbleMask, frames every 3)."""
+    if not sc.check(f"{what}: FIGHT opened the move list", e.battle_fight(FALSE_SWIPE_SLOT),
+                    why="touching FIGHT did not open the move list"):
+        return False, 0, []
+    start, mask = e.frame, 0
+    anim: List[Frame] = []
+    while e.frame - start < args.max_anim_frames:
+        e.run(1)
+        if live:
+            mask |= ram.field("wobbleMask") or 0
+        if (e.frame - start) % 3 == 0:
+            f = e.snap(f"turn+{e.frame - start}")
+            anim.append(f)
+            if e.frame - start >= 60 and e.battle_menu_up(f.img):
+                break
+    back = sc.check(f"{what}: menu returned after the turn", e.battle_menu_up(),
+                    why=f"no command menu within {args.max_anim_frames} frames")
+    return back, mask, anim
+
+
+def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
+    """Chunk 3 (docs/living_battle_stage/sprites.md): mesh sprites, breathing, blob shadows, the
+    CLASSIC_SPRITES path, the night tint and hit wobble, on the Plain battle at day and at night.
+    RAM checks need a ROM whose sBattleStage has the debug fields (>= 52 bytes in the xMAP); without
+    them they are skipped with a note, and the pixel checks of the new features only WARN."""
+    if not _plain_battle(sc, e, args.stage_tod):
+        return
+    tod = args.stage_tod
+    grade_tod = "day" if tod == "clock" else tod
+    ram = StageRam(e, find_xmap(args))
+    live = ram.set_flags(0)
+    if live:
+        sc.note(f"RAM checks on: sBattleStage at {ram.stage[0]:#x}, {ram.stage[1]} bytes, from {ram.xmap}; "
+                f"read {ram.read()}")
+    else:
+        sc.note(f"RAM half skipped: {ram.sprite_why or ram.why}. Checks that need the debug fields or a "
+                "writable debugFlags are skipped; the pixel checks of the new features only WARN.")
+    old_rom = "no sprite debug fields in this build (expected on a ROM from before chunk 3)"
+
+    def feature(name: str, ok: bool, detail: str, why: str) -> bool:
+        """A pixel check of a chunk 3 feature: FAIL if the ROM has the debug fields, else WARN."""
+        return sc.grade(name, "PASS" if ok else ("FAIL" if live else "WARN"), detail,
+                        why=why if live else f"{why}; {old_rom}")
+
+    skipped: List[str] = []
+    ov = Overlay(e)
+    shots: List[Frame] = [e.snap("menu (stage ON)")]
+
+    # -- mesh and blob counts, 3 s of idle, idleFrames
+    if live:
+        st = ram.read()
+        sc.check("spriteMeshes == 2 at the command menu", st["spriteMeshes"] == SPRITE_COUNT,
+                 f"spriteMeshes {st['spriteMeshes']}", why="the mons are not drawn as meshes")
+        sc.check("blob shadows show (blobShadows == 2)", st["blobShadows"] == SPRITE_COUNT,
+                 f"blobShadows {st['blobShadows']}")
+    else:
+        skipped += ["spriteMeshes == 2", "blobShadows == 2", "idleFrames advances"]
+    if live:
+        ram.set_flags(NO_BLOB_SHADOWS)   # breathing is judged against the classic frames: blobs would differ too
+    i0 = ram.field("idleFrames") if live else 0
+    idle = [top(f.img) for f in e.record(IDLE_RECORD, every=IDLE_EVERY, label="idle")]
+    if live:
+        i1 = ram.field("idleFrames")
+        sc.check("idleFrames advances at the command menu", i1 - i0 >= IDLE_ADVANCE_MIN,
+                 f"+{i1 - i0} over {IDLE_RECORD} frames (needs >= {IDLE_ADVANCE_MIN})", why="breathing did not advance")
+
+    # -- stage OFF: sprite boxes (magenta trick) and the classic frames
+    if not ov.show():
+        _no_combo(sc, "L+R overlay shown", "the in-battle move tester / stage toggle")
+        run_away(sc, e)
+        return
+    if not _toggle_stage(sc, e, ov, "stage OFF", shots):
+        run_away(sc, e)
+        return
+    boxes, mask, found = sprite_boxes(e)
+    mask.save(sc.dir / "sprite_mask_day.png")
+    sc.check("sprite boxes measured (stage OFF, BG0 marker render)", len(found) == 2,
+             ", ".join(f"{m} {boxes[m]}" for m in boxes), warn_only=True,
+             why=f"not found: {[m for m in boxes if m not in found]}, using the fallback box")
+    off = [top(f.img) for f in e.record(IDLE_RECORD, every=IDLE_EVERY, label="idle off")]
+    shots.append(e.snap("stage OFF"))
+    _toggle_stage(sc, e, ov, "stage ON", shots)
+    shots.append(e.snap("stage ON again"))
+
+    # -- breathing in pixels: the enemy box changes more than in the classic look (whose sprites have
+    # their own small idle changes), the rest of the scene does not. The classic player (and its
+    # healthbar) bob at the command menu, so only the enemy box is judged.
+    eb, pb = boxes["enemy"], boxes["player"]
+    nov_e, nov_p = box_novelty(idle, off, eb), box_novelty(idle, off, pb)
+    feature("breathing: the enemy's box takes shapes the classic sprite never shows", nov_e >= BREATHE_MIN,
+            f"median {nov_e:.2%} of the enemy box differs from the closest of the {len(off)} stage-off idle frames "
+            f"(needs {BREATHE_MIN:.0%}); player box {nov_p:.2%}; for reference, change from the first frame: enemy "
+            f"mean {box_motion(idle, eb):.2%} on, {box_motion(off, eb):.2%} off, player mean {box_motion(idle, pb):.2%} "
+            f"on, {box_motion(off, pb):.2%} off (the classic sprites blink and bob on their own)",
+            why="the enemy does not breathe")
+    rest = max((diff_fraction(outside_boxes(idle[0], boxes), outside_boxes(i, boxes)) for i in idle[1:]),
+               default=0.0)
+    sc.check("breathing: the scene outside the sprite boxes stays still", rest <= REST_PASS,
+             f"up to {rest:.2%} of the scene outside the boxes (HUD masked) changes over 3 s "
+             f"(PASS <= {REST_PASS:.1%}, WARN <= {REST_WARN:.0%})",
+             warn_only=rest <= REST_WARN, why="something besides the mons moves at the command menu")
+
+    day_on: List[Image.Image]
+    if live:
+        # -- FREEZE_IDLE stops breathing
+        ram.set_flags(FREEZE_IDLE)
+        a = ram.field("idleFrames")
+        frozen = [top(f.img) for f in e.record(60, every=6, label="frozen")]
+        b = ram.field("idleFrames")
+        sc.check("FREEZE_IDLE stops idleFrames", b == a, f"idleFrames {a} -> {b} over 60 frames")
+        still, classic_most = box_change(frozen, eb), box_change(off, eb)
+        sc.check("FREEZE_IDLE: the enemy's box is as still as in the classic look", still <= classic_most + FREEZE_STILL,
+                 f"up to {still:.2%} of the enemy box changes over 60 frames (classic look: up to "
+                 f"{classic_most:.2%} over {IDLE_RECORD}; allowed {FREEZE_STILL:.1%} more)")
+
+        # -- blob shadows: darker under each mon than with NO_BLOB_SHADOWS
+        with_blob = idle_samples(e, n=8, every=4)
+        ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS)
+        n_blob = ram.field("blobShadows")
+        sc.check("NO_BLOB_SHADOWS turns the blobs off", n_blob == 0, f"blobShadows {n_blob}")
+        day_on = idle_samples(e, n=8, every=4)
+        blob_cells = []
+        for mon in ("enemy", "player"):
+            ub = under_box(boxes[mon])
+            a_img, b_img = best_pair([i.crop(ub) for i in with_blob], [i.crop(ub) for i in day_on])
+            la, lb = _luma(a_img), _luma(b_img)
+            darker = sum(1 for p, q in zip(la, lb) if q - p > BLOB_DARKER)
+            drop = (sum(lb) - sum(la)) / float(max(1, len(la)))
+            sc.check(f"blob shadow darkens the ground under the {mon}", darker >= BLOB_PIXELS and drop > 0,
+                     f"region {ub}: {darker} pixels darker by more than {BLOB_DARKER} with blobs than with "
+                     f"NO_BLOB_SHADOWS (needs {BLOB_PIXELS}), mean luma {drop:+.1f} darker")
+            blob_cells += [(f"{mon} blob ON", a_img), (f"{mon} blob OFF", b_img)]
+        _crop_sheet(sc, blob_cells, "blobs", "ground under each mon with and without blob shadows (FREEZE_IDLE)",
+                    cols=4, zoom=3)
+
+        # -- CLASSIC_SPRITES: the sprites match the stage-off frames
+        ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS | CLASSIC_SPRITES)
+        meshes = ram.field("spriteMeshes")
+        sc.check("CLASSIC_SPRITES draws no meshes", meshes == 0, f"spriteMeshes {meshes}")
+        classic = idle_samples(e, n=12, every=3)
+        for mon in ("enemy", "player"):
+            box = boxes[mon]
+            a_img, b_img = best_pair([i.crop(box) for i in classic], [i.crop(box) for i in off])
+            d = pixel_diff(a_img, b_img)
+            sc.grade(f"CLASSIC_SPRITES: the {mon} matches the stage-off frame", home_grade(d, grade_tod),
+                     f"box {box}: {diff_detail(d)}", why=limits_text(grade_tod))
+        ram.set_flags(0)
+    else:
+        skipped += ["FREEZE_IDLE stops idleFrames and the enemy's box",
+                    "blob shadows darken the ground (needs NO_BLOB_SHADOWS)",
+                    "CLASSIC_SPRITES matches stage off (needs the flag)"]
+        day_on = idle_samples(e, n=8, every=4)
+
+    # -- a tester move with the mons alive: idleFrames stops while it plays; wobble
+    wobble = 0
+    if not ov.up() and not ov.show():
+        sc.check("overlay back for the tester Pound", False, "holding L+R did not bring the overlay back")
+        return
+    anim, done, polls = _play_polled(e, ov, ram, "A", args.anim_frames, "pound", live)
+    if froze(sc, e, anim, "playing Pound (L+R+A)"):
+        return
+    sc.sheet(anim, "pound", "tester Pound (player->enemy), every 3 frames (deduped)", screen="top",
+             dedupe_screen="top")
+    if not sc.check("tester Pound finished", done is not None,
+                    f"overlay hidden {done} frames after L+R+A" if done is not None else "overlay still up"):
+        return
+    if live:
+        during = [p for p in polls if 10 <= p[0] <= done - 6]
+        adv = during[-1][1] - during[0][1] if len(during) > 1 else 0
+        span = f"frames {during[0][0]}..{during[-1][0]}" if during else "no frames"
+        sc.check("idleFrames stops during a tester move", len(during) > 1 and adv <= IDLE_STOP_MAX,
+                 f"+{adv} over {span} of the animation (at most {IDLE_STOP_MAX})",
+                 why="breathing kept running during the move")
+        for p in polls:
+            wobble |= p[2]
+        sc.note(f"wobbleMask during the tester Pound: {wobble:#x}")
+    else:
+        skipped.append("idleFrames stops during a tester move")
+    e.run(90)
+
+    # -- the sprite moves on the arena (move_tester plays them in the forest, where there is no arena and so
+    # no mesh): each must finish and bring the normal look back, and whatever look it leaves must match the
+    # classic look of the same state (stage toggled off). Sprites at rest and the classic shadow, so both
+    # comparisons are exact at day.
+    stuck = False
+    if args.sprite_moves:
+        _sprite_flags(sc, e, args, FREEZE_IDLE | NO_BLOB_SHADOWS, ram)
+        base = e.record(60, every=5, label="idle")
+        baseline = ([scene(f.img) for f in base], [text_box(f.img) for f in base])
+        overlays: List[Frame] = []
+        after: List[Frame] = []
+        pairs: List[Frame] = []
+        cur = MOVE_ID_POUND
+        for mid in args.sprite_moves:
+            tag = f"arena move {mid:03d}"
+            if not _tester_move(sc, e, args, ov, baseline, cur, mid, "fwd", "A", tag, overlays, after, restore=True):
+                stuck = True
+                break
+            cur = mid
+            if not _classic_match(sc, e, ov, tag, grade_tod, pairs):
+                stuck = True
+                break
+        sc.sheet(pairs, "moves_on_off", "after each sprite move: stage ON | stage OFF (best-aligned pair)",
+                 screen="top", cols=4, scale=0.75)
+        sc.sheet(overlays, "overlays", "L+R overlay before each sprite move (check the move name)",
+                 screen="top", cols=5, scale=0.5)
+        sc.sheet(after, "after", "10 and 90 frames after each sprite move (normal look expected at +90)",
+                 screen="top", cols=4, scale=1.0)
+        if stuck:
+            sc.note("Stopped after the sprite moves: the command menu is stuck or frozen.")
+            return
+        if live:
+            ram.set_flags(0)
+        if not e.battle_menu_up():
+            e.wait_battle_menu(timeout=1800, advance_text=True)
+
+    # -- a real damaging turn: wobbleMask
+    back, turn_mask, turn = _turn_polled(sc, e, args, ram, live, "False Swipe turn")
+    sc.sheet(turn, "turn", "False Swipe + enemy turn, every 3 frames (deduped)", screen="top", dedupe_screen="top")
+    if live:
+        sc.check("wobble: a damaging move sets wobbleMask", (wobble | turn_mask) != 0,
+                 f"tester Pound {wobble:#x}, False Swipe turn {turn_mask:#x} (bit n = battler n)",
+                 why="no battler wobbled on a hit")
+    else:
+        skipped.append("wobble sets wobbleMask")
+    sc.sheet(shots, "states", "stage ON / OFF / ON at the command menu", screen="top", cols=4, scale=0.5)
+    idle_cells = [(f"{mon[0]} +{k * IDLE_EVERY}", idle[k].crop(boxes[mon]))
+                  for mon in ("enemy", "player") for k in range(0, len(idle), 3)]
+    _crop_sheet(sc, idle_cells, "idle", f"idle over {IDLE_RECORD} frames, row 1 enemy, row 2 player "
+                "(+N = frames; breathing should show)", cols=(len(idle) + 2) // 3)
+    crops = {("day", "ON"): (day_on, boxes), ("day", "OFF"): (off, boxes)}
+    if back and run_away(sc, e):
+        _night(sc, e, args, ram, tod, live, feature, boxes, crops, shots)
+    cells = []
+    for mon in ("enemy", "player"):
+        for key in (("day", "ON"), ("day", "OFF"), ("night", "ON"), ("night", "OFF")):
+            if key in crops:
+                imgs, bxs = crops[key]
+                cells.append((f"{mon} {key[0]} {key[1]}", imgs[0].crop(bxs[mon])))
+    _crop_sheet(sc, cells, "day_night", "the mons with the stage ON (FREEZE_IDLE|NO_BLOB_SHADOWS where "
+                "supported) and OFF, at day and at night", cols=4)
+    if skipped:
+        sc.note("SKIPPED (need the sprite debug fields): " + "; ".join(skipped))
+
+
+def _classic_match(sc: Scenario, e: Emu, ov: Overlay, tag: str, tod: str, pairs: List[Frame]) -> bool:
+    """After a tester move: the scene with the stage on vs the same state toggled off (the classic look),
+    graded like stage_ab (AB_LIMITS). Leaves the stage on. False if the stage could not be toggled."""
+    on = idle_samples(e, n=8, every=3)
+    toggled: List[Frame] = []
+    if not _toggle_stage(sc, e, ov, f"{tag}: stage OFF", toggled):
+        return False
+    off = idle_samples(e, n=8, every=3)
+    if not _toggle_stage(sc, e, ov, f"{tag}: stage ON", toggled):
+        return False
+    a, b = best_pair([scene(i) for i in on], [scene(i) for i in off])
+    d = pixel_diff(a, b)
+    status = home_grade(d, tod)
+    if status != "PASS":
+        detail = f" (ON | OFF | heat: {write_heatmap(a, b, d, sc.dir / (tag.replace(' ', '_') + '_on_off.png'))})"
+    else:
+        detail = ""
+    sc.grade(f"{tag}: the sprites match the classic look of the same state", status,
+             f"scene (HUD masked): {diff_detail(d)}{detail}",
+             why=limits_text(tod) + "; the mesh does not follow what the move did to the sprite")
+    pairs += [Frame(f"{tag} ON", e.frame, a), Frame(f"{tag} OFF", e.frame, b)]
+    return True
+
+
+def _night(sc: Scenario, e: Emu, args, ram: StageRam, tod: str, live: bool, feature: Callable,
+           boxes: dict, crops: dict, shots: List[Frame]) -> None:
+    """sprite_life's night battle: the mons must be tinted (differ from stage off) and not black."""
+    cur = {"bg": STAGE_ENTRY, "tod": TODS.index(tod)}
+    started = _select_entry(sc, e, ram, cur, STAGE_ENTRY, "night", "night")
+    if not started or e.wait_battle_menu(timeout=2400) is None:
+        sc.check("night: battle menu reached", False, why="the night Plain battle did not start")
+        return
+    e.run(30)
+    # The tint alone: sprites at rest and the classic shadow
+    if ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS):
+        sc.check("night: spriteMeshes == 2", ram.field("spriteMeshes") == SPRITE_COUNT,
+                 f"spriteMeshes {ram.field('spriteMeshes')}")
+    on = idle_samples(e, n=12, every=3)
+    shots.append(e.snap("night stage ON"))
+    ov = Overlay(e)
+    if not ov.show() or not _toggle_stage(sc, e, ov, "night: stage OFF", shots):
+        sc.check("night: stage switched off", False, why="L+R+SELECT did not work in the night battle")
+        _finish(sc, e)
+        return
+    nboxes, nmask, found = sprite_boxes(e)
+    if len(found) < 2:
+        nboxes = boxes
+    off = idle_samples(e, n=12, every=3)
+    shots.append(e.snap("night stage OFF"))
+    crops[("night", "ON")], crops[("night", "OFF")] = (on, nboxes), (off, nboxes)
+    for mon in ("enemy", "player"):
+        box = nboxes[mon]
+        a_img, b_img = best_pair([i.crop(box) for i in on], [i.crop(box) for i in off])
+        ms = masked_stats(a_img, b_img, nmask.crop(box))
+        feature(f"night: the {mon} is tinted (differs from stage off)", ms["diff"] >= NIGHT_TINT_MIN,
+                f"{ms['n']} sprite pixels: mean difference {ms['diff']:.1f} (needs {NIGHT_TINT_MIN})",
+                why="the mon is not lit like the arena at night")
+        ok = ms["n"] > 0 and ms["on"] >= NIGHT_BLACK[0] and ms["on"] >= NIGHT_BLACK[1] * ms["off"]
+        sc.check(f"night: the {mon} is not black", ok,
+                 f"mean brightness {ms['on']:.1f} with the stage on, {ms['off']:.1f} off (needs >= "
+                 f"{NIGHT_BLACK[0]:.0f} and >= {NIGHT_BLACK[1]:.0%} of off)")
+    _finish(sc, e)
+
+
 SCENARIOS: Dict[str, Callable] = {
     "boot": sc_boot,
     "wild_battle": sc_wild_battle,
@@ -1730,6 +2314,7 @@ SCENARIOS: Dict[str, Callable] = {
     "debug_views": sc_debug_views,
     "all_backgrounds": sc_all_backgrounds,
     "mega": sc_mega,
+    "sprite_life": sc_sprite_life,
 }
 DEFAULT_SCENARIOS = ["boot", "wild_battle", "quick_battle", "move_tester", "stage_toggle"]
 
@@ -1793,6 +2378,9 @@ def main() -> int:
     ap.add_argument("--sav", default=str(DEFAULT_SAV), help="raw .sav to boot (default: %(default)s)")
     ap.add_argument("--moves", default=",".join(map(str, DEFAULT_MOVES)),
                     help="move_tester: comma separated move IDs (generated/moves.txt line - 1)")
+    ap.add_argument("--sprite-moves", default=",".join(map(str, SPRITE_MOVES)),
+                    help="move_tester / sprite_life: moves that hide, shrink or swap a sprite, played after --moves "
+                         "with a 'normal look restored' check ('' = none)")
     ap.add_argument("--reverse", action="store_true", help="move_tester: also play each move enemy->player (Y)")
     ap.add_argument("--anim-frames", type=int, default=1200,
                     help="move_tester/stage_toggle: max frames per animation (recording stops when it ends)")
@@ -1821,6 +2409,7 @@ def main() -> int:
     ap.add_argument("--child", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
     args.moves = [int(m) for m in args.moves.split(",") if m.strip()]
+    args.sprite_moves = [int(m) for m in args.sprite_moves.split(",") if m.strip()]
     args.bgs = parse_entries(args.bgs) if args.bgs else None
     args.tods = [t.strip() for t in args.tods.split(",") if t.strip()]
     bad = [t for t in args.tods if t not in TODS]
