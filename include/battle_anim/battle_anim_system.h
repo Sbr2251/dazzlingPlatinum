@@ -270,6 +270,8 @@ void BattleAnimSystem_CancelBgAnim(BattleAnimSystem *system);
 int BattleAnimSystem_GetBaseBgPalettes(BattleAnimSystem *system);
 void BattleAnimSystem_LoadBaseBg(BattleAnimSystem *system, enum BgLayer bgLayer);
 void BattleAnimSystem_UnloadBaseBg(BattleAnimSystem *system, enum BgLayer bgLayer);
+BOOL BattleAnimSystem_LiftBaseBgOverStage(BattleAnimSystem *system);
+void BattleAnimSystem_DropBaseBgLift(BattleAnimSystem *system);
 BattleAnimScriptCmd BattleAnimSystem_GetScriptCmd(u32 id);
 int ov12_02223178(BattleAnimContext *param0);
 s8 BattleAnimSound_CorrectPanDirection(BattleAnimSystem *system, s8 pan);

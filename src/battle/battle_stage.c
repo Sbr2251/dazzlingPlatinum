@@ -52,6 +52,10 @@
 #define STAGE_FADE_BLEND_HOLD 2
 // Reasons that always hide at once: a screen that owns VRAM
 #define STAGE_SUPPRESS_INSTANT BATTLE_STAGE_SUPPRESS_MENU
+// BattleStage_SetCurtain: the bars lie in front of the arena and the shadows (0.977) and
+// behind the sprites (0.625 at most); their own polygon ID, clear of the shadows' 62
+#define STAGE_CURTAIN_DEPTH       FX16_CONST(0.95)
+#define STAGE_CURTAIN_POLYGON_ID  63
 
 enum StagePaletteSlot {
     SLOT_BG = 0,
@@ -127,6 +131,9 @@ typedef struct BattleStage {
     u16 backdropFadeColor; // BattleStage_SetBackdropFade
     int backdropFadeAlpha; // 0..16
     BOOL backdropGrayscale; // BattleStage_SetBackdropGrayscale
+    BOOL curtainOn; // BattleStage_SetCurtain
+    int curtainLeft;
+    int curtainRight;
 } BattleStage;
 
 // What was last written to the fog registers
@@ -148,6 +155,7 @@ static void FogOff(void);
 static void UpdateFade(void);
 static void PatchArenaAlpha(StageArena *arena, int alpha);
 static void UpdateFadeBlend(BOOL translucent);
+static void DrawCurtain(void);
 
 static BattleStage sBattleStage;
 static StageFog sStageFog;
@@ -171,6 +179,7 @@ void BattleStage_Init(BattleSystem *battleSys)
     sBattleStage.wasVisible = FALSE;
     sBattleStage.platformsHidden = FALSE;
     sBattleStage.brightness = 0;
+    sBattleStage.curtainOn = FALSE;
     memset(&sBattleStage.compat, 0, sizeof(sBattleStage.compat));
     sBattleStage.inMoveAnim = FALSE;
     sBattleStage.fadePos = STAGE_FADE_STEPS;
@@ -240,6 +249,7 @@ void BattleStage_Free(void)
     sBattleStage.brightness = 0;
     sBattleStage.backdropFadeAlpha = 0;
     sBattleStage.backdropGrayscale = FALSE;
+    sBattleStage.curtainOn = FALSE;
     FogOff();
 }
 
@@ -277,6 +287,7 @@ void BattleStage_Draw(void)
         SyncPalettes(sBattleStage.arena);
         PatchArenaAlpha(sBattleStage.arena, alpha);
         DrawArena(sBattleStage.arena, view, projection);
+        DrawCurtain();
         UpdateFog(sBattleStage.arena);
         sBattleStage.compat.arenaAlpha = alpha;
     } else {
@@ -579,6 +590,18 @@ static GXRgb BackdropGrayColor(GXRgb color)
 
     y = RGB_TO_GRAYSCALE(ColorR(color), ColorG(color), ColorB(color));
     return GX_RGB(y, y, y);
+}
+
+void BattleStage_SetCurtain(int left, int right)
+{
+    sBattleStage.curtainOn = TRUE;
+    sBattleStage.curtainLeft = left < 0 ? 0 : (left > HW_LCD_WIDTH ? HW_LCD_WIDTH : left);
+    sBattleStage.curtainRight = right < sBattleStage.curtainLeft ? sBattleStage.curtainLeft : (right > HW_LCD_WIDTH ? HW_LCD_WIDTH : right);
+}
+
+void BattleStage_ClearCurtain(void)
+{
+    sBattleStage.curtainOn = FALSE;
 }
 
 static const void *PieceData(const BattleStageFileHeader *piece, u32 offset)
@@ -1329,6 +1352,57 @@ static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *pro
     G3_Color(GX_RGB(31, 31, 31));
 
     arena->frame++;
+}
+
+// NDC x of the left edge of screen column x
+static fx16 CurtainX(int x)
+{
+    return (fx16)(x * FX16_ONE * 2 / HW_LCD_WIDTH - FX16_ONE);
+}
+
+static void DrawCurtainBar(int left, int right)
+{
+    if (left >= right) {
+        return;
+    }
+
+    G3_Vtx(CurtainX(left), FX16_ONE, STAGE_CURTAIN_DEPTH);
+    G3_Vtx(CurtainX(left), -FX16_ONE, STAGE_CURTAIN_DEPTH);
+    G3_Vtx(CurtainX(right), -FX16_ONE, STAGE_CURTAIN_DEPTH);
+    G3_Vtx(CurtainX(right), FX16_ONE, STAGE_CURTAIN_DEPTH);
+}
+
+// After the arena, before the sprites: the curtain bars cover the arena outside
+// curtainLeft..curtainRight with a flat colour, under the mons, as the classic Fake Out
+// window cuts BG3 to the backdrop colour around them. The colour is read from BG palette
+// VRAM each frame, so it follows a palette fade as the 2D backdrop does; no fog, so it is
+// exact.
+static void DrawCurtain(void)
+{
+    if (!sBattleStage.curtainOn || (sBattleStage.curtainLeft == 0 && sBattleStage.curtainRight == HW_LCD_WIDTH)) {
+        return;
+    }
+
+    G3_MtxMode(GX_MTXMODE_PROJECTION);
+    G3_PushMtx();
+    G3_Identity();
+    G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
+    G3_PushMtx();
+    G3_Identity();
+
+    G3_TexImageParam(GX_TEXFMT_NONE, GX_TEXGEN_NONE, GX_TEXSIZE_S8, GX_TEXSIZE_T8, GX_TEXREPEAT_NONE, GX_TEXFLIP_NONE, GX_TEXPLTTCOLOR0_USE, 0);
+    G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, STAGE_CURTAIN_POLYGON_ID, 31, 0);
+    G3_Color(*(const u16 *)HW_BG_PLTT & GX_RGB(31, 31, 31));
+    G3_Begin(GX_BEGIN_QUADS);
+    DrawCurtainBar(0, sBattleStage.curtainLeft);
+    DrawCurtainBar(sBattleStage.curtainRight, HW_LCD_WIDTH);
+    G3_End();
+
+    G3_PopMtx(1);
+    G3_MtxMode(GX_MTXMODE_PROJECTION);
+    G3_PopMtx(1);
+    G3_MtxMode(GX_MTXMODE_POSITION);
+    G3_Color(GX_RGB(31, 31, 31));
 }
 
 static void FogOff(void)

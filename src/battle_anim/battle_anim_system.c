@@ -497,9 +497,11 @@ static BOOL BattleAnimSystem_IsBaseBgUnderStage(BattleAnimSystem *system)
 }
 
 // F3 (compat.md, move_audit.md "F3: window decisions"): a window that shapes the backdrop, BG3
-// shown in one region and hidden in another that still shows BG0 (the Fake Out curtain, the
-// Camouflage and Superpower pictures), draws its shape under the opaque arena, where nobody
-// sees it. It suppresses the arena, which fades out (F6). Windows that only hide OBJ (Dark
+// shown in one region and hidden in another that still shows BG0, draws its shape under the
+// opaque arena, where nobody sees it. It suppresses the arena, which fades out (F6). Fake Out,
+// Camouflage and Superpower did so until chunk 6 (category C); with the arena up they now
+// skip or change their window instead, and this stays for any other such window and for
+// those moves while the arena is hidden anyway. Windows that only hide OBJ (Dark
 // Void) keep BG0 and BG3 everywhere, and the stat change / Harden silhouette hides BG0 and BG3
 // together where the OAM copy covers it: those keep the arena (option a).
 static BOOL BattleAnimSystem_WindowShapesBackdrop(BattleAnimSystem *system)
@@ -784,6 +786,49 @@ static BOOL BattleAnimSystem_LiftBg2Copy(BattleAnimSystem *system)
     return TRUE;
 }
 
+// Chunk 6, category C (move_audit.md, "F3: window decisions"): after LoadBaseBg, the backdrop
+// copy on BG2 goes above the arena the way F1 lifts a mon copy: BG2 takes BG0's place and BG0
+// goes one step down, still above BG3, so the mon OAM copies stay above BG2. The window that
+// shapes the copy (the OBJ window of Camouflage) then shows it over the arena. The lift uses
+// the F1 state, so it ends when the BG2 tilemap changes, at Delete and at the latest at End.
+// FALSE, with nothing changed, when the arena doesn't show.
+BOOL BattleAnimSystem_LiftBaseBgOverStage(BattleAnimSystem *system)
+{
+    if (BattleAnimSystem_IsContest(system) == TRUE || BattleStage_IsVisible() == FALSE) {
+        return FALSE;
+    }
+
+    BattleAnimSystem_DropBg2CopyLift(system, TRUE);
+
+    u8 bg0 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_0);
+    u8 bg2 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_2);
+    u8 bg3 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_3);
+
+    if (bg0 + 1 > bg3) {
+        return FALSE;
+    }
+
+    sBg2CopyLift.oldBg0Priority = bg0;
+    sBg2CopyLift.oldBg2Priority = bg2;
+    sBg2CopyLift.bg0Priority = bg0 + 1;
+    sBg2CopyLift.bg2Priority = bg0;
+    sBg2CopyLift.tilemapHash = BattleAnimSystem_Bg2TilemapHash(system);
+    sBg2CopyLift.pending = FALSE;
+    sBg2CopyLift.active = TRUE;
+
+    Bg_SetPriority(BG_LAYER_MAIN_0, sBg2CopyLift.bg0Priority);
+    Bg_SetPriority(BG_LAYER_MAIN_2, sBg2CopyLift.bg2Priority);
+    BattleStage_SetBg2Lifted(TRUE);
+
+    return TRUE;
+}
+
+// Before UnloadBaseBg: BG0 and BG2 go back to their places
+void BattleAnimSystem_DropBaseBgLift(BattleAnimSystem *system)
+{
+    BattleAnimSystem_DropBg2CopyLift(system, TRUE);
+}
+
 static BOOL BattleAnimSystem_IsBg2CopyPaletteInVram(BattleAnimSystem *system)
 {
     const u16 *want = PaletteData_GetFadedBuffer(system->paletteData, PLTTBUF_MAIN_BG) + PLTT_DEST(BATTLE_BG_PALETTE_MON_SPRITE);
@@ -899,6 +944,7 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
     if (BattleAnimSystem_IsContest(system) == FALSE) {
         BattleStage_ClearGroundHoles();
         BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT | BATTLE_STAGE_SUPPRESS_WINDOW, FALSE);
+        BattleStage_ClearCurtain();
         BattleStage_SetMoveAnimActive(FALSE);
         BattleStage_SetInMoveAnim(FALSE);
         BattleStage_SetBackdropShake(0, 0);
@@ -1787,6 +1833,8 @@ static void BattleAnimScriptCmd_End(BattleAnimSystem *system)
         Bg_ClearTilesRange(BattleAnimSystem_GetBgLayer(system, 1), 0x4000, 0, BattleAnimSystem_GetHeapID(system));
         Bg_ClearTilemap(BattleAnimSystem_GetBgConfig(system), BattleAnimSystem_GetBgLayer(system, 1));
         Bg_ToggleLayer(BG_LAYER_MAIN_2, TRUE);
+        // A Fake Out curtain cut short
+        BattleStage_ClearCurtain();
     } else {
         ov17_022413D8();
     }

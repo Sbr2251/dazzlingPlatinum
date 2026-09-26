@@ -12,6 +12,7 @@
 #include "battle_anim/battle_anim_helpers.h"
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
+#include "battle/battle_stage.h"
 #include "pch/global_pch.h"
 
 #include "battle_script_battlers.h"
@@ -764,6 +765,7 @@ typedef struct FakeOutCurtainContext {
     int state;
     int delay;
     XYTransformContext curtainPos;
+    BOOL stageCurtain;
 } FakeOutCurtainContext;
 
 enum FakeOutCurtainState {
@@ -4399,6 +4401,18 @@ void BattleAnimScriptFunc_Extrasensory(BattleAnimSystem *system)
     BattleAnimSystem_StartAnimTask(ctx->battleAnimSys, BattleAnimTask_Extrasensory, ctx);
 }
 
+// Chunk 6, category C (move_audit.md, "F3: window decisions"): with the 3D arena up, the
+// WIN0 cut of BG3 would happen under the opaque arena. The stage draws the curtain instead,
+// over the arena and under the mons, in the backdrop colour the window shows outside it.
+// The palette fade whitens the arena as it whitens BG3: the arena textures use the BG palette.
+static void FakeOutCurtain_SetStageCurtain(FakeOutCurtainContext *ctx)
+{
+    // The columns outside WIN0
+    BattleStage_SetCurtain(
+        (HW_LCD_WIDTH / 2 - 1) - ctx->curtainPos.x,
+        (HW_LCD_WIDTH / 2) + ctx->curtainPos.x);
+}
+
 static void BattleAnimTask_FakeOutCurtain(SysTask *task, void *param)
 {
     FakeOutCurtainContext *ctx = param;
@@ -4412,9 +4426,16 @@ static void BattleAnimTask_FakeOutCurtain(SysTask *task, void *param)
             0,
             0,
             FAKE_OUT_CURTAIN_MOVE_FRAMES);
-        GX_SetVisibleWnd(GX_WNDMASK_W0);
-        BattleAnimUtil_SetBackgroundWindowMask(ctx->battleAnimSys, BATTLE_ANIM_WINDOW_0, FALSE);
-        G2_SetWnd0Position(0, 0, HW_LCD_WIDTH - 1, HW_LCD_HEIGHT - 1);
+
+        // The battle overlay, and with it the stage, isn't loaded in contests
+        ctx->stageCurtain = BattleAnimSystem_IsContest(ctx->battleAnimSys) == FALSE && BattleStage_IsVisible();
+
+        if (ctx->stageCurtain == FALSE) {
+            GX_SetVisibleWnd(GX_WNDMASK_W0);
+            BattleAnimUtil_SetBackgroundWindowMask(ctx->battleAnimSys, BATTLE_ANIM_WINDOW_0, FALSE);
+            G2_SetWnd0Position(0, 0, HW_LCD_WIDTH - 1, HW_LCD_HEIGHT - 1);
+        }
+
         ctx->delay = FAKE_OUT_CURTAIN_DELAY;
         ctx->state++;
         break;
@@ -4435,11 +4456,15 @@ static void BattleAnimTask_FakeOutCurtain(SysTask *task, void *param)
         break;
     case FAKE_OUT_CURTAIN_STATE_MOVE_CURTAIN:
         if (PosLerpContext_Update(&ctx->curtainPos)) {
-            G2_SetWnd0Position(
-                (HW_LCD_WIDTH / 2 - 1) - ctx->curtainPos.x,
-                0,
-                (HW_LCD_WIDTH / 2) + ctx->curtainPos.x,
-                HW_LCD_HEIGHT - 1);
+            if (ctx->stageCurtain) {
+                FakeOutCurtain_SetStageCurtain(ctx);
+            } else {
+                G2_SetWnd0Position(
+                    (HW_LCD_WIDTH / 2 - 1) - ctx->curtainPos.x,
+                    0,
+                    (HW_LCD_WIDTH / 2) + ctx->curtainPos.x,
+                    HW_LCD_HEIGHT - 1);
+            }
         } else {
             ctx->state++;
         }
@@ -4447,7 +4472,13 @@ static void BattleAnimTask_FakeOutCurtain(SysTask *task, void *param)
     case FAKE_OUT_CURTAIN_STATE_HIDE_CURTAIN:
         if (PaletteData_GetSelectedBuffersMask(BattleAnimSystem_GetPaletteData(ctx->battleAnimSys)) == 0) {
             ctx->state++;
-            GX_SetVisibleWnd(GX_WNDMASK_NONE);
+
+            if (ctx->stageCurtain) {
+                BattleStage_ClearCurtain();
+            } else {
+                GX_SetVisibleWnd(GX_WNDMASK_NONE);
+            }
+
             PaletteData_StartFade(
                 BattleAnimSystem_GetPaletteData(ctx->battleAnimSys),
                 PLTTBUF_MAIN_BG_F,
@@ -4472,8 +4503,8 @@ static void BattleAnimTask_FakeOutCurtain(SysTask *task, void *param)
 
 void BattleAnimScriptFunc_FakeOutCurtain(BattleAnimSystem *system)
 {
-    // BUG: Should be sizeof(FakeOutCurtainContext), but since sizeof(ExtrasensoryContext) is larger, it works anyway.
-    FakeOutCurtainContext *ctx = BattleAnimUtil_Alloc(system, sizeof(ExtrasensoryContext));
+    // The original allocated sizeof(ExtrasensoryContext), which only happened to be large enough
+    FakeOutCurtainContext *ctx = BattleAnimUtil_Alloc(system, sizeof(FakeOutCurtainContext));
     ctx->battleAnimSys = system;
 
     BattleAnimSystem_StartAnimTask(ctx->battleAnimSys, BattleAnimTask_FakeOutCurtain, ctx);

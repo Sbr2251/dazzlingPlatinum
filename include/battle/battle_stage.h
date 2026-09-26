@@ -55,6 +55,12 @@ int BattleStage_GetDebugView(void);
 // replaces the atmosphere fog on the FOG meshes: black when negative, white when positive,
 // at |brightness| * 8 / 128. 0 brings the atmosphere fog back. Init and Free reset it to 0.
 void BattleStage_SetBrightness(int brightness);
+// A curtain in 3D (moves.md, category C: Fake Out): flat bars in the 2D backdrop colour (BG
+// palette colour 0, as displayed) over the arena and the shadows but under the mons,
+// covering the screen columns left of `left` and from `right` on. It stays until
+// BattleStage_ClearCurtain; the anim system's End and Delete clear it too.
+void BattleStage_SetCurtain(int left, int right);
+void BattleStage_ClearCurtain(void);
 
 // A move's palette fade or grayscale of the backdrop (FadeBg FADE_BG_TYPE_BASE,
 // SetBgGrayscale, Fake Out's curtain). The arena's textures take the faded BG palette, so

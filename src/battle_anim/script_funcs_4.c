@@ -82,6 +82,7 @@ typedef struct CamouflageContext {
     ManagedSprite *xluSprite;
     BgScrollContext *bgScroll;
     AlphaFadeContext alpha;
+    BOOL stageLift;
 } CamouflageContext;
 
 enum CamouflageState {
@@ -755,6 +756,11 @@ static void BattleAnimTask_Camouflage(SysTask *task, void *param)
     } break;
     default:
         GX_SetVisibleWnd(GX_WNDMASK_NONE);
+
+        if (ctx->stageLift) {
+            BattleAnimSystem_DropBaseBgLift(ctx->common.battleAnimSys);
+        }
+
         BattleAnimSystem_UnloadBaseBg(ctx->common.battleAnimSys, BATTLE_BG_BASE);
         BattleAnimSystem_EndAnimTask(ctx->common.battleAnimSys, task);
         Heap_Free(ctx);
@@ -791,6 +797,16 @@ void BattleAnimScriptFunc_Camouflage(BattleAnimSystem *system)
         CAMOUFLAGE_ALPHA_FADE_FRAMES);
 
     BattleAnimSystem_LoadBaseBg(ctx->common.battleAnimSys, BATTLE_BG_BASE);
+
+    // Chunk 6, category C (move_audit.md, "F3: window decisions"): with the 3D arena up, the
+    // backdrop copy goes above it, so the silhouette shows it over the arena. Inside the
+    // silhouette BG3 is shown too: the opaque copy covers it, and no region cuts the backdrop
+    // under the arena, which would suppress it (F3).
+    ctx->stageLift = BattleAnimSystem_LiftBaseBgOverStage(ctx->common.battleAnimSys);
+
+    if (ctx->stageLift) {
+        G2_SetWndOBJInsidePlane(BATTLE_BG_WNDMASK_3D | BATTLE_BG_WNDMASK_WINDOW | BATTLE_BG_WNDMASK_BASE | BATTLE_BG_WNDMASK_EFFECT | GX_WND_PLANEMASK_OBJ, FALSE);
+    }
 
     Bg_ToggleLayer(BATTLE_BG_BASE, TRUE);
     BattleAnimSystem_StartAnimTask(ctx->common.battleAnimSys, BattleAnimTask_Camouflage, ctx);

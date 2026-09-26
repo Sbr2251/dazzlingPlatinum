@@ -212,8 +212,8 @@ FUNC_TAGS = {
     49: F([BLEND]),                               # Surf
     51: F([XY]), 52: F([XY]),                     # MoveBattlerX*
     53: F([XY, SR]), 54: F([XY, SR]),             # ShakeAndScaleAttacker*
-    55: F([WIN, "bg2_effect", "hblank_wave", OAM, BLEND], suppress=["bg2_effect"], wave="BG2",
-          note="Camouflage: base picture on BG2 under BG0 inside an OBJ window"),
+    55: F([WIN, "bg2_effect", "hblank_wave", OAM, BLEND], wave="BG2",
+          note="Camouflage: base picture on BG2 inside an OBJ window, lifted above BG0 (chunk 6)"),
     56: F([WIN, "bg2_effect", OAM], suppress=["bg2_effect"],
           note="Superpower: base picture on BG2 under BG0 inside an OBJ window"),
     57: F([XY]),                                  # MoveBattler
@@ -284,12 +284,12 @@ FLOW_STOP = {"End", "Jump", "Return"}
 
 # name -> {"risk", "fix", "notes"}; any key present replaces the rule-based value.
 OVERRIDES = {
-    "FAKE_OUT": {"risk": "high", "fix": ["F3", "F6"],
-                 "notes": "curtain is WIN0 over BG3 only; under the arena it vanishes. F3 option b"},
+    "FAKE_OUT": {"risk": "high", "fix": ["F3"],
+                 "notes": "chunk 6: the stage draws the curtain in 3D, over the arena and under the mons (F3 option c)"},
     "SUPERPOWER": {"fix": ["F3", "F6"],
-                   "notes": "BG2 picture under BG0 in the OBJ window; F3 option b (keep suppressing, fade)"},
-    "CAMOUFLAGE": {"fix": ["F3", "F6"],
-                   "notes": "BG2 picture + BG2 wave in the OBJ window, not a mon copy; F3 option b"},
+                   "notes": "chunk 6: no silhouette window with the arena up (F3 option a); SwitchBg still fades (F6)"},
+    "CAMOUFLAGE": {"fix": ["F1", "F3"],
+                   "notes": "chunk 6: BG2 picture + BG2 wave lifted above BG0 in the OBJ window (F1, F3 option c)"},
     "NONE": {"risk": "medium",
              "notes": "MOVE_NONE placeholder (a Sketch copy), never played in battle; see SKETCH"},
     "HARDEN": {"notes": "StatChangeUp: BG2 picture only inside the OBJ window; F3 option a"},
@@ -302,9 +302,9 @@ CHUNK6 = {
     "EARTHQUAKE": "shake the stage camera instead of BG3",
     "MAGNITUDE": "shake the stage camera instead of BG3",
     "DIG": "open the ground instead of clipping the sprite",
-    "FAKE_OUT": "curtain drawn over BG3 only; needs a stage-side version",
-    "SUPERPOWER": "BG2 picture in the mon silhouette; redo over the arena",
-    "CAMOUFLAGE": "BG2 picture and wave in the silhouette; redo over the arena",
+    "FAKE_OUT": "curtain drawn over BG3 only; done: a 3D curtain on the stage (redo/silhouette.json)",
+    "SUPERPOWER": "BG2 picture in the mon silhouette; done: window skipped with the arena up (redo/silhouette.json)",
+    "CAMOUFLAGE": "BG2 picture and wave in the silhouette; done: BG2 lifted above BG0 (redo/silhouette.json)",
     "MUDDY_WATER": "full-screen BG2 picture; a 3D water plane would fit",
     "SURF": "big wave; a 3D water plane would fit",
 }
@@ -313,12 +313,17 @@ CHUNK6 = {
 F3_DECISIONS = [
     (21, "Harden", "OBJ window: inside = WINDOW|OBJ, outside = all", "a",
      "only the silhouette loses BG0 and the OAM copy covers it; keep the arena, tint the copy (F2)"),
-    (41, "FakeOutCurtain", "WIN0: BG3 only inside a shrinking rect", "b",
-     "the curtain is BG3 and cannot show over the arena; keep suppressing with the F6 fade"),
-    (55, "Camouflage", "OBJ window: inside adds BG2, BG2 at BG3 priority", "b",
-     "BG2 picture under BG0 is caught by IsBaseBgUnderStage; fade (F6)"),
-    (56, "Superpower", "OBJ window: inside adds BG2, BG2 at BG3 priority", "b",
-     "as Camouflage; fade (F6)"),
+    (41, "FakeOutCurtain", "WIN0: BG3 only inside a shrinking rect", "c",
+     "chunk 6: with the arena up the window stays off and BattleStage_SetCurtain draws the bars in 3D, "
+     "in the backdrop colour, over the arena and the shadows and under the mons; the BG palette fade "
+     "whitens the arena textures as it whitens BG3. Classic WIN0 when the arena is hidden"),
+    (55, "Camouflage", "OBJ window: inside adds BG2, BG2 at BG3 priority", "c",
+     "chunk 6: BattleAnimSystem_LiftBaseBgOverStage puts BG2 above BG0 (the F1 lift) and the OBJ "
+     "window inside also shows BG3, which the opaque picture covers, so F3 doesn't fire; "
+     "dropped before UnloadBaseBg. Option b when the arena is hidden"),
+    (56, "Superpower", "OBJ window: inside adds BG2, BG2 at BG3 priority", "a",
+     "chunk 6: the silhouette only cuts BG3 for one frame, unseen under the arena, so the window "
+     "stays off with the arena up; the SwitchBg picture that follows still fades (F6)"),
     (75, "SetPokemonSpritePriority / DarkVoid", "WIN0: inside BG0-3 without OBJ", "a",
      "only OBJ is hidden and BG0 is already in both regions; nothing to change"),
     (79, "Sketch", "WIN0 reveal of a BG2 copy placed above BG0", "a",
@@ -573,7 +578,7 @@ def render_md(recs, infos):
     L.append(f"`switch_bg` without `bg_switch` ({len(quiet)} moves): backdrop palette fades (FadeBg,")
     L.append("SetBgGrayscale, Flash, Earthquake) or the Fake Out curtain. Nothing is suppressed. The arena's")
     L.append("textures take the faded BG palette and the stage fades its fog and light along (chunk 6")
-    L.append("backdrop_fade), so the fades show on the arena; Fake Out's curtain is category C.")
+    L.append("backdrop_fade), so the fades show on the arena; the stage draws Fake Out's curtain in 3D.")
     L.append("`sprite_bg_blend` is always OBJ-first alpha with BG0|BG3 as the 2nd target; no anim code")
     L.append("makes BG0 a 1st target (F4 then means: check the arena stays opaque).")
     L.append("")
@@ -605,6 +610,10 @@ def render_md(recs, infos):
         L.append(f"- {mid} {name}: {CHUNK6[name]}")
     L.append("")
     L.append("## F3: window decisions")
+    L.append("")
+    L.append("Options a and b are compat.md F3's. Option c (chunk 6, moves.md category C): the func")
+    L.append("redraws its effect over the arena while the arena shows, and keeps the classic window when")
+    L.append("it is hidden. The `BATTLE_STAGE_SUPPRESS_WINDOW` path stays for any other window user.")
     L.append("")
     L.append("| func | mask | option | why | moves |")
     L.append("|---|---|---|---|---|")
