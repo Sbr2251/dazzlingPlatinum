@@ -480,6 +480,51 @@ static BOOL BattleAnimSystem_IsBaseBgUnderStage(BattleAnimSystem *system)
     return FALSE;
 }
 
+// F3 (compat.md, move_audit.md "F3: window decisions"): a window that shapes the backdrop, BG3
+// shown in one region and hidden in another that still shows BG0 (the Fake Out curtain, the
+// Camouflage and Superpower pictures), draws its shape under the opaque arena, where nobody
+// sees it. It suppresses the arena, which fades out (F6). Windows that only hide OBJ (Dark
+// Void) keep BG0 and BG3 everywhere, and the stat change / Harden silhouette hides BG0 and BG3
+// together where the OAM copy covers it: those keep the arena (option a).
+static BOOL BattleAnimSystem_WindowShapesBackdrop(BattleAnimSystem *system)
+{
+    int wnd = GX_GetVisibleWnd();
+
+    if (system->moveActive != TRUE || wnd == GX_WNDMASK_NONE || (GX_GetVisiblePlane() & GX_PLANEMASK_BG0) == 0) {
+        return FALSE;
+    }
+
+    int regions[4];
+    int count = 0;
+
+    regions[count++] = reg_G2_WINOUT & REG_G2_WINOUT_WINOUT_MASK;
+
+    if (wnd & GX_WNDMASK_W0) {
+        regions[count++] = reg_G2_WININ & REG_G2_WININ_WIN0IN_MASK;
+    }
+
+    if (wnd & GX_WNDMASK_W1) {
+        regions[count++] = (reg_G2_WININ & REG_G2_WININ_WIN1IN_MASK) >> REG_G2_WININ_WIN1IN_SHIFT;
+    }
+
+    if (wnd & GX_WNDMASK_OW) {
+        regions[count++] = (reg_G2_WINOUT & REG_G2_WINOUT_OBJWININ_MASK) >> REG_G2_WINOUT_OBJWININ_SHIFT;
+    }
+
+    BOOL showsBackdrop = FALSE;
+    BOOL cutsBackdropUnderArena = FALSE;
+
+    for (int i = 0; i < count; i++) {
+        if (regions[i] & GX_WND_PLANEMASK_BG3) {
+            showsBackdrop = TRUE;
+        } else if (regions[i] & GX_WND_PLANEMASK_BG0) {
+            cutsBackdropUnderArena = TRUE;
+        }
+    }
+
+    return showsBackdrop && cutsBackdropUnderArena;
+}
+
 // Hides the 3D battle stage while a move changes the backdrop or draws on BG2.
 // The battle overlay is not loaded in contests, so the stage is never touched there.
 static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
@@ -499,10 +544,18 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
         if (Bg_GetXOffset(system->bgConfig, BATTLE_BG_EFFECT) != 0 || Bg_GetYOffset(system->bgConfig, BATTLE_BG_EFFECT) != 0) {
             bgSwitch = TRUE;
         }
+
+        // F5: a per-line (HBlank DMA) scroll of BG3 would wave unseen under the arena
+        if (BattleAnimUtil_IsBg3LineScrollActive()) {
+            bgSwitch = TRUE;
+        }
     }
 
+    // F6: reasons that start while the move (or its background restore) runs fade the arena
+    BattleStage_SetInMoveAnim(system->moveActive == TRUE || system->bgSwitchState != BATTLE_BG_SWITCH_STATE_NONE);
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH, bgSwitch);
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG2_EFFECT, system->moveActive == TRUE && BattleAnimSystem_IsBaseBgUnderStage(system));
+    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_WINDOW, BattleAnimSystem_WindowShapesBackdrop(system));
     // The stage sprites pause their idle breathing while a script runs
     BattleStage_SetMoveAnimActive(system->moveActive == TRUE);
 }
@@ -651,8 +704,9 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
     BattleAnimSystem_DropBg2CopyLift(system, TRUE);
 
     if (BattleAnimSystem_IsContest(system) == FALSE) {
-        BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT, FALSE);
+        BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT | BATTLE_STAGE_SUPPRESS_WINDOW, FALSE);
         BattleStage_SetMoveAnimActive(FALSE);
+        BattleStage_SetInMoveAnim(FALSE);
     }
 
     for (int i = 0; i < BATTLE_ANIM_SYSTEM_ARC_COUNT; i++) {
@@ -782,6 +836,7 @@ BOOL BattleAnimSystem_StartMove(BattleAnimSystem *system, MoveAnimation *param1,
 
     system->bgAnim = NULL;
     system->stageBgDirty = FALSE;
+    BattleAnimUtil_ResetBg3LineScrolls();
     system->executeAnimScriptFunc = BattleAnimScript_Execute;
     system->scriptDelay = 0;
 

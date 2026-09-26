@@ -27,14 +27,23 @@ enum BattleStageSuppress {
     BATTLE_STAGE_SUPPRESS_BRIGHTNESS = 1 << 2,
     BATTLE_STAGE_SUPPRESS_MENU = 1 << 3, // a screen that owns the 3D layer or VRAM
     BATTLE_STAGE_SUPPRESS_OTHER = 1 << 4,
+    BATTLE_STAGE_SUPPRESS_WINDOW = 1 << 5, // a move window shapes the BG3 backdrop under the arena (compat.md, F3)
 };
 
 void BattleStage_Suppress(u32 reasons, BOOL suppress);
 // TRUE when this battle's background and terrain pieces loaded into an arena; FALSE keeps
 // the classic scene for the whole battle
 BOOL BattleStage_HasArena(void);
-// TRUE when the arena is enabled, loaded for this battle and not suppressed
+// TRUE while the arena is drawn: enabled, loaded for this battle and not suppressed, or
+// still fading out after a suppression started during a move animation (compat.md, F6).
+// The stage sprites stay on the stage path for as long as this is TRUE.
 BOOL BattleStage_IsVisible(void);
+// TRUE while the arena is drawn translucent, fading out or back in
+BOOL BattleStage_IsFading(void);
+// The anim system: a move animation (or its background restore) is running. Suppressions
+// that start while it is TRUE fade the arena out over SCREEN_FRAMES(8); the others, the menu
+// and the debug toggle hide it at once.
+void BattleStage_SetInMoveAnim(BOOL inMoveAnim);
 
 // Debug views (DEBUG_BATTLE_TOOLS): 0 = home pose, others orbit the camera to show the
 // arena is 3D. They are stage camera poses, so the sprites and particles follow.

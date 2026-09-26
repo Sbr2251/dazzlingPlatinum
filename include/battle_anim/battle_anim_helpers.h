@@ -219,6 +219,10 @@ void *BgScrollContext_GetWriteBuffer(const BgScrollContext *ctx);
 void BgScrollContext_Stop(BgScrollContext *ctx);
 u32 BattleAnimUtil_MakeBgOffsetValue(u16 x, u16 y);
 u32 BattleAnimUtil_GetHOffsetRegisterForBg(int bgID);
+// F5 (compat.md): TRUE while a per-line scroll context targets BG3 (the effect BG)
+BOOL BattleAnimUtil_IsBg3LineScrollActive(void);
+// Forgets the BG3 scroll contexts; each move starts without one
+void BattleAnimUtil_ResetBg3LineScrolls(void);
 void ov12_02226728(s16 param0, s16 param1, s16 param2, s16 param3, s16 *param4, s16 *param5);
 void ov12_02226744(s16 param0, s16 param1, s16 param2, s16 param3, fx32 *param4);
 void ov12_0222676C(s16 param0, s16 param1, s16 param2, s16 param3, u16 *param4);

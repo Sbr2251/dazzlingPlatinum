@@ -833,6 +833,54 @@ static void VBlankDMAController_DisableDMA(VBlankDMAController *dmaController)
     dmaController->doDMA = FALSE;
 }
 
+// F5 (compat.md): the live per-line scroll contexts that target BG3. The battle stage treats
+// them as a background switch, so the arena fades out and the wave shows.
+#define MAX_BG3_LINE_SCROLLS 4
+
+static const void *sBg3LineScrolls[MAX_BG3_LINE_SCROLLS];
+
+static BOOL IsBg3OffsetRegister(u32 offsetReg)
+{
+    return offsetReg == REG_BG3HOFS_ADDR || offsetReg == REG_BG3VOFS_ADDR;
+}
+
+static void AddBg3LineScroll(const void *ctx)
+{
+    for (int i = 0; i < MAX_BG3_LINE_SCROLLS; i++) {
+        if (sBg3LineScrolls[i] == NULL) {
+            sBg3LineScrolls[i] = ctx;
+            return;
+        }
+    }
+}
+
+static void RemoveBg3LineScroll(const void *ctx)
+{
+    for (int i = 0; i < MAX_BG3_LINE_SCROLLS; i++) {
+        if (sBg3LineScrolls[i] == ctx) {
+            sBg3LineScrolls[i] = NULL;
+        }
+    }
+}
+
+BOOL BattleAnimUtil_IsBg3LineScrollActive(void)
+{
+    for (int i = 0; i < MAX_BG3_LINE_SCROLLS; i++) {
+        if (sBg3LineScrolls[i] != NULL) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+void BattleAnimUtil_ResetBg3LineScrolls(void)
+{
+    for (int i = 0; i < MAX_BG3_LINE_SCROLLS; i++) {
+        sBg3LineScrolls[i] = NULL;
+    }
+}
+
 static void CustomBgScrollContext_DoDMAImpl(CustomBgScrollContext *ctx)
 {
     const void *buffer = BufferManager_GetReadBuffer(ctx->bufferManager);
@@ -871,6 +919,10 @@ CustomBgScrollContext *CustomBgScrollContext_New(u32 offsetReg, u32 initValue, e
 
     VBlankDMAController_Init(&ctx->dmaController, ctx, CustomBgScrollContext_SwapBuffers, CustomBgScrollContext_DoDMA);
 
+    if (IsBg3OffsetRegister(offsetReg)) {
+        AddBg3LineScroll(ctx);
+    }
+
     return ctx;
 }
 
@@ -878,6 +930,7 @@ void CustomBgScrollContext_Free(CustomBgScrollContext *ctx)
 {
     GF_ASSERT(ctx);
 
+    RemoveBg3LineScroll(ctx);
     VBlankDMAController_Deinit(&ctx->dmaController);
 
     if (ctx->bufferManager != NULL) {
@@ -926,6 +979,10 @@ BgScrollContext *BgScrollContext_New(u8 startY, u8 endY, u16 angleIncrement, fx3
     ScreenScrollManager_ScrollX(ctx->screenScrollMgr, startY, endY, angleIncrement, amplitude, speed, offsetReg, initValue, priority);
     VBlankDMAController_Init(&ctx->dmaController, ctx, BgScrollContext_SwapBuffers, BgScrollContext_DoDMA);
 
+    if (IsBg3OffsetRegister(offsetReg)) {
+        AddBg3LineScroll(ctx);
+    }
+
     return ctx;
 }
 
@@ -933,6 +990,7 @@ void BgScrollContext_Free(BgScrollContext *ctx)
 {
     GF_ASSERT(ctx);
 
+    RemoveBg3LineScroll(ctx);
     VBlankDMAController_Deinit(&ctx->dmaController);
 
     if (ctx->screenScrollMgr) {

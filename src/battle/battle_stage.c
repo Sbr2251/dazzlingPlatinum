@@ -36,6 +36,22 @@
 // ov16_0223EF8C keeps a copy of the platform palette in this BG row
 #define STAGE_PLATFORM_BG_ROW 7
 
+// F6 (compat.md): the arena fades out and in over this many drawn frames when a move hides it
+#define STAGE_FADE_STEPS SCREEN_FRAMES(8)
+#define STAGE_ALPHA_MAX  31
+// Polygon IDs of the arena meshes while they are translucent: one per mesh, so an arena mesh
+// still draws over another (a translucent polygon skips pixels of its own ID), and clear
+// of the mons' low IDs and the shadows' 62
+#define STAGE_FADE_POLYGON_ID_BASE  32
+#define STAGE_FADE_POLYGON_ID_COUNT 30
+// The layers under BG0 that the translucent arena blends with (2nd targets)
+#define STAGE_FADE_BLEND_TARGETS (GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD)
+// Draws after a fade ends before the added blend targets go: the last translucent frame
+// stays on screen until the next geometry swap
+#define STAGE_FADE_BLEND_HOLD 2
+// Reasons that always hide at once: a screen that owns VRAM
+#define STAGE_SUPPRESS_INSTANT BATTLE_STAGE_SUPPRESS_MENU
+
 enum StagePaletteSlot {
     SLOT_BG = 0,
     SLOT_PLATFORM_PLAYER,
@@ -58,6 +74,9 @@ typedef struct StageMesh {
     u16 flags;
     u8 scrollAmplitude[2];
     u16 scrollPeriod;
+    u16 attrIndex; // word of the POLYGON_ATTR parameter in the mesh's DL, 0 when not found
+    u16 alpha; // the mesh's own polygon alpha
+    u32 attr; // its POLYGON_ATTR parameter as built
 } StageMesh;
 
 typedef struct StageArena {
@@ -81,6 +100,7 @@ typedef struct StageArena {
     BOOL hasLitMesh;
     BOOL hasAtmosphere;
     u32 frame; // drawn frames, for SCROLL
+    int dlAlpha; // arena alpha the DL's POLYGON_ATTR words are patched for
     BattleStageFileAtmosphere atmosphere;
 } StageArena;
 
@@ -96,6 +116,13 @@ typedef struct BattleStage {
     BattleStageSpriteFields sprites; // +32..+48, read and written by the critic (sprites.md)
     BattleStageCameraFields camera; // +52..+95, read by the critic (camera.md)
     BattleStageCompatFields compat; // +96..+119, read by the critic (compat.md)
+    BOOL inMoveAnim; // BattleStage_SetInMoveAnim: suppressions fade instead of popping
+    int fadePos; // 0 (hidden) .. STAGE_FADE_STEPS (opaque)
+    BOOL fadingOut;
+    BOOL instantHidden; // hidden without a fade, so it comes back without one
+    u16 blendAdded; // BLDCNT 2nd-target bits the fade added
+    u16 blendWritten; // BLDCNT as the fade last left it
+    int blendHold;
 } BattleStage;
 
 // What was last written to the fog registers
@@ -114,6 +141,9 @@ static const BattleStageFileLighting *CurrentLighting(StageArena *arena);
 static const BattleStageFileLighting *DayLighting(StageArena *arena);
 static void UpdateFog(StageArena *arena);
 static void FogOff(void);
+static void UpdateFade(void);
+static void PatchArenaAlpha(StageArena *arena, int alpha);
+static void UpdateFadeBlend(BOOL translucent);
 
 static BattleStage sBattleStage;
 static StageFog sStageFog;
@@ -137,6 +167,14 @@ void BattleStage_Init(BattleSystem *battleSys)
     sBattleStage.wasVisible = FALSE;
     sBattleStage.platformsHidden = FALSE;
     sBattleStage.brightness = 0;
+    memset(&sBattleStage.compat, 0, sizeof(sBattleStage.compat));
+    sBattleStage.inMoveAnim = FALSE;
+    sBattleStage.fadePos = STAGE_FADE_STEPS;
+    sBattleStage.fadingOut = FALSE;
+    sBattleStage.instantHidden = FALSE;
+    sBattleStage.blendAdded = 0;
+    sBattleStage.blendWritten = 0;
+    sBattleStage.blendHold = 0;
     sStageFog.on = TRUE; // unknown, so FogOff writes it
     sStageFog.tableValid = FALSE;
     FogOff();
@@ -186,6 +224,10 @@ void BattleStage_Free(void)
         sBattleStage.arena = NULL;
     }
 
+    // Takes back the blend targets of a fade in progress
+    sBattleStage.blendHold = 0;
+    UpdateFadeBlend(FALSE);
+    sBattleStage.inMoveAnim = FALSE;
     sBattleStage.battleSys = NULL;
     sBattleStage.debugView = 0;
     sBattleStage.brightness = 0;
@@ -203,6 +245,7 @@ void BattleStage_Draw(void)
         return;
     }
 
+    UpdateFade();
     visible = BattleStage_IsVisible();
 
     // Home draws with the arena's own matrices, exactly as before the camera
@@ -220,13 +263,23 @@ void BattleStage_Draw(void)
     UpdatePlatforms(visible);
 
     if (visible) {
+        int alpha = STAGE_ALPHA_MAX * sBattleStage.fadePos / STAGE_FADE_STEPS;
+
         SyncPalettes(sBattleStage.arena);
+        PatchArenaAlpha(sBattleStage.arena, alpha);
         DrawArena(sBattleStage.arena, view, projection);
         UpdateFog(sBattleStage.arena);
+        sBattleStage.compat.arenaAlpha = alpha;
     } else {
         FogOff();
+        sBattleStage.compat.arenaAlpha = 0;
+
+        if (sBattleStage.enabled) {
+            sBattleStage.compat.hiddenFrames++;
+        }
     }
 
+    UpdateFadeBlend(visible && sBattleStage.fadePos < STAGE_FADE_STEPS);
     sBattleStage.wasVisible = visible;
 }
 
@@ -260,9 +313,155 @@ BOOL BattleStage_HasArena(void)
     return sBattleStage.battleSys != NULL && sBattleStage.arena != NULL;
 }
 
+// TRUE when the arena goes at once: the debug toggle, the menu, or a reason set outside a
+// move animation
+static BOOL IsHiddenInstantly(void)
+{
+    return !sBattleStage.enabled
+        || (sBattleStage.suppressed & STAGE_SUPPRESS_INSTANT) != 0
+        || (sBattleStage.suppressed != 0 && !sBattleStage.inMoveAnim && !sBattleStage.fadingOut);
+}
+
 BOOL BattleStage_IsVisible(void)
 {
-    return sBattleStage.battleSys != NULL && sBattleStage.arena != NULL && sBattleStage.enabled && sBattleStage.suppressed == 0;
+    if (sBattleStage.battleSys == NULL || sBattleStage.arena == NULL || IsHiddenInstantly()) {
+        return FALSE;
+    }
+
+    // Still drawn while it fades out; back at once after an instant hide
+    return sBattleStage.fadePos > 0 || (sBattleStage.suppressed == 0 && sBattleStage.instantHidden);
+}
+
+BOOL BattleStage_IsFading(void)
+{
+    return BattleStage_IsVisible() && sBattleStage.fadePos < STAGE_FADE_STEPS && !sBattleStage.instantHidden;
+}
+
+void BattleStage_SetInMoveAnim(BOOL inMoveAnim)
+{
+    sBattleStage.inMoveAnim = inMoveAnim;
+}
+
+// Once per drawn frame, before the arena draws: steps the fade toward the suppression state
+static void UpdateFade(void)
+{
+    BattleStageCompatFields *compat = &sBattleStage.compat;
+
+    if (IsHiddenInstantly()) {
+        // A pop during a move animation; the toggle and the menu outside one aren't counted
+        if (sBattleStage.fadePos > 0 && !sBattleStage.instantHidden && sBattleStage.inMoveAnim) {
+            compat->hardPops++;
+        }
+
+        sBattleStage.fadePos = 0;
+        sBattleStage.instantHidden = TRUE;
+        sBattleStage.fadingOut = FALSE;
+    } else if (sBattleStage.suppressed != 0) {
+        if (sBattleStage.instantHidden) {
+            sBattleStage.fadePos = 0;
+        } else if (sBattleStage.fadePos > 0) {
+            if (!sBattleStage.fadingOut) {
+                compat->fades++;
+            }
+
+            sBattleStage.fadingOut = TRUE;
+            sBattleStage.fadePos--;
+        }
+    } else {
+        sBattleStage.fadingOut = FALSE;
+
+        if (sBattleStage.instantHidden) {
+            sBattleStage.fadePos = STAGE_FADE_STEPS;
+            sBattleStage.instantHidden = FALSE;
+        } else if (sBattleStage.fadePos < STAGE_FADE_STEPS) {
+            sBattleStage.fadePos++;
+        }
+    }
+}
+
+// Rewrites the alpha (and, while translucent, the polygon ID and depth update) of every
+// mesh's POLYGON_ATTR in the DL; at STAGE_ALPHA_MAX the DL is exactly as built
+static void PatchArenaAlpha(StageArena *arena, int alpha)
+{
+    int i;
+
+    if (arena->dlAlpha == alpha) {
+        return;
+    }
+
+    for (i = 0; i < arena->numMeshes; i++) {
+        StageMesh *mesh = &arena->meshes[i];
+        u32 *word = arena->dl + mesh->dlOffset / 4 + mesh->attrIndex;
+        u32 attr = mesh->attr;
+
+        if (mesh->attrIndex == 0) {
+            continue;
+        }
+
+        if (alpha < STAGE_ALPHA_MAX && mesh->alpha != 0) {
+            int meshAlpha = mesh->alpha * alpha / STAGE_ALPHA_MAX;
+
+            // 0 would draw wireframe
+            if (meshAlpha < 1) {
+                meshAlpha = 1;
+            }
+
+            attr &= ~(REG_G3_POLYGON_ATTR_ALPHA_MASK | REG_G3_POLYGON_ATTR_ID_MASK);
+            attr |= (u32)meshAlpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT;
+            attr |= (u32)(STAGE_FADE_POLYGON_ID_BASE + i % STAGE_FADE_POLYGON_ID_COUNT) << REG_G3_POLYGON_ATTR_ID_SHIFT;
+
+            // An opaque mesh keeps writing depth, so the fog and the shadows see the same depth
+            if (mesh->alpha == STAGE_ALPHA_MAX) {
+                attr |= REG_G3_POLYGON_ATTR_XL_MASK;
+            }
+        }
+
+        *word = attr;
+        DC_FlushRange(word, sizeof(u32));
+    }
+
+    arena->dlAlpha = alpha;
+}
+
+// A translucent 3D pixel only blends with the layer under it when that layer is a 2nd target
+// in BLDCNT. The fade adds the targets it needs and takes them back once it is done, unless
+// something else wrote BLDCNT in between.
+static void UpdateFadeBlend(BOOL translucent)
+{
+    u16 bldcnt;
+
+    if (translucent) {
+        u16 targets = STAGE_FADE_BLEND_TARGETS << REG_G2_BLDCNT_PLANE2_SHIFT;
+
+        bldcnt = reg_G2_BLDCNT;
+
+        if ((bldcnt & targets) != targets) {
+            sBattleStage.blendAdded |= targets & ~bldcnt;
+            bldcnt |= targets;
+            reg_G2_BLDCNT = bldcnt;
+        }
+
+        sBattleStage.blendWritten = bldcnt;
+        sBattleStage.blendHold = STAGE_FADE_BLEND_HOLD;
+        return;
+    }
+
+    if (sBattleStage.blendAdded == 0) {
+        return;
+    }
+
+    if (sBattleStage.blendHold > 0) {
+        sBattleStage.blendHold--;
+        return;
+    }
+
+    bldcnt = reg_G2_BLDCNT;
+
+    if (bldcnt == sBattleStage.blendWritten) {
+        reg_G2_BLDCNT = bldcnt & ~sBattleStage.blendAdded;
+    }
+
+    sBattleStage.blendAdded = 0;
 }
 
 BattleStageCompatFields *BattleStage_CompatFields(void)
@@ -471,7 +670,7 @@ static u32 MeshDLBound(const BattleStageFileMesh *mesh)
     return 4 * (numParams + (numCommands + 3) / 4 + 2);
 }
 
-static u32 BuildMeshDL(u32 *dest, u32 capacity, const BattleStageFileHeader *piece, const BattleStageFileMesh *mesh, const BattleStageFileTexture *texture, u32 texAddr, u32 plttAddr)
+static u32 BuildMeshDL(u32 *dest, u32 capacity, const BattleStageFileHeader *piece, const BattleStageFileMesh *mesh, const BattleStageFileTexture *texture, u32 texAddr, u32 plttAddr, u32 *outAttr)
 {
     GXDLInfo info;
     const BattleStageFileVertex *vertices = PieceData(piece, mesh->vertexOffset);
@@ -496,6 +695,7 @@ static u32 BuildMeshDL(u32 *dest, u32 capacity, const BattleStageFileHeader *pie
         color0,
         texAddr);
     G3C_TexPlttBase(&info, plttAddr, (GXTexFmt)texture->format);
+    *outAttr = GX_PACK_POLYGONATTR_PARAM(lit ? GX_LIGHTMASK_0 : GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, mesh->alpha, misc);
     G3C_PolygonAttr(&info, lit ? GX_LIGHTMASK_0 : GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, mesh->alpha, misc);
     G3C_Begin(&info, (GXBegin)mesh->primitive);
 
@@ -518,6 +718,18 @@ static u32 BuildMeshDL(u32 *dest, u32 capacity, const BattleStageFileHeader *pie
 
     G3C_End(&info);
     return G3_EndMakeDL(&info);
+}
+
+// The packed DL starts with one opcode word (TEXIMAGE_PARAM, PLTT_BASE, POLYGON_ATTR,
+// BEGIN_VTXS), then their parameters, so POLYGON_ATTR's is word 3. Checked, so a changed
+// layout only turns the fade off for that mesh (it then hides while fading).
+static u16 FindAttrWord(const u32 *dl, u32 words, u32 attr)
+{
+    if (words > 4 && dl[3] == attr && ((dl[0] >> 16) & 0xFF) == G3OP_POLYGON_ATTR) {
+        return 3;
+    }
+
+    return 0;
 }
 
 void BattleStage_BuildProjection(fx32 fovySin, fx32 fovyCos, fx32 nearClip, fx32 farClip, MtxFx44 *m)
@@ -627,6 +839,7 @@ static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes)
     }
 
     memset(arena, 0, sizeof(StageArena));
+    arena->dlAlpha = STAGE_ALPHA_MAX;
     arena->dl = Heap_Alloc(HEAP_ID_BATTLE, dlBytes);
 
     if (arena->dl == NULL) {
@@ -726,7 +939,9 @@ static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes)
             StagePalette *slot = &arena->palettes[PaletteSlot(texture, mesh, SLOT_EMBEDDED + textureIndex)];
 
             stageMesh->dlOffset = dlBytes;
-            stageMesh->dlSize = BuildMeshDL(arena->dl + dlBytes / 4, MeshDLBound(mesh), pieces[p], mesh, texture, texAddr + texOffsets[textureIndex], arena->plttAddr + slot->offset);
+            stageMesh->dlSize = BuildMeshDL(arena->dl + dlBytes / 4, MeshDLBound(mesh), pieces[p], mesh, texture, texAddr + texOffsets[textureIndex], arena->plttAddr + slot->offset, &stageMesh->attr);
+            stageMesh->alpha = mesh->alpha;
+            stageMesh->attrIndex = FindAttrWord(arena->dl + dlBytes / 4, stageMesh->dlSize / 4, stageMesh->attr);
             stageMesh->vertexScale = pieces[p]->vertexScale;
             stageMesh->flags = mesh->flags;
             stageMesh->scrollAmplitude[0] = mesh->scrollAmplitude[0];
@@ -981,6 +1196,11 @@ static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *pro
 
     for (i = 0; i < arena->numMeshes; i++) {
         StageMesh *mesh = &arena->meshes[i];
+
+        // A mesh whose alpha can't be patched sits the fade out
+        if (arena->dlAlpha < STAGE_ALPHA_MAX && mesh->attrIndex == 0) {
+            continue;
+        }
 
         if (mesh->flags & (BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL | BATTLE_STAGE_MESH_SCROLL)) {
             SetTexMtx(arena, mesh, bg3X, bg3Y);
