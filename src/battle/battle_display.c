@@ -651,6 +651,8 @@ void ov16_0225D5B8(BattleSystem *battleSys, BattlerData *param1, CommandSetMessa
         }
     }
 
+    // The first command menu of the battle: the stage camera sweeps the opponents first
+    BattleStage_StartBattleSweep();
     SysTask_Start(param1->unk_00.unk_00, v0, 0);
 }
 
@@ -864,8 +866,9 @@ void ov16_0225DA44(BattleSystem *battleSys, BattlerData *param1)
     v0->unk_08 = param1->battler;
     v0->unk_0A = 0;
 
-    // The hit blink: the stage sprite wobbles too
+    // The hit blink: the stage sprite wobbles too, and a critical hit kicks the camera
     BattleStage_NotifyHit(param1->battler);
+    BattleStage_CritKick(param1->battler, BattleSystem_Context(battleSys)->criticalMul > 1);
     SysTask_Start(ov16_0226292C, v0, 0);
 }
 
@@ -938,6 +941,8 @@ void ov16_0225DB74(BattleSystem *battleSys, BattlerData *param1, FaintingSequenc
     v0->unk_04 = param1;
     v0->unk_64 = message->command;
     v0->unk_65 = param1->battler;
+
+    BattleStage_FaintKick(param1->battler);
     v0->unk_08 = param1->unk_20;
     v0->unk_68 = message->species;
     v0->unk_6A = message->gender;
@@ -2917,6 +2922,11 @@ static void ov16_022604C8(SysTask *param0, void *param1)
         v6 = ov16_0223F35C(v0->unk_00, v5);
     } else {
         v6 = NULL;
+    }
+
+    // The menu waits for the stage camera to get home
+    if (v0->unk_0A == 0 && BattleStage_IsCameraReadyForMenu() == FALSE) {
+        return;
     }
 
     switch (v0->unk_0A) {
@@ -6489,7 +6499,12 @@ static void ov16_02264408(BattleSystem *battleSys, BattlerData *param1, BattleAn
 
     BattleAnimSystem_StartMove(battleAnimSystem, animation, move, &battlerContext);
 
+    if (animation->unk_4C != 0 && animation->unk_50 == BATTLE_ANIMATION_MEGA_EVOLUTION) {
+        BattleStage_SetCameraScriptCinematic(BATTLE_STAGE_CINEMATIC_MEGA);
+    }
+
     if (animation->unk_4C != 0 && animation->unk_50 == BATTLE_ANIMATION_TOTEM_AURA) {
+        BattleStage_SetCameraScriptCinematic(BATTLE_STAGE_CINEMATIC_TOTEM);
         TotemAura_Start(battleSys);
     }
 }

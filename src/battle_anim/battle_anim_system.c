@@ -229,6 +229,11 @@ static void BattleAnimScriptCmd_SetPokemonSpriteVisible(BattleAnimSystem *param0
 static void ov12_02221834(BattleAnimSystem *param0);
 static void ov12_022219E8(BattleAnimSystem *param0);
 static void BattleAnimScriptCmd_WaitForLRX(BattleAnimSystem *param0);
+static void BattleAnimScriptCmd_StageCameraMove(BattleAnimSystem *system);
+static void BattleAnimScriptCmd_StageCameraOrbit(BattleAnimSystem *system);
+static void BattleAnimScriptCmd_StageCameraShake(BattleAnimSystem *system);
+static void BattleAnimScriptCmd_StageCameraHome(BattleAnimSystem *system);
+static void BattleAnimScriptCmd_StageCameraWait(BattleAnimSystem *system);
 static int BattleAnimSystem_GetBattlerWithRole(BattleAnimSystem *param0, int param1);
 static BOOL BattleBgSwitch_ShouldBeReversed(BattleBgSwitch *param0, BattleAnimSystem *param1, int param2);
 static void BattleBgSwitch_SetBg(BattleBgSwitch *param0, BattleAnimSystem *param1, enum BgLayer param2, int param3);
@@ -627,6 +632,11 @@ BOOL BattleAnimSystem_StartMove(BattleAnimSystem *system, MoveAnimation *param1,
         system->baseBgPalettes = 0xFF;
     }
 
+    // Every script starts with the stage camera at home
+    if (BattleAnimSystem_IsContest(system) == FALSE) {
+        BattleStage_CameraScriptStart();
+    }
+
     system->moveActive = TRUE;
 
     return TRUE;
@@ -974,7 +984,12 @@ static const BattleAnimScriptCmd sBattleAnimScriptCmdTable[] = {
     [81] = BattleAnimScriptCmd_SetPokemonSpriteVisible,
     [82] = ov12_02221834,
     [83] = ov12_022219E8,
-    [84] = BattleAnimScriptCmd_WaitForLRX
+    [84] = BattleAnimScriptCmd_WaitForLRX,
+    [85] = BattleAnimScriptCmd_StageCameraMove,
+    [86] = BattleAnimScriptCmd_StageCameraOrbit,
+    [87] = BattleAnimScriptCmd_StageCameraShake,
+    [88] = BattleAnimScriptCmd_StageCameraHome,
+    [89] = BattleAnimScriptCmd_StageCameraWait
 };
 
 void BattleAnimSystem_SetDefaultAlphaBlending(void)
@@ -1014,6 +1029,95 @@ static void BattleAnimScriptCmd_WaitForLRX(BattleAnimSystem *system)
             }
         }
     }
+}
+
+// The stage camera commands (docs/living_battle_stage/camera.md). Contests have no stage,
+// so there they only step over their arguments.
+static void BattleAnimScriptCmd_StageCameraMove(BattleAnimSystem *system)
+{
+    int focus, distancePct, yawDeg, pitchDeg, frames;
+
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
+        BattleAnimScript_JumpBy(system, 1 + 5);
+        return;
+    }
+
+    BattleAnimScript_Next(system);
+    focus = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+    distancePct = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+    yawDeg = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+    pitchDeg = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+    frames = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+
+    BattleStage_CameraMove(focus, BattleAnimSystem_GetAttacker(system), BattleAnimSystem_GetDefender(system), distancePct, yawDeg, pitchDeg, frames);
+}
+
+static void BattleAnimScriptCmd_StageCameraOrbit(BattleAnimSystem *system)
+{
+    int yawDeltaDeg, frames;
+
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
+        BattleAnimScript_JumpBy(system, 1 + 2);
+        return;
+    }
+
+    BattleAnimScript_Next(system);
+    yawDeltaDeg = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+    frames = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+
+    BattleStage_CameraOrbit(yawDeltaDeg, frames);
+}
+
+static void BattleAnimScriptCmd_StageCameraShake(BattleAnimSystem *system)
+{
+    int amplitudePx, frames;
+
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
+        BattleAnimScript_JumpBy(system, 1 + 2);
+        return;
+    }
+
+    BattleAnimScript_Next(system);
+    amplitudePx = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+    frames = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+
+    BattleStage_CameraShake(amplitudePx, frames);
+}
+
+static void BattleAnimScriptCmd_StageCameraHome(BattleAnimSystem *system)
+{
+    int frames;
+
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
+        BattleAnimScript_JumpBy(system, 1 + 1);
+        return;
+    }
+
+    BattleAnimScript_Next(system);
+    frames = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+
+    BattleStage_CameraHome(frames);
+}
+
+static void BattleAnimScriptCmd_StageCameraWait(BattleAnimSystem *system)
+{
+    if (BattleAnimSystem_IsContest(system) == TRUE || BattleStage_IsCameraMoving() == FALSE) {
+        BattleAnimScript_Next(system);
+        system->scriptDelay = 0;
+        return;
+    }
+
+    system->scriptDelay = 1;
 }
 
 static void BattleAnimScriptCmd_Delay(BattleAnimSystem *system)

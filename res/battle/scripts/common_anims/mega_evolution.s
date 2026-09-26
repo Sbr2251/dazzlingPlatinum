@@ -13,6 +13,8 @@
     .macro MegaSequence x:req, y:req, symbolY:req
     // The orb forms round the Pokemon while ribbons of light circle it
     Func_MegaEvolutionCue MEGA_EVOLUTION_CUE_CHARGE
+    // The stage camera circles the Pokemon through the charge
+    StageCameraOrbit 40, 36
     MegaEmitter 0, \x, \y
     MegaEmitter 1, \x, \y
     MegaEmitter 2, \x, \y
@@ -25,6 +27,9 @@
     Delay 36
     // The orb bursts and the new form springs out, then the Mega symbol appears above it
     Func_MegaEvolutionCue MEGA_EVOLUTION_CUE_BURST
+    // The burst shakes the stage camera, which then eases home while the particles play
+    StageCameraShake 4, 12
+    StageCameraHome 20
     MegaEmitter 8, \x, \y
     MegaEmitter 9, \x, \y
     MegaEmitter 10, \x, \y
@@ -40,6 +45,9 @@
 // The cues keep the pulse's sprite changes in step with the particles, however long they took to load.
 L_0:
     LoadParticleResource 0, 486 // mega_evolution_spa
+    // The stage camera pushes in on the Pokemon before the charge
+    StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER, 70, 0, -4, 10
+    Delay 10
     JumpIfBattlerSide BATTLER_ROLE_ATTACKER, L_enemy, L_player
 
 L_player:
@@ -56,4 +64,5 @@ L_blend:
     Func_KeepTranslucent 40
     WaitForAllEmitters
     UnloadParticleSystem 0
+    StageCameraWait
     End
