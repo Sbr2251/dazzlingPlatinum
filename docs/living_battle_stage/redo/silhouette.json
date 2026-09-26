@@ -1,0 +1,14 @@
+[
+  {"id": 252, "name": "FAKE_OUT", "category": "silhouette",
+   "expect": "kept",
+   "needs": [],
+   "effect": "3D curtain bars close in from both sides over the lit arena, under the mons, and whiten with the backdrop; no fade"},
+  {"id": 276, "name": "SUPERPOWER", "category": "silhouette",
+   "expect": "fade",
+   "needs": [],
+   "effect": "red streaks rise over the lit arena with no window cut, then the arena fades for SwitchBg to the Superpower picture, a real backdrop change"},
+  {"id": 293, "name": "CAMOUFLAGE", "category": "silhouette",
+   "expect": "kept",
+   "needs": [],
+   "effect": "the attacker's silhouette fills with the wavy base picture, lifted above the lit arena, and the mon fades into the ground; no fade"}
+]

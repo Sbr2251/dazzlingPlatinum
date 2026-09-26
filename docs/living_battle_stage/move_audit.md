@@ -6,10 +6,10 @@ compat.md section 1. Rerun the script after changing a script or the overrides i
 
 ## Summary
 
-474 moves (ids 0-473, `generated/moves.txt`). Risk: high 76, medium 128, low 270.
+474 moves (ids 0-473, `generated/moves.txt`). Risk: high 75, medium 129, low 270.
 
-Predicted suppression today: `bg_switch` 68, `bg2_effect` 9.
-Fixes: F1 5, F2 39, F3 16, F4 42, F5 3, F6 72.
+Predicted suppression today: `bg_switch` 68, `bg2_effect` 8.
+Fixes: F1 6, F2 39, F3 16, F4 42, F5 3, F6 70.
 
 ### By mechanism
 
@@ -19,19 +19,19 @@ Fixes: F1 5, F2 39, F3 16, F4 42, F5 3, F6 72.
 | `sprite_scale_rot` | 57 | 5 | 10 | 42 |
 | `partial_draw` | 4 | 1 | 2 | 1 |
 | `bg2_copy` | 5 | 4 | 1 | 0 |
-| `oam_copy` | 38 | 13 | 25 | 0 |
-| `hblank_wave` | 7 | 7 | 0 | 0 |
-| `window` | 16 | 6 | 10 | 0 |
-| `sprite_bg_blend` | 44 | 13 | 31 | 0 |
+| `oam_copy` | 38 | 12 | 26 | 0 |
+| `hblank_wave` | 7 | 6 | 1 | 0 |
+| `window` | 16 | 5 | 11 | 0 |
+| `sprite_bg_blend` | 44 | 12 | 32 | 0 |
 | `brightness` | 1 | 0 | 1 | 0 |
 | `switch_bg` | 176 | 71 | 105 | 0 |
-| `bg2_effect` | 9 | 4 | 5 | 0 |
+| `bg2_effect` | 9 | 3 | 6 | 0 |
 | `particles` | 431 | 69 | 105 | 257 |
 | `sprite_fade_tint` | 172 | 35 | 61 | 76 |
 
 `switch_bg` without `bg_switch` (108 moves): backdrop palette fades (FadeBg,
 SetBgGrayscale, Flash, Earthquake) or the Fake Out curtain. Nothing is suppressed today, and
-the arena hides the effect: medium, except Fake Out, where the whole effect is lost.
+the arena hides the effect: medium, except Fake Out, whose curtain the stage draws in 3D since chunk 6.
 `sprite_bg_blend` is always OBJ-first alpha with BG0|BG3 as the 2nd target; no anim code
 makes BG0 a 1st target (F4 then means: check the arena stays opaque).
 
@@ -39,8 +39,8 @@ makes BG0 a 1st target (F4 then means: check the arena stays opaque).
 
 | risk | moves | meaning |
 |---|---|---|
-| high | 76 | a pop today (a suppression reason fires), or visibly wrong with the arena up |
-| medium | 128 | windows, blends, OAM/BG2 copies, BG palette fades: probably fine, unverified |
+| high | 75 | a pop today (a suppression reason fires), or visibly wrong with the arena up |
+| medium | 129 | windows, blends, OAM/BG2 copies, BG palette fades: probably fine, unverified |
 | low | 270 | particles and sprite moves only |
 
 ## High-risk moves
@@ -82,12 +82,11 @@ makes BG0 a 1st target (F4 then means: check the arena stays opaque).
 | 236 | MOONLIGHT | switch_bg, particles | bg_switch | F6 |  |
 | 245 | EXTREME_SPEED | sprite_xy, sprite_scale_rot, switch_bg, particles | bg_switch | F6 |  |
 | 250 | WHIRLPOOL | sprite_xy, hblank_wave, switch_bg, particles, sprite_fade_tint | bg_switch | F5, F6 | per-line wave on BG3; ScrollSwitchedBg: per-line BG3 wave |
-| 252 | FAKE_OUT | sprite_xy, sprite_scale_rot, window, sprite_bg_blend, switch_bg, particles | - | F3, F6 | curtain is WIN0 over BG3 only; under the arena it vanishes. F3 option b |
+| 252 | FAKE_OUT | sprite_xy, sprite_scale_rot, window, sprite_bg_blend, switch_bg, particles | - | F3 | chunk 6: the stage draws the curtain in 3D, over the arena and under the mons (F3 option c) |
 | 264 | FOCUS_PUNCH | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 273 | WISH | switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
-| 276 | SUPERPOWER | sprite_xy, oam_copy, window, switch_bg, bg2_effect, particles | bg2_effect, bg_switch | F3, F6 | BG2 picture under BG0 in the OBJ window; F3 option b (keep suppressing, fade) |
+| 276 | SUPERPOWER | sprite_xy, oam_copy, window, switch_bg, bg2_effect, particles | bg2_effect, bg_switch | F3, F6 | chunk 6: no silhouette window with the arena up (F3 option a); SwitchBg still fades (F6) |
 | 284 | ERUPTION | sprite_xy, sprite_scale_rot, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
-| 293 | CAMOUFLAGE | oam_copy, hblank_wave, window, sprite_bg_blend, bg2_effect | bg2_effect | F3, F6 | BG2 picture + BG2 wave in the OBJ window, not a mon copy; F3 option b |
 | 296 | MIST_BALL | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | FadeBg: backdrop palette fade, hidden by the arena |
 | 308 | HYDRO_CANNON | sprite_xy, switch_bg, particles | bg_switch | F6 |  |
 | 315 | OVERHEAT | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
@@ -133,19 +132,23 @@ them fade cleanly.
 - 89 EARTHQUAKE: shake the stage camera instead of BG3
 - 91 DIG: open the ground instead of clipping the sprite
 - 222 MAGNITUDE: shake the stage camera instead of BG3
-- 252 FAKE_OUT: curtain drawn over BG3 only; needs a stage-side version
-- 276 SUPERPOWER: BG2 picture in the mon silhouette; redo over the arena
-- 293 CAMOUFLAGE: BG2 picture and wave in the silhouette; redo over the arena
+- 252 FAKE_OUT: curtain drawn over BG3 only; done: a 3D curtain on the stage (redo/silhouette.json)
+- 276 SUPERPOWER: BG2 picture in the mon silhouette; done: window skipped with the arena up (redo/silhouette.json)
+- 293 CAMOUFLAGE: BG2 picture and wave in the silhouette; done: BG2 lifted above BG0 (redo/silhouette.json)
 - 330 MUDDY_WATER: full-screen BG2 picture; a 3D water plane would fit
 
 ## F3: window decisions
 
+Options a and b are compat.md F3's. Option c (chunk 6, moves.md category C): the func
+redraws its effect over the arena while the arena shows, and keeps the classic window when
+it is hidden. The `BATTLE_STAGE_SUPPRESS_WINDOW` path stays for any other window user.
+
 | func | mask | option | why | moves |
 |---|---|---|---|---|
 | Harden (21) | OBJ window: inside = WINDOW\|OBJ, outside = all | a | only the silhouette loses BG0 and the OAM copy covers it; keep the arena, tint the copy (F2) | unused |
-| FakeOutCurtain (41) | WIN0: BG3 only inside a shrinking rect | b | the curtain is BG3 and cannot show over the arena; keep suppressing with the F6 fade | FAKE_OUT |
-| Camouflage (55) | OBJ window: inside adds BG2, BG2 at BG3 priority | b | BG2 picture under BG0 is caught by IsBaseBgUnderStage; fade (F6) | CAMOUFLAGE |
-| Superpower (56) | OBJ window: inside adds BG2, BG2 at BG3 priority | b | as Camouflage; fade (F6) | SUPERPOWER |
+| FakeOutCurtain (41) | WIN0: BG3 only inside a shrinking rect | c | chunk 6: with the arena up the window stays off and BattleStage_SetCurtain draws the bars in 3D, in the backdrop colour, over the arena and the shadows and under the mons; the BG palette fade whitens the arena textures as it whitens BG3. Classic WIN0 when the arena is hidden | FAKE_OUT |
+| Camouflage (55) | OBJ window: inside adds BG2, BG2 at BG3 priority | c | chunk 6: BattleAnimSystem_LiftBaseBgOverStage puts BG2 above BG0 (the F1 lift) and the OBJ window inside also shows BG3, which the opaque picture covers, so F3 doesn't fire; dropped before UnloadBaseBg. Option b when the arena is hidden | CAMOUFLAGE |
+| Superpower (56) | OBJ window: inside adds BG2, BG2 at BG3 priority | a | chunk 6: the silhouette only cuts BG3 for one frame, unseen under the arena, so the window stays off with the arena up; the SwitchBg picture that follows still fades (F6) | SUPERPOWER |
 | SetPokemonSpritePriority / DarkVoid (75) | WIN0: inside BG0-3 without OBJ | a | only OBJ is hidden and BG0 is already in both regions; nothing to change | TOXIC, BLAST_BURN, DARK_PULSE, AQUA_TAIL, LUNAR_DANCE, DARK_VOID |
 | Sketch (79) | WIN0 reveal of a BG2 copy placed above BG0 | a | BG0 is in both regions; BG2 is above BG0 once the func runs | NONE, SKETCH |
 | StatChangeUp/Down/Heal/Metal (80-83) | OBJ window: inside = BG1\|OBJ\|BG2, outside has BG0 | a | BG2 picture only in the silhouette, which the OAM copy fills; tint the copy (F2) | HARDEN, PRESENT, IRON_TAIL, METAL_CLAW, IRON_DEFENSE |
@@ -414,7 +417,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 249 | ROCK_SMASH | sprite_xy, particles | - | - | low |  |
 | 250 | WHIRLPOOL | sprite_xy, hblank_wave, switch_bg, particles, sprite_fade_tint | bg_switch | F5, F6 | high | per-line wave on BG3; ScrollSwitchedBg: per-line BG3 wave |
 | 251 | BEAT_UP | sprite_xy, particles | - | - | low |  |
-| 252 | FAKE_OUT | sprite_xy, sprite_scale_rot, window, sprite_bg_blend, switch_bg, particles | - | F3, F6 | high | curtain is WIN0 over BG3 only; under the arena it vanishes. F3 option b |
+| 252 | FAKE_OUT | sprite_xy, sprite_scale_rot, window, sprite_bg_blend, switch_bg, particles | - | F3 | high | chunk 6: the stage draws the curtain in 3D, over the arena and under the mons (F3 option c) |
 | 253 | UPROAR | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 254 | STOCKPILE | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low |  |
 | 255 | SPIT_UP | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
@@ -438,7 +441,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 273 | WISH | switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
 | 274 | ASSIST | sprite_bg_blend | - | F4 | medium |  |
 | 275 | INGRAIN | sprite_bg_blend, particles | - | F4 | medium |  |
-| 276 | SUPERPOWER | sprite_xy, oam_copy, window, switch_bg, bg2_effect, particles | bg2_effect, bg_switch | F3, F6 | high | BG2 picture under BG0 in the OBJ window; F3 option b (keep suppressing, fade) |
+| 276 | SUPERPOWER | sprite_xy, oam_copy, window, switch_bg, bg2_effect, particles | bg2_effect, bg_switch | F3, F6 | high | chunk 6: no silhouette window with the arena up (F3 option a); SwitchBg still fades (F6) |
 | 277 | MAGIC_COAT | particles | - | - | low |  |
 | 278 | RECYCLE | particles, sprite_fade_tint | - | - | low |  |
 | 279 | REVENGE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
@@ -455,7 +458,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 290 | SECRET_POWER | particles | - | - | low |  |
 | 291 | DIVE | sprite_xy, particles | - | - | low |  |
 | 292 | ARM_THRUST | sprite_xy, particles | - | - | low |  |
-| 293 | CAMOUFLAGE | oam_copy, hblank_wave, window, sprite_bg_blend, bg2_effect | bg2_effect | F3, F6 | high | BG2 picture + BG2 wave in the OBJ window, not a mon copy; F3 option b |
+| 293 | CAMOUFLAGE | oam_copy, hblank_wave, window, sprite_bg_blend, bg2_effect | - | F1, F3 | medium | chunk 6: BG2 picture + BG2 wave lifted above BG0 in the OBJ window (F1, F3 option c) |
 | 294 | TAIL_GLOW | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
 | 295 | LUSTER_PURGE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
 | 296 | MIST_BALL | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | FadeBg: backdrop palette fade, hidden by the arena |

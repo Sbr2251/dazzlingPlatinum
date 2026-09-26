@@ -12,6 +12,7 @@
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
 #include "battle/battle_display.h"
+#include "battle/battle_stage.h"
 #include "global/utility.h"
 
 #include "battle_script_battlers.h"
@@ -2542,9 +2543,15 @@ void BattleAnimScriptFunc_Superpower(BattleAnimSystem *system)
     ManagedSprite_SetAffineOverwriteMode(ctx->sprite, AFFINE_OVERWRITE_MODE_DOUBLE);
     ManagedSprite_SetAffineScale(ctx->sprite, 1.2f, 1.2f);
 
-    GX_SetVisibleWnd(GX_WNDMASK_OW);
-    G2_SetWndOutsidePlane(BATTLE_BG_WNDMASK_3D | BATTLE_BG_WNDMASK_WINDOW | BATTLE_BG_WNDMASK_EFFECT | GX_WND_PLANEMASK_OBJ, FALSE);
-    G2_SetWndOBJInsidePlane(BATTLE_BG_WNDMASK_3D | BATTLE_BG_WNDMASK_WINDOW | BATTLE_BG_WNDMASK_BASE, FALSE);
+    // Chunk 6, category C (move_audit.md, "F3: window decisions"): the silhouette cuts BG3 to
+    // the backdrop colour for the one frame before the task ends. Under the 3D arena nobody
+    // would see it, and the cut would only suppress the arena (F3), so with the arena up the
+    // window stays off. The stage isn't loaded in contests.
+    if (BattleAnimSystem_IsContest(system) == TRUE || BattleStage_IsVisible() == FALSE) {
+        GX_SetVisibleWnd(GX_WNDMASK_OW);
+        G2_SetWndOutsidePlane(BATTLE_BG_WNDMASK_3D | BATTLE_BG_WNDMASK_WINDOW | BATTLE_BG_WNDMASK_EFFECT | GX_WND_PLANEMASK_OBJ, FALSE);
+        G2_SetWndOBJInsidePlane(BATTLE_BG_WNDMASK_3D | BATTLE_BG_WNDMASK_WINDOW | BATTLE_BG_WNDMASK_BASE, FALSE);
+    }
 
     BattleAnimSystem_StartAnimTask(ctx->common.battleAnimSys, BattleAnimTask_Superpower, ctx);
 }
