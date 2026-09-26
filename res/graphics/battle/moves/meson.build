@@ -53,6 +53,7 @@ pngs = files(
     'unused_33.png',
     'unused_34.png',
     'unused_36.png',
+    'moonblast.png',
 )
 
 pngs_for_pal = files(
@@ -85,6 +86,7 @@ pngs_for_pal = files(
     'unused_32.png',
     'unused_33.png',
     'unused_36.png',
+    'moonblast.png',
 )
 
 no_cell_pngs = files(
@@ -138,6 +140,7 @@ cell_jsons = files(
     'unused_34_cell.json',
     'unused_35_cell.json',
     'unused_36_cell.json',
+    'moonblast_cell.json',
 )
 
 cellanm_jsons = files(
@@ -178,6 +181,7 @@ cellanm_jsons = files(
     'unused_34_anim.json',
     'unused_35_anim.json',
     'unused_36_anim.json',
+    'moonblast_anim.json',
 )
 
 manual_pal_files = files(

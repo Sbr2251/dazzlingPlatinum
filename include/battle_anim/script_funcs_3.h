@@ -38,6 +38,7 @@ void BattleAnimScriptFunc_MoveEmitterViewportTop(BattleAnimSystem *system);
 void BattleAnimScriptFunc_MoveEmitterA2BParabolic(BattleAnimSystem *system);
 void BattleAnimScriptFunc_RevolveEmitter(BattleAnimSystem *system);
 void ov12_0222A1AC(BattleAnimSystem *param0, SpriteSystem *param1, SpriteManager *param2, ManagedSprite *param3);
+void BattleAnimSpriteFunc_PlayOnceAtAttacker(BattleAnimSystem *system, SpriteSystem *spriteSystem, SpriteManager *spriteManager, ManagedSprite *sprite);
 void ov12_0222A34C(BattleAnimSystem *param0, SpriteSystem *param1, SpriteManager *param2, ManagedSprite *param3);
 void ov12_0222A410(BattleAnimSystem *param0, SpriteSystem *param1, SpriteManager *param2, ManagedSprite *param3);
 void ov12_0222A5C0(BattleAnimSystem *param0, SpriteSystem *param1, SpriteManager *param2, ManagedSprite *param3);

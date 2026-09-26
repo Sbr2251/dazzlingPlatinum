@@ -3593,6 +3593,44 @@ void ov12_0222A1AC(BattleAnimSystem *param0, SpriteSystem *param1, SpriteManager
     BattleAnimSystem_StartAnimTask(v0->unk_00.battleAnimSys, ov12_0222A178, v0);
 }
 
+// Like ov12_0222A1AC, but anchors the sprite to the attacker instead of the
+// defender. Script vars 0/1 are an X/Y offset from the attacker's position;
+// X is mirrored for enemy attackers so "in front of the user" stays consistent.
+// The position is clamped so a 64x64 sprite stays fully on screen. The sprite
+// plays its animation once and is freed when it ends.
+void BattleAnimSpriteFunc_PlayOnceAtAttacker(BattleAnimSystem *system, SpriteSystem *spriteSystem, SpriteManager *spriteManager, ManagedSprite *sprite)
+{
+    UnkStruct_ov12_0222A178 *ctx = BattleAnimUtil_Alloc(system, sizeof(UnkStruct_ov12_0222A178));
+    BattleAnimSystem_GetCommonData(system, &ctx->unk_00);
+    ctx->unk_1C = sprite;
+
+    int attacker = BattleAnimSystem_GetAttacker(system);
+    s16 offsetX = BattleAnimSystem_GetScriptVar(system, 0);
+    s16 offsetY = BattleAnimSystem_GetScriptVar(system, 1);
+
+    if (BattleAnimUtil_GetBattlerSide(system, attacker) == BTLSCR_ENEMY) {
+        offsetX = -offsetX;
+    }
+
+    s16 x = BattleAnimUtil_GetBattlerPos(system, attacker, BATTLE_ANIM_POSITION_MON_X) + offsetX;
+    s16 y = BattleAnimUtil_GetBattlerPos(system, attacker, BATTLE_ANIM_POSITION_MON_Y) + offsetY;
+
+    if (x < 32) {
+        x = 32;
+    } else if (x > 256 - 32) {
+        x = 256 - 32;
+    }
+
+    if (y < 32) {
+        y = 32;
+    } else if (y > 192 - 32) {
+        y = 192 - 32;
+    }
+
+    ManagedSprite_SetPositionXY(sprite, x, y);
+    BattleAnimSystem_StartAnimTask(ctx->unk_00.battleAnimSys, ov12_0222A178, ctx);
+}
+
 static const s16 Unk_ov12_0223A03C[] = {
     0x5,
     0x5,

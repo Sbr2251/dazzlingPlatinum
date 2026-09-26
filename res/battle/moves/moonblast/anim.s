@@ -7,14 +7,22 @@ L_0:
     SetVar BATTLE_ANIM_VAR_BG_MOVE_STEP_Y, 1
     SwitchBg 42, BATTLE_BG_SWITCH_MODE_FADE | BATTLE_BG_SWITCH_FLAG_MOVE
     WaitForBgSwitch
+    // Blender-rendered moon (tools/moonblast_sprite) rises above the user:
+    // grows in, pulses for ~36 frames, flares, then collapses as it fires.
+    // The sprite animation is 60 frames long.
+    InitSpriteManager 0, 1, 1, 1, 1, 1, 0, 0
+    LoadCharResObj 0, moonblast_NCGR_lz
+    LoadPlttRes 0, moonblast_NCLR, 1
+    LoadCellResObj 0, moonblast_cell_NCER_lz
+    LoadAnimResObj 0, moonblast_anim_NANR_lz
     PlaySoundEffectL SEQ_SE_DP_W236
-    CreateEmitter 0, 0, EMITTER_CB_SET_POS_TO_ATTACKER
-    Delay 24
+    AddSpriteWithFunc 0, 33, moonblast_NCGR_lz, moonblast_NCLR, moonblast_cell_NCER_lz, moonblast_anim_NANR_lz, 0, 0, 0, -36
+    Delay 14
     PlayLoopedSoundEffectL SEQ_SE_DP_W082, 3, 10
     CreateEmitter 0, 1, EMITTER_CB_SET_POS_TO_ATTACKER
     CreateEmitter 0, 2, EMITTER_CB_SET_POS_TO_ATTACKER
     Func_FadeBattlerSprite BATTLE_ANIM_ATTACKER, 0, 1, BATTLE_COLOR_LIGHT_RED, 10, 30
-    Delay 46
+    Delay 42
     PlayLoopedSoundEffectR SEQ_SE_DP_161, 2, 2
     CreateEmitter 0, 3, EMITTER_CB_SET_POS_TO_ATTACKER
     Func_MoveEmitterA2BLinear 0, 0, 0, 0, 10, 64
@@ -27,6 +35,7 @@ L_0:
     WaitForAllEmitters
     UnloadParticleSystem 0
     WaitForAnimTasks
+    FreeSpriteManager 0
     SetVar BATTLE_ANIM_VAR_BG_FADE_TYPE, 0
     SetVar BATTLE_ANIM_VAR_BG_MOVE_STEP_X, 0
     SetVar BATTLE_ANIM_VAR_BG_MOVE_STEP_Y, 1
