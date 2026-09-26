@@ -11,6 +11,7 @@
 #include "battle/battle_stage_camera.h"
 #include "battle/ov16_0223DF00.h"
 
+#include "palette.h"
 #include "pokemon_sprite.h"
 #include "vram_transfer.h"
 
@@ -110,6 +111,7 @@ typedef struct StageSprites {
     VecFx32 groundDown[2]; // ground vector down one screen row (toward the camera) there
     VecFx32 right; // unit camera-right of the home camera
     fx32 tint[3]; // material scale per channel (R, G, B), from UpdateTint
+    BOOL bg2Lifted; // BattleStage_SetBg2Lifted
 } StageSprites;
 
 static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const PokemonSpriteDrawRect *rect);
@@ -136,6 +138,7 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     sStageSprites.lighting = NULL;
     sStageSprites.view = NULL;
     sStageSprites.hasBlobs = FALSE;
+    sStageSprites.bg2Lifted = FALSE;
 
     for (i = 0; i < MAX_MON_SPRITES; i++) {
         sStageSprites.states[i].phase = 0;
@@ -199,6 +202,10 @@ void BattleStageSprites_BeginFrame(BOOL visible, const BattleStageFileLighting *
     fields->spriteMeshes = 0;
     fields->blobShadows = 0;
     fields->wobbleMask = 0;
+
+    if (sStageSprites.bg2Lifted) {
+        BattleStage_CompatFields()->liftedBg2Frames++;
+    }
 
     for (i = 0; i < MAX_MON_SPRITES; i++) {
         StageSpriteState *state = &sStageSprites.states[i];
@@ -887,4 +894,107 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
         G3_LoadMtx44(projection);
         G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
     }
+}
+
+// The factor (1/256 per channel) that the lit mesh applies to a camera-facing texel with the
+// neutral sprite material (diffuse 31, ambient 16): SetMaterial and the hardware lighting,
+// clamped to 31, over 31. 256 at day, where the mesh saturates (compat.md, F2)
+BOOL BattleStage_GetSpriteTint(u16 *tintR, u16 *tintG, u16 *tintB)
+{
+    const BattleStageFileLighting *lighting = sStageSprites.lighting;
+    const MtxFx43 *view = sStageSprites.view;
+    const fx16 *dir;
+    u16 factor[3];
+    fx32 level;
+    int c;
+
+    if (!BATTLE_STAGE_3D || sStageSprites.fields == NULL || !sStageSprites.visible || lighting == NULL || view == NULL) {
+        return FALSE;
+    }
+
+    if (!BattleStage_IsVisible() || (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_CLASSIC_SPRITES)) {
+        return FALSE;
+    }
+
+    // The camera-facing normal is +z in the sprite camera's space (the y flip of SetLight
+    // leaves z alone)
+    dir = lighting->lightDir;
+    level = -((dir[0] * view->_02 + dir[1] * view->_12 + dir[2] * view->_22) >> FX32_SHIFT);
+
+    if (level < 0) {
+        level = 0;
+    } else if (level > FX32_ONE) {
+        level = FX32_ONE;
+    }
+
+    for (c = 0; c < 3; c++) {
+        fx32 tint = sStageSprites.tint[c];
+        int lightColor = Channel(lighting->lightColor, c * 5);
+        int dif = (Channel(lighting->diffuse, c * 5) * tint + FX32_ONE - 1) / FX32_ONE;
+        int amb = (Channel(lighting->ambient, c * 5) * tint + FX32_ONE - 1) / FX32_ONE;
+        int lit;
+
+        if (dif > 31) {
+            dif = 31;
+        }
+
+        if (amb > 31) {
+            amb = 31;
+        }
+
+        lit = Channel(lighting->emission, c * 5) + (int)(((s64)lightColor * ((s64)dif * level + (s64)amb * FX32_ONE)) / (32 * FX32_ONE));
+
+        if (lit >= 31) {
+            factor[c] = 256;
+        } else {
+            factor[c] = (u16)((lit * 256 + 15) / 31);
+        }
+    }
+
+    if (factor[0] == 256 && factor[1] == 256 && factor[2] == 256) {
+        return FALSE;
+    }
+
+    *tintR = factor[0];
+    *tintG = factor[1];
+    *tintB = factor[2];
+
+    return TRUE;
+}
+
+BOOL BattleStage_TintCopyPalette(PaletteData *paletteData, enum PaletteBufferID bufferID, u16 start, u16 count)
+{
+    u16 tint[3];
+    int k;
+
+    if (!BattleStage_GetSpriteTint(&tint[0], &tint[1], &tint[2])) {
+        return FALSE;
+    }
+
+    for (k = 0; k < 2; k++) {
+        u16 *colors = (k == 0) ? PaletteData_GetUnfadedBuffer(paletteData, bufferID) : PaletteData_GetFadedBuffer(paletteData, bufferID);
+        u16 i;
+
+        if (colors == NULL) {
+            continue;
+        }
+
+        for (i = start; i < start + count; i++) {
+            u16 color = colors[i];
+            int r = ((color & 31) * tint[0] + 128) >> 8;
+            int g = (((color >> 5) & 31) * tint[1] + 128) >> 8;
+            int b = (((color >> 10) & 31) * tint[2] + 128) >> 8;
+
+            colors[i] = (u16)((color & 0x8000) | GX_RGB(r > 31 ? 31 : r, g > 31 ? 31 : g, b > 31 ? 31 : b));
+        }
+    }
+
+    BattleStage_CompatFields()->tintedCopies++;
+
+    return TRUE;
+}
+
+void BattleStage_SetBg2Lifted(BOOL lifted)
+{
+    sStageSprites.bg2Lifted = lifted;
 }
