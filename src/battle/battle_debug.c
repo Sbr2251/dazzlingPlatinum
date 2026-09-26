@@ -113,7 +113,7 @@ static void HideOverlay(BattleSystem *battleSys)
     sMoveTester.overlayShown = FALSE;
 }
 
-// Line 1: "Move 123: Tackle", line 2: key help and the 3D stage state
+// Line 1: "Move 123: Tackle", line 2: key help, the 3D stage state and the debug view
 static void DrawOverlay(BattleSystem *battleSys)
 {
     Window *window = BattleSystem_Window(battleSys, 0);
@@ -131,7 +131,9 @@ static void DrawOverlay(BattleSystem *battleSys)
     Text_AddPrinterWithParams(window, FONT_MESSAGE, line, 0, 0, TEXT_SPEED_NO_TRANSFER, NULL);
 
     String_Clear(line);
-    AppendAscii(line, BattleStage_IsEnabled() ? "A/Y play  SELECT 3D stage ON" : "A/Y play  SELECT 3D stage OFF");
+    AppendAscii(line, BattleStage_IsEnabled() ? "A/Y play  SEL 3D ON  B view " : "A/Y play  SEL 3D OFF  B view ");
+    String_FormatInt(number, BattleStage_GetDebugView(), 1, PADDING_MODE_NONE, CHARSET_MODE_EN);
+    String_Concat(line, number);
     Text_AddPrinterWithParams(window, FONT_MESSAGE, line, 0, MOVE_TESTER_LINE_HEIGHT, TEXT_SPEED_NO_TRANSFER, NULL);
 
     Window_CopyToVRAM(window);
@@ -175,6 +177,12 @@ static void StartTestAnimation(BattleSystem *battleSys, BattlerData *commandBatt
 {
     MoveAnimation animation;
     u32 moveFlags = MoveTable_LoadParam(sTestMove, MOVEATTRIBUTE_FLAGS);
+
+    // The sprites don't follow the debug camera yet
+    if (BattleStage_GetDebugView() != 0) {
+        BattleStage_SetDebugView(0);
+        DrawOverlay(battleSys);
+    }
 
     MI_CpuClear8(&animation, sizeof(MoveAnimation));
     BattleController_SetMoveAnimation(battleSys, BattleSystem_Context(battleSys), &animation, 0, 0, attacker, defender, sTestMove);
@@ -316,6 +324,11 @@ BOOL BattleDebug_UpdateCommandMenu(BattleSystem *battleSys, BattlerData *command
 
     if (gSystem.pressedKeys & PAD_BUTTON_SELECT) {
         BattleStage_SetEnabled(!BattleStage_IsEnabled());
+        redraw = TRUE;
+    }
+
+    if (gSystem.pressedKeys & PAD_BUTTON_B) {
+        BattleStage_SetDebugView((BattleStage_GetDebugView() + 1) % 4);
         redraw = TRUE;
     }
 
