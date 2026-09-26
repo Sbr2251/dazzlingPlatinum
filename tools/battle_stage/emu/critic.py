@@ -1093,6 +1093,7 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
     after: List[Frame] = []
     fades: List[Frame] = []
     compat = ram.has_compat and ram.validate(ram.read())
+    audit = audit_index(args) if compat else {}
     if compat:
         sc.note(f"compat fields (sBattleStage+{COMPAT_OFFSET}): expecting fades, not hard pops: {ram.compat()}")
     else:
@@ -1137,7 +1138,7 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
         t = min_diff(boxes, text_box(post.img))
         sc.check(f"{tag}: battle text restored", t < 0.02, f"{t:.1%} of the text box differs")
         if compat:
-            _switchbg_compat(sc, tag, mid, ram, before, pre_frame.img, polls, fade, fades)
+            _switchbg_compat(sc, tag, mid, ram, before, pre_frame.img, polls, fade, fades, audit.get(mid))
     camera_log_checks(sc, ram, cam_log[1], "switchbg moves")
     sc.sheet(after, "after", "pre-move frame and 90 frames after each move", screen="top", cols=4, scale=1.0)
     if fades:
@@ -1147,9 +1148,10 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
 
 
 def _switchbg_compat(sc: Scenario, tag: str, mid: int, ram: StageRam, before: Optional[dict], pre: Image.Image,
-                     polls: List[tuple], fade: List[Frame], fades: List[Frame]) -> None:
+                     polls: List[tuple], fade: List[Frame], fades: List[Frame], m: Optional[dict]) -> None:
     """Chunk 5: the move background came in by a fade (fades rose, hardPops did not) and the arena is back at
-    alpha 31 90 frames later. Acid Armor may instead keep the arena up for its lifted BG2 copy (F1)."""
+    alpha 31 90 frames later. Acid Armor may instead keep the arena up for its lifted BG2 copy (F1). The fade is
+    a FAIL only where the audit's `suppress` list has bg_switch (fade_required), else a WARN."""
     after_c = ram.compat()
     d = compat_delta(before, after_c)
     if d is None:
@@ -1167,7 +1169,8 @@ def _switchbg_compat(sc: Scenario, tag: str, mid: int, ram: StageRam, before: Op
                  why="neither a fade (F6) nor a lifted copy (F1)")
     else:
         sc.check(f"{tag}: arena faded out instead of hiding (fades rose)", d["fades"] > 0,
-                 f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}", warn_only=True,
+                 f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}, suppress {(m or {}).get('suppress')}",
+                 warn_only=not fade_required(m),
                  why="no fade was counted for a move that switches the background")
     if d["fades"] > 0:
         fade_frames_check(sc, tag, pre, polls, fade, fades)
@@ -3084,14 +3087,23 @@ MECHANISMS = ("sprite_xy", "sprite_scale_rot", "partial_draw", "bg2_copy", "oam_
 # Used when the audit file is missing (and for --moves not in it): a few risk: high moves, tagged by hand
 # from their anim.s
 FALLBACK_AUDIT = [
-    {"id": 101, "name": "NIGHT SHADE", "mechanisms": ["oam_copy", "switch_bg"], "risk": "high"},
-    {"id": 151, "name": "ACID ARMOR", "mechanisms": ["bg2_copy"], "risk": "high"},
-    {"id": 94, "name": "PSYCHIC", "mechanisms": ["oam_copy", "switch_bg", "sprite_fade_tint"], "risk": "high"},
-    {"id": 326, "name": "EXTRASENSORY", "mechanisms": ["bg2_copy", "oam_copy", "switch_bg"], "risk": "high"},
-    {"id": 399, "name": "DARK PULSE", "mechanisms": ["oam_copy", "switch_bg"], "risk": "high"},
-    {"id": 180, "name": "SPITE", "mechanisms": ["bg2_copy", "oam_copy", "switch_bg"], "risk": "high"},
-    {"id": 97, "name": "AGILITY", "mechanisms": ["oam_copy", "switch_bg"], "risk": "high"},
-    {"id": 91, "name": "DIG", "mechanisms": ["partial_draw"], "risk": "high"},
+    {"id": 94, "name": "PSYCHIC", "mechanisms": ["sprite_xy", "oam_copy", "sprite_bg_blend", "switch_bg",
+                                                 "sprite_fade_tint"], "suppress": ["bg_switch"], "risk": "high"},
+    {"id": 151, "name": "ACID_ARMOR", "mechanisms": ["bg2_copy", "hblank_wave", "sprite_bg_blend", "particles"],
+     "suppress": ["bg2_effect"], "risk": "high"},
+    {"id": 326, "name": "EXTRASENSORY", "mechanisms": ["sprite_scale_rot", "bg2_copy", "oam_copy", "hblank_wave",
+                                                       "sprite_bg_blend", "switch_bg", "particles",
+                                                       "sprite_fade_tint"], "suppress": ["bg2_effect"], "risk": "high"},
+    {"id": 180, "name": "SPITE", "mechanisms": ["bg2_copy", "oam_copy", "hblank_wave", "sprite_bg_blend", "switch_bg",
+                                                "sprite_fade_tint"], "suppress": ["bg2_effect"], "risk": "high"},
+    {"id": 166, "name": "SKETCH", "mechanisms": ["partial_draw", "bg2_copy", "window", "particles",
+                                                 "sprite_fade_tint"], "suppress": ["bg2_effect"], "risk": "high"},
+    {"id": 252, "name": "FAKE_OUT", "mechanisms": ["sprite_xy", "sprite_scale_rot", "window", "sprite_bg_blend",
+                                                   "switch_bg", "particles"], "suppress": [], "risk": "high"},
+    {"id": 97, "name": "AGILITY", "mechanisms": ["sprite_xy", "oam_copy", "sprite_bg_blend", "switch_bg", "particles"],
+     "suppress": ["bg_switch"], "risk": "high"},
+    {"id": 19, "name": "FLY", "mechanisms": ["sprite_xy", "switch_bg", "particles"], "suppress": ["bg_switch"],
+     "risk": "high"},
 ]
 AUDIT_TODS = ("day", "night")
 FADE_LAG = 6                             # the picture trails the RAM by about 5 frames (see StageRam.set_flags)
@@ -3118,6 +3130,19 @@ def load_audit(path: Optional[str]) -> tuple:
     if not good:
         return None, f"{p} has no move entries"
     return good, str(p)
+
+
+def fade_required(m: Optional[dict]) -> bool:
+    """A switch_bg move whose audit `suppress` list has bg_switch: the engine hid the arena for its background
+    switch, and chunk 5 (F6) turns that hide into a fade, so no fade is a FAIL. Moves with an empty `suppress`
+    list (Fake Out) or only bg2_effect may keep the arena up without a fade: a WARN."""
+    return bool(m) and "switch_bg" in m.get("mechanisms", []) and "bg_switch" in m.get("suppress", [])
+
+
+def audit_index(args) -> dict:
+    """id -> audit entry (the audit file, else the built-in list), for scenarios other than move_audit."""
+    entries, _ = load_audit(getattr(args, "audit", None))
+    return {m["id"]: m for m in (entries or FALLBACK_AUDIT)}
 
 
 def audit_pick(entries: List[dict], cap: int) -> List[dict]:
@@ -3331,7 +3356,7 @@ def _audit_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str
         sc.check(f"{tag}: BG2 copy lifted over the arena (liftedBg2Frames rose)", d["liftedBg2Frames"] > 0,
                  f"liftedBg2Frames +{d['liftedBg2Frames']}, tintedCopies +{d['tintedCopies']}", warn_only=True,
                  why="F1 did not lift the copy (BG2 may also carry an effect, which keeps the suppression)")
-        if not mech & {"switch_bg", "bg2_effect", "window", "hblank_wave"}:
+        if not mech & {"switch_bg", "bg2_effect", "window"} and "bg_switch" not in m.get("suppress", []):
             sc.check(f"{tag}: arena stayed visible (hiddenFrames unchanged)", d["hiddenFrames"] == 0,
                      f"hiddenFrames +{d['hiddenFrames']}, fades +{d['fades']}", warn_only=True,
                      why="the arena was still hidden for the copy")
@@ -3341,9 +3366,12 @@ def _audit_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str
             if mid in days:
                 copy_tint_check(sc, tag, days[mid], rec)
     if "switch_bg" in mech:
+        need = fade_required(m)
         sc.check(f"{tag}: arena faded out (fades rose)", d["fades"] > 0,
-                 f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}", warn_only=True,
-                 why="no fade: either the arena stayed up (fine if the move background still shows) or it popped")
+                 f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}, suppress {m.get('suppress', [])}",
+                 warn_only=not need,
+                 why="no fade for a move the engine hid the arena for (suppress has bg_switch)" if need else
+                     "no fade: either the arena stayed up (fine if the move background still shows) or it popped")
         if d["fades"] > 0:
             shown = {f.label.rsplit(" ", 2)[0] for f in fades}   # "<tag> <mid>+<t> a<alpha>"
             fade_frames_check(sc, tag, pre.img, polls, fade, fades if len(shown) < FADE_SHEET_MOVES else None)
