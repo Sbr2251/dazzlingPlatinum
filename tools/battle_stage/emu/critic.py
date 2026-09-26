@@ -819,6 +819,9 @@ def _toggle_stage(sc: Scenario, e: Emu, ov: Overlay, tag: str, shots: List[Frame
     e.snap(f"{tag} overlay", shots)
     d = diff_fraction(before, text_box(e.screens()))
     ok = sc.check(f"{tag}: SELECT changed the overlay text", d > 0.003, f"{d:.2%} of the text box changed")
+    # The overlay's key line shows the stage state, so re-key it or the next show() won't
+    # recognise the overlay
+    ov.key = e.screens().crop(OVERLAY_KEY)
     e.release("L+R")
     e.run(40)
     return ok
