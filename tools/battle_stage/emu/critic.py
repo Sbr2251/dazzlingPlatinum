@@ -196,12 +196,34 @@ def boot(sc: Scenario, e: Emu, frames: Optional[list] = None) -> bool:
     return ok
 
 
+# Chunk 4: the battle-start sweep (28 + 10 + 20 frames, and the menu waits up to 90 frames for home)
+# delays the first command menu of every non-Totem battle with a visible stage.
+SWEEP_MARGIN = 120                       # frames added to every wait for the first command menu
+FIRST_MENU_CAM: Optional[dict] = None    # the camera fields when the last first-menu wait saw the menu
+
+
+def wait_first_menu(e: Emu, timeout: int = 2400, **kw) -> Optional[int]:
+    """wait_battle_menu for the first command menu of a battle, allowing for the chunk 4 sweep. Keeps the
+    camera state seen at the menu in FIRST_MENU_CAM (None on older ROMs or without an xMAP), and when the
+    camera is not home yet (it should be: the menu waits for it) runs until it is, so what follows starts
+    from the home pose."""
+    global FIRST_MENU_CAM
+    FIRST_MENU_CAM = None
+    waited = e.wait_battle_menu(timeout=timeout + SWEEP_MARGIN, **kw)
+    if waited is not None and XMAP_PATH:
+        ram = StageRam(e, XMAP_PATH)
+        FIRST_MENU_CAM = ram.cam()
+        if FIRST_MENU_CAM is not None and not FIRST_MENU_CAM["home"]:
+            ram.wait_home(SWEEP_MARGIN)
+    return waited
+
+
 def enter_wild_battle(sc: Scenario, e: Emu, intro: Optional[list] = None) -> bool:
     steps = e.walk_until_battle(max_steps=300)
     if not sc.check("wild encounter", steps is not None,
                     f"after {steps} steps in the grass" if steps else "no encounter after 300 steps"):
         return False
-    waited = e.wait_battle_menu(timeout=2400, snap_every=8 if intro is not None else 0, label="intro", into=intro)
+    waited = wait_first_menu(e, timeout=2400, snap_every=8 if intro is not None else 0, label="intro", into=intro)
     return sc.check("battle menu reached", waited is not None,
                     f"{waited} frames after the encounter" if waited is not None
                     else "command menu (red FIGHT button) never appeared")
@@ -373,7 +395,9 @@ def sc_wild_battle(sc: Scenario, e: Emu, args) -> None:
     sc.check("battle not frozen at the menu", e.is_alive(frames=120, every=15, region="top"),
              why="top screen did not change for 120 frames at the command menu")
 
-    # Damaging move, every 3 frames until the menu comes back.
+    # Damaging move, every 3 frames until the menu comes back. No crit/faint kicks (chunk 4): the scene
+    # after the turn is compared against idle frames below.
+    ram = _sprite_flags(sc, e, args, NO_CINEMATICS)
     if not sc.check("FIGHT opened the move list", e.battle_fight(FALSE_SWIPE_SLOT),
                     f"used move slot {FALSE_SWIPE_SLOT} (False Swipe on the committed save)"):
         e.touch(128, 176, after=30)
@@ -394,7 +418,7 @@ def sc_wild_battle(sc: Scenario, e: Emu, args) -> None:
     # Bag round trip: the bag swaps VRAM; the battle scene must come back identical.
     bag: List[Frame] = []
     if e.battle_menu_up():
-        _sprite_flags(sc, e, args, FREEZE_IDLE)   # compared against idle frames below
+        _sprite_flags(sc, e, args, FREEZE_IDLE | NO_CINEMATICS, ram)   # compared against idle frames below
         before = idle_samples(e)
         e.snap("before bag", bag)
         opened = e.battle_open_bag()
@@ -503,10 +527,11 @@ def sc_quick_battle(sc: Scenario, e: Emu, args) -> None:
                 break
             continue
         intro: List[Frame] = []
-        waited = e.wait_battle_menu(timeout=2400, snap_every=8, label="intro", into=intro)
+        waited = wait_first_menu(e, timeout=2400, snap_every=8, label="intro", into=intro)
         e.snap("menu", intro)
         ok = sc.check(f"{label}: battle menu reached", waited is not None,
-                      f"{waited} frames" if waited is not None else "no command menu within 2400 frames")
+                      f"{waited} frames" if waited is not None else
+                      f"no command menu within {2400 + SWEEP_MARGIN} frames")
         if ok:
             check_screens(sc, e.screens(), f"{label} menu")
             sc.check(f"{label}: battle not frozen", e.is_alive(frames=120, every=15))
@@ -518,6 +543,26 @@ def sc_quick_battle(sc: Scenario, e: Emu, args) -> None:
     sc.sheet(panel, "panel", "L+R panel before each battle (top screen)", screen="top", cols=4, scale=1.0)
 
 
+def _totem_camera(sc: Scenario, e: Emu, cam: Optional[dict]) -> None:
+    """Chunk 4: the Totem aura script plays the Totem intro camera (bit 2) in place of the sweep (bit 0),
+    and the camera is home at the first command menu."""
+    if cam is None:
+        ram = StageRam(e, XMAP_PATH)
+        sc.note("totem camera checks skipped: " + (ram.camera_why or ram.why or
+                                                   "sBattleStage does not look like a live stage at the menu"))
+        return
+    seen = cam["cinematicsSeen"]
+    sc.check("totem: Totem intro camera played (cinematicsSeen bit 2)", bool(seen & CINE_TOTEM),
+             f"cinematicsSeen = {seen:#x} ({cine_names(seen)})")
+    sc.check("totem: no battle-start sweep (cinematicsSeen bit 0 clear)", not seen & CINE_SWEEP,
+             f"cinematicsSeen = {seen:#x} ({cine_names(seen)})")
+    sc.check("totem: camera home at the first command menu", cam["home"],
+             f"camFlags = {cam['camFlags']:#x} ({cam_names(cam['camFlags'])}) when the menu showed")
+    sc.check("totem: offHomeMoveFrames == 0", cam["offHomeMoveFrames"] == 0,
+             f"offHomeMoveFrames = {cam['offHomeMoveFrames']}, guardSnaps = {cam['guardSnaps']}, "
+             f"offHomeFrames = {cam['offHomeFrames']}")
+
+
 def sc_totem_battle(sc: Scenario, e: Emu, args) -> None:
     if not boot(sc, e):
         return
@@ -526,11 +571,15 @@ def sc_totem_battle(sc: Scenario, e: Emu, args) -> None:
         sc.sheet(panel, "panel", "L+R panel", screen="top", cols=4, scale=1.0)
         return
     intro: List[Frame] = []
-    waited = e.wait_battle_menu(timeout=3000, snap_every=4, label="intro", into=intro)
+    waited = wait_first_menu(e, timeout=3000, snap_every=4, label="intro", into=intro)
+    cam = FIRST_MENU_CAM
     e.snap("menu" if waited is not None else "timeout", intro)
     sc.check("totem: battle menu reached", waited is not None,
-             f"{waited} frames" if waited is not None else "no command menu within 3000 frames", warn_only=True)
+             f"{waited} frames" if waited is not None else f"no command menu within {3000 + SWEEP_MARGIN} frames",
+             warn_only=True)
     check_screens(sc, e.screens(), "totem battle")
+    if waited is not None:
+        _totem_camera(sc, e, cam)
     sc.sheet(intro, "intro", "Totem cut-in -> intro -> menu (every 4 frames, deduped)", dedupe_screen="both")
     sc.sheet(panel, "panel", "L+R panel", screen="top", cols=4, scale=1.0)
     sc.note("Totem battles cannot be fled; the scenario ends in battle.")
@@ -599,10 +648,11 @@ def _fight_turn(sc: Scenario, e: Emu, args, what: str) -> bool:
 
 def _tester_move(sc: Scenario, e: Emu, args, ov: "Overlay", baseline: tuple, cur: int, mid: int,
                  direction: str, key: str, tag: str, overlays: List[Frame], after: List[Frame],
-                 restore: bool = False) -> bool:
+                 restore: bool = False, cam_log: Optional[tuple] = None) -> bool:
     """Picks move `mid` in the tester (currently on `cur`), plays it with `key` and checks that it
     drew, ended and gave the battle text back (with `restore`, also the scene: see restore_check).
-    Returns False if the battle is stuck."""
+    `cam_log` = (StageRam, list): appends (tag, camera fields) read 90 frames after the move (chunk 4;
+    see camera_log_checks). Returns False if the battle is stuck."""
     idle, base_boxes = baseline
     if not ov.up() and not ov.show():
         sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay back")
@@ -635,6 +685,8 @@ def _tester_move(sc: Scenario, e: Emu, args, ov: "Overlay", baseline: tuple, cur
     e.snap(f"{tag} +10", after)
     e.run(80)
     shot = e.snap(f"{tag} +90", after)
+    if cam_log is not None:
+        cam_log[1].append((tag, cam_log[0].cam()))
     if restore:
         later = None
         if mid in LASTING_MOVES:
@@ -672,12 +724,36 @@ def restore_check(sc: Scenario, tag: str, idle: List[Image.Image], img: Image.Im
                         "has too; see sheet_after)")
 
 
+def camera_log_checks(sc: Scenario, ram: StageRam, log: List[tuple], what: str) -> None:
+    """Chunk 4, from _tester_move's cam_log: after every move offHomeMoveFrames is still 0 (no frame of a
+    non-camera animation script drew with the camera off home) and the camera is home at the menu."""
+    got = [(tag, c) for tag, c in log if c is not None]
+    if not got:
+        why = ram.camera_why or (ram.why if not ram.ok else "") or \
+            "sBattleStage is not set up in this battle (no arena here, so no stage camera)"
+        sc.note(f"{what}: camera checks skipped ({len(log)} moves): {why}")
+        return
+    bad = [f"{tag}: {c['offHomeMoveFrames']}" for tag, c in got if c["offHomeMoveFrames"] != 0]
+    sc.check(f"{what}: offHomeMoveFrames == 0 after every move", not bad,
+             f"{len(got)} moves, offHomeMoveFrames 0 after each (guardSnaps {got[-1][1]['guardSnaps']})"
+             if not bad else "non-zero after " + ", ".join(bad[:6]),
+             why="a move animation drew frames with the camera off home without using a camera command "
+                 "(the home guard did not snap home at script start)")
+    off = [f"{tag} ({cam_names(c['camFlags'])})" for tag, c in got if not c["home"]]
+    sc.check(f"{what}: camera home (AT_HOME) at the menu after every move", not off,
+             f"AT_HOME after all {len(got)} moves" if not off else "not home after " + ", ".join(off[:6]))
+    if len(got) < len(log):
+        sc.note(f"{what}: {len(log) - len(got)} of {len(log)} camera reads were not a live stage")
+
+
 def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
     if not _battle_ready(sc, e):
         return
     ov = Overlay(e)
     e.run(30)                                # let the menu's text box icons appear
-    _sprite_flags(sc, e, args, FREEZE_IDLE)  # the restore checks compare against these idle frames
+    # the restore checks compare against these idle frames; no crit or faint kicks on the real turns
+    ram = _sprite_flags(sc, e, args, FREEZE_IDLE | NO_CINEMATICS)
+    cam_log = (ram, [])
     idle_frames = e.record(60, every=5, label="idle")
     baseline = ([scene(f.img) for f in idle_frames], [text_box(f.img) for f in idle_frames])
     overlays: List[Frame] = []
@@ -699,7 +775,8 @@ def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
         mid = max(1, min(MOVE_ID_MAX, mid))
         for direction, key in (("fwd", "A"), ("rev", "Y"))[: 2 if args.reverse else 1]:
             ok = _tester_move(sc, e, args, ov, baseline, cur, mid, direction, key,
-                              f"move {mid:03d} {direction}", overlays, after, restore=mid in args.sprite_moves)
+                              f"move {mid:03d} {direction}", overlays, after, restore=mid in args.sprite_moves,
+                              cam_log=cam_log)
             cur = mid
             if not ok:
                 break
@@ -715,10 +792,11 @@ def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
     if ok:
         e.run(30)
         ok = _tester_move(sc, e, args, ov, baseline, cur, MOVE_ID_POUND, "fwd", "A",
-                          "turn 2 move 001 fwd", overlays, after)
+                          "turn 2 move 001 fwd", overlays, after, cam_log=cam_log)
         cur = MOVE_ID_POUND
     if ok:
         ok = _fight_turn(sc, e, args, "turn 2 after tester")
+    camera_log_checks(sc, ram, cam_log[1], "move tester")
 
     sc.sheet(overlays, "overlays", "L+R overlay before each animation (check the move name)",
              screen="top", cols=4, scale=1.0)
@@ -853,12 +931,25 @@ def _plain_battle(sc: Scenario, e: Emu, tod: str = "clock") -> bool:
     if not started:
         sc.sheet(panel, "panel", "L+R quick-battle panel", screen="top", cols=4, scale=1.0)
         return False
-    waited = e.wait_battle_menu(timeout=2400)
+    waited = wait_first_menu(e, timeout=2400)
     if not sc.check("plain: battle menu reached", waited is not None,
-                    f"{waited} frames" if waited is not None else "no command menu within 2400 frames"):
+                    f"{waited} frames" if waited is not None else
+                    f"no command menu within {2400 + SWEEP_MARGIN} frames"):
         return False
     e.run(30)                                # let the menu's text box icons appear
     return True
+
+
+def home_check(sc: Scenario, ram: StageRam, what: str) -> Optional[bool]:
+    """Chunk 4: the camera is home (AT_HOME) right now; None (a note) on a ROM without the camera fields."""
+    cam = ram.cam()
+    if cam is None:
+        sc.note(f"{what}: AT_HOME not checked: " + (ram.camera_why or ram.why or
+                                                   "sBattleStage does not look like a live stage"))
+        return None
+    return sc.check(f"{what}: camera home (AT_HOME)", cam["home"],
+                    f"camFlags = {cam['camFlags']:#x} ({cam_names(cam['camFlags'])}), cinematicsSeen = "
+                    f"{cam['cinematicsSeen']:#x} ({cine_names(cam['cinematicsSeen'])})")
 
 
 def _finish(sc: Scenario, e: Emu) -> None:
@@ -947,7 +1038,8 @@ def sc_stage_ab(sc: Scenario, e: Emu, args) -> None:
     if not _plain_battle(sc, e, args.stage_tod):
         return
     # Sprites at rest and the classic shadow: then the day home pose must match classic exactly
-    _sprite_flags(sc, e, args, FREEZE_IDLE | NO_BLOB_SHADOWS)
+    ram = _sprite_flags(sc, e, args, FREEZE_IDLE | NO_BLOB_SHADOWS)
+    home_check(sc, ram, "stage ON samples")      # chunk 4: the sweep is over and the camera is home
     ov = Overlay(e)
     shots: List[Frame] = []
     e.snap("initial (stage ON)", shots)
@@ -985,7 +1077,9 @@ def sc_stage_ab(sc: Scenario, e: Emu, args) -> None:
 def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
     if not _plain_battle(sc, e, args.stage_tod):
         return
-    _sprite_flags(sc, e, args, FREEZE_IDLE)       # "normal look restored" compares against idle frames
+    # "normal look restored" compares against idle frames
+    ram = _sprite_flags(sc, e, args, FREEZE_IDLE | NO_CINEMATICS)
+    cam_log = (ram, [])
     ov = Overlay(e)
     idle_frames = e.record(60, every=5, label="idle")
     idle = [scene(f.img) for f in idle_frames]
@@ -1022,12 +1116,14 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
             return
         e.run(90)
         post = e.snap(f"{tag} +90", after)
+        cam_log[1].append((tag, ram.cam()))
         d = min_diff(idle, scene(post.img))
         sc.check(f"{tag}: normal look restored", d <= RESTORE_PASS,
                  f"{d:.2%} of the scene (HUD masked) differs from the closest idle frame, 90 frames after",
                  warn_only=d <= RESTORE_WARN, why="the backdrop did not come back (see sheet_after)")
         t = min_diff(boxes, text_box(post.img))
         sc.check(f"{tag}: battle text restored", t < 0.02, f"{t:.1%} of the text box differs")
+    camera_log_checks(sc, ram, cam_log[1], "switchbg moves")
     sc.sheet(after, "after", "pre-move frame and 90 frames after each move", screen="top", cols=4, scale=1.0)
     _finish(sc, e)
 
@@ -1073,7 +1169,7 @@ def _menu_round_trip(sc: Scenario, e: Emu, what: str, button: tuple, shots: List
 def sc_bag_party(sc: Scenario, e: Emu, args) -> None:
     if not _plain_battle(sc, e, args.stage_tod):
         return
-    _sprite_flags(sc, e, args, FREEZE_IDLE)       # the round trips compare against idle frames
+    _sprite_flags(sc, e, args, FREEZE_IDLE | NO_CINEMATICS)   # the round trips compare against idle frames
     shots: List[Frame] = []
     e.snap("menu", shots)
     ok = _menu_round_trip(sc, e, "bag", BTN_BAG, shots, inside=BAG_POCKET_HP)
@@ -1085,10 +1181,32 @@ def sc_bag_party(sc: Scenario, e: Emu, args) -> None:
         _finish(sc, e)
 
 
+FOOT_BOX = (-30, -48, 30, 14)            # anchor crop: x0, y0, x1, y1 around the foot anchor (pixels at s = 1)
+
+
+def anchor_crop(img: Image.Image, anchor: tuple, scale: int) -> Image.Image:
+    """The top screen around a battler's foot anchor (camera.md "Sprites follow the camera"), scaled
+    with the anchor scale, with a crosshair on the anchor: the feet should stand on the blob there."""
+    x, y = anchor
+    k = max(0.5, min(2.5, scale / HOME_SCALE))
+    x0, y0, x1, y1 = (int(round(v * k)) for v in FOOT_BOX)
+    crop = top(img).convert("RGB").crop((x + x0, y + y0, x + x1, y + y1))
+    d = ImageDraw.Draw(crop)
+    cx, cy = -x0, -y0
+    for t in range(2, 7):                    # a cross with a 3x3 gap, so the anchor pixel itself stays visible
+        for px in ((cx + t, cy), (cx - t, cy), (cx, cy + t), (cx, cy - t)):
+            d.point(px, fill=(255, 0, 255))
+    return crop
+
+
+def anchors_text(cam: dict, n: int = 2) -> str:
+    return ", ".join(f"b{i} ({cam['anchors'][i][0]},{cam['anchors'][i][1]}) s{cam['scales'][i]}" for i in range(n))
+
+
 def sc_debug_views(sc: Scenario, e: Emu, args) -> None:
     if not _plain_battle(sc, e, args.stage_tod):
         return
-    _sprite_flags(sc, e, args, FREEZE_IDLE)       # the views are compared against view 0
+    ram = _sprite_flags(sc, e, args, FREEZE_IDLE)       # the views are compared against view 0
     ov = Overlay(e)
     if not ov.show():
         _no_combo(sc, "L+R overlay shown", "the in-battle move tester / debug views")
@@ -1096,8 +1214,20 @@ def sc_debug_views(sc: Scenario, e: Emu, args) -> None:
         return
     e.run(20)
     views: List[Frame] = []
+    feet: List[tuple] = []                   # chunk 4: (label, crop) around each foot anchor per view
     base = [scene(s) for s in idle_samples(e, n=8, every=4)]
-    views.append(e.snap("view 0"))
+    f0 = e.snap("view 0")
+    views.append(f0)
+    cam0 = ram.cam()
+    if cam0 is None:
+        sc.note("debug views: camera checks skipped: " + (ram.camera_why or ram.why or
+                                                          "sBattleStage does not look like a live stage"))
+    else:
+        sc.check("view 0: camera home (AT_HOME), anchor scales 256", cam0["home"] and
+                 all(cam0["scales"][i] == HOME_SCALE for i in (BATTLER_PLAYER, BATTLER_ENEMY)),
+                 f"camFlags {cam0['camFlags']:#x} ({cam_names(cam0['camFlags'])}); {anchors_text(cam0)}")
+        feet += [(f"view 0 b{i}", anchor_crop(f0.img, cam0["anchors"][i], cam0["scales"][i]))
+                 for i in (BATTLER_PLAYER, BATTLER_ENEMY)]
     changed = 0
     for v in range(1, DEBUG_VIEWS + 1):
         view = v % DEBUG_VIEWS
@@ -1105,7 +1235,28 @@ def sc_debug_views(sc: Scenario, e: Emu, args) -> None:
             sc.check(f"view {view}: overlay shown", False, "holding L+R did not bring the overlay back")
             break
         e.hold("B", 6, 40)                   # lets an eased camera move settle
+        if cam0 is not None:                 # chunk 4: and wait for the ease to end (EASING clear)
+            e.wait_until(lambda em: not ((ram.cam() or {}).get("camFlags", 0) & (EASING | SHAKING)),
+                         timeout=90, step=2)
         f = e.snap(f"view {view}" + (" (wrapped)" if v == DEBUG_VIEWS else ""), views)
+        cam = ram.cam() if cam0 is not None else None
+        if cam is not None:
+            label = f"view {view}" + (" wrapped" if v == DEBUG_VIEWS else "")
+            feet += [(f"{label} b{i}", anchor_crop(f.img, cam["anchors"][i], cam["scales"][i]))
+                     for i in (BATTLER_PLAYER, BATTLER_ENEMY)]
+            if v < DEBUG_VIEWS:
+                moved = [i for i in (BATTLER_PLAYER, BATTLER_ENEMY)
+                         if cam["anchors"][i] != cam0["anchors"][i] or cam["scales"][i] != cam0["scales"][i]]
+                sc.check(f"view {view}: camera off home (AT_HOME clear)", not cam["home"],
+                         f"camFlags {cam['camFlags']:#x} ({cam_names(cam['camFlags'])}), view field {cam['view']}")
+                sc.check(f"view {view}: sprite anchors moved from view 0", len(moved) == 2,
+                         f"{anchors_text(cam)} (view 0: {anchors_text(cam0)})",
+                         why="the foot anchors did not follow the camera, so the sprites cannot either")
+            else:
+                sc.check("wrapped view 0: camera home again, anchors as in view 0",
+                         cam["home"] and cam["anchors"][:2] == cam0["anchors"][:2]
+                         and cam["scales"][:2] == cam0["scales"][:2],
+                         f"camFlags {cam['camFlags']:#x} ({cam_names(cam['camFlags'])}); {anchors_text(cam)}")
         img = scene(f.img)
         d = min_diff(base, img)
         if v < DEBUG_VIEWS:
@@ -1122,6 +1273,10 @@ def sc_debug_views(sc: Scenario, e: Emu, args) -> None:
             sc.check("a fourth L+R+B wraps back to view 0", d <= 0.02,
                      f"{d:.1%} of the scene differs from the first view 0", warn_only=True)
     sc.sheet(views, "views", "L+R+B debug views 0 -> 1 -> 2 -> 3 -> 0", screen="top", cols=5, scale=1.0)
+    if feet:
+        path = _crop_sheet(sc, feet, "feet", "foot anchors per view (magenta cross): each mon's feet should stand "
+                           "on its blob, within about 3 px", cols=4, zoom=3)
+        sc.note(f"feet-on-blob contact sheet (judge by eye, within about 3 px): {path}")
     e.release("L+R")
     e.run(40)
     if not changed:
@@ -1133,10 +1288,33 @@ def sc_debug_views(sc: Scenario, e: Emu, args) -> None:
 
 # BattleStage in src/battle/battle_stage.c, one s32/pointer per field; brightness is format v2 only,
 # debugFlags..blobShadows (+32..+48) chunk 3 only (docs/living_battle_stage/sprites.md)
+# camFlags..offHomeFrames (+52..+68) chunk 4 only, followed by s16 anchor[4][2] (+72) and u16 anchorScale[4]
+# (+88) (docs/living_battle_stage/camera.md)
 STAGE_FIELDS = ("battleSys", "arena", "enabled", "suppressed", "view", "visible", "platformsHidden", "brightness",
-                "debugFlags", "spriteMeshes", "idleFrames", "wobbleMask", "blobShadows")
+                "debugFlags", "spriteMeshes", "idleFrames", "wobbleMask", "blobShadows",
+                "camFlags", "cinematicsSeen", "guardSnaps", "offHomeMoveFrames", "offHomeFrames")
 STAGE_SIZE_BRIGHTNESS = 32               # sBattleStage at least this big: has brightness
 STAGE_SIZE_SPRITES = 52                  # ... and the chunk 3 sprite debug fields
+STAGE_SIZE_CAMERA = 96                   # ... and the chunk 4 camera debug fields
+ANCHOR_OFFSET = 72                       # s16 anchor[4][2]: per battler the screen foot anchor (x, y)
+SCALE_OFFSET = 88                        # u16 anchorScale[4]: per battler s in 1/256 (256 at home)
+HOME_SCALE = 256
+# camFlags bits (read only)
+AT_HOME = 1                              # the pose is home, no ease, no shake, debug view 0
+EASING = 2
+SHAKING = 4
+CAMERA_SCRIPT = 8                        # the running animation script used a camera command
+CAM_FLAG_NAMES = ((AT_HOME, "AT_HOME"), (EASING, "EASING"), (SHAKING, "SHAKING"), (CAMERA_SCRIPT, "CAMERA_SCRIPT"))
+# cinematicsSeen bits (read only; zeroed at battle load)
+CINE_SWEEP = 1                           # battle-start sweep
+CINE_MEGA = 2                            # Mega Evolution camera (the Mega script's first camera command)
+CINE_TOTEM = 4                           # Totem intro
+CINE_CRIT = 8                            # critical-hit kick
+CINE_FAINT = 16                          # faint kick
+CINE_SCRIPT = 32                         # any camera command from an animation script
+CINE_NAMES = ((CINE_SWEEP, "sweep"), (CINE_MEGA, "mega"), (CINE_TOTEM, "totem"), (CINE_CRIT, "crit"),
+              (CINE_FAINT, "faint"), (CINE_SCRIPT, "script"))
+BATTLER_PLAYER, BATTLER_ENEMY = 0, 1     # singles: battler 0 is the player's mon, 1 the opponent
 DEBUG_FLAGS_OFFSET = 32
 SUPPRESS_BRIGHTNESS = 4                  # BATTLE_STAGE_SUPPRESS_BRIGHTNESS
 # debugFlags bits, written by the critic. sBattleStage is in the battle overlay's .bss, which is zeroed
@@ -1145,11 +1323,23 @@ SUPPRESS_BRIGHTNESS = 4                  # BATTLE_STAGE_SUPPRESS_BRIGHTNESS
 FREEZE_IDLE = 1                          # no breathing and no hit wobble (sprites at the rest pose)
 NO_BLOB_SHADOWS = 2                      # blob shadows off, classic shadow back
 CLASSIC_SPRITES = 4                      # sprites take the old unlit path even while the arena shows
-FLAG_NAMES = ((FREEZE_IDLE, "FREEZE_IDLE"), (NO_BLOB_SHADOWS, "NO_BLOB_SHADOWS"), (CLASSIC_SPRITES, "CLASSIC_SPRITES"))
+NO_CINEMATICS = 8                        # chunk 4: no crit or faint kicks (the sweep plays before the critic can write)
+CRIT_KICK_ON_HIT = 16                    # chunk 4: every hit blink plays the crit kick
+FLAG_NAMES = ((FREEZE_IDLE, "FREEZE_IDLE"), (NO_BLOB_SHADOWS, "NO_BLOB_SHADOWS"), (CLASSIC_SPRITES, "CLASSIC_SPRITES"),
+              (NO_CINEMATICS, "NO_CINEMATICS"), (CRIT_KICK_ON_HIT, "CRIT_KICK_ON_HIT"))
+XMAP_PATH: Optional[str] = None          # set per scenario process (run_in_process), for helpers without args
 
 
-def flag_names(flags: int) -> str:
-    return "|".join(n for b, n in FLAG_NAMES if flags & b) or "0"
+def flag_names(flags: int, names=FLAG_NAMES) -> str:
+    return "|".join(n for b, n in names if flags & b) or "0"
+
+
+def cam_names(flags: int) -> str:
+    return flag_names(flags, CAM_FLAG_NAMES)
+
+
+def cine_names(bits: int) -> str:
+    return flag_names(bits, CINE_NAMES)
 
 
 def find_xmap(args) -> Optional[str]:
@@ -1164,6 +1354,9 @@ def find_xmap(args) -> Optional[str]:
     return None
 
 
+_XMAP_CACHE: Dict[str, dict] = {}
+
+
 class StageRam:
     """sBattleStage and the launcher's selection, read at the addresses in the build's xMAP. Every
     check that uses it also has a pixel counterpart, so a missing or mismatched xMAP only drops the
@@ -1171,7 +1364,9 @@ class StageRam:
 
     def __init__(self, e: Emu, xmap: Optional[str]):
         self.e = e
-        self.syms = read_xmap(xmap) if xmap else {}
+        if xmap and xmap not in _XMAP_CACHE:
+            _XMAP_CACHE[xmap] = read_xmap(xmap)
+        self.syms = _XMAP_CACHE[xmap] if xmap else {}
         self.stage = self.syms.get("sBattleStage")
         self.ok = self.stage is not None
         self.why = "" if self.ok else ("no xMAP (pass --map)" if not xmap else f"no sBattleStage in {xmap}")
@@ -1194,6 +1389,21 @@ class StageRam:
         if not self.has_sprites:
             return (f"sBattleStage is {self.stage[1]} bytes in {self.xmap}, under {STAGE_SIZE_SPRITES}: a ROM from "
                     "before chunk 3, without the sprite debug fields")
+        return ""
+
+    @property
+    def has_camera(self) -> bool:
+        """sBattleStage has the chunk 4 camera debug fields (camFlags .. anchorScale at +52..+95)."""
+        return self.ok and self.stage[1] >= STAGE_SIZE_CAMERA
+
+    @property
+    def camera_why(self) -> str:
+        """Why the camera debug fields cannot be used ("" if they can)."""
+        if not self.ok:
+            return self.why
+        if not self.has_camera:
+            return (f"sBattleStage is {self.stage[1]} bytes in {self.xmap}, under {STAGE_SIZE_CAMERA}: a ROM from "
+                    "before chunk 4, without the camera debug fields")
         return ""
 
     def read(self) -> Optional[dict]:
@@ -1222,6 +1432,39 @@ class StageRam:
             self.why = f"sBattleStage in {self.xmap} reads {st}: the xMAP is not from this ROM's build"
         return good
 
+    def plausible(self, st: Optional[dict]) -> bool:
+        """Like validate() but never drops the RAM checks: for polling while a battle loads or ends, when
+        sBattleStage may be mid-clear. True if it looks like a live stage."""
+        return bool(st) and RAM_BASE <= st["battleSys"] < RAM_END and st["enabled"] in (0, 1) \
+            and st["visible"] in (0, 1) and 0 <= st["view"] < DEBUG_VIEWS \
+            and ("camFlags" not in st or 0 <= st["camFlags"] <= 0xF)
+
+    def cam(self) -> Optional[dict]:
+        """The camera debug fields plus anchors [(x, y)] * 4 and scales [s/256] * 4, or None on a ROM without
+        them (or when sBattleStage does not look like a live stage right now)."""
+        if not self.has_camera:
+            return None
+        st = self.read()
+        if not self.plausible(st):
+            return None
+        addr = self.stage[0]
+        a = struct.unpack("<8h", self.e.read(addr + ANCHOR_OFFSET, 16))
+        st["anchors"] = [(a[2 * i], a[2 * i + 1]) for i in range(4)]
+        st["scales"] = list(struct.unpack("<4H", self.e.read(addr + SCALE_OFFSET, 8)))
+        st["home"] = bool(st["camFlags"] & AT_HOME)
+        return st
+
+    def wait_home(self, timeout: int = 120) -> Optional[int]:
+        """Runs frames until camFlags has AT_HOME; the frames it took, or None (timeout or no camera fields)."""
+        if not self.has_camera:
+            return None
+        for f in range(timeout + 1):
+            c = self.cam()
+            if c is not None and c["home"]:
+                return f
+            self.e.run(1)
+        return None
+
     def set_flags(self, flags: int, settle: int = 10) -> bool:
         """Writes debugFlags (sBattleStage+32) and runs `settle` frames so the screen shows them: the RAM
         counters follow in about 2 frames, the picture only after about 5 (the 3D pipeline plus the
@@ -1247,6 +1490,8 @@ def _sprite_flags(sc: Scenario, e: Emu, args, flags: int, ram: Optional[StageRam
     ram = ram or StageRam(e, find_xmap(args))
     if ram.set_flags(flags):
         sc.note(f"debugFlags = {flag_names(flags)} (sBattleStage+{DEBUG_FLAGS_OFFSET} at {ram.stage[0] + DEBUG_FLAGS_OFFSET:#x})")
+        if ram.has_camera and ram.wait_home(120) is None:
+            sc.note("the camera did not reach home within 120 frames after setting debugFlags")
     else:
         sc.note(f"debugFlags {flag_names(flags)} not set: {ram.sprite_why or ram.why}; comparisons use the "
                 "scene as drawn")
@@ -1516,7 +1761,7 @@ def sc_all_backgrounds(sc: Scenario, e: Emu, args) -> None:
             if not e.in_overworld() and not e.battle_escape():
                 break
             continue
-        if e.wait_battle_menu(timeout=2400) is None:
+        if wait_first_menu(e, timeout=2400) is None:
             sc.check(f"{tag}: battle menu reached", False, why="no command menu within 2400 frames")
             break
         e.run(20)
@@ -1632,7 +1877,11 @@ def write_curve(path: pathlib.Path, rows: List[dict]) -> str:
     return str(path)
 
 
-def _give_mega(sc: Scenario, e: Emu, args) -> bool:
+def _locate_party(sc: Scenario, e: Emu, args) -> bool:
+    """Finds the live party in RAM by the save's slot 0 record (once: after a battle the live record no
+    longer matches the save, and the search would land on a stale copy)."""
+    if e.party_addr is not None:
+        return True
     from make_save import PARTY_OFFSET, PK4_PARTY_SIZE, newest_partition
     raw = pathlib.Path(args.sav).read_bytes()
     base = newest_partition(raw)
@@ -1640,6 +1889,12 @@ def _give_mega(sc: Scenario, e: Emu, args) -> bool:
         e.find_party(raw[base + PARTY_OFFSET:base + PARTY_OFFSET + PK4_PARTY_SIZE])
     except RuntimeError as exc:
         sc.check("party located in RAM", False, str(exc))
+        return False
+    return True
+
+
+def _give_mega(sc: Scenario, e: Emu, args) -> bool:
+    if not _locate_party(sc, e, args):
         return False
     panel: List[Frame] = []
     if hold_overlay(e, threshold=0.10) is None:
@@ -1673,6 +1928,8 @@ def _mega_measure(e: Emu, ram: StageRam, base_bg0: List[tuple], base_2d: List[tu
     else:
         img = e.render_layers(LAYER_BG0 if mode == 1 else LAYERS_2D, marker=mode == 1)
     row: dict = {"f": f, "mode": mode, "reg": blend_level(e)}
+    if ram.has_camera:
+        row["cam"] = ram.cam()
     st = ram.read() if ram.ok else None
     if st is not None:
         row["suppressed"], row["visible"] = st["suppressed"], st["visible"]
@@ -1702,7 +1959,7 @@ def sc_mega(sc: Scenario, e: Emu, args) -> None:
     panel: List[Frame] = []
     # Plain at day: bright sky in the measured regions, the same art every run
     started = _qb_start(sc, e, "A", QB_PLAIN, 0, panel, "plain", tod_taps=TODS.index("day"))
-    if not started or e.wait_battle_menu(timeout=2400) is None:
+    if not started or wait_first_menu(e, timeout=2400) is None:
         sc.check("plain: battle menu reached", False, "no command menu")
         sc.sheet(panel, "panel", "L+R panel", screen="top", cols=4, scale=1.0)
         return
@@ -1710,6 +1967,8 @@ def sc_mega(sc: Scenario, e: Emu, args) -> None:
     st = ram.read()
     if st is not None and not ram.validate(st):
         sc.note(ram.why)
+    cam0 = ram.cam()                         # chunk 4: the home pose before the turn (None on older ROMs)
+    home_img = scene(e.screens())
     base_bg0 = _region_pixels(e.render_layers(LAYER_BG0, marker=True))
     base_2d = _region_pixels(e.render_layers(LAYERS_2D))
     cover0 = 1.0 - sum(map(_is_backdrop, base_bg0)) / float(len(base_bg0))
@@ -1735,7 +1994,8 @@ def sc_mega(sc: Scenario, e: Emu, args) -> None:
     while e.frame - start < MEGA_RECORD:
         f = e.frame - start
         r = _mega_measure(e, ram, base_bg0, base_2d, f, f % 3, True)
-        live = r["reg"] != 0 or (r.get("suppressed", 0) & SUPPRESS_BRIGHTNESS)
+        live = r["reg"] != 0 or (r.get("suppressed", 0) & SUPPRESS_BRIGHTNESS) \
+            or (r.get("cam") is not None and not r["cam"]["home"])     # chunk 4: the Mega camera
         if live or rows:
             if not rows:
                 rows.extend(recent)          # a few frames of lead-in
@@ -1834,7 +2094,103 @@ def sc_mega(sc: Scenario, e: Emu, args) -> None:
     sc.sheet([Frame(lab(r), r["f"], r["img"]) for r in rows if r["mode"] == 1 and "img" in r], "pulse_bg0",
              "BG0 only (arena, sprites, particles; magenta = nothing drawn)", screen="top", cols=8, scale=0.5)
     sc.sheet(shots, "mega", "command menu / move list with MEGA touched", cols=2, scale=0.75)
+    _mega_camera(sc, e, args, ram, cam0, home_img, rows)
     _finish(sc, e)
+
+
+MEGA_ORBIT_DIFF = 0.05                   # least share of the scene a mid-orbit frame differs from home by
+MEGA_ORBIT_THRESHOLD = 40                # channel difference counted, after the home frame gets the frame's blend
+MEGA_ANCHOR_MOVE = 4                     # pixels the attacker's foot anchor must move (or its scale change)
+
+
+def blend_like(img: Image.Image, level: int) -> Image.Image:
+    """`img` with the DS master brightness `level` (-16..16) applied, as the 2D planes get it (the arena
+    follows within a level or two), so a dimmed or whitened frame can be compared against a plain one."""
+    if level == 0:
+        return img
+    k = abs(level) / 16.0
+    if level < 0:
+        return img.point(lambda c: int(c * (1.0 - k)))
+    return img.point(lambda c: int(c + (255 - c) * k))
+
+
+def _mega_camera(sc: Scenario, e: Emu, args, ram: StageRam, cam0: Optional[dict], home_img: Image.Image,
+                 rows: List[dict]) -> None:
+    """Chunk 4: the Mega Evolution camera (camera.md "Cinematics" and "Critic checks", mega). Uses the camera
+    fields _mega_measure read on every recorded frame, then follows the rest of the turn (Swords Dance and the
+    enemy's move) to the next command menu."""
+    if cam0 is None:
+        sc.note("mega camera checks skipped: " + (ram.camera_why or ram.why or
+                                                  "sBattleStage does not look like a live stage at the menu"))
+        return
+    # Follow the turn to the next command menu, reading the camera every 2 frames
+    tail: List[dict] = []
+    start = e.frame
+    while e.frame - start < args.max_anim_frames and not e.battle_menu_up():
+        e.run(2)
+        c = ram.cam()
+        if c is not None:
+            tail.append(c)
+    if not e.battle_menu_up():
+        e.wait_battle_menu(timeout=1800, advance_text=True)
+    e.run(10)
+    end = ram.cam()
+    cams = [r["cam"] for r in rows if r.get("cam") is not None] + tail + ([end] if end else [])
+    if not cams:
+        sc.note("mega camera checks skipped: no camera reads during the turn")
+        return
+    last = cams[-1]
+    seen = last["cinematicsSeen"]
+    sc.check("mega: cinematicsSeen has the Mega camera (bit 1) and a script camera command (bit 5)",
+             seen & (CINE_MEGA | CINE_SCRIPT) == CINE_MEGA | CINE_SCRIPT,
+             f"cinematicsSeen = {seen:#x} ({cine_names(seen)})",
+             why="the Mega Evolution script did not use the new camera commands")
+    off = [r for r in rows if r.get("cam") is not None and not r["cam"]["home"]]
+    a = BATTLER_PLAYER                        # the Mega Pokemon is the player's lead
+    h = cam0["anchors"][a]
+    move = max((max(abs(r["cam"]["anchors"][a][0] - h[0]), abs(r["cam"]["anchors"][a][1] - h[1]))
+                for r in off), default=0)
+    smax = max((r["cam"]["scales"][a] for r in off), default=HOME_SCALE)
+    sc.check("mega: the attacker's foot anchor moves with the camera", move >= MEGA_ANCHOR_MOVE or smax != HOME_SCALE,
+             f"{len(off)} recorded frames off home; anchor moved up to {move} px from {h}, scale up to {smax}/256",
+             why="no frame off home, or the anchor did not follow the camera")
+    # Mid-orbit pixels: full frames off home in a camera script, against the home frame given the same blend
+    orbit = [r for r in off if r["mode"] == 0 and "img" in r and r["cam"]["camFlags"] & CAMERA_SCRIPT]
+    orbit = orbit or [r for r in off if r["mode"] == 0 and "img" in r]
+    best, cells = None, []
+    for r in orbit[len(orbit) // 4: len(orbit) - len(orbit) // 4] or orbit:
+        img = scene(r["img"])
+        d = diff_fraction(blend_like(home_img, r["reg"]), img, threshold=MEGA_ORBIT_THRESHOLD)
+        if best is None or d > best[0]:
+            best = (d, r)
+    if best is None:
+        sc.check("mega: frames mid-orbit differ from home", False, "no full frame recorded with the camera off home")
+    else:
+        d, r = best
+        sc.check("mega: frames mid-orbit differ from home", d >= MEGA_ORBIT_DIFF,
+                 f"up to {d:.1%} of the scene differs from the home frame (given the frame's blend {r['reg']:+d}) "
+                 f"at frame {r['f']} (camFlags {cam_names(r['cam']['camFlags'])})",
+                 why="the arena did not move although the camera was off home")
+        cells = [("home", home_img), (f"home at {r['reg']:+d}", blend_like(home_img, r["reg"])),
+                 (f"@{r['f']} {d:.0%}", scene(r["img"]))]
+    snaps = max(c["guardSnaps"] for c in cams) - cam0["guardSnaps"]
+    sc.check("mega: camera home before the following move's animation (no guard snap)", snaps == 0,
+             f"guardSnaps rose by {snaps} over the turn",
+             why="an animation script started with the camera off home, so the guard had to snap it home: the "
+                 "Mega script did not end with StageCameraHome + StageCameraWait")
+    ohm = max(c["offHomeMoveFrames"] for c in cams)
+    sc.check("mega: offHomeMoveFrames == 0", ohm == 0, f"offHomeMoveFrames reached {ohm} over the turn")
+    sc.check("mega: camera home (AT_HOME) at the next command menu", end is not None and end["home"],
+             f"camFlags {end['camFlags']:#x} ({cam_names(end['camFlags'])})" if end else "no camera read at the menu")
+    frames = [Frame(f"{cam_names(r['cam']['camFlags'])} {r['cam']['anchors'][a]}", r["f"], r["img"])
+              for r in off if r["mode"] == 0 and "img" in r]
+    if frames:
+        step = max(1, len(frames) // 24)
+        sc.sheet(frames[::step], "camera", "Mega camera: full frames off home (camFlags, attacker anchor)",
+                 screen="top", cols=8, scale=0.5)
+    if cells:
+        _crop_sheet(sc, cells, "orbit_diff", "home / home with the frame's blend / most different mid-orbit frame",
+                    cols=3, zoom=1)
 
 
 # ---- lit, deformable sprites (chunk 3) -------------------------------------------------------
@@ -2187,7 +2543,8 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
     # comparisons are exact at day.
     stuck = False
     if args.sprite_moves:
-        _sprite_flags(sc, e, args, FREEZE_IDLE | NO_BLOB_SHADOWS, ram)
+        _sprite_flags(sc, e, args, FREEZE_IDLE | NO_BLOB_SHADOWS | NO_CINEMATICS, ram)
+        cam_log = (ram, [])
         base = e.record(60, every=5, label="idle")
         baseline = ([scene(f.img) for f in base], [text_box(f.img) for f in base])
         overlays: List[Frame] = []
@@ -2196,13 +2553,15 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
         cur = MOVE_ID_POUND
         for mid in args.sprite_moves:
             tag = f"arena move {mid:03d}"
-            if not _tester_move(sc, e, args, ov, baseline, cur, mid, "fwd", "A", tag, overlays, after, restore=True):
+            if not _tester_move(sc, e, args, ov, baseline, cur, mid, "fwd", "A", tag, overlays, after, restore=True,
+                                cam_log=cam_log):
                 stuck = True
                 break
             cur = mid
             if not _classic_match(sc, e, ov, tag, grade_tod, pairs):
                 stuck = True
                 break
+        camera_log_checks(sc, ram, cam_log[1], "arena sprite moves")
         sc.sheet(pairs, "moves_on_off", "after each sprite move: stage ON | stage OFF (best-aligned pair)",
                  screen="top", cols=4, scale=0.75)
         sc.sheet(overlays, "overlays", "L+R overlay before each sprite move (check the move name)",
@@ -2275,7 +2634,7 @@ def _night(sc: Scenario, e: Emu, args, ram: StageRam, tod: str, live: bool, feat
     """sprite_life's night battle: the mons must be tinted (differ from stage off) and not black."""
     cur = {"bg": STAGE_ENTRY, "tod": TODS.index(tod)}
     started = _select_entry(sc, e, ram, cur, STAGE_ENTRY, "night", "night")
-    if not started or e.wait_battle_menu(timeout=2400) is None:
+    if not started or wait_first_menu(e, timeout=2400) is None:
         sc.check("night: battle menu reached", False, why="the night Plain battle did not start")
         return
     e.run(30)
@@ -2310,6 +2669,331 @@ def _night(sc: Scenario, e: Emu, args, ram: StageRam, tod: str, live: bool, feat
     _finish(sc, e)
 
 
+# ---- camera system and cinematics (chunk 4) --------------------------------------------------
+
+CRIT_KICK_MAX = 30                       # the crit kick must be home within this many frames of the hit blink
+KICK_MIN_OFF = 3                         # ... after AT_HOME was clear for at least this many frames
+FAINT_HOME_MAX = 40                      # the faint kick must be home within this many frames of its start
+FAINT_TURNS = 4                          # Earthquake turns tried for a KO of the wild Bidoof
+FAINT_SLOT = 0                           # the debug Garchomp's Earthquake (L+R+START, see _give_mega)
+
+
+def off_runs(polls: List[tuple]) -> List[tuple]:
+    """(first, last) frame of every stretch of polls [(t, cam)] with AT_HOME clear."""
+    runs, first, prev = [], None, None
+    for t, c in polls:
+        if not c["home"]:
+            first = t if first is None else first
+        elif first is not None:
+            runs.append((first, prev))
+            first = None
+        prev = t
+    if first is not None:
+        runs.append((first, prev))
+    return runs
+
+
+def _watch_intro(sc: Scenario, e: Emu, ram: StageRam, timeout: int, label: str) -> tuple:
+    """Like wait_first_menu, but reads the camera every frame and snaps every 2nd frame while it is off home.
+    Returns (frames to the menu or None, [(t, cam)], sweep frames, camera at the menu)."""
+    start = e.frame
+    polls: List[tuple] = []
+    frames: List[Frame] = []
+    while e.frame - start <= timeout:
+        e.run(1)
+        t = e.frame - start
+        c = ram.cam()
+        if c is not None:
+            polls.append((t, c))
+            if not c["home"] and t % 2 == 0:
+                frames.append(Frame(f"{label}+{t} {cam_names(c['camFlags'])} s{c['scales'][BATTLER_ENEMY]}", e.frame,
+                                    e.screens()))
+        if t % 5 == 0 and e.battle_menu_up():
+            menu_cam = ram.cam()
+            e.run(10)                        # as wait_battle_menu: let the slide-in finish
+            if e.battle_menu_up():
+                frames.append(e.snap(f"{label} menu +{e.frame - start}"))
+                return e.frame - start, polls, frames, menu_cam
+    return None, polls, frames, None
+
+
+def _camera_turn(sc: Scenario, e: Emu, args, ram: StageRam, slot: int, what: str, stop_on=0) -> tuple:
+    """Picks move `slot` and reads the camera every frame until the command menu is back (or the battle is
+    over, or `stop_on` cinematicsSeen bits showed up and the camera has been home again for 60 frames).
+    Returns (menu back, [(t, cam)], frames every 3)."""
+    if not sc.check(f"{what}: FIGHT opened the move list", e.battle_fight(slot),
+                    why="touching FIGHT did not open the move list"):
+        return False, [], []
+    start = e.frame
+    polls: List[tuple] = []
+    anim: List[Frame] = []
+    seen_at = home_at = None
+    while e.frame - start < args.max_anim_frames:
+        e.run(1)
+        t = e.frame - start
+        c = ram.cam()
+        if c is not None:
+            polls.append((t, c))
+            if stop_on and seen_at is None and c["cinematicsSeen"] & stop_on:
+                seen_at = t
+            if seen_at is not None and home_at is None and c["home"] and t > seen_at:
+                home_at = t
+        if t % 3 == 0:
+            f = e.snap(f"{what}+{t}")
+            anim.append(f)
+            if t >= 60 and (e.battle_menu_up(f.img) or e.in_overworld(f.img)):
+                break
+        if home_at is not None and t - home_at >= 60:
+            break
+    return e.battle_menu_up(), polls, anim
+
+
+def _cam_detail(c: dict) -> str:
+    return (f"camFlags {c['camFlags']:#x} ({cam_names(c['camFlags'])}), cinematicsSeen {c['cinematicsSeen']:#x} "
+            f"({cine_names(c['cinematicsSeen'])}), guardSnaps {c['guardSnaps']}, offHomeMoveFrames "
+            f"{c['offHomeMoveFrames']}, offHomeFrames {c['offHomeFrames']}")
+
+
+def _sweep_checks(sc: Scenario, polls: List[tuple], menu_cam: Optional[dict], frames: List[Frame]) -> None:
+    """camera.md: bit 0 by the first command menu; some frame off home with the opponent's anchor scale
+    above 256; AT_HOME when the menu shows."""
+    if menu_cam is None:
+        sc.check("sweep: camera fields readable at the first command menu", False,
+                 why="sBattleStage did not look like a live stage when the menu showed")
+        return
+    seen = menu_cam["cinematicsSeen"]
+    sc.check("sweep: cinematicsSeen bit 0 set by the first command menu", bool(seen & CINE_SWEEP),
+             f"cinematicsSeen {seen:#x} ({cine_names(seen)})")
+    off = [(t, c) for t, c in polls if not c["home"]]
+    close = [(t, c) for t, c in off if c["scales"][BATTLER_ENEMY] > HOME_SCALE]
+    runs = off_runs(polls)
+    peak = max((c["scales"][BATTLER_ENEMY] for _, c in off), default=None)
+    sc.check("sweep: a frame off home with the opponent's anchor scale above 256", bool(close),
+             f"{len(off)} frames off home in {len(runs)} stretch(es) {runs[:3]}; {len(close)} with the opponent's "
+             f"scale above 256 (peak {peak}/256)" if off else "the camera never left home before the menu",
+             why="the sweep did not push in on the opponent (or the anchors do not follow the camera)")
+    sc.check("sweep: camera home (AT_HOME) when the menu shows", menu_cam["home"], _cam_detail(menu_cam),
+             why="the command menu must wait for the camera to reach home (90-frame cap, then a snap)")
+    if runs:
+        first, last = runs[0]
+        sc.note(f"sweep: off home from intro frame {first} to {last} ({last - first + 1} frames; the path is "
+                "28 + 10 + 20 = 58)")
+
+
+def _crit_checks(sc: Scenario, polls: List[tuple], what: str) -> None:
+    """camera.md: with CRIT_KICK_ON_HIT a damaging move sets bit 3, and AT_HOME clears for a few frames and is
+    back within 30 frames of the hit blink (the kick starts at the blink; wobbleMask, when set, marks it too)."""
+    if not polls:
+        sc.check(f"{what}: camera read during the turn", False, why="no live sBattleStage during the turn")
+        return
+    last = polls[-1][1]
+    crit_at = next((t for t, c in polls if c["cinematicsSeen"] & CINE_CRIT), None)
+    sc.check(f"{what}: cinematicsSeen bit 3 (crit kick) set", crit_at is not None, _cam_detail(last),
+             why="the hit blink did not play the crit kick although CRIT_KICK_ON_HIT was set")
+    if crit_at is None:
+        return
+    runs = [r for r in off_runs(polls) if r[1] >= crit_at - 1]
+    wob = next((t for t, c in polls if c["wobbleMask"] and crit_at - 8 <= t <= crit_at + 2), None)
+    blink = min(crit_at, wob) if wob is not None else crit_at
+    if not runs:
+        sc.check(f"{what}: AT_HOME clears during the kick", False,
+                 f"bit 3 set at turn frame {crit_at}, but AT_HOME never cleared after it")
+        return
+    first, last_off = runs[0]
+    n_off = last_off - first + 1
+    back = last_off + 1 - blink
+    sc.check(f"{what}: AT_HOME clears for at least {KICK_MIN_OFF} frames", n_off >= KICK_MIN_OFF,
+             f"off home frames {first}..{last_off} ({n_off} frames); bit 3 at {crit_at}"
+             + (f", wobble at {wob}" if wob is not None else ""))
+    sc.check(f"{what}: home again within {CRIT_KICK_MAX} frames of the hit blink", 0 <= back <= CRIT_KICK_MAX,
+             f"home at turn frame {last_off + 1}, {back} frames after the blink (frame {blink})",
+             why="the kick lasts at most 24 frames by the contract")
+    long = [r for r in runs[1:] if r[1] - r[0] + 1 > CRIT_KICK_MAX]
+    if len(runs) > 1:
+        sc.check(f"{what}: later kicks (one per hit blink) are as short", not long,
+                 f"{len(runs) - 1} more stretch(es) off home: {runs[1:4]}", warn_only=True)
+
+
+def _after_turn(e: Emu, timeout: int = 1800) -> str:
+    """After a turn that did not bring the command menu back: taps B through the text until the menu
+    ("menu") or the overworld ("ended": the battle is over, the wild mon fainted) shows, else "stuck"."""
+    start = e.frame
+    while e.frame - start < timeout:
+        if e.in_overworld():
+            e.run(30)
+            return "ended"
+        if e.battle_menu_up():
+            return "menu"
+        e.tap("B", 25)
+    return "stuck"
+
+
+def _faint_battle(sc: Scenario, e: Emu, args, ram: StageRam) -> None:
+    """A second Plain battle with the debug Garchomp (L+R+START) leading: Earthquake on the wild Bidoof until it
+    faints. camera.md: the faint sets bit 4 and the camera is home again within 40 frames. Without the camera
+    fields the battle is still played (the flow gets exercised) and the checks are skipped."""
+    live = ram.has_camera
+    if not _give_mega(sc, e, args):
+        sc.warn("faint kick", "not tested: the debug party (L+R+START) did not give the Garchomp")
+        return
+    panel: List[Frame] = []
+    started = _qb_start(sc, e, "A", 0, 0, panel, "faint battle")      # the panel keeps Plain and the time of day
+    waited = wait_first_menu(e, timeout=2400) if started else None
+    if not sc.check("faint battle: battle menu reached", waited is not None,
+                    f"{waited} frames" if waited is not None else "no command menu"):
+        sc.sheet(panel, "panel_faint", "L+R panel before the faint battle", screen="top", cols=4, scale=1.0)
+        return
+    e.run(30)
+    if not ram.set_flags(0):                 # kicks on (and NO_CINEMATICS off)
+        sc.note("faint battle: debugFlags not writable here: " + (ram.camera_why or ram.sprite_why or ram.why))
+    frames: List[Frame] = []
+    fainted, state = None, "menu"
+    for turn in range(1, FAINT_TURNS + 1):
+        back, polls, anim = _camera_turn(sc, e, args, ram, FAINT_SLOT, f"faint turn {turn}", stop_on=CINE_FAINT)
+        frames += anim
+        faint_at = next((t for t, c in polls if c["cinematicsSeen"] & CINE_FAINT), None)
+        state = "menu" if back else _after_turn(e)
+        if faint_at is not None:
+            fainted = (turn, faint_at, polls)
+            break
+        if state != "menu":
+            break
+    sc.sheet(frames, "faint", "faint battle: Earthquake turns, every 3 frames (deduped)", screen="top",
+             dedupe_screen="top")
+    if state != "ended":                     # still battling (no faint): RUN (and B through any text)
+        e.battle_run(timeout=2400)
+    sc.check("faint battle: back in the overworld", e.in_overworld(),
+             f"after the turns: {state}", warn_only=True)
+    if not live:
+        sc.note("faint kick checks skipped (no camera fields); the battle " +
+                ("ended with the wild mon fainting" if state == "ended" else f"did not end in a faint ({state})"))
+        return
+    if fainted is None:
+        if state == "ended":
+            sc.check("faint: cinematicsSeen bit 4 (faint kick) set", False,
+                     "the battle ended (the wild mon fainted) without bit 4 ever being read",
+                     why="the fainting sequence did not play the faint kick")
+        else:
+            sc.warn("faint: cinematicsSeen bit 4 (faint kick) set",
+                    f"no faint after {FAINT_TURNS} Earthquake turns (the wild mon survived, dodged or the turns "
+                    f"did not play: {state}), so the faint kick could not be tested")
+        return
+    turn, faint_at, polls = fainted
+    sc.check("faint: cinematicsSeen bit 4 (faint kick) set", True, f"turn {turn}, turn frame {faint_at}")
+    after = [(t, c) for t, c in polls if t >= faint_at]
+    runs = off_runs(after)
+    home_at = next((t for t, c in after if c["home"] and (not runs or t > runs[0][1])), None)
+    if not runs:
+        sc.warn("faint: the camera leaves home for the kick", f"AT_HOME never cleared after bit 4 (frame {faint_at})")
+    took = None if home_at is None else home_at - faint_at
+    sc.check(f"faint: camera home again within {FAINT_HOME_MAX} frames", took is not None and took <= FAINT_HOME_MAX,
+             f"off home {runs[:2]}; home at turn frame {home_at}, {took} frames after the faint kick started"
+             if took is not None else f"not home within {len(after)} polled frames after bit 4",
+             why="the faint kick lasts at most 28 frames by the contract")
+    ohm = max(c["offHomeMoveFrames"] for _, c in polls)
+    sc.check("faint battle: offHomeMoveFrames == 0", ohm == 0, f"max {ohm} over the fainting turn")
+
+
+def sc_camera(sc: Scenario, e: Emu, args) -> None:
+    """Chunk 4 (docs/living_battle_stage/camera.md): the battle-start sweep, no kicks with NO_CINEMATICS, a
+    tester move at home, the crit kick (CRIT_KICK_ON_HIT) and the faint kick (a second battle with the debug
+    Garchomp). Needs a ROM whose sBattleStage has the camera fields (>= 96 bytes in the xMAP); without them
+    the whole flow still plays, with one WARN and the camera checks skipped."""
+    if not boot(sc, e):
+        return
+    ram = StageRam(e, find_xmap(args))
+    live = ram.has_camera
+    _locate_party(sc, e, args)               # now, while the live party still matches the save (faint battle)
+    panel: List[Frame] = []
+    steps = STAGE_ENTRY if STAGE_ENTRY <= QB_ENTRIES // 2 else STAGE_ENTRY - QB_ENTRIES
+    tod = "day" if args.stage_tod == "clock" else args.stage_tod     # day unless --stage-tod says otherwise
+    if not _qb_start(sc, e, "A", steps, 0, panel, "plain", tod_taps=TODS.index(tod)):
+        sc.sheet(panel, "panel", "L+R quick-battle panel", screen="top", cols=4, scale=1.0)
+        return
+    waited, polls, sweep, menu_cam = _watch_intro(sc, e, ram, 2400 + SWEEP_MARGIN, "intro")
+    if not sc.check("plain: battle menu reached", waited is not None,
+                    f"{waited} frames" if waited is not None else f"no command menu within {2400 + SWEEP_MARGIN} frames"):
+        return
+    if live:
+        sc.sheet(sweep, "sweep", f"battle-start sweep ({tod}): frames off home every 2nd frame, then the menu "
+                 "(camFlags, opponent scale)", screen="top", cols=8, scale=0.5)
+        _sweep_checks(sc, polls, menu_cam, sweep)
+    else:
+        sc.warn("camera debug fields present", ram.camera_why or ram.why)
+        sc.note("camera checks skipped: this ROM (or xMAP) has no chunk 4 camera fields; the flow still plays")
+    e.run(30)
+
+    # -- no kicks: NO_CINEMATICS, then a damaging move (False Swipe never KOs) must not move the camera
+    if not ram.set_flags(NO_CINEMATICS) and live:
+        sc.check("debugFlags writable", False, ram.why)
+        _finish(sc, e)
+        return
+    before = ram.cam()
+    back, polls, anim = _camera_turn(sc, e, args, ram, FALSE_SWIPE_SLOT, "no-kick turn")
+    sc.sheet(anim, "no_kick", "NO_CINEMATICS: False Swipe + enemy turn, every 3 frames (deduped)", screen="top",
+             dedupe_screen="top")
+    after = ram.cam()
+    if before is not None and after is not None:
+        sc.check("no kicks: offHomeFrames unchanged over the turn with NO_CINEMATICS",
+                 after["offHomeFrames"] == before["offHomeFrames"],
+                 f"offHomeFrames {before['offHomeFrames']} -> {after['offHomeFrames']}; {_cam_detail(after)}",
+                 why="a kick (or something else) moved the camera although NO_CINEMATICS was set")
+        sc.check("no kicks: no crit or faint bit", not after["cinematicsSeen"] & (CINE_CRIT | CINE_FAINT),
+                 f"cinematicsSeen {after['cinematicsSeen']:#x} ({cine_names(after['cinematicsSeen'])})")
+    if not sc.check("no-kick turn: menu returned", back or _after_turn(e) == "menu",
+                    why=f"no command menu within {args.max_anim_frames} frames"):
+        return
+
+    # -- a tester move plays at home: AT_HOME on every frame, offHomeMoveFrames stays 0
+    ov = Overlay(e)
+    if ov.show():
+        e.run(4)
+        start = e.frame
+        e.hold("A", 6, 0)                    # the tester opens on move 001 (Pound)
+        e.release("L+R")
+        tpolls: List[tuple] = []
+        while e.frame - start < args.anim_frames:
+            e.run(1)
+            c = ram.cam()
+            if c is not None:
+                tpolls.append((e.frame - start, c))
+            if e.frame - start >= 12 and (e.frame - start) % 3 == 0 and not ov.up():
+                break
+        e.run(90)
+        if live:
+            off = [t for t, c in tpolls if not c["home"]]
+            sc.check("tester Pound: camera home on every frame of the move", bool(tpolls) and not off,
+                     f"{len(tpolls)} frames read" + (f"; off home at {off[:6]}" if off else ""))
+            ohm = max((c["offHomeMoveFrames"] for _, c in tpolls), default=0)
+            sc.check("tester Pound: offHomeMoveFrames == 0", ohm == 0, f"max {ohm}")
+    else:
+        sc.warn("tester Pound at home", "the L+R overlay did not come up; not tested")
+    if not e.battle_menu_up():
+        e.wait_battle_menu(timeout=1800, advance_text=True)
+
+    # -- crit kick: CRIT_KICK_ON_HIT makes every hit blink play it (wobble stays on to mark the blink)
+    ram.set_flags(CRIT_KICK_ON_HIT)
+    back, polls, anim = _camera_turn(sc, e, args, ram, FALSE_SWIPE_SLOT, "crit turn")
+    sc.sheet(anim, "crit", "CRIT_KICK_ON_HIT: False Swipe + enemy turn, every 3 frames (deduped)", screen="top",
+             dedupe_screen="top")
+    if live:
+        _crit_checks(sc, polls, "crit kick")
+        n_off = sum(1 for _, c in polls if not c["home"])
+        if n_off:
+            sc.note(f"crit turn: {n_off} frames off home in {off_runs(polls)[:4]}")
+        if polls:
+            ohm = max(c["offHomeMoveFrames"] for _, c in polls)
+            sc.check("battle 1: offHomeMoveFrames == 0", ohm == 0, _cam_detail(polls[-1][1]))
+    if not back:
+        _after_turn(e)
+    ram.set_flags(0)
+    if not run_away(sc, e):
+        return
+
+    # -- faint kick, in a second battle
+    _faint_battle(sc, e, args, ram)
+
+
 SCENARIOS: Dict[str, Callable] = {
     "boot": sc_boot,
     "wild_battle": sc_wild_battle,
@@ -2325,6 +3009,7 @@ SCENARIOS: Dict[str, Callable] = {
     "all_backgrounds": sc_all_backgrounds,
     "mega": sc_mega,
     "sprite_life": sc_sprite_life,
+    "camera": sc_camera,
 }
 DEFAULT_SCENARIOS = ["boot", "wild_battle", "quick_battle", "move_tester", "stage_toggle"]
 
@@ -2512,9 +3197,10 @@ def run_child(cmd: List[str], timeout: int, log_path: pathlib.Path):
 
 
 def run_in_process(name: str, outdir: pathlib.Path, args) -> Scenario:
-    global CLOCK_PIN
+    global CLOCK_PIN, XMAP_PATH
     sc = Scenario(name, outdir)
     xmap = find_xmap(args)
+    XMAP_PATH = xmap
     addr = read_xmap(xmap).get("sDebugClockHour") if xmap and 0 <= args.clock_hour < 24 else None
     CLOCK_PIN = (addr[0], args.clock_hour) if addr else None
     if 0 <= args.clock_hour < 24 and not addr:
