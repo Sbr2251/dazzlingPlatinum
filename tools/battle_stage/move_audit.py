@@ -175,7 +175,7 @@ FUNC_TAGS = {
           note="AcidArmor puts BG2 above BG0 itself"),
     13: F([SR, TINT]),                            # Growth
     14: F([XY, SR]), 15: F([XY, SR]),             # Meditate, Teleport
-    16: F([TINT, "switch_bg"], note="Flash fades the backdrop palette (hidden by the arena)"),
+    16: F([TINT, "switch_bg"], note="Flash fades the backdrop palette (the arena follows it)"),
     17: F([OAM, BLEND]),                          # NightShadeAttacker
     18: F([OAM, TINT, XY]),                       # NightShadeDefender
     19: F([XY, SR]),                              # Splash
@@ -193,7 +193,7 @@ FUNC_TAGS = {
     29: F([XY]), 30: F([XY]),                     # Return, VitalThrow
     31: F([XY, SR]),                              # Swagger
     32: F([OAM, BLEND, TINT]),                    # Memento
-    33: F(["switch_bg"], note="FadeBg: backdrop palette fade, hidden by the arena"),
+    33: F(["switch_bg"], note="FadeBg: backdrop palette fade, the arena follows it"),
     34: F([TINT]),                                # FadeBattlerSprite
     35: F([OAM, BLEND, SR]),                      # ScalePokemonSprite
     36: F([XY]),                                  # Shake (BG3 too when targets has BATTLE_ANIM_BACKGROUND)
@@ -230,7 +230,7 @@ FUNC_TAGS = {
     70: F([OAM, BLEND, TINT]),                    # RolePlay
     71: F([XY]),                                  # Snatch
     72: F(["particles"]), 73: F(["particles"]),   # RevolveEmitter, MoveEmitterViewportTop
-    74: F(["switch_bg"], note="SetBgGrayscale: backdrop palette, hidden by the arena"),
+    74: F(["switch_bg"], note="SetBgGrayscale: backdrop palette, the arena follows it"),
     75: F([WIN], note="WIN0 hides OBJ in a rect; every BG stays on"),
     76: F(["hblank_wave", "switch_bg"], wave="BG3", note="ScrollSwitchedBg: per-line BG3 wave"),
     77: F([XY]),                                  # MoveBattlerOnOrOffScreen
@@ -575,8 +575,9 @@ def render_md(recs, infos):
     L.append("")
     quiet = [r for r in recs if "switch_bg" in r["mechanisms"] and "bg_switch" not in r["suppress"]]
     L.append(f"`switch_bg` without `bg_switch` ({len(quiet)} moves): backdrop palette fades (FadeBg,")
-    L.append("SetBgGrayscale, Flash, Earthquake) or the Fake Out curtain. Nothing is suppressed today, and")
-    L.append("the arena hides the effect: medium, except Fake Out, where the whole effect is lost.")
+    L.append("SetBgGrayscale, Flash, Earthquake) or the Fake Out curtain. Nothing is suppressed. The arena's")
+    L.append("textures take the faded BG palette and the stage fades its fog and light along (chunk 6")
+    L.append("backdrop_fade), so the fades show on the arena; Fake Out's curtain is category C.")
     L.append("`sprite_bg_blend` is always OBJ-first alpha with BG0|BG3 as the 2nd target; no anim code")
     L.append("makes BG0 a 1st target (F4 then means: check the arena stays opaque).")
     L.append("")

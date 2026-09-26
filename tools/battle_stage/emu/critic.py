@@ -915,6 +915,11 @@ SWITCHBG_MOVES = [
 ]
 # Chunk 5 (compat fields): Acid Armor's BG2 mon copy may keep the arena up and lift BG2 (F1) instead of fading
 SWITCHBG_COPY_MOVES = {151}
+# Chunk 6 (backdrop_fade): a FadeBg BASE or SetBgGrayscale backdrop keeps the arena up and fades it along (the
+# arena textures take the faded BG palette, the stage fades its fog and light), so no fade and no hiddenFrames
+SWITCHBG_KEPT_MOVES = {101, 399}
+# the scene's mean brightness or saturation must drop to this share of the pre-move frame's at some point
+SWITCHBG_KEPT_DIM = 0.85
 RESTORE_PASS, RESTORE_WARN = 0.02, 0.08
 DEBUG_VIEWS = 4
 
@@ -1137,6 +1142,8 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
                  warn_only=d <= RESTORE_WARN, why="the backdrop did not come back (see sheet_after)")
         t = min_diff(boxes, text_box(post.img))
         sc.check(f"{tag}: battle text restored", t < 0.02, f"{t:.1%} of the text box differs")
+        if mid in SWITCHBG_KEPT_MOVES:
+            _switchbg_dimmed(sc, tag, pre, anim)
         if compat:
             _switchbg_compat(sc, tag, mid, ram, before, pre_frame.img, polls, fade, fades, audit.get(mid))
     camera_log_checks(sc, ram, cam_log[1], "switchbg moves")
@@ -1147,11 +1154,28 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
     _finish(sc, e)
 
 
+def _saturation(img: Image.Image) -> float:
+    return ImageStat.Stat(img.convert("HSV")).mean[1]
+
+
+def _switchbg_dimmed(sc: Scenario, tag: str, pre: Image.Image, anim: List[Frame]) -> None:
+    """Chunk 6: a kept backdrop_fade move darkens (FadeBg to black) or grays (SetBgGrayscale) the whole scene,
+    arena included, instead of hiding the arena."""
+    b0, s0 = max(mean_brightness(pre), 1.0), max(_saturation(pre), 1.0)
+    bright = [mean_brightness(scene(f.img)) / b0 for f in anim] or [1.0]
+    sat = [_saturation(scene(f.img)) / s0 for f in anim] or [1.0]
+    sc.check(f"{tag}: scene darkened or grayed with the arena up", min(bright) <= SWITCHBG_KEPT_DIM or
+             min(sat) <= SWITCHBG_KEPT_DIM,
+             f"mean brightness down to {min(bright):.0%}, saturation down to {min(sat):.0%} of the pre-move frame; "
+             f"needs {SWITCHBG_KEPT_DIM:.0%} or less", why="the backdrop fade did not reach the scene")
+
+
 def _switchbg_compat(sc: Scenario, tag: str, mid: int, ram: StageRam, before: Optional[dict], pre: Image.Image,
                      polls: List[tuple], fade: List[Frame], fades: List[Frame], m: Optional[dict]) -> None:
     """Chunk 5: the move background came in by a fade (fades rose, hardPops did not) and the arena is back at
     alpha 31 90 frames later. Acid Armor may instead keep the arena up for its lifted BG2 copy (F1). The fade is
-    a FAIL only where the audit's `suppress` list has bg_switch (fade_required), else a WARN."""
+    a FAIL only where the audit's `suppress` list has bg_switch (fade_required), else a WARN. Chunk 6: the
+    backdrop_fade moves (SWITCHBG_KEPT_MOVES) must keep the arena up instead: no fade, no hiddenFrames."""
     after_c = ram.compat()
     d = compat_delta(before, after_c)
     if d is None:
@@ -1163,7 +1187,11 @@ def _switchbg_compat(sc: Scenario, tag: str, mid: int, ram: StageRam, before: Op
     sc.check(f"{tag}: arenaAlpha 31 after the move", after_c["arenaAlpha"] == ARENA_ALPHA_FULL,
              f"arenaAlpha {after_c['arenaAlpha']}, visible {after_c['visible']}, 90 frames after the move",
              why="the arena was left faded or hidden")
-    if mid in SWITCHBG_COPY_MOVES:
+    if mid in SWITCHBG_KEPT_MOVES:
+        sc.check(f"{tag}: arena kept up (no fade, no hiddenFrames)", d["fades"] == 0 and d["hiddenFrames"] == 0,
+                 f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}",
+                 why="the arena faded or hid for a backdrop palette fade it should follow instead")
+    elif mid in SWITCHBG_COPY_MOVES:
         sc.check(f"{tag}: faded out or lifted its BG2 copy", d["fades"] > 0 or d["liftedBg2Frames"] > 0,
                  f"fades +{d['fades']}, liftedBg2Frames +{d['liftedBg2Frames']}", warn_only=True,
                  why="neither a fade (F6) nor a lifted copy (F1)")
