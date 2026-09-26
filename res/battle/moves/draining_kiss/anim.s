@@ -3,17 +3,22 @@
 L_0:
     LoadParticleResource 0, attract_spa
     LoadParticleResource 1, absorb_spa
+    LoadParticleResource 2, lovely_kiss_spa
     Func_FadeBg FADE_BG_TYPE_BASE, 1, 0, 10, BATTLE_COLOR_LIGHT_RED
     WaitForAnimTasks
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 16, 0, 4
     WaitForAnimTasks
+    PlaySoundEffectR SEQ_SE_DP_W213
+    CreateEmitter 2, 0, EMITTER_CB_SET_POS_TO_DEFENDER
+    CreateEmitter 2, 1, EMITTER_CB_SET_POS_TO_DEFENDER
+    Delay 8
     PlaySoundEffectR SEQ_SE_DP_W204
     CreateEmitter 0, 0, EMITTER_CB_SET_POS_TO_DEFENDER
     Func_FadeBattlerSprite BATTLE_ANIM_DEFENDER, 0, 1, BATTLE_COLOR_LIGHT_RED, 14, 0
     Func_Shake 2, 0, 1, 2, BATTLE_ANIM_BATTLER_SPRITE_DEFENDER
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, -16, 0, 4
     WaitForAnimTasks
-    Delay 10
+    Delay 4
     CreateEmitter 1, 0, EMITTER_CB_GENERIC
     SetExtraParams 0, 2, 2, 1, 16, 0
     SetExtraParams 2, 0, 0, 0, 0
@@ -26,6 +31,7 @@ L_0:
     WaitForAllEmitters
     UnloadParticleSystem 0
     UnloadParticleSystem 1
+    UnloadParticleSystem 2
     WaitForAnimTasks
     Func_FadeBg FADE_BG_TYPE_BASE, 1, 10, 0, BATTLE_COLOR_LIGHT_RED
     WaitForAnimTasks

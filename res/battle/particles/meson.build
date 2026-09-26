@@ -488,6 +488,7 @@ battle_particle_files = files(
     'shadow_force.spa',
     'totem_aura.spa',
     'mega_evolution.spa',
+    'moonblast.spa',
 )
 
 battle_particles_basename = 'battle_particles'
