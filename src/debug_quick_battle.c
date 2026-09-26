@@ -31,6 +31,7 @@
 #include "player_avatar.h"
 #include "pokemon.h"
 #include "render_window.h"
+#include "rtc.h"
 #include "save_player.h"
 #include "sound_playback.h"
 #include "string_gf.h"
@@ -47,6 +48,7 @@
 #define DEFAULT_WILD_LEVEL  50
 #define DEBUG_MON_FULL_SLOT (MAX_PARTY_SIZE - 1)
 #define STRING_SIZE         64
+#define PANEL_WIDTH         (27 * 8)
 
 enum QuickBattleState {
     QUICK_BATTLE_STATE_MENU = 0,
@@ -199,8 +201,22 @@ static const u16 sOpponentSpecies[] = {
     SPECIES_TORTERRA,
 };
 
+// Entry 0 (not in this table) keeps the clock's time of day. The others force one, which picks
+// the backdrop palette of the outdoor backgrounds and the arena's lighting.
+static const struct {
+    u8 timeOfDay;
+    const char *name;
+} sTimeOfDayChoices[] = {
+    { TIMEOFDAY_DAY, "Day" },
+    { TIMEOFDAY_TWILIGHT, "Twilight" },
+    { TIMEOFDAY_NIGHT, "Night" },
+};
+
+#define NUM_TIME_OF_DAY_CHOICES (NELEMS(sTimeOfDayChoices) + 1)
+
 // Kept in main so the selection survives the overlay reloads around each battle.
 static u8 sBackgroundChoice = 0;
+static u8 sTimeOfDayChoice = 0;
 static u8 sOpponentChoice = 0;
 static u8 sTotemChoice = TOTEM_ENCOUNTER_HITMONLEE;
 
@@ -317,6 +333,11 @@ static void DrawPanel(FieldSystem *fieldSystem, DebugQuickBattle *quickBattle)
     Text_AddPrinterWithParams(&quickBattle->window, FONT_MESSAGE, line, 0, 0, TEXT_SPEED_INSTANT, NULL);
     String_Clear(line);
 
+    // Time of day, right-aligned on the first line.
+    String_AppendAscii(line, sTimeOfDayChoice == 0 ? "Clock" : sTimeOfDayChoices[sTimeOfDayChoice - 1].name);
+    Text_AddPrinterWithParams(&quickBattle->window, FONT_MESSAGE, line, PANEL_WIDTH - Font_CalcStringWidth(FONT_MESSAGE, line, 0), 0, TEXT_SPEED_INSTANT, NULL);
+    String_Clear(line);
+
     if (quickBattle->status != NULL) {
         String_AppendAscii(line, quickBattle->status);
     } else {
@@ -391,6 +412,10 @@ static void StartBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBat
         FieldBattleDTO_SetDebugBackgroundOverride(pair->background, pair->terrain);
     }
 
+    if (sTimeOfDayChoice != 0) {
+        FieldBattleDTO_SetDebugTimeOfDayOverride(sTimeOfDayChoices[sTimeOfDayChoice - 1].timeOfDay);
+    }
+
     if (totem) {
         Encounter_NewTotemBattle(task, sTotemChoice, &quickBattle->battleResult);
     } else {
@@ -428,7 +453,7 @@ static BOOL FieldTask_DebugQuickBattle(FieldTask *task)
             return FALSE;
         }
 
-        if (pressed & (PAD_KEY | PAD_BUTTON_B | PAD_BUTTON_START)) {
+        if (pressed & (PAD_KEY | PAD_BUTTON_B | PAD_BUTTON_START | PAD_BUTTON_SELECT)) {
             quickBattle->status = NULL;
             redraw = TRUE;
         }
@@ -446,6 +471,8 @@ static BOOL FieldTask_DebugQuickBattle(FieldTask *task)
         } else if (pressed & PAD_BUTTON_START) {
             quickBattle->status = GiveMegaMon(fieldSystem);
             Sound_PlayEffect(SEQ_SE_CONFIRM);
+        } else if (pressed & PAD_BUTTON_SELECT) {
+            sTimeOfDayChoice = (sTimeOfDayChoice + 1) % NUM_TIME_OF_DAY_CHOICES;
         }
 
         if (redraw) {
