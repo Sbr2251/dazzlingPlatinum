@@ -3442,6 +3442,394 @@ def sc_move_audit(sc: Scenario, e: Emu, args) -> None:
                  "5 frames)", screen="top", cols=8, scale=1.0)
 
 
+# ---- per-move redo (chunk 6) -----------------------------------------------------------------
+
+REDO_DIR = HERE.parents[2] / "docs" / "living_battle_stage" / "redo"
+MOVES_TXT = HERE.parents[2] / "generated" / "moves.txt"
+REDO_EXPECTS = ("kept", "fade")
+REDO_MIN_CHANGE = 3.0                    # percent of the scene (HUD masked) the effect must change (min_change_pct)
+REDO_OFFSETS = 8                         # side-by-side sheet: frames per row
+REDO_SCALE = 0.75                        # side-by-side sheet: cell scale (192x144 per top screen)
+REDO_INDEX_CELL = (64, 48)               # index.png: one top screen
+REDO_ALPHA_WAIT = 90                     # frames to wait for arenaAlpha 31 after the stage is switched back on
+
+
+def move_name(mid: int) -> str:
+    """MOVE_EARTHQUAKE -> EARTHQUAKE from generated/moves.txt (line mid + 1), or "move N"."""
+    try:
+        lines = MOVES_TXT.read_text().splitlines()
+        if 0 <= mid < len(lines) and lines[mid].startswith("MOVE_"):
+            return lines[mid][5:]
+    except OSError:
+        pass
+    return f"move {mid}"
+
+
+def load_redo(path: Optional[str]) -> tuple:
+    """Reads every <category>.json in the redo directory. Returns (entries by id, categories with a file,
+    files read, problems). A move listed by several categories is merged: its categories are all of them,
+    expect is fade if any file says fade, min_change_pct the largest, needs the union minus its own
+    categories."""
+    d = pathlib.Path(path) if path else REDO_DIR
+    by_id: Dict[int, dict] = {}
+    cats: set = set()
+    files: List[str] = []
+    problems: List[str] = []
+    for p in sorted(d.glob("*.json")) if d.is_dir() else []:
+        try:
+            data = json.loads(p.read_text())
+        except (OSError, ValueError) as exc:
+            problems.append(f"{p.name} does not parse: {exc}")
+            continue
+        if isinstance(data, dict):                    # tolerate {"moves": [...]}
+            data = data.get("moves", [])
+        good = [m for m in data if isinstance(m, dict) and isinstance(m.get("id"), int)] \
+            if isinstance(data, list) else []
+        if not good:
+            problems.append(f"{p.name} has no move entries")
+            continue
+        files.append(p.name)
+        cats.add(p.stem)
+        for m in good:
+            cat = str(m.get("category") or p.stem)
+            expect = m.get("expect", "kept")
+            if expect not in REDO_EXPECTS:
+                problems.append(f"{p.name}: move {m['id']} has expect {expect!r}; read as kept")
+                expect = "kept"
+            try:
+                pct = float(m.get("min_change_pct", REDO_MIN_CHANGE))
+            except (TypeError, ValueError):
+                pct = REDO_MIN_CHANGE
+            cur = by_id.setdefault(m["id"], {"id": m["id"], "name": m.get("name") or move_name(m["id"]),
+                                             "categories": [], "expect": "kept", "needs": [],
+                                             "min_change_pct": pct, "effect": []})
+            if cat not in cur["categories"]:
+                cur["categories"].append(cat)
+            if expect == "fade":
+                cur["expect"] = "fade"
+            cur["min_change_pct"] = max(cur["min_change_pct"], pct)
+            cur["needs"] += [str(n) for n in m.get("needs", []) or [] if str(n) not in cur["needs"]]
+            if m.get("effect"):
+                cur["effect"].append(str(m["effect"]))
+    for m in by_id.values():
+        m["needs"] = [n for n in m["needs"] if n not in m["categories"]]
+        m["effect"] = " | ".join(m["effect"])
+    return by_id, cats, files, problems
+
+
+def parse_redo_moves(text: str) -> tuple:
+    """--moves for move_redo: IDs as for move_audit, each optionally with :kept or :fade. (ids, {id: expect})."""
+    ids: List[int] = []
+    expect: Dict[int, str] = {}
+    for part in text.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        mid, _, exp = part.partition(":")
+        ids.append(int(mid))
+        if exp:
+            if exp not in REDO_EXPECTS:
+                raise ValueError(f"--moves {part}: expect must be one of {', '.join(REDO_EXPECTS)}")
+            expect[int(mid)] = exp
+    return ids, expect
+
+
+def redo_plan(sc: Scenario, args) -> tuple:
+    """The moves move_redo plays and the categories that have a redo file. With --moves the redo files
+    still give each listed move's expectations; a move not in them is expect kept (or its :fade / :kept)."""
+    by_id, cats, files, problems = load_redo(args.redo)
+    src = args.redo or str(REDO_DIR.relative_to(HERE.parents[2]))
+    for p in problems:
+        sc.warn("redo files read", p)
+    if files:
+        sc.note(f"redo files in {src}: {', '.join(files)} ({len(by_id)} moves); categories with a file: "
+                f"{', '.join(sorted(cats))}")
+    else:
+        sc.note(f"no redo files in {src}")
+    if args.moves_given:
+        plan = []
+        for mid in args.moves:
+            m = dict(by_id.get(mid) or {"id": mid, "name": move_name(mid), "categories": [], "expect": "kept",
+                                        "needs": [], "min_change_pct": REDO_MIN_CHANGE, "effect": ""})
+            if mid in args.move_expect:
+                m["expect"] = args.move_expect[mid]
+            plan.append(m)
+        sc.note("--moves overrides the redo list: " + ", ".join(f"{m['id']} ({m['expect']})" for m in plan))
+    else:
+        plan = sorted(by_id.values(), key=lambda m: m["id"])
+    # Substitute and Transform leave their look behind for the rest of the battle: play them last
+    plan = [m for m in plan if m["id"] not in LASTING_MOVES] + [m for m in plan if m["id"] in LASTING_MOVES]
+    return plan, cats
+
+
+def redo_offsets(ts: List[int], n: int = REDO_OFFSETS) -> List[int]:
+    """n of the recorded offsets (every 3 frames from the first after L+R+A to the end), evenly spaced."""
+    ts = sorted(ts)
+    if len(ts) <= n:
+        return ts
+    return [ts[round(i * (len(ts) - 1) / float(n - 1))] for i in range(n)]
+
+
+def _frames_at(anim: List[Frame], offsets: List[int], label: str) -> List[Frame]:
+    """The frame at each offset (the latest earlier one when the run ended sooner), relabelled."""
+    by_t = {_label_t(f): f for f in anim}
+    ts = sorted(by_t)
+    out = []
+    for t in offsets:
+        got = t if t in by_t else max([x for x in ts if x <= t] or ts[:1])
+        f = by_t[got]
+        out.append(Frame(f"{label} +{t}" + ("" if got == t else f" (+{got}, ended)"), f.frame, f.img))
+    return out
+
+
+def redo_sheet(sc: Scenario, mid: int, tod: str, title: str, on: List[Frame], off: List[Frame]) -> Optional[str]:
+    """move_redo/<id>_<tod>.png: the stage frames over the classic ones, plus the full-size frames."""
+    frames = on + off
+    if not frames:
+        return None
+    cols = max(len(on), len(off), 1)
+    width = cols * (int(256 * REDO_SCALE) + 2)
+    path = contact_sheet(frames, sc.dir / f"{mid}_{tod}.png", title[: width // 6], screen="top", cols=cols,
+                         scale=REDO_SCALE)
+    fdir = sc.dir / "frames" / f"{mid}_{tod}"
+    fdir.mkdir(parents=True, exist_ok=True)
+    for f in frames:
+        f.img.save(fdir / f"{f.frame:06d}_{re.sub(r'[^A-Za-z0-9_.+-]', '_', f.label)[:40]}.png")
+    sc.sheets.append({"sheet": str(path), "title": title, "frames": len(frames), "screen": "top"})
+    return path
+
+
+def write_redo_index(sc: Scenario, rows: List[dict], tods: tuple) -> Optional[str]:
+    """move_redo/index.png: per move its name, expectation, status per time of day, and each time of day's
+    side-by-side (stage over classic) at REDO_INDEX_CELL per frame."""
+    if not rows:
+        return None
+    cw, ch = REDO_INDEX_CELL
+    block = REDO_OFFSETS * (cw + 1)
+    label_w, head = 200, 18
+    row_h = 12 + 2 * (ch + 1) + 8
+    img = Image.new("RGB", (label_w + len(tods) * (block + 8), head + len(rows) * row_h), (40, 40, 40))
+    d = ImageDraw.Draw(img)
+    d.text((4, 3), "move_redo: per move and time of day, top row = stage, bottom row = classic (stage off)",
+           fill=(255, 255, 0))
+    colours = {"PASS": (120, 230, 120), "WARN": (240, 200, 80), "FAIL": (255, 90, 90), "-": (160, 160, 160)}
+    for k, r in enumerate(rows):
+        y = head + k * row_h
+        d.text((4, y + 2), f"{r['id']:03d} {r['name']}"[:32], fill=(255, 255, 255))
+        d.text((4, y + 16), f"{r['expect']}" + (f" / {', '.join(r['categories'])}" if r["categories"] else "")[:32],
+               fill=(200, 200, 200))
+        for j, tod in enumerate(tods):
+            st = r["status"].get(tod, "-")
+            d.text((4 + 70 * j, y + 30), f"{tod} {st}", fill=colours.get(st, (200, 200, 200)))
+            x0 = label_w + j * (block + 8)
+            d.text((x0, y), tod, fill=(200, 200, 200))
+            for ri, cells in enumerate(r["thumbs"].get(tod, ([], []))):
+                for ci, c in enumerate(cells[:REDO_OFFSETS]):
+                    img.paste(c, (x0 + ci * (cw + 1), y + 12 + ri * (ch + 1)))
+    path = sc.dir / "index.png"
+    img.save(path)
+    sc.sheets.append({"sheet": str(path), "title": "all moves: stage (top) over classic (bottom), day and night",
+                      "frames": len(rows), "screen": "top"})
+    return str(path)
+
+
+def _redo_toggle(e: Emu, ov: Overlay, ram: StageRam, want: int) -> Optional[str]:
+    """L+R+SELECT at the command menu to switch the stage to `want` (1 on, 0 off). None if it worked, else
+    why not. With the stage back on, waits for arenaAlpha 31 and the camera home."""
+    if not ov.up() and not ov.show():
+        return "holding L+R did not bring the overlay up"
+    before = text_box(e.screens())
+    e.hold("SELECT", 6, 10)
+    d = diff_fraction(before, text_box(e.screens()))
+    ov.key = e.screens().crop(OVERLAY_KEY)      # the key line shows the stage state (see _toggle_stage)
+    e.release("L+R")
+    e.run(40)
+    if d <= 0.003:
+        return f"SELECT did not change the overlay text ({d:.2%} of the text box changed)"
+    st = ram.read()
+    if ram.plausible(st) and st["enabled"] != want:
+        return f"RAM enabled = {st['enabled']} after SELECT, expected {want}"
+    if want:
+        for _ in range(REDO_ALPHA_WAIT):
+            c = ram.compat()
+            if c is None or c["arenaAlpha"] == ARENA_ALPHA_FULL:
+                break
+            e.run(1)
+        ram.wait_home(120)
+    return None
+
+
+def _scene_change(ref: List[Image.Image], anim: List[Frame]) -> float:
+    """Largest share of the scene (HUD masked) that differs from every reference frame, over the run."""
+    return max((min_diff(ref, scene(f.img)) for f in anim), default=0.0)
+
+
+def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str, m: dict, cur: int, cats: set,
+               idle: List[Image.Image], boxes: List[Image.Image], after: List[Frame], rows: Dict[int, dict],
+               toggles: List[str]) -> Optional[bool]:
+    """One move_redo move: played with the stage on (the checks), then with it off (the classic row).
+    True = go on, False = the battle is stuck, None = the overlay is gone."""
+    mid, expect = m["id"], m["expect"]
+    tag = f"{tod} {mid:03d} {m.get('name', '')}".rstrip()
+    missing = [n for n in m.get("needs", []) if n not in cats]
+    print(f"  [move] {tag}", flush=True)              # the parent attributes CPU exceptions by these lines
+    if not ov.up() and not ov.show():
+        sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay back")
+        return None
+    _nav_move(e, cur, mid)
+    pre = e.snap(f"{tag} pre", after)
+    before = ram.compat()
+    cam0 = ram.cam()
+    anim, done, _, _, _ = _play_compat(e, ov, ram, "A", args.anim_frames, f"{mid:03d}")
+    if froze(sc, e, anim, f"playing {tag}"):
+        return False
+    if not sc.check(f"{tag}: animation finished", done is not None,
+                    f"overlay hidden {done} frames after L+R+A" if done is not None else
+                    f"overlay still up {len(anim) * 3} frames later: the animation never ended"):
+        return False
+    change = _scene_change([scene(pre.img)] + idle, anim)
+    e.run(90)
+    post = e.snap(f"{tag} +90", after)
+    cam = ram.cam()
+    later = None
+    if mid in LASTING_MOVES:
+        e.run(60)
+        later = e.snap(f"{tag} +150", after).img
+    restore_check(sc, tag, idle, post.img, mid, later)
+    tb = min_diff(boxes, text_box(post.img))
+    sc.check(f"{tag}: battle text restored", tb < 0.02, f"{tb:.1%} of the text box differs")
+    after_c = ram.compat()
+    d = compat_delta(before, after_c)
+    info = f" (info: needs {', '.join(missing)}, which has no redo file on this branch)" if missing else ""
+    if d is not None:
+        counts = f"hardPops +{d['hardPops']}, fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}"
+        sc.check(f"{tag}: no hard pop (hardPops unchanged)", d["hardPops"] == 0, counts,
+                 why="the arena went from visible to hidden without a fade during the move")
+        sc.check(f"{tag}: arenaAlpha 31 after the move", after_c["arenaAlpha"] == ARENA_ALPHA_FULL,
+                 f"arenaAlpha {after_c['arenaAlpha']}, visible {after_c['visible']}, 90 frames after the move",
+                 why="the arena was left faded or hidden")
+        if expect == "kept":
+            sc.check(f"{tag}: arena kept (fades and hiddenFrames unchanged)",
+                     d["fades"] == 0 and d["hiddenFrames"] == 0, counts + info, warn_only=bool(missing),
+                     why="the arena faded or hid during a move its redo file marks kept")
+        else:
+            sc.check(f"{tag}: arena faded (fades rose)", d["fades"] > 0,
+                     counts + (f"; {m['effect']}" if m.get("effect") else ""),
+                     why="the redo file says this move still fades, but no fade started")
+    if cam is not None:
+        omf = cam["offHomeMoveFrames"] - (cam0["offHomeMoveFrames"] if cam0 else 0)
+        sc.check(f"{tag}: camera home (AT_HOME) at the menu", cam["home"],
+                 f"camFlags {cam['camFlags']:#x} ({cam_names(cam['camFlags'])}) 90 frames after the move, "
+                 f"offHomeMoveFrames +{omf}")
+    # The classic look of the same move: the stage off (the debug A/B toggle), played again, back on
+    why = _redo_toggle(e, ov, ram, 0)
+    off_anim: List[Frame] = []
+    off_change = None
+    if why:
+        toggles.append(f"{tag} off: {why}")
+    else:
+        print(f"  [move] {tag} classic", flush=True)
+        if not ov.up() and not ov.show():
+            sc.check(f"{tag}: overlay shown (stage off)", False, "holding L+R did not bring the overlay back")
+            return None
+        pre_off = e.snap(f"{tag} classic pre")
+        off_anim, off_done, _, _, _ = _play_compat(e, ov, ram, "A", args.anim_frames, f"{mid:03d}c")
+        if froze(sc, e, off_anim, f"playing {tag} with the stage off"):
+            return False
+        if not sc.check(f"{tag}: classic run (stage off) finished", off_done is not None,
+                        f"overlay hidden {off_done} frames after L+R+A" if off_done is not None else
+                        f"overlay still up {len(off_anim) * 3} frames later: the animation never ended"):
+            return False
+        off_change = _scene_change([scene(pre_off.img)], off_anim)
+        e.run(30)
+        why = _redo_toggle(e, ov, ram, 1)
+        if why:
+            toggles.append(f"{tag} back on: {why}")
+    if expect == "kept":
+        need = m.get("min_change_pct", REDO_MIN_CHANGE)
+        sc.check(f"{tag}: effect visible (max scene change >= {need:g}%)", change * 100 >= need,
+                 f"up to {change:.1%} of the scene (HUD masked) differs from the pre-move frame" +
+                 (f"; classic run {off_change:.1%}" if off_change is not None else "") + info,
+                 warn_only=bool(missing), why="the effect barely shows on the arena (compare the rows of the sheet)")
+    else:
+        sc.note(f"{tag}: max scene change {change:.1%} with the stage" +
+                (f", {off_change:.1%} classic" if off_change is not None else ""))
+    offsets = redo_offsets([_label_t(f) for f in anim])
+    on = _frames_at(anim, offsets, "stage")
+    off = _frames_at(off_anim, offsets, "classic") if off_anim else []
+    cats_txt = ", ".join(m.get("categories", [])) or "--moves"
+    redo_sheet(sc, mid, tod, f"{tag} [{expect}; {cats_txt}]: top stage, bottom classic (stage off). "
+               f"{m.get('effect') or ''}", on, off)
+    row = rows.setdefault(mid, {"id": mid, "name": m.get("name", ""), "expect": expect,
+                                "categories": m.get("categories", []), "status": {}, "thumbs": {}})
+    row["thumbs"][tod] = tuple([top(f.img).resize(REDO_INDEX_CELL, Image.BILINEAR) for f in fr] for fr in (on, off))
+    return True
+
+
+def _redo_battle(sc: Scenario, e: Emu, args, tod: str, plan: List[dict], cats: set, rows: Dict[int, dict]) -> bool:
+    """Plays the plan in the move tester of the current battle (at the command menu). False if stuck."""
+    ram = _sprite_flags(sc, e, args, FREEZE_IDLE | NO_CINEMATICS)
+    if ram.has_compat and ram.validate(ram.read()):
+        sc.note(f"{tod}: compat fields at sBattleStage+{COMPAT_OFFSET} before the moves: {ram.compat()}")
+    else:
+        sc.note(f"{tod}: compat checks skipped: {ram.compat_why or ram.why}; only the pixel checks run")
+    if not ram.has_camera:
+        sc.note(f"{tod}: AT_HOME not checked: {ram.camera_why}")
+    ov = Overlay(e)
+    idle_frames = e.record(60, every=5, label=f"{tod} idle")
+    idle = [scene(f.img) for f in idle_frames]
+    boxes = [text_box(f.img) for f in idle_frames]
+    if not ov.show():
+        _no_combo(sc, f"{tod}: L+R overlay shown", "the in-battle move tester")
+        run_away(sc, e)
+        return False
+    after: List[Frame] = []
+    toggles: List[str] = []
+    cur, ok, played = MOVE_ID_POUND, True, 0
+    for m in plan:
+        n0 = len(sc.checks)
+        r = _redo_move(sc, e, args, ram, ov, tod, m, cur, cats, idle, boxes, after, rows, toggles)
+        if m["id"] in rows:
+            rows[m["id"]]["status"][tod] = _worst([c["status"] for c in sc.checks[n0:]])
+        if r is None:
+            break
+        cur, played = m["id"], played + 1
+        if r is False:
+            ok = False
+            break
+    sc.check(f"{tod}: stage switched off and back on around every classic run", not toggles,
+             (f"{played} moves: the overlay text changed on every SELECT" +
+              (", RAM enabled 0 for each classic run and 1 after" if ram.ok else "")) if not toggles
+             else "; ".join(toggles[:4]),
+             why="the bottom rows of those sheets are missing or not the classic look")
+    sc.sheet(after, f"{tod}_after", f"{tod}: pre-move frame and 90 frames after each move (stage on)",
+             screen="top", cols=4, scale=1.0)
+    if ok:
+        _finish(sc, e)
+    return ok
+
+
+def sc_move_redo(sc: Scenario, e: Emu, args) -> None:
+    """Chunk 6 (moves.md, Critic checks): every move in the redo files (or --moves) from the move tester on
+    a Plain battle, at day and again at night, each played with the stage on and then off."""
+    plan, cats = redo_plan(sc, args)
+    if not plan:
+        sc.note("nothing to play: no redo files and no --moves (the fixers have not written any yet)")
+        return
+    rows: Dict[int, dict] = {}
+    if _plain_battle(sc, e, AUDIT_TODS[0]) and _redo_battle(sc, e, args, AUDIT_TODS[0], plan, cats, rows):
+        ram = StageRam(e, find_xmap(args))
+        tod = AUDIT_TODS[1]
+        cur = {"bg": STAGE_ENTRY, "tod": TODS.index(AUDIT_TODS[0])}
+        started = _select_entry(sc, e, ram, cur, STAGE_ENTRY, tod, tod)
+        if not started or wait_first_menu(e, timeout=2400) is None:
+            sc.check(f"{tod}: battle menu reached", False, why=f"the {tod} Plain battle did not start")
+        else:
+            e.run(30)
+            _redo_battle(sc, e, args, tod, plan, cats, rows)
+    write_redo_index(sc, [rows[m["id"]] for m in plan if m["id"] in rows], AUDIT_TODS)
+
+
 SCENARIOS: Dict[str, Callable] = {
     "boot": sc_boot,
     "wild_battle": sc_wild_battle,
@@ -3459,6 +3847,7 @@ SCENARIOS: Dict[str, Callable] = {
     "sprite_life": sc_sprite_life,
     "camera": sc_camera,
     "move_audit": sc_move_audit,
+    "move_redo": sc_move_redo,
 }
 DEFAULT_SCENARIOS = ["boot", "wild_battle", "quick_battle", "move_tester", "stage_toggle"]
 
@@ -3522,7 +3911,12 @@ def main() -> int:
     ap.add_argument("--sav", default=str(DEFAULT_SAV), help="raw .sav to boot (default: %(default)s)")
     ap.add_argument("--moves", default=None,
                     help="move_tester: comma separated move IDs (generated/moves.txt line - 1; default "
-                         f"{','.join(map(str, DEFAULT_MOVES))}); move_audit: plays these instead of the audit's list")
+                         f"{','.join(map(str, DEFAULT_MOVES))}); move_audit / move_redo: plays these instead of the "
+                         "audit's / the redo files' list. move_redo also takes ID:fade or ID:kept (default: the redo "
+                         "files' expect, else kept), e.g. 89:fade,101,330")
+    ap.add_argument("--redo", default=None,
+                    help=f"move_redo: directory of the <category>.json redo files (default "
+                         f"{REDO_DIR.relative_to(HERE.parents[2])})")
     ap.add_argument("--audit", default=None,
                     help=f"move_audit: the move audit JSON (default {AUDIT_PATH.relative_to(HERE.parents[2])}; when it "
                          "is missing, a built-in list of risk: high moves)")
@@ -3560,8 +3954,11 @@ def main() -> int:
     ap.add_argument("--child", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
     args.moves_given = args.moves is not None
-    args.moves = [int(m) for m in (args.moves if args.moves_given else ",".join(map(str, DEFAULT_MOVES))).split(",")
-                  if m.strip()]
+    try:
+        args.moves, args.move_expect = parse_redo_moves(args.moves if args.moves_given
+                                                        else ",".join(map(str, DEFAULT_MOVES)))
+    except ValueError as exc:
+        ap.error(str(exc))
     args.sprite_moves = [int(m) for m in args.sprite_moves.split(",") if m.strip()]
     args.bgs = parse_entries(args.bgs) if args.bgs else None
     args.tods = [t.strip() for t in args.tods.split(",") if t.strip()]
@@ -3596,6 +3993,9 @@ def main() -> int:
             timeout = max(timeout, 120 + 15 * len(bg_plan(args)))
         if name == "move_audit":                 # two battles, up to --audit-cap moves each
             timeout = max(timeout, 120 + 2 * 12 * (len(args.moves) if args.moves_given else args.audit_cap))
+        if name == "move_redo":                  # two battles, each move played twice (stage on, then off)
+            n = len(args.moves) if args.moves_given else len(load_redo(args.redo)[0])
+            timeout = max(timeout, 180 + 2 * 45 * n)
         code, emu_lines = run_child(cmd, timeout, outdir / name / "console.log")
         sc = Scenario(name, outdir)
         if res.exists():

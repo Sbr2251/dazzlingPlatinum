@@ -47,7 +47,8 @@ Options:
 |---|---|---|
 | `--scenario A B ...` | boot wild_battle quick_battle move_tester stage_toggle | scenarios to run |
 | `--sav` | `saves/eterna_forest_grass.sav` | save to boot |
-| `--moves` | 1,52,53,57,85,89,94,104,144,164,326,332,399,63 | move_tester move IDs (the line in `generated/moves.txt`, minus 1). move_audit: given explicitly, these replace the audit's list |
+| `--moves` | 1,52,53,57,85,89,94,104,144,164,326,332,399,63 | move_tester move IDs (the line in `generated/moves.txt`, minus 1). move_audit: given explicitly, these replace the audit's list. move_redo: they replace the redo files' list, and each ID may carry `:fade` or `:kept` (default: the move's `expect` in the redo files, else `kept`), e.g. `89:fade,101,330` |
+| `--redo` | `docs/living_battle_stage/redo` | move_redo: the directory of `<category>.json` redo files |
 | `--audit` | `docs/living_battle_stage/move_audit.json` | move_audit: the move audit to read (switchbg_moves also reads its `suppress` lists). When it is missing or unreadable, a WARN and a built-in list of 8 risk: high moves |
 | `--audit-cap` | 25 | move_audit: most risk: high moves to play (see "Move compatibility") |
 | `--sprite-moves` | 107,91,19,164,144 | Minimize, Dig, Fly, Substitute, Transform: move_tester plays them after `--moves` (those not already there) and sprite_life plays them on the arena; each also gets a "normal look restored" check (see sprite_life). Empty (`--sprite-moves ""`) skips them |
@@ -61,7 +62,7 @@ Options:
 | `--map` | the xMAP next to the ROM, or `<rom dir>/../build/main.nef.xMAP` | the build's `.xMAP`, for the RAM checks of all_backgrounds, mega, sprite_life and the chunk 4 camera checks, and for writing `debugFlags` (see "Lit, deformable sprites"); `none` = pixels only. A map from a different build is detected and ignored |
 | `--stage-terrain` | plain | platforms of the Plain background battle the 3D stage scenarios use: `plain` (quick-battle entry 01) or `grass` (entry 30) |
 | `--species-steps` | 0 | quick_battle: RIGHT presses (species) before the first battle |
-| `--timeout` | 900 | seconds before a scenario's process is killed (all_backgrounds gets at least 120 + 15 per battle, move_audit 120 + 24 per move) |
+| `--timeout` | 900 | seconds before a scenario's process is killed (all_backgrounds gets at least 120 + 15 per battle, move_audit 120 + 24 per move, move_redo 180 + 90 per move) |
 | `--verbose` | off | show DeSmuME's own stdout |
 
 ### Runtimes
@@ -85,6 +86,7 @@ Measured on the devserver against the 2026-09-25 15:16 ROM (all_backgrounds and 
 | bag_party | 18 s |
 | debug_views | 13 s |
 | camera | 37 s on a pre-chunk-4 ROM (two Plain battles: three real turns and a tester Pound, then the Earthquake KO); expect a few seconds more with the sweep and kicks |
+| move_redo | about 30 s of setup (boot, the day and night Plain battles) plus about 9 s per move (day and night, each played with the stage on and then off; Earthquake, at 384 frames, is the longest so far): 57 s for `--moves 89:fade,101,330` (2026-09-26 main ROM). With no redo files and no `--moves`: under a second, no boot |
 | default set (boot, wild_battle, quick_battle, move_tester, stage_toggle) | 78 s |
 
 ## Output
@@ -119,6 +121,7 @@ Every scenario boots from the save and adds two checks at the end:
 | `stage_ab` | not in the default set. Quick battle entry 01 (Plain background and terrain) at `--stage-tod` (day). `debugFlags = FREEZE_IDLE \| NO_BLOB_SHADOWS` where the ROM has it (sprites at rest, classic shadow). 24 idle frames with the stage in its initial state (ON), L+R+SELECT, 24 idle frames in the toggled state (OFF), L+R+SELECT back | SELECT changed the overlay text (both times); **stage ON matches the classic look**, graded with a tolerance on the best-aligned ON/OFF pair of the scene (healthbar boxes masked, text box cut): see "Home pose tolerance" below. The detail always has the exact numbers too (mean, max, share off by more than 48 and 24, share identical). The whole-screen numbers are a note. `stage_ab_heatmap.png` is ON / OFF / heat, and `sheet_ab_pair` shows the pair; chunk 4: camera home (`AT_HOME`) for the ON samples (the grade itself is unchanged: the home pose must still match); command menu responds; run away |
 | `switchbg_moves` | not in the default set. Quick battle entry 01, stage in its default (ON) state. In the move tester: Night Shade (101), Psychic (94), Dark Pulse (399) and Acid Armor (151), each recorded every 3 frames | per move: **special background shown mid-animation**: the peak share of the scene (HUD masked) that differs from the frame just before the move is at least 25% (1% for Acid Armor, which moves the battler onto BG2); the animation finished; **normal look restored** 90 frames later, against the idle frames from before the tester (PASS at 2% or less, WARN up to 8%); battle text restored; chunk 4 (`NO_CINEMATICS` on): offHomeMoveFrames == 0 and camera home after every move; then the command menu responds and the battle is fled. Chunk 5 (a ROM with the compat fields): the moves fade the arena instead of hiding it: **no hard pop** (`hardPops` unchanged, FAIL), **arenaAlpha 31 after the move** (FAIL), **arena faded out** (`fades` rose: FAIL for Psychic, whose audit `suppress` list has `bg_switch`; WARN for Night Shade and Dark Pulse, whose list is empty; for Acid Armor a fade or a lifted BG2 copy, WARN) and **mid-fade frame mixes arena and move background** (WARN); `sheet_fade`. Older ROMs keep the checks above only, with a note |
 | `move_audit` | not in the default set. Chunk 5 (`docs/living_battle_stage/compat.md`). The move audit's risk: high moves (capped, or `--moves`) in the move tester on a Plain quick battle at day, then again at night | see "Move compatibility (chunk 5)". Sheets: `sheet_<tod>_<move>` per move, `sheet_<tod>_after`, `sheet_fade` |
+| `move_redo` | not in the default set. Chunk 6 (`docs/living_battle_stage/moves.md`). Every move in `docs/living_battle_stage/redo/*.json` (or `--moves`) in the move tester on a Plain quick battle at day, then again at night, each played with the stage on and then again with it off (L+R+SELECT) | see "Per-move redo (chunk 6)". Sheets: `move_redo/<id>_<tod>.png` (stage row over classic row), `move_redo/index.png`, `sheet_<tod>_after` |
 | `bag_party` | not in the default set. Quick battle entry 01. Bag (opens the HP/PP pocket) and back with B, then POKEMON (the party screen) and back with B | bag / party opened (the bottom screen settled on a new, lit screen); screens sane inside each; closed back to the menu; **top screen unchanged after the bag / party** against 12 idle frames from before (PASS at 2% or less, WARN up to 8%, with a heatmap above 2%; `FREEZE_IDLE \| NO_CINEMATICS`); command menu responds; run away |
 | `all_backgrounds` | not in the default set. One boot, then for each time of day in `--tods` and each entry in `--bgs`: the launcher's L+R panel, SELECT to the time of day, the d-pad to the entry, A. At the command menu: the home pose (10 idle frames and a BG0 render), then L+R+B to views 1, 2 and 3 (each a snapshot and a BG0 render), then L+R+SELECT (stage off) and 10 idle frames of the classic look plus a BG0 render; run away. See "Measuring the 3D stage" below | one check per kind and time of day, naming every battle that is not PASS: **arena drawn at the home pose**; **no holes in debug views 1-3**; debug views move the camera; **no garbage or blank frames**; **home pose matches classic within tolerance**; L+R+SELECT switches the stage off; the magenta marker works. Per battle: `all_backgrounds.md` (a table of every number) and `.json`; `sheet_<tod>_N.png` (5 cells per battle: home, v1-v3 labelled with the hole share, OFF labelled with the mean diff and the share off by more than 48; 10 battles a sheet); `holes/<tod>_<entry>_v<view>.png` (the BG0 render, 2x, magenta = hole) and `diff/<tod>_<entry>.png` (heatmap) for every battle that is not PASS; the launcher selection is checked in RAM |
 | `mega` | not in the default set. L+R+START in the field (Garchomp with Garchompite, Lv50, and a Key Stone), Garchomp swapped to the lead in RAM, then a Plain quick battle at day. FIGHT, MEGA, Swords Dance, and the next 900 frames recorded until 30 frames after the 2D brightness ends; each frame is in turn a full frame, a BG0 render (magenta backdrop) and a 2D render (every layer but BG0) | L+R+START gave the Mega Pokemon, it leads; arena drawn before; MEGA button toggled (WARN); Affine Pulse seen; **stage stays visible through the pulse**; **arena dims during the charge**; **arena flashes white on the reveal**; **arena brightness in step with the 2D planes**; RAM brightness follows the 2D blend (format v2 builds only, WARN). `mega_curve.png` plots the 2D register level, the 2D pixel level, the arena pixel level and the RAM brightness per frame; `sheet_pulse` (full frames) and `sheet_pulse_bg0` (BG0 only) are labelled with the levels. Chunk 4 (the recording also runs while the camera is off home, then the turn is followed to the next menu): see "Camera system and cinematics"; `sheet_camera` (full frames off home) and `sheet_orbit_diff` (home / home with the frame's blend / the most different mid-orbit frame) |
@@ -298,6 +301,65 @@ DeSmuME's own output can lag).
 `sheet_fade` shows the fades of the first 4 such moves frame by frame, labelled `a<arenaAlpha>` (the RAM
 value; the picture shows it about 5 frames later). On a ROM without the compat fields only the first
 four checks run, with a note per battle.
+
+## Per-move redo (chunk 6)
+
+The contract is `docs/living_battle_stage/moves.md` ("Redo files" and "Critic checks"). Each chunk 6 fixer
+writes `docs/living_battle_stage/redo/<category>.json` (`shake`, `backdrop_fade`, `silhouette`,
+`water_ground`): a list of `{"id", "name", "category", "expect": "kept" | "fade", "needs": [categories],
+"min_change_pct" (default 3), "effect"}`. `move_redo` reads every `*.json` there (`--redo` points
+elsewhere). A category "has a redo file" when `<category>.json` exists. A move listed in several files is
+merged: `fade` if any file says so, the largest `min_change_pct`, and the union of `needs` minus its own
+categories. A file that does not parse is a WARN. With no redo files and no `--moves`, the scenario notes
+that and passes without booting.
+
+`--moves` replaces the list and keeps move_audit's format (comma-separated IDs). A listed move takes its
+entry from the redo files if it has one, else `expect: kept`. A `:fade` or `:kept` suffix overrides that
+(`--moves 89:fade,101,330`). Substitute and Transform are played last.
+
+It plays the list in a day Plain battle, runs, and plays it again in a night one. Both battles use
+`FREEZE_IDLE | NO_CINEMATICS`. Per move:
+
+1. The child prints `  [move] <tod> <id> <name>` (the CPU exception check names the moves by it).
+2. It records the pre-move frame and plays the move with the stage on, every 3 frames, polling the compat
+   fields every frame (as move_audit).
+3. It checks the move 90 frames later.
+4. L+R+SELECT switches the stage off (`  [move] ... classic`), and the move is played again the same way.
+5. L+R+SELECT switches the stage back on, waiting for `arenaAlpha` 31 and `AT_HOME`.
+
+| check | grade | when |
+|---|---|---|
+| animation finished | FAIL | every move |
+| normal look restored (90 frames after, against the idle frames; Substitute and Transform WARN at most) | PASS / WARN / FAIL | every move |
+| battle text restored | FAIL | every move |
+| no hard pop: `hardPops` unchanged | FAIL | compat fields |
+| `arenaAlpha` 31, 90 frames after the move | FAIL | compat fields |
+| arena kept: `fades` and `hiddenFrames` unchanged | FAIL; WARN (with an info note) if `needs` names a category without a redo file | `expect: kept` |
+| effect visible: over the run, the largest share of the scene (HUD masked, pixels over 24 off) that differs from the closest of the pre-move frame and the idle frames reaches `min_change_pct` | FAIL; WARN as above | `expect: kept`. The classic run's share is in the detail |
+| arena faded: `fades` rose | FAIL | `expect: fade`. The stage and classic scene changes are a note |
+| camera home (`AT_HOME`) 90 frames after the move, `offHomeMoveFrames` in the detail | FAIL | camera fields |
+| classic run (stage off) finished | FAIL | every move |
+| `<tod>`: stage switched off and back on around every classic run (the overlay text changed and RAM `enabled` read 0, then 1) | FAIL | once per battle |
+| no CPU exceptions (scenario-level, naming the moves) | FAIL | every move |
+
+Every check is named `<tod> <id> <NAME>: ...`, e.g. `night 101 NIGHT_SHADE: arena kept (fades and
+hiddenFrames unchanged): hardPops +0, fades +0, hiddenFrames +0`.
+
+**Sheets.** `move_redo/<id>_<tod>.png` (top screen, 0.75x) shows the stage run over the classic run.
+Both rows are taken at the same offsets: 8 of the recorded ones, spread evenly from the first frame after
+L+R+A (`+9`) to the end. The cells are labelled `stage +t` / `classic +t`. When the classic run ended
+earlier, its cell shows its last frame, labelled `(+t', ended)`. The title has the move, `expect`, its
+categories and the `effect` line. The overlay's key line in each cell reads `SEL 3D ON` (top) and
+`SEL 3D OFF` (bottom). The full-size frames are in `move_redo/frames/<id>_<tod>/`.
+
+`move_redo/index.png` has one row per move: the name, `expect`, categories and the status per time of day,
+then the day and night side-by-sides at 64x48 a cell. `sheet_<tod>_after` has each move's pre-move and
++90 frames.
+
+A critic agent compares the two rows. The stage version should read as the same effect as the classic one,
+only on the 3D arena. At day the home pose is meant to match classic exactly (`stage_ab`), so the rows only
+differ where the effect does. Example on the 2026-09-26 main ROM: Muddy Water's classic row shows the water
+rising at +36..+63, and the stage row does not, because the arena is still in front of it.
 
 ## How a critic agent should use this
 
