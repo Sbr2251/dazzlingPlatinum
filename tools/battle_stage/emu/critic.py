@@ -913,6 +913,8 @@ SWITCHBG_MOVES = [
     (399, "Dark Pulse", 0.25),
     (151, "Acid Armor", 0.01),
 ]
+# Chunk 5 (compat fields): Acid Armor's BG2 mon copy may keep the arena up and lift BG2 (F1) instead of fading
+SWITCHBG_COPY_MOVES = {151}
 RESTORE_PASS, RESTORE_WARN = 0.02, 0.08
 DEBUG_VIEWS = 4
 
@@ -1089,6 +1091,12 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
         run_away(sc, e)
         return
     after: List[Frame] = []
+    fades: List[Frame] = []
+    compat = ram.has_compat and ram.validate(ram.read())
+    if compat:
+        sc.note(f"compat fields (sBattleStage+{COMPAT_OFFSET}): expecting fades, not hard pops: {ram.compat()}")
+    else:
+        sc.note(f"compat checks skipped: {ram.compat_why or ram.why}; the old expectations only")
     cur = MOVE_ID_POUND
     for mid, name, need in SWITCHBG_MOVES:
         tag = f"{mid:03d} {name}"
@@ -1097,8 +1105,13 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
             return
         _nav_move(e, cur, mid)
         cur = mid
-        pre = scene(e.snap(f"{tag} pre", after).img)
-        anim, done = ov.play("A", args.anim_frames, f"{mid:03d}")
+        pre_frame = e.snap(f"{tag} pre", after)
+        pre = scene(pre_frame.img)
+        if compat:
+            before = ram.compat()
+            anim, done, polls, fade, _ = _play_compat(e, ov, ram, "A", args.anim_frames, f"{mid:03d}")
+        else:
+            anim, done = ov.play("A", args.anim_frames, f"{mid:03d}")
         if froze(sc, e, anim, f"playing {name}"):
             return
         changes = [diff_fraction(pre, scene(f.img)) for f in anim]
@@ -1123,9 +1136,41 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
                  warn_only=d <= RESTORE_WARN, why="the backdrop did not come back (see sheet_after)")
         t = min_diff(boxes, text_box(post.img))
         sc.check(f"{tag}: battle text restored", t < 0.02, f"{t:.1%} of the text box differs")
+        if compat:
+            _switchbg_compat(sc, tag, mid, ram, before, pre_frame.img, polls, fade, fades)
     camera_log_checks(sc, ram, cam_log[1], "switchbg moves")
     sc.sheet(after, "after", "pre-move frame and 90 frames after each move", screen="top", cols=4, scale=1.0)
+    if fades:
+        sc.sheet(fades, "fade", "arena fades, every frame (a = arenaAlpha in RAM; the picture trails it by about "
+                 "5 frames)", screen="top", cols=8, scale=1.0)
     _finish(sc, e)
+
+
+def _switchbg_compat(sc: Scenario, tag: str, mid: int, ram: StageRam, before: Optional[dict], pre: Image.Image,
+                     polls: List[tuple], fade: List[Frame], fades: List[Frame]) -> None:
+    """Chunk 5: the move background came in by a fade (fades rose, hardPops did not) and the arena is back at
+    alpha 31 90 frames later. Acid Armor may instead keep the arena up for its lifted BG2 copy (F1)."""
+    after_c = ram.compat()
+    d = compat_delta(before, after_c)
+    if d is None:
+        sc.note(f"{tag}: compat fields unreadable around the move")
+        return
+    sc.check(f"{tag}: no hard pop (hardPops unchanged)", d["hardPops"] == 0,
+             f"hardPops +{d['hardPops']}, fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}",
+             why="the arena went from visible to hidden without a fade during the move")
+    sc.check(f"{tag}: arenaAlpha 31 after the move", after_c["arenaAlpha"] == ARENA_ALPHA_FULL,
+             f"arenaAlpha {after_c['arenaAlpha']}, visible {after_c['visible']}, 90 frames after the move",
+             why="the arena was left faded or hidden")
+    if mid in SWITCHBG_COPY_MOVES:
+        sc.check(f"{tag}: faded out or lifted its BG2 copy", d["fades"] > 0 or d["liftedBg2Frames"] > 0,
+                 f"fades +{d['fades']}, liftedBg2Frames +{d['liftedBg2Frames']}", warn_only=True,
+                 why="neither a fade (F6) nor a lifted copy (F1)")
+    else:
+        sc.check(f"{tag}: arena faded out instead of hiding (fades rose)", d["fades"] > 0,
+                 f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}", warn_only=True,
+                 why="no fade was counted for a move that switches the background")
+    if d["fades"] > 0:
+        fade_frames_check(sc, tag, pre, polls, fade, fades)
 
 
 def _sub_menu_settled(e: Emu, menu: Image.Image) -> bool:
