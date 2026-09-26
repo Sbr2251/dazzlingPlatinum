@@ -8,6 +8,7 @@
 #include "generated/shadow_sizes.h"
 
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_camera.h"
 #include "battle/ov16_0223DF00.h"
 
 #include "pokemon_sprite.h"
@@ -227,6 +228,7 @@ void BattleStageSprites_BeginFrame(BOOL visible, const BattleStageFileLighting *
 void BattleStage_SetMoveAnimActive(BOOL active)
 {
     sStageSprites.moveAnimActive = active;
+    BattleStageCamera_SetScriptActive(active);
 }
 
 void BattleStage_NotifyHit(int battler)
@@ -443,10 +445,33 @@ static void ResetBreath(int index)
     sStageSprites.states[index].delay = index * BREATH_STAGGER;
 }
 
+// The camera's similarity of a sprite, p' = now + scale * (p - home), on the current matrix
+static void LoadSimilarity(const BattleStageCameraSimilarity *similarity)
+{
+    G3_Translate(similarity->nowX, similarity->nowY, 0);
+    G3_Scale(similarity->scale, similarity->scale, FX32_ONE);
+    G3_Translate(-(similarity->homeX << FX32_SHIFT), -(similarity->homeY << FX32_SHIFT), 0);
+}
+
+// The classic quad's matrix (the manager's pivot rotation) with the similarity under it
+static void LoadClassicMatrix(const PokemonSpriteTransforms *transforms, const BattleStageCameraSimilarity *similarity)
+{
+    NNS_G3dGeFlushBuffer();
+    G3_Identity();
+    LoadSimilarity(similarity);
+    G3_Translate((transforms->xCenter + transforms->xPivot) << FX32_SHIFT, (transforms->yCenter + transforms->yPivot) << FX32_SHIFT, transforms->zCenter << FX32_SHIFT);
+    G3_RotX(FX_SinIdx(transforms->rotationX), FX_CosIdx(transforms->rotationX));
+    G3_RotY(FX_SinIdx(transforms->rotationY), FX_CosIdx(transforms->rotationY));
+    G3_RotZ(FX_SinIdx(transforms->rotationZ), FX_CosIdx(transforms->rotationZ));
+    G3_Translate(-((transforms->xCenter + transforms->xPivot) << FX32_SHIFT), -((transforms->yCenter + transforms->yPivot) << FX32_SHIFT), -(transforms->zCenter << FX32_SHIFT));
+}
+
 static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const PokemonSpriteDrawRect *rect)
 {
     PokemonSprite *sprite;
     const PokemonSpriteTransforms *transforms;
+    BattleStageCameraSimilarity similarity;
+    BOOL follow;
     u32 result;
     int width, height;
     fx32 breath, wobble;
@@ -462,15 +487,38 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         return 0;
     }
 
+    // Off home the sprite follows the camera, whichever way it is drawn; at home the camera
+    // gives no similarity and nothing here touches the matrix
+    follow = sStageSprites.visible
+        && BattleStage_IsVisible()
+        && monSpriteMan->excludeIdentity != TRUE
+        && BattleStageCamera_GetSimilarity(index, &similarity);
+
+    // Called again for the classic shadow (MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX), after its G3_Identity
+    if (rect == NULL) {
+        if (follow) {
+            NNS_G3dGeFlushBuffer();
+            LoadSimilarity(&similarity);
+        }
+
+        return 0;
+    }
+
     result = BlobsOn() ? MON_SPRITE_DRAW_HOOK_NO_SHADOW : 0;
+    sprite = &monSpriteMan->sprites[index];
+    transforms = &sprite->transforms;
 
     if (!sStageSprites.visible || !BattleStage_IsVisible() || (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_CLASSIC_SPRITES)) {
         ResetBreath(index);
+
+        if (follow) {
+            LoadClassicMatrix(transforms, &similarity);
+            result |= MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX;
+        }
+
         return result;
     }
 
-    sprite = &monSpriteMan->sprites[index];
-    transforms = &sprite->transforms;
     width = rect->width;
     height = rect->height;
 
@@ -482,6 +530,12 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         || height > 2 * MESH_MAX_HALF_SIZE
         || height < -2 * MESH_MAX_HALF_SIZE) {
         ResetBreath(index);
+
+        if (follow) {
+            LoadClassicMatrix(transforms, &similarity);
+            result |= MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX;
+        }
+
         return result;
     }
 
@@ -523,8 +577,15 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
     G3_PushMtx();
     SetLight();
 
-    // The sprite's pivot rotation, now on the vector matrix too so the normals follow it
+    // The camera's similarity first, so whatever the script did to the sprite rides along;
+    // then the sprite's pivot rotation, now on the vector matrix too so the normals follow it
     G3_Identity();
+
+    if (follow) {
+        LoadSimilarity(&similarity);
+        result |= MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX;
+    }
+
     G3_Translate((transforms->xCenter + transforms->xPivot) << FX32_SHIFT, (transforms->yCenter + transforms->yPivot) << FX32_SHIFT, transforms->zCenter << FX32_SHIFT);
     G3_RotX(FX_SinIdx(transforms->rotationX), FX_CosIdx(transforms->rotationX));
     G3_RotY(FX_SinIdx(transforms->rotationY), FX_CosIdx(transforms->rotationY));
@@ -644,6 +705,26 @@ static void BuildGroundMapping(const BattleStageSpriteCamera *camera)
         sStageSprites.groundDown[side].y = 0;
         sStageSprites.groundDown[side].z = (below.z - above.z) / (2 * BLOB_ROW_STEP);
     }
+}
+
+int BattleStageSprites_BlobRow(int side)
+{
+    return sBlobRow[side & 1];
+}
+
+BOOL BattleStageSprites_GroundPoint(int side, int px, VecFx32 *point)
+{
+    side &= 1;
+
+    if (!sStageSprites.hooked || sStageSprites.groundHalfWidth[0] <= 0 || sStageSprites.groundHalfWidth[1] <= 0) {
+        return FALSE;
+    }
+
+    px -= 128;
+    point->x = sStageSprites.groundCentre[side].x + sStageSprites.groundRight[side].x * px / 128;
+    point->y = sStageSprites.groundCentre[side].y + sStageSprites.groundRight[side].y * px / 128;
+    point->z = sStageSprites.groundCentre[side].z + sStageSprites.groundRight[side].z * px / 128;
+    return TRUE;
 }
 
 static BOOL InitBlobs(const BattleStageSpriteCamera *camera)

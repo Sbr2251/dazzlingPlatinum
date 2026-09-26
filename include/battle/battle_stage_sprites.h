@@ -16,6 +16,8 @@ enum BattleStageDebugFlag {
     BATTLE_STAGE_DEBUG_FREEZE_IDLE = 1 << 0, // no breathing and no wobble
     BATTLE_STAGE_DEBUG_NO_BLOB_SHADOWS = 1 << 1, // blobs off, the classic shadow is back
     BATTLE_STAGE_DEBUG_CLASSIC_SPRITES = 1 << 2, // sprites (and shadows) take the old path
+    BATTLE_STAGE_DEBUG_NO_CINEMATICS = 1 << 3, // no crit or faint kicks (camera.md)
+    BATTLE_STAGE_DEBUG_CRIT_KICK_ON_HIT = 1 << 4, // every hit blink plays the crit kick
 };
 
 // The fields of BattleStage at +32, in order
@@ -45,5 +47,10 @@ void BattleStageSprites_BeginFrame(BOOL visible, const BattleStageFileLighting *
 // From DrawArena, with the arena's projection and view loaded (POSITION_VECTOR mode). The
 // projection is loaded again before it returns.
 void BattleStageSprites_DrawBlobs(const MtxFx44 *projection);
+// Screen row of a side's feet at home (the blob row)
+int BattleStageSprites_BlobRow(int side);
+// Where the home camera sees screen column px of a side's blob row on the ground; FALSE
+// when there is no ground mapping (no arena, or the row is above the horizon)
+BOOL BattleStageSprites_GroundPoint(int side, int px, VecFx32 *point);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_SPRITES_H

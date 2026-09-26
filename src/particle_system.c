@@ -35,6 +35,7 @@ static void *sEmitterCallbackParam;
 // Used so custom Texture/Palette allocators can save the resources.
 // See ParticleSystem_Register*Key
 static ParticleSystem *sUploadingParticleSystem;
+static ParticleSystemProjectionHook sProjectionHook;
 
 static const VecFx32 sParticleSystemDefaultCameraPos = VEC_FX32(0, 0, 4);
 static const VecFx32 sParticleSystemDefaultCameraUp = VEC_FX32(0, 1, 0);
@@ -412,6 +413,14 @@ void ParticleSystem_Draw(ParticleSystem *particleSystem)
 {
     if (particleSystem->camera != NULL) {
         Camera_ComputeProjectionMatrix(particleSystem->cameraProjection, particleSystem->camera);
+
+        if (sProjectionHook != NULL) {
+            MtxFx44 projection = *NNS_G3dGlbGetProjectionMtx();
+
+            sProjectionHook(&projection);
+            NNS_G3dGlbSetProjectionMtx(&projection);
+        }
+
         Camera_SetAsActive(particleSystem->camera);
         Camera_ComputeViewMatrix();
     }
@@ -426,6 +435,11 @@ void ParticleSystem_Draw(ParticleSystem *particleSystem)
     }
 
     NNS_G3dGlbFlush();
+}
+
+void ParticleSystem_SetProjectionHook(ParticleSystemProjectionHook hook)
+{
+    sProjectionHook = hook;
 }
 
 void ParticleSystem_Update(ParticleSystem *particleSystem)

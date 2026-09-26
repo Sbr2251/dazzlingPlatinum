@@ -54,6 +54,8 @@ typedef struct ParticleSystem {
     u8 cameraProjection;
 } ParticleSystem;
 
+typedef void (*ParticleSystemProjectionHook)(MtxFx44 *projection);
+
 void ParticleSystem_ZeroAll(void);
 
 // When using a custom texture/palette allocator function, be sure to use
@@ -67,6 +69,9 @@ void ParticleSystem_SetResource(ParticleSystem *particleSystem, void *resource, 
 void ParticleSystem_RegisterTextureKey(NNSGfdTexKey key);
 void ParticleSystem_RegisterPaletteKey(NNSGfdPlttKey key);
 void ParticleSystem_Draw(ParticleSystem *particleSystem);
+// Called by ParticleSystem_Draw with a copy of the projection of a system with a camera,
+// which it may change; NULL (the default) leaves the projection alone
+void ParticleSystem_SetProjectionHook(ParticleSystemProjectionHook hook);
 void ParticleSystem_Update(ParticleSystem *particleSystem);
 int ParticleSystem_GetActiveAmount(void);
 int ParticleSystem_DrawAll(void);

@@ -83,13 +83,16 @@ typedef struct PokemonSpriteDrawRect {
 enum PokemonSpriteDrawHookResult {
     MON_SPRITE_DRAW_HOOK_DREW = 1 << 0, // the hook drew the sprite; the quad is skipped
     MON_SPRITE_DRAW_HOOK_NO_SHADOW = 1 << 1, // the shadow quad is skipped
+    MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX = 1 << 2, // call the hook again, with no rect, to set the shadow quad's matrix
 };
 
 struct PokemonSpriteManager;
 
 // Called for each drawn sprite right before its quad, with the matrix, texture, material
 // and polygon attributes of the quad already set. It may draw the sprite itself and must
-// leave that state as it found it. Returns PokemonSpriteDrawHookResult flags.
+// leave that state as it found it. Returns PokemonSpriteDrawHookResult flags. With
+// MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX it is called again with rect NULL right before the
+// shadow quad, after its G3_Identity, and may change the matrix; the result is ignored.
 typedef u32(PokemonSpriteDrawHook)(struct PokemonSpriteManager *, int index, const PokemonSpriteDrawRect *rect);
 
 typedef struct PokemonSpriteTemplate {

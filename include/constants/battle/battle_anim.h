@@ -151,6 +151,12 @@
 #define BATTLER_POS_ENEMY_SLOT_2_X  176
 #define BATTLER_POS_ENEMY_SLOT_2_Y  42
 
+// Focus of StageCameraMove
+#define STAGE_CAMERA_FOCUS_CENTER   0 // the arena's home camera target
+#define STAGE_CAMERA_FOCUS_ATTACKER 1
+#define STAGE_CAMERA_FOCUS_DEFENDER 2
+#define STAGE_CAMERA_FOCUS_BETWEEN  3 // midway between the attacker and the defender
+
 // Default positions for contest sprites
 #define CONTESTANT_POS_PLAYER_X 216
 #define CONTESTANT_POS_PLAYER_Y 112

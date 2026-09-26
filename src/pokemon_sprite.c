@@ -532,6 +532,10 @@ void PokemonSpriteManager_DrawSprites(PokemonSpriteManager *monSpriteMan)
                     G3_Identity();
                 }
 
+                if ((hookResult & (MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX | MON_SPRITE_DRAW_HOOK_NO_SHADOW)) == MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX) {
+                    monSpriteMan->drawHook(monSpriteMan, i, NULL);
+                }
+
                 G3_TexPlttBase(monSpriteMan->plttBaseAddr + PLTT_OFFSET(MON_SHADOW_BASE_PLTT_SLOT + monSpriteMan->sprites[i].shadow.plttSlot), monSpriteMan->imageProxy.attr.fmt);
 
                 if (monSpriteMan->sprites[i].shadow.isAffine) {

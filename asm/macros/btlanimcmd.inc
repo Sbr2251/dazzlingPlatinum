@@ -726,6 +726,49 @@
     .long 84
     .endm
 
+    // 3D battle stage camera (docs/living_battle_stage/camera.md). Frames count drawn frames,
+    // as Delay does. Nothing happens in contests or while the classic scene shows.
+
+    // Eases the stage camera to a pose around a focus.
+    // focus: STAGE_CAMERA_FOCUS_CENTER, _ATTACKER, _DEFENDER or _BETWEEN
+    // distancePct: camera distance, 100 is home and smaller is closer
+    // yawDeg: signed; positive swings the camera to the right
+    // pitchDeg: signed; positive is higher
+    // frames: length of the ease, 0 snaps
+    .macro StageCameraMove focus:req, distancePct:req, yawDeg:req, pitchDeg:req, frames:req
+    .long 85
+    .long \focus
+    .long \distancePct
+    .long \yawDeg
+    .long \pitchDeg
+    .long \frames
+    .endm
+
+    // Eases the stage camera's yaw by yawDeltaDeg (signed), keeping the rest of the pose.
+    .macro StageCameraOrbit yawDeltaDeg:req, frames:req
+    .long 86
+    .long \yawDeltaDeg
+    .long \frames
+    .endm
+
+    // Shakes the stage camera by amplitudePx screen pixels, decaying over frames.
+    .macro StageCameraShake amplitudePx:req, frames:req
+    .long 87
+    .long \amplitudePx
+    .long \frames
+    .endm
+
+    // Eases the stage camera back to the home pose; 0 snaps.
+    .macro StageCameraHome frames:req
+    .long 88
+    .long \frames
+    .endm
+
+    // Waits until the stage camera has no ease and no shake in progress.
+    .macro StageCameraWait
+    .long 89
+    .endm
+
     // Convenience Macros
 
     // Loads a particle system from battle_particles.narc

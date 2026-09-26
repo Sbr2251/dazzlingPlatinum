@@ -35,7 +35,7 @@ BOOL BattleStage_HasArena(void);
 BOOL BattleStage_IsVisible(void);
 
 // Debug views (DEBUG_BATTLE_TOOLS): 0 = home pose, others orbit the camera to show the
-// arena is 3D. Sprites do not follow the camera yet (chunks 3-4).
+// arena is 3D. They are stage camera poses, so the sprites and particles follow.
 void BattleStage_SetDebugView(int view);
 int BattleStage_GetDebugView(void);
 
@@ -52,5 +52,41 @@ void BattleStage_SetBrightness(int brightness);
 void BattleStage_SetMoveAnimActive(BOOL active);
 // The battler took damage (the hit blink task): its sprite does a short wobble
 void BattleStage_NotifyHit(int battler);
+
+// The stage camera (chunk 4, battle_stage_camera.c; docs/living_battle_stage/camera.md). At
+// its home pose nothing changes; off home the arena, the stage sprites and the particles
+// follow it. Nothing moves while the stage isn't visible.
+
+// Bits of the cinematics seen this battle (the critic reads them)
+enum BattleStageCinematic {
+    BATTLE_STAGE_CINEMATIC_SWEEP = 1 << 0,
+    BATTLE_STAGE_CINEMATIC_MEGA = 1 << 1,
+    BATTLE_STAGE_CINEMATIC_TOTEM = 1 << 2,
+    BATTLE_STAGE_CINEMATIC_CRIT = 1 << 3,
+    BATTLE_STAGE_CINEMATIC_FAINT = 1 << 4,
+    BATTLE_STAGE_CINEMATIC_SCRIPT = 1 << 5, // an anim script used a camera command
+};
+
+// Anim script commands 85-88. focus is a STAGE_CAMERA_FOCUS_* constant; attacker and
+// defender are the script's battlers. Frames count drawn frames; 0 snaps.
+void BattleStage_CameraMove(int focus, int attacker, int defender, int distancePct, int yawDeg, int pitchDeg, int frames);
+void BattleStage_CameraOrbit(int yawDeltaDeg, int frames);
+void BattleStage_CameraShake(int amplitudePx, int frames);
+void BattleStage_CameraHome(int frames);
+// Command 89 waits while this is TRUE: an ease or a shake is in progress
+BOOL BattleStage_IsCameraMoving(void);
+// The home guard: every anim script start snaps the camera home (outside contests)
+void BattleStage_CameraScriptStart(void);
+// Right after the script started: the cinematic bit its first camera command sets
+void BattleStage_SetCameraScriptCinematic(u32 cinematic);
+// The battle-start sweep, at each command menu request; it plays once per battle
+void BattleStage_StartBattleSweep(void);
+// The command menu waits until this is TRUE: the camera is home, or it has waited too long
+// (then the camera snaps home). Call it once per frame while waiting.
+BOOL BattleStage_IsCameraReadyForMenu(void);
+// The hit blink started on a battler; critical is TRUE when the hit was a critical hit
+void BattleStage_CritKick(int battler, BOOL critical);
+// The fainting sequence of a battler started
+void BattleStage_FaintKick(int battler);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_H
