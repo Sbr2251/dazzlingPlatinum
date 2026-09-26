@@ -847,6 +847,7 @@ static void BattleAnimTask_Shake(SysTask *task, void *param)
 
             if (BattleAnimUtil_IsMaskSet(ctx->shakeInfo.targets, BATTLE_ANIM_BACKGROUND) == TRUE) {
                 Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_X, ctx->shake.x);
+                BattleAnimSystem_SyncStageBackdropShake(ctx->common.battleAnimSys);
             }
         }
         break;
@@ -3173,6 +3174,10 @@ static void BattleAnimTask_ShakeBg(SysTask *task, void *param)
                 ctx->resetY = TRUE;
                 Bg_SetOffset(ctx->bgConfig, ctx->bgLayer, BG_OFFSET_UPDATE_SET_Y, ctx->shake.y);
             }
+        }
+
+        if (ctx->bgLayer == BATTLE_BG_EFFECT) {
+            BattleAnimSystem_SyncStageBackdropShake(ctx->battleAnimSys);
         }
     } break;
     default:

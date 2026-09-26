@@ -426,6 +426,14 @@ typedef struct Bg2CopyLift {
 
 static Bg2CopyLift sBg2CopyLift;
 
+// A BG3 shake up to this many pixels moves the stage camera instead of hiding the arena
+#define STAGE_BACKDROP_SHAKE_MAX 32
+
+// TRUE while the arena may mirror a BG3 shake: a move runs and nothing else hides the arena.
+// The gain is per move (StartMove): the ground shakers shake the stage harder.
+static BOOL sStageBackdropShakeOk;
+static int sStageBackdropShakeGain = 1;
+
 // TRUE when BG2 has something on it that the 3D stage on BG0 would cover
 static BOOL BattleAnimSystem_IsBaseBgUnderStage(BattleAnimSystem *system)
 {
@@ -525,11 +533,38 @@ static BOOL BattleAnimSystem_WindowShapesBackdrop(BattleAnimSystem *system)
     return showsBackdrop && cutsBackdropUnderArena;
 }
 
+static BOOL BattleAnimSystem_IsBackdropShakeSmall(BattleAnimSystem *system)
+{
+    int dx = Bg_GetXOffset(system->bgConfig, BATTLE_BG_EFFECT);
+    int dy = Bg_GetYOffset(system->bgConfig, BATTLE_BG_EFFECT);
+
+    return dx >= -STAGE_BACKDROP_SHAKE_MAX && dx <= STAGE_BACKDROP_SHAKE_MAX
+        && dy >= -STAGE_BACKDROP_SHAKE_MAX && dy <= STAGE_BACKDROP_SHAKE_MAX;
+}
+
+BOOL BattleAnimSystem_SyncStageBackdropShake(BattleAnimSystem *system)
+{
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
+        return FALSE;
+    }
+
+    if (sStageBackdropShakeOk == FALSE || BattleStage_IsVisible() == FALSE || BattleAnimSystem_IsBackdropShakeSmall(system) == FALSE) {
+        BattleStage_SetBackdropShake(0, 0);
+        return FALSE;
+    }
+
+    BattleStage_SetBackdropShake(
+        Bg_GetXOffset(system->bgConfig, BATTLE_BG_EFFECT) * sStageBackdropShakeGain,
+        Bg_GetYOffset(system->bgConfig, BATTLE_BG_EFFECT) * sStageBackdropShakeGain);
+    return TRUE;
+}
+
 // Hides the 3D battle stage while a move changes the backdrop or draws on BG2.
 // The battle overlay is not loaded in contests, so the stage is never touched there.
 static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
 {
     if (BattleAnimSystem_IsContest(system) == TRUE) {
+        sStageBackdropShakeOk = FALSE;
         return;
     }
 
@@ -540,8 +575,9 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
             bgSwitch = TRUE;
         }
 
-        // Earthquake, Magnitude and the shake funcs move BG3 directly, without a bgAnim task
-        if (Bg_GetXOffset(system->bgConfig, BATTLE_BG_EFFECT) != 0 || Bg_GetYOffset(system->bgConfig, BATTLE_BG_EFFECT) != 0) {
+        // Earthquake, Magnitude and the shake funcs move BG3 directly, without a bgAnim task.
+        // Over the normal backdrop the stage camera mirrors a small shake instead.
+        if (BattleAnimSystem_IsBackdropShakeSmall(system) == FALSE) {
             bgSwitch = TRUE;
         }
 
@@ -553,11 +589,18 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
 
     // F6: reasons that start while the move (or its background restore) runs fade the arena
     BattleStage_SetInMoveAnim(system->moveActive == TRUE || system->bgSwitchState != BATTLE_BG_SWITCH_STATE_NONE);
+    BOOL bg2Effect = system->moveActive == TRUE && BattleAnimSystem_IsBaseBgUnderStage(system);
+    BOOL window = BattleAnimSystem_WindowShapesBackdrop(system);
+
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH, bgSwitch);
-    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG2_EFFECT, system->moveActive == TRUE && BattleAnimSystem_IsBaseBgUnderStage(system));
-    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_WINDOW, BattleAnimSystem_WindowShapesBackdrop(system));
+    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG2_EFFECT, bg2Effect);
+    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_WINDOW, window);
     // The stage sprites pause their idle breathing while a script runs
     BattleStage_SetMoveAnimActive(system->moveActive == TRUE);
+
+    // The shake tasks sync again right after they write BG3, so the arena moves in their frame
+    sStageBackdropShakeOk = system->moveActive == TRUE && !bgSwitch && !bg2Effect && !window;
+    BattleAnimSystem_SyncStageBackdropShake(system);
 }
 
 static u32 BattleAnimSystem_Bg2TilemapHash(BattleAnimSystem *system)
@@ -707,7 +750,10 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
         BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT | BATTLE_STAGE_SUPPRESS_WINDOW, FALSE);
         BattleStage_SetMoveAnimActive(FALSE);
         BattleStage_SetInMoveAnim(FALSE);
+        BattleStage_SetBackdropShake(0, 0);
     }
+
+    sStageBackdropShakeOk = FALSE;
 
     for (int i = 0; i < BATTLE_ANIM_SYSTEM_ARC_COUNT; i++) {
         NARC_dtor(system->arcs[i]);
@@ -837,6 +883,7 @@ BOOL BattleAnimSystem_StartMove(BattleAnimSystem *system, MoveAnimation *param1,
     system->bgAnim = NULL;
     system->stageBgDirty = FALSE;
     BattleAnimUtil_ResetBg3LineScrolls();
+    sStageBackdropShakeGain = moveID == MOVE_EARTHQUAKE || moveID == MOVE_MAGNITUDE || moveID == MOVE_FISSURE ? 2 : 1;
     system->executeAnimScriptFunc = BattleAnimScript_Execute;
     system->scriptDelay = 0;
 

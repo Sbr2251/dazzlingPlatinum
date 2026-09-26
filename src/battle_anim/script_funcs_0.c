@@ -1938,15 +1938,18 @@ static void BattleAnimTask_Earthquake(SysTask *task, void *param)
             }
         }
 
+        Bg_SetOffset(ctx->bgConfig, BATTLE_BG_EFFECT, 0, ctx->shake.x);
+
+        // On the 3D stage the camera shakes the arena and the mons together
+        int monShakeX = BattleAnimSystem_SyncStageBackdropShake(ctx->battleAnimSys) ? 0 : ctx->shake.x;
+
         for (int i = 0; i < MAX_BATTLERS; i++) {
             if (ctx->sprites[i].monSprite == NULL) {
                 continue;
             }
 
-            PokemonSprite_SetAttribute(ctx->sprites[i].monSprite, MON_SPRITE_X_CENTER, ctx->sprites[i].basePos.x + ctx->shake.x);
+            PokemonSprite_SetAttribute(ctx->sprites[i].monSprite, MON_SPRITE_X_CENTER, ctx->sprites[i].basePos.x + monShakeX);
         }
-
-        Bg_SetOffset(ctx->bgConfig, BATTLE_BG_EFFECT, 0, ctx->shake.x);
         break;
     default:
         BattleAnimSystem_EndAnimTask(ctx->battleAnimSys, task);
@@ -2195,6 +2198,12 @@ static void BattleAnimTask_Magnitude(SysTask *task, void *param1)
         if (ShakeContext_Update(&ctx->shake) == FALSE) {
             ctx->common.state++;
         } else {
+            Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_X, ctx->shake.x);
+            Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_Y, ctx->shake.y);
+
+            // On the 3D stage the camera shakes the arena and the mons together
+            int monShakeX = BattleAnimSystem_SyncStageBackdropShake(ctx->common.battleAnimSys) ? 0 : ctx->shake.x;
+
             for (int battler = 0; battler < MAX_BATTLERS; battler++) {
                 if (ctx->battlerSprites[battler] == NULL) {
                     continue;
@@ -2203,11 +2212,8 @@ static void BattleAnimTask_Magnitude(SysTask *task, void *param1)
                 PokemonSprite_SetAttribute(
                     ctx->battlerSprites[battler],
                     MON_SPRITE_X_CENTER,
-                    ctx->battlerPositions[battler].x + ctx->shake.x);
+                    ctx->battlerPositions[battler].x + monShakeX);
             }
-
-            Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_X, ctx->shake.x);
-            Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_Y, ctx->shake.y);
         }
         break;
     default:

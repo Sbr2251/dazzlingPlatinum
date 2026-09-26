@@ -84,6 +84,10 @@ void BattleStage_CameraMove(int focus, int attacker, int defender, int distanceP
 void BattleStage_CameraOrbit(int yawDeltaDeg, int frames);
 void BattleStage_CameraShake(int amplitudePx, int frames);
 void BattleStage_CameraHome(int frames);
+// A move's BG3 shake over the normal backdrop, in BG scroll sign (the picture moves by -dx,
+// -dy): the camera moves the arena, mons and particles with it. (0, 0) drops it. It does not
+// count as off home (offHomeFrames); it sets BATTLE_STAGE_CAMERA_SHAKING.
+void BattleStage_SetBackdropShake(int dx, int dy);
 // Command 89 waits while this is TRUE: an ease or a shake is in progress
 BOOL BattleStage_IsCameraMoving(void);
 // The home guard: every anim script start snaps the camera home (outside contests)

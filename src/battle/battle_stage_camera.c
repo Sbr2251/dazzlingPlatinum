@@ -78,6 +78,9 @@ typedef struct StageCamera {
     int shakeFrame;
     int shakeFrames;
     int shakeAmp; // pixels
+    // The BG3 shake of a move, mirrored (BattleStage_SetBackdropShake); pixels, BG scroll sign
+    int backdropDx;
+    int backdropDy;
     int sequence;
     int holdFrames;
     int homeFrames; // the ease home at the end of the sequence
@@ -120,6 +123,11 @@ static BOOL IsShaking(void)
     return sStageCamera.shakeFrames > 0 && sStageCamera.shakeFrame < sStageCamera.shakeFrames;
 }
 
+static BOOL IsBackdropShaking(void)
+{
+    return sStageCamera.backdropDx != 0 || sStageCamera.backdropDy != 0;
+}
+
 static void SnapHome(void)
 {
     sStageCamera.cur = sStageCamera.homePose;
@@ -129,6 +137,8 @@ static void SnapHome(void)
     sStageCamera.easeFrames = 0;
     sStageCamera.shakeFrame = 0;
     sStageCamera.shakeFrames = 0;
+    sStageCamera.backdropDx = 0;
+    sStageCamera.backdropDy = 0;
     sStageCamera.sequence = SEQUENCE_NONE;
 }
 
@@ -252,15 +262,22 @@ static void PoseCamera(const CameraPose *pose, VecFx32 *camPos, VecFx32 *offsetO
     *offsetOut = offset;
 }
 
-// The shake offset in pixels for this frame: a decaying sine, the same every time
+// The shake offset in pixels for this frame, along camera-right and camera-up: a decaying
+// sine, the same every time, plus the mirrored BG3 shake. BG3 scrolled by (dx, dy) shows its
+// picture moved by (-dx, -dy), so the camera moves by dx right and dy down.
 static void ShakePixels(int *dx, int *dy)
 {
     int k = sStageCamera.shakeFrame;
     int n = sStageCamera.shakeFrames;
     int amp = sStageCamera.shakeAmp;
 
-    *dx = amp * FX_SinIdx((u16)(k * 0x10000 / SHAKE_PERIOD_X)) * (n - k) / n / FX32_ONE;
-    *dy = amp * FX_SinIdx((u16)(k * 0x10000 / SHAKE_PERIOD_Y + 0x4000)) * (n - k) / n / FX32_ONE;
+    *dx = sStageCamera.backdropDx;
+    *dy = -sStageCamera.backdropDy;
+
+    if (IsShaking()) {
+        *dx += amp * FX_SinIdx((u16)(k * 0x10000 / SHAKE_PERIOD_X)) * (n - k) / n / FX32_ONE;
+        *dy += amp * FX_SinIdx((u16)(k * 0x10000 / SHAKE_PERIOD_Y + 0x4000)) * (n - k) / n / FX32_ONE;
+    }
 }
 
 static void BuildView(const CameraPose *pose)
@@ -271,7 +288,7 @@ static void BuildView(const CameraPose *pose)
     PoseCamera(pose, &camPos, &offset);
     target = pose->focus;
 
-    if (IsShaking()) {
+    if (IsShaking() || IsBackdropShaking()) {
         VecFx32 back, right, camUp;
         fx32 depth, perPixel, sx, sy;
         int dx, dy;
@@ -524,13 +541,14 @@ void BattleStageCamera_Advance(BOOL visible, int debugView)
 {
     BattleStageCameraFields *fields = sStageCamera.fields;
     CameraPose pose;
+    BOOL poseHome;
     u32 flags;
 
     if (!sStageCamera.hasHome || fields == NULL) {
         return;
     }
 
-    // The classic path never sees an off-home camera
+    // The classic path never sees an off-home camera (SnapHome also drops the backdrop shake)
     if (!visible) {
         SnapHome();
     } else {
@@ -548,7 +566,10 @@ void BattleStageCamera_Advance(BOOL visible, int debugView)
         AdvanceSequence();
     }
 
-    sStageCamera.atHome = PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) && !IsEasing() && !IsShaking() && debugView == 0;
+    poseHome = PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) && !IsEasing() && !IsShaking() && debugView == 0;
+    // A mirrored BG3 shake rebuilds the view, but it is the move's own backdrop moving, not
+    // the camera leaving home: the off-home counters skip it
+    sStageCamera.atHome = poseHome && !IsBackdropShaking();
 
     flags = fields->camFlags & BATTLE_STAGE_CAMERA_SCRIPT;
 
@@ -560,13 +581,13 @@ void BattleStageCamera_Advance(BOOL visible, int debugView)
         flags |= BATTLE_STAGE_CAMERA_EASING;
     }
 
-    if (IsShaking()) {
+    if (IsShaking() || IsBackdropShaking()) {
         flags |= BATTLE_STAGE_CAMERA_SHAKING;
     }
 
     fields->camFlags = flags;
 
-    if (!sStageCamera.atHome) {
+    if (!poseHome) {
         fields->offHomeFrames++;
 
         if (sStageCamera.scriptActive && !(flags & BATTLE_STAGE_CAMERA_SCRIPT)) {
@@ -784,6 +805,18 @@ void BattleStage_CameraShake(int amplitudePx, int frames)
     }
 
     StartShake(amplitudePx, frames);
+}
+
+void BattleStage_SetBackdropShake(int dx, int dy)
+{
+    // Only while the arena shows; the next hidden frame drops it anyway (SnapHome)
+    if (!sStageCamera.hasHome || sStageCamera.fields == NULL || !BattleStage_IsVisible()) {
+        dx = 0;
+        dy = 0;
+    }
+
+    sStageCamera.backdropDx = dx;
+    sStageCamera.backdropDy = dy;
 }
 
 void BattleStage_CameraHome(int frames)

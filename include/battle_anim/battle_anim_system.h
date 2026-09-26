@@ -233,6 +233,9 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system);
 BOOL BattleAnimSystem_StartMove(BattleAnimSystem *system, MoveAnimation *param1, u16 move, BattleAnimBattlerContext *param3);
 BOOL BattleAnimSystem_ExecuteScript(BattleAnimSystem *system);
 BOOL BattleAnimSystem_IsMoveActive(BattleAnimSystem *system);
+// Hands the current BG3 offset to the stage camera; call right after writing it. TRUE when
+// the arena mirrors it, so mons the caller shakes with the backdrop already move with the arena.
+BOOL BattleAnimSystem_SyncStageBackdropShake(BattleAnimSystem *system);
 BOOL BattleAnimSystem_FreeScriptData(BattleAnimSystem *system);
 BOOL BattleAnimSystem_IsActive(BattleAnimSystem *system);
 SysTask *BattleAnimSystem_StartAnimTaskEx(BattleAnimSystem *system, SysTaskFunc func, void *param, u32 priority);
