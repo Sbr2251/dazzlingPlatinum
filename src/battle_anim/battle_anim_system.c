@@ -471,8 +471,15 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
         if (Bg_GetXOffset(system->bgConfig, BATTLE_BG_EFFECT) != 0 || Bg_GetYOffset(system->bgConfig, BATTLE_BG_EFFECT) != 0) {
             bgSwitch = TRUE;
         }
+
+        // F5: a per-line (HBlank DMA) scroll of BG3 would wave unseen under the arena
+        if (BattleAnimUtil_IsBg3LineScrollActive()) {
+            bgSwitch = TRUE;
+        }
     }
 
+    // F6: reasons that start while the move (or its background restore) runs fade the arena
+    BattleStage_SetInMoveAnim(system->moveActive == TRUE || system->bgSwitchState != BATTLE_BG_SWITCH_STATE_NONE);
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH, bgSwitch);
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG2_EFFECT, system->moveActive == TRUE && BattleAnimSystem_IsBaseBgUnderStage(system));
     // The stage sprites pause their idle breathing while a script runs
@@ -494,6 +501,7 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
     if (BattleAnimSystem_IsContest(system) == FALSE) {
         BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT, FALSE);
         BattleStage_SetMoveAnimActive(FALSE);
+        BattleStage_SetInMoveAnim(FALSE);
     }
 
     for (int i = 0; i < BATTLE_ANIM_SYSTEM_ARC_COUNT; i++) {
@@ -623,6 +631,7 @@ BOOL BattleAnimSystem_StartMove(BattleAnimSystem *system, MoveAnimation *param1,
 
     system->bgAnim = NULL;
     system->stageBgDirty = FALSE;
+    BattleAnimUtil_ResetBg3LineScrolls();
     system->executeAnimScriptFunc = BattleAnimScript_Execute;
     system->scriptDelay = 0;
 

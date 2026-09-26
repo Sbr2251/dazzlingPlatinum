@@ -11,6 +11,12 @@
 // battle stage: battle_stage.c drives it; the public entry points (commands, guard and
 // cinematics) are in battle/battle_stage.h.
 
+// The contract timings count 60 Hz screen frames; the stage logic steps at 30 Hz (one
+// BattleStage_Draw per two screen frames). battle_stage_camera.c has the same definition.
+#ifndef SCREEN_FRAMES
+#define SCREEN_FRAMES(n) (((n) + 1) / 2)
+#endif
+
 // camFlags
 enum BattleStageCameraFlag {
     BATTLE_STAGE_CAMERA_AT_HOME = 1 << 0,
