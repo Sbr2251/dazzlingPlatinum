@@ -3,6 +3,8 @@
 
 #include "struct_decls/battle_system.h"
 
+#include "palette.h"
+
 // The 3D arena drawn behind the battle sprites. With BATTLE_STAGE_3D off, every function does nothing.
 void BattleStage_Init(BattleSystem *battleSys);
 void BattleStage_Free(void);
@@ -102,5 +104,16 @@ typedef struct BattleStageCompatFields {
 
 // The compat fields of this battle; never NULL
 BattleStageCompatFields *BattleStage_CompatFields(void);
+
+// The arena's sprite tint for 2D copies of a mon (compat.md, F2): the per-channel factor,
+// in 1/256, that the lit mesh applies to a camera-facing texel at the current time of day.
+// FALSE (leave the colours alone) when the stage isn't visible, the sprites are classic or
+// every channel is 256, as at day.
+BOOL BattleStage_GetSpriteTint(u16 *tintR, u16 *tintG, u16 *tintB);
+// Multiplies colours start..start+count-1 of a palette buffer, unfaded and faded, by the
+// sprite tint and counts a tinted copy; FALSE and nothing changed when there is no tint
+BOOL BattleStage_TintCopyPalette(PaletteData *paletteData, enum PaletteBufferID bufferID, u16 start, u16 count);
+// BG2 holds a mon copy lifted above the 3D layer (compat.md, F1); counted per drawn frame
+void BattleStage_SetBg2Lifted(BOOL lifted);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_H
