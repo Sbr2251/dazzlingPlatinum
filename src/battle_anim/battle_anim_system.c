@@ -852,7 +852,8 @@ void BattleAnimSystem_DropBg2PictureLift(BattleAnimSystem *system)
     BattleAnimSystem_RestoreBg2LiftPriorities(system, &sBg2PictureLift);
     sBg2PictureLift.active = FALSE;
 
-    if (BattleAnimSystem_IsContest(system) == FALSE) {
+    // A copy lift started since still holds BG2 above BG0
+    if (BattleAnimSystem_IsContest(system) == FALSE && sBg2CopyLift.active == FALSE) {
         BattleStage_SetBg2Lifted(FALSE);
     }
 }

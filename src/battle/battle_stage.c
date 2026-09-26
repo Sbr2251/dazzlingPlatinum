@@ -155,7 +155,7 @@ static void FogOff(void);
 static void UpdateFade(void);
 static void PatchArenaAlpha(StageArena *arena, int alpha);
 static void UpdateFadeBlend(BOOL translucent);
-static void DrawCurtain(void);
+static void DrawCurtain(int alpha);
 
 static BattleStage sBattleStage;
 static StageFog sStageFog;
@@ -287,7 +287,7 @@ void BattleStage_Draw(void)
         SyncPalettes(sBattleStage.arena);
         PatchArenaAlpha(sBattleStage.arena, alpha);
         DrawArena(sBattleStage.arena, view, projection);
-        DrawCurtain();
+        DrawCurtain(alpha);
         UpdateFog(sBattleStage.arena);
         sBattleStage.compat.arenaAlpha = alpha;
     } else {
@@ -1376,10 +1376,10 @@ static void DrawCurtainBar(int left, int right)
 // curtainLeft..curtainRight with a flat colour, under the mons, as the classic Fake Out
 // window cuts BG3 to the backdrop colour around them. The colour is read from BG palette
 // VRAM each frame, so it follows a palette fade as the 2D backdrop does; no fog, so it is
-// exact.
-static void DrawCurtain(void)
+// exact. It fades with the arena (alpha 0 would draw a wireframe).
+static void DrawCurtain(int alpha)
 {
-    if (!sBattleStage.curtainOn || (sBattleStage.curtainLeft == 0 && sBattleStage.curtainRight == HW_LCD_WIDTH)) {
+    if (!sBattleStage.curtainOn || alpha == 0 || (sBattleStage.curtainLeft == 0 && sBattleStage.curtainRight == HW_LCD_WIDTH)) {
         return;
     }
 
@@ -1391,7 +1391,7 @@ static void DrawCurtain(void)
     G3_Identity();
 
     G3_TexImageParam(GX_TEXFMT_NONE, GX_TEXGEN_NONE, GX_TEXSIZE_S8, GX_TEXSIZE_T8, GX_TEXREPEAT_NONE, GX_TEXFLIP_NONE, GX_TEXPLTTCOLOR0_USE, 0);
-    G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, STAGE_CURTAIN_POLYGON_ID, 31, 0);
+    G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, STAGE_CURTAIN_POLYGON_ID, alpha, 0);
     G3_Color(*(const u16 *)HW_BG_PLTT & GX_RGB(31, 31, 31));
     G3_Begin(GX_BEGIN_QUADS);
     DrawCurtainBar(0, sBattleStage.curtainLeft);

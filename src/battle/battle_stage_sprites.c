@@ -70,6 +70,7 @@
 #define HOLE_TEX_BYTES      BLOB_TEX_BYTES
 #define BLOB_TEX_ALLOC      (BLOB_TEX_BYTES + HOLE_TEX_BYTES)
 #define HOLE_MAX_ALPHA      28
+#define HOLE_POLYGON_ID     61 // not the blobs': translucent pixels never cover their own ID
 #define HOLE_CORE_F         560 // 1 - d^2 (of 1024) inside which the hole is solid
 #define HOLE_EARTH_F        360 // ... and inside which it is black rather than earth
 #define HOLE_PLTT_EARTH     1 // blob palette colour of the hole's rim
@@ -1009,7 +1010,7 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
 
         G3_TexImageParam(GX_TEXFMT_A5I3, GX_TEXGEN_NONE, GX_TEXSIZE_S32, GX_TEXSIZE_T16, GX_TEXREPEAT_NONE, GX_TEXFLIP_NONE, GX_TEXPLTTCOLOR0_USE, sStageSprites.blobTexAddr + BLOB_TEX_BYTES);
         G3_TexPlttBase(sStageSprites.blobPlttAddr, GX_TEXFMT_A5I3);
-        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, BLOB_POLYGON_ID, 31 * level / HOLE_RAMP_FRAMES, 0);
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, HOLE_POLYGON_ID, 31 * level / HOLE_RAMP_FRAMES, 0);
         G3_Color(GX_RGB(31, 31, 31));
         DrawGroundQuad(&centre, &a, &b);
     }
