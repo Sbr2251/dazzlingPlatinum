@@ -1298,6 +1298,13 @@ STAGE_SIZE_SPRITES = 52                  # ... and the chunk 3 sprite debug fiel
 STAGE_SIZE_CAMERA = 96                   # ... and the chunk 4 camera debug fields
 ANCHOR_OFFSET = 72                       # s16 anchor[4][2]: per battler the screen foot anchor (x, y)
 SCALE_OFFSET = 88                        # u16 anchorScale[4]: per battler s in 1/256 (256 at home)
+# Chunk 5 compat fields, u32 at +96..+119 (BattleStageCompatFields, docs/living_battle_stage/compat.md), zeroed
+# at battle load: arena pops, hidden frames and fades (F6), the arena's alpha, lifted BG2 frames and tinted
+# 2D copies (F1/F2)
+STAGE_SIZE_COMPAT = 120                  # sBattleStage at least this big: has the compat fields
+COMPAT_OFFSET = 96
+COMPAT_FIELDS = ("hardPops", "hiddenFrames", "fades", "arenaAlpha", "liftedBg2Frames", "tintedCopies")
+ARENA_ALPHA_FULL = 31
 HOME_SCALE = 256
 # camFlags bits (read only)
 AT_HOME = 1                              # the pose is home, no ease, no shake, debug view 0
@@ -1405,6 +1412,34 @@ class StageRam:
             return (f"sBattleStage is {self.stage[1]} bytes in {self.xmap}, under {STAGE_SIZE_CAMERA}: a ROM from "
                     "before chunk 4, without the camera debug fields")
         return ""
+
+    @property
+    def has_compat(self) -> bool:
+        """sBattleStage has the chunk 5 compat fields (hardPops .. tintedCopies at +96..+119)."""
+        return self.ok and self.stage[1] >= STAGE_SIZE_COMPAT
+
+    @property
+    def compat_why(self) -> str:
+        """Why the compat fields cannot be used ("" if they can)."""
+        if not self.ok:
+            return self.why
+        if not self.has_compat:
+            return (f"sBattleStage is {self.stage[1]} bytes in {self.xmap}, under {STAGE_SIZE_COMPAT}: a ROM from "
+                    "before chunk 5, without the compat fields")
+        return ""
+
+    def compat(self) -> Optional[dict]:
+        """The chunk 5 compat fields as a dict, or None on a ROM without them (or when sBattleStage does not
+        look like a live stage right now)."""
+        if not self.has_compat:
+            return None
+        st = self.read()
+        if not self.plausible(st):
+            return None
+        vals = struct.unpack(f"<{len(COMPAT_FIELDS)}I", self.e.read(self.stage[0] + COMPAT_OFFSET, 4 * len(COMPAT_FIELDS)))
+        c = dict(zip(COMPAT_FIELDS, vals))
+        c["visible"] = st["visible"]
+        return c
 
     def read(self) -> Optional[dict]:
         if not self.ok:
