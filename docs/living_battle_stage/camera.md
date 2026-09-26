@@ -204,6 +204,13 @@ follow. Bit 1 is set by the Mega script, through its first camera command.
 - the first command menu request releases it: ease home over 20 frames, and the menu waits
   for home as usual.
 
+**Lone Totem layout.** Until it summons an ally, the Totem stands centre stage at x=192 (the
+wild single spot) instead of its doubles spot at 216. `TotemBattle_HomeOffsetX` (-24 while
+alone) is added to the encounter slide-in target and to the stage's `sHomeX`, and move
+animations see the Totem as `BATTLER_TYPE_SOLO_ENEMY` (`TotemBattle_AdjustAnimTypes`). When
+the ally is summoned, the Totem slides right over 16 frames while the ally fades in, and the
+offset reaches 0. It stays on the right after that, even if the ally faints.
+
 **Critical hit kick** (bit 3)
 - **When:** the hit blink (`ov16_0225DA44`) starts on a battler that just took a critical
   hit.

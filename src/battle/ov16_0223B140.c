@@ -604,6 +604,7 @@ static void ov16_0223B790(ApplicationManager *appMan)
 
     ov16_0223F36C(battleSys);
     ov16_0223CE28();
+    TotemBattle_ResetLayout(battleSys);
     BattleStage_Init(battleSys);
 #if DEBUG_BATTLE_TOOLS
     BattleDebug_Init();
@@ -765,6 +766,7 @@ static void ov16_0223BCB4(ApplicationManager *appMan)
     StringTemplate_Free(battleSystem->strFormatter);
     PokemonAnimManager_Free(battleSystem->monAnimMan);
     TotemAura_Stop();
+    TotemBattle_ResetLayout(NULL);
     BattleStage_Free();
 #if DEBUG_BATTLE_TOOLS
     BattleDebug_Free();

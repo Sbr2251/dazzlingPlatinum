@@ -400,7 +400,7 @@ static BOOL BattlerFoot(int battler, int *homeX, int *homeY, VecFx32 *foot)
     }
 
     side = type & 1;
-    *homeX = sHomeX[type];
+    *homeX = sHomeX[type] + TotemBattle_HomeOffsetX(type);
     *homeY = BattleStageSprites_BlobRow(side);
     return BattleStageSprites_GroundPoint(side, *homeX, foot);
 }

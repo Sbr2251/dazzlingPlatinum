@@ -118,6 +118,8 @@ static void ov16_0225E894(SysTask *param0, void *param1);
 static void ov16_0225EA80(SysTask *param0, void *param1);
 static void ov16_0225F0C0(SysTask *param0, void *param1);
 static void ov16_0225F764(SysTask *param0, void *param1);
+static int BattleDisplay_LayoutType(int battlerType);
+static void BattleDisplay_TotemStepAsideTask(SysTask *task, void *data);
 static void ov16_0225FA00(SysTask *param0, void *param1);
 static void ov16_0225FA70(SysTask *param0, void *param1);
 static void ov16_0225FD5C(SysTask *param0, void *param1);
@@ -262,7 +264,7 @@ void ov16_0225CBDC(BattleSystem *battleSys, BattlerData *param1, MonEncounterMes
     PokemonSprite_LoadShadowSize(param1->unk_1A0, &v9, message->species);
     PokemonSprite_LoadAnimFrames(param1->unk_1A0, &v3[0], message->species, param1->battlerType);
 
-    v4->unk_08 = param1->unk_20 = ov16_02263B30(battleSys, v2, &v1, Unk_ov12_0223B0B8[param1->battlerType][0], Unk_ov12_0223B0B8[param1->battlerType][1], Unk_ov12_0223B0B8[param1->battlerType][2], v6, v7, v8, v9, param1->battler, &v3[0], NULL);
+    v4->unk_08 = param1->unk_20 = ov16_02263B30(battleSys, v2, &v1, Unk_ov12_0223B0B8[BattleDisplay_LayoutType(param1->battlerType)][0], Unk_ov12_0223B0B8[param1->battlerType][1], Unk_ov12_0223B0B8[param1->battlerType][2], v6, v7, v8, v9, param1->battler, &v3[0], NULL);
 
     if (v4->unk_13 == 2) {
         PokemonSprite_StartFade(v4->unk_08, 8, 8, 0, 0x0);
@@ -280,7 +282,7 @@ void ov16_0225CBDC(BattleSystem *battleSys, BattlerData *param1, MonEncounterMes
 
         v4->unk_14 = v11;
     } else {
-        v4->unk_14 = Unk_ov12_0223B0A0[param1->battlerType][0];
+        v4->unk_14 = Unk_ov12_0223B0A0[BattleDisplay_LayoutType(param1->battlerType)][0];
     }
 
     v4->unk_00 = battleSys;
@@ -290,7 +292,7 @@ void ov16_0225CBDC(BattleSystem *battleSys, BattlerData *param1, MonEncounterMes
     v4->unk_16 = message->species;
     v4->unk_2C = message->formNum;
     v4->unk_18 = message->cryModulation;
-    v4->unk_1C = param1->battlerType;
+    v4->unk_1C = BattleDisplay_LayoutType(param1->battlerType);
     v4->unk_24 = Pokemon_GetNatureOf(message->personality);
     v4->unk_28 = message->isShiny;
 
@@ -1948,6 +1950,57 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
     }
 }
 
+#define TOTEM_STEP_ASIDE_FRAMES 16
+
+typedef struct TotemStepAside {
+    BattleSystem *battleSys;
+    int startOffset;
+    int frame;
+} TotemStepAside;
+
+// The lone Totem enters and stands where a wild single does
+static int BattleDisplay_LayoutType(int battlerType)
+{
+    return TotemBattle_HomeOffsetX(battlerType) != 0 ? BATTLER_TYPE_SOLO_ENEMY : battlerType;
+}
+
+// Slides the Totem from centre stage to its doubles spot while its ally fades in
+static void BattleDisplay_TotemStepAsideTask(SysTask *task, void *data)
+{
+    TotemStepAside *stepAside = data;
+    PokemonSprite *sprite = ov16_02263AFC(BattleSystem_BattlerData(stepAside->battleSys, BATTLER_ENEMY_1));
+    int offset;
+
+    stepAside->frame++;
+    offset = stepAside->startOffset - stepAside->startOffset * stepAside->frame / TOTEM_STEP_ASIDE_FRAMES;
+    TotemBattle_SetHomeOffsetX(offset);
+
+    if (sprite != NULL) {
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_X_CENTER, Unk_ov12_0223B0A0[BATTLER_TYPE_ENEMY_SIDE_SLOT_1][0] + offset);
+    }
+
+    if (stepAside->frame >= TOTEM_STEP_ASIDE_FRAMES) {
+        Heap_Free(stepAside);
+        SysTask_Done(task);
+    }
+}
+
+static void BattleDisplay_StartTotemStepAside(BattleSystem *battleSys)
+{
+    TotemStepAside *stepAside;
+    int offset = TotemBattle_HomeOffsetX(BATTLER_TYPE_ENEMY_SIDE_SLOT_1);
+
+    if (offset == 0) {
+        return;
+    }
+
+    stepAside = Heap_Alloc(HEAP_ID_BATTLE, sizeof(TotemStepAside));
+    stepAside->battleSys = battleSys;
+    stepAside->startOffset = offset;
+    stepAside->frame = 0;
+    SysTask_Start(BattleDisplay_TotemStepAsideTask, stepAside, 0);
+}
+
 // The Totem's ally is summoned rather than sent out, so it fades in from white with no ball
 static void BattleDisplay_SummonTotemAlly(UnkStruct_ov16_0225EA80 *param0)
 {
@@ -1968,6 +2021,7 @@ static void BattleDisplay_SummonTotemAlly(UnkStruct_ov16_0225EA80 *param0)
     Species_PlayDelayedCry(BattleSystem_ChatotVoice(param0->unk_00, param0->unk_81), param0->unk_88, param0->unk_86, param0->unk_97, 117, 127, NULL, 5, v2);
     PokemonSprite_LoadAnim(param0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(param0->unk_00), param0->unk_04->unk_20, param0->unk_86, param0->unk_84, 0, param0->unk_81);
     PokemonSprite_StartFade(param0->unk_04->unk_20, 16, 0, 1, 0x7FFF);
+    BattleDisplay_StartTotemStepAside(param0->unk_00);
 
     param0->unk_83 = 5;
 }
@@ -6509,6 +6563,7 @@ static void ov16_02264408(BattleSystem *battleSys, BattlerData *param1, BattleAn
     }
 
     ov16_0223F87C(battleSys, &(battlerContext.battlerTypes[0]));
+    TotemBattle_AdjustAnimTypes(&(battlerContext.battlerTypes[0]));
     ov16_0223F8AC(battleSys, &(battlerContext.pokemonSprites[0]));
 
     battlerContext.battleType = BattleSystem_BattleType(battleSys);
@@ -6553,6 +6608,7 @@ static void ov16_02264530(BattleSystem *battleSys, MoveAnimation *animation, Unk
     }
 
     ov16_0223F87C(battleSys, &(param2->types[0]));
+    TotemBattle_AdjustAnimTypes(&(param2->types[0]));
     ov16_0223F8AC(battleSys, &(param2->sprites[0]));
 }
 

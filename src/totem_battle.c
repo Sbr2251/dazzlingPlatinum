@@ -7,6 +7,11 @@
 #include "battle/battle_context.h"
 #include "battle/ov16_0223DF00.h"
 
+// The lone Totem's x offset from its doubles home: 192 (the wild single spot) against 216
+#define TOTEM_ALONE_OFFSET_X (192 - 216)
+
+static int sTotemHomeOffsetX;
+
 static const TotemEncounterConfig sTotemEncounterTable[TOTEM_ENCOUNTER_COUNT] = {
     [TOTEM_ENCOUNTER_HITMONLEE] = {
         .party = {
@@ -94,4 +99,27 @@ BOOL TotemBattle_IsInactiveBattler(BattleSystem *battleSys, BattleContext *battl
     return TotemBattle_IsActive(battleSys)
         && battler == BATTLER_ENEMY_2
         && battleCtx->selectedPartySlot[battler] == MAX_PARTY_SIZE;
+}
+
+void TotemBattle_ResetLayout(BattleSystem *battleSys)
+{
+    sTotemHomeOffsetX = (battleSys != NULL && TotemBattle_IsActive(battleSys)) ? TOTEM_ALONE_OFFSET_X : 0;
+}
+
+int TotemBattle_HomeOffsetX(int battlerType)
+{
+    return battlerType == BATTLER_TYPE_ENEMY_SIDE_SLOT_1 ? sTotemHomeOffsetX : 0;
+}
+
+void TotemBattle_SetHomeOffsetX(int offset)
+{
+    sTotemHomeOffsetX = offset;
+}
+
+// Move animations aim at the lone Totem as if it were a wild single, so they land centre stage
+void TotemBattle_AdjustAnimTypes(u8 *types)
+{
+    if (sTotemHomeOffsetX != 0 && types[BATTLER_ENEMY_1] == BATTLER_TYPE_ENEMY_SIDE_SLOT_1) {
+        types[BATTLER_ENEMY_1] = BATTLER_TYPE_SOLO_ENEMY;
+    }
 }
