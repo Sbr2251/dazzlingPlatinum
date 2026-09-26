@@ -30,6 +30,7 @@
 #include "battle/ov16_0226E148.h"
 #include "battle/struct_ov16_0223C2C0.h"
 #include "battle/struct_ov16_0225BFFC_decl.h"
+#include "battle/struct_ov16_0225BFFC_t.h"
 #include "battle/struct_ov16_022674C4.h"
 #include "battle/totem_aura.h"
 #include "battle_anim/battle_anim_system.h"
@@ -1548,6 +1549,22 @@ static void ov16_0223CF1C(void *param0)
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
+// The trainers are 2D OBJs: while the stage camera is off home they draw moved with their
+// side's platform, then go back, so the game's own position checks never see the offset
+static void OffsetTrainerSprites(BattleSystem *battleSys, int sign)
+{
+    int i, dx, dy;
+
+    for (i = 0; i < battleSys->maxBattlers; i++) {
+        BattlerData *battlerData = battleSys->battlers[i];
+
+        if (battlerData != NULL && battlerData->unk_18 != NULL
+            && BattleStage_GetSideOffset(battlerData->battlerType & 1, &dx, &dy)) {
+            ManagedSprite_OffsetPositionXY(battlerData->unk_18, sign * dx, sign * dy);
+        }
+    }
+}
+
 static void ov16_0223CF48(SysTask *param0, void *param1)
 {
     BattleSystem *v0 = param1;
@@ -1562,7 +1579,9 @@ static void ov16_0223CF48(SysTask *param0, void *param1)
         }
 
         PokemonSpriteManager_DrawSprites(v0->unk_88);
+        OffsetTrainerSprites(v0, 1);
         SpriteSystem_DrawSprites(v0->spriteMan);
+        OffsetTrainerSprites(v0, -1);
         SpriteSystem_UpdateTransfer();
         G3_RequestSwapBuffers(GX_SORTMODE_MANUAL, GX_BUFFERMODE_Z);
     }

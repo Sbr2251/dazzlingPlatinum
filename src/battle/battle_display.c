@@ -508,6 +508,9 @@ void ov16_0225D360(BattleSystem *battleSys, BattlerData *param1, TrainerThrowBal
         v0->unk_0B = 2;
         v0->unk_0C = 0;
     } else {
+        // The player's side sends out: the stage camera's battle-start focus eases home
+        BattleStage_EndIntroFocus();
+
         {
             Trainer *trainer = BattleSystem_GetTrainer(battleSys, param1->battler);
             v0->unk_0B = 0;
@@ -590,6 +593,11 @@ void BattleDisplay_SlideHealthbarIn(BattleSystem *battleSys, BattlerData *battle
     Healthbar_DrawInfo(healthbar, healthbar->curHP, HEALTHBAR_INFO_ALL);
 
     healthbar->unk_10 = SysTask_Start(SlideHealthbarInTask, healthbar, 1000);
+
+    // The opponent is out: the stage camera pushes in on it until the player's side sends out
+    if (battlerData->battlerType & 1) {
+        BattleStage_StartIntroFocus();
+    }
 }
 
 void BattleDisplay_SlideHealthbarOut(BattleSystem *battleSys, BattlerData *battlerData)
@@ -1102,6 +1110,11 @@ void ov16_0225DEDC(BattleSystem *battleSys, BattlerData *param1, LeadMonMsgMessa
     BattleMessage v2;
 
     ov16_02263E7C(battleSys, param1, message, &v2);
+
+    // "Go! {0}!": the stage camera's battle-start focus eases home
+    if (!(param1->battlerType & 1)) {
+        BattleStage_EndIntroFocus();
+    }
 
     v1 = BattleSystem_GetMessageLoader(battleSys);
     v0 = (BattleMessageWaitTask *)Heap_Alloc(HEAP_ID_BATTLE, sizeof(BattleMessageWaitTask));
@@ -2554,6 +2567,11 @@ static void ov16_0225FD5C(SysTask *param0, void *param1)
 
     switch (v0->unk_0A) {
     case 0:
+        // The player's trainer is a 2D OBJ: it throws once the stage camera is home
+        if (v0->unk_0B == 0 && !BattleStage_IsIntroFocusDone()) {
+            break;
+        }
+
         if (v0->unk_10 == 0) {
             v0->unk_0A = 1;
         } else {
@@ -5730,6 +5748,13 @@ static void ov16_02263688(SysTask *param0, void *param1)
 
     switch (v0->unk_0E) {
     case 0:
+        // An OBJ can't follow the stage camera: the battle-start focus eases home first
+        BattleStage_EndIntroFocus();
+
+        if (!BattleStage_IsIntroFocusDone()) {
+            break;
+        }
+
         GF_ASSERT(v0->unk_04->unk_88 == NULL);
         v0->unk_04->unk_88 = ov12_022234F8(v0->unk_00, HEAP_ID_BATTLE, v0->unk_0D);
         v0->unk_0E++;

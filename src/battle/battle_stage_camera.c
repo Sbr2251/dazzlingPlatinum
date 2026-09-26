@@ -28,6 +28,12 @@
 #define SCRIPT_END_HOME_FRAMES SCREEN_FRAMES(12)
 // The command menu waits for the camera at most this long, then snaps it home
 #define MENU_WAIT_MAX_FRAMES SCREEN_FRAMES(90)
+// The battle-start focus on the opponents: the push in, the least time it holds once there,
+// the ease home once released, and the longest a send-out waits for it before a snap
+#define INTRO_TO_FRAMES SCREEN_FRAMES(28)
+#define INTRO_MIN_HOLD_FRAMES SCREEN_FRAMES(30)
+#define INTRO_HOME_FRAMES SCREEN_FRAMES(20)
+#define INTRO_WAIT_MAX_FRAMES SCREEN_FRAMES(120)
 
 // Shake periods in steps, different in x and y so the path isn't a line
 #define SHAKE_PERIOD_X 4
@@ -37,6 +43,7 @@ enum CameraSequence {
     SEQUENCE_NONE = 0,
     SEQUENCE_TO, // easing to the goal
     SEQUENCE_HOLD, // holding there (and until the shake ends)
+    SEQUENCE_INTRO, // the battle-start focus: there until released, at least holdFrames
 };
 
 enum ParticleFocus {
@@ -88,6 +95,10 @@ typedef struct StageCamera {
     BOOL scriptActive;
     BOOL sweepDone;
     int menuWait;
+    BOOL introOver; // the focus started, or the player's side already sent out
+    BOOL introRelease; // the player's send-out asked for the ease home
+    BOOL introHoming; // easing home from the focus
+    int introWait;
     // Particles
     int particleFocus;
     int particleBattlers[2];
@@ -490,7 +501,25 @@ static void AdvanceSequence(void)
             sStageCamera.sequence = SEQUENCE_NONE;
         }
         break;
+    case SEQUENCE_INTRO:
+        if (IsEasing()) {
+            break;
+        }
+
+        if (sStageCamera.holdFrames > 0) {
+            sStageCamera.holdFrames--;
+        }
+
+        if (sStageCamera.holdFrames <= 0 && sStageCamera.introRelease) {
+            EaseTo(&sStageCamera.homePose, INTRO_HOME_FRAMES);
+            sStageCamera.sequence = SEQUENCE_NONE;
+            sStageCamera.introHoming = TRUE;
+        }
+        break;
     default:
+        if (sStageCamera.introHoming && !IsEasing()) {
+            sStageCamera.introHoming = FALSE;
+        }
         break;
     }
 }
@@ -870,22 +899,12 @@ static void StartSequence(const CameraPose *goal, int frames, int shakePx, int s
     sStageCamera.sequence = SEQUENCE_TO;
 }
 
-void BattleStage_StartBattleSweep(void)
+// The pose that looks at the opponents: pushed in and turned a little
+static BOOL OpponentsGoal(CameraPose *goal)
 {
-    CameraPose goal;
     VecFx32 sum, point;
     int count = 0;
     int max, i;
-
-    if (sStageCamera.sweepDone || !CanRunCamera()) {
-        return;
-    }
-
-    sStageCamera.sweepDone = TRUE;
-
-    if (TotemBattle_IsActive(sStageCamera.battleSys) || sStageCamera.scriptActive) {
-        return;
-    }
 
     sum.x = sum.y = sum.z = 0;
     max = MaxBattlers();
@@ -900,21 +919,124 @@ void BattleStage_StartBattleSweep(void)
     }
 
     if (count == 0) {
+        return FALSE;
+    }
+
+    *goal = sStageCamera.homePose;
+    goal->focus.x = sum.x / count;
+    goal->focus.y = sum.y / count;
+    goal->focus.z = sum.z / count;
+    goal->yaw = FX32_CONST(-20);
+    goal->pitch = FX32_CONST(-3);
+    goal->distance = FX32_CONST(0.7);
+    return TRUE;
+}
+
+void BattleStage_StartBattleSweep(void)
+{
+    CameraPose goal;
+
+    // The battle-start focus (Safari, Pal Park: nobody sends out) ends at the first menu
+    if (sStageCamera.sequence == SEQUENCE_INTRO) {
+        sStageCamera.introRelease = TRUE;
         return;
     }
 
-    goal = sStageCamera.homePose;
-    goal.focus.x = sum.x / count;
-    goal.focus.y = sum.y / count;
-    goal.focus.z = sum.z / count;
-    goal.yaw = FX32_CONST(-20);
-    goal.pitch = FX32_CONST(-3);
-    goal.distance = FX32_CONST(0.7);
+    if (sStageCamera.sweepDone || !CanRunCamera()) {
+        return;
+    }
+
+    sStageCamera.sweepDone = TRUE;
+
+    if (TotemBattle_IsActive(sStageCamera.battleSys) || sStageCamera.scriptActive || !OpponentsGoal(&goal)) {
+        return;
+    }
 
     sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_SWEEP;
     sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
     sStageCamera.menuWait = 0;
     StartSequence(&goal, SCREEN_FRAMES(28), 0, 0, SCREEN_FRAMES(10), SCREEN_FRAMES(20));
+}
+
+void BattleStage_StartIntroFocus(void)
+{
+    CameraPose goal;
+
+    if (sStageCamera.introOver || sStageCamera.sweepDone || !CanRunCamera()
+        || TotemBattle_IsActive(sStageCamera.battleSys) || sStageCamera.scriptActive || !OpponentsGoal(&goal)) {
+        return;
+    }
+
+    // It stands in for the first-menu sweep
+    sStageCamera.introOver = TRUE;
+    sStageCamera.sweepDone = TRUE;
+    sStageCamera.introRelease = FALSE;
+    sStageCamera.introWait = 0;
+    sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_SWEEP;
+    sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
+    EaseTo(&goal, INTRO_TO_FRAMES);
+    sStageCamera.holdFrames = INTRO_MIN_HOLD_FRAMES;
+    sStageCamera.sequence = SEQUENCE_INTRO;
+}
+
+void BattleStage_EndIntroFocus(void)
+{
+    sStageCamera.introOver = TRUE;
+
+    if (sStageCamera.sequence == SEQUENCE_INTRO) {
+        sStageCamera.introRelease = TRUE;
+    }
+}
+
+BOOL BattleStage_IsIntroFocusDone(void)
+{
+    if (!CanRunCamera() || (sStageCamera.sequence != SEQUENCE_INTRO && !(sStageCamera.introHoming && IsEasing()))) {
+        sStageCamera.introWait = 0;
+        return TRUE;
+    }
+
+    if (++sStageCamera.introWait > INTRO_WAIT_MAX_FRAMES) {
+        SnapHome();
+        sStageCamera.introHoming = FALSE;
+        sStageCamera.introWait = 0;
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy)
+{
+    fx32 sumX = 0, sumY = 0;
+    int count = 0;
+    int max, i;
+
+    *dx = 0;
+    *dy = 0;
+
+    if (!sStageCamera.hasHome || sStageCamera.atHome || sStageCamera.battleSys == NULL) {
+        return FALSE;
+    }
+
+    max = MaxBattlers();
+
+    for (i = 0; i < max; i++) {
+        const CameraAnchor *anchor = &sStageCamera.anchors[i];
+
+        if (anchor->valid && (BattleSystem_BattlerSlot(sStageCamera.battleSys, i) & 1) == side) {
+            sumX += anchor->nowX - anchor->homeX * FX32_ONE;
+            sumY += anchor->nowY - anchor->homeY * FX32_ONE;
+            count++;
+        }
+    }
+
+    if (count == 0) {
+        return FALSE;
+    }
+
+    *dx = (sumX / count + FX32_HALF) >> FX32_SHIFT;
+    *dy = (sumY / count + FX32_HALF) >> FX32_SHIFT;
+    return TRUE;
 }
 
 BOOL BattleStage_IsCameraReadyForMenu(void)

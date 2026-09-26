@@ -2891,8 +2891,8 @@ def _sweep_checks(sc: Scenario, polls: List[tuple], menu_cam: Optional[dict], fr
              why="the command menu must wait for the camera to reach home (90-frame cap, then a snap)")
     if runs:
         first, last = runs[0]
-        sc.note(f"sweep: off home from intro frame {first} to {last} ({last - first + 1} frames; the path is "
-                "28 + 10 + 20 = 58)")
+        sc.note(f"sweep: off home from intro frame {first} to {last} ({last - first + 1} frames; the focus is "
+                "28 in + a hold until the send-out (30 at least) + 20 home)")
 
 
 def _crit_checks(sc: Scenario, polls: List[tuple], what: str) -> None:

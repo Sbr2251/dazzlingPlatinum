@@ -111,8 +111,21 @@ BOOL BattleStage_IsCameraMoving(void);
 void BattleStage_CameraScriptStart(void);
 // Right after the script started: the cinematic bit its first camera command sets
 void BattleStage_SetCameraScriptCinematic(u32 cinematic);
-// The battle-start sweep, at each command menu request; it plays once per battle
+// The battle-start sweep, at each command menu request; it plays once per battle unless the
+// battle-start focus played. It also releases a focus still holding (no send-out: Safari).
 void BattleStage_StartBattleSweep(void);
+// The battle-start focus: when the opponent's healthbar first slides in, the camera pushes in
+// on the opponents and holds there until the player's side sends out
+void BattleStage_StartIntroFocus(void);
+// The player's side is sending out: the focus eases home (after its least hold). Before the
+// focus started, it keeps the focus from starting (the player sent out first).
+void BattleStage_EndIntroFocus(void);
+// A send-out (a trainer's throw, an opponent turning into an OBJ) waits until this is TRUE:
+// no focus holds or eases home. Call it once per frame while waiting; it snaps after a cap.
+BOOL BattleStage_IsIntroFocusDone(void);
+// The mean screen offset of a side's anchors from home while the camera is off home, for the
+// 2D trainer OBJs. FALSE (and 0, 0) at home.
+BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy);
 // The command menu waits until this is TRUE: the camera is home, or it has waited too long
 // (then the camera snaps home). Call it once per frame while waiting.
 BOOL BattleStage_IsCameraReadyForMenu(void);

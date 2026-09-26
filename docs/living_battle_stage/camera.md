@@ -157,15 +157,31 @@ the script as a **camera script**.
 Every cinematic sets its bit in `cinematicsSeen` when it starts, and runs only while the
 stage is visible. The crit and faint kicks are skipped when `debugFlags` has `NO_CINEMATICS`.
 
-**Battle-start sweep** (bit 0)
-- **When:** once per battle, when the first command menu of the battle is requested. By then
-  both sides' Pokemon are out and every trainer sprite, which is a 2D OBJ that can't follow
-  the camera, has left.
-- **Not played:** in Totem battles (their aura intro takes its place), or if the stage isn't
-  visible.
+**Battle-start focus** (bit 0)
+- **When:** once per battle, when the opponent's healthbar first slides in
+  (`BattleDisplay_SlideHealthbarIn`): the opponent's Pokemon is out and, in a trainer battle,
+  its trainer has left.
 - **Path:** from home, over 28 frames, swing onto the opponent's side (focus on the opponent,
   or the midpoint of both opponents in a double battle; yaw -20, pitch -3, distance 70%).
-  Hold for 10 frames, then ease home over 20 frames.
+  Hold there until the player's side sends out, and for at least 30 frames; then ease home
+  over 20 frames.
+- **Released by:** the player's "Go! {0}!" lead message (`ov16_0225DEDC`), the player's
+  trainer throw (`ov16_0225D360`), the opponent turning into an OBJ (the wild intro's
+  `SpriteToOAM`), or the first command menu (Safari, Pal Park: nobody sends out).
+- **Waits for it:** the player's trainer throw and `SpriteToOAM` wait until the camera is
+  home (`BattleStage_IsIntroFocusDone`), with a 120-frame safety cap after which the camera
+  snaps home. The OBJs of the player's trainer and ball, and the OAM copy of the opponent,
+  can't follow the camera.
+- **Trainer OBJs:** while the camera is off home, each trainer OBJ is drawn moved by its
+  side's mean anchor offset (translation only), and moved back after the OBJ draw, so the
+  game's position checks never see it.
+- **Not played:** in Totem battles (their aura intro takes its place), if the stage isn't
+  visible, or once the player's side has sent out (recorded battles send out first).
+
+**Battle-start sweep** (bit 0), the fallback when the focus didn't play
+- **When:** once per battle, when the first command menu of the battle is requested.
+- **Not played:** after the focus, in Totem battles, or if the stage isn't visible.
+- **Path:** the focus pose over 28 frames, hold for 10 frames, then ease home over 20 frames.
 - **The command menu waits** until the camera is home, with a 90-frame safety cap after which
   the camera snaps home.
 
@@ -247,7 +263,8 @@ New `debugFlags` bits, next to the chunk 3 ones:
   first command menu.
 
 **New `camera` scenario** (Plain, wild battle, day)
-- **The sweep:** bit 0 is set by the first command menu. During the sweep at least one frame
+- **The sweep (the battle-start focus):** bit 0 is set by the first command menu. During the
+  intro at least one frame
   has `AT_HOME` clear and the opponent's anchor scale is above 256, and `AT_HOME` is set when
   the menu shows. Save a contact sheet of the sweep.
 - **Crit kick:** with `CRIT_KICK_ON_HIT`, a damaging move sets bit 3. `AT_HOME` clears for at
