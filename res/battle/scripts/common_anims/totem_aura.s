@@ -6,7 +6,8 @@
 // The flames that keep burning around it afterwards come from src/battle/totem_aura.c.
 L_0:
     LoadParticleResource 0, 485 // totem_aura_spa
-    // The stage camera pushes in on the Totem, shakes at the flare and eases home
+    // The stage camera pushes in on the Totem and shakes at the flare. It stays there through
+    // the aura message and eases home at the first command menu (BattleStage_HoldCameraAfterScript).
     StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER, 72, 0, -4, 16
     Delay 16
     StageCameraShake 3, 10
@@ -15,7 +16,6 @@ L_0:
     Func_FadeBattlerSprite BATTLE_ANIM_ATTACKER, 1, 2, 0x023F, 12, 8
     Func_Shake 1, 0, 1, 6, BATTLE_ANIM_BATTLER_SPRITE_ATTACKER
     WaitForAnimTasks
-    StageCameraHome 16
     WaitForAllEmitters
     UnloadParticleSystem 0
     StageCameraWait

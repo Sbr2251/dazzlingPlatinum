@@ -99,6 +99,7 @@ typedef struct StageCamera {
     BOOL introRelease; // the player's send-out asked for the ease home
     BOOL introHoming; // easing home from the focus
     int introWait;
+    BOOL holdAfterScript; // the script's end pose becomes a held focus (the Totem aura)
     // Particles
     int particleFocus;
     int particleBattlers[2];
@@ -699,8 +700,24 @@ void BattleStageCamera_SetScriptActive(BOOL active)
         return;
     }
 
-    // Script end: a script that left the camera off home gets it back
-    if (wasActive && !active && !PoseEquals(&sStageCamera.goal, &sStageCamera.homePose)) {
+    if (!wasActive || active) {
+        return;
+    }
+
+    // Script end: a held script pose stays until the next command menu request
+    if (sStageCamera.holdAfterScript && !PoseEquals(&sStageCamera.goal, &sStageCamera.homePose)) {
+        sStageCamera.holdAfterScript = FALSE;
+        sStageCamera.introRelease = FALSE;
+        sStageCamera.introWait = 0;
+        sStageCamera.holdFrames = 0;
+        sStageCamera.sequence = SEQUENCE_INTRO;
+        return;
+    }
+
+    sStageCamera.holdAfterScript = FALSE;
+
+    // Otherwise a script that left the camera off home gets it back
+    if (!PoseEquals(&sStageCamera.goal, &sStageCamera.homePose)) {
         sStageCamera.sequence = SEQUENCE_NONE;
         EaseTo(&sStageCamera.homePose, SCRIPT_END_HOME_FRAMES);
     }
@@ -889,6 +906,13 @@ void BattleStage_SetCameraScriptCinematic(u32 cinematic)
     }
 }
 
+void BattleStage_HoldCameraAfterScript(void)
+{
+    if (sStageCamera.scriptActive && CanRunCamera()) {
+        sStageCamera.holdAfterScript = TRUE;
+    }
+}
+
 // A cinematic: ease to goal, shake, hold, then ease home
 static void StartSequence(const CameraPose *goal, int frames, int shakePx, int shakeFrames, int holdFrames, int homeFrames)
 {
@@ -936,7 +960,8 @@ void BattleStage_StartBattleSweep(void)
 {
     CameraPose goal;
 
-    // The battle-start focus (Safari, Pal Park: nobody sends out) ends at the first menu
+    // The battle-start focus (Safari, Pal Park: nobody sends out) and the Totem aura's held
+    // pose end at the first menu
     if (sStageCamera.sequence == SEQUENCE_INTRO) {
         sStageCamera.introRelease = TRUE;
         return;

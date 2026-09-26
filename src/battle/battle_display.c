@@ -6530,6 +6530,8 @@ static void ov16_02264408(BattleSystem *battleSys, BattlerData *param1, BattleAn
 
     if (animation->unk_4C != 0 && animation->unk_50 == BATTLE_ANIMATION_TOTEM_AURA) {
         BattleStage_SetCameraScriptCinematic(BATTLE_STAGE_CINEMATIC_TOTEM);
+        // The camera stays on the Totem through the aura message, home at the first menu
+        BattleStage_HoldCameraAfterScript();
         TotemAura_Start(battleSys);
     }
 }

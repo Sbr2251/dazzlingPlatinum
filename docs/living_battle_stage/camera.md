@@ -197,8 +197,12 @@ follow. Bit 1 is set by the Mega script, through its first camera command.
 
 **Totem intro** (bit 2) is played by the Totem aura script:
 - push in on the Totem over 16 frames (distance 72%, pitch -4);
-- at the flare, shake by 3 px for 10 frames;
-- ease home over 16 frames, then `StageCameraWait`.
+- at the flare, shake by 3 px for 10 frames, then `StageCameraWait`;
+- the script ends off home. `BattleStage_HoldCameraAfterScript` (called when the aura
+  animation starts) turns the end pose into a held focus (`SEQUENCE_INTRO`), so the camera
+  stays on the Totem through the "aura flared to life" message;
+- the first command menu request releases it: ease home over 20 frames, and the menu waits
+  for home as usual.
 
 **Critical hit kick** (bit 3)
 - **When:** the hit blink (`ov16_0225DA44`) starts on a battler that just took a critical

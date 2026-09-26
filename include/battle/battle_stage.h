@@ -111,8 +111,12 @@ BOOL BattleStage_IsCameraMoving(void);
 void BattleStage_CameraScriptStart(void);
 // Right after the script started: the cinematic bit its first camera command sets
 void BattleStage_SetCameraScriptCinematic(u32 cinematic);
+// Right after the script started: if it ends off home, the camera holds there (as the
+// battle-start focus) until the next command menu request instead of easing home
+void BattleStage_HoldCameraAfterScript(void);
 // The battle-start sweep, at each command menu request; it plays once per battle unless the
-// battle-start focus played. It also releases a focus still holding (no send-out: Safari).
+// battle-start focus played. It also releases a focus still holding (no send-out: Safari; the
+// Totem aura).
 void BattleStage_StartBattleSweep(void);
 // The battle-start focus: when the opponent's healthbar first slides in, the camera pushes in
 // on the opponents and holds there until the player's side sends out
