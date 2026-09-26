@@ -1222,8 +1222,10 @@ class StageRam:
             self.why = f"sBattleStage in {self.xmap} reads {st}: the xMAP is not from this ROM's build"
         return good
 
-    def set_flags(self, flags: int, settle: int = 4) -> bool:
-        """Writes debugFlags (sBattleStage+32) and runs `settle` frames so the renderer draws with them.
+    def set_flags(self, flags: int, settle: int = 10) -> bool:
+        """Writes debugFlags (sBattleStage+32) and runs `settle` frames so the screen shows them: the RAM
+        counters follow in about 2 frames, the picture only after about 5 (the 3D pipeline plus the
+        emulator's frame delay), so a shorter settle leaves a stale frame in the next recording.
         Call in a battle, at the command menu. False (nothing written) on a ROM without the field or
         when sBattleStage does not validate, so a wrong xMAP never corrupts RAM."""
         if not self.has_sprites or not self.validate(self.read()):

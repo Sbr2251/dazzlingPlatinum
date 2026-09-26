@@ -165,7 +165,7 @@ The arena level is only measured on BG0 frames where the arena covers the region
 
 ## Lit, deformable sprites (chunk 3)
 
-`debugFlags` (sBattleStage+32) is written by the critic: bit 0 `FREEZE_IDLE` (no breathing, no wobble), bit 1 `NO_BLOB_SHADOWS` (classic shadow back), bit 2 `CLASSIC_SPRITES` (old sprite path while the arena shows). sBattleStage lives in the battle overlay's .bss, which is zeroed on every battle load, so the critic writes the flags inside each battle, at the command menu, and runs a few frames before it looks (the renderer reads them every frame). The contract's "survives battles" does not hold for a .bss variable. A write happens only after `sBattleStage` validates in that battle, so a wrong xMAP never touches RAM.
+`debugFlags` (sBattleStage+32) is written by the critic: bit 0 `FREEZE_IDLE` (no breathing, no wobble), bit 1 `NO_BLOB_SHADOWS` (classic shadow back), bit 2 `CLASSIC_SPRITES` (old sprite path while the arena shows). sBattleStage lives in the battle overlay's .bss, which is zeroed on every battle load, so the critic writes the flags inside each battle, at the command menu, and runs 10 frames before it looks (the renderer reads them every frame; the RAM counters follow in about 2 frames but the picture only in about 5, so a shorter wait leaves a stale frame). The contract's "survives battles" does not hold for a .bss variable. A write happens only after `sBattleStage` validates in that battle, so a wrong xMAP never touches RAM.
 
 Who sets what: `stage_ab` and all_backgrounds' home-vs-classic set `FREEZE_IDLE | NO_BLOB_SHADOWS`; every "closest idle frame" comparison (move_tester, switchbg_moves, bag_party, debug_views, wild_battle's bag) sets `FREEZE_IDLE`.
 
