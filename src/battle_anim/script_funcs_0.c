@@ -2519,7 +2519,7 @@ void BattleAnimScriptFunc_Surf(BattleAnimSystem *system)
             ctx->spritePos.y = SURF_PLAYER_SIDE_Y;
             ManagedSprite_SetExplicitPriority(
                 ctx->currentSprite,
-                BattleAnimSystem_GetPokemonSpritePriority(system) + 1);
+                BattleAnimSystem_GetBehindMonSpritePriority(system));
         }
 
         ctx->dir = 1;

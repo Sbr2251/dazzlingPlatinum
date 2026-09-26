@@ -65,6 +65,20 @@
 // Screen rows sampled either side of the blob row to measure the ground per row
 #define BLOB_ROW_STEP 4
 
+// Dig's hole in the ground (moves.md, D): a second 32x16 A5I3 texture right after the blob's
+// in the same VRAM block (1 KB for both), drawn as the blobs are, at the mon's blob place
+#define HOLE_TEX_BYTES      BLOB_TEX_BYTES
+#define BLOB_TEX_ALLOC      (BLOB_TEX_BYTES + HOLE_TEX_BYTES)
+#define HOLE_MAX_ALPHA      28
+#define HOLE_CORE_F         560 // 1 - d^2 (of 1024) inside which the hole is solid
+#define HOLE_EARTH_F        360 // ... and inside which it is black rather than earth
+#define HOLE_PLTT_EARTH     1 // blob palette colour of the hole's rim
+#define HOLE_EARTH_COLOR    GX_RGB(9, 6, 3)
+#define HOLE_RAMP_FRAMES    6 // drawn frames to open or shut
+#define HOLE_PLAYER_WIDTH   64 // the back sprite no longer hides its middle
+#define HOLE_ENEMY_EXTRA    8 // wider than the enemy's blob
+#define HOLE_PLAYER_RISE    6 // screen rows up from the player's blob row, clear of the text box
+
 // Screen rows of the blob centres at home, per side (player, enemy): the mons' feet, the
 // player's raised above the text box (its feet are at 148, under it). The blobs sit on the
 // ground seen at these rows and follow the mons in x.
@@ -112,6 +126,9 @@ typedef struct StageSprites {
     VecFx32 right; // unit camera-right of the home camera
     fx32 tint[3]; // material scale per channel (R, G, B), from UpdateTint
     BOOL bg2Lifted; // BattleStage_SetBg2Lifted
+    // BattleStage_SetGroundHole: per battler, open or not and how far (0..HOLE_RAMP_FRAMES)
+    u8 holeOpen[MAX_MON_SPRITES];
+    u8 holeLevel[MAX_MON_SPRITES];
 } StageSprites;
 
 static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const PokemonSpriteDrawRect *rect);
@@ -122,7 +139,7 @@ static void FreeBlobs(void);
 
 static StageSprites sStageSprites;
 static u16 sBlobPalette[BLOB_PLTT_BYTES / 2]; // black
-static u8 sBlobTexture[BLOB_TEX_BYTES];
+static u8 sBlobTexture[BLOB_TEX_ALLOC]; // the blob, then the hole
 
 void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *fields, const BattleStageSpriteCamera *camera)
 {
@@ -139,6 +156,7 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     sStageSprites.view = NULL;
     sStageSprites.hasBlobs = FALSE;
     sStageSprites.bg2Lifted = FALSE;
+    BattleStage_ClearGroundHoles();
 
     for (i = 0; i < MAX_MON_SPRITES; i++) {
         sStageSprites.states[i].phase = 0;
@@ -219,6 +237,12 @@ void BattleStageSprites_BeginFrame(BOOL visible, const BattleStageFileLighting *
         if (state->wobble > 0) {
             fields->wobbleMask |= 1 << i;
         }
+
+        if (sStageSprites.holeOpen[i] && sStageSprites.holeLevel[i] < HOLE_RAMP_FRAMES) {
+            sStageSprites.holeLevel[i]++;
+        } else if (!sStageSprites.holeOpen[i] && sStageSprites.holeLevel[i] > 0) {
+            sStageSprites.holeLevel[i]--;
+        }
     }
 
     // Another screen may have used the texture or palette VRAM while the arena was hidden
@@ -250,6 +274,25 @@ void BattleStage_NotifyHit(int battler)
 
     // BeginFrame counts it down before the first wobbling frame
     sStageSprites.states[battler].wobble = WOBBLE_FRAMES + 1;
+}
+
+void BattleStage_SetGroundHole(int battler, BOOL open)
+{
+    if (battler < 0 || battler >= MAX_MON_SPRITES) {
+        return;
+    }
+
+    sStageSprites.holeOpen[battler] = open != FALSE;
+}
+
+void BattleStage_ClearGroundHoles(void)
+{
+    int i;
+
+    for (i = 0; i < MAX_MON_SPRITES; i++) {
+        sStageSprites.holeOpen[i] = FALSE;
+        sStageSprites.holeLevel[i] = 0;
+    }
 }
 
 // Blob shadows are drawn (and the classic shadows are not) this frame
@@ -654,6 +697,19 @@ static void BuildBlobTexture(void)
             sBlobTexture[v * BLOB_TEX_WIDTH + u] = (u8)(alpha << 3);
         }
     }
+
+    // The hole: solid black inside, a ring of dark earth, then a soft edge
+    for (v = 0; v < BLOB_TEX_HEIGHT; v++) {
+        for (u = 0; u < BLOB_TEX_WIDTH; u++) {
+            int du = 2 * u - (BLOB_TEX_WIDTH - 1);
+            int dv = 2 * (2 * v - (BLOB_TEX_HEIGHT - 1));
+            int f = 1024 - (du * du + dv * dv);
+            int alpha = f >= HOLE_CORE_F ? HOLE_MAX_ALPHA : (f > 0 ? HOLE_MAX_ALPHA * f / HOLE_CORE_F : 0);
+            int index = f >= HOLE_EARTH_F ? 0 : HOLE_PLTT_EARTH;
+
+            sBlobTexture[BLOB_TEX_BYTES + v * BLOB_TEX_WIDTH + u] = (u8)((alpha << 3) | index);
+        }
+    }
 }
 
 // Where the home camera sees a screen row (column 128) on the ground; FALSE above the horizon
@@ -744,7 +800,7 @@ static BOOL InitBlobs(const BattleStageSpriteCamera *camera)
         return FALSE;
     }
 
-    sStageSprites.blobTexKey = NNS_GfdAllocTexVram(BLOB_TEX_BYTES, FALSE, 0);
+    sStageSprites.blobTexKey = NNS_GfdAllocTexVram(BLOB_TEX_ALLOC, FALSE, 0);
 
     if (sStageSprites.blobTexKey == NNS_GFD_ALLOC_ERROR_TEXKEY) {
         return FALSE;
@@ -752,7 +808,7 @@ static BOOL InitBlobs(const BattleStageSpriteCamera *camera)
 
     sStageSprites.blobTexAddr = NNS_GfdGetTexKeyAddr(sStageSprites.blobTexKey);
 
-    if (sStageSprites.blobTexAddr + BLOB_TEX_BYTES > BLOB_TEX_VRAM_END) {
+    if (sStageSprites.blobTexAddr + BLOB_TEX_ALLOC > BLOB_TEX_VRAM_END) {
         NNS_GfdFreeTexVram(sStageSprites.blobTexKey);
         return FALSE;
     }
@@ -768,11 +824,12 @@ static BOOL InitBlobs(const BattleStageSpriteCamera *camera)
 
     BuildBlobTexture();
     memset(sBlobPalette, 0, sizeof(sBlobPalette));
+    sBlobPalette[HOLE_PLTT_EARTH] = HOLE_EARTH_COLOR;
     DC_FlushRange(sBlobTexture, sizeof(sBlobTexture));
     DC_FlushRange(sBlobPalette, sizeof(sBlobPalette));
 
     GX_BeginLoadTex();
-    GX_LoadTex(sBlobTexture, sStageSprites.blobTexAddr, BLOB_TEX_BYTES);
+    GX_LoadTex(sBlobTexture, sStageSprites.blobTexAddr, BLOB_TEX_ALLOC);
     GX_EndLoadTex();
 
     GX_BeginLoadTexPltt();
@@ -791,14 +848,80 @@ static void FreeBlobs(void)
     }
 }
 
+// Dig's holes are drawn this frame, wherever they are open: they don't depend on the blob
+// shadows being on, only on their texture being there
+static BOOL HolesOn(void)
+{
+    return sStageSprites.visible && sStageSprites.hasBlobs && (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_CLASSIC_SPRITES) == 0;
+}
+
+// The arena's projection with z' = BLOB_DEPTH * w (the projection stack has a single entry,
+// which DrawArena uses)
+static void LoadFlatProjection(const MtxFx44 *projection)
+{
+    MtxFx44 flat = *projection;
+
+    flat._02 = FX_Mul(BLOB_DEPTH, flat._03);
+    flat._12 = FX_Mul(BLOB_DEPTH, flat._13);
+    flat._22 = FX_Mul(BLOB_DEPTH, flat._23);
+    flat._32 = FX_Mul(BLOB_DEPTH, flat._33);
+    G3_MtxMode(GX_MTXMODE_PROJECTION);
+    G3_LoadMtx44(&flat);
+    G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
+}
+
+// A textured quad on the ground around centre: a across (half), b down the screen (half)
+static void DrawGroundQuad(const VecFx32 *centre, const VecFx32 *a, const VecFx32 *b)
+{
+    G3_PushMtx();
+    G3_Translate(centre->x, centre->y, centre->z);
+    G3_Begin(GX_BEGIN_QUADS);
+    G3_TexCoord(0, 0);
+    G3_Vtx((fx16)(-a->x - b->x), (fx16)(-a->y - b->y), (fx16)(-a->z - b->z));
+    G3_TexCoord(BLOB_TEX_WIDTH * FX32_ONE, 0);
+    G3_Vtx((fx16)(a->x - b->x), (fx16)(a->y - b->y), (fx16)(a->z - b->z));
+    G3_TexCoord(BLOB_TEX_WIDTH * FX32_ONE, BLOB_TEX_HEIGHT * FX32_ONE);
+    G3_Vtx((fx16)(a->x + b->x), (fx16)(a->y + b->y), (fx16)(a->z + b->z));
+    G3_TexCoord(0, BLOB_TEX_HEIGHT * FX32_ONE);
+    G3_Vtx((fx16)(-a->x + b->x), (fx16)(-a->y + b->y), (fx16)(-a->z + b->z));
+    G3_End();
+    G3_PopMtx(1);
+}
+
+// The ground quad of a mon's blob place, widthPx wide on screen at scale 1
+static void GroundQuadAxes(int battler, int widthPx, int scale, VecFx32 *centre, VecFx32 *a, VecFx32 *b, fx32 *radius)
+{
+    const PokemonSprite *sprite = &BattleSystem_GetPokemonSpriteManager(sStageSprites.battleSys)->sprites[battler];
+    const PokemonSpriteTransforms *transforms = &sprite->transforms;
+    int side = BattleSystem_BattlerSlot(sStageSprites.battleSys, battler) & 1;
+    int px, rows;
+
+    // Half the width, as a fraction of the 128 pixels groundHalfWidth covers
+    *radius = sStageSprites.groundHalfWidth[side] * widthPx / 2 / 128 * scale / MON_AFFINE_SCALE(1);
+
+    px = transforms->xCenter + transforms->xOffset + sprite->shadow.xOffset - 128;
+    centre->x = sStageSprites.groundCentre[side].x + sStageSprites.groundRight[side].x * px / 128;
+    centre->y = sStageSprites.groundCentre[side].y + sStageSprites.groundRight[side].y * px / 128;
+    centre->z = sStageSprites.groundCentre[side].z + sStageSprites.groundRight[side].z * px / 128;
+    a->x = FX_Mul(sStageSprites.right.x, *radius);
+    a->y = FX_Mul(sStageSprites.right.y, *radius);
+    a->z = FX_Mul(sStageSprites.right.z, *radius);
+    // Half the height on screen, in rows, times the ground per row
+    rows = widthPx * scale / MON_AFFINE_SCALE(1) / (2 * BLOB_HEIGHT_DIV);
+    b->x = sStageSprites.groundDown[side].x * rows;
+    b->y = 0;
+    b->z = sStageSprites.groundDown[side].z * rows;
+}
+
 void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
 {
     PokemonSpriteManager *monSpriteMan;
-    MtxFx44 flat;
     int numBattlers, i;
     BOOL started = FALSE;
+    BOOL blobsOn = BlobsOn();
+    BOOL holesOn = HolesOn();
 
-    if (!BlobsOn()) {
+    if (!blobsOn && !holesOn) {
         return;
     }
 
@@ -809,10 +932,10 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
         numBattlers = MAX_MON_SPRITES;
     }
 
-    for (i = 0; i < numBattlers; i++) {
+    for (i = 0; i < numBattlers && blobsOn; i++) {
         const PokemonSprite *sprite = &monSpriteMan->sprites[i];
         const PokemonSpriteTransforms *transforms = &sprite->transforms;
-        int side, widthPx, scale, px, rows;
+        int side, widthPx, scale;
         fx32 radius;
         VecFx32 centre, a, b;
 
@@ -831,37 +954,14 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
             scale = MON_AFFINE_SCALE(1);
         }
 
-        // Half the width, as a fraction of the 128 pixels groundHalfWidth covers
-        radius = sStageSprites.groundHalfWidth[side] * widthPx / 2 / 128 * scale / MON_AFFINE_SCALE(1);
+        GroundQuadAxes(i, widthPx, scale, &centre, &a, &b, &radius);
 
         if (radius <= 0) {
             continue;
         }
 
-        px = transforms->xCenter + transforms->xOffset + sprite->shadow.xOffset - 128;
-        centre.x = sStageSprites.groundCentre[side].x + sStageSprites.groundRight[side].x * px / 128;
-        centre.y = sStageSprites.groundCentre[side].y + sStageSprites.groundRight[side].y * px / 128;
-        centre.z = sStageSprites.groundCentre[side].z + sStageSprites.groundRight[side].z * px / 128;
-        a.x = FX_Mul(sStageSprites.right.x, radius);
-        a.y = FX_Mul(sStageSprites.right.y, radius);
-        a.z = FX_Mul(sStageSprites.right.z, radius);
-        // Half the height on screen, in rows, times the ground per row
-        rows = widthPx * scale / MON_AFFINE_SCALE(1) / (2 * BLOB_HEIGHT_DIV);
-        b.x = sStageSprites.groundDown[side].x * rows;
-        b.y = 0;
-        b.z = sStageSprites.groundDown[side].z * rows;
-
         if (!started) {
-            // The arena's projection with z' = BLOB_DEPTH * w (the projection stack has a
-            // single entry, which DrawArena uses)
-            flat = *projection;
-            flat._02 = FX_Mul(BLOB_DEPTH, flat._03);
-            flat._12 = FX_Mul(BLOB_DEPTH, flat._13);
-            flat._22 = FX_Mul(BLOB_DEPTH, flat._23);
-            flat._32 = FX_Mul(BLOB_DEPTH, flat._33);
-            G3_MtxMode(GX_MTXMODE_PROJECTION);
-            G3_LoadMtx44(&flat);
-            G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
+            LoadFlatProjection(projection);
 
             // Texcoords used as is (no texture matrix), no light, no fog; translucent
             // (A5I3), so it doesn't write depth and blends over the ground
@@ -872,21 +972,46 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
             started = TRUE;
         }
 
-        G3_PushMtx();
-        G3_Translate(centre.x, centre.y, centre.z);
-        G3_Begin(GX_BEGIN_QUADS);
-        G3_TexCoord(0, 0);
-        G3_Vtx((fx16)(-a.x - b.x), (fx16)(-a.y - b.y), (fx16)(-a.z - b.z));
-        G3_TexCoord(BLOB_TEX_WIDTH * FX32_ONE, 0);
-        G3_Vtx((fx16)(a.x - b.x), (fx16)(a.y - b.y), (fx16)(a.z - b.z));
-        G3_TexCoord(BLOB_TEX_WIDTH * FX32_ONE, BLOB_TEX_HEIGHT * FX32_ONE);
-        G3_Vtx((fx16)(a.x + b.x), (fx16)(a.y + b.y), (fx16)(a.z + b.z));
-        G3_TexCoord(0, BLOB_TEX_HEIGHT * FX32_ONE);
-        G3_Vtx((fx16)(-a.x + b.x), (fx16)(-a.y + b.y), (fx16)(-a.z + b.z));
-        G3_End();
-        G3_PopMtx(1);
-
+        DrawGroundQuad(&centre, &a, &b);
         sStageSprites.fields->blobShadows++;
+    }
+
+    // Dig's holes (moves.md, D), after the blobs: at the blob place of the mon, which is
+    // clipped or hidden meanwhile, at its full width; the polygon alpha opens and shuts them
+    for (i = 0; i < numBattlers && holesOn; i++) {
+        const PokemonSprite *sprite = &monSpriteMan->sprites[i];
+        int level = sStageSprites.holeLevel[i];
+        int side, widthPx;
+        fx32 radius;
+        VecFx32 centre, a, b;
+
+        if (level == 0 || !sprite->active) {
+            continue;
+        }
+
+        side = BattleSystem_BattlerSlot(sStageSprites.battleSys, i) & 1;
+        widthPx = side ? sEnemyBlobWidth[sprite->shadow.size] + HOLE_ENEMY_EXTRA : HOLE_PLAYER_WIDTH;
+        GroundQuadAxes(i, widthPx, MON_AFFINE_SCALE(1), &centre, &a, &b, &radius);
+
+        if (radius <= 0) {
+            continue;
+        }
+
+        if (side == 0) {
+            centre.x -= sStageSprites.groundDown[0].x * HOLE_PLAYER_RISE;
+            centre.z -= sStageSprites.groundDown[0].z * HOLE_PLAYER_RISE;
+        }
+
+        if (!started) {
+            LoadFlatProjection(projection);
+            started = TRUE;
+        }
+
+        G3_TexImageParam(GX_TEXFMT_A5I3, GX_TEXGEN_NONE, GX_TEXSIZE_S32, GX_TEXSIZE_T16, GX_TEXREPEAT_NONE, GX_TEXFLIP_NONE, GX_TEXPLTTCOLOR0_USE, sStageSprites.blobTexAddr + BLOB_TEX_BYTES);
+        G3_TexPlttBase(sStageSprites.blobPlttAddr, GX_TEXFMT_A5I3);
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, BLOB_POLYGON_ID, 31 * level / HOLE_RAMP_FRAMES, 0);
+        G3_Color(GX_RGB(31, 31, 31));
+        DrawGroundQuad(&centre, &a, &b);
     }
 
     if (started) {

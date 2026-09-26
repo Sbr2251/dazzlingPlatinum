@@ -12,6 +12,7 @@
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
 #include "battle/battle_display.h"
+#include "battle/battle_stage.h"
 #include "global/utility.h"
 
 #include "battle_script_battlers.h"
@@ -564,6 +565,7 @@ typedef struct BattlerPartialDrawContext {
     int y;
     int baseY;
     int unk_4C;
+    int holeBattler; // the battler with a hole in the arena ground under it, or -1
 } BattlerPartialDrawContext;
 
 enum BattlerPartialDrawState {
@@ -944,6 +946,7 @@ static void BattleAnimTask_ScrollCustomBg(SysTask *task, void *param)
     } break;
     default:
         Bg_ToggleLayer(BATTLE_BG_BASE, FALSE);
+        BattleAnimSystem_DropBg2PictureLift(ctx->common.battleAnimSys);
         BattleAnimSystem_EndAnimTask(ctx->common.battleAnimSys, task);
         Heap_Free(ctx);
         return;
@@ -1055,6 +1058,10 @@ void BattleAnimScriptFunc_ScrollCustomBg(BattleAnimSystem *system)
     Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_BASE, BG_OFFSET_UPDATE_SET_X, ctx->x);
     Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_BASE, BG_OFFSET_UPDATE_SET_Y, ctx->y);
 
+    // Chunk 6 (moves.md, D): the water washes over the lit 3D arena, blended with it, instead
+    // of the arena fading out under it
+    BattleAnimSystem_LiftBg2Picture(system);
+
     BattleAnimSystem_StartAnimTask(ctx->common.battleAnimSys, BattleAnimTask_ScrollCustomBg, ctx);
 }
 
@@ -1120,6 +1127,7 @@ static void BattleAnimTask_MuddyWater(SysTask *task, void *param)
     } break;
     default:
         Bg_ToggleLayer(BATTLE_BG_BASE, FALSE);
+        BattleAnimSystem_DropBg2PictureLift(ctx->common.battleAnimSys);
         BattleAnimSystem_EndAnimTask(ctx->common.battleAnimSys, task);
         Heap_Free(ctx);
         return;
@@ -1232,6 +1240,10 @@ void BattleAnimScriptFunc_MuddyWater(BattleAnimSystem *system)
 
     Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_BASE, BG_OFFSET_UPDATE_SET_X, ctx->x);
     Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_BASE, BG_OFFSET_UPDATE_SET_Y, ctx->y);
+
+    // Chunk 6 (moves.md, D): the water washes over the lit 3D arena, blended with it, instead
+    // of the arena fading out under it
+    BattleAnimSystem_LiftBg2Picture(system);
 
     BattleAnimSystem_StartAnimTask(ctx->common.battleAnimSys, BattleAnimTask_MuddyWater, ctx);
 }
@@ -3022,6 +3034,10 @@ static void BattleAnimTask_BattlerPartialDrawAppear(SysTask *task, void *param)
         PokemonSprite_SetAttribute(ctx->spriteInfo.monSprite, MON_SPRITE_DRAW_HEIGHT, ctx->yOffset);
         break;
     case BATTLE_PARTIAL_DRAW_STATE_CLEANUP:
+        if (ctx->holeBattler >= 0) {
+            BattleStage_SetGroundHole(ctx->holeBattler, FALSE);
+        }
+
         PokemonSprite_SetAttribute(ctx->spriteInfo.monSprite, MON_SPRITE_PARTIAL_DRAW, FALSE);
         PokemonSprite_SetAttribute(ctx->spriteInfo.monSprite, MON_SPRITE_Y_CENTER, ctx->baseY);
         PokemonSprite_SetAttribute(ctx->spriteInfo.monSprite, MON_SPRITE_DRAW_HEIGHT, ctx->height);
@@ -3055,6 +3071,10 @@ static void BattleAnimTask_BattlerPartialDrawDisappear(SysTask *task, void *para
         PokemonSprite_SetAttribute(ctx->spriteInfo.monSprite, MON_SPRITE_DRAW_HEIGHT, ctx->yOffset);
         break;
     case BATTLE_PARTIAL_DRAW_STATE_CLEANUP:
+        if (ctx->holeBattler >= 0) {
+            BattleStage_SetGroundHole(ctx->holeBattler, FALSE);
+        }
+
         PokemonSprite_SetAttribute(ctx->spriteInfo.monSprite, MON_SPRITE_PARTIAL_DRAW, FALSE);
         PokemonSprite_SetAttribute(ctx->spriteInfo.monSprite, MON_SPRITE_Y_CENTER, ctx->baseY);
         PokemonSprite_SetAttribute(ctx->spriteInfo.monSprite, MON_SPRITE_DRAW_HEIGHT, ctx->height);
@@ -3099,6 +3119,7 @@ void BattleAnimScriptFunc_BattlerPartialDraw(BattleAnimSystem *system)
 {
     BattlerPartialDrawContext *ctx = BattleAnimUtil_Alloc(system, sizeof(BattlerPartialDrawContext));
     BattleAnimSystem_GetCommonData(system, &ctx->common);
+    ctx->holeBattler = -1;
 
     ctx->step = BattleAnimSystem_GetScriptVar(system, BATTLER_PARTIAL_DRAW_VAR_STEP_SIZE);
     ctx->stepInterval = BattleAnimSystem_GetScriptVar(system, BATTLER_PARTIAL_DRAW_VAR_STEP_INTERVAL);
@@ -3118,6 +3139,15 @@ void BattleAnimScriptFunc_BattlerPartialDraw(BattleAnimSystem *system)
         BattleAnimSystem_StartAnimTask(ctx->common.battleAnimSys, BattleAnimTask_BattlerPartialDrawSketch, ctx);
 
         return;
+    }
+
+    // Chunk 6 (moves.md, D): Dig (the only user outside Sketch) sinks into, or comes up out of,
+    // a dark hole in the 3D arena ground. It closes once the mon is under (or out); End takes
+    // it away at the latest. Between Dig's turns the mon stays hidden and there is no hole.
+    // The battle overlay is not loaded in contests.
+    if (BattleAnimSystem_IsContest(system) == FALSE) {
+        ctx->holeBattler = battler;
+        BattleStage_SetGroundHole(battler, TRUE);
     }
 
     ctx->y = PokemonSprite_GetAttribute(ctx->spriteInfo.monSprite, MON_SPRITE_Y_CENTER);

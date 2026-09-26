@@ -107,7 +107,7 @@ typedef struct BattleStageCompatFields {
     u32 hiddenFrames; // +100: drawn frames the arena was loaded and enabled but hidden
     u32 fades; // +104: the arena faded out through its alpha instead of popping
     u32 arenaAlpha; // +108: the arena's current polygon alpha, 0..31 (31 = opaque)
-    u32 liftedBg2Frames; // +112: drawn frames with BG2 lifted above the 3D layer for a mon copy
+    u32 liftedBg2Frames; // +112: drawn frames with BG2 lifted above the 3D layer (a mon copy, or Surf's and Muddy Water's water)
     u32 tintedCopies; // +116: mon copies (BG2 or OAM) given the arena's sprite tint this battle
 } BattleStageCompatFields;
 
@@ -122,7 +122,13 @@ BOOL BattleStage_GetSpriteTint(u16 *tintR, u16 *tintG, u16 *tintB);
 // Multiplies colours start..start+count-1 of a palette buffer, unfaded and faded, by the
 // sprite tint and counts a tinted copy; FALSE and nothing changed when there is no tint
 BOOL BattleStage_TintCopyPalette(PaletteData *paletteData, enum PaletteBufferID bufferID, u16 start, u16 count);
-// BG2 holds a mon copy lifted above the 3D layer (compat.md, F1); counted per drawn frame
+// BG2 holds a mon copy (compat.md, F1) or a water picture (moves.md, D) lifted above the 3D
+// layer; counted per drawn frame
 void BattleStage_SetBg2Lifted(BOOL lifted);
+// A dark hole in the arena ground under a battler, for Dig (moves.md, D). It opens and closes
+// over a few drawn frames; nothing is drawn while it is shut. ClearGroundHoles shuts every
+// hole at once, as at the end of a script.
+void BattleStage_SetGroundHole(int battler, BOOL open);
+void BattleStage_ClearGroundHoles(void);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_H

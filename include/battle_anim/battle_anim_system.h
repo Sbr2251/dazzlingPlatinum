@@ -235,6 +235,13 @@ BOOL BattleAnimSystem_ExecuteScript(BattleAnimSystem *system);
 BOOL BattleAnimSystem_IsMoveActive(BattleAnimSystem *system);
 BOOL BattleAnimSystem_FreeScriptData(BattleAnimSystem *system);
 BOOL BattleAnimSystem_IsActive(BattleAnimSystem *system);
+// Chunk 6 (docs/living_battle_stage/moves.md, D): a full-screen BG2 picture (Surf's and
+// Muddy Water's water) goes above the 3D stage on BG0 while it shows; TRUE when it was lifted
+BOOL BattleAnimSystem_LiftBg2Picture(BattleAnimSystem *system);
+void BattleAnimSystem_DropBg2PictureLift(BattleAnimSystem *system);
+// Chunk 6 (moves.md, D): the bg priority of an OBJ the classic scene puts just behind the mons
+// on BG0 (Surf's first wave). With the 3D stage showing it goes in front of BG0 instead
+int BattleAnimSystem_GetBehindMonSpritePriority(BattleAnimSystem *system);
 SysTask *BattleAnimSystem_StartAnimTaskEx(BattleAnimSystem *system, SysTaskFunc func, void *param, u32 priority);
 SysTask *BattleAnimSystem_StartAnimTask(BattleAnimSystem *system, SysTaskFunc func, void *param);
 SysTask *BattleAnimSystem_StartSoundTask(BattleAnimSystem *system, SysTaskFunc func, void *param, u32 priority);
