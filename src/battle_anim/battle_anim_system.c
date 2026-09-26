@@ -434,6 +434,14 @@ static Bg2CopyLift sBg2CopyLift;
 static BOOL sStageBackdropShakeOk;
 static int sStageBackdropShakeGain = 1;
 
+// Chunk 6 (docs/living_battle_stage/moves.md, D): the full-screen water picture of Surf and
+// Muddy Water (ScrollCustomBg, MuddyWater) is lifted above BG0 the same way, keeping its
+// blend (BG0 is one of its 2nd targets, compat.md F4), so the water washes over the lit arena
+// instead of fading it out. BG2 is still off when it lifts, so there is no palette to wait
+// for. The task that shows the picture drops the lift when it hides BG2; End and Delete drop
+// it at the latest. Only active and the priorities are used.
+static Bg2CopyLift sBg2PictureLift;
+
 // TRUE when BG2 has something on it that the 3D stage on BG0 would cover
 static BOOL BattleAnimSystem_IsBaseBgUnderStage(BattleAnimSystem *system)
 {
@@ -620,6 +628,41 @@ static u32 BattleAnimSystem_Bg2TilemapHash(BattleAnimSystem *system)
     return hash;
 }
 
+// F1: the priorities that put BG2 above BG0, from the current ones; FALSE when there are none
+static BOOL BattleAnimSystem_GetBg2LiftPriorities(BattleAnimSystem *system, Bg2CopyLift *lift)
+{
+    u8 bg0 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_0);
+    u8 bg2 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_2);
+    u8 bg3 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_3);
+
+    lift->oldBg0Priority = bg0;
+    lift->oldBg2Priority = bg2;
+
+    if (bg2 + 1 < bg3) {
+        lift->bg0Priority = bg2 + 1;
+        lift->bg2Priority = bg2;
+    } else if (bg0 > 0) {
+        lift->bg0Priority = bg0;
+        lift->bg2Priority = bg0 - 1;
+    } else {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+// Only undoes what is still ours
+static void BattleAnimSystem_RestoreBg2LiftPriorities(BattleAnimSystem *system, const Bg2CopyLift *lift)
+{
+    if (Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_0) == lift->bg0Priority) {
+        Bg_SetPriority(BG_LAYER_MAIN_0, lift->oldBg0Priority);
+    }
+
+    if (Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_2) == lift->bg2Priority) {
+        Bg_SetPriority(BG_LAYER_MAIN_2, lift->oldBg2Priority);
+    }
+}
+
 static void BattleAnimSystem_DropBg2CopyLift(BattleAnimSystem *system, BOOL restore)
 {
     if (sBg2CopyLift.active == FALSE && sBg2CopyLift.pending == FALSE) {
@@ -628,15 +671,8 @@ static void BattleAnimSystem_DropBg2CopyLift(BattleAnimSystem *system, BOOL rest
 
     sBg2CopyLift.pending = FALSE;
 
-    // Only undo what is still ours
     if (restore && sBg2CopyLift.active) {
-        if (Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_0) == sBg2CopyLift.bg0Priority) {
-            Bg_SetPriority(BG_LAYER_MAIN_0, sBg2CopyLift.oldBg0Priority);
-        }
-
-        if (Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_2) == sBg2CopyLift.bg2Priority) {
-            Bg_SetPriority(BG_LAYER_MAIN_2, sBg2CopyLift.oldBg2Priority);
-        }
+        BattleAnimSystem_RestoreBg2LiftPriorities(system, &sBg2CopyLift);
     }
 
     sBg2CopyLift.active = FALSE;
@@ -656,20 +692,7 @@ static BOOL BattleAnimSystem_LiftBg2Copy(BattleAnimSystem *system)
     // A second copy while the first is still up: back under the arena until its palette is in
     BattleAnimSystem_DropBg2CopyLift(system, TRUE);
 
-    u8 bg0 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_0);
-    u8 bg2 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_2);
-    u8 bg3 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_3);
-
-    sBg2CopyLift.oldBg0Priority = bg0;
-    sBg2CopyLift.oldBg2Priority = bg2;
-
-    if (bg2 + 1 < bg3) {
-        sBg2CopyLift.bg0Priority = bg2 + 1;
-        sBg2CopyLift.bg2Priority = bg2;
-    } else if (bg0 > 0) {
-        sBg2CopyLift.bg0Priority = bg0;
-        sBg2CopyLift.bg2Priority = bg0 - 1;
-    } else {
+    if (BattleAnimSystem_GetBg2LiftPriorities(system, &sBg2CopyLift) == FALSE) {
         return FALSE;
     }
 
@@ -692,6 +715,51 @@ static BOOL BattleAnimSystem_IsBg2CopyPaletteInVram(BattleAnimSystem *system)
     }
 
     return TRUE;
+}
+
+void BattleAnimSystem_DropBg2PictureLift(BattleAnimSystem *system)
+{
+    if (sBg2PictureLift.active == FALSE) {
+        return;
+    }
+
+    BattleAnimSystem_RestoreBg2LiftPriorities(system, &sBg2PictureLift);
+    sBg2PictureLift.active = FALSE;
+
+    if (BattleAnimSystem_IsContest(system) == FALSE) {
+        BattleStage_SetBg2Lifted(FALSE);
+    }
+}
+
+BOOL BattleAnimSystem_LiftBg2Picture(BattleAnimSystem *system)
+{
+    if (BattleAnimSystem_IsContest(system) == TRUE || BattleStage_IsVisible() == FALSE) {
+        return FALSE;
+    }
+
+    BattleAnimSystem_DropBg2CopyLift(system, TRUE);
+    BattleAnimSystem_DropBg2PictureLift(system);
+
+    if (BattleAnimSystem_GetBg2LiftPriorities(system, &sBg2PictureLift) == FALSE) {
+        return FALSE;
+    }
+
+    Bg_SetPriority(BG_LAYER_MAIN_0, sBg2PictureLift.bg0Priority);
+    Bg_SetPriority(BG_LAYER_MAIN_2, sBg2PictureLift.bg2Priority);
+    sBg2PictureLift.active = TRUE;
+    BattleStage_SetBg2Lifted(TRUE);
+
+    return TRUE;
+}
+
+int BattleAnimSystem_GetBehindMonSpritePriority(BattleAnimSystem *system)
+{
+    if (BattleAnimSystem_IsContest(system) == TRUE || BattleStage_IsVisible() == FALSE) {
+        return BattleAnimSystem_GetPokemonSpritePriority(system) + 1;
+    }
+
+    // BG0 also holds the arena, which would hide the sprite: in front of BG0 instead
+    return Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_0);
 }
 
 // Every script frame: the lift ends as soon as BG2 holds anything but the copy
@@ -745,8 +813,10 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
     }
 
     BattleAnimSystem_DropBg2CopyLift(system, TRUE);
+    BattleAnimSystem_DropBg2PictureLift(system);
 
     if (BattleAnimSystem_IsContest(system) == FALSE) {
+        BattleStage_ClearGroundHoles();
         BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT | BATTLE_STAGE_SUPPRESS_WINDOW, FALSE);
         BattleStage_SetMoveAnimActive(FALSE);
         BattleStage_SetInMoveAnim(FALSE);
@@ -1639,6 +1709,12 @@ static void BattleAnimScriptCmd_End(BattleAnimSystem *system)
     }
 
     BattleAnimSystem_DropBg2CopyLift(system, TRUE);
+    BattleAnimSystem_DropBg2PictureLift(system);
+
+    // Chunk 6 (moves.md, D): Dig's hole is gone by the end of either of its scripts
+    if (BattleAnimSystem_IsContest(system) == FALSE) {
+        BattleStage_ClearGroundHoles();
+    }
 
     Bg_SetPriority(BG_LAYER_MAIN_0, system->bgLayerPriorities[BG_LAYER_MAIN_0]);
     Bg_SetPriority(BG_LAYER_MAIN_1, system->bgLayerPriorities[BG_LAYER_MAIN_1]);

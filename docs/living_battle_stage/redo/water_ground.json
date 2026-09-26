@@ -1,0 +1,14 @@
+[
+    {"id": 57, "name": "SURF", "category": "water_ground",
+     "expect": "kept",
+     "needs": [],
+     "effect": "the first wave (OBJ) rises in front of the arena, then the big wave (BG2) is lifted above the 3D layer and sweeps across the lit arena and both mons with its blend; no fade"},
+    {"id": 330, "name": "MUDDY_WATER", "category": "water_ground",
+     "expect": "kept",
+     "needs": [],
+     "effect": "the first wave (OBJ) rises in front of the arena, then the muddy water (BG2) is lifted above the 3D layer and rises over the lit arena and both mons with its blend; no fade"},
+    {"id": 91, "name": "DIG", "category": "water_ground",
+     "expect": "kept",
+     "needs": [],
+     "effect": "the digger sinks (clipped) into a dark hole that opens in the arena ground under it and shuts once it is under; the attack turn opens it again as the mon comes out; between turns the mon is hidden and there is no hole"}
+]
