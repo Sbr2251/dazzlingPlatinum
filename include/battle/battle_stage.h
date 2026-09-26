@@ -45,4 +45,12 @@ int BattleStage_GetDebugView(void);
 // at |brightness| * 8 / 128. 0 brings the atmosphere fog back. Init and Free reset it to 0.
 void BattleStage_SetBrightness(int brightness);
 
+// Lit, deformable sprites (chunk 3, battle_stage_sprites.c). While the arena shows, the
+// battle's mons are drawn as lit 8x8 grids that breathe at rest, with a blob shadow.
+// A move or anim script is running: the battle anim system sets it every script frame,
+// and the idle breathing pauses while it is TRUE
+void BattleStage_SetMoveAnimActive(BOOL active);
+// The battler took damage (the hit blink task): its sprite does a short wobble
+void BattleStage_NotifyHit(int battler);
+
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_H
