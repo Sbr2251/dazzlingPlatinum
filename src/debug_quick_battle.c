@@ -104,6 +104,8 @@ static const BackgroundTerrainPair sBackgroundTerrainPairs[] = {
     { BACKGROUND_SNOW, TERRAIN_ICE },
     { BACKGROUND_FOREST, TERRAIN_GREAT_MARSH },
     { BACKGROUND_DISTORTION_WORLD, TERRAIN_GIRATINA },
+    // A route battle in tall grass; last so the entries above keep their numbers
+    { BACKGROUND_PLAIN, TERRAIN_GRASS },
 };
 
 #define NUM_BACKGROUND_CHOICES (NELEMS(sBackgroundTerrainPairs) + 1)

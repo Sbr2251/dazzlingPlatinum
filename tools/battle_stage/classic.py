@@ -47,8 +47,9 @@ PLATFORM_CHAR = (
 )
 PLATFORM_CELL = (128, 131)
 
-# Unk_ov16_02270134, [terrain][timeOfDay]; chunk 1 only needs TERRAIN_PLAIN
-PLATFORM_PALETTE = ((0x7, 0x8, 0x9),)
+# Unk_ov16_02270134, [terrain][timeOfDay]; chunk 1 only needs TERRAIN_PLAIN and
+# TERRAIN_GRASS
+PLATFORM_PALETTE = ((0x7, 0x8, 0x9), (0x16, 0x17, 0x18), (0x1, 0x2, 0x3))
 
 # Sprite position once the intro slide is over (the templates in ov16_02268520.c start
 # them off screen at x 0x150 and -80)

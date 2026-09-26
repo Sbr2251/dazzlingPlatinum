@@ -23,7 +23,8 @@ changed only when you expected it to.
 the classic scene (rows 0..143; the text box covers the rest) and the hole count of
 every debug view. Both should be 0 with both `--raster desmume` (the default: the soft
 rasterizer of DeSmuME 0.9.12, which py-desmume and so the critic use) and
-`--raster hardware` (whole-pixel vertices, like the DS). `--tod 1` uses the twilight
+`--raster hardware` (whole-pixel vertices, like the DS). `--terrain 2` checks the
+TERRAIN_GRASS platforms (route battles in tall grass). `--tod 1` uses the twilight
 palettes the critic's battle has.
 
 Then run the critic on the ROM:
@@ -37,7 +38,7 @@ SDL_VIDEODRIVER=dummy ~/.venvs/desmume39/bin/python tools/battle_stage/emu/criti
 
 | file | what |
 |---|---|
-| `build_stage.py` | entry point: builds the textures and pieces and writes the NARC (47 members: 23 backdrop pieces, then 24 platform pieces; all but `BACKGROUND_PLAIN` and `TERRAIN_PLAIN` are empty, which keeps the classic scene) |
+| `build_stage.py` | entry point: builds the textures and pieces and writes the NARC (47 members: 23 backdrop pieces, then 24 platform pieces; all but `BACKGROUND_PLAIN`, `TERRAIN_PLAIN` and `TERRAIN_GRASS` are empty, which keeps the classic scene; a battle needs both its pieces) |
 | `arena.py` | the geometry: home camera, ground, panorama and platform discs, with every texture coordinate taken through the home camera. `python3 arena.py` prints the mesh list and budgets |
 | `stage_format.py` | reads and writes pieces; mirrors `battle_stage_format.h` |
 | `fx.py` | bit-exact NitroSDK camera math (`MTX_PerspectiveW`, `MTX_LookAt`, `VEC_*`, `FX_*`), the renderer's debug-view cameras and the geometry engine's vertex-to-screen transform |
@@ -75,7 +76,7 @@ the panorama meet at row 57 and both use texture A there; texture A (rows 0..127
 B (rows 127..158) overlap by row 127, which is where the ground switches from one to
 the other. So the result doesn't depend on which polygon the rasterizer gives that row.
 
-## Arena layout (BACKGROUND_PLAIN / TERRAIN_PLAIN)
+## Arena layout (BACKGROUND_PLAIN / TERRAIN_PLAIN and TERRAIN_GRASS)
 
 - Camera at (0, 4, 14) looking down -z, fovy 40 degrees, horizon on row 20, target
   midway between the platform depths, near 1, far 128, vertexScale 8.

@@ -161,6 +161,11 @@ void BattleStage_Suppress(u32 reasons, BOOL suppress)
     }
 }
 
+BOOL BattleStage_HasArena(void)
+{
+    return sBattleStage.battleSys != NULL && sBattleStage.arena != NULL;
+}
+
 BOOL BattleStage_IsVisible(void)
 {
     return sBattleStage.battleSys != NULL && sBattleStage.arena != NULL && sBattleStage.enabled && sBattleStage.suppressed == 0;

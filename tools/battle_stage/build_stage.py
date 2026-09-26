@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Builds res/prebuilt/battle/graphic/battle_stage.narc.
 
-Member BACKGROUND_PLAIN gets the backdrop piece and member BACKGROUND_MAX +
-TERRAIN_PLAIN the platform piece that arena.py generates; every other member is an
-empty piece, so the classic 2D scene stays on for those. The output only depends on
+Member BACKGROUND_PLAIN gets the backdrop piece and members BACKGROUND_MAX +
+TERRAIN_PLAIN / TERRAIN_GRASS the platform pieces that arena.py generates (route
+battles in tall grass are BACKGROUND_PLAIN with TERRAIN_GRASS); every other member is
+an empty piece, so the classic 2D scene stays on for those. The output only depends on
 the stock battle graphics and this tool, so running it again gives the same bytes.
 
     python3 tools/battle_stage/build_stage.py [--out PATH]
@@ -23,6 +24,8 @@ OUT = os.path.join(classic.ROOT, "res/prebuilt/battle/graphic/battle_stage.narc"
 
 BACKGROUND_PLAIN = 0
 TERRAIN_PLAIN = 0
+TERRAIN_GRASS = 2
+TERRAINS = (TERRAIN_PLAIN, TERRAIN_GRASS)
 DAY = 0
 
 # Texture VRAM budget (docs/living_battle_stage/PLAN.md)
@@ -85,20 +88,28 @@ def header(arena):
 
 
 def build_pieces():
-    """(backdrop piece, platform piece, arena) for BACKGROUND_PLAIN / TERRAIN_PLAIN."""
-    arena = arena_mod.Arena()
+    """(backdrop piece, {terrain: platform piece}, {terrain: arena}) for BACKGROUND_PLAIN."""
+    arenas = {t: arena_mod.Arena(t) for t in TERRAINS}
     backdrop = classic.Backdrop(BACKGROUND_PLAIN)
     assert backdrop.is_mirrored(), "REPEAT_S | FLIP_S needs a mirrored 512-wide map"
-    platforms = [p.art for p in arena.platforms]
 
-    bd = sf.Piece(header(arena), backdrop_textures(backdrop), [file_mesh(m) for m in arena.backdrop.meshes])
-    pl = sf.Piece(header(arena), [platform_texture(p) for p in platforms], [file_mesh(m) for p in arena.platforms for m in p.meshes])
+    # The renderer takes the camera from the backdrop piece, so every platform piece
+    # has to agree with it
+    home = header(arenas[TERRAIN_PLAIN])
+    bd = sf.Piece(home, backdrop_textures(backdrop), [file_mesh(m) for m in arenas[TERRAIN_PLAIN].backdrop.meshes])
+    pls = {}
 
-    textures = bd.textures + pl.textures
-    tex_bytes = sum((len(t.data) + 7) & ~7 for t in textures)
-    assert len(textures) <= sf.MAX_TEXTURES and len(bd.meshes) + len(pl.meshes) <= sf.MAX_MESHES
-    assert tex_bytes <= TEXTURE_BUDGET, f"{tex_bytes} bytes of textures"
-    return bd, pl, arena
+    for t, arena in arenas.items():
+        assert vars(header(arena)) == vars(home), f"terrain {t} has a different home camera"
+        platforms = [p.art for p in arena.platforms]
+        pl = sf.Piece(home, [platform_texture(p) for p in platforms], [file_mesh(m) for p in arena.platforms for m in p.meshes])
+        textures = bd.textures + pl.textures
+        tex_bytes = sum((len(t.data) + 7) & ~7 for t in textures)
+        assert len(textures) <= sf.MAX_TEXTURES and len(bd.meshes) + len(pl.meshes) <= sf.MAX_MESHES
+        assert tex_bytes <= TEXTURE_BUDGET, f"{tex_bytes} bytes of textures"
+        pls[t] = pl
+
+    return bd, pls, arenas
 
 
 def main():
@@ -109,18 +120,23 @@ def main():
     assert enum_count("battle_backgrounds.txt") == sf.BACKGROUND_MAX
     assert enum_count("battle_terrains.txt") == sf.TERRAIN_MAX
 
-    bd, pl, arena = build_pieces()
+    bd, pls, arenas = build_pieces()
     members = [sf.write_piece(None)] * sf.NUM_MEMBERS
     members[BACKGROUND_PLAIN] = sf.write_piece(bd)
-    members[sf.BACKGROUND_MAX + TERRAIN_PLAIN] = sf.write_piece(pl)
-    nitro.write_narc(args.out, members)
 
-    polys = sum(m.num_polygons() for m in arena.backdrop.meshes) + sum(m.num_polygons() for p in arena.platforms for m in p.meshes)
-    verts = sum(len(m.vertices) for m in bd.meshes + pl.meshes)
-    tex_bytes = sum(len(t.data) for t in bd.textures + pl.textures)
-    print(f"{os.path.relpath(args.out)}: backdrop {len(members[BACKGROUND_PLAIN])} bytes, platforms "
-          f"{len(members[sf.BACKGROUND_MAX])} bytes; {len(bd.meshes) + len(pl.meshes)} meshes, {polys} polygons, "
-          f"{verts} vertices, {tex_bytes} texture bytes")
+    for t, pl in pls.items():
+        members[sf.BACKGROUND_MAX + t] = sf.write_piece(pl)
+
+    nitro.write_narc(args.out, members)
+    print(f"{os.path.relpath(args.out)}: backdrop {len(members[BACKGROUND_PLAIN])} bytes")
+
+    for t, pl in pls.items():
+        arena = arenas[t]
+        polys = sum(m.num_polygons() for m in arena.backdrop.meshes) + sum(m.num_polygons() for p in arena.platforms for m in p.meshes)
+        verts = sum(len(m.vertices) for m in bd.meshes + pl.meshes)
+        tex_bytes = sum(len(t.data) for t in bd.textures + pl.textures)
+        print(f"  terrain {t}: platforms {len(members[sf.BACKGROUND_MAX + t])} bytes; {len(bd.meshes) + len(pl.meshes)} meshes, "
+              f"{polys} polygons, {verts} vertices, {tex_bytes} texture bytes")
 
 
 if __name__ == "__main__":

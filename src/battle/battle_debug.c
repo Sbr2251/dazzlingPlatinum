@@ -133,9 +133,16 @@ static void DrawOverlay(BattleSystem *battleSys)
     Text_AddPrinterWithParams(window, FONT_MESSAGE, line, 0, 0, TEXT_SPEED_NO_TRANSFER, NULL);
 
     String_Clear(line);
-    AppendAscii(line, BattleStage_IsEnabled() ? "A/Y play  SEL 3D ON  B view " : "A/Y play  SEL 3D OFF  B view ");
-    String_FormatInt(number, BattleStage_GetDebugView(), 1, PADDING_MODE_NONE, CHARSET_MODE_EN);
-    String_Concat(line, number);
+
+    if (!BattleStage_HasArena()) {
+        // No arena for this background/terrain yet, so SELECT and B have nothing to show
+        AppendAscii(line, "A/Y play  2D: no 3D arena here");
+    } else {
+        AppendAscii(line, BattleStage_IsEnabled() ? "A/Y play  SEL 3D ON  B view " : "A/Y play  SEL 3D OFF  B view ");
+        String_FormatInt(number, BattleStage_GetDebugView(), 1, PADDING_MODE_NONE, CHARSET_MODE_EN);
+        String_Concat(line, number);
+    }
+
     Text_AddPrinterWithParams(window, FONT_MESSAGE, line, 0, MOVE_TESTER_LINE_HEIGHT, TEXT_SPEED_NO_TRANSFER, NULL);
 
     Window_CopyToVRAM(window);

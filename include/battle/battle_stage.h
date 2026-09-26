@@ -26,6 +26,9 @@ enum BattleStageSuppress {
 };
 
 void BattleStage_Suppress(u32 reasons, BOOL suppress);
+// TRUE when this battle's background and terrain have an arena (only PLAIN with PLAIN or
+// GRASS so far); FALSE keeps the classic scene for the whole battle
+BOOL BattleStage_HasArena(void);
 // TRUE when the arena is enabled, loaded for this battle and not suppressed
 BOOL BattleStage_IsVisible(void);
 

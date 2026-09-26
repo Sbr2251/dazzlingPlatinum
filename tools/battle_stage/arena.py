@@ -1,5 +1,5 @@
 """Arena geometry: the home camera, the backdrop piece (ground and panorama) and the
-platform piece (two platform discs) of BACKGROUND_PLAIN / TERRAIN_PLAIN.
+platform pieces (two platform discs) of BACKGROUND_PLAIN / TERRAIN_PLAIN and GRASS.
 
 Every texture coordinate is the home-camera screen position of its vertex, so at the
 home pose each pixel shows the texel the classic BG3 or platform OBJ shows there. To
@@ -88,11 +88,12 @@ PLATFORM_BAND_BOTTOM = -0.02  # a little under the ground, so the ground can't z
 PLATFORM_COLUMNS = (8, 5)  # vertices per disc row, minus one: player, enemy
 PLATFORM_ROW_STEP = (4, 5)  # disc rows in the visible part
 PLATFORM_HIDDEN_ROW_STEP = 8
-PLATFORM_TEX_SIZE = ((256, 32), (128, 32))
+PLATFORM_TEX_SIZE = ((256, 32), (128, 64))
 # Texel of the sprite's origin in the platform texture. The enemy art (sprite rows
-# -14..15) is placed at t 1..30 so the texture's clamped edge rows are transparent;
-# the player's texture mirrors at t 32 (sprite row 16) instead.
-PLATFORM_TEX_ORIGIN = ((128, 16), (64, 15))
+# -16..15 at most: the grass tufts use row -16) is placed at t 8..39 so the texture's
+# clamped edge rows are transparent; the player's texture mirrors at t 32 (sprite row
+# 16) instead.
+PLATFORM_TEX_ORIGIN = ((128, 16), (64, 24))
 
 
 def fx16(world):
@@ -510,7 +511,14 @@ class PlatformDisc:
 
         while rows[-1] < last:
             s = step if rows[-1] < HIDDEN_FROM_ROW else PLATFORM_HIDDEN_ROW_STEP
-            rows.append(min(rows[-1] + s, last))
+            nxt = rows[-1] + s
+
+            # A polygon with a free (hidden) vertex row drifts in DeSmuME on the rows it
+            # spreads over, so the visible rows end on an exact row
+            if rows[-1] < HIDDEN_FROM_ROW < nxt:
+                nxt = HIDDEN_FROM_ROW
+
+            rows.append(min(nxt, last))
 
         def extent(k):
             lo_row = rows[k - 1] if k > 0 else rows[k]
@@ -519,7 +527,7 @@ class PlatformDisc:
             return min(s[0] for s in span) - 1, max(s[1] for s in span) + 1
 
         def vertex(x, y):
-            if y < HIDDEN_FROM_ROW:
+            if y <= HIDDEN_FROM_ROW:
                 return place.exact(x, y, disc)
 
             return place.free(place.screen_point(x + VERTEX_NUDGE, y + VERTEX_NUDGE, disc))
@@ -598,10 +606,10 @@ class PlatformDisc:
 
 
 class Arena:
-    def __init__(self):
+    def __init__(self, terrain=0):
         self.home = HomeCamera()
         self.backdrop = Backdrop(self.home)
-        self.platforms = [PlatformDisc(self.home, side, classic.Platform(side, 0)) for side in (classic.SIDE_PLAYER, classic.SIDE_ENEMY)]
+        self.platforms = [PlatformDisc(self.home, side, classic.Platform(side, terrain)) for side in (classic.SIDE_PLAYER, classic.SIDE_ENEMY)]
         self.pixel_to_world = [self.home.pixel_to_world(p.depth) for p in self.platforms]
 
 

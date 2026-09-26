@@ -259,9 +259,9 @@ def camera_for(piece, view):
     return fx.Camera(h.cam_pos, h.cam_target, h.fovy_sin, h.fovy_cos, h.near, h.far, h.vertex_scale, view)
 
 
-def classic_rgb(tod=0):
+def classic_rgb(tod=0, terrain=0):
     backdrop = classic.Backdrop(0)
-    platforms = [classic.Platform(side, 0) for side in (classic.SIDE_PLAYER, classic.SIDE_ENEMY)]
+    platforms = [classic.Platform(side, terrain) for side in (classic.SIDE_PLAYER, classic.SIDE_ENEMY)]
     frame = classic.classic_frame(backdrop, platforms)
     rows = classic.frame_rgb(frame, backdrop, platforms, tod)
     return np.array(rows, np.uint8), backdrop, platforms
@@ -283,11 +283,12 @@ def main():
     parser.add_argument("--out", default="/tmp/battle_stage_preview")
     parser.add_argument("--raster", choices=("desmume", "hardware"), default="desmume")
     parser.add_argument("--tod", type=int, default=0, help="time of day palettes: 0 day, 1 twilight, 2 night")
+    parser.add_argument("--terrain", type=int, default=0, help="platform piece: 0 TERRAIN_PLAIN, 2 TERRAIN_GRASS")
     args = parser.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
-    pieces = load_pieces(args.narc)
-    reference, backdrop, platforms = classic_rgb(args.tod)
+    pieces = load_pieces(args.narc, terrain=args.terrain)
+    reference, backdrop, platforms = classic_rgb(args.tod, args.terrain)
     palettes = {"bg": rgb_palette(backdrop.palettes[args.tod])}
 
     for plat in platforms:

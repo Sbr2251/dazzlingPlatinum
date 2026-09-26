@@ -43,7 +43,7 @@ DEFAULT_SAV = HERE / "saves" / "eterna_forest_grass.sav"
 MOVE_ID_POUND = 1
 FALSE_SWIPE_SLOT = 3                   # the committed save's lead has False Swipe here (never KOs)
 MOVE_ID_MAX = 473                      # move tester wraps within 1..473
-QB_ENTRIES = 30                        # quick-battle background entries 0..29
+QB_ENTRIES = 31                        # quick-battle background entries 0..30
 BAG_POCKET_HP = (64, 40)               # battle bag: HP/PP RESTORE pocket (bottom-screen coords)
 
 # The top-screen message window (field message box / battle text box) where both
@@ -663,7 +663,9 @@ def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
 
 
 def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
-    if not _battle_ready(sc, e):
+    # The save's own wild battle (Eterna Forest) has no arena, and there the overlay shows
+    # "2D" with nothing for SELECT to toggle
+    if not _plain_battle(sc, e):
         return
     ov = Overlay(e)
     shots: List[Frame] = []
@@ -740,6 +742,7 @@ def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
 # ---- 3D stage compatibility (chunk 1) --------------------------------------------------------
 
 QB_PLAIN = 1                             # quick-battle entry 01: BACKGROUND_PLAIN / TERRAIN_PLAIN
+QB_PLAIN_GRASS = 30                      # quick-battle entry 30: BACKGROUND_PLAIN / TERRAIN_GRASS
 AB_THRESHOLD = 24                        # max channel difference that counts a pixel as changed
 AB_FAIL_PCT, AB_FAIL_MEAN = 0.05, 12.0   # stage_ab: gross mismatch
 AB_WARN_PCT, AB_WARN_MEAN = 0.005, 2.0   # stage_ab: small mismatch
@@ -754,12 +757,17 @@ RESTORE_PASS, RESTORE_WARN = 0.02, 0.08
 DEBUG_VIEWS = 4
 
 
+STAGE_ENTRY = QB_PLAIN                   # --stage-terrain picks the entry the 3D stage scenarios use
+
+
 def _plain_battle(sc: Scenario, e: Emu) -> bool:
-    """Boots, starts quick battle entry 01 (Plain background and terrain) and waits for the menu."""
+    """Boots, starts the Plain background quick battle (entry 01, or 30 with grass
+    platforms under --stage-terrain grass) and waits for the menu."""
     if not boot(sc, e):
         return False
     panel: List[Frame] = []
-    started = _qb_start(sc, e, "A", QB_PLAIN, 0, panel, "plain")
+    steps = STAGE_ENTRY if STAGE_ENTRY <= QB_ENTRIES // 2 else STAGE_ENTRY - QB_ENTRIES   # DOWN = +1, UP = -1
+    started = _qb_start(sc, e, "A", steps, 0, panel, "plain")
     if not started:
         sc.sheet(panel, "panel", "L+R quick-battle panel", screen="top", cols=4, scale=1.0)
         return False
@@ -1079,14 +1087,18 @@ def main() -> int:
     ap.add_argument("--anim-frames", type=int, default=1200,
                     help="move_tester/stage_toggle: max frames per animation (recording stops when it ends)")
     ap.add_argument("--max-anim-frames", type=int, default=1800, help="wild_battle: cap for the turn recording")
-    ap.add_argument("--bgs", default="0,1,29", help="quick_battle: background entries (0..29) to battle on")
+    ap.add_argument("--bgs", default="0,1,29", help="quick_battle: background entries (0..30) to battle on")
     ap.add_argument("--species-steps", type=int, default=0, help="quick_battle: RIGHT presses before the first battle")
+    ap.add_argument("--stage-terrain", choices=("plain", "grass"), default="plain",
+                    help="3D stage scenarios: platforms of the Plain background battle (quick-battle entry 01 or 30)")
     ap.add_argument("--verbose", action="store_true", help="show DeSmuME's own stdout")
     ap.add_argument("--timeout", type=int, default=900, help="seconds before a scenario is killed")
     ap.add_argument("--child", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
     args.moves = [int(m) for m in args.moves.split(",") if m.strip()]
     args.bgs = [int(b) % QB_ENTRIES for b in args.bgs.split(",") if b.strip()]
+    global STAGE_ENTRY
+    STAGE_ENTRY = QB_PLAIN_GRASS if args.stage_terrain == "grass" else QB_PLAIN
     outdir = pathlib.Path(args.outdir).resolve()
     outdir.mkdir(parents=True, exist_ok=True)
 
