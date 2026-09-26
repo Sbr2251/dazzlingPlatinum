@@ -20,6 +20,8 @@ SDL_VIDEODRIVER=dummy ~/.venvs/desmume39/bin/python tools/battle_stage/emu/criti
     /tmp/critic_rom.nds /tmp/bs_critic                              # default scenario set
 SDL_VIDEODRIVER=dummy ~/.venvs/desmume39/bin/python tools/battle_stage/emu/critic.py \
     out/dazzlingPlatinum.nds /tmp/bs_critic --scenario wild_battle move_tester --moves 1,57,89
+SDL_VIDEODRIVER=dummy ~/.venvs/desmume39/bin/python tools/battle_stage/emu/critic.py \
+    /tmp/critic_rom.nds /tmp/bs_stage --scenario stage_ab switchbg_moves bag_party debug_views
 ```
 
 - Use the Python 3.9 venv. `~/.venvs/desmume` (3.12) fails to load DeSmuME with a libglib error.
@@ -38,7 +40,7 @@ Options:
 | `--sav` | `saves/eterna_forest_grass.sav` | save to boot |
 | `--moves` | 1,52,53,57,85,89,94,104,144,164,326,332,399,63 | move_tester move IDs (the line in `generated/moves.txt`, minus 1) |
 | `--reverse` | off | move_tester also plays each move enemy->player (Y) |
-| `--anim-frames` | 1200 | move_tester / stage_toggle: longest wait for one animation to end |
+| `--anim-frames` | 1200 | move_tester / stage_toggle / switchbg_moves: longest wait for one animation to end |
 | `--max-anim-frames` | 1800 | wild_battle: longest recording of the FIGHT turn |
 | `--bgs` | 0,1,29 | quick_battle background entries (0..29) |
 | `--species-steps` | 0 | quick_battle: RIGHT presses (species) before the first battle |
@@ -58,6 +60,10 @@ Measured on the devserver against the 2026-09-25 15:16 ROM. The emulator runs at
 | debug_party | 7 s |
 | move_tester | about 10 s of setup, 2-4 s per move, then 10 s for the two turns after the tester (55 s with the 13 moves in `--moves 1,19,33,52,57,85,89,91,94,126,242,337,382`) |
 | stage_toggle | 15 s |
+| stage_ab | 13 s |
+| switchbg_moves | 23 s |
+| bag_party | 18 s |
+| debug_views | 13 s |
 | default set (boot, wild_battle, quick_battle, move_tester, stage_toggle) | 78 s |
 
 ## Output
@@ -89,8 +95,14 @@ Every scenario boots from the save and adds two checks at the end:
 | `debug_party` | not in the default set. L+R+START in the field | the party in RAM changed (Key Stone and a Lv50 Mega mon); still in the overworld |
 | `move_tester` | wild battle, then at the command menu: hold L+R (overlay "Move NNN: name"), step to each move (UP/DOWN +-10, RIGHT/LEFT +-1), A (Y with `--reverse`), release L+R, record every 3 frames until the overlay hides (that is when the animation ends) | overlay shown; **animation drew something**: the scene, with the healthbar boxes masked, differs by more than 0.3% from idle; the animation finished (overlay hidden) within `--anim-frames`; the battle text is restored 90 frames later; if not, the command menu still responds (touching FIGHT opens the move list). Then a real turn: FIGHT -> False Swipe plays and the menu comes back; the tester again on turn 2 (Pound: drew, finished, text restored), when the AI picks its move while the menu is already up; a second real turn; run away |
 | `stage_toggle` | wild battle; L+R overlay; SELECT twice (3D stage ON <-> OFF). After each SELECT: release, snapshot the scene, then play Pound | SELECT changed the overlay text; screens sane after each toggle; battle text restored; Pound finished; battle text restored 90 frames after Pound, or the menu still responds; two SELECTs restore the original ON/OFF text (WARN); command menu responds; run away |
+| `stage_ab` | not in the default set. Quick battle entry 01 (Plain background and terrain). 24 idle frames with the stage in its initial state (ON), L+R+SELECT, 24 idle frames in the toggled state (OFF), L+R+SELECT back | SELECT changed the overlay text (both times); **stage ON matches the classic look**: on the best-aligned ON/OFF pair of the top screen it reports the mean and max pixel difference and the share of pixels differing by more than 24. FAIL above 5% or a mean of 12, WARN above 0.5% or a mean of 2. The scene-only numbers (HUD masked) are a note. `stage_ab_heatmap.png` is ON / OFF / heat, and `sheet_ab_pair` shows the pair; command menu responds; run away |
+| `switchbg_moves` | not in the default set. Quick battle entry 01, stage in its default (ON) state. In the move tester: Night Shade (101), Psychic (94), Dark Pulse (399) and Acid Armor (151), each recorded every 3 frames | per move: **special background shown mid-animation**: the peak share of the scene (HUD masked) that differs from the frame just before the move is at least 25% (1% for Acid Armor, which moves the battler onto BG2); the animation finished; **normal look restored** 90 frames later, against the idle frames from before the tester (PASS at 2% or less, WARN up to 8%); battle text restored; then the command menu responds and the battle is fled |
+| `bag_party` | not in the default set. Quick battle entry 01. Bag (opens the HP/PP pocket) and back with B, then POKEMON (the party screen) and back with B | bag / party opened (the bottom screen settled on a new, lit screen); screens sane inside each; closed back to the menu; **top screen unchanged after the bag / party** against 12 idle frames from before (PASS at 2% or less, WARN up to 8%, with a heatmap above 2%); command menu responds; run away |
+| `debug_views` | not in the default set. Quick battle entry 01. Holds L+R and taps B four times (views 1, 2, 3, then back to 0), 40 frames after each | views 1-3 each differ from view 0 in more than 2% of the scene (HUD masked); views 1-3 not blank or black (brightness 12 or more, not flat or noisy); the fourth tap wraps back to view 0 (WARN); `sheet_views` shows all five; command menu responds; run away. Needs the renderer's L+R+B combo and the arena. Without them every "differs" check FAILs with "L+R+B changed nothing" |
 
-When the debug combos are missing, `quick_battle`, `move_tester` and `stage_toggle` report a single FAIL ("holding L+R changed nothing ... not in this ROM") and move on. That happens when the ROM lacks the feature or the save uses the "L=A" button mode.
+The last four check the Living 3D Battle Stage compatibility hooks (see `docs/living_battle_stage/compat.md`). Until the arena is drawn, `stage_ab` reports a difference of about 0 and `debug_views` FAILs.
+
+When the debug combos are missing, `quick_battle`, `move_tester` and `stage_toggle` report a single FAIL ("holding L+R changed nothing ... not in this ROM") and move on. So do the four stage scenarios. That happens when the ROM lacks the feature or the save uses the "L=A" button mode.
 
 ## How a critic agent should use this
 

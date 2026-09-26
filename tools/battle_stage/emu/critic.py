@@ -34,8 +34,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from emu import (  # noqa: E402
-    BTN_CANCEL, BTN_FIGHT, Emu, Frame, bottom, contact_sheet, dedupe, diff_fraction,
-    looks_broken, screen_health, top,
+    BTN_BAG, BTN_CANCEL, BTN_FIGHT, BTN_POKEMON, Emu, Frame, bottom, contact_sheet, dedupe, diff_fraction,
+    looks_broken, mean_brightness, screen_health, top,
 )
 from PIL import Image, ImageChops  # noqa: E402
 
@@ -735,6 +735,278 @@ def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
         run_away(sc, e)
 
 
+# ---- 3D stage compatibility (chunk 1) --------------------------------------------------------
+
+QB_PLAIN = 1                             # quick-battle entry 01: BACKGROUND_PLAIN / TERRAIN_PLAIN
+AB_THRESHOLD = 24                        # max channel difference that counts a pixel as changed
+AB_FAIL_PCT, AB_FAIL_MEAN = 0.05, 12.0   # stage_ab: gross mismatch
+AB_WARN_PCT, AB_WARN_MEAN = 0.005, 2.0   # stage_ab: small mismatch
+# (move ID, name, least share of the scene that must change mid-animation)
+SWITCHBG_MOVES = [
+    (101, "Night Shade", 0.25),
+    (94, "Psychic", 0.25),
+    (399, "Dark Pulse", 0.25),
+    (151, "Acid Armor", 0.01),
+]
+RESTORE_PASS, RESTORE_WARN = 0.02, 0.08
+DEBUG_VIEWS = 4
+
+
+def _plain_battle(sc: Scenario, e: Emu) -> bool:
+    """Boots, starts quick battle entry 01 (Plain background and terrain) and waits for the menu."""
+    if not boot(sc, e):
+        return False
+    panel: List[Frame] = []
+    started = _qb_start(sc, e, "A", QB_PLAIN, 0, panel, "plain")
+    if not started:
+        sc.sheet(panel, "panel", "L+R quick-battle panel", screen="top", cols=4, scale=1.0)
+        return False
+    waited = e.wait_battle_menu(timeout=2400)
+    if not sc.check("plain: battle menu reached", waited is not None,
+                    f"{waited} frames" if waited is not None else "no command menu within 2400 frames"):
+        return False
+    e.run(30)                                # let the menu's text box icons appear
+    return True
+
+
+def _finish(sc: Scenario, e: Emu) -> None:
+    if not e.battle_menu_up():
+        e.wait_battle_menu(timeout=1800, advance_text=True)
+    if sc.check("command menu responds at the end", menu_responds(e),
+                why="touching FIGHT did not open the move list"):
+        run_away(sc, e)
+
+
+def pixel_diff(a: Image.Image, b: Image.Image, threshold: int = AB_THRESHOLD) -> dict:
+    """Per pixel max channel difference: its mean and max, and the share of pixels over threshold."""
+    r, g, bl = ImageChops.difference(a.convert("RGB"), b.convert("RGB")).split()
+    m = ImageChops.lighter(ImageChops.lighter(r, g), bl)
+    hist = m.histogram()
+    n = float(a.size[0] * a.size[1])
+    return {"mean": sum(v * c for v, c in enumerate(hist)) / n,
+            "max": max(v for v, c in enumerate(hist) if c),
+            "pct": sum(hist[threshold + 1:]) / n,
+            "map": m}
+
+
+def write_heatmap(a: Image.Image, b: Image.Image, stats: dict, path: pathlib.Path) -> str:
+    """Writes A | B | heat at 2x (black = equal, red -> yellow -> white = larger difference)."""
+    m = stats["map"].point(lambda v: min(255, v * 4))
+    heat = Image.merge("RGB", (m.point(lambda v: min(255, v * 3)),
+                               m.point(lambda v: max(0, min(255, v * 3 - 255))),
+                               m.point(lambda v: max(0, min(255, v * 3 - 510)))))
+    w, h = a.size
+    out = Image.new("RGB", (w * 3 + 4, h), (40, 40, 40))
+    out.paste(a.convert("RGB"), (0, 0))
+    out.paste(b.convert("RGB"), (w + 2, 0))
+    out.paste(heat, (2 * w + 4, 0))
+    out.resize((out.size[0] * 2, h * 2), Image.NEAREST).save(path)
+    return str(path)
+
+
+def best_pair(xs: List[Image.Image], ys: List[Image.Image]) -> tuple:
+    """The (x, y) pair with the fewest changed pixels, which lines up the idle bob of two runs."""
+    return min(((x, y) for x in xs for y in ys), key=lambda p: diff_fraction(p[0], p[1]))
+
+
+def _toggle_stage(sc: Scenario, e: Emu, ov: Overlay, tag: str, shots: List[Frame]) -> bool:
+    """L+R+SELECT at the command menu, then releases L+R and waits for the battle text."""
+    if not ov.up() and not ov.show():
+        sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay up")
+        return False
+    before = text_box(e.screens())
+    e.hold("SELECT", 6, 10)
+    e.snap(f"{tag} overlay", shots)
+    d = diff_fraction(before, text_box(e.screens()))
+    ok = sc.check(f"{tag}: SELECT changed the overlay text", d > 0.003, f"{d:.2%} of the text box changed")
+    e.release("L+R")
+    e.run(40)
+    return ok
+
+
+def sc_stage_ab(sc: Scenario, e: Emu, args) -> None:
+    if not _plain_battle(sc, e):
+        return
+    ov = Overlay(e)
+    shots: List[Frame] = []
+    e.snap("initial (stage ON)", shots)
+    first = idle_samples(e, n=24, every=3)
+    if not ov.show():
+        _no_combo(sc, "L+R overlay shown", "the in-battle move tester / stage toggle")
+        run_away(sc, e)
+        return
+    if not _toggle_stage(sc, e, ov, "toggle 1", shots):
+        run_away(sc, e)
+        return
+    e.snap("toggled (stage OFF)", shots)
+    second = idle_samples(e, n=24, every=3)
+    a, b = best_pair(first, second)
+    st = pixel_diff(a, b)
+    path = write_heatmap(a, b, st, sc.dir / "stage_ab_heatmap.png")
+    gross = st["pct"] > AB_FAIL_PCT or st["mean"] > AB_FAIL_MEAN
+    small = st["pct"] > AB_WARN_PCT or st["mean"] > AB_WARN_MEAN
+    sc.check("stage ON matches the classic look (OFF) at the home pose", not small,
+             f"top screen: mean {st['mean']:.2f}, max {st['max']}, {st['pct']:.2%} of pixels differ by more "
+             f"than {AB_THRESHOLD} (ON | OFF | heat: {path})", warn_only=not gross,
+             why="gross mismatch: the arena does not line up with the classic backdrop" if gross
+             else "small mismatch: see the heatmap")
+    sd = pixel_diff(scene(a), scene(b))
+    sc.note(f"scene only (HUD masked, text box cut): mean {sd['mean']:.2f}, max {sd['max']}, "
+            f"{sd['pct']:.2%} over {AB_THRESHOLD}")
+    sc.note("Assumes the stage starts ON (the default); check the overlay text in sheet_ab.")
+    check_screens(sc, e.screens(), "stage off")
+    _toggle_stage(sc, e, ov, "toggle 2", shots)
+    e.snap("toggled back (stage ON)", shots)
+    sc.sheet(shots, "ab", "initial -> L+R+SELECT -> toggled -> L+R+SELECT -> back", cols=5, scale=0.75)
+    sc.sheet([Frame("ON", 0, a), Frame("OFF", 0, b)], "ab_pair", "best-aligned ON / OFF pair",
+             screen="top", cols=2, scale=1.0)
+    _finish(sc, e)
+
+
+def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
+    if not _plain_battle(sc, e):
+        return
+    ov = Overlay(e)
+    idle_frames = e.record(60, every=5, label="idle")
+    idle = [scene(f.img) for f in idle_frames]
+    boxes = [text_box(f.img) for f in idle_frames]
+    if not ov.show():
+        _no_combo(sc, "L+R overlay shown", "the in-battle move tester")
+        run_away(sc, e)
+        return
+    after: List[Frame] = []
+    cur = MOVE_ID_POUND
+    for mid, name, need in SWITCHBG_MOVES:
+        tag = f"{mid:03d} {name}"
+        if not ov.up() and not ov.show():
+            sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay back")
+            return
+        _nav_move(e, cur, mid)
+        cur = mid
+        pre = scene(e.snap(f"{tag} pre", after).img)
+        anim, done = ov.play("A", args.anim_frames, f"{mid:03d}")
+        if froze(sc, e, anim, f"playing {name}"):
+            return
+        changes = [diff_fraction(pre, scene(f.img)) for f in anim]
+        peak = max(changes, default=0.0)
+        at = f" at {anim[changes.index(peak)].label}" if anim else ""
+        sc.check(f"{tag}: special background shown mid-animation", peak >= need,
+                 f"up to {peak:.1%} of the scene (HUD masked) differs from the pre-move frame{at}; "
+                 f"needs {need:.0%}", why="the move's background never showed: the 3D stage may cover it")
+        sc.sheet(anim, f"{mid:03d}", f"{tag}: player->enemy, every 3 frames (deduped)", screen="top",
+                 dedupe_screen="top")
+        if not sc.check(f"{tag}: animation finished", done is not None,
+                        f"overlay hidden {done} frames after L+R+A" if done is not None else
+                        f"overlay still up {len(anim) * 3} frames later"):
+            sc.sheet(after, "after", "pre-move frame and 90 frames after each move", screen="top", cols=4, scale=1.0)
+            return
+        e.run(90)
+        post = e.snap(f"{tag} +90", after)
+        d = min_diff(idle, scene(post.img))
+        sc.check(f"{tag}: normal look restored", d <= RESTORE_PASS,
+                 f"{d:.2%} of the scene (HUD masked) differs from the closest idle frame, 90 frames after",
+                 warn_only=d <= RESTORE_WARN, why="the backdrop did not come back (see sheet_after)")
+        t = min_diff(boxes, text_box(post.img))
+        sc.check(f"{tag}: battle text restored", t < 0.02, f"{t:.1%} of the text box differs")
+    sc.sheet(after, "after", "pre-move frame and 90 frames after each move", screen="top", cols=4, scale=1.0)
+    _finish(sc, e)
+
+
+def _sub_menu_settled(e: Emu, menu: Image.Image) -> bool:
+    """The bottom screen shows something other than the command menu, lit and no longer fading
+    (the party screen fades through black first)."""
+    now = bottom(e.screens())
+    if diff_fraction(menu, now) < 0.5 or e.battle_menu_up() or mean_brightness(now) < 8:
+        return False
+    e.run(10)
+    return diff_fraction(now, bottom(e.screens())) < 0.02
+
+
+def _menu_round_trip(sc: Scenario, e: Emu, what: str, button: tuple, shots: List[Frame],
+                     inside: Optional[tuple] = None) -> bool:
+    """Opens a battle sub-menu from the command menu, backs out with B and compares the top screen."""
+    before = idle_samples(e)
+    below = bottom(e.screens())
+    e.touch(*button, after=10)
+    opened = e.wait_until(lambda em: _sub_menu_settled(em, below), timeout=300, step=5) is not None
+    e.run(20)
+    inner = e.snap(what, shots)
+    if inside:
+        e.touch(*inside, after=60)
+        e.snap(f"{what} page", shots)
+    sc.check(f"{what} opened", opened, "the bottom screen changed" if opened else "the bottom screen did not change")
+    check_screens(sc, inner.img, f"in the {what}")
+    closed = e.battle_close_bag()
+    e.run(20)
+    after = e.snap(f"after {what}", shots)
+    if not sc.check(f"{what} closed back to the menu", closed, why="no command menu after B"):
+        return False
+    d = min_diff(before, top(after.img))
+    detail = f"{d:.2%} of top pixels differ from the closest idle frame before the {what}"
+    if d > RESTORE_PASS:
+        a, b = best_pair(before, [top(after.img)])
+        detail += f" (before | after | heat: {write_heatmap(a, b, pixel_diff(a, b), sc.dir / (what + '_heatmap.png'))})"
+    sc.check(f"top screen unchanged after the {what}", d <= RESTORE_PASS, detail, warn_only=d <= RESTORE_WARN)
+    return True
+
+
+def sc_bag_party(sc: Scenario, e: Emu, args) -> None:
+    if not _plain_battle(sc, e):
+        return
+    shots: List[Frame] = []
+    e.snap("menu", shots)
+    ok = _menu_round_trip(sc, e, "bag", BTN_BAG, shots, inside=BAG_POCKET_HP)
+    if ok:
+        e.run(30)
+        ok = _menu_round_trip(sc, e, "party", BTN_POKEMON, shots)
+    sc.sheet(shots, "menus", "command menu -> bag -> pocket -> back -> party -> back", cols=4, scale=0.75)
+    if ok:
+        _finish(sc, e)
+
+
+def sc_debug_views(sc: Scenario, e: Emu, args) -> None:
+    if not _plain_battle(sc, e):
+        return
+    ov = Overlay(e)
+    if not ov.show():
+        _no_combo(sc, "L+R overlay shown", "the in-battle move tester / debug views")
+        run_away(sc, e)
+        return
+    e.run(20)
+    views: List[Frame] = []
+    base = [scene(s) for s in idle_samples(e, n=8, every=4)]
+    views.append(e.snap("view 0"))
+    changed = 0
+    for v in range(1, DEBUG_VIEWS + 1):
+        view = v % DEBUG_VIEWS
+        if not ov.up() and not ov.show():
+            sc.check(f"view {view}: overlay shown", False, "holding L+R did not bring the overlay back")
+            break
+        e.hold("B", 6, 40)                   # lets an eased camera move settle
+        f = e.snap(f"view {view}" + (" (wrapped)" if v == DEBUG_VIEWS else ""), views)
+        img = scene(f.img)
+        d = min_diff(base, img)
+        if v < DEBUG_VIEWS:
+            changed += d > 0.02
+            sc.check(f"view {view} differs from view 0", d > 0.02,
+                     f"{d:.1%} of the scene (HUD masked, above the text box) differs from view 0",
+                     why="L+R+B changed nothing (debug views not in this ROM, or no arena to look at)")
+            raw = top(f.img).crop(SCENE)
+            why = looks_broken(raw)
+            bright = mean_brightness(raw)
+            sc.check(f"view {view} not blank or black", why is None and bright >= 12,
+                     f"brightness {bright:.1f}, {screen_health(raw)}", why=why or "the scene is (nearly) black")
+        else:
+            sc.check("a fourth L+R+B wraps back to view 0", d <= 0.02,
+                     f"{d:.1%} of the scene differs from the first view 0", warn_only=True)
+    sc.sheet(views, "views", "L+R+B debug views 0 -> 1 -> 2 -> 3 -> 0", screen="top", cols=5, scale=1.0)
+    e.release("L+R")
+    e.run(40)
+    if not changed:
+        sc.note("No view changed the scene; if the ROM has no L+R+B combo yet, that is the cause.")
+    _finish(sc, e)
+
+
 SCENARIOS: Dict[str, Callable] = {
     "boot": sc_boot,
     "wild_battle": sc_wild_battle,
@@ -743,6 +1015,10 @@ SCENARIOS: Dict[str, Callable] = {
     "debug_party": sc_debug_party,
     "move_tester": sc_move_tester,
     "stage_toggle": sc_stage_toggle,
+    "stage_ab": sc_stage_ab,
+    "switchbg_moves": sc_switchbg_moves,
+    "bag_party": sc_bag_party,
+    "debug_views": sc_debug_views,
 }
 DEFAULT_SCENARIOS = ["boot", "wild_battle", "quick_battle", "move_tester", "stage_toggle"]
 
