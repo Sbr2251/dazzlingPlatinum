@@ -1,5 +1,5 @@
 [
-{"id": 0, "name": "NONE", "dir": "0000", "mechanisms": ["partial_draw", "bg2_copy", "window", "particles", "sprite_fade_tint"], "suppress": ["bg2_effect"], "fix": ["F1", "F2", "F3"], "risk": "high", "notes": "Sketch: BG2 copy above BG0, revealed by WIN0"},
+{"id": 0, "name": "NONE", "dir": "0000", "mechanisms": ["partial_draw", "bg2_copy", "window", "particles", "sprite_fade_tint"], "suppress": ["bg2_effect"], "fix": ["F1", "F2", "F3"], "risk": "medium", "notes": "MOVE_NONE placeholder (a Sketch copy), never played in battle; see SKETCH"},
 {"id": 1, "name": "POUND", "dir": "pound", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": ""},
 {"id": 2, "name": "KARATE_CHOP", "dir": "karate_chop", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": ""},
 {"id": 3, "name": "DOUBLE_SLAP", "dir": "double_slap", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": ""},
@@ -105,7 +105,7 @@
 {"id": 103, "name": "SCREECH", "dir": "screech", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": ""},
 {"id": 104, "name": "DOUBLE_TEAM", "dir": "double_team", "mechanisms": ["oam_copy", "sprite_bg_blend", "sprite_fade_tint"], "suppress": [], "fix": ["F2", "F4"], "risk": "medium", "notes": ""},
 {"id": 105, "name": "RECOVER", "dir": "recover", "mechanisms": ["particles", "sprite_fade_tint"], "suppress": [], "fix": [], "risk": "low", "notes": ""},
-{"id": 106, "name": "HARDEN", "dir": "harden", "mechanisms": ["oam_copy", "window", "sprite_bg_blend", "bg2_effect", "particles"], "suppress": [], "fix": ["F2", "F3", "F4"], "risk": "medium", "notes": "OBJ window drops BG0 only under the copy's silhouette; F3 option a"},
+{"id": 106, "name": "HARDEN", "dir": "harden", "mechanisms": ["oam_copy", "window", "sprite_bg_blend", "bg2_effect", "particles"], "suppress": [], "fix": ["F2", "F3", "F4"], "risk": "medium", "notes": "StatChangeUp: BG2 picture only inside the OBJ window; F3 option a"},
 {"id": 107, "name": "MINIMIZE", "dir": "minimize", "mechanisms": ["partial_draw", "oam_copy", "sprite_bg_blend"], "suppress": [], "fix": ["F2", "F4"], "risk": "medium", "notes": ""},
 {"id": 108, "name": "SMOKE_SCREEN", "dir": "smoke_screen", "mechanisms": ["particles"], "suppress": [], "fix": [], "risk": "low", "notes": ""},
 {"id": 109, "name": "CONFUSE_RAY", "dir": "confuse_ray", "mechanisms": ["switch_bg", "particles"], "suppress": [], "fix": [], "risk": "medium", "notes": "FadeBg: backdrop palette fade, hidden by the arena"},

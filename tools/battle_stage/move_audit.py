@@ -291,7 +291,9 @@ OVERRIDES = {
                    "notes": "BG2 picture under BG0 in the OBJ window; F3 option b (keep suppressing, fade)"},
     "CAMOUFLAGE": {"fix": ["F3", "F6"],
                    "notes": "BG2 picture + BG2 wave in the OBJ window, not a mon copy; F3 option b"},
-    "HARDEN": {"notes": "OBJ window drops BG0 only under the copy's silhouette; F3 option a"},
+    "NONE": {"risk": "medium",
+             "notes": "MOVE_NONE placeholder (a Sketch copy), never played in battle; see SKETCH"},
+    "HARDEN": {"notes": "StatChangeUp: BG2 picture only inside the OBJ window; F3 option a"},
     "SKETCH": {"notes": "BG2 copy lifted above BG0 by the func, WIN0 reveal keeps BG0 on; F3 option a"},
     "EARTHQUAKE": {"notes": "BG3 shake + backdrop fade; chunk 6: shake the camera"},
     "MAGNITUDE": {"notes": "BG3 shake; chunk 6: shake the camera"},
@@ -322,7 +324,7 @@ F3_DECISIONS = [
      "only OBJ is hidden and BG0 is already in both regions; nothing to change"),
     (79, "Sketch", "WIN0 reveal of a BG2 copy placed above BG0", "a",
      "BG0 is in both regions; BG2 is above BG0 once the func runs"),
-    (80, "StatChangeUp/Down/Heal/Metal (80-83)", "OBJ window: inside = BG1|OBJ|BG2, outside has BG0", "a",
+    (80, "StatChangeUp/Down/Heal/Metal", "OBJ window: inside = BG1|OBJ|BG2, outside has BG0", "a",
      "BG2 picture only in the silhouette, which the OAM copy fills; tint the copy (F2)"),
 ]
 
@@ -571,6 +573,13 @@ def render_md(recs, infos):
         c = Counter(r["risk"] for r in rs)
         L.append(f"| `{m}` | {len(rs)} | {c['high']} | {c['medium']} | {c['low']} |")
     L.append("")
+    quiet = [r for r in recs if "switch_bg" in r["mechanisms"] and "bg_switch" not in r["suppress"]]
+    L.append(f"`switch_bg` without `bg_switch` ({len(quiet)} moves): backdrop palette fades (FadeBg,")
+    L.append("SetBgGrayscale, Flash, Earthquake) or the Fake Out curtain. Nothing is suppressed today, and")
+    L.append("the arena hides the effect: medium, except Fake Out, where the whole effect is lost.")
+    L.append("`sprite_bg_blend` is always OBJ-first alpha with BG0|BG3 as the 2nd target; no anim code")
+    L.append("makes BG0 a 1st target (F4 then means: check the arena stays opaque).")
+    L.append("")
     L.append("### By risk")
     L.append("")
     L.append("| risk | moves | meaning |")
@@ -605,7 +614,9 @@ def render_md(recs, infos):
     for fid, label, mask, opt, why in F3_DECISIONS:
         ids = (80, 81, 82, 83) if fid == 80 else (fid,)
         users = [r["name"] for r in recs if set(infos[r["id"]]["funcs"]) & set(ids)]
-        L.append(f"| {label} ({fid}) | {mask} | {opt} | {why} | {cell(users)} |")
+        fids = "80-83" if fid == 80 else str(fid)
+        L.append(f"| {label} ({fids}) | {md_escape(mask)} | {opt} | {md_escape(why)} | "
+                 f"{cell(users) if users else 'unused'} |")
     L.append("")
     L.append("## F5: per-line waves")
     L.append("")

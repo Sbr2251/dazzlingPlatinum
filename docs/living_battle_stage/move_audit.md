@@ -6,7 +6,7 @@ compat.md section 1. Rerun the script after changing a script or the overrides i
 
 ## Summary
 
-474 moves (ids 0-473, `generated/moves.txt`). Risk: high 77, medium 127, low 270.
+474 moves (ids 0-473, `generated/moves.txt`). Risk: high 76, medium 128, low 270.
 
 Predicted suppression today: `bg_switch` 68, `bg2_effect` 9.
 Fixes: F1 5, F2 39, F3 16, F4 42, F5 3, F6 72.
@@ -17,31 +17,36 @@ Fixes: F1 5, F2 39, F3 16, F4 42, F5 3, F6 72.
 |---|---|---|---|---|
 | `sprite_xy` | 343 | 64 | 79 | 200 |
 | `sprite_scale_rot` | 57 | 5 | 10 | 42 |
-| `partial_draw` | 4 | 2 | 1 | 1 |
-| `bg2_copy` | 5 | 5 | 0 | 0 |
+| `partial_draw` | 4 | 1 | 2 | 1 |
+| `bg2_copy` | 5 | 4 | 1 | 0 |
 | `oam_copy` | 38 | 13 | 25 | 0 |
 | `hblank_wave` | 7 | 7 | 0 | 0 |
-| `window` | 16 | 7 | 9 | 0 |
+| `window` | 16 | 6 | 10 | 0 |
 | `sprite_bg_blend` | 44 | 13 | 31 | 0 |
 | `brightness` | 1 | 0 | 1 | 0 |
 | `switch_bg` | 176 | 71 | 105 | 0 |
 | `bg2_effect` | 9 | 4 | 5 | 0 |
-| `particles` | 431 | 70 | 104 | 257 |
-| `sprite_fade_tint` | 172 | 36 | 60 | 76 |
+| `particles` | 431 | 69 | 105 | 257 |
+| `sprite_fade_tint` | 172 | 35 | 61 | 76 |
+
+`switch_bg` without `bg_switch` (108 moves): backdrop palette fades (FadeBg,
+SetBgGrayscale, Flash, Earthquake) or the Fake Out curtain. Nothing is suppressed today, and
+the arena hides the effect: medium, except Fake Out, where the whole effect is lost.
+`sprite_bg_blend` is always OBJ-first alpha with BG0|BG3 as the 2nd target; no anim code
+makes BG0 a 1st target (F4 then means: check the arena stays opaque).
 
 ### By risk
 
 | risk | moves | meaning |
 |---|---|---|
-| high | 77 | a pop today (a suppression reason fires), or visibly wrong with the arena up |
-| medium | 127 | windows, blends, OAM/BG2 copies, BG palette fades: probably fine, unverified |
+| high | 76 | a pop today (a suppression reason fires), or visibly wrong with the arena up |
+| medium | 128 | windows, blends, OAM/BG2 copies, BG palette fades: probably fine, unverified |
 | low | 270 | particles and sprite moves only |
 
 ## High-risk moves
 
 | id | name | mechanisms | suppress | fix | notes |
 |---|---|---|---|---|---|
-| 0 | NONE | partial_draw, bg2_copy, window, particles, sprite_fade_tint | bg2_effect | F1, F2, F3 | Sketch: BG2 copy above BG0, revealed by WIN0 |
 | 19 | FLY | sprite_xy, switch_bg, particles | bg_switch | F6 |  |
 | 25 | MEGA_KICK | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 38 | DOUBLE_EDGE | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
@@ -137,13 +142,13 @@ them fade cleanly.
 
 | func | mask | option | why | moves |
 |---|---|---|---|---|
-| Harden (21) | OBJ window: inside = WINDOW|OBJ, outside = all | a | only the silhouette loses BG0 and the OAM copy covers it; keep the arena, tint the copy (F2) | - |
+| Harden (21) | OBJ window: inside = WINDOW\|OBJ, outside = all | a | only the silhouette loses BG0 and the OAM copy covers it; keep the arena, tint the copy (F2) | unused |
 | FakeOutCurtain (41) | WIN0: BG3 only inside a shrinking rect | b | the curtain is BG3 and cannot show over the arena; keep suppressing with the F6 fade | FAKE_OUT |
 | Camouflage (55) | OBJ window: inside adds BG2, BG2 at BG3 priority | b | BG2 picture under BG0 is caught by IsBaseBgUnderStage; fade (F6) | CAMOUFLAGE |
 | Superpower (56) | OBJ window: inside adds BG2, BG2 at BG3 priority | b | as Camouflage; fade (F6) | SUPERPOWER |
 | SetPokemonSpritePriority / DarkVoid (75) | WIN0: inside BG0-3 without OBJ | a | only OBJ is hidden and BG0 is already in both regions; nothing to change | TOXIC, BLAST_BURN, DARK_PULSE, AQUA_TAIL, LUNAR_DANCE, DARK_VOID |
 | Sketch (79) | WIN0 reveal of a BG2 copy placed above BG0 | a | BG0 is in both regions; BG2 is above BG0 once the func runs | NONE, SKETCH |
-| StatChangeUp/Down/Heal/Metal (80-83) (80) | OBJ window: inside = BG1|OBJ|BG2, outside has BG0 | a | BG2 picture only in the silhouette, which the OAM copy fills; tint the copy (F2) | HARDEN, PRESENT, IRON_TAIL, METAL_CLAW, IRON_DEFENSE |
+| StatChangeUp/Down/Heal/Metal (80-83) | OBJ window: inside = BG1\|OBJ\|BG2, outside has BG0 | a | BG2 picture only in the silhouette, which the OAM copy fills; tint the copy (F2) | HARDEN, PRESENT, IRON_TAIL, METAL_CLAW, IRON_DEFENSE |
 
 ## F5: per-line waves
 
@@ -157,7 +162,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 
 | id | name | mechanisms | suppress | fix | risk | notes |
 |---|---|---|---|---|---|---|
-| 0 | NONE | partial_draw, bg2_copy, window, particles, sprite_fade_tint | bg2_effect | F1, F2, F3 | high | Sketch: BG2 copy above BG0, revealed by WIN0 |
+| 0 | NONE | partial_draw, bg2_copy, window, particles, sprite_fade_tint | bg2_effect | F1, F2, F3 | medium | MOVE_NONE placeholder (a Sketch copy), never played in battle; see SKETCH |
 | 1 | POUND | sprite_xy, particles | - | - | low |  |
 | 2 | KARATE_CHOP | sprite_xy, particles | - | - | low |  |
 | 3 | DOUBLE_SLAP | sprite_xy, particles | - | - | low |  |
@@ -263,7 +268,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 103 | SCREECH | sprite_xy, particles | - | - | low |  |
 | 104 | DOUBLE_TEAM | oam_copy, sprite_bg_blend, sprite_fade_tint | - | F2, F4 | medium |  |
 | 105 | RECOVER | particles, sprite_fade_tint | - | - | low |  |
-| 106 | HARDEN | oam_copy, window, sprite_bg_blend, bg2_effect, particles | - | F2, F3, F4 | medium | OBJ window drops BG0 only under the copy's silhouette; F3 option a |
+| 106 | HARDEN | oam_copy, window, sprite_bg_blend, bg2_effect, particles | - | F2, F3, F4 | medium | StatChangeUp: BG2 picture only inside the OBJ window; F3 option a |
 | 107 | MINIMIZE | partial_draw, oam_copy, sprite_bg_blend | - | F2, F4 | medium |  |
 | 108 | SMOKE_SCREEN | particles | - | - | low |  |
 | 109 | CONFUSE_RAY | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
