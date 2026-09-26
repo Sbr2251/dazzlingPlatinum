@@ -9,7 +9,7 @@ L_0:
     SetExtraParams 2, 0, 0, 0, 0
     PlayLoopedSoundEffectC SEQ_SE_DP_W152, 2, 16
     WaitForAllEmitters
-    CreateEmitter 0, 1, EMITTER_CB_GENERIC
+    CreateEmitter 0, 0, EMITTER_CB_GENERIC
     SetExtraParams 0, 2, 1, 0, 0, 0
     Func_FadeBattlerSprite BATTLE_ANIM_ATTACKER, 0, 1, BATTLE_COLOR_LIGHT_RED, 10, 0
     PlaySoundEffectL SEQ_SE_DP_W071B
