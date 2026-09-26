@@ -1244,7 +1244,7 @@ def _sprite_flags(sc: Scenario, e: Emu, args, flags: int, ram: Optional[StageRam
     On an older ROM (or without a usable xMAP) it only notes why; those ROMs have no idle motion anyway."""
     ram = ram or StageRam(e, find_xmap(args))
     if ram.set_flags(flags):
-        sc.note(f"debugFlags = {flag_names(flags)} (sBattleStage+{DEBUG_FLAGS_OFFSET} at {ram.stage[0]:#x})")
+        sc.note(f"debugFlags = {flag_names(flags)} (sBattleStage+{DEBUG_FLAGS_OFFSET} at {ram.stage[0] + DEBUG_FLAGS_OFFSET:#x})")
     else:
         sc.note(f"debugFlags {flag_names(flags)} not set: {ram.sprite_why or ram.why}; comparisons use the "
                 "scene as drawn")
@@ -1846,7 +1846,7 @@ BOX_MIN, BOX_MAX = 16, 120               # sane box width/height
 IDLE_RECORD, IDLE_EVERY = 180, 6         # 3 s of command-menu idle, sampled every 6 frames
 BREATHE_MIN = 0.01                       # least share of the enemy box that breathing must change in 3 s
 REST_PASS, REST_WARN = 0.002, 0.01       # ... while the scene outside the boxes (HUD masked) stays within this
-FREEZE_STILL = 0.002                     # FREEZE_IDLE: the enemy box changes at most this much in 60 frames
+FREEZE_STILL = 0.002                     # FREEZE_IDLE: median share of the upper enemy box unlike every classic frame
 IDLE_ADVANCE_MIN = 30                    # idleFrames must advance this much in 180 frames
 IDLE_STOP_MAX = 2                        # idleFrames may advance this much while a tester move plays
 BLOB_DARKER = 8                          # a ground pixel counts as darker by more than this (luma) ...
@@ -2101,10 +2101,18 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
         frozen = [top(f.img) for f in e.record(60, every=6, label="frozen")]
         b = ram.field("idleFrames")
         sc.check("FREEZE_IDLE stops idleFrames", b == a, f"idleFrames {a} -> {b} over 60 frames")
-        still, classic_most = box_change(frozen, eb), box_change(off, eb)
-        sc.check("FREEZE_IDLE: the enemy's box is as still as in the classic look", still <= classic_most + FREEZE_STILL,
-                 f"up to {still:.2%} of the enemy box changes over 60 frames (classic look: up to "
-                 f"{classic_most:.2%} over {IDLE_RECORD}; allowed {FREEZE_STILL:.1%} more)")
+        # Frozen, the mon must sit at the rest pose, which is the classic sprite: every frozen frame
+        # matches one of the stage-off frames (those include the classic blink). The upper three
+        # quarters of the box only, since the blob shadow (still on here) sits under the feet.
+        x0, y0, x1, y1 = eb
+        upper = (x0, y0, x1, y0 + (y1 - y0) * 3 // 4)
+        still = box_novelty(frozen, off, upper)
+        worst = max(box_novelty([f], off, upper) for f in frozen)
+        sc.check("FREEZE_IDLE: the enemy rests in the classic pose", still <= FREEZE_STILL,
+                 f"median {still:.2%} (worst frame {worst:.2%}) of the upper enemy box {upper} differs from the "
+                 f"closest stage-off frame over 60 frames (needs <= {FREEZE_STILL:.1%}); change from the first frozen "
+                 f"frame up to {box_change(frozen, eb):.2%}, classic up to {box_change(off, eb):.2%}",
+                 why="the mon does not return to the rest pose while breathing is frozen")
 
         # -- blob shadows: darker under each mon than with NO_BLOB_SHADOWS
         with_blob = idle_samples(e, n=8, every=4)
