@@ -684,6 +684,8 @@ def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
             break
         e.hold("SELECT", 6, 10)
         o = e.snap(f"overlay after SELECT #{i}", shots)
+        # The key line shows the stage state (see _toggle_stage)
+        ov.key = e.screens().crop(OVERLAY_KEY)
         states.append(o)
         prev = ov0 if i == 1 else states[0]
         d = diff_fraction(text_box(prev.img), text_box(o.img))
