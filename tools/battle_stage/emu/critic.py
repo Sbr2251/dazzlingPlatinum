@@ -23,6 +23,7 @@ import argparse
 import json
 import pathlib
 import re
+import struct
 import subprocess
 import sys
 import threading
@@ -34,10 +35,12 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from emu import (  # noqa: E402
-    BTN_BAG, BTN_CANCEL, BTN_FIGHT, BTN_POKEMON, Emu, Frame, bottom, contact_sheet, dedupe, diff_fraction,
-    looks_broken, mean_brightness, screen_health, top,
+    BTN_BAG, BTN_CANCEL, BTN_FIGHT, BTN_MEGA, BTN_POKEMON, LAYER_BG0, LAYERS_2D, MOVE_SLOTS, RAM_BASE, RAM_END,
+    Emu, Frame, bottom,
+    contact_sheet, dedupe, diff_fraction, looks_broken, marker_fraction, mean_brightness, read_xmap, screen_health,
+    top,
 )
-from PIL import Image, ImageChops  # noqa: E402
+from PIL import Image, ImageChops, ImageDraw  # noqa: E402
 
 DEFAULT_SAV = HERE / "saves" / "eterna_forest_grass.sav"
 MOVE_ID_POUND = 1
@@ -92,6 +95,10 @@ class Scenario:
 
     def warn(self, name: str, detail: str) -> None:
         self.check(name, False, detail, warn_only=True)
+
+    def grade(self, name: str, status: str, detail: str = "", why: str = "") -> bool:
+        """Records a check whose PASS / WARN / FAIL was decided by the caller."""
+        return self.check(name, status == "PASS", detail, warn_only=status == "WARN", why=why)
 
     def note(self, msg: str) -> None:
         self.notes.append(msg)
@@ -405,14 +412,16 @@ def _no_combo(sc: Scenario, what: str, feature: str) -> None:
 
 
 def _qb_start(sc: Scenario, e: Emu, key: str, entries_down: int, species_right: int, panel: List[Frame],
-              label: str) -> Optional[bool]:
-    """Opens the quick-battle panel, moves the selectors (entries_down < 0 = UP), presses `key` (A/X).
+              label: str, tod_taps: int = 0) -> Optional[bool]:
+    """Opens the quick-battle panel, moves the selectors (entries_down < 0 = UP; tod_taps SELECTs step
+    the time of day, see TODS), presses `key` (A/X).
     True if a battle started, False if not, None if the panel never opened."""
     d = hold_overlay(e, threshold=0.10)
     if d is None:
         _no_combo(sc, f"{label}: L+R panel opened", "the overworld quick-battle panel")
         return None
     e.snap(f"{label} panel", panel)
+    tap_held(e, "SELECT", tod_taps)
     before = text_box(e.screens())
     tap_held(e, "DOWN" if entries_down >= 0 else "UP", abs(entries_down))
     tap_held(e, "RIGHT", species_right)
@@ -438,7 +447,7 @@ def sc_quick_battle(sc: Scenario, e: Emu, args) -> None:
         return
     panel: List[Frame] = []
     current = 0
-    for n, bg in enumerate(args.bgs):
+    for n, bg in enumerate(args.bgs if args.bgs is not None else [0, 1, 29]):
         label = f"bg{bg:02d}"
         steps = (bg - current) % QB_ENTRIES                # DOWN = +1, UP = -1, both wrap
         if steps > QB_ENTRIES // 2:
@@ -744,8 +753,22 @@ def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
 QB_PLAIN = 1                             # quick-battle entry 01: BACKGROUND_PLAIN / TERRAIN_PLAIN
 QB_PLAIN_GRASS = 30                      # quick-battle entry 30: BACKGROUND_PLAIN / TERRAIN_GRASS
 AB_THRESHOLD = 24                        # max channel difference that counts a pixel as changed
-AB_FAIL_PCT, AB_FAIL_MEAN = 0.05, 12.0   # stage_ab: gross mismatch
-AB_WARN_PCT, AB_WARN_MEAN = 0.005, 2.0   # stage_ab: small mismatch
+# Home pose vs classic (the same battle with the stage switched off), for stage_ab and
+# all_backgrounds. The scene above the text box is compared with the HUD masked, after lining up
+# the idle bob of the two states, on the per-pixel max channel difference:
+#  - mean: an even tint or dimming of the whole arena raises it;
+#  - big: the share of pixels off by more than AB_BIG (6 steps of the DS's 5-bit channels).
+#    Misplaced geometry, a wrong texture or a palette error cause it; a gentle tint does not.
+# At day the home pose should match classic nearly exactly (lit surfaces saturate to white), but
+# texture filtering and the half-pixel convention leave a few stray pixels, hence a tolerance
+# rather than an exact match. Twilight and night may add "a gentle tint and dimming", so their
+# mean is looser; misalignment is judged the same way at every time of day.
+AB_BIG = 48
+AB_LIMITS = {        # time of day: ((PASS if mean <=, and big <=), (FAIL if mean >, or big >))
+    "day": ((3.0, 0.01), (12.0, 0.05)),
+    "twilight": ((10.0, 0.02), (24.0, 0.08)),
+    "night": ((10.0, 0.02), (24.0, 0.08)),
+}
 # (move ID, name, least share of the scene that must change mid-animation)
 SWITCHBG_MOVES = [
     (101, "Night Shade", 0.25),
@@ -760,14 +783,14 @@ DEBUG_VIEWS = 4
 STAGE_ENTRY = QB_PLAIN                   # --stage-terrain picks the entry the 3D stage scenarios use
 
 
-def _plain_battle(sc: Scenario, e: Emu) -> bool:
+def _plain_battle(sc: Scenario, e: Emu, tod: str = "clock") -> bool:
     """Boots, starts the Plain background quick battle (entry 01, or 30 with grass
-    platforms under --stage-terrain grass) and waits for the menu."""
+    platforms under --stage-terrain grass) at time of day `tod` (see TODS) and waits for the menu."""
     if not boot(sc, e):
         return False
     panel: List[Frame] = []
     steps = STAGE_ENTRY if STAGE_ENTRY <= QB_ENTRIES // 2 else STAGE_ENTRY - QB_ENTRIES   # DOWN = +1, UP = -1
-    started = _qb_start(sc, e, "A", steps, 0, panel, "plain")
+    started = _qb_start(sc, e, "A", steps, 0, panel, "plain", tod_taps=TODS.index(tod))
     if not started:
         sc.sheet(panel, "panel", "L+R quick-battle panel", screen="top", cols=4, scale=1.0)
         return False
@@ -788,7 +811,8 @@ def _finish(sc: Scenario, e: Emu) -> None:
 
 
 def pixel_diff(a: Image.Image, b: Image.Image, threshold: int = AB_THRESHOLD) -> dict:
-    """Per pixel max channel difference: its mean and max, and the share of pixels over threshold."""
+    """Per pixel max channel difference: its mean and max, the share of pixels over threshold,
+    over AB_BIG ("big") and exactly equal ("exact")."""
     r, g, bl = ImageChops.difference(a.convert("RGB"), b.convert("RGB")).split()
     m = ImageChops.lighter(ImageChops.lighter(r, g), bl)
     hist = m.histogram()
@@ -796,7 +820,28 @@ def pixel_diff(a: Image.Image, b: Image.Image, threshold: int = AB_THRESHOLD) ->
     return {"mean": sum(v * c for v, c in enumerate(hist)) / n,
             "max": max(v for v, c in enumerate(hist) if c),
             "pct": sum(hist[threshold + 1:]) / n,
+            "big": sum(hist[AB_BIG + 1:]) / n,
+            "exact": hist[0] / n,
             "map": m}
+
+
+def home_grade(st: dict, tod: str) -> str:
+    """PASS / WARN / FAIL for a home pose vs classic pixel_diff (see AB_LIMITS)."""
+    (pm, pb), (fm, fb) = AB_LIMITS.get(tod, AB_LIMITS["night"])
+    if st["mean"] > fm or st["big"] > fb:
+        return "FAIL"
+    return "PASS" if st["mean"] <= pm and st["big"] <= pb else "WARN"
+
+
+def limits_text(tod: str) -> str:
+    (pm, pb), (fm, fb) = AB_LIMITS.get(tod, AB_LIMITS["night"])
+    return (f"{tod} tolerance: PASS at mean <= {pm} and <= {pb:.0%} of pixels off by more than {AB_BIG}; "
+            f"FAIL above mean {fm} or {fb:.0%}")
+
+
+def diff_detail(st: dict) -> str:
+    return (f"mean {st['mean']:.2f}, max {st['max']}, {st['big']:.2%} off by more than {AB_BIG}, "
+            f"{st['pct']:.2%} by more than {AB_THRESHOLD}, {st['exact']:.1%} identical")
 
 
 def write_heatmap(a: Image.Image, b: Image.Image, stats: dict, path: pathlib.Path) -> str:
@@ -838,7 +883,9 @@ def _toggle_stage(sc: Scenario, e: Emu, ov: Overlay, tag: str, shots: List[Frame
 
 
 def sc_stage_ab(sc: Scenario, e: Emu, args) -> None:
-    if not _plain_battle(sc, e):
+    # The launcher forces the time of day (day by default), so the host clock cannot change
+    # the palette or the tolerance between runs
+    if not _plain_battle(sc, e, args.stage_tod):
         return
     ov = Overlay(e)
     shots: List[Frame] = []
@@ -853,25 +900,23 @@ def sc_stage_ab(sc: Scenario, e: Emu, args) -> None:
         return
     e.snap("toggled (stage OFF)", shots)
     second = idle_samples(e, n=24, every=3)
-    a, b = best_pair(first, second)
+    a, b = best_pair([scene(i) for i in first], [scene(i) for i in second])
     st = pixel_diff(a, b)
     path = write_heatmap(a, b, st, sc.dir / "stage_ab_heatmap.png")
-    gross = st["pct"] > AB_FAIL_PCT or st["mean"] > AB_FAIL_MEAN
-    small = st["pct"] > AB_WARN_PCT or st["mean"] > AB_WARN_MEAN
-    sc.check("stage ON matches the classic look (OFF) at the home pose", not small,
-             f"top screen: mean {st['mean']:.2f}, max {st['max']}, {st['pct']:.2%} of pixels differ by more "
-             f"than {AB_THRESHOLD} (ON | OFF | heat: {path})", warn_only=not gross,
-             why="gross mismatch: the arena does not line up with the classic backdrop" if gross
-             else "small mismatch: see the heatmap")
-    sd = pixel_diff(scene(a), scene(b))
-    sc.note(f"scene only (HUD masked, text box cut): mean {sd['mean']:.2f}, max {sd['max']}, "
-            f"{sd['pct']:.2%} over {AB_THRESHOLD}")
+    status = home_grade(st, args.stage_tod)
+    sc.grade(f"stage ON matches the classic look (OFF) at the home pose ({args.stage_tod})", status,
+             f"scene (HUD masked, text box cut): {diff_detail(st)} (ON | OFF | heat: {path})",
+             why=limits_text(args.stage_tod) + "; " +
+                 ("gross mismatch: the arena does not line up with the classic backdrop or has the wrong colours"
+                  if status == "FAIL" else "small mismatch: see the heatmap"))
+    a2, b2 = best_pair(first, second)
+    sc.note(f"whole top screen (HUD and text box included): {diff_detail(pixel_diff(a2, b2))}")
     sc.note("Assumes the stage starts ON (the default); check the overlay text in sheet_ab.")
     check_screens(sc, e.screens(), "stage off")
     _toggle_stage(sc, e, ov, "toggle 2", shots)
     e.snap("toggled back (stage ON)", shots)
     sc.sheet(shots, "ab", "initial -> L+R+SELECT -> toggled -> L+R+SELECT -> back", cols=5, scale=0.75)
-    sc.sheet([Frame("ON", 0, a), Frame("OFF", 0, b)], "ab_pair", "best-aligned ON / OFF pair",
+    sc.sheet([Frame("ON", 0, a2), Frame("OFF", 0, b2)], "ab_pair", "best-aligned ON / OFF pair",
              screen="top", cols=2, scale=1.0)
     _finish(sc, e)
 
@@ -1020,6 +1065,648 @@ def sc_debug_views(sc: Scenario, e: Emu, args) -> None:
     _finish(sc, e)
 
 
+# ---- RAM through the xMAP (optional) ---------------------------------------------------------
+
+# BattleStage in src/battle/battle_stage.c, one s32/pointer per field; brightness is format v2 only
+STAGE_FIELDS = ("battleSys", "arena", "enabled", "suppressed", "view", "visible", "platformsHidden", "brightness")
+SUPPRESS_BRIGHTNESS = 4                  # BATTLE_STAGE_SUPPRESS_BRIGHTNESS
+
+
+def find_xmap(args) -> Optional[str]:
+    """--map, else the xMAP next to the ROM or in the build dir it came from ("--map none" = no RAM)."""
+    if args.map:
+        return None if args.map.lower() == "none" else args.map
+    rom = pathlib.Path(args.rom).resolve()
+    for p in (rom.with_suffix(".xMAP"), rom.parent / "build" / "main.nef.xMAP",
+              rom.parent.parent / "build" / "main.nef.xMAP"):
+        if p.exists():
+            return str(p)
+    return None
+
+
+class StageRam:
+    """sBattleStage and the launcher's selection, read at the addresses in the build's xMAP. Every
+    check that uses it also has a pixel counterpart, so a missing or mismatched xMAP only drops the
+    RAM half (validate() catches an xMAP from another build)."""
+
+    def __init__(self, e: Emu, xmap: Optional[str]):
+        self.e = e
+        self.syms = read_xmap(xmap) if xmap else {}
+        self.stage = self.syms.get("sBattleStage")
+        self.ok = self.stage is not None
+        self.why = "" if self.ok else ("no xMAP (pass --map)" if not xmap else f"no sBattleStage in {xmap}")
+        self.xmap = xmap
+
+    @property
+    def has_brightness(self) -> bool:
+        return self.ok and self.stage[1] >= 4 * len(STAGE_FIELDS)
+
+    def read(self) -> Optional[dict]:
+        if not self.ok:
+            return None
+        addr, size = self.stage
+        n = min(size, 4 * len(STAGE_FIELDS)) // 4
+        return dict(zip(STAGE_FIELDS, struct.unpack(f"<{n}i", self.e.read(addr, 4 * n))))
+
+    def validate(self, st: Optional[dict]) -> bool:
+        """Call in a battle: drops the RAM checks if sBattleStage does not look like one."""
+        if not self.ok:
+            return False
+        good = (RAM_BASE <= st["battleSys"] < RAM_END and st["enabled"] in (0, 1) and st["visible"] in (0, 1)
+                and 0 <= st["view"] < DEBUG_VIEWS)
+        if not good:
+            self.ok = False
+            self.why = f"sBattleStage in {self.xmap} reads {st}: the xMAP is not from this ROM's build"
+        return good
+
+    def byte(self, name: str) -> Optional[int]:
+        if not self.ok or name not in self.syms:
+            return None
+        return self.e.read(self.syms[name][0], 1)[0]
+
+
+# ---- all backgrounds and times of day (chunk 2) ----------------------------------------------
+
+TODS = ("clock", "day", "twilight", "night")      # the launcher's SELECT cycle (sTimeOfDayChoice)
+QB_NAMES = ["map", "Plain", "Water", "City", "Forest", "Mountain", "Snow", "Indoors1", "Indoors2", "Indoors3",
+            "Cave1", "Cave2", "Cave3", "Aaron", "Bertha", "Flint", "Lucian", "Cynthia", "Distortion", "Tower",
+            "Factory", "Arcade", "Castle", "Hall", "Plain/Sand", "Plain/Puddle", "Plain/Bridge", "Snow/Ice",
+            "Forest/Marsh", "Dist/Giratina", "Plain/Grass"]
+# Entries whose battle uses the time of day (ov16_0223EC04: the Plain, Water, City, Forest, Mountain
+# and Snow backgrounds). The others are always drawn as day, so twilight/night repeat the day battle.
+QB_TOD_ENTRIES = {1, 2, 3, 4, 5, 6, 24, 25, 26, 27, 28, 30}
+# The BG0-only render with a magenta backdrop (Emu.render_layers) shows where the 3D layer drew
+# nothing. The arena covers the whole scene at the home pose; the sprites alone cover under 10%.
+ARENA_COVER = 0.95                       # least share of the scene the home pose's BG0 must cover
+ARENA_GAIN = 0.30                        # ... and how much more than with the stage off
+MARKER_SANE = 0.5                        # stage off: at least this much magenta, or the marker trick failed
+# Holes: scene pixels a debug view leaves uncovered that the home pose covered
+HOLE_PASS, HOLE_FAIL = 0.001, 0.01
+BG_PER_SHEET = 10
+
+
+def bg_plan(args) -> List[tuple]:
+    """(tod, entry) battles for all_backgrounds, in play order."""
+    bgs = args.bgs if args.bgs is not None else list(range(1, QB_ENTRIES))
+    plan = []
+    for tod in args.tods:
+        for bg in bgs:
+            if tod in ("day", "clock") or args.every_tod or bg in QB_TOD_ENTRIES:
+                plan.append((tod, bg))
+    return plan
+
+
+def uncovered(img: Image.Image) -> float:
+    return marker_fraction(img)
+
+
+def _worst(statuses: List[str]) -> str:
+    return "FAIL" if "FAIL" in statuses else ("WARN" if "WARN" in statuses else "PASS")
+
+
+def _select_entry(sc: Scenario, e: Emu, ram: StageRam, cur: dict, bg: int, tod: str, tag: str) -> Optional[bool]:
+    """With the launcher panel closed: opens it, steps to entry `bg` at time of day `tod`, presses A.
+    True if a battle started, False if not, None if the panel never opened."""
+    if hold_overlay(e, threshold=0.10) is None:
+        _no_combo(sc, f"{tag}: L+R panel opened", "the overworld quick-battle panel")
+        return None
+    for _ in range(2):
+        if ram.ok and ram.byte("sBackgroundChoice") is not None:
+            cur["bg"], cur["tod"] = ram.byte("sBackgroundChoice"), ram.byte("sTimeOfDayChoice")
+        steps = (bg - cur["bg"]) % QB_ENTRIES               # DOWN = +1, UP = -1, both wrap
+        if steps > QB_ENTRIES // 2:
+            steps -= QB_ENTRIES
+        tap_held(e, "SELECT", (TODS.index(tod) - cur["tod"]) % len(TODS))
+        tap_held(e, "DOWN" if steps >= 0 else "UP", abs(steps))
+        cur["bg"], cur["tod"] = bg, TODS.index(tod)
+        e.run(4)
+        if not ram.ok or ram.byte("sBackgroundChoice") is None:
+            break
+        got = (ram.byte("sBackgroundChoice"), ram.byte("sTimeOfDayChoice"))
+        if got == (bg, TODS.index(tod)):
+            break
+        sc.warn(f"{tag}: launcher selection", f"RAM shows entry {got[0]}, time of day {got[1]} after the "
+                f"taps; stepping again")
+    e.hold("A", 6, 0)
+    e.release("L+R")
+    if e.wait_until(lambda em: not em.in_overworld(), timeout=240, step=4) is None:
+        return sc.check(f"{tag}: battle started", False, why="still in the overworld 240 frames after L+R+A")
+    return True
+
+
+def _bg_battle(sc: Scenario, e: Emu, args, ram: StageRam, tod: str, bg: int, rows: List[Frame]) -> Optional[dict]:
+    """One all_backgrounds battle from the command menu: home pose, debug views 1-3, stage off.
+    Returns the measurements (None if the overlay never came up)."""
+    tag = f"{tod} {bg:02d} {QB_NAMES[bg]}"
+    rec: dict = {"tod": tod, "bg": bg, "name": QB_NAMES[bg], "problems": []}
+    home = idle_samples(e, n=10, every=3)
+    st = ram.read()
+    if st is not None and ram.validate(st):
+        rec["ram_home"] = st
+    bg0 = top(e.render_layers(LAYER_BG0, marker=True)).crop(SCENE)
+    rec["cover"] = 1.0 - uncovered(bg0)
+    rows.append(Frame(f"{bg:02d} {QB_NAMES[bg]}", e.frame, home[-1]))
+    ov = Overlay(e)
+    if not ov.show():
+        sc.check(f"{tag}: L+R overlay shown", False, "the move tester overlay never came up")
+        return None
+    rec["views"] = []
+    for v in range(1, DEBUG_VIEWS):
+        if not ov.up() and not ov.show():
+            sc.check(f"{tag}: overlay back for view {v}", False, "holding L+R did not bring the overlay back")
+            return None
+        e.hold("B", 6, 36)                   # lets an eased camera move settle
+        img = top(e.screens())
+        st = ram.read() if ram.ok else None
+        render = top(e.render_layers(LAYER_BG0, marker=True)).crop(SCENE)
+        hole = max(0.0, uncovered(render) - (1.0 - rec["cover"]))
+        broken = looks_broken(img.crop(SCENE))
+        rec["views"].append({"view": v, "hole": hole, "ram_view": st["view"] if st else None,
+                             "moved": diff_fraction(scene(home[-1]), scene(img)), "broken": broken})
+        rows.append(Frame(f"v{v} hole {hole:.1%}", e.frame, img))
+        if hole > HOLE_PASS and rec["cover"] >= ARENA_COVER:
+            hdir = sc.dir / "holes"
+            hdir.mkdir(exist_ok=True)
+            render.resize((512, 288), Image.NEAREST).save(hdir / f"{tod}_{bg:02d}_v{v}.png")
+    before = text_box(e.screens())
+    e.hold("SELECT", 6, 10)
+    rec["toggle_text"] = diff_fraction(before, text_box(e.screens()))
+    st = ram.read() if ram.ok else None
+    rec["ram_off"] = st
+    e.release("L+R")
+    e.run(40)
+    classic = idle_samples(e, n=10, every=3)
+    off = top(e.render_layers(LAYER_BG0, marker=True)).crop(SCENE)
+    rec["cover_off"] = 1.0 - uncovered(off)
+    a, b = best_pair([scene(i) for i in home], [scene(i) for i in classic])
+    d = pixel_diff(a, b)
+    rec["diff"] = {k: d[k] for k in ("mean", "max", "pct", "big", "exact")}
+    rec["grade"] = home_grade(d, tod)
+    if rec["grade"] != "PASS":
+        ddir = sc.dir / "diff"
+        ddir.mkdir(exist_ok=True)
+        rec["heatmap"] = write_heatmap(a, b, d, ddir / f"{tod}_{bg:02d}.png")
+    rec["broken_home"] = looks_broken(top(home[-1]).crop(SCENE))
+    rec["broken_off"] = looks_broken(top(classic[-1]).crop(SCENE))
+    rows.append(Frame(f"OFF m{d['mean']:.1f} b{d['big']:.1%}", e.frame, classic[-1]))
+    return rec
+
+
+def _bg_grades(rec: dict) -> dict:
+    """PASS / WARN / FAIL per check for one battle, with the problem written into rec["problems"]."""
+    g = {}
+    tag = f"{rec['bg']:02d} {rec['name']}"
+    ram = rec.get("ram_home")
+    drawn = rec["cover"] >= ARENA_COVER and rec["cover"] - rec["cover_off"] >= ARENA_GAIN
+    if ram is not None:
+        drawn = drawn and ram["arena"] != 0 and ram["visible"] == 1
+    g["arena"] = "PASS" if drawn else "FAIL"
+    if not drawn:
+        rec["problems"].append(f"{tag}: arena missing (BG0 covers {rec['cover']:.0%} of the scene, "
+                               f"{rec['cover_off']:.0%} with the stage off" +
+                               (f"; RAM arena {ram['arena']:#x}, visible {ram['visible']}" if ram else "") + ")")
+    worst = max((v["hole"] for v in rec["views"]), default=0.0)
+    g["holes"] = "PASS" if worst <= HOLE_PASS else ("WARN" if worst <= HOLE_FAIL else "FAIL")
+    if g["holes"] != "PASS" and drawn:
+        rec["problems"].append(f"{tag}: holes up to {worst:.2%} of the scene ("
+                               + ", ".join(f"v{v['view']} {v['hole']:.2%}" for v in rec["views"]) + ")")
+    elif not drawn:
+        g["holes"] = "PASS"                  # nothing to have holes in; reported as missing above
+    stuck = [v["view"] for v in rec["views"] if v["moved"] <= 0.02]
+    wrong = [v["view"] for v in rec["views"] if v["ram_view"] is not None and v["ram_view"] != v["view"]]
+    g["views"] = "PASS" if drawn and not stuck and not wrong else ("PASS" if not drawn else "WARN")
+    if g["views"] != "PASS":
+        rec["problems"].append(f"{tag}: views {stuck} did not change the scene" +
+                               (f"; RAM view differs for {wrong}" if wrong else ""))
+    bad = [f"home: {rec['broken_home']}"] if rec["broken_home"] else []
+    bad += [f"v{v['view']}: {v['broken']}" for v in rec["views"] if v["broken"]]
+    g["garbage"] = "PASS" if not bad else ("WARN" if rec["broken_off"] else "FAIL")
+    if bad:
+        rec["problems"].append(f"{tag}: " + "; ".join(bad) +
+                               (f" (classic too: {rec['broken_off']})" if rec["broken_off"] else ""))
+    g["home"] = rec["grade"]
+    if rec["grade"] != "PASS":
+        rec["problems"].append(f"{tag}: home vs classic {diff_detail(rec['diff'])} (heat: {rec.get('heatmap')})")
+    off = rec.get("ram_off")
+    g["toggle"] = "PASS" if rec["toggle_text"] > 0.003 and (off is None or off["enabled"] == 0) else "FAIL"
+    if g["toggle"] != "PASS":
+        rec["problems"].append(f"{tag}: L+R+SELECT did not switch the stage off (text box {rec['toggle_text']:.2%}"
+                               + (f", RAM enabled {off['enabled']}" if off else "") + ")")
+    g["marker"] = "PASS" if 1.0 - rec["cover_off"] >= MARKER_SANE else "WARN"
+    if g["marker"] != "PASS":
+        rec["problems"].append(f"{tag}: with the stage off only {1 - rec['cover_off']:.0%} of the scene showed the "
+                               "magenta backdrop: the marker did not take, so coverage and holes are unreliable")
+    return g
+
+
+BG_CHECKS = [
+    ("arena", "arena drawn at the home pose on every background",
+     f"BG0-only render covers >= {ARENA_COVER:.0%} of the scene and >= {ARENA_GAIN:.0%} more than with the stage "
+     "off (RAM: arena loaded and visible)"),
+    ("holes", "no holes in debug views 1-3",
+     f"share of the scene the view leaves uncovered that the home pose covered: PASS <= {HOLE_PASS:.1%}, "
+     f"FAIL > {HOLE_FAIL:.0%}"),
+    ("views", "debug views 1-3 move the camera", "each view changes > 2% of the scene (RAM: debugView = 1, 2, 3)"),
+    ("garbage", "no garbage or blank frames", "looks_broken on the scene at the home pose and in each view "
+     "(WARN only if the classic art trips it too)"),
+    ("home", "home pose matches classic within tolerance", "see AB_LIMITS"),
+    ("toggle", "L+R+SELECT switches the stage off", "overlay text changes (RAM: enabled = 0)"),
+    ("marker", "magenta backdrop marker works", f"stage off: >= {MARKER_SANE:.0%} of the scene is magenta"),
+]
+
+
+def _bg_summary(sc: Scenario, recs: List[dict], tods: List[str]) -> None:
+    grades = [(r, _bg_grades(r)) for r in recs]
+    for tod in tods:
+        mine = [(r, g) for r, g in grades if r["tod"] == tod]
+        if not mine:
+            continue
+        for key, name, how in BG_CHECKS:
+            statuses = [g[key] for _, g in mine]
+            status = _worst(statuses)
+            bad = [f"{r['bg']:02d} {r['name']} {g[key]}" for r, g in mine if g[key] != "PASS"]
+            if key == "home":
+                means = [r["diff"]["mean"] for r, _ in mine]
+                bigs = [r["diff"]["big"] for r, _ in mine]
+                drawn = sum(g["arena"] == "PASS" for _, g in mine)
+                detail = (f"{len(mine)} battles ({drawn} with an arena), mean {min(means):.2f}..{max(means):.2f}, "
+                          f"off by > {AB_BIG}: {min(bigs):.2%}..{max(bigs):.2%}")
+                how = limits_text(tod)
+            elif key == "holes":
+                holes = [max((v["hole"] for v in r["views"]), default=0.0) for r, g in mine if g["arena"] == "PASS"]
+                detail = (f"{len(holes)} battles with an arena, worst {max(holes):.2%}" if holes else
+                          "no battle had an arena to look at")
+            elif key == "arena":
+                detail = f"{len(mine)} battles, BG0 cover {min(r['cover'] for r, _ in mine):.1%} at least"
+            else:
+                detail = f"{len(mine)} battles"
+            if bad:
+                detail += "; not PASS: " + ", ".join(bad)
+            sc.grade(f"{tod}: {name}", status, detail, why=how)
+    for r, _ in grades:
+        for p in r["problems"]:
+            sc.note(f"{r['tod']} {p}")
+
+
+def write_bg_table(sc: Scenario, recs: List[dict]) -> pathlib.Path:
+    lines = ["| tod | entry | cover | cover off | holes v1/v2/v3 | home vs classic mean / max / >48 / exact | grade |",
+             "|---|---|---|---|---|---|---|"]
+    for r in recs:
+        d = r["diff"]
+        lines.append(f"| {r['tod']} | {r['bg']:02d} {r['name']} | {r['cover']:.1%} | {r['cover_off']:.1%} | "
+                     + "/".join(f"{v['hole']:.2%}" for v in r["views"])
+                     + f" | {d['mean']:.2f} / {d['max']} / {d['big']:.2%} / {d['exact']:.1%} | {r['grade']} |")
+    path = sc.dir / "all_backgrounds.md"
+    path.write_text("\n".join(lines) + "\n")
+    (sc.dir / "all_backgrounds.json").write_text(json.dumps(recs, indent=1, default=str))
+    return path
+
+
+def sc_all_backgrounds(sc: Scenario, e: Emu, args) -> None:
+    plan = bg_plan(args)
+    if not boot(sc, e):
+        return
+    ram = StageRam(e, find_xmap(args))
+    skipped = [f"{tod} {bg:02d}" for tod in args.tods for bg in (args.bgs or range(1, QB_ENTRIES))
+               if (tod, bg) not in plan]
+    if skipped:
+        sc.note(f"skipped {len(skipped)} battles whose background ignores the time of day (drawn as day; "
+                f"--every-tod plays them): {', '.join(skipped)}")
+    cur = {"bg": 0, "tod": 0}
+    recs: List[dict] = []
+    rows: Dict[str, List[Frame]] = {}
+    t0 = time.time()
+    for n, (tod, bg) in enumerate(plan):
+        tag = f"{tod} {bg:02d} {QB_NAMES[bg]}"
+        print(f"  -- {tag} ({n + 1}/{len(plan)}, {time.time() - t0:.0f}s)", flush=True)
+        started = _select_entry(sc, e, ram, cur, bg, tod, tag)
+        if started is None:
+            break
+        if not started:
+            if not e.in_overworld() and not e.battle_escape():
+                break
+            continue
+        if e.wait_battle_menu(timeout=2400) is None:
+            sc.check(f"{tag}: battle menu reached", False, why="no command menu within 2400 frames")
+            break
+        e.run(20)
+        row = rows.setdefault(tod, [])
+        rec = _bg_battle(sc, e, args, ram, tod, bg, row)
+        if rec is None:
+            break
+        recs.append(rec)
+        if not e.battle_run():
+            sc.check(f"{tag}: ran from the battle", False, "still not in the field after RUN/B for 1800 frames")
+            break
+    sc.note(f"{len(recs)} battles in {time.time() - t0:.0f}s ({(time.time() - t0) / max(1, len(recs)):.1f}s each)")
+    if ram.ok:
+        sc.note(f"RAM checks on (sBattleStage at {ram.stage[0]:#x}, {ram.stage[1]} bytes, from {ram.xmap})")
+    else:
+        sc.note(f"RAM checks off: {ram.why}; pixels only")
+    sc.check("every planned battle played", len(recs) == len(plan), f"{len(recs)} of {len(plan)}")
+    if recs:
+        _bg_summary(sc, recs, args.tods)
+        sc.note(f"per-battle table: {write_bg_table(sc, recs)}")
+    per_row = DEBUG_VIEWS + 1                # home, views 1-3, stage off
+    for tod, frames in rows.items():
+        for i in range(0, len(frames), BG_PER_SHEET * per_row):
+            chunk = frames[i:i + BG_PER_SHEET * per_row]
+            sc.sheet(chunk, f"{tod}_{i // (BG_PER_SHEET * per_row)}",
+                     f"{tod}: home, debug views 1-3 (hole = uncovered share), stage off (m = mean diff, "
+                     f"b = share off by > {AB_BIG})", screen="top", cols=per_row, scale=0.5, save_frames=False)
+
+
+# ---- Mega Evolution brightness (chunk 2) -----------------------------------------------------
+
+MEGA_SPECIES = 445                       # Garchomp: L+R+START gives it with Garchompite (opponent choice 0)
+MEGA_MOVE_SLOT = 3                       # its Swords Dance: no damage, so the turn stays short
+# Sky strips clear of both Pokemon, the HUD boxes and the text box: arena (or BG3) only
+MEGA_REGIONS = [(0, 0, 256, 16), (136, 16, 256, 48)]
+MEGA_RECORD = 900                        # frames after picking the move to wait for the pulse
+MEGA_DIM = (-10.0, -6.0)                 # charge: the 2D planes hold -8 (half); the arena's level must be in here
+MEGA_FLASH = 12.0                        # reveal: the 2D planes peak at +16 (white); the arena must reach this
+MEGA_SLACK = 2.0                         # in step: levels the arena may be off the 2D range of the frames around it
+MEGA_COVER = 0.9                         # least share of the regions the arena must cover in every BG0 frame
+REG_BLDCNT, REG_BLDY = 0x04000050, 0x04000054
+BLD_PLANE_BG3 = 1 << 3
+
+
+def blend_level(e: Emu) -> int:
+    """The 2D brightness the game set for BG3 (-16..16) from BLDCNT/BLDY, 0 if none."""
+    cnt, _, y = struct.unpack("<3H", e.read(REG_BLDCNT, 6))
+    mode = cnt >> 6 & 3
+    if not cnt & BLD_PLANE_BG3 or mode not in (2, 3):
+        return 0
+    y = min(16, y & 0x1F)
+    return y if mode == 2 else -y
+
+
+def _region_pixels(img: Image.Image) -> List[tuple]:
+    out: List[tuple] = []
+    for box in MEGA_REGIONS:
+        out.extend(img.crop(box).getdata())
+    return out
+
+
+def _is_backdrop(px: tuple) -> bool:
+    """A pixel of the magenta backdrop marker (also dimmed or whitened up to about 9/16 by the 2D blend,
+    which includes the backdrop), or black: nothing in BG0 drew there."""
+    r, g, b = px[:3]
+    return (abs(r - b) <= 16 and r >= 60 and g <= r * 0.6) or max(r, g, b) < 24
+
+
+def brightness_level(cur: List[tuple], base: List[tuple], skip: Optional[List[bool]] = None) -> Optional[float]:
+    """The DS brightness level (-16..16) that turns `base` into `cur`, per pixel on luma, median over the pixels.
+    Darken: c' = c * (1 - L/16). Brighten: c' = c + (255 - c) * L/16."""
+    vals = []
+    for i, (p, q) in enumerate(zip(cur, base)):
+        if skip is not None and skip[i]:
+            continue
+        c = (p[0] * 299 + p[1] * 587 + p[2] * 114) / 1000.0
+        o = (q[0] * 299 + q[1] * 587 + q[2] * 114) / 1000.0
+        if c <= o and o >= 32:
+            vals.append(-16.0 * (1.0 - c / o))
+        elif c > o and o <= 224:
+            vals.append(16.0 * (c - o) / (255.0 - o))
+    if not vals:
+        return None
+    vals.sort()
+    return vals[len(vals) // 2]
+
+
+def write_curve(path: pathlib.Path, rows: List[dict]) -> str:
+    """Levels per frame: 2D register (grey line), 2D pixels (blue), arena pixels (orange), RAM (green)."""
+    f0, f1 = rows[0]["f"], rows[-1]["f"]
+    sx, top_, h = 4, 20, 256
+    img = Image.new("RGB", ((f1 - f0 + 1) * sx + 60, h + 40), (24, 24, 24))
+    d = ImageDraw.Draw(img)
+
+    def y(level):
+        return top_ + int((16 - level) * h / 32)
+    for lv in (16, 8, 0, -8, -16):
+        d.line((40, y(lv), img.size[0], y(lv)), fill=(70, 70, 70))
+        d.text((4, y(lv) - 5), f"{lv:+d}", fill=(160, 160, 160))
+    d.text((40, 2), "grey: 2D register  blue: 2D pixels  orange: arena pixels  green: RAM brightness",
+           fill=(220, 220, 220))
+    prev = None
+    for r in rows:
+        x = 40 + (r["f"] - f0) * sx
+        pt = (x, y(r["reg"]))
+        if prev:
+            d.line((prev, pt), fill=(150, 150, 150))
+        prev = pt
+        for key, col in (("px2d", (80, 140, 255)), ("arena", (255, 150, 40)), ("ram", (60, 220, 60))):
+            if r.get(key) is not None:
+                d.ellipse((x - 2, y(r[key]) - 2, x + 2, y(r[key]) + 2), fill=col)
+    img.save(path)
+    return str(path)
+
+
+def _give_mega(sc: Scenario, e: Emu, args) -> bool:
+    from make_save import PARTY_OFFSET, PK4_PARTY_SIZE, newest_partition
+    raw = pathlib.Path(args.sav).read_bytes()
+    base = newest_partition(raw)
+    try:
+        e.find_party(raw[base + PARTY_OFFSET:base + PARTY_OFFSET + PK4_PARTY_SIZE])
+    except RuntimeError as exc:
+        sc.check("party located in RAM", False, str(exc))
+        return False
+    panel: List[Frame] = []
+    if hold_overlay(e, threshold=0.10) is None:
+        _no_combo(sc, "L+R panel opened", "the overworld quick-battle panel")
+        return False
+    tap_held(e, "START")
+    e.run(10)
+    e.snap("after L+R+START", panel)
+    e.release("L+R")
+    e.run(30)
+    party = e.party_species()
+    idx = next((i for i, p in enumerate(party) if p["species"] == MEGA_SPECIES), None)
+    if not sc.check("L+R+START gave the Mega Pokemon", idx is not None,
+                    f"party species {[p['species'] for p in party]}",
+                    why=f"no species {MEGA_SPECIES} (Garchomp) in the party"):
+        sc.sheet(panel, "panel", "L+R+START", screen="top", cols=2, scale=1.0)
+        return False
+    if idx:
+        e.swap_party(0, idx)             # the battle leads with slot 0
+    lead = e.party_species()[0]
+    return sc.check("Mega Pokemon leads the party", lead["species"] == MEGA_SPECIES,
+                    f"slot 0: species {lead['species']}, item {lead['item']}, moves {lead['moves']}")
+
+
+def _mega_measure(e: Emu, ram: StageRam, base_bg0: List[tuple], base_2d: List[tuple], f: int, mode: int,
+                  keep: bool) -> dict:
+    """One frame of the pulse recording, in one of three renders (mode 0 full, 1 BG0 only, 2 2D only)."""
+    if mode == 0:
+        e.run(1)
+        img = e.screens()
+    else:
+        img = e.render_layers(LAYER_BG0 if mode == 1 else LAYERS_2D, marker=mode == 1)
+    row: dict = {"f": f, "mode": mode, "reg": blend_level(e)}
+    st = ram.read() if ram.ok else None
+    if st is not None:
+        row["suppressed"], row["visible"] = st["suppressed"], st["visible"]
+        if ram.has_brightness:
+            row["ram"] = st["brightness"]
+    px = _region_pixels(img)
+    if mode == 1:
+        skip = [_is_backdrop(p) for p in px]
+        row["cover"] = 1.0 - sum(skip) / float(len(skip))
+        # Only where the arena really covers the regions: a strongly whitened backdrop no longer
+        # looks magenta and would otherwise be measured as arena
+        drawn = row["cover"] >= MEGA_COVER and row.get("visible", 1) == 1
+        row["arena"] = brightness_level(px, base_bg0, skip) if drawn else None
+    elif mode == 2:
+        row["px2d"] = brightness_level(px, base_2d)
+    if keep:
+        row["img"] = top(img)
+    return row
+
+
+def sc_mega(sc: Scenario, e: Emu, args) -> None:
+    if not boot(sc, e):
+        return
+    ram = StageRam(e, find_xmap(args))
+    if not _give_mega(sc, e, args):
+        return
+    panel: List[Frame] = []
+    # Plain at day: bright sky in the measured regions, the same art every run
+    started = _qb_start(sc, e, "A", QB_PLAIN, 0, panel, "plain", tod_taps=TODS.index("day"))
+    if not started or e.wait_battle_menu(timeout=2400) is None:
+        sc.check("plain: battle menu reached", False, "no command menu")
+        sc.sheet(panel, "panel", "L+R panel", screen="top", cols=4, scale=1.0)
+        return
+    e.run(30)
+    st = ram.read()
+    if st is not None and not ram.validate(st):
+        sc.note(ram.why)
+    base_bg0 = _region_pixels(e.render_layers(LAYER_BG0, marker=True))
+    base_2d = _region_pixels(e.render_layers(LAYERS_2D))
+    cover0 = 1.0 - sum(map(_is_backdrop, base_bg0)) / float(len(base_bg0))
+    arena_up = cover0 >= MEGA_COVER and (not ram.ok or ram.read()["visible"] == 1)
+    sc.check("arena drawn before the Mega Evolution", arena_up,
+             f"BG0 covers {cover0:.0%} of the sky regions" + (f", RAM {ram.read()}" if ram.ok else ""),
+             why="no arena to measure (the stage is off or this background has none)")
+    shots: List[Frame] = [e.snap("menu")]
+    e.touch(*BTN_FIGHT, after=40)
+    if not sc.check("move list opened", e.move_list_up(), why="touching FIGHT did not open the move list"):
+        sc.sheet(shots + [e.snap("after FIGHT")], "mega", "command menu / after FIGHT", cols=2, scale=0.75)
+        return
+    ml = bottom(e.screens())
+    e.touch(*BTN_MEGA, after=20)
+    shots.append(e.snap("MEGA touched"))
+    toggled = diff_fraction(ml.crop((0, 150, 128, 192)), bottom(e.screens()).crop((0, 150, 128, 192))) > 0.05
+    sc.check("MEGA button toggled", toggled, why="the MEGA button did not change: no Key Stone / Mega Stone, "
+             "or the button is not at the expected place", warn_only=True)
+    e.touch(*MOVE_SLOTS[MEGA_MOVE_SLOT], after=2)
+    rows: List[dict] = []
+    recent: List[dict] = []
+    start, end = e.frame, None
+    while e.frame - start < MEGA_RECORD:
+        f = e.frame - start
+        r = _mega_measure(e, ram, base_bg0, base_2d, f, f % 3, True)
+        live = r["reg"] != 0 or (r.get("suppressed", 0) & SUPPRESS_BRIGHTNESS)
+        if live or rows:
+            if not rows:
+                rows.extend(recent)          # a few frames of lead-in
+            rows.append(r)
+            if live:
+                end = None
+            elif end is None:
+                end = f
+            elif f - end > 30:
+                break
+        else:
+            r.pop("img", None)
+            recent = (recent + [r])[-6:]
+    if not sc.check("Affine Pulse seen", bool(rows), f"2D brightness set for {len(rows)} frames" if rows else
+                    f"no 2D brightness blend within {MEGA_RECORD} frames of picking the move: the Mega Evolution "
+                    "did not happen"):
+        sc.sheet(shots + [e.snap("end")], "mega", "menu / MEGA / end", cols=3, scale=0.75)
+        return
+    for r in rows:
+        r.pop("img", None) if r["mode"] == 2 else None
+    window = [r for r in rows if r["reg"] != 0]
+    regs = {r["f"]: r["reg"] for r in rows}
+    sc.note(f"pulse: 2D brightness from frame {window[0]['f']} to {window[-1]['f']}, "
+            f"min {min(regs.values())}, max {max(regs.values())}")
+
+    # Stage visible: RAM never suppressed for BRIGHTNESS and visible, pixels cover the regions (the
+    # magenta test holds up to about 9/16 of 2D brightness, see _is_backdrop)
+    bg0 = [r for r in rows if r["mode"] == 1 and window[0]["f"] <= r["f"] <= window[-1]["f"]]
+    judged = [r for r in bg0 if abs(r["reg"]) <= 9]
+    low = [r for r in judged if r["cover"] < MEGA_COVER]
+    detail = f"BG0 covers the sky regions in {len(judged) - len(low)} of {len(judged)} frames"
+    ram_bad = []
+    if ram.ok:
+        ram_bad = [r["f"] for r in rows if r.get("suppressed", 0) & SUPPRESS_BRIGHTNESS or r.get("visible") == 0]
+        detail += f"; RAM: suppressed for brightness / not visible in {len(ram_bad)} of {len(rows)} frames"
+    visible = not low and not ram_bad
+    sc.check("stage stays visible through the pulse", visible, detail,
+             why="the arena is hidden during the Mega Evolution (BattleStage_Suppress(BRIGHTNESS)); "
+                 "the fog brightness (format v2) should replace the suppression")
+
+    # Levels against the 2D planes
+    measured = [r for r in bg0 if r.get("arena") is not None]
+    px2d = [r for r in rows if r.get("px2d") is not None]
+    err2d = [abs(r["px2d"] - r["reg"]) for r in px2d]
+    if err2d:
+        sc.note(f"method check: 2D pixel level vs BLDY register, mean error {sum(err2d) / len(err2d):.2f} "
+                f"over {len(err2d)} frames (the arena is measured the same way)")
+    if not measured:
+        sc.warn("arena dims during the charge", "not measured: the arena was not drawn")
+        sc.warn("arena flashes white on the reveal", "not measured: the arena was not drawn")
+    else:
+        dims = [r for r in measured if r["reg"] < 0 and all(regs.get(r["f"] + k, r["reg"]) == r["reg"]
+                                                            for k in (-2, -1, 1, 2))]
+        plateau = [r["arena"] for r in dims if r["reg"] == min(regs.values())]
+        lvl = sorted(plateau)[len(plateau) // 2] if plateau else None
+        sc.check("arena dims during the charge", lvl is not None and MEGA_DIM[0] <= lvl <= MEGA_DIM[1],
+                 f"arena level {lvl:+.1f} (median of {len(plateau)} frames) while the 2D planes hold "
+                 f"{min(regs.values())}" if lvl is not None else "no steady charge frames measured",
+                 why=f"expected {MEGA_DIM[0]:+.0f}..{MEGA_DIM[1]:+.0f} (half brightness at -8)")
+        flash = max((r["arena"] for r in measured if r["reg"] > 0), default=None)
+        sc.check("arena flashes white on the reveal", flash is not None and flash >= MEGA_FLASH,
+                 f"arena peaks at {flash:+.1f} while the 2D planes peak at {max(regs.values())}"
+                 if flash is not None else "no reveal frames measured",
+                 why=f"expected at least {MEGA_FLASH:+.0f}")
+        off = []
+        for r in measured:
+            near = [regs[r["f"] + k] for k in range(-2, 3) if r["f"] + k in regs]
+            if not min(near) - MEGA_SLACK <= r["arena"] <= max(near) + MEGA_SLACK:
+                off.append(f"@{r['f']} arena {r['arena']:+.1f} vs 2D {min(near)}..{max(near)}")
+        share = 1.0 - len(off) / float(len(measured))
+        sc.check("arena brightness in step with the 2D planes", not off,
+                 f"{share:.0%} of {len(measured)} BG0 frames within {MEGA_SLACK:.0f} levels of the 2D level "
+                 f"of the frames +-2 around them" + (f"; off: {', '.join(off[:6])}" if off else ""),
+                 warn_only=share >= 0.8)
+    if ram.has_brightness:
+        bad = [r["f"] for r in rows if r.get("ram") is not None and r["ram"] != r["reg"]
+               and regs.get(r["f"] - 1) != r["ram"] and regs.get(r["f"] + 1) != r["ram"]]
+        sc.check("RAM brightness follows the 2D blend", not bad,
+                 f"sBattleStage.brightness differs from BLDY (+-1 frame) in {len(bad)} of {len(rows)} frames",
+                 warn_only=True)
+    else:
+        sc.note("sBattleStage has no brightness field (format v1 build): RAM curve not checked")
+    curve = write_curve(sc.dir / "mega_curve.png", rows)
+    sc.note(f"level curve: {curve}")
+
+    def lab(r):
+        return f"2D{r['reg']:+d}" + (f" a{r['arena']:+.0f}" if r.get("arena") is not None else "")
+    arena_at = {r["f"]: r.get("arena") for r in rows if r["mode"] == 1}
+    full = []
+    for r in rows:
+        if r["mode"] == 0 and "img" in r:
+            a = arena_at.get(r["f"] + 1)
+            full.append(Frame(f"2D{r['reg']:+d}" + (f" a{a:+.0f}" if a is not None else ""), r["f"], r["img"]))
+    sc.sheet(full, "pulse", "full frames through the pulse (2D = register level, a = arena level of the next "
+             "BG0 frame)", screen="top", cols=8, scale=0.5)
+    sc.sheet([Frame(lab(r), r["f"], r["img"]) for r in rows if r["mode"] == 1 and "img" in r], "pulse_bg0",
+             "BG0 only (arena, sprites, particles; magenta = nothing drawn)", screen="top", cols=8, scale=0.5)
+    sc.sheet(shots, "mega", "command menu / move list with MEGA touched", cols=2, scale=0.75)
+    _finish(sc, e)
+
+
 SCENARIOS: Dict[str, Callable] = {
     "boot": sc_boot,
     "wild_battle": sc_wild_battle,
@@ -1032,6 +1719,8 @@ SCENARIOS: Dict[str, Callable] = {
     "switchbg_moves": sc_switchbg_moves,
     "bag_party": sc_bag_party,
     "debug_views": sc_debug_views,
+    "all_backgrounds": sc_all_backgrounds,
+    "mega": sc_mega,
 }
 DEFAULT_SCENARIOS = ["boot", "wild_battle", "quick_battle", "move_tester", "stage_toggle"]
 
@@ -1074,6 +1763,18 @@ def write_report(outdir: pathlib.Path, rom: str, results: List[Scenario], total:
     return path
 
 
+def parse_entries(text: str) -> List[int]:
+    out: List[int] = []
+    for part in text.split(","):
+        part = part.strip()
+        if "-" in part:
+            a, b = part.split("-", 1)
+            out.extend(range(int(a), int(b) + 1))
+        elif part:
+            out.append(int(part))
+    return [b % QB_ENTRIES for b in out]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("rom")
@@ -1087,7 +1788,18 @@ def main() -> int:
     ap.add_argument("--anim-frames", type=int, default=1200,
                     help="move_tester/stage_toggle: max frames per animation (recording stops when it ends)")
     ap.add_argument("--max-anim-frames", type=int, default=1800, help="wild_battle: cap for the turn recording")
-    ap.add_argument("--bgs", default="0,1,29", help="quick_battle: background entries (0..30) to battle on")
+    ap.add_argument("--bgs", default=None,
+                    help="quick_battle / all_backgrounds: background entries (0..30) to battle on "
+                         "(default 0,1,29 / 1-30); ranges such as 1-6 work")
+    ap.add_argument("--tods", default="day,twilight,night",
+                    help="all_backgrounds: times of day (clock, day, twilight, night)")
+    ap.add_argument("--every-tod", action="store_true",
+                    help="all_backgrounds: also play twilight/night on backgrounds that ignore the time of day")
+    ap.add_argument("--stage-tod", choices=TODS, default="day",
+                    help="stage_ab: time of day the launcher forces (clock = the map's own)")
+    ap.add_argument("--map", default=None,
+                    help="xMAP of the ROM's build for the RAM checks (default: next to the ROM or its "
+                         "build/main.nef.xMAP; 'none' = pixels only)")
     ap.add_argument("--species-steps", type=int, default=0, help="quick_battle: RIGHT presses before the first battle")
     ap.add_argument("--stage-terrain", choices=("plain", "grass"), default="plain",
                     help="3D stage scenarios: platforms of the Plain background battle (quick-battle entry 01 or 30)")
@@ -1096,7 +1808,11 @@ def main() -> int:
     ap.add_argument("--child", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
     args.moves = [int(m) for m in args.moves.split(",") if m.strip()]
-    args.bgs = [int(b) % QB_ENTRIES for b in args.bgs.split(",") if b.strip()]
+    args.bgs = parse_entries(args.bgs) if args.bgs else None
+    args.tods = [t.strip() for t in args.tods.split(",") if t.strip()]
+    bad = [t for t in args.tods if t not in TODS]
+    if bad:
+        ap.error(f"--tods: unknown {bad}, pick from {', '.join(TODS)}")
     global STAGE_ENTRY
     STAGE_ENTRY = QB_PLAIN_GRASS if args.stage_terrain == "grass" else QB_PLAIN
     outdir = pathlib.Path(args.outdir).resolve()
@@ -1120,7 +1836,10 @@ def main() -> int:
             res.unlink()
         cmd = [sys.executable, str(pathlib.Path(__file__).resolve()), args.rom, str(outdir),
                "--scenario", name, "--child"] + passthrough
-        code, emu_lines = run_child(cmd, args.timeout, outdir / name / "console.log")
+        timeout = args.timeout
+        if name == "all_backgrounds":            # about 7s a battle; never cut a full run short
+            timeout = max(timeout, 120 + 15 * len(bg_plan(args)))
+        code, emu_lines = run_child(cmd, timeout, outdir / name / "console.log")
         sc = Scenario(name, outdir)
         if res.exists():
             sc.load(json.loads(res.read_text()))
@@ -1130,7 +1849,7 @@ def main() -> int:
                      f"(full log {outdir / name / 'console.log'})")
         if code != 0:
             sc.check("scenario process exited cleanly", False,
-                     f"timed out after {args.timeout}s" if code == "timeout" else
+                     f"timed out after {timeout}s" if code == "timeout" else
                      f"exit code {code}" + (" (emulator crashed)" if isinstance(code, int) and code < 0 else ""))
         if not res.exists():
             sc.seconds = time.time() - t

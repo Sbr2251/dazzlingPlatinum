@@ -116,6 +116,9 @@ void FieldBattleDTO_CopyPlayerInfoToTrainerData(FieldBattleDTO *dto);
 #if DEBUG_BATTLE_TOOLS
 // The next battle set up from the field uses this background and terrain instead of the map's.
 void FieldBattleDTO_SetDebugBackgroundOverride(enum BattleBackground background, enum BattleTerrain terrain);
+// The next battle set up from the field uses this time of day (backdrop palettes, arena lighting)
+// instead of the clock's.
+void FieldBattleDTO_SetDebugTimeOfDayOverride(enum TimeOfDay timeOfDay);
 #endif
 
 #endif // POKEPLATINUM_FIELD_BATTLE_DATA_TRANSFER_H

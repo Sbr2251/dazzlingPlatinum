@@ -79,6 +79,19 @@ void FieldBattleDTO_SetDebugBackgroundOverride(enum BattleBackground background,
     sDebugBackgroundOverride.background = background;
     sDebugBackgroundOverride.terrain = terrain;
 }
+
+typedef struct DebugTimeOfDayOverride {
+    BOOL active;
+    enum TimeOfDay timeOfDay;
+} DebugTimeOfDayOverride;
+
+static DebugTimeOfDayOverride sDebugTimeOfDayOverride;
+
+void FieldBattleDTO_SetDebugTimeOfDayOverride(enum TimeOfDay timeOfDay)
+{
+    sDebugTimeOfDayOverride.active = TRUE;
+    sDebugTimeOfDayOverride.timeOfDay = timeOfDay;
+}
 #endif
 
 FieldBattleDTO *FieldBattleDTO_New(enum HeapID heapID, u32 battleType)
@@ -264,6 +277,14 @@ void FieldBattleDTO_InitFromGameState(FieldBattleDTO *dto, const FieldSystem *fi
     if (fieldSystem != NULL) {
         SetBackgroundAndTerrain(dto, fieldSystem);
         dto->timeOfDay = FieldSystem_GetTimeOfDay(fieldSystem);
+
+#if DEBUG_BATTLE_TOOLS
+        // One-shot, like the background override.
+        if (sDebugTimeOfDayOverride.active) {
+            dto->timeOfDay = sDebugTimeOfDayOverride.timeOfDay;
+            sDebugTimeOfDayOverride.active = FALSE;
+        }
+#endif
     } else {
         dto->background = MapHeader_GetBattleBG(mapHeaderID);
         dto->terrain = TERRAIN_BUILDING;

@@ -17,9 +17,11 @@ Typical use::
 Coordinates for `touch` are bottom-screen pixels (0..255, 0..191). Screenshots
 from `screens()` are 256x384 (top screen above the bottom screen).
 
-Nothing here depends on symbol addresses, so it keeps working across rebuilds:
+Nothing in Emu depends on symbol addresses, so it keeps working across rebuilds:
 game state is read from pixels, and the few RAM lookups (player position,
 party) are found by scanning RAM for values that are known from the save.
+`read_xmap` is the exception, for callers that want a static variable: pass it
+the xMAP of the same build as the ROM.
 
 Gotchas:
 - Every Emu copies the ROM to a unique temp file. DeSmuME keys its battery
@@ -33,12 +35,13 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
 import shutil
 import struct
 import sys
 import tempfile
 import uuid
-from typing import Callable, Iterable, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from PIL import Image, ImageChops, ImageDraw, ImageStat
 
@@ -66,6 +69,15 @@ BTN_RUN = (128, 178)
 BTN_POKEMON = (216, 172)
 BTN_CANCEL = (128, 176)                                  # in the move list
 MOVE_SLOTS = ((64, 48), (192, 48), (64, 110), (192, 110))
+BTN_MEGA = (64, 172)                                     # in the move list, when the battler can Mega Evolve
+
+# Main-screen layers for Emu.render_layers (DeSmuME's own layer switches; the game never sees them).
+# BG0 is the 3D layer: the battle stage arena, the Pokemon sprites and the particles.
+LAYER_BG0, LAYER_BG1, LAYER_BG2, LAYER_BG3, LAYER_OBJ = (1 << i for i in range(5))
+LAYERS_ALL = 0x1F
+LAYERS_2D = LAYERS_ALL & ~LAYER_BG0
+BG_PALETTE = 0x05000000                                  # main BG palette RAM; colour 0 is the backdrop
+BACKDROP_MARKER = 0x7C1F                                 # magenta, BGR555: no battle art uses it
 
 PARTY_REC = 236            # encrypted party record (PK4 + battle stats)
 
@@ -123,6 +135,36 @@ def looks_broken(img: Image.Image, flat_max: float = 0.97, noise_max: float = 45
     if h["noise"] > noise_max:
         return f"noisy screen (noise {h['noise']}), possible garbage"
     return None
+
+
+def marker_fraction(img: Image.Image) -> float:
+    """Share of pixels showing BACKDROP_MARKER (magenta), i.e. where no enabled layer drew anything."""
+    r, g, b = img.convert("RGB").split()
+    hit = ImageChops.multiply(ImageChops.multiply(r.point(lambda v: 255 if v >= 240 else 0),
+                                                  g.point(lambda v: 255 if v <= 8 else 0)),
+                              b.point(lambda v: 255 if v >= 240 else 0))
+    return hit.histogram()[255] / float(img.size[0] * img.size[1])
+
+
+def read_xmap(path) -> Dict[str, Tuple[int, int]]:
+    """Symbol -> (address, size) from a mwldarm .xMAP, for lines such as
+    `  02281BE8 0000001C .bss    sBattleStage\t(src_battle_battle_stage.c.o)`. A static name that
+    several files define is dropped, since it could not be told apart."""
+    rx = re.compile(r"^\s+([0-9A-Fa-f]{8}) ([0-9A-Fa-f]{8}) \.(?:bss|data|rodata|sbss|sdata)\s+(\S+)\t")
+    out: Dict[str, Tuple[int, int]] = {}
+    dup = set()
+    with open(path, errors="replace") as f:
+        for ln in f:
+            m = rx.match(ln)
+            if not m:
+                continue
+            name = m.group(3)
+            if name in out:
+                dup.add(name)
+            out[name] = (int(m.group(1), 16), int(m.group(2), 16))
+    for name in dup:
+        del out[name]
+    return out
 
 
 def _near(px, rgb, tol=24) -> bool:
@@ -282,6 +324,26 @@ class Emu:
     def screens(self) -> Image.Image:
         return self.e.screenshot().convert("RGB")
 
+    def render_layers(self, mask: int, marker: bool = False) -> Image.Image:
+        """Runs one frame with only the main-screen layers in `mask` shown and returns it (both
+        screens). With `marker` the backdrop is magenta for that frame (see marker_fraction),
+        so uncovered pixels can be told apart from dark art. Everything is restored after."""
+        e = self.e
+        for layer in range(5):
+            e.gpu_set_layer_main_enable_state(layer, bool(mask >> layer & 1))
+        old = None
+        if marker:
+            old = struct.unpack("<H", self.read(BG_PALETTE, 2))[0]
+            e.memory.write_short(BG_PALETTE, BACKDROP_MARKER)
+        try:
+            self.run(1)
+            return self.screens()
+        finally:
+            if old is not None:
+                e.memory.write_short(BG_PALETTE, old)
+            for layer in range(5):
+                e.gpu_set_layer_main_enable_state(layer, True)
+
     def snap(self, label: str, into: Optional[list] = None) -> Frame:
         f = Frame(label, self.frame, self.screens())
         if into is not None:
@@ -348,9 +410,10 @@ class Emu:
         return all(_near(img.getpixel(p), (232, 56, 56), 20) for p in ((60, H + 60), (200, H + 60), (128, H + 105)))
 
     def move_list_up(self, img: Optional[Image.Image] = None) -> bool:
-        """The FIGHT sub-menu: a wide blue CANCEL bar along the bottom and no red FIGHT button."""
+        """The FIGHT sub-menu: a blue CANCEL bar along the bottom and no red FIGHT button. The bar
+        is shorter when a MEGA button sits to its left, so only its right half is tested."""
         img = img or self.screens()
-        bar = all(_near(img.getpixel(p), (40, 144, 200), 24) for p in ((40, H + 170), (216, H + 170), (40, H + 186)))
+        bar = all(_near(img.getpixel(p), (40, 144, 200), 24) for p in ((160, H + 178), (216, H + 170), (216, H + 186)))
         return bar and not self.battle_menu_up(img)
 
     def top_is_black(self, img: Optional[Image.Image] = None) -> bool:
@@ -399,6 +462,10 @@ class Emu:
     def read(self, addr: int, n: int) -> bytes:
         return bytes(self.e.memory.read(addr, addr + n, 1, False))
 
+    def write(self, addr: int, data: bytes) -> None:
+        for i, b in enumerate(data):
+            self.e.memory.write_byte(addr + i, b)
+
     def find_player(self, start: Tuple[int, int]) -> Tuple[int, int]:
         """Locates the player's (x, z) s32 pair in RAM by taking a step. `start` = tile from the save."""
         before = self.ram()
@@ -432,13 +499,24 @@ class Emu:
         """Decrypts the live party (needs find_party first)."""
         sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
         from platinum_save_utils import decrypt_pk4, u16
-        n = struct.unpack("<I", self.read(self.party_addr - 4, 4))[0]
+        n = self.party_count()
         out = []
         for i in range(min(n, 6)):
             r = decrypt_pk4(self.read(self.party_addr + i * PARTY_REC, PARTY_REC))
             out.append({"species": u16(r, 8), "item": u16(r, 0x0A), "level": r[0x8C],
                         "moves": [u16(r, 0x28 + 2 * j) for j in range(4)]})
         return out
+
+    def party_count(self) -> int:
+        return struct.unpack("<I", self.read(self.party_addr - 4, 4))[0]
+
+    def swap_party(self, i: int, j: int) -> None:
+        """Swaps two party slots in RAM (needs find_party). Each record is self-contained, so the
+        game takes the new order as is; a battle started afterwards leads with slot 0."""
+        a, b = self.party_addr + i * PARTY_REC, self.party_addr + j * PARTY_REC
+        ra, rb = self.read(a, PARTY_REC), self.read(b, PARTY_REC)
+        self.write(a, rb)
+        self.write(b, ra)
 
     # ---- overworld -----------------------------------------------------------------------
 
