@@ -19,14 +19,19 @@
 #define CAMERA_MAX_SCALE (FX32_ONE * 4)
 #define CAMERA_MIN_SCALE (FX32_ONE / 16)
 
-// The script-end ease home, when a script leaves the camera off home
-#define SCRIPT_END_HOME_FRAMES 12
-// The command menu waits for the camera at most this long, then snaps it home
-#define MENU_WAIT_MAX_FRAMES 90
+// The contract's own timings (sweep, kicks, guard, menu cap) are in 60 Hz screen frames. The
+// game logic, and so BattleStage_Draw and the script's Delay, runs at 30 Hz: one camera step
+// is two screen frames. Script command lengths count steps, as Delay does.
+#define SCREEN_FRAMES(n) (((n) + 1) / 2)
 
-// Shake periods in frames, different in x and y so the path isn't a line
-#define SHAKE_PERIOD_X 7
-#define SHAKE_PERIOD_Y 5
+// The script-end ease home, when a script leaves the camera off home
+#define SCRIPT_END_HOME_FRAMES SCREEN_FRAMES(12)
+// The command menu waits for the camera at most this long, then snaps it home
+#define MENU_WAIT_MAX_FRAMES SCREEN_FRAMES(90)
+
+// Shake periods in steps, different in x and y so the path isn't a line
+#define SHAKE_PERIOD_X 4
+#define SHAKE_PERIOD_Y 3
 
 enum CameraSequence {
     SEQUENCE_NONE = 0,
@@ -876,7 +881,7 @@ void BattleStage_StartBattleSweep(void)
     sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_SWEEP;
     sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
     sStageCamera.menuWait = 0;
-    StartSequence(&goal, 28, 0, 0, 10, 20);
+    StartSequence(&goal, SCREEN_FRAMES(28), 0, 0, SCREEN_FRAMES(10), SCREEN_FRAMES(20));
 }
 
 BOOL BattleStage_IsCameraReadyForMenu(void)
@@ -940,10 +945,10 @@ void BattleStage_CritKick(int battler, BOOL critical)
         return;
     }
 
-    // Push 4, shake 12 from the start, then home over 10: 22 frames
+    // Push 4, shake 12 from the start, then home over 10: 22 screen frames
     goal.distance = FX32_CONST(0.92);
     sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_CRIT;
-    StartSequence(&goal, 4, 3, 12, 0, 10);
+    StartSequence(&goal, SCREEN_FRAMES(4), 3, SCREEN_FRAMES(12), 0, SCREEN_FRAMES(10));
 }
 
 void BattleStage_FaintKick(int battler)
@@ -954,8 +959,8 @@ void BattleStage_FaintKick(int battler)
         return;
     }
 
-    // Dip 6, shake 10 from the start, then home over 12: 22 frames
+    // Dip 6, shake 10 from the start, then home over 12: 22 screen frames
     goal.pitch = FX32_CONST(-3);
     sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_FAINT;
-    StartSequence(&goal, 6, 2, 10, 0, 12);
+    StartSequence(&goal, SCREEN_FRAMES(6), 2, SCREEN_FRAMES(10), 0, SCREEN_FRAMES(12));
 }
