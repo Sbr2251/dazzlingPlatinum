@@ -6,17 +6,17 @@ compat.md section 1. Rerun the script after changing a script or the overrides i
 
 ## Summary
 
-474 moves (ids 0-473, `generated/moves.txt`). Risk: high 76, medium 128, low 270.
+474 moves (ids 0-473, `generated/moves.txt`). Risk: high 63, medium 133, low 278.
 
-Predicted suppression today: `bg_switch` 68, `bg2_effect` 9.
-Fixes: F1 5, F2 39, F3 16, F4 42, F5 3, F6 72.
+Predicted suppression today: `bg_switch` 55, `bg2_effect` 9.
+Fixes: F1 5, F2 39, F3 16, F4 42, F5 3, F6 59.
 
 ### By mechanism
 
 | mechanism | moves | high | medium | low |
 |---|---|---|---|---|
-| `sprite_xy` | 343 | 64 | 79 | 200 |
-| `sprite_scale_rot` | 57 | 5 | 10 | 42 |
+| `sprite_xy` | 343 | 52 | 84 | 207 |
+| `sprite_scale_rot` | 57 | 3 | 11 | 43 |
 | `partial_draw` | 4 | 1 | 2 | 1 |
 | `bg2_copy` | 5 | 4 | 1 | 0 |
 | `oam_copy` | 38 | 13 | 25 | 0 |
@@ -24,14 +24,15 @@ Fixes: F1 5, F2 39, F3 16, F4 42, F5 3, F6 72.
 | `window` | 16 | 6 | 10 | 0 |
 | `sprite_bg_blend` | 44 | 13 | 31 | 0 |
 | `brightness` | 1 | 0 | 1 | 0 |
-| `switch_bg` | 176 | 71 | 105 | 0 |
+| `switch_bg` | 168 | 58 | 110 | 0 |
 | `bg2_effect` | 9 | 4 | 5 | 0 |
-| `particles` | 431 | 69 | 105 | 257 |
-| `sprite_fade_tint` | 172 | 35 | 61 | 76 |
+| `particles` | 431 | 57 | 110 | 264 |
+| `sprite_fade_tint` | 172 | 32 | 64 | 76 |
 
-`switch_bg` without `bg_switch` (108 moves): backdrop palette fades (FadeBg,
-SetBgGrayscale, Flash, Earthquake) or the Fake Out curtain. Nothing is suppressed today, and
-the arena hides the effect: medium, except Fake Out, where the whole effect is lost.
+`switch_bg` without `bg_switch` (113 moves): backdrop palette fades (FadeBg,
+SetBgGrayscale, Flash, Earthquake) or the Fake Out curtain. Nothing is suppressed. The arena's
+textures take the faded BG palette and the stage fades its fog and light along (chunk 6
+backdrop_fade), so the fades show on the arena; Fake Out's curtain is category C.
 `sprite_bg_blend` is always OBJ-first alpha with BG0|BG3 as the 2nd target; no anim code
 makes BG0 a 1st target (F4 then means: check the arena stays opaque).
 
@@ -39,9 +40,9 @@ makes BG0 a 1st target (F4 then means: check the arena stays opaque).
 
 | risk | moves | meaning |
 |---|---|---|
-| high | 76 | a pop today (a suppression reason fires), or visibly wrong with the arena up |
-| medium | 128 | windows, blends, OAM/BG2 copies, BG palette fades: probably fine, unverified |
-| low | 270 | particles and sprite moves only |
+| high | 63 | a pop today (a suppression reason fires), or visibly wrong with the arena up |
+| medium | 133 | windows, blends, OAM/BG2 copies, BG palette fades: probably fine, unverified |
+| low | 278 | particles and sprite moves only |
 
 ## High-risk moves
 
@@ -55,8 +56,7 @@ makes BG0 a 1st target (F4 then means: check the arena stays opaque).
 | 59 | BLIZZARD | sprite_xy, switch_bg, particles | bg_switch | F6 |  |
 | 63 | HYPER_BEAM | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 69 | SEISMIC_TOSS | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
-| 87 | THUNDER | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | ShakeBg on BG2; FadeBg: backdrop palette fade, hidden by the arena |
-| 89 | EARTHQUAKE | sprite_xy, switch_bg, particles | bg_switch | F6 | BG3 shake + backdrop fade; chunk 6: shake the camera |
+| 87 | THUNDER | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | ShakeBg on BG2; FadeBg: backdrop palette fade, the arena follows it |
 | 90 | FISSURE | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 93 | CONFUSION | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | bg_switch | F2, F4, F6 |  |
 | 94 | PSYCHIC | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | bg_switch | F2, F4, F6 |  |
@@ -64,19 +64,15 @@ makes BG0 a 1st target (F4 then means: check the arena stays opaque).
 | 120 | SELFDESTRUCT | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 126 | FIRE_BLAST | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
 | 127 | WATERFALL | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
-| 140 | BARRAGE | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
-| 143 | SKY_ATTACK | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F4, F6 | FadeBg: backdrop palette fade, hidden by the arena |
+| 143 | SKY_ATTACK | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F4, F6 | FadeBg: backdrop palette fade, the arena follows it |
 | 151 | ACID_ARMOR | bg2_copy, hblank_wave, sprite_bg_blend, particles | bg2_effect | F1, F2, F4 | per-line wave on BG2; AcidArmor puts BG2 above BG0 itself |
-| 153 | EXPLOSION | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
 | 166 | SKETCH | partial_draw, bg2_copy, window, particles, sprite_fade_tint | bg2_effect | F1, F2, F3 | BG2 copy lifted above BG0 by the func, WIN0 reveal keeps BG0 on; F3 option a |
 | 171 | NIGHTMARE | sprite_xy, oam_copy, hblank_wave, sprite_bg_blend, switch_bg | bg_switch | F2, F4, F5, F6 | per-line wave on BG3; ScrollSwitchedBg: per-line BG3 wave |
-| 173 | SNORE | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 177 | AEROBLAST | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
-| 180 | SPITE | bg2_copy, oam_copy, hblank_wave, sprite_bg_blend, switch_bg, sprite_fade_tint | bg2_effect | F1, F2, F4 | per-line wave on BG2; FadeBg: backdrop palette fade, hidden by the arena; Spite puts BG2 above BG0 itself |
+| 180 | SPITE | bg2_copy, oam_copy, hblank_wave, sprite_bg_blend, switch_bg, sprite_fade_tint | bg2_effect | F1, F2, F4 | per-line wave on BG2; FadeBg: backdrop palette fade, the arena follows it; Spite puts BG2 above BG0 itself |
 | 192 | ZAP_CANNON | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | ShakeBg on BG3 |
-| 200 | OUTRAGE | sprite_xy, oam_copy, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F6 | FadeBg: backdrop palette fade, hidden by the arena |
+| 200 | OUTRAGE | sprite_xy, oam_copy, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F6 | FadeBg: backdrop palette fade, the arena follows it |
 | 221 | SACRED_FIRE | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
-| 222 | MAGNITUDE | sprite_xy, switch_bg | bg_switch | F6 | BG3 shake; chunk 6: shake the camera |
 | 223 | DYNAMIC_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | ShakeBg on BG3 |
 | 224 | MEGAHORN | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 236 | MOONLIGHT | switch_bg, particles | bg_switch | F6 |  |
@@ -86,42 +82,34 @@ makes BG0 a 1st target (F4 then means: check the arena stays opaque).
 | 264 | FOCUS_PUNCH | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 273 | WISH | switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
 | 276 | SUPERPOWER | sprite_xy, oam_copy, window, switch_bg, bg2_effect, particles | bg2_effect, bg_switch | F3, F6 | BG2 picture under BG0 in the OBJ window; F3 option b (keep suppressing, fade) |
-| 284 | ERUPTION | sprite_xy, sprite_scale_rot, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
 | 293 | CAMOUFLAGE | oam_copy, hblank_wave, window, sprite_bg_blend, bg2_effect | bg2_effect | F3, F6 | BG2 picture + BG2 wave in the OBJ window, not a mon copy; F3 option b |
-| 296 | MIST_BALL | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | FadeBg: backdrop palette fade, hidden by the arena |
+| 296 | MIST_BALL | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | FadeBg: backdrop palette fade, the arena follows it |
 | 308 | HYDRO_CANNON | sprite_xy, switch_bg, particles | bg_switch | F6 |  |
 | 315 | OVERHEAT | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
-| 317 | ROCK_TOMB | switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 322 | COSMIC_POWER | switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
-| 326 | EXTRASENSORY | sprite_scale_rot, bg2_copy, oam_copy, hblank_wave, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | bg2_effect | F1, F2, F4 | per-line wave on BG2; FadeBg: backdrop palette fade, hidden by the arena; Extrasensory puts BG2 above BG0 itself |
+| 326 | EXTRASENSORY | sprite_scale_rot, bg2_copy, oam_copy, hblank_wave, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | bg2_effect | F1, F2, F4 | per-line wave on BG2; FadeBg: backdrop palette fade, the arena follows it; Extrasensory puts BG2 above BG0 itself |
 | 327 | SKY_UPPERCUT | sprite_xy, switch_bg, particles | bg_switch | F6 |  |
 | 330 | MUDDY_WATER | sprite_xy, sprite_bg_blend, bg2_effect, particles, sprite_fade_tint | bg2_effect | F4, F6 | MuddyWater: picture on BG2 blended over BG0\|BG3 |
 | 338 | FRENZY_PLANT | sprite_xy, switch_bg, particles | bg_switch | F6 |  |
 | 344 | VOLT_TACKLE | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 352 | WATER_PULSE | sprite_xy, hblank_wave, switch_bg, particles, sprite_fade_tint | bg_switch | F5, F6 | per-line wave on BG3; ScrollSwitchedBg: per-line BG3 wave |
 | 354 | PSYCHO_BOOST | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
-| 359 | HAMMER_ARM | sprite_xy, sprite_scale_rot, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 370 | CLOSE_COMBAT | sprite_xy, switch_bg, particles | bg_switch | F6 |  |
 | 394 | FLARE_BLITZ | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
-| 396 | AURA_SPHERE | sprite_xy, switch_bg, particles | bg_switch | F6 | FadeBg: backdrop palette fade, hidden by the arena |
-| 407 | DRAGON_RUSH | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
+| 396 | AURA_SPHERE | sprite_xy, switch_bg, particles | bg_switch | F6 | FadeBg: backdrop palette fade, the arena follows it |
 | 411 | FOCUS_BLAST | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
 | 413 | BRAVE_BIRD | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F4, F6 |  |
-| 414 | EARTH_POWER | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
 | 416 | GIGA_IMPACT | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 433 | TRICK_ROOM | switch_bg | bg_switch | F6 |  |
-| 434 | DRACO_METEOR | sprite_xy, switch_bg, particles | bg_switch | F6 | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
 | 437 | LEAF_STORM | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 438 | POWER_WHIP | sprite_xy, switch_bg, particles | bg_switch | F6 |  |
 | 439 | ROCK_WRECKER | sprite_xy, switch_bg, particles | bg_switch | F6 |  |
 | 441 | GUNK_SHOT | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
-| 452 | WOOD_HAMMER | sprite_xy, switch_bg, particles | bg_switch | F6 | ShakeBg on BG3 |
 | 457 | HEAD_SMASH | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | ShakeBg on BG3 |
 | 460 | SPACIAL_REND | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | ShakeBg on BG3 |
 | 461 | LUNAR_DANCE | oam_copy, window, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F3, F6 | WIN0 hides OBJ in a rect; every BG stays on |
 | 463 | MAGMA_STORM | switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
 | 464 | DARK_VOID | sprite_xy, oam_copy, window, switch_bg, particles | bg_switch | F2, F3, F6 | WIN0 hides OBJ in a rect; every BG stays on |
-| 465 | SEED_FLARE | sprite_xy, switch_bg, particles | bg_switch | F6 | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
 | 468 | MOONBLAST | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 |  |
 
 ## Chunk 6 candidates
@@ -167,14 +155,14 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 2 | KARATE_CHOP | sprite_xy, particles | - | - | low |  |
 | 3 | DOUBLE_SLAP | sprite_xy, particles | - | - | low |  |
 | 4 | COMET_PUNCH | sprite_xy, particles | - | - | low |  |
-| 5 | MEGA_PUNCH | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 5 | MEGA_PUNCH | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 6 | PAY_DAY | sprite_xy, particles | - | - | low |  |
-| 7 | FIRE_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 8 | ICE_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 9 | THUNDER_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 7 | FIRE_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 8 | ICE_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 9 | THUNDER_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 10 | SCRATCH | sprite_xy, particles | - | - | low |  |
 | 11 | VICE_GRIP | sprite_xy, particles | - | - | low |  |
-| 12 | GUILLOTINE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 12 | GUILLOTINE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 13 | RAZOR_WIND | sprite_xy, particles | - | - | low |  |
 | 14 | SWORDS_DANCE | particles | - | - | low |  |
 | 15 | CUT | sprite_xy, particles | - | - | low |  |
@@ -205,26 +193,26 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 40 | POISON_STING | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 41 | TWINEEDLE | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 42 | PIN_MISSILE | sprite_xy, particles | - | - | low |  |
-| 43 | LEER | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 43 | LEER | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 44 | BITE | sprite_xy, particles | - | - | low |  |
 | 45 | GROWL | sprite_xy, particles | - | - | low |  |
 | 46 | ROAR | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
-| 47 | SING | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 48 | SUPERSONIC | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 47 | SING | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 48 | SUPERSONIC | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 49 | SONIC_BOOM | sprite_xy, particles | - | - | low |  |
-| 50 | DISABLE | sprite_scale_rot, oam_copy, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | - | F2, F4 | medium | SetBgGrayscale: backdrop palette, hidden by the arena |
+| 50 | DISABLE | sprite_scale_rot, oam_copy, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | - | F2, F4 | medium | SetBgGrayscale: backdrop palette, the arena follows it |
 | 51 | ACID | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 52 | EMBER | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
-| 53 | FLAMETHROWER | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 54 | MIST | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 53 | FLAMETHROWER | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 54 | MIST | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 55 | WATER_GUN | sprite_xy, particles | - | - | low |  |
 | 56 | HYDRO_PUMP | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | ShakeBg on BG3 |
 | 57 | SURF | sprite_xy, sprite_bg_blend, bg2_effect, particles, sprite_fade_tint | bg2_effect | F4, F6 | high | ScrollCustomBg: picture on BG2 blended over BG0\|BG3 |
-| 58 | ICE_BEAM | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 58 | ICE_BEAM | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 59 | BLIZZARD | sprite_xy, switch_bg, particles | bg_switch | F6 | high |  |
 | 60 | PSYBEAM | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 61 | BUBBLE_BEAM | sprite_xy, particles | - | - | low |  |
-| 62 | AURORA_BEAM | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 62 | AURORA_BEAM | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 63 | HYPER_BEAM | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 64 | PECK | sprite_scale_rot, particles | - | - | low |  |
 | 65 | DRILL_PECK | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
@@ -233,37 +221,37 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 68 | COUNTER | sprite_xy, particles | - | - | low |  |
 | 69 | SEISMIC_TOSS | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 70 | STRENGTH | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low |  |
-| 71 | ABSORB | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 72 | MEGA_DRAIN | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 71 | ABSORB | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 72 | MEGA_DRAIN | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 73 | LEECH_SEED | particles | - | - | low |  |
 | 74 | GROWTH | sprite_scale_rot, sprite_fade_tint | - | - | low |  |
 | 75 | RAZOR_LEAF | sprite_xy, particles | - | - | low |  |
-| 76 | SOLAR_BEAM | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 76 | SOLAR_BEAM | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 77 | POISON_POWDER | particles, sprite_fade_tint | - | - | low |  |
 | 78 | STUN_SPORE | particles, sprite_fade_tint | - | - | low |  |
 | 79 | SLEEP_POWDER | particles, sprite_fade_tint | - | - | low |  |
 | 80 | PETAL_DANCE | sprite_xy, particles | - | - | low |  |
-| 81 | STRING_SHOT | sprite_bg_blend, switch_bg, particles | - | F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 81 | STRING_SHOT | sprite_bg_blend, switch_bg, particles | - | F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 82 | DRAGON_RAGE | sprite_xy, particles | - | - | low |  |
 | 83 | FIRE_SPIN | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
-| 84 | THUNDER_SHOCK | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 85 | THUNDERBOLT | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 86 | THUNDER_WAVE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 87 | THUNDER | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | ShakeBg on BG2; FadeBg: backdrop palette fade, hidden by the arena |
+| 84 | THUNDER_SHOCK | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 85 | THUNDERBOLT | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 86 | THUNDER_WAVE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 87 | THUNDER | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | ShakeBg on BG2; FadeBg: backdrop palette fade, the arena follows it |
 | 88 | ROCK_THROW | sprite_xy, particles | - | - | low |  |
-| 89 | EARTHQUAKE | sprite_xy, switch_bg, particles | bg_switch | F6 | high | BG3 shake + backdrop fade; chunk 6: shake the camera |
+| 89 | EARTHQUAKE | sprite_xy, particles | - | - | low | BG3 shake + backdrop fade; chunk 6: the stage camera mirrors the BG3 shake |
 | 90 | FISSURE | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 91 | DIG | sprite_xy, sprite_scale_rot, partial_draw, particles | - | - | low |  |
 | 92 | TOXIC | oam_copy, window, particles, sprite_fade_tint | - | F2, F3 | medium | WIN0 hides OBJ in a rect; every BG stays on |
 | 93 | CONFUSION | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | bg_switch | F2, F4, F6 | high |  |
 | 94 | PSYCHIC | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | bg_switch | F2, F4, F6 | high |  |
 | 95 | HYPNOSIS | particles, sprite_fade_tint | - | - | low |  |
-| 96 | MEDITATE | sprite_xy, sprite_scale_rot, switch_bg | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 96 | MEDITATE | sprite_xy, sprite_scale_rot, switch_bg | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 97 | AGILITY | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles | bg_switch | F2, F4, F6 | high |  |
 | 98 | QUICK_ATTACK | sprite_xy, oam_copy, sprite_bg_blend, particles | - | F2, F4 | medium |  |
 | 99 | RAGE | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
-| 100 | TELEPORT | sprite_xy, sprite_scale_rot, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 101 | NIGHT_SHADE | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | - | F2, F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 100 | TELEPORT | sprite_xy, sprite_scale_rot, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 101 | NIGHT_SHADE | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | - | F2, F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 102 | MIMIC | oam_copy, particles, sprite_fade_tint | - | F2 | medium |  |
 | 103 | SCREECH | sprite_xy, particles | - | - | low |  |
 | 104 | DOUBLE_TEAM | oam_copy, sprite_bg_blend, sprite_fade_tint | - | F2, F4 | medium |  |
@@ -271,7 +259,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 106 | HARDEN | oam_copy, window, sprite_bg_blend, bg2_effect, particles | - | F2, F3, F4 | medium | StatChangeUp: BG2 picture only inside the OBJ window; F3 option a |
 | 107 | MINIMIZE | partial_draw, oam_copy, sprite_bg_blend | - | F2, F4 | medium |  |
 | 108 | SMOKE_SCREEN | particles | - | - | low |  |
-| 109 | CONFUSE_RAY | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 109 | CONFUSE_RAY | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 110 | WITHDRAW | particles | - | - | low |  |
 | 111 | DEFENSE_CURL | particles | - | - | low |  |
 | 112 | BARRIER | particles | - | - | low |  |
@@ -291,31 +279,31 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 126 | FIRE_BLAST | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
 | 127 | WATERFALL | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
 | 128 | CLAMP | sprite_xy, particles | - | - | low |  |
-| 129 | SWIFT | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 130 | SKULL_BASH | sprite_xy, sprite_scale_rot, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 129 | SWIFT | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 130 | SKULL_BASH | sprite_xy, sprite_scale_rot, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 131 | SPIKE_CANNON | sprite_xy, particles | - | - | low |  |
 | 132 | CONSTRICT | sprite_xy | - | - | low |  |
-| 133 | AMNESIA | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 133 | AMNESIA | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 134 | KINESIS | sprite_bg_blend | - | F4 | medium |  |
 | 135 | SOFTBOILED | particles, sprite_fade_tint | - | - | low |  |
 | 136 | HI_JUMP_KICK | sprite_xy, particles | - | - | low |  |
-| 137 | GLARE | sprite_scale_rot, sprite_bg_blend, switch_bg | - | F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 138 | DREAM_EATER | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 137 | GLARE | sprite_scale_rot, sprite_bg_blend, switch_bg | - | F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 138 | DREAM_EATER | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 139 | POISON_GAS | particles, sprite_fade_tint | - | - | low |  |
-| 140 | BARRAGE | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
+| 140 | BARRAGE | sprite_xy, particles | - | - | low | ShakeBg on BG3 |
 | 141 | LEECH_LIFE | particles, sprite_fade_tint | - | - | low |  |
 | 142 | LOVELY_KISS | sprite_xy, particles | - | - | low |  |
-| 143 | SKY_ATTACK | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F4, F6 | high | FadeBg: backdrop palette fade, hidden by the arena |
+| 143 | SKY_ATTACK | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F4, F6 | high | FadeBg: backdrop palette fade, the arena follows it |
 | 144 | TRANSFORM | sprite_xy, oam_copy, sprite_fade_tint | - | F2 | medium | Pixelate: OBJ mosaic on an OAM copy |
 | 145 | BUBBLE | sprite_xy, particles | - | - | low |  |
 | 146 | DIZZY_PUNCH | sprite_xy, particles | - | - | low |  |
 | 147 | SPORE | particles, sprite_fade_tint | - | - | low |  |
-| 148 | FLASH | switch_bg, sprite_fade_tint | - | - | medium | Flash fades the backdrop palette (hidden by the arena) |
+| 148 | FLASH | switch_bg, sprite_fade_tint | - | - | medium | Flash fades the backdrop palette (the arena follows it) |
 | 149 | PSYWAVE | sprite_xy, particles | - | - | low |  |
 | 150 | SPLASH | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 151 | ACID_ARMOR | bg2_copy, hblank_wave, sprite_bg_blend, particles | bg2_effect | F1, F2, F4 | high | per-line wave on BG2; AcidArmor puts BG2 above BG0 itself |
-| 152 | CRABHAMMER | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 153 | EXPLOSION | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
+| 152 | CRABHAMMER | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 153 | EXPLOSION | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it; ShakeBg on BG3 |
 | 154 | FURY_SWIPES | sprite_xy, particles | - | - | low |  |
 | 155 | BONEMERANG | sprite_xy, particles | - | - | low |  |
 | 156 | REST | particles | - | - | low |  |
@@ -323,7 +311,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 158 | HYPER_FANG | sprite_xy, particles | - | - | low |  |
 | 159 | SHARPEN | particles | - | - | low |  |
 | 160 | CONVERSION | particles | - | - | low |  |
-| 161 | TRI_ATTACK | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 161 | TRI_ATTACK | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 162 | SUPER_FANG | sprite_xy, particles | - | - | low |  |
 | 163 | SLASH | sprite_xy, particles | - | - | low |  |
 | 164 | SUBSTITUTE | sprite_xy, sprite_scale_rot | - | - | low |  |
@@ -332,22 +320,22 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 167 | TRIPLE_KICK | sprite_xy, particles | - | - | low |  |
 | 168 | THIEF | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 169 | SPIDER_WEB | particles | - | - | low |  |
-| 170 | MIND_READER | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 170 | MIND_READER | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 171 | NIGHTMARE | sprite_xy, oam_copy, hblank_wave, sprite_bg_blend, switch_bg | bg_switch | F2, F4, F5, F6 | high | per-line wave on BG3; ScrollSwitchedBg: per-line BG3 wave |
 | 172 | FLAME_WHEEL | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
-| 173 | SNORE | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
-| 174 | CURSE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 173 | SNORE | sprite_xy, particles | - | - | low | ShakeBg on BG3 |
+| 174 | CURSE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 175 | FLAIL | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 176 | CONVERSION_2 | particles | - | - | low |  |
 | 177 | AEROBLAST | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 178 | COTTON_SPORE | particles, sprite_fade_tint | - | - | low |  |
-| 179 | REVERSAL | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 180 | SPITE | bg2_copy, oam_copy, hblank_wave, sprite_bg_blend, switch_bg, sprite_fade_tint | bg2_effect | F1, F2, F4 | high | per-line wave on BG2; FadeBg: backdrop palette fade, hidden by the arena; Spite puts BG2 above BG0 itself |
-| 181 | POWDER_SNOW | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 179 | REVERSAL | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 180 | SPITE | bg2_copy, oam_copy, hblank_wave, sprite_bg_blend, switch_bg, sprite_fade_tint | bg2_effect | F1, F2, F4 | high | per-line wave on BG2; FadeBg: backdrop palette fade, the arena follows it; Spite puts BG2 above BG0 itself |
+| 181 | POWDER_SNOW | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 182 | PROTECT | particles | - | - | low |  |
 | 183 | MACH_PUNCH | sprite_xy, particles | - | - | low |  |
-| 184 | SCARY_FACE | sprite_scale_rot, sprite_bg_blend, switch_bg | - | F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 185 | FAINT_ATTACK | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles | - | F2, F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 184 | SCARY_FACE | sprite_scale_rot, sprite_bg_blend, switch_bg | - | F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 185 | FAINT_ATTACK | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles | - | F2, F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 186 | SWEET_KISS | particles, sprite_fade_tint | - | - | low |  |
 | 187 | BELLY_DRUM | sprite_xy, particles | - | - | low |  |
 | 188 | SLUDGE_BOMB | particles, sprite_fade_tint | - | - | low |  |
@@ -356,13 +344,13 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 191 | SPIKES | particles | - | - | low |  |
 | 192 | ZAP_CANNON | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | ShakeBg on BG3 |
 | 193 | FORESIGHT | sprite_bg_blend, sprite_fade_tint | - | F4 | medium |  |
-| 194 | DESTINY_BOND | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 195 | PERISH_SONG | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 196 | ICY_WIND | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 197 | DETECT | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 194 | DESTINY_BOND | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 195 | PERISH_SONG | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 196 | ICY_WIND | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 197 | DETECT | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 198 | BONE_RUSH | sprite_xy, particles | - | - | low |  |
 | 199 | LOCK_ON | sprite_bg_blend, sprite_fade_tint | - | F4 | medium |  |
-| 200 | OUTRAGE | sprite_xy, oam_copy, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F6 | high | FadeBg: backdrop palette fade, hidden by the arena |
+| 200 | OUTRAGE | sprite_xy, oam_copy, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F6 | high | FadeBg: backdrop palette fade, the arena follows it |
 | 201 | SANDSTORM | particles | - | - | low |  |
 | 202 | GIGA_DRAIN | particles, sprite_fade_tint | - | - | low |  |
 | 203 | ENDURE | particles, sprite_fade_tint | - | - | low |  |
@@ -371,46 +359,46 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 206 | FALSE_SWIPE | sprite_xy, particles | - | - | low |  |
 | 207 | SWAGGER | sprite_xy, sprite_scale_rot, sprite_fade_tint | - | - | low |  |
 | 208 | MILK_DRINK | particles, sprite_fade_tint | - | - | low |  |
-| 209 | SPARK | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 210 | FURY_CUTTER | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 209 | SPARK | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 210 | FURY_CUTTER | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 211 | STEEL_WING | sprite_xy, particles | - | - | low |  |
-| 212 | MEAN_LOOK | sprite_bg_blend, brightness, switch_bg | - | F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 212 | MEAN_LOOK | sprite_bg_blend, brightness, switch_bg | - | F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 213 | ATTRACT | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low |  |
 | 214 | SLEEP_TALK | particles | - | - | low |  |
-| 215 | HEAL_BELL | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 215 | HEAL_BELL | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 216 | RETURN | sprite_xy, particles | - | - | low |  |
 | 217 | PRESENT | sprite_xy, oam_copy, window, sprite_bg_blend, bg2_effect, particles | - | F2, F3, F4 | medium | stat change: BG2 picture only inside the OBJ window |
 | 218 | FRUSTRATION | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low |  |
 | 219 | SAFEGUARD | particles, sprite_fade_tint | - | - | low |  |
 | 220 | PAIN_SPLIT | sprite_xy, particles | - | - | low |  |
 | 221 | SACRED_FIRE | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
-| 222 | MAGNITUDE | sprite_xy, switch_bg | bg_switch | F6 | high | BG3 shake; chunk 6: shake the camera |
+| 222 | MAGNITUDE | sprite_xy | - | - | low | BG3 shake; chunk 6: the stage camera mirrors the BG3 shake |
 | 223 | DYNAMIC_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | ShakeBg on BG3 |
 | 224 | MEGAHORN | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 225 | DRAGON_BREATH | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 226 | BATON_PASS | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
-| 227 | ENCORE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 228 | PURSUIT | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 227 | ENCORE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 228 | PURSUIT | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 229 | RAPID_SPIN | sprite_xy, particles | - | - | low |  |
 | 230 | SWEET_SCENT | particles, sprite_fade_tint | - | - | low |  |
 | 231 | IRON_TAIL | sprite_xy, oam_copy, window, sprite_bg_blend, bg2_effect, particles | - | F2, F3, F4 | medium | stat change: BG2 picture only inside the OBJ window |
 | 232 | METAL_CLAW | sprite_xy, oam_copy, window, sprite_bg_blend, bg2_effect | - | F2, F3, F4 | medium | stat change: BG2 picture only inside the OBJ window |
 | 233 | VITAL_THROW | sprite_xy, particles | - | - | low |  |
-| 234 | MORNING_SUN | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 234 | MORNING_SUN | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 235 | SYNTHESIS | particles, sprite_fade_tint | - | - | low |  |
 | 236 | MOONLIGHT | switch_bg, particles | bg_switch | F6 | high |  |
-| 237 | HIDDEN_POWER | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 237 | HIDDEN_POWER | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 238 | CROSS_CHOP | sprite_xy, particles | - | - | low |  |
 | 239 | TWISTER | sprite_xy, particles | - | - | low |  |
-| 240 | RAIN_DANCE | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 241 | SUNNY_DAY | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 240 | RAIN_DANCE | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 241 | SUNNY_DAY | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 242 | CRUNCH | sprite_xy, particles | - | - | low |  |
 | 243 | MIRROR_COAT | particles | - | - | low |  |
-| 244 | PSYCH_UP | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 244 | PSYCH_UP | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 245 | EXTREME_SPEED | sprite_xy, sprite_scale_rot, switch_bg, particles | bg_switch | F6 | high |  |
 | 246 | ANCIENT_POWER | sprite_xy, particles | - | - | low |  |
 | 247 | SHADOW_BALL | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
-| 248 | FUTURE_SIGHT | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | - | F2, F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 248 | FUTURE_SIGHT | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | - | F2, F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 249 | ROCK_SMASH | sprite_xy, particles | - | - | low |  |
 | 250 | WHIRLPOOL | sprite_xy, hblank_wave, switch_bg, particles, sprite_fade_tint | bg_switch | F5, F6 | high | per-line wave on BG3; ScrollSwitchedBg: per-line BG3 wave |
 | 251 | BEAT_UP | sprite_xy, particles | - | - | low |  |
@@ -420,7 +408,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 255 | SPIT_UP | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 256 | SWALLOW | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low |  |
 | 257 | HEAT_WAVE | sprite_xy, particles | - | - | low |  |
-| 258 | HAIL | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 258 | HAIL | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 259 | TORMENT | sprite_xy, sprite_scale_rot, sprite_fade_tint | - | - | low |  |
 | 260 | FLATTER | sprite_xy, particles | - | - | low |  |
 | 261 | WILL_O_WISP | sprite_xy, particles | - | - | low |  |
@@ -430,35 +418,35 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 265 | SMELLING_SALT | sprite_xy, particles | - | - | low |  |
 | 266 | FOLLOW_ME | - | - | - | low |  |
 | 267 | NATURE_POWER | - | - | - | low |  |
-| 268 | CHARGE | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 268 | CHARGE | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 269 | TAUNT | sprite_bg_blend, particles, sprite_fade_tint | - | F4 | medium |  |
 | 270 | HELPING_HAND | sprite_xy, sprite_bg_blend, sprite_fade_tint | - | F4 | medium |  |
-| 271 | TRICK | sprite_xy, sprite_scale_rot, sprite_bg_blend, switch_bg | - | F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 272 | ROLE_PLAY | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | - | F2, F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 271 | TRICK | sprite_xy, sprite_scale_rot, sprite_bg_blend, switch_bg | - | F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 272 | ROLE_PLAY | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | - | F2, F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 273 | WISH | switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
 | 274 | ASSIST | sprite_bg_blend | - | F4 | medium |  |
 | 275 | INGRAIN | sprite_bg_blend, particles | - | F4 | medium |  |
 | 276 | SUPERPOWER | sprite_xy, oam_copy, window, switch_bg, bg2_effect, particles | bg2_effect, bg_switch | F3, F6 | high | BG2 picture under BG0 in the OBJ window; F3 option b (keep suppressing, fade) |
 | 277 | MAGIC_COAT | particles | - | - | low |  |
 | 278 | RECYCLE | particles, sprite_fade_tint | - | - | low |  |
-| 279 | REVENGE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 279 | REVENGE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 280 | BRICK_BREAK | particles | - | - | low |  |
 | 281 | YAWN | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 282 | KNOCK_OFF | sprite_xy, particles | - | - | low |  |
 | 283 | ENDEAVOR | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low |  |
-| 284 | ERUPTION | sprite_xy, sprite_scale_rot, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
+| 284 | ERUPTION | sprite_xy, sprite_scale_rot, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it; ShakeBg on BG3 |
 | 285 | SKILL_SWAP | particles | - | - | low |  |
 | 286 | IMPRISON | particles | - | - | low |  |
-| 287 | REFRESH | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 288 | GRUDGE | sprite_bg_blend, switch_bg, sprite_fade_tint | - | F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 287 | REFRESH | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 288 | GRUDGE | sprite_bg_blend, switch_bg, sprite_fade_tint | - | F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 289 | SNATCH | sprite_xy | - | - | low |  |
 | 290 | SECRET_POWER | particles | - | - | low |  |
 | 291 | DIVE | sprite_xy, particles | - | - | low |  |
 | 292 | ARM_THRUST | sprite_xy, particles | - | - | low |  |
 | 293 | CAMOUFLAGE | oam_copy, hblank_wave, window, sprite_bg_blend, bg2_effect | bg2_effect | F3, F6 | high | BG2 picture + BG2 wave in the OBJ window, not a mon copy; F3 option b |
-| 294 | TAIL_GLOW | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 295 | LUSTER_PURGE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 296 | MIST_BALL | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | FadeBg: backdrop palette fade, hidden by the arena |
+| 294 | TAIL_GLOW | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 295 | LUSTER_PURGE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 296 | MIST_BALL | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | FadeBg: backdrop palette fade, the arena follows it |
 | 297 | FEATHER_DANCE | particles, sprite_fade_tint | - | - | low |  |
 | 298 | TEETER_DANCE | sprite_xy, particles | - | - | low |  |
 | 299 | BLAZE_KICK | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
@@ -466,37 +454,37 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 301 | ICE_BALL | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 302 | NEEDLE_ARM | sprite_xy, particles | - | - | low |  |
 | 303 | SLACK_OFF | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low |  |
-| 304 | HYPER_VOICE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 304 | HYPER_VOICE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 305 | POISON_FANG | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 306 | CRUSH_CLAW | sprite_xy | - | - | low |  |
-| 307 | BLAST_BURN | sprite_xy, oam_copy, window, switch_bg, particles, sprite_fade_tint | - | F2, F3 | medium | FadeBg: backdrop palette fade, hidden by the arena; WIN0 hides OBJ in a rect; every BG stays on |
+| 307 | BLAST_BURN | sprite_xy, oam_copy, window, switch_bg, particles, sprite_fade_tint | - | F2, F3 | medium | FadeBg: backdrop palette fade, the arena follows it; WIN0 hides OBJ in a rect; every BG stays on |
 | 308 | HYDRO_CANNON | sprite_xy, switch_bg, particles | bg_switch | F6 | high |  |
-| 309 | METEOR_MASH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 309 | METEOR_MASH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 310 | ASTONISH | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
-| 311 | WEATHER_BALL | sprite_xy, sprite_scale_rot, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 312 | AROMATHERAPY | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 311 | WEATHER_BALL | sprite_xy, sprite_scale_rot, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 312 | AROMATHERAPY | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 313 | FAKE_TEARS | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 314 | AIR_CUTTER | sprite_xy, particles | - | - | low |  |
 | 315 | OVERHEAT | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
 | 316 | ODOR_SLEUTH | sprite_xy, oam_copy | - | F2 | medium |  |
-| 317 | ROCK_TOMB | switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
-| 318 | SILVER_WIND | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 319 | METAL_SOUND | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 320 | GRASS_WHISTLE | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 317 | ROCK_TOMB | particles | - | - | low | ShakeBg on BG3 |
+| 318 | SILVER_WIND | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 319 | METAL_SOUND | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 320 | GRASS_WHISTLE | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 321 | TICKLE | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low |  |
 | 322 | COSMIC_POWER | switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
 | 323 | WATER_SPOUT | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 324 | SIGNAL_BEAM | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 325 | SHADOW_PUNCH | sprite_xy, oam_copy, sprite_bg_blend, particles, sprite_fade_tint | - | F2, F4 | medium |  |
-| 326 | EXTRASENSORY | sprite_scale_rot, bg2_copy, oam_copy, hblank_wave, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | bg2_effect | F1, F2, F4 | high | per-line wave on BG2; FadeBg: backdrop palette fade, hidden by the arena; Extrasensory puts BG2 above BG0 itself |
+| 326 | EXTRASENSORY | sprite_scale_rot, bg2_copy, oam_copy, hblank_wave, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | bg2_effect | F1, F2, F4 | high | per-line wave on BG2; FadeBg: backdrop palette fade, the arena follows it; Extrasensory puts BG2 above BG0 itself |
 | 327 | SKY_UPPERCUT | sprite_xy, switch_bg, particles | bg_switch | F6 | high |  |
 | 328 | SAND_TOMB | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
-| 329 | SHEER_COLD | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 329 | SHEER_COLD | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 330 | MUDDY_WATER | sprite_xy, sprite_bg_blend, bg2_effect, particles, sprite_fade_tint | bg2_effect | F4, F6 | high | MuddyWater: picture on BG2 blended over BG0\|BG3 |
 | 331 | BULLET_SEED | sprite_xy, particles | - | - | low |  |
-| 332 | AERIAL_ACE | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles | - | F2, F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 332 | AERIAL_ACE | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles | - | F2, F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 333 | ICICLE_SPEAR | sprite_xy, particles | - | - | low |  |
-| 334 | IRON_DEFENSE | oam_copy, window, sprite_bg_blend, switch_bg, bg2_effect | - | F2, F3, F4 | medium | FadeBg: backdrop palette fade, hidden by the arena; stat change: BG2 picture only inside the OBJ window |
+| 334 | IRON_DEFENSE | oam_copy, window, sprite_bg_blend, switch_bg, bg2_effect | - | F2, F3, F4 | medium | FadeBg: backdrop palette fade, the arena follows it; stat change: BG2 picture only inside the OBJ window |
 | 335 | BLOCK | particles | - | - | low |  |
 | 336 | HOWL | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 337 | DRAGON_CLAW | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
@@ -509,28 +497,28 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 344 | VOLT_TACKLE | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 345 | MAGICAL_LEAF | sprite_xy, particles | - | - | low |  |
 | 346 | WATER_SPORT | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
-| 347 | CALM_MIND | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 347 | CALM_MIND | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 348 | LEAF_BLADE | sprite_xy, particles | - | - | low |  |
 | 349 | DRAGON_DANCE | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 350 | ROCK_BLAST | sprite_xy, particles | - | - | low |  |
-| 351 | SHOCK_WAVE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 351 | SHOCK_WAVE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 352 | WATER_PULSE | sprite_xy, hblank_wave, switch_bg, particles, sprite_fade_tint | bg_switch | F5, F6 | high | per-line wave on BG3; ScrollSwitchedBg: per-line BG3 wave |
-| 353 | DOOM_DESIRE | sprite_xy, sprite_scale_rot, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 353 | DOOM_DESIRE | sprite_xy, sprite_scale_rot, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 354 | PSYCHO_BOOST | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
 | 355 | ROOST | particles, sprite_fade_tint | - | - | low |  |
 | 356 | GRAVITY | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
-| 357 | MIRACLE_EYE | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 357 | MIRACLE_EYE | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 358 | WAKE_UP_SLAP | sprite_xy, particles | - | - | low |  |
-| 359 | HAMMER_ARM | sprite_xy, sprite_scale_rot, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
+| 359 | HAMMER_ARM | sprite_xy, sprite_scale_rot, particles | - | - | low | ShakeBg on BG3 |
 | 360 | GYRO_BALL | sprite_xy, particles | - | - | low |  |
-| 361 | HEALING_WISH | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 361 | HEALING_WISH | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 362 | BRINE | sprite_xy, particles | - | - | low |  |
 | 363 | NATURAL_GIFT | particles | - | - | low |  |
 | 364 | FEINT | sprite_xy, particles | - | - | low |  |
 | 365 | PLUCK | sprite_xy, particles | - | - | low |  |
 | 366 | TAILWIND | particles | - | - | low |  |
 | 367 | ACUPRESSURE | particles, sprite_fade_tint | - | - | low |  |
-| 368 | METAL_BURST | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 368 | METAL_BURST | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 369 | U_TURN | sprite_xy, particles | - | - | low |  |
 | 370 | CLOSE_COMBAT | sprite_xy, switch_bg, particles | bg_switch | F6 | high |  |
 | 371 | PAYBACK | sprite_xy, particles | - | - | low |  |
@@ -539,7 +527,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 374 | FLING | sprite_xy, particles | - | - | low |  |
 | 375 | PSYCHO_SHIFT | particles, sprite_fade_tint | - | - | low |  |
 | 376 | TRUMP_CARD | sprite_xy, particles | - | - | low |  |
-| 377 | HEAL_BLOCK | switch_bg, particles, sprite_fade_tint | - | - | medium | SetBgGrayscale: backdrop palette, hidden by the arena |
+| 377 | HEAL_BLOCK | switch_bg, particles, sprite_fade_tint | - | - | medium | SetBgGrayscale: backdrop palette, the arena follows it |
 | 378 | WRING_OUT | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 379 | POWER_TRICK | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 380 | GASTRO_ACID | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
@@ -558,46 +546,46 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 393 | MAGNET_RISE | sprite_xy, particles | - | - | low |  |
 | 394 | FLARE_BLITZ | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
 | 395 | FORCE_PALM | sprite_xy, particles | - | - | low |  |
-| 396 | AURA_SPHERE | sprite_xy, switch_bg, particles | bg_switch | F6 | high | FadeBg: backdrop palette fade, hidden by the arena |
-| 397 | ROCK_POLISH | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 396 | AURA_SPHERE | sprite_xy, switch_bg, particles | bg_switch | F6 | high | FadeBg: backdrop palette fade, the arena follows it |
+| 397 | ROCK_POLISH | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 398 | POISON_JAB | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
-| 399 | DARK_PULSE | sprite_xy, oam_copy, window, switch_bg, particles, sprite_fade_tint | - | F2, F3 | medium | WIN0 hides OBJ in a rect; every BG stays on; SetBgGrayscale: backdrop palette, hidden by the arena |
+| 399 | DARK_PULSE | sprite_xy, oam_copy, window, switch_bg, particles, sprite_fade_tint | - | F2, F3 | medium | WIN0 hides OBJ in a rect; every BG stays on; SetBgGrayscale: backdrop palette, the arena follows it |
 | 400 | NIGHT_SLASH | sprite_xy, particles | - | - | low |  |
 | 401 | AQUA_TAIL | sprite_xy, oam_copy, window, particles | - | F2, F3 | medium | WIN0 hides OBJ in a rect; every BG stays on |
 | 402 | SEED_BOMB | sprite_xy, particles | - | - | low |  |
 | 403 | AIR_SLASH | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 404 | X_SCISSOR | sprite_xy, particles | - | - | low |  |
 | 405 | BUG_BUZZ | sprite_xy, particles | - | - | low |  |
-| 406 | DRAGON_PULSE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 407 | DRAGON_RUSH | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
-| 408 | POWER_GEM | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 409 | DRAIN_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 406 | DRAGON_PULSE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 407 | DRAGON_RUSH | sprite_xy, particles | - | - | low | ShakeBg on BG3 |
+| 408 | POWER_GEM | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 409 | DRAIN_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 410 | VACUUM_WAVE | sprite_xy, particles | - | - | low |  |
 | 411 | FOCUS_BLAST | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
-| 412 | ENERGY_BALL | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 412 | ENERGY_BALL | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 413 | BRAVE_BIRD | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F4, F6 | high |  |
-| 414 | EARTH_POWER | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
-| 415 | SWITCHEROO | sprite_xy, sprite_scale_rot, sprite_bg_blend, switch_bg | - | F4 | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 414 | EARTH_POWER | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it; ShakeBg on BG3 |
+| 415 | SWITCHEROO | sprite_xy, sprite_scale_rot, sprite_bg_blend, switch_bg | - | F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 416 | GIGA_IMPACT | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 417 | NASTY_PLOT | particles | - | - | low |  |
 | 418 | BULLET_PUNCH | sprite_xy, particles | - | - | low |  |
-| 419 | AVALANCHE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 420 | ICE_SHARD | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 419 | AVALANCHE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 420 | ICE_SHARD | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 421 | SHADOW_CLAW | sprite_xy, particles | - | - | low |  |
-| 422 | THUNDER_FANG | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 423 | ICE_FANG | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 424 | FIRE_FANG | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 425 | SHADOW_SNEAK | sprite_xy, oam_copy, switch_bg, particles, sprite_fade_tint | - | F2 | medium | SetBgGrayscale: backdrop palette, hidden by the arena |
+| 422 | THUNDER_FANG | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 423 | ICE_FANG | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 424 | FIRE_FANG | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 425 | SHADOW_SNEAK | sprite_xy, oam_copy, switch_bg, particles, sprite_fade_tint | - | F2 | medium | SetBgGrayscale: backdrop palette, the arena follows it |
 | 426 | MUD_BOMB | sprite_xy, particles | - | - | low |  |
 | 427 | PSYCHO_CUT | sprite_xy, particles | - | - | low |  |
-| 428 | ZEN_HEADBUTT | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 428 | ZEN_HEADBUTT | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 429 | MIRROR_SHOT | sprite_xy, particles | - | - | low |  |
-| 430 | FLASH_CANNON | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 430 | FLASH_CANNON | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 431 | ROCK_CLIMB | sprite_xy, particles | - | - | low |  |
-| 432 | DEFOG | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 432 | DEFOG | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 433 | TRICK_ROOM | switch_bg | bg_switch | F6 | high |  |
-| 434 | DRACO_METEOR | sprite_xy, switch_bg, particles | bg_switch | F6 | high | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
-| 435 | DISCHARGE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 434 | DRACO_METEOR | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it; ShakeBg on BG3 |
+| 435 | DISCHARGE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 436 | LAVA_PLUME | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
 | 437 | LEAF_STORM | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 438 | POWER_WHIP | sprite_xy, switch_bg, particles | bg_switch | F6 | high |  |
@@ -611,28 +599,28 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 446 | STEALTH_ROCK | sprite_xy, particles | - | - | low |  |
 | 447 | GRASS_KNOT | sprite_xy, particles | - | - | low |  |
 | 448 | CHATTER | sprite_xy, particles | - | - | low |  |
-| 449 | JUDGMENT | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 449 | JUDGMENT | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 450 | BUG_BITE | sprite_xy, particles | - | - | low |  |
-| 451 | CHARGE_BEAM | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 452 | WOOD_HAMMER | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
+| 451 | CHARGE_BEAM | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 452 | WOOD_HAMMER | sprite_xy, particles | - | - | low | ShakeBg on BG3 |
 | 453 | AQUA_JET | sprite_xy, particles | - | - | low |  |
 | 454 | ATTACK_ORDER | sprite_xy, particles | - | - | low |  |
 | 455 | DEFEND_ORDER | particles, sprite_fade_tint | - | - | low |  |
 | 456 | HEAL_ORDER | particles, sprite_fade_tint | - | - | low |  |
 | 457 | HEAD_SMASH | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | ShakeBg on BG3 |
 | 458 | DOUBLE_HIT | sprite_xy, particles | - | - | low |  |
-| 459 | ROAR_OF_TIME | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 459 | ROAR_OF_TIME | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 460 | SPACIAL_REND | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high | ShakeBg on BG3 |
 | 461 | LUNAR_DANCE | oam_copy, window, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F3, F6 | high | WIN0 hides OBJ in a rect; every BG stays on |
 | 462 | CRUSH_GRIP | sprite_xy, sprite_scale_rot, particles | - | - | low |  |
 | 463 | MAGMA_STORM | switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
 | 464 | DARK_VOID | sprite_xy, oam_copy, window, switch_bg, particles | bg_switch | F2, F3, F6 | high | WIN0 hides OBJ in a rect; every BG stays on |
-| 465 | SEED_FLARE | sprite_xy, switch_bg, particles | bg_switch | F6 | high | FadeBg: backdrop palette fade, hidden by the arena; ShakeBg on BG3 |
+| 465 | SEED_FLARE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it; ShakeBg on BG3 |
 | 466 | OMINOUS_WIND | sprite_xy, particles | - | - | low |  |
-| 467 | SHADOW_FORCE | sprite_xy, switch_bg, particles | - | - | medium | SetBgGrayscale: backdrop palette, hidden by the arena |
+| 467 | SHADOW_FORCE | sprite_xy, switch_bg, particles | - | - | medium | SetBgGrayscale: backdrop palette, the arena follows it |
 | 468 | MOONBLAST | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
 | 469 | FAIRY_WIND | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
-| 470 | DISARMING_VOICE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
-| 471 | DRAINING_KISS | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 470 | DISARMING_VOICE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
+| 471 | DRAINING_KISS | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 472 | PLAY_ROUGH | sprite_xy, particles, sprite_fade_tint | - | - | low |  |
-| 473 | DAZZLING_GLEAM | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, hidden by the arena |
+| 473 | DAZZLING_GLEAM | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |

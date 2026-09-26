@@ -567,6 +567,86 @@ BOOL BattleAnimSystem_SyncStageBackdropShake(BattleAnimSystem *system)
     return TRUE;
 }
 
+// Whether every colour of the given BG rows reads as the unfaded colour blended towards
+// target at alpha, as PaletteData_StartFade blends it
+static BOOL BattleAnimSystem_BgRowsFadedBy(const u16 *unfaded, const u16 *faded, u16 rows, u16 target, int alpha)
+{
+    for (int i = 0; i < PALETTE_SIZE * BATTLE_BG_PALETTE_MON_SPRITE; i++) {
+        if ((rows & (1 << (i / PALETTE_SIZE))) == 0) {
+            continue;
+        }
+
+        int r = BlendColor(ColorR(unfaded[i]), ColorR(target), alpha);
+        int g = BlendColor(ColorG(unfaded[i]), ColorG(target), alpha);
+        int b = BlendColor(ColorB(unfaded[i]), ColorB(target), alpha);
+
+        if ((faded[i] & 0x7FFF) != GX_RGB(r, g, b)) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+// Whether every colour of the given BG rows reads as SetBgGrayscale's gray of the unfaded one
+static BOOL BattleAnimSystem_BgRowsGrayscale(const u16 *unfaded, const u16 *faded, u16 rows)
+{
+    for (int i = 0; i < PALETTE_SIZE * BATTLE_BG_PALETTE_MON_SPRITE; i++) {
+        if ((rows & (1 << (i / PALETTE_SIZE))) == 0) {
+            continue;
+        }
+
+        u32 y = RGB_TO_GRAYSCALE(ColorR(unfaded[i]), ColorG(unfaded[i]), ColorB(unfaded[i]));
+
+        if ((faded[i] & 0x7FFF) != ((y << 10) | (y << 5) | y)) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+// B: the arena's textures take the faded BG palette, and the stage fades the rest of the
+// arena (fog, light) with the backdrop. What the base rows show is read back from the
+// palette buffers each script frame, so a fade that ended, was undone or was overwritten
+// never leaves the arena faded; anything that is neither a plain fade nor the grayscale
+// (a background switch's blends) leaves the arena as it is.
+static void BattleAnimSystem_UpdateStageBackdropFade(BattleAnimSystem *system)
+{
+    PaletteData *paletteData = system->paletteData;
+    u16 rows = system->baseBgPalettes;
+    u16 target = 0;
+    int alpha = 0;
+    BOOL grayscale = FALSE;
+
+    if (system->moveActive == TRUE) {
+        const u16 *unfaded = PaletteData_GetUnfadedBuffer(paletteData, PLTTBUF_MAIN_BG);
+        const u16 *faded = PaletteData_GetFadedBuffer(paletteData, PLTTBUF_MAIN_BG);
+
+        if (unfaded != NULL && faded != NULL && BattleAnimSystem_BgRowsFadedBy(unfaded, faded, rows, 0, 0) == FALSE) {
+            PaletteFadeControl *fade = &paletteData->buffers[PLTTBUF_MAIN_BG].selected;
+
+            target = fade->target;
+
+            // The buffer is one step behind fade->cur while the fade runs
+            if (BattleAnimSystem_BgRowsFadedBy(unfaded, faded, rows, target, fade->cur)) {
+                alpha = fade->cur;
+            } else if (BattleAnimSystem_BgRowsGrayscale(unfaded, faded, rows)) {
+                grayscale = TRUE;
+            } else {
+                for (alpha = 16; alpha > 0; alpha--) {
+                    if (BattleAnimSystem_BgRowsFadedBy(unfaded, faded, rows, target, alpha)) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    BattleStage_SetBackdropFade(target, alpha);
+    BattleStage_SetBackdropGrayscale(grayscale);
+}
+
 // Hides the 3D battle stage while a move changes the backdrop or draws on BG2.
 // The battle overlay is not loaded in contests, so the stage is never touched there.
 static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
@@ -609,6 +689,7 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
     // The shake tasks sync again right after they write BG3, so the arena moves in their frame
     sStageBackdropShakeOk = system->moveActive == TRUE && !bgSwitch && !bg2Effect && !window;
     BattleAnimSystem_SyncStageBackdropShake(system);
+    BattleAnimSystem_UpdateStageBackdropFade(system);
 }
 
 static u32 BattleAnimSystem_Bg2TilemapHash(BattleAnimSystem *system)
@@ -821,6 +902,8 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
         BattleStage_SetMoveAnimActive(FALSE);
         BattleStage_SetInMoveAnim(FALSE);
         BattleStage_SetBackdropShake(0, 0);
+        BattleStage_SetBackdropFade(0, 0);
+        BattleStage_SetBackdropGrayscale(FALSE);
     }
 
     sStageBackdropShakeOk = FALSE;

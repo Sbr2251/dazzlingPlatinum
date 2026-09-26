@@ -6,6 +6,7 @@
 
 #include "config/battle_stage.h"
 #include "constants/battle.h"
+#include "constants/graphics.h"
 #include "constants/heap.h"
 #include "constants/narc.h"
 
@@ -123,6 +124,9 @@ typedef struct BattleStage {
     u16 blendAdded; // BLDCNT 2nd-target bits the fade added
     u16 blendWritten; // BLDCNT as the fade last left it
     int blendHold;
+    u16 backdropFadeColor; // BattleStage_SetBackdropFade
+    int backdropFadeAlpha; // 0..16
+    BOOL backdropGrayscale; // BattleStage_SetBackdropGrayscale
 } BattleStage;
 
 // What was last written to the fog registers
@@ -175,6 +179,9 @@ void BattleStage_Init(BattleSystem *battleSys)
     sBattleStage.blendAdded = 0;
     sBattleStage.blendWritten = 0;
     sBattleStage.blendHold = 0;
+    sBattleStage.backdropFadeColor = 0;
+    sBattleStage.backdropFadeAlpha = 0;
+    sBattleStage.backdropGrayscale = FALSE;
     sStageFog.on = TRUE; // unknown, so FogOff writes it
     sStageFog.tableValid = FALSE;
     FogOff();
@@ -231,6 +238,8 @@ void BattleStage_Free(void)
     sBattleStage.battleSys = NULL;
     sBattleStage.debugView = 0;
     sBattleStage.brightness = 0;
+    sBattleStage.backdropFadeAlpha = 0;
+    sBattleStage.backdropGrayscale = FALSE;
     FogOff();
 }
 
@@ -492,6 +501,84 @@ void BattleStage_SetBrightness(int brightness)
     }
 
     sBattleStage.brightness = brightness;
+}
+
+void BattleStage_SetBackdropFade(u16 color, int alpha)
+{
+    if (alpha < 0) {
+        alpha = 0;
+    } else if (alpha > 16) {
+        alpha = 16;
+    }
+
+    sBattleStage.backdropFadeColor = color & 0x7FFF;
+    sBattleStage.backdropFadeAlpha = alpha;
+}
+
+void BattleStage_SetBackdropGrayscale(BOOL grayscale)
+{
+    sBattleStage.backdropGrayscale = grayscale;
+}
+
+// The brightness wins over the backdrop fade, as it does in 2D where it applies last
+static BOOL BackdropFadeActive(void)
+{
+    return sBattleStage.brightness == 0 && (sBattleStage.backdropFadeAlpha != 0 || sBattleStage.backdropGrayscale);
+}
+
+// A colour of the arena as the backdrop fade shows it: grayed as SetBgGrayscale grays the
+// BG palette, then blended as PaletteData_StartFade blends it
+static GXRgb BackdropFadeColor(GXRgb color)
+{
+    int r = ColorR(color);
+    int g = ColorG(color);
+    int b = ColorB(color);
+    int target = sBattleStage.backdropFadeColor;
+
+    if (sBattleStage.backdropGrayscale) {
+        r = g = b = RGB_TO_GRAYSCALE(r, g, b);
+    }
+
+    r = BlendColor(r, ColorR(target), sBattleStage.backdropFadeAlpha);
+    g = BlendColor(g, ColorG(target), sBattleStage.backdropFadeAlpha);
+    b = BlendColor(b, ColorB(target), sBattleStage.backdropFadeAlpha);
+
+    return GX_RGB(r, g, b);
+}
+
+// The emission of the LIT meshes under the backdrop fade. The faded texture is modulated
+// by the light, so a dim (twilight, night) light would keep a fade towards white or a
+// colour from reaching it: each channel's light rises towards full by as much as the fade
+// target has of that channel, so a full fade shows the flat colour and a fade to black
+// leaves the light alone
+static GXRgb BackdropFadeEmission(GXRgb emission)
+{
+    int channel[3] = { ColorR(emission), ColorG(emission), ColorB(emission) };
+    int target[3] = { ColorR(sBattleStage.backdropFadeColor), ColorG(sBattleStage.backdropFadeColor), ColorB(sBattleStage.backdropFadeColor) };
+    int i;
+
+    if (sBattleStage.backdropGrayscale) {
+        channel[0] = channel[1] = channel[2] = RGB_TO_GRAYSCALE(channel[0], channel[1], channel[2]);
+    }
+
+    for (i = 0; i < 3; i++) {
+        channel[i] += (31 - channel[i]) * target[i] * sBattleStage.backdropFadeAlpha / (31 * 16);
+    }
+
+    return GX_RGB(channel[0], channel[1], channel[2]);
+}
+
+// The light of the LIT meshes, grayed along with the backdrop
+static GXRgb BackdropGrayColor(GXRgb color)
+{
+    int y;
+
+    if (!sBattleStage.backdropGrayscale) {
+        return color;
+    }
+
+    y = RGB_TO_GRAYSCALE(ColorR(color), ColorG(color), ColorB(color));
+    return GX_RGB(y, y, y);
 }
 
 static const void *PieceData(const BattleStageFileHeader *piece, u32 offset)
@@ -1131,6 +1218,14 @@ static void SetLight(StageArena *arena)
 
     // Transformed by the current vector matrix (the view), so lightDir is in world space
     G3_LightVector(GX_LIGHTID_0, lighting->lightDir[0], lighting->lightDir[1], lighting->lightDir[2]);
+
+    if (BackdropFadeActive()) {
+        G3_LightColor(GX_LIGHTID_0, BackdropGrayColor(lighting->lightColor));
+        G3_MaterialColorDiffAmb(BackdropGrayColor(lighting->diffuse), BackdropGrayColor(lighting->ambient), FALSE);
+        G3_MaterialColorSpecEmi(GX_RGB(0, 0, 0), BackdropFadeEmission(lighting->emission), FALSE);
+        return;
+    }
+
     G3_LightColor(GX_LIGHTID_0, lighting->lightColor);
     G3_MaterialColorDiffAmb(lighting->diffuse, lighting->ambient, FALSE);
     G3_MaterialColorSpecEmi(GX_RGB(0, 0, 0), lighting->emission, FALSE);
@@ -1270,7 +1365,8 @@ static void UpdateFog(StageArena *arena)
     } else if (arena->hasAtmosphere && arena->atmosphere.fogEnabled) {
         const BattleStageFileLighting *lighting = &arena->atmosphere.lighting[LightingColumn()];
 
-        color = lighting->fogColor;
+        // The fog stands for the backdrop's distance, so it fades with the backdrop
+        color = BackdropFadeActive() ? BackdropFadeColor(lighting->fogColor) : lighting->fogColor;
         alpha = lighting->fogAlpha;
         shift = arena->atmosphere.fogShift;
         offset = arena->atmosphere.fogOffset;

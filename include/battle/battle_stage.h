@@ -56,6 +56,17 @@ int BattleStage_GetDebugView(void);
 // at |brightness| * 8 / 128. 0 brings the atmosphere fog back. Init and Free reset it to 0.
 void BattleStage_SetBrightness(int brightness);
 
+// A move's palette fade or grayscale of the backdrop (FadeBg FADE_BG_TYPE_BASE,
+// SetBgGrayscale, Fake Out's curtain). The arena's textures take the faded BG palette, so
+// they follow the backdrop on their own; this brings the rest of the arena along: the fog
+// colour and the light of the LIT meshes are grayed, then faded towards color by
+// alpha / 16 (0..16, as PaletteData_StartFade), so a full fade reads as the flat colour as
+// in classic. The brightness above wins while it is not 0. The move anim system feeds it
+// every script frame and clears it at script end; alpha 0 and no grayscale draw as before.
+// Init and Free reset it.
+void BattleStage_SetBackdropFade(u16 color, int alpha);
+void BattleStage_SetBackdropGrayscale(BOOL grayscale);
+
 // Lit, deformable sprites (chunk 3, battle_stage_sprites.c). While the arena shows, the
 // battle's mons are drawn as lit 8x8 grids that breathe at rest, with a blob shadow.
 // A move or anim script is running: the battle anim system sets it every script frame,
