@@ -452,100 +452,49 @@ static BOOL BattleAnimSystem_IsBaseBgUnderStage(BattleAnimSystem *system)
     return FALSE;
 }
 
-// F3 (compat.md): a window region that hides BG0 (a stat change's mon silhouette, Harden)
-// would cut a hole in the arena. Such a window suppresses the arena, which fades out (F6), and
-// while the arena is still drawn BG0 is added to the cutting regions so the fade shows no hole.
-// The masks the task wrote come back once the arena is gone. sWndInOrig/sWndOutOrig are the
-// task's values: when a register no longer holds what was written here, a task rewrote it.
-#define STAGE_WND_BG0_HOLD 2 // the last arena frame stays on screen for a draw after the swap
-
-static BOOL sWndTracking;
-static u16 sWndInOrig;
-static u16 sWndOutOrig;
-static u16 sWndInWritten;
-static u16 sWndOutWritten;
-static int sWndHold;
-
-static void BattleAnimSystem_ResetWindowCut(void)
+// F3 (compat.md, move_audit.md "F3: window decisions"): a window that shapes the backdrop, BG3
+// shown in one region and hidden in another that still shows BG0 (the Fake Out curtain, the
+// Camouflage and Superpower pictures), draws its shape under the opaque arena, where nobody
+// sees it. It suppresses the arena, which fades out (F6). Windows that only hide OBJ (Dark
+// Void) keep BG0 and BG3 everywhere, and the stat change / Harden silhouette hides BG0 and BG3
+// together where the OAM copy covers it: those keep the arena (option a).
+static BOOL BattleAnimSystem_WindowShapesBackdrop(BattleAnimSystem *system)
 {
-    if (sWndTracking) {
-        if (reg_G2_WININ == sWndInWritten) {
-            reg_G2_WININ = sWndInOrig;
-        }
-
-        if (reg_G2_WINOUT == sWndOutWritten) {
-            reg_G2_WINOUT = sWndOutOrig;
-        }
-    }
-
-    sWndTracking = FALSE;
-    sWndHold = 0;
-}
-
-// Returns TRUE while a window region of the running move hides BG0
-static BOOL BattleAnimSystem_UpdateWindowCut(BattleAnimSystem *system)
-{
-    u16 winIn = reg_G2_WININ;
-    u16 winOut = reg_G2_WINOUT;
-
-    if (sWndTracking == FALSE || winIn != sWndInWritten) {
-        sWndInOrig = winIn;
-    }
-
-    if (sWndTracking == FALSE || winOut != sWndOutWritten) {
-        sWndOutOrig = winOut;
-    }
-
-    sWndTracking = TRUE;
-
     int wnd = GX_GetVisibleWnd();
-    u16 inAdd = 0;
-    u16 outAdd = 0;
 
-    if (system->moveActive == TRUE && wnd != GX_WNDMASK_NONE && (GX_GetVisiblePlane() & GX_PLANEMASK_BG0)) {
-        if ((wnd & GX_WNDMASK_W0) && (sWndInOrig & GX_WND_PLANEMASK_BG0) == 0) {
-            inAdd |= GX_WND_PLANEMASK_BG0;
+    if (system->moveActive != TRUE || wnd == GX_WNDMASK_NONE || (GX_GetVisiblePlane() & GX_PLANEMASK_BG0) == 0) {
+        return FALSE;
+    }
+
+    int regions[4];
+    int count = 0;
+
+    regions[count++] = reg_G2_WINOUT & REG_G2_WINOUT_WINOUT_MASK;
+
+    if (wnd & GX_WNDMASK_W0) {
+        regions[count++] = reg_G2_WININ & REG_G2_WININ_WIN0IN_MASK;
+    }
+
+    if (wnd & GX_WNDMASK_W1) {
+        regions[count++] = (reg_G2_WININ & REG_G2_WININ_WIN1IN_MASK) >> REG_G2_WININ_WIN1IN_SHIFT;
+    }
+
+    if (wnd & GX_WNDMASK_OW) {
+        regions[count++] = (reg_G2_WINOUT & REG_G2_WINOUT_OBJWININ_MASK) >> REG_G2_WINOUT_OBJWININ_SHIFT;
+    }
+
+    BOOL showsBackdrop = FALSE;
+    BOOL cutsBackdropUnderArena = FALSE;
+
+    for (int i = 0; i < count; i++) {
+        if (regions[i] & GX_WND_PLANEMASK_BG3) {
+            showsBackdrop = TRUE;
+        } else if (regions[i] & GX_WND_PLANEMASK_BG0) {
+            cutsBackdropUnderArena = TRUE;
         }
-
-        if ((wnd & GX_WNDMASK_W1) && (sWndInOrig & (GX_WND_PLANEMASK_BG0 << REG_G2_WININ_WIN1IN_SHIFT)) == 0) {
-            inAdd |= GX_WND_PLANEMASK_BG0 << REG_G2_WININ_WIN1IN_SHIFT;
-        }
-
-        if ((wnd & GX_WNDMASK_OW) && (sWndOutOrig & (GX_WND_PLANEMASK_BG0 << REG_G2_WINOUT_OBJWININ_SHIFT)) == 0) {
-            outAdd |= GX_WND_PLANEMASK_BG0 << REG_G2_WINOUT_OBJWININ_SHIFT;
-        }
-
-        if ((sWndOutOrig & GX_WND_PLANEMASK_BG0) == 0) {
-            outAdd |= GX_WND_PLANEMASK_BG0;
-        }
     }
 
-    if (BattleStage_IsVisible()) {
-        sWndHold = STAGE_WND_BG0_HOLD;
-    } else if (sWndHold > 0) {
-        sWndHold--;
-    }
-
-    u16 in = sWndInOrig;
-    u16 out = sWndOutOrig;
-
-    if (sWndHold > 0) {
-        in |= inAdd;
-        out |= outAdd;
-    }
-
-    if (in != winIn) {
-        reg_G2_WININ = in;
-    }
-
-    if (out != winOut) {
-        reg_G2_WINOUT = out;
-    }
-
-    sWndInWritten = in;
-    sWndOutWritten = out;
-
-    return (inAdd | outAdd) != 0;
+    return showsBackdrop && cutsBackdropUnderArena;
 }
 
 // Hides the 3D battle stage while a move changes the backdrop or draws on BG2.
@@ -578,7 +527,7 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
     BattleStage_SetInMoveAnim(system->moveActive == TRUE || system->bgSwitchState != BATTLE_BG_SWITCH_STATE_NONE);
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH, bgSwitch);
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG2_EFFECT, system->moveActive == TRUE && BattleAnimSystem_IsBaseBgUnderStage(system));
-    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_WINDOW, BattleAnimSystem_UpdateWindowCut(system));
+    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_WINDOW, BattleAnimSystem_WindowShapesBackdrop(system));
     // The stage sprites pause their idle breathing while a script runs
     BattleStage_SetMoveAnimActive(system->moveActive == TRUE);
 }
@@ -596,7 +545,6 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
     }
 
     if (BattleAnimSystem_IsContest(system) == FALSE) {
-        BattleAnimSystem_ResetWindowCut();
         BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT | BATTLE_STAGE_SUPPRESS_WINDOW, FALSE);
         BattleStage_SetMoveAnimActive(FALSE);
         BattleStage_SetInMoveAnim(FALSE);
@@ -730,8 +678,6 @@ BOOL BattleAnimSystem_StartMove(BattleAnimSystem *system, MoveAnimation *param1,
     system->bgAnim = NULL;
     system->stageBgDirty = FALSE;
     BattleAnimUtil_ResetBg3LineScrolls();
-    sWndTracking = FALSE;
-    sWndHold = 0;
     system->executeAnimScriptFunc = BattleAnimScript_Execute;
     system->scriptDelay = 0;
 

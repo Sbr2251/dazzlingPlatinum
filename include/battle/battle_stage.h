@@ -25,7 +25,7 @@ enum BattleStageSuppress {
     BATTLE_STAGE_SUPPRESS_BRIGHTNESS = 1 << 2,
     BATTLE_STAGE_SUPPRESS_MENU = 1 << 3, // a screen that owns the 3D layer or VRAM
     BATTLE_STAGE_SUPPRESS_OTHER = 1 << 4,
-    BATTLE_STAGE_SUPPRESS_WINDOW = 1 << 5, // a move's window mask hides BG0 somewhere (compat.md, F3)
+    BATTLE_STAGE_SUPPRESS_WINDOW = 1 << 5, // a move window shapes the BG3 backdrop under the arena (compat.md, F3)
 };
 
 void BattleStage_Suppress(u32 reasons, BOOL suppress);
