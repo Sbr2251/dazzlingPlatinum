@@ -20,6 +20,7 @@
 #include "battle/battle_debug.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
+#include "battle/battle_stage.h"
 #include "battle/healthbar.h"
 #include "battle/mega_evolution.h"
 #include "battle/message_defs.h"
@@ -5483,6 +5484,8 @@ static BOOL AffinePulse_Charge(AffinePulseTaskData *data)
     int t = data->frame;
 
     if (t == 0) {
+        // The dimming skips BG0, so the 3D stage would stay lit over the darkened backdrop
+        BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BRIGHTNESS, TRUE);
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 0);
         PokemonSprite_StartFade(sprite, 0, 12, 1, RGB(31, 31, 31));
@@ -5600,6 +5603,7 @@ static void AffinePulseTask(SysTask *task, void *taskData)
     }
 
     if (done) {
+        BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BRIGHTNESS, FALSE);
         sMegaEvolutionCue = MEGA_EVOLUTION_CUE_NONE;
         BattleController_EmitClearCommand(data->battleSys, data->battler, data->command);
         Heap_Free(data);

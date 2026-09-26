@@ -15,6 +15,7 @@
 
 #include "battle/battle_anim_battler_context.h"
 #include "battle/battle_background_reference.h"
+#include "battle/battle_stage.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/pokemon_sprite_data.h"
 #include "battle/struct_ov16_02265BBC.h"
@@ -379,6 +380,98 @@ BOOL BattleAnimSystem_IsContest(BattleAnimSystem *system)
     return system->isContest;
 }
 
+static BOOL BattleAnimSystem_IsEffectBgNormal(void)
+{
+    if ((GX_GetVisiblePlane() & GX_PLANEMASK_BG3) == 0) {
+        return FALSE;
+    }
+
+    if ((reg_G2_BG3CNT & REG_G2_BG3CNT_COLORMODE_MASK) == 0) {
+        return FALSE;
+    }
+
+    return ((reg_G2_BG3CNT & REG_G2_BG3CNT_CHARBASE_MASK) >> REG_G2_BG3CNT_CHARBASE_SHIFT) == GX_BG_CHARBASE_0x10000;
+}
+
+static BOOL BattleAnimSystem_WindowShowsBaseUnder3D(int planes)
+{
+    return (planes & (GX_WND_PLANEMASK_BG0 | GX_WND_PLANEMASK_BG2)) == (GX_WND_PLANEMASK_BG0 | GX_WND_PLANEMASK_BG2);
+}
+
+// TRUE when BG2 has something on it that the 3D stage on BG0 would cover
+static BOOL BattleAnimSystem_IsBaseBgUnderStage(BattleAnimSystem *system)
+{
+    if ((GX_GetVisiblePlane() & GX_PLANEMASK_BG2) == 0) {
+        return FALSE;
+    }
+
+    if (Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_2) < Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_0)) {
+        return FALSE;
+    }
+
+    int wnd = GX_GetVisibleWnd();
+
+    if (wnd != GX_WNDMASK_NONE) {
+        BOOL covered = BattleAnimSystem_WindowShowsBaseUnder3D(reg_G2_WINOUT & REG_G2_WINOUT_WINOUT_MASK);
+
+        if ((wnd & GX_WNDMASK_W0) && BattleAnimSystem_WindowShowsBaseUnder3D(reg_G2_WININ & REG_G2_WININ_WIN0IN_MASK)) {
+            covered = TRUE;
+        }
+
+        if ((wnd & GX_WNDMASK_W1) && BattleAnimSystem_WindowShowsBaseUnder3D((reg_G2_WININ & REG_G2_WININ_WIN1IN_MASK) >> REG_G2_WININ_WIN1IN_SHIFT)) {
+            covered = TRUE;
+        }
+
+        if ((wnd & GX_WNDMASK_OW) && BattleAnimSystem_WindowShowsBaseUnder3D((reg_G2_WINOUT & REG_G2_WINOUT_OBJWININ_MASK) >> REG_G2_WINOUT_OBJWININ_SHIFT)) {
+            covered = TRUE;
+        }
+
+        if (covered == FALSE) {
+            return FALSE;
+        }
+    }
+
+    Background *bg = &system->bgConfig->bgs[BG_LAYER_MAIN_2];
+    const u32 *tilemap = bg->tilemapBuffer;
+
+    if (tilemap == NULL) {
+        return FALSE;
+    }
+
+    for (u32 i = 0; i < bg->bufferSize / sizeof(u32); i++) {
+        if (tilemap[i] != 0) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+// Hides the 3D battle stage while a move changes the backdrop or draws on BG2.
+// The battle overlay is not loaded in contests, so the stage is never touched there.
+static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
+{
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
+        return;
+    }
+
+    BOOL bgSwitch = system->bgSwitchState != BATTLE_BG_SWITCH_STATE_NONE;
+
+    if (system->moveActive == TRUE) {
+        if (system->stageBgDirty || system->bgAnim != NULL || BattleAnimSystem_IsEffectBgNormal() == FALSE) {
+            bgSwitch = TRUE;
+        }
+
+        // Earthquake, Magnitude and the shake funcs move BG3 directly, without a bgAnim task
+        if (Bg_GetXOffset(system->bgConfig, BATTLE_BG_EFFECT) != 0 || Bg_GetYOffset(system->bgConfig, BATTLE_BG_EFFECT) != 0) {
+            bgSwitch = TRUE;
+        }
+    }
+
+    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH, bgSwitch);
+    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG2_EFFECT, system->moveActive == TRUE && BattleAnimSystem_IsBaseBgUnderStage(system));
+}
+
 enum HeapID BattleAnimSystem_GetHeapID(BattleAnimSystem *system)
 {
     GF_ASSERT(system != NULL);
@@ -389,6 +482,10 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
 {
     if (BattleAnimSystem_IsActive(system) == FALSE) {
         return FALSE;
+    }
+
+    if (BattleAnimSystem_IsContest(system) == FALSE) {
+        BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT, FALSE);
     }
 
     for (int i = 0; i < BATTLE_ANIM_SYSTEM_ARC_COUNT; i++) {
@@ -517,6 +614,7 @@ BOOL BattleAnimSystem_StartMove(BattleAnimSystem *system, MoveAnimation *param1,
     }
 
     system->bgAnim = NULL;
+    system->stageBgDirty = FALSE;
     system->executeAnimScriptFunc = BattleAnimScript_Execute;
     system->scriptDelay = 0;
 
@@ -538,6 +636,7 @@ BOOL BattleAnimSystem_ExecuteScript(BattleAnimSystem *system)
     }
 
     system->executeAnimScriptFunc(system);
+    BattleAnimSystem_UpdateStageSuppress(system);
     return TRUE;
 }
 
@@ -2402,6 +2501,7 @@ static BattleBgSwitch *BattleAnimSystem_CreateBgSwitch(BattleAnimSystem *system)
     }
 
     system->bgSwitchState = BATTLE_BG_SWITCH_STATE_RUNNING;
+    BattleAnimSystem_UpdateStageSuppress(system);
 
     return bgSwitch;
 }
@@ -2935,6 +3035,7 @@ static void BattleBgSwitchTask_Start(SysTask *task, void *param)
 
     if (active == FALSE) {
         bgSwitch->battleAnimSystem->bgSwitchState = BATTLE_BG_SWITCH_STATE_NONE;
+        BattleAnimSystem_UpdateStageSuppress(bgSwitch->battleAnimSystem);
 
         Heap_Free(bgSwitch);
         SysTask_Done(task);
@@ -3033,6 +3134,9 @@ static void BattleAnimScriptCmd_SetBg(BattleAnimSystem *system)
     BattleAnimScript_Next(system);
     int bgID = BattleAnimScript_ReadWord(system->scriptPtr);
     BattleAnimScript_Next(system);
+
+    system->stageBgDirty = TRUE;
+    BattleAnimSystem_UpdateStageSuppress(system);
 
     Graphics_LoadTilesToBgLayer(
         NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG,

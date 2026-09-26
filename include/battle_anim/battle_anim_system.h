@@ -215,7 +215,7 @@ typedef struct BattleAnimSystem {
     u8 bgSwitchState;
     u8 soundEffectWaitTimer;
     u8 unk_17A;
-    u8 unk_17B;
+    u8 stageBgDirty;
     BattleBgAnim *bgAnim;
     BattleBackgroundReference battleBgRefs;
     int baseBgPalettes;

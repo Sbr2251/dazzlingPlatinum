@@ -360,6 +360,9 @@ void ov16_0223B430(BattleSystem *battleSys)
 
 void ov16_0223B53C(BattleSystem *battleSys)
 {
+    // Only used after a capture: the Pokedex entry takes over BG0, then the platforms stay
+    // hidden until the battle ends, so the stage stays off too. BattleStage_Init clears it.
+    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_MENU, TRUE);
     Window_Remove(&battleSys->windows[0]);
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG0, 0);
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, 0);
