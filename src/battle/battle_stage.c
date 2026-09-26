@@ -10,6 +10,7 @@
 #include "constants/narc.h"
 
 #include "battle/battle_stage_format.h"
+#include "battle/battle_stage_sprites.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02268520.h"
 
@@ -68,6 +69,8 @@ typedef struct StageArena {
     StagePalette palettes[SLOT_MAX];
     VecFx32 camPos;
     VecFx32 camTarget;
+    fx32 fovySin;
+    fx32 fovyCos;
     VecFx32 platformStep[2];
     MtxFx44 projection;
     MtxFx43 view;
@@ -88,6 +91,7 @@ typedef struct BattleStage {
     BOOL wasVisible;
     BOOL platformsHidden;
     int brightness; // BattleStage_SetBrightness; the Mega critic reads it from RAM at +28
+    BattleStageSpriteFields sprites; // +32..+48, read and written by the critic (sprites.md)
 } BattleStage;
 
 // What was last written to the fog registers
@@ -102,6 +106,8 @@ static void FreeArena(StageArena *arena);
 static void UpdatePlatforms(BOOL visible);
 static void SyncPalettes(StageArena *arena);
 static void DrawArena(StageArena *arena);
+static const BattleStageFileLighting *CurrentLighting(StageArena *arena);
+static const BattleStageFileLighting *DayLighting(StageArena *arena);
 static void UpdateFog(StageArena *arena);
 static void FogOff(void);
 
@@ -134,10 +140,26 @@ void BattleStage_Init(BattleSystem *battleSys)
     if (BATTLE_STAGE_3D) {
         sBattleStage.arena = LoadArena(battleSys);
     }
+
+    // Resets the sprite fields but debugFlags, and hooks the battle's sprites when there
+    // is an arena
+    if (sBattleStage.arena != NULL) {
+        BattleStageSpriteCamera camera;
+
+        camera.camPos = sBattleStage.arena->camPos;
+        camera.camTarget = sBattleStage.arena->camTarget;
+        camera.fovySin = sBattleStage.arena->fovySin;
+        camera.fovyCos = sBattleStage.arena->fovyCos;
+        BattleStageSprites_Init(battleSys, &sBattleStage.sprites, &camera);
+    } else {
+        BattleStageSprites_Init(battleSys, &sBattleStage.sprites, NULL);
+    }
 }
 
 void BattleStage_Free(void)
 {
+    BattleStageSprites_Free();
+
     if (sBattleStage.arena != NULL) {
         FreeArena(sBattleStage.arena);
         sBattleStage.arena = NULL;
@@ -154,10 +176,12 @@ void BattleStage_Draw(void)
     BOOL visible;
 
     if (sBattleStage.battleSys == NULL || sBattleStage.arena == NULL) {
+        BattleStageSprites_BeginFrame(FALSE, NULL, NULL, NULL);
         return;
     }
 
     visible = BattleStage_IsVisible();
+    BattleStageSprites_BeginFrame(visible, CurrentLighting(sBattleStage.arena), DayLighting(sBattleStage.arena), &sBattleStage.arena->view);
     UpdatePlatforms(visible);
 
     if (visible) {
@@ -532,6 +556,8 @@ static void BuildCamera(StageArena *arena, const BattleStageFileHeader *backdrop
     arena->camTarget.x = backdrop->camTarget[0];
     arena->camTarget.y = backdrop->camTarget[1];
     arena->camTarget.z = backdrop->camTarget[2];
+    arena->fovySin = backdrop->fovySin;
+    arena->fovyCos = backdrop->fovyCos;
 
     BuildProjection(arena, backdrop);
     BuildView(arena, 0);
@@ -863,9 +889,21 @@ static int LightingColumn(void)
     return column;
 }
 
+// Material and light 0 of the LIT meshes (and the stage sprites) for the time of day
+static const BattleStageFileLighting *CurrentLighting(StageArena *arena)
+{
+    return arena->hasAtmosphere ? &arena->atmosphere.lighting[LightingColumn()] : &sDefaultLighting;
+}
+
+// The same at day, whatever the time
+static const BattleStageFileLighting *DayLighting(StageArena *arena)
+{
+    return arena->hasAtmosphere ? &arena->atmosphere.lighting[0] : &sDefaultLighting;
+}
+
 static void SetLight(StageArena *arena)
 {
-    const BattleStageFileLighting *lighting = arena->hasAtmosphere ? &arena->atmosphere.lighting[LightingColumn()] : &sDefaultLighting;
+    const BattleStageFileLighting *lighting = CurrentLighting(arena);
 
     // Transformed by the current vector matrix (the view), so lightDir is in world space
     G3_LightVector(GX_LIGHTID_0, lighting->lightDir[0], lighting->lightDir[1], lighting->lightDir[2]);
@@ -956,6 +994,8 @@ static void DrawArena(StageArena *arena)
         G3_PopMtx(1);
     }
 
+    // With the view still loaded
+    BattleStageSprites_DrawBlobs(&arena->projection);
     G3_PopMtx(1);
 
     if (arena->hasTexMtxMesh) {

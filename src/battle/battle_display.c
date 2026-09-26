@@ -864,6 +864,8 @@ void ov16_0225DA44(BattleSystem *battleSys, BattlerData *param1)
     v0->unk_08 = param1->battler;
     v0->unk_0A = 0;
 
+    // The hit blink: the stage sprite wobbles too
+    BattleStage_NotifyHit(param1->battler);
     SysTask_Start(ov16_0226292C, v0, 0);
 }
 

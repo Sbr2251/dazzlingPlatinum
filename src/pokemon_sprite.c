@@ -421,6 +421,7 @@ void *PokemonSpriteManager_New(enum HeapID heapID)
     NNS_G2dSetupSoftwareSpriteCamera();
 
     monSpriteMan->excludeIdentity = FALSE;
+    monSpriteMan->drawHook = NULL;
 
     NNSG2dCharacterData *charData;
     u8 *rawCharData;
@@ -454,6 +455,8 @@ void PokemonSpriteManager_DrawSprites(PokemonSpriteManager *monSpriteMan)
 {
     int width, height;
     int u0, v0, u1, v1;
+    PokemonSpriteDrawRect rect;
+    u32 hookResult;
 
     BufferPokemonSpriteCharData(monSpriteMan);
     BufferPokemonSpritePlttData(monSpriteMan);
@@ -490,39 +493,34 @@ void PokemonSpriteManager_DrawSprites(PokemonSpriteManager *monSpriteMan)
             G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, monSpriteMan->sprites[i].polygonID, monSpriteMan->sprites[i].transforms.alpha, 0);
 
             if (monSpriteMan->sprites[i].transforms.partialDraw) {
-                u0 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][0] + monSpriteMan->sprites[i].transforms.drawXOffset;
-                u1 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][0] + monSpriteMan->sprites[i].transforms.drawXOffset + monSpriteMan->sprites[i].transforms.drawWidth;
-                v0 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][1] + monSpriteMan->sprites[i].transforms.drawYOffset;
-                v1 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][1] + monSpriteMan->sprites[i].transforms.drawYOffset + monSpriteMan->sprites[i].transforms.drawHeight;
-
-                NNS_G2dDrawSpriteFast(
-                    monSpriteMan->sprites[i].transforms.xCenter - MON_SPRITE_FRAME_WIDTH / 2 + monSpriteMan->sprites[i].transforms.drawXOffset + monSpriteMan->sprites[i].transforms.xOffset,
-                    monSpriteMan->sprites[i].transforms.yCenter - MON_SPRITE_FRAME_HEIGHT / 2 + monSpriteMan->sprites[i].transforms.drawYOffset + monSpriteMan->sprites[i].transforms.yOffset - monSpriteMan->sprites[i].shadow.height,
-                    monSpriteMan->sprites[i].transforms.zCenter + monSpriteMan->sprites[i].transforms.zOffset,
-                    monSpriteMan->sprites[i].transforms.drawWidth,
-                    monSpriteMan->sprites[i].transforms.drawHeight,
-                    u0,
-                    v0,
-                    u1,
-                    v1);
+                rect.u0 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][0] + monSpriteMan->sprites[i].transforms.drawXOffset;
+                rect.u1 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][0] + monSpriteMan->sprites[i].transforms.drawXOffset + monSpriteMan->sprites[i].transforms.drawWidth;
+                rect.v0 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][1] + monSpriteMan->sprites[i].transforms.drawYOffset;
+                rect.v1 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][1] + monSpriteMan->sprites[i].transforms.drawYOffset + monSpriteMan->sprites[i].transforms.drawHeight;
+                rect.x = monSpriteMan->sprites[i].transforms.xCenter - MON_SPRITE_FRAME_WIDTH / 2 + monSpriteMan->sprites[i].transforms.drawXOffset + monSpriteMan->sprites[i].transforms.xOffset;
+                rect.y = monSpriteMan->sprites[i].transforms.yCenter - MON_SPRITE_FRAME_HEIGHT / 2 + monSpriteMan->sprites[i].transforms.drawYOffset + monSpriteMan->sprites[i].transforms.yOffset - monSpriteMan->sprites[i].shadow.height;
+                rect.width = monSpriteMan->sprites[i].transforms.drawWidth;
+                rect.height = monSpriteMan->sprites[i].transforms.drawHeight;
             } else {
-                width = (MON_SPRITE_FRAME_WIDTH * monSpriteMan->sprites[i].transforms.scaleX) >> MON_AFFINE_SHIFT;
-                height = (MON_SPRITE_FRAME_HEIGHT * monSpriteMan->sprites[i].transforms.scaleY) >> MON_AFFINE_SHIFT;
-                u0 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][0];
-                u1 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][2];
-                v0 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][1];
-                v1 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][3];
+                rect.width = (MON_SPRITE_FRAME_WIDTH * monSpriteMan->sprites[i].transforms.scaleX) >> MON_AFFINE_SHIFT;
+                rect.height = (MON_SPRITE_FRAME_HEIGHT * monSpriteMan->sprites[i].transforms.scaleY) >> MON_AFFINE_SHIFT;
+                rect.u0 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][0];
+                rect.u1 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][2];
+                rect.v0 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][1];
+                rect.v1 = sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][3];
+                rect.x = monSpriteMan->sprites[i].transforms.xCenter - rect.width / 2 + monSpriteMan->sprites[i].transforms.xOffset;
+                rect.y = monSpriteMan->sprites[i].transforms.yCenter - rect.height / 2 + monSpriteMan->sprites[i].transforms.yOffset - monSpriteMan->sprites[i].shadow.height;
+            }
 
-                NNS_G2dDrawSpriteFast(
-                    monSpriteMan->sprites[i].transforms.xCenter - width / 2 + monSpriteMan->sprites[i].transforms.xOffset,
-                    monSpriteMan->sprites[i].transforms.yCenter - height / 2 + monSpriteMan->sprites[i].transforms.yOffset - monSpriteMan->sprites[i].shadow.height,
-                    monSpriteMan->sprites[i].transforms.zCenter + monSpriteMan->sprites[i].transforms.zOffset,
-                    width,
-                    height,
-                    u0,
-                    v0,
-                    u1,
-                    v1);
+            rect.z = monSpriteMan->sprites[i].transforms.zCenter + monSpriteMan->sprites[i].transforms.zOffset;
+            hookResult = 0;
+
+            if (monSpriteMan->drawHook != NULL) {
+                hookResult = monSpriteMan->drawHook(monSpriteMan, i, &rect);
+            }
+
+            if ((hookResult & MON_SPRITE_DRAW_HOOK_DREW) == 0) {
+                NNS_G2dDrawSpriteFast(rect.x, rect.y, rect.z, rect.width, rect.height, rect.u0, rect.v0, rect.u1, rect.v1);
             }
 
             if (monSpriteMan->sprites[i].shadow.plttSlot
@@ -557,7 +555,9 @@ void PokemonSpriteManager_DrawSprites(PokemonSpriteManager *monSpriteMan)
                 u1 = sShadowTextureCoords[monSpriteMan->sprites[i].shadow.size][2];
                 v1 = sShadowTextureCoords[monSpriteMan->sprites[i].shadow.size][3];
 
-                NNS_G2dDrawSpriteFast(monSpriteMan->sprites[i].shadow.x - width / 2, monSpriteMan->sprites[i].shadow.y - height / 2, -1000, width, height, u0, v0, u1, v1);
+                if ((hookResult & MON_SPRITE_DRAW_HOOK_NO_SHADOW) == 0) {
+                    NNS_G2dDrawSpriteFast(monSpriteMan->sprites[i].shadow.x - width / 2, monSpriteMan->sprites[i].shadow.y - height / 2, -1000, width, height, u0, v0, u1, v1);
+                }
             }
         }
     }
@@ -1308,6 +1308,11 @@ void PokemonSpriteManager_SetHideShadows(PokemonSpriteManager *monSpriteMan, u32
 void PokemonSpriteManager_ClearHideShadows(PokemonSpriteManager *monSpriteMan, u32 value)
 {
     monSpriteMan->hideShadows &= (value ^ -1);
+}
+
+void PokemonSpriteManager_SetDrawHook(PokemonSpriteManager *monSpriteMan, PokemonSpriteDrawHook *hook)
+{
+    monSpriteMan->drawHook = hook;
 }
 
 static void BufferPokemonSpriteCharData(PokemonSpriteManager *monSpriteMan)

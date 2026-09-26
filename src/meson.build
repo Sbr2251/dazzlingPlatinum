@@ -537,6 +537,7 @@ pokeplatinum_c = files(
     'battle/mega_evolution.c',
     'battle/totem_aura.c',
     'battle/battle_stage.c',
+    'battle/battle_stage_sprites.c',
     'battle/battle_debug.c',
     'battle/battle_io_command.c',
     'battle/battle_display.c',

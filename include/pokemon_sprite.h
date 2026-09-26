@@ -65,6 +65,33 @@ typedef struct PokemonSpriteTransforms PokemonSpriteTransforms;
 
 typedef void(PokemonSpriteCallback)(PokemonSprite *, PokemonSpriteTransforms *);
 
+// The quad PokemonSpriteManager_DrawSprites draws for a sprite, as passed to
+// NNS_G2dDrawSpriteFast: top-left corner, size in pixels (negative flips) and texel UVs
+typedef struct PokemonSpriteDrawRect {
+    int x;
+    int y;
+    int z;
+    int width;
+    int height;
+    int u0;
+    int v0;
+    int u1;
+    int v1;
+} PokemonSpriteDrawRect;
+
+// Returned by a PokemonSpriteDrawHook
+enum PokemonSpriteDrawHookResult {
+    MON_SPRITE_DRAW_HOOK_DREW = 1 << 0, // the hook drew the sprite; the quad is skipped
+    MON_SPRITE_DRAW_HOOK_NO_SHADOW = 1 << 1, // the shadow quad is skipped
+};
+
+struct PokemonSpriteManager;
+
+// Called for each drawn sprite right before its quad, with the matrix, texture, material
+// and polygon attributes of the quad already set. It may draw the sprite itself and must
+// leave that state as it found it. Returns PokemonSpriteDrawHookResult flags.
+typedef u32(PokemonSpriteDrawHook)(struct PokemonSpriteManager *, int index, const PokemonSpriteDrawRect *rect);
+
 typedef struct PokemonSpriteTemplate {
     u16 narcID; //< ID of the sprite archive
     u16 character; //< File index to pull from the archive for the character data (tiles)
@@ -174,6 +201,7 @@ typedef struct PokemonSpriteManager {
     u8 needLoadPltt;
     u8 excludeIdentity;
     u32 hideShadows; // curiously, this field is treated like a bitmask, but it only ever uses a value of 0 or 1
+    PokemonSpriteDrawHook *drawHook; // NULL draws every sprite as one quad
 } PokemonSpriteManager;
 
 // used to run PokemonSprite animations in a task independent
@@ -220,6 +248,7 @@ void PokemonSpriteManager_SetExcludeIdentity(PokemonSpriteManager *monSpriteMan,
 BOOL PokemonSprite_IsActive(PokemonSprite *monSprite);
 void PokemonSpriteManager_SetHideShadows(PokemonSpriteManager *monSpriteMan, u32 value);
 void PokemonSpriteManager_ClearHideShadows(PokemonSpriteManager *monSpriteMan, u32 value);
+void PokemonSpriteManager_SetDrawHook(PokemonSpriteManager *monSpriteMan, PokemonSpriteDrawHook *hook);
 void PokemonSprite_DrawSpindaSpots(u8 *rawCharData, u32 personality, BOOL isAnimated);
 void PokemonSprite_DecryptPt(u8 *rawCharData);
 void PokemonSprite_DecryptDP(u8 *rawCharData);

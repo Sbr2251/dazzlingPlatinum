@@ -711,6 +711,7 @@ Overlay battle
 	Object main.nef.p/src_battle_mega_evolution.c.o
 	Object main.nef.p/src_battle_totem_aura.c.o
 	Object main.nef.p/src_battle_battle_stage.c.o
+	Object main.nef.p/src_battle_battle_stage_sprites.c.o
 	Object main.nef.p/src_battle_battle_debug.c.o
 }
 

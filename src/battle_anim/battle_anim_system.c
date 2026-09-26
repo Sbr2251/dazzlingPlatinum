@@ -470,6 +470,8 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
 
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH, bgSwitch);
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG2_EFFECT, system->moveActive == TRUE && BattleAnimSystem_IsBaseBgUnderStage(system));
+    // The stage sprites pause their idle breathing while a script runs
+    BattleStage_SetMoveAnimActive(system->moveActive == TRUE);
 }
 
 enum HeapID BattleAnimSystem_GetHeapID(BattleAnimSystem *system)
@@ -486,6 +488,7 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
 
     if (BattleAnimSystem_IsContest(system) == FALSE) {
         BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT, FALSE);
+        BattleStage_SetMoveAnimActive(FALSE);
     }
 
     for (int i = 0; i < BATTLE_ANIM_SYSTEM_ARC_COUNT; i++) {
