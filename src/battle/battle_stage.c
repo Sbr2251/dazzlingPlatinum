@@ -9,6 +9,7 @@
 #include "constants/heap.h"
 #include "constants/narc.h"
 
+#include "battle/battle_stage_camera.h"
 #include "battle/battle_stage_format.h"
 #include "battle/battle_stage_sprites.h"
 #include "battle/ov16_0223DF00.h"
@@ -71,10 +72,11 @@ typedef struct StageArena {
     VecFx32 camTarget;
     fx32 fovySin;
     fx32 fovyCos;
+    fx32 nearClip;
+    fx32 farClip;
     VecFx32 platformStep[2];
-    MtxFx44 projection;
-    MtxFx43 view;
-    int viewBuiltFor;
+    MtxFx44 projection; // home
+    MtxFx43 view; // home
     BOOL hasTexMtxMesh; // FOLLOW_BG3_SCROLL or SCROLL
     BOOL hasLitMesh;
     BOOL hasAtmosphere;
@@ -92,6 +94,7 @@ typedef struct BattleStage {
     BOOL platformsHidden;
     int brightness; // BattleStage_SetBrightness; the Mega critic reads it from RAM at +28
     BattleStageSpriteFields sprites; // +32..+48, read and written by the critic (sprites.md)
+    BattleStageCameraFields camera; // +52..+95, read by the critic (camera.md)
 } BattleStage;
 
 // What was last written to the fog registers
@@ -105,7 +108,7 @@ static StageArena *LoadArena(BattleSystem *battleSys);
 static void FreeArena(StageArena *arena);
 static void UpdatePlatforms(BOOL visible);
 static void SyncPalettes(StageArena *arena);
-static void DrawArena(StageArena *arena);
+static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *projection);
 static const BattleStageFileLighting *CurrentLighting(StageArena *arena);
 static const BattleStageFileLighting *DayLighting(StageArena *arena);
 static void UpdateFog(StageArena *arena);
@@ -153,10 +156,28 @@ void BattleStage_Init(BattleSystem *battleSys)
     } else {
         BattleStageSprites_Init(battleSys, &sBattleStage.sprites, NULL);
     }
+
+    // Resets the camera fields and hooks the particles when there is an arena
+    if (sBattleStage.arena != NULL) {
+        BattleStageCameraHome home;
+
+        home.camPos = sBattleStage.arena->camPos;
+        home.camTarget = sBattleStage.arena->camTarget;
+        home.fovySin = sBattleStage.arena->fovySin;
+        home.fovyCos = sBattleStage.arena->fovyCos;
+        home.nearClip = sBattleStage.arena->nearClip;
+        home.farClip = sBattleStage.arena->farClip;
+        home.view = &sBattleStage.arena->view;
+        home.projection = &sBattleStage.arena->projection;
+        BattleStageCamera_Init(battleSys, &sBattleStage.camera, &home, &sBattleStage.sprites.debugFlags);
+    } else {
+        BattleStageCamera_Init(battleSys, &sBattleStage.camera, NULL, &sBattleStage.sprites.debugFlags);
+    }
 }
 
 void BattleStage_Free(void)
 {
+    BattleStageCamera_Free();
     BattleStageSprites_Free();
 
     if (sBattleStage.arena != NULL) {
@@ -173,6 +194,8 @@ void BattleStage_Free(void)
 void BattleStage_Draw(void)
 {
     BOOL visible;
+    const MtxFx43 *view;
+    const MtxFx44 *projection;
 
     if (sBattleStage.battleSys == NULL || sBattleStage.arena == NULL) {
         BattleStageSprites_BeginFrame(FALSE, NULL, NULL, NULL);
@@ -180,12 +203,24 @@ void BattleStage_Draw(void)
     }
 
     visible = BattleStage_IsVisible();
-    BattleStageSprites_BeginFrame(visible, CurrentLighting(sBattleStage.arena), DayLighting(sBattleStage.arena), &sBattleStage.arena->view);
+
+    // Home draws with the arena's own matrices, exactly as before the camera
+    BattleStageCamera_Advance(visible, sBattleStage.debugView);
+
+    if (BattleStageCamera_IsHome()) {
+        view = &sBattleStage.arena->view;
+        projection = &sBattleStage.arena->projection;
+    } else {
+        view = BattleStageCamera_View();
+        projection = BattleStageCamera_Projection();
+    }
+
+    BattleStageSprites_BeginFrame(visible, CurrentLighting(sBattleStage.arena), DayLighting(sBattleStage.arena), view);
     UpdatePlatforms(visible);
 
     if (visible) {
         SyncPalettes(sBattleStage.arena);
-        DrawArena(sBattleStage.arena);
+        DrawArena(sBattleStage.arena, view, projection);
         UpdateFog(sBattleStage.arena);
     } else {
         FogOff();
@@ -479,12 +514,11 @@ static u32 BuildMeshDL(u32 *dest, u32 capacity, const BattleStageFileHeader *pie
     return G3_EndMakeDL(&info);
 }
 
-static void BuildProjection(StageArena *arena, const BattleStageFileHeader *header)
+void BattleStage_BuildProjection(fx32 fovySin, fx32 fovyCos, fx32 nearClip, fx32 farClip, MtxFx44 *m)
 {
-    MtxFx44 *m = &arena->projection;
     fx32 a = (STAGE_DEPTH_FAR - STAGE_DEPTH_NEAR) / 2;
     fx32 b = (STAGE_DEPTH_FAR + STAGE_DEPTH_NEAR) / 2;
-    int farUnits = header->farClip >> FX32_SHIFT;
+    int farUnits = farClip >> FX32_SHIFT;
     int scaleW = farUnits > 0 ? 1024 / farUnits : 16;
 
     // A larger W keeps more bits in the squeezed depth; it doesn't move anything on screen
@@ -494,7 +528,7 @@ static void BuildProjection(StageArena *arena, const BattleStageFileHeader *head
         scaleW = 16;
     }
 
-    MTX_PerspectiveW(header->fovySin, header->fovyCos, FX32_ONE * 4 / 3, header->nearClip, header->farClip, scaleW * FX32_ONE, m);
+    MTX_PerspectiveW(fovySin, fovyCos, FX32_ONE * 4 / 3, nearClip, farClip, scaleW * FX32_ONE, m);
 
     // z' = a * z + b * w, so NDC z lands in [STAGE_DEPTH_NEAR, STAGE_DEPTH_FAR]
     m->_02 = FX_Mul(a, m->_02) + FX_Mul(b, m->_03);
@@ -503,44 +537,12 @@ static void BuildProjection(StageArena *arena, const BattleStageFileHeader *head
     m->_32 = FX_Mul(a, m->_32) + FX_Mul(b, m->_33);
 }
 
-static void BuildView(StageArena *arena, int view)
+// The home view; the debug views are poses of the stage camera
+static void BuildView(StageArena *arena)
 {
     VecFx32 up = { 0, FX32_ONE, 0 };
-    VecFx32 offset, camPos;
-    fx32 sinA, cosA, x;
 
-    VEC_Subtract(&arena->camPos, &arena->camTarget, &offset);
-
-    if (view == 1 || view == 2) {
-        sinA = FX_SinIdx(FX_DEG_TO_IDX(FX32_CONST(20)));
-        cosA = FX_CosIdx(FX_DEG_TO_IDX(FX32_CONST(20)));
-
-        // View 1 moves the camera to the left of the target
-        if (view == 1) {
-            sinA = -sinA;
-        }
-
-        x = offset.x;
-        offset.x = FX_Mul(x, cosA) + FX_Mul(offset.z, sinA);
-        offset.z = FX_Mul(offset.z, cosA) - FX_Mul(x, sinA);
-    } else if (view == 3) {
-        VecFx32 right, lift;
-
-        sinA = FX_SinIdx(FX_DEG_TO_IDX(FX32_CONST(15)));
-        cosA = FX_CosIdx(FX_DEG_TO_IDX(FX32_CONST(15)));
-
-        VEC_CrossProduct(&up, &offset, &right);
-        VEC_Normalize(&right, &right);
-        VEC_CrossProduct(&offset, &right, &lift);
-
-        offset.x = FX_Mul(FX_Mul(offset.x, cosA) + FX_Mul(lift.x, sinA), FX32_CONST(0.8));
-        offset.y = FX_Mul(FX_Mul(offset.y, cosA) + FX_Mul(lift.y, sinA), FX32_CONST(0.8));
-        offset.z = FX_Mul(FX_Mul(offset.z, cosA) + FX_Mul(lift.z, sinA), FX32_CONST(0.8));
-    }
-
-    VEC_Add(&arena->camTarget, &offset, &camPos);
-    MTX_LookAt(&camPos, &up, &arena->camTarget, &arena->view);
-    arena->viewBuiltFor = view;
+    MTX_LookAt(&arena->camPos, &up, &arena->camTarget, &arena->view);
 }
 
 static void BuildCamera(StageArena *arena, const BattleStageFileHeader *backdrop, const BattleStageFileHeader *platforms)
@@ -557,9 +559,11 @@ static void BuildCamera(StageArena *arena, const BattleStageFileHeader *backdrop
     arena->camTarget.z = backdrop->camTarget[2];
     arena->fovySin = backdrop->fovySin;
     arena->fovyCos = backdrop->fovyCos;
+    arena->nearClip = backdrop->nearClip;
+    arena->farClip = backdrop->farClip;
 
-    BuildProjection(arena, backdrop);
-    BuildView(arena, 0);
+    BattleStage_BuildProjection(arena->fovySin, arena->fovyCos, arena->nearClip, arena->farClip, &arena->projection);
+    BuildView(arena);
 
     // Camera-right of the home camera, as in MTX_LookAt
     VEC_Subtract(&arena->camPos, &arena->camTarget, &look);
@@ -935,15 +939,11 @@ static void SetTexMtx(StageArena *arena, const StageMesh *mesh, int bg3X, int bg
     G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
 }
 
-static void DrawArena(StageArena *arena)
+static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *projection)
 {
     int platformOffset[2];
     int bg3X = 0, bg3Y = 0;
     int side, i;
-
-    if (arena->viewBuiltFor != sBattleStage.debugView) {
-        BuildView(arena, sBattleStage.debugView);
-    }
 
     for (side = 0; side < 2; side++) {
         platformOffset[side] = BattlePlatform_GetOffsetX(ov16_0223E020(sBattleStage.battleSys, side));
@@ -953,7 +953,7 @@ static void DrawArena(StageArena *arena)
 
     G3_MtxMode(GX_MTXMODE_PROJECTION);
     G3_PushMtx();
-    G3_LoadMtx44(&arena->projection);
+    G3_LoadMtx44(projection);
 
     if (arena->hasTexMtxMesh) {
         BgConfig *bgConfig = BattleSystem_BGL(sBattleStage.battleSys);
@@ -967,7 +967,7 @@ static void DrawArena(StageArena *arena)
 
     G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
     G3_PushMtx();
-    G3_LoadMtx43(&arena->view);
+    G3_LoadMtx43(view);
 
     if (arena->hasLitMesh) {
         SetLight(arena);
@@ -994,7 +994,7 @@ static void DrawArena(StageArena *arena)
     }
 
     // With the view still loaded
-    BattleStageSprites_DrawBlobs(&arena->projection);
+    BattleStageSprites_DrawBlobs(projection);
     G3_PopMtx(1);
 
     if (arena->hasTexMtxMesh) {
