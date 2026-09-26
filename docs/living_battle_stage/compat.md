@@ -1,146 +1,212 @@
-# 3D battle stage: compatibility hooks
+# 3D battle stage: move compatibility (chunk 5)
 
-The arena is drawn on BG0, the 3D layer, at priority 1. The classic backdrop is BG3
-(256 colours, priority 3). The move animation "base" layer is BG2 (16 colours). At equal
-priority the lower BG number wins, so BG0 covers both BG2 and BG3.
+This is the contract for chunk 5 between the move audit, the engine fixes and the emulator
+critic (`tools/battle_stage/emu/critic.py`). PLAN.md, chunk 5, has the goals.
 
-Anything that replaces or animates the backdrop, or draws on BG2 under BG0, would be hidden
-behind the arena. For those effects the arena is suppressed through
-`BattleStage_Suppress(reason, TRUE/FALSE)` (include/battle/battle_stage.h). While it is
-suppressed, the classic BG3 backdrop and the OBJ platforms show instead. At the home pose the
-arena matches the classic backdrop, so the swap is nearly invisible.
+## Where things stand
 
-`BattleStage_Init` clears every reason at the start of each battle. A reason that is left set
-can therefore only last until the end of the current battle.
+Move animations always run with the stage camera at home (camera.md). When a move does
+something that the 3D arena on BG0 would hide or break, `BattleAnimSystem_UpdateStageSuppress`
+(battle_anim_system.c) hides the arena for as long as it lasts:
 
-## Hooks
+- `BATTLE_STAGE_SUPPRESS_BG_SWITCH`: `SwitchBg`, a bgAnim task, a changed effect BG or a
+  scrolled BG3.
+- `BATTLE_STAGE_SUPPRESS_BG2_EFFECT`: BG2 shows something under the 3D layer.
 
-Line numbers are for commit `compat: suppression hooks` on this branch.
+The classic BG3 backdrop and OBJ platforms then come back, and the stage sprites go
+classic. Nothing breaks this way, but the swap is a hard pop. At day, at home, it is nearly
+invisible. At twilight and night, and on backgrounds with haze, the arena's lighting and
+fog vanish in one frame, and the mons lose their tint.
 
-### BG_SWITCH and BG2_EFFECT: one central evaluator for move animations
+Chunk 5 keeps the arena on screen for the common cases and replaces the remaining pops
+with fades. **Every fix must leave day at home, with no effect running, byte-identical**
+(the `stage_ab` check), and it must never leave the arena or the sprites in a state the
+move didn't intend once the script ends.
 
-All of this is in `src/battle_anim/battle_anim_system.c`.
-`BattleAnimSystem_UpdateStageSuppress` (line 452) recomputes both bits from the current state.
-It never counts calls, so a missed "clear" cannot leak: the next evaluation fixes it.
+## 1. The move audit (no emulator)
 
-In contests it returns early (line 454), because the battle overlay, and with it
-battle_stage.c, is not loaded there. `BattleAnimSystem_Delete` checks for contests in the same
-way.
+`tools/battle_stage/move_audit.py` statically scans every move animation script
+(`res/battle/moves/*/anim.s`), follows its `Call`/`Jump`s and the common subscripts, and
+tags each move with the mechanisms it uses. It writes two files:
 
-**BG_SWITCH** (line 471) is set while any of these is true:
+- `docs/living_battle_stage/move_audit.json`, which the critic and chunk 6 read.
+- `docs/living_battle_stage/move_audit.md`, which is for people: a summary by mechanism,
+  then one row per move.
 
-- `bgSwitchState != NONE`: a SwitchBg, SwitchBgEx or RestoreBg fade task is running. This also
-  covers a restore fade that outlives the script's `End`.
-- While a move is active:
-  - `stageBgDirty` is set, because the script used `SetBg`. No shipped script uses it.
-  - `bgAnim != NULL`, meaning a BG3 scroll or wobble task (Psychic, and others) exists. The
-    pointer stays set until `End`, so this is conservative.
-  - BG3 is not in its normal battle mode: it is hidden, not 256-colour, or its char base has
-    moved away from 0x10000. `BattleAnimSystem_IsEffectBgNormal` (line 383) checks this. It
-    catches the special backgrounds (Night Shade, Dark Pulse, Psychic and others) for as long
-    as they are loaded, including when a script leaves them up until `End`.
-  - BG3 has a non-zero X or Y offset (line 466). Earthquake, Magnitude and the generic shake
-    func (script_funcs_0.c, lines 1949 and 2209; script_funcs_3.c, line 849) move BG3 directly,
-    without a `bgAnim` task. The offset passes through 0 during a shake, so the arena may
-    come back for single frames. At the home pose both looks are the same there.
+The JSON is a list of objects, one per move:
 
-**BG2_EFFECT** (line 472) is set while a move is active and BG2 would be covered by BG0.
-`BattleAnimSystem_IsBaseBgUnderStage` (line 402) checks this. All of these must hold:
+```json
+{"id": 91, "name": "DIG", "dir": "dig",
+ "mechanisms": ["partial_draw", "switch_bg"],
+ "suppress": ["bg_switch"],
+ "fix": ["F6"],
+ "risk": "high",
+ "notes": "short, optional"}
+```
 
-- BG2 is visible.
-- BG2's priority is not above BG0's.
-- If windows are on, BG0 and BG2 are both enabled in at least one window region (outside,
-  W0, W1 or the OBJ window).
-- BG2's tilemap buffer has a non-zero entry.
+`mechanisms` uses these tags:
 
-This covers the effects that copy a battler onto BG2: Acid Armor, the fog of Haze and Mist,
-Minimize, Substitute's swap, and others.
-
-The evaluator is called from these places:
-
-| where | line | why |
-|---|---|---|
-| `BattleAnimSystem_ExecuteScript` | 639 | Every frame of a move, after the script function has run. This catches BG3 mode changes and BG2 tilemap writes. When `End` runs, `moveActive` goes FALSE, so the move-only conditions drop on that same frame. |
-| `BattleAnimSystem_CreateBgSwitch` | 2504 | A SwitchBg, SwitchBgEx or RestoreBg task starts. The arena hides on the same frame the fade begins. |
-| `BattleBgSwitchTask_Start`, completion | 3038 | A switch or restore task finishes, possibly after `End`. The bit clears once the fade is done. |
-| `BattleAnimScriptCmd_SetBg` | 3139 | Sets `stageBgDirty`. |
-
-The flag is reset elsewhere:
-
-- `BattleAnimSystem_StartMove` (line 617) resets `stageBgDirty`.
-- `BattleAnimSystem_Delete` (line 488) clears both bits. This is the release point when the
-  animation system goes away at the end of the battle. It also runs for the short-lived second
-  animation system in `battle_display.c` (line 1918). That system runs alone, and the main
-  system re-evaluates every frame while it is active.
-
-`stageBgDirty` is the old unused `u8 unk_17B` in `BattleAnimSystem`
-(include/battle_anim/battle_anim_system.h, line 218). The struct layout is unchanged.
-
-### BRIGHTNESS: the Mega Evolution affine pulse
-
-This is in `src/battle/battle_display.c`.
-
-- **Set**: `AffinePulse_Charge`, first frame (line 5488). The pulse darkens BG2, BG3, OBJ and
-  the backdrop with the 2D brightness blend. BG0 is left out, so the orb particles stay bright.
-  Without suppression, the arena on BG0 would stay fully lit over the darkened scene.
-- **Clear**: `AffinePulseTask`, `if (done)` block (line 5606), where the task deletes itself.
-  The task always reaches this block. It has no early exit.
-
-### MENU: after a capture
-
-This is in `src/battle/ov16_0223B140.c`.
-
-- **Set**: at the start of `ov16_0223B53C` (line 365). This function is called only from the
-  capture sequence (`battle_script.c`, lines 10865 and 10921). The Pokedex entry screen takes
-  over BG0 and VRAM, and then the classic platforms stay hidden (`ov16_022686BC(..., 0)`).
-- **Clear**: deliberately not cleared in `ov16_0223B578`. After a capture the battle only shows
-  its end messages, and the classic look has no platforms from then on either.
-  `BattleStage_Init` clears it at the next battle.
-
-## Cases that need no hook
-
-| case | why it is fine |
+| tag | what the script does |
 |---|---|
-| Palette fades (`PaletteData_StartFade`, BlendPalette, the move palette tints) | The arena takes its colours from the same palette or fades with the screen. The brief exempts palette effects. |
-| Master brightness (screen fades in and out, battle end, the flash on a KO) | Master brightness covers the whole screen, BG0 included. |
-| The anim `BrightnessController` (script brightness commands) | Its plane mask includes BG0, so the arena darkens with everything else. |
-| Alpha blends on sprites (`G2_SetBlendAlpha` with BG0 as a second-target plane) | The arena is a valid blend target like the old BG3. |
-| Window effects on W0 (spotlights, wipes) | The window masks BG0 like the other planes. `IsBaseBgUnderStage` looks at the window masks, so a window that hides BG2 does not trigger a suppression. |
-| Bag, party and move-info screens | They use the bottom screen (sub engine, VRAM bank C/D) and leave the main BG0/BG3 and the 3D engine alone. The `bag_party` scenario checks that the top screen is the same before and after. |
-| Sub-screen BG loads during a battle (touch panel pages) | Bottom screen only. |
-| The level-up stat box | Drawn on BG2 at priority 0, which is above BG0, so it is not covered. The evaluator also skips it for this reason, and only checks while a move is active. |
-| The nickname / naming screen after a capture | It runs as its own application after the battle overlay has stopped drawing. `BattleStage_Draw` does not run. |
-| Evolution | Happens after the battle has ended. |
-| The ball throw, catch shakes and sparkles | These are OBJ and particles above BG0. |
-| The Totem aura | Particles and a palette pulse on the sprite. No BG change. |
-| The move tester (battle_debug.c) | It plays moves through the normal `BattleAnimSystem`, so the central hooks cover it. |
-| Contests | Suppress is never called. The battle overlay is not loaded there. |
+| `sprite_xy` | writes a mon's x/y/offset directly (script funcs, `MON_SPRITE_*`) |
+| `sprite_scale_rot` | writes scale or rotation |
+| `partial_draw` | clips the sprite (drawX/Y/Width/Height) |
+| `bg2_copy` | `LoadPokemonSpriteIntoBg`: the mon copied onto BG2 |
+| `oam_copy` | `AddPokemonSprite`: the mon copied into OAM (Double Team, Agility, ...) |
+| `hblank_wave` | per-line scroll (HBlank/buffer manager) of any layer |
+| `window` | window masks (WIN0/WIN1/OBJ window) |
+| `sprite_bg_blend` | `SetSpriteBgBlending` or other alpha blends between layers |
+| `brightness` | 2D brightness blends |
+| `switch_bg` | `SwitchBg`/`RestoreBg`, bgAnim tasks, BG3 palette or scroll changes |
+| `bg2_effect` | draws a picture or tiles on BG2 other than a mon copy |
+| `particles` | emitters (all of them follow the camera, so this is low risk) |
+| `sprite_fade_tint` | palette fades or tints of a mon |
 
-## Scenarios
+`suppress` predicts which of today's suppression reasons fire (`bg_switch`, `bg2_effect`).
+`fix` lists which generic fix below should cover the move. `risk` is:
 
-The emulator critic (tools/battle_stage/emu/README.md) has one scenario for each part:
+- `high`: a pop today, or something visibly wrong with the arena visible.
+- `medium`: probably fine, but unverified.
+- `low`: particles and sprite moves only.
 
-- `stage_ab`: toggles the stage OFF and ON and diffs the home pose.
-- `switchbg_moves`: plays Night Shade, Psychic, Dark Pulse and Acid Armor with the stage on.
-- `bag_party`: opens the bag and the party screen, returns, and compares the top screen.
-- `debug_views`: checks the L+R+B camera views.
+The audit also keeps a short list of the moves chunk 6 should redo by hand.
 
-## Risks and follow-ups
+The scanner does the tagging. Judgement (risk, fix, notes) goes in a small overrides table
+inside the script, so a rerun gives the same files.
 
-- **Mega pulse.** The renderer could apply the BLDCNT brightness to the arena itself and
-  drop the BRIGHTNESS suppression.
-- **BG2 effects.** A renderer path that composites BG2 over the arena would let
-  fog and Acid Armor play without falling back to the classic look.
-- **`bgAnim` is only checked as a pointer.** A cancelled scroll task leaves the pointer set
-  until `End`. This can only suppress longer than needed, never shorter.
-- **A script that ends without restoring BG3.** BG_SWITCH clears at `End`, even if BG3 still
-  holds a special background, and the arena then covers it. No shipped script ends that way.
-- **Order at battle end.** `BattleStage_Free` runs before `BattleAnimSystem_Delete`
-  (ov16_0223B140.c, lines 767 and 773), so the Delete hook calls `BattleStage_Suppress` after
-  `BattleStage_Free`. This is harmless while the stage state is a static struct. The
-  renderer must keep `BattleStage_Suppress` safe to call after `BattleStage_Free`.
-- **BG3 offsets.** The offset check assumes BG3 sits at (0, 0) whenever no move is shaking it,
-  as it does after `Bg_InitFromTemplate` (ov16_0223B140.c, line 431). A renderer that follows
-  the BG3 offset could drop this condition.
-- **Camera off the home pose.** In the debug views, and in later chunks, the swap to the
-  classic look during a suppression will show as a jump.
+## 2. Generic fixes
+
+### F1: BG2 mon copies over the arena
+
+`LoadPokemonSpriteIntoBg` copies a mon onto BG2 and hides the sprite (Acid Armor,
+Extrasensory, Spite, Camouflage and others). BG2 sits under the 3D layer, so the arena
+covers the copy and today the stage is suppressed.
+
+While the arena shows and BG2 holds only the mon copy, lift BG2's priority above BG0 for
+as long as the copy lives. Restore the old priority afterwards, and at the latest when the
+script ends. Tint the copy's palette with the arena's sprite tint (F2), so it looks like
+the lit mesh it replaces.
+
+`BattleAnimSystem_IsBaseBgUnderStage` then no longer reports it, because BG2 is above BG0,
+and the arena stays up. If BG2 also carries an effect picture, keep today's suppression.
+
+Count lifted frames in `liftedBg2Frames` and tinted copies in `tintedCopies`.
+
+### F2: the arena's sprite tint for 2D copies
+
+Add `BOOL BattleStage_GetSpriteTint(u16 *tintR, u16 *tintG, u16 *tintB)` to battle_stage.h,
+implemented in battle_stage_sprites.c. It returns the per-channel factor, in 1/256, that
+the lit mesh applies to a camera-facing texel at the current time of day:
+
+- the diffuse + ambient + emission of `SetLight` and the material in sprites.md, clamped to 31, over 31.
+- 256 in every channel at day, where the mesh saturates.
+
+It returns FALSE, meaning leave the colors alone, when the stage isn't visible, the
+sprites are classic (`CLASSIC_SPRITES`) or every channel is 256.
+
+Then:
+
+- BG2 copies (F1) and OAM copies (`AddPokemonSprite`) get their palette multiplied by the
+  tint when they are made. Anything that later fades or tints the copy starts from the
+  tinted palette.
+- At day nothing changes, byte for byte.
+
+### F3: window masks
+
+A window that hides BG0 somewhere to cut the mons also cuts the arena, which shows BG3
+through the hole. A window that shows BG2 under 3D is already caught by
+`BattleAnimSystem_IsBaseBgUnderStage`.
+
+Find the window users (the audit lists them) and handle them so the arena is not cut:
+
+- **Option a:** include BG0 in the window regions while the arena shows, when the mask
+  only exists to confine a BG2/OBJ effect.
+- **Option b:** keep suppressing, with the F6 fade instead of a pop.
+
+Pick per case and document it in move_audit.md.
+
+### F4: `SetSpriteBgBlending` and alpha targets
+
+`BattleAnimUtil_SetSpriteBgBlending` and similar calls make BG0 a blend target. Opaque 3D
+pixels then blend with EVA/EVB, so the arena turns see-through over BG3.
+
+Where the blend is meant for the mon only, leave the arena opaque and give the effect to
+the mon instead. With the arena at alpha 31 and the stage sprite drawn with the sprite
+alpha the move asked for, BG0 must not be the 1st target with plain EVA/EVB.
+
+Where you can't separate the two, keep today's look; at home it matches BG3 anyway.
+
+### F5: HBlank waves
+
+Per-line scroll of BG3 is invisible under the arena, and per-line scroll of BG0 waves the
+arena and the mons together.
+
+Detect a per-line BG3 effect: the HBlank/buffer manager in battle_anim_helpers.c or its
+callers targets BG3. Treat it as `BG_SWITCH`, so the arena fades out (F6) and the wave
+shows.
+
+Leave BG0 waves as they are, and note which moves use them in the audit; they are chunk 6
+material.
+
+### F6: fades instead of pops
+
+When a suppression reason starts during a move animation, fade the arena out instead of
+hiding it at once:
+
+- Drop the arena polygons' alpha from 31 to 0 over `SCREEN_FRAMES(8)` drawn frames.
+  Use `SCREEN_FRAMES` from battle_stage_camera.c; the timings count 60 Hz frames and the
+  logic steps at 30 Hz.
+- Keep BG3, now showing the move background, visible under it.
+- When the reason ends, fade back in over the same time.
+
+While fading:
+
+- The sprites stay on the stage path, so there is no tint pop.
+- The arena uses translucent polygons. Keep the polygon IDs and sort order such that the
+  blobs, the particles and the sprites still draw correctly over it.
+- Fog, lighting and the depth remap are unchanged.
+
+`BattleStage_IsVisible()` stays TRUE until the fade reaches 0. The classic OBJ platforms
+fade in with BG3 via their OBJ alpha, or appear at alpha 0 of the arena if they can't.
+
+A reason that starts and ends within the fade time reverses the fade from where it is.
+
+**Suppressions that must still be instant:**
+
+- `BATTLE_STAGE_SUPPRESS_MENU`: the bag and party screens own VRAM.
+- The debug A/B toggle.
+- Anything outside a move animation.
+
+These count as `hardPops` only when they happen during a move animation. The script end
+must leave the arena at alpha 31, or hidden with a reason still active.
+
+Keep `arenaAlpha` current, increment `fades` on each fade-out, and increment `hardPops`
+on each visible-to-hidden transition that skipped the fade. Count `hiddenFrames` on every
+drawn frame in which the arena is loaded and enabled but hidden.
+
+### Out of scope
+
+Per-move rewrites and stage upgrades (Earthquake shaking the camera, Dig opening the
+ground, and so on) are chunk 6. Contests never touch the stage: keep the
+`BattleAnimSystem_IsContest` guards.
+
+## Critic checks (new scenario `move_audit`, plus changes to others)
+
+- The critic reads the compat fields when the xMAP says sBattleStage is at least 120 bytes.
+- `move_audit` plays the audit's `risk: high` moves from the move tester on a Plain battle.
+  - At day, and again at night, for a capped list of about 25 moves. The cap takes the
+    first moves of each mechanism so every mechanism is covered; `--moves` overrides it.
+  - Per move:
+    - The animation finishes, and the normal look is restored 90 frames later, as in
+      move_tester.
+    - `hardPops` does not rise during the move.
+    - `arenaAlpha` is 31 after the move.
+    - No CPU exceptions.
+  - For moves the audit tags `bg2_copy`: `liftedBg2Frames` rises, the arena stays visible
+    (`hiddenFrames` does not rise), and at night the copy is tinted: the copy's pixels
+    differ from the day copy in the same way the mesh does.
+  - For moves the audit tags `switch_bg`: `fades` rises, and the frames in the middle of
+    the fade show both the arena and the move background (a mixed frame, not a pop). A
+    contact sheet `sheet_fade` shows a few of them frame by frame.
+- `stage_ab`, `move_tester`, `switchbg_moves`, `sprite_life`, `camera`, `mega` and
+  `totem_battle` still pass. `switchbg_moves` expects fades instead of instant hides.

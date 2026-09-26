@@ -95,6 +95,7 @@ typedef struct BattleStage {
     int brightness; // BattleStage_SetBrightness; the Mega critic reads it from RAM at +28
     BattleStageSpriteFields sprites; // +32..+48, read and written by the critic (sprites.md)
     BattleStageCameraFields camera; // +52..+95, read by the critic (camera.md)
+    BattleStageCompatFields compat; // +96..+119, read by the critic (compat.md)
 } BattleStage;
 
 // What was last written to the fog registers
@@ -262,6 +263,11 @@ BOOL BattleStage_HasArena(void)
 BOOL BattleStage_IsVisible(void)
 {
     return sBattleStage.battleSys != NULL && sBattleStage.arena != NULL && sBattleStage.enabled && sBattleStage.suppressed == 0;
+}
+
+BattleStageCompatFields *BattleStage_CompatFields(void)
+{
+    return &sBattleStage.compat;
 }
 
 void BattleStage_SetDebugView(int view)

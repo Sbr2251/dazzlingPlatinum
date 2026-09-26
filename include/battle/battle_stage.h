@@ -89,4 +89,18 @@ void BattleStage_CritKick(int battler, BOOL critical);
 // The fainting sequence of a battler started
 void BattleStage_FaintKick(int battler);
 
+// Move compatibility (chunk 5; docs/living_battle_stage/compat.md). The critic reads these
+// from RAM at sBattleStage+96; they are zeroed per battle with the rest of sBattleStage.
+typedef struct BattleStageCompatFields {
+    u32 hardPops; // +96: the arena went from visible to hidden in one frame, with no fade
+    u32 hiddenFrames; // +100: drawn frames the arena was loaded and enabled but hidden
+    u32 fades; // +104: the arena faded out through its alpha instead of popping
+    u32 arenaAlpha; // +108: the arena's current polygon alpha, 0..31 (31 = opaque)
+    u32 liftedBg2Frames; // +112: drawn frames with BG2 lifted above the 3D layer for a mon copy
+    u32 tintedCopies; // +116: mon copies (BG2 or OAM) given the arena's sprite tint this battle
+} BattleStageCompatFields;
+
+// The compat fields of this battle; never NULL
+BattleStageCompatFields *BattleStage_CompatFields(void);
+
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_H
