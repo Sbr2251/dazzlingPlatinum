@@ -7,7 +7,7 @@ L_0:
     SetVar BATTLE_ANIM_VAR_BG_MOVE_STEP_Y, 1
     SwitchBg 42, BATTLE_BG_SWITCH_MODE_FADE | BATTLE_BG_SWITCH_FLAG_MOVE
     WaitForBgSwitch
-    // Blender-rendered moon (tools/moonblast_sprite) rises above the user:
+    // Moon sprite rises above the user:
     // grows in, pulses for ~36 frames, flares, then collapses as it fires.
     // The sprite animation is 60 frames long.
     InitSpriteManager 0, 1, 1, 1, 1, 1, 0, 0
