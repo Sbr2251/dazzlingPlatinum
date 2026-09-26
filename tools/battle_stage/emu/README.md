@@ -47,7 +47,9 @@ Options:
 |---|---|---|
 | `--scenario A B ...` | boot wild_battle quick_battle move_tester stage_toggle | scenarios to run |
 | `--sav` | `saves/eterna_forest_grass.sav` | save to boot |
-| `--moves` | 1,52,53,57,85,89,94,104,144,164,326,332,399,63 | move_tester move IDs (the line in `generated/moves.txt`, minus 1) |
+| `--moves` | 1,52,53,57,85,89,94,104,144,164,326,332,399,63 | move_tester move IDs (the line in `generated/moves.txt`, minus 1). move_audit: given explicitly, these replace the audit's list |
+| `--audit` | `docs/living_battle_stage/move_audit.json` | move_audit: the move audit to read. When it is missing or unreadable, a WARN and a built-in list of 8 risk: high moves |
+| `--audit-cap` | 25 | move_audit: most risk: high moves to play (see "Move compatibility") |
 | `--sprite-moves` | 107,91,19,164,144 | Minimize, Dig, Fly, Substitute, Transform: move_tester plays them after `--moves` (those not already there) and sprite_life plays them on the arena; each also gets a "normal look restored" check (see sprite_life). Empty (`--sprite-moves ""`) skips them |
 | `--reverse` | off | move_tester also plays each move enemy->player (Y) |
 | `--anim-frames` | 1200 | move_tester / stage_toggle / switchbg_moves: longest wait for one animation to end |
@@ -59,7 +61,7 @@ Options:
 | `--map` | the xMAP next to the ROM, or `<rom dir>/../build/main.nef.xMAP` | the build's `.xMAP`, for the RAM checks of all_backgrounds, mega, sprite_life and the chunk 4 camera checks, and for writing `debugFlags` (see "Lit, deformable sprites"); `none` = pixels only. A map from a different build is detected and ignored |
 | `--stage-terrain` | plain | platforms of the Plain background battle the 3D stage scenarios use: `plain` (quick-battle entry 01) or `grass` (entry 30) |
 | `--species-steps` | 0 | quick_battle: RIGHT presses (species) before the first battle |
-| `--timeout` | 900 | seconds before a scenario's process is killed (all_backgrounds gets at least 120 + 15 per battle) |
+| `--timeout` | 900 | seconds before a scenario's process is killed (all_backgrounds gets at least 120 + 15 per battle, move_audit 120 + 24 per move) |
 | `--verbose` | off | show DeSmuME's own stdout |
 
 ### Runtimes
@@ -115,7 +117,8 @@ Every scenario boots from the save and adds two checks at the end:
 | `move_tester` | wild battle, then at the command menu: hold L+R (overlay "Move NNN: name"), step to each move (UP/DOWN +-10, RIGHT/LEFT +-1), A (Y with `--reverse`), release L+R, record every 3 frames until the overlay hides (that is when the animation ends) | overlay shown; **animation drew something**: the scene, with the healthbar boxes masked, differs by more than 0.3% from idle; the animation finished (overlay hidden) within `--anim-frames`; the battle text is restored 90 frames later; if not, the command menu still responds (touching FIGHT opens the move list). For the `--sprite-moves` also **normal look restored**: 90 frames after the move the scene (HUD masked) is compared with the idle frames from before the tester (PASS at 2% or less, WARN up to 8%, FAIL above). Substitute and Transform leave their look behind as in a real battle, so for them that comparison is at most a WARN and instead **scene settled** (+90 vs +150 frames, same limits) is graded. Substitute and Transform are played after every other move, because their look lasts for the rest of the battle. The idle frames are taken with `FREEZE_IDLE` where the ROM has `debugFlags`. Then a real turn: FIGHT -> False Swipe plays and the menu comes back; the tester again on turn 2 (Pound: drew, finished, text restored), when the AI picks its move while the menu is already up; a second real turn; run away. Chunk 4 (only where the battle has an arena; the save's Eterna Forest battle has none, so there it is a note): `NO_CINEMATICS` is set with `FREEZE_IDLE`, the camera is read 90 frames after every tester move, and two aggregate checks follow: **offHomeMoveFrames == 0 after every move** and **camera home at the menu after every move** |
 | `stage_toggle` | Plain quick battle (the save's Eterna Forest battle has no arena to toggle); L+R overlay; SELECT twice (3D stage ON <-> OFF). After each SELECT: release, snapshot the scene, then play Pound | SELECT changed the overlay text; screens sane after each toggle; battle text restored; Pound finished; battle text restored 90 frames after Pound, or the menu still responds; two SELECTs restore the original ON/OFF text (WARN); command menu responds; run away |
 | `stage_ab` | not in the default set. Quick battle entry 01 (Plain background and terrain) at `--stage-tod` (day). `debugFlags = FREEZE_IDLE \| NO_BLOB_SHADOWS` where the ROM has it (sprites at rest, classic shadow). 24 idle frames with the stage in its initial state (ON), L+R+SELECT, 24 idle frames in the toggled state (OFF), L+R+SELECT back | SELECT changed the overlay text (both times); **stage ON matches the classic look**, graded with a tolerance on the best-aligned ON/OFF pair of the scene (healthbar boxes masked, text box cut): see "Home pose tolerance" below. The detail always has the exact numbers too (mean, max, share off by more than 48 and 24, share identical). The whole-screen numbers are a note. `stage_ab_heatmap.png` is ON / OFF / heat, and `sheet_ab_pair` shows the pair; chunk 4: camera home (`AT_HOME`) for the ON samples (the grade itself is unchanged: the home pose must still match); command menu responds; run away |
-| `switchbg_moves` | not in the default set. Quick battle entry 01, stage in its default (ON) state. In the move tester: Night Shade (101), Psychic (94), Dark Pulse (399) and Acid Armor (151), each recorded every 3 frames | per move: **special background shown mid-animation**: the peak share of the scene (HUD masked) that differs from the frame just before the move is at least 25% (1% for Acid Armor, which moves the battler onto BG2); the animation finished; **normal look restored** 90 frames later, against the idle frames from before the tester (PASS at 2% or less, WARN up to 8%); battle text restored; chunk 4 (`NO_CINEMATICS` on): offHomeMoveFrames == 0 and camera home after every move; then the command menu responds and the battle is fled |
+| `switchbg_moves` | not in the default set. Quick battle entry 01, stage in its default (ON) state. In the move tester: Night Shade (101), Psychic (94), Dark Pulse (399) and Acid Armor (151), each recorded every 3 frames | per move: **special background shown mid-animation**: the peak share of the scene (HUD masked) that differs from the frame just before the move is at least 25% (1% for Acid Armor, which moves the battler onto BG2); the animation finished; **normal look restored** 90 frames later, against the idle frames from before the tester (PASS at 2% or less, WARN up to 8%); battle text restored; chunk 4 (`NO_CINEMATICS` on): offHomeMoveFrames == 0 and camera home after every move; then the command menu responds and the battle is fled. Chunk 5 (a ROM with the compat fields): the moves fade the arena instead of hiding it: **no hard pop** (`hardPops` unchanged, FAIL), **arenaAlpha 31 after the move** (FAIL), **arena faded out** (`fades` rose; for Acid Armor a fade or a lifted BG2 copy, WARN) and **mid-fade frame mixes arena and move background** (WARN); `sheet_fade`. Older ROMs keep the checks above only, with a note |
+| `move_audit` | not in the default set. Chunk 5 (`docs/living_battle_stage/compat.md`). The move audit's risk: high moves (capped, or `--moves`) in the move tester on a Plain quick battle at day, then again at night | see "Move compatibility (chunk 5)". Sheets: `sheet_<tod>_<move>` per move, `sheet_<tod>_after`, `sheet_fade` |
 | `bag_party` | not in the default set. Quick battle entry 01. Bag (opens the HP/PP pocket) and back with B, then POKEMON (the party screen) and back with B | bag / party opened (the bottom screen settled on a new, lit screen); screens sane inside each; closed back to the menu; **top screen unchanged after the bag / party** against 12 idle frames from before (PASS at 2% or less, WARN up to 8%, with a heatmap above 2%; `FREEZE_IDLE \| NO_CINEMATICS`); command menu responds; run away |
 | `all_backgrounds` | not in the default set. One boot, then for each time of day in `--tods` and each entry in `--bgs`: the launcher's L+R panel, SELECT to the time of day, the d-pad to the entry, A. At the command menu: the home pose (10 idle frames and a BG0 render), then L+R+B to views 1, 2 and 3 (each a snapshot and a BG0 render), then L+R+SELECT (stage off) and 10 idle frames of the classic look plus a BG0 render; run away. See "Measuring the 3D stage" below | one check per kind and time of day, naming every battle that is not PASS: **arena drawn at the home pose**; **no holes in debug views 1-3**; debug views move the camera; **no garbage or blank frames**; **home pose matches classic within tolerance**; L+R+SELECT switches the stage off; the magenta marker works. Per battle: `all_backgrounds.md` (a table of every number) and `.json`; `sheet_<tod>_N.png` (5 cells per battle: home, v1-v3 labelled with the hole share, OFF labelled with the mean diff and the share off by more than 48; 10 battles a sheet); `holes/<tod>_<entry>_v<view>.png` (the BG0 render, 2x, magenta = hole) and `diff/<tod>_<entry>.png` (heatmap) for every battle that is not PASS; the launcher selection is checked in RAM |
 | `mega` | not in the default set. L+R+START in the field (Garchomp with Garchompite, Lv50, and a Key Stone), Garchomp swapped to the lead in RAM, then a Plain quick battle at day. FIGHT, MEGA, Swords Dance, and the next 900 frames recorded until 30 frames after the 2D brightness ends; each frame is in turn a full frame, a BG0 render (magenta backdrop) and a 2D render (every layer but BG0) | L+R+START gave the Mega Pokemon, it leads; arena drawn before; MEGA button toggled (WARN); Affine Pulse seen; **stage stays visible through the pulse**; **arena dims during the charge**; **arena flashes white on the reveal**; **arena brightness in step with the 2D planes**; RAM brightness follows the 2D blend (format v2 builds only, WARN). `mega_curve.png` plots the 2D register level, the 2D pixel level, the arena pixel level and the RAM brightness per frame; `sheet_pulse` (full frames) and `sheet_pulse_bg0` (BG0 only) are labelled with the levels. Chunk 4 (the recording also runs while the camera is off home, then the turn is followed to the next menu): see "Camera system and cinematics"; `sheet_camera` (full frames off home) and `sheet_orbit_diff` (home / home with the frame's blend / the most different mid-orbit frame) |
@@ -244,6 +247,54 @@ The other scenarios:
 | totem_battle | bit 2 set, bit 0 clear, `AT_HOME` at the first menu, `offHomeMoveFrames` 0 |
 
 **Older ROMs.** With `sBattleStage` under 96 bytes in the xMAP (the main ROM's is 52), or without an xMAP, the camera checks are skipped with a note (camera: one WARN) and no camera wait happens. `NO_CINEMATICS` and `CRIT_KICK_ON_HIT` are still written where `debugFlags` exists; a pre-chunk-4 renderer ignores those bits.
+
+## Move compatibility (chunk 5)
+
+The contract is `docs/living_battle_stage/compat.md` ("Critic checks"). The RAM side reads the compat
+fields, u32 at `sBattleStage+96..+119`, only when the xMAP gives `sBattleStage` at least 120 bytes:
+
+| offset | field | meaning |
+|---|---|---|
+| +96 | `hardPops` | visible -> hidden without a fade during a move animation |
+| +100 | `hiddenFrames` | drawn frames with the arena loaded and enabled but hidden |
+| +104 | `fades` | fade-outs started |
+| +108 | `arenaAlpha` | the arena's polygon alpha now, 31 = opaque |
+| +112 | `liftedBg2Frames` | drawn frames with BG2 lifted over BG0 for a mon copy (F1) |
+| +116 | `tintedCopies` | 2D mon copies tinted like the lit mesh (F2) |
+
+The fields are zeroed per battle, so every check uses the difference from just before the move to 90 frames after it.
+
+`move_audit` reads `move_audit.json`, keeps the `risk: high` moves and caps them at `--audit-cap` (25):
+round robin over the mechanism tags, in the order of compat.md's table, it takes the first move of each tag
+not taken yet, so every tag is covered before a second move of any tag. `--moves` replaces the list (the
+tags then come from the audit, or from the built-in list, or none). Without the file there is a WARN and the
+built-in list: Night Shade, Acid Armor, Psychic, Extrasensory, Dark Pulse, Spite, Agility, Dig.
+
+It plays the list at day, runs, and plays it again in a night Plain battle (`FREEZE_IDLE | NO_CINEMATICS`
+in both). Each move is recorded every 3 frames with the compat fields polled every frame; from the first
+frame with `0 < arenaAlpha < 31` until 6 frames after the last one (the picture trails the RAM by about 5
+frames) every frame is kept for the fade checks. Before each move the child prints `  [move] <tod> <id>
+<name>`, so the CPU exception check names the moves during which exceptions were logged (approximately:
+DeSmuME's own output can lag).
+
+| check | grade | when |
+|---|---|---|
+| animation finished | FAIL | every move |
+| normal look restored (90 frames after, as move_tester; Substitute and Transform WARN at most) | PASS / WARN / FAIL | every move |
+| battle text restored | FAIL | every move |
+| no CPU exceptions (scenario-level, naming the moves) | FAIL | every move |
+| no hard pop: `hardPops` unchanged | FAIL | compat fields |
+| `arenaAlpha` 31, 90 frames after the move | FAIL | compat fields |
+| BG2 copy lifted: `liftedBg2Frames` rose | WARN | `bg2_copy` |
+| arena stayed visible: `hiddenFrames` unchanged | WARN | `bg2_copy` without `switch_bg`, `bg2_effect`, `window` or `hblank_wave` |
+| copy tinted at night: `tintedCopies` rose | WARN | `bg2_copy`, night |
+| night copy tinted like the mesh | WARN | `bg2_copy`, night: for each mon box, the per-channel mean ratio night / day of the move frame in the middle of the day's lifted frames is within 50% (of the mesh's own tint) of the same ratio for the idle frames; skipped where night changes the mesh by under 3% |
+| arena faded out: `fades` rose | WARN | `switch_bg` |
+| mid-fade frame mixes arena and move background | WARN | `switch_bg` with a fade: of the scene pixels where the pre-move frame and the frame 6 after `arenaAlpha` reached 0 differ by more than 48, at least 20% of some frame in between are more than 16 away from both (a blend; a pop scores about 0) |
+
+`sheet_fade` shows the fades of the first 4 such moves frame by frame, labelled `a<arenaAlpha>` (the RAM
+value; the picture shows it about 5 frames later). On a ROM without the compat fields only the first
+four checks run, with a note per battle.
 
 ## How a critic agent should use this
 
