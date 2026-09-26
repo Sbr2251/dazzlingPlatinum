@@ -40,7 +40,7 @@ from emu import (  # noqa: E402
     contact_sheet, dedupe, diff_fraction, looks_broken, marker_fraction, mean_brightness, read_xmap, screen_health,
     top,
 )
-from PIL import Image, ImageChops, ImageDraw  # noqa: E402
+from PIL import Image, ImageChops, ImageDraw, ImageStat  # noqa: E402
 
 DEFAULT_SAV = HERE / "saves" / "eterna_forest_grass.sav"
 MOVE_ID_POUND = 1
@@ -913,6 +913,8 @@ SWITCHBG_MOVES = [
     (399, "Dark Pulse", 0.25),
     (151, "Acid Armor", 0.01),
 ]
+# Chunk 5 (compat fields): Acid Armor's BG2 mon copy may keep the arena up and lift BG2 (F1) instead of fading
+SWITCHBG_COPY_MOVES = {151}
 RESTORE_PASS, RESTORE_WARN = 0.02, 0.08
 DEBUG_VIEWS = 4
 
@@ -1089,6 +1091,13 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
         run_away(sc, e)
         return
     after: List[Frame] = []
+    fades: List[Frame] = []
+    compat = ram.has_compat and ram.validate(ram.read())
+    audit = audit_index(args) if compat else {}
+    if compat:
+        sc.note(f"compat fields (sBattleStage+{COMPAT_OFFSET}): expecting fades, not hard pops: {ram.compat()}")
+    else:
+        sc.note(f"compat checks skipped: {ram.compat_why or ram.why}; the old expectations only")
     cur = MOVE_ID_POUND
     for mid, name, need in SWITCHBG_MOVES:
         tag = f"{mid:03d} {name}"
@@ -1097,8 +1106,13 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
             return
         _nav_move(e, cur, mid)
         cur = mid
-        pre = scene(e.snap(f"{tag} pre", after).img)
-        anim, done = ov.play("A", args.anim_frames, f"{mid:03d}")
+        pre_frame = e.snap(f"{tag} pre", after)
+        pre = scene(pre_frame.img)
+        if compat:
+            before = ram.compat()
+            anim, done, polls, fade, _ = _play_compat(e, ov, ram, "A", args.anim_frames, f"{mid:03d}")
+        else:
+            anim, done = ov.play("A", args.anim_frames, f"{mid:03d}")
         if froze(sc, e, anim, f"playing {name}"):
             return
         changes = [diff_fraction(pre, scene(f.img)) for f in anim]
@@ -1123,9 +1137,43 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
                  warn_only=d <= RESTORE_WARN, why="the backdrop did not come back (see sheet_after)")
         t = min_diff(boxes, text_box(post.img))
         sc.check(f"{tag}: battle text restored", t < 0.02, f"{t:.1%} of the text box differs")
+        if compat:
+            _switchbg_compat(sc, tag, mid, ram, before, pre_frame.img, polls, fade, fades, audit.get(mid))
     camera_log_checks(sc, ram, cam_log[1], "switchbg moves")
     sc.sheet(after, "after", "pre-move frame and 90 frames after each move", screen="top", cols=4, scale=1.0)
+    if fades:
+        sc.sheet(fades, "fade", "arena fades, every frame (a = arenaAlpha in RAM; the picture trails it by about "
+                 "5 frames)", screen="top", cols=8, scale=1.0)
     _finish(sc, e)
+
+
+def _switchbg_compat(sc: Scenario, tag: str, mid: int, ram: StageRam, before: Optional[dict], pre: Image.Image,
+                     polls: List[tuple], fade: List[Frame], fades: List[Frame], m: Optional[dict]) -> None:
+    """Chunk 5: the move background came in by a fade (fades rose, hardPops did not) and the arena is back at
+    alpha 31 90 frames later. Acid Armor may instead keep the arena up for its lifted BG2 copy (F1). The fade is
+    a FAIL only where the audit's `suppress` list has bg_switch (fade_required), else a WARN."""
+    after_c = ram.compat()
+    d = compat_delta(before, after_c)
+    if d is None:
+        sc.note(f"{tag}: compat fields unreadable around the move")
+        return
+    sc.check(f"{tag}: no hard pop (hardPops unchanged)", d["hardPops"] == 0,
+             f"hardPops +{d['hardPops']}, fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}",
+             why="the arena went from visible to hidden without a fade during the move")
+    sc.check(f"{tag}: arenaAlpha 31 after the move", after_c["arenaAlpha"] == ARENA_ALPHA_FULL,
+             f"arenaAlpha {after_c['arenaAlpha']}, visible {after_c['visible']}, 90 frames after the move",
+             why="the arena was left faded or hidden")
+    if mid in SWITCHBG_COPY_MOVES:
+        sc.check(f"{tag}: faded out or lifted its BG2 copy", d["fades"] > 0 or d["liftedBg2Frames"] > 0,
+                 f"fades +{d['fades']}, liftedBg2Frames +{d['liftedBg2Frames']}", warn_only=True,
+                 why="neither a fade (F6) nor a lifted copy (F1)")
+    else:
+        sc.check(f"{tag}: arena faded out instead of hiding (fades rose)", d["fades"] > 0,
+                 f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}, suppress {(m or {}).get('suppress')}",
+                 warn_only=not fade_required(m),
+                 why="no fade was counted for a move that switches the background")
+    if d["fades"] > 0:
+        fade_frames_check(sc, tag, pre, polls, fade, fades)
 
 
 def _sub_menu_settled(e: Emu, menu: Image.Image) -> bool:
@@ -1298,6 +1346,13 @@ STAGE_SIZE_SPRITES = 52                  # ... and the chunk 3 sprite debug fiel
 STAGE_SIZE_CAMERA = 96                   # ... and the chunk 4 camera debug fields
 ANCHOR_OFFSET = 72                       # s16 anchor[4][2]: per battler the screen foot anchor (x, y)
 SCALE_OFFSET = 88                        # u16 anchorScale[4]: per battler s in 1/256 (256 at home)
+# Chunk 5 compat fields, u32 at +96..+119 (BattleStageCompatFields, docs/living_battle_stage/compat.md), zeroed
+# at battle load: arena pops, hidden frames and fades (F6), the arena's alpha, lifted BG2 frames and tinted
+# 2D copies (F1/F2)
+STAGE_SIZE_COMPAT = 120                  # sBattleStage at least this big: has the compat fields
+COMPAT_OFFSET = 96
+COMPAT_FIELDS = ("hardPops", "hiddenFrames", "fades", "arenaAlpha", "liftedBg2Frames", "tintedCopies")
+ARENA_ALPHA_FULL = 31
 HOME_SCALE = 256
 # camFlags bits (read only)
 AT_HOME = 1                              # the pose is home, no ease, no shake, debug view 0
@@ -1405,6 +1460,34 @@ class StageRam:
             return (f"sBattleStage is {self.stage[1]} bytes in {self.xmap}, under {STAGE_SIZE_CAMERA}: a ROM from "
                     "before chunk 4, without the camera debug fields")
         return ""
+
+    @property
+    def has_compat(self) -> bool:
+        """sBattleStage has the chunk 5 compat fields (hardPops .. tintedCopies at +96..+119)."""
+        return self.ok and self.stage[1] >= STAGE_SIZE_COMPAT
+
+    @property
+    def compat_why(self) -> str:
+        """Why the compat fields cannot be used ("" if they can)."""
+        if not self.ok:
+            return self.why
+        if not self.has_compat:
+            return (f"sBattleStage is {self.stage[1]} bytes in {self.xmap}, under {STAGE_SIZE_COMPAT}: a ROM from "
+                    "before chunk 5, without the compat fields")
+        return ""
+
+    def compat(self) -> Optional[dict]:
+        """The chunk 5 compat fields as a dict, or None on a ROM without them (or when sBattleStage does not
+        look like a live stage right now)."""
+        if not self.has_compat:
+            return None
+        st = self.read()
+        if not self.plausible(st):
+            return None
+        vals = struct.unpack(f"<{len(COMPAT_FIELDS)}I", self.e.read(self.stage[0] + COMPAT_OFFSET, 4 * len(COMPAT_FIELDS)))
+        c = dict(zip(COMPAT_FIELDS, vals))
+        c["visible"] = st["visible"]
+        return c
 
     def read(self) -> Optional[dict]:
         if not self.ok:
@@ -2994,6 +3077,371 @@ def sc_camera(sc: Scenario, e: Emu, args) -> None:
     _faint_battle(sc, e, args, ram)
 
 
+# ---- move compatibility (chunk 5) ------------------------------------------------------------
+
+AUDIT_PATH = HERE.parents[2] / "docs" / "living_battle_stage" / "move_audit.json"
+AUDIT_CAP = 25                           # move_audit plays about this many risk: high moves (--audit-cap)
+# The audit's mechanism tags, in the order of compat.md: the cap takes moves round robin in this order
+MECHANISMS = ("sprite_xy", "sprite_scale_rot", "partial_draw", "bg2_copy", "oam_copy", "hblank_wave", "window",
+              "sprite_bg_blend", "brightness", "switch_bg", "bg2_effect", "particles", "sprite_fade_tint")
+# Used when the audit file is missing (and for --moves not in it): a few risk: high moves, tagged by hand
+# from their anim.s
+FALLBACK_AUDIT = [
+    {"id": 94, "name": "PSYCHIC", "mechanisms": ["sprite_xy", "oam_copy", "sprite_bg_blend", "switch_bg",
+                                                 "sprite_fade_tint"], "suppress": ["bg_switch"], "risk": "high"},
+    {"id": 151, "name": "ACID_ARMOR", "mechanisms": ["bg2_copy", "hblank_wave", "sprite_bg_blend", "particles"],
+     "suppress": ["bg2_effect"], "risk": "high"},
+    {"id": 326, "name": "EXTRASENSORY", "mechanisms": ["sprite_scale_rot", "bg2_copy", "oam_copy", "hblank_wave",
+                                                       "sprite_bg_blend", "switch_bg", "particles",
+                                                       "sprite_fade_tint"], "suppress": ["bg2_effect"], "risk": "high"},
+    {"id": 180, "name": "SPITE", "mechanisms": ["bg2_copy", "oam_copy", "hblank_wave", "sprite_bg_blend", "switch_bg",
+                                                "sprite_fade_tint"], "suppress": ["bg2_effect"], "risk": "high"},
+    {"id": 166, "name": "SKETCH", "mechanisms": ["partial_draw", "bg2_copy", "window", "particles",
+                                                 "sprite_fade_tint"], "suppress": ["bg2_effect"], "risk": "high"},
+    {"id": 252, "name": "FAKE_OUT", "mechanisms": ["sprite_xy", "sprite_scale_rot", "window", "sprite_bg_blend",
+                                                   "switch_bg", "particles"], "suppress": [], "risk": "high"},
+    {"id": 97, "name": "AGILITY", "mechanisms": ["sprite_xy", "oam_copy", "sprite_bg_blend", "switch_bg", "particles"],
+     "suppress": ["bg_switch"], "risk": "high"},
+    {"id": 19, "name": "FLY", "mechanisms": ["sprite_xy", "switch_bg", "particles"], "suppress": ["bg_switch"],
+     "risk": "high"},
+]
+AUDIT_TODS = ("day", "night")
+FADE_LAG = 6                             # the picture trails the RAM by about 5 frames (see StageRam.set_flags)
+FADE_SNAPS = 40                          # at most this many per-frame fade snaps per move
+MIXED_BIG, MIXED_NEAR = 48, 16           # mixed frame: of the pixels where arena and move background differ by
+MIXED_MIN = 0.20                         # > BIG, at least MIXED_MIN are > NEAR away from both (a blend, not a pop)
+FADE_SHEET_MOVES = 4                     # sheet_fade shows the fades of this many moves
+TINT_VISIBLE = 0.03                      # night must change a channel mean by this share for the tint check
+TINT_MATCH = 0.5                         # copy tint vs mesh tint: allowed error, relative to the mesh's own tint
+
+
+def load_audit(path: Optional[str]) -> tuple:
+    """(entries, source): the move audit's list, or (None, why it could not be read)."""
+    p = pathlib.Path(path) if path else AUDIT_PATH
+    if not p.exists():
+        return None, f"{p} does not exist (tools/battle_stage/move_audit.py writes it)"
+    try:
+        data = json.loads(p.read_text())
+    except (OSError, ValueError) as exc:
+        return None, f"{p} does not parse: {exc}"
+    if isinstance(data, dict):                    # tolerate {"moves": [...]}
+        data = data.get("moves", [])
+    good = [m for m in data if isinstance(m, dict) and isinstance(m.get("id"), int)] if isinstance(data, list) else []
+    if not good:
+        return None, f"{p} has no move entries"
+    return good, str(p)
+
+
+def fade_required(m: Optional[dict]) -> bool:
+    """A switch_bg move whose audit `suppress` list has bg_switch: the engine hid the arena for its background
+    switch, and chunk 5 (F6) turns that hide into a fade, so no fade is a FAIL. Moves with an empty `suppress`
+    list (Fake Out) or only bg2_effect may keep the arena up without a fade: a WARN."""
+    return bool(m) and "switch_bg" in m.get("mechanisms", []) and "bg_switch" in m.get("suppress", [])
+
+
+def audit_index(args) -> dict:
+    """id -> audit entry (the audit file, else the built-in list), for scenarios other than move_audit."""
+    entries, _ = load_audit(getattr(args, "audit", None))
+    return {m["id"]: m for m in (entries or FALLBACK_AUDIT)}
+
+
+def audit_pick(entries: List[dict], cap: int) -> List[dict]:
+    """The risk: high moves, at most `cap`: round robin over the mechanisms (MECHANISMS order, then any
+    other tag), each time the first move of that mechanism not taken yet, so every mechanism is covered."""
+    high = [m for m in entries if m.get("risk") == "high"]
+    tags = list(MECHANISMS) + sorted({t for m in high for t in m.get("mechanisms", [])} - set(MECHANISMS))
+    queues = {t: [m for m in high if t in m.get("mechanisms", [])] for t in tags}
+    picked: List[dict] = []
+    seen: set = set()
+    while len(picked) < cap and any(queues.values()):
+        for t in tags:
+            q = queues[t]
+            while q and q[0]["id"] in seen:
+                q.pop(0)
+            if q and len(picked) < cap:
+                m = q.pop(0)
+                seen.add(m["id"])
+                picked.append(m)
+    # risk: high moves without any tag come last
+    picked += [m for m in high if m["id"] not in seen and not m.get("mechanisms")][:max(0, cap - len(picked))]
+    return picked
+
+
+def audit_plan(sc: Scenario, args) -> List[dict]:
+    """The moves move_audit plays: --moves if given (tags from the audit or FALLBACK_AUDIT), else the
+    capped risk: high list from the audit, else from FALLBACK_AUDIT."""
+    entries, src = load_audit(args.audit)
+    if entries is None:
+        sc.warn("move audit loaded", f"{src}; using the built-in list of {len(FALLBACK_AUDIT)} moves")
+    else:
+        sc.note(f"move audit: {src}, {len(entries)} moves, {sum(m.get('risk') == 'high' for m in entries)} risk: high")
+    if args.moves_given:
+        by_id = {m["id"]: m for m in FALLBACK_AUDIT}
+        by_id.update({m["id"]: m for m in entries or []})
+        plan = [by_id.get(mid, {"id": mid, "name": f"move {mid}", "mechanisms": []}) for mid in args.moves]
+        sc.note(f"--moves overrides the audit list: {', '.join(str(m['id']) for m in plan)}")
+        return plan
+    plan = audit_pick(entries if entries is not None else FALLBACK_AUDIT, args.audit_cap)
+    covered = sorted({t for m in plan for t in m.get("mechanisms", [])})
+    sc.note(f"playing {len(plan)} risk: high moves (cap {args.audit_cap}): {', '.join(str(m['id']) for m in plan)}; "
+            f"mechanisms covered: {', '.join(covered)}")
+    return plan
+
+
+def _play_compat(e: Emu, ov: Overlay, ram: StageRam, key: str, frames: int, label: str) -> tuple:
+    """Overlay.play that also reads the compat fields on every frame (on a ROM with them) and, from the first
+    frame with the arena mid-fade (0 < arenaAlpha < 31) until FADE_LAG frames after the last, snaps every
+    frame. Returns (frames every 3, finished_after or None, [(t, compat)], fade frames, {t: image})."""
+    live = ram.has_compat
+    start = e.frame
+    e.hold(key, 6, 0)
+    e.release("L+R")
+    anim: List[Frame] = []
+    polls: List[tuple] = []
+    fade: List[Frame] = []
+    by_t: Dict[int, Image.Image] = {}
+    tail = 0
+    while e.frame - start < frames:
+        e.run(1)
+        t = e.frame - start
+        c = ram.compat() if live else None
+        if c is not None:
+            polls.append((t, c))
+            if 0 < c["arenaAlpha"] < ARENA_ALPHA_FULL:
+                tail = FADE_LAG + 1
+        snap_fade = tail > 0 and len(fade) < FADE_SNAPS
+        tail = max(0, tail - 1)
+        if t % 3 == 0 or snap_fade:
+            f = e.snap(f"{label}+{t}" + (f" a{c['arenaAlpha']}" if c is not None else ""))
+            if snap_fade:
+                fade.append(f)
+            if t % 3 == 0:
+                anim.append(f)
+                by_t[t] = f.img
+                if t >= 12 and not ov.up(f.img):
+                    break
+    return anim, (e.frame - start if not ov.up() else None), polls, fade, by_t
+
+
+def compat_delta(before: Optional[dict], after: Optional[dict]) -> Optional[dict]:
+    if before is None or after is None:
+        return None
+    return {k: after[k] - before[k] for k in COMPAT_FIELDS if k != "arenaAlpha"}
+
+
+def mixed_share(pre: Image.Image, full: Image.Image, f: Image.Image) -> tuple:
+    """Of the scene pixels where the arena (`pre`) and the move background (`full`) differ by more than
+    MIXED_BIG, the share where `f` is more than MIXED_NEAR away from both: a blend of the two, not either
+    one. Returns (share, pixels compared)."""
+    a, b, x = scene(pre), scene(full), scene(f)
+    dab = list(pixel_diff(a, b)["map"].getdata())
+    dxa = list(pixel_diff(x, a)["map"].getdata())
+    dxb = list(pixel_diff(x, b)["map"].getdata())
+    idx = [i for i, v in enumerate(dab) if v > MIXED_BIG]
+    if not idx:
+        return 0.0, 0
+    return sum(1 for i in idx if dxa[i] > MIXED_NEAR and dxb[i] > MIXED_NEAR) / float(len(idx)), len(idx)
+
+
+def _label_t(f: Frame) -> int:
+    m = re.search(r"\+(\d+)", f.label)
+    return int(m.group(1)) if m else 0
+
+
+def fade_frames_check(sc: Scenario, tag: str, pre: Image.Image, polls: List[tuple], fade: List[Frame],
+                      sheet: Optional[List[Frame]]) -> None:
+    """The frames in the middle of a fade-out show both the arena and the move background (WARN if none
+    does). Adds the fade's frames to `sheet` (sheet_fade) unless it is None."""
+    if not fade:
+        sc.warn(f"{tag}: mid-fade frame mixes arena and move background",
+                "fades rose but no frame with 0 < arenaAlpha < 31 was polled (a fade shorter than a frame?)")
+        return
+    zero = next((t for t, c in polls if c["arenaAlpha"] == 0 and t >= _label_t(fade[0])), None)
+    t_full = (zero if zero is not None else _label_t(fade[0]) + 8) + FADE_LAG
+    full = next((f for f in fade if _label_t(f) >= t_full), fade[-1])
+    best, best_f, n = 0.0, None, 0
+    for f in fade:
+        if f is full or _label_t(f) >= t_full:
+            continue
+        s, n0 = mixed_share(pre, full.img, f.img)
+        if best_f is None or s > best:
+            best, best_f, n = s, f, n0
+    sc.check(f"{tag}: mid-fade frame mixes arena and move background", best >= MIXED_MIN,
+             f"best {best:.0%} of {n} pixels (where arena and move background at {full.label} differ by > "
+             f"{MIXED_BIG}) are > {MIXED_NEAR} from both" + (f", at {best_f.label}" if best_f else "") +
+             f"; needs {MIXED_MIN:.0%}", warn_only=True, why="the arena popped instead of fading (see sheet_fade)")
+    if sheet is not None:
+        sheet += [Frame(f"{tag} {f.label}", f.frame, f.img) for f in fade]
+
+
+def _chan_means(img: Image.Image, box: tuple) -> List[float]:
+    return ImageStat.Stat(img.convert("RGB").crop(box)).mean
+
+
+def copy_tint_check(sc: Scenario, tag: str, day: dict, night: dict) -> None:
+    """bg2_copy at night: the copy's pixels differ from the day copy the way the mesh does. For each mon box,
+    the per-channel mean ratio night/day of the move frame in the middle of the day's lifted frames must be
+    close to the same ratio for the idle frames (the lit mesh). WARN only (a judgement call)."""
+    t = day.get("lift_t")
+    if t is None or t not in day["by_t"] or t not in night["by_t"]:
+        sc.note(f"{tag}: night copy tint not compared: " +
+                ("liftedBg2Frames never rose at day" if t is None else f"no frame at +{t} in both runs"))
+        return
+    worst, detail = 0.0, []
+    for mon, box in SPRITE_FALLBACK.items():
+        md, mn = _chan_means(day["idle"], box), _chan_means(night["idle"], box)
+        cd, cn = _chan_means(day["by_t"][t], box), _chan_means(night["by_t"][t], box)
+        r_mesh = [n / max(d, 1.0) for n, d in zip(mn, md)]
+        r_copy = [n / max(d, 1.0) for n, d in zip(cn, cd)]
+        tint = max(abs(1 - r) for r in r_mesh)
+        if tint < TINT_VISIBLE:
+            detail.append(f"{mon}: night barely tints the mesh ({tint:.1%}), skipped")
+            continue
+        err = max(abs(c - r) for c, r in zip(r_copy, r_mesh)) / tint
+        worst = max(worst, err)
+        detail.append(f"{mon}: mesh night/day RGB {'/'.join(f'{r:.2f}' for r in r_mesh)}, copy "
+                      f"{'/'.join(f'{r:.2f}' for r in r_copy)} (off by {err:.0%} of the tint)")
+    sc.check(f"{tag}: night copy tinted like the mesh", worst <= TINT_MATCH,
+             f"frame +{t}: " + "; ".join(detail) + f"; allowed {TINT_MATCH:.0%}", warn_only=True,
+             why="the BG2 copy keeps its day colours at night (F2 tint missing)")
+
+
+def _audit_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str, m: dict, cur: int,
+                idle: List[Image.Image], boxes: List[Image.Image], after: List[Frame], fades: List[Frame],
+                days: dict, cam_log: list) -> Optional[bool]:
+    """One move_audit move. True = go on, False = the battle is stuck, None = the overlay is gone."""
+    mid, mech = m["id"], set(m.get("mechanisms", []))
+    tag = f"{tod} {mid:03d} {m.get('name', '')}".rstrip()
+    print(f"  [move] {tag}", flush=True)              # the parent attributes CPU exceptions by these lines
+    if not ov.up() and not ov.show():
+        sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay back")
+        return None
+    _nav_move(e, cur, mid)
+    pre = e.snap(f"{tag} pre", after)
+    before = ram.compat()
+    anim, done, polls, fade, by_t = _play_compat(e, ov, ram, "A", args.anim_frames, f"{mid:03d}")
+    if froze(sc, e, anim, f"playing {tag}"):
+        return False
+    sc.sheet(anim, f"{tod}_{mid:03d}", f"{tag} [{', '.join(sorted(mech))}]: player->enemy, every 3 frames "
+             "(deduped)", screen="top", dedupe_screen="top")
+    if not sc.check(f"{tag}: animation finished", done is not None,
+                    f"overlay hidden {done} frames after L+R+A" if done is not None else
+                    f"overlay still up {len(anim) * 3} frames later: the animation never ended"):
+        return False
+    e.run(90)
+    post = e.snap(f"{tag} +90", after)
+    cam_log.append((tag, ram.cam()))
+    later = None
+    if mid in LASTING_MOVES:
+        e.run(60)
+        later = e.snap(f"{tag} +150", after).img
+    restore_check(sc, tag, idle, post.img, mid, later)
+    tb = min_diff(boxes, text_box(post.img))
+    sc.check(f"{tag}: battle text restored", tb < 0.02, f"{tb:.1%} of the text box differs")
+    after_c = ram.compat()
+    d = compat_delta(before, after_c)
+    if d is None:
+        return True
+    rec = {"idle": idle[0], "by_t": by_t, "lift_t": None}
+    sc.check(f"{tag}: no hard pop (hardPops unchanged)", d["hardPops"] == 0,
+             f"hardPops +{d['hardPops']}, fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}",
+             why="the arena went from visible to hidden without a fade during the move")
+    sc.check(f"{tag}: arenaAlpha 31 after the move", after_c["arenaAlpha"] == ARENA_ALPHA_FULL,
+             f"arenaAlpha {after_c['arenaAlpha']}, visible {after_c['visible']}, 90 frames after the move",
+             why="the arena was left faded or hidden")
+    lifts = [t for (t, c), (_, p) in zip(polls[1:], polls) if c["liftedBg2Frames"] > p["liftedBg2Frames"]]
+    if lifts:
+        rec["lift_t"] = 3 * round(lifts[len(lifts) // 2] / 3)
+    if "bg2_copy" in mech:
+        sc.check(f"{tag}: BG2 copy lifted over the arena (liftedBg2Frames rose)", d["liftedBg2Frames"] > 0,
+                 f"liftedBg2Frames +{d['liftedBg2Frames']}, tintedCopies +{d['tintedCopies']}", warn_only=True,
+                 why="F1 did not lift the copy (BG2 may also carry an effect, which keeps the suppression)")
+        if not mech & {"switch_bg", "bg2_effect", "window"} and "bg_switch" not in m.get("suppress", []):
+            sc.check(f"{tag}: arena stayed visible (hiddenFrames unchanged)", d["hiddenFrames"] == 0,
+                     f"hiddenFrames +{d['hiddenFrames']}, fades +{d['fades']}", warn_only=True,
+                     why="the arena was still hidden for the copy")
+        if tod != "day":
+            sc.check(f"{tag}: copy tinted at {tod} (tintedCopies rose)", d["tintedCopies"] > 0,
+                     f"tintedCopies +{d['tintedCopies']}", warn_only=True, why="F2 did not tint the copy")
+            if mid in days:
+                copy_tint_check(sc, tag, days[mid], rec)
+    if "switch_bg" in mech:
+        need = fade_required(m)
+        sc.check(f"{tag}: arena faded out (fades rose)", d["fades"] > 0,
+                 f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}, suppress {m.get('suppress', [])}",
+                 warn_only=not need,
+                 why="no fade for a move the engine hid the arena for (suppress has bg_switch)" if need else
+                     "no fade: either the arena stayed up (fine if the move background still shows) or it popped")
+        if d["fades"] > 0:
+            shown = {f.label.rsplit(" ", 2)[0] for f in fades}   # "<tag> <mid>+<t> a<alpha>"
+            fade_frames_check(sc, tag, pre.img, polls, fade, fades if len(shown) < FADE_SHEET_MOVES else None)
+    if tod == "day":
+        days[mid] = rec
+    return True
+
+
+def _audit_battle(sc: Scenario, e: Emu, args, tod: str, plan: List[dict], fades: List[Frame],
+                  days: dict) -> bool:
+    """Plays the plan in the move tester of the current battle (at the command menu). False if stuck."""
+    ram = _sprite_flags(sc, e, args, FREEZE_IDLE | NO_CINEMATICS)
+    if ram.has_compat and ram.validate(ram.read()):
+        sc.note(f"{tod}: compat fields at sBattleStage+{COMPAT_OFFSET} before the moves: {ram.compat()}")
+    else:
+        sc.note(f"{tod}: compat checks skipped: {ram.compat_why or ram.why}; only the finish, restore and "
+                "text checks run")
+    ov = Overlay(e)
+    idle_frames = e.record(60, every=5, label=f"{tod} idle")
+    idle = [scene(f.img) for f in idle_frames]
+    boxes = [text_box(f.img) for f in idle_frames]
+    if not ov.show():
+        _no_combo(sc, f"{tod}: L+R overlay shown", "the in-battle move tester")
+        run_away(sc, e)
+        return False
+    after: List[Frame] = []
+    cam_log: list = []
+    cur = MOVE_ID_POUND
+    ok = True
+    for m in plan:
+        r = _audit_move(sc, e, args, ram, ov, tod, m, cur, idle, boxes, after, fades, days, cam_log)
+        if r is None:
+            break
+        cur = m["id"]
+        if r is False:
+            ok = False
+            break
+    if ok:
+        camera_log_checks(sc, ram, cam_log, f"{tod} audit moves")
+    sc.sheet(after, f"{tod}_after", f"{tod}: pre-move frame and 90 frames after each move", screen="top",
+             cols=4, scale=1.0)
+    if ok:
+        _finish(sc, e)
+    return ok
+
+
+def sc_move_audit(sc: Scenario, e: Emu, args) -> None:
+    """Chunk 5 (compat.md, Critic checks): the audit's risk: high moves from the move tester on a Plain
+    battle, at day and again at night."""
+    plan = audit_plan(sc, args)
+    if not plan:
+        sc.check("moves to play", False, why="the audit has no risk: high moves and no --moves were given")
+        return
+    fades: List[Frame] = []
+    days: dict = {}
+    if _plain_battle(sc, e, AUDIT_TODS[0]) and _audit_battle(sc, e, args, AUDIT_TODS[0], plan, fades, days):
+        ram = StageRam(e, find_xmap(args))
+        tod = AUDIT_TODS[1]
+        cur = {"bg": STAGE_ENTRY, "tod": TODS.index(AUDIT_TODS[0])}
+        started = _select_entry(sc, e, ram, cur, STAGE_ENTRY, tod, tod)
+        if not started or wait_first_menu(e, timeout=2400) is None:
+            sc.check(f"{tod}: battle menu reached", False, why=f"the {tod} Plain battle did not start")
+        else:
+            e.run(30)
+            _audit_battle(sc, e, args, tod, plan, fades, days)
+    if fades:
+        sc.sheet(fades, "fade", "arena fades, every frame (a = arenaAlpha in RAM; the picture trails it by about "
+                 "5 frames)", screen="top", cols=8, scale=1.0)
+
+
 SCENARIOS: Dict[str, Callable] = {
     "boot": sc_boot,
     "wild_battle": sc_wild_battle,
@@ -3010,6 +3458,7 @@ SCENARIOS: Dict[str, Callable] = {
     "mega": sc_mega,
     "sprite_life": sc_sprite_life,
     "camera": sc_camera,
+    "move_audit": sc_move_audit,
 }
 DEFAULT_SCENARIOS = ["boot", "wild_battle", "quick_battle", "move_tester", "stage_toggle"]
 
@@ -3071,8 +3520,15 @@ def main() -> int:
     ap.add_argument("--scenario", nargs="+", choices=sorted(SCENARIOS), default=None,
                     help=f"default: {' '.join(DEFAULT_SCENARIOS)}")
     ap.add_argument("--sav", default=str(DEFAULT_SAV), help="raw .sav to boot (default: %(default)s)")
-    ap.add_argument("--moves", default=",".join(map(str, DEFAULT_MOVES)),
-                    help="move_tester: comma separated move IDs (generated/moves.txt line - 1)")
+    ap.add_argument("--moves", default=None,
+                    help="move_tester: comma separated move IDs (generated/moves.txt line - 1; default "
+                         f"{','.join(map(str, DEFAULT_MOVES))}); move_audit: plays these instead of the audit's list")
+    ap.add_argument("--audit", default=None,
+                    help=f"move_audit: the move audit JSON (default {AUDIT_PATH.relative_to(HERE.parents[2])}; when it "
+                         "is missing, a built-in list of risk: high moves)")
+    ap.add_argument("--audit-cap", type=int, default=AUDIT_CAP,
+                    help="move_audit: most risk: high moves to play, taken round robin over the mechanisms "
+                         "(default %(default)s)")
     ap.add_argument("--sprite-moves", default=",".join(map(str, SPRITE_MOVES)),
                     help="move_tester / sprite_life: moves that hide, shrink or swap a sprite, played after --moves "
                          "with a 'normal look restored' check ('' = none)")
@@ -3103,7 +3559,9 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=900, help="seconds before a scenario is killed")
     ap.add_argument("--child", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
-    args.moves = [int(m) for m in args.moves.split(",") if m.strip()]
+    args.moves_given = args.moves is not None
+    args.moves = [int(m) for m in (args.moves if args.moves_given else ",".join(map(str, DEFAULT_MOVES))).split(",")
+                  if m.strip()]
     args.sprite_moves = [int(m) for m in args.sprite_moves.split(",") if m.strip()]
     args.bgs = parse_entries(args.bgs) if args.bgs else None
     args.tods = [t.strip() for t in args.tods.split(",") if t.strip()]
@@ -3136,6 +3594,8 @@ def main() -> int:
         timeout = args.timeout
         if name == "all_backgrounds":            # about 7s a battle; never cut a full run short
             timeout = max(timeout, 120 + 15 * len(bg_plan(args)))
+        if name == "move_audit":                 # two battles, up to --audit-cap moves each
+            timeout = max(timeout, 120 + 2 * 12 * (len(args.moves) if args.moves_given else args.audit_cap))
         code, emu_lines = run_child(cmd, timeout, outdir / name / "console.log")
         sc = Scenario(name, outdir)
         if res.exists():
@@ -3143,7 +3603,7 @@ def main() -> int:
         cpu = [ln for ln in emu_lines if CPU_EXCEPTION.search(ln)]
         sc.check("no CPU exceptions in the emulator log", not cpu,
                  why=f"{len(cpu)} line(s), first: {cpu[0].strip() if cpu else ''} "
-                     f"(full log {outdir / name / 'console.log'})")
+                     f"(full log {outdir / name / 'console.log'})" + cpu_moves(emu_lines))
         if code != 0:
             sc.check("scenario process exited cleanly", False,
                      f"timed out after {timeout}s" if code == "timeout" else
@@ -3159,6 +3619,19 @@ def main() -> int:
 
 CPU_EXCEPTION = re.compile(r"Undefined instruction|Data abort|Prefetch abort|Unimplemented|ARM[79].*(fault|exception)",
                            re.IGNORECASE)
+
+
+def cpu_moves(lines: List[str]) -> str:
+    """For scenarios that print "  [move] <tag>" before each move (move_audit): the moves during which CPU
+    exceptions were logged. Approximate: the emulator's own output may be buffered behind ours."""
+    cur, hit = "before the first move", []
+    for ln in lines:
+        if ln.startswith("  [move] "):
+            cur = ln[9:].strip()
+        elif CPU_EXCEPTION.search(ln) and cur not in hit:
+            hit.append(cur)
+    marked = any(ln.startswith("  [move] ") for ln in lines)
+    return f"; during (approximately): {', '.join(hit)}" if marked and hit else ""
 
 
 def run_child(cmd: List[str], timeout: int, log_path: pathlib.Path):
