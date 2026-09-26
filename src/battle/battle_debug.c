@@ -110,6 +110,8 @@ static void HideOverlay(BattleSystem *battleSys)
 
     Heap_Free(sMoveTester.savedTextPixels);
     sMoveTester.savedTextPixels = NULL;
+    // Real moves are drawn from the home camera, so leave the debug view with the overlay
+    BattleStage_SetDebugView(0);
     sMoveTester.overlayShown = FALSE;
 }
 

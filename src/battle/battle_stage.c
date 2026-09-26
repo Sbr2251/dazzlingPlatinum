@@ -150,6 +150,12 @@ void BattleStage_Suppress(u32 reasons, BOOL suppress)
 {
     if (suppress) {
         sBattleStage.suppressed |= reasons;
+
+        // A screen that takes over the scene hides the platforms itself; don't show them
+        // again under it when the arena goes away
+        if (reasons & BATTLE_STAGE_SUPPRESS_MENU) {
+            sBattleStage.platformsHidden = FALSE;
+        }
     } else {
         sBattleStage.suppressed &= ~reasons;
     }
