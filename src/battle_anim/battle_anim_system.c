@@ -403,9 +403,37 @@ static BOOL BattleAnimSystem_WindowShowsBaseUnder3D(int planes)
     return (planes & (GX_WND_PLANEMASK_BG0 | GX_WND_PLANEMASK_BG2)) == (GX_WND_PLANEMASK_BG0 | GX_WND_PLANEMASK_BG2);
 }
 
+// F1 (docs/living_battle_stage/compat.md): while the arena shows and BG2 holds only a mon
+// copy (LoadPokemonSpriteIntoBg), BG2 is put above the 3D layer on BG0 instead of hiding the
+// arena. BG0 goes one step down (under BG2, still above BG3) so OBJs keep their order with
+// BG2; if that can't be done, BG2 goes one step up. The old priorities come back when the
+// copy is removed, when anything else changes the BG2 tilemap, and at the latest at End.
+// The lift waits until the copy's palette is in VRAM (a lifted copy with the old palette
+// shows for a frame otherwise); meanwhile the copy stays under the arena, as before.
+// Only one animation system runs at a time, so the state is static.
+#define BG2_COPY_LIFT_MAX_WAIT 4
+
+typedef struct Bg2CopyLift {
+    BOOL active;
+    BOOL pending;
+    u8 pendingFrames;
+    u8 oldBg0Priority;
+    u8 oldBg2Priority;
+    u8 bg0Priority;
+    u8 bg2Priority;
+    u32 tilemapHash;
+} Bg2CopyLift;
+
+static Bg2CopyLift sBg2CopyLift;
+
 // TRUE when BG2 has something on it that the 3D stage on BG0 would cover
 static BOOL BattleAnimSystem_IsBaseBgUnderStage(BattleAnimSystem *system)
 {
+    // F1: a mon copy that goes above the arena as soon as its palette is in VRAM
+    if (sBg2CopyLift.pending) {
+        return FALSE;
+    }
+
     if ((GX_GetVisiblePlane() & GX_PLANEMASK_BG2) == 0) {
         return FALSE;
     }
@@ -479,23 +507,6 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
     BattleStage_SetMoveAnimActive(system->moveActive == TRUE);
 }
 
-// F1 (docs/living_battle_stage/compat.md): while the arena shows and BG2 holds only a mon
-// copy (LoadPokemonSpriteIntoBg), BG2 is put above the 3D layer on BG0 instead of hiding the
-// arena. BG0 goes one step down (under BG2, still above BG3) so OBJs keep their order with
-// BG2; if that can't be done, BG2 goes one step up. The old priorities come back when the
-// copy is removed, when anything else changes the BG2 tilemap, and at the latest at End.
-// Only one animation system runs at a time, so the state is static.
-typedef struct Bg2CopyLift {
-    BOOL active;
-    u8 oldBg0Priority;
-    u8 oldBg2Priority;
-    u8 bg0Priority;
-    u8 bg2Priority;
-    u32 tilemapHash;
-} Bg2CopyLift;
-
-static Bg2CopyLift sBg2CopyLift;
-
 static u32 BattleAnimSystem_Bg2TilemapHash(BattleAnimSystem *system)
 {
     Background *bg = &system->bgConfig->bgs[BG_LAYER_MAIN_2];
@@ -515,12 +526,14 @@ static u32 BattleAnimSystem_Bg2TilemapHash(BattleAnimSystem *system)
 
 static void BattleAnimSystem_DropBg2CopyLift(BattleAnimSystem *system, BOOL restore)
 {
-    if (sBg2CopyLift.active == FALSE) {
+    if (sBg2CopyLift.active == FALSE && sBg2CopyLift.pending == FALSE) {
         return;
     }
 
+    sBg2CopyLift.pending = FALSE;
+
     // Only undo what is still ours
-    if (restore) {
+    if (restore && sBg2CopyLift.active) {
         if (Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_0) == sBg2CopyLift.bg0Priority) {
             Bg_SetPriority(BG_LAYER_MAIN_0, sBg2CopyLift.oldBg0Priority);
         }
@@ -544,18 +557,14 @@ static BOOL BattleAnimSystem_LiftBg2Copy(BattleAnimSystem *system)
         return FALSE;
     }
 
+    // A second copy while the first is still up: back under the arena until its palette is in
+    BattleAnimSystem_DropBg2CopyLift(system, TRUE);
+
     u8 bg0 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_0);
     u8 bg2 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_2);
     u8 bg3 = Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_3);
 
-    if (sBg2CopyLift.active) {
-        // A second copy while the first is still up: keep the first one's old priorities
-        bg0 = sBg2CopyLift.oldBg0Priority;
-        sBg2CopyLift.active = FALSE;
-    } else {
-        sBg2CopyLift.oldBg0Priority = bg0;
-    }
-
+    sBg2CopyLift.oldBg0Priority = bg0;
     sBg2CopyLift.oldBg2Priority = bg2;
 
     if (bg2 + 1 < bg3) {
@@ -565,16 +574,26 @@ static BOOL BattleAnimSystem_LiftBg2Copy(BattleAnimSystem *system)
         sBg2CopyLift.bg0Priority = bg0;
         sBg2CopyLift.bg2Priority = bg0 - 1;
     } else {
-        Bg_SetPriority(BG_LAYER_MAIN_0, bg0);
-        BattleStage_SetBg2Lifted(FALSE);
         return FALSE;
     }
 
-    Bg_SetPriority(BG_LAYER_MAIN_0, sBg2CopyLift.bg0Priority);
-    Bg_SetPriority(BG_LAYER_MAIN_2, sBg2CopyLift.bg2Priority);
     sBg2CopyLift.tilemapHash = BattleAnimSystem_Bg2TilemapHash(system);
-    sBg2CopyLift.active = TRUE;
-    BattleStage_SetBg2Lifted(TRUE);
+    sBg2CopyLift.pending = TRUE;
+    sBg2CopyLift.pendingFrames = 0;
+
+    return TRUE;
+}
+
+static BOOL BattleAnimSystem_IsBg2CopyPaletteInVram(BattleAnimSystem *system)
+{
+    const u16 *want = PaletteData_GetFadedBuffer(system->paletteData, PLTTBUF_MAIN_BG) + PLTT_DEST(BATTLE_BG_PALETTE_MON_SPRITE);
+    const u16 *have = (const u16 *)HW_BG_PLTT + PLTT_DEST(BATTLE_BG_PALETTE_MON_SPRITE);
+
+    for (int i = 0; i < PALETTE_SIZE; i++) {
+        if (want[i] != have[i]) {
+            return FALSE;
+        }
+    }
 
     return TRUE;
 }
@@ -582,6 +601,27 @@ static BOOL BattleAnimSystem_LiftBg2Copy(BattleAnimSystem *system)
 // Every script frame: the lift ends as soon as BG2 holds anything but the copy
 static void BattleAnimSystem_UpdateBg2CopyLift(BattleAnimSystem *system)
 {
+    if (sBg2CopyLift.pending) {
+        if (Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_0) != sBg2CopyLift.oldBg0Priority
+            || Bg_GetPriority(system->bgConfig, BG_LAYER_MAIN_2) != sBg2CopyLift.oldBg2Priority
+            || BattleAnimSystem_Bg2TilemapHash(system) != sBg2CopyLift.tilemapHash) {
+            // Something else took BG2 first: today's path
+            sBg2CopyLift.pending = FALSE;
+            return;
+        }
+
+        if (BattleAnimSystem_IsBg2CopyPaletteInVram(system) == FALSE && ++sBg2CopyLift.pendingFrames < BG2_COPY_LIFT_MAX_WAIT) {
+            return;
+        }
+
+        Bg_SetPriority(BG_LAYER_MAIN_0, sBg2CopyLift.bg0Priority);
+        Bg_SetPriority(BG_LAYER_MAIN_2, sBg2CopyLift.bg2Priority);
+        sBg2CopyLift.pending = FALSE;
+        sBg2CopyLift.active = TRUE;
+        BattleStage_SetBg2Lifted(TRUE);
+        return;
+    }
+
     if (sBg2CopyLift.active == FALSE) {
         return;
     }
@@ -2190,7 +2230,7 @@ static void BattleAnimScriptCmd_RemovePokemonSpriteFromBg(BattleAnimSystem *syst
 
     // F1: the copy is gone. Its tilemap is cleared too, as End would, so the blank tiles
     // don't count as a BG2 effect under the arena once BG2 is back in its place
-    if (sBg2CopyLift.active) {
+    if (sBg2CopyLift.active || sBg2CopyLift.pending) {
         BattleAnimSystem_DropBg2CopyLift(system, TRUE);
         Bg_ClearTilemap(system->bgConfig, BG_LAYER_MAIN_2);
     }
