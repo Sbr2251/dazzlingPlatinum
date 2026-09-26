@@ -5343,8 +5343,9 @@ static void ov16_022634DC(SysTask *param0, void *param1)
 // The Mega Evolution sequence dims and flashes the scene through the brightness blend. BG0 (the 3D layer holding the
 // Pokemon sprites and particles) and BG1 (the message window) are left out of the 1st target, so the evolving
 // Pokemon stays pure white and the message stays readable; the other battlers are dimmed through their palettes
-// instead. The 2nd targets must stay set: translucent 3D pixels (such as a Totem aura) only alpha-blend with
-// 2nd-target layers, and without any they are drawn fully opaque.
+// instead. The 3D battle stage on BG0 takes the same brightness through BattleStage_SetBrightness (its fog), so it
+// dims and flashes with the backdrop. The 2nd targets must stay set: translucent 3D pixels (such as a Totem aura)
+// only alpha-blend with 2nd-target layers, and without any they are drawn fully opaque.
 #define AFFINE_PULSE_BRIGHTNESS_PLANES (BATTLE_BG_BLENDMASK_BASE | BATTLE_BG_BLENDMASK_EFFECT | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD)
 #define AFFINE_PULSE_BLEND_2ND_PLANES  (BATTLE_BG_BLENDMASK_ALL | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD)
 
@@ -5399,6 +5400,7 @@ void BattleDisplay_SetMegaEvolutionCue(int cue)
 static void AffinePulse_SetBrightness(int brightness)
 {
     G2_SetBlendBrightnessExt(AFFINE_PULSE_BRIGHTNESS_PLANES, AFFINE_PULSE_BLEND_2ND_PLANES, 8, 8, brightness);
+    BattleStage_SetBrightness(brightness);
 }
 
 // Panned towards the battler's side, like BattleController_EmitPlaySound
@@ -5484,8 +5486,6 @@ static BOOL AffinePulse_Charge(AffinePulseTaskData *data)
     int t = data->frame;
 
     if (t == 0) {
-        // The dimming skips BG0, so the 3D stage would stay lit over the darkened backdrop
-        BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BRIGHTNESS, TRUE);
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_MOSAIC_INTENSITY, 0);
         PokemonSprite_StartFade(sprite, 0, 12, 1, RGB(31, 31, 31));
@@ -5563,6 +5563,7 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
         PokemonSprite_ClearFade(sprite);
         AffinePulse_ClearOthers(data);
         G2_BlendNone();
+        BattleStage_SetBrightness(0);
         return TRUE;
     }
 
@@ -5603,7 +5604,8 @@ static void AffinePulseTask(SysTask *task, void *taskData)
     }
 
     if (done) {
-        BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BRIGHTNESS, FALSE);
+        // The reveal has already reset it; make sure the stage never stays dimmed after the task
+        BattleStage_SetBrightness(0);
         sMegaEvolutionCue = MEGA_EVOLUTION_CUE_NONE;
         BattleController_EmitClearCommand(data->battleSys, data->battler, data->command);
         Heap_Free(data);
