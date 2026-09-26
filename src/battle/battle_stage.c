@@ -54,6 +54,8 @@ typedef struct StageMesh {
     u32 dlSize;
     fx32 vertexScale;
     u16 flags;
+    u8 scrollAmplitude[2];
+    u16 scrollPeriod;
 } StageMesh;
 
 typedef struct StageArena {
@@ -70,7 +72,11 @@ typedef struct StageArena {
     MtxFx44 projection;
     MtxFx43 view;
     int viewBuiltFor;
-    BOOL hasScrollMesh;
+    BOOL hasTexMtxMesh; // FOLLOW_BG3_SCROLL or SCROLL
+    BOOL hasLitMesh;
+    BOOL hasAtmosphere;
+    u32 frame; // drawn frames, for SCROLL
+    BattleStageFileAtmosphere atmosphere;
 } StageArena;
 
 typedef struct BattleStage {
@@ -81,15 +87,35 @@ typedef struct BattleStage {
     int debugView;
     BOOL wasVisible;
     BOOL platformsHidden;
+    int brightness; // BattleStage_SetBrightness; the Mega critic reads it from RAM at +28
 } BattleStage;
+
+// What was last written to the fog registers
+typedef struct StageFog {
+    BOOL on;
+    BOOL tableValid;
+    u32 table[8]; // 32 densities, as G3X_SetFogTable takes them
+} StageFog;
 
 static StageArena *LoadArena(BattleSystem *battleSys);
 static void FreeArena(StageArena *arena);
 static void UpdatePlatforms(BOOL visible);
 static void SyncPalettes(StageArena *arena);
 static void DrawArena(StageArena *arena);
+static void UpdateFog(StageArena *arena);
+static void FogOff(void);
 
 static BattleStage sBattleStage;
+static StageFog sStageFog;
+
+// Without an atmosphere LIT meshes render unlit white, as in format v1
+static const BattleStageFileLighting sDefaultLighting = {
+    .lightDir = { 0, -FX16_ONE + 1, 0 },
+    .lightColor = GX_RGB(0, 0, 0),
+    .diffuse = GX_RGB(0, 0, 0),
+    .ambient = GX_RGB(0, 0, 0),
+    .emission = GX_RGB(31, 31, 31),
+};
 
 void BattleStage_Init(BattleSystem *battleSys)
 {
@@ -100,6 +126,10 @@ void BattleStage_Init(BattleSystem *battleSys)
     sBattleStage.debugView = 0;
     sBattleStage.wasVisible = FALSE;
     sBattleStage.platformsHidden = FALSE;
+    sBattleStage.brightness = 0;
+    sStageFog.on = TRUE; // unknown, so FogOff writes it
+    sStageFog.tableValid = FALSE;
+    FogOff();
 
     if (BATTLE_STAGE_3D) {
         sBattleStage.arena = LoadArena(battleSys);
@@ -115,6 +145,8 @@ void BattleStage_Free(void)
 
     sBattleStage.battleSys = NULL;
     sBattleStage.debugView = 0;
+    sBattleStage.brightness = 0;
+    FogOff();
 }
 
 void BattleStage_Draw(void)
@@ -131,6 +163,9 @@ void BattleStage_Draw(void)
     if (visible) {
         SyncPalettes(sBattleStage.arena);
         DrawArena(sBattleStage.arena);
+        UpdateFog(sBattleStage.arena);
+    } else {
+        FogOff();
     }
 
     sBattleStage.wasVisible = visible;
@@ -185,6 +220,17 @@ int BattleStage_GetDebugView(void)
     return sBattleStage.debugView;
 }
 
+void BattleStage_SetBrightness(int brightness)
+{
+    if (brightness < -16) {
+        brightness = -16;
+    } else if (brightness > 16) {
+        brightness = 16;
+    }
+
+    sBattleStage.brightness = brightness;
+}
+
 static const void *PieceData(const BattleStageFileHeader *piece, u32 offset)
 {
     return (const u8 *)piece + offset;
@@ -216,7 +262,31 @@ static u32 TextureBytes(const BattleStageFileTexture *texture)
     return texture->format == GX_TEXFMT_PLTT16 ? texels / 2 : texels;
 }
 
-static BOOL IsPieceValid(const BattleStageFileHeader *piece, u32 size)
+static BOOL IsAtmosphereValid(const BattleStageFileAtmosphere *atmosphere)
+{
+    int i;
+
+    if (atmosphere->fogShift > GX_FOGSLOPE_0x0020 || atmosphere->fogOffset > 0x7FFF) {
+        return FALSE;
+    }
+
+    for (i = 0; i < 32; i++) {
+        if (atmosphere->fogTable[i] > 127) {
+            return FALSE;
+        }
+    }
+
+    for (i = 0; i < 3; i++) {
+        if (atmosphere->lighting[i].fogAlpha > 31) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+// The atmosphere is only read from the backdrop piece; a platform piece's is ignored
+static BOOL IsPieceValid(const BattleStageFileHeader *piece, u32 size, BOOL isBackdrop)
 {
     const BattleStageFileTexture *textures;
     const BattleStageFileMesh *meshes;
@@ -268,12 +338,23 @@ static BOOL IsPieceValid(const BattleStageFileHeader *piece, u32 size)
         if (!IsRangeValid(mesh->vertexOffset, mesh->numVertices * sizeof(BattleStageFileVertex), size)) {
             return FALSE;
         }
+
+        if ((mesh->flags & BATTLE_STAGE_MESH_SCROLL) && mesh->scrollPeriod == 0) {
+            return FALSE;
+        }
+    }
+
+    if (isBackdrop && piece->atmosphereOffset != 0) {
+        if (!IsRangeValid(piece->atmosphereOffset, sizeof(BattleStageFileAtmosphere), size)
+            || !IsAtmosphereValid(PieceData(piece, piece->atmosphereOffset))) {
+            return FALSE;
+        }
     }
 
     return TRUE;
 }
 
-static BattleStageFileHeader *LoadPiece(NARC *narc, u32 memberIndex, u32 *outSize)
+static BattleStageFileHeader *LoadPiece(NARC *narc, u32 memberIndex, BOOL isBackdrop, u32 *outSize)
 {
     BattleStageFileHeader *piece;
     u32 size;
@@ -296,7 +377,7 @@ static BattleStageFileHeader *LoadPiece(NARC *narc, u32 memberIndex, u32 *outSiz
 
     NARC_ReadWholeMember(narc, memberIndex, piece);
 
-    if (!IsPieceValid(piece, size)) {
+    if (!IsPieceValid(piece, size, isBackdrop)) {
         Heap_Free(piece);
         return NULL;
     }
@@ -330,9 +411,16 @@ static u32 BuildMeshDL(u32 *dest, u32 capacity, const BattleStageFileHeader *pie
 {
     GXDLInfo info;
     const BattleStageFileVertex *vertices = PieceData(piece, mesh->vertexOffset);
-    GXTexGen texGen = (mesh->flags & BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL) ? GX_TEXGEN_TEXCOORD : GX_TEXGEN_NONE;
+    GXTexGen texGen = (mesh->flags & (BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL | BATTLE_STAGE_MESH_SCROLL)) ? GX_TEXGEN_TEXCOORD : GX_TEXGEN_NONE;
     GXTexPlttColor0 color0 = (mesh->flags & BATTLE_STAGE_MESH_COLOR0_TRANSPARENT) ? GX_TEXPLTTCOLOR0_TRNS : GX_TEXPLTTCOLOR0_USE;
+    BOOL lit = (mesh->flags & BATTLE_STAGE_MESH_LIT) != 0;
+    int misc = GX_POLYGON_ATTR_MISC_FAR_CLIPPING;
     int i;
+
+    if (mesh->flags & BATTLE_STAGE_MESH_FOG) {
+        misc |= GX_POLYGON_ATTR_MISC_FOG;
+    }
+
 
     G3_BeginMakeDL(&info, dest, capacity);
     G3C_TexImageParam(&info,
@@ -345,13 +433,19 @@ static u32 BuildMeshDL(u32 *dest, u32 capacity, const BattleStageFileHeader *pie
         color0,
         texAddr);
     G3C_TexPlttBase(&info, plttAddr, (GXTexFmt)texture->format);
-    G3C_PolygonAttr(&info, GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, mesh->alpha, GX_POLYGON_ATTR_MISC_FAR_CLIPPING);
+    G3C_PolygonAttr(&info, lit ? GX_LIGHTMASK_0 : GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, mesh->alpha, misc);
     G3C_Begin(&info, (GXBegin)mesh->primitive);
 
     for (i = 0; i < mesh->numVertices; i++) {
         const BattleStageFileVertex *vertex = &vertices[i];
 
-        if (i == 0 || vertex->color != vertices[i - 1].color) {
+        // A normal command lights the vertex with the material and light 0; the packed
+        // normal is sent as is (G3C_Normal would take it apart and pack it again)
+        if (lit) {
+            if (i == 0 || vertex->normal != vertices[i - 1].normal) {
+                G3C_Direct1(&info, G3OP_NORMAL, vertex->normal);
+            }
+        } else if (i == 0 || vertex->color != vertices[i - 1].color) {
             G3C_Color(&info, vertex->color);
         }
 
@@ -601,16 +695,29 @@ static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes)
             stageMesh->dlSize = BuildMeshDL(arena->dl + dlBytes / 4, MeshDLBound(mesh), pieces[p], mesh, texture, texAddr + texOffsets[textureIndex], arena->plttAddr + slot->offset);
             stageMesh->vertexScale = pieces[p]->vertexScale;
             stageMesh->flags = mesh->flags;
+            stageMesh->scrollAmplitude[0] = mesh->scrollAmplitude[0];
+            stageMesh->scrollAmplitude[1] = mesh->scrollAmplitude[1];
+            stageMesh->scrollPeriod = mesh->scrollPeriod;
             dlBytes += stageMesh->dlSize;
 
-            if (mesh->flags & BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL) {
-                arena->hasScrollMesh = TRUE;
+            if (mesh->flags & (BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL | BATTLE_STAGE_MESH_SCROLL)) {
+                arena->hasTexMtxMesh = TRUE;
+            }
+
+            if (mesh->flags & BATTLE_STAGE_MESH_LIT) {
+                arena->hasLitMesh = TRUE;
             }
         }
     }
 
     DC_FlushRange(arena->dl, dlBytes);
     BuildCamera(arena, pieces[0], pieces[1]);
+
+    // Copied, as the pieces are freed after the arena is built
+    if (pieces[0]->atmosphereOffset != 0) {
+        arena->hasAtmosphere = TRUE;
+        arena->atmosphere = *(const BattleStageFileAtmosphere *)PieceData(pieces[0], pieces[0]->atmosphereOffset);
+    }
 
     return arena;
 }
@@ -629,8 +736,8 @@ static StageArena *LoadArena(BattleSystem *battleSys)
     }
 
     narc = NARC_ctor(NARC_INDEX_BATTLE__GRAPHIC__BATTLE_STAGE, HEAP_ID_BATTLE);
-    pieces[0] = LoadPiece(narc, background, &sizes[0]);
-    pieces[1] = LoadPiece(narc, BACKGROUND_MAX + terrain, &sizes[1]);
+    pieces[0] = LoadPiece(narc, background, TRUE, &sizes[0]);
+    pieces[1] = LoadPiece(narc, BACKGROUND_MAX + terrain, FALSE, &sizes[1]);
     NARC_dtor(narc);
 
     if (pieces[0] != NULL && pieces[1] != NULL) {
@@ -743,9 +850,59 @@ static void SendDL(const u32 *dl, u32 size)
     }
 }
 
+// Time-of-day column of the atmosphere: 0 day, 1 twilight, 2 night
+static int LightingColumn(void)
+{
+    int column = ov16_0223EC04(sBattleStage.battleSys);
+
+    if (column < 0) {
+        column = 0;
+    } else if (column > 2) {
+        column = 2;
+    }
+
+    return column;
+}
+
+static void SetLight(StageArena *arena)
+{
+    const BattleStageFileLighting *lighting = arena->hasAtmosphere ? &arena->atmosphere.lighting[LightingColumn()] : &sDefaultLighting;
+
+    // Transformed by the current vector matrix (the view), so lightDir is in world space
+    G3_LightVector(GX_LIGHTID_0, lighting->lightDir[0], lighting->lightDir[1], lighting->lightDir[2]);
+    G3_LightColor(GX_LIGHTID_0, lighting->lightColor);
+    G3_MaterialColorDiffAmb(lighting->diffuse, lighting->ambient, FALSE);
+    G3_MaterialColorSpecEmi(GX_RGB(0, 0, 0), lighting->emission, FALSE);
+}
+
+// Texture matrix of a FOLLOW_BG3_SCROLL and/or SCROLL mesh, in texels << 16
+static void SetTexMtx(StageArena *arena, const StageMesh *mesh, int bg3X, int bg3Y)
+{
+    fx32 s = 0, t = 0;
+
+    // Texel (s, t) shows at the screen pixel BG3 would show it at
+    if (mesh->flags & BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL) {
+        s = bg3X << 16;
+        t = bg3Y << 16;
+    }
+
+    if (mesh->flags & BATTLE_STAGE_MESH_SCROLL) {
+        u16 index = (u32)(arena->frame % mesh->scrollPeriod) * 0x10000 / mesh->scrollPeriod;
+
+        s += mesh->scrollAmplitude[0] * FX_SinIdx(index) * 16;
+        t += mesh->scrollAmplitude[1] * FX_CosIdx(index) * 16;
+    }
+
+    G3_MtxMode(GX_MTXMODE_TEXTURE);
+    G3_Identity();
+    G3_Translate(s, t, 0);
+    G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
+}
+
 static void DrawArena(StageArena *arena)
 {
     int platformOffset[2];
+    int bg3X = 0, bg3Y = 0;
     int side, i;
 
     if (arena->viewBuiltFor != sBattleStage.debugView) {
@@ -762,22 +919,30 @@ static void DrawArena(StageArena *arena)
     G3_PushMtx();
     G3_LoadMtx44(&arena->projection);
 
-    // Texel (s, t) shows at the screen pixel BG3 would show it at
-    if (arena->hasScrollMesh) {
+    if (arena->hasTexMtxMesh) {
         BgConfig *bgConfig = BattleSystem_BGL(sBattleStage.battleSys);
+
+        bg3X = WrapScroll(Bg_GetXOffset(bgConfig, BG_LAYER_MAIN_3), 512);
+        bg3Y = WrapScroll(Bg_GetYOffset(bgConfig, BG_LAYER_MAIN_3), 256);
 
         G3_MtxMode(GX_MTXMODE_TEXTURE);
         G3_PushMtx();
-        G3_Identity();
-        G3_Translate(WrapScroll(Bg_GetXOffset(bgConfig, BG_LAYER_MAIN_3), 512) << 16, WrapScroll(Bg_GetYOffset(bgConfig, BG_LAYER_MAIN_3), 256) << 16, 0);
     }
 
     G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
     G3_PushMtx();
     G3_LoadMtx43(&arena->view);
 
+    if (arena->hasLitMesh) {
+        SetLight(arena);
+    }
+
     for (i = 0; i < arena->numMeshes; i++) {
         StageMesh *mesh = &arena->meshes[i];
+
+        if (mesh->flags & (BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL | BATTLE_STAGE_MESH_SCROLL)) {
+            SetTexMtx(arena, mesh, bg3X, bg3Y);
+        }
 
         G3_PushMtx();
 
@@ -786,6 +951,7 @@ static void DrawArena(StageArena *arena)
             G3_Translate(arena->platformStep[side].x * platformOffset[side], arena->platformStep[side].y * platformOffset[side], arena->platformStep[side].z * platformOffset[side]);
         }
 
+        // The scale only goes to the position matrix, so the normals stay unit length
         G3_Scale(mesh->vertexScale, mesh->vertexScale, mesh->vertexScale);
         SendDL(arena->dl + mesh->dlOffset / 4, mesh->dlSize);
         G3_PopMtx(1);
@@ -793,7 +959,7 @@ static void DrawArena(StageArena *arena)
 
     G3_PopMtx(1);
 
-    if (arena->hasScrollMesh) {
+    if (arena->hasTexMtxMesh) {
         G3_MtxMode(GX_MTXMODE_TEXTURE);
         G3_PopMtx(1);
     }
@@ -802,4 +968,67 @@ static void DrawArena(StageArena *arena)
     G3_PopMtx(1);
     G3_MtxMode(GX_MTXMODE_POSITION);
     G3_Color(GX_RGB(31, 31, 31));
+
+    arena->frame++;
+}
+
+static void FogOff(void)
+{
+    if (sStageFog.on) {
+        G3X_SetFog(FALSE, GX_FOGBLEND_COLOR_ALPHA, GX_FOGSLOPE_0x8000, 0);
+        sStageFog.on = FALSE;
+    }
+}
+
+// Written from the main loop like the rest of the 3D state (as the field fog does), right
+// after the arena's geometry; the 2D brightness blend that the brightness follows is also
+// written from the main loop, so both change on the same frame
+static void UpdateFog(StageArena *arena)
+{
+    u32 table[8];
+    GXRgb color;
+    int alpha, shift, offset;
+
+    if (sBattleStage.brightness != 0) {
+        int magnitude = sBattleStage.brightness < 0 ? -sBattleStage.brightness : sBattleStage.brightness;
+        u32 density = magnitude * 8 > 127 ? 127 : magnitude * 8;
+        int i;
+
+        // (fog * d + pixel * (128 - d)) / 128 is the 2D brightness formula at d = |b| * 8
+        color = sBattleStage.brightness < 0 ? GX_RGB(0, 0, 0) : GX_RGB(31, 31, 31);
+        alpha = 31;
+        shift = GX_FOGSLOPE_0x8000;
+        offset = 0;
+
+        for (i = 0; i < 8; i++) {
+            table[i] = density * 0x01010101;
+        }
+    } else if (arena->hasAtmosphere && arena->atmosphere.fogEnabled) {
+        const BattleStageFileLighting *lighting = &arena->atmosphere.lighting[LightingColumn()];
+
+        color = lighting->fogColor;
+        alpha = lighting->fogAlpha;
+        shift = arena->atmosphere.fogShift;
+        offset = arena->atmosphere.fogOffset;
+        memcpy(table, arena->atmosphere.fogTable, sizeof(table));
+    } else {
+        FogOff();
+        return;
+    }
+
+    // Another screen may have used the fog table while the arena was hidden
+    if (!sBattleStage.wasVisible) {
+        sStageFog.tableValid = FALSE;
+    }
+
+    G3X_SetFog(TRUE, GX_FOGBLEND_COLOR_ALPHA, (GXFogSlope)shift, offset);
+    G3X_SetFogColor(color, alpha);
+
+    if (!sStageFog.tableValid || memcmp(sStageFog.table, table, sizeof(table)) != 0) {
+        memcpy(sStageFog.table, table, sizeof(table));
+        G3X_SetFogTable(sStageFog.table);
+        sStageFog.tableValid = TRUE;
+    }
+
+    sStageFog.on = TRUE;
 }

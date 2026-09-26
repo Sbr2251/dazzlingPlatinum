@@ -20,14 +20,16 @@ BOOL BattleStage_IsEnabled(void);
 enum BattleStageSuppress {
     BATTLE_STAGE_SUPPRESS_BG_SWITCH = 1 << 0, // a move replaced/animates the BG3 backdrop
     BATTLE_STAGE_SUPPRESS_BG2_EFFECT = 1 << 1, // a move draws on BG2 (under the 3D layer)
-    BATTLE_STAGE_SUPPRESS_BRIGHTNESS = 1 << 2, // a 2D brightness/blend effect that skips BG0
+    // A 2D brightness/blend effect that skips BG0 and can't use BattleStage_SetBrightness.
+    // Nothing uses it now: the Mega pulse dims the arena with BattleStage_SetBrightness
+    BATTLE_STAGE_SUPPRESS_BRIGHTNESS = 1 << 2,
     BATTLE_STAGE_SUPPRESS_MENU = 1 << 3, // a screen that owns the 3D layer or VRAM
     BATTLE_STAGE_SUPPRESS_OTHER = 1 << 4,
 };
 
 void BattleStage_Suppress(u32 reasons, BOOL suppress);
-// TRUE when this battle's background and terrain have an arena (only PLAIN with PLAIN or
-// GRASS so far); FALSE keeps the classic scene for the whole battle
+// TRUE when this battle's background and terrain pieces loaded into an arena; FALSE keeps
+// the classic scene for the whole battle
 BOOL BattleStage_HasArena(void);
 // TRUE when the arena is enabled, loaded for this battle and not suppressed
 BOOL BattleStage_IsVisible(void);
@@ -36,5 +38,11 @@ BOOL BattleStage_IsVisible(void);
 // arena is 3D. Sprites do not follow the camera yet (chunks 3-4).
 void BattleStage_SetDebugView(int view);
 int BattleStage_GetDebugView(void);
+
+// The 2D brightness blend skips BG0, so an effect that dims or flashes the scene with it
+// passes the same value here (-16..16, as G2_SetBlendBrightness). While it is not 0 it
+// replaces the atmosphere fog on the FOG meshes: black when negative, white when positive,
+// at |brightness| * 8 / 128. 0 brings the atmosphere fog back. Init and Free reset it to 0.
+void BattleStage_SetBrightness(int brightness);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_H
