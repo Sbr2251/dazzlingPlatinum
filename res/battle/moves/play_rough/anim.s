@@ -12,7 +12,6 @@ L_0:
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 24, 0, 4
     WaitForAnimTasks
     PlayLoopedSoundEffectR SEQ_SE_DP_W028B, 3, 6
-    CreateEmitter 0, 0, EMITTER_CB_SET_POS_TO_DEFENDER
     CreateEmitter 0, 1, EMITTER_CB_SET_POS_TO_DEFENDER
     BeginLoop 3
     PlaySoundEffectR SEQ_SE_DP_W025B
