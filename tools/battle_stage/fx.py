@@ -172,6 +172,10 @@ def debug_view_cam_pos(cam_pos, cam_target, view):
     return tuple(cam_target[i] + offset[i] for i in range(3))
 
 
+# BuildProjection squeezes NDC depth into [STAGE_DEPTH_NEAR, STAGE_DEPTH_FAR] / 4096
+DEPTH_NEAR = 4010
+DEPTH_FAR = 4094
+
 SCREEN_W = 256
 SCREEN_H = 192
 
@@ -202,6 +206,11 @@ class Camera:
         self.pos = mtx_scale_rows(self.look_at, vertex_scale)
         self.clip = mtx_mult44(self.pos, self.proj)
 
+        # Depth column after the remap: z' = a * z + b * w
+        a, b = (DEPTH_FAR - DEPTH_NEAR) // 2, (DEPTH_FAR + DEPTH_NEAR) // 2
+        self.depth_col = [fx_mul(a, self.proj[i][2]) + fx_mul(b, self.proj[i][3]) for i in range(4)]
+        self.clip_depth_col = [sum(self.pos[i][k] * self.depth_col[k] for k in range(4)) >> FX32_SHIFT for i in range(4)]
+
     def to_clip(self, v):
         """Clip coordinates (x, y, z, w) of an fx16 vertex (x, y, z), like the DS."""
         c = self.clip
@@ -225,6 +234,22 @@ class Camera:
         sx = ((x + w) * SCREEN_W) // (2 * w)
         sy = ((w - y) * SCREEN_H) // (2 * w)
         return sx, sy, sxf, syf, w
+
+    def clip_depth(self, v):
+        """Remapped clip z' of an fx16 vertex (what the DS clips and depth tests with)."""
+        c = self.clip_depth_col
+        return (v[0] * c[0] + v[1] * c[1] + v[2] * c[2] + FX32_ONE * c[3]) >> FX32_SHIFT
+
+    def depth(self, v):
+        """15-bit depth of an fx16 vertex in GX_BUFFERMODE_Z (what the fog table reads):
+        z' * 0x4000 / w + 0x3FFF with the remapped z' (GBATEK's 24-bit depth >> 9)."""
+        return self.clip_depth(v) * 0x4000 // self.to_clip(v)[3] + 0x3FFF
+
+    def depth_of_view_depth(self, d):
+        """The same depth, as a float, of a point d world units in front of the camera."""
+        z = -d * self.depth_col[2] / FX32_ONE + self.depth_col[3] / FX32_ONE
+        w = -d * self.proj[2][3] / FX32_ONE
+        return z * 0x4000 / w + 0x3FFF
 
     # Float helpers for generating geometry: the exact integer matrices as floats.
 

@@ -47,9 +47,30 @@ PLATFORM_CHAR = (
 )
 PLATFORM_CELL = (128, 131)
 
-# Unk_ov16_02270134, [terrain][timeOfDay]; chunk 1 only needs TERRAIN_PLAIN and
-# TERRAIN_GRASS
-PLATFORM_PALETTE = ((0x7, 0x8, 0x9), (0x16, 0x17, 0x18), (0x1, 0x2, 0x3))
+# Unk_ov16_02270134, [terrain][timeOfDay]
+PLATFORM_PALETTE = (
+    (0x07, 0x08, 0x09), (0x16, 0x17, 0x18), (0x01, 0x02, 0x03), (0x1F, 0x20, 0x21),
+    (0x0D, 0x0E, 0x0F), (0x1C, 0x1D, 0x1E), (0x10, 0x11, 0x12), (0x04, 0x05, 0x06),
+    (0x0A, 0x0B, 0x0C), (0x13, 0x14, 0x15), (0x19, 0x1A, 0x1B), (0x19, 0x1A, 0x1B),
+    (0x22, 0x23, 0x24), (0x25, 0x26, 0x27), (0x28, 0x29, 0x2A), (0x2B, 0x2C, 0x2D),
+    (0x2E, 0x2F, 0x30), (0x31, 0x32, 0x33), (0x34, 0x35, 0x36), (0x37, 0x38, 0x39),
+    (0x3A, 0x3B, 0x3C), (0x3D, 0x3E, 0x3F), (0x40, 0x41, 0x42), (0x43, 0x44, 0x45),
+)
+
+# Backgrounds whose palettes follow the time of day (ov16_0223EC04); every other one
+# always uses column 0
+BACKGROUND_PLAIN = 0
+BACKGROUND_WATER = 1
+BACKGROUND_CITY = 2
+BACKGROUND_FOREST = 3
+BACKGROUND_MOUNTAIN = 4
+BACKGROUND_SNOW = 5
+TIME_OF_DAY_BACKGROUNDS = (BACKGROUND_PLAIN, BACKGROUND_WATER, BACKGROUND_CITY, BACKGROUND_FOREST, BACKGROUND_MOUNTAIN, BACKGROUND_SNOW)
+
+
+def palette_column(background, tod):
+    """ov16_0223EC04: the palette / lighting column a background uses at a time of day."""
+    return tod if background in TIME_OF_DAY_BACKGROUNDS else 0
 
 # Sprite position once the intro slide is over (the templates in ov16_02268520.c start
 # them off screen at x 0x150 and -80)
@@ -74,9 +95,19 @@ class Backdrop:
             self.palettes.append((pltt + [0] * 256)[:256])
 
     def is_mirrored(self):
-        """TRUE when map column 511 - x equals column x on every row."""
+        """TRUE when map column 511 - x equals column x on every row. The first tile
+        row of the map's first and last tile column (screen entries (0, 0) and (63, 0))
+        hold the same unflipped tile on most backgrounds; that 8x8 corner is ignored.
+        Those pixels are only seen with a BG3 X scroll, which the stage's
+        REPEAT_S | FLIP_S texture shows mirrored."""
         w = self.width
-        return all(row[x] == row[w - 1 - x] for row in self.image for x in range(w // 2))
+
+        for y, row in enumerate(self.image):
+            for x in range(8 if y < 8 else 0, w // 2):
+                if row[x] != row[w - 1 - x]:
+                    return False
+
+        return True
 
     def screen(self, scroll_x=0, scroll_y=0):
         """The 256x192 screen BG3 shows at the given scroll."""
@@ -99,6 +130,10 @@ class Platform:
         self.pixels, self.oams = nitro.render_cell(ncgr, ncer, 0)
         self.home = PLATFORM_HOME[side]
         self.palettes = [nitro.read_nclr(members[m])[:16] for m in self.palette_members]
+
+    def is_empty(self):
+        """TRUE for art without an opaque pixel (the enemy side of TERRAIN_GIRATINA)."""
+        return not any(self.pixels.values())
 
     def bbox(self):
         """(x0, y0, x1, y1) of the opaque pixels relative to the sprite, inclusive."""

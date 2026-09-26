@@ -1,12 +1,13 @@
-"""Arena geometry: the home camera, the backdrop piece (ground and panorama) and the
-platform pieces (two platform discs) of BACKGROUND_PLAIN / TERRAIN_PLAIN and GRASS.
+"""Arena geometry: the home camera, the backdrop pieces (ground or floor, panorama or
+walls) of every BACKGROUND_* and the platform pieces (two platform discs) of every
+TERRAIN_*.
 
-Every texture coordinate is the home-camera screen position of its vertex, so at the
-home pose each pixel shows the texel the classic BG3 or platform OBJ shows there. To
-make that exact both on the DS, whose rasterizer uses integer vertex coordinates, and
-in DeSmuME, which keeps 1/16 pixel, the vertices the home view can see are placed so
-they project within VERTEX_WINDOW right of and below integers X, Y, and get the
-texture coordinate
+Every texture coordinate the home view can see is the home-camera screen position of
+its vertex, so at the home pose each pixel shows the texel the classic BG3 or platform
+OBJ shows there. To make that exact both on the DS, whose rasterizer uses integer
+vertex coordinates, and in DeSmuME, which keeps 1/16 pixel, the vertices the home view
+can see are placed so they project within VERTEX_WINDOW right of and below integers
+X, Y, and get the texture coordinate
 (X + HALF_PIXEL, Y + HALF_PIXEL) minus the texture's origin. fx.py projects every
 vertex with the DS integer math to check where it lands.
 
@@ -18,6 +19,11 @@ interpolation is linear. On the ground, the platforms and the frontal part of th
 panorama that holds along screen rows (no camera yaw), so columns can be wide; down a
 column the error of a band h pixels tall and d pixels below the horizon is about
 h * h / (4 * d), so bands get taller with distance from the horizon.
+
+Every mesh is LIT (it sends normals; the backdrop piece's atmosphere lights it) and
+FOG. Normals: ground, floor and disc tops face up, the frontal panorama or back wall
+faces the camera (+z), the outdoor panorama's curved sides face the centre of their
+arc, room side walls face into the room and the disc side bands face outward.
 """
 
 import math
@@ -57,8 +63,39 @@ TEX_B_FIRST_ROW = 127
 TEX_B_ROWS = 32
 SPLIT_ROW = 127
 
-# The panorama stands on the ground at this row; the tree line (rows 50..57) is on it
-WALL_BASE_ROW = 57
+# Backdrop kinds. OUTDOOR, CAVE and VOID: the ground plus a panorama that stands on it
+# at the base row and curves toward the camera beyond the home frustum. ROOM: a floor
+# plus a box of walls, the back wall standing on the floor at the base row and a side
+# wall on each side, where the back wall's base meets the frustum edge.
+KIND_OUTDOOR = 0
+KIND_CAVE = 1
+KIND_ROOM = 2
+KIND_VOID = 3
+KIND_NAMES = ("outdoor", "cave", "room", "void")
+
+# Per BACKGROUND_*: the screen row where the image's ground or floor meets its
+# panorama or back wall (the first row that is clearly ground), and the kind
+BACKGROUND_BASE_ROW = (
+    57, 57, 56, 53, 58, 48,  # plain, water, city, forest, mountain, snow
+    58, 62, 64,  # indoors 1..3
+    50, 52, 52,  # caves 1..3
+    57, 57, 57, 57, 46,  # Aaron, Bertha, Flint, Lucian, Cynthia
+    52,  # Distortion World
+    62, 64, 62, 62, 62,  # Battle Tower, Factory, Arcade, Castle, Hall
+)
+BACKGROUND_KIND = (
+    (KIND_OUTDOOR,) * 6 + (KIND_ROOM,) * 3 + (KIND_CAVE,) * 3 + (KIND_ROOM,) * 5 + (KIND_VOID,) + (KIND_ROOM,) * 5
+)
+BACKGROUND_MAX = len(BACKGROUND_BASE_ROW)
+BACKGROUND_WATER = 1
+
+# Water: the ground bands from WATER_FIRST_ROW_BELOW rows under the base row sway
+WATER_BACKGROUNDS = (BACKGROUND_WATER,)
+WATER_FIRST_ROW_BELOW = 4
+WATER_SCROLL_AMPLITUDE = (3, 1)  # texels, s and t
+# Arena draws: the battle draws the 3D scene at 30 fps, so 105 draws = 3.5 s (210 VBlanks)
+WATER_SCROLL_PERIOD = 105
+
 WALL_TOP_ROW = -64  # home screen row of its top edge (clamps to texture row 0)
 WALL_ROW_STEP = 16
 
@@ -77,7 +114,7 @@ SIDE_SEGMENTS = 4  # ground columns each side of the home frustum
 # this radius, tangent to the frontal part, that ends on ARC_END_ROW's ground line
 ARC_RADIUS = 30.0
 ARC_END_ROW = 90
-ARC_EXTRA_ROWS = (59, 61)  # extra ground rows to smooth the start of the curve
+ARC_EXTRA_ROWS = (2, 4)  # extra ground rows below the base row, to smooth the start of the curve
 
 # Band height rule: max interpolation error in pixels
 BAND_ERROR_PX = 0.25
@@ -161,12 +198,17 @@ class Vertex:
 
 
 class Mesh:
-    def __init__(self, name, texture, flags, primitive, vertices):
+    def __init__(self, name, texture, flags, primitive, vertices, scroll_amplitude=(0, 0), scroll_period=1):
         self.name = name
         self.texture = texture  # index into the piece's textures
-        self.flags = flags
+        self.flags = flags | FLAG_LIT | FLAG_FOG
         self.primitive = primitive
-        self.vertices = vertices  # [(Vertex, (s, t) in texels)]
+        self.vertices = vertices  # [(Vertex, (s, t) in texels, unit normal)]
+        self.scroll_amplitude = scroll_amplitude
+        self.scroll_period = scroll_period
+
+        if scroll_amplitude != (0, 0):
+            self.flags |= FLAG_SCROLL
 
     def num_polygons(self):
         n = len(self.vertices)
@@ -198,6 +240,17 @@ FLAG_REPEAT_S = 1 << 4
 FLAG_REPEAT_T = 1 << 5
 FLAG_FLIP_S = 1 << 6
 FLAG_FLIP_T = 1 << 7
+FLAG_LIT = 1 << 8
+FLAG_FOG = 1 << 9
+FLAG_SCROLL = 1 << 10
+
+UP = (0.0, 1.0, 0.0)
+TOWARD_CAMERA = (0.0, 0.0, 1.0)
+
+
+def normalize(v):
+    n = math.sqrt(sum(c * c for c in v))
+    return tuple(c / n for c in v)
 
 
 # fx16 offsets Placer.exact tries around a vertex, nearest first. Near the middle of the
@@ -262,6 +315,24 @@ class Placer:
                     best = (err, cand)
                     break
 
+        if best is None:
+            # Close to the camera the DS projection reaches only some sub-pixel
+            # positions; search wider, keeping the smallest move
+            found = []
+
+            for dx in range(-12, 13):
+                for dy in range(-40, 41):
+                    for dz in range(-40, 41):
+                        cand = (v[0] + dx, v[1] + dy, v[2] + dz)
+                        err = score(cand)
+
+                        if err is not None:
+                            found.append((dx * dx + dy * dy + dz * dz, err, cand))
+
+            if found:
+                _n, err, cand = min(found)
+                best = (err, cand)
+
         assert best is not None, f"no vertex projects to pixel ({x}, {y})"
         vertex = Vertex(best[1], (x + HALF_PIXEL, y + HALF_PIXEL), True)
         self.cache[key] = vertex
@@ -322,15 +393,22 @@ def tex_coord(vertex, origin):
     return (vertex.screen[0] - origin[0], vertex.screen[1] - origin[1])
 
 
-def strip_mesh(name, texture, flags, top, bottom, origin):
-    """QUAD_STRIP over two rows of vertices (left to right)."""
+def strip_mesh(name, texture, flags, top, bottom, origin, normal=UP, **kw):
+    """QUAD_STRIP over two rows of vertices (left to right). A row entry is a Vertex,
+    which gets normal, or a (Vertex, normal) pair."""
     vertices = []
 
-    for a, b in zip(top, bottom):
-        vertices.append((a, tex_coord(a, origin)))
-        vertices.append((b, tex_coord(b, origin)))
+    def entry(v):
+        if isinstance(v, tuple):
+            return (v[0], tex_coord(v[0], origin), v[1])
 
-    return Mesh(name, texture, flags, PRIM_QUAD_STRIP, vertices)
+        return (v, tex_coord(v, origin), normal)
+
+    for a, b in zip(top, bottom):
+        vertices.append(entry(a))
+        vertices.append(entry(b))
+
+    return Mesh(name, texture, flags, PRIM_QUAD_STRIP, vertices, **kw)
 
 
 # Backdrop piece textures
@@ -342,20 +420,29 @@ TEX_B_FLAGS = BACKDROP_FLAGS | FLAG_REPEAT_T | FLAG_FLIP_T
 
 
 class Backdrop:
-    """Ground and panorama. meshes, plus the ground grid for inspection."""
+    """Ground or floor plus panorama or walls of one background. meshes, plus the ground
+    grid for inspection."""
 
-    def __init__(self, home):
+    def __init__(self, home, background=0):
         self.home = home
+        self.background = background
+        self.kind = BACKGROUND_KIND[background]
+        self.base_row = base_row = BACKGROUND_BASE_ROW[background]
+        room = self.kind == KIND_ROOM
         place = Placer(home)
         cam = home.cam
         ground = plane_y(0.0)
 
-        # The frontal panorama is the plane through the ground line of WALL_BASE_ROW
-        base_mid = place.screen_point(128 + VERTEX_NUDGE, WALL_BASE_ROW + VERTEX_NUDGE, ground)
+        # The frontal panorama or back wall is the plane through the ground line of the
+        # base row
+        base_mid = place.screen_point(128 + VERTEX_NUDGE, base_row + VERTEX_NUDGE, ground)
         self.wall_z = base_mid[2]
         wall = plane_z(self.wall_z)
 
-        rows = band_rows(WALL_BASE_ROW, HIDDEN_FROM_ROW, forced=set(ARC_EXTRA_ROWS) | {SPLIT_ROW, ARC_END_ROW})
+        extra = {base_row + d for d in ARC_EXTRA_ROWS}
+        water_row = base_row + WATER_FIRST_ROW_BELOW if background in WATER_BACKGROUNDS else None
+        forced = extra | {SPLIT_ROW} | ({ARC_END_ROW} if not room else set())
+        rows = band_rows(base_row, HIDDEN_FROM_ROW, forced=forced)
         rows += [r for r in (160, 192, GROUND_LAST_ROW) if r > rows[-1]]
         self.rows = rows
         columns = list(range(0, fx.SCREEN_W + 1, COLUMN_PX))
@@ -373,18 +460,24 @@ class Backdrop:
         # Row k's ground line has constant z (the camera has no yaw or roll)
         row_z = [world_of(grid[fx.SCREEN_W, y].pos)[2] for y in rows]
 
-        # Arc: starts at the frontal panorama's edge, bends toward the camera
-        edge_x = world_of(grid[fx.SCREEN_W, WALL_BASE_ROW].pos)[0]
+        # Outdoors the panorama's arc starts at the frontal part's edge and bends toward
+        # the camera; in a room the side walls stand straight at that edge
+        edge_x = world_of(grid[fx.SCREEN_W, base_row].pos)[0]
         centre_z = self.wall_z + ARC_RADIUS
-        end_k = rows.index(ARC_END_ROW)
+        end_k = len(rows) - 1 if room else rows.index(ARC_END_ROW)
+        self.edge_x = edge_x
 
         def arc_x(z):
+            if room:
+                return edge_x
+
             c = (centre_z - z) / ARC_RADIUS
             return edge_x + ARC_RADIUS * math.sqrt(max(0.0, 1 - c * c))
 
         arc_end_x = arc_x(row_z[end_k])
 
-        # Side ground: row lines from the frustum edge out to the arc, or beyond its end
+        # Side ground: row lines from the frustum edge out to the arc (or the side
+        # wall), or beyond the arc's end
         sides = {}
 
         for sign in (1, -1):
@@ -417,6 +510,10 @@ class Backdrop:
             texture = TEX_A if y1 <= SPLIT_ROW else TEX_B
             origin = (0, 0) if texture == TEX_A else (0, TEX_B_FIRST_ROW)
             flags = TEX_A_FLAGS if texture == TEX_A else TEX_B_FLAGS
+            scroll = {}
+
+            if water_row is not None and y0 >= water_row:
+                scroll = dict(scroll_amplitude=WATER_SCROLL_AMPLITUDE, scroll_period=WATER_SCROLL_PERIOD)
 
             def full_row(kk, yy):
                 return sides[-1, kk][::-1] + [grid[x, yy] for x in columns[1:-1]] + sides[1, kk]
@@ -424,18 +521,18 @@ class Backdrop:
             top, bottom = full_row(k, y0), full_row(k + 1, y1)
             # The first band's far edge collapses to a point at each end (the arc starts
             # there); quads with two equal vertices are triangles, which is fine
-            self.meshes.append(strip_mesh(f"ground {y0}-{y1}", texture, flags, top, bottom, origin))
+            self.meshes.append(strip_mesh(f"ground {y0}-{y1}", texture, flags, top, bottom, origin, UP, **scroll))
 
-        # Panorama: frontal part on the wall plane, curved part through the side
-        # ground's outer ends. Rows are horizontal lines (constant height).
-        # Everything above screen row 0 shows texture row 0 (t clamps), so one band
-        # covers it
-        wall_rows = list(range(WALL_BASE_ROW, 0, -WALL_ROW_STEP)) + [0, WALL_TOP_ROW]
+        # Panorama or walls: frontal part on the wall plane, the arc or the side walls
+        # through the side ground's outer ends. Rows are horizontal lines (constant
+        # height). Everything above screen row 0 shows texture row 0 (t clamps), so one
+        # band covers it
+        wall_rows = list(range(base_row, 0, -WALL_ROW_STEP)) + [0, WALL_TOP_ROW]
         wall_grid = {}
 
         for y in wall_rows:
             for x in columns:
-                if y == WALL_BASE_ROW:
+                if y == base_row:
                     wall_grid[x, y] = grid[x, y]
                 elif y >= 0 or x in (0, fx.SCREEN_W):
                     wall_grid[x, y] = place.exact(x, y, wall)
@@ -443,6 +540,23 @@ class Backdrop:
                     wall_grid[x, y] = place.free(place.screen_point(x + VERTEX_NUDGE, y + VERTEX_NUDGE, wall))
 
         heights = [world_of(wall_grid[fx.SCREEN_W, y].pos)[1] for y in wall_rows]
+        self.wall_top = heights[-1]
+
+        # Side walls aren't in the home view, so their texture coordinates don't come
+        # from it: the back wall's texture continues round the corner at the density it
+        # has at the corner (mirrored by FLIP_S), rows at the corner's rows
+        corner_depth = -cam.world_to_view((edge_x, 0.0, self.wall_z))[2]
+        texels_per_unit = cam.p00 * (fx.SCREEN_W / 2) / corner_depth
+
+        def side_wall_vertex(sign, j, k):
+            p = (sign * edge_x, heights[j], row_z[k])
+            corner = wall_grid[fx.SCREEN_W if sign > 0 else 0, wall_rows[j]]
+            s = corner.screen[0] + sign * (self.wall_z - p[2]) * texels_per_unit
+            return Vertex(fx16_vec(p), (s, corner.screen[1]), False)
+
+        def arc_normal(sign, v):
+            x, _y, z = world_of(v.pos)
+            return normalize((sign * edge_x - x, 0.0, centre_z - z))
 
         def wall_row(j):
             y = wall_rows[j]
@@ -452,13 +566,28 @@ class Backdrop:
                 arc = []
 
                 for k in range(1, end_k + 1):
-                    outer = world_of(sides[sign, k][-1].pos)
-                    arc.append(sides[sign, k][-1] if j == 0 else place.free((outer[0], heights[j], outer[2])))
+                    if room:
+                        arc.append((side_wall_vertex(sign, j, k), (-sign, 0.0, 0.0)))
+                    else:
+                        outer = world_of(sides[sign, k][-1].pos)
+                        v = sides[sign, k][-1] if j == 0 else place.free((outer[0], heights[j], outer[2]))
+                        arc.append((v, arc_normal(sign, v)))
+
+                corner = wall_grid[fx.SCREEN_W if sign > 0 else 0, y]
 
                 if sign < 0:
                     line += arc[::-1]
-                    line += [wall_grid[x, y] for x in columns]
+
+                    # A room's corner is a crease: repeat the corner vertex with each
+                    # wall's normal (the quad between them has no area)
+                    if room:
+                        line.append((corner, (1.0, 0.0, 0.0)))
+
+                    line += [(wall_grid[x, y], TOWARD_CAMERA) for x in columns]
                 else:
+                    if room:
+                        line.append((corner, (-1.0, 0.0, 0.0)))
+
                     line += arc
 
             return line
@@ -482,6 +611,7 @@ class PlatformDisc:
         disc = plane_y(PLATFORM_HEIGHT)
         hx, hy = classic.PLATFORM_HOME[side]
         origin = (hx - PLATFORM_TEX_ORIGIN[side][0], hy - PLATFORM_TEX_ORIGIN[side][1])
+        tex_left, tex_right = origin[0], origin[0] + PLATFORM_TEX_SIZE[side][0]
 
         # Opaque extent of each screen row of the art; the player's is mirrored below
         # sprite y 16 like its texture (FLIP_T)
@@ -524,7 +654,9 @@ class PlatformDisc:
             lo_row = rows[k - 1] if k > 0 else rows[k]
             hi_row = rows[k + 1] if k + 1 < len(rows) else art_bottom
             span = [extents[r] for r in range(lo_row, hi_row + 1) if r in extents]
-            return min(s[0] for s in span) - 1, max(s[1] for s in span) + 1
+            # One transparent column of margin, but never past the texture's edge,
+            # where the clamp would repeat the edge texels
+            return max(tex_left, min(s[0] for s in span) - 1), min(tex_right, max(s[1] for s in span) + 1)
 
         def vertex(x, y):
             if y <= HIDDEN_FROM_ROW:
@@ -574,18 +706,31 @@ class PlatformDisc:
         ground = plane_y(PLATFORM_BAND_BOTTOM)
         tops, bottoms = [], []
 
+        # The band faces outward: the normal of the ellipse through the rim, whose
+        # centre and semi-axes come from the rim's extent
+        rim_world = [world_of(v.pos) for v in rim]
+        cx = (min(p[0] for p in rim_world) + max(p[0] for p in rim_world)) / 2
+        cz = min(p[2] for p in rim_world)  # the widest row, at the back of the band
+        ax = max(abs(p[0] - cx) for p in rim_world)
+        az = max(max(p[2] - cz for p in rim_world), 1e-3)
+
+        def band_normal(p):
+            return normalize(((p[0] - cx) / (ax * ax), 0.0, (p[2] - cz) / (az * az)))
+
         for v in rim:
             p = world_of(v.pos)
             below = (p[0], PLATFORM_BAND_BOTTOM, p[2])
             _sx, _sy, sxf, syf, _w = home.cam.to_screen(fx16_vec(below))
             x, y = int(round(sxf - VERTEX_NUDGE)), int(round(syf - VERTEX_NUDGE))
 
-            if y < HIDDEN_FROM_ROW:
-                bottoms.append(place.exact(x, y, ground))
-            else:
-                bottoms.append(place.free(below))
+            n = band_normal(p)
 
-            tops.append(v)
+            if y < HIDDEN_FROM_ROW:
+                bottoms.append((place.exact(x, y, ground), n))
+            else:
+                bottoms.append((place.free(below), n))
+
+            tops.append((v, n))
 
         self.meshes.append(strip_mesh(f"{name} band", side, flags, tops, bottoms, origin))
         self.band_px = band_px
@@ -605,16 +750,39 @@ class PlatformDisc:
         return y1 - y0
 
 
+def platform_depths(home):
+    """View depth of each platform's centre."""
+    out = []
+
+    for side in (classic.SIDE_PLAYER, classic.SIDE_ENEMY):
+        hx = classic.PLATFORM_HOME[side][0]
+        centre = Placer(home).screen_point(hx + VERTEX_NUDGE, PLATFORM_CENTRE_ROW[side] + VERTEX_NUDGE, plane_y(PLATFORM_HEIGHT))
+        out.append(-home.cam.world_to_view(centre)[2])
+
+    return out
+
+
 class Arena:
-    def __init__(self, terrain=0):
-        self.home = HomeCamera()
-        self.backdrop = Backdrop(self.home)
-        self.platforms = [PlatformDisc(self.home, side, classic.Platform(side, terrain)) for side in (classic.SIDE_PLAYER, classic.SIDE_ENEMY)]
-        self.pixel_to_world = [self.home.pixel_to_world(p.depth) for p in self.platforms]
+    """The backdrop of a background and the platforms of a terrain. A platform whose
+    art is empty (TERRAIN_GIRATINA's enemy side) is None."""
+
+    def __init__(self, terrain=0, background=0, home=None):
+        self.home = home or HomeCamera()
+        self.backdrop = Backdrop(self.home, background) if background is not None else None
+        self.platforms = []
+
+        if terrain is not None:
+            for side in (classic.SIDE_PLAYER, classic.SIDE_ENEMY):
+                art = classic.Platform(side, terrain)
+                self.platforms.append(None if art.is_empty() else PlatformDisc(self.home, side, art))
+
+        self.pixel_to_world = [self.home.pixel_to_world(d) for d in platform_depths(self.home)]
 
 
 if __name__ == "__main__":
-    arena = Arena()
+    import sys
+
+    arena = Arena(int(sys.argv[2]) if len(sys.argv) > 2 else 0, int(sys.argv[1]) if len(sys.argv) > 1 else 0)
     home = arena.home
     print("camPos", [c / FX32_ONE for c in home.cam_pos], "camTarget", [c / FX32_ONE for c in home.cam_target])
     print("ground rows", arena.backdrop.rows)
@@ -623,13 +791,14 @@ if __name__ == "__main__":
     for m in arena.backdrop.meshes:
         print(f"  {m.name:24} verts {len(m.vertices):4} polys {m.num_polygons()}")
 
-    for p in arena.platforms:
+    for p in filter(None, arena.platforms):
         print("platform", p.side, "rows", p.rows, "band px %.2f" % p.band_px, "depth %.2f" % p.depth)
 
         for m in p.meshes:
             print(f"  {m.name:24} verts {len(m.vertices):4} polys {m.num_polygons()}")
 
-    total_polys = arena.backdrop.num_polygons + sum(p.num_polygons for p in arena.platforms)
-    total_verts = sum(len(m.vertices) for m in arena.backdrop.meshes) + sum(len(m.vertices) for p in arena.platforms for m in p.meshes)
-    print("polygons", total_polys, "vertices", total_verts, "meshes", len(arena.backdrop.meshes) + sum(len(p.meshes) for p in arena.platforms))
+    plats = list(filter(None, arena.platforms))
+    total_polys = arena.backdrop.num_polygons + sum(p.num_polygons for p in plats)
+    total_verts = sum(len(m.vertices) for m in arena.backdrop.meshes) + sum(len(m.vertices) for p in plats for m in p.meshes)
+    print("polygons", total_polys, "vertices", total_verts, "meshes", len(arena.backdrop.meshes) + sum(len(p.meshes) for p in plats))
     print("pixelToWorld", arena.pixel_to_world)
