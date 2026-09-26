@@ -128,6 +128,8 @@ classic art. Only the geometry and the atmosphere differ per background:
 - In the Distortion World the art is a void, so a panorama without a real floor is fine.
 - Water: the ground mesh under the water gets `SCROLL`, a slow sway of a few texels. Keep the
   scrolling region away from the edges of the mesh so there is no visible seam.
+  `scrollPeriod` counts arena draws, not VBlanks. The battle draws the 3D scene every
+  other VBlank (30 fps), so a period of 120 lasts 4 seconds.
 
 Each terrain's platform piece samples that terrain's platform OBJ art (`PLATFORM_CHAR` and
 the `[terrain][tod]` palette table in `classic.py`). The runtime palette comes from the
@@ -177,6 +179,20 @@ Battles use `GX_BUFFERMODE_Z`, and the arena's depth is remapped into
 `fogOffset`/`fogShift` from the remapped 15-bit depth. Fog is meant for distance: caves,
 snow haze and the far panorama. It must stay light at the home pose, so the arena keeps
 roughly matching BG3.
+
+The remapped depth range is very narrow. For a camera-space distance `d`, with the
+`G3_Perspective` clip `z = (f+n)/(f-n)*d - 2*f*n/(f-n)` and `w = d`:
+
+- `z' = A*z + B*w`, where `A = (STAGE_DEPTH_FAR - STAGE_DEPTH_NEAR)/2/4096` and
+  `B = (STAGE_DEPTH_FAR + STAGE_DEPTH_NEAR)/2/4096`;
+- `depth15 = (z'/w + 1)/2 * 32767`.
+
+At the plain home camera (near 1, far 128), the nearest ground (d = 5) is at about 32694 and
+the panorama (d = 30) at about 32750. The whole arena spans about 57 depth units, so use
+`fogShift` 9 (2 units per table entry) or 10 (1 unit), with `fogOffset` around 32690-32705.
+With a smaller shift, every arena pixel lands in the same one or two table entries. DeSmuME
+confirms this: with shift 9, offset 32704 and table `i*4`, the panorama shows 72% fog (entry 23)
+and the near ground about 30%.
 
 ## Brightness (Mega flash)
 
