@@ -13,6 +13,14 @@
 #include "pokemon.h"
 #include "pokemon_sprite.h"
 
+#include "res/pokemon/pl_otherpoke.naix.h"
+
+// The Substitute doll (back, front, palette) sits just before the shadows at the end of pl_otherpoke;
+// new form sprites are inserted ahead of it, so its members are not the vanilla 248-250.
+#define SUBSTITUTE_BACK_NCGR  (pokemon_shadows_NCGR - 3)
+#define SUBSTITUTE_FRONT_NCGR (pokemon_shadows_NCGR - 2)
+#define SUBSTITUTE_NCLR       (pokemon_shadows_NCGR - 1)
+
 static void ov12_022380DC(UnkStruct_ov12_022380DC *param0, int param1, int param2, enum HeapID heapID);
 
 const s16 Unk_ov12_0223B0B8[][3] = {
@@ -167,17 +175,17 @@ void ov12_02238390(UnkStruct_ov12_022380DC *param0, enum HeapID heapID)
 
     PokemonSprite_Push(param0->sprites[param0->unk_00]);
 
-    v0.narcID = 117;
-    v0.palette = 250;
+    v0.narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE;
+    v0.palette = SUBSTITUTE_NCLR;
     v0.spindaSpots = 0;
     v0.dummy = 0;
     v0.personality = 0;
 
     if (param0->types[param0->unk_00] & 0x1) {
-        v0.character = 249;
+        v0.character = SUBSTITUTE_FRONT_NCGR;
         v3 = 135;
     } else {
-        v0.character = 248;
+        v0.character = SUBSTITUTE_BACK_NCGR;
         v3 = 134;
     }
 

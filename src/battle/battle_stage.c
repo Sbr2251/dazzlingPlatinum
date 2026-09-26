@@ -141,8 +141,7 @@ void BattleStage_Init(BattleSystem *battleSys)
         sBattleStage.arena = LoadArena(battleSys);
     }
 
-    // Resets the sprite fields but debugFlags, and hooks the battle's sprites when there
-    // is an arena
+    // Resets the sprite fields and hooks the battle's sprites when there is an arena
     if (sBattleStage.arena != NULL) {
         BattleStageSpriteCamera camera;
 

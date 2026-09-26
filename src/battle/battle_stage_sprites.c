@@ -142,7 +142,8 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
         sStageSprites.states[i].wobble = 0;
     }
 
-    // Every field but debugFlags, which the critic may have set before the battle
+    // BattleStage_Init has just cleared sBattleStage, debugFlags included; the critic sets
+    // debugFlags again inside each battle
     fields->spriteMeshes = 0;
     fields->idleFrames = 0;
     fields->wobbleMask = 0;
