@@ -126,7 +126,8 @@ classic art. Only the geometry and the atmosphere differ per background:
   back wall. They can use a box, the camera-facing side walls optional.
 - Caves use the same split with a darker, closer fog.
 - In the Distortion World the art is a void, so a panorama without a real floor is fine.
-- Water: the ground mesh under the water gets `SCROLL`, a slow sway of a few texels. Keep the
+- Water: the ground mesh under the water gets `SCROLL`, a slow sway of a few texels: the offset is
+  `amplitude * (sin(a), sin(2a))` with `a = 2pi * frame / period`, a figure eight that starts at 0. Keep the
   scrolling region away from the edges of the mesh so there is no visible seam.
   `scrollPeriod` counts arena draws, not VBlanks. The battle draws the 3D scene every
   other VBlank (30 fps), so a period of 120 lasts 4 seconds.

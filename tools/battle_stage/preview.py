@@ -233,7 +233,7 @@ class Renderer:
             return 0.0, 0.0
 
         a = 2 * math.pi * self.frame / mesh.scroll_period
-        return mesh.scroll_amplitude[0] * math.sin(a), mesh.scroll_amplitude[1] * math.cos(a)
+        return mesh.scroll_amplitude[0] * math.sin(a), mesh.scroll_amplitude[1] * math.sin(2 * a)
 
     def palette_for(self, tex, mesh):
         if tex.palette_source == sf.PALETTE_PLATFORM_OBJ:

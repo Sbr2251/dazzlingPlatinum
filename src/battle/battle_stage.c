@@ -421,7 +421,6 @@ static u32 BuildMeshDL(u32 *dest, u32 capacity, const BattleStageFileHeader *pie
         misc |= GX_POLYGON_ATTR_MISC_FOG;
     }
 
-
     G3_BeginMakeDL(&info, dest, capacity);
     G3C_TexImageParam(&info,
         (GXTexFmt)texture->format,
@@ -890,7 +889,7 @@ static void SetTexMtx(StageArena *arena, const StageMesh *mesh, int bg3X, int bg
         u16 index = (u32)(arena->frame % mesh->scrollPeriod) * 0x10000 / mesh->scrollPeriod;
 
         s += mesh->scrollAmplitude[0] * FX_SinIdx(index) * 16;
-        t += mesh->scrollAmplitude[1] * FX_CosIdx(index) * 16;
+        t += mesh->scrollAmplitude[1] * FX_SinIdx((u16)(index * 2)) * 16;
     }
 
     G3_MtxMode(GX_MTXMODE_TEXTURE);

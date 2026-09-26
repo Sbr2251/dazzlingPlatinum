@@ -4,6 +4,7 @@
 #include <nnsys.h>
 #include <string.h>
 
+#include "config/battle_stage.h"
 #include "inlines.h"
 
 typedef struct {
@@ -21,6 +22,12 @@ static void GetTimeCallback(RTCResult param0, void *param1);
 static void StartRTCRead(RTCState *param0);
 
 static RTCState sRTCState;
+
+#if DEBUG_BATTLE_TOOLS
+// 0-23 pins the hour the game sees (the emulator critic writes it, so wild encounters and
+// palettes do not depend on when it runs); anything else uses the real clock
+static volatile u8 sDebugClockHour = 0xFF;
+#endif
 
 void InitRTC(void)
 {
@@ -57,6 +64,11 @@ static void GetTimeCallback(RTCResult result, void *data)
     state->valid = 1;
     state->date = state->tempDate;
     state->time = state->tempTime;
+#if DEBUG_BATTLE_TOOLS
+    if (sDebugClockHour < 24) {
+        state->time.hour = sDebugClockHour;
+    }
+#endif
     state->readInProgress = 0;
 }
 

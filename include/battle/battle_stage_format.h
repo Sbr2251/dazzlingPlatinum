@@ -116,7 +116,8 @@ typedef struct BattleStageFileMesh {
     u8 alpha; // 0..31
     u16 textureIndex;
     u16 flags; // enum BattleStageMeshFlag
-    // BATTLE_STAGE_MESH_SCROLL: texcoord offset = amplitude * (sin, cos)(2pi * frame / period)
+    // BATTLE_STAGE_MESH_SCROLL: texcoord offset = amplitude * (sin(a), sin(2a)), a = 2pi * frame / period
+    // (a figure eight that is 0 at frame 0)
     u8 scrollAmplitude[2]; // texels, s and t
     u16 scrollPeriod; // frames, > 0
 } BattleStageFileMesh;

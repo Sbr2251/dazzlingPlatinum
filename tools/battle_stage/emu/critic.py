@@ -167,11 +167,20 @@ def noisy_frames(frames: List[Frame], screen=top, noise_max: float = 45.0) -> Li
     return out
 
 
+# (address of sDebugClockHour in src/rtc.c, hour) set by run_in_process from --clock-hour and the xMAP
+CLOCK_PIN: Optional[tuple] = None
+
+
 def boot(sc: Scenario, e: Emu, frames: Optional[list] = None) -> bool:
     t = time.time()
     ok = e.boot(into=frames)
     sc.check("booted to overworld", ok, f"{e.frame} frames, {time.time() - t:.1f}s"
              if ok else "Poketch never appeared on the bottom screen")
+    if ok and CLOCK_PIN:
+        # The game re-reads the RTC every 11 frames and applies the pinned hour then
+        e.write(CLOCK_PIN[0], bytes([CLOCK_PIN[1]]))
+        e.run(24)
+        sc.note(f"clock pinned to {CLOCK_PIN[1]:02d}:xx (sDebugClockHour at {CLOCK_PIN[0]:#x})")
     return ok
 
 
@@ -674,7 +683,7 @@ def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
 def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
     # The save's own wild battle (Eterna Forest) has no arena, and there the overlay shows
     # "2D" with nothing for SELECT to toggle
-    if not _plain_battle(sc, e):
+    if not _plain_battle(sc, e, args.stage_tod):
         return
     ov = Overlay(e)
     shots: List[Frame] = []
@@ -922,7 +931,7 @@ def sc_stage_ab(sc: Scenario, e: Emu, args) -> None:
 
 
 def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
-    if not _plain_battle(sc, e):
+    if not _plain_battle(sc, e, args.stage_tod):
         return
     ov = Overlay(e)
     idle_frames = e.record(60, every=5, label="idle")
@@ -1009,7 +1018,7 @@ def _menu_round_trip(sc: Scenario, e: Emu, what: str, button: tuple, shots: List
 
 
 def sc_bag_party(sc: Scenario, e: Emu, args) -> None:
-    if not _plain_battle(sc, e):
+    if not _plain_battle(sc, e, args.stage_tod):
         return
     shots: List[Frame] = []
     e.snap("menu", shots)
@@ -1023,7 +1032,7 @@ def sc_bag_party(sc: Scenario, e: Emu, args) -> None:
 
 
 def sc_debug_views(sc: Scenario, e: Emu, args) -> None:
-    if not _plain_battle(sc, e):
+    if not _plain_battle(sc, e, args.stage_tod):
         return
     ov = Overlay(e)
     if not ov.show():
@@ -1796,7 +1805,11 @@ def main() -> int:
     ap.add_argument("--every-tod", action="store_true",
                     help="all_backgrounds: also play twilight/night on backgrounds that ignore the time of day")
     ap.add_argument("--stage-tod", choices=TODS, default="day",
-                    help="stage_ab: time of day the launcher forces (clock = the map's own)")
+                    help="3D stage scenarios on the Plain battle: time of day the launcher forces (clock = the map's own)")
+    ap.add_argument("--clock-hour", type=int, default=12,
+                    help="hour the game sees after boot, so wild encounters (night Gastly knows Mean Look) and "
+                         "the 'clock' time of day do not depend on the host clock; -1 = the real clock. "
+                         "Needs the xMAP and a DEBUG_BATTLE_TOOLS build")
     ap.add_argument("--map", default=None,
                     help="xMAP of the ROM's build for the RAM checks (default: next to the ROM or its "
                          "build/main.nef.xMAP; 'none' = pixels only)")
@@ -1900,7 +1913,14 @@ def run_child(cmd: List[str], timeout: int, log_path: pathlib.Path):
 
 
 def run_in_process(name: str, outdir: pathlib.Path, args) -> Scenario:
+    global CLOCK_PIN
     sc = Scenario(name, outdir)
+    xmap = find_xmap(args)
+    addr = read_xmap(xmap).get("sDebugClockHour") if xmap and 0 <= args.clock_hour < 24 else None
+    CLOCK_PIN = (addr[0], args.clock_hour) if addr else None
+    if 0 <= args.clock_hour < 24 and not addr:
+        sc.note(f"clock not pinned ({'no xMAP' if not xmap else 'no sDebugClockHour in ' + xmap}): "
+                "wild encounters follow the host clock")
     t = time.time()
     e = None
     try:
