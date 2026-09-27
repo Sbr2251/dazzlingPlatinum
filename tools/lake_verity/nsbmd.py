@@ -485,7 +485,8 @@ def parse_bmd(data):
 
 
 def map_model_bytes(path):
-    d = open(path, "rb").read()
+    """NSBMD bytes of an NSBMD or map_data file (a path, or the file's bytes)."""
+    d = bytes(path) if isinstance(path, (bytes, bytearray)) else open(path, "rb").read()
     if d[:4] == b"BMD0":
         return d
     s = struct.unpack_from("<4I", d)

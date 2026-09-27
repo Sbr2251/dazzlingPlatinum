@@ -4,7 +4,7 @@
 Usage: python3 tools/lake_verity/roundtrip.py [--generated]
 
 Stock checks:
-  1. NSBMD, chunks 537/538/540/541:
+  1. NSBMD, stock chunks 537/538/540/541 (read from git at assemble.STOCK_REV):
      - parse -> build is byte-identical;
      - every display list decodes and re-encodes byte-identically;
      - mesh round trip: model -> mesh.json -> model (quad-strip builder) -> NSBMD -> parse gives the same faces
@@ -28,6 +28,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import assemble  # noqa: E402
 import collision  # noqa: E402
 import layout  # noqa: E402
 import mapdata  # noqa: E402
@@ -67,9 +68,9 @@ def stock_path(c):
     return os.path.join(MAPS, f"map_data_{c:03d}.bin")
 
 
-def check_nsbmd(paths):
-    for c, path in paths.items():
-        raw = nsbmd.map_model_bytes(path)
+def check_nsbmd(chunks):
+    for c in chunks:
+        raw = nsbmd.map_model_bytes(assemble.stock_bytes(c))
         bmd = nsbmd.parse_bmd(raw)
         report(f"NSBMD {c} parse -> build identical", nsbmd.build_bmd(bmd["models"], tex0=bmd["tex0"]) == raw)
         model = bmd["models"][0]
@@ -100,7 +101,7 @@ def check_textures():
            f"{ok} identical, differ: {differ} (007 was rewritten by the coronet tools with other dictionary numbering)")
     s = nsbtx.parse(open(os.path.join(TEXSETS, "map_texture_set_061.nsbtx"), "rb").read())
     pals = {q["name"]: q["colors"] for q in s["palettes"]}
-    pairs = nsbtx.pairs_from_models([stock_path(c) for c in CHUNKS])
+    pairs = nsbtx.pairs_from_models([assemble.stock_bytes(c) for c in CHUNKS])
     bad = []
     fmts = {}
     import png
@@ -153,7 +154,7 @@ def check_layout_bdhc():
 
 
 def main():
-    check_nsbmd({c: stock_path(c) for c in CHUNKS})
+    check_nsbmd(CHUNKS)
     check_textures()
     check_bdhc_and_mapdata()
     check_layout_bdhc()
