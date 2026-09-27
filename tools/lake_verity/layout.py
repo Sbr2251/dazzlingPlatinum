@@ -14,6 +14,11 @@ Water is at h = WATER_H = -0.5: the stock surf collision and the l_lake water pl
 the shore (see docs/lake_verity_redesign/pipeline.md).
 
 Everything outside the island + bridge is the stock map, unchanged.
+
+The castle is one storey outside: the F1 block, whose only door is DOOR_1F on the courtyard (-> the castle interior),
+and on top of it an open-air roof terrace at h = F1_H, surrounded by F1's crenellated parapet and reached by the open
+west staircase. The launchpad and the Distortion World portal stand in the middle of the terrace. There is no upper
+floor, keep, roof deck or roof hatch any more, and only the two south corner towers remain.
 """
 
 import os
@@ -33,17 +38,13 @@ EXIT = 0x6F          # stock value of the Lakefront exit tiles (46,54), (47,54)
 
 # ---- feature geometry (inclusive tile ranges) ----
 ISLAND = (23, 21, 41, 39)             # x0, z0, x1, z1 walkable plateau; 2-tile octagon corner cuts
-F1 = (25, 22, 39, 33)                 # floor 1 block, walls on its perimeter, roof terrace inside at h=F1_H
-F1_H = 4
-F2 = (28, 23, 36, 30)                 # floor 2 block, roof terrace inside at h=F2_H (not walkable: decorative)
-F2_H = 8
-F3 = (30, 24, 34, 28)                 # top keep; its inside is the roof deck at h=F3_H (launchpad + portal)
-F3_H = 10
-TOWERS = [(25, 22), (39, 22), (25, 33), (39, 33)]   # round corner towers (on F1 wall tiles), visual only
-DOOR_1F = (32, 33)                    # ground door -> castle 1F interior (was the Verity Cavern warp at (32,32))
-DOOR_2F = (32, 30)                    # door in F2's south wall, reached from the F1 roof terrace -> castle 2F interior
-ROOF_HATCH = (33, 27)                 # arrival/exit warp on the roof deck <-> castle 3F interior
-LAUNCHPAD = (32, 26)                  # centre of the launchpad; portal hovers above it
+F1 = (25, 22, 39, 33)                 # the castle block: walls + crenellated parapet on its perimeter; its whole
+F1_H = 4                              # inside is the open-air roof terrace at h=F1_H (walkable, reached by the stair)
+TOWERS = [(25, 33), (39, 33)]         # round towers on the two south corners of F1 (wall tiles), visual only
+TOWER_H = 10                          # tower top (collision height of the blocked tower tiles)
+DOOR_1F = (32, 33)                    # the castle's only door (ground) -> castle 1F interior (was the Verity Cavern
+                                      # warp at (32,32))
+LAUNCHPAD = (32, 27)                  # launchpad tile, centred on the terrace; the Distortion World portal hovers above
 # Open staircase (camera tilt): west side, climbs north from the courtyard (enter from z=37, h=0) to the F1 terrace
 STAIR = (23, 31, 24, 36)              # x0, z0, x1, z1; height rises linearly from z1 (bottom) to z0 (top)
 STAIR_LANDING = (23, 29, 24, 30)      # flat at h=F1_H, enters the F1 terrace through a gap in F1's west wall
@@ -108,19 +109,12 @@ def tiles():
         for z in range(F1[1], F1[3] + 1):
             if perimeter(F1, x, z):
                 put(x, z, BLOCK, F1_H, "wall1")
-            elif inside(F2, x, z):
-                put(x, z, BLOCK, F2_H, "wall2" if perimeter(F2, x, z) else "keep2")
             else:
                 put(x, z, WALK, F1_H, "terrace1")
-    for x in range(F3[0], F3[2] + 1):
-        for z in range(F3[1], F3[3] + 1):
-            put(x, z, BLOCK if perimeter(F3, x, z) else WALK, F3_H, "wall3" if perimeter(F3, x, z) else "roof")
     for x, z in TOWERS:
-        put(x, z, BLOCK, F2_H + 2, "tower")
+        put(x, z, BLOCK, TOWER_H, "tower")
     put(*DOOR_1F, DOOR, 0, "door1")
-    put(*DOOR_2F, DOOR, F1_H, "door2")
-    put(*ROOF_HATCH, DOOR, F3_H, "hatch")
-    put(*LAUNCHPAD, WALK, F3_H, "launchpad")
+    put(*LAUNCHPAD, WALK, F1_H, "launchpad")
     for x in range(STAIR[0], STAIR[2] + 1):
         for z in range(STAIR[1], STAIR[3] + 1):
             put(x, z, WALK, stair_height(z), "stair")
@@ -142,9 +136,8 @@ def tiles():
 
 
 CHARS = {"forest": "#", "water": "~", "grass": '"', "ground": ".", "exit": "E", "courtyard": ",",
-         "wall1": "1", "wall2": "2", "keep2": "2", "wall3": "3", "terrace1": "t", "roof": "r", "tower": "O",
-         "door1": "D", "door2": "d", "hatch": "h", "launchpad": "L", "stair": "/", "landing": "=", "rail": "|",
-         "bridge": "b", "gate": "G", "gate_arch": "a"}
+         "wall1": "1", "terrace1": "t", "tower": "O", "door1": "D", "launchpad": "L", "stair": "/", "landing": "=",
+         "rail": "|", "bridge": "b", "gate": "G", "gate_arch": "a"}
 
 if __name__ == "__main__":
     t = tiles()
