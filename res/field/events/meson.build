@@ -540,8 +540,7 @@ events_files = files(
     'events_iceberg_ruins.json',
     'events_route_228_rock_peak_ruins.json',
     'events_rock_peak_ruins.json',
-    'events_verity_castle_2f.json',
-    'events_verity_castle_3f.json',
+    'events_verity_castle_1f.json',
 )
 
 events_headers = []

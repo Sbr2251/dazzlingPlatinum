@@ -3,15 +3,15 @@
     "object_events": [],
     "warp_events": [
         {
-            "x": 8,
-            "z": 13,
+            "x": 9,
+            "z": 15,
             "dest_header_id": "MAP_HEADER_LAKE_VERITY",
-            "dest_warp_id": 3
+            "dest_warp_id": 0
         },
         {
-            "x": 14,
-            "z": 3,
-            "dest_header_id": "MAP_HEADER_VERITY_CASTLE_3F",
+            "x": 9,
+            "z": 4,
+            "dest_header_id": "MAP_HEADER_VERITY_CAVERN",
             "dest_warp_id": 0
         }
     ],
