@@ -10,6 +10,8 @@
     ScriptEntry LakeVerity_OnFrameProfRowanNoticePlayer
     ScriptEntry LakeVerity_Mars
     ScriptEntry LakeVerity_GruntM
+    ScriptEntry LakeVerity_Launchpad
+    ScriptEntry LakeVerity_DrawbridgeSign
     ScriptEntryEnd
 
 LakeVerity_OnTransition:
@@ -42,7 +44,7 @@ LakeVerity_SetPositionsDuringTeamGalactic:
     Return
 
 LakeVerity_SetPositionsAfterTeamGalactic:
-    SetObjectEventPos LOCALID_PROF_ROWAN, 50, 37
+    SetObjectEventPos LOCALID_PROF_ROWAN, 51, 37
     SetObjectEventMovementType LOCALID_PROF_ROWAN, MOVEMENT_TYPE_LOOK_WEST
     SetObjectEventDir LOCALID_PROF_ROWAN, DIR_WEST
     SetObjectEventPos LOCALID_COUNTERPART, 50, 39
@@ -263,6 +265,47 @@ LakeVerity_GruntM:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     Message LakeVerity_Text_OuchWhatsWithThisOldTimer
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
+
+LakeVerity_Launchpad:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    GoToIfSet FLAG_LAKE_VERITY_PORTAL_OPEN, LakeVerity_LaunchpadPortalOpen
+    Message LakeVerity_Text_LaunchpadDormant
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+LakeVerity_LaunchpadPortalOpen:
+    Message LakeVerity_Text_LaunchpadPortalOpen
+    ShowYesNoMenu VAR_RESULT
+    GoToIfEq VAR_RESULT, MENU_NO, LakeVerity_LaunchpadStayBehind
+    CloseMessage
+    FadeScreenOut
+    WaitFadeScreen
+    ScrCmd_320
+    ReturnToField
+    SetPartyGiratinaForm GIRATINA_FORM_ORIGIN
+    Warp MAP_HEADER_DISTORTION_WORLD_1F, 0, 55, 40, 1
+    FadeScreenIn
+    WaitFadeScreen
+    End
+
+LakeVerity_LaunchpadStayBehind:
+    CloseMessage
+    ReleaseAll
+    End
+
+LakeVerity_DrawbridgeSign:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message LakeVerity_Text_DrawbridgeSign
     WaitABXPadPress
     CloseMessage
     ReleaseAll

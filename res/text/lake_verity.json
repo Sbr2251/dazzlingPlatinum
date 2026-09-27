@@ -183,6 +183,31 @@
         "They’d better not harm the Pokémon\n",
         "they took from the lakes..."
       ]
+    },
+    {
+      "id": "LakeVerity_Text_LaunchpadDormant",
+      "en_US": [
+        "An ancient stone ring is set\n",
+        "into the roof.\r",
+        "It hums faintly, but nothing\n",
+        "happens..."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_LaunchpadPortalOpen",
+      "en_US": [
+        "An ancient stone ring is set\n",
+        "into the roof.\r",
+        "A rift swirls in the sky above.\n",
+        "Step into the rift?"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_DrawbridgeSign",
+      "en_US": [
+        "VERITY CASTLE\n",
+        "The drawbridge is down."
+      ]
     }
   ]
 }
