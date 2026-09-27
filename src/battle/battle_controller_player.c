@@ -679,7 +679,9 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
                 }
             } else if (BattleSystem_BattleStatus(battleSys) & BATTLE_STATUS_NO_RUNNING) {
                 msg.tags = TAG_NONE;
-                msg.id = BattleStrings_Text_NoRunningFromTotem; // "You can't escape from a Totem Pokémon!"
+                msg.id = (BattleSystem_BattleStatus(battleSys) & BATTLE_STATUS_TOTEM)
+                    ? BattleStrings_Text_NoRunningFromTotem // "You can't escape from a Totem Pokémon!"
+                    : BattleStrings_Text_CantEscape; // "Can't escape!"
                 BattleController_EmitSetAlertMessage(battleSys, i, msg);
 
                 battleCtx->curCommandState[i] = COMMAND_SELECTION_ALERT_MESSAGE_WAIT;

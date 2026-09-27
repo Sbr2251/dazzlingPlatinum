@@ -7,6 +7,7 @@
 #include "constants/field/map.h"
 #include "constants/field/map_load.h"
 #include "constants/heap.h"
+#include "generated/map_headers.h"
 
 #include "struct_decls/struct_02020C44_decl.h"
 #include "struct_decls/struct_0203A790_decl.h"
@@ -84,12 +85,16 @@
 #include "unk_0202419C.h"
 #include "unk_020553DC.h"
 #include "unk_020559DC.h"
+#include "vars_flags.h"
 #include "vram_transfer.h"
 
 #define FIELD_MAP_INIT_STATE_RESET         0
 #define FIELD_MAP_INIT_STATE_LOAD          1
 #define FIELD_MAP_INIT_STATE_BOTTOM_SCREEN 2
 #define FIELD_MAP_INIT_STATE_DONE          3
+
+// Build model 581 (d5_ana_pl): the Distortion World portal prop on the Lake Verity castle terrace.
+#define LAKE_VERITY_PORTAL_MAP_PROP_MODEL 581
 
 FS_EXTERN_OVERLAY(overlay6);
 FS_EXTERN_OVERLAY(overlay7);
@@ -817,7 +822,25 @@ static void FieldSystem_InitLandManager(FieldSystem *fieldSystem)
         LandDataManager_SetMapLoadedCallback(fieldSystem->landDataMan, ov5_021F0030, fieldSystem);
     }
 
+    FieldMap_UpdateLakeVerityPortal(fieldSystem);
     LandDataManager_InitialLoad(fieldSystem->landDataMan, fieldSystem->location->x, fieldSystem->location->z);
+}
+
+// On Lake Verity, hides the portal prop while FLAG_LAKE_VERITY_PORTAL_HIDDEN is set and shows it
+// otherwise. The land data manager keeps hiding it in every map chunk it loads afterwards
+// (initial load and chunk streaming), and it is rebuilt on every field map start (warps, menus,
+// battles, loading a save), which calls this again. Does nothing on other maps.
+void FieldMap_UpdateLakeVerityPortal(FieldSystem *fieldSystem)
+{
+    if (fieldSystem->landDataMan == NULL || fieldSystem->location->mapId != MAP_HEADER_LAKE_VERITY) {
+        return;
+    }
+
+    if (VarsFlags_CheckFlag(SaveData_GetVarsFlags(fieldSystem->saveData), FLAG_LAKE_VERITY_PORTAL_HIDDEN)) {
+        LandDataManager_SetHiddenMapPropModel(fieldSystem->landDataMan, LAKE_VERITY_PORTAL_MAP_PROP_MODEL);
+    } else {
+        LandDataManager_SetHiddenMapPropModel(fieldSystem->landDataMan, 0);
+    }
 }
 
 static void ov5_021D1878(FieldSystem *fieldSystem)

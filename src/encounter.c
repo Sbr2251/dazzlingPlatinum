@@ -5,9 +5,13 @@
 
 #include "constants/battle.h"
 #include "constants/heap.h"
+#include "constants/items.h"
 #include "constants/pokemon.h"
+#include "constants/species.h"
+#include "generated/abilities.h"
 #include "generated/game_records.h"
 #include "generated/map_headers.h"
+#include "generated/moves.h"
 #include "generated/trainer_score_events.h"
 
 #include "struct_decls/pc_boxes_decl.h"
@@ -92,6 +96,7 @@ static BOOL FieldTask_PalParkEncounter(FieldTask *task);
 static BOOL FieldTask_CatchingTutorialEncounter(FieldTask *task);
 static BOOL FieldTask_LinkEncounterWithRecording(FieldTask *task);
 static BOOL FieldTask_WildEncounter(FieldTask *task);
+static BOOL FieldTask_Arc1MawileEncounter(FieldTask *task);
 
 static BOOL FieldTask_RunBattle(FieldTask *task)
 {
@@ -693,6 +698,89 @@ void Encounter_NewVsFirstBattle(FieldTask *task, int trainerID, enum HeapID heap
     Trainer_Encounter(dto, fieldSystem->saveData, heapID);
     GameRecords_IncrementRecordValue(SaveData_GetGameRecords(fieldSystem->saveData), RECORD_TRAINER_BATTLES_FOUGHT);
     StartEncounter(task, dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);
+}
+
+// Arc 1 Lake Verity Mawile battle. Like the first rival battle, losing does
+// not white out: the field is restored and faded back in whatever the result,
+// so the calling script just continues (it can still branch on CheckWonBattle).
+static BOOL FieldTask_Arc1MawileEncounter(FieldTask *task)
+{
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+    Encounter *encounter = FieldTask_GetEnv(task);
+    int *state = FieldTask_GetState(task);
+
+    switch (*state) {
+    case 0:
+        MapObjectMan_PauseAllMovement(fieldSystem->mapObjMan);
+        FieldTransition_StartEncounterEffect(task, encounter->introEffectID, encounter->battleBGM);
+        (*state)++;
+        break;
+
+    case 1:
+        FieldTransition_FinishMap(task);
+        (*state)++;
+        break;
+
+    case 2:
+        CallBattleTask(task, encounter->dto);
+        (*state)++;
+        break;
+
+    case 3:
+        UpdateFieldSystemFromDTO(encounter->dto, fieldSystem);
+
+        if (CheckPlayerWonEncounter(encounter) == TRUE) {
+            UpdateGameRecords(fieldSystem, encounter->dto);
+            UpdateJournal(fieldSystem, encounter->dto);
+        }
+
+        SystemVars_SetTotalTurnsForLastBattle(SaveData_GetVarsFlags(fieldSystem->saveData), encounter->dto->totalTurnsElapsed);
+        FieldTransition_StartMap(task);
+        (*state)++;
+        break;
+
+    case 4:
+        MapObjectMan_UnpauseAllMovement(fieldSystem->mapObjMan);
+        FieldTransition_FadeIn(task);
+        (*state)++;
+        break;
+
+    case 5:
+        FreeEncounter(encounter);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+void Encounter_NewArc1MawileBattle(FieldTask *task, int *resultMaskPtr)
+{
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+    RadarChain_Clear(fieldSystem->chain);
+
+    FieldBattleDTO *dto = FieldBattleDTO_New(HEAP_ID_FIELD2, BATTLE_TYPE_WILD_MON);
+    FieldBattleDTO_Init(dto, fieldSystem);
+
+    CreateWildMon_Scripted(fieldSystem, SPECIES_MAWILE, 3, dto);
+
+    Pokemon *wildMon = Party_GetPokemonBySlotIndex(dto->parties[BATTLER_ENEMY_1], 0);
+    u8 ability = ABILITY_HYPER_CUTTER;
+    u16 heldItem = ITEM_NONE;
+
+    Pokemon_SetValue(wildMon, MON_DATA_ABILITY, &ability);
+    Pokemon_SetValue(wildMon, MON_DATA_HELD_ITEM, &heldItem);
+    Pokemon_SetMoveSlot(wildMon, MOVE_ASTONISH, 0);
+    Pokemon_SetMoveSlot(wildMon, MOVE_FAKE_TEARS, 1);
+    Pokemon_SetMoveSlot(wildMon, MOVE_NONE, 2);
+    Pokemon_SetMoveSlot(wildMon, MOVE_NONE, 3);
+
+    // No critical hits, like the first rival battle, and no running away
+    dto->battleStatusMask |= BATTLE_STATUS_FIRST_BATTLE | BATTLE_STATUS_NO_RUNNING;
+
+    GameRecords_IncrementRecordValue(SaveData_GetGameRecords(fieldSystem->saveData), RECORD_WILD_BATTLES_FOUGHT);
+
+    Encounter *encounter = NewEncounter(dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);
+    FieldTask_InitCall(task, FieldTask_Arc1MawileEncounter, encounter);
 }
 
 static BOOL FieldTask_CatchingTutorialEncounter(FieldTask *task)

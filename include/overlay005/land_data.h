@@ -37,6 +37,7 @@ BOOL LandDataManager_GetRelativeLoadedMapsQuadrantOfTile(const LandDataManager *
 const BDHC *LandDataManager_GetLoadedMapBDHC(const LandDataManager *landDataMan, const u8 loadedMapIndex);
 u16 const *LandDataManager_GetLoadedMapTerrainAttributes(const LandDataManager *landDataMan, const u8 loadedMapIndex);
 void LandDataManager_SetMapLoadedCallback(LandDataManager *landDataMan, MapLoadedCallback mapLoadedCb, void *cbUserData);
+void LandDataManager_SetHiddenMapPropModel(LandDataManager *landDataMan, int modelID);
 NARC *LandDataManager_GetLandDataNARC(LandDataManager *landDataMan);
 void LandDataManager_SetInDistortionWorld(LandDataManager *landDataMan, BOOL inDistortionWorld);
 int LandDataManager_GetOffsetTileX(const LandDataManager *landDataMan);

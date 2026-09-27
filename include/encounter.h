@@ -16,6 +16,7 @@ void Encounter_NewFatefulVsSpeciesAtLevel(FieldTask *taskMan, u16 species, u8 le
 void Encounter_NewVsPalParkTransfer(FieldSystem *fieldSystem, FieldBattleDTO *dto);
 void Encounter_NewVsFirstBattle(FieldTask *task, int trainerID, enum HeapID heapID, int *resultMaskPtr);
 void Encounter_NewCatchingTutorial(FieldTask *task);
+void Encounter_NewArc1MawileBattle(FieldTask *task, int *resultMaskPtr);
 void Encounter_NewVsTrainer(FieldTask *taskMan, int enemyTrainer1ID, int enemyTrainer2ID, int partnerTrainerID, enum HeapID heapID, int *resultMaskPtr);
 void Encounter_NewVsLink(FieldTask *task, const u8 *partyOrder, int battleType);
 void Encounter_NewVsWiFi(FieldTask *task, int param1, int normalizedLevel, int wifiBattleType);

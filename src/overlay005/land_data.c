@@ -133,6 +133,7 @@ struct LandDataManager {
     void *mapLoadedCbUserData;
     BOOL inDistortionWorld;
     BOOL skipMapProps;
+    int hiddenMapPropModelID;
     int offsetTileX;
     int offsetAltitude;
     int offsetTileZ;
@@ -222,6 +223,7 @@ static void LandDataManager_CalculateRenderingPosition(const int mapMatrixIndex,
 static void LandDataManager_DistortionWorldInitAndLoad(LandDataManager *landDataMan, const int trackedTargetTileX, const int trackedTargetTileZ, const int unused3, const int unused4, const int mapMatrixWidthTiles);
 static void LandDataManager_DistortionWorldLoad(const int mapMatrixIndex, const u8 loadedMapIndex, const AreaDataManager *areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
 static void LandDataManager_DistortionWorldRenderNextFloorMap(const u8 index, const LandDataManager *landDataMan, const ModelAttributes *modelAttrs);
+static void LandDataManager_HideMapProps(const LandDataManager *landDataMan, MapPropManager *mapPropManager);
 
 static const MapLoadFunctions sMapLoadFns = {
     LandDataManager_InitAndLoad,
@@ -501,6 +503,7 @@ static void LandDataManager_LazyLoad(const u8 index, AreaDataManager *const area
 
     if (loader->loadSlots[index]->mapPropManager != NULL) {
         MapPropManager_Load(landDataMan->landDataNARC, landDataHeader.mapPropsSize, areaDataMan, loader->loadSlots[index]->mapPropManager, landDataMan->mapPropAnimMan);
+        LandDataManager_HideMapProps(landDataMan, loader->loadSlots[index]->mapPropManager);
     }
 
     loader->mapLoadTasksState.mapModelTaskRunning++;
@@ -526,6 +529,7 @@ static void LandDataManager_LazyLoadWithoutAttributes(const u8 index, AreaDataMa
 
     if (loader->loadSlots[index]->mapPropManager != NULL) {
         MapPropManager_Load(landDataMan->landDataNARC, landDataHeader.mapPropsSize, areaDataMan, loader->loadSlots[index]->mapPropManager, landDataMan->mapPropAnimMan);
+        LandDataManager_HideMapProps(landDataMan, loader->loadSlots[index]->mapPropManager);
     }
 
     loader->mapLoadTasksState.mapModelTaskRunning++;
@@ -565,6 +569,7 @@ static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapInd
 
     if (landDataMan->loadedMaps[loadedMapIndex]->mapPropManager != NULL) {
         MapPropManager_Load(landDataMan->landDataNARC, landDataHeader.mapPropsSize, areaDataMan, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager, landDataMan->mapPropAnimMan);
+        LandDataManager_HideMapProps(landDataMan, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager);
     }
 
     NNSG3dResMdl *mapModel = LandDataManager_LoadMapModel(landDataMan->landDataNARC, landDataHeader.mapModelSize, &landDataMan->loadedMaps[loadedMapIndex]->mapRenderObj, &landDataMan->loadedMaps[loadedMapIndex]->mapModelFile, AreaDataManager_GetMapTexture(areaDataMan));
@@ -599,6 +604,7 @@ static void LandDataManager_LoadWithoutAttributes(const int mapMatrixIndex, cons
 
     if (landDataMan->loadedMaps[loadedMapIndex]->mapPropManager != NULL) {
         MapPropManager_Load(landDataMan->landDataNARC, landDataHeader.mapPropsSize, areaDataMan, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager, landDataMan->mapPropAnimMan);
+        LandDataManager_HideMapProps(landDataMan, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager);
     }
 
     NNSG3dResMdl *mapModel = LandDataManager_LoadMapModel(landDataMan->landDataNARC, landDataHeader.mapModelSize, &landDataMan->loadedMaps[loadedMapIndex]->mapRenderObj, &landDataMan->loadedMaps[loadedMapIndex]->mapModelFile, AreaDataManager_GetMapTexture(areaDataMan));
@@ -626,6 +632,7 @@ static void LandDataManager_LoadWithoutModel(const int mapMatrixIndex, const u8 
 
     if (landDataMan->loadedMaps[loadedMapIndex]->mapPropManager != NULL) {
         MapPropManager_Load(landDataMan->landDataNARC, landDataHeader.mapPropsSize, areaDataMan, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager, landDataMan->mapPropAnimMan);
+        LandDataManager_HideMapProps(landDataMan, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager);
     }
 
     NARC_Seek(landDataMan->landDataNARC, landDataHeader.mapModelSize);
@@ -1865,6 +1872,59 @@ void LandDataManager_SetMapLoadedCallback(LandDataManager *landDataMan, MapLoade
 {
     landDataMan->mapLoadedCb = mapLoadedCb;
     landDataMan->mapLoadedCbUserData = cbUserData;
+}
+
+// Hides every loaded prop of the hidden model (if any) in a map's prop manager. Called right after
+// a map's props are loaded, before the map can be drawn, so a hidden prop never shows for a frame.
+static void LandDataManager_HideMapProps(const LandDataManager *landDataMan, MapPropManager *mapPropManager)
+{
+    if (landDataMan->hiddenMapPropModelID == 0 || mapPropManager == NULL) {
+        return;
+    }
+
+    for (u8 i = 0; i < MAX_LOADED_MAP_PROPS; i++) {
+        MapProp *mapProp = MapPropManager_GetLoadedProp(mapPropManager, i);
+
+        if (mapProp->loaded && MapProp_GetModelID(mapProp) == landDataMan->hiddenMapPropModelID) {
+            MapProp_SetHidden(mapProp, TRUE);
+        }
+    }
+}
+
+// Hides all props with the given model ID, in the maps already loaded and in every map loaded
+// from now on (initial load and lazy loading as the camera moves), until this manager is freed.
+// Pass 0 to show them again. Only one model can be hidden at a time.
+void LandDataManager_SetHiddenMapPropModel(LandDataManager *landDataMan, int modelID)
+{
+    int prevModelID = landDataMan->hiddenMapPropModelID;
+
+    for (u8 i = 0; i < QUADRANT_COUNT; i++) {
+        if (landDataMan->loadedMaps[i] == NULL || prevModelID == 0) {
+            continue;
+        }
+
+        MapPropManager *mapPropManager = landDataMan->loadedMaps[i]->mapPropManager;
+
+        if (mapPropManager == NULL) {
+            continue;
+        }
+
+        for (u8 j = 0; j < MAX_LOADED_MAP_PROPS; j++) {
+            MapProp *mapProp = MapPropManager_GetLoadedProp(mapPropManager, j);
+
+            if (mapProp->loaded && MapProp_GetModelID(mapProp) == prevModelID) {
+                MapProp_SetHidden(mapProp, FALSE);
+            }
+        }
+    }
+
+    landDataMan->hiddenMapPropModelID = modelID;
+
+    for (u8 i = 0; i < QUADRANT_COUNT; i++) {
+        if (landDataMan->loadedMaps[i] != NULL) {
+            LandDataManager_HideMapProps(landDataMan, landDataMan->loadedMaps[i]->mapPropManager);
+        }
+    }
 }
 
 /*

@@ -4196,6 +4196,31 @@
     .short \seqID
     .endm
 
+    @ Hides (1) or shows (0) the Lake Verity portal prop (build model 581) and
+    @ sets/clears FLAG_LAKE_VERITY_PORTAL_HIDDEN to match. The prop only changes
+    @ on MAP_HEADER_LAKE_VERITY; the flag is kept on any map.
+    .macro SetLakeVerityPortalHidden hidden
+    .short 842
+    .short \hidden
+    .endm
+
+    @ Wild Mawile Lv3 (Hyper Cutter; Astonish, Fake Tears). No critical hits
+    @ and no running away. Waits for the battle. Losing does not white out:
+    @ the field is already restored and faded in afterwards whatever the
+    @ result, so do NOT follow it with ReturnToField/FadeScreenIn.
+    @ CheckWonBattle still works for branching.
+    .macro StartArc1MawileBattle
+    .short 843
+    .endm
+
+    @ Shakes the camera left and right for \frames frames by \amplitude pixels,
+    @ then restores it. Waits until the shake is over. The player is not moved.
+    .macro ShakeCamera frames, amplitude
+    .short 844
+    .short \frames
+    .short \amplitude
+    .endm
+
     .macro GetTrainerCardLevel destVar
     .short 702
     .short \destVar

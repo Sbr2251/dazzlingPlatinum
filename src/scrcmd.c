@@ -55,6 +55,7 @@
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
 #include "overlay005/field_menu.h"
+#include "overlay005/fieldmap.h"
 #include "overlay005/footprint_type.h"
 #include "overlay005/honey_tree.h"
 #include "overlay005/land_data.h"
@@ -450,6 +451,10 @@ static BOOL ScrCmd_StartTotemBattle(ScriptContext *ctx);
 static BOOL ScrCmd_StartFatefulEncounter(ScriptContext *ctx);
 static BOOL ScrCmd_StartFirstBattle(ScriptContext *ctx);
 static BOOL ScrCmd_StartCatchingTutorial(ScriptContext *ctx);
+static BOOL ScrCmd_StartArc1MawileBattle(ScriptContext *ctx);
+static BOOL ScrCmd_SetLakeVerityPortalHidden(ScriptContext *ctx);
+static BOOL ScrCmd_ShakeCamera(ScriptContext *ctx);
+static BOOL ScriptContext_ShakeCameraStep(ScriptContext *ctx);
 static BOOL ScrCmd_SlatherHoneyTree(ScriptContext *ctx);
 static BOOL ScrCmd_GetHoneyTreeStatus(ScriptContext *ctx);
 static BOOL ScrCmd_StartHoneyTreeBattle(ScriptContext *ctx);
@@ -1612,6 +1617,9 @@ const ScrCmdFunc Unk_020EAC58[] = {
     ScrCmd_BufferFloorNumber,
     ScrCmd_StartTotemBattle,
     ScrCmd_PlayBattleMusic,
+    ScrCmd_SetLakeVerityPortalHidden,
+    ScrCmd_StartArc1MawileBattle,
+    ScrCmd_ShakeCamera,
 };
 
 const u32 Unk_020EAB80 = NELEMS(Unk_020EAC58);
@@ -4911,6 +4919,69 @@ static BOOL ScrCmd_StartCatchingTutorial(ScriptContext *ctx)
 {
     Encounter_NewCatchingTutorial(ctx->task);
     return TRUE;
+}
+
+static BOOL ScrCmd_StartArc1MawileBattle(ScriptContext *ctx)
+{
+    int *battleResultMaskPtr = FieldSystem_GetScriptMemberPtr(ctx->fieldSystem, SCRIPT_MANAGER_BATTLE_RESULT);
+
+    Encounter_NewArc1MawileBattle(ctx->task, battleResultMaskPtr);
+    return TRUE;
+}
+
+static BOOL ScrCmd_SetLakeVerityPortalHidden(ScriptContext *ctx)
+{
+    FieldSystem *fieldSystem = ctx->fieldSystem;
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(fieldSystem->saveData);
+    u16 hidden = ScriptContext_GetVar(ctx);
+
+    if (hidden) {
+        VarsFlags_SetFlag(varsFlags, FLAG_LAKE_VERITY_PORTAL_HIDDEN);
+    } else {
+        VarsFlags_ClearFlag(varsFlags, FLAG_LAKE_VERITY_PORTAL_HIDDEN);
+    }
+
+    if (FieldSystem_IsRunningFieldMap(fieldSystem)) {
+        FieldMap_UpdateLakeVerityPortal(fieldSystem);
+    }
+
+    return FALSE;
+}
+
+// Shakes the camera left and right for the given number of frames (the offset flips every 2 frames), then puts
+// it back where it was. Uses Camera_Move, so the player object and the camera target are left alone.
+// ctx->data[0] = frames left, ctx->data[1] = amplitude in pixels, ctx->data[2] = current x offset (fx32).
+static BOOL ScrCmd_ShakeCamera(ScriptContext *ctx)
+{
+    ctx->data[0] = ScriptContext_GetVar(ctx);
+    ctx->data[1] = ScriptContext_GetVar(ctx);
+    ctx->data[2] = 0;
+
+    ScriptContext_Pause(ctx, ScriptContext_ShakeCameraStep);
+    return TRUE;
+}
+
+static BOOL ScriptContext_ShakeCameraStep(ScriptContext *ctx)
+{
+    fx32 current = (fx32)ctx->data[2];
+    fx32 target = 0;
+    VecFx32 delta = { 0, 0, 0 };
+
+    if (ctx->data[0] > 0) {
+        target = FX32_ONE * (fx32)ctx->data[1];
+
+        if ((ctx->data[0] >> 1) & 1) {
+            target = -target;
+        }
+
+        ctx->data[0]--;
+    }
+
+    delta.x = target - current;
+    Camera_Move(&delta, ctx->fieldSystem->camera);
+    ctx->data[2] = (u32)target;
+
+    return target == 0 && ctx->data[0] == 0;
 }
 
 static BOOL ScrCmd_SlatherHoneyTree(ScriptContext *ctx)
