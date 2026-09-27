@@ -791,6 +791,46 @@ BOOL BattleStageSprites_GroundPoint(int side, int px, VecFx32 *point)
     return TRUE;
 }
 
+BOOL BattleStageSprites_CutHomeY(int battler, int *y)
+{
+    PokemonSpriteManager *monSpriteMan;
+    PokemonSprite *sprite;
+    const PokemonSpriteTransforms *transforms;
+    int height;
+
+    if (!sStageSprites.hooked || battler < 0 || battler >= MAX_MON_SPRITES) {
+        return FALSE;
+    }
+
+    monSpriteMan = BattleSystem_GetPokemonSpriteManager(sStageSprites.battleSys);
+    sprite = &monSpriteMan->sprites[battler];
+
+    if (monSpriteMan->excludeIdentity == TRUE || !PokemonSprite_IsCut(sprite)) {
+        return FALSE;
+    }
+
+    // The same rect DrawSprites hands the draw hook; the pivot rotation is left out
+    transforms = &sprite->transforms;
+
+    if (transforms->partialDraw) {
+        if (transforms->drawYOffset + transforms->drawHeight < MON_SPRITE_FRAME_HEIGHT) {
+            return FALSE;
+        }
+
+        *y = transforms->yCenter - MON_SPRITE_FRAME_HEIGHT / 2 + transforms->drawYOffset + transforms->yOffset - sprite->shadow.height + transforms->drawHeight;
+        return TRUE;
+    }
+
+    height = (MON_SPRITE_FRAME_HEIGHT * transforms->scaleY) >> MON_AFFINE_SHIFT;
+
+    if (height <= 0) {
+        return FALSE;
+    }
+
+    *y = transforms->yCenter - height / 2 + transforms->yOffset - sprite->shadow.height + height;
+    return TRUE;
+}
+
 static BOOL InitBlobs(const BattleStageSpriteCamera *camera)
 {
     sStageSprites.groundHalfWidth[0] = 0;

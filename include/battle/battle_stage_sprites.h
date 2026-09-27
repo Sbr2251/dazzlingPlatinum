@@ -52,5 +52,9 @@ int BattleStageSprites_BlobRow(int side);
 // Where the home camera sees screen column px of a side's blob row on the ground; FALSE
 // when there is no ground mapping (no arena, or the row is above the horizon)
 BOOL BattleStageSprites_GroundPoint(int side, int px, VecFx32 *point);
+// Home screen row just below a battler's cut sprite (the bottom of its 80 px frame, as the
+// draw rect places it); FALSE when the sprite is not cut, is drawn with excludeIdentity or
+// has its bottom row off
+BOOL BattleStageSprites_CutHomeY(int battler, int *y);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_SPRITES_H

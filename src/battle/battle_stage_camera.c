@@ -39,6 +39,15 @@
 #define SHAKE_PERIOD_X 4
 #define SHAKE_PERIOD_Y 3
 
+// The cut-line guard (cut_guard.md). The top screen's battle textbox is up for the whole
+// battle, so off home the limit is its top edge; a change of limit eases over 8 screen frames.
+#define CUT_EDGE_NONE 0x7FFF
+#define CUT_LIMIT_TEXTBOX 144
+#define CUT_LIMIT_SCREEN 192
+#define CUT_LIMIT_STEP ((CUT_LIMIT_SCREEN - CUT_LIMIT_TEXTBOX) / SCREEN_FRAMES(8))
+#define CUT_GUARD_MARGIN 1
+#define CUT_GUARD_PASSES 2
+
 enum CameraSequence {
     SEQUENCE_NONE = 0,
     SEQUENCE_TO, // easing to the goal
@@ -72,6 +81,7 @@ typedef struct CameraAnchor {
 typedef struct StageCamera {
     BattleSystem *battleSys;
     BattleStageCameraFields *fields;
+    BattleStageCutGuardFields *cutGuard;
     const u32 *debugFlags;
     BOOL hasHome;
     BattleStageCameraHome home;
@@ -110,6 +120,7 @@ typedef struct StageCamera {
     const MtxFx44 *drawProjection;
     CameraAnchor anchors[MAX_BATTLERS];
     CameraAnchor particle;
+    int guardPan; // the cut guard's downward pan, px, added to the shake
 } StageCamera;
 
 static void ParticleProjectionHook(MtxFx44 *projection);
@@ -300,12 +311,14 @@ static void BuildView(const CameraPose *pose)
     PoseCamera(pose, &camPos, &offset);
     target = pose->focus;
 
-    if (IsShaking() || IsBackdropShaking()) {
+    if (IsShaking() || IsBackdropShaking() || sStageCamera.guardPan != 0) {
         VecFx32 back, right, camUp;
         fx32 depth, perPixel, sx, sy;
         int dx, dy;
 
+        // The camera going up moves the picture down
         ShakePixels(&dx, &dy);
+        dy += sStageCamera.guardPan;
         depth = VEC_Mag(&offset);
         VEC_Normalize(&offset, &back);
         VEC_CrossProduct(&up, &back, &right);
@@ -484,6 +497,113 @@ static void UpdateAnchors(const CameraPose *pose)
     UpdateAnchor(&sStageCamera.particle, 128, 96, &sStageCamera.home.camTarget, pose);
 }
 
+// The screen y (fx32) of a guarded battler's cut edge: a player-side battler whose sprite is cut
+static BOOL CutEdgeY(int battler, fx32 *edgeY)
+{
+    const CameraAnchor *anchor = &sStageCamera.anchors[battler];
+    int homeY;
+
+    if (!anchor->valid
+        || (BattleSystem_BattlerSlot(sStageCamera.battleSys, battler) & 1) != 0
+        || !BattleStageSprites_CutHomeY(battler, &homeY)) {
+        return FALSE;
+    }
+
+    *edgeY = anchor->nowY + anchor->scale * (homeY - anchor->homeY);
+    return TRUE;
+}
+
+// Whole pixels the picture still has to move down for every cut edge to be a margin below the limit
+static int CutShortfall(int limit)
+{
+    int max = MaxBattlers();
+    int need = 0;
+    int i;
+
+    for (i = 0; i < max; i++) {
+        fx32 edgeY;
+        int n;
+
+        if (CutEdgeY(i, &edgeY)) {
+            n = ((limit + CUT_GUARD_MARGIN) * FX32_ONE - edgeY + FX32_ONE - 1) >> FX32_SHIFT;
+
+            if (n > need) {
+                need = n;
+            }
+        }
+    }
+
+    return need;
+}
+
+// After the view and anchors of the frame. Off home, pans the picture down until no cut edge
+// is above the limit (the pan is exact at the focus depth only, so a second pass tops it up),
+// then rebuilds the view and anchors. At home it only clears the fields.
+static void UpdateCutGuard(BOOL visible, const CameraPose *pose)
+{
+    BattleStageCutGuardFields *guard = sStageCamera.cutGuard;
+    int limit = CUT_LIMIT_TEXTBOX;
+    BOOL violation = FALSE;
+    int max, pass, need, i;
+
+    if (guard == NULL) {
+        return;
+    }
+
+    for (i = 0; i < MAX_BATTLERS; i++) {
+        guard->cutEdgeY[i] = CUT_EDGE_NONE;
+    }
+
+    guard->guardPanPx = 0;
+
+    if (sStageCamera.atHome || !visible) {
+        guard->cutLimit = limit;
+        return;
+    }
+
+    if (guard->cutLimit < limit) {
+        guard->cutLimit = guard->cutLimit + CUT_LIMIT_STEP < limit ? guard->cutLimit + CUT_LIMIT_STEP : limit;
+    } else if (guard->cutLimit > limit) {
+        guard->cutLimit = guard->cutLimit - CUT_LIMIT_STEP > limit ? guard->cutLimit - CUT_LIMIT_STEP : limit;
+    }
+
+    for (pass = 0; pass < CUT_GUARD_PASSES; pass++) {
+        need = CutShortfall(guard->cutLimit);
+
+        if (need <= 0) {
+            break;
+        }
+
+        sStageCamera.guardPan += need;
+        BuildView(pose);
+        UpdateAnchors(pose);
+    }
+
+    max = MaxBattlers();
+
+    for (i = 0; i < max; i++) {
+        fx32 edgeY;
+
+        if (CutEdgeY(i, &edgeY)) {
+            guard->cutEdgeY[i] = (s16)(edgeY >> FX32_SHIFT);
+
+            if (guard->cutEdgeY[i] < guard->cutLimit - 1) {
+                violation = TRUE;
+            }
+        }
+    }
+
+    guard->guardPanPx = (u16)sStageCamera.guardPan;
+
+    if (sStageCamera.guardPan > 0) {
+        guard->guardFrames++;
+    }
+
+    if (violation) {
+        guard->cutViolations++;
+    }
+}
+
 static void AdvanceSequence(void)
 {
     switch (sStageCamera.sequence) {
@@ -525,13 +645,23 @@ static void AdvanceSequence(void)
     }
 }
 
-void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fields, const BattleStageCameraHome *home, const u32 *debugFlags)
+void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fields, BattleStageCutGuardFields *cutGuard, const BattleStageCameraHome *home, const u32 *debugFlags)
 {
+    int i;
+
     memset(&sStageCamera, 0, sizeof(sStageCamera));
     memset(fields, 0, sizeof(*fields));
+    memset(cutGuard, 0, sizeof(*cutGuard));
+
+    for (i = 0; i < MAX_BATTLERS; i++) {
+        cutGuard->cutEdgeY[i] = CUT_EDGE_NONE;
+    }
+
+    cutGuard->cutLimit = CUT_LIMIT_TEXTBOX;
 
     sStageCamera.battleSys = battleSys;
     sStageCamera.fields = fields;
+    sStageCamera.cutGuard = cutGuard;
     sStageCamera.debugFlags = debugFlags;
     sStageCamera.atHome = TRUE;
     fields->camFlags = BATTLE_STAGE_CAMERA_AT_HOME;
@@ -564,6 +694,7 @@ void BattleStageCamera_Free(void)
     sStageCamera.hasHome = FALSE;
     sStageCamera.atHome = TRUE;
     sStageCamera.fields = NULL;
+    sStageCamera.cutGuard = NULL;
     sStageCamera.battleSys = NULL;
 }
 
@@ -626,6 +757,7 @@ void BattleStageCamera_Advance(BOOL visible, int debugView)
     }
 
     pose = sStageCamera.cur;
+    sStageCamera.guardPan = 0;
 
     // Home: the arena draws with its own view and projection, nothing is rebuilt
     if (sStageCamera.atHome) {
@@ -651,6 +783,8 @@ void BattleStageCamera_Advance(BOOL visible, int debugView)
     if (visible) {
         UpdateAnchors(&pose);
     }
+
+    UpdateCutGuard(visible, &pose);
 }
 
 BOOL BattleStageCamera_IsHome(void)

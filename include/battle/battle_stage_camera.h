@@ -36,6 +36,15 @@ typedef struct BattleStageCameraFields {
     u16 anchorScale[MAX_BATTLERS]; // its scale, in 1/256
 } BattleStageCameraFields;
 
+// The cut-line guard's fields of BattleStage at +120, in order (cut_guard.md)
+typedef struct BattleStageCutGuardFields {
+    s16 cutEdgeY[MAX_BATTLERS]; // screen y of each guarded cut edge this frame; 0x7FFF for none, or at home
+    s16 cutLimit; // the limit this frame
+    u16 guardPanPx; // the downward pan this frame, px
+    u32 guardFrames; // drawn frames with a pan
+    u32 cutViolations; // drawn off-home frames with an edge above cutLimit - 1 after the guard
+} BattleStageCutGuardFields;
+
 // The arena's home camera. view and projection are the arena's own, used as they are at home.
 typedef struct BattleStageCameraHome {
     VecFx32 camPos;
@@ -62,7 +71,7 @@ void BattleStage_BuildProjection(fx32 fovySin, fx32 fovyCos, fx32 nearClip, fx32
 
 // At BattleStage_Init, after the sprites (home NULL when there is no arena). debugFlags is
 // the stage's debugFlags field.
-void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fields, const BattleStageCameraHome *home, const u32 *debugFlags);
+void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fields, BattleStageCutGuardFields *cutGuard, const BattleStageCameraHome *home, const u32 *debugFlags);
 // Snaps home and unhooks the particles
 void BattleStageCamera_Free(void);
 // Once per BattleStage_Draw while the arena exists, before anything is drawn

@@ -169,7 +169,8 @@ struct PokemonSprite {
     u32 polygonID : 6;
     u32 needReloadChar : 1;
     u32 needReloadPltt : 1;
-    u32 padding_00_9 : 23;
+    u32 cut : 1; // frame 0 has pixels on its bottom row (set at each char load)
+    u32 padding_00_10 : 22;
     PokemonSpriteTemplate template;
     PokemonSpriteTemplate templateBackup;
     PokemonSpriteTransforms transforms;
@@ -249,6 +250,8 @@ PokemonSpriteTemplate *PokemonSprite_GetTemplate(PokemonSprite *monSprite);
 void PokemonSpriteManager_UpdateCharAndPltt(PokemonSpriteManager *monSpriteMan);
 void PokemonSpriteManager_SetExcludeIdentity(PokemonSpriteManager *monSpriteMan, int value);
 BOOL PokemonSprite_IsActive(PokemonSprite *monSprite);
+// Active and frame 0 touches the bottom edge of the frame (the art is cut there). FALSE when flipped vertically.
+BOOL PokemonSprite_IsCut(PokemonSprite *monSprite);
 void PokemonSpriteManager_SetHideShadows(PokemonSpriteManager *monSpriteMan, u32 value);
 void PokemonSpriteManager_ClearHideShadows(PokemonSpriteManager *monSpriteMan, u32 value);
 void PokemonSpriteManager_SetDrawHook(PokemonSpriteManager *monSpriteMan, PokemonSpriteDrawHook *hook);

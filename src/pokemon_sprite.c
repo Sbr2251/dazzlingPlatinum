@@ -1304,6 +1304,12 @@ BOOL PokemonSprite_IsActive(PokemonSprite *monSprite)
     return monSprite->active != FALSE;
 }
 
+BOOL PokemonSprite_IsCut(PokemonSprite *monSprite)
+{
+    GF_ASSERT(monSprite != NULL);
+    return monSprite->active && monSprite->cut;
+}
+
 void PokemonSpriteManager_SetHideShadows(PokemonSpriteManager *monSpriteMan, u32 value)
 {
     monSpriteMan->hideShadows |= value;
@@ -1344,6 +1350,17 @@ static void BufferPokemonSpriteCharData(PokemonSpriteManager *monSpriteMan)
 
             PokemonSprite_Decrypt(rawCharData, monSpriteMan->sprites[i].template.narcID);
             TryDrawSpindaSpots(&monSpriteMan->sprites[i], rawCharData);
+
+            monSpriteMan->sprites[i].cut = FALSE;
+
+            if (!monSpriteMan->sprites[i].transforms.flipV) {
+                for (x = 0; x < MON_SPRITE_FRAME_WIDTH / 2; x++) {
+                    if (rawCharData[(MON_SPRITE_FRAME_HEIGHT - 1) * NCGR_Y_OFFSET + x] != 0) {
+                        monSpriteMan->sprites[i].cut = TRUE;
+                        break;
+                    }
+                }
+            }
 
             if (i == 3) {
                 for (y = 0; y < MON_SPRITE_HEIGHT; y++) {

@@ -121,6 +121,7 @@ typedef struct BattleStage {
     BattleStageSpriteFields sprites; // +32..+48, read and written by the critic (sprites.md)
     BattleStageCameraFields camera; // +52..+95, read by the critic (camera.md)
     BattleStageCompatFields compat; // +96..+119, read by the critic (compat.md)
+    BattleStageCutGuardFields cutGuard; // +120..+139, read by the critic (cut_guard.md)
     BOOL inMoveAnim; // BattleStage_SetInMoveAnim: suppressions fade instead of popping
     int fadePos; // 0 (hidden) .. STAGE_FADE_STEPS (opaque)
     BOOL fadingOut;
@@ -224,9 +225,9 @@ void BattleStage_Init(BattleSystem *battleSys)
         home.farClip = sBattleStage.arena->farClip;
         home.view = &sBattleStage.arena->view;
         home.projection = &sBattleStage.arena->projection;
-        BattleStageCamera_Init(battleSys, &sBattleStage.camera, &home, &sBattleStage.sprites.debugFlags);
+        BattleStageCamera_Init(battleSys, &sBattleStage.camera, &sBattleStage.cutGuard, &home, &sBattleStage.sprites.debugFlags);
     } else {
-        BattleStageCamera_Init(battleSys, &sBattleStage.camera, NULL, &sBattleStage.sprites.debugFlags);
+        BattleStageCamera_Init(battleSys, &sBattleStage.camera, &sBattleStage.cutGuard, NULL, &sBattleStage.sprites.debugFlags);
     }
 }
 

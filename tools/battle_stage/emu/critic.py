@@ -748,6 +748,49 @@ def camera_log_checks(sc: Scenario, ram: StageRam, log: List[tuple], what: str) 
              f"AT_HOME after all {len(got)} moves" if not off else "not home after " + ", ".join(off[:6]))
     if len(got) < len(log):
         sc.note(f"{what}: {len(log) - len(got)} of {len(log)} camera reads were not a live stage")
+    cutguard_checks(sc, ram, got, what, after_every="move")
+
+
+def _cut_at_home_bad(cut: dict) -> bool:
+    """At home the guard does nothing: no pan and no cut edge reported (cut_guard.md, "Critic checks")."""
+    return cut["guardPanPx"] != 0 or any(y != CUT_NONE for y in cut["cutEdgeY"])
+
+
+def _cut_detail(cut: dict) -> str:
+    edges = ["-" if y == CUT_NONE else str(y) for y in cut["cutEdgeY"]]
+    return (f"cutEdgeY [{', '.join(edges)}], cutLimit {cut['cutLimit']}, guardPanPx {cut['guardPanPx']}, "
+            f"guardFrames {cut['guardFrames']}, cutViolations {cut['cutViolations']}")
+
+
+def cutguard_checks(sc: Scenario, ram: StageRam, reads: List[tuple], what: str, seq: bool = False,
+                    after_every: str = "") -> None:
+    """Cut-line guard (cut_guard.md, "Critic checks") over [(label, cam)] reads whose cam["cut"] has the guard
+    fields: cutViolations is 0 at every read (it only counts up, so the first bad label is where it started),
+    and at home guardPanPx == 0 with every cutEdgeY 0x7FFF. With `seq` the reads are consecutive frames, and a
+    home read right after an off-home one is not judged (camFlags and the guard fields may be a frame apart).
+    Skips with a note on a ROM whose sBattleStage is under 188 bytes."""
+    got = [(tag, c) for tag, c in reads if c is not None and c.get("cut") is not None]
+    if not got:
+        sc.note(f"{what}: cut guard checks skipped ({len(reads)} reads): " + (
+            ram.cutguard_why or "sBattleStage is not set up here (no arena, so no stage camera)"))
+        return
+    viol = next(((tag, c) for tag, c in got if c["cut"]["cutViolations"] != 0), None)
+    last = got[-1][1]["cut"]
+    where = f"after every {after_every} ({len(got)})" if after_every else f"over {len(got)} reads"
+    sc.check(f"{what}: cutViolations == 0" + (f" after every {after_every}" if after_every else ""), viol is None,
+             f"0 {where}; guardFrames {last['guardFrames']}" if viol is None else
+             f"first non-zero at {viol[0]}: {_cut_detail(viol[1]['cut'])}",
+             why="an off-home frame drew a cut back sprite's flat bottom edge above the textbox top (or the "
+                 "screen bottom): the guard did not pan the view down far enough")
+    bad, prev_home = [], True
+    for tag, c in got:
+        if c["home"] and (prev_home or not seq) and _cut_at_home_bad(c["cut"]):
+            bad.append(f"{tag}: pan {c['cut']['guardPanPx']}, cutEdgeY {c['cut']['cutEdgeY']}")
+        prev_home = c["home"]
+    n_home = sum(1 for _, c in got if c["home"])
+    sc.check(f"{what}: at home no guard pan and every cutEdgeY 0x7FFF", not bad,
+             f"{n_home} reads at home, all clean" if not bad else f"{len(bad)} of {n_home}: " + "; ".join(bad[:4]),
+             why="the guard must only run off home, so the home frame stays byte-identical")
 
 
 def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
@@ -1384,6 +1427,13 @@ SCALE_OFFSET = 88                        # u16 anchorScale[4]: per battler s in 
 STAGE_SIZE_COMPAT = 120                  # sBattleStage at least this big: has the compat fields
 COMPAT_OFFSET = 96
 COMPAT_FIELDS = ("hardPops", "hiddenFrames", "fades", "arenaAlpha", "liftedBg2Frames", "tintedCopies")
+# Cut-line guard fields at +120..+139 (BattleStageCutGuardFields, docs/living_battle_stage/cut_guard.md): s16
+# cutEdgeY[4] (per battler the on-screen y of its cut edge this frame), s16 cutLimit (144 textbox top, 192 screen
+# bottom, or between while easing), u16 guardPanPx (the downward pan this frame), u32 guardFrames and u32
+# cutViolations (drawn off-home frames with a cut edge above cutLimit - 1 after the guard; must stay 0)
+STAGE_SIZE_CUTGUARD = 188                # sBattleStage at least this big: has the cut guard fields (the fade fields already followed compat, so 140 is not enough)
+CUTGUARD_OFFSET = 120
+CUT_NONE = 0x7FFF                        # cutEdgeY: not cut, not guarded (enemy side), invalid, or at home
 ARENA_ALPHA_FULL = 31
 HOME_SCALE = 256
 # camFlags bits (read only)
@@ -1521,6 +1571,35 @@ class StageRam:
         c["visible"] = st["visible"]
         return c
 
+    @property
+    def has_cutguard(self) -> bool:
+        """sBattleStage has the cut guard fields (cutEdgeY .. cutViolations at +120..+139)."""
+        return self.ok and self.stage[1] >= STAGE_SIZE_CUTGUARD
+
+    @property
+    def cutguard_why(self) -> str:
+        """Why the cut guard fields cannot be used ("" if they can)."""
+        if not self.ok:
+            return self.why
+        if not self.has_cutguard:
+            return (f"sBattleStage is {self.stage[1]} bytes in {self.xmap}, under {STAGE_SIZE_CUTGUARD}: a ROM from "
+                    "before the cut-line guard, without its fields")
+        return ""
+
+    def cutguard(self) -> Optional[dict]:
+        """The cut guard fields as a dict (cutEdgeY a list of 4 signed ints, CUT_NONE = none), or None on a ROM
+        without them (or when sBattleStage does not look like a live stage right now)."""
+        if not self.has_cutguard:
+            return None
+        if not self.plausible(self.read()):
+            return None
+        return self._read_cutguard()
+
+    def _read_cutguard(self) -> dict:
+        v = struct.unpack("<4hhHII", self.e.read(self.stage[0] + CUTGUARD_OFFSET, 20))
+        return {"cutEdgeY": list(v[:4]), "cutLimit": v[4], "guardPanPx": v[5], "guardFrames": v[6],
+                "cutViolations": v[7]}
+
     def read(self) -> Optional[dict]:
         if not self.ok:
             return None
@@ -1556,7 +1635,8 @@ class StageRam:
 
     def cam(self) -> Optional[dict]:
         """The camera debug fields plus anchors [(x, y)] * 4 and scales [s/256] * 4, or None on a ROM without
-        them (or when sBattleStage does not look like a live stage right now)."""
+        them (or when sBattleStage does not look like a live stage right now). "cut" holds the cut guard
+        fields read in the same frame (see cutguard()), None on a ROM without them."""
         if not self.has_camera:
             return None
         st = self.read()
@@ -1567,6 +1647,7 @@ class StageRam:
         st["anchors"] = [(a[2 * i], a[2 * i + 1]) for i in range(4)]
         st["scales"] = list(struct.unpack("<4H", self.e.read(addr + SCALE_OFFSET, 8)))
         st["home"] = bool(st["camFlags"] & AT_HOME)
+        st["cut"] = self._read_cutguard() if self.has_cutguard else None
         return st
 
     def wait_home(self, timeout: int = 120) -> Optional[int]:
@@ -2210,6 +2291,7 @@ def sc_mega(sc: Scenario, e: Emu, args) -> None:
              "BG0 only (arena, sprites, particles; magenta = nothing drawn)", screen="top", cols=8, scale=0.5)
     sc.sheet(shots, "mega", "command menu / move list with MEGA touched", cols=2, scale=0.75)
     _mega_camera(sc, e, args, ram, cam0, home_img, rows)
+    _mega_cutguard(sc, ram, cam0, rows)
     _finish(sc, e)
 
 
@@ -2306,6 +2388,74 @@ def _mega_camera(sc: Scenario, e: Emu, args, ram: StageRam, cam0: Optional[dict]
     if cells:
         _crop_sheet(sc, cells, "orbit_diff", "home / home with the frame's blend / most different mid-orbit frame",
                     cols=3, zoom=1)
+
+
+CUT_SHEET_FRAMES = 8                     # frames in the cut guard contact sheet (the largest guardPanPx)
+
+
+def _mega_cutguard(sc: Scenario, ram: StageRam, cam0: Optional[dict], rows: List[dict]) -> None:
+    """Cut-line guard (cut_guard.md, "Critic checks", mega). Garchomp's back sprite is cut (its art runs into
+    row 79), and the Mega camera lifts the attacker, so off home its cut edge must be reported and kept at or
+    below the limit. Uses the guard fields cam() read with every recorded frame; call after _mega_camera, which
+    has followed the turn to the next command menu, so the counters there cover the whole turn."""
+    if cam0 is None or cam0.get("cut") is None:
+        sc.note("mega cut guard checks skipped: " + (ram.cutguard_why or
+                                                     "sBattleStage does not look like a live stage at the menu"))
+        return
+    end = ram.cam()
+    a = BATTLER_PLAYER
+    rec = [r for r in rows if r.get("cam") is not None and r["cam"].get("cut") is not None]
+    off = [r for r in rec if not r["cam"]["home"]]
+    cut_off = [r for r in off if r["cam"]["cut"]["cutEdgeY"][a] != CUT_NONE]
+    sc.check("mega: Garchomp's cut edge reported off home (cutEdgeY[0] != 0x7FFF)", bool(cut_off),
+             f"{len(cut_off)} of {len(off)} recorded frames off home have a cut edge for battler 0"
+             + (f", y {min(r['cam']['cut']['cutEdgeY'][a] for r in cut_off)}.."
+                f"{max(r['cam']['cut']['cutEdgeY'][a] for r in cut_off)}" if cut_off else ""),
+             why="Garchomp's back sprite runs into the bottom row, so it must count as cut: the detection at char "
+                 "load (or the per-battler edge while off home) does not work" if off else
+                 "no recorded frame off home, so nothing to judge")
+    low = [r for r in cut_off if r["cam"]["cut"]["cutEdgeY"][a] < r["cam"]["cut"]["cutLimit"] - 1]
+    sc.check("mega: every sampled off-home frame has cutEdgeY[0] >= cutLimit - 1", not low,
+             f"{len(cut_off)} frames with a cut edge, all at or below the limit" if not low else
+             f"{len(low)} above it: " + ", ".join(f"@{r['f']} y {r['cam']['cut']['cutEdgeY'][a]} < "
+                                                   f"{r['cam']['cut']['cutLimit']} - 1" for r in low[:6]),
+             why="the flat bottom of the sprite shows as a hard cut line above the textbox top (or the screen "
+                 "bottom): the guard did not pan the view down far enough")
+    # At home, over the recorded frames and the two menus (before and after the turn)
+    reads = [("menu before", cam0)] + [(f"@{r['f']}", r["cam"]) for r in rec] + ([("menu after", end)] if end else [])
+    bad, prev_home = [], True
+    for tag, c in reads:
+        if c["home"] and prev_home and _cut_at_home_bad(c["cut"]):
+            bad.append(f"{tag}: pan {c['cut']['guardPanPx']}, cutEdgeY {c['cut']['cutEdgeY']}")
+        prev_home = c["home"]
+    n_home = sum(1 for _, c in reads if c["home"])
+    sc.check("mega: at home no guard pan and every cutEdgeY 0x7FFF", not bad,
+             f"{n_home} reads at home, all clean" if not bad else f"{len(bad)} of {n_home}: " + "; ".join(bad[:4]),
+             why="the guard must only run off home, so the home frame stays byte-identical")
+    last = (end or reads[-1][1])["cut"]
+    sc.check("mega: cutViolations == 0 at the end of the turn", last["cutViolations"] == 0,
+             _cut_detail(last) + ("" if end else " (no read at the next menu; the last recorded frame)"),
+             why="some drawn off-home frame had a cut edge above cutLimit - 1 after the guard")
+    pans = [r["cam"]["cut"]["guardPanPx"] for r in off]
+    peak = max(pans, default=0)
+    sc.note(f"mega cut guard: guardFrames {last['guardFrames']} over the turn; guardPanPx up to {peak} px, "
+            f"non-zero in {sum(1 for p in pans if p)} of {len(off)} recorded frames off home; limits seen "
+            f"{sorted({r['cam']['cut']['cutLimit'] for r in off})}")
+    # The frames with the largest pan (ties: the edge closest to the limit), in frame order
+    full = [r for r in off if r["mode"] == 0 and "img" in r]
+    def rank(r):
+        cut = r["cam"]["cut"]
+        return -cut["guardPanPx"], cut["cutEdgeY"][a] - cut["cutLimit"]
+    pick = sorted(full, key=rank)[:CUT_SHEET_FRAMES]
+    frames = []
+    for r in sorted(pick, key=lambda r: r["f"]):
+        cut = r["cam"]["cut"]
+        y = cut["cutEdgeY"][a]
+        frames.append(Frame(f"pan {cut['guardPanPx']} y {'-' if y == CUT_NONE else y} lim {cut['cutLimit']}",
+                            r["f"], r["img"]))
+    if frames:
+        sc.sheet(frames, "cutguard", "cut-line guard: full frames off home with the largest guardPanPx (pan px, "
+                 "battler 0 cut edge y, limit)", screen="top", cols=4, scale=1.0)
 
 
 # ---- lit, deformable sprites (chunk 3) -------------------------------------------------------
@@ -2963,9 +3113,11 @@ def _faint_battle(sc: Scenario, e: Emu, args, ram: StageRam) -> None:
         sc.note("faint battle: debugFlags not writable here: " + (ram.camera_why or ram.sprite_why or ram.why))
     frames: List[Frame] = []
     fainted, state = None, "menu"
+    cut_polls: List[tuple] = []              # every turn's reads, for the cut guard (Garchomp is cut)
     for turn in range(1, FAINT_TURNS + 1):
         back, polls, anim = _camera_turn(sc, e, args, ram, FAINT_SLOT, f"faint turn {turn}", stop_on=CINE_FAINT)
         frames += anim
+        cut_polls += [(f"turn {turn}+{t}", c) for t, c in polls]
         faint_at = next((t for t, c in polls if c["cinematicsSeen"] & CINE_FAINT), None)
         state = "menu" if back else _after_turn(e)
         if faint_at is not None:
@@ -2979,6 +3131,8 @@ def _faint_battle(sc: Scenario, e: Emu, args, ram: StageRam) -> None:
         e.battle_run(timeout=2400)
     sc.check("faint battle: back in the overworld", e.in_overworld(),
              f"after the turns: {state}", warn_only=True)
+    if live:
+        _faint_cutguard(sc, ram, cut_polls)
     if not live:
         sc.note("faint kick checks skipped (no camera fields); the battle " +
                 ("ended with the wild mon fainting" if state == "ended" else f"did not end in a faint ({state})"))
@@ -3009,6 +3163,15 @@ def _faint_battle(sc: Scenario, e: Emu, args, ram: StageRam) -> None:
     sc.check("faint battle: offHomeMoveFrames == 0", ohm == 0, f"max {ohm} over the fainting turn")
 
 
+def _faint_cutguard(sc: Scenario, ram: StageRam, polls: List[tuple]) -> None:
+    """cut_guard.md over the faint battle's Earthquake turns: the debug Garchomp's back sprite is cut, and the
+    faint kick takes the camera off home."""
+    if ram.has_cutguard:
+        cutguard_checks(sc, ram, polls, "faint battle", seq=True)
+    else:
+        sc.note("faint battle: cut guard checks skipped: " + ram.cutguard_why)
+
+
 def sc_camera(sc: Scenario, e: Emu, args) -> None:
     """Chunk 4 (docs/living_battle_stage/camera.md): the battle-start sweep, no kicks with NO_CINEMATICS, a
     tester move at home, the crit kick (CRIT_KICK_ON_HIT) and the faint kick (a second battle with the debug
@@ -3036,6 +3199,11 @@ def sc_camera(sc: Scenario, e: Emu, args) -> None:
     else:
         sc.warn("camera debug fields present", ram.camera_why or ram.why)
         sc.note("camera checks skipped: this ROM (or xMAP) has no chunk 4 camera fields; the flow still plays")
+    cut_live = live and ram.has_cutguard      # cut_guard.md: cutViolations == 0 after every move
+    if live and not cut_live:
+        sc.note("cut guard checks skipped: " + ram.cutguard_why)
+    if cut_live:
+        cutguard_checks(sc, ram, polls, "sweep", seq=True)
     e.run(30)
 
     # -- no kicks: NO_CINEMATICS, then a damaging move (False Swipe never KOs) must not move the camera
@@ -3055,6 +3223,8 @@ def sc_camera(sc: Scenario, e: Emu, args) -> None:
                  why="a kick (or something else) moved the camera although NO_CINEMATICS was set")
         sc.check("no kicks: no crit or faint bit", not after["cinematicsSeen"] & (CINE_CRIT | CINE_FAINT),
                  f"cinematicsSeen {after['cinematicsSeen']:#x} ({cine_names(after['cinematicsSeen'])})")
+    if cut_live:
+        cutguard_checks(sc, ram, polls, "no-kick turn", seq=True)
     if not sc.check("no-kick turn: menu returned", back or _after_turn(e) == "menu",
                     why=f"no command menu within {args.max_anim_frames} frames"):
         return
@@ -3081,6 +3251,8 @@ def sc_camera(sc: Scenario, e: Emu, args) -> None:
                      f"{len(tpolls)} frames read" + (f"; off home at {off[:6]}" if off else ""))
             ohm = max((c["offHomeMoveFrames"] for _, c in tpolls), default=0)
             sc.check("tester Pound: offHomeMoveFrames == 0", ohm == 0, f"max {ohm}")
+        if cut_live:
+            cutguard_checks(sc, ram, tpolls + [("+90", ram.cam())], "tester Pound", seq=True)
     else:
         sc.warn("tester Pound at home", "the L+R overlay did not come up; not tested")
     if not e.battle_menu_up():
@@ -3099,6 +3271,8 @@ def sc_camera(sc: Scenario, e: Emu, args) -> None:
         if polls:
             ohm = max(c["offHomeMoveFrames"] for _, c in polls)
             sc.check("battle 1: offHomeMoveFrames == 0", ohm == 0, _cam_detail(polls[-1][1]))
+    if cut_live:
+        cutguard_checks(sc, ram, polls, "crit turn", seq=True)
     if not back:
         _after_turn(e)
     ram.set_flags(0)
