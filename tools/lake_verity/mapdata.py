@@ -128,12 +128,14 @@ def bdhc_plates(b):
 
 def make_strips(plates_rect):
     """plates_rect: [(x0, z0, x1, z1)] -> (strips, access list). One strip per distinct plate z except the
-    minimum; a strip at scanline s lists every plate whose z range intersects [previous scanline, s]."""
+    minimum; the strip (lo, hi] with scanline hi lists every plate with z_min <= hi and z_max > lo, in plate order.
+    This reproduces the stock strips and access lists of 665 of the 666 stock BDHC files (the odd one has a
+    zero-depth plate)."""
     zs = sorted({r[1] for r in plates_rect} | {r[3] for r in plates_rect})
     strips, acc = [], []
     for k in range(1, len(zs)):
         lo, hi = zs[k - 1], zs[k]
-        lst = [i for i, r in enumerate(plates_rect) if min(r[1], r[3]) <= hi and max(r[1], r[3]) >= lo]
+        lst = [i for i, r in enumerate(plates_rect) if min(r[1], r[3]) <= hi and max(r[1], r[3]) > lo]
         strips.append([hi, len(lst), len(acc)])
         acc += lst
     return strips, acc

@@ -768,6 +768,108 @@ def model_to_mesh(model, chunk_xy=(0, 0), name=None, offset=(0, 0, 0)):
     return out
 
 
+def pack_normal(n):
+    """Unit vector -> packed 10-bit NORMAL parameter (s.9 per component)."""
+    c = [max(-512, min(511, round(v * 512))) & 0x3FF for v in n]
+    return c[0] | c[1] << 10 | c[2] << 20
+
+
+def _smooth_normals(pos, faces):
+    """Area-weighted vertex normals from faces; winding as in GX (the cross product (p1 - p0) x (p2 - p0) in
+    (x, h, z) points to the drawn side)."""
+    acc = [[0.0, 0.0, 0.0] for _ in pos]
+    for f in faces:
+        for k in range(len(f) - 2):          # fan (a quad is two triangles)
+            a, b, c = pos[f[0]], pos[f[k + 1]], pos[f[k + 2]]
+            u = [b[i] - a[i] for i in range(3)]
+            v = [c[i] - a[i] for i in range(3)]
+            n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]
+            for i in (f[0], f[k + 1], f[k + 2]):
+                for j in range(3):
+                    acc[i][j] += n[j]
+    out = []
+    for n in acc:
+        ln = sum(x * x for x in n) ** 0.5 or 1.0
+        out.append([x / ln for x in n])
+    return out
+
+
+def mesh_to_model(mesh, chunk_xy, name=None, textures=None, pos_scale=0x40000, offset=(0, 0, 0)):
+    """PLAN.md mesh dict -> model dict (for build_bmd), the inverse of model_to_mesh.
+
+    Positions: absolute tiles (x, h, z) (or "positions_local" if "positions" is missing) -> chunk-centred world units
+    (x - 16) * 16, 16 + 16 * h, (z - 16) * 16, minus offset (for props: their map position), in fx16 / posScale.
+    Materials (by name, from mesh["materials"]): "texture", "palette" (default: textures[texture]["palette"], else
+    texture + "_pl"), "size" (default: textures[texture]["size"]), "repeat" [s, t] (or "tex_param" repeat_s/_t),
+    "flip", "alpha", "polygon_attr" {"cull", "lights", "polygon_id", "fog", "alpha"}.
+    Lit materials (lights != 0, the stock default) send NORMALs (from "normals" or smoothed from the faces) and no
+    COLOR (the hardware would replace it anyway); unlit materials (lights 0) send the baked COLORs and no normals.
+    All meshes with the same material become one shape; quads are chained into quad strips.
+    textures: {name: {"size": [w, h], "palette": name, "repeat": [s, t]}} (the texture JSON files)."""
+    textures = textures or {}
+    cx, cz = chunk_xy
+    ps = pos_scale / FX
+    mdefs = {m["name"]: m for m in mesh.get("materials", [])}
+    order, faces_by_mat = [], {}
+    for me in mesh["meshes"]:
+        mname = me["material"]
+        if mname not in faces_by_mat:
+            order.append(mname)
+            faces_by_mat[mname] = ([], [])
+        md = mdefs.get(mname, {"name": mname, "texture": mname})
+        tex = md.get("texture") or mname
+        tmeta = textures.get(tex, {})
+        w, h = md.get("size") or tmeta.get("size") or [32, 32]
+        lit = md.get("polygon_attr", {}).get("lights", 1) != 0
+        if "positions" in me:
+            pos = [[p[0] - cx * 32, p[1], p[2] - cz * 32] for p in me["positions"]]
+        else:
+            pos = me["positions_local"]
+        world = [((p[0] - 16) * TILE - offset[0], GROUND_Y + p[1] * TILE - offset[1], (p[2] - 16) * TILE - offset[2])
+                 for p in pos]
+        allf = [tuple(f) for f in me.get("tris", [])] + [tuple(f) for f in me.get("quads", [])]
+        nrm = me.get("normals") if lit else None
+        if lit and (not nrm or any(n is None for n in nrm)):
+            nrm = _smooth_normals(world, allf)
+        uvs = me.get("uvs") or [[0, 0]] * len(pos)
+        cols = me.get("colors")
+        verts = []
+        for i, p in enumerate(world):
+            fx = tuple(round(c / ps * FX) for c in p)
+            assert all(-32768 <= c <= 32767 for c in fx), f"{mname}: vertex {pos[i]} out of fx16 range at posScale {ps}"
+            s, t = round(uvs[i][0] * w * 16), round(uvs[i][1] * h * 16)
+            verts.append({"pos": fx, "uv": (s, t),
+                          "color": None if lit or not cols else to_rgb555(cols[i]),
+                          "normal": pack_normal(nrm[i]) if lit else None})
+        for f in allf:
+            for i in f:
+                s, t = verts[i]["uv"]
+                assert -32768 <= s <= 32767 and -32768 <= t <= 32767, \
+                    f"{mname}: UV {uvs[i]} out of range (max +-2048 texels); rebase UVs per face"
+        tris, quads = faces_by_mat[mname]
+        tris += [tuple(verts[i] for i in f) for f in me.get("tris", [])]
+        quads += [tuple(verts[i] for i in f) for f in me.get("quads", [])]
+    materials, shapes = [], []
+    for k, mname in enumerate(order):
+        md = mdefs.get(mname, {"name": mname, "texture": mname})
+        tex = md.get("texture") or mname
+        tmeta = textures.get(tex, {})
+        w, h = md.get("size") or tmeta.get("size") or [32, 32]
+        tp = md.get("tex_param", {})
+        rep = md.get("repeat") or tmeta.get("repeat") or [tp.get("repeat_s", True), tp.get("repeat_t", True)]
+        flip = md.get("flip") or [tp.get("flip_s", False), tp.get("flip_t", False)]
+        pa = md.get("polygon_attr", {})
+        attr = dict(lights=pa.get("lights", 1), cull=pa.get("cull", "back"), alpha=md.get("alpha", pa.get("alpha", 31)),
+                    polygon_id=pa.get("polygon_id", 0), fog=pa.get("fog", True),
+                    translucent_depth=pa.get("translucent_depth", False))
+        pal = md.get("palette") or tmeta.get("palette") or tex + "_pl"
+        materials.append(make_material(mname, tex, pal, w, h, repeat=tuple(bool(x) for x in rep),
+                                       flip=tuple(bool(x) for x in flip), **attr))
+        tris, quads = faces_by_mat[mname]
+        shapes.append((f"polygon{k}", faces_to_prims(tris, quads)))
+    return make_model(name or mesh.get("name", "model"), materials, shapes, pos_scale=pos_scale)
+
+
 def info_text(model):
     i = model["info"]
     st = model_stats(model)

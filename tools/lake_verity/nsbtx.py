@@ -255,25 +255,29 @@ def vram_usage(parsed):
 # PNG -> texture encoding
 # ---------------------------------------------------------------------------------------------------------------
 
-def _palette_from(img, maxn, keep_alpha=False):
+def _palette_from(img, maxn, transparent0=False):
     """(palette RGB list, index rows). Uses the PNG's own palette/indices when indexed, else collects exact
-    colours (fails if there are more than maxn)."""
+    colours (fails if there are more than maxn). transparent0 (RGBA input): pixels with alpha < 128 map to
+    index 0, which is reserved for them."""
     if img.indices is not None:
         pal = [c[:3] for c in img.palette]
         n = max(max(r) for r in img.indices) + 1
         assert n <= maxn, f"texture uses {n} palette entries, format allows {maxn}"
         return pal[:max(n, 1)], img.indices
-    cols, rows = [], []
+    cols, rows = ([None], []) if transparent0 else ([], [])
     for row in img.pixels:
         r = []
         for p in row:
+            if transparent0 and p[3] < 128:
+                r.append(0)
+                continue
             c = tuple(v >> 3 << 3 for v in p[:3])
             if c not in cols:
                 cols.append(c)
             r.append(cols.index(c))
         rows.append(r)
     assert len(cols) <= maxn, f"{len(cols)} colours, format allows {maxn} (quantise the PNG first)"
-    return cols, rows
+    return [c or (0, 0, 0) for c in cols], rows
 
 
 def encode_texture(name, img, fmt, c0=None):
@@ -289,9 +293,12 @@ def encode_texture(name, img, fmt, c0=None):
     if f == 5:
         return encode_4x4(name, img)
     maxn = {1: 32, 2: 4, 3: 16, 4: 256, 6: 8}[f]
-    pal, idx = _palette_from(img, maxn)
     if c0 is None:
-        c0 = int(img.palette is not None and img.palette[0][3] == 0) if f in (2, 3, 4) else 0
+        if img.indices is not None:
+            c0 = int(img.palette[0][3] == 0) if f in (2, 3, 4) else 0
+        else:
+            c0 = int(f in (2, 3, 4) and any(p[3] < 128 for row in img.pixels for p in row))
+    pal, idx = _palette_from(img, maxn, transparent0=bool(c0) and img.indices is None and f in (2, 3, 4))
     out = bytearray()
     if f in (2, 3, 4):
         bpp = BPP[f]

@@ -107,7 +107,7 @@ It can animate new textures, such as a portal swirl or torch flames, by giving t
   - Alternatively, give Lake Verity its own area (section 6).
 
 Set 61 (`res/field/maps/texture_sets/map_texture_set_061.nsbtx`):
-- 60 textures; the 4 lake chunks use 19 of them.
+- 62 textures (49 pltt16, 3 pltt4, 9 a3i5, 1 a5i3); the 4 lake chunks use 19 of them.
 - 43008 bytes texel data + 1312 bytes palettes = 44320 bytes of VRAM.
 - The field uploads the whole set.
 
