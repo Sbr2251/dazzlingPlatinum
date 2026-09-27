@@ -307,6 +307,7 @@ LakeVerity_GruntM:
 
     .balign 4, 0
 
+// bg event on LAUNCHPAD (32,27), in the middle of the castle's open roof terrace (h4); see tools/lake_verity/layout.py
 LakeVerity_Launchpad:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
