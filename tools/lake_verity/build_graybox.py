@@ -353,7 +353,10 @@ def main():
         print(f"{s['chunk']:>5} {s['polygons']:>6} {s['triangles']:>5} {s['quads']:>6} {s['vertices_sent']:>6} "
               f"{s['model_bytes']:>8} {s['bdhc_bytes']:>7} {s['bdhc_plates']:>6} {s['materials']:>4}")
     print(f"worst 16x12-tile window: {win} polygons at tile {at} (limit 2048 per frame incl. sprites)")
-    problems, warnings = assemble.check_budgets(stats, window_polys=win)
+    cams = assemble.camera_polys(models)
+    for name, culled, unculled, at in cams:
+        print(f"camera {name}: worst {culled} polygons on screen after culling ({unculled} in the frustum) at {at}")
+    problems, warnings = assemble.check_budgets(stats, window_polys=win, camera=cams)
     for w in warnings:
         print("warning: " + w)
     print("budgets ok" if not problems else "BUDGET PROBLEMS: " + "; ".join(problems))

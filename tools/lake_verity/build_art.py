@@ -2,6 +2,7 @@
 """Assembles the art agent's exports into Lake Verity map data (standard library only).
 
     python3 tools/lake_verity/build_art.py [--assets DIR] [--write] [--preview DIR] [--keep-lake | --drop-lake]
+                                           [--new-set]
 
 Inputs (PLAN.md "Intermediate mesh format"), default DIR = tools/lake_verity/assets:
   chunk_<id>.mesh.json   full terrain for that chunk; replaces the stock terrain. A chunk without one keeps the
@@ -19,6 +20,12 @@ Outputs (only with --write; otherwise a dry run that prints the report):
                                                          (area 62 is shared, so nothing stock is removed)
   res/prebuilt/data/fldtanime.narc                      one entry + frame NSBTX per texture with "frames"
 
+--new-set: instead of growing the shared set 61, write stock set 61 + the new textures as a new set
+(map_texture_set_075.nsbtx, registered in meson.build and map_texture_set.order) and append a copy of area data
+entry 62 that uses it (area_data.narc entry 76 = 0x4C). Set 61 stays stock. The map header is not touched:
+MAP_HEADER_LAKE_VERITY's areaDataArchiveID must then be set to the printed id (include/data/map_headers.h), or
+Lake Verity will draw the art with missing textures. Re-running rewrites the same set and entry.
+
 Lighting: materials whose meshes carry "colors" and do not set polygon_attr.lights are built unlit (lights 0),
 so the baked vertex colours are what the DS draws (stock map materials are lit and have no colours).
 The stock l_lake prop (animated water plane) is dropped when the assets bring their own "lv_water" texture,
@@ -26,6 +33,7 @@ unless --keep-lake is given.
 """
 import json
 import os
+import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -41,6 +49,10 @@ import nsbtx  # noqa: E402
 import png  # noqa: E402
 
 FLDTANIME = os.path.join(assemble.ROOT, "res", "prebuilt", "data", "fldtanime.narc")
+AREA_DATA = os.path.join(assemble.ROOT, "res", "prebuilt", "fielddata", "areadata", "area_data.narc")
+TEXSETS = os.path.join(assemble.ROOT, "res", "field", "maps", "texture_sets")
+NEW_SET = 75                 # first free map texture set (074 is the Coronet lava set)
+BASE_AREA = 62               # stock Lake Verity area: props list 58, set 61, light 0
 ANIME_ENTRY = 16 + 18 * 2
 HEIGHT_TOL = 0.25            # tiles
 
@@ -165,6 +177,36 @@ def update_fldtanime(anims, metas, write):
     return report
 
 
+def write_new_area(new_set):
+    """Writes set NEW_SET and an area data entry using it (see --new-set). -> area data id."""
+    import narc
+    name = f"map_texture_set_{NEW_SET:03d}.nsbtx"
+    open(os.path.join(TEXSETS, name), "wb").write(new_set)
+    mb = os.path.join(TEXSETS, "meson.build")
+    s = open(mb).read()
+    prev = f"'map_texture_set_{NEW_SET - 1:03d}.nsbtx'"
+    if f"'{name}'" not in s:
+        assert s.count(prev + "\n") == 1, f"{prev} is not the last set in {mb}"
+        s = s.replace(prev + "\n", f"{prev},\n    '{name}'\n")
+        open(mb, "w", newline="").write(s)
+    order = os.path.join(TEXSETS, "map_texture_set.order")
+    lines = open(order, newline="").read().splitlines(keepends=True)
+    if not any(ln.strip() == name for ln in lines):
+        assert lines[-1].strip() == prev.strip("'"), f"{prev} is not the last line of {order}"
+        eol = lines[-1][len(lines[-1].rstrip("\r\n")):] or "\n"
+        lines[-1] = lines[-1].rstrip("\r\n") + eol
+        lines.append(name + eol)
+        open(order, "w", newline="").write("".join(lines))
+    header, btnf, files = narc.read_files(AREA_DATA)
+    props, _, dummy, light = struct.unpack("<4H", files[BASE_AREA])
+    entry = struct.pack("<4H", props, NEW_SET, dummy, light)
+    ids = [i for i, f in enumerate(files) if struct.unpack("<4H", f)[1] == NEW_SET]
+    area = ids[0] if ids else len(files)
+    files = files[:area] + [entry] + files[area + 1:]
+    narc.write_files(AREA_DATA, header, btnf, files)
+    return area
+
+
 def height_report(models):
     """Walkable tiles whose drawn floor (the upward face through the tile centre closest to the layout height)
     is more than HEIGHT_TOL tiles off the layout/BDHC height."""
@@ -213,7 +255,8 @@ def main():
     chunk_meshes, props = load_assets(adir)
     tex, pals, metas, anims = load_textures(tdir)
 
-    stock_set = open(assemble.TEXSET, "rb").read()
+    new_area = "--new-set" in args
+    stock_set = assemble.stock_texset()
     s = nsbtx.parse(stock_set)
     clash = sorted({t["name"] for t in tex} & {t["name"] for t in s["textures"]})
     assert not clash, f"texture names already in set 61: {clash}"
@@ -269,7 +312,10 @@ def main():
     print(f"walkable tiles whose drawn floor is > {HEIGHT_TOL} tile off the layout height: {len(heights)}")
     for b in heights[:20]:
         print("   ", b)
-    problems, warnings = assemble.check_budgets(stats, window_polys=win, vram=texel + pal_b)
+    cams = assemble.camera_polys(models)
+    for name, culled, unculled, at in cams:
+        print(f"camera {name}: worst {culled} polygons on screen after culling ({unculled} in the frustum) at {at}")
+    problems, warnings = assemble.check_budgets(stats, window_polys=win, camera=cams, vram=texel + pal_b)
     for w in warnings:
         print("warning: " + w)
     print("budgets ok" if not problems else "BUDGET PROBLEMS: " + "; ".join(problems))
@@ -278,8 +324,15 @@ def main():
             raise SystemExit("not writing: fix the budget problems first")
         for c, data in outs.items():
             open(assemble.map_path(c), "wb").write(data)
-        open(assemble.TEXSET, "wb").write(new_set)
-        print("wrote map_data 537/538/540/541, map_texture_set_061.nsbtx" + (", fldtanime.narc" if anims else ""))
+        if new_area:
+            area = write_new_area(new_set)
+            open(assemble.TEXSET, "wb").write(stock_set)
+            print(f"wrote map_texture_set_{NEW_SET:03d}.nsbtx and area data entry {area} (0x{area:X}); set 61 is stock."
+                  f" Set MAP_HEADER_LAKE_VERITY.areaDataArchiveID = 0x{area:X} in include/data/map_headers.h")
+        else:
+            open(assemble.TEXSET, "wb").write(new_set)
+            print("wrote map_texture_set_061.nsbtx")
+        print("wrote map_data 537/538/540/541" + (", fldtanime.narc" if anims else ""))
     else:
         print("dry run (use --write to write the files)")
 

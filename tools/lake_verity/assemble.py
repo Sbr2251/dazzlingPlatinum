@@ -51,15 +51,24 @@ def map_path(c):
 STOCK_REV = "f0527f80e"     # last commit with the stock Lake Verity chunks (the plan/layout commit)
 
 
-def stock_bytes(c):
-    """Stock map_data for chunk c, read from git (STOCK_REV) so regenerated chunks never feed back into the build.
+def stock_file(rel):
+    """A repo file as it was at STOCK_REV (read from git), so regenerated files never feed back into the build.
     Falls back to the checked-in file outside a git checkout."""
-    rel = f"res/field/maps/data/map_data_{c:03d}.bin"
     try:
         return subprocess.run(["git", "-C", ROOT, "show", f"{STOCK_REV}:{rel}"], check=True,
                               capture_output=True).stdout
     except (OSError, subprocess.CalledProcessError):
-        return open(map_path(c), "rb").read()
+        return open(os.path.join(ROOT, rel), "rb").read()
+
+
+def stock_bytes(c):
+    """Stock map_data for chunk c (at STOCK_REV)."""
+    return stock_file(f"res/field/maps/data/map_data_{c:03d}.bin")
+
+
+def stock_texset():
+    """Stock texture set 61 (at STOCK_REV)."""
+    return stock_file(f"res/field/maps/texture_sets/map_texture_set_{TEXSET_ID:03d}.nsbtx")
 
 
 def area_texture_pairs():
@@ -194,7 +203,79 @@ def build_chunk(c, extra_meshes, fp, textures, keep_under=(), stock_props=True):
     return data, stats, model
 
 
-def check_budgets(stats, window_polys=None, vram=None):
+# field cameras seen on Lake Verity (src/overlay005/field_camera.c, field_camera_zones.c):
+# (name, pitch deg below horizontal, distance, vertical half-fov deg, target tiles or None = every walkable tile)
+CAMERAS = (
+    ("zoomed_in", 54.656982421875, 515.4560546875, 10.458984375, None),
+    ("stair_tilt", 44.0, 460.0, 10.458984375, [(x, z) for x in range(21, 27) for z in range(29, 38)]),
+)
+NEAR, FAR = 150.0, 900.0
+
+
+def camera_polys(models, cameras=CAMERAS):
+    """Per-frame map polygons for the real field cameras: for every walkable target tile, the camera is placed
+    behind the player (south, looking north) and the faces that survive the view frustum and back-face culling
+    are counted (the DS stores only those in polygon RAM; quads count as one polygon). Sprites and the stock
+    props (l_lake) are not included. -> [(camera, worst culled, worst unculled, target (x, z))]."""
+    import math
+    faces = []   # (cx, cz, [world verts], double_sided)
+    for c, model in models.items():
+        m = nsbmd.model_to_mesh(model, layout.CHUNKS[c])
+        cull = {mt["name"]: mt.get("polygon_attr", {}).get("cull", "back") for mt in m["materials"]}
+        for me in m["meshes"]:
+            P = [(p[0] * 16.0, 16.0 + p[1] * 16.0, p[2] * 16.0) for p in me["positions"]]
+            ds = cull.get(me["material"], "back") != "back"
+            for f in me["tris"] + me["quads"]:
+                vs = [P[i] for i in f]
+                faces.append((sum(v[0] for v in vs) / len(vs) / 16, sum(v[2] for v in vs) / len(vs) / 16, vs, ds))
+    buckets = {}
+    for fc in faces:
+        buckets.setdefault((int(fc[0]) // 4, int(fc[1]) // 4), []).append(fc)
+    tiles = layout.tiles()
+    walk = [(x, z) for (x, z), (coll, h, kind) in tiles.items() if not coll & 0x8000 and 0 <= x < 64 and 0 <= z < 64]
+    out = []
+    for name, pitch, dist, fov, targets in cameras:
+        sp, cp = math.sin(math.radians(pitch)), math.cos(math.radians(pitch))
+        ty, tx = math.tan(math.radians(fov)), math.tan(math.radians(fov)) * 256 / 192
+        best = (0, 0, None)
+        for (x, z) in (targets or walk):
+            if (x, z) not in tiles:
+                continue
+            h = tiles[(x, z)][1]
+            T = ((x + 0.5) * 16, 16 + h * 16, (z + 0.5) * 16)
+            E = (T[0], T[1] + dist * sp, T[2] + dist * cp)
+            fwd, up = (0.0, -sp, -cp), (0.0, cp, -sp)
+            n_all = n_cull = 0
+            for bx in range((x - 24) // 4, (x + 24) // 4 + 1):
+                for bz in range((z - 28) // 4, (z + 20) // 4 + 1):
+                    for fcx, fcz, vs, ds in buckets.get((bx, bz), ()):
+                        out_mask = 63
+                        for v in vs:
+                            d = (v[0] - E[0], v[1] - E[1], v[2] - E[2])
+                            zc = d[1] * fwd[1] + d[2] * fwd[2]
+                            yc = d[1] * up[1] + d[2] * up[2]
+                            xc = d[0]
+                            m = (zc < NEAR) | (zc > FAR) << 1 | (yc > zc * ty) << 2 | (yc < -zc * ty) << 3 | \
+                                (xc > zc * tx) << 4 | (xc < -zc * tx) << 5
+                            out_mask &= m
+                        if out_mask:
+                            continue
+                        n_all += 1
+                        if not ds:
+                            a, b, c_ = vs[0], vs[1], vs[2]
+                            u = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+                            w = (c_[0] - a[0], c_[1] - a[1], c_[2] - a[2])
+                            nrm = (u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0])
+                            if nrm[0] * (E[0] - a[0]) + nrm[1] * (E[1] - a[1]) + nrm[2] * (E[2] - a[2]) <= 0:
+                                continue
+                        n_cull += 1
+            if n_cull > best[0]:
+                best = (n_cull, n_all, (x, z))
+        out.append((name,) + best)
+    return out
+
+
+def check_budgets(stats, window_polys=None, vram=None, camera=None):
     """-> (errors, warnings). errors break the game (buffer overflow, dropped polygons); warnings exceed stock
     precedent only."""
     errors, warnings = [], []
@@ -206,7 +287,10 @@ def check_budgets(stats, window_polys=None, vram=None):
         if s["polygons"] > POLY_SOFT:
             warnings.append(f"chunk {s['chunk']}: {s['polygons']} polygons > {POLY_SOFT} (stock max 977)")
     if window_polys is not None and window_polys > WINDOW_POLYS:
-        errors.append(f"view window {window_polys} polygons > {WINDOW_POLYS}")
+        (errors if camera is None else warnings).append(f"view window {window_polys} polygons > {WINDOW_POLYS}")
+    for name, culled, unculled, at in camera or ():
+        if culled > WINDOW_POLYS:
+            errors.append(f"camera {name} at {at}: {culled} polygons on screen > {WINDOW_POLYS}")
     if vram is not None and vram > VRAM_PROVEN:
         warnings.append(f"texture set VRAM {vram} B > {VRAM_PROVEN} B (largest stock set)")
     return errors, warnings
