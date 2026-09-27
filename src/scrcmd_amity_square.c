@@ -27,21 +27,21 @@ BOOL ScrCmd_GetAmitySquareStepCount(ScriptContext *ctx)
 
 // clang-format off
 static const u16 sMonFindableAccessories[NUM_FINDABLE_ACCESSORY_POOLS][NUM_ACCESSORIES_FINDABLE_BY_MON] = {
-    { // Gible, Gabite, Garchomp
+    { // Chimchar, Monferno, Infernape
         /* 15% */ ACCESSORY_WHITE_FLUFF, ACCESSORY_ORANGE_FLUFF, ACCESSORY_WHITE_FEATHER, ACCESSORY_ROUND_PEBBLE,
         /* 10% */ ACCESSORY_SMALL_LEAF, ACCESSORY_BLUE_SCALE,
         /*  8% */ ACCESSORY_WHITE_BEARD,
         /*  5% */ ACCESSORY_THIN_MUSHROOM, ACCESSORY_BIG_SCALE,
         /*  2% */ ACCESSORY_STUMP
     },
-    { // Bagon, Shelgon, Salamence
+    { // Piplup, Prinplup, Empoleon
         /* 15% */ ACCESSORY_PINK_FLUFF, ACCESSORY_RED_FEATHER, ACCESSORY_YELLOW_FEATHER, ACCESSORY_BLACK_BEARD,
         /* 10% */ ACCESSORY_NARROW_SCALE, ACCESSORY_WHITE_FLUFF,
         /*  8% */ ACCESSORY_WHITE_MOUSTACHE,
         /*  5% */ ACCESSORY_SHED_CLAW, ACCESSORY_NARROW_LEAF,
         /*  2% */ ACCESSORY_PURPLE_SCALE,
     },
-    { // Dratini, Dragonair, Dragonite
+    { // Turtwig, Grotle, Torterra
         /* 15% */ ACCESSORY_JAGGED_BOULDER, ACCESSORY_SNAGGY_PEBBLE, ACCESSORY_BROWN_FLUFF, ACCESSORY_ROUND_PEBBLE,
         /* 10% */ ACCESSORY_BLACK_MOUSTACHE, ACCESSORY_SHED_HOWN,
         /*  8% */ ACCESSORY_NARROW_SCALE,
@@ -103,19 +103,19 @@ BOOL ScrCmd_CalcAmitySquareFoundAccessory(ScriptContext *ctx)
     }
 
     switch (followerSpecies) {
-    case SPECIES_GIBLE:
-    case SPECIES_GABITE:
-    case SPECIES_GARCHOMP:
+    case SPECIES_CHIMCHAR:
+    case SPECIES_MONFERNO:
+    case SPECIES_INFERNAPE:
         findableAccessoryPool = 0;
         break;
-    case SPECIES_BAGON:
-    case SPECIES_SHELGON:
-    case SPECIES_SALAMENCE:
+    case SPECIES_PIPLUP:
+    case SPECIES_PRINPLUP:
+    case SPECIES_EMPOLEON:
         findableAccessoryPool = 1;
         break;
-    case SPECIES_DRATINI:
-    case SPECIES_DRAGONAIR:
-    case SPECIES_DRAGONITE:
+    case SPECIES_TURTWIG:
+    case SPECIES_GROTLE:
+    case SPECIES_TORTERRA:
         findableAccessoryPool = 2;
         break;
     case SPECIES_PSYDUCK:
