@@ -481,6 +481,7 @@ const UnkStruct_ov5_021FB97C Unk_ov5_021FB97C[] = {
     { OBJ_EVENT_GFX_TOTEM_AGGRON, &Unk_ov5_021FB0B4 },
     { OBJ_EVENT_GFX_TOTEM_MAMOSWINE, &Unk_ov5_021FB0B4 },
     { OBJ_EVENT_GFX_TOTEM_KINGDRA, &Unk_ov5_021FB0B4 },
+    { OBJ_EVENT_GFX_MAWILE, &Unk_ov5_021FAFD8 },
     { 0xffff, NULL }
 };
 
@@ -933,6 +934,7 @@ const UnkStruct_ov5_021ED2D0 Unk_ov5_021FC9B4[] = {
     { OBJ_EVENT_GFX_TOTEM_AGGRON, 0x1DB },
     { OBJ_EVENT_GFX_TOTEM_MAMOSWINE, 0x1DC },
     { OBJ_EVENT_GFX_TOTEM_KINGDRA, 0x1DD },
+    { OBJ_EVENT_GFX_MAWILE, 0x1DE },
     { 0xffff, 0x0 }
 };
 
@@ -1600,6 +1602,7 @@ const UnkStruct_ov5_021EDD04 Unk_ov5_021FD77C[] = {
     { OBJ_EVENT_GFX_TOTEM_AGGRON, 0x0, 0x8, Unk_ov5_021FB1C4 },
     { OBJ_EVENT_GFX_TOTEM_MAMOSWINE, 0x0, 0x8, Unk_ov5_021FB1C4 },
     { OBJ_EVENT_GFX_TOTEM_KINGDRA, 0x0, 0x8, Unk_ov5_021FB1C4 },
+    { OBJ_EVENT_GFX_MAWILE, 0x0, 0x0, Unk_ov5_021FB2C0 },
     { 0xffff, 0xffff, 0xffff, NULL }
 };
 
@@ -1876,6 +1879,7 @@ const UnkStruct_ov5_021ECD10 Unk_ov5_021FC194[] = {
     { OBJ_EVENT_GFX_TOTEM_AGGRON, 0x1, 0x1, 0x1, 0x1, 0x0 },
     { OBJ_EVENT_GFX_TOTEM_MAMOSWINE, 0x1, 0x1, 0x1, 0x1, 0x0 },
     { OBJ_EVENT_GFX_TOTEM_KINGDRA, 0x1, 0x1, 0x1, 0x1, 0x0 },
+    { OBJ_EVENT_GFX_MAWILE, 0x1, 0x1, 0x1, 0x1, 0x0 },
     { 0xffff, 0x0, 0x0, 0x0, 0x0, 0x0 }
 };
 

@@ -485,3 +485,22 @@ mmodel_files_targets = []
 foreach f : mmodel_files
     mmodel_files_targets += fs.copyfile(f)
 endforeach
+
+# Mawile overworld sprite (OBJ_EVENT_GFX_MAWILE): generated at build time from
+# res/field/objects/mawile/mawile_overworld.png by tools/integrate_mawile_overworld_sprite.py, cloning
+# the stock Skitty walker layout (mmodel_00000077.bin).
+mmodel_files_targets += custom_target('mmodel_00000478.bin',
+    output: 'mmodel_00000478.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/mawile/mawile_overworld.png',
+        'mmodel_00000077.bin',
+    ],
+    depend_files: meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py', native: true),
+        'build-member',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
