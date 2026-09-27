@@ -187,6 +187,12 @@ It shows about 15 x 11 tiles around the player. `blender_preview.py --views game
 | `dump_stock.py` | Dumps chunks 537/538/540/541, their props and all their textures to mesh.json + PNG. |
 | `blender_preview.py` | Blender 5 script: loads mesh.json files and textures, renders a top-down orthographic view and the in-game camera view. |
 | `compare_layout.py` | Draws [layout colours / render / render tinted where the layout differs from stock] side by side. |
+| `layout.py` | The tile contract (owned by the plan): collision, height and kind per tile. |
+| `collision.py` | Permissions and BDHC from layout.py: flat plates merged on a half-tile grid, one sloped plate per chunk for the stair. `check` compares any BDHC against the layout at every tile centre. |
+| `assemble.py` | Chunk assembly library: stock terrain (read from git at `STOCK_REV`, so regenerated chunks never feed back), `cut_stock` (drops the footprint), `merge`, `split_by_chunk`, `build_chunk` (model + stock props + layout permissions/BDHC -> map_data), `texture_table` (set-61 sizes and palettes), `check_budgets`. |
+| `build_graybox.py` | Writes the graybox map_data 537/538/540/541 (section 4). |
+| `build_art.py` | Assembles the art agent's `assets/` into map_data, set 61 and fldtanime (section 5). Dry run unless `--write`. |
+| `roundtrip.py` | All round-trip and consistency checks (section 7). |
 
 Stock dumps and renders are in `~/Documents/Lake Verity Update/pipeline_checks/`:
 
