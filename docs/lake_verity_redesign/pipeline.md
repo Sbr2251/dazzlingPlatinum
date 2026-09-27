@@ -229,8 +229,9 @@ python3 tools/lake_verity/roundtrip.py --generated
 # gameplay-facing collision: permissions + BDHC per chunk, compared with layout.py
 python3 tools/lake_verity/collision.py
 
-# final chunks from the art. Dry run first; --write writes map_data 537/538/540/541,
-# set 61 and fldtanime.narc
+# final chunks: stock terrain + the art's castle island, castle, bridge and portal.
+# Dry run first; --write writes map_data 537/538/540/541, set 61 and fldtanime.narc.
+# --art-terrain uses the art's full chunk terrain instead (the older look, commit 488d1159d)
 python3 tools/lake_verity/build_art.py --preview /tmp/lv/art
 python3 tools/lake_verity/build_art.py --write
 
@@ -240,10 +241,12 @@ python3 tools/lake_verity/build_graybox.py --preview /tmp/lv/gb
 # preview of what was written (the --preview files are decoded from the written NSBMD)
 P="$HOME/Documents/Lake Verity Update/pipeline_checks"
 /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P tools/lake_verity/blender_preview.py -- \
-    --tex tools/lake_verity/assets/textures --tex "$P/texset61" --out "$P/art_final" --views top,game \
-    --target 32,31 /tmp/lv/art/chunk_537.mesh.json /tmp/lv/art/chunk_538.mesh.json \
-    /tmp/lv/art/chunk_540.mesh.json /tmp/lv/art/chunk_541.mesh.json
-python3 tools/lake_verity/compare_layout.py "$P/art_final_top.png" "$P/art_final_vs_layout.png"
+    --tex tools/lake_verity/assets/textures --tex "$P/stock/textures" --tex "$P/texset61" \
+    --out "$P/art_stockterrain" --views top,game --target 32,31 \
+    /tmp/lv/art/chunk_537.mesh.json /tmp/lv/art/chunk_538.mesh.json \
+    /tmp/lv/art/chunk_540.mesh.json /tmp/lv/art/chunk_541.mesh.json \
+    "$P"/stock/chunk_5{37,38,40,41}_props.mesh.json      # the l_lake water, decoded by dump_stock.py
+python3 tools/lake_verity/compare_layout.py "$P/art_stockterrain_top.png" "$P/art_stockterrain_vs_layout.png"
 ```
 
 To preview the graybox, add `--lit`, because graybox materials are lit like stock ones.
@@ -331,12 +334,28 @@ Graybox renders, in `~/Documents/Lake Verity Update/pipeline_checks/`:
 - `graybox_bridge_game.png`
 - `graybox_vs_layout.png`, which shows the island lining up exactly with layout.py.
 
-## 5. Assembling the art (`build_art.py`, commit 488d1159d)
+## 5. Assembling the art (`build_art.py`)
+
+User direction: "Use the water and trees from the original textures. I don't want to change that stuff. Just the castle itself can be new." So the default, which is what is committed, is **stock-terrain mode**:
+
+- **Stock terrain everywhere.** Each chunk starts from the stock chunk at f0527f80e, with the same geometry, materials and set-61 textures (round-trip exact). That covers water, trees, shores, tall grass, the SE path and the SW area.
+  - `cut_stock` removes what rises above the water inside the footprint: the old island and the Verity Cavern hut, which is terrain.
+  - It also removes the lakebed under the island's interior (footprint tiles whose 8 neighbours are all in the footprint).
+  - Lakebed on the footprint's edge ring and under the bridge stays, so no holes open.
+- **The only new terrain is the castle island.**
+  - It is clipped out of the art chunk meshes: faces whose centroid lies in `layout.ISLAND` (with its octagon corners), grown by 0.7 tile (`in_island`).
+  - That keeps the plateau, courtyard paving, cliff sides and the lv_foliage edge fringe, but not the art's lake shores.
+  - Natural materials are dropped (`ISLAND_DROP`: lv_water, lv_foam, lv_canopy, lv_path).
+  - lv_grass is redrawn with stock `tshadow`, using the stock material and stock UV scale of 1 repeat per 2 tiles (`GRASS_REMAP`), so the island grass matches the shore grass.
+- **Skirts:** every vertical island or prop face whose bottom edge is under the water (h <= -0.9) gets a quad in the same material down to the lakebed at h -4 (`add_skirts`, 50 quads). No gap shows through the translucent l_lake water.
+- **Props:** the stock `l_lake` water plane is kept in all four chunks. The castle, bridge and portal are merged into the chunk models.
+- **Textures:** only the textures the result uses are appended to set 61, and only their animations go into fldtanime. fldtanime is always rebuilt from the stock archive, so entries from older runs (lv_water) disappear.
+
+`--art-terrain` gives the older mode (commit 488d1159d), where the art's chunk meshes replace the stock terrain completely.
 
 Inputs are in `tools/lake_verity/assets/`, in the PLAN.md mesh format; see its README for counts.
 
-- **`chunk_<id>.mesh.json`:** the full terrain for that chunk. It replaces the stock terrain.
-  - A chunk without one keeps the stock terrain minus the footprint, as in the graybox.
+- **`chunk_<id>.mesh.json`:** the art's terrain for that chunk. Only its island is used, unless `--art-terrain` is given.
 - **Other `*.mesh.json` (castle, bridge, portal):** positioned in absolute tiles.
   - They are split into chunks by face centroid and merged into the chunk models.
   - They are not map props. Map props would need build_model archive entries and an entry in the area's preload list.
@@ -351,33 +370,35 @@ Inputs are in `tools/lake_verity/assets/`, in the PLAN.md mesh format; see its R
   - Frame textures do not go into the set.
   - At most 16 animated textures can be active on a map (`MAX_TEXTURE_KEYS`).
 - **Lighting:** materials whose meshes carry `colors`, and that don't set `polygon_attr.lights`, are built unlit (lights 0, a colour per vertex, no normals), so the bake shows. Set `"lights": 1` for stock-like lit shading.
-- **Water:** if any material uses `lv_water`, the stock `l_lake` prop is dropped (the props section is written empty, as in 283 stock chunks), so the two water planes don't z-fight. Use `--keep-lake` to keep it.
+- **Water (`--art-terrain` only):** if any material uses `lv_water`, the stock `l_lake` prop is dropped (the props section is written empty, as in 283 stock chunks), so the two water planes don't z-fight. Use `--keep-lake` to keep it.
 - **Height check:** every walkable tile's drawn floor must be within 0.25 tile of its layout/BDHC height.
 
-Results of the committed assembly:
+Results of the committed assembly (stock-terrain mode):
 
 | chunk | polys | verts sent | model B | BDHC B | materials |
 |---|---|---|---|---|---|
-| 537 | 719 | 2501 | 38536 | 1046 | 12 |
-| 538 | 781 | 2737 | 41756 | 946 | 14 |
-| 540 | 1141 (warning) | 3907 | 58404 (0xF000 = 61440) | 904 | 12 |
-| 541 | 978 | 3277 | 49760 | 886 | 15 |
+| 537 | 914 | 3161 | 43836 | 1046 | 16 |
+| 538 | 998 | 3481 | 48108 | 946 | 18 |
+| 540 | 1034 (warning) | 3657 | 49128 (0xF000 = 61440) | 904 | 20 |
+| 541 | 1176 (warning) | 4141 | 56736 | 886 | 26 |
 
-- Set 61: 62 stock + 17 new textures, VRAM 71200 + 1888 = 73088 B.
-- fldtanime:
+- Set 61: 62 stock textures (unchanged) + 12 new ones: lv_chain, lv_cliff, lv_flame, lv_foliage, lv_glow, lv_paving, lv_portal, lv_roof, lv_sigil, lv_stone, lv_trim, lv_wood. VRAM 57376 + 1712 = 59088 B.
+- fldtanime (stock + 2):
 
 | member | texture | frames | VBlanks per frame |
 |---|---|---|---|
 | 55 | lv_flame | 4 | 4 |
 | 56 | lv_portal | 4 | 6 |
-| 57 | lv_water | 8 | 8 |
 
-- On screen: at most 827 polygons with the zoomed-in camera (at 32,27) and 713 with the stair camera. Worst 16 x 12 window: 672.
-- 0 walkable tiles are off the layout height.
+- On screen: at most 991 polygons with the zoomed-in camera (at 32,27; 1155 in the frustum before back-face culling) and 897 with the stair camera (at 25,33). Worst 16 x 12 window: 689.
+- 0 walkable tiles are off the layout height. Permissions and BDHC are unchanged from layout.py.
 - The gameplay tiles check out:
   - The door tiles are walkable with behaviour 0x6e: (32,33) at h 0, (32,30) at h 4 and the hatch (33,27) at h 10.
   - (32,34), (32,31) and (32,27) are walkable.
-- Renders: `art_final_top.png` and `art_final_game.png`, decoded from the written chunks.
+- Renders in `pipeline_checks/`: `art_stockterrain_top.png`, `art_stockterrain_game.png` and `art_stockterrain_bridge_game.png`.
+  - Trees, water, shores and grass are identical to `stock_top.png` / `stock_game.png`.
+  - There are no seams where the island meets the water.
+- The full-art mode (488d1159d) had 719/781/1141/978 polygons, set 61 at 73088 B VRAM and 827/713 on screen. Its renders are `art_final_*.png`.
 
 ## 6. A new texture set and area data entry
 
@@ -412,7 +433,7 @@ fldtanime is keyed by texture name, not by set, so the animations work with eith
 | GX display lists decode -> encode | byte-identical, 52/52 shapes |
 | mesh.json -> NSBMD -> decode | same faces (positions, UVs, normals) and material attributes |
 | NSBTX rebuild, all 75 map texture sets | 74 identical; set 007 differs (the coronet tools renumbered its dictionaries) |
-| set 61 textures decode -> encode -> decode | 79/79 same pixels (62 stock + 17 art) |
+| set 61 textures decode -> encode -> decode | 74/74 same pixels (62 stock + 12 art) |
 | map_data unpack -> pack | 666/666 identical |
 | BDHC read -> write | 666/666 identical |
 | BDHC strip builder vs stock | 665/666; map_data_184 has a zero-depth plate that the stock tool listed once more |
@@ -426,8 +447,10 @@ In the mesh.json round trip, our strips send 3 to 4% more vertices than Nintendo
 - **Lighting vs PLAN.md:**
   - The art's coloured materials are unlit (baked), so they won't follow the area light or darken at night. Stock map materials are lit.
   - Needs an art-direction decision, ideally checked on hardware at night. The alternative is `"lights": 1` per material.
-- **Area 62 is shared:** set 61 grew from 44320 to 73088 B of VRAM, and Sendoff Spring and Lake Valor load it too. That is within stock precedent (76416), but only hardware proves it. Section 6 is the way out.
-- **Chunk 540 density:** 1141 polygons, the only soft warning. Its model is 58404 B, 3 KB under the buffer, so there is little room for more art in that chunk.
+- **Area 62 is shared:** set 61 grew from 44320 to 59088 B of VRAM, and Sendoff Spring and Lake Valor load it too. That is well within stock precedent (76416). Section 6 is the way out if needed.
+- **Chunk density:** chunks 540 (1034) and 541 (1176) are over the 1000-polygon soft warning, because the stock trees and shores stay and the island is added on top. All models are at least 4.7 KB under the 0xF000 buffer.
+- **Mixed lighting:** the stock terrain and the tshadow island grass are lit; the castle, cliffs, paving and fringe are unlit with baked colours. They may drift apart at night or under a different area light.
+- **Island edge:** the art's lv_foliage fringe and lv_cliff sides are kept as part of the island. They were painted for the art's own grass, next to stock tshadow; this reads fine in the renders.
 - **Per-frame count:**
   - `camera_polys` models the camera without its 6-frame follow delay and ignores sprites, shadows and stock props (hence the 1800 limit).
   - It assumes the materials' cull flags are what the DS uses.
