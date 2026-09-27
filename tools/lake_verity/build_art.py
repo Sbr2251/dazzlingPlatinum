@@ -2,11 +2,21 @@
 """Assembles the art agent's exports into Lake Verity map data (standard library only).
 
     python3 tools/lake_verity/build_art.py [--assets DIR] [--write] [--preview DIR] [--keep-lake | --drop-lake]
-                                           [--new-set]
+                                           [--new-set] [--art-terrain]
+
+Terrain modes:
+  default (stock terrain)  every chunk keeps the stock terrain (water, trees, shores, grass, paths; same geometry,
+                         materials and textures), minus what rises above the water inside the redesign footprint
+                         (old island, Verity Cavern hut) and the lakebed under the island's interior. The only new
+                         terrain is the castle island, clipped out of the art chunk meshes (in_island), without
+                         the natural materials (ISLAND_DROP: lv_water, lv_foam, lv_canopy, lv_path); lv_grass is
+                         redrawn with stock "tshadow" (GRASS_REMAP). Vertical island/prop faces that end under
+                         the water get skirt quads down to the lakebed (h -4). The l_lake water prop stays.
+  --art-terrain            the art chunk meshes replace the stock terrain completely (the older mode).
+Only textures the result uses go into the set and fldtanime.
 
 Inputs (PLAN.md "Intermediate mesh format"), default DIR = tools/lake_verity/assets:
-  chunk_<id>.mesh.json   full terrain for that chunk; replaces the stock terrain. A chunk without one keeps the
-                         stock terrain minus the redesign footprint (as the graybox does).
+  chunk_<id>.mesh.json   the art's terrain for that chunk (see the modes above).
   <other>.mesh.json      props (castle, bridge, portal, ...), absolute tile positions; split into the chunks
                          by face centroid and merged into the chunk models.
   textures/<name>.png + <name>.json  {"format", "repeat", "c0", optional "palette", "frames": [names],
@@ -28,8 +38,8 @@ Lake Verity will draw the art with missing textures. Re-running rewrites the sam
 
 Lighting: materials whose meshes carry "colors" and do not set polygon_attr.lights are built unlit (lights 0),
 so the baked vertex colours are what the DS draws (stock map materials are lit and have no colours).
-The stock l_lake prop (animated water plane) is dropped when the assets bring their own "lv_water" texture,
-unless --keep-lake is given.
+The stock l_lake prop (animated water plane) is dropped when the result uses an "lv_water" texture (only
+possible with --art-terrain), unless --keep-lake is given. fldtanime always starts from the stock archive.
 """
 import json
 import os
@@ -55,6 +65,11 @@ NEW_SET = 75                 # first free map texture set (074 is the Coronet la
 BASE_AREA = 62               # stock Lake Verity area: props list 58, set 61, light 0
 ANIME_ENTRY = 16 + 18 * 2
 HEIGHT_TOL = 0.25            # tiles
+# stock-terrain mode (default): natural art materials that the stock terrain replaces, and art materials that are
+# redrawn with a stock set-61 texture: {art texture: (stock texture, tiles per texture repeat)}
+ISLAND_DROP = {"lv_water", "lv_foam", "lv_canopy", "lv_path"}
+GRASS_REMAP = {"lv_grass": ("tshadow", 2.0)}     # the stock lake-shore ground (u = x / 2, v = z / 2 as in stock)
+SKIRT_TOP, SKIRT_BOTTOM = -0.9, -4.0             # island sides below the water go down to the stock lakebed
 
 
 def load_assets(adir):
@@ -147,7 +162,11 @@ def frame_btx(name, frames, meta):
 
 def update_fldtanime(anims, metas, write):
     import narc
-    header, btnf, files = narc.read_files(FLDTANIME)
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".narc") as tmp:     # start from stock: dropped entries disappear
+        tmp.write(assemble.stock_file("res/prebuilt/data/fldtanime.narc"))
+        tmp.flush()
+        header, btnf, files = narc.read_files(tmp.name)
     table = bytearray(files[0])
     count = int.from_bytes(table[:4], "little")
     names = [bytes(table[4 + i * ANIME_ENTRY:20 + i * ANIME_ENTRY]).rstrip(b"\0") for i in range(count)]
@@ -207,6 +226,87 @@ def write_new_area(new_set):
     return area
 
 
+def in_island(cx, cz, margin=0.7):
+    """True if the point (tiles) lies on the castle island (layout.ISLAND with its octagon corner cuts), grown by
+    margin so the island's edge faces (cliffs, grass fringe) are included but the lake shores are not."""
+    x0, z0, x1, z1 = layout.ISLAND
+    if not (x0 - margin <= cx <= x1 + 1 + margin and z0 - margin <= cz <= z1 + 1 + margin):
+        return False
+    dx, dz = min(cx - x0, x1 + 1 - cx), min(cz - z0, z1 + 1 - cz)
+    return dx + dz >= 2 - margin * 1.42
+
+
+def _face_normal(P, f):
+    a, b, c = P[f[0]], P[f[1]], P[f[2]]
+    u = [b[i] - a[i] for i in range(3)]
+    w = [c[i] - a[i] for i in range(3)]
+    n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]]
+    ln = sum(v * v for v in n) ** 0.5 or 1.0
+    return [v / ln for v in n]
+
+
+def island_part(mesh, stock):
+    """The castle island out of an art chunk mesh (stock-terrain mode): faces whose centroid is on the island,
+    without the natural materials (ISLAND_DROP; the stock terrain draws water, trees and shores). Materials in
+    GRASS_REMAP are redrawn with the stock set-61 texture and the stock material (lit, stock UV scale)."""
+    tex_of = {m["name"]: m.get("texture", m["name"]) for m in mesh.get("materials", [])}
+    stock_mat = {m.get("texture"): m for m in stock["materials"]}
+    mats, meshes = {}, []
+    for me in mesh["meshes"]:
+        tex = tex_of.get(me["material"], me["material"])
+        if tex in ISLAND_DROP:
+            continue
+        P = me["positions"]
+        keep = {}
+        for key in ("tris", "quads"):
+            keep[key] = [f for f in me.get(key, [])
+                         if in_island(sum(P[i][0] for i in f) / len(f), sum(P[i][2] for i in f) / len(f))]
+        if not keep["tris"] and not keep["quads"]:
+            continue
+        if tex in GRASS_REMAP:
+            sm, rep = stock_mat[GRASS_REMAP[tex][0]], GRASS_REMAP[tex][1]
+            mats[sm["name"]] = sm
+            meshes.append({"material": sm["name"], "positions": P, "uvs": [[p[0] / rep, p[2] / rep] for p in P],
+                           "normals": None, "colors": None, **keep})
+        else:
+            mats[me["material"]] = next(m for m in mesh["materials"] if m["name"] == me["material"])
+            meshes.append(dict(me, **keep))
+    return {"name": mesh["name"] + "_island", "materials": list(mats.values()), "meshes": meshes}
+
+
+def add_skirts(mesh):
+    """Extends every vertical face whose bottom edge is under the water (h <= SKIRT_TOP) down to the lakebed
+    (SKIRT_BOTTOM) with a quad in the same material, so no gap shows through the translucent l_lake water where
+    the island meets the lake. Colours are darkened, UVs repeat the bottom edge. -> (mesh, skirts added)."""
+    out, added = [], 0
+    for me in mesh["meshes"]:
+        P = [list(p) for p in me["positions"]]
+        uv = [list(u) for u in me.get("uvs") or [[0, 0]] * len(P)]
+        col = me.get("colors")
+        col = [list(c) for c in col] if col else None
+        nrm = me.get("normals")
+        nrm = list(nrm) if nrm else None
+        quads = [list(q) for q in me.get("quads", [])]
+        for f in me.get("tris", []) + me.get("quads", []):
+            if abs(_face_normal(P, f)[1]) > 0.1:
+                continue
+            for k in range(len(f)):
+                a, b = f[k], f[(k + 1) % len(f)]
+                if P[a][1] <= SKIRT_TOP and P[b][1] <= SKIRT_TOP and abs(P[a][1] - P[b][1]) < 1e-3:
+                    base = len(P)
+                    for v in (a, b):
+                        P.append([P[v][0], SKIRT_BOTTOM, P[v][2]])
+                        uv.append(list(uv[v]))
+                        if col:
+                            col.append([c // 2 for c in col[v]])
+                        if nrm:
+                            nrm.append(nrm[v])
+                    quads.append([b, a, base, base + 1])
+                    added += 1
+        out.append(dict(me, positions=P, uvs=uv, colors=col, normals=nrm, quads=quads))
+    return dict(mesh, meshes=out), added
+
+
 def height_report(models):
     """Walkable tiles whose drawn floor (the upward face through the tile centre closest to the layout height)
     is more than HEIGHT_TOL tiles off the layout/BDHC height."""
@@ -252,8 +352,39 @@ def main():
     write = "--write" in args
     preview = args[args.index("--preview") + 1] if "--preview" in args else None
     tdir = os.path.join(adir, "textures")
+    art_terrain = "--art-terrain" in args
     chunk_meshes, props = load_assets(adir)
     tex, pals, metas, anims = load_textures(tdir)
+
+    fp = assemble.footprint()
+    stock = {c: assemble.stock_mesh(c) for c in assemble.CHUNKS}
+    props = [set_lighting(p) for p in props]
+    skirts = 0
+    if art_terrain:
+        bases = {c: set_lighting(chunk_meshes[c]) if c in chunk_meshes else assemble.cut_stock(stock[c][0], fp)
+                 for c in assemble.CHUNKS}
+    else:
+        # stock terrain everywhere, minus what rises above the water inside the footprint (old island, hut);
+        # the stock lakebed is kept except under the island's interior (tiles whose 8 neighbours are all in the
+        # footprint: hidden under the island top, and the skirts close the sides), plus the art's island edge
+        interior = {(x, z) for (x, z) in fp
+                    if all((x + dx, z + dz) in fp for dx in (-1, 0, 1) for dz in (-1, 0, 1))}
+        bases, island = {}, []
+        for c in assemble.CHUNKS:
+            bases[c] = assemble.cut_stock(stock[c][0], fp, keep_under=fp - interior)
+            if c in chunk_meshes:
+                part, n = add_skirts(island_part(set_lighting(chunk_meshes[c]), stock[c][0]))
+                skirts += n
+                island.append(part)
+        sk = [add_skirts(p) for p in props]
+        props = [p for p, n in sk] + island
+        skirts += sum(n for p, n in sk)
+        # only the textures the result uses go into the set / fldtanime
+        used = {m.get("texture") for p in props for m in p.get("materials", [])}
+        tex = [t for t in tex if t["name"] in used]
+        names = {t["name"] for t in tex}
+        pals = [p for p in pals if any(metas[n].get("palette", n + "_pl") == p["name"] for n in names)]
+        anims = {n: a for n, a in anims.items() if n in names}
 
     new_area = "--new-set" in args
     stock_set = assemble.stock_texset()
@@ -264,20 +395,18 @@ def main():
     texel, pal_b = nsbtx.vram_usage(nsbtx.parse(new_set))
     textures = assemble.texture_table(new_set)
 
-    uses_water = any(m.get("texture") == "lv_water" for mm in list(chunk_meshes.values()) + props
+    uses_water = any(m.get("texture") == "lv_water" for mm in list(bases.values()) + props
                      for m in mm.get("materials", []))
     keep_lake = "--keep-lake" in args or ("--drop-lake" not in args and not uses_water)
 
     prop_parts = {}
     for p in props:
-        for c, part in assemble.split_by_chunk(set_lighting(p)).items():
+        for c, part in assemble.split_by_chunk(p).items():
             prop_parts.setdefault(c, []).append(part)
-    fp = assemble.footprint()
     stats, models, outs = [], {}, {}
     for c in assemble.CHUNKS:
-        smesh, sec, smodel = assemble.stock_mesh(c)
-        base = set_lighting(chunk_meshes[c]) if c in chunk_meshes else assemble.cut_stock(smesh, fp)
-        mesh = assemble.merge([base] + prop_parts.get(c, []), smodel["name"])
+        smesh, sec, smodel = stock[c]
+        mesh = assemble.merge([bases[c]] + prop_parts.get(c, []), smodel["name"])
         model = nsbmd.mesh_to_model(mesh, layout.CHUNKS[c], name=smodel["name"], textures=textures)
         missing = sorted({m["texture"] for m in model["materials"]} - set(textures))
         assert not missing, f"chunk {c}: textures missing from the set: {missing}"
@@ -287,14 +416,14 @@ def main():
         st = nsbmd.model_stats(model)
         stats.append({"chunk": c, "polygons": st["polygons"], "vertices_sent": st["vertices_sent"],
                       "model_bytes": len(nsb), "bdhc_bytes": len(bd), "materials": len(model["materials"]),
-                      "source": "art" if c in chunk_meshes else "stock-cut"})
+                      "source": ("art" if c in chunk_meshes else "stock-cut") if art_terrain else "stock+island"})
         models[c] = model
         if preview:
             os.makedirs(preview, exist_ok=True)
             json.dump(nsbmd.model_to_mesh(nsbmd.parse_bmd(nsb)["models"][0], layout.CHUNKS[c], name=f"chunk_{c}"),
                       open(os.path.join(preview, f"chunk_{c}.mesh.json"), "w"))
 
-    anim_report = update_fldtanime(anims, metas, write) if anims else []
+    anim_report = update_fldtanime(anims, metas, write)
     import build_graybox
     win, at = build_graybox.view_window_polys(models)
     heights = height_report(models)
@@ -302,6 +431,9 @@ def main():
     print(f"assets: {adir}")
     print(f"texture set 61: {len(s['textures'])} stock + {len(tex)} new textures, VRAM {texel} + {pal_b} = "
           f"{texel + pal_b} bytes (stock 44320, largest stock set {assemble.VRAM_PROVEN})")
+    print(f"terrain: {'art chunk meshes (--art-terrain)' if art_terrain else 'stock + art island'}, "
+          f"{skirts} underwater skirt quads")
+    print(f"new textures: {', '.join(t['name'] for t in tex)}")
     print(f"l_lake water prop: {'kept' if keep_lake else 'dropped (assets bring lv_water)'}")
     for s_ in stats:
         print(f"chunk {s_['chunk']} ({s_['source']}): {s_['polygons']} polys, {s_['vertices_sent']} verts, "
@@ -332,7 +464,7 @@ def main():
         else:
             open(assemble.TEXSET, "wb").write(new_set)
             print("wrote map_texture_set_061.nsbtx")
-        print("wrote map_data 537/538/540/541" + (", fldtanime.narc" if anims else ""))
+        print("wrote map_data 537/538/540/541, fldtanime.narc")
     else:
         print("dry run (use --write to write the files)")
 
