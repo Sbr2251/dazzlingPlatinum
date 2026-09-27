@@ -12,9 +12,9 @@ which is how we know the coordinates are absolute.
 | Camera zones (new) | `include/overlay005/field_camera_zones.h`, `src/overlay005/field_camera_zones.c` |
 | Camera hooks | `src/overlay005/fieldmap.c` (`ov5_021D15F4`), `src/overlay005/field_camera.c` (`FieldCamera_Create`) |
 | Build registration | `src/meson.build`, `platinum.us/main.lsf` (Overlay overlay5) |
-| New map headers | `generated/map_headers.txt`, `include/data/map_headers.h` (`MAP_HEADER_VERITY_CASTLE_2F`, `_3F`) |
-| New events | `res/field/events/events_verity_castle_2f.json`, `events_verity_castle_3f.json`, plus `meson.build` and `zone_event.order` |
-| Location name | `res/text/location_names.json` (`LocationNames_Text_VerityCastle`, appended). Castle 1F (Verity Cavern), 2F and 3F use it. |
+| New map headers | `generated/map_headers.txt`, `include/data/map_headers.h` (`MAP_HEADER_VERITY_CASTLE_1F`; the earlier 2F/3F placeholders are gone, see [interior_1f.md](interior_1f.md)) |
+| New events | `res/field/events/events_verity_castle_1f.json`, plus `meson.build` and `zone_event.order`; `events_verity_cavern.json` (exit retargeted) |
+| Location name | `res/text/location_names.json` (`LocationNames_Text_VerityCastle`, appended). Verity Castle 1F and Verity Cavern (below its stair) use it. |
 | Lake Verity | `res/field/events/events_lake_verity.json`, `res/field/scripts/scripts_lake_verity.s`, `res/text/lake_verity.json` |
 | Flag | `generated/vars_flags.txt`: `FLAG_UNUSED_2420` is renamed to `FLAG_LAKE_VERITY_PORTAL_OPEN` |
 | Castle from the start | `res/field/scripts/scripts_verity_lakefront.s`, `res/field/events/events_verity_lakefront.json`, `res/field/scripts/scripts_init_lake_verity.s`, `src/system_flags.c`, plus the early scenes ported into the Lake Verity events, scripts and text above |
@@ -57,38 +57,31 @@ To tune it, edit `sCameraZones[]` in `field_camera_zones.c`. To add a zone on an
 
 ## Interiors
 
-### Castle 1F: Verity Cavern (repurposed)
-- The header is unchanged apart from the map label, which is now "Verity Castle". Its matrix, scripts and events stay stock.
-- Mesprit (`FLAG_MESPRIT_DISAPPEARED`, script 2), the Rowan object and `FLAG_FIRST_ARRIVAL_VERITY_CAVERN` are untouched.
-- 1F is a dead end: its only warp goes back out through DOOR_1F.
+### Castle 1F: the entrance hall (new header)
+- **Header.** `MAP_HEADER_VERITY_CASTLE_1F` (enum 593) is appended before `MAP_HEADER_COUNT`, with its entry at the end of `sMapHeaders`. The earlier `_2F`/`_3F` placeholders (Snowpoint Temple matrices) were renamed/removed: 2F became 1F and 3F was deleted.
+- **Map.** A real castle hall: map_data 666, matrix 289, texture set 075, area data 0x4C, built by `tools/lake_verity/build_interior.py`. Layout, warps, budgets and checks are in [interior_1f.md](interior_1f.md).
+- **Header settings.** Old Chateau-style interior fields: `CAMERA_TYPE_INTERIOR_ORTHOGRAPHIC`, mapType 3, `BACKGROUND_INDOORS_3`, no bike, running, Escape Rope or Fly, no encounters, clear weather, `scripts_empty` / `scripts_init_empty`. Music stays `SEQ_D_RYAYHY` (the Verity Cavern theme) so the castle and the cavern below it share one theme.
+- **Stair.** A single stair down on the north wall leads to Verity Cavern. It is blocked for now (barricade, collision 0x805E on the warp tile).
 
-### Castle 2F and 3F: new headers
-- **Headers.** `MAP_HEADER_VERITY_CASTLE_2F` and `MAP_HEADER_VERITY_CASTLE_3F` are appended before `MAP_HEADER_COUNT` (enum values 593 and 594), with matching entries at the end of `sMapHeaders`.
-- **Header settings.** Area data 65, `scripts_empty` / `scripts_init_empty`, text bank `TEXT_BANK_VERITY_CAVERN` (unused), music `SEQ_D_RYAYHY` (the Verity Cavern theme), no encounters, clear weather, `CAMERA_TYPE_CAVE`, mapType 3 (cave), `BACKGROUND_CAVE_2`, no Fly or Escape Rope.
-- **Placeholder maps: stock Snowpoint Temple 1F (matrix 68) for 2F and Snowpoint Temple B1F (matrix 69) for 3F.** Why these:
-  - They are ancient stone temple interiors with pillars, the closest stock look to a castle.
-  - Both matrices have `"headers": []`, so every chunk takes the current header and sharing them with the temple is safe.
-  - Their warp tiles already give exactly the links needed:
-    - an entrance on 1F: (8,13), 0x6F WARP_SOUTH
-    - a stair pair: 1F (14,3) 0x5F, then B1F (4,3) 0x5E
-    - an onward stair on B1F: (14,3) 0x5F
-  - So the stock stair arrival animations behave correctly without any collision edits.
-  - I considered Canalave Library 2F/3F (matrices 218/219), but it is orthographic and full of bookshelves. Old Chateau is a mansion.
-- **Temple leftovers.** The small ice patches (0x20) stay, and the route is still solvable. The temple bg events and the B1F pokeball were not copied.
-- **Pipeline agent.** Swap the matrices for real castle interiors later by changing `mapMatrixID` / `areaDataArchiveID` and the warp coordinates in the two events files.
+### Verity Cavern: below the 1F stair
+- The header, matrix, scripts and objects stay stock apart from the "Verity Castle" map label.
+- Its exit (14,29) now returns to Castle 1F warp 1 (the stair) instead of the lake door.
+- While the 1F stair is blocked, the cavern is unreachable, and so are Mesprit (`FLAG_MESPRIT_DISAPPEARED`, script 2), the Rowan object and `FLAG_FIRST_ARRIVAL_VERITY_CAVERN`. No script `Warp`s point at the cavern or the castle.
 
 ## Warp table
 
-Warps on 0x6E (DOOR / WARP_NORTH) fire when you step onto the tile. 0x6F fires when you press south while standing on it. 0x5E / 0x5F fire when you press east / west on the tile.
+Warps on 0x6E (DOOR / WARP_NORTH) fire when you step onto the tile. 0x6F and 0x65 (indoor exit mat) fire when you press south while standing on it. 0x5E / 0x5F fire when you press east / west on the tile.
 
 | Map | # | Tile | Behaviour | Destination |
 | --- | --- | --- | --- | --- |
 | Lake Verity | 0 | DOOR_1F (32,33), h0 | 0x6E | Verity Castle 1F #0 |
 | Lake Verity | 1 | (46,54) | 0x6F | Verity Lakefront #2 (unchanged) |
 | Lake Verity | 2 | (47,54) | 0x6F | Verity Lakefront #3 (unchanged) |
-| Verity Cavern (1F) | 0 | (14,29) | 0x6F | Lake Verity #0 |
+| Verity Castle 1F | 0 | exit mat (9,15) | 0x65 | Lake Verity #0 |
+| Verity Castle 1F | 1 | stair (9,4) | 0x5E, blocked (0x805E) | Verity Cavern #0 |
+| Verity Cavern | 0 | (14,29) | 0x6F | Verity Castle 1F #1 (arrives at (10,4), walks west onto the stair tile) |
 
-The castle exterior has one storey: DOOR_1F is its only door. The old Lake Verity warps 3 (DOOR_2F) and 4 (ROOF_HATCH) are deleted, and the upper floor of the castle is now just the open F1 roof terrace. The castle interior header (renamed to `MAP_HEADER_VERITY_CASTLE_1F`) and its warps are handled separately; the 2F/3F sections above are out of date.
+The castle exterior has one storey: DOOR_1F is its only door. The old Lake Verity warps 3 (DOOR_2F) and 4 (ROOF_HATCH) are deleted, and the upper floor of the castle is now just the open F1 roof terrace. See `interior_1f.md` for the 1F hall.
 | Verity Lakefront | 0 | (81,843) | stock | Lake Verity #2 (was LOW_WATER #1; also moved away by the Lakefront script) |
 | Verity Lakefront | 1 | (80,843) | stock | Lake Verity #1 (was LOW_WATER #0; also moved away by the Lakefront script) |
 | Verity Lakefront | 2 | (80,843) | stock | Lake Verity #1 (now always active) |
@@ -96,9 +89,12 @@ The castle exterior has one storey: DOOR_1F is its only door. The old Lake Verit
 | Verity Lakefront intro | script | `VerityLakefront_WarpToLakeValor` | scripted `Warp` | Lake Verity, (46,54) facing north (was LOW_WATER) |
 
 **Where the player arrives outside.**
-- The interior returns to the door tile itself, the same as the stock cavern return to (32,32).
-- The engine always plays an exit step on arrival: cave to outdoors, the player appears and walks one tile south.
-- So the player ends up at (32,34) (courtyard, h0).
+- Interiors return to the door tile itself, the same as the stock cavern return to (32,32).
+- The engine always plays an exit step on arrival:
+  - cave to outdoors: the player appears and walks one tile south;
+  - stairs: the player walks one tile in the facing direction, west here.
+- So the player ends up:
+  - at (32,34) (courtyard, h0) from Castle 1F.
 - Height comes from the BDHC.
 - An arrival point on the tile south of the door would leave the player two tiles out, appearing from nowhere. Arriving on a WARP_NORTH tile does not re-trigger it; only stepping onto it does.
 - Lakefront warp indices 1 and 2 are kept, so `events_verity_lakefront.json` needs no change.
@@ -184,7 +180,7 @@ Story visits (new game, or saves at each point):
 Castle checks:
 1. Enter Lake Verity from the Lakefront in any story state. You should arrive at (46,54)/(47,54) as before, and walking back out should still work.
 2. Walk across the drawbridge. Face north at (41,36) and press A, then face south at (41,37) and press A. The sign text should show both times.
-3. Walk onto DOOR_1F (32,33). You should warp into Verity Cavern with the "Verity Castle" popup. Check that Mesprit and Rowan behave as in stock. Leave by pressing south on (14,29): you should appear at the door and step out to (32,34).
+3. Walk onto DOOR_1F (32,33). You should arrive in Verity Castle 1F on the exit mat (9,15) with the "Verity Castle" popup. Walk north along the carpet: the stair at the north wall (9,4) is barricaded and cannot be entered. Press south on the mat: you should appear at the door and step out to (32,34).
 4. Stair camera:
    - Walk to (23,37) or (24,37), then climb north. The camera should flatten and move in smoothly as you climb, reaching full tilt at the landing (z 29-30).
    - Step east through the wall gap onto the terrace. The camera should ease back to stock within about 2 tiles.
@@ -201,7 +197,7 @@ Castle checks:
 - **Compile.**
   - The C code follows the existing overlay 5 idioms, and every symbol was checked by grep: `Camera_AdjustAngleAroundTarget`, `Camera_AdjustDistance`, `PlayerAvatar_PosVector`, `FieldSystem_IsRunningTask`, `MAP_OBJECT_TILE_SIZE`, `NELEMS` from the pch, and `MAP_HEADER_LAKE_VERITY` from `generated/map_headers.h`.
   - Overlay 5 grows by about 1 KB. If the ARM9 overlay region is already tight, the link could fail.
-- **Symbol names.** The events NARC enum names `events_verity_castle_2f` / `_3f` and `LocationNames_Text_VerityCastle` are generated at build time from the order file and the JSON ids; I assumed the same scheme as the neighbouring entries.
+- **Symbol names.** The events NARC enum name `events_verity_castle_1f` and `LocationNames_Text_VerityCastle` are generated at build time from the order file and the JSON ids; I assumed the same scheme as the neighbouring entries.
 - **BDHC heights.** Arrival height, and the stair tilt feeling right, depend on the pipeline agent's BDHC. DOOR_1F must give h0 and the exit step must land on the walkable tile (32,34); the terrace, including the launchpad (32,27), must give h4. Both were checked against the rebuilt BDHC with `mapdata.height_at`.
 - **Stair camera values.** The camera numbers are unverified on screen. The deltas can be tuned in one place.
 - **Castle from the start.** Resolved: every visit uses `MAP_HEADER_LAKE_VERITY` (see "One Lake Verity map for every story state"). Remaining risks:
@@ -211,5 +207,4 @@ Castle checks:
   - Old saves standing inside LOW_WATER load the stock lake once (see above).
 - **Distortion World entry.** The Distortion World 1F frame script runs its story intro while `VAR_DISTORTION_WORLD_PROGRESS == 0`. Entering early through the launchpad would play that scene out of order. There is also no way back to Lake Verity except the stock DW exits to Spear Pillar. Keep the flag off until the story is designed.
 - **Flag choice.** `FLAG_LAKE_VERITY_PORTAL_OPEN` reuses system flag 2420, which is unused in stock (`FLAG_UNUSED_2420`) and not referenced anywhere in the repo.
-- **Placeholder look.** The 2F/3F placeholders use Snowpoint Temple visuals and ice tiles, and the 3F stairs look like they go down.
-- **Location label.** The 1F label change means Verity Cavern now shows "Verity Castle" in the map popup, journal and TV.
+- **Location label.** The label change means Verity Cavern now shows "Verity Castle" in the map popup, journal and TV.
