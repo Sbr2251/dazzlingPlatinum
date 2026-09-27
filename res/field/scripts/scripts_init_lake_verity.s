@@ -7,7 +7,8 @@
     InitScriptEntryEnd
 
 InitScriptFrameTable:
-    InitScriptGoToIfEqual VAR_LAKE_VERITY_PROF_ROWAN_STATE, 0, 5
+    InitScriptGoToIfEqual VAR_VISITED_LAKE_VERITY_WITH_RIVAL, 0, 10
+    InitScriptGoToIfEqual VAR_MAP_LOCAL_1, 1, 5
     InitScriptFrameTableEnd
 
     InitScriptEnd

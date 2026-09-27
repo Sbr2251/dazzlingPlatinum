@@ -244,7 +244,9 @@ u16 SystemFlag_GetAltMusicForHeader(VarsFlags *varsFlags, enum MapHeader mapHead
         break;
 
     case MAP_HEADER_LAKE_VERITY:
-        if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_LAKE_VERITY) == TRUE) {
+        // Also used before the Team Galactic visit (stock used MAP_HEADER_LAKE_VERITY_LOW_WATER, lake music)
+        if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_LAKE_VERITY) == TRUE
+            || CheckFlag(varsFlags, FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN) == FALSE) {
             sdatID = SEQ_D_LAKE;
         }
         break;

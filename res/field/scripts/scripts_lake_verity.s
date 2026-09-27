@@ -12,9 +12,17 @@
     ScriptEntry LakeVerity_GruntM
     ScriptEntry LakeVerity_Launchpad
     ScriptEntry LakeVerity_DrawbridgeSign
+    ScriptEntry LakeVerity_OnFrameCyrus
+    ScriptEntry LakeVerity_EarlyProfRowan
+    ScriptEntry LakeVerity_EarlyCounterpart
     ScriptEntryEnd
 
+// This map is used for every visit (the stock early-story map MAP_HEADER_LAKE_VERITY_LOW_WATER is no longer
+// reachable). Until Saturn is defeated in Valor Cavern the stock game used LOW_WATER here, so the Team Galactic
+// scene is hidden and the early scene (Cyrus and rival intro, Rowan and the counterpart after Canalave) is shown.
 LakeVerity_OnTransition:
+    CallIfUnset FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN, LakeVerity_SetEarlyState
+    CallIfSet FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN, LakeVerity_SetTeamGalacticState
     CallIfSet FLAG_TEAM_GALACTIC_LEFT_LAKE_VERITY, LakeVerity_SetPositionsAfterTeamGalactic
     CallIfUnset FLAG_TEAM_GALACTIC_LEFT_LAKE_VERITY, LakeVerity_SetPositionsDuringTeamGalactic
     CallIfEq VAR_LAKE_VERITY_PROF_ROWAN_STATE, 0, LakeVerity_SetProfRowanStartPosition
@@ -30,6 +38,32 @@ LakeVerity_SetCounterpartGraphicsDawn:
 LakeVerity_SetCounterpartGraphicsLucas:
     SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_PLAYER_M
     End
+
+LakeVerity_SetEarlyState:
+    SetFlag FLAG_HIDE_LAKE_VERITY_TEAM_GALACTIC
+    SetFlag FLAG_HIDE_LAKE_VERITY_PROF_ROWAN
+    SetFlag FLAG_HIDE_LAKE_VERITY_COUNTERPART
+    Return
+
+LakeVerity_SetTeamGalacticState:
+    SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS
+    SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
+    SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_PROF_ROWAN
+    SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_COUNTERPART
+    CallIfUnset FLAG_TEAM_GALACTIC_LEFT_LAKE_VERITY, LakeVerity_ShowTeamGalactic
+    CallIfEq VAR_LAKE_VERITY_PROF_ROWAN_STATE, 0, LakeVerity_ArmProfRowanNoticePlayer
+    Return
+
+LakeVerity_ShowTeamGalactic:
+    ClearFlag FLAG_HIDE_LAKE_VERITY_TEAM_GALACTIC
+    ClearFlag FLAG_HIDE_LAKE_VERITY_PROF_ROWAN
+    ClearFlag FLAG_HIDE_LAKE_VERITY_COUNTERPART
+    Return
+
+// VAR_MAP_LOCAL_1 gates the frame script, so Rowan only notices the player on the Team Galactic visit
+LakeVerity_ArmProfRowanNoticePlayer:
+    SetVar VAR_MAP_LOCAL_1, 1
+    Return
 
 LakeVerity_SetProfRowanStartPosition:
     SetObjectEventPos LOCALID_PROF_ROWAN, 46, 50
@@ -179,6 +213,7 @@ LakeVerity_WhatTimingYouveGotToHelpLucas:
 
 LakeVerity_CloseMessageYouveGotToHelpCounterpart:
     SetVar VAR_LAKE_VERITY_PROF_ROWAN_STATE, 1
+    SetVar VAR_MAP_LOCAL_1, 0
     WaitABXPadPress
     CloseMessage
     ReleaseAll
@@ -306,6 +341,237 @@ LakeVerity_DrawbridgeSign:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     Message LakeVerity_Text_DrawbridgeSign
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+// Early-story scenes, ported unchanged from scripts_lake_verity_low_water.s (all on the stock south-east shore,
+// which the castle redesign does not touch).
+LakeVerity_OnFrameCyrus:
+    LockAll
+    ClearHasPartner
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_RivalEnter
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_PlayerEnter
+    WaitMovement
+    BufferRivalName 0
+    Message LakeVerity_Text_WhatsGoingOn
+    CloseMessage
+    AddFreeCamera 46, 53
+    ApplyFreeCameraMovement LakeVerity_Movement_PanToCyrus
+    WaitMovement
+    WaitTime 15, VAR_RESULT
+    Message LakeVerity_Text_IWillMakeTimeAndSpaceMine
+    CloseMessage
+    WaitTime 30, VAR_RESULT
+    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_CyrusWalkToPlayer
+    ApplyFreeCameraMovement LakeVerity_Movement_PanBackToPlayer
+    WaitMovement
+    RestoreCamera
+    Message LakeVerity_Text_AllowMeToPass
+    CloseMessage
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_RivalMoveAwayForCyrus
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_PlayerWatchRivalMoveAwayForCyrus
+    WaitMovement
+    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_CyrusLeave
+    WaitMovement
+    PlayFanfare SEQ_SE_DP_KAIDAN2
+    RemoveObject LOCALID_CYRUS
+    WaitTime 50, VAR_RESULT
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_PlayerLookAtExit
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_RivalWalkToExit
+    WaitMovement
+    BufferRivalName 0
+    Message LakeVerity_Text_WhatWasThatAbout
+    CloseMessage
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_RivalFacePlayer
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_PlayerFaceRival
+    WaitMovement
+    WaitTime 30, VAR_RESULT
+    BufferPlayerName 1
+    Message LakeVerity_Text_LetsCatchThatLegendaryPokemon
+    PlayCry SPECIES_MESPRIT
+    Message LakeVerity_Text_LegendaryCry
+    WaitCry
+    CloseMessage
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_RivalNoticeAndLookForLegendary
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_PlayerWatchRivalLookForLegendary
+    WaitMovement
+    WaitTime 15, VAR_RESULT
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_RivalWalkOnSpotWest
+    WaitMovement
+    BufferRivalName 0
+    BufferPlayerName 1
+    Message LakeVerity_Text_ThatWasTheLegendaryPokemonCrying
+    CloseMessage
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_RivalExclamationMark
+    WaitMovement
+    WaitTime 15, VAR_RESULT
+    BufferPlayerName 1
+    Message LakeVerity_Text_WaitWeDontHavePokeballs
+    CloseMessage
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_RivalLeave
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_PlayerWatchRivalLeave
+    WaitMovement
+    SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
+    RemoveObject LOCALID_RIVAL
+    PlayFanfare SEQ_SE_DP_KAIDAN2
+    GoTo LakeVerity_EndRivalFollower
+    End
+
+LakeVerity_EndRivalFollower:
+    SetVar VAR_FOLLOWER_RIVAL_STATE, 4
+    SetVar VAR_VISITED_LAKE_VERITY_WITH_RIVAL, 1
+    ReleaseAll
+    End
+
+    .balign 4, 0
+LakeVerity_Movement_PanToCyrus:
+    Delay8
+    WalkNormalNorth 9
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_PanBackToPlayer:
+    WalkNormalSouth 9
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_CyrusWalkToPlayer:
+    WalkNormalSouth 5
+    WalkNormalWest
+    WalkNormalSouth 4
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_CyrusLeave:
+    WalkNormalSouth 3
+    SetInvisible
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_RivalEnter:
+    WalkFastNorth
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_RivalMoveAwayForCyrus:
+    WalkNormalEast
+    WalkOnSpotNormalWest
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_RivalWalkToExit:
+    WalkNormalWest
+    WalkOnSpotNormalSouth
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_RivalFacePlayer:
+    WalkOnSpotFastWest
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_RivalNoticeAndLookForLegendary:
+    EmoteExclamationMark
+    WalkFastNorth 3
+    Delay8 3
+    WalkOnSpotFastWest
+    Delay8
+    WalkOnSpotFastNorth
+    Delay8 2
+    WalkFastSouth 3
+    WalkOnSpotFastWest
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_RivalExclamationMark:
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_RivalWalkOnSpotWest:
+    WalkOnSpotFastWest 4
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_RivalLeave:
+    WalkFastSouth 2
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_PlayerEnter:
+    WalkNormalNorth
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_PlayerWatchRivalMoveAwayForCyrus:
+    WalkOnSpotNormalEast
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_PlayerLookAtExit:
+    WalkOnSpotNormalSouth
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_PlayerFaceRival:
+    WalkOnSpotNormalEast
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_PlayerWatchRivalLookForLegendary:
+    Delay8 4
+    WalkOnSpotNormalNorth
+    Delay8 9
+    WalkOnSpotNormalEast
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_PlayerWatchRivalLeave:
+    WalkOnSpotNormalSouth
+    EndMovement
+
+LakeVerity_EarlyProfRowan:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    GoToIfSet FLAG_TALKED_TO_LAKE_VERITY_LOW_WATER_PROF_ROWAN, LakeVerity_RowanHowWasLakeValor
+    SetFlag FLAG_TALKED_TO_LAKE_VERITY_LOW_WATER_PROF_ROWAN
+    BufferPlayerName 0
+    Message LakeVerity_Text_RowanNoLegendaryPokemonHowWasLakeValor
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+LakeVerity_RowanHowWasLakeValor:
+    BufferPlayerName 0
+    Message LakeVerity_Text_RowanHowWasLakeValor
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+LakeVerity_EarlyCounterpart:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    GetPlayerGender VAR_RESULT
+    GoToIfEq VAR_RESULT, GENDER_MALE, LakeVerity_DawnHowWasLakeValor
+    GoTo LakeVerity_LucasHowsLakeValor
+
+LakeVerity_DawnHowWasLakeValor:
+    BufferPlayerName 0
+    Message LakeVerity_Text_DawnHowHasLakeValor
+    GoTo LakeVerity_CloseMessageHowWasLakeValor
+
+LakeVerity_LucasHowsLakeValor:
+    BufferPlayerName 0
+    Message LakeVerity_Text_LucasHowsLakeValor
+    GoTo LakeVerity_CloseMessageHowWasLakeValor
+
+LakeVerity_CloseMessageHowWasLakeValor:
     WaitABXPadPress
     CloseMessage
     ReleaseAll

@@ -8,24 +8,20 @@
     ScriptEntry VerityLakefront_TrainerTipsSignpost
     ScriptEntryEnd
 
+// The castle map (MAP_HEADER_LAKE_VERITY) is used for every visit, so the stock story switch
+// (MAP_HEADER_LAKE_VERITY_LOW_WATER until Saturn is defeated in Valor Cavern) is gone: warps 0 and 1
+// (stock LOW_WATER pair) are always moved away and warps 2 and 3 (LAKE_VERITY pair) are always used.
 VerityLakefront_OnLoad:
-    GoToIfUnset FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN, VerityLakefront_SetWarpsLakeVerityNormal
-    GoToIfSet FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN, VerityLakefront_SetWarpsLakeVerityLowWater
+    GoTo VerityLakefront_SetWarpsLakeVerity
     End
 
-VerityLakefront_SetWarpsLakeVerityNormal:
-    SetWarpEventPos 2, 80, 0x348
-    SetWarpEventPos 3, 81, 0x348
-    End
-
-VerityLakefront_SetWarpsLakeVerityLowWater:
+VerityLakefront_SetWarpsLakeVerity:
     SetWarpEventPos 1, 80, 0x348
     SetWarpEventPos 0, 81, 0x348
     End
 
 VerityLakefront_OnTransition:
-    GoToIfUnset FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN, VerityLakefront_SetWarpsLakeVerityNormal
-    GoToIfSet FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN, VerityLakefront_SetWarpsLakeVerityLowWater
+    GoTo VerityLakefront_SetWarpsLakeVerity
     End
 
 VerityLakefront_TriggerWereAtTheLake:
@@ -52,7 +48,7 @@ VerityLakefront_WarpToLakeValor:
     PlayFanfare SEQ_SE_DP_KAIDAN2
     FadeScreenOut
     WaitFadeScreen
-    Warp MAP_HEADER_LAKE_VERITY_LOW_WATER, 0, 46, 54, 0
+    Warp MAP_HEADER_LAKE_VERITY, 0, 46, 54, 0
     FadeScreenIn
     WaitFadeScreen
     End
