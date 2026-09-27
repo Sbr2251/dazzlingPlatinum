@@ -136,6 +136,21 @@
     {
       "id": "pl_msg_00000320_00014",
       "en_US": "{STRVAR_1 3, 0, 0} leapt into the portal.\r"
+    },
+    {
+      "id": "pl_msg_00000320_00015",
+      "en_US": [
+        "Cyrus: Because of you, this irrational\n",
+        "world will remain in existence!\r",
+        "Does that make it impossible for me to\n",
+        "create a new world?\r",
+        "Even if I made new Red Chains, the new\n",
+        "world can't be made!\r",
+        "Why?! What compels you to protect\n",
+        "the two worlds?\r",
+        "Is spirit, a vague and incomplete\n",
+        "thing, so important to you?!\r"
+      ]
     }
   ]
 }

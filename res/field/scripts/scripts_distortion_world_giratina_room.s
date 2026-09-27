@@ -11,6 +11,7 @@
     ScriptEntry _020A
     ScriptEntry _021D
     ScriptEntry _0232
+    ScriptEntry DistortionWorldGiratinaRoom_Arc1Flashback
     ScriptEntryEnd
 
 _0022:
@@ -169,6 +170,51 @@ _0232:
     ReleaseAll
     End
 
+/* Arc 1 opening: a new game starts here (src/location.c). The last exchange between Cyrus and
+ * Cynthia after GIRATINA, with the player as the hero and GIRATINA itself absent. Runs from the
+ * init frame table while VAR_ARC1_PROGRESS == 0, then hands off to the Lake Verity roof landing. */
+DistortionWorldGiratinaRoom_Arc1Flashback:
+    LockAll
+    WaitTime 30, VAR_RESULT
+    ScrCmd_311 130
+    ScrCmd_311 129
+    ApplyMovement 129, _0250
+    WaitMovement
+    ApplyMovement 129, DistortionWorldGiratinaRoom_Movement_Arc1CynthiaStepBesidePlayer
+    WaitMovement
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    AddFreeCamera VAR_0x8004, VAR_0x8005
+    ApplyFreeCameraMovement _0280
+    ApplyMovement 130, _026C
+    ApplyMovement 129, _0258
+    ApplyMovement LOCALID_PLAYER, _0244
+    WaitMovement
+    Message 15
+    Message 8
+    Message 9
+    Message 10
+    CloseMessage
+    ApplyMovement 130, _0274
+    WaitMovement
+    ScrCmd_312 130
+    ApplyFreeCameraMovement _0288
+    WaitMovement
+    RestoreCamera
+    ApplyMovement 129, DistortionWorldGiratinaRoom_Movement_Arc1CynthiaFacePlayer
+    ApplyMovement LOCALID_PLAYER, DistortionWorldGiratinaRoom_Movement_Arc1PlayerFaceCynthia
+    WaitMovement
+    Message 11
+    CloseMessage
+    WaitTime 30, VAR_RESULT
+    FadeScreenOut FADE_SCREEN_SPEED_SLOW
+    WaitFadeScreen
+    SetVar VAR_ARC1_PROGRESS, 1
+    Warp MAP_HEADER_LAKE_VERITY, 0, 32, 31, DIR_NORTH
+    FadeScreenIn
+    WaitFadeScreen
+    ReleaseAll
+    End
+
     .balign 4, 0
 _0244:
     WalkOnSpotNormalSouth
@@ -210,4 +256,20 @@ _0280:
     .balign 4, 0
 _0288:
     WalkNormalNorth 5
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldGiratinaRoom_Movement_Arc1CynthiaStepBesidePlayer:
+    WalkNormalEast
+    WalkNormalNorth
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldGiratinaRoom_Movement_Arc1CynthiaFacePlayer:
+    WalkOnSpotNormalWest
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldGiratinaRoom_Movement_Arc1PlayerFaceCynthia:
+    WalkOnSpotNormalEast
     EndMovement

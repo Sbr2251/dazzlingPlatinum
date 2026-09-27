@@ -5,6 +5,8 @@
     ScriptEntryEnd
 
 _0006:
+    /* Arc 1: the new game opens on the Distortion World flashback (src/location.c). */
+    SetVar VAR_ARC1_PROGRESS, 0
     SetFlag FLAG_HIDE_TWINLEAF_TOWN_PLAYER_HOUSE_2F_RIVAL
     SetFlag FLAG_HIDE_ROUTE_201_COUNTERPART
     SetFlag FLAG_HIDE_ROUTE_201_PROF_ROWAN
