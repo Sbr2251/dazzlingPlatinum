@@ -17,9 +17,11 @@ The props list, 21, is the minimal stock indoor list. It holds model 78 (d_mat01
 
 ## Header
 
-The fields follow the Old Chateau interior: `CAMERA_TYPE_INTERIOR_ORTHOGRAPHIC`, mapType 3, `BACKGROUND_INDOORS_3`, clear weather, no encounters, and no bike, running, Escape Rope or Fly. It uses `scripts_empty` and `scripts_init_empty`, the text bank `TEXT_BANK_VERITY_CAVERN` (unused) and the map label `LocationNames_Text_VerityCastle`.
+The fields follow the Old Chateau interior: `CAMERA_TYPE_INTERIOR_ORTHOGRAPHIC`, mapType 3, `BACKGROUND_INDOORS_3`, clear weather, no encounters, and no bike, running, Escape Rope or Fly. It uses `scripts_verity_castle_1f` (the stair signboard) and `scripts_init_empty`, the text bank `TEXT_BANK_VERITY_CAVERN` (the sign text `VerityCastle1F_Text_OldPathBoardedUp` is appended to it) and the map label `LocationNames_Text_VerityCastle`.
 
-**Music: `SEQ_D_RYAYHY` day and night.** This is the Verity Cavern theme. The castle hall and the cavern below its stair are one place, so they share a theme and no track switch happens on the stair. The Old Chateau theme would sound like a haunted house, and the lake theme would make the interior feel like it is still outdoors.
+**Music: `SEQ_PL_BF_CASTLE` day and night.** The Battle Castle theme: stately and grand rather than tense, and literally Platinum's castle music. The Verity Cavern theme below the stair plays once the stair is opened.
+
+**Stair signboard.** A signboard object (`OBJ_EVENT_GFX_SIGNBOARD`, local id 0, script 1) stands at (9,5), in front of the barricaded stair. Read it from (9,6) facing north: "An old path that's been boarded up." (`ShowScrollingSign`). Remove the object when the stair is unblocked.
 
 ## Layout
 

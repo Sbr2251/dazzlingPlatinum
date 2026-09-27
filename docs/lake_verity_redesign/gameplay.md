@@ -60,7 +60,7 @@ To tune it, edit `sCameraZones[]` in `field_camera_zones.c`. To add a zone on an
 ### Castle 1F: the entrance hall (new header)
 - **Header.** `MAP_HEADER_VERITY_CASTLE_1F` (enum 593) is appended before `MAP_HEADER_COUNT`, with its entry at the end of `sMapHeaders`. The earlier `_2F`/`_3F` placeholders (Snowpoint Temple matrices) were renamed/removed: 2F became 1F and 3F was deleted.
 - **Map.** A real castle hall: map_data 666, matrix 289, texture set 075, area data 0x4C, built by `tools/lake_verity/build_interior.py`. Layout, warps, budgets and checks are in [interior_1f.md](interior_1f.md).
-- **Header settings.** Old Chateau-style interior fields: `CAMERA_TYPE_INTERIOR_ORTHOGRAPHIC`, mapType 3, `BACKGROUND_INDOORS_3`, no bike, running, Escape Rope or Fly, no encounters, clear weather, `scripts_empty` / `scripts_init_empty`. Music stays `SEQ_D_RYAYHY` (the Verity Cavern theme) so the castle and the cavern below it share one theme.
+- **Header settings.** Old Chateau-style interior fields: `CAMERA_TYPE_INTERIOR_ORTHOGRAPHIC`, mapType 3, `BACKGROUND_INDOORS_3`, no bike, running, Escape Rope or Fly, no encounters, clear weather, `scripts_verity_castle_1f` / `scripts_init_empty`. Music is `SEQ_PL_BF_CASTLE` (the Battle Castle theme). A signboard at (9,5) in front of the blocked stair reads "An old path that's been boarded up."
 - **Stair.** A single stair down on the north wall leads to Verity Cavern. It is blocked for now (barricade, collision 0x805E on the warp tile).
 
 ### Verity Cavern: below the 1F stair

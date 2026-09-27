@@ -62,6 +62,10 @@
         "I hope you’ll enjoy that experience!\n",
         "Take care, {STRVAR_1 3, 0, 0}.\r"
       ]
+    },
+    {
+      "id": "VerityCastle1F_Text_OldPathBoardedUp",
+      "en_US": "An old path that's been boarded up."
     }
   ]
 }
