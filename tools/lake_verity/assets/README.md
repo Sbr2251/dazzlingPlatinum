@@ -12,12 +12,12 @@ All files follow the intermediate format in `docs/lake_verity_redesign/PLAN.md`.
 | file | kind | origin_tile | polys (tri/quad) | verts | notes |
 |---|---|---|---|---|---|
 | chunk_537.mesh.json | terrain | [0, 0] | 464 (78/386) | 1242 | NW forest, shore, lake |
-| chunk_538.mesh.json | terrain | [32, 0] | 475 (78/397) | 1280 | NE forest, shore, lake, island north half (x >= 32) |
+| chunk_538.mesh.json | terrain | [32, 0] | 475 (78/397) | 1281 | NE forest, shore, lake, island north half (x >= 32) |
 | chunk_540.mesh.json | terrain | [0, 32] | 986 (168/818) | 2781 | SW forest, tall grass, island SW, courtyard west |
 | chunk_541.mesh.json | terrain | [32, 32] | 758 (114/644) | 1963 | SE shore, tall grass, dirt path, exit, courtyard east |
-| castle.mesh.json | prop | [32, 32] | 867 (50/817) | 3040 | F1/F2/F3 keep, 4 corner towers, west stair + landing + rail wall, gatehouse, torches, candles, roof deck, sigil, hatch |
+| castle.mesh.json | prop | [32, 32] | 616 (32/584) | 1942 | one-storey F1 block with an open roof terrace (h4) inside a crenellated parapet, 2 south towers, west stair + landing + rail wall, gatehouse, torches, launchpad sigil at the terrace centre (32,27) |
 | bridge.mesh.json | prop | [32, 32] | 39 (0/39) | 104 | lowered drawbridge (42..49, 36..37) and chains |
-| portal.mesh.json | prop | [32, 32] | 30 (0/30) | 120 | floating portal ring over the launchpad, swirl disc, halo, light shaft |
+| portal.mesh.json | prop | [32, 32] | 30 (0/30) | 120 | floating portal ring over the launchpad on the terrace (32,27), swirl disc, halo, light shaft |
 
 The pipeline budget is 1000 polygons or fewer per chunk; every chunk is under it. Chunks 539 and 542 are not generated, so they stay stock. The castle, 540 and 541 are on screen together. Off-screen polygons are clipped, and a ZOOMED_IN frame sees about 15 x 11 tiles.
 

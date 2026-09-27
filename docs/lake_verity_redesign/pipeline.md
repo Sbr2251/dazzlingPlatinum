@@ -373,14 +373,15 @@ Inputs are in `tools/lake_verity/assets/`, in the PLAN.md mesh format; see its R
 - **Water (`--art-terrain` only):** if any material uses `lv_water`, the stock `l_lake` prop is dropped (the props section is written empty, as in 283 stock chunks), so the two water planes don't z-fight. Use `--keep-lake` to keep it.
 - **Height check:** every walkable tile's drawn floor must be within 0.25 tile of its layout/BDHC height.
 
-Results of the committed assembly (stock-terrain mode):
+Results of the committed assembly (stock-terrain mode, one-storey castle: no F2 block, F3 keep, roof deck,
+hatch or north towers; the F1 roof terrace is fully open and the launchpad/portal sits at its centre):
 
 | chunk | polys | verts sent | model B | BDHC B | materials |
 |---|---|---|---|---|---|
-| 537 | 914 | 3161 | 43836 | 1046 | 16 |
-| 538 | 998 | 3481 | 48108 | 946 | 18 |
-| 540 | 1034 (warning) | 3657 | 49128 (0xF000 = 61440) | 904 | 20 |
-| 541 | 1176 (warning) | 4141 | 56736 | 886 | 26 |
+| 537 | 801 | 2668 | 36076 | 810 | 13 |
+| 538 | 860 | 2878 | 38960 | 610 | 16 |
+| 540 | 1034 (warning) | 3657 | 49112 (0xF000 = 61440) | 904 | 20 |
+| 541 | 1176 (warning) | 4141 | 56724 | 886 | 26 |
 
 - Set 61: 62 stock textures (unchanged) + 12 new ones: lv_chain, lv_cliff, lv_flame, lv_foliage, lv_glow, lv_paving, lv_portal, lv_roof, lv_sigil, lv_stone, lv_trim, lv_wood. VRAM 57376 + 1712 = 59088 B.
 - fldtanime (stock + 2):
@@ -390,12 +391,12 @@ Results of the committed assembly (stock-terrain mode):
 | 55 | lv_flame | 4 | 4 |
 | 56 | lv_portal | 4 | 6 |
 
-- On screen: at most 991 polygons with the zoomed-in camera (at 32,27; 1155 in the frustum before back-face culling) and 897 with the stair camera (at 25,33). Worst 16 x 12 window: 689.
+- On screen: at most 801 polygons with the zoomed-in camera (at 38,29; 891 in the frustum before back-face culling) and 828 with the stair camera (at 25,33; 917 in the frustum). Worst 16 x 12 window: 569. (The three-storey castle had 914/998 polygons in 537/538, 991/897 on screen and 689 in the worst window.)
 - 0 walkable tiles are off the layout height. Permissions and BDHC are unchanged from layout.py.
 - The gameplay tiles check out:
-  - The door tiles are walkable with behaviour 0x6e: (32,33) at h 0, (32,30) at h 4 and the hatch (33,27) at h 10.
-  - (32,34), (32,31) and (32,27) are walkable.
-- Renders in `pipeline_checks/`: `art_stockterrain_top.png`, `art_stockterrain_game.png` and `art_stockterrain_bridge_game.png`.
+  - The only 0x6e door tile is DOOR_1F (32,33), walkable at h 0; the exit step (32,34) is walkable at h 0.
+  - Every terrace tile (26..38 x 23..32), including the launchpad (32,27), is walkable at h 4. The old north tower tiles (25,22)/(39,22) are parapet wall (blocked); the south towers (25,33)/(39,33) are blocked at h 10.
+- Renders in `pipeline_checks/`: `exterior_v2_top.png`, `exterior_v2_game.png` and `exterior_v2_vs_layout.png` (one-storey castle). The older `art_stockterrain_top.png`, `art_stockterrain_game.png` and `art_stockterrain_bridge_game.png` show the three-storey castle.
   - Trees, water, shores and grass are identical to `stock_top.png` / `stock_game.png`.
   - There are no seams where the island meets the water.
 - The full-art mode (488d1159d) had 719/781/1141/978 polygons, set 61 at 73088 B VRAM and 827/713 on screen. Its renders are `art_final_*.png`.

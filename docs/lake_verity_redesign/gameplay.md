@@ -83,16 +83,12 @@ Warps on 0x6E (DOOR / WARP_NORTH) fire when you step onto the tile. 0x6F fires w
 
 | Map | # | Tile | Behaviour | Destination |
 | --- | --- | --- | --- | --- |
-| Lake Verity | 0 | DOOR_1F (32,33), h0 | 0x6E | Verity Cavern #0 |
+| Lake Verity | 0 | DOOR_1F (32,33), h0 | 0x6E | Verity Castle 1F #0 |
 | Lake Verity | 1 | (46,54) | 0x6F | Verity Lakefront #2 (unchanged) |
 | Lake Verity | 2 | (47,54) | 0x6F | Verity Lakefront #3 (unchanged) |
-| Lake Verity | 3 | DOOR_2F (32,30), h4 | 0x6E | Verity Castle 2F #0 |
-| Lake Verity | 4 | ROOF_HATCH (33,27), h10 | 0x6E | Verity Castle 3F #1 |
 | Verity Cavern (1F) | 0 | (14,29) | 0x6F | Lake Verity #0 |
-| Verity Castle 2F | 0 | (8,13) | 0x6F | Lake Verity #3 |
-| Verity Castle 2F | 1 | (14,3) | 0x5F | Verity Castle 3F #0 |
-| Verity Castle 3F | 0 | (4,3) | 0x5E | Verity Castle 2F #1 |
-| Verity Castle 3F | 1 | (14,3) | 0x5F | Lake Verity #4 |
+
+The castle exterior has one storey: DOOR_1F is its only door. The old Lake Verity warps 3 (DOOR_2F) and 4 (ROOF_HATCH) are deleted, and the upper floor of the castle is now just the open F1 roof terrace. The castle interior header (renamed to `MAP_HEADER_VERITY_CASTLE_1F`) and its warps are handled separately; the 2F/3F sections above are out of date.
 | Verity Lakefront | 0 | (81,843) | stock | Lake Verity #2 (was LOW_WATER #1; also moved away by the Lakefront script) |
 | Verity Lakefront | 1 | (80,843) | stock | Lake Verity #1 (was LOW_WATER #0; also moved away by the Lakefront script) |
 | Verity Lakefront | 2 | (80,843) | stock | Lake Verity #1 (now always active) |
@@ -100,14 +96,9 @@ Warps on 0x6E (DOOR / WARP_NORTH) fire when you step onto the tile. 0x6F fires w
 | Verity Lakefront intro | script | `VerityLakefront_WarpToLakeValor` | scripted `Warp` | Lake Verity, (46,54) facing north (was LOW_WATER) |
 
 **Where the player arrives outside.**
-- Interiors return to the door or hatch tile itself, the same as the stock cavern return to (32,32).
-- The engine always plays an exit step on arrival:
-  - cave to outdoors: the player appears and walks one tile south;
-  - stairs: the player walks one tile in the facing direction, west here.
-- So the player ends up:
-  - at (32,34) (courtyard, h0) from 1F;
-  - at (32,31) (F1 terrace, h4) from 2F;
-  - at (32,27) (roof deck, h10, west of the hatch, south of the launchpad) from 3F.
+- The interior returns to the door tile itself, the same as the stock cavern return to (32,32).
+- The engine always plays an exit step on arrival: cave to outdoors, the player appears and walks one tile south.
+- So the player ends up at (32,34) (courtyard, h0).
 - Height comes from the BDHC.
 - An arrival point on the tile south of the door would leave the player two tiles out, appearing from nowhere. Arriving on a WARP_NORTH tile does not re-trigger it; only stepping onto it does.
 - Lakefront warp indices 1 and 2 are kept, so `events_verity_lakefront.json` needs no change.
@@ -117,8 +108,8 @@ Warps on 0x6E (DOOR / WARP_NORTH) fire when you step onto the tile. 0x6F fires w
 - **NPC positions.** Rowan, the Counterpart, Mars and the grunts all stand on stock tiles east and south of the island, (43..55, 38..51), off the island and bridge.
   - After Team Galactic leaves, `LakeVerity_SetPositionsAfterTeamGalactic` used to put Rowan at (50,37), on a bridge landing tile. He is now at (51,37), still facing west toward the bridge, so both landing tiles (50,36)/(50,37) stay free.
   - The Counterpart at (50,39) doesn't block anything: (50,38), (51,38) and (51,39) are open.
-- **Launchpad.** A bg event at LAUNCHPAD (32,26), facing any direction, runs script 8, `LakeVerity_Launchpad`.
-  - With `FLAG_LAKE_VERITY_PORTAL_OPEN` off (the default; nothing sets it yet), it shows "An ancient stone ring is set into the roof. It hums faintly, but nothing happens...".
+- **Launchpad.** A bg event at LAUNCHPAD (32,27), the centre of the open F1 roof terrace (h4), facing any direction, runs script 8, `LakeVerity_Launchpad`. The tile is walkable, so the player can stand on it or face it.
+  - With `FLAG_LAKE_VERITY_PORTAL_OPEN` off (the default; nothing sets it yet), it shows "An ancient stone ring is set into the terrace. It hums faintly, but nothing happens...".
   - With the flag on, it asks "Step into the rift?". Yes plays the stock Distortion World warp sequence copied from Spear Pillar:
     1. `ScrCmd_320` (the DW warp tunnel app)
     2. `ReturnToField`
@@ -201,12 +192,9 @@ Castle checks:
    - Stand mid-stair, open the start menu, bag and party, then close them. The tilt should be unchanged, with no jump and no drift.
    - Save and reset while mid-stair, then continue. The camera should load already tilted to match the position.
    - Talk to an NPC or run a script elsewhere. The camera should behave as stock.
-5. On the terrace, walk onto DOOR_2F (32,30). You should reach 2F at (8,13). Press south there: you should arrive at the door and step out to (32,31) at h4.
-6. On 2F, press west on the stairs (14,3). You should reach 3F at (4,3). Press east there to go back to 2F (14,3), then return to 3F.
-7. On 3F, press west on the stairs (14,3). You should come out on the roof at the hatch and walk west to (32,27).
-8. Face north toward the launchpad (32,26) and press A. The dormant message should show. Set `FLAG_LAKE_VERITY_PORTAL_OPEN` with a debug script or save editor and press A again. The Yes/No prompt should appear; No closes it, Yes plays the warp tunnel and puts you in Distortion World 1F.
-9. Step onto the hatch (33,27). You should arrive on 3F at (14,3).
-10. Warp or Fly away from Lake Verity, then come back. The camera should be stock everywhere except the stair.
+5. On the terrace (h4), walk the whole area inside the parapet (26..38 x 23..32). There should be no door, hatch or warp anywhere on it, and the parapet should block you at the edges.
+6. Walk to the terrace centre and face the launchpad (32,27) from any side, or stand on it, and press A. The dormant message should show. Set `FLAG_LAKE_VERITY_PORTAL_OPEN` with a debug script or save editor and press A again. The Yes/No prompt should appear; No closes it, Yes plays the warp tunnel and puts you in Distortion World 1F.
+7. Warp or Fly away from Lake Verity, then come back. The camera should be stock everywhere except the stair.
 
 ## Unverified risks (nothing has been built)
 
@@ -214,7 +202,7 @@ Castle checks:
   - The C code follows the existing overlay 5 idioms, and every symbol was checked by grep: `Camera_AdjustAngleAroundTarget`, `Camera_AdjustDistance`, `PlayerAvatar_PosVector`, `FieldSystem_IsRunningTask`, `MAP_OBJECT_TILE_SIZE`, `NELEMS` from the pch, and `MAP_HEADER_LAKE_VERITY` from `generated/map_headers.h`.
   - Overlay 5 grows by about 1 KB. If the ARM9 overlay region is already tight, the link could fail.
 - **Symbol names.** The events NARC enum names `events_verity_castle_2f` / `_3f` and `LocationNames_Text_VerityCastle` are generated at build time from the order file and the JSON ids; I assumed the same scheme as the neighbouring entries.
-- **BDHC heights.** Arrival height, and the stair tilt feeling right, depend on the pipeline agent's BDHC. The door tiles must give h0 (DOOR_1F), h4 (DOOR_2F) and h10 (ROOF_HATCH), and the exit step must land on walkable tiles: (32,34), (32,31) and (32,27).
+- **BDHC heights.** Arrival height, and the stair tilt feeling right, depend on the pipeline agent's BDHC. DOOR_1F must give h0 and the exit step must land on the walkable tile (32,34); the terrace, including the launchpad (32,27), must give h4. Both were checked against the rebuilt BDHC with `mapdata.height_at`.
 - **Stair camera values.** The camera numbers are unverified on screen. The deltas can be tuned in one place.
 - **Castle from the start.** Resolved: every visit uses `MAP_HEADER_LAKE_VERITY` (see "One Lake Verity map for every story state"). Remaining risks:
   - The early game now has the castle, its doors and the stair open while the player may have no Pokemon (the intro). The interiors have no encounters; the shore grass is stock.

@@ -2,16 +2,16 @@
 
 Branch `lake-verity-redesign`. Lake Verity keeps its stock shape (the octagonal lake, the forest ring, the SW
 tall-grass shore, the SE path from the Lakefront, the Rowan / Galactic scene on the east shore). The Verity
-Cavern hut on the island becomes a three-floor castle with an exterior and an interior:
+Cavern hut on the island becomes a one-storey castle with an exterior and an interior:
 
-- **Exterior (Lake Verity map, matrix 102):** a drawbridge from the east shore, a courtyard, an **open
-  staircase on the castle's west side where the camera tilts down as you climb**, a roof terrace on floor 1, and
-  the roof deck on top of the keep with a **launchpad and a Distortion World portal**.
-- **Interior (separate indoor maps, reached through doors):** 1F hall with Mesprit's chamber (replaces
-  Verity Cavern), 2F, 3F, and a hatch up to the roof deck.
+- **Exterior (Lake Verity map, matrix 102):** a drawbridge from the east shore, a gatehouse, a courtyard, two
+  south towers, an **open staircase on the castle's west side where the camera tilts down as you climb**, and an
+  open-air roof terrace on floor 1 (h4) with a **launchpad and a Distortion World portal** at its centre (32,27).
+  There is no upper floor, keep, roof deck or hatch.
+- **Interior (a separate indoor map, reached through the only door, DOOR_1F):** the castle 1F hall with
+  Mesprit's chamber (replaces Verity Cavern).
 
-Route through: bridge -> courtyard -> 1F door (Mesprit) ... open staircase -> F1 terrace -> 2F door -> 2F -> 3F ->
-roof hatch -> launchpad / portal.
+Route through: bridge -> courtyard -> 1F door (Mesprit) ... open staircase -> F1 terrace -> launchpad / portal.
 
 Mock renders and the art reference are outside the repo in `~/Documents/Lake Verity Update/`
 (`LV_plan_after.png`, `LV_view_castle.png`, `ArtRef_Iridium_sky_islands.png`).
@@ -44,7 +44,7 @@ Push past stock Gen 4 toward Gen 5 / Pokemon Iridium quality (see `ArtRef_Iridiu
   A3I5 / A5I3 for soft-alpha effects (portal glow, torch halo). The whole area's texture set must fit the
   texture VRAM the field gives map textures (measured in pipeline.md).
 - Field camera for this map is `CAMERA_TYPE_ZOOMED_IN`; design walkable surfaces to face south/east (toward the
-  camera) so nothing important hides behind the keep.
+  camera) so nothing important hides behind the castle walls.
 
 ## Work split
 
