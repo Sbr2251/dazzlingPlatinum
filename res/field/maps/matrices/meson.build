@@ -295,7 +295,8 @@ matrix_data_srcs = files(
     'map_matrix_285.json',
     'map_matrix_286.json',
     'map_matrix_287.json',
-    'map_matrix_288.json'
+    'map_matrix_288.json',
+    'map_matrix_289.json'
 )
 
 matrix_data_order = files('map_matrices.order')

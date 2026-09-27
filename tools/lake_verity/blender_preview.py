@@ -3,13 +3,17 @@
 Run with Blender (5.x), not plain Python:
   Blender -b --factory-startup -P tools/lake_verity/blender_preview.py -- \
       --tex <texture dir> [--tex <dir> ...] --out <prefix> [--views top,game] [--region x0,z0,x1,z1]
-      [--target x,z] [--px 8] [--lit] mesh.json [mesh.json ...]
+      [--target x,z] [--px 8] [--lit] [--dscolor] [--bg r,g,b] mesh.json [mesh.json ...]
 
 Axes: mesh x (east) -> Blender X, z (south) -> -Y, h (up) -> Z; 1 Blender unit = 1 tile.
 --views top   orthographic, straight down, covering --region (tiles, default 4,10,64,60) at --px pixels per tile
 --views game  the CAMERA_TYPE_ZOOMED_IN field camera (field_camera.c: distance 515.456 world units = 32.216 tiles,
               pitch 54.657 deg, vertical fov 2 * 10.459 deg, 256x192 scaled up) looking at --target (tiles)
+              [--target_h h]; --camera interior uses CAMERA_TYPE_INTERIOR_ORTHOGRAPHIC instead (orthographic,
+              pitch 50.087 deg, view 256.5 x 192.4 world units = 16.03 x 12.03 tiles), --camera cave CAMERA_TYPE_CAVE
 Materials are unlit (texture x vertex colour) unless --lit, which adds a sun roughly where the DS light 0 is.
+By default the vertex colour multiplies in linear space (brighter than the DS for dark colours); --dscolor makes the
+shown colour texture x vertex colour in display space, as the DS modulates.
 Textures come from <texture dir>/<texture>.png (nearest filtering); v is flipped (mesh.json v is image space).
 """
 import json
@@ -21,7 +25,7 @@ import bpy
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 opts = {"tex": [], "out": "/tmp/lv_preview", "views": "top,game", "region": "4,10,64,60", "target": "32,36",
-        "px": "8", "lit": False, "files": []}
+        "px": "8", "lit": False, "dscolor": False, "files": [], "camera": "zoomed", "bg": "0.05,0.05,0.08"}
 i = 0
 while i < len(argv):
     a = argv[i]
@@ -30,6 +34,9 @@ while i < len(argv):
         i += 2
     elif a == "--lit":
         opts["lit"] = True
+        i += 1
+    elif a == "--dscolor":
+        opts["dscolor"] = True
         i += 1
     elif a.startswith("--"):
         opts[a[2:]] = argv[i + 1]
@@ -44,7 +51,7 @@ scene.render.engine = "BLENDER_EEVEE"
 scene.world = bpy.data.worlds.new("w")
 scene.world.use_nodes = True
 bg = scene.world.node_tree.nodes["Background"]
-bg.inputs[0].default_value = (0.05, 0.05, 0.08, 1)
+bg.inputs[0].default_value = tuple(float(v) for v in opts["bg"].split(",")) + (1,)
 bg.inputs[1].default_value = 1.0
 scene.view_settings.view_transform = "Standard"
 
@@ -144,7 +151,10 @@ def load_mesh_json(path):
                 if uvs:
                     uvl.data[li].uv = (uvs[vi][0], 1.0 - uvs[vi][1])
                 c = cols[vi] if cols else (255, 255, 255)
-                col.data[li].color = (c[0] / 255, c[1] / 255, c[2] / 255, 1)
+                if opts["dscolor"]:   # DS modulation: shown colour = texture x vertex colour in display space
+                    col.data[li].color = tuple((v / 255) ** 2.2 for v in c[:3]) + (1,)
+                else:
+                    col.data[li].color = (c[0] / 255, c[1] / 255, c[2] / 255, 1)
         mesh.update()
         ob = bpy.data.objects.new(mesh.name, mesh)
         scene.collection.objects.link(ob)
@@ -183,11 +193,22 @@ for view in opts["views"].split(","):
     else:
         tx, tz = [float(v) for v in opts["target"].split(",")]
         th = float(opts.get("target_h", 0))
-        dist = 515.4560546875 / 16
-        pitch = math.radians(54.656982421875)
-        cam_data.type = "PERSP"
-        cam_data.sensor_fit = "VERTICAL"
-        cam_data.angle_y = math.radians(2 * 10.458984375)
+        # field_camera.c sCameraTypes: (distance, pitch deg, fov half-angle deg, orthographic)
+        cams = {"zoomed": (515.4560546875, 54.656982421875, 10.458984375, False),
+                "cave": (574.577880859375, 63.2647705078125, 9.4976806640625, False),
+                "interior": (1563.537841796875, 50.086669921875, 3.5211181640625, True)}
+        d_wu, pitch_deg, fov_deg, ortho = cams[opts["camera"]]
+        dist = d_wu / 16
+        pitch = math.radians(pitch_deg)
+        if ortho:
+            # camera.c: top = tan(fov) * distance, right = top * 4/3 (NNS_G3dGlbOrtho)
+            cam_data.type = "ORTHO"
+            cam_data.sensor_fit = "VERTICAL"
+            cam_data.ortho_scale = 2 * math.tan(math.radians(fov_deg)) * dist
+        else:
+            cam_data.type = "PERSP"
+            cam_data.sensor_fit = "VERTICAL"
+            cam_data.angle_y = math.radians(2 * fov_deg)
         scene.render.resolution_x, scene.render.resolution_y = 256 * 4, 192 * 4
         # camera sits south of and above the target, looking north and down
         cam.location = (tx + 0.5, -(tz + 0.5) - dist * math.cos(pitch), th + dist * math.sin(pitch))
