@@ -9,8 +9,9 @@ This file is the single source of truth for WHERE things are. The art (Blender s
 Coordinates are absolute tiles over the 96x64 matrix: x = 0..95 west->east, z = 0..63 north->south.
 Chunk (cx, cz) = (x // 32, z // 32); chunk ids 537 538 539 / 540 541 542. The island sits on the corner where
 537/538/540/541 meet (x=32, z=32).
-Heights `h` are in tiles above the lake shore ground (1 tile = 16 world units, FX32_CONST(16)); water is at 0
-too (the stock water surface is flush with the shore collision).
+Heights `h` are in tiles above the lake shore ground (1 tile = 16 world units, FX32_CONST(16); world y = 16 + 16 * h).
+Water is at h = WATER_H = -0.5: the stock surf collision and the l_lake water plane are at world y 8, half a tile below
+the shore (see docs/lake_verity_redesign/pipeline.md).
 
 Everything outside the island + bridge is the stock map, unchanged.
 """
@@ -26,6 +27,7 @@ W, H = 96, 64
 
 # collision values (u16 per tile in map_data permissions)
 BLOCK, WATER, GRASS, WALK = 0x8000, 0x15, 0x02, 0x00
+WATER_H = -0.5       # stock water surface / surf collision height (world y 8)
 DOOR = 0x6E          # stock value of the Verity Cavern door tile (32,32)
 EXIT = 0x6F          # stock value of the Lakefront exit tiles (46,54), (47,54)
 
@@ -93,7 +95,7 @@ def tiles():
         # the stock hut / cavern door no longer exist
         if 29 <= x <= 35 and 28 <= z <= 34:
             v, kind = WATER, "water"
-        out[(x, z)] = (v, 0.0, kind)
+        out[(x, z)] = (v, WATER_H if kind == "water" else 0.0, kind)
 
     def put(x, z, coll, h, kind):
         out[(x, z)] = (coll, float(h), kind)
