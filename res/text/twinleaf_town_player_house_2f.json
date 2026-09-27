@@ -2,12 +2,32 @@
   "key": 9234,
   "messages": [
     {
+      "id": "TwinleafTownPlayerHouse2F_Text_InterviewerTeamEclipse",
+      "en_US": [
+        "Interviewer: Team Eclipse has been\n",
+        "gaining followers at an unprecedented\r",
+        "rate. How do you feel about this\n",
+        "emerging organization?\r"
+      ]
+    },
+    {
+      "id": "TwinleafTownPlayerHouse2F_Text_ProfRowanTeamEclipse",
+      "en_US": [
+        "Prof. Rowan: Any person or group that\n",
+        "promises to bring people back from\r",
+        "the dead is either a con artist or\n",
+        "lying to themselves.\r",
+        "Either way, they don't have\n",
+        "my support.\r"
+      ]
+    },
+    {
       "id": "TwinleafTownPlayerHouse2F_Text_ThatConcludesOurSpecialProgram",
       "en_US": [
         "That concludes our special program,\n",
-        "“Let’s Ask Prof. Rowan!”\r",
-        "Brought to you by Jubilife TV on\n",
-        "Nationwide Net!\r"
+        "“Let's Ask Prof. Rowan!”\r",
+        "Broadcast live from Lake Verity by\n",
+        "Jubilife TV on Nationwide Net!\r"
       ]
     },
     {
@@ -51,16 +71,14 @@
       "en_US": "{STRVAR_1 3, 0, 0}: There you are!\r"
     },
     {
-      "id": "TwinleafTownPlayerHouse2F_Text_ProfRowanWouldGiveUsPokemon",
+      "id": "TwinleafTownPlayerHouse2F_Text_ThatTeamEclipseReallyIsSomething",
       "en_US": [
-        "Hey, {STRVAR_1 3, 1, 0}!\n",
-        "Did you just see the TV? Sure you did!\r",
-        "Prof. Rowan’s that really important\n",
-        "guy who studies Pokémon, right?\r",
-        "That means he must have lots and lots\n",
-        "of Pokémon.\r",
-        "So, if we ask him, I bet he’d give us\n",
-        "some Pokémon!\r"
+        "Hey, {STRVAR_1 3, 1, 0}! Man, that Team\n",
+        "Eclipse really is something.\r",
+        "Anyways, Professor Rowan's probably\n",
+        "the guy that can help us get our\r",
+        "starters, and the TV broadcast said\n",
+        "he was at Lake Verity!\r"
       ]
     },
     {
@@ -80,10 +98,10 @@
     {
       "id": "TwinleafTownPlayerHouse2F_Text_WereGoingToSeeProfRowanAndGetPokemon",
       "en_US": [
-        "Oh, right, right! We’re going to go see\n",
-        "Prof. Rowan and get some Pokémon.\r",
-        "I’ll be waiting outside.\r",
-        "OK, {STRVAR_1 3, 1, 0}? If you’re late, I’m\n",
+        "Oh, right, right! We're going to go\n",
+        "to Lake Verity and find Prof. Rowan!\r",
+        "I'll be waiting outside.\r",
+        "OK, {STRVAR_1 3, 1, 0}? If you're late, I'm\n",
         "fining you $10 million!\r"
       ]
     }

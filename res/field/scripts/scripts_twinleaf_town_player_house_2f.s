@@ -23,9 +23,16 @@ TwinleafTownPlayerHouse2F_SetVolumeForTV:
     SetInitialVolumeForSequence SEQ_TV_HOUSOU, 50
     End
 
+// Dazzling Platinum: the stock TV app no longer runs after the Rowan intro, so the interview plays here, on
+// arrival from the Lake Verity roof landing (VAR_ARC1_PROGRESS 2).
 TwinleafTownPlayerHouse2F_OnFrame_ConcludeSpecialProgram:
     LockAll
     SetVar VAR_PLAYER_HOUSE_SPECIAL_PROGRAM_STATE, 1
+    PlayMusic SEQ_TV_HOUSOU
+    SetInitialVolumeForSequence SEQ_TV_HOUSOU, 50
+    WaitTime 30, VAR_RESULT
+    Message TwinleafTownPlayerHouse2F_Text_InterviewerTeamEclipse
+    Message TwinleafTownPlayerHouse2F_Text_ProfRowanTeamEclipse
     Message TwinleafTownPlayerHouse2F_Text_ThatConcludesOurSpecialProgram
     PlaySound SEQ_TV_END
     Message TwinleafTownPlayerHouse2F_Text_SeeYouNextWeek
@@ -102,7 +109,7 @@ TwinleafTownPlayerHouse2F_Rival:
     CallIfEq VAR_MAP_LOCAL_0, 2, TwinleafTownPlayerHouse2F_RivalApproachPlayerEast
     CallIfEq VAR_MAP_LOCAL_0, 3, TwinleafTownPlayerHouse2F_RivalApproachPlayerSouth
     BufferPlayerName 1
-    Message TwinleafTownPlayerHouse2F_Text_ProfRowanWouldGiveUsPokemon
+    Message TwinleafTownPlayerHouse2F_Text_ThatTeamEclipseReallyIsSomething
     CloseMessage
     ApplyMovement LOCALID_RIVAL, TwinleafTownPlayerHouse2F_Movement_RivalExclamationMark
     WaitMovement
@@ -136,6 +143,14 @@ TwinleafTownPlayerHouse2F_Rival:
     WaitFanfare SEQ_SE_DP_KAIDAN2
     SetFlag FLAG_HIDE_TWINLEAF_TOWN_PLAYER_HOUSE_2F_RIVAL
     SetVar VAR_PLAYER_HOUSE_RIVAL_TRIGGER_STATE, 1
+    // Dazzling Platinum: Barry now waits on Route 201, so skip the stock Twinleaf Town "Thud" scene, the
+    // guitarist blocking the north exit and Barry's own bedroom scene.
+    SetVar VAR_TWINLEAF_TOWN_RIVAL_TRIGGER_STATE, 1
+    SetVar VAR_TWINLEAF_TOWN_GUITARIST_TRIGGER_STATE, 2
+    SetFlag FLAG_RIVAL_LEFT_HOME
+    SetFlag FLAG_HIDE_TWINLEAF_TOWN_RIVAL_HOUSE_2F_RIVAL
+    SetVar VAR_RIVAL_HOUSE_STATE, 1
+    SetVar VAR_ARC1_PROGRESS, 3
     ReleaseAll
     End
 

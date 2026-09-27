@@ -206,7 +206,7 @@
     "warp_events": [],
     "coord_events": [
         {
-            "script": 2,
+            "script": 17,
             "x": 110,
             "z": 857,
             "y": 0,
@@ -216,55 +216,24 @@
             "value": 0
         },
         {
-            "script": 4,
-            "x": 113,
-            "z": 855,
-            "y": 0,
-            "width": 2,
-            "length": 1,
-            "var": "VAR_FOLLOWER_RIVAL_STATE",
-            "value": 1
-        },
-        {
-            "script": 3,
-            "x": 110,
-            "z": 858,
-            "y": 0,
-            "width": 4,
-            "length": 1,
-            "var": "VAR_FOLLOWER_RIVAL_STATE",
-            "value": 3
-        },
-        {
-            "script": 4,
-            "x": 115,
-            "z": 854,
-            "y": 0,
-            "width": 1,
-            "length": 1,
-            "var": "VAR_FOLLOWER_RIVAL_STATE",
-            "value": 1
-        },
-        {
-            "script": 14,
+            "script": 18,
             "x": 115,
             "z": 852,
             "y": 0,
             "width": 1,
             "length": 4,
-            "var": "VAR_FOLLOWER_RIVAL_STATE",
+            "var": "VAR_ARC1_PROGRESS",
             "value": 3
         },
         {
-            "script": 16,
-            "x": 109,
-            "z": 857,
+            "script": 19,
+            "x": 115,
+            "z": 852,
             "y": 0,
-            "width": 5,
-            "length": 1,
-            "var": "VAR_FOLLOWER_RIVAL_STATE",
-            "value": 2
+            "width": 1,
+            "length": 4,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 4
         }
     ]
 }
-

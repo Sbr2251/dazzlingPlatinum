@@ -2806,7 +2806,12 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
         break;
     case RI_STATE_DIALOGUE_SO_YOURE:
         if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_SoYoure, TRUE) == TRUE) {
-            manager->state = RI_STATE_FADE_OUT_ROWAN_FOR_RIVAL;
+            // Dazzling Platinum: rival naming is skipped, the rival is always Barry.
+            String *tmpString = MessageLoader_GetNewString(manager->msgLoader, RowanIntro_Text_RivalChoiceBarry);
+
+            String_Copy(manager->rivalNamingScreenArgs->textInputStr, tmpString);
+            String_Free(tmpString);
+            manager->state = RI_STATE_DELAY_BEFORE_END_0;
         }
         break;
     case RI_STATE_FADE_OUT_ROWAN_FOR_RIVAL:
@@ -2993,10 +2998,9 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
         }
         break;
     case RI_STATE_END:
-        manager->appMan = ApplicationManager_New(
-            &sTvApplicationTemplate,
-            NULL,
-            manager->heapID);
+        // Dazzling Platinum: the stock TV screen (sTvApplicationTemplate) is skipped here.
+        // The new game goes to the Distortion World flashback, and the TV interview
+        // plays later in the bedroom.
         manager->state = RI_STATE_EXIT;
         break;
     case RI_STATE_EXIT:

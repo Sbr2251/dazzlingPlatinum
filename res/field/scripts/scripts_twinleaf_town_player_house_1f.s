@@ -40,6 +40,16 @@ TwinleafTownPlayerHouse1F_OnFrame_RivalAlreadyLeft:
     BufferPlayerName 0
     BufferRivalName 1
     Message TwinleafTownPlayerHouse1F_Text_RivalAlreadyLeft
+    // Dazzling Platinum: the Running Shoes are given here instead of after the Route 201 scene.
+    BufferPlayerName 0
+    Message TwinleafTownPlayerHouse1F_Text_PutTheseOn
+    GiveRunningShoes
+    BufferPlayerName 0
+    Message TwinleafTownPlayerHouse1F_Text_PlayerReceivedRunningShoes
+    PlaySound SEQ_FANFA4
+    WaitSound
+    Message TwinleafTownPlayerHouse1F_Text_LetMeReadTheInstructions
+    WaitABXPadPress
     CloseMessage
     WaitTime 15, VAR_RESULT
     ApplyMovement LOCALID_MOM, TwinleafTownPlayerHouse1F_Movement_MomWalkFromPlayerToCouch
@@ -127,17 +137,7 @@ TwinleafTownPlayerHouse1F_OnFrame_CutsceneAfterRivalBattle:
     BufferPlayerName 1
     Message TwinleafTownPlayerHouse1F_Text_WowThatsWhatHappenedToYou
     CloseMessage
-    WaitTime 30, VAR_RESULT
-    BufferPlayerName 0
-    Message TwinleafTownPlayerHouse1F_Text_PutTheseOn
-    GiveRunningShoes
-    BufferPlayerName 0
-    Message TwinleafTownPlayerHouse1F_Text_PlayerReceivedRunningShoes
-    PlaySound SEQ_FANFA4
-    WaitSound
-    Message TwinleafTownPlayerHouse1F_Text_LetMeReadTheInstructions
-    WaitABXPadPress
-    CloseMessage
+    // Dazzling Platinum: Mom now gives the Running Shoes the first time the player comes downstairs.
     SetVar VAR_PLAYER_HOUSE_STATE, 4
     ReleaseAll
     End

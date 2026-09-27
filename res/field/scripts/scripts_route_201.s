@@ -18,9 +18,14 @@
     ScriptEntry Route201_TriggerFollowingRivalStopPlayerEast
     ScriptEntry Route201_ProfRowan
     ScriptEntry Route201_TriggerLetsCatchThatLegendaryPokemon
+    ScriptEntry Route201_TriggerArc1RivalHeadingToLake
+    ScriptEntry Route201_TriggerArc1RivalStopPlayerGrass
+    ScriptEntry Route201_TriggerArc1ToBeContinued
     ScriptEntryEnd
 
 Route201_OnTransition:
+    CallIfEq VAR_ARC1_PROGRESS, 3, Route201_Arc1ShowRivalIfWaiting
+    CallIfGe VAR_ARC1_PROGRESS, 4, Route201_Arc1HideRival
     GetPlayerGender VAR_MAP_LOCAL_0
     GoToIfEq VAR_MAP_LOCAL_0, GENDER_MALE, Route201_SetCounterpartGraphicsDawn
     GoToIfEq VAR_MAP_LOCAL_0, GENDER_FEMALE, Route201_SetCounterpartGraphicsLucas
@@ -358,21 +363,21 @@ Route201_StartRivalBattle:
     CloseMessage
     SetMovementType LOCALID_RIVAL, MOVEMENT_TYPE_LOOK_SOUTH
     GetPlayerStarterSpecies VAR_RESULT
-    GoToIfEq VAR_RESULT, SPECIES_GIBLE, Route201_StartFirstBattleTurtwig
-    GoToIfEq VAR_RESULT, SPECIES_BAGON, Route201_StartFirstBattleChimchar
+    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, Route201_StartFirstBattleTurtwig
+    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, Route201_StartFirstBattleChimchar
     GoTo Route201_StartFirstBattlePiplup
     End
 
 Route201_StartFirstBattlePiplup:
-    StartFirstBattle TRAINER_RIVAL_ROUTE_201_DRATINI
+    StartFirstBattle TRAINER_RIVAL_ROUTE_201_PIPLUP
     GoTo Route201_HandleRivalBattleEnd
 
 Route201_StartFirstBattleTurtwig:
-    StartFirstBattle TRAINER_RIVAL_ROUTE_201_GIBLE
+    StartFirstBattle TRAINER_RIVAL_ROUTE_201_TURTWIG
     GoTo Route201_HandleRivalBattleEnd
 
 Route201_StartFirstBattleChimchar:
-    StartFirstBattle TRAINER_RIVAL_ROUTE_201_BAGON
+    StartFirstBattle TRAINER_RIVAL_ROUTE_201_CHIMCHAR
     GoTo Route201_HandleRivalBattleEnd
 
 Route201_HandleRivalBattleEnd:
@@ -1274,3 +1279,130 @@ Route201_TrainerTipsSignpost:
     End
 
     .balign 4, 0
+
+// Dazzling Platinum Arc 1: the stock Rowan / starter scene on this route is disabled (its coord events are gone).
+// Instead Barry waits at the fork north of Twinleaf Town, tells the player he's going to Lake Verity and runs
+// off west. While VAR_ARC1_PROGRESS is 3 he turns the player back from the tall grass, and once the Lake Verity
+// scene is done (VAR_ARC1_PROGRESS 4) the tall grass shows a "To be continued..." block.
+Route201_Arc1ShowRivalIfWaiting:
+    GoToIfNe VAR_FOLLOWER_RIVAL_STATE, 0, Route201_Arc1Return
+    ClearFlag FLAG_HIDE_ROUTE_201_RIVAL
+    Return
+
+Route201_Arc1HideRival:
+    SetFlag FLAG_HIDE_ROUTE_201_RIVAL
+Route201_Arc1Return:
+    Return
+
+Route201_TriggerArc1RivalHeadingToLake:
+    GoToIfNe VAR_ARC1_PROGRESS, 3, Route201_Arc1End
+    LockAll
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_RivalNoticePlayer
+    WaitMovement
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    CallIfEq VAR_0x8004, 110, Route201_Arc1RivalRunToPlayerX110
+    CallIfEq VAR_0x8004, 111, Route201_Arc1RivalRunToPlayerX111
+    CallIfEq VAR_0x8004, 112, Route201_Arc1RivalRunToPlayerX112
+    CallIfEq VAR_0x8004, 113, Route201_Arc1RivalRunToPlayerX113
+    BufferRivalName 0
+    BufferPlayerName 1
+    Message Route201_Text_Arc1ImGoingToLakeVerity
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_Arc1RivalRunToLake
+    ApplyMovement LOCALID_PLAYER, Route201_Movement_Arc1PlayerWatchRivalLeave
+    WaitMovement
+    RemoveObject LOCALID_RIVAL
+    SetFlag FLAG_HIDE_ROUTE_201_RIVAL
+    SetVar VAR_FOLLOWER_RIVAL_STATE, 3
+    // Barry isn't a following partner here, so skip the stock Verity Lakefront walk-in (it moves the follower).
+    // The Lake Verity scene spawns its own Barry.
+    SetVar VAR_UNK_0x4082, 1
+    ReleaseAll
+Route201_Arc1End:
+    End
+
+Route201_Arc1RivalRunToPlayerX110:
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_RivalRunToPlayerX110
+    WaitMovement
+    Return
+
+Route201_Arc1RivalRunToPlayerX111:
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_RivalRunToPlayerX111
+    WaitMovement
+    Return
+
+Route201_Arc1RivalRunToPlayerX112:
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_RivalRunToPlayerX112
+    WaitMovement
+    Return
+
+Route201_Arc1RivalRunToPlayerX113:
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_RivalRunToPlayerX113
+    WaitMovement
+    Return
+
+Route201_TriggerArc1RivalStopPlayerGrass:
+    LockAll
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    SetObjectEventPos LOCALID_RIVAL, 105, VAR_0x8005
+    ClearFlag FLAG_HIDE_ROUTE_201_RIVAL
+    AddObject LOCALID_RIVAL
+    LockObject LOCALID_RIVAL
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_Arc1RivalRunBackToPlayer
+    ApplyMovement LOCALID_PLAYER, Route201_Movement_Arc1PlayerTurnToRivalWest
+    WaitMovement
+    BufferRivalName 0
+    BufferPlayerName 1
+    Message Route201_Text_ISaidTheLakesNotThatWay
+    CloseMessage
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_Arc1RivalRunBackToLake
+    ApplyMovement LOCALID_PLAYER, Route201_Movement_Arc1PlayerWalkBackWest
+    WaitMovement
+    RemoveObject LOCALID_RIVAL
+    SetFlag FLAG_HIDE_ROUTE_201_RIVAL
+    ReleaseAll
+    End
+
+Route201_TriggerArc1ToBeContinued:
+    LockAll
+    Message Route201_Text_Arc1ToBeContinued
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, Route201_Movement_Arc1PlayerWalkBackWest
+    WaitMovement
+    ReleaseAll
+    End
+
+    .balign 4, 0
+Route201_Movement_Arc1RivalRunToLake:
+    WalkFastNorth 2
+    WalkFastWest 12
+    EndMovement
+
+    .balign 4, 0
+Route201_Movement_Arc1PlayerWatchRivalLeave:
+    Delay8 2
+    WalkOnSpotNormalWest
+    EndMovement
+
+    .balign 4, 0
+Route201_Movement_Arc1RivalRunBackToPlayer:
+    WalkFastEast 9
+    EndMovement
+
+    .balign 4, 0
+Route201_Movement_Arc1PlayerTurnToRivalWest:
+    Delay8 2
+    WalkOnSpotFastWest
+    EndMovement
+
+    .balign 4, 0
+Route201_Movement_Arc1RivalRunBackToLake:
+    WalkFastWest 9
+    EndMovement
+
+    .balign 4, 0
+Route201_Movement_Arc1PlayerWalkBackWest:
+    WalkNormalWest
+    EndMovement

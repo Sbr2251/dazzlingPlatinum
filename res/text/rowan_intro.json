@@ -224,9 +224,7 @@
       "en_US": [
         "OK...\n",
         "So, you’re {STRVAR_1 3, 0, 0}?\r",
-        "A fine name that is!\r",
-        "Now, this boy here...\n",
-        "I believe he’s your friend.\r"
+        "A fine name that is!\r"
       ]
     },
     {
@@ -247,6 +245,10 @@
         "has come.\r",
         "Your very own tale of grand\n",
         "adventure is about to unfold.\r",
+        "But know this: the world you are\n",
+        "about to enter is not your own.\r",
+        "Your tale takes place in a parallel\n",
+        "dimension, a Sinnoh like no other.\r",
         "On your journey, you will meet\n",
         "countless Pokémon and people.\r",
         "I’m sure that along the way you will\n",

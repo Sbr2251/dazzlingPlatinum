@@ -552,6 +552,21 @@
         "By talking to people, you will get\n",
         "invaluable information and advice."
       ]
+    },
+    {
+      "id": "Route201_Text_Arc1ImGoingToLakeVerity",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Too slow, {STRVAR_1 3, 1, 0}!\r",
+        "I'm going to Lake Verity to see if\n",
+        "Prof. Rowan's still there!\r",
+        "If we ask him, I bet he'll give us\n",
+        "some Pokémon of our own!\r",
+        "The lake's this way. Come on!"
+      ]
+    },
+    {
+      "id": "Route201_Text_Arc1ToBeContinued",
+      "en_US": "To be continued..."
     }
   ]
 }
