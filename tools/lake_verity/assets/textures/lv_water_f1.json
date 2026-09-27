@@ -1,0 +1,11 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "color0_transparent": false,
+ "c0": 0,
+ "frame_of": "lv_water",
+ "frame_index": 1
+}

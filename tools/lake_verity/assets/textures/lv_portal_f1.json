@@ -1,0 +1,11 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  false
+ ],
+ "color0_transparent": true,
+ "c0": 1,
+ "frame_of": "lv_portal",
+ "frame_index": 1
+}

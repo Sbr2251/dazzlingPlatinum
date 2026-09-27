@@ -1,0 +1,9 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  true
+ ],
+ "color0_transparent": true,
+ "c0": 1
+}

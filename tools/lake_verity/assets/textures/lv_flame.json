@@ -1,0 +1,15 @@
+{
+ "format": "a3i5",
+ "repeat": [
+  false,
+  false
+ ],
+ "c0": 0,
+ "frames": [
+  "lv_flame",
+  "lv_flame_f1",
+  "lv_flame_f2",
+  "lv_flame_f3"
+ ],
+ "frame_ticks": 4
+}

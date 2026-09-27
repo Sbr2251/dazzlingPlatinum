@@ -1,0 +1,20 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "color0_transparent": false,
+ "c0": 0,
+ "frames": [
+  "lv_water",
+  "lv_water_f1",
+  "lv_water_f2",
+  "lv_water_f3",
+  "lv_water_f4",
+  "lv_water_f5",
+  "lv_water_f6",
+  "lv_water_f7"
+ ],
+ "frame_ticks": 8
+}
