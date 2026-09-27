@@ -21,6 +21,7 @@
 #include "overlay005/const_ov5_021FF7D0.h"
 #include "overlay005/dynamic_terrain_height.h"
 #include "overlay005/field_camera.h"
+#include "overlay005/field_camera_zones.h"
 #include "overlay005/hblank_system.h"
 #include "overlay005/honey_tree.h"
 #include "overlay005/land_data.h"
@@ -692,6 +693,7 @@ static void ov5_021D15F4(FieldSystem *fieldSystem)
     MtxFx44 v0, v1;
 
     G3_ResetG3X();
+    FieldCameraZones_Update(fieldSystem);
 
     if (fieldSystem->unk_20 == 1) {
         if (FieldMap_InDistortionWorld(fieldSystem) == TRUE) {

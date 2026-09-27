@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "field/field_system.h"
+#include "overlay005/field_camera_zones.h"
 
 #include "camera.h"
 
@@ -177,6 +178,8 @@ void FieldCamera_Create(const VecFx32 *_target, FieldSystem *fieldSystem, const 
     if (withHistory) {
         Camera_InitHistory(FIELD_CAMERA_HISTORY_SIZE, FIELD_CAMERA_DELAY, CAMERA_DELAY_Y, HEAP_ID_FIELD1, fieldSystem->camera);
     }
+
+    FieldCameraZones_Reset();
 }
 
 void FieldCamera_Delete(FieldSystem *fieldSystem)
