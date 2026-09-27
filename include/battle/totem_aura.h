@@ -6,5 +6,6 @@
 // Wreathes the Totem (enemy slot 1) in flames that last until it faints or the battle ends
 void TotemAura_Start(BattleSystem *battleSys);
 void TotemAura_Stop(void);
+BOOL TotemAura_IsActive(void);
 
 #endif // POKEPLATINUM_BATTLE_TOTEM_AURA_H

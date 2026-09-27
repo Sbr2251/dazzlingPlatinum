@@ -1576,7 +1576,8 @@ static void ov16_0223CF48(SysTask *param0, void *param1)
     if ((v0->unk_23F9 == 0) || (v0->unk_23F9 == 3)) {
         BattleStage_Draw();
 
-        if (v0->unk_23F9 == 0) {
+        // The party/bag menus (state 3) skip particles, but the Totem's aura should keep burning behind them
+        if (v0->unk_23F9 == 0 || TotemAura_IsActive()) {
             ParticleHelper_DrawParticleSystems();
         }
 

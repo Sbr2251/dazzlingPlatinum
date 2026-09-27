@@ -3355,8 +3355,9 @@ static BOOL IsEmitterActive(SPLEmitter *emitter)
     BOOL active = FALSE;
     SPLParticle *particle = emitter->particles.first;
 
-    int age;
-    int lifeTime;
+    // With no particles left the emitter counts as inactive (these were read uninitialised)
+    int age = 0;
+    int lifeTime = 0;
     while (particle != NULL) {
         age = particle->age;
         lifeTime = particle->lifeTime;

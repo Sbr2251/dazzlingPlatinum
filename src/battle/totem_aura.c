@@ -10,10 +10,11 @@
 #include "battle/struct_ov16_0225BFFC_t.h"
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
-#include "battle_anim/battle_particle_util.h"
+#include "overlay011/particle_helper.h"
 
 #include "camera.h"
 #include "heap.h"
+#include "narc.h"
 #include "particle_system.h"
 #include "pokemon_sprite.h"
 #include "spl.h"
@@ -47,9 +48,11 @@ static SysTask *sTotemAuraTask = NULL;
 // Between moves the battle turns 2D blending off entirely, and without 2nd targets the 3D layer drops per-pixel
 // alpha, so the soft flames render as solid blocks. Keep the same targets a move animation uses while idle; with
 // no 1st target selected this only affects translucent 3D pixels.
+// This task keeps running while the trainer AI or the party/bag menus sit where the battle_anim overlay's code
+// lives, so it must never call into that overlay: read the anim system's flag directly instead.
 static void TotemAura_KeepTranslucent(TotemAura *aura)
 {
-    if (reg_G2_BLDCNT == 0 && BattleAnimSystem_IsMoveActive(ov16_0223E008(aura->battleSys)) == FALSE) {
+    if (reg_G2_BLDCNT == 0 && ov16_0223E008(aura->battleSys)->moveActive == FALSE) {
         G2_SetBlendAlpha(GX_BLEND_PLANEMASK_NONE, BATTLE_BG_BLENDMASK_ALL | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD, 8, 8);
     }
 }
@@ -130,7 +133,11 @@ void TotemAura_Start(BattleSystem *battleSys)
     aura->battleSys = battleSys;
     aura->sprite = battlerData->unk_20;
     aura->fadeTimer = 0;
-    aura->particleSystem = BattleParticleUtil_CreateParticleSystem(HEAP_ID_BATTLE, totem_aura_spa, TRUE);
+    aura->particleSystem = ParticleHelper_CreateParticleSystem(HEAP_ID_BATTLE);
+    ParticleSystem_SetResource(aura->particleSystem,
+        ParticleSystem_LoadResourceFromNARC(NARC_INDEX_WAZAEFFECT__EFFECTDATA__WAZA_PARTICLE, totem_aura_spa, HEAP_ID_BATTLE),
+        VRAM_AUTO_RELEASE_TEXTURE_LNK | VRAM_AUTO_RELEASE_PALETTE_LNK,
+        TRUE);
     ParticleSystem_SetCameraProjection(aura->particleSystem, CAMERA_PROJECTION_ORTHOGRAPHIC);
 
     BattleAnimUtil_GetBattlerTypeWorldPos_Normal(battlerData->battlerType, &aura->basePos, FALSE, CAMERA_PROJECTION_ORTHOGRAPHIC);
@@ -154,8 +161,13 @@ void TotemAura_Stop(void)
 
     TotemAura *aura = SysTask_GetParam(sTotemAuraTask);
 
-    BattleParticleUtil_FreeParticleSystem(aura->particleSystem);
+    ParticleHelper_FreeParticleSystem(aura->particleSystem);
     Heap_Free(aura);
     SysTask_Done(sTotemAuraTask);
     sTotemAuraTask = NULL;
+}
+
+BOOL TotemAura_IsActive(void)
+{
+    return sTotemAuraTask != NULL;
 }
