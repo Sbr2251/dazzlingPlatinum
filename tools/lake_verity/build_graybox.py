@@ -353,9 +353,9 @@ def main():
         print(f"{s['chunk']:>5} {s['polygons']:>6} {s['triangles']:>5} {s['quads']:>6} {s['vertices_sent']:>6} "
               f"{s['model_bytes']:>8} {s['bdhc_bytes']:>7} {s['bdhc_plates']:>6} {s['materials']:>4}")
     print(f"worst 16x12-tile window: {win} polygons at tile {at} (limit 2048 per frame incl. sprites)")
-    problems = assemble.check_budgets(stats)
-    if win > 1800:
-        problems.append(f"view window {win} polygons > 1800")
+    problems, warnings = assemble.check_budgets(stats, window_polys=win)
+    for w in warnings:
+        print("warning: " + w)
     print("budgets ok" if not problems else "BUDGET PROBLEMS: " + "; ".join(problems))
     if preview:
         json.dump({"chunks": stats, "window_polys": win, "window_at": at},

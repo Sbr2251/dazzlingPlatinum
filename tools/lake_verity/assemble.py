@@ -34,10 +34,14 @@ CHUNKS = (537, 538, 540, 541)
 AREA62_MATRICES = (60, 101, 102, 104, 105)     # map headers using area 62 (Sendoff Spring, Verity, Valor)
 STOCK_KINDS = ("forest", "water", "grass", "ground", "exit")
 
-# budgets (see pipeline.md "DS limits")
+# budgets (see pipeline.md "DS limits"). Hard: the field's per-chunk load buffers and the per-frame polygon count
+# (checked on a 16 x 12 tile window, a little more than the camera sees). Soft: stock-like per-chunk density and
+# the largest stock texture set.
 MODEL_BUFFER = 0xF000
 BDHC_BUFFER = 0x9000
-POLY_BUDGET = 1000
+WINDOW_POLYS = 1800          # of 2048 per frame; the rest is headroom for sprites, shadows and props
+POLY_SOFT = 1000             # stock chunks have 718..977
+VRAM_PROVEN = 76416          # largest stock map texture set (048)
 
 
 def map_path(c):
@@ -190,16 +194,22 @@ def build_chunk(c, extra_meshes, fp, textures, keep_under=(), stock_props=True):
     return data, stats, model
 
 
-def check_budgets(stats):
-    problems = []
+def check_budgets(stats, window_polys=None, vram=None):
+    """-> (errors, warnings). errors break the game (buffer overflow, dropped polygons); warnings exceed stock
+    precedent only."""
+    errors, warnings = [], []
     for s in stats:
         if s["model_bytes"] > MODEL_BUFFER:
-            problems.append(f"chunk {s['chunk']}: model {s['model_bytes']} > 0x{MODEL_BUFFER:x}")
+            errors.append(f"chunk {s['chunk']}: model {s['model_bytes']} B > 0x{MODEL_BUFFER:x} buffer")
         if s["bdhc_bytes"] > BDHC_BUFFER:
-            problems.append(f"chunk {s['chunk']}: BDHC {s['bdhc_bytes']} > 0x{BDHC_BUFFER:x}")
-        if s["polygons"] > POLY_BUDGET:
-            problems.append(f"chunk {s['chunk']}: {s['polygons']} polygons > {POLY_BUDGET}")
-    return problems
+            errors.append(f"chunk {s['chunk']}: BDHC {s['bdhc_bytes']} B > 0x{BDHC_BUFFER:x} buffer")
+        if s["polygons"] > POLY_SOFT:
+            warnings.append(f"chunk {s['chunk']}: {s['polygons']} polygons > {POLY_SOFT} (stock max 977)")
+    if window_polys is not None and window_polys > WINDOW_POLYS:
+        errors.append(f"view window {window_polys} polygons > {WINDOW_POLYS}")
+    if vram is not None and vram > VRAM_PROVEN:
+        warnings.append(f"texture set VRAM {vram} B > {VRAM_PROVEN} B (largest stock set)")
+    return errors, warnings
 
 
 def texture_set(extra_dir=None, base=None):
