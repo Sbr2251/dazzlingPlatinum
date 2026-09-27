@@ -210,79 +210,6 @@
       ]
     },
     {
-      "id": "LakeVerity_Text_WhatsGoingOn",
-      "en_US": "{STRVAR_1 3, 0, 0}: What's going on...?\r"
-    },
-    {
-      "id": "LakeVerity_Text_IWillMakeTimeAndSpaceMine",
-      "en_US": [
-        "...The flowing time...\n",
-        "...The expanding space...\r",
-        "I will make it all mine one day...\n",
-        "Cyrus is my name. Remember it...\r",
-        "Until then, sleep while you can,\n",
-        "legendary Pokémon of the lake bed...\r"
-      ]
-    },
-    {
-      "id": "LakeVerity_Text_AllowMeToPass",
-      "en_US": [
-        "Allow me to pass.\n",
-        "Step aside.\r"
-      ]
-    },
-    {
-      "id": "LakeVerity_Text_WhatWasThatAbout",
-      "en_US": [
-        "{STRVAR_1 3, 0, 0}: What was that about?\n",
-        "Weird guy...\r"
-      ]
-    },
-    {
-      "id": "LakeVerity_Text_LetsCatchThatLegendaryPokemon",
-      "en_US": [
-        "OK, {STRVAR_1 3, 1, 0}!\n",
-        "Let's catch that legendary Pokémon!\r"
-      ]
-    },
-    {
-      "id": "LakeVerity_Text_LegendaryCry",
-      "en_US": "Kyauuun!\r"
-    },
-    {
-      "id": "LakeVerity_Text_ThatWasTheLegendaryPokemonCrying",
-      "en_US": [
-        "{STRVAR_1 3, 0, 0}: !\n",
-        "Did you hear that, {STRVAR_1 3, 1, 0}?!\r",
-        "That was the legendary Pokémon crying!\n",
-        "That had to be it!\r",
-        "OK! This is our chance!\n",
-        "Let's catch it!\r"
-      ]
-    },
-    {
-      "id": "LakeVerity_Text_WaitWeDontHavePokeballs",
-      "en_US": [
-        "...Wait!\n",
-        "What...?!\r",
-        "We don't have anything on us!\r",
-        "You know, Poké Balls!\n",
-        "P-O-K-accent-E Balls!\r",
-        "If we don't have those, we can't catch\n",
-        "Pokémon or take them around with us!\r",
-        "...Do you think Prof. Rowan'd give us\n",
-        "some if we asked him?\r",
-        "You know, you remember what he said,\n",
-        "don't you?\r",
-        "He said to visit him at his lab if we\n",
-        "needed anything.\r",
-        "OK, {STRVAR_1 3, 1, 0}!\n",
-        "I'll race you!\r",
-        "First one to the professor's lab in\n",
-        "Sandgem Town rules!\r"
-      ]
-    },
-    {
       "id": "LakeVerity_Text_RowanNoLegendaryPokemonHowWasLakeValor",
       "en_US": [
         "Rowan: Hmmm...\r",
@@ -323,6 +250,183 @@
         "The lake is ordinary, as usual.\r",
         "There's no legendary Pokémon,\n",
         "either..."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusWhereAmI",
+      "en_US": [
+        "Cyrus: ...Where am I?\r",
+        "This is not the Distortion World.\r",
+        "Time flows here.\n",
+        "Space holds its shape.\r"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusTheFall",
+      "en_US": [
+        "The fall...\r",
+        "Did the shadow cast me out?\r",
+        "Or did I finally fall far enough\n",
+        "to escape it?\r"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusWasIWrong",
+      "en_US": [
+        "...Was I wrong?\r",
+        "No. The logic was sound.\r",
+        "And yet... the world remains.\n",
+        "I remain."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryWhatsOnTheCastle",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Lake Verity!\n",
+        "Now, where's Professor Rowan?\r",
+        "...Huh? What's going on up on\n",
+        "top of the castle?!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanDidYouComeOutOfThePortal",
+      "en_US": [
+        "Rowan: You there! Are you hurt?\r",
+        "That portal opened out of nowhere,\n",
+        "and then there you were...\r",
+        "Did you come out of that thing?!\r"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CounterpartDidYouFallOut",
+      "en_US": [
+        "{STRVAR_1 3, 2, 0}: Are you OK?\n",
+        "Did you really fall out of there?\r"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusI",
+      "en_US": "Cyrus: I..."
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanAPokemonCameOut",
+      "en_US": [
+        "Rowan: Wh-what?!\n",
+        "A Pokémon came out of the portal!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CounterpartAnotherOne",
+      "en_US": [
+        "{STRVAR_1 3, 2, 0}: Professor!\n",
+        "There's another one!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanGetBack",
+      "en_US": [
+        "Rowan: G-get back!\n",
+        "Stay away from me!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanMyBriefcase",
+      "en_US": [
+        "Rowan: Eek! My briefcase...!\r",
+        "N-never mind that!\n",
+        "Run for it!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanOutOfTheWay",
+      "en_US": [
+        "Rowan: Out of the way, you two!\r",
+        "There's a Pokémon going berserk.\n",
+        "We all need to get out of here!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryThatGuysBeingChased",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Wh-what?!\n",
+        "Wasn't that Professor Rowan?!\r",
+        "...Hey, look! That guy's getting\n",
+        "chased around in circles!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryLetsUseAPokemon",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: We need to help that man.\r",
+        "Let's use one of the Pokémon in\n",
+        "this briefcase!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryIllTakeThisOne",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Then I'll take this one!\n",
+        "Let's go, {STRVAR_1 0, 2, 0}!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryMawileRanOff",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Whew...\n",
+        "The MAWILE I was battling ran off!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusYouRemindMeOfSomeone",
+      "en_US": [
+        "Cyrus: ...You two.\r",
+        "You remind me of someone\n",
+        "I once knew.\r",
+        "A child who stood against me with\n",
+        "nothing but a Pokémon and...\r",
+        "conviction.\r"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusICalledThatAFlaw",
+      "en_US": [
+        "I once called that a flaw.\r",
+        "Spirit.\n",
+        "Something to be purged.\r",
+        "And yet that same flaw is the\n",
+        "reason I'm still standing.\r"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusThankYou",
+      "en_US": [
+        "...Thank you.\n",
+        "Both of you."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusTheProfessorRan",
+      "en_US": [
+        "Cyrus: The professor ran and left\n",
+        "this behind.\r",
+        "A curious choice for a man\n",
+        "of science.\r",
+        "I'll return it to him myself.\n",
+        "He and I have much to discuss."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryPerfectTiming",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Whew!\n",
+        "Perfect timing on our part.\r",
+        "However, I'm not sure what to make\n",
+        "of that guy just yet.\r",
+        "And man, he was wearing some\n",
+        "weird clothes.\r",
+        "Whatever, though, I'm going to go\n",
+        "ahead and head back home\r",
+        "and heal my Pokémon."
       ]
     }
   ]
