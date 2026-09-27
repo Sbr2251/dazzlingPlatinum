@@ -17,6 +17,7 @@ which is how we know the coordinates are absolute.
 | Location name | `res/text/location_names.json` (`LocationNames_Text_VerityCastle`, appended). Castle 1F (Verity Cavern), 2F and 3F use it. |
 | Lake Verity | `res/field/events/events_lake_verity.json`, `res/field/scripts/scripts_lake_verity.s`, `res/text/lake_verity.json` |
 | Flag | `generated/vars_flags.txt`: `FLAG_UNUSED_2420` is renamed to `FLAG_LAKE_VERITY_PORTAL_OPEN` |
+| Castle from the start | `res/field/scripts/scripts_verity_lakefront.s`, `res/field/events/events_verity_lakefront.json`, `res/field/scripts/scripts_init_lake_verity.s`, `src/system_flags.c`, plus the early scenes ported into the Lake Verity events, scripts and text above |
 
 Nothing under `res/field/maps/data/*.bin` or `tools/lake_verity/assets` was touched. I found no bugs in `layout.py`.
 
@@ -40,7 +41,7 @@ The target offset is the sum of `weight * pitchDelta` and `weight * distanceDelt
 
 | Field | Value |
 | --- | --- |
-| Map | `MAP_HEADER_LAKE_VERITY` (matrix 102 only; `LAKE_VERITY_LOW_WATER` / matrix 101 has no zone) |
+| Map | `MAP_HEADER_LAKE_VERITY` (matrix 102, now used for every visit) |
 | Box | x 23..24, z 29..37: STAIR (23,31)-(24,36), STAIR_LANDING (23,29)-(24,30) and the approach tile row z=37 |
 | Fade | 2 tiles outside the box. It fades out east through STAIR_WALL_GAP (25,29)/(25,30) onto the F1 terrace. |
 | Progress | Z axis, from z=37 (0, stair foot at h0) to z=30 (1, landing). Full tilt is held across the landing. |
@@ -92,6 +93,11 @@ Warps on 0x6E (DOOR / WARP_NORTH) fire when you step onto the tile. 0x6F fires w
 | Verity Castle 2F | 1 | (14,3) | 0x5F | Verity Castle 3F #0 |
 | Verity Castle 3F | 0 | (4,3) | 0x5E | Verity Castle 2F #1 |
 | Verity Castle 3F | 1 | (14,3) | 0x5F | Lake Verity #4 |
+| Verity Lakefront | 0 | (81,843) | stock | Lake Verity #2 (was LOW_WATER #1; also moved away by the Lakefront script) |
+| Verity Lakefront | 1 | (80,843) | stock | Lake Verity #1 (was LOW_WATER #0; also moved away by the Lakefront script) |
+| Verity Lakefront | 2 | (80,843) | stock | Lake Verity #1 (now always active) |
+| Verity Lakefront | 3 | (81,843) | stock | Lake Verity #2 (now always active) |
+| Verity Lakefront intro | script | `VerityLakefront_WarpToLakeValor` | scripted `Warp` | Lake Verity, (46,54) facing north (was LOW_WATER) |
 
 **Where the player arrives outside.**
 - Interiors return to the door or hatch tile itself, the same as the stock cavern return to (32,32).
@@ -122,9 +128,70 @@ Warps on 0x6E (DOOR / WARP_NORTH) fire when you step onto the tile. 0x6F fires w
 - **Gate tower signs.** Bg events on the gate towers (41,35) and (41,38) run script 9, "VERITY CASTLE / The drawbridge is down.". Read them from the arch facing north or south.
 - **New text.** It is appended to `res/text/lake_verity.json` and uses ASCII apostrophes only.
 
+## One Lake Verity map for every story state
+
+The castle (matrix 102, `MAP_HEADER_LAKE_VERITY`) is now used from the start of the game. Stock Platinum used two headers.
+
+### Which header is the "low water" one
+
+`MAP_HEADER_LAKE_VERITY_LOW_WATER` (matrix 101) is the **early** lake, not a drained lake after a story beat.
+- `VerityLakefront_OnLoad` / `_OnTransition` sent the player to it while `FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN` was unset, and to `MAP_HEADER_LAKE_VERITY` afterwards. (The stock label names are the wrong way round: `SetWarpsLakeVerityNormal` disabled the LAKE_VERITY warps.)
+- Its scenes are the intro (Cyrus, the rival, the Mesprit cry) and Rowan plus the counterpart after Canalave ("How was Lake Valor?").
+- Matrix 101 does look like lower water: a band of shallow/puddle tiles (0x16, 0xA9) at x16-38, z27-41 where matrix 102 has open water. The east shore used by every scene is identical in both matrices.
+- The post-bomb drained lake in Platinum is Lake Valor (`MAP_HEADER_LAKE_VALOR_DRAINED`), which this work does not touch.
+
+### Every path that chose between the two headers
+
+| Path | Stock | Now |
+| --- | --- | --- |
+| `VerityLakefront_OnLoad` / `_OnTransition` | Flag-based: warps 0/1 (LOW_WATER) before Saturn, warps 2/3 (LAKE_VERITY) after | Always moves warps 0/1 away, so warps 2/3 are always used |
+| `events_verity_lakefront.json` warps 0/1 | LOW_WATER #1 / #0 | Retargeted to LAKE_VERITY #2 / #1, so nothing reaches LOW_WATER even if they were active |
+| `VerityLakefront_WarpToLakeValor` (intro walk-in) | `Warp MAP_HEADER_LAKE_VERITY_LOW_WATER, 0, 46, 54, 0` | `Warp MAP_HEADER_LAKE_VERITY, 0, 46, 54, 0` |
+| `SystemFlag_GetAltMusicForHeader` (`src/system_flags.c`) | LAKE_VERITY: Galactic music until `FLAG_ALT_MUSIC_LAKE_VERITY` | Lake music also while Saturn is not beaten (LOW_WATER's music) |
+| Fly, Dig, Escape Rope, blackout, C special-casing | None reference either header (Escape Rope is off on both; not a Fly target) | Unchanged |
+| Nothing else | `grep` for `LAKE_VERITY_LOW_WATER` finds only the header table, its own scripts/events/text/encounters and the flag names | |
+
+### Story-state table
+
+| State | Condition | What Lake Verity shows |
+| --- | --- | --- |
+| A1 Intro | Saturn not beaten, `VAR_VISITED_LAKE_VERITY_WITH_RIVAL == 0` | Cyrus (48,43) and the rival (47,54). Frame script 10 `LakeVerity_OnFrameCyrus` plays the stock intro, then sets the var to 1 |
+| A2 Before Canalave | Saturn not beaten, intro done | Empty lake and castle, lake music |
+| A3 After Canalave | Saturn not beaten, `FLAG_HIDE_LAKE_VERITY_LOW_WATER_PROF_ROWAN/_COUNTERPART` cleared by Canalave | Rowan (48,43) and the counterpart (49,43) facing the lake, scripts 11/12 ("How was Lake Valor?") |
+| B1 Team Galactic | Saturn beaten, `FLAG_TEAM_GALACTIC_LEFT_LAKE_VERITY` unset | Stock Galactic scene: Mars, grunts, Rowan, counterpart, Galactic music. Rowan notices the player on arrival (frame script 5) |
+| B2 After Mars | Galactic left, Lake Acuity not done | Rowan (51,37) and the counterpart (50,39), lake music |
+| B3 After Lake Acuity | Lake Acuity sets both Rowan/counterpart hide flags | Empty lake and castle |
+
+How it is gated (`LakeVerity_OnTransition`, which runs before objects are created):
+- Saturn not beaten: `LakeVerity_SetEarlyState` sets the Galactic, Rowan and counterpart hide flags of the Galactic scene. The early objects keep their stock flags.
+- Saturn beaten: `LakeVerity_SetTeamGalacticState` sets the four early hide flags (as in stock, where those objects were on the other map), clears the Galactic scene's hide flags while Galactic has not left, and arms Rowan's notice.
+- Rowan's notice used to fire whenever `VAR_LAKE_VERITY_PROF_ROWAN_STATE == 0`, which would now include the intro. It is gated by `VAR_MAP_LOCAL_1` instead: set to 1 in `SetTeamGalacticState` if the state var is 0, cleared by the notice script. Map-local vars are zeroed on every map change before the transition script runs.
+- The frame table checks the intro first (`VAR_VISITED_LAKE_VERITY_WITH_RIVAL, 0, 10`), then the notice (`VAR_MAP_LOCAL_1, 1, 5`).
+- Hide flags set by `RemoveObject` (Cyrus, rival, the Galactic group after Mars) behave as in stock.
+
+Ported from LOW_WATER: the Cyrus, rival, early Rowan and early counterpart objects (appended as local ids 9-12, so ids 0-8 are unchanged), the intro and Rowan/counterpart scripts with their used movements, and the 12 text entries (appended to `lake_verity.json`, apostrophes made ASCII).
+Not ported: the two Starly objects (their hide flag is set in `scripts_init_new_game.s` and never cleared, so they never appear) with the `FLAG_MAP_LOCAL` OnLoad that hid them, the pokeball (Lake Verity already has the same one, same flag), and the unused movements.
+
+All intro tiles were checked against `layout.py`: Cyrus's path (48,43)-(48,48)-(47,48)-(47,52), the rival's (47,50)-(47,54) and (48,53), the player at (46,53)/(46,54) and the camera pan column (46,44)-(46,53) are stock shore tiles, walkable in the new layout. Nothing in the intro uses the lake bed or the island, so no scene needed reworking.
+
+### LOW_WATER is kept but unreachable
+
+`MAP_HEADER_LAKE_VERITY_LOW_WATER` stays in the header table with its stock data, scripts, events, text and encounters, so nothing is renumbered and it still builds. No warp or script leads to it any more.
+I did not alias it to the castle data: its header id would still differ from `MAP_HEADER_LAKE_VERITY`, so the stair camera zone, the music rule and the Verity Cavern return warp would not match it, and an alias would give two ids for one place.
+A save made while standing in LOW_WATER still loads the stock lake; leaving through (46,54)/(47,54) arrives at the Lakefront normally (warp arrival reads the positions from the event file before the Lakefront script moves warps), and the next entry uses the castle.
+
 ## In-game test steps
 
-1. Load a save where Saturn has been beaten in Valor Cavern (`FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN`); the Lakefront only uses `MAP_HEADER_LAKE_VERITY` after that. Enter Lake Verity from the Lakefront. You should arrive at (46,54)/(47,54) as before, and walking back out should still work.
+Story visits (new game, or saves at each point):
+- **Intro (A1).** Start a new game and follow the rival to Lake Verity. The Lakefront walk-in should put you at (46,54) on the castle map with lake music. The intro should play as in stock: the camera pans north to Cyrus at (48,43), he walks down to you and leaves south, the rival reacts to the cry and runs off. Nobody should walk through water or scenery. No Mars, grunts or Galactic-scene Rowan should be visible, and Rowan should not "notice" you.
+- **After the intro (A2).** Walk out and back in before getting a Pokemon, and again later. The lake should be empty, lake music, no scene. The castle doors work but the interiors are empty (Mesprit is hidden until the post-game).
+- **After Canalave (A3).** Rowan and the counterpart should stand at (48,43)/(49,43) facing the lake. Talk to Rowan twice (first and repeat lines) and to the counterpart (Dawn or Lucas text by player gender).
+- **Team Galactic (B1).** After beating Saturn in Valor Cavern, enter: Galactic music, grunts, Mars, Rowan steps south and says "What timing!" once. Leave and re-enter: he should not repeat it. The early Rowan/counterpart should be gone. Beat Mars as in stock.
+- **After Mars (B2).** Lake music, Rowan at (51,37) and the counterpart at (50,39).
+- **After Lake Acuity (B3).** Both gone.
+
+Castle checks:
+1. Enter Lake Verity from the Lakefront in any story state. You should arrive at (46,54)/(47,54) as before, and walking back out should still work.
 2. Walk across the drawbridge. Face north at (41,36) and press A, then face south at (41,37) and press A. The sign text should show both times.
 3. Walk onto DOOR_1F (32,33). You should warp into Verity Cavern with the "Verity Castle" popup. Check that Mesprit and Rowan behave as in stock. Leave by pressing south on (14,29): you should appear at the door and step out to (32,34).
 4. Stair camera:
@@ -149,9 +216,11 @@ Warps on 0x6E (DOOR / WARP_NORTH) fire when you step onto the tile. 0x6F fires w
 - **Symbol names.** The events NARC enum names `events_verity_castle_2f` / `_3f` and `LocationNames_Text_VerityCastle` are generated at build time from the order file and the JSON ids; I assumed the same scheme as the neighbouring entries.
 - **BDHC heights.** Arrival height, and the stair tilt feeling right, depend on the pipeline agent's BDHC. The door tiles must give h0 (DOOR_1F), h4 (DOOR_2F) and h10 (ROOF_HATCH), and the exit step must land on walkable tiles: (32,34), (32,31) and (32,27).
 - **Stair camera values.** The camera numbers are unverified on screen. The deltas can be tuned in one place.
-- **When the castle exists.** The castle is only in matrix 102 (`MAP_HEADER_LAKE_VERITY`).
-  - Before Saturn is beaten in Valor Cavern, including the game intro, the Lakefront sends the player to `MAP_HEADER_LAKE_VERITY_LOW_WATER` (matrix 101), which is still the stock lake.
-  - This may or may not be what the plan wants. Changing it means editing `VerityLakefront_SetWarps*` or converting matrix 101 too.
+- **Castle from the start.** Resolved: every visit uses `MAP_HEADER_LAKE_VERITY` (see "One Lake Verity map for every story state"). Remaining risks:
+  - The early game now has the castle, its doors and the stair open while the player may have no Pokemon (the intro). The interiors have no encounters; the shore grass is stock.
+  - The early lake now uses `encounters_lake_verity` instead of `encounters_lake_verity_low_water`. They differ in one night slot (Starly instead of Bidoof).
+  - Ported text keeps stock wording ("The lake hasn't changed at all", "legendary Pokemon of the lake bed").
+  - Old saves standing inside LOW_WATER load the stock lake once (see above).
 - **Distortion World entry.** The Distortion World 1F frame script runs its story intro while `VAR_DISTORTION_WORLD_PROGRESS == 0`. Entering early through the launchpad would play that scene out of order. There is also no way back to Lake Verity except the stock DW exits to Spear Pillar. Keep the flag off until the story is designed.
 - **Flag choice.** `FLAG_LAKE_VERITY_PORTAL_OPEN` reuses system flag 2420, which is unused in stock (`FLAG_UNUSED_2420`) and not referenced anywhere in the repo.
 - **Placeholder look.** The 2F/3F placeholders use Snowpoint Temple visuals and ice tiles, and the 3F stairs look like they go down.
