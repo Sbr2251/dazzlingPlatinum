@@ -1085,6 +1085,14 @@ __attribute__((aligned(4))) static const s16 Unk_ov16_022703D4[][3] = {
     { 0x0, 0xC0, 0x180 },
 };
 
+// With the Mega button shown, the Cancel press only redraws the right half of the bottom bar
+static const UnkStruct_ov16_022702F4 sMoveCancelRectWithMega = { 0x12, 0x17, 0x10, 0x1E };
+
+// Border tile IDs from the pre-built tilemap (cols 2-3 of the bottom bar), used to split it into
+// the MEGA and CANCEL buttons: outer = corner/edge tiles, inner = transition tiles
+static const u16 sBottomBarBorderOuter[] = { 61, 93, 125, 125, 157 };
+static const u16 sBottomBarBorderInner[] = { 62, 94, 126, 126, 158 };
+
 __attribute__((aligned(4))) static const UnkStruct_ov16_022702F4 Unk_ov16_0227033C[] = {
     { 0xA, 0x11, 0x0, 0xE },
     { 0x0, 0x9, 0x11, 0x1F },
@@ -2075,20 +2083,16 @@ static void ov16_022699AC(UnkStruct_ov16_02268A14 *param0, int param1, int param
         // Change palette for MEGA button fill area (cols 1-14) to mega palette slot 2
         Bg_ChangeTilemapRectPalette(v6, 4, 0x1, 0x13, 0xE, 0x5, 2);
 
-        // Split the bottom bar into two bordered buttons matching the move button style.
-        // Border tile IDs from the pre-built tilemap (cols 2-3 of the bottom bar):
-        //   outer = corner/edge tiles, inner = transition tiles
+        // Split the bottom bar into two bordered buttons matching the move button style
         {
-            static const u16 sBorderOuter[] = { 61, 93, 125, 125, 157 };
-            static const u16 sBorderInner[] = { 62, 94, 126, 126, 158 };
             int row;
             for (row = 0; row < 5; row++) {
                 // MEGA right border (cols 13-14, h-flipped, palette 2)
-                Bg_FillTilemapRect(v6, 4, sBorderInner[row] | (1 << 10), 0xD, 0x13 + row, 1, 1, 2);
-                Bg_FillTilemapRect(v6, 4, sBorderOuter[row] | (1 << 10), 0xE, 0x13 + row, 1, 1, 2);
+                Bg_FillTilemapRect(v6, 4, sBottomBarBorderInner[row] | (1 << 10), 0xD, 0x13 + row, 1, 1, 2);
+                Bg_FillTilemapRect(v6, 4, sBottomBarBorderOuter[row] | (1 << 10), 0xE, 0x13 + row, 1, 1, 2);
                 // CANCEL left border (cols 16-17, palette 4)
-                Bg_FillTilemapRect(v6, 4, sBorderOuter[row], 0x10, 0x13 + row, 1, 1, 4);
-                Bg_FillTilemapRect(v6, 4, sBorderInner[row], 0x11, 0x13 + row, 1, 1, 4);
+                Bg_FillTilemapRect(v6, 4, sBottomBarBorderOuter[row], 0x10, 0x13 + row, 1, 1, 4);
+                Bg_FillTilemapRect(v6, 4, sBottomBarBorderInner[row], 0x11, 0x13 + row, 1, 1, 4);
             }
         }
         // Clear gap column between buttons (col 15)
@@ -2491,6 +2495,10 @@ static int ov16_0226A3F4(UnkStruct_ov16_02268A14 *param0, int param1, int param2
     case 0xff:
         v4 = Unk_ov16_022703F4[NELEMS(Unk_ov16_022703F4) - 1];
         v5 = &Unk_ov16_02270378[NELEMS(Unk_ov16_022703F4) - 1];
+
+        if (v0->megaEvolutionAvailable) {
+            v5 = &sMoveCancelRectWithMega;
+        }
         break;
     }
 
@@ -3506,6 +3514,15 @@ static void ov16_0226B31C(UnkStruct_ov16_02268A14 *param0, const s16 *param1, co
 
         for (j = param2->unk_02; j <= param2->unk_03; j++) {
             v4[j] = v6[j] + v7;
+        }
+    }
+
+    // The source tilemap has one unbroken bar, so put back CANCEL's left border, pressed as well
+    if (param2 == &sMoveCancelRectWithMega) {
+        for (i = 0; i < NELEMS(sBottomBarBorderOuter); i++) {
+            v4 = &v3[(0x13 + i) * 32];
+            v4[0x10] = (sBottomBarBorderOuter[i] | (4 << 12)) + v7;
+            v4[0x11] = (sBottomBarBorderInner[i] | (4 << 12)) + v7;
         }
     }
 
