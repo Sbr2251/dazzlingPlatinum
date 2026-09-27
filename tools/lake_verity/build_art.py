@@ -17,7 +17,7 @@ Only textures the result uses go into the set and fldtanime.
 
 Inputs (PLAN.md "Intermediate mesh format"), default DIR = tools/lake_verity/assets:
   chunk_<id>.mesh.json   the art's terrain for that chunk (see the modes above).
-  <other>.mesh.json      props (castle, bridge, portal, ...), absolute tile positions; split into the chunks
+  <other>.mesh.json      props (castle, bridge, ...), absolute tile positions; split into the chunks
                          by face centroid and merged into the chunk models.
   textures/<name>.png + <name>.json  {"format", "repeat", "c0", optional "palette", "frames": [names],
                          "frame_ticks"}. Textures listed as another texture's frames are animation frames: they
@@ -25,16 +25,22 @@ Inputs (PLAN.md "Intermediate mesh format"), default DIR = tools/lake_verity/ass
                          one palette.
 
 Outputs (only with --write; otherwise a dry run that prints the report):
-  res/field/maps/data/map_data_{537,538,540,541}.bin    terrain + props + layout permissions/BDHC
+  res/field/maps/data/map_data_{537,538,540,541}.bin    terrain + props + layout permissions/BDHC; chunk 538's
+                                                        props section also gets the stock Distortion World portal
+                                                        (build model 581, see PORTAL_PROP and stock_portal.py)
   res/field/maps/texture_sets/map_texture_set_061.nsbtx  stock set 61 with the new textures appended
                                                          (area 62 is shared, so nothing stock is removed)
   res/prebuilt/data/fldtanime.narc                      one entry + frame NSBTX per texture with "frames"
 
 --new-set: instead of growing the shared set 61, write stock set 61 + the new textures as a new set
-(map_texture_set_075.nsbtx, registered in meson.build and map_texture_set.order) and append a copy of area data
-entry 62 that uses it (area_data.narc entry 76 = 0x4C). Set 61 stays stock. The map header is not touched:
-MAP_HEADER_LAKE_VERITY's areaDataArchiveID must then be set to the printed id (include/data/map_headers.h), or
-Lake Verity will draw the art with missing textures. Re-running rewrites the same set and entry.
+(map_texture_set_076.nsbtx, registered in meson.build and map_texture_set.order) and point Lake Verity's own area
+data entry 0x4D (written by stock_portal.py; MAP_HEADER_LAKE_VERITY already uses it) at it. Set 61 stays stock.
+Re-running rewrites the same set and entry. (Set 075 and area 0x4C belong to the castle interior.)
+
+The portal: the stock Distortion World portal of distorted Spear Pillar is a map prop (build model 581,
+d5_ana_pl, with its looping stock animation). PORTAL_PROP places it over the launchpad, 8 units above the terrace
+as in map_data_379. Its model and textures come from Lake Verity's own props list 71 / area 0x4D, written by
+stock_portal.py (area 62 is shared with Sendoff Spring and Lake Valor, which do not load model 581).
 
 Lighting: materials whose meshes carry "colors" and do not set polygon_attr.lights are built unlit (lights 0),
 so the baked vertex colours are what the DS draws (stock map materials are lit and have no colours).
@@ -61,8 +67,15 @@ import png  # noqa: E402
 FLDTANIME = os.path.join(assemble.ROOT, "res", "prebuilt", "data", "fldtanime.narc")
 AREA_DATA = os.path.join(assemble.ROOT, "res", "prebuilt", "fielddata", "areadata", "area_data.narc")
 TEXSETS = os.path.join(assemble.ROOT, "res", "field", "maps", "texture_sets")
-NEW_SET = 75                 # first free map texture set (074 is the Coronet lava set)
-BASE_AREA = 62               # stock Lake Verity area: props list 58, set 61, light 0
+NEW_SET = 76                 # first free map texture set (074 Coronet lava, 075 castle interior)
+LV_AREA = 0x4D               # Lake Verity's own area data entry (stock_portal.py): props list 71, set 61, light 0
+# the stock Distortion World portal (Spear Pillar, map_data_379: model 581 at local (248, 56, 150), i.e. the centre
+# of tile (31, 25) minus 2 units in z and 8 units above the floor at y 48); here centred the same way on the
+# launchpad, which is the westmost column of chunk 538. Positions are chunk-centred fx32, y is absolute.
+PORTAL_CHUNK = 538
+PORTAL_PROP = dict(model=581,
+                   pos=[((layout.LAUNCHPAD[0] - 32) * 16 + 8 - 256) << 12, (16 + 16 * layout.F1_H + 8) << 12,
+                        (layout.LAUNCHPAD[1] * 16 + 8 - 2 - 256) << 12])
 ANIME_ENTRY = 16 + 18 * 2
 HEIGHT_TOL = 0.25            # tiles
 # stock-terrain mode (default): natural art materials that the stock terrain replaces, and art materials that are
@@ -197,7 +210,7 @@ def update_fldtanime(anims, metas, write):
 
 
 def write_new_area(new_set):
-    """Writes set NEW_SET and an area data entry using it (see --new-set). -> area data id."""
+    """Writes set NEW_SET and points Lake Verity's area data entry LV_AREA at it (see --new-set). -> area id."""
     import narc
     name = f"map_texture_set_{NEW_SET:03d}.nsbtx"
     open(os.path.join(TEXSETS, name), "wb").write(new_set)
@@ -217,13 +230,11 @@ def write_new_area(new_set):
         lines.append(name + eol)
         open(order, "w", newline="").write("".join(lines))
     header, btnf, files = narc.read_files(AREA_DATA)
-    props, _, dummy, light = struct.unpack("<4H", files[BASE_AREA])
-    entry = struct.pack("<4H", props, NEW_SET, dummy, light)
-    ids = [i for i, f in enumerate(files) if struct.unpack("<4H", f)[1] == NEW_SET]
-    area = ids[0] if ids else len(files)
-    files = files[:area] + [entry] + files[area + 1:]
+    assert len(files) > LV_AREA, "run stock_portal.py --write first (Lake Verity's own area entry)"
+    props, _, dummy, light = struct.unpack("<4H", files[LV_AREA])
+    files[LV_AREA] = struct.pack("<4H", props, NEW_SET, dummy, light)
     narc.write_files(AREA_DATA, header, btnf, files)
-    return area
+    return LV_AREA
 
 
 def in_island(cx, cz, margin=0.7):
@@ -412,7 +423,10 @@ def main():
         assert not missing, f"chunk {c}: textures missing from the set: {missing}"
         nsb = nsbmd.build_bmd([model])
         bd = collision.bdhc(c)
-        outs[c] = mapdata.pack(collision.permissions(c), sec["props"] if keep_lake else b"", nsb, bd)
+        prop_recs = sec["props"] if keep_lake else b""
+        if c == PORTAL_CHUNK:
+            prop_recs += mapdata.write_props([PORTAL_PROP])
+        outs[c] = mapdata.pack(collision.permissions(c), prop_recs, nsb, bd)
         st = nsbmd.model_stats(model)
         stats.append({"chunk": c, "polygons": st["polygons"], "vertices_sent": st["vertices_sent"],
                       "model_bytes": len(nsb), "bdhc_bytes": len(bd), "materials": len(model["materials"]),
@@ -435,6 +449,8 @@ def main():
           f"{skirts} underwater skirt quads")
     print(f"new textures: {', '.join(t['name'] for t in tex)}")
     print(f"l_lake water prop: {'kept' if keep_lake else 'dropped (assets bring lv_water)'}")
+    print(f"portal prop: model {PORTAL_PROP['model']} in chunk {PORTAL_CHUNK} at "
+          f"{[v / 4096 for v in PORTAL_PROP['pos']]} (chunk-centred x/z, world y)")
     for s_ in stats:
         print(f"chunk {s_['chunk']} ({s_['source']}): {s_['polygons']} polys, {s_['vertices_sent']} verts, "
               f"model {s_['model_bytes']} B, BDHC {s_['bdhc_bytes']} B, {s_['materials']} materials")
@@ -459,8 +475,8 @@ def main():
         if new_area:
             area = write_new_area(new_set)
             open(assemble.TEXSET, "wb").write(stock_set)
-            print(f"wrote map_texture_set_{NEW_SET:03d}.nsbtx and area data entry {area} (0x{area:X}); set 61 is stock."
-                  f" Set MAP_HEADER_LAKE_VERITY.areaDataArchiveID = 0x{area:X} in include/data/map_headers.h")
+            print(f"wrote map_texture_set_{NEW_SET:03d}.nsbtx and pointed area data entry 0x{area:X} at it; "
+                  "set 61 is stock")
         else:
             open(assemble.TEXSET, "wb").write(new_set)
             print("wrote map_texture_set_061.nsbtx")

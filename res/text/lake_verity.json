@@ -187,18 +187,18 @@
     {
       "id": "LakeVerity_Text_LaunchpadDormant",
       "en_US": [
-        "An ancient stone ring is set\n",
-        "into the terrace.\r",
-        "It hums faintly, but nothing\n",
-        "happens..."
+        "A dark rift swirls across\n",
+        "the terrace.\r",
+        "It hums faintly, but something\n",
+        "seems to hold it shut..."
       ]
     },
     {
       "id": "LakeVerity_Text_LaunchpadPortalOpen",
       "en_US": [
-        "An ancient stone ring is set\n",
-        "into the terrace.\r",
-        "A rift swirls in the sky above.\n",
+        "A dark rift swirls across\n",
+        "the terrace.\r",
+        "It seems to be pulling at you...\n",
         "Step into the rift?"
       ]
     },

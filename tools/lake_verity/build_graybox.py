@@ -37,7 +37,7 @@ TOP_TEX = {"courtyard": "beach", "landing": "beach", "door1": "beach", "gate_arc
            "terrace1": "ngrass", "door2": "ngrass", "keep2": "blueglayp", "roof": "blueglay",
            "wall1": "criff", "wall2": "criff", "wall3": "criff", "rail": "criff",
            "tower": "hanger", "gate": "hanger", "stair": "newstep", "bridge": "bridge",
-           "launchpad": "fenter", "hatch": "shadowchip"}
+           "launchpad": "fenter", "portal": "fenter", "hatch": "shadowchip"}
 SIDE_TEX = {"tower": "hanger", "gate": "hanger", "bridge": "nbridge"}
 SHORE_TEX = "criffp2"
 WALL_TEX = "criffp"

@@ -81,6 +81,9 @@ Stock materials, all of them:
   - None of the chunk textures are in `fldtanime.narc` member 0.
 - **To keep animated water, keep the `l_lake` prop in all four chunks.** Island geometry sits on top of it (the
   island top is at world y 16 or higher).
+- The redesign adds one prop: the stock Distortion World portal, build model **581 `d5_ana_pl`** from distorted
+  Spear Pillar, in chunk 538 over the launchpad (section 5, "The portal"). Lake Verity therefore has its own area
+  0x4D with props list 71 = [311, 72, 74, 581] (`tools/lake_verity/stock_portal.py`).
 
 fldtanime is the other mechanism, used by texture-name match:
 - member 0 = {char name[16]; u8 frames[18][2]} entries;
@@ -88,7 +91,7 @@ fldtanime is the other mechanism, used by texture-name match:
 - stock names include `asasea`, `hamabe`, `lakep.1`, `searock`, `dun_sea`;
 - `tools/coronet_lava/add_lava_anim.py` shows how to append an entry.
 
-It can animate new textures, such as a portal swirl or torch flames, by giving them a new name and adding an entry.
+It can animate new textures, such as torch flames, by giving them a new name and adding an entry.
 
 ### The hut / Verity Cavern entrance
 
@@ -195,6 +198,7 @@ It shows about 15 x 11 tiles around the player. `blender_preview.py --views game
 | `build_graybox.py` | Writes the graybox map_data 537/538/540/541 (section 4). |
 | `build_art.py` | Assembles the art agent's `assets/` into map_data, set 61 and fldtanime (section 5). Dry run unless `--write`. |
 | `roundtrip.py` | All round-trip and consistency checks (section 7). |
+| `stock_portal.py` | Lake Verity's own area for the stock Spear Pillar portal: area_build / areabm_texset entry 71 and area_data entry 0x4D; checks the map header. Dry run unless `--write`; `--preview DIR` decodes the placed prop and its textures for `blender_preview.py`. |
 
 Stock dumps and renders are in `~/Documents/Lake Verity Update/pipeline_checks/`:
 
@@ -229,7 +233,10 @@ python3 tools/lake_verity/roundtrip.py --generated
 # gameplay-facing collision: permissions + BDHC per chunk, compared with layout.py
 python3 tools/lake_verity/collision.py
 
-# final chunks: stock terrain + the art's castle island, castle, bridge and portal.
+# Lake Verity's own area (props list 71 with the stock portal, area 0x4D); idempotent
+python3 tools/lake_verity/stock_portal.py --write
+
+# final chunks: stock terrain + the art's castle island, castle and bridge, plus the stock portal prop in 538.
 # Dry run first; --write writes map_data 537/538/540/541, set 61 and fldtanime.narc.
 # --art-terrain uses the art's full chunk terrain instead (the older look, commit 488d1159d)
 python3 tools/lake_verity/build_art.py --preview /tmp/lv/art
@@ -247,6 +254,14 @@ P="$HOME/Documents/Lake Verity Update/pipeline_checks"
     /tmp/lv/art/chunk_540.mesh.json /tmp/lv/art/chunk_541.mesh.json \
     "$P"/stock/chunk_5{37,38,40,41}_props.mesh.json      # the l_lake water, decoded by dump_stock.py
 python3 tools/lake_verity/compare_layout.py "$P/art_stockterrain_top.png" "$P/art_stockterrain_vs_layout.png"
+
+# the terrace with the stock portal (static pose)
+python3 tools/lake_verity/stock_portal.py --preview /tmp/lv/portal
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P tools/lake_verity/blender_preview.py -- \
+    --tex tools/lake_verity/assets/textures --tex "$P/stock/textures" --tex "$P/texset61" --tex /tmp/lv/portal/tex \
+    --out "$P/portal_stock" --views top,game --region 18,16,46,40 --px 24 --target 32,29 --target_h 4 \
+    /tmp/lv/art/chunk_5{37,38,40,41}.mesh.json "$P"/stock/chunk_5{37,38,40,41}_props.mesh.json \
+    /tmp/lv/portal/portal_581.mesh.json
 ```
 
 To preview the graybox, add `--lit`, because graybox materials are lit like stock ones.
@@ -348,7 +363,7 @@ User direction: "Use the water and trees from the original textures. I don't wan
   - Natural materials are dropped (`ISLAND_DROP`: lv_water, lv_foam, lv_canopy, lv_path).
   - lv_grass is redrawn with stock `tshadow`, using the stock material and stock UV scale of 1 repeat per 2 tiles (`GRASS_REMAP`), so the island grass matches the shore grass.
 - **Skirts:** every vertical island or prop face whose bottom edge is under the water (h <= -0.9) gets a quad in the same material down to the lakebed at h -4 (`add_skirts`, 50 quads). No gap shows through the translucent l_lake water.
-- **Props:** the stock `l_lake` water plane is kept in all four chunks. The castle, bridge and portal are merged into the chunk models.
+- **Props:** the stock `l_lake` water plane is kept in all four chunks. The castle and bridge are merged into the chunk models. Chunk 538 also gets the stock portal prop (`PORTAL_PROP`, see "The portal" below).
 - **Textures:** only the textures the result uses are appended to set 61, and only their animations go into fldtanime. fldtanime is always rebuilt from the stock archive, so entries from older runs (lv_water) disappear.
 
 `--art-terrain` gives the older mode (commit 488d1159d), where the art's chunk meshes replace the stock terrain completely.
@@ -356,7 +371,7 @@ User direction: "Use the water and trees from the original textures. I don't wan
 Inputs are in `tools/lake_verity/assets/`, in the PLAN.md mesh format; see its README for counts.
 
 - **`chunk_<id>.mesh.json`:** the art's terrain for that chunk. Only its island is used, unless `--art-terrain` is given.
-- **Other `*.mesh.json` (castle, bridge, portal):** positioned in absolute tiles.
+- **Other `*.mesh.json` (castle, bridge):** positioned in absolute tiles.
   - They are split into chunks by face centroid and merged into the chunk models.
   - They are not map props. Map props would need build_model archive entries and an entry in the area's preload list.
 - **`textures/<name>.png` + `<name>.json`:** each JSON holds `{"format", "repeat", "c0", "palette"?, "frames"?, "frame_ticks"?}`.
@@ -374,55 +389,68 @@ Inputs are in `tools/lake_verity/assets/`, in the PLAN.md mesh format; see its R
 - **Height check:** every walkable tile's drawn floor must be within 0.25 tile of its layout/BDHC height.
 
 Results of the committed assembly (stock-terrain mode, one-storey castle: no F2 block, F3 keep, roof deck,
-hatch or north towers; the F1 roof terrace is fully open and the launchpad/portal sits at its centre):
+hatch or north towers; the F1 roof terrace is fully open and the stock portal prop sits at its centre):
 
 | chunk | polys | verts sent | model B | BDHC B | materials |
 |---|---|---|---|---|---|
-| 537 | 801 | 2668 | 36076 | 810 | 13 |
-| 538 | 860 | 2878 | 38960 | 610 | 16 |
+| 537 | 791 | 2628 | 35560 | 810 | 13 |
+| 538 | 839 (+ the 5-quad portal prop) | 2794 | 37360 | 610 | 13 |
 | 540 | 1034 (warning) | 3657 | 49112 (0xF000 = 61440) | 904 | 20 |
 | 541 | 1176 (warning) | 4141 | 56724 | 886 | 26 |
 
-- Set 61: 62 stock textures (unchanged) + 12 new ones: lv_chain, lv_cliff, lv_flame, lv_foliage, lv_glow, lv_paving, lv_portal, lv_roof, lv_sigil, lv_stone, lv_trim, lv_wood. VRAM 57376 + 1712 = 59088 B.
-- fldtanime (stock + 2):
+- Set 61: 62 stock textures (unchanged) + 10 new ones: lv_chain, lv_cliff, lv_flame, lv_foliage, lv_glow, lv_paving, lv_roof, lv_stone, lv_trim, lv_wood. VRAM 54816 + 1648 = 56464 B. (lv_portal and lv_sigil went with the custom portal: was 59088 B.)
+- Prop texture set (areabm_texset 71, Lake Verity only): stock texset 58 + the portal's g_demo_ana1..4, VRAM 15872 + 176 = 16048 B (stock 58: 3120 B; distorted Spear Pillar's texset 56: 18624 B). Map set + prop set = 72512 B, under the 76416 B of set 048 alone.
+- fldtanime (stock + 1):
 
 | member | texture | frames | VBlanks per frame |
 |---|---|---|---|
 | 55 | lv_flame | 4 | 4 |
-| 56 | lv_portal | 4 | 6 |
 
-- On screen: at most 801 polygons with the zoomed-in camera (at 38,29; 891 in the frustum before back-face culling) and 828 with the stair camera (at 25,33; 917 in the frustum). Worst 16 x 12 window: 569. (The three-storey castle had 914/998 polygons in 537/538, 991/897 on screen and 689 in the worst window.)
+- On screen: at most 779 polygons with the zoomed-in camera (at 32,32; 875 in the frustum before back-face culling) and 804 with the stair camera (at 25,33; 886 in the frustum). Worst 16 x 12 window: 569. The portal prop adds 5 quads (props are not counted by `camera_polys`). (The three-storey castle had 914/998 polygons in 537/538, 991/897 on screen and 689 in the worst window.)
 - 0 walkable tiles are off the layout height. Permissions and BDHC are unchanged from layout.py.
 - The gameplay tiles check out:
   - The only 0x6e door tile is DOOR_1F (32,33), walkable at h 0; the exit step (32,34) is walkable at h 0.
-  - Every terrace tile (26..38 x 23..32), including the launchpad (32,27), is walkable at h 4. The old north tower tiles (25,22)/(39,22) are parapet wall (blocked); the south towers (25,33)/(39,33) are blocked at h 10.
-- Renders in `pipeline_checks/`: `exterior_v2_top.png`, `exterior_v2_game.png` and `exterior_v2_vs_layout.png` (one-storey castle). The older `art_stockterrain_top.png`, `art_stockterrain_game.png` and `art_stockterrain_bridge_game.png` show the three-storey castle.
+  - Every terrace tile (26..38 x 23..32) is at h 4. The portal footprint around the launchpad (32,27) (`layout.PORTAL_TILES`, 38 tiles) is blocked, as in stock Spear Pillar; the rest of the terrace is walkable. The old north tower tiles (25,22)/(39,22) are parapet wall (blocked); the south towers (25,33)/(39,33) are blocked at h 10.
+- Renders in `pipeline_checks/`: `portal_stock_top.png` and `portal_stock_game.png` (the terrace with the stock portal); `exterior_v2_top.png`, `exterior_v2_game.png` and `exterior_v2_vs_layout.png` (one-storey castle, still with the old custom portal). The older `art_stockterrain_top.png`, `art_stockterrain_game.png` and `art_stockterrain_bridge_game.png` show the three-storey castle.
   - Trees, water, shores and grass are identical to `stock_top.png` / `stock_game.png`.
   - There are no seams where the island meets the water.
 - The full-art mode (488d1159d) had 719/781/1141/978 polygons, set 61 at 73088 B VRAM and 827/713 on screen. Its renders are `art_final_*.png`.
 
+### The portal
+
+The terrace portal is the stock Distortion World portal of distorted Spear Pillar, not new art (user direction: reuse
+what is in the game, no new textures).
+
+- **Asset.** Build model 581 `d5_ana_pl` (14788 B): 5 nodes, 5 lit materials, 5 horizontal quads, posScale 8.
+  - Node 0 (the 1.6-tile core, `g_demo_ana3`) is at (0, 8, 14) world units from the prop origin. Nodes 1-4 are drawn with node 0's matrix restored, so their translations add to it: the two 7.8-tile dark rings (`lambert14` and `g_demo_kage1_lm6`, texture `g_demo_ana4`) at y +2 / +4, `g_demo_ana2` (5.5 tiles, static scale 0.9) at y +6 and `g_demo_ana1` (3.1 tiles) at y +10.
+  - Textures: `g_demo_ana1/2/4` a3i5 64x64, `g_demo_ana3` pltt16 32x32, from areabm_texset 56.
+  - Animation: `bm_anime_list[581]` = bm_anime 80, BCA0, 240 frames, looping; it spins nodes 1-4 about y. It starts when the prop loads.
+  - Stock placement: map_data_379 at chunk-centred (248, 56, 150) = the centre of tile (31,25) minus 2 units in z, 8 units above the floor (y 48). Stock permissions block 5/7/7/7/7/5 tiles in rows dz -3..+2 around that tile.
+- **Placement here.** `build_art.PORTAL_PROP` in chunk 538, after the l_lake record: (-248, 88, 182) = the same offsets around LAUNCHPAD (32,27) on the terrace (world y 80). Scale 1, no rotation (props ignore rotation anyway). The visible vortex covers about x 30..35, z 25..30.5; the quads span x 28.6..36.4, z 23.6..31.4, at h 4.6..5.1.
+- **Collision.** `layout.PORTAL_TILES` copies the stock footprint (38 tiles, blocked at h 4); BDHC is unchanged. The 18 edge tiles carry the launchpad bg events (gameplay.md).
+- **Area.** Area 62 is shared, so `stock_portal.py` gives Lake Verity its own area 0x4D = (props list 71, set 61, light 0):
+  - `area_build` 71 = [311, 72, 74, 581];
+  - `areabm_texset` 71 = stock texset 58 + `g_demo_ana1..4` and their palettes, byte-identical to texset 56. The palettes are appended contiguously in stock order (16/64/32/16 B), because `g_demo_ana1` and `g_demo_ana4` are a3i5 with 16-byte palettes; their texels use only indices 0..5 and 0..1, so they never read past them anyway.
+  - `MAP_HEADER_LAKE_VERITY.areaDataArchiveID` = 0x4D. Matrix 102 is used by no other header.
+  - Re-running rewrites the same entries; `build_interior.py` rewrites only 0x4C.
+- **Why not the shared list 58:** Sendoff Spring, Lake Verity Low Water and both Lake Valor maps would each load the 15 KB model, its animation and 12.8 KB more prop texture VRAM for a prop none of them places.
+
 ## 6. A new texture set and area data entry
 
-This is optional: it lets Lake Verity stop sharing area 62. Appending to set 61 works without touching anything else, and set 61 is still below the largest stock set. Lake Verity needs its own area if either of these happens:
+Lake Verity already has its own area data entry, 0x4D (section 5, "The portal"), but it still uses the shared set 61. Appending to set 61 works without touching anything else, and set 61 is still below the largest stock set. A separate texture set is only needed if either of these happens:
 
-- the other four area-62 maps must not pay the extra VRAM;
-- Lake Verity needs its own area light.
+- the other four area-62 maps must not pay the extra VRAM of the art textures;
+- Lake Verity needs its own area light (then only entry 0x4D changes).
 
-`build_art.py --write --new-set` does steps 1 and 2, following the Mt. Coronet lava precedent (`tools/coronet_lava/make_texset.py`, `add_area_data.py`, `docs/coronet_1f_lava/PLAN.md`).
+`build_art.py --write --new-set` does it, following the Mt. Coronet lava precedent (`tools/coronet_lava/make_texset.py`, `add_area_data.py`, `docs/coronet_1f_lava/PLAN.md`). Set 075 and area 0x4C belong to the castle interior.
 
 1. **Texture set.**
-   - It writes `res/field/maps/texture_sets/map_texture_set_075.nsbtx`, which is stock set 61 plus the art textures.
-   - It appends that file to both `texture_sets/meson.build` (after `map_texture_set_074.nsbtx`) and `map_texture_set.order`. The NARC index is the list position.
+   - It writes `res/field/maps/texture_sets/map_texture_set_076.nsbtx`, which is stock set 61 plus the art textures.
+   - It appends that file to both `texture_sets/meson.build` (after `map_texture_set_075.nsbtx`) and `map_texture_set.order`. The NARC index is the list position.
    - It restores set 61 to stock.
-2. **Area data.**
-   - It appends to `res/prebuilt/fielddata/areadata/area_data.narc` a copy of entry 62 (props list 58, light 0) that uses set 75. That is entry 76 = 0x4C; there are currently 76 entries, 0..0x4B.
-   - Each entry is `u16 props list, u16 texture set, u16 dummy, u16 area light`.
-   - Re-running rewrites the same set and entry.
-3. **Map header (not done by the tool).**
-   - Set `areaDataArchiveID` of `MAP_HEADER_LAKE_VERITY` in `include/data/map_headers.h` (currently 62) to 0x4C. Coronet made the same change for `MT_CORONET_1F_SOUTH` (0x4B).
-   - Without this change, Lake Verity loads stock set 61 and the art textures are missing.
-   - This is a header edit, so it belongs to the gameplay owner.
-4. **Optional light.** `tools/coronet_lava/add_area_light.py` shows how to add an area light; put its id in the new entry.
+2. **Area data.** It sets the texture set of entry 0x4D (written by `stock_portal.py`, which must run first) to 76. Each entry is `u16 props list, u16 texture set, u16 dummy, u16 area light`. Re-running rewrites the same set and entry. `stock_portal.py --write` puts it back to 61.
+3. **Map header.** Nothing to do: `MAP_HEADER_LAKE_VERITY` already uses 0x4D.
+4. **Optional light.** `tools/coronet_lava/add_area_light.py` shows how to add an area light; put its id in entry 0x4D.
 
 fldtanime is keyed by texture name, not by set, so the animations work with either set.
 
@@ -434,10 +462,10 @@ fldtanime is keyed by texture name, not by set, so the animations work with eith
 | GX display lists decode -> encode | byte-identical, 52/52 shapes |
 | mesh.json -> NSBMD -> decode | same faces (positions, UVs, normals) and material attributes |
 | NSBTX rebuild, all 75 map texture sets | 74 identical; set 007 differs (the coronet tools renumbered its dictionaries) |
-| set 61 textures decode -> encode -> decode | 74/74 same pixels (62 stock + 12 art) |
-| map_data unpack -> pack | 666/666 identical |
-| BDHC read -> write | 666/666 identical |
-| BDHC strip builder vs stock | 665/666; map_data_184 has a zero-depth plate that the stock tool listed once more |
+| set 61 textures decode -> encode -> decode | 72/72 same pixels (62 stock + 10 art) |
+| map_data unpack -> pack | 667/667 identical |
+| BDHC read -> write | 667/667 identical |
+| BDHC strip builder vs stock | 666/667; map_data_184 has a zero-depth plate that the stock tool listed once more |
 | collision.bdhc vs layout, 4 chunks x 1024 tile centres | 0 mismatches |
 | checked-in chunks: BDHC and permissions vs layout | 0 mismatches, identical |
 
@@ -448,7 +476,7 @@ In the mesh.json round trip, our strips send 3 to 4% more vertices than Nintendo
 - **Lighting vs PLAN.md:**
   - The art's coloured materials are unlit (baked), so they won't follow the area light or darken at night. Stock map materials are lit.
   - Needs an art-direction decision, ideally checked on hardware at night. The alternative is `"lights": 1` per material.
-- **Area 62 is shared:** set 61 grew from 44320 to 59088 B of VRAM, and Sendoff Spring and Lake Valor load it too. That is well within stock precedent (76416). Section 6 is the way out if needed.
+- **Area 62 is shared:** set 61 grew from 44320 to 56464 B of VRAM, and Sendoff Spring and Lake Valor load it too. That is well within stock precedent (76416). Section 6 is the way out if needed. (Lake Verity's own props list and prop textures are already separate: area 0x4D.)
 - **Chunk density:** chunks 540 (1034) and 541 (1176) are over the 1000-polygon soft warning, because the stock trees and shores stay and the island is added on top. All models are at least 4.7 KB under the 0xF000 buffer.
 - **Mixed lighting:** the stock terrain and the tshadow island grass are lit; the castle, cliffs, paving and fringe are unlit with baked colours. They may drift apart at night or under a different area light.
 - **Island edge:** the art's lv_foliage fringe and lv_cliff sides are kept as part of the island. They were painted for the art's own grass, next to stock tshadow; this reads fine in the renders.
@@ -461,8 +489,9 @@ In the mesh.json round trip, our strips send 3 to 4% more vertices than Nintendo
   - the tex4x4 encoder, which is simple (extreme colours per 4x4 block);
   - fog and area light colours.
 - **Strip efficiency:** 3 to 4% more vertices than stock. Harmless.
+- **Stock portal prop, not verified in game:** that area 0x4D loads (model 581's texture binding to areabm_texset 71 is GF_ASSERTed), that the vortex sits at the right height and spins, and how it looks under Lake Verity's outdoor light (its materials are lit). The renders show a static, unlit pose.
 - **Not handled here:**
-  - map props with their own build_model archive entries;
+  - map props with their own build_model archive entries (the portal reuses stock model 581);
   - the 539/542 filler chunks (unchanged);
   - LAKE_VERITY_LOW_WATER's own chunks: the gameplay branch now uses matrix 102 for every story state.
 - **layout.py:** water was at h 0. It is now `WATER_H = -0.5`, matching the stock BDHC on 3730/3730 non-island tiles. This was a genuine bug, fixed in f6bb633bf; the docstring is correct.

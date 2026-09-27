@@ -17,6 +17,7 @@ which is how we know the coordinates are absolute.
 | Location name | `res/text/location_names.json` (`LocationNames_Text_VerityCastle`, appended). Verity Castle 1F and Verity Cavern (below its stair) use it. |
 | Lake Verity | `res/field/events/events_lake_verity.json`, `res/field/scripts/scripts_lake_verity.s`, `res/text/lake_verity.json` |
 | Flag | `generated/vars_flags.txt`: `FLAG_UNUSED_2420` is renamed to `FLAG_LAKE_VERITY_PORTAL_OPEN` |
+| Portal (stock Spear Pillar asset) | `include/data/map_headers.h` (`MAP_HEADER_LAKE_VERITY.areaDataArchiveID` 62 -> 0x4D), the area NARCs written by `tools/lake_verity/stock_portal.py`, the prop record in `map_data_538.bin` written by `build_art.py`; see "The portal" below |
 | Castle from the start | `res/field/scripts/scripts_verity_lakefront.s`, `res/field/events/events_verity_lakefront.json`, `res/field/scripts/scripts_init_lake_verity.s`, `src/system_flags.c`, plus the early scenes ported into the Lake Verity events, scripts and text above |
 
 Nothing under `res/field/maps/data/*.bin` or `tools/lake_verity/assets` was touched. I found no bugs in `layout.py`.
@@ -104,16 +105,41 @@ The castle exterior has one storey: DOOR_1F is its only door. The old Lake Verit
 - **NPC positions.** Rowan, the Counterpart, Mars and the grunts all stand on stock tiles east and south of the island, (43..55, 38..51), off the island and bridge.
   - After Team Galactic leaves, `LakeVerity_SetPositionsAfterTeamGalactic` used to put Rowan at (50,37), on a bridge landing tile. He is now at (51,37), still facing west toward the bridge, so both landing tiles (50,36)/(50,37) stay free.
   - The Counterpart at (50,39) doesn't block anything: (50,38), (51,38) and (51,39) are open.
-- **Launchpad.** A bg event at LAUNCHPAD (32,27), the centre of the open F1 roof terrace (h4), facing any direction, runs script 8, `LakeVerity_Launchpad`. The tile is walkable, so the player can stand on it or face it.
-  - With `FLAG_LAKE_VERITY_PORTAL_OPEN` off (the default; nothing sets it yet), it shows "An ancient stone ring is set into the terrace. It hums faintly, but nothing happens...".
-  - With the flag on, it asks "Step into the rift?". Yes plays the stock Distortion World warp sequence copied from Spear Pillar:
+- **The portal.** The terrace centre holds the stock Distortion World portal from distorted Spear Pillar (see "The portal" below). Its footprint, 7 x 6 tiles around LAUNCHPAD (32,27) (`layout.PORTAL_TILES`: z24 x30..34, z25..28 x29..35, z29 x30..34), is blocked at h4, the same shape the stock Spear Pillar permissions block around their portal. The player stands next to it.
+  - Its 18 edge tiles (`layout.PORTAL_EDGE`) each carry a bg event, facing any direction, that runs script 8, `LakeVerity_Launchpad`. Face the portal from any walkable neighbour and press A. (This replaces the single bg event on the formerly walkable LAUNCHPAD tile; LAUNCHPAD itself is now the blocked centre tile, still at h4.)
+  - With `FLAG_LAKE_VERITY_PORTAL_OPEN` off (the default; nothing sets it yet), it shows "A dark rift swirls across the terrace. It hums faintly, but something seems to hold it shut...".
+  - With the flag on, it says "A dark rift swirls across the terrace. It seems to be pulling at you..." and asks "Step into the rift?". Yes plays the stock Distortion World warp sequence copied from Spear Pillar:
     1. `ScrCmd_320` (the DW warp tunnel app)
     2. `ReturnToField`
     3. `SetPartyGiratinaForm GIRATINA_FORM_ORIGIN`
     4. `Warp MAP_HEADER_DISTORTION_WORLD_1F, 0, 55, 40, DIR_SOUTH`
   - To turn the portal on from any script, use `SetFlag FLAG_LAKE_VERITY_PORTAL_OPEN`.
+- The portal prop is always drawn, whatever the flag says (a map prop has no visibility flag; the old custom portal was chunk geometry and was always drawn too).
 - **Gate tower signs.** Bg events on the gate towers (41,35) and (41,38) run script 9, "VERITY CASTLE / The drawbridge is down.". Read them from the arch facing north or south.
 - **New text.** It is appended to `res/text/lake_verity.json` and uses ASCII apostrophes only.
+
+## The portal
+
+The user asked for the stock Distortion World portal from the Spear Pillar climax, with no new textures.
+
+- **What it is.** Build model 581 `d5_ana_pl` (`res/prebuilt/fielddata/build_model/build_model.narc`), a map prop of distorted Spear Pillar (header `SPEAR_PILLAR_DISTORTED`, area 0x3C = props list 56, set 59). `map_data_379` places it at the centre of tile (31,25), 8 units above the floor; the same chunk has the Dialga and Palkia rifts (580 `d5_ana_p`, 579 `d5_ana_d`).
+  - It is a flat floor vortex: 5 horizontal quads (core, two 7.8-tile dark rings, a 5.5-tile and a 3.1-tile swirl) 0.6 to 1.1 tiles above the floor, lit materials.
+  - Its textures `g_demo_ana1..4` (a3i5 64x64 x3, pltt16 32x32) and palettes live in areabm_texset 56.
+  - `bm_anime_list[581]` gives it bm_anime 80, a 240-frame looping BCA0 that spins the four outer discs. The field starts it when the prop loads, so no script or C is involved.
+- **How Lake Verity shows it.** Exactly as Spear Pillar does: a prop record in the chunk, loaded through the area's props list.
+  - `build_art.py` appends a 581 record to chunk 538's props section (after the stock l_lake record): chunk-centred (-248, 88, 182), i.e. the centre of LAUNCHPAD (32,27) minus 2 units in z, and 8 units above the terrace (world y 80), the same offsets as in map_data_379.
+  - Area 62 (props list 58) is shared with Sendoff Spring, Lake Verity Low Water and both Lake Valor maps, so the portal is not added to it. `tools/lake_verity/stock_portal.py --write` adds a Lake-Verity-only copy instead:
+    - `area_build.narc` entry 71 = stock list 58 + 581: [311 l_lake, 72 bomb_mark, 74 l_lake_l4, 581].
+    - `areabm_texset.narc` entry 71 = stock texset 58 (l_lake, bomb_mark) + `g_demo_ana1..4` and their palettes copied byte for byte from texset 56 (palettes contiguous, in stock order). No new textures.
+    - `area_data.narc` entry 77 (0x4D) = (props list 71, set 61, 0, light 0): area 62 with the new list.
+    - `MAP_HEADER_LAKE_VERITY.areaDataArchiveID` = 0x4D (was 62). Matrix 102 (chunks 537-542) is only used by this header, so no other map sees the 581 record.
+  - This follows the Mt. Coronet (0x4B) and castle interior (0x4C) precedent. `build_interior.py` rewrites only entry 0x4C in place, so the two tools don't collide.
+- **Tradeoff.**
+  - Adding 581 to the shared list 58 instead would have needed no header change, but Sendoff Spring and both Lake Valor maps would each load the 15 KB model, its animation and 12.8 KB of prop texture VRAM for nothing.
+  - The own-area route costs one header edit and three appended NARC entries; the prop texture set grows from 3120 to 16048 B of VRAM for Lake Verity only (stock Spear Pillar's is 18624).
+  - The portal's animation plays all the time, as in Spear Pillar. Hiding it until the flag is set would need extra script or C work (or a second area), which the request did not ask for.
+- **Removed:** the custom portal mesh (`assets/portal.mesh.json`: ring, swirl disc, halo, light shaft), the `lv_portal` texture and its 3 frames (and its fldtanime entry), the portal's uses of `lv_glow`, the violet bake light, and the `lv_sigil` ring on the terrace floor with its light. `lv_sigil` stays in `assets/textures/` because the castle interior's floor sigil uses it (set 075); `lv_glow` stays for the torches.
+- **Renders:** `~/Documents/Lake Verity Update/pipeline_checks/portal_stock_top.png` and `portal_stock_game.png` (static pose; the prop decoded by `stock_portal.py --preview`).
 
 ## One Lake Verity map for every story state
 
@@ -189,7 +215,7 @@ Castle checks:
    - Save and reset while mid-stair, then continue. The camera should load already tilted to match the position.
    - Talk to an NPC or run a script elsewhere. The camera should behave as stock.
 5. On the terrace (h4), walk the whole area inside the parapet (26..38 x 23..32). There should be no door, hatch or warp anywhere on it, and the parapet should block you at the edges.
-6. Walk to the terrace centre and face the launchpad (32,27) from any side, or stand on it, and press A. The dormant message should show. Set `FLAG_LAKE_VERITY_PORTAL_OPEN` with a debug script or save editor and press A again. The Yes/No prompt should appear; No closes it, Yes plays the warp tunnel and puts you in Distortion World 1F.
+6. On the terrace, the stock Spear Pillar portal should swirl in the middle. Walk around it: its 7 x 6 footprint should block you. Face it from any side and press A. The dormant message should show. Set `FLAG_LAKE_VERITY_PORTAL_OPEN` with a debug script or save editor and press A again. The Yes/No prompt should appear; No closes it, Yes plays the warp tunnel and puts you in Distortion World 1F.
 7. Warp or Fly away from Lake Verity, then come back. The camera should be stock everywhere except the stair.
 
 ## Unverified risks (nothing has been built)
@@ -198,7 +224,7 @@ Castle checks:
   - The C code follows the existing overlay 5 idioms, and every symbol was checked by grep: `Camera_AdjustAngleAroundTarget`, `Camera_AdjustDistance`, `PlayerAvatar_PosVector`, `FieldSystem_IsRunningTask`, `MAP_OBJECT_TILE_SIZE`, `NELEMS` from the pch, and `MAP_HEADER_LAKE_VERITY` from `generated/map_headers.h`.
   - Overlay 5 grows by about 1 KB. If the ARM9 overlay region is already tight, the link could fail.
 - **Symbol names.** The events NARC enum name `events_verity_castle_1f` and `LocationNames_Text_VerityCastle` are generated at build time from the order file and the JSON ids; I assumed the same scheme as the neighbouring entries.
-- **BDHC heights.** Arrival height, and the stair tilt feeling right, depend on the pipeline agent's BDHC. DOOR_1F must give h0 and the exit step must land on the walkable tile (32,34); the terrace, including the launchpad (32,27), must give h4. Both were checked against the rebuilt BDHC with `mapdata.height_at`.
+- **BDHC heights.** Arrival height, and the stair tilt feeling right, depend on the pipeline agent's BDHC. DOOR_1F must give h0 and the exit step must land on the walkable tile (32,34); the terrace, including the blocked portal footprint around (32,27), must give h4. Both were checked against the rebuilt BDHC with `mapdata.height_at`.
 - **Stair camera values.** The camera numbers are unverified on screen. The deltas can be tuned in one place.
 - **Castle from the start.** Resolved: every visit uses `MAP_HEADER_LAKE_VERITY` (see "One Lake Verity map for every story state"). Remaining risks:
   - The early game now has the castle, its doors and the stair open while the player may have no Pokemon (the intro). The interiors have no encounters; the shore grass is stock.
@@ -206,5 +232,6 @@ Castle checks:
   - Ported text keeps stock wording ("The lake hasn't changed at all", "legendary Pokemon of the lake bed").
   - Old saves standing inside LOW_WATER load the stock lake once (see above).
 - **Distortion World entry.** The Distortion World 1F frame script runs its story intro while `VAR_DISTORTION_WORLD_PROGRESS == 0`. Entering early through the launchpad would play that scene out of order. There is also no way back to Lake Verity except the stock DW exits to Spear Pillar. Keep the flag off until the story is designed.
+- **Portal prop.** Untested in game: that area 0x4D loads (texture binding of model 581 to texset 71 is GF_ASSERTed), that the prop draws at the right height and spins, and that the portal plus the castle stay within the per-frame polygon and texture budgets on hardware.
 - **Flag choice.** `FLAG_LAKE_VERITY_PORTAL_OPEN` reuses system flag 2420, which is unused in stock (`FLAG_UNUSED_2420`) and not referenced anywhere in the repo.
 - **Location label.** The label change means Verity Cavern now shows "Verity Castle" in the map popup, journal and TV.

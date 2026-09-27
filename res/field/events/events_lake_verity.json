@@ -3,8 +3,144 @@
         {
             "script": 8,
             "type": 0,
+            "x": 30,
+            "z": 24,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 31,
+            "z": 24,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
             "x": 32,
+            "z": 24,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 33,
+            "z": 24,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 34,
+            "z": 24,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 29,
+            "z": 25,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 35,
+            "z": 25,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 29,
+            "z": 26,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 35,
+            "z": 26,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 29,
             "z": 27,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 35,
+            "z": 27,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 29,
+            "z": 28,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 35,
+            "z": 28,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 30,
+            "z": 29,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 31,
+            "z": 29,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 32,
+            "z": 29,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 33,
+            "z": 29,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 34,
+            "z": 29,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_ALL"
         },

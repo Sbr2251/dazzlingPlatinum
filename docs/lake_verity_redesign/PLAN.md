@@ -30,7 +30,8 @@ Push past stock Gen 4 toward Gen 5 / Pokemon Iridium quality (see `ArtRef_Iridiu
   sides with layered dirt and hanging grass lips, dressed stone with mortar and moss, weathered wooden planks.
 - Real 3D silhouettes: round towers with conical roofs, crenellations, arched door frames, banners, torches /
   candles on pillars, iron chains on the drawbridge, lily pads and reeds at the island edge, a glowing
-  launchpad ring and a swirling portal.
+  launchpad ring and a swirling portal. (Superseded: the portal is now the stock Spear Pillar Distortion World
+  portal, map prop 581, and there is no ring; see pipeline.md section 5, "The portal".)
 - Baked lighting in vertex colours (map materials have lighting off): ambient occlusion in corners and under
   eaves, soft contact shadows, warm torch glow, water edge highlights.
 - Animated textures where the engine supports them: water (fldtanime `*_sea` pattern), portal swirl, torch flame.

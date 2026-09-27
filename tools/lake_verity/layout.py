@@ -17,8 +17,11 @@ Everything outside the island + bridge is the stock map, unchanged.
 
 The castle is one storey outside: the F1 block, whose only door is DOOR_1F on the courtyard (-> the castle interior),
 and on top of it an open-air roof terrace at h = F1_H, surrounded by F1's crenellated parapet and reached by the open
-west staircase. The launchpad and the Distortion World portal stand in the middle of the terrace. There is no upper
-floor, keep, roof deck or roof hatch any more, and only the two south corner towers remain.
+west staircase. The Distortion World portal lies in the middle of the terrace: the stock floor vortex of distorted
+Spear Pillar (map prop 581, placed by build_art.py), centred on LAUNCHPAD. As in Spear Pillar its footprint
+(PORTAL_TILES, 7 x 6 tiles) is blocked at the terrace height; the player stands next to it and presses A on any
+of its edge tiles (PORTAL_EDGE, the bg events). There is no upper floor, keep, roof deck or roof hatch any more,
+and only the two south corner towers remain.
 """
 
 import os
@@ -44,7 +47,14 @@ TOWERS = [(25, 33), (39, 33)]         # round towers on the two south corners of
 TOWER_H = 10                          # tower top (collision height of the blocked tower tiles)
 DOOR_1F = (32, 33)                    # the castle's only door (ground) -> castle 1F interior (was the Verity Cavern
                                       # warp at (32,32))
-LAUNCHPAD = (32, 27)                  # launchpad tile, centred on the terrace; the Distortion World portal hovers above
+LAUNCHPAD = (32, 27)                  # centre tile of the Distortion World portal, centred on the terrace
+# The stock portal's footprint, blocked like the stock Spear Pillar permissions around its centre tile (31,25):
+# rows dz -3 and +2 span dx -2..+2, rows dz -2..+1 span dx -3..+3. The prop's widest disc is about 7.8 tiles.
+PORTAL_ROWS = {-3: 2, -2: 3, -1: 3, 0: 3, 1: 3, 2: 2}
+PORTAL_TILES = [(LAUNCHPAD[0] + dx, LAUNCHPAD[1] + dz) for dz, w in PORTAL_ROWS.items() for dx in range(-w, w + 1)]
+# footprint tiles next to a walkable tile: the portal's bg events (the player faces one of them and presses A)
+PORTAL_EDGE = [t for t in PORTAL_TILES
+               if any((t[0] + dx, t[1] + dz) not in PORTAL_TILES for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
 # Open staircase (camera tilt): west side, climbs north from the courtyard (enter from z=37, h=0) to the F1 terrace
 STAIR = (23, 31, 24, 36)              # x0, z0, x1, z1; height rises linearly from z1 (bottom) to z0 (top)
 STAIR_LANDING = (23, 29, 24, 30)      # flat at h=F1_H, enters the F1 terrace through a gap in F1's west wall
@@ -114,7 +124,9 @@ def tiles():
     for x, z in TOWERS:
         put(x, z, BLOCK, TOWER_H, "tower")
     put(*DOOR_1F, DOOR, 0, "door1")
-    put(*LAUNCHPAD, WALK, F1_H, "launchpad")
+    for x, z in PORTAL_TILES:
+        put(x, z, BLOCK, F1_H, "portal")
+    put(*LAUNCHPAD, BLOCK, F1_H, "launchpad")
     for x in range(STAIR[0], STAIR[2] + 1):
         for z in range(STAIR[1], STAIR[3] + 1):
             put(x, z, WALK, stair_height(z), "stair")
@@ -136,7 +148,7 @@ def tiles():
 
 
 CHARS = {"forest": "#", "water": "~", "grass": '"', "ground": ".", "exit": "E", "courtyard": ",",
-         "wall1": "1", "terrace1": "t", "tower": "O", "door1": "D", "launchpad": "L", "stair": "/", "landing": "=",
+         "wall1": "1", "terrace1": "t", "tower": "O", "door1": "D", "launchpad": "L", "portal": "P", "stair": "/", "landing": "=",
          "rail": "|", "bridge": "b", "gate": "G", "gate_arch": "a"}
 
 if __name__ == "__main__":

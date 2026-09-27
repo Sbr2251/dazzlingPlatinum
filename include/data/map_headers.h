@@ -6878,7 +6878,7 @@ static const MapHeader sMapHeaders[] = {
         .isFlyAllowed = TRUE,
     },
     [MAP_HEADER_LAKE_VERITY] = {
-        .areaDataArchiveID = 62,
+        .areaDataArchiveID = 0x4D,
         .unk_01 = 0xF,
         .mapMatrixID = 102,
         .scriptsArchiveID = scripts_lake_verity,

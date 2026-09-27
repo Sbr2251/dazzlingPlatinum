@@ -15,9 +15,10 @@ All files follow the intermediate format in `docs/lake_verity_redesign/PLAN.md`.
 | chunk_538.mesh.json | terrain | [32, 0] | 475 (78/397) | 1281 | NE forest, shore, lake, island north half (x >= 32) |
 | chunk_540.mesh.json | terrain | [0, 32] | 986 (168/818) | 2781 | SW forest, tall grass, island SW, courtyard west |
 | chunk_541.mesh.json | terrain | [32, 32] | 758 (114/644) | 1963 | SE shore, tall grass, dirt path, exit, courtyard east |
-| castle.mesh.json | prop | [32, 32] | 616 (32/584) | 1942 | one-storey F1 block with an open roof terrace (h4) inside a crenellated parapet, 2 south towers, west stair + landing + rail wall, gatehouse, torches, launchpad sigil at the terrace centre (32,27) |
+| castle.mesh.json | prop | [32, 32] | 615 (32/583) | 1938 | one-storey F1 block with an open roof terrace (h4) inside a crenellated parapet, 2 south towers, west stair + landing + rail wall, gatehouse, torches; plain paving at the terrace centre (32,27) under the stock portal |
 | bridge.mesh.json | prop | [32, 32] | 39 (0/39) | 104 | lowered drawbridge (42..49, 36..37) and chains |
-| portal.mesh.json | prop | [32, 32] | 30 (0/30) | 120 | floating portal ring over the launchpad on the terrace (32,27), swirl disc, halo, light shaft |
+
+There is no portal mesh any more. The terrace portal is the stock Distortion World portal of distorted Spear Pillar (map prop 581 `d5_ana_pl` with its stock textures and animation), placed by `build_art.py` and `stock_portal.py`; see `docs/lake_verity_redesign/pipeline.md` section 5, "The portal". The old `portal.mesh.json` (ring, swirl disc, halo, light shaft), the `lv_portal` texture with its frames and the terrace's `lv_sigil` ring were removed.
 
 The pipeline budget is 1000 polygons or fewer per chunk; every chunk is under it. Chunks 539 and 542 are not generated, so they stay stock. The castle, 540 and 541 are on screen together. Off-screen polygons are clipped, and a ZOOMED_IN frame sees about 15 x 11 tiles.
 
@@ -32,8 +33,7 @@ The pipeline budget is 1000 polygons or fewer per chunk; every chunk is under it
 - Vertex colours hold all the baked lighting and are snapped to 5-5-5:
   - sun from the SW-above;
   - sky ambient with AO;
-  - warm torch and candle point lights;
-  - violet light around the portal.
+  - warm torch and candle point lights.
 - Materials are unlit (lights off in the bake sense). Build them without normals.
 - Material `polygon_attr`:
   - opaque: `{"cull": "back"}`
@@ -54,16 +54,16 @@ The pipeline budget is 1000 polygons or fewer per chunk; every chunk is under it
 | lv_roof | pltt16 | 32x32 | 1 | 544 | s, t |
 | lv_wood | pltt16 | 32x64 | 1 | 1056 | s, t |
 | lv_path | pltt16 | 32x64 | 1 | 1056 | t |
-| lv_sigil | pltt16 | 64x64 | 1 | 2080 | - |
+| lv_sigil (castle interior only) | pltt16 | 64x64 | 1 | 2080 | - |
 | lv_chain | pltt4 | 8x16 | 1 | 40 | t |
 | lv_water | pltt16 | 64x64 | 8 (8 ticks) | 16416 | s, t |
-| lv_portal | pltt16 | 32x32 | 4 (6 ticks) | 2080 | - |
 | lv_flame | a3i5 | 16x32 | 4 (4 ticks) | 2112 | - |
 | lv_glow | a3i5 | 32x32 | 1 | 1088 | - |
 | lv_foam | a3i5 | 32x16 | 1 | 576 | s |
 
-- Total over all frames: 46216 bytes.
-- Map texture VRAM (base frames only) is about 28.8 KB. The other water, portal and flame frames go in a fldtanime NSBTX, not in the map texture set.
+- Total over all frames: 44136 bytes.
+- Only the textures a builder uses go into a texture set: set 61 gets 10 of them (no lv_water, lv_foam, lv_grass, lv_canopy, lv_path, lv_sigil in stock-terrain mode); the castle interior's set 075 gets 7, including lv_sigil. Flame frames go in a fldtanime NSBTX, not in the map texture set.
+- `lv_glow` is still used by the torch flames.
 
 ### Sidecar json keys
 
@@ -78,7 +78,7 @@ The pipeline budget is 1000 polygons or fewer per chunk; every chunk is under it
 
 - **pltt16 / pltt4:** indexed PNGs.
   - Opaque textures never use index 0.
-  - Transparent atlases (lv_trim, lv_foliage, lv_chain, lv_sigil, lv_portal) use index 0 as transparent.
+  - Transparent atlases (lv_trim, lv_foliage, lv_chain, lv_sigil) use index 0 as transparent.
 - **a3i5:** RGBA PNGs.
   - RGB is the snapped palette colour. Alpha is quantised to 8 levels.
   - At most 32 colours per frame. The pipeline builds the a3i5 palette per PNG, so palette order can differ between frames.
