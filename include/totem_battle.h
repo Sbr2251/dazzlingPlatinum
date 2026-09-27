@@ -29,4 +29,10 @@ int TotemBattle_HomeOffsetX(int battlerType);
 void TotemBattle_SetHomeOffsetX(int offset);
 void TotemBattle_AdjustAnimTypes(u8 *types);
 
+// The healthbars stay hidden from the Totem's aura flare until the first command menu, so the
+// camera's push-in shows only the Totem powering up. Showing them all again waits until then.
+void TotemBattle_HideHealthbars(BattleSystem *battleSys);
+void TotemBattle_ShowHealthbars(BattleSystem *battleSys);
+BOOL TotemBattle_AreHealthbarsHidden(void);
+
 #endif // POKEPLATINUM_TOTEM_BATTLE_H

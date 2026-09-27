@@ -66,6 +66,7 @@
 #include "string_gf.h"
 #include "string_template.h"
 #include "text.h"
+#include "totem_battle.h"
 #include "trainer_data.h"
 #include "trainer_info.h"
 #include "tv_episode_segment.h"
@@ -1242,6 +1243,10 @@ void ov16_0223F3BC(BattleSystem *battleSystem)
 {
     int v0;
     Healthbar *v1;
+
+    if (TotemBattle_AreHealthbarsHidden()) {
+        return;
+    }
 
     for (v0 = 0; v0 < battleSystem->maxBattlers; v0++) {
         v1 = ov16_02263B08(battleSystem->battlers[v0]);

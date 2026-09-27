@@ -663,6 +663,7 @@ void ov16_0225D5B8(BattleSystem *battleSys, BattlerData *param1, CommandSetMessa
 
     // The first command menu of the battle: the stage camera sweeps the opponents first
     BattleStage_StartBattleSweep();
+    TotemBattle_ShowHealthbars(battleSys);
     SysTask_Start(param1->unk_00.unk_00, v0, 0);
 }
 
@@ -6587,6 +6588,7 @@ static void ov16_02264408(BattleSystem *battleSys, BattlerData *param1, BattleAn
         BattleStage_SetCameraScriptCinematic(BATTLE_STAGE_CINEMATIC_TOTEM);
         // The camera stays on the Totem through the aura message, home at the first menu
         BattleStage_HoldCameraAfterScript();
+        TotemBattle_HideHealthbars(battleSys);
         TotemAura_Start(battleSys);
     }
 }
