@@ -20,7 +20,7 @@ static const Location sNewGameStartLocation = {
     .mapId = MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM,
     .warpId = WARP_ID_NONE,
     .x = 15,
-    .z = 15,
+    .z = 14,
     .faceDirection = FACE_UP,
 };
 
