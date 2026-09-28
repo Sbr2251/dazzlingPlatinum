@@ -4,8 +4,11 @@
 #include <string.h>
 
 #include "constants/field/map_load.h"
+#include "constants/field/window.h"
 #include "constants/heap.h"
 #include "constants/overworld_weather.h"
+
+#include "generated/text_banks.h"
 
 #include "struct_decls/struct_0203A790_decl.h"
 #include "struct_defs/map_load_mode.h"
@@ -31,7 +34,11 @@
 #include "field_system.h"
 #include "field_task.h"
 #include "field_transition.h"
+#include "font.h"
 #include "game_overlay.h"
+#include "game_options.h"
+#include "graphics.h"
+#include "gx_layers.h"
 #include "heap.h"
 #include "inlines.h"
 #include "journal.h"
@@ -60,6 +67,7 @@
 #include "system_vars.h"
 #include "terrain_attributes.h"
 #include "terrain_collision_manager.h"
+#include "text.h"
 #include "trainer_info.h"
 #include "unk_0202854C.h"
 #include "unk_0203A7D8.h"
@@ -445,6 +453,128 @@ static void FieldSystem_SetLocationToUnionRoomExit(FieldSystem *fieldSystem)
     Location_Set(exit, fieldSystem->location->mapId, -1, 8, 2, 1);
 }
 
+// Arc 1: before the Distortion World flashback, a caption in a message box on a black screen.
+#define ARC1_FLASHBACK_CAPTION_MESSAGE 16
+
+typedef struct Arc1FlashbackCaption {
+    int state;
+    BgConfig *bgConfig;
+    Window window;
+    String *string;
+    const Options *options;
+    u8 printerID;
+} Arc1FlashbackCaption;
+
+static BOOL FieldTask_Arc1FlashbackCaption(FieldTask *task)
+{
+    Arc1FlashbackCaption *caption = FieldTask_GetEnv(task);
+
+    switch (caption->state) {
+    case 0:
+        StartScreenFade(FADE_MAIN_ONLY, FADE_TYPE_BRIGHTNESS_IN, FADE_TYPE_BRIGHTNESS_IN, COLOR_BLACK, 8, 1, HEAP_ID_FIELD3);
+        caption->state++;
+        break;
+    case 1:
+        if (IsScreenFadeDone()) {
+            caption->printerID = FieldMessage_Print(&caption->window, caption->string, caption->options, TRUE);
+            caption->state++;
+        }
+        break;
+    case 2:
+        if (FieldMessage_FinishedPrinting(caption->printerID)) {
+            caption->state++;
+        }
+        break;
+    case 3:
+        if (gSystem.pressedKeys & (PAD_BUTTON_A | PAD_BUTTON_B)) {
+            StartScreenFade(FADE_MAIN_ONLY, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, COLOR_BLACK, 8, 1, HEAP_ID_FIELD3);
+            caption->state++;
+        }
+        break;
+    case 4:
+        if (IsScreenFadeDone()) {
+            Window_EraseMessageBox(&caption->window, FALSE);
+            Window_Remove(&caption->window);
+            String_Free(caption->string);
+            Bg_FreeTilemapBuffer(caption->bgConfig, BG_LAYER_MAIN_3);
+            Heap_Free(caption->bgConfig);
+            Heap_Free(caption);
+            BrightnessController_SetScreenBrightness(0, GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD, BRIGHTNESS_BOTH_SCREENS);
+            return TRUE;
+        }
+        break;
+    }
+
+    return FALSE;
+}
+
+// The field map isn't running yet (no HEAP_ID_FIELD1 or field BgConfig), so this sets up its own BG3 like the
+// black-out screen in unk_020528D0.c.
+static void FieldTask_StartArc1FlashbackCaption(FieldTask *task)
+{
+    static const GXBanks banks = {
+        GX_VRAM_BG_128_B,
+        GX_VRAM_BGEXTPLTT_NONE,
+        GX_VRAM_SUB_BG_128_C,
+        GX_VRAM_SUB_BGEXTPLTT_NONE,
+        GX_VRAM_OBJ_64_E,
+        GX_VRAM_OBJEXTPLTT_NONE,
+        GX_VRAM_SUB_OBJ_16_I,
+        GX_VRAM_SUB_OBJEXTPLTT_NONE,
+        GX_VRAM_TEX_0_A,
+        GX_VRAM_TEXPLTT_01_FG
+    };
+    static const GraphicsModes graphicsModes = {
+        GX_DISPMODE_GRAPHICS,
+        GX_BGMODE_0,
+        GX_BGMODE_0,
+        GX_BG0_AS_2D
+    };
+    static const BgTemplate bgTemplate = {
+        .x = 0,
+        .y = 0,
+        .bufferSize = 0x800,
+        .baseTile = 0,
+        .screenSize = BG_SCREEN_SIZE_256x256,
+        .colorMode = GX_BG_COLORMODE_16,
+        .screenBase = GX_BG_SCRBASE_0xf800,
+        .charBase = GX_BG_CHARBASE_0x00000,
+        .bgExtPltt = GX_BG_EXTPLTT_01,
+        .priority = 1,
+        .areaOver = 0,
+        .mosaic = FALSE,
+    };
+
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+    Arc1FlashbackCaption *caption = Heap_Alloc(HEAP_ID_FIELD2, sizeof(Arc1FlashbackCaption));
+
+    memset(caption, 0, sizeof(Arc1FlashbackCaption));
+    caption->options = SaveData_GetOptions(fieldSystem->saveData);
+    caption->bgConfig = BgConfig_New(HEAP_ID_FIELD2);
+
+    BrightnessController_SetScreenBrightness(-16, (GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD) ^ GX_BLEND_PLANEMASK_BG3, BRIGHTNESS_MAIN_SCREEN);
+    BrightnessController_SetScreenBrightness(-16, GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD, BRIGHTNESS_SUB_SCREEN);
+
+    GXLayers_SetBanks(&banks);
+    SetAllGraphicsModes(&graphicsModes);
+    Bg_InitFromTemplate(caption->bgConfig, BG_LAYER_MAIN_3, &bgTemplate, 0);
+    Bg_ClearTilesRange(BG_LAYER_MAIN_3, 0x20, 0, HEAP_ID_FIELD2);
+    Bg_FillTilemapRect(caption->bgConfig, BG_LAYER_MAIN_3, 0, 0, 0, 32, 32, TILEMAP_FILL_VAL_INCLUDES_PALETTE);
+    Bg_CopyTilemapBufferToVRAM(caption->bgConfig, BG_LAYER_MAIN_3);
+    GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG3, TRUE);
+
+    Font_LoadTextPalette(PAL_LOAD_MAIN_BG, PLTT_OFFSET(FIELD_MESSAGE_PALETTE_INDEX), HEAP_ID_FIELD2);
+    Font_LoadScreenIndicatorsPalette(PAL_LOAD_MAIN_BG, PLTT_OFFSET(12), HEAP_ID_FIELD2);
+    FieldMessage_AddWindow(caption->bgConfig, &caption->window, BG_LAYER_MAIN_3);
+    LoadMessageBoxGraphics(caption->bgConfig, BG_LAYER_MAIN_3, 1024 - (18 + 12), 10, Options_Frame(caption->options), HEAP_ID_FIELD2);
+    FieldMessage_ClearWindow(&caption->window);
+    Window_DrawMessageBoxWithScrollCursor(&caption->window, FALSE, 1024 - (18 + 12), 10);
+
+    caption->string = MessageBank_GetNewStringFromNARC(NARC_INDEX_MSGDATA__PL_MSG, TEXT_BANK_DISTORTION_WORLD_GIRATINA_ROOM, ARC1_FLASHBACK_CAPTION_MESSAGE, HEAP_ID_FIELD2);
+
+    FieldTask_InitCall(task, FieldTask_Arc1FlashbackCaption, caption);
+}
+
 static BOOL FieldTask_LoadNewGameSpawn(FieldTask *task)
 {
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
@@ -457,6 +587,11 @@ static BOOL FieldTask_LoadNewGameSpawn(FieldTask *task)
         FieldMapChange_UpdateGameData(fieldSystem, 0);
         FieldMapChange_CreateObjects(fieldSystem);
         (*state)++;
+
+        if (fieldSystem->location->mapId == MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM
+            && *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_ARC1_PROGRESS) == 0) {
+            FieldTask_StartArc1FlashbackCaption(task);
+        }
         break;
     case 1:
         FieldTransition_StartMapAndFadeIn(task);
