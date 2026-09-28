@@ -6508,7 +6508,7 @@ static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_0225126C[1] = {
     ov9_0224E870
 };
 
-static const UnkStruct_ov9_02252414 Unk_ov9_02252414[1] = {
+static const UnkStruct_ov9_02252414 Unk_ov9_02252414[] = {
     {
         0x6,
         0x129,
@@ -6519,13 +6519,35 @@ static const UnkStruct_ov9_02252414 Unk_ov9_02252414[1] = {
         { (FX32_ONE * 48), 0x0, 0x0 },
         0x40,
     },
+    // Arc 1 flashback, Giratina room: a high pass west to east over Cyrus (15,23)...
+    {
+        -20,
+        7,
+        25,
+        0x3,
+        0x1,
+        { FX32_ONE, FX32_ONE, FX32_ONE },
+        { (FX32_ONE * 48), 0x0, 0x0 },
+        0x20,
+    },
+    // ...then a low swoop back east to west through his tile, which takes him.
+    {
+        51,
+        2,
+        23,
+        0x2,
+        0x1,
+        { FX32_ONE, FX32_ONE, FX32_ONE },
+        { -(FX32_ONE * 48), 0x0, 0x0 },
+        0x20,
+    },
 };
 
 void ov9_0224E884(FieldSystem *fieldSystem, u16 param1)
 {
     DistWorldSystem *v0;
 
-    GF_ASSERT(param1 < 1);
+    GF_ASSERT(param1 < NELEMS(Unk_ov9_02252414));
     v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
     ov9_0224E91C(v0, &Unk_ov9_02252414[param1]);
 }
