@@ -3068,6 +3068,7 @@ static void ov16_022604C8(SysTask *param0, void *param1)
     case 3:
         ov16_0226757C(v0->unk_04);
         ov16_02264798(v3, v0->unk_00);
+        BattleStage_StartIdleCamera();
         v0->unk_0A = 4;
     case 4:
         if (ov16_02269348(v2) == 0) {

@@ -25,6 +25,7 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
 #include "battle/battle_script.h"
+#include "battle/battle_stage.h"
 #include "battle/mega_evolution.h"
 #include "battle/common.h"
 #include "battle/ov16_0223B140.h"
@@ -768,6 +769,7 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
     }
 
     if (battlersDone == maxBattlers) {
+        BattleStage_EndIdleCamera();
         BattleSystem_RecordCommand(battleSys, battleCtx);
         BattleSystem_LoadFightOverlay(battleSys, FALSE);
 

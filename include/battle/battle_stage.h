@@ -133,6 +133,13 @@ BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy);
 // The command menu waits until this is TRUE: the camera is home, or it has waited too long
 // (then the camera snaps home). Call it once per frame while waiting.
 BOOL BattleStage_IsCameraReadyForMenu(void);
+// The idle drift (Gen 5's command menu camera): once the command menu is up, the camera holds
+// home for a second, then loops slowly through a few gentle poses. It does nothing while
+// NO_CINEMATICS or NO_IDLE_CAMERA is set, and a menu shown while it runs doesn't wait.
+// EndIdleCamera, when every battler's command is in, eases it home; an anim script start or
+// a hidden arena snaps it home without counting a guard snap.
+void BattleStage_StartIdleCamera(void);
+void BattleStage_EndIdleCamera(void);
 // The hit blink started on a battler; critical is TRUE when the hit was a critical hit
 void BattleStage_CritKick(int battler, BOOL critical);
 // The fainting sequence of a battler started

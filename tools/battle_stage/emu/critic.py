@@ -1462,8 +1462,9 @@ NO_BLOB_SHADOWS = 2                      # blob shadows off, classic shadow back
 CLASSIC_SPRITES = 4                      # sprites take the old unlit path even while the arena shows
 NO_CINEMATICS = 8                        # chunk 4: no crit or faint kicks (the sweep plays before the critic can write)
 CRIT_KICK_ON_HIT = 16                    # chunk 4: every hit blink plays the crit kick
+NO_IDLE_CAMERA = 32                      # no idle drift at the command menu; set_flags adds it unless idle=True
 FLAG_NAMES = ((FREEZE_IDLE, "FREEZE_IDLE"), (NO_BLOB_SHADOWS, "NO_BLOB_SHADOWS"), (CLASSIC_SPRITES, "CLASSIC_SPRITES"),
-              (NO_CINEMATICS, "NO_CINEMATICS"), (CRIT_KICK_ON_HIT, "CRIT_KICK_ON_HIT"))
+              (NO_CINEMATICS, "NO_CINEMATICS"), (CRIT_KICK_ON_HIT, "CRIT_KICK_ON_HIT"), (NO_IDLE_CAMERA, "NO_IDLE_CAMERA"))
 XMAP_PATH: Optional[str] = None          # set per scenario process (run_in_process), for helpers without args
 
 
@@ -1661,14 +1662,17 @@ class StageRam:
             self.e.run(1)
         return None
 
-    def set_flags(self, flags: int, settle: int = 10) -> bool:
+    def set_flags(self, flags: int, settle: int = 10, idle: bool = False) -> bool:
         """Writes debugFlags (sBattleStage+32) and runs `settle` frames so the screen shows them: the RAM
         counters follow in about 2 frames, the picture only after about 5 (the 3D pipeline plus the
         emulator's frame delay), so a shorter settle leaves a stale frame in the next recording.
         Call in a battle, at the command menu. False (nothing written) on a ROM without the field or
-        when sBattleStage does not validate, so a wrong xMAP never corrupts RAM."""
+        when sBattleStage does not validate, so a wrong xMAP never corrupts RAM. NO_IDLE_CAMERA is added
+        (the drift snaps home) unless idle is True, so frames compared at the menu hold still."""
         if not self.has_sprites or not self.validate(self.read()):
             return False
+        if not idle:
+            flags |= NO_IDLE_CAMERA
         self.e.write(self.stage[0] + DEBUG_FLAGS_OFFSET, struct.pack("<I", flags))
         self.e.run(settle)
         return True
@@ -2163,6 +2167,7 @@ def sc_mega(sc: Scenario, e: Emu, args) -> None:
     st = ram.read()
     if st is not None and not ram.validate(st):
         sc.note(ram.why)
+    ram.set_flags(0)                         # no idle drift: its ease home would read as the Mega camera
     cam0 = ram.cam()                         # chunk 4: the home pose before the turn (None on older ROMs)
     home_img = scene(e.screens())
     base_bg0 = _region_pixels(e.render_layers(LAYER_BG0, marker=True))
@@ -3013,6 +3018,51 @@ def _camera_turn(sc: Scenario, e: Emu, args, ram: StageRam, slot: int, what: str
     return e.battle_menu_up(), polls, anim
 
 
+IDLE_WATCH = 300                         # frames the idle drift is watched at the command menu
+IDLE_START_MAX = 90                      # it leaves home within this many frames (it holds home for 60 first)
+IDLE_HOME_MAX = 40                       # after the move is picked, home within this many frames (an ease of 16)
+
+
+def _idle_checks(sc: Scenario, e: Emu, args, ram: StageRam) -> None:
+    """camera.md, idle drift: with no debug flags (NO_IDLE_CAMERA left off) the camera leaves home under the
+    command menu, the menu stays up and answers, and picking a move eases it home before the animation (no
+    guard snap, offHomeMoveFrames stays 0)."""
+    ram.set_flags(0, idle=True)
+    polls: List[tuple] = []
+    frames: List[Frame] = []
+    for t in range(IDLE_WATCH):
+        e.run(1)
+        c = ram.cam()
+        if c is not None:
+            polls.append((t, c))
+        if t % 20 == 0:
+            frames.append(e.snap(f"idle+{t}"))
+    sc.sheet(frames, "idle", "idle drift at the command menu, every 20 frames", screen="top", cols=5, scale=0.5)
+    off = [t for t, c in polls if not c["home"]]
+    sc.check("idle: the camera leaves home under the command menu", bool(off) and off[0] <= IDLE_START_MAX,
+             f"first frame off home: {off[0]}, {len(off)} of {len(polls)} frames off home" if off
+             else f"home on all {len(polls)} frames read")
+    sc.check("idle: the command menu stays up while the camera drifts", e.battle_menu_up(),
+             why="the menu went away (or never drew) while the idle drift ran")
+    before = ram.cam()
+    back, tpolls, anim = _camera_turn(sc, e, args, ram, FALSE_SWIPE_SLOT, "idle turn")
+    sc.sheet(anim, "idle_turn", "idle drift: False Swipe + enemy turn, every 3 frames (deduped)", screen="top",
+             dedupe_screen="top")
+    if before is None or not tpolls:
+        sc.warn("idle: turn camera reads", "no camera read before or during the turn")
+        return
+    home_at = next((t for t, c in tpolls if c["home"]), None)
+    sc.check("idle: home soon after the move is picked", home_at is not None and home_at <= IDLE_HOME_MAX,
+             f"first frame home: {home_at}" if home_at is not None else "never home over the turn")
+    snaps = max(c["guardSnaps"] for _, c in tpolls) - before["guardSnaps"]
+    sc.check("idle: no guard snap over the turn", snaps == 0, f"guardSnaps rose by {snaps}",
+             why="an animation script started with the camera still off home")
+    ohm = max(c["offHomeMoveFrames"] for _, c in tpolls)
+    sc.check("idle: offHomeMoveFrames == 0", ohm == 0, _cam_detail(tpolls[-1][1]))
+    if not back:
+        _after_turn(e)
+
+
 def _cam_detail(c: dict) -> str:
     return (f"camFlags {c['camFlags']:#x} ({cam_names(c['camFlags'])}), cinematicsSeen {c['cinematicsSeen']:#x} "
             f"({cine_names(c['cinematicsSeen'])}), guardSnaps {c['guardSnaps']}, offHomeMoveFrames "
@@ -3173,7 +3223,7 @@ def _faint_cutguard(sc: Scenario, ram: StageRam, polls: List[tuple]) -> None:
 
 
 def sc_camera(sc: Scenario, e: Emu, args) -> None:
-    """Chunk 4 (docs/living_battle_stage/camera.md): the battle-start sweep, no kicks with NO_CINEMATICS, a
+    """Chunk 4 (docs/living_battle_stage/camera.md): the battle-start sweep, the idle drift, no kicks with NO_CINEMATICS, a
     tester move at home, the crit kick (CRIT_KICK_ON_HIT) and the faint kick (a second battle with the debug
     Garchomp). Needs a ROM whose sBattleStage has the camera fields (>= 96 bytes in the xMAP); without them
     the whole flow still plays, with one WARN and the camera checks skipped."""
@@ -3205,6 +3255,10 @@ def sc_camera(sc: Scenario, e: Emu, args) -> None:
     if cut_live:
         cutguard_checks(sc, ram, polls, "sweep", seq=True)
     e.run(30)
+
+    # -- the idle drift under the command menu, then a turn that must start at home
+    if live:
+        _idle_checks(sc, e, args, ram)
 
     # -- no kicks: NO_CINEMATICS, then a damaging move (False Swipe never KOs) must not move the camera
     if not ram.set_flags(NO_CINEMATICS) and live:
