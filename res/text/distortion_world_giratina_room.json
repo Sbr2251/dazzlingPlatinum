@@ -136,6 +136,22 @@
         "The Distortion World. Team Galactic's\n",
         "defeat, and the final words it left."
       ]
+    },
+    {
+      "id": "pl_msg_00000320_00017",
+      "en_US": [
+        "Cyrus: Giratina...?!\r",
+        "You were not defeated at all.\n",
+        "...You were waiting.\r"
+      ]
+    },
+    {
+      "id": "pl_msg_00000320_00018",
+      "en_US": [
+        "Cynthia: It took him...\r",
+        "Wherever Giratina has taken Cyrus,\n",
+        "I fear this is only the beginning.\r"
+      ]
     }
   ]
 }

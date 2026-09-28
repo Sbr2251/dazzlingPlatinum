@@ -171,8 +171,9 @@ _0232:
     End
 
 /* Arc 1 opening: a new game starts here (src/location.c). The last exchange between Cyrus and
- * Cynthia after GIRATINA, with the player as the hero and GIRATINA itself absent. Runs from the
- * init frame table while VAR_ARC1_PROGRESS == 0, then hands off to the Lake Verity roof landing. */
+ * Cynthia after GIRATINA, with the player as the hero. As Cyrus leaves, GIRATINA (never defeated or
+ * caught) rises and takes him. Runs from the init frame table while VAR_ARC1_PROGRESS == 0, then hands
+ * off to the Lake Verity roof landing, where Cyrus falls out of the portal. */
 DistortionWorldGiratinaRoom_Arc1Flashback:
     LockAll
     WaitTime 30, VAR_RESULT
@@ -192,15 +193,48 @@ DistortionWorldGiratinaRoom_Arc1Flashback:
     Message 9
     Message 10
     CloseMessage
-    ApplyMovement 130, _0274
+    ApplyMovement 130, DistortionWorldGiratinaRoom_Arc1CyrusLeave
+    ApplyFreeCameraMovement DistortionWorldGiratinaRoom_Arc1CameraFollowCyrus
     WaitMovement
+    WaitTime 30, VAR_RESULT
+    PlayCry SPECIES_GIRATINA
+    WaitCry
+    ApplyMovement 130, DistortionWorldGiratinaRoom_Arc1CyrusNotice
+    WaitMovement
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    /* GIRATINA's Distortion World object only spawns at progress 13 (before the stock battle). */
+    SetVarFromVar VAR_0x8006, VAR_DISTORTION_WORLD_PROGRESS
+    SetVar VAR_DISTORTION_WORLD_PROGRESS, 13
+    ScrCmd_311 128
+    SetVarFromVar VAR_DISTORTION_WORLD_PROGRESS, VAR_0x8006
+    SetPosition 128, 15, 2, 21, DIR_SOUTH
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    PlayCry SPECIES_GIRATINA
+    Message 17
+    WaitCry
+    CloseMessage
+    ApplyMovement 128, DistortionWorldGiratinaRoom_Arc1GiratinaLunge
+    WaitMovement
+    PlayCry SPECIES_GIRATINA
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
     ScrCmd_312 130
-    ApplyFreeCameraMovement _0288
+    ScrCmd_312 128
+    WaitTime 15, VAR_RESULT
+    FadeScreenIn FADE_SCREEN_SPEED_SLOW, COLOR_WHITE
+    WaitFadeScreen
+    WaitCry
+    WaitTime 30, VAR_RESULT
+    ApplyFreeCameraMovement DistortionWorldGiratinaRoom_Arc1CameraBack
     WaitMovement
     RestoreCamera
-    ApplyMovement 129, _0264
+    ApplyMovement 129, _0258
     WaitMovement
-    Message 11
+    Message 18
     CloseMessage
     WaitTime 30, VAR_RESULT
     FadeScreenOut FADE_SCREEN_SPEED_SLOW
@@ -253,4 +287,30 @@ _0280:
     .balign 4, 0
 _0288:
     WalkNormalNorth 5
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldGiratinaRoom_Arc1CyrusLeave:
+    MoveAction_118
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldGiratinaRoom_Arc1CyrusNotice:
+    WalkOnSpotNormalNorth
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldGiratinaRoom_Arc1GiratinaLunge:
+    WalkFastSouth
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldGiratinaRoom_Arc1CameraFollowCyrus:
+    WalkNormalSouth 3
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldGiratinaRoom_Arc1CameraBack:
+    WalkFastNorth 8
     EndMovement
