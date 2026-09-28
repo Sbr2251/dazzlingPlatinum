@@ -6,6 +6,7 @@
 #include "constants/field/dynamic_map_features.h"
 #include "constants/field/map.h"
 #include "constants/field/map_load.h"
+#include "constants/field/map_tile_behaviors.h"
 #include "constants/heap.h"
 #include "generated/map_headers.h"
 
@@ -95,6 +96,23 @@
 
 // Build model 581 (d5_ana_pl): the Distortion World portal prop on the Lake Verity castle terrace.
 #define LAKE_VERITY_PORTAL_MAP_PROP_MODEL 581
+
+// The portal's footprint on the castle terrace (layout.py PORTAL_TILES, centred on (32, 27)). Its land data blocks
+// these tiles (collision bit set); while the portal is hidden they get the attributes of the plain terrace around
+// them (walkable, no tile behavior). The BDHC is already a flat plane at the terrace height over the whole
+// footprint, so the player walks across it at the same height as the rest of the terrace.
+#define PORTAL_TILE(x, z) { (x), (z), TILE_BEHAVIOR_NONE }
+
+static const TerrainAttributeOverride sLakeVerityPortalFootprint[] = {
+    PORTAL_TILE(30, 24), PORTAL_TILE(31, 24), PORTAL_TILE(32, 24), PORTAL_TILE(33, 24), PORTAL_TILE(34, 24),
+    PORTAL_TILE(29, 25), PORTAL_TILE(30, 25), PORTAL_TILE(31, 25), PORTAL_TILE(32, 25), PORTAL_TILE(33, 25), PORTAL_TILE(34, 25), PORTAL_TILE(35, 25),
+    PORTAL_TILE(29, 26), PORTAL_TILE(30, 26), PORTAL_TILE(31, 26), PORTAL_TILE(32, 26), PORTAL_TILE(33, 26), PORTAL_TILE(34, 26), PORTAL_TILE(35, 26),
+    PORTAL_TILE(29, 27), PORTAL_TILE(30, 27), PORTAL_TILE(31, 27), PORTAL_TILE(32, 27), PORTAL_TILE(33, 27), PORTAL_TILE(34, 27), PORTAL_TILE(35, 27),
+    PORTAL_TILE(29, 28), PORTAL_TILE(30, 28), PORTAL_TILE(31, 28), PORTAL_TILE(32, 28), PORTAL_TILE(33, 28), PORTAL_TILE(34, 28), PORTAL_TILE(35, 28),
+    PORTAL_TILE(30, 29), PORTAL_TILE(31, 29), PORTAL_TILE(32, 29), PORTAL_TILE(33, 29), PORTAL_TILE(34, 29),
+};
+
+#undef PORTAL_TILE
 
 FS_EXTERN_OVERLAY(overlay6);
 FS_EXTERN_OVERLAY(overlay7);
@@ -826,8 +844,8 @@ static void FieldSystem_InitLandManager(FieldSystem *fieldSystem)
     LandDataManager_InitialLoad(fieldSystem->landDataMan, fieldSystem->location->x, fieldSystem->location->z);
 }
 
-// On Lake Verity, hides the portal prop while FLAG_LAKE_VERITY_PORTAL_HIDDEN is set and shows it
-// otherwise. The land data manager keeps hiding it in every map chunk it loads afterwards
+// On Lake Verity, hides the portal prop and makes its footprint walkable while FLAG_LAKE_VERITY_PORTAL_HIDDEN
+// is set, and shows it and blocks the footprint again otherwise. The land data manager keeps hiding it in every map chunk it loads afterwards
 // (initial load and chunk streaming), and it is rebuilt on every field map start (warps, menus,
 // battles, loading a save), which calls this again. Does nothing on other maps.
 void FieldMap_UpdateLakeVerityPortal(FieldSystem *fieldSystem)
@@ -838,8 +856,10 @@ void FieldMap_UpdateLakeVerityPortal(FieldSystem *fieldSystem)
 
     if (VarsFlags_CheckFlag(SaveData_GetVarsFlags(fieldSystem->saveData), FLAG_LAKE_VERITY_PORTAL_HIDDEN)) {
         LandDataManager_SetHiddenMapPropModel(fieldSystem->landDataMan, LAKE_VERITY_PORTAL_MAP_PROP_MODEL);
+        LandDataManager_SetTerrainAttributeOverrides(fieldSystem->landDataMan, sLakeVerityPortalFootprint, NELEMS(sLakeVerityPortalFootprint));
     } else {
         LandDataManager_SetHiddenMapPropModel(fieldSystem->landDataMan, 0);
+        LandDataManager_SetTerrainAttributeOverrides(fieldSystem->landDataMan, NULL, 0);
     }
 }
 

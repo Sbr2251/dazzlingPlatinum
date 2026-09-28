@@ -17,6 +17,17 @@
 
 typedef void (*MapLoadedCallback)(void *, const int, MapPropManager *const);
 
+// Maximum number of tiles a LandDataManager can override the terrain attributes of.
+#define MAX_TERRAIN_ATTRIBUTE_OVERRIDES 48
+
+// Replaces the terrain attributes (collision bit + tile behavior) that a map chunk's land data has for one tile.
+// tileX and tileZ are map matrix tile coordinates (the same as the player's tile position).
+typedef struct TerrainAttributeOverride {
+    u16 tileX;
+    u16 tileZ;
+    u16 attributes;
+} TerrainAttributeOverride;
+
 void LandDataManager_Tick(FieldSystem *fieldSystem, LandDataManager *landDataMan);
 LandDataManager *LandDataManager_New(MapMatrix *mapMatrix, AreaDataManager *areaDataMan, MapPropAnimationManager *mapPropAnimMan, const BOOL skipAttributes);
 void LandDataManager_InitialLoad(LandDataManager *landDataMan, const int playerTileX, const int playerTileZ);
@@ -38,6 +49,7 @@ const BDHC *LandDataManager_GetLoadedMapBDHC(const LandDataManager *landDataMan,
 u16 const *LandDataManager_GetLoadedMapTerrainAttributes(const LandDataManager *landDataMan, const u8 loadedMapIndex);
 void LandDataManager_SetMapLoadedCallback(LandDataManager *landDataMan, MapLoadedCallback mapLoadedCb, void *cbUserData);
 void LandDataManager_SetHiddenMapPropModel(LandDataManager *landDataMan, int modelID);
+void LandDataManager_SetTerrainAttributeOverrides(LandDataManager *landDataMan, const TerrainAttributeOverride *overrides, int count);
 NARC *LandDataManager_GetLandDataNARC(LandDataManager *landDataMan);
 void LandDataManager_SetInDistortionWorld(LandDataManager *landDataMan, BOOL inDistortionWorld);
 int LandDataManager_GetOffsetTileX(const LandDataManager *landDataMan);

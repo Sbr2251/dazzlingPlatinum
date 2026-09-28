@@ -134,6 +134,9 @@ struct LandDataManager {
     BOOL inDistortionWorld;
     BOOL skipMapProps;
     int hiddenMapPropModelID;
+    const TerrainAttributeOverride *terrainAttrOverrides;
+    int terrainAttrOverrideCount;
+    u16 terrainAttrOverrideOriginals[MAX_TERRAIN_ATTRIBUTE_OVERRIDES];
     int offsetTileX;
     int offsetAltitude;
     int offsetTileZ;
@@ -199,7 +202,7 @@ static BOOL LandDataManager_SetMapsToLazyLoaderManager(LandDataManager *landData
 static void LandDataHeader_Load(NARC *landDataNARC, const int landDataID, LandDataHeader *landDataHeader);
 static void LandDataManager_LazyLoad(const u8 index, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, LandDataManager *landDataMan, MapLazyLoader *loader);
 static void LandDataManager_LazyLoadWithoutAttributes(const u8 index, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, LandDataManager *landDataMan, MapLazyLoader *loader);
-static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, const LandDataManager *landDataMan);
+static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
 static void LandDataManager_LoadWithoutAttributes(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
 static void LandDataManager_LoadWithoutModel(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
 static void LandDataManager_QueueLazyLoadNextMapPair(const int trackedTargetMapMatrixIndex, const u8 trackedTargetDirection, LandDataManager *landDataMan);
@@ -224,6 +227,7 @@ static void LandDataManager_DistortionWorldInitAndLoad(LandDataManager *landData
 static void LandDataManager_DistortionWorldLoad(const int mapMatrixIndex, const u8 loadedMapIndex, const AreaDataManager *areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
 static void LandDataManager_DistortionWorldRenderNextFloorMap(const u8 index, const LandDataManager *landDataMan, const ModelAttributes *modelAttrs);
 static void LandDataManager_HideMapProps(const LandDataManager *landDataMan, MapPropManager *mapPropManager);
+static void LandDataManager_ApplyTerrainAttributeOverrides(LandDataManager *landDataMan, u16 *terrainAttributes, const int mapMatrixIndex);
 
 static const MapLoadFunctions sMapLoadFns = {
     LandDataManager_InitAndLoad,
@@ -500,6 +504,7 @@ static void LandDataManager_LazyLoad(const u8 index, AreaDataManager *const area
 
     void *terrainAttributes = &loader->loadSlots[index]->terrainAttributes;
     NARC_ReadFile(landDataMan->landDataNARC, landDataHeader.terrainAttributesSize, terrainAttributes);
+    LandDataManager_ApplyTerrainAttributeOverrides(landDataMan, loader->loadSlots[index]->terrainAttributes, mapMatrixIndex);
 
     if (loader->loadSlots[index]->mapPropManager != NULL) {
         MapPropManager_Load(landDataMan->landDataNARC, landDataHeader.mapPropsSize, areaDataMan, loader->loadSlots[index]->mapPropManager, landDataMan->mapPropAnimMan);
@@ -554,7 +559,7 @@ static void LandDataManager_LazyLoadWithoutAttributesAndProps(const u8 index, co
     loader->mapModelLoadSysTask = LandDataManager_LazyLoadMapModel(landDataMan->landDataNARC, landDataHeader.mapModelSize, &loader->loadSlots[index]->mapRenderObj, &loader->loadSlots[index]->mapModelFile, AreaDataManager_GetMapTexture(areaDataMan), &loader->loadSlots[index]->valid, &loader->mapLoadTasksState.mapModelTaskRunning);
 }
 
-static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, const LandDataManager *landDataMan)
+static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan)
 {
     LAND_DATA_LOADER_ASSERT_MAP_MATRIX_INDEX(mapMatrixIndex, mapMatrixWidth, mapMatrixHeight);
 
@@ -566,6 +571,7 @@ static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapInd
 
     void *terrainAttributes = landDataMan->loadedMaps[loadedMapIndex]->terrainAttributes;
     NARC_ReadFile(landDataMan->landDataNARC, landDataHeader.terrainAttributesSize, terrainAttributes);
+    LandDataManager_ApplyTerrainAttributeOverrides(landDataMan, landDataMan->loadedMaps[loadedMapIndex]->terrainAttributes, mapMatrixIndex);
 
     if (landDataMan->loadedMaps[loadedMapIndex]->mapPropManager != NULL) {
         MapPropManager_Load(landDataMan->landDataNARC, landDataHeader.mapPropsSize, areaDataMan, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager, landDataMan->mapPropAnimMan);
@@ -629,6 +635,7 @@ static void LandDataManager_LoadWithoutModel(const int mapMatrixIndex, const u8 
 
     void *terrainAttributes = landDataMan->loadedMaps[loadedMapIndex]->terrainAttributes;
     NARC_ReadFile(landDataMan->landDataNARC, landDataHeader.terrainAttributesSize, terrainAttributes);
+    LandDataManager_ApplyTerrainAttributeOverrides(landDataMan, landDataMan->loadedMaps[loadedMapIndex]->terrainAttributes, mapMatrixIndex);
 
     if (landDataMan->loadedMaps[loadedMapIndex]->mapPropManager != NULL) {
         MapPropManager_Load(landDataMan->landDataNARC, landDataHeader.mapPropsSize, areaDataMan, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager, landDataMan->mapPropAnimMan);
@@ -1923,6 +1930,75 @@ void LandDataManager_SetHiddenMapPropModel(LandDataManager *landDataMan, int mod
     for (u8 i = 0; i < QUADRANT_COUNT; i++) {
         if (landDataMan->loadedMaps[i] != NULL) {
             LandDataManager_HideMapProps(landDataMan, landDataMan->loadedMaps[i]->mapPropManager);
+        }
+    }
+}
+
+// Returns the index in a map chunk's terrain attributes of an override's tile if the tile is in the chunk at
+// mapMatrixIndex, or -1 otherwise.
+static int LandDataManager_GetTerrainAttributeOverrideTileIndex(const LandDataManager *landDataMan, const TerrainAttributeOverride *override, const int mapMatrixIndex)
+{
+    int overrideMapMatrixIndex = (override->tileZ / MAP_TILES_COUNT_Z) * landDataMan->mapMatrixWidth + override->tileX / MAP_TILES_COUNT_X;
+
+    if (mapMatrixIndex < 0 || overrideMapMatrixIndex != mapMatrixIndex) {
+        return -1;
+    }
+
+    return (override->tileZ % MAP_TILES_COUNT_Z) * MAP_TILES_COUNT_X + override->tileX % MAP_TILES_COUNT_X;
+}
+
+// Writes the overridden attributes of the tiles in the chunk at mapMatrixIndex into its terrain attributes buffer,
+// saving the values they replace. Called right after the buffer is read from the land data, before any collision
+// check can see it.
+static void LandDataManager_ApplyTerrainAttributeOverrides(LandDataManager *landDataMan, u16 *terrainAttributes, const int mapMatrixIndex)
+{
+    for (int i = 0; i < landDataMan->terrainAttrOverrideCount; i++) {
+        const TerrainAttributeOverride *override = &landDataMan->terrainAttrOverrides[i];
+        int tileIndex = LandDataManager_GetTerrainAttributeOverrideTileIndex(landDataMan, override, mapMatrixIndex);
+
+        if (tileIndex >= 0) {
+            landDataMan->terrainAttrOverrideOriginals[i] = terrainAttributes[tileIndex];
+            terrainAttributes[tileIndex] = override->attributes;
+        }
+    }
+}
+
+// Puts back the values saved by LandDataManager_ApplyTerrainAttributeOverrides.
+static void LandDataManager_RevertTerrainAttributeOverrides(LandDataManager *landDataMan, u16 *terrainAttributes, const int mapMatrixIndex)
+{
+    for (int i = 0; i < landDataMan->terrainAttrOverrideCount; i++) {
+        const TerrainAttributeOverride *override = &landDataMan->terrainAttrOverrides[i];
+        int tileIndex = LandDataManager_GetTerrainAttributeOverrideTileIndex(landDataMan, override, mapMatrixIndex);
+
+        if (tileIndex >= 0) {
+            terrainAttributes[tileIndex] = landDataMan->terrainAttrOverrideOriginals[i];
+        }
+    }
+}
+
+// Overrides the terrain attributes of the given tiles, in the maps already loaded and in every map loaded from now
+// on (initial load and lazy loading), until this manager is freed. The previous overrides, if any, are reverted to
+// the land data's values first. Pass NULL / 0 to remove all overrides. The array must stay valid while it is set.
+void LandDataManager_SetTerrainAttributeOverrides(LandDataManager *landDataMan, const TerrainAttributeOverride *overrides, int count)
+{
+    GF_ASSERT(count >= 0 && count <= MAX_TERRAIN_ATTRIBUTE_OVERRIDES);
+
+    if (overrides == landDataMan->terrainAttrOverrides && count == landDataMan->terrainAttrOverrideCount) {
+        return;
+    }
+
+    for (u8 i = 0; i < QUADRANT_COUNT; i++) {
+        if (landDataMan->loadedMaps[i] != NULL) {
+            LandDataManager_RevertTerrainAttributeOverrides(landDataMan, landDataMan->loadedMaps[i]->terrainAttributes, landDataMan->loadedMaps[i]->mapMatrixIndex);
+        }
+    }
+
+    landDataMan->terrainAttrOverrides = overrides;
+    landDataMan->terrainAttrOverrideCount = overrides != NULL ? count : 0;
+
+    for (u8 i = 0; i < QUADRANT_COUNT; i++) {
+        if (landDataMan->loadedMaps[i] != NULL) {
+            LandDataManager_ApplyTerrainAttributeOverrides(landDataMan, landDataMan->loadedMaps[i]->terrainAttributes, landDataMan->loadedMaps[i]->mapMatrixIndex);
         }
     }
 }

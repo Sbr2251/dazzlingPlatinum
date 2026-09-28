@@ -320,9 +320,9 @@ LakeVerity_GruntM:
     .balign 4, 0
 
 // bg events on the 18 edge tiles of the stock Distortion World portal (map prop 581), centred on LAUNCHPAD (32,27)
-// in the middle of the castle's open roof terrace (h4). The footprint is blocked, so the player faces the portal
-// from a neighbouring tile; see PORTAL_TILES / PORTAL_EDGE in tools/lake_verity/layout.py
-// Inert while the portal is hidden (it closes during the Arc 1 arrival scene).
+// in the middle of the castle's open roof terrace (h4). While the portal is open its footprint is blocked, so the
+// player faces it from a neighbouring tile; see PORTAL_TILES / PORTAL_EDGE in tools/lake_verity/layout.py
+// Inert while the portal is hidden (it closes during the Arc 1 arrival scene); the footprint is walkable then.
 LakeVerity_Launchpad:
     GoToIfSet FLAG_LAKE_VERITY_PORTAL_HIDDEN, LakeVerity_LaunchpadHidden
     PlayFanfare SEQ_SE_CONFIRM
