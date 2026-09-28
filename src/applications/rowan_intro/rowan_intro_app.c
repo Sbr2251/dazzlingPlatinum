@@ -52,66 +52,9 @@ FS_EXTERN_OVERLAY(game_start);
 enum RowanIntroState {
     RI_STATE_FIRST_FADE_BLACK_START = 0,
     RI_STATE_FIRST_FADE_BLACK_END,
-    RI_STATE_DIALOGUE_WELCOME,
     RI_STATE_FADE_IN_ROWAN_START,
     RI_STATE_FADE_IN_ROWAN_END,
-    RI_STATE_DIALOGUE_ROWAN_INTRO,
-    RI_STATE_MOVE_ROWAN_RIGHT_FOR_INFO,
-    RI_STATE_INFO_CHOICE_BOX,
-    RI_STATE_INFO_FADE_BLACK_START,
-    RI_STATE_INFO_FADE_BLACK_END,
-    RI_STATE_CONTROL_INFO_FADE_IN_START,
-    RI_STATE_CONTROL_INFO_FADE_IN_END,
-    RI_STATE_CONTROL_INFO_TEXT_0,
-    RI_STATE_CONTROL_INFO_SHOW_XY_ICONS,
-    RI_STATE_CONTROL_INFO_TEXT_1,
-    RI_STATE_CONTROL_INFO_HIDE_XY_ICONS,
-    RI_STATE_CONTROL_INFO_TEXT_2,
-    RI_STATE_CONTROL_INFO_DIALOGUE_DS_ICON,
-    RI_STATE_CONTROL_INFO_TEXT_3,
-    RI_STATE_CONTROL_INFO_HIDE_FG,
-    RI_STATE_CONTROL_INFO_DIALOGUE_UNDERSTOOD,
-    RI_STATE_CONTROL_INFO_SHOW_YESNO,
-    RI_STATE_CONTROL_INFO_WAIT_INPUT,
-    RI_STATE_CONTROL_INFO_PROCESS_YESNO,
-    RI_STATE_CONTROL_INFO_FADE_OUT_START,
-    RI_STATE_CONTROL_INFO_FADE_OUT_END,
-    RI_STATE_CONTROL_INFO_REPEAT,
-    RI_STATE_CONTROL_INFO_DIALOGUE_USE_TOUCHSCREEN,
-    RI_STATE_FADE_IN_ROWAN_2_START,
-    RI_STATE_FADE_IN_ROWAN_2_END,
-    RI_STATE_DIALOGUE_ANOTHER_INFO,
-    RI_STATE_ADVENTURE_INFO_FADE_IN_START,
-    RI_STATE_ADVENTURE_INFO_FADE_IN_END,
-    RI_STATE_ADVENTURE_INFO_TEXT_0,
-    RI_STATE_ADVENTURE_INFO_TEXT_1,
-    RI_STATE_ADVENTURE_INFO_TEXT_2,
-    RI_STATE_ADVENTURE_INFO_TEXT_3,
-    RI_STATE_ADVENTURE_INFO_TEXT_4,
-    RI_STATE_ADVENTURE_INFO_TEXT_5,
-    RI_STATE_ADVENTURE_INFO_FADE_OUT_START,
-    RI_STATE_ADVENTURE_INFO_FADE_OUT_END,
-    RI_STATE_LEFT_ROWAN_AFTER_INFO,
-    RI_STATE_DIALOGUE_WIDELY_INHABITED,
-    RI_STATE_PKBL_FADE_START,
-    RI_STATE_PKBL_FADE_MIDDLE,
-    RI_STATE_PKBL_FADE_END,
-    RI_STATE_PKBL_DIALOGUE,
-    RI_STATE_PKBL_WAIT_INPUT,
-    RI_STATE_PKBL_ANIM_PUSH_IN,
-    RI_STATE_PKBL_DIALOGUE_USE_TOUCHSCREEN,
-    RI_STATE_PKBL_ANIM_FLASH_0,
-    RI_STATE_PKBL_ANIM_FLASH_1,
-    RI_STATE_PKBL_ANIM_FLASH_2,
-    RI_STATE_PKBL_ANIM_FLASH_3,
-    RI_STATE_PKBL_ANIM_SPAWN_PKM_AND_FLASH_4,
-    RI_STATE_PKBL_ANIM_MV_PKM_UP_AND_FLASH_END,
-    RI_STATE_PKBL_ANIM_MV_PKM_DOWN_AND_BOUNCE,
-    RI_STATE_PKBL_ANIM_END_DELAY,
-    RI_STATE_PKBL_DIALOGUE_LIVE_ALONGSIDE,
-    RI_STATE_PKBL_PUT_AWAY_PKM,
-    RI_STATE_BETWEEN_DIALOGUE_DELAY,
-    RI_STATE_DIALOGUE_ABOUT_YOURSELF,
+    RI_STATE_DIALOGUE_WELCOME,
     RI_STATE_GENDR_FADE_OUT_ROWAN,
     RI_STATE_GENDR_FADE_IN_AVATAR_PREP,
     RI_STATE_GENDR_FADE_IN_AVATAR_MALE,
@@ -134,7 +77,6 @@ enum RowanIntroState {
     RI_STATE_NAME_FADE_OUT_AVATAR,
     RI_STATE_LOAD_ROWAN_TILEMAP_0,
     RI_STATE_FADE_IN_ROWAN_AFTER_NAME,
-    RI_STATE_DIALOGUE_SO_YOURE,
     RI_STATE_FADE_OUT_ROWAN_FOR_RIVAL,
     RI_STATE_LOAD_RIVAL_TILEMAP,
     RI_STATE_FADE_IN_RIVAL,
@@ -190,35 +132,9 @@ enum DisplayMessageState {
     DM_STATE_END,
 };
 
-enum BunearyAnimState {
-    BA_STATE_INIT = 0,
-    BA_STATE_MOVE_UP_BOTTOM_SCREEN,
-    BA_STATE_SHOW_ON_TOP_SCREEN,
-    BA_STATE_JUMP_UP_AND_DOWN,
-    BA_STATE_JUMP_RIGHT,
-    BA_STATE_JUMP_LEFT,
-    BA_STATE_END,
-};
-
 enum ChoicesCase {
     CC_YESNO = 0,
-    CC_INFO,
     CC_RIVAL_NAMES,
-};
-
-enum DisplayTextBlockCase {
-    DTBC_CONTROL_INFO_0 = 0,
-    DTBC_ADVENTURE_INFO,
-    DTBC_CONTROL_INFO_1,
-};
-
-enum DisplayTextBlockState {
-    DTB_STATE_INIT = 0,
-    DTB_STATE_COPY_WINDOW_TO_VRAM,
-    DTB_STATE_FADE_IN_TEXT,
-    DTB_STATE_WAIT_FOR_INPUT,
-    DTB_STATE_FADE_OUT_TEXT,
-    DTB_STATE_EXIT,
 };
 
 typedef struct RowanIntro {
@@ -237,7 +153,6 @@ typedef struct RowanIntro {
     int playerChoice;
     MessageLoader *msgLoader;
     enum DisplayMessageState displayMessageState;
-    enum DisplayTextBlockState displayTextBlockState;
     int textPrinterID;
     String *string;
     UnkStruct_020157E4 *unk_60;
@@ -262,18 +177,8 @@ typedef struct RowanIntro {
     u8 femaleRunAnimSpriteIndex;
     u8 femaleRunAnimUpdateCounter;
     int delayUpdateCounter;
-    union {
-        int progressCounter;
-        enum BunearyAnimState bunearyAnimState;
-    } animData;
+    int animProgressCounter;
     int animDelayUpdateCounter;
-    int unused2[3];
-    int bunearyAnimCarryover;
-    int bunearyParabolaCoeff;
-    int bunearyAnimUpdateCounter;
-    int bunearyPaletteBlendUpdateCounter;
-    u16 *bunearyPalette;
-    u16 *bunearyBlendedPalette;
 } RowanIntro;
 
 static void RowanIntro_VBlankCallback(void *manager);
@@ -330,8 +235,6 @@ BOOL RowanIntro_Init(ApplicationManager *appMan, int *unusedState)
     manager->bgLayer2TilemapIndex = 0;
     manager->bgSubLayer3TilemapIndex = 0;
     manager->delayUpdateCounter = 0;
-    manager->bunearyPalette = Heap_Alloc(HEAP_ID_ROWAN_INTRO, 0x20);
-    manager->bunearyBlendedPalette = Heap_Alloc(HEAP_ID_ROWAN_INTRO, 0x20);
 
     return TRUE;
 }
@@ -429,9 +332,6 @@ BOOL RowanIntro_Exit(ApplicationManager *appMan, int *unusedState)
     RowanIntro *manager = ApplicationManager_Data(appMan);
     enum HeapID heapID = manager->heapID;
 
-    Heap_Free(manager->bunearyPalette);
-    Heap_Free(manager->bunearyBlendedPalette);
-
     TrainerInfo_SetNameFromString(
         SaveData_GetTrainerInfo(manager->saveData),
         manager->playerNamingScreenArgs->textInputStr);
@@ -458,36 +358,6 @@ static void RowanIntro_VBlankCallback(void *managerVoid)
 {
     RowanIntro *manager = managerVoid;
     Bg_RunScheduledUpdates(manager->bgConfig);
-}
-
-static BOOL RowanIntro_WasPokeballOpened(void)
-{
-    BOOL wasTouched = FALSE;
-    u16 xOffset, yOffset;
-
-    if (gSystem.touchPressed) {
-        if ((gSystem.touchX < 256) && (gSystem.touchY < 192)) {
-            if (gSystem.touchX < 128) {
-                xOffset = 128 - gSystem.touchX;
-            } else {
-                xOffset = gSystem.touchX - 128;
-            }
-
-            if (gSystem.touchY < 100) {
-                yOffset = 100 - gSystem.touchY;
-            } else {
-                yOffset = gSystem.touchY - 100;
-            }
-
-            // check that touched within or on boundary of
-            // circle of radius 16 from centre.
-            if ((xOffset * xOffset + yOffset * yOffset) <= 16 * 16) {
-                wasTouched = TRUE;
-            }
-        }
-    }
-
-    return wasTouched;
 }
 
 static void RowanIntro_InitGraphics(RowanIntro *manager)
@@ -696,7 +566,6 @@ static void RowanIntro_InitMessageStructs(RowanIntro *manager)
     manager->unk_60 = sub_0201567C(NULL, 0, 6, manager->heapID);
     manager->strFormatter = StringTemplate_Default(manager->heapID);
     manager->displayMessageState = DM_STATE_INIT;
-    manager->displayTextBlockState = DTB_STATE_INIT;
     manager->choiceBoxState = 0;
 }
 
@@ -885,15 +754,6 @@ static const WindowTemplate sYesNoWindowTemplate = {
     .palette = 5,
     .baseTile = 0x355,
 };
-static const WindowTemplate sInfoChoiceBoxWindowTemplate = {
-    .bgLayer = BG_LAYER_MAIN_0,
-    .tilemapLeft = 1,
-    .tilemapTop = 3,
-    .width = 0x10,
-    .height = 6,
-    .palette = 5,
-    .baseTile = 0x30D,
-};
 static const WindowTemplate sRivalNamesChoiceBoxTemplate = {
     .bgLayer = BG_LAYER_MAIN_0,
     .tilemapLeft = 2,
@@ -903,25 +763,6 @@ static const WindowTemplate sRivalNamesChoiceBoxTemplate = {
     .palette = 5,
     .baseTile = 0x2E1,
 };
-const WindowTemplate sControlInfoTextWindow = {
-    .bgLayer = BG_LAYER_MAIN_0,
-    .tilemapLeft = 8,
-    .tilemapTop = 0,
-    .width = 0x18,
-    .height = 0x18,
-    .palette = 5,
-    .baseTile = 0x12D,
-};
-const WindowTemplate sAdventureInfoTextWindow = {
-    .bgLayer = BG_LAYER_MAIN_0,
-    .tilemapLeft = 4,
-    .tilemapTop = 0,
-    .width = 0x18,
-    .height = 0x18,
-    .palette = 5,
-    .baseTile = 0x12D,
-};
-
 static const ListMenuTemplate sChoiceBoxTemplate = {
     .choices = NULL,
     .cursorCallback = NULL,
@@ -947,12 +788,6 @@ static const ListMenuTemplate sChoiceBoxTemplate = {
 static const ChoiceInfo sYesNoChoiceInfos[] = {
     { .textID = RowanIntro_Text_ChoiceYes, .choiceIndex = 1 },
     { .textID = RowanIntro_Text_ChoiceNo, .choiceIndex = 2 }
-};
-
-static const ChoiceInfo sInfoChoiceInfos[] = {
-    { .textID = RowanIntro_Text_ChoiceControlInfo, .choiceIndex = 1 },
-    { .textID = RowanIntro_Text_ChoiceAdventureInfo, .choiceIndex = 2 },
-    { .textID = RowanIntro_Text_ChoiceNoInfo, .choiceIndex = 3 }
 };
 
 static const ChoiceInfo sRivalNameChoiceInfos[] = {
@@ -1069,11 +904,6 @@ static BOOL RowanIntro_ChoiceBox(RowanIntro *manager, enum ChoicesCase choicesCa
             choiceInfos = sYesNoChoiceInfos;
             choiceInfosLength = NELEMS(sYesNoChoiceInfos);
             break;
-        case CC_INFO:
-            windowTemplate = &sInfoChoiceBoxWindowTemplate;
-            choiceInfos = sInfoChoiceInfos;
-            choiceInfosLength = NELEMS(sInfoChoiceInfos);
-            break;
         case CC_RIVAL_NAMES:
             windowTemplate = &sRivalNamesChoiceBoxTemplate;
 
@@ -1138,123 +968,6 @@ static BOOL RowanIntro_ChoiceBox(RowanIntro *manager, enum ChoicesCase choicesCa
         Sound_PlayEffect(SEQ_SE_CONFIRM);
 
         manager->choiceBoxState = 0;
-        isFinished = TRUE;
-        break;
-    }
-
-    return isFinished;
-}
-
-static BOOL RowanIntro_DisplayTextBlock(
-    RowanIntro *manager,
-    u32 textID,
-    enum DisplayTextBlockCase whichCase,
-    int param3,
-    int param4)
-{
-    // param3 and param4 have different uses depending on what value is passed to whichCase
-
-    BOOL isFinished = FALSE;
-    WindowTemplate windowTemplate;
-
-    switch (manager->displayTextBlockState) {
-    case DTB_STATE_INIT:
-        Bg_ToggleLayer(BG_LAYER_MAIN_0, FALSE);
-        manager->string = String_Init(0x400, manager->heapID);
-        MessageLoader_GetString(manager->msgLoader, textID, manager->string);
-
-        if (whichCase == DTBC_ADVENTURE_INFO) {
-            windowTemplate = sAdventureInfoTextWindow;
-
-            {
-                u32 numLines = String_NumLines(manager->string);
-
-                windowTemplate.tilemapTop = 12 - numLines;
-                windowTemplate.height = numLines * 2;
-            }
-
-            Window_AddFromTemplate(
-                manager->bgConfig,
-                &manager->textWindow,
-                &windowTemplate);
-            Window_FillRectWithColor(
-                &manager->textWindow,
-                0,
-                0,
-                0,
-                24 * 8,
-                24 * 8);
-            Text_AddPrinterWithParamsAndColor(
-                &manager->textWindow,
-                FONT_SYSTEM,
-                manager->string,
-                0,
-                0,
-                TEXT_SPEED_INSTANT,
-                TEXT_COLOR(1, 2, 0),
-                NULL);
-        } else {
-            windowTemplate = sControlInfoTextWindow;
-
-            if (whichCase == DTBC_CONTROL_INFO_1) {
-                u32 numLines = String_NumLines(manager->string);
-
-                windowTemplate.tilemapTop = param3 + param4 / 2 - numLines;
-                windowTemplate.height = numLines * 2;
-            } else {
-                windowTemplate.tilemapTop = param3;
-                windowTemplate.height = param4;
-            }
-
-            Window_AddFromTemplate(
-                manager->bgConfig,
-                &manager->textWindow,
-                &windowTemplate);
-            Window_FillRectWithColor(
-                &manager->textWindow,
-                0,
-                0,
-                0,
-                24 * 8,
-                24 * 8);
-            Text_AddPrinterWithParamsAndColor(
-                &manager->textWindow,
-                FONT_SYSTEM,
-                manager->string,
-                0,
-                0,
-                TEXT_SPEED_INSTANT,
-                TEXT_COLOR(15, 2, 0),
-                NULL);
-        }
-
-        String_Free(manager->string);
-        manager->displayTextBlockState = DTB_STATE_COPY_WINDOW_TO_VRAM;
-        break;
-    case DTB_STATE_COPY_WINDOW_TO_VRAM:
-        Window_CopyToVRAM(&manager->textWindow);
-        manager->displayTextBlockState = DTB_STATE_FADE_IN_TEXT;
-        break;
-    case DTB_STATE_FADE_IN_TEXT:
-        if (RowanIntro_FadeBgLayer(manager, BG_LAYER_MAIN_0, FADE_IN) == TRUE) {
-            manager->displayTextBlockState = DTB_STATE_WAIT_FOR_INPUT;
-        }
-        break;
-    case DTB_STATE_WAIT_FOR_INPUT:
-        if (((gSystem.pressedKeys & PAD_BUTTON_A) == PAD_BUTTON_A) || ((gSystem.pressedKeys & PAD_BUTTON_B) == PAD_BUTTON_B)) {
-            Sound_PlayEffect(SEQ_SE_CONFIRM);
-            manager->displayTextBlockState = DTB_STATE_FADE_OUT_TEXT;
-        }
-        break;
-    case DTB_STATE_FADE_OUT_TEXT:
-        if (RowanIntro_FadeBgLayer(manager, BG_LAYER_MAIN_0, FADE_OUT) == TRUE) {
-            manager->displayTextBlockState = DTB_STATE_EXIT;
-        }
-        break;
-    case DTB_STATE_EXIT:
-        Window_Remove(&manager->textWindow);
-        Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
-        manager->displayTextBlockState = DTB_STATE_INIT;
         isFinished = TRUE;
         break;
     }
@@ -1441,228 +1154,6 @@ static void RowanIntro_LoadSubLayer3Tilemap(RowanIntro *manager)
     }
 }
 
-static const u8 sBunearyLoadTilemapRectRawData[] = {
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x40,
-    0x41,
-    0x8,
-    0x9,
-    0xA,
-    0xB,
-    0xC,
-    0xD,
-    0xE,
-    0xF,
-    0x42,
-    0x43,
-    0x10,
-    0x11,
-    0x12,
-    0x13,
-    0x14,
-    0x15,
-    0x16,
-    0x17,
-    0x44,
-    0x45,
-    0x18,
-    0x19,
-    0x1A,
-    0x1B,
-    0x1C,
-    0x1D,
-    0x1E,
-    0x1F,
-    0x46,
-    0x47,
-    0x20,
-    0x21,
-    0x22,
-    0x23,
-    0x24,
-    0x25,
-    0x26,
-    0x27,
-    0x48,
-    0x49,
-    0x28,
-    0x29,
-    0x2A,
-    0x2B,
-    0x2C,
-    0x2D,
-    0x2E,
-    0x2F,
-    0x4A,
-    0x4B,
-    0x30,
-    0x31,
-    0x32,
-    0x33,
-    0x34,
-    0x35,
-    0x36,
-    0x37,
-    0x4C,
-    0x4D,
-    0x38,
-    0x39,
-    0x3A,
-    0x3B,
-    0x3C,
-    0x3D,
-    0x3E,
-    0x3F,
-    0x4E,
-    0x4F,
-    0x50,
-    0x51,
-    0x52,
-    0x53,
-    0x58,
-    0x59,
-    0x5A,
-    0x5B,
-    0x60,
-    0x61,
-    0x54,
-    0x55,
-    0x56,
-    0x57,
-    0x5C,
-    0x5D,
-    0x5E,
-    0x5F,
-    0x62,
-    0x63
-};
-
-static void RowanIntro_LoadBunearySprite(RowanIntro *manager)
-{
-    PokemonSpriteTemplate spriteTemplate;
-    u16 *rawData;
-    void *tileSrc;
-    void *paletteBuffer;
-    // changing these to enum BgLayer causes the ROM checksum to fail.
-    int mainBgLayer = BG_LAYER_MAIN_2;
-    int subBgLayer = BG_LAYER_SUB_1;
-    int mainPalette = 8;
-    int subPalette = 10;
-
-    BuildPokemonSpriteTemplate(
-        &spriteTemplate,
-        SPECIES_BUNEARY,
-        GENDER_MALE,
-        FACE_FRONT,
-        FALSE,
-        NULL,
-        NULL);
-
-    rawData = Heap_Alloc(manager->heapID, (10 * 10) * 2);
-
-    {
-        int i;
-
-        for (i = 0; i < (10 * 10); i++) {
-            rawData[i] = sBunearyLoadTilemapRectRawData[i] + 1;
-        }
-    }
-
-    tileSrc = CharacterSprite_LoadTiles(
-        spriteTemplate.narcID,
-        spriteTemplate.character,
-        manager->heapID);
-    paletteBuffer = CharacterSprite_LoadPalette(
-        spriteTemplate.narcID,
-        spriteTemplate.palette,
-        manager->heapID);
-
-    MI_CpuCopy32(paletteBuffer, manager->bunearyPalette, 0x20);
-
-    BlendPalettes(manager->bunearyPalette, paletteBuffer, 1, 16, 0x6a3c);
-    Bg_FillTilemapRect(
-        manager->bgConfig,
-        mainBgLayer,
-        0,
-        0,
-        0,
-        32,
-        24,
-        mainPalette);
-    Bg_LoadToTilemapRect(
-        manager->bgConfig,
-        mainBgLayer,
-        rawData,
-        11,
-        9,
-        10,
-        10);
-
-    RowanIntro_ChangePaletteAndCopyTilemap(manager, mainBgLayer, mainPalette);
-
-    Bg_ClearTilesRange(mainBgLayer, 32, 0, manager->heapID);
-    Bg_LoadTiles(manager->bgConfig, mainBgLayer, tileSrc, (10 * 10) * 0x20, 1);
-    Bg_LoadPalette(mainBgLayer, paletteBuffer, 2 * 16, (2 * 16) * mainPalette);
-    Bg_FillTilemapRect(
-        manager->bgConfig,
-        subBgLayer,
-        0,
-        0,
-        0,
-        32,
-        24,
-        subPalette);
-    Bg_LoadToTilemapRect(manager->bgConfig, subBgLayer, rawData, 11, 7, 10, 10);
-
-    RowanIntro_ChangePaletteAndCopyTilemap(manager, subBgLayer, subPalette);
-
-    Bg_ClearTilesRange(subBgLayer, 32, 0, manager->heapID);
-    Bg_LoadTiles(manager->bgConfig, subBgLayer, tileSrc, (10 * 10) * 0x20, 1);
-    Bg_LoadPalette(subBgLayer, paletteBuffer, 2 * 16, (2 * 16) * subPalette);
-    Heap_Free(paletteBuffer);
-    Heap_Free(tileSrc);
-    Heap_Free(rawData);
-}
-
-static void RowanIntro_LoadPokeballTilemap(RowanIntro *manager)
-{
-    Graphics_LoadTilemapToBgLayer(
-        NARC_INDEX_DEMO__INTRO__INTRO,
-        40,
-        manager->bgConfig,
-        BG_LAYER_SUB_2,
-        0,
-        0,
-        FALSE,
-        manager->heapID);
-    RowanIntro_ChangePaletteAndCopyTilemap(manager, 6, 9);
-
-    Graphics_LoadPalette(
-        NARC_INDEX_DEMO__INTRO__INTRO,
-        41,
-        PAL_LOAD_SUB_BG,
-        7 * (2 * 16),
-        (2 * 16) * 3,
-        manager->heapID);
-    Bg_ClearTilesRange(BG_LAYER_SUB_2, 32, 0, manager->heapID);
-    Graphics_LoadTilesToBgLayer(
-        NARC_INDEX_DEMO__INTRO__INTRO,
-        32,
-        manager->bgConfig,
-        BG_LAYER_SUB_2,
-        0x20,
-        0,
-        FALSE,
-        manager->heapID);
-}
-
 static BOOL RowanIntro_MoveBgLayer(RowanIntro *manager, enum BgLayer bgLayer, enum MoveBgLayerCases mBLCase)
 {
     BOOL isFinished = FALSE;
@@ -1772,7 +1263,7 @@ static void RowanIntro_ResetBlending(RowanIntro *manager)
 
 static void RowanIntro_ResetAnimationCounters(RowanIntro *manager)
 {
-    manager->animData.progressCounter = 0;
+    manager->animProgressCounter = 0;
     manager->animDelayUpdateCounter = 0;
 }
 
@@ -1784,19 +1275,19 @@ static BOOL RowanIntro_AnimateAvatarShrink(RowanIntro *manager)
     if (manager->animDelayUpdateCounter) {
         manager->animDelayUpdateCounter--;
     } else {
-        manager->animData.progressCounter++;
+        manager->animProgressCounter++;
         manager->animDelayUpdateCounter = 8;
     }
 
     if (manager->playerGender == GENDER_MALE) {
         {
             int maleSpriteIDs[] = { 9, 42, 43, 44, 45, 0xff };
-            spriteID = maleSpriteIDs[manager->animData.progressCounter];
+            spriteID = maleSpriteIDs[manager->animProgressCounter];
         }
     } else {
         {
             int femaleSpriteIDs[] = { 14, 46, 47, 48, 49, 0xff };
-            spriteID = femaleSpriteIDs[manager->animData.progressCounter];
+            spriteID = femaleSpriteIDs[manager->animProgressCounter];
         }
     }
 
@@ -1815,211 +1306,6 @@ static BOOL RowanIntro_AnimateAvatarShrink(RowanIntro *manager)
     }
 
     return isFinished;
-}
-
-static void RowanIntro_AnimateBuneary_BlendSpritePalette(RowanIntro *manager)
-{
-    if (manager->bunearyPaletteBlendUpdateCounter > 0) {
-        manager->bunearyPaletteBlendUpdateCounter--;
-
-        BlendPalettes(
-            manager->bunearyPalette,
-            manager->bunearyBlendedPalette,
-            1,
-            manager->bunearyPaletteBlendUpdateCounter / 3,
-            0x6a3c);
-        Bg_LoadPalette(
-            BG_LAYER_MAIN_2,
-            manager->bunearyBlendedPalette,
-            2 * 16,
-            (2 * 16) * 8);
-        Bg_LoadPalette(
-            BG_LAYER_SUB_1,
-            manager->bunearyBlendedPalette,
-            2 * 16,
-            (2 * 16) * 10);
-    }
-}
-
-static BOOL RowanIntro_AnimateBuneary(RowanIntro *manager, enum BunearyAnimState *state)
-{
-    BOOL isFinished = FALSE;
-
-    switch (*state) {
-    case BA_STATE_INIT:
-        Bg_SetOffset(
-            manager->bgConfig,
-            BG_LAYER_MAIN_2,
-            BG_OFFSET_UPDATE_SET_X,
-            0);
-        Bg_SetOffset(
-            manager->bgConfig,
-            BG_LAYER_MAIN_2,
-            BG_OFFSET_UPDATE_SET_Y,
-            -8 * 13);
-        Bg_SetPriority(BG_LAYER_MAIN_2, 0);
-        Bg_ToggleLayer(BG_LAYER_SUB_1, TRUE);
-
-        manager->bunearyAnimCarryover = 0;
-        manager->bunearyParabolaCoeff = 8;
-        manager->bunearyAnimUpdateCounter = 0;
-        manager->bunearyPaletteBlendUpdateCounter = (16 * 3);
-        *state = BA_STATE_MOVE_UP_BOTTOM_SCREEN;
-        break;
-    case BA_STATE_MOVE_UP_BOTTOM_SCREEN: {
-        Bg_GetXOffset(manager->bgConfig, 2);
-        int yOffset = Bg_GetYOffset(manager->bgConfig, 5);
-        int linearTerm = manager->bunearyParabolaCoeff * 9 * manager->bunearyAnimUpdateCounter;
-        int quadraticTerm = 9 * manager->bunearyAnimUpdateCounter * manager->bunearyAnimUpdateCounter / 2;
-        int newYOffset = linearTerm - quadraticTerm;
-
-        if (yOffset < 8 * 11) {
-            manager->bunearyAnimUpdateCounter++;
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_MAIN_2,
-                BG_OFFSET_UPDATE_ADD_X,
-                2);
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_SUB_1,
-                BG_OFFSET_UPDATE_ADD_X,
-                2);
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_SUB_1,
-                BG_OFFSET_UPDATE_SET_Y,
-                newYOffset);
-        } else {
-            Bg_ToggleLayer(BG_LAYER_SUB_1, FALSE);
-            manager->bunearyAnimUpdateCounter = 0;
-            *state = BA_STATE_SHOW_ON_TOP_SCREEN;
-        }
-    } break;
-    case BA_STATE_SHOW_ON_TOP_SCREEN:
-        if (manager->bunearyAnimUpdateCounter) {
-            manager->bunearyAnimUpdateCounter--;
-        } else {
-            Bg_ToggleLayer(BG_LAYER_MAIN_2, TRUE);
-            manager->bunearyAnimCarryover = 0;
-            manager->bunearyParabolaCoeff = 9;
-            manager->bunearyAnimUpdateCounter = 0;
-            *state = BA_STATE_JUMP_UP_AND_DOWN;
-        }
-        break;
-    case BA_STATE_JUMP_UP_AND_DOWN: {
-        Bg_GetXOffset(manager->bgConfig, 2);
-        Bg_GetYOffset(manager->bgConfig, 2);
-        int linearTerm = manager->bunearyParabolaCoeff * 9 * manager->bunearyAnimUpdateCounter;
-        int quadraticTerm = 9 * manager->bunearyAnimUpdateCounter * manager->bunearyAnimUpdateCounter / 2;
-        int newYOffset = (-8 * 13) + linearTerm - quadraticTerm;
-
-        if ((manager->bunearyAnimCarryover > 0) && (newYOffset <= 0)) {
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_MAIN_2,
-                BG_OFFSET_UPDATE_SET_Y,
-                0);
-            manager->bunearyAnimCarryover = 0;
-            manager->bunearyParabolaCoeff = 3;
-            manager->bunearyAnimUpdateCounter = 0;
-            *state = BA_STATE_JUMP_RIGHT;
-        } else {
-            manager->bunearyAnimUpdateCounter++;
-            manager->bunearyAnimCarryover = newYOffset;
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_MAIN_2,
-                BG_OFFSET_UPDATE_ADD_X,
-                1);
-            newYOffset = newYOffset >> 1;
-
-            if (newYOffset > 8 * 18) {
-                newYOffset = 8 * 18;
-            }
-
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_MAIN_2,
-                BG_OFFSET_UPDATE_SET_Y,
-                newYOffset);
-        }
-    } break;
-    case BA_STATE_JUMP_RIGHT: {
-        Bg_GetXOffset(manager->bgConfig, 2);
-        Bg_GetYOffset(manager->bgConfig, 2);
-        int linearTerm = manager->bunearyParabolaCoeff * 9 * manager->bunearyAnimUpdateCounter;
-        int quadraticTerm = 9 * manager->bunearyAnimUpdateCounter * manager->bunearyAnimUpdateCounter / 3;
-        int newYOffset = linearTerm - quadraticTerm;
-
-        if ((manager->bunearyAnimCarryover > 0) && (newYOffset <= 0)) {
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_MAIN_2,
-                BG_OFFSET_UPDATE_SET_Y,
-                0);
-            manager->bunearyAnimCarryover = 0;
-            manager->bunearyParabolaCoeff = 3;
-            manager->bunearyAnimUpdateCounter = 0;
-            *state = BA_STATE_JUMP_LEFT;
-        } else {
-            manager->bunearyAnimUpdateCounter++;
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_MAIN_2,
-                BG_OFFSET_UPDATE_SUB_X,
-                2);
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_MAIN_2,
-                BG_OFFSET_UPDATE_SET_Y,
-                newYOffset);
-            manager->bunearyAnimCarryover = newYOffset;
-        }
-    } break;
-    case BA_STATE_JUMP_LEFT: {
-        Bg_GetXOffset(manager->bgConfig, 2);
-        Bg_GetYOffset(manager->bgConfig, 2);
-        int linearTerm = manager->bunearyParabolaCoeff * 9 * manager->bunearyAnimUpdateCounter;
-        int quadraticTerm = 9 * manager->bunearyAnimUpdateCounter * manager->bunearyAnimUpdateCounter / 3;
-        int newYOffset = linearTerm - quadraticTerm;
-
-        if ((manager->bunearyAnimCarryover > 0) && (newYOffset <= 0)) {
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_MAIN_2,
-                BG_OFFSET_UPDATE_SET_Y,
-                0);
-            *state = BA_STATE_END;
-        } else {
-            manager->bunearyAnimUpdateCounter++;
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_MAIN_2,
-                BG_OFFSET_UPDATE_ADD_X,
-                4);
-            Bg_SetOffset(
-                manager->bgConfig,
-                BG_LAYER_MAIN_2,
-                BG_OFFSET_UPDATE_SET_Y,
-                newYOffset);
-            manager->bunearyAnimCarryover = newYOffset;
-        }
-    } break;
-    case BA_STATE_END:
-        Sound_PlayPokemonCry(SPECIES_BUNEARY, 0);
-        isFinished = TRUE;
-        break;
-    }
-
-    RowanIntro_AnimateBuneary_BlendSpritePalette(manager);
-
-    return isFinished;
-}
-
-static void RowanIntro_SetBunearyLayerPriority(RowanIntro *manager)
-{
-    Bg_SetPriority(BG_LAYER_MAIN_2, 1);
 }
 
 static BOOL RowanIntro_Run(RowanIntro *manager)
@@ -2045,15 +1331,7 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
     case RI_STATE_FIRST_FADE_BLACK_END:
         if (IsScreenFadeDone() == TRUE) {
             if (RowanIntro_Delay(manager, 40) == TRUE) {
-                manager->state = RI_STATE_DIALOGUE_WELCOME;
-            }
-        }
-        break;
-    case RI_STATE_DIALOGUE_WELCOME:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_HelloThere, TRUE) == TRUE) {
-            manager->state = RI_STATE_FADE_IN_ROWAN_START;
-            {
-                Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
+                manager->state = RI_STATE_FADE_IN_ROWAN_START;
             }
         }
         break;
@@ -2076,496 +1354,13 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
         break;
     case RI_STATE_FADE_IN_ROWAN_END:
         if (IsScreenFadeDone() == TRUE) {
-            manager->state = RI_STATE_DIALOGUE_ROWAN_INTRO;
+            manager->state = RI_STATE_DIALOGUE_WELCOME;
         }
         break;
-    case RI_STATE_DIALOGUE_ROWAN_INTRO:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_MyNameRowan, TRUE) == TRUE) {
-            manager->state = RI_STATE_MOVE_ROWAN_RIGHT_FOR_INFO;
-        }
-        break;
-    case RI_STATE_MOVE_ROWAN_RIGHT_FOR_INFO:
-        if (RowanIntro_MoveBgLayer(manager, BG_LAYER_MAIN_1, MBL_CASE_MOVE_RIGHT) == TRUE) {
-            manager->state = RI_STATE_INFO_CHOICE_BOX;
-        }
-        break;
-    case RI_STATE_INFO_CHOICE_BOX:
-        if (RowanIntro_ChoiceBox(manager, CC_INFO, TRUE) == TRUE) {
-            switch (manager->playerChoice) {
-            case 1:
-                manager->bufferedState = RI_STATE_CONTROL_INFO_FADE_IN_START;
-                manager->state = RI_STATE_INFO_FADE_BLACK_START;
-                break;
-            case 2:
-                manager->bufferedState = RI_STATE_ADVENTURE_INFO_FADE_IN_START;
-                manager->state = RI_STATE_INFO_FADE_BLACK_START;
-                {
-                    Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
-                }
-                break;
-            case 3:
-                manager->state = RI_STATE_LEFT_ROWAN_AFTER_INFO;
-                break;
-            }
-        }
-        break;
-    case RI_STATE_INFO_FADE_BLACK_START:
-        StartScreenFade(
-            FADE_BOTH_SCREENS,
-            FADE_TYPE_BRIGHTNESS_OUT,
-            FADE_TYPE_BRIGHTNESS_OUT,
-            COLOR_BLACK,
-            6,
-            1,
-            manager->heapID);
-        manager->state = RI_STATE_INFO_FADE_BLACK_END;
-        break;
-    case RI_STATE_INFO_FADE_BLACK_END:
-        if (IsScreenFadeDone() == TRUE) {
-            {
-                Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
-            }
-            Bg_ToggleLayer(BG_LAYER_MAIN_1, FALSE);
-            {
-                manager->state = manager->bufferedState;
-            }
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_FADE_IN_START:
-        manager->bgLayer3TilemapIndex = 1;
-        RowanIntro_LoadLayer3Tilemap(manager);
-        manager->bgSubLayer3TilemapIndex = 1;
-        RowanIntro_LoadSubLayer3Tilemap(manager);
-        StartScreenFade(
-            FADE_BOTH_SCREENS,
-            FADE_TYPE_BRIGHTNESS_IN,
-            FADE_TYPE_BRIGHTNESS_IN,
-            COLOR_BLACK,
-            6,
-            1,
-            manager->heapID);
-        manager->state = RI_STATE_CONTROL_INFO_FADE_IN_END;
-        break;
-    case RI_STATE_CONTROL_INFO_FADE_IN_END:
-        if (IsScreenFadeDone() == TRUE) {
-            manager->state = RI_STATE_CONTROL_INFO_TEXT_0;
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_TEXT_0:
-        if (RowanIntro_DisplayTextBlock(manager, RowanIntro_Text_ControlInfo0, DTBC_CONTROL_INFO_0, 3, 18) == TRUE) {
-            manager->state = RI_STATE_CONTROL_INFO_SHOW_XY_ICONS;
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_SHOW_XY_ICONS:
-        manager->bgLayer3TilemapIndex = 2;
-        RowanIntro_LoadLayer3Tilemap(manager);
-        manager->state = RI_STATE_CONTROL_INFO_TEXT_1;
-        break;
-    case RI_STATE_CONTROL_INFO_TEXT_1:
-        if (RowanIntro_DisplayTextBlock(manager, RowanIntro_Text_ControlInfo1, DTBC_CONTROL_INFO_0, 7, 12) == TRUE) {
-            manager->state = RI_STATE_CONTROL_INFO_HIDE_XY_ICONS;
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_HIDE_XY_ICONS:
-        manager->bgLayer3TilemapIndex = 3;
-        RowanIntro_LoadLayer3Tilemap(manager);
-        manager->state = RI_STATE_CONTROL_INFO_TEXT_2;
-        break;
-    case RI_STATE_CONTROL_INFO_TEXT_2:
-        if (RowanIntro_DisplayTextBlock(manager, RowanIntro_Text_ControlInfo2, DTBC_CONTROL_INFO_1, 4, 12) == TRUE) {
-            manager->state = RI_STATE_CONTROL_INFO_DIALOGUE_DS_ICON;
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_DIALOGUE_DS_ICON:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_ControlInfoDsIcon, TRUE) == TRUE) {
-            manager->state = RI_STATE_CONTROL_INFO_TEXT_3;
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_TEXT_3:
-        if (RowanIntro_DisplayTextBlock(manager, RowanIntro_Text_ControlInfo3, DTBC_CONTROL_INFO_1, 4, 10) == TRUE) {
-            manager->state = RI_STATE_CONTROL_INFO_HIDE_FG;
-            {
-                Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
-            }
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_HIDE_FG:
-        Bg_ToggleLayer(BG_LAYER_MAIN_0, TRUE);
-        manager->state = RI_STATE_CONTROL_INFO_DIALOGUE_UNDERSTOOD;
-        break;
-    case RI_STATE_CONTROL_INFO_DIALOGUE_UNDERSTOOD:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_ControlInfoUnderstood, TRUE) == TRUE) {
-            manager->state = RI_STATE_CONTROL_INFO_SHOW_YESNO;
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_SHOW_YESNO: {
-        UnkStruct_02015958 v1 = {
-            .unk_00 = NULL,
-            .unk_04 = BG_LAYER_SUB_2,
-            .unk_08 = 1,
-            .unk_0C = 12,
-            .unk_10 = 12,
-            .unk_11 = 8,
-        };
-
-        v1.unk_00 = manager->bgConfig;
-        sub_02015958(manager->unk_68, &v1);
-        Bg_ToggleLayer(BG_LAYER_SUB_2, TRUE);
-    }
-        manager->bgSubLayer3TilemapIndex = 3;
-        RowanIntro_LoadSubLayer3Tilemap(manager);
-        manager->state = RI_STATE_CONTROL_INFO_WAIT_INPUT;
-        break;
-    case RI_STATE_CONTROL_INFO_WAIT_INPUT:
-        if (gSystem.pressedKeys) {
-            manager->state = RI_STATE_CONTROL_INFO_DIALOGUE_USE_TOUCHSCREEN;
-            break;
-        }
-
-        {
-            int yesNoResult = sub_020159C0(manager->unk_68);
-
-            if ((yesNoResult == 3) || (yesNoResult == 4)) {
-                manager->state = RI_STATE_CONTROL_INFO_PROCESS_YESNO;
-            }
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_PROCESS_YESNO:
-        switch (sub_020159C0(manager->unk_68)) {
-        case 1:
-            manager->state = RI_STATE_CONTROL_INFO_FADE_OUT_START;
-            break;
-        case 2:
-            manager->state = RI_STATE_CONTROL_INFO_REPEAT;
-            break;
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_FADE_OUT_START:
-        if (RowanIntro_FadeBgLayer(manager, BG_LAYER_SUB_2, FADE_OUT) == TRUE) {
-            sub_02015A54(manager->unk_68);
-            StartScreenFade(
-                FADE_BOTH_SCREENS,
-                FADE_TYPE_BRIGHTNESS_OUT,
-                FADE_TYPE_BRIGHTNESS_OUT,
-                COLOR_BLACK,
-                6,
-                1,
-                manager->heapID);
-            manager->state = RI_STATE_CONTROL_INFO_FADE_OUT_END;
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_FADE_OUT_END:
-        if (IsScreenFadeDone() == TRUE) {
-            {
-                Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
-            }
-            manager->state = RI_STATE_FADE_IN_ROWAN_2_START;
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_REPEAT:
-        if (RowanIntro_FadeBgLayer(manager, BG_LAYER_SUB_2, FADE_OUT) == TRUE) {
-            {
-                Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
-            }
-            sub_02015A54(manager->unk_68);
-            manager->bgLayer3TilemapIndex = 1;
-            RowanIntro_LoadLayer3Tilemap(manager);
-            manager->bgSubLayer3TilemapIndex = 1;
-            RowanIntro_LoadSubLayer3Tilemap(manager);
-            manager->state = RI_STATE_CONTROL_INFO_TEXT_0;
-        }
-        break;
-    case RI_STATE_CONTROL_INFO_DIALOGUE_USE_TOUCHSCREEN:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_ControlInfoUseTouchscreen, TRUE) == TRUE) {
-            manager->state = RI_STATE_CONTROL_INFO_WAIT_INPUT;
-        }
-        break;
-    case RI_STATE_FADE_IN_ROWAN_2_START:
-        manager->bgLayer3TilemapIndex = 0;
-        RowanIntro_LoadLayer3Tilemap(manager);
-        manager->bgSubLayer3TilemapIndex = 0;
-        RowanIntro_LoadSubLayer3Tilemap(manager);
-        Bg_ToggleLayer(BG_LAYER_MAIN_1, TRUE);
-        Bg_SetOffset(
-            manager->bgConfig,
-            BG_LAYER_MAIN_1,
-            BG_OFFSET_UPDATE_SET_X,
-            0);
-        StartScreenFade(
-            FADE_BOTH_SCREENS,
-            FADE_TYPE_BRIGHTNESS_IN,
-            FADE_TYPE_BRIGHTNESS_IN,
-            COLOR_BLACK,
-            6,
-            1,
-            manager->heapID);
-        manager->state = RI_STATE_FADE_IN_ROWAN_2_END;
-        break;
-    case RI_STATE_FADE_IN_ROWAN_2_END:
-        if (IsScreenFadeDone() == TRUE) {
-            manager->state = RI_STATE_DIALOGUE_ANOTHER_INFO;
-        }
-        break;
-    case RI_STATE_DIALOGUE_ANOTHER_INFO:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_InfoAnythingElse, TRUE) == TRUE) {
-            manager->state = RI_STATE_MOVE_ROWAN_RIGHT_FOR_INFO;
-        }
-        break;
-    case RI_STATE_ADVENTURE_INFO_FADE_IN_START:
-        manager->bgLayer3TilemapIndex = 4;
-        RowanIntro_LoadLayer3Tilemap(manager);
-        manager->bgSubLayer3TilemapIndex = 2;
-        RowanIntro_LoadSubLayer3Tilemap(manager);
-        StartScreenFade(
-            FADE_BOTH_SCREENS,
-            FADE_TYPE_BRIGHTNESS_IN,
-            FADE_TYPE_BRIGHTNESS_IN,
-            COLOR_BLACK,
-            6,
-            1,
-            manager->heapID);
-        manager->state = RI_STATE_ADVENTURE_INFO_FADE_IN_END;
-        break;
-    case RI_STATE_ADVENTURE_INFO_FADE_IN_END:
-        if (IsScreenFadeDone() == TRUE) {
-            manager->state = RI_STATE_ADVENTURE_INFO_TEXT_0;
-        }
-        break;
-    case RI_STATE_ADVENTURE_INFO_TEXT_0:
-        if (RowanIntro_DisplayTextBlock(manager, RowanIntro_Text_AdventureInfo0, DTBC_ADVENTURE_INFO, 9, 6) == TRUE) {
-            manager->state = RI_STATE_ADVENTURE_INFO_TEXT_1;
-        }
-        break;
-    case RI_STATE_ADVENTURE_INFO_TEXT_1:
-        if (RowanIntro_DisplayTextBlock(manager, RowanIntro_Text_AdventureInfo1, DTBC_ADVENTURE_INFO, 8, 8) == TRUE) {
-            manager->state = RI_STATE_ADVENTURE_INFO_TEXT_2;
-        }
-        break;
-    case RI_STATE_ADVENTURE_INFO_TEXT_2:
-        if (RowanIntro_DisplayTextBlock(manager, RowanIntro_Text_AdventureInfo2, DTBC_ADVENTURE_INFO, 9, 6) == TRUE) {
-            manager->state = RI_STATE_ADVENTURE_INFO_TEXT_3;
-        }
-        break;
-    case RI_STATE_ADVENTURE_INFO_TEXT_3:
-        if (RowanIntro_DisplayTextBlock(manager, RowanIntro_Text_AdventureInfo3, DTBC_ADVENTURE_INFO, 5, 14) == TRUE) {
-            manager->state = RI_STATE_ADVENTURE_INFO_TEXT_4;
-        }
-        break;
-    case RI_STATE_ADVENTURE_INFO_TEXT_4:
-        if (RowanIntro_DisplayTextBlock(manager, RowanIntro_Text_AdventureInfo4, DTBC_ADVENTURE_INFO, 10, 4) == TRUE) {
-            manager->state = RI_STATE_ADVENTURE_INFO_TEXT_5;
-        }
-        break;
-    case RI_STATE_ADVENTURE_INFO_TEXT_5:
-        if (RowanIntro_DisplayTextBlock(manager, RowanIntro_Text_AdventureInfo5, DTBC_ADVENTURE_INFO, 6, 12) == TRUE) {
-            manager->state = RI_STATE_ADVENTURE_INFO_FADE_OUT_START;
-        }
-        break;
-    case RI_STATE_ADVENTURE_INFO_FADE_OUT_START:
-        StartScreenFade(
-            FADE_BOTH_SCREENS,
-            FADE_TYPE_BRIGHTNESS_OUT,
-            FADE_TYPE_BRIGHTNESS_OUT,
-            COLOR_BLACK,
-            6,
-            1,
-            manager->heapID);
-        manager->state = RI_STATE_ADVENTURE_INFO_FADE_OUT_END;
-        break;
-    case RI_STATE_ADVENTURE_INFO_FADE_OUT_END:
-        if (IsScreenFadeDone() == TRUE) {
-            {
-                Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
-            }
-            Bg_ToggleLayer(BG_LAYER_MAIN_0, TRUE);
-            manager->state = RI_STATE_FADE_IN_ROWAN_2_START;
-        }
-        break;
-    case RI_STATE_LEFT_ROWAN_AFTER_INFO:
-        if (RowanIntro_MoveBgLayer(manager, BG_LAYER_MAIN_1, MBL_CASE_MOVE_LEFT) == TRUE) {
-            manager->state = RI_STATE_DIALOGUE_WIDELY_INHABITED;
-        }
-        break;
-    case RI_STATE_DIALOGUE_WIDELY_INHABITED:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_WidelyInhabited, TRUE) == TRUE) {
-            manager->state = RI_STATE_PKBL_FADE_START;
-        }
-        break;
-    case RI_STATE_PKBL_FADE_START:
-        StartScreenFade(
-            FADE_SUB_ONLY,
-            FADE_TYPE_BRIGHTNESS_OUT,
-            FADE_TYPE_BRIGHTNESS_OUT,
-            COLOR_BLACK,
-            6,
-            1,
-            manager->heapID);
-        manager->state = RI_STATE_PKBL_FADE_MIDDLE;
-        break;
-    case RI_STATE_PKBL_FADE_MIDDLE:
-        if (IsScreenFadeDone() == TRUE) {
-            RowanIntro_LoadPokeballTilemap(manager);
-            manager->bgSubLayer3TilemapIndex = 4;
-            RowanIntro_LoadSubLayer3Tilemap(manager);
-            Bg_ToggleLayer(BG_LAYER_SUB_2, TRUE);
-            StartScreenFade(
-                FADE_SUB_ONLY,
-                FADE_TYPE_BRIGHTNESS_IN,
-                FADE_TYPE_BRIGHTNESS_IN,
-                COLOR_BLACK,
-                6,
-                1,
-                manager->heapID);
-            manager->state = RI_STATE_PKBL_FADE_END;
-        }
-        break;
-    case RI_STATE_PKBL_FADE_END:
-        if (IsScreenFadeDone() == TRUE) {
-            manager->state = RI_STATE_PKBL_DIALOGUE;
-        }
-        break;
-    case RI_STATE_PKBL_DIALOGUE:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_HavePokeBall, TRUE) == TRUE) {
-            manager->state = RI_STATE_PKBL_WAIT_INPUT;
-        }
-        break;
-    case RI_STATE_PKBL_WAIT_INPUT:
-        if (RowanIntro_WasPokeballOpened() == TRUE) {
-            manager->animData.progressCounter = 0;
-            manager->animDelayUpdateCounter = 0;
-            {
-                Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
-            }
-            manager->state = RI_STATE_PKBL_ANIM_PUSH_IN;
-        } else if (gSystem.pressedKeys) {
-            manager->state = RI_STATE_PKBL_DIALOGUE_USE_TOUCHSCREEN;
-        }
-        break;
-    case RI_STATE_PKBL_ANIM_PUSH_IN:
-        if (manager->animDelayUpdateCounter) {
-            manager->animDelayUpdateCounter--;
-        } else {
-            {
-                int pokeballTextureNARCIndices[] = { 33, 34, 0xffff };
-
-                if (pokeballTextureNARCIndices[manager->animData.progressCounter] == 0xffff) {
-                    Sound_PlayEffect(SEQ_SE_DP_BOWA2);
-
-                    manager->state = RI_STATE_PKBL_ANIM_FLASH_0;
-                } else {
-                    Graphics_LoadTilesToBgLayer(
-                        NARC_INDEX_DEMO__INTRO__INTRO,
-                        pokeballTextureNARCIndices[manager->animData.progressCounter],
-                        manager->bgConfig,
-                        6,
-                        0x20,
-                        0,
-                        0,
-                        manager->heapID);
-                    manager->animData.progressCounter++;
-                    manager->animDelayUpdateCounter = 4;
-                }
-            }
-        }
-        break;
-    case RI_STATE_PKBL_DIALOGUE_USE_TOUCHSCREEN:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_PokeBallUseTouchscreen, TRUE) == TRUE) {
-            manager->state = RI_STATE_PKBL_WAIT_INPUT;
-        }
-        break;
-    case RI_STATE_PKBL_ANIM_FLASH_0:
-        BrightnessController_StartTransition(
-            1,
-            16,
-            0,
-            GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG3,
-            BRIGHTNESS_MAIN_SCREEN);
-        BrightnessController_StartTransition(
-            1,
-            16,
-            0,
-            GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3,
-            BRIGHTNESS_SUB_SCREEN);
-        manager->state = RI_STATE_PKBL_ANIM_FLASH_1;
-        break;
-    case RI_STATE_PKBL_ANIM_FLASH_1:
-        if ((BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) && (BrightnessController_IsTransitionComplete(BRIGHTNESS_SUB_SCREEN) == TRUE)) {
-            BrightnessController_StartTransition(1, 0, 16, GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG3, BRIGHTNESS_MAIN_SCREEN);
-            BrightnessController_StartTransition(1, 0, 16, GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3, BRIGHTNESS_SUB_SCREEN);
-            manager->state = RI_STATE_PKBL_ANIM_FLASH_2;
-        }
-        break;
-    case RI_STATE_PKBL_ANIM_FLASH_2:
-        if ((BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) && (BrightnessController_IsTransitionComplete(BRIGHTNESS_SUB_SCREEN) == TRUE)) {
-            BrightnessController_StartTransition(4, 16, 0, GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG3, BRIGHTNESS_MAIN_SCREEN);
-            BrightnessController_StartTransition(4, 16, 0, GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3, BRIGHTNESS_SUB_SCREEN);
-            manager->state = RI_STATE_PKBL_ANIM_FLASH_3;
-        }
-        break;
-    case RI_STATE_PKBL_ANIM_FLASH_3:
-        if ((BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) && (BrightnessController_IsTransitionComplete(BRIGHTNESS_SUB_SCREEN) == TRUE)) {
-            manager->state = RI_STATE_PKBL_ANIM_SPAWN_PKM_AND_FLASH_4;
-        }
-        break;
-    case RI_STATE_PKBL_ANIM_SPAWN_PKM_AND_FLASH_4:
-        RowanIntro_LoadBunearySprite(manager);
-        Bg_ToggleLayer(BG_LAYER_SUB_2, FALSE);
-        manager->animData.bunearyAnimState = BA_STATE_INIT;
-        RowanIntro_AnimateBuneary(manager, &manager->animData.bunearyAnimState);
-        manager->bgSubLayer3TilemapIndex = 0;
-        RowanIntro_LoadSubLayer3Tilemap(manager);
-        BrightnessController_StartTransition(
-            16,
-            0,
-            16,
-            GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG3,
-            BRIGHTNESS_MAIN_SCREEN);
-        BrightnessController_StartTransition(
-            16,
-            0,
-            16,
-            GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3,
-            BRIGHTNESS_SUB_SCREEN);
-        manager->state = RI_STATE_PKBL_ANIM_MV_PKM_UP_AND_FLASH_END;
-        break;
-    case RI_STATE_PKBL_ANIM_MV_PKM_UP_AND_FLASH_END:
-        RowanIntro_AnimateBuneary(manager, &manager->animData.bunearyAnimState);
-
-        if ((BrightnessController_IsTransitionComplete(BRIGHTNESS_MAIN_SCREEN) == TRUE) && (BrightnessController_IsTransitionComplete(BRIGHTNESS_SUB_SCREEN) == TRUE)) {
-            manager->state = RI_STATE_PKBL_ANIM_MV_PKM_DOWN_AND_BOUNCE;
-        }
-        break;
-    case RI_STATE_PKBL_ANIM_MV_PKM_DOWN_AND_BOUNCE:
-        if (RowanIntro_AnimateBuneary(manager, &manager->animData.bunearyAnimState) == TRUE) {
-            manager->state = RI_STATE_PKBL_ANIM_END_DELAY;
-        }
-        break;
-    case RI_STATE_PKBL_ANIM_END_DELAY:
-        if (RowanIntro_Delay(manager, 40) == TRUE) {
-            manager->state = RI_STATE_PKBL_DIALOGUE_LIVE_ALONGSIDE;
-        }
-        break;
-    case RI_STATE_PKBL_DIALOGUE_LIVE_ALONGSIDE:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_LiveAlongsidePokemon, TRUE) == TRUE) {
-            {
-                Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
-            }
-            manager->state = RI_STATE_PKBL_PUT_AWAY_PKM;
-        }
-        break;
-    case RI_STATE_PKBL_PUT_AWAY_PKM:
-        if (RowanIntro_FadeBgLayer(manager, BG_LAYER_MAIN_2, FADE_OUT) == TRUE) {
-            RowanIntro_SetBunearyLayerPriority(manager);
-            manager->state = RI_STATE_BETWEEN_DIALOGUE_DELAY;
-        }
-        break;
-    case RI_STATE_BETWEEN_DIALOGUE_DELAY:
-        if (RowanIntro_Delay(manager, 30) == TRUE) {
-            manager->state = RI_STATE_DIALOGUE_ABOUT_YOURSELF;
-        }
-        break;
-    case RI_STATE_DIALOGUE_ABOUT_YOURSELF:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_AboutYourself, TRUE) == TRUE) {
+    case RI_STATE_DIALOGUE_WELCOME:
+        // Dazzling Platinum: a short welcome, then straight to the boy/girl question.
+        // The stock info menu, Poke Ball / Buneary scene and lecture are removed.
+        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_HelloThere, TRUE) == TRUE) {
             manager->state = RI_STATE_GENDR_FADE_OUT_ROWAN;
         }
         break;
@@ -2801,11 +1596,6 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
         break;
     case RI_STATE_FADE_IN_ROWAN_AFTER_NAME:
         if (RowanIntro_FadeBgLayer(manager, BG_LAYER_MAIN_1, FADE_IN) == TRUE) {
-            manager->state = RI_STATE_DIALOGUE_SO_YOURE;
-        }
-        break;
-    case RI_STATE_DIALOGUE_SO_YOURE:
-        if (RowanIntro_DisplayMessage(manager, RowanIntro_Text_SoYoure, TRUE) == TRUE) {
             // Dazzling Platinum: rival naming is skipped, the rival is always Barry.
             String *tmpString = MessageLoader_GetNewString(manager->msgLoader, RowanIntro_Text_RivalChoiceBarry);
 
