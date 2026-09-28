@@ -180,8 +180,6 @@ DistortionWorldGiratinaRoom_Arc1Flashback:
     ScrCmd_311 129
     ApplyMovement 129, _0250
     WaitMovement
-    ApplyMovement 129, DistortionWorldGiratinaRoom_Movement_Arc1CynthiaStepBesidePlayer
-    WaitMovement
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
     AddFreeCamera VAR_0x8004, VAR_0x8005
     ApplyFreeCameraMovement _0280
@@ -200,8 +198,7 @@ DistortionWorldGiratinaRoom_Arc1Flashback:
     ApplyFreeCameraMovement _0288
     WaitMovement
     RestoreCamera
-    ApplyMovement 129, DistortionWorldGiratinaRoom_Movement_Arc1CynthiaFacePlayer
-    ApplyMovement LOCALID_PLAYER, DistortionWorldGiratinaRoom_Movement_Arc1PlayerFaceCynthia
+    ApplyMovement 129, _0264
     WaitMovement
     Message 11
     CloseMessage
@@ -256,20 +253,4 @@ _0280:
     .balign 4, 0
 _0288:
     WalkNormalNorth 5
-    EndMovement
-
-    .balign 4, 0
-DistortionWorldGiratinaRoom_Movement_Arc1CynthiaStepBesidePlayer:
-    WalkNormalEast
-    WalkNormalNorth
-    EndMovement
-
-    .balign 4, 0
-DistortionWorldGiratinaRoom_Movement_Arc1CynthiaFacePlayer:
-    WalkOnSpotNormalWest
-    EndMovement
-
-    .balign 4, 0
-DistortionWorldGiratinaRoom_Movement_Arc1PlayerFaceCynthia:
-    WalkOnSpotNormalEast
     EndMovement

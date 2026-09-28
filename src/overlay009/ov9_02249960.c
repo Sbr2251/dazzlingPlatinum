@@ -3025,6 +3025,13 @@ static void InitActiveGhostPropManager(DistWorldSystem *system, BOOL useDefaultV
             ghostPropMan->hiddenGhostPropGroups = GetPersistedHiddenGhostPropGroups(system);
         }
 
+        // Arc 1: the flashback starts mid-room, past the triggers that reveal the stepping stones, so show them all.
+        if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM
+            && *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(system->fieldSystem->saveData), VAR_ARC1_PROGRESS) == 0) {
+            ghostPropMan->hiddenGhostPropGroups = 0;
+            SetPersistedHiddenGhostPropGroups(system, 0);
+        }
+
         InitGhostPropManager(system, ghostPropMan, header, ghostPropTemplateList, mapHeaderID, ghostPropMan->hiddenGhostPropGroups);
     }
 }
