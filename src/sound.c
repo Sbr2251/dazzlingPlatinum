@@ -9,6 +9,7 @@
 
 #include "communication_system.h"
 #include "heap.h"
+#include "sound_area_fx.h"
 #include "sound_playback.h"
 #include "sound_system.h"
 
@@ -946,12 +947,18 @@ BOOL Sound_StartReverb(int volume)
 {
     UNUSED(SoundSystem_Get());
     void *buffer = SoundSystem_GetParam(SOUND_SYSTEM_PARAM_CAPTURE_BUFFER);
+
+    // Reverb takes precedence over area FX (title, ending, Pokedex cry page)
+    SoundAreaFx_SuspendFor(SOUND_AREA_FX_SUSPEND_REVERB);
     return NNS_SndCaptureStartReverb(buffer, 0x1000, (NNS_SND_CAPTURE_FORMAT_PCM16), 16000, volume);
 }
 
 void Sound_StopReverb(int frames)
 {
     NNS_SndCaptureStopReverb(frames);
+
+    // Area FX restarts once the capture unit is free (after the fade-out)
+    SoundAreaFx_ResumeFor(SOUND_AREA_FX_SUSPEND_REVERB);
 }
 
 void Sound_SetReverbVolume(int targetVolume, int frames)
@@ -963,6 +970,8 @@ BOOL Sound_StartFilter(void)
 {
     UNUSED(SoundSystem_Get());
 
+    // The Pokedex cry filter takes precedence over area FX
+    SoundAreaFx_SuspendFor(SOUND_AREA_FX_SUSPEND_FILTER);
     MI_CpuClear8(SoundSystem_GetParam(SOUND_SYSTEM_PARAM_FILTER_CALLBACK_PARAM), sizeof(SoundFilterCallbackParam));
     return NNS_SndCaptureStartEffect(
         SoundSystem_GetParam(SOUND_SYSTEM_PARAM_CAPTURE_BUFFER),
@@ -976,7 +985,12 @@ BOOL Sound_StartFilter(void)
 
 void Sound_StopFilter(void)
 {
-    NNS_SndCaptureStopEffect();
+    // Never stop an area FX effect by accident
+    if (SoundAreaFx_OwnsCapture() == FALSE) {
+        NNS_SndCaptureStopEffect();
+    }
+
+    SoundAreaFx_ResumeFor(SOUND_AREA_FX_SUSPEND_FILTER);
 }
 
 void Sound_SetFilterSize(int size)
