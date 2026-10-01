@@ -11,6 +11,7 @@
 #include "heap.h"
 #include "sound_area_fx.h"
 #include "sound_playback.h"
+#include "sound_stream.h"
 #include "sound_system.h"
 
 #define BGM_PLAYER_NORMAL_CHANNELS 0x7FF
@@ -563,6 +564,7 @@ void Sound_SetBGMPlayerPaused(u8 playerID, BOOL paused)
 
     NNS_SndPlayerPause(SoundSystem_GetSoundHandle(handleType), paused);
     *playerPaused = paused;
+    SoundStream_OnHandlePaused(handleType, paused);
 }
 
 void Sound_ClearBGMPauseFlags(void)
@@ -577,6 +579,7 @@ void Sound_ClearBGMPauseFlags(void)
 void Sound_FadeVolumeForHandle(enum SoundHandleType handleType, int targetVolume, int frames)
 {
     NNS_SndPlayerMoveVolume(SoundSystem_GetSoundHandle(handleType), targetVolume, frames);
+    SoundStream_OnHandleVolumeFade(handleType, targetVolume, frames);
 }
 
 void Sound_SetInitialVolumeForHandle(enum SoundHandleType handleType, int volume)
@@ -590,6 +593,7 @@ void Sound_SetInitialVolumeForHandle(enum SoundHandleType handleType, int volume
     }
 
     NNS_SndPlayerSetInitialVolume(SoundSystem_GetSoundHandle(handleType), volume);
+    SoundStream_OnHandleInitialVolume(handleType, volume);
 }
 
 void Sound_AdjustVolumeForVoiceChat(int seqID)
@@ -1343,7 +1347,7 @@ static void Sound_Impl_FilterCallback(void *bufferL, void *bufferR, u32 length, 
 
 static void Sound_SetBGMAllocatableChannels(u16 channels)
 {
-    NNS_SndPlayerSetAllocatableChannel(PLAYER_BGM, channels);
+    SoundStream_SetBGMPlayerChannels(channels); // Keeps stream channels masked out
 }
 
 void Sound_ConfigureBGMChannelsAndReverb(enum SoundChannelConfig config)
@@ -1375,6 +1379,7 @@ static void Sound_Impl_PauseOrStopFieldBGM(void)
 void Sound_SetPlayerVolume(int playerID, int volume)
 {
     NNS_SndPlayerSetPlayerVolume(playerID, volume);
+    SoundStream_OnPlayerVolume(playerID, volume);
 }
 
 void Sound_Set2PokemonCriesAllowed(BOOL allowed)

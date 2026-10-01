@@ -8,7 +8,7 @@
 #include "game_options.h"
 #include "sys_task.h"
 
-#define SOUND_SYSTEM_HEAP_SIZE           0xCBC00 // ~815kB: vanilla 0xBBC00 plus room for the Totem theme and Mega Evolution samples
+#define SOUND_SYSTEM_HEAP_SIZE           0xCCD00 // ~819kB: vanilla 0xBBC00 plus room for the Totem theme and Mega Evolution samples, plus 0x1100 for the stereo stream player buffer (512 * 4 blocks * 2 ch + 32 B block header)
 #define SOUND_SYSTEM_CAPTURE_BUFFER_SIZE 0x1000
 #define SOUND_HEAP_STATE_INVALID         -1
 #define SOUND_FILTER_MAX_SIZE            8
