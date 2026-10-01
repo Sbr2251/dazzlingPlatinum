@@ -5,10 +5,12 @@
 #include <string.h>
 
 #include "config/battle_stage.h"
+#include "constants/graphics.h"
 #include "generated/shadow_sizes.h"
 
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_camera.h"
+#include "battle/battle_stage_stream.h"
 #include "battle/ov16_0223DF00.h"
 
 #include "palette.h"
@@ -184,6 +186,7 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     sStageSprites.hasBlobs = InitBlobs(camera);
     PokemonSpriteManager_SetDrawHook(BattleSystem_GetPokemonSpriteManager(battleSys), DrawHook);
     sStageSprites.hooked = TRUE;
+    BattleStageStream_Init(BattleSystem_GetPokemonSpriteManager(battleSys));
 }
 
 void BattleStageSprites_Free(void)
@@ -193,6 +196,7 @@ void BattleStageSprites_Free(void)
         sStageSprites.hooked = FALSE;
     }
 
+    BattleStageStream_Free();
     FreeBlobs();
     sStageSprites.battleSys = NULL;
     sStageSprites.visible = FALSE;
@@ -245,6 +249,8 @@ void BattleStageSprites_BeginFrame(BOOL visible, const BattleStageFileLighting *
             sStageSprites.holeLevel[i]--;
         }
     }
+
+    BattleStageStream_BeginFrame(sStageSprites.visible, (fields->debugFlags & BATTLE_STAGE_DEBUG_FREEZE_IDLE) != 0);
 
     // Another screen may have used the texture or palette VRAM while the arena was hidden
     if (sStageSprites.hasBlobs && sStageSprites.visible && !sStageSprites.wasVisible) {
@@ -531,6 +537,8 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
     int row[GRID_VERTICES]; // y of each row
     int rowShift[GRID_VERTICES]; // sway + wobble of each row
     fx32 texS[GRID_VERTICES], texT[GRID_VERTICES];
+    int u0, v0, u1, v1;
+    BOOL streamed;
     int flipX, flipY;
     int i, j;
 
@@ -572,6 +580,33 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
 
     width = rect->width;
     height = rect->height;
+    u0 = rect->u0;
+    v0 = rect->v0;
+    u1 = rect->u1;
+    v1 = rect->v1;
+    streamed = FALSE;
+
+    // A streamed frame is the 80x80 frame with 24 more pixels on the sides and 8 above and
+    // below, about the same centre; a partial draw takes the same part of the 80x80 window
+    if (monSpriteMan->excludeIdentity != TRUE
+        && (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_NO_SPRITE_STREAM) == 0
+        && BattleStageStream_Bind(index)) {
+        streamed = TRUE;
+
+        if (transforms->partialDraw) {
+            u0 = STREAM_CLASSIC_LEFT + transforms->drawXOffset;
+            v0 = STREAM_CLASSIC_TOP + transforms->drawYOffset;
+            u1 = u0 + transforms->drawWidth;
+            v1 = v0 + transforms->drawHeight;
+        } else {
+            width = width * STREAM_CANVAS_WIDTH / MON_SPRITE_FRAME_WIDTH;
+            height = height * STREAM_CANVAS_HEIGHT / MON_SPRITE_FRAME_HEIGHT;
+            u0 = 0;
+            v0 = 0;
+            u1 = STREAM_CANVAS_WIDTH;
+            v1 = STREAM_CANVAS_HEIGHT;
+        }
+    }
 
     if (monSpriteMan->excludeIdentity == TRUE
         || width == 0
@@ -581,6 +616,10 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         || height > 2 * MESH_MAX_HALF_SIZE
         || height < -2 * MESH_MAX_HALF_SIZE) {
         ResetBreath(index);
+
+        if (streamed) {
+            BattleStageStream_Unbind();
+        }
 
         if (follow) {
             LoadClassicMatrix(transforms, &similarity);
@@ -614,8 +653,8 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         column[i] = breath != 0 ? x * sx / FX32_ONE : x;
         row[i] = breath != 0 ? bottom - (bottom - y) * sy / FX32_ONE : y;
         rowShift[i] = sway * fromBottom / GRID + wobble * fromBottom * fromBottom / (GRID * GRID);
-        texS[i] = rect->u0 * FX32_ONE + (rect->u1 - rect->u0) * i * (FX32_ONE / GRID);
-        texT[i] = rect->v0 * FX32_ONE + (rect->v1 - rect->v0) * i * (FX32_ONE / GRID);
+        texS[i] = u0 * FX32_ONE + (u1 - u0) * i * (FX32_ONE / GRID);
+        texT[i] = v0 * FX32_ONE + (v1 - v0) * i * (FX32_ONE / GRID);
     }
 
     // The pillow bulges toward the screen edge the vertex is on, also when flipped
@@ -645,7 +684,7 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
 
     // Rect centre; 1 vertex unit (fx16) = 1/256 px. The scale only goes to the position
     // matrix, so the normals stay unit length
-    G3_Translate(rect->x * FX32_ONE + width * (FX32_ONE / 2), rect->y * FX32_ONE + height * (FX32_ONE / 2), rect->z * FX32_ONE);
+    G3_Translate(rect->x * FX32_ONE + rect->width * (FX32_ONE / 2), rect->y * FX32_ONE + rect->height * (FX32_ONE / 2), rect->z * FX32_ONE);
     G3_Scale(16 * FX32_ONE, 16 * FX32_ONE, FX32_ONE);
 
     SetMaterial(transforms);
@@ -678,6 +717,10 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
     G3_MaterialColorDiffAmb(GX_RGB(transforms->diffuseR, transforms->diffuseG, transforms->diffuseB), GX_RGB(transforms->ambientR, transforms->ambientG, transforms->ambientB), TRUE);
     G3_MaterialColorSpecEmi(GX_RGB(16, 16, 16), GX_RGB(0, 0, 0), FALSE);
     G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, sprite->polygonID, transforms->alpha, 0);
+
+    if (streamed) {
+        BattleStageStream_Unbind();
+    }
 
     sStageSprites.fields->spriteMeshes++;
     return result | MON_SPRITE_DRAW_HOOK_DREW;

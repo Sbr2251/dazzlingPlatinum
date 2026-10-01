@@ -4,6 +4,7 @@ prebuilt_files = [
     'batt_bg.narc',
     'batt_obj.narc',
     'battle_stage.narc',
+    'mon_stream.narc',
     'pl_b_plist_gra.narc',
     'pl_batt_bg.narc',
     'pl_batt_obj.narc',
