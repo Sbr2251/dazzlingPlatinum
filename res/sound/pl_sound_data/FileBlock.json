@@ -12026,6 +12026,11 @@
                 "1E.swav",
                 "1F.swav"
             ]
+        },
+        {
+            "name": "STRM_TEST_LOOP.strm",
+            "type": "STRM",
+            "MD5": "8c9850c17c94dd1347bc4911fb90bce6"
         }
     ]
 }
