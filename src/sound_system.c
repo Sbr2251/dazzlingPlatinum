@@ -403,5 +403,6 @@ static void SoundSystem_InitMic()
 static void SoundSystem_StopBGM()
 {
     NNS_SndPlayerStopSeqByPlayerNo(PLAYER_BGM, 0);
+    SoundStream_OnHandleStopped(SOUND_HANDLE_TYPE_BGM, 0);
     NNS_SndHandleReleaseSeq(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_BGM));
 }
