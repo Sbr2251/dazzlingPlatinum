@@ -2924,8 +2924,10 @@ static void SlideHealthbarInTask(SysTask *task, void *data)
             break;
         }
 
+        // The scroll still runs while the battle-start focus holds the bar hidden: the battle
+        // waits on it, and the player's send-out is what ends the focus
         Healthbar_Scroll(healthbar, HEALTHBAR_SCROLL_IN);
-        Healthbar_Enable(healthbar, TRUE);
+        Healthbar_Enable(healthbar, !BattleStage_HoldIntroHealthbar(healthbar->battler));
         healthbar->state++;
         break;
 

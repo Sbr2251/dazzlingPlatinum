@@ -140,6 +140,9 @@ void BattleStage_EndIntroFocus(void);
 // A send-out (a trainer's throw, an opponent turning into an OBJ) waits until this is TRUE:
 // no focus holds or eases home. Call it once per frame while waiting; it snaps after a cap.
 BOOL BattleStage_IsIntroFocusDone(void);
+// An opponent's healthbar sliding in during the battle-start focus stays hidden (it would
+// cover the zoomed-in opponent) and slides in once the camera is home. TRUE: hold it hidden.
+BOOL BattleStage_HoldIntroHealthbar(int battler);
 // The mean screen offset of a side's anchors from home while the camera is off home, for the
 // 2D trainer OBJs. FALSE (and 0, 0) at home.
 BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy);

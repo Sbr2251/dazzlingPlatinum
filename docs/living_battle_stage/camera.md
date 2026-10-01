@@ -175,6 +175,10 @@ stage is visible. The crit and faint kicks are skipped when `debugFlags` has `NO
 - **Trainer OBJs:** while the camera is off home, each trainer OBJ is drawn moved by its
   side's mean anchor offset (translation only), and moved back after the OBJ draw, so the
   game's position checks never see it.
+- **Opponent healthbars:** an opponent's healthbar that slides in during the focus stays
+  hidden, since it would cover the zoomed-in opponent (`BattleStage_HoldIntroHealthbar`). Its
+  scroll still runs, because the battle waits on it. Once the camera is home (or the stage is
+  hidden), the bar slides in again (`ReleaseHealthbars`, from `BattleStageCamera_Advance`).
 - **Not played:** in Totem battles (their aura intro takes its place), if the stage isn't
   visible, or once the player's side has sent out (recorded battles send out first).
 

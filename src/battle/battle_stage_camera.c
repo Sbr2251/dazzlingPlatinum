@@ -7,8 +7,10 @@
 #include "constants/battle.h"
 #include "constants/battle/battle_anim.h"
 
+#include "battle/battle_display.h"
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_sprites.h"
+#include "battle/healthbar.h"
 #include "battle/ov16_0223DF00.h"
 
 #include "particle_system.h"
@@ -118,6 +120,8 @@ typedef struct StageCamera {
     BOOL introRelease; // the player's send-out asked for the ease home
     BOOL introHoming; // easing home from the focus
     int introWait;
+    BOOL introHidesHealthbars; // the battle-start focus keeps the opponents' healthbars hidden
+    u8 heldHealthbars; // battlers whose healthbar slides in once the focus is home
     BOOL holdAfterScript; // the script's end pose becomes a held focus (the Totem aura)
     int idlePose; // the next of sIdlePoses
     BOOL idleHoming; // easing home from the idle drift
@@ -135,6 +139,8 @@ typedef struct StageCamera {
 } StageCamera;
 
 static void ParticleProjectionHook(MtxFx44 *projection);
+static BOOL IntroFocusHidesHealthbars(void);
+static void ReleaseHealthbars(void);
 
 static StageCamera sStageCamera;
 
@@ -753,6 +759,8 @@ void BattleStageCamera_Free(void)
 
     sStageCamera.hasHome = FALSE;
     sStageCamera.atHome = TRUE;
+    sStageCamera.introHidesHealthbars = FALSE;
+    sStageCamera.heldHealthbars = 0;
     sStageCamera.fields = NULL;
     sStageCamera.cutGuard = NULL;
     sStageCamera.battleSys = NULL;
@@ -785,6 +793,10 @@ void BattleStageCamera_Advance(BOOL visible, int debugView)
         }
 
         AdvanceSequence();
+    }
+
+    if (sStageCamera.introHidesHealthbars && !IntroFocusHidesHealthbars()) {
+        ReleaseHealthbars();
     }
 
     poseHome = PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) && !IsEasing() && !IsShaking() && debugView == 0;
@@ -955,6 +967,46 @@ static BOOL BattlerFocus(int battler, VecFx32 *point)
 static BOOL CanRunCamera(void)
 {
     return sStageCamera.hasHome && sStageCamera.fields != NULL && BattleStage_IsVisible();
+}
+
+// The battle-start focus is pushed in or easing home (not the Totem aura's held pose)
+static BOOL IntroFocusHidesHealthbars(void)
+{
+    return sStageCamera.introHidesHealthbars && CanRunCamera()
+        && (sStageCamera.sequence == SEQUENCE_INTRO || (sStageCamera.introHoming && IsEasing()));
+}
+
+// The held healthbars slide in as they would have at the send-out
+static void ReleaseHealthbars(void)
+{
+    Healthbar *healthbar;
+    int i;
+
+    for (i = 0; i < MAX_BATTLERS; i++) {
+        if (!(sStageCamera.heldHealthbars & (1 << i))) {
+            continue;
+        }
+
+        healthbar = ov16_02263B08(BattleSystem_BattlerData(sStageCamera.battleSys, i));
+
+        if (healthbar->mainSprite == NULL) {
+            sStageCamera.heldHealthbars &= ~(1 << i);
+            continue;
+        }
+
+        // Its own slide-in is still running (the bar is only hidden): wait for it
+        if (!healthbar->doneScrolling) {
+            continue;
+        }
+
+        Healthbar_Scroll(healthbar, HEALTHBAR_SCROLL_IN);
+        Healthbar_Enable(healthbar, TRUE);
+        sStageCamera.heldHealthbars &= ~(1 << i);
+    }
+
+    if (sStageCamera.heldHealthbars == 0) {
+        sStageCamera.introHidesHealthbars = FALSE;
+    }
 }
 
 // Every script command: marks the script and cancels any cinematic under way
@@ -1209,6 +1261,7 @@ void BattleStage_StartIntroFocus(void)
     sStageCamera.sweepDone = TRUE;
     sStageCamera.introRelease = FALSE;
     sStageCamera.introWait = 0;
+    sStageCamera.introHidesHealthbars = TRUE;
     sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_SWEEP;
     sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
     EaseTo(&goal, INTRO_TO_FRAMES);
@@ -1223,6 +1276,16 @@ void BattleStage_EndIntroFocus(void)
     if (sStageCamera.sequence == SEQUENCE_INTRO) {
         sStageCamera.introRelease = TRUE;
     }
+}
+
+BOOL BattleStage_HoldIntroHealthbar(int battler)
+{
+    if ((BattleSystem_BattlerSlot(sStageCamera.battleSys, battler) & 1) == 0 || !IntroFocusHidesHealthbars()) {
+        return FALSE;
+    }
+
+    sStageCamera.heldHealthbars |= 1 << battler;
+    return TRUE;
 }
 
 BOOL BattleStage_IsIntroFocusDone(void)
