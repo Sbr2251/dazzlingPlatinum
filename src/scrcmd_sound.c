@@ -7,6 +7,7 @@
 #include "inlines.h"
 #include "sound.h"
 #include "sound_chatot.h"
+#include "sound_layers.h"
 #include "sound_playback.h"
 #include "system.h"
 #include "unk_0202CC64.h"
@@ -37,6 +38,7 @@ BOOL ScrCmd_PlayMusic(ScriptContext *ctx)
 BOOL ScrCmd_PlayBattleMusic(ScriptContext *ctx)
 {
     Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, ScriptContext_ReadHalfWord(ctx), 1);
+    SoundLayers_Reset();
     return FALSE;
 }
 

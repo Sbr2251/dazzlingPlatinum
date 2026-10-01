@@ -70,6 +70,7 @@
 #include "render_window.h"
 #include "screen_fade.h"
 #include "sound.h"
+#include "sound_layers.h"
 #include "sound_playback.h"
 #include "sprite_system.h"
 #include "sprite_util.h"
@@ -227,11 +228,15 @@ BOOL Battle_Main(ApplicationManager *appMan, int *param1)
         Overlay_LoadByID(FS_OVERLAY_ID(overlay11), 2);
         Overlay_LoadByID(FS_OVERLAY_ID(battle_anim), 2);
         ov16_0223B790(appMan);
+        SoundLayers_Reset();
         *param1 = 9;
         break;
     case 9:
+        SoundLayers_Update();
+
         if (ov16_0223BBD0(appMan) == 1) {
             ov16_0223BCB4(appMan);
+            SoundLayers_Reset();
             *param1 = 10;
         }
         break;
