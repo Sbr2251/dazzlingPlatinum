@@ -234,6 +234,7 @@ static void BattleAnimScriptCmd_StageCameraOrbit(BattleAnimSystem *system);
 static void BattleAnimScriptCmd_StageCameraShake(BattleAnimSystem *system);
 static void BattleAnimScriptCmd_StageCameraHome(BattleAnimSystem *system);
 static void BattleAnimScriptCmd_StageCameraWait(BattleAnimSystem *system);
+static void BattleAnimScriptCmd_StageCameraZoom(BattleAnimSystem *system);
 static int BattleAnimSystem_GetBattlerWithRole(BattleAnimSystem *param0, int param1);
 static BOOL BattleBgSwitch_ShouldBeReversed(BattleBgSwitch *param0, BattleAnimSystem *param1, int param2);
 static void BattleBgSwitch_SetBg(BattleBgSwitch *param0, BattleAnimSystem *param1, enum BgLayer param2, int param3);
@@ -1451,7 +1452,8 @@ static const BattleAnimScriptCmd sBattleAnimScriptCmdTable[] = {
     [86] = BattleAnimScriptCmd_StageCameraOrbit,
     [87] = BattleAnimScriptCmd_StageCameraShake,
     [88] = BattleAnimScriptCmd_StageCameraHome,
-    [89] = BattleAnimScriptCmd_StageCameraWait
+    [89] = BattleAnimScriptCmd_StageCameraWait,
+    [90] = BattleAnimScriptCmd_StageCameraZoom
 };
 
 void BattleAnimSystem_SetDefaultAlphaBlending(void)
@@ -1580,6 +1582,24 @@ static void BattleAnimScriptCmd_StageCameraWait(BattleAnimSystem *system)
     }
 
     system->scriptDelay = 1;
+}
+
+static void BattleAnimScriptCmd_StageCameraZoom(BattleAnimSystem *system)
+{
+    int fovDeg, frames;
+
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
+        BattleAnimScript_JumpBy(system, 1 + 2);
+        return;
+    }
+
+    BattleAnimScript_Next(system);
+    fovDeg = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+    frames = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+
+    BattleStage_CameraZoom(fovDeg, frames);
 }
 
 static void BattleAnimScriptCmd_Delay(BattleAnimSystem *system)

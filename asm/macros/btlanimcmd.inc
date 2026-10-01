@@ -769,6 +769,14 @@
     .long 89
     .endm
 
+    // Eases the stage camera's vertical field of view to fovDeg degrees (10-60; home is 40),
+    // keeping the rest of the pose. 0 eases back to the home fov; StageCameraHome restores it.
+    .macro StageCameraZoom fovDeg:req, frames:req
+    .long 90
+    .long \fovDeg
+    .long \frames
+    .endm
+
     // Convenience Macros
 
     // Loads a particle system from battle_particles.narc

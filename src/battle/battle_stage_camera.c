@@ -20,6 +20,9 @@
 #define CAMERA_MIN_DEPTH FX32_CONST(0.25)
 #define CAMERA_MAX_SCALE (FX32_ONE * 4)
 #define CAMERA_MIN_SCALE (FX32_ONE / 16)
+// The range of StageCameraZoom's vertical fov (home is 40 degrees)
+#define CAMERA_MIN_FOV_DEG 10
+#define CAMERA_MAX_FOV_DEG 60
 
 // The contract's own timings (sweep, kicks, guard, menu cap) are in 60 Hz screen frames. The
 // game logic, and so BattleStage_Draw and the script's Delay, runs at 30 Hz: one camera step
@@ -1037,6 +1040,7 @@ void BattleStage_CameraMove(int focus, int attacker, int defender, int distanceP
     }
 
     goal = sStageCamera.cur;
+    goal.fov = sStageCamera.goal.fov; // a StageCameraZoom still easing keeps its target
     goal.focus = sStageCamera.home.camTarget;
     sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
 
@@ -1087,6 +1091,35 @@ void BattleStage_CameraOrbit(int yawDeltaDeg, int frames)
 
     goal = sStageCamera.goal;
     goal.yaw += yawDeltaDeg * FX32_ONE;
+    EaseTo(&goal, frames);
+}
+
+// The vertical field of view in degrees, as pose.fov: the ratio of its half-angle tangent to
+// the home one's (the projection scales fovySin by it). 0 is the home fov.
+void BattleStage_CameraZoom(int fovDeg, int frames)
+{
+    CameraPose goal;
+    fx32 sinA, cosA;
+
+    if (!ScriptCommand()) {
+        return;
+    }
+
+    goal = sStageCamera.goal;
+
+    if (fovDeg <= 0) {
+        goal.fov = FX32_ONE;
+    } else {
+        if (fovDeg < CAMERA_MIN_FOV_DEG) {
+            fovDeg = CAMERA_MIN_FOV_DEG;
+        } else if (fovDeg > CAMERA_MAX_FOV_DEG) {
+            fovDeg = CAMERA_MAX_FOV_DEG;
+        }
+
+        SinCosDeg(fovDeg * FX32_ONE / 2, &sinA, &cosA);
+        goal.fov = FX_Div(FX_Mul(sinA, sStageCamera.home.fovyCos), FX_Mul(cosA, sStageCamera.home.fovySin));
+    }
+
     EaseTo(&goal, frames);
 }
 
