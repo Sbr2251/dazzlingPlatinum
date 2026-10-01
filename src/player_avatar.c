@@ -18,6 +18,7 @@
 #include "map_object.h"
 #include "map_object_move.h"
 #include "overworld_anim_manager.h"
+#include "sound_area_fx.h"
 
 typedef struct PlayerAvatar {
     u32 unk_00;
@@ -305,6 +306,7 @@ void PlayerAvatar_SetPlayerState(PlayerAvatar *playerAvatar, int form)
     playerAvatar->unk_1C = form;
 
     SetAvatarForm(playerAvatar, form);
+    SoundAreaFx_SetSurfing(form == PLAYER_STATE_SURFING);
 }
 
 int PlayerAvatar_GetPlayerState(PlayerAvatar *playerAvatar)
