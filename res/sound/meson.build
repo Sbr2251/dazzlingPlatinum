@@ -3,6 +3,7 @@ sdat_folder = 'pl_sound_data'
 bank_folder = sdat_folder / 'Files' / 'BANK'
 seq_folder = sdat_folder / 'Files' / 'SEQ'
 wavarc_folder = sdat_folder / 'Files' / 'WAVARC'
+strm_folder = sdat_folder / 'Files' / 'STRM'
 
 sdat_resources = files([
     sdat_folder / 'FileBlock.json',
@@ -2401,6 +2402,7 @@ sdat_resources = files([
     wavarc_folder / 'WAVE_ARC_SE_TRCARD' / '04.swav',
     wavarc_folder / 'WAVE_ARC_SE_TRCARD' / '05.swav',
     wavarc_folder / 'WAVE_ARC_SE_ZUKAN' / '00.swav',
+    strm_folder / 'STRM_TEST_LOOP.strm',
 ])
 
 sdat_source = meson.current_source_dir() / sdat_folder
