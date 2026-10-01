@@ -11,7 +11,7 @@
 // STRM_TEST_LOOP) and go back to the sequenced Pokemon Center music.
 #define SOUND_STREAM_ENABLE_TEST_OVERRIDE 1
 
-#define SOUND_STREAM_NONE               -1
+#define SOUND_STREAM_NONE               (-1)
 #define SOUND_STREAM_MAX_CHANNELS       4
 #define SOUND_STREAM_RESUME_FADE_FRAMES 6 // Short fade-in on resume hides the ADPCM restart click
 #define SOUND_STREAM_ALL_HW_CHANNELS    0xFFFF
