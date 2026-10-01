@@ -31,8 +31,8 @@ takes seconds. The tool's docstring has the member format:
   - The PL_OTHERPOKE table is empty for now.
   - The step 1 index had no header (its first `u16` is 0); the readers still take it.
 - **Every other member** is one stream:
-  - a header with the animation's box in the canvas and its draw scale (`u8 numFrames, scale`;
-    0 reads as 1, so step 1 members still work);
+  - a header with the animation's box in the canvas and its draw scale in eighths
+    (`u8 numFrames, scale`; 0 reads as 8, 1:1, so step 1 members still work);
   - frame offsets, in order and on 4-byte boundaries;
   - `{frame, duration}` steps on the 60 Hz clock;
   - LZ77 frames that cover the box only.
@@ -62,24 +62,27 @@ stream, and so does the battler's palette slot.
   `height.narc`, so that edit rebuilds the NARC.
 
 **Canvas.** The canvas is 128x96: a whole texture row wide. A Gen 5 frame is 96x96, centred,
-with the union of all frames standing on row 87. At scale 1 the classic 80x80 frame is the
+with the union of all frames standing on row 87. At 1:1 the classic 80x80 frame is the
 canvas window at (24, 8).
 
-**Scale.** Fronts are scale 1. Backs are stored 1:1 and drawn at scale 2, as Black/White draw
-them: a flat 2x, so big mons run off the screen. Every path maps a classic frame pixel
-(x, y) to the texel `u = (x - 40 + 64s) / s`, `v = (y - 80 + 88s) / s` (`MON_STREAM_TEXEL_U/V`),
-so the canvas's centre column stays on the frame's centre and the ground row stays on its
-bottom row. At scale 2 the classic window of a back holds only its bottom-centre 40x40 texels,
-doubled; the PNGs, the move copies and the other screens all show that window.
+**Scale.** A member's scale is in eighths. Fronts are 1:1. Backs are stored 1:1 and drawn at a
+flat 1.75x (14/8). Black/White draw them at 2x, but at 2x Garchomp's back is about 166 px tall,
+more than the 144 px above the textbox; at 1.75x it just fits. Every path maps a classic frame
+pixel (x, y) to the texel `u = ((x - 40) * 8 + 64s) / s`, `v = ((y - 80) * 8 + 88s) / s`
+(`MON_STREAM_TEXEL_U/V`, nearest neighbour), so the canvas's centre column stays on the frame's
+centre and the ground row stays on its bottom row. At 1.75x the classic window of a back holds
+only its bottom-centre 46x46 texels; the PNGs, the move copies and the other screens all show
+that window.
 
 **Fit.** Art taller than the room above the ground row (88 rows), or wider than the canvas, is
 cropped at the top when it overflows by a few rows; otherwise a front is scaled down. Backs are
-never scaled: at 2x their top is off the screen anyway, so they are only cropped, and to 120
-columns, because a wider back would pass the mesh's 240-pixel quad at 2x.
+never scaled down: at 1.75x the room's top rows are off the screen anyway, so they are only
+cropped. (A back wider than 137 texels would also pass the mesh's 240-pixel quad; the canvas is
+narrower.)
 
 - Fronts: 5 cropped (Yanmega, Kingdra, ...), 7 scaled down, to 0.75 at the least (Pidgeotto,
   Hydreigon, Lugia, Fearow, Ho-Oh, Rayquaza, Moltres).
-- Backs: 11 cropped. Fearow and Hydreigon lose 24 rows, Rayquaza 19, Lugia 10 rows and 26
+- Backs: 11 cropped. Fearow and Hydreigon lose 24 rows, Rayquaza 19, Lugia 10 rows and 18
   columns, Ho-Oh 9, the rest 7 or fewer.
 
 `report.json` lists every species.
@@ -124,8 +127,8 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
   - Whole textures are sent after a menu took the VRAM.
   - `FREEZE_IDLE` holds step 0, the classic frame A.
 - **Draw (`Bind`).** The draw hook binds the battler's texture and draws the canvas around
-  the classic frame (`BattleStageStream_CanvasRect`): the whole 128x96 canvas at scale 1, the
-  stream's box doubled at scale 2. Mosaic,
+  the classic frame (`BattleStageStream_CanvasRect`): the whole 128x96 canvas at 1:1, the
+  stream's box at its scale otherwise. Mosaic,
   `excludeIdentity` and the `NO_SPRITE_STREAM` debug flag (bit 6) fall back to the classic
   texture.
   - A partial draw (the faint slide, the send-out reveal) keeps its cuts where the window cuts
@@ -202,7 +205,7 @@ The card timing is the emulator's. A frame read costs the game thread about 0.3 
   Spinda's spots are painted on the classic frame only.
 - **80x80 crop.** The other screens and the battle's move copies show only the classic window
   of the canvas. Wide or tall art loses what is outside it, and a back shows only its
-  bottom-centre 40x40 texels.
+  bottom-centre 46x46 texels.
 - **Doubles.** Not measured. Four streams hold about 40 KB, well inside the 128 KB floor, but
   four frame reads and decodes in one frame would pass the budget, so some battlers would wait.
 - **Read cost.** Reads can't use DMA (see above), so each costs the game thread about 1 ms. A

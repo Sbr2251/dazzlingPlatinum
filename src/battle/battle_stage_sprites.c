@@ -328,14 +328,14 @@ BOOL BattleStage_GetStreamFrameTiles(int battler, u8 *tiles)
     scale = BattleStageStream_GetScale(battler);
 
     // Both are 4bpp with the left pixel in the low nibble: at 1:1 a tile row is 4 bytes of a
-    // texture row; at 2x each pixel comes from the texel under it (MON_STREAM_TEXEL_U/V)
+    // texture row; scaled, each pixel comes from the texel under it (MON_STREAM_TEXEL_U/V)
     for (i = 0; i < NELEMS(regions); i++) {
         for (ty = regions[i][1]; ty < regions[i][1] + regions[i][3]; ty++) {
             for (tx = regions[i][0]; tx < regions[i][0] + regions[i][2]; tx++) {
                 for (row = 0; row < 8; row++) {
                     y = ty * 8 + row;
 
-                    if (scale == 1) {
+                    if (scale == MON_STREAM_SCALE_ONE) {
                         memcpy(tiles, frame + (STREAM_CLASSIC_TOP + y) * (STREAM_CANVAS_WIDTH / 2) + (STREAM_CLASSIC_LEFT + tx * 8) / 2, 4);
                     } else {
                         const u8 *src = frame + MON_STREAM_TEXEL_V(y, scale) * (STREAM_CANVAS_WIDTH / 2);

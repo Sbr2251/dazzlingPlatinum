@@ -22,10 +22,11 @@
 #define MON_STREAM_CLASSIC_TOP   8
 #define MON_STREAM_ANCHOR_U      64 // the canvas column on the classic frame's centre line
 #define MON_STREAM_GROUND_V      88 // the canvas row under the feet (the animation stands on row 87)
-#define MON_STREAM_MAX_SCALE     2
+#define MON_STREAM_SCALE_ONE     8 // member scales are in eighths
+#define MON_STREAM_MAX_SCALE     16
 
 // Where a member's feet stand in the classic 80x80 frame: its bottom edge, also for a member
-// drawn at 2x (a back sprite), which grows up and to the sides from there
+// drawn larger (a back sprite), which grows up and to the sides from there
 #define MON_STREAM_FEET_Y        MON_SPRITE_FRAME_HEIGHT
 
 #define MON_STREAM_INDEX_VERSION 2
@@ -43,7 +44,7 @@ typedef struct MonStreamIndexHeader {
 // A stream member
 typedef struct MonStreamHeader {
     u8 numFrames;
-    u8 scale; // drawn at this size, about the feet (Black/White draw back sprites at 2x); 0 is 1
+    u8 scale; // drawn at scale/8 the size, about the feet (back sprites at 1.75x); 0 is 1:1
     u16 numSteps;
     u8 left; // the animation's box in the canvas: bytes (2 pixels)
     u8 width; // bytes
@@ -82,18 +83,20 @@ typedef struct MonSpriteStreamStats {
 // male file's (odd characters are male: species * 6 + face + male). Spinda's spots are drawn
 // into the classic frame only, so it has none. version 0 reads as the step 1 index.
 int MonStream_IndexEntries(const MonStreamIndexHeader *index, const PokemonSpriteTemplate *template, u32 entries[2]);
-// The member's scale, 1 or 2
+// The member's scale in eighths, MON_STREAM_SCALE_ONE to MON_STREAM_MAX_SCALE
 static inline int MonStream_Scale(const MonStreamHeader *data)
 {
-    return data->scale > 1 ? data->scale : 1;
+    return data->scale != 0 ? data->scale : MON_STREAM_SCALE_ONE;
 }
 
-// The canvas texel drawn at pixel (x, y) of the classic 80x80 frame. A canvas texel (u, v)
-// covers the frame from x = 40 + (u - MON_STREAM_ANCHOR_U) * scale and
-// y = MON_STREAM_FEET_Y + (v - MON_STREAM_GROUND_V) * scale: at scale 1 the classic frame is
-// the canvas at (24, 8)
-#define MON_STREAM_TEXEL_U(x, scale) (((x) - MON_SPRITE_FRAME_WIDTH / 2 + MON_STREAM_ANCHOR_U * (scale)) / (scale))
-#define MON_STREAM_TEXEL_V(y, scale) (((y) - MON_STREAM_FEET_Y + MON_STREAM_GROUND_V * (scale)) / (scale))
+// The canvas texel drawn at pixel (x, y) of the classic 80x80 frame (scale in eighths). At 1:1
+// the classic frame is the canvas at (24, 8)
+#define MON_STREAM_TEXEL_U(x, scale) ((((x) - MON_SPRITE_FRAME_WIDTH / 2) * MON_STREAM_SCALE_ONE + MON_STREAM_ANCHOR_U * (scale)) / (scale))
+#define MON_STREAM_TEXEL_V(y, scale) ((((y) - MON_STREAM_FEET_Y) * MON_STREAM_SCALE_ONE + MON_STREAM_GROUND_V * (scale)) / (scale))
+// Where canvas column u and row v start in the classic frame, in eighths of a pixel: the first
+// frame pixel showing texel u is the one at or right of it
+#define MON_STREAM_FRAME_X8(u, scale) (MON_SPRITE_FRAME_WIDTH / 2 * MON_STREAM_SCALE_ONE + ((u) - MON_STREAM_ANCHOR_U) * (scale))
+#define MON_STREAM_FRAME_Y8(v, scale) (MON_STREAM_FEET_Y * MON_STREAM_SCALE_ONE + ((v) - MON_STREAM_GROUND_V) * (scale))
 
 // The header, frame offsets and steps
 u32 MonStream_HeaderSize(const MonStreamHeader *data);

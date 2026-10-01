@@ -687,21 +687,10 @@ const u8 *BattleStageStream_GetFrame(int index)
 int BattleStageStream_GetScale(int index)
 {
     if (index < 0 || index >= MAX_MON_SPRITES || sStageStream.battlers[index].data == NULL) {
-        return 1;
+        return MON_STREAM_SCALE_ONE;
     }
 
     return MonStream_Scale(sStageStream.battlers[index].data);
-}
-
-// x of canvas column u in the classic frame, and y of canvas row v (MON_STREAM_TEXEL_U/V)
-static int FrameX(int u, int scale)
-{
-    return MON_SPRITE_FRAME_WIDTH / 2 + (u - MON_STREAM_ANCHOR_U) * scale;
-}
-
-static int FrameY(int v, int scale)
-{
-    return MON_STREAM_FEET_Y + (v - MON_STREAM_GROUND_V) * scale;
 }
 
 void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *transforms, const PokemonSpriteDrawRect *rect, BattleStageStreamRect *out)
@@ -710,10 +699,10 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
     int scale = MonStream_Scale(data);
     int boxU0, boxV0, boxU1, boxV1; // what a side reaching the frame's edge extends to
     int frameX, frameY, frameW, frameH; // the classic frame on screen; flipped when negative
-    int x0, x1, y0, y1;
+    int x0, x1, y0, y1; // the quad in the frame, in eighths of a pixel
 
-    // At 1:1 the whole canvas; at 2x the stream's box, as the canvas would be 256 px wide
-    if (scale == 1) {
+    // At 1:1 the whole canvas; scaled, the stream's box, as the canvas could pass the widest mesh
+    if (scale == MON_STREAM_SCALE_ONE) {
         boxU0 = 0;
         boxV0 = 0;
         boxU1 = STREAM_CANVAS_WIDTH;
@@ -745,18 +734,18 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
         y1 = transforms->drawYOffset + transforms->drawHeight;
         out->u0 = transforms->drawXOffset == 0 ? boxU0 : MON_STREAM_TEXEL_U(transforms->drawXOffset, scale);
         out->v0 = transforms->drawYOffset == 0 ? boxV0 : MON_STREAM_TEXEL_V(transforms->drawYOffset, scale);
-        out->u1 = x1 >= MON_SPRITE_FRAME_WIDTH ? boxU1 : MON_STREAM_TEXEL_U(x1 + scale - 1, scale);
-        out->v1 = y1 >= MON_SPRITE_FRAME_HEIGHT ? boxV1 : MON_STREAM_TEXEL_V(y1 + scale - 1, scale);
+        out->u1 = x1 >= MON_SPRITE_FRAME_WIDTH ? boxU1 : MON_STREAM_TEXEL_U(x1 - 1, scale) + 1;
+        out->v1 = y1 >= MON_SPRITE_FRAME_HEIGHT ? boxV1 : MON_STREAM_TEXEL_V(y1 - 1, scale) + 1;
     }
 
-    x0 = FrameX(out->u0, scale);
-    x1 = FrameX(out->u1, scale);
-    y0 = FrameY(out->v0, scale);
-    y1 = FrameY(out->v1, scale);
-    out->x = frameX + x0 * frameW / MON_SPRITE_FRAME_WIDTH;
-    out->y = frameY + y0 * frameH / MON_SPRITE_FRAME_HEIGHT;
-    out->width = x1 * frameW / MON_SPRITE_FRAME_WIDTH - x0 * frameW / MON_SPRITE_FRAME_WIDTH;
-    out->height = y1 * frameH / MON_SPRITE_FRAME_HEIGHT - y0 * frameH / MON_SPRITE_FRAME_HEIGHT;
-    out->centreX = frameX * FX32_ONE + (x0 + x1) * frameW * (FX32_ONE / 2) / MON_SPRITE_FRAME_WIDTH;
-    out->centreY = frameY * FX32_ONE + (y0 + y1) * frameH * (FX32_ONE / 2) / MON_SPRITE_FRAME_HEIGHT;
+    x0 = MON_STREAM_FRAME_X8(out->u0, scale);
+    x1 = MON_STREAM_FRAME_X8(out->u1, scale);
+    y0 = MON_STREAM_FRAME_Y8(out->v0, scale);
+    y1 = MON_STREAM_FRAME_Y8(out->v1, scale);
+    out->x = frameX + x0 * frameW / (MON_SPRITE_FRAME_WIDTH * MON_STREAM_SCALE_ONE);
+    out->y = frameY + y0 * frameH / (MON_SPRITE_FRAME_HEIGHT * MON_STREAM_SCALE_ONE);
+    out->width = x1 * frameW / (MON_SPRITE_FRAME_WIDTH * MON_STREAM_SCALE_ONE) - x0 * frameW / (MON_SPRITE_FRAME_WIDTH * MON_STREAM_SCALE_ONE);
+    out->height = y1 * frameH / (MON_SPRITE_FRAME_HEIGHT * MON_STREAM_SCALE_ONE) - y0 * frameH / (MON_SPRITE_FRAME_HEIGHT * MON_STREAM_SCALE_ONE);
+    out->centreX = frameX * FX32_ONE + (x0 + x1) * frameW * (FX32_ONE / 2 / MON_STREAM_SCALE_ONE) / MON_SPRITE_FRAME_WIDTH;
+    out->centreY = frameY * FX32_ONE + (y0 + y1) * frameH * (FX32_ONE / 2 / MON_STREAM_SCALE_ONE) / MON_SPRITE_FRAME_HEIGHT;
 }

@@ -7,8 +7,9 @@ For each species it also rewrites res/pokemon/<species>/{male,female}_{front,bac
 normal.pal/shiny.pal from the same art, so the classic 80x80 sprite (other screens, and
 battle draws that fall back to it) and the battler's palette slot match the stream, and it
 sets the y_offset in sprite_data.json to 0 (the art already stands on the frame's last row).
-Back art is stored at its own size and drawn at twice it (the member's scale is 2), as
-Black/White draw back sprites; its classic sheet is the same 2x art cut to the 80x80 window.
+Back art is stored at its own size and drawn at 1.75x (the member's scale is 14 eighths): Black/
+White draw back sprites at 2x, which puts the big ones well off the screen. Its classic sheet is
+the same 1.75x art cut to the 80x80 window.
 
 Usage (needs PIL and numpy, e.g. ~/.venvs/desmume/bin/python):
 
@@ -38,8 +39,8 @@ palette is reduced on those pairs, so a battler's shiny palette slot just works.
 
 Fit: art taller than the room above the ground row (88 rows), or wider than the canvas, is
 cropped at the top when it overflows by at most CROP_MAX rows, and scaled down otherwise.
-Back art is only cropped: drawn at 2x, 88 rows reach above the top of the screen, and the
-sides go past BACK_MAX_W (the widest mesh) only for Lugia, whose wingtips are off screen.
+Back art is only cropped: drawn at 1.75x, 88 rows reach above the top of the screen, and the
+sides are cut to BACK_MAX_W (the widest mesh, wider than the canvas at 1.75x).
 Size: a stream bigger than MAX_MEMBER (or with more than 255 distinct frames) drops its most
 similar frames until it fits ("dropped" in report.json), so the battle heap can hold it.
 report.json lists per species frames, steps, bytes, scale and fit.
@@ -58,8 +59,8 @@ Member 0 of the NARC is the index (version 2):
 Every other member is one stream:
 
     u8 numFrames, u8 scale, u16 numSteps
-                                    scale: 1 (fronts) or 2 (backs), drawn at that size about the
-                                    feet (see classic_window)
+                                    scale: in eighths, 8 (fronts) or 14 (backs); drawn at
+                                    scale/8 the size about the feet (see classic_window)
     u8 left, u8 width               the animation's box in the 128x96 canvas: bytes (2 pixels)
     u8 top, u8 height               and rows; outside it every frame is transparent
     u32 frameOffset[numFrames]      from the start of the member, each 4-byte aligned
@@ -109,8 +110,9 @@ ROOM_H = GROUND_ROW + 1  # rows above (and on) the ground row
 CROP_MAX = 8  # art at most this much taller than ROOM_H loses its top rows, taller art shrinks
 ANCHOR_U = CANVAS_W // 2  # the canvas column on the classic frame's centre line
 FEET_Y = CLASSIC  # the classic frame row the feet stand on, at any scale
-BACK_SCALE = 2  # Black/White draw back sprites at twice their size
-BACK_MAX_W = 120  # 240 px at 2x, the widest sprite mesh (MESH_MAX_HALF_SIZE); wider backs lose their sides
+SCALE_ONE = 8  # member scales are in eighths
+BACK_SCALE = 14  # 1.75x: Black/White draw back sprites at 2x, too big for the big ones here
+BACK_MAX_W = min(CANVAS_W, 240 * SCALE_ONE // BACK_SCALE)  # 240 px, the widest sprite mesh (MESH_MAX_HALF_SIZE)
 MAX_FRAMES = 255  # a step's frame is a u8
 MAX_MEMBER = 96 * 1024  # bigger streams drop their most similar frames (the battle heap, see D)
 TRANSPARENT = (180, 180, 180)  # colour 0, as the other sprite palettes in the repo
@@ -366,7 +368,7 @@ def fit(frames, box, scale):
     """Shrinks art that overflows the room by more than CROP_MAX (or the canvas width). At 2x
     the room's top row and the canvas's sides are already off the screen: backs are only cut."""
     w, h = box[2] - box[0], box[3] - box[1]
-    if scale != 1 or (w <= CANVAS_W and h <= ROOM_H + CROP_MAX):
+    if scale != SCALE_ONE or (w <= CANVAS_W and h <= ROOM_H + CROP_MAX):
         return frames, 1
     f = min(CANVAS_W / w, ROOM_H / h)
     return resize_frames(frames, f, True), f
@@ -581,12 +583,12 @@ def pal_bytes(palette):
 
 
 def classic_window(canvas, scale):
-    """The 80x80 classic frame of a canvas drawn at scale about the feet: frame pixel (x, y) shows
-    texel (ANCHOR_U + (x - 40) // scale, ROOM_H + (y - FEET_Y) // scale), as MON_STREAM_TEXEL_U/V.
-    At scale 1 that is the canvas at (CLASSIC_LEFT, CLASSIC_TOP)."""
+    """The 80x80 classic frame of a canvas drawn at scale (eighths) about the feet: frame pixel
+    (x, y) shows texel (ANCHOR_U + (x - 40) * 8 // scale, ROOM_H + (y - FEET_Y) * 8 // scale), as
+    MON_STREAM_TEXEL_U/V. At 1:1 that is the canvas at (CLASSIC_LEFT, CLASSIC_TOP)."""
     px = np.arange(CLASSIC)
-    u = ANCHOR_U + (px - CLASSIC // 2) // scale
-    v = ROOM_H + (px - FEET_Y) // scale
+    u = ANCHOR_U + (px - CLASSIC // 2) * SCALE_ONE // scale
+    v = ROOM_H + (px - FEET_Y) * SCALE_ONE // scale
     return canvas[np.ix_(v, u)]
 
 
@@ -638,10 +640,10 @@ def build_unit(unit):
         if k not in src:
             continue
         frames = src[k]
-        scale = BACK_SCALE if f["face"] == "back" else 1
+        scale = BACK_SCALE if f["face"] == "back" else SCALE_ONE
         frames, shrink = fit(frames, union_bbox(frames), scale)
         ubox = union_bbox(frames)
-        crop, dx, dy = place(ubox, CANVAS_W if scale == 1 else BACK_MAX_W)
+        crop, dx, dy = place(ubox, CANVAS_W if scale == SCALE_ONE else BACK_MAX_W)
         indexed = [index_frame(arr, crop, dx, dy, indexer) for arr, _ in frames]
         distinct, steps = build_steps(frames, indexed)
         w, h = crop[2] - crop[0], crop[3] - crop[1]
@@ -656,7 +658,7 @@ def build_unit(unit):
         members[k] = stream_member(blobs, steps, box, scale)
         sheets[k] = classic_sheet(distinct[steps[0][0]], distinct[steps[len(steps) // 2][0]], scale)
         report["faces"][f["label"]] = {
-            "scale": scale, "frames": len(frames), "distinct": n_distinct, "dropped": dropped,
+            "scale": scale / SCALE_ONE, "frames": len(frames), "distinct": n_distinct, "dropped": dropped,
             "steps": len(steps),
             "loop_vblanks": sum(d for _, d in steps), "bytes": len(members[k]),
             "union": [w, h], "canvas_top": dy,

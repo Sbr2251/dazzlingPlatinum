@@ -171,7 +171,7 @@ BOOL MonStream_IsValid(const MonStreamHeader *data, u32 memberSize)
     if (memberSize < sizeof(MonStreamHeader)
         || data->numFrames == 0
         || data->numSteps == 0
-        || data->scale > MON_STREAM_MAX_SCALE
+        || (data->scale != 0 && (data->scale < MON_STREAM_SCALE_ONE || data->scale > MON_STREAM_MAX_SCALE))
         || data->width == 0
         || data->height == 0
         || data->left + data->width > CANVAS_ROW_BYTES
@@ -633,8 +633,8 @@ static BOOL WriteFrame(PokemonSpriteManager *monSpriteMan, int index, u16 frame,
     BOOL flip = monSpriteMan->sprites[index].transforms.flipH;
     u8 *slot = monSpriteMan->charRawData + slotOffset;
     int scale = MonStream_Scale(data);
-    int boxTop = (data->top - MON_STREAM_GROUND_V) * scale + MON_STREAM_FEET_Y; // in slot rows
-    int boxBottom = boxTop + data->height * scale;
+    int boxTop = (MON_STREAM_FRAME_Y8(data->top, scale) + 7) >> 3; // in slot rows, rounded up
+    int boxBottom = (MON_STREAM_FRAME_Y8(data->top + data->height, scale) + 7) >> 3;
     int y0, y1, y, x, canvasByte, u;
     u32 row0, row1, left;
     OSIntrMode intrMode;
@@ -666,7 +666,7 @@ static BOOL WriteFrame(PokemonSpriteManager *monSpriteMan, int index, u16 frame,
             continue;
         }
 
-        if (scale == 1) {
+        if (scale == MON_STREAM_SCALE_ONE) {
             for (x = 0; x < SLOT_ROW_BYTES; x++) {
                 canvasByte = CLASSIC_LEFT_BYTE + (flip ? SLOT_ROW_BYTES - 1 - x : x);
 
