@@ -3,6 +3,8 @@
 
 #include <nitro.h>
 
+#include "constants/graphics.h"
+
 #include "pokemon_sprite.h"
 
 // Gen 5 animated sprites for PokemonSpriteManager (docs/living_battle_stage/sprite_stream.md).
@@ -18,6 +20,13 @@
 #define MON_STREAM_CANVAS_HEIGHT 96
 #define MON_STREAM_CLASSIC_LEFT  24 // where the classic 80x80 frame sits in it
 #define MON_STREAM_CLASSIC_TOP   8
+#define MON_STREAM_ANCHOR_U      64 // the canvas column on the classic frame's centre line
+#define MON_STREAM_GROUND_V      88 // the canvas row under the feet (the animation stands on row 87)
+#define MON_STREAM_MAX_SCALE     2
+
+// Where a member's feet stand in the classic 80x80 frame: its bottom edge, also for a member
+// drawn at 2x (a back sprite), which grows up and to the sides from there
+#define MON_STREAM_FEET_Y        MON_SPRITE_FRAME_HEIGHT
 
 #define MON_STREAM_INDEX_VERSION 2
 
@@ -33,7 +42,8 @@ typedef struct MonStreamIndexHeader {
 
 // A stream member
 typedef struct MonStreamHeader {
-    u16 numFrames;
+    u8 numFrames;
+    u8 scale; // drawn at this size, about the feet (Black/White draw back sprites at 2x); 0 is 1
     u16 numSteps;
     u8 left; // the animation's box in the canvas: bytes (2 pixels)
     u8 width; // bytes
@@ -72,6 +82,19 @@ typedef struct MonSpriteStreamStats {
 // male file's (odd characters are male: species * 6 + face + male). Spinda's spots are drawn
 // into the classic frame only, so it has none. version 0 reads as the step 1 index.
 int MonStream_IndexEntries(const MonStreamIndexHeader *index, const PokemonSpriteTemplate *template, u32 entries[2]);
+// The member's scale, 1 or 2
+static inline int MonStream_Scale(const MonStreamHeader *data)
+{
+    return data->scale > 1 ? data->scale : 1;
+}
+
+// The canvas texel drawn at pixel (x, y) of the classic 80x80 frame. A canvas texel (u, v)
+// covers the frame from x = 40 + (u - MON_STREAM_ANCHOR_U) * scale and
+// y = MON_STREAM_FEET_Y + (v - MON_STREAM_GROUND_V) * scale: at scale 1 the classic frame is
+// the canvas at (24, 8)
+#define MON_STREAM_TEXEL_U(x, scale) (((x) - MON_SPRITE_FRAME_WIDTH / 2 + MON_STREAM_ANCHOR_U * (scale)) / (scale))
+#define MON_STREAM_TEXEL_V(y, scale) (((y) - MON_STREAM_FEET_Y + MON_STREAM_GROUND_V * (scale)) / (scale))
+
 // The header, frame offsets and steps
 u32 MonStream_HeaderSize(const MonStreamHeader *data);
 // A member the runtimes can play without reading past it: the box inside the canvas, frames in

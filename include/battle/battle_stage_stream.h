@@ -57,11 +57,13 @@ void BattleStageStream_BeginFrame(BOOL visible, BOOL frozen);
 // texture back.
 BOOL BattleStageStream_Bind(int index);
 void BattleStageStream_Unbind(void);
-// Where a battler's 128x96 canvas goes for a draw the manager meant for the classic 80x80 frame
-// (rect): the same scale about the same centre. A partial draw (the faint slide, the send-out
-// reveal) keeps its cuts inside the 80x80 window, and on the sides where the window reaches the
-// frame's edge takes the canvas out to its own edge, so art wider or taller than the classic
-// frame stays. centreX and centreY in fx32, the rest in pixels and texels.
+// Where a battler's canvas goes for a draw the manager meant for the classic 80x80 frame
+// (rect), on the mapping of MON_STREAM_TEXEL_U/V: at 1:1 the whole 128x96 canvas about the
+// frame's centre; a 2x member (a back sprite) only its box, twice the size, standing on the
+// frame's bottom edge. A partial draw (the faint slide, the send-out reveal) keeps its cuts
+// inside the 80x80 window, and on the sides where the window reaches the frame's edge goes out
+// to the canvas's (2x: the box's) edge, so art wider or taller than the classic frame stays.
+// For a battler Bind took. centreX and centreY in fx32, the rest in pixels and texels.
 typedef struct BattleStageStreamRect {
     fx32 centreX;
     fx32 centreY;
@@ -75,10 +77,12 @@ typedef struct BattleStageStreamRect {
     int v1;
 } BattleStageStreamRect;
 
-void BattleStageStream_CanvasRect(const PokemonSpriteTransforms *transforms, const PokemonSpriteDrawRect *rect, BattleStageStreamRect *out);
+void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *transforms, const PokemonSpriteDrawRect *rect, BattleStageStreamRect *out);
 // The battler's texture copy (128x96, 4bpp, 64 bytes a row, the battler's palette) of the frame
 // last decoded, which is on screen or goes there at the next VBlank; NULL when the battler has
 // no stream or no frame in yet
 const u8 *BattleStageStream_GetFrame(int index);
+// The scale the battler's stream is drawn at (MonStream_Scale), 1 when it has none
+int BattleStageStream_GetScale(int index);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_STREAM_H

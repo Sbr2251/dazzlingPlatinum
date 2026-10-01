@@ -684,35 +684,79 @@ const u8 *BattleStageStream_GetFrame(int index)
     return sStageStream.battlers[index].texture;
 }
 
-void BattleStageStream_CanvasRect(const PokemonSpriteTransforms *transforms, const PokemonSpriteDrawRect *rect, BattleStageStreamRect *out)
+int BattleStageStream_GetScale(int index)
 {
-    int left, top;
-
-    if (!transforms->partialDraw) {
-        out->width = rect->width * STREAM_CANVAS_WIDTH / MON_SPRITE_FRAME_WIDTH;
-        out->height = rect->height * STREAM_CANVAS_HEIGHT / MON_SPRITE_FRAME_HEIGHT;
-        out->x = rect->x + (rect->width - out->width) / 2;
-        out->y = rect->y + (rect->height - out->height) / 2;
-        out->centreX = rect->x * FX32_ONE + rect->width * (FX32_ONE / 2);
-        out->centreY = rect->y * FX32_ONE + rect->height * (FX32_ONE / 2);
-        out->u0 = 0;
-        out->v0 = 0;
-        out->u1 = STREAM_CANVAS_WIDTH;
-        out->v1 = STREAM_CANVAS_HEIGHT;
-        return;
+    if (index < 0 || index >= MAX_MON_SPRITES || sStageStream.battlers[index].data == NULL) {
+        return 1;
     }
 
-    // The window, drawn 1:1: canvas texels [left, left + drawWidth) x [top, top + drawHeight)
-    left = STREAM_CLASSIC_LEFT + transforms->drawXOffset;
-    top = STREAM_CLASSIC_TOP + transforms->drawYOffset;
-    out->u0 = transforms->drawXOffset == 0 ? 0 : left;
-    out->v0 = transforms->drawYOffset == 0 ? 0 : top;
-    out->u1 = transforms->drawXOffset + transforms->drawWidth >= MON_SPRITE_FRAME_WIDTH ? STREAM_CANVAS_WIDTH : left + transforms->drawWidth;
-    out->v1 = transforms->drawYOffset + transforms->drawHeight >= MON_SPRITE_FRAME_HEIGHT ? STREAM_CANVAS_HEIGHT : top + transforms->drawHeight;
-    out->x = rect->x - (left - out->u0);
-    out->y = rect->y - (top - out->v0);
-    out->width = out->u1 - out->u0;
-    out->height = out->v1 - out->v0;
-    out->centreX = out->x * FX32_ONE + out->width * (FX32_ONE / 2);
-    out->centreY = out->y * FX32_ONE + out->height * (FX32_ONE / 2);
+    return MonStream_Scale(sStageStream.battlers[index].data);
+}
+
+// x of canvas column u in the classic frame, and y of canvas row v (MON_STREAM_TEXEL_U/V)
+static int FrameX(int u, int scale)
+{
+    return MON_SPRITE_FRAME_WIDTH / 2 + (u - MON_STREAM_ANCHOR_U) * scale;
+}
+
+static int FrameY(int v, int scale)
+{
+    return MON_STREAM_FEET_Y + (v - MON_STREAM_GROUND_V) * scale;
+}
+
+void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *transforms, const PokemonSpriteDrawRect *rect, BattleStageStreamRect *out)
+{
+    const MonStreamHeader *data = sStageStream.battlers[index].data;
+    int scale = MonStream_Scale(data);
+    int boxU0, boxV0, boxU1, boxV1; // what a side reaching the frame's edge extends to
+    int frameX, frameY, frameW, frameH; // the classic frame on screen; flipped when negative
+    int x0, x1, y0, y1;
+
+    // At 1:1 the whole canvas; at 2x the stream's box, as the canvas would be 256 px wide
+    if (scale == 1) {
+        boxU0 = 0;
+        boxV0 = 0;
+        boxU1 = STREAM_CANVAS_WIDTH;
+        boxV1 = STREAM_CANVAS_HEIGHT;
+    } else {
+        boxU0 = data->left * 2;
+        boxV0 = data->top;
+        boxU1 = (data->left + data->width) * 2;
+        boxV1 = data->top + data->height;
+    }
+
+    if (!transforms->partialDraw) {
+        frameX = rect->x;
+        frameY = rect->y;
+        frameW = rect->width;
+        frameH = rect->height;
+        out->u0 = boxU0;
+        out->v0 = boxV0;
+        out->u1 = boxU1;
+        out->v1 = boxV1;
+    } else {
+        // The window [drawXOffset, + drawWidth) x [drawYOffset, + drawHeight) of the frame,
+        // drawn 1:1
+        frameX = rect->x - transforms->drawXOffset;
+        frameY = rect->y - transforms->drawYOffset;
+        frameW = MON_SPRITE_FRAME_WIDTH;
+        frameH = MON_SPRITE_FRAME_HEIGHT;
+        x1 = transforms->drawXOffset + transforms->drawWidth;
+        y1 = transforms->drawYOffset + transforms->drawHeight;
+        out->u0 = transforms->drawXOffset == 0 ? boxU0 : MON_STREAM_TEXEL_U(transforms->drawXOffset, scale);
+        out->v0 = transforms->drawYOffset == 0 ? boxV0 : MON_STREAM_TEXEL_V(transforms->drawYOffset, scale);
+        out->u1 = x1 >= MON_SPRITE_FRAME_WIDTH ? boxU1 : MON_STREAM_TEXEL_U(x1 + scale - 1, scale);
+        out->v1 = y1 >= MON_SPRITE_FRAME_HEIGHT ? boxV1 : MON_STREAM_TEXEL_V(y1 + scale - 1, scale);
+    }
+
+    x0 = FrameX(out->u0, scale);
+    x1 = FrameX(out->u1, scale);
+    y0 = FrameY(out->v0, scale);
+    y1 = FrameY(out->v1, scale);
+    out->x = frameX + x0 * frameW / MON_SPRITE_FRAME_WIDTH;
+    out->y = frameY + y0 * frameH / MON_SPRITE_FRAME_HEIGHT;
+    out->width = x1 * frameW / MON_SPRITE_FRAME_WIDTH - x0 * frameW / MON_SPRITE_FRAME_WIDTH;
+    out->height = y1 * frameH / MON_SPRITE_FRAME_HEIGHT - y0 * frameH / MON_SPRITE_FRAME_HEIGHT;
+    out->centreX = frameX * FX32_ONE + (x0 + x1) * frameW * (FX32_ONE / 2) / MON_SPRITE_FRAME_WIDTH;
+    out->centreY = frameY * FX32_ONE + (y0 + y1) * frameH * (FX32_ONE / 2) / MON_SPRITE_FRAME_HEIGHT;
 }

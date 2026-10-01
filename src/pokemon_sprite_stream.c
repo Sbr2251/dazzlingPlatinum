@@ -171,6 +171,7 @@ BOOL MonStream_IsValid(const MonStreamHeader *data, u32 memberSize)
     if (memberSize < sizeof(MonStreamHeader)
         || data->numFrames == 0
         || data->numSteps == 0
+        || data->scale > MON_STREAM_MAX_SCALE
         || data->width == 0
         || data->height == 0
         || data->left + data->width > CANVAS_ROW_BYTES
@@ -631,9 +632,10 @@ static BOOL WriteFrame(PokemonSpriteManager *monSpriteMan, int index, u16 frame,
     const u8 *packed;
     BOOL flip = monSpriteMan->sprites[index].transforms.flipH;
     u8 *slot = monSpriteMan->charRawData + slotOffset;
-    int boxTop = data->top - MON_STREAM_CLASSIC_TOP; // in slot rows
-    int boxBottom = boxTop + data->height;
-    int y0, y1, y, x, canvasByte;
+    int scale = MonStream_Scale(data);
+    int boxTop = (data->top - MON_STREAM_GROUND_V) * scale + MON_STREAM_FEET_Y; // in slot rows
+    int boxBottom = boxTop + data->height * scale;
+    int y0, y1, y, x, canvasByte, u;
     u32 row0, row1, left;
     OSIntrMode intrMode;
     OSTick start = OS_GetTick();
@@ -657,20 +659,36 @@ static BOOL WriteFrame(PokemonSpriteManager *monSpriteMan, int index, u16 frame,
 
     for (y = y0; y < y1; y++) {
         u8 *dst = slot + y * CHAR_ROW_BYTES;
-        const u8 *src = state->frameBuffer + (y - boxTop) * data->width - data->left; // indexed by canvas byte
+        const u8 *src = state->frameBuffer + (MON_STREAM_TEXEL_V(y, scale) - data->top) * data->width - data->left; // indexed by canvas byte
 
         if (y < boxTop || y >= boxBottom) {
             memset(dst, 0, SLOT_ROW_BYTES);
             continue;
         }
 
-        for (x = 0; x < SLOT_ROW_BYTES; x++) {
-            canvasByte = CLASSIC_LEFT_BYTE + (flip ? SLOT_ROW_BYTES - 1 - x : x);
+        if (scale == 1) {
+            for (x = 0; x < SLOT_ROW_BYTES; x++) {
+                canvasByte = CLASSIC_LEFT_BYTE + (flip ? SLOT_ROW_BYTES - 1 - x : x);
 
-            if (canvasByte < data->left || canvasByte >= data->left + data->width) {
-                dst[x] = 0;
-            } else {
-                dst[x] = flip ? SwapNybbles(src[canvasByte]) : src[canvasByte];
+                if (canvasByte < data->left || canvasByte >= data->left + data->width) {
+                    dst[x] = 0;
+                } else {
+                    dst[x] = flip ? SwapNybbles(src[canvasByte]) : src[canvasByte];
+                }
+            }
+
+            continue;
+        }
+
+        // Scaled up: pixel by pixel, the left pixel in the low nibble
+        memset(dst, 0, SLOT_ROW_BYTES);
+
+        for (x = 0; x < MON_SPRITE_FRAME_WIDTH; x++) {
+            u = MON_STREAM_TEXEL_U(flip ? MON_SPRITE_FRAME_WIDTH - 1 - x : x, scale);
+            canvasByte = u / 2;
+
+            if (canvasByte >= data->left && canvasByte < data->left + data->width) {
+                dst[x / 2] |= ((src[canvasByte] >> ((u & 1) * 4)) & 0xF) << ((x & 1) * 4);
             }
         }
     }

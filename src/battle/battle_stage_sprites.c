@@ -313,7 +313,7 @@ BOOL BattleStage_GetStreamFrameTiles(int battler, u8 *tiles)
     // height in tiles, each region row by row
     static const u8 regions[][4] = { { 0, 0, 8, 8 }, { 8, 0, 2, 4 }, { 8, 4, 2, 4 }, { 0, 8, 4, 2 }, { 4, 8, 4, 2 }, { 8, 8, 2, 2 } };
     const u8 *frame;
-    int i, tx, ty, row;
+    int i, tx, ty, row, x, y, u, scale;
 
     if (tiles == NULL || !BattleStage_IsSpriteStreamed(battler)) {
         return FALSE;
@@ -325,12 +325,29 @@ BOOL BattleStage_GetStreamFrameTiles(int battler, u8 *tiles)
         return FALSE;
     }
 
-    // Both are 4bpp with the left pixel in the low nibble: a tile row is 4 bytes of a texture row
+    scale = BattleStageStream_GetScale(battler);
+
+    // Both are 4bpp with the left pixel in the low nibble: at 1:1 a tile row is 4 bytes of a
+    // texture row; at 2x each pixel comes from the texel under it (MON_STREAM_TEXEL_U/V)
     for (i = 0; i < NELEMS(regions); i++) {
         for (ty = regions[i][1]; ty < regions[i][1] + regions[i][3]; ty++) {
             for (tx = regions[i][0]; tx < regions[i][0] + regions[i][2]; tx++) {
                 for (row = 0; row < 8; row++) {
-                    memcpy(tiles, frame + (STREAM_CLASSIC_TOP + ty * 8 + row) * (STREAM_CANVAS_WIDTH / 2) + (STREAM_CLASSIC_LEFT + tx * 8) / 2, 4);
+                    y = ty * 8 + row;
+
+                    if (scale == 1) {
+                        memcpy(tiles, frame + (STREAM_CLASSIC_TOP + y) * (STREAM_CANVAS_WIDTH / 2) + (STREAM_CLASSIC_LEFT + tx * 8) / 2, 4);
+                    } else {
+                        const u8 *src = frame + MON_STREAM_TEXEL_V(y, scale) * (STREAM_CANVAS_WIDTH / 2);
+
+                        memset(tiles, 0, 4);
+
+                        for (x = 0; x < 8; x++) {
+                            u = MON_STREAM_TEXEL_U(tx * 8 + x, scale);
+                            tiles[x / 2] |= ((src[u / 2] >> ((u & 1) * 4)) & 0xF) << ((x & 1) * 4);
+                        }
+                    }
+
                     tiles += 4;
                 }
             }
@@ -596,7 +613,7 @@ static BOOL DrawFlatStream(PokemonSpriteManager *monSpriteMan, int index, const 
         return FALSE;
     }
 
-    BattleStageStream_CanvasRect(transforms, rect, &canvas);
+    BattleStageStream_CanvasRect(index, transforms, rect, &canvas);
     NNS_G2dDrawSpriteFast(canvas.x, canvas.y, rect->z, canvas.width, canvas.height, canvas.u0, canvas.v0, canvas.u1, canvas.v1);
     BattleStageStream_Unbind();
     sStageSprites.streamedMask |= 1 << index;
@@ -682,7 +699,7 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         BattleStageStreamRect canvas;
 
         streamed = TRUE;
-        BattleStageStream_CanvasRect(transforms, rect, &canvas);
+        BattleStageStream_CanvasRect(index, transforms, rect, &canvas);
         width = canvas.width;
         height = canvas.height;
         centreX = canvas.centreX;

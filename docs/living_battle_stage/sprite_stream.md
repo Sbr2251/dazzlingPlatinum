@@ -31,18 +31,19 @@ takes seconds. The tool's docstring has the member format:
   - The PL_OTHERPOKE table is empty for now.
   - The step 1 index had no header (its first `u16` is 0); the readers still take it.
 - **Every other member** is one stream:
-  - a header with the animation's box in the canvas;
+  - a header with the animation's box in the canvas and its draw scale (`u8 numFrames, scale`;
+    0 reads as 1, so step 1 members still work);
   - frame offsets, in order and on 4-byte boundaries;
   - `{frame, duration}` steps on the 60 Hz clock;
   - LZ77 frames that cover the box only.
 
-The NARC is 27.4 MB (26.1 MiB). The ROM now uses 96.3 MB of a 128 MiB cartridge. A stream is
-19 KB at the median, and members are capped at 96 KB. A stream over the cap drops its most
+The NARC is 24.8 MB (23.6 MiB). The ROM now uses 93.7 MB of a 128 MiB cartridge. A stream is
+17 KB at the median, and members are capped at 96 KB. A stream over the cap drops its most
 similar frames until it fits ("dropped" in `report.json`). Six faces lost frames:
 
 | | dropped frames |
 |---|---|
-| Masquerain back | 127 |
+| Masquerain back | 117 |
 | Yanmega back | 79 |
 | Vespiquen back | 74 |
 | Masquerain front | 9 |
@@ -60,18 +61,28 @@ stream, and so does the battler's palette slot.
   frame's last row. `res/pokemon/meson.build` lists every `sprite_data.json` as a dependency of
   `height.narc`, so that edit rebuilds the NARC.
 
-**Canvas.** The canvas is 128x96: a whole texture row wide, with the classic 80x80 frame at
-(24, 8). A Gen 5 frame is 96x96, centred, with the union of all frames standing on row 87.
+**Canvas.** The canvas is 128x96: a whole texture row wide. A Gen 5 frame is 96x96, centred,
+with the union of all frames standing on row 87. At scale 1 the classic 80x80 frame is the
+canvas window at (24, 8).
 
-**Fit.** Art taller than the room above the ground row (88 rows), or wider than the canvas,
-is cropped at the top when it overflows by a few rows. Otherwise it is scaled down. 12 faces
-are cropped (Charizard's front, Steelix's back, ...), and 12 are scaled down, to 0.75 at the
-least (Fearow, Lugia, Ho-Oh, Hydreigon, Pidgeotto, Moltres).
+**Scale.** Fronts are scale 1. Backs are stored 1:1 and drawn at scale 2, as Black/White draw
+them: a flat 2x, so big mons run off the screen. Every path maps a classic frame pixel
+(x, y) to the texel `u = (x - 40 + 64s) / s`, `v = (y - 80 + 88s) / s` (`MON_STREAM_TEXEL_U/V`),
+so the canvas's centre column stays on the frame's centre and the ground row stays on its
+bottom row. At scale 2 the classic window of a back holds only its bottom-centre 40x40 texels,
+doubled; the PNGs, the move copies and the other screens all show that window.
 
-**Back sprites.** Black/White draw back sprites at twice their size, so the Gen 5 back art is
-half the size of Gen 4's. The tool scales the back frames up (nearest neighbour) by up to 2x,
-in steps of 1/8. The scale is the largest that keeps the union no taller than the classic
-frame (80) and no wider than the canvas (128). `report.json` lists every species.
+**Fit.** Art taller than the room above the ground row (88 rows), or wider than the canvas, is
+cropped at the top when it overflows by a few rows; otherwise a front is scaled down. Backs are
+never scaled: at 2x their top is off the screen anyway, so they are only cropped, and to 120
+columns, because a wider back would pass the mesh's 240-pixel quad at 2x.
+
+- Fronts: 5 cropped (Yanmega, Kingdra, ...), 7 scaled down, to 0.75 at the least (Pidgeotto,
+  Hydreigon, Lugia, Fearow, Ho-Oh, Rayquaza, Moltres).
+- Backs: 11 cropped. Fearow and Hydreigon lose 24 rows, Rayquaza 19, Lugia 10 rows and 26
+  columns, Ho-Oh 9, the rest 7 or fewer.
+
+`report.json` lists every species.
 
 ## Runtime
 
@@ -112,8 +123,9 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
     frame. A battler past the budget waits a frame, and the order turns every frame.
   - Whole textures are sent after a menu took the VRAM.
   - `FREEZE_IDLE` holds step 0, the classic frame A.
-- **Draw (`Bind`).** The draw hook binds the battler's texture and draws the 128x96 canvas
-  around the classic frame's centre (`BattleStageStream_CanvasRect`). Mosaic,
+- **Draw (`Bind`).** The draw hook binds the battler's texture and draws the canvas around
+  the classic frame (`BattleStageStream_CanvasRect`): the whole 128x96 canvas at scale 1, the
+  stream's box doubled at scale 2. Mosaic,
   `excludeIdentity` and the `NO_SPRITE_STREAM` debug flag (bit 6) fall back to the classic
   texture.
   - A partial draw (the faint slide, the send-out reveal) keeps its cuts where the window cuts
@@ -189,7 +201,8 @@ The card timing is the emulator's. A frame read costs the game thread about 0.3 
 - **Forms and Spinda.** The PL_OTHERPOKE table is empty, so the form species draw classic.
   Spinda's spots are painted on the classic frame only.
 - **80x80 crop.** The other screens and the battle's move copies show only the classic window
-  of the canvas. Wide or tall art loses what is outside it.
+  of the canvas. Wide or tall art loses what is outside it, and a back shows only its
+  bottom-centre 40x40 texels.
 - **Doubles.** Not measured. Four streams hold about 40 KB, well inside the 128 KB floor, but
   four frame reads and decodes in one frame would pass the budget, so some battlers would wait.
 - **Read cost.** Reads can't use DMA (see above), so each costs the game thread about 1 ms. A
@@ -198,8 +211,6 @@ The card timing is the emulator's. A frame read costs the game thread about 0.3 
 - **Dropped frames.** Six large faces lost frames to the 96 KB cap (see Data).
 - **Timing.** The GIF frame durations are used as-is, and haven't been checked against
   footage of the games.
-- **Back scale.** The back scale is per species and capped at the classic frame's height. B/W
-  draw backs at a flat 2x and let big mons run off the screen.
 - **Stray files.** `gen5_stream.py` wrote `male_front.png` and `male_back.png` for the 15
   female-only species (Blissey, Chansey, Cresselia, ...). No `meson.build` lists them. Delete
   them, and stop the tool from writing them.
