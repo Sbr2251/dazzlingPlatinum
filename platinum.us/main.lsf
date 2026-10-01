@@ -27,6 +27,7 @@ Static main
 	Object main.nef.p/src_sound_system.c.o
 	Object main.nef.p/src_sound.c.o
 	Object main.nef.p/src_sound_playback.c.o
+	Object main.nef.p/src_sound_stream.c.o
 	Object main.nef.p/src_sound_chatot.c.o
 	Object main.nef.p/src_sound_area_fx.c.o
 	Object main.nef.p/src_sound_layers.c.o
