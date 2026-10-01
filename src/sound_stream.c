@@ -456,6 +456,8 @@ void SoundStream_OnBGMStarted(u16 seqID, enum SoundHandleType handleType, BOOL s
     // The new sequence replaced the owner sequence on this handle
     if (SoundStream_IsOwnedBy(handleType) == TRUE) {
         SoundStream_Stop(0);
+        // The new sequence started while the stream channels were masked out
+        SoundStream_SetSequenceAudible(handleType, TRUE);
     }
 }
 
