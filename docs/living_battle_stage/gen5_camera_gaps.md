@@ -10,14 +10,17 @@ row against B/W footage before building it.
   (`src/battle/battle_stage_camera.c`).
 - Mons as camera-facing billboards. Their feet stay on their platforms off home, and particles follow
   through a 2D similarity hook.
-- Five script commands (`StageCameraMove/Orbit/Shake/Home/Wait`). Only `mega_evolution.s` and
-  `totem_aura.s` use them.
+- Six script commands (`StageCameraMove/Orbit/Shake/Home/Wait/Zoom`). `mega_evolution.s`,
+  `totem_aura.s` and eight move scripts use them (feature/gen5-move-camera; moves.md, "Per-move
+  camera").
 - Cinematics:
   - the battle-start focus on the opponent, with a fallback sweep at the first menu;
   - the Mega orbit;
   - the Totem push-in;
   - the crit kick and the faint kick.
-- The home rule: every move animation plays at the home pose. The guard snaps home at script start.
+- The home rule: every move animation starts at the home pose and ends there. The guard snaps home
+  at script start. Only the eight per-move camera scripts leave home on purpose, and they ease back
+  before `End`.
 - Chunk 6: the BG3 shake is mirrored onto the camera for 13 moves. 17 shake moves still fade the arena.
 
 ## Behaviour gaps
@@ -29,7 +32,7 @@ row against B/W footage before building it.
 | 3 | **Player send-out:** over-the-shoulder behind the player's trainer, follows the ball, the mon pops out, the camera settles | The player's throw waits until the camera is home (120-frame cap). No shot | The whole shot is missing | Foundation C; the back-sprite cut line (F) | L |
 | 4 | **Idle camera at the command menu:** slow looping drift between the wide shot, over the player's shoulder and an opponent close-up | **Done (feature/idle-camera-drift):** `SEQUENCE_IDLE` loops four gentle poses while the menu is up and eases home in 16 frames once the commands are in (camera.md, "Idle drift") | No real over-the-shoulder shot: the player-side pose only leans 15% toward the player without a push-in | The cut guard (F) and camera range (A) limit player-side framing | M |
 | 5 | **Doubles/triples:** during selection, frames the battler whose turn it is | Nothing | Missing | Cheap once #4 exists | S |
-| 6 | **Per-move camera:** the camera moves with the move (onto the attacker, following to the target, an impact punch) | Every move plays at home. Only Mega and Totem move the camera. 13 shake moves drive the camera from the BG3 shake | No per-move camera work | Moves draw 2D effects in screen space: OAM copies (38 moves), BG2 pictures, window masks, HBlank waves, `SwitchBg` (168 moves; 55 suppress the arena), blends. These break off home. move_audit.md has the list | L (per move) |
+| 6 | **Per-move camera:** the camera moves with the move (onto the attacker, following to the target, an impact punch) | **Started (feature/gen5-move-camera):** Tackle, Earthquake, Shadow Ball, X-Scissor, Leaf Blade, Stone Edge, Air Slash and Swords Dance frame the attacker, follow to the target and shake on the hit (moves.md, "Per-move camera"). Every other move plays at home. 13 shake moves drive the camera from the BG3 shake | The other moves. The enemy-attacker direction of the eight has no on-stage critic run | Moves draw 2D effects in screen space: OAM copies (38 moves), BG2 pictures, window masks, HBlank waves, `SwitchBg` (168 moves; 55 suppress the arena), blends. These break off home. move_audit.md has the list | L (per move) |
 | 7 | **Generic attack framing** (a cheap stand-in for #6): a short push toward the attacker before the animation and a punch toward the defender on the hit; the animation itself stays at home | Crit kick (only on crits: 8% push plus shake) and faint kick | Normal hits and attacker pre-rolls get nothing | None: the hooks exist (`ov16_0225DA44` hit blink, the script-start guard) | S-M |
 | 8 | **Mid-battle switch / send-out:** focus on the side that sends out | Nothing after the intro | Missing | Ball OBJ (C) | M |
 | 9 | **Poke Ball throw and catch:** follows the ball to the target, holds on the shaking ball | Nothing. Throw, shake and catch play at home | Missing | The ball is OBJ/particles at home (C, E) | M-L |
@@ -42,7 +45,7 @@ row against B/W footage before building it.
 | # | Area | Today | Needed for Gen 5 | Rows |
 |---|---|---|---|---|
 | A | Camera range | Holes only checked at yaw +/-20 and pitch +15 (debug views 1-3, stage_format.md). The panorama is generated from flat 2D backdrops | Wider and lower shots (over the shoulder, low opponent close-ups). Extend the panorama and ground coverage for all 23 arenas, and add a hole check at the new poses | 1, 3, 4, 6 |
-| B | Zoom | `fov` is in the pose and the projection supports it, but no script command sets it | A fov argument or command for dolly-zoom and quick push-ins | 1, 4, 6 |
+| B | Zoom | **Done (feature/gen5-move-camera):** command 90, `StageCameraZoom fovDeg, frames`, eases the fov (10-60 degrees, home 40). `StageCameraHome` and the script-start snap restore it. No script uses it yet | - | 1, 4, 6 |
 | C | OBJ actors | Trainers, Poke Balls and OAM copies are 2D OBJs, only translated off home | Trainers and balls drawn as stage billboards (like the mons), so they scale and sit in depth | 2, 3, 8, 9, 10 |
 | D | Menu gating | **Done** with #4: the menu doesn't wait during `SEQUENCE_IDLE`, and the camera eases home when the commands are in | - | 4, 5 |
 | E | Particles off home | Scale plus translate only (no perspective), through the particle projection hook | Fine for short kicks. Real per-move camera shots need depth-correct emitters or per-move limits | 6, 9 |

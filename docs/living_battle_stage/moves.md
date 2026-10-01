@@ -161,3 +161,74 @@ classic one, only on the 3D arena.
 The existing scenarios must still pass: `stage_ab`, `move_audit`, `move_tester`,
 `switchbg_moves` (with category B's update), `sprite_life`, `camera`, `mega` and
 `totem_battle`.
+
+## Per-move camera
+
+Eight moves move the stage camera with the move, in the Black/White pattern. Every other move
+still plays at the home pose.
+
+**The pattern:**
+
+1. Wind-up: `StageCameraMove BATTLE_STAGE_FOCUS_ATTACKER` at about 85% distance over 8-10 frames.
+2. Launch: `StageCameraMove` to `DEFENDER`, or to `BETWEEN` for a projectile in flight.
+3. Impact: `StageCameraShake` on the hit.
+4. End: `StageCameraHome 12` and `StageCameraWait` before `End`, so the script hands the camera
+   back at home.
+
+**The limits:**
+
+- Yaw stays within about 15 degrees and pitch within about 5 degrees, inside the range the
+  arenas are checked at (stage_format.md, debug views 1-3).
+- Particles off home follow one 2D similarity, anchored on the focused battler, or on the
+  midpoint for `BETWEEN` (foundation E in gen5_camera_gaps.md). Particles on the focused battler
+  land exactly. Particles far from it drift slightly, so each script keeps its emitters on the
+  battler the camera is framing at that moment.
+- These moves use no `SwitchBg`, no OAM copies and no window masks, so nothing drawn in screen
+  space breaks off home.
+
+| Move | Wind-up | Launch | Impact |
+|---|---|---|---|
+| Tackle (33) | Attacker 85%, yaw 6, 8 frames | Defender 85%, yaw -6, 6 frames, at the lunge | Shake 2, 6 frames |
+| Earthquake (89) | - | Defender 88%, yaw -8, pitch -3, 10 frames | The mirrored 2x BG3 shake (category A) |
+| Shadow Ball (247) | Attacker 85%, yaw 8, 10 frames, during the charge | Between 95%, yaw -4, 8 frames, as the ball flies | Shake 3, 8 frames |
+| X-Scissor (404) | Attacker 85%, yaw 6, 8 frames | Defender 82%, yaw -8, 6 frames | Shake 2, 6 frames |
+| Leaf Blade (348) | Attacker 85%, yaw 6, 8 frames | Defender 85%, yaw -10, pitch 2, 10 frames | Shake 3, 8 frames |
+| Stone Edge (444) | Attacker 85%, yaw 6, 8 frames | Defender 85%, yaw -8, pitch -3, 10 frames | Shake 4, 12 frames |
+| Air Slash (403) | Attacker 85%, yaw 6, 8 frames | Defender 82%, yaw 8, 6 frames | Shake 2, 6 frames |
+| Swords Dance (14) | Attacker 82%, yaw -12, pitch 2, 8 frames | Orbit +24 degrees over 30 frames (yaw -12 to +12) around the attacker | - |
+
+All eight end with `StageCameraHome 12` and `StageCameraWait`.
+
+### Command 90: `StageCameraZoom fovDeg, frames`
+
+Eases the vertical field of view to `fovDeg` degrees over `frames` camera frames (30 Hz, the
+same unit as `Delay`) and keeps the rest of the pose. The home fov is 40 degrees on every arena,
+and values are clamped to 10-60. `0` eases back to the home fov. `StageCameraHome` restores the
+fov with the rest of the pose, and so does the snap home at script start. A `StageCameraMove`
+issued while a zoom is still easing keeps the zoom's target fov.
+
+In a contest, the command skips its two arguments and does nothing, like commands 85-89.
+
+A zoom alone keeps the particles exact: changing the fov is a pure 2D scale about the screen
+centre, which the particle similarity reproduces. None of the eight moves uses it yet. It is
+there for quick push-ins and dolly-zooms (gap B).
+
+### Checking
+
+`move_redo --moves 33,89,247,404,348,444,403,14` plays the eight moves on the stage. The camera
+must be home (AT_HOME) at the menu after each one, and `offHomeMoveFrames` must stay 0, because
+that counter only counts scripts that left home without a camera command. The contact sheets
+compare each move against the classic look.
+
+`move_redo` only plays the player's attacks. The enemy-attacker direction (the attacker at the
+back, the defender in front) has no on-stage critic run yet.
+
+**Known looks:**
+
+- `distancePct` is measured from the focus point. When the player attacks, the attacker stands
+  closer to the camera than the home focus does, so 85% from the attacker frames the back sprite
+  centred and smaller than at home: a reframe, not a push-in. When the enemy attacks, the same
+  pose is a push-in. A push-in on the player's side would need about 45-50%, the way the Mega
+  close-up uses 42%, behind a `JumpIfBattlerSide`.
+- Tackle keeps the healthboxes up, as it does in classic. The defender close-up centres the
+  defender, so the player's healthbox covers its lower right during the hit.

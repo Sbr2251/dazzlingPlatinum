@@ -108,12 +108,15 @@ enum BattleStageCinematic {
     BATTLE_STAGE_CINEMATIC_SCRIPT = 1 << 5, // an anim script used a camera command
 };
 
-// Anim script commands 85-88. focus is a STAGE_CAMERA_FOCUS_* constant; attacker and
+// Anim script commands 85-88 and 90. focus is a STAGE_CAMERA_FOCUS_* constant; attacker and
 // defender are the script's battlers. Frames count drawn frames; 0 snaps.
 void BattleStage_CameraMove(int focus, int attacker, int defender, int distancePct, int yawDeg, int pitchDeg, int frames);
 void BattleStage_CameraOrbit(int yawDeltaDeg, int frames);
 void BattleStage_CameraShake(int amplitudePx, int frames);
 void BattleStage_CameraHome(int frames);
+// Command 90: eases the vertical field of view to fovDeg degrees (clamped to 10-60; home is
+// 40), keeping the rest of the pose. 0 eases back to the home fov. CameraHome restores it too.
+void BattleStage_CameraZoom(int fovDeg, int frames);
 // A move's BG3 shake over the normal backdrop, in BG scroll sign (the picture moves by -dx,
 // -dy): the camera moves the arena, mons and particles with it. (0, 0) drops it. It does not
 // count as off home (offHomeFrames); it sets BATTLE_STAGE_CAMERA_SHAKING.
