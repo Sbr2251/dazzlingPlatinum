@@ -3,6 +3,8 @@
 
 #include <nnsys.h>
 
+#include "sound_system.h"
+
 // Priority of the NitroSystem stream (file read + ADPCM decode) thread.
 // Higher than the main/launcher thread (OS_THREAD_LAUNCHER_PRIORITY = 16) so
 // buffer refills can preempt long main-thread loads, lower than the CARD
@@ -24,5 +26,15 @@ void SoundStream_MoveVolume(int volume, int frames);
 void SoundStream_SetChannelVolume(int channel, int volume);
 void SoundStream_PauseForFanfare(void);
 void SoundStream_ResumeAfterFanfare(int fadeInFrames);
+
+// Hooks for the vanilla BGM code (sound_playback.c, sound.c, sound_system.c)
+void SoundStream_OnBGMStarted(u16 seqID, enum SoundHandleType handleType, BOOL started);
+void SoundStream_OnSeqStopped(u16 seqID, int fadeFrames);
+void SoundStream_OnHandleStopped(enum SoundHandleType handleType, int fadeFrames);
+void SoundStream_OnHandlePaused(enum SoundHandleType handleType, BOOL paused);
+void SoundStream_OnHandleVolumeFade(enum SoundHandleType handleType, int targetVolume, int frames);
+void SoundStream_OnHandleInitialVolume(enum SoundHandleType handleType, int volume);
+void SoundStream_OnPlayerVolume(int playerID, int volume);
+void SoundStream_SetBGMPlayerChannels(u16 channels);
 
 #endif // POKEPLATINUM_SOUND_STREAM_H

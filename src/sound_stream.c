@@ -1,7 +1,6 @@
 #include "sound_stream.h"
 
 #include <nitro.h>
-#include <string.h>
 
 #include "generated/sdat.h"
 
@@ -259,6 +258,10 @@ BOOL SoundStream_HasOverride(u16 seqID)
 // TRUE while a stream owns the BGM, including while it is paused for a fanfare
 BOOL SoundStream_IsActive(void)
 {
+    if (sInitialized == FALSE) {
+        return FALSE;
+    }
+
     SoundStream_UpdateFinished();
     return sStrmID != SOUND_STREAM_NONE;
 }
@@ -424,4 +427,145 @@ void SoundStream_ResumeAfterFanfare(int fadeInFrames)
 
     SoundStream_ApplyVolume();
     SoundStream_ApplyChannelVolumes();
+}
+
+// ---------------------------------------------------------------------------
+// Hooks called from sound_playback.c, sound.c and sound_system.c. They mirror
+// what the vanilla code does to the BGM sound handles onto the stream; each
+// one is a no-op unless a stream owns that handle.
+// ---------------------------------------------------------------------------
+
+static BOOL SoundStream_IsOwnedBy(enum SoundHandleType handleType)
+{
+    return SoundStream_IsActive() == TRUE && sOwnerHandleType == handleType;
+}
+
+// A BGM sequence was just started on handleType (Sound_PlayBGM and friends).
+// If it is overridden, the stream takes over and the sequence is silenced.
+void SoundStream_OnBGMStarted(u16 seqID, enum SoundHandleType handleType, BOOL started)
+{
+    if (started == FALSE) {
+        return;
+    }
+
+    if (SoundStream_PlayForSeq(seqID) == TRUE) {
+        SoundStream_SetSequenceAudible(handleType, FALSE);
+        return;
+    }
+
+    // The new sequence replaced the owner sequence on this handle
+    if (SoundStream_IsOwnedBy(handleType) == TRUE) {
+        SoundStream_Stop(0);
+    }
+}
+
+// Sound_StopBGM: stops whatever sequence has this ID
+void SoundStream_OnSeqStopped(u16 seqID, int fadeFrames)
+{
+    if (SoundStream_IsActive() == TRUE && sOwnerSeqID == seqID) {
+        SoundStream_Stop(fadeFrames);
+    }
+}
+
+// The sequence on handleType was stopped
+void SoundStream_OnHandleStopped(enum SoundHandleType handleType, int fadeFrames)
+{
+    if (SoundStream_IsOwnedBy(handleType) == TRUE) {
+        SoundStream_Stop(fadeFrames);
+    }
+}
+
+// Sound_SetBGMPlayerPaused: fanfares, battles and menus pause the BGM handle
+void SoundStream_OnHandlePaused(enum SoundHandleType handleType, BOOL paused)
+{
+    int seqID;
+
+    if (paused == TRUE) {
+        if (SoundStream_IsOwnedBy(handleType) == TRUE) {
+            SoundStream_PauseForFanfare();
+        }
+
+        return;
+    }
+
+    seqID = Sound_GetSequenceIDFromSoundHandle(SoundSystem_GetSoundHandle(handleType));
+
+    if (SoundStream_IsOwnedBy(handleType) == TRUE && sOwnerSeqID == seqID) {
+        if (sPaused == TRUE) {
+            SoundStream_ResumeAfterFanfare(SOUND_STREAM_RESUME_FADE_FRAMES);
+        }
+
+        return;
+    }
+
+    // The handle resumes an overridden sequence whose stream state was lost
+    // (another stream replaced it while it was paused). Restart the stream
+    // from the top, or let the sequence be heard if that is not possible.
+    if (seqID >= 0 && SoundStream_HasOverride(seqID) == TRUE) {
+        if (SoundStream_PlayForSeq(seqID) == TRUE) {
+            SoundStream_SetSequenceAudible(handleType, FALSE);
+        } else {
+            SoundStream_SetSequenceAudible(handleType, TRUE);
+        }
+    }
+}
+
+// Sound_FadeVolumeForHandle (NNS_SndPlayerMoveVolume on the handle)
+void SoundStream_OnHandleVolumeFade(enum SoundHandleType handleType, int targetVolume, int frames)
+{
+    if (SoundStream_IsOwnedBy(handleType) == TRUE) {
+        SoundStream_MoveVolume(targetVolume, frames);
+    }
+}
+
+// Sound_SetInitialVolumeForHandle. The initial volume replaces the
+// sequence's own volume from the archive, so the stream is scaled by the
+// same ratio (voice chat uses 1/5 of it, for example).
+void SoundStream_OnHandleInitialVolume(enum SoundHandleType handleType, int volume)
+{
+    const NNSSndSeqParam *param;
+
+    if (SoundStream_IsOwnedBy(handleType) == FALSE) {
+        return;
+    }
+
+    param = NNS_SndArcGetSeqParam(sOwnerSeqID);
+
+    if (param == NULL || param->volume == 0) {
+        sInitialVolume = SoundStream_ClampVolume(volume);
+    } else {
+        sInitialVolume = SoundStream_ClampVolume(volume * SOUND_VOLUME_MAX / param->volume);
+    }
+
+    SoundStream_ApplyVolume();
+}
+
+// Sound_SetPlayerVolume (NNS_SndPlayerSetPlayerVolume). Remembered even
+// while no stream plays, just like the NNS player volume is.
+void SoundStream_OnPlayerVolume(int playerID, int volume)
+{
+    if (playerID == PLAYER_FIELD) {
+        sFieldPlayerVolume = SoundStream_ClampVolume(volume);
+    } else if (playerID == PLAYER_BGM) {
+        sBGMPlayerVolume = SoundStream_ClampVolume(volume);
+    } else {
+        return;
+    }
+
+    if (SoundStream_IsActive() == TRUE) {
+        SoundStream_ApplyVolume();
+    }
+}
+
+// Replaces the direct NNS_SndPlayerSetAllocatableChannel(PLAYER_BGM, ...) in
+// Sound_ConfigureBGMChannelsAndReverb so the stream channels stay reserved.
+void SoundStream_SetBGMPlayerChannels(u16 channels)
+{
+    sBGMChannels = channels;
+
+    if (sChannelsReserved == TRUE) {
+        NNS_SndPlayerSetAllocatableChannel(PLAYER_BGM, sBGMChannels & ~sStreamHWChannels);
+    } else {
+        NNS_SndPlayerSetAllocatableChannel(PLAYER_BGM, sBGMChannels);
+    }
 }
