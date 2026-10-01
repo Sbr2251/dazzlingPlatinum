@@ -102,6 +102,10 @@ form_sprites_order = form_registry[2]
 # 3. Walk species subdirectories; `species_dirnames` is the authority.
 foreach species : species_dirnames
     subdir(species)
+    # datagen_species also reads the sprite offsets and shadows from here
+    if fs.is_file(species / 'sprite_data.json')
+        species_data_files += files(species / 'sprite_data.json')
+    endif
 endforeach
 
 # Stash the listing of species in an environment so that other processes can make

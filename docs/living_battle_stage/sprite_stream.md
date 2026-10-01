@@ -24,7 +24,10 @@ The tool also rewrites, from the same art, each species' `{male,female}_{front,b
 (frame A and a mid-loop frame B, cut from the canvas's classic window), `normal.pal` and
 `shiny.pal`. So everything that still draws the classic sprite matches the stream (summary
 screen, Pokédex, fallbacks), and so does the battler's palette slot. The tool also sets
-`y_offset` to 0, because the art already stands on the frame's last row.
+`y_offset` in `sprite_data.json` to 0, because the art already stands on the frame's last row.
+`res/pokemon/meson.build` lists every `sprite_data.json` as a dependency of `height.narc`.
+Before that, an edit to `sprite_data.json` alone never rebuilt the NARC, so the battle kept
+lowering each streamed sprite by its old Gen 4 offset (20 px for Budew).
 
 **Canvas.** The canvas is 128x96: a whole texture row wide, with the classic 80x80 frame at
 (24, 8). A Gen 5 frame is 96x96, centred, with the union of all frames standing on row 87.
