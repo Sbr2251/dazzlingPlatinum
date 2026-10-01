@@ -28,6 +28,7 @@ Static main
 	Object main.nef.p/src_sound.c.o
 	Object main.nef.p/src_sound_playback.c.o
 	Object main.nef.p/src_sound_chatot.c.o
+	Object main.nef.p/src_sound_layers.c.o
 	Object main.nef.p/src_game_overlay.c.o
 	Object main.nef.p/src_unk_0200679C.c.o
 	Object main.nef.p/src_overlay_manager.c.o

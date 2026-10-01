@@ -25,6 +25,7 @@ pokeplatinum_c = files(
     'sound.c',
     'sound_playback.c',
     'sound_chatot.c',
+    'sound_layers.c',
     'unk_0200679C.c',
     'overlay_manager.c',
     'graphics.c',
