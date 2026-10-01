@@ -14,6 +14,7 @@
 #include "heap.h"
 #include "screen_fade.h"
 #include "sound.h"
+#include "sound_layers.h"
 
 typedef struct EncounterEffectTaskData {
     int taskState;
@@ -31,6 +32,7 @@ static BOOL FieldTask_RunEncounterEffect(FieldTask *task)
     case 0:
         EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
         Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
+        SoundLayers_Reset();
         data->taskState++;
         break;
 

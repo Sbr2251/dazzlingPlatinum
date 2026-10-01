@@ -47,6 +47,7 @@
 #include "save_player.h"
 #include "script_manager.h"
 #include "sound.h"
+#include "sound_layers.h"
 #include "system_flags.h"
 #include "system_vars.h"
 #include "trainer_data.h"
@@ -301,6 +302,7 @@ static BOOL FieldTask_WiFiEncounter(FieldTask *task)
     case 0:
         Sound_SetScene(SOUND_SCENE_NONE);
         Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, encounter->battleBGM, 1);
+        SoundLayers_Reset();
         CallBattleTask(task, encounter->dto);
         (*state)++;
         break;

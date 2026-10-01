@@ -1996,6 +1996,7 @@ static BOOL BtlCmd_UpdateHealthBar(BattleSystem *battleSys, BattleContext *battl
     int battler = BattleScript_Battler(battleSys, battleCtx, inBattler);
 
     BattleController_EmitUpdateHPGauge(battleSys, battleCtx, battler);
+    BattleSystem_UpdateLowHPMusicLayer(battleSys, battleCtx);
 
     return FALSE;
 }
@@ -2782,6 +2783,7 @@ static BOOL BtlCmd_SwitchAndUpdateMon(BattleSystem *battleSys, BattleContext *ba
     battleCtx->hpTemp = battleCtx->battleMons[BATTLER_ENEMY_1].curHP;
 
     BattleSystem_UpdateAfterSwitch(battleSys, battleCtx, battler);
+    BattleSystem_UpdateLowHPMusicLayer(battleSys, battleCtx);
 
     return FALSE;
 }

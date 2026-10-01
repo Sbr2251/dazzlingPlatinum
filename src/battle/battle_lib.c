@@ -40,7 +40,9 @@
 #include "pokedex_data_index.h"
 #include "pokedex_heightweight.h"
 #include "pokemon.h"
+#include "sound_layers.h"
 #include "string_gf.h"
+#include "totem_battle.h"
 #include "trainer_data.h"
 #include "trainer_info.h"
 #include "unk_020366A0.h"
@@ -8333,4 +8335,39 @@ int Move_CalcVariableType(BattleSystem *battleSys, BattleContext *battleCtx, Pok
     }
 
     return type;
+}
+
+void BattleSystem_UpdateLowHPMusicLayer(BattleSystem *battleSys, BattleContext *battleCtx)
+{
+    int battler;
+    int maxBattlers = BattleSystem_MaxBattlers(battleSys);
+    BOOL anyLow = FALSE;
+    BOOL allHigh = TRUE;
+
+    for (battler = 0; battler < maxBattlers; battler++) {
+        BattleMon *mon = &battleCtx->battleMons[battler];
+
+        // Fainted battlers and empty slots don't count; they are about to be replaced
+        if (Battler_Side(battleSys, battler) != BATTLE_SIDE_PLAYER
+            || TotemBattle_IsPermanentlyInactiveBattler(battleSys, battler)
+            || mon->curHP <= 0
+            || mon->maxHP == 0) {
+            continue;
+        }
+
+        if ((u32)mon->curHP * 4 <= mon->maxHP) {
+            anyLow = TRUE;
+        }
+
+        if ((u32)mon->curHP * 3 <= mon->maxHP) {
+            allHigh = FALSE;
+        }
+    }
+
+    // Hysteresis: on at or below 25%, off only once every battler is above 33%
+    if (anyLow) {
+        SoundLayers_Set(BGM_LAYER_LOW_HP, TRUE);
+    } else if (allHigh) {
+        SoundLayers_Set(BGM_LAYER_LOW_HP, FALSE);
+    }
 }
