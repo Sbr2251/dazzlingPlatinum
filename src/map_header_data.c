@@ -12,6 +12,7 @@
 #include "map_header.h"
 #include "map_object.h"
 #include "narc.h"
+#include "sound_area_fx.h"
 
 static void MapHeaderData_LoadEvents(MapHeaderData *data, int headerID);
 static void MapHeaderData_ParseEvents(MapHeaderData *data);
@@ -37,6 +38,10 @@ void MapHeaderData_Load(FieldSystem *fieldSystem, int headerID)
     MapHeaderData_ParseEvents(fieldSystem->mapHeaderData);
     MapHeaderData_LoadWildEncounters(&fieldSystem->mapHeaderData->wildEncounters, headerID);
     MapHeaderData_LoadInitScripts(fieldSystem->mapHeaderData, headerID);
+
+    // Every map change (warps, seamless matrix transitions, Distortion World
+    // floors, loading a save) goes through here
+    SoundAreaFx_OnMapChange(headerID);
 }
 
 static void MapHeaderData_LoadEvents(MapHeaderData *data, int headerID)

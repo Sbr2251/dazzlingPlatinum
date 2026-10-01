@@ -9,6 +9,7 @@
 
 #include "game_options.h"
 #include "sound.h"
+#include "sound_area_fx.h"
 #include "sound_chatot.h"
 #include "sound_playback.h"
 #include "sys_task_manager.h"
@@ -78,6 +79,7 @@ void SoundSystem_Tick()
         }
     }
 
+    SoundAreaFx_Update();
     NNS_SndMain();
 }
 
