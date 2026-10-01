@@ -74,6 +74,16 @@ centre and the ground row stays on its bottom row. At 1.75x the classic window o
 only its bottom-centre 46x46 texels; the PNGs, the move copies and the other screens all show
 that window.
 
+**Sink.** The healthbars are OBJs, drawn over the 3D layer, so a tall back reaching the
+opponent's HP box (its bottom is about 86 screen px above the player's feet) has its head
+hidden behind it. Black/White have the same layering, but their textbox is on the touch screen,
+which leaves them 48 more rows. So a back taller than 100 frame px sinks by the excess, at most
+40 (`BACK_ROOM`, `BACK_MAX_SINK` in `battle_stage_stream.c`), and its feet go behind the
+textbox, the way B/W's screen edge crops tall backs. Garchomp, Torterra and 67 others sink the
+full 40, Lucario 15, Staraptor 19; about half the backs (Budew, Finneon, ...) don't move. The
+blob shadow stays on the ground. The sink is in `BattleStageStream_CanvasRect`, so every draw
+of the battler, the faint slide and the send-out included, takes it; the move copies don't.
+
 **Fit.** Art taller than the room above the ground row (88 rows), or wider than the canvas, is
 cropped at the top when it overflows by a few rows; otherwise a front is scaled down. Backs are
 never scaled down: at 1.75x the room's top rows are off the screen anyway, so they are only

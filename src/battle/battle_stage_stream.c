@@ -33,6 +33,13 @@
 // FS_ReadFileAsync returns: 1.2 ms at worst in the emulator (readTicksMax)
 #define READ_BUF_ALIGN 32
 
+// A scaled member (a back) taller than BACK_ROOM frame pixels sinks by the rest, at most
+// BACK_MAX_SINK, so its top clears the opponent's healthbar (OBJs, drawn over the 3D layer) and
+// its feet go behind the textbox. Black/White have the 48 rows of the textbox above the touch
+// screen; Platinum's sits on the top screen. Fronts and short backs stand on the ground
+#define BACK_ROOM     100
+#define BACK_MAX_SINK 40
+
 typedef struct BattlerStream {
     u16 narcID; // the sprite template looked up last
     u16 character;
@@ -700,6 +707,7 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
     int boxU0, boxV0, boxU1, boxV1; // what a side reaching the frame's edge extends to
     int frameX, frameY, frameW, frameH; // the classic frame on screen; flipped when negative
     int x0, x1, y0, y1; // the quad in the frame, in eighths of a pixel
+    int sink = 0; // frame pixels
 
     // At 1:1 the whole canvas; scaled, the stream's box, as the canvas could pass the widest mesh
     if (scale == MON_STREAM_SCALE_ONE) {
@@ -712,6 +720,8 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
         boxV0 = data->top;
         boxU1 = (data->left + data->width) * 2;
         boxV1 = data->top + data->height;
+        sink = (MON_STREAM_GROUND_V - data->top) * scale / MON_STREAM_SCALE_ONE - BACK_ROOM;
+        sink = sink < 0 ? 0 : (sink > BACK_MAX_SINK ? BACK_MAX_SINK : sink);
     }
 
     if (!transforms->partialDraw) {
@@ -748,4 +758,10 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
     out->height = y1 * frameH / (MON_SPRITE_FRAME_HEIGHT * MON_STREAM_SCALE_ONE) - y0 * frameH / (MON_SPRITE_FRAME_HEIGHT * MON_STREAM_SCALE_ONE);
     out->centreX = frameX * FX32_ONE + (x0 + x1) * frameW * (FX32_ONE / 2 / MON_STREAM_SCALE_ONE) / MON_SPRITE_FRAME_WIDTH;
     out->centreY = frameY * FX32_ONE + (y0 + y1) * frameH * (FX32_ONE / 2 / MON_STREAM_SCALE_ONE) / MON_SPRITE_FRAME_HEIGHT;
+
+    if (sink != 0) {
+        sink = sink * frameH / MON_SPRITE_FRAME_HEIGHT;
+        out->y += sink;
+        out->centreY += sink * FX32_ONE;
+    }
 }

@@ -60,7 +60,8 @@ void BattleStageStream_Unbind(void);
 // Where a battler's canvas goes for a draw the manager meant for the classic 80x80 frame
 // (rect), on the mapping of MON_STREAM_TEXEL_U/V: at 1:1 the whole 128x96 canvas about the
 // frame's centre; a scaled member (a back sprite) only its box, at its scale, standing on the
-// frame's bottom edge. A partial draw (the faint slide, the send-out reveal) keeps its cuts
+// frame's bottom edge, or below it by up to 40 frame pixels when tall (the sink, so the head
+// clears the opponent's healthbar). A partial draw (the faint slide, the send-out reveal) keeps its cuts
 // inside the 80x80 window, and on the sides where the window reaches the frame's edge goes out
 // to the canvas's (scaled: the box's) edge, so art wider or taller than the classic frame stays.
 // For a battler Bind took. centreX and centreY in fx32, the rest in pixels and texels.
