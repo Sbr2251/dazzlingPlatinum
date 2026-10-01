@@ -38,6 +38,7 @@
 #include "pokemon.h"
 #include "pokemon_anim.h"
 #include "pokemon_sprite.h"
+#include "pokemon_sprite_stream.h"
 #include "poketch.h"
 #include "render_text.h"
 #include "render_window.h"
@@ -958,6 +959,11 @@ static void Evolution_CreateSprites(EvolutionData *evolutionData)
 
     PokemonSprite_SetAttribute(evolutionData->monSprites[1], MON_SPRITE_SCALE_X, 0);
     PokemonSprite_SetAttribute(evolutionData->monSprites[1], MON_SPRITE_SCALE_Y, 0);
+
+    // Gen 5 animation (pokemon_sprite_stream.h). The spare keeps the particles' allocation and
+    // the 0x8000 check in EVOLUTION_STATE_START_FADE clear.
+    PokemonSpriteManager_SetStreamHeapSpare(evolutionData->monSpriteMan, 0x14000);
+    PokemonSpriteManager_SetStreamMask(evolutionData->monSpriteMan, MON_STREAM_ALL_SPRITES);
 }
 
 static void Evolution_VBlankCallback(void *data)

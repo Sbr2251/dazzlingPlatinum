@@ -13,6 +13,7 @@
 #include "pokemon.h"
 #include "pokemon_anim.h"
 #include "pokemon_sprite.h"
+#include "pokemon_sprite_stream.h"
 #include "unk_0202419C.h"
 
 typedef struct {
@@ -359,6 +360,9 @@ void PokemonSummaryScreen_LoadMonSprite(PokemonSummaryScreen *summaryScreen)
     summaryScreen->monSprite.sprite = PokemonSpriteManager_CreateSprite(summaryScreen->monSprite.spriteManager, &spriteTemplate, 52, 104, 0, 0, summaryScreen->monSprite.frames, NULL);
 
     PokemonSprite_SetAttribute(summaryScreen->monSprite.sprite, MON_SPRITE_FLIP_H, summaryScreen->monSprite.flip);
+    // Gen 5 animation (pokemon_sprite_stream.h); the screen's heap has about 40 KB left here
+    PokemonSpriteManager_SetStreamHeapSpare(summaryScreen->monSprite.spriteManager, 0x4000);
+    PokemonSpriteManager_SetStreamMask(summaryScreen->monSprite.spriteManager, MON_STREAM_ALL_SPRITES);
 }
 
 void PokemonSummaryScreen_LoadMonAnimation(PokemonSummaryScreen *summaryScreen)

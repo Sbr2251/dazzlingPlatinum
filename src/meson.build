@@ -29,6 +29,7 @@ pokeplatinum_c = files(
     'overlay_manager.c',
     'graphics.c',
     'pokemon_sprite.c',
+    'pokemon_sprite_stream.c',
     'sprite_util.c',
     'sprite_resource.c',
     'sprite_transfer.c',

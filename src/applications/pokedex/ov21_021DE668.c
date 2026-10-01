@@ -26,6 +26,7 @@
 #include "pokedex_data_index.h"
 #include "pokemon.h"
 #include "pokemon_sprite.h"
+#include "pokemon_sprite_stream.h"
 #include "sound_playback.h"
 #include "sprite.h"
 #include "sprite_resource.h"
@@ -370,6 +371,7 @@ static void ov21_021DE9A4(UnkStruct_ov21_021DF374 *param0, PokedexGraphicData **
 
 static void ov21_021DEA0C(UnkStruct_ov21_021DF374 *param0, PokedexGraphicData **param1)
 {
+    PokemonSpriteManager_SetStreamMask((*param1)->spriteMan, 0);
     ov21_021DF35C(param0);
 
     Window_FillTilemap(&(*param1)->window, 0);
@@ -574,6 +576,10 @@ static void ov21_021DEF54(PokedexGraphicData **param0, const UnkStruct_ov21_021D
 
     PokedexMain_DisplayPokemonSprite(*param0, param1->unk_04, species, 2, 48, 72);
     PokemonSprite_SetAttribute(v0, MON_SPRITE_HIDE, 0);
+
+    // Gen 5 animation while the entry is open (pokemon_sprite_stream.h); the other sprites are hidden
+    PokemonSpriteManager_SetStreamHeapSpare((*param0)->spriteMan, 0x4000);
+    PokemonSpriteManager_SetStreamMask((*param0)->spriteMan, MON_STREAM_ALL_SPRITES);
 }
 
 static void ov21_021DEF8C(PokedexGraphicData **param0)
@@ -582,6 +588,7 @@ static void ov21_021DEF8C(PokedexGraphicData **param0)
 
     PokemonSprite_SetAttribute(v0, MON_SPRITE_HIDE, 1);
     PokemonSprite_ClearFade(v0);
+    PokemonSpriteManager_SetStreamMask((*param0)->spriteMan, 0);
 }
 
 static void ov21_021DEFA8(UnkStruct_ov21_021DF374 *param0, PokedexGraphicData **param1, int param2)

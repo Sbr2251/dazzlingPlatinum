@@ -87,6 +87,7 @@ enum PokemonSpriteDrawHookResult {
 };
 
 struct PokemonSpriteManager;
+struct PokemonSpriteStreamState;
 
 // Called for each drawn sprite right before its quad, with the matrix, texture, material
 // and polygon attributes of the quad already set. It may draw the sprite itself and must
@@ -206,6 +207,7 @@ typedef struct PokemonSpriteManager {
     u8 excludeIdentity;
     u32 hideShadows; // curiously, this field is treated like a bitmask, but it only ever uses a value of 0 or 1
     PokemonSpriteDrawHook *drawHook; // NULL draws every sprite as one quad
+    struct PokemonSpriteStreamState *stream; // Gen 5 animation (pokemon_sprite_stream.h); NULL until a screen opts in
 } PokemonSpriteManager;
 
 // used to run PokemonSprite animations in a task independent

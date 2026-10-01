@@ -10,6 +10,7 @@
 #include "narc.h"
 #include "palette.h"
 #include "pokemon_sprite.h"
+#include "pokemon_sprite_stream.h"
 
 #include "res/pokemon/pl_otherpoke.naix.h"
 
@@ -422,6 +423,7 @@ void *PokemonSpriteManager_New(enum HeapID heapID)
 
     monSpriteMan->excludeIdentity = FALSE;
     monSpriteMan->drawHook = NULL;
+    monSpriteMan->stream = NULL;
 
     NNSG2dCharacterData *charData;
     u8 *rawCharData;
@@ -460,6 +462,7 @@ void PokemonSpriteManager_DrawSprites(PokemonSpriteManager *monSpriteMan)
 
     BufferPokemonSpriteCharData(monSpriteMan);
     BufferPokemonSpritePlttData(monSpriteMan);
+    PokemonSpriteStream_BeginFrame(monSpriteMan);
 
     NNS_G3dGeFlushBuffer();
 
@@ -481,6 +484,7 @@ void PokemonSpriteManager_DrawSprites(PokemonSpriteManager *monSpriteMan)
             }
 
             PokemonSprite_TickAnim(&monSpriteMan->sprites[i]);
+            PokemonSpriteStream_UpdateSprite(monSpriteMan, i, sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][0], sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][1]);
 
             G3_TexPlttBase(monSpriteMan->plttBaseAddr + PLTT_OFFSET_CAST(i), monSpriteMan->imageProxy.attr.fmt);
             G3_Translate((monSpriteMan->sprites[i].transforms.xCenter + monSpriteMan->sprites[i].transforms.xPivot) << FX32_SHIFT, (monSpriteMan->sprites[i].transforms.yCenter + monSpriteMan->sprites[i].transforms.yPivot) << FX32_SHIFT, monSpriteMan->sprites[i].transforms.zCenter << FX32_SHIFT);
@@ -571,6 +575,7 @@ void PokemonSpriteManager_DrawSprites(PokemonSpriteManager *monSpriteMan)
 
 void PokemonSpriteManager_Free(PokemonSpriteManager *monSpriteMan)
 {
+    PokemonSpriteStream_Free(monSpriteMan);
     Heap_Free(monSpriteMan->charRawData);
     Heap_Free(monSpriteMan->plttRawData);
     Heap_Free(monSpriteMan->plttRawDataUnfaded);
@@ -1268,6 +1273,8 @@ PokemonSpriteTemplate *PokemonSprite_GetTemplate(PokemonSprite *monSprite)
 
 void PokemonSpriteManager_UpdateCharAndPltt(PokemonSpriteManager *monSpriteMan)
 {
+    BOOL wholeChar = monSpriteMan->needLoadChar;
+
     if (monSpriteMan->needLoadChar) {
         monSpriteMan->needLoadChar = FALSE;
 
@@ -1280,6 +1287,8 @@ void PokemonSpriteManager_UpdateCharAndPltt(PokemonSpriteManager *monSpriteMan)
 
         NNS_G2dLoadImage2DMapping(&monSpriteMan->charData, monSpriteMan->charBaseAddr, NNS_G2D_VRAM_TYPE_3DMAIN, &monSpriteMan->imageProxy);
     }
+
+    PokemonSpriteStream_Upload(monSpriteMan, wholeChar);
 
     if (monSpriteMan->needLoadPltt) {
         monSpriteMan->needLoadPltt = FALSE;
@@ -1350,6 +1359,7 @@ static void BufferPokemonSpriteCharData(PokemonSpriteManager *monSpriteMan)
 
             PokemonSprite_Decrypt(rawCharData, monSpriteMan->sprites[i].template.narcID);
             TryDrawSpindaSpots(&monSpriteMan->sprites[i], rawCharData);
+            PokemonSpriteStream_Invalidate(monSpriteMan, i);
 
             monSpriteMan->sprites[i].cut = FALSE;
 

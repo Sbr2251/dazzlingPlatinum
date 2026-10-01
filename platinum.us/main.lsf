@@ -34,6 +34,7 @@ Static main
 	Object main.nef.p/src_narc.c.o
 	Object main.nef.p/src_graphics.c.o
 	Object main.nef.p/src_pokemon_sprite.c.o
+	Object main.nef.p/src_pokemon_sprite_stream.c.o
 	Object main.nef.p/src_sprite_util.c.o
 	Object main.nef.p/src_sprite_resource.c.o
 	Object main.nef.p/src_sprite_transfer.c.o

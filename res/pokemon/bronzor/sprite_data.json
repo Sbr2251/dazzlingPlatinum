@@ -2,7 +2,7 @@
     "front": {
         "y_offset": {
             "female": 0,
-            "male": 24
+            "male": 0
         },
         "addl_y_offset": 10,
         "animation": 13,
@@ -74,7 +74,7 @@
     "back": {
         "y_offset": {
             "female": 0,
-            "male": 12
+            "male": 0
         },
         "animation": 141,
         "cry_delay": 15,

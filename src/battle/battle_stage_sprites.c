@@ -110,6 +110,9 @@ typedef struct StageSprites {
     BOOL visible;
     BOOL wasVisible;
     BOOL advanced; // breathing advanced for a mon this frame
+    BOOL streamLive; // the streams play: the arena is drawn, or hidden with its texture VRAM kept
+    u32 streamedMask; // battlers drawn from their stream so far this frame
+    u32 lastStreamedMask; // and in the frame before
     const BattleStageFileLighting *lighting;
     const MtxFx43 *view;
     StageSpriteState states[MAX_MON_SPRITES];
@@ -153,6 +156,9 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     sStageSprites.hooked = FALSE;
     sStageSprites.moveAnimActive = FALSE;
     sStageSprites.visible = FALSE;
+    sStageSprites.streamLive = FALSE;
+    sStageSprites.streamedMask = 0;
+    sStageSprites.lastStreamedMask = 0;
     sStageSprites.wasVisible = FALSE;
     sStageSprites.advanced = FALSE;
     sStageSprites.lighting = NULL;
@@ -200,6 +206,9 @@ void BattleStageSprites_Free(void)
     FreeBlobs();
     sStageSprites.battleSys = NULL;
     sStageSprites.visible = FALSE;
+    sStageSprites.streamLive = FALSE;
+    sStageSprites.streamedMask = 0;
+    sStageSprites.lastStreamedMask = 0;
     sStageSprites.lighting = NULL;
     sStageSprites.view = NULL;
 }
@@ -217,6 +226,8 @@ void BattleStageSprites_BeginFrame(BOOL visible, const BattleStageFileLighting *
     sStageSprites.lighting = lighting;
     sStageSprites.view = view;
     sStageSprites.advanced = FALSE;
+    sStageSprites.lastStreamedMask = sStageSprites.streamedMask;
+    sStageSprites.streamedMask = 0;
 
     if (sStageSprites.visible) {
         UpdateTint(dayLighting);
@@ -250,7 +261,11 @@ void BattleStageSprites_BeginFrame(BOOL visible, const BattleStageFileLighting *
         }
     }
 
-    BattleStageStream_BeginFrame(sStageSprites.visible, (fields->debugFlags & BATTLE_STAGE_DEBUG_FREEZE_IDLE) != 0);
+    // Hidden but with the texture VRAM kept (the debug toggle, a move's backdrop), the streams
+    // go on and the sprites draw them flat (DrawFlatStream), so hiding the arena doesn't snap
+    // them back to the classic frame
+    sStageSprites.streamLive = sStageSprites.visible || (sStageSprites.hooked && BattleStage_KeepsTextureVram());
+    BattleStageStream_BeginFrame(sStageSprites.streamLive, (fields->debugFlags & BATTLE_STAGE_DEBUG_FREEZE_IDLE) != 0);
 
     // Another screen may have used the texture or palette VRAM while the arena was hidden
     if (sStageSprites.hasBlobs && sStageSprites.visible && !sStageSprites.wasVisible) {
@@ -281,6 +296,48 @@ void BattleStage_NotifyHit(int battler)
 
     // BeginFrame counts it down before the first wobbling frame
     sStageSprites.states[battler].wobble = WOBBLE_FRAMES + 1;
+}
+
+BOOL BattleStage_IsSpriteStreamed(int battler)
+{
+    if (!BATTLE_STAGE_3D || sStageSprites.fields == NULL || !sStageSprites.hooked || battler < 0 || battler >= MAX_MON_SPRITES) {
+        return FALSE;
+    }
+
+    return ((sStageSprites.streamedMask | sStageSprites.lastStreamedMask) & (1 << battler)) != 0;
+}
+
+BOOL BattleStage_GetStreamFrameTiles(int battler, u8 *tiles)
+{
+    // The tile order of CharacterSprite_LoadPokemonSprite (SUB_REGION_ORDER): x, y, width,
+    // height in tiles, each region row by row
+    static const u8 regions[][4] = { { 0, 0, 8, 8 }, { 8, 0, 2, 4 }, { 8, 4, 2, 4 }, { 0, 8, 4, 2 }, { 4, 8, 4, 2 }, { 8, 8, 2, 2 } };
+    const u8 *frame;
+    int i, tx, ty, row;
+
+    if (tiles == NULL || !BattleStage_IsSpriteStreamed(battler)) {
+        return FALSE;
+    }
+
+    frame = BattleStageStream_GetFrame(battler);
+
+    if (frame == NULL) {
+        return FALSE;
+    }
+
+    // Both are 4bpp with the left pixel in the low nibble: a tile row is 4 bytes of a texture row
+    for (i = 0; i < NELEMS(regions); i++) {
+        for (ty = regions[i][1]; ty < regions[i][1] + regions[i][3]; ty++) {
+            for (tx = regions[i][0]; tx < regions[i][0] + regions[i][2]; tx++) {
+                for (row = 0; row < 8; row++) {
+                    memcpy(tiles, frame + (STREAM_CLASSIC_TOP + ty * 8 + row) * (STREAM_CANVAS_WIDTH / 2) + (STREAM_CLASSIC_LEFT + tx * 8) / 2, 4);
+                    tiles += 4;
+                }
+            }
+        }
+    }
+
+    return TRUE;
 }
 
 void BattleStage_SetGroundHole(int battler, BOOL open)
@@ -523,6 +580,29 @@ static void LoadClassicMatrix(const PokemonSpriteTransforms *transforms, const B
     G3_Translate(-((transforms->xCenter + transforms->xPivot) << FX32_SHIFT), -((transforms->yCenter + transforms->yPivot) << FX32_SHIFT), -(transforms->zCenter << FX32_SHIFT));
 }
 
+// The arena hidden: the battler's stream frame as the classic quad would draw it, flat and
+// unlit with the state the manager set, the 128x96 canvas about the classic 80x80 frame's
+// centre as on the mesh. A partial draw takes the same part of the 80x80 window. FALSE when
+// the battler has no stream frame (then the classic quad draws)
+static BOOL DrawFlatStream(PokemonSpriteManager *monSpriteMan, int index, const PokemonSpriteDrawRect *rect)
+{
+    const PokemonSpriteTransforms *transforms = &monSpriteMan->sprites[index].transforms;
+    BattleStageStreamRect canvas;
+
+    if (!sStageSprites.streamLive
+        || monSpriteMan->excludeIdentity == TRUE
+        || (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_NO_SPRITE_STREAM)
+        || !BattleStageStream_Bind(index)) {
+        return FALSE;
+    }
+
+    BattleStageStream_CanvasRect(transforms, rect, &canvas);
+    NNS_G2dDrawSpriteFast(canvas.x, canvas.y, rect->z, canvas.width, canvas.height, canvas.u0, canvas.v0, canvas.u1, canvas.v1);
+    BattleStageStream_Unbind();
+    sStageSprites.streamedMask |= 1 << index;
+    return TRUE;
+}
+
 static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const PokemonSpriteDrawRect *rect)
 {
     PokemonSprite *sprite;
@@ -538,6 +618,7 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
     int rowShift[GRID_VERTICES]; // sway + wobble of each row
     fx32 texS[GRID_VERTICES], texT[GRID_VERTICES];
     int u0, v0, u1, v1;
+    fx32 centreX, centreY; // of the quad, in px
     BOOL streamed;
     int flipX, flipY;
     int i, j;
@@ -575,6 +656,10 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
             result |= MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX;
         }
 
+        if ((sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_CLASSIC_SPRITES) == 0 && DrawFlatStream(monSpriteMan, index, rect)) {
+            result |= MON_SPRITE_DRAW_HOOK_DREW;
+        }
+
         return result;
     }
 
@@ -584,28 +669,28 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
     v0 = rect->v0;
     u1 = rect->u1;
     v1 = rect->v1;
+    centreX = rect->x * FX32_ONE + rect->width * (FX32_ONE / 2);
+    centreY = rect->y * FX32_ONE + rect->height * (FX32_ONE / 2);
     streamed = FALSE;
 
     // A streamed frame is the 80x80 frame with 24 more pixels on the sides and 8 above and
-    // below, about the same centre; a partial draw takes the same part of the 80x80 window
+    // below, about the same centre; a partial draw keeps its cuts in the 80x80 window
+    // (BattleStageStream_CanvasRect)
     if (monSpriteMan->excludeIdentity != TRUE
         && (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_NO_SPRITE_STREAM) == 0
         && BattleStageStream_Bind(index)) {
-        streamed = TRUE;
+        BattleStageStreamRect canvas;
 
-        if (transforms->partialDraw) {
-            u0 = STREAM_CLASSIC_LEFT + transforms->drawXOffset;
-            v0 = STREAM_CLASSIC_TOP + transforms->drawYOffset;
-            u1 = u0 + transforms->drawWidth;
-            v1 = v0 + transforms->drawHeight;
-        } else {
-            width = width * STREAM_CANVAS_WIDTH / MON_SPRITE_FRAME_WIDTH;
-            height = height * STREAM_CANVAS_HEIGHT / MON_SPRITE_FRAME_HEIGHT;
-            u0 = 0;
-            v0 = 0;
-            u1 = STREAM_CANVAS_WIDTH;
-            v1 = STREAM_CANVAS_HEIGHT;
-        }
+        streamed = TRUE;
+        BattleStageStream_CanvasRect(transforms, rect, &canvas);
+        width = canvas.width;
+        height = canvas.height;
+        centreX = canvas.centreX;
+        centreY = canvas.centreY;
+        u0 = canvas.u0;
+        v0 = canvas.v0;
+        u1 = canvas.u1;
+        v1 = canvas.v1;
     }
 
     if (monSpriteMan->excludeIdentity == TRUE
@@ -684,7 +769,7 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
 
     // Rect centre; 1 vertex unit (fx16) = 1/256 px. The scale only goes to the position
     // matrix, so the normals stay unit length
-    G3_Translate(rect->x * FX32_ONE + rect->width * (FX32_ONE / 2), rect->y * FX32_ONE + rect->height * (FX32_ONE / 2), rect->z * FX32_ONE);
+    G3_Translate(centreX, centreY, rect->z * FX32_ONE);
     G3_Scale(16 * FX32_ONE, 16 * FX32_ONE, FX32_ONE);
 
     SetMaterial(transforms);
@@ -720,6 +805,7 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
 
     if (streamed) {
         BattleStageStream_Unbind();
+        sStageSprites.streamedMask |= 1 << index;
     }
 
     sStageSprites.fields->spriteMeshes++;

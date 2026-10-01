@@ -27,6 +27,7 @@
 #include "particle_system.h"
 #include "pokemon.h"
 #include "pokemon_sprite.h"
+#include "pokemon_sprite_stream.h"
 #include "render_window.h"
 #include "screen_fade.h"
 #include "spl.h"
@@ -737,6 +738,9 @@ void ov119_021D1858(UnkStruct_ov119_021D0FD0 *param0)
     PokemonSprite_LoadAnimFrames(param0->unk_04.unk_3C, &v1[0], v3, 1);
 
     param0->unk_70 = PokemonSpriteManager_CreateSprite(param0->unk_04.unk_38, &v0, 128, 96 + v4, 0, 0, &v1[0], NULL);
+
+    // Gen 5 animation for the hatched mon (pokemon_sprite_stream.h)
+    PokemonSpriteManager_SetStreamMask(param0->unk_04.unk_38, MON_STREAM_ALL_SPRITES);
 }
 
 void ov119_021D18C0(UnkStruct_ov119_021D0FD0 *param0)

@@ -398,6 +398,7 @@ def sc_wild_battle(sc: Scenario, e: Emu, args) -> None:
     check_screens(sc, e.screens(), "command menu")
     sc.check("battle not frozen at the menu", e.is_alive(frames=120, every=15, region="top"),
              why="top screen did not change for 120 frames at the command menu")
+    stream_checks(sc, e, "menu")
 
     # Damaging move, every 3 frames until the menu comes back. No crit/faint kicks (chunk 4): the scene
     # after the turn is compared against idle frames below.
@@ -447,10 +448,13 @@ def sc_wild_battle(sc: Scenario, e: Emu, args) -> None:
             sc.check("battle scene intact after bag (VRAM)", False, detail, warn_only=d <= 0.08)
         check_screens(sc, after.img, "after bag")
         sc.sheet(bag, "3_bag", "command menu -> bag -> pocket -> back")
+        _sprite_flags(sc, e, args, NO_CINEMATICS, ram)
+        stream_checks(sc, e, "after bag", frames=60)
 
     ret: List[Frame] = []
     e.snap("before run", ret)
-    run_away(sc, e, ret)
+    if run_away(sc, e, ret):
+        stream_after_battle(sc, e, "wild")
     sc.sheet(ret, "4_run", "RUN -> overworld")
 
 
@@ -540,10 +544,12 @@ def sc_quick_battle(sc: Scenario, e: Emu, args) -> None:
             check_screens(sc, e.screens(), f"{label} menu")
             sc.check(f"{label}: battle not frozen", e.is_alive(frames=120, every=15))
             e.record(120, every=10, label="idle", into=intro)
+            stream_checks(sc, e, label, frames=60)
         sc.sheet(intro, f"{label}_intro", f"quick battle, background entry {bg}: transition -> intro -> menu",
                  dedupe_screen="both")
         if not run_away(sc, e):
             break
+        stream_after_battle(sc, e, label)
     sc.sheet(panel, "panel", "L+R panel before each battle (top screen)", screen="top", cols=4, scale=1.0)
 
 
@@ -584,6 +590,9 @@ def sc_totem_battle(sc: Scenario, e: Emu, args) -> None:
     check_screens(sc, e.screens(), "totem battle")
     if waited is not None:
         _totem_camera(sc, e, cam)
+        # A doubles layout: the player (sprite 0) and the Totem (1); sprite 2 (the player's second spot)
+        # stays empty, sprite 3 is the ally once summoned
+        stream_checks(sc, e, "totem", expect=0b11)
     sc.sheet(intro, "intro", "Totem cut-in -> intro -> menu (every 4 frames, deduped)", dedupe_screen="both")
     sc.sheet(panel, "panel", "L+R panel", screen="top", cols=4, scale=1.0)
     sc.note("Totem battles cannot be fled; the scenario ends in battle.")
@@ -818,13 +827,18 @@ def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
     order = [m for m in order if m not in LASTING_MOVES] + [m for m in order if m in LASTING_MOVES]
     if order != args.moves + [m for m in args.sprite_moves if m not in args.moves]:
         sc.note("Substitute and Transform are played last: their look lasts for the rest of the battle")
+    sram = StreamRam(e, XMAP_PATH)
+    st0 = sram.stats()
     for mid in order:
         mid = max(1, min(MOVE_ID_MAX, mid))
         for direction, key in (("fwd", "A"), ("rev", "Y"))[: 2 if args.reverse else 1]:
+            before = sram.stats()
             ok = _tester_move(sc, e, args, ov, baseline, cur, mid, direction, key,
                               f"move {mid:03d} {direction}", overlays, after, restore=mid in args.sprite_moves,
                               cam_log=cam_log)
             cur = mid
+            if ok and mid in LASTING_MOVES:
+                _stream_lasting(sc, mid, direction, key, st0, before, sram.stats())
             if not ok:
                 break
         if not ok:
@@ -852,7 +866,34 @@ def sc_move_tester(sc: Scenario, e: Emu, args) -> None:
     if not ok:
         sc.note("Skipped running away: the command menu is stuck or frozen.")
         return
-    run_away(sc, e)
+    if run_away(sc, e):
+        stream_after_battle(sc, e, "move tester")
+
+
+def _stream_lasting(sc: Scenario, mid: int, direction: str, key: str, st0: Optional[dict], before: Optional[dict],
+                    now: Optional[dict]) -> None:
+    """After the move tester's Transform or Substitute: the user's sprite streams what its new template says
+    (sprite_stream.md, "Battle events"). Transform: the target's art, so a different member than the user's
+    own (both species have one); Substitute: the doll, which has no stream, so nothing stale stays bound."""
+    if now is None or "member" not in now or st0 is None:
+        return
+    user = 0 if key == "A" else 1
+    tag = f"move {mid:03d} {direction}"
+    if now["loadFailures"] or now["readFailures"]:
+        sc.check(f"{tag}: stream loads after the template change", False,
+                 f"loadFailures {now['loadFailures']}, readFailures {now['readFailures']}")
+    if mid == 144:
+        own, cur = st0["member"][user], now["member"][user]
+        sc.check(f"{tag}: user streams the Transform target's art", cur != 0 and cur != own and bool(now["drawnMask"] & (1 << user)),
+                 f"sprite {user}: member {own} before the battle's first move, {before['member'][user]} before "
+                 f"Transform, {cur} after; drawnMask {_bits(now['drawnMask'])}",
+                 why="still the user's own stream (stale) or none: the template change did not reload the stream")
+    elif mid == 164:
+        cur = now["member"][user]
+        sc.check(f"{tag}: Substitute doll drawn classic (no stream bound)",
+                 cur == 0 and not now["loadedMask"] & (1 << user) and not now["drawnMask"] & (1 << user),
+                 f"sprite {user}: member {cur}, loadedMask {_bits(now['loadedMask'])}, drawnMask {_bits(now['drawnMask'])}",
+                 why="the doll kept a mon's stream: the user's animation would draw over the doll")
 
 
 def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
@@ -893,6 +934,7 @@ def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
         check_screens(sc, s.img, f"after SELECT #{i}")
         d = min_diff(base_boxes, text_box(s.img))
         sc.check(f"battle text restored after SELECT #{i}", d < 0.02, f"{d:.1%} of the text box differs")
+        stream_checks(sc, e, f"after SELECT #{i}", frames=60)
         # One short animation (Pound, the tester's current move) in this stage state.
         if not ov.show():
             sc.check(f"overlay back for Pound after SELECT #{i}", False)
@@ -929,7 +971,8 @@ def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
         e.wait_battle_menu(timeout=1800, advance_text=True)
     if sc.check("command menu responds at the end", menu_responds(e),
                 why="touching FIGHT did not open the move list"):
-        run_away(sc, e)
+        if run_away(sc, e):
+            stream_after_battle(sc, e, "stage toggle")
 
 
 # ---- 3D stage compatibility (chunk 1) --------------------------------------------------------
@@ -1463,8 +1506,10 @@ CLASSIC_SPRITES = 4                      # sprites take the old unlit path even 
 NO_CINEMATICS = 8                        # chunk 4: no crit or faint kicks (the sweep plays before the critic can write)
 CRIT_KICK_ON_HIT = 16                    # chunk 4: every hit blink plays the crit kick
 NO_IDLE_CAMERA = 32                      # no idle drift at the command menu; set_flags adds it unless idle=True
+NO_SPRITE_STREAM = 64                    # the classic frames, not the Gen 5 streams (sprite_stream.md)
 FLAG_NAMES = ((FREEZE_IDLE, "FREEZE_IDLE"), (NO_BLOB_SHADOWS, "NO_BLOB_SHADOWS"), (CLASSIC_SPRITES, "CLASSIC_SPRITES"),
-              (NO_CINEMATICS, "NO_CINEMATICS"), (CRIT_KICK_ON_HIT, "CRIT_KICK_ON_HIT"), (NO_IDLE_CAMERA, "NO_IDLE_CAMERA"))
+              (NO_CINEMATICS, "NO_CINEMATICS"), (CRIT_KICK_ON_HIT, "CRIT_KICK_ON_HIT"), (NO_IDLE_CAMERA, "NO_IDLE_CAMERA"),
+              (NO_SPRITE_STREAM, "NO_SPRITE_STREAM"))
 XMAP_PATH: Optional[str] = None          # set per scenario process (run_in_process), for helpers without args
 
 
@@ -1681,6 +1726,140 @@ class StageRam:
         if not self.ok or name not in self.syms:
             return None
         return self.e.read(self.syms[name][0], 1)[0]
+
+
+# ---- Gen 5 sprite stream (sprite_stream.md) ---------------------------------------------------
+
+# sSpriteStreamStats (include/battle/battle_stage_stream.h). Step 1: 13 u32 then u16 frame[4] (60 bytes);
+# step 2 adds 9 u32 and u16 member[4] after it (104 bytes), then u32 readTicksMax (108 bytes).
+STREAM_FIELDS_1 = ("vramAddr loadedMask drawnMask loads loadFailures uploads bytesThisFrame maxBytesPerFrame "
+                   "decodeTicksThisFrame maxDecodeTicks loadTicksMax streamBytes heapFree").split()
+STREAM_FIELDS_2 = ("drawnEver cardReads cardBytes readFailures stallFrames readVBlanksMax heapFreeMin indexVersion "
+                   "deferredUploads").split()
+STREAM_SIZE_1, STREAM_SIZE_2, STREAM_SIZE_3 = 60, 104, 108
+STREAM_NO_FRAME = 0xFFFF
+STREAM_TEX_BYTES = 128 * 96 // 2
+STREAM_HEAP_FLOOR = 0x20000              # the runtime keeps this much of HEAP_ID_BATTLE free
+STREAM_UPLOAD_BUDGET = 2 * STREAM_TEX_BYTES  # bytes queued in one frame (the runtime's own cap)
+STREAM_DECODE_PASS, STREAM_DECODE_FAIL = 3000, 4400    # OS ticks (1.91 us) of decoding in one frame
+STREAM_LOAD_PASS, STREAM_LOAD_FAIL = 2600, 8700        # OS ticks for one load: 5 ms (a third of a frame), 16.7 ms
+STREAM_READ_PASS, STREAM_READ_FAIL = 1100, 2600        # OS ticks for one frame read (CPU copy): 2.1 ms, 5 ms
+STREAM_TICK_US = 64 / 33.513982
+
+
+class StreamRam:
+    """sSpriteStreamStats at the build's xMAP address. stats() is None without the symbol."""
+
+    def __init__(self, e: Emu, xmap: Optional[str]):
+        self.e = e
+        if xmap and xmap not in _XMAP_CACHE:
+            _XMAP_CACHE[xmap] = read_xmap(xmap)
+        sym = (_XMAP_CACHE[xmap] if xmap else {}).get("sSpriteStreamStats")
+        self.addr, self.size = (sym[0], sym[1]) if sym else (None, 0)
+        self.why = "" if sym and self.size >= STREAM_SIZE_1 else (
+            "no xMAP (pass --map)" if not xmap else f"no sSpriteStreamStats in {xmap} (a ROM without the Gen 5 stream)")
+        self.step2 = self.size >= STREAM_SIZE_2
+
+    def stats(self) -> Optional[dict]:
+        if self.why:
+            return None
+        b = self.e.read(self.addr, self.size)
+        d = dict(zip(STREAM_FIELDS_1, struct.unpack("<13I", b[:52])))
+        d["frame"] = list(struct.unpack("<4H", b[52:60]))
+        if self.step2:
+            d.update(zip(STREAM_FIELDS_2, struct.unpack("<9I", b[60:96])))
+            d["member"] = list(struct.unpack("<4H", b[96:104]))
+        if self.size >= STREAM_SIZE_3:
+            d["readTicksMax"] = struct.unpack("<I", b[104:108])[0]
+        return d
+
+
+def _bits(mask: int) -> str:
+    return "{" + ", ".join(str(i) for i in range(4) if mask & (1 << i)) + "}"
+
+
+def stream_note(st: dict) -> str:
+    keys = ["loadedMask", "drawnMask", "loads", "loadFailures", "streamBytes", "heapFree"]
+    if "cardReads" in st:
+        keys += ["drawnEver", "cardReads", "readFailures", "stallFrames", "readVBlanksMax", "heapFreeMin",
+                 "indexVersion", "deferredUploads", "member"]
+    if "readTicksMax" in st:
+        keys.append("readTicksMax")
+    return ", ".join(f"{k} {st[k]}" for k in keys)
+
+
+def stream_checks(sc: Scenario, e: Emu, what: str, expect: int = 0b11, frames: int = 120) -> Optional[dict]:
+    """At a command menu: runs `frames` frames and checks the streams of the battlers in `expect` (bit = sprite
+    index; singles 0 player, 1 enemy) loaded and were drawn, that the frames move, no load or read failed, and
+    the per-frame upload, decode and load costs. Returns the stats, None (a note) on a ROM without them."""
+    ram = StreamRam(e, XMAP_PATH)
+    st0 = ram.stats()
+    if st0 is None:
+        sc.note(f"{what}: stream checks skipped: {ram.why}")
+        return None
+    if st0["vramAddr"] == 0:
+        sc.check(f"{what}: stream set up (texture VRAM and index)", False,
+                 "vramAddr 0: no texture VRAM below 0x20000 or no mon_stream.narc index; every battler draws classic",
+                 warn_only=True)
+        return st0
+    changes, drawn = [0] * 4, 0
+    prev = st0["frame"][:]
+    for _ in range(frames):
+        e.run(1)
+        st = ram.stats()
+        drawn |= st["drawnMask"]
+        for i in range(4):
+            if st["frame"][i] != prev[i]:
+                changes[i] += 1
+        prev = st["frame"][:]
+    sc.note(f"{what}: stream {stream_note(st)}")
+    missing = expect & ~st["loadedMask"]
+    sc.check(f"{what}: streams loaded for battlers {_bits(expect)}", not missing,
+             f"loadedMask {_bits(st['loadedMask'])}, members {st.get('member', '?')}",
+             why=f"no stream for {_bits(missing)}: the species has no member in mon_stream.narc, or the load "
+                 "failed (see loadFailures/readFailures)")
+    ever = st.get("drawnEver", drawn)
+    sc.check(f"{what}: streams drawn for battlers {_bits(expect)}", not expect & ~(drawn | ever) & st["loadedMask"],
+             f"drawn over {frames} frames {_bits(drawn)}" + (f", drawnEver {_bits(ever)}" if "drawnEver" in st else ""),
+             why="a loaded stream never bound: the frames never arrived from the card or the draw hook kept classic")
+    still = [i for i in range(4) if expect & st["loadedMask"] & (1 << i) and changes[i] == 0]
+    sc.check(f"{what}: stream frames advance", not still,
+             f"frame changes over {frames} frames: {changes}", warn_only=True,
+             why=f"battlers {still} held one frame (FREEZE_IDLE on, a one-frame stream, or the reads stalled)")
+    sc.check(f"{what}: no stream load failures", st["loadFailures"] == 0, f"loadFailures {st['loadFailures']}",
+             why="a battler did not fit on the heap (or its member is bad) and draws classic")
+    if "readFailures" in st:
+        sc.check(f"{what}: no card read failures", st["readFailures"] == 0, f"readFailures {st['readFailures']}")
+        sc.check(f"{what}: heap floor kept", st["heapFreeMin"] >= STREAM_HEAP_FLOOR,
+                 f"least HEAP_ID_BATTLE free after a load {st['heapFreeMin']} (floor {STREAM_HEAP_FLOOR})")
+    up = st["maxBytesPerFrame"]
+    sc.check(f"{what}: stream upload per frame within budget", up <= STREAM_UPLOAD_BUDGET,
+             f"worst frame {up} bytes (budget {STREAM_UPLOAD_BUDGET}, VBlank texture window ~40 KB)")
+    dec = st["maxDecodeTicks"]
+    sc.grade(f"{what}: stream decode per frame within budget",
+             "PASS" if dec <= STREAM_DECODE_PASS else ("WARN" if dec <= STREAM_DECODE_FAIL else "FAIL"),
+             f"worst frame {dec} ticks = {dec * STREAM_TICK_US / 1000:.1f} ms (PASS <= {STREAM_DECODE_PASS}, "
+             f"FAIL > {STREAM_DECODE_FAIL})")
+    ld = st["loadTicksMax"]
+    sc.grade(f"{what}: stream load hitch", "PASS" if ld <= STREAM_LOAD_PASS else ("WARN" if ld <= STREAM_LOAD_FAIL else "FAIL"),
+             f"longest load {ld} ticks = {ld * STREAM_TICK_US / 1000:.1f} ms (PASS <= 5 ms, FAIL > one frame)")
+    if "readTicksMax" in st:
+        rd = st["readTicksMax"]
+        sc.grade(f"{what}: stream frame read time",
+                 "PASS" if rd <= STREAM_READ_PASS else ("WARN" if rd <= STREAM_READ_FAIL else "FAIL"),
+                 f"longest frame read {rd} ticks = {rd * STREAM_TICK_US / 1000:.2f} ms (PASS <= "
+                 f"{STREAM_READ_PASS}, FAIL > {STREAM_READ_FAIL}); the card thread copies it with the CPU, not DMA")
+    return st
+
+
+def stream_after_battle(sc: Scenario, e: Emu, what: str) -> None:
+    """Back in the field: the battle freed every stream (streamBytes 0, nothing loaded)."""
+    st = StreamRam(e, XMAP_PATH).stats()
+    if st is None or st["vramAddr"] == 0 and st["loads"] == 0:
+        return
+    sc.check(f"{what}: stream heap freed after the battle", st["streamBytes"] == 0 and st["loadedMask"] == 0,
+             f"streamBytes {st['streamBytes']}, loadedMask {_bits(st['loadedMask'])}, loads {st['loads']}",
+             why="BattleStageStream_Free left heap or a stream behind")
 
 
 def _sprite_flags(sc: Scenario, e: Emu, args, flags: int, ram: Optional[StageRam] = None) -> StageRam:
@@ -2699,6 +2878,12 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
              ", ".join(f"{m} {boxes[m]}" for m in boxes), warn_only=True,
              why=f"not found: {[m for m in boxes if m not in found]}, using the fallback box")
     off = [top(f.img) for f in e.record(IDLE_RECORD, every=IDLE_EVERY, label="idle off")]
+    off_classic = off
+    if live:
+        # Stage off still plays the Gen 5 streams (flat); CLASSIC_SPRITES draws the classic frames
+        ram.set_flags(NO_BLOB_SHADOWS | NO_SPRITE_STREAM)
+        off_classic = [top(f.img) for f in e.record(36, every=3, label="idle off, classic frames")]
+        ram.set_flags(NO_BLOB_SHADOWS)
     shots.append(e.snap("stage OFF"))
     _toggle_stage(sc, e, ov, "stage ON", shots)
     shots.append(e.snap("stage ON again"))
@@ -2762,14 +2947,14 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
         _crop_sheet(sc, blob_cells, "blobs", "ground under each mon with and without blob shadows (FREEZE_IDLE)",
                     cols=4, zoom=3)
 
-        # -- CLASSIC_SPRITES: the sprites match the stage-off frames
+        # -- CLASSIC_SPRITES: the sprites match the stage-off classic frames
         ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS | CLASSIC_SPRITES)
         meshes = ram.field("spriteMeshes")
         sc.check("CLASSIC_SPRITES draws no meshes", meshes == 0, f"spriteMeshes {meshes}")
         classic = idle_samples(e, n=12, every=3)
         for mon in ("enemy", "player"):
             box = boxes[mon]
-            a_img, b_img = best_pair([i.crop(box) for i in classic], [i.crop(box) for i in off])
+            a_img, b_img = best_pair([i.crop(box) for i in classic], [i.crop(box) for i in off_classic])
             d = pixel_diff(a_img, b_img)
             sc.grade(f"CLASSIC_SPRITES: the {mon} matches the stage-off frame", home_grade(d, grade_tod),
                      f"box {box}: {diff_detail(d)}", why=limits_text(grade_tod))

@@ -2471,6 +2471,11 @@ static void BattleAnimScriptCmd_LoadPokemonSpriteIntoBg(BattleAnimSystem *system
     charData = system->context->pokemonSpriteData[battler]->tiles;
     int form = system->context->battlerForms[battler];
 
+    // A streamed battler: the copy takes the pose on screen rather than frame A
+    if (BattleAnimSystem_IsContest(system) == FALSE) {
+        BattleStage_GetStreamFrameTiles(battler, charData);
+    }
+
     int memberIndex;
     if ((BattleAnimSystem_IsContest(system) == TRUE) && (IsFormSymmetrical(BattleAnimSystem_GetBattlerSpecies(system, battler), form) == TRUE)) {
         memberIndex = 265;
@@ -2649,6 +2654,11 @@ static void BattleAnimScriptCmd_AddPokemonSprite(BattleAnimSystem *system)
     int paletteIndex = system->context->pokemonSpriteData[battler]->palette;
     charData = system->context->pokemonSpriteData[battler]->tiles;
     int battlerForm = system->context->battlerForms[battler];
+
+    // A streamed battler: the copy takes the pose on screen rather than frame A
+    if (BattleAnimSystem_IsContest(system) == FALSE) {
+        BattleStage_GetStreamFrameTiles(battler, charData);
+    }
 
     PokemonSprite *battlerSprite = BattleAnimSystem_GetBattlerSprite(system, battler);
     s16 battlerX;
@@ -4747,6 +4757,11 @@ UnkStruct_ov12_02223764 *ov12_022234F8(BattleSystem *battleSys, enum HeapID heap
                     int v16 = PokemonSprite_GetAttribute(v13, MON_SPRITE_HIDE);
 
                     if (v16 == 1) {
+                        ManagedSprite_SetDrawFlag(v10, 0);
+                    } else if (BattleStage_IsSpriteStreamed(v5)) {
+                        // These copies only sit over the battler's sprite, which goes on
+                        // drawing; it animates its Gen 5 stream, which a still 80x80 frame A
+                        // over it would double, so the sprite shows alone
                         ManagedSprite_SetDrawFlag(v10, 0);
                     }
                 }

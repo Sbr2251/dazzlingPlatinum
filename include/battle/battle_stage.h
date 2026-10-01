@@ -38,6 +38,10 @@ BOOL BattleStage_HasArena(void);
 // still fading out after a suppression started during a move animation (compat.md, F6).
 // The stage sprites stay on the stage path for as long as this is TRUE.
 BOOL BattleStage_IsVisible(void);
+// TRUE while nothing but the battle uses the 3D texture VRAM: there is an arena and no menu
+// has taken over, even when the arena is hidden (the debug toggle, a move's backdrop). The
+// sprite streams keep playing then, and the sprites draw them flat (sprite_stream.md)
+BOOL BattleStage_KeepsTextureVram(void);
 // TRUE while the arena is drawn translucent, fading out or back in
 BOOL BattleStage_IsFading(void);
 // The anim system: a move animation (or its background restore) is running. Suppressions
@@ -80,6 +84,15 @@ void BattleStage_SetBackdropGrayscale(BOOL grayscale);
 void BattleStage_SetMoveAnimActive(BOOL active);
 // The battler took damage (the hit blink task): its sprite does a short wobble
 void BattleStage_NotifyHit(int battler);
+// The battler's sprite was drawn from its Gen 5 stream in the last frame (on the mesh, or flat
+// with the arena hidden). A static 2D copy of its 80x80 frame A can't match that sprite, so
+// a copy that only sits over it (SpriteToOAM, the send-out copies) stays hidden.
+BOOL BattleStage_IsSpriteStreamed(int battler);
+// For a 2D copy that stands in for a streamed battler (a move's BG or OAM copy): writes the
+// classic 80x80 window of the stream frame on screen over tiles, as 100 4bpp tiles in the
+// order of CharacterSprite_LoadPokemonSprite, so the copy keeps the pose instead of snapping
+// to frame A. FALSE, and tiles untouched, when the battler isn't streamed.
+BOOL BattleStage_GetStreamFrameTiles(int battler, u8 *tiles);
 
 // The stage camera (chunk 4, battle_stage_camera.c; docs/living_battle_stage/camera.md). At
 // its home pose nothing changes; off home the arena, the stage sprites and the particles

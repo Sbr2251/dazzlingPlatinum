@@ -1,8 +1,8 @@
 {
     "front": {
         "y_offset": {
-            "female": 16,
-            "male": 16
+            "female": 0,
+            "male": 0
         },
         "addl_y_offset": 2,
         "animation": 5,
@@ -73,8 +73,8 @@
     },
     "back": {
         "y_offset": {
-            "female": 10,
-            "male": 10
+            "female": 0,
+            "male": 0
         },
         "animation": 80,
         "cry_delay": 10,

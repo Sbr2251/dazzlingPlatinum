@@ -353,6 +353,13 @@ BOOL BattleStage_IsVisible(void)
     return sBattleStage.fadePos > 0 || (sBattleStage.suppressed == 0 && sBattleStage.instantHidden);
 }
 
+BOOL BattleStage_KeepsTextureVram(void)
+{
+    return sBattleStage.battleSys != NULL
+        && sBattleStage.arena != NULL
+        && (sBattleStage.suppressed & BATTLE_STAGE_SUPPRESS_MENU) == 0;
+}
+
 BOOL BattleStage_IsFading(void)
 {
     return BattleStage_IsVisible() && sBattleStage.fadePos < STAGE_FADE_STEPS && !sBattleStage.instantHidden;

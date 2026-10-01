@@ -4,15 +4,17 @@
 #include <nitro.h>
 
 #include "pokemon_sprite.h"
+#include "pokemon_sprite_stream.h"
 
 // Gen 5 animated battle sprites, streamed one 128x96 frame at a time into a texture per
 // battler (docs/living_battle_stage/sprite_stream.md). Internal to the battle stage:
-// battle_stage_sprites.c drives it and draws its frames on the sprite mesh.
+// battle_stage_sprites.c drives it and draws its frames on the sprite mesh. The member format
+// and its checks are pokemon_sprite_stream.h's.
 
-#define STREAM_CANVAS_WIDTH  128 // the stream frame, in pixels: a whole texture row
-#define STREAM_CANVAS_HEIGHT 96
-#define STREAM_CLASSIC_LEFT  24 // where the classic 80x80 frame sits in it
-#define STREAM_CLASSIC_TOP   8
+#define STREAM_CANVAS_WIDTH  MON_STREAM_CANVAS_WIDTH // a whole texture row
+#define STREAM_CANVAS_HEIGHT MON_STREAM_CANVAS_HEIGHT
+#define STREAM_CLASSIC_LEFT  MON_STREAM_CLASSIC_LEFT
+#define STREAM_CLASSIC_TOP   MON_STREAM_CLASSIC_TOP
 
 // Read by the critic (sSpriteStreamStats)
 typedef struct BattleStageStreamStats {
@@ -20,16 +22,28 @@ typedef struct BattleStageStreamStats {
     u32 loadedMask; // bit n while battler n has a stream loaded
     u32 drawnMask; // battlers drawn from their stream in the last frame
     u32 loads;
-    u32 loadFailures; // no room on the heap
+    u32 loadFailures; // no room on the heap, or a bad member
     u32 uploads; // frames sent to VRAM
     u32 bytesThisFrame; // queued for the next VBlank
     u32 maxBytesPerFrame;
     u32 decodeTicksThisFrame; // OS ticks (64 cycles of the 33.5 MHz bus) to decompress and copy
     u32 maxDecodeTicks;
-    u32 loadTicksMax; // the longest stream load, card read included
-    u32 streamBytes; // heap the loaded streams hold
+    u32 loadTicksMax; // the longest stream load: its tables only, the frames come in the background
+    u32 streamBytes; // heap the streams hold, the index included; 0 again after the battle
     u32 heapFree; // HEAP_ID_BATTLE free after the last load
     u16 frame[MAX_MON_SPRITES]; // frame on screen per battler
+    // Added in step 2, after frame[] so the fields above keep their offsets
+    u32 drawnEver; // battlers drawn from their stream at least once this battle
+    u32 cardReads; // background frame reads
+    u32 cardBytes;
+    u32 readFailures; // reads the card failed; the battler draws classic
+    u32 stallFrames; // frames a step was held because its frame wasn't in from the card yet
+    u32 readVBlanksMax; // the slowest frame read, in vblanks from asking to polling it done
+    u32 heapFreeMin; // the least HEAP_ID_BATTLE left free after a load
+    u32 indexVersion; // of mon_stream.narc's member 0: 1 or 2; 0 when there is no index
+    u32 deferredUploads; // frames sent a frame late, the upload budget being spent
+    u16 member[MAX_MON_SPRITES]; // the NARC member each battler streams, 0 for none
+    u32 readTicksMax; // the longest frame read: the card thread copies it with the CPU
 } BattleStageStreamStats;
 
 void BattleStageStream_Init(PokemonSpriteManager *monSpriteMan);
@@ -43,5 +57,28 @@ void BattleStageStream_BeginFrame(BOOL visible, BOOL frozen);
 // texture back.
 BOOL BattleStageStream_Bind(int index);
 void BattleStageStream_Unbind(void);
+// Where a battler's 128x96 canvas goes for a draw the manager meant for the classic 80x80 frame
+// (rect): the same scale about the same centre. A partial draw (the faint slide, the send-out
+// reveal) keeps its cuts inside the 80x80 window, and on the sides where the window reaches the
+// frame's edge takes the canvas out to its own edge, so art wider or taller than the classic
+// frame stays. centreX and centreY in fx32, the rest in pixels and texels.
+typedef struct BattleStageStreamRect {
+    fx32 centreX;
+    fx32 centreY;
+    int x;
+    int y;
+    int width;
+    int height;
+    int u0;
+    int v0;
+    int u1;
+    int v1;
+} BattleStageStreamRect;
+
+void BattleStageStream_CanvasRect(const PokemonSpriteTransforms *transforms, const PokemonSpriteDrawRect *rect, BattleStageStreamRect *out);
+// The battler's texture copy (128x96, 4bpp, 64 bytes a row, the battler's palette) of the frame
+// last decoded, which is on screen or goes there at the next VBlank; NULL when the battler has
+// no stream or no frame in yet
+const u8 *BattleStageStream_GetFrame(int index);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_STREAM_H
