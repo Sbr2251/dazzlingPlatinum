@@ -18,6 +18,7 @@ enum BattleStageDebugFlag {
     BATTLE_STAGE_DEBUG_CLASSIC_SPRITES = 1 << 2, // sprites (and shadows) take the old path
     BATTLE_STAGE_DEBUG_NO_CINEMATICS = 1 << 3, // no crit or faint kicks (camera.md)
     BATTLE_STAGE_DEBUG_CRIT_KICK_ON_HIT = 1 << 4, // every hit blink plays the crit kick
+    BATTLE_STAGE_DEBUG_NO_IDLE_CAMERA = 1 << 5, // no idle drift at the command menu (camera.md)
 };
 
 // The fields of BattleStage at +32, in order

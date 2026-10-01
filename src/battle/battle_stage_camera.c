@@ -34,6 +34,14 @@
 #define INTRO_MIN_HOLD_FRAMES SCREEN_FRAMES(30)
 #define INTRO_HOME_FRAMES SCREEN_FRAMES(20)
 #define INTRO_WAIT_MAX_FRAMES SCREEN_FRAMES(120)
+// The idle drift at the command menu: home for a moment, then a slow loop of poses (each an
+// ease and a hold), and a quick ease home once the commands are in
+#define IDLE_START_FRAMES SCREEN_FRAMES(60)
+#define IDLE_MOVE_FRAMES SCREEN_FRAMES(180)
+#define IDLE_HOLD_FRAMES SCREEN_FRAMES(50)
+#define IDLE_END_FRAMES SCREEN_FRAMES(16)
+// The debug flags that keep the drift off (and snap it home when set while it runs)
+#define IDLE_OFF_FLAGS (BATTLE_STAGE_DEBUG_NO_CINEMATICS | BATTLE_STAGE_DEBUG_NO_IDLE_CAMERA)
 
 // Shake periods in steps, different in x and y so the path isn't a line
 #define SHAKE_PERIOD_X 4
@@ -53,6 +61,7 @@ enum CameraSequence {
     SEQUENCE_TO, // easing to the goal
     SEQUENCE_HOLD, // holding there (and until the shake ends)
     SEQUENCE_INTRO, // the battle-start focus: there until released, at least holdFrames
+    SEQUENCE_IDLE, // the command menu's drift: through sIdlePoses until ended
 };
 
 enum ParticleFocus {
@@ -110,6 +119,8 @@ typedef struct StageCamera {
     BOOL introHoming; // easing home from the focus
     int introWait;
     BOOL holdAfterScript; // the script's end pose becomes a held focus (the Totem aura)
+    int idlePose; // the next of sIdlePoses
+    BOOL idleHoming; // easing home from the idle drift
     // Particles
     int particleFocus;
     int particleBattlers[2];
@@ -129,6 +140,25 @@ static StageCamera sStageCamera;
 
 // Classic home x of each battler type (BATTLER_TYPE_*)
 static const int sHomeX[BATTLER_TYPE_MAX] = { 64, 192, 40, 216, 80, 176 };
+
+#define IDLE_SIDE_NONE -1
+
+// The idle drift's loop. The focus moves towardPct of the way from the home target toward a
+// side's mons; the poses stay inside the checked range (yaw +/-20, no farther than home).
+typedef struct IdlePose {
+    s8 side; // IDLE_SIDE_NONE, or 0 (the player's) / 1 (the opponent's)
+    u8 towardPct;
+    s8 yawDeg;
+    s8 pitchDeg;
+    u8 distancePct;
+} IdlePose;
+
+static const IdlePose sIdlePoses[] = {
+    { IDLE_SIDE_NONE, 0, 10, 2, 100 }, // the wide shot, turned a little
+    { 1, 35, -14, -2, 86 }, // in on the opponent
+    { 0, 15, 12, 1, 100 }, // over toward the player's mon
+    { IDLE_SIDE_NONE, 0, -6, 0, 100 }, // back through near home
+};
 
 static BOOL PoseEquals(const CameraPose *a, const CameraPose *b)
 {
@@ -604,8 +634,12 @@ static void UpdateCutGuard(BOOL visible, const CameraPose *pose)
     }
 }
 
+static BOOL IdleGoal(int index, CameraPose *goal);
+
 static void AdvanceSequence(void)
 {
+    CameraPose goal;
+
     switch (sStageCamera.sequence) {
     case SEQUENCE_TO:
         if (!IsEasing()) {
@@ -637,9 +671,35 @@ static void AdvanceSequence(void)
             sStageCamera.introHoming = TRUE;
         }
         break;
+    case SEQUENCE_IDLE:
+        if (sStageCamera.debugFlags != NULL && (*sStageCamera.debugFlags & IDLE_OFF_FLAGS)) {
+            SnapHome();
+            break;
+        }
+
+        if (IsEasing()) {
+            break;
+        }
+
+        if (sStageCamera.holdFrames > 0) {
+            sStageCamera.holdFrames--;
+            break;
+        }
+
+        if (IdleGoal(sStageCamera.idlePose, &goal)) {
+            EaseTo(&goal, IDLE_MOVE_FRAMES);
+        }
+
+        sStageCamera.holdFrames = IDLE_HOLD_FRAMES;
+        sStageCamera.idlePose = (sStageCamera.idlePose + 1) % NELEMS(sIdlePoses);
+        break;
     default:
         if (sStageCamera.introHoming && !IsEasing()) {
             sStageCamera.introHoming = FALSE;
+        }
+
+        if (sStageCamera.idleHoming && !IsEasing()) {
+            sStageCamera.idleHoming = FALSE;
         }
         break;
     }
@@ -1023,11 +1083,16 @@ void BattleStage_CameraScriptStart(void)
         return;
     }
 
+    // The idle drift is expected to be cut short; anything else off home is counted
     if (!PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) || IsEasing() || IsShaking() || sStageCamera.sequence != SEQUENCE_NONE) {
+        if (sStageCamera.sequence != SEQUENCE_IDLE && !sStageCamera.idleHoming) {
+            sStageCamera.fields->guardSnaps++;
+        }
+
         SnapHome();
-        sStageCamera.fields->guardSnaps++;
     }
 
+    sStageCamera.idleHoming = FALSE;
     sStageCamera.fields->camFlags &= ~BATTLE_STAGE_CAMERA_SCRIPT;
     sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
     sStageCamera.scriptActive = TRUE;
@@ -1057,8 +1122,8 @@ static void StartSequence(const CameraPose *goal, int frames, int shakePx, int s
     sStageCamera.sequence = SEQUENCE_TO;
 }
 
-// The pose that looks at the opponents: pushed in and turned a little
-static BOOL OpponentsGoal(CameraPose *goal)
+// The mean focus point of a side's mons (0 the player's, 1 the opponent's)
+static BOOL SideFocus(int side, VecFx32 *focus)
 {
     VecFx32 sum, point;
     int count = 0;
@@ -1068,7 +1133,7 @@ static BOOL OpponentsGoal(CameraPose *goal)
     max = MaxBattlers();
 
     for (i = 0; i < max; i++) {
-        if ((BattleSystem_BattlerSlot(sStageCamera.battleSys, i) & 1) && BattlerFocus(i, &point)) {
+        if ((BattleSystem_BattlerSlot(sStageCamera.battleSys, i) & 1) == side && BattlerFocus(i, &point)) {
             sum.x += point.x;
             sum.y += point.y;
             sum.z += point.z;
@@ -1080,10 +1145,23 @@ static BOOL OpponentsGoal(CameraPose *goal)
         return FALSE;
     }
 
+    focus->x = sum.x / count;
+    focus->y = sum.y / count;
+    focus->z = sum.z / count;
+    return TRUE;
+}
+
+// The pose that looks at the opponents: pushed in and turned a little
+static BOOL OpponentsGoal(CameraPose *goal)
+{
+    VecFx32 focus;
+
+    if (!SideFocus(1, &focus)) {
+        return FALSE;
+    }
+
     *goal = sStageCamera.homePose;
-    goal->focus.x = sum.x / count;
-    goal->focus.y = sum.y / count;
-    goal->focus.z = sum.z / count;
+    goal->focus = focus;
     goal->yaw = FX32_CONST(-20);
     goal->pitch = FX32_CONST(-3);
     goal->distance = FX32_CONST(0.7);
@@ -1206,6 +1284,12 @@ BOOL BattleStage_IsCameraReadyForMenu(void)
         return TRUE;
     }
 
+    // The idle drift runs under the menu (the next battler's menu in a double battle)
+    if (sStageCamera.sequence == SEQUENCE_IDLE) {
+        sStageCamera.menuWait = 0;
+        return TRUE;
+    }
+
     busy = !PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) || IsEasing() || IsShaking() || sStageCamera.sequence != SEQUENCE_NONE;
 
     if (!busy) {
@@ -1220,6 +1304,61 @@ BOOL BattleStage_IsCameraReadyForMenu(void)
     }
 
     return FALSE;
+}
+
+static BOOL IdleGoal(int index, CameraPose *goal)
+{
+    const IdlePose *idle = &sIdlePoses[index];
+    VecFx32 focus;
+    fx32 toward = idle->towardPct * FX32_ONE / 100;
+
+    *goal = sStageCamera.homePose;
+
+    if (idle->side != IDLE_SIDE_NONE) {
+        if (!SideFocus(idle->side, &focus)) {
+            return FALSE;
+        }
+
+        goal->focus.x += FX_Mul(focus.x - goal->focus.x, toward);
+        goal->focus.y += FX_Mul(focus.y - goal->focus.y, toward);
+        goal->focus.z += FX_Mul(focus.z - goal->focus.z, toward);
+    }
+
+    goal->yaw = idle->yawDeg * FX32_ONE;
+    goal->pitch = idle->pitchDeg * FX32_ONE;
+    goal->distance = idle->distancePct * FX32_ONE / 100;
+    return TRUE;
+}
+
+void BattleStage_StartIdleCamera(void)
+{
+    if (sStageCamera.sequence == SEQUENCE_IDLE || !CanRunCamera() || sStageCamera.scriptActive
+        || sStageCamera.sequence != SEQUENCE_NONE || IsEasing() || IsShaking()
+        || !PoseEquals(&sStageCamera.cur, &sStageCamera.homePose)
+        || (sStageCamera.debugFlags != NULL && (*sStageCamera.debugFlags & IDLE_OFF_FLAGS))) {
+        return;
+    }
+
+    sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
+    sStageCamera.idlePose = 0;
+    sStageCamera.idleHoming = FALSE;
+    sStageCamera.holdFrames = IDLE_START_FRAMES;
+    sStageCamera.sequence = SEQUENCE_IDLE;
+}
+
+void BattleStage_EndIdleCamera(void)
+{
+    if (sStageCamera.sequence != SEQUENCE_IDLE) {
+        return;
+    }
+
+    sStageCamera.sequence = SEQUENCE_NONE;
+    sStageCamera.holdFrames = 0;
+
+    if (!PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) || IsEasing()) {
+        EaseTo(&sStageCamera.homePose, IDLE_END_FRAMES);
+        sStageCamera.idleHoming = TRUE;
+    }
 }
 
 static BOOL CanKick(void)

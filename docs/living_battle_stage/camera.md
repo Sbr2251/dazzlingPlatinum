@@ -225,6 +225,29 @@ offset reaches 0. It stays on the right after that, even if the ally faints.
 
 Any camera command from a script sets bit 5.
 
+## Idle drift at the command menu
+
+The Gen 5 look: while the command menu is up, the camera drifts slowly between a few poses.
+It sets no `cinematicsSeen` bit.
+
+- **Start:** `BattleStage_StartIdleCamera`, when the command menu task shows its buttons
+  (`ov16_022604C8`, case 3). It only starts if the camera is home and idle: no script, no
+  sequence, no ease, no shake, and neither `NO_CINEMATICS` nor `NO_IDLE_CAMERA` is set.
+- **Loop (`SEQUENCE_IDLE`):** hold home for 60 frames, then ease to each pose over 180
+  frames and hold it for 50 frames, round and round:
+  1. the wide shot, yaw +10, pitch +2;
+  2. focus 35% of the way to the opponent's side, yaw -14, pitch -2, distance 86%;
+  3. focus 15% of the way to the player's side, yaw +12, pitch +1 (no push-in: a bigger back
+     sprite makes the cut guard pan it off the bottom);
+  4. back through near home, yaw -6.
+- **The menu doesn't wait** for home while the drift runs (`BattleStage_IsCameraReadyForMenu`
+  returns TRUE for `SEQUENCE_IDLE`).
+- **End:** `BattleStage_EndIdleCamera`, when every battler's command is in
+  (`battle_controller_player.c`, before `BattleSystem_RecordCommand`): ease home over 16
+  frames. If the first animation script starts before that, the script start snaps home and
+  this doesn't count as a guard snap. A hidden stage snaps home as usual.
+- `NO_CINEMATICS` or `NO_IDLE_CAMERA` set mid-drift snaps the camera home.
+
 ## Debug fields in sBattleStage (read by the critic from RAM via the xMAP)
 
 These come after the sprite fields. The existing offsets must not move.
@@ -243,6 +266,8 @@ New `debugFlags` bits, next to the chunk 3 ones:
 - bit3 `NO_CINEMATICS`: no crit or faint kicks. The sweep can't be switched off this way,
   because the flags are zeroed at battle load, before the critic can write them.
 - bit4 `CRIT_KICK_ON_HIT`: every hit blink plays the crit kick.
+- bit5 `NO_IDLE_CAMERA`: no idle drift at the command menu. The critic's `set_flags` sets it
+  by default, so frame comparisons at the menu see the home frame.
 
 ## Budget
 
@@ -284,3 +309,6 @@ New `debugFlags` bits, next to the chunk 3 ones:
   after the move.
 - **Faint:** a fainting (a KO of the wild mon, or whatever the debug party makes reliable)
   sets bit 4, and the camera is home again within 40 frames.
+- **Idle drift:** with no flags, at the menu `AT_HOME` clears within 90 frames and the menu
+  stays up (contact sheet `idle`). After a move is picked the camera is home within 40
+  frames, `guardSnaps` doesn't rise and `offHomeMoveFrames == 0`.
