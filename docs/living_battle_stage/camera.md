@@ -121,7 +121,7 @@ particle system goes through it, including the Totem aura's own system.
 
 ## New animation script commands
 
-These are appended to `sBattleAnimScriptCmdTable`, as commands 85 to 90, with macros in
+These are appended to `sBattleAnimScriptCmdTable`, as commands 85 to 91, with macros in
 `asm/macros/btlanimcmd.inc`. The constants go in `include/constants/battle/battle_anim.h`.
 
 The battle overlay isn't loaded in contests, so **each handler checks
@@ -137,6 +137,7 @@ visible.
 | 88 | `StageCameraHome frames` | eases back to the home pose (0 snaps) |
 | 89 | `StageCameraWait` | the script waits until no ease and no shake is in progress |
 | 90 | `StageCameraZoom fovDeg, frames` | eases the vertical field of view to fovDeg degrees (clamped to 10-60; home is 40), keeping the rest of the pose. 0 eases back to the home fov. `StageCameraHome` restores it too (moves.md, "Per-move camera") |
+| 91 | `StageHealthbars visible` | FALSE hides the healthbars showing now, for a close-up they would cover; TRUE shows again the ones the script hid. The script end shows any still hidden. Does nothing while the stage is not visible (moves.md, "Per-move camera") |
 
 `frames` counts drawn frames, as `Delay` does. The first camera command of a script marks
 the script as a **camera script**.

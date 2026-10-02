@@ -125,6 +125,7 @@ typedef struct StageCamera {
     int introWait;
     BOOL introHidesHealthbars; // the battle-start focus keeps the opponents' healthbars hidden
     u8 heldHealthbars; // battlers whose healthbar slides in once the focus is home
+    u8 scriptHidHealthbars; // battlers whose healthbar command 91 hid; shown again by the script end at the latest
     BOOL holdAfterScript; // the script's end pose becomes a held focus (the Totem aura)
     int idlePose; // the next of sIdlePoses
     BOOL idleHoming; // easing home from the idle drift
@@ -144,6 +145,7 @@ typedef struct StageCamera {
 static void ParticleProjectionHook(MtxFx44 *projection);
 static BOOL IntroFocusHidesHealthbars(void);
 static void ReleaseHealthbars(void);
+static void ShowScriptHealthbars(void);
 
 static StageCamera sStageCamera;
 
@@ -905,6 +907,10 @@ void BattleStageCamera_SetScriptActive(BOOL active)
 
     sStageCamera.scriptActive = active;
 
+    if (wasActive && !active) {
+        ShowScriptHealthbars();
+    }
+
     if (!sStageCamera.hasHome) {
         return;
     }
@@ -1009,6 +1015,24 @@ static void ReleaseHealthbars(void)
 
     if (sStageCamera.heldHealthbars == 0) {
         sStageCamera.introHidesHealthbars = FALSE;
+    }
+}
+
+// The healthbars command 91 hid come back
+static void ShowScriptHealthbars(void)
+{
+    int i;
+
+    if (sStageCamera.battleSys == NULL) {
+        sStageCamera.scriptHidHealthbars = 0;
+        return;
+    }
+
+    for (i = 0; i < MAX_BATTLERS && sStageCamera.scriptHidHealthbars; i++) {
+        if (sStageCamera.scriptHidHealthbars & (1 << i)) {
+            Healthbar_Enable(ov16_02263B08(BattleSystem_BattlerData(sStageCamera.battleSys, i)), TRUE);
+            sStageCamera.scriptHidHealthbars &= ~(1 << i);
+        }
     }
 }
 
@@ -1121,6 +1145,30 @@ void BattleStage_CameraZoom(int fovDeg, int frames)
     }
 
     EaseTo(&goal, frames);
+}
+
+void BattleStage_ScriptHealthbars(BOOL visible)
+{
+    Healthbar *healthbar;
+    int i;
+
+    if (visible) {
+        ShowScriptHealthbars();
+        return;
+    }
+
+    if (!ScriptCommand()) {
+        return;
+    }
+
+    for (i = 0; i < MaxBattlers(); i++) {
+        healthbar = ov16_02263B08(BattleSystem_BattlerData(sStageCamera.battleSys, i));
+
+        if (healthbar->mainSprite != NULL && ManagedSprite_GetDrawFlag(healthbar->mainSprite)) {
+            Healthbar_Enable(healthbar, FALSE);
+            sStageCamera.scriptHidHealthbars |= 1 << i;
+        }
+    }
 }
 
 void BattleStage_CameraShake(int amplitudePx, int frames)

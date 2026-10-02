@@ -2,9 +2,16 @@
 
 // Gen 5 camera (moves.md, "Per-move camera"): in on the attacker while the ball charges,
 // out to frame both mons as it flies, a punch on the hit, then home.
+// Each close-up picks its distance by the side of the mon it frames (moves.md, "Distance by side").
 L_0:
     LoadParticleResource 0, shadow_ball_spa
+    JumpIfBattlerSide BATTLER_ROLE_ATTACKER, L_1, L_2
+L_1:
+    StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER, 48, 8, 0, 10
+    Jump L_3
+L_2:
     StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER, 85, 8, 0, 10
+L_3:
     CreateEmitter 0, 4, EMITTER_CB_NONE
     CreateEmitter 0, 0, EMITTER_CB_NONE
     CreateEmitter 0, 1, EMITTER_CB_NONE
