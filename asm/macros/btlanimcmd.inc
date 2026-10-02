@@ -516,13 +516,13 @@
 
     // Jumps to one of two addresses based on the side of the specified battler
     // battler: The battler to check. Either BATTLER_ROLE_ATTACKER or BATTLER_ROLE_DEFENDER.
-    // addrEnemy: Address to jump to if the battler is on the enemy side
     // addrPlayer: Address to jump to if the battler is on the player side
-    .macro JumpIfBattlerSide battler:req, addrEnemy:req, addrPlayer:req
+    // addrEnemy: Address to jump to if the battler is on the enemy side
+    .macro JumpIfBattlerSide battler:req, addrPlayer:req, addrEnemy:req
     .long 64
     .long \battler
-    .long (\addrEnemy - .) / 4
     .long (\addrPlayer - .) / 4
+    .long (\addrEnemy - .) / 4
     .endm
 
     // Plays the cry of the attacker
@@ -775,6 +775,14 @@
     .long 90
     .long \fovDeg
     .long \frames
+    .endm
+
+    // Hides (FALSE) or shows again (TRUE) the healthbars while the 3D battle stage is up, for a
+    // camera close-up they would cover. Only the bars the script hid come back, and they come back
+    // at the script's end at the latest. Does nothing in the classic look or in contests.
+    .macro StageHealthbars visible:req
+    .long 91
+    .long \visible
     .endm
 
     // Convenience Macros

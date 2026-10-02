@@ -4118,7 +4118,8 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
     mid, expect = m["id"], m["expect"]
     if mid in FIRST_BRANCH_MOVES:
         expect = "kept"
-    tag = f"{tod} {mid:03d} {m.get('name', '')}".rstrip()
+    key, rev = ("Y", "_rev") if args.reverse else ("A", "")
+    tag = f"{tod} {mid:03d} {m.get('name', '')}".rstrip() + (" enemy->player" if rev else "")
     missing = [n for n in m.get("needs", []) if n not in cats]
     print(f"  [move] {tag}", flush=True)              # the parent attributes CPU exceptions by these lines
     if not ov.up() and not ov.show():
@@ -4128,7 +4129,7 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
     pre = e.snap(f"{tag} pre", after)
     before = ram.compat()
     cam0 = ram.cam()
-    anim, done, _, _, _ = _play_compat(e, ov, ram, "A", args.anim_frames, f"{mid:03d}")
+    anim, done, _, _, _ = _play_compat(e, ov, ram, key, args.anim_frames, f"{mid:03d}")
     if froze(sc, e, anim, f"playing {tag}"):
         return False
     if not sc.check(f"{tag}: animation finished", done is not None,
@@ -4183,7 +4184,7 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
             sc.check(f"{tag}: overlay shown (stage off)", False, "holding L+R did not bring the overlay back")
             return None
         pre_off = e.snap(f"{tag} classic pre")
-        off_anim, off_done, _, _, _ = _play_compat(e, ov, ram, "A", args.anim_frames, f"{mid:03d}c")
+        off_anim, off_done, _, _, _ = _play_compat(e, ov, ram, key, args.anim_frames, f"{mid:03d}c")
         if froze(sc, e, off_anim, f"playing {tag} with the stage off"):
             return False
         if not sc.check(f"{tag}: classic run (stage off) finished", off_done is not None,
@@ -4208,7 +4209,7 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
     on = _frames_at(anim, offsets, "stage")
     off = _frames_at(off_anim, offsets, "classic") if off_anim else []
     cats_txt = ", ".join(m.get("categories", [])) or "--moves"
-    redo_sheet(sc, mid, tod, f"{tag} [{expect}; {cats_txt}]: top stage, bottom classic (stage off). "
+    redo_sheet(sc, mid, tod + rev, f"{tag} [{expect}; {cats_txt}]: top stage, bottom classic (stage off). "
                f"{m.get('effect') or ''}", on, off)
     row = rows.setdefault(mid, {"id": mid, "name": m.get("name", ""), "expect": expect,
                                 "categories": m.get("categories", []), "status": {}, "thumbs": {}})
@@ -4376,7 +4377,9 @@ def main() -> int:
     ap.add_argument("--sprite-moves", default=",".join(map(str, SPRITE_MOVES)),
                     help="move_tester / sprite_life: moves that hide, shrink or swap a sprite, played after --moves "
                          "with a 'normal look restored' check ('' = none)")
-    ap.add_argument("--reverse", action="store_true", help="move_tester: also play each move enemy->player (Y)")
+    ap.add_argument("--reverse", action="store_true",
+                    help="move_tester: also play each move enemy->player (Y); move_redo: play each move enemy->player "
+                         "instead of player->enemy (sheets move_redo/<id>_<tod>_rev.png)")
     ap.add_argument("--anim-frames", type=int, default=1200,
                     help="move_tester/stage_toggle: max frames per animation (recording stops when it ends)")
     ap.add_argument("--max-anim-frames", type=int, default=1800, help="wild_battle: cap for the turn recording")

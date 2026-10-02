@@ -117,6 +117,10 @@ void BattleStage_CameraHome(int frames);
 // Command 90: eases the vertical field of view to fovDeg degrees (clamped to 10-60; home is
 // 40), keeping the rest of the pose. 0 eases back to the home fov. CameraHome restores it too.
 void BattleStage_CameraZoom(int fovDeg, int frames);
+// Command 91: hides (FALSE) the healthbars shown now, for a close-up they would cover, or shows
+// again (TRUE) the ones the script hid. Only while the stage is visible; the script end shows
+// any it left hidden.
+void BattleStage_ScriptHealthbars(BOOL visible);
 // A move's BG3 shake over the normal backdrop, in BG scroll sign (the picture moves by -dx,
 // -dy): the camera moves the arena, mons and particles with it. (0, 0) drops it. It does not
 // count as off home (offHomeFrames); it sets BATTLE_STAGE_CAMERA_SHAKING.

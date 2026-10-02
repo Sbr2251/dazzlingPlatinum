@@ -169,11 +169,38 @@ still plays at the home pose.
 
 **The pattern:**
 
-1. Wind-up: `StageCameraMove BATTLE_STAGE_FOCUS_ATTACKER` at about 85% distance over 8-10 frames.
+1. Wind-up: `StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER` over 8-10 frames.
 2. Launch: `StageCameraMove` to `DEFENDER`, or to `BETWEEN` for a projectile in flight.
 3. Impact: `StageCameraShake` on the hit.
 4. End: `StageCameraHome 12` and `StageCameraWait` before `End`, so the script hands the camera
    back at home.
+
+**Distance by side.** `distancePct` is measured from the focus point, not from the home camera.
+A mon on the player's side stands nearer the camera than the home focus, so 85% from it frames
+it smaller than at home. A mon on the enemy's side stands farther away, so 85% from it is a
+push-in. Every close-up on the attacker or the defender therefore picks its distance with
+`JumpIfBattlerSide`, whose first address is taken when the battler is on the player's side:
+
+```
+    JumpIfBattlerSide BATTLER_ROLE_ATTACKER, L_1, L_2
+L_1:
+    StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER, 48, 6, 0, 8    // player side
+    Jump L_3
+L_2:
+    StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER, 85, 6, 0, 8    // enemy side
+L_3:
+```
+
+On the Plain stage, 48% frames the player's mon at about 1.46x its home size, and 85% frames the
+enemy's mon at about 1.46x (82% about 1.5x, 88% about 1.41x). 85% on the player's side gave
+0.84x, smaller than home. These are the battler's anchor scale (`anchorScale`, 256 = home) read
+from RAM through both `move_redo` runs (see Checking). `BETWEEN` frames the midpoint and needs
+no branch.
+
+The macro's comment in `btlanimcmd.inc` had the two addresses the wrong way round (enemy first).
+The handler, `BattleAnimScriptCmd_JumpIfBattlerSide`, skips to the second address for a battler
+on the enemy's side, and vanilla scripts such as Surf rely on that. The comment and the
+parameter names now say player first; the bytes are unchanged.
 
 **The limits:**
 
@@ -186,18 +213,26 @@ still plays at the home pose.
 - These moves use no `SwitchBg`, no OAM copies and no window masks, so nothing drawn in screen
   space breaks off home.
 
+Distances in the table read player side / enemy side.
+
 | Move | Wind-up | Launch | Impact |
 |---|---|---|---|
-| Tackle (33) | Attacker 85%, yaw 6, 8 frames | Defender 85%, yaw -6, 6 frames, at the lunge | Shake 2, 6 frames |
-| Earthquake (89) | - | Defender 88%, yaw -8, pitch -3, 10 frames | The mirrored 2x BG3 shake (category A) |
-| Shadow Ball (247) | Attacker 85%, yaw 8, 10 frames, during the charge | Between 95%, yaw -4, 8 frames, as the ball flies | Shake 3, 8 frames |
-| X-Scissor (404) | Attacker 85%, yaw 6, 8 frames | Defender 82%, yaw -8, 6 frames | Shake 2, 6 frames |
-| Leaf Blade (348) | Attacker 85%, yaw 6, 8 frames | Defender 85%, yaw -10, pitch 2, 10 frames | Shake 3, 8 frames |
-| Stone Edge (444) | Attacker 85%, yaw 6, 8 frames | Defender 85%, yaw -8, pitch -3, 10 frames | Shake 4, 12 frames |
-| Air Slash (403) | Attacker 85%, yaw 6, 8 frames | Defender 82%, yaw 8, 6 frames | Shake 2, 6 frames |
-| Swords Dance (14) | Attacker 82%, yaw -12, pitch 2, 8 frames | Orbit +24 degrees over 30 frames (yaw -12 to +12) around the attacker | - |
+| Tackle (33) | Attacker 48/85%, yaw 6, 8 frames | Defender 48/85%, yaw -6, 6 frames, at the lunge | Shake 2, 6 frames |
+| Earthquake (89) | - | Defender 48/88%, yaw -8, pitch -3, 10 frames | The mirrored 2x BG3 shake (category A) |
+| Shadow Ball (247) | Attacker 48/85%, yaw 8, 10 frames, during the charge | Between 95%, yaw -4, 8 frames, as the ball flies | Shake 3, 8 frames |
+| X-Scissor (404) | Attacker 48/85%, yaw 6, 8 frames | Defender 48/82%, yaw -8, 6 frames | Shake 2, 6 frames |
+| Leaf Blade (348) | Attacker 48/85%, yaw 6, 8 frames | Defender 48/85%, yaw -10, pitch 2, 10 frames | Shake 3, 8 frames |
+| Stone Edge (444) | Attacker 48/85%, yaw 6, 8 frames | Defender 48/85%, yaw -8, pitch -3, 10 frames | Shake 4, 12 frames |
+| Air Slash (403) | Attacker 48/85%, yaw 6, 8 frames | Defender 48/82%, yaw 8, 6 frames | Shake 2, 6 frames |
+| Swords Dance (14) | Attacker 48/82%, yaw -12, pitch 2, 8 frames | Orbit +24 degrees over 30 frames (yaw -12 to +12) around the attacker | - |
 
 All eight end with `StageCameraHome 12` and `StageCameraWait`.
+
+**Healthbars.** Seven of the eight moves hide the healthbars for the whole script, as they do in
+the classic look (their move data lacks flag `0x40`, which keeps the bars). Tackle and Swords
+Dance have the flag, so on the stage they hide the bars themselves with command 91
+(`StageHealthbars FALSE`) before the wind-up, and show them again 6 frames into
+`StageCameraHome 12`.
 
 ### Command 90: `StageCameraZoom fovDeg, frames`
 
@@ -213,6 +248,14 @@ A zoom alone keeps the particles exact: changing the fov is a pure 2D scale abou
 centre, which the particle similarity reproduces. None of the eight moves uses it yet. It is
 there for quick push-ins and dolly-zooms (gap B).
 
+### Command 91: `StageHealthbars visible`
+
+`StageHealthbars FALSE` hides the healthbars that are showing, for a close-up they would cover.
+`StageHealthbars TRUE` shows again the ones the script hid, and only those. Any the script leaves
+hidden come back when the script ends. The command does nothing while the stage is not visible
+(the classic look keeps the move's own healthbar behaviour) and, in a contest, only skips its
+argument.
+
 ### Checking
 
 `move_redo --moves 33,89,247,404,348,444,403,14` plays the eight moves on the stage. The camera
@@ -220,15 +263,16 @@ must be home (AT_HOME) at the menu after each one, and `offHomeMoveFrames` must 
 that counter only counts scripts that left home without a camera command. The contact sheets
 compare each move against the classic look.
 
-`move_redo` only plays the player's attacks. The enemy-attacker direction (the attacker at the
-back, the defender in front) has no on-stage critic run yet.
+`move_redo --reverse --moves ...` plays the same moves enemy->player (the move tester's Y),
+still on the Plain stage, and writes the sheets as `move_redo/<id>_<tod>_rev.png`. That run
+checks the other branch of every `JumpIfBattlerSide`: the attacker close-up on the enemy and the
+defender close-up on the player's mon.
 
 **Known looks:**
 
-- `distancePct` is measured from the focus point. When the player attacks, the attacker stands
-  closer to the camera than the home focus does, so 85% from the attacker frames the back sprite
-  centred and smaller than at home: a reframe, not a push-in. When the enemy attacks, the same
-  pose is a push-in. A push-in on the player's side would need about 45-50%, the way the Mega
-  close-up uses 42%, behind a `JumpIfBattlerSide`.
-- Tackle keeps the healthboxes up, as it does in classic. The defender close-up centres the
-  defender, so the player's healthbox covers its lower right during the hit.
+- In a close-up on the enemy's mon, the player's mon is nearer the camera than the focus, so it
+  grows far more than the focused mon (an anchor scale of 2.6-3x against 1.46x). It is mostly
+  off the bottom left of the screen by then. In Tackle, a slice of it shows at the bottom left
+  as the camera eases home.
+- 85% on the enemy's side frames the enemy's mon at 1.46x, the same as 48% on the player's
+  side, so both directions of a move push in by the same amount.
