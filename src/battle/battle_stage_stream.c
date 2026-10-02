@@ -50,6 +50,7 @@ typedef struct BattlerStream {
     const u8 *steps; // {frame, duration}
     u16 step;
     s16 left; // vblanks the step has left
+    u16 rateLeft; // the part of a vblank (of STREAM_RATE_ONE) not counted yet at a slow rate
     u16 texFrame; // frame in the texture copy, STREAM_NO_FRAME before the first
     u16 shown; // frame in VRAM, STREAM_NO_FRAME when it has to be sent whole
     u16 queued; // frame queued for the next VBlank, STREAM_NO_FRAME if none
@@ -70,6 +71,7 @@ typedef struct StageStream {
     BOOL hasFiles;
     u32 lastVBlank;
     u8 firstBattler; // updated first this frame
+    u16 rate[MAX_MON_SPRITES]; // BattleStageStream_SetRate
     NARC *narc; // the header reads at a load, and the member table
     MonStreamIndexHeader *index; // all of member 0
     u32 indexEntries; // u16 entries in member 0
@@ -159,6 +161,7 @@ void BattleStageStream_Init(PokemonSpriteManager *monSpriteMan)
         sStageStream.battlers[i].queued = STREAM_NO_FRAME;
         sStageStream.battlers[i].bufFrame = STREAM_NO_FRAME;
         sStageStream.battlers[i].reading = STREAM_NO_FRAME;
+        sStageStream.rate[i] = STREAM_RATE_ONE;
         sSpriteStreamStats.frame[i] = STREAM_NO_FRAME;
     }
 
@@ -356,6 +359,7 @@ static void Load(int index, const PokemonSpriteTemplate *template)
     stream->size = headerSize + STREAM_TEX_BYTES + size;
     stream->step = 0;
     stream->left = stream->steps[1];
+    stream->rateLeft = 0;
 
     sSpriteStreamStats.loads++;
     sSpriteStreamStats.member[index] = member;
@@ -451,7 +455,7 @@ static u16 NextFrame(const BattlerStream *stream)
 
 // Moves on by the vblanks gone, but never onto a step whose frame isn't in yet: the step
 // before it waits for the card
-static void Advance(BattlerStream *stream, u32 elapsed, BOOL frozen)
+static void Advance(BattlerStream *stream, u32 elapsed, BOOL frozen, u32 rate)
 {
     int next;
 
@@ -461,7 +465,14 @@ static void Advance(BattlerStream *stream, u32 elapsed, BOOL frozen)
         return;
     }
 
-    stream->left -= elapsed;
+    // Below STREAM_RATE_ONE a vblank counts for less; at 0 the step holds
+    if (rate == 0) {
+        return;
+    }
+
+    elapsed = elapsed * rate + stream->rateLeft;
+    stream->rateLeft = elapsed % STREAM_RATE_ONE;
+    stream->left -= elapsed / STREAM_RATE_ONE;
 
     while (stream->left <= 0) {
         next = stream->step + 1 < stream->data->numSteps ? stream->step + 1 : 0;
@@ -556,7 +567,7 @@ static void UpdateBattler(int index, u32 elapsed, BOOL visible, BOOL frozen)
     }
 
     if (stream->texFrame != STREAM_NO_FRAME) {
-        Advance(stream, elapsed, frozen);
+        Advance(stream, elapsed, frozen, sStageStream.rate[index]);
     }
 
     want = StepFrame(stream, stream->step);
@@ -676,6 +687,13 @@ void BattleStageStream_Unbind(void)
     PokemonSpriteManager *monSpriteMan = sStageStream.monSpriteMan;
 
     G3_TexImageParam(monSpriteMan->imageProxy.attr.fmt, GX_TEXGEN_TEXCOORD, monSpriteMan->imageProxy.attr.sizeS, monSpriteMan->imageProxy.attr.sizeT, GX_TEXREPEAT_NONE, GX_TEXFLIP_NONE, monSpriteMan->imageProxy.attr.plttUse, monSpriteMan->charBaseAddr);
+}
+
+void BattleStageStream_SetRate(int index, u32 rate)
+{
+    if (index >= 0 && index < MAX_MON_SPRITES) {
+        sStageStream.rate[index] = rate > STREAM_RATE_ONE ? STREAM_RATE_ONE : rate;
+    }
 }
 
 const u8 *BattleStageStream_GetFrame(int index)

@@ -149,6 +149,21 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
     frame. A battler past the budget waits a frame, and the order turns every frame.
   - Whole textures are sent after a menu took the VRAM.
   - `FREEZE_IDLE` holds step 0, the classic frame A.
+- **Conditions (as B/W).** `battle_stage_sprites.c` (`UpdateConditions`) reads each
+  battler's healthbar every frame: the HP colour and status it shows. It sets the battler's
+  rate (`BattleStageStream_SetRate`, of 256), which scales the vblanks the steps count and
+  the breathing.
+  - Yellow HP plays at 3/4, red at 1/2, asleep at 1/2 (times the HP rate). Frozen holds the
+    frame on screen. The rate follows the healthbar, so it changes when the bar has drained.
+  - Frozen also tints the palette a steady blue (6/16). Paralysis, poison and burn throb
+    yellow, purple and red, 0 to 6/16 and back over 64 frames. Sleep has no tint.
+  - The tint is `PokemonSpriteManager_SetTint`: `BufferPokemonSpritePlttData` blends the
+    unfaded palette toward the colour when no palette fade holds the sprite, so a move's fade
+    (a hit flash) runs on the untinted colours and the tint comes back after it. It colours
+    the classic sprite as well; the rates only reach the streams and the breathing.
+  - B/W's own speeds and colours aren't documented. These values are by eye. B/W also closes
+    the eyes asleep, which needs art the GIFs don't have.
+  - No healthbar (the send-out, after a faint) means full speed and no tint.
 - **Draw (`Bind`).** The draw hook binds the battler's texture and draws the canvas around
   the classic frame (`BattleStageStream_CanvasRect`): the whole 128x96 canvas at 1:1, the
   stream's box at its scale otherwise. Mosaic,

@@ -208,6 +208,10 @@ typedef struct PokemonSpriteManager {
     u32 hideShadows; // curiously, this field is treated like a bitmask, but it only ever uses a value of 0 or 1
     PokemonSpriteDrawHook *drawHook; // NULL draws every sprite as one quad
     struct PokemonSpriteStreamState *stream; // Gen 5 animation (pokemon_sprite_stream.h); NULL until a screen opts in
+    // PokemonSpriteManager_SetTint, per sprite
+    u16 tintColor[MAX_MON_SPRITES];
+    u8 tintAlpha[MAX_MON_SPRITES];
+    u8 tintDirty[MAX_MON_SPRITES]; // plttRawData doesn't hold the tint yet
 } PokemonSpriteManager;
 
 // used to run PokemonSprite animations in a task independent
@@ -257,6 +261,9 @@ BOOL PokemonSprite_IsCut(PokemonSprite *monSprite);
 void PokemonSpriteManager_SetHideShadows(PokemonSpriteManager *monSpriteMan, u32 value);
 void PokemonSpriteManager_ClearHideShadows(PokemonSpriteManager *monSpriteMan, u32 value);
 void PokemonSpriteManager_SetDrawHook(PokemonSpriteManager *monSpriteMan, PokemonSpriteDrawHook *hook);
+// Blends sprite index's palette alpha / 16 of the way to color (the battle stage's status tints);
+// 0 for none. A palette fade (PokemonSprite_StartFade) wins while it runs.
+void PokemonSpriteManager_SetTint(PokemonSpriteManager *monSpriteMan, int index, u8 alpha, u16 color);
 void PokemonSprite_DrawSpindaSpots(u8 *rawCharData, u32 personality, BOOL isAnimated);
 void PokemonSprite_DecryptPt(u8 *rawCharData);
 void PokemonSprite_DecryptDP(u8 *rawCharData);

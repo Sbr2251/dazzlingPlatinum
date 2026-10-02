@@ -15,6 +15,7 @@
 #define STREAM_CANVAS_HEIGHT MON_STREAM_CANVAS_HEIGHT
 #define STREAM_CLASSIC_LEFT  MON_STREAM_CLASSIC_LEFT
 #define STREAM_CLASSIC_TOP   MON_STREAM_CLASSIC_TOP
+#define STREAM_RATE_ONE      256 // BattleStageStream_SetRate: full speed
 
 // Read by the critic (sSpriteStreamStats)
 typedef struct BattleStageStreamStats {
@@ -52,6 +53,9 @@ void BattleStageStream_Free(void);
 // animations and queues changed frames. Frozen holds every stream on its first step (the
 // classic frame A); not visible sends nothing and sends whole frames when visible again.
 void BattleStageStream_BeginFrame(BOOL visible, BOOL frozen);
+// Plays battler index's animation at rate / STREAM_RATE_ONE of its speed (as B/W, slower at
+// low HP or asleep), holding its frame at 0 (frozen solid); STREAM_RATE_ONE from Init
+void BattleStageStream_SetRate(int index, u32 rate);
 // From the draw hook: when battler index's current frame is in VRAM, binds its texture
 // (the canvas from texel 0, 0) and returns TRUE. Unbind gives the manager's
 // texture back.

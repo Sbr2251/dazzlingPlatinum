@@ -425,6 +425,12 @@ void *PokemonSpriteManager_New(enum HeapID heapID)
     monSpriteMan->drawHook = NULL;
     monSpriteMan->stream = NULL;
 
+    for (int i = 0; i < MAX_MON_SPRITES; i++) {
+        monSpriteMan->tintColor[i] = 0;
+        monSpriteMan->tintAlpha[i] = 0;
+        monSpriteMan->tintDirty[i] = FALSE;
+    }
+
     NNSG2dCharacterData *charData;
     u8 *rawCharData;
 
@@ -1334,6 +1340,19 @@ void PokemonSpriteManager_SetDrawHook(PokemonSpriteManager *monSpriteMan, Pokemo
     monSpriteMan->drawHook = hook;
 }
 
+void PokemonSpriteManager_SetTint(PokemonSpriteManager *monSpriteMan, int index, u8 alpha, u16 color)
+{
+    if (alpha == 0) {
+        color = 0;
+    }
+
+    if (monSpriteMan->tintAlpha[index] != alpha || monSpriteMan->tintColor[index] != color) {
+        monSpriteMan->tintAlpha[index] = alpha;
+        monSpriteMan->tintColor[index] = color;
+        monSpriteMan->tintDirty[index] = TRUE;
+    }
+}
+
 static void BufferPokemonSpriteCharData(PokemonSpriteManager *monSpriteMan)
 {
     NNSG2dCharacterData *charData;
@@ -1470,6 +1489,7 @@ static void BufferPokemonSpritePlttData(PokemonSpriteManager *monSpriteMan)
     for (i = 0; i < MAX_MON_SPRITES; i++) {
         if (monSpriteMan->sprites[i].active && monSpriteMan->sprites[i].needReloadPltt) {
             monSpriteMan->sprites[i].needReloadPltt = FALSE;
+            monSpriteMan->tintDirty[i] = monSpriteMan->tintAlpha[i] != 0;
 
             needReloadPltt = TRUE;
             nclrFile = NARC_AllocAndReadWholeMemberByIndexPair(monSpriteMan->sprites[i].template.narcID, monSpriteMan->sprites[i].template.palette, monSpriteMan->heapID);
@@ -1531,6 +1551,25 @@ static void BufferPokemonSpritePlttData(PokemonSpriteManager *monSpriteMan)
             } else {
                 monSpriteMan->sprites[i].transforms.fadeDelayCounter--;
             }
+        }
+
+        // The tint goes on the unfaded palette when no fade holds it, so a fade ends on the
+        // untinted colours and the tint comes back after it
+        if (!monSpriteMan->sprites[i].active) {
+            continue;
+        }
+
+        if (monSpriteMan->sprites[i].transforms.fadeActive || monSpriteMan->sprites[i].transforms.fadeInitAlpha != 0) {
+            monSpriteMan->tintDirty[i] = TRUE;
+        } else if (monSpriteMan->tintDirty[i]) {
+            monSpriteMan->tintDirty[i] = FALSE;
+            needReloadPltt = TRUE;
+            BlendPalette(
+                &monSpriteMan->plttRawDataUnfaded[PALETTE_SIZE * i],
+                &monSpriteMan->plttRawData[PALETTE_SIZE * i],
+                PALETTE_SIZE,
+                monSpriteMan->tintAlpha[i],
+                monSpriteMan->tintColor[i]);
         }
     }
 

@@ -5,16 +5,19 @@
 #include <string.h>
 
 #include "config/battle_stage.h"
+#include "constants/battle.h"
 #include "constants/graphics.h"
 #include "generated/shadow_sizes.h"
 
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_camera.h"
+#include "battle/battle_display.h"
 #include "battle/battle_stage_stream.h"
 #include "battle/ov16_0223DF00.h"
 
 #include "palette.h"
 #include "pokemon_sprite.h"
+#include "unk_0208C098.h"
 #include "vram_transfer.h"
 
 // The mesh: GRID x GRID quads, drawn as GRID quad strips
@@ -41,6 +44,22 @@
 #define BREATH_X       51
 #define BREATH_SWAY    256
 #define BREATH_STAGGER 22
+
+// Conditions, as B/W: the animation (the stream and the breathing) slows at low HP and asleep
+// and stops frozen solid, and the palette takes a tint, a steady blue frozen, throbbing for
+// paralysis, poison and burn. B/W's own speeds and colours aren't documented; these are by eye.
+// Rates of STREAM_RATE_ONE, multiplied together; tint alphas of 16.
+#define RATE_HP_YELLOW       192
+#define RATE_HP_RED          128
+#define RATE_ASLEEP          128
+#define HP_BAR_PIXELS        48 // the battle healthbar's, for HealthBar_Color
+#define TINT_FROZEN_ALPHA    6
+#define TINT_THROB_ALPHA     6 // at the peak
+#define TINT_THROB_PERIOD    64 // drawn frames, a power of two
+#define TINT_FROZEN_COLOR    GX_RGB(8, 18, 31)
+#define TINT_PARALYZED_COLOR GX_RGB(31, 28, 0)
+#define TINT_POISONED_COLOR  GX_RGB(22, 4, 28)
+#define TINT_BURNED_COLOR    GX_RGB(31, 6, 2)
 
 // Hit wobble: frames, shear at the top row (1/256 px) and oscillation period in frames
 #define WOBBLE_FRAMES    12
@@ -98,7 +117,7 @@ typedef struct StageSpriteState {
     u8 phase; // breathing phase, 0..BREATH_PERIOD-1
     u8 delay; // frames before the breathing starts (the per-battler offset)
     u8 wobble; // frames of wobble left
-    u8 padding;
+    u8 phaseLeft; // the part of a frame (of STREAM_RATE_ONE) the breathing hasn't counted yet
 } StageSpriteState;
 
 typedef struct StageSprites {
@@ -135,11 +154,14 @@ typedef struct StageSprites {
     // BattleStage_SetGroundHole: per battler, open or not and how far (0..HOLE_RAMP_FRAMES)
     u8 holeOpen[MAX_MON_SPRITES];
     u8 holeLevel[MAX_MON_SPRITES];
+    u16 rate[MAX_MON_SPRITES]; // UpdateConditions: the battler's animation speed
+    u8 throb; // frames into TINT_THROB_PERIOD
 } StageSprites;
 
 static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const PokemonSpriteDrawRect *rect);
 static void BuildNormals(void);
 static void UpdateTint(const BattleStageFileLighting *dayLighting);
+static void UpdateConditions(PokemonSpriteManager *monSpriteMan, BOOL clear);
 static BOOL InitBlobs(const BattleStageSpriteCamera *camera);
 static void FreeBlobs(void);
 
@@ -171,7 +193,11 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
         sStageSprites.states[i].phase = 0;
         sStageSprites.states[i].delay = i * BREATH_STAGGER;
         sStageSprites.states[i].wobble = 0;
+        sStageSprites.states[i].phaseLeft = 0;
+        sStageSprites.rate[i] = STREAM_RATE_ONE;
     }
+
+    sStageSprites.throb = 0;
 
     // BattleStage_Init has just cleared sBattleStage, debugFlags included; the critic sets
     // debugFlags again inside each battle
@@ -198,6 +224,7 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
 void BattleStageSprites_Free(void)
 {
     if (sStageSprites.hooked) {
+        UpdateConditions(BattleSystem_GetPokemonSpriteManager(sStageSprites.battleSys), TRUE);
         PokemonSpriteManager_SetDrawHook(BattleSystem_GetPokemonSpriteManager(sStageSprites.battleSys), NULL);
         sStageSprites.hooked = FALSE;
     }
@@ -265,6 +292,11 @@ void BattleStageSprites_BeginFrame(BOOL visible, const BattleStageFileLighting *
     // go on and the sprites draw them flat (DrawFlatStream), so hiding the arena doesn't snap
     // them back to the classic frame
     sStageSprites.streamLive = sStageSprites.visible || (sStageSprites.hooked && BattleStage_KeepsTextureVram());
+
+    if (sStageSprites.hooked) {
+        UpdateConditions(BattleSystem_GetPokemonSpriteManager(sStageSprites.battleSys), FALSE);
+    }
+
     BattleStageStream_BeginFrame(sStageSprites.streamLive, (fields->debugFlags & BATTLE_STAGE_DEBUG_FREEZE_IDLE) != 0);
 
     // Another screen may have used the texture or palette VRAM while the arena was hidden
@@ -539,6 +571,7 @@ static fx32 Breathe(int index, const PokemonSpriteTransforms *transforms)
 {
     StageSpriteState *state = &sStageSprites.states[index];
     fx32 s;
+    u32 rate;
 
     if ((sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_FREEZE_IDLE)
         || sStageSprites.moveAnimActive
@@ -560,7 +593,9 @@ static fx32 Breathe(int index, const PokemonSpriteTransforms *transforms)
     }
 
     s = FX_SinIdx((u16)((u32)state->phase * 0x10000 / BREATH_PERIOD));
-    state->phase = (state->phase + 1) % BREATH_PERIOD;
+    rate = sStageSprites.rate[index] + state->phaseLeft;
+    state->phaseLeft = rate % STREAM_RATE_ONE;
+    state->phase = (state->phase + rate / STREAM_RATE_ONE) % BREATH_PERIOD;
 
     if (!sStageSprites.advanced) {
         sStageSprites.advanced = TRUE;
@@ -568,6 +603,78 @@ static fx32 Breathe(int index, const PokemonSpriteTransforms *transforms)
     }
 
     return s;
+}
+
+// Each battler's animation speed and palette tint from its healthbar (the HP and status it
+// shows); clear gives every sprite its own palette back
+static void UpdateConditions(PokemonSpriteManager *monSpriteMan, BOOL clear)
+{
+    Healthbar *healthbar;
+    u32 rate;
+    int i, throbAlpha, half;
+    u8 alpha;
+    u16 color;
+
+    if (sStageSprites.fields != NULL && (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_FREEZE_IDLE)) {
+        throbAlpha = TINT_THROB_ALPHA;
+    } else {
+        // A triangle: 0 up to the peak and back down over the period
+        sStageSprites.throb = (sStageSprites.throb + 1) & (TINT_THROB_PERIOD - 1);
+        half = TINT_THROB_PERIOD / 2;
+        throbAlpha = sStageSprites.throb < half ? sStageSprites.throb : TINT_THROB_PERIOD - sStageSprites.throb;
+        throbAlpha = (throbAlpha * TINT_THROB_ALPHA + half / 2) / half;
+    }
+
+    for (i = 0; i < MAX_MON_SPRITES; i++) {
+        rate = STREAM_RATE_ONE;
+        alpha = 0;
+        color = 0;
+        healthbar = NULL;
+
+        if (!clear && i < BattleSystem_MaxBattlers(sStageSprites.battleSys)) {
+            healthbar = ov16_02263B08(BattleSystem_BattlerData(sStageSprites.battleSys, i));
+        }
+
+        // No healthbar yet (the send-out) or any more (fainted, recalled): what it holds is stale
+        if (healthbar != NULL && healthbar->mainSprite != NULL && healthbar->maxHP > 0) {
+            switch (HealthBar_Color(healthbar->curHP, healthbar->maxHP, HP_BAR_PIXELS)) {
+            case BARCOLOR_YELLOW:
+                rate = RATE_HP_YELLOW;
+                break;
+            case BARCOLOR_RED:
+            case BARCOLOR_EMPTY:
+                rate = RATE_HP_RED;
+                break;
+            }
+
+            switch (healthbar->status) {
+            case BATTLE_ANIMATION_ASLEEP:
+                rate = rate * RATE_ASLEEP / STREAM_RATE_ONE;
+                break;
+            case BATTLE_ANIMATION_FROZEN:
+                rate = 0;
+                alpha = TINT_FROZEN_ALPHA;
+                color = TINT_FROZEN_COLOR;
+                break;
+            case BATTLE_ANIMATION_PARALYZED:
+                alpha = throbAlpha;
+                color = TINT_PARALYZED_COLOR;
+                break;
+            case BATTLE_ANIMATION_POISONED:
+                alpha = throbAlpha;
+                color = TINT_POISONED_COLOR;
+                break;
+            case BATTLE_ANIMATION_BURNED:
+                alpha = throbAlpha;
+                color = TINT_BURNED_COLOR;
+                break;
+            }
+        }
+
+        sStageSprites.rate[i] = rate;
+        BattleStageStream_SetRate(i, rate);
+        PokemonSpriteManager_SetTint(monSpriteMan, i, alpha, color);
+    }
 }
 
 static void ResetBreath(int index)
