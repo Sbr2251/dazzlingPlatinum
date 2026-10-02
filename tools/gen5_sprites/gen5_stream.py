@@ -27,7 +27,12 @@ input GIFs, so a rerun takes seconds; output files are only written when they ch
 
 Skipped: species whose battle sprite comes from PL_OTHERPOKE (forms, see FORM_SPECIES; their
 pokegra files are never drawn in battle), Spinda (the game paints its spots on the classic
-front at fixed places), Megas (no Gen 5 art), Egg.
+front at fixed places), Egg.
+
+Megas: B/W has none, so each Mega's classic back (frame A of forms/mega/back.png, in its own
+palette) becomes a one-frame stream at PL_OTHERPOKE's back character, drawn like the B/W backs:
+standing on the ground row, at the scale that makes it as tall as its base form's back (at least
+1.75x, at most 2x). Mega fronts stay classic; most are about the size of the B/W fronts.
 
 Female art: where PokeAPI has a B/W female GIF (female/ and back/female/) the species gets a
 female member and female_{front,back}.png; otherwise the female files are the male ones and
@@ -59,7 +64,8 @@ Member 0 of the NARC is the index (version 2):
 Every other member is one stream:
 
     u8 numFrames, u8 scale, u16 numSteps
-                                    scale: in eighths, 8 (fronts) or 14 (backs); drawn at
+                                    scale: in eighths, 8 (fronts), 14 (backs) or 14 to 16
+                                    (Mega backs); drawn at
                                     scale/8 the size about the feet (see classic_window)
     u8 left, u8 width               the animation's box in the 128x96 canvas: bytes (2 pixels)
     u8 top, u8 height               and rows; outside it every frame is transparent
@@ -76,6 +82,7 @@ import hashlib
 import json
 import os
 import pickle
+import re
 import shutil
 import struct
 import sys
@@ -112,6 +119,7 @@ ANCHOR_U = CANVAS_W // 2  # the canvas column on the classic frame's centre line
 FEET_Y = CLASSIC  # the classic frame row the feet stand on, at any scale
 SCALE_ONE = 8  # member scales are in eighths
 BACK_SCALE = 14  # 1.75x: Black/White draw back sprites at 2x, too big for the big ones here
+MAX_SCALE = 16  # MON_STREAM_MAX_SCALE: 2x
 BACK_MAX_W = min(CANVAS_W, 240 * SCALE_ONE // BACK_SCALE)  # 240 px, the widest sprite mesh (MESH_MAX_HALF_SIZE)
 MAX_FRAMES = 255  # a step's frame is a u8
 MAX_MEMBER = 96 * 1024  # bigger streams drop their most similar frames (the battle heap, see D)
@@ -774,6 +782,32 @@ def zero_y_offsets(path):
     return write_if_changed(path, (json.dumps(data, indent=4) + "\n").encode())
 
 
+def mega_list():
+    """(base species, back character) of each Mega in src/pokemon_mega_data.c."""
+    with open(os.path.join(ROOT, "src/pokemon_mega_data.c")) as f:
+        text = f.read()
+    return [(m.group(1).lower(), int(m.group(2)))
+            for m in re.finditer(r"\.baseSpecies = SPECIES_(\w+),.*?\.spriteCharacter = (\d+),", text, re.S)]
+
+
+def mega_back(name, base_h):
+    """A Mega's still back member, as tall as its base form's back (base_h source rows at
+    BACK_SCALE), and its report."""
+    sheet = np.array(Image.open(os.path.join(ROOT, "res/pokemon", name, "forms/mega/back.png")))
+    frame = sheet[:, :CLASSIC]
+    l, t, r, b = bbox(frame != 0)
+    crop, dx, dy = place((l, t, r, b), CANVAS_W)
+    l, t, r, b = crop
+    w, h = r - l, b - t
+    scale = min(MAX_SCALE, max(BACK_SCALE, round(base_h * BACK_SCALE / h)))
+    canvas = np.zeros((CANVAS_H, CANVAS_W), dtype=np.uint8)
+    canvas[dy:dy + h, dx:dx + w] = frame[t:b, l:r]
+    box = (dx // 2, (w + 1) // 2, dy, h)
+    member = stream_member([lz10(box_bytes(canvas, box))], [(0, 255)], box, scale)
+    return member, {"scale": scale / SCALE_ONE, "union": [w, h], "canvas_top": dy, "bytes": len(member),
+                    "base_union_h": base_h}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--species", nargs="+", help="only these species (names as in generated/species.txt)")
@@ -829,6 +863,17 @@ def main():
         report["bytes"] = sum(len(m) for m in unit_members.values())
         reports[u["name"]] = report
 
+    megas = {}
+    for name, character in mega_list():
+        if name not in reports:
+            if not wanted:
+                print(f"mega {name}: base form has no stream, classic")
+            continue
+        member, megas[name] = mega_back(name, reports[name]["faces"]["back"]["union"][1])
+        otherpoke.extend([0] * (character + 1 - len(otherpoke)))
+        otherpoke[character] = len(members)
+        members.append(member)
+
     members[0] = struct.pack(f"<4H{len(pokegra)}H{len(otherpoke)}H", INDEX_VERSION, len(pokegra), len(otherpoke), 0,
                              *pokegra, *otherpoke)
     tmp = OUT + ".tmp"
@@ -839,15 +884,17 @@ def main():
     changed += write_if_changed(OUT, narc)
 
     with open(REPORT, "w") as f:
-        json.dump(reports, f, indent=1, sort_keys=True)
+        json.dump(dict(reports, megas=megas), f, indent=1, sort_keys=True)
         f.write("\n")
 
     sizes = sorted(((len(m), i) for i, m in enumerate(members) if i), reverse=True)
     owner = {}
+    for name, r in megas.items():
+        owner.setdefault(r["bytes"], []).append(f"mega {name} back")
     for name, r in reports.items():
         for label, fr in r["faces"].items():
             owner.setdefault(fr["bytes"], []).append(f"{name} {label}")
-    print(f"{len(reports)} species, {len(members) - 1} streams, {sum(s for s, _ in sizes)} bytes of streams")
+    print(f"{len(reports)} species and {len(megas)} Megas, {len(members) - 1} streams, {sum(s for s, _ in sizes)} bytes of streams")
     print(f"{OUT}: {len(narc)} bytes; {changed} files changed")
     print("biggest members:", ", ".join(f"{owner.get(s, ['?'])[0]} {s}" for s, _ in sizes[:12]))
     for name, r in sorted(reports.items()):

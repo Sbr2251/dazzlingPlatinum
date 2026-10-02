@@ -13107,6 +13107,118 @@
   },
   "shiny_unmatched_colours": 0
  },
+ "megas": {
+  "alakazam": {
+   "base_union_h": 66,
+   "bytes": 1108,
+   "canvas_top": 21,
+   "scale": 1.75,
+   "union": [
+    59,
+    67
+   ]
+  },
+  "empoleon": {
+   "base_union_h": 75,
+   "bytes": 1368,
+   "canvas_top": 15,
+   "scale": 1.75,
+   "union": [
+    74,
+    73
+   ]
+  },
+  "garchomp": {
+   "base_union_h": 83,
+   "bytes": 1072,
+   "canvas_top": 20,
+   "scale": 2.0,
+   "union": [
+    59,
+    68
+   ]
+  },
+  "gardevoir": {
+   "base_union_h": 77,
+   "bytes": 1120,
+   "canvas_top": 19,
+   "scale": 2.0,
+   "union": [
+    71,
+    69
+   ]
+  },
+  "gengar": {
+   "base_union_h": 65,
+   "bytes": 1132,
+   "canvas_top": 26,
+   "scale": 1.875,
+   "union": [
+    60,
+    62
+   ]
+  },
+  "gyarados": {
+   "base_union_h": 83,
+   "bytes": 1400,
+   "canvas_top": 13,
+   "scale": 1.875,
+   "union": [
+    77,
+    75
+   ]
+  },
+  "infernape": {
+   "base_union_h": 78,
+   "bytes": 1352,
+   "canvas_top": 18,
+   "scale": 2.0,
+   "union": [
+    74,
+    70
+   ]
+  },
+  "lucario": {
+   "base_union_h": 66,
+   "bytes": 868,
+   "canvas_top": 23,
+   "scale": 1.75,
+   "union": [
+    53,
+    65
+   ]
+  },
+  "scizor": {
+   "base_union_h": 75,
+   "bytes": 1192,
+   "canvas_top": 32,
+   "scale": 2.0,
+   "union": [
+    60,
+    56
+   ]
+  },
+  "staraptor": {
+   "base_union_h": 68,
+   "bytes": 1388,
+   "canvas_top": 14,
+   "scale": 1.75,
+   "union": [
+    72,
+    74
+   ]
+  },
+  "torterra": {
+   "base_union_h": 82,
+   "bytes": 2036,
+   "canvas_top": 13,
+   "scale": 1.875,
+   "union": [
+    75,
+    75
+   ]
+  }
+ },
  "meowth": {
   "bytes": 33040,
   "colours": 21,

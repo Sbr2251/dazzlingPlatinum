@@ -13,8 +13,10 @@ back art. Species without a stream draw exactly as before:
 - the form species, whose battle sprite comes from PL_OTHERPOKE: Arceus, Burmy, Castform,
   Cherrim, Deoxys, Gastrodon, Giratina, Rotom, Shaymin, Shellos, Unown, Wormadam;
 - Spinda;
-- Megas;
 - the Egg.
+
+The 11 Megas have no B/W art. Each Mega's classic back becomes a still stream (see Megas), and
+its front stays classic.
 
 ## Data
 
@@ -28,7 +30,7 @@ takes seconds. The tool's docstring has the member format:
   (species * 6 + file: 0 female back, 1 male back, 2 female front, 3 male front), then one
   per PL_OTHERPOKE file.
   - 0 means no stream. A female file with 0 falls back to the male file's member.
-  - The PL_OTHERPOKE table is empty for now.
+  - The PL_OTHERPOKE table holds only the Mega backs, at each Mega's `spriteCharacter`.
   - The step 1 index had no header (its first `u16` is 0); the readers still take it.
 - **Every other member** is one stream:
   - a header with the animation's box in the canvas and its draw scale in eighths
@@ -83,6 +85,17 @@ textbox, the way B/W's screen edge crops tall backs. Garchomp, Torterra and 67 o
 full 40, Lucario 15, Staraptor 19; about half the backs (Budew, Finneon, ...) don't move. The
 blob shadow stays on the ground. The sink is in `BattleStageStream_CanvasRect`, so every draw
 of the battler, the faint slide and the send-out included, takes it; the move copies don't.
+
+**Megas.** B/W has no Megas, and their classic backs, drawn 1:1, came out about half the size
+of the B/W backs around them (Mega Lucario 65 px against Lucario's 116). The tool makes each
+Mega's frame A from `forms/mega/back.png` a one-frame stream in the Mega's own palette, standing
+on the ground row, at the scale that matches its base form's back height: at least 1.75x, at
+most 2x (`MON_STREAM_MAX_SCALE`). Lucario, Alakazam, Empoleon and Staraptor get 1.75x; Gengar,
+Gyarados and Torterra 1.875x; Garchomp, Gardevoir, Infernape and Scizor 2x. The sink applies the
+same way (Mega Garchomp 36, Mega Lucario 13). The base species' `y_offset` is 0, and the Mega
+uses it too, so the stream stands where the base form does. The members are in `report.json`
+under `megas`. The fronts aren't streamed: at 1:1 most are already about as big as their
+base form's B/W front. Mega Gyarados is the smallest, at about two thirds of Gyarados.
 
 **Fit.** Art taller than the room above the ground row (88 rows), or wider than the canvas, is
 cropped at the top when it overflows by a few rows; otherwise a front is scaled down. Backs are
@@ -211,7 +224,8 @@ The card timing is the emulator's. A frame read costs the game thread about 0.3 
 
 ## Known gaps (later steps)
 
-- **Forms and Spinda.** The PL_OTHERPOKE table is empty, so the form species draw classic.
+- **Forms and Spinda.** The PL_OTHERPOKE table has only the Mega backs, so the form species
+  draw classic. The Mega backs are still frames.
   Spinda's spots are painted on the classic frame only.
 - **80x80 crop.** The other screens and the battle's move copies show only the classic window
   of the canvas. Wide or tall art loses what is outside it, and a back shows only its
