@@ -7,6 +7,7 @@
 #include "config/battle_stage.h"
 #include "constants/battle.h"
 #include "constants/graphics.h"
+#include "constants/narc.h"
 #include "generated/shadow_sizes.h"
 
 #include "battle/battle_stage.h"
@@ -14,6 +15,7 @@
 #include "battle/battle_display.h"
 #include "battle/battle_stage_stream.h"
 #include "battle/ov16_0223DF00.h"
+#include "battle_anim/ov12_022380BC.h"
 
 #include "palette.h"
 #include "pokemon_sprite.h"
@@ -45,21 +47,20 @@
 #define BREATH_SWAY    256
 #define BREATH_STAGGER 22
 
-// Conditions, as B/W: the animation (the stream and the breathing) slows at low HP and asleep
-// and stops frozen solid, and the palette takes a tint, a steady blue frozen, throbbing for
-// paralysis, poison and burn. B/W's own speeds and colours aren't documented; these are by eye.
-// Rates of STREAM_RATE_ONE, multiplied together; tint alphas of 16.
-#define RATE_HP_YELLOW       192
-#define RATE_HP_RED          128
-#define RATE_ASLEEP          128
+// Conditions, as B/W (pokeblack's overlay 94, disassembled: the battle sprites' per-frame
+// update at 0x021FEBAC; docs/living_battle_stage/sprite_stream.md). The animation (the stream
+// and the breathing) runs at a third at red HP and asleep and stops frozen solid, and the
+// palette takes a tint, a steady blue frozen, pulsing for paralysis, poison and burn.
+// Speeds of STREAM_RATE_ONE (B/W's 0x555 of 0x1000); tint alphas of 16.
+#define RATE_SLOW            85 // red or empty HP with no status, and asleep
 #define HP_BAR_PIXELS        48 // the battle healthbar's, for HealthBar_Color
-#define TINT_FROZEN_ALPHA    6
-#define TINT_THROB_ALPHA     6 // at the peak
-#define TINT_THROB_PERIOD    64 // drawn frames, a power of two
-#define TINT_FROZEN_COLOR    GX_RGB(8, 18, 31)
-#define TINT_PARALYZED_COLOR GX_RGB(31, 28, 0)
-#define TINT_POISONED_COLOR  GX_RGB(22, 4, 28)
-#define TINT_BURNED_COLOR    GX_RGB(31, 6, 2)
+#define TINT_FROZEN_ALPHA    8
+#define TINT_PULSE_PEAK      12 // the pulse: 0 up to this and back down, a step at a time
+#define TINT_PULSE_STEP      26 // drawn frames a step lasts
+#define TINT_FROZEN_COLOR    GX_RGB(15, 15, 31)
+#define TINT_PARALYZED_COLOR GX_RGB(15, 15, 0)
+#define TINT_POISONED_COLOR  GX_RGB(15, 0, 15)
+#define TINT_BURNED_COLOR    GX_RGB(15, 0, 0)
 
 // Hit wobble: frames, shear at the top row (1/256 px) and oscillation period in frames
 #define WOBBLE_FRAMES    12
@@ -120,6 +121,19 @@ typedef struct StageSpriteState {
     u8 phaseLeft; // the part of a frame (of STREAM_RATE_ONE) the breathing hasn't counted yet
 } StageSpriteState;
 
+// A battler's condition as UpdateConditions last showed it
+typedef struct StageCondition {
+    u16 speed; // B/W's speed: kept through paralysis, poison, burn and freezing (frozen stops it)
+    u16 tintColor;
+    u8 tintAlpha;
+    u8 status; // BATTLE_ANIMATION_*, from the healthbar
+    u8 pulseLevel; // the tint pulse: alpha, 0..TINT_PULSE_PEAK
+    u8 pulseDown; // and going down
+    u8 pulseTimer; // drawn frames into the step
+    u16 narcID; // the mon's sprite template, to tell a new mon from the same one
+    u16 character;
+} StageCondition;
+
 typedef struct StageSprites {
     BattleSystem *battleSys;
     BattleStageSpriteFields *fields;
@@ -154,13 +168,15 @@ typedef struct StageSprites {
     // BattleStage_SetGroundHole: per battler, open or not and how far (0..HOLE_RAMP_FRAMES)
     u8 holeOpen[MAX_MON_SPRITES];
     u8 holeLevel[MAX_MON_SPRITES];
-    u16 rate[MAX_MON_SPRITES]; // UpdateConditions: the battler's animation speed
-    u8 throb; // frames into TINT_THROB_PERIOD
+    // UpdateConditions, per battler
+    u16 rate[MAX_MON_SPRITES]; // the animation speed: speed, or 0 frozen
+    StageCondition conditions[MAX_MON_SPRITES];
 } StageSprites;
 
 static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const PokemonSpriteDrawRect *rect);
 static void BuildNormals(void);
 static void UpdateTint(const BattleStageFileLighting *dayLighting);
+static void ResetCondition(int index);
 static void UpdateConditions(PokemonSpriteManager *monSpriteMan, BOOL clear);
 static BOOL InitBlobs(const BattleStageSpriteCamera *camera);
 static void FreeBlobs(void);
@@ -195,9 +211,8 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
         sStageSprites.states[i].wobble = 0;
         sStageSprites.states[i].phaseLeft = 0;
         sStageSprites.rate[i] = STREAM_RATE_ONE;
+        ResetCondition(i);
     }
-
-    sStageSprites.throb = 0;
 
     // BattleStage_Init has just cleared sBattleStage, debugFlags included; the critic sets
     // debugFlags again inside each battle
@@ -605,75 +620,148 @@ static fx32 Breathe(int index, const PokemonSpriteTransforms *transforms)
     return s;
 }
 
+// A battler's condition back to none: full speed, no tint
+static void ResetCondition(int index)
+{
+    StageCondition *condition = &sStageSprites.conditions[index];
+
+    condition->speed = STREAM_RATE_ONE;
+    condition->tintColor = 0;
+    condition->tintAlpha = 0;
+    condition->status = BATTLE_ANIMATION_NONE;
+    condition->pulseLevel = 0;
+    condition->pulseDown = FALSE;
+    condition->pulseTimer = 0;
+    condition->narcID = 0;
+    condition->character = 0;
+}
+
+// Whether a sprite shows the Substitute doll. The doll swap (ov12_02238390) only rewrites
+// the battler's sprite template, with no flag of its own in the battle display or the
+// battler data (the volatile condition is set before the doll appears and cleared after it
+// has gone, and the move animation's isSubstitute covers just the attacker's own move), so
+// the template is the one signal that matches what is on screen
+static BOOL IsSubstituteDoll(const PokemonSpriteTemplate *template)
+{
+    return template->narcID == NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE
+        && (template->character == SUBSTITUTE_BACK_NCGR || template->character == SUBSTITUTE_FRONT_NCGR);
+}
+
+// The tint pulse, as B/W: a triangle from 0 up to TINT_PULSE_PEAK and back, a step every
+// TINT_PULSE_STEP drawn frames; held at the peak for the critic
+static u8 PulseAlpha(StageCondition *condition)
+{
+    if (sStageSprites.fields != NULL && (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_FREEZE_IDLE)) {
+        return TINT_PULSE_PEAK;
+    }
+
+    if (++condition->pulseTimer >= TINT_PULSE_STEP) {
+        condition->pulseTimer = 0;
+
+        if (condition->pulseDown) {
+            condition->pulseLevel--;
+        } else {
+            condition->pulseLevel++;
+        }
+
+        if (condition->pulseLevel == 0 || condition->pulseLevel == TINT_PULSE_PEAK) {
+            condition->pulseDown = !condition->pulseDown;
+        }
+    }
+
+    return condition->pulseLevel;
+}
+
 // Each battler's animation speed and palette tint from its healthbar (the HP and status it
-// shows); clear gives every sprite its own palette back
+// shows), as B/W; clear gives every sprite its own palette back
 static void UpdateConditions(PokemonSpriteManager *monSpriteMan, BOOL clear)
 {
     Healthbar *healthbar;
+    StageCondition *condition;
+    const PokemonSprite *sprite;
     u32 rate;
-    int i, throbAlpha, half;
-    u8 alpha;
-    u16 color;
-
-    if (sStageSprites.fields != NULL && (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_FREEZE_IDLE)) {
-        throbAlpha = TINT_THROB_ALPHA;
-    } else {
-        // A triangle: 0 up to the peak and back down over the period
-        sStageSprites.throb = (sStageSprites.throb + 1) & (TINT_THROB_PERIOD - 1);
-        half = TINT_THROB_PERIOD / 2;
-        throbAlpha = sStageSprites.throb < half ? sStageSprites.throb : TINT_THROB_PERIOD - sStageSprites.throb;
-        throbAlpha = (throbAlpha * TINT_THROB_ALPHA + half / 2) / half;
-    }
+    int i;
 
     for (i = 0; i < MAX_MON_SPRITES; i++) {
-        rate = STREAM_RATE_ONE;
-        alpha = 0;
-        color = 0;
+        condition = &sStageSprites.conditions[i];
+        sprite = &monSpriteMan->sprites[i];
         healthbar = NULL;
+
+        // A new mon (switched in, sent out, transformed) never keeps the last one's condition
+        if (clear || !sprite->active) {
+            ResetCondition(i);
+        } else if (!IsSubstituteDoll(&sprite->template)
+            && (sprite->template.narcID != condition->narcID || sprite->template.character != condition->character)) {
+            ResetCondition(i);
+            condition->narcID = sprite->template.narcID;
+            condition->character = sprite->template.character;
+        }
 
         if (!clear && i < BattleSystem_MaxBattlers(sStageSprites.battleSys)) {
             healthbar = ov16_02263B08(BattleSystem_BattlerData(sStageSprites.battleSys, i));
         }
 
-        // No healthbar yet (the send-out) or any more (fainted, recalled): what it holds is stale
+        if (sprite->active && IsSubstituteDoll(&sprite->template)) {
+            // As B/W: no tint on the doll, and the mon's condition waits until it comes back
+            sStageSprites.rate[i] = condition->status == BATTLE_ANIMATION_FROZEN ? 0 : condition->speed;
+            BattleStageStream_SetRate(i, sStageSprites.rate[i]);
+            PokemonSpriteManager_SetTint(monSpriteMan, i, 0, 0);
+            continue;
+        }
+
+        // No healthbar (hidden, or the send-out and the faint) or nothing in it yet: as B/W,
+        // the condition stays as it was rather than being read from a stale one
         if (healthbar != NULL && healthbar->mainSprite != NULL && healthbar->maxHP > 0) {
-            switch (HealthBar_Color(healthbar->curHP, healthbar->maxHP, HP_BAR_PIXELS)) {
-            case BARCOLOR_YELLOW:
-                rate = RATE_HP_YELLOW;
-                break;
-            case BARCOLOR_RED:
-            case BARCOLOR_EMPTY:
-                rate = RATE_HP_RED;
-                break;
+            if (healthbar->status != condition->status) {
+                condition->status = healthbar->status;
+                condition->pulseLevel = 0;
+                condition->pulseDown = FALSE;
+                condition->pulseTimer = 0;
             }
 
-            switch (healthbar->status) {
+            condition->tintAlpha = 0;
+            condition->tintColor = 0;
+
+            // B/W only sets the speed with no status (from the HP) and asleep; paralysis, poison
+            // and burn keep the speed the mon had when they began, and freezing stops it
+            switch (condition->status) {
             case BATTLE_ANIMATION_ASLEEP:
-                rate = rate * RATE_ASLEEP / STREAM_RATE_ONE;
+                condition->speed = RATE_SLOW;
                 break;
             case BATTLE_ANIMATION_FROZEN:
-                rate = 0;
-                alpha = TINT_FROZEN_ALPHA;
-                color = TINT_FROZEN_COLOR;
+                condition->tintAlpha = TINT_FROZEN_ALPHA;
+                condition->tintColor = TINT_FROZEN_COLOR;
                 break;
             case BATTLE_ANIMATION_PARALYZED:
-                alpha = throbAlpha;
-                color = TINT_PARALYZED_COLOR;
+                condition->tintAlpha = PulseAlpha(condition);
+                condition->tintColor = TINT_PARALYZED_COLOR;
                 break;
             case BATTLE_ANIMATION_POISONED:
-                alpha = throbAlpha;
-                color = TINT_POISONED_COLOR;
+                condition->tintAlpha = PulseAlpha(condition);
+                condition->tintColor = TINT_POISONED_COLOR;
                 break;
             case BATTLE_ANIMATION_BURNED:
-                alpha = throbAlpha;
-                color = TINT_BURNED_COLOR;
+                condition->tintAlpha = PulseAlpha(condition);
+                condition->tintColor = TINT_BURNED_COLOR;
+                break;
+            default:
+                switch (HealthBar_Color(healthbar->curHP, healthbar->maxHP, HP_BAR_PIXELS)) {
+                case BARCOLOR_RED:
+                case BARCOLOR_EMPTY:
+                    condition->speed = RATE_SLOW;
+                    break;
+                default:
+                    condition->speed = STREAM_RATE_ONE;
+                    break;
+                }
                 break;
             }
         }
 
+        rate = condition->status == BATTLE_ANIMATION_FROZEN ? 0 : condition->speed;
         sStageSprites.rate[i] = rate;
         BattleStageStream_SetRate(i, rate);
-        PokemonSpriteManager_SetTint(monSpriteMan, i, alpha, color);
+        PokemonSpriteManager_SetTint(monSpriteMan, i, condition->tintAlpha, condition->tintColor);
     }
 }
 

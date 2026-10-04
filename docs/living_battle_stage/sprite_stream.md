@@ -153,17 +153,29 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
   battler's healthbar every frame: the HP colour and status it shows. It sets the battler's
   rate (`BattleStageStream_SetRate`, of 256), which scales the vblanks the steps count and
   the breathing.
-  - Yellow HP plays at 3/4, red at 1/2, asleep at 1/2 (times the HP rate). Frozen holds the
-    frame on screen. The rate follows the healthbar, so it changes when the bar has drained.
-  - Frozen also tints the palette a steady blue (6/16). Paralysis, poison and burn throb
-    yellow, purple and red, 0 to 6/16 and back over 64 frames. Sleep has no tint.
+  - The values come from disassembling pokeblack's overlay 94: the battle sprites' per-frame
+    update at 0x021FEBAC, which reads the healthbar the same way. Which of its cases is which
+    status is inferred from the colours and behaviour, and its timings assume it runs once a
+    60 Hz frame.
+  - With no status, red or empty HP plays at 85/256 (B/W's 0x555 of 0x1000, a third) and
+    green or yellow at full speed. Asleep is a flat 85/256, whatever the HP.
+  - Paralysis, poison and burn don't set the speed: it stays what it was when the status
+    began, as in B/W. Frozen holds the frame on screen and keeps that speed for when it thaws.
+  - Frozen tints the palette a steady GX_RGB(15,15,31) at 8/16. Paralysis, poison and burn
+    pulse GX_RGB(15,15,0), (15,0,15) and (15,0,0): 0 up to 12/16 and back, a step every 26
+    frames (624 frames round). Each battler has its own pulse, back to 0 when its status
+    changes. Sleep has no tint. `FREEZE_IDLE` holds the pulse at 12/16.
   - The tint is `PokemonSpriteManager_SetTint`: `BufferPokemonSpritePlttData` blends the
     unfaded palette toward the colour when no palette fade holds the sprite, so a move's fade
     (a hit flash) runs on the untinted colours and the tint comes back after it. It colours
     the classic sprite as well; the rates only reach the streams and the breathing.
-  - B/W's own speeds and colours aren't documented. These values are by eye. B/W also closes
-    the eyes asleep, which needs art the GIFs don't have.
-  - No healthbar (the send-out, after a faint) means full speed and no tint.
+  - The Substitute doll takes no tint, and the mon's condition waits until it comes back. The
+    doll is told by its sprite template (pl_otherpoke's doll members).
+  - No healthbar (hidden, the send-out, a faint) keeps the battler's last rate and tint, as
+    B/W does. A new mon (an inactive sprite, or a different sprite template) starts at full
+    speed with no tint.
+  - Still missing: B/W closes the eyes asleep and blinks at random (1 in 100 a frame, about
+    5 frames shut), which needs eyes-shut art the GIFs don't have.
 - **Draw (`Bind`).** The draw hook binds the battler's texture and draws the canvas around
   the classic frame (`BattleStageStream_CanvasRect`): the whole 128x96 canvas at 1:1, the
   stream's box at its scale otherwise. Mosaic,
