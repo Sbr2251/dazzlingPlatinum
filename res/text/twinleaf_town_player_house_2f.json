@@ -22,19 +22,16 @@
       ]
     },
     {
-      "id": "TwinleafTownPlayerHouse2F_Text_ThatConcludesOurSpecialProgram",
+      "id": "TwinleafTownPlayerHouse2F_Text_BreakingNews",
       "en_US": [
-        "That concludes our special program,\n",
-        "“Let's Ask Prof. Rowan!”\r",
-        "Broadcast live from Lake Verity by\n",
-        "Jubilife TV on Nationwide Net!\r"
-      ]
-    },
-    {
-      "id": "TwinleafTownPlayerHouse2F_Text_SeeYouNextWeek",
-      "en_US": [
-        "See you next week, same time,\n",
-        "same channel!"
+        "We interrupt this program with\n",
+        "{COLOR 1}BREAKING NEWS{COLOR 0}!\r",
+        "A strange portal has opened above\n",
+        "the castle at Lake Verity!\r",
+        "Prof. Rowan and his assistant,\n",
+        "{STRVAR_1 3, 0, 0}, are on site investigating.\r",
+        "Residents are urged to stay away\n",
+        "from the lake until further notice."
       ]
     },
     {
@@ -75,10 +72,13 @@
       "en_US": [
         "Hey, {STRVAR_1 3, 1, 0}! Man, that Team\n",
         "Eclipse really is something.\r",
-        "Anyways, Professor Rowan's probably\n",
-        "the guy that can help us get our\r",
-        "starters, and the TV broadcast said\n",
-        "he was at Lake Verity!\r"
+        "Anyways, did you see the news?!\r",
+        "There's a portal over the castle at\n",
+        "Lake Verity!\r",
+        "Rowan's up there right now! Oh, we\n",
+        "should go help them out!\r",
+        "And then maybe Rowan would owe us\n",
+        "some starter Pokémon!\r"
       ]
     },
     {
@@ -99,7 +99,7 @@
       "id": "TwinleafTownPlayerHouse2F_Text_WereGoingToSeeProfRowanAndGetPokemon",
       "en_US": [
         "Oh, right, right! We're going to go\n",
-        "to Lake Verity and find Prof. Rowan!\r",
+        "help Prof. Rowan at Lake Verity!\r",
         "I'll be waiting outside.\r",
         "OK, {STRVAR_1 3, 1, 0}? If you're late, I'm\n",
         "fining you $10 million!\r"

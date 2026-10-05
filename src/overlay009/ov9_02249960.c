@@ -11,6 +11,7 @@
 #include "constants/types.h"
 #include "generated/map_headers.h"
 #include "generated/movement_actions.h"
+#include "generated/object_events_gfx.h"
 #include "generated/sdat.h"
 
 #include "struct_decls/struct_020216E0_decl.h"
@@ -85,7 +86,27 @@
 #define DISTORTION_WORLD_CAMERA_BASE_FAR_CLIP           (FX32_ONE * 1700)
 #define DISTORTION_WORLD_CAMERA_PERSISTED_ANGLES_FACTOR 0x100
 
-#define DISTORTION_WORLD_MAP_COUNT 10
+// 11: the Arc 1 wall-walk puzzle map (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS), standalone like the Giratina room.
+#define DISTORTION_WORLD_MAP_COUNT 11
+
+// Arc 1 wall-walk puzzle (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS, res/field/scripts/scripts_distortion_world_arc1_seams.s).
+// VAR_ARC1_DW_HINTS is a ladder: 0 nothing shown, 1 "walk the seam" hint given, 2 fork reached (fork line and Mawile
+// glimpse played), 3 briefcase reached (Cyrus and Barry moved over), 4 starter chosen, 5 Mawile fought.
+#define ARC1_SEAMS_HINTS_HINT_GIVEN       1
+#define ARC1_SEAMS_HINTS_FORK             2
+#define ARC1_SEAMS_HINTS_BRIEFCASE        3
+#define ARC1_SEAMS_HINTS_STARTER          4
+#define ARC1_SEAMS_SCRIPT_HINT            4 // map script entries (1-based)
+#define ARC1_SEAMS_SCRIPT_FORK            5
+#define ARC1_SEAMS_SCRIPT_BRIEFCASE       6
+#define ARC1_SEAMS_SCRIPT_ALCOVE_ITEM     7
+#define ARC1_SEAMS_SCRIPT_TALK_CYRUS      8
+#define ARC1_SEAMS_SCRIPT_TALK_BARRY      9
+#define ARC1_SEAMS_FORK_TILE_X            11 // on the wall: the seam splits here (alcove east along the top, exit down)
+#define ARC1_SEAMS_FORK_TILE_Y            4
+#define ARC1_SEAMS_FORK_TILE_Z            19
+#define ARC1_SEAMS_FLOOR_TILE_Y           1
+#define ARC1_SEAMS_IDLE_STEPS_BEFORE_HINT 20
 
 #define GIRATINA_ROOM_TELEPORT_TILE_X 15
 #define GIRATINA_ROOM_TELEPORT_TILE_Z 25
@@ -2214,6 +2235,39 @@ BOOL ov9_0224A67C(FieldSystem *fieldSystem, int param1)
     return 0;
 }
 
+// Arc 1 wall-walk puzzle: the fork trigger on the wall (needs the height, which coord events can't check) and the
+// idle-step counter behind Cyrus's "walk the seam" hint. The counter lives only while the map is loaded.
+static u16 sArc1SeamsIdleSteps;
+
+static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
+{
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+    u16 hints;
+
+    if (*VarsFlags_GetVarAddress(varsFlags, VAR_ARC1_PROGRESS) != 5) {
+        return FALSE;
+    }
+
+    hints = *VarsFlags_GetVarAddress(varsFlags, VAR_ARC1_DW_HINTS);
+
+    if (hints < ARC1_SEAMS_HINTS_FORK && x == ARC1_SEAMS_FORK_TILE_X && y == ARC1_SEAMS_FORK_TILE_Y && z == ARC1_SEAMS_FORK_TILE_Z) {
+        ScriptManager_Set(system->fieldSystem, ARC1_SEAMS_SCRIPT_FORK, NULL);
+        return TRUE;
+    }
+
+    if (hints == 0 && y == ARC1_SEAMS_FLOOR_TILE_Y) {
+        if (++sArc1SeamsIdleSteps >= ARC1_SEAMS_IDLE_STEPS_BEFORE_HINT) {
+            sArc1SeamsIdleSteps = 0;
+            ScriptManager_Set(system->fieldSystem, ARC1_SEAMS_SCRIPT_HINT, NULL);
+            return TRUE;
+        }
+    } else {
+        sArc1SeamsIdleSteps = 0;
+    }
+
+    return FALSE;
+}
+
 BOOL ov9_0224A71C(FieldSystem *fieldSystem)
 {
     PersistedMapFeatures *v0 = MiscSaveBlock_GetPersistedMapFeatures(FieldSystem_GetSaveData(fieldSystem));
@@ -2251,6 +2305,10 @@ BOOL ov9_0224A71C(FieldSystem *fieldSystem)
             } else if ((v6 == 582) && (v4 == 1)) {
                 if ((v1 == 15) && (v2 == 1) && ((v3 == 25) || (v3 == 26))) {
                     ScriptManager_Set(fieldSystem, 4, NULL);
+                    return 1;
+                }
+            } else if (v6 == MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS) {
+                if (Arc1Seams_HandleStep(v5, v1, v2, v3) == TRUE) {
                     return 1;
                 }
             }
@@ -3676,7 +3734,7 @@ static void ov9_0224BF18(DistWorldSystem *param0, u32 param1)
     InitFloatingPlatformJumpPoint(param0);
     InitCameraAngleTemplates(param0);
 
-    if (param1 != 593) {
+    if (param1 != MAP_HEADER_INVALID) {
         ov9_0224C120(param0, param1);
         InitInactiveGhostPropData(param0);
     }
@@ -4687,7 +4745,7 @@ static int ov9_0224CCB8(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
     ov9_0224CBBC(param0->fieldSystem->landDataMan, 1);
     v1->unk_00 = v2->nextID;
 
-    if (v1->unk_00 != 593) {
+    if (v1->unk_00 != MAP_HEADER_INVALID) {
         v2 = GetConnectionsForMap(v2->nextID);
         v1->unk_10 = MapMatrix_NewWithHeapID(4);
         MapMatrix_Load(v2->currID, v1->unk_10);
@@ -4742,7 +4800,7 @@ static int ov9_0224CE2C(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
     const DistWorldMapConnections *v0;
     UnkStruct_ov9_0224C8E8 *v1 = &param0->unk_1E88;
 
-    if (v1->unk_00 != 593) {
+    if (v1->unk_00 != MAP_HEADER_INVALID) {
         v1->unk_08 = 1;
         ov9_0224CBBC(v1->unk_18, 1);
         LandDataManager_DistortionWorldUpdateTrackedTargetValues(v1->unk_18, param1->unk_08, param1->unk_0A);
@@ -6527,10 +6585,10 @@ static const UnkStruct_ov9_02252414 Unk_ov9_02252414[] = {
         0x3,
         0x1,
         { FX32_ONE, FX32_ONE, FX32_ONE },
-        { (FX32_ONE * 48), 0x0, 0x0 },
-        0x20,
+        { (FX32_ONE * 82), 0x0, 0x0 },
+        0x13,
     },
-    // ...then a low swoop back east to west through his tile, which takes him.
+    // ...then a low swoop back east to west through his tile; it throws him into a rift.
     {
         51,
         2,
@@ -6538,8 +6596,8 @@ static const UnkStruct_ov9_02252414 Unk_ov9_02252414[] = {
         0x2,
         0x1,
         { FX32_ONE, FX32_ONE, FX32_ONE },
-        { -(FX32_ONE * 48), 0x0, 0x0 },
-        0x20,
+        { -(FX32_ONE * 82), 0x0, 0x0 },
+        0x13,
     },
 };
 
@@ -9564,6 +9622,22 @@ static BOOL ov9_02251104(DistWorldSystem *param0, u32 param1, u32 param2)
             return 1;
         }
         break;
+    // Arc 1 wall-walk puzzle: VAR_ARC1_DW_HINTS below / at least / equal to param2
+    case 10:
+        if (*VarsFlags_GetVarAddress(v0, VAR_ARC1_DW_HINTS) < param2) {
+            return 1;
+        }
+        break;
+    case 11:
+        if (*VarsFlags_GetVarAddress(v0, VAR_ARC1_DW_HINTS) >= param2) {
+            return 1;
+        }
+        break;
+    case 12:
+        if (*VarsFlags_GetVarAddress(v0, VAR_ARC1_DW_HINTS) == param2) {
+            return 1;
+        }
+        break;
     }
 
     return 0;
@@ -10089,7 +10163,12 @@ static const DistWorldMapConnections sDistWorldMapConnectionList[DISTORTION_WORL
         .prevID = MAP_HEADER_INVALID,
         .currID = MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM,
         .nextID = MAP_HEADER_INVALID
-     }
+    },
+    {
+        .prevID = MAP_HEADER_INVALID,
+        .currID = MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS,
+        .nextID = MAP_HEADER_INVALID
+    }
 };
 // clang-format on
 
@@ -13120,12 +13199,39 @@ static const UnkStruct_ov9_0224EF30 Unk_ov9_022526B0 = {
     },
 };
 
+// Arc 1 flashback: Lucas, the hero, at the player's new-game start tile (15,14) facing north.
+// Condition 6 = spawned only by script (ScrCmd_311 133), like Cynthia/Cyrus.
+static const UnkStruct_ov9_0224EF30 Unk_ov9_Arc1FlashbackLucas = {
+    0x6,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x85,
+        0x0, // OBJ_EVENT_GFX_PLAYER_M
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0xF,
+        0xE,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
 static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253BB0[] = {
     &Unk_ov9_02252980,
     &Unk_ov9_02252A98,
     &Unk_ov9_02252B60,
     &Unk_ov9_022524D0,
     &Unk_ov9_022526B0,
+    &Unk_ov9_Arc1FlashbackLucas,
     NULL
 };
 
@@ -13183,6 +13289,220 @@ static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253B40[] = {
     NULL
 };
 
+// Arc 1 wall-walk puzzle map (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS). Local IDs 0x80-0x87; the conditions 10-12 test
+// VAR_ARC1_DW_HINTS (see ov9_02251104).
+// Cyrus waits at the entry until the player reaches the briefcase.
+static const UnkStruct_ov9_0224EF30 sArc1SeamsCyrusAtEntry = {
+    10,
+    ARC1_SEAMS_HINTS_BRIEFCASE,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        ARC1_SEAMS_SCRIPT_TALK_CYRUS,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        22,
+        11,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Barry waits behind the entry tile (20,12).
+static const UnkStruct_ov9_0224EF30 sArc1SeamsBarryAtEntry = {
+    10,
+    ARC1_SEAMS_HINTS_BRIEFCASE,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_BARRY,
+        0x0,
+        0x0,
+        0x0,
+        ARC1_SEAMS_SCRIPT_TALK_BARRY,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        21,
+        12,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Script-only (ScrCmd_311 130): the Mawile glimpsed on the briefcase platform from the fork.
+static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileGlimpse = {
+    0x6,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_MAWILE,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        DIR_NORTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        16,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// The Mawile that lunges once the starter is chosen (kept through the battle reload).
+static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileLunge = {
+    12,
+    ARC1_SEAMS_HINTS_STARTER,
+    0x0,
+    0x0,
+    {
+        0x83,
+        OBJ_EVENT_GFX_MAWILE,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        17,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Rowan's briefcase, until the starter is chosen.
+static const UnkStruct_ov9_0224EF30 sArc1SeamsBriefcase = {
+    10,
+    ARC1_SEAMS_HINTS_STARTER,
+    0x0,
+    0x0,
+    {
+        0x84,
+        OBJ_EVENT_GFX_BRIEFCASE,
+        0x0,
+        0x0,
+        0x0,
+        ARC1_SEAMS_SCRIPT_BRIEFCASE,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        16,
+        23,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Cyrus, ghost-faded in beside the player at the briefcase.
+static const UnkStruct_ov9_0224EF30 sArc1SeamsCyrusAtBriefcase = {
+    11,
+    ARC1_SEAMS_HINTS_BRIEFCASE,
+    0x0,
+    0x0,
+    {
+        0x85,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        ARC1_SEAMS_SCRIPT_TALK_CYRUS,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        15,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Barry, ghost-faded in beside the player at the briefcase.
+static const UnkStruct_ov9_0224EF30 sArc1SeamsBarryAtBriefcase = {
+    11,
+    ARC1_SEAMS_HINTS_BRIEFCASE,
+    0x0,
+    0x0,
+    {
+        0x86,
+        OBJ_EVENT_GFX_BARRY,
+        0x0,
+        0x0,
+        0x0,
+        ARC1_SEAMS_SCRIPT_TALK_BARRY,
+        DIR_NORTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        15,
+        24,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// 5 Poke Balls at the dead end of the alcove seam, standing on the west wall (rotated like the B2F wall NPC).
+static const UnkStruct_ov9_0224EF30 sArc1SeamsAlcoveItem = {
+    0x0,
+    0x0,
+    0x1,
+    0x5A,
+    {
+        0x87,
+        OBJ_EVENT_GFX_POKEBALL,
+        0x0,
+        0x0,
+        FLAG_ARC1_DW_ALCOVE_ITEM,
+        ARC1_SEAMS_SCRIPT_ALCOVE_ITEM,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        11,
+        21,
+        ((4 << 4) * FX32_ONE),
+    },
+};
+
+static const UnkStruct_ov9_0224EF30 *sArc1SeamsObjects[] = {
+    &sArc1SeamsCyrusAtEntry,
+    &sArc1SeamsBarryAtEntry,
+    &sArc1SeamsMawileGlimpse,
+    &sArc1SeamsMawileLunge,
+    &sArc1SeamsBriefcase,
+    &sArc1SeamsCyrusAtBriefcase,
+    &sArc1SeamsBarryAtBriefcase,
+    &sArc1SeamsAlcoveItem,
+    NULL
+};
+
 static const UnkStruct_ov9_02252EB4 Unk_ov9_02252EB4[] = {
     { 0x23D, Unk_ov9_02253B34 },
     { 0x23E, Unk_ov9_02253B08 },
@@ -13194,5 +13514,6 @@ static const UnkStruct_ov9_02252EB4 Unk_ov9_02252EB4[] = {
     { 0x245, Unk_ov9_02253B98 },
     { 0x246, Unk_ov9_02253BB0 },
     { 0x247, Unk_ov9_02253B40 },
+    { MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS, sArc1SeamsObjects },
     { 0x251, NULL }
 };

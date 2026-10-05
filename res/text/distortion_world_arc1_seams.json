@@ -1,0 +1,148 @@
+{
+  "key": 41377,
+  "messages": [
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusStayClose",
+      "en_US": [
+        "Cyrus: Stay close. This world does\n",
+        "not keep to our rules.\r",
+        "Up, down... Even the ground under\n",
+        "your feet is just a suggestion."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_BarryIllJustJumpIt",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: There! The briefcase\n",
+        "is on that platform down there!\r",
+        "Pfft, that's not even far.\n",
+        "I'll just jump it!"
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_BarryIMeantToDoThat",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Whoa! ...Huh?\n",
+        "How'd I end up back up here?\r",
+        "I-I totally meant to do that!\n",
+        "I was testing it for you, OK?"
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusTheVoidSendsItBack",
+      "en_US": [
+        "Cyrus: The void does not keep what\n",
+        "falls into it. It sends it back.\r",
+        "Falling costs us nothing but time.\n",
+        "There must be another way across."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusBackWhereWeStarted",
+      "en_US": [
+        "Cyrus: ...Back where we started.\n",
+        "This world will not let go of us\f",
+        "so easily."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusWalkTheSeam",
+      "en_US": [
+        "Cyrus: Look at the cliff face.\n",
+        "Those cracks are seams.\r",
+        "Where this world was stitched\n",
+        "together, you can walk.\r",
+        "Step onto the wall.\n",
+        "Walk the seam."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusTheSeamSplits",
+      "en_US": [
+        "Cyrus: The seam splits!\n",
+        "Mind where each path leads."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_SomethingMovedBelow",
+      "en_US": [
+        "...!\n",
+        "Something moved down there."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusThereRowansCase",
+      "en_US": "Cyrus: There. Rowan's case."
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_BarryPickOne",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: We found it! Rowan\n",
+        "said the starters are ours!\r",
+        "Go on, pick one first!\n",
+        "I'll take whatever beats yours!"
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_BarryIllTakeThisOne",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Then I'll take this\n",
+        "one! Let's go, {STRVAR_1 0, 2, 0}!"
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_MawileDroppedSomething",
+      "en_US": [
+        "The Mawile dropped something\n",
+        "and fled into the dark!"
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusHarvesting",
+      "en_US": [
+        "Cyrus: A shard... Cracked, and\n",
+        "still humming with power.\r",
+        "That Pok\u00e9mon was not wild with\n",
+        "fear. It was wild with pain.\r",
+        "Someone has been... harvesting."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusTheWorldIsClosing",
+      "en_US": [
+        "Cyrus: The world is closing.\n",
+        "This way."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusWatchAndListen",
+      "en_US": [
+        "Cyrus: This world shows its paths\n",
+        "to those who look for them."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusTheWallWillHoldYou",
+      "en_US": [
+        "Cyrus: Walk the seam.\n",
+        "The wall will hold you."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_BarryHurryUp",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: What are you\n",
+        "waiting for? Hurry up!\r",
+        "If I get there first,\n",
+        "I'm fining you!"
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusStayNearMe",
+      "en_US": [
+        "Cyrus: Stay near me.\n",
+        "The rift will not stay open long."
+      ]
+    }
+  ]
+}

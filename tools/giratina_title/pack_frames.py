@@ -104,6 +104,11 @@ def kmeans_palette(frames, ncolors, seed=1, iters=24, samples=240000):
     uniq = np.unique(pix.astype(np.uint8), axis=0).astype(np.float32)
     idx = rng.choice(uniq.shape[0], min(ncolors, uniq.shape[0]), replace=False)
     cent = uniq[idx].copy()
+    if cent.shape[0] < ncolors:
+        # Source already palettized (e.g. frames decoded from an existing bin):
+        # pad with copies so the palette keeps ncolors entries; the duplicates
+        # stay empty clusters and get re-seeded at the worst samples below.
+        cent = np.concatenate([cent, np.repeat(cent[:1], ncolors - cent.shape[0], axis=0)])
     for _ in range(iters):
         lab = nearest(pix, cent)
         sums = np.zeros_like(cent)

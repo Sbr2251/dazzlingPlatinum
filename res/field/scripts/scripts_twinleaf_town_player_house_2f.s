@@ -24,7 +24,8 @@ TwinleafTownPlayerHouse2F_SetVolumeForTV:
     End
 
 // Dazzling Platinum: the stock TV app no longer runs after the Rowan intro, so the interview plays here, on
-// arrival from the Lake Verity roof landing (VAR_ARC1_PROGRESS 2).
+// arrival from the Lake Verity roof landing (VAR_ARC1_PROGRESS 2). One continuous broadcast: the interview is
+// cut off by static and a breaking-news bulletin about the portal at Lake Verity.
 TwinleafTownPlayerHouse2F_OnFrame_ConcludeSpecialProgram:
     LockAll
     SetVar VAR_PLAYER_HOUSE_SPECIAL_PROGRAM_STATE, 1
@@ -33,10 +34,12 @@ TwinleafTownPlayerHouse2F_OnFrame_ConcludeSpecialProgram:
     WaitTime 30, VAR_RESULT
     Message TwinleafTownPlayerHouse2F_Text_InterviewerTeamEclipse
     Message TwinleafTownPlayerHouse2F_Text_ProfRowanTeamEclipse
-    Message TwinleafTownPlayerHouse2F_Text_ThatConcludesOurSpecialProgram
-    PlaySound SEQ_TV_END
-    Message TwinleafTownPlayerHouse2F_Text_SeeYouNextWeek
-    WaitSound
+    StopMusic 0
+    PlayFanfare SEQ_SE_DP_TV_NOISE
+    WaitFanfare SEQ_SE_DP_TV_NOISE
+    BufferCounterpartName 0
+    Message TwinleafTownPlayerHouse2F_Text_BreakingNews
+    WaitABXPadPress
     CloseMessage
     PlayDefaultMusic
     ReleaseAll

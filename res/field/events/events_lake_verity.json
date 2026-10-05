@@ -310,14 +310,14 @@
             "graphics_id": "OBJ_EVENT_GFX_CYRUS",
             "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS",
+            "hidden_flag": "FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL",
             "script": 0,
             "initial_dir": 1,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 32,
-            "z": 30,
+            "x": 28,
+            "z": 24,
             "y": 0
         },
         {
@@ -371,12 +371,12 @@
             "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
             "trainer_type": "TRAINER_TYPE_NONE",
             "hidden_flag": "FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS",
-            "script": 0,
+            "script": 17,
             "initial_dir": 0,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 32,
+            "x": 31,
             "z": 31,
             "y": 0
         },
@@ -386,58 +386,13 @@
             "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
             "trainer_type": "TRAINER_TYPE_NONE",
             "hidden_flag": "FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS",
-            "script": 0,
+            "script": 18,
             "initial_dir": 0,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
             "x": 33,
-            "z": 31,
-            "y": 0
-        },
-        {
-            "id": "LOCALID_MAWILE_1",
-            "graphics_id": "OBJ_EVENT_GFX_MAWILE",
-            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
-            "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS",
-            "script": 0,
-            "initial_dir": 1,
-            "data": [],
-            "movement_range_x": 0,
-            "movement_range_z": 0,
-            "x": 33,
-            "z": 28,
-            "y": 0
-        },
-        {
-            "id": "LOCALID_MAWILE_2",
-            "graphics_id": "OBJ_EVENT_GFX_MAWILE",
-            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
-            "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS",
-            "script": 0,
-            "initial_dir": 1,
-            "data": [],
-            "movement_range_x": 0,
-            "movement_range_z": 0,
-            "x": 34,
-            "z": 28,
-            "y": 0
-        },
-        {
-            "id": "LOCALID_BRIEFCASE",
-            "graphics_id": "OBJ_EVENT_GFX_BRIEFCASE",
-            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
-            "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS",
-            "script": 0,
-            "initial_dir": 1,
-            "data": [],
-            "movement_range_x": 0,
-            "movement_range_z": 0,
-            "x": 29,
-            "z": 31,
+            "z": 30,
             "y": 0
         }
     ],
@@ -461,5 +416,26 @@
             "dest_warp_id": 3
         }
     ],
-    "coord_events": []
+    "coord_events": [
+        {
+            "script": 15,
+            "x": 23,
+            "z": 30,
+            "y": 0,
+            "width": 2,
+            "length": 1,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 3
+        },
+        {
+            "script": 16,
+            "x": 23,
+            "z": 30,
+            "y": 0,
+            "width": 2,
+            "length": 1,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 4
+        }
+    ]
 }

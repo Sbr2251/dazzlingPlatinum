@@ -1,0 +1,23 @@
+{
+    "map": "MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS",
+    "clone_from": "MAP_HEADER_DISTORTION_WORLD_B1F",
+    "offset": [
+        0,
+        0,
+        0
+    ],
+    "attr_ids": [
+        12
+    ],
+    "platforms": [
+        {
+            "attr": 12,
+            "rows": [
+                "##########",
+                "##.......#",
+                "#..###.###",
+                "..####...."
+            ]
+        }
+    ]
+}

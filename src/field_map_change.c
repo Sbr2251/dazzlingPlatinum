@@ -453,7 +453,8 @@ static void FieldSystem_SetLocationToUnionRoomExit(FieldSystem *fieldSystem)
     Location_Set(exit, fieldSystem->location->mapId, -1, 8, 2, 1);
 }
 
-// Arc 1: before the Distortion World flashback, a caption in a message box on a black screen.
+// Arc 1: before the Distortion World flashback, a caption in a message box on a black screen
+// ("Beyond a rift: the Distortion World, where Team Galactic met its end.", message 16 of the Giratina room bank).
 #define ARC1_FLASHBACK_CAPTION_MESSAGE 16
 
 typedef struct Arc1FlashbackCaption {

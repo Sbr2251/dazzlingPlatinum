@@ -255,10 +255,11 @@
     {
       "id": "LakeVerity_Text_Arc1CyrusWhereAmI",
       "en_US": [
-        "Cyrus: ...Where am I?\r",
+        "Cyrus: ...Where am I?\n",
+        "Is this a dream?\r",
         "This is not the Distortion World.\r",
         "Time flows here.\n",
-        "Space holds its shape.\r"
+        "Space holds its shape."
       ]
     },
     {
@@ -289,144 +290,241 @@
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1RowanDidYouComeOutOfThePortal",
+      "id": "LakeVerity_Text_Arc1CyrusThereWasNeverACastle",
       "en_US": [
-        "Rowan: You there! Are you hurt?\r",
-        "That portal opened out of nowhere,\n",
-        "and then there you were...\r",
-        "Did you come out of that thing?!\r"
+        "Cyrus: A castle...\n",
+        "on Lake Verity?\r",
+        "There was never a castle here.\r"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1CounterpartDidYouFallOut",
+      "id": "LakeVerity_Text_Arc1BarryUpThoseStairs",
       "en_US": [
-        "{STRVAR_1 3, 2, 0}: Are you OK?\n",
-        "Did you really fall out of there?\r"
+        "{STRVAR_1 3, 0, 0}: That's Professor Rowan\n",
+        "up there! And that portal...\r",
+        "Come on, up those stairs!\n",
+        "Last one up owes me 10 million!"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1CyrusI",
-      "en_US": "Cyrus: I..."
-    },
-    {
-      "id": "LakeVerity_Text_Arc1RowanAPokemonCameOut",
+      "id": "LakeVerity_Text_Arc1RowanChildren",
       "en_US": [
-        "Rowan: Wh-what?!\n",
-        "A Pokémon came out of the portal!"
+        "Rowan: Hm? Children?\n",
+        "This is no place for sightseeing!\r"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1CounterpartAnotherOne",
+      "id": "LakeVerity_Text_Arc1BarryWeCameToHelp",
       "en_US": [
-        "{STRVAR_1 3, 2, 0}: Professor!\n",
-        "There's another one!"
+        "{STRVAR_1 3, 0, 0}: We saw you on the news,\n",
+        "Professor! We came to help!"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1RowanGetBack",
+      "id": "LakeVerity_Text_Arc1CounterpartTheReadings",
       "en_US": [
-        "Rowan: G-get back!\n",
-        "Stay away from me!"
+        "{STRVAR_1 3, 2, 0}: Professor, the readings\n",
+        "still make no sense.\r",
+        "It's like the space in there\n",
+        "doesn't sit still.\r"
       ]
     },
     {
       "id": "LakeVerity_Text_Arc1RowanMyBriefcase",
       "en_US": [
-        "Rowan: Eek! My briefcase...!\r",
-        "N-never mind that!\n",
-        "Run for it!"
+        "Rowan: Hmm...\r",
+        "When that portal tore open, people\n",
+        "panicked. I helped them escape...\r",
+        "and in the rush, I dropped my\n",
+        "briefcase. The portal swallowed it.\r",
+        "There are three Pokémon inside.\n",
+        "Starter Pokémon, for new Trainers."
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1RowanOutOfTheWay",
+      "id": "LakeVerity_Text_Arc1RowanHaveWeMet",
       "en_US": [
-        "Rowan: Out of the way, you two!\r",
-        "There's a Pokémon going berserk.\n",
-        "We all need to get out of here!"
+        "Rowan: And you, sir. You came out\n",
+        "of that portal, didn't you?\r",
+        "Forgive me, I don't believe\n",
+        "we've met. Are you hurt?"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1BarryThatGuysBeingChased",
+      "id": "LakeVerity_Text_Arc1CyrusHeDoesntKnowMe",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: Wh-what?!\n",
-        "Wasn't that Professor Rowan?!\r",
-        "...Hey, look! That guy's getting\n",
-        "chased around in circles!"
+        "Cyrus: ...\r",
+        "...He doesn't know me.\r",
+        "In this world, perhaps there is\n",
+        "no reason he should."
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1BarryLetsUseAPokemon",
+      "id": "LakeVerity_Text_Arc1BarryWeGoIn",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: We need to help that man.\r",
-        "Let's use one of the Pokémon in\n",
-        "this briefcase!"
+        "{STRVAR_1 3, 0, 0}: Then it's simple!\r",
+        "We go in, grab the briefcase,\n",
+        "and come right back out!\r",
+        "And then you'll owe us starter\n",
+        "Pokémon, right, Professor?"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1BarryIllTakeThisOne",
+      "id": "LakeVerity_Text_Arc1RowanIForbidIt",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: Then I'll take this one!\n",
-        "Let's go, {STRVAR_1 0, 2, 0}!"
+        "Rowan: Absolutely not!\r",
+        "That world twists back on itself.\n",
+        "Up, down, near, far... it all bends.\r",
+        "It's no place to wander blind.\n",
+        "I forbid it!"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1BarryMawileRanOff",
+      "id": "LakeVerity_Text_Arc1CyrusIWillGuideThem",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: Whew...\n",
-        "The MAWILE I was battling ran off!"
+        "Cyrus: ...I came from that world.\r",
+        "It is confusing, but I know\n",
+        "its ways.\r",
+        "If someone must go, I will go.\n",
+        "I'll guide the way to the briefcase."
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1CyrusYouRemindMeOfSomeone",
+      "id": "LakeVerity_Text_Arc1BarryLetsGo",
       "en_US": [
-        "Cyrus: ...You two.\r",
-        "You remind me of someone\n",
-        "I once knew.\r",
-        "A child who stood against me with\n",
-        "nothing but a Pokémon and...\r",
-        "conviction.\r"
+        "{STRVAR_1 3, 0, 0}: You heard him!\n",
+        "Let's go!"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1CyrusICalledThatAFlaw",
+      "id": "LakeVerity_Text_Arc1RowanComeBack",
       "en_US": [
-        "I once called that a flaw.\r",
-        "Spirit.\n",
-        "Something to be purged.\r",
-        "And yet that same flaw is the\n",
-        "reason I'm still standing.\r"
+        "Rowan: W-wait! Come back here!"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1CyrusThankYou",
+      "id": "LakeVerity_Text_Arc1CyrusNoTimeToLose",
       "en_US": [
-        "...Thank you.\n",
-        "Both of you."
+        "Cyrus: ...Then there is no time\n",
+        "to lose. I'll look after him."
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1CyrusTheProfessorRan",
+      "id": "LakeVerity_Text_Arc1CounterpartTheyreInside",
       "en_US": [
-        "Cyrus: The professor ran and left\n",
-        "this behind.\r",
-        "A curious choice for a man\n",
-        "of science.\r",
-        "I'll return it to him myself.\n",
-        "He and I have much to discuss."
+        "{STRVAR_1 3, 2, 0}: Professor!\n",
+        "They're both inside!\r"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanDontFollowThem",
+      "en_US": [
+        "Rowan: That reckless boy...!\r",
+        "And you! Don't even think\n",
+        "about following them!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CounterpartTheBriefcaseIsInThere",
+      "en_US": [
+        "{STRVAR_1 3, 2, 0}: W-wait!\n",
+        "{STRVAR_1 3, 0, 0} is still in there!\r",
+        "And the briefcase is in there,\n",
+        "too..."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanThatWorldIsNoPlace",
+      "en_US": [
+        "Rowan: I said no, and I meant it.\r",
+        "That world is no place for you.\n",
+        "I'll find a way to reach them..."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CounterpartReadingsHolding",
+      "en_US": [
+        "{STRVAR_1 3, 2, 0}: The readings are holding.\n",
+        "The portal's staying open...\r",
+        "...for now, anyway."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1StepIntoThePortal",
+      "en_US": [
+        "The portal swirls, dark and deep.\n",
+        "The briefcase is somewhere inside...\r",
+        "Step into the portal?"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanYoureBack",
+      "en_US": [
+        "Rowan: You're back!\n",
+        "All of you... Thank goodness.\r",
+        "You went in after I told you\n",
+        "not to. Reckless...\r",
+        "...And brave."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1HandedTheBriefcase",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0} handed the briefcase\n",
+        "to Professor Rowan."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanADealIsADeal",
+      "en_US": [
+        "Rowan: All three are safe...\r",
+        "Very well. A deal is a deal -\n",
+        "the starters are yours."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CounterpartItsClosing",
+      "en_US": [
+        "{STRVAR_1 3, 2, 0}: Professor!\n",
+        "Readings are dropping, it's closing!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanItsGone",
+      "en_US": [
+        "Rowan: ...It's gone.\r",
+        "Come, {STRVAR_1 3, 2, 0}. We have a great\n",
+        "deal of data to go over."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusYouRemindMe",
+      "en_US": [
+        "Cyrus: You two...\r",
+        "You remind me of somebody\n",
+        "I knew before.\r",
+        "They had this fire within them.\r"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusTakeItToRowan",
+      "en_US": [
+        "Take it to Rowan when he's ready\n",
+        "to listen.\r",
+        "...Maybe this will help you out.\r"
       ]
     },
     {
       "id": "LakeVerity_Text_Arc1BarryPerfectTiming",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: Whew!\n",
+        "{STRVAR_1 3, 0, 0}: Woof!\n",
         "Perfect timing on our part.\r",
-        "However, I'm not sure what to make\n",
-        "of that guy just yet.\r",
-        "And man, he was wearing some\n",
-        "weird clothes.\r",
-        "Whatever, though, I'm going to go\n",
-        "ahead and head back home\r",
-        "and heal my Pokémon."
+        "I'm still not sure what to make\n",
+        "of that guy...\r",
+        "And man, he is wearing some\n",
+        "weird clothing.\r",
+        "Whatever. I'm heading home to\n",
+        "heal my Pokémon."
       ]
     }
   ]

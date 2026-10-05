@@ -700,7 +700,8 @@ void Encounter_NewVsFirstBattle(FieldTask *task, int trainerID, enum HeapID heap
     StartEncounter(task, dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);
 }
 
-// Arc 1 Lake Verity Mawile battle. Like the first rival battle, losing does
+// Arc 1 Mawile battle (the Distortion World briefcase platform,
+// scripts_distortion_world_arc1_seams.s). Like the first rival battle, losing does
 // not white out: the field is restored and faded back in whatever the result,
 // so the calling script just continues (it can still branch on CheckWonBattle).
 static BOOL FieldTask_Arc1MawileEncounter(FieldTask *task)

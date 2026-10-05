@@ -541,6 +541,7 @@ events_files = files(
     'events_route_228_rock_peak_ruins.json',
     'events_rock_peak_ruins.json',
     'events_verity_castle_1f.json',
+    'events_distortion_world_arc1_seams.json',
 )
 
 events_headers = []

@@ -17,16 +17,20 @@
     ScriptEntry LakeVerity_EarlyCounterpart
     ScriptEntry LakeVerity_Arc1OnFrameArrival
     ScriptEntry LakeVerity_OnResume
+    ScriptEntry LakeVerity_Arc1Briefing
+    ScriptEntry LakeVerity_Arc1StairsBlocked
+    ScriptEntry LakeVerity_Arc1Rowan
+    ScriptEntry LakeVerity_Arc1Counterpart
+    ScriptEntry LakeVerity_Arc1OnFrameReturn
     ScriptEntryEnd
 
 // This map is used for every visit (the stock early-story map MAP_HEADER_LAKE_VERITY_LOW_WATER is no longer
 // reachable). Until Saturn is defeated in Valor Cavern the stock game used LOW_WATER here, so the Team Galactic
 // scene is hidden and the early scene (Rowan and the counterpart after Canalave) is shown.
-// The Arc 1 scenes (VAR_ARC1_PROGRESS 1 and 3) use their own objects, gated by two stock hide flags whose
-// LOW_WATER objects are unreachable: FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL hides Barry, who is on the map
-// from the start of the arrival scene, and FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS hides the objects the scenes
-// add with AddObject (Cyrus, Rowan, the counterpart, the two Mawile and the briefcase). Both are set on every
-// entry and Barry's flag is cleared only for the arrival scene.
+// The Arc 1 scenes (VAR_ARC1_PROGRESS 1, 3, 4 and 7) use their own objects, gated by two stock hide flags whose
+// LOW_WATER objects are unreachable: FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL hides Barry and Cyrus, and
+// FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS hides the Arc 1 Rowan and counterpart. Both are set on every entry and
+// cleared per story state by the LakeVerity_Arc1SetState* routines (see the Arc 1 section below).
 LakeVerity_OnTransition:
     CallIfUnset FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN, LakeVerity_SetEarlyState
     CallIfSet FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN, LakeVerity_SetTeamGalacticState
@@ -35,7 +39,10 @@ LakeVerity_OnTransition:
     CallIfEq VAR_LAKE_VERITY_PROF_ROWAN_STATE, 0, LakeVerity_SetProfRowanStartPosition
     SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS
     SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
-    CallIfEq VAR_ARC1_PROGRESS, 3, LakeVerity_Arc1ShowArrivalCast
+    CallIfEq VAR_ARC1_PROGRESS, 1, LakeVerity_Arc1SetStateRoofLanding
+    CallIfEq VAR_ARC1_PROGRESS, 3, LakeVerity_Arc1SetStateCastleTop
+    CallIfEq VAR_ARC1_PROGRESS, 4, LakeVerity_Arc1SetStatePortalOpen
+    CallIfEq VAR_ARC1_PROGRESS, 7, LakeVerity_Arc1SetStateReturn
     GetPlayerGender VAR_MAP_LOCAL_0
     GoToIfEq VAR_MAP_LOCAL_0, GENDER_MALE, LakeVerity_SetCounterpartGraphicsDawn
     GoToIfEq VAR_MAP_LOCAL_0, GENDER_FEMALE, LakeVerity_SetCounterpartGraphicsLucas
@@ -66,10 +73,6 @@ LakeVerity_ShowTeamGalactic:
     ClearFlag FLAG_HIDE_LAKE_VERITY_TEAM_GALACTIC
     ClearFlag FLAG_HIDE_LAKE_VERITY_PROF_ROWAN
     ClearFlag FLAG_HIDE_LAKE_VERITY_COUNTERPART
-    Return
-
-LakeVerity_Arc1ShowArrivalCast:
-    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
     Return
 
 // VAR_MAP_LOCAL_1 gates the frame script, so Rowan only notices the player on the Team Galactic visit
@@ -322,11 +325,13 @@ LakeVerity_GruntM:
 // bg events on the 18 edge tiles of the stock Distortion World portal (map prop 581), centred on LAUNCHPAD (32,27)
 // in the middle of the castle's open roof terrace (h4). While the portal is open its footprint is blocked, so the
 // player faces it from a neighbouring tile; see PORTAL_TILES / PORTAL_EDGE in tools/lake_verity/layout.py
-// Inert while the portal is hidden (it closes during the Arc 1 arrival scene); the footprint is walkable then.
+// Inert while the portal is hidden (it closes during the Arc 1 return scene, state 7). In Arc 1 state 4 it asks to
+// step in and warps to the Distortion World (LakeVerity_Arc1LaunchpadStepIn).
 LakeVerity_Launchpad:
     GoToIfSet FLAG_LAKE_VERITY_PORTAL_HIDDEN, LakeVerity_LaunchpadHidden
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
+    GoToIfEq VAR_ARC1_PROGRESS, 4, LakeVerity_Arc1LaunchpadStepIn
     GoToIfSet FLAG_LAKE_VERITY_PORTAL_OPEN, LakeVerity_LaunchpadPortalOpen
     Message LakeVerity_Text_LaunchpadDormant
     WaitABXPadPress
@@ -366,19 +371,29 @@ LakeVerity_DrawbridgeSign:
     ReleaseAll
     End
 
-// Dazzling Platinum Arc 1 (docs/arc1/screenplay.md, scenes 2 and 6).
+// Dazzling Platinum Arc 1 (docs/arc1/revision/spec.md, PLAN.md scenes 3, 8, 9, 12-14).
 //
 // VAR_ARC1_PROGRESS 1: the player arrives from the Distortion World flashback at (32,31), hidden (see
-// LakeVerity_OnResume), and watches Cyrus land beside the portal. Hands off to the bedroom (state 2).
+// LakeVerity_OnResume), and watches Cyrus land beside the portal and wander to the parapet. Hands off to the
+// bedroom (state 2).
 //
-// VAR_ARC1_PROGRESS 3: the player arrives from the Verity Lakefront with Barry (the scene spawns its own Barry).
-// The camera pans to the castle terrace, where Rowan and the counterpart find Cyrus, two Mawile come out of the
-// portal, the portal closes and the chase starts. Barry and the player come up the stairs, pick starters from
-// Rowan's briefcase and fight the Mawile, then Cyrus and Barry leave. Ends in state 4 (free roam).
+// VAR_ARC1_PROGRESS 3: the player arrives from the Verity Lakefront with Barry. Barry's intro and the camera pan
+// to the terrace, where Rowan and the assistant study the portal and Cyrus sits apart; Barry runs up the stairs
+// and the player follows on foot. At the top of the stairs a coord event runs the briefing, which ends with
+// Barry and Cyrus going into the portal and state 4. The portal stays open.
 //
-// Terrace (h4) walkable tiles and the portal footprint are in tools/lake_verity/layout.py. The chase runs round
-// the ring x28/x36, z23/z30 (30 tiles). The chasers form a snake heading west on z30 at x29..33 (index k 0..4),
-// and one lap for index k is West 1+k, North 7, East 8, South 7, West 7-k.
+// VAR_ARC1_PROGRESS 4: Rowan and the assistant stay by the portal, the stairs down are blocked by a coord event,
+// and the portal edge (LakeVerity_Launchpad) asks to step in: state 5 and the warp to the Distortion World.
+//
+// VAR_ARC1_PROGRESS 7: the Distortion World warps the player back to (32,31) facing north. The return scene:
+// the briefcase goes back to Rowan, the assistant closes the portal, Rowan and the assistant leave, Cyrus gives
+// the player a parting gift and leaves, then Barry leaves. Ends in state 8.
+//
+// Hide flags: Barry and Cyrus use FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL (they are on the terrace in states 3
+// and 7 and gone in state 4), Rowan and the assistant use FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS (states 3, 4
+// and 7). Terrace (h4) walkable tiles and the portal footprint are in tools/lake_verity/layout.py: the terrace
+// is x26..38, z23..32 around the portal (z24 x30..34, z25..28 x29..35, z29 x30..34); the stair landing is
+// x23..25, z29..30 and the stairs are x23..24, z31..36.
 LakeVerity_Arc1OnFrameRoofLanding:
     LockAll
     SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_PROF_ROWAN
@@ -395,7 +410,8 @@ LakeVerity_Arc1OnFrameRoofLanding:
     PlayFanfare SEQ_SE_PL_SYUWA
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
-    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS
+    // Cyrus's event position is (28,24) for the castle-top scene; OnTransition moved it to (32,30)
+    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
     AddObject LOCALID_CYRUS
     FadeScreenIn FADE_SCREEN_SPEED_SLOW, COLOR_WHITE
     WaitFadeScreen
@@ -403,6 +419,11 @@ LakeVerity_Arc1OnFrameRoofLanding:
     ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusLookAround
     WaitMovement
     Message LakeVerity_Text_Arc1CyrusWhereAmI
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusWander
+    WaitMovement
+    Message LakeVerity_Text_Arc1CyrusThereWasNeverACastle
     Message LakeVerity_Text_Arc1CyrusTheFall
     Message LakeVerity_Text_Arc1CyrusWasIWrong
     WaitABXPadPress
@@ -410,7 +431,7 @@ LakeVerity_Arc1OnFrameRoofLanding:
     WaitTime 30, VAR_RESULT
     FadeScreenOut FADE_SCREEN_SPEED_SLOW
     WaitFadeScreen
-    SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS
+    SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
     SetVar VAR_ARC1_PROGRESS, 2
     Warp MAP_HEADER_TWINLEAF_TOWN_PLAYER_HOUSE_2F, 0, 4, 6, DIR_NORTH
     FadeScreenIn
@@ -427,10 +448,58 @@ LakeVerity_Arc1HidePlayer:
     HideObject LOCALID_PLAYER
     End
 
+// Called from LakeVerity_OnTransition (before the objects are created)
+LakeVerity_Arc1SetStateRoofLanding:
+    SetObjectEventPos LOCALID_CYRUS, 32, 30
+    Return
+
+// State 3. The first entry (from the Lakefront) arms the arrival scene: Barry waits at the entrance, and Cyrus,
+// who shares his hide flag, is removed and re-added by the scene. After the arrival (marked by
+// VAR_VISITED_LAKE_VERITY_WITH_RIVAL, which the old Arc 1 scene also set), a reload puts Barry on the terrace
+// beside the cast.
+LakeVerity_Arc1SetStateCastleTop:
+    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
+    GoToIfEq VAR_VISITED_LAKE_VERITY_WITH_RIVAL, 0, LakeVerity_Arc1ArmArrival
+    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS
+    SetObjectEventPos LOCALID_RIVAL, 27, 31
+    SetObjectEventMovementType LOCALID_RIVAL, MOVEMENT_TYPE_LOOK_WEST
+    SetObjectEventDir LOCALID_RIVAL, DIR_WEST
+    Return
+
+LakeVerity_Arc1ArmArrival:
+    SetVar VAR_MAP_LOCAL_2, 1
+    Return
+
+// State 4: Barry and Cyrus are in the Distortion World; Rowan and the assistant stay by the portal
+LakeVerity_Arc1SetStatePortalOpen:
+    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS
+    Return
+
+// State 7: everyone is on the terrace around the player at (32,31)
+LakeVerity_Arc1SetStateReturn:
+    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
+    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS
+    SetObjectEventPos LOCALID_RIVAL, 31, 31
+    SetObjectEventMovementType LOCALID_RIVAL, MOVEMENT_TYPE_LOOK_NORTH
+    SetObjectEventDir LOCALID_RIVAL, DIR_NORTH
+    SetObjectEventPos LOCALID_CYRUS, 34, 31
+    SetObjectEventMovementType LOCALID_CYRUS, MOVEMENT_TYPE_LOOK_WEST
+    SetObjectEventDir LOCALID_CYRUS, DIR_WEST
+    SetObjectEventPos LOCALID_ARC1_PROF_ROWAN, 30, 32
+    SetObjectEventPos LOCALID_ARC1_COUNTERPART, 36, 30
+    SetObjectEventMovementType LOCALID_ARC1_COUNTERPART, MOVEMENT_TYPE_LOOK_WEST
+    SetObjectEventDir LOCALID_ARC1_COUNTERPART, DIR_WEST
+    Return
+
 LakeVerity_Arc1OnFrameArrival:
     LockAll
+    SetVar VAR_MAP_LOCAL_2, 0
     SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_PROF_ROWAN
     SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_COUNTERPART
+    // Cyrus (Barry's hide flag) was created on the terrace while the field was loaded around the entrance, so
+    // he would stay undrawn: remove him now and add him again once the camera is on the terrace.
+    RemoveObject LOCALID_CYRUS
+    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
     ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceSouth
     WaitMovement
     BufferRivalName 0
@@ -452,197 +521,282 @@ LakeVerity_Arc1OnFrameArrival:
     WaitMovement
     // The terrace cast is added only now: objects created on the terrace while the field was
     // loaded around the entrance aren't drawn until they first move.
-    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS
     AddObject LOCALID_CYRUS
+    ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS
     AddObject LOCALID_ARC1_PROF_ROWAN
     AddObject LOCALID_ARC1_COUNTERPART
-    WaitTime 20, VAR_RESULT
+    WaitTime 60, VAR_RESULT
+    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1CounterpartStudyPortal
+    WaitMovement
+    WaitTime 30, VAR_RESULT
+    // Back to the foot of the stairs
+    ApplyFreeCameraMovement LakeVerity_Movement_Arc1CameraPanToStairFoot
+    WaitMovement
+    RestoreCamera
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceEast
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceWest
+    WaitMovement
+    BufferRivalName 0
+    Message LakeVerity_Text_Arc1BarryUpThoseStairs
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1RivalRunUpStairs
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerWatchRivalRunUp
+    WaitMovement
+    SetVar VAR_VISITED_LAKE_VERITY_WITH_RIVAL, 1
+    ReleaseAll
+    End
+
+LakeVerity_Arc1CameraStepWest:
+    ApplyFreeCameraMovement LakeVerity_Movement_Arc1CameraStepWest
+    WaitMovement
+    Return
+
+// Coord event on the top of the stairs (23..24,30) in state 3
+LakeVerity_Arc1Briefing:
+    LockAll
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    CallIfEq VAR_0x8004, 23, LakeVerity_Arc1PlayerOntoTerraceFrom23
+    CallIfEq VAR_0x8004, 24, LakeVerity_Arc1PlayerOntoTerraceFrom24
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceEast
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1NoticeWest
+    WaitMovement
+    BufferRivalName 0
+    Message LakeVerity_Text_Arc1RowanChildren
+    Message LakeVerity_Text_Arc1BarryWeCameToHelp
+    WaitABXPadPress
+    CloseMessage
+    // The assistant's readings
+    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1FaceWest
+    WaitMovement
     BufferCounterpartName 2
-    Message LakeVerity_Text_Arc1RowanDidYouComeOutOfThePortal
-    Message LakeVerity_Text_Arc1CounterpartDidYouFallOut
-    Message LakeVerity_Text_Arc1CyrusI
+    Message LakeVerity_Text_Arc1CounterpartTheReadings
+    Message LakeVerity_Text_Arc1RowanMyBriefcase
+    WaitABXPadPress
+    CloseMessage
+    // Rowan turns to Cyrus, who is sitting apart in the north-west corner
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1FaceNorth
+    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1FaceNorth
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceNorth
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceNorth
+    WaitMovement
+    Message LakeVerity_Text_Arc1RowanHaveWeMet
+    WaitABXPadPress
+    CloseMessage
     WaitTime 20, VAR_RESULT
+    Message LakeVerity_Text_Arc1CyrusHeDoesntKnowMe
+    WaitABXPadPress
     CloseMessage
-    // The first Mawile
-    PlayFanfare SEQ_SE_PL_SYUWA
-    AddObject LOCALID_MAWILE_1
-    PlayCry SPECIES_MAWILE
-    ApplyMovement LOCALID_MAWILE_1, LakeVerity_Movement_Arc1MawileJumpOut
+    // Barry's plan, Rowan's warning
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceEast
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1FaceWest
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceEast
     WaitMovement
-    WaitCry
+    BufferRivalName 0
+    Message LakeVerity_Text_Arc1BarryWeGoIn
+    WaitABXPadPress
+    CloseMessage
     ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RowanStartled
-    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1ExclamationMark
-    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusTurnToMawile
     WaitMovement
-    Message LakeVerity_Text_Arc1RowanAPokemonCameOut
+    Message LakeVerity_Text_Arc1RowanIForbidIt
     WaitABXPadPress
     CloseMessage
-    // The second Mawile
+    // Cyrus stands and comes over to (28,29)
+    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusApproach
+    WaitMovement
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1FaceNorth
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceNorth
+    WaitMovement
+    Message LakeVerity_Text_Arc1CyrusIWillGuideThem
+    WaitABXPadPress
+    CloseMessage
+    // Barry runs into the portal before anyone can stop him
+    BufferRivalName 0
+    Message LakeVerity_Text_Arc1BarryLetsGo
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1RivalRunIntoPortal
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerWatchRivalRunIn
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RowanStartledLate
+    WaitMovement
+    Call LakeVerity_Arc1PortalSwallow
+    RemoveObject LOCALID_RIVAL
+    Message LakeVerity_Text_Arc1RowanComeBack
+    WaitABXPadPress
+    CloseMessage
+    // Cyrus follows him in
+    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1FaceEast
+    WaitMovement
+    Message LakeVerity_Text_Arc1CyrusNoTimeToLose
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusWalkIntoPortal
+    WaitMovement
+    Call LakeVerity_Arc1PortalSwallow
+    // Cyrus's hide flag is Barry's, which RemoveObject LOCALID_RIVAL already set
+    RemoveObject LOCALID_CYRUS
+    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1ExclamationMark
+    WaitMovement
+    BufferCounterpartName 2
+    Message LakeVerity_Text_Arc1CounterpartTheyreInside
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1FaceWest
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceEast
+    WaitMovement
+    Message LakeVerity_Text_Arc1RowanDontFollowThem
+    WaitABXPadPress
+    CloseMessage
+    SetVar VAR_ARC1_PROGRESS, 4
+    ReleaseAll
+    End
+
+// (23,30) -> (26,30)
+LakeVerity_Arc1PlayerOntoTerraceFrom23:
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerOntoTerrace3
+    WaitMovement
+    Return
+
+// (24,30) -> (26,30)
+LakeVerity_Arc1PlayerOntoTerraceFrom24:
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerOntoTerrace2
+    WaitMovement
+    Return
+
+// Someone steps into the portal: the swirl sound and a quick white flash
+LakeVerity_Arc1PortalSwallow:
     PlayFanfare SEQ_SE_PL_SYUWA
-    AddObject LOCALID_MAWILE_2
-    PlayCry SPECIES_MAWILE
-    ApplyMovement LOCALID_MAWILE_2, LakeVerity_Movement_Arc1MawileJumpOut
-    WaitMovement
-    WaitCry
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    Return
+
+// Coord event on the top of the stairs (23..24,30) in state 4: the player can't leave without a starter
+LakeVerity_Arc1StairsBlocked:
+    LockAll
     ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1ExclamationMark
     WaitMovement
-    Message LakeVerity_Text_Arc1CounterpartAnotherOne
+    BufferCounterpartName 2
+    BufferRivalName 0
+    Message LakeVerity_Text_Arc1CounterpartTheBriefcaseIsInThere
     WaitABXPadPress
     CloseMessage
-    // The portal closes
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerStepBackNorth
+    WaitMovement
+    ReleaseAll
+    End
+
+LakeVerity_Arc1Rowan:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message LakeVerity_Text_Arc1RowanThatWorldIsNoPlace
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+LakeVerity_Arc1Counterpart:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    BufferCounterpartName 2
+    Message LakeVerity_Text_Arc1CounterpartReadingsHolding
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+// State 4, from LakeVerity_Launchpad (the portal edge bg events)
+LakeVerity_Arc1LaunchpadStepIn:
+    Message LakeVerity_Text_Arc1StepIntoThePortal
+    ShowYesNoMenu VAR_RESULT
+    GoToIfEq VAR_RESULT, MENU_NO, LakeVerity_LaunchpadStayBehind
+    CloseMessage
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut
+    WaitFadeScreen
+    ScrCmd_320
+    ReturnToField
+    SetVar VAR_ARC1_PROGRESS, 5
+    // The Distortion World workstream's Arc 1 puzzle map entry
+    Warp MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS, 0, 20, 12, DIR_WEST
+    FadeScreenIn
+    WaitFadeScreen
+    End
+
+// State 7: back from the Distortion World at (32,31) facing north. Barry (31,31), Cyrus (34,31),
+// Rowan (30,32) and the assistant (36,30) were placed by LakeVerity_Arc1SetStateReturn.
+LakeVerity_Arc1OnFrameReturn:
+    LockAll
+    SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_PROF_ROWAN
+    SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_COUNTERPART
+    WaitTime 30, VAR_RESULT
+    // Rowan hurries over, the briefcase goes back to him
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1ExclamationMark
+    WaitMovement
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RowanStepToPlayer
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceSouthLate
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceSouthLate
+    WaitMovement
+    Message LakeVerity_Text_Arc1RowanYoureBack
+    WaitABXPadPress
+    CloseMessage
+    BufferPlayerName 1
+    PlayFanfare SEQ_SE_CONFIRM
+    Message LakeVerity_Text_Arc1HandedTheBriefcase
+    WaitABXPadPress
+    Message LakeVerity_Text_Arc1RowanADealIsADeal
+    WaitABXPadPress
+    CloseMessage
+    // The assistant closes the portal
+    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1ExclamationMark
+    WaitMovement
+    BufferCounterpartName 2
+    Message LakeVerity_Text_Arc1CounterpartItsClosing
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceNorth
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceNorth
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1FaceNorth
+    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1FaceNorth
+    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1FaceNorth
+    WaitMovement
     PlayFanfare SEQ_SE_PL_SYUWA
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     SetLakeVerityPortalHidden 1
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
-    WaitTime 20, VAR_RESULT
-    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RowanStartled
-    WaitMovement
-    Message LakeVerity_Text_Arc1RowanGetBack
+    WaitTime 30, VAR_RESULT
+    // Rowan and the assistant leave
+    BufferCounterpartName 2
+    Message LakeVerity_Text_Arc1RowanItsGone
     WaitABXPadPress
     CloseMessage
-    // The chase: scatter into a snake heading west on z30, then one lap
-    PlayCry SPECIES_MAWILE
-    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RowanScatter
-    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1CounterpartScatter
-    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1ChaserScatter
-    ApplyMovement LOCALID_MAWILE_1, LakeVerity_Movement_Arc1ChaserScatter
-    ApplyMovement LOCALID_MAWILE_2, LakeVerity_Movement_Arc1ChaserScatter
-    WaitMovement
-    Call LakeVerity_Arc1ChaseLap
-    WaitMovement
-    // Rowan drops his briefcase
-    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RowanStartled
-    WaitMovement
-    PlayFanfare SEQ_SE_DP_WALL_HIT2
-    AddObject LOCALID_BRIEFCASE
-    Message LakeVerity_Text_Arc1RowanMyBriefcase
-    WaitABXPadPress
-    CloseMessage
-    // Another lap while Barry and the player come up the stairs
-    ApplyFreeCameraMovement LakeVerity_Movement_Arc1CameraPanToStairs
-    Call LakeVerity_Arc1ChaseLap
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1ClimbStairs
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1ClimbStairs
-    WaitMovement
-    // Rowan and the counterpart run past them and down the stairs
-    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RunToLanding
-    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1RunToLanding
-    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1RunToLanding
-    ApplyMovement LOCALID_MAWILE_1, LakeVerity_Movement_Arc1RunToLanding
-    ApplyMovement LOCALID_MAWILE_2, LakeVerity_Movement_Arc1RunToLanding
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceEastStartled
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceEastStartled
-    WaitMovement
-    Message LakeVerity_Text_Arc1RowanOutOfTheWay
-    WaitABXPadPress
-    CloseMessage
-    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RowanRunDownstairs
-    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1CounterpartRunDownstairs
-    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusLapFromLanding
-    ApplyMovement LOCALID_MAWILE_1, LakeVerity_Movement_Arc1Mawile1LapFromLanding
-    ApplyMovement LOCALID_MAWILE_2, LakeVerity_Movement_Arc1Mawile2LapFromLanding
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1WatchRowanRunDownstairs
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1WatchRowanRunDownstairs
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RowanLeave
+    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1CounterpartLeave
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerWatchRowanLeave
     WaitMovement
     RemoveObject LOCALID_ARC1_PROF_ROWAN
     RemoveObject LOCALID_ARC1_COUNTERPART
-    // Barry sees Cyrus being chased in circles
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceEast
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceEast
-    WaitMovement
-    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1ChaseLapK2
-    ApplyMovement LOCALID_MAWILE_1, LakeVerity_Movement_Arc1ChaseLapK3
-    ApplyMovement LOCALID_MAWILE_2, LakeVerity_Movement_Arc1ChaseLapK4
-    BufferRivalName 0
-    Message LakeVerity_Text_Arc1BarryThatGuysBeingChased
-    WaitABXPadPress
-    CloseMessage
-    WaitMovement
-    // They walk to the briefcase while the Mawile corner Cyrus in the west corner
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerWalkToBriefcase
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1RivalWalkToBriefcase
-    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusCornered
-    ApplyMovement LOCALID_MAWILE_1, LakeVerity_Movement_Arc1Mawile1Corner
-    ApplyMovement LOCALID_MAWILE_2, LakeVerity_Movement_Arc1Mawile2Corner
-    ApplyFreeCameraMovement LakeVerity_Movement_Arc1CameraPanToBriefcase
-    WaitMovement
-    RestoreCamera
-    BufferRivalName 0
-    Message LakeVerity_Text_Arc1BarryLetsUseAPokemon
-    WaitABXPadPress
-    CloseMessage
-    // Starter select (as the stock Route 201 briefcase)
-    FadeScreenOut
-    WaitFadeScreen
-    StartChooseStarterScene
-    SaveChosenStarter
-    ReturnToField
-    FadeScreenIn
-    WaitFadeScreen
-    GetPlayerStarterSpecies VAR_0x8000
-    GivePokemon VAR_0x8000, 5, ITEM_NONE, VAR_RESULT
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceWest
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceEast
-    WaitMovement
-    BufferRivalName 0
-    BufferRivalStarterSpeciesName 2
-    Message LakeVerity_Text_Arc1BarryIllTakeThisOne
-    WaitABXPadPress
-    CloseMessage
-    // The Mawile turn on them
-    ApplyMovement LOCALID_MAWILE_2, LakeVerity_Movement_Arc1Mawile2ChargePlayer
-    ApplyMovement LOCALID_MAWILE_1, LakeVerity_Movement_Arc1Mawile1ChargeRival
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceNorthStartled
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceNorthStartledLate
-    WaitMovement
-    PlayCry SPECIES_MAWILE
-    WaitCry
-    StartArc1MawileBattle
-    HealParty
-    // Both Mawile run off down the stairs
-    ApplyMovement LOCALID_MAWILE_2, LakeVerity_Movement_Arc1Mawile2Flee
-    ApplyMovement LOCALID_MAWILE_1, LakeVerity_Movement_Arc1Mawile1Flee
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerWatchMawileFlee
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1RivalWatchMawileFlee
-    WaitMovement
-    RemoveObject LOCALID_MAWILE_1
-    RemoveObject LOCALID_MAWILE_2
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceWest
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceEast
-    WaitMovement
-    BufferRivalName 0
-    Message LakeVerity_Text_Arc1BarryMawileRanOff
-    WaitABXPadPress
-    CloseMessage
-    // Cyrus slowly turns toward them and comes over
-    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusApproach
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceNorthLate
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceNorthLate
-    WaitMovement
-    Message LakeVerity_Text_Arc1CyrusYouRemindMeOfSomeone
-    Message LakeVerity_Text_Arc1CyrusICalledThatAFlaw
-    Message LakeVerity_Text_Arc1CyrusThankYou
-    WaitABXPadPress
-    CloseMessage
-    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusStepToBriefcase
+    // Cyrus's parting gift
+    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusStepToPlayer
     ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceEastLate
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceWestLate
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceEastLate
     WaitMovement
-    Message LakeVerity_Text_Arc1CyrusTheProfessorRan
-    WaitABXPadPress
+    Message LakeVerity_Text_Arc1CyrusYouRemindMe
+    Message LakeVerity_Text_Arc1CyrusTakeItToRowan
+    SetVar VAR_0x8004, ITEM_ECLIPSE_SHARD
+    SetVar VAR_0x8005, 1
+    GiveItemQuantity
     CloseMessage
-    PlayFanfare SEQ_SE_CONFIRM
-    RemoveObject LOCALID_BRIEFCASE
-    WaitTime 15, VAR_RESULT
     ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusLeave
     ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerWatchCyrusLeave
     WaitMovement
     RemoveObject LOCALID_CYRUS
     // Barry's closing line
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1RivalStepToPlayer
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceEast
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceEast
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceWest
     WaitMovement
     BufferRivalName 0
     Message LakeVerity_Text_Arc1BarryPerfectTiming
@@ -653,25 +807,11 @@ LakeVerity_Arc1OnFrameArrival:
     WaitMovement
     RemoveObject LOCALID_RIVAL
     PlayFanfare SEQ_SE_DP_KAIDAN2
-    SetVar VAR_ARC1_PROGRESS, 4
+    SetVar VAR_ARC1_PROGRESS, 8
     SetVar VAR_VISITED_LAKE_VERITY_WITH_RIVAL, 1
     SetVar VAR_FOLLOWER_RIVAL_STATE, 4
     ReleaseAll
     End
-
-LakeVerity_Arc1CameraStepWest:
-    ApplyFreeCameraMovement LakeVerity_Movement_Arc1CameraStepWest
-    WaitMovement
-    Return
-
-// Starts one lap of the chase for the five objects in the snake (no WaitMovement)
-LakeVerity_Arc1ChaseLap:
-    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1ChaseLapK0
-    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1ChaseLapK1
-    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1ChaseLapK2
-    ApplyMovement LOCALID_MAWILE_1, LakeVerity_Movement_Arc1ChaseLapK3
-    ApplyMovement LOCALID_MAWILE_2, LakeVerity_Movement_Arc1ChaseLapK4
-    Return
 
     .balign 4, 0
 LakeVerity_Movement_Arc1CyrusLookAround:
@@ -684,6 +824,20 @@ LakeVerity_Movement_Arc1CyrusLookAround:
     Delay8
     FaceSouth
     Delay16
+    EndMovement
+
+// (32,30) -> (30,30), a look at the portal, then over to the south parapet (33,32)
+    .balign 4, 0
+LakeVerity_Movement_Arc1CyrusWander:
+    WalkSlowWest 2
+    Delay16
+    FaceNorth
+    Delay32
+    Delay16
+    WalkSlowEast 3
+    Delay8
+    WalkSlowSouth 2
+    Delay32
     EndMovement
 
     .balign 4, 0
@@ -707,10 +861,9 @@ LakeVerity_Movement_Arc1FaceWest:
     EndMovement
 
     .balign 4, 0
-LakeVerity_Movement_Arc1FaceNorthLate:
-    Delay32
-    Delay32
-    WalkOnSpotNormalNorth
+LakeVerity_Movement_Arc1FaceSouthLate:
+    Delay16
+    WalkOnSpotNormalSouth
     EndMovement
 
     .balign 4, 0
@@ -720,9 +873,34 @@ LakeVerity_Movement_Arc1FaceEastLate:
     EndMovement
 
     .balign 4, 0
-LakeVerity_Movement_Arc1FaceWestLate:
-    Delay8
+LakeVerity_Movement_Arc1ExclamationMark:
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1NoticeWest:
     WalkOnSpotNormalWest
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1RowanStartled:
+    EmoteExclamationMark
+    JumpOnSpotFastNorth
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1RowanStartledLate:
+    Delay32
+    WalkOnSpotFastWest
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1CounterpartStudyPortal:
+    FaceWest
+    Delay16
+    FaceNorth
     EndMovement
 
     .balign 4, 0
@@ -742,330 +920,149 @@ LakeVerity_Movement_Arc1CameraPanToTerrace:
     WalkFastNorth 10
     EndMovement
 
-// (32,28) -> (28,30)
+// (32,28) -> (24,37), the player's tile at the foot of the stairs
     .balign 4, 0
-LakeVerity_Movement_Arc1CameraPanToStairs:
-    WalkNormalWest 4
-    WalkNormalSouth 2
+LakeVerity_Movement_Arc1CameraPanToStairFoot:
+    WalkFastWest 8
+    WalkFastSouth 9
     EndMovement
 
-// (28,30) -> (28,31), the player's tile at the briefcase
+// (23,37) -> up the stairs -> (27,31), waiting on the terrace
     .balign 4, 0
-LakeVerity_Movement_Arc1CameraPanToBriefcase:
-    Delay16
-    WalkNormalSouth
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1MawileJumpOut:
-    JumpFarSouth
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1RowanStartled:
-    EmoteExclamationMark
-    JumpOnSpotFastNorth
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1ExclamationMark:
-    EmoteExclamationMark
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1CyrusTurnToMawile:
-    WalkOnSpotFastEast
-    EndMovement
-
-// (32,31) -> (29,30)
-    .balign 4, 0
-LakeVerity_Movement_Arc1RowanScatter:
-    WalkFastWest 3
-    WalkFastNorth
-    EndMovement
-
-// (33,31) -> (30,30)
-    .balign 4, 0
-LakeVerity_Movement_Arc1CounterpartScatter:
-    WalkFastWest 3
-    WalkFastNorth
-    EndMovement
-
-// Cyrus (32,30), Mawile (33,30) and (34,30): one step west, in time with Rowan
-    .balign 4, 0
-LakeVerity_Movement_Arc1ChaserScatter:
-    WalkOnSpotFastWest 3
-    WalkFastWest
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1ChaseLapK0:
-    WalkFastWest
+LakeVerity_Movement_Arc1RivalRunUpStairs:
     WalkFastNorth 7
-    WalkFastEast 8
-    WalkFastSouth 7
-    WalkFastWest 7
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1ChaseLapK1:
-    WalkFastWest 2
-    WalkFastNorth 7
-    WalkFastEast 8
-    WalkFastSouth 7
-    WalkFastWest 6
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1ChaseLapK2:
-    WalkFastWest 3
-    WalkFastNorth 7
-    WalkFastEast 8
-    WalkFastSouth 7
-    WalkFastWest 5
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1ChaseLapK3:
-    WalkFastWest 4
-    WalkFastNorth 7
-    WalkFastEast 8
-    WalkFastSouth 7
-    WalkFastWest 4
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1ChaseLapK4:
-    WalkFastWest 5
-    WalkFastNorth 7
-    WalkFastEast 8
-    WalkFastSouth 7
-    WalkFastWest 3
-    EndMovement
-
-// (23|24,37) -> (23|24,29), timed to arrive as the lap ends (120 frames)
-    .balign 4, 0
-LakeVerity_Movement_Arc1ClimbStairs:
-    Delay32
-    Delay16
-    Delay8
-    WalkNormalNorth 8
-    EndMovement
-
-// The snake moves 3 tiles west: Rowan to (26,30), the counterpart to (27,30), Cyrus to the corner (28,30)
-    .balign 4, 0
-LakeVerity_Movement_Arc1RunToLanding:
-    WalkFastWest 3
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1FaceEastStartled:
-    WalkOnSpotFastEast
-    EmoteExclamationMark
-    EndMovement
-
-// (26,30) -> (24,38)
-    .balign 4, 0
-LakeVerity_Movement_Arc1RowanRunDownstairs:
-    WalkFastWest 2
-    WalkFastSouth 8
-    EndMovement
-
-// (27,30) -> (24,37)
-    .balign 4, 0
-LakeVerity_Movement_Arc1CounterpartRunDownstairs:
-    WalkFastWest 3
-    WalkFastSouth 7
-    EndMovement
-
-// Back into the snake at (31,30), (32,30) and (33,30)
-    .balign 4, 0
-LakeVerity_Movement_Arc1CyrusLapFromLanding:
-    WalkFastNorth 7
-    WalkFastEast 8
-    WalkFastSouth 7
-    WalkFastWest 5
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1Mawile1LapFromLanding:
-    WalkFastWest
-    WalkFastNorth 7
-    WalkFastEast 8
-    WalkFastSouth 7
-    WalkFastWest 4
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1Mawile2LapFromLanding:
-    WalkFastWest 2
-    WalkFastNorth 7
-    WalkFastEast 8
-    WalkFastSouth 7
-    WalkFastWest 3
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1WatchRowanRunDownstairs:
-    Delay8
-    WalkOnSpotFastSouth
-    EndMovement
-
-// (24,29) -> (28,31), facing the briefcase at (29,31)
-    .balign 4, 0
-LakeVerity_Movement_Arc1PlayerWalkToBriefcase:
-    WalkNormalEast 2
-    WalkNormalSouth 2
-    WalkNormalEast 2
-    WalkOnSpotNormalEast
-    EndMovement
-
-// (23,29) -> (30,31), the other side of the briefcase
-    .balign 4, 0
-LakeVerity_Movement_Arc1RivalWalkToBriefcase:
-    WalkNormalEast 3
-    WalkNormalSouth 2
-    WalkNormalEast
-    WalkNormalSouth
-    WalkNormalEast 3
-    WalkNormalNorth
+    WalkFastEast 4
+    WalkFastSouth
     WalkOnSpotNormalWest
     EndMovement
 
-// Part of a lap, ending in the west column: Cyrus (28,24), Mawile (28,25) and (28,26)
     .balign 4, 0
-LakeVerity_Movement_Arc1CyrusCornered:
-    WalkFastWest 3
-    WalkFastNorth 6
-    WalkOnSpotFastSouth
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1Mawile1Corner:
-    WalkFastWest 4
-    WalkFastNorth 5
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1Mawile2Corner:
-    WalkFastWest 5
-    WalkFastNorth 4
-    EndMovement
-
-// (28,26) -> (28,30), in front of the player
-    .balign 4, 0
-LakeVerity_Movement_Arc1Mawile2ChargePlayer:
-    WalkOnSpotFastSouth
-    EmoteExclamationMark
-    WalkFastSouth 3
-    JumpNearFastSouth
-    EndMovement
-
-// (28,25) -> (30,30), in front of Barry
-    .balign 4, 0
-LakeVerity_Movement_Arc1Mawile1ChargeRival:
-    Delay32
-    Delay32
-    WalkOnSpotFastSouth
-    WalkFastSouth 4
-    WalkFastEast
-    WalkFastSouth
-    JumpNearFastEast
-    WalkOnSpotFastSouth
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1FaceNorthStartled:
-    Delay16
-    WalkOnSpotFastNorth
-    EmoteExclamationMark
-    EndMovement
-
-    .balign 4, 0
-LakeVerity_Movement_Arc1FaceNorthStartledLate:
-    Delay32
-    Delay16
-    WalkOnSpotFastNorth
-    EmoteExclamationMark
-    EndMovement
-
-// (28,30) -> (24,38)
-    .balign 4, 0
-LakeVerity_Movement_Arc1Mawile2Flee:
-    WalkFasterWest 4
-    WalkFasterSouth 8
-    EndMovement
-
-// (30,30) -> (24,38)
-    .balign 4, 0
-LakeVerity_Movement_Arc1Mawile1Flee:
+LakeVerity_Movement_Arc1PlayerWatchRivalRunUp:
     Delay8
-    WalkFasterWest 6
-    WalkFasterSouth 8
+    WalkOnSpotNormalNorth
     EndMovement
 
     .balign 4, 0
-LakeVerity_Movement_Arc1PlayerWatchMawileFlee:
-    Delay8
-    WalkOnSpotFastWest
+LakeVerity_Movement_Arc1PlayerOntoTerrace3:
+    WalkNormalEast 3
     EndMovement
 
     .balign 4, 0
-LakeVerity_Movement_Arc1RivalWatchMawileFlee:
-    Delay16
-    WalkOnSpotFastWest
+LakeVerity_Movement_Arc1PlayerOntoTerrace2:
+    WalkNormalEast 2
     EndMovement
 
-// (28,24) -> (28,30), in front of the player
+// (28,24) -> (28,29)
     .balign 4, 0
 LakeVerity_Movement_Arc1CyrusApproach:
-    Delay16
     WalkOnSpotSlowSouth
     Delay16
-    WalkSlowSouth 6
+    WalkSlowSouth 5
+    WalkOnSpotNormalWest
     EndMovement
 
-// (28,30) -> (29,30), over the briefcase at (29,31)
+// (27,31) -> (29,31) -> (29,28), the portal's west edge
     .balign 4, 0
-LakeVerity_Movement_Arc1CyrusStepToBriefcase:
-    WalkNormalEast
-    WalkOnSpotNormalSouth
+LakeVerity_Movement_Arc1RivalRunIntoPortal:
+    WalkOnSpotFastEast
+    WalkFasterEast 2
+    WalkFasterNorth 3
     EndMovement
 
-// (29,30) -> (24,38)
+    .balign 4, 0
+LakeVerity_Movement_Arc1PlayerWatchRivalRunIn:
+    Delay16
+    WalkOnSpotFastEast
+    Delay8
+    WalkOnSpotFastNorth
+    EndMovement
+
+// (28,29) -> (29,29) -> (29,28)
+    .balign 4, 0
+LakeVerity_Movement_Arc1CyrusWalkIntoPortal:
+    WalkNormalEast
+    WalkNormalNorth
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1PlayerStepBackNorth:
+    WalkNormalNorth
+    EndMovement
+
+// (30,32) -> (32,32), behind the player
+    .balign 4, 0
+LakeVerity_Movement_Arc1RowanStepToPlayer:
+    WalkFastEast 2
+    WalkOnSpotNormalNorth
+    EndMovement
+
+// (32,32) -> along z32 -> landing -> down the stairs (24,37)
+    .balign 4, 0
+LakeVerity_Movement_Arc1RowanLeave:
+    WalkNormalWest 6
+    WalkNormalNorth 2
+    WalkNormalWest 2
+    WalkNormalSouth 7
+    EndMovement
+
+// (36,30) -> (36,32) -> along z32 behind Rowan -> (24,36)
+    .balign 4, 0
+LakeVerity_Movement_Arc1CounterpartLeave:
+    WalkNormalSouth 2
+    WalkNormalWest 10
+    WalkNormalNorth 2
+    WalkNormalWest 2
+    WalkNormalSouth 6
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1PlayerWatchRowanLeave:
+    Delay16
+    WalkOnSpotNormalSouth
+    Delay32
+    WalkOnSpotNormalWest
+    EndMovement
+
+// (34,31) -> (33,31), beside the player
+    .balign 4, 0
+LakeVerity_Movement_Arc1CyrusStepToPlayer:
+    WalkSlowWest
+    EndMovement
+
+// (33,31) -> (33,32) -> along z32 -> landing -> down the stairs (24,37)
     .balign 4, 0
 LakeVerity_Movement_Arc1CyrusLeave:
-    WalkNormalWest 5
-    WalkNormalSouth 8
+    WalkNormalSouth
+    WalkNormalWest 7
+    WalkNormalNorth 2
+    WalkNormalWest 2
+    WalkNormalSouth 7
     EndMovement
 
     .balign 4, 0
 LakeVerity_Movement_Arc1PlayerWatchCyrusLeave:
     Delay8
-    WalkOnSpotNormalNorth
+    WalkOnSpotNormalSouth
+    Delay32
     Delay16
     WalkOnSpotNormalWest
     EndMovement
 
-// (30,31) -> (29,31), where the briefcase was
-    .balign 4, 0
-LakeVerity_Movement_Arc1RivalStepToPlayer:
-    WalkNormalWest
-    EndMovement
-
-// (29,31) -> (24,38)
+// (31,31) -> (31,32) -> along z32 -> landing -> down the stairs (24,37)
     .balign 4, 0
 LakeVerity_Movement_Arc1RivalLeave:
-    WalkFastNorth
+    WalkFastSouth
     WalkFastWest 5
-    WalkFastSouth 8
+    WalkFastNorth 2
+    WalkFastWest 2
+    WalkFastSouth 7
     EndMovement
 
     .balign 4, 0
 LakeVerity_Movement_Arc1PlayerWatchRivalLeave:
     Delay4
-    WalkOnSpotFastNorth
-    Delay8
+    WalkOnSpotFastSouth
+    Delay16
     WalkOnSpotFastWest
     EndMovement
 

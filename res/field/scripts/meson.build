@@ -1160,6 +1160,8 @@ scr_seq_files = files(
     'scripts_route_209_lost_tower_2f.s',
     'scripts_route_223.s',
     'scripts_verity_castle_1f.s',
+    'scripts_distortion_world_arc1_seams.s',
+    'scripts_init_distortion_world_arc1_seams.s',
 )
 
 scr_seq_narc_order = files('scripts.order')

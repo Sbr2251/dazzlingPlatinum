@@ -673,7 +673,9 @@ map_data_files = compress_land_data_gen.process(files(
     'map_data_663.bin',
     'map_data_664.bin',
     'map_data_665.bin',
-    'map_data_666.bin'
+    'map_data_666.bin',
+    'map_data_667.bin',
+    'map_data_668.bin'
 ))
 
 map_data_order = files('map_data.order')

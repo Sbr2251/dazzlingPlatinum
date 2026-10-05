@@ -1282,8 +1282,9 @@ Route201_TrainerTipsSignpost:
 
 // Dazzling Platinum Arc 1: the stock Rowan / starter scene on this route is disabled (its coord events are gone).
 // Instead Barry waits at the fork north of Twinleaf Town, tells the player he's going to Lake Verity and runs
-// off west. While VAR_ARC1_PROGRESS is 3 he turns the player back from the tall grass, and once the Lake Verity
-// scene is done (VAR_ARC1_PROGRESS 4) the tall grass shows a "To be continued..." block.
+// off west. While VAR_ARC1_PROGRESS is 3 he turns the player back from the tall grass, and once Arc 1 is done
+// (VAR_ARC1_PROGRESS 8, set at the end of the Lake Verity return scene) the tall grass shows a "To be continued..."
+// block (coord event value 8 in events_route_201.json). From state 4 on Barry is at the lake, so he stays hidden here.
 Route201_Arc1ShowRivalIfWaiting:
     GoToIfNe VAR_FOLLOWER_RIVAL_STATE, 0, Route201_Arc1Return
     ClearFlag FLAG_HIDE_ROUTE_201_RIVAL

@@ -13084,4 +13084,29 @@ static const MapHeader sMapHeaders[] = {
         .isEscapeRopeAllowed = FALSE,
         .isFlyAllowed = FALSE,
     },
+    // Arc 1 Distortion World puzzle ("Wall Walk", Phase 0): a standalone DW map cloned from B1F (matrix 290 =
+    // copies map_data_667/668 of B1F's 602/603), placed at DW offset (0,0,0) like the Giratina room. Its tw_arc
+    // record and wall grid (attr 12) come from tools/distortion_world/arc1_seams.json.
+    [MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS] = {
+        .areaDataArchiveID = 0x4A,
+        .unk_01 = 0xF,
+        .mapMatrixID = 290,
+        .scriptsArchiveID = scripts_distortion_world_arc1_seams,
+        .initScriptsArchiveID = scripts_init_distortion_world_arc1_seams,
+        .msgArchiveID = TEXT_BANK_DISTORTION_WORLD_ARC1_SEAMS,
+        .dayMusicID = SEQ_PL_D_GIRATINA,
+        .nightMusicID = SEQ_PL_D_GIRATINA,
+        .wildEncountersArchiveID = ENCOUNTERS_NONE,
+        .eventsArchiveID = events_distortion_world_arc1_seams,
+        .mapLabelTextID = LocationNames_Text_DistortionWorld,
+        .mapLabelWindowID = 0x4,
+        .weather = OVERWORLD_WEATHER_CLEAR,
+        .cameraType = CAMERA_TYPE_INTERIOR_ORTHOGRAPHIC,
+        .mapType = 0x3,
+        .battleBG = BACKGROUND_DISTORTION_WORLD,
+        .isBikeAllowed = FALSE,
+        .isRunningAllowed = FALSE,
+        .isEscapeRopeAllowed = FALSE,
+        .isFlyAllowed = FALSE,
+    },
 };

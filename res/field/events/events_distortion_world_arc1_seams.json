@@ -1,0 +1,47 @@
+{
+    "bg_events": [],
+    "object_events": [],
+    "warp_events": [],
+    "coord_events": [
+        {
+            "script": 2,
+            "x": 16,
+            "z": 13,
+            "y": 0,
+            "width": 6,
+            "length": 1,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 5
+        },
+        {
+            "script": 2,
+            "x": 15,
+            "z": 11,
+            "y": 0,
+            "width": 7,
+            "length": 1,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 5
+        },
+        {
+            "script": 2,
+            "x": 12,
+            "z": 15,
+            "y": 0,
+            "width": 4,
+            "length": 1,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 5
+        },
+        {
+            "script": 6,
+            "x": 14,
+            "z": 23,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 5
+        }
+    ]
+}

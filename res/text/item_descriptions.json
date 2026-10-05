@@ -988,7 +988,11 @@
     },
     {
       "id": "pl_msg_00000391_00125",
-      "garbage": 0
+      "en_US": [
+        "A cracked violet shard that hums with\n",
+        "a cold energy. Cyrus found it in the\n",
+        "Distortion World."
+      ]
     },
     {
       "id": "pl_msg_00000391_00126",

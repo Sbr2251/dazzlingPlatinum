@@ -19,7 +19,15 @@ _0022:
     End
 
 _0026:
+    GoToIfEq VAR_ARC1_PROGRESS, 0, DistortionWorldGiratinaRoom_Arc1HidePlayer
     GoToIfSet FLAG_MAP_LOCAL, _0033
+    End
+
+// Arc 1 flashback: the player is only a camera anchor; the hero is a Lucas NPC (local 133, from the overlay 9
+// object table). He can't be spawned here (the Distortion World system isn't up yet on the first load and the
+// game hangs), so the flashback script spawns him on its first frame.
+DistortionWorldGiratinaRoom_Arc1HidePlayer:
+    HideObject LOCALID_PLAYER
     End
 
 _0033:
@@ -171,12 +179,16 @@ _0232:
     End
 
 /* Arc 1 opening: a new game starts here (src/location.c). The last exchange between Cyrus and
- * Cynthia after GIRATINA, with the player as the hero. As Cyrus leaves, GIRATINA (never defeated or
- * caught) rises and takes him. Runs from the init frame table while VAR_ARC1_PROGRESS == 0, then hands
- * off to the Lake Verity roof landing, where Cyrus falls out of the portal. */
+ * Cynthia after GIRATINA. The hero is a Lucas NPC (local 133); the player is hidden and only anchors
+ * the camera, because the player is a new character, not the old hero. As Cyrus leaves, GIRATINA (never
+ * defeated or caught) swoops down and throws him through a rift. Runs from the init frame table while
+ * VAR_ARC1_PROGRESS == 0, then hands off to the Lake Verity roof landing, where Cyrus falls out of the
+ * portal. The waits are the original ones scaled by about 1/1.7 (the "1.7x" pacing note). */
 DistortionWorldGiratinaRoom_Arc1Flashback:
     LockAll
-    WaitTime 30, VAR_RESULT
+    ScrCmd_311 133
+    HideObject LOCALID_PLAYER
+    WaitTime 18, VAR_RESULT
     ScrCmd_311 130
     ScrCmd_311 129
     ApplyMovement 129, _0250
@@ -186,7 +198,7 @@ DistortionWorldGiratinaRoom_Arc1Flashback:
     ApplyFreeCameraMovement _0280
     ApplyMovement 130, _026C
     ApplyMovement 129, _0258
-    ApplyMovement LOCALID_PLAYER, _0244
+    ApplyMovement 133, _0244
     WaitMovement
     Message 15
     Message 8
@@ -196,23 +208,33 @@ DistortionWorldGiratinaRoom_Arc1Flashback:
     ApplyMovement 130, DistortionWorldGiratinaRoom_Arc1CyrusLeave
     ApplyFreeCameraMovement DistortionWorldGiratinaRoom_Arc1CameraFollowCyrus
     WaitMovement
-    WaitTime 30, VAR_RESULT
-    /* GIRATINA's shadow (the stock 1F fly-by model) sweeps over Cyrus, then swoops back and takes him. */
+    WaitTime 18, VAR_RESULT
+    /* GIRATINA's shadow (the stock 1F fly-by model) sweeps over Cyrus, then swoops back, strikes him and
+     * throws him through a rift. */
     ScrCmd_321 1
-    WaitTime 12, VAR_RESULT
+    WaitTime 7, VAR_RESULT
     ApplyMovement 130, DistortionWorldGiratinaRoom_Arc1CyrusNotice
     WaitMovement
-    WaitTime 20, VAR_RESULT
+    WaitTime 12, VAR_RESULT
     ScrCmd_322
     Message 17
     CloseMessage
     ScrCmd_321 2
-    WaitTime 12, VAR_RESULT
+    WaitTime 2, VAR_RESULT
+    PlayFanfare SEQ_SE_DP_WALL_HIT2
+    ApplyMovement 130, DistortionWorldGiratinaRoom_Arc1CyrusKnockedBack
+    ShakeCamera 16, 4
+    WaitMovement
     PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
     ScrCmd_312 130
-    WaitTime 30, VAR_RESULT
+    WaitTime 6, VAR_RESULT
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitTime 12, VAR_RESULT
     ScrCmd_322
-    WaitTime 30, VAR_RESULT
+    WaitTime 18, VAR_RESULT
     ApplyFreeCameraMovement DistortionWorldGiratinaRoom_Arc1CameraBack
     WaitMovement
     RestoreCamera
@@ -220,8 +242,8 @@ DistortionWorldGiratinaRoom_Arc1Flashback:
     WaitMovement
     Message 18
     CloseMessage
-    WaitTime 30, VAR_RESULT
-    FadeScreenOut FADE_SCREEN_SPEED_SLOW
+    WaitTime 18, VAR_RESULT
+    FadeScreenOut
     WaitFadeScreen
     SetVar VAR_ARC1_PROGRESS, 1
     Warp MAP_HEADER_LAKE_VERITY, 0, 32, 31, DIR_NORTH
@@ -286,7 +308,14 @@ DistortionWorldGiratinaRoom_Arc1CyrusNotice:
 
     .balign 4, 0
 DistortionWorldGiratinaRoom_Arc1CameraFollowCyrus:
-    WalkNormalSouth 3
+    WalkFastSouth 3
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldGiratinaRoom_Arc1CyrusKnockedBack:
+    LockDir
+    JumpNearFastWest
+    UnlockDir
     EndMovement
 
     .balign 4, 0

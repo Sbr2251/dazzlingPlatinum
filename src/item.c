@@ -775,10 +775,10 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
         .paletteID = mega_stone_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_125] = {
-        .dataID = 0x0,
-        .iconID = none_NCGR,
-        .paletteID = none_NCLR,
+    [ITEM_ECLIPSE_SHARD] = {
+        .dataID = 0x1CA,
+        .iconID = eclipse_shard_NCGR,
+        .paletteID = eclipse_shard_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
     [ITEM_UNUSED_126] = {

@@ -18,7 +18,7 @@ which is how we know the coordinates are absolute.
 | Lake Verity | `res/field/events/events_lake_verity.json`, `res/field/scripts/scripts_lake_verity.s`, `res/text/lake_verity.json` |
 | Flag | `generated/vars_flags.txt`: `FLAG_UNUSED_2420` is renamed to `FLAG_LAKE_VERITY_PORTAL_OPEN` |
 | Portal (stock Spear Pillar asset) | `include/data/map_headers.h` (`MAP_HEADER_LAKE_VERITY.areaDataArchiveID` 62 -> 0x4D), the area NARCs written by `tools/lake_verity/stock_portal.py`, the prop record in `map_data_538.bin` written by `build_art.py`; see "The portal" below |
-| Arc 1 story (the roof landing and the arrival scene) | `res/field/scripts/scripts_lake_verity.s`, `res/field/scripts/scripts_init_lake_verity.s`, `res/field/events/events_lake_verity.json`, `res/text/lake_verity.json`; see "Arc 1 scenes" below |
+| Arc 1 story (roof landing, castle-top briefing, portal launchpad, return scene) | `res/field/scripts/scripts_lake_verity.s`, `res/field/scripts/scripts_init_lake_verity.s`, `res/field/events/events_lake_verity.json`, `res/text/lake_verity.json`; see "Arc 1 scenes" below |
 | Castle from the start | `res/field/scripts/scripts_verity_lakefront.s`, `res/field/events/events_verity_lakefront.json`, `res/field/scripts/scripts_init_lake_verity.s`, `src/system_flags.c`, plus the early scenes ported into the Lake Verity events, scripts and text above |
 
 Nothing under `res/field/maps/data/*.bin` or `tools/lake_verity/assets` was touched. I found no bugs in `layout.py`.
@@ -108,6 +108,7 @@ The castle exterior has one storey: DOOR_1F is its only door. The old Lake Verit
   - The Counterpart at (50,39) doesn't block anything: (50,38), (51,38) and (51,39) are open.
 - **The portal.** The terrace centre holds the stock Distortion World portal from distorted Spear Pillar (see "The portal" below). Its footprint, 7 x 6 tiles around LAUNCHPAD (32,27) (`layout.PORTAL_TILES`: z24 x30..34, z25..28 x29..35, z29 x30..34), is blocked at h4, the same shape the stock Spear Pillar permissions block around their portal. The player stands next to it.
   - Its 18 edge tiles (`layout.PORTAL_EDGE`) each carry a bg event, facing any direction, that runs script 8, `LakeVerity_Launchpad`. Face the portal from any walkable neighbour and press A. (This replaces the single bg event on the formerly walkable LAUNCHPAD tile; LAUNCHPAD itself is now the blocked centre tile, still at h4.)
+  - In Arc 1 state 4 (`VAR_ARC1_PROGRESS == 4`) it asks "Step into the portal?" and Yes warps into the Arc 1 Distortion World puzzle map; see "Portal launchpad (state 4)" below. This branch comes before the two below.
   - With `FLAG_LAKE_VERITY_PORTAL_OPEN` off (the default; nothing sets it yet), it shows "A dark rift swirls across the terrace. It hums faintly, but something seems to hold it shut...".
   - With the flag on, it says "A dark rift swirls across the terrace. It seems to be pulling at you..." and asks "Step into the rift?". Yes plays the stock Distortion World warp sequence copied from Spear Pillar:
     1. `ScrCmd_320` (the DW warp tunnel app)
@@ -115,7 +116,7 @@ The castle exterior has one storey: DOOR_1F is its only door. The old Lake Verit
     3. `SetPartyGiratinaForm GIRATINA_FORM_ORIGIN`
     4. `Warp MAP_HEADER_DISTORTION_WORLD_1F, 0, 55, 40, DIR_SOUTH`
   - To turn the portal on from any script, use `SetFlag FLAG_LAKE_VERITY_PORTAL_OPEN`.
-- The portal prop is drawn unless `FLAG_LAKE_VERITY_PORTAL_HIDDEN` is set. `SetLakeVerityPortalHidden 0|1` sets or clears the flag and shows or hides the prop immediately (docs/arc1/spec.md). The Arc 1 arrival scene closes the portal this way.
+- The portal prop is drawn unless `FLAG_LAKE_VERITY_PORTAL_HIDDEN` is set. `SetLakeVerityPortalHidden 0|1` sets or clears the flag and shows or hides the prop immediately (docs/arc1/spec.md). The Arc 1 return scene (state 7) closes the portal this way; it stays open through states 0-6.
   - While the flag is set, `LakeVerity_Launchpad` returns at once (`GoToIfSet FLAG_LAKE_VERITY_PORTAL_HIDDEN, LakeVerity_LaunchpadHidden`), so the 18 edge bg events are inert: no message and no warp. The bg events themselves are kept.
   - The footprint collision is part of the terrain, so the 7 x 6 area stays blocked after the portal closes.
 - **Gate tower signs.** Bg events on the gate towers (41,35) and (41,38) run script 9, "VERITY CASTLE / The drawbridge is down.". Read them from the arch facing north or south.
@@ -171,9 +172,13 @@ The castle (matrix 102, `MAP_HEADER_LAKE_VERITY`) is now used from the start of 
 
 | State | Condition | What Lake Verity shows |
 | --- | --- | --- |
-| Arc1 state 1: roof landing | `VAR_ARC1_PROGRESS == 1` (set by the Distortion World flashback, which warps the player to (32,31) facing north) | Frame script 10 `LakeVerity_Arc1OnFrameRoofLanding`: the player is hidden (OnResume, script 14). White flash, screen shake, Cyrus appears at (32,30), looks around and says three lines. Fade out, `VAR_ARC1_PROGRESS = 2`, warp to the player's bedroom (Twinleaf 2F, (4,6), north) |
-| Arc1 state 3: arrival | `VAR_ARC1_PROGRESS == 3`, entering from the Lakefront | Barry at (47,52). Frame script 13 `LakeVerity_Arc1OnFrameArrival` plays the whole arrival scene (see "Arc 1 scenes"), then sets `VAR_ARC1_PROGRESS = 4` |
-| Arc1 state 4 onward | `VAR_ARC1_PROGRESS >= 4`, portal hidden | Empty lake and castle, lake music, the portal gone and its bg events inert |
+| Arc1 state 1: roof landing | `VAR_ARC1_PROGRESS == 1` (set by the Distortion World flashback, which warps the player to (32,31) facing north) | Frame script 10 `LakeVerity_Arc1OnFrameRoofLanding`: the player is hidden (OnResume, script 14). White flash, screen shake, Cyrus appears at (32,30), looks around ("Is this a dream?"), wanders to the south parapet ("There was never a castle here."). Fade out, `VAR_ARC1_PROGRESS = 2`, warp to the player's bedroom (Twinleaf 2F, (4,6), north) |
+| Arc1 state 3: arrival | `VAR_ARC1_PROGRESS == 3`, first entry from the Lakefront (`VAR_VISITED_LAKE_VERITY_WITH_RIVAL == 0`) | Barry at (47,52). Frame script 13 `LakeVerity_Arc1OnFrameArrival`: Barry's intro, the camera pan, Barry runs up the stairs; the player climbs on foot. Sets `VAR_VISITED_LAKE_VERITY_WITH_RIVAL = 1` |
+| Arc1 state 3: castle top | state 3 after the arrival (re-entry or reload) | Barry (27,31), Rowan (31,31), the assistant (33,30), Cyrus (28,24). Coord event (23..24,30), script 15 `LakeVerity_Arc1Briefing`, runs the briefing and sets `VAR_ARC1_PROGRESS = 4` |
+| Arc1 state 4: portal open | `VAR_ARC1_PROGRESS == 4` | Rowan and the assistant by the portal (talkable, scripts 17/18). Coord event (23..24,30), script 16, blocks the stairs down. The portal edge asks to step in: `VAR_ARC1_PROGRESS = 5`, warp to the DW puzzle map |
+| Arc1 states 5-6 | inside the Distortion World | (Distortion World workstream) |
+| Arc1 state 7: return | `VAR_ARC1_PROGRESS == 7`, warped in by the DW to (32,31) facing north | Frame script 19 `LakeVerity_Arc1OnFrameReturn` (see "Arc 1 scenes"), ends with `VAR_ARC1_PROGRESS = 8` |
+| Arc1 state 8 onward | `VAR_ARC1_PROGRESS >= 8`, portal hidden | Empty lake and castle, lake music, the portal gone and its bg events inert |
 | A2 Before Canalave | Saturn not beaten, Arc 1 scenes done | Empty lake and castle, lake music |
 | A3 After Canalave | Saturn not beaten, `FLAG_HIDE_LAKE_VERITY_LOW_WATER_PROF_ROWAN/_COUNTERPART` cleared by Canalave | Rowan (48,43) and the counterpart (49,43) facing the lake, scripts 11/12 ("How was Lake Valor?") |
 | B1 Team Galactic | Saturn beaten, `FLAG_TEAM_GALACTIC_LEFT_LAKE_VERITY` unset | Stock Galactic scene: Mars, grunts, Rowan, counterpart, Galactic music. Rowan notices the player on arrival (frame script 5) |
@@ -184,8 +189,9 @@ How it is gated (`LakeVerity_OnTransition`, which runs before objects are create
 - Saturn not beaten: `LakeVerity_SetEarlyState` sets the Galactic, Rowan and counterpart hide flags of the Galactic scene. The early objects keep their stock flags.
 - Saturn beaten: `LakeVerity_SetTeamGalacticState` sets the four early hide flags (as in stock, where those objects were on the other map), clears the Galactic scene's hide flags while Galactic has not left, and arms Rowan's notice.
 - Rowan's notice used to fire whenever `VAR_LAKE_VERITY_PROF_ROWAN_STATE == 0`, which would now include the intro. It is gated by `VAR_MAP_LOCAL_1` instead: set to 1 in `SetTeamGalacticState` if the state var is 0, cleared by the notice script. Map-local vars are zeroed on every map change before the transition script runs.
-- The frame table checks the roof landing (`VAR_ARC1_PROGRESS, 1, 10`), then the arrival (`VAR_ARC1_PROGRESS, 3, 13`), then the notice (`VAR_MAP_LOCAL_1, 1, 5`). `OnResume` (script 14) hides the player while `VAR_ARC1_PROGRESS == 1`.
-- `LakeVerity_OnTransition` always sets `FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS` and `_RIVAL`, and clears `_RIVAL` again (Barry) when `VAR_ARC1_PROGRESS == 3`.
+- The frame table checks the roof landing (`VAR_ARC1_PROGRESS, 1, 10`), then the arrival (`VAR_MAP_LOCAL_2, 1, 13`), then the return scene (`VAR_ARC1_PROGRESS, 7, 19`), then the notice (`VAR_MAP_LOCAL_1, 1, 5`). `OnResume` (script 14) hides the player while `VAR_ARC1_PROGRESS == 1`. The arrival is gated by a map-local var because state 3 lasts past the arrival (until the briefing): `OnTransition` arms `VAR_MAP_LOCAL_2` only on the first state-3 entry, and the arrival clears it.
+- `LakeVerity_OnTransition` always sets `FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS` and `_RIVAL`, then calls `LakeVerity_Arc1SetState*` for states 1, 3, 4 and 7, which clear them again and move the Arc 1 objects (see "Arc 1 scenes").
+- Continuing a save does not run `OnTransition`: the objects are restored as saved. A save made in state 3 (after the arrival) or state 4 restores the live cast, and the coord events keep working.
 - Hide flags set by `RemoveObject` (Cyrus, rival, the Galactic group after Mars) behave as in stock.
 
 Ported from LOW_WATER: the Cyrus, rival, early Rowan and early counterpart objects (appended as local ids 9-12, so ids 0-8 are unchanged), the Rowan/counterpart scripts with their used movements, and their text entries (appended to `lake_verity.json`, apostrophes made ASCII). The stock intro (the Mesprit sighting and cry and the first lakeside Cyrus) was later removed for Arc 1. Its script, movements and 8 messages are gone, and objects 9 (Cyrus) and 10 (the rival) are reused by the Arc 1 scenes.
@@ -194,48 +200,70 @@ Not ported: the two Starly objects (their hide flag is set in `scripts_init_new_
 
 ## Arc 1 scenes
 
-The text follows docs/arc1/screenplay.md, scene 6 (the arrival) and the Lake Verity part of the opening (the roof landing). All messages are `LakeVerity_Text_Arc1*` in `res/text/lake_verity.json`. Barry is `{STRVAR_1 3, 0, 0}` (`BufferRivalName 0`), the assistant is `{STRVAR_1 3, 2, 0}` (`BufferCounterpartName 2`).
+The text follows docs/arc1/revision/PLAN.md (scenes 3, 8, 9, 12-14) and the owner's script. All messages are `LakeVerity_Text_Arc1*` in `res/text/lake_verity.json`. Barry is `{STRVAR_1 3, 0, 0}` (`BufferRivalName 0`), the player `{STRVAR_1 3, 1, 0}` (`BufferPlayerName 1`), the assistant `{STRVAR_1 3, 2, 0}` (`BufferCounterpartName 2`).
 
 ### Objects
 
-| Local id | Object | Start | Hide flag |
+| Local id | Object | Event position | Hide flag |
 | --- | --- | --- | --- |
-| 9 `CYRUS` | Cyrus | (32,30) facing south | `FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS` |
-| 10 `RIVAL` | Barry | (47,52) facing north | `FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL` |
-| 13 `ARC1_PROF_ROWAN` | Rowan | (32,31) facing north | `FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS` |
-| 14 `ARC1_COUNTERPART` | the assistant (Dawn or Lucas, by player gender) | (33,31) facing north | `FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS` |
-| 15 `MAWILE_1`, 16 `MAWILE_2` | the Mawile | (33,28), (34,28) facing south | `FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS` |
-| 17 `BRIEFCASE` | Rowan's briefcase | (29,31) | `FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS` |
+| 9 `CYRUS` | Cyrus | (28,24) facing south (moved to (32,30) for the roof landing, (34,31) for the return) | `FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL` |
+| 10 `RIVAL` | Barry | (47,52) facing north (moved to (27,31) on a state-3 re-entry, (31,31) for the return) | `FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL` |
+| 13 `ARC1_PROF_ROWAN` | Rowan, script 17 | (31,31) facing north ((30,32) for the return) | `FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS` |
+| 14 `ARC1_COUNTERPART` | the assistant (Dawn or Lucas, by player gender), script 18 | (33,30) facing north ((36,30) for the return) | `FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS` |
 
-The two LOW_WATER hide flags are reused, so no new flags are needed. `_RIVAL` is Barry's, and `OnTransition` clears it in state 3 so he is waiting at the entrance. `_CYRUS` covers everything else, which the scripts add with `ClearFlag` + `AddObject` once the camera is on the terrace. (Objects created on the terrace at load, while the field is loaded around the entrance, stay undrawn until they first move, so the cast cannot be placed in advance.) Every object ends with `RemoveObject`, which sets its flag again.
+The two LOW_WATER hide flags are reused, so no new flags are needed. Barry and Cyrus share `_RIVAL` because they are on the terrace together in states 3 and 7 and both gone in state 4; Rowan and the assistant use `_CYRUS` (states 3, 4, 7). The Mawile and briefcase objects are gone (the starter pick and the Mawile battle moved into the Distortion World). `RemoveObject` sets an object's flag again.
+
+`LakeVerity_OnTransition` per state:
+- 1: Cyrus's event position becomes (32,30); the scene adds him with `ClearFlag _RIVAL` + `AddObject`.
+- 3, first entry: clears `_RIVAL` (Barry at the entrance) and arms the arrival. Cyrus is created too, on the terrace while the field is loaded around the entrance, where he would stay undrawn; the arrival removes him and adds him again after the pan, together with Rowan and the assistant (`ClearFlag _CYRUS` + `AddObject`).
+- 3, after the arrival: clears both flags; Barry goes to (27,31) facing west.
+- 4: clears `_CYRUS` (Rowan and the assistant).
+- 7: clears both flags and places the cast around (32,31).
 
 ### Roof landing (state 1)
 
 The player was warped to (32,31) on the terrace by the Distortion World flashback and is kept hidden, so the scene is Cyrus alone.
 1. White flash (SE `SYUWA`), then a camera shake with `WALL_HIT2`.
 2. Fade through white; Cyrus is added at (32,30) and looks west, east, then south.
-3. "...Where am I?", then two more lines.
-4. Slow fade out, `VAR_ARC1_PROGRESS = 2`, `Warp MAP_HEADER_TWINLEAF_TOWN_PLAYER_HOUSE_2F, 0, 4, 6, DIR_NORTH`.
+3. "...Where am I? / Is this a dream?", "This is not the Distortion World.", "Time flows here. Space holds its shape."
+4. He wanders: two steps west to look at the portal, then east and south to the parapet at (33,32). "A castle... on Lake Verity? / There was never a castle here.", then "The fall..." and "...Was I wrong?".
+5. Slow fade out, `VAR_ARC1_PROGRESS = 2`, `Warp MAP_HEADER_TWINLEAF_TOWN_PLAYER_HOUSE_2F, 0, 4, 6, DIR_NORTH`.
 
-### Arrival (state 3)
+### Arrival (state 3, first entry)
 
-Entry must be through the Lakefront warp so that `OnTransition` creates the cast. In normal play there is no save point inside Lake Verity in state 3.
 1. Barry, at (47,52), turns to the player and asks what's on the castle.
-2. A free camera pans from the entrance to the terrace (32,28): 16 north, 14 west, 10 north. From (47,54) it takes one extra step west first. Once the entrance is off screen, Barry and the player are moved to the foot of the stairs, (23,37) and (24,37). When the camera arrives, Cyrus, Rowan and the assistant are added.
-3. Rowan and the assistant ask Cyrus whether he came out of the portal. Cyrus: "I...".
-4. The first Mawile appears from the portal and jumps out, then the second. The portal closes with a white flash (`SetLakeVerityPortalHidden 1`).
-5. The chase: everyone runs laps of the terrace around the closed portal. Rowan drops the briefcase at (29,31).
-6. The camera pans to the landing while Barry and the player climb the stairs, x23-24 from z37 to z29.
-7. Rowan and the assistant run to the landing: "Out of the way, you two! ...". They run down the stairs and are removed. Cyrus and the Mawile run another lap.
-8. Barry: "Wh-what?! Wasn't that Professor Rowan?!" / "...Hey, look! That guy's getting chased around in circles!". The chasers end up cornered at (28,24)-(28,26). The player walks to (28,31) and Barry to (30,31), beside the briefcase.
-9. "We need to help that man. Let's use one of the Pokémon in this briefcase!" The stock starter selection follows (`GivePokemon` Lv 5), then Barry takes the counter starter: "Then I'll take this one! Let's go, (starter)!"
-10. A Mawile shows "!" and jumps at the player (to (28,30)); the other goes for Barry (30,30). `StartArc1MawileBattle` (wild Mawile Lv 3; losing continues without a whiteout), then `HealParty`.
-11. Both Mawile flee west and down the stairs and are removed. Barry: "Whew... The MAWILE I was battling ran off!"
-12. Cyrus walks slowly to (28,30) and says his four lines, then steps to (29,30) and says the last two. The briefcase is removed and Cyrus leaves down the stairs.
-13. Barry's closing line, then he runs off down the stairs.
-14. `VAR_ARC1_PROGRESS = 4`, `VAR_VISITED_LAKE_VERITY_WITH_RIVAL = 1`, `VAR_FOLLOWER_RIVAL_STATE = 4`. The player is free on the terrace. `VAR_UNK_0x4082` stays 1, so the Lakefront walk-in trigger stays off.
+2. A free camera pans from the entrance to the terrace (32,28): 16 north, 14 west, 10 north (one extra step west first from (47,54)). Once the entrance is off screen, Barry and the player are moved to the foot of the stairs, (23,37) and (24,37). Cyrus, Rowan and the assistant are added; the assistant glances at the portal.
+3. The camera pans back to the player (8 west, 9 south) and is restored. Barry: "That's Professor Rowan up there! ... Come on, up those stairs! Last one up owes me 10 million!" He runs up the stairs to (27,31).
+4. `VAR_VISITED_LAKE_VERITY_WITH_RIVAL = 1`. The player is free and climbs the stairs.
 
-All scene paths stay on the terrace ring (h4) around the portal footprint, the landing (x23-26, z29-31) and the stair column x23-24.
+### Castle-top briefing (state 3, coord event)
+
+The coord event covers the top stair landing row (23..24,30), so every way up the stairs crosses it.
+1. The player walks onto the terrace to (26,30). Rowan notices: "Hm? Children? This is no place for sightseeing!" Barry: "We saw you on the news, Professor! We came to help!"
+2. The assistant: the readings make no sense, "It's like the space in there doesn't sit still." Rowan: people panicked when the portal opened; helping them escape he dropped his briefcase and the portal swallowed it; three starter Pokemon are inside.
+3. Rowan turns to Cyrus: "Forgive me, I don't believe we've met. Are you hurt?" Cyrus: "...He doesn't know me. In this world, perhaps there is no reason he should."
+4. Barry: "We go in, grab the briefcase... you'll owe us starter Pokemon." Rowan: "Absolutely not! That world twists back on itself... It's no place to wander blind. I forbid it!"
+5. Cyrus walks over to (28,29): "...I came from that world. It is confusing, but I know its ways. If someone must go, I will go. I'll guide the way to the briefcase."
+6. Barry: "You heard him! Let's go!" He runs into the portal's west edge (29,28) and vanishes (SE + white flash). Rowan: "W-wait! Come back here!" Cyrus: "...Then there is no time to lose. I'll look after him." and follows him in.
+7. The assistant: "They're both inside!" Rowan: "That reckless boy...! And you! Don't even think about following them!" `VAR_ARC1_PROGRESS = 4`. The portal stays open.
+
+### Portal open (state 4)
+
+- Rowan (31,31) and the assistant (33,30) stay by the portal; talking to them gives one line each (scripts 17, 18).
+- Stairs: a coord event on (23..24,30) has the assistant call "W-wait! (Barry) is still in there! And the briefcase is in there, too..." and steps the player back north. The player can't leave the terrace without a starter.
+- Launchpad: any portal edge tile asks "The portal swirls, dark and deep. The briefcase is somewhere inside... Step into the portal?". No closes it. Yes: SE, fade, `ScrCmd_320` (the stock DW warp tunnel), `ReturnToField`, `VAR_ARC1_PROGRESS = 5`, `Warp MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS, 0, 20, 12, DIR_WEST` (the entry published by the Distortion World workstream).
+
+### Return scene (state 7)
+
+The Distortion World warps the player to (32,31) facing north; frame script 19 runs.
+1. Rowan, at (30,32), hurries to (32,32): "You're back! All of you... Thank goodness. You went in after I told you not to. Reckless... ...And brave." "(Player) handed the briefcase to Professor Rowan." "All three are safe... Very well. A deal is a deal - the starters are yours."
+2. The assistant (36,30): "Professor! Readings are dropping, it's closing!" Everyone faces the portal; white flash and `SetLakeVerityPortalHidden 1`.
+3. Rowan: "...It's gone. Come, (assistant). We have a great deal of data to go over." Rowan and the assistant walk along z32 to the landing and down the stairs, and are removed.
+4. Cyrus steps to (33,31): "You two... You remind me of somebody I knew before. They had this fire within them. Take it to Rowan when he's ready to listen. ...Maybe this will help you out." `GiveItemQuantity` `ITEM_ECLIPSE_SHARD` x1 (key item). He leaves the same way.
+5. Barry: "Woof! Perfect timing on our part. I'm still not sure what to make of that guy... And man, he is wearing some weird clothing. Whatever. I'm heading home to heal my Pokemon." He runs off.
+6. `VAR_ARC1_PROGRESS = 8`, `VAR_VISITED_LAKE_VERITY_WITH_RIVAL = 1`, `VAR_FOLLOWER_RIVAL_STATE = 4`. The player is free; the stairs are open.
+
+All scene paths stay on the terrace (h4) around the portal footprint, the landing (x23-25, z29-30) and the stair column x23-24.
 
 ### LOW_WATER is kept but unreachable
 
@@ -246,8 +274,10 @@ A save made while standing in LOW_WATER still loads the stock lake; leaving thro
 ## In-game test steps
 
 Story visits (new game, or saves at each point):
-- **Roof landing (Arc1 state 1).** Start a new game. After the Distortion World flashback you land on the terrace. The flash, shake, Cyrus's look-around and his three lines should play with the player hidden, then fade to the bedroom.
-- **Arrival (Arc1 state 3).** After the Twinleaf scenes, walk to Lake Verity with Barry. The arrival scene should play through to the end with no softlock and nobody walking through walls. The portal should vanish when it closes. Afterwards, walk around the terrace, face the portal area and press A (nothing should happen), leave and re-enter (no scene).
+- **Roof landing (Arc1 state 1).** Start a new game. After the Distortion World flashback you land on the terrace. The flash, shake, Cyrus's look-around, his wander to the parapet and his lines should play with the player hidden, then fade to the bedroom.
+- **Arrival and briefing (Arc1 state 3).** After the Twinleaf scenes, walk to Lake Verity with Barry. The arrival should end with the player at the foot of the stairs and Barry on the terrace. Climb the stairs: the briefing plays at the top and ends with Barry and Cyrus gone into the portal. The portal stays open. Leaving and re-entering before the briefing should not replay the arrival.
+- **Portal open (Arc1 state 4).** Try to go down the stairs: the assistant stops you. Talk to Rowan and the assistant. Face the portal and press A: No closes the prompt, Yes plays the warp tunnel into the Distortion World puzzle map. Save, reset and continue: the cast and the stair block are still there.
+- **Return (Arc1 state 7).** Coming back from the Distortion World, the return scene plays: briefcase, portal closes, Rowan and the assistant leave, Cyrus gives the Eclipse Shard and leaves, Barry leaves. Afterwards the portal is gone, its edge does nothing, and the stairs are open.
 - **After the arrival (A2).** Walk out and back in, now and again later. The lake should be empty, lake music, no scene. The castle doors work but the interiors are empty (Mesprit is hidden until the post-game).
 - **After Canalave (A3).** Rowan and the counterpart should stand at (48,43)/(49,43) facing the lake. Talk to Rowan twice (first and repeat lines) and to the counterpart (Dawn or Lucas text by player gender).
 - **Team Galactic (B1).** After beating Saturn in Valor Cavern, enter: Galactic music, grunts, Mars, Rowan steps south and says "What timing!" once. Leave and re-enter: he should not repeat it. The early Rowan/counterpart should be gone. Beat Mars as in stock.
@@ -282,7 +312,7 @@ Castle checks:
   - The early lake now uses `encounters_lake_verity` instead of `encounters_lake_verity_low_water`. They differ in one night slot (Starly instead of Bidoof).
   - Ported text keeps stock wording ("The lake hasn't changed at all", "legendary Pokemon of the lake bed").
   - Old saves standing inside LOW_WATER load the stock lake once (see above).
-- **Distortion World entry.** The Distortion World 1F frame script runs its story intro while `VAR_DISTORTION_WORLD_PROGRESS == 0`. Entering early through the launchpad would play that scene out of order. There is also no way back to Lake Verity except the stock DW exits to Spear Pillar. Keep the flag off until the story is designed.
+- **Distortion World entry.** The Arc 1 entry (state 4) goes to the Arc 1 puzzle map, not DW 1F. The non-Arc 1 branch (`FLAG_LAKE_VERITY_PORTAL_OPEN`) still warps to stock DW 1F, whose frame script runs its story intro while `VAR_DISTORTION_WORLD_PROGRESS == 0`; keep that flag off until that story is designed.
 - **Portal prop.** Untested in game: that area 0x4D loads (texture binding of model 581 to texset 71 is GF_ASSERTed), that the prop draws at the right height and spins, and that the portal plus the castle stay within the per-frame polygon and texture budgets on hardware.
 - **Flag choice.** `FLAG_LAKE_VERITY_PORTAL_OPEN` reuses system flag 2420, which is unused in stock (`FLAG_UNUSED_2420`) and not referenced anywhere in the repo.
 - **Location label.** The label change means Verity Cavern now shows "Verity Castle" in the map popup, journal and TV.
