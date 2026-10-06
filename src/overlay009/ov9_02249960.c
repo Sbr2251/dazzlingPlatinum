@@ -99,9 +99,8 @@
 #define ARC1_SEAMS_SCRIPT_HINT            4 // map script entries (1-based)
 #define ARC1_SEAMS_SCRIPT_FORK            5
 #define ARC1_SEAMS_SCRIPT_BRIEFCASE       6
-#define ARC1_SEAMS_SCRIPT_ALCOVE_ITEM     7
-#define ARC1_SEAMS_SCRIPT_TALK_CYRUS      8
-#define ARC1_SEAMS_SCRIPT_TALK_BARRY      9
+#define ARC1_SEAMS_SCRIPT_TALK_CYRUS      7
+#define ARC1_SEAMS_SCRIPT_TALK_BARRY      8
 #define ARC1_SEAMS_FORK_TILE_X            11 // on the wall: the seam splits here (alcove east along the top, exit down)
 #define ARC1_SEAMS_FORK_TILE_Y            4
 #define ARC1_SEAMS_FORK_TILE_Z            19
@@ -13416,7 +13415,7 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsBriefcase = {
     },
 };
 
-// Cyrus, ghost-faded in beside the player at the briefcase.
+// Cyrus drops onto the west end of the landing, then walks over to the player.
 static const UnkStruct_ov9_0224EF30 sArc1SeamsCyrusAtBriefcase = {
     11,
     ARC1_SEAMS_HINTS_BRIEFCASE,
@@ -13429,19 +13428,19 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsCyrusAtBriefcase = {
         0x0,
         0x0,
         ARC1_SEAMS_SCRIPT_TALK_CYRUS,
-        DIR_SOUTH,
+        DIR_EAST,
         0x0,
         0x0,
         0x0,
         0x0,
         0x0,
-        15,
-        22,
+        12,
+        23,
         ((1 << 4) * FX32_ONE),
     },
 };
 
-// Barry, ghost-faded in beside the player at the briefcase.
+// Barry drops onto the east end of the landing, then steps west to his mark.
 static const UnkStruct_ov9_0224EF30 sArc1SeamsBarryAtBriefcase = {
     11,
     ARC1_SEAMS_HINTS_BRIEFCASE,
@@ -13454,40 +13453,15 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsBarryAtBriefcase = {
         0x0,
         0x0,
         ARC1_SEAMS_SCRIPT_TALK_BARRY,
-        DIR_NORTH,
+        DIR_WEST,
         0x0,
         0x0,
         0x0,
         0x0,
         0x0,
-        15,
+        16,
         24,
         ((1 << 4) * FX32_ONE),
-    },
-};
-
-// 5 Poke Balls at the dead end of the alcove seam, standing on the west wall (rotated like the B2F wall NPC).
-static const UnkStruct_ov9_0224EF30 sArc1SeamsAlcoveItem = {
-    0x0,
-    0x0,
-    0x1,
-    0x5A,
-    {
-        0x87,
-        OBJ_EVENT_GFX_POKEBALL,
-        0x0,
-        0x0,
-        FLAG_ARC1_DW_ALCOVE_ITEM,
-        ARC1_SEAMS_SCRIPT_ALCOVE_ITEM,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        11,
-        21,
-        ((4 << 4) * FX32_ONE),
     },
 };
 
@@ -13499,7 +13473,6 @@ static const UnkStruct_ov9_0224EF30 *sArc1SeamsObjects[] = {
     &sArc1SeamsBriefcase,
     &sArc1SeamsCyrusAtBriefcase,
     &sArc1SeamsBarryAtBriefcase,
-    &sArc1SeamsAlcoveItem,
     NULL
 };
 

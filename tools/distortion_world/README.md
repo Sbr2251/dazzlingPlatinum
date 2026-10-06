@@ -17,7 +17,7 @@ ever moves.
 Wall grid (west wall x=11, z 13-22, y 2-4; `.` = seam):
 
     y5  ##########
-    y4  ##.......#   fork at z=19; alcove (5 Poke Balls) at z=21
+    y4  ##.......#   fork at z=19; alcove (empty dead end) at z=21
     y3  #..###.###
     y2  ..####....   on at z=13 (from the ledge 12,14), off at z=22 (to 12,23)
 

@@ -17,7 +17,6 @@
 #define LOCALID_BRIEFCASE       0x84
 #define LOCALID_CYRUS_CASE      0x85
 #define LOCALID_BARRY_CASE      0x86
-#define LOCALID_ALCOVE_ITEM     0x87
 
 #define ENTRY_X 20
 #define ENTRY_Z 12
@@ -28,7 +27,6 @@
     ScriptEntry DistortionWorldArc1Seams_SeamHint
     ScriptEntry DistortionWorldArc1Seams_Fork
     ScriptEntry DistortionWorldArc1Seams_Briefcase
-    ScriptEntry DistortionWorldArc1Seams_AlcoveItem
     ScriptEntry DistortionWorldArc1Seams_TalkCyrus
     ScriptEntry DistortionWorldArc1Seams_TalkBarry
     ScriptEntryEnd
@@ -152,15 +150,27 @@ DistortionWorldArc1Seams_Briefcase:
     GoToIfGe VAR_ARC1_DW_HINTS, 3, DistortionWorldArc1Seams_End
     LockAll
     SetVar VAR_ARC1_DW_HINTS, 3
-    // Cyrus and Barry ghost-fade over from the entry
+    // Cyrus and Barry climbed down after the player: they drop onto the landing and walk over
     PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
     ScrCmd_312 LOCALID_CYRUS_ENTRY
     ScrCmd_312 LOCALID_BARRY_ENTRY
     ScrCmd_311 LOCALID_CYRUS_CASE
     ScrCmd_311 LOCALID_BARRY_CASE
-    WaitTime 20, VAR_RESULT
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    ApplyMovement LOCALID_CYRUS_CASE, DistortionWorldArc1Seams_Movement_CyrusDropIn
+    ApplyMovement LOCALID_BARRY_CASE, DistortionWorldArc1Seams_Movement_BarryDropIn
+    WaitMovement
+    Message DistortionWorldArc1Seams_Text_CyrusWeFollowedYourSeam
+    WaitABXPadPress
+    CloseMessage
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
     CallIfLt VAR_0x8004, 15, DistortionWorldArc1Seams_StepToCase
+    ApplyMovement LOCALID_CYRUS_CASE, DistortionWorldArc1Seams_Movement_CyrusWalkToPlayer
+    ApplyMovement LOCALID_BARRY_CASE, DistortionWorldArc1Seams_Movement_BarryWalkToMark
+    WaitMovement
     ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_FaceEast
     WaitMovement
     Message DistortionWorldArc1Seams_Text_CyrusThereRowansCase
@@ -254,28 +264,6 @@ DistortionWorldArc1Seams_StepToCase:
     ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_PlayerStepToCase
     WaitMovement
     Return
-
-// The Poke Balls at the dead end of the alcove seam (DW overlay object, hidden by FLAG_ARC1_DW_ALCOVE_ITEM).
-DistortionWorldArc1Seams_AlcoveItem:
-    PlayFanfare SEQ_SE_CONFIRM
-    LockAll
-    WaitFanfare SEQ_SE_CONFIRM
-    SetVar VAR_0x8004, ITEM_POKE_BALL
-    SetVar VAR_0x8005, 5
-    CanFitItem VAR_0x8004, VAR_0x8005, VAR_RESULT
-    GoToIfEq VAR_RESULT, FALSE, DistortionWorldArc1Seams_AlcoveItemBagFull
-    SetFlag FLAG_ARC1_DW_ALCOVE_ITEM
-    ScrCmd_312 LOCALID_ALCOVE_ITEM
-    GiveItemQuantity
-    CloseMessage
-    ReleaseAll
-    End
-
-DistortionWorldArc1Seams_AlcoveItemBagFull:
-    MessageBagIsFull
-    CloseMessage
-    ReleaseAll
-    End
 
 DistortionWorldArc1Seams_TalkCyrus:
     LockAll
@@ -390,8 +378,32 @@ DistortionWorldArc1Seams_Movement_PlayerStartled:
     EndMovement
 
     .balign 4, 0
+DistortionWorldArc1Seams_Movement_CyrusDropIn:
+    FaceEast
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldArc1Seams_Movement_BarryDropIn:
+    FaceWest
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldArc1Seams_Movement_CyrusWalkToPlayer:
+    WalkNormalEast 2
+    WalkOnSpotNormalEast
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldArc1Seams_Movement_BarryWalkToMark:
+    WalkNormalWest
+    WalkOnSpotNormalNorth
+    EndMovement
+
+    .balign 4, 0
 DistortionWorldArc1Seams_Movement_CyrusPickUpShard:
-    WalkNormalEast
+    WalkOnSpotNormalEast
     FaceSouth
     Delay16
     FaceWest
@@ -400,5 +412,5 @@ DistortionWorldArc1Seams_Movement_CyrusPickUpShard:
     .balign 4, 0
 DistortionWorldArc1Seams_Movement_PlayerWatchCyrus:
     Delay16
-    FaceNorth
+    FaceWest
     EndMovement

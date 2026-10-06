@@ -143,6 +143,13 @@
         "Cyrus: Stay near me.\n",
         "The rift will not stay open long."
       ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusWeFollowedYourSeam",
+      "en_US": [
+        "Cyrus: We came down after you.\n",
+        "The seam held us, too.\r"
+      ]
     }
   ]
 }

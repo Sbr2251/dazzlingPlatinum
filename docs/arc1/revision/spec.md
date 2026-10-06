@@ -25,7 +25,7 @@ disagree.
    scaled by about 1/1.7.
 9. Puzzle: **Phase 0 / fallback first** (a new standalone DW map cloned from B1F, with the wall grid edited for
    the fork). Phase 1 custom terrain is out of scope for this pass.
-10. Alcove item = 5 Poke Balls (a standard ground item, quantity 5, hidden flag `FLAG_ARC1_DW_ALCOVE_ITEM`).
+10. No alcove item: the dead-end alcove stays walkable but holds nothing, so the player has no Poke Balls before the Mawile fight and cannot catch it.
 11. The player chooses to go in: Rowan forbids the kids; Cyrus volunteers; Barry runs into the portal before
     anyone can stop him; the player steps in via the launchpad Yes/No.
 
@@ -36,7 +36,7 @@ disagree.
 | `VAR_ARC1_PROGRESS` | ladder below |
 | `VAR_ARC1_DW_HINTS` (was `VAR_UNUSED_0x406D`) | DW puzzle hint/idle bookkeeping; DW workstream defines values |
 | `VAR_ARC1_DW_FALLS` (was `VAR_UNUSED_0x406E`) | DW fall counter (0 = Barry's demo fall not yet played) |
-| `FLAG_ARC1_DW_ALCOVE_ITEM` (was `FLAG_UNUSED_2448`) | hidden flag of the alcove Poke Balls |
+| `FLAG_UNUSED_2448` (was `FLAG_ARC1_DW_ALCOVE_ITEM`, removed with the alcove Poke Balls) | spare; ask the lead before using |
 | `FLAG_LAKE_VERITY_PORTAL_HIDDEN` | unchanged |
 
 Spare, ask the lead before using: `VAR_UNUSED_0x406F`, `VAR_UNUSED_0x4031`, `FLAG_UNUSED_2449`, `FLAG_UNUSED_2421`.
