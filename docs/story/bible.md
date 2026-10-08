@@ -60,8 +60,8 @@ world. He's the only person here who remembers the other Sinnoh, apart from the 
   built in ancient times for Dialga.
 - **The old Lake Valor site is the Valor Basin (PROPOSED):** a dry lakebed beside Valor Lakefront. Locals say
   it drained years ago in a research accident. It was really Eclipse's first torture experiment: the portal
-  it tore open swallowed the lake into the Distortion World and killed Garius's father, who had come to stop it. He fought Eclipse and was against all of their work. Valor Lakefront has a memorial plaque listing the researchers who died, his father
-  among them.
+  it tore open swallowed the lake into the Distortion World and killed Garius's father, who had come to stop it. He fought Eclipse and was against all of their work. Valor Lakefront has a memorial plaque; one of the names is "Elias, of Twinleaf
+  Town."
 - **Umbral Palace (NEEDS DESIGN):** Giratina's home deep under Mt. Coronet, past the molten depths, where the
   Distortion World portal is. The third ancient palace: Verity (Palkia), Valor (Dialga), Umbral (Giratina).
 - **Shards** (also called crystals; same thing). Eclipse tortures Pokemon at hidden sites all over Sinnoh.
@@ -86,7 +86,7 @@ A new character, not Lucas. The player can pick a girl or a boy and names them; 
 screenplay name. No in-game line should assume the player's gender.
 
 ### Garius (rival)
-- His **father is dead**. It's never said outright at first. The hints escalate (see `secrets.md`, track G).
+- His **father, Elias, is dead**. It's never said outright at first. The hints escalate (see `secrets.md`, track G).
 - **His father fought Team Eclipse** and was against all of their work. He died at the Valor Basin trying to
   stop their first experiment. Darren and Cyrus learn this from Indra after Gym 8. Garius has spent the game
   helping the people his father died fighting.
@@ -194,9 +194,9 @@ an uneasy alliance with no single boss.
 
 | Name | Loss | Legendary | Logic |
 |---|---|---|---|
-| **Saros** (an eclipse cycle; history repeating) | his daughter | Dialga | Rewind time to before she died. |
-| **Kahn** | his partner Pokemon | Palkia | Reach a parallel world where it still lives. |
-| **Indra** (woman) | her brother | Giratina | Pull him back out of the world of the dead. |
+| **Saros** (an eclipse cycle; history repeating) | his daughter, Mira (she'd have turned nine) | Dialga | Rewind time to before she died. |
+| **Kahn** | his partner, a Lucario raised from a Riolu; it fell from a sea cliff in a storm, protecting him | Palkia | Reach a parallel world where it still lives. |
+| **Indra** (woman) | her brother, Teo | Giratina | Pull him back out of the world of the dead. |
 
 - Each leader gets one scene the player sees and Darren doesn't, showing their loss, so the player understands
   them before Darren does.
@@ -242,5 +242,5 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
 
 ## Open questions (top priority first)
 
-1. Names: Garius's father, Saros's daughter, and Kahn's partner Pokemon (species, and how it died).
-2. Arc 2 is fully drafted (parts 1 to 3). Next: Arc 3.
+1. None big. The full story is drafted: Arc 1 (built part plus `arc1_part2_screenplay.md`), Arc 2 (parts 1 to 3)
+   and Arc 3 (`arc3_screenplay.md`). Next: the owner's edits, then implementation.

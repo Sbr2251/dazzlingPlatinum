@@ -20,7 +20,7 @@ Rule: every plant needs a payoff. "?" means not decided yet. Facts live in `bibl
 | S5 | Garius's father is dead | Act 1 (Mom, optional), sharper with each act | Through the same hints | Garius always knows |
 | S5b | Garius's father fought Eclipse and died stopping their first experiment | Indra tells Darren and Cyrus, after Gym 8 | Same moment | Garius: Cyrus tells him on Route 223; he refuses to believe it, then accepts it after losing |
 | S9 | The shards burn out whoever uses them | Right after Giratina's capture, when Saros and Kahn fall | Same | Garius believes he's the exception |
-| S10 | Garius is Eclipse's informant (recruited soon after Cyrus's Jubilife confession) | The arc before the climax: Garius reveals himself | Same | Cyrus is blamed until then |
+| S10 | Garius is Eclipse's informant (recruited soon after Cyrus's Jubilife confession) | Start of Arc 3 (scene 3.2): Garius reveals himself | Same | Cyrus is blamed until then |
 | S6 | Each Eclipse leader's loss (daughter, partner Pokemon, brother) | Each leader's cutaway scene | When confronting each leader | - |
 | S7 | Lucas is who Cyrus is reminded of | Act 1 return scene | Never? | - |
 | S11 | Cyrus has no record anywhere in this world | Always (he's from another world) | Looker, in Veilstone: "This man does not exist." Read as sinister | Feeds the leak suspicion |
@@ -45,9 +45,9 @@ Rule: every plant needs a payoff. "?" means not decided yet. Facts live in `bibl
 | G1 | Act 1, Garius's mom (optional talk) | Something warm that hints at the absence, e.g. "He's got his father's habit of running off before anyone can stop him." The past tense is the hint. |
 | G2 | Act 2-3, Garius's house | A detail on the map: a photo, an empty chair, a third mug. |
 | G3 | Arc 2, the Jubilife confession | Garius slips: "Some of us have actually lost-", then cuts himself off. |
-| G3b | Valor Basin, near Pastoria (Arc 2) | Garius stops at the fence and goes quiet. The memorial plaque lists his father's name for players who read it. |
+| G3b | Valor Basin, near Pastoria (scene 2.20) | Garius at the fence: "...Don't. Just don't, okay?" The plaque lists "Elias, of Twinleaf Town." |
 | G4 | Celestic Town (scene 2.15) | "It's easy to tell people to let go when you've never lost anything." The elder: "What have you lost?" Garius: "...Nothing." Also a leak clue in hindsight. |
-| G5 | ? | Garius learns what an Eclipse leader lost and sees himself in it. |
+| G5 | Arc 3, the clockwork palace (scene 3.3) | Saros: "I want one morning back. Is that so much?" Garius, quietly: "It's not." |
 | G6 | After Gym 8 | Indra tells Darren and Cyrus that his father fought Eclipse. Garius doesn't know. |
 | G7 | Route 223 | Cyrus tells Garius before the battle. He refuses to believe it and battles anyway. Payoff after he loses: he realizes he's betrayed what his father stood for. |
 

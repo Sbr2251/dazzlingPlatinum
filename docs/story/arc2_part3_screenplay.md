@@ -33,11 +33,11 @@ Claude's draft, mirrored in the "Arc 2 Screenplay" tab of the story doc. Continu
 ## Scene 2.19: Cutaway: Kahn
 
 - *Darren isn't in this scene. Night, on a cliff over the sea. Kahn alone, holding an empty Poke Ball.*
-- **Kahn:** "Seven years today."
+- **Kahn:** "Seven years today, Lucario."
 - **Kahn:** "Everyone says, "There's no world where you come back.""
 - **Kahn:** "But there is. Somewhere, there's a world where you didn't fall. Where you're still waiting for me to come home."
 - **Kahn:** "Palkia can take me there. I just need enough shards to hold it."
-- > Note: Kahn's own scene: his loss, shown to the player only. OPEN: which Pokemon his partner was, and how it died.
+- > Note: Kahn's own scene, shown to the player only. His partner was a Lucario he raised from a Riolu. Seven years ago it fell from a sea cliff during a storm, protecting him.
 
 ## Scene 2.20: Pastoria City, Gym 4, and the Valor Basin
 
@@ -47,8 +47,8 @@ Claude's draft, mirrored in the "Arc 2 Screenplay" tab of the story doc. Continu
 - *Garius is at the fence, staring at the basin. He doesn't notice anyone at first.*
 - **Garius:** "...Don't. Just don't, okay?"
 - *He leaves.*
-- *Optional: the memorial plaque at the overlook: IN MEMORY OF THOSE LOST IN THE VALOR BASIN COLLAPSE. A list of names. One of them shares Garius's family name. [OPEN: the father's name.]*
-- > Note: Hint G3b, and the strongest so far: players who read the plaque can connect it to Garius.
+- *Optional: the memorial plaque at the overlook: IN MEMORY OF THOSE LOST IN THE VALOR BASIN COLLAPSE. A list of names. One of them: ELIAS, OF TWINLEAF TOWN.*
+- > Note: Hint G3b, and the strongest so far: a man from Twinleaf, right where Garius was standing. Players who read the plaque can connect it to him.
 
 ## Scene 2.21: Route 213, Looker's proof (leak L3)
 
@@ -93,10 +93,10 @@ Claude's draft, mirrored in the "Arc 2 Screenplay" tab of the story doc. Continu
 - *Gym 5: Fantina. The player earns the Relic Badge.*
 - **Fantina:** "Ze Lost Tower, on Route 209... it is a place for ze dead to rest. But now it cries. Even ze ghosts are afraid. Please, mon ami. Go and listen."
 - *Cutaway: Darren isn't in this part. The Lost Tower, top floor. Saros kneels at a small grave with fresh flowers.*
-- **Saros:** "Happy birthday, sweetheart. Nine today."
+- **Saros:** "Happy birthday, Mira. You'd have been nine today."
 - **Saros:** "Dialga can give me back one morning. The morning before. That's all I want. Just one morning."
 - *He stands, looks down the stairs toward the floor where his grunts are working, and leaves without looking back.*
-- > Note: Saros's own scene: his daughter. Eclipse's site is in the same tower as her grave. OPEN: her name.
+- > Note: Saros's own scene: his daughter, Mira. Eclipse's site is in the same tower as her grave.
 
 ## Scene 2.25: The Lost Tower rift: alone, and the first shard deposit
 
