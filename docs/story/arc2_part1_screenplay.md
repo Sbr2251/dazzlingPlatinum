@@ -127,16 +127,5 @@ protagonist apart from Yes/No choices. Lines marked Note, and bracketed asides, 
 - > Note: Clue in hindsight: the grunts fled north toward Floaroma, and Garius walks in from Floaroma soon after.
 - > Note: Ruth's line explains the badge half of the field-power rule for the player.
 
-## The rest of Arc 2 (scene cards, to draft next)
-
-1. **Floaroma and Valley Windworks:** The Windworks becomes an Eclipse site. Leak L1: by the time the group arrives, it's been packed up an hour earlier. The machine marks are still on the floor.
-2. **Eterna Forest:** The Vespiquen totem rift and puzzle, with Cyrus guiding. Field power: cut trees.
-3. **Eterna City: Gym 2, then the Eclipse Haven (side plot):** After Gym 2, Gardenia asks for help. The old Galactic building is the Eclipse Haven, a shelter where Team Eclipse takes in Pokemon whose trainers have died. Gardenia brought Pokemon there herself, but none have ever been adopted, and she isn't allowed to visit. Inside, the janitor is Looker, undercover ("I am Looker. International Police. ...You did not hear that."). The kennels are empty. Shipping manifests list crates sent to Ravaged Path, Eterna Forest and Route 214. Ruth: those are her rift readings. Looker: "Pokemon go in. Crates go out. And wherever the crates go, a rift tears open." Double battle: Darren and Gardenia against the Haven's staff. The last few Pokemon in the back room are rescued, and the Haven is shut down. Looker: "This is bigger than one building."
-4. **Mt. Coronet crossing (Route 211):** First look at the sealed-off heat below. Cyrus stops and won't say why.
-5. **Celestic Town:** Grandma's warning and the legend of the guide. Garius brushes it off a little too hard, beside an Eclipse leader (Saros). Battle 2 with Cyrus: shaken by the legend. Rowan's turn deepens: someone came back, and the legend says it happens for a reason.
-6. **Veilstone City and Route 214:** Gym 3 (Maylene). The Skarmory totem: field power Fly. Kahn's own scene: his lost partner Pokemon. Looker ran a check on Cyrus: no birth record, no trainer ID, no history anywhere. "This man does not exist." The player knows why. Suspicion of Cyrus grows. Leak L2.
-7. **Pastoria City, the Valor Basin, Route 213:** Gym 4 (Crasher Wake). Garius goes quiet at the Basin fence, and the memorial plaque has his father's name (G3b). Looker's proof: he leads Darren to a live Eclipse site on Route 213. A Pokemon is held in the frame, and a rift is starting to tear open around it. They stop it and save the Pokemon, but a Lapras already pulled through is now a totem: field power Surf. Looker's evidence goes to Rowan, and Rowan rejects the whole idea: "I was starting to believe it could be done. Not like this." Leak L3, the worst yet.
-8. **Hearthome City and the Lost Tower:** Gym 5 (Fantina). The Spiritomb totem: field power Defog. Saros's own scene: his daughter.
-9. **The confrontation:** After the worst leak, Darren confronts Cyrus: battle 3 ("Words prove nothing. Judge me the way trainers do."). Cyrus goes into the Distortion World alone.
-10. **The search and the clearing leak:** Darren searches for Cyrus and finds the first shard deposit. Darren tells only Rowan and Garius. Eclipse learns of it while Cyrus is still lost in there, which clears him. Darren finds Cyrus and brings him out. End of Arc 2.
+Continues in `arc2_part2_screenplay.md`.
 

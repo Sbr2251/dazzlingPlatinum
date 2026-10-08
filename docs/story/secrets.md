@@ -46,7 +46,7 @@ Rule: every plant needs a payoff. "?" means not decided yet. Facts live in `bibl
 | G2 | Act 2-3, Garius's house | A detail on the map: a photo, an empty chair, a third mug. |
 | G3 | Arc 2, the Jubilife confession | Garius slips: "Some of us have actually lost-", then cuts himself off. |
 | G3b | Valor Basin, near Pastoria (Arc 2) | Garius stops at the fence and goes quiet. The memorial plaque lists his father's name for players who read it. |
-| G4 | Celestic Town (after Gym 2, Arc 2) | He brushes off grandma's warning a little too hard, alongside an Eclipse leader. Also a leak clue in hindsight. |
+| G4 | Celestic Town (scene 2.15) | "It's easy to tell people to let go when you've never lost anything." The elder: "What have you lost?" Garius: "...Nothing." Also a leak clue in hindsight. |
 | G5 | ? | Garius learns what an Eclipse leader lost and sees himself in it. |
 | G6 | After Gym 8 | Indra tells Darren and Cyrus that his father fought Eclipse. Garius doesn't know. |
 | G7 | Route 223 | Cyrus tells Garius before the battle. He refuses to believe it and battles anyway. Payoff after he loses: he realizes he's betrayed what his father stood for. |
@@ -73,7 +73,9 @@ Rules for a fair twist:
 | Stage | Where | Leak | Points to Cyrus | Points to Garius |
 |---|---|---|---|---|
 | L0 | Arc 2, Ravaged Path (scene 2.5) | Grunts are waiting at the rift: "Right on time. Just like we were told." They recognize Cyrus. | He just confessed, and they know him | He heard the plan before storming out; the grunts know Cyrus only as "the one who walked out"; the grunts flee toward Floaroma and Garius walks in from Floaroma |
-| L1 | Arc 2, Valley Windworks | The Eclipse site was packed up an hour before the group arrived | Cyrus went ahead alone | Garius knew the route |
+| L1 | Arc 2, Valley Windworks (scene 2.9) | The site was packed up an hour before the group arrived, after "a call" | Cyrus scouted alone that night and was at the fence | Garius heard Ruth's plan in Floaroma and left that night |
+| (no leak) | Arc 2, the Eclipse Haven (scene 2.12) | Eclipse is caught off guard; the cutaway says "our friend wasn't told" | Cyrus was right outside the Haven | Garius had already left town. The one raid he didn't know about is the one that worked |
+| L1b | Arc 2, Celestic (scene 2.15) | Saros is waiting at the shrine | Cyrus is the one the legend is about | Garius knew Rowan's meeting place; Saros and Garius talk like they already know each other |
 | L2-L3 | Veilstone, Pastoria | OPEN (L3 is the worst yet, and triggers the confrontation) | | |
 | L-clear | End of Arc 2 | Darren finds the first shard deposit while searching for Cyrus and tells only Rowan and Garius. Eclipse learns of it anyway | Cleared: he was lost in the Distortion World | Only one left |
 | Reveal | Start of Arc 3 | Garius admits it, then helps capture Dialga and Palkia | Cleared | Confirmed |
