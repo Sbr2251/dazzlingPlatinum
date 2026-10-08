@@ -58,7 +58,7 @@ world. He's the only person here who remembers the other Sinnoh, apart from the 
   built in ancient times for Dialga.
 - **The old Lake Valor site is the Valor Basin (PROPOSED):** a dry lakebed beside Valor Lakefront. Locals say
   it drained years ago in a research accident. It was really Eclipse's first torture experiment: the portal
-  it tore open swallowed the lake into the Distortion World and killed Garius's father, a researcher there. Valor Lakefront has a memorial plaque listing the researchers who died, his father
+  it tore open swallowed the lake into the Distortion World and killed Garius's father, who had come to stop it. He fought Eclipse and was against all of their work. Valor Lakefront has a memorial plaque listing the researchers who died, his father
   among them.
 - **Umbral Palace (NEEDS DESIGN):** Giratina's home deep under Mt. Coronet, past the molten depths, where the
   Distortion World portal is. The third ancient palace: Verity (Palkia), Valor (Dialga), Umbral (Giratina).
@@ -85,9 +85,9 @@ screenplay name. No in-game line should assume the player's gender.
 
 ### Garius (rival)
 - His **father is dead**. It's never said outright at first. The hints escalate (see `secrets.md`, track G).
-- **His father died in one of Eclipse's early experiments.** Darren finds out in the Distortion World during
-  the race for Giratina (records at an old Eclipse experiment site), too late to warn Garius. Garius only
-  learns after the final battle that he's been helping the people who killed his father.
+- **His father fought Team Eclipse** and was against all of their work. He died at the Valor Basin trying to
+  stop their first experiment. Darren and Cyrus learn this from Indra after Gym 8. Garius has spent the game
+  helping the people his father died fighting.
 - Admires Team Eclipse from his very first line ("Man, that Team Eclipse really is something").
 - Brushes off the warning from Cynthia's grandma in Celestic Town.
 - **Drifts in the open, spies in secret.** On the surface, Darren and the player watch him slip (arguments,
@@ -103,10 +103,12 @@ screenplay name. No in-game line should assume the player's gender.
   player stops him on Route 223 after Gym 8, before Victory Road, as the last remaining member of Team
   Eclipse.
 - **Final battle:** the player, with Giratina, against Garius, with Dialga and Palkia.
-- **Redeemed.** Afterward he learns the truth about his father, and Cyrus gets through to him.
-- **Why the player faces him:** word reaches the player that Garius is about to use Dialga and Palkia to bring
-  his father back, and the player goes to stop him with Giratina. PROPOSED: Indra is the one who warns the
-  player: the leader who let go of her brother, warning about the one who won't let go of his father.
+- **Why the player faces him:** after Gym 8, Indra finds Darren and Cyrus. She warns them Garius is about to
+  use Dialga and Palkia to bring his father back, and tells them the truth about his father. She's the leader
+  who let go of her brother, warning about the one who won't let go of his father.
+- **Redeemed.** On Route 223, Cyrus tells Garius the truth. Garius doesn't believe it for a second and battles
+  anyway. Only after he's defeated does he realize that what he's doing is everything his father stood
+  against.
 
 ### Cyrus (from mainline Platinum)
 - **A good guy in this story.**
@@ -211,18 +213,18 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
      falls** at the castle.
    - **Gym 7,** while Eclipse uses the shards to find where Giratina can be summoned.
    - **The race for Giratina** through the molten depths of Mt. Coronet to the **Umbral Palace**, guided by
-     Cyrus. Darren finds the
-     records about Garius's father. Indra's closure. The player **catches Giratina**. The shards burn out
+     Cyrus. Indra's closure. The player **catches Giratina**. The shards burn out
      Saros and Kahn; Garius takes Dialga and Palkia.
    - **Gym 8.**
+   - **Indra finds Darren and Cyrus:** Garius is about to use Dialga and Palkia to bring his father back, and
+     his father fought Team Eclipse and was against all of this work.
    - **Stop Garius on a redesigned Route 223 (after Gym 8, before Victory Road):** he's the last remaining
-     member of Team Eclipse. Word reaches the player that he's about to use Dialga and Palkia to bring his
-     father back (PROPOSED: Indra warns them), and the player goes to stop him with Giratina. PROPOSED: calming
-     the Kingdra totem on Route 223 gives the power to climb the
-     waterfall at the end of the route, and Garius waits at the top, at the entrance to Victory Road.
-     Giratina vs. Dialga and Palkia. Garius learns the truth about his father; Cyrus gets through to him.
+     member of Team Eclipse. PROPOSED: calming the Kingdra totem on Route 223 gives the power to climb the
+     waterfall at the end of the route, and Garius waits at the top, at the entrance to Victory Road,
+     mid-ritual. Cyrus tells him the truth about his father; he doesn't believe it and battles anyway.
+     Giratina vs. Dialga and Palkia. After losing, he realizes he's betrayed everything his father stood for.
    - **The Elite Four and the Champion.** The main game ends.
 
 ## Open questions (top priority first)
 
-1. Approve Indra as the one who warns the player about Garius's ritual?
+1. (None big right now.) Next step: Arc 2 scene cards.

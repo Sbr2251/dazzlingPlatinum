@@ -18,7 +18,7 @@ Rule: every plant needs a payoff. "?" means not decided yet. Facts live in `bibl
 | S3 | Eclipse's shard method is the same thing Cyrus did to the lake trio | Act 1 Mawile shard, made clear in the first totem fight | ? | Cyrus knows on sight |
 | S4 | Totems are Eclipse's tortured, discarded Pokemon | Gradually, through cutaways and Cyrus's reactions | Later than the player | Rowan: his rejection beat |
 | S5 | Garius's father is dead | Act 1 (Mom, optional), sharper with each act | Through the same hints | Garius always knows |
-| S5b | Eclipse's experiments killed Garius's father | Distortion World, during the Giratina race | Same moment, too late to warn him | Garius: after the final battle (payoff, lets Cyrus reach him) |
+| S5b | Garius's father fought Eclipse and died stopping their first experiment | Indra tells Darren and Cyrus, after Gym 8 | Same moment | Garius: Cyrus tells him on Route 223; he refuses to believe it, then accepts it after losing |
 | S9 | The shards burn out whoever uses them | Right after Giratina's capture, when Saros and Kahn fall | Same | Garius believes he's the exception |
 | S10 | Garius is Eclipse's informant (recruited soon after Cyrus's Jubilife confession) | The arc before the climax: Garius reveals himself | Same | Cyrus is blamed until then |
 | S6 | Each Eclipse leader's loss (daughter, partner Pokemon, brother) | Each leader's cutaway scene | When confronting each leader | - |
@@ -47,8 +47,8 @@ Rule: every plant needs a payoff. "?" means not decided yet. Facts live in `bibl
 | G3b | Valor Basin, near Pastoria (Arc 2) | Garius stops at the fence and goes quiet. The memorial plaque lists his father's name for players who read it. |
 | G4 | Celestic Town (after Gym 2, Arc 2) | He brushes off grandma's warning a little too hard, alongside an Eclipse leader. Also a leak clue in hindsight. |
 | G5 | ? | Garius learns what an Eclipse leader lost and sees himself in it. |
-| G6 | Giratina race, Distortion World | Darren finds the experiment records. Garius doesn't know. |
-| G7 | After the final battle | Payoff: Garius learns the truth, and Cyrus gets through to him. |
+| G6 | After Gym 8 | Indra tells Darren and Cyrus that his father fought Eclipse. Garius doesn't know. |
+| G7 | Route 223 | Cyrus tells Garius before the battle. He refuses to believe it and battles anyway. Payoff after he loses: he realizes he's betrayed what his father stood for. |
 
 ## Track R: Rowan's belief
 
