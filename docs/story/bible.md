@@ -242,4 +242,5 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
 
 ## Open questions (top priority first)
 
-1. Arc 2 drafting: parts 1 and 2 (Jubilife to Celestic) are drafted; Veilstone to the end of Arc 2 is scene cards.
+1. Names: Garius's father, Saros's daughter, and Kahn's partner Pokemon (species, and how it died).
+2. Arc 2 is fully drafted (parts 1 to 3). Next: Arc 3.

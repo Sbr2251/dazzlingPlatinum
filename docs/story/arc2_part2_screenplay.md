@@ -135,11 +135,5 @@ Claude's draft, mirrored in the "Arc 2 Screenplay" tab of the story doc. Continu
 - **Cyrus:** "I don't know if I believe it yet."
 - > Note: Battle 2 of 5 with Cyrus: shaken. Plant for "Why Giratina sent Cyrus here."
 
-## The rest of Arc 2 (scene cards, to draft next)
-
-1. **Veilstone City and Route 214:** Gym 3 (Maylene). The Skarmory totem: field power Fly. Kahn's own scene: his lost partner Pokemon. Looker ran a check on Cyrus: no birth record, no trainer ID, no history anywhere. "This man does not exist." The player knows why. Suspicion of Cyrus grows. Leak L2.
-2. **Pastoria City, the Valor Basin, Route 213:** Gym 4 (Crasher Wake). Garius goes quiet at the Basin fence, and the memorial plaque has his father's name (G3b). Looker's proof: a live Eclipse site on Route 213. They save the Pokemon in the frame, but a Lapras already pulled through is now a totem: field power Surf. Looker's evidence goes to Rowan: "I was starting to believe it could be done. Not like this." Leak L3, the worst yet.
-3. **Hearthome City and the Lost Tower:** Gym 5 (Fantina). The Spiritomb totem: field power Defog. Saros's own scene: his daughter.
-4. **The confrontation:** After the worst leak, Darren confronts Cyrus: battle 3 ("Words prove nothing. Judge me the way trainers do."). Cyrus goes into the Distortion World alone.
-5. **The search and the clearing leak:** Darren searches for Cyrus and finds the first shard deposit. Darren tells only Rowan and Garius. Eclipse learns of it while Cyrus is still lost in there, which clears him. Darren finds Cyrus and brings him out. End of Arc 2.
+Continues in `arc2_part3_screenplay.md`.
 

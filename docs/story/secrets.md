@@ -16,7 +16,7 @@ Rule: every plant needs a payoff. "?" means not decided yet. Facts live in `bibl
 | S1 | Cyrus led a criminal team in another world | Act 1, flashback (and their own Platinum playthrough) | Arc 2 confession | Rowan and Garius: Arc 2 confession |
 | S2 | Cyrus came out of the Distortion World alive, which is what Eclipse wants to be possible | Act 1, Scene 1 | Act 1 (he says he came from there) but doesn't see why it matters | Rowan: his turning point; Eclipse/Indra: ? |
 | S3 | Eclipse's shard method is the same thing Cyrus did to the lake trio | Act 1 Mawile shard, made clear in the first totem fight | ? | Cyrus knows on sight |
-| S4 | Totems are Eclipse's tortured Pokemon | Gradually: the Ravaged Path frame, the Haven manifests, Cyrus's reactions | Looker's proof in Pastoria (Arc 2) | Rowan: his rejection beat, from Looker's evidence |
+| S4 | Totems are Eclipse's tortured Pokemon | Gradually: the Ravaged Path frame, the Haven manifests, Cyrus's reactions | Looker's proof on Route 213 (scene 2.21) | Rowan: his rejection beat, from Looker's evidence |
 | S5 | Garius's father is dead | Act 1 (Mom, optional), sharper with each act | Through the same hints | Garius always knows |
 | S5b | Garius's father fought Eclipse and died stopping their first experiment | Indra tells Darren and Cyrus, after Gym 8 | Same moment | Garius: Cyrus tells him on Route 223; he refuses to believe it, then accepts it after losing |
 | S9 | The shards burn out whoever uses them | Right after Giratina's capture, when Saros and Kahn fall | Same | Garius believes he's the exception |
@@ -76,6 +76,8 @@ Rules for a fair twist:
 | L1 | Arc 2, Valley Windworks (scene 2.9) | The site was packed up an hour before the group arrived, after "a call" | Cyrus scouted alone that night and was at the fence | Garius heard Ruth's plan in Floaroma and left that night |
 | (no leak) | Arc 2, the Eclipse Haven (scene 2.12) | Eclipse is caught off guard; the cutaway says "our friend wasn't told" | Cyrus was right outside the Haven | Garius had already left town. The one raid he didn't know about is the one that worked |
 | L1b | Arc 2, Celestic (scene 2.15) | Saros is waiting at the shrine | Cyrus is the one the legend is about | Garius knew Rowan's meeting place; Saros and Garius talk like they already know each other |
-| L2-L3 | Veilstone, Pastoria | OPEN (L3 is the worst yet, and triggers the confrontation) | | |
-| L-clear | End of Arc 2 | Darren finds the first shard deposit while searching for Cyrus and tells only Rowan and Garius. Eclipse learns of it anyway | Cleared: he was lost in the Distortion World | Only one left |
+| L2 | Route 214 (scene 2.18) | Grunts "boosted" the Skarmory totem before the dawn run | Same day Looker says "This man does not exist" | Garius heard the dawn plan at the Veilstone Pokemon Center |
+| L3 | Route 213 (scene 2.21) | Eclipse knew about Looker's raid and rushed the machine; that's why the Lapras became a totem | Cyrus was at the briefing | So was Garius |
+| Confrontation | Route 213 beach (scene 2.23) | Garius lists every leak and pushes Darren to battle Cyrus | Cyrus leaves for the Lost Tower rift | In hindsight, the informant is the one demanding a trial |
+| L-clear | Lost Tower (scenes 2.25 and 2.26) | Darren finds the first shard vein while searching for Cyrus and tells only Rowan and Garius. Next morning, grunts arrive to mine it | Cleared: he was lost in the Distortion World | Only one left |
 | Reveal | Start of Arc 3 | Garius admits it, then helps capture Dialga and Palkia | Cleared | Confirmed |
