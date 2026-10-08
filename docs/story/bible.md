@@ -104,8 +104,9 @@ screenplay name. No in-game line should assume the player's gender.
   Eclipse.
 - **Final battle:** the player, with Giratina, against Garius, with Dialga and Palkia.
 - **Redeemed.** Afterward he learns the truth about his father, and Cyrus gets through to him.
-- **PROPOSED:** Dialga and Palkia can't reach the dead without Giratina, so Garius needs the Giratina the
-  player just caught.
+- **Why the player faces him:** word reaches the player that Garius is about to use Dialga and Palkia to bring
+  his father back, and the player goes to stop him with Giratina. PROPOSED: Indra is the one who warns the
+  player: the leader who let go of her brother, warning about the one who won't let go of his father.
 
 ### Cyrus (from mainline Platinum)
 - **A good guy in this story.**
@@ -215,11 +216,13 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
      Saros and Kahn; Garius takes Dialga and Palkia.
    - **Gym 8.**
    - **Stop Garius on a redesigned Route 223 (after Gym 8, before Victory Road):** he's the last remaining
-     member of Team Eclipse. PROPOSED: calming the Kingdra totem on Route 223 gives the power to climb the
+     member of Team Eclipse. Word reaches the player that he's about to use Dialga and Palkia to bring his
+     father back (PROPOSED: Indra warns them), and the player goes to stop him with Giratina. PROPOSED: calming
+     the Kingdra totem on Route 223 gives the power to climb the
      waterfall at the end of the route, and Garius waits at the top, at the entrance to Victory Road.
      Giratina vs. Dialga and Palkia. Garius learns the truth about his father; Cyrus gets through to him.
    - **The Elite Four and the Champion.** The main game ends.
 
 ## Open questions (top priority first)
 
-1. Approve "Garius needs Giratina" (the reason he comes after the player)?
+1. Approve Indra as the one who warns the player about Garius's ritual?
