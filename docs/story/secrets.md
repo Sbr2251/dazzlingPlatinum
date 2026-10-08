@@ -16,13 +16,14 @@ Rule: every plant needs a payoff. "?" means not decided yet. Facts live in `bibl
 | S1 | Cyrus led a criminal team in another world | Act 1, flashback (and their own Platinum playthrough) | Arc 2 confession | Rowan and Garius: Arc 2 confession |
 | S2 | Cyrus came out of the Distortion World alive, which is what Eclipse wants to be possible | Act 1, Scene 1 | Act 1 (he says he came from there) but doesn't see why it matters | Rowan: his turning point; Eclipse/Indra: ? |
 | S3 | Eclipse's shard method is the same thing Cyrus did to the lake trio | Act 1 Mawile shard, made clear in the first totem fight | ? | Cyrus knows on sight |
-| S4 | Totems are Eclipse's tortured, discarded Pokemon | Gradually, through cutaways and Cyrus's reactions | Later than the player | Rowan: his rejection beat |
+| S4 | Totems are Eclipse's tortured Pokemon | Gradually: the Ravaged Path frame, the Haven manifests, Cyrus's reactions | Looker's proof in Pastoria (Arc 2) | Rowan: his rejection beat, from Looker's evidence |
 | S5 | Garius's father is dead | Act 1 (Mom, optional), sharper with each act | Through the same hints | Garius always knows |
 | S5b | Garius's father fought Eclipse and died stopping their first experiment | Indra tells Darren and Cyrus, after Gym 8 | Same moment | Garius: Cyrus tells him on Route 223; he refuses to believe it, then accepts it after losing |
 | S9 | The shards burn out whoever uses them | Right after Giratina's capture, when Saros and Kahn fall | Same | Garius believes he's the exception |
 | S10 | Garius is Eclipse's informant (recruited soon after Cyrus's Jubilife confession) | The arc before the climax: Garius reveals himself | Same | Cyrus is blamed until then |
 | S6 | Each Eclipse leader's loss (daughter, partner Pokemon, brother) | Each leader's cutaway scene | When confronting each leader | - |
 | S7 | Lucas is who Cyrus is reminded of | Act 1 return scene | Never? | - |
+| S11 | Cyrus has no record anywhere in this world | Always (he's from another world) | Looker, in Veilstone: "This man does not exist." Read as sinister | Feeds the leak suspicion |
 | S8 | The Lake Verity castle will be where Palkia is captured | Act 1 (the player is attached to the place) | Palkia's capture | - |
 
 ## Act 1 beats already in the screenplay

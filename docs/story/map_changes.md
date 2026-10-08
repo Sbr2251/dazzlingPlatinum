@@ -16,7 +16,7 @@ Status: **done** (in the ROM), **planned** (decided), **candidate** (idea, not d
 | Gym order | Oreburgh, Eterna, Veilstone, Pastoria, Hearthome, Canalave, Snowpoint, Sunyshore | Celestic (via Mt. Coronet) after Gym 2 | 2 | planned: needs trainer level rebalance and HM/badge gating checks |
 | Distortion World | Wall-walk puzzle map | Act 1 puzzle | 1 | done |
 | Distortion World | One puzzle map per totem (8), entered through a rift at each totem site | Calm the totem; with the Gym badge, unlocks that totem's field power (no HMs) | 2-3 | planned: NEEDS DESIGN |
-| Galactic Eterna Building | Replace (Galactic never existed) | Eclipse site, or something new | 2 | candidate |
+| Galactic Eterna Building | **Eclipse Haven:** a shelter for Pokemon whose trainers died, secretly shipping them to torture sites | Arc 2 side plot with Gardenia and Looker (double battle) | 2 | planned |
 | Valley Windworks | Replace the Galactic event | | 2 | candidate |
 | Veilstone Galactic HQ and warehouse | Replace | Eclipse HQ? | 2 | candidate |
 | Fuego Ironworks | Replace the Galactic event | | ? | candidate |

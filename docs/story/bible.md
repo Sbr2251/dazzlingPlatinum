@@ -36,6 +36,8 @@ world. He's the only person here who remembers the other Sinnoh, apart from the 
   | 7 Snowpoint (Candice) | Mamoswine | Acuity Lakefront | Climb cliffs (Rock Climb) |
   | 8 Sunyshore (Volkner) | Kingdra | Route 223 | Climb waterfalls (Waterfall) |
 
+  Calmed totems go home. They can be caught in the postgame.
+
   **Story reason (approved):**
   - Calming a totem cleanses its shard: the pain drains out, it turns clear, and only the strength is left,
     given freely. A **Calm Shard**.
@@ -156,7 +158,20 @@ Cyrus asks in Act 1: "Did the shadow cast me out?" The late answer: no, **it sen
 - Publicly calls Eclipse con artists: bringing back the dead is too good to be true.
 - **Turning point:** learns that Cyrus came out of the Distortion World alive, and starts to believe it's
   possible.
-- Then learns the way there is torturing Pokemon (the totems / shard victims) and rejects it.
+- Then learns the way there is torturing Pokemon (the totems / shard victims) and rejects it. Looker's evidence
+  in Pastoria is what shows him: "I was starting to believe it could be done. Not like this."
+
+### Looker (International Police)
+- Investigating Team Eclipse. He's the one who proves to the characters that Eclipse tortures Pokemon, and that
+  the torture is why rifts open and totems appear.
+- **Arc 1 cameo:** a man in a trench coat at the Jubilife rally, scribbling notes.
+- **Arc 2, the Eclipse Haven (Eterna, after Gym 2):** the old Galactic building is a shelter where Eclipse takes
+  in Pokemon whose trainers have died. Gardenia brought Pokemon there, but none were ever adopted. Looker is
+  undercover as the janitor. Shipping manifests send crates to the rift sites: "Pokemon go in. Crates go out.
+  And wherever the crates go, a rift tears open." Double battle: Darren and Gardenia against the Haven's staff.
+- **Arc 2, Veilstone:** no record of Cyrus anywhere. "This man does not exist." The player knows why.
+- **Arc 2, Pastoria (the proof):** a live Eclipse site on Route 213; they save the Pokemon in the frame, but the
+  Lapras already pulled through is a totem. His evidence is Rowan's rejection beat.
 
 ### Ruth (Rowan's assistant)
 A new character with a new sprite (not Dawn or Lucas). Runs the portal readings at the castle in Act 1. In the
@@ -227,6 +242,4 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
 
 ## Open questions (top priority first)
 
-1. Do calmed totems go home, or can the player catch them later?
-2. What does the old Galactic building in Eterna become?
-3. Arc 2 drafting: `arc2_part1_screenplay.md` covers Jubilife to the Resonator; the rest of Arc 2 is scene cards.
+1. Arc 2 drafting: `arc2_part1_screenplay.md` covers Jubilife to the Resonator; the rest of Arc 2 is scene cards.

@@ -73,6 +73,9 @@ Continues from the castle ending above. Darren (the player, who can be a girl or
 - **Eclipse Grunt:** "Everybody's lost somebody, kid. Think about it."
 - *Garius stares at the flyer for a long moment. He folds it carefully and puts it in his pocket.*
 - **Garius:** "...What? It's just a flyer. Come on, Oreburgh's this way."
+- *Optional: a man in a trench coat at the edge of the crowd, scribbling in a notebook.*
+- **Man in a Trench Coat:** "Hm. Hm hm. Don't mind me. I am simply a regular citizen. Who enjoys... rallies."
+- > Note: Looker's first appearance. He's investigating Team Eclipse, and turns up again undercover at the Eclipse Haven in Eterna (Arc 2).
 - *Camera pans away from the kids to the edge of the crowd: Cyrus, alone, with no Pokemon, watching the screen. Darren doesn't see him.*
 - **Cyrus** (to himself) "Promising the impossible to people in pain... I know that voice. I used to have it."
 - *Cyrus turns and walks off into the city. Camera returns to the player.*
