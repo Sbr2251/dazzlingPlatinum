@@ -227,4 +227,6 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
 
 ## Open questions (top priority first)
 
-1. (None big right now.) Next step: Arc 2 scene cards.
+1. Do calmed totems go home, or can the player catch them later?
+2. What does the old Galactic building in Eterna become?
+3. Arc 2 drafting: `arc2_part1_screenplay.md` covers Jubilife to the Resonator; the rest of Arc 2 is scene cards.

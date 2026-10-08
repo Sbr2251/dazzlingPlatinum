@@ -43,7 +43,7 @@ Rule: every plant needs a payoff. "?" means not decided yet. Facts live in `bibl
 |---|---|---|
 | G1 | Act 1, Garius's mom (optional talk) | Something warm that hints at the absence, e.g. "He's got his father's habit of running off before anyone can stop him." The past tense is the hint. |
 | G2 | Act 2-3, Garius's house | A detail on the map: a photo, an empty chair, a third mug. |
-| G3 | Mid game | Garius slips: starts a sentence about his dad, then cuts himself off. |
+| G3 | Arc 2, the Jubilife confession | Garius slips: "Some of us have actually lost-", then cuts himself off. |
 | G3b | Valor Basin, near Pastoria (Arc 2) | Garius stops at the fence and goes quiet. The memorial plaque lists his father's name for players who read it. |
 | G4 | Celestic Town (after Gym 2, Arc 2) | He brushes off grandma's warning a little too hard, alongside an Eclipse leader. Also a leak clue in hindsight. |
 | G5 | ? | Garius learns what an Eclipse leader lost and sees himself in it. |
@@ -71,7 +71,8 @@ Rules for a fair twist:
 
 | Stage | Where | Leak | Points to Cyrus | Points to Garius |
 |---|---|---|---|---|
-| L0 | Arc 2, soon after the Jubilife confession | Eclipse is waiting at a place the group just planned to go. | He just admitted his past | He was in the room |
-| L1-L? | Middle acts | OPEN | | |
+| L0 | Arc 2, Ravaged Path (scene 2.5) | Grunts are waiting at the rift: "Right on time. Just like we were told." They recognize Cyrus. | He just confessed, and they know him | He heard the plan before storming out; the grunts know Cyrus only as "the one who walked out"; the grunts flee toward Floaroma and Garius walks in from Floaroma |
+| L1 | Arc 2, Valley Windworks | The Eclipse site was packed up an hour before the group arrived | Cyrus went ahead alone | Garius knew the route |
+| L2-L3 | Veilstone, Pastoria | OPEN (L3 is the worst yet, and triggers the confrontation) | | |
 | L-clear | End of Arc 2 | Darren finds the first shard deposit while searching for Cyrus and tells only Rowan and Garius. Eclipse learns of it anyway | Cleared: he was lost in the Distortion World | Only one left |
 | Reveal | Start of Arc 3 | Garius admits it, then helps capture Dialga and Palkia | Cleared | Confirmed |
