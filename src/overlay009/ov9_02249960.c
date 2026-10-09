@@ -101,9 +101,8 @@
 #define ARC1_SEAMS_SCRIPT_BRIEFCASE       6
 #define ARC1_SEAMS_SCRIPT_TALK_CYRUS      7
 #define ARC1_SEAMS_SCRIPT_TALK_BARRY      8
-#define ARC1_SEAMS_FORK_TILE_X            11 // on the wall: the seam splits here (alcove east along the top, exit down)
-#define ARC1_SEAMS_FORK_TILE_Y            4
-#define ARC1_SEAMS_FORK_TILE_Z            19
+#define ARC1_SEAMS_FORK_TILE_X            11 // on the wall, any row: the first column past the trees, where the
+#define ARC1_SEAMS_FORK_TILE_Z            19 // seam splits (dead-end corner up the wall, exit along the bottom)
 #define ARC1_SEAMS_FLOOR_TILE_Y           1
 #define ARC1_SEAMS_IDLE_STEPS_BEFORE_HINT 20
 
@@ -2249,7 +2248,7 @@ static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
 
     hints = *VarsFlags_GetVarAddress(varsFlags, VAR_ARC1_DW_HINTS);
 
-    if (hints < ARC1_SEAMS_HINTS_FORK && x == ARC1_SEAMS_FORK_TILE_X && y == ARC1_SEAMS_FORK_TILE_Y && z == ARC1_SEAMS_FORK_TILE_Z) {
+    if (hints < ARC1_SEAMS_HINTS_FORK && x == ARC1_SEAMS_FORK_TILE_X && y > ARC1_SEAMS_FLOOR_TILE_Y && z == ARC1_SEAMS_FORK_TILE_Z) {
         ScriptManager_Set(system->fieldSystem, ARC1_SEAMS_SCRIPT_FORK, NULL);
         return TRUE;
     }

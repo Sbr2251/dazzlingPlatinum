@@ -14,12 +14,15 @@ Rebuild after editing: `python3 tools/distortion_world/build_arc1_seams_map.py`,
 `check` verify). `twarc.py` looks the map ID up in `generated/map_headers.txt`, so rerun `build` if the header enum
 ever moves.
 
-Wall grid (west wall x=11, z 13-22, y 2-4; `.` = seam):
+Wall grid (west wall x=11, z 13-22, y 2-5; `.` = walkable). It matches what the stock wall face draws, which is
+B1F's own grid: y5 is the top rim, and the `#` block at z 15-18 is where the two wall trees grow out of the face.
+A Phase 0 wall face looks the same everywhere, so any other blocked tile would be an invisible wall (and walkable
+tiles over the trunks let the player walk through the trees).
 
     y5  ##########
-    y4  ##.......#   fork at z=19; alcove (empty dead end) at z=21
-    y3  #..###.###
-    y2  ..####....   on at z=13 (from the ledge 12,14), off at z=22 (to 12,23)
+    y4  ..####....   dead-end corner up the wall at z 19-22
+    y3  ..####....   fork scene: first step onto z=19 (any row), see Arc1Seams_HandleStep
+    y2  ..........   on at z=13 (from the ledge 12,14), under the trees, off at z=22 (to 12,23)
 
 On the wall: LEFT = +z, RIGHT = -z, UP = climb, DOWN = descend (or hop off at the two ends).
 Scripts: `res/field/scripts/scripts_distortion_world_arc1_seams.s`; objects and the fork / idle-hint step hook:

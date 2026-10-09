@@ -23,6 +23,11 @@ devserver.
   walkable rows), so there's no real "over the crest" beat. The exit rift is a flash plus the stock warp swirl.
   The debris dressing and the unreachable flickering seam were skipped. All of these need Phase 1 custom
   terrain.
+- Because the wall face looks uniform, the wall grid is B1F's own: walkable wherever the face is drawn, blocked
+  only at the top rim and where the two wall trees grow out (z 15-18, rows 3-4). The earlier hand-edited maze had
+  invisible walls and let the player walk through the tree trunks. The route is now: step on at z=13, pass behind
+  the trees along the bottom row (the player is briefly hidden behind them, as in stock B1F), the fork scene on the
+  first step onto z=19, a dead-end corner up the wall, and off at z=22. A real seam maze needs Phase 1 terrain.
 - The DW map stores its numeric header ID (594) in `tw_arc`. If a map header is ever inserted before it,
   rerun `python3 tools/distortion_world/twarc.py build tools/distortion_world/arc1_seams.json`.
 - After the battle reload, the Mawile reappears one tile from where it lunged. The ball pickup message says

@@ -2,9 +2,9 @@
 #include "res/text/bank/distortion_world_arc1_seams.h"
 
 // Arc 1 "Distortion World Puzzle 1 - Wall Walk" (Phase 0, cloned from DW B1F; see docs/arc1/revision/spec.md).
-// Entry from Lake Verity at (20,12) facing west (state 5). The seam runs on the west wall x=11, z 13-22: climb from
-// the jump-on ledge (12,14), fork at (11,4,19) (alcove east along the top, the way on goes down), drop off at (12,23)
-// onto the briefcase platform. Falls: coord events on the chasm lips. Cyrus and Barry are DW overlay objects
+// Entry from Lake Verity at (20,12) facing west (state 5). The seam runs on the west wall x=11, z 13-22: step on from
+// the jump-on ledge (12,14), pass under the two wall trees along the bottom row, fork at z=19 (a dead-end corner up
+// the wall, the way on goes along the bottom), drop off at (12,23) onto the briefcase platform. Falls: coord events on the chasm lips. Cyrus and Barry are DW overlay objects
 // (src/overlay009 sArc1SeamsObjects), spawned by VAR_ARC1_DW_HINTS:
 //   VAR_ARC1_DW_HINTS  0 nothing shown, 1 seam hint given, 2 fork reached, 3 briefcase reached,
 //                      4 starter chosen, 5 Mawile fought
@@ -117,7 +117,7 @@ DistortionWorldArc1Seams_SeamHintLocked:
     ReleaseAll
     End
 
-// Step hook at the fork on the wall (11,4,19): Cyrus calls out, and the Mawile shows itself on the platform below.
+// Step hook at the fork on the wall (x=11, z=19, any row): Cyrus calls out, and the Mawile shows itself on the platform below.
 DistortionWorldArc1Seams_Fork:
     GoToIfGe VAR_ARC1_DW_HINTS, 2, DistortionWorldArc1Seams_End
     LockAll
