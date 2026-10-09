@@ -1638,7 +1638,9 @@ _1451:
     Message 58
     Message 60
     Message 61
-    SetPosition 23, 174, 1, 0x303, 1
+    // Arc 1: from state 12 the president never walks (no forced intro) and may not be loaded at all (the rally
+    // only un-hides him), so don't SetPosition him: on a missing object it writes through a NULL MapObject.
+    CallIfLt VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1ResetPresidentPos
     SetVar VAR_0x8004, ITEM_COUPON_3
     SetVar VAR_0x8005, 1
     SetFlag FLAG_OBTAINED_COUPON_3
@@ -1829,6 +1831,11 @@ JubilifeCity_Arc1UnhidePresident:
 
 JubilifeCity_Arc1RemoveLooker:
     RemoveObject JUBILIFE_CITY_LOOKER_31
+    Return
+
+// Stock _1451: put the president back at his post after his (stock-only) walk-up intro
+JubilifeCity_Arc1ResetPresidentPos:
+    SetPosition 23, 174, 1, 0x303, 1
     Return
 
 // Talk to Garius (object script)
