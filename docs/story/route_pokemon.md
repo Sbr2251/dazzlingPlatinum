@@ -84,7 +84,7 @@ Patrat, Lillipup, Pidove, Purrloin, Blitzle, Emolga, Ducklett, Foongus, Minccino
 
 | Area | Theme | Add: Gen 3 | Add: Gen 5, phase 1 | Add: Gen 5, phase 2 | Notes |
 |---|---|---|---|---|---|
-| Canalave City and Route 218 | The fairy route | Mawile, Ralts, Azurill and Marill, Snubbull, Clefairy, Togepi (rare) | Cottonee | - | Fairy typing: check which species the engine already treats as Fairy. |
+| Canalave City and Route 218 | The fairy route: a serene meadow (see the design brief below) | Day: Kirlia, Marill and Azumarill, Snubbull and Granbull, Mawile, Jigglypuff. Night: Clefairy and Clefable (by the fairy ring), Mr. Mime. Rare: Togetic, Gardevoir | Cottonee (needs Fairy typing when added) | - | All the Gen 3-and-earlier species listed are already Fairy type in the game. Levels about 38-44 (Arc 3, around Gym 6). |
 | Iron Island | Aggron totem; deep tunnels | Aron, Lairon | Drilbur, Roggenrola | Durant | Lucarionite comes from Riley here. |
 | Fuego Ironworks | Eclipse's shard-machine foundry | Magnemite | Klink | Joltik, Trubbish | Scizorite is hidden here. |
 | Routes 206 and 207 | Eclipse's supply road into Mt. Coronet | Gulpin, Numel | Timburr | Trubbish | - |
@@ -94,6 +94,16 @@ Patrat, Lillipup, Pidove, Purrloin, Blitzle, Emolga, Ducklett, Foongus, Minccino
 | Route 222 | Coast lit violet by the Route 223 rift | Electrike and Manectric, Wingull | Tynamo, Frillish | Ducklett | - |
 | Route 223 | Kingdra totem; the final battle | Wailmer and Wailord, Relicanth (rare, Super Rod) | Frillish | Alomomola | - |
 | Victory Road | The last cave | Bagon (rare) | Axew, Deino (rare) | Druddigon | - |
+
+## Design brief: Route 218, the serene fairy meadow
+
+- Today Route 218 is a short sea crossing between Jubilife and Canalave with a couple of small land strips, so it needs a real redesign to be a serene field. NEEDS DESIGN.
+- Layout: the strait becomes a wide flower meadow on a land bridge. Low hills of tall pink and white flowers, a winding stone path, a clear stream with stepping stones, and a small pond. Calm and open, a deliberate breather after the dark Arc 2 and before the Palkia chase.
+- A fairy ring at the center: a circle of white flowers and stones. At night, Clefairy gather there to dance (an encounter-rich spot, and a nod to Mt. Moon).
+- The Mawile clearing: a quiet glade where Mawile live. A callback to the Act 1 Mawile, the first shard victim. An NPC can mention how gentle they are when nobody hurts them.
+- Music and mood: a soft, gentle route theme. Petals drifting (weather effect), no trainers in the center, a few relaxed ones along the edges.
+- Story placement: Arc 3, scene 3.6. You cross it on the way to Lake Verity, right before the castle folds in on itself. The peace of the meadow makes the next scene hit harder.
+- Access: with a land bridge, the route no longer needs Surf. That's fine in the new order, because the story first sends you here after Gym 6 from the Canalave side. Keep the Jubilife-side gate closed until then (for example, a gatekeeper: the meadow's flowers are blooming and the path is closed).
 
 ## Postgame
 
