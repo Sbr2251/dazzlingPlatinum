@@ -504,3 +504,102 @@ mmodel_files_targets += custom_target('mmodel_00000478.bin',
         '--output', '@OUTPUT@',
     ],
 )
+
+# Arc 1 field sprites (OBJ_EVENT_GFX_SAROS, _ECLIPSE_GRUNT_M/_F, _ARC1_RIFT, _TOTEM_HITMONLEE_VIOLET):
+# generated at build time from res/field/objects/arc1/*.png by tools/integrate_arc1_field_sprites.py.
+# Members must stay contiguous after 478 (narc create packs the directory in name order).
+mmodel_files_targets += custom_target('mmodel_00000479.bin',
+    output: 'mmodel_00000479.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc1/saros.png',
+        'mmodel_00000034.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_SAROS',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
+mmodel_files_targets += custom_target('mmodel_00000480.bin',
+    output: 'mmodel_00000480.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc1/eclipse_grunt_m.png',
+        'mmodel_00000103.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_ECLIPSE_GRUNT_M',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
+mmodel_files_targets += custom_target('mmodel_00000481.bin',
+    output: 'mmodel_00000481.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc1/eclipse_grunt_f.png',
+        'mmodel_00000104.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_ECLIPSE_GRUNT_F',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
+mmodel_files_targets += custom_target('mmodel_00000482.bin',
+    output: 'mmodel_00000482.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc1/arc1_rift.png',
+        'mmodel_00000130.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_ARC1_RIFT',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
+mmodel_files_targets += custom_target('mmodel_00000483.bin',
+    output: 'mmodel_00000483.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc1/totem_hitmonlee_violet.png',
+        'mmodel_00000130.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_TOTEM_HITMONLEE_VIOLET',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)

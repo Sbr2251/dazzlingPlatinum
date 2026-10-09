@@ -104,6 +104,10 @@
     {
       "id": "RowanIntro_Text_RivalChoiceTommy",
       "en_US": "Tommy"
+    },
+    {
+      "id": "RowanIntro_Text_RivalDefaultName",
+      "en_US": "Garius"
     }
   ]
 }
