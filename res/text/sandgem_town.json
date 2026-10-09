@@ -293,7 +293,7 @@
       "id": "SandgemTown_Text_Arc1RuthHisExactWords",
       "en_US": [
         "Ruth: Well... his exact words were,\n",
-        "'If those two reckless children\r",
+        "'If those two reckless children\f",
         "show up, send them in.'\r"
       ]
     },

@@ -636,8 +636,8 @@
       "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanRecordEveryPokemon",
       "en_US": [
         "Rowan: I mean to record every\n",
-        "Pokémon in Sinnoh, and lately\r",
-        "this region has been... changing.\n",
+        "Pokémon in Sinnoh, and lately\f",
+        "this region has been... changing.\f",
         "I can't keep up alone.\r",
         "Take these.\r"
       ]
@@ -676,7 +676,7 @@
       "id": "SandgemTownPokemonResearchLab_Text_Arc1RuthReadingsSpiked",
       "en_US": [
         "Ruth: Professor, my readings at the\n",
-        "portal spiked just like that,\r",
+        "portal spiked just like that,\f",
         "right before it closed.\r"
       ]
     },
@@ -707,7 +707,7 @@
       "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanThankHim",
       "en_US": [
         "Rowan: He walked back into that\n",
-        "world for two children he'd\r",
+        "world for two children he'd\f",
         "never met.\r",
         "Whoever he is...\n",
         "I'd like to thank him.\r"
@@ -716,9 +716,9 @@
     {
       "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanNowGo",
       "en_US": [
-        "Rowan: Now go.\n",
-        "Oreburgh City has a Gym, and you\r",
-        "two have Pokémon.\n",
+        "Rowan: Now go.\r",
+        "Oreburgh City has a Gym, and you\n",
+        "two have Pokémon.\r",
         "Isn't that what you wanted?\r"
       ]
     },

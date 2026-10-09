@@ -63,8 +63,8 @@
       "en_US": [
         "{STRVAR_1 3, 1, 0}'s mom: Oh, hello, dear.\r",
         "{STRVAR_1 3, 1, 0} ran in, shouted\n",
-        "something about a portal,\r",
-        "grabbed a sandwich, and ran\n",
+        "something about a portal,\f",
+        "grabbed a sandwich, and ran\f",
         "right back out.\r"
       ]
     },
