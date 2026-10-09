@@ -22,6 +22,18 @@
             "ball_seal": 0
         },
         {
+            "species": "SPECIES_BIDOOF",
+            "form": 0,
+            "level": 7,
+            "item": null,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_GROWL"
+            ],
+            "power": 30,
+            "ball_seal": 0
+        },
+        {
             "species": "SPECIES_PIPLUP",
             "form": 0,
             "level": 9,

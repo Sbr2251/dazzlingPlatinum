@@ -71,7 +71,8 @@ _0101:
 _0111:
     BufferRivalName 0
     BufferPlayerName 1
-    Message 0
+    Message Route203_Text_Arc1RematchRightNow
+    WaitABXPadPress
     CloseMessage
     GetPlayerStarterSpecies VAR_RESULT
     GoToIfEq VAR_RESULT, SPECIES_TURTWIG, _014C
@@ -93,8 +94,17 @@ _0158:
 _0164:
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, _0207
+    // Dazzling Platinum Arc 1 (scene 12): Garius asks about the Eclipse broadcast. He doesn't really hear
+    // either answer.
     BufferRivalName 0
-    Message 1
+    Message Route203_Text_Arc1ThatEclipseGuy
+    ShowYesNoMenu VAR_RESULT
+    BufferRivalName 0
+    CallIfEq VAR_RESULT, MENU_YES, Route203_Arc1AnswerYes
+    CallIfEq VAR_RESULT, MENU_NO, Route203_Arc1AnswerNo
+    BufferRivalName 0
+    Message Route203_Text_Arc1RaceYouToOreburgh
+    WaitABXPadPress
     CloseMessage
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
     GoToIfEq VAR_0x8005, 0x2F5, _01B9
@@ -126,8 +136,17 @@ _01E9:
 _01F9:
     RemoveObject 5
     SetVar VAR_UNK_0x4088, 1
+    SetVar VAR_ARC1_PROGRESS, 14 /* Route 203 battle done, heading to Oreburgh */
     ReleaseAll
     End
+
+Route203_Arc1AnswerYes:
+    Message Route203_Text_Arc1YeahMaybe
+    Return
+
+Route203_Arc1AnswerNo:
+    Message Route203_Text_Arc1YeahProbablyNot
+    Return
 
 _0207:
     BlackOutFromBattle

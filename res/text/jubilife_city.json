@@ -948,6 +948,164 @@
         "The Global Terminal\n",
         "Your Gateway to the Whole World!"
       ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GariusOverHere",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Hey! Over here,\n",
+        "by the TV!"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1SarosEveryoneHasLostSomeone",
+      "en_US": [
+        "Saros (on screen): Everyone here\n",
+        "has lost someone.\r",
+        "A parent. A child.\n",
+        "A partner who never came home.\r"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1SarosTheyTellYouToAcceptIt",
+      "en_US": [
+        "Saros (on screen): They tell you to\n",
+        "accept it. To move on.\r",
+        "Team Eclipse will not ask you to\n",
+        "accept anything.\r"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1SarosWeWillBringThemBack",
+      "en_US": [
+        "Saros (on screen): We are going to\n",
+        "bring them back."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdMurmurs",
+      "en_US": [
+        "The crowd murmurs."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GruntEverybodysLostSomebody",
+      "en_US": [
+        "Eclipse Grunt: Everybody's lost\n",
+        "somebody, kid. Think about it."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GariusFoldsTheFlyer",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} stares at the flyer\n",
+        "for a long moment.\r",
+        "He folds it carefully and puts it\n",
+        "in his pocket."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GariusJustAFlyer",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: ...What?\n",
+        "It's just a flyer.\r",
+        "Come on, Oreburgh's this way."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CyrusIKnowThatVoice",
+      "en_US": [
+        "Cyrus (to himself): Promising the\n",
+        "impossible to people in pain...\r",
+        "I know that voice.\n",
+        "I used to have it."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1TrenchCoat",
+      "en_US": [
+        "Man in a Trench Coat: Hm. Hm hm.\r",
+        "Don't mind me. I am simply a regular\n",
+        "citizen.\r",
+        "Who enjoys... rallies."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1BannerWhoDidYouLose",
+      "en_US": [
+        "WHO DID YOU LOSE?\n",
+        "Team Eclipse"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1ToBeContinued",
+      "en_US": "To be continued..."
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GruntTakeAFlyer",
+      "en_US": [
+        "Eclipse Grunt: Team Eclipse is here\n",
+        "for anyone who's lost someone.\r",
+        "Take a flyer. Think about it."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GruntYouDontHaveToAcceptIt",
+      "en_US": [
+        "Eclipse Grunt: You don't have to\n",
+        "accept it. That's all we're saying."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CyrusEllipsis",
+      "en_US": [
+        "Cyrus: ..."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdNeverCameHome",
+      "en_US": [
+        "My brother went out one morning\n",
+        "and never came home.\r",
+        "If there's even a chance..."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdGrandpasPokemon",
+      "en_US": [
+        "My grandpa's Pokémon still waits by\n",
+        "the door for him every night."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdOneMoreDay",
+      "en_US": [
+        "Bring them back, they say...\r",
+        "At my age, I'd settle for\n",
+        "one more day."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdBestFriend",
+      "en_US": [
+        "I lost my best friend last spring.\r",
+        "I'll listen to anyone who says\n",
+        "it's not the end."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdEveryWeek",
+      "en_US": [
+        "Team Eclipse fills this plaza every\n",
+        "week. More people every time."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdMomAskedMe",
+      "en_US": [
+        "I'm only here because my mom asked\n",
+        "me to come.\r",
+        "...Okay, I'm a little curious too."
+      ]
     }
   ]
 }
