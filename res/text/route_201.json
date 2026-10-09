@@ -566,7 +566,51 @@
     },
     {
       "id": "Route201_Text_Arc1ToBeContinued",
-      "en_US": "To be continued..."
+      "en_US": [
+        "Mom must be worried sick...\n",
+        "Better head home to Twinleaf first."
+      ]
+    },
+    {
+      "id": "Route201_Text_Arc1GariusThereYouAre",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: There you are!\n",
+        "I've been waiting forever!\r",
+        "...Okay, like a minute.\r"
+      ]
+    },
+    {
+      "id": "Route201_Text_Arc1GariusToughestStarters",
+      "en_US": [
+        "Our Pokémon came out of the\n",
+        "Distortion World, right?\r",
+        "That makes them the toughest\n",
+        "starters ever.\r",
+        "So let's find out whose is tougher!"
+      ]
+    },
+    {
+      "id": "Route201_Text_Arc1GariusLuckyBreak",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Whoa... Okay, okay.\n",
+        "Lucky break.\r",
+        "Next time's mine!\r"
+      ]
+    },
+    {
+      "id": "Route201_Text_Arc1GariusToldYou",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Ha! Told you!\n",
+        "Toughest starter ever!\r"
+      ]
+    },
+    {
+      "id": "Route201_Text_Arc1GariusTenMillion",
+      "en_US": [
+        "Rowan said to come by his lab\n",
+        "in Sandgem, right?\r",
+        "Last one there owes me 10 million!"
+      ]
     }
   ]
 }

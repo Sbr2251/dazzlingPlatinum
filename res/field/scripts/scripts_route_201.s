@@ -21,22 +21,15 @@
     ScriptEntry Route201_TriggerArc1RivalHeadingToLake
     ScriptEntry Route201_TriggerArc1RivalStopPlayerGrass
     ScriptEntry Route201_TriggerArc1ToBeContinued
+    ScriptEntry Route201_TriggerArc1RivalBattle
     ScriptEntryEnd
 
 Route201_OnTransition:
     CallIfEq VAR_ARC1_PROGRESS, 3, Route201_Arc1ShowRivalIfWaiting
     CallIfGe VAR_ARC1_PROGRESS, 4, Route201_Arc1HideRival
-    GetPlayerGender VAR_MAP_LOCAL_0
-    GoToIfEq VAR_MAP_LOCAL_0, GENDER_MALE, Route201_SetCounterpartGraphicsDawn
-    GoToIfEq VAR_MAP_LOCAL_0, GENDER_FEMALE, Route201_SetCounterpartGraphicsLucas
-    End
-
-Route201_SetCounterpartGraphicsDawn:
-    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_PLAYER_F
-    End
-
-Route201_SetCounterpartGraphicsLucas:
-    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_PLAYER_M
+    CallIfEq VAR_ARC1_PROGRESS, 9, Route201_Arc1ShowRivalForBattle
+    // The counterpart is Ruth for both player genders.
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     End
 
 Route201_TriggerChooseStarterScene:
@@ -1281,10 +1274,11 @@ Route201_TrainerTipsSignpost:
     .balign 4, 0
 
 // Dazzling Platinum Arc 1: the stock Rowan / starter scene on this route is disabled (its coord events are gone).
-// Instead Barry waits at the fork north of Twinleaf Town, tells the player he's going to Lake Verity and runs
-// off west. While VAR_ARC1_PROGRESS is 3 he turns the player back from the tall grass, and once Arc 1 is done
-// (VAR_ARC1_PROGRESS 8, set at the end of the Lake Verity return scene) the tall grass shows a "To be continued..."
-// block (coord event value 8 in events_route_201.json). From state 4 on Barry is at the lake, so he stays hidden here.
+// Instead Garius waits at the fork north of Twinleaf Town, tells the player he's going to Lake Verity and runs
+// off west. While VAR_ARC1_PROGRESS is 3 he turns the player back from the tall grass. From state 4 on he is at
+// the lake, so he stays hidden here. At 8 (back from Lake Verity, Mom not seen yet) the tall grass sends the
+// player home (coord event value 8). At 9 (after Mom's scene) he waits by the Twinleaf exit and battles the
+// player (coord event value 9 on the exit row), then runs off to Sandgem and the state becomes 10.
 Route201_Arc1ShowRivalIfWaiting:
     GoToIfNe VAR_FOLLOWER_RIVAL_STATE, 0, Route201_Arc1Return
     ClearFlag FLAG_HIDE_ROUTE_201_RIVAL
@@ -1407,3 +1401,131 @@ Route201_Movement_Arc1RivalRunBackToLake:
 Route201_Movement_Arc1PlayerWalkBackWest:
     WalkNormalWest
     EndMovement
+
+Route201_Arc1ShowRivalForBattle:
+    ClearFlag FLAG_HIDE_ROUTE_201_RIVAL
+    SetObjectEventPos LOCALID_RIVAL, 112, 855
+    SetObjectEventDir LOCALID_RIVAL, DIR_SOUTH
+    SetObjectEventMovementType LOCALID_RIVAL, MOVEMENT_TYPE_LOOK_SOUTH
+    Return
+
+// Arc 1 scene 8: the first battle with Garius (coord event value 9 on the Twinleaf exit row, x110-113 z857).
+// StartFirstBattle can't be lost for good: on a loss the script restores the field itself, as the stock
+// Route 201 battle did. Either way the party is healed and Garius heads for Sandgem.
+Route201_TriggerArc1RivalBattle:
+    LockAll
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_RivalNoticePlayer
+    WaitMovement
+    SetRivalBGM
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    CallIfEq VAR_0x8004, 110, Route201_Arc1RivalRunToPlayerX110
+    CallIfEq VAR_0x8004, 111, Route201_Arc1RivalRunToPlayerX111
+    CallIfEq VAR_0x8004, 112, Route201_Arc1RivalRunToPlayerX112
+    CallIfEq VAR_0x8004, 113, Route201_Arc1RivalRunToPlayerX113
+    BufferRivalName 0
+    Message Route201_Text_Arc1GariusThereYouAre
+    Message Route201_Text_Arc1GariusToughestStarters
+    WaitABXPadPress
+    CloseMessage
+    GetPlayerStarterSpecies VAR_RESULT
+    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, Route201_Arc1StartBattleTurtwig
+    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, Route201_Arc1StartBattleChimchar
+    GoTo Route201_Arc1StartBattlePiplup
+    End
+
+Route201_Arc1StartBattlePiplup:
+    StartFirstBattle TRAINER_RIVAL_ROUTE_201_PIPLUP
+    GoTo Route201_Arc1RivalBattleEnd
+
+Route201_Arc1StartBattleTurtwig:
+    StartFirstBattle TRAINER_RIVAL_ROUTE_201_TURTWIG
+    GoTo Route201_Arc1RivalBattleEnd
+
+Route201_Arc1StartBattleChimchar:
+    StartFirstBattle TRAINER_RIVAL_ROUTE_201_CHIMCHAR
+    GoTo Route201_Arc1RivalBattleEnd
+
+Route201_Arc1RivalBattleEnd:
+    CheckWonBattle VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, Route201_Arc1RivalWon
+    BufferRivalName 0
+    Message Route201_Text_Arc1GariusLuckyBreak
+    GoTo Route201_Arc1RivalRunToSandgem
+    End
+
+Route201_Arc1RivalWon:
+    ReturnToField
+    FadeScreenIn FADE_SCREEN_SPEED_MEDIUM
+    WaitFadeScreen
+    BufferRivalName 0
+    Message Route201_Text_Arc1GariusToldYou
+Route201_Arc1RivalRunToSandgem:
+    HealParty
+    Message Route201_Text_Arc1GariusTenMillion
+    WaitABXPadPress
+    CloseMessage
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    CallIfEq VAR_0x8004, 110, Route201_Arc1RivalLeaveX110
+    CallIfEq VAR_0x8004, 111, Route201_Arc1RivalLeaveX111
+    CallIfEq VAR_0x8004, 112, Route201_Arc1RivalLeaveX112
+    CallIfEq VAR_0x8004, 113, Route201_Arc1RivalLeaveX113
+    RemoveObject LOCALID_RIVAL
+    SetVar VAR_ARC1_PROGRESS, 10
+    FadeToDefaultMusic
+    ReleaseAll
+    End
+
+Route201_Arc1RivalLeaveX110:
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_Arc1RivalLeaveX110
+    ApplyMovement LOCALID_PLAYER, Route201_Movement_Arc1PlayerWatchRivalLeaveEast
+    WaitMovement
+    Return
+
+Route201_Arc1RivalLeaveX111:
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_Arc1RivalLeaveX111
+    ApplyMovement LOCALID_PLAYER, Route201_Movement_Arc1PlayerWatchRivalLeaveEast
+    WaitMovement
+    Return
+
+Route201_Arc1RivalLeaveX112:
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_Arc1RivalLeaveX112
+    ApplyMovement LOCALID_PLAYER, Route201_Movement_Arc1PlayerWatchRivalLeaveEast
+    WaitMovement
+    Return
+
+Route201_Arc1RivalLeaveX113:
+    ApplyMovement LOCALID_RIVAL, Route201_Movement_Arc1RivalLeaveX113
+    ApplyMovement LOCALID_PLAYER, Route201_Movement_Arc1PlayerWatchRivalLeaveEast
+    WaitMovement
+    Return
+
+    .balign 4, 0
+Route201_Movement_Arc1RivalLeaveX110:
+    WalkFastNorth 3
+    WalkFastEast 11
+    EndMovement
+
+    .balign 4, 0
+Route201_Movement_Arc1RivalLeaveX111:
+    WalkFastNorth 3
+    WalkFastEast 10
+    EndMovement
+
+    .balign 4, 0
+Route201_Movement_Arc1RivalLeaveX112:
+    WalkFastNorth 3
+    WalkFastEast 9
+    EndMovement
+
+    .balign 4, 0
+Route201_Movement_Arc1RivalLeaveX113:
+    WalkFastNorth 3
+    WalkFastEast 8
+    EndMovement
+
+    .balign 4, 0
+Route201_Movement_Arc1PlayerWatchRivalLeaveEast:
+    Delay8 3
+    WalkOnSpotNormalEast
+    EndMovement
+
