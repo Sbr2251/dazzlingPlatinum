@@ -276,6 +276,8 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
 
 - `trainers.md`: Gym Leader, Elite Four and Champion teams, strategies and Megas.
 - `route_pokemon.md`: wild Pokemon changes (more Gen 3, and Gen 5 in two phases).
+- `build_backlog.md`: every code task from the story docs.
+- `artwork.md`: cutscenes, sprites, maps and other art.
 
 ## Open questions (top priority first)
 

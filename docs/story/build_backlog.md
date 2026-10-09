@@ -57,6 +57,9 @@ Suggested order: 1, then 2 (Arc 2 starts with the first totem and the Resonator)
 
 ## 8. Art and audio
 
+The full list is in `artwork.md` (the "Artwork" tab): four hero cutscenes, character sprites, Pokemon art, maps, objects, UI and audio.
+
+
 - Ruth (overworld and trainer sprites).
 - Team Eclipse: grunt uniforms, Saros, Kahn and Indra (overworld and trainer sprites, new trainer classes).
 - Garius: a new design, or Barry's sprite reused.
