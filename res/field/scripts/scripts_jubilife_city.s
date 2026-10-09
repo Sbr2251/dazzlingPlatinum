@@ -775,7 +775,7 @@ _0954:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    GoToIfEq VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1TrenchCoat
+    GoToIfInRange VAR_ARC1_PROGRESS, 12, 13, JubilifeCity_Arc1TrenchCoat
     GoToIfSet FLAG_UNK_0x00F3, _097F
     Call _0821
     WaitABPress
@@ -1787,22 +1787,43 @@ JubilifeCity_Arc1SetUpRally:
 JubilifeCity_Arc1AfterRally:
     ClearFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
     SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY_CAST
+    // Normally already done in-session by the rally (RestorePlaza, RemoveObject of Looker); kept as a guard
     ClearFlag FLAG_UNK_0x0238
     SetFlag FLAG_UNK_0x0181
+    ClearFlag FLAG_UNK_0x01F5
     CallIfUnset FLAG_UNK_0x00F3, JubilifeCity_Arc1RestorePoketchCampaign
     Return
 
+// Only the Arc 1 rally objects are touched from 14 on. The stock flags SetUpRally changed at 12 (0x0238, 0x01F5,
+// 0x01F6) are restored by the rally itself (JubilifeCity_Arc1RestorePlaza), and the rally's RemoveObject of
+// Looker sets FLAG_UNK_0x0181, so later stock scenes (post-Gym RemoveObject 24/25/27, the Pal Pad scene's
+// ClearFlag FLAG_UNK_0x0181) keep working in Arc 2.
 JubilifeCity_Arc1RallyOver:
     SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
     SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY_CAST
-    ClearFlag FLAG_UNK_0x0238
-    SetFlag FLAG_UNK_0x0181
-    CallIfUnset FLAG_UNK_0x00F3, JubilifeCity_Arc1RestorePoketchCampaign
     Return
 
-// Until the Pokétch is obtained (FLAG_UNK_0x00F3), the president and the two clowns are back after the rally
+// Until the Pokétch is obtained (FLAG_UNK_0x00F3), the president is back after the rally
 JubilifeCity_Arc1RestorePoketchCampaign:
     ClearFlag FLAG_UNK_0x01F5
+    ClearFlag FLAG_UNK_0x01F6
+    Return
+
+// End of the rally, while the camera is on Cyrus: undo SetUpRally's plaza changes in-session. Saros, Cyrus and
+// Looker are already removed, which leaves room for the clown gfx (all three clowns are off screen here).
+JubilifeCity_Arc1RestorePlaza:
+    ClearFlag FLAG_UNK_0x0238
+    AddObject JUBILIFE_CITY_CLOWN_27
+    ClearFlag FLAG_UNK_0x01F5
+    AddObject JUBILIFE_CITY_CLOWN_24
+    AddObject JUBILIFE_CITY_CLOWN_25
+    // The Pokétch president (until he has handed out the Pokétch; stock _12D5 removes him for good) is only
+    // un-hidden here and appears on the next Jubilife load. Adding him in-session draws a black square: his gfx
+    // does not fit in the field's dynamic object texture slots next to the grunts and the clowns.
+    CallIfUnset FLAG_UNK_0x00F3, JubilifeCity_Arc1UnhidePresident
+    Return
+
+JubilifeCity_Arc1UnhidePresident:
     ClearFlag FLAG_UNK_0x01F6
     Return
 
@@ -1915,6 +1936,8 @@ JubilifeCity_Arc1Rally:
     // Pan away from the kids to the edge of the crowd: Cyrus, alone, watching the screen
     ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraToCyrus
     WaitMovement
+    // The trench coat man slips away while the camera is on Cyrus, 18 tiles east (D4: sets FLAG_UNK_0x0181)
+    RemoveObject JUBILIFE_CITY_LOOKER_31
     WaitTime 30, VAR_RESULT
     Message JubilifeCity_Text_Arc1CyrusIKnowThatVoice
     WaitABXPadPress
@@ -1923,6 +1946,8 @@ JubilifeCity_Arc1Rally:
     WaitMovement
     RemoveObject LOCALID_ARC1_CYRUS
     WaitTime 15, VAR_RESULT
+    // Still off camera: the TV door clown and the two Pokétch campaign clowns come back for the rest of this visit
+    Call JubilifeCity_Arc1RestorePlaza
     ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraBackToPlayer
     WaitMovement
     RestoreCamera
