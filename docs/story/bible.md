@@ -1,8 +1,7 @@
 # Dazzling Platinum story bible
 
 Source of truth for story facts. Built from the "Dazzling Platinum PRD" Google Doc plus the owner's answers.
-Anything marked **OPEN** isn't decided yet. Anything marked **PROPOSED** is Claude's suggestion, waiting for
-the owner to approve it.
+Every decision here is approved by the owner. **NEEDS DESIGN** marks places that need map and art design.
 
 Companion doc: `secrets.md` (who knows what, and when).
 
@@ -58,7 +57,7 @@ world. He's the only person here who remembers the other Sinnoh, apart from the 
   happens there, and later Palkia is captured there. Lake Valor moves to southwest of Hearthome City
   (entrance in the top-left corner of Route 212) and has a clockwork palace (brass, gears, a giant clock)
   built in ancient times for Dialga.
-- **The old Lake Valor site is the Valor Basin (PROPOSED):** a dry lakebed beside Valor Lakefront. Locals say
+- **The old Lake Valor site is the Valor Basin:** a dry lakebed beside Valor Lakefront. Locals say
   it drained years ago in a research accident. It was really Eclipse's first torture experiment: the portal
   it tore open swallowed the lake into the Distortion World and killed Garius's father, who had come to stop it. He fought Eclipse and was against all of their work. Valor Lakefront has a memorial plaque; one of the names is "Elias, of Twinleaf
   Town."
@@ -71,7 +70,7 @@ world. He's the only person here who remembers the other Sinnoh, apart from the 
 - **The first Distortion World shard deposit:** late in Arc 2, Darren finds one while searching for Cyrus. It
   reaches Eclipse through Garius, and Eclipse starts harvesting the Distortion World, which powers the Arc 3
   captures. The player's own discovery fuels the villains' endgame.
-- **The totem Pokemon are the tortured Pokemon themselves (PROPOSED wording).** When a portal tears open, the
+- **The totem Pokemon are the tortured Pokemon themselves.** When a portal tears open, the
   Pokemon is pulled through, and shard energy swells it into a huge, enraged totem guarding the shards. Beating a totem in the Distortion World drains the shard energy and frees it. Arc 1 ends with
   Rowan studying the Eclipse Shard Cyrus gave the player and explaining that totems exist and must be beaten
   in the Distortion World; nobody knows yet where shards come from. At first totems look like native
@@ -118,8 +117,8 @@ screenplay name. No in-game line should assume the player's gender.
   and Garius, has everyone sit down, and tells them he led an evil organization in his world. Rowan defends
   him; Garius demands he leave.
 - **A second rival.** After the confession, Rowan gives him the third starter: "This can be a new start for
-  you." (PROPOSED: he came through the rift with no Pokemon.) His starter beats Garius's and loses to yours.
-- **Battles throughout (schedule PROPOSED):** (1) Jubilife, right after he gets his starter; (2) Celestic,
+  you." (he came through the rift with no Pokemon.) His starter beats Garius's and loses to yours.
+- **Battles throughout :** (1) Jubilife, right after he gets his starter; (2) Celestic,
   after grandma's legend; (3) late Arc 2, the confrontation at the peak of suspicion ("Words prove nothing.
   Judge me the way trainers do."); (4) Arc 3 after he's cleared, before Gym 7; (5) before the Umbral Palace.
 - **The search:** after battle 3 he goes into the Distortion World alone. Darren searches for him and finds the
@@ -234,7 +233,7 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
    - **Indra finds Darren and Cyrus:** Garius is about to use Dialga and Palkia to bring his father back, and
      his father fought Team Eclipse and was against all of this work.
    - **Stop Garius on a redesigned Route 223 (after Gym 8, before Victory Road):** he's the last remaining
-     member of Team Eclipse. PROPOSED: calming the Kingdra totem on Route 223 gives the power to climb the
+     member of Team Eclipse. calming the Kingdra totem on Route 223 gives the power to climb the
      waterfall at the end of the route, and Garius waits at the top, at the entrance to Victory Road,
      mid-ritual. Cyrus tells him the truth about his father; he doesn't believe it and battles anyway.
      Giratina vs. Dialga and Palkia. After losing, he realizes he's betrayed everything his father stood for.

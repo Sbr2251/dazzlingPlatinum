@@ -18,7 +18,7 @@ postgame or Battle Zone). "Visible" means the layout or look changes, not just t
 | + redesigns 1-4 below | 25 | **~40% (target)** |
 | + redesigns 5-6 below (stretch) | 27 | ~44% |
 
-### Proposed redesigns of dull areas
+### Redesigns of dull areas (approved)
 
 1. **Routes 216-217:** mountain pass with a memorial ridge (Teo's marker, scene 3.7) and Indra's camp. Arc 3.
 2. **Solaceon Town:** the heart of Eclipse's public support: banners, a memorial wall of photos, NPCs who joined
@@ -40,7 +40,7 @@ fog-clearing power (Gym 5). Remove that fog or turn it into rift mist.
 | Mt. Coronet depths | Molten lava area under the mountain; seen sealed off when crossing to Celestic in Arc 2 | Race for Giratina | 2, 3 | planned (see `docs/coronet_1f_lava/`) |
 | Route 218 (Canalave to Jubilife) | Fairy-type route | Catching goal; on the Gym 6 to Lake Verity chase | 3 | planned |
 | Lake Valor | **Moved** to southwest of Hearthome City, entrance in the top-left corner of Route 212. Clockwork palace (brass, gears, a giant clock), ancient Dialga palace | Dialga falls here right after Gym 5 (Hearthome) | 3 | planned: needs a map-matrix investigation |
-| Old Lake Valor site (near Pastoria) | **Valor Basin:** dry lakebed; Valor Lakefront keeps a memorial plaque | Site of Eclipse's first shard experiment, which killed Garius's father; passed in Arc 2 | 2, 3 | candidate (PROPOSED) |
+| Old Lake Valor site (near Pastoria) | **Valor Basin:** dry lakebed; Valor Lakefront keeps a memorial plaque | Site of Eclipse's first shard experiment, which killed Garius's father; passed in Arc 2 | 2, 3 | planned |
 | Under Mt. Coronet | **Umbral Palace:** Giratina's home past the molten depths, with the Distortion World portal | Climax of the race for Giratina | 3 | planned: NEEDS DESIGN |
 | Gym order | Oreburgh, Eterna, Veilstone, Pastoria, Hearthome, Canalave, Snowpoint, Sunyshore | Celestic (via Mt. Coronet) after Gym 2 | 2 | planned: needs trainer level rebalance and HM/badge gating checks |
 | Distortion World | Wall-walk puzzle map | Act 1 puzzle | 1 | done |
