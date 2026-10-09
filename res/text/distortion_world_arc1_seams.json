@@ -77,8 +77,8 @@
     {
       "id": "DistortionWorldArc1Seams_Text_BarryPickOne",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: We found it! Rowan\n",
-        "said the starters are ours!\r",
+        "{STRVAR_1 3, 0, 0}: We found it!\n",
+        "Now Rowan owes us one!\r",
         "Go on, pick one first!\n",
         "I'll take whatever beats yours!"
       ]
