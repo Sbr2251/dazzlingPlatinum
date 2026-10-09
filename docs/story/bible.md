@@ -50,7 +50,7 @@ world. He's the only person here who remembers the other Sinnoh, apart from the 
   - Every calmed totem closes a torture site and costs Eclipse shards, which is why the first Distortion World
     shard deposit matters so much to them.
 
-  **OPEN (design and code):** eight Distortion World puzzle maps (the Act 1 wall-walk is the template). Replace
+  **To build:** eight Distortion World puzzle maps (the Act 1 wall-walk is the template). Replace
   the HM items and field-move menu with the Resonator, gated on the badge plus `FLAG_TOTEM_*_DEFEATED`. Surf now
   comes before Defog (reverse of stock), so map gating needs a check.
 - **Two lakes have ancient palaces.** The Lake Verity castle was built long ago and dedicated to Palkia. Act 1
@@ -134,7 +134,7 @@ screenplay name. No in-game line should assume the player's gender.
 - He is living proof that someone can come back out of Giratina's world. Eclipse doesn't know this at first.
 - Recognizes himself in Garius: someone so sure a loss can be fixed by force that he'll do anything. **He's the
   one who reaches Garius at the end.**
-- **OPEN:** whether he faces Giratina, the creature that threw him out, when the player catches it.
+- **Faces Giratina** when the player catches it (scene 3.12) and understands it sent him: "You threw me out... No. You sent me. Here. To them."
 
 ### Why Giratina sent Cyrus here
 
@@ -202,7 +202,7 @@ an uneasy alliance with no single boss.
 - Saros and Kahn are burned out by the shards after capturing their legendaries.
 - **Indra's ending:** after the player beats her, Giratina shows her brother for a few seconds in a
   cutscene. He tells her to move on. She cries, accepts it, and lets the player catch Giratina.
-- **OPEN:** which leader is in the room at Cynthia's grandma's warning.
+- Saros is the leader at Cynthia's grandma's warning in Celestic (scene 2.15).
 
 ## Story spine (3 arcs, then the League)
 
