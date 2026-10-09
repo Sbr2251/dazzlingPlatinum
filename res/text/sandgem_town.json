@@ -281,6 +281,34 @@
         "Heal Your Pokémon!\n",
         "Pokémon Center"
       ]
+    },
+    {
+      "id": "SandgemTown_Text_Arc1RuthOhItsYou",
+      "en_US": [
+        "Ruth: Oh, it's you! The Professor's\n",
+        "been expecting you.\r"
+      ]
+    },
+    {
+      "id": "SandgemTown_Text_Arc1RuthHisExactWords",
+      "en_US": [
+        "Well... his exact words were,\n",
+        "'If those two reckless children\r",
+        "show up, send them in.'\r"
+      ]
+    },
+    {
+      "id": "SandgemTown_Text_Arc1RuthThisWay",
+      "en_US": [
+        "Ruth: This way!\r"
+      ]
+    },
+    {
+      "id": "SandgemTown_Text_Arc1RuthTalk",
+      "en_US": [
+        "Ruth: The Professor's been\n",
+        "expecting you."
+      ]
     }
   ]
 }

@@ -9,14 +9,27 @@
     ScriptEntry _00B2
     ScriptEntry _00C7
     ScriptEntry _04C4
+    ScriptEntry Route202_Arc1RuthTalk
     ScriptEntryEnd
 
 _001E:
     CallIfGe VAR_UNK_0x4087, 2, _005B
-    GetPlayerGender VAR_MAP_LOCAL_0
-    GoToIfEq VAR_MAP_LOCAL_0, GENDER_MALE, _004B
-    GoToIfEq VAR_MAP_LOCAL_0, GENDER_FEMALE, _0053
+    // Arc 1: Ruth (local 3) waits for the lesson only once the lab is done (state 11+).
+    CallIfEq VAR_UNK_0x4087, 0, Route202_Arc1SetRuthVisibility
+    CallIfEq VAR_UNK_0x4087, 1, Route202_Arc1HideRuth
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     End
+
+Route202_Arc1SetRuthVisibility:
+    SetFlag FLAG_UNK_0x0188
+    GoToIfLt VAR_ARC1_PROGRESS, 11, Route202_Arc1Return
+    ClearFlag FLAG_UNK_0x0188
+Route202_Arc1Return:
+    Return
+
+Route202_Arc1HideRuth:
+    SetFlag FLAG_UNK_0x0188
+    Return
 
 _004B:
     SetVar VAR_OBJ_GFX_ID_0, 97
@@ -56,6 +69,8 @@ _00B2:
 
 _00C7:
     LockAll
+    // Arc 1: no lesson before the lab (Ruth isn't here yet); step the player back.
+    GoToIfLt VAR_ARC1_PROGRESS, 11, Route202_Arc1PushBack
     ApplyMovement 3, _03C4
     ApplyMovement LOCALID_PLAYER, _04A0
     WaitMovement
@@ -93,6 +108,44 @@ _0164:
     GoTo _0174
 
 _0174:
+    // Arc 1 scene 10: Ruth's trimmed catching lesson. No Parcel gate and no gender branches;
+    // the stock text paths below (_019F.._0262, _027C..) are left in place, unreachable.
+    SetCounterpartBGM
+    ApplyMovement 3, _0488
+    ApplyMovement LOCALID_PLAYER, _04BC
+    WaitMovement
+    StartCatchingTutorial
+    ApplyMovement 3, _0490
+    WaitMovement
+    Message Route202_Text_Arc1RuthWeakenItFirst
+    SetVar VAR_0x8004, ITEM_POKE_BALL
+    SetVar VAR_0x8005, 5
+    GiveItemQuantity
+    SetVar VAR_0x8004, ITEM_TOWN_MAP
+    SetVar VAR_0x8005, 1
+    GiveItemQuantity
+    Message Route202_Text_Arc1RuthBetweenYouAndMe
+    Message Route202_Text_Arc1RuthAnyway
+    CloseMessage
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfEq VAR_0x8005, 829, Route202_Arc1RuthExitNorth
+    ApplyMovement 3, Route202_Movement_Arc1RuthExitSouth
+    GoTo Route202_Arc1RuthExitWalk
+    End
+
+Route202_Arc1RuthExitNorth:
+    ApplyMovement 3, Route202_Movement_Arc1RuthExitViaNorth
+Route202_Arc1RuthExitWalk:
+    ApplyMovement LOCALID_PLAYER, Route202_Movement_Arc1PlayerWatchRuth
+    WaitMovement
+    FadeToDefaultMusic3
+    RemoveObject 3
+    SetVar VAR_UNK_0x4087, 1
+    SetVar VAR_ARC1_PROGRESS, 12 // Arc 1: lesson done (5 Poke Balls + Town Map)
+    ReleaseAll
+    End
+
+_0174_Unused_StockGate:
     GoToIfUnset FLAG_RECEIVED_PARCEL, _027C
     GetPlayerGender VAR_RESULT
     GoToIfEq VAR_RESULT, GENDER_MALE, _019F
@@ -548,4 +601,47 @@ Route202_UnusedMovement4:
     .balign 4, 0
 _06F8:
     WalkNormalEast
+    EndMovement
+
+Route202_Arc1PushBack:
+    Message Route202_Text_Arc1GoSeeRowanFirst
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, _04AC
+    WaitMovement
+    ReleaseAll
+    End
+
+Route202_Arc1RuthTalk:
+    GoToIfGe VAR_UNK_0x4087, 2, _04C4
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message Route202_Text_Arc1RuthTalk
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
+// Ruth is at (177,z), the player at (178,z). Row 830 is solid west of x180 and rows 832-833 are
+// open only at x184-189, so she goes round the player and back south along x184 toward Sandgem.
+Route202_Movement_Arc1RuthExitSouth:
+    WalkNormalSouth
+    WalkNormalEast 7
+    WalkNormalSouth 9
+    EndMovement
+
+    .balign 4, 0
+Route202_Movement_Arc1RuthExitViaNorth:
+    WalkNormalNorth
+    WalkNormalEast 7
+    WalkNormalSouth 9
+    EndMovement
+
+    .balign 4, 0
+Route202_Movement_Arc1PlayerWatchRuth:
+    Delay8 6
+    WalkOnSpotNormalEast
+    Delay8 4
+    WalkOnSpotNormalSouth
     EndMovement

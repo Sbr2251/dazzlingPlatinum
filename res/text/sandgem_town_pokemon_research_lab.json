@@ -616,6 +616,140 @@
         "I believed that you would make it, and\n",
         "here you are!"
       ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanHmYouCame",
+      "en_US": [
+        "Rowan: Hm. You came. Good.\n",
+        "Let me see your Pokémon.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanHealthy",
+      "en_US": [
+        "Rowan: ...Healthy. Strong, even.\r",
+        "Whatever that world is,\n",
+        "it didn't harm them.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanRecordEveryPokemon",
+      "en_US": [
+        "Rowan: I mean to record every\n",
+        "Pokémon in Sinnoh, and lately\r",
+        "this region has been... changing.\n",
+        "I can't keep up alone.\r",
+        "Take these.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RivalGotPokedex",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} got a\n",
+        "{COLOR 1}Pokédex{COLOR 0}, too!\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1GariusShowHimTheRock",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Oh! Oh, show him\n",
+        "the rock!\r",
+        "The one the weird guy gave us!\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1PlayerHandedOverShard",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} handed over\n",
+        "the Eclipse Shard.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanItsWarm",
+      "en_US": [
+        "Rowan: ...It's warm.\n",
+        "No. It's pulsing.\r",
+        "Like a heartbeat.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RuthReadingsSpiked",
+      "en_US": [
+        "Ruth: Professor, my readings at the\n",
+        "portal spiked just like that,\r",
+        "right before it closed.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanCameFromThatWorld",
+      "en_US": [
+        "Rowan: Then it came from that world.\n",
+        "I'll need time with this.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanWhoIsHe",
+      "en_US": [
+        "Rowan: The man who guided you.\n",
+        "Who is he?\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1GariusFortuneCookie",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: No idea. Didn't even\n",
+        "say his name.\r",
+        "Talks like a fortune cookie.\n",
+        "Dresses like he's going to space.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanThankHim",
+      "en_US": [
+        "Rowan: He walked back into that\n",
+        "world for two children he'd\r",
+        "never met.\r",
+        "Whoever he is...\n",
+        "I'd like to thank him.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanNowGo",
+      "en_US": [
+        "Rowan: Now go.\n",
+        "Oreburgh City has a Gym, and you\r",
+        "two have Pokémon.\n",
+        "Isn't that what you wanted?\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1GariusGymBadges",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Gym! Badges!\n",
+        "Let's GO!\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RuthComeWithMe",
+      "en_US": [
+        "Ruth: Wait, do you even know how\n",
+        "to catch a Pokémon?\r",
+        "...Come with me.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RuthTalk",
+      "en_US": [
+        "Ruth: The Professor's been\n",
+        "expecting you."
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1GariusTalk",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Gym! Badges!\n",
+        "Let's GO!"
+      ]
     }
   ]
 }

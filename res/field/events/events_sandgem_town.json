@@ -67,7 +67,7 @@
             "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
             "trainer_type": "TRAINER_TYPE_NONE",
             "hidden_flag": "FLAG_HIDE_SANDGEM_TOWN_COUNTERPART",
-            "script": 10300,
+            "script": 13,
             "initial_dir": 2,
             "data": [],
             "movement_range_x": 0,

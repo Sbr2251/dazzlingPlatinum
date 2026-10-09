@@ -221,6 +221,45 @@
         "same kind of Pokémon, you should\f",
         "consider using Repels.\r"
       ]
+    },
+    {
+      "id": "Route202_Text_Arc1RuthWeakenItFirst",
+      "en_US": [
+        "Ruth: Weaken it first, then throw.\r",
+        "Don't feel bad if it breaks free.\n",
+        "They all do, sometimes.\r"
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1RuthBetweenYouAndMe",
+      "en_US": [
+        "Ruth: Between you and me, the\n",
+        "Professor hasn't slept since the\r",
+        "portal opened. He keeps muttering,\n",
+        "'Things don't just tear open\r",
+        "on their own.'\r"
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1RuthAnyway",
+      "en_US": [
+        "Ruth: Anyway!\n",
+        "Jubilife City is straight ahead.\r",
+        "Good luck!\r"
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1GoSeeRowanFirst",
+      "en_US": [
+        "Professor Rowan's lab is back in\n",
+        "Sandgem Town...\r"
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1RuthTalk",
+      "en_US": [
+        "Ruth: ...Come with me."
+      ]
     }
   ]
 }
