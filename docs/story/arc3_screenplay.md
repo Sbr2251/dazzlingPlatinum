@@ -65,7 +65,7 @@ protagonist apart from Yes/No choices. Lines marked Note, and bracketed asides, 
 - **Cyrus** (after the battle) "Hm. That was... enjoyable. I don't think I've ever said that about a battle before."
 - *Iron Island, the deep tunnels: a rift. [PUZZLE: the Iron Island rift. NEEDS DESIGN.] Cyrus guides.*
 - *Totem battle: Aggron (the existing encounter). Calmed, it gives Darren its Calm Shard. [Field power: push boulders, with the Mine Badge.]*
-- > Note: Battle 4 of 5 with Cyrus: trust, sparring as equals.
+- > Note: Battle 4 of 5 with Cyrus: trust, sparring as equals. Cyrus Mega Evolves his starter for the first time.
 
 ## Scene 3.6: Route 218 and the Lake Verity castle, Palkia falls
 
@@ -107,7 +107,7 @@ protagonist apart from Yes/No choices. Lines marked Note, and bracketed asides, 
 - *Inside Mt. Coronet, at the grate from Arc 2. It's been torn open. Below, the molten depths glow. The heat is enormous.*
 - **Cyrus:** "Before we go down. One more battle."
 - **Cyrus:** "Not for me. For you. I need to know you're ready for what's down there."
-- *Battle 5 with Cyrus, his strongest team.*
+- *Battle 5 with Cyrus, his strongest team, with his Mega-Evolved starter.*
 - **Cyrus** (after the battle) "...You're ready."
 - **Cyrus:** "I spent a lifetime trying to remake the world because I couldn't stand the one I had. And then a boy showed me I was wrong. Now you've shown me again."
 - > Note: Battle 5 of 5 with Cyrus: making sure you're ready. "A boy" is Lucas. Only the player knows.
@@ -195,7 +195,7 @@ protagonist apart from Yes/No choices. Lines marked Note, and bracketed asides, 
 - **Garius:** "...Liar."
 - **Garius:** "You'd say anything. You're a liar. You chained up Pokemon for fun, and you want me to believe YOU?"
 - **Garius:** "He'd want this. He'd want to come home. Get out of my way!"
-- *The final battle: Garius, with Dialga and Palkia in his team, against Darren and Giratina.*
+- *The final battle: Garius, with Dialga and Palkia in his team and his Mega-Evolved starter, against Darren and Giratina.*
 
 ## Scene 3.17: After the battle
 
@@ -218,7 +218,7 @@ protagonist apart from Yes/No choices. Lines marked Note, and bracketed asides, 
 - *The Champion's room. The Champion is Cynthia. Cyrus waits at the door.*
 - **Cyrus** (watching her through the doorway) "In my world, she was the one who stopped me. Her, and a boy."
 - **Cyrus:** "Here, she's never heard my name. ...Good. Go on."
-- *Battle: the Champion, Cynthia.*
+- *Battle: the Champion, Cynthia, with Mega Garchomp. After the credits she gives Darren the Garchompite (postgame).*
 - *Hall of Fame. Credits.*
 - *After the credits: Rowan's lab. Rowan, Ruth, Cyrus, Looker, and Garius, standing a little apart, but there.*
 - **Rowan:** "The totems are calm. Eclipse is finished. And the three who made this world are free."

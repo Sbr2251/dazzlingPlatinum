@@ -17,6 +17,25 @@ Claude's draft, mirrored in the "Arc 2 Screenplay" tab of the story doc. Continu
 - **Looker** (No) "Hm. Then we understand each other. Keep your eyes open."
 - > Note: Dramatic irony: the player knows exactly why there's no record. To the characters it looks sinister, and it lands right on top of the leaks.
 
+## Scene 2.17b: The Meteor Shrine, Maylene's trial (Mega Evolution side plot)
+
+- *Veilstone's meteorites stand in a walled shrine garden, rebuilt as the Meteor Shrine. [Map: NEEDS DESIGN.] Maylene meets Darren at the gate.*
+- **Maylene:** "You fought like your Pokemon trusts you completely. I want to show you something."
+- **Maylene:** "Long ago, a star fell here. Veilstone was built around the pieces. My family has kept them ever since."
+- **Maylene:** "The star's light wakes something in a Pokemon. But only when the bond with its Trainer is strong enough. We call it Mega Evolution."
+- **Maylene:** "It can't be forced. Ever. It only answers a bond."
+- *Cyrus stands at the edge of the garden, looking at the meteorites.*
+- **Cyrus** (quietly) "In my world, these were only rocks."
+- **Maylene:** "Show me your bond. Lucario! Let's go!"
+- *Maylene's Lucario Mega Evolves. Trial battle: Maylene, with Mega Lucario. This is the first time the player sees Mega Evolution.*
+- **Maylene** (after the battle) "That's it. That's the bond. This is yours now."
+- *Darren got a Key Stone!*
+- *Maylene opens a stone box. Three Mega Stones inside are glowing: one for each of Rowan's starters.*
+- **Maylene:** "These have sat dark in that box for a hundred years. They lit up the day your Pokemon came out of that other world."
+- *Darren gets the Mega Stone for their own starter. Maylene sends the other two with Ruth: one for Garius, one for Cyrus.*
+- > Note: Mega Evolution side plot (not tied to Eclipse). From here on, rival battles can include Mega Evolution: Garius's and Cyrus's starters both get their Megas.
+- > Note: Dramatic irony: Cyrus's "only rocks" line. In the player's Platinum, the Veilstone meteorites really were just landmarks.
+
 ## Scene 2.18: Route 214, the Skarmory totem (leak L2)
 
 - *The plan: go in at dawn. Everyone heard it the night before at the Veilstone Pokemon Center: Darren, Cyrus, Ruth, and Garius, who passed through for his own badge.*

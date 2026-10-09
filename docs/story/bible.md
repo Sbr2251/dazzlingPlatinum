@@ -186,6 +186,39 @@ renegade sends a guide back from its world when the creation trio is threatened.
 the informant, brushes it off a little too hard, alongside an Eclipse leader. After the reveal, the two of them
 agreeing reads as a clue.
 
+### Mega Evolution (side plot)
+
+**Why Megas exist in this Sinnoh: the Fallen Star of Veilstone.** Veilstone was built around meteorites (in the
+player's Platinum, just landmarks). Here, that fallen star carried the energy behind Mega Evolution. Key Stones
+are cut from the meteorites; Mega Stones formed wherever the star's dust settled. Not tied to Team Eclipse.
+Maylene: "It can't be forced. Ever. It only answers a bond."
+
+- **Maylene's family keeps the meteorites** (Sinnoh's version of Kalos's Korrina: Fighting type, Lucario).
+  Veilstone's meteorite garden becomes the **Meteor Shrine** (NEEDS DESIGN).
+- **Key Stone:** Maylene's trial after Gym 3 (Arc 2, scene 2.17b), against her Mega Lucario. Cyrus: "In my
+  world, these were only rocks."
+- **Starter stones:** dark in Maylene's family box for a hundred years, lit up the day the starters came out of
+  the Distortion World. Darren gets theirs; Ruth delivers the other two to Garius and Cyrus.
+
+| Mega Stone | Where | When |
+|---|---|---|
+| Key Stone | Maylene's trial, Meteor Shrine | Arc 2, after Gym 3 |
+| Torterrite, Infernapite, Empoleonite | Maylene's box (each of the three starter owners gets theirs) | Arc 2, after Gym 3 |
+| Staraptite | Meteor Shrine garden | Arc 2 |
+| Gengarite | Hidden in the Old Chateau, Eterna Forest | Arc 2 (needs the tree-cutting power) |
+| Gyaradosite | Crasher Wake, after Gym 4 | Arc 2 |
+| Gardevoirite | Hearthome Contest Hall prize | Arc 2 |
+| Scizorite | Fuego Ironworks foundry (optional) | Arc 2 or 3 |
+| Alakazite | Canalave Library, with the ancient Mega texts | Arc 3 |
+| Lucarionite | Riley, on Iron Island | Arc 3 |
+| Garchompite | Cynthia, after the Champion battle | Postgame |
+
+- **Who Mega Evolves in battle (from Gym 4 on):** Crasher Wake (Gyarados), Fantina (Gengar), Cyrus (starter,
+  battles 4 and 5), Garius (starter, Arc 3 and the final battle), Lucian (Alakazam), Flint (Infernape),
+  Champion Cynthia (Garchomp).
+- **To build:** move the Key Stone and Mega Stones off their Route 206 test spots; add stones to those
+  trainers' data.
+
 ### Team Eclipse leaders
 
 **The three are equals:**

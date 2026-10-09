@@ -16,7 +16,8 @@ postgame or Battle Zone). "Visible" means the layout or look changes, not just t
 | + rift-scarred totem sites (8: distortion zone, new tileset, violet sky) | 17 | ~27% |
 | + rebuilt Galactic sites (4: Windworks, Veilstone depot, Fuego foundry, Spear Pillar ruin) | 21 | ~34% |
 | + redesigns 1-4 below | 25 | **~40% (target)** |
-| + redesigns 5-6 below (stretch) | 27 | ~44% |
+| + Meteor Shrine (Mega side plot) | 26 | ~42% |
+| + redesigns 5-6 below | 28 | ~45% |
 
 ### Redesigns of dull areas (approved)
 
@@ -47,6 +48,7 @@ fog-clearing power (Gym 5). Remove that fog or turn it into rift mist.
 | Distortion World | One puzzle map per totem (8), entered through a rift at each totem site | Calm the totem; with the Gym badge, unlocks that totem's field power (no HMs) | 2-3 | planned: NEEDS DESIGN |
 | Galactic Eterna Building | **Eclipse Haven:** a shelter for Pokemon whose trainers died, secretly shipping them to torture sites | Arc 2 side plot with Gardenia and Looker (double battle) | 2 | planned |
 | Valley Windworks | Eclipse site, packed up before the player arrives | Leak L1 | 2 | planned |
+| Veilstone meteorite garden | **Meteor Shrine:** the Mega Evolution shrine kept by Maylene's family | Key Stone trial after Gym 3 (Mega side plot) | 2 | planned: NEEDS DESIGN |
 | Veilstone Galactic HQ and warehouse | Eclipse shipping depot for the Haven's crates | Background for Looker's investigation | 2 | planned |
 | Fuego Ironworks | The foundry where Eclipse builds its shard machines | Optional side area | 2-3 | candidate |
 | Iron Island | Deep tunnels hold the Aggron totem rift | Gym 6's totem | 3 | planned |
