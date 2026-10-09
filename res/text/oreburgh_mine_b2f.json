@@ -5,20 +5,20 @@
       "id": "pl_msg_00000223_00000",
       "en_US": [
         "OK, stand back and watch this.\r",
-        "Using the hidden move Rock Smash,\n",
-        "a boulder blocking your way...\r"
+        "My Pokémon will clear away\n",
+        "a boulder blocking the way...\r"
       ]
     },
     {
       "id": "pl_msg_00000223_00001",
       "en_US": [
         "Fallen boulders need to be smashed\n",
-        "so they’re out of the way.\r",
-        "If you could get the Badge from\n",
-        "the Gym in town, you’d be able\f",
-        "to do this too.\r",
-        "Of course, you’d have to beat the\n",
-        "Gym Leader first. That’d be me!\r"
+        "so they're out of the way.\r",
+        "Only Pokémon who know these\n",
+        "tunnels can do it safely.\r",
+        "Now, if you're after the Badge,\n",
+        "you'll have to beat the Gym Leader.\r",
+        "That'd be me!\r"
       ]
     },
     {
@@ -39,6 +39,161 @@
         "I met these MACHOP on Route 207.\r",
         "They’ve now become my most trusted\n",
         "partners!"
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1SealedTunnel",
+      "en_US": [
+        "The tunnel's been sealed off\n",
+        "with rubble.\r",
+        "...From somewhere beyond it,\n",
+        "a faint crying."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RowanAnotherOne",
+      "en_US": [
+        "Rowan: I came as soon as the\n",
+        "readings spiked.\r",
+        "...So. Another one."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1GariusGiantHitmonlee",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Was that...\n",
+        "a GIANT Hitmonlee?!"
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RowanTheShard",
+      "en_US": [
+        "Rowan: I've spent every hour since\n",
+        "Lake Verity with that shard.\r",
+        "It isn't a rock. It's energy.\n",
+        "A Pokémon's pain, pressed solid."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RowanTheMawile",
+      "en_US": [
+        "Rowan: The Mawile you fought had\n",
+        "a sliver of the same thing in it.\r",
+        "That's why it attacked."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RowanATotem",
+      "en_US": [
+        "Rowan: A Pokémon caught on the far\n",
+        "side of a rift like this one\f",
+        "soaks that energy in until it\f",
+        "swells. Huge. Furious. Suffering.\r",
+        "...A totem."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RuthPullItOut",
+      "en_US": [
+        "{STRVAR_1 3, 2, 0}: Can't we pull the energy\n",
+        "back out?"
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RowanNotFromThisSide",
+      "en_US": [
+        "Rowan: Not from this side.\n",
+        "It's bound to that world.\r",
+        "Defeat the totem there, in the\n",
+        "Distortion World, and the energy\f",
+        "should drain out of it.\r",
+        "The Pokémon should go free."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1GariusEasy",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: So we go in and beat it!\n",
+        "Easy!"
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RowanWithoutAGuide",
+      "en_US": [
+        "Rowan: You will do nothing of the\n",
+        "kind without a guide.\r",
+        "That world nearly swallowed\n",
+        "you once."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RowanWhyThisRift",
+      "en_US": [
+        "Rowan: And I want to know why this\n",
+        "rift is here at all.\r",
+        "Rifts don't tear open on\n",
+        "their own."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RuthRoute204",
+      "en_US": [
+        "{STRVAR_1 3, 2, 0}: Professor, it's collapsing!\r",
+        "...No, wait. The readings didn't\n",
+        "drop. They moved.\r",
+        "Something just opened up north\n",
+        "of Jubilife, near Route 204."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RowanItsWaiting",
+      "en_US": [
+        "Rowan: Then it isn't gone.\n",
+        "It's waiting."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RoarkCrying",
+      "en_US": [
+        "Roark: My miners have been hearing\n",
+        "that crying for a week.\r",
+        "Every Pokémon in Oreburgh's\n",
+        "been on edge since."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RoarkVouches",
+      "en_US": [
+        "Roark: That badge you won means\n",
+        "Oreburgh vouches for you.\r",
+        "Calm that thing down, and I've\n",
+        "got a feeling you'll find out\f",
+        "what that's worth."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RowanOnePerson",
+      "en_US": [
+        "Rowan: There's one person who has\n",
+        "walked that world and come back."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1GariusSpacesuitGuy",
+      "en_US": "{STRVAR_1 3, 0, 0}: Spacesuit guy?"
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1RowanFindHim",
+      "en_US": [
+        "Rowan: He was seen in Jubilife.\r",
+        "Find him. Bring him to me."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_Arc1EndOfArc1",
+      "en_US": [
+        "END OF ARC 1\n",
+        "To be continued..."
       ]
     }
   ]

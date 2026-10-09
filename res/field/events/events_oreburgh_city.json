@@ -457,6 +457,51 @@
             "x": 307,
             "z": 757,
             "y": 0
+        },
+        {
+            "id": "LOCALID_ARC1_MINER_DEEP_SHAFT",
+            "graphics_id": "OBJ_EVENT_GFX_WORKER",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": 23,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 299,
+            "z": 793,
+            "y": 3
+        },
+        {
+            "id": "LOCALID_ARC1_MINER_DARK_COATS",
+            "graphics_id": "OBJ_EVENT_GFX_WORKER",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": 24,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 305,
+            "z": 793,
+            "y": 3
+        },
+        {
+            "id": "LOCALID_ARC1_RUNNER",
+            "graphics_id": "OBJ_EVENT_GFX_WORKER",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_ARC1_OREBURGH_RUNNER",
+            "script": 0,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 291,
+            "z": 757,
+            "y": 3
         }
     ],
     "warp_events": [
@@ -559,7 +604,7 @@
     ],
     "coord_events": [
         {
-            "script": 3, 
+            "script": 3,
             "x": 266,
             "z": 748,
             "y": 0,
