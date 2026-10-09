@@ -145,10 +145,24 @@
       ]
     },
     {
-      "id": "DistortionWorldArc1Seams_Text_CyrusWeFollowedYourSeam",
+      "id": "DistortionWorldArc1Seams_Text_CyrusTheWorldFolds",
       "en_US": [
-        "Cyrus: We came down after you.\n",
-        "The seam held us, too.\r"
+        "Cyrus: This world folds.\n",
+        "Step where I step."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_BarryHeyWaitUp",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Hey! Don't you\n",
+        "dare leave me behind!"
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_BarryHowDidWeDoThat",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Whoa... Did we just\n",
+        "walk through thin air?!"
       ]
     }
   ]

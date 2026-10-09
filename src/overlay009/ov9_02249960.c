@@ -13288,7 +13288,7 @@ static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253B40[] = {
     NULL
 };
 
-// Arc 1 wall-walk puzzle map (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS). Local IDs 0x80-0x87; the conditions 10-12 test
+// Arc 1 wall-walk puzzle map (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS). Local IDs 0x80-0x86; the conditions 10-12 test
 // VAR_ARC1_DW_HINTS (see ov9_02251104).
 // Cyrus waits at the entry until the player reaches the briefcase.
 static const UnkStruct_ov9_0224EF30 sArc1SeamsCyrusAtEntry = {
@@ -13415,7 +13415,7 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsBriefcase = {
     },
 };
 
-// Cyrus drops onto the west end of the landing, then walks over to the player.
+// Cyrus, stepped out of a rift beside the player at the briefcase.
 static const UnkStruct_ov9_0224EF30 sArc1SeamsCyrusAtBriefcase = {
     11,
     ARC1_SEAMS_HINTS_BRIEFCASE,
@@ -13428,19 +13428,19 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsCyrusAtBriefcase = {
         0x0,
         0x0,
         ARC1_SEAMS_SCRIPT_TALK_CYRUS,
-        DIR_EAST,
+        DIR_SOUTH,
         0x0,
         0x0,
         0x0,
         0x0,
         0x0,
-        12,
-        23,
+        15,
+        22,
         ((1 << 4) * FX32_ONE),
     },
 };
 
-// Barry drops onto the east end of the landing, then steps west to his mark.
+// Barry, pulled through the rift after Cyrus, beside the player at the briefcase.
 static const UnkStruct_ov9_0224EF30 sArc1SeamsBarryAtBriefcase = {
     11,
     ARC1_SEAMS_HINTS_BRIEFCASE,
@@ -13453,13 +13453,13 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsBarryAtBriefcase = {
         0x0,
         0x0,
         ARC1_SEAMS_SCRIPT_TALK_BARRY,
-        DIR_WEST,
+        DIR_NORTH,
         0x0,
         0x0,
         0x0,
         0x0,
         0x0,
-        16,
+        15,
         24,
         ((1 << 4) * FX32_ONE),
     },

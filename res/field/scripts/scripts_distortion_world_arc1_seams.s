@@ -150,27 +150,28 @@ DistortionWorldArc1Seams_Briefcase:
     GoToIfGe VAR_ARC1_DW_HINTS, 3, DistortionWorldArc1Seams_End
     LockAll
     SetVar VAR_ARC1_DW_HINTS, 3
-    // Cyrus and Barry climbed down after the player: they drop onto the landing and walk over
+    // Cyrus folds space: he steps through a rift at the entry and out beside the briefcase, then pulls Barry after
+    Message DistortionWorldArc1Seams_Text_CyrusTheWorldFolds
+    WaitABXPadPress
+    CloseMessage
     PlayFanfare SEQ_SE_PL_SYUWA
-    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
-    WaitFadeScreen
     ScrCmd_312 LOCALID_CYRUS_ENTRY
-    ScrCmd_312 LOCALID_BARRY_ENTRY
     ScrCmd_311 LOCALID_CYRUS_CASE
+    WaitTime 20, VAR_RESULT
+    BufferRivalName 0
+    Message DistortionWorldArc1Seams_Text_BarryHeyWaitUp
+    WaitABXPadPress
+    CloseMessage
+    PlayFanfare SEQ_SE_PL_SYUWA
+    ScrCmd_312 LOCALID_BARRY_ENTRY
     ScrCmd_311 LOCALID_BARRY_CASE
-    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
-    WaitFadeScreen
-    ApplyMovement LOCALID_CYRUS_CASE, DistortionWorldArc1Seams_Movement_CyrusDropIn
-    ApplyMovement LOCALID_BARRY_CASE, DistortionWorldArc1Seams_Movement_BarryDropIn
-    WaitMovement
-    Message DistortionWorldArc1Seams_Text_CyrusWeFollowedYourSeam
+    WaitTime 20, VAR_RESULT
+    BufferRivalName 0
+    Message DistortionWorldArc1Seams_Text_BarryHowDidWeDoThat
     WaitABXPadPress
     CloseMessage
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
     CallIfLt VAR_0x8004, 15, DistortionWorldArc1Seams_StepToCase
-    ApplyMovement LOCALID_CYRUS_CASE, DistortionWorldArc1Seams_Movement_CyrusWalkToPlayer
-    ApplyMovement LOCALID_BARRY_CASE, DistortionWorldArc1Seams_Movement_BarryWalkToMark
-    WaitMovement
     ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_FaceEast
     WaitMovement
     Message DistortionWorldArc1Seams_Text_CyrusThereRowansCase
@@ -378,32 +379,8 @@ DistortionWorldArc1Seams_Movement_PlayerStartled:
     EndMovement
 
     .balign 4, 0
-DistortionWorldArc1Seams_Movement_CyrusDropIn:
-    FaceEast
-    EmoteExclamationMark
-    EndMovement
-
-    .balign 4, 0
-DistortionWorldArc1Seams_Movement_BarryDropIn:
-    FaceWest
-    EmoteExclamationMark
-    EndMovement
-
-    .balign 4, 0
-DistortionWorldArc1Seams_Movement_CyrusWalkToPlayer:
-    WalkNormalEast 2
-    WalkOnSpotNormalEast
-    EndMovement
-
-    .balign 4, 0
-DistortionWorldArc1Seams_Movement_BarryWalkToMark:
-    WalkNormalWest
-    WalkOnSpotNormalNorth
-    EndMovement
-
-    .balign 4, 0
 DistortionWorldArc1Seams_Movement_CyrusPickUpShard:
-    WalkOnSpotNormalEast
+    WalkNormalEast
     FaceSouth
     Delay16
     FaceWest
@@ -412,5 +389,5 @@ DistortionWorldArc1Seams_Movement_CyrusPickUpShard:
     .balign 4, 0
 DistortionWorldArc1Seams_Movement_PlayerWatchCyrus:
     Delay16
-    FaceWest
+    FaceNorth
     EndMovement
