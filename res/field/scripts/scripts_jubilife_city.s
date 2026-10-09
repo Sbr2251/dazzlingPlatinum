@@ -31,9 +31,27 @@
     ScriptEntry _1096
     ScriptEntry _10AD
     ScriptEntry JubilifeCity_Looker_AfterOneBadgeObtained
+    ScriptEntry JubilifeCity_Arc1Garius
+    ScriptEntry JubilifeCity_Arc1TriggerRally
+    ScriptEntry JubilifeCity_Arc1TriggerEastExit
+    ScriptEntry JubilifeCity_Arc1TriggerToBeContinued
+    ScriptEntry JubilifeCity_Arc1EclipseGruntFlyer
+    ScriptEntry JubilifeCity_Arc1EclipseGruntF
+    ScriptEntry JubilifeCity_Arc1Cyrus
+    ScriptEntry JubilifeCity_Arc1CrowdNeverCameHome
+    ScriptEntry JubilifeCity_Arc1CrowdGrandpasPokemon
+    ScriptEntry JubilifeCity_Arc1CrowdOneMoreDay
+    ScriptEntry JubilifeCity_Arc1CrowdBestFriend
+    ScriptEntry JubilifeCity_Arc1CrowdEveryWeek
+    ScriptEntry JubilifeCity_Arc1CrowdMomAskedMe
     ScriptEntryEnd
 
 _0072:
+    // Dazzling Platinum Arc 1: Saros (the broadcast object) is hidden at every load, and the rally cast and
+    // crowd follow VAR_ARC1_PROGRESS. From 12 on, the stock state 0/1 chain is skipped before the stock checks.
+    SetFlag FLAG_ARC1_SPARE_C
+    CallIfLt VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1HideRally
+    CallIfGe VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1OnTransition
     CallIfEq VAR_JUBILIFE_STATE, 0, _00AC
     CallIfGe VAR_JUBILIFE_STATE, 3, _00C2
     GetPlayerGender VAR_MAP_LOCAL_0
@@ -54,11 +72,11 @@ _00C2:
     Return
 
 _00D8:
-    SetVar VAR_OBJ_GFX_ID_0, 97
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     End
 
 _00E0:
-    SetVar VAR_OBJ_GFX_ID_0, 0
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     End
 
 JubilifeCity_Counterpart:
@@ -757,6 +775,7 @@ _0954:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    GoToIfEq VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1TrenchCoat
     GoToIfSet FLAG_UNK_0x00F3, _097F
     Call _0821
     WaitABPress
@@ -1333,6 +1352,7 @@ _107F:
     End
 
 _1096:
+    GoToIfInRange VAR_ARC1_PROGRESS, 12, 13, JubilifeCity_Arc1Banner
     ShowLandmarkSign 99
     End
 
@@ -1493,7 +1513,8 @@ _12D5:
     RemoveObject 23
     SetFlag FLAG_UNK_0x00F3
     ClearFlag FLAG_UNK_0x01F7
-    RemoveObject 31
+    // Arc 1 already hides Looker after the rally: only remove him if he's still here
+    CallIfUnset FLAG_UNK_0x0181, JubilifeCity_Arc1RemoveLooker
     SetFlag FLAG_UNK_0x0181
     ReleaseAll
     End
@@ -1714,4 +1735,457 @@ _1558:
     WalkOnSpotNormalWest
     Delay8 2
     WalkOnSpotNormalEast
+    EndMovement
+
+// ------------------------------------------------------------------------------------------------------------
+// Dazzling Platinum Arc 1 (scene 11): the Team Eclipse rally in front of Jubilife TV.
+//   VAR_ARC1_PROGRESS 12: rally cast + crowd visible, the east exit sends the player back to the plaza.
+//                        Talking to Garius (or walking up behind him) runs the rally and sets 13.
+//   13: crowd and grunts stay, Garius/Cyrus/Looker are gone, the east exit is open (Route 203, scene 12).
+//   14+: the plaza is back to normal.  16: "To be continued..." at the north exit (D13).
+
+JubilifeCity_Arc1HideRally:
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY_CAST
+    Return
+
+JubilifeCity_Arc1OnTransition:
+    CallIfLt VAR_JUBILIFE_STATE, 2, JubilifeCity_Arc1SkipStockIntro
+    CallIfEq VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1SetUpRally
+    CallIfEq VAR_ARC1_PROGRESS, 13, JubilifeCity_Arc1AfterRally
+    CallIfGe VAR_ARC1_PROGRESS, 14, JubilifeCity_Arc1RallyOver
+    Return
+
+// The stock first visit (counterpart escort, Looker and the VS Recorder, Barry and the Parcel in the Trainers'
+// School, Looker blocking the east exit) never happens in Arc 1. State 2 makes coord events 0 and 2 and _00AC
+// inert. The Pokétch campaign stays as optional side content, without the forced president intro (coord 4).
+JubilifeCity_Arc1SkipStockIntro:
+    SetVar VAR_JUBILIFE_STATE, 2
+    SetFlag FLAG_UNK_0x00F1
+    SetFlag FLAG_UNK_0x01F4
+    SetVar VAR_UNK_0x40E7, 2
+    ClearFlag FLAG_UNK_0x01F6
+    ClearFlag FLAG_UNK_0x01F5
+    Return
+
+JubilifeCity_Arc1SetUpRally:
+    ClearFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
+    ClearFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY_CAST
+    // Clear the plaza: the clown leaves the TV door and the Twin plays on the avenue instead
+    SetFlag FLAG_UNK_0x0238
+    // The Pokétch president and his two clowns sit the rally out. This also keeps the rally cast within the
+    // field's dynamic object texture slots (the crowd reuses Jubilife's preloaded move-model gfx).
+    SetFlag FLAG_UNK_0x01F5
+    SetFlag FLAG_UNK_0x01F6
+    SetObjectEventPos JUBILIFE_CITY_TWIN_3, 152, 759
+    // Looker, the "Man in a Trench Coat", at the west edge of the crowd (D4)
+    SetObjectEventPos JUBILIFE_CITY_LOOKER_31, 157, 755
+    SetObjectEventDir JUBILIFE_CITY_LOOKER_31, DIR_EAST
+    SetObjectEventMovementType JUBILIFE_CITY_LOOKER_31, MOVEMENT_TYPE_LOOK_EAST
+    Return
+
+JubilifeCity_Arc1AfterRally:
+    ClearFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY_CAST
+    ClearFlag FLAG_UNK_0x0238
+    SetFlag FLAG_UNK_0x0181
+    CallIfUnset FLAG_UNK_0x00F3, JubilifeCity_Arc1RestorePoketchCampaign
+    Return
+
+JubilifeCity_Arc1RallyOver:
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY_CAST
+    ClearFlag FLAG_UNK_0x0238
+    SetFlag FLAG_UNK_0x0181
+    CallIfUnset FLAG_UNK_0x00F3, JubilifeCity_Arc1RestorePoketchCampaign
+    Return
+
+// Until the Pokétch is obtained (FLAG_UNK_0x00F3), the president and the two clowns are back after the rally
+JubilifeCity_Arc1RestorePoketchCampaign:
+    ClearFlag FLAG_UNK_0x01F5
+    ClearFlag FLAG_UNK_0x01F6
+    Return
+
+JubilifeCity_Arc1RemoveLooker:
+    RemoveObject JUBILIFE_CITY_LOOKER_31
+    Return
+
+// Talk to Garius (object script)
+JubilifeCity_Arc1Garius:
+    LockAll
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfNe VAR_0x8004, 164, JubilifeCity_Arc1MovePlayerBehindGarius
+    GoToIfNe VAR_0x8005, 754, JubilifeCity_Arc1MovePlayerBehindGarius
+    GoTo JubilifeCity_Arc1Rally
+    End
+
+// Talked to from the side or from the stage: put the player in the aisle behind Garius first
+JubilifeCity_Arc1MovePlayerBehindGarius:
+    FadeScreenOut
+    WaitFadeScreen
+    SetPosition LOCALID_PLAYER, 164, 0, 754, DIR_NORTH
+    FadeScreenIn
+    WaitFadeScreen
+    GoTo JubilifeCity_Arc1Rally
+    End
+
+// Coord event in the aisle right behind Garius (164,754), state 12
+JubilifeCity_Arc1TriggerRally:
+    LockAll
+    GoTo JubilifeCity_Arc1Rally
+    End
+
+JubilifeCity_Arc1Rally:
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_FaceNorth
+    ApplyMovement LOCALID_ARC1_GARIUS, JubilifeCity_Arc1Movement_GariusNoticePlayer
+    WaitMovement
+    // Tilt up to the Jubilife TV facade: the big screen switches on and Saros appears (D2)
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    AddFreeCamera VAR_0x8004, VAR_0x8005
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraUpToScreen
+    WaitMovement
+    StopMusic 0
+    PlayFanfare SEQ_SE_DP_TV_NOISE
+    WaitFanfare SEQ_SE_DP_TV_NOISE
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    ClearFlag FLAG_ARC1_SPARE_C
+    AddObject LOCALID_ARC1_SAROS
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    // He flickers in like a projection
+    ApplyMovement LOCALID_ARC1_SAROS, JubilifeCity_Arc1Movement_SarosFlickerIn
+    WaitMovement
+    PlayMusic SEQ_TV_HOUSOU
+    WaitTime 20, VAR_RESULT
+    Message JubilifeCity_Text_Arc1SarosEveryoneHasLostSomeone
+    Message JubilifeCity_Text_Arc1SarosTheyTellYouToAcceptIt
+    Message JubilifeCity_Text_Arc1SarosWeWillBringThemBack
+    WaitABXPadPress
+    CloseMessage
+    // The broadcast cuts out
+    StopMusic 0
+    PlayFanfare SEQ_SE_DP_TV_NOISE
+    ApplyMovement LOCALID_ARC1_SAROS, JubilifeCity_Arc1Movement_SarosFlickerOut
+    WaitMovement
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    RemoveObject LOCALID_ARC1_SAROS
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitFanfare SEQ_SE_DP_TV_NOISE
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraDownToCrowd
+    WaitMovement
+    // The crowd murmurs
+    ApplyMovement LOCALID_ARC1_CROWD_0, JubilifeCity_Arc1Movement_TurnEast
+    ApplyMovement LOCALID_ARC1_CROWD_2, JubilifeCity_Arc1Movement_TurnWest
+    ApplyMovement LOCALID_ARC1_CROWD_3, JubilifeCity_Arc1Movement_TurnEast
+    ApplyMovement LOCALID_ARC1_CROWD_6, JubilifeCity_Arc1Movement_TurnEast
+    ApplyMovement LOCALID_ARC1_CROWD_7, JubilifeCity_Arc1Movement_TurnWest
+    ApplyMovement LOCALID_ARC1_CROWD_8, JubilifeCity_Arc1Movement_TurnSouth
+    WaitMovement
+    Message JubilifeCity_Text_Arc1CrowdMurmurs
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CROWD_0, JubilifeCity_Arc1Movement_TurnNorthLater
+    ApplyMovement LOCALID_ARC1_CROWD_2, JubilifeCity_Arc1Movement_TurnNorthLater
+    ApplyMovement LOCALID_ARC1_CROWD_3, JubilifeCity_Arc1Movement_TurnNorthLater
+    ApplyMovement LOCALID_ARC1_CROWD_6, JubilifeCity_Arc1Movement_TurnNorthLater
+    ApplyMovement LOCALID_ARC1_CROWD_7, JubilifeCity_Arc1Movement_TurnNorthLater
+    ApplyMovement LOCALID_ARC1_CROWD_8, JubilifeCity_Arc1Movement_TurnNorthLater
+    // A grunt pushes a flyer into Garius's hands
+    ApplyMovement LOCALID_ARC1_GRUNT_FLYER, JubilifeCity_Arc1Movement_GruntToGarius
+    WaitMovement
+    Message JubilifeCity_Text_Arc1GruntEverybodysLostSomebody
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_GRUNT_FLYER, JubilifeCity_Arc1Movement_GruntBackToStage
+    ApplyMovement LOCALID_ARC1_GARIUS, JubilifeCity_Arc1Movement_GariusLookAtFlyer
+    WaitMovement
+    WaitTime 60, VAR_RESULT
+    BufferRivalName 0
+    Message JubilifeCity_Text_Arc1GariusFoldsTheFlyer
+    WaitABXPadPress
+    CloseMessage
+    WaitTime 20, VAR_RESULT
+    BufferRivalName 0
+    Message JubilifeCity_Text_Arc1GariusJustAFlyer
+    WaitABXPadPress
+    CloseMessage
+    // Pan away from the kids to the edge of the crowd: Cyrus, alone, watching the screen
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraToCyrus
+    WaitMovement
+    WaitTime 30, VAR_RESULT
+    Message JubilifeCity_Text_Arc1CyrusIKnowThatVoice
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CYRUS, JubilifeCity_Arc1Movement_CyrusLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC1_CYRUS
+    WaitTime 15, VAR_RESULT
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraBackToPlayer
+    WaitMovement
+    RestoreCamera
+    // Garius heads for Route 203 (he waits there for scene 12)
+    ApplyMovement LOCALID_ARC1_GARIUS, JubilifeCity_Arc1Movement_GariusRunToRoute203
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_PlayerWatchGariusLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC1_GARIUS
+    FadeToDefaultMusic
+    SetVar VAR_ARC1_PROGRESS, 13 /* rally done */
+    ReleaseAll
+    End
+
+// Coord event at the east exit (x188, z757-760), state 12: the rally comes first
+JubilifeCity_Arc1TriggerEastExit:
+    LockAll
+    BufferRivalName 0
+    Message JubilifeCity_Text_Arc1GariusOverHere
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_StepWest
+    WaitMovement
+    ReleaseAll
+    End
+
+// Coord event on the north exit row (x172-177, z743), state 16: end of Arc 1 (D13)
+JubilifeCity_Arc1TriggerToBeContinued:
+    LockAll
+    Message JubilifeCity_Text_Arc1ToBeContinued
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_StepSouth
+    WaitMovement
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1TrenchCoat:
+    Message JubilifeCity_Text_Arc1TrenchCoat
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement JUBILIFE_CITY_LOOKER_31, JubilifeCity_Arc1Movement_TurnEast
+    WaitMovement
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1Banner:
+    ShowLandmarkSign JubilifeCity_Text_Arc1BannerWhoDidYouLose
+    End
+
+JubilifeCity_Arc1EclipseGruntFlyer:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1GruntTakeAFlyer
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1EclipseGruntF:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1GruntYouDontHaveToAcceptIt
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1Cyrus:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CyrusEllipsis
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CYRUS, JubilifeCity_Arc1Movement_FaceNorth
+    WaitMovement
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdNeverCameHome:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdNeverCameHome
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdGrandpasPokemon:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdGrandpasPokemon
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdOneMoreDay:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdOneMoreDay
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdBestFriend:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdBestFriend
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdEveryWeek:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdEveryWeek
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdMomAskedMe:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdMomAskedMe
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_FaceNorth:
+    FaceNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_GariusNoticePlayer:
+    FaceSouth
+    Delay16
+    Delay8
+    FaceNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CameraUpToScreen:
+    WalkSlowNorth 3
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_SarosFlickerIn:
+    SetInvisible
+    Delay4
+    SetVisible
+    Delay4
+    SetInvisible
+    Delay2
+    SetVisible
+    FaceSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_SarosFlickerOut:
+    SetInvisible
+    Delay2
+    SetVisible
+    Delay4
+    SetInvisible
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CameraDownToCrowd:
+    WalkNormalSouth 3
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_TurnEast:
+    WalkOnSpotNormalEast
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_TurnWest:
+    WalkOnSpotNormalWest
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_TurnSouth:
+    WalkOnSpotNormalSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_TurnNorthLater:
+    Delay16
+    WalkOnSpotNormalNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_GruntToGarius:
+    Delay16
+    WalkNormalEast 2
+    WalkOnSpotNormalSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_GruntBackToStage:
+    WalkNormalWest 2
+    WalkOnSpotNormalSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_GariusLookAtFlyer:
+    Delay16
+    WalkOnSpotSlowSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CameraToCyrus:
+    WalkNormalEast 11
+    WalkNormalNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CyrusLeave:
+    WalkOnSpotSlowEast
+    Delay16
+    WalkNormalNorth 8
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CameraBackToPlayer:
+    WalkFastSouth
+    WalkFastWest 11
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_GariusRunToRoute203:
+    WalkFastEast
+    WalkFastSouth 5
+    WalkFastEast 15
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_PlayerWatchGariusLeave:
+    Delay8 2
+    WalkOnSpotNormalEast
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_StepWest:
+    WalkNormalWest
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_StepSouth:
+    WalkNormalSouth
     EndMovement
