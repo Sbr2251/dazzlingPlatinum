@@ -459,7 +459,7 @@ _057C:
     WaitMovement
     Message SandgemTown_Text_Arc1RuthThisWay
     CloseMessage
-    SetFollowMeBGM
+    SetCounterpartBGM  // D14: Ruth's music is always The Girl
     ApplyMovement 4, SandgemTown_Movement_Arc1RuthLeadNorth
     ApplyMovement LOCALID_PLAYER, SandgemTown_Movement_Arc1PlayerFollowNorth
     WaitMovement
