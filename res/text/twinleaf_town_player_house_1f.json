@@ -444,6 +444,13 @@
         "continue to draw record crowds\r",
         "in Jubilife City..."
       ]
+    },
+    {
+      "id": "TwinleafTownPlayerHouse1F_Text_Arc1MomYouWentIntoItAfterBlackOut",
+      "en_US": [
+        "Mom: ...Wait.\n",
+        "You went INTO it? Didn't you?\r"
+      ]
     }
   ]
 }

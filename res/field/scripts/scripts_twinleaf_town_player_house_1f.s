@@ -882,10 +882,13 @@ TwinleafTownPlayerHouse1F_OnFrame_Arc1ComingHome:
     LockAll
     SetVar VAR_0x8006, 0
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
-    // Arrived by the stairs (10,3) or the front door (6,10): Mom walks over. Anywhere else (a patched save, the
-    // blackout recovery spot) she just notices the player.
+    // Arrived by the stairs (10,3) or the front door (6,10): Mom walks over. Anywhere else (a patched save) she
+    // just notices the player. On the blackout recovery spot (8,8) the stock blackout script has already greeted
+    // and healed the party, so she skips her greeting and the heal.
     CallIfEq VAR_0x8004, 10, TwinleafTownPlayerHouse1F_Arc1CheckStairs
     CallIfEq VAR_0x8004, 6, TwinleafTownPlayerHouse1F_Arc1CheckDoor
+    CallIfEq VAR_0x8004, 8, TwinleafTownPlayerHouse1F_Arc1CheckBlackOut
+    GoToIfEq VAR_0x8006, 3, TwinleafTownPlayerHouse1F_Arc1MomLinesAfterBlackOut
     GoToIfEq VAR_0x8006, 2, TwinleafTownPlayerHouse1F_Arc1MomWalkToStairs
     GoToIfEq VAR_0x8006, 1, TwinleafTownPlayerHouse1F_Arc1MomWalkToDoor
     ApplyMovement LOCALID_MOM, TwinleafTownPlayerHouse1F_Movement_MomNoticePlayer
@@ -908,6 +911,22 @@ TwinleafTownPlayerHouse1F_Arc1CheckDoor:
 TwinleafTownPlayerHouse1F_Arc1SetAtDoor:
     SetVar VAR_0x8006, 1
     Return
+
+TwinleafTownPlayerHouse1F_Arc1CheckBlackOut:
+    CallIfEq VAR_0x8005, 8, TwinleafTownPlayerHouse1F_Arc1SetAtBlackOut
+    Return
+
+TwinleafTownPlayerHouse1F_Arc1SetAtBlackOut:
+    SetVar VAR_0x8006, 3
+    Return
+
+TwinleafTownPlayerHouse1F_Arc1MomLinesAfterBlackOut:
+    Message TwinleafTownPlayerHouse1F_Text_Arc1MomYouWentIntoItAfterBlackOut
+    Message TwinleafTownPlayerHouse1F_Text_Arc1MomLetItRest
+    WaitABXPadPress
+    CloseMessage
+    GoTo TwinleafTownPlayerHouse1F_Arc1MomFinish
+    End
 
 TwinleafTownPlayerHouse1F_Arc1MomWalkToDoor:
     ApplyMovement LOCALID_MOM, TwinleafTownPlayerHouse1F_Movement_Arc1MomWalkToDoor
@@ -936,6 +955,7 @@ TwinleafTownPlayerHouse1F_Arc1MomLines:
     HealParty
     FadeScreenIn
     WaitFadeScreen
+TwinleafTownPlayerHouse1F_Arc1MomFinish:
     SetFlag FLAG_UNK_0x0002
     SetVar VAR_PLAYER_HOUSE_STATE, 5
     SetVar VAR_ARC1_PROGRESS, 9
