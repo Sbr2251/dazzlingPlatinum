@@ -20941,6 +20941,23 @@
                 {"type": 1792, "entry": 1731}]
         }
     ],
-    "player2Info": [],
-    "strmInfo": []
+    "player2Info": [
+        {
+            "name": "STRM_PLAYER_BGM",
+            "count": 2,
+            "v": [4,5,255,255,255,255,255,255,255,255,255,255,255,255,255,255],
+            "reserved": [0,0,0,0,0,0,0]
+        }
+    ],
+    "strmInfo": [
+        {
+            "name": "STRM_TEST_LOOP",
+            "fileName": "STRM_TEST_LOOP.strm",
+            "unkA": 0,
+            "vol": 127,
+            "pri": 64,
+            "ply": 0,
+            "reserved": [0,0,0,0,0]
+        }
+    ]
 }

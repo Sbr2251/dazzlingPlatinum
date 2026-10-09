@@ -13,6 +13,7 @@
 #include "heap.h"
 #include "sound.h"
 #include "sound_chatot.h"
+#include "sound_stream.h"
 #include "sound_system.h"
 #include "sys_task.h"
 #include "sys_task_manager.h"
@@ -54,6 +55,7 @@ BOOL Sound_PlayBasicBGM(u16 seqID)
 
     BOOL result = NNS_SndArcPlayerStartSeq(SoundSystem_GetSoundHandle(handleType), seqID);
 
+    SoundStream_OnBGMStarted(seqID, handleType, result);
     Sound_Impl_HandleBGMChange(seqID, handleType);
     return result;
 }
@@ -76,6 +78,7 @@ BOOL Sound_PlayBGM(u16 bgmID)
     // Field BGM Bank may or may not have been switched, so set it to idle
     Sound_SetFieldBGMBankState(FIELD_BGM_BANK_STATE_IDLE);
 
+    SoundStream_OnBGMStarted(bgmID, handleType, result);
     Sound_Impl_HandleBGMChange(bgmID, handleType);
     return result;
 }
@@ -126,6 +129,7 @@ BOOL Sound_SetBGM(u8 scene, u16 seqID)
 
     BOOL success = SoundSystem_LoadSequenceEx(seqID, NNS_SND_ARC_LOAD_SEQ);
     success = NNS_SndArcPlayerStartSeq(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_BGM), seqID);
+    SoundStream_OnBGMStarted(seqID, SOUND_HANDLE_TYPE_BGM, success);
 
     Sound_SetCurrentBGM(seqID);
     SoundSystem_SetState(SOUND_SYSTEM_STATE_PLAY);
@@ -136,6 +140,7 @@ BOOL Sound_SetBGM(u8 scene, u16 seqID)
 void Sound_StopBGM(u16 bgmID, int fadeOutFrames)
 {
     NNS_SndPlayerStopSeqBySeqNo(bgmID, fadeOutFrames);
+    SoundStream_OnSeqStopped(bgmID, fadeOutFrames);
 
     u8 playerID = Sound_GetPlayerForSequence(bgmID);
 
@@ -211,6 +216,7 @@ void Sound_StopWaveOutAndSequences(void)
     u8 *secondaryAllocated = SoundSystem_GetParam(SOUND_SYSTEM_PARAM_WAVE_OUT_SECONDARY_ALLOCATED);
 
     NNS_SndPlayerStopSeqAll(0);
+    SoundStream_Stop(0);
 
     if (*primaryAllocated == TRUE) {
         Sound_StopWaveOut(WAVE_OUT_CHANNEL_PRIMARY);
@@ -229,6 +235,7 @@ void Sound_StopAll(void)
     u8 *secondaryAllocated = SoundSystem_GetParam(SOUND_SYSTEM_PARAM_WAVE_OUT_SECONDARY_ALLOCATED);
 
     NNS_SndPlayerStopSeq(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_BGM), 0);
+    SoundStream_OnHandleStopped(SOUND_HANDLE_TYPE_BGM, 0);
     Sound_Impl_ResetBGM();
 
     for (int i = 0; i < NUM_SFX_HANDLES; i++) {

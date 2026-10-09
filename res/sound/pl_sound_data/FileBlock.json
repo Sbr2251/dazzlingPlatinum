@@ -578,7 +578,7 @@
         {
             "name": "SEQ_BA_POKE.sseq",
             "type": "SEQ",
-            "MD5": "b787f95beb85060aea59265af3468141"
+            "MD5": "e01048d4f8ebeddb742088773d1cd9d4"
         },
         {
             "name": "SEQ_BA_GYM.sseq",
@@ -12026,6 +12026,11 @@
                 "1E.swav",
                 "1F.swav"
             ]
+        },
+        {
+            "name": "STRM_TEST_LOOP.strm",
+            "type": "STRM",
+            "MD5": "8c9850c17c94dd1347bc4911fb90bce6"
         }
     ]
 }

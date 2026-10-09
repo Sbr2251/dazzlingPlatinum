@@ -42,6 +42,7 @@
 #include "party.h"
 #include "pokemon.h"
 #include "screen_fade.h"
+#include "sound_layers.h"
 #include "sound_playback.h"
 #include "system.h"
 #include "trainer_data.h"
@@ -308,6 +309,8 @@ static BOOL MegaEvolveBattler(BattleSystem *battleSys, BattleContext *battleCtx,
 static void BattleControllerPlayer_ShowBattleMon(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     int nextSeq = BattleSystem_TriggerEffectOnSwitch(battleSys, battleCtx);
+
+    BattleSystem_UpdateLowHPMusicLayer(battleSys, battleCtx);
 
     if (nextSeq) {
         LOAD_SUBSEQ(nextSeq);
@@ -956,6 +959,11 @@ static void BattleControllerPlayer_CheckPreMoveActions(BattleSystem *battleSys, 
 
                 if (MegaEvolveBattler(battleSys, battleCtx, battler, megaData)) {
                     BattleContext_SetMegaEvolutionUsed(battleSys, battleCtx, battler);
+
+                    // The Mega layer stays on for the rest of the battle
+                    if (Battler_Side(battleSys, battler) == BATTLE_SIDE_PLAYER) {
+                        SoundLayers_Set(BGM_LAYER_MEGA, TRUE);
+                    }
 
                     // Play mega evolution animation. Take down the command prompt first so it is not left on
                     // screen until the first message of the sequence prints.
@@ -4389,6 +4397,9 @@ static BOOL BattleControllerPlayer_TrySummonTotemAlly(BattleSystem *battleSys, B
     battleCtx->battlerStatusFlags[BATTLER_ENEMY_2] |= BATTLER_STATUS_SWITCHING;
     battleCtx->totemSummonsUsed++;
     battleCtx->totemSummonAttempted = TRUE;
+
+    // The Totem ally layer stays on for the rest of the battle
+    SoundLayers_Set(BGM_LAYER_TOTEM_ALLY, TRUE);
 
     LOAD_SUBSEQ(subscript_totem_summon_ally);
     battleCtx->commandNext = battleCtx->command;
