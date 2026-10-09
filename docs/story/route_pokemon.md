@@ -5,7 +5,9 @@ Mirrored in the "Pokemon Route Changes" tab of the story doc.
 ## The rules
 
 - Gen 3 Pokemon are already in the game's data (all 493 species are). Adding more of them only means editing encounter tables.
-- Gen 5 Pokemon are not in the game yet: species stop at Arceus (#493). Each one needs base stats, a learnset, evolutions, sprites (front, back, shiny), an icon, a cry and a Pokedex entry. Some Gen 5 abilities and moves also need adding or substituting. So the Gen 5 list below is split into two phases.
+- Gen 5 Pokemon are not in the game yet: species stop at Arceus (#493).
+- Gen 5 sprites are covered: tools/gen5_sprites/gen5_stream.py already builds the game's battle sprites from the PokeAPI sprites repository's Black/White animated GIFs, which include every Gen 5 species (#494-649), with front, back, shiny and female versions. The same tool can import them, and it also writes the classic 80x80 sprites used outside battle.
+- What Gen 5 still costs: (1) Engine room. The save file's Pokedex block has seen/caught bitfields sized for 493 species, and Platinum stores alternate forms (Deoxys, Wormadam, Giratina-Origin, Shaymin-Sky, Rotom) in the species IDs right after #493. Adding #494+ means moving those forms and resizing the Pokedex save data, which breaks old saves. (2) Data: base stats, learnsets, evolutions and Pokedex entries (available from PokeAPI or Showdown data). (3) Icons, cries and footprints. (4) Some Gen 5 abilities and moves need adding or substituting. Because of (1), it's worth doing all of Gen 5's IDs in one pass, even if only phase 1 gets placed in the wild at first.
 - Add, don't replace: Sinnoh's own Pokemon stay. New species mostly take swarm, day/night, Poke Radar and GBA dual-slot slots, which players can't otherwise use in this hack.
 - Placement follows the story and the new maps where it can: grief Pokemon in the memorial town, clockwork Pokemon at the Dialga palace, meteor Pokemon at the Meteor Shrine.
 - Levels follow the new gym order.
