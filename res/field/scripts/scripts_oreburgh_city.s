@@ -28,6 +28,7 @@
     ScriptEntry OreburghCity_Arc1MinerDeepShaft
     ScriptEntry OreburghCity_Arc1MinerDarkCoats
     ScriptEntry OreburghCity_Arc1OnFrameTunnelGlowing
+    ScriptEntry OreburghCity_OnTransition
     ScriptEntryEnd
 
 _005A:
@@ -667,6 +668,11 @@ OreburghCity_Arc1OnFrameTunnelGlowing:
     PlayFanfare SEQ_SE_DP_WALL_HIT2
     ShakeCamera 24, 4
     WaitTime 20, VAR_RESULT
+    // The runner only runs up when the player is at the Gym door; arriving any other way at 15 (Pokemon Center,
+    // Oreburgh Gate), his shout comes from off screen.
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfNe VAR_0x8004, 282, OreburghCity_Arc1TunnelGlowingOffScreen
+    GoToIfNe VAR_0x8005, 757, OreburghCity_Arc1TunnelGlowingOffScreen
     ClearFlag FLAG_HIDE_ARC1_OREBURGH_RUNNER
     SetObjectEventPos LOCALID_ARC1_RUNNER, 291, 757
     AddObject LOCALID_ARC1_RUNNER
@@ -679,6 +685,16 @@ OreburghCity_Arc1OnFrameTunnelGlowing:
     FadeScreenOut
     WaitFadeScreen
     RemoveObject LOCALID_ARC1_RUNNER
+    GoTo OreburghCity_Arc1TunnelGlowingWarp
+    End
+
+OreburghCity_Arc1TunnelGlowingOffScreen:
+    Message OreburghCity_Text_Arc1MinerTunnelGlowing
+    WaitABXPadPress
+    CloseMessage
+    FadeScreenOut
+    WaitFadeScreen
+OreburghCity_Arc1TunnelGlowingWarp:
     SetVar VAR_OREBURGH_STATE, 3
     Warp MAP_HEADER_OREBURGH_MINE_B2F, 0, 12, 17, DIR_WEST
     FadeScreenIn
@@ -696,3 +712,9 @@ OreburghCity_Movement_Arc1PlayerNoticeRunner:
     Delay8 2
     FaceEast
     EndMovement
+
+// Arc 1: the runner miner (object 30) only exists during the scene 14 frame script, which clears this flag and
+// adds him itself. Keep him hidden on every load (his hide flag starts clear in every save).
+OreburghCity_OnTransition:
+    SetFlag FLAG_HIDE_ARC1_OREBURGH_RUNNER
+    End

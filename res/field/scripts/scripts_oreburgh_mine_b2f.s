@@ -143,7 +143,7 @@ _0159:
 
 // Arc 1 (scenes 13-14). The rubble seal over the north-west bay (8..10,15) is shown before the Coal Badge.
 // At VAR_ARC1_PROGRESS 15 the seal is gone and the rift, Garius, Rowan and Ruth are in place for the rift
-// scene (Rowan and Ruth wait up the north shaft, out of view). From 16 on, all of it is hidden.
+// scene (Rowan and Ruth wait up the north shaft, off screen). From 16 on, all of it is hidden.
 // Roark (local 0) has always been met by 15, so he stays hidden here until the scene brings him back.
 OreburghMineB2F_OnTransition:
     SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
@@ -170,7 +170,8 @@ OreburghMineB2F_Arc1SetStateDone:
     End
 
 // Frame script at VAR_ARC1_PROGRESS 15. The player arrives at (12,17) facing west; Garius is at (9,16) facing
-// the rift at (9,15). Rowan (15,11) and Ruth (16,11) come down the north shaft to (13,16) and (14,16).
+// the rift at (9,15). Rowan (15,9) and Ruth (15,8) start off screen up the north shaft and come down it in single
+// file to (13,16) and (14,16).
 // Roark (local 0) follows later to (13,17), behind the player. Ends at 16 with the END OF ARC 1 card; the
 // player stays at (12,17) and walks out normally.
 OreburghMineB2F_Arc1OnFrameRift:
@@ -269,7 +270,7 @@ OreburghMineB2F_Arc1OnFrameRift:
     CloseMessage
     // Roark has followed everyone down
     ClearFlag FLAG_UNK_0x018A
-    SetObjectEventPos OREBURGH_MINE_B2F_ROARK_0, 15, 11
+    SetObjectEventPos OREBURGH_MINE_B2F_ROARK_0, 15, 9
     SetObjectEventMovementType OREBURGH_MINE_B2F_ROARK_0, MOVEMENT_TYPE_LOOK_SOUTH
     SetObjectEventDir OREBURGH_MINE_B2F_ROARK_0, DIR_SOUTH
     AddObject OREBURGH_MINE_B2F_ROARK_0
@@ -332,22 +333,21 @@ OreburghMineB2F_Arc1SealedTunnel:
 
     .balign 4, 0
 OreburghMineB2F_Movement_Arc1RowanArrive:
-    WalkNormalSouth 5
+    WalkNormalSouth 7
     WalkNormalWest 2
     FaceWest
     EndMovement
 
     .balign 4, 0
 OreburghMineB2F_Movement_Arc1RuthArrive:
-    WalkNormalWest
-    WalkNormalSouth 5
+    WalkNormalSouth 8
     WalkNormalWest
     FaceWest
     EndMovement
 
     .balign 4, 0
 OreburghMineB2F_Movement_Arc1RoarkArrive:
-    WalkNormalSouth 6
+    WalkNormalSouth 8
     WalkNormalWest 2
     FaceWest
     EndMovement
