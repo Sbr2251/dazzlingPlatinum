@@ -8,6 +8,15 @@
 
 _0006:
     SetFlag FLAG_FIRST_ARRIVAL_RAVAGED_PATH
+    GoToIfSet FLAG_TOTEM_HITMONLEE_DEFEATED, RavagedPath_OnTransitionEnd
+    // Arc 1: the Hitmonlee totem only appears once Arc 2 starts (VAR_ARC1_PROGRESS 17)
+    GoToIfLt VAR_ARC1_PROGRESS, 17, RavagedPath_Arc1HideTotem
+    ClearFlag FLAG_HIDE_TOTEM_HITMONLEE
+    End
+
+RavagedPath_Arc1HideTotem:
+    SetFlag FLAG_HIDE_TOTEM_HITMONLEE
+RavagedPath_OnTransitionEnd:
     End
 
 RavagedPath_Unused:

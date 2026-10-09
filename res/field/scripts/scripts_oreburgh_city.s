@@ -1,5 +1,6 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/oreburgh_city.h"
+#include "res/field/events/events_oreburgh_city.h"
 
 
     ScriptEntry _005A
@@ -24,6 +25,10 @@
     ScriptEntry _0722
     ScriptEntry _0735
     ScriptEntry _0754
+    ScriptEntry OreburghCity_Arc1MinerDeepShaft
+    ScriptEntry OreburghCity_Arc1MinerDarkCoats
+    ScriptEntry OreburghCity_Arc1OnFrameTunnelGlowing
+    ScriptEntry OreburghCity_OnTransition
     ScriptEntryEnd
 
 _005A:
@@ -630,3 +635,86 @@ _0754:
     End
 
     .balign 4, 0
+
+// Arc 1 scene 13: the two miners at the mine entrance (objects 28 and 29)
+OreburghCity_Arc1MinerDeepShaft:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message OreburghCity_Text_Arc1MinerDeepShaft
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+OreburghCity_Arc1MinerDarkCoats:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message OreburghCity_Text_Arc1MinerDarkCoats
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+// Arc 1 scene 14: frame script while VAR_ARC1_PROGRESS is 15 (Coal Badge won), so it runs as soon as the
+// player steps out of the Gym door at (282,757), or on any later load of the city in that state.
+// The ground shakes, a miner runs up from the east, and the scene cuts to Mine B2F, where
+// OreburghMineB2F_Arc1OnFrameRift runs. VAR_OREBURGH_STATE 3 makes the stock post-badge rival scene
+// (coord event 1, _00D7, state 2) inert.
+OreburghCity_Arc1OnFrameTunnelGlowing:
+    LockAll
+    WaitTime 15, VAR_RESULT
+    PlayFanfare SEQ_SE_DP_WALL_HIT2
+    ShakeCamera 24, 4
+    WaitTime 20, VAR_RESULT
+    // The runner only runs up when the player is at the Gym door; arriving any other way at 15 (Pokemon Center,
+    // Oreburgh Gate), his shout comes from off screen.
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfNe VAR_0x8004, 282, OreburghCity_Arc1TunnelGlowingOffScreen
+    GoToIfNe VAR_0x8005, 757, OreburghCity_Arc1TunnelGlowingOffScreen
+    ClearFlag FLAG_HIDE_ARC1_OREBURGH_RUNNER
+    SetObjectEventPos LOCALID_ARC1_RUNNER, 291, 757
+    AddObject LOCALID_ARC1_RUNNER
+    ApplyMovement LOCALID_ARC1_RUNNER, OreburghCity_Movement_Arc1RunnerRunWest
+    ApplyMovement LOCALID_PLAYER, OreburghCity_Movement_Arc1PlayerNoticeRunner
+    WaitMovement
+    Message OreburghCity_Text_Arc1MinerTunnelGlowing
+    WaitABXPadPress
+    CloseMessage
+    FadeScreenOut
+    WaitFadeScreen
+    RemoveObject LOCALID_ARC1_RUNNER
+    GoTo OreburghCity_Arc1TunnelGlowingWarp
+    End
+
+OreburghCity_Arc1TunnelGlowingOffScreen:
+    Message OreburghCity_Text_Arc1MinerTunnelGlowing
+    WaitABXPadPress
+    CloseMessage
+    FadeScreenOut
+    WaitFadeScreen
+OreburghCity_Arc1TunnelGlowingWarp:
+    SetVar VAR_OREBURGH_STATE, 3
+    Warp MAP_HEADER_OREBURGH_MINE_B2F, 0, 12, 17, DIR_WEST
+    FadeScreenIn
+    WaitFadeScreen
+    ReleaseAll
+    End
+
+    .balign 4, 0
+OreburghCity_Movement_Arc1RunnerRunWest:
+    WalkFastWest 8
+    EndMovement
+
+    .balign 4, 0
+OreburghCity_Movement_Arc1PlayerNoticeRunner:
+    Delay8 2
+    FaceEast
+    EndMovement
+
+// Arc 1: the runner miner (object 30) only exists during the scene 14 frame script, which clears this flag and
+// adds him itself. Keep him hidden on every load (his hide flag starts clear in every save).
+OreburghCity_OnTransition:
+    SetFlag FLAG_HIDE_ARC1_OREBURGH_RUNNER
+    End

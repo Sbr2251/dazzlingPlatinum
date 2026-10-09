@@ -5,19 +5,19 @@
       "id": "pl_msg_00000065_00000",
       "en_US": [
         "{STRVAR_1 3, 0, 0}: Hunh?\r",
-        "Oh, it’s you, {STRVAR_1 3, 1, 0}!\n",
+        "Oh, it's you, {STRVAR_1 3, 1, 0}!\n",
         "You finally got here?\f",
-        "You’re slow like always.\r",
-        "But anyway, the Gym Leader’s tough!\n",
+        "You're slow like always.\r",
+        "But anyway, the Gym Leader's tough!\n",
         "Like, seriously serious!\r",
-        "If the Gym Leader’s this tough,\n",
-        "I wonder how he compares to my dad...\r",
-        "Huh?\n",
-        "I just drifted there.\r",
-        "Anyway, the Gym Leader’s gone off\n",
+        "If the Gym Leader's this tough,\n",
+        "I wonder how he'd have done\f",
+        "against my dad...\r",
+        "...Huh? Forget it.\r",
+        "Anyway, the Gym Leader's gone off\n",
         "to the coal mine.\r",
         "If you want to take on the Gym Leader,\n",
-        "you’d better go off to the mine!"
+        "you'd better go off to the mine!"
       ]
     },
     {
@@ -186,9 +186,9 @@
     {
       "id": "pl_msg_00000065_00021",
       "en_US": [
-        "TMs are single use only, but HMs\n",
-        "can be used over and over.\r",
-        "It’s tricky trying to decide which\n",
+        "TMs are single use only, so think\n",
+        "it over before you use one.\r",
+        "It's tricky trying to decide which\n",
         "Pokémon should learn what moves."
       ]
     },
@@ -248,6 +248,33 @@
       "en_US": [
         "Oreburgh Mine\n",
         "Beware of Busy Pokémon!"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_Arc1MinerDeepShaft",
+      "en_US": [
+        "Something's wrong down in the\n",
+        "deep shaft.\r",
+        "We hear crying, like a Pokémon\n",
+        "in pain. Real faint.\r",
+        "Been going on for days.\n",
+        "Boss sealed that tunnel off."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_Arc1MinerDarkCoats",
+      "en_US": [
+        "Saw some folks in dark coats\n",
+        "hauling crates up by the old shaft\f",
+        "one night.\r",
+        "Figured they were surveyors."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_Arc1MinerTunnelGlowing",
+      "en_US": [
+        "The sealed tunnel!\n",
+        "It's glowing!"
       ]
     }
   ]
