@@ -14,6 +14,7 @@
     ScriptEntry TwinleafTownPlayerHouse1F_KitchenSink
     ScriptEntry TwinleafTownPlayerHouse1F_KitchenCounter
     ScriptEntry TwinleafTownPlayerHouse1F_OnFrame_Postgame
+    ScriptEntry TwinleafTownPlayerHouse1F_OnFrame_Arc1ComingHome
     ScriptEntryEnd
 
 TwinleafTownPlayerHouse1F_OnTransition:
@@ -286,6 +287,13 @@ TwinleafTownPlayerHouse1F_RivalsMomEnters:
     BufferPlayerName 0
     Message TwinleafTownPlayerHouse1F_Text_GoEnjoyYourAdventure
     CloseMessage
+    // Dazzling Platinum Arc 1: there is no Parcel, so Garius's mom no longer comes over. Mom's farewell ends the
+    // Journal scene and the house goes straight to the state the stock Parcel scene ends in.
+    SetVar VAR_PLAYER_HOUSE_STATE, 6
+    ReleaseAll
+    End
+
+TwinleafTownPlayerHouse1F_Unused_RivalsMomEnters:
     PlayFanfare SEQ_SE_DP_DOOR_OPEN
     ClearFlag FLAG_HIDE_TWINLEAF_TOWN_PLAYER_HOUSE_1F_RIVAL_MOM
     AddObject LOCALID_RIVAL_MOM
@@ -788,6 +796,11 @@ TwinleafTownPlayerHouse1F_RivalsMom:
     End
 
 TwinleafTownPlayerHouse1F_TV:
+    // Dazzling Platinum Arc 1: from the Lake Verity return (VAR_ARC1_PROGRESS 8) until the Jubilife rally (13),
+    // the news is about the portal and Team Eclipse.
+    GoToIfLt VAR_ARC1_PROGRESS, 8, TwinleafTownPlayerHouse1F_StockTV
+    GoToIfLt VAR_ARC1_PROGRESS, 13, TwinleafTownPlayerHouse1F_Arc1TVNews
+TwinleafTownPlayerHouse1F_StockTV:
     GetTimeOfDay VAR_RESULT
     GoToIfEq VAR_RESULT, TIMEOFDAY_MORNING, TwinleafTownPlayerHouse1F_CuteContestDigest
     GoToIfEq VAR_RESULT, TIMEOFDAY_DAY, TwinleafTownPlayerHouse1F_SmartContestDigest
@@ -823,6 +836,15 @@ TwinleafTownPlayerHouse1F_ToughContestDigest:
     ReleaseAll
     End
 
+TwinleafTownPlayerHouse1F_Arc1TVNews:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message TwinleafTownPlayerHouse1F_Text_Arc1TVPortalClosed
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
 TwinleafTownPlayerHouse1F_Fridge:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
@@ -851,3 +873,105 @@ TwinleafTownPlayerHouse1F_KitchenCounter:
     End
 
     .balign 4, 0
+
+// Dazzling Platinum Arc 1, scene 7: the first time the player comes home after the Lake Verity return
+// (VAR_ARC1_PROGRESS 8), Mom notices them, says her piece and heals the party. Afterwards the house is in the
+// stock "Mom heals on talk" state (VAR_PLAYER_HOUSE_STATE 5; she gives the Journal once the player has the
+// Pokedex), and Garius waits on Route 201 (VAR_ARC1_PROGRESS 9).
+TwinleafTownPlayerHouse1F_OnFrame_Arc1ComingHome:
+    LockAll
+    SetVar VAR_0x8006, 0
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    // Arrived by the stairs (10,3) or the front door (6,10): Mom walks over. Anywhere else (a patched save, the
+    // blackout recovery spot) she just notices the player.
+    CallIfEq VAR_0x8004, 10, TwinleafTownPlayerHouse1F_Arc1CheckStairs
+    CallIfEq VAR_0x8004, 6, TwinleafTownPlayerHouse1F_Arc1CheckDoor
+    GoToIfEq VAR_0x8006, 2, TwinleafTownPlayerHouse1F_Arc1MomWalkToStairs
+    GoToIfEq VAR_0x8006, 1, TwinleafTownPlayerHouse1F_Arc1MomWalkToDoor
+    ApplyMovement LOCALID_MOM, TwinleafTownPlayerHouse1F_Movement_MomNoticePlayer
+    WaitMovement
+    GoTo TwinleafTownPlayerHouse1F_Arc1MomLines
+    End
+
+TwinleafTownPlayerHouse1F_Arc1CheckStairs:
+    CallIfEq VAR_0x8005, 3, TwinleafTownPlayerHouse1F_Arc1SetAtStairs
+    Return
+
+TwinleafTownPlayerHouse1F_Arc1SetAtStairs:
+    SetVar VAR_0x8006, 2
+    Return
+
+TwinleafTownPlayerHouse1F_Arc1CheckDoor:
+    CallIfEq VAR_0x8005, 10, TwinleafTownPlayerHouse1F_Arc1SetAtDoor
+    Return
+
+TwinleafTownPlayerHouse1F_Arc1SetAtDoor:
+    SetVar VAR_0x8006, 1
+    Return
+
+TwinleafTownPlayerHouse1F_Arc1MomWalkToDoor:
+    ApplyMovement LOCALID_MOM, TwinleafTownPlayerHouse1F_Movement_Arc1MomWalkToDoor
+    ApplyMovement LOCALID_PLAYER, TwinleafTownPlayerHouse1F_Movement_Arc1PlayerFaceNorth
+    WaitMovement
+    GoTo TwinleafTownPlayerHouse1F_Arc1MomLines
+    End
+
+TwinleafTownPlayerHouse1F_Arc1MomWalkToStairs:
+    ApplyMovement LOCALID_PLAYER, TwinleafTownPlayerHouse1F_Movement_PlayerFaceMom
+    ApplyMovement LOCALID_MOM, TwinleafTownPlayerHouse1F_Movement_MomWalkFromCouchToPlayer
+    WaitMovement
+    GoTo TwinleafTownPlayerHouse1F_Arc1MomLines
+    End
+
+TwinleafTownPlayerHouse1F_Arc1MomLines:
+    Message TwinleafTownPlayerHouse1F_Text_Arc1MomThereYouAre
+    Message TwinleafTownPlayerHouse1F_Text_Arc1MomYouWentIntoIt
+    Message TwinleafTownPlayerHouse1F_Text_Arc1MomLetItRest
+    WaitABXPadPress
+    CloseMessage
+    FadeScreenOut
+    WaitFadeScreen
+    PlaySound SEQ_ASA
+    WaitSound
+    HealParty
+    FadeScreenIn
+    WaitFadeScreen
+    SetFlag FLAG_UNK_0x0002
+    SetVar VAR_PLAYER_HOUSE_STATE, 5
+    SetVar VAR_ARC1_PROGRESS, 9
+    CallIfEq VAR_0x8006, 1, TwinleafTownPlayerHouse1F_Arc1MomWalkBackFromDoor
+    CallIfEq VAR_0x8006, 2, TwinleafTownPlayerHouse1F_Arc1MomWalkBackFromStairs
+    ReleaseAll
+    End
+
+TwinleafTownPlayerHouse1F_Arc1MomWalkBackFromDoor:
+    ApplyMovement LOCALID_MOM, TwinleafTownPlayerHouse1F_Movement_Arc1MomWalkBackFromDoor
+    WaitMovement
+    Return
+
+TwinleafTownPlayerHouse1F_Arc1MomWalkBackFromStairs:
+    ApplyMovement LOCALID_MOM, TwinleafTownPlayerHouse1F_Movement_MomWalkFromPlayerToCouch
+    WaitMovement
+    Return
+
+    .balign 4, 0
+TwinleafTownPlayerHouse1F_Movement_Arc1MomWalkToDoor:
+    WalkOnSpotNormalSouth
+    EmoteExclamationMark
+    Delay8
+    WalkNormalWest
+    WalkNormalSouth
+    EndMovement
+
+    .balign 4, 0
+TwinleafTownPlayerHouse1F_Movement_Arc1PlayerFaceNorth:
+    WalkOnSpotNormalNorth
+    EndMovement
+
+    .balign 4, 0
+TwinleafTownPlayerHouse1F_Movement_Arc1MomWalkBackFromDoor:
+    WalkNormalNorth
+    WalkNormalEast
+    WalkOnSpotNormalNorth
+    EndMovement
+

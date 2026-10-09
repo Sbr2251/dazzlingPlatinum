@@ -9,6 +9,11 @@ TwinleafTownRivalHouse1F_RivalsMom:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    // Dazzling Platinum Arc 1, scene 7: from the Lake Verity return (VAR_ARC1_PROGRESS 8) until the Sandgem lab
+    // scene (11), she tells the player about Garius's sandwich stop (the "his father's habit" hint).
+    GoToIfLt VAR_ARC1_PROGRESS, 8, TwinleafTownRivalHouse1F_Stock
+    GoToIfLt VAR_ARC1_PROGRESS, 11, TwinleafTownRivalHouse1F_Arc1GrabbedASandwich
+TwinleafTownRivalHouse1F_Stock:
     GoToIfSet FLAG_HAS_POKEDEX, TwinleafTownRivalHouse1F_RivalTookOffLikeARocketAsUsual
     GoToIfGe VAR_VISITED_LAKE_VERITY_WITH_RIVAL, 1, TwinleafTownRivalHouse1F_YouveBecomeFriendsWithAPokemonToo
     GoToIfSet FLAG_UNK_0x006E, TwinleafTownRivalHouse1F_HeShouldBeOutOnRoute201ByNow
@@ -64,6 +69,16 @@ TwinleafTownRivalHouse1F_ThatKidRocketedOffAgainLikeUsual:
 TwinleafTownRivalHouse1F_RivalTookOffLikeARocketAsUsual:
     BufferRivalName 1
     Message TwinleafTownRivalHouse1F_Text_RivalTookOffLikeARocketAsUsual
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+TwinleafTownRivalHouse1F_Arc1GrabbedASandwich:
+    BufferRivalName 1
+    Message TwinleafTownRivalHouse1F_Text_Arc1GrabbedASandwich
+    Message TwinleafTownRivalHouse1F_Text_Arc1HisFathersHabit
+    Message TwinleafTownRivalHouse1F_Text_Arc1KeepAnEyeOnHim
     WaitABXPadPress
     CloseMessage
     ReleaseAll
