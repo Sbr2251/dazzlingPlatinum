@@ -272,7 +272,11 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
      Giratina vs. Dialga and Palkia. After losing, he realizes he's betrayed everything his father stood for.
    - **The Elite Four and the Champion.** The main game ends.
 
+## Other design docs
+
+- `trainers.md`: Gym Leader, Elite Four and Champion teams, strategies and Megas.
+- `route_pokemon.md`: wild Pokemon changes (more Gen 3, and Gen 5 in two phases).
+
 ## Open questions (top priority first)
 
-1. None big. The full story is drafted: Arc 1 (built part plus `arc1_part2_screenplay.md`), Arc 2 (parts 1 to 3)
-   and Arc 3 (`arc3_screenplay.md`). Next: the owner's edits, then implementation.
+1. None big. The full story is drafted. Next: the owner's edits, then implementation.
