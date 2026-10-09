@@ -1,5 +1,6 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/sandgem_town_pokemon_research_lab.h"
+#include "res/field/events/events_sandgem_town_pokemon_research_lab.h"
 
 
     ScriptEntry _003E
@@ -17,12 +18,22 @@
     ScriptEntry _05EC
     ScriptEntry _05FD
     ScriptEntry _0114
+    ScriptEntry SandgemTownPokemonResearchLab_Arc1GariusTalk
+    ScriptEntry SandgemTownPokemonResearchLab_Arc1RuthTalk
     ScriptEntryEnd
 
 _003E:
     CallIfEq VAR_UNK_0x40A6, 2, _005A
     CallIfEq VAR_UNK_0x40A6, 3, _005A
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
+    // Arc 1: Garius (local 5) waits at the desk only during the lab scene (state 10).
+    SetFlag FLAG_HIDE_ARC1_LAB_GARIUS
+    CallIfEq VAR_ARC1_PROGRESS, 10, SandgemTownPokemonResearchLab_Arc1ShowGarius
     End
+
+SandgemTownPokemonResearchLab_Arc1ShowGarius:
+    ClearFlag FLAG_HIDE_ARC1_LAB_GARIUS
+    Return
 
 _005A:
     ClearFlag FLAG_UNK_0x0198
@@ -126,6 +137,103 @@ _01AC:
     End
 
 _01AE:
+    // Arc 1 scene 9: Rowan's lab. Garius is already at the desk; Pokedexes, then the Eclipse Shard
+    // changes hands. The stock intro below (SandgemTownPokemonResearchLab_Unused_StockIntro) is unreachable.
+    LockAll
+    ApplyMovement 3, _0484
+    ApplyMovement LOCALID_PLAYER, _04A8
+    ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1GariusBounce
+    WaitMovement
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanHmYouCame
+    CloseMessage
+    SetPlayerState 0x100
+    ChangePlayerState
+    ApplyMovement LOCALID_PLAYER, _04E0
+    WaitMovement
+    WaitTime 30, VAR_RESULT
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanHealthy
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, _04E8
+    WaitMovement
+    SetPlayerState 1
+    ChangePlayerState
+    FadeOutBGM 0, 40
+    WaitTime 35, VAR_RESULT
+    SetFlag FLAG_ALT_MUSIC_ROWANS_LAB
+    PlayMusic SEQ_OPENING2
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanRecordEveryPokemon
+    GivePokedex
+    SetFlag FLAG_HAS_POKEDEX
+    BufferPlayerName 0
+    Message 13
+    PlaySound SEQ_FANFA4
+    WaitSound
+    BufferRivalName 0
+    Message SandgemTownPokemonResearchLab_Text_Arc1RivalGotPokedex
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1GariusExcited
+    WaitMovement
+    BufferRivalName 0
+    Message SandgemTownPokemonResearchLab_Text_Arc1GariusShowHimTheRock
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1FaceNorth
+    WaitMovement
+    SetPlayerState 0x100
+    ChangePlayerState
+    ApplyMovement LOCALID_PLAYER, _04E0
+    WaitMovement
+    RemoveItem ITEM_ECLIPSE_SHARD, 1, VAR_RESULT
+    BufferPlayerName 0
+    PlayFanfare SEQ_SE_CONFIRM
+    Message SandgemTownPokemonResearchLab_Text_Arc1PlayerHandedOverShard
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, _04E8
+    WaitMovement
+    SetPlayerState 1
+    ChangePlayerState
+    WaitTime 30, VAR_RESULT
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanItsWarm
+    CloseMessage
+    ApplyMovement 3, SandgemTownPokemonResearchLab_Movement_Arc1FaceNorth
+    WaitMovement
+    Message SandgemTownPokemonResearchLab_Text_Arc1RuthReadingsSpiked
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanCameFromThatWorld
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanWhoIsHe
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1FaceNorth
+    WaitMovement
+    BufferRivalName 0
+    Message SandgemTownPokemonResearchLab_Text_Arc1GariusFortuneCookie
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanThankHim
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanNowGo
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1GariusExcited
+    WaitMovement
+    BufferRivalName 0
+    Message SandgemTownPokemonResearchLab_Text_Arc1GariusGymBadges
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1GariusRunOut
+    ApplyMovement LOCALID_PLAYER, SandgemTownPokemonResearchLab_Movement_Arc1PlayerWatchGarius
+    WaitMovement
+    PlayFanfare SEQ_SE_DP_KAIDAN2
+    RemoveObject LOCALID_ARC1_GARIUS
+    WaitTime 15, VAR_RESULT
+    ApplyMovement 3, _04D0
+    ApplyMovement LOCALID_PLAYER, _04BC
+    WaitMovement
+    Message SandgemTownPokemonResearchLab_Text_Arc1RuthComeWithMe
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, _04C4
+    ApplyMovement 3, _04D8
+    WaitMovement
+    RemoveObject 3
+    ClearFlag FLAG_HIDE_SANDGEM_TOWN_COUNTERPART
+    SetVar VAR_UNK_0x40A6, 1
+    SetVar VAR_ARC1_PROGRESS, 11 // Arc 1: lab done (Pokedex given, shard handed over)
+    ReleaseAll
+    End
+
+SandgemTownPokemonResearchLab_Unused_StockIntro:
     LockAll
     ApplyMovement 3, _0484
     ApplyMovement LOCALID_PLAYER, _04A8
@@ -737,5 +845,64 @@ _08B5:
 _08C2:
     SetVar VAR_0x8006, 1
     Return
+
+SandgemTownPokemonResearchLab_Arc1GariusTalk:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    BufferRivalName 0
+    Message SandgemTownPokemonResearchLab_Text_Arc1GariusTalk
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+SandgemTownPokemonResearchLab_Arc1RuthTalk:
+    GoToIfGe VAR_ARC1_PROGRESS, 13, SandgemTownPokemonResearchLab_Arc1RuthTalkStock
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message SandgemTownPokemonResearchLab_Text_Arc1RuthTalk
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+SandgemTownPokemonResearchLab_Arc1RuthTalkStock:
+    CallCommonScript 10300
+    End
+
+    .balign 4, 0
+SandgemTownPokemonResearchLab_Movement_Arc1GariusBounce:
+    Delay16
+    Delay8 8
+    JumpOnSpotFastNorth 2
+    EndMovement
+
+    .balign 4, 0
+SandgemTownPokemonResearchLab_Movement_Arc1GariusExcited:
+    WalkOnSpotFastEast
+    JumpOnSpotFastEast 2
+    EndMovement
+
+    .balign 4, 0
+SandgemTownPokemonResearchLab_Movement_Arc1FaceNorth:
+    WalkOnSpotNormalNorth
+    EndMovement
+
+    .balign 4, 0
+SandgemTownPokemonResearchLab_Movement_Arc1GariusRunOut:
+    WalkFastSouth
+    WalkFastEast
+    WalkFastSouth 8
+    EndMovement
+
+    .balign 4, 0
+SandgemTownPokemonResearchLab_Movement_Arc1PlayerWatchGarius:
+    Delay4
+    WalkOnSpotNormalWest
+    Delay8
+    WalkOnSpotNormalSouth
+    EndMovement
 
     .balign 4, 0

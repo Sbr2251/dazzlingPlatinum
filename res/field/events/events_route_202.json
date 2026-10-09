@@ -67,7 +67,7 @@
             "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
             "trainer_type": "TRAINER_TYPE_NONE",
             "hidden_flag": "FLAG_UNK_0x0188",
-            "script": 7,
+            "script": 8,
             "initial_dir": 3,
             "data": [],
             "movement_range_x": 0,
