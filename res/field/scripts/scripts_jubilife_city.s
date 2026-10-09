@@ -49,7 +49,7 @@
 _0072:
     // Dazzling Platinum Arc 1: Saros (the broadcast object) is hidden at every load, and the rally cast and
     // crowd follow VAR_ARC1_PROGRESS. From 12 on, the stock state 0/1 chain is skipped before the stock checks.
-    SetFlag FLAG_ARC1_SPARE_C
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_SAROS
     CallIfLt VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1HideRally
     CallIfGe VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1OnTransition
     CallIfEq VAR_JUBILIFE_STATE, 0, _00AC
@@ -1870,7 +1870,7 @@ JubilifeCity_Arc1Rally:
     WaitFanfare SEQ_SE_DP_TV_NOISE
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
-    ClearFlag FLAG_ARC1_SPARE_C
+    ClearFlag FLAG_HIDE_ARC1_JUBILIFE_SAROS
     AddObject LOCALID_ARC1_SAROS
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen

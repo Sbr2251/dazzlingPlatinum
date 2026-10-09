@@ -149,7 +149,7 @@ reset ranges.
 | 0x917 | 2328 | `FLAG_HIDE_ARC1_OREBURGH_RUNNER` | D | Oreburgh City miner who runs up after the Gym |
 | 0x918 | 2329 | `FLAG_ARC1_SPARE_A` | A | spare for A, if needed |
 | 0x919 | 2330 | `FLAG_ARC1_SPARE_B` | B | spare for B |
-| 0x91A | 2331 | `FLAG_ARC1_SPARE_C` | C | spare for C |
+| 0x91A | 2331 | `FLAG_HIDE_ARC1_JUBILIFE_SAROS` | C | hide flag for Saros on the Jubilife TV screen (was spare C) |
 | 0x91B | 2332 | `FLAG_ARC1_SPARE_D` | D | spare for D |
 
 A stream that uses its spare reports the new name in its final report, and the lead renames it at merge. Until

@@ -584,7 +584,7 @@
             "graphics_id": "OBJ_EVENT_GFX_SAROS",
             "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_ARC1_SPARE_C",
+            "hidden_flag": "FLAG_HIDE_ARC1_JUBILIFE_SAROS",
             "script": 0,
             "initial_dir": 1,
             "data": [],
