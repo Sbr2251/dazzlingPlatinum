@@ -43,17 +43,8 @@ LakeVerity_OnTransition:
     CallIfEq VAR_ARC1_PROGRESS, 3, LakeVerity_Arc1SetStateCastleTop
     CallIfEq VAR_ARC1_PROGRESS, 4, LakeVerity_Arc1SetStatePortalOpen
     CallIfEq VAR_ARC1_PROGRESS, 7, LakeVerity_Arc1SetStateReturn
-    GetPlayerGender VAR_MAP_LOCAL_0
-    GoToIfEq VAR_MAP_LOCAL_0, GENDER_MALE, LakeVerity_SetCounterpartGraphicsDawn
-    GoToIfEq VAR_MAP_LOCAL_0, GENDER_FEMALE, LakeVerity_SetCounterpartGraphicsLucas
-    End
-
-LakeVerity_SetCounterpartGraphicsDawn:
-    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_PLAYER_F
-    End
-
-LakeVerity_SetCounterpartGraphicsLucas:
-    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_PLAYER_M
+    // The counterpart is Ruth for both player genders.
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     End
 
 LakeVerity_SetEarlyState:

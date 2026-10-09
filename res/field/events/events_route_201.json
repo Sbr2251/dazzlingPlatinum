@@ -234,6 +234,16 @@
             "length": 4,
             "var": "VAR_ARC1_PROGRESS",
             "value": 8
+        },
+        {
+            "script": 20,
+            "x": 110,
+            "z": 857,
+            "y": 0,
+            "width": 4,
+            "length": 1,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 9
         }
     ]
 }

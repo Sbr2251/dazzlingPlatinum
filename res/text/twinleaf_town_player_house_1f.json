@@ -409,6 +409,48 @@
         "But you’re all right, aren’t you?\n",
         "After all, you’re never alone."
       ]
+    },
+    {
+      "id": "TwinleafTownPlayerHouse1F_Text_Arc1MomThereYouAre",
+      "en_US": [
+        "Mom: There you are!\r",
+        "The news said the portal closed,\n",
+        "and I've been pacing ever since.\r"
+      ]
+    },
+    {
+      "id": "TwinleafTownPlayerHouse1F_Text_Arc1MomYouWentIntoIt",
+      "en_US": [
+        "...Wait.\n",
+        "You went INTO it? Didn't you?\r"
+      ]
+    },
+    {
+      "id": "TwinleafTownPlayerHouse1F_Text_Arc1MomLetItRest",
+      "en_US": [
+        "Well. You came back in one piece,\n",
+        "with a Pokémon of your own.\r",
+        "I suppose I can't be too angry.\n",
+        "Let it rest a bit."
+      ]
+    },
+    {
+      "id": "TwinleafTownPlayerHouse1F_Text_Arc1TVPortalClosed",
+      "en_US": [
+        "...the portal above the Lake Verity\n",
+        "castle has closed.\r",
+        "Prof. Rowan declined to comment.\r",
+        "In other news, Team Eclipse rallies\n",
+        "continue to draw record crowds\r",
+        "in Jubilife City..."
+      ]
+    },
+    {
+      "id": "TwinleafTownPlayerHouse1F_Text_Arc1MomYouWentIntoItAfterBlackOut",
+      "en_US": [
+        "Mom: ...Wait.\n",
+        "You went INTO it? Didn't you?\r"
+      ]
     }
   ]
 }

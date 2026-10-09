@@ -478,6 +478,8 @@
       "id": "LakeVerity_Text_Arc1RowanADealIsADeal",
       "en_US": [
         "Rowan: All three are safe...\r",
+        "I made no promise... but you kept\n",
+        "your end of it all the same.\r",
         "Very well. A deal is a deal -\n",
         "the starters are yours."
       ]
@@ -493,6 +495,8 @@
       "id": "LakeVerity_Text_Arc1RowanItsGone",
       "en_US": [
         "Rowan: ...It's gone.\r",
+        "You two. Once you've rested, come\n",
+        "by my lab in Sandgem Town.\r",
         "Come, {STRVAR_1 3, 2, 0}. We have a great\n",
         "deal of data to go over."
       ]
