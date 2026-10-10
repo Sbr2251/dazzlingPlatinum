@@ -2,8 +2,9 @@
 
 Arc 1 needs a walking Mawile on the overworld: it jumps out, runs in circles, turns
 to face different directions and jumps at the player. HGSS has a Mawile follower
-sprite, but Platinum does not. Until the HGSS art is dropped in, the sprite is a
-**placeholder that copies the stock Platinum Skitty walker**.
+sprite, but Platinum does not. **The art is now the Black/White overworld Mawile** (Spriters Resource asset 34110,
+"Old-Gen Overworld Pokemon", 2-column 64x128 sheet, 13 colours), injected on 2026-10-10. It replaced the
+Skitty placeholder, which `extract-placeholder` can still regenerate.
 
 ## At a glance
 
