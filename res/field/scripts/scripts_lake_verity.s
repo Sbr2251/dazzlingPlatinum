@@ -27,6 +27,7 @@
     ScriptEntry LakeVerity_Arc1DoorGuard
     ScriptEntry LakeVerity_Arc1PlaceCast
     ScriptEntry LakeVerity_Arc1StairFoot
+    ScriptEntry LakeVerity_TerraceInscription
     ScriptEntryEnd
 
 // This map is used for every visit (the stock early-story map MAP_HEADER_LAKE_VERITY_LOW_WATER is no longer
@@ -367,6 +368,16 @@ LakeVerity_DrawbridgeSign:
     ReleaseAll
     End
 
+// bg event on the south parapet (33,33), read from the terrace at (33,32): the stone Cyrus reads in the roof landing
+LakeVerity_TerraceInscription:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message LakeVerity_Text_TerraceInscription
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
 // Dazzling Platinum Arc 1 (docs/arc1/revision/spec.md, PLAN.md scenes 3, 8, 9, 12-14).
 //
 // VAR_ARC1_PROGRESS 1: the player arrives from the Distortion World flashback at (32,31), hidden (see
@@ -421,6 +432,8 @@ LakeVerity_Arc1OnFrameRoofLanding:
     ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusWander
     WaitMovement
     Message LakeVerity_Text_Arc1CyrusThereWasNeverACastle
+    // He has stopped at the south parapet, in front of the inscription stone (LakeVerity_TerraceInscription)
+    Message LakeVerity_Text_Arc1CyrusTheyBuiltItAThrone
     Message LakeVerity_Text_Arc1CyrusTheFall
     Message LakeVerity_Text_Arc1CyrusWasIWrong
     WaitABXPadPress
@@ -849,6 +862,9 @@ LakeVerity_Arc1Briefing:
     Message LakeVerity_Text_Arc1CyrusIWillGuideThem
     WaitABXPadPress
     CloseMessage
+    // Rowan doesn't believe him, and Barry doesn't let him finish
+    Message LakeVerity_Text_Arc1RowanFromThatWorld
+    WaitTime 30, VAR_RESULT
     // Barry runs into the portal before anyone can stop him
     BufferRivalName 0
     Message LakeVerity_Text_Arc1BarryLetsGo
@@ -1007,9 +1023,24 @@ LakeVerity_Arc1OnFrameReturn:
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     WaitTime 30, VAR_RESULT
-    // Rowan and the assistant leave
-    BufferCounterpartName 2
+    // Rowan thanks Cyrus and invites him to the lab, then he and the assistant leave
     Message LakeVerity_Text_Arc1RowanItsGone
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1FaceEast
+    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1FaceWest
+    WaitMovement
+    Message LakeVerity_Text_Arc1RowanThankYouSir
+    WaitABXPadPress
+    CloseMessage
+    WaitTime 20, VAR_RESULT
+    Message LakeVerity_Text_Arc1CyrusPerhaps
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1FaceNorth
+    WaitMovement
+    BufferCounterpartName 2
+    Message LakeVerity_Text_Arc1RowanComeRuth
     WaitABXPadPress
     CloseMessage
     ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RowanLeave
@@ -1024,10 +1055,12 @@ LakeVerity_Arc1OnFrameReturn:
     ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceEastLate
     WaitMovement
     Message LakeVerity_Text_Arc1CyrusYouRemindMe
-    Message LakeVerity_Text_Arc1CyrusTakeItToRowan
+    Message LakeVerity_Text_Arc1CyrusShowTheProfessor
     SetVar VAR_0x8004, ITEM_ECLIPSE_SHARD
     SetVar VAR_0x8005, 1
     GiveItemQuantity
+    Message LakeVerity_Text_Arc1CyrusINeedToUnderstand
+    WaitABXPadPress
     CloseMessage
     ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusLeave
     ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerWatchCyrusLeave

@@ -6597,6 +6597,18 @@ static const UnkStruct_ov9_02252414 Unk_ov9_02252414[] = {
         { -(FX32_ONE * 82), 0x0, 0x0 },
         0x13,
     },
+    // Arc 1 wall-walk puzzle (ARC1_SEAMS): the shadow passes once through the void below the seam, south along z
+    // under the briefcase platform. A whoosh, no cry: nobody on screen reacts to it.
+    {
+        17,
+        -3,
+        4,
+        0x1,
+        0x2,
+        { FX32_ONE, FX32_ONE, FX32_ONE },
+        { 0x0, 0x0, (FX32_ONE * 28) },
+        0x28,
+    },
 };
 
 void ov9_0224E884(FieldSystem *fieldSystem, u16 param1)
