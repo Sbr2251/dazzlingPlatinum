@@ -9,11 +9,26 @@
     "double_battle": false,
     "party": [
         {
+            "species": "SPECIES_WURMPLE",
+            "form": 0,
+            "level": 4,
+            "item": null,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_STRING_SHOT"
+            ],
+            "power": 0,
+            "ball_seal": 0
+        },
+        {
             "species": "SPECIES_BIDOOF",
             "form": 0,
             "level": 5,
             "item": null,
-            "moves": null,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_GROWL"
+            ],
             "power": 0,
             "ball_seal": 0
         }

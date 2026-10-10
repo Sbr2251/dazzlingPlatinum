@@ -10,12 +10,30 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_BIDOOF",
+            "species": "SPECIES_ZIGZAGOON",
             "form": 0,
             "level": 9,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_TAIL_WHIP",
+                "MOVE_HEADBUTT"
+            ],
+            "power": 30,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_BEAUTIFLY",
+            "form": 0,
+            "level": 10,
+            "item": null,
+            "moves": [
+                "MOVE_ABSORB",
+                "MOVE_STRING_SHOT",
+                "MOVE_HARDEN",
+                "MOVE_TACKLE"
+            ],
+            "power": 30,
             "ball_seal": 0
         }
     ],

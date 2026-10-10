@@ -10,10 +10,26 @@
         {
             "species": "SPECIES_GEODUDE",
             "form": 0,
-            "level": 9,
+            "level": 10,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_DEFENSE_CURL",
+                "MOVE_MUD_SPORT"
+            ],
+            "power": 30,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_NOSEPASS",
+            "form": 0,
+            "level": 11,
+            "item": null,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_HARDEN"
+            ],
+            "power": 30,
             "ball_seal": 0
         }
     ],

@@ -10,19 +10,25 @@
         {
             "species": "SPECIES_KRICKETOT",
             "form": 0,
-            "level": 7,
+            "level": 6,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_GROWL",
+                "MOVE_BIDE"
+            ],
+            "power": 20,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_ZUBAT",
+            "species": "SPECIES_POOCHYENA",
             "form": 0,
-            "level": 6,
+            "level": 7,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_HOWL"
+            ],
+            "power": 20,
             "ball_seal": 0
         }
     ],

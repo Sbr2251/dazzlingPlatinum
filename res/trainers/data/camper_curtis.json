@@ -10,21 +10,29 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_STARLY",
+            "species": "SPECIES_SHINX",
             "form": 0,
-            "level": 7,
+            "level": 9,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_LEER",
+                "MOVE_CHARGE"
+            ],
+            "power": 30,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_SHINX",
+            "species": "SPECIES_ARON",
             "form": 0,
-            "level": 7,
+            "level": 10,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_HARDEN",
+                "MOVE_MUD_SLAP"
+            ],
+            "power": 30,
             "ball_seal": 0
         }
     ],

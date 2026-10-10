@@ -10,9 +10,25 @@
         {
             "species": "SPECIES_STARLY",
             "form": 0,
+            "level": 4,
+            "item": null,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_GROWL"
+            ],
+            "power": 0,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_ZIGZAGOON",
+            "form": 0,
             "level": 5,
             "item": null,
-            "moves": null,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_GROWL",
+                "MOVE_TAIL_WHIP"
+            ],
             "power": 0,
             "ball_seal": 0
         }
