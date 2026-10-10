@@ -8,12 +8,12 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_MACHOP",
+            "species": "SPECIES_TIMBURR",
             "form": 0,
             "level": 7,
             "item": null,
             "moves": [
-                "MOVE_LOW_KICK",
+                "MOVE_POUND",
                 "MOVE_LEER",
                 "MOVE_FOCUS_ENERGY"
             ],

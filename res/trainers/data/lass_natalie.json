@@ -21,13 +21,14 @@
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_BIDOOF",
+            "species": "SPECIES_LILLIPUP",
             "form": 0,
             "level": 5,
             "item": null,
             "moves": [
                 "MOVE_TACKLE",
-                "MOVE_GROWL"
+                "MOVE_LEER",
+                "MOVE_ODOR_SLEUTH"
             ],
             "power": 0,
             "ball_seal": 0

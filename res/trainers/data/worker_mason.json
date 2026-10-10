@@ -8,14 +8,15 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GEODUDE",
+            "species": "SPECIES_DRILBUR",
             "form": 0,
             "level": 10,
             "item": null,
             "moves": [
-                "MOVE_TACKLE",
-                "MOVE_DEFENSE_CURL",
-                "MOVE_MUD_SPORT"
+                "MOVE_SCRATCH",
+                "MOVE_MUD_SPORT",
+                "MOVE_RAPID_SPIN",
+                "MOVE_MUD_SLAP"
             ],
             "power": 30,
             "ball_seal": 0

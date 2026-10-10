@@ -8,13 +8,14 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_KRICKETOT",
+            "species": "SPECIES_PURRLOIN",
             "form": 0,
             "level": 6,
             "item": null,
             "moves": [
+                "MOVE_SCRATCH",
                 "MOVE_GROWL",
-                "MOVE_BIDE"
+                "MOVE_ASSIST"
             ],
             "power": 20,
             "ball_seal": 0

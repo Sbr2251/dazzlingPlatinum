@@ -8,14 +8,15 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GEODUDE",
+            "species": "SPECIES_ROGGENROLA",
             "form": 0,
             "level": 10,
             "item": null,
             "moves": [
                 "MOVE_TACKLE",
-                "MOVE_DEFENSE_CURL",
-                "MOVE_ROCK_POLISH"
+                "MOVE_HARDEN",
+                "MOVE_SAND_ATTACK",
+                "MOVE_HEADBUTT"
             ],
             "power": 30,
             "ball_seal": 0

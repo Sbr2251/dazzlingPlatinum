@@ -21,12 +21,13 @@
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_ABRA",
+            "species": "SPECIES_SEWADDLE",
             "form": 0,
             "level": 6,
             "item": null,
             "moves": [
-                "MOVE_TELEPORT"
+                "MOVE_TACKLE",
+                "MOVE_STRING_SHOT"
             ],
             "power": 20,
             "ball_seal": 0
