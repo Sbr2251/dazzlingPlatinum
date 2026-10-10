@@ -27,7 +27,19 @@ static const u16 sExcludedMonsNational[] = {
 };
 static const u16 sExcludedMonsLocal[] = {};
 
-#define DEX_SIZE_U32          ((int)((NATIONAL_DEX_COUNT - 1) / 32) + 1) // default 16
+// The save layout is vanilla's: 16 words of seen/caught/gender bits (species 1-512 by bit
+// index species - 1), with Deoxys's forms in the top byte of the last caught and seen words.
+// So the main bitfields hold species 1-504. Species after that keep their four bits (caught,
+// seen, two genders) in the top two bits of the per-species language bytes, which only ever
+// use bits 0-5 (NUM_LANGUAGES): see DexBit_Locate. Existing saves keep loading unchanged.
+#define DEX_SIZE_U32          16
+#define DEX_MAIN_LAST_SPECIES (15 * 32 + 24) // bit index 504 is Deoxys's first form nibble
+#define DEX_EXT_FIRST_BYTE    1              // recordedLanguages[0] (no species) is left alone
+#define DEX_EXT_BITS_PER_BYTE 2              // bits 6 and 7
+#define DEX_EXT_BITS_SHIFT    6
+#define DEX_EXT_KINDS         4
+#define DEX_EXT_CAPACITY      ((SPECIES_ARCEUS + 1 - DEX_EXT_FIRST_BYTE) * DEX_EXT_BITS_PER_BYTE / DEX_EXT_KINDS)
+#define LANGUAGE_BITS_MASK    ((1 << NUM_LANGUAGES) - 1)
 #define MAGIC_NUMBER          0xBEEFCAFE
 #define NUM_EXCLUDED_NATIONAL ((int)(sizeof(sExcludedMonsNational) / sizeof(u16)))
 #define NUM_EXCLUDED_LOCAL    0 //((int)(sizeof(sExcludedMonsLocal) / sizeof(u16)))
@@ -45,8 +57,8 @@ typedef struct Pokedex {
     u8 burmyFormsSeen;
     u8 wormadamFormsSeen;
     u8 unownFormsSeen[UNOWN_FORM_COUNT];
-    // Keep the vanilla save footprint. Species added after Arceus still use the
-    // expanded seen/caught bitfields, but do not persist per-language flags.
+    // Keep the vanilla save footprint. Species added after Arceus do not persist
+    // per-language flags; bits 6-7 of these bytes hold species 505+ (DexBit_Locate).
     u8 recordedLanguages[SPECIES_ARCEUS + 1];
     u8 canDetectForms;
     u8 canDetectLanguages;
@@ -57,6 +69,10 @@ typedef struct Pokedex {
     u8 giratinaFormsSeen;
     // u8 padding[2]; // implicit padding in vanilla
 } Pokedex;
+
+// Room for species up to 504 + DEX_EXT_CAPACITY (750) without touching the save layout
+typedef char DexExtCapacityCheck[(NATIONAL_DEX_COUNT <= DEX_MAIN_LAST_SPECIES + DEX_EXT_CAPACITY) ? 1 : -1];
+typedef char DexLanguagesFitCheck[(NUM_LANGUAGES <= DEX_EXT_BITS_SHIFT) ? 1 : -1];
 
 int Pokedex_SaveSize(void)
 {
@@ -126,23 +142,80 @@ static inline void SetBit_3Forms(u8 *array, u8 value, u16 bitIndex)
     array[bitIndex >> 2] |= value << ((bitIndex & 0x03) * 2);
 }
 
+enum DexBitKind {
+    DEX_BIT_CAUGHT = 0,
+    DEX_BIT_SEEN,
+    DEX_BIT_GENDER_0,
+    DEX_BIT_GENDER_1,
+};
+
+// Finds the byte and bit of `species`' flag of the given kind: the vanilla bitfields up to
+// DEX_MAIN_LAST_SPECIES, then the spare top bits of recordedLanguages.
+static u8 *DexBit_Locate(const Pokedex *pokedexData, enum DexBitKind kind, u16 species, u8 *bit)
+{
+    if (species <= DEX_MAIN_LAST_SPECIES) {
+        const u32 *array;
+
+        switch (kind) {
+        case DEX_BIT_CAUGHT:
+            array = pokedexData->caughtPokemon;
+            break;
+        case DEX_BIT_SEEN:
+            array = pokedexData->seenPokemon;
+            break;
+        case DEX_BIT_GENDER_0:
+            array = pokedexData->recordedGenders[0];
+            break;
+        default:
+            array = pokedexData->recordedGenders[1];
+            break;
+        }
+
+        *bit = (species - 1) & 0x07;
+        return (u8 *)array + ((species - 1) >> 3);
+    }
+
+    u32 n = (species - DEX_MAIN_LAST_SPECIES - 1) * DEX_EXT_KINDS + kind;
+
+    GF_ASSERT(n < (SPECIES_ARCEUS + 1 - DEX_EXT_FIRST_BYTE) * DEX_EXT_BITS_PER_BYTE);
+    *bit = DEX_EXT_BITS_SHIFT + (n % DEX_EXT_BITS_PER_BYTE);
+    return (u8 *)pokedexData->recordedLanguages + DEX_EXT_FIRST_BYTE + n / DEX_EXT_BITS_PER_BYTE;
+}
+
+static BOOL DexBit_Read(const Pokedex *pokedexData, enum DexBitKind kind, u16 species)
+{
+    u8 bit;
+    const u8 *byte = DexBit_Locate(pokedexData, kind, species, &bit);
+
+    return (*byte >> bit) & 1;
+}
+
+static void DexBit_Write(Pokedex *pokedexData, enum DexBitKind kind, u16 species, u8 value)
+{
+    u8 bit;
+    u8 *byte = DexBit_Locate(pokedexData, kind, species, &bit);
+
+    GF_ASSERT(value < 2);
+    *byte = (*byte & ~(1 << bit)) | (value << bit);
+}
+
 static inline void Write_SeenSpecies(Pokedex *pokedexData, u16 species)
 {
-    ActivateBit_2Forms((u8 *)pokedexData->seenPokemon, species);
+    DexBit_Write(pokedexData, DEX_BIT_SEEN, species, 1);
 }
 
 static inline void Write_CaughtSpecies(Pokedex *pokedexData, u16 species)
 {
-    ActivateBit_2Forms((u8 *)pokedexData->caughtPokemon, species);
+    DexBit_Write(pokedexData, DEX_BIT_CAUGHT, species, 1);
 }
 
-static void SetBit_Gender(Pokedex *pokedexData, u8 gender, u8 isSeen, u16 bitIndex)
+static void SetBit_Gender(Pokedex *pokedexData, u8 gender, u8 isSeen, u16 species)
 {
     if (isSeen == FALSE) {
-        SetBit_2Forms((u8 *)pokedexData->recordedGenders[1], gender, bitIndex);
+        DexBit_Write(pokedexData, DEX_BIT_GENDER_1, species, gender);
     }
 
-    SetBit_2Forms((u8 *)pokedexData->recordedGenders[isSeen], gender, bitIndex);
+    DexBit_Write(pokedexData, isSeen ? DEX_BIT_GENDER_1 : DEX_BIT_GENDER_0, species, gender);
 }
 
 static void UpdateGender(Pokedex *pokedexData, u8 gender, u8 isSeen, u16 bitIndex)
@@ -158,17 +231,17 @@ static void UpdateGender(Pokedex *pokedexData, u8 gender, u8 isSeen, u16 bitInde
 
 static inline BOOL SpeciesSeen(const Pokedex *pokedexData, u16 species)
 {
-    return ReadBit_2Forms((const u8 *)pokedexData->seenPokemon, species);
+    return DexBit_Read(pokedexData, DEX_BIT_SEEN, species);
 }
 
 static inline BOOL SpeciesCaught(const Pokedex *pokedexData, u16 species)
 {
-    return ReadBit_2Forms((const u8 *)pokedexData->caughtPokemon, species);
+    return DexBit_Read(pokedexData, DEX_BIT_CAUGHT, species);
 }
 
 static inline u8 GetGender(const Pokedex *pokedexData, u16 species, u8 bitIndex)
 {
-    return ReadBit_2Forms((const u8 *)pokedexData->recordedGenders[bitIndex], species);
+    return DexBit_Read(pokedexData, bitIndex ? DEX_BIT_GENDER_1 : DEX_BIT_GENDER_0, species);
 }
 
 static inline void SetForm_Spinda(Pokedex *pokedexData, u16 species, u32 personality)
@@ -1125,7 +1198,11 @@ BOOL Pokedex_IsLanguageObtained(const Pokedex *pokedexData, u16 species, u32 lan
     bitIndex = species;
     languageIndex = PokedexLanguage_LanguageToIndex(languageIndex);
 
-    return pokedexData->recordedLanguages[bitIndex] & (1 << languageIndex);
+    if (languageIndex >= NUM_LANGUAGES) {
+        return FALSE; // the top bits of the byte belong to DexBit_Locate
+    }
+
+    return pokedexData->recordedLanguages[bitIndex] & (1 << languageIndex) & LANGUAGE_BITS_MASK;
 }
 
 void Pokedex_TurnOnLanguageDetection(Pokedex *pokedexData)

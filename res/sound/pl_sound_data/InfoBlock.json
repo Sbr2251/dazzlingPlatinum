@@ -17209,27 +17209,216 @@
                 "",
                 ""]
         },
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
+        {
+            "name": "BANK_PV_PATRAT",
+            "fileName": "BANK_PV_PATRAT.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_PATRAT",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_WATCHOG",
+            "fileName": "BANK_PV_WATCHOG.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_WATCHOG",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_LILLIPUP",
+            "fileName": "BANK_PV_LILLIPUP.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_LILLIPUP",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_HERDIER",
+            "fileName": "BANK_PV_HERDIER.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_HERDIER",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_STOUTLAND",
+            "fileName": "BANK_PV_STOUTLAND.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_STOUTLAND",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_PURRLOIN",
+            "fileName": "BANK_PV_PURRLOIN.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_PURRLOIN",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_LIEPARD",
+            "fileName": "BANK_PV_LIEPARD.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_LIEPARD",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_PIDOVE",
+            "fileName": "BANK_PV_PIDOVE.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_PIDOVE",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_TRANQUILL",
+            "fileName": "BANK_PV_TRANQUILL.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_TRANQUILL",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_UNFEZANT",
+            "fileName": "BANK_PV_UNFEZANT.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_UNFEZANT",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_ROGGENROLA",
+            "fileName": "BANK_PV_ROGGENROLA.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_ROGGENROLA",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_BOLDORE",
+            "fileName": "BANK_PV_BOLDORE.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_BOLDORE",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_GIGALITH",
+            "fileName": "BANK_PV_GIGALITH.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_GIGALITH",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_DRILBUR",
+            "fileName": "BANK_PV_DRILBUR.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_DRILBUR",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_EXCADRILL",
+            "fileName": "BANK_PV_EXCADRILL.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_EXCADRILL",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_TIMBURR",
+            "fileName": "BANK_PV_TIMBURR.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_TIMBURR",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_GURDURR",
+            "fileName": "BANK_PV_GURDURR.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_GURDURR",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_CONKELDURR",
+            "fileName": "BANK_PV_CONKELDURR.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_CONKELDURR",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_SEWADDLE",
+            "fileName": "BANK_PV_SEWADDLE.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_SEWADDLE",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_SWADLOON",
+            "fileName": "BANK_PV_SWADLOON.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_SWADLOON",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_LEAVANNY",
+            "fileName": "BANK_PV_LEAVANNY.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_LEAVANNY",
+                "",
+                "",
+                ""]
+        },
         {"name": ""},
         {"name": ""},
         {"name": ""},
@@ -20219,27 +20408,111 @@
             "fileName": "WAVE_ARC_PV496.swar",
             "unkA": 0
         },
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
+        {
+            "name": "WAVE_ARC_PV_PATRAT",
+            "fileName": "WAVE_ARC_PV_PATRAT.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_WATCHOG",
+            "fileName": "WAVE_ARC_PV_WATCHOG.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_LILLIPUP",
+            "fileName": "WAVE_ARC_PV_LILLIPUP.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_HERDIER",
+            "fileName": "WAVE_ARC_PV_HERDIER.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_STOUTLAND",
+            "fileName": "WAVE_ARC_PV_STOUTLAND.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_PURRLOIN",
+            "fileName": "WAVE_ARC_PV_PURRLOIN.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_LIEPARD",
+            "fileName": "WAVE_ARC_PV_LIEPARD.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_PIDOVE",
+            "fileName": "WAVE_ARC_PV_PIDOVE.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_TRANQUILL",
+            "fileName": "WAVE_ARC_PV_TRANQUILL.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_UNFEZANT",
+            "fileName": "WAVE_ARC_PV_UNFEZANT.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_ROGGENROLA",
+            "fileName": "WAVE_ARC_PV_ROGGENROLA.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_BOLDORE",
+            "fileName": "WAVE_ARC_PV_BOLDORE.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_GIGALITH",
+            "fileName": "WAVE_ARC_PV_GIGALITH.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_DRILBUR",
+            "fileName": "WAVE_ARC_PV_DRILBUR.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_EXCADRILL",
+            "fileName": "WAVE_ARC_PV_EXCADRILL.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_TIMBURR",
+            "fileName": "WAVE_ARC_PV_TIMBURR.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_GURDURR",
+            "fileName": "WAVE_ARC_PV_GURDURR.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_CONKELDURR",
+            "fileName": "WAVE_ARC_PV_CONKELDURR.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_SEWADDLE",
+            "fileName": "WAVE_ARC_PV_SEWADDLE.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_SWADLOON",
+            "fileName": "WAVE_ARC_PV_SWADLOON.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_LEAVANNY",
+            "fileName": "WAVE_ARC_PV_LEAVANNY.swar",
+            "unkA": 0
+        },
         {"name": ""},
         {"name": ""},
         {"name": ""},

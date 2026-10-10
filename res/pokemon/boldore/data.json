@@ -1,0 +1,245 @@
+{
+    "base_stats": {
+        "hp": 70,
+        "attack": 105,
+        "defense": 105,
+        "speed": 20,
+        "special_attack": 50,
+        "special_defense": 40
+    },
+    "types": [
+        "TYPE_ROCK",
+        "TYPE_ROCK"
+    ],
+    "catch_rate": 120,
+    "base_exp_reward": 137,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 1,
+        "defense": 1,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_EVERSTONE",
+        "rare": "ITEM_HARD_STONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 15,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_SLOW",
+    "egg_groups": [
+        "EGG_GROUP_MINERAL",
+        "EGG_GROUP_MINERAL"
+    ],
+    "abilities": [
+        "ABILITY_STURDY",
+        "ABILITY_SAND_FORCE"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_BLUE",
+    "flip_sprite": false,
+    "icon_palette": 0,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_SAND_ATTACK"
+            ],
+            [
+                1,
+                "MOVE_HEADBUTT"
+            ],
+            [
+                1,
+                "MOVE_TACKLE"
+            ],
+            [
+                1,
+                "MOVE_HARDEN"
+            ],
+            [
+                4,
+                "MOVE_HARDEN"
+            ],
+            [
+                7,
+                "MOVE_SAND_ATTACK"
+            ],
+            [
+                10,
+                "MOVE_HEADBUTT"
+            ],
+            [
+                14,
+                "MOVE_ROCK_BLAST"
+            ],
+            [
+                17,
+                "MOVE_MUD_SLAP"
+            ],
+            [
+                20,
+                "MOVE_IRON_DEFENSE"
+            ],
+            [
+                23,
+                "MOVE_ROCK_THROW"
+            ],
+            [
+                25,
+                "MOVE_POWER_GEM"
+            ],
+            [
+                30,
+                "MOVE_ROCK_SLIDE"
+            ],
+            [
+                36,
+                "MOVE_STEALTH_ROCK"
+            ],
+            [
+                42,
+                "MOVE_SANDSTORM"
+            ],
+            [
+                48,
+                "MOVE_STONE_EDGE"
+            ],
+            [
+                55,
+                "MOVE_EXPLOSION"
+            ]
+        ],
+        "by_tm": [
+            "TM06",
+            "TM10",
+            "TM17",
+            "TM21",
+            "TM26",
+            "TM27",
+            "TM32",
+            "TM37",
+            "TM39",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM58",
+            "TM64",
+            "TM69",
+            "TM71",
+            "TM76",
+            "TM78",
+            "TM80",
+            "TM82",
+            "TM83",
+            "TM87",
+            "TM90",
+            "TM91",
+            "HM04",
+            "HM06",
+            "HM08"
+        ],
+        "by_tutor": [
+            "MOVE_MUD_SLAP",
+            "MOVE_SNORE",
+            "MOVE_EARTH_POWER",
+            "MOVE_IRON_DEFENSE"
+        ],
+        "egg_moves": []
+    },
+    "evolutions": [
+        [
+            "EVO_LEVEL",
+            37,
+            "SPECIES_GIGALITH"
+        ]
+    ],
+    "offspring": "SPECIES_ROGGENROLA",
+    "footprint": {
+        "has": true,
+        "size": "FOOTPRINT_MEDIUM",
+        "type": "FOOTPRINT_TYPE_TOUGH"
+    },
+    "pokedex_data": {
+        "height": 9,
+        "weight": 1020,
+        "body_shape": "SHAPE_TENTACLES",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 312,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 312,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 16,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 16,
+        "en": {
+            "name": "BOLDORE",
+            "category": "Ore Pokémon",
+            "entry_text": [
+                "Because its energy was too great\n",
+                "to be contained, the energy leaked\n",
+                "and formed orange crystals."
+            ]
+        },
+        "fr": {
+            "name": "GÉOLITHE",
+            "category": "Pokémon Minerai",
+            "entry_text": [
+                "Quand il est gonflé à bloc, ses\n",
+                "cristaux orangés scintillent. Il\n",
+                "cherche de l'eau souterraine dans\n",
+                "les grottes."
+            ]
+        },
+        "de": {
+            "name": "SEDIMANTUR",
+            "category": "Erz-Pokémon",
+            "entry_text": [
+                "Energie, die ungehindert aus seinem\n",
+                "Körper austrat, hat sich an ihm zu\n",
+                "orangefarbenen Kristallen\n",
+                "verfestigt."
+            ]
+        },
+        "it": {
+            "name": "BOLDORE",
+            "category": "Pokémon Minerale",
+            "entry_text": [
+                "L'energia sovrabbondante cerca\n",
+                "sfogo all'esterno del corpo e si\n",
+                "solidifica formando cristalli di\n",
+                "colore arancione."
+            ]
+        },
+        "es": {
+            "name": "BOLDORE",
+            "category": "Pokémon Mineral",
+            "entry_text": [
+                "La energía que no puede contener\n",
+                "en el interior de su cuerpo se\n",
+                "escapa formando cristales\n",
+                "naranjas."
+            ]
+        },
+        "jp": {
+            "name": "ガントル",
+            "category": "こうせきポケモン",
+            "entry_text": [
+                "たいないに　おさまりきらずに\n",
+                "もれだした　エネルギ－が　かたまり\n",
+                "オレンジいろの\n",
+                "けっしょうになった。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NORTH_EAST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 50,
+        "rarity": 30,
+        "unused": 2059
+    }
+}

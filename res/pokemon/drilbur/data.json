@@ -1,0 +1,251 @@
+{
+    "base_stats": {
+        "hp": 60,
+        "attack": 85,
+        "defense": 40,
+        "speed": 68,
+        "special_attack": 30,
+        "special_defense": 45
+    },
+    "types": [
+        "TYPE_GROUND",
+        "TYPE_GROUND"
+    ],
+    "catch_rate": 120,
+    "base_exp_reward": 66,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 1,
+        "defense": 0,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 20,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_FAST",
+    "egg_groups": [
+        "EGG_GROUP_FIELD",
+        "EGG_GROUP_FIELD"
+    ],
+    "abilities": [
+        "ABILITY_SAND_VEIL",
+        "ABILITY_SAND_FORCE"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_GRAY",
+    "flip_sprite": false,
+    "icon_palette": 0,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_SCRATCH"
+            ],
+            [
+                1,
+                "MOVE_MUD_SPORT"
+            ],
+            [
+                5,
+                "MOVE_RAPID_SPIN"
+            ],
+            [
+                8,
+                "MOVE_MUD_SLAP"
+            ],
+            [
+                12,
+                "MOVE_FURY_SWIPES"
+            ],
+            [
+                15,
+                "MOVE_METAL_CLAW"
+            ],
+            [
+                19,
+                "MOVE_DIG"
+            ],
+            [
+                22,
+                "MOVE_SHARPEN"
+            ],
+            [
+                26,
+                "MOVE_SLASH"
+            ],
+            [
+                29,
+                "MOVE_ROCK_SLIDE"
+            ],
+            [
+                33,
+                "MOVE_EARTHQUAKE"
+            ],
+            [
+                36,
+                "MOVE_SWORDS_DANCE"
+            ],
+            [
+                40,
+                "MOVE_SANDSTORM"
+            ],
+            [
+                43,
+                "MOVE_DRILL_PECK"
+            ],
+            [
+                47,
+                "MOVE_FISSURE"
+            ]
+        ],
+        "by_tm": [
+            "TM06",
+            "TM10",
+            "TM11",
+            "TM17",
+            "TM21",
+            "TM26",
+            "TM27",
+            "TM28",
+            "TM31",
+            "TM32",
+            "TM36",
+            "TM37",
+            "TM39",
+            "TM40",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM56",
+            "TM58",
+            "TM65",
+            "TM75",
+            "TM76",
+            "TM78",
+            "TM80",
+            "TM81",
+            "TM82",
+            "TM83",
+            "TM84",
+            "TM87",
+            "TM90",
+            "HM01",
+            "HM04",
+            "HM06",
+            "HM08"
+        ],
+        "by_tutor": [
+            "MOVE_MUD_SLAP",
+            "MOVE_SNORE",
+            "MOVE_HELPING_HAND",
+            "MOVE_EARTH_POWER",
+            "MOVE_IRON_DEFENSE"
+        ],
+        "egg_moves": [
+            "MOVE_SUBMISSION",
+            "MOVE_SKULL_BASH",
+            "MOVE_RAPID_SPIN",
+            "MOVE_CRUSH_CLAW",
+            "MOVE_METAL_SOUND",
+            "MOVE_IRON_DEFENSE",
+            "MOVE_EARTH_POWER",
+            "MOVE_ROCK_CLIMB"
+        ]
+    },
+    "evolutions": [
+        [
+            "EVO_LEVEL",
+            31,
+            "SPECIES_EXCADRILL"
+        ]
+    ],
+    "offspring": "SPECIES_DRILBUR",
+    "footprint": {
+        "has": true,
+        "size": "FOOTPRINT_MEDIUM",
+        "type": "FOOTPRINT_TYPE_CUTE"
+    },
+    "pokedex_data": {
+        "height": 3,
+        "weight": 85,
+        "body_shape": "SHAPE_BIPEDAL_TAILED",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 482,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 482,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 27,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 27,
+        "en": {
+            "name": "DRILBUR",
+            "category": "Mole Pokémon",
+            "entry_text": [
+                "By spinning its body, it can dig\n",
+                "straight through the ground at a\n",
+                "speed of 30 mph."
+            ]
+        },
+        "fr": {
+            "name": "ROTOTAUPE",
+            "category": "Pokémon Taupe",
+            "entry_text": [
+                "Il peut creuser à plus de 50 km/h\n",
+                "et faire la course avec une voiture\n",
+                "roulant sur le terrain qu'il creuse."
+            ]
+        },
+        "de": {
+            "name": "ROTOMURF",
+            "category": "Maulwurf-Pokémon",
+            "entry_text": [
+                "Es führt seine beiden Klauen\n",
+                "zusammen, dreht sich rapide um die\n",
+                "eigene Achse und gräbt sich\n",
+                "ratzfatz durch das Erdreich."
+            ]
+        },
+        "it": {
+            "name": "DRILBUR",
+            "category": "Pokémon Talpa",
+            "entry_text": [
+                "Quando gira su se stesso, scava la\n",
+                "terra scendendo in verticale alla\n",
+                "velocità di 50 km/h."
+            ]
+        },
+        "es": {
+            "name": "DRILBUR",
+            "category": "Pokémon Topo",
+            "entry_text": [
+                "Cuando junta las garras y comienza\n",
+                "a dar vueltas frenéticas, avanza\n",
+                "bajo tierra a gran velocidad."
+            ]
+        },
+        "jp": {
+            "name": "モグリュ－",
+            "category": "もぐらポケモン",
+            "entry_text": [
+                "りょうての　ツメを　かさねあわせて\n",
+                "からだを　こうそく\n",
+                "かいてんさせると　もうスピ－ドで\n",
+                "ちちゅうを　すすむ。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NORTH_EAST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 50,
+        "rarity": 30,
+        "unused": 2056
+    }
+}
