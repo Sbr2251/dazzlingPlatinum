@@ -1127,3 +1127,5 @@ scripts_route_223
 scripts_verity_castle_1f
 scripts_distortion_world_arc1_seams
 scripts_init_distortion_world_arc1_seams
+scripts_oreburgh_mine_side_tunnel
+scripts_init_oreburgh_mine_side_tunnel

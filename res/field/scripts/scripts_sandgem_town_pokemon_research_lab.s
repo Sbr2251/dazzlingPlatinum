@@ -230,6 +230,21 @@ _01AE:
     PlayFanfare SEQ_SE_DP_KAIDAN2
     RemoveObject LOCALID_ARC1_GARIUS
     WaitTime 15, VAR_RESULT
+    // Arc 1 r3 (hum): Rowan gives the player a spare of Ruth's homemade Portal Reader
+    ApplyMovement LOCALID_PLAYER, _04B4
+    WaitMovement
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanOneMoreThing
+    SetVar VAR_0x8004, ITEM_PORTAL_READER
+    SetVar VAR_0x8005, 1
+    GiveItemQuantity
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanRuthBuiltIt
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanCallUs
+    CloseMessage
+    ApplyMovement 3, _04D0
+    ApplyMovement LOCALID_PLAYER, _04BC
+    WaitMovement
+    Message SandgemTownPokemonResearchLab_Text_Arc1RuthItsASpare
+    CloseMessage
     ApplyMovement 3, _04D0
     ApplyMovement LOCALID_PLAYER, _04BC
     WaitMovement

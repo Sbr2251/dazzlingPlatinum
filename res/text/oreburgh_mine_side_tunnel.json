@@ -1,0 +1,99 @@
+{
+  "key": 16595,
+  "messages": [
+    {
+      "id": "OreburghMineSideTunnel_Text_BuzzLouder",
+      "en_US": [
+        "The Portal Reader is buzzing\n",
+        "louder!"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_BuzzWild",
+      "en_US": [
+        "BZZZT! The Portal Reader is\n",
+        "going wild!\r",
+        "Something's close."
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_BuzzLoudest",
+      "en_US": [
+        "BZZZZZT!\r"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_MachopHuddled",
+      "en_US": [
+        "A Machop is huddled against the\n",
+        "rock, clutching its arm.\r",
+        "Something violet is glinting\n",
+        "in it.\r"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_MachopSwung",
+      "en_US": [
+        "Machop swung wildly at\n",
+        "{STRVAR_1 3, 0, 0}!\r"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_StandYourGround",
+      "en_US": [
+        "Stand your ground?"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_StoodStill",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} stood still and\n",
+        "held out a hand...\r"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_BackedOff",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} backed off a step.\r",
+        "Machop kept swinging...\n",
+        "then stopped, worn out.\r"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_LeanedIn",
+      "en_US": [
+        "Machop flinched...\r",
+        "then leaned against\n",
+        "{STRVAR_1 3, 0, 0}'s hand, shaking.\r"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_SliverCrumbled",
+      "en_US": [
+        "The violet sliver slid out of\n",
+        "Machop's arm.\r",
+        "It crumbled into dust.\r"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_ReaderQuiet",
+      "en_US": [
+        "The Portal Reader went quiet.\r"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_MachopDashedOff",
+      "en_US": [
+        "Machop dashed off toward the\n",
+        "way out!\r"
+      ]
+    },
+    {
+      "id": "OreburghMineSideTunnel_Text_FollowedOut",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} followed Machop back\n",
+        "out of the tunnel.\r"
+      ]
+    }
+  ]
+}

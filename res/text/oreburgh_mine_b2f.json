@@ -196,6 +196,66 @@
         "END OF ARC 1\n",
         "To be continued..."
       ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_HumSealReaderBuzz",
+      "en_US": [
+        "The Portal Reader is buzzing\n",
+        "harder here than anywhere in town."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_HumSqueezeThrough",
+      "en_US": [
+        "Squeeze through the crack?"
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_HumBuzzFaint",
+      "en_US": [
+        "The Portal Reader gives a faint\n",
+        "buzz..."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_HumBuzzLoud",
+      "en_US": [
+        "The Portal Reader is buzzing!\n",
+        "It's getting stronger."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_HumCrates",
+      "en_US": [
+        "Old crates are wedged into this\n",
+        "nook.\r",
+        "Cold air seeps out from behind\n",
+        "them. There's a narrow crack\f",
+        "in the rock back there.\r"
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_HumCratesBuzz",
+      "en_US": [
+        "The Portal Reader is buzzing\n",
+        "like crazy!\r"
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_HumSqueezedPastCrates",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} squeezed past\n",
+        "the crates..."
+      ]
+    },
+    {
+      "id": "OreburghMineB2F_Text_HumBuzzCrack",
+      "en_US": [
+        "BZZZT! The Portal Reader is going\n",
+        "wild!\r",
+        "It's coming from behind those\n",
+        "crates."
+      ]
     }
   ]
 }

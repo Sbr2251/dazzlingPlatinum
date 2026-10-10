@@ -1162,6 +1162,8 @@ scr_seq_files = files(
     'scripts_verity_castle_1f.s',
     'scripts_distortion_world_arc1_seams.s',
     'scripts_init_distortion_world_arc1_seams.s',
+    'scripts_oreburgh_mine_side_tunnel.s',
+    'scripts_init_oreburgh_mine_side_tunnel.s',
 )
 
 scr_seq_narc_order = files('scripts.order')

@@ -800,6 +800,37 @@
         "Where the dead go.\r",
         "Superstition.\r"
       ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanOneMoreThing",
+      "en_US": [
+        "Rowan: One more thing.\r",
+        "You handed that shard over\n",
+        "without a fuss.\r",
+        "Take this in its place.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanRuthBuiltIt",
+      "en_US": [
+        "Rowan: Ruth built it from spare\n",
+        "parts. It reads portal energy,\f",
+        "the same as hers.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanCallUs",
+      "en_US": [
+        "Rowan: If it ever starts buzzing,\n",
+        "you call us. At once.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RuthItsASpare",
+      "en_US": [
+        "Ruth: It's a spare! I built two.\r",
+        "...Okay, three.\r"
+      ]
     }
   ]
 }

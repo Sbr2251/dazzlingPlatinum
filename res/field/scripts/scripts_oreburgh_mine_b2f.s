@@ -2,6 +2,10 @@
 #include "res/text/bank/oreburgh_mine_b2f.h"
 #include "res/field/events/events_oreburgh_mine_b2f.h"
 
+// Arc 1 r3 (hum), "The shard hums" (quest flags are unreferenced stock flags claimed for it)
+#define FLAG_HUM_STARTED FLAG_UNK_0x0958 // talked to the miner in Oreburgh City
+#define FLAG_HUM_CALMED  FLAG_UNK_0x0959 // his Machop calmed in the side tunnel
+
 
     ScriptEntry _0016
     ScriptEntry _00FC
@@ -11,6 +15,10 @@
     ScriptEntry OreburghMineB2F_OnTransition
     ScriptEntry OreburghMineB2F_Arc1OnFrameRift
     ScriptEntry OreburghMineB2F_Arc1SealedTunnel
+    ScriptEntry OreburghMineB2F_HumCrates
+    ScriptEntry OreburghMineB2F_HumBuzzFaint
+    ScriptEntry OreburghMineB2F_HumBuzzLoud
+    ScriptEntry OreburghMineB2F_HumBuzzCrack
     ScriptEntryEnd
 
 _0016:
@@ -147,6 +155,9 @@ _0159:
 // Roark (local 0) has always been met by 15, so he stays hidden here until the scene brings him back.
 OreburghMineB2F_OnTransition:
     SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
+    // Arc 1 r3 (hum): the Portal Reader buzz coords (VAR_MAP_LOCAL_0) are live while the Machop is missing
+    SetVar VAR_MAP_LOCAL_0, 0
+    CallIfSet FLAG_HUM_STARTED, OreburghMineB2F_HumArmBuzz
     SetFlag FLAG_HIDE_ARC1_MINE_SILHOUETTE
     GoToIfGe VAR_ARC1_PROGRESS, 16, OreburghMineB2F_Arc1SetStateDone
     GoToIfEq VAR_ARC1_PROGRESS, 15, OreburghMineB2F_Arc1SetStateRift
@@ -323,6 +334,103 @@ OreburghMineB2F_Arc1SealedTunnel:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     Message OreburghMineB2F_Text_Arc1SealedTunnel
+    WaitABXPadPress
+    // Arc 1 r3 (hum): Ruth's reader (from the lab) is louder here than anywhere in town
+    CheckItem ITEM_PORTAL_READER, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, OreburghMineB2F_Arc1SealedTunnelEnd
+    PlayFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    WaitFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    PlayFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    WaitFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    Message OreburghMineB2F_Text_HumSealReaderBuzz
+    WaitABXPadPress
+OreburghMineB2F_Arc1SealedTunnelEnd:
+    CloseMessage
+    ReleaseAll
+    End
+
+// Arc 1 r3 (hum), "The shard hums": the old crates in the north-west nook (object 19 at (2,17), drawn behind the
+// map's crate model) hide a crack into
+// the side tunnel (MAP_HEADER_OREBURGH_MINE_SIDE_TUNNEL). The way in is always open; the tunnel's exit lands on
+// warp 1, (2,18). While the miner's Machop is missing, VAR_MAP_LOCAL_0 runs the reader's buzz coords:
+// 1 armed, 2 faint (north shaft row 12), 3 loud (west of the sealed bay), 4 at the crates (row 18).
+OreburghMineB2F_HumArmBuzz:
+    CallIfUnset FLAG_HUM_CALMED, OreburghMineB2F_HumSetBuzz1
+    Return
+
+OreburghMineB2F_HumSetBuzz1:
+    SetVar VAR_MAP_LOCAL_0, 1
+    Return
+
+OreburghMineB2F_HumCrates:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message OreburghMineB2F_Text_HumCrates
+    GoToIfNe VAR_MAP_LOCAL_0, 0, OreburghMineB2F_HumCratesBuzz
+OreburghMineB2F_HumCratesAsk:
+    Message OreburghMineB2F_Text_HumSqueezeThrough
+    ShowYesNoMenu VAR_RESULT
+    GoToIfEq VAR_RESULT, MENU_NO, OreburghMineB2F_HumCratesNo
+    BufferPlayerName 0
+    Message OreburghMineB2F_Text_HumSqueezedPastCrates
+    WaitABXPadPress
+    CloseMessage
+    PlayFanfare SEQ_SE_DP_KAIDAN2
+    FadeScreenOut
+    WaitFadeScreen
+    Warp MAP_HEADER_OREBURGH_MINE_SIDE_TUNNEL, 0, 59, 7, DIR_WEST
+    FadeScreenIn
+    WaitFadeScreen
+    ReleaseAll
+    End
+
+OreburghMineB2F_HumCratesBuzz:
+    PlayFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    WaitFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    PlayFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    WaitFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    Message OreburghMineB2F_Text_HumCratesBuzz
+    GoTo OreburghMineB2F_HumCratesAsk
+
+OreburghMineB2F_HumCratesNo:
+    CloseMessage
+    ReleaseAll
+    End
+
+OreburghMineB2F_HumBuzzFaint:
+    LockAll
+    SetVar VAR_MAP_LOCAL_0, 2
+    PlayFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    WaitFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    Message OreburghMineB2F_Text_HumBuzzFaint
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+OreburghMineB2F_HumBuzzLoud:
+    LockAll
+    SetVar VAR_MAP_LOCAL_0, 3
+    PlayFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    WaitFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    PlayFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    WaitFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    Message OreburghMineB2F_Text_HumBuzzLoud
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+OreburghMineB2F_HumBuzzCrack:
+    LockAll
+    SetVar VAR_MAP_LOCAL_0, 4
+    PlayFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    WaitFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    PlayFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    WaitFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    PlayFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    WaitFanfare SEQ_SE_DP_VS_SEEKER_BEEP
+    Message OreburghMineB2F_Text_HumBuzzCrack
     WaitABXPadPress
     CloseMessage
     ReleaseAll
