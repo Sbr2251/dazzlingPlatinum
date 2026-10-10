@@ -10,6 +10,11 @@
     ScriptEntry _00C7
     ScriptEntry _04C4
     ScriptEntry Route202_Arc1RuthTalk
+    ScriptEntry Route202_Arc1PilgrimOldMan
+    ScriptEntry Route202_Arc1PilgrimFather
+    ScriptEntry Route202_Arc1PilgrimSailor
+    ScriptEntry Route202_Arc1PilgrimSister
+    ScriptEntry Route202_Arc1PilgrimSon
     ScriptEntryEnd
 
 _001E:
@@ -17,8 +22,34 @@ _001E:
     // Arc 1: Ruth (local 3) waits for the lesson only once the lab is done (state 11+).
     CallIfEq VAR_UNK_0x4087, 0, Route202_Arc1SetRuthVisibility
     CallIfEq VAR_UNK_0x4087, 1, Route202_Arc1HideRuth
+    Call Route202_Arc1SetPilgrimVisibility
     SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     End
+
+// Arc 1 round 3: pilgrims walking to the Jubilife rally (locals 9-13).
+// 11-12 (lab done, rally not yet): all five. 11 is included because the state turns 12 mid-map at
+// Ruth's lesson and objects only load on map entry; nobody stands in rows z824-831, so her scene and
+// exit walk stay clear. 13-15 (after the rally): only the old man and the father, moved, walking home.
+// 16+ (end of Arc 1) and below 11: none. FLAG_UNK_0x0030/0x0031 are map-local temp flags (the engine
+// clears flags 0-63 on every map change), so they collide with nothing outside Route 202.
+Route202_Arc1SetPilgrimVisibility:
+    SetFlag FLAG_UNK_0x0030
+    SetFlag FLAG_UNK_0x0031
+    GoToIfLt VAR_ARC1_PROGRESS, 11, Route202_Arc1PilgrimsReturn
+    GoToIfGe VAR_ARC1_PROGRESS, 16, Route202_Arc1PilgrimsReturn
+    ClearFlag FLAG_UNK_0x0031
+    GoToIfGe VAR_ARC1_PROGRESS, 13, Route202_Arc1PilgrimsWalkHome
+    ClearFlag FLAG_UNK_0x0030
+Route202_Arc1PilgrimsReturn:
+    Return
+
+Route202_Arc1PilgrimsWalkHome:
+    SetObjectEventPos 9, 172, 806
+    SetObjectEventDir 9, DIR_SOUTH
+    SetObjectEventPos 10, 174, 819
+    SetObjectEventDir 10, DIR_SOUTH
+    SetObjectEventMovementType 10, MOVEMENT_TYPE_WANDER_NORTH_AND_SOUTH
+    Return
 
 Route202_Arc1SetRuthVisibility:
     SetFlag FLAG_UNK_0x0188
@@ -641,3 +672,52 @@ Route202_Movement_Arc1PlayerWatchRuth:
     Delay8 4
     WalkOnSpotNormalSouth
     EndMovement
+
+Route202_Arc1PilgrimOldMan:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    GoToIfGe VAR_ARC1_PROGRESS, 13, Route202_Arc1PilgrimOldManHome
+    Message Route202_Text_Arc1PilgrimOldMan
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimOldManHome:
+    Message Route202_Text_Arc1PilgrimOldManHome
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimFather:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    GoToIfGe VAR_ARC1_PROGRESS, 13, Route202_Arc1PilgrimFatherHome
+    Message Route202_Text_Arc1PilgrimFather
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimFatherHome:
+    Message Route202_Text_Arc1PilgrimFatherHome
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimSailor:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message Route202_Text_Arc1PilgrimSailor
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimSister:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message Route202_Text_Arc1PilgrimSister
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimSon:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message Route202_Text_Arc1PilgrimSon
+Route202_Arc1PilgrimEnd:
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
