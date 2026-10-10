@@ -1,0 +1,90 @@
+{
+    "bg_events": [],
+    "object_events": [
+        {
+            "id": "LOCALID_HUM_MACHOP",
+            "graphics_id": "OBJ_EVENT_GFX_MACHOP",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0959",
+            "script": 4,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 3,
+            "z": 7,
+            "y": 0
+        }
+    ],
+    "warp_events": [
+        {
+            "x": 60,
+            "z": 7,
+            "dest_header_id": "MAP_HEADER_OREBURGH_MINE_B2F",
+            "dest_warp_id": 1
+        }
+    ],
+    "coord_events": [
+        {
+            "script": 4,
+            "x": 8,
+            "z": 6,
+            "y": 0,
+            "width": 1,
+            "length": 3,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 1
+        },
+        {
+            "script": 4,
+            "x": 8,
+            "z": 6,
+            "y": 0,
+            "width": 1,
+            "length": 3,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 2
+        },
+        {
+            "script": 4,
+            "x": 8,
+            "z": 6,
+            "y": 0,
+            "width": 1,
+            "length": 3,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 3
+        },
+        {
+            "script": 3,
+            "x": 14,
+            "z": 6,
+            "y": 0,
+            "width": 1,
+            "length": 3,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 1
+        },
+        {
+            "script": 3,
+            "x": 14,
+            "z": 6,
+            "y": 0,
+            "width": 1,
+            "length": 3,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 2
+        },
+        {
+            "script": 2,
+            "x": 31,
+            "z": 6,
+            "y": 0,
+            "width": 1,
+            "length": 3,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 1
+        }
+    ]
+}
