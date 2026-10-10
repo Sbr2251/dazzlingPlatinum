@@ -125,8 +125,10 @@ MAX_FRAMES = 255  # a step's frame is a u8
 MAX_MEMBER = 96 * 1024  # bigger streams drop their most similar frames (the battle heap, see D)
 TRANSPARENT = (180, 180, 180)  # colour 0, as the other sprite palettes in the repo
 
-# National dex numbers of the species added after Arceus (species.txt order differs)
-DEX_OVERRIDE = {"deino": 633, "zweilous": 634, "hydreigon": 635}
+# National dex numbers of the species added after Arceus (species.txt order differs). Kept in a
+# data file so that adding species doesn't change this file (its hash keys the build cache).
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dex_numbers.json")) as _f:
+    DEX_OVERRIDE = json.load(_f)
 # Battle sprites from PL_OTHERPOKE (BuildPokemonSpriteTemplate), never from their pokegra files
 FORM_SPECIES = {"unown", "castform", "deoxys", "burmy", "wormadam", "cherrim", "shellos",
                 "gastrodon", "rotom", "giratina", "shaymin", "arceus"}
