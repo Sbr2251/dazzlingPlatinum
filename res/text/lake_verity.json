@@ -281,12 +281,13 @@
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1BarryWhatsOnTheCastle",
+      "id": "LakeVerity_Text_Arc1BarryDidYouHearThat",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: Lake Verity!\n",
-        "Now, where's Professor Rowan?\r",
-        "...Huh? What's going on up on\n",
-        "top of the castle?!"
+        "{STRVAR_1 3, 0, 0}: Hey, did you hear that?\n",
+        "Something's going on up at the\f",
+        "castle! We have to go see!\r",
+        "Stay out of the tall grass, though.\n",
+        "We don't have any Pokémon yet!"
       ]
     },
     {
@@ -300,8 +301,8 @@
     {
       "id": "LakeVerity_Text_Arc1BarryUpThoseStairs",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: That's Professor Rowan\n",
-        "up there! And that portal...\r",
+        "{STRVAR_1 3, 0, 0}: Hear those voices?\n",
+        "Somebody's up there, all right!\r",
         "Come on, up those stairs!\n",
         "Last one up owes me 10 million!"
       ]
@@ -529,6 +530,34 @@
         "weird clothing.\r",
         "Whatever. I'm heading home to\n",
         "heal my Pokémon."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryNoPokemonNoGrass",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Whoa!\n",
+        "No Pokémon, no grass!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1NoPokemonNoGrass",
+      "en_US": [
+        "Better not go into the tall grass\n",
+        "without any Pokémon..."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryWhereAreYouGoing",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Hey! Where are you\n",
+        "going? The castle's this way!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryNotInThere",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Not in there!\n",
+        "That noise came from the top!"
       ]
     }
   ]

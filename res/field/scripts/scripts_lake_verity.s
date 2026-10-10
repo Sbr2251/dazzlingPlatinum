@@ -22,6 +22,11 @@
     ScriptEntry LakeVerity_Arc1Rowan
     ScriptEntry LakeVerity_Arc1Counterpart
     ScriptEntry LakeVerity_Arc1OnFrameReturn
+    ScriptEntry LakeVerity_Arc1GrassGuard
+    ScriptEntry LakeVerity_Arc1ExitGuard
+    ScriptEntry LakeVerity_Arc1DoorGuard
+    ScriptEntry LakeVerity_Arc1PlaceCast
+    ScriptEntry LakeVerity_Arc1StairFoot
     ScriptEntryEnd
 
 // This map is used for every visit (the stock early-story map MAP_HEADER_LAKE_VERITY_LOW_WATER is no longer
@@ -368,10 +373,11 @@ LakeVerity_DrawbridgeSign:
 // LakeVerity_OnResume), and watches Cyrus land beside the portal and wander to the parapet. Hands off to the
 // bedroom (state 2).
 //
-// VAR_ARC1_PROGRESS 3: the player arrives from the Verity Lakefront with Barry. Barry's intro and the camera pan
-// to the terrace, where Rowan and the assistant study the portal and Cyrus sits apart; Barry runs up the stairs
-// and the player follows on foot. At the top of the stairs a coord event runs the briefing, which ends with
-// Barry and Cyrus going into the portal and state 4. The portal stays open.
+// VAR_ARC1_PROGRESS 3: the player arrives from the Verity Lakefront with Barry. A sound from the castle top, Barry
+// says they have to go see but to stay out of the tall grass, then follows the player on the walk to the castle;
+// at the foot of the stairs he runs up to the terrace, where Rowan and the assistant study the portal and Cyrus
+// sits apart, and the player follows on foot. At the top of the stairs a coord event runs the briefing, which ends
+// with Barry and Cyrus going into the portal and state 4. The portal stays open.
 //
 // VAR_ARC1_PROGRESS 4: Rowan and the assistant stay by the portal, the stairs down are blocked by a coord event,
 // and the portal edge (LakeVerity_Launchpad) asks to step in: state 5 and the warp to the Distortion World.
@@ -444,10 +450,15 @@ LakeVerity_Arc1SetStateRoofLanding:
     SetObjectEventPos LOCALID_CYRUS, 32, 30
     Return
 
-// State 3. The first entry (from the Lakefront) arms the arrival scene: Barry waits at the entrance, and Cyrus,
-// who shares his hide flag, is removed and re-added by the scene. After the arrival (marked by
-// VAR_VISITED_LAKE_VERITY_WITH_RIVAL, which the old Arc 1 scene also set), a reload puts Barry on the terrace
-// beside the cast.
+// State 3. Objects created here on the terrace while the field is loaded around the entrance start at the ground
+// height (the terrace chunks aren't loaded yet; the old arrival saw them undrawn until they first moved).
+// LakeVerity_Arc1PlaceCast, a coord event on the bridge (45,36..37), places or refreshes them once the terrace is
+// loaded but still off screen. VAR_MAP_LOCAL_3 tracks this visit:
+//   1  arrival walk, Barry following, cast not placed yet    2  arrival walk, cast placed
+//   3  a later state-3 visit (Barry and the cast on the terrace), heights not refreshed yet    4  refreshed
+// The first entry (from the Lakefront, VAR_VISITED_LAKE_VERITY_WITH_RIVAL 0) arms the arrival scene with Barry at
+// the entrance; the cast is added on the bridge. Cyrus shares Barry's hide flag, so he is created too and the
+// arrival removes him.
 LakeVerity_Arc1SetStateCastleTop:
     ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
     GoToIfEq VAR_VISITED_LAKE_VERITY_WITH_RIVAL, 0, LakeVerity_Arc1ArmArrival
@@ -455,6 +466,7 @@ LakeVerity_Arc1SetStateCastleTop:
     SetObjectEventPos LOCALID_RIVAL, 27, 31
     SetObjectEventMovementType LOCALID_RIVAL, MOVEMENT_TYPE_LOOK_WEST
     SetObjectEventDir LOCALID_RIVAL, DIR_WEST
+    SetVar VAR_MAP_LOCAL_3, 3
     Return
 
 LakeVerity_Arc1ArmArrival:
@@ -482,50 +494,283 @@ LakeVerity_Arc1SetStateReturn:
     SetObjectEventDir LOCALID_ARC1_COUNTERPART, DIR_WEST
     Return
 
+// Arc 1 arrival (state 3, first entry). The player arrives on the exit tile (46,54), Barry waits at (47,52).
+// Something sounds from the castle top; Barry says they have to go see, but to stay out of the tall grass. Then he
+// follows the player (the stock partner follower, as on Route 201) and the player walks to the castle. On the way:
+// LakeVerity_Arc1GrassGuard (the tall grass edges), LakeVerity_Arc1ExitGuard (the exit), LakeVerity_Arc1DoorGuard
+// (the castle door), LakeVerity_Arc1PlaceCast (the bridge) and LakeVerity_Arc1StairFoot, which hands over to the
+// stair scene. No camera pan and no teleport: the walk is about 50 tiles.
 LakeVerity_Arc1OnFrameArrival:
     LockAll
     SetVar VAR_MAP_LOCAL_2, 0
     SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_PROF_ROWAN
     SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_COUNTERPART
-    // Cyrus (Barry's hide flag) was created on the terrace while the field was loaded around the entrance, so
-    // he would stay undrawn: remove him now and add him again once the camera is on the terrace.
+    // Cyrus was created on the terrace at the ground height (see LakeVerity_Arc1SetStateCastleTop): remove him,
+    // LakeVerity_Arc1PlaceCast adds him back with Rowan and the assistant.
     RemoveObject LOCALID_CYRUS
     ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceSouth
+    WaitTime 30, VAR_RESULT
+    // A sound from the castle top
+    PlayFanfare SEQ_SE_PL_SYUWA
+    WaitTime 12, VAR_RESULT
+    PlayFanfare SEQ_SE_DP_WALL_HIT2
+    ShakeCamera 20, 2
+    WaitTime 8, VAR_RESULT
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1ExclamationMark
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1ExclamationMark
+    WaitMovement
+    WaitTime 20, VAR_RESULT
+    // Barry hops down beside the player: player (46,53) facing east, Barry (47,53) facing west
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1RivalToPlayer
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerToRival
     WaitMovement
     BufferRivalName 0
-    Message LakeVerity_Text_Arc1BarryWhatsOnTheCastle
+    Message LakeVerity_Text_Arc1BarryDidYouHearThat
     WaitABXPadPress
     CloseMessage
     ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceNorth
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceNorth
     WaitMovement
-    // Pan from the entrance to the terrace (32,28), then move Barry and the player to the foot of the stairs
+    SetVar VAR_MAP_LOCAL_3, 1
+    Call LakeVerity_Arc1StartFollowing
+    ReleaseAll
+    End
+
+LakeVerity_Arc1StartFollowing:
+    SetHasPartner
+    SetMovementType LOCALID_RIVAL, MOVEMENT_TYPE_FOLLOW_PLAYER
+    Return
+
+LakeVerity_Arc1StopFollowing:
+    ClearHasPartner
+    SetMovementType LOCALID_RIVAL, MOVEMENT_TYPE_LOOK_NORTH
+    Return
+
+// Coord events on every tall grass tile next to the path, state 3 (the only reachable grass is the patch at
+// x47-51, z40-46 by the entrance path). During the walk Barry turns the player back; on a later state-3 visit
+// (Barry waits on the terrace) the player stops by themselves. Coord events run before the wild encounter check.
+LakeVerity_Arc1GrassGuard:
+    LockAll
+    GoToIfEq VAR_MAP_LOCAL_3, 1, LakeVerity_Arc1GrassGuardBarry
+    GoToIfEq VAR_MAP_LOCAL_3, 2, LakeVerity_Arc1GrassGuardBarry
+    Message LakeVerity_Text_Arc1NoPokemonNoGrass
+    WaitABXPadPress
+    CloseMessage
+    GetPlayerDir VAR_0x8006
+    Call LakeVerity_Arc1PlayerStepBack
+    ReleaseAll
+    End
+
+LakeVerity_Arc1GrassGuardBarry:
+    Call LakeVerity_Arc1BarryStopsPlayer
+    BufferRivalName 0
+    Message LakeVerity_Text_Arc1BarryNoPokemonNoGrass
+    WaitABXPadPress
+    CloseMessage
+    Call LakeVerity_Arc1BarryWalksPlayerBack
+    ReleaseAll
+    End
+
+// Coord events on the exit tiles (46..47,54) during the walk (VAR_MAP_LOCAL_3 1 or 2)
+LakeVerity_Arc1ExitGuard:
+    LockAll
+    Call LakeVerity_Arc1BarryStopsPlayer
+    BufferRivalName 0
+    Message LakeVerity_Text_Arc1BarryWhereAreYouGoing
+    WaitABXPadPress
+    CloseMessage
+    Call LakeVerity_Arc1BarryWalksPlayerBack
+    ReleaseAll
+    End
+
+// Coord event on the castle door (32,33) during the walk (VAR_MAP_LOCAL_3 2); it runs before the door warp
+LakeVerity_Arc1DoorGuard:
+    LockAll
+    Call LakeVerity_Arc1BarryStopsPlayer
+    BufferRivalName 0
+    Message LakeVerity_Text_Arc1BarryNotInThere
+    WaitABXPadPress
+    CloseMessage
+    Call LakeVerity_Arc1BarryWalksPlayerBack
+    ReleaseAll
+    End
+
+// The player has just stepped onto a guarded tile in direction VAR_0x8006, and Barry (following) normally stands on
+// the tile they came from, VAR_0x8007/8008 is his position. Barry jumps with an exclamation, the player turns to him.
+LakeVerity_Arc1BarryStopsPlayer:
+    Call LakeVerity_Arc1StopFollowing
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
-    AddFreeCamera VAR_0x8004, VAR_0x8005
-    CallIfEq VAR_0x8004, 47, LakeVerity_Arc1CameraStepWest
-    ApplyFreeCameraMovement LakeVerity_Movement_Arc1CameraPanNorth
+    GetPlayerDir VAR_0x8006
+    ScrCmd_Unused_06A LOCALID_RIVAL, VAR_0x8007, VAR_0x8008
+    // VAR_0x8009 = 1 if Barry is right behind the player
+    SetVar VAR_0x8009, 0
+    SetVar VAR_0x800A, VAR_0x8004
+    SetVar VAR_0x800B, VAR_0x8005
+    CallIfEq VAR_0x8006, DIR_NORTH, LakeVerity_Arc1BehindNorth
+    CallIfEq VAR_0x8006, DIR_SOUTH, LakeVerity_Arc1BehindSouth
+    CallIfEq VAR_0x8006, DIR_WEST, LakeVerity_Arc1BehindWest
+    CallIfEq VAR_0x8006, DIR_EAST, LakeVerity_Arc1BehindEast
+    GoToIfNe VAR_0x8007, VAR_0x800A, LakeVerity_Arc1BarryStopsPlayerTurn
+    GoToIfNe VAR_0x8008, VAR_0x800B, LakeVerity_Arc1BarryStopsPlayerTurn
+    SetVar VAR_0x8009, 1
+LakeVerity_Arc1BarryStopsPlayerTurn:
+    CallIfEq VAR_0x8006, DIR_NORTH, LakeVerity_Arc1TurnToEachOtherNS
+    CallIfEq VAR_0x8006, DIR_SOUTH, LakeVerity_Arc1TurnToEachOtherSN
+    CallIfEq VAR_0x8006, DIR_WEST, LakeVerity_Arc1TurnToEachOtherWE
+    CallIfEq VAR_0x8006, DIR_EAST, LakeVerity_Arc1TurnToEachOtherEW
     WaitMovement
-    // The entrance is off screen now
-    SetPosition LOCALID_RIVAL, 23, 0, 37, DIR_NORTH
-    SetPosition LOCALID_PLAYER, 24, 0, 37, DIR_NORTH
-    ApplyFreeCameraMovement LakeVerity_Movement_Arc1CameraPanToTerrace
+    Return
+
+// The player moved north: Barry (south of them) faces north, the player turns south
+LakeVerity_Arc1TurnToEachOtherNS:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1BarryNoticeNorth
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerTurnSouth
+    Return
+
+LakeVerity_Arc1TurnToEachOtherSN:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1BarryNoticeSouth
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerTurnNorth
+    Return
+
+LakeVerity_Arc1TurnToEachOtherWE:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1BarryNoticeWest
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerTurnEast
+    Return
+
+LakeVerity_Arc1TurnToEachOtherEW:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1BarryNoticeEast
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerTurnWest
+    Return
+
+LakeVerity_Arc1BehindNorth:
+    AddVar VAR_0x800B, 1
+    Return
+
+LakeVerity_Arc1BehindSouth:
+    SubVar VAR_0x800B, 1
+    Return
+
+LakeVerity_Arc1BehindWest:
+    AddVar VAR_0x800A, 1
+    Return
+
+LakeVerity_Arc1BehindEast:
+    SubVar VAR_0x800A, 1
+    Return
+
+LakeVerity_Arc1PlayerTurnSouth:
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerTurnSouth
+    Return
+
+LakeVerity_Arc1PlayerTurnNorth:
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerTurnNorth
+    Return
+
+LakeVerity_Arc1PlayerTurnEast:
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerTurnEast
+    Return
+
+LakeVerity_Arc1PlayerTurnWest:
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerTurnWest
+    Return
+
+// Barry backs off one tile (still facing the player) to make room, the player walks back one tile, and Barry follows
+// again. On the grass edge at x47, z44-45 the tile behind Barry is water, so there he steps south instead.
+LakeVerity_Arc1BarryWalksPlayerBack:
+    GoToIfEq VAR_0x8009, 0, LakeVerity_Arc1BarryWalksPlayerBackStep
+    GoToIfNe VAR_0x8006, DIR_EAST, LakeVerity_Arc1BarryBacksOff
+    GoToIfNe VAR_0x8007, 46, LakeVerity_Arc1BarryBacksOff
+    GoToIfInRange VAR_0x8008, 44, 45, LakeVerity_Arc1BarryStepsAside
+LakeVerity_Arc1BarryBacksOff:
+    CallIfEq VAR_0x8006, DIR_NORTH, LakeVerity_Arc1BarryBackOffSouth
+    CallIfEq VAR_0x8006, DIR_SOUTH, LakeVerity_Arc1BarryBackOffNorth
+    CallIfEq VAR_0x8006, DIR_WEST, LakeVerity_Arc1BarryBackOffEast
+    CallIfEq VAR_0x8006, DIR_EAST, LakeVerity_Arc1BarryBackOffWest
+    GoTo LakeVerity_Arc1BarryWalksPlayerBackStep
+
+LakeVerity_Arc1BarryStepsAside:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1BarryStepAsideSouth
+LakeVerity_Arc1BarryWalksPlayerBackStep:
+    Call LakeVerity_Arc1PlayerStepBack
+    Call LakeVerity_Arc1StartFollowing
+    Return
+
+LakeVerity_Arc1BarryBackOffSouth:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1BarryBackOffSouth
+    Return
+
+LakeVerity_Arc1BarryBackOffNorth:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1BarryBackOffNorth
+    Return
+
+LakeVerity_Arc1BarryBackOffEast:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1BarryBackOffEast
+    Return
+
+LakeVerity_Arc1BarryBackOffWest:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1BarryBackOffWest
+    Return
+
+// The player walks one tile back, against direction VAR_0x8006, then waits for any running movement
+LakeVerity_Arc1PlayerStepBack:
+    CallIfEq VAR_0x8006, DIR_NORTH, LakeVerity_Arc1PlayerStepBackSouth
+    CallIfEq VAR_0x8006, DIR_SOUTH, LakeVerity_Arc1PlayerStepBackNorth
+    CallIfEq VAR_0x8006, DIR_WEST, LakeVerity_Arc1PlayerStepBackEast
+    CallIfEq VAR_0x8006, DIR_EAST, LakeVerity_Arc1PlayerStepBackWest
     WaitMovement
-    // The terrace cast is added only now: objects created on the terrace while the field was
-    // loaded around the entrance aren't drawn until they first move.
+    Return
+
+LakeVerity_Arc1PlayerStepBackSouth:
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerStepBackSouth
+    Return
+
+LakeVerity_Arc1PlayerStepBackNorth:
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerStepBackNorth
+    Return
+
+LakeVerity_Arc1PlayerStepBackEast:
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerStepBackEast
+    Return
+
+LakeVerity_Arc1PlayerStepBackWest:
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerStepBackWest
+    Return
+
+// Coord event on the bridge (45,36..37), VAR_MAP_LOCAL_3 1 (arrival walk) or 3 (re-entry). The terrace chunks are
+// loaded here, so the objects get the terrace height, and the terrace (x26-38) is still well off screen. No
+// LockAll: the player only pauses for the frame the script runs.
+LakeVerity_Arc1PlaceCast:
+    GoToIfEq VAR_MAP_LOCAL_3, 3, LakeVerity_Arc1PlaceCastReentry
+    SetVar VAR_MAP_LOCAL_3, 2
+    GoTo LakeVerity_Arc1PlaceCastCommon
+
+LakeVerity_Arc1PlaceCastCommon:
     AddObject LOCALID_CYRUS
     ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_CYRUS
     AddObject LOCALID_ARC1_PROF_ROWAN
     AddObject LOCALID_ARC1_COUNTERPART
-    WaitTime 60, VAR_RESULT
-    ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1CounterpartStudyPortal
-    WaitMovement
-    WaitTime 30, VAR_RESULT
-    // Back to the foot of the stairs
-    ApplyFreeCameraMovement LakeVerity_Movement_Arc1CameraPanToStairFoot
-    WaitMovement
-    RestoreCamera
-    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceEast
-    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1FaceWest
+    End
+
+// A later state-3 visit: the objects exist, set them again on their own tiles so their height is recalculated
+LakeVerity_Arc1PlaceCastReentry:
+    SetVar VAR_MAP_LOCAL_3, 4
+    SetPosition LOCALID_RIVAL, 27, 10, 31, DIR_WEST
+    SetPosition LOCALID_CYRUS, 28, 10, 24, DIR_SOUTH
+    SetPosition LOCALID_ARC1_PROF_ROWAN, 31, 10, 31, DIR_NORTH
+    SetPosition LOCALID_ARC1_COUNTERPART, 33, 10, 30, DIR_NORTH
+    End
+
+// Coord event on the foot of the stairs (23..24,37) at the end of the walk (VAR_MAP_LOCAL_3 2). The player can only
+// step onto (24,37) first (from the east or the south), with Barry right behind. The player steps west to (23,37),
+// Barry takes (24,37), and he runs up the stairs to (27,31) on the terrace, where the briefing expects him.
+LakeVerity_Arc1StairFoot:
+    LockAll
+    SetVar VAR_MAP_LOCAL_3, 0
+    Call LakeVerity_Arc1StopFollowing
+    ScrCmd_Unused_06A LOCALID_RIVAL, VAR_0x8007, VAR_0x8008
+    ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerMakeRoom
+    CallIfEq VAR_0x8008, 38, LakeVerity_Arc1RivalToStairFootFromSouth
+    CallIfNe VAR_0x8008, 38, LakeVerity_Arc1RivalToStairFootFromEast
     WaitMovement
     BufferRivalName 0
     Message LakeVerity_Text_Arc1BarryUpThoseStairs
@@ -538,9 +783,12 @@ LakeVerity_Arc1OnFrameArrival:
     ReleaseAll
     End
 
-LakeVerity_Arc1CameraStepWest:
-    ApplyFreeCameraMovement LakeVerity_Movement_Arc1CameraStepWest
-    WaitMovement
+LakeVerity_Arc1RivalToStairFootFromSouth:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1RivalStairFootFromSouth
+    Return
+
+LakeVerity_Arc1RivalToStairFootFromEast:
+    ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1RivalStairFootFromEast
     Return
 
 // Coord event on the top of the stairs (23..24,30) in state 3
@@ -832,11 +1080,6 @@ LakeVerity_Movement_Arc1CyrusWander:
     EndMovement
 
     .balign 4, 0
-LakeVerity_Movement_Arc1FaceSouth:
-    WalkOnSpotNormalSouth
-    EndMovement
-
-    .balign 4, 0
 LakeVerity_Movement_Arc1FaceNorth:
     WalkOnSpotNormalNorth
     EndMovement
@@ -887,42 +1130,154 @@ LakeVerity_Movement_Arc1RowanStartledLate:
     EmoteExclamationMark
     EndMovement
 
+// (47,52) -> (47,53), facing the player
     .balign 4, 0
-LakeVerity_Movement_Arc1CounterpartStudyPortal:
+LakeVerity_Movement_Arc1RivalToPlayer:
+    WalkOnSpotFastSouth
+    WalkFastSouth
+    WalkOnSpotFastWest
+    EndMovement
+
+// (46,54) -> (46,53), facing Barry
+    .balign 4, 0
+LakeVerity_Movement_Arc1PlayerToRival:
+    Delay8
+    WalkNormalNorth
+    WalkOnSpotFastEast
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1BarryNoticeNorth:
+    WalkOnSpotFastNorth
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1BarryNoticeSouth:
+    WalkOnSpotFastSouth
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1BarryNoticeWest:
+    WalkOnSpotFastWest
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1BarryNoticeEast:
+    WalkOnSpotFastEast
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1PlayerTurnSouth:
+    Delay8
+    WalkOnSpotFastSouth
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1PlayerTurnNorth:
+    Delay8
+    WalkOnSpotFastNorth
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1PlayerTurnEast:
+    Delay8
+    WalkOnSpotFastEast
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1PlayerTurnWest:
+    Delay8
+    WalkOnSpotFastWest
+    EndMovement
+
+// Barry backs off one tile, still facing the player
+    .balign 4, 0
+LakeVerity_Movement_Arc1BarryBackOffSouth:
+    FaceNorth
+    LockDir
+    WalkNormalSouth
+    UnlockDir
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1BarryBackOffNorth:
+    FaceSouth
+    LockDir
+    WalkNormalNorth
+    UnlockDir
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1BarryBackOffEast:
     FaceWest
-    Delay16
+    LockDir
+    WalkNormalEast
+    UnlockDir
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1BarryBackOffWest:
+    FaceEast
+    LockDir
+    WalkNormalWest
+    UnlockDir
+    EndMovement
+
+    .balign 4, 0
+LakeVerity_Movement_Arc1BarryStepAsideSouth:
+    WalkNormalSouth
     FaceNorth
     EndMovement
 
     .balign 4, 0
-LakeVerity_Movement_Arc1CameraStepWest:
-    WalkFastWest
-    EndMovement
-
-// (46,54) -> (46,38) -> (32,28)
-    .balign 4, 0
-LakeVerity_Movement_Arc1CameraPanNorth:
-    WalkFastNorth 16
+LakeVerity_Movement_Arc1PlayerStepBackSouth:
+    Delay4
+    WalkNormalSouth
     EndMovement
 
     .balign 4, 0
-LakeVerity_Movement_Arc1CameraPanToTerrace:
-    WalkFastWest 14
-    WalkFastNorth 10
+LakeVerity_Movement_Arc1PlayerStepBackEast:
+    Delay4
+    WalkNormalEast
     EndMovement
 
-// (32,28) -> (24,37), the player's tile at the foot of the stairs
     .balign 4, 0
-LakeVerity_Movement_Arc1CameraPanToStairFoot:
-    WalkFastWest 8
-    WalkFastSouth 9
+LakeVerity_Movement_Arc1PlayerStepBackWest:
+    Delay4
+    WalkNormalWest
     EndMovement
 
-// (23,37) -> up the stairs -> (27,31), waiting on the terrace
+// (24,37) -> (23,37), looking up the stairs
+    .balign 4, 0
+LakeVerity_Movement_Arc1PlayerMakeRoom:
+    WalkNormalWest
+    WalkOnSpotNormalNorth
+    EndMovement
+
+// (25,37) -> (24,37)
+    .balign 4, 0
+LakeVerity_Movement_Arc1RivalStairFootFromEast:
+    Delay8
+    WalkNormalWest
+    WalkOnSpotNormalNorth
+    EndMovement
+
+// (24,38) -> (24,37)
+    .balign 4, 0
+LakeVerity_Movement_Arc1RivalStairFootFromSouth:
+    Delay8
+    WalkNormalNorth
+    EndMovement
+
+// (24,37) -> up the stairs -> (27,31), waiting on the terrace
     .balign 4, 0
 LakeVerity_Movement_Arc1RivalRunUpStairs:
     WalkFastNorth 7
-    WalkFastEast 4
+    WalkFastEast 3
     WalkFastSouth
     WalkOnSpotNormalWest
     EndMovement
