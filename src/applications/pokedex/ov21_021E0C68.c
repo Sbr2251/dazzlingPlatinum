@@ -3,6 +3,7 @@
 #include <nitro.h>
 #include <string.h>
 
+#include "applications/pokedex/ov21_021DE668.h"
 #include "applications/pokedex/ov21_021E29DC.h"
 #include "applications/pokedex/pokedex_app.h"
 #include "applications/pokedex/pokedex_data_manager.h"
@@ -529,7 +530,7 @@ static void ov21_021E136C(UnkStruct_ov21_021E14D4 *param0, PokedexGraphicData **
 
     param0->unk_00 = SpriteList_Add(&v1);
 
-    Sprite_SetAnim(param0->unk_00, 0x11);
+    Sprite_SetAnim(param0->unk_00, POKEDEX_TYPE_ICON_ANIM_CATEGORY_PLATE);
 
     if (PokedexSort_CurrentCaughtStatus(param2->unk_04) != 2) {
         species = 0;
