@@ -781,10 +781,10 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
         .paletteID = eclipse_shard_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_126] = {
-        .dataID = 0x0,
-        .iconID = none_NCGR,
-        .paletteID = none_NCLR,
+    [ITEM_PORTAL_READER] = {
+        .dataID = 0x1CB,
+        .iconID = portal_reader_NCGR,
+        .paletteID = portal_reader_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
     [ITEM_UNUSED_127] = {

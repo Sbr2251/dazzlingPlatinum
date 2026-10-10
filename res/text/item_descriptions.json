@@ -995,7 +995,11 @@
     },
     {
       "id": "pl_msg_00000391_00126",
-      "garbage": 0
+      "en_US": [
+        "Ruth's homemade gadget: a Pokétch\n",
+        "and a broken Dowsing Machine. It\n",
+        "buzzes near portal energy."
+      ]
     },
     {
       "id": "pl_msg_00000391_00127",
