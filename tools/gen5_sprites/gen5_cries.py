@@ -14,7 +14,8 @@ again changes nothing.
 
 Source: the Black/White cries in pokeemerald-expansion (sound/direct_sound_samples/cries/<name>.wav,
 8-bit mono, 13379 Hz), cached in ~/.cache/gen5_sprites/expansion/<name>/cry.wav. A species without
-one gets the cry named in SUBSTITUTE_CRIES (an existing PV wave archive) instead.
+one gets the cry named in SUBSTITUTE_CRIES (an existing PV wave archive) instead. It also rewrites
+the Deino line's wave archives (EXISTING_CRIES) from their B/W cries.
 """
 
 import ast
@@ -32,6 +33,9 @@ EXPANSION = "https://raw.githubusercontent.com/rh-hideout/pokeemerald-expansion/
 ARM7_CLOCK = 16756991
 BANK_TEXT = "0, Single, 0, 0, 60, 127, 127, 127, 127, 64\r\nUnused, 0, 0\r\n"  # CRLF, as .gitattributes checks res/**/*.txt out
 SUBSTITUTE_CRIES = {}  # species -> existing WAVE_ARC_* directory, when no B/W cry is available
+# Species added before this tool, whose wave archives already sit at their species ID. Their
+# swavs held clipped square-wave noise (every sample at -128 or 127), so they get the B/W cry too.
+EXISTING_CRIES = {"deino": "WAVE_ARC_PV494", "zweilous": "WAVE_ARC_PV495", "hydreigon": "WAVE_ARC_PV496"}
 LAST_OLD = 496         # BANK_PV496 / WAVE_ARC_PV496 (Hydreigon) are the entries before ours
 
 
@@ -192,6 +196,13 @@ def main():
     sdat_txt = os.path.join(ROOT, "generated", "sdat.txt")
     insert_after_line(sdat_txt, f"WAVE_ARC_PV{LAST_OLD}", [e["wavarc"] for e in entries])
     insert_after_line(sdat_txt, f"BANK_PV{LAST_OLD}", [e["bank"] for e in entries])
+    for name, wavarc in EXISTING_CRIES.items():
+        src = fetch_cry(name)
+        if src:
+            swav, rate, n = swav_from_wav(src)
+            with open(os.path.join(SDAT, "Files", "WAVARC", wavarc, "00.swav"), "wb") as f:
+                f.write(swav)
+            print(f"{wavarc} ({name}): B/W cry ({rate} Hz, {n} samples)")
     for e in entries:
         print(f"{e['id']} {e['name']}: {e['source']}")
 
