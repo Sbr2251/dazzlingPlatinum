@@ -206,7 +206,9 @@
       "id": "LakeVerity_Text_DrawbridgeSign",
       "en_US": [
         "VERITY CASTLE\n",
-        "The drawbridge is down."
+        "The drawbridge is down.\r",
+        "Raised in an age before memory,\n",
+        "for the lord of space."
       ]
     },
     {
