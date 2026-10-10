@@ -22,16 +22,16 @@
             "species": "SPECIES_SHINX"
         },
         {
-            "level": 3,
-            "species": "SPECIES_BIDOOF"
+            "level": 4,
+            "species": "SPECIES_TAILLOW"
         },
         {
             "level": 4,
             "species": "SPECIES_STARLY"
         },
         {
-            "level": 4,
-            "species": "SPECIES_BIDOOF"
+            "level": 3,
+            "species": "SPECIES_TAILLOW"
         },
         {
             "level": 2,
@@ -60,7 +60,7 @@
     ],
     "night": [
         "SPECIES_KRICKETOT",
-        "SPECIES_BIDOOF"
+        "SPECIES_POOCHYENA"
     ],
     "radar": [
         "SPECIES_SENTRET",

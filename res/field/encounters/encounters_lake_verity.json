@@ -19,7 +19,7 @@
         },
         {
             "level": 3,
-            "species": "SPECIES_STARLY"
+            "species": "SPECIES_SURSKIT"
         },
         {
             "level": 3,
@@ -27,7 +27,7 @@
         },
         {
             "level": 4,
-            "species": "SPECIES_STARLY"
+            "species": "SPECIES_SURSKIT"
         },
         {
             "level": 4,
@@ -102,9 +102,9 @@
             "species": "SPECIES_PSYDUCK"
         },
         {
-            "level_max": 30,
+            "level_max": 25,
             "level_min": 20,
-            "species": "SPECIES_PSYDUCK"
+            "species": "SPECIES_LOTAD"
         },
         {
             "level_max": 40,
