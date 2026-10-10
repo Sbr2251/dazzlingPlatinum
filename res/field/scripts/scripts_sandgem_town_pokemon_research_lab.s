@@ -205,6 +205,7 @@ _01AE:
     WaitMovement
     Message SandgemTownPokemonResearchLab_Text_Arc1RuthReadingsSpiked
     Message SandgemTownPokemonResearchLab_Text_Arc1RowanCameFromThatWorld
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanWorldBehindOurs
     Message SandgemTownPokemonResearchLab_Text_Arc1RowanWhoIsHe
     CloseMessage
     ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1FaceNorth
