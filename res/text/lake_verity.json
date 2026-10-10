@@ -301,6 +301,13 @@
       ]
     },
     {
+      "id": "LakeVerity_Text_Arc1CyrusTheyBuiltItAThrone",
+      "en_US": [
+        "Palkia... Even here, they built it\n",
+        "a throne.\r"
+      ]
+    },
+    {
       "id": "LakeVerity_Text_Arc1BarryUpThoseStairs",
       "en_US": [
         "{STRVAR_1 3, 0, 0}: Hear those voices?\n",
@@ -598,6 +605,13 @@
       "en_US": [
         "{STRVAR_1 3, 0, 0}: Not in there!\n",
         "That noise came from the top!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_TerraceInscription",
+      "en_US": [
+        "Raised in an age before memory,\n",
+        "for the lord of space."
       ]
     }
   ]

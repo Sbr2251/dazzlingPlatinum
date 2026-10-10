@@ -27,6 +27,7 @@
     ScriptEntry LakeVerity_Arc1DoorGuard
     ScriptEntry LakeVerity_Arc1PlaceCast
     ScriptEntry LakeVerity_Arc1StairFoot
+    ScriptEntry LakeVerity_TerraceInscription
     ScriptEntryEnd
 
 // This map is used for every visit (the stock early-story map MAP_HEADER_LAKE_VERITY_LOW_WATER is no longer
@@ -367,6 +368,16 @@ LakeVerity_DrawbridgeSign:
     ReleaseAll
     End
 
+// bg event on the south parapet (33,33), read from the terrace at (33,32): the stone Cyrus reads in the roof landing
+LakeVerity_TerraceInscription:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message LakeVerity_Text_TerraceInscription
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
 // Dazzling Platinum Arc 1 (docs/arc1/revision/spec.md, PLAN.md scenes 3, 8, 9, 12-14).
 //
 // VAR_ARC1_PROGRESS 1: the player arrives from the Distortion World flashback at (32,31), hidden (see
@@ -421,6 +432,8 @@ LakeVerity_Arc1OnFrameRoofLanding:
     ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusWander
     WaitMovement
     Message LakeVerity_Text_Arc1CyrusThereWasNeverACastle
+    // He has stopped at the south parapet, in front of the inscription stone (LakeVerity_TerraceInscription)
+    Message LakeVerity_Text_Arc1CyrusTheyBuiltItAThrone
     Message LakeVerity_Text_Arc1CyrusTheFall
     Message LakeVerity_Text_Arc1CyrusWasIWrong
     WaitABXPadPress
