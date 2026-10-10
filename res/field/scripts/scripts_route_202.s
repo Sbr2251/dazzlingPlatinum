@@ -119,6 +119,7 @@ _0174:
     SetVar VAR_0x8004, ITEM_TOWN_MAP
     SetVar VAR_0x8005, 1
     GiveItemQuantity
+    Message Route202_Text_Arc1RuthPortalReader
     Message Route202_Text_Arc1RuthAnyway
     CloseMessage
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
