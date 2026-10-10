@@ -236,7 +236,8 @@
         "Ruth: That portal reader?\n",
         "I built it myself from a Pokétch\f",
         "and a broken Dowsing Machine.\r",
-        "Don't tell the Professor.\r"
+        "Don't tell the Professor whose\n",
+        "Pokétch it was.\r"
       ]
     },
     {
@@ -258,6 +259,69 @@
       "id": "Route202_Text_Arc1RuthTalk",
       "en_US": [
         "Ruth: ...Come with me."
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1PilgrimOldMan",
+      "en_US": [
+        "Our honeymoon was at Lake Valor,\n",
+        "back when there was a lake.\r",
+        "Forty years, she walked one step\n",
+        "ahead of me. I'm still catching up."
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1PilgrimOldManHome",
+      "en_US": [
+        "Bring them all back, they said.\n",
+        "Everyone.\r",
+        "...I never once asked her if she'd\n",
+        "want to come."
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1PilgrimFather",
+      "en_US": [
+        "She drew this the week before.\n",
+        "That's me. That's a Ponyta.\r",
+        "She wanted a Ponyta so badly.\n",
+        "I kept saying, next year."
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1PilgrimFatherHome",
+      "en_US": [
+        "They asked for her name. Her\n",
+        "birthday. Where it happened.\r",
+        "Nobody's asked me about her\n",
+        "in a long time."
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1PilgrimSailor",
+      "en_US": [
+        "My Machoke pulled me out of the\n",
+        "water the night the boat went down.\r",
+        "Then the next wave came.\n",
+        "...He hated boats, you know."
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1PilgrimSister",
+      "en_US": [
+        "My big brother carried me on his\n",
+        "shoulders to see the city lights.\r",
+        "I'm older now than he ever\n",
+        "got to be."
+      ]
+    },
+    {
+      "id": "Route202_Text_Arc1PilgrimSon",
+      "en_US": [
+        "Mom took every photo we have.\n",
+        "So she isn't in any of them.\r",
+        "This one's got half her thumb,\n",
+        "though. Top corner. See?"
       ]
     }
   ]
