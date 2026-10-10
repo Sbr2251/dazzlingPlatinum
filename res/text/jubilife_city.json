@@ -1115,6 +1115,149 @@
         "Man in a Trench Coat: ...Hm.\r",
         "That suit. Hm hm."
       ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CratePsst",
+      "en_US": [
+        "Man in a Trench Coat: Psst. Child.\n",
+        "Yes, you."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateOffer",
+      "en_US": [
+        "Man in a Trench Coat: Don't look\n",
+        "at me. Look at the sky.\r",
+        "Very natural.\r",
+        "We have met. I am a regular\n",
+        "citizen who enjoys rallies.\r",
+        "I need a favor. It is not one\n",
+        "I like asking of a child.\r",
+        "That grunt outside the Pokémon\n",
+        "Center. The one with the crate.\r",
+        "I must know where it goes.\n",
+        "But he knows my face.\r",
+        "Yours, he does not.\r",
+        "Will you follow him for me?"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateReoffer",
+      "en_US": [
+        "Man in a Trench Coat: Changed your\n",
+        "mind?\r",
+        "Will you follow him for me?"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateDeclined",
+      "en_US": [
+        "Man in a Trench Coat: Good. Wise,\n",
+        "even.\r",
+        "...If you change your mind, I will\n",
+        "be here. Looking at the sky."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateAccepted",
+      "en_US": [
+        "Man in a Trench Coat: When he stops,\n",
+        "he looks around.\r",
+        "Stay out of his line of sight,\n",
+        "and keep your distance.\r",
+        "Here he comes. Don't stare.\n",
+        "Natural!"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateGo",
+      "en_US": [
+        "Man in a Trench Coat: Go. I will be\n",
+        "right behind you.\r",
+        "...Far behind you."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateCaught",
+      "en_US": [
+        "Eclipse Grunt: Huh? ...Kid, scram."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateGruntIdle",
+      "en_US": [
+        "Eclipse Grunt: What? This isn't a\n",
+        "flyer, kid. Move along."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateBox",
+      "en_US": [
+        "A sturdy wooden crate.\n",
+        "It's sealed tight."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateYoureLate",
+      "en_US": [
+        "Eclipse Grunt: You're late."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateAnotherOne",
+      "en_US": [
+        "Eclipse Grunt: Rally crowds. Here.\n",
+        "Another one for the Ravaged Path."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateDidItMove",
+      "en_US": [
+        "Eclipse Grunt: Same as always.\r",
+        "...Did it just move?"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateDontAsk",
+      "en_US": [
+        "Eclipse Grunt: Don't ask what's\n",
+        "inside. I never do."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateDrink",
+      "en_US": [
+        "Eclipse Grunt: I'm getting a drink."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateLookerEnd",
+      "en_US": [
+        "Man in a Trench Coat: Ravaged Path.\r",
+        "...Yes. That fits.\r",
+        "Pokémon go in. Crates come out.\r",
+        "And I do not yet know what\n",
+        "happens in between.\r",
+        "You did well, child. Better than\n",
+        "some officers I know.\r",
+        "I will remember you, child.\r",
+        "For your trouble."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateNeverSawMe",
+      "en_US": [
+        "Man in a Trench Coat: Now. You never\n",
+        "saw me."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateBagFull",
+      "en_US": [
+        "Man in a Trench Coat: Your bag is\n",
+        "full. Hm.\r",
+        "Then my thanks will have to do."
+      ]
     }
   ]
 }
