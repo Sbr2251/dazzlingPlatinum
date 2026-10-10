@@ -1056,9 +1056,14 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1CyrusEllipsis",
+      "id": "JubilifeCity_Text_Arc1CyrusWhoDidYouLose",
       "en_US": [
-        "Cyrus: ..."
+        "Cyrus: 'Who did you lose?'\n",
+        "A question no one can refuse.\r",
+        "They promise to bring back the\n",
+        "dead. Either that is a lie...\f",
+        "...or it is not. I cannot yet say\f",
+        "which would be worse."
       ]
     },
     {

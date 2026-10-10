@@ -47,7 +47,9 @@
     ScriptEntryEnd
 
 _0072:
-    // Dazzling Platinum Arc 1: Saros (the broadcast object) is hidden at every load, and the rally cast and
+    // Dazzling Platinum Arc 1: object LOCALID_ARC1_SAROS is never shown (Saros is only a voice on the TV,
+    // playtest bug 11). Its events slot is kept so the crowd's local IDs (and saves made in Jubilife) don't
+    // shift, and its hide flag is set at every load because a new game starts with it clear. The rally cast and
     // crowd follow VAR_ARC1_PROGRESS. From 12 on, the stock state 0/1 chain is skipped before the stock checks.
     SetFlag FLAG_HIDE_ARC1_JUBILIFE_SAROS
     CallIfLt VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1HideRally
@@ -1811,7 +1813,7 @@ JubilifeCity_Arc1RestorePoketchCampaign:
     ClearFlag FLAG_UNK_0x01F6
     Return
 
-// End of the rally, while the camera is on Cyrus: undo SetUpRally's plaza changes in-session. Saros, Cyrus and
+// End of the rally, while the camera is on Cyrus: undo SetUpRally's plaza changes in-session. Cyrus and
 // Looker are already removed, which leaves room for the clown gfx (all three clowns are off screen here).
 JubilifeCity_Arc1RestorePlaza:
     ClearFlag FLAG_UNK_0x0238
@@ -1867,7 +1869,8 @@ JubilifeCity_Arc1Rally:
     ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_FaceNorth
     ApplyMovement LOCALID_ARC1_GARIUS, JubilifeCity_Arc1Movement_GariusNoticePlayer
     WaitMovement
-    // Tilt up to the Jubilife TV facade: the big screen switches on and Saros appears (D2)
+    // Tilt up to the Jubilife TV facade: the big screen switches on (D2). Saros is only a voice on the screen,
+    // "Saros (on screen):"; no overworld object stands in for him (playtest bug 11).
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
     AddFreeCamera VAR_0x8004, VAR_0x8005
     ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraUpToScreen
@@ -1877,13 +1880,9 @@ JubilifeCity_Arc1Rally:
     WaitFanfare SEQ_SE_DP_TV_NOISE
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
-    ClearFlag FLAG_HIDE_ARC1_JUBILIFE_SAROS
-    AddObject LOCALID_ARC1_SAROS
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
-    // He flickers in like a projection
-    ApplyMovement LOCALID_ARC1_SAROS, JubilifeCity_Arc1Movement_SarosFlickerIn
-    WaitMovement
+    WaitTime 10, VAR_RESULT
     PlayMusic SEQ_TV_HOUSOU
     WaitTime 20, VAR_RESULT
     Message JubilifeCity_Text_Arc1SarosEveryoneHasLostSomeone
@@ -1894,11 +1893,9 @@ JubilifeCity_Arc1Rally:
     // The broadcast cuts out
     StopMusic 0
     PlayFanfare SEQ_SE_DP_TV_NOISE
-    ApplyMovement LOCALID_ARC1_SAROS, JubilifeCity_Arc1Movement_SarosFlickerOut
-    WaitMovement
+    WaitTime 6, VAR_RESULT
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
-    RemoveObject LOCALID_ARC1_SAROS
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     WaitFanfare SEQ_SE_DP_TV_NOISE
@@ -2024,15 +2021,14 @@ JubilifeCity_Arc1EclipseGruntF:
     ReleaseAll
     End
 
+// Talk to Cyrus before the rally. He keeps his eyes on the TV and doesn't turn around: in the rally the player
+// never sees him (scene 11), and the kids only find him in Jubilife at the start of Arc 2.
 JubilifeCity_Arc1Cyrus:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
-    FacePlayer
-    Message JubilifeCity_Text_Arc1CyrusEllipsis
+    Message JubilifeCity_Text_Arc1CyrusWhoDidYouLose
     WaitABXPadPress
     CloseMessage
-    ApplyMovement LOCALID_ARC1_CYRUS, JubilifeCity_Arc1Movement_FaceNorth
-    WaitMovement
     ReleaseAll
     End
 
@@ -2112,27 +2108,6 @@ JubilifeCity_Arc1Movement_GariusNoticePlayer:
     .balign 4, 0
 JubilifeCity_Arc1Movement_CameraUpToScreen:
     WalkSlowNorth 3
-    EndMovement
-
-    .balign 4, 0
-JubilifeCity_Arc1Movement_SarosFlickerIn:
-    SetInvisible
-    Delay4
-    SetVisible
-    Delay4
-    SetInvisible
-    Delay2
-    SetVisible
-    FaceSouth
-    EndMovement
-
-    .balign 4, 0
-JubilifeCity_Arc1Movement_SarosFlickerOut:
-    SetInvisible
-    Delay2
-    SetVisible
-    Delay4
-    SetInvisible
     EndMovement
 
     .balign 4, 0
