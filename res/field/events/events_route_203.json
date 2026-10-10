@@ -31,9 +31,9 @@
             ],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 204,
-            "z": 750,
-            "y": 1
+            "x": 205,
+            "z": 745,
+            "y": 0
         },
         {
             "id": "ROUTE_203_LASS_KAITLIN",
@@ -97,9 +97,9 @@
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 201,
-            "z": 757,
-            "y": 1
+            "x": 211,
+            "z": 747,
+            "y": 0
         },
         {
             "id": "ROUTE_203_ARROW_SIGNPOST_6",
@@ -191,8 +191,8 @@
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 211,
-            "z": 750,
+            "x": 205,
+            "z": 755,
             "y": 0
         },
         {
@@ -242,6 +242,66 @@
             "x": 231,
             "z": 754,
             "y": 0
+        },
+        {
+            "id": "ROUTE_203_HIKER_FALLEN_TREE",
+            "graphics_id": "OBJ_EVENT_GFX_HIKER",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": 7,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 200,
+            "z": 757,
+            "y": 0
+        },
+        {
+            "id": "ROUTE_203_PICNICKER_SCAR",
+            "graphics_id": "OBJ_EVENT_GFX_PICNICKER",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": 8,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 207,
+            "z": 754,
+            "y": 0
+        },
+        {
+            "id": "ROUTE_203_STARLY_SCAR_1",
+            "graphics_id": "OBJ_EVENT_GFX_STARLY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_AROUND",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0028",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 203,
+            "z": 750,
+            "y": 0
+        },
+        {
+            "id": "ROUTE_203_STARLY_SCAR_2",
+            "graphics_id": "OBJ_EVENT_GFX_STARLY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_AROUND",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0028",
+            "script": 0,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 204,
+            "z": 751,
+            "y": 0
         }
     ],
     "warp_events": [
@@ -255,12 +315,22 @@
     "coord_events": [
         {
             "script": 6,
-            "x": 196,
-            "z": 757,
+            "x": 210,
+            "z": 744,
             "y": 0,
             "width": 1,
-            "length": 4,
+            "length": 2,
             "var": "VAR_UNK_0x4088",
+            "value": 0
+        },
+        {
+            "script": 9,
+            "x": 196,
+            "z": 754,
+            "y": 0,
+            "width": 8,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0",
             "value": 0
         }
     ]
