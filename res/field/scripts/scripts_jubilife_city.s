@@ -2024,15 +2024,14 @@ JubilifeCity_Arc1EclipseGruntF:
     ReleaseAll
     End
 
+// Talk to Cyrus before the rally. He keeps his eyes on the TV and doesn't turn around: in the rally the player
+// never sees him (scene 11), and the kids only find him in Jubilife at the start of Arc 2.
 JubilifeCity_Arc1Cyrus:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
-    FacePlayer
-    Message JubilifeCity_Text_Arc1CyrusEllipsis
+    Message JubilifeCity_Text_Arc1CyrusWhoDidYouLose
     WaitABXPadPress
     CloseMessage
-    ApplyMovement LOCALID_ARC1_CYRUS, JubilifeCity_Arc1Movement_FaceNorth
-    WaitMovement
     ReleaseAll
     End
 
