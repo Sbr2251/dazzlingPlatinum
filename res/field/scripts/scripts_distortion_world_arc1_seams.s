@@ -217,6 +217,10 @@ DistortionWorldArc1Seams_Briefcase:
     WaitMovement
     PlayCry SPECIES_MAWILE
     WaitCry
+    // Cyrus came through with no Pokemon: the fight is the player's
+    Message DistortionWorldArc1Seams_Text_CyrusItFallsToYou
+    WaitABXPadPress
+    CloseMessage
     StartArc1MawileBattle
     HealParty
     // The Mawile drops a shard and fades into the dark; Cyrus picks it up
