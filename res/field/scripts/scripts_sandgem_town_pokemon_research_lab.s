@@ -171,6 +171,13 @@ _01AE:
     BufferRivalName 0
     Message SandgemTownPokemonResearchLab_Text_Arc1RivalGotPokedex
     CloseMessage
+    // Garius spots the third starter's Poke Ball in Rowan's briefcase (critic #6)
+    ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1FaceNorth
+    WaitMovement
+    BufferRivalName 0
+    Message SandgemTownPokemonResearchLab_Text_Arc1GariusStillOneInThere
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanThatOneStays
+    CloseMessage
     ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1GariusExcited
     WaitMovement
     BufferRivalName 0
@@ -198,12 +205,17 @@ _01AE:
     WaitMovement
     Message SandgemTownPokemonResearchLab_Text_Arc1RuthReadingsSpiked
     Message SandgemTownPokemonResearchLab_Text_Arc1RowanCameFromThatWorld
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanWorldBehindOurs
     Message SandgemTownPokemonResearchLab_Text_Arc1RowanWhoIsHe
     CloseMessage
     ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1FaceNorth
     WaitMovement
     BufferRivalName 0
     Message SandgemTownPokemonResearchLab_Text_Arc1GariusFortuneCookie
+    // Rowan invited him on the terrace; Ruth heard him say he came from that world (critic #2, lab half)
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanAskedHimHere
+    Message SandgemTownPokemonResearchLab_Text_Arc1RuthCameFromThere
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanNobody
     Message SandgemTownPokemonResearchLab_Text_Arc1RowanThankHim
     Message SandgemTownPokemonResearchLab_Text_Arc1RowanNowGo
     CloseMessage

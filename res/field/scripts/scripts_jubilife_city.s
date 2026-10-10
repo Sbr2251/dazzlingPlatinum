@@ -42,7 +42,7 @@
     ScriptEntry JubilifeCity_Arc1CrowdGrandpasPokemon
     ScriptEntry JubilifeCity_Arc1CrowdOneMoreDay
     ScriptEntry JubilifeCity_Arc1CrowdBestFriend
-    ScriptEntry JubilifeCity_Arc1CrowdEveryWeek
+    ScriptEntry JubilifeCity_Arc1CrowdGransDoor
     ScriptEntry JubilifeCity_Arc1CrowdMomAskedMe
     ScriptEntryEnd
 
@@ -1782,10 +1782,11 @@ JubilifeCity_Arc1SetUpRally:
     SetFlag FLAG_UNK_0x01F5
     SetFlag FLAG_UNK_0x01F6
     SetObjectEventPos JUBILIFE_CITY_TWIN_3, 152, 759
-    // Looker, the "Man in a Trench Coat", at the west edge of the crowd (D4)
-    SetObjectEventPos JUBILIFE_CITY_LOOKER_31, 157, 755
-    SetObjectEventDir JUBILIFE_CITY_LOOKER_31, DIR_EAST
-    SetObjectEventMovementType JUBILIFE_CITY_LOOKER_31, MOVEMENT_TYPE_LOOK_EAST
+    // Looker, the "Man in a Trench Coat", at the east end of the crowd, watching the screen (D4). The rally's
+    // camera pan stops on him on its way to Cyrus (Arc 1 r2, critic #6).
+    SetObjectEventPos JUBILIFE_CITY_LOOKER_31, 172, 756
+    SetObjectEventDir JUBILIFE_CITY_LOOKER_31, DIR_NORTH
+    SetObjectEventMovementType JUBILIFE_CITY_LOOKER_31, MOVEMENT_TYPE_LOOK_NORTH
     Return
 
 JubilifeCity_Arc1AfterRally:
@@ -1927,22 +1928,30 @@ JubilifeCity_Arc1Rally:
     ApplyMovement LOCALID_ARC1_GRUNT_FLYER, JubilifeCity_Arc1Movement_GruntBackToStage
     ApplyMovement LOCALID_ARC1_GARIUS, JubilifeCity_Arc1Movement_GariusLookAtFlyer
     WaitMovement
-    WaitTime 60, VAR_RESULT
-    BufferRivalName 0
-    Message JubilifeCity_Text_Arc1GariusFoldsTheFlyer
-    WaitABXPadPress
-    CloseMessage
-    WaitTime 20, VAR_RESULT
+    // Garius stares at the flyer, folds it and pockets it: no narration, the pause carries it (critic #8)
+    WaitTime 80, VAR_RESULT
     BufferRivalName 0
     Message JubilifeCity_Text_Arc1GariusJustAFlyer
     WaitABXPadPress
     CloseMessage
-    // Pan away from the kids to the edge of the crowd: Cyrus, alone, watching the screen
-    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraToCyrus
+    // Pan away from the kids toward the edge of the crowd. It stops on the trench coat man at the east end of
+    // the crowd: he glances east, at Cyrus (Arc 1 r2, critic #6).
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraToLooker
     WaitMovement
-    // The trench coat man slips away while the camera is on Cyrus, 18 tiles east (D4: sets FLAG_UNK_0x0181)
+    WaitTime 10, VAR_RESULT
+    ApplyMovement JUBILIFE_CITY_LOOKER_31, JubilifeCity_Arc1Movement_TurnEast
+    WaitMovement
+    WaitTime 20, VAR_RESULT
+    Message JubilifeCity_Text_Arc1LookerThatSuit
+    WaitABXPadPress
+    CloseMessage
+    // The pan finishes on Cyrus, alone, watching the screen. The trench coat man slips away south, out of
+    // frame, and is removed once he's off screen (D4: RemoveObject sets FLAG_UNK_0x0181)
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraLookerToCyrus
+    ApplyMovement JUBILIFE_CITY_LOOKER_31, JubilifeCity_Arc1Movement_LookerSlipAway
+    WaitMovement
     RemoveObject JUBILIFE_CITY_LOOKER_31
-    WaitTime 30, VAR_RESULT
+    WaitTime 20, VAR_RESULT
     Message JubilifeCity_Text_Arc1CyrusIKnowThatVoice
     WaitABXPadPress
     CloseMessage
@@ -1992,7 +2001,7 @@ JubilifeCity_Arc1TrenchCoat:
     Message JubilifeCity_Text_Arc1TrenchCoat
     WaitABXPadPress
     CloseMessage
-    ApplyMovement JUBILIFE_CITY_LOOKER_31, JubilifeCity_Arc1Movement_TurnEast
+    ApplyMovement JUBILIFE_CITY_LOOKER_31, JubilifeCity_Arc1Movement_FaceNorth
     WaitMovement
     ReleaseAll
     End
@@ -2072,11 +2081,11 @@ JubilifeCity_Arc1CrowdBestFriend:
     ReleaseAll
     End
 
-JubilifeCity_Arc1CrowdEveryWeek:
+JubilifeCity_Arc1CrowdGransDoor:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    Message JubilifeCity_Text_Arc1CrowdEveryWeek
+    Message JubilifeCity_Text_Arc1CrowdGransDoor
     WaitABXPadPress
     CloseMessage
     ReleaseAll
@@ -2156,9 +2165,20 @@ JubilifeCity_Arc1Movement_GariusLookAtFlyer:
     EndMovement
 
     .balign 4, 0
-JubilifeCity_Arc1Movement_CameraToCyrus:
-    WalkNormalEast 11
+JubilifeCity_Arc1Movement_CameraToLooker:
+    WalkNormalEast 8
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CameraLookerToCyrus:
+    WalkNormalEast 3
     WalkNormalNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_LookerSlipAway:
+    Delay8
+    WalkNormalSouth 6
     EndMovement
 
     .balign 4, 0

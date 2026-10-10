@@ -191,16 +191,13 @@ OreburghMineB2F_Arc1OnFrameRift:
     ApplyMovement LOCALID_PLAYER, OreburghMineB2F_Movement_Arc1FaceWest
     WaitMovement
     WaitTime 20, VAR_RESULT
-    // Through the rift, a huge violet Hitmonlee rears up and roars, and for a moment a far larger shadow
-    // passes behind it (Giratina; a 2-4 frame black blip that nobody reacts to). Then it's gone in a flash.
+    // Through the rift, a huge violet Hitmonlee rears up and roars. Then it's gone in a flash.
+    // (Arc 1 r2: the 1-frame black "Giratina shadow" blip is cut; the Distortion World seam fly-by carries
+    // that plant now.)
     ClearFlag FLAG_HIDE_ARC1_MINE_SILHOUETTE
     AddObject LOCALID_ARC1_SILHOUETTE
     PlayCry SPECIES_HITMONLEE
     ShakeCamera 16, 4
-    FadeScreen 1, 1, FADE_TYPE_BRIGHTNESS_OUT, COLOR_BLACK
-    WaitFadeScreen
-    FadeScreen 1, 1, FADE_TYPE_BRIGHTNESS_IN, COLOR_BLACK
-    WaitFadeScreen
     ShakeCamera 12, 2
     WaitCry
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
@@ -291,7 +288,7 @@ OreburghMineB2F_Arc1OnFrameRift:
     ApplyMovement LOCALID_ARC1_PROF_ROWAN, OreburghMineB2F_Movement_Arc1FaceWest
     ApplyMovement LOCALID_ARC1_COUNTERPART, OreburghMineB2F_Movement_Arc1FaceWest
     WaitMovement
-    Message OreburghMineB2F_Text_Arc1RowanOnePerson
+    Message OreburghMineB2F_Text_Arc1RowanOneMan
     WaitABXPadPress
     CloseMessage
     BufferRivalName 0

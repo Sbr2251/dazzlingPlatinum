@@ -962,7 +962,9 @@
         "Saros (on screen): Everyone here\n",
         "has lost someone.\r",
         "A parent. A child.\n",
-        "A partner who never came home.\r"
+        "A partner who never came home.\r",
+        "My daughter would have turned\n",
+        "nine this spring.\r"
       ]
     },
     {
@@ -992,15 +994,6 @@
       "en_US": [
         "Eclipse Grunt: Everybody's lost\n",
         "somebody, kid. Think about it."
-      ]
-    },
-    {
-      "id": "JubilifeCity_Text_Arc1GariusFoldsTheFlyer",
-      "en_US": [
-        "{STRVAR_1 3, 0, 0} stares at the flyer\n",
-        "for a long moment.\r",
-        "He folds it carefully and puts it\n",
-        "in his pocket."
       ]
     },
     {
@@ -1098,10 +1091,13 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1CrowdEveryWeek",
+      "id": "JubilifeCity_Text_Arc1CrowdGransDoor",
       "en_US": [
-        "Team Eclipse fills this plaza every\n",
-        "week. More people every time."
+        "My gran always said the dead go\n",
+        "somewhere twisted, behind a door\f",
+        "nobody can open.\r",
+        "Team Eclipse says they've found\n",
+        "the door."
       ]
     },
     {
@@ -1110,6 +1106,13 @@
         "I'm only here because my mom asked\n",
         "me to come.\r",
         "...Okay, I'm a little curious too."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1LookerThatSuit",
+      "en_US": [
+        "Man in a Trench Coat: ...Hm.\r",
+        "That suit. Hm hm."
       ]
     }
   ]
