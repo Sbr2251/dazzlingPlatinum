@@ -9,6 +9,11 @@
 #include "bg_window.h"
 #include "heap.h"
 
+// Sequences of type_icons_anim (zukan.narc): one per type badge, then the category ("species")
+// plate. Fairy was appended after Dragon, which moved the plate from 0x11 to 0x12.
+#define POKEDEX_TYPE_ICON_ANIM_FAIRY          0x11
+#define POKEDEX_TYPE_ICON_ANIM_CATEGORY_PLATE 0x12
+
 void ov21_021DE668(PokedexScreenManager *param0, PokedexApp *param1, enum HeapID heapID);
 void ov21_021DE6C0(PokedexScreenManager *param0);
 BOOL ov21_021DE6D4(UnkStruct_ov21_021DE6D4 *param0, int param1);

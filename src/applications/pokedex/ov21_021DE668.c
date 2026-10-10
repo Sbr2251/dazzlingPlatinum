@@ -718,6 +718,12 @@ int PokedexGraphics_GetAnimIDfromType(int monType)
     case TYPE_DARK:
         animID = 0xc;
         break;
+    case TYPE_FAIRY:
+        animID = POKEDEX_TYPE_ICON_ANIM_FAIRY;
+        break;
+    default:
+        animID = 0x7; // same fallback as TYPE_MYSTERY
+        break;
     }
 
     return animID;
@@ -756,7 +762,7 @@ static void ov21_021DF214(UnkStruct_ov21_021DF374 *param0, PokedexGraphicData **
 
     param0->unk_0C = SpriteList_Add(&v1);
 
-    Sprite_SetAnim(param0->unk_0C, 0x11);
+    Sprite_SetAnim(param0->unk_0C, POKEDEX_TYPE_ICON_ANIM_CATEGORY_PLATE);
 
     if (PokedexSort_CurrentCaughtStatus(param2->unk_04) != 2) {
         species = 0;
