@@ -849,6 +849,9 @@ LakeVerity_Arc1Briefing:
     Message LakeVerity_Text_Arc1CyrusIWillGuideThem
     WaitABXPadPress
     CloseMessage
+    // Rowan doesn't believe him, and Barry doesn't let him finish
+    Message LakeVerity_Text_Arc1RowanFromThatWorld
+    WaitTime 30, VAR_RESULT
     // Barry runs into the portal before anyone can stop him
     BufferRivalName 0
     Message LakeVerity_Text_Arc1BarryLetsGo

@@ -347,8 +347,9 @@
     {
       "id": "LakeVerity_Text_Arc1RowanHaveWeMet",
       "en_US": [
-        "Rowan: And you, sir. You came out\n",
-        "of that portal, didn't you?\r",
+        "Rowan: And you, sir.\r",
+        "You were up here when it tore open,\n",
+        "weren't you?\r",
         "Forgive me, I don't believe\n",
         "we've met. Are you hurt?"
       ]
@@ -390,6 +391,13 @@
         "its ways.\r",
         "If someone must go, I will go.\n",
         "I'll guide the way to the briefcase."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanFromThatWorld",
+      "en_US": [
+        "Rowan: From that world? Sir, you've\n",
+        "had a shock. Sit down before you-"
       ]
     },
     {
