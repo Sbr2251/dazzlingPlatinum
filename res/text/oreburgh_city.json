@@ -276,6 +276,174 @@
         "Miner: The sealed tunnel!\n",
         "It's glowing!"
       ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerMissing",
+      "en_US": [
+        "Have you seen a Machop?\r",
+        "Mine bolted when the ground shook\n",
+        "two nights back.\f",
+        "Hasn't come back since.\r",
+        "He's never run off before.\n",
+        "Never."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumReaderFirstBuzz",
+      "en_US": [
+        "The Portal Reader gave a faint\n",
+        "buzz!"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerWhatsThatRacket",
+      "en_US": [
+        "What's that racket?\r",
+        "...Your gadget's twitching toward\n",
+        "the coal heaps."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerWaiting",
+      "en_US": [
+        "The coal heaps, the back streets,\n",
+        "the mine...\r",
+        "He could be anywhere.\n",
+        "Please. Find my Machop."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerDidntAsk",
+      "en_US": [
+        "Machop?! Is that you?\r",
+        "You found him? I didn't even get\n",
+        "the chance to ask anyone!"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerBigLug",
+      "en_US": [
+        "MACHOP! You big lug!\n",
+        "Where've you been?!"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerMarkOnHisArm",
+      "en_US": [
+        "...There's a mark on his arm.\r",
+        "Like a splinter worked its\n",
+        "way out."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerTwoDays",
+      "en_US": [
+        "Two days stuck in the dark,\n",
+        "hurting and scared...\f",
+        "and something grew in him?\r",
+        "And it went away once he\n",
+        "calmed down."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerAWeek",
+      "en_US": [
+        "The fellas in the deep shaft say\n",
+        "that crying's been going a week.\r",
+        "If two days did that to my\n",
+        "Machop...\r",
+        "what's a week doing to whatever's\n",
+        "behind that seal?"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerTakeThis",
+      "en_US": [
+        "Machop dug this up.\n",
+        "Take it.\r"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerBagFull",
+      "en_US": [
+        "Machop dug something up for you,\n",
+        "but your Bag's full.\r",
+        "Come back for it."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMinerAfter",
+      "en_US": [
+        "He hasn't left my side since.\r",
+        "Whatever's down in that deep\n",
+        "shaft... I hope somebody helps it."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumMachop",
+      "en_US": [
+        "Machop: Maaacho!"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumKidHideout",
+      "en_US": [
+        "Grown-ups never come back here.\r",
+        "It's the best hideout in Oreburgh!"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumKidSawMachop",
+      "en_US": [
+        "A Machop ran past here crying!\r",
+        "It was holding its arm.\n",
+        "It went toward the mine!"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumKidAfter",
+      "en_US": [
+        "That crying Machop's okay now?\n",
+        "Good!"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumBuzzFaint",
+      "en_US": [
+        "The Portal Reader gives a faint\n",
+        "buzz..."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumBuzzLoud",
+      "en_US": [
+        "The Portal Reader is buzzing!\n",
+        "It's getting stronger."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumBuzzWild",
+      "en_US": [
+        "BZZZT! The Portal Reader is going\n",
+        "wild!"
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumYardFlecks",
+      "en_US": [
+        "Violet flecks on the coal,\n",
+        "like glitter. They're warm.\r",
+        "Scuffed little footprints lead off\n",
+        "between the houses."
+      ]
+    },
+    {
+      "id": "OreburghCity_Text_HumAlleyFlecks",
+      "en_US": [
+        "More violet flecks, scattered\n",
+        "down the alley.\r",
+        "They're still warm."
+      ]
     }
   ]
 }
