@@ -8,8 +8,9 @@ Companion doc: `secrets.md` (who knows what, and when).
 ## Premise
 
 A parallel Sinnoh. It looks like the Sinnoh the player knows from Platinum, but its history went differently.
-Team Eclipse, a new organization, promises to bring back the dead. To do it, its three leaders each try to
-control one of the creation trio: Dialga (time), Palkia (space), and Giratina (the world of the dead).
+Team Eclipse, a new organization, promises to bring back the dead. To do it, it wants Dialga (time) and Palkia
+(space): with both, a death can be undone. Giratina (the world of the dead) is the one thing that can stand
+against them, and in Arc 3 the player goes after it to stop Eclipse (owner decision, 2026-10-10).
 
 At the start, Giratina throws the Cyrus from mainline Platinum out of the Distortion World and into this
 world. He's the only person here who remembers the other Sinnoh, apart from the player.
@@ -65,8 +66,8 @@ world. He's the only person here who remembers the other Sinnoh, apart from the 
   Distortion World portal is. The third ancient palace: Verity (Palkia), Valor (Dialga), Umbral (Giratina).
 - **Shards** (also called crystals; same thing). Eclipse tortures Pokemon at hidden sites all over Sinnoh.
   Holding a Pokemon near the brink of death for a long time tears a portal into the Distortion World, and
-  shards form on the other side. Shards let Eclipse control the legendaries, and they're how Eclipse finds
-  where Giratina can be summoned.
+  shards form on the other side. Shards let Eclipse control Dialga and Palkia. Late in Arc 3, Indra uses them to force a path to Giratina's
+  palace while racing to stop the player.
 - **The first Distortion World shard deposit:** late in Arc 2, Darren finds one while searching for Cyrus. It
   reaches Eclipse through Garius, and Eclipse starts harvesting the Distortion World, which powers the Arc 3
   captures. The player's own discovery fuels the villains' endgame.
@@ -140,18 +141,23 @@ screenplay name. No in-game line should assume the player's gender.
 
 Cyrus asks in Act 1: "Did the shadow cast me out?" The late answer: no, **it sent him.**
 
-- **Why this world:** it's the world where Giratina is about to be hunted.
-- **Why Cyrus:** he can read the Distortion World's seams after years inside it, and he knows exactly how a
-  legendary gets chained, because he once did it.
-- **What for:** to guide a trainer to Giratina before Eclipse. Being caught by someone who won't use it is
-  how Giratina protects itself.
-- **How it finds Giratina:** Cyrus's sense for the seams is the compass in the Coronet race. Indra forces her
-  way with shards (torture); the player is guided by the man Giratina sent (consent). That's why the player
-  wins.
+- **Why this world:** it's a world where Dialga and Palkia are about to be bent to one group's will, the same
+  thing Cyrus once did. In Platinum, Giratina is what stopped him.
+- **Why Cyrus:** he can read the Distortion World's seams after years inside it, and he knows from experience
+  that Giratina is the counterweight to Dialga and Palkia.
+- **What for:** once Eclipse holds Dialga and Palkia and it looks too late, Cyrus is the one person who knows
+  there's still an answer: "There is one thing that can stand against them. I know, because it stood against
+  me. Giratina." Giratina sent the man who would point a trainer to it, so it could be the counterweight again,
+  this time on the trainer's side.
+- **How it finds Giratina:** Cyrus's sense for the seams is the compass. Indra hears of the plan and races the
+  player through the Coronet depths to stop them, forcing her way with shards (torture); the player is guided
+  by the man Giratina sent (consent). That's why the player wins.
 - **Plants:** Cyrus guiding the Distortion World puzzles from Act 1; a shadow watching at the edge of totem
-  fights (only the player notices); Cynthia's grandma's legend that the renegade sends a guide back from its
-  world when the creation trio is threatened.
-- **Payoff:** at the capture, Cyrus faces the creature that threw him out and understands why.
+  fights and in the Act 1 Distortion World (only the player notices); Cyrus's "I know this hum" (Act 1);
+  Cynthia's grandma's warning that controlling the legendaries for personal goals has never ended well.
+- **Payoff:** at the capture, Cyrus faces the creature that threw him out and understands why. The villain
+  Giratina stopped from remaking the world with Dialga and Palkia becomes the man it trusted to help stop
+  someone else from doing it.
 
 ### Professor Rowan
 - Publicly calls Eclipse con artists: bringing back the dead is too good to be true.
@@ -181,8 +187,8 @@ Gives optional dialogue hinting at the father's death (Act 1 onward).
 
 ### Cynthia's grandma (Celestic Town)
 After Gym 2, in Arc 2: the player crosses Mt. Coronet from Eterna to reach Celestic. The stock relic scene
-is replaced: she warns about trying to control legendaries for personal reasons, and tells the legend that the
-renegade sends a guide back from its world when the creation trio is threatened. Garius, still hiding that he's
+is replaced: she warns that controlling the legendaries for personal goals has never ended well, and tells the
+old stories of those who tried. Garius, still hiding that he's
 the informant, brushes it off a little too hard, alongside an Eclipse leader. After the reveal, the two of them
 agreeing reads as a clue.
 
@@ -228,13 +234,14 @@ an uneasy alliance with no single boss.
 |---|---|---|---|
 | **Saros** (an eclipse cycle; history repeating) | his daughter, Mira (she'd have turned nine) | Dialga | Rewind time to before she died. |
 | **Kahn** | his partner, a Lucario raised from a Riolu; it fell from a sea cliff in a storm, protecting him | Palkia | Reach a parallel world where it still lives. |
-| **Indra** (woman) | her brother, Teo | Giratina | Pull him back out of the world of the dead. |
+| **Indra** (woman) | her brother, Teo | None of her own | Saros's rewind or Kahn's parallel world: either gets Teo back, so she guards the plan. When she hears the player is going after Giratina, she races to stop them. |
 
 - Each leader gets one scene the player sees and Darren doesn't, showing their loss, so the player understands
   them before Darren does.
 - Saros and Kahn are burned out by the shards after capturing their legendaries.
-- **Indra's ending:** after the player beats her, Giratina shows her brother for a few seconds in a
-  cutscene. He tells her to move on. She cries, accepts it, and lets the player catch Giratina.
+- **Indra's ending:** after the player beats her at the Umbral Palace, Giratina, the creature she came to keep
+  from the player, shows her brother for a few seconds in a cutscene. He tells her to move on. She cries, accepts
+  it, and lets the player catch Giratina.
 - Saros is the leader at Cynthia's grandma's warning in Celestic (scene 2.15).
 
 ## Story spine (3 arcs, then the League)
@@ -258,9 +265,13 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
      Route 212 and through the entrance in its top-left corner.
    - **Gym 6** (Canalave), then the chase across the new fairy route (Route 218) to Lake Verity: **Palkia
      falls** at the castle.
-   - **Gym 7,** while Eclipse uses the shards to find where Giratina can be summoned.
+   - **It looks too late:** Eclipse holds Dialga and Palkia and has everything it needs. Cyrus tells the player
+     there's one option left, from his own experience: Giratina, the one thing that ever stopped him. Instead
+     of Eclipse hunting Giratina, the player goes after it to stop them.
+   - **Gym 7,** while Cyrus reads the seams for the way to Giratina's home. Indra hears of the plan (Looker,
+     Snowpoint: "Not up the mountain. Down.").
    - **The race for Giratina** through the molten depths of Mt. Coronet to the **Umbral Palace**, guided by
-     Cyrus. Indra's closure. The player **catches Giratina**. The shards burn out
+     Cyrus, while Indra races there to stop the player. Indra's closure. The player **catches Giratina**. The shards burn out
      Saros and Kahn; Garius takes Dialga and Palkia.
    - **Gym 8.**
    - **Indra finds Darren and Cyrus:** Garius is about to use Dialga and Palkia to bring his father back, and
