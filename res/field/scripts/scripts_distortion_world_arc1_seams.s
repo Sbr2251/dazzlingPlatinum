@@ -233,7 +233,7 @@ DistortionWorldArc1Seams_Briefcase:
     WaitMovement
     PlayFanfare SEQ_SE_CONFIRM
     WaitFanfare SEQ_SE_CONFIRM
-    Message DistortionWorldArc1Seams_Text_CyrusHarvesting
+    Message DistortionWorldArc1Seams_Text_CyrusIKnowThisHum
     WaitABXPadPress
     CloseMessage
     SetVar VAR_ARC1_DW_HINTS, 5
