@@ -507,8 +507,26 @@
       "en_US": [
         "Rowan: ...It's gone.\r",
         "You two. Once you've rested, come\n",
-        "by my lab in Sandgem Town.\r",
-        "Come, {STRVAR_1 3, 2, 0}. We have a great\n",
+        "by my lab in Sandgem Town."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanThankYouSir",
+      "en_US": [
+        "Rowan: And you, sir. Thank you for\n",
+        "bringing them back.\r",
+        "My lab is in Sandgem. When you've\n",
+        "rested, I would like to talk."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusPerhaps",
+      "en_US": "Cyrus: ...Perhaps."
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanComeRuth",
+      "en_US": [
+        "Rowan: Come, {STRVAR_1 3, 2, 0}. We have a great\n",
         "deal of data to go over."
       ]
     },

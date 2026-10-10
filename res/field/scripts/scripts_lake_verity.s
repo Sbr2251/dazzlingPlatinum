@@ -1010,9 +1010,24 @@ LakeVerity_Arc1OnFrameReturn:
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     WaitTime 30, VAR_RESULT
-    // Rowan and the assistant leave
-    BufferCounterpartName 2
+    // Rowan thanks Cyrus and invites him to the lab, then he and the assistant leave
     Message LakeVerity_Text_Arc1RowanItsGone
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1FaceEast
+    ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1FaceWest
+    WaitMovement
+    Message LakeVerity_Text_Arc1RowanThankYouSir
+    WaitABXPadPress
+    CloseMessage
+    WaitTime 20, VAR_RESULT
+    Message LakeVerity_Text_Arc1CyrusPerhaps
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1FaceNorth
+    WaitMovement
+    BufferCounterpartName 2
+    Message LakeVerity_Text_Arc1RowanComeRuth
     WaitABXPadPress
     CloseMessage
     ApplyMovement LOCALID_ARC1_PROF_ROWAN, LakeVerity_Movement_Arc1RowanLeave
