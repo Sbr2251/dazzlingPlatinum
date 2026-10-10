@@ -508,15 +508,27 @@
         "Cyrus: You two...\r",
         "You remind me of somebody\n",
         "I knew before.\r",
-        "They had this fire within them.\r"
+        "They had this fire within them.\r",
+        "I once called that fire a flaw.\n",
+        "Something to be purged.\r",
+        "...It is the reason I am still\n",
+        "standing.\r"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1CyrusTakeItToRowan",
+      "id": "LakeVerity_Text_Arc1CyrusShowTheProfessor",
       "en_US": [
-        "Take it to Rowan when he's ready\n",
-        "to listen.\r",
-        "...Maybe this will help you out.\r"
+        "This was inside that Mawile.\n",
+        "Show it to the professor.\r",
+        "Not me. Not yet.\r"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusINeedToUnderstand",
+      "en_US": [
+        "Cyrus: I need to understand what\n",
+        "I am, here, before I stand in\f",
+        "front of anyone."
       ]
     },
     {

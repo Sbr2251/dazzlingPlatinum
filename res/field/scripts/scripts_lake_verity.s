@@ -1024,10 +1024,12 @@ LakeVerity_Arc1OnFrameReturn:
     ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1FaceEastLate
     WaitMovement
     Message LakeVerity_Text_Arc1CyrusYouRemindMe
-    Message LakeVerity_Text_Arc1CyrusTakeItToRowan
+    Message LakeVerity_Text_Arc1CyrusShowTheProfessor
     SetVar VAR_0x8004, ITEM_ECLIPSE_SHARD
     SetVar VAR_0x8005, 1
     GiveItemQuantity
+    Message LakeVerity_Text_Arc1CyrusINeedToUnderstand
+    WaitABXPadPress
     CloseMessage
     ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusLeave
     ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerWatchCyrusLeave
