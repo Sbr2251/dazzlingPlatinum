@@ -27,7 +27,7 @@
         },
         {
             "level": 7,
-            "species": "SPECIES_PSYDUCK"
+            "species": "SPECIES_TIMBURR"
         },
         {
             "level": 7,
@@ -43,11 +43,11 @@
         },
         {
             "level": 7,
-            "species": "SPECIES_ZUBAT"
+            "species": "SPECIES_DRILBUR"
         },
         {
-            "level": 8,
-            "species": "SPECIES_ZUBAT"
+            "level": 7,
+            "species": "SPECIES_ROGGENROLA"
         }
     ],
     "swarms": [

@@ -26,8 +26,8 @@
             "species": "SPECIES_MAKUHITA"
         },
         {
-            "level": 10,
-            "species": "SPECIES_PSYDUCK"
+            "level": 9,
+            "species": "SPECIES_TIMBURR"
         },
         {
             "level": 9,
@@ -42,12 +42,12 @@
             "species": "SPECIES_GOLBAT"
         },
         {
-            "level": 9,
-            "species": "SPECIES_ZUBAT"
+            "level": 8,
+            "species": "SPECIES_ROGGENROLA"
         },
         {
-            "level": 10,
-            "species": "SPECIES_GOLBAT"
+            "level": 9,
+            "species": "SPECIES_DRILBUR"
         }
     ],
     "swarms": [

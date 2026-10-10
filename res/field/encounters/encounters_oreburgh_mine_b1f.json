@@ -7,7 +7,7 @@
         },
         {
             "level": 6,
-            "species": "SPECIES_GEODUDE"
+            "species": "SPECIES_ROGGENROLA"
         },
         {
             "level": 5,
@@ -30,12 +30,12 @@
             "species": "SPECIES_ONIX"
         },
         {
-            "level": 8,
-            "species": "SPECIES_ONIX"
+            "level": 7,
+            "species": "SPECIES_TIMBURR"
         },
         {
-            "level": 8,
-            "species": "SPECIES_GEODUDE"
+            "level": 7,
+            "species": "SPECIES_DRILBUR"
         },
         {
             "level": 7,
@@ -43,7 +43,7 @@
         },
         {
             "level": 8,
-            "species": "SPECIES_GEODUDE"
+            "species": "SPECIES_DRILBUR"
         },
         {
             "level": 7,
