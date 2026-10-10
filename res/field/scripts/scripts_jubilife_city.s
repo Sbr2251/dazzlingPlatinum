@@ -42,7 +42,7 @@
     ScriptEntry JubilifeCity_Arc1CrowdGrandpasPokemon
     ScriptEntry JubilifeCity_Arc1CrowdOneMoreDay
     ScriptEntry JubilifeCity_Arc1CrowdBestFriend
-    ScriptEntry JubilifeCity_Arc1CrowdEveryWeek
+    ScriptEntry JubilifeCity_Arc1CrowdGransDoor
     ScriptEntry JubilifeCity_Arc1CrowdMomAskedMe
     ScriptEntryEnd
 
@@ -2081,11 +2081,11 @@ JubilifeCity_Arc1CrowdBestFriend:
     ReleaseAll
     End
 
-JubilifeCity_Arc1CrowdEveryWeek:
+JubilifeCity_Arc1CrowdGransDoor:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    Message JubilifeCity_Text_Arc1CrowdEveryWeek
+    Message JubilifeCity_Text_Arc1CrowdGransDoor
     WaitABXPadPress
     CloseMessage
     ReleaseAll
