@@ -2,6 +2,7 @@
 url = https://github.com/lhearachel/narc.git
 revision = v0.4.0
 depth = 1
+diff_files = narc_patch/0001-strvec-grow-capacity-before-realloc.patch
 
 [provide]
 program_names = narc

@@ -1,0 +1,40 @@
+--- a/cli/src/strvec.c
++++ b/cli/src/strvec.c
+@@ -54,13 +54,14 @@
+ int strvec_push(struct strvec *strvec, char *s)
+ {
+     if (strvec->count + 1 > strvec->capacity) {
+-        char **p = realloc(strvec->s, strvec->capacity * sizeof(char *));
++        size_t new_capacity = strvec->capacity ? strvec->capacity * 2 : 16;
++        char **p = realloc(strvec->s, new_capacity * sizeof(char *));
+         if (p == NULL) {
+             return -1;
+         }
+ 
+         strvec->s = p;
+-        strvec->capacity *= 2;
++        strvec->capacity = new_capacity;
+     }
+ 
+     strvec->s[strvec->count] = s;
+@@ -71,13 +72,18 @@
+ int strvec_extend(struct strvec *v1, struct strvec *v2)
+ {
+     if (v1->count + v2->count > v1->capacity) {
+-        char **p = realloc(v1->s, v1->capacity * sizeof(char *));
++        size_t new_capacity = v1->capacity ? v1->capacity : 16;
++        while (new_capacity < v1->count + v2->count) {
++            new_capacity *= 2;
++        }
++
++        char **p = realloc(v1->s, new_capacity * sizeof(char *));
+         if (p == NULL) {
+             return -1;
+         }
+ 
+         v1->s = p;
+-        v1->capacity *= 2;
++        v1->capacity = new_capacity;
+     }
+ 
+     memcpy(v1->s + v1->count, v2->s, (v2->count * sizeof(char *)));
