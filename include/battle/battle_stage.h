@@ -94,6 +94,17 @@ BOOL BattleStage_IsSpriteStreamed(int battler);
 // to frame A. FALSE, and tiles untouched, when the battler isn't streamed.
 BOOL BattleStage_GetStreamFrameTiles(int battler, u8 *tiles);
 
+// The stat change effects (Func_StatChangeUp/Down/Heal/Metal; compat.md, "Stat changes"). The
+// 2D effect shows its pattern (BG2) inside an OBJ window cut by a static copy of the mon at its
+// classic place, which no longer lines up with the stage sprite. StartStatEffect takes the
+// effect over for a battler the stage draws: it loads the pattern from the effect's BG
+// members and returns TRUE; the caller then skips its BG, window, blend and copies, and every
+// frame passes the BG's Y scroll and the blend's EVA (0..16, over 16 - EVA of the mon), until
+// EndStatEffect. FALSE (the stage isn't drawing that battler): keep the 2D effect.
+BOOL BattleStage_StartStatEffect(int battler, enum NarcID narcID, u32 tilesMember, u32 paletteMember, u32 tilemapMember, enum HeapID heapID);
+void BattleStage_SetStatEffect(int scrollY, int blendAlpha);
+void BattleStage_EndStatEffect(void);
+
 // The stage camera (chunk 4, battle_stage_camera.c; docs/living_battle_stage/camera.md). At
 // its home pose nothing changes; off home the arena, the stage sprites and the particles
 // follow it. Nothing moves while the stage isn't visible.

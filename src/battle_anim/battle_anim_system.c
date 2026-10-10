@@ -948,6 +948,7 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
         BattleStage_ClearGroundHoles();
         BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT | BATTLE_STAGE_SUPPRESS_WINDOW, FALSE);
         BattleStage_ClearCurtain();
+        BattleStage_EndStatEffect();
         BattleStage_SetMoveAnimActive(FALSE);
         BattleStage_SetInMoveAnim(FALSE);
         BattleStage_SetBackdropShake(0, 0);
@@ -1873,6 +1874,8 @@ static void BattleAnimScriptCmd_End(BattleAnimSystem *system)
         Bg_ToggleLayer(BG_LAYER_MAIN_2, TRUE);
         // A Fake Out curtain cut short
         BattleStage_ClearCurtain();
+        // A stat change drawn on the stage sprite, should its task outlive the script
+        BattleStage_EndStatEffect();
     } else {
         ov17_022413D8();
     }
