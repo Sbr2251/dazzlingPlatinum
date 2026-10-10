@@ -147,6 +147,12 @@ void BattleStage_EndIntroFocus(void);
 // A send-out (a trainer's throw, an opponent turning into an OBJ) waits until this is TRUE:
 // no focus holds or eases home. Call it once per frame while waiting; it snaps after a cap.
 BOOL BattleStage_IsIntroFocusDone(void);
+// The player's trainer throw (ov16_0225D360) waits with this rather than IsIntroFocusDone: it
+// also counts the frames the throw waited, which the battler's healthbar slide-in then waits
+// out (HoldSendOutHealthbar, TRUE: wait a frame), so the bar still comes in after the
+// Pokemon, as long after the throw as without the stage.
+BOOL BattleStage_IsIntroThrowReady(int battler);
+BOOL BattleStage_HoldSendOutHealthbar(int battler);
 // An opponent's healthbar sliding in during the battle-start focus stays hidden (it would
 // cover the zoomed-in opponent) and slides in once the camera is home. TRUE: hold it hidden.
 BOOL BattleStage_HoldIntroHealthbar(int battler);
