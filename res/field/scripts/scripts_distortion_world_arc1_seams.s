@@ -357,11 +357,13 @@ DistortionWorldArc1Seams_Movement_PlayerStepToCase:
     WalkNormalEast
     EndMovement
 
+// It lunges in place on its tile (17,22): a step west would put its 32px sprite over Cyrus's legs at (15,22), and the
+// map reload after the battle puts it back on (17,22) anyway.
     .balign 4, 0
 DistortionWorldArc1Seams_Movement_MawileLunge:
     FaceWest
     JumpOnSpotFastWest
-    WalkFastWest
+    JumpOnSpotFastWest
     EndMovement
 
     .balign 4, 0
