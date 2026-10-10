@@ -32,6 +32,15 @@ File layout (little endian, all offsets from file start, 4-byte aligned):
   0x1C u32 totalVBlanks       (sum of holds = loop length in VBlanks)
   0x20 step table, numSteps x { u32 offset; u32 sizeAndHold }
        sizeAndHold = compressedSize | (holdVBlanks << 24)
+  "VBlanks" here are calls of the title screen's VBlank callback, which main.c
+  runs once per 30 fps main-loop frame: one unit is 2 hardware frames.
+
+Shipped bin: 163 steps, hold 2 (326 ticks = 652 frames = 10.9 s at 15 fps).
+The original 360-frame source is gone, so it was repacked from the original
+360-step bin (git show 647ac8e445:res/graphics/title_screen/giratina_prerender.bin)
+decoded with `simulate.py <bin> --ref '' --loops 1` and stacked into a .npy,
+with --dither 0 (the source is already dithered) and a schedule of single-frame
+entries f-f:1:2, f = round(1 + i * 360 / 163) for i in 0..162.
 """
 
 import argparse
@@ -175,7 +184,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--pal-out", help="optional JASC .pal dump for inspection")
     ap.add_argument("--schedule", default="1-360:1:2",
-                    help="comma list of A-B:STEP:HOLD (1-based frames, hold in VBlanks)")
+                    help="comma list of A-B:STEP:HOLD (1-based frames, hold in 30 Hz callback ticks)")
     ap.add_argument("--dither", type=float, default=6.0, help="Bayer amplitude (8-bit units)")
     ap.add_argument("--thresh", type=float, default=30.0,
                     help="min MSE improvement (per-pixel RGB^2) to resend a tile")
@@ -189,7 +198,10 @@ def main():
     frames = load_frames(args.src)
     n = frames.shape[0]
     sched = parse_schedule(args.schedule, n)
-    print("frames %d, steps %d, loop %d vblanks" % (n, len(sched), sum(h for _, h in sched)))
+    ticks = sum(h for _, h in sched)
+    # A hold unit is one title-screen VBlank callback, i.e. one 30 fps main-loop
+    # frame (2 hardware frames): hold 2 plays at 15 fps.
+    print("frames %d, steps %d, loop %d ticks = %d frames = %.2fs" % (n, len(sched), ticks, ticks * 2, ticks / 30.0))
 
     g = args.gamma
 
