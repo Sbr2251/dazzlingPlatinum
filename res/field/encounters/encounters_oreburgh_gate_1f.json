@@ -22,32 +22,32 @@
             "species": "SPECIES_GEODUDE"
         },
         {
-            "level": 5,
-            "species": "SPECIES_ZUBAT"
+            "level": 6,
+            "species": "SPECIES_MAKUHITA"
         },
         {
             "level": 7,
-            "species": "SPECIES_PSYDUCK"
+            "species": "SPECIES_TIMBURR"
         },
         {
             "level": 7,
             "species": "SPECIES_GEODUDE"
         },
         {
-            "level": 7,
-            "species": "SPECIES_ZUBAT"
-        },
-        {
-            "level": 8,
-            "species": "SPECIES_ZUBAT"
+            "level": 6,
+            "species": "SPECIES_ARON"
         },
         {
             "level": 7,
-            "species": "SPECIES_ZUBAT"
+            "species": "SPECIES_NOSEPASS"
         },
         {
-            "level": 8,
-            "species": "SPECIES_ZUBAT"
+            "level": 7,
+            "species": "SPECIES_DRILBUR"
+        },
+        {
+            "level": 7,
+            "species": "SPECIES_ROGGENROLA"
         }
     ],
     "swarms": [

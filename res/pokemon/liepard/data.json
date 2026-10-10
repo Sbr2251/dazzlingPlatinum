@@ -1,0 +1,258 @@
+{
+    "base_stats": {
+        "hp": 64,
+        "attack": 88,
+        "defense": 50,
+        "speed": 106,
+        "special_attack": 88,
+        "special_defense": 50
+    },
+    "types": [
+        "TYPE_DARK",
+        "TYPE_DARK"
+    ],
+    "catch_rate": 90,
+    "base_exp_reward": 156,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 0,
+        "defense": 0,
+        "speed": 2,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 20,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_FAST",
+    "egg_groups": [
+        "EGG_GROUP_FIELD",
+        "EGG_GROUP_FIELD"
+    ],
+    "abilities": [
+        "ABILITY_LIMBER",
+        "ABILITY_UNBURDEN"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_PURPLE",
+    "flip_sprite": false,
+    "icon_palette": 0,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_SCRATCH"
+            ],
+            [
+                1,
+                "MOVE_SAND_ATTACK"
+            ],
+            [
+                1,
+                "MOVE_GROWL"
+            ],
+            [
+                1,
+                "MOVE_ASSIST"
+            ],
+            [
+                3,
+                "MOVE_GROWL"
+            ],
+            [
+                6,
+                "MOVE_ASSIST"
+            ],
+            [
+                10,
+                "MOVE_SAND_ATTACK"
+            ],
+            [
+                12,
+                "MOVE_FURY_SWIPES"
+            ],
+            [
+                15,
+                "MOVE_PURSUIT"
+            ],
+            [
+                19,
+                "MOVE_TORMENT"
+            ],
+            [
+                22,
+                "MOVE_FAKE_OUT"
+            ],
+            [
+                26,
+                "MOVE_SHARPEN"
+            ],
+            [
+                31,
+                "MOVE_ASSURANCE"
+            ],
+            [
+                34,
+                "MOVE_SLASH"
+            ],
+            [
+                38,
+                "MOVE_TAUNT"
+            ],
+            [
+                43,
+                "MOVE_NIGHT_SLASH"
+            ],
+            [
+                47,
+                "MOVE_SNATCH"
+            ],
+            [
+                50,
+                "MOVE_NASTY_PLOT"
+            ],
+            [
+                55,
+                "MOVE_SUCKER_PUNCH"
+            ]
+        ],
+        "by_tm": [
+            "TM06",
+            "TM10",
+            "TM11",
+            "TM12",
+            "TM15",
+            "TM17",
+            "TM18",
+            "TM21",
+            "TM23",
+            "TM27",
+            "TM30",
+            "TM32",
+            "TM40",
+            "TM41",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM46",
+            "TM49",
+            "TM58",
+            "TM63",
+            "TM65",
+            "TM66",
+            "TM68",
+            "TM73",
+            "TM77",
+            "TM78",
+            "TM79",
+            "TM82",
+            "TM83",
+            "TM85",
+            "TM86",
+            "TM87",
+            "TM89",
+            "TM90",
+            "HM01",
+            "HM06"
+        ],
+        "by_tutor": [
+            "MOVE_SNORE",
+            "MOVE_SPITE",
+            "MOVE_GUNK_SHOT",
+            "MOVE_SEED_BOMB",
+            "MOVE_TRICK",
+            "MOVE_KNOCK_OFF",
+            "MOVE_SUCKER_PUNCH",
+            "MOVE_SWIFT"
+        ],
+        "egg_moves": []
+    },
+    "evolutions": [],
+    "offspring": "SPECIES_PURRLOIN",
+    "footprint": {
+        "has": true,
+        "size": "FOOTPRINT_MEDIUM",
+        "type": "FOOTPRINT_TYPE_CUTE"
+    },
+    "pokedex_data": {
+        "height": 11,
+        "weight": 375,
+        "body_shape": "SHAPE_QUADRUPED",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 273,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 273,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 13,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 13,
+        "en": {
+            "name": "LIEPARD",
+            "category": "Cruel Pokémon",
+            "entry_text": [
+                "Stealthily, it sneaks up on its\n",
+                "target, striking from behind before\n",
+                "its victim has a chance to react."
+            ]
+        },
+        "fr": {
+            "name": "LÉOPARDUS",
+            "category": "Pokémon Implacable",
+            "entry_text": [
+                "Un Pokémon insaisissable. Son style\n",
+                "et son pelage magnifique attirent\n",
+                "de nombreux Dresseurs."
+            ]
+        },
+        "de": {
+            "name": "KLEOPARDA",
+            "category": "Gefühlskälte-Pokémon",
+            "entry_text": [
+                "Sein anmutiges Auftreten verdankt\n",
+                "es den Muskeln, die es entwickelt\n",
+                "hat. Es prescht lautlos durch die\n",
+                "Nacht."
+            ]
+        },
+        "it": {
+            "name": "LIEPARD",
+            "category": "Pokémon Sanguefreddo",
+            "entry_text": [
+                "Si avvicina di soppiatto alle spalle\n",
+                "del nemico colpendolo prima che se\n",
+                "ne accorga."
+            ]
+        },
+        "es": {
+            "name": "LIEPARD",
+            "category": "Pokémon Calculador",
+            "entry_text": [
+                "Se aproxima evitando que lo\n",
+                "detecten. Con sigilo, se acerca a\n",
+                "su rival por la espalda y lo ataca."
+            ]
+        },
+        "jp": {
+            "name": "レパルダス",
+            "category": "れいこくポケモン",
+            "entry_text": [
+                "うつくしい　スタイルは　ぜんしんの\n",
+                "はったつした　きんにくの　おかげ。\n",
+                "おともたてずに　よるを\n",
+                "かけぬける。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_SOUTH_WEST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 70,
+        "rarity": 20,
+        "unused": 4102
+    }
+}

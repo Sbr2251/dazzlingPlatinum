@@ -8,15 +8,29 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_MACHOP",
+            "species": "SPECIES_TIMBURR",
+            "form": 0,
+            "level": 7,
+            "item": null,
+            "moves": [
+                "MOVE_POUND",
+                "MOVE_LEER",
+                "MOVE_FOCUS_ENERGY"
+            ],
+            "power": 20,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_MAKUHITA",
             "form": 0,
             "level": 8,
             "item": null,
             "moves": [
-                "MOVE_LOW_KICK",
-                "MOVE_LEER"
+                "MOVE_TACKLE",
+                "MOVE_SAND_ATTACK",
+                "MOVE_ARM_THRUST"
             ],
-            "power": 0,
+            "power": 20,
             "ball_seal": 0
         }
     ],

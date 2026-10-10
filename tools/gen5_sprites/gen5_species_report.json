@@ -1,0 +1,172 @@
+{
+ "moves": {
+  "MOVE_AFTER_YOU": {
+   "to": "MOVE_HELPING_HAND",
+   "why": "Double Battle ally support",
+   "where": [
+    "patrat Lv23",
+    "watchog Lv25"
+   ]
+  },
+  "MOVE_WORK_UP": {
+   "to": "MOVE_HOWL",
+   "why": "self boost of Attack (Work Up: Atk and Sp. Atk +1)",
+   "where": [
+    "patrat Lv26",
+    "lillipup Lv19",
+    "herdier Lv20",
+    "stoutland Lv20"
+   ]
+  },
+  "MOVE_RETALIATE": {
+   "to": "MOVE_FACADE",
+   "why": "Normal 70 power that doubles on a condition",
+   "where": [
+    "lillipup Lv29",
+    "herdier Lv33",
+    "stoutland Lv36"
+   ]
+  },
+  "MOVE_HONE_CLAWS": {
+   "to": "MOVE_SHARPEN",
+   "why": "self boost of Attack (Hone Claws: Atk and accuracy +1)",
+   "where": [
+    "purrloin Lv24",
+    "liepard Lv26",
+    "drilbur Lv22",
+    "excadrill Lv22"
+   ]
+  },
+  "MOVE_FOUL_PLAY": {
+   "to": null,
+   "why": "no equivalent; Faint Attack is already an egg move",
+   "where": [
+    "purrloin egg"
+   ]
+  },
+  "MOVE_BESTOW": {
+   "to": null,
+   "why": "no item-giving move in Gen 4",
+   "where": [
+    "pidove egg"
+   ]
+  },
+  "MOVE_AUTOTOMIZE": {
+   "to": "MOVE_ROCK_POLISH",
+   "why": "Speed +2 (Autotomize also lowers weight)",
+   "where": [
+    "roggenrola egg"
+   ]
+  },
+  "MOVE_SMACK_DOWN": {
+   "to": "MOVE_ROCK_THROW",
+   "why": "Rock physical, 50 power",
+   "where": [
+    "roggenrola Lv23",
+    "boldore Lv23",
+    "gigalith Lv23"
+   ]
+  },
+  "MOVE_HEAVY_SLAM": {
+   "to": "MOVE_GYRO_BALL",
+   "why": "Steel physical with variable power",
+   "where": [
+    "roggenrola egg"
+   ]
+  },
+  "MOVE_DRILL_RUN": {
+   "to": "MOVE_DRILL_PECK",
+   "why": "80 power physical drill attack (Flying instead of Ground)",
+   "where": [
+    "drilbur Lv43",
+    "excadrill Lv55"
+   ]
+  },
+  "MOVE_WIDE_GUARD": {
+   "to": null,
+   "why": "Detect is already an egg move",
+   "where": [
+    "timburr egg"
+   ]
+  },
+  "MOVE_CHIP_AWAY": {
+   "to": "MOVE_HEADBUTT",
+   "why": "Normal physical, 70 power",
+   "where": [
+    "timburr Lv24",
+    "gurdurr Lv24",
+    "conkeldurr Lv24"
+   ]
+  },
+  "MOVE_STRUGGLE_BUG": {
+   "to": "MOVE_SILVER_WIND",
+   "why": "special Bug move with a stat effect",
+   "where": [
+    "sewaddle Lv22",
+    "leavanny Lv22"
+   ]
+  },
+  "MOVE_ENTRAINMENT": {
+   "to": "MOVE_WORRY_SEED",
+   "why": "replaces the target's ability (and is Grass)",
+   "where": [
+    "leavanny Lv43"
+   ]
+  }
+ },
+ "abilities": {
+  "ABILITY_SAND_RUSH": {
+   "to": "ABILITY_SAND_VEIL",
+   "why": "sandstorm ability with sandstorm immunity (Speed -> evasion)",
+   "species": [
+    "herdier",
+    "stoutland",
+    "drilbur",
+    "excadrill"
+   ]
+  },
+  "ABILITY_BIG_PECKS": {
+   "to": "ABILITY_KEEN_EYE",
+   "why": "blocks one stat drop (Defense -> accuracy)",
+   "species": [
+    "pidove",
+    "tranquill",
+    "unfezant"
+   ]
+  },
+  "ABILITY_SHEER_FORCE": {
+   "to": "ABILITY_IRON_FIST",
+   "why": "boosts a class of moves (the species' own hidden ability)",
+   "species": [
+    "timburr",
+    "gurdurr",
+    "conkeldurr"
+   ]
+  }
+ },
+ "dropped_hidden_abilities": {
+  "patrat": "ABILITY_ANALYTIC",
+  "watchog": "ABILITY_ANALYTIC",
+  "lillipup": "ABILITY_RUN_AWAY",
+  "herdier": "ABILITY_SCRAPPY",
+  "stoutland": "ABILITY_SCRAPPY",
+  "purrloin": "ABILITY_PRANKSTER",
+  "liepard": "ABILITY_PRANKSTER",
+  "pidove": "ABILITY_RIVALRY",
+  "tranquill": "ABILITY_RIVALRY",
+  "unfezant": "ABILITY_RIVALRY",
+  "drilbur": "ABILITY_MOLD_BREAKER",
+  "excadrill": "ABILITY_MOLD_BREAKER",
+  "timburr": "ABILITY_IRON_FIST",
+  "gurdurr": "ABILITY_IRON_FIST",
+  "conkeldurr": "ABILITY_IRON_FIST",
+  "sewaddle": "ABILITY_OVERCOAT",
+  "swadloon": "ABILITY_OVERCOAT",
+  "leavanny": "ABILITY_OVERCOAT"
+ },
+ "evolutions": {
+  "boldore": "trade -> level 37 (gigalith)",
+  "gurdurr": "trade -> level 37 (conkeldurr)"
+ },
+ "cries": {}
+}

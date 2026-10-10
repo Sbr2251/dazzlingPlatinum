@@ -8,46 +8,51 @@
     "ai_flags": [
         "AI_FLAG_BASIC",
         "AI_FLAG_EVAL_ATTACK",
-        "AI_FLAG_EXPERT"
+        "AI_FLAG_EXPERT",
+        "AI_FLAG_CHECK_HP"
     ],
     "double_battle": false,
     "party": [
         {
             "species": "SPECIES_GEODUDE",
             "form": 0,
-            "level": 12,
-            "item": null,
+            "level": 13,
+            "item": "ITEM_FOCUS_SASH",
             "moves": [
                 "MOVE_STEALTH_ROCK",
-                "MOVE_ROCK_THROW"
+                "MOVE_ROCK_THROW",
+                "MOVE_MAGNITUDE",
+                "MOVE_DEFENSE_CURL"
             ],
-            "power": 50,
+            "power": 150,
             "ball_seal": 0
         },
         {
             "species": "SPECIES_ONIX",
             "form": 0,
-            "level": 12,
-            "item": null,
+            "level": 14,
+            "item": "ITEM_ORAN_BERRY",
             "moves": [
-                "MOVE_STEALTH_ROCK",
+                "MOVE_ROCK_TOMB",
+                "MOVE_SCREECH",
                 "MOVE_ROCK_THROW",
-                "MOVE_SCREECH"
+                "MOVE_BIND"
             ],
-            "power": 50,
+            "power": 150,
             "ball_seal": 0
         },
         {
             "species": "SPECIES_CRANIDOS",
             "form": 0,
-            "level": 14,
-            "item": null,
+            "level": 16,
+            "item": "ITEM_SITRUS_BERRY",
             "moves": [
                 "MOVE_HEADBUTT",
                 "MOVE_PURSUIT",
+                "MOVE_ZEN_HEADBUTT",
                 "MOVE_LEER"
             ],
-            "power": 50,
+            "power": 150,
             "ball_seal": 0
         }
     ],

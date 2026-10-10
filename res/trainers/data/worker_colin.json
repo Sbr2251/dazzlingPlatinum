@@ -8,21 +8,31 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GEODUDE",
+            "species": "SPECIES_ROGGENROLA",
             "form": 0,
-            "level": 6,
+            "level": 10,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_HARDEN",
+                "MOVE_SAND_ATTACK",
+                "MOVE_HEADBUTT"
+            ],
+            "power": 30,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_MACHOP",
+            "species": "SPECIES_MAKUHITA",
             "form": 0,
-            "level": 8,
+            "level": 11,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_ARM_THRUST",
+                "MOVE_VITAL_THROW",
+                "MOVE_FOCUS_ENERGY",
+                "MOVE_SAND_ATTACK"
+            ],
+            "power": 30,
             "ball_seal": 0
         }
     ],

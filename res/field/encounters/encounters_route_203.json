@@ -19,7 +19,7 @@
         },
         {
             "level": 5,
-            "species": "SPECIES_BIDOOF"
+            "species": "SPECIES_WHISMUR"
         },
         {
             "level": 4,
@@ -27,27 +27,27 @@
         },
         {
             "level": 5,
-            "species": "SPECIES_ABRA"
-        },
-        {
-            "level": 5,
-            "species": "SPECIES_SHINX"
+            "species": "SPECIES_SEWADDLE"
         },
         {
             "level": 6,
-            "species": "SPECIES_STARLY"
+            "species": "SPECIES_WHISMUR"
         },
         {
             "level": 6,
-            "species": "SPECIES_BIDOOF"
+            "species": "SPECIES_SEWADDLE"
         },
         {
-            "level": 7,
-            "species": "SPECIES_STARLY"
+            "level": 6,
+            "species": "SPECIES_RALTS"
         },
         {
             "level": 7,
             "species": "SPECIES_BIDOOF"
+        },
+        {
+            "level": 7,
+            "species": "SPECIES_RALTS"
         }
     ],
     "swarms": [

@@ -8,12 +8,28 @@
     "double_battle": false,
     "party": [
         {
+            "species": "SPECIES_TAILLOW",
+            "form": 0,
+            "level": 7,
+            "item": null,
+            "moves": [
+                "MOVE_PECK",
+                "MOVE_GROWL",
+                "MOVE_FOCUS_ENERGY"
+            ],
+            "power": 20,
+            "ball_seal": 0
+        },
+        {
             "species": "SPECIES_SHINX",
             "form": 0,
             "level": 8,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_LEER"
+            ],
+            "power": 20,
             "ball_seal": 0
         }
     ],

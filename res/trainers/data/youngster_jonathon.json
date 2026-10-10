@@ -3,20 +3,35 @@
     "class": "TRAINER_CLASS_YOUNGSTER",
     "items": [],
     "ai_flags": [
-        "AI_FLAG_BASIC"
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GEODUDE",
+            "species": "SPECIES_ROGGENROLA",
             "form": 0,
             "level": 11,
             "item": null,
             "moves": [
-                "MOVE_TACKLE",
-                "MOVE_DEFENSE_CURL"
+                "MOVE_HEADBUTT",
+                "MOVE_HARDEN",
+                "MOVE_SAND_ATTACK",
+                "MOVE_TACKLE"
             ],
-            "power": 10,
+            "power": 50,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_NOSEPASS",
+            "form": 0,
+            "level": 12,
+            "item": null,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_HARDEN"
+            ],
+            "power": 50,
             "ball_seal": 0
         }
     ],

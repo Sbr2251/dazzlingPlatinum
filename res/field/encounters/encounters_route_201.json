@@ -19,35 +19,35 @@
         },
         {
             "level": 3,
-            "species": "SPECIES_STARLY"
+            "species": "SPECIES_ZIGZAGOON"
         },
         {
             "level": 3,
-            "species": "SPECIES_BIDOOF"
+            "species": "SPECIES_WURMPLE"
         },
         {
             "level": 3,
-            "species": "SPECIES_STARLY"
+            "species": "SPECIES_PATRAT"
         },
         {
             "level": 3,
-            "species": "SPECIES_BIDOOF"
+            "species": "SPECIES_LILLIPUP"
         },
         {
             "level": 2,
-            "species": "SPECIES_STARLY"
+            "species": "SPECIES_ZIGZAGOON"
         },
         {
             "level": 2,
-            "species": "SPECIES_BIDOOF"
+            "species": "SPECIES_WURMPLE"
         },
         {
             "level": 2,
-            "species": "SPECIES_STARLY"
+            "species": "SPECIES_PATRAT"
         },
         {
             "level": 2,
-            "species": "SPECIES_BIDOOF"
+            "species": "SPECIES_LILLIPUP"
         }
     ],
     "swarms": [

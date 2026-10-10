@@ -1,0 +1,200 @@
+{
+    "base_stats": {
+        "hp": 55,
+        "attack": 63,
+        "defense": 90,
+        "speed": 42,
+        "special_attack": 50,
+        "special_defense": 80
+    },
+    "types": [
+        "TYPE_BUG",
+        "TYPE_GRASS"
+    ],
+    "catch_rate": 120,
+    "base_exp_reward": 133,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 0,
+        "defense": 2,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_MENTAL_HERB"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 15,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_SLOW",
+    "egg_groups": [
+        "EGG_GROUP_BUG",
+        "EGG_GROUP_BUG"
+    ],
+    "abilities": [
+        "ABILITY_LEAF_GUARD",
+        "ABILITY_CHLOROPHYLL"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_GREEN",
+    "flip_sprite": false,
+    "icon_palette": 1,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_TACKLE"
+            ],
+            [
+                1,
+                "MOVE_RAZOR_LEAF"
+            ],
+            [
+                1,
+                "MOVE_STRING_SHOT"
+            ],
+            [
+                1,
+                "MOVE_GRASS_WHISTLE"
+            ],
+            [
+                1,
+                "MOVE_BUG_BITE"
+            ],
+            [
+                20,
+                "MOVE_PROTECT"
+            ]
+        ],
+        "by_tm": [
+            "TM04",
+            "TM06",
+            "TM10",
+            "TM11",
+            "TM16",
+            "TM17",
+            "TM18",
+            "TM19",
+            "TM20",
+            "TM21",
+            "TM22",
+            "TM27",
+            "TM32",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM53",
+            "TM58",
+            "TM66",
+            "TM70",
+            "TM78",
+            "TM82",
+            "TM83",
+            "TM85",
+            "TM86",
+            "TM87",
+            "TM90",
+            "HM01"
+        ],
+        "by_tutor": [
+            "MOVE_SNORE",
+            "MOVE_SYNTHESIS",
+            "MOVE_SIGNAL_BEAM",
+            "MOVE_SEED_BOMB",
+            "MOVE_IRON_DEFENSE"
+        ],
+        "egg_moves": []
+    },
+    "evolutions": [
+        [
+            "EVO_LEVEL_HAPPINESS",
+            "SPECIES_LEAVANNY"
+        ]
+    ],
+    "offspring": "SPECIES_SEWADDLE",
+    "footprint": {
+        "has": false,
+        "size": "FOOTPRINT_LARGE",
+        "type": "FOOTPRINT_TYPE_SILENT"
+    },
+    "pokedex_data": {
+        "height": 5,
+        "weight": 73,
+        "body_shape": "SHAPE_HEAD_ARMS",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 361,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 361,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 24,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 24,
+        "en": {
+            "name": "SWADLOON",
+            "category": "Leaf-Wrapped Pokémon",
+            "entry_text": [
+                "It protects itself from the cold by\n",
+                "wrapping up in leaves. It stays on\n",
+                "the move, eating leaves in forests."
+            ]
+        },
+        "fr": {
+            "name": "COUVERDURE",
+            "category": "Pokémon Capefeuille",
+            "entry_text": [
+                "Dans les forêts où il vit, la\n",
+                "végétation pousse bien car il\n",
+                "transforme les feuilles mortes en\n",
+                "engrais."
+            ]
+        },
+        "de": {
+            "name": "FOLIKON",
+            "category": "Wickelblatt",
+            "entry_text": [
+                "Es wandelt herabgefallenes Laub in\n",
+                "Nährstoffe um. In Wäldern, wo es\n",
+                "Folikon gibt, fühlen sich Pflanzen\n",
+                "pudelwohl."
+            ]
+        },
+        "it": {
+            "name": "SWADLOON",
+            "category": "Pokémon Coprifoglia",
+            "entry_text": [
+                "Le foreste in cui vive Swadloon sono\n",
+                "lussureggianti, poiché trasforma le\n",
+                "foglie morte in sostanze nutritive."
+            ]
+        },
+        "es": {
+            "name": "SWADLOON",
+            "category": "Pokémon Arropado",
+            "entry_text": [
+                "La vegetación abunda en los\n",
+                "bosques que habita. Este Pokémon\n",
+                "transforma las hojas caídas en\n",
+                "nutrientes."
+            ]
+        },
+        "jp": {
+            "name": "クルマユ",
+            "category": "はごもりポケモン",
+            "entry_text": [
+                "クルマユの　すむ　もりは　くさきが\n",
+                "よく　そだつ。クルマユが　おちばを\n",
+                "えいようぶんに　かえているのだ。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NORTH_WEST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 50,
+        "rarity": 30,
+        "unused": 1028
+    }
+}
