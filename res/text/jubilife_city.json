@@ -995,15 +995,6 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1GariusFoldsTheFlyer",
-      "en_US": [
-        "{STRVAR_1 3, 0, 0} stares at the flyer\n",
-        "for a long moment.\r",
-        "He folds it carefully and puts it\n",
-        "in his pocket."
-      ]
-    },
-    {
       "id": "JubilifeCity_Text_Arc1GariusJustAFlyer",
       "en_US": [
         "{STRVAR_1 3, 0, 0}: ...What?\n",

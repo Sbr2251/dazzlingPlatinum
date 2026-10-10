@@ -1927,12 +1927,8 @@ JubilifeCity_Arc1Rally:
     ApplyMovement LOCALID_ARC1_GRUNT_FLYER, JubilifeCity_Arc1Movement_GruntBackToStage
     ApplyMovement LOCALID_ARC1_GARIUS, JubilifeCity_Arc1Movement_GariusLookAtFlyer
     WaitMovement
-    WaitTime 60, VAR_RESULT
-    BufferRivalName 0
-    Message JubilifeCity_Text_Arc1GariusFoldsTheFlyer
-    WaitABXPadPress
-    CloseMessage
-    WaitTime 20, VAR_RESULT
+    // Garius stares at the flyer, folds it and pockets it: no narration, the pause carries it (critic #8)
+    WaitTime 80, VAR_RESULT
     BufferRivalName 0
     Message JubilifeCity_Text_Arc1GariusJustAFlyer
     WaitABXPadPress
