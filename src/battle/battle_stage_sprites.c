@@ -17,6 +17,8 @@
 #include "battle/ov16_0223DF00.h"
 #include "battle_anim/ov12_022380BC.h"
 
+#include "graphics.h"
+#include "heap.h"
 #include "palette.h"
 #include "pokemon_sprite.h"
 #include "unk_0208C098.h"
@@ -146,6 +148,8 @@ typedef struct StageSprites {
     BOOL streamLive; // the streams play: the arena is drawn, or hidden with its texture VRAM kept
     u32 streamedMask; // battlers drawn from their stream so far this frame
     u32 lastStreamedMask; // and in the frame before
+    u32 meshMask; // battlers drawn as a mesh so far this frame
+    u32 lastMeshMask; // and in the frame before
     const BattleStageFileLighting *lighting;
     const MtxFx43 *view;
     StageSpriteState states[MAX_MON_SPRITES];
@@ -185,6 +189,39 @@ static StageSprites sStageSprites;
 static u16 sBlobPalette[BLOB_PLTT_BYTES / 2]; // black
 static u8 sBlobTexture[BLOB_TEX_ALLOC]; // the blob, then the hole
 
+// The stat change effect on the live sprite (compat.md, "Stat changes"). The 2D effect
+// scrolls a pattern on BG2 inside an OBJ window cut by a static copy of the mon, which no
+// longer matches the mesh (its stream frame, its scale, its sink). Instead the mesh is drawn
+// a second time with the same geometry, textured with the pattern in screen space and
+// translucent, with the depth test set to equal: it lands on exactly the mon's own pixels.
+#define STATFX_TEX_SIZE     64 // the four patterns repeat every 32 or 64 px (in the 256 px the screen shows)
+#define STATFX_TEX_BYTES    (STATFX_TEX_SIZE * STATFX_TEX_SIZE / 2)
+#define STATFX_PLTT_BYTES   32
+#define STATFX_TILES        (STATFX_TEX_SIZE / 8)
+#define STATFX_SCREEN_TILES 32 // tilemap entries per row of a screen block
+#define STATFX_POLYGON_ID   60 // never covers its own ID: only the mon's opaque pixels pass the test anyway
+
+typedef struct StageStatFx {
+    BOOL hasVram;
+    NNSGfdTexKey texKey;
+    NNSGfdPlttKey plttKey;
+    u32 texAddr;
+    u32 plttAddr;
+    BOOL active; // between StartStatEffect and EndStatEffect
+    int battler;
+    int scrollY; // the pattern row shown at screen row 0, 0..STATFX_TEX_SIZE-1
+    int alpha; // polygon alpha, 0 (not drawn) .. 31
+    u32 starts; // effects drawn on the stage this battle (the harness reads these)
+    u32 drawnFrames; // overlay passes drawn this battle
+} StageStatFx;
+
+static StageStatFx sStatFx;
+static u8 sStatFxTexture[STATFX_TEX_BYTES] ATTRIBUTE_ALIGN(32);
+static u16 sStatFxPalette[STATFX_PLTT_BYTES / 2] ATTRIBUTE_ALIGN(32);
+
+static void InitStatFx(void);
+static void FreeStatFx(void);
+
 void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *fields, const BattleStageSpriteCamera *camera)
 {
     int i;
@@ -197,6 +234,8 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     sStageSprites.streamLive = FALSE;
     sStageSprites.streamedMask = 0;
     sStageSprites.lastStreamedMask = 0;
+    sStageSprites.meshMask = 0;
+    sStageSprites.lastMeshMask = 0;
     sStageSprites.wasVisible = FALSE;
     sStageSprites.advanced = FALSE;
     sStageSprites.lighting = NULL;
@@ -204,6 +243,7 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     sStageSprites.hasBlobs = FALSE;
     sStageSprites.bg2Lifted = FALSE;
     BattleStage_ClearGroundHoles();
+    memset(&sStatFx, 0, sizeof(sStatFx));
 
     for (i = 0; i < MAX_MON_SPRITES; i++) {
         sStageSprites.states[i].phase = 0;
@@ -234,6 +274,7 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     PokemonSpriteManager_SetDrawHook(BattleSystem_GetPokemonSpriteManager(battleSys), DrawHook);
     sStageSprites.hooked = TRUE;
     BattleStageStream_Init(BattleSystem_GetPokemonSpriteManager(battleSys));
+    InitStatFx();
 }
 
 void BattleStageSprites_Free(void)
@@ -245,12 +286,15 @@ void BattleStageSprites_Free(void)
     }
 
     BattleStageStream_Free();
+    FreeStatFx();
     FreeBlobs();
     sStageSprites.battleSys = NULL;
     sStageSprites.visible = FALSE;
     sStageSprites.streamLive = FALSE;
     sStageSprites.streamedMask = 0;
     sStageSprites.lastStreamedMask = 0;
+    sStageSprites.meshMask = 0;
+    sStageSprites.lastMeshMask = 0;
     sStageSprites.lighting = NULL;
     sStageSprites.view = NULL;
 }
@@ -270,6 +314,8 @@ void BattleStageSprites_BeginFrame(BOOL visible, const BattleStageFileLighting *
     sStageSprites.advanced = FALSE;
     sStageSprites.lastStreamedMask = sStageSprites.streamedMask;
     sStageSprites.streamedMask = 0;
+    sStageSprites.lastMeshMask = sStageSprites.meshMask;
+    sStageSprites.meshMask = 0;
 
     if (sStageSprites.visible) {
         UpdateTint(dayLighting);
@@ -421,6 +467,165 @@ void BattleStage_ClearGroundHoles(void)
         sStageSprites.holeOpen[i] = FALSE;
         sStageSprites.holeLevel[i] = 0;
     }
+}
+
+static void InitStatFx(void)
+{
+    sStatFx.texKey = NNS_GfdAllocTexVram(STATFX_TEX_BYTES, FALSE, 0);
+
+    if (sStatFx.texKey == NNS_GFD_ALLOC_ERROR_TEXKEY) {
+        return;
+    }
+
+    sStatFx.texAddr = NNS_GfdGetTexKeyAddr(sStatFx.texKey);
+
+    // Like the blobs, in bank B: the menus unmap the banks above it
+    if (sStatFx.texAddr + STATFX_TEX_BYTES > BLOB_TEX_VRAM_END) {
+        NNS_GfdFreeTexVram(sStatFx.texKey);
+        return;
+    }
+
+    sStatFx.plttKey = NNS_GfdAllocPlttVram(STATFX_PLTT_BYTES, FALSE, 0);
+
+    if (sStatFx.plttKey == NNS_GFD_ALLOC_ERROR_PLTTKEY) {
+        NNS_GfdFreeTexVram(sStatFx.texKey);
+        return;
+    }
+
+    sStatFx.plttAddr = NNS_GfdGetPlttKeyAddr(sStatFx.plttKey);
+    sStatFx.hasVram = TRUE;
+}
+
+static void FreeStatFx(void)
+{
+    if (sStatFx.hasVram) {
+        NNS_GfdFreePlttVram(sStatFx.plttKey);
+        NNS_GfdFreeTexVram(sStatFx.texKey);
+        sStatFx.hasVram = FALSE;
+    }
+
+    sStatFx.active = FALSE;
+}
+
+// The top-left 64x64 px of the effect's BG (its tiles and its 512x512 tilemap) as a linear
+// 4bpp texture, and the first 16 colours of its palette (the BG row the 2D effect loads)
+static BOOL BuildStatFxPattern(enum NarcID narcID, u32 tilesMember, u32 paletteMember, u32 tilemapMember, enum HeapID heapID)
+{
+    NNSG2dCharacterData *charData;
+    NNSG2dScreenData *screenData;
+    NNSG2dPaletteData *plttData;
+    void *charFile = Graphics_GetCharData(narcID, tilesMember, TRUE, &charData, heapID);
+    void *screenFile = Graphics_GetScrnData(narcID, tilemapMember, TRUE, &screenData, heapID);
+    void *plttFile = Graphics_GetPlttData(narcID, paletteMember, &plttData, heapID);
+    BOOL ok = charFile != NULL && screenFile != NULL && plttFile != NULL
+        && screenData->szByte >= STATFX_TILES * STATFX_SCREEN_TILES * sizeof(u16)
+        && plttData->szByte >= STATFX_PLTT_BYTES;
+    int tx, ty, px, py;
+
+    if (ok) {
+        const u16 *entries = (const u16 *)screenData->rawData;
+        const u8 *tiles = charData->pRawData;
+
+        memset(sStatFxTexture, 0, sizeof(sStatFxTexture));
+
+        for (ty = 0; ty < STATFX_TILES && ok; ty++) {
+            for (tx = 0; tx < STATFX_TILES; tx++) {
+                u16 entry = entries[ty * STATFX_SCREEN_TILES + tx];
+                u32 tile = entry & 0x3FF;
+                BOOL flipH = (entry >> 10) & 1;
+                BOOL flipV = (entry >> 11) & 1;
+
+                if ((tile + 1) * TILE_SIZE_4BPP > charData->szByte) {
+                    ok = FALSE;
+                    break;
+                }
+
+                for (py = 0; py < 8; py++) {
+                    for (px = 0; px < 8; px++) {
+                        int sx = flipH ? 7 - px : px;
+                        int sy = flipV ? 7 - py : py;
+                        u8 pixel = (tiles[tile * TILE_SIZE_4BPP + sy * 4 + sx / 2] >> ((sx & 1) * 4)) & 0xF;
+                        int x = tx * 8 + px;
+                        int y = ty * 8 + py;
+
+                        sStatFxTexture[(y * STATFX_TEX_SIZE + x) / 2] |= pixel << ((x & 1) * 4);
+                    }
+                }
+            }
+        }
+
+        memcpy(sStatFxPalette, plttData->pRawData, STATFX_PLTT_BYTES);
+    }
+
+    if (charFile != NULL) {
+        Heap_Free(charFile);
+    }
+
+    if (screenFile != NULL) {
+        Heap_Free(screenFile);
+    }
+
+    if (plttFile != NULL) {
+        Heap_Free(plttFile);
+    }
+
+    return ok;
+}
+
+BOOL BattleStage_StartStatEffect(int battler, enum NarcID narcID, u32 tilesMember, u32 paletteMember, u32 tilemapMember, enum HeapID heapID)
+{
+    sStatFx.active = FALSE;
+
+    // Only for a battler the stage draws (as a mesh, or its stream flat); the classic quad is
+    // what the 2D effect's copy matches
+    if (!BATTLE_STAGE_3D
+        || !sStatFx.hasVram
+        || !sStageSprites.hooked
+        || battler < 0
+        || battler >= MAX_MON_SPRITES
+        || (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_CLASSIC_SPRITES)
+        || ((sStageSprites.lastMeshMask | sStageSprites.lastStreamedMask) & (1 << battler)) == 0
+        || !BuildStatFxPattern(narcID, tilesMember, paletteMember, tilemapMember, heapID)) {
+        return FALSE;
+    }
+
+    DC_FlushRange(sStatFxTexture, sizeof(sStatFxTexture));
+    DC_FlushRange(sStatFxPalette, sizeof(sStatFxPalette));
+
+    if (!VramTransfer_Request(NNS_GFD_DST_3D_TEX_VRAM, sStatFx.texAddr, sStatFxTexture, sizeof(sStatFxTexture))
+        || !VramTransfer_Request(NNS_GFD_DST_3D_TEX_PLTT, sStatFx.plttAddr, sStatFxPalette, sizeof(sStatFxPalette))) {
+        return FALSE;
+    }
+
+    sStatFx.active = TRUE;
+    sStatFx.battler = battler;
+    sStatFx.scrollY = 0;
+    sStatFx.alpha = 0;
+    sStatFx.starts++;
+    return TRUE;
+}
+
+void BattleStage_SetStatEffect(int scrollY, int blendAlpha)
+{
+    if (!sStatFx.active) {
+        return;
+    }
+
+    if (blendAlpha < 0) {
+        blendAlpha = 0;
+    } else if (blendAlpha > 16) {
+        blendAlpha = 16;
+    }
+
+    sStatFx.scrollY = scrollY & (STATFX_TEX_SIZE - 1);
+    // EVA of 16 as a polygon alpha of 31
+    sStatFx.alpha = (blendAlpha * 31 + 8) / 16;
+}
+
+void BattleStage_EndStatEffect(void)
+{
+    sStatFx.active = FALSE;
+    sStatFx.alpha = 0;
 }
 
 // Blob shadows are drawn (and the classic shadows are not) this frame
@@ -792,6 +997,51 @@ static void LoadClassicMatrix(const PokemonSpriteTransforms *transforms, const B
     G3_Translate(-((transforms->xCenter + transforms->xPivot) << FX32_SHIFT), -((transforms->yCenter + transforms->yPivot) << FX32_SHIFT), -(transforms->zCenter << FX32_SHIFT));
 }
 
+// The stat change overlay draws on this sprite this frame
+static BOOL StatFxOn(int index, const PokemonSpriteTransforms *transforms)
+{
+    // A translucent mon writes no depth, so the equal test would find nothing to land on
+    return sStatFx.active && sStatFx.battler == index && sStatFx.alpha > 0 && transforms->alpha >= 31;
+}
+
+// The pattern texture, untextured white vertices (no lighting: the pattern isn't tinted, as
+// BG2 isn't) and the depth test set to equal, so only the mon's own pixels take it
+static void BindStatFx(void)
+{
+    G3_TexImageParam(GX_TEXFMT_PLTT16, GX_TEXGEN_TEXCOORD, GX_TEXSIZE_S64, GX_TEXSIZE_T64, GX_TEXREPEAT_ST, GX_TEXFLIP_NONE, GX_TEXPLTTCOLOR0_TRNS, sStatFx.texAddr);
+    G3_TexPlttBase(sStatFx.plttAddr, GX_TEXFMT_PLTT16);
+    G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, STATFX_POLYGON_ID, sStatFx.alpha, GX_POLYGON_ATTR_MISC_DEPTHTEST_DECAL);
+    G3_Color(GX_RGB(31, 31, 31));
+}
+
+// The mesh again, vertex for vertex (so the depths match exactly), with the pattern mapped to
+// the screen pixel each vertex lands on, as BG2 would show it there. Called with the mesh's
+// matrices still loaded; leaves the manager's texture bound.
+static void DrawStatFxMesh(PokemonSpriteManager *monSpriteMan, const int *column, const int *row, const int *rowShift, fx32 centreX, fx32 centreY)
+{
+    fx32 scroll = sStatFx.scrollY * FX32_ONE;
+    int i, j;
+
+    BindStatFx();
+
+    for (j = 0; j < GRID; j++) {
+        G3_Begin(GX_BEGIN_QUAD_STRIP);
+
+        for (i = 0; i < GRID_VERTICES; i++) {
+            // 1/256 px to fx32 px is * 16
+            G3_TexCoord(centreX + (column[i] + rowShift[j]) * 16, centreY + row[j] * 16 + scroll);
+            G3_Vtx((fx16)(column[i] + rowShift[j]), (fx16)row[j], 0);
+            G3_TexCoord(centreX + (column[i] + rowShift[j + 1]) * 16, centreY + row[j + 1] * 16 + scroll);
+            G3_Vtx((fx16)(column[i] + rowShift[j + 1]), (fx16)row[j + 1], 0);
+        }
+
+        G3_End();
+    }
+
+    G3_TexImageParam(monSpriteMan->imageProxy.attr.fmt, GX_TEXGEN_TEXCOORD, monSpriteMan->imageProxy.attr.sizeS, monSpriteMan->imageProxy.attr.sizeT, GX_TEXREPEAT_NONE, GX_TEXFLIP_NONE, monSpriteMan->imageProxy.attr.plttUse, monSpriteMan->charBaseAddr);
+    sStatFx.drawnFrames++;
+}
+
 // The arena hidden: the battler's stream frame as the classic quad would draw it, flat and
 // unlit with the state the manager set, the 128x96 canvas about the classic 80x80 frame's
 // centre as on the mesh. A partial draw takes the same part of the 80x80 window. FALSE when
@@ -809,7 +1059,21 @@ static BOOL DrawFlatStream(PokemonSpriteManager *monSpriteMan, int index, const 
     }
 
     BattleStageStream_CanvasRect(index, transforms, rect, &canvas);
-    NNS_G2dDrawSpriteFast(canvas.x, canvas.y, rect->z, canvas.width, canvas.height, canvas.u0, canvas.v0, canvas.u1, canvas.v1);
+
+    if (StatFxOn(index, transforms)) {
+        // NNS_G2dDrawSpriteFast moves the matrix to the quad: the overlay needs the same one
+        G3_PushMtx();
+        NNS_G2dDrawSpriteFast(canvas.x, canvas.y, rect->z, canvas.width, canvas.height, canvas.u0, canvas.v0, canvas.u1, canvas.v1);
+        G3_PopMtx(1);
+        BindStatFx();
+        NNS_G2dDrawSpriteFast(canvas.x, canvas.y, rect->z, canvas.width, canvas.height,
+            canvas.x, canvas.y + sStatFx.scrollY, canvas.x + canvas.width, canvas.y + canvas.height + sStatFx.scrollY);
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, monSpriteMan->sprites[index].polygonID, transforms->alpha, 0);
+        sStatFx.drawnFrames++;
+    } else {
+        NNS_G2dDrawSpriteFast(canvas.x, canvas.y, rect->z, canvas.width, canvas.height, canvas.u0, canvas.v0, canvas.u1, canvas.v1);
+    }
+
     BattleStageStream_Unbind();
     sStageSprites.streamedMask |= 1 << index;
     return TRUE;
@@ -1007,6 +1271,10 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         G3_End();
     }
 
+    if (StatFxOn(index, transforms)) {
+        DrawStatFxMesh(monSpriteMan, column, row, rowShift, centreX, centreY);
+    }
+
     G3_PopMtx(1);
     G3_MtxMode(GX_MTXMODE_POSITION);
 
@@ -1020,6 +1288,7 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         sStageSprites.streamedMask |= 1 << index;
     }
 
+    sStageSprites.meshMask |= 1 << index;
     sStageSprites.fields->spriteMeshes++;
     return result | MON_SPRITE_DRAW_HOOK_DREW;
 }

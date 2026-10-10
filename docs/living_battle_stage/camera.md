@@ -174,9 +174,28 @@ stage is visible. The crit and faint kicks are skipped when `debugFlags` has `NO
   home (`BattleStage_IsIntroFocusDone`), with a 120-frame safety cap after which the camera
   snaps home. The OBJs of the player's trainer and ball, and the OAM copy of the opponent,
   can't follow the camera.
+- **The player's healthbar waits too.** A trainer battle's script slides the player's
+  healthbar in a fixed 96 frames after it issues the throw and doesn't wait for the throw
+  (`subscript_start_encounter.s`: `ThrowPokeball`, `WaitTime 96`, `HealthbarSlideInDelay`).
+  While the throw waited for the camera, the bar came in before the ball had left the
+  trainer's hand. So the throw waits with `BattleStage_IsIntroThrowReady(battler)`, which
+  counts the frames it waited, and `SlideHealthbarInTask` waits them out
+  (`BattleStage_HoldSendOutHealthbar`) before the bar scrolls in: it comes in after the
+  Pokemon, about as long after the throw as without the stage. Wild battles are unaffected:
+  their `SpriteToOAM` waits, and the script waits on it before it issues the throw.
 - **Trainer OBJs:** while the camera is off home, each trainer OBJ is drawn moved by its
   side's mean anchor offset (translation only), and moved back after the OBJ draw, so the
   game's position checks never see it.
+- **Trainer OBJs over the arena:** the trainers (`BattlerData.unk_18`) and the Poke Balls
+  they throw (`unk_84`) are OBJs at BG priority 2, under the 3D layer on BG0 (priority 1).
+  Classic BG0 is empty around them, but the opaque arena covered them: on the stage no
+  trainer showed during the send-out, the player's own back sprite and throw included, and
+  neither did the defeated trainer coming back. While the stage is visible,
+  `RaiseIntroSprites` (`ov16_0223B140.c`, every draw before the OBJs) lifts them to BG0's
+  priority, which an OBJ wins over a BG: over the arena, still under the text box. The
+  classic order (the mons over the trainers) never shows anyway, as a trainer has left
+  before its Pokemon comes out of the ball. The balls draw from their own task, so they
+  keep the raised priority (`BallRotation_GetSprite`); nothing reads it back.
 - **Opponent healthbars:** an opponent's healthbar that slides in during the focus stays
   hidden, since it would cover the zoomed-in opponent (`BattleStage_HoldIntroHealthbar`). Its
   scroll still runs, because the battle waits on it. Once the camera is home (or the stage is

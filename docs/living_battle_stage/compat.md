@@ -190,6 +190,51 @@ Per-move rewrites and stage upgrades (Earthquake shaking the camera, Dig opening
 ground, and so on) are chunk 6. Contests never touch the stage: keep the
 `BattleAnimSystem_IsContest` guards.
 
+## 3. Stat changes on the live sprite
+
+The stat change effects (`Func_StatChangeUp`, `Down`, `Heal`, `Metal`, in
+`script_funcs_stat_change.c`: the `stat_boost` and `stat_drop` common animations,
+`restore_hp`, Harden, Iron Defense, Metal Claw, Iron Tail, Present) scroll a pattern on BG2
+(BG `BATTLE_BG_BASE`, pl_batt_bg members 0x36-0x3D) and show it only inside an OBJ window
+cut by an `AddPokemonSprite` copy of the mon, blended 12/16 over a second, visible copy. BG0
+is hidden inside the window. The copies are the classic 80x80 frame at the battler's classic
+place. On the stage the mon is a mesh drawing its Gen 5 stream: other frames, a canvas wider
+than 80x80, a back sunk by up to 40 px. The effect then landed on what looked like a frozen
+clone of the mon, with the live sprite's edges showing around it (Arc 1 playtest bug 5:
+Fake Tears on the player's Chimchar).
+
+While the stage draws the battler, the stage draws the effect instead:
+
+- `BattleStage_StartStatEffect` (battle_stage_sprites.c), called when the effect starts,
+  takes it over when the battler was drawn as a mesh or as a flat stream in the last frame
+  (`meshMask`, `streamedMask`) and `CLASSIC_SPRITES` is off. It builds the pattern from the
+  same BG members: the top-left 64x64 px of the tilemap as a 64x64 4bpp texture (the four
+  patterns repeat every 32 or 64 px in the 256 columns the screen shows), the first 16
+  colours of the palette, both queued on the VramTransfer list. Texture and palette VRAM
+  (2 KB and 32 bytes, in bank B) are taken once per battle in `BattleStageSprites_Init`.
+  When it returns FALSE (a classic sprite, no VRAM, no arena) the 2D effect runs as before,
+  which matches a classic quad.
+- The task then skips its BG, window, blend and copies (all three copies are hidden), and
+  every frame passes the BG's Y scroll and EVA to `BattleStage_SetStatEffect`; the end of
+  the task, and the anim system's End and Delete, call `BattleStage_EndStatEffect`. The
+  timing is unchanged.
+- The draw hook draws the mesh a second time, vertex for vertex, after the mon: the pattern
+  texture (repeat on) at the screen pixel each vertex lands on plus the scroll, as BG2
+  would show it there, unlit white, polygon alpha EVA * 31 / 16 (12/16 over 4/16 of the mon
+  is 23/31), polygon ID 60, and the depth test set to equal
+  (`GX_POLYGON_ATTR_MISC_DEPTHTEST_DECAL`). Identical vertices give identical depths, so the
+  pattern lands on exactly the pixels the mon drew: its current stream frame, its scale, its
+  sink and breathing, nothing around it. A flat stream (arena hidden, texture VRAM kept)
+  draws its quad twice the same way.
+- A translucent mon writes no depth, so the overlay skips a mon whose alpha is under 31.
+  The pattern is not lit or tinted, as BG2 isn't. Particles in front of the mon (Harden's)
+  stay visible, where the 2D effect hid BG0 inside the window.
+
+`sStatFx` (battle_stage_sprites.c, in the xMAP) counts `starts` (effects the stage drew) and
+`drawnFrames` (overlay passes) per battle, for the harness. move_audit.md still lists these
+moves with the window and OAM copy mechanisms, since that is what their scripts do; the
+`stat change` notes there describe the 2D path only.
+
 ## Critic checks (new scenario `move_audit`, plus changes to others)
 
 - The critic reads the compat fields when the xMAP says sBattleStage is at least 120 bytes.

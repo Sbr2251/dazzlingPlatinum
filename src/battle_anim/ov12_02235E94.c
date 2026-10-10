@@ -2340,6 +2340,11 @@ void ov12_02237E40(BallRotation *param0, int param1)
     ManagedSprite_SetExplicitPriority(param0->unk_30, param1);
 }
 
+ManagedSprite *BallRotation_GetSprite(BallRotation *ballRotation)
+{
+    return ballRotation->unk_30;
+}
+
 void ov12_02237E4C(BallRotation *param0, int param1)
 {
     param0->unk_DC = param1;

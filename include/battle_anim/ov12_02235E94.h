@@ -39,6 +39,8 @@ void ov12_02237E24(BallRotation *param0, u16 param1);
 void ov12_02237E30(BallRotation *param0, BOOL param1);
 void ov12_02237E34(BallRotation *param0, int param1);
 void ov12_02237E40(BallRotation *param0, int param1);
+// The thrown ball's sprite (the battle raises it over the 3D stage, see ov16_0223B140.c)
+ManagedSprite *BallRotation_GetSprite(BallRotation *ballRotation);
 void ov12_02237E4C(BallRotation *param0, int param1);
 
 #endif // POKEPLATINUM_OV12_02235E94_H

@@ -94,6 +94,17 @@ BOOL BattleStage_IsSpriteStreamed(int battler);
 // to frame A. FALSE, and tiles untouched, when the battler isn't streamed.
 BOOL BattleStage_GetStreamFrameTiles(int battler, u8 *tiles);
 
+// The stat change effects (Func_StatChangeUp/Down/Heal/Metal; compat.md, "Stat changes"). The
+// 2D effect shows its pattern (BG2) inside an OBJ window cut by a static copy of the mon at its
+// classic place, which no longer lines up with the stage sprite. StartStatEffect takes the
+// effect over for a battler the stage draws: it loads the pattern from the effect's BG
+// members and returns TRUE; the caller then skips its BG, window, blend and copies, and every
+// frame passes the BG's Y scroll and the blend's EVA (0..16, over 16 - EVA of the mon), until
+// EndStatEffect. FALSE (the stage isn't drawing that battler): keep the 2D effect.
+BOOL BattleStage_StartStatEffect(int battler, enum NarcID narcID, u32 tilesMember, u32 paletteMember, u32 tilemapMember, enum HeapID heapID);
+void BattleStage_SetStatEffect(int scrollY, int blendAlpha);
+void BattleStage_EndStatEffect(void);
+
 // The stage camera (chunk 4, battle_stage_camera.c; docs/living_battle_stage/camera.md). At
 // its home pose nothing changes; off home the arena, the stage sprites and the particles
 // follow it. Nothing moves while the stage isn't visible.
@@ -147,6 +158,12 @@ void BattleStage_EndIntroFocus(void);
 // A send-out (a trainer's throw, an opponent turning into an OBJ) waits until this is TRUE:
 // no focus holds or eases home. Call it once per frame while waiting; it snaps after a cap.
 BOOL BattleStage_IsIntroFocusDone(void);
+// The player's trainer throw (ov16_0225D360) waits with this rather than IsIntroFocusDone: it
+// also counts the frames the throw waited, which the battler's healthbar slide-in then waits
+// out (HoldSendOutHealthbar, TRUE: wait a frame), so the bar still comes in after the
+// Pokemon, as long after the throw as without the stage.
+BOOL BattleStage_IsIntroThrowReady(int battler);
+BOOL BattleStage_HoldSendOutHealthbar(int battler);
 // An opponent's healthbar sliding in during the battle-start focus stays hidden (it would
 // cover the zoomed-in opponent) and slides in once the camera is home. TRUE: hold it hidden.
 BOOL BattleStage_HoldIntroHealthbar(int battler);

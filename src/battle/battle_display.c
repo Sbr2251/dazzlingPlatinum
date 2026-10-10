@@ -2623,7 +2623,7 @@ static void ov16_0225FD5C(SysTask *param0, void *param1)
     switch (v0->unk_0A) {
     case 0:
         // The player's trainer is a 2D OBJ: it throws once the stage camera is home
-        if (v0->unk_0B == 0 && !BattleStage_IsIntroFocusDone()) {
+        if (v0->unk_0B == 0 && !BattleStage_IsIntroThrowReady(v0->unk_09)) {
             break;
         }
 
@@ -2921,6 +2921,11 @@ static void SlideHealthbarInTask(SysTask *task, void *data)
     case SLIDE_HEALTHBAR_IN_STATE_ENABLE:
         if (healthbar->unk_4D > 0) {
             healthbar->unk_4D--;
+            break;
+        }
+
+        // The player's throw waited for the stage camera: the bar still comes in after the mon
+        if (BattleStage_HoldSendOutHealthbar(healthbar->battler)) {
             break;
         }
 
