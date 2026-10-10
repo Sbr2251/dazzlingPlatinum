@@ -76,6 +76,12 @@
         "How’s it going, Champ-to-be?\r",
         "That’s what I said to a really\n",
         "impatient boy earlier, too.\r",
+        "Roark's rigged this Gym like a real\n",
+        "quarry. Rock chutes everywhere!\r",
+        "Get a Machop to heave on a winch,\n",
+        "and the rubble slides away...\r",
+        "...and piles up somewhere else!\n",
+        "So watch where it lands.\r",
         "The Gym Leader is a user of\n",
         "Rock-type Pokémon.\r",
         "Well, listen. Rock-type Pokémon\n",
@@ -121,6 +127,76 @@
         "Certified Trainers:\n",
         "{STRVAR_1 3, 0, 0}\f",
         "{STRVAR_1 3, 1, 0}"
+      ]
+    },
+    {
+      "id": "OreburghGym_Text_WinchPrompt",
+      "en_US": [
+        "A Machop is gripping a winch rope.\n",
+        "The rope runs up to a rock chute.\r",
+        "Have Machop heave on the winch?"
+      ]
+    },
+    {
+      "id": "OreburghGym_Text_SlideLowerToEast",
+      "en_US": [
+        "Rocks rumbled down the chute!\r",
+        "The lower stairs are clear now...\n",
+        "but the east path is blocked!"
+      ]
+    },
+    {
+      "id": "OreburghGym_Text_SlideEastToLower",
+      "en_US": [
+        "Rocks rumbled down the chute!\r",
+        "The east path is clear now...\n",
+        "but the lower stairs are blocked!"
+      ]
+    },
+    {
+      "id": "OreburghGym_Text_SlideUpperToLower",
+      "en_US": [
+        "Rocks rumbled down the chute!\r",
+        "The upper stairs are clear now...\n",
+        "but the lower stairs are blocked!"
+      ]
+    },
+    {
+      "id": "OreburghGym_Text_SlideLowerToUpper",
+      "en_US": [
+        "Rocks rumbled down the chute!\r",
+        "The lower stairs are clear now...\n",
+        "but the upper stairs are blocked!"
+      ]
+    },
+    {
+      "id": "OreburghGym_Text_WinchJammed",
+      "en_US": [
+        "Machop heaved with all its might,\n",
+        "but the rubble won't budge.\r",
+        "Something must be piled up in\n",
+        "the way below."
+      ]
+    },
+    {
+      "id": "OreburghGym_Text_WinchIdle",
+      "en_US": [
+        "Machop: Maaachop!\r",
+        "It's flexing proudly next to an\n",
+        "empty rock chute."
+      ]
+    },
+    {
+      "id": "OreburghGym_Text_Rubble",
+      "en_US": [
+        "A heap of fallen rock blocks\n",
+        "the way. It won't budge by hand."
+      ]
+    },
+    {
+      "id": "OreburghGym_Text_LooseRock",
+      "en_US": [
+        "Loose rock from the quarry walls."
       ]
     }
   ]
