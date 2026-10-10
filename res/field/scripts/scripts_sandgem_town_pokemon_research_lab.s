@@ -171,6 +171,13 @@ _01AE:
     BufferRivalName 0
     Message SandgemTownPokemonResearchLab_Text_Arc1RivalGotPokedex
     CloseMessage
+    // Garius spots the third starter's Poke Ball in Rowan's briefcase (critic #6)
+    ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1FaceNorth
+    WaitMovement
+    BufferRivalName 0
+    Message SandgemTownPokemonResearchLab_Text_Arc1GariusStillOneInThere
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanThatOneStays
+    CloseMessage
     ApplyMovement LOCALID_ARC1_GARIUS, SandgemTownPokemonResearchLab_Movement_Arc1GariusExcited
     WaitMovement
     BufferRivalName 0

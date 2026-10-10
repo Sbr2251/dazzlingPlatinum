@@ -751,6 +751,20 @@
         "{STRVAR_1 3, 0, 0}: Gym! Badges!\n",
         "Let's GO!"
       ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1GariusStillOneInThere",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Hey, there's still\n",
+        "one in there!\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanThatOneStays",
+      "en_US": [
+        "Rowan: That one stays with me.\r",
+        "Until I know who it's meant for.\r"
+      ]
     }
   ]
 }
