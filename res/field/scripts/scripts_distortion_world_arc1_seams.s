@@ -12,7 +12,7 @@
 
 #define LOCALID_CYRUS_ENTRY     0x80
 #define LOCALID_BARRY_ENTRY     0x81
-#define LOCALID_MAWILE_GLIMPSE  0x82
+#define LOCALID_MAWILE_GLIMPSE  0x82 // unused since the fork shows GIRATINA's shadow instead (overlay entry kept)
 #define LOCALID_MAWILE          0x83
 #define LOCALID_BRIEFCASE       0x84
 #define LOCALID_CYRUS_CASE      0x85
@@ -117,7 +117,9 @@ DistortionWorldArc1Seams_SeamHintLocked:
     ReleaseAll
     End
 
-// Step hook at the fork on the wall (x=11, z=19, any row): Cyrus calls out, and the Mawile shows itself on the platform below.
+// Step hook at the fork on the wall (x=11, z=19, any row): Cyrus calls out, then GIRATINA's shadow (the stock DW
+// fly-by model, ov9 fly-by entry 3) passes once through the void below the briefcase platform. Only the player
+// notices it: the narration is theirs, and nobody comments. The Mawile stays hidden until it lunges at the case.
 DistortionWorldArc1Seams_Fork:
     GoToIfGe VAR_ARC1_DW_HINTS, 2, DistortionWorldArc1Seams_End
     LockAll
@@ -126,19 +128,13 @@ DistortionWorldArc1Seams_Fork:
     WaitABXPadPress
     CloseMessage
     WaitTime 10, VAR_RESULT
-    PlayFanfare SEQ_SE_PL_SYUWA
-    ScrCmd_311 LOCALID_MAWILE_GLIMPSE
-    WaitTime 30, VAR_RESULT
-    PlayCry SPECIES_MAWILE
-    ApplyMovement LOCALID_MAWILE_GLIMPSE, DistortionWorldArc1Seams_Movement_MawileGlimpse
-    WaitMovement
-    WaitCry
+    ScrCmd_321 3
+    WaitTime 42, VAR_RESULT
+    ScrCmd_322
+    WaitTime 8, VAR_RESULT
     Message DistortionWorldArc1Seams_Text_SomethingMovedBelow
     WaitABXPadPress
     CloseMessage
-    PlayFanfare SEQ_SE_PL_SYUWA
-    ScrCmd_312 LOCALID_MAWILE_GLIMPSE
-    WaitTime 15, VAR_RESULT
     ReleaseAll
     End
 
@@ -354,14 +350,6 @@ DistortionWorldArc1Seams_Movement_BarryDazed:
     Delay8
     FaceWest
     EmoteExclamationMark
-    EndMovement
-
-    .balign 4, 0
-DistortionWorldArc1Seams_Movement_MawileGlimpse:
-    FaceWest
-    Delay16
-    FaceNorth
-    Delay16
     EndMovement
 
     .balign 4, 0
