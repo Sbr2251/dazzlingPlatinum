@@ -1,5 +1,10 @@
 # Arc 1 story rewrite, part 1: contract
 
+> **SUPERSEDED. Kept for history only.** This is the part 1 contract for branch `arc1-lake-verity-story`.
+> `docs/arc1/revision/spec.md` replaced it, and `docs/arc1/part2/spec.md` covers part 2. Workstream ownership
+> and story-state values here are out of date.
+
+
 Branch `arc1-lake-verity-story` (off `main`). This part covers a new game up to Cyrus and Barry leaving
 Lake Verity. Everything after that is "to be continued" on Route 201.
 
