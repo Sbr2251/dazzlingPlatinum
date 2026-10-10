@@ -436,6 +436,116 @@
             "length": 1,
             "var": "VAR_ARC1_PROGRESS",
             "value": 4
+        },
+        {
+            "script": 20,
+            "x": 47,
+            "z": 46,
+            "y": 0,
+            "width": 3,
+            "length": 1,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 3
+        },
+        {
+            "script": 20,
+            "x": 47,
+            "z": 44,
+            "y": 0,
+            "width": 1,
+            "length": 2,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 3
+        },
+        {
+            "script": 20,
+            "x": 50,
+            "z": 45,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 3
+        },
+        {
+            "script": 20,
+            "x": 51,
+            "z": 41,
+            "y": 0,
+            "width": 1,
+            "length": 4,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 3
+        },
+        {
+            "script": 20,
+            "x": 50,
+            "z": 40,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_ARC1_PROGRESS",
+            "value": 3
+        },
+        {
+            "script": 21,
+            "x": 46,
+            "z": 54,
+            "y": 0,
+            "width": 2,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_3",
+            "value": 1
+        },
+        {
+            "script": 21,
+            "x": 46,
+            "z": 54,
+            "y": 0,
+            "width": 2,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_3",
+            "value": 2
+        },
+        {
+            "script": 22,
+            "x": 32,
+            "z": 33,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_3",
+            "value": 2
+        },
+        {
+            "script": 23,
+            "x": 45,
+            "z": 36,
+            "y": 0,
+            "width": 1,
+            "length": 2,
+            "var": "VAR_MAP_LOCAL_3",
+            "value": 1
+        },
+        {
+            "script": 23,
+            "x": 45,
+            "z": 36,
+            "y": 0,
+            "width": 1,
+            "length": 2,
+            "var": "VAR_MAP_LOCAL_3",
+            "value": 3
+        },
+        {
+            "script": 24,
+            "x": 23,
+            "z": 37,
+            "y": 0,
+            "width": 2,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_3",
+            "value": 2
         }
     ]
 }
