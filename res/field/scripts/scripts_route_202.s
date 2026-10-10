@@ -108,16 +108,11 @@ _0164:
     GoTo _0174
 
 _0174:
-    // Arc 1 scene 10: Ruth's trimmed catching lesson. No Parcel gate and no gender branches;
-    // the stock text paths below (_019F.._0262, _027C..) are left in place, unreachable.
+    // Arc 1 scene 10: no catching tutorial (everyone has played Platinum). Ruth stops beside the
+    // player, hands over 5 Poke Balls and the Town Map, and leaves. No Parcel gate and no gender
+    // branches; the stock text paths below (_019F.._0262, _027C..) are left in place, unreachable.
     SetCounterpartBGM
-    ApplyMovement 3, _0488
-    ApplyMovement LOCALID_PLAYER, _04BC
-    WaitMovement
-    StartCatchingTutorial
-    ApplyMovement 3, _0490
-    WaitMovement
-    Message Route202_Text_Arc1RuthWeakenItFirst
+    Message Route202_Text_Arc1RuthTakeThese
     SetVar VAR_0x8004, ITEM_POKE_BALL
     SetVar VAR_0x8005, 5
     GiveItemQuantity
@@ -623,18 +618,19 @@ Route202_Arc1RuthTalk:
     End
 
     .balign 4, 0
-// Ruth is at (177,z), the player at (178,z). Row 830 is solid west of x180 and rows 832-833 are
-// open only at x184-189, so she goes round the player and back south along x184 toward Sandgem.
+// Ruth is at (179,z), the player at (180,z) on the coord tile. Row 830 is solid west of x180 and
+// rows 832-833 are open only at x184-189, so she goes round the player and back south along x184
+// toward Sandgem.
 Route202_Movement_Arc1RuthExitSouth:
     WalkNormalSouth
-    WalkNormalEast 7
+    WalkNormalEast 5
     WalkNormalSouth 9
     EndMovement
 
     .balign 4, 0
 Route202_Movement_Arc1RuthExitViaNorth:
     WalkNormalNorth
-    WalkNormalEast 7
+    WalkNormalEast 5
     WalkNormalSouth 9
     EndMovement
 
