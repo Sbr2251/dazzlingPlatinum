@@ -1978,6 +1978,8 @@ JubilifeCity_Arc1Rally:
     RemoveObject LOCALID_ARC1_GARIUS
     FadeToDefaultMusic
     SetVar VAR_ARC1_PROGRESS, 13 /* rally done */
+    // Looker and the crate grunt (round 3 tail) arrive for the rest of this visit
+    Call JubilifeCity_Arc1CrateSetUpAfterRally
     ReleaseAll
     End
 
@@ -2259,6 +2261,16 @@ JubilifeCity_Arc1CrateOnTransition:
 JubilifeCity_Arc1CrateOnTransitionEnd:
     Return
 
+// End of the rally (13 is set in-session, so OnTransition hasn't placed them yet): both are off screen here
+JubilifeCity_Arc1CrateSetUpAfterRally:
+    ClearFlag FLAG_UNK_0x091D
+    ClearFlag FLAG_UNK_0x091E
+    AddObject LOCALID_ARC1_CRATE_LOOKER
+    AddObject LOCALID_ARC1_CRATE_GRUNT
+    AddObject LOCALID_ARC1_CRATE
+    SetVar VAR_MAP_LOCAL_4, 1
+    Return
+
 // Coord event at x186, z757-762 (every way to the east exit), armed once per visit: Looker calls the player over
 JubilifeCity_Arc1CrateTriggerPsst:
     LockAll
@@ -2320,6 +2332,9 @@ JubilifeCity_Arc1CrateAccept:
     CloseMessage
     ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_FaceNorth
     WaitMovement
+    // Off screen: the wandering Ace Trainer stands clear of the grunt's path (x175) for the rest of this visit
+    SetPosition JUBILIFE_CITY_ACE_TRAINER_M_1, 167, 0, 759, DIR_EAST
+    SetMovementType JUBILIFE_CITY_ACE_TRAINER_M_1, MOVEMENT_TYPE_LOOK_AROUND
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
     AddFreeCamera VAR_0x8004, VAR_0x8005
     ApplyFreeCameraMovement JubilifeCity_Arc1CrateMovement_CameraToCrossing
@@ -2578,10 +2593,39 @@ JubilifeCity_Arc1CrateAdvanceDone:
 JubilifeCity_Arc1CrateCaught:
     LockAll
     GoToIfEq VAR_MAP_LOCAL_6, 4, JubilifeCity_Arc1CrateCaughtByReceiver
+    // He turns to face the player (the sight check also leaves the offsets and their signs behind)
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    Call JubilifeCity_Arc1CrateStopParams
+    SetVar VAR_0x8008, DIR_NORTH
+    Call JubilifeCity_Arc1CrateCheckSight
+    Call JubilifeCity_Arc1CrateFacePlayer
     ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_Notice
     WaitMovement
     GoTo JubilifeCity_Arc1CrateCaughtMessage
     End
+
+JubilifeCity_Arc1CrateFacePlayer:
+    GoToIfLt VAR_0x8009, VAR_0x800A, JubilifeCity_Arc1CrateFacePlayerZ
+    GoToIfEq VAR_MAP_LOCAL_8, 0, JubilifeCity_Arc1CrateFacePlayerWest
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceEast
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateFacePlayerWest:
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceWest
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateFacePlayerZ:
+    GoToIfEq VAR_MAP_LOCAL_9, 0, JubilifeCity_Arc1CrateFacePlayerNorth
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceSouth
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateFacePlayerNorth:
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceNorth
+    WaitMovement
+    Return
 
 JubilifeCity_Arc1CrateCaughtByReceiver:
     ApplyMovement LOCALID_ARC1_CRATE_RECEIVER, JubilifeCity_Arc1CrateMovement_Notice
