@@ -134,7 +134,7 @@ OreburghMineSideTunnel_Calmed:
     CloseMessage
     FadeScreenOut
     WaitFadeScreen
-    Warp MAP_HEADER_OREBURGH_MINE_B2F, 0, 2, 18, DIR_SOUTH
+    Warp MAP_HEADER_OREBURGH_MINE_B2F, 0, 3, 18, DIR_EAST
     FadeScreenIn
     WaitFadeScreen
     ReleaseAll
