@@ -765,6 +765,32 @@
         "Rowan: That one stays with me.\r",
         "Until I know who it's meant for.\r"
       ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanAskedHimHere",
+      "en_US": [
+        "Rowan: I asked him to come here.\r",
+        "It seems he had other plans.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RuthCameFromThere",
+      "en_US": [
+        "Ruth: He said he came FROM there,\n",
+        "Professor.\r",
+        "Like he'd been living in it.\r"
+      ]
+    },
+    {
+      "id": "SandgemTownPokemonResearchLab_Text_Arc1RowanNobody",
+      "en_US": [
+        "Rowan: Then he was confused.\r",
+        "A few minutes in that place nearly\n",
+        "swallowed these two.\r",
+        "Nobody comes back from longer\n",
+        "than that.\r",
+        "...Nobody.\r"
+      ]
     }
   ]
 }

@@ -211,6 +211,10 @@ _01AE:
     WaitMovement
     BufferRivalName 0
     Message SandgemTownPokemonResearchLab_Text_Arc1GariusFortuneCookie
+    // Rowan invited him on the terrace; Ruth heard him say he came from that world (critic #2, lab half)
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanAskedHimHere
+    Message SandgemTownPokemonResearchLab_Text_Arc1RuthCameFromThere
+    Message SandgemTownPokemonResearchLab_Text_Arc1RowanNobody
     Message SandgemTownPokemonResearchLab_Text_Arc1RowanThankHim
     Message SandgemTownPokemonResearchLab_Text_Arc1RowanNowGo
     CloseMessage
