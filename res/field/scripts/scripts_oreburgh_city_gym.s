@@ -4,9 +4,10 @@
 
 // Rock-slide puzzle (Arc 1 round 3). Two Machop winch crews each work a rock chute that slides its rubble
 // between two gates: chute 1 (west winch, VAR_MAP_LOCAL_0) between the lower stairs C and the east path
-// E (9,12); chute 2 (east winch, VAR_MAP_LOCAL_1) between the upper stairs M (5,9) and C. C is a pile of two
-// boulders on the stair tiles (5,13) + (5,14): the stair foot (5,15) is hidden behind the railing, and one
-// boulder on a slope tile would only block from one side (object collision ignores a 1-tile height gap).
+// E (9,12); chute 2 (east winch, VAR_MAP_LOCAL_1) between the upper stairs M (5,9) and C. C is a pile of three
+// boulders down the lower stairs, (5,12) top step + (5,13) + (5,14): the stair foot (5,15) is hidden behind the
+// railing, and object collision ignores a height gap of 16 units or more, so a boulder on a slope tile only
+// blocks from one side. (5,12) blocks from above, (5,14) from below, (5,13) is for looks.
 // Value 0/1 = which gate the pile is on, 2 = cleared. Map-local flags 0x30-0x33 hide the four piles; map-local
 // flags and vars are cleared on every map change, so OreburghGym_Init re-arms the puzzle on entry.
 #define FLAG_GYM_RUBBLE_1C FLAG_UNK_0x0030
@@ -176,8 +177,9 @@ OreburghGym_ClearRubble:
 
 OreburghGym_RemoveRubble1C:
     SetFlag FLAG_GYM_RUBBLE_1C
-    RemoveObject LOCALID_RUBBLE_1C_TOP
-    RemoveObject LOCALID_RUBBLE_1C_FOOT
+    RemoveObject LOCALID_RUBBLE_1C_UPPER
+    RemoveObject LOCALID_RUBBLE_1C_MID
+    RemoveObject LOCALID_RUBBLE_1C_LOWER
     Return
 
 OreburghGym_RemoveRubble1E:
@@ -192,8 +194,9 @@ OreburghGym_RemoveRubble2M:
 
 OreburghGym_RemoveRubble2C:
     SetFlag FLAG_GYM_RUBBLE_2C
-    RemoveObject LOCALID_RUBBLE_2C_TOP
-    RemoveObject LOCALID_RUBBLE_2C_FOOT
+    RemoveObject LOCALID_RUBBLE_2C_UPPER
+    RemoveObject LOCALID_RUBBLE_2C_MID
+    RemoveObject LOCALID_RUBBLE_2C_LOWER
     Return
 
 // West winch (west ledge, by the entrance): chute 1, C <-> E
@@ -209,8 +212,9 @@ OreburghGym_WinchWest:
     Call OreburghGym_WinchHeave
     GoToIfEq VAR_GYM_CHUTE_1, 1, OreburghGym_Chute1EToC
     // C -> E
-    ApplyMovement LOCALID_RUBBLE_1C_TOP, OreburghGym_Movement_RubbleLoosen
-    ApplyMovement LOCALID_RUBBLE_1C_FOOT, OreburghGym_Movement_RubbleLoosen
+    ApplyMovement LOCALID_RUBBLE_1C_UPPER, OreburghGym_Movement_RubbleLoosen
+    ApplyMovement LOCALID_RUBBLE_1C_MID, OreburghGym_Movement_RubbleLoosen
+    ApplyMovement LOCALID_RUBBLE_1C_LOWER, OreburghGym_Movement_RubbleLoosen
     WaitMovement
     Call OreburghGym_RemoveRubble1C
     Call OreburghGym_RockfallFx
@@ -231,10 +235,12 @@ OreburghGym_Chute1EToC:
     Call OreburghGym_RemoveRubble1E
     Call OreburghGym_RockfallFx
     ClearFlag FLAG_GYM_RUBBLE_1C
-    AddObject LOCALID_RUBBLE_1C_TOP
-    AddObject LOCALID_RUBBLE_1C_FOOT
-    ApplyMovement LOCALID_RUBBLE_1C_TOP, OreburghGym_Movement_RubbleLand
-    ApplyMovement LOCALID_RUBBLE_1C_FOOT, OreburghGym_Movement_RubbleLand
+    AddObject LOCALID_RUBBLE_1C_UPPER
+    AddObject LOCALID_RUBBLE_1C_MID
+    AddObject LOCALID_RUBBLE_1C_LOWER
+    ApplyMovement LOCALID_RUBBLE_1C_UPPER, OreburghGym_Movement_RubbleLand
+    ApplyMovement LOCALID_RUBBLE_1C_MID, OreburghGym_Movement_RubbleLand
+    ApplyMovement LOCALID_RUBBLE_1C_LOWER, OreburghGym_Movement_RubbleLand
     WaitMovement
     SetVar VAR_GYM_CHUTE_1, 0
     Message OreburghGym_Text_SlideEastToLower
@@ -260,10 +266,12 @@ OreburghGym_WinchEast:
     Call OreburghGym_RemoveRubble2M
     Call OreburghGym_RockfallFx
     ClearFlag FLAG_GYM_RUBBLE_2C
-    AddObject LOCALID_RUBBLE_2C_TOP
-    AddObject LOCALID_RUBBLE_2C_FOOT
-    ApplyMovement LOCALID_RUBBLE_2C_TOP, OreburghGym_Movement_RubbleLand
-    ApplyMovement LOCALID_RUBBLE_2C_FOOT, OreburghGym_Movement_RubbleLand
+    AddObject LOCALID_RUBBLE_2C_UPPER
+    AddObject LOCALID_RUBBLE_2C_MID
+    AddObject LOCALID_RUBBLE_2C_LOWER
+    ApplyMovement LOCALID_RUBBLE_2C_UPPER, OreburghGym_Movement_RubbleLand
+    ApplyMovement LOCALID_RUBBLE_2C_MID, OreburghGym_Movement_RubbleLand
+    ApplyMovement LOCALID_RUBBLE_2C_LOWER, OreburghGym_Movement_RubbleLand
     WaitMovement
     SetVar VAR_GYM_CHUTE_2, 1
     Message OreburghGym_Text_SlideUpperToLower
@@ -271,8 +279,9 @@ OreburghGym_WinchEast:
     End
 
 OreburghGym_Chute2CToM:
-    ApplyMovement LOCALID_RUBBLE_2C_TOP, OreburghGym_Movement_RubbleLoosen
-    ApplyMovement LOCALID_RUBBLE_2C_FOOT, OreburghGym_Movement_RubbleLoosen
+    ApplyMovement LOCALID_RUBBLE_2C_UPPER, OreburghGym_Movement_RubbleLoosen
+    ApplyMovement LOCALID_RUBBLE_2C_MID, OreburghGym_Movement_RubbleLoosen
+    ApplyMovement LOCALID_RUBBLE_2C_LOWER, OreburghGym_Movement_RubbleLoosen
     WaitMovement
     Call OreburghGym_RemoveRubble2C
     Call OreburghGym_RockfallFx
