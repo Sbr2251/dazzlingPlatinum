@@ -186,8 +186,20 @@ _0284:
 _02B2:
     WaitTime 1, VAR_RESULT
     GoToIfEq VAR_0x8005, 0, _02B2
+    GetCurrentMapID VAR_0x8004
+    CallIfEq VAR_0x8004, MAP_HEADER_ROUTE_204_NORTH, FieldMoves_Arc2FirstResonance
     GoTo _066D
     End
+
+// 2.8 hand-off to s-route204: smashing Ruth's boulder on Route 204 North while VAR_ARC2_PROGRESS is 17 (Resonator
+// just given) sets 18, so the scene can go on to Ruth's "It works!".
+FieldMoves_Arc2FirstResonance:
+    CallIfEq VAR_ARC2_PROGRESS, 17, FieldMoves_Arc2RockSmashed
+    Return
+
+FieldMoves_Arc2RockSmashed:
+    SetVar VAR_ARC2_PROGRESS, 18
+    Return
 
 FieldMoves_UseRockSmashFromMenu:
     LockAll
