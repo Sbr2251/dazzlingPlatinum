@@ -75,8 +75,8 @@ TotemEncounter:
     WaitTime 122
     HealthbarSlideInDelay BTLSCR_ENEMY_SLOT_1
     Wait
-    // A wild {0} appeared!
-    PrintGlobalMessage pl_msg_00000368_01246, TAG_NICKNAME, BTLSCR_ENEMY_SLOT_1
+    // Totem {0} appeared! (not "A wild {0} appeared!": a Totem is never just a wild Pokemon)
+    PrintGlobalMessage BattleStrings_Text_TotemAppeared, TAG_NICKNAME, BTLSCR_ENEMY_SLOT_1
     Wait
     WaitButtonABTime 30
     // Go! {0}!

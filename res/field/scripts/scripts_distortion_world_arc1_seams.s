@@ -95,6 +95,7 @@ DistortionWorldArc1Seams_EntryScene:
     WaitMovement
     BufferRivalName 0
     Message DistortionWorldArc1Seams_Text_BarryIMeantToDoThat
+    WaitABXPadPress
     Message DistortionWorldArc1Seams_Text_CyrusTheVoidSendsItBack
     WaitABXPadPress
     CloseMessage

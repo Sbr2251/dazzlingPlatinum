@@ -1,6 +1,7 @@
 # Arc 2 cutaways: caller contract (s-cutaways)
 
-Three self-contained scenes the player watches but is not in: 2.4, 2.13 (the "violet room") and 2.19 (Kahn's cliff).
+Four self-contained scenes the player watches but is not in: 2.4, 2.13 (the "violet room"), 2.19 (Kahn's cliff) and
+the final vein cutaway before END OF ARC 2 (added in the polish round, critic item 4).
 The caller is identified by `VAR_ARC2_PROGRESS` alone. There are no temp vars and no flags to pass.
 
 | Scene | Caller (sets, then warps) | Entry warp | Cutaway sets | Return (the cutaway warps back and fades in) |
@@ -8,6 +9,7 @@ The caller is identified by `VAR_ARC2_PROGRESS` alone. There are no temp vars an
 | 2.4 Kahn, Indra | s-jubilife, after Cyrus battle 1: **5** | `Warp MAP_HEADER_GALACTIC_HQ_CONTROL_ROOM, 0, 8, 9, DIR_NORTH` | **9** | `MAP_HEADER_JUBILIFE_CITY` 168,777 `DIR_SOUTH` (outside the Trainers' School door) |
 | 2.13 Saros, Kahn | s-eterna, after the Haven: **35** | `Warp MAP_HEADER_GALACTIC_HQ_CONTROL_ROOM, 0, 8, 9, DIR_NORTH` | **39** | `MAP_HEADER_ETERNA_CITY` 305,520 `DIR_SOUTH` (below the Haven door, 305,519) |
 | 2.19 Kahn's cliff | s-route214, at Route 214 after rift-b's Skarmory calm: **63** | `Warp MAP_HEADER_ROUTE_222, 0, 742, 796, DIR_NORTH` | **69** | `MAP_HEADER_ROUTE_214` 726,665 `DIR_SOUTH` (the `DW_ROUTE_214` exit tile) |
+| Final: Kahn, Saros on the vein | s-hearthome, end of the Route 209 aftermath (after Garius leaves): **98** | `Warp MAP_HEADER_GALACTIC_HQ_CONTROL_ROOM, 0, 8, 9, DIR_NORTH` | **99** | `MAP_HEADER_ROUTE_209` 568,681 `DIR_SOUTH` (outside the Lost Tower door); the cutaway's script then shows END OF ARC 2 / To be continued there |
 
 ## What the caller does
 
@@ -39,7 +41,10 @@ The caller is identified by `VAR_ARC2_PROGRESS` alone. There are no temp vars an
   - OnTransition at 5 or 35 shows Kahn plus Indra (5) or Saros (35), using map-local hide flags `0x30-0x32`.
   - It hides stock Saturn, Charon and the lake trio by setting `FLAG_UNK_0x0236`/`0x0237`/`0x029E`. Their old values are saved in `VAR_MAP_LOCAL_5-7` and put back before the return warp, so the stock Galactic HQ is untouched (tested).
   - At any other value the room is stock.
-  - The scenes run from an on-frame table: 5 → entry 16, 35 → entry 17.
+  - The scenes run from an on-frame table: 5 → entry 16, 35 → entry 17, 98 → entry 18 (the final cutaway; same cast
+    and staging as 2.13, so OnTransition at 98 reuses the 2.13 setup). After its return warp the final cutaway's
+    script stays alive on Route 209: it fades in and prints END OF ARC 2 and To be continued (messages in the control
+    room bank), then releases the player. Route 209 at 99 shows no Arc 2 cast.
 - **Route 222** (`scripts_route_222.s`):
   - At 63 only, Kahn stands at the cliff edge (742,794, facing the sea; map-local flag `0x30`). The player is the hidden camera anchor at 742,796.
   - Scene: on-frame entry 9. Player hiding: OnResume, entry 10.

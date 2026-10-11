@@ -89,7 +89,9 @@ LostTower1F_Fantina:
     LockAll
     FacePlayer
     Message LostTower1F_Text_FantinaNotYet
+    WaitABXPadPress
     Message LostTower1F_Text_FantinaTheyCry
+    WaitABXPadPress
     Message LostTower1F_Text_FantinaSadMan
     WaitABXPadPress
     CloseMessage

@@ -442,9 +442,23 @@ TrainersSchool_Arc2Confession:
     Message TrainersSchool_Text_Arc2CyrusChained
     WaitABXPadPress
     CloseMessage
+    // Garius cuts in the moment he hears it, so the confession becomes an argument (critic item 8). He is on his
+    // feet so fast his chair scrapes.
+    PlayFanfare SEQ_SE_DP_WALL_HIT2
+    ApplyMovement LOCALID_ARC2_GARIUS, TrainersSchool_Arc2Movement_Jump
+    ApplyMovement LOCALID_ARC2_RUTH, TrainersSchool_Arc2Movement_Exclaim
+    ApplyMovement LOCALID_PLAYER, TrainersSchool_Arc2Movement_FaceEast
+    WaitMovement
+    WaitFanfare SEQ_SE_DP_WALL_HIT2
+    BufferRivalName 0
+    Message TrainersSchool_Text_Arc2GariusChained
+    WaitABXPadPress
+    CloseMessage
     Message TrainersSchool_Text_Arc2RuthLakeGuardians
     WaitABXPadPress
     CloseMessage
+    ApplyMovement LOCALID_PLAYER, TrainersSchool_Arc2Movement_FaceNorth
+    WaitMovement
     Message TrainersSchool_Text_Arc2CyrusABoy
     WaitABXPadPress
     CloseMessage
@@ -458,17 +472,9 @@ TrainersSchool_Arc2Confession:
     Message TrainersSchool_Text_Arc2RowanNobody
     WaitABXPadPress
     CloseMessage
-    // Garius is on his feet so fast his chair scrapes
-    PlayFanfare SEQ_SE_DP_WALL_HIT2
-    ApplyMovement LOCALID_ARC2_GARIUS, TrainersSchool_Arc2Movement_Jump
-    ApplyMovement LOCALID_ARC2_RUTH, TrainersSchool_Arc2Movement_Exclaim
+    // Garius, still standing, rounds on Cyrus again
     ApplyMovement LOCALID_PLAYER, TrainersSchool_Arc2Movement_FaceEast
     WaitMovement
-    WaitFanfare SEQ_SE_DP_WALL_HIT2
-    BufferRivalName 0
-    Message TrainersSchool_Text_Arc2GariusChained
-    WaitABXPadPress
-    CloseMessage
     BufferRivalName 0
     Message TrainersSchool_Text_Arc2GariusSomeOfUs
     WaitABXPadPress

@@ -129,8 +129,11 @@ Route222_Arc2KahnCliff:
     PlayFanfare SEQ_SE_DP_NAMI
     WaitTime 30, VAR_RESULT
     Message Route222_Text_Arc2KahnSevenYearsToday
+    WaitABXPadPress
     Message Route222_Text_Arc2KahnEveryoneSays
+    WaitABXPadPress
     Message Route222_Text_Arc2KahnThereIs
+    WaitABXPadPress
     Message Route222_Text_Arc2KahnPalkiaCanTakeMeThere
     WaitABXPadPress
     CloseMessage
