@@ -15,7 +15,7 @@
         },
         {
             "level": 32,
-            "species": "SPECIES_GASTLY"
+            "species": "SPECIES_LITWICK"
         },
         {
             "level": 33,
@@ -31,7 +31,7 @@
         },
         {
             "level": 35,
-            "species": "SPECIES_SHUPPET"
+            "species": "SPECIES_LITWICK"
         },
         {
             "level": 35,
@@ -56,11 +56,11 @@
     ],
     "day": [
         "SPECIES_GASTLY",
-        "SPECIES_GASTLY"
+        "SPECIES_LITWICK"
     ],
     "night": [
         "SPECIES_DUSKULL",
-        "SPECIES_SHUPPET"
+        "SPECIES_LITWICK"
     ],
     "radar": [
         "SPECIES_ZUBAT",

@@ -11,7 +11,7 @@
         },
         {
             "level": 16,
-            "species": "SPECIES_ZUBAT"
+            "species": "SPECIES_WOOBAT"
         },
         {
             "level": 16,
@@ -31,7 +31,7 @@
         },
         {
             "level": 17,
-            "species": "SPECIES_ZUBAT"
+            "species": "SPECIES_WOOBAT"
         },
         {
             "level": 17,
@@ -55,11 +55,11 @@
         "SPECIES_PSYDUCK"
     ],
     "day": [
-        "SPECIES_ZUBAT",
+        "SPECIES_WOOBAT",
         "SPECIES_PSYDUCK"
     ],
     "night": [
-        "SPECIES_ZUBAT",
+        "SPECIES_WOOBAT",
         "SPECIES_PSYDUCK"
     ],
     "radar": [
