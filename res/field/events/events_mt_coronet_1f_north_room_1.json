@@ -178,21 +178,6 @@
             "y": 0
         },
         {
-            "id": "MT_CORONET_1F_NORTH_ROOM_1_STRENGTH_BOULDER_9",
-            "graphics_id": "OBJ_EVENT_GFX_STRENGTH_BOULDER",
-            "movement_type": "MOVEMENT_TYPE_NONE",
-            "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x0029",
-            "script": 10002,
-            "initial_dir": 0,
-            "data": [],
-            "movement_range_x": 0,
-            "movement_range_z": 0,
-            "x": 18,
-            "z": 39,
-            "y": 0
-        },
-        {
             "id": "MT_CORONET_1F_NORTH_ROOM_1_STRENGTH_BOULDER_10",
             "graphics_id": "OBJ_EVENT_GFX_STRENGTH_BOULDER",
             "movement_type": "MOVEMENT_TYPE_NONE",
@@ -326,6 +311,81 @@
             "x": 12,
             "z": 37,
             "y": 0
+        },
+        {
+            "id": "MT_CORONET_1F_NORTH_ROOM_1_ARC2_RUTH",
+            "graphics_id": "OBJ_EVENT_GFX_DP_PLAYER_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 0,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 4,
+            "z": 40,
+            "y": 0
+        },
+        {
+            "id": "MT_CORONET_1F_NORTH_ROOM_1_ARC2_CYRUS",
+            "graphics_id": "OBJ_EVENT_GFX_CYRUS",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 6,
+            "z": 39,
+            "y": 0
+        },
+        {
+            "id": "MT_CORONET_1F_NORTH_ROOM_1_ARC2_GARIUS",
+            "graphics_id": "OBJ_EVENT_GFX_BARRY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 0,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 3,
+            "z": 43,
+            "y": 0
+        },
+        {
+            "id": "MT_CORONET_1F_NORTH_ROOM_1_ARC2_GRATE",
+            "graphics_id": "OBJ_EVENT_GFX_VENT",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": 4,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 2,
+            "z": 42,
+            "y": 0
+        },
+        {
+            "id": "MT_CORONET_1F_NORTH_ROOM_1_ARC2_GRATE_FLASH",
+            "graphics_id": "OBJ_EVENT_GFX_RIFT_ARC2",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0031",
+            "script": 0,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 2,
+            "z": 42,
+            "y": 0
         }
     ],
     "warp_events": [
@@ -356,4 +416,3 @@
     ],
     "coord_events": []
 }
-
