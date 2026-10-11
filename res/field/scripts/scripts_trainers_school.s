@@ -402,8 +402,8 @@ _049C:
 
 // ------------------------------------------------------------------------------------------------------------
 // Dazzling Platinum Arc 2 (s-jubilife): 2.2, the confession. Seats around the table: Rowan (2,8), the player
-// (2,9), Ruth (5,8), Garius (5,9); Cyrus stands at the front (4,6). The Poke Ball appears on the table at (3,9)
-// (the table's back row, z8, hides objects; the stock book sits on the front row too).
+// (2,9), Ruth (5,8), Garius (5,9); Cyrus stands at the front (4,6). The table's 3D model hides any object on its
+// tiles (3-4, 8-9), so Rowan's case opens at the foot of the table: the Poke Ball appears on the floor at (3,10).
 
 TrainersSchool_Arc2OnTransition:
     SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
@@ -494,7 +494,7 @@ TrainersSchool_Arc2Confession:
     Message TrainersSchool_Text_Arc2RowanNotAsking
     WaitABXPadPress
     CloseMessage
-    // Rowan sits back down, sets his case on the table and opens it: one Poke Ball
+    // Rowan sits back down, sets his case down at the foot of the table and opens it: one Poke Ball
     ApplyMovement LOCALID_ARC2_ROWAN, TrainersSchool_Arc2Movement_RowanSitAndFaceTable
     WaitMovement
     PlayFanfare SEQ_SE_DP_BOX03
@@ -593,14 +593,14 @@ TrainersSchool_Arc2Movement_FaceNorth:
     FaceNorth
     EndMovement
 
-    // From the front (4,6) around the east side (column 6) to below the ball (3,10), facing it
+    // From the front (4,6) around the east side (column 6) to beside the ball (4,10), facing it
     .balign 4, 0
 TrainersSchool_Arc2Movement_CyrusToTable:
     WalkNormalSouth
     WalkNormalEast 2
     WalkNormalSouth 3
-    WalkNormalWest 3
-    FaceNorth
+    WalkNormalWest 2
+    FaceWest
     EndMovement
 
     .balign 4, 0
@@ -629,9 +629,9 @@ TrainersSchool_Arc2Movement_RuthStep:
     WalkNormalSouth
     EndMovement
 
-    // From (3,10): east along row 10 to the door column, out (7,11)
+    // From (4,10): east along row 10 to the door column, out (7,11)
     .balign 4, 0
 TrainersSchool_Arc2Movement_CyrusLeave:
-    WalkNormalEast 4
+    WalkNormalEast 3
     WalkNormalSouth
     EndMovement
