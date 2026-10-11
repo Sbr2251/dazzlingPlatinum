@@ -536,6 +536,8 @@ GalacticHQControlRoom_Arc2Cutaway213:
     Call GalacticHQControlRoom_Arc2EnterScene
     Message GalacticHQControlRoom_Text_Arc2SarosTheHavenIsGone
     Message GalacticHQControlRoom_Text_Arc2KahnOtherWaysToFillTheCrates
+    Message GalacticHQControlRoom_Text_Arc2KahnEverySiteThatChildCloses
+    Message GalacticHQControlRoom_Text_Arc2SarosAnotherSource
     Message GalacticHQControlRoom_Text_Arc2SarosWeDidntSeeItComing
     Message GalacticHQControlRoom_Text_Arc2KahnOurFriendWasntTold
     Message GalacticHQControlRoom_Text_Arc2SarosIllGoMyself

@@ -250,6 +250,22 @@
         "Saros: Celestic. The old woman.\r",
         "Then I'll go myself."
       ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2KahnEverySiteThatChildCloses",
+      "en_US": [
+        "Kahn: Ravaged Path. The Windworks.\n",
+        "The forest.\r",
+        "Every site that child closes,\n",
+        "the shards stop."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2SarosAnotherSource",
+      "en_US": [
+        "Saros: Then we'll need another\n",
+        "source."
+      ]
     }
   ]
 }
