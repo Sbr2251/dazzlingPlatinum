@@ -2280,14 +2280,33 @@ static BOOL Arc2DwEternaForest_HandleStep(DistWorldSystem *system, int x, int y,
     return FALSE;
 }
 
+// rift-b (Route 214, Route 213): the far end of the ceiling (y=10 over x 44-49; the wall below tops out at z=29)
+// runs the totem script, until that totem is calmed. res/field/scripts/scripts_dw_route_21{4,3}.s entry 4.
+#define ARC2_DW_B4F_CEILING_MIN_Y    9
+#define ARC2_DW_B4F_TOTEM_MIN_Z      45
+#define ARC2_DW_ROUTE_214_SCRIPT_TOTEM 4
+#define ARC2_DW_ROUTE_213_SCRIPT_TOTEM 4
+
+static BOOL Arc2DwB4F_HandleCeilingEnd(DistWorldSystem *system, int y, int z, u16 calmedFlag, u16 scriptID)
+{
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+
+    if (y >= ARC2_DW_B4F_CEILING_MIN_Y && z >= ARC2_DW_B4F_TOTEM_MIN_Z && !VarsFlags_CheckFlag(varsFlags, calmedFlag)) {
+        ScriptManager_Set(system->fieldSystem, scriptID, NULL);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 static BOOL Arc2DwRoute214_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
-    return FALSE;
+    return Arc2DwB4F_HandleCeilingEnd(system, y, z, FLAG_TOTEM_SKARMORY_DEFEATED, ARC2_DW_ROUTE_214_SCRIPT_TOTEM);
 }
 
 static BOOL Arc2DwRoute213_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
-    return FALSE;
+    return Arc2DwB4F_HandleCeilingEnd(system, y, z, FLAG_TOTEM_LAPRAS_DEFEATED, ARC2_DW_ROUTE_213_SCRIPT_TOTEM);
 }
 
 static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, int z)
@@ -13591,15 +13610,459 @@ static const UnkStruct_ov9_0224EF30 *sArc2DwEternaForestObjects[] = {
     NULL
 };
 
+// rift-b object conditions (ov9_02251104): 20 flag set, 21 flag clear, 22 VAR_ARC2_PROGRESS >= param, 23 < param,
+// 6 script-only (ScrCmd_311). Talk scripts are the map's script entries (1-based).
+// Route 214: Cyrus behind the player at the entry, until the boost choice (FLAG_ARC2_RIFTB_A).
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute214CyrusEntry = {
+    21,
+    FLAG_ARC2_RIFTB_A,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        5,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        21,
+        12,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 214: Cyrus beside the shard frame, folded there for the choice.
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute214CyrusFrame = {
+    20,
+    FLAG_ARC2_RIFTB_A,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        5,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        46,
+        23,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 214: the frame with the grunts' violet shard, wired toward the wall; gone once Cyrus pulls it.
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute214Frame = {
+    21,
+    FLAG_ARC2_RIFTB_B,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_SHARD_FRAME,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        47,
+        23,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 213: Cyrus at the entry (he stays there; the card is out of his earshot).
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Cyrus = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        5,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        21,
+        12,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 213: a rusted first-generation frame on the old lakebed (the ledge beside the pool, past the first hop).
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute213RustedFrame = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_SHARD_FRAME,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        31,
+        20,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 213: the worn Trainer Card beside it (FLAG_ARC2_ELIAS_CARD once picked up).
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Card = {
+    21,
+    FLAG_ARC2_ELIAS_CARD,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_POKEBALL,
+        0x0,
+        0x0,
+        0x0,
+        3,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        32,
+        20,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 213: the Lapras in what is left of the lake, until it is calmed.
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Lapras = {
+    21,
+    FLAG_TOTEM_LAPRAS_DEFEATED,
+    0x0,
+    0x0,
+    {
+        0x83,
+        OBJ_EVENT_GFX_TOTEM_LAPRAS,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        35,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: Eclipse Shards growing out of the rock around the vein room (placeholder sprite).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard1 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        13,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: vein shard.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard2 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        15,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: vein shard.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard3 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        12,
+        24,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: vein shard.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard4 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x83,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        14,
+        24,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: the wall of shadow across the way deeper, until it parts on the second visit (FLAG_ARC2_RIFTB_D).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShadow = {
+    21,
+    FLAG_ARC2_RIFTB_D,
+    0x0,
+    0x0,
+    {
+        0x84,
+        OBJ_EVENT_GFX_RIFT_ARC2,
+        0x0,
+        0x0,
+        0x0,
+        5,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        16,
+        23,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: Cyrus on his knees beside the Spiritomb, from the grunts' raid on (state 94).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCyrus = {
+    22,
+    94,
+    0x0,
+    0x0,
+    {
+        0x85,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        6,
+        DIR_EAST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        18,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: the Spiritomb totem.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerSpiritomb = {
+    22,
+    94,
+    0x0,
+    0x0,
+    {
+        0x86,
+        OBJ_EVENT_GFX_TOTEM_SPIRITOMB,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        20,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: Cyrus's starter, fainted at his side (script-only: the one weak to the player's starter).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerEmpoleon = {
+    6,
+    0,
+    0x0,
+    0x0,
+    {
+        0x87,
+        OBJ_EVENT_GFX_EMPOLEON,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        17,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: Cyrus's starter (the player chose Chimchar).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerTorterra = {
+    6,
+    0,
+    0x0,
+    0x0,
+    {
+        0x88,
+        OBJ_EVENT_GFX_TORTERRA,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        17,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: Cyrus's starter (the player chose Piplup).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerInfernape = {
+    6,
+    0,
+    0x0,
+    0x0,
+    {
+        0x89,
+        OBJ_EVENT_GFX_INFERNAPE,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        17,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
 static const UnkStruct_ov9_0224EF30 *sArc2DwRoute214Objects[] = {
+    &sArc2DwRoute214CyrusEntry,
+    &sArc2DwRoute214CyrusFrame,
+    &sArc2DwRoute214Frame,
     NULL
 };
 
 static const UnkStruct_ov9_0224EF30 *sArc2DwRoute213Objects[] = {
+    &sArc2DwRoute213Cyrus,
+    &sArc2DwRoute213RustedFrame,
+    &sArc2DwRoute213Card,
+    &sArc2DwRoute213Lapras,
     NULL
 };
 
 static const UnkStruct_ov9_0224EF30 *sArc2DwLostTowerObjects[] = {
+    &sArc2DwLostTowerShard1,
+    &sArc2DwLostTowerShard2,
+    &sArc2DwLostTowerShard3,
+    &sArc2DwLostTowerShard4,
+    &sArc2DwLostTowerShadow,
+    &sArc2DwLostTowerCyrus,
+    &sArc2DwLostTowerSpiritomb,
+    &sArc2DwLostTowerEmpoleon,
+    &sArc2DwLostTowerTorterra,
+    &sArc2DwLostTowerInfernape,
     NULL
 };
 
