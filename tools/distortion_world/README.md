@@ -33,12 +33,13 @@ Scripts: `res/field/scripts/scripts_distortion_world_arc1_seams.s`; objects and 
 | map | floor | land data / matrix | tw_arc spec | attr ids |
 |---|---|---|---|---|
 | `MAP_HEADER_DW_ROUTE_214` | DW B4F clone | `map_data_673/674` (B4F 612/613, edited) + stock 614/615, matrix 293 | `route_214.json` | 21 (east wall), 22 (ceiling) |
-| `MAP_HEADER_DW_ROUTE_213` | DW B4F clone | `map_data_675/676` (B4F 612/613, edited) + stock 614/615, matrix 294 | `route_213.json` | 25 (east wall), 26 (ceiling) |
+| `MAP_HEADER_DW_ROUTE_213` | DW B4F clone, dressed as the Drowned Lake (set-lake) | `map_data_675/676` (B4F 612/613, edited; built by `build_dw_route_213.py`) + stock 614/615, matrix 294 | `route_213.json` | 25 (east wall), 26 (ceiling) |
 | `MAP_HEADER_DW_LOST_TOWER` | Arc 1 seams (B1F) clone | `map_data_677/678` (667/668, edited), matrix 295 | `lost_tower.json` | 29 (west wall) |
 
 Rebuild (all idempotent; `--check` / `check` verify):
 
     python3 tools/distortion_world/build_rift_b_maps.py
+    python3 tools/distortion_world/build_dw_route_213.py     # DW Route 213 (set-lake): the rowboat, the hanging lake
     for m in route_214 route_213 lost_tower; do python3 tools/distortion_world/twarc.py build tools/distortion_world/$m.json; done
 
 The JSON specs are authoritative for `tw_arc.narc` / `tw_arc_attr.narc`: after merging another workstream's narcs,
@@ -56,3 +57,14 @@ Route 213's is a serpentine path "under the lake". The B4F ghost props (its rock
 
 Lost Tower: the Arc 1 seam unchanged (on from the ledge (12,14), off at (12,23)); the vein room is (12..15,23)
 with (15,24..26) blocked so the wall-of-shadow object at (16,23) closes the only way deeper.
+
+### DW Route 213: the Drowned Lake (set-lake, Arc 2 R3)
+
+`build_dw_route_213.py` builds 675/676 from the same B4F base (rift-b's `B4F_OPEN` / `B4F_BLOCK` edits included) and
+dresses it: a rowboat (terrain, texture `dw213_wood` appended to DW texture set 73) on the old lakebed at
+(19.5-21.5, 16.4-19.6); the corridor from the pool to the east wall as a jetty (plank deck, six mooring posts); the ceiling rebuilt as the hanging lake (water around the causeway, the island at
+x 45-48, z 44-47 where the Lapras waits, unlit `lake` / animated `lakep.1` water); the void tiles of stock B4F's
+dropped floating-rock walkways (20-24, 24-31) blocked. The island and its spur are walkable in `route_213.json` (x 45-48,
+z 44-47; spur x 46-47, z 43); the old leg down x 44 past z 42 is water now. The texture set is rebuilt from the current file minus any `dw213_*` entries, so rerun the script after
+merging another workstream's texture-set change. Objects (the lakefront sign 0x84, the frame, the card, the Lapras on
+the island at (46,46), rotated 180) are in `sArc2DwRoute213Objects`.
