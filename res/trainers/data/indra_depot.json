@@ -1,28 +1,67 @@
 {
     "name": "Indra",
     "class": "TRAINER_CLASS_ECLIPSE_LEADER",
-    "items": [],
+    "items": [
+        "ITEM_SUPER_POTION"
+    ],
     "ai_flags": [
         "AI_FLAG_BASIC",
         "AI_FLAG_EVAL_ATTACK",
-        "AI_FLAG_EXPERT"
+        "AI_FLAG_EXPERT",
+        "AI_FLAG_CHECK_HP"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_HONCHKROW",
+            "species": "SPECIES_MIGHTYENA",
+            "form": 0,
+            "level": 29,
+            "item": "ITEM_SITRUS_BERRY",
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_SUCKER_PUNCH",
+                "MOVE_SWAGGER",
+                "MOVE_ROAR"
+            ],
+            "power": 170,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_SABLEYE",
             "form": 0,
             "level": 30,
-            "item": null,
-            "moves": null,
-            "power": 0,
+            "item": "ITEM_LEFTOVERS",
+            "moves": [
+                "MOVE_KNOCK_OFF",
+                "MOVE_SHADOW_SNEAK",
+                "MOVE_WILL_O_WISP",
+                "MOVE_RECOVER"
+            ],
+            "power": 170,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_HONCHKROW",
+            "form": 0,
+            "level": 31,
+            "item": "ITEM_SHARP_BEAK",
+            "moves": [
+                "MOVE_DARK_PULSE",
+                "MOVE_DRILL_PECK",
+                "MOVE_TAUNT",
+                "MOVE_ROOST"
+            ],
+            "power": 170,
             "ball_seal": 0
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "...Hm.\n",
+                "The trucks are gone. That will do.\n"
+            ]
         }
     ]
 }

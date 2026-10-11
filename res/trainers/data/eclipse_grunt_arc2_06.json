@@ -9,19 +9,41 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_SKUNTANK",
+            "species": "SPECIES_MIGHTYENA",
             "form": 0,
-            "level": 30,
+            "level": 28,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_SWAGGER",
+                "MOVE_ROAR",
+                "MOVE_ODOR_SLEUTH"
+            ],
+            "power": 80,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_SWALOT",
+            "form": 0,
+            "level": 29,
+            "item": null,
+            "moves": [
+                "MOVE_SLUDGE",
+                "MOVE_TOXIC",
+                "MOVE_YAWN",
+                "MOVE_AMNESIA"
+            ],
+            "power": 80,
             "ball_seal": 0
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Where are the trucks?!\n",
+                "Somebody call Indra!\n"
+            ]
         }
     ]
 }

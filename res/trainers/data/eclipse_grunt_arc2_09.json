@@ -9,19 +9,41 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_SKUNTANK",
+            "species": "SPECIES_GOLBAT",
             "form": 0,
-            "level": 28,
+            "level": 30,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_WING_ATTACK",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_AIR_CUTTER"
+            ],
+            "power": 90,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_SEVIPER",
+            "form": 0,
+            "level": 31,
+            "item": null,
+            "moves": [
+                "MOVE_CRUNCH",
+                "MOVE_POISON_TAIL",
+                "MOVE_GLARE",
+                "MOVE_BITE"
+            ],
+            "power": 90,
             "ball_seal": 0
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "The machine is still running.\n",
+                "You can't stop it now!\n"
+            ]
         }
     ]
 }

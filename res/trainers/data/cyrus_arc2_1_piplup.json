@@ -13,16 +13,24 @@
             "species": "SPECIES_CHIMCHAR",
             "form": 0,
             "level": 17,
-            "item": null,
-            "moves": null,
-            "power": 0,
+            "item": "ITEM_ORAN_BERRY",
+            "moves": [
+                "MOVE_FLAME_WHEEL",
+                "MOVE_FURY_SWIPES",
+                "MOVE_TAUNT",
+                "MOVE_LEER"
+            ],
+            "power": 120,
             "ball_seal": 0
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Hm. Well fought.\n",
+                "Both of you.\n"
+            ]
         }
     ]
 }

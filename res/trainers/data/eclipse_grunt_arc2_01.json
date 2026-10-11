@@ -9,19 +9,41 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_STUNKY",
+            "species": "SPECIES_POOCHYENA",
             "form": 0,
             "level": 15,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_HOWL",
+                "MOVE_SAND_ATTACK",
+                "MOVE_TACKLE"
+            ],
+            "power": 30,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_ZUBAT",
+            "form": 0,
+            "level": 16,
+            "item": null,
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_ASTONISH",
+                "MOVE_SUPERSONIC",
+                "MOVE_LEECH_LIFE"
+            ],
+            "power": 30,
             "ball_seal": 0
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Tch. Lucky.\n",
+                "The boss will hear about this.\n"
+            ]
         }
     ]
 }

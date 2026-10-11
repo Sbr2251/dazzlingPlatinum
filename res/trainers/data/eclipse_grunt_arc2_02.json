@@ -9,19 +9,41 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_ZUBAT",
+            "species": "SPECIES_PURRLOIN",
             "form": 0,
             "level": 15,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_FURY_SWIPES",
+                "MOVE_ASSIST",
+                "MOVE_GROWL",
+                "MOVE_SCRATCH"
+            ],
+            "power": 30,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_STUNKY",
+            "form": 0,
+            "level": 16,
+            "item": null,
+            "moves": [
+                "MOVE_POISON_GAS",
+                "MOVE_SCREECH",
+                "MOVE_FURY_SWIPES",
+                "MOVE_SCRATCH"
+            ],
+            "power": 30,
             "ball_seal": 0
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Ugh! We were told it would be\n",
+                "easy!\n"
+            ]
         }
     ]
 }

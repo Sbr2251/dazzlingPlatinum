@@ -11,17 +11,39 @@
         {
             "species": "SPECIES_GOLBAT",
             "form": 0,
-            "level": 30,
+            "level": 28,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_WING_ATTACK",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_AIR_CUTTER"
+            ],
+            "power": 80,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_GURDURR",
+            "form": 0,
+            "level": 29,
+            "item": null,
+            "moves": [
+                "MOVE_ROCK_THROW",
+                "MOVE_LOW_KICK",
+                "MOVE_BULK_UP",
+                "MOVE_WAKE_UP_SLAP"
+            ],
+            "power": 80,
             "ball_seal": 0
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "The crates! Get away from the\n",
+                "crates!\n"
+            ]
         }
     ]
 }

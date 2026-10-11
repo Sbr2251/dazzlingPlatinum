@@ -9,19 +9,41 @@
     "double_battle": false,
     "party": [
         {
+            "species": "SPECIES_HERDIER",
+            "form": 0,
+            "level": 23,
+            "item": null,
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_TAKE_DOWN",
+                "MOVE_ODOR_SLEUTH",
+                "MOVE_HOWL"
+            ],
+            "power": 60,
+            "ball_seal": 0
+        },
+        {
             "species": "SPECIES_CROAGUNK",
             "form": 0,
-            "level": 22,
+            "level": 24,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_POISON_STING",
+                "MOVE_REVENGE",
+                "MOVE_FAINT_ATTACK",
+                "MOVE_SWAGGER"
+            ],
+            "power": 60,
             "ball_seal": 0
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "These are OUR Pokémon now!\n",
+                "We... we take good care of them!\n"
+            ]
         }
     ]
 }
