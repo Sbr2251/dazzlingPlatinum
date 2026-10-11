@@ -6,6 +6,8 @@
 // (docs/arc2/cutaways.md is the caller contract). The caller is identified by VAR_ARC2_PROGRESS alone:
 //   5  (from s-jubilife, after Cyrus battle 1): 2.4, Kahn and Indra. Sets 9, returns to Jubilife 168,777 facing south.
 //   35 (from s-eterna, after the Haven): 2.13, Saros and Kahn. Sets 39, returns to Eterna 305,520 facing south.
+//   98 (from s-hearthome's Route 209 aftermath, polish-b): the final cutaway, Kahn and Saros on the vein. Sets 99,
+//      returns to Route 209 568,681 (outside the Lost Tower door) facing south, then shows END OF ARC 2 there.
 // The caller fades to black and does `Warp MAP_HEADER_GALACTIC_HQ_CONTROL_ROOM, 0, 8, 9, DIR_NORTH`, then ReleaseAll and
 // End WITHOUT fading back in. OnResume hides the player (before the screen shows); the on-frame scene
 // (scripts_init_galactic_hq_control_room.s) fades in, plays, sets the next value, warps back and fades in there.
@@ -34,6 +36,7 @@
     ScriptEntry _03FD
     ScriptEntry GalacticHQControlRoom_Arc2Cutaway24
     ScriptEntry GalacticHQControlRoom_Arc2Cutaway213
+    ScriptEntry GalacticHQControlRoom_Arc2CutawayVein
     ScriptEntryEnd
 
 _003E:
@@ -48,6 +51,7 @@ _004B:
 _0055:
     CallIfEq VAR_ARC2_PROGRESS, 5, GalacticHQControlRoom_Arc2HidePlayer
     CallIfEq VAR_ARC2_PROGRESS, 35, GalacticHQControlRoom_Arc2HidePlayer
+    CallIfEq VAR_ARC2_PROGRESS, 98, GalacticHQControlRoom_Arc2HidePlayer
     ScrCmd_25E
     End
 
@@ -426,6 +430,7 @@ GalacticHQControlRoom_Arc2OnTransition:
     SetFlag FLAG_UNK_0x0032
     GoToIfEq VAR_ARC2_PROGRESS, 5, GalacticHQControlRoom_Arc2SetUp24
     GoToIfEq VAR_ARC2_PROGRESS, 35, GalacticHQControlRoom_Arc2SetUp213
+    GoToIfEq VAR_ARC2_PROGRESS, 98, GalacticHQControlRoom_Arc2SetUp213
     Return
 
 GalacticHQControlRoom_Arc2SetUp24:
@@ -536,6 +541,8 @@ GalacticHQControlRoom_Arc2Cutaway213:
     Call GalacticHQControlRoom_Arc2EnterScene
     Message GalacticHQControlRoom_Text_Arc2SarosTheHavenIsGone
     Message GalacticHQControlRoom_Text_Arc2KahnOtherWaysToFillTheCrates
+    Message GalacticHQControlRoom_Text_Arc2KahnEverySiteThatChildCloses
+    Message GalacticHQControlRoom_Text_Arc2SarosAnotherSource
     Message GalacticHQControlRoom_Text_Arc2SarosWeDidntSeeItComing
     Message GalacticHQControlRoom_Text_Arc2KahnOurFriendWasntTold
     Message GalacticHQControlRoom_Text_Arc2SarosIllGoMyself
@@ -547,6 +554,38 @@ GalacticHQControlRoom_Arc2Cutaway213:
     SetVar VAR_ARC2_PROGRESS, 39
     Warp MAP_HEADER_ETERNA_CITY, 0, 305, 520, DIR_SOUTH
     GoTo GalacticHQControlRoom_Arc2Returned
+    End
+
+// Final cutaway (critic item 4): Team Eclipse on the vein (Kahn, Saros), after the Route 209 aftermath. The vein is
+// told, not shown: the room is the same violet room. No informant is named.
+GalacticHQControlRoom_Arc2CutawayVein:
+    LockAll
+    Call GalacticHQControlRoom_Arc2EnterScene
+    Message GalacticHQControlRoom_Text_Arc2KahnWholeVeins
+    Message GalacticHQControlRoom_Text_Arc2SarosDontNeedTheCrates
+    WaitABXPadPress
+    CloseMessage
+    // Saros turns away from the table before the last line
+    ApplyMovement LOCALID_ARC2_SAROS, GalacticHQControlRoom_Arc2Movement_TurnAway
+    WaitMovement
+    WaitTime 45, VAR_RESULT
+    Message GalacticHQControlRoom_Text_Arc2SarosOneMorningMira
+    WaitABXPadPress
+    CloseMessage
+    Call GalacticHQControlRoom_Arc2LeaveScene
+    SetVar VAR_ARC2_PROGRESS, 99
+    Warp MAP_HEADER_ROUTE_209, 0, 568, 681, DIR_SOUTH
+    // Route 209 at 99 has no Arc 2 cast: the end card plays over the empty tower front. Text drawn during a
+    // brightness fade is black too, so fade in first.
+    WaitTime 30, VAR_RESULT
+    FadeScreenIn FADE_SCREEN_SPEED_SLOW
+    WaitFadeScreen
+    Message GalacticHQControlRoom_Text_Arc2EndOfArc2
+    WaitABXPadPress
+    Message GalacticHQControlRoom_Text_Arc2ToBeContinued
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
     End
 
 // After the Warp the script runs on in the caller's map (the player object is new, so visible again): fade in

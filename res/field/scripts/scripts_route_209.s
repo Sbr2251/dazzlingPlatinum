@@ -19,7 +19,10 @@
 // Dazzling Platinum Arc 2, s-hearthome (2.26 aftermath, END OF ARC 2). rift-b's second-visit exit from
 // DW_LOST_TOWER lands outside the Lost Tower door (568,681 facing south) with progress 95 (Spiritomb calm).
 // Map-local: FLAG_UNK_0x0030 hides Rowan and Cyrus (shown at 95 only), FLAG_UNK_0x0031 hides Looker and Garius
-// (added by the scene). Sets 99. Cyrus's extra line plays only if VAR_ARC2_CHOICES bit 3 (2.17c crate seen) is set.
+// (added by the scene). Cyrus's extra line plays only if VAR_ARC2_CHOICES bit 3 (2.17c crate seen) is set.
+// The scene ends on the final Team Eclipse cutaway (polish-b, critic item 4; docs/arc2/cutaways.md caller contract):
+// it sets 98, fades to black and warps to the violet room. The cutaway sets 99, warps back here (568,681 facing
+// south) and shows END OF ARC 2 / To be continued over the empty tower front.
 Route209_OnTransition:
     SetFlag FLAG_UNK_0x0030
     SetFlag FLAG_UNK_0x0031
@@ -129,20 +132,11 @@ Route209_LookerLeaves:
     WaitMovement
     RemoveObject ROUTE_209_RIVAL_GARIUS
     WaitTime 30, VAR_RESULT
+    // Final cutaway: no FadeScreenIn after the Warp (the cutaway lifts the black screen itself)
+    SetVar VAR_ARC2_PROGRESS, 98
     FadeScreenOut FADE_SCREEN_SPEED_SLOW
     WaitFadeScreen
-    SetVar VAR_ARC2_PROGRESS, 99
-    RemoveObject ROUTE_209_PROF_ROWAN
-    RemoveObject ROUTE_209_CYRUS
-    WaitTime 30, VAR_RESULT
-    // Text drawn during a brightness fade is black too, so the end card plays over the emptied tower front.
-    FadeScreenIn FADE_SCREEN_SPEED_SLOW
-    WaitFadeScreen
-    Message Route209_Text_EndOfArc2
-    WaitABXPadPress
-    Message Route209_Text_ToBeContinued
-    WaitABXPadPress
-    CloseMessage
+    Warp MAP_HEADER_GALACTIC_HQ_CONTROL_ROOM, 0, 8, 9, DIR_NORTH
     ReleaseAll
     End
 

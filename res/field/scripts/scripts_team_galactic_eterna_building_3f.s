@@ -70,6 +70,7 @@ Haven3F_OfficeScene:
     CallIfEq VAR_0x8004, 13, Haven3F_WalkToDeskFrom13
     CallIfEq VAR_0x8004, 14, Haven3F_WalkToDeskFrom14
     Message Haven3F_Text_Manifests
+    WaitABXPadPress
     Message Haven3F_Text_RuthRiftReadings
     ApplyMovement HAVEN_3F_LOOKER, Haven3F_Movement_LookerTurn
     WaitMovement
