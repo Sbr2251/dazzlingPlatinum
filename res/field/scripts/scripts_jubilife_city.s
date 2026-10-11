@@ -13,6 +13,16 @@
 //   FLAG_UNK_0x0032 = hide LOCALID_ARC2_GARIUS     FLAG_UNK_0x0033 = hide LOCALID_ARC2_CYRUS
 //   FLAG_UNK_0x0034 = hide LOCALID_ARC2_ROWAN      FLAG_UNK_0x0035 = hide LOCALID_ARC2_RUTH
 // VAR_MAP_LOCAL_2 arms the on-frame scenes (scripts_init_jubilife_city.s): 1 = 2.1, 3 = 2.3.
+// Arc 2 quests (R3, S11): the Duchess reunion. The Route 202 pilgrim old man has left Route 202 by Arc 2
+// (route_202 shows him only at VAR_ARC1_PROGRESS 11-15), so from VAR_ARC2_PROGRESS 9 he stands at the rally
+// plaza (158,758), facing the TV building. Once the player has taken Duchess from the Haven 2F kennel
+// (FLAG_UNK_0x0921 = FLAG_ARC2_LEAD_B), talking to him plays the reunion; Duchess stays with him (Clefairy beside
+// him from then on) and he gives a Moon Stone. Flags (lead's block): FLAG_UNK_0x0922 = FLAG_ARC2_LEAD_C = Duchess
+// home, FLAG_UNK_0x0923 = FLAG_ARC2_LEAD_D = Moon Stone given (retried if the bag was full).
+// Map-local hide flags: FLAG_UNK_0x0036 = the old man, FLAG_UNK_0x0037 = Duchess.
+#define FLAG_QUESTS_DUCHESS_CARRIED FLAG_ARC2_LEAD_B
+#define FLAG_QUESTS_DUCHESS_HOME    FLAG_ARC2_LEAD_C
+#define FLAG_QUESTS_MOON_STONE      FLAG_ARC2_LEAD_D
 
 
     ScriptEntry _0072
@@ -65,6 +75,8 @@
     ScriptEntry JubilifeCity_Arc2FindCyrus
     ScriptEntry JubilifeCity_Arc2OutsideSchool
     ScriptEntry JubilifeCity_Arc2Cast
+    ScriptEntry JubilifeCity_QuestsOldMan
+    ScriptEntry JubilifeCity_QuestsDuchess
     ScriptEntryEnd
 
 _0072:
@@ -77,6 +89,7 @@ _0072:
     CallIfLt VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1HideRally
     CallIfGe VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1OnTransition
     Call JubilifeCity_Arc2OnTransition
+    Call JubilifeCity_QuestsOnTransition
     CallIfEq VAR_JUBILIFE_STATE, 0, _00AC
     CallIfGe VAR_JUBILIFE_STATE, 3, _00C2
     GetPlayerGender VAR_MAP_LOCAL_0
@@ -3204,4 +3217,140 @@ JubilifeCity_Arc2Movement_PlayerWatchCyrusEast:
     FaceEast
     Delay16 3
     FaceNorth
+    EndMovement
+
+JubilifeCity_QuestsOnTransition:
+    SetFlag FLAG_UNK_0x0036
+    SetFlag FLAG_UNK_0x0037
+    GoToIfLt VAR_ARC1_PROGRESS, 16, JubilifeCity_QuestsReturn
+    GoToIfLt VAR_ARC2_PROGRESS, 9, JubilifeCity_QuestsReturn
+    ClearFlag FLAG_UNK_0x0036
+    GoToIfUnset FLAG_QUESTS_DUCHESS_HOME, JubilifeCity_QuestsReturn
+    ClearFlag FLAG_UNK_0x0037
+JubilifeCity_QuestsReturn:
+    Return
+
+JubilifeCity_QuestsOldMan:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    GoToIfSet FLAG_QUESTS_DUCHESS_HOME, JubilifeCity_QuestsOldManAfter
+    GoToIfSet FLAG_QUESTS_DUCHESS_CARRIED, JubilifeCity_QuestsReunion
+    Message JubilifeCity_Text_QuestsOldManHaven
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+// Duchess comes out from behind the player and runs to the old man's free side: west of him (157,758), or east
+// (159,758) when the player stands on the west tile.
+JubilifeCity_QuestsReunion:
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    SetVar VAR_0x8006, 157
+    GoToIfNe VAR_0x8004, 157, JubilifeCity_QuestsReunionPlace
+    SetVar VAR_0x8006, 159
+JubilifeCity_QuestsReunionPlace:
+    SetObjectEventPos JUBILIFE_CITY_QUESTS_DUCHESS, VAR_0x8006, 758
+    ClearFlag FLAG_UNK_0x0037
+    AddObject JUBILIFE_CITY_QUESTS_DUCHESS
+    PlayCry SPECIES_CLEFAIRY
+    Message JubilifeCity_Text_QuestsOldManDuchess
+    WaitCry
+    WaitABXPadPress
+    CloseMessage
+    CallIfEq VAR_0x8006, 157, JubilifeCity_QuestsOldManFaceWest
+    CallIfEq VAR_0x8006, 159, JubilifeCity_QuestsOldManFaceEast
+    Message JubilifeCity_Text_QuestsDuchessCry
+    WaitABXPadPress
+    Message JubilifeCity_Text_QuestsOldManTheyTold
+    WaitABXPadPress
+    Message JubilifeCity_Text_QuestsOldManNeverAsked
+    WaitABXPadPress
+    Message JubilifeCity_Text_QuestsOldManComeHome
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement JUBILIFE_CITY_QUESTS_DUCHESS, JubilifeCity_QuestsMovement_DuchessHop
+    WaitMovement
+    PlayCry SPECIES_CLEFAIRY
+    Message JubilifeCity_Text_QuestsDuchessYes
+    WaitCry
+    WaitABXPadPress
+    SetFlag FLAG_QUESTS_DUCHESS_HOME
+    ApplyMovement JUBILIFE_CITY_QUESTS_OLD_MAN, JubilifeCity_QuestsMovement_FacePlayerSouth
+    WaitMovement
+    FacePlayer
+    Message JubilifeCity_Text_QuestsOldManThankYou
+    WaitABXPadPress
+    GoTo JubilifeCity_QuestsGiveMoonStone
+    End
+
+JubilifeCity_QuestsOldManFaceWest:
+    ApplyMovement JUBILIFE_CITY_QUESTS_OLD_MAN, JubilifeCity_QuestsMovement_FaceWest
+    ApplyMovement JUBILIFE_CITY_QUESTS_DUCHESS, JubilifeCity_QuestsMovement_FaceEast
+    WaitMovement
+    Return
+
+JubilifeCity_QuestsOldManFaceEast:
+    ApplyMovement JUBILIFE_CITY_QUESTS_OLD_MAN, JubilifeCity_QuestsMovement_FaceEast
+    ApplyMovement JUBILIFE_CITY_QUESTS_DUCHESS, JubilifeCity_QuestsMovement_FaceWest
+    WaitMovement
+    Return
+
+JubilifeCity_QuestsGiveMoonStone:
+    Message JubilifeCity_Text_QuestsOldManMoonStone
+    SetVar VAR_0x8004, ITEM_MOON_STONE
+    SetVar VAR_0x8005, 1
+    GoToIfCannotFitItem VAR_0x8004, VAR_0x8005, VAR_RESULT, JubilifeCity_QuestsBagFull
+    SetFlag FLAG_QUESTS_MOON_STONE
+    GiveItemQuantityNoLineFeed
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_QuestsBagFull:
+    Message JubilifeCity_Text_QuestsOldManBagFull
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_QuestsOldManAfter:
+    GoToIfUnset FLAG_QUESTS_MOON_STONE, JubilifeCity_QuestsGiveMoonStone
+    Message JubilifeCity_Text_QuestsOldManBeside
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_QuestsDuchess:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    PlayCry SPECIES_CLEFAIRY
+    Message JubilifeCity_Text_QuestsDuchessStays
+    WaitCry
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
+JubilifeCity_QuestsMovement_FaceWest:
+    WalkOnSpotNormalWest
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_QuestsMovement_FaceEast:
+    WalkOnSpotNormalEast
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_QuestsMovement_FacePlayerSouth:
+    Delay8
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_QuestsMovement_DuchessHop:
+    JumpOnSpotFastNorth
+    JumpOnSpotFastNorth
     EndMovement

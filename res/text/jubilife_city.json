@@ -1320,6 +1320,98 @@
         "Odd. Someone was teaching in there\n",
         "after hours. Nobody I knew."
       ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManHaven",
+      "en_US": [
+        "I gave my wife's Clefairy to that\n",
+        "Haven in Eterna. Duchess.\r",
+        "They said she'd be with others like\n",
+        "her. Others whose people were gone.\r",
+        "...I thought that was kinder than\n",
+        "an old man's quiet house."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManDuchess",
+      "en_US": [
+        "Old Man: ...Duchess?"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsDuchessCry",
+      "en_US": [
+        "Duchess: Piii! Pi pi!"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManTheyTold",
+      "en_US": [
+        "Old Man: Bring them all back, they\n",
+        "said. Everyone.\r",
+        "I stood in that crowd and I wanted\n",
+        "it so badly I couldn't breathe."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManNeverAsked",
+      "en_US": [
+        "I never once asked her if she'd want\n",
+        "to come back.\r",
+        "...But this one, I can ask."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManComeHome",
+      "en_US": [
+        "Old Man: Duchess. Would you like to\n",
+        "come home with me?"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsDuchessYes",
+      "en_US": [
+        "Duchess: Pii!"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManThankYou",
+      "en_US": [
+        "Old Man: ...Thank you.\n",
+        "Thank you both."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManMoonStone",
+      "en_US": [
+        "Old Man: This sat on her windowsill\n",
+        "for forty years.\r",
+        "Duchess liked the way it shone.\n",
+        "I'd like you to have it.\r"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManBagFull",
+      "en_US": [
+        "Old Man: Your bag's full? Then I'll\n",
+        "keep it by the window for you."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManBeside",
+      "en_US": [
+        "Old Man: Forty years, she walked\n",
+        "one step ahead of me.\r",
+        "Duchess walks beside me.\n",
+        "That, I can keep up with."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsDuchessStays",
+      "en_US": [
+        "Duchess: Pi! Pippi!\r",
+        "She won't leave the old man's side."
+      ]
     }
   ]
 }

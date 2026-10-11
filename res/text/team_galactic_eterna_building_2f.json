@@ -64,6 +64,45 @@
         "Gardenia: I fed them myself, the day\n",
         "I brought them here."
       ]
+    },
+    {
+      "id": "Haven2F_Text_QuestsDuchessCurled",
+      "en_US": [
+        "A Clefairy is curled up in front of\n",
+        "the DUCHESS kennel.\r",
+        "It must have slipped out of a crate\n",
+        "when the Haven was shut."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_QuestsDuchessCry",
+      "en_US": "Duchess: Pi... piii."
+    },
+    {
+      "id": "Haven2F_Text_QuestsDuchessLakeValor",
+      "en_US": [
+        "Lake Valor... The old man walking\n",
+        "Route 202 spoke of Lake Valor.\r",
+        "Their honeymoon was there."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_QuestsTakeDuchess",
+      "en_US": "Take Duchess with you?"
+    },
+    {
+      "id": "Haven2F_Text_QuestsDuchessFollows",
+      "en_US": [
+        "Duchess took hold of your sleeve.\n",
+        "She's coming with you."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_QuestsDuchessStays",
+      "en_US": [
+        "Duchess curled up by the kennel\n",
+        "again."
+      ]
     }
   ]
 }
