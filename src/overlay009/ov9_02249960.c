@@ -9697,6 +9697,27 @@ static BOOL ov9_02251104(DistWorldSystem *param0, u32 param1, u32 param2)
             return 1;
         }
         break;
+    // Arc 2 rifts (rift-b): flag param2 set / clear, VAR_ARC2_PROGRESS at least / below param2
+    case 20:
+        if (VarsFlags_CheckFlag(v0, param2)) {
+            return 1;
+        }
+        break;
+    case 21:
+        if (!VarsFlags_CheckFlag(v0, param2)) {
+            return 1;
+        }
+        break;
+    case 22:
+        if (*VarsFlags_GetVarAddress(v0, VAR_ARC2_PROGRESS) >= param2) {
+            return 1;
+        }
+        break;
+    case 23:
+        if (*VarsFlags_GetVarAddress(v0, VAR_ARC2_PROGRESS) < param2) {
+            return 1;
+        }
+        break;
     }
 
     return 0;
