@@ -647,6 +647,174 @@
         "Visit Beautiful Lake Valor!\n",
         "Right off Rt. 214!"
       ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2LookerDisguise",
+      "en_US": [
+        "Looker: Do not be alarmed. It is me.\n",
+        "Looker. I am in disguise."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2LookerRanName",
+      "en_US": [
+        "Looker: I ran the name you gave me.\n",
+        "Cyrus.\r",
+        "Every database in Sinnoh. The\n",
+        "international records. Everything."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2LookerNoRecord",
+      "en_US": [
+        "Looker: No birth record. No Trainer\n",
+        "ID. No Pokétch number.\r",
+        "No history. Nothing."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2LookerNotExist",
+      "en_US": "Looker: This man does not exist."
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2LookerTrust",
+      "en_US": [
+        "Looker: So I must ask.\n",
+        "Do you trust him?"
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2LookerTrustYes",
+      "en_US": [
+        "Looker: Hm. Then I hope you are\n",
+        "right. For your sake."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2LookerTrustNo",
+      "en_US": [
+        "Looker: Hm. Then we understand\n",
+        "each other. Keep your eyes open."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2LookerFavor",
+      "en_US": [
+        "Looker: Now. A favor.\r",
+        "There is an Eclipse depot here. The\n",
+        "old warehouse, by the east wall.\r",
+        "Tonight I copy their manifest.\n",
+        "I could use a small, quiet helper."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2LookerSideDoor",
+      "en_US": [
+        "Looker: Meet me at the side door.\n",
+        "Do not wave."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2DepotGuard",
+      "en_US": [
+        "Eclipse Grunt: Private depot.\n",
+        "Move along, kid."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2DepotRumor",
+      "en_US": [
+        "People in dark coats took over the\n",
+        "old warehouse up north.\r",
+        "Trucks come and go all night.\n",
+        "Nobody knows what's in them."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2MayleneBond",
+      "en_US": [
+        "Maylene: You fought like your\n",
+        "Pokémon trusts you completely.\r",
+        "I want to show you something."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2MayleneStar",
+      "en_US": [
+        "Maylene: Long ago, a star fell here.\r",
+        "Veilstone was built around the\n",
+        "pieces. My family keeps them."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2MayleneMega",
+      "en_US": [
+        "Maylene: The star's light wakes\n",
+        "something in a Pokémon.\r",
+        "But only when the bond with its\n",
+        "Trainer is strong enough.\r",
+        "We call it Mega Evolution."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2MayleneForced",
+      "en_US": [
+        "Maylene: It can't be forced. Ever.\n",
+        "It only answers a bond."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2CyrusRocks",
+      "en_US": [
+        "Cyrus: In my world, these were only\n",
+        "rocks."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2MayleneShowMe",
+      "en_US": [
+        "Maylene: Show me your bond.\n",
+        "Lucario! Let's go!"
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2MayleneThatsIt",
+      "en_US": [
+        "Maylene: That's it. That's the bond.\n",
+        "This is yours now."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2GotKeyStone",
+      "en_US": "{STRVAR_1 3, 0, 0} got a Key Stone!"
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2MayleneBox",
+      "en_US": [
+        "Maylene: These sat dark in that box\n",
+        "for a hundred years.\r",
+        "They lit up the day your Pokémon\n",
+        "came out of that other world."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2MayleneYours",
+      "en_US": [
+        "Maylene: This one is yours.\r",
+        "Ruth can take the other two. One\n",
+        "for Garius, one for Cyrus."
+      ]
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2GotMegaStone",
+      "en_US": "{STRVAR_1 3, 0, 0} got the {STRVAR_1 8, 1, 0}!"
+    },
+    {
+      "id": "VeilstoneCity_Text_Arc2StoneBox",
+      "en_US": [
+        "An old stone box, carved with\n",
+        "falling stars."
+      ]
     }
   ]
 }
