@@ -27,3 +27,32 @@ tiles over the trunks let the player walk through the trees).
 On the wall: LEFT = +z, RIGHT = -z, UP = climb, DOWN = descend (or hop off at the two ends).
 Scripts: `res/field/scripts/scripts_distortion_world_arc1_seams.s`; objects and the fork / idle-hint step hook:
 `src/overlay009/ov9_02249960.c` (`sArc1SeamsObjects`, `Arc1Seams_HandleStep`).
+
+## Arc 2 rift-b maps (Route 214, Route 213, Lost Tower; Phase 0)
+
+| map | floor | land data / matrix | tw_arc spec | attr ids |
+|---|---|---|---|---|
+| `MAP_HEADER_DW_ROUTE_214` | DW B4F clone | `map_data_673/674` (B4F 612/613, edited) + stock 614/615, matrix 293 | `route_214.json` | 21 (east wall), 22 (ceiling) |
+| `MAP_HEADER_DW_ROUTE_213` | DW B4F clone | `map_data_675/676` (B4F 612/613, edited) + stock 614/615, matrix 294 | `route_213.json` | 25 (east wall), 26 (ceiling) |
+| `MAP_HEADER_DW_LOST_TOWER` | Arc 1 seams (B1F) clone | `map_data_677/678` (667/668, edited), matrix 295 | `lost_tower.json` | 29 (west wall) |
+
+Rebuild (all idempotent; `--check` / `check` verify):
+
+    python3 tools/distortion_world/build_rift_b_maps.py
+    for m in route_214 route_213 lost_tower; do python3 tools/distortion_world/twarc.py build tools/distortion_world/$m.json; done
+
+The JSON specs are authoritative for `tw_arc.narc` / `tw_arc_attr.narc`: after merging another workstream's narcs,
+rerun the three `build` lines (rift-a's specs touch other members).
+
+B4F maps (both): entry (20,12) facing west on the tree island (B4F 612, with (16..20,12) opened); hop the chasm
+(25,22-23) -> (31,22-23) and the pool (32,22-23) -> (38,22-23) (ground-to-ground jump points: kind 4, rot 0,
+dx +-6; the pool tiles are blocked so there is no Surf prompt); the corridor to the east wall x=49 (stock B4F jumps:
+on at (48,22-23) pressing right, climb, at the top (y=9, z 27-30) pressing up onto the ceiling y=10). On the east
+wall UP climbs and RIGHT/LEFT walk +z/-z; on the ceiling UP/DOWN walk +z/-z and RIGHT/LEFT walk +x/-x. Ceiling grid
+rows are x = 49 - row (row 0 = x 49), columns z 25..47. The totem fight starts at the ceiling's far end (z >= 45,
+`Arc2DwB4F_HandleCeilingEnd` in `src/overlay009/ov9_02249960.c`). Route 214's ceiling is a 6-wide strip;
+Route 213's is a serpentine path "under the lake". The B4F ghost props (its rock-maze blocks) are dropped
+(`"ghost_props": []`); their triggers stay and toggle nothing.
+
+Lost Tower: the Arc 1 seam unchanged (on from the ledge (12,14), off at (12,23)); the vein room is (12..15,23)
+with (15,24..26) blocked so the wall-of-shadow object at (16,23) closes the only way deeper.
