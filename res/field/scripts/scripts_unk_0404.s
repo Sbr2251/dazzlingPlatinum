@@ -331,6 +331,7 @@
     ScriptEntry _1E9A
     ScriptEntry _1EAE
     ScriptEntry _Arc2Gengarite
+    ScriptEntry _Arc2Staraptite
     ScriptEntryEnd
 
 _0522:
@@ -2432,5 +2433,17 @@ _20C6:
 _Arc2Gengarite:
     SetVar VAR_0x8008, ITEM_GENGARITE
     SetVar VAR_0x8009, 1
+    GoTo _1EAE
+    End
+
+// Arc 2 polish-c: Staraptite in the Meteor Shrine pit, Veilstone City (733,629) (script 7329). The ball's
+// hidden flag is Veilstone's map-local 0x0036 (shown from VAR_ARC2_PROGRESS 57 by VeilstoneCity_Arc2OnTransition);
+// the pickup itself is remembered in FLAG_UNK_0x053C, set only when the stone fits in the bag.
+_Arc2Staraptite:
+    SetVar VAR_0x8008, ITEM_STARAPTITE
+    SetVar VAR_0x8009, 1
+    CanFitItem VAR_0x8008, VAR_0x8009, VAR_RESULT
+    GoToIfEq VAR_RESULT, 0, _1EAE
+    SetFlag FLAG_UNK_0x053C
     GoTo _1EAE
     End

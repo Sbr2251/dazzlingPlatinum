@@ -1494,6 +1494,7 @@ _123E:
 // Map-local hide flags (cleared on every map load, recomputed in VeilstoneCity_Arc2OnTransition):
 //   0x0030 Looker (newspaper), 0x0031 Maylene, 0x0032 Cyrus, 0x0033 stone box, 0x0034 depot front guards,
 //   0x0035 stock objects that never show in Arc 2 (Dawn, the 'HM02 in the warehouse' grunt)
+//   0x0036 (polish-c) the Staraptite ball in the Meteor Shrine pit: shown from 57 until FLAG_UNK_0x053C (picked up)
 // Map-local vars: VAR_MAP_LOCAL_1 = 1 arms the Looker coord (681-684, 616); VAR_MAP_LOCAL_2 = 1 disarms the
 //   depot guards' push-back coord (697, 596).
 //   VAR_MAP_LOCAL_3 = badge-check scratch (OnTransition must not write VAR_RESULT: it hangs the map load).
@@ -1516,6 +1517,15 @@ VeilstoneCity_Arc2OnTransition:
     CallIfGe VAR_ARC2_PROGRESS, 51, VeilstoneCity_Arc2HideDepotGuards
     CallIfEq VAR_ARC2_PROGRESS, 49, VeilstoneCity_Arc2TryArmLooker
     CallIfGe VAR_ARC2_PROGRESS, 54, VeilstoneCity_Arc2TryShowShrine
+    // polish-c: the Staraptite in the shrine pit, from the end of Maylene's trial (57) until it's picked up
+    SetFlag FLAG_UNK_0x0036
+    CallIfGe VAR_ARC2_PROGRESS, 57, VeilstoneCity_Arc2TryShowStaraptite
+    Return
+
+VeilstoneCity_Arc2TryShowStaraptite:
+    GoToIfSet FLAG_UNK_0x053C, VeilstoneCity_Arc2StaraptiteDone
+    ClearFlag FLAG_UNK_0x0036
+VeilstoneCity_Arc2StaraptiteDone:
     Return
 
 VeilstoneCity_Arc2TryShowShrine:
