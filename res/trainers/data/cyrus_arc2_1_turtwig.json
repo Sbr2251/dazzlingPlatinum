@@ -13,16 +13,25 @@
             "species": "SPECIES_PIPLUP",
             "form": 0,
             "level": 17,
-            "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "item": "ITEM_ORAN_BERRY",
+            "moves": [
+                "MOVE_BUBBLE",
+                "MOVE_PECK",
+                "MOVE_GROWL",
+                "MOVE_POUND"
+            ],
+            "power": 120,
+            "ball_seal": 0,
+            "ability": "ABILITY_TORRENT"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Hm. Well fought.\n",
+                "Both of you.\n"
+            ]
         }
     ]
 }

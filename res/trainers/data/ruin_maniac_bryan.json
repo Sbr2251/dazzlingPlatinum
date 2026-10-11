@@ -12,16 +12,16 @@
         {
             "species": "SPECIES_BRONZOR",
             "form": 0,
-            "level": 24,
+            "level": 31,
             "item": null,
             "moves": null,
             "power": 0,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_CRANIDOS",
+            "species": "SPECIES_RAMPARDOS",
             "form": 0,
-            "level": 26,
+            "level": 32,
             "item": null,
             "moves": null,
             "power": 0,

@@ -9,19 +9,43 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_SKUNTANK",
+            "species": "SPECIES_MIGHTYENA",
             "form": 0,
             "level": 33,
             "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_ASSURANCE",
+                "MOVE_BITE",
+                "MOVE_SWAGGER",
+                "MOVE_SCARY_FACE"
+            ],
+            "power": 100,
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
+        },
+        {
+            "species": "SPECIES_SKUNTANK",
+            "form": 0,
+            "level": 34,
+            "item": null,
+            "moves": [
+                "MOVE_FLAMETHROWER",
+                "MOVE_SLASH",
+                "MOVE_POISON_GAS",
+                "MOVE_SCREECH"
+            ],
+            "power": 100,
+            "ball_seal": 0,
+            "ability": "ABILITY_AFTERMATH"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "No! The frame was almost full!\n",
+                "Ugh!\n"
+            ]
         }
     ]
 }

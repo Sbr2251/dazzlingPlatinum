@@ -9,19 +9,28 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_PURUGLY",
+            "species": "SPECIES_STUNKY",
             "form": 0,
             "level": 28,
             "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_SLASH",
+                "MOVE_SCREECH",
+                "MOVE_SMOKE_SCREEN",
+                "MOVE_TOXIC"
+            ],
+            "power": 80,
+            "ball_seal": 0,
+            "ability": "ABILITY_AFTERMATH"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "This is private property!\n",
+                "Scram!\n"
+            ]
         }
     ]
 }

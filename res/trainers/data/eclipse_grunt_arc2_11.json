@@ -13,15 +13,39 @@
             "form": 0,
             "level": 33,
             "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_WING_ATTACK",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_AIR_CUTTER"
+            ],
+            "power": 100,
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
+        },
+        {
+            "species": "SPECIES_SHARPEDO",
+            "form": 0,
+            "level": 34,
+            "item": null,
+            "moves": [
+                "MOVE_CRUNCH",
+                "MOVE_BITE",
+                "MOVE_SCARY_FACE",
+                "MOVE_SCREECH"
+            ],
+            "power": 100,
+            "ball_seal": 0,
+            "ability": "ABILITY_ROUGH_SKIN"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Who let you onto the beach?!\n",
+                "Lights! Somebody get the lights!\n"
+            ]
         }
     ]
 }

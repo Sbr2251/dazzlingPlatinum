@@ -12,7 +12,7 @@
         {
             "species": "SPECIES_GLIGAR",
             "form": 0,
-            "level": 24,
+            "level": 29,
             "item": null,
             "moves": [
                 "MOVE_SCREECH",
@@ -24,9 +24,9 @@
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_BUIZEL",
+            "species": "SPECIES_FLOATZEL",
             "form": 0,
-            "level": 24,
+            "level": 29,
             "item": null,
             "moves": [
                 "MOVE_AQUA_JET",
@@ -40,7 +40,7 @@
         {
             "species": "SPECIES_DRIFBLIM",
             "form": 0,
-            "level": 25,
+            "level": 30,
             "item": null,
             "moves": [
                 "MOVE_SWALLOW",

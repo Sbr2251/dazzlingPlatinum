@@ -8,9 +8,9 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_ZUBAT",
+            "species": "SPECIES_GOLBAT",
             "form": 0,
-            "level": 30,
+            "level": 29,
             "item": null,
             "moves": null,
             "power": 0,
@@ -19,7 +19,7 @@
         {
             "species": "SPECIES_SKORUPI",
             "form": 0,
-            "level": 32,
+            "level": 30,
             "item": null,
             "moves": null,
             "power": 0,

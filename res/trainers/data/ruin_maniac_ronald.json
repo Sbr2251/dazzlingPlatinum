@@ -10,9 +10,9 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_SHIELDON",
+            "species": "SPECIES_BASTIODON",
             "form": 0,
-            "level": 27,
+            "level": 32,
             "item": null,
             "moves": null,
             "power": 0,

@@ -10,7 +10,7 @@
         {
             "species": "SPECIES_BUIZEL",
             "form": 0,
-            "level": 18,
+            "level": 26,
             "item": null,
             "moves": null,
             "power": 0,
@@ -19,7 +19,7 @@
         {
             "species": "SPECIES_LUXIO",
             "form": 0,
-            "level": 18,
+            "level": 26,
             "item": null,
             "moves": null,
             "power": 0,
@@ -28,7 +28,7 @@
         {
             "species": "SPECIES_GLIGAR",
             "form": 0,
-            "level": 21,
+            "level": 27,
             "item": null,
             "moves": null,
             "power": 0,

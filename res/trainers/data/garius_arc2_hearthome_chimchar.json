@@ -1,28 +1,100 @@
 {
     "name": "Garius",
     "class": "TRAINER_CLASS_RIVAL",
-    "items": [],
+    "items": [
+        "ITEM_SUPER_POTION"
+    ],
     "ai_flags": [
         "AI_FLAG_BASIC",
         "AI_FLAG_EVAL_ATTACK",
-        "AI_FLAG_EXPERT"
+        "AI_FLAG_EXPERT",
+        "AI_FLAG_CHECK_HP"
     ],
     "double_battle": false,
     "party": [
         {
+            "species": "SPECIES_STARAPTOR",
+            "form": 0,
+            "level": 35,
+            "item": "ITEM_NONE",
+            "moves": [
+                "MOVE_CLOSE_COMBAT",
+                "MOVE_AERIAL_ACE",
+                "MOVE_QUICK_ATTACK",
+                "MOVE_TAKE_DOWN"
+            ],
+            "power": 170,
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
+        },
+        {
+            "species": "SPECIES_ROSERADE",
+            "form": 0,
+            "level": 35,
+            "item": "ITEM_NONE",
+            "moves": [
+                "MOVE_GIGA_DRAIN",
+                "MOVE_SLUDGE_BOMB",
+                "MOVE_STUN_SPORE",
+                "MOVE_TOXIC_SPIKES"
+            ],
+            "power": 170,
+            "ball_seal": 0,
+            "ability": "ABILITY_POISON_POINT"
+        },
+        {
+            "species": "SPECIES_RAPIDASH",
+            "form": 0,
+            "level": 35,
+            "item": "ITEM_NONE",
+            "moves": [
+                "MOVE_FLAME_WHEEL",
+                "MOVE_STOMP",
+                "MOVE_TAKE_DOWN",
+                "MOVE_AGILITY"
+            ],
+            "power": 170,
+            "ball_seal": 0,
+            "ability": "ABILITY_FLASH_FIRE"
+        },
+        {
+            "species": "SPECIES_HERACROSS",
+            "form": 0,
+            "level": 36,
+            "item": "ITEM_BLACK_BELT",
+            "moves": [
+                "MOVE_BRICK_BREAK",
+                "MOVE_NIGHT_SLASH",
+                "MOVE_AERIAL_ACE",
+                "MOVE_HORN_ATTACK"
+            ],
+            "power": 170,
+            "ball_seal": 0,
+            "ability": "ABILITY_GUTS"
+        },
+        {
             "species": "SPECIES_EMPOLEON",
             "form": 0,
             "level": 38,
-            "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "item": "ITEM_SITRUS_BERRY",
+            "moves": [
+                "MOVE_BRINE",
+                "MOVE_METAL_CLAW",
+                "MOVE_AQUA_JET",
+                "MOVE_SWORDS_DANCE"
+            ],
+            "power": 170,
+            "ball_seal": 0,
+            "ability": "ABILITY_TORRENT"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "...Yeah. Figures.\n",
+                "You always win the ones that count.\n"
+            ]
         }
     ]
 }
