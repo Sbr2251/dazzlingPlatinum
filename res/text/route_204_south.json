@@ -185,6 +185,42 @@
         "{STRVAR_1 3, 0, 0} handed Ruth the\n",
         "Portal Reader."
       ]
+    },
+    {
+      "id": "RavagedPath_Text_EchoHum",
+      "en_US": [
+        "The Resonator hums against the\n",
+        "frame. The air goes cold."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_EchoCrate",
+      "en_US": "A crate. Its lid is pried open."
+    },
+    {
+      "id": "RavagedPath_Text_EchoStrapped",
+      "en_US": [
+        "Something is dragged out of it\n",
+        "and strapped into the frame."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_EchoHitmonlee",
+      "en_US": [
+        "A Hitmonlee. It kicks and kicks.\n",
+        "The straps hold."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_EchoTear",
+      "en_US": "The air beside it tears open."
+    },
+    {
+      "id": "RavagedPath_Text_EchoFade",
+      "en_US": [
+        "The hum fades.\n",
+        "The restraints hang empty again."
+      ]
     }
   ]
 }

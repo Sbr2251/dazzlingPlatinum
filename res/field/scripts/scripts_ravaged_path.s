@@ -33,6 +33,24 @@
 #define RAVAGED_PATH_GRUNT_F RAVAGED_PATH_ARC2_GRUNT_F
 #define RAVAGED_PATH_RIFT    RAVAGED_PATH_ARC2_RIFT
 
+// Arc 2, workstream echo (R3): the Resonator echo at the frame (S8 Echo stage). From the second calmed totem on
+// (FLAG_TOTEM_VESPIQUEN_DEFEATED) and with the Resonator, examining the frame at 16+ replays the Hitmonlee capture once,
+// as ghosts (src/field_move_tasks.c, FieldMoves_EchoGhostDraw): a crate pried open, the Hitmonlee strapped into the
+// frame, the air tearing beside it. No one comments; it's what the player sees. Nothing else changes, so it never
+// blocks progress.
+//   Flag: FLAG_ARC2_ECHO_RAVAGED_PATH = FLAG_ARC1_SPARE_A (P2 pool), set when the echo has played.
+//   Map-local: FLAG_UNK_0x0018 hides the ghost actors (set every load, cleared only while the echo plays: AddObject
+//   checks it); VAR_MAP_LOCAL_5 is their opacity (0 = off).
+//   Ghost actors (object events with fixed local IDs 0xC0-0xC4, script-only): the crate (19,44), the grunts (18,44)
+//   and (21,44), the Hitmonlee (out of the crate), the tear (19,45, the rift's tile).
+#define FLAG_ARC2_ECHO_RAVAGED_PATH FLAG_ARC1_SPARE_A
+#define RAVAGED_PATH_ECHO_CRATE     0xC0
+#define RAVAGED_PATH_ECHO_GRUNT_M   0xC1
+#define RAVAGED_PATH_ECHO_GRUNT_F   0xC2
+#define RAVAGED_PATH_ECHO_HITMONLEE 0xC3
+#define RAVAGED_PATH_ECHO_TEAR      0xC4
+#define RAVAGED_PATH_ECHO_OPACITY   18
+
     ScriptEntry RavagedPath_OnTransition
     ScriptEntry RavagedPath_Arc2Ruth
     ScriptEntry RavagedPath_Arc2Cyrus
@@ -45,6 +63,7 @@
 
 RavagedPath_OnTransition:
     SetFlag FLAG_FIRST_ARRIVAL_RAVAGED_PATH
+    SetFlag FLAG_UNK_0x0018
     SetFlag FLAG_UNK_0x003B
     SetFlag FLAG_UNK_0x003C
     SetFlag FLAG_UNK_0x003D
@@ -111,6 +130,7 @@ RavagedPath_Arc2Frame:
     Message RavagedPath_Text_Arc2Frame
     WaitABXPadPress
     CloseMessage
+    Call RavagedPath_Echo
     ReleaseAll
     End
 
@@ -364,6 +384,104 @@ RavagedPath_Arc2OnFrameBack:
     ReleaseAll
     End
 
+// ------------------------------------------------------------------------------------------------ echo (S8)
+// Called from the frame script after its line, with the player on the stairs below the frame (20,46) facing north.
+RavagedPath_Echo:
+    GoToIfGe VAR_ARC2_PROGRESS, 16, RavagedPath_EchoCheck
+    Return
+
+RavagedPath_EchoCheck:
+    GoToIfUnset FLAG_TOTEM_VESPIQUEN_DEFEATED, RavagedPath_Return
+    GoToIfSet FLAG_ARC2_ECHO_RAVAGED_PATH, RavagedPath_Return
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, RavagedPath_Return
+    Message RavagedPath_Text_EchoHum
+    WaitABXPadPress
+    CloseMessage
+    // The echo starts: a white flash, then the ghosts fade in
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    SetVar VAR_MAP_LOCAL_5, 1
+    ClearFlag FLAG_UNK_0x0018
+    AddObject RAVAGED_PATH_ECHO_CRATE
+    AddObject RAVAGED_PATH_ECHO_GRUNT_M
+    AddObject RAVAGED_PATH_ECHO_GRUNT_F
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitFanfare SEQ_SE_PL_SYUWA
+    Call RavagedPath_EchoFadeIn
+    WaitTime 20, VAR_RESULT
+    // The crate is pried open
+    ApplyMovement RAVAGED_PATH_ECHO_GRUNT_M, RavagedPath_Movement_EchoFaceEast
+    ApplyMovement RAVAGED_PATH_ECHO_GRUNT_F, RavagedPath_Movement_EchoFaceWest
+    WaitMovement
+    PlayFanfare SEQ_SE_DP_BOX03
+    ShakeCamera 4, 1
+    WaitFanfare SEQ_SE_DP_BOX03
+    Message RavagedPath_Text_EchoCrate
+    WaitABXPadPress
+    CloseMessage
+    // The Hitmonlee is hauled out and into the frame (20,45); the grunts close in behind it
+    AddObject RAVAGED_PATH_ECHO_HITMONLEE
+    WaitTime 10, VAR_RESULT
+    ApplyMovement RAVAGED_PATH_ECHO_HITMONLEE, RavagedPath_Movement_EchoHitmonleeToFrame
+    ApplyMovement RAVAGED_PATH_ECHO_GRUNT_M, RavagedPath_Movement_EchoGruntMWatch
+    ApplyMovement RAVAGED_PATH_ECHO_GRUNT_F, RavagedPath_Movement_EchoGruntFWatch
+    WaitMovement
+    PlayFanfare SEQ_SE_PL_KUSARI
+    WaitFanfare SEQ_SE_PL_KUSARI
+    Message RavagedPath_Text_EchoStrapped
+    WaitABXPadPress
+    CloseMessage
+    // It fights the straps
+    PlayCry SPECIES_HITMONLEE
+    ApplyMovement RAVAGED_PATH_ECHO_HITMONLEE, RavagedPath_Movement_EchoKick
+    WaitMovement
+    WaitCry
+    Message RavagedPath_Text_EchoHitmonlee
+    WaitABXPadPress
+    CloseMessage
+    // The air tears beside it (the rift's tile)
+    AddObject RAVAGED_PATH_ECHO_TEAR
+    PlayFanfare SEQ_SE_PL_SYUWA
+    ShakeCamera 16, 2
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitFanfare SEQ_SE_PL_SYUWA
+    Message RavagedPath_Text_EchoTear
+    WaitABXPadPress
+    CloseMessage
+    // It fades; the ghosts go and the opacity is back to 0 before the player moves again
+    Call RavagedPath_EchoFadeOut
+    RemoveObject RAVAGED_PATH_ECHO_CRATE
+    RemoveObject RAVAGED_PATH_ECHO_GRUNT_M
+    RemoveObject RAVAGED_PATH_ECHO_GRUNT_F
+    RemoveObject RAVAGED_PATH_ECHO_HITMONLEE
+    RemoveObject RAVAGED_PATH_ECHO_TEAR
+    SetFlag FLAG_UNK_0x0018
+    SetVar VAR_MAP_LOCAL_5, 0
+    WaitTime 2, VAR_RESULT
+    SetFlag FLAG_ARC2_ECHO_RAVAGED_PATH
+    Message RavagedPath_Text_EchoFade
+    WaitABXPadPress
+    CloseMessage
+    Return
+
+RavagedPath_EchoFadeIn:
+    AddVar VAR_MAP_LOCAL_5, 1
+    WaitTime 1, VAR_RESULT
+    GoToIfLt VAR_MAP_LOCAL_5, RAVAGED_PATH_ECHO_OPACITY, RavagedPath_EchoFadeIn
+    Return
+
+RavagedPath_EchoFadeOut:
+    SubVar VAR_MAP_LOCAL_5, 1
+    WaitTime 1, VAR_RESULT
+    GoToIfGt VAR_MAP_LOCAL_5, 1, RavagedPath_EchoFadeOut
+    Return
+
 // ------------------------------------------------------------------------------------------------ movements
     .balign 4, 0
 RavagedPath_Movement_FaceWest:
@@ -449,4 +567,42 @@ RavagedPath_Movement_RuthRunToPlayer:
     WalkFastEast
     WalkFastNorth
     FaceNorth
+    EndMovement
+
+    .balign 4, 0
+RavagedPath_Movement_EchoFaceEast:
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+RavagedPath_Movement_EchoFaceWest:
+    FaceWest
+    EndMovement
+
+    .balign 4, 0
+RavagedPath_Movement_EchoHitmonleeToFrame:
+    WalkSlowEast
+    WalkSlowSouth
+    EndMovement
+
+    .balign 4, 0
+RavagedPath_Movement_EchoGruntMWatch:
+    Delay16
+    Delay8
+    FaceSouth
+    EndMovement
+
+    .balign 4, 0
+RavagedPath_Movement_EchoGruntFWatch:
+    Delay16
+    Delay8
+    FaceSouth
+    EndMovement
+
+    .balign 4, 0
+RavagedPath_Movement_EchoKick:
+    JumpOnSpotFastSouth
+    JumpOnSpotFastSouth
+    Delay8
+    JumpOnSpotFastSouth
     EndMovement
