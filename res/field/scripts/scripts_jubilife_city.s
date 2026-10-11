@@ -2,6 +2,18 @@
 #include "res/text/bank/jubilife_city.h"
 #include "res/field/events/events_jubilife_city.h"
 
+// Dazzling Platinum Arc 2 (s-jubilife), scenes 2.1 and 2.3. VAR_ARC2_PROGRESS block 1-9:
+//   0 (with VAR_ARC1_PROGRESS 16): entering Jubilife runs 2.1 (Garius and the player find Cyrus), sets 1,
+//      warps into the Trainers' School (2.2, scripts_trainers_school.s, sets 3).
+//   3: leaving the school runs 2.3 (Cyrus battle 1), sets 5, then goes to the 2.4 cutaway (s-cutaways),
+//      which sets 9 and returns the player outside the school.  9+: Rowan and Ruth are gone.
+// Flags (s-jubilife allocation 0x0930-0x0933): FLAG_ARC2_JUBILIFE_A (0x0930) = "2.1 staging" (set only while
+// 2.1 reloads the map at the plaza; cleared before it leaves). FLAG_ARC2_JUBILIFE_B-D are unused. Hide flags for the Arc 2 cast are
+// map-local temporaries (the engine clears flags 0-63 on every map change), set again on every load:
+//   FLAG_UNK_0x0032 = hide LOCALID_ARC2_GARIUS     FLAG_UNK_0x0033 = hide LOCALID_ARC2_CYRUS
+//   FLAG_UNK_0x0034 = hide LOCALID_ARC2_ROWAN      FLAG_UNK_0x0035 = hide LOCALID_ARC2_RUTH
+// VAR_MAP_LOCAL_2 arms the on-frame scenes (scripts_init_jubilife_city.s): 1 = 2.1, 3 = 2.3.
+
 
     ScriptEntry _0072
     ScriptEntry JubilifeCity_Counterpart
@@ -50,6 +62,9 @@
     ScriptEntry JubilifeCity_Arc1CrateReceiver
     ScriptEntry JubilifeCity_Arc1CrateTriggerPsst
     ScriptEntry JubilifeCity_Arc1CrateTriggerStep
+    ScriptEntry JubilifeCity_Arc2FindCyrus
+    ScriptEntry JubilifeCity_Arc2OutsideSchool
+    ScriptEntry JubilifeCity_Arc2Cast
     ScriptEntryEnd
 
 _0072:
@@ -61,6 +76,7 @@ _0072:
     Call JubilifeCity_Arc1CrateOnTransition
     CallIfLt VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1HideRally
     CallIfGe VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1OnTransition
+    Call JubilifeCity_Arc2OnTransition
     CallIfEq VAR_JUBILIFE_STATE, 0, _00AC
     CallIfGe VAR_JUBILIFE_STATE, 3, _00C2
     GetPlayerGender VAR_MAP_LOCAL_0
@@ -1314,6 +1330,7 @@ _0FE6:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    GoToIfInRange VAR_ARC2_PROGRESS, 9, 19, JubilifeCity_Arc2TeachingAfterHours
     Message 88
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, _1011
@@ -1753,7 +1770,7 @@ _1558:
 //   VAR_ARC1_PROGRESS 12: rally cast + crowd visible, the east exit sends the player back to the plaza.
 //                        Talking to Garius (or walking up behind him) runs the rally and sets 13.
 //   13: crowd and grunts stay, Garius/Cyrus/Looker are gone, the east exit is open (Route 203, scene 12).
-//   14+: the plaza is back to normal.  16: "To be continued..." at the north exit (D13).
+//   14+: the plaza is back to normal. (16's "To be continued..." gate was removed in Arc 2.)
 
 JubilifeCity_Arc1HideRally:
     SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
@@ -1995,15 +2012,9 @@ JubilifeCity_Arc1TriggerEastExit:
     ReleaseAll
     End
 
-// Coord event on the north exit row (x172-177, z743), state 16: end of Arc 1 (D13)
+// Arc 1's "To be continued..." gate on the north exit (state 16, D13) was removed for Arc 2: its coord event is
+// gone from the events file. The script slot stays so the script ids after it don't shift.
 JubilifeCity_Arc1TriggerToBeContinued:
-    LockAll
-    Message JubilifeCity_Text_Arc1ToBeContinued
-    WaitABXPadPress
-    CloseMessage
-    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_StepSouth
-    WaitMovement
-    ReleaseAll
     End
 
 JubilifeCity_Arc1TrenchCoat:
@@ -2924,4 +2935,273 @@ JubilifeCity_Arc1CrateMovement_LookerLeave:
     FaceSouth
     Delay8
     WalkNormalSouth 7
+    EndMovement
+
+// ------------------------------------------------------------------------------------------------------------
+// Dazzling Platinum Arc 2 (s-jubilife): 2.1 finding Cyrus, 2.3 Cyrus battle 1 (see the header comment).
+
+// 1 once s-cutaways (2.4 in the violet room) is merged; 0 skips the cutaway (stub)
+#define ARC2_CUTAWAY_2_4_WIRED 0
+
+JubilifeCity_Arc2OnTransition:
+    SetFlag FLAG_UNK_0x0032
+    SetFlag FLAG_UNK_0x0033
+    SetFlag FLAG_UNK_0x0034
+    SetFlag FLAG_UNK_0x0035
+    GoToIfLt VAR_ARC1_PROGRESS, 16, JubilifeCity_Arc2OnTransitionEnd
+    CallIfEq VAR_ARC2_PROGRESS, 0, JubilifeCity_Arc2SetUpFindCyrus
+    CallIfEq VAR_ARC2_PROGRESS, 3, JubilifeCity_Arc2SetUpOutsideSchool
+JubilifeCity_Arc2OnTransitionEnd:
+    Return
+
+// Cyrus stands alone in front of the dark Jubilife TV screen, his back to the plaza. On the first load at 0 the
+// on-frame 2.1 is armed; it reloads the map at the plaza approach with FLAG_ARC2_JUBILIFE_A set (a long SetPosition
+// leaves map chunks unloaded), and that second load stages the scene instead: Garius beside the player and an
+// empty plaza (the stock NPCs are moved for this load only).
+JubilifeCity_Arc2SetUpFindCyrus:
+    ClearFlag FLAG_UNK_0x0033
+    SetObjectEventPos LOCALID_ARC2_CYRUS, 164, 753
+    SetObjectEventDir LOCALID_ARC2_CYRUS, DIR_NORTH
+    SetObjectEventMovementType LOCALID_ARC2_CYRUS, MOVEMENT_TYPE_LOOK_NORTH
+    GoToIfSet FLAG_ARC2_JUBILIFE_A, JubilifeCity_Arc2StageFindCyrus
+    SetVar VAR_MAP_LOCAL_2, 1
+    Return
+
+JubilifeCity_Arc2StageFindCyrus:
+    ClearFlag FLAG_UNK_0x0032
+    SetObjectEventPos LOCALID_ARC2_GARIUS, 165, 759
+    SetObjectEventDir LOCALID_ARC2_GARIUS, DIR_NORTH
+    SetObjectEventMovementType LOCALID_ARC2_GARIUS, MOVEMENT_TYPE_LOOK_NORTH
+    SetObjectEventPos JUBILIFE_CITY_TWIN_3, 150, 761
+    SetObjectEventPos JUBILIFE_CITY_ACE_TRAINER_M_1, 181, 760
+    SetObjectEventPos JUBILIFE_CITY_ACE_TRAINER_M_21, 152, 768
+    // The TV door clown sits this load out (cleared again before 2.1 leaves the map)
+    SetFlag FLAG_UNK_0x0238
+    Return
+
+// Cyrus waits by the school door with his new Poke Ball; Rowan and Ruth stand on either side
+JubilifeCity_Arc2SetUpOutsideSchool:
+    ClearFlag FLAG_UNK_0x0033
+    ClearFlag FLAG_UNK_0x0034
+    ClearFlag FLAG_UNK_0x0035
+    SetObjectEventPos LOCALID_ARC2_CYRUS, 168, 779
+    SetObjectEventDir LOCALID_ARC2_CYRUS, DIR_NORTH
+    SetObjectEventMovementType LOCALID_ARC2_CYRUS, MOVEMENT_TYPE_LOOK_NORTH
+    SetObjectEventPos LOCALID_ARC2_ROWAN, 166, 778
+    SetObjectEventDir LOCALID_ARC2_ROWAN, DIR_EAST
+    SetObjectEventMovementType LOCALID_ARC2_ROWAN, MOVEMENT_TYPE_LOOK_EAST
+    SetObjectEventPos LOCALID_ARC2_RUTH, 170, 778
+    SetObjectEventDir LOCALID_ARC2_RUTH, DIR_WEST
+    SetObjectEventMovementType LOCALID_ARC2_RUTH, MOVEMENT_TYPE_LOOK_WEST
+    SetVar VAR_MAP_LOCAL_2, 3
+    Return
+
+// The cast is only on screen during the scenes (the player is locked), so talking to them is never possible
+JubilifeCity_Arc2Cast:
+    End
+
+// 2.1 (on frame, VAR_MAP_LOCAL_2 1): whichever way the player came in, Garius walks into the plaza beside them
+JubilifeCity_Arc2FindCyrus:
+    LockAll
+    SetVar VAR_MAP_LOCAL_2, 0
+    FadeScreenOut
+    WaitFadeScreen
+    SetFlag FLAG_ARC2_JUBILIFE_A
+    Warp MAP_HEADER_JUBILIFE_CITY, 0, 163, 759, DIR_NORTH
+    FadeScreenIn
+    WaitFadeScreen
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc2Movement_WalkNorth3
+    ApplyMovement LOCALID_ARC2_GARIUS, JubilifeCity_Arc2Movement_WalkNorth3
+    WaitMovement
+    ApplyMovement LOCALID_ARC2_GARIUS, JubilifeCity_Arc2Movement_Exclaim
+    WaitMovement
+    BufferRivalName 0
+    Message JubilifeCity_Text_Arc2GariusThereHeIs
+    WaitABXPadPress
+    CloseMessage
+    WaitTime 20, VAR_RESULT
+    Message JubilifeCity_Text_Arc2CyrusRowanSentYou
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_CYRUS, JubilifeCity_Arc2Movement_TurnSouth
+    WaitMovement
+    BufferRivalName 0
+    Message JubilifeCity_Text_Arc2GariusLuckyUs
+    WaitABXPadPress
+    CloseMessage
+    Message JubilifeCity_Text_Arc2CyrusRiftOpened
+    WaitABXPadPress
+    CloseMessage
+    // Cyrus walks off between the two of them, toward the Trainers' School
+    ApplyMovement LOCALID_ARC2_CYRUS, JubilifeCity_Arc2Movement_CyrusLeavePlaza
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc2Movement_PlayerWatchCyrus
+    ApplyMovement LOCALID_ARC2_GARIUS, JubilifeCity_Arc2Movement_GariusWatchCyrus
+    WaitMovement
+    RemoveObject LOCALID_ARC2_CYRUS
+    WaitTime 15, VAR_RESULT
+    FadeScreenOut
+    WaitFadeScreen
+    // That evening: the Trainers' School (2.2 runs on its load at 1)
+    ClearFlag FLAG_ARC2_JUBILIFE_A
+    ClearFlag FLAG_UNK_0x0238
+    SetVar VAR_ARC2_PROGRESS, 1
+    Warp MAP_HEADER_TRAINERS_SCHOOL, 0, 2, 9, DIR_NORTH
+    FadeScreenIn
+    WaitFadeScreen
+    ReleaseAll
+    End
+
+// 2.3 (on frame, VAR_MAP_LOCAL_2 3): the player steps out of the school
+JubilifeCity_Arc2OutsideSchool:
+    LockAll
+    SetVar VAR_MAP_LOCAL_2, 0
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc2Movement_TurnSouth
+    WaitMovement
+    Message JubilifeCity_Text_Arc2CyrusLongTime
+    WaitABXPadPress
+    CloseMessage
+    // Cyrus holds the starter weak to the player's (the TRAINER_CYRUS_ARC2_1_* suffix is the player's starter).
+    // StartFirstBattle: losing doesn't white out, as with Arc 1's first rival battle.
+    GetPlayerStarterSpecies VAR_RESULT
+    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, JubilifeCity_Arc2CyrusBattleTurtwig
+    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, JubilifeCity_Arc2CyrusBattleChimchar
+    GoTo JubilifeCity_Arc2CyrusBattlePiplup
+    End
+
+JubilifeCity_Arc2CyrusBattleTurtwig:
+    StartFirstBattle TRAINER_CYRUS_ARC2_1_TURTWIG
+    GoTo JubilifeCity_Arc2CyrusBattleEnd
+    End
+
+JubilifeCity_Arc2CyrusBattleChimchar:
+    StartFirstBattle TRAINER_CYRUS_ARC2_1_CHIMCHAR
+    GoTo JubilifeCity_Arc2CyrusBattleEnd
+    End
+
+JubilifeCity_Arc2CyrusBattlePiplup:
+    StartFirstBattle TRAINER_CYRUS_ARC2_1_PIPLUP
+    GoTo JubilifeCity_Arc2CyrusBattleEnd
+    End
+
+JubilifeCity_Arc2CyrusBattleEnd:
+    CheckWonBattle VAR_RESULT
+    CallIfEq VAR_RESULT, FALSE, JubilifeCity_Arc2CyrusBattleLost
+    SetVar VAR_ARC2_PROGRESS, 5
+    Message JubilifeCity_Text_Arc2CyrusItListened
+    WaitABXPadPress
+    CloseMessage
+    WaitTime 15, VAR_RESULT
+    Message JubilifeCity_Text_Arc2CyrusMeetYouThere
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_CYRUS, JubilifeCity_Arc2Movement_CyrusLeaveSchool
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc2Movement_PlayerWatchCyrusEast
+    WaitMovement
+    RemoveObject LOCALID_ARC2_CYRUS
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc2Movement_TurnWest
+    ApplyMovement LOCALID_ARC2_RUTH, JubilifeCity_Arc2Movement_TurnWest
+    WaitMovement
+    Message JubilifeCity_Text_Arc2RowanRuthWillGo
+    WaitABXPadPress
+    CloseMessage
+    GoTo JubilifeCity_Arc2GoToCutaway
+    End
+
+// A loss: the field comes back by itself, as after Arc 1's first rival battle
+JubilifeCity_Arc2CyrusBattleLost:
+    ReturnToField
+    FadeScreenIn
+    WaitFadeScreen
+    HealParty
+    Return
+
+// Hand-off to the 2.4 cutaway (lead's caller contract): progress is already 5; fade to black, warp into the violet room
+// (MAP_HEADER_GALACTIC_HQ_CONTROL_ROOM, 8, 9, north), ReleaseAll/End with no FadeScreenIn. s-cutaways plays 2.4,
+// sets 9 and returns the player here: Jubilife (168,777), outside the school, facing south.
+// ARC2_CUTAWAY_2_4_WIRED (top of this section) stays 0 until s-cutaways is merged: the cutaway is then skipped
+// (fade, set 9, the player stays put). The lead sets it to 1 at merge.
+JubilifeCity_Arc2GoToCutaway:
+    FadeScreenOut
+    WaitFadeScreen
+#if ARC2_CUTAWAY_2_4_WIRED
+    Warp MAP_HEADER_GALACTIC_HQ_CONTROL_ROOM, 0, 8, 9, DIR_NORTH
+    ReleaseAll
+    End
+#else
+    RemoveObject LOCALID_ARC2_ROWAN
+    RemoveObject LOCALID_ARC2_RUTH
+    SetVar VAR_ARC2_PROGRESS, 9
+    SetPosition LOCALID_PLAYER, 168, 0, 777, DIR_SOUTH
+    WaitTime 30, VAR_RESULT
+    FadeScreenIn
+    WaitFadeScreen
+    ReleaseAll
+    End
+#endif
+
+// 9-19: the Expert near the school (stock _0FE6) noticed the night class
+JubilifeCity_Arc2TeachingAfterHours:
+    Message JubilifeCity_Text_Arc2TeachingAfterHours
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
+JubilifeCity_Arc2Movement_WalkNorth3:
+    WalkNormalNorth 3
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc2Movement_Exclaim:
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc2Movement_TurnSouth:
+    FaceSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc2Movement_TurnWest:
+    FaceWest
+    EndMovement
+
+    // From (164,753), between the player (163,756) and Garius (165,756), south out of the plaza
+    .balign 4, 0
+JubilifeCity_Arc2Movement_CyrusLeavePlaza:
+    WalkNormalSouth 8
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc2Movement_PlayerWatchCyrus:
+    Delay16 2
+    FaceEast
+    Delay16
+    FaceSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc2Movement_GariusWatchCyrus:
+    Delay16 2
+    FaceWest
+    Delay16
+    FaceSouth
+    EndMovement
+
+    // From (168,779): one step east, then north up the avenue toward Route 204
+    .balign 4, 0
+JubilifeCity_Arc2Movement_CyrusLeaveSchool:
+    WalkNormalEast
+    WalkNormalNorth
+    WalkNormalEast 2
+    WalkNormalNorth 8
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc2Movement_PlayerWatchCyrusEast:
+    Delay16
+    FaceEast
+    Delay16 3
+    FaceNorth
     EndMovement
