@@ -153,6 +153,7 @@ _017A:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     Message 39
+    WaitABXPadPress
     Message EternaCity_Text_Arc2HavenBuzz
     WaitABXPadPress
     CloseMessage
@@ -1037,7 +1038,9 @@ EternaCity_Arc2GardeniaComesOut:
     ApplyMovement LOCALID_PLAYER, EternaCity_Arc2Movement_FaceNorth
     WaitMovement
     Message EternaCity_Text_Arc2GardeniaOffTheRecord
+    WaitABXPadPress
     Message EternaCity_Text_Arc2GardeniaShelter
+    WaitABXPadPress
     Message EternaCity_Text_Arc2GardeniaSomethingsWrong
     WaitABXPadPress
     CloseMessage

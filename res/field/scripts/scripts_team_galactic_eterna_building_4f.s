@@ -98,7 +98,9 @@ Haven4F_LoadingBayScene:
     ApplyMovement HAVEN_4F_LOOKER, Haven4F_Movement_FaceEast
     WaitMovement
     Message Haven4F_Text_LookerWhatIsHisName
+    WaitABXPadPress
     Message Haven4F_Text_RuthCyrus
+    WaitABXPadPress
     Message Haven4F_Text_LookerCyrusHm
     CloseMessage
     // he writes it down

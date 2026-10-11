@@ -67,6 +67,7 @@ Haven1F_LobbyScene:
     ApplyMovement LOCALID_PLAYER, Haven1F_Movement_FaceNorth
     WaitMovement
     Message Haven1F_Text_ReceptionistNoVisitors
+    WaitABXPadPress
     Message Haven1F_Text_GardeniaAlwaysResting
     CloseMessage
     WaitTime 20, VAR_RESULT
@@ -82,6 +83,7 @@ Haven1F_LookerRemembers:
     Message Haven1F_Text_JanitorCrates
 Haven1F_LookerIntroduces:
     Message Haven1F_Text_JanitorIAmLooker
+    WaitABXPadPress
     Message Haven1F_Text_LookerServiceDoor
     WaitABXPadPress
     CloseMessage
