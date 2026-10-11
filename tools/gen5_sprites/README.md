@@ -138,3 +138,8 @@ at their X/Y levels: Fairy Wind (Cottonee, Lv1) and Moonblast (Whimsicott, Lv50)
   Hallowed Tower), Yamask after Unown (Solaceon), Sandile after Hippowdon (the Valor Basin), Klink
   after Azumarill (Route 212 north) and Frillish after Tentacruel (Route 213). The Sinnoh dex grows
   from 250 to 269.
+- The Arc 2 Gen 3 lines then took the Sinnoh dex from 269 to 307, by the same rule (see the git log of
+  `res/pokemon/sinnoh_pokedex.json`). Everything sized by it reads `SINNOH_DEX_COUNT`, which
+  `tools/scripts/make_shinzukan.py` generates from the json, so adding a species needs no other edit. The
+  one exception was Rowan's Pokedex rating (`Pokedex_GetRatingMessageID_Local`), whose vanilla tiers ended at
+  209 seen; they now scale with `SINNOH_DEX_COUNT`.
