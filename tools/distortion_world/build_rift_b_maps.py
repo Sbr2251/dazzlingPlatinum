@@ -34,7 +34,13 @@ B4F_BLOCK = [
 ]
 
 # Lost Tower (Arc 1 seams floor) edits: the same lips stay walkable for the fall script (copied from 667/668).
-LOST_TOWER_OPEN = []
+LOST_TOWER_OPEN = [
+    # set-tower (S7): the second visit goes deeper than the shadow wall. Lapras lifts the stones (23..32, 22): B1F's
+    # own hop chain, ending on (32,22) in the east block; Skarmory carries the player from there to Cyrus's island
+    # (a floating-platform ghost prop at (39,22), tools/distortion_world/lost_tower.json).
+    (32, 22, 32, 22),   # the last stone
+    (37, 21, 41, 23),   # the island
+]
 LOST_TOWER_BLOCK = [
     (15, 24, 15, 26),   # the arm south of the vein room: the wall of shadow at (16,23) must close the only way deeper
 ]

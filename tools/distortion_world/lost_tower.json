@@ -12,6 +12,7 @@
         31,
         32
     ],
+    "notes": "set-tower (S7), from rift-b's Phase 0 clone of the Arc 1 seams floor. West wall x=11, z 13-22 (columns), y 5..2 (rows, top first). '*' = scars, walkable in the grid: (y2,z14) is Hitmonlee's scar (it cracks underfoot, and the ghost act kicks it shut), (y2,z20-21) the false seam (the step hook drops you). The true seam climbs to y3 at the fork (z19) and comes down at z22. Ghost-prop groups: 2 the scar's loose rocks (shown until Hitmonlee kicks it shut), 3 Vespiquen's light in front of the true seam (hidden until lit), 4 the four stepping stones east of the deeper ledge (hidden until Lapras lifts them), 0 everything else (B1F's decor, the false seam's rocks, and Cyrus's island: a medium floating platform at (39,22)). Arc2DwLostTower_HandleFrame / _HandleStep in src/overlay009/ov9_02249960.c drive the groups and the acts.",
     "platforms": [
         {
             "attr": 29,
@@ -19,8 +20,201 @@
                 "##########",
                 "..####....",
                 "..####....",
-                ".........."
+                ".*.....**."
             ]
         }
-    ]
+    ],
+    "ghost_props": [
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 23,
+            "y": 1,
+            "z": 26
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 36,
+            "y": 1,
+            "z": 28
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 14,
+            "y": 14,
+            "z": 17
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 48,
+            "y": 1,
+            "z": 19
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 28,
+            "y": 9,
+            "z": 9
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 31,
+            "y": -6,
+            "z": 16
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 13,
+            "y": 1,
+            "z": 10
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 24,
+            "y": 1,
+            "z": 17
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 27,
+            "y": -8,
+            "z": -16
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 12,
+            "y": 1,
+            "z": 27
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 30,
+            "y": 1,
+            "z": -9
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 20,
+            "y": -8,
+            "z": 28
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 29,
+            "y": 1,
+            "z": 27
+        },
+        {
+            "group": 0,
+            "kind": 0,
+            "x": 25,
+            "y": 1,
+            "z": 12
+        },
+        {
+            "group": 0,
+            "kind": 0,
+            "x": 28,
+            "y": 1,
+            "z": 12
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 23,
+            "y": 1,
+            "z": 22
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 26,
+            "y": 1,
+            "z": 22
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 29,
+            "y": 1,
+            "z": 22
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 32,
+            "y": 1,
+            "z": 22
+        },
+        {
+            "group": 2,
+            "kind": 1,
+            "x": 12,
+            "y": 2,
+            "z": 14
+        },
+        {
+            "group": 3,
+            "kind": 0,
+            "x": 12,
+            "y": 3,
+            "z": 19
+        },
+        {
+            "group": 3,
+            "kind": 0,
+            "x": 12,
+            "y": 3,
+            "z": 20
+        },
+        {
+            "group": 3,
+            "kind": 0,
+            "x": 12,
+            "y": 3,
+            "z": 21
+        },
+        {
+            "group": 3,
+            "kind": 0,
+            "x": 12,
+            "y": 3,
+            "z": 22
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 12,
+            "y": 2,
+            "z": 20
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 12,
+            "y": 2,
+            "z": 21
+        },
+        {
+            "group": 0,
+            "kind": 2,
+            "x": 39,
+            "y": 1,
+            "z": 22
+        }
+    ],
+    "ghost_triggers": [],
+    "ghost_default_visible": 5
 }
