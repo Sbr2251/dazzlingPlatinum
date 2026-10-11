@@ -821,7 +821,7 @@ void ov16_0225D8F0(BattleSystem *battleSys, BattlerData *param1, AttackMsgMessag
     v0->battler = param1->battler;
 
     v2.id = 0 + message->move * 3;
-    v2.tags = 2;
+    v2.tags = TAG_NICKNAME;
     v2.params[0] = param1->battler | (message->partySlot << 8);
 
     v0->msgIdx = BattleMessage_Print(battleSys, v1, &v2, BattleSystem_TextSpeed(battleSys));
@@ -1372,7 +1372,7 @@ void ov16_0225E23C(BattleSystem *battleSys, BattlerData *param1)
         v0 = BattleSystem_GetMessageLoader(battleSys);
 
         v1.id = 923;
-        v1.tags = 0;
+        v1.tags = TAG_NONE;
 
         BattleMessage_Print(battleSys, v0, &v1, NULL);
         Battle_SetWaitDial(battleSys, Window_AddWaitDial(BattleSystem_Window(battleSys, 0), 1));
@@ -3053,14 +3053,14 @@ static void ov16_022604C8(SysTask *param0, void *param1)
         if (battleType & BATTLE_TYPE_CATCH_TUTORIAL) {
             switch (ov16_0223F228(v0->unk_00)) {
             case 0:
-                v10.tags = 2;
+                v10.tags = TAG_NICKNAME;
                 v10.params[0] = v0->unk_09 | (v0->unk_23 << 8);
                 v10.id = 921;
                 BattleMessage_Print(v0->unk_00, v9, &v10, 0);
                 v0->unk_0A = 3;
                 break;
             case 1:
-                v10.tags = 0;
+                v10.tags = TAG_NONE;
                 v10.id = 1226 + BattleSystem_GetTrainerGender(v0->unk_00, 0);
                 v0->unk_35 = BattleMessage_Print(v0->unk_00, v9, &v10, BattleSystem_TextSpeed(v0->unk_00));
                 v0->unk_0A = 2;
@@ -3068,15 +3068,15 @@ static void ov16_022604C8(SysTask *param0, void *param1)
             }
         } else {
             if (battleType & BATTLE_TYPE_SAFARI) {
-                v10.tags = 8;
+                v10.tags = TAG_TRNAME;
                 v10.params[0] = Battler_TrainerID(v0->unk_00, v0->unk_09);
                 v10.id = 922;
             } else if (battleType & BATTLE_TYPE_PAL_PARK) {
-                v10.tags = 8;
+                v10.tags = TAG_TRNAME;
                 v10.params[0] = Battler_TrainerID(v0->unk_00, v0->unk_09);
                 v10.id = 1222;
             } else {
-                v10.tags = 2;
+                v10.tags = TAG_NICKNAME;
                 v10.params[0] = v0->unk_09 | (v0->unk_23 << 8);
                 v10.id = 921;
             }
@@ -3390,7 +3390,7 @@ static void ov16_02260C00(SysTask *param0, void *param1)
             BattleMessage v7;
 
             v6 = BattleSystem_GetMessageLoader(v0->unk_00);
-            v7.tags = 2;
+            v7.tags = TAG_NICKNAME;
             v7.params[0] = v0->unk_1D | (v0->unk_1F << 8);
             v7.id = 921;
 
@@ -3956,7 +3956,7 @@ static void ov16_022611DC(SysTask *param0, void *param1)
         BattleMessage v9;
 
         v9.id = 1206;
-        v9.tags = 5;
+        v9.tags = TAG_ITEM;
         v9.params[0] = v0->unk_04->selectedBattleBagItem;
 
         v8 = BattleSystem_GetMessageLoader(v0->unk_00);
@@ -4012,7 +4012,7 @@ static void ov16_022611DC(SysTask *param0, void *param1)
         BattleMessage v15;
 
         v15.id = 1203;
-        v15.tags = 12;
+        v15.tags = TAG_NICKNAME_STAT;
         v15.params[0] = v0->unk_0D | (v0->unk_08->unk_0C[v0->unk_0D] << 8);
 
         switch (v0->unk_04->selectedBattleBagItem) {
@@ -4036,11 +4036,11 @@ static void ov16_022611DC(SysTask *param0, void *param1)
             break;
         case ITEM_GUARD_SPEC:
             v15.id = 1204;
-            v15.tags = 0;
+            v15.tags = TAG_NONE;
             break;
         case ITEM_DIRE_HIT:
             v15.id = 1205;
-            v15.tags = 2;
+            v15.tags = TAG_NICKNAME;
             break;
         }
 
@@ -4109,12 +4109,12 @@ static void ov16_022611DC(SysTask *param0, void *param1)
 
         if (v0->unk_08->unk_04->currentDamage) {
             v25.id = 1214;
-            v25.tags = 17;
+            v25.tags = TAG_NICKNAME_NUM;
             v25.params[0] = v26 | (v0->unk_08->unk_0C[v26] << 8);
             v25.params[1] = v0->unk_08->unk_04->currentDamage;
         } else {
             v25.id = 1250;
-            v25.tags = 2;
+            v25.tags = TAG_NICKNAME;
             v25.params[0] = v26 | (v0->unk_08->unk_0C[v26] << 8);
         }
 
@@ -4144,7 +4144,7 @@ static void ov16_022611DC(SysTask *param0, void *param1)
 
         Healthbar_DrawInfo(v27, v27->curHP, HEALTHBAR_INFO_STATUS);
 
-        v30.tags = 2;
+        v30.tags = TAG_NICKNAME;
         v30.params[0] = v28 | (v0->unk_08->unk_0C[v28] << 8);
 
         if (Item_LoadParam(v0->unk_04->selectedBattleBagItem, ITEM_PARAM_HEAL_SLEEP, HEAP_ID_BATTLE)) {
@@ -4586,10 +4586,10 @@ static void ov16_022623F0(SysTask *param0, void *param1)
                 v7 = BattleSystem_GetMessageLoader(v0->unk_00);
 
                 if (v0->unk_0F == 5) {
-                    v8.tags = 2 | 0x80;
+                    v8.tags = TAG_NICKNAME | TAG_GLOBAL_MESSAGE;
                     v8.params[0] = v0->unk_14;
                 } else {
-                    v8.tags = 0;
+                    v8.tags = TAG_NONE;
                 }
 
                 v8.id = v0->unk_10;
@@ -6151,12 +6151,12 @@ static void ov16_02263C1C(BattleSystem *battleSys, BattlerData *param1, RecallMs
     if (param1->battlerType & 0x1) {
         if (BattleSystem_BattleType(battleSys) & BATTLE_TYPE_LINK) {
             param3->id = 990;
-            param3->tags = 27;
+            param3->tags = TAG_TRNAME_NICKNAME;
             param3->params[0] = param1->battler;
             param3->params[1] = param1->battler | (message->partySlot << 8);
         } else {
             param3->id = 989;
-            param3->tags = 50;
+            param3->tags = TAG_TRCLASS_TRNAME_NICKNAME;
             param3->params[0] = param1->battler;
             param3->params[1] = param1->battler;
             param3->params[2] = param1->battler | (message->partySlot << 8);
@@ -6178,7 +6178,7 @@ static void ov16_02263C1C(BattleSystem *battleSys, BattlerData *param1, RecallMs
             param3->id = 985;
         }
 
-        param3->tags = 2;
+        param3->tags = TAG_NICKNAME;
         param3->params[0] = param1->battler | (message->partySlot << 8);
     }
 }
@@ -6188,13 +6188,13 @@ static void ov16_02263CF0(BattleSystem *battleSys, BattlerData *param1, SendOutM
     if (param1->battlerType & 0x1) {
         if ((BattleSystem_BattleType(battleSys) & BATTLE_TYPE_LINK) == 0) {
             param3->id = 972;
-            param3->tags = 50;
+            param3->tags = TAG_TRCLASS_TRNAME_NICKNAME;
             param3->params[0] = param1->battler;
             param3->params[1] = param1->battler;
             param3->params[2] = param1->battler | (message->partySlot << 8);
         } else {
             param3->id = 974;
-            param3->tags = 27;
+            param3->tags = TAG_TRNAME_NICKNAME;
             param3->params[0] = param1->battler;
             param3->params[1] = param1->battler | (message->partySlot << 8);
         }
@@ -6215,7 +6215,7 @@ static void ov16_02263CF0(BattleSystem *battleSys, BattlerData *param1, SendOutM
             param3->id = 979;
         }
 
-        param3->tags = 2;
+        param3->tags = TAG_NICKNAME;
         param3->params[0] = param1->battler | (message->partySlot << 8);
     }
 }
@@ -6239,32 +6239,32 @@ static void ov16_02263DD0(BattleSystem *battleSys, BattlerData *unused, BattleMe
     if (battleType & BATTLE_TYPE_LINK) {
         if (battleType & BATTLE_TYPE_FRONTIER) {
             message->id = 992;
-            message->tags = 59;
+            message->tags = TAG_TRCLASS_TRNAME_TRCLASS_TRNAME;
             message->params[0] = battlerType1;
             message->params[1] = battlerType1;
             message->params[2] = battlerType2;
             message->params[3] = battlerType2;
         } else if (battleType & BATTLE_TYPE_2vs2) {
             message->id = 971;
-            message->tags = 26;
+            message->tags = TAG_TRNAME_TRNAME;
             message->params[0] = battlerType1;
             message->params[1] = battlerType2;
         } else {
             message->id = 970;
-            message->tags = 8;
+            message->tags = TAG_TRNAME;
             message->params[0] = battlerType1;
         }
     } else {
         if ((battleType & BATTLE_TYPE_TAG) || (battleType & BATTLE_TYPE_2vs2)) {
             message->id = 992;
-            message->tags = 59;
+            message->tags = TAG_TRCLASS_TRNAME_TRCLASS_TRNAME;
             message->params[0] = battlerType1;
             message->params[1] = battlerType1;
             message->params[2] = battlerType2;
             message->params[3] = battlerType2;
         } else {
             message->id = 969;
-            message->tags = 30;
+            message->tags = TAG_TRCLASS_TRNAME;
             message->params[0] = battlerType1;
             message->params[1] = battlerType1;
         }
@@ -6291,7 +6291,7 @@ static void ov16_02263E7C(BattleSystem *battleSys, BattlerData *param1, LeadMonM
         if (battleType & BATTLE_TYPE_LINK) {
             if (battleType & BATTLE_TYPE_FRONTIER) {
                 param3->id = 991;
-                param3->tags = 60;
+                param3->tags = TAG_TRCLASS_TRNAME_NICKNAME_TRCLASS_TRNAME_NICKNAME;
                 param3->params[0] = v1;
                 param3->params[1] = v1;
                 param3->params[2] = v1 | (message->partySlot[v1] << 8);
@@ -6300,27 +6300,27 @@ static void ov16_02263E7C(BattleSystem *battleSys, BattlerData *param1, LeadMonM
                 param3->params[5] = v2 | (message->partySlot[v2] << 8);
             } else if (battleType & BATTLE_TYPE_2vs2) {
                 param3->id = 976;
-                param3->tags = 56;
+                param3->tags = TAG_TRNAME_NICKNAME_TRNAME_NICKNAME;
                 param3->params[0] = v1;
                 param3->params[1] = v1 | (message->partySlot[v1] << 8);
                 param3->params[2] = v2;
                 param3->params[3] = v2 | (message->partySlot[v2] << 8);
             } else if (battleType & BATTLE_TYPE_DOUBLES) {
                 param3->id = 975;
-                param3->tags = 49;
+                param3->tags = TAG_TRNAME_NICKNAME_NICKNAME;
                 param3->params[0] = v1;
                 param3->params[1] = v1 | (message->partySlot[v1] << 8);
                 param3->params[2] = v2 | (message->partySlot[v2] << 8);
             } else {
                 param3->id = 974;
-                param3->tags = 27;
+                param3->tags = TAG_TRNAME_NICKNAME;
                 param3->params[0] = v1;
                 param3->params[1] = v1 | (message->partySlot[v1] << 8);
             }
         } else {
             if ((battleType & BATTLE_TYPE_TAG) || (battleType & BATTLE_TYPE_2vs2)) {
                 param3->id = 991;
-                param3->tags = 60;
+                param3->tags = TAG_TRCLASS_TRNAME_NICKNAME_TRCLASS_TRNAME_NICKNAME;
                 param3->params[0] = v1;
                 param3->params[1] = v1;
                 param3->params[2] = v1 | (message->partySlot[v1] << 8);
@@ -6329,14 +6329,14 @@ static void ov16_02263E7C(BattleSystem *battleSys, BattlerData *param1, LeadMonM
                 param3->params[5] = v2 | (message->partySlot[v2] << 8);
             } else if (battleType & BATTLE_TYPE_DOUBLES) {
                 param3->id = 973;
-                param3->tags = 57;
+                param3->tags = TAG_TRCLASS_TRNAME_NICKNAME_NICKNAME;
                 param3->params[0] = v1;
                 param3->params[1] = v1;
                 param3->params[2] = v1 | (message->partySlot[v1] << 8);
                 param3->params[3] = v2 | (message->partySlot[v2] << 8);
             } else {
                 param3->id = 972;
-                param3->tags = 50;
+                param3->tags = TAG_TRCLASS_TRNAME_NICKNAME;
                 param3->params[0] = v1;
                 param3->params[1] = v1;
                 param3->params[2] = v1 | (message->partySlot[v1] << 8);
@@ -6382,36 +6382,36 @@ static void ov16_02263E7C(BattleSystem *battleSys, BattlerData *param1, LeadMonM
         if (battleType & BATTLE_TYPE_LINK) {
             if (battleType & BATTLE_TYPE_2vs2) {
                 param3->id = 977;
-                param3->tags = 49;
+                param3->tags = TAG_TRNAME_NICKNAME_NICKNAME;
                 param3->params[0] = v1;
                 param3->params[1] = v1 | (message->partySlot[v1] << 8);
                 param3->params[2] = v2 | (message->partySlot[v2] << 8);
             } else if (battleType & BATTLE_TYPE_DOUBLES) {
                 param3->id = 978;
-                param3->tags = 9;
+                param3->tags = TAG_NICKNAME_NICKNAME;
                 param3->params[0] = v1 | (message->partySlot[v1] << 8);
                 param3->params[1] = v2 | (message->partySlot[v2] << 8);
             } else {
                 param3->id = 979;
-                param3->tags = 2;
+                param3->tags = TAG_NICKNAME;
                 param3->params[0] = v1 | (message->partySlot[v1] << 8);
             }
         } else {
             if (battleType & BATTLE_TYPE_2vs2) {
                 param3->id = 993;
-                param3->tags = 57;
+                param3->tags = TAG_TRCLASS_TRNAME_NICKNAME_NICKNAME;
                 param3->params[0] = v1;
                 param3->params[1] = v1;
                 param3->params[2] = v1 | (message->partySlot[v1] << 8);
                 param3->params[3] = v2 | (message->partySlot[v2] << 8);
             } else if (battleType & BATTLE_TYPE_DOUBLES) {
                 param3->id = 978;
-                param3->tags = 9;
+                param3->tags = TAG_NICKNAME_NICKNAME;
                 param3->params[0] = v1 | (message->partySlot[v1] << 8);
                 param3->params[1] = v2 | (message->partySlot[v2] << 8);
             } else {
                 param3->id = 979;
-                param3->tags = 2;
+                param3->tags = TAG_NICKNAME;
                 param3->params[0] = v1 | (message->partySlot[v1] << 8);
             }
         }
@@ -6440,36 +6440,36 @@ static void ov16_022641B4(BattleSystem *battleSys, BattlerData *param1, BattleMe
     case 0x1:
         if (battleType & BATTLE_TYPE_2vs2) {
             message->id = 786;
-            message->tags = 26;
+            message->tags = TAG_TRNAME_TRNAME;
             message->params[0] = v1;
             message->params[1] = v2;
         } else {
             message->id = 785;
-            message->tags = 8;
+            message->tags = TAG_TRNAME;
             message->params[0] = v1;
         }
         break;
     case 0x2:
         if (battleType & BATTLE_TYPE_2vs2) {
             message->id = 788;
-            message->tags = 26;
+            message->tags = TAG_TRNAME_TRNAME;
             message->params[0] = v1;
             message->params[1] = v2;
         } else {
             message->id = 787;
-            message->tags = 8;
+            message->tags = TAG_TRNAME;
             message->params[0] = v1;
         }
         break;
     case 0x3:
         if (battleType & BATTLE_TYPE_2vs2) {
             message->id = 790;
-            message->tags = 26;
+            message->tags = TAG_TRNAME_TRNAME;
             message->params[0] = v1;
             message->params[1] = v2;
         } else {
             message->id = 789;
-            message->tags = 8;
+            message->tags = TAG_TRNAME;
             message->params[0] = v1;
         }
         break;
@@ -6494,25 +6494,25 @@ static void ov16_02264270(BattleSystem *battleSys, BattlerData *param1, EscapeMs
 
     if ((v1) && (v2)) {
         param3->id = 781;
-        param3->tags = 0;
+        param3->tags = TAG_NONE;
         BattleSystem_SetResultFlag(battleSys, 0x3 | 0x80 | 0x40);
     } else if (v1) {
         param3->id = 781;
-        param3->tags = 0;
+        param3->tags = TAG_NONE;
         BattleSystem_SetResultFlag(battleSys, 0x2 | 0x80 | 0x40);
     } else {
         if (BattleSystem_BattleType(battleSys) & BATTLE_TYPE_2vs2) {
             param3->id = 792;
-            param3->tags = 26;
+            param3->tags = TAG_TRNAME_TRNAME;
             param3->params[0] = BattleSystem_BattlerOfType(battleSys, BATTLER_TYPE_ENEMY_SIDE_SLOT_1);
             param3->params[1] = BattleSystem_BattlerOfType(battleSys, BATTLER_TYPE_ENEMY_SIDE_SLOT_2);
         } else if (BattleSystem_BattleType(battleSys) & BATTLE_TYPE_DOUBLES) {
             param3->id = 791;
-            param3->tags = 8;
+            param3->tags = TAG_TRNAME;
             param3->params[0] = BattleSystem_BattlerOfType(battleSys, BATTLER_TYPE_ENEMY_SIDE_SLOT_1);
         } else {
             param3->id = 791;
-            param3->tags = 8;
+            param3->tags = TAG_TRNAME;
             param3->params[0] = BattleSystem_BattlerOfType(battleSys, BATTLER_TYPE_SOLO_ENEMY);
         }
 
@@ -6523,7 +6523,7 @@ static void ov16_02264270(BattleSystem *battleSys, BattlerData *param1, EscapeMs
 static void ov16_02264360(BattleSystem *battleSys, BattlerData *param1, BattleMessage *message)
 {
     message->id = 956;
-    message->tags = 8;
+    message->tags = TAG_TRNAME;
 
     if (BattleSystem_BattleType(battleSys) & BATTLE_TYPE_LINK) {
         if (ov16_0223F6F0(battleSys, ov16_0223F6E4(battleSys))) {
