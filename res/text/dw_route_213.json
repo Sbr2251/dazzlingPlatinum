@@ -2,10 +2,39 @@
   "key": 40219,
   "messages": [
     {
-      "id": "DWRoute213_Text_StubExit",
+      "id": "DWRoute213_Text_CyrusThereWasALake",
       "en_US": [
-        "The rift pulls you back out.\n",
-        "(Stub: this floor isn't built yet.)"
+        "Cyrus: In my world there was a lake\n",
+        "here. Lake Valor.\r",
+        "...So this is where it went."
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_OldTrainerCard",
+      "en_US": [
+        "An old Trainer Card. The name has\n",
+        "worn away.\r",
+        "Hometown: Twinleaf."
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_GotCalmShard",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} got a Calm Shard!"
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_CyrusYouFixedItAnyway",
+      "en_US": [
+        "Cyrus: It wasn't yours to fix. You\n",
+        "fixed it anyway."
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_CyrusItsStillInThere",
+      "en_US": [
+        "Cyrus: The lake hangs over us.\n",
+        "Whatever it swallowed is still here."
       ]
     }
   ]
