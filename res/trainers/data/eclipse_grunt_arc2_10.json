@@ -9,19 +9,43 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_TOXICROAK",
+            "species": "SPECIES_LIEPARD",
             "form": 0,
-            "level": 28,
+            "level": 30,
             "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_FAKE_OUT",
+                "MOVE_FURY_SWIPES",
+                "MOVE_SLASH",
+                "MOVE_TORMENT"
+            ],
+            "power": 90,
+            "ball_seal": 0,
+            "ability": "ABILITY_LIMBER"
+        },
+        {
+            "species": "SPECIES_CRAWDAUNT",
+            "form": 0,
+            "level": 31,
+            "item": null,
+            "moves": [
+                "MOVE_BUBBLE_BEAM",
+                "MOVE_KNOCK_OFF",
+                "MOVE_SWIFT",
+                "MOVE_PROTECT"
+            ],
+            "power": 90,
+            "ball_seal": 0,
+            "ability": "ABILITY_HYPER_CUTTER"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Tch. We knew you'd come.\n",
+                "We just didn't think you'd win.\n"
+            ]
         }
     ]
 }

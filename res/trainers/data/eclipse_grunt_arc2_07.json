@@ -13,15 +13,24 @@
             "form": 0,
             "level": 28,
             "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_WING_ATTACK",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_AIR_CUTTER"
+            ],
+            "power": 80,
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Hey! How did you get in here?!\n",
+                "Get out!\n"
+            ]
         }
     ]
 }

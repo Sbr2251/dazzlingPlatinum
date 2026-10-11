@@ -225,6 +225,15 @@
         "Seven Stars Restaurant\n",
         "More Flavor Than You Can Wish For"
       ]
+    },
+    {
+      "id": "ValorLakefront_Text_Arc2EliasPlaque",
+      "en_US": [
+        "IN MEMORY OF THOSE LOST IN THE\n",
+        "VALOR BASIN COLLAPSE.\r",
+        "A list of names follows.\r",
+        "...ELIAS, OF TWINLEAF TOWN..."
+      ]
     }
   ]
 }

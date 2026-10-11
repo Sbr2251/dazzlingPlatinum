@@ -10,19 +10,73 @@
     "double_battle": false,
     "party": [
         {
+            "species": "SPECIES_STARAVIA",
+            "form": 0,
+            "level": 24,
+            "item": "ITEM_NONE",
+            "moves": [
+                "MOVE_WING_ATTACK",
+                "MOVE_QUICK_ATTACK",
+                "MOVE_ENDEAVOR",
+                "MOVE_DOUBLE_TEAM"
+            ],
+            "power": 130,
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
+        },
+        {
+            "species": "SPECIES_ROSELIA",
+            "form": 0,
+            "level": 23,
+            "item": "ITEM_NONE",
+            "moves": [
+                "MOVE_MAGICAL_LEAF",
+                "MOVE_POISON_STING",
+                "MOVE_STUN_SPORE",
+                "MOVE_LEECH_SEED"
+            ],
+            "power": 130,
+            "ball_seal": 0,
+            "ability": "ABILITY_POISON_POINT"
+        },
+        {
+            "species": "SPECIES_PONYTA",
+            "form": 0,
+            "level": 23,
+            "item": "ITEM_NONE",
+            "moves": [
+                "MOVE_FLAME_WHEEL",
+                "MOVE_STOMP",
+                "MOVE_TAIL_WHIP",
+                "MOVE_TACKLE"
+            ],
+            "power": 130,
+            "ball_seal": 0,
+            "ability": "ABILITY_FLASH_FIRE"
+        },
+        {
             "species": "SPECIES_PRINPLUP",
             "form": 0,
             "level": 26,
-            "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "item": "ITEM_ORAN_BERRY",
+            "moves": [
+                "MOVE_BUBBLE_BEAM",
+                "MOVE_METAL_CLAW",
+                "MOVE_PECK",
+                "MOVE_GROWL"
+            ],
+            "power": 130,
+            "ball_seal": 0,
+            "ability": "ABILITY_TORRENT"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Tch! Again?!\n",
+                "Next time. Next time for sure!\n"
+            ]
         }
     ]
 }

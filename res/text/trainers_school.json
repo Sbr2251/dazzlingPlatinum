@@ -261,6 +261,179 @@
         "strong Trainers who await challengers\f",
         "in Pokémon Gyms."
       ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RowanReadings",
+      "en_US": [
+        "Rowan: Ruth's readings put the\n",
+        "Oreburgh rift on Route 204 now.\r",
+        "Inside Ravaged Path. I'd like you\n",
+        "to guide these two through it."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RuthTotem",
+      "en_US": [
+        "Ruth: The totem's in there too.\n",
+        "The readings are... loud."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2CyrusNotAsAStranger",
+      "en_US": [
+        "Cyrus: I will. But not as a\n",
+        "stranger."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2CyrusMyName",
+      "en_US": [
+        "Cyrus: My name is Cyrus.\r",
+        "In the world I came from, I led\n",
+        "an organization. Team Galactic."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2CyrusSpirit",
+      "en_US": [
+        "Cyrus: I believed spirit was a flaw.\r",
+        "Grief. Anger. Hope. I thought they\n",
+        "were why the world was broken.\r",
+        "So I set out to make a new world.\n",
+        "One without them."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2CyrusChained",
+      "en_US": [
+        "Cyrus: To do it, I chained the\n",
+        "guardians of the lakes.\r",
+        "I tore at them until they gave me\n",
+        "the power to call Dialga and Palkia."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RuthLakeGuardians",
+      "en_US": [
+        "Ruth: ...The lake guardians?\n",
+        "Uxie, Mesprit and Azelf?"
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2CyrusABoy",
+      "en_US": [
+        "Cyrus: A boy stopped me. A boy,\n",
+        "and a Champion.\r",
+        "Then something rose out of the\n",
+        "dark and stopped me.\r",
+        "Then it took me into its world."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2CyrusHowLong",
+      "en_US": [
+        "Cyrus: I don't know how long I was\n",
+        "there.\r",
+        "Long enough to stop counting."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RowanNobody",
+      "en_US": [
+        "Rowan: I told these two that nobody\n",
+        "comes back from that place.\r",
+        "...Nobody.\r",
+        "And here you stand."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2GariusChained",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: You're kidding me.\n",
+        "You CHAINED UP Pokémon?\r",
+        "Legendary Pokémon? And you want us\n",
+        "to follow you back in there?!"
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2GariusSomeOfUs",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Some of us have actually\n",
+        "lost-"
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2GariusForgetIt",
+      "en_US": "{STRVAR_1 3, 0, 0}: ...Forget it."
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RowanSitDown",
+      "en_US": "Rowan: Sit down, {STRVAR_1 3, 0, 0}."
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2GariusHeShouldGo",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: No! Professor, you heard\n",
+        "him!\r",
+        "He should go. Back wherever he\n",
+        "came from."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2CyrusRightToBeAngry",
+      "en_US": [
+        "Cyrus: He's right to be angry.\n",
+        "I won't ask anyone to forgive me."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RowanNotAsking",
+      "en_US": "Rowan: I'm not asking you to ask."
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RowanThisOne",
+      "en_US": [
+        "Rowan: I said this one would stay\n",
+        "with me.\r",
+        "Until I knew who it was meant for."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RowanNewStart",
+      "en_US": [
+        "Rowan: It came out of that world in\n",
+        "this case. In a way, so did you.\r",
+        "This can be a new start for you."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2CyrusNotHeld",
+      "en_US": [
+        "Cyrus: ...I have not held one of\n",
+        "these since I lost everything."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2GariusCountMeOut",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Unbelievable. Count me out.\r",
+        "I'm not following him anywhere."
+      ]
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RuthWait",
+      "en_US": "Ruth: {STRVAR_1 3, 0, 0}, wait-!"
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RowanLetHimGo",
+      "en_US": "Rowan: Let him go. He'll cool off."
+    },
+    {
+      "id": "TrainersSchool_Text_Arc2RowanMorning",
+      "en_US": [
+        "Rowan: We go to Ravaged Path in the\n",
+        "morning. Get some rest, all of you."
+      ]
     }
   ]
 }

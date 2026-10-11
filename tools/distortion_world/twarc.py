@@ -174,6 +174,11 @@ def spec_outputs(spec):
     if spec.get("ghost_props") is not None:
         rec["ghost"]["props"] = spec["ghost_props"]
     rec["ghost"]["props"] += spec.get("extra_ghost_props", [])
+    # Optional (added by Arc 2 rift-a): replace the cloned record's ghost-prop triggers and default visible groups.
+    if spec.get("ghost_triggers") is not None:
+        rec["ghost"]["triggers"] = spec["ghost_triggers"]
+    if spec.get("ghost_default_visible") is not None:
+        rec["ghost"]["default_visible"] = spec["ghost_default_visible"]
     return map_header_id(spec["map"]), off, pack_record(rec), attrs
 
 

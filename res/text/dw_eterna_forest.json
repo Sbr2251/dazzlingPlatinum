@@ -2,10 +2,39 @@
   "key": 40213,
   "messages": [
     {
-      "id": "DWEternaForest_Text_StubExit",
+      "id": "DWEternaForest_Text_CyrusHiveGrewIntoTheCeiling",
       "en_US": [
-        "The rift pulls you back out.\n",
-        "(Stub: this floor isn't built yet.)"
+        "Cyrus: The hive grew into the\n",
+        "ceiling.\r",
+        "So does the path. Walk where the\n",
+        "honey is. Not where it was."
+      ]
+    },
+    {
+      "id": "DWEternaForest_Text_CyrusWaitForIt",
+      "en_US": [
+        "Cyrus: Wait for it. It comes back.\n",
+        "Most things here do."
+      ]
+    },
+    {
+      "id": "DWEternaForest_Text_GotCalmShard",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} got a Calm Shard!"
+      ]
+    },
+    {
+      "id": "DWEternaForest_Text_CyrusWhoeverDidThis",
+      "en_US": [
+        "Cyrus: Whoever did this knew exactly\n",
+        "how much a Pok\u00e9mon can bear\r",
+        "before it breaks."
+      ]
+    },
+    {
+      "id": "DWEternaForest_Text_CyrusSoDidIOnce",
+      "en_US": [
+        "Cyrus: ...So did I, once."
       ]
     }
   ]

@@ -1673,7 +1673,7 @@ BOOL sub_0203C434(FieldTask *taskMan)
         void *v5;
         void *journalEntryLocationEvent;
 
-        mon = Party_GetPokemonBySlotIndex(SaveData_GetParty(fieldSystem->saveData), v3);
+        mon = FieldMoves_GetFlyPerformer(fieldSystem, v3);
         v5 = sub_0207064C(HEAP_ID_FIELD2, fieldSystem, mon, v2->flyLocationMapHeader, v2->flyLocationX * 32 + 16, v2->flyLocationZ * 32 + 16);
         journalEntryLocationEvent = JournalEntry_CreateEventUsedMove(LOCATION_EVENT_FLEW_TO_LOCATION - LOCATION_EVENT_USED_CUT, v2->flyLocationMapHeader, HEAP_ID_FIELD2);
 

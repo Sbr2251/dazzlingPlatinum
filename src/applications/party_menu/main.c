@@ -27,6 +27,7 @@
 #include "battle_regulation.h"
 #include "battle_regulation_validation.h"
 #include "bg_window.h"
+#include "field_move_tasks.h"
 #include "font.h"
 #include "font_special_chars.h"
 #include "g3d_pipeline.h"
@@ -1794,6 +1795,7 @@ static u8 GetContextMenuEntriesForPartyMon(PartyMenuApplication *application, u8
     Pokemon *mon = Party_GetPokemonBySlotIndex(application->partyMenu->party, application->currPartySlot);
     u16 move;
     u8 fieldMoveIndex = 0, i, count = 0, fieldEffect;
+    BOOL knowsFly = FALSE;
 
     menuEntriesBuffer[count] = 1;
     count++;
@@ -1809,12 +1811,25 @@ static u8 GetContextMenuEntriesForPartyMon(PartyMenuApplication *application, u8
 
                 fieldEffect = GetElementIndex(move);
 
-                if (fieldEffect != 0xff) {
+                // D11: field obstacles are cleared with the Resonator, so their moves aren't offered here.
+                if (fieldEffect != 0xff && FieldMoves_IsResonatorObstacleMove(move) == FALSE) {
                     menuEntriesBuffer[count] = fieldEffect;
                     count++;
                     PartyMenu_SetKnownFieldMove(application, move, fieldMoveIndex);
                     fieldMoveIndex++;
+
+                    if (move == MOVE_FLY) {
+                        knowsFly = TRUE;
+                    }
                 }
+            }
+
+            // Arc 2: once Skarmory's power answers the Resonator, any Pokemon's menu offers Fly.
+            if (knowsFly == FALSE && fieldMoveIndex < 4 && FieldMoves_IsHMUnlocked(application->partyMenu->fieldSystem, MOVE_FLY)) {
+                menuEntriesBuffer[count] = GetElementIndex(MOVE_FLY);
+                count++;
+                PartyMenu_SetKnownFieldMove(application, MOVE_FLY, fieldMoveIndex);
+                fieldMoveIndex++;
             }
 
             menuEntriesBuffer[count] = 0;

@@ -11,7 +11,7 @@
         {
             "species": "SPECIES_CROAGUNK",
             "form": 0,
-            "level": 21,
+            "level": 28,
             "item": null,
             "moves": null,
             "power": 30,
@@ -20,7 +20,7 @@
         {
             "species": "SPECIES_MEDITITE",
             "form": 0,
-            "level": 24,
+            "level": 29,
             "item": null,
             "moves": null,
             "power": 30,
@@ -29,7 +29,7 @@
         {
             "species": "SPECIES_MACHOP",
             "form": 0,
-            "level": 24,
+            "level": 29,
             "item": null,
             "moves": null,
             "power": 30,

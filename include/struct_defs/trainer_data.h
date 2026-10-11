@@ -11,6 +11,11 @@
 
 #define TRAINER_MON_FORM_SHIFT 10
 
+// A party member's cbSeal word holds the ball seal in its low byte and an
+// optional ability override in its high byte (0 = ABILITY_NONE = stock behaviour).
+#define TRAINER_MON_BALL_SEAL_MASK 0xFF
+#define TRAINER_MON_ABILITY_SHIFT  8
+
 #define MAX_TRAINER_ITEMS 4
 #define MAX_DV            255
 
