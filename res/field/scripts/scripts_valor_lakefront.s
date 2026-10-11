@@ -21,6 +21,9 @@
 
 _0026:
     SetFlag FLAG_UNK_0x021B
+    // Arc 2: the stock TV crew (hide flag 0x01AE, set only by stock post-Galactic scripts) blocks the only path to the
+    // Basin warps; keep them hidden.
+    SetFlag FLAG_UNK_0x01AE
     CallIfSet FLAG_UNK_0x0106, _004B
     GoToIfUnset FLAG_GALACTIC_LEFT_LAKE_VALOR, _0079
     GoToIfSet FLAG_GALACTIC_LEFT_LAKE_VALOR, _008B
