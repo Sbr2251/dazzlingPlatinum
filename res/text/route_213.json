@@ -358,7 +358,8 @@
     {
       "id": "Route213_Text_Arc2BeachCyrusJudge",
       "en_US": [
-        "Cyrus: Words prove nothing.\r",
+        "Cyrus: ...He's right. Words prove\n",
+        "nothing.\r",
         "Judge me the way trainers do."
       ]
     },
@@ -387,6 +388,24 @@
         "Ruth: I'm taking Looker's samples\n",
         "back to the lab.\r",
         "...Be careful. Both of you. All of\n",
+        "you."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachBattlePrompt",
+      "en_US": "Battle Cyrus?"
+    },
+    {
+      "id": "Route213_Text_Arc2BeachCyrusDoneWords",
+      "en_US": [
+        "Cyrus: Then let's be done with\n",
+        "words."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachGariusSayIt",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Then I'll say it for\n",
         "you."
       ]
     }
