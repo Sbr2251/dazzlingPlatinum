@@ -1,0 +1,252 @@
+{
+    "base_stats": {
+        "hp": 40,
+        "attack": 27,
+        "defense": 60,
+        "speed": 66,
+        "special_attack": 37,
+        "special_defense": 50
+    },
+    "types": [
+        "TYPE_GRASS",
+        "TYPE_FAIRY"
+    ],
+    "catch_rate": 190,
+    "base_exp_reward": 56,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 0,
+        "defense": 0,
+        "speed": 1,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 20,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_FAST",
+    "egg_groups": [
+        "EGG_GROUP_FAIRY",
+        "EGG_GROUP_GRASS"
+    ],
+    "abilities": [
+        "ABILITY_CHLOROPHYLL",
+        "ABILITY_MOLD_BREAKER"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_GREEN",
+    "flip_sprite": false,
+    "icon_palette": 1,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_ABSORB"
+            ],
+            [
+                1,
+                "MOVE_FAIRY_WIND"
+            ],
+            [
+                4,
+                "MOVE_GROWTH"
+            ],
+            [
+                8,
+                "MOVE_LEECH_SEED"
+            ],
+            [
+                10,
+                "MOVE_STUN_SPORE"
+            ],
+            [
+                13,
+                "MOVE_MEGA_DRAIN"
+            ],
+            [
+                17,
+                "MOVE_COTTON_SPORE"
+            ],
+            [
+                19,
+                "MOVE_RAZOR_LEAF"
+            ],
+            [
+                22,
+                "MOVE_POISON_POWDER"
+            ],
+            [
+                26,
+                "MOVE_GIGA_DRAIN"
+            ],
+            [
+                28,
+                "MOVE_CHARM"
+            ],
+            [
+                31,
+                "MOVE_HELPING_HAND"
+            ],
+            [
+                35,
+                "MOVE_ENERGY_BALL"
+            ],
+            [
+                37,
+                "MOVE_BARRIER"
+            ],
+            [
+                40,
+                "MOVE_SUNNY_DAY"
+            ],
+            [
+                44,
+                "MOVE_ENDEAVOR"
+            ],
+            [
+                46,
+                "MOVE_SOLAR_BEAM"
+            ]
+        ],
+        "by_tm": [
+            "TM06",
+            "TM10",
+            "TM11",
+            "TM12",
+            "TM17",
+            "TM19",
+            "TM20",
+            "TM21",
+            "TM22",
+            "TM27",
+            "TM32",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM53",
+            "TM58",
+            "TM70",
+            "TM78",
+            "TM82",
+            "TM83",
+            "TM85",
+            "TM86",
+            "TM87",
+            "TM90",
+            "HM05"
+        ],
+        "by_tutor": [
+            "MOVE_SNORE",
+            "MOVE_HELPING_HAND",
+            "MOVE_ENDEAVOR",
+            "MOVE_SEED_BOMB",
+            "MOVE_KNOCK_OFF",
+            "MOVE_SWIFT"
+        ],
+        "egg_moves": [
+            "MOVE_ENCORE",
+            "MOVE_BEAT_UP",
+            "MOVE_MEMENTO",
+            "MOVE_FAKE_TEARS",
+            "MOVE_GRASS_WHISTLE",
+            "MOVE_TICKLE",
+            "MOVE_NATURAL_GIFT",
+            "MOVE_WORRY_SEED",
+            "MOVE_SWITCHEROO"
+        ]
+    },
+    "evolutions": [
+        [
+            "EVO_USE_ITEM",
+            "ITEM_SUN_STONE",
+            "SPECIES_WHIMSICOTT"
+        ]
+    ],
+    "offspring": "SPECIES_COTTONEE",
+    "footprint": {
+        "has": false,
+        "size": "FOOTPRINT_SMALL",
+        "type": "FOOTPRINT_TYPE_CUTE"
+    },
+    "pokedex_data": {
+        "height": 3,
+        "weight": 6,
+        "body_shape": "SHAPE_HEAD",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 482,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 482,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 27,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 27,
+        "en": {
+            "name": "COTTONEE",
+            "category": "Cotton Puff Pokémon",
+            "entry_text": [
+                "If attacked, it escapes by shooting\n",
+                "cotton from its body as a decoy to\n",
+                "distract the attacker."
+            ]
+        },
+        "fr": {
+            "name": "DOUDOUVET",
+            "category": "Pokémon Boule Coton",
+            "entry_text": [
+                "Il dérive librement au gré du vent.\n",
+                "Les jours de pluie, il s'alourdit et\n",
+                "se réfugie au pied des arbres."
+            ]
+        },
+        "de": {
+            "name": "WAUMBOLL",
+            "category": "Wattebausch-Pokémon",
+            "entry_text": [
+                "Wird es angegriffen, verstreut es\n",
+                "zur Täuschung Watte. Es flieht,\n",
+                "während der Gegner nach dem\n",
+                "wahren Waumboll sucht."
+            ]
+        },
+        "it": {
+            "name": "COTTONEE",
+            "category": "Pokémon Cotonpalla",
+            "entry_text": [
+                "Se viene attaccato crea una nuvola\n",
+                "di cotone per confondere il nemico,\n",
+                "poi ne approfitta per fuggire."
+            ]
+        },
+        "es": {
+            "name": "COTTONEE",
+            "category": "Pokémon Bolalgodón",
+            "entry_text": [
+                "Despide motas de algodón cuando lo\n",
+                "atacan para confundir a los\n",
+                "enemigos y poner pies en polvorosa."
+            ]
+        },
+        "jp": {
+            "name": "モンメン",
+            "category": "わたたまポケモン",
+            "entry_text": [
+                "おそわれると　からだから　わたを\n",
+                "とばす。てきが　わたを　モンメンと\n",
+                "まちがえている　すきに\n",
+                "にげるのだ。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_SOUTH_WEST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 50,
+        "rarity": 30,
+        "unused": 4353
+    }
+}

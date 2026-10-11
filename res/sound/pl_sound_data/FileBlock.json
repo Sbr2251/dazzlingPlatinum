@@ -7571,6 +7571,101 @@
             "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
         },
         {
+            "name": "BANK_PV_WOOBAT.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_SWOOBAT.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_COTTONEE.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_WHIMSICOTT.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_SANDILE.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_KROKOROK.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_KROOKODILE.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_YAMASK.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_COFAGRIGUS.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_FRILLISH.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_JELLICENT.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_KLINK.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_KLANG.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_KLINKLANG.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_ELGYEM.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_BEHEEYEM.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_LITWICK.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_LAMPENT.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
+            "name": "BANK_PV_CHANDELURE.sbnk",
+            "type": "BANK",
+            "MD5": "0b957e3b8d070b82138ba5e79ac59bca"
+        },
+        {
             "name": "WAVE_ARC_PV001.swar",
             "type": "WAVARC",
             "MD5": "59ceaa722e2bdf3a6c2345e886902f20",
@@ -12296,6 +12391,158 @@
             "name": "WAVE_ARC_PV_LEAVANNY.swar",
             "type": "WAVARC",
             "MD5": "62a95c469ca29e677db5f077929a6826",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_WOOBAT.swar",
+            "type": "WAVARC",
+            "MD5": "066c67cde55e18e84416ad04f601655b",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_SWOOBAT.swar",
+            "type": "WAVARC",
+            "MD5": "2206ae38ac6e53306ea87926bf050b73",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_COTTONEE.swar",
+            "type": "WAVARC",
+            "MD5": "d2f59ddee8682369d5c400bd99b94c6e",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_WHIMSICOTT.swar",
+            "type": "WAVARC",
+            "MD5": "d684e7490912df32314eb5cdedfdd10f",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_SANDILE.swar",
+            "type": "WAVARC",
+            "MD5": "2a9ea1890b1ae863d92b55fdfb1a453d",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_KROKOROK.swar",
+            "type": "WAVARC",
+            "MD5": "23afaae5bda4db46fd25dc4ec5566956",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_KROOKODILE.swar",
+            "type": "WAVARC",
+            "MD5": "81235ef541f8bcab86043f3b4c1817a2",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_YAMASK.swar",
+            "type": "WAVARC",
+            "MD5": "fb664c9fb72b7daf29550560172fdbf8",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_COFAGRIGUS.swar",
+            "type": "WAVARC",
+            "MD5": "6374be6b7bf0ea51e4d624005f01ab36",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_FRILLISH.swar",
+            "type": "WAVARC",
+            "MD5": "5f34129bfa9c4e52609571a1cf352d19",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_JELLICENT.swar",
+            "type": "WAVARC",
+            "MD5": "0d6dce955e3729240021b1a978b0201c",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_KLINK.swar",
+            "type": "WAVARC",
+            "MD5": "60c0fa55d051957edcde589517f41b93",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_KLANG.swar",
+            "type": "WAVARC",
+            "MD5": "077b5269847df5d217344eae403c4e76",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_KLINKLANG.swar",
+            "type": "WAVARC",
+            "MD5": "ebe3e0b66bfcb40cd9881446a99a3a52",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_ELGYEM.swar",
+            "type": "WAVARC",
+            "MD5": "d21f0dcf695dd5ca8d36d7f84294895a",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_BEHEEYEM.swar",
+            "type": "WAVARC",
+            "MD5": "6af44741edc1187a7024ebfa44000054",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_LITWICK.swar",
+            "type": "WAVARC",
+            "MD5": "27c2d58837f3ca2daf6ae90016d671b1",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_LAMPENT.swar",
+            "type": "WAVARC",
+            "MD5": "7c2fdaf653f34396ce99032de5dec186",
+            "subFile": [
+                "00.swav"
+            ]
+        },
+        {
+            "name": "WAVE_ARC_PV_CHANDELURE.swar",
+            "type": "WAVARC",
+            "MD5": "6c89189728e54a726b5eafcbb9087c6c",
             "subFile": [
                 "00.swav"
             ]

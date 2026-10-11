@@ -68,6 +68,26 @@ SPECIES = [
     ("sewaddle", 540, "wurmple"),
     ("swadloon", 541, "silcoon"),
     ("leavanny", 542, "beautifly"),
+    # Arc 2 story lines (docs/arc2/PLAN.md S12, D9), species 518-536
+    ("woobat", 527, "zubat"),
+    ("swoobat", 528, "golbat"),
+    ("cottonee", 546, "hoppip"),
+    ("whimsicott", 547, "jumpluff"),
+    ("sandile", 551, "totodile"),
+    ("krokorok", 552, "croconaw"),
+    ("krookodile", 553, "feraligatr"),
+    ("yamask", 562, "duskull"),
+    ("cofagrigus", 563, "dusclops"),
+    ("frillish", 592, "tentacool"),
+    ("jellicent", 593, "tentacruel"),
+    ("klink", 599, "magnemite"),
+    ("klang", 600, "magneton"),
+    ("klinklang", 601, "magnezone"),
+    ("elgyem", 605, "abra"),
+    ("beheeyem", 606, "alakazam"),
+    ("litwick", 607, "shuppet"),
+    ("lampent", 608, "misdreavus"),
+    ("chandelure", 609, "mismagius"),
 ]
 
 # Gen 5 moves the engine lacks. Value: the Gen 4 move that replaces it, or None (dropped).
@@ -86,7 +106,31 @@ MOVE_SUBS = {
     "MOVE_BESTOW": (None, "no item-giving move in Gen 4"),
     "MOVE_FOUL_PLAY": (None, "no equivalent; Faint Attack is already an egg move"),
     "MOVE_WIDE_GUARD": (None, "Detect is already an egg move"),
+    # Arc 2 lines
+    "MOVE_HEART_STAMP": ("MOVE_ZEN_HEADBUTT", "Psychic physical with a flinch chance (60/30% -> 80/20%)"),
+    "MOVE_COTTON_GUARD": ("MOVE_BARRIER", "Defense boost (+3 -> +2)"),
+    "MOVE_HURRICANE": ("MOVE_AIR_SLASH", "special Flying attack (120/70% acc -> 75/95%)"),
+    "MOVE_GEAR_GRIND": ("MOVE_IRON_HEAD", "Steel physical, about the same damage (2x50 at 85% -> 80 at 100%)"),
+    "MOVE_SHIFT_GEAR": ("MOVE_DRAGON_DANCE", "raises Attack and Speed (+1 Atk/+2 Spe -> +1/+1)"),
+    "MOVE_GUARD_SPLIT": ("MOVE_GUARD_SWAP", "Defense/Sp. Def exchange with the target (average -> swap the boosts)"),
+    "MOVE_POWER_SPLIT": ("MOVE_POWER_SWAP", "Attack/Sp. Atk exchange with the target (average -> swap the boosts)"),
+    "MOVE_HEX": ("MOVE_OMINOUS_WIND", "Ghost special (50, 100 on a statused target -> 60, 10% all stats up)"),
+    "MOVE_FLAME_BURST": ("MOVE_LAVA_PLUME", "Fire special that also hits the others in Doubles (70 -> 80)"),
+    "MOVE_INFERNO": ("MOVE_FIRE_BLAST", "big inaccurate Fire special that burns (100/50%, always burns -> 120/85%, 10%)"),
+    "MOVE_CLEAR_SMOG": ("MOVE_SMOG", "Poison special gas attack (the stat reset is lost)"),
+    "MOVE_SIMPLE_BEAM": ("MOVE_WORRY_SEED", "replaces the target's ability (as Entrainment)"),
+    "MOVE_SYNCHRONOISE": ("MOVE_EXTRASENSORY", "Psychic special (70, only hits foes sharing a type -> 80, flinch)"),
+    "MOVE_WONDER_ROOM": ("MOVE_TRICK_ROOM", "the five-turn Psychic room, priority -7"),
+    "MOVE_STORED_POWER": ("MOVE_PSYBEAM", "Psychic special (20 + 20 a boost -> 65)"),
 }
+# Level-up only: these replace MOVE_SUBS for moves learnt by level (the egg-move rule stays).
+LEVEL_MOVE_SUBS = {
+    "MOVE_FOUL_PLAY": ("MOVE_NIGHT_SLASH", "Dark physical (95 off the target's Attack -> 70, high critical ratio)"),
+}
+# Species that Gen 6 retyped to Fairy, like the hack's Gen 4 Fairies (commit ba8051fd9e): they keep the
+# Fairy type and also learn, at the X/Y level, the Fairy moves the hack added (commit e4bf67198a).
+FAIRY_MOVES = {"MOVE_FAIRY_WIND", "MOVE_MOONBLAST", "MOVE_DISARMING_VOICE", "MOVE_DRAINING_KISS",
+               "MOVE_PLAY_ROUGH", "MOVE_DAZZLING_GLEAM"}
 # PokeAPI move names whose Gen 4 constant is spelled differently (not substitutions)
 MOVE_RENAMES = {
     "feint-attack": "MOVE_FAINT_ATTACK",
@@ -102,7 +146,17 @@ ABILITY_SUBS = {
     "ABILITY_BIG_PECKS": ("ABILITY_KEEN_EYE", "blocks one stat drop (Defense -> accuracy)"),
     "ABILITY_SAND_RUSH": ("ABILITY_SAND_VEIL", "sandstorm ability with sandstorm immunity (Speed -> evasion)"),
     "ABILITY_SHEER_FORCE": ("ABILITY_IRON_FIST", "boosts a class of moves (the species' own hidden ability)"),
+    # Arc 2 lines
+    "ABILITY_PRANKSTER": ("ABILITY_CHLOROPHYLL", "lets it act first (status priority -> Speed in sun; its own hidden ability)"),
+    "ABILITY_INFILTRATOR": ("ABILITY_MOLD_BREAKER", "attacks get past the target's defences (screens/Substitute -> abilities)"),
+    "ABILITY_MOXIE": ("ABILITY_ANGER_POINT", "Attack boost on a battle event (KO -> critical hit; its own hidden ability)"),
+    "ABILITY_MUMMY": ("ABILITY_ROUGH_SKIN", "punishes every contact hit (ability becomes Mummy -> 1/8 HP)"),
+    "ABILITY_CURSED_BODY": ("ABILITY_CUTE_CHARM", "30% chance the attacker can't use its move (disable -> infatuation)"),
+    "ABILITY_TELEPATHY": ("ABILITY_FOREWARN", "psychic sense of the foe (dodges ally moves -> reveals the foe's strongest move)"),
 }
+
+# Item evolutions keep the item when the engine has it; otherwise they get this level.
+ITEM_EVO_FALLBACK_LEVEL = {"lampent": 41}
 
 # Trade evolutions get a level, like Graveler and Machoke (decision 4A, 2026-10-10).
 TRADE_EVO_LEVEL = {"boldore": 37, "gurdurr": 37}
@@ -157,6 +211,12 @@ DEX_TEXT_OVERRIDES = {
                         "sleep.",
     ("leavanny", "en"): "When it finds a small Pokémon, it weaves clothes for it from leaves with sticky silk "
                         "and its cutters.",
+    ("woobat", "en"): "It lives in dark forests and caves. It emits ultrasonic waves from its nose to sense its "
+                      "surroundings.",
+    ("swoobat", "en"): "It emits sound waves of many frequencies from its nose, some powerful enough to destroy rocks.",
+    ("cottonee", "en"): "If attacked, it escapes by shooting cotton from its body as a decoy to distract the attacker.",
+    ("yamask", "en"): "Each carries a mask that used to be its face when it was human. Sometimes they look at it and "
+                      "cry.",
 }
 GEN = {"generation-%s" % r: i for i, r in enumerate(["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix"], 1)}
 
@@ -201,13 +261,18 @@ def move_const(name):
 
 
 def map_move(species, const, where):
-    """Gen 4 constant for a move, or None. Records substitutions."""
+    """Gen 4 constant for a level-up or egg move, or None. Records substitutions; stops on a move
+    with no rule (machine/tutor lists only consider Gen 4 moves at all, so they never get here)."""
     if const in MOVES:
         return const
-    if const not in MOVE_SUBS:
-        return None  # machine/tutor lists: only Gen 4 moves are considered at all
-    sub, why = MOVE_SUBS[const]
-    REPORT_DATA["moves"].setdefault(const, {"to": sub, "why": why, "where": []})["where"].append(f"{species} {where}")
+    rules = dict(MOVE_SUBS)
+    if where.startswith("Lv"):
+        rules.update(LEVEL_MOVE_SUBS)
+    if const not in rules:
+        raise SystemExit(f"{species} {where}: {const} is not in the engine; add a MOVE_SUBS rule")
+    sub, why = rules[const]
+    key = const if rules[const] == MOVE_SUBS.get(const) else f"{const} (level-up)"
+    REPORT_DATA["moves"].setdefault(key, {"to": sub, "why": why, "where": []})["where"].append(f"{species} {where}")
     return sub
 
 
@@ -240,6 +305,8 @@ def map_ability(species, name):
     const = ability_const(name)
     if const in ABILITIES:
         return const
+    if const not in ABILITY_SUBS:
+        raise SystemExit(f"{species}: {const} is not in the engine; add an ABILITY_SUBS rule")
     sub, why = ABILITY_SUBS[const]
     REPORT_DATA["abilities"].setdefault(const, {"to": sub, "why": why, "species": []})["species"].append(species)
     return sub
@@ -369,16 +436,31 @@ def held_items(poke):
     return {"common": common, "rare": rare}
 
 
+def retyped_fairy(poke):
+    """Gen 6 made it part Fairy (PokeAPI past_types holds its Gen 5 typing)."""
+    now = {t["type"]["name"] for t in poke["types"]}
+    for past in poke.get("past_types", []):
+        if GEN[past["generation"]["name"]] >= 5 and "fairy" in now and "fairy" not in {t["type"]["name"] for t in past["types"]}:
+            return True
+    return False
+
+
 def learnsets(name, poke):
     by_level, egg = [], []
     teachable = set()  # Gen 4 moves the species can learn from a TM/tutor in any game
     level_moves = set()
+    substituted = set()
+    fairy = retyped_fairy(poke)
     for m in poke["moves"]:
         const = move_const(m["move"]["name"])
         for v in m["version_group_details"]:
             method, vg = v["move_learn_method"]["name"], v["version_group"]["name"]
             if method in ("machine", "tutor"):
                 teachable.add(const)
+            if fairy and vg == "x-y" and method == "level-up" and const in FAIRY_MOVES and const in MOVES:
+                by_level.append([v["level_learned_at"], const])
+                level_moves.add(const)
+                REPORT_DATA.setdefault("fairy_moves", {}).setdefault(name, []).append(f"{const} Lv{v['level_learned_at']} (X/Y)")
             if vg != "black-2-white-2":
                 continue
             if method == "level-up":
@@ -386,17 +468,24 @@ def learnsets(name, poke):
                 if sub:
                     by_level.append([v["level_learned_at"], sub])
                     level_moves.add(sub)
+                    if sub != const:
+                        substituted.add((v["level_learned_at"], sub))
             elif method == "egg":
                 sub = map_move(name, const, "egg")
                 if sub and sub not in egg:
                     egg.append(sub)
     by_level.sort(key=lambda x: x[0])
     # drop exact duplicates (same level, same move) that a substitution can create
+    # and a substitute the species already learns at another level (the earliest one stays)
     seen, lv = set(), []
     for e in by_level:
         if tuple(e) not in seen:
             seen.add(tuple(e))
             lv.append(e)
+    first, dup = {}, {mv for lvl, mv in substituted}
+    for lvl, mv in lv:
+        first.setdefault(mv, lvl)
+    lv = [e for e in lv if not (e[1] in dup and first[e[1]] != e[0])]
     tm_moves = tm_table()
     tms = [tm for tm, mv in tm_moves if mv in teachable or mv in level_moves]
     tms = sorted(set(tms) | set(UNIVERSAL_TMS) | set(EXTRA_TMS.get(name, [])), key=lambda t: (t[:2] == "HM", int(t[2:])))
@@ -515,7 +604,7 @@ def build(name, natdex, analog, table, species_names):
             hidden = None
         else:
             abilities.append("ABILITY_NONE")
-    if hidden:
+    if hidden and ability_const(hidden) not in abilities:
         REPORT_DATA["dropped_hidden_abilities"][name] = ability_const(hidden)
 
     by_level, tms, tutors, egg = learnsets(name, poke)
@@ -535,6 +624,8 @@ def build(name, natdex, analog, table, species_names):
     node = walk(chain["chain"])
     for nxt in node["evolves_to"]:
         target = "SPECIES_" + nxt["species"]["name"].upper()
+        if target[len("SPECIES_"):] not in SPECIES_NAMES:
+            continue  # a later generation's branch (Yamask -> Runerigus)
         d = nxt["evolution_details"][0]
         trig = d["trigger"]["name"]
         if trig == "level-up" and d["min_happiness"]:
@@ -544,6 +635,13 @@ def build(name, natdex, analog, table, species_names):
         elif trig == "trade":
             evolutions.append(["EVO_LEVEL", TRADE_EVO_LEVEL[name], target])
             REPORT_DATA["evolutions"][name] = f"trade -> level {TRADE_EVO_LEVEL[name]} ({nxt['species']['name']})"
+        elif trig == "use-item":
+            item = "ITEM_" + d["item"]["name"].upper().replace("-", "_")
+            if item in ITEMS:
+                evolutions.append(["EVO_USE_ITEM", item, target])
+            else:
+                evolutions.append(["EVO_LEVEL", ITEM_EVO_FALLBACK_LEVEL[name], target])
+                REPORT_DATA["evolutions"][name] = f"{item} -> level {ITEM_EVO_FALLBACK_LEVEL[name]} ({nxt['species']['name']})"
         else:
             raise SystemExit(f"{name}: unhandled evolution trigger {trig}")
     base = chain["chain"]["species"]["name"]
@@ -614,7 +712,10 @@ def build(name, natdex, analog, table, species_names):
     for fname in ("female_front.png", "female_back.png", "male_front.png", "male_back.png", "normal.pal", "shiny.pal"):
         dst = os.path.join(outdir, fname)
         if not os.path.exists(dst):
-            with open(os.path.join(MON, analog, fname), "rb") as f:
+            src = os.path.join(MON, analog, fname)
+            if not os.path.exists(src):  # genderless analogue: no female files
+                src = os.path.join(MON, analog, fname.replace("female_", "male_"))
+            with open(src, "rb") as f:
                 blob = f.read()
             with open(dst, "wb") as f:
                 f.write(blob)
@@ -622,7 +723,10 @@ def build(name, natdex, analog, table, species_names):
         for face in ("front", "back"):
             k = os.path.join(outdir, f"{g}_{face}.png.key")
             if not os.path.exists(k):
-                with open(os.path.join(MON, analog, f"{g}_{face}.png.key"), "rb") as f:
+                src = os.path.join(MON, analog, f"{g}_{face}.png.key")
+                if not os.path.exists(src):
+                    src = os.path.join(MON, analog, f"male_{face}.png.key")
+                with open(src, "rb") as f:
                     key = f.read()
                 with open(k, "wb") as f:
                     f.write(key)
@@ -637,11 +741,35 @@ def build(name, natdex, analog, table, species_names):
     print(f"{name}: {data['types']} {abilities} evo={evolutions} icon_pal={icon_pal} footprint={has_print}")
 
 
+def merge_old_report(rebuilt):
+    """A subset run keeps the report's entries for the other species."""
+    with open(REPORT) as f:
+        old = json.load(f)
+    for key, val in old.items():
+        REPORT_DATA.setdefault(key, {})
+        for k, v in val.items():
+            if key == "moves":
+                where = [w for w in v["where"] if w.split()[0] not in rebuilt]
+                if where:
+                    REPORT_DATA[key][k] = dict(v, where=where)
+            elif key == "abilities":
+                species = [x for x in v["species"] if x not in rebuilt]
+                if species:
+                    REPORT_DATA[key][k] = dict(v, species=species)
+            elif k not in rebuilt:
+                REPORT_DATA[key][k] = v
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--species", default="", help="comma-separated subset")
     args = ap.parse_args()
     want = set(filter(None, args.species.split(",")))
+    unknown = want - {s[0] for s in SPECIES}
+    if unknown:
+        raise SystemExit(f"not in SPECIES: {sorted(unknown)}")
+    if want and os.path.exists(REPORT):
+        merge_old_report(want)
     table = dex_scale_table()
     for name, natdex, analog in SPECIES:
         if not want or name in want:

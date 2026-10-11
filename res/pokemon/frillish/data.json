@@ -1,0 +1,246 @@
+{
+    "base_stats": {
+        "hp": 55,
+        "attack": 40,
+        "defense": 50,
+        "speed": 40,
+        "special_attack": 65,
+        "special_defense": 85
+    },
+    "types": [
+        "TYPE_WATER",
+        "TYPE_GHOST"
+    ],
+    "catch_rate": 190,
+    "base_exp_reward": 67,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 0,
+        "defense": 0,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 1
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 20,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_FAST",
+    "egg_groups": [
+        "EGG_GROUP_AMORPHOUS",
+        "EGG_GROUP_AMORPHOUS"
+    ],
+    "abilities": [
+        "ABILITY_WATER_ABSORB",
+        "ABILITY_CUTE_CHARM"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_WHITE",
+    "flip_sprite": false,
+    "icon_palette": 0,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_BUBBLE"
+            ],
+            [
+                1,
+                "MOVE_WATER_SPORT"
+            ],
+            [
+                5,
+                "MOVE_ABSORB"
+            ],
+            [
+                9,
+                "MOVE_NIGHT_SHADE"
+            ],
+            [
+                13,
+                "MOVE_BUBBLE_BEAM"
+            ],
+            [
+                17,
+                "MOVE_RECOVER"
+            ],
+            [
+                22,
+                "MOVE_WATER_PULSE"
+            ],
+            [
+                27,
+                "MOVE_OMINOUS_WIND"
+            ],
+            [
+                32,
+                "MOVE_BRINE"
+            ],
+            [
+                37,
+                "MOVE_RAIN_DANCE"
+            ],
+            [
+                49,
+                "MOVE_HYDRO_PUMP"
+            ],
+            [
+                55,
+                "MOVE_WRING_OUT"
+            ],
+            [
+                61,
+                "MOVE_WATER_SPOUT"
+            ]
+        ],
+        "by_tm": [
+            "TM03",
+            "TM06",
+            "TM07",
+            "TM10",
+            "TM12",
+            "TM13",
+            "TM14",
+            "TM17",
+            "TM18",
+            "TM19",
+            "TM20",
+            "TM21",
+            "TM27",
+            "TM29",
+            "TM30",
+            "TM32",
+            "TM34",
+            "TM36",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM53",
+            "TM55",
+            "TM58",
+            "TM61",
+            "TM70",
+            "TM77",
+            "TM78",
+            "TM79",
+            "TM82",
+            "TM83",
+            "TM85",
+            "TM87",
+            "TM90",
+            "TM92",
+            "HM03",
+            "HM07"
+        ],
+        "by_tutor": [
+            "MOVE_DIVE",
+            "MOVE_ICY_WIND",
+            "MOVE_OMINOUS_WIND",
+            "MOVE_SNORE",
+            "MOVE_SPITE",
+            "MOVE_TRICK"
+        ],
+        "egg_moves": [
+            "MOVE_MIST",
+            "MOVE_RECOVER",
+            "MOVE_CONFUSE_RAY",
+            "MOVE_CONSTRICT",
+            "MOVE_ACID_ARMOR",
+            "MOVE_PAIN_SPLIT"
+        ]
+    },
+    "evolutions": [
+        [
+            "EVO_LEVEL",
+            40,
+            "SPECIES_JELLICENT"
+        ]
+    ],
+    "offspring": "SPECIES_FRILLISH",
+    "footprint": {
+        "has": false,
+        "size": "FOOTPRINT_LARGE",
+        "type": "FOOTPRINT_TYPE_TOUGH"
+    },
+    "pokedex_data": {
+        "height": 12,
+        "weight": 330,
+        "body_shape": "SHAPE_TENTACLES",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 266,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 266,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 7,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 7,
+        "en": {
+            "name": "FRILLISH",
+            "category": "Floating Pokémon",
+            "entry_text": [
+                "With its thin, veil-like arms wrapped\n",
+                "around the body of its opponent, it\n",
+                "sinks to the ocean floor."
+            ]
+        },
+        "fr": {
+            "name": "VISKUSE",
+            "category": "Pokémon Flottaison",
+            "entry_text": [
+                "Il s'enfonce dans les profondeurs\n",
+                "de la mer en emmenant son ennemi,\n",
+                "qu'il ligote avec ses bras fins\n",
+                "comme des voiles."
+            ]
+        },
+        "de": {
+            "name": "QUABBEL",
+            "category": "Gleit-Pokémon",
+            "entry_text": [
+                "Es lähmt seine Beute mit Gift und\n",
+                "verschleppt sie in seinen\n",
+                "Unterschlupf, 8 km unter dem\n",
+                "Meeresspiegel."
+            ]
+        },
+        "it": {
+            "name": "FRILLISH",
+            "category": "Pokémon Fluttuante",
+            "entry_text": [
+                "Paralizza la preda con il veleno e la\n",
+                "porta nella sua dimora a 8000 m in\n",
+                "fondo al mare."
+            ]
+        },
+        "es": {
+            "name": "FRILLISH",
+            "category": "Pokémon Ingrávido",
+            "entry_text": [
+                "Paraliza a sus presas con veneno y\n",
+                "las lleva a su morada, que se\n",
+                "encuentra a 8000 m en el fondo del\n",
+                "mar."
+            ]
+        },
+        "jp": {
+            "name": "プルリル",
+            "category": "ふゆうポケモン",
+            "entry_text": [
+                "えものを　どくで　しびれさせて\n",
+                "８０００メ－トルの　しんかいに\n",
+                "あるという　すみかに　つれていく。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NONE",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_SOUTH_EAST",
+        "catching_points": 30,
+        "rarity": 50,
+        "unused": 1539
+    }
+}

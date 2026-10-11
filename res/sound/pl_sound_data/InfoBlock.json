@@ -17419,25 +17419,196 @@
                 "",
                 ""]
         },
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
+        {
+            "name": "BANK_PV_WOOBAT",
+            "fileName": "BANK_PV_WOOBAT.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_WOOBAT",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_SWOOBAT",
+            "fileName": "BANK_PV_SWOOBAT.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_SWOOBAT",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_COTTONEE",
+            "fileName": "BANK_PV_COTTONEE.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_COTTONEE",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_WHIMSICOTT",
+            "fileName": "BANK_PV_WHIMSICOTT.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_WHIMSICOTT",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_SANDILE",
+            "fileName": "BANK_PV_SANDILE.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_SANDILE",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_KROKOROK",
+            "fileName": "BANK_PV_KROKOROK.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_KROKOROK",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_KROOKODILE",
+            "fileName": "BANK_PV_KROOKODILE.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_KROOKODILE",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_YAMASK",
+            "fileName": "BANK_PV_YAMASK.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_YAMASK",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_COFAGRIGUS",
+            "fileName": "BANK_PV_COFAGRIGUS.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_COFAGRIGUS",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_FRILLISH",
+            "fileName": "BANK_PV_FRILLISH.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_FRILLISH",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_JELLICENT",
+            "fileName": "BANK_PV_JELLICENT.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_JELLICENT",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_KLINK",
+            "fileName": "BANK_PV_KLINK.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_KLINK",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_KLANG",
+            "fileName": "BANK_PV_KLANG.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_KLANG",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_KLINKLANG",
+            "fileName": "BANK_PV_KLINKLANG.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_KLINKLANG",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_ELGYEM",
+            "fileName": "BANK_PV_ELGYEM.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_ELGYEM",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_BEHEEYEM",
+            "fileName": "BANK_PV_BEHEEYEM.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_BEHEEYEM",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_LITWICK",
+            "fileName": "BANK_PV_LITWICK.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_LITWICK",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_LAMPENT",
+            "fileName": "BANK_PV_LAMPENT.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_LAMPENT",
+                "",
+                "",
+                ""]
+        },
+        {
+            "name": "BANK_PV_CHANDELURE",
+            "fileName": "BANK_PV_CHANDELURE.sbnk",
+            "unkA": 0,
+            "wa": [
+                "WAVE_ARC_PV_CHANDELURE",
+                "",
+                "",
+                ""]
+        },
         {"name": ""},
         {"name": ""},
         {"name": ""},
@@ -20513,25 +20684,101 @@
             "fileName": "WAVE_ARC_PV_LEAVANNY.swar",
             "unkA": 0
         },
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
-        {"name": ""},
+        {
+            "name": "WAVE_ARC_PV_WOOBAT",
+            "fileName": "WAVE_ARC_PV_WOOBAT.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_SWOOBAT",
+            "fileName": "WAVE_ARC_PV_SWOOBAT.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_COTTONEE",
+            "fileName": "WAVE_ARC_PV_COTTONEE.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_WHIMSICOTT",
+            "fileName": "WAVE_ARC_PV_WHIMSICOTT.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_SANDILE",
+            "fileName": "WAVE_ARC_PV_SANDILE.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_KROKOROK",
+            "fileName": "WAVE_ARC_PV_KROKOROK.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_KROOKODILE",
+            "fileName": "WAVE_ARC_PV_KROOKODILE.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_YAMASK",
+            "fileName": "WAVE_ARC_PV_YAMASK.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_COFAGRIGUS",
+            "fileName": "WAVE_ARC_PV_COFAGRIGUS.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_FRILLISH",
+            "fileName": "WAVE_ARC_PV_FRILLISH.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_JELLICENT",
+            "fileName": "WAVE_ARC_PV_JELLICENT.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_KLINK",
+            "fileName": "WAVE_ARC_PV_KLINK.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_KLANG",
+            "fileName": "WAVE_ARC_PV_KLANG.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_KLINKLANG",
+            "fileName": "WAVE_ARC_PV_KLINKLANG.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_ELGYEM",
+            "fileName": "WAVE_ARC_PV_ELGYEM.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_BEHEEYEM",
+            "fileName": "WAVE_ARC_PV_BEHEEYEM.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_LITWICK",
+            "fileName": "WAVE_ARC_PV_LITWICK.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_LAMPENT",
+            "fileName": "WAVE_ARC_PV_LAMPENT.swar",
+            "unkA": 0
+        },
+        {
+            "name": "WAVE_ARC_PV_CHANDELURE",
+            "fileName": "WAVE_ARC_PV_CHANDELURE.swar",
+            "unkA": 0
+        },
         {"name": ""},
         {"name": ""},
         {"name": ""},
