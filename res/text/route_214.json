@@ -108,6 +108,55 @@
         "The air here is torn.\n",
         "Something hums on the other side."
       ]
+    },
+    {
+      "id": "Route214_Text_EchoSite",
+      "en_US": [
+        "The grass here is burned flat,\n",
+        "in a square. Something stood here."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoHum",
+      "en_US": [
+        "The Resonator hums. The air over\n",
+        "the burned grass goes cold."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoCrate",
+      "en_US": [
+        "A crate is pried open. Inside sits\n",
+        "a machine with a violet shard."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoTear",
+      "en_US": [
+        "It hums louder. The air in front\n",
+        "of it tears open."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoSkarmory",
+      "en_US": [
+        "Deep inside the tear, a Skarmory\n",
+        "screams. The machine keeps humming."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoKnown",
+      "en_US": [
+        "It's the same cry you heard in\n",
+        "the rift."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoFade",
+      "en_US": [
+        "The hum fades. Only the burned\n",
+        "grass is left."
+      ]
     }
   ]
 }
