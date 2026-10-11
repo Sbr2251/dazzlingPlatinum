@@ -8,54 +8,92 @@
     "ai_flags": [
         "AI_FLAG_BASIC",
         "AI_FLAG_EVAL_ATTACK",
-        "AI_FLAG_EXPERT"
+        "AI_FLAG_EXPERT",
+        "AI_FLAG_HARRASSMENT",
+        "AI_FLAG_CHECK_HP"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_DUSKULL",
+            "species": "SPECIES_DRIFBLIM",
             "form": 0,
-            "level": 24,
-            "item": "ITEM_NONE",
+            "level": 35,
+            "item": "ITEM_SITRUS_BERRY",
             "moves": [
                 "MOVE_WILL_O_WISP",
-                "MOVE_PURSUIT",
-                "MOVE_SHADOW_SNEAK",
-                "MOVE_FUTURE_SIGHT"
+                "MOVE_SHADOW_BALL",
+                "MOVE_BATON_PASS",
+                "MOVE_MINIMIZE"
             ],
-            "power": 100,
-            "ball_seal": 0
+            "power": 200,
+            "ball_seal": 0,
+            "ability": "ABILITY_UNBURDEN"
         },
         {
-            "species": "SPECIES_HAUNTER",
+            "species": "SPECIES_DUSKNOIR",
             "form": 0,
-            "level": 24,
-            "item": "ITEM_NONE",
+            "level": 36,
+            "item": "ITEM_LEFTOVERS",
             "moves": [
-                "MOVE_SHADOW_CLAW",
-                "MOVE_SUCKER_PUNCH",
-                "MOVE_HYPNOSIS",
-                "MOVE_CONFUSE_RAY"
+                "MOVE_WILL_O_WISP",
+                "MOVE_PAIN_SPLIT",
+                "MOVE_SHADOW_PUNCH",
+                "MOVE_PROTECT"
             ],
-            "power": 100,
+            "power": 200,
             "ball_seal": 0
         },
         {
             "species": "SPECIES_MISMAGIUS",
             "form": 0,
-            "level": 26,
-            "item": "ITEM_SITRUS_BERRY",
+            "level": 37,
+            "item": "ITEM_LEFTOVERS",
             "moves": [
-                "MOVE_SHADOW_BALL",
-                "MOVE_PSYBEAM",
-                "MOVE_MAGICAL_LEAF",
-                "MOVE_CONFUSE_RAY"
+                "MOVE_MEAN_LOOK",
+                "MOVE_PERISH_SONG",
+                "MOVE_PROTECT",
+                "MOVE_SHADOW_BALL"
             ],
-            "power": 100,
+            "power": 200,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_BANETTE",
+            "form": 0,
+            "level": 37,
+            "item": "ITEM_FOCUS_SASH",
+            "moves": [
+                "MOVE_SHADOW_CLAW",
+                "MOVE_WILL_O_WISP",
+                "MOVE_SUCKER_PUNCH",
+                "MOVE_DESTINY_BOND"
+            ],
+            "power": 200,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_GENGAR",
+            "form": 0,
+            "level": 39,
+            "item": "ITEM_GENGARITE",
+            "moves": [
+                "MOVE_PERISH_SONG",
+                "MOVE_PROTECT",
+                "MOVE_SHADOW_BALL",
+                "MOVE_SLUDGE_BOMB"
+            ],
+            "power": 200,
             "ball_seal": 0
         }
     ],
     "messages": [
+        {
+            "type": "TRMSG_MEGA_EVOLUTION",
+            "en_US": [
+                "Ze curtain falls!\n",
+                "Gengar, MEGA EVOLVE!\n"
+            ]
+        },
         {
             "type": "TRMSG_LAST_BATTLER",
             "en_US": [

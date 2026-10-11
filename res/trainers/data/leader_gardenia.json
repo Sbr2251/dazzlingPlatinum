@@ -8,57 +8,76 @@
     "ai_flags": [
         "AI_FLAG_BASIC",
         "AI_FLAG_EVAL_ATTACK",
-        "AI_FLAG_EXPERT"
+        "AI_FLAG_EXPERT",
+        "AI_FLAG_WEATHER",
+        "AI_FLAG_SETUP_FIRST_TURN"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_TURTWIG",
-            "form": 0,
-            "level": 20,
-            "item": "ITEM_NONE",
-            "moves": [
-                "MOVE_GRASS_KNOT",
-                "MOVE_RAZOR_LEAF",
-                "MOVE_SUNNY_DAY",
-                "MOVE_REFLECT"
-            ],
-            "power": 50,
-            "ball_seal": 0
-        },
-        {
             "species": "SPECIES_CHERRIM",
             "form": 0,
-            "level": 20,
-            "item": "ITEM_NONE",
+            "level": 21,
+            "item": "ITEM_HEAT_ROCK",
             "moves": [
-                "MOVE_GRASS_KNOT",
-                "MOVE_LEECH_SEED",
+                "MOVE_SUNNY_DAY",
                 "MOVE_MAGICAL_LEAF",
-                "MOVE_SAFEGUARD"
+                "MOVE_LEECH_SEED",
+                "MOVE_GROWTH"
             ],
-            "power": 50,
-            "ball_seal": 0
+            "power": 150,
+            "ball_seal": 0,
+            "ability": "ABILITY_FLOWER_GIFT"
+        },
+        {
+            "species": "SPECIES_EXEGGCUTE",
+            "form": 0,
+            "level": 22,
+            "item": "ITEM_MIRACLE_SEED",
+            "moves": [
+                "MOVE_SOLAR_BEAM",
+                "MOVE_HYPNOSIS",
+                "MOVE_CONFUSION",
+                "MOVE_LEECH_SEED"
+            ],
+            "power": 150,
+            "ball_seal": 0,
+            "ability": "ABILITY_CHLOROPHYLL"
+        },
+        {
+            "species": "SPECIES_TANGELA",
+            "form": 0,
+            "level": 23,
+            "item": "ITEM_SITRUS_BERRY",
+            "moves": [
+                "MOVE_SOLAR_BEAM",
+                "MOVE_STUN_SPORE",
+                "MOVE_ANCIENT_POWER",
+                "MOVE_MEGA_DRAIN"
+            ],
+            "power": 150,
+            "ball_seal": 0,
+            "ability": "ABILITY_CHLOROPHYLL"
         },
         {
             "species": "SPECIES_ROSERADE",
             "form": 0,
-            "level": 22,
+            "level": 25,
             "item": "ITEM_SITRUS_BERRY",
             "moves": [
-                "MOVE_GRASS_KNOT",
                 "MOVE_MAGICAL_LEAF",
-                "MOVE_POISON_STING",
-                "MOVE_STUN_SPORE"
+                "MOVE_STUN_SPORE",
+                "MOVE_POISON_JAB",
+                "MOVE_TOXIC_SPIKES"
             ],
-            "power": 50,
+            "power": 150,
             "ball_seal": 0
         }
     ],
     "messages": [
         {
             "type": "TRMSG_LAST_BATTLER",
-            "en_US": "It’s not the end yet."
+            "en_US": "It's not the end yet."
         },
         {
             "type": "TRMSG_LAST_BATTLER_HALF_HP",
@@ -71,7 +90,7 @@
             "type": "TRMSG_DEFEAT",
             "en_US": [
                 "Amazing!\n",
-                "You’re very good, aren’t you?\n"
+                "You're very good, aren't you?\n"
             ]
         }
     ]

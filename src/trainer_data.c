@@ -2,6 +2,7 @@
 
 #include "constants/battle.h"
 #include "constants/pokemon.h"
+#include "generated/abilities.h"
 #include "generated/trainer_message_types.h"
 
 #include "struct_defs/trainer.h"
@@ -21,6 +22,8 @@
 #include "string_gf.h"
 
 static void TrainerData_BuildParty(FieldBattleDTO *dto, int battler, enum HeapID heapID);
+static u32 TrainerMon_ApplyAbilitySlot(u32 personality, u16 species, u8 form, u16 cbSeal);
+static void TrainerMon_SetSealFormAndAbility(Pokemon *mon, u16 cbSeal, u8 form, enum HeapID heapID);
 
 void Trainer_Encounter(FieldBattleDTO *dto, const SaveData *saveData, enum HeapID heapID)
 {
@@ -177,6 +180,54 @@ u8 TrainerClass_Gender(int trclass)
 }
 
 /**
+ * @brief Pick the personality's ability bit for a trainer mon with an ability override.
+ *
+ * The high byte of cbSeal optionally names the ability the trainer data asks for
+ * (0, ABILITY_NONE, means none: the stock personality is kept). When it is the
+ * species' second ability, bit 0 of the personality is set so that every later
+ * ability recalculation (form changes, Mega Evolution and its reversion) agrees.
+ * The stock personality's low byte is the 120/136 gender modifier, so flipping
+ * bit 0 never changes the gender.
+ */
+static u32 TrainerMon_ApplyAbilitySlot(u32 personality, u16 species, u8 form, u16 cbSeal)
+{
+    u16 ability = cbSeal >> TRAINER_MON_ABILITY_SHIFT;
+
+    if (ability == ABILITY_NONE) {
+        return personality;
+    }
+
+    if (SpeciesData_GetFormValue(species, form, SPECIES_DATA_ABILITY_2) == ability
+        && SpeciesData_GetFormValue(species, form, SPECIES_DATA_ABILITY_1) != ability) {
+        return personality | 1;
+    }
+
+    return personality & ~1;
+}
+
+/**
+ * @brief Apply the ball seal, form and optional ability override of a trainer mon.
+ *
+ * An ability that is neither of the species' abilities is written directly; it
+ * then lasts for the battle (a form change recalculates it from the species).
+ */
+static void TrainerMon_SetSealFormAndAbility(Pokemon *mon, u16 cbSeal, u8 form, enum HeapID heapID)
+{
+    u32 ability = cbSeal >> TRAINER_MON_ABILITY_SHIFT;
+
+    Pokemon_SetBallSeal(cbSeal & TRAINER_MON_BALL_SEAL_MASK, mon, heapID);
+    Pokemon_SetValue(mon, MON_DATA_FORM, &form);
+
+    if (ability != ABILITY_NONE) {
+        Pokemon_CalcAbility(mon);
+
+        if (Pokemon_GetValue(mon, MON_DATA_ABILITY, NULL) != ability) {
+            Pokemon_SetValue(mon, MON_DATA_ABILITY, &ability);
+        }
+    }
+}
+
+/**
  * @brief Build the party for a trainer as loaded in the FieldBattleDTO struct.
  *
  * @param dto  The parent FieldBattleDTO struct containing trainer data.
@@ -221,11 +272,11 @@ static void TrainerData_BuildParty(FieldBattleDTO *dto, int battler, enum HeapID
             }
 
             rnd = (rnd << 8) + genderMod;
+            rnd = TrainerMon_ApplyAbilitySlot(rnd, species, form, trmon[i].cbSeal);
             ivs = trmon[i].dv * MAX_IVS_SINGLE_STAT / MAX_DV;
 
             Pokemon_InitWith(mon, species, trmon[i].level, ivs, TRUE, rnd, OTID_NOT_SHINY, 0);
-            Pokemon_SetBallSeal(trmon[i].cbSeal, mon, heapID);
-            Pokemon_SetValue(mon, MON_DATA_FORM, &form);
+            TrainerMon_SetSealFormAndAbility(mon, trmon[i].cbSeal, form, heapID);
             Party_AddPokemon(dto->parties[battler], mon);
         }
 
@@ -246,6 +297,7 @@ static void TrainerData_BuildParty(FieldBattleDTO *dto, int battler, enum HeapID
             }
 
             rnd = (rnd << 8) + genderMod;
+            rnd = TrainerMon_ApplyAbilitySlot(rnd, species, form, trmon[i].cbSeal);
             ivs = trmon[i].dv * MAX_IVS_SINGLE_STAT / MAX_DV;
 
             Pokemon_InitWith(mon, species, trmon[i].level, ivs, TRUE, rnd, OTID_NOT_SHINY, 0);
@@ -254,8 +306,7 @@ static void TrainerData_BuildParty(FieldBattleDTO *dto, int battler, enum HeapID
                 Pokemon_SetMoveSlot(mon, trmon[i].moves[j], j);
             }
 
-            Pokemon_SetBallSeal(trmon[i].cbSeal, mon, heapID);
-            Pokemon_SetValue(mon, MON_DATA_FORM, &form);
+            TrainerMon_SetSealFormAndAbility(mon, trmon[i].cbSeal, form, heapID);
             Party_AddPokemon(dto->parties[battler], mon);
         }
 
@@ -276,12 +327,12 @@ static void TrainerData_BuildParty(FieldBattleDTO *dto, int battler, enum HeapID
             }
 
             rnd = (rnd << 8) + genderMod;
+            rnd = TrainerMon_ApplyAbilitySlot(rnd, species, form, trmon[i].cbSeal);
             ivs = trmon[i].dv * MAX_IVS_SINGLE_STAT / MAX_DV;
 
             Pokemon_InitWith(mon, species, trmon[i].level, ivs, TRUE, rnd, OTID_NOT_SHINY, 0);
             Pokemon_SetValue(mon, MON_DATA_HELD_ITEM, &trmon[i].item);
-            Pokemon_SetBallSeal(trmon[i].cbSeal, mon, heapID);
-            Pokemon_SetValue(mon, MON_DATA_FORM, &form);
+            TrainerMon_SetSealFormAndAbility(mon, trmon[i].cbSeal, form, heapID);
             Party_AddPokemon(dto->parties[battler], mon);
         }
 
@@ -302,6 +353,7 @@ static void TrainerData_BuildParty(FieldBattleDTO *dto, int battler, enum HeapID
             }
 
             rnd = (rnd << 8) + genderMod;
+            rnd = TrainerMon_ApplyAbilitySlot(rnd, species, form, trmon[i].cbSeal);
             ivs = trmon[i].dv * MAX_IVS_SINGLE_STAT / MAX_DV;
 
             Pokemon_InitWith(mon, species, trmon[i].level, ivs, TRUE, rnd, OTID_NOT_SHINY, 0);
@@ -311,8 +363,7 @@ static void TrainerData_BuildParty(FieldBattleDTO *dto, int battler, enum HeapID
                 Pokemon_SetMoveSlot(mon, trmon[i].moves[j], j);
             }
 
-            Pokemon_SetBallSeal(trmon[i].cbSeal, mon, heapID);
-            Pokemon_SetValue(mon, MON_DATA_FORM, &form);
+            TrainerMon_SetSealFormAndAbility(mon, trmon[i].cbSeal, form, heapID);
             Party_AddPokemon(dto->parties[battler], mon);
         }
 
