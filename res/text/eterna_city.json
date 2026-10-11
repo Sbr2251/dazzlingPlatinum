@@ -222,28 +222,25 @@
     {
       "id": "pl_msg_00000085_00021",
       "en_US": [
-        "Since that Team Galactic building went\n",
-        "up, the city’s atmosphere has gotten\f",
-        "all creepy and tense.\r",
-        "I don’t know what those people are\n",
-        "doing up in that place..."
+        "Since that shelter opened, people\n",
+        "keep dropping Pokémon off there.\r",
+        "Nobody ever seems to pick one up."
       ]
     },
     {
       "id": "pl_msg_00000085_00022",
       "en_US": [
-        "With Team Galactic gone, what’s going\n",
-        "to happen to their building?"
+        "The Haven closed overnight.\n",
+        "Nobody saw them leave."
       ]
     },
     {
       "id": "pl_msg_00000085_00023",
       "en_US": [
-        "My friend said Team Galactic took his\n",
-        "favorite Pokémon away.\r",
-        "I don’t think he’s telling the truth.\n",
-        "Team Galactic looks so cool.\f",
-        "They don’t look like common thugs."
+        "My friend says the Haven took his\n",
+        "Pokémon in when his grandpa died.\r",
+        "He says they won't let him visit.\n",
+        "I bet he's just making it up."
       ]
     },
     {
@@ -371,8 +368,8 @@
     {
       "id": "pl_msg_00000085_00039",
       "en_US": [
-        "Team Galactic Eterna Building\n",
-        "We Want Your Pokémon!"
+        "A HOME FOR THE ONES LEFT BEHIND\n",
+        "Eclipse Haven"
       ]
     },
     {
@@ -395,6 +392,114 @@
         "It’s Eterna City’s Pokémon statue.\r",
         "There seems to have been a descriptive\n",
         "plate, but it appears it was torn off."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2HavenBuzz",
+      "en_US": [
+        "The Resonator buzzes faintly near\n",
+        "the building."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2GariusTookYouLongEnough",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Took you long enough.\n",
+        "I got mine yesterday."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2GariusStillFollowing",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Is he still following\n",
+        "you around?\r",
+        "...Whatever. Listen."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2GariusBattleMe",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Some old guy in\n",
+        "Floaroma said Eclipse gave him\r",
+        "his wife's Pokémon back.\n",
+        "Gave it BACK.\r",
+        "...Battle me."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2GariusYoureGood",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Tch. Fine.\n",
+        "You're good."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2GariusRowanCalled",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Rowan called.\n",
+        "He wants everybody in Celestic.\r",
+        "Even me. Even HIM. I'm crossing\n",
+        "the mountain tonight."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2GardeniaOffTheRecord",
+      "en_US": [
+        "Gardenia: Can I ask you something?\n",
+        "Off the record?"
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2GardeniaShelter",
+      "en_US": [
+        "Gardenia: There's a shelter in town.\n",
+        "The Eclipse Haven.\r",
+        "They take in Pokémon whose trainers\n",
+        "have passed on.\r",
+        "I brought them three last spring."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2GardeniaSomethingsWrong",
+      "en_US": [
+        "Gardenia: Not one has been adopted.\n",
+        "And now they won't let me visit.\r",
+        "Something's wrong. You can tell,\n",
+        "the way a plant isn't getting sun."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2CyrusWaitHere",
+      "en_US": [
+        "Cyrus: I'll wait here. A building\n",
+        "like this... I'd rather not."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2RuthBeforeGym",
+      "en_US": [
+        "Ruth: The Resonator's still quiet.\n",
+        "Let's see what Gardenia says."
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2CyrusBeforeGym",
+      "en_US": "Cyrus: Go on. I will wait."
+    },
+    {
+      "id": "EternaCity_Text_Arc2GardeniaTrees",
+      "en_US": [
+        "Gardenia: They planted those trees\n",
+        "to keep people out.\r",
+        "Your Resonator can clear them,\n",
+        "can't it?"
+      ]
+    },
+    {
+      "id": "EternaCity_Text_Arc2RuthAtHaven",
+      "en_US": [
+        "Ruth: The readings in there are\n",
+        "all wrong. Stay close."
       ]
     }
   ]

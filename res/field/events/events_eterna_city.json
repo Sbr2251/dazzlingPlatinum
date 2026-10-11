@@ -88,26 +88,26 @@
             "y": 7
         },
         {
-            "id": "ETERNA_CITY_GRUNT_M_3",
-            "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
-            "movement_type": "MOVEMENT_TYPE_LOOK_AROUND",
+            "id": "ETERNA_CITY_RUTH",
+            "graphics_id": "OBJ_EVENT_GFX_COUNTERPART",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01FD",
-            "script": 2,
-            "initial_dir": 1,
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 29,
+            "initial_dir": 2,
             "data": [],
             "movement_range_x": 1,
             "movement_range_z": 0,
-            "x": 331,
-            "z": 539,
+            "x": 315,
+            "z": 564,
             "y": 7
         },
         {
-            "id": "ETERNA_CITY_GRUNT_M_4",
+            "id": "ETERNA_CITY_UNUSED_GRUNT_4",
             "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
             "movement_type": "MOVEMENT_TYPE_LOOK_AROUND",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01FD",
+            "hidden_flag": "FLAG_UNK_0x0031",
             "script": 3,
             "initial_dir": 3,
             "data": [],
@@ -401,11 +401,11 @@
             "y": 0
         },
         {
-            "id": "ETERNA_CITY_GRUNT_M_23",
+            "id": "ETERNA_CITY_UNUSED_GRUNT_23",
             "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
             "movement_type": "MOVEMENT_TYPE_LOOK_AROUND",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01FD",
+            "hidden_flag": "FLAG_UNK_0x0031",
             "script": 4,
             "initial_dir": 3,
             "data": [],
@@ -528,7 +528,7 @@
             "y": 0
         },
         {
-            "id": "ETERNA_CITY_GARDENIA_31",
+            "id": "ETERNA_CITY_GARDENIA",
             "graphics_id": "OBJ_EVENT_GFX_GARDENIA",
             "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
             "trainer_type": "TRAINER_TYPE_NONE",
@@ -543,33 +543,48 @@
             "y": 7
         },
         {
-            "id": "ETERNA_CITY_CYRUS_32",
+            "id": "ETERNA_CITY_CYRUS",
             "graphics_id": "OBJ_EVENT_GFX_CYRUS",
-            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x0189",
-            "script": 0,
-            "initial_dir": 0,
+            "hidden_flag": "FLAG_UNK_0x0032",
+            "script": 30,
+            "initial_dir": 3,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 327,
-            "z": 526,
+            "x": 306,
+            "z": 563,
             "y": 7
         },
         {
-            "id": "ETERNA_CITY_RIVAL_33",
+            "id": "ETERNA_CITY_GARIUS",
             "graphics_id": "OBJ_EVENT_GFX_BARRY",
-            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x018C",
+            "hidden_flag": "FLAG_UNK_0x0033",
             "script": 0,
-            "initial_dir": 0,
+            "initial_dir": 2,
             "data": [],
             "movement_range_x": 1,
             "movement_range_z": 0,
-            "x": 299,
-            "z": 531,
+            "x": 315,
+            "z": 563,
+            "y": 7
+        },
+        {
+            "id": "ETERNA_CITY_GARDENIA_HAVEN",
+            "graphics_id": "OBJ_EVENT_GFX_GARDENIA",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0034",
+            "script": 33,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 1,
+            "movement_range_z": 1,
+            "x": 304,
+            "z": 523,
             "y": 7
         }
     ],
@@ -649,16 +664,6 @@
     ],
     "coord_events": [
         {
-            "script": 25,
-            "x": 303,
-            "z": 523,
-            "y": 0,
-            "width": 1,
-            "length": 4,
-            "var": "VAR_UNK_0x407A",
-            "value": 0
-        },
-        {
             "script": 20,
             "x": 303,
             "z": 565,
@@ -676,16 +681,6 @@
             "width": 1,
             "length": 3,
             "var": "VAR_UNK_0x4114",
-            "value": 1
-        },
-        {
-            "script": 1,
-            "x": 304,
-            "z": 522,
-            "y": 0,
-            "width": 3,
-            "length": 1,
-            "var": "VAR_UNK_0x407A",
             "value": 1
         },
         {
@@ -707,17 +702,6 @@
             "length": 6,
             "var": "VAR_UNK_0x407A",
             "value": 4
-        },
-        {
-            "script": 1,
-            "x": 304,
-            "z": 523,
-            "y": 0,
-            "width": 1,
-            "length": 3,
-            "var": "VAR_UNK_0x407A",
-            "value": 1
         }
     ]
 }
-
