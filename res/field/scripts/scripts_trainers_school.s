@@ -1,5 +1,11 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/trainers_school.h"
+#include "res/field/events/events_trainers_school.h"
+
+// Dazzling Platinum Arc 2 (s-jubilife), scene 2.2: the confession, after hours (VAR_ARC2_PROGRESS 1, sets 3).
+// Map-local temporary flags (the engine clears flags 0-63 on every map change; set on every load):
+//   FLAG_UNK_0x0030 = hide the stock teacher and students (night)   FLAG_UNK_0x0031 = hide the Arc 2 cast
+//   FLAG_UNK_0x0032 = hide the Poke Ball on the table (Rowan's case)
 
 
     ScriptEntry _0032
@@ -14,6 +20,9 @@
     ScriptEntry _02E4
     ScriptEntry _03D9
     ScriptEntry _049C
+    ScriptEntry TrainersSchool_Arc2Cast
+    ScriptEntry TrainersSchool_Arc2OnTransition
+    ScriptEntry TrainersSchool_Arc2Confession
     ScriptEntryEnd
 
 _0032:
@@ -390,3 +399,239 @@ _049C:
     End
 
     .balign 4, 0
+
+// ------------------------------------------------------------------------------------------------------------
+// Dazzling Platinum Arc 2 (s-jubilife): 2.2, the confession. Seats around the table: Rowan (2,8), the player
+// (2,9), Ruth (5,8), Garius (5,9); Cyrus stands at the front (4,6). The table's 3D model hides any object on its
+// tiles (3-4, 8-9), so Rowan's case opens at the foot of the table: the Poke Ball appears on the floor at (3,10).
+
+TrainersSchool_Arc2OnTransition:
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
+    SetFlag FLAG_UNK_0x0031
+    SetFlag FLAG_UNK_0x0032
+    GoToIfNe VAR_ARC2_PROGRESS, 1, TrainersSchool_Arc2OnTransitionEnd
+    SetFlag FLAG_UNK_0x0030
+    ClearFlag FLAG_UNK_0x0031
+TrainersSchool_Arc2OnTransitionEnd:
+    End
+
+// The cast is only here during the scene (the player is locked)
+TrainersSchool_Arc2Cast:
+    End
+
+// On frame at VAR_ARC2_PROGRESS 1 (scripts_init_trainers_school.s)
+TrainersSchool_Arc2Confession:
+    LockAll
+    WaitTime 30, VAR_RESULT
+    Message TrainersSchool_Text_Arc2RowanReadings
+    WaitABXPadPress
+    CloseMessage
+    Message TrainersSchool_Text_Arc2RuthTotem
+    WaitABXPadPress
+    CloseMessage
+    Message TrainersSchool_Text_Arc2CyrusNotAsAStranger
+    WaitABXPadPress
+    CloseMessage
+    WaitTime 20, VAR_RESULT
+    Message TrainersSchool_Text_Arc2CyrusMyName
+    WaitABXPadPress
+    CloseMessage
+    Message TrainersSchool_Text_Arc2CyrusSpirit
+    WaitABXPadPress
+    CloseMessage
+    Message TrainersSchool_Text_Arc2CyrusChained
+    WaitABXPadPress
+    CloseMessage
+    Message TrainersSchool_Text_Arc2RuthLakeGuardians
+    WaitABXPadPress
+    CloseMessage
+    Message TrainersSchool_Text_Arc2CyrusABoy
+    WaitABXPadPress
+    CloseMessage
+    Message TrainersSchool_Text_Arc2CyrusHowLong
+    WaitABXPadPress
+    CloseMessage
+    // Rowan stands, slowly (pays off his lab line "...Nobody.")
+    WaitTime 20, VAR_RESULT
+    ApplyMovement LOCALID_ARC2_ROWAN, TrainersSchool_Arc2Movement_RowanStand
+    WaitMovement
+    Message TrainersSchool_Text_Arc2RowanNobody
+    WaitABXPadPress
+    CloseMessage
+    // Garius is on his feet so fast his chair scrapes
+    PlayFanfare SEQ_SE_DP_WALL_HIT2
+    ApplyMovement LOCALID_ARC2_GARIUS, TrainersSchool_Arc2Movement_Jump
+    ApplyMovement LOCALID_ARC2_RUTH, TrainersSchool_Arc2Movement_Exclaim
+    ApplyMovement LOCALID_PLAYER, TrainersSchool_Arc2Movement_FaceEast
+    WaitMovement
+    WaitFanfare SEQ_SE_DP_WALL_HIT2
+    BufferRivalName 0
+    Message TrainersSchool_Text_Arc2GariusChained
+    WaitABXPadPress
+    CloseMessage
+    BufferRivalName 0
+    Message TrainersSchool_Text_Arc2GariusSomeOfUs
+    WaitABXPadPress
+    CloseMessage
+    WaitTime 30, VAR_RESULT
+    BufferRivalName 0
+    Message TrainersSchool_Text_Arc2GariusForgetIt
+    WaitABXPadPress
+    CloseMessage
+    BufferRivalName 0
+    Message TrainersSchool_Text_Arc2RowanSitDown
+    WaitABXPadPress
+    CloseMessage
+    BufferRivalName 0
+    Message TrainersSchool_Text_Arc2GariusHeShouldGo
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, TrainersSchool_Arc2Movement_FaceNorth
+    WaitMovement
+    Message TrainersSchool_Text_Arc2CyrusRightToBeAngry
+    WaitABXPadPress
+    CloseMessage
+    Message TrainersSchool_Text_Arc2RowanNotAsking
+    WaitABXPadPress
+    CloseMessage
+    // Rowan sits back down, sets his case down at the foot of the table and opens it: one Poke Ball
+    ApplyMovement LOCALID_ARC2_ROWAN, TrainersSchool_Arc2Movement_RowanSitAndFaceTable
+    WaitMovement
+    PlayFanfare SEQ_SE_DP_BOX03
+    ClearFlag FLAG_UNK_0x0032
+    AddObject LOCALID_ARC2_BALL
+    WaitFanfare SEQ_SE_DP_BOX03
+    WaitTime 15, VAR_RESULT
+    Message TrainersSchool_Text_Arc2RowanThisOne
+    WaitABXPadPress
+    CloseMessage
+    // Cyrus comes around the table, slowly, and stands over the ball
+    ApplyMovement LOCALID_ARC2_CYRUS, TrainersSchool_Arc2Movement_CyrusToTable
+    ApplyMovement LOCALID_PLAYER, TrainersSchool_Arc2Movement_PlayerWatchCyrusToTable
+    WaitMovement
+    Message TrainersSchool_Text_Arc2RowanNewStart
+    WaitABXPadPress
+    CloseMessage
+    WaitTime 45, VAR_RESULT
+    // He takes it (the starter weak to the player's: his battle 1 team, outside)
+    RemoveObject LOCALID_ARC2_BALL
+    WaitTime 15, VAR_RESULT
+    Message TrainersSchool_Text_Arc2CyrusNotHeld
+    WaitABXPadPress
+    CloseMessage
+    BufferRivalName 0
+    Message TrainersSchool_Text_Arc2GariusCountMeOut
+    WaitABXPadPress
+    CloseMessage
+    // Garius walks out; Ruth steps after him
+    ApplyMovement LOCALID_ARC2_GARIUS, TrainersSchool_Arc2Movement_GariusLeave
+    ApplyMovement LOCALID_PLAYER, TrainersSchool_Arc2Movement_PlayerWatchGarius
+    WaitMovement
+    PlayFanfare SEQ_SE_DP_KAIDAN2
+    RemoveObject LOCALID_ARC2_GARIUS
+    WaitFanfare SEQ_SE_DP_KAIDAN2
+    ApplyMovement LOCALID_ARC2_RUTH, TrainersSchool_Arc2Movement_RuthStep
+    WaitMovement
+    BufferRivalName 0
+    Message TrainersSchool_Text_Arc2RuthWait
+    WaitABXPadPress
+    CloseMessage
+    Message TrainersSchool_Text_Arc2RowanLetHimGo
+    WaitABXPadPress
+    CloseMessage
+    Message TrainersSchool_Text_Arc2RowanMorning
+    WaitABXPadPress
+    CloseMessage
+    // Cyrus walks outside (2.3 waits by the door, in Jubilife)
+    ApplyMovement LOCALID_ARC2_CYRUS, TrainersSchool_Arc2Movement_CyrusLeave
+    WaitMovement
+    PlayFanfare SEQ_SE_DP_KAIDAN2
+    RemoveObject LOCALID_ARC2_CYRUS
+    WaitFanfare SEQ_SE_DP_KAIDAN2
+    WaitTime 20, VAR_RESULT
+    // Rowan and Ruth follow him out
+    FadeScreenOut
+    WaitFadeScreen
+    RemoveObject LOCALID_ARC2_ROWAN
+    RemoveObject LOCALID_ARC2_RUTH
+    SetVar VAR_ARC2_PROGRESS, 3
+    WaitTime 15, VAR_RESULT
+    FadeScreenIn
+    WaitFadeScreen
+    ReleaseAll
+    End
+
+    .balign 4, 0
+TrainersSchool_Arc2Movement_RowanStand:
+    WalkSlowNorth
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+TrainersSchool_Arc2Movement_RowanSitAndFaceTable:
+    WalkSlowSouth
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+TrainersSchool_Arc2Movement_Jump:
+    JumpOnSpotFastNorth
+    EndMovement
+
+    .balign 4, 0
+TrainersSchool_Arc2Movement_Exclaim:
+    EmoteExclamationMark
+    EndMovement
+
+    .balign 4, 0
+TrainersSchool_Arc2Movement_FaceEast:
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+TrainersSchool_Arc2Movement_FaceNorth:
+    FaceNorth
+    EndMovement
+
+    // From the front (4,6) around the east side (column 6) to beside the ball (4,10), facing it
+    .balign 4, 0
+TrainersSchool_Arc2Movement_CyrusToTable:
+    WalkNormalSouth
+    WalkNormalEast 2
+    WalkNormalSouth 3
+    WalkNormalWest 2
+    FaceWest
+    EndMovement
+
+    .balign 4, 0
+TrainersSchool_Arc2Movement_PlayerWatchCyrusToTable:
+    FaceEast
+    Delay16 6
+    FaceSouth
+    EndMovement
+
+    // From (5,9): south, east along row 10 to the door column, out through the door (7,11)
+    .balign 4, 0
+TrainersSchool_Arc2Movement_GariusLeave:
+    WalkFastSouth
+    WalkFastEast 2
+    WalkFastSouth
+    EndMovement
+
+    .balign 4, 0
+TrainersSchool_Arc2Movement_PlayerWatchGarius:
+    Delay8
+    FaceSouth
+    EndMovement
+
+    .balign 4, 0
+TrainersSchool_Arc2Movement_RuthStep:
+    WalkNormalSouth
+    EndMovement
+
+    // From (4,10): east along row 10 to the door column, out (7,11)
+    .balign 4, 0
+TrainersSchool_Arc2Movement_CyrusLeave:
+    WalkNormalEast 3
+    WalkNormalSouth
+    EndMovement

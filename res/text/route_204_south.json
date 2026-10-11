@@ -20,6 +20,171 @@
     {
       "id": "pl_msg_00000469_00002",
       "en_US": "Ravaged Path"
+    },
+    {
+      "id": "RavagedPath_Text_Arc2RuthReadings",
+      "en_US": [
+        "Ruth: The readings go wild past\n",
+        "that wall. Right where the rift is.\r",
+        "I'll stay here and watch. Shout if\n",
+        "anything... shouts back."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2CyrusStayClose",
+      "en_US": "Cyrus: Stay close to me."
+    },
+    {
+      "id": "RavagedPath_Text_Arc2GruntRightOnTime",
+      "en_US": [
+        "Eclipse Grunt: Right on time.\n",
+        "Just like we were told."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2GruntWalkedOut",
+      "en_US": [
+        "Eclipse Grunt: So you're the one who\n",
+        "walked out. Huh.\r",
+        "Thought you'd be taller."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2GruntDoesntMatter",
+      "en_US": [
+        "Eclipse Grunt: Doesn't matter.\r",
+        "This site's given us all it's\n",
+        "going to."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2CyrusEllipsis",
+      "en_US": "Cyrus: ..."
+    },
+    {
+      "id": "RavagedPath_Text_Arc2CyrusSeenMachine",
+      "en_US": [
+        "Cyrus: I have seen a machine like\n",
+        "this before."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2RuthHowDidTheyKnow",
+      "en_US": [
+        "Ruth: How did they know we'd be\n",
+        "here? Only the five of us knew."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2CyrusHowThatLooks",
+      "en_US": [
+        "Cyrus: ...Yes.\n",
+        "I know how that looks."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2LedgerCyrus",
+      "en_US": "Cyrus"
+    },
+    {
+      "id": "RavagedPath_Text_Arc2LedgerGarius",
+      "en_US": "{STRVAR_1 3, 1, 0}"
+    },
+    {
+      "id": "RavagedPath_Text_Arc2LedgerRuth",
+      "en_US": "Ruth"
+    },
+    {
+      "id": "RavagedPath_Text_Arc2LedgerBadLuck",
+      "en_US": "Bad luck"
+    },
+    {
+      "id": "RavagedPath_Text_Arc2ReactCyrus",
+      "en_US": [
+        "Ruth: Cyrus? He just fought them\n",
+        "beside you. Why tip them off first?"
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2ReactGarius",
+      "en_US": [
+        "Ruth: {STRVAR_1 3, 1, 0}? He'd sooner eat his\n",
+        "badge than help a dark coat."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2ReactRuth",
+      "en_US": [
+        "Ruth: Me?! I took apart the\n",
+        "Professor's Pokétch! That's IT!"
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2ReactBadLuck",
+      "en_US": [
+        "Ruth: Bad luck? Maybe they've been\n",
+        "camped out here for weeks."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2RuthEyesOpen",
+      "en_US": [
+        "Ruth: ...Let's just keep our eyes\n",
+        "open. All of us."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2CyrusGoThrough",
+      "en_US": [
+        "Cyrus: Ruth stays with the\n",
+        "readings. We go through together."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2RuthWatch",
+      "en_US": [
+        "Ruth: I'll stay here and watch.\n",
+        "Shout if anything... shouts back."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2Frame",
+      "en_US": [
+        "A cracked metal frame, scorched\n",
+        "violet, is bolted to the wall.\r",
+        "Empty restraints hang from it."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2RuthReadingsDropped",
+      "en_US": [
+        "Ruth: The readings just dropped to\n",
+        "nothing! You did it!\r",
+        "...Wait. What is THAT?"
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2RuthItsClear",
+      "en_US": [
+        "Ruth: It's clear. The Professor's\n",
+        "shard is violet. It pulses.\r",
+        "Like it hurts. This one's just...\n",
+        "warm."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2RuthOneNight",
+      "en_US": [
+        "Ruth: Give me one night. And give me\n",
+        "your Portal Reader. I have an idea."
+      ]
+    },
+    {
+      "id": "RavagedPath_Text_Arc2HandedReader",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} handed Ruth the\n",
+        "Portal Reader."
+      ]
     }
   ]
 }

@@ -1,6 +1,11 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/valor_lakefront.h"
 
+// Arc 2 (s-route214): the ELIAS plaque at the drained-lake overlook (screenplay 2.18, "Valor Lakefront plaque";
+// object VALOR_LAKEFRONT_ARC2_PLAQUE at 722,758, script 10, readable any time). The stock Galactic grunt (object 5,
+// hide flag FLAG_UNK_0x021B) and his Cynthia/Barry follow-up are kept hidden: _0026 sets the flag on every load, since
+// the stock Route 213 script clears it. The drained/full warp switch (_0061/_0079/_008B) is untouched (D12).
+
 
     ScriptEntry _0026
     ScriptEntry _0061
@@ -11,9 +16,11 @@
     ScriptEntry _06B8
     ScriptEntry _06CF
     ScriptEntry _06E2
+    ScriptEntry ValorLakefront_Arc2Plaque
     ScriptEntryEnd
 
 _0026:
+    SetFlag FLAG_UNK_0x021B
     CallIfSet FLAG_UNK_0x0106, _004B
     GoToIfUnset FLAG_GALACTIC_LEFT_LAKE_VALOR, _0079
     GoToIfSet FLAG_GALACTIC_LEFT_LAKE_VALOR, _008B
@@ -632,3 +639,14 @@ _0804:
     WalkNormalWest
     UnlockDir
     EndMovement
+
+ValorLakefront_Arc2Plaque:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message ValorLakefront_Text_Arc2EliasPlaque
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
