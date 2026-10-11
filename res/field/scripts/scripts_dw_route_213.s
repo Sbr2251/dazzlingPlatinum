@@ -12,7 +12,7 @@
 // (31-32, 20-23) the rusted frame (31,20) and the worn Trainer Card (32,20), and the jetty from the pool to the
 // east wall (38-47, 22-23). What is left of the water lies in the pool; the lake itself hangs overhead as the
 // ceiling. The way on: hop the chasm and the pool, cross the jetty, climb the east wall (x=49) and walk the
-// causeway on the ceiling (y=10) under the hanging water, to its one island (x 44-46, z 44-47), where the Lapras
+// causeway on the ceiling (y=10) under the hanging water, to its one island (x 45-48, z 44-47), where the Lapras
 // waits. Stepping onto z >= 45 there starts the fight (step hook Arc2DwRoute213_HandleStep runs entry 4).
 //
 // rift-b flags: see scripts_dw_route_214.s. Here: FLAG_UNK_0x092E = FLAG_ARC2_ELIAS_CARD (the card picked up).

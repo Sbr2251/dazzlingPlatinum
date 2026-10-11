@@ -63,8 +63,8 @@ with (15,24..26) blocked so the wall-of-shadow object at (16,23) closes the only
 `build_dw_route_213.py` builds 675/676 from the same B4F base (rift-b's `B4F_OPEN` / `B4F_BLOCK` edits included) and
 dresses it: a rowboat (terrain, texture `dw213_wood` appended to DW texture set 73) on the old lakebed at
 (19.5-21.5, 16.4-19.6); the corridor from the pool to the east wall as a jetty (plank deck, six mooring posts); the ceiling rebuilt as the hanging lake (water around the causeway, the island at
-x 44-46, z 44-47 where the Lapras waits, unlit `lake` / animated `lakep.1` water); the void tiles of stock B4F's
-dropped floating-rock walkways (20-24, 24-31) blocked. The island tiles are walkable in `route_213.json` (rows x 44-46,
-z 44-47). The texture set is rebuilt from the current file minus any `dw213_*` entries, so rerun the script after
+x 45-48, z 44-47 where the Lapras waits, unlit `lake` / animated `lakep.1` water); the void tiles of stock B4F's
+dropped floating-rock walkways (20-24, 24-31) blocked. The island and its spur are walkable in `route_213.json` (x 45-48,
+z 44-47; spur x 46-47, z 43); the old leg down x 44 past z 42 is water now. The texture set is rebuilt from the current file minus any `dw213_*` entries, so rerun the script after
 merging another workstream's texture-set change. Objects (the lakefront sign 0x84, the frame, the card, the Lapras on
-the island at (45,46), rotated 180) are in `sArc2DwRoute213Objects`.
+the island at (46,46), rotated 180) are in `sArc2DwRoute213Objects`.

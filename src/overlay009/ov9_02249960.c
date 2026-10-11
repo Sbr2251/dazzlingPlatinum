@@ -14191,7 +14191,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Card = {
     },
 };
 
-// Route 213 (set-lake): the Lapras waits on the hanging lake's one island (ceiling x 44-46, z 44-47; rotated 180 like
+// Route 213 (set-lake): the Lapras waits on the hanging lake's one island (ceiling x 45-48, z 44-47; rotated 180 like
 // the player on the ceiling), until it is calmed.
 static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Lapras = {
     21,
@@ -14211,7 +14211,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Lapras = {
         0x0,
         0x0,
         0x0,
-        45,
+        46,
         46,
         ((10 << 4) * FX32_ONE),
     },

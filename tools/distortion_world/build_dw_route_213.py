@@ -11,7 +11,7 @@ Base: rift-b's Phase 0 floor, the stock DW B4F (map_data 612/613) with rift-b's 
                 ~30 faces around (19,18)); the invisible ghost-prop walkways of stock B4F south of the lip are blocked
                 (rift-b dropped the floating rocks, so those tiles were walkable void).
   map_data_676  the ceiling (y=10, x 44-49, z 25-52) is rebuilt as the hanging lake: water everywhere except the
-                causeway (the walkable tiles of the ceiling grid in route_213.json), the island at its end and the
+                causeway (the walkable tiles of the ceiling grid in route_213.json), the island off its end and the
                 shores under the hanging trees, which stay stone, with a rim where stone meets water. The water
                 uses the floor pool's own textures in unlit materials (`lake` inside, the animated shoreline
                 `lakep.1` around the edges), so it glows instead of sitting in the slab's shadow. The stock ceiling
@@ -126,7 +126,8 @@ EAST_POOL_X = 50                # the stock pool reached one column past the sla
 EAST_POOL_Z = (37, 50)
 STONE_H, WATER_H = 11.0, 11.5   # layout h (world y = 16 + 16 h); the underside faces down
 SHORE_Z = [(25, 30), (51, 52)]  # stone under the hanging trees at both ends (z rows, inclusive)
-ISLAND = [(44, 46, 44, 47)]     # (x0, x1, z0, z1): the hanging lake's one island, where the Lapras waits
+ISLAND = [(45, 48, 44, 47)]     # (x0, x1, z0, z1): the hanging lake's one island, where the Lapras waits;
+                                # water all round but the 2-wide spur (46-47, 43) from the causeway
 STONE_MAT, RIM_MAT = "adf", "criffp_lm9"
 # the hanging water: the floor pool's own `lake` texture in an unlit material (lights off, a pale cyan vertex colour),
 # so the underside of the lake glows instead of sitting in the slab's shadow like the stone around it
