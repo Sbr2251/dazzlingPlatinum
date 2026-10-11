@@ -272,8 +272,10 @@
     {
       "id": "ValleyWindworksBuilding_Text_Arc2ReactCyrus",
       "en_US": [
-        "Ruth: Cyrus? He came back to tell us\n",
-        "about the trucks. Spies don't."
+        "Ruth: Cyrus? He came back to\n",
+        "tell us.\r",
+        "...After he watched them load\n",
+        "the trucks."
       ]
     },
     {
