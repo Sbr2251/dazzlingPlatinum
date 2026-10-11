@@ -747,3 +747,23 @@ mmodel_files_targets += custom_target('mmodel_00000490.bin',
         '--output', '@OUTPUT@',
     ],
 )
+mmodel_files_targets += custom_target('mmodel_00000491.bin',
+    output: 'mmodel_00000491.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc2/violet_crystal.png',
+        'mmodel_00000130.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_VIOLET_CRYSTAL',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
