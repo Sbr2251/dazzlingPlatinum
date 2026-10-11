@@ -119,6 +119,7 @@
 #define BATTLE_STATUS_GIRATINA     (1 << 6)
 #define BATTLE_STATUS_DISTORTION   (1 << 7)
 #define BATTLE_STATUS_TOTEM        (1 << 8)
+#define BATTLE_STATUS_TOTEM_BOOSTED (1 << 9) // Arc 2: the Totem's config is .boosted (+1 Atk, +1 Def)
 
 #define CHECK_INVALID_NO_MOVE     (1 << 0)
 #define CHECK_INVALID_NO_PP       (1 << 1)
