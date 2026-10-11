@@ -1,6 +1,10 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/pastoria_city_gym.h"
 
+// Arc 2 polish-c (critic #9): Wake gives the Gyaradosite after Gym 4.
+//   Flag: FLAG_UNK_0x053E = FLAG_ARC2_GOT_GYARADOSITE (a Route 206 Mega Stone test-ball flag freed by 9a33d828c6)
+#define FLAG_ARC2_GOT_GYARADOSITE FLAG_UNK_0x053E
+
 
     ScriptEntry PastoriaGym_Init
     ScriptEntry PastoriaGym_BlueButton
@@ -81,13 +85,33 @@ PastoriaGym_WakeTryGiveTm55:
     BufferTMHMMoveName 1, VAR_0x8004
     Message PastoriaGym_Text_WakeExplainTM55
     WaitABXPadPress
+    Call PastoriaGym_Arc2TryGiveGyaradosite
     GoTo PastoriaGym_Arc2WakeRoute213
     End
 
 PastoriaGym_WakeCannotGiveTm55:
     MessageBagIsFull
+    Call PastoriaGym_Arc2TryGiveGyaradosite
     GoTo PastoriaGym_Arc2WakeRoute213
     End
+
+// Arc 2 polish-c: the Gyaradosite, once (FLAG_ARC2_GOT_GYARADOSITE). Leaves the message box open.
+PastoriaGym_Arc2TryGiveGyaradosite:
+    GoToIfSet FLAG_ARC2_GOT_GYARADOSITE, PastoriaGym_Arc2GyaradositeEnd
+    Message PastoriaGym_Text_Arc2WakeGyaradosite
+    SetVar VAR_0x8004, ITEM_GYARADOSITE
+    SetVar VAR_0x8005, 1
+    GoToIfCannotFitItem VAR_0x8004, VAR_0x8005, VAR_RESULT, PastoriaGym_Arc2GyaradositeFull
+    GiveItemQuantity
+    SetFlag FLAG_ARC2_GOT_GYARADOSITE
+    Message PastoriaGym_Text_Arc2WakeGyaradositeBond
+    WaitABXPadPress
+PastoriaGym_Arc2GyaradositeEnd:
+    Return
+
+PastoriaGym_Arc2GyaradositeFull:
+    MessageBagIsFull
+    Return
 
 // Arc 2 (s-pastoria), 2.20: Wake points at Route 213 after the badge. Sets VAR_ARC2_PROGRESS 71 (Fen Badge) when
 // the arc has reached Pastoria (69-70); an early badge is picked up by Pastoria City's OnTransition instead.
@@ -104,6 +128,7 @@ PastoriaGym_Arc2WakeEnd:
 
 PastoriaGym_WakeAlreadyHaveFenBadge:
     GoToIfUnset FLAG_OBTAINED_WAKE_TM55, PastoriaGym_WakeTryGiveTm55
+    Call PastoriaGym_Arc2TryGiveGyaradosite
     Message PastoriaGym_Text_WakeAfterbadge
     WaitABXPadPress
     CloseMessage

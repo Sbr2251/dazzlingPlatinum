@@ -122,6 +122,23 @@
         "A true Trainer would look into it!\n",
         "WHAAAAH!"
       ]
+    },
+    {
+      "id": "PastoriaGym_Text_Arc2WakeGyaradosite",
+      "en_US": [
+        "Crasher Wake: One more thing!\r",
+        "You saw my Gyarados Mega Evolve!\n",
+        "That's the fallen star's power!\r",
+        "Here! A stone like mine, for a\n",
+        "Gyarados of your own!\r"
+      ]
+    },
+    {
+      "id": "PastoriaGym_Text_Arc2WakeGyaradositeBond",
+      "en_US": [
+        "It only answers a bond, so ride\n",
+        "the waves together! WHAAAAH!"
+      ]
     }
   ]
 }

@@ -1011,7 +1011,10 @@
     },
     {
       "id": "pl_msg_00000391_00128",
-      "garbage": 0
+      "en_US": [
+        "The name has worn away.\n",
+        "Hometown: Twinleaf."
+      ]
     },
     {
       "id": "pl_msg_00000391_00129",

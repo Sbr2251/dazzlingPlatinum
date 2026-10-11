@@ -793,10 +793,10 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
         .paletteID = resonator_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_128] = {
-        .dataID = 0x0,
-        .iconID = none_NCGR,
-        .paletteID = none_NCLR,
+    [ITEM_WORN_TRAINER_CARD] = {
+        .dataID = 0x1CD,
+        .iconID = member_card_NCGR, // Arc 2: Elias's card from the Drowned Lake; reuses the Member Card icon
+        .paletteID = member_card_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
     [ITEM_UNUSED_129] = {

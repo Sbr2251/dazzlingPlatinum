@@ -73,6 +73,12 @@ DWRoute213_Card:
     WaitFanfare SEQ_SE_CONFIRM
     Message DWRoute213_Text_OldTrainerCard
     WaitABXPadPress
+    // polish-c (critic #10): the player keeps it, as the Worn Trainer Card key item (Key Items never fill up).
+    // No Warp follows in this script, so the obtain jingle (PlaySound) is safe here.
+    SetVar VAR_0x8004, ITEM_WORN_TRAINER_CARD
+    SetVar VAR_0x8005, 1
+    GiveItemQuantity
+    WaitABXPadPress
     CloseMessage
     SetFlag FLAG_ARC2_ELIAS_CARD
     ScrCmd_312 LOCALID_CARD
