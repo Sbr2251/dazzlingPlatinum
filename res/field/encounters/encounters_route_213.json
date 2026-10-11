@@ -2,51 +2,51 @@
     "land_rate": 30,
     "land_encounters": [
         {
-            "level": 24,
+            "level": 32,
             "species": "SPECIES_SHELLOS"
         },
         {
-            "level": 23,
+            "level": 31,
             "species": "SPECIES_BUIZEL"
         },
         {
-            "level": 23,
+            "level": 31,
             "species": "SPECIES_CHATOT"
         },
         {
-            "level": 25,
+            "level": 33,
             "species": "SPECIES_CHATOT"
         },
         {
-            "level": 25,
+            "level": 33,
             "species": "SPECIES_WINGULL"
         },
         {
-            "level": 25,
+            "level": 33,
             "species": "SPECIES_SHELLOS"
         },
         {
-            "level": 24,
+            "level": 32,
             "species": "SPECIES_WINGULL"
         },
         {
-            "level": 26,
+            "level": 34,
             "species": "SPECIES_WINGULL"
         },
         {
-            "level": 25,
+            "level": 33,
             "species": "SPECIES_BUIZEL"
         },
         {
-            "level": 26,
+            "level": 34,
             "species": "SPECIES_SHELLOS"
         },
         {
-            "level": 25,
+            "level": 33,
             "species": "SPECIES_BUIZEL"
         },
         {
-            "level": 26,
+            "level": 34,
             "species": "SPECIES_SHELLOS"
         }
     ],
@@ -102,24 +102,24 @@
             "species": "SPECIES_TENTACOOL"
         },
         {
+            "level_max": 35,
+            "level_min": 25,
+            "species": "SPECIES_FRILLISH"
+        },
+        {
+            "level_max": 40,
+            "level_min": 20,
+            "species": "SPECIES_WAILMER"
+        },
+        {
             "level_max": 30,
             "level_min": 20,
-            "species": "SPECIES_WINGULL"
+            "species": "SPECIES_CLAMPERL"
         },
         {
             "level_max": 40,
             "level_min": 20,
             "species": "SPECIES_TENTACRUEL"
-        },
-        {
-            "level_max": 30,
-            "level_min": 20,
-            "species": "SPECIES_SHELLOS"
-        },
-        {
-            "level_max": 40,
-            "level_min": 20,
-            "species": "SPECIES_GASTRODON"
         }
     ],
     "old_rod_rate": 25,
@@ -160,17 +160,17 @@
         {
             "level_max": 20,
             "level_min": 15,
-            "species": "SPECIES_REMORAID"
-        },
-        {
-            "level_max": 25,
-            "level_min": 10,
-            "species": "SPECIES_MAGIKARP"
+            "species": "SPECIES_CORPHISH"
         },
         {
             "level_max": 25,
             "level_min": 10,
             "species": "SPECIES_REMORAID"
+        },
+        {
+            "level_max": 25,
+            "level_min": 10,
+            "species": "SPECIES_CARVANHA"
         },
         {
             "level_max": 25,
@@ -193,7 +193,7 @@
         {
             "level_max": 55,
             "level_min": 40,
-            "species": "SPECIES_GYARADOS"
+            "species": "SPECIES_CARVANHA"
         },
         {
             "level_max": 55,

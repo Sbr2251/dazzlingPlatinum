@@ -2,51 +2,51 @@
     "land_rate": 10,
     "land_encounters": [
         {
-            "level": 14,
+            "level": 22,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 15,
+            "level": 23,
+            "species": "SPECIES_SHUPPET"
+        },
+        {
+            "level": 22,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 14,
+            "level": 23,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 15,
+            "level": 24,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 16,
+            "level": 25,
+            "species": "SPECIES_SHUPPET"
+        },
+        {
+            "level": 24,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 17,
+            "level": 25,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 16,
+            "level": 25,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 17,
+            "level": 25,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 17,
+            "level": 25,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 17,
-            "species": "SPECIES_GASTLY"
-        },
-        {
-            "level": 17,
-            "species": "SPECIES_GASTLY"
-        },
-        {
-            "level": 17,
+            "level": 25,
             "species": "SPECIES_GASTLY"
         }
     ],
@@ -59,7 +59,7 @@
         "SPECIES_GASTLY"
     ],
     "night": [
-        "SPECIES_GASTLY",
+        "SPECIES_SHUPPET",
         "SPECIES_GASTLY"
     ],
     "radar": [

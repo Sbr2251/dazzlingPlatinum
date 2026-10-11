@@ -2,51 +2,51 @@
     "land_rate": 30,
     "land_encounters": [
         {
-            "level": 19,
+            "level": 26,
             "species": "SPECIES_STARAVIA"
         },
         {
-            "level": 20,
-            "species": "SPECIES_MARILL"
+            "level": 27,
+            "species": "SPECIES_LOTAD"
         },
         {
-            "level": 22,
+            "level": 29,
             "species": "SPECIES_SCYTHER"
         },
         {
-            "level": 21,
-            "species": "SPECIES_STARAVIA"
+            "level": 28,
+            "species": "SPECIES_SURSKIT"
         },
         {
-            "level": 20,
+            "level": 27,
             "species": "SPECIES_LICKITUNG"
         },
         {
-            "level": 19,
+            "level": 26,
             "species": "SPECIES_ABRA"
         },
         {
-            "level": 20,
-            "species": "SPECIES_SCYTHER"
+            "level": 27,
+            "species": "SPECIES_CASTFORM"
         },
         {
-            "level": 21,
-            "species": "SPECIES_KADABRA"
+            "level": 28,
+            "species": "SPECIES_ELGYEM"
         },
         {
-            "level": 22,
+            "level": 29,
             "species": "SPECIES_MARILL"
         },
         {
-            "level": 22,
-            "species": "SPECIES_KADABRA"
+            "level": 29,
+            "species": "SPECIES_ELGYEM"
         },
         {
-            "level": 22,
+            "level": 29,
             "species": "SPECIES_MARILL"
         },
         {
-            "level": 22,
+            "level": 29,
             "species": "SPECIES_KADABRA"
         }
     ],
@@ -55,11 +55,11 @@
         "SPECIES_DROWZEE"
     ],
     "day": [
-        "SPECIES_STARAVIA",
-        "SPECIES_STARAVIA"
+        "SPECIES_SOLROCK",
+        "SPECIES_SURSKIT"
     ],
     "night": [
-        "SPECIES_MARILL",
+        "SPECIES_LUNATONE",
         "SPECIES_MARILL"
     ],
     "radar": [
