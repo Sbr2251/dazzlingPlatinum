@@ -13109,4 +13109,28 @@ static const MapHeader sMapHeaders[] = {
         .isEscapeRopeAllowed = FALSE,
         .isFlyAllowed = FALSE,
     },
+    // Arc 1 r3 (hum): the Oreburgh Mine side tunnel off B2F ("The shard hums"). Reuses the stock Ruin Maniac
+    // Cave (long) geometry, matrix 77 / area 53, with its own events, scripts, text and Gen 5 encounter table.
+    [MAP_HEADER_OREBURGH_MINE_SIDE_TUNNEL] = {
+        .areaDataArchiveID = 53,
+        .unk_01 = 0xF,
+        .mapMatrixID = 77,
+        .scriptsArchiveID = scripts_oreburgh_mine_side_tunnel,
+        .initScriptsArchiveID = scripts_init_oreburgh_mine_side_tunnel,
+        .msgArchiveID = TEXT_BANK_OREBURGH_MINE_SIDE_TUNNEL,
+        .dayMusicID = SEQ_D_04,
+        .nightMusicID = SEQ_D_04,
+        .wildEncountersArchiveID = encounters_oreburgh_mine_side_tunnel,
+        .eventsArchiveID = events_oreburgh_mine_side_tunnel,
+        .mapLabelTextID = LocationNames_Text_OreburghMine,
+        .mapLabelWindowID = 0x4,
+        .weather = OVERWORLD_WEATHER_CLEAR,
+        .cameraType = CAMERA_TYPE_CAVE,
+        .mapType = 0x3,
+        .battleBG = BACKGROUND_CAVE_1,
+        .isBikeAllowed = TRUE,
+        .isRunningAllowed = TRUE,
+        .isEscapeRopeAllowed = TRUE,
+        .isFlyAllowed = FALSE,
+    },
 };

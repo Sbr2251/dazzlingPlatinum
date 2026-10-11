@@ -948,6 +948,316 @@
         "The Global Terminal\n",
         "Your Gateway to the Whole World!"
       ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GariusOverHere",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Hey! Over here,\n",
+        "by the TV!"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1SarosEveryoneHasLostSomeone",
+      "en_US": [
+        "Saros (on screen): Everyone here\n",
+        "has lost someone.\r",
+        "A parent. A child.\n",
+        "A partner who never came home.\r",
+        "My daughter would have turned\n",
+        "nine this spring.\r"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1SarosTheyTellYouToAcceptIt",
+      "en_US": [
+        "Saros (on screen): They tell you to\n",
+        "accept it. To move on.\r",
+        "Team Eclipse will not ask you to\n",
+        "accept anything.\r"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1SarosWeWillBringThemBack",
+      "en_US": [
+        "Saros (on screen): We are going to\n",
+        "bring them back."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdMurmurs",
+      "en_US": [
+        "The crowd murmurs."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GruntEverybodysLostSomebody",
+      "en_US": [
+        "Eclipse Grunt: Everybody's lost\n",
+        "somebody, kid. Think about it."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GariusJustAFlyer",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: ...What?\n",
+        "It's just a flyer.\r",
+        "Come on, Oreburgh's this way."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CyrusIKnowThatVoice",
+      "en_US": [
+        "Cyrus (to himself): Promising the\n",
+        "impossible to people in pain...\r",
+        "I know that voice.\n",
+        "I used to have it."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1TrenchCoat",
+      "en_US": [
+        "Man in a Trench Coat: Hm. Hm hm.\r",
+        "Don't mind me. I am simply a regular\n",
+        "citizen.\r",
+        "Who enjoys... rallies."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1BannerWhoDidYouLose",
+      "en_US": [
+        "WHO DID YOU LOSE?\n",
+        "Team Eclipse"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1ToBeContinued",
+      "en_US": "To be continued..."
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GruntTakeAFlyer",
+      "en_US": [
+        "Eclipse Grunt: Team Eclipse is here\n",
+        "for anyone who's lost someone.\r",
+        "Take a flyer. Think about it."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1GruntYouDontHaveToAcceptIt",
+      "en_US": [
+        "Eclipse Grunt: You don't have to\n",
+        "accept it. That's all we're saying."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CyrusWhoDidYouLose",
+      "en_US": [
+        "Cyrus: 'Who did you lose?'\n",
+        "A question no one can refuse.\r",
+        "They promise to bring back the\n",
+        "dead. Either that is a lie...\f",
+        "...or it is not. I cannot yet say\f",
+        "which would be worse."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdNeverCameHome",
+      "en_US": [
+        "My brother went out one morning\n",
+        "and never came home.\r",
+        "If there's even a chance..."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdGrandpasPokemon",
+      "en_US": [
+        "My grandpa's Pokémon still waits by\n",
+        "the door for him every night."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdOneMoreDay",
+      "en_US": [
+        "Bring them back, they say...\r",
+        "At my age, I'd settle for\n",
+        "one more day."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdBestFriend",
+      "en_US": [
+        "I lost my best friend last spring.\r",
+        "I'll listen to anyone who says\n",
+        "it's not the end."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdGransDoor",
+      "en_US": [
+        "My gran always said the dead go\n",
+        "somewhere twisted, behind a door\f",
+        "nobody can open.\r",
+        "Team Eclipse says they don't need\n",
+        "the door. They'll just undo the\f",
+        "day it closed."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrowdMomAskedMe",
+      "en_US": [
+        "I'm only here because my mom asked\n",
+        "me to come.\r",
+        "...Okay, I'm a little curious too."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1LookerThatSuit",
+      "en_US": [
+        "Man in a Trench Coat: ...Hm.\r",
+        "That suit. Hm hm."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CratePsst",
+      "en_US": [
+        "Man in a Trench Coat: Psst. Child.\n",
+        "Yes, you."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateOffer",
+      "en_US": [
+        "Man in a Trench Coat: Don't look\n",
+        "at me. Look at the sky.\r",
+        "Very natural.\r",
+        "We have met. I am a regular\n",
+        "citizen who enjoys rallies.\r",
+        "I need a favor. It is not one\n",
+        "I like asking of a child.\r",
+        "That grunt outside the Pokémon\n",
+        "Center. The one with the crate.\r",
+        "I must know where it goes.\n",
+        "But he knows my face.\r",
+        "Yours, he does not.\r",
+        "Will you follow him for me?"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateReoffer",
+      "en_US": [
+        "Man in a Trench Coat: Changed your\n",
+        "mind?\r",
+        "Will you follow him for me?"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateDeclined",
+      "en_US": [
+        "Man in a Trench Coat: Good. Wise,\n",
+        "even.\r",
+        "...If you change your mind, I will\n",
+        "be here. Looking at the sky."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateAccepted",
+      "en_US": [
+        "Man in a Trench Coat: When he stops,\n",
+        "he looks around.\r",
+        "Stay out of his line of sight,\n",
+        "and keep your distance.\r",
+        "Here he comes. Don't stare.\n",
+        "Natural!"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateGo",
+      "en_US": [
+        "Man in a Trench Coat: Go. I will be\n",
+        "right behind you.\r",
+        "...Far behind you."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateCaught",
+      "en_US": [
+        "Eclipse Grunt: Huh? ...Kid, scram."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateGruntIdle",
+      "en_US": [
+        "Eclipse Grunt: What? This isn't a\n",
+        "flyer, kid. Move along."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateBox",
+      "en_US": [
+        "A sturdy wooden crate.\n",
+        "It's sealed tight."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateYoureLate",
+      "en_US": [
+        "Eclipse Grunt: You're late."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateAnotherOne",
+      "en_US": [
+        "Eclipse Grunt: Rally crowds. Here.\n",
+        "Another one for the Ravaged Path."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateDidItMove",
+      "en_US": [
+        "Eclipse Grunt: Same as always.\r",
+        "...Did it just move?"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateDontAsk",
+      "en_US": [
+        "Eclipse Grunt: Don't ask what's\n",
+        "inside. I never do."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateDrink",
+      "en_US": [
+        "Eclipse Grunt: I'm getting a drink."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateLookerEnd",
+      "en_US": [
+        "Man in a Trench Coat: Ravaged Path.\r",
+        "...Yes. That fits.\r",
+        "Pokémon go in. Crates come out.\r",
+        "And I do not yet know what\n",
+        "happens in between.\r",
+        "You did well, child. Better than\n",
+        "some officers I know.\r",
+        "I will remember you, child.\r",
+        "For your trouble."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateNeverSawMe",
+      "en_US": [
+        "Man in a Trench Coat: Now. You never\n",
+        "saw me."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc1CrateBagFull",
+      "en_US": [
+        "Man in a Trench Coat: Your bag is\n",
+        "full. Hm.\r",
+        "Then my thanks will have to do."
+      ]
     }
   ]
 }

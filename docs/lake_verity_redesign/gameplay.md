@@ -173,7 +173,7 @@ The castle (matrix 102, `MAP_HEADER_LAKE_VERITY`) is now used from the start of 
 | State | Condition | What Lake Verity shows |
 | --- | --- | --- |
 | Arc1 state 1: roof landing | `VAR_ARC1_PROGRESS == 1` (set by the Distortion World flashback, which warps the player to (32,31) facing north) | Frame script 10 `LakeVerity_Arc1OnFrameRoofLanding`: the player is hidden (OnResume, script 14). White flash, screen shake, Cyrus appears at (32,30), looks around ("Is this a dream?"), wanders to the south parapet ("There was never a castle here."). Fade out, `VAR_ARC1_PROGRESS = 2`, warp to the player's bedroom (Twinleaf 2F, (4,6), north) |
-| Arc1 state 3: arrival | `VAR_ARC1_PROGRESS == 3`, first entry from the Lakefront (`VAR_VISITED_LAKE_VERITY_WITH_RIVAL == 0`) | Barry at (47,52). Frame script 13 `LakeVerity_Arc1OnFrameArrival`: Barry's intro, the camera pan, Barry runs up the stairs; the player climbs on foot. Sets `VAR_VISITED_LAKE_VERITY_WITH_RIVAL = 1` |
+| Arc1 state 3: arrival | `VAR_ARC1_PROGRESS == 3`, first entry from the Lakefront (`VAR_VISITED_LAKE_VERITY_WITH_RIVAL == 0`) | Barry at (47,52). Frame script 13 `LakeVerity_Arc1OnFrameArrival`: the castle sound, then Barry's lines; Barry follows the player up on foot (grass guard, cast added on the bridge); at the stair foot he runs up. Sets `VAR_VISITED_LAKE_VERITY_WITH_RIVAL = 1` |
 | Arc1 state 3: castle top | state 3 after the arrival (re-entry or reload) | Barry (27,31), Rowan (31,31), the assistant (33,30), Cyrus (28,24). Coord event (23..24,30), script 15 `LakeVerity_Arc1Briefing`, runs the briefing and sets `VAR_ARC1_PROGRESS = 4` |
 | Arc1 state 4: portal open | `VAR_ARC1_PROGRESS == 4` | Rowan and the assistant by the portal (talkable, scripts 17/18). Coord event (23..24,30), script 16, blocks the stairs down. The portal edge asks to step in: `VAR_ARC1_PROGRESS = 5`, warp to the DW puzzle map |
 | Arc1 states 5-6 | inside the Distortion World | (Distortion World workstream) |
@@ -215,7 +215,7 @@ The two LOW_WATER hide flags are reused, so no new flags are needed. Barry and C
 
 `LakeVerity_OnTransition` per state:
 - 1: Cyrus's event position becomes (32,30); the scene adds him with `ClearFlag _RIVAL` + `AddObject`.
-- 3, first entry: clears `_RIVAL` (Barry at the entrance) and arms the arrival. Cyrus is created too, on the terrace while the field is loaded around the entrance, where he would stay undrawn; the arrival removes him and adds him again after the pan, together with Rowan and the assistant (`ClearFlag _CYRUS` + `AddObject`).
+- 3, first entry: clears `_RIVAL` (Barry at the entrance) and arms the arrival. Cyrus would be created on the terrace while the field is loaded around the entrance, where he would stay undrawn. So the cast (Cyrus, Rowan, the assistant) is added by the bridge coord event during the walk, while still off screen.
 - 3, after the arrival: clears both flags; Barry goes to (27,31) facing west.
 - 4: clears `_CYRUS` (Rowan and the assistant).
 - 7: clears both flags and places the cast around (32,31).
@@ -231,10 +231,12 @@ The player was warped to (32,31) on the terrace by the Distortion World flashbac
 
 ### Arrival (state 3, first entry)
 
-1. Barry, at (47,52), turns to the player and asks what's on the castle.
-2. A free camera pans from the entrance to the terrace (32,28): 16 north, 14 west, 10 north (one extra step west first from (47,54)). Once the entrance is off screen, Barry and the player are moved to the foot of the stairs, (23,37) and (24,37). Cyrus, Rowan and the assistant are added; the assistant glances at the portal.
-3. The camera pans back to the player (8 west, 9 south) and is restored. Barry: "That's Professor Rowan up there! ... Come on, up those stairs! Last one up owes me 10 million!" He runs up the stairs to (27,31).
-4. `VAR_VISITED_LAKE_VERITY_WITH_RIVAL = 1`. The player is free and climbs the stairs.
+Playtest fix, 2026-10-10 (commit c0fd8f72c2). There is no free-camera pan, no `SetPosition` teleport, and no `AddObject` in view.
+1. A sound comes from the castle top: portal swish, thud and a small camera shake. Barry and the player both get an exclamation. Barry steps down beside the player: "Hey, did you hear that? Something's going on up at the castle! We have to go see! Stay out of the tall grass, though. We don't have any Pokemon yet!"
+2. Barry follows the player with the stock partner follower (`SetHasPartner` + `MOVEMENT_TYPE_FOLLOW_PLAYER`, as on Route 201). The player walks to the castle, about 50 tiles. `VAR_MAP_LOCAL_3` tracks the walk, so it survives a save.
+3. **Grass guard:** coord events sit on the 12 edge tiles of the only reachable tall-grass patch (x47-51, z40-46). Barry turns with an exclamation, "Whoa! No Pokemon, no grass!", backs off a tile, and the player is walked back one tile. Where the tile behind Barry is water (x46, z44-45), he steps aside south instead. The exit tiles and the castle door have the same guard during the walk. On a later state-3 visit, when Barry is already on the terrace, the player stops on their own ("Better not go into the tall grass without any Pokemon...").
+4. **Cast placement:** a coord event on the bridge (45,36..37) adds Cyrus, Rowan and the assistant while the terrace is loaded but still off screen, so they get the correct terrace height. On a later state-3 visit it re-sets the existing cast on their own tiles.
+5. At the foot of the stairs (23..24,37), Barry stops following and the player steps aside. Barry: "Hear those voices? Somebody's up there, all right! Come on, up those stairs! Last one up owes me 10 million!" He runs up to (27,31), and the briefing coord event takes over. `VAR_VISITED_LAKE_VERITY_WITH_RIVAL = 1`.
 
 ### Castle-top briefing (state 3, coord event)
 

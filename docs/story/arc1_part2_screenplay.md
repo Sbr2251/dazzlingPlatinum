@@ -1,6 +1,7 @@
 # Arc 1, part 2: home to Gym 1 (draft)
 
-Claude's draft, mirrored from the "Act 1 Screenplay" tab of the story doc.
+Claude's draft, mirrored from the "Act 1 Screenplay" tab of the story doc. Scene 10 was updated to match the game
+(2026-10-10). Story changes in progress are tracked in `docs/arc1/round2/PLAN.md`.
 
 Continues from the castle ending above. Darren (the player, who can be a girl or a boy; no in-game line assumes which) is a silent protagonist apart from Yes/No choices. Ruth works for Rowan as his assistant: a new character with a new sprite. Stage directions are in italics; highlighted notes are for us, not in-game text.
 
@@ -53,13 +54,15 @@ Continues from the castle ending above. Darren (the player, who can be a girl or
 - *Garius runs out.*
 - **Ruth:** "Wait, do you even know how to catch a Pokemon? ...Come with me."
 
-## Scene 10: Route 202, Ruth's catching lesson
+## Scene 10: Route 202, Ruth's gift
 
-- *Stock catching demonstration, trimmed. Ruth gives the player 5 Poke Balls.*
-- **Ruth:** "Weaken it first, then throw. Don't feel bad if it breaks free. They all do, sometimes."
+- *No catching tutorial: players are assumed to have played Platinum (owner, 2026-10-10 playtest). Ruth walks
+  up, gives the player 5 Poke Balls and the Town Map, and leaves.*
+- **Ruth:** "You've done this before, right? No lesson needed, then. Here, take these!"
 - **Ruth:** "Between you and me, the Professor hasn't slept since the portal opened. He keeps muttering, "Things don't just tear open on their own.""
 - **Ruth:** "Anyway! Jubilife City is straight ahead. Good luck!"
 - > Note: Plant: portals have a cause. Pays off when the player learns about the torture sites.
+- > Note (round 2, in progress): Ruth gets a tinkerer line about the portal reader ("I built it myself from a Poketch and a broken Dowsing Machine..."), and one of the two "tear open on their own" lines (this one or Rowan's in the mine) is being cut. See `docs/arc1/round2/PLAN.md`.
 
 ## Scene 11: Jubilife City, the Eclipse rally
 

@@ -189,6 +189,7 @@ pl_enc_data_srcs = files(
     'encounters_route_223.json',
     'encounters_route_226.json',
     'encounters_route_230.json',
+    'encounters_oreburgh_mine_side_tunnel.json',
 )
 
 pl_enc_data_order = files('encounters.order')

@@ -8,12 +8,26 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_BURMY",
+            "species": "SPECIES_PIDOVE",
             "form": 0,
             "level": 5,
             "item": null,
             "moves": [
-                "MOVE_TACKLE"
+                "MOVE_GUST",
+                "MOVE_GROWL"
+            ],
+            "power": 0,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_TAILLOW",
+            "form": 0,
+            "level": 6,
+            "item": null,
+            "moves": [
+                "MOVE_PECK",
+                "MOVE_GROWL",
+                "MOVE_FOCUS_ENERGY"
             ],
             "power": 0,
             "ball_seal": 0

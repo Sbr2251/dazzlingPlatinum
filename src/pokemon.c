@@ -4748,33 +4748,42 @@ static void *BoxPokemon_GetDataBlock(BoxPokemon *boxMon, u32 personality, enum P
     return result;
 }
 
+// pl_personal and wotbl hold every species up to SPECIES_BAD_EGG, then the forms with data of
+// their own, in res/pokemon/form_registry.json order (datagen_species). The vanilla numbers
+// (Deoxys-Attack at 496, ...) only held while Arceus was the last species.
+#define FORM_NARC_INDEX_START    (SPECIES_BAD_EGG + 1)
+#define FORM_NARC_INDEX_DEOXYS   (FORM_NARC_INDEX_START)
+#define FORM_NARC_INDEX_WORMADAM (FORM_NARC_INDEX_DEOXYS + DEOXYS_FORM_COUNT - 1)
+#define FORM_NARC_INDEX_GIRATINA (FORM_NARC_INDEX_WORMADAM + WORMADAM_FORM_COUNT - 1)
+#define FORM_NARC_INDEX_SHAYMIN  (FORM_NARC_INDEX_GIRATINA + GIRATINA_FORM_COUNT - 1)
+#define FORM_NARC_INDEX_ROTOM    (FORM_NARC_INDEX_SHAYMIN + SHAYMIN_FORM_COUNT - 1)
+
 static int Pokemon_GetFormNarcIndex(int monSpecies, int monForm)
 {
-    // TODO enum values?
     switch (monSpecies) {
     case SPECIES_DEOXYS:
         if (monForm && monForm <= DEOXYS_FORM_COUNT - 1) {
-            monSpecies = (496 - 1) + monForm;
+            monSpecies = (FORM_NARC_INDEX_DEOXYS - 1) + monForm;
         }
         break;
     case SPECIES_WORMADAM:
         if (monForm && monForm <= WORMADAM_FORM_COUNT - 1) {
-            monSpecies = (499 - 1) + monForm;
+            monSpecies = (FORM_NARC_INDEX_WORMADAM - 1) + monForm;
         }
         break;
     case SPECIES_GIRATINA:
         if (monForm && monForm <= GIRATINA_FORM_COUNT - 1) {
-            monSpecies = (501 - 1) + monForm;
+            monSpecies = (FORM_NARC_INDEX_GIRATINA - 1) + monForm;
         }
         break;
     case SPECIES_SHAYMIN:
         if (monForm && monForm <= SHAYMIN_FORM_COUNT - 1) {
-            monSpecies = (502 - 1) + monForm;
+            monSpecies = (FORM_NARC_INDEX_SHAYMIN - 1) + monForm;
         }
         break;
     case SPECIES_ROTOM:
         if (monForm && monForm <= ROTOM_FORM_COUNT - 1) {
-            monSpecies = (503 - 1) + monForm;
+            monSpecies = (FORM_NARC_INDEX_ROTOM - 1) + monForm;
         }
         break;
     default:

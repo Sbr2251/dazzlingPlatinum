@@ -71,6 +71,75 @@
         "If the PP of moves runs low, head for\n",
         "any Pokémon Center."
       ]
+    },
+    {
+      "id": "Route203_Text_Arc1RematchRightNow",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Hey!\n",
+        "I caught two more Pokémon already.\r",
+        "Rematch! Right now!"
+      ]
+    },
+    {
+      "id": "Route203_Text_Arc1ThatEclipseGuy",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: ...Hey.\n",
+        "That Eclipse guy on the screen.\r",
+        "You think they could really do it?\n",
+        "Bring people back?"
+      ]
+    },
+    {
+      "id": "Route203_Text_Arc1YeahMaybe",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: ...Yeah.\n",
+        "Yeah, maybe.\r"
+      ]
+    },
+    {
+      "id": "Route203_Text_Arc1YeahProbablyNot",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Yeah.\n",
+        "...Yeah, probably not.\r"
+      ]
+    },
+    {
+      "id": "Route203_Text_Arc1RaceYouToOreburgh",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Forget it.\n",
+        "Race you to Oreburgh!"
+      ]
+    },
+    {
+      "id": "Route203_Text_Arc1CheckOutThisCrack",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Whoa...\n",
+        "check out this crack!\r",
+        "The news said lightning.\n",
+        "...Since when is lightning purple?\r"
+      ]
+    },
+    {
+      "id": "Route203_Text_HikerOldTree",
+      "en_US": [
+        "This old tree stood here longer\n",
+        "than I've been alive.\r",
+        "Then one night, a flash, a crack,\n",
+        "and down it came.\r",
+        "Lightning, they say.\n",
+        "...Funny. I didn't hear any thunder."
+      ]
+    },
+    {
+      "id": "Route203_Text_PicnickerWontGoNear",
+      "en_US": [
+        "The wild Pokémon won't go\n",
+        "near the scar.\r",
+        "Even the Starly fly the long\n",
+        "way around.\r",
+        "Lightning, my dad says.\n",
+        "...Then why won't it wash off?"
+      ]
     }
   ]
 }

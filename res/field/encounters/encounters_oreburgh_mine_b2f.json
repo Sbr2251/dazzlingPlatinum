@@ -7,7 +7,7 @@
         },
         {
             "level": 7,
-            "species": "SPECIES_GEODUDE"
+            "species": "SPECIES_ROGGENROLA"
         },
         {
             "level": 6,
@@ -18,32 +18,32 @@
             "species": "SPECIES_ZUBAT"
         },
         {
-            "level": 5,
-            "species": "SPECIES_GEODUDE"
+            "level": 6,
+            "species": "SPECIES_ARON"
         },
         {
-            "level": 8,
-            "species": "SPECIES_GEODUDE"
+            "level": 7,
+            "species": "SPECIES_NOSEPASS"
         },
         {
             "level": 7,
             "species": "SPECIES_ONIX"
         },
         {
-            "level": 9,
-            "species": "SPECIES_ONIX"
-        },
-        {
-            "level": 9,
-            "species": "SPECIES_GEODUDE"
+            "level": 8,
+            "species": "SPECIES_TIMBURR"
         },
         {
             "level": 8,
-            "species": "SPECIES_ZUBAT"
+            "species": "SPECIES_DRILBUR"
+        },
+        {
+            "level": 8,
+            "species": "SPECIES_MAKUHITA"
         },
         {
             "level": 9,
-            "species": "SPECIES_GEODUDE"
+            "species": "SPECIES_DRILBUR"
         },
         {
             "level": 8,

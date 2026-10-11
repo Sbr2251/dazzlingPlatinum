@@ -453,17 +453,20 @@ static void FieldSystem_SetLocationToUnionRoomExit(FieldSystem *fieldSystem)
     Location_Set(exit, fieldSystem->location->mapId, -1, 8, 2, 1);
 }
 
-// Arc 1: before the Distortion World flashback, a caption in a message box on a black screen
-// ("Beyond a rift: the Distortion World, where Team Galactic met its end.", message 16 of the Giratina room bank).
-#define ARC1_FLASHBACK_CAPTION_MESSAGE 16
+// Arc 1: before the Distortion World flashback, a caption card: one centered line of white text on a black
+// screen ("The last moments from Pokemon Platinum...", message 16 of the Giratina room bank), styled like the
+// stock black-out screen (unk_020528D0.c). It fades in, holds, fades out, then the Giratina room fades in.
+#define ARC1_FLASHBACK_CAPTION_MESSAGE    16
+#define ARC1_FLASHBACK_CAPTION_HOLD       60 // main-loop frames (30 fps): 2 s
+#define ARC1_FLASHBACK_CAPTION_PALETTE    13
+#define ARC1_FLASHBACK_CAPTION_TOP        11 // tile row: the line sits on the screen's middle (y 88-103)
+#define ARC1_FLASHBACK_CAPTION_WIDTH      32 // tiles
 
 typedef struct Arc1FlashbackCaption {
     int state;
+    int timer;
     BgConfig *bgConfig;
     Window window;
-    String *string;
-    const Options *options;
-    u8 printerID;
 } Arc1FlashbackCaption;
 
 static BOOL FieldTask_Arc1FlashbackCaption(FieldTask *task)
@@ -477,26 +480,21 @@ static BOOL FieldTask_Arc1FlashbackCaption(FieldTask *task)
         break;
     case 1:
         if (IsScreenFadeDone()) {
-            caption->printerID = FieldMessage_Print(&caption->window, caption->string, caption->options, TRUE);
+            caption->timer = 0;
             caption->state++;
         }
         break;
     case 2:
-        if (FieldMessage_FinishedPrinting(caption->printerID)) {
-            caption->state++;
-        }
-        break;
-    case 3:
-        if (gSystem.pressedKeys & (PAD_BUTTON_A | PAD_BUTTON_B)) {
+        if (++caption->timer >= ARC1_FLASHBACK_CAPTION_HOLD) {
             StartScreenFade(FADE_MAIN_ONLY, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, COLOR_BLACK, 8, 1, HEAP_ID_FIELD3);
             caption->state++;
         }
         break;
-    case 4:
+    case 3:
         if (IsScreenFadeDone()) {
-            Window_EraseMessageBox(&caption->window, FALSE);
+            Window_FillTilemap(&caption->window, 0);
+            Window_ClearAndCopyToVRAM(&caption->window);
             Window_Remove(&caption->window);
-            String_Free(caption->string);
             Bg_FreeTilemapBuffer(caption->bgConfig, BG_LAYER_MAIN_3);
             Heap_Free(caption->bgConfig);
             Heap_Free(caption);
@@ -546,11 +544,9 @@ static void FieldTask_StartArc1FlashbackCaption(FieldTask *task)
         .mosaic = FALSE,
     };
 
-    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
     Arc1FlashbackCaption *caption = Heap_Alloc(HEAP_ID_FIELD2, sizeof(Arc1FlashbackCaption));
 
     memset(caption, 0, sizeof(Arc1FlashbackCaption));
-    caption->options = SaveData_GetOptions(fieldSystem->saveData);
     caption->bgConfig = BgConfig_New(HEAP_ID_FIELD2);
 
     BrightnessController_SetScreenBrightness(-16, (GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD) ^ GX_BLEND_PLANEMASK_BG3, BRIGHTNESS_MAIN_SCREEN);
@@ -564,16 +560,25 @@ static void FieldTask_StartArc1FlashbackCaption(FieldTask *task)
     Bg_CopyTilemapBufferToVRAM(caption->bgConfig, BG_LAYER_MAIN_3);
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG3, TRUE);
 
-    Font_LoadTextPalette(PAL_LOAD_MAIN_BG, PLTT_OFFSET(FIELD_MESSAGE_PALETTE_INDEX), HEAP_ID_FIELD2);
-    Font_LoadScreenIndicatorsPalette(PAL_LOAD_MAIN_BG, PLTT_OFFSET(12), HEAP_ID_FIELD2);
-    FieldMessage_AddWindow(caption->bgConfig, &caption->window, BG_LAYER_MAIN_3);
-    LoadMessageBoxGraphics(caption->bgConfig, BG_LAYER_MAIN_3, 1024 - (18 + 12), 10, Options_Frame(caption->options), HEAP_ID_FIELD2);
-    FieldMessage_ClearWindow(&caption->window);
-    Window_DrawMessageBoxWithScrollCursor(&caption->window, FALSE, 1024 - (18 + 12), 10);
+    // White text, gray shadow: the black-out screen's font palette
+    Graphics_LoadPalette(NARC_INDEX_GRAPHIC__PL_FONT, 6, PAL_LOAD_MAIN_BG, PLTT_OFFSET(ARC1_FLASHBACK_CAPTION_PALETTE), 0x20, HEAP_ID_FIELD2);
+    Window_Add(caption->bgConfig, &caption->window, BG_LAYER_MAIN_3, 0, ARC1_FLASHBACK_CAPTION_TOP, ARC1_FLASHBACK_CAPTION_WIDTH, 2, ARC1_FLASHBACK_CAPTION_PALETTE, 1);
+    Window_FillTilemap(&caption->window, 0);
 
-    caption->string = MessageBank_GetNewStringFromNARC(NARC_INDEX_MSGDATA__PL_MSG, TEXT_BANK_DISTORTION_WORLD_GIRATINA_ROOM, ARC1_FLASHBACK_CAPTION_MESSAGE, HEAP_ID_FIELD2);
+    String *string = MessageBank_GetNewStringFromNARC(NARC_INDEX_MSGDATA__PL_MSG, TEXT_BANK_DISTORTION_WORLD_GIRATINA_ROOM, ARC1_FLASHBACK_CAPTION_MESSAGE, HEAP_ID_FIELD2);
+    u32 x = Font_CalcCenterAlignment(FONT_SYSTEM, string, 0, ARC1_FLASHBACK_CAPTION_WIDTH * 8);
+
+    Text_AddPrinterWithParamsAndColor(&caption->window, FONT_SYSTEM, string, x, 0, TEXT_SPEED_NO_TRANSFER, TEXT_COLOR(15, 2, 0), NULL);
+    String_Free(string);
+    Window_CopyToVRAM(&caption->window);
 
     FieldTask_InitCall(task, FieldTask_Arc1FlashbackCaption, caption);
+}
+
+static BOOL FieldSystem_IsArc1FlashbackSpawn(FieldSystem *fieldSystem)
+{
+    return fieldSystem->location->mapId == MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM
+        && *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_ARC1_PROGRESS) == 0;
 }
 
 static BOOL FieldTask_LoadNewGameSpawn(FieldTask *task)
@@ -589,17 +594,27 @@ static BOOL FieldTask_LoadNewGameSpawn(FieldTask *task)
         FieldMapChange_CreateObjects(fieldSystem);
         (*state)++;
 
-        if (fieldSystem->location->mapId == MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM
-            && *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_ARC1_PROGRESS) == 0) {
+        if (FieldSystem_IsArc1FlashbackSpawn(fieldSystem)) {
             FieldTask_StartArc1FlashbackCaption(task);
         }
         break;
     case 1:
+        if (FieldSystem_IsArc1FlashbackSpawn(fieldSystem)) {
+            // Straight from the caption card into the scene: no "Distortion World" location name pop-up
+            FieldTransition_StartMap(task);
+            *state = 3;
+            break;
+        }
+
         FieldTransition_StartMapAndFadeIn(task);
         (*state)++;
         break;
     case 2:
         return TRUE;
+    case 3:
+        FieldTransition_FadeIn(task);
+        *state = 2;
+        break;
     }
 
     return FALSE;

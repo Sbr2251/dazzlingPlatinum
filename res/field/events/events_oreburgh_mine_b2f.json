@@ -165,6 +165,141 @@
             "x": 27,
             "z": 15,
             "y": 1
+        },
+        {
+            "id": "LOCALID_ARC1_SEAL_0",
+            "graphics_id": "OBJ_EVENT_GFX_STRENGTH_BOULDER",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_ARC1_MINE_SEAL",
+            "script": 8,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 8,
+            "z": 15,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC1_SEAL_1",
+            "graphics_id": "OBJ_EVENT_GFX_STRENGTH_BOULDER",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_ARC1_MINE_SEAL",
+            "script": 8,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 9,
+            "z": 15,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC1_SEAL_2",
+            "graphics_id": "OBJ_EVENT_GFX_STRENGTH_BOULDER",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_ARC1_MINE_SEAL",
+            "script": 8,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 10,
+            "z": 15,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC1_RIVAL",
+            "graphics_id": "OBJ_EVENT_GFX_BARRY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_ARC1_MINE_CAST",
+            "script": 0,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 9,
+            "z": 16,
+            "y": 1
+        },
+        {
+            "id": "LOCALID_ARC1_PROF_ROWAN",
+            "graphics_id": "OBJ_EVENT_GFX_PROF_ROWAN",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_ARC1_MINE_CAST",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 15,
+            "z": 9,
+            "y": 1
+        },
+        {
+            "id": "LOCALID_ARC1_COUNTERPART",
+            "graphics_id": "OBJ_EVENT_GFX_COUNTERPART",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_ARC1_MINE_CAST",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 15,
+            "z": 8,
+            "y": 1
+        },
+        {
+            "id": "LOCALID_ARC1_RIFT",
+            "graphics_id": "OBJ_EVENT_GFX_ARC1_RIFT",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_ARC1_MINE_RIFT",
+            "script": 0,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 9,
+            "z": 15,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC1_SILHOUETTE",
+            "graphics_id": "OBJ_EVENT_GFX_TOTEM_HITMONLEE_VIOLET",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_ARC1_MINE_SILHOUETTE",
+            "script": 0,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 9,
+            "z": 14,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_HUM_CRATES",
+            "graphics_id": "OBJ_EVENT_GFX_ROCK_SMASH",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": 9,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 2,
+            "z": 17,
+            "y": 0
         }
     ],
     "warp_events": [
@@ -173,7 +308,74 @@
             "z": 1,
             "dest_header_id": "MAP_HEADER_OREBURGH_MINE_B1F",
             "dest_warp_id": 3
+        },
+        {
+            "x": 2,
+            "z": 18,
+            "dest_header_id": "MAP_HEADER_OREBURGH_MINE_SIDE_TUNNEL",
+            "dest_warp_id": 0
         }
     ],
-    "coord_events": []
+    "coord_events": [
+        {
+            "script": 12,
+            "x": 2,
+            "z": 18,
+            "y": 0,
+            "width": 4,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 1
+        },
+        {
+            "script": 12,
+            "x": 2,
+            "z": 18,
+            "y": 0,
+            "width": 4,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 2
+        },
+        {
+            "script": 12,
+            "x": 2,
+            "z": 18,
+            "y": 0,
+            "width": 4,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 3
+        },
+        {
+            "script": 11,
+            "x": 2,
+            "z": 16,
+            "y": 0,
+            "width": 6,
+            "length": 7,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 1
+        },
+        {
+            "script": 11,
+            "x": 2,
+            "z": 16,
+            "y": 0,
+            "width": 6,
+            "length": 7,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 2
+        },
+        {
+            "script": 10,
+            "x": 13,
+            "z": 12,
+            "y": 0,
+            "width": 3,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 1
+        }
+    ]
 }

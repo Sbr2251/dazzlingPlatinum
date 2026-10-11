@@ -15,6 +15,9 @@ _0014:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    // Arc 1: no HMs (bible; backlog 2 replaces them with the Resonator). The hiker keeps HM06
+    // and its Rock Smash / Badge lines to himself until Arc 2.
+    GoToIfLt VAR_ARC1_PROGRESS, 17, OreburghGate1F_Arc1HikerTalk
     CheckBadgeAcquired BADGE_ID_COAL, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _003A
     Message 2
@@ -45,6 +48,8 @@ _006F:
     Return
 
 _007B:
+    // Arc 1: the HM06 hand-out coord stays inert (no HMs in Arc 1; stock again from 17).
+    GoToIfLt VAR_ARC1_PROGRESS, 17, OreburghGate1F_Arc1HikerCoordEnd
     LockAll
     ApplyMovement 10, _00C0
     ApplyMovement LOCALID_PLAYER, _00B4
@@ -72,3 +77,13 @@ _00C0:
     EmoteExclamationMark
     WalkNormalSouth
     EndMovement
+
+OreburghGate1F_Arc1HikerTalk:
+    Message OreburghGate1F_Text_Arc1Hiker
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+OreburghGate1F_Arc1HikerCoordEnd:
+    End

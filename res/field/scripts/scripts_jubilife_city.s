@@ -31,9 +31,36 @@
     ScriptEntry _1096
     ScriptEntry _10AD
     ScriptEntry JubilifeCity_Looker_AfterOneBadgeObtained
+    ScriptEntry JubilifeCity_Arc1Garius
+    ScriptEntry JubilifeCity_Arc1TriggerRally
+    ScriptEntry JubilifeCity_Arc1TriggerEastExit
+    ScriptEntry JubilifeCity_Arc1TriggerToBeContinued
+    ScriptEntry JubilifeCity_Arc1EclipseGruntFlyer
+    ScriptEntry JubilifeCity_Arc1EclipseGruntF
+    ScriptEntry JubilifeCity_Arc1Cyrus
+    ScriptEntry JubilifeCity_Arc1CrowdNeverCameHome
+    ScriptEntry JubilifeCity_Arc1CrowdGrandpasPokemon
+    ScriptEntry JubilifeCity_Arc1CrowdOneMoreDay
+    ScriptEntry JubilifeCity_Arc1CrowdBestFriend
+    ScriptEntry JubilifeCity_Arc1CrowdGransDoor
+    ScriptEntry JubilifeCity_Arc1CrowdMomAskedMe
+    ScriptEntry JubilifeCity_Arc1CrateLooker
+    ScriptEntry JubilifeCity_Arc1CrateGrunt
+    ScriptEntry JubilifeCity_Arc1CrateBox
+    ScriptEntry JubilifeCity_Arc1CrateReceiver
+    ScriptEntry JubilifeCity_Arc1CrateTriggerPsst
+    ScriptEntry JubilifeCity_Arc1CrateTriggerStep
     ScriptEntryEnd
 
 _0072:
+    // Dazzling Platinum Arc 1: object LOCALID_ARC1_SAROS is never shown (Saros is only a voice on the TV,
+    // playtest bug 11). Its events slot is kept so the crowd's local IDs (and saves made in Jubilife) don't
+    // shift, and its hide flag is set at every load because a new game starts with it clear. The rally cast and
+    // crowd follow VAR_ARC1_PROGRESS. From 12 on, the stock state 0/1 chain is skipped before the stock checks.
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_SAROS
+    Call JubilifeCity_Arc1CrateOnTransition
+    CallIfLt VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1HideRally
+    CallIfGe VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1OnTransition
     CallIfEq VAR_JUBILIFE_STATE, 0, _00AC
     CallIfGe VAR_JUBILIFE_STATE, 3, _00C2
     GetPlayerGender VAR_MAP_LOCAL_0
@@ -54,11 +81,11 @@ _00C2:
     Return
 
 _00D8:
-    SetVar VAR_OBJ_GFX_ID_0, 97
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     End
 
 _00E0:
-    SetVar VAR_OBJ_GFX_ID_0, 0
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     End
 
 JubilifeCity_Counterpart:
@@ -757,6 +784,7 @@ _0954:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    GoToIfInRange VAR_ARC1_PROGRESS, 12, 13, JubilifeCity_Arc1TrenchCoat
     GoToIfSet FLAG_UNK_0x00F3, _097F
     Call _0821
     WaitABPress
@@ -1333,6 +1361,7 @@ _107F:
     End
 
 _1096:
+    GoToIfInRange VAR_ARC1_PROGRESS, 12, 13, JubilifeCity_Arc1Banner
     ShowLandmarkSign 99
     End
 
@@ -1493,7 +1522,8 @@ _12D5:
     RemoveObject 23
     SetFlag FLAG_UNK_0x00F3
     ClearFlag FLAG_UNK_0x01F7
-    RemoveObject 31
+    // Arc 1 already hides Looker after the rally: only remove him if he's still here
+    CallIfUnset FLAG_UNK_0x0181, JubilifeCity_Arc1RemoveLooker
     SetFlag FLAG_UNK_0x0181
     ReleaseAll
     End
@@ -1617,7 +1647,9 @@ _1451:
     Message 58
     Message 60
     Message 61
-    SetPosition 23, 174, 1, 0x303, 1
+    // Arc 1: from state 12 the president never walks (no forced intro) and may not be loaded at all (the rally
+    // only un-hides him), so don't SetPosition him: on a missing object it writes through a NULL MapObject.
+    CallIfLt VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1ResetPresidentPos
     SetVar VAR_0x8004, ITEM_COUPON_3
     SetVar VAR_0x8005, 1
     SetFlag FLAG_OBTAINED_COUPON_3
@@ -1714,4 +1746,1182 @@ _1558:
     WalkOnSpotNormalWest
     Delay8 2
     WalkOnSpotNormalEast
+    EndMovement
+
+// ------------------------------------------------------------------------------------------------------------
+// Dazzling Platinum Arc 1 (scene 11): the Team Eclipse rally in front of Jubilife TV.
+//   VAR_ARC1_PROGRESS 12: rally cast + crowd visible, the east exit sends the player back to the plaza.
+//                        Talking to Garius (or walking up behind him) runs the rally and sets 13.
+//   13: crowd and grunts stay, Garius/Cyrus/Looker are gone, the east exit is open (Route 203, scene 12).
+//   14+: the plaza is back to normal.  16: "To be continued..." at the north exit (D13).
+
+JubilifeCity_Arc1HideRally:
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY_CAST
+    Return
+
+JubilifeCity_Arc1OnTransition:
+    CallIfLt VAR_JUBILIFE_STATE, 2, JubilifeCity_Arc1SkipStockIntro
+    CallIfEq VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1SetUpRally
+    CallIfEq VAR_ARC1_PROGRESS, 13, JubilifeCity_Arc1AfterRally
+    CallIfGe VAR_ARC1_PROGRESS, 14, JubilifeCity_Arc1RallyOver
+    Return
+
+// The stock first visit (counterpart escort, Looker and the VS Recorder, Barry and the Parcel in the Trainers'
+// School, Looker blocking the east exit) never happens in Arc 1. State 2 makes coord events 0 and 2 and _00AC
+// inert. The Pokétch campaign stays as optional side content, without the forced president intro (coord 4).
+JubilifeCity_Arc1SkipStockIntro:
+    SetVar VAR_JUBILIFE_STATE, 2
+    SetFlag FLAG_UNK_0x00F1
+    SetFlag FLAG_UNK_0x01F4
+    SetVar VAR_UNK_0x40E7, 2
+    ClearFlag FLAG_UNK_0x01F6
+    ClearFlag FLAG_UNK_0x01F5
+    Return
+
+JubilifeCity_Arc1SetUpRally:
+    ClearFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
+    ClearFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY_CAST
+    // Clear the plaza: the clown leaves the TV door and the Twin plays on the avenue instead
+    SetFlag FLAG_UNK_0x0238
+    // The Pokétch president and his two clowns sit the rally out. This also keeps the rally cast within the
+    // field's dynamic object texture slots (the crowd reuses Jubilife's preloaded move-model gfx).
+    SetFlag FLAG_UNK_0x01F5
+    SetFlag FLAG_UNK_0x01F6
+    SetObjectEventPos JUBILIFE_CITY_TWIN_3, 152, 759
+    // Looker, the "Man in a Trench Coat", at the east end of the crowd, watching the screen (D4). The rally's
+    // camera pan stops on him on its way to Cyrus (Arc 1 r2, critic #6).
+    SetObjectEventPos JUBILIFE_CITY_LOOKER_31, 172, 756
+    SetObjectEventDir JUBILIFE_CITY_LOOKER_31, DIR_NORTH
+    SetObjectEventMovementType JUBILIFE_CITY_LOOKER_31, MOVEMENT_TYPE_LOOK_NORTH
+    Return
+
+JubilifeCity_Arc1AfterRally:
+    ClearFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY_CAST
+    // Normally already done in-session by the rally (RestorePlaza, RemoveObject of Looker); kept as a guard
+    ClearFlag FLAG_UNK_0x0238
+    SetFlag FLAG_UNK_0x0181
+    ClearFlag FLAG_UNK_0x01F5
+    CallIfUnset FLAG_UNK_0x00F3, JubilifeCity_Arc1RestorePoketchCampaign
+    Return
+
+// Only the Arc 1 rally objects are touched from 14 on. The stock flags SetUpRally changed at 12 (0x0238, 0x01F5,
+// 0x01F6) are restored by the rally itself (JubilifeCity_Arc1RestorePlaza), and the rally's RemoveObject of
+// Looker sets FLAG_UNK_0x0181, so later stock scenes (post-Gym RemoveObject 24/25/27, the Pal Pad scene's
+// ClearFlag FLAG_UNK_0x0181) keep working in Arc 2.
+JubilifeCity_Arc1RallyOver:
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
+    SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY_CAST
+    Return
+
+// Until the Pokétch is obtained (FLAG_UNK_0x00F3), the president is back after the rally
+JubilifeCity_Arc1RestorePoketchCampaign:
+    ClearFlag FLAG_UNK_0x01F5
+    ClearFlag FLAG_UNK_0x01F6
+    Return
+
+// End of the rally, while the camera is on Cyrus: undo SetUpRally's plaza changes in-session. Cyrus and
+// Looker are already removed, which leaves room for the clown gfx (all three clowns are off screen here).
+JubilifeCity_Arc1RestorePlaza:
+    ClearFlag FLAG_UNK_0x0238
+    AddObject JUBILIFE_CITY_CLOWN_27
+    ClearFlag FLAG_UNK_0x01F5
+    AddObject JUBILIFE_CITY_CLOWN_24
+    AddObject JUBILIFE_CITY_CLOWN_25
+    // The Pokétch president (until he has handed out the Pokétch; stock _12D5 removes him for good) is only
+    // un-hidden here and appears on the next Jubilife load. Adding him in-session draws a black square: his gfx
+    // does not fit in the field's dynamic object texture slots next to the grunts and the clowns.
+    CallIfUnset FLAG_UNK_0x00F3, JubilifeCity_Arc1UnhidePresident
+    Return
+
+JubilifeCity_Arc1UnhidePresident:
+    ClearFlag FLAG_UNK_0x01F6
+    Return
+
+JubilifeCity_Arc1RemoveLooker:
+    RemoveObject JUBILIFE_CITY_LOOKER_31
+    Return
+
+// Stock _1451: put the president back at his post after his (stock-only) walk-up intro
+JubilifeCity_Arc1ResetPresidentPos:
+    SetPosition 23, 174, 1, 0x303, 1
+    Return
+
+// Talk to Garius (object script)
+JubilifeCity_Arc1Garius:
+    LockAll
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfNe VAR_0x8004, 164, JubilifeCity_Arc1MovePlayerBehindGarius
+    GoToIfNe VAR_0x8005, 754, JubilifeCity_Arc1MovePlayerBehindGarius
+    GoTo JubilifeCity_Arc1Rally
+    End
+
+// Talked to from the side or from the stage: put the player in the aisle behind Garius first
+JubilifeCity_Arc1MovePlayerBehindGarius:
+    FadeScreenOut
+    WaitFadeScreen
+    SetPosition LOCALID_PLAYER, 164, 0, 754, DIR_NORTH
+    FadeScreenIn
+    WaitFadeScreen
+    GoTo JubilifeCity_Arc1Rally
+    End
+
+// Coord event in the aisle right behind Garius (164,754), state 12
+JubilifeCity_Arc1TriggerRally:
+    LockAll
+    GoTo JubilifeCity_Arc1Rally
+    End
+
+JubilifeCity_Arc1Rally:
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_FaceNorth
+    ApplyMovement LOCALID_ARC1_GARIUS, JubilifeCity_Arc1Movement_GariusNoticePlayer
+    WaitMovement
+    // Tilt up to the Jubilife TV facade: the big screen switches on (D2). Saros is only a voice on the screen,
+    // "Saros (on screen):"; no overworld object stands in for him (playtest bug 11).
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    AddFreeCamera VAR_0x8004, VAR_0x8005
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraUpToScreen
+    WaitMovement
+    StopMusic 0
+    PlayFanfare SEQ_SE_DP_TV_NOISE
+    WaitFanfare SEQ_SE_DP_TV_NOISE
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitTime 10, VAR_RESULT
+    PlayMusic SEQ_TV_HOUSOU
+    WaitTime 20, VAR_RESULT
+    Message JubilifeCity_Text_Arc1SarosEveryoneHasLostSomeone
+    Message JubilifeCity_Text_Arc1SarosTheyTellYouToAcceptIt
+    Message JubilifeCity_Text_Arc1SarosWeWillBringThemBack
+    WaitABXPadPress
+    CloseMessage
+    // The broadcast cuts out
+    StopMusic 0
+    PlayFanfare SEQ_SE_DP_TV_NOISE
+    WaitTime 6, VAR_RESULT
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitFanfare SEQ_SE_DP_TV_NOISE
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraDownToCrowd
+    WaitMovement
+    // The crowd murmurs
+    ApplyMovement LOCALID_ARC1_CROWD_0, JubilifeCity_Arc1Movement_TurnEast
+    ApplyMovement LOCALID_ARC1_CROWD_2, JubilifeCity_Arc1Movement_TurnWest
+    ApplyMovement LOCALID_ARC1_CROWD_3, JubilifeCity_Arc1Movement_TurnEast
+    ApplyMovement LOCALID_ARC1_CROWD_6, JubilifeCity_Arc1Movement_TurnEast
+    ApplyMovement LOCALID_ARC1_CROWD_7, JubilifeCity_Arc1Movement_TurnWest
+    ApplyMovement LOCALID_ARC1_CROWD_8, JubilifeCity_Arc1Movement_TurnSouth
+    WaitMovement
+    Message JubilifeCity_Text_Arc1CrowdMurmurs
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CROWD_0, JubilifeCity_Arc1Movement_TurnNorthLater
+    ApplyMovement LOCALID_ARC1_CROWD_2, JubilifeCity_Arc1Movement_TurnNorthLater
+    ApplyMovement LOCALID_ARC1_CROWD_3, JubilifeCity_Arc1Movement_TurnNorthLater
+    ApplyMovement LOCALID_ARC1_CROWD_6, JubilifeCity_Arc1Movement_TurnNorthLater
+    ApplyMovement LOCALID_ARC1_CROWD_7, JubilifeCity_Arc1Movement_TurnNorthLater
+    ApplyMovement LOCALID_ARC1_CROWD_8, JubilifeCity_Arc1Movement_TurnNorthLater
+    // A grunt pushes a flyer into Garius's hands
+    ApplyMovement LOCALID_ARC1_GRUNT_FLYER, JubilifeCity_Arc1Movement_GruntToGarius
+    WaitMovement
+    Message JubilifeCity_Text_Arc1GruntEverybodysLostSomebody
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_GRUNT_FLYER, JubilifeCity_Arc1Movement_GruntBackToStage
+    ApplyMovement LOCALID_ARC1_GARIUS, JubilifeCity_Arc1Movement_GariusLookAtFlyer
+    WaitMovement
+    // Garius stares at the flyer, folds it and pockets it: no narration, the pause carries it (critic #8)
+    WaitTime 80, VAR_RESULT
+    BufferRivalName 0
+    Message JubilifeCity_Text_Arc1GariusJustAFlyer
+    WaitABXPadPress
+    CloseMessage
+    // Pan away from the kids toward the edge of the crowd. It stops on the trench coat man at the east end of
+    // the crowd: he glances east, at Cyrus (Arc 1 r2, critic #6).
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraToLooker
+    WaitMovement
+    WaitTime 10, VAR_RESULT
+    ApplyMovement JUBILIFE_CITY_LOOKER_31, JubilifeCity_Arc1Movement_TurnEast
+    WaitMovement
+    WaitTime 20, VAR_RESULT
+    Message JubilifeCity_Text_Arc1LookerThatSuit
+    WaitABXPadPress
+    CloseMessage
+    // The pan finishes on Cyrus, alone, watching the screen. The trench coat man slips away south, out of
+    // frame, and is removed once he's off screen (D4: RemoveObject sets FLAG_UNK_0x0181)
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraLookerToCyrus
+    ApplyMovement JUBILIFE_CITY_LOOKER_31, JubilifeCity_Arc1Movement_LookerSlipAway
+    WaitMovement
+    RemoveObject JUBILIFE_CITY_LOOKER_31
+    WaitTime 20, VAR_RESULT
+    Message JubilifeCity_Text_Arc1CyrusIKnowThatVoice
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CYRUS, JubilifeCity_Arc1Movement_CyrusLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC1_CYRUS
+    WaitTime 15, VAR_RESULT
+    // Still off camera: the TV door clown and the two Pokétch campaign clowns come back for the rest of this visit
+    Call JubilifeCity_Arc1RestorePlaza
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraBackToPlayer
+    WaitMovement
+    RestoreCamera
+    // Garius heads for Route 203 (he waits there for scene 12)
+    ApplyMovement LOCALID_ARC1_GARIUS, JubilifeCity_Arc1Movement_GariusRunToRoute203
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_PlayerWatchGariusLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC1_GARIUS
+    FadeToDefaultMusic
+    SetVar VAR_ARC1_PROGRESS, 13 /* rally done */
+    // Looker and the crate grunt (round 3 tail) arrive for the rest of this visit
+    Call JubilifeCity_Arc1CrateSetUpAfterRally
+    ReleaseAll
+    End
+
+// Coord event at the east exit (x188, z757-760), state 12: the rally comes first
+JubilifeCity_Arc1TriggerEastExit:
+    LockAll
+    BufferRivalName 0
+    Message JubilifeCity_Text_Arc1GariusOverHere
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_StepWest
+    WaitMovement
+    ReleaseAll
+    End
+
+// Coord event on the north exit row (x172-177, z743), state 16: end of Arc 1 (D13)
+JubilifeCity_Arc1TriggerToBeContinued:
+    LockAll
+    Message JubilifeCity_Text_Arc1ToBeContinued
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_StepSouth
+    WaitMovement
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1TrenchCoat:
+    Message JubilifeCity_Text_Arc1TrenchCoat
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement JUBILIFE_CITY_LOOKER_31, JubilifeCity_Arc1Movement_FaceNorth
+    WaitMovement
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1Banner:
+    ShowLandmarkSign JubilifeCity_Text_Arc1BannerWhoDidYouLose
+    End
+
+JubilifeCity_Arc1EclipseGruntFlyer:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1GruntTakeAFlyer
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1EclipseGruntF:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1GruntYouDontHaveToAcceptIt
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+// Talk to Cyrus before the rally. He keeps his eyes on the TV and doesn't turn around: in the rally the player
+// never sees him (scene 11), and the kids only find him in Jubilife at the start of Arc 2.
+JubilifeCity_Arc1Cyrus:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message JubilifeCity_Text_Arc1CyrusWhoDidYouLose
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdNeverCameHome:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdNeverCameHome
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdGrandpasPokemon:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdGrandpasPokemon
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdOneMoreDay:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdOneMoreDay
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdBestFriend:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdBestFriend
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdGransDoor:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdGransDoor
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrowdMomAskedMe:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrowdMomAskedMe
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_FaceNorth:
+    FaceNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_GariusNoticePlayer:
+    FaceSouth
+    Delay16
+    Delay8
+    FaceNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CameraUpToScreen:
+    WalkSlowNorth 3
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CameraDownToCrowd:
+    WalkNormalSouth 3
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_TurnEast:
+    WalkOnSpotNormalEast
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_TurnWest:
+    WalkOnSpotNormalWest
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_TurnSouth:
+    WalkOnSpotNormalSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_TurnNorthLater:
+    Delay16
+    WalkOnSpotNormalNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_GruntToGarius:
+    Delay16
+    WalkNormalEast 2
+    WalkOnSpotNormalSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_GruntBackToStage:
+    WalkNormalWest 2
+    WalkOnSpotNormalSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_GariusLookAtFlyer:
+    Delay16
+    WalkOnSpotSlowSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CameraToLooker:
+    WalkNormalEast 8
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CameraLookerToCyrus:
+    WalkNormalEast 3
+    WalkNormalNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_LookerSlipAway:
+    Delay8
+    WalkNormalSouth 6
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CyrusLeave:
+    WalkOnSpotSlowEast
+    Delay16
+    WalkNormalNorth 8
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_CameraBackToPlayer:
+    WalkFastSouth
+    WalkFastWest 11
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_GariusRunToRoute203:
+    WalkFastEast
+    WalkFastSouth 5
+    WalkFastEast 15
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_PlayerWatchGariusLeave:
+    Delay8 2
+    WalkOnSpotNormalEast
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_StepWest:
+    WalkNormalWest
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1Movement_StepSouth:
+    WalkNormalSouth
+    EndMovement
+
+// ------------------------------------------------------------------------------------------------------------
+// Dazzling Platinum Arc 1 round 3: "Follow the crate", Looker's stealth tail (VAR_ARC1_PROGRESS 13-15).
+//
+// Looker (still the "Man in a Trench Coat") waits at the east exit and asks the player to tail an Eclipse
+// grunt who drags a crate from the Pokémon Center to the Route 204 mouth, where a second grunt takes it.
+// The engine can't move an NPC while the player walks, and scripts can't read an NPC's live facing, so the
+// tail is stepped: a coord event covering the east half of the city runs on every player step while the
+// tail is on, and each step is one beat of the grunt's look cycle at his current stop.
+//   beats 1-2 forward, 3-4 a nervous glance left and right (the warning), 5-7 looking back, 8-0 forward.
+// Each beat checks the cone he's facing (1 tile at range 1, 3 wide at 2-3, 5 wide at 4-6) and the four
+// tiles next to him. Seen: "Huh? ...Kid, scram.", a fade, and the player is put back at that stop's
+// checkpoint. Close behind him (Chebyshev 3, or 2 at stop 3) on a beat he isn't looking back: he walks on.
+// Stop 4 is the handoff at the Route 204 mouth: reaching the top rows of the city (z<=737) off the receiver's
+// line (x174) plays the overheard scene and Looker's payoff.
+//
+// Flags: FLAG_UNK_0x091C tail done (persistent); 0x091D Looker, 0x091E grunt + crate, 0x091F receiver
+// (hide flags, recomputed on every load). Map-local vars (reset on every map load, so leaving the city
+// abandons the tail and Looker offers it again): VAR_MAP_LOCAL_3 declined once, _4 the call-over coord is
+// armed, _5 tail on (the step coord), _6 stop 1-4, _7 beat, _8-_B scratch for the sight check.
+
+JubilifeCity_Arc1CrateOnTransition:
+    SetFlag FLAG_UNK_0x091D
+    SetFlag FLAG_UNK_0x091E
+    SetFlag FLAG_UNK_0x091F
+    GoToIfSet FLAG_UNK_0x091C, JubilifeCity_Arc1CrateOnTransitionEnd
+    GoToIfLt VAR_ARC1_PROGRESS, 13, JubilifeCity_Arc1CrateOnTransitionEnd
+    GoToIfGt VAR_ARC1_PROGRESS, 15, JubilifeCity_Arc1CrateOnTransitionEnd
+    ClearFlag FLAG_UNK_0x091D
+    ClearFlag FLAG_UNK_0x091E
+    SetVar VAR_MAP_LOCAL_4, 1
+    // The wandering Ace Trainer on the avenue moves out of the grunt's path (x175) while the tail is on offer
+    SetObjectEventPos JUBILIFE_CITY_ACE_TRAINER_M_1, 167, 759
+JubilifeCity_Arc1CrateOnTransitionEnd:
+    Return
+
+// End of the rally (13 is set in-session, so OnTransition hasn't placed them yet): both are off screen here
+JubilifeCity_Arc1CrateSetUpAfterRally:
+    ClearFlag FLAG_UNK_0x091D
+    ClearFlag FLAG_UNK_0x091E
+    AddObject LOCALID_ARC1_CRATE_LOOKER
+    AddObject LOCALID_ARC1_CRATE_GRUNT
+    AddObject LOCALID_ARC1_CRATE
+    SetVar VAR_MAP_LOCAL_4, 1
+    Return
+
+// Coord event at x186, z757-762 (every way to the east exit), armed once per visit: Looker calls the player over
+JubilifeCity_Arc1CrateTriggerPsst:
+    LockAll
+    SetVar VAR_MAP_LOCAL_4, 0
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_FaceSouth
+    WaitMovement
+    Message JubilifeCity_Text_Arc1CratePsst
+    WaitABXPadPress
+    CloseMessage
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+JubilifeCity_Arc1CrateWalkToLooker:
+    GoToIfLe VAR_0x8005, 757, JubilifeCity_Arc1CrateAtLooker
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1CrateMovement_WalkNorth
+    WaitMovement
+    SubVar VAR_0x8005, 1
+    GoTo JubilifeCity_Arc1CrateWalkToLooker
+    End
+
+JubilifeCity_Arc1CrateAtLooker:
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1CrateMovement_FaceNorth
+    WaitMovement
+    Message JubilifeCity_Text_Arc1CrateOffer
+    GoTo JubilifeCity_Arc1CrateAsk
+    End
+
+// Talk to Looker (he's only here while the tail is on offer)
+JubilifeCity_Arc1CrateLooker:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    SetVar VAR_MAP_LOCAL_4, 0
+    GoToIfEq VAR_MAP_LOCAL_3, 1, JubilifeCity_Arc1CrateReoffer
+    Message JubilifeCity_Text_Arc1CrateOffer
+    GoTo JubilifeCity_Arc1CrateAsk
+    End
+
+JubilifeCity_Arc1CrateReoffer:
+    Message JubilifeCity_Text_Arc1CrateReoffer
+    GoTo JubilifeCity_Arc1CrateAsk
+    End
+
+JubilifeCity_Arc1CrateAsk:
+    ShowYesNoMenu VAR_RESULT
+    GoToIfEq VAR_RESULT, MENU_YES, JubilifeCity_Arc1CrateAccept
+    Message JubilifeCity_Text_Arc1CrateDeclined
+    WaitABXPadPress
+    CloseMessage
+    SetVar VAR_MAP_LOCAL_3, 1
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_FaceSouth
+    WaitMovement
+    ReleaseAll
+    End
+
+// The player is at (186,757) facing Looker. The camera pans to the avenue crossing (x175) while the grunt
+// pushes the crate up from the Pokémon Center and stops at the first stop (175,759).
+JubilifeCity_Arc1CrateAccept:
+    Message JubilifeCity_Text_Arc1CrateAccepted
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_FaceNorth
+    WaitMovement
+    // Off screen: the wandering Ace Trainer stands clear of the grunt's path (x175) for the rest of this visit
+    SetPosition JUBILIFE_CITY_ACE_TRAINER_M_1, 167, 0, 759, DIR_EAST
+    SetMovementType JUBILIFE_CITY_ACE_TRAINER_M_1, MOVEMENT_TYPE_LOOK_AROUND
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    AddFreeCamera VAR_0x8004, VAR_0x8005
+    ApplyFreeCameraMovement JubilifeCity_Arc1CrateMovement_CameraToCrossing
+    ApplyMovement LOCALID_ARC1_CRATE, JubilifeCity_Arc1CrateMovement_CrateIntro
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_GruntIntro
+    WaitMovement
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_Glance
+    WaitMovement
+    WaitTime 20, VAR_RESULT
+    ApplyFreeCameraMovement JubilifeCity_Arc1CrateMovement_CameraBack
+    WaitMovement
+    RestoreCamera
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_FaceSouth
+    WaitMovement
+    Message JubilifeCity_Text_Arc1CrateGo
+    WaitABXPadPress
+    CloseMessage
+    // He slips away into the alcove behind him, out of sight
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_LookerSlipAway
+    WaitMovement
+    RemoveObject LOCALID_ARC1_CRATE_LOOKER
+    SetVar VAR_MAP_LOCAL_6, 1
+    SetVar VAR_MAP_LOCAL_7, 0
+    SetVar VAR_MAP_LOCAL_5, 1
+    ReleaseAll
+    End
+
+// Coord event over the east half of the city (x158-191, z736-781) while the tail is on: one beat per step
+JubilifeCity_Arc1CrateTriggerStep:
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfEq VAR_MAP_LOCAL_6, 4, JubilifeCity_Arc1CrateHandoffStep
+    AddVar VAR_MAP_LOCAL_7, 1
+    CallIfGe VAR_MAP_LOCAL_7, 9, JubilifeCity_Arc1CrateResetBeat
+    Call JubilifeCity_Arc1CrateStopParams
+    CallIfEq VAR_MAP_LOCAL_7, 3, JubilifeCity_Arc1CrateGlance
+    CallIfEq VAR_MAP_LOCAL_7, 4, JubilifeCity_Arc1CrateGlance
+    CallIfEq VAR_MAP_LOCAL_7, 5, JubilifeCity_Arc1CrateLookBack
+    CallIfEq VAR_MAP_LOCAL_7, 8, JubilifeCity_Arc1CrateLookForward
+    // Facing for this beat: forward (north), or back during beats 5-7
+    SetVar VAR_0x8008, DIR_NORTH
+    CallIfEq VAR_MAP_LOCAL_7, 5, JubilifeCity_Arc1CrateUseBackDir
+    CallIfEq VAR_MAP_LOCAL_7, 6, JubilifeCity_Arc1CrateUseBackDir
+    CallIfEq VAR_MAP_LOCAL_7, 7, JubilifeCity_Arc1CrateUseBackDir
+    Call JubilifeCity_Arc1CrateCheckSight
+    GoToIfEq VAR_RESULT, 1, JubilifeCity_Arc1CrateCaught
+    GoToIfInRange VAR_MAP_LOCAL_7, 5, 7, JubilifeCity_Arc1CrateStepEnd
+    // Close behind him while he isn't looking: he moves on
+    GoToIfGt VAR_0x8009, VAR_0x800B, JubilifeCity_Arc1CrateStepEnd
+    GoToIfGt VAR_0x800A, VAR_0x800B, JubilifeCity_Arc1CrateStepEnd
+    GoTo JubilifeCity_Arc1CrateAdvance
+    End
+
+JubilifeCity_Arc1CrateStepEnd:
+    End
+
+JubilifeCity_Arc1CrateResetBeat:
+    SetVar VAR_MAP_LOCAL_7, 0
+    Return
+
+JubilifeCity_Arc1CrateUseBackDir:
+    SetVar VAR_0x8008, VAR_MAP_LOCAL_A
+    Return
+
+// The grunt's stop: VAR_0x8006/0x8007 his tile, VAR_MAP_LOCAL_A the way he looks back, VAR_0x800B the
+// "close behind him" distance
+JubilifeCity_Arc1CrateStopParams:
+    GoToIfEq VAR_MAP_LOCAL_6, 2, JubilifeCity_Arc1CrateStopParams2
+    GoToIfEq VAR_MAP_LOCAL_6, 3, JubilifeCity_Arc1CrateStopParams3
+    // Stop 1: the avenue crossing. He checks back east, the way the player comes from.
+    SetVar VAR_0x8006, 175
+    SetVar VAR_0x8007, 759
+    SetVar VAR_MAP_LOCAL_A, DIR_EAST
+    SetVar VAR_0x800B, 3
+    Return
+
+JubilifeCity_Arc1CrateStopParams2:
+    // Stop 2: halfway up the north corridor, beside the rally crowd
+    SetVar VAR_0x8006, 175
+    SetVar VAR_0x8007, 749
+    SetVar VAR_MAP_LOCAL_A, DIR_SOUTH
+    SetVar VAR_0x800B, 3
+    Return
+
+JubilifeCity_Arc1CrateStopParams3:
+    // Stop 3: just past the narrow gap at z743
+    SetVar VAR_0x8006, 175
+    SetVar VAR_0x8007, 741
+    SetVar VAR_MAP_LOCAL_A, DIR_SOUTH
+    SetVar VAR_0x800B, 2
+    Return
+
+JubilifeCity_Arc1CrateGlance:
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_Glance
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateLookBack:
+    GoToIfEq VAR_MAP_LOCAL_A, DIR_EAST, JubilifeCity_Arc1CrateLookBackEast
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceSouth
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateLookBackEast:
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceEast
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateLookForward:
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceNorth
+    WaitMovement
+    Return
+
+// In: VAR_0x8004/0x8005 player, VAR_0x8006/0x8007 grunt, VAR_0x8008 his facing.
+// Out: VAR_RESULT 1 if he sees the player; VAR_0x8009/0x800A = |dx|/|dz| (used for "close").
+// VAR_MAP_LOCAL_8/_9 = sign of dx/dz (0 player west/north of him, 1 same, 2 east/south).
+JubilifeCity_Arc1CrateCheckSight:
+    SetVar VAR_RESULT, 0
+    SetVar VAR_MAP_LOCAL_8, 1
+    SetVar VAR_0x8009, 0
+    GoToIfEq VAR_0x8004, VAR_0x8006, JubilifeCity_Arc1CrateSightDZ
+    GoToIfLt VAR_0x8004, VAR_0x8006, JubilifeCity_Arc1CrateSightWest
+    SetVar VAR_MAP_LOCAL_8, 2
+    SetVar VAR_0x8009, VAR_0x8004
+    SubVar VAR_0x8009, VAR_0x8006
+    GoTo JubilifeCity_Arc1CrateSightDZ
+    End
+
+JubilifeCity_Arc1CrateSightWest:
+    SetVar VAR_MAP_LOCAL_8, 0
+    SetVar VAR_0x8009, VAR_0x8006
+    SubVar VAR_0x8009, VAR_0x8004
+    GoTo JubilifeCity_Arc1CrateSightDZ
+    End
+
+JubilifeCity_Arc1CrateSightDZ:
+    SetVar VAR_MAP_LOCAL_9, 1
+    SetVar VAR_0x800A, 0
+    GoToIfEq VAR_0x8005, VAR_0x8007, JubilifeCity_Arc1CrateSightAdjacent
+    GoToIfLt VAR_0x8005, VAR_0x8007, JubilifeCity_Arc1CrateSightNorth
+    SetVar VAR_MAP_LOCAL_9, 2
+    SetVar VAR_0x800A, VAR_0x8005
+    SubVar VAR_0x800A, VAR_0x8007
+    GoTo JubilifeCity_Arc1CrateSightAdjacent
+    End
+
+JubilifeCity_Arc1CrateSightNorth:
+    SetVar VAR_MAP_LOCAL_9, 0
+    SetVar VAR_0x800A, VAR_0x8007
+    SubVar VAR_0x800A, VAR_0x8005
+    GoTo JubilifeCity_Arc1CrateSightAdjacent
+    End
+
+// Right next to him: he notices whichever way he faces
+JubilifeCity_Arc1CrateSightAdjacent:
+    SetVar VAR_MAP_LOCAL_B, VAR_0x8009
+    AddVar VAR_MAP_LOCAL_B, VAR_0x800A
+    GoToIfLe VAR_MAP_LOCAL_B, 1, JubilifeCity_Arc1CrateSeen
+    GoToIfEq VAR_0x8008, DIR_NORTH, JubilifeCity_Arc1CrateSightFaceNorth
+    GoToIfEq VAR_0x8008, DIR_SOUTH, JubilifeCity_Arc1CrateSightFaceSouth
+    GoToIfEq VAR_0x8008, DIR_WEST, JubilifeCity_Arc1CrateSightFaceWest
+    GoTo JubilifeCity_Arc1CrateSightFaceEast
+    End
+
+JubilifeCity_Arc1CrateSightFaceNorth:
+    GoToIfNe VAR_MAP_LOCAL_9, 0, JubilifeCity_Arc1CrateSightEnd
+    GoTo JubilifeCity_Arc1CrateSightAlongZ
+    End
+
+JubilifeCity_Arc1CrateSightFaceSouth:
+    GoToIfNe VAR_MAP_LOCAL_9, 2, JubilifeCity_Arc1CrateSightEnd
+    GoTo JubilifeCity_Arc1CrateSightAlongZ
+    End
+
+JubilifeCity_Arc1CrateSightFaceWest:
+    GoToIfNe VAR_MAP_LOCAL_8, 0, JubilifeCity_Arc1CrateSightEnd
+    GoTo JubilifeCity_Arc1CrateSightAlongX
+    End
+
+JubilifeCity_Arc1CrateSightFaceEast:
+    GoToIfNe VAR_MAP_LOCAL_8, 2, JubilifeCity_Arc1CrateSightEnd
+    GoTo JubilifeCity_Arc1CrateSightAlongX
+    End
+
+// VAR_MAP_LOCAL_A is reused here: along = distance ahead of him, VAR_MAP_LOCAL_B = distance to the side
+JubilifeCity_Arc1CrateSightAlongZ:
+    SetVar VAR_MAP_LOCAL_A, VAR_0x800A
+    SetVar VAR_MAP_LOCAL_B, VAR_0x8009
+    GoTo JubilifeCity_Arc1CrateSightCone
+    End
+
+JubilifeCity_Arc1CrateSightAlongX:
+    SetVar VAR_MAP_LOCAL_A, VAR_0x8009
+    SetVar VAR_MAP_LOCAL_B, VAR_0x800A
+    GoTo JubilifeCity_Arc1CrateSightCone
+    End
+
+JubilifeCity_Arc1CrateSightCone:
+    GoToIfGt VAR_MAP_LOCAL_A, 6, JubilifeCity_Arc1CrateSightEnd
+    GoToIfEq VAR_MAP_LOCAL_A, 1, JubilifeCity_Arc1CrateSightWidth0
+    GoToIfLe VAR_MAP_LOCAL_A, 3, JubilifeCity_Arc1CrateSightWidth1
+    GoToIfLe VAR_MAP_LOCAL_B, 2, JubilifeCity_Arc1CrateSeen
+    GoTo JubilifeCity_Arc1CrateSightEnd
+    End
+
+JubilifeCity_Arc1CrateSightWidth0:
+    GoToIfEq VAR_MAP_LOCAL_B, 0, JubilifeCity_Arc1CrateSeen
+    GoTo JubilifeCity_Arc1CrateSightEnd
+    End
+
+JubilifeCity_Arc1CrateSightWidth1:
+    GoToIfLe VAR_MAP_LOCAL_B, 1, JubilifeCity_Arc1CrateSeen
+    GoTo JubilifeCity_Arc1CrateSightEnd
+    End
+
+JubilifeCity_Arc1CrateSeen:
+    SetVar VAR_RESULT, 1
+JubilifeCity_Arc1CrateSightEnd:
+    Return
+
+// He walks on to the next stop, dragging the crate a tile behind him
+JubilifeCity_Arc1CrateAdvance:
+    LockAll
+    GoToIfEq VAR_MAP_LOCAL_6, 2, JubilifeCity_Arc1CrateAdvanceFrom2
+    GoToIfEq VAR_MAP_LOCAL_6, 3, JubilifeCity_Arc1CrateAdvanceFrom3
+    ApplyMovement LOCALID_ARC1_CRATE, JubilifeCity_Arc1CrateMovement_North10
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_North10
+    WaitMovement
+    GoTo JubilifeCity_Arc1CrateAdvanceDone
+    End
+
+JubilifeCity_Arc1CrateAdvanceFrom2:
+    ApplyMovement LOCALID_ARC1_CRATE, JubilifeCity_Arc1CrateMovement_North8
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_North8
+    WaitMovement
+    GoTo JubilifeCity_Arc1CrateAdvanceDone
+    End
+
+// Last leg: into the Route 204 mouth, where the receiver walks down to meet him
+JubilifeCity_Arc1CrateAdvanceFrom3:
+    ClearFlag FLAG_UNK_0x091F
+    AddObject LOCALID_ARC1_CRATE_RECEIVER
+    ApplyMovement LOCALID_ARC1_CRATE, JubilifeCity_Arc1CrateMovement_CrateToHandoff
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_GruntToHandoff
+    ApplyMovement LOCALID_ARC1_CRATE_RECEIVER, JubilifeCity_Arc1CrateMovement_ReceiverArrive
+    WaitMovement
+    GoTo JubilifeCity_Arc1CrateAdvanceDone
+    End
+
+JubilifeCity_Arc1CrateAdvanceDone:
+    AddVar VAR_MAP_LOCAL_6, 1
+    SetVar VAR_MAP_LOCAL_7, 0
+    ReleaseAll
+    End
+
+// Seen (or talked to him mid-tail): back to the stop's checkpoint, out of his sight
+JubilifeCity_Arc1CrateCaught:
+    LockAll
+    GoToIfEq VAR_MAP_LOCAL_6, 4, JubilifeCity_Arc1CrateCaughtByReceiver
+    // He turns to face the player (the sight check also leaves the offsets and their signs behind)
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    Call JubilifeCity_Arc1CrateStopParams
+    SetVar VAR_0x8008, DIR_NORTH
+    Call JubilifeCity_Arc1CrateCheckSight
+    Call JubilifeCity_Arc1CrateFacePlayer
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_Notice
+    WaitMovement
+    GoTo JubilifeCity_Arc1CrateCaughtMessage
+    End
+
+JubilifeCity_Arc1CrateFacePlayer:
+    GoToIfLt VAR_0x8009, VAR_0x800A, JubilifeCity_Arc1CrateFacePlayerZ
+    GoToIfEq VAR_MAP_LOCAL_8, 0, JubilifeCity_Arc1CrateFacePlayerWest
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceEast
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateFacePlayerWest:
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceWest
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateFacePlayerZ:
+    GoToIfEq VAR_MAP_LOCAL_9, 0, JubilifeCity_Arc1CrateFacePlayerNorth
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceSouth
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateFacePlayerNorth:
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceNorth
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateCaughtByReceiver:
+    ApplyMovement LOCALID_ARC1_CRATE_RECEIVER, JubilifeCity_Arc1CrateMovement_Notice
+    WaitMovement
+JubilifeCity_Arc1CrateCaughtMessage:
+    Message JubilifeCity_Text_Arc1CrateCaught
+    WaitABXPadPress
+    CloseMessage
+    FadeScreenOut
+    WaitFadeScreen
+    CallIfEq VAR_MAP_LOCAL_6, 1, JubilifeCity_Arc1CrateCheckpoint1
+    CallIfEq VAR_MAP_LOCAL_6, 2, JubilifeCity_Arc1CrateCheckpoint2
+    CallIfEq VAR_MAP_LOCAL_6, 3, JubilifeCity_Arc1CrateCheckpoint3
+    CallIfEq VAR_MAP_LOCAL_6, 4, JubilifeCity_Arc1CrateCheckpoint4
+    CallIfNe VAR_MAP_LOCAL_6, 4, JubilifeCity_Arc1CrateLookForward
+    SetVar VAR_MAP_LOCAL_7, 0
+    WaitTime 10, VAR_RESULT
+    FadeScreenIn
+    WaitFadeScreen
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrateCheckpoint1:
+    SetPosition LOCALID_PLAYER, 183, 0, 758, DIR_WEST
+    Return
+
+JubilifeCity_Arc1CrateCheckpoint2:
+    SetPosition LOCALID_PLAYER, 179, 0, 759, DIR_WEST
+    Return
+
+JubilifeCity_Arc1CrateCheckpoint3:
+    SetPosition LOCALID_PLAYER, 170, 0, 749, DIR_NORTH
+    Return
+
+JubilifeCity_Arc1CrateCheckpoint4:
+    SetPosition LOCALID_PLAYER, 170, 0, 746, DIR_NORTH
+    Return
+
+// Stop 4: the grunts meet at the Route 204 mouth (receiver at 174,731 looking down x174, the grunt at 174,732
+// with the crate behind him at 174,733). The top rows of the
+// city (z<=737) are the listening spot; up the receiver's line, he sees the player.
+JubilifeCity_Arc1CrateHandoffStep:
+    GoToIfGt VAR_0x8005, 737, JubilifeCity_Arc1CrateStepEnd
+    GoToIfEq VAR_0x8004, 174, JubilifeCity_Arc1CrateCaught
+    GoTo JubilifeCity_Arc1CrateHandoff
+    End
+
+JubilifeCity_Arc1CrateHandoff:
+    LockAll
+    SetVar VAR_MAP_LOCAL_5, 0
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1CrateMovement_FaceNorth
+    WaitMovement
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    AddFreeCamera VAR_0x8004, VAR_0x8005
+    ApplyFreeCameraMovement JubilifeCity_Arc1CrateMovement_CameraUp
+    WaitMovement
+    Message JubilifeCity_Text_Arc1CrateYoureLate
+    WaitABXPadPress
+    CloseMessage
+    Message JubilifeCity_Text_Arc1CrateAnotherOne
+    WaitABXPadPress
+    CloseMessage
+    // He steps aside and the receiver comes down to the crate
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_GruntStepAside
+    WaitMovement
+    ApplyMovement LOCALID_ARC1_CRATE_RECEIVER, JubilifeCity_Arc1CrateMovement_LookAtCrate
+    WaitMovement
+    Message JubilifeCity_Text_Arc1CrateDidItMove
+    WaitABXPadPress
+    CloseMessage
+    Message JubilifeCity_Text_Arc1CrateDontAsk
+    WaitABXPadPress
+    CloseMessage
+    // The receiver takes the crate north up Route 204, toward Ravaged Path
+    ApplyMovement LOCALID_ARC1_CRATE_RECEIVER, JubilifeCity_Arc1CrateMovement_ReceiverLeave
+    ApplyMovement LOCALID_ARC1_CRATE, JubilifeCity_Arc1CrateMovement_CrateLeave
+    WaitMovement
+    Message JubilifeCity_Text_Arc1CrateDrink
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_GruntLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC1_CRATE_RECEIVER
+    RemoveObject LOCALID_ARC1_CRATE
+    RemoveObject LOCALID_ARC1_CRATE_GRUNT
+    ApplyFreeCameraMovement JubilifeCity_Arc1CrateMovement_CameraDown
+    WaitMovement
+    RestoreCamera
+    // Looker catches up from behind
+    SetObjectEventPos LOCALID_ARC1_CRATE_LOOKER, 174, 745
+    SetObjectEventDir LOCALID_ARC1_CRATE_LOOKER, DIR_NORTH
+    SetObjectEventMovementType LOCALID_ARC1_CRATE_LOOKER, MOVEMENT_TYPE_LOOK_NORTH
+    ClearFlag FLAG_UNK_0x091D
+    AddObject LOCALID_ARC1_CRATE_LOOKER
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_LookerCatchUp
+    WaitMovement
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1CrateMovement_FaceSouth
+    WaitMovement
+    Message JubilifeCity_Text_Arc1CrateLookerEnd
+    SetVar VAR_0x8004, ITEM_GREAT_BALL
+    SetVar VAR_0x8005, 3
+    GoToIfCannotFitItem VAR_0x8004, VAR_0x8005, VAR_RESULT, JubilifeCity_Arc1CrateBagFull
+    GiveItemQuantity
+    GoTo JubilifeCity_Arc1CrateLookerLeave
+    End
+
+JubilifeCity_Arc1CrateBagFull:
+    Message JubilifeCity_Text_Arc1CrateBagFull
+    WaitABXPadPress
+JubilifeCity_Arc1CrateLookerLeave:
+    Message JubilifeCity_Text_Arc1CrateNeverSawMe
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_LookerLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC1_CRATE_LOOKER
+    SetFlag FLAG_UNK_0x091C
+    ReleaseAll
+    End
+
+// Talk to the grunt: before the tail he brushes the player off; during it, the player has been seen
+JubilifeCity_Arc1CrateGrunt:
+    GoToIfEq VAR_MAP_LOCAL_5, 1, JubilifeCity_Arc1CrateCaught
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message JubilifeCity_Text_Arc1CrateGruntIdle
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceWest
+    WaitMovement
+    ReleaseAll
+    End
+
+JubilifeCity_Arc1CrateReceiver:
+    GoToIfEq VAR_MAP_LOCAL_5, 1, JubilifeCity_Arc1CrateCaught
+    End
+
+JubilifeCity_Arc1CrateBox:
+    GoToIfEq VAR_MAP_LOCAL_5, 1, JubilifeCity_Arc1CrateCaught
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message JubilifeCity_Text_Arc1CrateBox
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_FaceNorth:
+    FaceNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_FaceSouth:
+    FaceSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_FaceEast:
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_FaceWest:
+    FaceWest
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_WalkNorth:
+    WalkNormalNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_Glance:
+    FaceWest
+    Delay8 2
+    FaceEast
+    Delay8 2
+    FaceNorth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_Notice:
+    EmoteExclamationMark
+    Delay8
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_CameraToCrossing:
+    WalkFastWest 11
+    WalkFastSouth 4
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_CameraBack:
+    WalkFastNorth 4
+    WalkFastEast 11
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_CrateIntro:
+    WalkNormalWest 2
+    WalkNormalNorth 17
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_GruntIntro:
+    WalkNormalWest
+    WalkNormalNorth 18
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_LookerSlipAway:
+    WalkNormalNorth 3
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_North10:
+    WalkNormalNorth 10
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_North8:
+    WalkNormalNorth 8
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_CrateToHandoff:
+    WalkNormalNorth 5
+    WalkNormalWest
+    WalkNormalNorth 4
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_GruntToHandoff:
+    WalkNormalNorth 4
+    WalkNormalWest
+    WalkNormalNorth 5
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_ReceiverArrive:
+    Delay16 4
+    WalkNormalSouth 3
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_CameraUp:
+    WalkSlowNorth 2
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_CameraDown:
+    WalkNormalSouth 2
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_GruntStepAside:
+    WalkNormalWest
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_LookAtCrate:
+    WalkNormalSouth
+    WalkOnSpotSlowSouth
+    Delay8 2
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_ReceiverLeave:
+    FaceNorth
+    Delay8
+    WalkNormalNorth 9
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_CrateLeave:
+    Delay16
+    WalkNormalNorth 9
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_GruntLeave:
+    WalkNormalNorth 9
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_LookerCatchUp:
+    WalkNormalNorth 7
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_LookerLeave:
+    FaceSouth
+    Delay8
+    WalkNormalSouth 7
     EndMovement

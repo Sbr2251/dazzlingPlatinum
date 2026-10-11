@@ -36,6 +36,14 @@
         "All right! Now you can use the hidden\n",
         "move Rock Smash on small boulders!"
       ]
+    },
+    {
+      "id": "OreburghGate1F_Text_Arc1Hiker",
+      "en_US": [
+        "Oreburgh City's just past this gate.\r",
+        "It's a coal mining town, built\n",
+        "right on top of the mine!"
+      ]
     }
   ]
 }

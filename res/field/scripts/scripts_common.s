@@ -1579,9 +1579,8 @@ _157B:
 
 CommonScript_SetCounterpartBGM:
     StopMusic 0
-    GetPlayerGender VAR_RESULT
-    CallIfEq VAR_RESULT, GENDER_MALE, CommonScript_SetTheGirlBGM
-    CallIfEq VAR_RESULT, GENDER_FEMALE, CommonScript_SetTheBoyBGM
+    @ Dazzling Platinum: the counterpart is always Ruth, whose theme is The Girl.
+    SetBGM SEQ_THE_GIRL
     ReturnCommonScript
     End
 

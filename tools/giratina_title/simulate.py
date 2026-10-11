@@ -125,9 +125,11 @@ def main():
                     Image.fromarray(img).save(os.path.join(args.out, "s%03d.png" % i))
             vb += hold
     assert vb == hd["total_vb"] * args.loops
-    secs = hd["total_vb"] / 60.0
-    print("steps %d, loop %.2fs, file %d B, maxChunk %d B, maxRaw %d B, heap need %d B"
-          % (hd["num"], secs, len(blob), hd["max_chunk"], hd["max_raw"], heap))
+    # Holds count calls of the title screen's VBlank callback, which main.c runs
+    # once per 30 fps main-loop frame, so one hold unit is 2 hardware frames.
+    secs = hd["total_vb"] * 2 / 60.0
+    print("steps %d, loop %d ticks = %d frames = %.2fs, file %d B, maxChunk %d B, maxRaw %d B, heap need %d B"
+          % (hd["num"], hd["total_vb"], hd["total_vb"] * 2, secs, len(blob), hd["max_chunk"], hd["max_raw"], heap))
     print("card read avg %.1f KB/s, per-step VRAM upload %d B (outside VBlank, back slot)"
           % (total_read / args.loops / secs / 1024.0, worst_upload))
     if psnr:

@@ -9,14 +9,58 @@
     ScriptEntry _00B2
     ScriptEntry _00C7
     ScriptEntry _04C4
+    ScriptEntry Route202_Arc1RuthTalk
+    ScriptEntry Route202_Arc1PilgrimOldMan
+    ScriptEntry Route202_Arc1PilgrimFather
+    ScriptEntry Route202_Arc1PilgrimSailor
+    ScriptEntry Route202_Arc1PilgrimSister
+    ScriptEntry Route202_Arc1PilgrimSon
     ScriptEntryEnd
 
 _001E:
     CallIfGe VAR_UNK_0x4087, 2, _005B
-    GetPlayerGender VAR_MAP_LOCAL_0
-    GoToIfEq VAR_MAP_LOCAL_0, GENDER_MALE, _004B
-    GoToIfEq VAR_MAP_LOCAL_0, GENDER_FEMALE, _0053
+    // Arc 1: Ruth (local 3) waits for the lesson only once the lab is done (state 11+).
+    CallIfEq VAR_UNK_0x4087, 0, Route202_Arc1SetRuthVisibility
+    CallIfEq VAR_UNK_0x4087, 1, Route202_Arc1HideRuth
+    Call Route202_Arc1SetPilgrimVisibility
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     End
+
+// Arc 1 round 3: pilgrims walking to the Jubilife rally (locals 9-13).
+// 11-12 (lab done, rally not yet): all five. 11 is included because the state turns 12 mid-map at
+// Ruth's lesson and objects only load on map entry; nobody stands in rows z824-831, so her scene and
+// exit walk stay clear. 13-15 (after the rally): only the old man and the father, moved, walking home.
+// 16+ (end of Arc 1) and below 11: none. FLAG_UNK_0x0030/0x0031 are map-local temp flags (the engine
+// clears flags 0-63 on every map change), so they collide with nothing outside Route 202.
+Route202_Arc1SetPilgrimVisibility:
+    SetFlag FLAG_UNK_0x0030
+    SetFlag FLAG_UNK_0x0031
+    GoToIfLt VAR_ARC1_PROGRESS, 11, Route202_Arc1PilgrimsReturn
+    GoToIfGe VAR_ARC1_PROGRESS, 16, Route202_Arc1PilgrimsReturn
+    ClearFlag FLAG_UNK_0x0031
+    GoToIfGe VAR_ARC1_PROGRESS, 13, Route202_Arc1PilgrimsWalkHome
+    ClearFlag FLAG_UNK_0x0030
+Route202_Arc1PilgrimsReturn:
+    Return
+
+Route202_Arc1PilgrimsWalkHome:
+    SetObjectEventPos 9, 172, 806
+    SetObjectEventDir 9, DIR_SOUTH
+    SetObjectEventPos 10, 174, 819
+    SetObjectEventDir 10, DIR_SOUTH
+    SetObjectEventMovementType 10, MOVEMENT_TYPE_WANDER_NORTH_AND_SOUTH
+    Return
+
+Route202_Arc1SetRuthVisibility:
+    SetFlag FLAG_UNK_0x0188
+    GoToIfLt VAR_ARC1_PROGRESS, 11, Route202_Arc1Return
+    ClearFlag FLAG_UNK_0x0188
+Route202_Arc1Return:
+    Return
+
+Route202_Arc1HideRuth:
+    SetFlag FLAG_UNK_0x0188
+    Return
 
 _004B:
     SetVar VAR_OBJ_GFX_ID_0, 97
@@ -56,6 +100,8 @@ _00B2:
 
 _00C7:
     LockAll
+    // Arc 1: no lesson before the lab (Ruth isn't here yet); step the player back.
+    GoToIfLt VAR_ARC1_PROGRESS, 11, Route202_Arc1PushBack
     ApplyMovement 3, _03C4
     ApplyMovement LOCALID_PLAYER, _04A0
     WaitMovement
@@ -93,6 +139,39 @@ _0164:
     GoTo _0174
 
 _0174:
+    // Arc 1 scene 10: no catching tutorial (everyone has played Platinum). Ruth stops beside the
+    // player, hands over 5 Poke Balls and the Town Map, and leaves. No Parcel gate and no gender
+    // branches; the stock text paths below (_019F.._0262, _027C..) are left in place, unreachable.
+    SetCounterpartBGM
+    Message Route202_Text_Arc1RuthTakeThese
+    SetVar VAR_0x8004, ITEM_POKE_BALL
+    SetVar VAR_0x8005, 5
+    GiveItemQuantity
+    SetVar VAR_0x8004, ITEM_TOWN_MAP
+    SetVar VAR_0x8005, 1
+    GiveItemQuantity
+    Message Route202_Text_Arc1RuthPortalReader
+    Message Route202_Text_Arc1RuthAnyway
+    CloseMessage
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfEq VAR_0x8005, 829, Route202_Arc1RuthExitNorth
+    ApplyMovement 3, Route202_Movement_Arc1RuthExitSouth
+    GoTo Route202_Arc1RuthExitWalk
+    End
+
+Route202_Arc1RuthExitNorth:
+    ApplyMovement 3, Route202_Movement_Arc1RuthExitViaNorth
+Route202_Arc1RuthExitWalk:
+    ApplyMovement LOCALID_PLAYER, Route202_Movement_Arc1PlayerWatchRuth
+    WaitMovement
+    FadeToDefaultMusic3
+    RemoveObject 3
+    SetVar VAR_UNK_0x4087, 1
+    SetVar VAR_ARC1_PROGRESS, 12 // Arc 1: lesson done (5 Poke Balls + Town Map)
+    ReleaseAll
+    End
+
+_0174_Unused_StockGate:
     GoToIfUnset FLAG_RECEIVED_PARCEL, _027C
     GetPlayerGender VAR_RESULT
     GoToIfEq VAR_RESULT, GENDER_MALE, _019F
@@ -549,3 +628,96 @@ Route202_UnusedMovement4:
 _06F8:
     WalkNormalEast
     EndMovement
+
+Route202_Arc1PushBack:
+    Message Route202_Text_Arc1GoSeeRowanFirst
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, _04AC
+    WaitMovement
+    ReleaseAll
+    End
+
+Route202_Arc1RuthTalk:
+    GoToIfGe VAR_UNK_0x4087, 2, _04C4
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message Route202_Text_Arc1RuthTalk
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
+// Ruth is at (179,z), the player at (180,z) on the coord tile. Row 830 is solid west of x180 and
+// rows 832-833 are open only at x184-189, so she goes round the player and back south along x184
+// toward Sandgem.
+Route202_Movement_Arc1RuthExitSouth:
+    WalkNormalSouth
+    WalkNormalEast 5
+    WalkNormalSouth 9
+    EndMovement
+
+    .balign 4, 0
+Route202_Movement_Arc1RuthExitViaNorth:
+    WalkNormalNorth
+    WalkNormalEast 5
+    WalkNormalSouth 9
+    EndMovement
+
+    .balign 4, 0
+Route202_Movement_Arc1PlayerWatchRuth:
+    Delay8 6
+    WalkOnSpotNormalEast
+    Delay8 4
+    WalkOnSpotNormalSouth
+    EndMovement
+
+Route202_Arc1PilgrimOldMan:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    GoToIfGe VAR_ARC1_PROGRESS, 13, Route202_Arc1PilgrimOldManHome
+    Message Route202_Text_Arc1PilgrimOldMan
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimOldManHome:
+    Message Route202_Text_Arc1PilgrimOldManHome
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimFather:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    GoToIfGe VAR_ARC1_PROGRESS, 13, Route202_Arc1PilgrimFatherHome
+    Message Route202_Text_Arc1PilgrimFather
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimFatherHome:
+    Message Route202_Text_Arc1PilgrimFatherHome
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimSailor:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message Route202_Text_Arc1PilgrimSailor
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimSister:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message Route202_Text_Arc1PilgrimSister
+    GoTo Route202_Arc1PilgrimEnd
+
+Route202_Arc1PilgrimSon:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message Route202_Text_Arc1PilgrimSon
+Route202_Arc1PilgrimEnd:
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End

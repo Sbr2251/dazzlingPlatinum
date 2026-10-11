@@ -1,0 +1,243 @@
+{
+    "base_stats": {
+        "hp": 80,
+        "attack": 105,
+        "defense": 80,
+        "speed": 93,
+        "special_attack": 65,
+        "special_defense": 55
+    },
+    "types": [
+        "TYPE_NORMAL",
+        "TYPE_FLYING"
+    ],
+    "catch_rate": 45,
+    "base_exp_reward": 220,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 3,
+        "defense": 0,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 15,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_SLOW",
+    "egg_groups": [
+        "EGG_GROUP_FLYING",
+        "EGG_GROUP_FLYING"
+    ],
+    "abilities": [
+        "ABILITY_KEEN_EYE",
+        "ABILITY_SUPER_LUCK"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_GRAY",
+    "flip_sprite": false,
+    "icon_palette": 1,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_GUST"
+            ],
+            [
+                1,
+                "MOVE_LEER"
+            ],
+            [
+                1,
+                "MOVE_GROWL"
+            ],
+            [
+                1,
+                "MOVE_QUICK_ATTACK"
+            ],
+            [
+                4,
+                "MOVE_GROWL"
+            ],
+            [
+                8,
+                "MOVE_LEER"
+            ],
+            [
+                11,
+                "MOVE_QUICK_ATTACK"
+            ],
+            [
+                15,
+                "MOVE_AIR_CUTTER"
+            ],
+            [
+                18,
+                "MOVE_ROOST"
+            ],
+            [
+                23,
+                "MOVE_DETECT"
+            ],
+            [
+                27,
+                "MOVE_TAUNT"
+            ],
+            [
+                33,
+                "MOVE_AIR_SLASH"
+            ],
+            [
+                38,
+                "MOVE_RAZOR_WIND"
+            ],
+            [
+                44,
+                "MOVE_FEATHER_DANCE"
+            ],
+            [
+                49,
+                "MOVE_SWAGGER"
+            ],
+            [
+                55,
+                "MOVE_FACADE"
+            ],
+            [
+                60,
+                "MOVE_TAILWIND"
+            ],
+            [
+                66,
+                "MOVE_SKY_ATTACK"
+            ]
+        ],
+        "by_tm": [
+            "TM06",
+            "TM10",
+            "TM11",
+            "TM12",
+            "TM15",
+            "TM17",
+            "TM18",
+            "TM21",
+            "TM27",
+            "TM32",
+            "TM40",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM47",
+            "TM51",
+            "TM58",
+            "TM68",
+            "TM77",
+            "TM78",
+            "TM82",
+            "TM83",
+            "TM87",
+            "TM88",
+            "TM89",
+            "TM90",
+            "HM02",
+            "HM05"
+        ],
+        "by_tutor": [
+            "MOVE_SNORE",
+            "MOVE_AIR_CUTTER",
+            "MOVE_HEAT_WAVE",
+            "MOVE_SWIFT",
+            "MOVE_UPROAR"
+        ],
+        "egg_moves": []
+    },
+    "evolutions": [],
+    "offspring": "SPECIES_PIDOVE",
+    "footprint": {
+        "has": true,
+        "size": "FOOTPRINT_MEDIUM",
+        "type": "FOOTPRINT_TYPE_TOUGH"
+    },
+    "pokedex_data": {
+        "height": 12,
+        "weight": 290,
+        "body_shape": "SHAPE_WINGED",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 266,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 266,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 7,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 7,
+        "en": {
+            "name": "UNFEZANT",
+            "category": "Proud Pokémon",
+            "entry_text": [
+                "Males swing the plumage on their\n",
+                "heads to threaten others, but\n",
+                "females are better at flying."
+            ]
+        },
+        "fr": {
+            "name": "DÉFLAISAN",
+            "category": "Pokémon Fier",
+            "entry_text": [
+                "Le mâle intimide ses ennemis avec\n",
+                "ses caroncules. La femelle vole\n",
+                "mieux que le mâle."
+            ]
+        },
+        "de": {
+            "name": "FASASNOB",
+            "category": "Stolz-Pokémon",
+            "entry_text": [
+                "Männchen schrecken Gegner ab,\n",
+                "indem sie ihren Kopfschmuck\n",
+                "schütteln. Weibchen verfügen über\n",
+                "bessere Flugfertigkeiten."
+            ]
+        },
+        "it": {
+            "name": "UNFEZANT",
+            "category": "Pokémon Orgoglio",
+            "entry_text": [
+                "Il maschio minaccia il nemico facendo\n",
+                "ondeggiare gli ornamenti del capo.\n",
+                "La femmina eccelle nel volo."
+            ]
+        },
+        "es": {
+            "name": "UNFEZANT",
+            "category": "Pokémon Altanero",
+            "entry_text": [
+                "El macho amenaza al enemigo\n",
+                "meciendo el adorno de su cabeza. Al\n",
+                "volar, la hembra es mucho más\n",
+                "diestra que el macho."
+            ]
+        },
+        "jp": {
+            "name": "ケンホロウ",
+            "category": "プライドポケモン",
+            "entry_text": [
+                "オスは　あたまの　かざりを\n",
+                "ゆらして　あいてを\n",
+                "いかくする。メスの　ひこう\n",
+                "のうりょくは　オスを　うわまわる。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_SOUTH_WEST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 70,
+        "rarity": 20,
+        "unused": 4357
+    }
+}

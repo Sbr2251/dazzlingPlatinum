@@ -8,10 +8,12 @@
         "Welcome to the world of Pokémon!\r",
         "The journey you are about to embark\n",
         "upon is not the Sinnoh you remember.\r",
-        "It is a parallel Sinnoh, where events\n",
-        "have unfolded differently...\r",
-        "...down to the very map.\n",
-        "It begins after Team Galactic fell.\r",
+        "It is a parallel Sinnoh: a world\n",
+        "much like the one you know...\r",
+        "...but where events have unfolded\n",
+        "differently, down to the very map.\r",
+        "Some people you may recognize.\n",
+        "Some places may feel familiar.\r",
         "And some events...\n",
         "may be very different.\r"
       ]
@@ -104,6 +106,10 @@
     {
       "id": "RowanIntro_Text_RivalChoiceTommy",
       "en_US": "Tommy"
+    },
+    {
+      "id": "RowanIntro_Text_RivalDefaultName",
+      "en_US": "Garius"
     }
   ]
 }

@@ -1,0 +1,242 @@
+{
+    "base_stats": {
+        "hp": 85,
+        "attack": 135,
+        "defense": 130,
+        "speed": 25,
+        "special_attack": 60,
+        "special_defense": 70
+    },
+    "types": [
+        "TYPE_ROCK",
+        "TYPE_ROCK"
+    ],
+    "catch_rate": 45,
+    "base_exp_reward": 232,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 3,
+        "defense": 0,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_EVERSTONE",
+        "rare": "ITEM_HARD_STONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 15,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_SLOW",
+    "egg_groups": [
+        "EGG_GROUP_MINERAL",
+        "EGG_GROUP_MINERAL"
+    ],
+    "abilities": [
+        "ABILITY_STURDY",
+        "ABILITY_SAND_FORCE"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_BLUE",
+    "flip_sprite": false,
+    "icon_palette": 0,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_SAND_ATTACK"
+            ],
+            [
+                1,
+                "MOVE_HEADBUTT"
+            ],
+            [
+                1,
+                "MOVE_TACKLE"
+            ],
+            [
+                1,
+                "MOVE_HARDEN"
+            ],
+            [
+                4,
+                "MOVE_HARDEN"
+            ],
+            [
+                7,
+                "MOVE_SAND_ATTACK"
+            ],
+            [
+                10,
+                "MOVE_HEADBUTT"
+            ],
+            [
+                14,
+                "MOVE_ROCK_BLAST"
+            ],
+            [
+                17,
+                "MOVE_MUD_SLAP"
+            ],
+            [
+                20,
+                "MOVE_IRON_DEFENSE"
+            ],
+            [
+                23,
+                "MOVE_ROCK_THROW"
+            ],
+            [
+                25,
+                "MOVE_POWER_GEM"
+            ],
+            [
+                30,
+                "MOVE_ROCK_SLIDE"
+            ],
+            [
+                36,
+                "MOVE_STEALTH_ROCK"
+            ],
+            [
+                42,
+                "MOVE_SANDSTORM"
+            ],
+            [
+                48,
+                "MOVE_STONE_EDGE"
+            ],
+            [
+                55,
+                "MOVE_EXPLOSION"
+            ]
+        ],
+        "by_tm": [
+            "TM06",
+            "TM10",
+            "TM15",
+            "TM17",
+            "TM21",
+            "TM22",
+            "TM26",
+            "TM27",
+            "TM32",
+            "TM37",
+            "TM39",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM58",
+            "TM64",
+            "TM68",
+            "TM69",
+            "TM71",
+            "TM76",
+            "TM78",
+            "TM80",
+            "TM82",
+            "TM83",
+            "TM87",
+            "TM90",
+            "TM91",
+            "HM04",
+            "HM06",
+            "HM08"
+        ],
+        "by_tutor": [
+            "MOVE_MUD_SLAP",
+            "MOVE_SUPERPOWER",
+            "MOVE_IRON_HEAD",
+            "MOVE_SNORE",
+            "MOVE_EARTH_POWER",
+            "MOVE_IRON_DEFENSE"
+        ],
+        "egg_moves": []
+    },
+    "evolutions": [],
+    "offspring": "SPECIES_ROGGENROLA",
+    "footprint": {
+        "has": true,
+        "size": "FOOTPRINT_LARGE",
+        "type": "FOOTPRINT_TYPE_TOUGH"
+    },
+    "pokedex_data": {
+        "height": 17,
+        "weight": 2600,
+        "body_shape": "SHAPE_TENTACLES",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 235,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 235,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 2,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 2,
+        "en": {
+            "name": "GIGALITH",
+            "category": "Compressed Pokémon",
+            "entry_text": [
+                "The solar energy absorbed by its\n",
+                "body's orange crystals is magnified\n",
+                "internally and fired from its mouth."
+            ]
+        },
+        "fr": {
+            "name": "GIGALITHE",
+            "category": "Pokémon Surpression",
+            "entry_text": [
+                "Il comprime de l'énergie dans son\n",
+                "corps, et ses attaques sont assez\n",
+                "puissantes pour renverser des\n",
+                "montagnes."
+            ]
+        },
+        "de": {
+            "name": "BROCKOLOSS",
+            "category": "Kompressions-Pokémon",
+            "entry_text": [
+                "Es verarbeitet Sonnenstrahlen in\n",
+                "seinem Energiekern zu Lichtkugeln\n",
+                "weiter, um sie im Kampf auf seinen\n",
+                "Gegner abzufeuern."
+            ]
+        },
+        "it": {
+            "name": "GIGALITH",
+            "category": "Pokémon Pressionalta",
+            "entry_text": [
+                "Assorbe i raggi solari e, grazie al\n",
+                "suo nucleo energetico, li trasforma\n",
+                "in palle di luce che poi spara."
+            ]
+        },
+        "es": {
+            "name": "GIGALITH",
+            "category": "Pokémon Presurizado",
+            "entry_text": [
+                "El núcleo de su cuerpo comprime la\n",
+                "energía para lanzar ataques\n",
+                "capaces de destruir una montaña."
+            ]
+        },
+        "jp": {
+            "name": "ギガイアス",
+            "category": "こうあつポケモン",
+            "entry_text": [
+                "とりこんだ　たいようこうせんを\n",
+                "エネルギ－コアで　はんのう　させて\n",
+                "ひかりのたまとして\n",
+                "うちだしてくる。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NORTH_EAST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 70,
+        "rarity": 20,
+        "unused": 2059
+    }
+}

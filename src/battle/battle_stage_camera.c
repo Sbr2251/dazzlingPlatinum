@@ -125,6 +125,8 @@ typedef struct StageCamera {
     int introWait;
     BOOL introHidesHealthbars; // the battle-start focus keeps the opponents' healthbars hidden
     u8 heldHealthbars; // battlers whose healthbar slides in once the focus is home
+    u8 throwWaiting; // player battlers whose trainer throw is waiting for the focus to get home
+    u8 throwLate[MAX_BATTLERS]; // task frames that throw waited, owed by its healthbar's slide-in
     u8 scriptHidHealthbars; // battlers whose healthbar command 91 hid; shown again by the script end at the latest
     BOOL holdAfterScript; // the script's end pose becomes a held focus (the Totem aura)
     int idlePose; // the next of sIdlePoses
@@ -1380,6 +1382,50 @@ BOOL BattleStage_IsIntroFocusDone(void)
         SnapHome();
         sStageCamera.introHoming = FALSE;
         sStageCamera.introWait = 0;
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+// The trainer battle's script slides the player's healthbar in a fixed time after it issues
+// the throw (subscript_start_encounter.s: ThrowPokeball, WaitTime 96, HealthbarSlideInDelay)
+// and doesn't wait for the throw. While the throw waits for the focus to get home, the bar
+// came in before the ball had even left the trainer's hand. The throw counts the frames it
+// waited, and the bar's slide-in waits them out, so the bar comes in as long after the throw
+// as it does without the stage.
+BOOL BattleStage_IsIntroThrowReady(int battler)
+{
+    if (battler < 0 || battler >= MAX_BATTLERS) {
+        return BattleStage_IsIntroFocusDone();
+    }
+
+    if (BattleStage_IsIntroFocusDone()) {
+        sStageCamera.throwWaiting &= ~(1 << battler);
+        return TRUE;
+    }
+
+    sStageCamera.throwWaiting |= 1 << battler;
+
+    if (sStageCamera.throwLate[battler] < 255) {
+        sStageCamera.throwLate[battler]++;
+    }
+
+    return FALSE;
+}
+
+BOOL BattleStage_HoldSendOutHealthbar(int battler)
+{
+    if (battler < 0 || battler >= MAX_BATTLERS) {
+        return FALSE;
+    }
+
+    if (sStageCamera.throwWaiting & (1 << battler)) {
+        return TRUE;
+    }
+
+    if (sStageCamera.throwLate[battler] > 0) {
+        sStageCamera.throwLate[battler]--;
         return TRUE;
     }
 

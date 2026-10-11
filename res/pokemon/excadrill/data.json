@@ -1,0 +1,254 @@
+{
+    "base_stats": {
+        "hp": 110,
+        "attack": 135,
+        "defense": 60,
+        "speed": 88,
+        "special_attack": 50,
+        "special_defense": 65
+    },
+    "types": [
+        "TYPE_GROUND",
+        "TYPE_STEEL"
+    ],
+    "catch_rate": 60,
+    "base_exp_reward": 178,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 2,
+        "defense": 0,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 20,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_FAST",
+    "egg_groups": [
+        "EGG_GROUP_FIELD",
+        "EGG_GROUP_FIELD"
+    ],
+    "abilities": [
+        "ABILITY_SAND_VEIL",
+        "ABILITY_SAND_FORCE"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_GRAY",
+    "flip_sprite": false,
+    "icon_palette": 0,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_SCRATCH"
+            ],
+            [
+                1,
+                "MOVE_MUD_SLAP"
+            ],
+            [
+                1,
+                "MOVE_RAPID_SPIN"
+            ],
+            [
+                1,
+                "MOVE_MUD_SPORT"
+            ],
+            [
+                5,
+                "MOVE_RAPID_SPIN"
+            ],
+            [
+                8,
+                "MOVE_MUD_SLAP"
+            ],
+            [
+                12,
+                "MOVE_FURY_SWIPES"
+            ],
+            [
+                15,
+                "MOVE_METAL_CLAW"
+            ],
+            [
+                19,
+                "MOVE_DIG"
+            ],
+            [
+                22,
+                "MOVE_SHARPEN"
+            ],
+            [
+                26,
+                "MOVE_SLASH"
+            ],
+            [
+                29,
+                "MOVE_ROCK_SLIDE"
+            ],
+            [
+                31,
+                "MOVE_HORN_DRILL"
+            ],
+            [
+                36,
+                "MOVE_EARTHQUAKE"
+            ],
+            [
+                42,
+                "MOVE_SWORDS_DANCE"
+            ],
+            [
+                49,
+                "MOVE_SANDSTORM"
+            ],
+            [
+                55,
+                "MOVE_DRILL_PECK"
+            ],
+            [
+                62,
+                "MOVE_FISSURE"
+            ]
+        ],
+        "by_tm": [
+            "TM06",
+            "TM10",
+            "TM11",
+            "TM15",
+            "TM17",
+            "TM21",
+            "TM26",
+            "TM27",
+            "TM28",
+            "TM31",
+            "TM32",
+            "TM36",
+            "TM37",
+            "TM39",
+            "TM40",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM52",
+            "TM56",
+            "TM58",
+            "TM65",
+            "TM68",
+            "TM75",
+            "TM76",
+            "TM78",
+            "TM80",
+            "TM81",
+            "TM82",
+            "TM83",
+            "TM84",
+            "TM87",
+            "TM90",
+            "HM01",
+            "HM04",
+            "HM06",
+            "HM08"
+        ],
+        "by_tutor": [
+            "MOVE_MUD_SLAP",
+            "MOVE_IRON_HEAD",
+            "MOVE_SNORE",
+            "MOVE_HELPING_HAND",
+            "MOVE_EARTH_POWER",
+            "MOVE_IRON_DEFENSE",
+            "MOVE_MAGNET_RISE"
+        ],
+        "egg_moves": []
+    },
+    "evolutions": [],
+    "offspring": "SPECIES_DRILBUR",
+    "footprint": {
+        "has": true,
+        "size": "FOOTPRINT_MEDIUM",
+        "type": "FOOTPRINT_TYPE_CUTE"
+    },
+    "pokedex_data": {
+        "height": 7,
+        "weight": 404,
+        "body_shape": "SHAPE_BIPEDAL_TAILLESS",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 337,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 337,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 21,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 21,
+        "en": {
+            "name": "EXCADRILL",
+            "category": "Subterrene Pokémon",
+            "entry_text": [
+                "It helps in tunnel construction.\n",
+                "Its drill has evolved into steel\n",
+                "that can bore through iron plates."
+            ]
+        },
+        "fr": {
+            "name": "MINOTAUPE",
+            "category": "Pokémon Souterrain",
+            "entry_text": [
+                "Ses vrilles en acier peuvent\n",
+                "transpercer des poutres en fer. Il\n",
+                "est très employé dans la\n",
+                "construction de tunnels."
+            ]
+        },
+        "de": {
+            "name": "STALOBOR",
+            "category": "Untergrund-Pokémon",
+            "entry_text": [
+                "Sein verworrener Bau liegt 100 m\n",
+                "tief unter der Erde. Gelegentlich\n",
+                "gräbt es auch U-Bahn-Schächte an."
+            ]
+        },
+        "it": {
+            "name": "EXCADRILL",
+            "category": "Pokémon Sottoterra",
+            "entry_text": [
+                "La trivella si è evoluta diventando\n",
+                "d'acciaio e può perforare una\n",
+                "lastra di ferro. È molto utile per\n",
+                "scavare tunnel."
+            ]
+        },
+        "es": {
+            "name": "EXCADRILL",
+            "category": "Pokémon Subterráneo",
+            "entry_text": [
+                "Construye madrigueras laberínticas\n",
+                "a 100 m bajo tierra. A veces abre\n",
+                "agujeros en los túneles de metro."
+            ]
+        },
+        "jp": {
+            "name": "ドリュウズ",
+            "category": "ちていポケモン",
+            "entry_text": [
+                "はがねに　しんかした　ドリルは\n",
+                "てっぱんを　つらぬく　はかいりょく。\n",
+                "トンネルこうじで\n",
+                "だいかつやくする。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NORTH_EAST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 70,
+        "rarity": 20,
+        "unused": 2056
+    }
+}

@@ -8,6 +8,7 @@
 #include "constants/battle/battle_anim.h"
 #include "constants/graphics.h"
 
+#include "battle/battle_stage.h"
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
 
@@ -39,6 +40,9 @@ typedef struct StatChangeContext {
     ManagedSprite *attackerSprite2;
     ManagedSprite *attackerPartnerSprite;
     u8 timer;
+    // The 3D battle stage draws the effect on the battler's live sprite (BattleStage_StartStatEffect):
+    // no BG, window, blend or copies
+    BOOL onStage;
 } StatChangeContext;
 
 enum StatChangeState {
@@ -127,15 +131,21 @@ static void BattleAnimTask_StatChange(SysTask *task, void *param)
 
     switch (ctx->common.state) {
     case STAT_CHANGE_STATE_LOAD_BG:
-        StatChangeContext_LoadBg(ctx, BATTLE_BG_BASE);
+        if (!ctx->onStage) {
+            StatChangeContext_LoadBg(ctx, BATTLE_BG_BASE);
+        }
+
         ctx->common.state++;
         break;
     case STAT_CHANGE_STATE_SET_BLENDING:
-        G2_SetBlendAlpha(
-            BATTLE_BG_BLENDMASK_BASE,
-            GX_BLEND_PLANEMASK_BD | GX_BLEND_PLANEMASK_OBJ | BATTLE_BG_BLENDMASK_3D | BATTLE_BG_BLENDMASK_EFFECT,
-            ctx->param.overlayAlpha,
-            ctx->param.otherAlpha);
+        if (!ctx->onStage) {
+            G2_SetBlendAlpha(
+                BATTLE_BG_BLENDMASK_BASE,
+                GX_BLEND_PLANEMASK_BD | GX_BLEND_PLANEMASK_OBJ | BATTLE_BG_BLENDMASK_3D | BATTLE_BG_BLENDMASK_EFFECT,
+                ctx->param.overlayAlpha,
+                ctx->param.otherAlpha);
+        }
+
         ctx->common.state++;
         break;
     case STAT_CHANGE_STATE_SCROLL:
@@ -155,16 +165,28 @@ static void BattleAnimTask_StatChange(SysTask *task, void *param)
         }
 
         if (ctx->param.overlayAlpha == STAT_CHANGE_OVERLAY_TARGET_ALPHA && ctx->param.otherAlpha == STAT_CHANGE_OTHER_TARGET_ALPHA) {
-            Bg_ClearTilemap(ctx->common.bgConfig, BATTLE_BG_BASE);
+            if (!ctx->onStage) {
+                Bg_ClearTilemap(ctx->common.bgConfig, BATTLE_BG_BASE);
+            }
+
             ManagedSprite_SetDrawFlag(ctx->attackerSprite, FALSE);
             ManagedSprite_SetDrawFlag(ctx->attackerSprite2, FALSE);
             ManagedSprite_SetDrawFlag(ctx->attackerPartnerSprite, FALSE);
             ctx->common.state++;
         }
 
-        G2_ChangeBlendAlpha(ctx->param.overlayAlpha, ctx->param.otherAlpha);
+        if (!ctx->onStage) {
+            G2_ChangeBlendAlpha(ctx->param.overlayAlpha, ctx->param.otherAlpha);
+        }
         break;
     default:
+        if (ctx->onStage) {
+            BattleStage_EndStatEffect();
+            BattleAnimSystem_EndAnimTask(ctx->common.battleAnimSys, task);
+            BattleAnimUtil_Free(ctx);
+            return;
+        }
+
         G2_SetWndOutsidePlane(BATTLE_BG_WNDMASK_ALL | GX_WND_PLANEMASK_OBJ, FALSE);
         G2_SetWndOBJInsidePlane(BATTLE_BG_WNDMASK_ALL | GX_WND_PLANEMASK_OBJ, FALSE);
         Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_BASE, BG_OFFSET_UPDATE_SET_X, 0);
@@ -179,8 +201,13 @@ static void BattleAnimTask_StatChange(SysTask *task, void *param)
     ctx->param.offsetX += ctx->param.stepX;
     ctx->param.offsetY += ctx->param.stepY;
 
-    Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_BASE, BG_OFFSET_UPDATE_SET_X, ctx->param.offsetX);
-    Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_BASE, BG_OFFSET_UPDATE_SET_Y, ctx->param.offsetY);
+    if (ctx->onStage) {
+        // The pattern scrolls as the BG would (BG2's X offset stays 0)
+        BattleStage_SetStatEffect(ctx->param.offsetY, ctx->param.overlayAlpha);
+    } else {
+        Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_BASE, BG_OFFSET_UPDATE_SET_X, ctx->param.offsetX);
+        Bg_SetOffset(ctx->common.bgConfig, BATTLE_BG_BASE, BG_OFFSET_UPDATE_SET_Y, ctx->param.offsetY);
+    }
 
     ManagedSprite_TickFrame(ctx->attackerSprite);
     ManagedSprite_TickFrame(ctx->attackerSprite2);
@@ -219,6 +246,29 @@ static void BattleAnimScriptFunc_StatChangeCommon(BattleAnimSystem *system, Stat
     }
 
     int battlerType = BattleAnimUtil_GetBattlerType(system, battler);
+
+    // The 3D battle stage draws the battler (a lit mesh, its Gen 5 stream): a copy at its
+    // classic place, in its classic frame, no longer lines up with it, so the stage puts the
+    // pattern on the live sprite instead (compat.md, "Stat changes")
+    ctx->onStage = BattleAnimSystem_IsContest(system) == FALSE
+        && BattleStage_StartStatEffect(
+            battler,
+            ctx->param.narcID,
+            sStatChangeNarcMemberTable[ctx->param.memberTableIndex][STAT_CHANGE_MEMBER_TILES],
+            sStatChangeNarcMemberTable[ctx->param.memberTableIndex][STAT_CHANGE_MEMBER_PALETTE],
+            sStatChangeNarcMemberTable[ctx->param.memberTableIndex][STAT_CHANGE_MEMBER_TILEMAP],
+            BattleAnimSystem_GetHeapID(system));
+
+    if (ctx->onStage) {
+        ManagedSprite_SetDrawFlag(ctx->attackerSprite, FALSE);
+        ManagedSprite_SetDrawFlag(ctx->attackerSprite2, FALSE);
+        ManagedSprite_SetDrawFlag(ctx->attackerPartnerSprite, FALSE);
+        ctx->param.offsetX = 0;
+        ctx->param.offsetY = 0;
+        BattleAnimSystem_StartAnimTask(ctx->common.battleAnimSys, BattleAnimTask_StatChange, ctx);
+        return;
+    }
+
     if (BattleAnimSystem_IsContest(system) == TRUE) {
         ManagedSprite_SetDrawFlag(ctx->attackerPartnerSprite, FALSE);
         bgPriority = BattleAnimSystem_GetBgPriority(ctx->common.battleAnimSys, BATTLE_ANIM_BG_EFFECT);

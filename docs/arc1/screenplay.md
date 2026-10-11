@@ -1,5 +1,20 @@
 # Arc 1 part 1 screenplay (approved)
 
+> **SUPERSEDED. Kept for history only; don't implement from this file.** It is the first-pass Arc 1 part 1
+> screenplay. The game no longer matches it:
+> - The rival is **Garius**, not Barry. Rival naming is skipped (`rowan_intro_app.c`).
+> - The starter pick and the Mawile battle happen **inside the Distortion World**. There is no Mawile chase on the
+>   terrace and no briefcase left on the roof (`docs/arc1/revision/PLAN.md`).
+> - The assistant stays at the portal and doesn't run past the kids. Cyrus doesn't take the briefcase: he gives
+>   the player the shard at the parting.
+> - The Lake Verity arrival has no camera pan. The player walks up to the castle with Garius following, and he
+>   guards the tall grass (`docs/lake_verity_redesign/gameplay.md`, "Arrival").
+>
+> Current sources, in order: the "Dazzling Platinum Planning" Google Doc, then `docs/arc1/revision/spec.md` and
+> `STATUS.md` (part 1 as built), `docs/story/arc1_part2_screenplay.md` (part 2), `docs/arc1/round2/PLAN.md`
+> (changes in progress).
+
+
 Scope: a new game up to Cyrus and Barry leaving Lake Verity. Mom's line rewrites, the Route 201 rival battle
 and Sandgem come later.
 

@@ -9,39 +9,39 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_BIDOOF",
-            "form": 0,
-            "level": 4,
-            "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
-        },
-        {
             "species": "SPECIES_BUDEW",
             "form": 0,
-            "level": 4,
+            "level": 6,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_ABSORB",
+                "MOVE_GROWTH"
+            ],
+            "power": 20,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_STARLY",
+            "species": "SPECIES_SEWADDLE",
             "form": 0,
-            "level": 4,
+            "level": 6,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_STRING_SHOT"
+            ],
+            "power": 20,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_ABRA",
+            "species": "SPECIES_RALTS",
             "form": 0,
-            "level": 4,
+            "level": 7,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_GROWL",
+                "MOVE_CONFUSION"
+            ],
+            "power": 20,
             "ball_seal": 0
         }
     ],

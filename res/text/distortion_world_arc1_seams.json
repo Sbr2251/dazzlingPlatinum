@@ -33,8 +33,10 @@
       "en_US": [
         "Cyrus: The void does not keep what\n",
         "falls into it. It sends it back.\r",
-        "Falling costs us nothing but time.\n",
-        "There must be another way across."
+        "I will experiment. Let us see if\n",
+        "we can jump straight there.\r",
+        "Why don't you try to find\n",
+        "another path?"
       ]
     },
     {
@@ -77,8 +79,8 @@
     {
       "id": "DistortionWorldArc1Seams_Text_BarryPickOne",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: We found it! Rowan\n",
-        "said the starters are ours!\r",
+        "{STRVAR_1 3, 0, 0}: We found it!\n",
+        "Now Rowan owes us one!\r",
         "Go on, pick one first!\n",
         "I'll take whatever beats yours!"
       ]
@@ -98,13 +100,14 @@
       ]
     },
     {
-      "id": "DistortionWorldArc1Seams_Text_CyrusHarvesting",
+      "id": "DistortionWorldArc1Seams_Text_CyrusIKnowThisHum",
       "en_US": [
         "Cyrus: A shard... Cracked, and\n",
         "still humming with power.\r",
-        "That Pok\u00e9mon was not wild with\n",
+        "That Pokémon was not wild with\n",
         "fear. It was wild with pain.\r",
-        "Someone has been... harvesting."
+        "...I know this hum. I have heard it\n",
+        "before. From a lake."
       ]
     },
     {
@@ -163,6 +166,13 @@
       "en_US": [
         "{STRVAR_1 3, 0, 0}: Whoa... Did we just\n",
         "walk through thin air?!"
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusItFallsToYou",
+      "en_US": [
+        "Cyrus: I have no Pokémon to stand\n",
+        "with. ...It falls to you."
       ]
     }
   ]

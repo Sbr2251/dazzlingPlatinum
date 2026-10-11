@@ -206,7 +206,9 @@
       "id": "LakeVerity_Text_DrawbridgeSign",
       "en_US": [
         "VERITY CASTLE\n",
-        "The drawbridge is down."
+        "The drawbridge is down.\r",
+        "Raised in an age before memory,\n",
+        "for the lord of space."
       ]
     },
     {
@@ -281,12 +283,13 @@
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1BarryWhatsOnTheCastle",
+      "id": "LakeVerity_Text_Arc1BarryDidYouHearThat",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: Lake Verity!\n",
-        "Now, where's Professor Rowan?\r",
-        "...Huh? What's going on up on\n",
-        "top of the castle?!"
+        "{STRVAR_1 3, 0, 0}: Hey, did you hear that?\n",
+        "Something's going on up at the\f",
+        "castle! We have to go see!\r",
+        "Stay out of the tall grass, though.\n",
+        "We don't have any Pokémon yet!"
       ]
     },
     {
@@ -298,10 +301,17 @@
       ]
     },
     {
+      "id": "LakeVerity_Text_Arc1CyrusTheyBuiltItAThrone",
+      "en_US": [
+        "Palkia... Even here, they built it\n",
+        "a throne.\r"
+      ]
+    },
+    {
       "id": "LakeVerity_Text_Arc1BarryUpThoseStairs",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: That's Professor Rowan\n",
-        "up there! And that portal...\r",
+        "{STRVAR_1 3, 0, 0}: Hear those voices?\n",
+        "Somebody's up there, all right!\r",
         "Come on, up those stairs!\n",
         "Last one up owes me 10 million!"
       ]
@@ -344,8 +354,9 @@
     {
       "id": "LakeVerity_Text_Arc1RowanHaveWeMet",
       "en_US": [
-        "Rowan: And you, sir. You came out\n",
-        "of that portal, didn't you?\r",
+        "Rowan: And you, sir.\r",
+        "You were up here when it tore open,\n",
+        "weren't you?\r",
         "Forgive me, I don't believe\n",
         "we've met. Are you hurt?"
       ]
@@ -387,6 +398,13 @@
         "its ways.\r",
         "If someone must go, I will go.\n",
         "I'll guide the way to the briefcase."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanFromThatWorld",
+      "en_US": [
+        "Rowan: From that world? Sir, you've\n",
+        "had a shock. Sit down before you-"
       ]
     },
     {
@@ -478,6 +496,8 @@
       "id": "LakeVerity_Text_Arc1RowanADealIsADeal",
       "en_US": [
         "Rowan: All three are safe...\r",
+        "I made no promise... but you kept\n",
+        "your end of it all the same.\r",
         "Very well. A deal is a deal -\n",
         "the starters are yours."
       ]
@@ -493,7 +513,27 @@
       "id": "LakeVerity_Text_Arc1RowanItsGone",
       "en_US": [
         "Rowan: ...It's gone.\r",
-        "Come, {STRVAR_1 3, 2, 0}. We have a great\n",
+        "You two. Once you've rested, come\n",
+        "by my lab in Sandgem Town."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanThankYouSir",
+      "en_US": [
+        "Rowan: And you, sir. Thank you for\n",
+        "bringing them back.\r",
+        "My lab is in Sandgem. When you've\n",
+        "rested, I would like to talk."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusPerhaps",
+      "en_US": "Cyrus: ...Perhaps."
+    },
+    {
+      "id": "LakeVerity_Text_Arc1RowanComeRuth",
+      "en_US": [
+        "Rowan: Come, {STRVAR_1 3, 2, 0}. We have a great\n",
         "deal of data to go over."
       ]
     },
@@ -503,21 +543,33 @@
         "Cyrus: You two...\r",
         "You remind me of somebody\n",
         "I knew before.\r",
-        "They had this fire within them.\r"
+        "They had this fire within them.\r",
+        "I once called that fire a flaw.\n",
+        "Something to be purged.\r",
+        "...It is the reason I am still\n",
+        "standing.\r"
       ]
     },
     {
-      "id": "LakeVerity_Text_Arc1CyrusTakeItToRowan",
+      "id": "LakeVerity_Text_Arc1CyrusShowTheProfessor",
       "en_US": [
-        "Take it to Rowan when he's ready\n",
-        "to listen.\r",
-        "...Maybe this will help you out.\r"
+        "This was inside that Mawile.\n",
+        "Show it to the professor.\r",
+        "Not me. Not yet.\r"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1CyrusINeedToUnderstand",
+      "en_US": [
+        "Cyrus: I need to understand what\n",
+        "I am, here, before I stand in\f",
+        "front of anyone."
       ]
     },
     {
       "id": "LakeVerity_Text_Arc1BarryPerfectTiming",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: Woof!\n",
+        "{STRVAR_1 3, 0, 0}: Phew!\n",
         "Perfect timing on our part.\r",
         "I'm still not sure what to make\n",
         "of that guy...\r",
@@ -525,6 +577,41 @@
         "weird clothing.\r",
         "Whatever. I'm heading home to\n",
         "heal my Pokémon."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryNoPokemonNoGrass",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Whoa!\n",
+        "No Pokémon, no grass!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1NoPokemonNoGrass",
+      "en_US": [
+        "Better not go into the tall grass\n",
+        "without any Pokémon..."
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryWhereAreYouGoing",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Hey! Where are you\n",
+        "going? The castle's this way!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_Arc1BarryNotInThere",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Not in there!\n",
+        "That noise came from the top!"
+      ]
+    },
+    {
+      "id": "LakeVerity_Text_TerraceInscription",
+      "en_US": [
+        "Raised in an age before memory,\n",
+        "for the lord of space."
       ]
     }
   ]

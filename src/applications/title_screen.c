@@ -104,7 +104,7 @@ FS_EXTERN_OVERLAY(d_startmenu);
 #define LOGO_SHINE_COLOR          GX_RGB(31, 31, 31)
 #define LOGO_SHINE_OFF            0xFF
 #define LOGO_FLASH_COLOR          GX_RGB(31, 29, 31)
-#define LOGO_FLASH_FIRST_STEP     129 // First prerender step of Giratina's impact flash (212-step 1.7x loop)
+#define LOGO_FLASH_FIRST_STEP     99 // First prerender step of Giratina's impact flash (163-step loop)
 
 #define TITLE_CAM_MOVE_IN_FRAMES            60 // How long the title camera takes to move in
 #define TITLE_SCREEN_INPUT_DISABLE_FRAMES   30 // How long the inputs are disabled for after the intro
@@ -1692,9 +1692,11 @@ static void EmptyCameraFunction(Camera *camera)
 
 // Strength (out of 16) of the top-screen flash for each prerender step from
 // LOGO_FLASH_FIRST_STEP, following the brightness of the bottom-screen impact.
-// The 212-step loop samples the old 360-step render every ~1.7 frames, so these
-// are the old weights { 7, 9, 10, 9, 9, 8, 6, 4, 1 } at the same source frames.
-static const u8 sLogoFlashWeights[] = { 7, 10, 9, 8, 4, 1 };
+// The 163-step loop samples the original 360-frame render every ~2.21 frames
+// (step i shows source frame round(i * 360 / 163)), so these are the original
+// weights { 7, 9, 10, 9, 9, 8, 6, 4, 1 } (source frames 219-227) at the
+// source frames steps 99-103 show.
+static const u8 sLogoFlashWeights[] = { 7, 10, 9, 6, 1 };
 
 static u16 TitleScreen_BlendLogoColor(u16 color, u16 target, int weight)
 {

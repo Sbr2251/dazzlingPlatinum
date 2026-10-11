@@ -185,12 +185,13 @@ FieldBattleDTO *FieldBattleDTO_NewCatchingTutorial(enum HeapID heapID, const Fie
     String *string = String_Init(TRAINER_NAME_LEN + 1, heapID);
     Pokemon *mon;
 
-    MessageLoader_GetString(msgLoader, TrainerInfo_Gender(trainerInfo) ^ 1, string);
+    // Dazzling Platinum: the counterpart is always Ruth (female), whatever the player's gender.
+    MessageLoader_GetString(msgLoader, 1, string);
     TrainerInfo_SetName(dto->trainerInfo[BATTLER_PLAYER_1], String_GetData(string));
     String_Free(string);
     MessageLoader_Free(msgLoader);
 
-    TrainerInfo_SetGender(dto->trainerInfo[BATTLER_PLAYER_1], TrainerInfo_Gender(trainerInfo) ^ 1);
+    TrainerInfo_SetGender(dto->trainerInfo[BATTLER_PLAYER_1], GENDER_FEMALE);
     SetBackgroundAndTerrain(dto, fieldSystem);
     Options_Copy(options, dto->options);
     dto->timeOfDay = FieldSystem_GetTimeOfDay(fieldSystem);

@@ -34,9 +34,8 @@ _003A:
     GoTo _005A
 
 _005A:
-    GetPlayerGender VAR_RESULT
-    GoToIfEq VAR_RESULT, GENDER_MALE, _007A
-    GoToIfEq VAR_RESULT, GENDER_FEMALE, _0086
+    // Arc 1: this is Ruth's family home, so the kid always talks about a big sister.
+    GoTo _007A
     End
 
 _007A:
@@ -72,9 +71,7 @@ _00C4:
     GetSwarmMapAndSpecies VAR_MAP_LOCAL_1, VAR_MAP_LOCAL_0
     BufferMapName 1, VAR_MAP_LOCAL_1
     BufferSpeciesNameFromVar 2, VAR_MAP_LOCAL_0, 0, 1
-    GetPlayerGender VAR_RESULT
-    GoToIfEq VAR_RESULT, GENDER_MALE, _00FA
-    GoToIfEq VAR_RESULT, GENDER_FEMALE, _0103
+    GoTo _00FA
     End
 
 _00FA:

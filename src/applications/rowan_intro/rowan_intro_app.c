@@ -1596,8 +1596,8 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
         break;
     case RI_STATE_FADE_IN_ROWAN_AFTER_NAME:
         if (RowanIntro_FadeBgLayer(manager, BG_LAYER_MAIN_1, FADE_IN) == TRUE) {
-            // Dazzling Platinum: rival naming is skipped, the rival is always Barry.
-            String *tmpString = MessageLoader_GetNewString(manager->msgLoader, RowanIntro_Text_RivalChoiceBarry);
+            // Dazzling Platinum: rival naming is skipped, the rival is always Garius.
+            String *tmpString = MessageLoader_GetNewString(manager->msgLoader, RowanIntro_Text_RivalDefaultName);
 
             String_Copy(manager->rivalNamingScreenArgs->textInputStr, tmpString);
             String_Free(tmpString);

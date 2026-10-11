@@ -781,10 +781,10 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
         .paletteID = eclipse_shard_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_126] = {
-        .dataID = 0x0,
-        .iconID = none_NCGR,
-        .paletteID = none_NCLR,
+    [ITEM_PORTAL_READER] = {
+        .dataID = 0x1CB,
+        .iconID = portal_reader_NCGR,
+        .paletteID = portal_reader_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
     [ITEM_UNUSED_127] = {
@@ -3060,21 +3060,21 @@ u16 Item_FileID(u16 item, enum ItemFileType type)
         return sItemArchiveIDs[item].dataID;
     case ITEM_FILE_TYPE_ICON:
         if (item == ITEM_NONE) {
-            return 707; // TODO: Use NAIX generated from item_icon.narc
+            return none_NCGR;
         }
 
         if (item == ITEM_RETURN_ID) {
-            return 709; // TODO: Use NAIX generated from item_icon.narc
+            return unused_709_NCGR; // the "Close Bag" / "Cancel" arrow
         }
 
         return sItemArchiveIDs[item].iconID;
     case ITEM_FILE_TYPE_PALETTE:
         if (item == ITEM_NONE) {
-            return 708; // TODO: Use NAIX generated from item_icon.narc
+            return none_NCLR;
         }
 
         if (item == ITEM_RETURN_ID) {
-            return 710; // TODO: Use NAIX generated from item_icon.narc
+            return unused_710_NCLR;
         }
 
         return sItemArchiveIDs[item].paletteID;

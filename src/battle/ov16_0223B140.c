@@ -34,6 +34,7 @@
 #include "battle/struct_ov16_022674C4.h"
 #include "battle/totem_aura.h"
 #include "battle_anim/battle_anim_system.h"
+#include "battle_anim/ov12_02235E94.h"
 #include "overlay010/ov10_0221F800.h"
 #include "overlay010/struct_ov10_0221F800.h"
 #include "overlay011/particle_helper.h"
@@ -1572,6 +1573,45 @@ static void OffsetTrainerSprites(BattleSystem *battleSys, int sign)
     }
 }
 
+// The trainers and the Poke Balls they throw are OBJs at BG priority 2, under the 3D layer on
+// BG0 (priority 1). Classic BG0 is empty around them, but the stage's arena is opaque, so it
+// hid every trainer through the whole send-out (and the defeated trainer coming back). While
+// the arena shows they go up to BG0's priority, as an OBJ wins a tie with a BG: over the
+// arena, still under the text box on BG1. The classic order (the mons over the trainers)
+// never shows anyway: a trainer leaves before its Pokemon comes out of the ball. The balls
+// draw from their own task, so they keep the raised priority (the release raises them to 1
+// in any case); nothing reads these priorities back.
+static void RaiseIntroSprites(BattleSystem *battleSys)
+{
+    int i, priority;
+
+    if (!BattleStage_IsVisible()) {
+        return;
+    }
+
+    priority = Bg_GetPriority(BattleSystem_BGL(battleSys), BG_LAYER_MAIN_0);
+
+    for (i = 0; i < battleSys->maxBattlers; i++) {
+        BattlerData *battlerData = battleSys->battlers[i];
+
+        if (battlerData == NULL) {
+            continue;
+        }
+
+        if (battlerData->unk_18 != NULL && ManagedSprite_GetExplicitPriority(battlerData->unk_18) > priority) {
+            ManagedSprite_SetExplicitPriority(battlerData->unk_18, priority);
+        }
+
+        if (battlerData->unk_84 != NULL) {
+            ManagedSprite *ball = BallRotation_GetSprite(battlerData->unk_84);
+
+            if (ball != NULL && ManagedSprite_GetExplicitPriority(ball) > priority) {
+                ManagedSprite_SetExplicitPriority(ball, priority);
+            }
+        }
+    }
+}
+
 static void ov16_0223CF48(SysTask *param0, void *param1)
 {
     BattleSystem *v0 = param1;
@@ -1587,6 +1627,7 @@ static void ov16_0223CF48(SysTask *param0, void *param1)
         }
 
         PokemonSpriteManager_DrawSprites(v0->unk_88);
+        RaiseIntroSprites(v0);
         OffsetTrainerSprites(v0, 1);
         SpriteSystem_DrawSprites(v0->spriteMan);
         OffsetTrainerSprites(v0, -1);

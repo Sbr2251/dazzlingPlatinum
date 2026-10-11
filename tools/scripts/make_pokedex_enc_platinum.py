@@ -459,4 +459,4 @@ for species in range(NUM_POKEMON):
         with open(target_fname, 'wb+') as target_file:
             target_file.write(bin_data)
 
-subprocess.run([args.narc, 'create', '--output', str(output_dir / output_name) + '.narc', private_dir])
+subprocess.run([args.narc, 'create', '--output', str(output_dir / output_name) + '.narc', private_dir], check=True)

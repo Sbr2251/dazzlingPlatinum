@@ -14,14 +14,29 @@
     ScriptEntry _08BA
     ScriptEntry _08D4
     ScriptEntry _08EB
+    ScriptEntry SandgemTown_Arc1RuthTalk
     ScriptEntryEnd
 
 _0032:
     CallIfEq VAR_UNK_0x4071, 1, _005F
-    GetPlayerGender VAR_MAP_LOCAL_0
-    GoToIfEq VAR_MAP_LOCAL_0, GENDER_MALE, _0075
-    GoToIfEq VAR_MAP_LOCAL_0, GENDER_FEMALE, _007D
+    // Arc 1: Ruth (local 4) waits by the lab door at 10 until the arrival scene runs.
+    CallIfEq VAR_ARC1_PROGRESS, 10, SandgemTown_Arc1ShowRuthAtLab
+    CallIfEq VAR_UNK_0x4071, 2, SandgemTown_Arc1HideRuthAfterTour
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     End
+
+SandgemTown_Arc1ShowRuthAtLab:
+    GoToIfNe VAR_UNK_0x4071, 0, SandgemTown_Arc1Return
+    ClearFlag FLAG_HIDE_SANDGEM_TOWN_COUNTERPART
+SandgemTown_Arc1Return:
+    Return
+
+// After the lead north (VAR_UNK_0x4071 == 2) Ruth is gone from Sandgem for the rest of Arc 1 (11-16).
+SandgemTown_Arc1HideRuthAfterTour:
+    GoToIfLt VAR_ARC1_PROGRESS, 11, SandgemTown_Arc1Return
+    GoToIfGe VAR_ARC1_PROGRESS, 17, SandgemTown_Arc1Return
+    SetFlag FLAG_HIDE_SANDGEM_TOWN_COUNTERPART
+    Return
 
 _005F:
     SetObjectEventPos 4, 168, 0x34D
@@ -39,6 +54,8 @@ _007D:
 
 _0085:
     LockAll
+    // Arc 1: the arrival scene only runs at 10 (Route 201 battle done).
+    GoToIfNe VAR_ARC1_PROGRESS, 10, SandgemTown_Arc1ArrivalNotYet
     ApplyMovement 4, _03AC
     WaitMovement
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
@@ -86,9 +103,8 @@ _014F:
     End
 
 _0169:
-    GetPlayerGender VAR_RESULT
-    GoToIfEq VAR_RESULT, GENDER_MALE, _0189
-    GoToIfEq VAR_RESULT, GENDER_FEMALE, _0195
+    Message SandgemTown_Text_Arc1RuthOhItsYou
+    GoTo _01A1
     End
 
 _0189:
@@ -148,9 +164,12 @@ _026B:
     GoTo _0283
 
 _0283:
-    GetPlayerGender VAR_RESULT
-    GoToIfEq VAR_RESULT, GENDER_MALE, _02A3
-    GoToIfEq VAR_RESULT, GENDER_FEMALE, _02AC
+    // Arc 1: Ruth's line at the door, then straight in (no Barry burst-out; Garius is already inside).
+    Message SandgemTown_Text_Arc1RuthHisExactWords
+    LoadDoorAnimation 5, 26, 8, 10, ANIMATION_TAG_DOOR_1
+    PlayDoorOpenAnimation ANIMATION_TAG_DOOR_1
+    WaitForAnimation ANIMATION_TAG_DOOR_1
+    GoTo _035E
     End
 
 _02A3:
@@ -433,6 +452,24 @@ _056C:
     EndMovement
 
 _057C:
+    // Arc 1: Ruth leads the player north toward Route 202. Replaces Rowan's TM27 and the
+    // Pokemon Center / Mart tour (D8); the stock tour body below is left in place, unreachable.
+    LockAll
+    ApplyMovement 4, SandgemTown_Movement_Arc1RuthNotice
+    WaitMovement
+    Message SandgemTown_Text_Arc1RuthThisWay
+    CloseMessage
+    SetCounterpartBGM  // D14: Ruth's music is always The Girl
+    ApplyMovement 4, SandgemTown_Movement_Arc1RuthLeadNorth
+    ApplyMovement LOCALID_PLAYER, SandgemTown_Movement_Arc1PlayerFollowNorth
+    WaitMovement
+    FadeToDefaultMusic3
+    RemoveObject 4
+    SetVar VAR_UNK_0x4071, 2
+    ReleaseAll
+    End
+
+SandgemTown_Unused_Arc1StockTour:
     LockAll
     LoadDoorAnimation 5, 26, 8, 10, ANIMATION_TAG_DOOR_1
     PlayDoorOpenAnimation ANIMATION_TAG_DOOR_1
@@ -721,5 +758,45 @@ _08D4:
 _08EB:
     ShowLandmarkSign 29
     End
+
+SandgemTown_Arc1ArrivalNotYet:
+    ReleaseAll
+    End
+
+SandgemTown_Arc1RuthTalk:
+    GoToIfGe VAR_ARC1_PROGRESS, 13, SandgemTown_Arc1RuthTalkStock
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message SandgemTown_Text_Arc1RuthTalk
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+SandgemTown_Arc1RuthTalkStock:
+    CallCommonScript 10300
+    End
+
+    .balign 4, 0
+SandgemTown_Movement_Arc1RuthNotice:
+    EmoteExclamationMark
+    Delay8
+    EndMovement
+
+    .balign 4, 0
+SandgemTown_Movement_Arc1RuthLeadNorth:
+    WalkNormalEast 16
+    WalkNormalNorth 18
+    EndMovement
+
+    .balign 4, 0
+SandgemTown_Movement_Arc1PlayerFollowNorth:
+    WalkNormalSouth
+    WalkNormalEast 15
+    Delay8 2
+    WalkNormalEast
+    WalkNormalNorth 8
+    EndMovement
 
     .balign 4, 0

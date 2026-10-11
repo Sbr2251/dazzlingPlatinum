@@ -8,21 +8,28 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_KRICKETOT",
-            "form": 0,
-            "level": 7,
-            "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
-        },
-        {
-            "species": "SPECIES_ZUBAT",
+            "species": "SPECIES_PURRLOIN",
             "form": 0,
             "level": 6,
             "item": null,
-            "moves": null,
-            "power": 0,
+            "moves": [
+                "MOVE_SCRATCH",
+                "MOVE_GROWL",
+                "MOVE_ASSIST"
+            ],
+            "power": 20,
+            "ball_seal": 0
+        },
+        {
+            "species": "SPECIES_POOCHYENA",
+            "form": 0,
+            "level": 7,
+            "item": null,
+            "moves": [
+                "MOVE_TACKLE",
+                "MOVE_HOWL"
+            ],
+            "power": 20,
             "ball_seal": 0
         }
     ],
