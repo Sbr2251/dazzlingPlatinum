@@ -10,10 +10,12 @@ Base: rift-b's Phase 0 floor, the stock DW B4F (map_data 612/613) with rift-b's 
   map_data_675  the rowboat on the old lakebed beside the path down to the first hop (terrain: material dw213_wood,
                 ~30 faces around (19,18)); the invisible ghost-prop walkways of stock B4F south of the lip are blocked
                 (rift-b dropped the floating rocks, so those tiles were walkable void).
-  map_data_676  the ceiling (y=10, x 44-49, z 25-52) is rebuilt as the hanging lake: water (the floor pool's
-                own `lake` material) everywhere except the causeway (the walkable tiles of the ceiling grid in
-                route_213.json) and its shores, which stay stone, with a rim where stone meets water; the stock
-                ceiling pool (bf_lake), its rim and the hole at x 46-49, z 33-36 go.
+  map_data_676  the ceiling (y=10, x 44-49, z 25-52) is rebuilt as the hanging lake: water everywhere except the
+                causeway (the walkable tiles of the ceiling grid in route_213.json), the island at its end and the
+                shores under the hanging trees, which stay stone, with a rim where stone meets water. The water
+                uses the floor pool's own textures in unlit materials (`lake` inside, the animated shoreline
+                `lakep.1` around the edges), so it glows instead of sitting in the slab's shadow. The stock ceiling
+                pool (bf_lake), its rim, the hole at x 46-49, z 33-36 and the decals on now-wet tiles go.
   texture set 73  + dw213_wood (32x32 pltt16, weathered planks), appended; every DW map shares the set.
                 The other textures are untouched (they are rebuilt from the current file, so another workstream's
                 appends survive: rerun this script after merging).
@@ -119,6 +121,9 @@ STONE_MAT, RIM_MAT = "adf", "criffp_lm9"
 # the hanging water: the floor pool's own `lake` texture in an unlit material (lights off, a pale cyan vertex colour),
 # so the underside of the lake glows instead of sitting in the slab's shadow like the stone around it
 WATER_MAT, WATER_TEX, WATER_COLOR = "dw213_lake", "lake", (26 | 30 << 5 | 31 << 10)
+# its edge: the floor pool's animated shoreline texture (lakep.1, fldtanime entry 10), laid out like the pool's
+# border (edge strips: v 0.5 inside -> 1.0 at the shore, 0.5 repeat per tile along it; corners: the 0-0.5 square)
+SHORE_MAT, SHORE_TEX = "dw213_lakep", "lakep.1"
 WATER_UV_PER_TILE = 1.5         # the floor pool's own scale (lake_lm7: 5 repeats over 3 tiles)
 
 
@@ -390,6 +395,43 @@ def merge_rects(cells, max_side=8):
     return out
 
 
+SIDES = {"N": (0, -1), "S": (0, 1), "W": (-1, 0), "E": (1, 0)}
+
+
+def shore_sides(kind, t):
+    """The sides of water tile t that meet stone or the slab's edge, as a string from 'NSWE'."""
+    x, z = t
+    return "".join(k for k, (dx, dz) in SIDES.items() if kind.get((x + dx, z + dz)) != "water")
+
+
+def shore_face(ch, t, sides):
+    """One water tile on the shore: an edge strip (one side), a corner (two adjacent sides). A tile between two
+    opposite shores (the 1-wide east channel along the causeway) takes the edge strip of its west (causeway) side;
+    three sides take the corner of the first adjacent pair."""
+    x, z = t
+    A, B, C, D = (x, WATER_H, z), (x + 1, WATER_H, z), (x + 1, WATER_H, z + 1), (x, WATER_H, z + 1)
+    corners = {"NW": A, "NE": B, "SE": C, "SW": D}
+    pair = next((a + b for a in "NS" for b in "WE" if a in sides and b in sides), None)
+    if pair:
+        outer = corners[pair]
+        # the corner square: (0,0) at the outer corner, (0.5,0.5) at the inner one, (0.5,0)/(0,0.5) beside it
+        other = {"NW": (B, D, C), "NE": (A, C, D), "SE": (D, B, A), "SW": (C, A, B)}[pair]
+        pts = [outer, other[0], other[2], other[1]]
+        uvs = [(0, 0), (0.5, 0), (0.5, 0.5), (0, 0.5)]
+    else:
+        side = "W" if "W" in sides else sides[0]
+        ux, uz = (x % 4) * 0.5, (z % 4) * 0.5
+        if side == "N":
+            pts, uvs = [A, B, C, D], [(ux, 1), (ux + 0.5, 1), (ux + 0.5, 0.5), (ux, 0.5)]
+        elif side == "S":
+            pts, uvs = [A, B, C, D], [(ux, 0.5), (ux + 0.5, 0.5), (ux + 0.5, 1), (ux, 1)]
+        elif side == "W":
+            pts, uvs = [A, B, C, D], [(uz, 1), (uz, 0.5), (uz + 0.5, 0.5), (uz + 0.5, 1)]
+        else:
+            pts, uvs = [A, B, C, D], [(uz, 0.5), (uz, 1), (uz + 0.5, 1), (uz + 0.5, 0.5)]
+    return make_face(ch, pts, uvs, (32, 32), [0, -1, 0], color=WATER_COLOR)
+
+
 def rebuild_ceiling(ch):
     kind = ceiling_kind()
     removed = 0
@@ -456,8 +498,14 @@ def rebuild_ceiling(ch):
     ri_t, ri_q = ch.faces(rim_si)
     added = 0
     d = WATER_UV_PER_TILE
+    shore = {t: shore_sides(kind, t) for t, v in kind.items() if v == "water"}
+    sh_q = []
+    for t, sides in sorted(shore.items()):
+        if sides:
+            sh_q.append(shore_face(ch, t, sides))
+            added += 1
     for k, cells in (("stone", {t for t, v in kind.items() if v == "stone" and t not in decal_tiles}),
-                     ("water", {t for t, v in kind.items() if v == "water"})):
+                     ("water", {t for t, sides in shore.items() if not sides})):
         for x, z, w, h in merge_rects(cells):
             if k == "stone":
                 pts = [(x, STONE_H, z), (x + w, STONE_H, z), (x + w, STONE_H, z + h), (x, STONE_H, z + h)]
@@ -493,6 +541,7 @@ def rebuild_ceiling(ch):
     ch.set_faces(stone_si, st_t, st_q)
     ch.set_faces(rim_si, ri_t, ri_q)
     ch.add_shape(nsbmd.make_material(WATER_MAT, WATER_TEX, WATER_TEX, 32, 32, lights=0, fog=False), wa_t, wa_q)
+    ch.add_shape(nsbmd.make_material(SHORE_MAT, SHORE_TEX, SHORE_TEX + "_pl", 32, 32, lights=0, fog=False), [], sh_q)
     return removed, added
 
 
@@ -528,8 +577,8 @@ def outputs():
             ch.add_shape(mat, [], faces)
             stats[dst] = {"boat_faces": len(faces), "void_tiles_blocked": len(void)}
         else:
-            out[os.path.join(DATA, f"map_data_{dst}.bin")] = raw      # the hanging lake: next commit
-            continue
+            removed, added = rebuild_ceiling(ch)
+            stats[dst] = {"ceiling_removed": removed, "ceiling_added": added}
         model = ch.build()
         assert len(model) <= 0xF000, (dst, len(model))
         st = nsbmd.model_stats(nsbmd.parse_bmd(model)["models"][0])

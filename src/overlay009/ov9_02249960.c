@@ -14191,12 +14191,13 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Card = {
     },
 };
 
-// Route 213: the Lapras in what is left of the lake, until it is calmed.
+// Route 213 (set-lake): the Lapras waits on the hanging lake's one island (ceiling x 44-46, z 44-47; rotated 180 like
+// the player on the ceiling), until it is calmed.
 static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Lapras = {
     21,
     FLAG_TOTEM_LAPRAS_DEFEATED,
-    0x0,
-    0x0,
+    0x1,
+    180,
     {
         0x83,
         OBJ_EVENT_GFX_TOTEM_LAPRAS,
@@ -14210,9 +14211,9 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Lapras = {
         0x0,
         0x0,
         0x0,
-        35,
-        22,
-        ((1 << 4) * FX32_ONE),
+        45,
+        46,
+        ((10 << 4) * FX32_ONE),
     },
 };
 
