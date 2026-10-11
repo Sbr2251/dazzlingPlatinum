@@ -82,6 +82,7 @@ LostTower2F_GruntsTrigger:
     WaitMovement
     MessageFromBank TEXT_BANK_ROUTE_209_LOST_TOWER_1F, LostTower2F_Text_RowanFast
     WaitABXPadPress
+    BufferPlayerName 0
     MessageFromBank TEXT_BANK_ROUTE_209_LOST_TOWER_1F, LostTower2F_Text_RowanOnlyThree
     WaitABXPadPress
     CloseMessage

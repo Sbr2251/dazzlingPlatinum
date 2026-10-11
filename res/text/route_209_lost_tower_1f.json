@@ -76,10 +76,12 @@
     {
       "id": "LostTower2F_Text_RowanOnlyThree",
       "en_US": [
-        "Rowan: ...But only you, me and\n",
-        "Garius knew.\r",
-        "And Cyrus has been in there the\n",
-        "whole time."
+        "Rowan: ...Cyrus has been in there\n",
+        "the whole time.\r",
+        "He couldn't have told anyone.\r",
+        "...Someone is listening,\n",
+        "{STRVAR_1 3, 0, 0}.\r",
+        "My line, the tower... I don't know."
       ]
     },
     {

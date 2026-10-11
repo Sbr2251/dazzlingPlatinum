@@ -1188,13 +1188,33 @@ Route213_Arc2Beach:
     Message Route213_Text_Arc2BeachCyrusLook
     WaitABXPadPress
     CloseMessage
+    // Polish #6: the player's call. Yes is recorded in VAR_ARC2_CHOICES bit 4 (+16) only once the battle is won
+    // (a loss blacks out and replays the scene, so the bit can't be added twice). VAR_MAP_LOCAL_1A holds the answer.
+    Message Route213_Text_Arc2BeachBattlePrompt
+    ShowYesNoMenu VAR_RESULT
+    GoToIfEq VAR_RESULT, MENU_YES, Route213_Arc2BeachBattleYes
+    SetVar VAR_MAP_LOCAL_1A, 0
+    BufferRivalName 1
+    Message Route213_Text_Arc2BeachGariusSayIt
+    WaitABXPadPress
+    CloseMessage
     Message Route213_Text_Arc2BeachCyrusJudge
     WaitABXPadPress
     CloseMessage
+    GoTo Route213_Arc2BeachBattle
+    End
+
+Route213_Arc2BeachBattleYes:
+    SetVar VAR_MAP_LOCAL_1A, 1
+    Message Route213_Text_Arc2BeachCyrusDoneWords
+    WaitABXPadPress
+    CloseMessage
+Route213_Arc2BeachBattle:
     Call Route213_Arc2SetCyrusTeam
     StartTrainerBattle VAR_0x8004
     CheckWonBattle VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, Route213_Arc2LostBattle
+    CallIfEq VAR_MAP_LOCAL_1A, 1, Route213_Arc2BeachRecordYes
     SetVar VAR_ARC2_PROGRESS, 88
     Message Route213_Text_Arc2BeachCyrusWait
     WaitABXPadPress
@@ -1229,6 +1249,10 @@ Route213_Arc2Beach:
     SetVar VAR_ARC2_PROGRESS, 89
     ReleaseAll
     End
+
+Route213_Arc2BeachRecordYes:
+    AddVar VAR_ARC2_CHOICES, 16
+    Return
 
 // TRAINER_CYRUS_ARC2_3_<player's starter> into VAR_0x8004
 Route213_Arc2SetCyrusTeam:

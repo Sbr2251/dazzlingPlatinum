@@ -392,6 +392,10 @@ DWLostTower_FindCyrus:
     WaitFanfare SEQ_SE_DP_KIRAKIRA
     WaitABXPadPress
     CloseMessage
+    // Polish #6: Cyrus pays off 'I'll find it' (route_213 beach)
+    Message DWLostTower_Text_CyrusProof
+    WaitABXPadPress
+    CloseMessage
     SetVar VAR_ARC2_PROGRESS, 95
     PlayFanfare SEQ_SE_PL_SYUWA
     FadeScreenOut
