@@ -9,7 +9,7 @@ appends to these registries. If a workstream needs another entry, it asks the or
 |---|---|---|
 | `VAR_ARC2_PROGRESS` | 0x4070 | the Arc 2 ladder (PLAN.md section 3) |
 | `VAR_ARC2_SUSPECT` | 0x4073 | ledger picks: 2 bits per leak (L0 bits 0-1 ... L3 bits 6-7; 0 Cyrus, 1 Garius, 2 Ruth, 3 bad luck); "answered" bits 8-11 |
-| `VAR_ARC2_CHOICES` | 0x4090 | bit 0 Looker trust, bit 1 Basin answer, bit 2 Skarmory boost pulled, bit 3 Cyrus crate seen |
+| `VAR_ARC2_CHOICES` | 0x4090 | bit 0 Looker trust, bit 1 Basin answer (Yes), bit 2 Skarmory boost pulled, bit 3 Cyrus crate seen, bit 4 chose to battle Cyrus on the beach (polish-a) |
 
 Flags, named by owner. Workstreams can rename their own flags to meaningful names; the lead applies the rename
 at merge.
@@ -122,3 +122,11 @@ at merge.
 
 `/tmp/a2/harness/` (see its README): `setstate.py` (start at any block), `textlint.py`, `a2lib.py`, and the
 golden save `/tmp/a2/golden/post_gym1.sav`.
+
+## Added during integration (2026-10-11)
+- `ITEM_WORN_TRAINER_CARD` (slot 128, polish-c): given in DW Route 213 with `FLAG_ARC2_ELIAS_CARD`.
+- Flags 0x053C-0x053F (freed Route 206 test balls): Staraptite, Gengarite, Gyaradosite and Gardevoirite gives (polish-c).
+- `FLAG_ARC2_LEAD_A-D` (0x0920-0x0923): Plusle/Minun reunited, Duchess taken, Duchess home, Moon Stone given (quests).
+- `FLAG_ARC1_SPARE_A/B/D`: echo seen at Ravaged Path, Windworks and Route 214 (echo).
+- `OBJ_EVENT_GFX_VIOLET_CRYSTAL` (art-final); `OVERWORLD_WEATHER_RIFT_MIST` (31, world-art) on Route 210 North.
+- Progress 98: the final Eclipse cutaway in the violet room before END OF ARC 2 (polish-b; see cutaways.md).
