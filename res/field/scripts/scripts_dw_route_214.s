@@ -54,9 +54,12 @@ DWRoute214_EntryScene:
     WaitTime 20, VAR_RESULT
     ApplyMovement LOCALID_PLAYER, DWRoute214_Movement_StepOutOfTrees
     WaitMovement
+    // Back in after a blackout with the choice made: Cyrus already stands at the frame, so no line here
+    GoToIfSet FLAG_ARC2_RIFTB_A, DWRoute214_EntryEnd
     Message DWRoute214_Text_CyrusNoFloor
     WaitABXPadPress
     CloseMessage
+DWRoute214_EntryEnd:
     ReleaseAll
     End
 
