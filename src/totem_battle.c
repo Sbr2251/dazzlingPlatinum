@@ -42,6 +42,15 @@ static const TotemEncounterConfig sTotemEncounterTable[TOTEM_ENCOUNTER_COUNT] = 
             { SPECIES_MAGNETON, 30, 0 },
         },
     },
+    // Arc 2 2.18: the same Skarmory, still fed by the boost shard (the player left it in the frame)
+    [TOTEM_ENCOUNTER_SKARMORY_BOOSTED] = {
+        .party = {
+            { SPECIES_SKARMORY, 32, 0 },
+            { SPECIES_GLIGAR, 30, 0 },
+            { SPECIES_MAGNETON, 30, 0 },
+        },
+        .boosted = TRUE,
+    },
     [TOTEM_ENCOUNTER_LAPRAS] = {
         .party = {
             { SPECIES_LAPRAS, 36, 0 },

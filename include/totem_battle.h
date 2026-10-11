@@ -15,6 +15,9 @@ typedef struct TotemPokemonConfig {
 
 typedef struct TotemEncounterConfig {
     TotemPokemonConfig party[TOTEM_PARTY_SIZE];
+    // TRUE: the Totem starts one stage higher in Attack and Defense than the aura alone gives
+    // (BATTLE_STATUS_TOTEM_BOOSTED, read by subscript_totem_aura)
+    BOOL boosted;
 } TotemEncounterConfig;
 
 const TotemEncounterConfig *TotemBattle_GetEncounterConfig(u8 encounterID);
