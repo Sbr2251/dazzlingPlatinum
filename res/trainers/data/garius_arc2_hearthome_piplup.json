@@ -1,0 +1,28 @@
+{
+    "name": "Garius",
+    "class": "TRAINER_CLASS_RIVAL",
+    "items": [],
+    "ai_flags": [
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK",
+        "AI_FLAG_EXPERT"
+    ],
+    "double_battle": false,
+    "party": [
+        {
+            "species": "SPECIES_TORTERRA",
+            "form": 0,
+            "level": 38,
+            "item": null,
+            "moves": null,
+            "power": 0,
+            "ball_seal": 0
+        }
+    ],
+    "messages": [
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": "(Placeholder team.)\n"
+        }
+    ]
+}

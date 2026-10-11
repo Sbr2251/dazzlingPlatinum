@@ -30,16 +30,16 @@ static const TotemEncounterConfig sTotemEncounterTable[TOTEM_ENCOUNTER_COUNT] = 
     },
     [TOTEM_ENCOUNTER_SPIRITOMB] = {
         .party = {
-            { SPECIES_SPIRITOMB, 30, 0 },
-            { SPECIES_MISDREAVUS, 28, 0 },
-            { SPECIES_HAUNTER, 28, 0 },
+            { SPECIES_SPIRITOMB, 40, 0 }, // Arc 2 D14: 40 (end of Arc 2, after Fantina), allies 2 below
+            { SPECIES_MISDREAVUS, 38, 0 },
+            { SPECIES_HAUNTER, 38, 0 },
         },
     },
     [TOTEM_ENCOUNTER_SKARMORY] = {
         .party = {
-            { SPECIES_SKARMORY, 35, 0 },
-            { SPECIES_GLIGAR, 33, 0 },
-            { SPECIES_MAGNETON, 33, 0 },
+            { SPECIES_SKARMORY, 32, 0 }, // Arc 2 D14: 32 (Maylene's ace is 31), allies 2 below
+            { SPECIES_GLIGAR, 30, 0 },
+            { SPECIES_MAGNETON, 30, 0 },
         },
     },
     [TOTEM_ENCOUNTER_LAPRAS] = {

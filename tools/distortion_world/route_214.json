@@ -1,0 +1,26 @@
+{
+    "map": "MAP_HEADER_DW_ROUTE_214",
+    "clone_from": "MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS",
+    "offset": [
+        0,
+        0,
+        0
+    ],
+    "attr_ids": [
+        21,
+        22,
+        23,
+        24
+    ],
+    "platforms": [
+        {
+            "attr": 21,
+            "rows": [
+                "##########",
+                "..####....",
+                "..####....",
+                ".........."
+            ]
+        }
+    ]
+}

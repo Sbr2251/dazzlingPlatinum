@@ -1,0 +1,26 @@
+{
+    "map": "MAP_HEADER_DW_RAVAGED_PATH",
+    "clone_from": "MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS",
+    "offset": [
+        0,
+        0,
+        0
+    ],
+    "attr_ids": [
+        13,
+        14,
+        15,
+        16
+    ],
+    "platforms": [
+        {
+            "attr": 13,
+            "rows": [
+                "##########",
+                "..####....",
+                "..####....",
+                ".........."
+            ]
+        }
+    ]
+}

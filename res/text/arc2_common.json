@@ -1,0 +1,41 @@
+{
+  "key": 40229,
+  "messages": [
+    {
+      "id": "Arc2Common_Text_LedgerWhoKnew",
+      "en_US": [
+        "Who could have told Team Eclipse?"
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_LedgerCyrus",
+      "en_US": "Cyrus"
+    },
+    {
+      "id": "Arc2Common_Text_LedgerGarius",
+      "en_US": "Garius"
+    },
+    {
+      "id": "Arc2Common_Text_LedgerRuth",
+      "en_US": "Ruth"
+    },
+    {
+      "id": "Arc2Common_Text_LedgerBadLuck",
+      "en_US": "Bad luck"
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorMissing",
+      "en_US": [
+        "Nothing answers.\n",
+        "Something seems to be missing."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorSurge",
+      "en_US": [
+        "{STRVAR_1 1, 0, 0}'s energy surges\n",
+        "through the Resonator!"
+      ]
+    }
+  ]
+}
