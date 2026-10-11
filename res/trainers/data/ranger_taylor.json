@@ -12,16 +12,16 @@
         {
             "species": "SPECIES_CARNIVINE",
             "form": 0,
-            "level": 28,
+            "level": 34,
             "item": null,
             "moves": null,
             "power": 50,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_LUXIO",
+            "species": "SPECIES_LUXRAY",
             "form": 0,
-            "level": 30,
+            "level": 35,
             "item": null,
             "moves": null,
             "power": 50,

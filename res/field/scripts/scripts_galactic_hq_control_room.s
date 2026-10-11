@@ -1,5 +1,20 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/galactic_hq_control_room.h"
+#include "res/field/events/events_galactic_hq_control_room.h"
+
+// Dazzling Platinum Arc 2 (s-cutaways): this room is the "violet room" for the Team Eclipse cutaways 2.4 and 2.13
+// (docs/arc2/cutaways.md is the caller contract). The caller is identified by VAR_ARC2_PROGRESS alone:
+//   5  (from s-jubilife, after Cyrus battle 1): 2.4, Kahn and Indra. Sets 9, returns to Jubilife 168,777 facing south.
+//   35 (from s-eterna, after the Haven): 2.13, Saros and Kahn. Sets 39, returns to Eterna 305,520 facing south.
+// The caller fades to black and does `Warp MAP_HEADER_GALACTIC_HQ_CONTROL_ROOM, 0, 8, 9, DIR_NORTH`, then ReleaseAll and
+// End WITHOUT fading back in. OnResume hides the player (before the screen shows); the on-frame scene
+// (scripts_init_galactic_hq_control_room.s) fades in, plays, sets the next value, warps back and fades in there.
+// Never use PlaySound here: it pauses the music, and the return Warp then never finishes (black screen).
+// Flags: none of s-cutaways' FLAG_UNK_0x0934-0x0935 are used. Map-local hide flags (cleared on every map load,
+// so OnTransition sets them again): FLAG_UNK_0x0030 = hide LOCALID_ARC2_KAHN, FLAG_UNK_0x0031 = hide
+// LOCALID_ARC2_INDRA, FLAG_UNK_0x0032 = hide LOCALID_ARC2_SAROS. In a cutaway state the stock Saturn, Charon and
+// lake trio are hidden by setting their stock flags; their old values are kept in VAR_MAP_LOCAL_5-7 and put back
+// before the return warp, so the stock Galactic HQ scenes are untouched.
 
 
     ScriptEntry _003E
@@ -17,9 +32,12 @@
     ScriptEntry _03EA
     ScriptEntry _0394
     ScriptEntry _03FD
+    ScriptEntry GalacticHQControlRoom_Arc2Cutaway24
+    ScriptEntry GalacticHQControlRoom_Arc2Cutaway213
     ScriptEntryEnd
 
 _003E:
+    Call GalacticHQControlRoom_Arc2OnTransition
     GoToIfSet FLAG_FREED_GALACTIC_HQ_POKEMON, _004B
     End
 
@@ -28,6 +46,8 @@ _004B:
     End
 
 _0055:
+    CallIfEq VAR_ARC2_PROGRESS, 5, GalacticHQControlRoom_Arc2HidePlayer
+    CallIfEq VAR_ARC2_PROGRESS, 35, GalacticHQControlRoom_Arc2HidePlayer
     ScrCmd_25E
     End
 
@@ -398,4 +418,145 @@ _0468:
     .balign 4, 0
 _0470:
     WalkOnSpotNormalNorth
+    EndMovement
+
+GalacticHQControlRoom_Arc2OnTransition:
+    SetFlag FLAG_UNK_0x0030
+    SetFlag FLAG_UNK_0x0031
+    SetFlag FLAG_UNK_0x0032
+    GoToIfEq VAR_ARC2_PROGRESS, 5, GalacticHQControlRoom_Arc2SetUp24
+    GoToIfEq VAR_ARC2_PROGRESS, 35, GalacticHQControlRoom_Arc2SetUp213
+    Return
+
+GalacticHQControlRoom_Arc2SetUp24:
+    Call GalacticHQControlRoom_Arc2HideStock
+    ClearFlag FLAG_UNK_0x0030
+    ClearFlag FLAG_UNK_0x0031
+    Return
+
+GalacticHQControlRoom_Arc2SetUp213:
+    Call GalacticHQControlRoom_Arc2HideStock
+    ClearFlag FLAG_UNK_0x0030
+    ClearFlag FLAG_UNK_0x0032
+    Return
+
+GalacticHQControlRoom_Arc2HideStock:
+    SetVar VAR_MAP_LOCAL_5, 0
+    SetVar VAR_MAP_LOCAL_6, 0
+    SetVar VAR_MAP_LOCAL_7, 0
+    CallIfSet FLAG_UNK_0x0236, GalacticHQControlRoom_Arc2Keep0236
+    CallIfSet FLAG_UNK_0x0237, GalacticHQControlRoom_Arc2Keep0237
+    CallIfSet FLAG_UNK_0x029E, GalacticHQControlRoom_Arc2Keep029E
+    SetFlag FLAG_UNK_0x0236
+    SetFlag FLAG_UNK_0x0237
+    SetFlag FLAG_UNK_0x029E
+    Return
+
+GalacticHQControlRoom_Arc2Keep0236:
+    SetVar VAR_MAP_LOCAL_5, 1
+    Return
+
+GalacticHQControlRoom_Arc2Keep0237:
+    SetVar VAR_MAP_LOCAL_6, 1
+    Return
+
+GalacticHQControlRoom_Arc2Keep029E:
+    SetVar VAR_MAP_LOCAL_7, 1
+    Return
+
+GalacticHQControlRoom_Arc2RestoreStock:
+    CallIfEq VAR_MAP_LOCAL_5, 0, GalacticHQControlRoom_Arc2Clear0236
+    CallIfEq VAR_MAP_LOCAL_6, 0, GalacticHQControlRoom_Arc2Clear0237
+    CallIfEq VAR_MAP_LOCAL_7, 0, GalacticHQControlRoom_Arc2Clear029E
+    Return
+
+GalacticHQControlRoom_Arc2Clear0236:
+    ClearFlag FLAG_UNK_0x0236
+    Return
+
+GalacticHQControlRoom_Arc2Clear0237:
+    ClearFlag FLAG_UNK_0x0237
+    Return
+
+GalacticHQControlRoom_Arc2Clear029E:
+    ClearFlag FLAG_UNK_0x029E
+    Return
+
+// OnResume (every field load, before the screen is shown): the player is in the room but not in the scene
+GalacticHQControlRoom_Arc2HidePlayer:
+    HideObject LOCALID_PLAYER
+    Return
+
+// Lift the caller's black screen
+GalacticHQControlRoom_Arc2EnterScene:
+    FadeScreenIn
+    WaitFadeScreen
+    WaitTime 20, VAR_RESULT
+    // The Eclipse Shard on the console pulses
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitTime 20, VAR_RESULT
+    Return
+
+GalacticHQControlRoom_Arc2LeaveScene:
+    WaitTime 30, VAR_RESULT
+    FadeScreenOut
+    WaitFadeScreen
+    Call GalacticHQControlRoom_Arc2RestoreStock
+    Return
+
+// 2.4 Cutaway: Team Eclipse (Kahn, Indra). Never show who sent the message.
+GalacticHQControlRoom_Arc2Cutaway24:
+    LockAll
+    Call GalacticHQControlRoom_Arc2EnterScene
+    Message GalacticHQControlRoom_Text_Arc2KahnWordFromOurNewFriend
+    Message GalacticHQControlRoom_Text_Arc2KahnAManWhoWalkedOut
+    Message GalacticHQControlRoom_Text_Arc2IndraOutOfIt
+    Message GalacticHQControlRoom_Text_Arc2KahnSomethingStoppedHim
+    Message GalacticHQControlRoom_Text_Arc2IndraFindOutWhat
+    Message GalacticHQControlRoom_Text_Arc2KahnFirstLight
+    Message GalacticHQControlRoom_Text_Arc2IndraBeThereFirst
+    WaitABXPadPress
+    CloseMessage
+    // Indra turns away from the table
+    ApplyMovement LOCALID_ARC2_INDRA, GalacticHQControlRoom_Arc2Movement_TurnAway
+    WaitMovement
+    Call GalacticHQControlRoom_Arc2LeaveScene
+    SetVar VAR_ARC2_PROGRESS, 9
+    Warp MAP_HEADER_JUBILIFE_CITY, 0, 168, 777, DIR_SOUTH
+    GoTo GalacticHQControlRoom_Arc2Returned
+    End
+
+// 2.13 Cutaway: Team Eclipse (Saros, Kahn). Never show who the friend is.
+GalacticHQControlRoom_Arc2Cutaway213:
+    LockAll
+    Call GalacticHQControlRoom_Arc2EnterScene
+    Message GalacticHQControlRoom_Text_Arc2SarosTheHavenIsGone
+    Message GalacticHQControlRoom_Text_Arc2KahnOtherWaysToFillTheCrates
+    Message GalacticHQControlRoom_Text_Arc2SarosWeDidntSeeItComing
+    Message GalacticHQControlRoom_Text_Arc2KahnOurFriendWasntTold
+    Message GalacticHQControlRoom_Text_Arc2SarosIllGoMyself
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_SAROS, GalacticHQControlRoom_Arc2Movement_TurnAway
+    WaitMovement
+    Call GalacticHQControlRoom_Arc2LeaveScene
+    SetVar VAR_ARC2_PROGRESS, 39
+    Warp MAP_HEADER_ETERNA_CITY, 0, 305, 520, DIR_SOUTH
+    GoTo GalacticHQControlRoom_Arc2Returned
+    End
+
+// After the Warp the script runs on in the caller's map (the player object is new, so visible again): fade in
+GalacticHQControlRoom_Arc2Returned:
+    FadeScreenIn
+    WaitFadeScreen
+    ReleaseAll
+    End
+
+    .balign 4, 0
+GalacticHQControlRoom_Arc2Movement_TurnAway:
+    WalkOnSpotNormalSouth
     EndMovement

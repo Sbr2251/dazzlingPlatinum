@@ -8,27 +8,27 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_SHELLOS",
+            "species": "SPECIES_GASTRODON",
             "form": 1,
-            "level": 25,
+            "level": 32,
             "item": null,
             "moves": null,
             "power": 0,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_SHELLOS",
+            "species": "SPECIES_GASTRODON",
             "form": 1,
-            "level": 25,
+            "level": 32,
             "item": null,
             "moves": null,
             "power": 0,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_SHELLOS",
+            "species": "SPECIES_GASTRODON",
             "form": 0,
-            "level": 26,
+            "level": 32,
             "item": null,
             "moves": null,
             "power": 0,

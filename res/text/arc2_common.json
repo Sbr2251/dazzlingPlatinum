@@ -4,7 +4,8 @@
     {
       "id": "Arc2Common_Text_LedgerWhoKnew",
       "en_US": [
-        "Who could have told Team Eclipse?"
+        "Ruth: So who told them?\n",
+        "Who could have?"
       ]
     },
     {
@@ -26,14 +27,149 @@
     {
       "id": "Arc2Common_Text_ResonatorMissing",
       "en_US": [
-        "Nothing answers.\n",
-        "Something seems to be missing."
+        "Nothing you carry can help\n",
+        "with this yet."
       ]
     },
     {
       "id": "Arc2Common_Text_ResonatorSurge",
       "en_US": [
-        "{STRVAR_1 1, 0, 0}'s energy surges\n",
+        "{STRVAR_1 1, 1, 0}'s energy surges\n",
+        "through the Resonator!"
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNoTotem",
+      "en_US": [
+        "The Resonator stays silent.\n",
+        "It needs another calmed totem."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsCoalBadge",
+      "en_US": [
+        "Hitmonlee's energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Coal Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsForestBadge",
+      "en_US": [
+        "Vespiquen's energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Forest Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsCobbleBadge",
+      "en_US": [
+        "Skarmory's energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Cobble Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsFenBadge",
+      "en_US": [
+        "Lapras's energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Fen Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsRelicBadge",
+      "en_US": [
+        "Spiritomb's energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Relic Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsMineBadge",
+      "en_US": [
+        "Aggron's energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Mine Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsIcicleBadge",
+      "en_US": [
+        "Mamoswine's energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Icicle Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsBeaconBadge",
+      "en_US": [
+        "Kingdra's energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Beacon Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorSurgeHitmonlee",
+      "en_US": [
+        "Hitmonlee's energy surges\n",
+        "through the Resonator!"
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorSurgeVespiquen",
+      "en_US": [
+        "Vespiquen's energy surges\n",
+        "through the Resonator!"
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorSurgeSkarmory",
+      "en_US": [
+        "Skarmory's energy surges\n",
+        "through the Resonator!"
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorSurgeLapras",
+      "en_US": [
+        "Lapras's energy surges\n",
+        "through the Resonator!"
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorSurgeSpiritomb",
+      "en_US": [
+        "Spiritomb's energy surges\n",
+        "through the Resonator!"
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorSurgeAggron",
+      "en_US": [
+        "Aggron's energy surges\n",
+        "through the Resonator!"
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorSurgeMamoswine",
+      "en_US": [
+        "Mamoswine's energy surges\n",
+        "through the Resonator!"
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorSurgeKingdra",
+      "en_US": [
+        "Kingdra's energy surges\n",
         "through the Resonator!"
       ]
     }

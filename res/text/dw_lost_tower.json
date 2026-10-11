@@ -2,10 +2,46 @@
   "key": 40223,
   "messages": [
     {
-      "id": "DWLostTower_Text_StubExit",
+      "id": "DWLostTower_Text_FollowTheSeam",
       "en_US": [
-        "The rift pulls you back out.\n",
-        "(Stub: this floor isn't built yet.)"
+        "...Follow the seam.\r",
+        "Not that one.\n",
+        "That one is a scar."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_VioletCrystals",
+      "en_US": [
+        "Violet crystals grow out of the\n",
+        "rock. Eclipse Shards.\r",
+        "A whole vein of them."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_WallOfShadow",
+      "en_US": [
+        "A wall of shadow. It won't move.\r",
+        "There's no sign of Cyrus."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_CyrusYouCame",
+      "en_US": [
+        "Cyrus: ...You came."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_CyrusHundredVoices",
+      "en_US": [
+        "Cyrus: It's been alone down here\n",
+        "with a hundred voices.\r",
+        "I know how that is."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_GotCalmShard",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} got a Calm Shard!"
       ]
     }
   ]

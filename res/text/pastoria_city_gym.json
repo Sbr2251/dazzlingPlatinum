@@ -109,6 +109,17 @@
         "{STRVAR_1 3, 0, 0}\f",
         "{STRVAR_1 3, 1, 0}"
       ]
+    },
+    {
+      "id": "PastoriaGym_Text_Arc2WakeRoute213",
+      "en_US": [
+        "Crasher Wake: Something's choking\n",
+        "the water on Route 213!\r",
+        "The fish won't bite! The Pokémon\n",
+        "won't swim!\r",
+        "A true Trainer would look into it!\n",
+        "WHAAAAH!"
+      ]
     }
   ]
 }

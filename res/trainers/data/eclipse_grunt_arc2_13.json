@@ -9,19 +9,43 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_CROBAT",
+            "species": "SPECIES_GOLBAT",
+            "form": 0,
+            "level": 37,
+            "item": null,
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_WING_ATTACK",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_AIR_CUTTER"
+            ],
+            "power": 120,
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
+        },
+        {
+            "species": "SPECIES_HOUNDOOM",
             "form": 0,
             "level": 38,
             "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_FIRE_FANG",
+                "MOVE_FAINT_ATTACK",
+                "MOVE_THUNDER_FANG",
+                "MOVE_ROAR"
+            ],
+            "power": 120,
+            "ball_seal": 0,
+            "ability": "ABILITY_FLASH_FIRE"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Fine. The shard's already in it.\n",
+                "You're too late, kid.\n"
+            ]
         }
     ]
 }

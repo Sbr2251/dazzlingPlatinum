@@ -45,6 +45,80 @@
         "Rt. 204\n",
         "Floaroma Town"
       ]
+    },
+    {
+      "id": "Route204North_Text_Arc2RuthResonator",
+      "en_US": [
+        "Ruth: I call it the Resonator!\r",
+        "I built that Reader out of junk.\r",
+        "I think it was always meant to\n",
+        "be this."
+      ]
+    },
+    {
+      "id": "Route204North_Text_Arc2RuthHoldsShard",
+      "en_US": [
+        "Ruth: It holds your Calm Shard. And\n",
+        "it lets you borrow that Hitmonlee's\r",
+        "strength. Try it on that rock!"
+      ]
+    },
+    {
+      "id": "Route204North_Text_Arc2RuthItWorks",
+      "en_US": [
+        "Ruth: It works!\r",
+        "Roark said that badge means\n",
+        "Oreburgh vouches for you.\r",
+        "I think the totem knew that."
+      ]
+    },
+    {
+      "id": "Route204North_Text_Arc2GariusMissedCalls",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Nine missed calls.\r",
+        "...My mom."
+      ]
+    },
+    {
+      "id": "Route204North_Text_Arc2GariusCooledOff",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Hey. I went to cool off in\n",
+        "the flower fields.\r",
+        "So. You beat the giant Hitmonlee?"
+      ]
+    },
+    {
+      "id": "Route204North_Text_Arc2GariusFineGood",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Fine. Good. Whatever.\r",
+        "I'm heading to Eterna for my next\n",
+        "badge. Don't bring him."
+      ]
+    },
+    {
+      "id": "Route204North_Text_Arc2CyrusDistance",
+      "en_US": [
+        "Cyrus: He's not wrong to keep his\n",
+        "distance."
+      ]
+    },
+    {
+      "id": "Route204North_Text_Arc2RuthFloaroma",
+      "en_US": [
+        "Ruth: I'll go ahead to Floaroma and\n",
+        "set up there. See you tonight!"
+      ]
+    },
+    {
+      "id": "Route204North_Text_Arc2CyrusEllipsis",
+      "en_US": "Cyrus: ..."
+    },
+    {
+      "id": "Route204North_Text_Arc2Boulder",
+      "en_US": [
+        "A heavy boulder.\n",
+        "It won't budge."
+      ]
     }
   ]
 }

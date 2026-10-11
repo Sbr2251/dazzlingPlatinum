@@ -107,6 +107,77 @@
         "Battling is about spirit, too!\f",
         "That’s why a battle is rock!"
       ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2BriefLookerSite",
+      "en_US": [
+        "Looker: A live Eclipse site.\n",
+        "The caves on Route 213.\r",
+        "Tonight, we see it with our own\n",
+        "eyes."
+      ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2BriefLookerTwo",
+      "en_US": [
+        "Looker: Two go in. Me, and the quiet\n",
+        "one.\r",
+        "Five is not a raid. Five is a\n",
+        "parade."
+      ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2BriefRuth",
+      "en_US": [
+        "Ruth: Cyrus and I will wait at the\n",
+        "cave mouth with the readings."
+      ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2BriefGarius",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: I'll watch the gate.\n",
+        "If they run, they run past me."
+      ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2RowanSilence",
+      "en_US": "Rowan: ..."
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2RowanBelieved",
+      "en_US": [
+        "Rowan: Since that night in Jubilife,\n",
+        "I've believed it could be done.\r",
+        "That someone could come back."
+      ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2RowanNotLikeThis",
+      "en_US": [
+        "Rowan: Not like this.\r",
+        "Never like this."
+      ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2RowanLab",
+      "en_US": [
+        "Rowan: Looker. Whatever you need\n",
+        "from my lab, it's yours."
+      ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2Photos",
+      "en_US": [
+        "Photographs cover the table.\n",
+        "Machine parts. Two bolted frames.\r",
+        "In the last one, a rift hangs open\n",
+        "where a Lapras should be."
+      ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2LookerAfter",
+      "en_US": "Looker: ..."
     }
   ]
 }

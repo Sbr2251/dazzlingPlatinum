@@ -11,17 +11,41 @@
         {
             "species": "SPECIES_GLAMEOW",
             "form": 0,
-            "level": 22,
+            "level": 23,
             "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_FAINT_ATTACK",
+                "MOVE_FURY_SWIPES",
+                "MOVE_HYPNOSIS",
+                "MOVE_FAKE_OUT"
+            ],
+            "power": 60,
+            "ball_seal": 0,
+            "ability": "ABILITY_LIMBER"
+        },
+        {
+            "species": "SPECIES_LIEPARD",
+            "form": 0,
+            "level": 24,
+            "item": null,
+            "moves": [
+                "MOVE_FAKE_OUT",
+                "MOVE_FURY_SWIPES",
+                "MOVE_ASSIST",
+                "MOVE_TORMENT"
+            ],
+            "power": 60,
+            "ball_seal": 0,
+            "ability": "ABILITY_LIMBER"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "The kennels were full anyway.\n",
+                "Fine. Take a look. See if I care.\n"
+            ]
         }
     ]
 }

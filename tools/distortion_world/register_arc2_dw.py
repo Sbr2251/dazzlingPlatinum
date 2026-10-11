@@ -33,7 +33,7 @@ MAPS = [
     ("eterna_forest", "EternaForest", 292, (671, 672), 17, ("MAP_HEADER_ETERNA_FOREST", 84, 37, "DIR_SOUTH"), 26, "rift-a"),
     ("route_214", "Route214", 293, (673, 674), 21, ("MAP_HEADER_ROUTE_214", 726, 665, "DIR_SOUTH"), 63, "rift-b"),
     ("route_213", "Route213", 294, (675, 676), 25, ("MAP_HEADER_ROUTE_213", 715, 831, "DIR_SOUTH"), 84, "rift-b"),
-    ("lost_tower", "LostTower", 295, (677, 678), 29, ("MAP_HEADER_ROUTE_209_LOST_TOWER_2F", 6, 9, "DIR_SOUTH"), 95, "rift-b"),
+    ("lost_tower", "LostTower", 295, (677, 678), 29, ("MAP_HEADER_ROUTE_209_LOST_TOWER_2F", 5, 8, "DIR_WEST"), 95, "rift-b"),
 ]
 ATTRS_PER_MAP = 4
 TEXT_KEYS = {"ravaged_path": 40211, "eterna_forest": 40213, "route_214": 40217, "route_213": 40219,

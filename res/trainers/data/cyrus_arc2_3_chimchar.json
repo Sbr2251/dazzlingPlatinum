@@ -1,28 +1,100 @@
 {
     "name": "Cyrus",
     "class": "TRAINER_CLASS_GALACTIC_BOSS",
-    "items": [],
+    "items": [
+        "ITEM_SUPER_POTION"
+    ],
     "ai_flags": [
         "AI_FLAG_BASIC",
         "AI_FLAG_EVAL_ATTACK",
-        "AI_FLAG_EXPERT"
+        "AI_FLAG_EXPERT",
+        "AI_FLAG_CHECK_HP"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GROTLE",
+            "species": "SPECIES_WEAVILE",
+            "form": 0,
+            "level": 34,
+            "item": "ITEM_RAZOR_CLAW",
+            "moves": [
+                "MOVE_FAINT_ATTACK",
+                "MOVE_ICY_WIND",
+                "MOVE_BRICK_BREAK",
+                "MOVE_QUICK_ATTACK"
+            ],
+            "power": 180,
+            "ball_seal": 0,
+            "ability": "ABILITY_PRESSURE"
+        },
+        {
+            "species": "SPECIES_CROBAT",
+            "form": 0,
+            "level": 34,
+            "item": "ITEM_NONE",
+            "moves": [
+                "MOVE_CROSS_POISON",
+                "MOVE_AIR_CUTTER",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_BITE"
+            ],
+            "power": 180,
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
+        },
+        {
+            "species": "SPECIES_BRONZONG",
+            "form": 0,
+            "level": 34,
+            "item": "ITEM_LEFTOVERS",
+            "moves": [
+                "MOVE_GYRO_BALL",
+                "MOVE_EXTRASENSORY",
+                "MOVE_HYPNOSIS",
+                "MOVE_CONFUSE_RAY"
+            ],
+            "power": 180,
+            "ball_seal": 0,
+            "ability": "ABILITY_LEVITATE"
+        },
+        {
+            "species": "SPECIES_ABSOL",
+            "form": 0,
+            "level": 35,
+            "item": "ITEM_SCOPE_LENS",
+            "moves": [
+                "MOVE_SWORDS_DANCE",
+                "MOVE_BITE",
+                "MOVE_SHADOW_CLAW",
+                "MOVE_QUICK_ATTACK"
+            ],
+            "power": 180,
+            "ball_seal": 0,
+            "ability": "ABILITY_SUPER_LUCK"
+        },
+        {
+            "species": "SPECIES_TORTERRA",
             "form": 0,
             "level": 36,
-            "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "item": "ITEM_SITRUS_BERRY",
+            "moves": [
+                "MOVE_WOOD_HAMMER",
+                "MOVE_EARTHQUAKE",
+                "MOVE_BITE",
+                "MOVE_SYNTHESIS"
+            ],
+            "power": 180,
+            "ball_seal": 0,
+            "ability": "ABILITY_OVERGROW"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Then that is your answer.\n",
+                "I accept it.\n"
+            ]
         }
     ]
 }

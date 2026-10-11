@@ -10,7 +10,7 @@
         {
             "species": "SPECIES_GYARADOS",
             "form": 0,
-            "level": 36,
+            "level": 30,
             "item": null,
             "moves": null,
             "power": 50,
@@ -19,7 +19,7 @@
         {
             "species": "SPECIES_RAICHU",
             "form": 0,
-            "level": 36,
+            "level": 30,
             "item": null,
             "moves": null,
             "power": 50,

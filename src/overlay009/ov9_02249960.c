@@ -1638,6 +1638,8 @@ static void ov9_02249EC8(DistWorldSystem *param0)
     }
 }
 
+static void Arc2Dw_HandleFrame(DistWorldSystem *system);
+
 static void ov9_02249EDC(SysTask *param0, void *param1)
 {
     DistWorldSystem *v0 = param1;
@@ -1650,6 +1652,8 @@ static void ov9_02249EDC(SysTask *param0, void *param1)
     {
         ov9_0224F764(v0);
     }
+
+    Arc2Dw_HandleFrame(v0);
 }
 
 static void ov9_02249EF0(DistWorldSystem *param0)
@@ -2270,24 +2274,272 @@ static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
 
 // Arc 2 rifts (R0 stubs): per-map step hooks, called from ov9_0224A71C with DW world tile coordinates. Each
 // rift workstream fills in only its own function (rift-a: RavagedPath, EternaForest; rift-b: the rest).
+
+// Arc 2 rift-a, DW Ravaged Path (scene 2.6, res/field/scripts/scripts_dw_ravaged_path.s): SCARS on the west wall x=11
+// (the Arc 1 seams clone). A scar is a group of cracked wall tiles that holds you for exactly one step: stepping onto
+// it cracks (sound), one step after you leave it it crumbles (sound), and stepping onto a scar that already held you,
+// or from one scar tile onto another of the same scar, drops you (the fall script resets you at the entry). The scars
+// reset whenever the player is back on the entry walkway or ledge. Fork and halfway triggers need the height, which
+// coord events can't check. Tile list mirrored in tools/distortion_world/ravaged_path.json ("scars").
+#define RAVAGED_PATH_WALL_X          11
+#define RAVAGED_PATH_FLOOR_Y         1
+#define RAVAGED_PATH_SCRIPT_FALL     2 // map script entries (1-based)
+#define RAVAGED_PATH_SCRIPT_FORK     4
+#define RAVAGED_PATH_SCRIPT_HALFWAY  5
+#define RAVAGED_PATH_SCRIPT_TOTEM    6
+#define RAVAGED_PATH_SCRIPT_TALK     7
+#define RAVAGED_PATH_FORK_Z          19 // first column past the wall trees: the bottom row (scar) or up (the seam)
+#define RAVAGED_PATH_HALFWAY_Y       4  // the top of the seam, over the scar: GIRATINA's shadow passes below
+#define RAVAGED_PATH_HALFWAY_Z       20
+#define RAVAGED_PATH_SCAR_COUNT      2
+#define RAVAGED_PATH_NO_SCAR         0xFF
+#define RAVAGED_PATH_SCAR_PROP_GROUP 2 // ghost-prop group of scar 0 (scar n: group 2 + n): the loose rocks hovering
+                                       // in front of its tiles, which fade away when it crumbles
+
+enum Arc2ScarState {
+    ARC2_SCAR_INTACT = 0,
+    ARC2_SCAR_HOLDING,
+    ARC2_SCAR_LEFT,
+    ARC2_SCAR_CRUMBLED,
+};
+
+typedef struct Arc2ScarTile {
+    u8 y;
+    u8 z;
+    u8 scar;
+} Arc2ScarTile;
+
+static const Arc2ScarTile sRavagedPathScarTiles[] = {
+    { 2, 16, 0 }, // under the wall trees: the only way on, crossed once
+    { 2, 20, 1 }, // the bottom-row branch past the fork ("That one is a scar.")
+    { 2, 21, 1 },
+    { 3, 20, 1 },
+    { 3, 21, 1 },
+};
+
+static u8 sRavagedPathScarStates[RAVAGED_PATH_SCAR_COUNT];
+static u8 sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
+static u8 sRavagedPathForkShown;
+
+static u8 RavagedPath_GetScarAt(int x, int y, int z)
+{
+    if (x != RAVAGED_PATH_WALL_X || y <= RAVAGED_PATH_FLOOR_Y) {
+        return RAVAGED_PATH_NO_SCAR;
+    }
+
+    for (int i = 0; i < NELEMS(sRavagedPathScarTiles); i++) {
+        if (sRavagedPathScarTiles[i].y == y && sRavagedPathScarTiles[i].z == z) {
+            return sRavagedPathScarTiles[i].scar;
+        }
+    }
+
+    return RAVAGED_PATH_NO_SCAR;
+}
+
+static void RavagedPath_ResetScars(DistWorldSystem *system)
+{
+    for (int i = 0; i < RAVAGED_PATH_SCAR_COUNT; i++) {
+        sRavagedPathScarStates[i] = ARC2_SCAR_INTACT;
+
+        if (IsActiveGhostPropGroupHidden(system, RAVAGED_PATH_SCAR_PROP_GROUP + i)) {
+            ShowGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + i);
+        }
+    }
+
+    sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
+    sRavagedPathForkShown = FALSE;
+}
+
 static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+    u8 scar, i;
+
+    if (*VarsFlags_GetVarAddress(varsFlags, VAR_ARC2_PROGRESS) != 14) {
+        return FALSE;
+    }
+
+    // Back on the entry walkway or the jump-on ledge (after a fall, or never left): the wall is whole again.
+    if (y == RAVAGED_PATH_FLOOR_Y && z <= 15 && x >= 12) {
+        RavagedPath_ResetScars(system);
+        return FALSE;
+    }
+
+    scar = RavagedPath_GetScarAt(x, y, z);
+
+    // A scar left on the previous step crumbles now.
+    for (i = 0; i < RAVAGED_PATH_SCAR_COUNT; i++) {
+        if (sRavagedPathScarStates[i] == ARC2_SCAR_LEFT) {
+            sRavagedPathScarStates[i] = ARC2_SCAR_CRUMBLED;
+            HideGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + i);
+            Sound_PlayEffect(SEQ_SE_DP_UG_023);
+        }
+    }
+
+    if (sRavagedPathPrevScar != RAVAGED_PATH_NO_SCAR && sRavagedPathPrevScar != scar
+        && sRavagedPathScarStates[sRavagedPathPrevScar] == ARC2_SCAR_HOLDING) {
+        sRavagedPathScarStates[sRavagedPathPrevScar] = ARC2_SCAR_LEFT;
+    }
+
+    if (scar != RAVAGED_PATH_NO_SCAR) {
+        if (sRavagedPathScarStates[scar] != ARC2_SCAR_INTACT) {
+            // A second step on the same scar, or back onto a spent one: it gives way.
+            // (The fall's warp rebuilds the props; the first step on the walkway resets the scars.)
+            HideGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + scar);
+            sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
+            Sound_PlayEffect(SEQ_SE_DP_UG_023);
+            ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_FALL, NULL);
+            return TRUE;
+        }
+
+        sRavagedPathScarStates[scar] = ARC2_SCAR_HOLDING;
+        Sound_PlayEffect(SEQ_SE_PL_KEZURI);
+    }
+
+    sRavagedPathPrevScar = scar;
+
+    if (VarsFlags_CheckFlag(varsFlags, FLAG_ARC2_RIFTA_B)) {
+        return FALSE;
+    }
+
+    if (!sRavagedPathForkShown && x == RAVAGED_PATH_WALL_X && y > RAVAGED_PATH_FLOOR_Y && z == RAVAGED_PATH_FORK_Z) {
+        sRavagedPathForkShown = TRUE;
+        ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_FORK, NULL);
+        return TRUE;
+    }
+
+    if (x == RAVAGED_PATH_WALL_X && y == RAVAGED_PATH_HALFWAY_Y && z == RAVAGED_PATH_HALFWAY_Z) {
+        ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_HALFWAY, NULL);
+        return TRUE;
+    }
+
     return FALSE;
+}
+
+// Arc 2 rift-a, DW Eterna Forest (scene 2.10, res/field/scripts/scripts_dw_eterna_forest.s): the CEILING (DW B4F's
+// east wall and ceiling, shifted to (0,0,0)) and the HONEYCOMB: the ceiling corridor x44-45 z33-36 is ghost-prop
+// group 1 (tools/distortion_world/eterna_forest.json), solid for a while, then it fades and is gone, then it comes back,
+// on a frame timer that runs whenever the map is loaded at VAR_ARC2_PROGRESS 24. Standing on it when it goes, or
+// stepping onto it while it is gone, drops the player (back to the hive start). Past it, the first step at z >= 41
+// on the ceiling starts the totem scene.
+#define ETERNA_FOREST_SCRIPT_HONEY_FALL 5 // map script entries (1-based)
+#define ETERNA_FOREST_SCRIPT_TOTEM      6
+#define ETERNA_FOREST_SCRIPT_TALK       7
+#define ETERNA_FOREST_CEILING_Y         10
+#define ETERNA_FOREST_HONEY_X_MIN       44
+#define ETERNA_FOREST_HONEY_X_MAX       45
+#define ETERNA_FOREST_HONEY_Z_MIN       33
+#define ETERNA_FOREST_HONEY_Z_MAX       36
+#define ETERNA_FOREST_HONEY_GROUP       1
+#define ETERNA_FOREST_TOTEM_Z           41
+#define ETERNA_FOREST_HONEY_SOLID       120 // DW task ticks (about 30 a second): solid, fading (still holds), gone
+#define ETERNA_FOREST_HONEY_FADE        20
+#define ETERNA_FOREST_HONEY_GONE        60
+
+static u16 sEternaForestHoneyTimer;
+
+static BOOL EternaForest_IsHoneyGone(void)
+{
+    return sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_SOLID + ETERNA_FOREST_HONEY_FADE;
+}
+
+static BOOL EternaForest_IsHoneyTile(int x, int y, int z)
+{
+    return y == ETERNA_FOREST_CEILING_Y
+        && x >= ETERNA_FOREST_HONEY_X_MIN && x <= ETERNA_FOREST_HONEY_X_MAX
+        && z >= ETERNA_FOREST_HONEY_Z_MIN && z <= ETERNA_FOREST_HONEY_Z_MAX;
+}
+
+static void Arc2DwEternaForest_HandleFrame(DistWorldSystem *system)
+{
+    FieldSystem *fieldSystem = system->fieldSystem;
+    BOOL hidden;
+    int x, y, z;
+
+    if (*VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_ARC2_PROGRESS) != 24) {
+        return;
+    }
+
+    if (++sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_SOLID + ETERNA_FOREST_HONEY_FADE + ETERNA_FOREST_HONEY_GONE) {
+        sEternaForestHoneyTimer = 0;
+    }
+
+    // The ghost props follow the timer (a warp re-reads the default visibility, so re-assert it every frame).
+    hidden = IsActiveGhostPropGroupHidden(system, ETERNA_FOREST_HONEY_GROUP);
+
+    if (sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_SOLID) {
+        if (!hidden) {
+            HideGhostPropGroup(system, ETERNA_FOREST_HONEY_GROUP);
+        }
+    } else if (hidden) {
+        ShowGhostPropGroup(system, ETERNA_FOREST_HONEY_GROUP);
+    }
+
+    // Gone with the player on it: raise VAR_MAP_LOCAL_2, and the map's init frame table starts the fall script from
+    // the idle field (never from this task, never mid-script). A step onto it while gone is the step hook's job.
+    if (EternaForest_IsHoneyGone()) {
+        GetPlayerPos(system, &x, &y, &z);
+
+        if (EternaForest_IsHoneyTile(x, y, z)) {
+            *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_MAP_LOCAL_2) = 1;
+        }
+    }
 }
 
 static BOOL Arc2DwEternaForest_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
+    if (*VarsFlags_GetVarAddress(SaveData_GetVarsFlags(system->fieldSystem->saveData), VAR_ARC2_PROGRESS) != 24) {
+        return FALSE;
+    }
+
+    if (EternaForest_IsHoneyTile(x, y, z) && EternaForest_IsHoneyGone()) {
+        ScriptManager_Set(system->fieldSystem, ETERNA_FOREST_SCRIPT_HONEY_FALL, NULL);
+        return TRUE;
+    }
+
+    if (y == ETERNA_FOREST_CEILING_Y && z >= ETERNA_FOREST_TOTEM_Z) {
+        ScriptManager_Set(system->fieldSystem, ETERNA_FOREST_SCRIPT_TOTEM, NULL);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+// Per-frame hook for the Arc 2 rifts, from the DW system task (ov9_02249EDC). Only Eterna Forest uses it.
+static void Arc2Dw_HandleFrame(DistWorldSystem *system)
+{
+    if (DistWorldSystem_GetMapHeaderID(system) == MAP_HEADER_DW_ETERNA_FOREST) {
+        Arc2DwEternaForest_HandleFrame(system);
+    }
+}
+
+// rift-b (Route 214, Route 213): the far end of the ceiling (y=10 over x 44-49; the wall below tops out at z=29)
+// runs the totem script, until that totem is calmed. res/field/scripts/scripts_dw_route_21{4,3}.s entry 4.
+#define ARC2_DW_B4F_CEILING_MIN_Y    9
+#define ARC2_DW_B4F_TOTEM_MIN_Z      45
+#define ARC2_DW_ROUTE_214_SCRIPT_TOTEM 4
+#define ARC2_DW_ROUTE_213_SCRIPT_TOTEM 4
+
+static BOOL Arc2DwB4F_HandleCeilingEnd(DistWorldSystem *system, int y, int z, u16 calmedFlag, u16 scriptID)
+{
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+
+    if (y >= ARC2_DW_B4F_CEILING_MIN_Y && z >= ARC2_DW_B4F_TOTEM_MIN_Z && !VarsFlags_CheckFlag(varsFlags, calmedFlag)) {
+        ScriptManager_Set(system->fieldSystem, scriptID, NULL);
+        return TRUE;
+    }
+
     return FALSE;
 }
 
 static BOOL Arc2DwRoute214_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
-    return FALSE;
+    return Arc2DwB4F_HandleCeilingEnd(system, y, z, FLAG_TOTEM_SKARMORY_DEFEATED, ARC2_DW_ROUTE_214_SCRIPT_TOTEM);
 }
 
 static BOOL Arc2DwRoute213_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
-    return FALSE;
+    return Arc2DwB4F_HandleCeilingEnd(system, y, z, FLAG_TOTEM_LAPRAS_DEFEATED, ARC2_DW_ROUTE_213_SCRIPT_TOTEM);
 }
 
 static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, int z)
@@ -6658,6 +6910,18 @@ static const UnkStruct_ov9_02252414 Unk_ov9_02252414[] = {
         { 0x0, 0x0, (FX32_ONE * 28) },
         0x28,
     },
+    // Arc 2 rift-a, DW Ravaged Path (2.6, halfway): the same shadow, deeper and much slower, south along z under the
+    // briefcase platform while the player stands on top of the seam. Same whoosh; nobody reacts.
+    {
+        15,
+        -2,
+        -4,
+        0x1,
+        0x2,
+        { FX32_ONE, FX32_ONE, FX32_ONE },
+        { 0x0, 0x0, (FX32_ONE * 10) },
+        0x60,
+    },
 };
 
 void ov9_0224E884(FieldSystem *fieldSystem, u16 param1)
@@ -9694,6 +9958,27 @@ static BOOL ov9_02251104(DistWorldSystem *param0, u32 param1, u32 param2)
         break;
     case 12:
         if (*VarsFlags_GetVarAddress(v0, VAR_ARC1_DW_HINTS) == param2) {
+            return 1;
+        }
+        break;
+    // Arc 2 rifts (rift-b): flag param2 set / clear, VAR_ARC2_PROGRESS at least / below param2
+    case 20:
+        if (VarsFlags_CheckFlag(v0, param2)) {
+            return 1;
+        }
+        break;
+    case 21:
+        if (!VarsFlags_CheckFlag(v0, param2)) {
+            return 1;
+        }
+        break;
+    case 22:
+        if (*VarsFlags_GetVarAddress(v0, VAR_ARC2_PROGRESS) >= param2) {
+            return 1;
+        }
+        break;
+    case 23:
+        if (*VarsFlags_GetVarAddress(v0, VAR_ARC2_PROGRESS) < param2) {
             return 1;
         }
         break;
@@ -13562,23 +13847,651 @@ static const UnkStruct_ov9_0224EF30 *sArc1SeamsObjects[] = {
 };
 
 // Arc 2 rifts (R0 stubs): DW overlay objects per map (local IDs 0x80+), each owned by that map's rift workstream.
+
+// Arc 2 rift-a, DW Ravaged Path. Cyrus waits at the entry (as in Arc 1) and folds across to the totem platform; the
+// map-local FLAG_UNK_0x0030 (set by the totem scene, kept through the battle reload, cleared by any warp) keeps him
+// off the entry once he has crossed. The rest are script-only (condition 6, ScrCmd_311/312).
+static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathCyrusAtEntry = {
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        FLAG_UNK_0x0030,
+        RAVAGED_PATH_SCRIPT_TALK,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        22,
+        11,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathCyrusAtTotem = {
+    0x6,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        RAVAGED_PATH_SCRIPT_TALK,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        15,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// The totem, violet aura and all, at the far (east) end of the briefcase platform. Visible from the start. Its big
+// sprite draws west of its tile, so it stands well clear of Cyrus at (15,22).
+static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathTotem = {
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_TOTEM_HITMONLEE_VIOLET,
+        0x0,
+        0x0,
+        FLAG_UNK_0x0031,
+        0x0,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        19,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// The same Hitmonlee once calm (no aura), shown by the script after the battle.
+static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathTotemCalm = {
+    0x6,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x83,
+        OBJ_EVENT_GFX_TOTEM_HITMONLEE,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        19,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
 static const UnkStruct_ov9_0224EF30 *sArc2DwRavagedPathObjects[] = {
+    &sArc2DwRavagedPathCyrusAtEntry,
+    &sArc2DwRavagedPathCyrusAtTotem,
+    &sArc2DwRavagedPathTotem,
+    &sArc2DwRavagedPathTotemCalm,
     NULL
+};
+
+// Arc 2 rift-a, DW Eterna Forest. Cyrus waits on the entry walkway and, folded through with the player, at the hive
+// start on B4F's floor strip; the Vespiquen totem hangs at the far end of the ceiling (y10).
+static const UnkStruct_ov9_0224EF30 sArc2DwEternaForestCyrusAtEntry = {
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        ETERNA_FOREST_SCRIPT_TALK,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        22,
+        11,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const UnkStruct_ov9_0224EF30 sArc2DwEternaForestCyrusInHive = {
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        ETERNA_FOREST_SCRIPT_TALK,
+        DIR_EAST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        40,
+        23,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const UnkStruct_ov9_0224EF30 sArc2DwEternaForestTotem = {
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_TOTEM_VESPIQUEN,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        DIR_NORTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        45,
+        45,
+        ((10 << 4) * FX32_ONE),
+    },
 };
 
 static const UnkStruct_ov9_0224EF30 *sArc2DwEternaForestObjects[] = {
+    &sArc2DwEternaForestCyrusAtEntry,
+    &sArc2DwEternaForestCyrusInHive,
+    &sArc2DwEternaForestTotem,
     NULL
 };
 
+// rift-b object conditions (ov9_02251104): 20 flag set, 21 flag clear, 22 VAR_ARC2_PROGRESS >= param, 23 < param,
+// 6 script-only (ScrCmd_311). Talk scripts are the map's script entries (1-based).
+// Route 214: Cyrus at the edge of the entry trees (the player steps out to (17,12)), until the boost choice (FLAG_ARC2_RIFTB_A).
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute214CyrusEntry = {
+    21,
+    FLAG_ARC2_RIFTB_A,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        5,
+        DIR_EAST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        16,
+        12,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 214: Cyrus beside the shard frame, folded there for the choice.
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute214CyrusFrame = {
+    20,
+    FLAG_ARC2_RIFTB_A,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        5,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        46,
+        23,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 214: the frame with the grunts' violet shard, wired toward the wall; gone once Cyrus pulls it.
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute214Frame = {
+    21,
+    FLAG_ARC2_RIFTB_B,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_SHARD_FRAME,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        47,
+        23,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 213: Cyrus at the edge of the entry trees (he stays there; the card is out of his earshot).
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Cyrus = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        5,
+        DIR_EAST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        16,
+        12,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 213: a rusted first-generation frame on the old lakebed (the ledge beside the pool, past the first hop).
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute213RustedFrame = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_SHARD_FRAME,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        31,
+        20,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 213: the worn Trainer Card beside it (FLAG_ARC2_ELIAS_CARD once picked up).
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Card = {
+    21,
+    FLAG_ARC2_ELIAS_CARD,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_POKEBALL,
+        0x0,
+        0x0,
+        0x0,
+        3,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        32,
+        20,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Route 213: the Lapras in what is left of the lake, until it is calmed.
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Lapras = {
+    21,
+    FLAG_TOTEM_LAPRAS_DEFEATED,
+    0x0,
+    0x0,
+    {
+        0x83,
+        OBJ_EVENT_GFX_TOTEM_LAPRAS,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        35,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: Eclipse Shards growing out of the rock around the vein room (placeholder sprite).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard1 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        13,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: vein shard.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard2 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        15,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: vein shard.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard3 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        12,
+        24,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: vein shard.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard4 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x83,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        14,
+        24,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: the wall of shadow across the way deeper, until it parts on the second visit (FLAG_ARC2_RIFTB_D).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShadow = {
+    21,
+    FLAG_ARC2_RIFTB_D,
+    0x0,
+    0x0,
+    {
+        0x84,
+        OBJ_EVENT_GFX_RIFT_ARC2,
+        0x0,
+        0x0,
+        0x0,
+        5,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        16,
+        23,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: Cyrus on his knees beside the Spiritomb, from the grunts' raid on (state 94).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCyrus = {
+    22,
+    94,
+    0x0,
+    0x0,
+    {
+        0x85,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        6,
+        DIR_EAST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        18,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: the Spiritomb totem.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerSpiritomb = {
+    22,
+    94,
+    0x0,
+    0x0,
+    {
+        0x86,
+        OBJ_EVENT_GFX_TOTEM_SPIRITOMB,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        20,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: Cyrus's starter, fainted at his side (script-only: the one weak to the player's starter).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerEmpoleon = {
+    6,
+    0,
+    0x0,
+    0x0,
+    {
+        0x87,
+        OBJ_EVENT_GFX_EMPOLEON,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        17,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: Cyrus's starter (the player chose Chimchar).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerTorterra = {
+    6,
+    0,
+    0x0,
+    0x0,
+    {
+        0x88,
+        OBJ_EVENT_GFX_TORTERRA,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        17,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower: Cyrus's starter (the player chose Piplup).
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerInfernape = {
+    6,
+    0,
+    0x0,
+    0x0,
+    {
+        0x89,
+        OBJ_EVENT_GFX_INFERNAPE,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        17,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
 static const UnkStruct_ov9_0224EF30 *sArc2DwRoute214Objects[] = {
+    &sArc2DwRoute214CyrusEntry,
+    &sArc2DwRoute214CyrusFrame,
+    &sArc2DwRoute214Frame,
     NULL
 };
 
 static const UnkStruct_ov9_0224EF30 *sArc2DwRoute213Objects[] = {
+    &sArc2DwRoute213Cyrus,
+    &sArc2DwRoute213RustedFrame,
+    &sArc2DwRoute213Card,
+    &sArc2DwRoute213Lapras,
     NULL
 };
 
 static const UnkStruct_ov9_0224EF30 *sArc2DwLostTowerObjects[] = {
+    &sArc2DwLostTowerShard1,
+    &sArc2DwLostTowerShard2,
+    &sArc2DwLostTowerShard3,
+    &sArc2DwLostTowerShard4,
+    &sArc2DwLostTowerShadow,
+    &sArc2DwLostTowerCyrus,
+    &sArc2DwLostTowerSpiritomb,
+    &sArc2DwLostTowerEmpoleon,
+    &sArc2DwLostTowerTorterra,
+    &sArc2DwLostTowerInfernape,
     NULL
 };
 

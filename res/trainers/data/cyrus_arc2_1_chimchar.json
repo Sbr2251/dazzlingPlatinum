@@ -13,16 +13,25 @@
             "species": "SPECIES_TURTWIG",
             "form": 0,
             "level": 17,
-            "item": null,
-            "moves": null,
-            "power": 0,
-            "ball_seal": 0
+            "item": "ITEM_ORAN_BERRY",
+            "moves": [
+                "MOVE_RAZOR_LEAF",
+                "MOVE_TACKLE",
+                "MOVE_WITHDRAW",
+                "MOVE_CURSE"
+            ],
+            "power": 120,
+            "ball_seal": 0,
+            "ability": "ABILITY_OVERGROW"
         }
     ],
     "messages": [
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "(Placeholder team.)\n"
+            "en_US": [
+                "Hm. Well fought.\n",
+                "Both of you.\n"
+            ]
         }
     ]
 }
