@@ -1,0 +1,74 @@
+{
+  "key": 40217,
+  "messages": [
+    {
+      "id": "DWRoute214_Text_CyrusNoFloor",
+      "en_US": [
+        "Cyrus: No floor here. Only walls.\r",
+        "Jump when the far wall is under\n",
+        "you. Not before."
+      ]
+    },
+    {
+      "id": "DWRoute214_Text_CyrusShardInFrame",
+      "en_US": [
+        "Cyrus: Their machine left a shard in\n",
+        "that frame. It's feeding the bird."
+      ]
+    },
+    {
+      "id": "DWRoute214_Text_CyrusICanPullIt",
+      "en_US": [
+        "Cyrus: I can pull it out.\r",
+        "It won't be gentle. For me."
+      ]
+    },
+    {
+      "id": "DWRoute214_Text_CyrusShouldI",
+      "en_US": [
+        "Cyrus: Should I?"
+      ]
+    },
+    {
+      "id": "DWRoute214_Text_CyrusEllipsis",
+      "en_US": [
+        "Cyrus: ..."
+      ]
+    },
+    {
+      "id": "DWRoute214_Text_CyrusItsOut",
+      "en_US": [
+        "Cyrus: It's out.\r",
+        "It bit. These things take something\n",
+        "from whoever holds them."
+      ]
+    },
+    {
+      "id": "DWRoute214_Text_CyrusFullStrength",
+      "en_US": [
+        "Cyrus: Then it fights at full\n",
+        "strength. So must you."
+      ]
+    },
+    {
+      "id": "DWRoute214_Text_GotCalmShard",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} got a Calm Shard!"
+      ]
+    },
+    {
+      "id": "DWRoute214_Text_CyrusItsFree",
+      "en_US": [
+        "Cyrus: It's free now. That's what\n",
+        "matters."
+      ]
+    },
+    {
+      "id": "DWRoute214_Text_CyrusMyHandWillMend",
+      "en_US": [
+        "Cyrus: My hand will mend.\n",
+        "Go. It's waiting for you."
+      ]
+    }
+  ]
+}

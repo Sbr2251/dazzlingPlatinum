@@ -1003,7 +1003,11 @@
     },
     {
       "id": "pl_msg_00000391_00127",
-      "garbage": 0
+      "en_US": [
+        "The Portal Reader, rebuilt around a\n",
+        "Calm Shard. It answers to the\n",
+        "totems you've calmed."
+      ]
     },
     {
       "id": "pl_msg_00000391_00128",

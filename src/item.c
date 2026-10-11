@@ -787,10 +787,10 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
         .paletteID = portal_reader_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
-    [ITEM_UNUSED_127] = {
-        .dataID = 0x0,
-        .iconID = none_NCGR,
-        .paletteID = none_NCLR,
+    [ITEM_RESONATOR] = {
+        .dataID = 0x1CC,
+        .iconID = portal_reader_NCGR, // Arc 2: the Portal Reader's icon until the Resonator art lands
+        .paletteID = portal_reader_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
     [ITEM_UNUSED_128] = {

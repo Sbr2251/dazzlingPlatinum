@@ -1,0 +1,37 @@
+{
+    "name": "Cyrus",
+    "class": "TRAINER_CLASS_GALACTIC_BOSS",
+    "items": [],
+    "ai_flags": [
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK",
+        "AI_FLAG_EXPERT"
+    ],
+    "double_battle": false,
+    "party": [
+        {
+            "species": "SPECIES_PIPLUP",
+            "form": 0,
+            "level": 17,
+            "item": "ITEM_ORAN_BERRY",
+            "moves": [
+                "MOVE_BUBBLE",
+                "MOVE_PECK",
+                "MOVE_GROWL",
+                "MOVE_POUND"
+            ],
+            "power": 120,
+            "ball_seal": 0,
+            "ability": "ABILITY_TORRENT"
+        }
+    ],
+    "messages": [
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": [
+                "Hm. Well fought.\n",
+                "Both of you.\n"
+            ]
+        }
+    ]
+}

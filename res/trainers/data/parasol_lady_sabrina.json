@@ -8,9 +8,9 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_WOOPER",
+            "species": "SPECIES_QUAGSIRE",
             "form": 0,
-            "level": 26,
+            "level": 34,
             "item": null,
             "moves": null,
             "power": 0,
@@ -19,7 +19,7 @@
         {
             "species": "SPECIES_QUAGSIRE",
             "form": 0,
-            "level": 28,
+            "level": 34,
             "item": null,
             "moves": null,
             "power": 0,

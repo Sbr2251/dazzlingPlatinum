@@ -597,6 +597,10 @@ void Encounter_NewTotemBattle(FieldTask *task, u8 encounterID, int *resultMaskPt
 
     dto->battleStatusMask |= BATTLE_STATUS_LEGENDARY | BATTLE_STATUS_TOTEM | BATTLE_STATUS_NO_RUNNING;
 
+    if (config->boosted) {
+        dto->battleStatusMask |= BATTLE_STATUS_TOTEM_BOOSTED;
+    }
+
     GameRecords_IncrementRecordValue(SaveData_GetGameRecords(fieldSystem->saveData), RECORD_WILD_BATTLES_FOUGHT);
     StartEncounter(task, dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);
 }

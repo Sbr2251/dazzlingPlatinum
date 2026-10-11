@@ -9,9 +9,9 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GEODUDE",
+            "species": "SPECIES_GRAVELER",
             "form": 0,
-            "level": 20,
+            "level": 27,
             "item": null,
             "moves": null,
             "power": 0,
@@ -20,7 +20,7 @@
         {
             "species": "SPECIES_NOSEPASS",
             "form": 0,
-            "level": 20,
+            "level": 27,
             "item": null,
             "moves": null,
             "power": 0,

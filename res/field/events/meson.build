@@ -543,6 +543,11 @@ events_files = files(
     'events_verity_castle_1f.json',
     'events_distortion_world_arc1_seams.json',
     'events_oreburgh_mine_side_tunnel.json',
+    'events_dw_ravaged_path.json',
+    'events_dw_eterna_forest.json',
+    'events_dw_route_214.json',
+    'events_dw_route_213.json',
+    'events_dw_lost_tower.json',
 )
 
 events_headers = []

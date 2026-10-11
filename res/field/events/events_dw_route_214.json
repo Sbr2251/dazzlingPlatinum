@@ -1,0 +1,17 @@
+{
+    "bg_events": [],
+    "object_events": [],
+    "warp_events": [],
+    "coord_events": [
+        {
+            "script": 3,
+            "x": 44,
+            "z": 22,
+            "y": 0,
+            "width": 1,
+            "length": 2,
+            "var": "VAR_MAP_LOCAL_2",
+            "value": 0
+        }
+    ]
+}

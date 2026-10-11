@@ -1164,6 +1164,16 @@ scr_seq_files = files(
     'scripts_init_distortion_world_arc1_seams.s',
     'scripts_oreburgh_mine_side_tunnel.s',
     'scripts_init_oreburgh_mine_side_tunnel.s',
+    'scripts_dw_ravaged_path.s',
+    'scripts_init_dw_ravaged_path.s',
+    'scripts_dw_eterna_forest.s',
+    'scripts_init_dw_eterna_forest.s',
+    'scripts_dw_route_214.s',
+    'scripts_init_dw_route_214.s',
+    'scripts_dw_route_213.s',
+    'scripts_init_dw_route_213.s',
+    'scripts_dw_lost_tower.s',
+    'scripts_init_dw_lost_tower.s',
 )
 
 scr_seq_narc_order = files('scripts.order')

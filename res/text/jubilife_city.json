@@ -1030,10 +1030,6 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1ToBeContinued",
-      "en_US": "To be continued..."
-    },
-    {
       "id": "JubilifeCity_Text_Arc1GruntTakeAFlyer",
       "en_US": [
         "Eclipse Grunt: Team Eclipse is here\n",
@@ -1257,6 +1253,72 @@
         "Man in a Trench Coat: Your bag is\n",
         "full. Hm.\r",
         "Then my thanks will have to do."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2GariusThereHeIs",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: There he is.\n",
+        "Spacesuit guy."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2CyrusRowanSentYou",
+      "en_US": "Cyrus: ...Rowan sent you."
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2GariusLuckyUs",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: He says you're our guide\n",
+        "now. Lucky us."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2CyrusRiftOpened",
+      "en_US": [
+        "Cyrus: The rift opened again.\n",
+        "North of here. I felt it.\r",
+        "Bring Rowan to the Trainers'\n",
+        "School tonight. Everyone.\r",
+        "You should all hear what I am\n",
+        "before I take another step."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2CyrusLongTime",
+      "en_US": [
+        "Cyrus: It has been a long time since\n",
+        "a Pokémon chose to stand with me.\r",
+        "Show me how it's done."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2CyrusItListened",
+      "en_US": [
+        "Cyrus: Hm. It listened to me.\n",
+        "I didn't expect that."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2CyrusMeetYouThere",
+      "en_US": [
+        "Cyrus: Ravaged Path is north, on\n",
+        "Route 204. I'll meet you there."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2RowanRuthWillGo",
+      "en_US": [
+        "Rowan: Ruth will go with you and\n",
+        "watch the readings from outside.\r",
+        "Be careful. All of you."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2TeachingAfterHours",
+      "en_US": [
+        "Odd. Someone was teaching in there\n",
+        "after hours. Nobody I knew."
       ]
     }
   ]

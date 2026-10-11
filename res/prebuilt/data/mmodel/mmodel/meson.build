@@ -603,3 +603,147 @@ mmodel_files_targets += custom_target('mmodel_00000483.bin',
         '--output', '@OUTPUT@',
     ],
 )
+
+# Arc 2 field sprites (OBJ_EVENT_GFX_INDRA, _KAHN, _LOOKER_JANITOR/_NEWSPAPER, _ECLIPSE_CRATE, _SHARD_FRAME,
+# _RIFT_ARC2): generated at build time from res/field/objects/arc2/*.png by tools/integrate_arc2_field_sprites.py.
+# Members must stay contiguous after 483 (narc create packs the directory in name order).
+mmodel_files_targets += custom_target('mmodel_00000484.bin',
+    output: 'mmodel_00000484.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc2/indra.png',
+        'mmodel_00000102.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_INDRA',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
+mmodel_files_targets += custom_target('mmodel_00000485.bin',
+    output: 'mmodel_00000485.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc2/kahn.png',
+        'mmodel_00000054.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_KAHN',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
+mmodel_files_targets += custom_target('mmodel_00000486.bin',
+    output: 'mmodel_00000486.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc2/looker_janitor.png',
+        'mmodel_00000376.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_LOOKER_JANITOR',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
+mmodel_files_targets += custom_target('mmodel_00000487.bin',
+    output: 'mmodel_00000487.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc2/looker_newspaper.png',
+        'mmodel_00000376.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_LOOKER_NEWSPAPER',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
+mmodel_files_targets += custom_target('mmodel_00000488.bin',
+    output: 'mmodel_00000488.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc2/eclipse_crate.png',
+        'mmodel_00000130.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_ECLIPSE_CRATE',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
+mmodel_files_targets += custom_target('mmodel_00000489.bin',
+    output: 'mmodel_00000489.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc2/shard_frame.png',
+        'mmodel_00000130.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_SHARD_FRAME',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
+mmodel_files_targets += custom_target('mmodel_00000490.bin',
+    output: 'mmodel_00000490.bin',
+    input: [
+        meson.project_source_root() / 'res/field/objects/arc2/rift_arc2.png',
+        'mmodel_00000130.bin',
+    ],
+    depend_files: [
+        meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_arc1_field_sprites.py',
+        meson.project_source_root() / 'tools/integrate_mawile_overworld_sprite.py',
+    ],
+    command: [
+        find_program(meson.project_source_root() / 'tools/integrate_arc2_field_sprites.py', native: true),
+        'build-member',
+        '--constant', 'OBJ_EVENT_GFX_RIFT_ARC2',
+        '--sheet', '@INPUT0@',
+        '--template', '@INPUT1@',
+        '--output', '@OUTPUT@',
+    ],
+)
