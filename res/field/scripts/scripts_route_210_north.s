@@ -10,21 +10,14 @@
     ScriptEntry Route210North_Arc2RiftMist
     ScriptEntryEnd
 
-// Arc 2 (s-celestic): Route 210 North comes before Defog in the new order, so its fog is off.
-// The header's OVERWORLD_WEATHER_FOG is left alone (header edits are the lead's); instead:
-//  - Celestic Town, Route 210 South and this map set the Defog-active system flag on transition. It survives
-//    seamless walks (it is only cleared by a warp onto a non-cave map), so a walk in from either neighbour
-//    computes CLEAR weather at the map change.
-//  - Warp entries (out of Grandma Wilma's house, a save loaded here) compute FOG before any script runs, so
-//    OnResume (after the field's weather is set up) switches it to CLEAR with the Defog field-move command.
+// Arc 2: Route 210 North uses the violet rift mist (OVERWORLD_WEATHER_RIFT_MIST, world-art), which blocks nothing,
+// so no Defog workaround is needed here or in Celestic / Route 210 South.
 // FLAG_ARC2_CELESTIC_A = the rift-mist line has been shown (text-only S11 mist, at the Celestic edge).
 
 Route210North_OnTransition:
-    Defog 1
     End
 
 Route210North_OnResume:
-    ScrCmd_0C4
     End
 
 Route210North_Arc2RiftMist:
