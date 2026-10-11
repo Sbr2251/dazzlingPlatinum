@@ -108,6 +108,51 @@
             "x": 7,
             "z": 6,
             "y": 0
+        },
+        {
+            "id": "LOCALID_ARC2_KAHN",
+            "graphics_id": "OBJ_EVENT_GFX_KAHN",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 0,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 7,
+            "z": 6,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC2_INDRA",
+            "graphics_id": "OBJ_EVENT_GFX_INDRA",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0031",
+            "script": 0,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 9,
+            "z": 6,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC2_SAROS",
+            "graphics_id": "OBJ_EVENT_GFX_SAROS",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0032",
+            "script": 0,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 9,
+            "z": 6,
+            "y": 0
         }
     ],
     "warp_events": [

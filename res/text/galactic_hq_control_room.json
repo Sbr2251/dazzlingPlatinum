@@ -170,6 +170,86 @@
         "It’s Team Galactic’s sinister machine.\n",
         "AZELF had been sealed inside it."
       ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2KahnWordFromOurNewFriend",
+      "en_US": [
+        "Kahn: Word from our new friend.\r",
+        "The professor has a guide now."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2KahnAManWhoWalkedOut",
+      "en_US": [
+        "Kahn: A man who walked out of the\n",
+        "Distortion World. Alive."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2IndraOutOfIt",
+      "en_US": "Indra: ...Out of it."
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2KahnSomethingStoppedHim",
+      "en_US": [
+        "Kahn: He says something stopped\n",
+        "him. In his world.\r",
+        "Something older than all of us."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2IndraFindOutWhat",
+      "en_US": [
+        "Indra: Something stopped a man who\n",
+        "held Dialga and Palkia.\r",
+        "Find out what.\r",
+        "Nothing stops this one."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2KahnFirstLight",
+      "en_US": [
+        "Kahn: They go into Ravaged Path at\n",
+        "first light. That site is ours."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2IndraBeThereFirst",
+      "en_US": "Indra: Then be there first."
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2SarosTheHavenIsGone",
+      "en_US": "Saros: The Haven is gone."
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2KahnOtherWaysToFillTheCrates",
+      "en_US": [
+        "Kahn: We have other ways to fill the\n",
+        "crates."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2SarosWeDidntSeeItComing",
+      "en_US": [
+        "Saros: We didn't see it coming.\n",
+        "We always see them coming."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2KahnOurFriendWasntTold",
+      "en_US": [
+        "Kahn: Our friend wasn't told.\r",
+        "Our friend says they're crossing\n",
+        "Mt. Coronet to Celestic next.\r",
+        "Rowan wants them to meet someone."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2SarosIllGoMyself",
+      "en_US": [
+        "Saros: Celestic. The old woman.\r",
+        "Then I'll go myself."
+      ]
     }
   ]
 }
