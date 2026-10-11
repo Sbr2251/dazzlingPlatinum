@@ -370,7 +370,7 @@ Indra: Then be there first.
 - *Never show who sent the message. The informant calls Cyrus "a man who walked out": Cyrus wouldn't describe himself that way. Cyrus never names Giratina.*
 
 **Jubilife at 9 (s-jubilife):** Rowan and Ruth are gone (Ruth went ahead to Route 204). A Jubilife NPC line if the
-player talks to the old school teacher outside the school:
+player talks to an NPC standing near the school:
 
 ```text
 Odd. Someone was teaching in there
@@ -390,7 +390,7 @@ that wall. Right where the rift is.
 I'll stay here and watch. Shout if
 anything... shouts back.
 
-Cyrus: Stay close. Both of us.
+Cyrus: Stay close to me.
 ```
 
 - *The player and Cyrus walk to the back wall. Two Eclipse grunts stand beside a violet rift (rift object, inactive). The grunts turn (emote `!`).*
@@ -440,8 +440,8 @@ I know how that looks.
 [MENU: Cyrus | Garius | Ruth | Bad luck]
 
 [Cyrus]
-Ruth: Cyrus? He fought them right
-beside you. Why help them first?
+Ruth: Cyrus? He just fought them
+beside you. Why tip them off first?
 
 [Garius]
 Ruth: Garius? He'd sooner eat his
@@ -752,7 +752,7 @@ point at Eterna Forest next.
 Owner **s-floaroma** (overworld), **rift-a** (DW) | `eterna_forest`, `DW_ETERNA_FOREST` | reads **22** | sets **23**,
 **24**, (rift-a **26**), **29**
 
-- *Eterna Forest is silent: no wild battles on the main path is not required, but the stock forest trainers stay. A violet rift hangs between two trees off the main path. Ruth and Cyrus wait beside it. Talking to Ruth starts the scene; set 23.*
+- *Eterna Forest is silent (cutting the Bug/Combee encounters until 26 is optional, P2; the stock forest trainers stay). A violet rift hangs between two trees off the main path. Ruth and Cyrus wait beside it. Talking to Ruth starts the scene; set 23.*
 
 ```text
 Ruth: It's the same signature as
@@ -1176,7 +1176,7 @@ Listen.
 
 ```text
 Elder: A king stopped the clock on
-the morning his queen breathed.
+the last morning his queen breathed.
 --
 His kingdom stood frozen in that
 morning for a hundred years.
@@ -1398,7 +1398,6 @@ anymore.
 --
 They say the sky over it feels
 wrong. Please, help it.
-
 ```
 
 - *Outside the Gym: a man in a hat and sunglasses reads a newspaper upside down (`OBJ_EVENT_GFX_LOOKER_NEWSPAPER`). He lowers it as the player passes (trigger).*
@@ -2076,20 +2075,20 @@ Path. You just needed someone
 to say it.
 
 [Bad luck picked 3 or 4 times]
-Garius: Bad luck, huh? Four times?
-Nobody's that unlucky.
+Garius: Ruth says you keep calling
+it bad luck. Nobody's that unlucky.
 
 [Ruth picked 2 or more times]
-Garius: And it's not Ruth. Come on.
-She cried over a Psyduck tonight.
+Garius: Ruth says you even wondered
+about HER. Come on.
 
 [Garius picked 2 or more times]
-Garius: Yeah, I know you wondered
+Garius: Ruth says you wondered
 about me. Fine. Look all you want.
 
 [anything else]
-Garius: You keep changing your mind.
-I get it. But count it up.
+Garius: Ruth says you keep changing
+your mind. I get it. Count it up.
 ```
 
 - *Then, every case:*
@@ -2475,7 +2474,7 @@ opening the crate frees the Plusle; both are given as a pair.
 2. **C8 split:** "A boy stopped me. A boy, and a Champion. Then something rose out of the dark and stopped me. Then it took me into its world." Both stoppings stay; the second is the Arc 3 plant.
 3. **2.4 Indra's last line** is the plan's "Find out what. Nothing stops this one." kept verbatim (box per sentence).
 4. **Ledger reactions:** Ruth reacts at L0-L2 with one box each, every one a weighing that doesn't settle; Looker reacts at L3 with "I will write that down" for every pick. B = Bad luck. Cyrus says nothing after any pick.
-5. **2.23 variants:** five, first match wins (Cyrus 3+, Bad luck 3+, Ruth 2+, Garius 2+, else). Then the common list.
+5. **2.23 variants:** five, first match wins (Cyrus 3+, Bad luck 3+, Ruth 2+, Garius 2+, else). Garius was absent at every prompt, so the non-Cyrus variants open with "Ruth says...": Ruth talks, and Garius listens (fits the informant in hindsight). Then the common list.
 6. **L3 whereabouts:** only Looker and the player go into the cave; Ruth and Cyrus wait at the mouth and run in at the frames; Garius watches the Route 213 gate ("If they run, they run past me"). Both suspects could have told Eclipse between the briefing and nightfall.
 7. **The Basin is mandatory, the question optional:** Looker sends the player to fetch Garius (2.20), so the Basin scene always plays; the Yes/No is the second talk. Unasked = No.
 8. **Plaque location:** the ELIAS plaque is in Valor Lakefront (s-route214), passed on the way south from Route 214; the Basin (s-pastoria) gets a fence sign. The plan listed the plaque under both; one copy avoids a duplicate.
