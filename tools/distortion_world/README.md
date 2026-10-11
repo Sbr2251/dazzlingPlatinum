@@ -58,6 +58,19 @@ Route 213's is a serpentine path "under the lake". The B4F ghost props (its rock
 Lost Tower: the Arc 1 seam unchanged (on from the ledge (12,14), off at (12,23)); the vein room is (12..15,23)
 with (15,24..26) blocked so the wall-of-shadow object at (16,23) closes the only way deeper.
 
+### DW Lost Tower: the ghost acts (set-tower, Arc 2 R3, S7)
+
+Still Phase 0 terrain; the set piece lives in `lost_tower.json` (wall grid + ghost props), `build_rift_b_maps.py`
+(`LOST_TOWER_OPEN`: the last stone (32,22) and Cyrus's island (37..41, 21..23) in the east block 678), the
+`Arc2DwLostTower_*` step/frame hooks and `sArc2DwLostTower*` objects in `src/overlay009/ov9_02249960.c`, and
+`scripts_dw_lost_tower.s`. Wall scars are walkable in the grid (`*`): (y2, z14) Hitmonlee's scar, (y2, z20-21) the
+false seam (the step hook drops you). Ghost-prop groups: 2 the scar's rock (until Hitmonlee kicks it shut), 3
+Vespiquen's light in front of the true seam (y3, z19-22), 4 B1F's own stepping stones east of the deeper ledge
+(23/26/29/32, 22; sunk until Lapras lifts them; B1F's jump-twice tiles do the hops), 0 the rest (B1F decor, the false
+seam's rocks, and the island: a `PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_1` at (39,22)). B1F's stones at (32,19) and
+(35,19) are dropped. Ghost props render fine in front of the wall (x=12); map objects there must not use the wall
+rotation (`unk_04 = 1`): one still loaded when the exit's warp animation runs hangs the game.
+
 ### DW Route 213: the Drowned Lake (set-lake, Arc 2 R3)
 
 `build_dw_route_213.py` builds 675/676 from the same B4F base (rift-b's `B4F_OPEN` / `B4F_BLOCK` edits included) and

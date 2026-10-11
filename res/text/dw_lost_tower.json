@@ -119,6 +119,13 @@
         "...There's no other way.\n",
         "You take a running leap!"
       ]
+    },
+    {
+      "id": "DWLostTower_Text_Litwick",
+      "en_US": [
+        "A Litwick. Its candle flame burns\n",
+        "pale and cold beside the seam."
+      ]
     }
   ]
 }

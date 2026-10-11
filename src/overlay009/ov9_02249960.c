@@ -2578,6 +2578,7 @@ static BOOL Arc2DwRoute213_HandleStep(DistWorldSystem *system, int x, int y, int
 #define LOST_TOWER_SCRIPT_ACT_VESPIQUEN 8
 #define LOST_TOWER_SCRIPT_ACT_LAPRAS    9
 #define LOST_TOWER_SCRIPT_ACT_SKARMORY  10
+#define LOST_TOWER_SCRIPT_TALK_LITWICK  11
 #define LOST_TOWER_GROUP_SCAR           2 // ghost-prop groups (tools/distortion_world/lost_tower.json)
 #define LOST_TOWER_GROUP_SEAM           3
 #define LOST_TOWER_GROUP_STONES         4
@@ -14933,7 +14934,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle1 = {
         0x0,
         0x0,
         0x0,
-        0,
+        LOST_TOWER_SCRIPT_TALK_LITWICK,
         DIR_SOUTH,
         0x0,
         0x0,
@@ -14958,7 +14959,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle2 = {
         0x0,
         0x0,
         0x0,
-        0,
+        LOST_TOWER_SCRIPT_TALK_LITWICK,
         DIR_SOUTH,
         0x0,
         0x0,
@@ -14985,7 +14986,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle3 = {
         0x0,
         0x0,
         0x0,
-        0,
+        LOST_TOWER_SCRIPT_TALK_LITWICK,
         DIR_SOUTH,
         0x0,
         0x0,
@@ -15010,7 +15011,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle4 = {
         0x0,
         0x0,
         0x0,
-        0,
+        LOST_TOWER_SCRIPT_TALK_LITWICK,
         DIR_SOUTH,
         0x0,
         0x0,
@@ -15035,7 +15036,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle5 = {
         0x0,
         0x0,
         0x0,
-        0,
+        LOST_TOWER_SCRIPT_TALK_LITWICK,
         DIR_SOUTH,
         0x0,
         0x0,
@@ -15060,7 +15061,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle6 = {
         0x0,
         0x0,
         0x0,
-        0,
+        LOST_TOWER_SCRIPT_TALK_LITWICK,
         DIR_SOUTH,
         0x0,
         0x0,

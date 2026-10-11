@@ -67,6 +67,7 @@
     ScriptEntry DWLostTower_ActVespiquen
     ScriptEntry DWLostTower_ActLapras
     ScriptEntry DWLostTower_ActSkarmory
+    ScriptEntry DWLostTower_TalkLitwick
     ScriptEntryEnd
 
 DWLostTower_OnTransition:
@@ -419,6 +420,17 @@ DWLostTower_ShowTorterra:
 DWLostTower_ShowInfernape:
     ScrCmd_311 LOCALID_INFERNAPE
     Return
+
+// A on a Litwick candle (decor objects; a stand-in sprite until a Litwick overworld sprite exists).
+DWLostTower_TalkLitwick:
+    LockAll
+    PlayCry SPECIES_LITWICK
+    Message DWLostTower_Text_Litwick
+    WaitCry
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
 
 DWLostTower_TalkCyrus:
     LockAll
