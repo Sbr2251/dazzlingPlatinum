@@ -180,6 +180,32 @@
     {
       "id": "PastoriaPC_Text_Arc2LookerAfter",
       "en_US": "Looker: ..."
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2RowanFile",
+      "en_US": [
+        "Rowan: Looker sent me his file on\n",
+        "Cyrus.\r",
+        "No record. Anywhere."
+      ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2RowanKeepEye",
+      "en_US": [
+        "Rowan: I gave that man a Pok\u00e9mon.\r",
+        "...Keep an eye on him for me."
+      ]
+    },
+    {
+      "id": "PastoriaPC_Text_Arc2RowanResonator",
+      "en_US": [
+        "Rowan taps the Calm Shard set in\n",
+        "the Resonator.\r",
+        "Rowan: And this. Given freely.\r",
+        "There was always another way to\n",
+        "that power.\r",
+        "They chose this one."
+      ]
     }
   ]
 }
