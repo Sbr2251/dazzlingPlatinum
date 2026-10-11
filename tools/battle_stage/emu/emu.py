@@ -1,4 +1,3 @@
-import atexit
 """Headless py-desmume harness for dazzlingPlatinum.
 
 Run with the Python 3.9 venv (the 3.12 venv's desmume is broken for this):
@@ -33,6 +32,7 @@ Gotchas:
 """
 
 from __future__ import annotations
+import atexit
 
 import os
 import pathlib

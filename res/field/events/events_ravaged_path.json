@@ -688,6 +688,26 @@
             "length": 1,
             "var": "VAR_ARC2_PROGRESS",
             "value": 10
+        },
+        {
+            "script": 5,
+            "x": 19,
+            "z": 45,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 13
+        },
+        {
+            "script": 5,
+            "x": 19,
+            "z": 45,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 14
         }
     ]
 }
