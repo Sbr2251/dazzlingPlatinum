@@ -1753,7 +1753,7 @@ _1558:
 //   VAR_ARC1_PROGRESS 12: rally cast + crowd visible, the east exit sends the player back to the plaza.
 //                        Talking to Garius (or walking up behind him) runs the rally and sets 13.
 //   13: crowd and grunts stay, Garius/Cyrus/Looker are gone, the east exit is open (Route 203, scene 12).
-//   14+: the plaza is back to normal.  16: "To be continued..." at the north exit (D13).
+//   14+: the plaza is back to normal. (16's "To be continued..." gate was removed in Arc 2.)
 
 JubilifeCity_Arc1HideRally:
     SetFlag FLAG_HIDE_ARC1_JUBILIFE_RALLY
@@ -1995,15 +1995,9 @@ JubilifeCity_Arc1TriggerEastExit:
     ReleaseAll
     End
 
-// Coord event on the north exit row (x172-177, z743), state 16: end of Arc 1 (D13)
+// Arc 1's "To be continued..." gate on the north exit (state 16, D13) was removed for Arc 2: its coord event is
+// gone from the events file. The script slot stays so the script ids after it don't shift.
 JubilifeCity_Arc1TriggerToBeContinued:
-    LockAll
-    Message JubilifeCity_Text_Arc1ToBeContinued
-    WaitABXPadPress
-    CloseMessage
-    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1Movement_StepSouth
-    WaitMovement
-    ReleaseAll
     End
 
 JubilifeCity_Arc1TrenchCoat:

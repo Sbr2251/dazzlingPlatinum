@@ -973,16 +973,6 @@
             "value": 12
         },
         {
-            "script": 32,
-            "x": 172,
-            "z": 743,
-            "y": 0,
-            "width": 6,
-            "length": 1,
-            "var": "VAR_ARC1_PROGRESS",
-            "value": 16
-        },
-        {
             "script": 46,
             "x": 186,
             "z": 757,
