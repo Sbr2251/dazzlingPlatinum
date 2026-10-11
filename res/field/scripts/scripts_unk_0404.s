@@ -330,6 +330,7 @@
     ScriptEntry _1E86
     ScriptEntry _1E9A
     ScriptEntry _1EAE
+    ScriptEntry _Arc2Gengarite
     ScriptEntryEnd
 
 _0522:
@@ -2426,3 +2427,10 @@ _20C0:
 _20C6:
     PrintPlateObtainedMessage
     Return
+
+// Arc 2 polish-c: Gengarite in the Old Chateau back middle room (script 7328)
+_Arc2Gengarite:
+    SetVar VAR_0x8008, ITEM_GENGARITE
+    SetVar VAR_0x8009, 1
+    GoTo _1EAE
+    End
