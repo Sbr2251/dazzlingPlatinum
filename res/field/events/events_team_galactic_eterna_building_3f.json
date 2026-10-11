@@ -7,16 +7,54 @@
             "z": 2,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": 3,
+            "type": 0,
+            "x": 12,
+            "z": 7,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_WEST"
         }
     ],
     "object_events": [
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_3F_GRUNT_M_0",
-            "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
+            "id": "HAVEN_3F_LOOKER",
+            "graphics_id": "OBJ_EVENT_GFX_LOOKER_JANITOR",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 1,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 16,
+            "z": 3,
+            "y": 0
+        },
+        {
+            "id": "HAVEN_3F_GARDENIA",
+            "graphics_id": "OBJ_EVENT_GFX_GARDENIA",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0031",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 15,
+            "z": 6,
+            "y": 0
+        },
+        {
+            "id": "HAVEN_3F_RUTH",
+            "graphics_id": "OBJ_EVENT_GFX_COUNTERPART",
             "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01FD",
-            "script": 1,
+            "hidden_flag": "FLAG_UNK_0x0032",
+            "script": 0,
             "initial_dir": 3,
             "data": [],
             "movement_range_x": 0,
@@ -26,41 +64,37 @@
             "y": 0
         },
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_3F_GALACTIC_GRUNT",
-            "graphics_id": "OBJ_EVENT_GFX_GRUNT_F",
+            "id": "HAVEN_3F_CARETAKER_1",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_M",
             "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
-            "trainer_type": "TRAINER_TYPE_NORMAL",
-            "hidden_flag": "FLAG_UNK_0x01FD",
-            "script": "TRAINER_GALACTIC_GRUNT_TEAM_GALACTIC_ETERNA_BUILDING_3F",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0033",
+            "script": 0,
             "initial_dir": 0,
-            "data": [
-                3
-            ],
+            "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 8,
-            "z": 7,
+            "x": 13,
+            "z": 11,
             "y": 0
         },
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_3F_SCIENTIST_TRAVON",
-            "graphics_id": "OBJ_EVENT_GFX_SCIENTIST_M",
-            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
-            "trainer_type": "TRAINER_TYPE_NORMAL",
-            "hidden_flag": "FLAG_UNK_0x01FD",
-            "script": "TRAINER_SCIENTIST_TRAVON",
-            "initial_dir": 3,
-            "data": [
-                3
-            ],
+            "id": "HAVEN_3F_CARETAKER_2",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0033",
+            "script": 0,
+            "initial_dir": 0,
+            "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 18,
-            "z": 5,
+            "x": 14,
+            "z": 11,
             "y": 0
         },
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_3F_POKEBALL_3",
+            "id": "HAVEN_3F_POKEBALL",
             "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
             "movement_type": "MOVEMENT_TYPE_NONE",
             "trainer_type": "TRAINER_TYPE_NONE",
@@ -101,5 +135,16 @@
             "dest_warp_id": 1
         }
     ],
-    "coord_events": []
+    "coord_events": [
+        {
+            "script": 4,
+            "x": 12,
+            "z": 9,
+            "y": 0,
+            "width": 3,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 0
+        }
+    ]
 }

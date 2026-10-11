@@ -124,6 +124,7 @@ EternaGym_GardeniaGiveTM86:
     Message EternaGym_Text_GardeniaExplainGrassKnot
     WaitABXPadPress
     CloseMessage
+    Call EternaGym_Arc2AfterBadge
     ReleaseAll
     AdvanceEternaGymClock
     End
@@ -131,9 +132,31 @@ EternaGym_GardeniaGiveTM86:
 EternaGym_GardeniaGiveTM86BagFull:
     MessageBagIsFull
     CloseMessage
+    Call EternaGym_Arc2AfterBadge
     ReleaseAll
     AdvanceEternaGymClock
     End
+
+// Dazzling Platinum Arc 2 (screenplay 2.11, s-eterna): Gardenia thanks the player for the forest, the Resonator
+// wakes (Vespiquen), VAR_ARC2_PROGRESS 29 -> 31. Runs once, right after the badge and TM. Garius waits outside
+// (scripts_eterna_city.s, progress 31).
+EternaGym_Arc2AfterBadge:
+    GoToIfLt VAR_ARC2_PROGRESS, 29, EternaGym_Arc2Return
+    GoToIfGe VAR_ARC2_PROGRESS, 31, EternaGym_Arc2Return
+    Message EternaGym_Text_Arc2ForestWokeUp
+    WaitABXPadPress
+    CloseMessage
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, EternaGym_Arc2SetProgress
+    PlayFanfare SEQ_SE_DP_KIRAKIRA
+    Message EternaGym_Text_Arc2ResonatorHums
+    WaitFanfare SEQ_SE_DP_KIRAKIRA
+    WaitABXPadPress
+    CloseMessage
+EternaGym_Arc2SetProgress:
+    SetVar VAR_ARC2_PROGRESS, 31
+EternaGym_Arc2Return:
+    Return
 
 EternaGym_LostBattle:
     BlackOutFromBattle
