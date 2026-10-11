@@ -15,6 +15,25 @@
 #define LOCALID_ARC2_MINUN 10
 #define FLAG_ARC2_FLOAROMA_MINUN_FLED FLAG_ARC2_FLOAROMA_A
 
+// Arc 2, workstream echo (R3): the Resonator echo at the cold site (S8 Echo stage). From the second calmed totem on
+// (FLAG_TOTEM_VESPIQUEN_DEFEATED) and with the Resonator, examining the bolt holes replays the site once, as ghosts
+// (src/field_move_tasks.c, FieldMoves_EchoGhostDraw): the Plusle strapped into a frame over the bolts, its sparks
+// drawn off; the hurried packing; the Plusle carried out of the loading door while the Minun calls from the cage.
+// No one comments; it's what the player sees. Nothing else changes, so it never blocks progress.
+//   Flag: FLAG_ARC2_ECHO_WINDWORKS = FLAG_ARC1_SPARE_B (P2 pool), set when the echo has played.
+//   Map-local: FLAG_UNK_0x0018 hides the ghost actors (set every load, cleared only while the echo plays: AddObject
+//   checks it); VAR_MAP_LOCAL_5 is their opacity (0 = off).
+//   Ghost actors (object events with fixed local IDs 0xC0-0xC4, script-only): the frame and the Plusle on the bolt
+//   holes (13,8), a grunt beside them (14,8, or 12,8 when the player stands at 14,8), then in the corridor the grunt
+//   (15,15) and the Plusle (16,15) heading for the loading door (12,16), and the Minun at the cage (17,15, in front of it); a free
+//   camera drops to the corridor for that part (the text box would hide it) and comes back up at the end.
+#define FLAG_ARC2_ECHO_WINDWORKS FLAG_ARC1_SPARE_B
+#define LOCALID_ECHO_FRAME  0xC0
+#define LOCALID_ECHO_PLUSLE 0xC1
+#define LOCALID_ECHO_GRUNT  0xC2
+#define LOCALID_ECHO_MINUN  0xC3
+#define ECHO_OPACITY        18
+
 
     ScriptEntry _0022
     ScriptEntry _005F
@@ -35,6 +54,7 @@
 
 _0022:
     SetFlag FLAG_FIRST_ARRIVAL_VALLEY_WINDWORKS
+    SetFlag FLAG_UNK_0x0018
     SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     SetFlag FLAG_UNK_0x003F
     SetFlag FLAG_UNK_0x0030
@@ -541,6 +561,7 @@ ValleyWindworksBuilding_Arc2BoltHoles:
     Message ValleyWindworksBuilding_Text_Arc2BoltHoles
     WaitABXPadPress
     CloseMessage
+    Call ValleyWindworksBuilding_Echo
     ReleaseAll
     End
 
@@ -595,4 +616,194 @@ ValleyWindworksBuilding_Movement_Arc2MinunRunSouth:
     WalkFastWest 4
     WalkFastSouth
     SetInvisible
+    EndMovement
+
+// ------------------------------------------------------------------------------------------------ echo (S8)
+// Called from the bolt holes (13,8) after their line; the player is beside them (any side).
+ValleyWindworksBuilding_Echo:
+    GoToIfUnset FLAG_TOTEM_VESPIQUEN_DEFEATED, ValleyWindworksBuilding_EchoReturn
+    GoToIfSet FLAG_ARC2_ECHO_WINDWORKS, ValleyWindworksBuilding_EchoReturn
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, ValleyWindworksBuilding_EchoReturn
+    Message ValleyWindworksBuilding_Text_EchoHum
+    WaitABXPadPress
+    CloseMessage
+    // The grunt stands on the side away from the player
+    SetObjectEventPos LOCALID_ECHO_GRUNT, 14, 8
+    SetObjectEventDir LOCALID_ECHO_GRUNT, DIR_WEST
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    CallIfEq VAR_0x8004, 14, ValleyWindworksBuilding_EchoGruntWest
+    // The echo starts: a white flash, then the frame, the Plusle and the grunt fade in
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    SetVar VAR_MAP_LOCAL_5, 1
+    ClearFlag FLAG_UNK_0x0018
+    AddObject LOCALID_ECHO_FRAME
+    AddObject LOCALID_ECHO_PLUSLE
+    AddObject LOCALID_ECHO_GRUNT
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitFanfare SEQ_SE_PL_SYUWA
+    Call ValleyWindworksBuilding_EchoFadeIn
+    WaitTime 15, VAR_RESULT
+    Call ValleyWindworksBuilding_EchoSpark
+    Message ValleyWindworksBuilding_Text_EchoFrame
+    WaitABXPadPress
+    CloseMessage
+    Call ValleyWindworksBuilding_EchoSpark
+    Message ValleyWindworksBuilding_Text_EchoSparks
+    WaitABXPadPress
+    CloseMessage
+    // The grunt hurries
+    ApplyMovement LOCALID_ECHO_GRUNT, ValleyWindworksBuilding_Movement_EchoHurry
+    WaitMovement
+    Message ValleyWindworksBuilding_Text_EchoPacking
+    WaitABXPadPress
+    CloseMessage
+    // The echo skips: the frame is gone; the grunt and the Plusle are in the corridor, the Minun in the cage
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    RemoveObject LOCALID_ECHO_FRAME
+    RemoveObject LOCALID_ECHO_PLUSLE
+    RemoveObject LOCALID_ECHO_GRUNT
+    // The camera drops to the corridor (z 13), above the text box
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    SetVar VAR_0x8006, VAR_0x8005
+    AddFreeCamera VAR_0x8004, VAR_0x8005
+    Call ValleyWindworksBuilding_EchoCameraDown
+    WaitTime 2, VAR_RESULT
+    ClearFlag FLAG_UNK_0x0018 // RemoveObject set it again
+    SetObjectEventPos LOCALID_ECHO_GRUNT, 15, 15
+    SetObjectEventDir LOCALID_ECHO_GRUNT, DIR_WEST
+    SetObjectEventPos LOCALID_ECHO_PLUSLE, 16, 15
+    SetObjectEventDir LOCALID_ECHO_PLUSLE, DIR_WEST
+    AddObject LOCALID_ECHO_GRUNT
+    AddObject LOCALID_ECHO_PLUSLE
+    AddObject LOCALID_ECHO_MINUN
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitFanfare SEQ_SE_PL_SYUWA
+    Message ValleyWindworksBuilding_Text_EchoCarried
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ECHO_GRUNT, ValleyWindworksBuilding_Movement_EchoGruntOut
+    ApplyMovement LOCALID_ECHO_PLUSLE, ValleyWindworksBuilding_Movement_EchoPlusleOut
+    WaitMovement
+    PlayCry SPECIES_MINUN
+    ApplyMovement LOCALID_ECHO_MINUN, ValleyWindworksBuilding_Movement_EchoMinunCalls
+    WaitMovement
+    WaitCry
+    Message ValleyWindworksBuilding_Text_EchoMinun
+    WaitABXPadPress
+    CloseMessage
+    // It fades; the ghosts go, the camera comes back up to the player, and the opacity is back to 0 before the
+    // player moves again
+    Call ValleyWindworksBuilding_EchoFadeOut
+    RemoveObject LOCALID_ECHO_GRUNT
+    RemoveObject LOCALID_ECHO_PLUSLE
+    RemoveObject LOCALID_ECHO_MINUN
+    Call ValleyWindworksBuilding_EchoCameraUp
+    RestoreCamera
+    SetFlag FLAG_UNK_0x0018
+    SetVar VAR_MAP_LOCAL_5, 0
+    WaitTime 2, VAR_RESULT
+    SetFlag FLAG_ARC2_ECHO_WINDWORKS
+    Message ValleyWindworksBuilding_Text_EchoFade
+    WaitABXPadPress
+    CloseMessage
+ValleyWindworksBuilding_EchoReturn:
+    Return
+
+// The free camera steps south until it is at z 13 (VAR_0x8005 tracks it), then back north to the player's row
+// (VAR_0x8006).
+ValleyWindworksBuilding_EchoCameraDown:
+    GoToIfGe VAR_0x8005, 13, ValleyWindworksBuilding_EchoReturn
+    ApplyFreeCameraMovement ValleyWindworksBuilding_Movement_EchoCameraSouth
+    WaitMovement
+    AddVar VAR_0x8005, 1
+    GoTo ValleyWindworksBuilding_EchoCameraDown
+    End
+
+ValleyWindworksBuilding_EchoCameraUp:
+    GoToIfLe VAR_0x8005, VAR_0x8006, ValleyWindworksBuilding_EchoReturn
+    ApplyFreeCameraMovement ValleyWindworksBuilding_Movement_EchoCameraNorth
+    WaitMovement
+    SubVar VAR_0x8005, 1
+    GoTo ValleyWindworksBuilding_EchoCameraUp
+    End
+
+ValleyWindworksBuilding_EchoGruntWest:
+    SetObjectEventPos LOCALID_ECHO_GRUNT, 12, 8
+    SetObjectEventDir LOCALID_ECHO_GRUNT, DIR_EAST
+    Return
+
+// The Plusle sparks: its cry, a white flicker, a jolt
+ValleyWindworksBuilding_EchoSpark:
+    PlayCry SPECIES_PLUSLE
+    ApplyMovement LOCALID_ECHO_PLUSLE, ValleyWindworksBuilding_Movement_EchoJolt
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    ShakeCamera 4, 1
+    WaitMovement
+    WaitCry
+    Return
+
+ValleyWindworksBuilding_EchoFadeIn:
+    AddVar VAR_MAP_LOCAL_5, 1
+    WaitTime 1, VAR_RESULT
+    GoToIfLt VAR_MAP_LOCAL_5, ECHO_OPACITY, ValleyWindworksBuilding_EchoFadeIn
+    Return
+
+ValleyWindworksBuilding_EchoFadeOut:
+    SubVar VAR_MAP_LOCAL_5, 1
+    WaitTime 1, VAR_RESULT
+    GoToIfGt VAR_MAP_LOCAL_5, 1, ValleyWindworksBuilding_EchoFadeOut
+    Return
+
+    .balign 4, 0
+ValleyWindworksBuilding_Movement_EchoCameraSouth:
+    WalkFastSouth
+    EndMovement
+
+    .balign 4, 0
+ValleyWindworksBuilding_Movement_EchoCameraNorth:
+    WalkNormalNorth
+    EndMovement
+
+    .balign 4, 0
+ValleyWindworksBuilding_Movement_EchoJolt:
+    JumpOnSpotFastSouth
+    EndMovement
+
+    .balign 4, 0
+ValleyWindworksBuilding_Movement_EchoHurry:
+    WalkOnSpotFastSouth
+    WalkOnSpotFastNorth
+    WalkOnSpotFastSouth
+    EndMovement
+
+    .balign 4, 0
+ValleyWindworksBuilding_Movement_EchoGruntOut:
+    WalkFastWest 3
+    WalkFastSouth
+    SetInvisible
+    EndMovement
+
+    .balign 4, 0
+ValleyWindworksBuilding_Movement_EchoPlusleOut:
+    Delay4
+    WalkFastWest 4
+    WalkFastSouth
+    SetInvisible
+    EndMovement
+
+    .balign 4, 0
+ValleyWindworksBuilding_Movement_EchoMinunCalls:
+    JumpOnSpotFastSouth
+    Delay8
+    JumpOnSpotFastSouth
     EndMovement
