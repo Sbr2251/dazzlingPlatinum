@@ -15,6 +15,30 @@
             "z": 9,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_EAST"
+        },
+        {
+            "script": 13,
+            "type": 0,
+            "x": 13,
+            "z": 8,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 14,
+            "type": 0,
+            "x": 12,
+            "z": 7,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 15,
+            "type": 0,
+            "x": 13,
+            "z": 15,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
         }
     ],
     "object_events": [
@@ -23,7 +47,7 @@
             "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
             "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01A4",
+            "hidden_flag": "FLAG_UNK_0x003F",
             "script": 0,
             "initial_dir": 1,
             "data": [],
@@ -38,7 +62,7 @@
             "graphics_id": "OBJ_EVENT_GFX_MARS",
             "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01A5",
+            "hidden_flag": "FLAG_UNK_0x003F",
             "script": 4,
             "initial_dir": 2,
             "data": [],
@@ -68,7 +92,7 @@
             "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
             "movement_type": "MOVEMENT_TYPE_LOOK_NORTH_AND_WEST",
             "trainer_type": "TRAINER_TYPE_NORMAL",
-            "hidden_flag": "FLAG_UNK_0x01A5",
+            "hidden_flag": "FLAG_UNK_0x003F",
             "script": "TRAINER_GALACTIC_GRUNT_VALLEY_WINDWORKS_2",
             "initial_dir": 2,
             "data": [
@@ -85,7 +109,7 @@
             "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
             "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
             "trainer_type": "TRAINER_TYPE_NORMAL",
-            "hidden_flag": "FLAG_UNK_0x01A5",
+            "hidden_flag": "FLAG_UNK_0x003F",
             "script": "TRAINER_GALACTIC_GRUNT_VALLEY_WINDWORKS_3",
             "initial_dir": 1,
             "data": [
@@ -102,7 +126,7 @@
             "graphics_id": "OBJ_EVENT_GFX_TWIN",
             "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01F9",
+            "hidden_flag": "FLAG_UNK_0x003F",
             "script": 6,
             "initial_dir": 3,
             "data": [],
@@ -117,7 +141,7 @@
             "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
             "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01A5",
+            "hidden_flag": "FLAG_UNK_0x003F",
             "script": 3,
             "initial_dir": 1,
             "data": [],
@@ -132,7 +156,7 @@
             "graphics_id": "OBJ_EVENT_GFX_CHARON",
             "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01A5",
+            "hidden_flag": "FLAG_UNK_0x003F",
             "script": 0,
             "initial_dir": 2,
             "data": [],
@@ -140,6 +164,66 @@
             "movement_range_z": 0,
             "x": 21,
             "z": 5,
+            "y": 0
+        },
+        {
+            "id": "VALLEY_WINDWORKS_BUILDING_ARC2_RUTH",
+            "graphics_id": "OBJ_EVENT_GFX_COUNTERPART",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 9,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 20,
+            "z": 5,
+            "y": 0
+        },
+        {
+            "id": "VALLEY_WINDWORKS_BUILDING_ARC2_CYRUS",
+            "graphics_id": "OBJ_EVENT_GFX_CYRUS",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 10,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 22,
+            "z": 5,
+            "y": 0
+        },
+        {
+            "id": "VALLEY_WINDWORKS_BUILDING_ARC2_MINUN",
+            "graphics_id": "OBJ_EVENT_GFX_PIKACHU",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0031",
+            "script": 11,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 16,
+            "z": 14,
+            "y": 0
+        },
+        {
+            "id": "VALLEY_WINDWORKS_BUILDING_ARC2_CAGE",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": 12,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 17,
+            "z": 14,
             "y": 0
         }
     ],
@@ -151,16 +235,5 @@
             "dest_warp_id": 0
         }
     ],
-    "coord_events": [
-        {
-            "script": 4,
-            "x": 19,
-            "z": 6,
-            "y": 0,
-            "width": 1,
-            "length": 2,
-            "var": "VAR_UNK_0x40CF",
-            "value": 1
-        }
-    ]
+    "coord_events": []
 }

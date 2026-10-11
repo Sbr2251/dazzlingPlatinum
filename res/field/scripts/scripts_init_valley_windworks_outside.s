@@ -8,7 +8,7 @@
     InitScriptEntryEnd
 
 InitScriptFrameTable:
-    InitScriptGoToIfEqual VAR_UNK_0x411E, 1, 8
+    InitScriptGoToIfEqual VAR_ARC2_PROGRESS, 20, 9
     InitScriptFrameTableEnd
 
     InitScriptEnd

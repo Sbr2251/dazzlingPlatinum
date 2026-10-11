@@ -1,6 +1,13 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/valley_windworks_outside.h"
 
+// Arc 2 (s-floaroma), scene 2.9 morning. Stock Galactic content is gone: the door guard (local 0) is hidden
+// for good by FLAG_UNK_0x003F (map-local temp, set every load), the door is never locked (no Works Key),
+// and the stock Looker scene (VAR_UNK_0x411E) is never armed. Ruth (local 8) and Cyrus (local 9) are shown at
+// progress 20 only (FLAG_UNK_0x0030, map-local temp): the frame script walks them in and sets 21.
+#define LOCALID_ARC2_RUTH  8
+#define LOCALID_ARC2_CYRUS 9
+
 
     ScriptEntry _0024
     ScriptEntry _008A
@@ -10,16 +17,17 @@
     ScriptEntry _01BF
     ScriptEntry _0022
     ScriptEntry _0201
+    ScriptEntry ValleyWindworksOutside_Arc2Morning
     ScriptEntryEnd
 
 _0022:
     End
 
 _0024:
+    Call ValleyWindworksOutside_Arc2SetObjects
     CallIfEq VAR_UNK_0x40CF, 2, _0082
-    CallIfSet FLAG_UNK_0x010F, _00BB
-    CallIfUnset FLAG_UNK_0x010F, _00C5
-    GoToIfLt VAR_UNK_0x4089, 2, _007C
+    // Arc 2: the door is open (the stock Works Key lock is gone) and Drifloon visits from the cold site on.
+    GoToIfLt VAR_ARC2_PROGRESS, 22, _007C
     GoToIfSet FLAG_UNK_0x0AA8, _007C
     GetDayOfWeek VAR_MAP_LOCAL_0
     GoToIfNe VAR_MAP_LOCAL_0, 5, _007C
@@ -38,8 +46,6 @@ _0082:
     Return
 
 _008A:
-    CallIfSet FLAG_UNK_0x010F, _00BB
-    CallIfUnset FLAG_UNK_0x010F, _00C5
     GoToIfSet FLAG_MAP_LOCAL, _00AD
     End
 
@@ -58,6 +64,8 @@ _00C5:
     Return
 
 _00CF:
+    // Arc 2: unreachable (the Galactic door guard is always hidden)
+    End
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
@@ -101,6 +109,8 @@ _0144:
     EndMovement
 
 _0150:
+    // Arc 2: the locked-door bg event is gone from the events file; kept inert
+    End
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     GoToIfSet FLAG_UNK_0x009F, _016C
@@ -254,4 +264,46 @@ _0324:
     WalkFastSouth
     WalkFastSouth 6
     WalkFastWest 9
+    EndMovement
+
+ValleyWindworksOutside_Arc2SetObjects:
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
+    SetFlag FLAG_UNK_0x003F
+    SetFlag FLAG_UNK_0x0030
+    GoToIfNe VAR_ARC2_PROGRESS, 20, ValleyWindworksOutside_Arc2SetObjectsEnd
+    ClearFlag FLAG_UNK_0x0030
+ValleyWindworksOutside_Arc2SetObjectsEnd:
+    Return
+
+// Progress 20 (frame table): morning. The player was warped to (245,658) facing north; Ruth (243,656) and
+// Cyrus (244,656) stand at the gate, then walk into the building.
+ValleyWindworksOutside_Arc2Morning:
+    LockAll
+    Message ValleyWindworksOutside_Text_Arc2NextMorning
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_RUTH, ValleyWindworksOutside_Movement_Arc2RuthWalkIn
+    ApplyMovement LOCALID_ARC2_CYRUS, ValleyWindworksOutside_Movement_Arc2CyrusWalkIn
+    WaitMovement
+    RemoveObject LOCALID_ARC2_RUTH
+    RemoveObject LOCALID_ARC2_CYRUS
+    SetVar VAR_ARC2_PROGRESS, 21
+    ReleaseAll
+    End
+
+    .balign 4, 0
+ValleyWindworksOutside_Movement_Arc2RuthWalkIn:
+    FaceSouth
+    Delay8 2
+    FaceNorth
+    WalkNormalNorth 2
+    SetInvisible
+    EndMovement
+
+    .balign 4, 0
+ValleyWindworksOutside_Movement_Arc2CyrusWalkIn:
+    Delay8 6
+    WalkNormalWest
+    WalkNormalNorth 2
+    SetInvisible
     EndMovement

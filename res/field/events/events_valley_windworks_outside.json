@@ -7,14 +7,6 @@
             "z": 651,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_ALL"
-        },
-        {
-            "script": 4,
-            "type": 0,
-            "x": 243,
-            "z": 654,
-            "y": 0,
-            "player_facing_dir": "BG_EVENT_DIR_NORTH"
         }
     ],
     "object_events": [
@@ -23,7 +15,7 @@
             "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
             "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x018E",
+            "hidden_flag": "FLAG_UNK_0x003F",
             "script": 3,
             "initial_dir": 1,
             "data": [
@@ -145,6 +137,36 @@
             "movement_range_z": 0,
             "x": 232,
             "z": 649,
+            "y": 0
+        },
+        {
+            "id": "VALLEY_WINDWORKS_OUTSIDE_ARC2_RUTH",
+            "graphics_id": "OBJ_EVENT_GFX_COUNTERPART",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 243,
+            "z": 656,
+            "y": 0
+        },
+        {
+            "id": "VALLEY_WINDWORKS_OUTSIDE_ARC2_CYRUS",
+            "graphics_id": "OBJ_EVENT_GFX_CYRUS",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 244,
+            "z": 656,
             "y": 0
         }
     ],
