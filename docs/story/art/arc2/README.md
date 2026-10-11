@@ -63,3 +63,26 @@ SDL_VIDEODRIVER=dummy A2_REPO=$PWD ~/.venvs/desmume39/bin/python tools/arc2_spri
 # scene T: battle_capture.py ROM_DIR BATTLE  (walks into each trainer's sight, saves the intro frames)
 git checkout res/field/events/events_twinleaf_town.json   # never commit the scratch placement
 ```
+
+## art-final (Round 3) additions
+
+Same copyright rule: new pixels, or edits of Platinum's own assets.
+
+| what | files | built from | design |
+|---|---|---|---|
+| Cyrus's battle back sprite (2.5 tag partner) | `res/trainers/classes/arc2_wanderer_back/` (`tools/arc2_sprites/cyrus_back.py`) | Riley's back sprite (`trainer_riley/back.png`) | Riley's fedora painted out and a new crown drawn: pale steel-blue spikes swept up and back, fringe spikes over the brow (Cyrus's hair ramp from his own front sprite); the long blue coat turned into Cyrus's grey coat. All 5 throw frames and the scan pair. |
+| Resonator bag icon | `res/graphics/item_icons/resonator.png/.pal` (`tools/arc2_sprites/resonator_icon.py`) | the Portal Reader icon | The Reader's white side panel replaced by a grey socket holding an upright violet Calm Shard, white-hot core, glow pixels around it; the screen lit brighter. |
+| `OBJ_EVENT_GFX_VIOLET_CRYSTAL` (mmodel 491) | `res/field/objects/arc2/violet_crystal.png` (`tools/arc2_sprites/crystal.py`) | new pixels | Six violet prisms leaning out of a dark rock mound, lit left faces with white glints, deep right faces, black outline. Frame B: glints climb a facet, faces brighten, glow pixels around the tips. Grounded renderer (no Totem lift). Used by the four Lost Tower vein deposits. |
+| Eclipse mark in the boss battle intro | `res/trainers/classes/.shared/enc_galactic.png` (`tools/arc2_sprites/eclipse_cutin.py`) | new pixels | The Team Eclipse mark at 128x128: black-violet disc, thin white corona, violet ring, eight shaded rays. It is the sprite the Commander/Eclipse Leader intro zooms; Cyrus (`TRAINER_CLASS_GALACTIC_BOSS`) now uses the ordinary trainer cut-in so he never shows the mark. |
+
+How Cyrus's back pic is wired: battle back pics come from `trbgra`, indexed by `sub_020788D0` (`src/pokemon.c`): 0/1
+the player, 2 rival, 3-7 the Platinum tag partners (Cheryl, Riley, Marley, Buck, Mira), 8-9 the DP players (link), 10
+dp_rival; every other class falls back to the player's back by gender, which is why Cyrus showed as the player.
+`arc2_wanderer_back` is appended after dp_rival (index 11; `tools/ordergen/trainer_graphics.py`,
+`res/trainers/classes/meson.build`), `sub_020788D0` maps `TRAINER_CLASS_GALACTIC_BOSS` to 11, and the ball-release
+table in `ov16_0225FD5C` (`src/battle/battle_display.c`) gets rows 10 (padding) and 11 (Riley's offsets, since the
+frames are Riley's).
+
+Regenerate/check: `~/.venvs/desmume/bin/python tools/arc2_sprites/cyrus_back.py [--check]`, same for
+`eclipse_cutin.py`; `python3 tools/arc2_sprites/resonator_icon.py [--check]`; the crystal is part of
+`gen_arc2_sprites.py`. Overview sheet: `/tmp/a2/art-final/art_final_overview.png`.

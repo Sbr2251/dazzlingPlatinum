@@ -14,6 +14,9 @@ each of its four tables, and meson builds each member at build time from its she
 | OBJ_EVENT_GFX_ECLIPSE_CRATE      | 488    | idle2  | the Rock Smash rock (member 0x53)    |
 | OBJ_EVENT_GFX_SHARD_FRAME        | 489    | idle2  | the Rock Smash rock (member 0x53)    |
 | OBJ_EVENT_GFX_RIFT_ARC2          | 490    | idle2  | the Rock Smash rock (member 0x53)    |
+| OBJ_EVENT_GFX_VIOLET_CRYSTAL     | 491    | idle2  | the Rock Smash rock (member 0x53)    |
+
+(OBJ_EVENT_GFX_VIOLET_CRYSTAL was added by art-final in Round 3: the Lost Tower vein/shard deposits.)
 
 Sheets live in res/field/objects/arc2/ (art-ph replaces only those PNGs). Sheet rules: docs/arc1/part2/sprites.md.
 
@@ -56,6 +59,7 @@ SPRITES = (
     Sprite("OBJ_EVENT_GFX_ECLIPSE_CRATE", 488, "idle2", IDLE2, "OBJ_EVENT_GFX_TOTEM_HITMONLEE", "eclipse_crate.png", "breakrock"),
     Sprite("OBJ_EVENT_GFX_SHARD_FRAME", 489, "idle2", IDLE2, "OBJ_EVENT_GFX_TOTEM_HITMONLEE", "shard_frame.png", "breakrock"),
     Sprite("OBJ_EVENT_GFX_RIFT_ARC2", 490, "idle2", IDLE2, "OBJ_EVENT_GFX_TOTEM_HITMONLEE", "rift_arc2.png", "breakrock"),
+    Sprite("OBJ_EVENT_GFX_VIOLET_CRYSTAL", 491, "idle2", IDLE2, "OBJ_EVENT_GFX_TOTEM_HITMONLEE", "violet_crystal.png", "breakrock"),
 )
 BY_CONSTANT = {s.constant: s for s in SPRITES}
 
@@ -92,14 +96,8 @@ def update_overlay_tables(path: Path, gfx_ids: dict[str, int]) -> None:
     path.write_text(text)
 
 
-def meson_block() -> str:
-    parts = [
-        f"\n{MESON_MARKER} (OBJ_EVENT_GFX_INDRA, _KAHN, _LOOKER_JANITOR/_NEWSPAPER, _ECLIPSE_CRATE, _SHARD_FRAME,\n"
-        f"# _RIFT_ARC2): generated at build time from {SHEET_DIR}/*.png by {TOOL_RELPATH}.\n"
-        "# Members must stay contiguous after 483 (narc create packs the directory in name order).\n"
-    ]
-    for sprite in SPRITES:
-        parts.append(
+def meson_target(sprite: Sprite) -> str:
+    return (
             f"""mmodel_files_targets += custom_target('{sprite.member_filename}',
     output: '{sprite.member_filename}',
     input: [
@@ -122,12 +120,25 @@ def meson_block() -> str:
 )
 """
         )
+
+
+def meson_block() -> str:
+    parts = [
+        f"\n{MESON_MARKER} (OBJ_EVENT_GFX_INDRA, _KAHN, _LOOKER_JANITOR/_NEWSPAPER, _ECLIPSE_CRATE, _SHARD_FRAME,\n"
+        f"# _RIFT_ARC2, _VIOLET_CRYSTAL): generated at build time from {SHEET_DIR}/*.png by {TOOL_RELPATH}.\n"
+        "# Members must stay contiguous after 483 (narc create packs the directory in name order).\n"
+    ]
+    parts += [meson_target(sprite) for sprite in SPRITES]
     return "".join(parts)
 
 
 def update_mmodel_meson(path: Path) -> None:
     text = path.read_text()
     if MESON_MARKER in text:
+        # already integrated: append targets for sprites added since (members stay contiguous)
+        missing = [s for s in SPRITES if f"'{s.member_filename}'" not in text]
+        if missing:
+            path.write_text(text.rstrip("\n") + "\n" + "".join(meson_target(s) for s in missing))
         return
     if "mmodel_00000483.bin" not in text:
         raise ValueError(f"{path}: Arc 1 member 483 missing; run tools/integrate_arc1_field_sprites.py first")
@@ -184,7 +195,7 @@ def main() -> None:
             print("All Arc 2 field sprite sheets are valid.")
         else:
             integrate(root)
-            print("Integrated the Arc 2 field sprites (mmodel members 484-490).")
+            print("Integrated the Arc 2 field sprites (mmodel members 484-491).")
     except (ValueError, OSError) as error:
         print(f"{Path(__file__).name}: error: {error}", file=sys.stderr)
         sys.exit(1)

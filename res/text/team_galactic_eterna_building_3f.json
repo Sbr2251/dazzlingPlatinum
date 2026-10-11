@@ -2,21 +2,62 @@
   "key": 5139,
   "messages": [
     {
-      "id": "pl_msg_00000094_00000",
+      "id": "Haven3F_Text_LookerCrates",
       "en_US": [
-        "Ordinary people like you can’t\n",
-        "understand Team Galactic’s grand\f",
-        "designs!\r",
-        "Come to think of it... I don’t even\n",
-        "know what’s going on..."
+        "Looker: Crates. Every week. Labeled\n",
+        "'supplies.' Look where they go."
       ]
     },
     {
-      "id": "pl_msg_00000094_00001",
+      "id": "Haven3F_Text_Manifests",
       "en_US": [
-        "Question not and follow this path!\n",
-        "The road to success!"
+        "Shipping manifests. Destinations:\r",
+        "RAVAGED PATH. VALLEY WINDWORKS.\n",
+        "ETERNA FOREST. ROUTE 214."
       ]
+    },
+    {
+      "id": "Haven3F_Text_RuthRiftReadings",
+      "en_US": [
+        "Ruth: Those are... those are my rift\n",
+        "readings. Every single one of them."
+      ]
+    },
+    {
+      "id": "Haven3F_Text_LookerPokemonGoIn",
+      "en_US": [
+        "Looker: Pokémon go in.\n",
+        "Crates go out.\r",
+        "And wherever the crates go, a rift\n",
+        "tears open."
+      ]
+    },
+    {
+      "id": "Haven3F_Text_CaretakerStaffOnly",
+      "en_US": [
+        "Haven Caretaker: Staff only,\n",
+        "sweetie.\r",
+        "You're going to have to leave.\n",
+        "Now."
+      ]
+    },
+    {
+      "id": "Haven3F_Text_Sign",
+      "en_US": [
+        "Rest now. Someone is coming for you.\n",
+        "Eclipse Haven"
+      ]
+    },
+    {
+      "id": "Haven3F_Text_LookerTalk",
+      "en_US": [
+        "Looker: The crates leave from the\n",
+        "loading bay. Upstairs."
+      ]
+    },
+    {
+      "id": "Haven3F_Text_FilingCabinet",
+      "en_US": "The drawers have been emptied."
     }
   ]
 }

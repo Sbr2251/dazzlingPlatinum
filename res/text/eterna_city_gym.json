@@ -173,6 +173,23 @@
         "{STRVAR_1 3, 0, 0}\f",
         "{STRVAR_1 3, 1, 0}"
       ]
+    },
+    {
+      "id": "EternaGym_Text_Arc2ForestWokeUp",
+      "en_US": [
+        "Gardenia: That forest has been\n",
+        "wrong for weeks. Too quiet.\r",
+        "This morning it woke up again.\r",
+        "...That was you, wasn't it?\n",
+        "Thank you."
+      ]
+    },
+    {
+      "id": "EternaGym_Text_Arc2ResonatorHums",
+      "en_US": [
+        "The Resonator hums. Vespiquen's\n",
+        "energy answers now!"
+      ]
     }
   ]
 }

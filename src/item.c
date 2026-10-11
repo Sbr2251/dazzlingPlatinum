@@ -789,8 +789,8 @@ const ItemArchiveIDs sItemArchiveIDs[] = {
     },
     [ITEM_RESONATOR] = {
         .dataID = 0x1CC,
-        .iconID = portal_reader_NCGR, // Arc 2: the Portal Reader's icon until the Resonator art lands
-        .paletteID = portal_reader_NCLR,
+        .iconID = resonator_NCGR, // Arc 2: the Reader with a Calm Shard fitted (tools/arc2_sprites/resonator_icon.py)
+        .paletteID = resonator_NCLR,
         .gen3ID = GBA_ITEM_NONE,
     },
     [ITEM_UNUSED_128] = {

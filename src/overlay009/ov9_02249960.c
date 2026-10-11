@@ -14467,7 +14467,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Cyrus = {
     },
 };
 
-// Route 213: a rusted first-generation frame on the old lakebed (the ledge beside the pool, past the first hop).
+// Route 213: a rusted first-generation frame on the old lakebed (the ledge beside the pool, past the first hop). Examine: script 7.
 static const UnkStruct_ov9_0224EF30 sArc2DwRoute213RustedFrame = {
     0,
     0,
@@ -14479,7 +14479,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute213RustedFrame = {
         0x0,
         0x0,
         0x0,
-        0,
+        7,
         DIR_SOUTH,
         0x0,
         0x0,
@@ -14517,12 +14517,13 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Card = {
     },
 };
 
-// Route 213: the Lapras in what is left of the lake, until it is calmed.
+// Route 213 (set-lake): the Lapras waits on the hanging lake's one island (ceiling x 45-48, z 44-47; rotated 180 like
+// the player on the ceiling), until it is calmed.
 static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Lapras = {
     21,
     FLAG_TOTEM_LAPRAS_DEFEATED,
-    0x0,
-    0x0,
+    0x1,
+    180,
     {
         0x83,
         OBJ_EVENT_GFX_TOTEM_LAPRAS,
@@ -14536,13 +14537,38 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Lapras = {
         0x0,
         0x0,
         0x0,
-        35,
+        46,
+        46,
+        ((10 << 4) * FX32_ONE),
+    },
+};
+
+// Route 213 (set-lake): the Lake Valor lakefront sign, swallowed with the lake, at the lip of the first hop. Script 6.
+static const UnkStruct_ov9_0224EF30 sArc2DwRoute213LakeSign = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x84,
+        OBJ_EVENT_GFX_SIGNBOARD,
+        0x0,
+        0x0,
+        0x0,
+        6,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        24,
         22,
         ((1 << 4) * FX32_ONE),
     },
 };
 
-// Lost Tower: Eclipse Shards growing out of the rock around the vein room (placeholder sprite).
+// Lost Tower: Eclipse Shards growing out of the rock around the vein room (OBJ_EVENT_GFX_VIOLET_CRYSTAL, art-final).
 static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard1 = {
     0,
     0,
@@ -14550,7 +14576,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard1 = {
     0x0,
     {
         0x80,
-        OBJ_EVENT_GFX_ARC1_RIFT,
+        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
         0x0,
         0x0,
         0x0,
@@ -14575,7 +14601,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard2 = {
     0x0,
     {
         0x81,
-        OBJ_EVENT_GFX_ARC1_RIFT,
+        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
         0x0,
         0x0,
         0x0,
@@ -14600,7 +14626,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard3 = {
     0x0,
     {
         0x82,
-        OBJ_EVENT_GFX_ARC1_RIFT,
+        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
         0x0,
         0x0,
         0x0,
@@ -14625,7 +14651,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard4 = {
     0x0,
     {
         0x83,
-        OBJ_EVENT_GFX_ARC1_RIFT,
+        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
         0x0,
         0x0,
         0x0,
@@ -15059,6 +15085,7 @@ static const UnkStruct_ov9_0224EF30 *sArc2DwRoute213Objects[] = {
     &sArc2DwRoute213RustedFrame,
     &sArc2DwRoute213Card,
     &sArc2DwRoute213Lapras,
+    &sArc2DwRoute213LakeSign,
     NULL
 };
 

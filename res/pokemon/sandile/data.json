@@ -1,0 +1,267 @@
+{
+    "base_stats": {
+        "hp": 50,
+        "attack": 72,
+        "defense": 35,
+        "speed": 65,
+        "special_attack": 35,
+        "special_defense": 35
+    },
+    "types": [
+        "TYPE_GROUND",
+        "TYPE_DARK"
+    ],
+    "catch_rate": 180,
+    "base_exp_reward": 58,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 1,
+        "defense": 0,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 20,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_SLOW",
+    "egg_groups": [
+        "EGG_GROUP_FIELD",
+        "EGG_GROUP_FIELD"
+    ],
+    "abilities": [
+        "ABILITY_INTIMIDATE",
+        "ABILITY_ANGER_POINT"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_BROWN",
+    "flip_sprite": false,
+    "icon_palette": 1,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_LEER"
+            ],
+            [
+                1,
+                "MOVE_RAGE"
+            ],
+            [
+                4,
+                "MOVE_BITE"
+            ],
+            [
+                7,
+                "MOVE_SAND_ATTACK"
+            ],
+            [
+                10,
+                "MOVE_TORMENT"
+            ],
+            [
+                13,
+                "MOVE_SAND_TOMB"
+            ],
+            [
+                16,
+                "MOVE_ASSURANCE"
+            ],
+            [
+                19,
+                "MOVE_MUD_SLAP"
+            ],
+            [
+                22,
+                "MOVE_EMBARGO"
+            ],
+            [
+                25,
+                "MOVE_SWAGGER"
+            ],
+            [
+                28,
+                "MOVE_CRUNCH"
+            ],
+            [
+                31,
+                "MOVE_DIG"
+            ],
+            [
+                34,
+                "MOVE_SCARY_FACE"
+            ],
+            [
+                37,
+                "MOVE_NIGHT_SLASH"
+            ],
+            [
+                40,
+                "MOVE_SANDSTORM"
+            ],
+            [
+                43,
+                "MOVE_EARTHQUAKE"
+            ],
+            [
+                46,
+                "MOVE_THRASH"
+            ]
+        ],
+        "by_tm": [
+            "TM05",
+            "TM06",
+            "TM10",
+            "TM12",
+            "TM17",
+            "TM21",
+            "TM23",
+            "TM26",
+            "TM27",
+            "TM28",
+            "TM31",
+            "TM32",
+            "TM36",
+            "TM37",
+            "TM39",
+            "TM41",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM46",
+            "TM49",
+            "TM56",
+            "TM58",
+            "TM63",
+            "TM65",
+            "TM66",
+            "TM71",
+            "TM76",
+            "TM78",
+            "TM79",
+            "TM80",
+            "TM82",
+            "TM83",
+            "TM86",
+            "TM87",
+            "TM90",
+            "HM01"
+        ],
+        "by_tutor": [
+            "MOVE_MUD_SLAP",
+            "MOVE_AQUA_TAIL",
+            "MOVE_SNORE",
+            "MOVE_SPITE",
+            "MOVE_HELPING_HAND",
+            "MOVE_EARTH_POWER",
+            "MOVE_UPROAR"
+        ],
+        "egg_moves": [
+            "MOVE_DOUBLE_EDGE",
+            "MOVE_COUNTER",
+            "MOVE_FOCUS_ENERGY",
+            "MOVE_MEAN_LOOK",
+            "MOVE_PURSUIT",
+            "MOVE_BEAT_UP",
+            "MOVE_UPROAR",
+            "MOVE_THUNDER_FANG",
+            "MOVE_FIRE_FANG",
+            "MOVE_ROCK_CLIMB"
+        ]
+    },
+    "evolutions": [
+        [
+            "EVO_LEVEL",
+            29,
+            "SPECIES_KROKOROK"
+        ]
+    ],
+    "offspring": "SPECIES_SANDILE",
+    "footprint": {
+        "has": true,
+        "size": "FOOTPRINT_MEDIUM",
+        "type": "FOOTPRINT_TYPE_CUTE"
+    },
+    "pokedex_data": {
+        "height": 7,
+        "weight": 152,
+        "body_shape": "SHAPE_QUADRUPED",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 337,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 337,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 21,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 21,
+        "en": {
+            "name": "SANDILE",
+            "category": "Desert Croc Pokémon",
+            "entry_text": [
+                "They live hidden under hot desert\n",
+                "sands in order to keep their body\n",
+                "temperature from dropping."
+            ]
+        },
+        "fr": {
+            "name": "MASCAÏMAN",
+            "category": "Pokémon Croco Sable",
+            "entry_text": [
+                "Il vit dans le sable des déserts. Le\n",
+                "sable chauffé par le soleil empêche\n",
+                "son corps de refroidir."
+            ]
+        },
+        "de": {
+            "name": "GANOVIL",
+            "category": "Wüstenkroko-Pokémon",
+            "entry_text": [
+                "Wenn es sich durch den Sand gräbt,\n",
+                "ragen nur noch Nase und Augen\n",
+                "hervor. Die schwarze Haut dient als\n",
+                "Augenschutz."
+            ]
+        },
+        "it": {
+            "name": "SANDILE",
+            "category": "Pokémon Sabbiadrillo",
+            "entry_text": [
+                "Si nasconde sotto la sabbia e si\n",
+                "sposta cacciando fuori gli occhi e il\n",
+                "naso. Una membrana nera gli\n",
+                "protegge gli occhi."
+            ]
+        },
+        "es": {
+            "name": "SANDILE",
+            "category": "Pokémon Desierdrilo",
+            "entry_text": [
+                "Se desplaza hundido en la arena,\n",
+                "dejando al descubierto solo los\n",
+                "ojos y la nariz. Una membrana negra\n",
+                "le protege los ojos."
+            ]
+        },
+        "jp": {
+            "name": "メグロコ",
+            "category": "さばくワニポケモン",
+            "entry_text": [
+                "すなの　なかに　もぐり　めと　はなを\n",
+                "そとに　だして　いどうする。　くろい\n",
+                "まくが　めを　まもる。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NONE",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NORTH_EAST",
+        "catching_points": 50,
+        "rarity": 30,
+        "unused": 771
+    }
+}

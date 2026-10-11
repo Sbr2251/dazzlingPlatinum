@@ -93,6 +93,123 @@
         "The Storage Key snapped off inside\n",
         "the keyhole..."
       ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2LookerSentries",
+      "en_US": [
+        "Looker: Two sentries. They look one\n",
+        "way, then the other.\r",
+        "We move when they look away.\n",
+        "If they see you, we start again."
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2Spotted",
+      "en_US": [
+        "Eclipse Grunt: Hey! You! This is a\n",
+        "private depot! Scram, kid!"
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2LookerAgain",
+      "en_US": [
+        "Looker: Again. Quieter. Like a\n",
+        "Glameow in socks."
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2Manifest",
+      "en_US": [
+        "A shipping manifest. Next delivery:\r",
+        "ROUTE 213. THE CAVES.\n",
+        "TWO FRAMES. TWO SUBJECTS."
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2LookerThereItIs",
+      "en_US": [
+        "Looker: Route 213. There it is.\r",
+        "Go. I will finish copying.\n",
+        "Make a little noise by the trucks."
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2LookerNoise",
+      "en_US": [
+        "Looker: The trucks. A little noise.\n",
+        "Go."
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2GuardKid",
+      "en_US": [
+        "Eclipse Grunt: A kid? In here?\r",
+        "Get away from the trucks!"
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2GuardSecond",
+      "en_US": [
+        "Eclipse Grunt: You're not getting\n",
+        "near those trucks!"
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2IndraEnough",
+      "en_US": "Indra: That's enough."
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2IndraRowans",
+      "en_US": [
+        "Indra: You're Rowan's. The one with\n",
+        "the guide.\r",
+        "Trucks, go. Now. I'll keep this one\n",
+        "busy."
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2IndraAfter",
+      "en_US": [
+        "Indra: Hm. You fight like somebody\n",
+        "who's never lost anything.\r",
+        "Keep it that way."
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2IndraGoHome",
+      "en_US": [
+        "Indra: Go home, kid. Somebody's\n",
+        "waiting there.\r",
+        "Don't make them wait forever."
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2LookerEveryPage",
+      "en_US": [
+        "Looker: I have it. Every page.\r",
+        "...Who was that woman?"
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2LookerFree",
+      "en_US": [
+        "Looker: She let you go. People like\n",
+        "that never do anything for free."
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2Closed",
+      "en_US": [
+        "The depot is locked up tight.\n",
+        "The trucks are long gone."
+      ]
+    },
+    {
+      "id": "VeilstoneWarehouse_Text_Arc2Empty",
+      "en_US": [
+        "The bay is empty. Fresh tire marks\n",
+        "run out through the big door."
+      ]
     }
   ]
 }

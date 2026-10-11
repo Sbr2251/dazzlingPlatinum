@@ -2616,6 +2616,24 @@ static void ov16_0225FD5C(SysTask *param0, void *param1)
             { 0x32, 0xFFFFFFFFFFFFFFF4 },
             { 0x7FFF, 0x7FFF },
         },
+        // 10: dp_rival (never a battle back pic), padding so 11 lines up
+        {
+            { 0x0, 0x80 },
+            { 0xFFFFFFFFFFFFFFDE, 0x4 },
+            { 0xFFFFFFFFFFFFFFE4, 0xFFFFFFFFFFFFFFF5 },
+            { 0x32, 0xFFFFFFFFFFFFFFF4 },
+            { 0x7FFF, 0x7FFF },
+            { 0x7FFF, 0x7FFF },
+        },
+        // 11: Arc 2 Cyrus (arc2_wanderer_back), drawn over Riley's frames: Riley's offsets (4)
+        {
+            { 0x0, 0x80 },
+            { 0xFFFFFFFFFFFFFFDF, 0xFFFFFFFFFFFFFFFE },
+            { 0xFFFFFFFFFFFFFFE4, 0xFFFFFFFFFFFFFFEE },
+            { 0x32, 0xFFFFFFFFFFFFFFE4 },
+            { 0x7FFF, 0x7FFF },
+            { 0x7FFF, 0x7FFF },
+        },
     };
 
     battleType = BattleSystem_BattleType(v0->unk_00);

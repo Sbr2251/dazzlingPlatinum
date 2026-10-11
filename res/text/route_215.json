@@ -63,6 +63,24 @@
         "Likewise, a special attack is based\n",
         "on the Special Attack stat."
       ]
+    },
+    {
+      "id": "Route215_Text_Arc2CyrusDots",
+      "en_US": "Cyrus: ..."
+    },
+    {
+      "id": "Route215_Text_Arc2CyrusExplain",
+      "en_US": [
+        "Cyrus: You would not believe me if I\n",
+        "explained."
+      ]
+    },
+    {
+      "id": "Route215_Text_Arc2CrateEmpty",
+      "en_US": [
+        "An Eclipse crate. The lid has been\n",
+        "pried off. It's empty."
+      ]
     }
   ]
 }

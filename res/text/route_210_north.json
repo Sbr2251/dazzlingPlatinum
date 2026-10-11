@@ -21,6 +21,13 @@
     {
       "id": "pl_msg_00000485_00002",
       "en_US": "Grandma Wilma’s House"
+    },
+    {
+      "id": "Route210North_Text_Arc2RiftMist",
+      "en_US": [
+        "A violet mist hangs over the path.\n",
+        "It thins as you walk on."
+      ]
     }
   ]
 }

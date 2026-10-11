@@ -245,6 +245,21 @@
             "x": 469,
             "z": 533,
             "y": 0
+        },
+        {
+            "id": "CELESTIC_TOWN_ARC2_CYRUS",
+            "graphics_id": "OBJ_EVENT_GFX_CYRUS",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 13,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 478,
+            "z": 530,
+            "y": 0
         }
     ],
     "warp_events": [
@@ -295,7 +310,16 @@
             "length": 1,
             "var": "VAR_UNK_0x40F1",
             "value": 0
+        },
+        {
+            "script": 13,
+            "x": 476,
+            "z": 528,
+            "y": 0,
+            "width": 1,
+            "length": 5,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 42
         }
     ]
 }
-

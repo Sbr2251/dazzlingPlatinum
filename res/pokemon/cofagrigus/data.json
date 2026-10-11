@@ -1,0 +1,249 @@
+{
+    "base_stats": {
+        "hp": 58,
+        "attack": 50,
+        "defense": 145,
+        "speed": 30,
+        "special_attack": 95,
+        "special_defense": 105
+    },
+    "types": [
+        "TYPE_GHOST",
+        "TYPE_GHOST"
+    ],
+    "catch_rate": 90,
+    "base_exp_reward": 169,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 0,
+        "defense": 2,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_SPELL_TAG"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 25,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_FAST",
+    "egg_groups": [
+        "EGG_GROUP_MINERAL",
+        "EGG_GROUP_AMORPHOUS"
+    ],
+    "abilities": [
+        "ABILITY_ROUGH_SKIN",
+        "ABILITY_NONE"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_YELLOW",
+    "flip_sprite": false,
+    "icon_palette": 0,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_DISABLE"
+            ],
+            [
+                1,
+                "MOVE_HAZE"
+            ],
+            [
+                1,
+                "MOVE_PROTECT"
+            ],
+            [
+                1,
+                "MOVE_ASTONISH"
+            ],
+            [
+                5,
+                "MOVE_DISABLE"
+            ],
+            [
+                9,
+                "MOVE_HAZE"
+            ],
+            [
+                13,
+                "MOVE_NIGHT_SHADE"
+            ],
+            [
+                17,
+                "MOVE_OMINOUS_WIND"
+            ],
+            [
+                21,
+                "MOVE_WILL_O_WISP"
+            ],
+            [
+                29,
+                "MOVE_CURSE"
+            ],
+            [
+                33,
+                "MOVE_GUARD_SWAP"
+            ],
+            [
+                33,
+                "MOVE_POWER_SWAP"
+            ],
+            [
+                34,
+                "MOVE_SCARY_FACE"
+            ],
+            [
+                39,
+                "MOVE_SHADOW_BALL"
+            ],
+            [
+                45,
+                "MOVE_GRUDGE"
+            ],
+            [
+                51,
+                "MOVE_MEAN_LOOK"
+            ],
+            [
+                57,
+                "MOVE_DESTINY_BOND"
+            ]
+        ],
+        "by_tm": [
+            "TM04",
+            "TM06",
+            "TM10",
+            "TM15",
+            "TM17",
+            "TM18",
+            "TM20",
+            "TM21",
+            "TM27",
+            "TM29",
+            "TM30",
+            "TM32",
+            "TM34",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM46",
+            "TM48",
+            "TM49",
+            "TM53",
+            "TM58",
+            "TM61",
+            "TM63",
+            "TM65",
+            "TM66",
+            "TM68",
+            "TM70",
+            "TM77",
+            "TM78",
+            "TM79",
+            "TM82",
+            "TM83",
+            "TM85",
+            "TM86",
+            "TM87",
+            "TM90",
+            "TM92"
+        ],
+        "by_tutor": [
+            "MOVE_OMINOUS_WIND",
+            "MOVE_SNORE",
+            "MOVE_SPITE",
+            "MOVE_ZEN_HEADBUTT",
+            "MOVE_IRON_DEFENSE",
+            "MOVE_TRICK",
+            "MOVE_KNOCK_OFF"
+        ],
+        "egg_moves": []
+    },
+    "evolutions": [],
+    "offspring": "SPECIES_YAMASK",
+    "footprint": {
+        "has": false,
+        "size": "FOOTPRINT_LARGE",
+        "type": "FOOTPRINT_TYPE_SCARY"
+    },
+    "pokedex_data": {
+        "height": 17,
+        "weight": 765,
+        "body_shape": "SHAPE_HEAD_BASE",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 235,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 235,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 2,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 2,
+        "en": {
+            "name": "COFAGRIGUS",
+            "category": "Coffin Pokémon",
+            "entry_text": [
+                "Grave robbers who mistake them for\n",
+                "real coffins and get too close end\n",
+                "up trapped inside their bodies."
+            ]
+        },
+        "fr": {
+            "name": "TUTANKAFER",
+            "category": "Pokémon Cercueil",
+            "entry_text": [
+                "Il paraît qu'il avale les gens et les\n",
+                "transforme en momies. Il adore\n",
+                "manger des lingots d'or."
+            ]
+        },
+        "de": {
+            "name": "ECHNATOLL",
+            "category": "Sarkophag-Pokémon",
+            "entry_text": [
+                "Angeblich verschlingt es jeden, der\n",
+                "sich ihm auch nur nähert.\n",
+                "Besonders gern frisst es Klumpen\n",
+                "aus reinem Gold."
+            ]
+        },
+        "it": {
+            "name": "COFAGRIGUS",
+            "category": "Pokémon Bara",
+            "entry_text": [
+                "Si dice che inghiottisca le prede\n",
+                "che gli si avvicinano e le trasformi\n",
+                "in mummie. Gli piace mangiare le\n",
+                "pepite d'oro."
+            ]
+        },
+        "es": {
+            "name": "COFAGRIGUS",
+            "category": "Pokémon Sepultura",
+            "entry_text": [
+                "Atrapan en su interior a los\n",
+                "ladrones de tumbas que los\n",
+                "confunden con ataúdes de verdad."
+            ]
+        },
+        "jp": {
+            "name": "デスカ－ン",
+            "category": "かんおけポケモン",
+            "entry_text": [
+                "ちかづいた　にんげんを　のみこんで\n",
+                "ミイラに　してしまうという　うわさ。\n",
+                "きんかいを　このんで　たべる。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NORTH_WEST",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NONE",
+        "catching_points": 70,
+        "rarity": 20,
+        "unused": 3084
+    }
+}

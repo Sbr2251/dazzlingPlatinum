@@ -2,71 +2,66 @@
   "key": 5135,
   "messages": [
     {
-      "id": "pl_msg_00000095_00000",
+      "id": "Haven4F_Text_GardeniaPip",
+      "en_US": "Gardenia: Pip! Oh, Pip..."
+    },
+    {
+      "id": "Haven4F_Text_BudewCry",
+      "en_US": "Budew: Bu-dew!"
+    },
+    {
+      "id": "Haven4F_Text_GardeniaAlreadySent",
       "en_US": [
-        "Eh? Did you want something?\r",
-        "How silly of me to even ask.\n",
-        "You want to free the Pokémon.\r",
-        "Fine!\n",
-        "I, Jupiter, will deal with you.\r"
+        "Gardenia: ...Bramble and Clover\n",
+        "aren't here.\r",
+        "They already sent them."
       ]
     },
     {
-      "id": "pl_msg_00000095_00001",
+      "id": "Haven4F_Text_LookerBiggerThanOneBuilding",
       "en_US": [
-        "Well, aren’t you tough...?\r",
-        "It’s OK, though. Our official Pokémon-\n",
-        "statue investigation is finished.\r",
-        "Mars has collected energy from\n",
-        "the Valley Windworks.\r",
-        "We’re pretty much finished here.\n",
-        "I’ll let you in on one little thing.\r",
-        "Our boss is researching the myths\n",
-        "of ancient Pokémon.\r",
-        "With the power of mythical Pokémon,\n",
-        "he will become the ruler of Sinnoh...\r",
-        "I suggest you keep out of Team\n",
-        "Galactic’s affairs from now on.\r",
-        "This is your last warning!\r"
+        "Looker: This is bigger than one\n",
+        "building.\r",
+        "Whatever they do at those sites,\n",
+        "I intend to see it with my own eyes."
       ]
     },
     {
-      "id": "pl_msg_00000095_00002",
-      "en_US": "CLEFAIRY: Pi..."
-    },
-    {
-      "id": "pl_msg_00000095_00003",
+      "id": "Haven4F_Text_LookerWhatIsHisName",
       "en_US": [
-        "What is it with this Team Galactic?\r",
-        "Why did they take our Pokémon?\n",
-        "What are they trying to accomplish?"
+        "Looker: One more thing. The man who\n",
+        "travels with you.\r",
+        "In the... unusual suit.\n",
+        "What is his name?"
       ]
     },
     {
-      "id": "pl_msg_00000095_00004",
+      "id": "Haven4F_Text_RuthCyrus",
+      "en_US": "Ruth: Cyrus."
+    },
+    {
+      "id": "Haven4F_Text_LookerCyrusHm",
+      "en_US": "Looker: Cyrus. Hm."
+    },
+    {
+      "id": "Haven4F_Text_LookerYouHaveNotSeenMe",
       "en_US": [
-        "I got my CLEFAIRY back, and it’s all\n",
-        "thanks to you!\r",
-        "But that Team Galactic...\r",
-        "They said, “CLEFAIRY came from space.\n",
-        "Hand it over!”\r",
-        "Their logic baffles me still.\n",
-        "It’s like they are from space!\r",
-        "Anyway, they’re gone now.\n",
-        "Thank you very much!\r",
-        "I can’t thank you enough right now,\n",
-        "but cruise by my Cycle Shop, OK?\r"
+        "Looker: If you see me again,\n",
+        "you have not seen me."
       ]
     },
     {
-      "id": "pl_msg_00000095_00005",
-      "en_US": "BUNEARY: Myun..."
+      "id": "Haven4F_Text_Crate",
+      "en_US": [
+        "An empty crate. The label says\n",
+        "SUPPLIES."
+      ]
     },
     {
-      "id": "pl_msg_00000095_00006",
+      "id": "Haven4F_Text_Sign",
       "en_US": [
-        "Working for world peace.\n",
-        "              Team Galactic"
+        "Going somewhere better.\n",
+        "Eclipse Haven"
       ]
     }
   ]

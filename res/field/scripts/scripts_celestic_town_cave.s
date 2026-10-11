@@ -2,14 +2,240 @@
 #include "res/text/bank/celestic_town_cave.h"
 
 
+// Arc 2 (s-celestic), 2.15-2.16: the elder's three stories, Saros, G4, Rowan's question.
+// Stock Celestic is replaced from Arc 2 on: the mural no longer starts the Cyrus/relic scene, and the
+// elder's HM03 (Surf) give is removed (D11).
+// Map-local hide flags: FLAG_UNK_0x0030 = Saros, Ruth, Cyrus, Garius (state 40 only),
+// FLAG_UNK_0x0031 = Rowan (40-43), FLAG_UNK_0x0032 = the elder (40 on).
+#define LOCALID_ARC2_ELDER  3
+#define LOCALID_ARC2_ROWAN  4
+#define LOCALID_ARC2_SAROS  5
+#define LOCALID_ARC2_RUTH   6
+#define LOCALID_ARC2_CYRUS  7
+#define LOCALID_ARC2_GARIUS 8
+
     ScriptEntry _000E
     ScriptEntry _0538
     ScriptEntry _0585
+    ScriptEntry CelesticTownCave_OnTransition
+    ScriptEntry CelesticTownCave_Arc2Stories
+    ScriptEntry CelesticTownCave_Arc2Elder
+    ScriptEntry CelesticTownCave_Arc2Rowan
     ScriptEntryEnd
+
+CelesticTownCave_OnTransition:
+    GoToIfGe VAR_ARC2_PROGRESS, 40, CelesticTownCave_OnTransitionArc2
+    SetFlag FLAG_UNK_0x0030
+    SetFlag FLAG_UNK_0x0031
+    SetFlag FLAG_UNK_0x0032
+    End
+
+CelesticTownCave_OnTransitionArc2:
+    CallIfNe VAR_ARC2_PROGRESS, 40, CelesticTownCave_HideGroup
+    CallIfGe VAR_ARC2_PROGRESS, 44, CelesticTownCave_HideRowan
+    End
+
+CelesticTownCave_HideGroup:
+    SetFlag FLAG_UNK_0x0030
+    Return
+
+CelesticTownCave_HideRowan:
+    SetFlag FLAG_UNK_0x0031
+    Return
+
+CelesticTownCave_Arc2Mural:
+    BufferPlayerName 0
+    Message 15
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+CelesticTownCave_Arc2Elder:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message CelesticTownCave_Text_Arc2ElderBeneathRepeat
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+CelesticTownCave_Arc2Rowan:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message CelesticTownCave_Text_Arc2RowanGoOnRepeat
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+// 2.15 + 2.16 (shrine part): runs from the frame table when the player walks in at state 40.
+CelesticTownCave_Arc2Stories:
+    LockAll
+    ApplyMovement LOCALID_PLAYER, CelesticTownCave_Arc2Movement_PlayerWalkIn
+    WaitMovement
+    ApplyMovement LOCALID_ARC2_ROWAN, CelesticTownCave_Arc2Movement_FaceWest
+    WaitMovement
+    Message CelesticTownCave_Text_Arc2RowanThanks
+    Message CelesticTownCave_Text_Arc2ElderChildren
+    Message CelesticTownCave_Text_Arc2ElderSit
+    Message CelesticTownCave_Text_Arc2ElderThree
+    Message CelesticTownCave_Text_Arc2ElderEveryAge
+    Message CelesticTownCave_Text_Arc2ElderEveryTime
+    Message CelesticTownCave_Text_Arc2ElderListen
+    CloseMessage
+    // the king (Saros)
+    ApplyMovement LOCALID_ARC2_ELDER, CelesticTownCave_Arc2Movement_FaceNorth
+    WaitMovement
+    Message CelesticTownCave_Text_Arc2ElderKing
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_SAROS, CelesticTownCave_Arc2Movement_FaceWest
+    WaitMovement
+    WaitTime 20, VAR_RESULT
+    ApplyMovement LOCALID_ARC2_SAROS, CelesticTownCave_Arc2Movement_FaceEast
+    WaitMovement
+    // the sailor (Kahn), the sister (Indra), the shared ending
+    Message CelesticTownCave_Text_Arc2ElderSailor
+    Message CelesticTownCave_Text_Arc2ElderSister
+    Message CelesticTownCave_Text_Arc2ElderBeneath
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_ELDER, CelesticTownCave_Arc2Movement_FaceSouth
+    WaitMovement
+    WaitTime 30, VAR_RESULT
+    Message CelesticTownCave_Text_Arc2CyrusEveryTime
+    Message CelesticTownCave_Text_Arc2ElderEveryTimeIKnow
+    Message CelesticTownCave_Text_Arc2SarosRespect
+    ApplyMovement LOCALID_ARC2_GARIUS, CelesticTownCave_Arc2Movement_FaceWest
+    WaitMovement
+    BufferRivalName 0
+    Message CelesticTownCave_Text_Arc2GariusOldStories
+    ApplyMovement LOCALID_ARC2_ELDER, CelesticTownCave_Arc2Movement_FaceEast
+    WaitMovement
+    Message CelesticTownCave_Text_Arc2ElderWhatLost
+    BufferRivalName 0
+    Message CelesticTownCave_Text_Arc2GariusNothing
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_SAROS, CelesticTownCave_Arc2Movement_FaceEast
+    WaitMovement
+    Message CelesticTownCave_Text_Arc2SarosSharp
+    BufferRivalName 0
+    Message CelesticTownCave_Text_Arc2GariusNotInterested
+    CloseMessage
+    // Saros bows to the elder and walks out.
+    ApplyMovement LOCALID_ARC2_SAROS, CelesticTownCave_Arc2Movement_Bow
+    WaitMovement
+    ApplyMovement LOCALID_ARC2_SAROS, CelesticTownCave_Arc2Movement_SarosLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC2_SAROS
+    SetVar VAR_ARC2_PROGRESS, 42
+    // 2.16: Rowan's question
+    ApplyMovement LOCALID_ARC2_ELDER, CelesticTownCave_Arc2Movement_FaceEast
+    ApplyMovement LOCALID_ARC2_ROWAN, CelesticTownCave_Arc2Movement_FaceWest
+    WaitMovement
+    Message CelesticTownCave_Text_Arc2RowanQuestion
+    Message CelesticTownCave_Text_Arc2ElderCost
+    Message CelesticTownCave_Text_Arc2RowanSayingNo
+    BufferRivalName 0
+    Message CelesticTownCave_Text_Arc2GariusHuh
+    BufferRivalName 0
+    Message CelesticTownCave_Text_Arc2GariusVeilstone
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_GARIUS, CelesticTownCave_Arc2Movement_GariusLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC2_GARIUS
+    ApplyMovement LOCALID_ARC2_RUTH, CelesticTownCave_Arc2Movement_FaceWest
+    WaitMovement
+    Message CelesticTownCave_Text_Arc2RuthVeilstone
+    ApplyMovement LOCALID_ARC2_ROWAN, CelesticTownCave_Arc2Movement_FaceSouth
+    WaitMovement
+    Message CelesticTownCave_Text_Arc2RowanGoOn
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_RUTH, CelesticTownCave_Arc2Movement_RuthLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC2_RUTH
+    // Cyrus goes out without a word (he waits outside, 2.16).
+    ApplyMovement LOCALID_ARC2_CYRUS, CelesticTownCave_Arc2Movement_CyrusLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC2_CYRUS
+    ApplyMovement LOCALID_ARC2_ROWAN, CelesticTownCave_Arc2Movement_FaceWest
+    WaitMovement
+    ReleaseAll
+    End
+
+    .balign 4, 0
+CelesticTownCave_Arc2Movement_PlayerWalkIn:
+    WalkNormalNorth 8
+    WalkNormalWest 6
+    WalkNormalNorth 7
+    WalkNormalEast
+    WalkNormalNorth
+    WalkNormalEast 5
+    FaceNorth
+    EndMovement
+
+    .balign 4, 0
+CelesticTownCave_Arc2Movement_FaceNorth:
+    FaceNorth
+    EndMovement
+
+    .balign 4, 0
+CelesticTownCave_Arc2Movement_FaceSouth:
+    FaceSouth
+    EndMovement
+
+    .balign 4, 0
+CelesticTownCave_Arc2Movement_FaceWest:
+    FaceWest
+    EndMovement
+
+    .balign 4, 0
+CelesticTownCave_Arc2Movement_FaceEast:
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+CelesticTownCave_Arc2Movement_Bow:
+    WalkOnSpotNormalEast
+    Delay8
+    EndMovement
+
+    .balign 4, 0
+CelesticTownCave_Arc2Movement_SarosLeave:
+    WalkNormalSouth
+    WalkNormalWest 2
+    WalkNormalSouth
+    WalkNormalWest
+    WalkNormalSouth 6
+    EndMovement
+
+    .balign 4, 0
+CelesticTownCave_Arc2Movement_GariusLeave:
+    WalkNormalEast
+    WalkNormalSouth 5
+    EndMovement
+
+    .balign 4, 0
+CelesticTownCave_Arc2Movement_RuthLeave:
+    WalkNormalEast 2
+    WalkNormalSouth 6
+    EndMovement
+
+    .balign 4, 0
+CelesticTownCave_Arc2Movement_CyrusLeave:
+    WalkNormalWest 2
+    WalkNormalSouth
+    WalkNormalWest 2
+    WalkNormalSouth
+    WalkNormalWest
+    WalkNormalSouth 6
+    EndMovement
 
 _000E:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
+    GoToIfGe VAR_ARC2_PROGRESS, 1, CelesticTownCave_Arc2Mural
     GoToIfSet FLAG_ARRESTED_CHARON_STARK_MOUNTAIN, _0596
     GoTo _0027
     End
@@ -124,14 +350,10 @@ _01C3:
     CallIfEq VAR_0x8004, 9, _02B1
     CallIfEq VAR_0x8004, 10, _02FA
     CallIfEq VAR_0x8004, 11, _0343
-    Message 13
-    SetVar VAR_0x8004, ITEM_HM03
-    SetVar VAR_0x8005, 1
-    GiveItemQuantity
+    // Arc 2 (D11): the elder's HM03 (Surf) give is removed; this stock scene is also unreachable from Arc 2 on.
     SetFlag FLAG_UNK_0x01AC
     ClearFlag FLAG_UNK_0x01C3
     SetFlag FLAG_DUMMY_2445
-    Message 14
     CloseMessage
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
     CallIfEq VAR_0x8004, 9, _0357

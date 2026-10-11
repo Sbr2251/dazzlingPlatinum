@@ -2,52 +2,52 @@
     "land_rate": 30,
     "land_encounters": [
         {
-            "level": 23,
+            "level": 30,
             "species": "SPECIES_GRAVELER"
         },
         {
-            "level": 21,
+            "level": 28,
             "species": "SPECIES_GEODUDE"
         },
         {
-            "level": 22,
+            "level": 29,
             "species": "SPECIES_GRAVELER"
         },
         {
-            "level": 22,
+            "level": 29,
             "species": "SPECIES_RHYHORN"
         },
         {
-            "level": 23,
+            "level": 30,
             "species": "SPECIES_HOUNDOUR"
         },
         {
-            "level": 23,
+            "level": 28,
+            "species": "SPECIES_SANDILE"
+        },
+        {
+            "level": 31,
+            "species": "SPECIES_KROKOROK"
+        },
+        {
+            "level": 28,
             "species": "SPECIES_RHYHORN"
         },
         {
-            "level": 24,
-            "species": "SPECIES_GRAVELER"
-        },
-        {
-            "level": 21,
-            "species": "SPECIES_RHYHORN"
-        },
-        {
-            "level": 24,
+            "level": 31,
             "species": "SPECIES_HOUNDOUR"
         },
         {
-            "level": 24,
-            "species": "SPECIES_RHYHORN"
+            "level": 31,
+            "species": "SPECIES_ABSOL"
         },
         {
-            "level": 24,
+            "level": 31,
             "species": "SPECIES_HOUNDOUR"
         },
         {
-            "level": 24,
-            "species": "SPECIES_RHYHORN"
+            "level": 31,
+            "species": "SPECIES_ABSOL"
         }
     ],
     "swarms": [
@@ -55,11 +55,11 @@
         "SPECIES_SPOINK"
     ],
     "day": [
-        "SPECIES_GRAVELER",
+        "SPECIES_ZANGOOSE",
         "SPECIES_RHYHORN"
     ],
     "night": [
-        "SPECIES_HOUNDOUR",
+        "SPECIES_SEVIPER",
         "SPECIES_ZUBAT"
     ],
     "radar": [

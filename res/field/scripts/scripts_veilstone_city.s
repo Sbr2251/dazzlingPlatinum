@@ -35,9 +35,15 @@
     ScriptEntry _0FB0
     ScriptEntry _1204
     ScriptEntry _123E
+    ScriptEntry VeilstoneCity_Arc2LookerCheck
+    ScriptEntry VeilstoneCity_Arc2LookerTalk
+    ScriptEntry VeilstoneCity_Arc2Maylene
+    ScriptEntry VeilstoneCity_Arc2Cyrus
+    ScriptEntry VeilstoneCity_Arc2StoneBox
     ScriptEntryEnd
 
 _0082:
+    Call VeilstoneCity_Arc2OnTransition
     CallIfSet FLAG_UNK_0x0155, _00E0
     CallIfGe VAR_VEILSTONE_STATE, 2, _00BA
     GetPlayerGender VAR_MAP_LOCAL_0
@@ -1038,7 +1044,8 @@ VeilstoneCity_GalacticGruntWarehouseGuard:
     ApplyMovement VEILSTONE_CITY_GRUNT_M_7, VeilstoneCity_Grunt_FaceSouth
     ApplyMovement LOCALID_PLAYER, VeilstoneCity_Player_FaceNorth
     WaitMovement
-    Message VeilstoneCity_Text_ThisIsGalacticWarehouse
+    Message VeilstoneCity_Text_Arc2DepotGuard
+    WaitABXPadPress
     CloseMessage
     ApplyMovement VEILSTONE_CITY_GRUNT_M_7, VeilstoneCity_Grunt_PushPlayerBack
     ApplyMovement LOCALID_PLAYER, VeilstoneCity_Player_GetPushed
@@ -1075,6 +1082,11 @@ _0D5C:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    Message VeilstoneCity_Text_Arc2DepotGuard
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
     GoToIfBadgeAcquired BADGE_ID_COBBLE, _0D82
     Message VeilstoneCity_Text_ThisIsGalacticWarehouse1
     WaitABXPadPress
@@ -1093,6 +1105,11 @@ _0D8D:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    Message VeilstoneCity_Text_Arc2DepotGuard
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
     GoToIfBadgeAcquired BADGE_ID_COBBLE, _0DB3
     Message 13
     WaitABXPadPress
@@ -1464,3 +1481,307 @@ _123E:
     End
 
     .balign 4, 0
+
+// ------------------------------------------------------------------------------------------------------------
+// Dazzling Platinum Arc 2, workstream s-veilstone: 2.17 (Looker's check) and 2.17b (Maylene's trial, Key Stone).
+//
+// Flags (s-veilstone allocation 0x0946-0x094A, registered in R0 as FLAG_ARC2_VEILSTONE_A-E):
+//   FLAG_ARC2_VEILSTONE_A (0x0946) depot manifest copied (2.17a; heist past the stealth part)
+//   FLAG_ARC2_VEILSTONE_B (0x0947) Route 215 crate seen (2.17c; guards the bit-3 add)
+//   FLAG_ARC2_VEILSTONE_C (0x0948) Pokemon Center: Ruth + Cyrus hidden (clear only at 57)
+//   FLAG_ARC2_VEILSTONE_D (0x0949) Pokemon Center: Garius hidden (shown only in the 2.17d scene)
+//   FLAG_ARC2_VEILSTONE_E (0x094A) spare
+// Map-local hide flags (cleared on every map load, recomputed in VeilstoneCity_Arc2OnTransition):
+//   0x0030 Looker (newspaper), 0x0031 Maylene, 0x0032 Cyrus, 0x0033 stone box, 0x0034 depot front guards,
+//   0x0035 stock objects that never show in Arc 2 (Dawn, the 'HM02 in the warehouse' grunt)
+// Map-local vars: VAR_MAP_LOCAL_1 = 1 arms the Looker coord (681-684, 616); VAR_MAP_LOCAL_2 = 1 disarms the
+//   depot guards' push-back coord (697, 596).
+//   VAR_MAP_LOCAL_3 = badge-check scratch (OnTransition must not write VAR_RESULT: it hangs the map load).
+// VAR_ARC2_PROGRESS: 49 + Cobble Badge -> Looker; sets 51. 54 -> Maylene's trial; sets 57.
+// VAR_ARC2_CHOICES bit 0 (+1): the player said Yes to "Do you trust him?" (the only write to bit 0).
+
+VeilstoneCity_Arc2OnTransition:
+    SetFlag FLAG_UNK_0x0030
+    SetFlag FLAG_UNK_0x0031
+    SetFlag FLAG_UNK_0x0032
+    SetFlag FLAG_UNK_0x0033
+    SetFlag FLAG_UNK_0x0035
+    SetVar VAR_MAP_LOCAL_1, 0
+    SetVar VAR_MAP_LOCAL_2, 0
+    // Pokemon Center 2.17d cast (that map keeps its stock OnTransition): Ruth + Cyrus only at 57, Garius never
+    SetFlag FLAG_ARC2_VEILSTONE_C
+    SetFlag FLAG_ARC2_VEILSTONE_D
+    CallIfEq VAR_ARC2_PROGRESS, 57, VeilstoneCity_Arc2ShowPCTable
+    // Depot front guards stand until Looker's favor (51); then the night shift lets the side door be
+    CallIfGe VAR_ARC2_PROGRESS, 51, VeilstoneCity_Arc2HideDepotGuards
+    CallIfEq VAR_ARC2_PROGRESS, 49, VeilstoneCity_Arc2TryArmLooker
+    CallIfGe VAR_ARC2_PROGRESS, 54, VeilstoneCity_Arc2TryShowShrine
+    Return
+
+VeilstoneCity_Arc2TryShowShrine:
+    GoToIfLe VAR_ARC2_PROGRESS, 56, VeilstoneCity_Arc2ShowShrine
+    Return
+
+VeilstoneCity_Arc2ShowPCTable:
+    ClearFlag FLAG_ARC2_VEILSTONE_C
+    Return
+
+VeilstoneCity_Arc2HideDepotGuards:
+    SetFlag FLAG_UNK_0x0034
+    SetVar VAR_MAP_LOCAL_2, 1
+    Return
+
+VeilstoneCity_Arc2TryArmLooker:
+    CheckBadgeAcquired BADGE_ID_COBBLE, VAR_MAP_LOCAL_3
+    CallIfEq VAR_MAP_LOCAL_3, TRUE, VeilstoneCity_Arc2ArmLooker
+    Return
+
+VeilstoneCity_Arc2ArmLooker:
+    ClearFlag FLAG_UNK_0x0030
+    SetVar VAR_MAP_LOCAL_1, 1
+    Return
+
+VeilstoneCity_Arc2ShowShrine:
+    ClearFlag FLAG_UNK_0x0031
+    ClearFlag FLAG_UNK_0x0032
+    ClearFlag FLAG_UNK_0x0033
+    Return
+
+// 2.17: the player crosses the row below the Gym (x681-684, z616). Looker (681,617) lowers the newspaper and
+// steps over to stand right below the player.
+VeilstoneCity_Arc2LookerCheck:
+    LockAll
+    SetVar VAR_MAP_LOCAL_1, 0
+    ApplyMovement LOCALID_ARC2_LOOKER, VeilstoneCity_Arc2Movement_Notice
+    WaitMovement
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    CallIfEq VAR_0x8004, 682, VeilstoneCity_Arc2LookerStepEast1
+    CallIfEq VAR_0x8004, 683, VeilstoneCity_Arc2LookerStepEast2
+    CallIfEq VAR_0x8004, 684, VeilstoneCity_Arc2LookerStepEast3
+    ApplyMovement LOCALID_ARC2_LOOKER, VeilstoneCity_Arc2Movement_FaceNorth
+    ApplyMovement LOCALID_PLAYER, VeilstoneCity_Arc2Movement_FaceSouth
+    WaitMovement
+    GoTo VeilstoneCity_Arc2LookerScene
+    End
+
+VeilstoneCity_Arc2LookerStepEast1:
+    ApplyMovement LOCALID_ARC2_LOOKER, VeilstoneCity_Arc2Movement_East1
+    WaitMovement
+    Return
+
+VeilstoneCity_Arc2LookerStepEast2:
+    ApplyMovement LOCALID_ARC2_LOOKER, VeilstoneCity_Arc2Movement_East2
+    WaitMovement
+    Return
+
+VeilstoneCity_Arc2LookerStepEast3:
+    ApplyMovement LOCALID_ARC2_LOOKER, VeilstoneCity_Arc2Movement_East3
+    WaitMovement
+    Return
+
+// Talking to him first (from beside him) runs the same scene
+VeilstoneCity_Arc2LookerTalk:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    SetVar VAR_MAP_LOCAL_1, 0
+    FacePlayer
+    GoTo VeilstoneCity_Arc2LookerScene
+    End
+
+VeilstoneCity_Arc2LookerScene:
+    SetLookerBGM
+    Message VeilstoneCity_Text_Arc2LookerDisguise
+    WaitABXPadPress
+    Message VeilstoneCity_Text_Arc2LookerRanName
+    WaitABXPadPress
+    Message VeilstoneCity_Text_Arc2LookerNoRecord
+    WaitABXPadPress
+    Message VeilstoneCity_Text_Arc2LookerNotExist
+    WaitABXPadPress
+    Message VeilstoneCity_Text_Arc2LookerTrust
+    ShowYesNoMenu VAR_RESULT
+    GoToIfEq VAR_RESULT, MENU_YES, VeilstoneCity_Arc2LookerTrustYes
+    Message VeilstoneCity_Text_Arc2LookerTrustNo
+    WaitABXPadPress
+    GoTo VeilstoneCity_Arc2LookerFavor
+    End
+
+VeilstoneCity_Arc2LookerTrustYes:
+    AddVar VAR_ARC2_CHOICES, 1
+    Message VeilstoneCity_Text_Arc2LookerTrustYes
+    WaitABXPadPress
+    GoTo VeilstoneCity_Arc2LookerFavor
+    End
+
+VeilstoneCity_Arc2LookerFavor:
+    Message VeilstoneCity_Text_Arc2LookerFavor
+    WaitABXPadPress
+    Message VeilstoneCity_Text_Arc2LookerSideDoor
+    WaitABXPadPress
+    CloseMessage
+    SetVar VAR_ARC2_PROGRESS, 51
+    // Newspaper up again (upside down), and off he goes
+    ApplyMovement LOCALID_ARC2_LOOKER, VeilstoneCity_Arc2Movement_LookerLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC2_LOOKER
+    FadeToDefaultMusic
+    ReleaseAll
+    End
+
+// 2.17b: Maylene at the meteorite garden (stock meteorites = the Meteor Shrine), Cyrus at the far edge
+VeilstoneCity_Arc2Maylene:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message VeilstoneCity_Text_Arc2MayleneBond
+    WaitABXPadPress
+    Message VeilstoneCity_Text_Arc2MayleneStar
+    WaitABXPadPress
+    Message VeilstoneCity_Text_Arc2MayleneMega
+    WaitABXPadPress
+    Message VeilstoneCity_Text_Arc2MayleneForced
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_CYRUS, VeilstoneCity_Arc2Movement_FaceWest
+    WaitMovement
+    Message VeilstoneCity_Text_Arc2CyrusRocks
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_CYRUS, VeilstoneCity_Arc2Movement_FaceEast
+    WaitMovement
+    Message VeilstoneCity_Text_Arc2MayleneShowMe
+    WaitABXPadPress
+    CloseMessage
+    StartTrainerBattle TRAINER_LEADER_MAYLENE_METEOR_TRIAL
+    CheckWonBattle VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, VeilstoneCity_Arc2MayleneLost
+    Message VeilstoneCity_Text_Arc2MayleneThatsIt
+    WaitABXPadPress
+    AddItem ITEM_KEY_STONE, 1, VAR_RESULT
+    BufferPlayerName 0
+    PlaySound SEQ_FANFA3
+    Message VeilstoneCity_Text_Arc2GotKeyStone
+    WaitSound
+    WaitABXPadPress
+    CloseMessage
+    // The stone box: three Mega Stones glow
+    ApplyMovement LOCALID_ARC2_MAYLENE, VeilstoneCity_Arc2Movement_FaceEast
+    WaitMovement
+    PlayFanfare SEQ_SE_DP_KIRAKIRA
+    WaitFanfare SEQ_SE_DP_KIRAKIRA
+    WaitTime 15, VAR_RESULT
+    Message VeilstoneCity_Text_Arc2MayleneBox
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_MAYLENE, VeilstoneCity_Arc2Movement_FaceWest
+    WaitMovement
+    Message VeilstoneCity_Text_Arc2MayleneYours
+    WaitABXPadPress
+    // The Mega Stone for the player's starter line
+    GetPlayerStarterSpecies VAR_RESULT
+    SetVar VAR_0x8004, ITEM_TORTERRITE
+    CallIfEq VAR_RESULT, SPECIES_CHIMCHAR, VeilstoneCity_Arc2StoneInfernapite
+    CallIfEq VAR_RESULT, SPECIES_PIPLUP, VeilstoneCity_Arc2StoneEmpoleonite
+    AddItem VAR_0x8004, 1, VAR_RESULT
+    BufferPlayerName 0
+    BufferItemName 1, VAR_0x8004
+    PlaySound SEQ_FANFA4
+    Message VeilstoneCity_Text_Arc2GotMegaStone
+    WaitSound
+    WaitABXPadPress
+    CloseMessage
+    SetVar VAR_ARC2_PROGRESS, 57
+    ClearFlag FLAG_ARC2_VEILSTONE_C
+    // Time passes toward evening (2.17d is at the Pokemon Center)
+    FadeScreenOut
+    WaitFadeScreen
+    RemoveObject LOCALID_ARC2_MAYLENE
+    RemoveObject LOCALID_ARC2_CYRUS
+    RemoveObject LOCALID_ARC2_STONE_BOX
+    WaitTime 20, VAR_RESULT
+    FadeScreenIn
+    WaitFadeScreen
+    ReleaseAll
+    End
+
+VeilstoneCity_Arc2StoneInfernapite:
+    SetVar VAR_0x8004, ITEM_INFERNAPITE
+    Return
+
+VeilstoneCity_Arc2StoneEmpoleonite:
+    SetVar VAR_0x8004, ITEM_EMPOLEONITE
+    Return
+
+VeilstoneCity_Arc2MayleneLost:
+    BlackOutFromBattle
+    ReleaseAll
+    End
+
+VeilstoneCity_Arc2Cyrus:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message VeilstoneCity_Text_Arc2CyrusRocks
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_CYRUS, VeilstoneCity_Arc2Movement_FaceEast
+    WaitMovement
+    ReleaseAll
+    End
+
+VeilstoneCity_Arc2StoneBox:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message VeilstoneCity_Text_Arc2StoneBox
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
+VeilstoneCity_Arc2Movement_Notice:
+    EmoteExclamationMark
+    Delay8
+    EndMovement
+
+    .balign 4, 0
+VeilstoneCity_Arc2Movement_FaceNorth:
+    FaceNorth
+    EndMovement
+
+    .balign 4, 0
+VeilstoneCity_Arc2Movement_FaceSouth:
+    FaceSouth
+    EndMovement
+
+    .balign 4, 0
+VeilstoneCity_Arc2Movement_FaceWest:
+    FaceWest
+    EndMovement
+
+    .balign 4, 0
+VeilstoneCity_Arc2Movement_FaceEast:
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+VeilstoneCity_Arc2Movement_East1:
+    WalkNormalEast
+    EndMovement
+
+    .balign 4, 0
+VeilstoneCity_Arc2Movement_East2:
+    WalkNormalEast 2
+    EndMovement
+
+    .balign 4, 0
+VeilstoneCity_Arc2Movement_East3:
+    WalkNormalEast 3
+    EndMovement
+
+    .balign 4, 0
+VeilstoneCity_Arc2Movement_LookerLeave:
+    FaceSouth
+    Delay8
+    WalkNormalSouth 6
+    EndMovement
