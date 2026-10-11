@@ -425,14 +425,13 @@
       "en_US": [
         "Saros: You're sharp.\r",
         "Team Eclipse could use people like\n",
-        "you.\r"
+        "you.\r",
+        "...You're the Twinleaf boy.\r"
       ]
     },
     {
       "id": "CelesticTownCave_Text_Arc2GariusNotInterested",
-      "en_US": [
-        "{STRVAR_1 3, 0, 0}: Not interested.\r"
-      ]
+      "en_US": "{STRVAR_1 3, 0, 0}: ...Not interested.\r"
     },
     {
       "id": "CelesticTownCave_Text_Arc2RowanQuestion",
@@ -498,6 +497,27 @@
         "Elder: Each time, something rose\n",
         "from beneath the world.\r",
         "And set it right. Never gently."
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2RuthWhoWasThat",
+      "en_US": [
+        "Ruth: Who WAS that?\r",
+        "...How did he know we'd be here?\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderYesterday",
+      "en_US": [
+        "Elder: He came yesterday. Asked the\n",
+        "same questions you will.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2RowanEclipse",
+      "en_US": [
+        "Rowan: Eclipse. One of the three who\n",
+        "run it, I'd wager.\r"
       ]
     }
   ]

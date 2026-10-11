@@ -130,6 +130,15 @@ CelesticTownCave_Arc2Stories:
     WaitMovement
     RemoveObject LOCALID_ARC2_SAROS
     SetVar VAR_ARC2_PROGRESS, 42
+    // Polish #5: the room reacts to Saros
+    ApplyMovement LOCALID_ARC2_RUTH, CelesticTownCave_Arc2Movement_FaceWest
+    WaitMovement
+    Message CelesticTownCave_Text_Arc2RuthWhoWasThat
+    Message CelesticTownCave_Text_Arc2ElderYesterday
+    ApplyMovement LOCALID_ARC2_ROWAN, CelesticTownCave_Arc2Movement_FaceEast
+    WaitMovement
+    Message CelesticTownCave_Text_Arc2RowanEclipse
+    CloseMessage
     // 2.16: Rowan's question
     ApplyMovement LOCALID_ARC2_ELDER, CelesticTownCave_Arc2Movement_FaceEast
     ApplyMovement LOCALID_ARC2_ROWAN, CelesticTownCave_Arc2Movement_FaceWest
