@@ -26,9 +26,12 @@
     ScriptEntry _07F8
     ScriptEntry _0B90
     ScriptEntry _0BF0
+    ScriptEntry PastoriaCity_Arc2LookerFrame
+    ScriptEntry PastoriaCity_Arc2LookerTalk
     ScriptEntryEnd
 
 _005E:
+    Call PastoriaCity_Arc2Transition
     SetVar VAR_UNK_0x40C7, 0
     SetFlag FLAG_UNK_0x017E
     CallIfEq VAR_PASTORIA_STATE, 5, _074D
@@ -1033,4 +1036,110 @@ _0C70:
     .balign 4, 0
 _0C78:
     WalkOnSpotNormalSouth
+    EndMovement
+
+// ------------------------------------------------------------------------------------------------------------
+// Dazzling Platinum Arc 2, workstream s-pastoria: screenplay 2.20 (Gym 4, Looker's request, the Valor Basin),
+// 2.21a (Looker's briefing, Pastoria Pokemon Center) and 2.22 (Rowan sees the proof, same Center).
+// VAR_ARC2_PROGRESS block 70-79 plus 85-86:
+//   71  Fen Badge (Pastoria Gym; or this OnTransition, if the badge came before the arc reached 69)
+//   72  Looker's request heard (outside the Gym, this map)
+//   73  Garius found at the Basin fence (lake_valor_drained); the night question is asked at 73
+//   75  Looker's briefing done (Center); warps to Route 213 (687,832) for s-raid
+//   85  2.22 started (Center, after s-raid warps in at 84)   86  2.22 done
+// Flags (FLAG_ARC2_PASTORIA_A..D, 0x094D-0x0950):
+//   FLAG_ARC2_PASTORIA_A (0x094D) = the Basin question has been asked (answer in VAR_ARC2_CHOICES bit 1)
+//   FLAG_ARC2_PASTORIA_B (0x094E) = Center briefing group hidden (Looker, Ruth, Cyrus, Garius; shown only at 73)
+//   FLAG_ARC2_PASTORIA_C (0x094F) = Center 2.22 group hidden (Rowan, Looker, Ruth, Cyrus; shown only at 84-85)
+//   FLAG_ARC2_PASTORIA_D (0x0950) = unused (free for the lead)
+// The Center keeps its stock OnTransition (common script 10400), so its hide flags are persistent and are
+// recomputed here on every Pastoria City load; the Center scenes also re-show their group themselves.
+// Map-local: FLAG_UNK_0x0030 = Looker (outside the Gym) hidden; VAR_MAP_LOCAL_1 = 1 arms the on-frame check (not _0: the frame-table reader stops at a var whose low byte is 0).
+// Great Marsh grunt/bomb plot cut: the stock rival, Wake and grunt objects stay hidden and VAR_PASTORIA_STATE
+// is parked at 6 (the stock "plot over" value), so none of its coord events or the state-3 frame script run.
+// Never set FLAG_GALACTIC_LEFT_LAKE_VALOR (it would flip Valor Lakefront to the full lake; rift contract).
+
+PastoriaCity_Arc2Transition:
+    SetFlag FLAG_UNK_0x01A9
+    SetFlag FLAG_UNK_0x020C
+    SetFlag FLAG_UNK_0x01FB
+    GoToIfGe VAR_PASTORIA_STATE, 6, PastoriaCity_Arc2TransitionBadge
+    SetVar VAR_PASTORIA_STATE, 6
+PastoriaCity_Arc2TransitionBadge:
+    GoToIfLt VAR_ARC2_PROGRESS, 69, PastoriaCity_Arc2TransitionLooker
+    GoToIfGe VAR_ARC2_PROGRESS, 71, PastoriaCity_Arc2TransitionLooker
+    // Not GoToIfBadgeAcquired: VAR_RESULT is script-local memory, which hangs the OnTransition run at load.
+    CheckBadgeAcquired BADGE_ID_FEN, VAR_MAP_LOCAL_2
+    GoToIfEq VAR_MAP_LOCAL_2, TRUE, PastoriaCity_Arc2TransitionSet71
+    GoTo PastoriaCity_Arc2TransitionLooker
+
+PastoriaCity_Arc2TransitionSet71:
+    SetVar VAR_ARC2_PROGRESS, 71
+PastoriaCity_Arc2TransitionLooker:
+    SetFlag FLAG_UNK_0x0030
+    GoToIfNe VAR_ARC2_PROGRESS, 71, PastoriaCity_Arc2TransitionCenter
+    ClearFlag FLAG_UNK_0x0030
+    SetVar VAR_MAP_LOCAL_1, 1
+PastoriaCity_Arc2TransitionCenter:
+    SetFlag FLAG_ARC2_PASTORIA_B
+    GoToIfNe VAR_ARC2_PROGRESS, 73, PastoriaCity_Arc2TransitionRowan
+    ClearFlag FLAG_ARC2_PASTORIA_B
+PastoriaCity_Arc2TransitionRowan:
+    SetFlag FLAG_ARC2_PASTORIA_C
+    GoToIfLt VAR_ARC2_PROGRESS, 84, PastoriaCity_Arc2TransitionEnd
+    GoToIfGt VAR_ARC2_PROGRESS, 85, PastoriaCity_Arc2TransitionEnd
+    ClearFlag FLAG_ARC2_PASTORIA_C
+PastoriaCity_Arc2TransitionEnd:
+    Return
+
+// On-frame (VAR_MAP_LOCAL_1 == 1, armed at 71): stepping out of the Gym, Looker comes over from the lamppost.
+// Anywhere else (Fly, the Route 213 gate) he just waits by the Gym to be talked to.
+PastoriaCity_Arc2LookerFrame:
+    SetVar VAR_MAP_LOCAL_1, 0
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfNe VAR_0x8004, 589, PastoriaCity_Arc2LookerFrameEnd
+    GoToIfNe VAR_0x8005, 828, PastoriaCity_Arc2LookerFrameEnd
+    LockAll
+    ApplyMovement LOCALID_ARC2_LOOKER, PastoriaCity_Arc2Movement_LookerToGym
+    WaitMovement
+    ApplyMovement LOCALID_PLAYER, PastoriaCity_Arc2Movement_FaceEast
+    WaitMovement
+    GoTo PastoriaCity_Arc2LookerScene
+    End
+
+PastoriaCity_Arc2LookerFrameEnd:
+    End
+
+PastoriaCity_Arc2LookerTalk:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    GoToIfEq VAR_ARC2_PROGRESS, 71, PastoriaCity_Arc2LookerScene
+    Message PastoriaCity_Text_Arc2LookerEveryEye
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+PastoriaCity_Arc2LookerScene:
+    Message PastoriaCity_Text_Arc2LookerHello
+    WaitABXPadPress
+    Message PastoriaCity_Text_Arc2LookerManifest
+    WaitABXPadPress
+    Message PastoriaCity_Text_Arc2LookerEveryEye
+    WaitABXPadPress
+    CloseMessage
+    SetVar VAR_ARC2_PROGRESS, 72
+    ReleaseAll
+    End
+
+    .balign 4, 0
+PastoriaCity_Arc2Movement_LookerToGym:
+    WalkNormalWest
+    WalkOnSpotNormalWest
+    EndMovement
+
+    .balign 4, 0
+PastoriaCity_Arc2Movement_FaceEast:
+    FaceEast
     EndMovement

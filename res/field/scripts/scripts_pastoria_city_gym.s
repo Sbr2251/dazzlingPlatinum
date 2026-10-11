@@ -63,7 +63,7 @@ PastoriaGym_Wake:
     SetTrainerFlag TRAINER_SAILOR_SAMSON
     SetTrainerFlag TRAINER_TUBER_JACKY
     SetTrainerFlag TRAINER_TUBER_CAITLYN
-    SetVar VAR_PASTORIA_STATE, 3
+    // Arc 2 (s-pastoria): the stock Wake/Barry/grunt scene after the badge (VAR_PASTORIA_STATE 3) is cut
     SetFlag FLAG_UNK_0x020C
     SetFlag FLAG_UNK_0x0156
     CreateJournalEvent LOCATION_EVENT_BEAT_GYM_LEADER, 122, TRAINER_LEADER_WAKE, 0, 0
@@ -81,13 +81,24 @@ PastoriaGym_WakeTryGiveTm55:
     BufferTMHMMoveName 1, VAR_0x8004
     Message PastoriaGym_Text_WakeExplainTM55
     WaitABXPadPress
-    CloseMessage
-    ReleaseAll
+    GoTo PastoriaGym_Arc2WakeRoute213
     End
 
 PastoriaGym_WakeCannotGiveTm55:
     MessageBagIsFull
+    GoTo PastoriaGym_Arc2WakeRoute213
+    End
+
+// Arc 2 (s-pastoria), 2.20: Wake points at Route 213 after the badge. Sets VAR_ARC2_PROGRESS 71 (Fen Badge) when
+// the arc has reached Pastoria (69-70); an early badge is picked up by Pastoria City's OnTransition instead.
+PastoriaGym_Arc2WakeRoute213:
+    Message PastoriaGym_Text_Arc2WakeRoute213
+    WaitABXPadPress
     CloseMessage
+    GoToIfLt VAR_ARC2_PROGRESS, 69, PastoriaGym_Arc2WakeEnd
+    GoToIfGe VAR_ARC2_PROGRESS, 71, PastoriaGym_Arc2WakeEnd
+    SetVar VAR_ARC2_PROGRESS, 71
+PastoriaGym_Arc2WakeEnd:
     ReleaseAll
     End
 
