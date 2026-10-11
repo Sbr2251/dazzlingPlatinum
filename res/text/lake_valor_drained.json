@@ -80,6 +80,16 @@
     {
       "id": "LakeValorDrained_Text_Arc2GariusAfter",
       "en_US": "{STRVAR_1 3, 0, 0}: ..."
+    },
+    {
+      "id": "LakeValorDrained_Text_Arc2GariusDad",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Dad used to row me\n",
+        "out here. Right about... there.\r",
+        "He'd say the lake was the only\n",
+        "thing in Sinnoh that held still.\r",
+        "...Then it didn't."
+      ]
     }
   ]
 }

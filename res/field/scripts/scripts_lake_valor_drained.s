@@ -56,6 +56,10 @@ LakeValorDrained_Arc2Garius:
 LakeValorDrained_Arc2GariusSecond:
     GoToIfSet FLAG_ARC2_PASTORIA_A, LakeValorDrained_Arc2GariusAfter
     SetFlag FLAG_ARC2_PASTORIA_A
+    // Polish #2: the rowboat memory before the question (warmth beat)
+    Message LakeValorDrained_Text_Arc2GariusDad
+    WaitABXPadPress
+    BufferRivalName 0
     Message LakeValorDrained_Text_Arc2GariusQuestion
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, LakeValorDrained_Arc2GariusYes

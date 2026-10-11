@@ -584,8 +584,9 @@
     {
       "id": "HearthomeCity_Text_GariusForgetIt",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: ...Forget it.\n",
-        "Forget all of it."
+        "{STRVAR_1 3, 0, 0}: You're picking him.\n",
+        "Fine.\r",
+        "I'd have picked you."
       ]
     }
   ]
