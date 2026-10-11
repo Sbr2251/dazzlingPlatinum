@@ -67,4 +67,8 @@ BOOL FieldMoves_IsResonatorGhost(const Pokemon *mon);
 void FieldMoves_ApplyResonatorGhostPalette(const Pokemon *mon, u16 *palette, int numColors);
 u16 FieldMoves_GetFogInteractScript(FieldSystem *fieldSystem);
 
+// Arc 2 Resonator echoes (S8): ghost actors (local IDs 0xC0-0xC7, opacity in VAR_MAP_LOCAL_5). Called by
+// MapObjectTask_Draw after each map object draws.
+void FieldMoves_EchoGhostDraw(MapObject *mapObj);
+
 #endif // POKEPLATINUM_FIELD_MOVE_TASKS_H

@@ -38,6 +38,25 @@
 #define ROUTE214_RUTH    ROUTE_214_ARC2_RUTH
 #define ROUTE214_CYRUS   ROUTE_214_ARC2_CYRUS
 
+// Arc 2, workstream echo (R3): the Resonator echo at the boost machine's site (S8 Echo stage). From 64 on (after the
+// calm and the 2.19 cutaway) a bg event on the rift's old tile (726,664, faced from the south) shows the burned grass.
+// From the second calmed totem on (FLAG_TOTEM_VESPIQUEN_DEFEATED) and with the Resonator, it then replays the site
+// once, as ghosts (src/field_move_tasks.c, FieldMoves_EchoGhostDraw): the machine's crate pried open, the air tearing
+// in front of it, the Skarmory screaming on the other side. No one comments; it's what the player sees, and the last
+// line ties the cry to the rift. Nothing else changes, so it never blocks progress.
+//   Flag: FLAG_ARC2_ECHO_ROUTE214 = FLAG_ARC1_SPARE_D (P2 pool), set when the echo has played.
+//   Map-local: FLAG_UNK_0x0018 hides the ghost actors (set every load, cleared only while the echo plays: AddObject
+//   checks it); VAR_MAP_LOCAL_5 is their opacity (0 = off).
+//   Ghost actors (object events with fixed local IDs 0xC0-0xC4, script-only), where 2.18 had them: the machine's
+//   crate (726,663), the grunts (725,663) (725,664), the tear (726,664) and the Skarmory inside it.
+#define FLAG_ARC2_ECHO_ROUTE214 FLAG_ARC1_SPARE_D
+#define ROUTE214_ECHO_CRATE     0xC0
+#define ROUTE214_ECHO_GRUNT_M   0xC1
+#define ROUTE214_ECHO_GRUNT_F   0xC2
+#define ROUTE214_ECHO_TEAR      0xC3
+#define ROUTE214_ECHO_SKARMORY  0xC4
+#define ROUTE214_ECHO_OPACITY   18
+
     ScriptEntry _00A2
     ScriptEntry _00B9
     ScriptEntry _0075
@@ -49,6 +68,7 @@
     ScriptEntry Route214_Arc2Cyrus
     ScriptEntry Route214_Arc2SceneL2
     ScriptEntry Route214_Arc2AfterCalm
+    ScriptEntry Route214_EchoSite
     ScriptEntryEnd
 
 _0012:
@@ -91,6 +111,7 @@ _00B9:
 
 // ------------------------------------------------------------------------------------------------ on transition
 Route214_Arc2OnTransition:
+    SetFlag FLAG_UNK_0x0018
     SetFlag FLAG_UNK_0x0030
     SetFlag FLAG_UNK_0x0031
     SetFlag FLAG_UNK_0x0032
@@ -378,6 +399,106 @@ Route214_Arc2AfterCalm:
     End
 #endif
 
+// ------------------------------------------------------------------------------------------------ echo (S8)
+// The rift's old tile (726,664), faced from (726,665): script 12 (bg event, facing north).
+Route214_EchoSite:
+    GoToIfLt VAR_ARC2_PROGRESS, 64, Route214_EchoSiteEnd
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message Route214_Text_EchoSite
+    WaitABXPadPress
+    CloseMessage
+    Call Route214_Echo
+    ReleaseAll
+Route214_EchoSiteEnd:
+    End
+
+Route214_Echo:
+    GoToIfUnset FLAG_TOTEM_VESPIQUEN_DEFEATED, Route214_Return
+    GoToIfSet FLAG_ARC2_ECHO_ROUTE214, Route214_Return
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, Route214_Return
+    Message Route214_Text_EchoHum
+    WaitABXPadPress
+    CloseMessage
+    // The echo starts: a white flash, then the crate and the grunts fade in
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    SetVar VAR_MAP_LOCAL_5, 1
+    ClearFlag FLAG_UNK_0x0018
+    AddObject ROUTE214_ECHO_CRATE
+    AddObject ROUTE214_ECHO_GRUNT_M
+    AddObject ROUTE214_ECHO_GRUNT_F
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitFanfare SEQ_SE_PL_SYUWA
+    Call Route214_EchoFadeIn
+    WaitTime 20, VAR_RESULT
+    // The crate is pried open
+    PlayFanfare SEQ_SE_DP_BOX03
+    ShakeCamera 4, 1
+    WaitFanfare SEQ_SE_DP_BOX03
+    Message Route214_Text_EchoCrate
+    WaitABXPadPress
+    CloseMessage
+    // The machine hums, and the air in front of it tears open
+    AddObject ROUTE214_ECHO_TEAR
+    PlayFanfare SEQ_SE_PL_SYUWA
+    ShakeCamera 16, 2
+    FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
+    WaitFadeScreen
+    WaitFanfare SEQ_SE_PL_SYUWA
+    Message Route214_Text_EchoTear
+    WaitABXPadPress
+    CloseMessage
+    // The Skarmory, far inside it
+    AddObject ROUTE214_ECHO_SKARMORY
+    PlayCry SPECIES_SKARMORY
+    ApplyMovement ROUTE214_ECHO_SKARMORY, Route214_Movement_EchoThrash
+    ShakeCamera 8, 1
+    WaitMovement
+    WaitCry
+    Message Route214_Text_EchoSkarmory
+    WaitABXPadPress
+    CloseMessage
+    PlayCry SPECIES_SKARMORY
+    ApplyMovement ROUTE214_ECHO_SKARMORY, Route214_Movement_EchoThrash
+    WaitMovement
+    WaitCry
+    Message Route214_Text_EchoKnown
+    WaitABXPadPress
+    CloseMessage
+    // It fades; the ghosts go and the opacity is back to 0 before the player moves again
+    Call Route214_EchoFadeOut
+    RemoveObject ROUTE214_ECHO_CRATE
+    RemoveObject ROUTE214_ECHO_GRUNT_M
+    RemoveObject ROUTE214_ECHO_GRUNT_F
+    RemoveObject ROUTE214_ECHO_TEAR
+    RemoveObject ROUTE214_ECHO_SKARMORY
+    SetFlag FLAG_UNK_0x0018
+    SetVar VAR_MAP_LOCAL_5, 0
+    WaitTime 2, VAR_RESULT
+    SetFlag FLAG_ARC2_ECHO_ROUTE214
+    Message Route214_Text_EchoFade
+    WaitABXPadPress
+    CloseMessage
+    Return
+
+Route214_EchoFadeIn:
+    AddVar VAR_MAP_LOCAL_5, 1
+    WaitTime 1, VAR_RESULT
+    GoToIfLt VAR_MAP_LOCAL_5, ROUTE214_ECHO_OPACITY, Route214_EchoFadeIn
+    Return
+
+Route214_EchoFadeOut:
+    SubVar VAR_MAP_LOCAL_5, 1
+    WaitTime 1, VAR_RESULT
+    GoToIfGt VAR_MAP_LOCAL_5, 1, Route214_EchoFadeOut
+    Return
+
 // ------------------------------------------------------------------------------------------------ movements
     .balign 4, 0
 Route214_Movement_FaceEast:
@@ -429,3 +550,8 @@ Route214_Movement_GruntFleeSouthM:
     EndMovement
 
     .balign 4, 0
+Route214_Movement_EchoThrash:
+    JumpOnSpotFastSouth
+    Delay4
+    JumpOnSpotFastSouth
+    EndMovement

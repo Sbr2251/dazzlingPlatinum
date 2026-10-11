@@ -314,6 +314,52 @@
     {
       "id": "ValleyWindworksBuilding_Text_Arc2CyrusEllipsis",
       "en_US": "Cyrus: ..."
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_EchoHum",
+      "en_US": [
+        "The Resonator hums over the bolt\n",
+        "holes. The air goes cold."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_EchoFrame",
+      "en_US": [
+        "A frame stands over the bolts.\n",
+        "A Plusle is strapped inside it."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_EchoSparks",
+      "en_US": [
+        "Every spark it makes runs down\n",
+        "into the frame."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_EchoPacking",
+      "en_US": "Footsteps. They pack up in a hurry."
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_EchoCarried",
+      "en_US": [
+        "The Plusle is pulled from the frame\n",
+        "and carried out the loading door."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_EchoMinun",
+      "en_US": [
+        "A Minun is left at the cage.\n",
+        "It calls after them."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_EchoFade",
+      "en_US": [
+        "The hum fades. Only the bolt holes\n",
+        "are left."
+      ]
     }
   ]
 }
