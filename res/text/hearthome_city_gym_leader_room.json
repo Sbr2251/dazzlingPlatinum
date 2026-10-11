@@ -79,6 +79,16 @@
     {
       "id": "pl_msg_00000109_00008",
       "garbage": 15
+    },
+    {
+      "id": "HearthomeGym_Text_FantinaLostTower",
+      "en_US": [
+        "Fantina: Ze Lost Tower, on Route\n",
+        "209... it is a place for ze dead\r",
+        "to rest. But now it cries.\r",
+        "Even ze ghosts are afraid.\r",
+        "Please, mon ami. Go and listen."
+      ]
     }
   ]
 }

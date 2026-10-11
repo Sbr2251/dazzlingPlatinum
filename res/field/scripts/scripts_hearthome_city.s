@@ -1,6 +1,13 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/hearthome_city.h"
 #include "generated/goods.h"
+#include "res/field/events/events_hearthome_city.h"
+
+// Dazzling Platinum Arc 2, s-hearthome (screenplay 2.24). Flags: see scripts_route_209_lost_tower_1f.s.
+// Map-local here: FLAG_UNK_0x0030 hides Garius (added by the battle 2 scene), FLAG_UNK_0x0031 hides the stock Gym
+// Guide at the door (the vigil replaces him), VAR_MAP_LOCAL_1 = 1 opens the Gym (Fen Badge; D13).
+// Progress: 89 + Relic Badge here = 91 (decision 17: a Gym 5 win before 89 keeps the badge and waits);
+// 91 runs Garius battle 2 (OnFrame) and sets 92 whatever the result. The stock Route 209 roadblock is always gone.
 
 
     ScriptEntry _0082
@@ -35,10 +42,214 @@
     ScriptEntry _095A
     ScriptEntry _0971
     ScriptEntry _0997
+    ScriptEntry HearthomeCity_GymClosed
+    ScriptEntry HearthomeCity_GariusBattle
     ScriptEntryEnd
 
 _0082:
+    SetFlag FLAG_HIDE_HEARTHOME_ROUTE_209_ROADBLOCK
+    SetFlag FLAG_UNK_0x0030
+    SetFlag FLAG_UNK_0x0031
+    CheckBadgeAcquired BADGE_ID_FEN, VAR_MAP_LOCAL_0
+    CallIfEq VAR_MAP_LOCAL_0, TRUE, HearthomeCity_OpenGym
+    GoToIfNe VAR_ARC2_PROGRESS, 89, HearthomeCity_OnTransitionEnd
+    CheckBadgeAcquired BADGE_ID_RELIC, VAR_MAP_LOCAL_0
+    GoToIfNe VAR_MAP_LOCAL_0, TRUE, HearthomeCity_OnTransitionEnd
+    SetVar VAR_ARC2_PROGRESS, 91
+HearthomeCity_OnTransitionEnd:
     End
+
+HearthomeCity_OpenGym:
+    SetVar VAR_MAP_LOCAL_1, 1
+    Return
+
+// D13 the vigil: before the Fen Badge the Gym door is shut.
+HearthomeCity_GymClosed:
+    LockAll
+    Message HearthomeCity_Text_GymAway
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, HearthomeCity_Movement_StepSouth
+    WaitMovement
+    ReleaseAll
+    End
+
+// 2.24 Garius battle 2 (progress 91). Garius walks up from three tiles in front of the player, wherever they
+// entered the city (Gym door, gates, Fly), battles, and leaves the way he came.
+HearthomeCity_GariusBattle:
+    LockAll
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GetPlayerDir VAR_0x8006
+    CallIfEq VAR_0x8006, DIR_NORTH, HearthomeCity_GariusFromNorth
+    CallIfEq VAR_0x8006, DIR_SOUTH, HearthomeCity_GariusFromSouth
+    CallIfEq VAR_0x8006, DIR_WEST, HearthomeCity_GariusFromWest
+    CallIfEq VAR_0x8006, DIR_EAST, HearthomeCity_GariusFromEast
+    SetObjectEventPos HEARTHOME_CITY_RIVAL_GARIUS, VAR_0x8004, VAR_0x8005
+    ClearFlag FLAG_UNK_0x0030
+    AddObject HEARTHOME_CITY_RIVAL_GARIUS
+    SetRivalBGM
+    CallIfEq VAR_0x8006, DIR_NORTH, HearthomeCity_GariusApproachSouth
+    CallIfEq VAR_0x8006, DIR_SOUTH, HearthomeCity_GariusApproachNorth
+    CallIfEq VAR_0x8006, DIR_WEST, HearthomeCity_GariusApproachEast
+    CallIfEq VAR_0x8006, DIR_EAST, HearthomeCity_GariusApproachWest
+    BufferRivalName 0
+    Message HearthomeCity_Text_GariusWalkedOff
+    WaitABXPadPress
+    Message HearthomeCity_Text_GariusRowanAsked
+    WaitABXPadPress
+    Message HearthomeCity_Text_GariusStupidStone
+    WaitABXPadPress
+    CloseMessage
+    GetPlayerStarterSpecies VAR_RESULT
+    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, HearthomeCity_GariusBattleTurtwig
+    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, HearthomeCity_GariusBattleChimchar
+    GoTo HearthomeCity_GariusBattlePiplup
+    End
+
+HearthomeCity_GariusBattleTurtwig:
+    StartTrainerBattle TRAINER_GARIUS_ARC2_HEARTHOME_TURTWIG
+    GoTo HearthomeCity_GariusAfterBattle
+    End
+
+HearthomeCity_GariusBattleChimchar:
+    StartTrainerBattle TRAINER_GARIUS_ARC2_HEARTHOME_CHIMCHAR
+    GoTo HearthomeCity_GariusAfterBattle
+    End
+
+HearthomeCity_GariusBattlePiplup:
+    StartTrainerBattle TRAINER_GARIUS_ARC2_HEARTHOME_PIPLUP
+    GoTo HearthomeCity_GariusAfterBattle
+    End
+
+HearthomeCity_GariusAfterBattle:
+    SetVar VAR_ARC2_PROGRESS, 92
+    CheckWonBattle VAR_RESULT
+    CallIfEq VAR_RESULT, FALSE, HearthomeCity_GariusWon
+    BufferRivalName 0
+    Message HearthomeCity_Text_GariusForgetIt
+    WaitABXPadPress
+    CloseMessage
+    CallIfEq VAR_0x8006, DIR_NORTH, HearthomeCity_GariusLeaveNorth
+    CallIfEq VAR_0x8006, DIR_SOUTH, HearthomeCity_GariusLeaveSouth
+    CallIfEq VAR_0x8006, DIR_WEST, HearthomeCity_GariusLeaveWest
+    CallIfEq VAR_0x8006, DIR_EAST, HearthomeCity_GariusLeaveEast
+    RemoveObject HEARTHOME_CITY_RIVAL_GARIUS
+    PlayDefaultMusic
+    ReleaseAll
+    End
+
+// A loss is not a blackout here (92 whatever the result): restore the field and heal, as the Route 201 loss does.
+HearthomeCity_GariusWon:
+    ReturnToField
+    FadeScreenIn
+    WaitFadeScreen
+    HealParty
+    Return
+
+HearthomeCity_GariusFromNorth:
+    SubVar VAR_0x8005, 3
+    Return
+
+HearthomeCity_GariusFromSouth:
+    AddVar VAR_0x8005, 3
+    Return
+
+HearthomeCity_GariusFromWest:
+    SubVar VAR_0x8004, 3
+    Return
+
+HearthomeCity_GariusFromEast:
+    AddVar VAR_0x8004, 3
+    Return
+
+HearthomeCity_GariusApproachSouth:
+    ApplyMovement HEARTHOME_CITY_RIVAL_GARIUS, HearthomeCity_Movement_GariusApproachSouth
+    WaitMovement
+    Return
+
+HearthomeCity_GariusApproachNorth:
+    ApplyMovement HEARTHOME_CITY_RIVAL_GARIUS, HearthomeCity_Movement_GariusApproachNorth
+    WaitMovement
+    Return
+
+HearthomeCity_GariusApproachEast:
+    ApplyMovement HEARTHOME_CITY_RIVAL_GARIUS, HearthomeCity_Movement_GariusApproachEast
+    WaitMovement
+    Return
+
+HearthomeCity_GariusApproachWest:
+    ApplyMovement HEARTHOME_CITY_RIVAL_GARIUS, HearthomeCity_Movement_GariusApproachWest
+    WaitMovement
+    Return
+
+HearthomeCity_GariusLeaveNorth:
+    ApplyMovement HEARTHOME_CITY_RIVAL_GARIUS, HearthomeCity_Movement_GariusLeaveNorth
+    WaitMovement
+    Return
+
+HearthomeCity_GariusLeaveSouth:
+    ApplyMovement HEARTHOME_CITY_RIVAL_GARIUS, HearthomeCity_Movement_GariusLeaveSouth
+    WaitMovement
+    Return
+
+HearthomeCity_GariusLeaveWest:
+    ApplyMovement HEARTHOME_CITY_RIVAL_GARIUS, HearthomeCity_Movement_GariusLeaveWest
+    WaitMovement
+    Return
+
+HearthomeCity_GariusLeaveEast:
+    ApplyMovement HEARTHOME_CITY_RIVAL_GARIUS, HearthomeCity_Movement_GariusLeaveEast
+    WaitMovement
+    Return
+
+    .balign 4, 0
+HearthomeCity_Movement_StepSouth:
+    WalkNormalSouth
+    EndMovement
+
+    .balign 4, 0
+HearthomeCity_Movement_GariusApproachSouth:
+    EmoteExclamationMark
+    WalkFastSouth 2
+    EndMovement
+
+    .balign 4, 0
+HearthomeCity_Movement_GariusApproachNorth:
+    EmoteExclamationMark
+    WalkFastNorth 2
+    EndMovement
+
+    .balign 4, 0
+HearthomeCity_Movement_GariusApproachEast:
+    EmoteExclamationMark
+    WalkFastEast 2
+    EndMovement
+
+    .balign 4, 0
+HearthomeCity_Movement_GariusApproachWest:
+    EmoteExclamationMark
+    WalkFastWest 2
+    EndMovement
+
+    .balign 4, 0
+HearthomeCity_Movement_GariusLeaveNorth:
+    WalkNormalNorth 5
+    EndMovement
+
+    .balign 4, 0
+HearthomeCity_Movement_GariusLeaveSouth:
+    WalkNormalSouth 5
+    EndMovement
+
+    .balign 4, 0
+HearthomeCity_Movement_GariusLeaveWest:
+    WalkNormalWest 5
+    EndMovement
+
+    .balign 4, 0
+HearthomeCity_Movement_GariusLeaveEast:
+    WalkNormalEast 5
+    EndMovement
 
 _0084:
     PlayFanfare SEQ_SE_CONFIRM

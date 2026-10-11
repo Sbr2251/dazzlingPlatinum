@@ -4,7 +4,29 @@
 
     ScriptEntry _000A
     ScriptEntry _0072
+    ScriptEntry LostTower5F_OnTransition
+    ScriptEntry LostTower5F_GraveSign
     ScriptEntryEnd
+
+// Dazzling Platinum Arc 2 (s-hearthome, 2.24): Saros at Mira's grave. The cutaway runs from Lost Tower 1F's
+// script (LostTower1F_SarosCutaway), which sets FLAG_ARC2_HEARTHOME_E while it stages 5F. Map-local here:
+// FLAG_UNK_0x0030 hides Saros (shown only during the cutaway), FLAG_UNK_0x0031 hides the two old women then.
+LostTower5F_OnTransition:
+    SetFlag FLAG_UNK_0x0030
+    GoToIfUnset FLAG_ARC2_HEARTHOME_E, LostTower5F_OnTransitionEnd
+    ClearFlag FLAG_UNK_0x0030
+    SetFlag FLAG_UNK_0x0031
+LostTower5F_OnTransitionEnd:
+    End
+
+LostTower5F_GraveSign:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message LostTower5F_Text_GraveSign
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
 
 _000A:
     PlayFanfare SEQ_SE_CONFIRM
