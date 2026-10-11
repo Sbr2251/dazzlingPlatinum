@@ -878,12 +878,18 @@ EternaCity_Arc2SetObjects:
     SetFlag FLAG_UNK_0x0033
     SetFlag FLAG_UNK_0x0034
     GoToIfLt VAR_ARC2_PROGRESS, 29, EternaCity_Arc2Return
+    // From 34 on, the middle Haven tree (305,521) stays cut, so leaving the Haven never shuts the player in.
+    CallIfGe VAR_ARC2_PROGRESS, 34, EternaCity_Arc2KeepHavenTreeCut
     GoToIfGe VAR_ARC2_PROGRESS, 34, EternaCity_Arc2SetObjectsHaven
     GoToIfEq VAR_ARC2_PROGRESS, 33, EternaCity_Arc2SetObjectsTrees
     // 29-32: Ruth and Cyrus wait by the Gym; Garius is there at 31
     ClearFlag FLAG_UNK_0x0030
     ClearFlag FLAG_UNK_0x0032
     CallIfEq VAR_ARC2_PROGRESS, 31, EternaCity_Arc2ShowGarius
+    Return
+
+EternaCity_Arc2KeepHavenTreeCut:
+    SetFlag FLAG_UNK_0x0021
     Return
 
 EternaCity_Arc2ShowGarius:
