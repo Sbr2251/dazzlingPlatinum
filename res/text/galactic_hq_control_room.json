@@ -266,6 +266,32 @@
         "Saros: Then we'll need another\n",
         "source."
       ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2KahnWholeVeins",
+      "en_US": [
+        "Kahn: Our friend was right.\r",
+        "It grows down here. Whole veins."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2SarosDontNeedTheCrates",
+      "en_US": [
+        "Saros: Then we don't need the\n",
+        "crates anymore."
+      ]
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2SarosOneMorningMira",
+      "en_US": "Saros: ...One morning, Mira."
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2EndOfArc2",
+      "en_US": "END OF ARC 2"
+    },
+    {
+      "id": "GalacticHQControlRoom_Text_Arc2ToBeContinued",
+      "en_US": "To be continued..."
     }
   ]
 }
