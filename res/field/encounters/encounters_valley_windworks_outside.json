@@ -11,7 +11,7 @@
         },
         {
             "level": 16,
-            "species": "SPECIES_BUIZEL"
+            "species": "SPECIES_PLUSLE"
         },
         {
             "level": 17,
@@ -55,12 +55,12 @@
         "SPECIES_ELECTRIKE"
     ],
     "day": [
-        "SPECIES_BUIZEL",
-        "SPECIES_SHELLOS"
+        "SPECIES_PLUSLE",
+        "SPECIES_BUIZEL"
     ],
     "night": [
-        "SPECIES_BUIZEL",
-        "SPECIES_SHELLOS"
+        "SPECIES_MINUN",
+        "SPECIES_BUIZEL"
     ],
     "radar": [
         "SPECIES_MAREEP",
