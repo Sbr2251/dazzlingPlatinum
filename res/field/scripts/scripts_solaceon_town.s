@@ -20,6 +20,7 @@
     ScriptEntry SolaceonTown_Arc2WallBanner
     ScriptEntry SolaceonTown_Arc2WallTeo
     ScriptEntry SolaceonTown_Arc2IndraCutaway
+    ScriptEntry SolaceonTown_QuestsRowanBanner
     ScriptEntryEnd
 
 // Arc 2 (s-celestic), 2.16a: the memorial wall (P1: sign events on the fence west of the main road,
@@ -28,12 +29,15 @@
 // the town's north edge): 47 at the start, 49 at the end. Map-local hide flag: FLAG_UNK_0x0030 = Indra.
 // The stock Barry run-in at the south exit (VAR_UNK_0x4073) is switched off from Arc 2 on.
 #define LOCALID_ARC2_INDRA 21
+// Arc 2 quests (R3, S10): from VAR_ARC2_PROGRESS 47 two Eclipse banners quote Rowan, at the north road (557,642)
+// and the south road (557,666). Map-local hide flag: FLAG_UNK_0x0031 = both banners.
 
 _0032:
     End
 
 _0034:
     SetFlag FLAG_UNK_0x0030
+    Call SolaceonTown_QuestsOnTransition
     CallIfGe VAR_ARC2_PROGRESS, 1, SolaceonTown_Arc2NoBarry
     CheckDaycareHasEgg VAR_MAP_LOCAL_0
     GoToIfNe VAR_MAP_LOCAL_0, FALSE, _0047
@@ -326,3 +330,19 @@ _0218:
 _0228:
     FaceNorth
     EndMovement
+
+SolaceonTown_QuestsOnTransition:
+    SetFlag FLAG_UNK_0x0031
+    GoToIfLt VAR_ARC2_PROGRESS, 47, SolaceonTown_QuestsReturn
+    ClearFlag FLAG_UNK_0x0031
+SolaceonTown_QuestsReturn:
+    Return
+
+SolaceonTown_QuestsRowanBanner:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message SolaceonTown_Text_QuestsRowanBanner
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End

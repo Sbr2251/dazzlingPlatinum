@@ -392,6 +392,36 @@
             "x": 557,
             "z": 654,
             "y": 0
+        },
+        {
+            "id": "SOLACEON_TOWN_QUESTS_BANNER_NORTH",
+            "graphics_id": "OBJ_EVENT_GFX_SIGNBOARD",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0031",
+            "script": 19,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 557,
+            "z": 642,
+            "y": 0
+        },
+        {
+            "id": "SOLACEON_TOWN_QUESTS_BANNER_SOUTH",
+            "graphics_id": "OBJ_EVENT_GFX_SIGNBOARD",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0031",
+            "script": 19,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 557,
+            "z": 666,
+            "y": 0
         }
     ],
     "warp_events": [

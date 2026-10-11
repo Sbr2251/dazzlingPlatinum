@@ -52,6 +52,25 @@
         "Maybe I should get the Day Care to\n",
         "raise me?"
       ]
+    },
+    {
+      "id": "SolaceonTownPokecenter1F_Text_QuestsOldManSawRowan",
+      "en_US": [
+        "Did you see Professor Rowan on the\n",
+        "TV? He said he may have spoken too\f",
+        "soon, about Team Eclipse.\r",
+        "When a man like that says maybe...\n",
+        "People start pinning up cards."
+      ]
+    },
+    {
+      "id": "SolaceonTownPokecenter1F_Text_QuestsOldManRetraction",
+      "en_US": [
+        "The Professor took it back, you\n",
+        "know. Called the station himself.\r",
+        "Said he was wrong.\n",
+        "...The cards are still on the wall."
+      ]
     }
   ]
 }
