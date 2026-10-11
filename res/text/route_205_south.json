@@ -101,6 +101,85 @@
         "Ruth and Cyrus are waiting inside\n",
         "the Valley Windworks."
       ]
+    },
+    {
+      "id": "Route205South_Text_QuestsBuzz",
+      "en_US": [
+        "The Resonator gives a faint buzz.\r",
+        "By the fence, a Minun is scratching\n",
+        "at a crate."
+      ]
+    },
+    {
+      "id": "Route205South_Text_QuestsMinunPaws",
+      "en_US": [
+        "Minun: Minu! Minuu!\r",
+        "It keeps pawing at the crate."
+      ]
+    },
+    {
+      "id": "Route205South_Text_QuestsCrate",
+      "en_US": [
+        "A crate stamped with a black sun.\n",
+        "It must have fallen off a truck.\r",
+        "Something inside is scratching back."
+      ]
+    },
+    {
+      "id": "Route205South_Text_QuestsCrateBuzz",
+      "en_US": [
+        "The Resonator buzzes against the\n",
+        "wood.\r",
+        "Little sparks snap between the\n",
+        "slats."
+      ]
+    },
+    {
+      "id": "Route205South_Text_QuestsOpenCrate",
+      "en_US": "Pry the crate open?"
+    },
+    {
+      "id": "Route205South_Text_QuestsNoRoom",
+      "en_US": [
+        "There's no room in your party for\n",
+        "two more Pokémon.\r",
+        "These two shouldn't be split up\n",
+        "again.\r",
+        "Come back with two free spaces."
+      ]
+    },
+    {
+      "id": "Route205South_Text_QuestsPlusleTumbled",
+      "en_US": "A Plusle tumbled out of the crate!"
+    },
+    {
+      "id": "Route205South_Text_QuestsPairCries",
+      "en_US": [
+        "Plusle: Plu! Plusle!\n",
+        "Minun: Minu! Minuu!"
+      ]
+    },
+    {
+      "id": "Route205South_Text_QuestsWontLetGo",
+      "en_US": [
+        "The two of them won't let go of\n",
+        "each other."
+      ]
+    },
+    {
+      "id": "Route205South_Text_QuestsLookingAtYou",
+      "en_US": [
+        "...Now they're both looking at you.\r",
+        "Plusle and Minun want to come\n",
+        "with you!"
+      ]
+    },
+    {
+      "id": "Route205South_Text_QuestsReceivedPair",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} received\n",
+        "Plusle and Minun!"
+      ]
     }
   ]
 }
