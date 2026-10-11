@@ -494,6 +494,7 @@ const UnkStruct_ov5_021FB97C Unk_ov5_021FB97C[] = {
     { OBJ_EVENT_GFX_ECLIPSE_CRATE, &Unk_ov5_021FAF9C },
     { OBJ_EVENT_GFX_SHARD_FRAME, &Unk_ov5_021FAF9C },
     { OBJ_EVENT_GFX_RIFT_ARC2, &Unk_ov5_021FB0B4 },
+    { OBJ_EVENT_GFX_VIOLET_CRYSTAL, &Unk_ov5_021FAF9C }, // grounded, like the crate and the shard frame
     { 0xffff, NULL }
 };
 
@@ -959,6 +960,7 @@ const UnkStruct_ov5_021ED2D0 Unk_ov5_021FC9B4[] = {
     { OBJ_EVENT_GFX_ECLIPSE_CRATE, 0x1E8 },
     { OBJ_EVENT_GFX_SHARD_FRAME, 0x1E9 },
     { OBJ_EVENT_GFX_RIFT_ARC2, 0x1EA },
+    { OBJ_EVENT_GFX_VIOLET_CRYSTAL, 0x1EB },
     { 0xffff, 0x0 }
 };
 
@@ -1639,6 +1641,7 @@ const UnkStruct_ov5_021EDD04 Unk_ov5_021FD77C[] = {
     { OBJ_EVENT_GFX_ECLIPSE_CRATE, 0x0, 0x8, Unk_ov5_021FB1C4 },
     { OBJ_EVENT_GFX_SHARD_FRAME, 0x0, 0x8, Unk_ov5_021FB1C4 },
     { OBJ_EVENT_GFX_RIFT_ARC2, 0x0, 0x8, Unk_ov5_021FB1C4 },
+    { OBJ_EVENT_GFX_VIOLET_CRYSTAL, 0x0, 0x8, Unk_ov5_021FB1C4 },
     { 0xffff, 0xffff, 0xffff, NULL }
 };
 
@@ -1928,6 +1931,7 @@ const UnkStruct_ov5_021ECD10 Unk_ov5_021FC194[] = {
     { OBJ_EVENT_GFX_ECLIPSE_CRATE, 0x1, 0x1, 0x1, 0x1, 0x0 },
     { OBJ_EVENT_GFX_SHARD_FRAME, 0x1, 0x1, 0x1, 0x1, 0x0 },
     { OBJ_EVENT_GFX_RIFT_ARC2, 0x1, 0x1, 0x1, 0x1, 0x0 },
+    { OBJ_EVENT_GFX_VIOLET_CRYSTAL, 0x1, 0x1, 0x1, 0x1, 0x0 },
     { 0xffff, 0x0, 0x0, 0x0, 0x0, 0x0 }
 };
 

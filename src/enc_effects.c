@@ -56,6 +56,7 @@ enum EncEffectsPairID {
     ENCEFF_GALACTIC_GRUNT,
     ENCEFF_GALACTIC_CMDR,
     ENCEFF_GALACTIC_CYRUS,
+    ENCEFF_WANDERER,
 
     ENCEFF_FRONTIER,
     ENCEFF_LINK_BATTLE,
@@ -99,6 +100,9 @@ static const EncEffectsPair sEncEffectsTable[ENCEFF_MAX] = {
     [ENCEFF_GALACTIC_GRUNT] = { ENCEFF_CUTIN_GALACTIC_GRUNT, SEQ_BATTLE_GALACTIC_GRUNT },
     [ENCEFF_GALACTIC_CMDR] = { ENCEFF_CUTIN_GALACTIC_BOSS, SEQ_BATTLE_GALACTIC_CMDR },
     [ENCEFF_GALACTIC_CYRUS] = { ENCEFF_CUTIN_GALACTIC_BOSS, SEQ_BATTLE_CYRUS },
+    // Arc 2: the boss cut-in now shows the Team Eclipse mark, which Cyrus (the "Wanderer") must not get,
+    // so his battles use the ordinary trainer cut-in and keep his music.
+    [ENCEFF_WANDERER] = { ENCEFF_CUTIN_USE_LOCAL, SEQ_BATTLE_CYRUS },
     [ENCEFF_FRONTIER] = { ENCEFF_CUTIN_FRONTIER, SEQ_BATTLE_TRAINER },
     [ENCEFF_LINK_BATTLE] = { ENCEFF_CUTIN_FRONTIER, SEQ_BATTLE_TRAINER },
     [ENCEFF_DOUBLE_BATTLE] = { ENCEFF_CUTIN_DOUBLE, SEQ_BATTLE_TRAINER },
@@ -260,7 +264,7 @@ static u32 EncEffects_TrainerClassEffect(u32 trainerClass)
         result = ENCEFF_RIVAL;
         break;
     case TRAINER_CLASS_GALACTIC_BOSS:
-        result = ENCEFF_GALACTIC_CYRUS;
+        result = ENCEFF_WANDERER;
         break;
     case TRAINER_CLASS_COMMANDER_MARS:
     case TRAINER_CLASS_COMMANDER_JUPITER:

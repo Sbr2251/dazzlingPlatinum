@@ -14216,7 +14216,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Lapras = {
     },
 };
 
-// Lost Tower: Eclipse Shards growing out of the rock around the vein room (placeholder sprite).
+// Lost Tower: Eclipse Shards growing out of the rock around the vein room (OBJ_EVENT_GFX_VIOLET_CRYSTAL, art-final).
 static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard1 = {
     0,
     0,
@@ -14224,7 +14224,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard1 = {
     0x0,
     {
         0x80,
-        OBJ_EVENT_GFX_ARC1_RIFT,
+        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
         0x0,
         0x0,
         0x0,
@@ -14249,7 +14249,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard2 = {
     0x0,
     {
         0x81,
-        OBJ_EVENT_GFX_ARC1_RIFT,
+        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
         0x0,
         0x0,
         0x0,
@@ -14274,7 +14274,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard3 = {
     0x0,
     {
         0x82,
-        OBJ_EVENT_GFX_ARC1_RIFT,
+        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
         0x0,
         0x0,
         0x0,
@@ -14299,7 +14299,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard4 = {
     0x0,
     {
         0x83,
-        OBJ_EVENT_GFX_ARC1_RIFT,
+        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
         0x0,
         0x0,
         0x0,

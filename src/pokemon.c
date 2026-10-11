@@ -52,6 +52,7 @@
 #include "sprite.h"
 #include "sprite_system.h"
 #include "string_gf.h"
+#include "generated/trainer_classes.h"
 #include "trainer_data.h"
 #include "trainer_info.h"
 #include "unk_02017038.h"
@@ -4913,6 +4914,11 @@ int sub_020788D0(int param0)
     case 103:
     case 104:
         param0 = 8 + (param0 - 103);
+        break;
+    case TRAINER_CLASS_GALACTIC_BOSS:
+        // Arc 2: Cyrus ("Wanderer") as the player's tag partner has his own back pic,
+        // res/trainers/classes/arc2_wanderer_back, appended after dp_rival (10) in trbgra.
+        param0 = 11;
         break;
     default:
         if (TrainerClass_Gender(param0) == 1) {

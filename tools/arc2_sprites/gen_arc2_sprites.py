@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the seven Arc 2 field sprite sheets (res/field/objects/arc2/*.png).
+"""Generate the Arc 2 field sprite sheets (seven by art-ph, the violet crystal by art-final) (res/field/objects/arc2/*.png).
 
     python3 tools/arc2_sprites/gen_arc2_sprites.py           # write the 7 PNGs
     python3 tools/arc2_sprites/gen_arc2_sprites.py --check   # fail if a PNG is out of date
@@ -24,6 +24,7 @@ if str(HERE) not in sys.path:
 from common import SHEET_DIR, compose, write_sheet  # noqa: E402
 from indra import INDRA  # noqa: E402
 from kahn import KAHN  # noqa: E402
+from crystal import CRYSTAL_PALETTE, crystal_frames  # noqa: E402
 from looker import LOOKER_JANITOR, LOOKER_NEWSPAPER  # noqa: E402
 from objects import (  # noqa: E402
     CRATE_PALETTE,
@@ -46,6 +47,7 @@ def outputs():
         ("OBJ_EVENT_GFX_ECLIPSE_CRATE", "eclipse_crate.png", crate_frames(), 2, CRATE_PALETTE),
         ("OBJ_EVENT_GFX_SHARD_FRAME", "shard_frame.png", frame_frames(), 2, FRAME_PALETTE),
         ("OBJ_EVENT_GFX_RIFT_ARC2", "rift_arc2.png", rift_frames(), 2, RIFT_PALETTE),
+        ("OBJ_EVENT_GFX_VIOLET_CRYSTAL", "violet_crystal.png", crystal_frames(), 2, CRYSTAL_PALETTE),
     ]
 
 
