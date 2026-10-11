@@ -73,7 +73,7 @@ world. He's the only person here who remembers the other Sinnoh, apart from the 
   captures. The player's own discovery fuels the villains' endgame.
 - **The totem Pokemon are the tortured Pokemon themselves.** When a portal tears open, the
   Pokemon is pulled through, and shard energy swells it into a huge, enraged totem guarding the shards. Beating a totem in the Distortion World drains the shard energy and frees it. Arc 1 ends with
-  Rowan studying the Eclipse Shard Cyrus gave the player and explaining that totems exist and must be beaten
+  Rowan studying the Violet Shard Cyrus gave the player and explaining that totems exist and must be beaten
   in the Distortion World; nobody knows yet where shards come from. At first totems look like native
   guardians. The
   Act 1 Mawile is the first one: it's agitated because a shard is stuck in it.
@@ -250,7 +250,7 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
 7 Snowpoint, 8 Sunyshore.
 
 1. **Arc 1, buildup (start to Gym 1).** The drop-in at Lake Verity (written, built on `arc1-dropin-scene`),
-   then on to Oreburgh. Ends with Rowan studying the Eclipse Shard and explaining the totems.
+   then on to Oreburgh. Ends with Rowan studying the Violet Shard and explaining the totems.
    Draft of the scenes from Twinleaf to Gym 1: `arc1_part2_screenplay.md`.
 2. **Arc 2 (Gyms 2 to 5).** Opens in **Jubilife** right after Gym 1 with Cyrus's confession. Gym 2 Eterna; through Mt. Coronet (first look at the sealed-off heat below, which
    Cyrus can feel) to **Celestic Town** for grandma's warning; Gym 3 Veilstone; Gym 4 Pastoria; Gym 5

@@ -13,6 +13,8 @@ Gym order: 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5 Hearthome, 6 Canalav
 
 ## Gym 1: Roark (Oreburgh)
 
+**Built (2026-10-10).** The game matches this table exactly: res/trainers/data/leader_roark.json has the same levels, items, moves and AI flags, power 150 on all three, and 2 Potions in Roark's bag. Mold Breaker is Cranidos's only ability, so no ability control was needed.
+
 **Levels:** 13-16. **Mega:** None (before the Key Stone).
 
 **Strategy:** Hazards and speed control. Geodude opens with Stealth Rock behind a Focus Sash, Onix slows you with Rock Tomb, and Cranidos hits hard once your switches are chipped.
@@ -26,6 +28,27 @@ Gym order: 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5 Hearthome, 6 Canalav
 | Cranidos | 16 | Sitrus Berry | Headbutt, Pursuit, Zen Headbutt, Leer | Ace (Mold Breaker); Pursuit punishes switching |
 
 **AI flags:** BASIC, EVAL_ATTACK, EXPERT, CHECK_HP.
+
+## Arc 1 route trainers (built)
+
+The 14 trainers between Route 202 and Roark were rebuilt around the new Gen 3 and Gen 5 Pokemon, on a curve that climbs into Roark's 13-16. Every move is a level-up move the Pokemon knows at that level. Source: res/trainers/data. Garius (story battles) and Veteran Grant in Oreburgh Gate B1F are unchanged.
+
+| Trainer | Where | Team (level) | AI, power |
+|---|---|---|---|
+| Youngster Tristan | Route 202 | Patrat 4, Zigzagoon 5 | BASIC; power 0 |
+| Youngster Logan | Route 202 | Pidove 5, Taillow 6 | BASIC; power 0 |
+| Lass Natalie | Route 202 | Wurmple 4, Lillipup 5 | BASIC+EXPERT; power 0 |
+| Youngster Michael | Route 203 | Purrloin 6, Poochyena 7 | BASIC; power 20 |
+| Youngster Sebastian | Route 203 | Timburr 7, Makuhita 8 | BASIC; power 20 |
+| Lass Kaitlin | Route 203 | Budew 6, Sewaddle 6, Ralts 7 | BASIC+EXPERT; power 20 |
+| Lass Madeline | Route 203 | Whismur 7, Psyduck 8 | BASIC+EXPERT; power 20 |
+| Youngster Dallas | Route 203 | Taillow 7, Shinx 8 | BASIC; power 20 |
+| Camper Curtis | Oreburgh Gate | Shinx 9, Aron 10 | BASIC+EVAL_ATTACK+EXPERT; power 30 |
+| Picnicker Diana | Oreburgh Gate | Zigzagoon 9, Beautifly 10 | BASIC+EVAL_ATTACK+EXPERT; power 30 |
+| Worker Colin | Oreburgh Mine B2F | Roggenrola 10, Makuhita 11 | BASIC; power 30 |
+| Worker Mason | Oreburgh Mine B2F | Drilbur 10, Nosepass 11 | BASIC; power 30 |
+| Youngster Jonathon | Oreburgh Gym | Roggenrola 11, Nosepass 12 | BASIC+EVAL_ATTACK; power 50 |
+| Youngster Darius | Oreburgh Gym | Onix 11, Aron 12 | BASIC+EVAL_ATTACK; power 50 |
 
 ## Gym 2: Gardenia (Eterna)
 
