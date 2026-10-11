@@ -7,6 +7,7 @@
 
 InitScriptFrameTable:
     InitScriptGoToIfEqual VAR_PASTORIA_STATE, 3, 19
+    InitScriptGoToIfEqual VAR_MAP_LOCAL_1, 1, 24
     InitScriptFrameTableEnd
 
     InitScriptEnd

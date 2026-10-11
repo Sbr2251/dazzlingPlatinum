@@ -401,6 +401,27 @@
         "Try the Safari Game in\n",
         "Pastoria’s Great Marsh!"
       ]
+    },
+    {
+      "id": "PastoriaCity_Text_Arc2LookerHello",
+      "en_US": "Looker: Do not be alarmed. It is me."
+    },
+    {
+      "id": "PastoriaCity_Text_Arc2LookerManifest",
+      "en_US": [
+        "Looker: The manifest was true.\n",
+        "A live site. The Route 213 caves.\r",
+        "Tonight, we go in."
+      ]
+    },
+    {
+      "id": "PastoriaCity_Text_Arc2LookerEveryEye",
+      "en_US": [
+        "Looker: I want every pair of eyes.\n",
+        "Even your loud friend.\r",
+        "I saw him walk north, to the dry\n",
+        "lake. Bring him to the Center."
+      ]
     }
   ]
 }
