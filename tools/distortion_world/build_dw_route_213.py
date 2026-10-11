@@ -16,6 +16,8 @@ Base: rift-b's Phase 0 floor, the stock DW B4F (map_data 612/613) with rift-b's 
                 uses the floor pool's own textures in unlit materials (`lake` inside, the animated shoreline
                 `lakep.1` around the edges), so it glows instead of sitting in the slab's shadow. The stock ceiling
                 pool (bf_lake), its rim, the hole at x 46-49, z 33-36 and the decals on now-wet tiles go.
+                The corridor from the pool to the east wall becomes a jetty: a plank deck and six mooring posts
+                (examinable from the deck: bg events on PIER_BG_TILES, script 9).
   texture set 73  + dw213_wood (32x32 pltt16, weathered planks), appended; every DW map shares the set.
                 The other textures are untouched (they are rebuilt from the current file, so another workstream's
                 appends survive: rerun this script after merging).
@@ -105,6 +107,14 @@ KEEL_HALF = [0.34, 0.42, 0.45, 0.4, 0.2, 0.0]
 RIM_H, KEEL_H, FLOOR_H, SEAT_H = 0.56, 0.04, 0.18, 0.40
 SEATS = [(0.6, 0.24), (1.85, 0.24)]     # (station, width) of the thwarts
 BOAT_BG_TILES = [(21, 16), (21, 17), (21, 18), (21, 19)]   # bg events (events_dw_route_213.json) the player faces from x=22
+
+# the jetty (chunk 676): the corridor from the pool to the east wall (x 38-47, z 22-23) gets a plank deck and
+# mooring posts along both edges; the jump marks at x=48 stay stone
+PIER_X, PIER_Z = (38, 47), (22, 23)
+PIER_POSTS_X = [39.5, 42.5, 45.5]
+PIER_POST_Z = [21.93, 24.07]            # just outside the deck's edges (z 22.0 / 24.0)
+POST_HALF, POST_TOP, POST_BOTTOM = 0.09, 0.62, -0.3
+PIER_BG_TILES = [(int(x), z) for x in PIER_POSTS_X for z in (21, 24)]   # examined from the deck, facing the post
 
 # ---------------------------------------------------------------------------------------------------------------
 # the hanging lake (chunk 676 ceiling)
@@ -432,6 +442,48 @@ def shore_face(ch, t, sides):
     return make_face(ch, pts, uvs, (32, 32), [0, -1, 0], color=WATER_COLOR)
 
 
+def build_pier(ch):
+    """Plank deck over the corridor's top faces (adf, s_grass at h 0 in PIER_X x PIER_Z) and mooring posts."""
+    removed = 0
+    for mat in ("adf", "s_grass_lm8"):
+        si = ch.shape_of(mat)
+        tris, quads = ch.faces(si)
+        keep_t, keep_q = [], []
+        for lst, keep in ((tris, keep_t), (quads, keep_q)):
+            for f in lst:
+                ts = [ch.to_tile(v["pos"]) for v in f]
+                c = [sum(t[i] for t in ts) / len(ts) for i in range(3)]
+                hs = [t[1] for t in ts]
+                if PIER_X[0] <= c[0] <= PIER_X[1] + 1 and PIER_Z[0] <= c[2] <= PIER_Z[1] + 1 and \
+                        max(abs(h) for h in hs) < 0.01:
+                    removed += 1
+                else:
+                    keep.append(f)
+        ch.set_faces(si, keep_t, keep_q)
+    faces = []
+    up = [0, 1, 0]
+    x0, x1, z0, z1 = PIER_X[0], PIER_X[1] + 1, PIER_Z[0], PIER_Z[1] + 1
+    for x in range(x0, x1, 2):
+        xe = min(x + 2, x1)
+        # planks run across the jetty (along z): u along z, v along x (two planks per tile)
+        pts = [(x, 0.0, z0), (xe, 0.0, z0), (xe, 0.0, z1), (x, 0.0, z1)]
+        uvs = [(z0 * 0.5, x * 0.5), (z0 * 0.5, xe * 0.5), (z1 * 0.5, xe * 0.5), (z1 * 0.5, x * 0.5)]
+        faces.append(make_face(ch, pts, [(u, v - x0 * 0.5) for u, v in uvs], (32, 32), up))
+    for px in PIER_POSTS_X:
+        for pz in PIER_POST_Z:
+            a, b = px - POST_HALF, px + POST_HALF
+            c, d = pz - POST_HALF, pz + POST_HALF
+            lo, hi = POST_BOTTOM, POST_TOP
+            faces.append(make_face(ch, [(a, hi, c), (b, hi, c), (b, hi, d), (a, hi, d)],
+                                   [(0, 0.9), (0.2, 0.9), (0.2, 1.0), (0, 1.0)], (32, 32), up))
+            for (xa, za), (xb, zb), n in (((a, c), (b, c), [0, 0, -1]), ((b, c), (b, d), [1, 0, 0]),
+                                          ((b, d), (a, d), [0, 0, 1]), ((a, d), (a, c), [-1, 0, 0])):
+                faces.append(make_face(ch, [(xa, hi, za), (xb, hi, zb), (xb, lo, zb), (xa, lo, za)],
+                                       [(0, 0.55), (0.2, 0.55), (0.2, 0.95), (0, 0.95)], (32, 32), n))
+    ch.add_shape(nsbmd.make_material(BOAT_TEX + "_pier", BOAT_TEX, BOAT_TEX + "_pl", 32, 32), [], faces)
+    return removed, len(faces)
+
+
 def rebuild_ceiling(ch):
     kind = ceiling_kind()
     removed = 0
@@ -578,7 +630,9 @@ def outputs():
             stats[dst] = {"boat_faces": len(faces), "void_tiles_blocked": len(void)}
         else:
             removed, added = rebuild_ceiling(ch)
-            stats[dst] = {"ceiling_removed": removed, "ceiling_added": added}
+            pier_removed, pier_added = build_pier(ch)
+            stats[dst] = {"ceiling_removed": removed, "ceiling_added": added, "pier_removed": pier_removed,
+                          "pier_added": pier_added}
         model = ch.build()
         assert len(model) <= 0xF000, (dst, len(model))
         st = nsbmd.model_stats(nsbmd.parse_bmd(model)["models"][0])

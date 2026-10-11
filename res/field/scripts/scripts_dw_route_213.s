@@ -8,19 +8,19 @@
 //
 // Floor: the DW B4F clone (tools/distortion_world/route_213.json), dressed by set-lake (build_dw_route_213.py).
 // The swallowed Lake Valor: its old bed is the floor, with what it swallowed still lying there: a rowboat beside
-// the path down to the first hop (19-21, 16-19), the lakefront sign at the lip (24,22), and, on the ledge past the
-// hop (31-32, 20-23), the rusted frame (31,20) and the worn Trainer Card (32,20). What is left of the water lies in
-// the pool; the lake itself hangs overhead as the ceiling. The way on: hop the chasm and the pool, climb the east
-// wall (x=49) and walk the causeway on the ceiling (y=10) under the hanging water, to its one island (x 44-46,
-// z 44-47), where the Lapras waits. Stepping onto z >= 45 there starts the fight (step hook
-// Arc2DwRoute213_HandleStep runs entry 4).
+// the path down to the first hop (19-21, 16-19), the lakefront sign at the lip (24,22), on the ledge past the hop
+// (31-32, 20-23) the rusted frame (31,20) and the worn Trainer Card (32,20), and the jetty from the pool to the
+// east wall (38-47, 22-23). What is left of the water lies in the pool; the lake itself hangs overhead as the
+// ceiling. The way on: hop the chasm and the pool, cross the jetty, climb the east wall (x=49) and walk the
+// causeway on the ceiling (y=10) under the hanging water, to its one island (x 44-46, z 44-47), where the Lapras
+// waits. Stepping onto z >= 45 there starts the fight (step hook Arc2DwRoute213_HandleStep runs entry 4).
 //
 // rift-b flags: see scripts_dw_route_214.s. Here: FLAG_UNK_0x092E = FLAG_ARC2_ELIAS_CARD (the card picked up).
 // Map-local: VAR_MAP_LOCAL_1 entry line played this load (not VAR_MAP_LOCAL_0: see scripts_dw_route_214.s).
 // DW overlay objects (src/overlay009 sArc2DwRoute213Objects): 0x80 Cyrus at the entry, 0x81 the rusted frame,
 // 0x82 the card, 0x83 the Lapras (on the island of the hanging lake), 0x84 the lakefront sign.
-// set-lake dressing (docs/arc2/PLAN.md S6, D6): the debris on the old lakebed is examinable (entries 6-8); the
-// rowboat and the hanging lake are terrain (map_data_675/676, tools/distortion_world/build_dw_route_213.py).
+// set-lake dressing (docs/arc2/PLAN.md S6, D6): the debris on the old lakebed is examinable (entries 6-9); the
+// rowboat, the jetty and the hanging lake are terrain (map_data_675/676, tools/distortion_world/build_dw_route_213.py).
 
 #define LOCALID_CYRUS  0x80
 #define LOCALID_FRAME  0x81
@@ -38,6 +38,7 @@
     ScriptEntry DWRoute213_LakeSign
     ScriptEntry DWRoute213_RustedFrame
     ScriptEntry DWRoute213_Rowboat
+    ScriptEntry DWRoute213_MooringPost
     ScriptEntryEnd
 
 DWRoute213_OnTransition:
@@ -138,7 +139,8 @@ DWRoute213_TalkCyrus:
 
 // set-lake: what the lake swallowed. Examine text for each piece of debris on the old lakebed (the floor).
 // 6: the lakefront sign (DW object 0x84), 7: the rusted frame (0x81), 8: the rowboat (terrain in map_data_675, a bg
-// event on the tiles beside the path; tools/distortion_world/build_dw_route_213.py).
+// event on the tiles beside the path), 9: the jetty's mooring posts (terrain in map_data_676, bg events on the tiles
+// beyond the deck's edges; tools/distortion_world/build_dw_route_213.py).
 DWRoute213_LakeSign:
     LockAll
     Message DWRoute213_Text_LakeSign
@@ -158,6 +160,14 @@ DWRoute213_RustedFrame:
 DWRoute213_Rowboat:
     LockAll
     Message DWRoute213_Text_Rowboat
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+DWRoute213_MooringPost:
+    LockAll
+    Message DWRoute213_Text_MooringPost
     WaitABXPadPress
     CloseMessage
     ReleaseAll
