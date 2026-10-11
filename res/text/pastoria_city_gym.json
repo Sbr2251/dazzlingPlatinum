@@ -37,10 +37,12 @@
     {
       "id": "PastoriaGym_Text_WakeExplainFenBadge",
       "en_US": [
-        "You need that Fen Badge to use the\n",
-        "hidden move Surf outside of battle.\r",
+        "With the Fen Badge, a calmed totem\n",
+        "can carry you across the water.\r",
+        "And with four Gym Badges, Pokémon\n",
+        "from trades obey you up to Lv. 50.\r",
         "This is a special reward from me in\n",
-        "recognition of your team’s power.\r"
+        "recognition of your team's power.\r"
       ]
     },
     {
