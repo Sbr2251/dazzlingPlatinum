@@ -1,0 +1,12 @@
+{
+  "key": 40211,
+  "messages": [
+    {
+      "id": "DWRavagedPath_Text_StubExit",
+      "en_US": [
+        "The rift pulls you back out.\n",
+        "(Stub: this floor isn't built yet.)"
+      ]
+    }
+  ]
+}

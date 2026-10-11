@@ -87,7 +87,8 @@
 #define DISTORTION_WORLD_CAMERA_PERSISTED_ANGLES_FACTOR 0x100
 
 // 11: the Arc 1 wall-walk puzzle map (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS), standalone like the Giratina room.
-#define DISTORTION_WORLD_MAP_COUNT 11
+// 12-16: the five Arc 2 rifts (MAP_HEADER_DW_*), standalone (docs/arc2/rift_contract.md).
+#define DISTORTION_WORLD_MAP_COUNT 16
 
 // Arc 1 wall-walk puzzle (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS, res/field/scripts/scripts_distortion_world_arc1_seams.s).
 // VAR_ARC1_DW_HINTS is a ladder: 0 nothing shown, 1 "walk the seam" hint given, 2 fork reached (fork line and Mawile
@@ -2266,6 +2267,34 @@ static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
     return FALSE;
 }
 
+
+// Arc 2 rifts (R0 stubs): per-map step hooks, called from ov9_0224A71C with DW world tile coordinates. Each
+// rift workstream fills in only its own function (rift-a: RavagedPath, EternaForest; rift-b: the rest).
+static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, int z)
+{
+    return FALSE;
+}
+
+static BOOL Arc2DwEternaForest_HandleStep(DistWorldSystem *system, int x, int y, int z)
+{
+    return FALSE;
+}
+
+static BOOL Arc2DwRoute214_HandleStep(DistWorldSystem *system, int x, int y, int z)
+{
+    return FALSE;
+}
+
+static BOOL Arc2DwRoute213_HandleStep(DistWorldSystem *system, int x, int y, int z)
+{
+    return FALSE;
+}
+
+static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, int z)
+{
+    return FALSE;
+}
+
 BOOL ov9_0224A71C(FieldSystem *fieldSystem)
 {
     PersistedMapFeatures *v0 = MiscSaveBlock_GetPersistedMapFeatures(FieldSystem_GetSaveData(fieldSystem));
@@ -2307,6 +2336,26 @@ BOOL ov9_0224A71C(FieldSystem *fieldSystem)
                 }
             } else if (v6 == MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS) {
                 if (Arc1Seams_HandleStep(v5, v1, v2, v3) == TRUE) {
+                    return 1;
+                }
+            } else if (v6 == MAP_HEADER_DW_RAVAGED_PATH) {
+                if (Arc2DwRavagedPath_HandleStep(v5, v1, v2, v3) == TRUE) {
+                    return 1;
+                }
+            } else if (v6 == MAP_HEADER_DW_ETERNA_FOREST) {
+                if (Arc2DwEternaForest_HandleStep(v5, v1, v2, v3) == TRUE) {
+                    return 1;
+                }
+            } else if (v6 == MAP_HEADER_DW_ROUTE_214) {
+                if (Arc2DwRoute214_HandleStep(v5, v1, v2, v3) == TRUE) {
+                    return 1;
+                }
+            } else if (v6 == MAP_HEADER_DW_ROUTE_213) {
+                if (Arc2DwRoute213_HandleStep(v5, v1, v2, v3) == TRUE) {
+                    return 1;
+                }
+            } else if (v6 == MAP_HEADER_DW_LOST_TOWER) {
+                if (Arc2DwLostTower_HandleStep(v5, v1, v2, v3) == TRUE) {
                     return 1;
                 }
             }
@@ -10178,6 +10227,31 @@ static const DistWorldMapConnections sDistWorldMapConnectionList[DISTORTION_WORL
         .prevID = MAP_HEADER_INVALID,
         .currID = MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS,
         .nextID = MAP_HEADER_INVALID
+    },
+    {
+        .prevID = MAP_HEADER_INVALID,
+        .currID = MAP_HEADER_DW_RAVAGED_PATH,
+        .nextID = MAP_HEADER_INVALID
+    },
+    {
+        .prevID = MAP_HEADER_INVALID,
+        .currID = MAP_HEADER_DW_ETERNA_FOREST,
+        .nextID = MAP_HEADER_INVALID
+    },
+    {
+        .prevID = MAP_HEADER_INVALID,
+        .currID = MAP_HEADER_DW_ROUTE_214,
+        .nextID = MAP_HEADER_INVALID
+    },
+    {
+        .prevID = MAP_HEADER_INVALID,
+        .currID = MAP_HEADER_DW_ROUTE_213,
+        .nextID = MAP_HEADER_INVALID
+    },
+    {
+        .prevID = MAP_HEADER_INVALID,
+        .currID = MAP_HEADER_DW_LOST_TOWER,
+        .nextID = MAP_HEADER_INVALID
     }
 };
 // clang-format on
@@ -13487,6 +13561,27 @@ static const UnkStruct_ov9_0224EF30 *sArc1SeamsObjects[] = {
     NULL
 };
 
+// Arc 2 rifts (R0 stubs): DW overlay objects per map (local IDs 0x80+), each owned by that map's rift workstream.
+static const UnkStruct_ov9_0224EF30 *sArc2DwRavagedPathObjects[] = {
+    NULL
+};
+
+static const UnkStruct_ov9_0224EF30 *sArc2DwEternaForestObjects[] = {
+    NULL
+};
+
+static const UnkStruct_ov9_0224EF30 *sArc2DwRoute214Objects[] = {
+    NULL
+};
+
+static const UnkStruct_ov9_0224EF30 *sArc2DwRoute213Objects[] = {
+    NULL
+};
+
+static const UnkStruct_ov9_0224EF30 *sArc2DwLostTowerObjects[] = {
+    NULL
+};
+
 static const UnkStruct_ov9_02252EB4 Unk_ov9_02252EB4[] = {
     { 0x23D, Unk_ov9_02253B34 },
     { 0x23E, Unk_ov9_02253B08 },
@@ -13499,5 +13594,10 @@ static const UnkStruct_ov9_02252EB4 Unk_ov9_02252EB4[] = {
     { 0x246, Unk_ov9_02253BB0 },
     { 0x247, Unk_ov9_02253B40 },
     { MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS, sArc1SeamsObjects },
+    { MAP_HEADER_DW_RAVAGED_PATH, sArc2DwRavagedPathObjects },
+    { MAP_HEADER_DW_ETERNA_FOREST, sArc2DwEternaForestObjects },
+    { MAP_HEADER_DW_ROUTE_214, sArc2DwRoute214Objects },
+    { MAP_HEADER_DW_ROUTE_213, sArc2DwRoute213Objects },
+    { MAP_HEADER_DW_LOST_TOWER, sArc2DwLostTowerObjects },
     { 0x251, NULL }
 };
