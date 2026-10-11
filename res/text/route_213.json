@@ -124,6 +124,168 @@
         "Dr. Footstep’s House\n",
         "Footprints Reveal All"
       ]
+    },
+    {
+      "id": "Route213_Text_Arc2MenuCyrus",
+      "en_US": "Cyrus"
+    },
+    {
+      "id": "Route213_Text_Arc2MenuGarius",
+      "en_US": "Garius"
+    },
+    {
+      "id": "Route213_Text_Arc2MenuRuth",
+      "en_US": "Ruth"
+    },
+    {
+      "id": "Route213_Text_Arc2MenuBadLuck",
+      "en_US": "Bad luck"
+    },
+    {
+      "id": "Route213_Text_Arc2RaidPatrols",
+      "en_US": [
+        "Looker: Two patrols. They look,\n",
+        "they turn, they look.\r",
+        "We move when they turn. And we do\n",
+        "not stop."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidSpotted",
+      "en_US": [
+        "Eclipse Grunt: Hey! Who's there?!\n",
+        "Get out of here, kid! Scram!"
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidAgain",
+      "en_US": [
+        "Looker: Again. We still have time.\n",
+        "A little."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidHalfway",
+      "en_US": [
+        "Looker: The air is splitting.\n",
+        "Faster!"
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidTooSlow",
+      "en_US": [
+        "Looker: Too slow. The air will not\n",
+        "wait. Back, from the start."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidTearing",
+      "en_US": [
+        "Ruth: No, no, no...\r",
+        "It's tearing! It's going to pull it\n",
+        "through!"
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidTheyKnew",
+      "en_US": [
+        "Looker: They knew.\r",
+        "They knew we were coming, so they\n",
+        "rushed it.\r",
+        "They pushed that machine to finish\n",
+        "early."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidSomeoneTold",
+      "en_US": [
+        "Looker: That Lapras is in there\n",
+        "because someone told them."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidUnderstand",
+      "en_US": [
+        "Looker: Now I understand.\r",
+        "They are not just taking Pok\u00e9mon.\r",
+        "They hurt them until the world\n",
+        "itself tears.\r",
+        "And whatever falls through comes\n",
+        "out like... that."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidLedgerAsk",
+      "en_US": [
+        "Looker: Someone told them. I must\n",
+        "ask. Who do you think it was?"
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidPickCyrus",
+      "en_US": [
+        "Looker: The man who does not exist.\n",
+        "Hm. I will write that down."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidPickGarius",
+      "en_US": [
+        "Looker: The loud one. Hm.\n",
+        "I will write that down."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidPickRuth",
+      "en_US": [
+        "Looker: The assistant. Hm. I will\n",
+        "write that down. ...Do not cry."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidPickBadLuck",
+      "en_US": [
+        "Looker: Luck. I do not believe in it.\n",
+        "But I will write it down."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidCyrusGoNow",
+      "en_US": [
+        "Cyrus: It's still in there.\n",
+        "We go now. Together."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidLookerWait",
+      "en_US": "Looker: Go. I will watch the frames."
+    },
+    {
+      "id": "Route213_Text_Arc2RaidRuthWait",
+      "en_US": [
+        "Ruth: It's still in there...\n",
+        "Please hurry."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidPhotos",
+      "en_US": [
+        "Looker: I have photographs. Machine\n",
+        "parts. The frames.\r",
+        "Professor Rowan must see this.\n",
+        "Tonight."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidMouthRuth",
+      "en_US": [
+        "Ruth: Cyrus and I will wait here\n",
+        "with the readings."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2RaidMouthCyrus",
+      "en_US": "Cyrus: ..."
     }
   ]
 }
