@@ -20,7 +20,8 @@
 // Arc 2 (s-celestic), 2.16 outside: Cyrus alone at the town's east edge, Cyrus battle 2 (C5 line).
 // Stock Celestic is replaced: the Galactic grunt at the shrine door (FLAG_UNK_0x01AF) and the town elder's
 // Old Charm scene (FLAG_UNK_0x01AC, coord var VAR_UNK_0x40F1) are switched off.
-// Map-local hide flag: FLAG_UNK_0x0030 = Cyrus (states 42-43 only).
+// Route 210 North's fog is lifted from here too (Defog active survives the seamless walk east; see
+// scripts_route_210_north.s). Map-local hide flag: FLAG_UNK_0x0030 = Cyrus (states 42-43 only).
 #define LOCALID_ARC2_CYRUS 12
 
 _0032:
@@ -28,6 +29,7 @@ _0032:
     SetFlag FLAG_UNK_0x01AF
     SetFlag FLAG_UNK_0x01AC
     SetVar VAR_UNK_0x40F1, 1
+    Defog 1
     GoToIfLt VAR_ARC2_PROGRESS, 42, CelesticTown_HideArc2Cyrus
     GoToIfGe VAR_ARC2_PROGRESS, 44, CelesticTown_HideArc2Cyrus
     End
