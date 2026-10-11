@@ -106,3 +106,11 @@ DW entry, and the player landed on exactly the tile in the table (`/tmp/a2/r0/t_
 - `FLAG_ALT_MUSIC_LAKE_VALOR` (`src/system_flags.c`) picks the drained map's music.
 - s-pastoria owns `lake_valor_drained`, which still holds the stock Galactic grunts and Magikarp
   (`events_lake_valor_drained.json`). s-route214 owns `valor_lakefront` and must keep its two warp entries.
+
+
+## Orchestrator ruling (2026-10-11 00:45): Lost Tower
+- The 2F rift object is at (6,8), where the stock Spiritomb stood (owned by s-hearthome).
+- First visit exit (progress 92-93): `Warp MAP_HEADER_ROUTE_209_LOST_TOWER_2F, 0, 7, 8, DIR_EAST`.
+- Second visit exit, after the 95 calm: `Warp MAP_HEADER_ROUTE_209, 0, 568, 681, DIR_SOUTH` (outside the Lost Tower door, where
+  s-hearthome stages the aftermath).
+- The vein flag is `FLAG_ARC2_RIFTB_E` (0x092F), per the screenplay. It supersedes `FLAG_ARC2_RIFTB_C` above.
