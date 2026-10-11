@@ -106,6 +106,8 @@ Route204North_Arc2OnFrameResonator:
     SetVar VAR_0x8004, ITEM_RESONATOR
     SetVar VAR_0x8005, 1
     GiveItemQuantity
+    WaitABXPadPress
+    CloseMessage
     SetVar VAR_ARC2_PROGRESS, 17
     ApplyMovement LOCALID_PLAYER, Route204North_Movement_FaceNorth
     WaitMovement

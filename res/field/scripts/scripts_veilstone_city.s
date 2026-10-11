@@ -1620,6 +1620,11 @@ VeilstoneCity_Arc2LookerFavor:
     WaitABXPadPress
     CloseMessage
     SetVar VAR_ARC2_PROGRESS, 51
+    // Clear the depot front guards on this load too (OnTransition only does it on the next load)
+    SetVar VAR_MAP_LOCAL_2, 1
+    SetFlag FLAG_UNK_0x0034
+    RemoveObject VEILSTONE_CITY_GRUNT_M_7
+    RemoveObject VEILSTONE_CITY_GRUNT_M_20
     // Newspaper up again (upside down), and off he goes
     ApplyMovement LOCALID_ARC2_LOOKER, VeilstoneCity_Arc2Movement_LookerLeave
     WaitMovement

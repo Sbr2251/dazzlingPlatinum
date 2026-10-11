@@ -556,7 +556,7 @@
             "movement_range_z": 0,
             "x": 19,
             "z": 45,
-            "y": 5
+            "y": 6
         },
         {
             "id": "RAVAGED_PATH_ARC2_FRAME",
@@ -571,7 +571,7 @@
             "movement_range_z": 0,
             "x": 20,
             "z": 45,
-            "y": 5
+            "y": 6
         },
         {
             "id": "RAVAGED_PATH_ECHO_GHOST_CRATE",

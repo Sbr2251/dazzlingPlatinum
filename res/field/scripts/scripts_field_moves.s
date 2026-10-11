@@ -185,8 +185,7 @@ _0284:
 _02B2:
     WaitTime 1, VAR_RESULT
     GoToIfEq VAR_0x8005, 0, _02B2
-    GetCurrentMapID VAR_0x8004
-    CallIfEq VAR_0x8004, MAP_HEADER_ROUTE_204_NORTH, FieldMoves_Arc2FirstResonance
+    // (2.8: Route 204 North's coord event on the smashed rock tile advances 17 -> 18; nothing to do here.)
     GoTo _066D
     End
 
