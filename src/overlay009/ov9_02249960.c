@@ -29,6 +29,7 @@
 #include "overlay005/ov5_021D57BC.h"
 #include "overlay005/ov5_021DF440.h"
 #include "overlay005/ov5_021EB1A0.h"
+#include "overlay005/ov5_021ECA70.h"
 #include "overlay005/ov5_021ECE40.h"
 #include "overlay005/ov5_021F348C.h"
 #include "overlay005/ov5_021F8560.h"
@@ -1009,6 +1010,7 @@ static BOOL ov9_02249E00(DistWorldSystem *param0, u32 param1);
 static void SetPersistedCurrentFloatingPlatformIndex(DistWorldSystem *system, u32 floatingPlatformIndex);
 static u32 GetPersistedCurrentFloatingPlatformIndex(DistWorldSystem *system);
 static void ov9_02249E94(DistWorldSystem *param0);
+static void Arc2DwLostTower_ResetFieldState(void);
 static void ov9_02249EC8(DistWorldSystem *param0);
 static void ov9_02249EDC(SysTask *param0, void *param1);
 static void ov9_02249EF0(DistWorldSystem *param0);
@@ -1335,6 +1337,7 @@ void DistWorld_DynamicMapFeaturesInit(FieldSystem *fieldSystem)
     ov9_0224E984(dwSystem);
     ov5_021F34B8(dwSystem->fieldSystem->unk_40);
     ov9_02249EF0(dwSystem);
+    Arc2DwLostTower_ResetFieldState(); // set-tower: the ghosts' palettes are reloaded with each field
 
     data->valid = TRUE;
 }
@@ -2505,11 +2508,18 @@ static BOOL Arc2DwEternaForest_HandleStep(DistWorldSystem *system, int x, int y,
     return FALSE;
 }
 
-// Per-frame hook for the Arc 2 rifts, from the DW system task (ov9_02249EDC). Only Eterna Forest uses it.
+static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system);
+
+// Per-frame hook for the Arc 2 rifts, from the DW system task (ov9_02249EDC): Eterna Forest (rift-a) and the Lost
+// Tower's ghost acts (set-tower).
 static void Arc2Dw_HandleFrame(DistWorldSystem *system)
 {
-    if (DistWorldSystem_GetMapHeaderID(system) == MAP_HEADER_DW_ETERNA_FOREST) {
+    enum MapHeader mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+
+    if (mapHeaderID == MAP_HEADER_DW_ETERNA_FOREST) {
         Arc2DwEternaForest_HandleFrame(system);
+    } else if (mapHeaderID == MAP_HEADER_DW_LOST_TOWER) {
+        Arc2DwLostTower_HandleFrame(system);
     }
 }
 
@@ -2542,8 +2552,324 @@ static BOOL Arc2DwRoute213_HandleStep(DistWorldSystem *system, int x, int y, int
     return Arc2DwB4F_HandleCeilingEnd(system, y, z, FLAG_TOTEM_LAPRAS_DEFEATED, ARC2_DW_ROUTE_213_SCRIPT_TOTEM);
 }
 
+// Arc 2 set-tower, DW Lost Tower (scenes 2.25-2.26, S7; res/field/scripts/scripts_dw_lost_tower.s): the first DW
+// without Cyrus. The totems the player calmed are the guides: at each seam the Resonator glows (the Resonator cut-in,
+// src/field_move_tasks.c) and a ghost totem acts. The ghosts are the totems' overworld sprites drawn translucent and
+// washed violet (a material callback on their billboards, below); they fade in, act and fade out.
+//   Act 1  Hitmonlee kicks a scar shut: the seam's second tile, (11, y2, z14), is a scar with loose rocks hovering in
+//          front of it (ghost-prop group 2). It cracks as the player steps on it, and the act starts.
+//   Act 2  Vespiquen lights the true seam: past the trees the seam forks (z19). The bottom row (z20-21) is a scar
+//          that drops you; Vespiquen's light (group 3, small platforms in front of the wall) marks the way over it.
+//   Act 3  Lapras lifts a submerged path (second visit, past the wall of shadow): the stepping stones east of the
+//          deeper ledge (group 4) lie sunk in the mist until Lapras sings them up; then they hop (jump-twice tiles).
+//   Act 4  Skarmory carries you across a gap: from the last stone (32,22) over the void to the island (group 5, a
+//          floating platform) where Cyrus kneels beside the Spiritomb.
+// Each act needs its FLAG_TOTEM_*; without it the script falls back to a plain line and the gate opens anyway.
+// Map-local state (cleared by every warp, the fall warp included): VAR_MAP_LOCAL_1 the wall acts done this load
+// (0, 1 Hitmonlee, 2 Vespiquen), VAR_MAP_LOCAL_7 the deeper acts (0, 1 Lapras, 2 Skarmory), VAR_MAP_LOCAL_6 the
+// ghosts' target opacity (0-31; scripts set it, this hook fades toward it). Once the vein was found
+// (FLAG_ARC2_RIFTB_E), the wall's work stays done: the scar stays shut and the seam stays lit on later visits.
+// Litwick candles (decor objects 0x8E-0x93) burn at the seams: a stand-in sprite (the rift flame) at 3/5 size with a
+// pale-flame palette, until a real Litwick overworld sprite exists.
+#define LOST_TOWER_WALL_X               11
+#define LOST_TOWER_FLOOR_Y              1
+#define LOST_TOWER_SCRIPT_FALL          2 // map script entries (1-based)
+#define LOST_TOWER_SCRIPT_ACT_HITMONLEE 7
+#define LOST_TOWER_SCRIPT_ACT_VESPIQUEN 8
+#define LOST_TOWER_SCRIPT_ACT_LAPRAS    9
+#define LOST_TOWER_SCRIPT_ACT_SKARMORY  10
+#define LOST_TOWER_GROUP_SCAR           2 // ghost-prop groups (tools/distortion_world/lost_tower.json)
+#define LOST_TOWER_GROUP_SEAM           3
+#define LOST_TOWER_GROUP_STONES         4
+#define LOST_TOWER_SCAR_Y               2 // Hitmonlee's scar, the seam's second tile
+#define LOST_TOWER_SCAR_Z               14
+#define LOST_TOWER_FORK_Z               19
+#define LOST_TOWER_FALSE_SEAM_Y         2 // the bottom row past the fork: a scar
+#define LOST_TOWER_FALSE_SEAM_Z_MIN     20
+#define LOST_TOWER_FALSE_SEAM_Z_MAX     21
+#define LOST_TOWER_LAPRAS_X             20 // the deeper ledge's east end
+#define LOST_TOWER_LAPRAS_Z             22
+#define LOST_TOWER_SKARMORY_X           32 // the last stone
+#define LOST_TOWER_SKARMORY_Z           22
+#define LOST_TOWER_PROGRESS_DEEPER      94
+#define LOST_TOWER_LOCALID_GHOST_FIRST  0x8A // ghost Hitmonlee, Vespiquen, Skarmory, Lapras (script-only)
+#define LOST_TOWER_LOCALID_GHOST_LAST   0x8D
+#define LOST_TOWER_LOCALID_CANDLE_FIRST 0x8E // Litwick candles
+#define LOST_TOWER_LOCALID_CANDLE_LAST  0x93
+#define LOST_TOWER_CANDLE_ALPHA         28
+#define LOST_TOWER_CANDLE_SCALE         (FX32_ONE * 3 / 5)
+
+static u8 sLostTowerGhostAlpha;
+static u8 sLostTowerCandleFlicker;
+
+#define LOST_TOWER_PALETTE_COUNT  5 // the four ghosts (by local ID), then the candles
+#define LOST_TOWER_PALETTE_CANDLE 4
+#define LOST_TOWER_RENDER_MAX     12
+
+// Generated from the sprites' palettes (res/field/objects/totems/*_idle_a.png, arc1/arc1_rift.png) with the
+// Resonator cut-in's ghost wash (FieldMoves_ApplyResonatorGhostPalette) for the totems, and a pale flame for the candles.
+static const u16 sLostTowerGhostPalettes[LOST_TOWER_PALETTE_COUNT][16] = {
+    { // Hitmonlee
+        0x0000, 0x771A, 0x3CC8, 0x5E12, 0x4D6D, 0x6654, 0x6A96, 0x55AF,
+        0x6ED8, 0x55AF, 0x492B, 0x59F1, 0x5E12, 0x3CC8, 0x3CC8, 0x3CC8,
+    },
+    { // Vespiquen
+        0x0000, 0x771A, 0x3CC8, 0x6654, 0x55D0, 0x59F1, 0x4D6D, 0x6A96,
+        0x492B, 0x59F1, 0x6EB7, 0x494C, 0x59F1, 0x55D0, 0x72F9, 0x3CC8,
+    },
+    { // Skarmory
+        0x0000, 0x771A, 0x3CC8, 0x6654, 0x51AF, 0x4D6D, 0x6ED8, 0x6675,
+        0x492B, 0x40E9, 0x55AF, 0x5E12, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8,
+    },
+    { // Lapras
+        0x0000, 0x771A, 0x3CC8, 0x59F1, 0x72D8, 0x6254, 0x518E, 0x6254,
+        0x4D6D, 0x6EB7, 0x6233, 0x59F1, 0x492B, 0x3CC8, 0x3CC8, 0x3CC8,
+    },
+    { // Candle
+        0x0000, 0x6A14, 0x6A14, 0x6A55, 0x6E97, 0x72F9, 0x7B9C, 0x7FFF,
+        0x773B, 0x6A14, 0x6A14, 0x6A14, 0x6A14, 0x6A14, 0x6A14, 0x6A14,
+    },
+};
+
+// The tinted palettes live in their own texture-palette VRAM block, allocated once per field (the field's VRAM managers
+// are rebuilt with it; Arc2DwLostTower_ResetFieldState runs from DistWorld_DynamicMapFeaturesInit). Each frame the
+// hook lists the ghosts' and candles' render objects; their material callback swaps in the tinted palette.
+static BOOL sLostTowerPalettesLoaded;
+static NNSGfdPlttKey sLostTowerPlttKey;
+static NNSG3dRenderObj *sLostTowerRenderObjs[LOST_TOWER_RENDER_MAX];
+static u8 sLostTowerRenderPalettes[LOST_TOWER_RENDER_MAX];
+static u8 sLostTowerRenderCount;
+
+static void Arc2DwLostTower_ResetFieldState(void)
+{
+    sLostTowerPalettesLoaded = FALSE;
+    sLostTowerPlttKey = NNS_GFD_ALLOC_ERROR_PLTTKEY;
+    sLostTowerRenderCount = 0;
+    sLostTowerGhostAlpha = 0;
+}
+
+static void LostTower_LoadPalettes(void)
+{
+    u32 addr;
+
+    if (sLostTowerPalettesLoaded) {
+        return;
+    }
+
+    sLostTowerPalettesLoaded = TRUE;
+    sLostTowerPlttKey = NNS_GfdAllocPlttVram(sizeof(sLostTowerGhostPalettes), FALSE, 0);
+
+    if (sLostTowerPlttKey == NNS_GFD_ALLOC_ERROR_PLTTKEY) {
+        return; // no room: the ghosts and candles keep their own colours (still translucent)
+    }
+
+    addr = NNS_GfdGetPlttKeyAddr(sLostTowerPlttKey);
+
+    for (int i = 0; i < LOST_TOWER_PALETTE_COUNT; i++) {
+        VramTransfer_Request(NNS_GFD_DST_3D_TEX_PLTT, addr + i * sizeof(sLostTowerGhostPalettes[0]), (void *)sLostTowerGhostPalettes[i], sizeof(sLostTowerGhostPalettes[0]));
+    }
+}
+
+static VarsFlags *LostTower_VarsFlags(DistWorldSystem *system)
+{
+    return SaveData_GetVarsFlags(system->fieldSystem->saveData);
+}
+
+static u16 LostTower_Var(DistWorldSystem *system, u16 varID)
+{
+    return *VarsFlags_GetVarAddress(LostTower_VarsFlags(system), varID);
+}
+
+static BOOL LostTower_WallWorkDone(DistWorldSystem *system)
+{
+    return VarsFlags_CheckFlag(LostTower_VarsFlags(system), FLAG_ARC2_RIFTB_E);
+}
+
+// Material callback on a ghost's or a candle's billboard (NNS_G3D_SBC_MAT, timing B): the texture palette becomes the
+// tinted copy (16-colour textures address their palette in 16-byte units) and the polygon alpha the opacity. Each
+// billboard has its own render object, so stock sprites sharing the model are untouched.
+static void LostTower_MaterialCallback(NNSG3dRS *rs)
+{
+    NNSG3dMatAnmResult *result = NNS_G3dRSGetMatAnmResult(rs);
+    NNSG3dRenderObj *renderObj = NNS_G3dRSGetRenderObj(rs);
+    int palette = -1, alpha;
+
+    for (int i = 0; i < sLostTowerRenderCount; i++) {
+        if (sLostTowerRenderObjs[i] == renderObj) {
+            palette = sLostTowerRenderPalettes[i];
+            break;
+        }
+    }
+
+    if (palette < 0) {
+        return;
+    }
+
+    if (palette == LOST_TOWER_PALETTE_CANDLE) {
+        // A slow flicker: the flame's opacity breathes a little.
+        alpha = LOST_TOWER_CANDLE_ALPHA + ((sLostTowerCandleFlicker >> 3) & 3) - 2;
+    } else {
+        // The ghosts fade in and out, with a faint shimmer once they're there (alpha 0 would draw a wireframe).
+        alpha = sLostTowerGhostAlpha;
+
+        if (alpha >= 8) {
+            alpha += ((sLostTowerCandleFlicker >> 2) & 3) - 1;
+        }
+
+        if (alpha < 1) {
+            alpha = 1;
+        }
+    }
+
+    if (sLostTowerPlttKey != NNS_GFD_ALLOC_ERROR_PLTTKEY) {
+        result->prmTexPltt = (NNS_GfdGetPlttKeyAddr(sLostTowerPlttKey) + palette * sizeof(sLostTowerGhostPalettes[0])) >> 4;
+    }
+
+    result->prmPolygonAttr = (result->prmPolygonAttr & ~(REG_G3_POLYGON_ATTR_ALPHA_MASK | REG_G3_POLYGON_ATTR_ID_MASK))
+        | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT) | (0x30 << REG_G3_POLYGON_ATTR_ID_SHIFT);
+}
+
+static void LostTower_UpdateObjects(DistWorldSystem *system)
+{
+    MapObject **slot = system->unk_1C64.unk_00;
+
+    sLostTowerRenderCount = 0;
+
+    for (int i = 0; i < 19; i++, slot++) {
+        MapObject *mapObj = *slot;
+        UnkStruct_020216E0 *billboard;
+        NNSG3dRenderObj *renderObj;
+        u32 localID;
+
+        if (mapObj == NULL || sub_02062CF8(mapObj) == FALSE) {
+            continue;
+        }
+
+        localID = MapObject_GetLocalID(mapObj);
+
+        if (localID < LOST_TOWER_LOCALID_GHOST_FIRST || localID > LOST_TOWER_LOCALID_CANDLE_LAST) {
+            continue;
+        }
+
+        // The totem and rift sprites are single-frame sprites (Unk_ov5_021FB0B4 in ov5_021FAF40.c), whose billboard
+        // lives in ov5_021ECA70.c's object data.
+        billboard = ov5_021ECB80(mapObj);
+
+        if (localID <= LOST_TOWER_LOCALID_GHOST_LAST) {
+            BOOL hide = sLostTowerGhostAlpha == 0 || billboard == NULL;
+
+            if (MapObject_IsHidden(mapObj) != hide) {
+                MapObject_SetHidden(mapObj, hide);
+            }
+        } else if (billboard != NULL) {
+            // The flame stretches and settles a little.
+            fx32 flicker = ((sLostTowerCandleFlicker >> 3) & 3) * (FX32_ONE / 32);
+            VecFx32 scale = { LOST_TOWER_CANDLE_SCALE, LOST_TOWER_CANDLE_SCALE + flicker, LOST_TOWER_CANDLE_SCALE };
+
+            sub_020212D0(billboard, &scale);
+        }
+
+        if (billboard == NULL || sLostTowerRenderCount >= LOST_TOWER_RENDER_MAX) {
+            continue;
+        }
+
+        renderObj = sub_02021440(billboard);
+        sLostTowerRenderObjs[sLostTowerRenderCount] = renderObj;
+        sLostTowerRenderPalettes[sLostTowerRenderCount] = localID <= LOST_TOWER_LOCALID_GHOST_LAST
+            ? localID - LOST_TOWER_LOCALID_GHOST_FIRST
+            : LOST_TOWER_PALETTE_CANDLE;
+        sLostTowerRenderCount++;
+        NNS_G3dRenderObjSetCallBack(renderObj, LostTower_MaterialCallback, NULL, NNS_G3D_SBC_MAT, NNS_G3D_SBC_CALLBACK_TIMING_B);
+    }
+}
+
+static void LostTower_SetGroupShown(DistWorldSystem *system, u32 group, BOOL shown)
+{
+    BOOL hidden = IsActiveGhostPropGroupHidden(system, group);
+
+    if (shown && hidden) {
+        ShowGhostPropGroup(system, group);
+    } else if (!shown && !hidden) {
+        HideGhostPropGroup(system, group);
+    }
+}
+
+static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system)
+{
+    VarsFlags *varsFlags = LostTower_VarsFlags(system);
+    u16 wallActs = LostTower_Var(system, VAR_MAP_LOCAL_1);
+    u16 deeperActs = LostTower_Var(system, VAR_MAP_LOCAL_7);
+    u16 ghostTarget = LostTower_Var(system, VAR_MAP_LOCAL_6);
+    BOOL wallDone = LostTower_WallWorkDone(system);
+
+    // The ghost props follow the acts (a warp re-reads the default visibility, so re-assert it every frame).
+    LostTower_SetGroupShown(system, LOST_TOWER_GROUP_SCAR, !(wallDone || wallActs >= 1));
+    LostTower_SetGroupShown(system, LOST_TOWER_GROUP_SEAM,
+        VarsFlags_CheckFlag(varsFlags, FLAG_TOTEM_VESPIQUEN_DEFEATED) && (wallDone || wallActs >= 2));
+    LostTower_SetGroupShown(system, LOST_TOWER_GROUP_STONES, deeperActs >= 1);
+
+    if (ghostTarget > GHOST_PROP_OPACITY_MAX) {
+        ghostTarget = GHOST_PROP_OPACITY_MAX;
+    }
+
+    if (sLostTowerGhostAlpha < ghostTarget) {
+        sLostTowerGhostAlpha++;
+    } else if (sLostTowerGhostAlpha > ghostTarget) {
+        sLostTowerGhostAlpha--;
+    }
+
+    sLostTowerCandleFlicker++;
+    LostTower_LoadPalettes();
+    LostTower_UpdateObjects(system);
+}
+
 static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
+    VarsFlags *varsFlags = LostTower_VarsFlags(system);
+    u16 wallActs = LostTower_Var(system, VAR_MAP_LOCAL_1);
+    u16 deeperActs = LostTower_Var(system, VAR_MAP_LOCAL_7);
+
+    if (x == LOST_TOWER_WALL_X && y > LOST_TOWER_FLOOR_Y) {
+        // The false seam past the fork gives way under you, lit or not.
+        if (y == LOST_TOWER_FALSE_SEAM_Y && z >= LOST_TOWER_FALSE_SEAM_Z_MIN && z <= LOST_TOWER_FALSE_SEAM_Z_MAX) {
+            Sound_PlayEffect(SEQ_SE_DP_UG_023);
+            ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_FALL, NULL);
+            return TRUE;
+        }
+
+        if (LostTower_WallWorkDone(system)) {
+            return FALSE;
+        }
+
+        if (wallActs == 0 && y == LOST_TOWER_SCAR_Y && z == LOST_TOWER_SCAR_Z) {
+            Sound_PlayEffect(SEQ_SE_PL_KEZURI);
+            ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_ACT_HITMONLEE, NULL);
+            return TRUE;
+        }
+
+        if (wallActs == 1 && z == LOST_TOWER_FORK_Z) {
+            ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_ACT_VESPIQUEN, NULL);
+            return TRUE;
+        }
+
+        return FALSE;
+    }
+
+    if (y != LOST_TOWER_FLOOR_Y || LostTower_Var(system, VAR_ARC2_PROGRESS) < LOST_TOWER_PROGRESS_DEEPER
+        || VarsFlags_CheckFlag(varsFlags, FLAG_TOTEM_SPIRITOMB_DEFEATED)) {
+        return FALSE;
+    }
+
+    if (deeperActs == 0 && x == LOST_TOWER_LAPRAS_X && z == LOST_TOWER_LAPRAS_Z) {
+        ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_ACT_LAPRAS, NULL);
+        return TRUE;
+    }
+
+    if (deeperActs == 1 && x == LOST_TOWER_SKARMORY_X && z == LOST_TOWER_SKARMORY_Z) {
+        ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_ACT_SKARMORY, NULL);
+        return TRUE;
+    }
+
     return FALSE;
 }
 
@@ -14341,7 +14667,8 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShadow = {
     },
 };
 
-// Lost Tower: Cyrus on his knees beside the Spiritomb, from the grunts' raid on (state 94).
+// Lost Tower: Cyrus on his knees beside the Spiritomb, from the grunts' raid on (state 94). set-tower: on the island past
+// the risen stones and the gap (Skarmory carries the player there; scripts_dw_lost_tower.s).
 static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCyrus = {
     22,
     94,
@@ -14360,7 +14687,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCyrus = {
         0x0,
         0x0,
         0x0,
-        18,
+        39,
         22,
         ((1 << 4) * FX32_ONE),
     },
@@ -14385,7 +14712,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerSpiritomb = {
         0x0,
         0x0,
         0x0,
-        20,
+        41,
         22,
         ((1 << 4) * FX32_ONE),
     },
@@ -14410,7 +14737,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerEmpoleon = {
         0x0,
         0x0,
         0x0,
-        17,
+        38,
         21,
         ((1 << 4) * FX32_ONE),
     },
@@ -14435,7 +14762,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerTorterra = {
         0x0,
         0x0,
         0x0,
-        17,
+        38,
         21,
         ((1 << 4) * FX32_ONE),
     },
@@ -14460,8 +14787,262 @@ static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerInfernape = {
         0x0,
         0x0,
         0x0,
-        17,
+        38,
         21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lost Tower ghost acts (set-tower, S7; Arc2DwLostTower_* above): the ghost totems, script-only (ScrCmd_311), drawn
+// translucent and violet by Arc2DwLostTower_HandleFrame. Hitmonlee appears in front of the wall, just above its scar.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerGhostHitmonlee = {
+    6,
+    0,
+    0x0,
+    0x0,
+    {
+        0x8A,
+        OBJ_EVENT_GFX_TOTEM_HITMONLEE,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        12,
+        14,
+        ((3 << 4) * FX32_ONE),
+    },
+};
+
+// Vespiquen hovers over the fork, in front of the true seam.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerGhostVespiquen = {
+    6,
+    0,
+    0x0,
+    0x0,
+    {
+        0x8B,
+        OBJ_EVENT_GFX_TOTEM_VESPIQUEN,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_NORTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        12,
+        20,
+        ((3 << 4) * FX32_ONE),
+    },
+};
+
+// Skarmory drops in beside the last stone.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerGhostSkarmory = {
+    6,
+    0,
+    0x0,
+    0x0,
+    {
+        0x8C,
+        OBJ_EVENT_GFX_TOTEM_SKARMORY,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        33,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Lapras rises out of the mist where the stones lie sunk.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerGhostLapras = {
+    6,
+    0,
+    0x0,
+    0x0,
+    {
+        0x8D,
+        OBJ_EVENT_GFX_TOTEM_LAPRAS,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        22,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Litwick candles at the seams (decor; a stand-in sprite at half size, tinted to a pale flame by
+// Arc2DwLostTower_HandleFrame until a Litwick overworld sprite exists). The first seam: the ledge's edge.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle1 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x8E,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        13,
+        15,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// The first seam: the far end of the ledge.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle2 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x8F,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        15,
+        15,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// The fork: a flame hanging in front of the wall above the true seam. Wall objects here stand at x=12, in front of the
+// wall face, and never use the wall-rotation animation (unk_04 = 1): objects block by x/z only, so at x=11 they would
+// stop the climb, and a wall-animated object still loaded when the exit's warp animation runs hangs the game.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle3 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x90,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        12,
+        19,
+        ((4 << 4) * FX32_ONE),
+    },
+};
+
+// The wall of shadow: the deeper ledge's north arm.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle4 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x91,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        16,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// The gap: Cyrus's island, west edge.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle5 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x92,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        37,
+        21,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// Cyrus's island, east edge, behind the Spiritomb.
+static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle6 = {
+    0,
+    0,
+    0x0,
+    0x0,
+    {
+        0x93,
+        OBJ_EVENT_GFX_ARC1_RIFT,
+        0x0,
+        0x0,
+        0x0,
+        0,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        41,
+        23,
         ((1 << 4) * FX32_ONE),
     },
 };
@@ -14492,6 +15073,16 @@ static const UnkStruct_ov9_0224EF30 *sArc2DwLostTowerObjects[] = {
     &sArc2DwLostTowerEmpoleon,
     &sArc2DwLostTowerTorterra,
     &sArc2DwLostTowerInfernape,
+    &sArc2DwLostTowerGhostHitmonlee,
+    &sArc2DwLostTowerGhostVespiquen,
+    &sArc2DwLostTowerGhostSkarmory,
+    &sArc2DwLostTowerGhostLapras,
+    &sArc2DwLostTowerCandle1,
+    &sArc2DwLostTowerCandle2,
+    &sArc2DwLostTowerCandle3,
+    &sArc2DwLostTowerCandle4,
+    &sArc2DwLostTowerCandle5,
+    &sArc2DwLostTowerCandle6,
     NULL
 };
 
