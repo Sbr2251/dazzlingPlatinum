@@ -2941,7 +2941,7 @@ JubilifeCity_Arc1CrateMovement_LookerLeave:
 // Dazzling Platinum Arc 2 (s-jubilife): 2.1 finding Cyrus, 2.3 Cyrus battle 1 (see the header comment).
 
 // 1 once s-cutaways (2.4 in the violet room) is merged; 0 skips the cutaway (stub)
-#define ARC2_CUTAWAY_2_4_WIRED 0
+#define ARC2_CUTAWAY_2_4_WIRED 1
 
 JubilifeCity_Arc2OnTransition:
     SetFlag FLAG_UNK_0x0032
