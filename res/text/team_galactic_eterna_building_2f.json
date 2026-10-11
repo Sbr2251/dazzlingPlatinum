@@ -2,26 +2,67 @@
   "key": 5143,
   "messages": [
     {
-      "id": "pl_msg_00000093_00000",
+      "id": "Haven2F_Text_KennelBramble",
       "en_US": [
-        "Team Galactic is working hard to find\n",
-        "new energy sources for the future!"
+        "A name tag: BRAMBLE.\n",
+        "The kennel is empty."
       ]
     },
     {
-      "id": "pl_msg_00000093_00001",
+      "id": "Haven2F_Text_KennelPip",
       "en_US": [
-        "We are conducting research on new\n",
-        "forms of energy!\r",
-        "We want to harness the mysterious\n",
-        "power of Pokémon and use it as energy!"
+        "A name tag: PIP.\n",
+        "The kennel is empty."
       ]
     },
     {
-      "id": "pl_msg_00000093_00002",
+      "id": "Haven2F_Text_KennelClover",
       "en_US": [
-        "Let us make progress together!\n",
-        "             Team Galactic"
+        "A name tag: CLOVER.\n",
+        "The kennel is empty."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_KennelDuchess",
+      "en_US": [
+        "A name tag: DUCHESS.\n",
+        "OWNER: DECEASED. LAKE VALOR.\r",
+        "The kennel is empty."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_GardeniaTheseAreMine",
+      "en_US": [
+        "Gardenia: Bramble... Pip... Clover.\r",
+        "These are mine. Where are they?"
+      ]
+    },
+    {
+      "id": "Haven2F_Text_KennelEmpty",
+      "en_US": [
+        "An empty kennel. The name tag\n",
+        "has been torn off."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_Sign",
+      "en_US": [
+        "Every one of them is loved.\n",
+        "Eclipse Haven"
+      ]
+    },
+    {
+      "id": "Haven2F_Text_RuthTalk",
+      "en_US": [
+        "Ruth: Every kennel's empty. Every\n",
+        "single one."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_GardeniaTalk",
+      "en_US": [
+        "Gardenia: I fed them myself, the day\n",
+        "I brought them here."
       ]
     }
   ]
