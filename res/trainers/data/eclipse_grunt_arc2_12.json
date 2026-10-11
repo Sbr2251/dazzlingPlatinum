@@ -20,7 +20,8 @@
                 "MOVE_SCARY_FACE"
             ],
             "power": 100,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
         },
         {
             "species": "SPECIES_SKUNTANK",
@@ -34,7 +35,8 @@
                 "MOVE_SCREECH"
             ],
             "power": 100,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_AFTERMATH"
         }
     ],
     "messages": [

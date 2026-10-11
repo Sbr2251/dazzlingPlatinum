@@ -21,7 +21,8 @@
                 "MOVE_POUND"
             ],
             "power": 120,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_TORRENT"
         }
     ],
     "messages": [

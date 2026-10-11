@@ -21,7 +21,8 @@
                 "MOVE_FURY_SWIPES"
             ],
             "power": 150,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         },
         {
             "species": "SPECIES_BRONZOR",
@@ -35,7 +36,8 @@
                 "MOVE_TACKLE"
             ],
             "power": 150,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_LEVITATE"
         },
         {
             "species": "SPECIES_GROTLE",
@@ -49,7 +51,8 @@
                 "MOVE_CURSE"
             ],
             "power": 150,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_OVERGROW"
         }
     ],
     "messages": [

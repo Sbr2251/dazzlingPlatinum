@@ -20,7 +20,8 @@
                 "MOVE_SCRATCH"
             ],
             "power": 30,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_LIMBER"
         },
         {
             "species": "SPECIES_STUNKY",
@@ -34,7 +35,8 @@
                 "MOVE_SCRATCH"
             ],
             "power": 30,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_AFTERMATH"
         }
     ],
     "messages": [

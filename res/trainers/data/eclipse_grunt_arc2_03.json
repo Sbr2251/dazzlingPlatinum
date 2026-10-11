@@ -20,7 +20,8 @@
                 "MOVE_HOWL"
             ],
             "power": 60,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
         },
         {
             "species": "SPECIES_CROAGUNK",
@@ -34,7 +35,8 @@
                 "MOVE_SWAGGER"
             ],
             "power": 60,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_DRY_SKIN"
         }
     ],
     "messages": [

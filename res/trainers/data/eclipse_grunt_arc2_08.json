@@ -20,7 +20,8 @@
                 "MOVE_TOXIC"
             ],
             "power": 80,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_AFTERMATH"
         }
     ],
     "messages": [

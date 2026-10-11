@@ -20,7 +20,8 @@
                 "MOVE_AIR_CUTTER"
             ],
             "power": 120,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         },
         {
             "species": "SPECIES_HOUNDOOM",
@@ -34,7 +35,8 @@
                 "MOVE_ROAR"
             ],
             "power": 120,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_FLASH_FIRE"
         }
     ],
     "messages": [

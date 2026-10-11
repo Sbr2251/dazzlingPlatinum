@@ -20,7 +20,8 @@
                 "MOVE_FAKE_OUT"
             ],
             "power": 60,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_LIMBER"
         },
         {
             "species": "SPECIES_LIEPARD",
@@ -34,7 +35,8 @@
                 "MOVE_TORMENT"
             ],
             "power": 60,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_LIMBER"
         }
     ],
     "messages": [

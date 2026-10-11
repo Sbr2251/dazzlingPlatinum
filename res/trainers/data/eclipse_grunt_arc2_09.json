@@ -20,7 +20,8 @@
                 "MOVE_AIR_CUTTER"
             ],
             "power": 90,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         },
         {
             "species": "SPECIES_SEVIPER",
@@ -34,7 +35,8 @@
                 "MOVE_BITE"
             ],
             "power": 90,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_SHED_SKIN"
         }
     ],
     "messages": [

@@ -20,7 +20,8 @@
                 "MOVE_AIR_CUTTER"
             ],
             "power": 100,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         },
         {
             "species": "SPECIES_SHARPEDO",
@@ -34,7 +35,8 @@
                 "MOVE_SCREECH"
             ],
             "power": 100,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_ROUGH_SKIN"
         }
     ],
     "messages": [

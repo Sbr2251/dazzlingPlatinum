@@ -20,7 +20,8 @@
                 "MOVE_TACKLE"
             ],
             "power": 30,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_QUICK_FEET"
         },
         {
             "species": "SPECIES_ZUBAT",
@@ -34,7 +35,8 @@
                 "MOVE_LEECH_LIFE"
             ],
             "power": 30,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         }
     ],
     "messages": [

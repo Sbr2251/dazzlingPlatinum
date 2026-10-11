@@ -24,7 +24,8 @@
                 "MOVE_QUICK_ATTACK"
             ],
             "power": 180,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_PRESSURE"
         },
         {
             "species": "SPECIES_CROBAT",
@@ -38,7 +39,8 @@
                 "MOVE_BITE"
             ],
             "power": 180,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         },
         {
             "species": "SPECIES_BRONZONG",
@@ -52,7 +54,8 @@
                 "MOVE_CONFUSE_RAY"
             ],
             "power": 180,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_LEVITATE"
         },
         {
             "species": "SPECIES_ABSOL",
@@ -66,7 +69,8 @@
                 "MOVE_QUICK_ATTACK"
             ],
             "power": 180,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_SUPER_LUCK"
         },
         {
             "species": "SPECIES_TORTERRA",
@@ -80,7 +84,8 @@
                 "MOVE_SYNTHESIS"
             ],
             "power": 180,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_OVERGROW"
         }
     ],
     "messages": [

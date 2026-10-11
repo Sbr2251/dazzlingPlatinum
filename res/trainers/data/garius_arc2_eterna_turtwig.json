@@ -21,7 +21,8 @@
                 "MOVE_DOUBLE_TEAM"
             ],
             "power": 130,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
         },
         {
             "species": "SPECIES_BUIZEL",
@@ -35,7 +36,8 @@
                 "MOVE_QUICK_ATTACK"
             ],
             "power": 130,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_SWIFT_SWIM"
         },
         {
             "species": "SPECIES_ROSELIA",
@@ -49,7 +51,8 @@
                 "MOVE_LEECH_SEED"
             ],
             "power": 130,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_POISON_POINT"
         },
         {
             "species": "SPECIES_MONFERNO",
@@ -63,7 +66,8 @@
                 "MOVE_TAUNT"
             ],
             "power": 130,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_BLAZE"
         }
     ],
     "messages": [

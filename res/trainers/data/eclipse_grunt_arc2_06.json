@@ -20,7 +20,8 @@
                 "MOVE_ODOR_SLEUTH"
             ],
             "power": 80,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
         },
         {
             "species": "SPECIES_SWALOT",
@@ -34,7 +35,8 @@
                 "MOVE_AMNESIA"
             ],
             "power": 80,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_STICKY_HOLD"
         }
     ],
     "messages": [

@@ -20,7 +20,8 @@
                 "MOVE_CURSE"
             ],
             "power": 120,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INSOMNIA"
         },
         {
             "species": "SPECIES_SKUNTANK",
@@ -34,7 +35,8 @@
                 "MOVE_SCREECH"
             ],
             "power": 120,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_AFTERMATH"
         }
     ],
     "messages": [

@@ -20,7 +20,8 @@
                 "MOVE_TORMENT"
             ],
             "power": 90,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_LIMBER"
         },
         {
             "species": "SPECIES_CRAWDAUNT",
@@ -34,7 +35,8 @@
                 "MOVE_PROTECT"
             ],
             "power": 90,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_HYPER_CUTTER"
         }
     ],
     "messages": [

@@ -24,7 +24,8 @@
                 "MOVE_TAKE_DOWN"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
         },
         {
             "species": "SPECIES_FLOATZEL",
@@ -38,7 +39,8 @@
                 "MOVE_SWIFT"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_SWIFT_SWIM"
         },
         {
             "species": "SPECIES_RAPIDASH",
@@ -52,7 +54,8 @@
                 "MOVE_AGILITY"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_FLASH_FIRE"
         },
         {
             "species": "SPECIES_HERACROSS",
@@ -66,7 +69,8 @@
                 "MOVE_HORN_ATTACK"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_GUTS"
         },
         {
             "species": "SPECIES_TORTERRA",
@@ -80,7 +84,8 @@
                 "MOVE_SYNTHESIS"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_OVERGROW"
         }
     ],
     "messages": [

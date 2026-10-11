@@ -20,7 +20,8 @@
                 "MOVE_AIR_CUTTER"
             ],
             "power": 80,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         },
         {
             "species": "SPECIES_GURDURR",
@@ -34,7 +35,8 @@
                 "MOVE_WAKE_UP_SLAP"
             ],
             "power": 80,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_GUTS"
         }
     ],
     "messages": [

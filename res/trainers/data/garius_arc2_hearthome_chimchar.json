@@ -24,7 +24,8 @@
                 "MOVE_TAKE_DOWN"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
         },
         {
             "species": "SPECIES_ROSERADE",
@@ -38,7 +39,8 @@
                 "MOVE_TOXIC_SPIKES"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_POISON_POINT"
         },
         {
             "species": "SPECIES_RAPIDASH",
@@ -52,7 +54,8 @@
                 "MOVE_AGILITY"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_FLASH_FIRE"
         },
         {
             "species": "SPECIES_HERACROSS",
@@ -66,7 +69,8 @@
                 "MOVE_HORN_ATTACK"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_GUTS"
         },
         {
             "species": "SPECIES_EMPOLEON",
@@ -80,7 +84,8 @@
                 "MOVE_SWORDS_DANCE"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_TORRENT"
         }
     ],
     "messages": [

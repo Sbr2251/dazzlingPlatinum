@@ -24,7 +24,8 @@
                 "MOVE_ROAR"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
         },
         {
             "species": "SPECIES_SABLEYE",
@@ -38,7 +39,8 @@
                 "MOVE_RECOVER"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_KEEN_EYE"
         },
         {
             "species": "SPECIES_HONCHKROW",
@@ -52,7 +54,8 @@
                 "MOVE_ROOST"
             ],
             "power": 170,
-            "ball_seal": 0
+            "ball_seal": 0,
+            "ability": "ABILITY_SUPER_LUCK"
         }
     ],
     "messages": [
