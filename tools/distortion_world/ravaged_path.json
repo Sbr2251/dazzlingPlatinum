@@ -12,14 +12,19 @@
         15,
         16
     ],
+    "notes": "rift-a, scene 2.6. West wall x=11, z 13-22 (columns), y 5..2 (rows, top first). '.' seam, '*' SCAR (walkable; the step hook Arc2DwRavagedPath_HandleStep in src/overlay009/ov9_02249960.c tracks it: one step per scar, crumbles one step after you leave), '#' blocked (top rim, the two wall trees). Keep the '*' tiles in sync with sRavagedPathScarTiles. Fork at z19; the seam climbs to y4 over the scar at z20-21 and comes down at z22.",
+    "scars": [
+        {"scar": 0, "tiles": [[2, 16]]},
+        {"scar": 1, "tiles": [[2, 20], [2, 21], [3, 20], [3, 21]]}
+    ],
     "platforms": [
         {
             "attr": 13,
             "rows": [
                 "##########",
                 "..####....",
-                "..####....",
-                ".........."
+                "..####.**.",
+                "...*...**."
             ]
         }
     ]

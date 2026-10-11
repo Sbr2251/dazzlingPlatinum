@@ -2270,8 +2270,136 @@ static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
 
 // Arc 2 rifts (R0 stubs): per-map step hooks, called from ov9_0224A71C with DW world tile coordinates. Each
 // rift workstream fills in only its own function (rift-a: RavagedPath, EternaForest; rift-b: the rest).
+
+// Arc 2 rift-a, DW Ravaged Path (scene 2.6, res/field/scripts/scripts_dw_ravaged_path.s): SCARS on the west wall x=11
+// (the Arc 1 seams clone). A scar is a group of cracked wall tiles that holds you for exactly one step: stepping onto
+// it cracks (sound), one step after you leave it it crumbles (sound), and stepping onto a scar that already held you,
+// or from one scar tile onto another of the same scar, drops you (the fall script resets you at the entry). The scars
+// reset whenever the player is back on the entry walkway or ledge. Fork and halfway triggers need the height, which
+// coord events can't check. Tile list mirrored in tools/distortion_world/ravaged_path.json ("scars").
+#define RAVAGED_PATH_WALL_X          11
+#define RAVAGED_PATH_FLOOR_Y         1
+#define RAVAGED_PATH_SCRIPT_FALL     2 // map script entries (1-based)
+#define RAVAGED_PATH_SCRIPT_FORK     4
+#define RAVAGED_PATH_SCRIPT_HALFWAY  5
+#define RAVAGED_PATH_SCRIPT_TOTEM    6
+#define RAVAGED_PATH_SCRIPT_TALK     7
+#define RAVAGED_PATH_FORK_Z          19 // first column past the wall trees: the bottom row (scar) or up (the seam)
+#define RAVAGED_PATH_HALFWAY_Y       4  // the top of the seam, over the scar: GIRATINA's shadow passes below
+#define RAVAGED_PATH_HALFWAY_Z       20
+#define RAVAGED_PATH_SCAR_COUNT      2
+#define RAVAGED_PATH_NO_SCAR         0xFF
+
+enum Arc2ScarState {
+    ARC2_SCAR_INTACT = 0,
+    ARC2_SCAR_HOLDING,
+    ARC2_SCAR_LEFT,
+    ARC2_SCAR_CRUMBLED,
+};
+
+typedef struct Arc2ScarTile {
+    u8 y;
+    u8 z;
+    u8 scar;
+} Arc2ScarTile;
+
+static const Arc2ScarTile sRavagedPathScarTiles[] = {
+    { 2, 16, 0 }, // under the wall trees: the only way on, crossed once
+    { 2, 20, 1 }, // the bottom-row branch past the fork ("That one is a scar.")
+    { 2, 21, 1 },
+    { 3, 20, 1 },
+    { 3, 21, 1 },
+};
+
+static u8 sRavagedPathScarStates[RAVAGED_PATH_SCAR_COUNT];
+static u8 sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
+static u8 sRavagedPathForkShown;
+
+static u8 RavagedPath_GetScarAt(int x, int y, int z)
+{
+    if (x != RAVAGED_PATH_WALL_X || y <= RAVAGED_PATH_FLOOR_Y) {
+        return RAVAGED_PATH_NO_SCAR;
+    }
+
+    for (int i = 0; i < NELEMS(sRavagedPathScarTiles); i++) {
+        if (sRavagedPathScarTiles[i].y == y && sRavagedPathScarTiles[i].z == z) {
+            return sRavagedPathScarTiles[i].scar;
+        }
+    }
+
+    return RAVAGED_PATH_NO_SCAR;
+}
+
+static void RavagedPath_ResetScars(void)
+{
+    for (int i = 0; i < RAVAGED_PATH_SCAR_COUNT; i++) {
+        sRavagedPathScarStates[i] = ARC2_SCAR_INTACT;
+    }
+
+    sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
+    sRavagedPathForkShown = FALSE;
+}
+
 static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+    u8 scar, i;
+
+    if (*VarsFlags_GetVarAddress(varsFlags, VAR_ARC2_PROGRESS) != 14) {
+        return FALSE;
+    }
+
+    // Back on the entry walkway or the jump-on ledge (after a fall, or never left): the wall is whole again.
+    if (y == RAVAGED_PATH_FLOOR_Y && z <= 15 && x >= 12) {
+        RavagedPath_ResetScars();
+        return FALSE;
+    }
+
+    scar = RavagedPath_GetScarAt(x, y, z);
+
+    // A scar left on the previous step crumbles now.
+    for (i = 0; i < RAVAGED_PATH_SCAR_COUNT; i++) {
+        if (sRavagedPathScarStates[i] == ARC2_SCAR_LEFT) {
+            sRavagedPathScarStates[i] = ARC2_SCAR_CRUMBLED;
+            Sound_PlayEffect(SEQ_SE_DP_UG_023);
+        }
+    }
+
+    if (sRavagedPathPrevScar != RAVAGED_PATH_NO_SCAR && sRavagedPathPrevScar != scar
+        && sRavagedPathScarStates[sRavagedPathPrevScar] == ARC2_SCAR_HOLDING) {
+        sRavagedPathScarStates[sRavagedPathPrevScar] = ARC2_SCAR_LEFT;
+    }
+
+    if (scar != RAVAGED_PATH_NO_SCAR) {
+        if (sRavagedPathScarStates[scar] != ARC2_SCAR_INTACT) {
+            // A second step on the same scar, or back onto a spent one: it gives way.
+            RavagedPath_ResetScars();
+            Sound_PlayEffect(SEQ_SE_DP_UG_023);
+            ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_FALL, NULL);
+            return TRUE;
+        }
+
+        sRavagedPathScarStates[scar] = ARC2_SCAR_HOLDING;
+        Sound_PlayEffect(SEQ_SE_PL_KEZURI);
+    }
+
+    sRavagedPathPrevScar = scar;
+
+    if (VarsFlags_CheckFlag(varsFlags, FLAG_ARC2_RIFTA_B)) {
+        return FALSE;
+    }
+
+    if (!sRavagedPathForkShown && x == RAVAGED_PATH_WALL_X && y > RAVAGED_PATH_FLOOR_Y && z == RAVAGED_PATH_FORK_Z) {
+        sRavagedPathForkShown = TRUE;
+        ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_FORK, NULL);
+        return TRUE;
+    }
+
+    if (x == RAVAGED_PATH_WALL_X && y == RAVAGED_PATH_HALFWAY_Y && z == RAVAGED_PATH_HALFWAY_Z) {
+        ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_HALFWAY, NULL);
+        return TRUE;
+    }
+
     return FALSE;
 }
 
@@ -6657,6 +6785,18 @@ static const UnkStruct_ov9_02252414 Unk_ov9_02252414[] = {
         { FX32_ONE, FX32_ONE, FX32_ONE },
         { 0x0, 0x0, (FX32_ONE * 28) },
         0x28,
+    },
+    // Arc 2 rift-a, DW Ravaged Path (2.6, halfway): the same shadow, deeper and much slower, south along z under the
+    // briefcase platform while the player stands on top of the seam. Same whoosh; nobody reacts.
+    {
+        17,
+        -5,
+        -4,
+        0x1,
+        0x2,
+        { FX32_ONE, FX32_ONE, FX32_ONE },
+        { 0x0, 0x0, (FX32_ONE * 10) },
+        0x60,
     },
 };
 
@@ -13562,7 +13702,114 @@ static const UnkStruct_ov9_0224EF30 *sArc1SeamsObjects[] = {
 };
 
 // Arc 2 rifts (R0 stubs): DW overlay objects per map (local IDs 0x80+), each owned by that map's rift workstream.
+
+// Arc 2 rift-a, DW Ravaged Path. Cyrus waits at the entry (as in Arc 1) and folds across to the totem platform; the
+// map-local FLAG_UNK_0x0030 (set by the totem scene, kept through the battle reload, cleared by any warp) keeps him
+// off the entry once he has crossed. The rest are script-only (condition 6, ScrCmd_311/312).
+static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathCyrusAtEntry = {
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        FLAG_UNK_0x0030,
+        RAVAGED_PATH_SCRIPT_TALK,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        22,
+        11,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathCyrusAtTotem = {
+    0x6,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        RAVAGED_PATH_SCRIPT_TALK,
+        DIR_SOUTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        15,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// The totem, violet aura and all, at the far (east) end of the briefcase platform. Visible from the start. Its big
+// sprite draws west of its tile, so it stands well clear of Cyrus at (15,22).
+static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathTotem = {
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_TOTEM_HITMONLEE_VIOLET,
+        0x0,
+        0x0,
+        FLAG_UNK_0x0031,
+        0x0,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        19,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+// The same Hitmonlee once calm (no aura), shown by the script after the battle.
+static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathTotemCalm = {
+    0x6,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x83,
+        OBJ_EVENT_GFX_TOTEM_HITMONLEE,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        19,
+        22,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
 static const UnkStruct_ov9_0224EF30 *sArc2DwRavagedPathObjects[] = {
+    &sArc2DwRavagedPathCyrusAtEntry,
+    &sArc2DwRavagedPathCyrusAtTotem,
+    &sArc2DwRavagedPathTotem,
+    &sArc2DwRavagedPathTotemCalm,
     NULL
 };
 
