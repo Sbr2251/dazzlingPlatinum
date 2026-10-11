@@ -148,6 +148,13 @@ trainer_back_cell_json += files('dp_rival' / 'back_cell.json')
 trainer_back_anim_json += files('dp_rival' / 'back_anim.json')
 trainer_back_scan_png += files('dp_rival' / 'back_scan.png')
 
+# Arc 2: Cyrus's back pic for the 2.5 tag battle, not a trainer class directory either
+# (tools/arc2_sprites/cyrus_back.py); back pic index 11, after dp_rival
+trainer_back_png += files('arc2_wanderer_back' / 'back.png')
+trainer_back_cell_json += files('arc2_wanderer_back' / 'back_cell.json')
+trainer_back_anim_json += files('arc2_wanderer_back' / 'back_anim.json')
+trainer_back_scan_png += files('arc2_wanderer_back' / 'back_scan.png')
+
 # Stash the listing of trainer classes in an environment so that other processes can make
 # use of it.
 trainer_class_env = environment()
