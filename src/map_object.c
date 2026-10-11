@@ -26,6 +26,7 @@
 #include "overlay005/struct_ov5_021FB97C.h"
 
 #include "berry_patch_graphics.h"
+#include "field_move_tasks.h"
 #include "heap.h"
 #include "map_header_data.h"
 #include "map_object_move.h"
@@ -1045,6 +1046,7 @@ static void MapObjectTask_Draw(MapObject *mapObj)
 
     if (MapObjectMan_IsDrawInitialized(mapObjMan) == TRUE) {
         MapObject_Draw(mapObj);
+        FieldMoves_EchoGhostDraw(mapObj); // Arc 2 Resonator echoes (S8): ghost actors
     }
 }
 

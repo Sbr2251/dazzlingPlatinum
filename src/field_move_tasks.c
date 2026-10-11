@@ -13,6 +13,7 @@
 #include "generated/moves.h"
 #include "generated/object_events_gfx.h"
 
+#include "struct_decls/struct_020216E0_decl.h"
 #include "struct_decls/struct_02061AB4_decl.h"
 #include "struct_defs/pokemon.h"
 #include "struct_defs/struct_020708E0.h"
@@ -21,6 +22,8 @@
 #include "applications/town_map/main.h"
 #include "field/field_system.h"
 #include "overlay005/ov5_021DFB54.h"
+#include "overlay005/ov5_021EB1A0.h"
+#include "overlay005/ov5_021ECA70.h"
 #include "overlay005/ov5_021F101C.h"
 #include "overlay006/ov6_02247100.h"
 
@@ -45,8 +48,10 @@
 #include "unk_0203C954.h"
 #include "unk_0203D1B8.h"
 #include "unk_0205F180.h"
+#include "unk_02020AEC.h"
 #include "unk_020711C8.h"
 #include "vars_flags.h"
+#include "vram_transfer.h"
 
 #define FIELD_MOVE_FLAG(move) (1 << (move))
 
@@ -283,6 +288,199 @@ void FieldMoves_ApplyResonatorGhostPalette(const Pokemon *mon, u16 *palette, int
 
         palette[i] = (palette[i] & 0x8000) | (r > 31 ? 31 : r) | ((g > 31 ? 31 : g) << 5) | ((b > 31 ? 31 : b) << 10);
     }
+}
+
+// Arc 2 Resonator echoes (S8 Echo stage, workstream echo; scripts in ravaged_path, valley_windworks_building and
+// route_214). From the second calmed totem on, the Resonator replays a few seconds of what happened at a torture site.
+// The replay is a plain scripted cutscene: its actors are ordinary object events with local IDs ECHO_LOCALID_FIRST to
+// ECHO_LOCALID_LAST, and the script sets their opacity in VAR_MAP_LOCAL_5 (0 = off, 1-31). This hook, run after
+// every map object draws (MapObjectTask_Draw), turns those actors into ghosts the way the Resonator cut-in shows a
+// totem: the sprite's palette washed pale violet (FieldMoves_ApplyResonatorGhostPalette's wash, precomputed per
+// sprite by tools/arc2_echo/echo_palettes.py) and the billboard drawn translucent with no shadow (the Lost Tower ghost
+// acts' material-callback approach, src/overlay009/ov9_02249960.c). At opacity 0 the actors are hidden.
+// The washed palettes sit in their own texture-palette VRAM block while an echo plays: allocated on the first ghost
+// draw, freed on the first draw after the opacity is back to 0. Echo scripts set it to 0 and wait a frame before they
+// release the player, so the block never outlives the field.
+#define ECHO_LOCALID_FIRST 0xC0
+#define ECHO_LOCALID_LAST  0xC7
+#define ECHO_OPACITY_VAR   VAR_MAP_LOCAL_5
+#define ECHO_OPACITY_MAX   31
+#define ECHO_POLYGON_ID    0x31 // + the palette index: overlapping ghosts of different sprites still blend
+
+typedef struct EchoGhostPalette {
+    u16 graphicsID;
+    u16 singleFrame; // drawn by the single-frame renderers (ov5_021ECA70.c): billboard via ov5_021ECB80
+    u16 colors[16];
+} EchoGhostPalette;
+
+static const EchoGhostPalette sEchoGhostPalettes[] = {
+    { OBJ_EVENT_GFX_ECLIPSE_GRUNT_M, FALSE,
+        { 0x7C1F, 0x40E9, 0x452B, 0x4D6D, 0x59F1, 0x4D6D, 0x5E12, 0x72F9,
+            0x518E, 0x6654, 0x72F9, 0x494C, 0x59F1, 0x7B3B, 0x6EB7, 0x59F1 } },
+    { OBJ_EVENT_GFX_ECLIPSE_GRUNT_F, FALSE,
+        { 0x7C1F, 0x40E9, 0x452B, 0x4D6D, 0x59F1, 0x4D6D, 0x5E12, 0x72F9,
+            0x518E, 0x6654, 0x72F9, 0x494C, 0x59F1, 0x7B3B, 0x6EB7, 0x59F1 } },
+    { OBJ_EVENT_GFX_ECLIPSE_CRATE, TRUE,
+        { 0x7C1F, 0x40E9, 0x494C, 0x55AF, 0x5E12, 0x6A96, 0x494C, 0x5E12,
+            0x494C, 0x5E12, 0x72D8, 0x3CC8, 0x6EB7, 0x3CC8, 0x3CC8, 0x3CC8 } },
+    { OBJ_EVENT_GFX_SHARD_FRAME, TRUE,
+        { 0x7C1F, 0x3CC8, 0x492B, 0x55AF, 0x6254, 0x72D8, 0x492B, 0x518E,
+            0x492B, 0x59F1, 0x6A96, 0x771A, 0x4D6D, 0x3CC8, 0x3CC8, 0x3CC8 } },
+    { OBJ_EVENT_GFX_RIFT_ARC2, TRUE,
+        { 0x7C1F, 0x3CC8, 0x40E9, 0x450A, 0x4D6D, 0x59F1, 0x6A96, 0x7B3B,
+            0x5E12, 0x51AF, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8 } },
+    { OBJ_EVENT_GFX_TOTEM_HITMONLEE, TRUE,
+        { 0x0000, 0x771A, 0x3CC8, 0x5E12, 0x4D6D, 0x6654, 0x6A96, 0x55AF,
+            0x6ED8, 0x55AF, 0x492B, 0x59F1, 0x5E12, 0x3CC8, 0x3CC8, 0x3CC8 } },
+    { OBJ_EVENT_GFX_TOTEM_SKARMORY, TRUE,
+        { 0x0000, 0x771A, 0x3CC8, 0x6654, 0x51AF, 0x4D6D, 0x6ED8, 0x6675,
+            0x492B, 0x40E9, 0x55AF, 0x5E12, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8 } },
+    { OBJ_EVENT_GFX_PIKACHU, FALSE, // the Plusle and Minun stand-in
+        { 0x316D, 0x3CC8, 0x492B, 0x6ED8, 0x518E, 0x6654, 0x59F1, 0x771A,
+            0x59F1, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8 } },
+};
+
+#define ECHO_PALETTE_COUNT NELEMS(sEchoGhostPalettes)
+
+// A ghost's render object points (ptrUser) at its tag, the palette index. NNS_G3dRenderObjInit clears ptrUser and the callback
+// when a billboard is reused, so a stale tag can't follow a billboard to another object.
+static u8 sEchoGhostTags[ECHO_PALETTE_COUNT];
+static NNSGfdPlttKey sEchoPlttKey;
+static BOOL sEchoPlttHeld;
+static const MapObjectManager *sEchoPlttOwner;
+static u8 sEchoOpacity;
+
+static void FieldMoves_EchoGhostMaterialCallback(NNSG3dRS *rs)
+{
+    NNSG3dRenderObj *renderObj = NNS_G3dRSGetRenderObj(rs);
+    NNSG3dMatAnmResult *result;
+    const u8 *tag = renderObj->ptrUser;
+    int alpha = sEchoOpacity;
+
+    if (tag < &sEchoGhostTags[0] || tag >= &sEchoGhostTags[ECHO_PALETTE_COUNT] || alpha == 0) {
+        return;
+    }
+
+    result = NNS_G3dRSGetMatAnmResult(rs);
+
+    if (sEchoPlttHeld) {
+        result->prmTexPltt = (NNS_GfdGetPlttKeyAddr(sEchoPlttKey) + *tag * sizeof(sEchoGhostPalettes[0].colors)) >> 4;
+    }
+
+    result->prmPolygonAttr = (result->prmPolygonAttr & ~(REG_G3_POLYGON_ATTR_ALPHA_MASK | REG_G3_POLYGON_ATTR_ID_MASK))
+        | (alpha << REG_G3_POLYGON_ATTR_ALPHA_SHIFT) | ((ECHO_POLYGON_ID + *tag) << REG_G3_POLYGON_ATTR_ID_SHIFT);
+}
+
+static void FieldMoves_EchoLoadPalettes(const MapObjectManager *mapObjMan)
+{
+    u32 addr;
+
+    if (sEchoPlttHeld) {
+        return;
+    }
+
+    sEchoPlttKey = NNS_GfdAllocPlttVram(sizeof(sEchoGhostPalettes[0].colors) * ECHO_PALETTE_COUNT, FALSE, 0);
+
+    if (sEchoPlttKey == NNS_GFD_ALLOC_ERROR_PLTTKEY) {
+        return; // no room: the ghosts stay translucent in their own colours (retried next frame)
+    }
+
+    sEchoPlttHeld = TRUE;
+    sEchoPlttOwner = mapObjMan;
+    addr = NNS_GfdGetPlttKeyAddr(sEchoPlttKey);
+
+    for (int i = 0; i < ECHO_PALETTE_COUNT; i++) {
+        VramTransfer_Request(NNS_GFD_DST_3D_TEX_PLTT, addr + i * sizeof(sEchoGhostPalettes[0].colors), (void *)sEchoGhostPalettes[i].colors, sizeof(sEchoGhostPalettes[0].colors));
+    }
+}
+
+static void FieldMoves_EchoFreePalettes(const MapObjectManager *mapObjMan)
+{
+    if (sEchoPlttHeld == FALSE) {
+        return;
+    }
+
+    // A different object manager means a new field with fresh VRAM managers: the old block is already gone.
+    if (sEchoPlttOwner == mapObjMan) {
+        NNS_GfdFreePlttVram(sEchoPlttKey);
+    }
+
+    sEchoPlttHeld = FALSE;
+    sEchoPlttOwner = NULL;
+}
+
+void FieldMoves_EchoGhostDraw(MapObject *mapObj)
+{
+    const MapObjectManager *mapObjMan = MapObject_MapObjectManager(mapObj);
+    FieldSystem *fieldSystem = MapObjectMan_FieldSystem(mapObjMan);
+    u32 localID = MapObject_GetLocalID(mapObj);
+    u16 opacity;
+    UnkStruct_020216E0 *billboard;
+    NNSG3dRenderObj *renderObj;
+    u32 graphicsID;
+    int palette;
+
+    if (fieldSystem == NULL || fieldSystem->saveData == NULL) {
+        return;
+    }
+
+    opacity = *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), ECHO_OPACITY_VAR);
+
+    if (opacity > ECHO_OPACITY_MAX) {
+        opacity = ECHO_OPACITY_MAX;
+    }
+
+    sEchoOpacity = opacity;
+
+    if (opacity == 0) {
+        FieldMoves_EchoFreePalettes(mapObjMan);
+    }
+
+    if (localID < ECHO_LOCALID_FIRST || localID > ECHO_LOCALID_LAST) {
+        return;
+    }
+
+    if (MapObject_IsHidden(mapObj) != (opacity == 0)) {
+        MapObject_SetHidden(mapObj, opacity == 0);
+    }
+
+    MapObject_SetStatusFlagOn(mapObj, MAP_OBJ_STATUS_HIDE_SHADOW);
+
+    if (opacity == 0) {
+        return;
+    }
+
+    graphicsID = MapObject_GetGraphicsID(mapObj);
+
+    for (palette = 0; palette < ECHO_PALETTE_COUNT; palette++) {
+        if (sEchoGhostPalettes[palette].graphicsID == graphicsID) {
+            break;
+        }
+    }
+
+    // Only the sprites listed above become ghosts (each renderer keeps its billboard in its own data, so an unlisted
+    // sprite's billboard can't be found safely); any other actor is just shown and hidden with the opacity.
+    if (palette == ECHO_PALETTE_COUNT) {
+        return;
+    }
+
+    // The single-frame sprites (crates, frames, rifts, totems) keep their billboard in their own renderer data.
+    if (sEchoGhostPalettes[palette].singleFrame) {
+        billboard = ov5_021ECB80(mapObj);
+    } else {
+        billboard = ov5_021EB1A0(mapObj);
+    }
+
+    if (billboard == NULL) {
+        return;
+    }
+
+    FieldMoves_EchoLoadPalettes(mapObjMan);
+
+    sEchoGhostTags[palette] = palette;
+    renderObj = sub_02021440(billboard);
+    renderObj->ptrUser = &sEchoGhostTags[palette];
+    NNS_G3dRenderObjSetCallBack(renderObj, FieldMoves_EchoGhostMaterialCallback, NULL, NNS_G3D_SBC_MAT, NNS_G3D_SBC_CALLBACK_TIMING_B);
 }
 
 // Pressing A in fog with nothing else to interact with offers the Resonator's Defog (FieldMoves_Fog).
