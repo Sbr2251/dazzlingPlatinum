@@ -492,6 +492,51 @@
             "x": 660,
             "z": 576,
             "y": 0
+        },
+        {
+            "id": "LOCALID_ARC2_CYRUS",
+            "graphics_id": "OBJ_EVENT_GFX_CYRUS",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 11,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 664,
+            "z": 595,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC2_CRATE",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0031",
+            "script": 10,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 663,
+            "z": 595,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC2_BUNEARY",
+            "graphics_id": "OBJ_EVENT_GFX_BUNEARY",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0032",
+            "script": 0,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 662,
+            "z": 595,
+            "y": 0
         }
     ],
     "warp_events": [
@@ -508,5 +553,26 @@
             "dest_warp_id": 1
         }
     ],
-    "coord_events": []
+    "coord_events": [
+        {
+            "script": 9,
+            "x": 667,
+            "z": 595,
+            "y": 0,
+            "width": 1,
+            "length": 6,
+            "var": "VAR_MAP_LOCAL_1",
+            "value": 1
+        },
+        {
+            "script": 9,
+            "x": 659,
+            "z": 597,
+            "y": 0,
+            "width": 1,
+            "length": 3,
+            "var": "VAR_MAP_LOCAL_1",
+            "value": 1
+        }
+    ]
 }
