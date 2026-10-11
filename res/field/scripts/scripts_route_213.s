@@ -1084,6 +1084,7 @@ Route213_Arc2Cyrus:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    GoToIfGe VAR_ARC2_PROGRESS, 86, Route213_Arc2CyrusBeach
     GoToIfGe VAR_ARC2_PROGRESS, 82, Route213_Arc2CyrusRift
     Message Route213_Text_Arc2RaidMouthCyrus
     GoTo Route213_Arc2TalkEnd
@@ -1091,6 +1092,12 @@ Route213_Arc2Cyrus:
 
 Route213_Arc2CyrusRift:
     Message Route213_Text_Arc2RaidCyrusGoNow
+    GoTo Route213_Arc2TalkEnd
+    End
+
+// (unreachable in play: the beach scene starts before the player can reach him)
+Route213_Arc2CyrusBeach:
+    Message Route213_Text_Arc2RaidMouthCyrus
     GoTo Route213_Arc2TalkEnd
     End
 
@@ -1126,10 +1133,226 @@ Route213_Arc2Calm:
     ReleaseAll
     End
 
-// 2.23 (the beach): next commit
+// 2.23: coord at the mouth of the east beach (700,832), VAR_ARC2_PROGRESS 86
 Route213_Arc2BeachTriggerMouth:
-Route213_Arc2BeachTriggerOther:
+    LockAll
+    ApplyMovement LOCALID_PLAYER, Route213_Arc2Movement_StepEast
+    WaitMovement
+    GoTo Route213_Arc2Beach
     End
+
+// Same scene for a player who reached the beach some other way (Surf): staged at the mouth
+Route213_Arc2BeachTriggerOther:
+    LockAll
+    FadeScreenOut
+    WaitFadeScreen
+    SetPosition LOCALID_PLAYER, 701, 0, 832, DIR_EAST
+    WaitTime 4, VAR_RESULT
+    FadeScreenIn
+    WaitFadeScreen
+    GoTo Route213_Arc2Beach
+    End
+
+Route213_Arc2Beach:
+    // Garius walks up beside the player
+    SetObjectEventPos ROUTE_213_ARC2_GARIUS, 691, 832
+    SetObjectEventDir ROUTE_213_ARC2_GARIUS, DIR_EAST
+    ClearFlag FLAG_UNK_0x0034
+    AddObject ROUTE_213_ARC2_GARIUS
+    ApplyMovement ROUTE_213_ARC2_GARIUS, Route213_Arc2Movement_GariusWalkUp
+    WaitMovement
+    ApplyMovement LOCALID_PLAYER, Route213_Arc2Movement_FaceNorth
+    WaitMovement
+    BufferRivalName 1
+    Call Route213_Arc2CountLedger
+    Call Route213_Arc2GariusOpening
+    WaitABXPadPress
+    CloseMessage
+    BufferRivalName 1
+    Message Route213_Text_Arc2BeachEveryTime
+    WaitABXPadPress
+    CloseMessage
+    Message Route213_Text_Arc2BeachNothing
+    WaitABXPadPress
+    CloseMessage
+    Message Route213_Text_Arc2BeachProveIt
+    WaitABXPadPress
+    CloseMessage
+    // The player walks to Cyrus; he turns before the player reaches him
+    ApplyMovement LOCALID_PLAYER, Route213_Arc2Movement_PlayerToCyrus1
+    WaitMovement
+    ApplyMovement ROUTE_213_ARC2_CYRUS, Route213_Arc2Movement_FaceWest
+    WaitMovement
+    ApplyMovement LOCALID_PLAYER, Route213_Arc2Movement_PlayerToCyrus2
+    WaitMovement
+    Message Route213_Text_Arc2BeachCyrusLook
+    WaitABXPadPress
+    CloseMessage
+    Message Route213_Text_Arc2BeachCyrusJudge
+    WaitABXPadPress
+    CloseMessage
+    Call Route213_Arc2SetCyrusTeam
+    StartTrainerBattle VAR_0x8004
+    CheckWonBattle VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, Route213_Arc2LostBattle
+    SetVar VAR_ARC2_PROGRESS, 88
+    Message Route213_Text_Arc2BeachCyrusWait
+    WaitABXPadPress
+    CloseMessage
+    Message Route213_Text_Arc2BeachCyrusAlone
+    WaitABXPadPress
+    CloseMessage
+    // Cyrus walks off west
+    ApplyMovement ROUTE_213_ARC2_CYRUS, Route213_Arc2Movement_CyrusLeave
+    ApplyMovement LOCALID_PLAYER, Route213_Arc2Movement_WatchSouthWest
+    WaitMovement
+    RemoveObject ROUTE_213_ARC2_CYRUS
+    // Ruth comes down the beach
+    SetObjectEventPos ROUTE_213_ARC2_RUTH, 695, 832
+    SetObjectEventDir ROUTE_213_ARC2_RUTH, DIR_EAST
+    ClearFlag FLAG_UNK_0x0032
+    AddObject ROUTE_213_ARC2_RUTH
+    ApplyMovement ROUTE_213_ARC2_RUTH, Route213_Arc2Movement_RuthComeDown
+    WaitMovement
+    ApplyMovement LOCALID_PLAYER, Route213_Arc2Movement_FaceWest
+    WaitMovement
+    Message Route213_Text_Arc2BeachRuth
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement ROUTE_213_ARC2_RUTH, Route213_Arc2Movement_RuthLeave
+    WaitMovement
+    RemoveObject ROUTE_213_ARC2_RUTH
+    // Garius leaves without a word
+    ApplyMovement ROUTE_213_ARC2_GARIUS, Route213_Arc2Movement_GariusLeave
+    WaitMovement
+    RemoveObject ROUTE_213_ARC2_GARIUS
+    SetVar VAR_ARC2_PROGRESS, 89
+    ReleaseAll
+    End
+
+// TRAINER_CYRUS_ARC2_3_<player's starter> into VAR_0x8004
+Route213_Arc2SetCyrusTeam:
+    GetPlayerStarterSpecies VAR_RESULT
+    SetVar VAR_0x8004, TRAINER_CYRUS_ARC2_3_CHIMCHAR
+    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, Route213_Arc2Return
+    SetVar VAR_0x8004, TRAINER_CYRUS_ARC2_3_PIPLUP
+    GoToIfEq VAR_RESULT, SPECIES_PIPLUP, Route213_Arc2Return
+    SetVar VAR_0x8004, TRAINER_CYRUS_ARC2_3_TURTWIG
+    Return
+
+// The ledger decode (screenplay_v2 "Reading it"): VAR_ARC2_SUSPECT copied to VAR_0x8008, the answered bits peeled
+// off (recorded in VAR_MAP_LOCAL_12-15 for L3-L0), then each leak's pick peeled from the top. Picks are counted
+// into VAR_0x8004 Cyrus, 0x8005 Garius, 0x8006 Ruth, 0x8007 Bad luck; a leak that was never answered counts for
+// nobody. (Normal play answers all four.)
+Route213_Arc2CountLedger:
+    SetVar VAR_0x8004, 0
+    SetVar VAR_0x8005, 0
+    SetVar VAR_0x8006, 0
+    SetVar VAR_0x8007, 0
+    SetVar VAR_0x8008, VAR_ARC2_SUSPECT
+    SetVar VAR_MAP_LOCAL_12, 0
+    SetVar VAR_MAP_LOCAL_13, 0
+    SetVar VAR_MAP_LOCAL_14, 0
+    SetVar VAR_MAP_LOCAL_15, 0
+    CallIfGe VAR_0x8008, 2048, Route213_Arc2Answered3
+    CallIfGe VAR_0x8008, 1024, Route213_Arc2Answered2
+    CallIfGe VAR_0x8008, 512, Route213_Arc2Answered1
+    CallIfGe VAR_0x8008, 256, Route213_Arc2Answered0
+    // L3: 64 per step
+    SetVar VAR_MAP_LOCAL_16, 64
+    SetVar VAR_MAP_LOCAL_17, VAR_MAP_LOCAL_12
+    Call Route213_Arc2PeelLeak
+    // L2: 16
+    SetVar VAR_MAP_LOCAL_16, 16
+    SetVar VAR_MAP_LOCAL_17, VAR_MAP_LOCAL_13
+    Call Route213_Arc2PeelLeak
+    // L1: 4
+    SetVar VAR_MAP_LOCAL_16, 4
+    SetVar VAR_MAP_LOCAL_17, VAR_MAP_LOCAL_14
+    Call Route213_Arc2PeelLeak
+    // L0: 1
+    SetVar VAR_MAP_LOCAL_16, 1
+    SetVar VAR_MAP_LOCAL_17, VAR_MAP_LOCAL_15
+    Call Route213_Arc2PeelLeak
+    Return
+
+Route213_Arc2Answered3:
+    SubVar VAR_0x8008, 2048
+    SetVar VAR_MAP_LOCAL_12, 1
+    Return
+
+Route213_Arc2Answered2:
+    SubVar VAR_0x8008, 1024
+    SetVar VAR_MAP_LOCAL_13, 1
+    Return
+
+Route213_Arc2Answered1:
+    SubVar VAR_0x8008, 512
+    SetVar VAR_MAP_LOCAL_14, 1
+    Return
+
+Route213_Arc2Answered0:
+    SubVar VAR_0x8008, 256
+    SetVar VAR_MAP_LOCAL_15, 1
+    Return
+
+// In: VAR_MAP_LOCAL_16 = the leak's unit (64/16/4/1), VAR_MAP_LOCAL_17 = answered. Peels 3, 2 or 1 units off
+// VAR_0x8008 (Bad luck, Ruth, Garius; none = Cyrus) and counts the pick if the leak was answered.
+Route213_Arc2PeelLeak:
+    SetVar VAR_MAP_LOCAL_18, VAR_MAP_LOCAL_16
+    AddVar VAR_MAP_LOCAL_18, VAR_MAP_LOCAL_16
+    SetVar VAR_MAP_LOCAL_19, VAR_MAP_LOCAL_18
+    AddVar VAR_MAP_LOCAL_19, VAR_MAP_LOCAL_16
+    // _16 = 1 unit, _18 = 2 units, _19 = 3 units
+    GoToIfGe VAR_0x8008, VAR_MAP_LOCAL_19, Route213_Arc2PeelBadLuck
+    GoToIfGe VAR_0x8008, VAR_MAP_LOCAL_18, Route213_Arc2PeelRuth
+    GoToIfGe VAR_0x8008, VAR_MAP_LOCAL_16, Route213_Arc2PeelGarius
+    GoToIfEq VAR_MAP_LOCAL_17, 0, Route213_Arc2Return
+    AddVar VAR_0x8004, 1
+    Return
+
+Route213_Arc2PeelBadLuck:
+    SubVar VAR_0x8008, VAR_MAP_LOCAL_19
+    GoToIfEq VAR_MAP_LOCAL_17, 0, Route213_Arc2Return
+    AddVar VAR_0x8007, 1
+    Return
+
+Route213_Arc2PeelRuth:
+    SubVar VAR_0x8008, VAR_MAP_LOCAL_18
+    GoToIfEq VAR_MAP_LOCAL_17, 0, Route213_Arc2Return
+    AddVar VAR_0x8006, 1
+    Return
+
+Route213_Arc2PeelGarius:
+    SubVar VAR_0x8008, VAR_MAP_LOCAL_16
+    GoToIfEq VAR_MAP_LOCAL_17, 0, Route213_Arc2Return
+    AddVar VAR_0x8005, 1
+    Return
+
+// First match wins: Cyrus 3-4, Bad luck 3-4, Ruth 2+, Garius 2+, anything else
+Route213_Arc2GariusOpening:
+    GoToIfGe VAR_0x8004, 3, Route213_Arc2OpeningCyrus
+    GoToIfGe VAR_0x8007, 3, Route213_Arc2OpeningBadLuck
+    GoToIfGe VAR_0x8006, 2, Route213_Arc2OpeningRuth
+    GoToIfGe VAR_0x8005, 2, Route213_Arc2OpeningGarius
+    Message Route213_Text_Arc2BeachGariusMixed
+    Return
+
+Route213_Arc2OpeningCyrus:
+    Message Route213_Text_Arc2BeachGariusCyrus
+    Return
+
+Route213_Arc2OpeningBadLuck:
+    Message Route213_Text_Arc2BeachGariusBadLuck
+    Return
+
+Route213_Arc2OpeningRuth:
+    Message Route213_Text_Arc2BeachGariusRuth
+    Return
+
+Route213_Arc2OpeningGarius:
+    Message Route213_Text_Arc2BeachGariusGarius
+    Return
 
     .balign 4, 0
 Route213_Arc2Movement_FaceNorth:
@@ -1218,10 +1441,55 @@ Route213_Arc2Movement_LookerStepEast:
     FaceEast
     EndMovement
 
+    .balign 4, 0
+Route213_Arc2Movement_GariusWalkUp:
+    WalkNormalEast 9
+    WalkNormalNorth
+    WalkNormalEast
+    FaceSouth
+    EndMovement
 
+    .balign 4, 0
+Route213_Arc2Movement_PlayerToCyrus1:
+    WalkNormalEast 11
+    WalkNormalNorth
+    EndMovement
 
+    .balign 4, 0
+Route213_Arc2Movement_PlayerToCyrus2:
+    WalkNormalNorth 2
+    FaceEast
+    EndMovement
 
+    .balign 4, 0
+Route213_Arc2Movement_CyrusLeave:
+    WalkNormalSouth 3
+    WalkNormalWest 14
+    EndMovement
 
+    .balign 4, 0
+Route213_Arc2Movement_WatchSouthWest:
+    Delay8
+    FaceSouth
+    Delay8 4
+    FaceWest
+    EndMovement
 
+    .balign 4, 0
+Route213_Arc2Movement_RuthComeDown:
+    WalkNormalEast 16
+    WalkNormalNorth 3
+    FaceEast
+    EndMovement
 
+    .balign 4, 0
+Route213_Arc2Movement_RuthLeave:
+    WalkNormalSouth 3
+    WalkNormalWest 16
+    EndMovement
 
+    .balign 4, 0
+Route213_Arc2Movement_GariusLeave:
+    WalkNormalSouth
+    WalkNormalWest 6
+    EndMovement

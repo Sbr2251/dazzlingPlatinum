@@ -286,6 +286,109 @@
     {
       "id": "Route213_Text_Arc2RaidMouthCyrus",
       "en_US": "Cyrus: ..."
+    },
+    {
+      "id": "Route213_Text_Arc2BeachGariusCyrus",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: You've known since Ravaged\n",
+        "Path. You just needed someone\r",
+        "to say it."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachGariusBadLuck",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Ruth says you keep calling\n",
+        "it bad luck. Nobody's that unlucky."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachGariusRuth",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Ruth says you even wondered\n",
+        "about HER. Come on."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachGariusGarius",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Ruth says you wondered\n",
+        "about me. Fine. Look all you want."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachGariusMixed",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Ruth says you keep changing\n",
+        "your mind. I get it. Count it up."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachEveryTime",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Ravaged Path. Windworks.\n",
+        "Celestic. Route 214. Tonight.\r",
+        "Every time, he's there. Every time,\n",
+        "they know."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachNothing",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Looker can't find a single\n",
+        "thing about him.\r",
+        "Come on. You know it's him."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachProveIt",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Make him prove it.\n",
+        "Battle him."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachCyrusLook",
+      "en_US": [
+        "Cyrus: You don't need to say it.\r",
+        "I've seen that look before. I used\n",
+        "to wear it."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachCyrusJudge",
+      "en_US": [
+        "Cyrus: Words prove nothing.\r",
+        "Judge me the way trainers do."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachCyrusWait",
+      "en_US": [
+        "Cyrus: ...Whatever you've decided,\r",
+        "I won't stand here and wait to be\n",
+        "believed."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachCyrusAlone",
+      "en_US": [
+        "Cyrus: Ruth's readings show a rift\n",
+        "in the Lost Tower, near Hearthome.\r",
+        "I'll go in alone.\r",
+        "If there's proof of who's doing\n",
+        "this, it's in that world.\r",
+        "I'll find it."
+      ]
+    },
+    {
+      "id": "Route213_Text_Arc2BeachRuth",
+      "en_US": [
+        "Ruth: I'm taking Looker's samples\n",
+        "back to the lab.\r",
+        "...Be careful. Both of you. All of\n",
+        "you."
+      ]
     }
   ]
 }

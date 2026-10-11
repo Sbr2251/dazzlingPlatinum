@@ -896,6 +896,26 @@
             "length": 10,
             "var": "VAR_MAP_LOCAL_5",
             "value": 1
+        },
+        {
+            "script": 17,
+            "x": 700,
+            "z": 832,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 86
+        },
+        {
+            "script": 18,
+            "x": 701,
+            "z": 823,
+            "y": 0,
+            "width": 15,
+            "length": 10,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 86
         }
     ]
 }
