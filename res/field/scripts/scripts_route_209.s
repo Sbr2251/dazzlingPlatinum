@@ -134,13 +134,15 @@ Route209_LookerLeaves:
     SetVar VAR_ARC2_PROGRESS, 99
     RemoveObject ROUTE_209_PROF_ROWAN
     RemoveObject ROUTE_209_CYRUS
+    WaitTime 30, VAR_RESULT
+    // Text drawn during a brightness fade is black too, so the end card plays over the emptied tower front.
+    FadeScreenIn FADE_SCREEN_SPEED_SLOW
+    WaitFadeScreen
     Message Route209_Text_EndOfArc2
     WaitABXPadPress
     Message Route209_Text_ToBeContinued
     WaitABXPadPress
     CloseMessage
-    FadeScreenIn
-    WaitFadeScreen
     ReleaseAll
     End
 
