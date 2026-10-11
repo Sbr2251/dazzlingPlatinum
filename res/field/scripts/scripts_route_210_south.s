@@ -14,7 +14,6 @@
 // Arc 2 (s-celestic): Defog active for the seamless walk north (Route 210 North's fog is off, see
 // scripts_route_210_north.s); the Psyduck blockade is gone once Cyrus battle 2 is done (state 44+).
 _001E:
-    Defog 1
     CallIfGe VAR_ARC2_PROGRESS, 44, Route210South_Arc2ClearPsyduck
     GetTimeOfDay VAR_MAP_LOCAL_0
     GoToIfEq VAR_MAP_LOCAL_0, 0, _0065

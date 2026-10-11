@@ -29,7 +29,6 @@ _0032:
     SetFlag FLAG_UNK_0x01AF
     SetFlag FLAG_UNK_0x01AC
     SetVar VAR_UNK_0x40F1, 1
-    Defog 1
     GoToIfLt VAR_ARC2_PROGRESS, 42, CelesticTown_HideArc2Cyrus
     GoToIfGe VAR_ARC2_PROGRESS, 44, CelesticTown_HideArc2Cyrus
     End

@@ -328,6 +328,7 @@ static void ov5_021DB40C(SysTask *param0, void *param1);
 static void ov5_021DB438(SysTask *param0, void *param1);
 static void ov5_021DB460(SysTask *param0, void *param1);
 static void ov5_021DB48C(SysTask *param0, void *param1);
+static void Weather_RiftMistTask(SysTask *param0, void *param1);
 static void ov5_021D78A4(UnkStruct_ov5_021DB4B8 *param0, int param1);
 static void ov5_021D7C40(UnkStruct_ov5_021DB4B8 *param0, int param1);
 static void ov5_021D8098(UnkStruct_ov5_021DB4B8 *param0, int param1);
@@ -404,7 +405,7 @@ void ov5_021D5F24(UnkStruct_ov5_021D5EF8 *param0, int param1)
     BOOL v0;
 
     GF_ASSERT(param0->unk_0C == 6);
-    GF_ASSERT(param1 < 31);
+    GF_ASSERT(param1 < 32);
 
     if (param0->unk_04 == param1) {
         return;
@@ -426,7 +427,7 @@ BOOL ov5_021D5F7C(UnkStruct_ov5_021D5EF8 *param0, int param1)
 {
     int v0;
 
-    GF_ASSERT(param1 < 31);
+    GF_ASSERT(param1 < 32);
 
     if (param0->unk_0C != 6) {
         param0->unk_10 = param1;
@@ -728,7 +729,7 @@ static const UnkStruct_ov5_021F8D90 Unk_ov5_021F8D90[11] = {
     { 0x3A, 0x3B, 0x3C }
 };
 
-static UnkStruct_ov5_021D69B8 Unk_ov5_02201D78[31] = {
+static UnkStruct_ov5_021D69B8 Unk_ov5_02201D78[32] = {
     { 0xffff, 0xffff, sizeof(u32), NULL, NULL, 0x0, 0x0, NULL, ov5_021D7604 },
     { 0xffff, 0x5, sizeof(UnkStruct_ov5_021DAC68), NULL, NULL, 0x0, 0x0, NULL, ov5_021DAC68 },
     { 0x0, 0xffff, sizeof(UnkStruct_ov5_021D9984), NULL, NULL, 0x0, 0x0, NULL, ov5_021D7658 },
@@ -759,7 +760,8 @@ static UnkStruct_ov5_021D69B8 Unk_ov5_02201D78[31] = {
     { 0xffff, 0xffff, sizeof(UnkStruct_ov5_021D84D4), NULL, NULL, 0x0, 0x0, NULL, ov5_021DB40C },
     { 0xffff, 0xffff, sizeof(UnkStruct_ov5_021D84D4), NULL, NULL, 0x0, 0x0, NULL, ov5_021DB438 },
     { 0xffff, 0xffff, sizeof(UnkStruct_ov5_021D84D4), NULL, NULL, 0x0, 0x0, NULL, ov5_021DB460 },
-    { 0xffff, 0xffff, sizeof(UnkStruct_ov5_021D84D4), NULL, NULL, 0x0, 0x0, NULL, ov5_021DB48C }
+    { 0xffff, 0xffff, sizeof(UnkStruct_ov5_021D84D4), NULL, NULL, 0x0, 0x0, NULL, ov5_021DB48C },
+    { 0xffff, 0xffff, sizeof(UnkStruct_ov5_021D84D4), NULL, NULL, 0x0, 0x0, NULL, Weather_RiftMistTask } // OVERWORLD_WEATHER_RIFT_MIST
 };
 
 static void ov5_021D61D0(UnkStruct_ov5_021D61D0 *param0)
@@ -878,7 +880,7 @@ void ov5_021D63A4(UnkStruct_ov5_021D6594 **param0)
     int v0;
 
     if (*param0 != NULL) {
-        for (v0 = 0; v0 < 31; v0++) {
+        for (v0 = 0; v0 < 32; v0++) {
             ov5_021D68B8(*param0, v0);
         }
 
@@ -900,7 +902,7 @@ BOOL ov5_021D6418(UnkStruct_ov5_021D6594 *param0, int param1, int param2)
 {
     BOOL v0 = 1;
 
-    if (param2 > 31) {
+    if (param2 > 32) {
         return 0;
     }
 
@@ -947,7 +949,7 @@ int ov5_021D64D0(UnkStruct_ov5_021D6594 *param0, int param1)
 {
     UnkStruct_ov5_021D69B8 *v0;
 
-    if (param1 >= 31) {
+    if (param1 >= 32) {
         return 0;
     }
 
@@ -5276,6 +5278,15 @@ static void ov5_021DB48C(SysTask *param0, void *param1)
     UnkStruct_ov5_021D84D4 *v1 = (UnkStruct_ov5_021D84D4 *)v0->unk_B98;
 
     ov5_021D9DFC(v0, v1, 1, 19311, (GX_RGB(1, 1, 1)), 0, 0);
+}
+
+// Arc 2 rift mist (Route 210 North): a violet depth fog, like the hardware-fog presets 26-30 above, no cloud layer
+static void Weather_RiftMistTask(SysTask *param0, void *param1)
+{
+    UnkStruct_ov5_021DB4B8 *v0 = (UnkStruct_ov5_021DB4B8 *)param1;
+    UnkStruct_ov5_021D84D4 *v1 = (UnkStruct_ov5_021D84D4 *)v0->unk_B98;
+
+    ov5_021D9DFC(v0, v1, 3, 28400, (GX_RGB(22, 12, 28)), 0, 0);
 }
 
 static void ov5_021DB4B8(UnkStruct_ov5_021DB4B8 *param0, int param1)
