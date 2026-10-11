@@ -2,51 +2,51 @@
     "land_rate": 35,
     "land_encounters": [
         {
-            "level": 27,
+            "level": 30,
             "species": "SPECIES_WOOPER"
         },
         {
-            "level": 27,
+            "level": 30,
             "species": "SPECIES_BIBAREL"
         },
         {
-            "level": 28,
+            "level": 31,
             "species": "SPECIES_BIBAREL"
         },
         {
-            "level": 27,
+            "level": 30,
             "species": "SPECIES_TANGELA"
         },
         {
-            "level": 28,
+            "level": 31,
             "species": "SPECIES_TANGELA"
         },
         {
-            "level": 29,
+            "level": 32,
             "species": "SPECIES_QUAGSIRE"
         },
         {
-            "level": 28,
+            "level": 31,
             "species": "SPECIES_WOOPER"
         },
         {
-            "level": 29,
+            "level": 32,
             "species": "SPECIES_WOOPER"
         },
         {
-            "level": 29,
+            "level": 32,
             "species": "SPECIES_YANMA"
         },
         {
-            "level": 29,
+            "level": 32,
             "species": "SPECIES_TANGELA"
         },
         {
-            "level": 30,
+            "level": 33,
             "species": "SPECIES_YANMA"
         },
         {
-            "level": 30,
+            "level": 33,
             "species": "SPECIES_TANGELA"
         }
     ],

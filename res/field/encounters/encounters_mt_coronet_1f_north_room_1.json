@@ -2,51 +2,51 @@
     "land_rate": 10,
     "land_encounters": [
         {
-            "level": 14,
+            "level": 24,
             "species": "SPECIES_BRONZOR"
         },
         {
-            "level": 15,
+            "level": 25,
             "species": "SPECIES_GEODUDE"
         },
         {
-            "level": 14,
+            "level": 24,
             "species": "SPECIES_MEDITITE"
         },
         {
-            "level": 13,
+            "level": 23,
             "species": "SPECIES_CLEFFA"
         },
         {
-            "level": 16,
+            "level": 26,
             "species": "SPECIES_MACHOP"
         },
         {
-            "level": 16,
+            "level": 26,
             "species": "SPECIES_MEDITITE"
         },
         {
-            "level": 13,
+            "level": 23,
             "species": "SPECIES_CHINGLING"
         },
         {
-            "level": 14,
+            "level": 24,
             "species": "SPECIES_NOSEPASS"
         },
         {
-            "level": 15,
+            "level": 25,
             "species": "SPECIES_ZUBAT"
         },
         {
-            "level": 15,
+            "level": 25,
             "species": "SPECIES_CHINGLING"
         },
         {
-            "level": 15,
+            "level": 25,
             "species": "SPECIES_ZUBAT"
         },
         {
-            "level": 15,
+            "level": 25,
             "species": "SPECIES_CHINGLING"
         }
     ],

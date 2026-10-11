@@ -2,51 +2,51 @@
     "land_rate": 30,
     "land_encounters": [
         {
-            "level": 19,
+            "level": 28,
             "species": "SPECIES_ROSELIA"
         },
         {
-            "level": 18,
+            "level": 27,
             "species": "SPECIES_BIBAREL"
         },
         {
-            "level": 19,
+            "level": 28,
             "species": "SPECIES_STARAVIA"
         },
         {
-            "level": 17,
+            "level": 26,
             "species": "SPECIES_RALTS"
         },
         {
-            "level": 18,
+            "level": 27,
             "species": "SPECIES_STARAVIA"
         },
         {
-            "level": 19,
+            "level": 28,
             "species": "SPECIES_BIBAREL"
         },
         {
-            "level": 18,
+            "level": 27,
             "species": "SPECIES_RALTS"
         },
         {
-            "level": 20,
+            "level": 29,
             "species": "SPECIES_ROSELIA"
         },
         {
-            "level": 19,
+            "level": 28,
             "species": "SPECIES_RALTS"
         },
         {
-            "level": 17,
+            "level": 26,
             "species": "SPECIES_CHANSEY"
         },
         {
-            "level": 19,
+            "level": 28,
             "species": "SPECIES_RALTS"
         },
         {
-            "level": 19,
+            "level": 28,
             "species": "SPECIES_CHANSEY"
         }
     ],

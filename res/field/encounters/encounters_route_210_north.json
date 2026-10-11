@@ -2,51 +2,51 @@
     "land_rate": 30,
     "land_encounters": [
         {
-            "level": 27,
+            "level": 25,
             "species": "SPECIES_SWABLU"
         },
         {
-            "level": 28,
+            "level": 26,
             "species": "SPECIES_BIBAREL"
         },
         {
+            "level": 25,
+            "species": "SPECIES_SCYTHER"
+        },
+        {
+            "level": 25,
+            "species": "SPECIES_MEDITITE"
+        },
+        {
+            "level": 27,
+            "species": "SPECIES_MEDITITE"
+        },
+        {
+            "level": 26,
+            "species": "SPECIES_MACHOP"
+        },
+        {
             "level": 27,
             "species": "SPECIES_SCYTHER"
         },
         {
             "level": 27,
-            "species": "SPECIES_MEDITITE"
+            "species": "SPECIES_MACHOKE"
         },
         {
-            "level": 29,
-            "species": "SPECIES_MEDITITE"
+            "level": 27,
+            "species": "SPECIES_MACHOP"
         },
         {
             "level": 28,
-            "species": "SPECIES_MACHOP"
-        },
-        {
-            "level": 29,
-            "species": "SPECIES_SCYTHER"
-        },
-        {
-            "level": 29,
             "species": "SPECIES_MACHOKE"
         },
         {
-            "level": 29,
+            "level": 27,
             "species": "SPECIES_MACHOP"
         },
         {
-            "level": 30,
-            "species": "SPECIES_MACHOKE"
-        },
-        {
-            "level": 29,
-            "species": "SPECIES_MACHOP"
-        },
-        {
-            "level": 30,
+            "level": 28,
             "species": "SPECIES_MACHOKE"
         }
     ],

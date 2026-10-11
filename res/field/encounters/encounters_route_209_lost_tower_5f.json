@@ -2,51 +2,51 @@
     "land_rate": 10,
     "land_encounters": [
         {
-            "level": 20,
+            "level": 35,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 19,
+            "level": 34,
             "species": "SPECIES_ZUBAT"
         },
         {
-            "level": 21,
+            "level": 36,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 19,
+            "level": 34,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 20,
+            "level": 35,
             "species": "SPECIES_ZUBAT"
         },
         {
-            "level": 19,
+            "level": 34,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 21,
+            "level": 36,
             "species": "SPECIES_ZUBAT"
         },
         {
-            "level": 22,
+            "level": 37,
             "species": "SPECIES_GOLBAT"
         },
         {
-            "level": 22,
+            "level": 37,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 22,
+            "level": 37,
             "species": "SPECIES_GOLBAT"
         },
         {
-            "level": 22,
+            "level": 37,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 22,
+            "level": 37,
             "species": "SPECIES_GOLBAT"
         }
     ],

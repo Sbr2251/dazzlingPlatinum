@@ -2,51 +2,51 @@
     "land_rate": 30,
     "land_encounters": [
         {
-            "level": 24,
+            "level": 32,
             "species": "SPECIES_SHELLOS"
         },
         {
-            "level": 23,
+            "level": 31,
             "species": "SPECIES_BUIZEL"
         },
         {
-            "level": 23,
+            "level": 31,
             "species": "SPECIES_CHATOT"
         },
         {
-            "level": 25,
+            "level": 33,
             "species": "SPECIES_CHATOT"
         },
         {
-            "level": 25,
+            "level": 33,
             "species": "SPECIES_WINGULL"
         },
         {
-            "level": 25,
+            "level": 33,
             "species": "SPECIES_SHELLOS"
         },
         {
-            "level": 24,
+            "level": 32,
             "species": "SPECIES_WINGULL"
         },
         {
-            "level": 26,
+            "level": 34,
             "species": "SPECIES_WINGULL"
         },
         {
-            "level": 25,
+            "level": 33,
             "species": "SPECIES_BUIZEL"
         },
         {
-            "level": 26,
+            "level": 34,
             "species": "SPECIES_SHELLOS"
         },
         {
-            "level": 25,
+            "level": 33,
             "species": "SPECIES_BUIZEL"
         },
         {
-            "level": 26,
+            "level": 34,
             "species": "SPECIES_SHELLOS"
         }
     ],

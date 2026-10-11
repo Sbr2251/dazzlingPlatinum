@@ -2,51 +2,51 @@
     "land_rate": 30,
     "land_encounters": [
         {
-            "level": 23,
+            "level": 31,
             "species": "SPECIES_ROSELIA"
         },
         {
-            "level": 21,
+            "level": 29,
             "species": "SPECIES_MARILL"
         },
         {
-            "level": 23,
+            "level": 31,
             "species": "SPECIES_STARAVIA"
         },
         {
-            "level": 22,
+            "level": 30,
             "species": "SPECIES_KIRLIA"
         },
         {
-            "level": 22,
+            "level": 30,
             "species": "SPECIES_ROSELIA"
         },
         {
-            "level": 21,
+            "level": 29,
             "species": "SPECIES_STARAVIA"
         },
         {
-            "level": 24,
+            "level": 32,
             "species": "SPECIES_KIRLIA"
         },
         {
-            "level": 24,
+            "level": 32,
             "species": "SPECIES_KIRLIA"
         },
         {
-            "level": 24,
+            "level": 32,
             "species": "SPECIES_ROSELIA"
         },
         {
-            "level": 23,
+            "level": 31,
             "species": "SPECIES_MARILL"
         },
         {
-            "level": 24,
+            "level": 32,
             "species": "SPECIES_ROSELIA"
         },
         {
-            "level": 23,
+            "level": 31,
             "species": "SPECIES_MARILL"
         }
     ],

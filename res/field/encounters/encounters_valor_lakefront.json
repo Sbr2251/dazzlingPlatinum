@@ -2,51 +2,51 @@
     "land_rate": 30,
     "land_encounters": [
         {
-            "level": 26,
+            "level": 30,
             "species": "SPECIES_GIRAFARIG"
         },
         {
-            "level": 25,
+            "level": 29,
             "species": "SPECIES_BIBAREL"
         },
         {
-            "level": 26,
+            "level": 30,
             "species": "SPECIES_STARAVIA"
         },
         {
-            "level": 27,
+            "level": 31,
             "species": "SPECIES_KRICKETUNE"
         },
         {
-            "level": 27,
+            "level": 31,
             "species": "SPECIES_STARAVIA"
         },
         {
-            "level": 28,
+            "level": 32,
             "species": "SPECIES_HOUNDOUR"
         },
         {
-            "level": 28,
+            "level": 32,
             "species": "SPECIES_STARAVIA"
         },
         {
-            "level": 26,
+            "level": 30,
             "species": "SPECIES_BIBAREL"
         },
         {
-            "level": 28,
+            "level": 32,
             "species": "SPECIES_GIRAFARIG"
         },
         {
-            "level": 27,
+            "level": 31,
             "species": "SPECIES_BIBAREL"
         },
         {
-            "level": 28,
+            "level": 32,
             "species": "SPECIES_GIRAFARIG"
         },
         {
-            "level": 27,
+            "level": 31,
             "species": "SPECIES_BIBAREL"
         }
     ],

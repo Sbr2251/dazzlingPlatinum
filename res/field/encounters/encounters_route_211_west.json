@@ -2,51 +2,51 @@
     "land_rate": 30,
     "land_encounters": [
         {
-            "level": 13,
+            "level": 22,
             "species": "SPECIES_MEDITITE"
         },
         {
-            "level": 14,
+            "level": 23,
             "species": "SPECIES_BIDOOF"
         },
         {
-            "level": 14,
+            "level": 23,
             "species": "SPECIES_MEDITITE"
         },
         {
-            "level": 15,
+            "level": 24,
             "species": "SPECIES_MEDITITE"
         },
         {
-            "level": 14,
+            "level": 23,
             "species": "SPECIES_CHINGLING"
         },
         {
-            "level": 14,
+            "level": 23,
             "species": "SPECIES_MACHOP"
         },
         {
-            "level": 16,
+            "level": 25,
             "species": "SPECIES_CHINGLING"
         },
         {
-            "level": 14,
+            "level": 23,
             "species": "SPECIES_BRONZOR"
         },
         {
-            "level": 15,
+            "level": 24,
             "species": "SPECIES_MACHOP"
         },
         {
-            "level": 16,
+            "level": 25,
             "species": "SPECIES_BRONZOR"
         },
         {
-            "level": 15,
+            "level": 24,
             "species": "SPECIES_MACHOP"
         },
         {
-            "level": 16,
+            "level": 25,
             "species": "SPECIES_BRONZOR"
         }
     ],
