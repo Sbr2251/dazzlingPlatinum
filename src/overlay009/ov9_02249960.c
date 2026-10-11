@@ -6789,8 +6789,8 @@ static const UnkStruct_ov9_02252414 Unk_ov9_02252414[] = {
     // Arc 2 rift-a, DW Ravaged Path (2.6, halfway): the same shadow, deeper and much slower, south along z under the
     // briefcase platform while the player stands on top of the seam. Same whoosh; nobody reacts.
     {
-        17,
-        -5,
+        15,
+        -2,
         -4,
         0x1,
         0x2,
