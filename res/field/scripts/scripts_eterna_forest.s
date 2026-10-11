@@ -2,6 +2,20 @@
 #include "constants/totem_battle.h"
 #include "res/text/bank/eterna_forest.h"
 
+// Arc 2 (s-floaroma), scene 2.10 overworld side. Reads VAR_ARC2_PROGRESS 22; sets 23 (Ruth), 24 (rift entered);
+// rift-a sets 26 in MAP_HEADER_DW_ETERNA_FOREST and exits to (84,37) facing south; the aftermath here sets 29.
+// The stock overworld Vespiquen totem object is deleted (the totem is fought in the DW, D15).
+// Locals added: 25 Ruth (85,39), 26 Cyrus (83,39): shown at 22-26 (FLAG_UNK_0x0030, map-local temp);
+// 27 the rift (84,38), "off the main path between two trees": shown at 22-25 (FLAG_UNK_0x0031, map-local temp).
+// The silence beat runs once on the first entry at 22 (VAR_MAP_LOCAL_1 arms it; FLAG_UNK_0x093B =
+// FLAG_ARC2_FLOAROMA_B records it). Cheryl's partner walk is untouched: her farewell coord column (x82, z34-39)
+// spans the clearing, so she always says goodbye before the player reaches the rift, and nothing here stands on
+// her exit rows (z36-37).
+#define LOCALID_ARC2_RUTH  25
+#define LOCALID_ARC2_CYRUS 26
+#define LOCALID_ARC2_RIFT  27
+#define FLAG_ARC2_FLOAROMA_SILENCE_SEEN FLAG_ARC2_FLOAROMA_B
+
 
     ScriptEntry _0047
     ScriptEntry _0108
@@ -15,11 +29,15 @@
     ScriptEntry _050C
     ScriptEntry _0032
     ScriptEntry _051D
-    ScriptEntry TotemVespiquen_Encounter
+    ScriptEntry EternaForest_Arc2Ruth
+    ScriptEntry EternaForest_Arc2Cyrus
+    ScriptEntry EternaForest_Arc2Rift
+    ScriptEntry EternaForest_Arc2Silence
+    ScriptEntry EternaForest_Arc2Aftermath
     ScriptEntryEnd
 
 _0032:
-    Call TotemVespiquen_UpdateVisibility
+    Call EternaForest_Arc2SetObjects
     GoToIfUnset FLAG_TRAVELED_WITH_CHERYL, _003F
     End
 
@@ -445,40 +463,134 @@ _053C:
     WalkOnSpotNormalNorth
     EndMovement
 
-TotemVespiquen_Encounter:
+EternaForest_Arc2SetObjects:
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
+    SetFlag FLAG_UNK_0x0030
+    SetFlag FLAG_UNK_0x0031
+    GoToIfLt VAR_ARC2_PROGRESS, 22, EternaForest_Arc2SetObjectsEnd
+    GoToIfGe VAR_ARC2_PROGRESS, 27, EternaForest_Arc2SetObjectsEnd
+    ClearFlag FLAG_UNK_0x0030
+    GoToIfGe VAR_ARC2_PROGRESS, 26, EternaForest_Arc2SetObjectsEnd
+    ClearFlag FLAG_UNK_0x0031
+    GoToIfNe VAR_ARC2_PROGRESS, 22, EternaForest_Arc2SetObjectsEnd
+    GoToIfSet FLAG_ARC2_FLOAROMA_SILENCE_SEEN, EternaForest_Arc2SetObjectsEnd
+    SetVar VAR_MAP_LOCAL_1, 1
+EternaForest_Arc2SetObjectsEnd:
+    Return
+
+// Frame table, first entry at 22: the silence.
+EternaForest_Arc2Silence:
+    LockAll
+    SetVar VAR_MAP_LOCAL_1, 0
+    SetFlag FLAG_ARC2_FLOAROMA_SILENCE_SEEN
+    WaitTime 20, VAR_RESULT
+    Message EternaForest_Text_Arc2Silence
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+EternaForest_Arc2Ruth:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    WaitFanfare SEQ_SE_CONFIRM
-    PlayBattleMusic SEQ_BATTLE_TOTEM
-    PlayCry SPECIES_VESPIQUEN
-    WaitCry
-    SetFlag FLAG_MAP_LOCAL
-    StartTotemBattle TOTEM_ENCOUNTER_VESPIQUEN
-    ClearFlag FLAG_MAP_LOCAL
-    CheckWonBattle VAR_RESULT
-    GoToIfEq VAR_RESULT, FALSE, TotemVespiquen_Encounter_LostBattle
-    SetFlag FLAG_TOTEM_VESPIQUEN_DEFEATED
-    SetFlag FLAG_HIDE_TOTEM_VESPIQUEN
-    RemoveObject VAR_LAST_TALKED
+    Call EternaForest_Arc2RuthLine
     ReleaseAll
     End
 
-TotemVespiquen_Encounter_LostBattle:
-    BlackOutFromBattle
+EternaForest_Arc2RuthLine:
+    Message EternaForest_Text_Arc2RuthSameSignature
+    WaitABXPadPress
+    CloseMessage
+    CallIfEq VAR_ARC2_PROGRESS, 22, EternaForest_Arc2SetRiftSeen
+    Return
+
+EternaForest_Arc2SetRiftSeen:
+    SetVar VAR_ARC2_PROGRESS, 23
+    Return
+
+EternaForest_Arc2Cyrus:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message EternaForest_Text_Arc2CyrusEllipsis
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+// The rift (22-25). At 22 Ruth speaks first (sets 23). Entering sets 24 and warps into the DW map's entry.
+EternaForest_Arc2Rift:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    CallIfEq VAR_ARC2_PROGRESS, 22, EternaForest_Arc2RuthLine
+    Message EternaForest_Text_Arc2RiftStepInside
+    ShowYesNoMenu VAR_RESULT
+    GoToIfEq VAR_RESULT, MENU_NO, EternaForest_Arc2RiftStayOut
+    CloseMessage
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut
+    WaitFadeScreen
+    ScrCmd_320
+    ReturnToField
+    SetVar VAR_ARC2_PROGRESS, 24
+    Warp MAP_HEADER_DW_ETERNA_FOREST, 0, 20, 12, DIR_WEST
+    FadeScreenIn
+    WaitFadeScreen
+    End
+
+EternaForest_Arc2RiftStayOut:
+    CloseMessage
+    ReleaseAll
+    End
+
+// Frame table at 26: back from the DW at (84,37) facing south, the rift gone. Ruth checks the Resonator.
+EternaForest_Arc2Aftermath:
+    LockAll
+    WaitTime 20, VAR_RESULT
+    ApplyMovement LOCALID_ARC2_RUTH, EternaForest_Movement_Arc2RuthToPlayer
+    WaitMovement
+    ApplyMovement LOCALID_PLAYER, EternaForest_Movement_Arc2FaceEast
+    WaitMovement
+    Message EternaForest_Text_Arc2RuthWontAnswer
+    WaitABXPadPress
+    CloseMessage
+    WaitTime 15, VAR_RESULT
+    Message EternaForest_Text_Arc2RuthGardenia
+    WaitABXPadPress
+    CloseMessage
+    SetVar VAR_ARC2_PROGRESS, 29
+    // Ruth and Cyrus walk on toward Eterna (the east exit)
+    ApplyMovement LOCALID_ARC2_RUTH, EternaForest_Movement_Arc2RuthLeave
+    ApplyMovement LOCALID_ARC2_CYRUS, EternaForest_Movement_Arc2CyrusLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC2_RUTH
+    RemoveObject LOCALID_ARC2_CYRUS
     ReleaseAll
     End
 
     .balign 4, 0
-
-TotemVespiquen_UpdateVisibility:
-    GoToIfUnset FLAG_TRAVELED_WITH_CHERYL, TotemVespiquen_Hide
-    GoToIfSet FLAG_TOTEM_VESPIQUEN_DEFEATED, TotemVespiquen_Hide
-    ClearFlag FLAG_HIDE_TOTEM_VESPIQUEN
-    Return
-
-TotemVespiquen_Hide:
-    SetFlag FLAG_HIDE_TOTEM_VESPIQUEN
-    Return
+EternaForest_Movement_Arc2RuthToPlayer:
+    EmoteExclamationMark
+    WalkNormalNorth 2
+    FaceWest
+    EndMovement
 
     .balign 4, 0
+EternaForest_Movement_Arc2FaceEast:
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+EternaForest_Movement_Arc2RuthLeave:
+    WalkNormalEast
+    SetInvisible
+    EndMovement
+
+    .balign 4, 0
+EternaForest_Movement_Arc2CyrusLeave:
+    Delay8 2
+    WalkNormalNorth 3
+    WalkNormalEast 3
+    SetInvisible
+    EndMovement
