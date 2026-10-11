@@ -10,6 +10,7 @@
 InitScriptFrameTable:
     InitScriptGoToIfEqual VAR_ARC2_PROGRESS, 5, 16
     InitScriptGoToIfEqual VAR_ARC2_PROGRESS, 35, 17
+    InitScriptGoToIfEqual VAR_ARC2_PROGRESS, 98, 18
     InitScriptFrameTableEnd
 
     InitScriptEnd

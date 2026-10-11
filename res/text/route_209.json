@@ -217,14 +217,6 @@
         "{STRVAR_1 3, 0, 0}: ...Huh.\r",
         "Guess it wasn't him."
       ]
-    },
-    {
-      "id": "Route209_Text_EndOfArc2",
-      "en_US": "END OF ARC 2"
-    },
-    {
-      "id": "Route209_Text_ToBeContinued",
-      "en_US": "To be continued..."
     }
   ]
 }
