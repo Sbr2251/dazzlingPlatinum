@@ -1496,6 +1496,7 @@ _123E:
 //   0x0035 stock objects that never show in Arc 2 (Dawn, the 'HM02 in the warehouse' grunt)
 // Map-local vars: VAR_MAP_LOCAL_1 = 1 arms the Looker coord (681-684, 616); VAR_MAP_LOCAL_2 = 1 disarms the
 //   depot guards' push-back coord (697, 596).
+//   VAR_MAP_LOCAL_3 = badge-check scratch (OnTransition must not write VAR_RESULT: it hangs the map load).
 // VAR_ARC2_PROGRESS: 49 + Cobble Badge -> Looker; sets 51. 54 -> Maylene's trial; sets 57.
 // VAR_ARC2_CHOICES bit 0 (+1): the player said Yes to "Do you trust him?" (the only write to bit 0).
 
