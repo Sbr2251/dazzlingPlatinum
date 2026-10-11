@@ -30,6 +30,40 @@
         "I think we’re stuck.\n",
         "Let’s wait till the others get here.\r"
       ]
+    },
+    {
+      "id": "MtCoronet1FNorthRoom1_Text_Arc2RuthHot",
+      "en_US": [
+        "Ruth: It's hot. Mountains aren't\n",
+        "supposed to be hot on the inside.\r"
+      ]
+    },
+    {
+      "id": "MtCoronet1FNorthRoom1_Text_Arc2GariusBroken",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Great. Even the\n",
+        "mountain's broken.\r"
+      ]
+    },
+    {
+      "id": "MtCoronet1FNorthRoom1_Text_Arc2RuthCyrus",
+      "en_US": [
+        "Ruth: Cyrus?\r"
+      ]
+    },
+    {
+      "id": "MtCoronet1FNorthRoom1_Text_Arc2CyrusNothing",
+      "en_US": [
+        "Cyrus: ...It's nothing.\n",
+        "Keep moving.\r"
+      ]
+    },
+    {
+      "id": "MtCoronet1FNorthRoom1_Text_Arc2Grate",
+      "en_US": [
+        "A grate in the floor. Hot air rises\n",
+        "from somewhere far below."
+      ]
     }
   ]
 }

@@ -14,12 +14,27 @@
     ScriptEntry _0034
     ScriptEntry _0032
     ScriptEntry _0168
+    ScriptEntry SolaceonTown_Arc2WallPhotos
+    ScriptEntry SolaceonTown_Arc2WallPonyta
+    ScriptEntry SolaceonTown_Arc2WallElias
+    ScriptEntry SolaceonTown_Arc2WallBanner
+    ScriptEntry SolaceonTown_Arc2WallTeo
+    ScriptEntry SolaceonTown_Arc2IndraCutaway
     ScriptEntryEnd
+
+// Arc 2 (s-celestic), 2.16a: the memorial wall (P1: sign events on the fence west of the main road,
+// x 556, z 652-656, read from the road facing west; the wall art is P2) and the Indra cutaway.
+// The cutaway plays the first time the player comes down the road from Route 210 at state 44 (coord row at
+// the town's north edge): 47 at the start, 49 at the end. Map-local hide flag: FLAG_UNK_0x0030 = Indra.
+// The stock Barry run-in at the south exit (VAR_UNK_0x4073) is switched off from Arc 2 on.
+#define LOCALID_ARC2_INDRA 21
 
 _0032:
     End
 
 _0034:
+    SetFlag FLAG_UNK_0x0030
+    CallIfGe VAR_ARC2_PROGRESS, 1, SolaceonTown_Arc2NoBarry
     CheckDaycareHasEgg VAR_MAP_LOCAL_0
     GoToIfNe VAR_MAP_LOCAL_0, FALSE, _0047
     End
@@ -27,6 +42,122 @@ _0034:
 _0047:
     SetObjectEventDir 3, DIR_EAST
     End
+
+SolaceonTown_Arc2NoBarry:
+    SetVar VAR_UNK_0x4073, 1
+    Return
+
+SolaceonTown_Arc2WallPhotos:
+    GoToIfLt VAR_ARC2_PROGRESS, 44, SolaceonTown_Arc2WallEnd
+    LockAll
+    Message SolaceonTown_Text_Arc2WallPhotos
+    GoTo SolaceonTown_Arc2WallClose
+    End
+
+SolaceonTown_Arc2WallPonyta:
+    GoToIfLt VAR_ARC2_PROGRESS, 44, SolaceonTown_Arc2WallEnd
+    LockAll
+    Message SolaceonTown_Text_Arc2WallPonyta
+    GoTo SolaceonTown_Arc2WallClose
+    End
+
+SolaceonTown_Arc2WallElias:
+    GoToIfLt VAR_ARC2_PROGRESS, 44, SolaceonTown_Arc2WallEnd
+    LockAll
+    Message SolaceonTown_Text_Arc2WallElias
+    GoTo SolaceonTown_Arc2WallClose
+    End
+
+SolaceonTown_Arc2WallBanner:
+    GoToIfLt VAR_ARC2_PROGRESS, 44, SolaceonTown_Arc2WallEnd
+    LockAll
+    Message SolaceonTown_Text_Arc2WallBanner
+    GoTo SolaceonTown_Arc2WallClose
+    End
+
+SolaceonTown_Arc2WallTeo:
+    GoToIfLt VAR_ARC2_PROGRESS, 49, SolaceonTown_Arc2WallEnd
+    LockAll
+    Message SolaceonTown_Text_Arc2WallTeo
+    GoTo SolaceonTown_Arc2WallClose
+    End
+
+SolaceonTown_Arc2WallClose:
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+SolaceonTown_Arc2WallEnd:
+    End
+
+// 2.16a: shown to the player only. The player is put at the wall and hidden; Indra pins up Teo's card.
+SolaceonTown_Arc2IndraCutaway:
+    LockAll
+    SetVar VAR_ARC2_PROGRESS, 47
+    FadeScreenOut
+    WaitFadeScreen
+    SetPosition LOCALID_PLAYER, 558, 0, 654, DIR_WEST
+    ApplyMovement LOCALID_PLAYER, SolaceonTown_Arc2Movement_Hide
+    WaitMovement
+    ClearFlag FLAG_UNK_0x0030
+    AddObject LOCALID_ARC2_INDRA
+    LockObject LOCALID_ARC2_INDRA
+    WaitTime 15, VAR_RESULT
+    FadeScreenIn
+    WaitFadeScreen
+    WaitTime 20, VAR_RESULT
+    ApplyMovement LOCALID_ARC2_INDRA, SolaceonTown_Arc2Movement_PinCard
+    WaitMovement
+    PlayFanfare SEQ_SE_DP_KON
+    WaitTime 20, VAR_RESULT
+    Message SolaceonTown_Text_Arc2IndraAnotherName
+    Message SolaceonTown_Text_Arc2IndraSomebodyHasTo
+    Message SolaceonTown_Text_Arc2IndraMorningDoor
+    Message SolaceonTown_Text_Arc2IndraHandsShake
+    Message SolaceonTown_Text_Arc2IndraKeepTheDoor
+    CloseMessage
+    ApplyMovement LOCALID_ARC2_INDRA, SolaceonTown_Arc2Movement_IndraLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC2_INDRA
+    WaitTime 20, VAR_RESULT
+    FadeScreenOut
+    WaitFadeScreen
+    SetPosition LOCALID_PLAYER, 557, 0, 654, DIR_WEST
+    ApplyMovement LOCALID_PLAYER, SolaceonTown_Arc2Movement_Show
+    WaitMovement
+    FadeScreenIn
+    WaitFadeScreen
+    SetVar VAR_ARC2_PROGRESS, 49
+    Message SolaceonTown_Text_Arc2WallTeo
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+    .balign 4, 0
+SolaceonTown_Arc2Movement_Hide:
+    SetInvisible
+    EndMovement
+
+    .balign 4, 0
+SolaceonTown_Arc2Movement_Show:
+    SetVisible
+    FaceWest
+    EndMovement
+
+    .balign 4, 0
+SolaceonTown_Arc2Movement_PinCard:
+    FaceWest
+    Delay8
+    WalkOnSpotSlowWest
+    EndMovement
+
+    .balign 4, 0
+SolaceonTown_Arc2Movement_IndraLeave:
+    Delay8 2
+    WalkNormalSouth 2
+    WalkNormalEast 3
+    WalkNormalSouth 4
+    EndMovement
 
 _004F:
     PlayFanfare SEQ_SE_CONFIRM

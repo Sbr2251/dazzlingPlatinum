@@ -284,6 +284,221 @@
         "I’m so sorry.\n",
         "I let myself get carried away...\r"
       ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2RowanThanks",
+      "en_US": [
+        "Rowan: Thank you for seeing us,\n",
+        "elder.\r",
+        "These are the two I told you\n",
+        "about.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderChildren",
+      "en_US": [
+        "Elder: The children who went into\n",
+        "the torn world. And came back.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderSit",
+      "en_US": [
+        "Elder: Sit. Old women tell stories.\n",
+        "Sometimes the stories are true.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderThree",
+      "en_US": [
+        "Elder: The three who made this\n",
+        "world. Time, and space,\r",
+        "and the world beneath.\r",
+        "They were never meant to be held.\n",
+        "Not by any hand.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderEveryAge",
+      "en_US": [
+        "Elder: Every age, someone tries.\r",
+        "Always for a reason that sounds\n",
+        "good. A love to save.\r",
+        "A grief to undo.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderEveryTime",
+      "en_US": [
+        "Elder: And every time, they bend\n",
+        "time and space to fix their sorrow,\r",
+        "and leave the world with more of it.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderListen",
+      "en_US": [
+        "Elder: I know three such stories.\n",
+        "Listen.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderKing",
+      "en_US": [
+        "Elder: A king stopped the clock on\n",
+        "the last morning his queen breathed.\r",
+        "His kingdom stood frozen in that\n",
+        "morning for a hundred years.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderSailor",
+      "en_US": [
+        "Elder: A sailor folded the sea to\n",
+        "find the world where his partner\r",
+        "never drowned.\r",
+        "He found it. He could never find\n",
+        "his way home.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderSister",
+      "en_US": [
+        "Elder: A sister kept watch at a gate\n",
+        "for her brother.\r",
+        "She kept everyone else out, too.\r",
+        "Until there was no one left to\n",
+        "let in.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderBeneath",
+      "en_US": [
+        "Elder: Each time, something rose\n",
+        "from beneath the world.\r",
+        "And set it right. Never gently.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2CyrusEveryTime",
+      "en_US": [
+        "Cyrus: ...Every time?\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderEveryTimeIKnow",
+      "en_US": [
+        "Elder: Every time I know of.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2SarosRespect",
+      "en_US": [
+        "Saros: With respect, elder, that's\n",
+        "what people say once they've made\r",
+        "their peace with losing.\r",
+        "Some of us haven't.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2GariusOldStories",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Yeah. Old stories.\r",
+        "It's easy to tell people to let go\n",
+        "when you've never lost anything.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderWhatLost",
+      "en_US": [
+        "Elder: Child. What have you lost?\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2GariusNothing",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: ...Nothing. Forget it.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2SarosSharp",
+      "en_US": [
+        "Saros: You're sharp.\r",
+        "Team Eclipse could use people like\n",
+        "you.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2GariusNotInterested",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Not interested.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2RowanQuestion",
+      "en_US": [
+        "Rowan: Elder. One question. As a\n",
+        "scientist, if you'll allow it.\r",
+        "Can the dead come back?\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderCost",
+      "en_US": [
+        "Elder: The stories never say they\n",
+        "can't.\r",
+        "They say what it costs.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2RowanSayingNo",
+      "en_US": [
+        "Rowan: ...I've spent my life saying\n",
+        "no.\r",
+        "I'm not sure I can anymore.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2GariusHuh",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: ...Huh.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2GariusVeilstone",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: I'm off to Veilstone.\n",
+        "Third badge. Don't wait up.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2RuthVeilstone",
+      "en_US": [
+        "Ruth: I'll go on ahead to Veilstone,\n",
+        "too. Maylene wants my readings.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2RowanGoOn",
+      "en_US": [
+        "Rowan: Go on. I'll stay and talk\n",
+        "with the elder a while.\r"
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2RowanGoOnRepeat",
+      "en_US": [
+        "Rowan: Go on. I'll stay and talk\n",
+        "with the elder a while."
+      ]
+    },
+    {
+      "id": "CelesticTownCave_Text_Arc2ElderBeneathRepeat",
+      "en_US": [
+        "Elder: Each time, something rose\n",
+        "from beneath the world.\r",
+        "And set it right. Never gently."
+      ]
     }
   ]
 }
