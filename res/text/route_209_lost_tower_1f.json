@@ -18,6 +18,81 @@
         "and you have no business here, there\f",
         "is no need to go up."
       ]
+    },
+    {
+      "id": "LostTower1F_Text_FantinaNotYet",
+      "en_US": [
+        "Fantina: Not yet, mon ami.\n",
+        "Ze tower is not ready for you."
+      ]
+    },
+    {
+      "id": "LostTower1F_Text_FantinaTheyCry",
+      "en_US": [
+        "Fantina: Every night I sit here.\n",
+        "Ze dead, zey cry now.\r",
+        "Someone must listen."
+      ]
+    },
+    {
+      "id": "LostTower1F_Text_FantinaSadMan",
+      "en_US": [
+        "Fantina: Once a month, a sad man\n",
+        "brings flowers to a grave upstairs.\r",
+        "He never speaks. I do not ask."
+      ]
+    },
+    {
+      "id": "LostTower1F_Text_SarosBirthday",
+      "en_US": [
+        "Saros: Happy birthday, Mira.\n",
+        "You'd have been nine today."
+      ]
+    },
+    {
+      "id": "LostTower1F_Text_SarosOneMorning",
+      "en_US": [
+        "Saros: Dialga can give me back one\n",
+        "morning. The morning before.\r",
+        "That's all I want.\r",
+        "Just one morning."
+      ]
+    },
+    {
+      "id": "LostTower2F_Text_GruntVein",
+      "en_US": [
+        "Eclipse Grunt: Boss heard there's a\n",
+        "whole vein down there.\r",
+        "Grab everything."
+      ]
+    },
+    {
+      "id": "LostTower2F_Text_RowanFast",
+      "en_US": [
+        "Rowan: I came as fast as I could.\r",
+        "They knew about the vein?"
+      ]
+    },
+    {
+      "id": "LostTower2F_Text_RowanOnlyThree",
+      "en_US": [
+        "Rowan: ...But only you, me and\n",
+        "Garius knew.\r",
+        "And Cyrus has been in there the\n",
+        "whole time."
+      ]
+    },
+    {
+      "id": "LostTower2F_Text_RowanWasntHim",
+      "en_US": "Rowan: ...It wasn't him."
+    },
+    {
+      "id": "LostTower2F_Text_RowanGo",
+      "en_US": "Rowan: Go. Bring him back."
+    },
+    {
+      "id": "LostTower2F_Text_RiftHums",
+      "en_US": "A violet rift hums in the air."
     }
   ]
 }
