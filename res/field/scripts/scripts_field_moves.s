@@ -21,9 +21,8 @@
 #define RESONATOR_SLOT_WATERFALL  0xF6
 #define RESONATOR_SLOT_ROCK_CLIMB 0xF7
 
-// VAR_0x8006 for FieldMoves_ResonatorBlocked: a BADGE_ID_* when only the badge is missing, or one of these.
-#define RESONATOR_MISSING_ITEM    100
-#define RESONATOR_MISSING_TOTEM   101
+// Each obstacle sets VAR_0x8007 to its totem's surge line and, as the checks run, VAR_0x8006 to the line saying what's
+// missing (both in TEXT_BANK_ARC2_COMMON). Totem names are written out in mixed case, as in the screenplay.
 
 
     ScriptEntry FieldMoves_CutTree
@@ -49,13 +48,13 @@ FieldMoves_CutTree:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    BufferSpeciesNameFromVar 1, SPECIES_VESPIQUEN, 0, 0
-    SetVar VAR_0x8006, RESONATOR_MISSING_ITEM
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeVespiquen
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
     CheckItem ITEM_RESONATOR, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, _008E
-    SetVar VAR_0x8006, RESONATOR_MISSING_TOTEM
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
     GoToIfUnset FLAG_TOTEM_VESPIQUEN_DEFEATED, _008E
-    SetVar VAR_0x8006, BADGE_ID_FOREST
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsForestBadge
     CheckBadgeAcquired BADGE_ID_FOREST, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _008E
     Message FieldMoves_Text_WouldYouLikeToUseCut
@@ -153,13 +152,13 @@ FieldMoves_Rock:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    BufferSpeciesNameFromVar 1, SPECIES_HITMONLEE, 0, 0
-    SetVar VAR_0x8006, RESONATOR_MISSING_ITEM
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeHitmonlee
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
     CheckItem ITEM_RESONATOR, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, _0275
-    SetVar VAR_0x8006, RESONATOR_MISSING_TOTEM
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
     GoToIfUnset FLAG_TOTEM_HITMONLEE_DEFEATED, _0275
-    SetVar VAR_0x8006, BADGE_ID_COAL
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsCoalBadge
     CheckBadgeAcquired BADGE_ID_COAL, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0275
     Message FieldMoves_Text_WouldYouLikeToUseRockSmash
@@ -224,13 +223,13 @@ FieldMoves_Boulder:
     FacePlayer
     Strength 2, VAR_RESULT
     GoToIfEq VAR_RESULT, 1, _03BD
-    BufferSpeciesNameFromVar 1, SPECIES_AGGRON, 0, 0
-    SetVar VAR_0x8006, RESONATOR_MISSING_ITEM
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeAggron
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
     CheckItem ITEM_RESONATOR, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, _0372
-    SetVar VAR_0x8006, RESONATOR_MISSING_TOTEM
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
     GoToIfUnset FLAG_TOTEM_AGGRON_DEFEATED, _0372
-    SetVar VAR_0x8006, BADGE_ID_MINE
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsMineBadge
     CheckBadgeAcquired BADGE_ID_MINE, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0372
     Message FieldMoves_Text_WouldYouLikeToUseStrength
@@ -284,13 +283,13 @@ FieldMoves_UseStrengthFromMenu:
 FieldMoves_RockyWall:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
-    BufferSpeciesNameFromVar 1, SPECIES_MAMOSWINE, 0, 0
-    SetVar VAR_0x8006, RESONATOR_MISSING_ITEM
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeMamoswine
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
     CheckItem ITEM_RESONATOR, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, _0469
-    SetVar VAR_0x8006, RESONATOR_MISSING_TOTEM
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
     GoToIfUnset FLAG_TOTEM_MAMOSWINE_DEFEATED, _0469
-    SetVar VAR_0x8006, BADGE_ID_ICICLE
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsIcicleBadge
     CheckBadgeAcquired BADGE_ID_ICICLE, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0469
     CheckHasPartner VAR_RESULT
@@ -337,13 +336,13 @@ FieldMoves_UseRockClimbFromMenu:
 FieldMoves_Water:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
-    BufferSpeciesNameFromVar 1, SPECIES_LAPRAS, 0, 0
-    SetVar VAR_0x8006, RESONATOR_MISSING_ITEM
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeLapras
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
     CheckItem ITEM_RESONATOR, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, FieldMoves_WaterBlocked
-    SetVar VAR_0x8006, RESONATOR_MISSING_TOTEM
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
     GoToIfUnset FLAG_TOTEM_LAPRAS_DEFEATED, FieldMoves_WaterBlocked
-    SetVar VAR_0x8006, BADGE_ID_FEN
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsFenBadge
     CheckBadgeAcquired BADGE_ID_FEN, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, FieldMoves_WaterBlocked
     CheckHasPartner VAR_RESULT
@@ -392,13 +391,13 @@ FieldMoves_UseSurfFromMenu:
 FieldMoves_Fog:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
-    BufferSpeciesNameFromVar 1, SPECIES_SPIRITOMB, 0, 0
-    SetVar VAR_0x8006, RESONATOR_MISSING_ITEM
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeSpiritomb
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
     CheckItem ITEM_RESONATOR, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, _05B4
-    SetVar VAR_0x8006, RESONATOR_MISSING_TOTEM
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
     GoToIfUnset FLAG_TOTEM_SPIRITOMB_DEFEATED, _05B4
-    SetVar VAR_0x8006, BADGE_ID_RELIC
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsRelicBadge
     CheckBadgeAcquired BADGE_ID_RELIC, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _05B4
     Message FieldMoves_Text_WouldYouLikeToUseDefog_Unused
@@ -472,13 +471,13 @@ _0675:
 FieldMoves_Waterfall:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
-    BufferSpeciesNameFromVar 1, SPECIES_KINGDRA, 0, 0
-    SetVar VAR_0x8006, RESONATOR_MISSING_ITEM
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeKingdra
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
     CheckItem ITEM_RESONATOR, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, _06C3
-    SetVar VAR_0x8006, RESONATOR_MISSING_TOTEM
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
     GoToIfUnset FLAG_TOTEM_KINGDRA_DEFEATED, _06C3
-    SetVar VAR_0x8006, BADGE_ID_BEACON
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsBeaconBadge
     CheckBadgeAcquired BADGE_ID_BEACON, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _06C3
     Message FieldMoves_Text_WouldYouLikeToUseWaterfall
@@ -523,76 +522,17 @@ FieldMoves_WaterTotemNotDefeated:
     GoTo FieldMoves_Water
     End
 
-// The totem's name is in string 1 ({STRVAR_1 1, 1, 0}).
+// VAR_0x8007: the totem's surge line.
 FieldMoves_ResonatorSurge:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorSurge
+    MessageFromBank TEXT_BANK_ARC2_COMMON, VAR_0x8007
     WaitABXPadPress
     CloseMessage
     Return
 
-// The obstacle's description is on screen; VAR_0x8006 says what's missing, the totem's name is in string 1.
+// The obstacle's description is on screen; VAR_0x8006 is the line saying what's missing.
 FieldMoves_ResonatorBlocked:
     WaitABXPadPress
-    GoToIfEq VAR_0x8006, RESONATOR_MISSING_ITEM, FieldMoves_ResonatorBlocked_Item
-    GoToIfEq VAR_0x8006, RESONATOR_MISSING_TOTEM, FieldMoves_ResonatorBlocked_Totem
-    GoToIfEq VAR_0x8006, BADGE_ID_COAL, FieldMoves_ResonatorBlocked_Coal
-    GoToIfEq VAR_0x8006, BADGE_ID_FOREST, FieldMoves_ResonatorBlocked_Forest
-    GoToIfEq VAR_0x8006, BADGE_ID_COBBLE, FieldMoves_ResonatorBlocked_Cobble
-    GoToIfEq VAR_0x8006, BADGE_ID_FEN, FieldMoves_ResonatorBlocked_Fen
-    GoToIfEq VAR_0x8006, BADGE_ID_RELIC, FieldMoves_ResonatorBlocked_Relic
-    GoToIfEq VAR_0x8006, BADGE_ID_MINE, FieldMoves_ResonatorBlocked_Mine
-    GoToIfEq VAR_0x8006, BADGE_ID_ICICLE, FieldMoves_ResonatorBlocked_Icicle
-    GoTo FieldMoves_ResonatorBlocked_Beacon
-    End
-
-FieldMoves_ResonatorBlocked_Item:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorMissing
-    GoTo FieldMoves_ResonatorBlocked_End
-    End
-
-FieldMoves_ResonatorBlocked_Totem:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorNoTotem
-    GoTo FieldMoves_ResonatorBlocked_End
-    End
-
-FieldMoves_ResonatorBlocked_Coal:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorNeedsCoalBadge
-    GoTo FieldMoves_ResonatorBlocked_End
-    End
-
-FieldMoves_ResonatorBlocked_Forest:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorNeedsForestBadge
-    GoTo FieldMoves_ResonatorBlocked_End
-    End
-
-FieldMoves_ResonatorBlocked_Cobble:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorNeedsCobbleBadge
-    GoTo FieldMoves_ResonatorBlocked_End
-    End
-
-FieldMoves_ResonatorBlocked_Fen:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorNeedsFenBadge
-    GoTo FieldMoves_ResonatorBlocked_End
-    End
-
-FieldMoves_ResonatorBlocked_Relic:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorNeedsRelicBadge
-    GoTo FieldMoves_ResonatorBlocked_End
-    End
-
-FieldMoves_ResonatorBlocked_Mine:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorNeedsMineBadge
-    GoTo FieldMoves_ResonatorBlocked_End
-    End
-
-FieldMoves_ResonatorBlocked_Icicle:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorNeedsIcicleBadge
-    GoTo FieldMoves_ResonatorBlocked_End
-    End
-
-FieldMoves_ResonatorBlocked_Beacon:
-    MessageFromBank TEXT_BANK_ARC2_COMMON, Arc2Common_Text_ResonatorNeedsBeaconBadge
-FieldMoves_ResonatorBlocked_End:
+    MessageFromBank TEXT_BANK_ARC2_COMMON, VAR_0x8006
     WaitABXPadPress
     CloseMessage
     ReleaseAll
