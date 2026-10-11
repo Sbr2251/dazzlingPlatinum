@@ -23,7 +23,7 @@
         },
         {
             "level": 32,
-            "species": "SPECIES_GASTLY"
+            "species": "SPECIES_SHUPPET"
         },
         {
             "level": 34,
@@ -31,11 +31,11 @@
         },
         {
             "level": 35,
-            "species": "SPECIES_GASTLY"
+            "species": "SPECIES_SHUPPET"
         },
         {
             "level": 35,
-            "species": "SPECIES_GASTLY"
+            "species": "SPECIES_DUSKULL"
         },
         {
             "level": 35,
@@ -60,7 +60,7 @@
     ],
     "night": [
         "SPECIES_DUSKULL",
-        "SPECIES_DUSKULL"
+        "SPECIES_SHUPPET"
     ],
     "radar": [
         "SPECIES_ZUBAT",

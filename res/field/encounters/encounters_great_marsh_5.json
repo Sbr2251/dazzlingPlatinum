@@ -19,7 +19,7 @@
         },
         {
             "level": 30,
-            "species": "SPECIES_YANMA"
+            "species": "SPECIES_LOTAD"
         },
         {
             "level": 31,
@@ -35,7 +35,7 @@
         },
         {
             "level": 31,
-            "species": "SPECIES_YANMA"
+            "species": "SPECIES_KECLEON"
         },
         {
             "level": 31,
@@ -104,7 +104,7 @@
         {
             "level_max": 30,
             "level_min": 20,
-            "species": "SPECIES_WOOPER"
+            "species": "SPECIES_LOTAD"
         },
         {
             "level_max": 40,

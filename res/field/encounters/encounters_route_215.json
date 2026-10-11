@@ -7,7 +7,7 @@
         },
         {
             "level": 27,
-            "species": "SPECIES_MARILL"
+            "species": "SPECIES_LOTAD"
         },
         {
             "level": 29,
@@ -15,7 +15,7 @@
         },
         {
             "level": 28,
-            "species": "SPECIES_STARAVIA"
+            "species": "SPECIES_SURSKIT"
         },
         {
             "level": 27,
@@ -27,7 +27,7 @@
         },
         {
             "level": 27,
-            "species": "SPECIES_SCYTHER"
+            "species": "SPECIES_CASTFORM"
         },
         {
             "level": 28,
@@ -55,11 +55,11 @@
         "SPECIES_DROWZEE"
     ],
     "day": [
-        "SPECIES_STARAVIA",
-        "SPECIES_STARAVIA"
+        "SPECIES_SOLROCK",
+        "SPECIES_SURSKIT"
     ],
     "night": [
-        "SPECIES_MARILL",
+        "SPECIES_LUNATONE",
         "SPECIES_MARILL"
     ],
     "radar": [
