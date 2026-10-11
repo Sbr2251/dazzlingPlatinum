@@ -1,0 +1,243 @@
+{
+    "base_stats": {
+        "hp": 100,
+        "attack": 60,
+        "defense": 70,
+        "speed": 60,
+        "special_attack": 85,
+        "special_defense": 105
+    },
+    "types": [
+        "TYPE_WATER",
+        "TYPE_GHOST"
+    ],
+    "catch_rate": 60,
+    "base_exp_reward": 168,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 0,
+        "defense": 0,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 2
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 20,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_FAST",
+    "egg_groups": [
+        "EGG_GROUP_AMORPHOUS",
+        "EGG_GROUP_AMORPHOUS"
+    ],
+    "abilities": [
+        "ABILITY_WATER_ABSORB",
+        "ABILITY_CUTE_CHARM"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_WHITE",
+    "flip_sprite": false,
+    "icon_palette": 0,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_ABSORB"
+            ],
+            [
+                1,
+                "MOVE_NIGHT_SHADE"
+            ],
+            [
+                1,
+                "MOVE_BUBBLE"
+            ],
+            [
+                1,
+                "MOVE_WATER_SPORT"
+            ],
+            [
+                5,
+                "MOVE_ABSORB"
+            ],
+            [
+                9,
+                "MOVE_NIGHT_SHADE"
+            ],
+            [
+                13,
+                "MOVE_BUBBLE_BEAM"
+            ],
+            [
+                17,
+                "MOVE_RECOVER"
+            ],
+            [
+                22,
+                "MOVE_WATER_PULSE"
+            ],
+            [
+                27,
+                "MOVE_OMINOUS_WIND"
+            ],
+            [
+                32,
+                "MOVE_BRINE"
+            ],
+            [
+                37,
+                "MOVE_RAIN_DANCE"
+            ],
+            [
+                53,
+                "MOVE_HYDRO_PUMP"
+            ],
+            [
+                61,
+                "MOVE_WRING_OUT"
+            ],
+            [
+                69,
+                "MOVE_WATER_SPOUT"
+            ]
+        ],
+        "by_tm": [
+            "TM03",
+            "TM06",
+            "TM07",
+            "TM10",
+            "TM12",
+            "TM13",
+            "TM14",
+            "TM15",
+            "TM17",
+            "TM18",
+            "TM19",
+            "TM20",
+            "TM21",
+            "TM27",
+            "TM29",
+            "TM30",
+            "TM32",
+            "TM34",
+            "TM36",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM53",
+            "TM55",
+            "TM58",
+            "TM61",
+            "TM68",
+            "TM70",
+            "TM77",
+            "TM78",
+            "TM79",
+            "TM82",
+            "TM83",
+            "TM85",
+            "TM87",
+            "TM90",
+            "TM92",
+            "HM03",
+            "HM07"
+        ],
+        "by_tutor": [
+            "MOVE_DIVE",
+            "MOVE_ICY_WIND",
+            "MOVE_OMINOUS_WIND",
+            "MOVE_SNORE",
+            "MOVE_SPITE",
+            "MOVE_TRICK"
+        ],
+        "egg_moves": []
+    },
+    "evolutions": [],
+    "offspring": "SPECIES_FRILLISH",
+    "footprint": {
+        "has": false,
+        "size": "FOOTPRINT_LARGE",
+        "type": "FOOTPRINT_TYPE_TOUGH"
+    },
+    "pokedex_data": {
+        "height": 22,
+        "weight": 1350,
+        "body_shape": "SHAPE_TENTACLES",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 256,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 256,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 1,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 1,
+        "en": {
+            "name": "JELLICENT",
+            "category": "Floating Pokémon",
+            "entry_text": [
+                "The fate of the ships and crew that\n",
+                "wander into JELLICENT's habitat:\n",
+                "all sunken, all lost, all vanished."
+            ]
+        },
+        "fr": {
+            "name": "MOYADE",
+            "category": "Pokémon Flottaison",
+            "entry_text": [
+                "Les bateaux qui s'aventurent sur\n",
+                "son territoire coulent, et Moyade\n",
+                "aspire l'énergie vitale des marins."
+            ]
+        },
+        "de": {
+            "name": "APOQUALLYP",
+            "category": "Gleit-Pokémon",
+            "entry_text": [
+                "Es heißt, am Meeresboden gebe es\n",
+                "einen Palast aus Schiffen, die es\n",
+                "versenkt hat. Es besteht fast nur\n",
+                "aus Meerwasser."
+            ]
+        },
+        "it": {
+            "name": "JELLICENT",
+            "category": "Pokémon Fluttuante",
+            "entry_text": [
+                "Affonda le sfortunate navi che si\n",
+                "avventurano nel suo territorio e\n",
+                "consuma l'energia dell'equipaggio."
+            ]
+        },
+        "es": {
+            "name": "JELLICENT",
+            "category": "Pokémon Ingrávido",
+            "entry_text": [
+                "Su cuerpo se compone de agua\n",
+                "salada. Dicen que ha construido un\n",
+                "palacio en el fondo del mar con\n",
+                "restos de barcos."
+            ]
+        },
+        "jp": {
+            "name": "ブルンゲル",
+            "category": "ふゆうポケモン",
+            "entry_text": [
+                "からだの　ほとんどが　かいすい。\n",
+                "かいていには　ブルンゲルが\n",
+                "しずめた　ふねで　できた　しろが\n",
+                "あるという。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NONE",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_SOUTH_EAST",
+        "catching_points": 50,
+        "rarity": 30,
+        "unused": 1539
+    }
+}
