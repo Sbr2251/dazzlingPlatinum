@@ -1,21 +1,28 @@
 {
-    "name": "Mickey",
-    "class": "TRAINER_CLASS_GUITARIST",
+    "name": "Cyrus",
+    "class": "TRAINER_CLASS_GALACTIC_BOSS",
     "items": [],
     "ai_flags": [
-        "AI_FLAG_BASIC"
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK",
+        "AI_FLAG_EXPERT"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_RATTATA",
+            "species": "SPECIES_MONFERNO",
             "form": 0,
-            "level": 5,
+            "level": 36,
             "item": null,
             "moves": null,
             "power": 0,
             "ball_seal": 0
         }
     ],
-    "messages": []
+    "messages": [
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": "(Placeholder team.)\n"
+        }
+    ]
 }

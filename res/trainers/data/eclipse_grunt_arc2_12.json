@@ -1,21 +1,27 @@
 {
-    "name": "Angelica",
-    "class": "TRAINER_CLASS_POKE_KID",
+    "name": "Grunt",
+    "class": "TRAINER_CLASS_ECLIPSE_GRUNT_F",
     "items": [],
     "ai_flags": [
-        "AI_FLAG_BASIC"
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_RATTATA",
+            "species": "SPECIES_SKUNTANK",
             "form": 0,
-            "level": 5,
+            "level": 33,
             "item": null,
             "moves": null,
             "power": 0,
             "ball_seal": 0
         }
     ],
-    "messages": []
+    "messages": [
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": "(Placeholder team.)\n"
+        }
+    ]
 }

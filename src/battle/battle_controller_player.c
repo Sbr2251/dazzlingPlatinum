@@ -4558,6 +4558,9 @@ static BOOL BattleControllerPlayer_CheckBattleOver(BattleSystem *battleSys, Batt
         case TRAINER_CLASS_COMMANDER_SATURN:
         case TRAINER_CLASS_GALACTIC_GRUNT_MALE:
         case TRAINER_CLASS_GALACTIC_GRUNT_FEMALE:
+        case TRAINER_CLASS_ECLIPSE_GRUNT_M:
+        case TRAINER_CLASS_ECLIPSE_GRUNT_F:
+        case TRAINER_CLASS_ECLIPSE_LEADER:
             Sound_PlayBGM(SEQ_VICTORY_GALACTIC_GRUNT);
             break;
 
