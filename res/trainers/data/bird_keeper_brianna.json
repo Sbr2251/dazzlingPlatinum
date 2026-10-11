@@ -8,9 +8,9 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_HOOTHOOT",
+            "species": "SPECIES_NOCTOWL",
             "form": 0,
-            "level": 31,
+            "level": 28,
             "item": null,
             "moves": null,
             "power": 50,
@@ -19,7 +19,7 @@
         {
             "species": "SPECIES_NOCTOWL",
             "form": 0,
-            "level": 33,
+            "level": 29,
             "item": null,
             "moves": null,
             "power": 50,

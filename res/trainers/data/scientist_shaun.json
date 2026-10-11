@@ -11,9 +11,9 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_MAGNEMITE",
+            "species": "SPECIES_MAGNETON",
             "form": 0,
-            "level": 30,
+            "level": 35,
             "item": null,
             "moves": [
                 "MOVE_SPARK",
@@ -25,7 +25,7 @@
         {
             "species": "SPECIES_KADABRA",
             "form": 0,
-            "level": 26,
+            "level": 34,
             "item": null,
             "moves": [
                 "MOVE_PSYBEAM",

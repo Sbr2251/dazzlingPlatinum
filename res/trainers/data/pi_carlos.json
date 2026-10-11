@@ -11,10 +11,10 @@
         {
             "species": "SPECIES_GOLDEEN",
             "form": 0,
-            "level": 30,
+            "level": 33,
             "item": null,
             "moves": [
-                "MOVE_HORN_DRILL",
+                "MOVE_FURY_ATTACK",
                 "MOVE_FLAIL"
             ],
             "power": 50,

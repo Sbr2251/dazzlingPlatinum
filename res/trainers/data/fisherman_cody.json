@@ -8,9 +8,9 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_BARBOACH",
+            "species": "SPECIES_WHISCASH",
             "form": 0,
-            "level": 33,
+            "level": 34,
             "item": null,
             "moves": null,
             "power": 0,
@@ -19,7 +19,7 @@
         {
             "species": "SPECIES_GYARADOS",
             "form": 0,
-            "level": 33,
+            "level": 34,
             "item": null,
             "moves": null,
             "power": 0,

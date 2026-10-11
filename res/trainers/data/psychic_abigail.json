@@ -11,25 +11,25 @@
         {
             "species": "SPECIES_CHINGLING",
             "form": 0,
-            "level": 23,
+            "level": 31,
             "item": null,
             "moves": null,
             "power": 0,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_DRIFLOON",
+            "species": "SPECIES_DRIFBLIM",
             "form": 0,
-            "level": 25,
+            "level": 31,
             "item": null,
             "moves": null,
             "power": 0,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_KIRLIA",
+            "species": "SPECIES_GARDEVOIR",
             "form": 0,
-            "level": 27,
+            "level": 32,
             "item": null,
             "moves": null,
             "power": 0,

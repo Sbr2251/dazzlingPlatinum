@@ -10,7 +10,7 @@
         {
             "species": "SPECIES_WORMADAM",
             "form": 0,
-            "level": 24,
+            "level": 31,
             "item": null,
             "moves": null,
             "power": 0,
@@ -19,7 +19,7 @@
         {
             "species": "SPECIES_WORMADAM",
             "form": 1,
-            "level": 24,
+            "level": 31,
             "item": null,
             "moves": null,
             "power": 0,
@@ -28,7 +28,7 @@
         {
             "species": "SPECIES_WORMADAM",
             "form": 2,
-            "level": 24,
+            "level": 31,
             "item": null,
             "moves": null,
             "power": 0,

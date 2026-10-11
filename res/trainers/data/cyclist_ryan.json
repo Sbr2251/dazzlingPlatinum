@@ -8,9 +8,9 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_SHINX",
+            "species": "SPECIES_LUXIO",
             "form": 0,
-            "level": 21,
+            "level": 27,
             "item": null,
             "moves": null,
             "power": 0,

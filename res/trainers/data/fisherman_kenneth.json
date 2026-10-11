@@ -8,18 +8,18 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_REMORAID",
+            "species": "SPECIES_OCTILLERY",
             "form": 0,
-            "level": 25,
+            "level": 32,
             "item": null,
             "moves": null,
             "power": 0,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_REMORAID",
+            "species": "SPECIES_OCTILLERY",
             "form": 0,
-            "level": 25,
+            "level": 32,
             "item": null,
             "moves": null,
             "power": 0,
@@ -28,7 +28,7 @@
         {
             "species": "SPECIES_GYARADOS",
             "form": 0,
-            "level": 28,
+            "level": 33,
             "item": null,
             "moves": null,
             "power": 0,
