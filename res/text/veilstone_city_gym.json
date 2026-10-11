@@ -130,6 +130,25 @@
     {
       "id": "VeilstoneGym_Text_OneDayAtATime",
       "en_US": "One day at a time."
+    },
+    {
+      "id": "VeilstoneGym_Text_Arc2MayleneRift",
+      "en_US": [
+        "Maylene: Ruth told me about the rift\n",
+        "on Route 214.\r",
+        "My students won't train down there\n",
+        "anymore.\r",
+        "They say the sky over it feels\n",
+        "wrong. Please, help it."
+      ]
+    },
+    {
+      "id": "VeilstoneGym_Text_Arc2MayleneExplainBadge",
+      "en_US": [
+        "Um... That's the Cobble Badge.\n",
+        "It means you beat me fair.\r",
+        "Oh, and please take this as well."
+      ]
     }
   ]
 }

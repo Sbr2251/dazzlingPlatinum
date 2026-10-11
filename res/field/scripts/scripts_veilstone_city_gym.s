@@ -38,11 +38,10 @@ VeilstoneGym_Maylene:
     SetTrainerFlag TRAINER_BLACK_BELT_RAFAEL
     SetTrainerFlag TRAINER_BLACK_BELT_JEFFERY
     CreateJournalEvent LOCATION_EVENT_BEAT_GYM_LEADER, 133, TRAINER_LEADER_MAYLENE, 0, 0
+    // Arc 2 (s-veilstone): the stock post-badge chain (Dawn's Pokedex plea, warehouse guards, Looker at the
+    // Game Corner) is gone. Looker's check outside (2.17) keys on the Cobble Badge + VAR_ARC2_PROGRESS 49.
     SetFlag FLAG_HIDE_LOOKER_IN_GAME_CORNER
-    ClearFlag FLAG_HIDE_VEILSTONE_COUNTERPART
-    SetVar VAR_VEILSTONE_WAREHOUSE_GUARDS_FIGHTABLE, TRUE
-    SetVar VAR_VEILSTONE_STATE, 1
-    Message VeilstoneGym_Text_MayleneExplainBadge
+    Message VeilstoneGym_Text_Arc2MayleneExplainBadge
     GoTo VeilstoneGym_MayleneTryGiveTM60
     End
 
@@ -55,6 +54,9 @@ VeilstoneGym_MayleneTryGiveTM60:
     BufferItemName 0, VAR_0x8004
     BufferTMHMMoveName 1, VAR_0x8004
     Message VeilstoneGym_Text_MayleneExplainTM60
+    WaitABXPadPress
+    // 2.17: Maylene on the Route 214 rift
+    Message VeilstoneGym_Text_Arc2MayleneRift
     WaitABXPadPress
     CloseMessage
     ReleaseAll

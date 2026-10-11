@@ -87,6 +87,63 @@
         "I lost but I’m totally thrilled!\n",
         "We made a wonderful spectacle!"
       ]
+    },
+    {
+      "id": "VeilstonePC_Text_Arc2RuthDawn",
+      "en_US": [
+        "Ruth: Maylene says the Route 214\n",
+        "rift gets worse every night.\r",
+        "So we go in at dawn. First light."
+      ]
+    },
+    {
+      "id": "VeilstonePC_Text_Arc2GariusPassing",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Don't mind me. Just\n",
+        "passing through."
+      ]
+    },
+    {
+      "id": "VeilstonePC_Text_Arc2RuthInvite",
+      "en_US": [
+        "Ruth: {STRVAR_1 3, 0, 0}! Route 214,\n",
+        "at dawn. You could come with us."
+      ]
+    },
+    {
+      "id": "VeilstonePC_Text_Arc2GariusPass",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Pass. Got my badge\n",
+        "this morning. I'm heading south."
+      ]
+    },
+    {
+      "id": "VeilstonePC_Text_Arc2CyrusHere",
+      "en_US": [
+        "Cyrus: I'll be here.\r",
+        "I don't sleep much anyway."
+      ]
+    },
+    {
+      "id": "VeilstonePC_Text_Arc2RuthMorning",
+      "en_US": [
+        "Ruth: Morning! Let's go before the\n",
+        "sun's all the way up."
+      ]
+    },
+    {
+      "id": "VeilstonePC_Text_Arc2RuthTalk",
+      "en_US": [
+        "Ruth: Route 214 is south of town.\n",
+        "Let's go before the sun's up!"
+      ]
+    },
+    {
+      "id": "VeilstonePC_Text_Arc2CyrusTalk",
+      "en_US": [
+        "Cyrus: The rift will not wait for\n",
+        "us. Neither should we."
+      ]
     }
   ]
 }
