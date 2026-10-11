@@ -1638,6 +1638,8 @@ static void ov9_02249EC8(DistWorldSystem *param0)
     }
 }
 
+static void Arc2Dw_HandleFrame(DistWorldSystem *system);
+
 static void ov9_02249EDC(SysTask *param0, void *param1)
 {
     DistWorldSystem *v0 = param1;
@@ -1650,6 +1652,8 @@ static void ov9_02249EDC(SysTask *param0, void *param1)
     {
         ov9_0224F764(v0);
     }
+
+    Arc2Dw_HandleFrame(v0);
 }
 
 static void ov9_02249EF0(DistWorldSystem *param0)
@@ -2403,9 +2407,101 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
     return FALSE;
 }
 
+// Arc 2 rift-a, DW Eterna Forest (scene 2.10, res/field/scripts/scripts_dw_eterna_forest.s): the CEILING (DW B4F's
+// east wall and ceiling, shifted to (0,0,0)) and the HONEYCOMB: the ceiling corridor x44-45 z33-36 is ghost-prop
+// group 1 (tools/distortion_world/eterna_forest.json), solid for a while, then it fades and is gone, then it comes back,
+// on a frame timer that runs whenever the map is loaded at VAR_ARC2_PROGRESS 24. Standing on it when it goes, or
+// stepping onto it while it is gone, drops the player (back to the hive start). Past it, the first step at z >= 41
+// on the ceiling starts the totem scene.
+#define ETERNA_FOREST_SCRIPT_HONEY_FALL 5 // map script entries (1-based)
+#define ETERNA_FOREST_SCRIPT_TOTEM      6
+#define ETERNA_FOREST_SCRIPT_TALK       7
+#define ETERNA_FOREST_CEILING_Y         10
+#define ETERNA_FOREST_HONEY_X_MIN       44
+#define ETERNA_FOREST_HONEY_X_MAX       45
+#define ETERNA_FOREST_HONEY_Z_MIN       33
+#define ETERNA_FOREST_HONEY_Z_MAX       36
+#define ETERNA_FOREST_HONEY_GROUP       1
+#define ETERNA_FOREST_TOTEM_Z           41
+#define ETERNA_FOREST_HONEY_SOLID       120 // DW task ticks (about 30 a second): solid, fading (still holds), gone
+#define ETERNA_FOREST_HONEY_FADE        20
+#define ETERNA_FOREST_HONEY_GONE        60
+
+static u16 sEternaForestHoneyTimer;
+
+static BOOL EternaForest_IsHoneyGone(void)
+{
+    return sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_SOLID + ETERNA_FOREST_HONEY_FADE;
+}
+
+static BOOL EternaForest_IsHoneyTile(int x, int y, int z)
+{
+    return y == ETERNA_FOREST_CEILING_Y
+        && x >= ETERNA_FOREST_HONEY_X_MIN && x <= ETERNA_FOREST_HONEY_X_MAX
+        && z >= ETERNA_FOREST_HONEY_Z_MIN && z <= ETERNA_FOREST_HONEY_Z_MAX;
+}
+
+static void Arc2DwEternaForest_HandleFrame(DistWorldSystem *system)
+{
+    FieldSystem *fieldSystem = system->fieldSystem;
+    BOOL hidden;
+    int x, y, z;
+
+    if (*VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_ARC2_PROGRESS) != 24) {
+        return;
+    }
+
+    if (++sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_SOLID + ETERNA_FOREST_HONEY_FADE + ETERNA_FOREST_HONEY_GONE) {
+        sEternaForestHoneyTimer = 0;
+    }
+
+    // The ghost props follow the timer (a warp re-reads the default visibility, so re-assert it every frame).
+    hidden = IsActiveGhostPropGroupHidden(system, ETERNA_FOREST_HONEY_GROUP);
+
+    if (sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_SOLID) {
+        if (!hidden) {
+            HideGhostPropGroup(system, ETERNA_FOREST_HONEY_GROUP);
+        }
+    } else if (hidden) {
+        ShowGhostPropGroup(system, ETERNA_FOREST_HONEY_GROUP);
+    }
+
+    // Gone with the player on it: raise VAR_MAP_LOCAL_2, and the map's init frame table starts the fall script from
+    // the idle field (never from this task, never mid-script). A step onto it while gone is the step hook's job.
+    if (EternaForest_IsHoneyGone()) {
+        GetPlayerPos(system, &x, &y, &z);
+
+        if (EternaForest_IsHoneyTile(x, y, z)) {
+            *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_MAP_LOCAL_2) = 1;
+        }
+    }
+}
+
 static BOOL Arc2DwEternaForest_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
+    if (*VarsFlags_GetVarAddress(SaveData_GetVarsFlags(system->fieldSystem->saveData), VAR_ARC2_PROGRESS) != 24) {
+        return FALSE;
+    }
+
+    if (EternaForest_IsHoneyTile(x, y, z) && EternaForest_IsHoneyGone()) {
+        ScriptManager_Set(system->fieldSystem, ETERNA_FOREST_SCRIPT_HONEY_FALL, NULL);
+        return TRUE;
+    }
+
+    if (y == ETERNA_FOREST_CEILING_Y && z >= ETERNA_FOREST_TOTEM_Z) {
+        ScriptManager_Set(system->fieldSystem, ETERNA_FOREST_SCRIPT_TOTEM, NULL);
+        return TRUE;
+    }
+
     return FALSE;
+}
+
+// Per-frame hook for the Arc 2 rifts, from the DW system task (ov9_02249EDC). Only Eterna Forest uses it.
+static void Arc2Dw_HandleFrame(DistWorldSystem *system)
+{
+    if (DistWorldSystem_GetMapHeaderID(system) == MAP_HEADER_DW_ETERNA_FOREST) {
+        Arc2DwEternaForest_HandleFrame(system);
+    }
 }
 
 static BOOL Arc2DwRoute214_HandleStep(DistWorldSystem *system, int x, int y, int z)
@@ -13813,7 +13909,84 @@ static const UnkStruct_ov9_0224EF30 *sArc2DwRavagedPathObjects[] = {
     NULL
 };
 
+// Arc 2 rift-a, DW Eterna Forest. Cyrus waits on the entry walkway and, folded through with the player, at the hive
+// start on B4F's floor strip; the Vespiquen totem hangs at the far end of the ceiling (y10).
+static const UnkStruct_ov9_0224EF30 sArc2DwEternaForestCyrusAtEntry = {
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x80,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        ETERNA_FOREST_SCRIPT_TALK,
+        DIR_WEST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        22,
+        11,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const UnkStruct_ov9_0224EF30 sArc2DwEternaForestCyrusInHive = {
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x81,
+        OBJ_EVENT_GFX_CYRUS,
+        0x0,
+        0x0,
+        0x0,
+        ETERNA_FOREST_SCRIPT_TALK,
+        DIR_EAST,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        40,
+        23,
+        ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const UnkStruct_ov9_0224EF30 sArc2DwEternaForestTotem = {
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    {
+        0x82,
+        OBJ_EVENT_GFX_TOTEM_VESPIQUEN,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        DIR_NORTH,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        45,
+        45,
+        ((10 << 4) * FX32_ONE),
+    },
+};
+
 static const UnkStruct_ov9_0224EF30 *sArc2DwEternaForestObjects[] = {
+    &sArc2DwEternaForestCyrusAtEntry,
+    &sArc2DwEternaForestCyrusInHive,
+    &sArc2DwEternaForestTotem,
     NULL
 };
 
