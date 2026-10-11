@@ -142,6 +142,49 @@
         "seen in the murky darkness.\r",
         "Take the time to search carefully!"
       ]
+    },
+    {
+      "id": "EternaForest_Text_Arc2Silence",
+      "en_US": [
+        "The forest is silent. Not a leaf\n",
+        "stirs. Not a wing buzzes."
+      ]
+    },
+    {
+      "id": "EternaForest_Text_Arc2RuthSameSignature",
+      "en_US": [
+        "Ruth: It's the same signature as\n",
+        "Ravaged Path. Not one Combee hums.\r",
+        "Be careful in there."
+      ]
+    },
+    {
+      "id": "EternaForest_Text_Arc2RiftStepInside",
+      "en_US": [
+        "A violet rift hangs between the\n",
+        "trees. Step inside?"
+      ]
+    },
+    {
+      "id": "EternaForest_Text_Arc2CyrusEllipsis",
+      "en_US": "Cyrus: ..."
+    },
+    {
+      "id": "EternaForest_Text_Arc2RuthWontAnswer",
+      "en_US": [
+        "Ruth: It's holding the new shard.\n",
+        "But it won't answer.\r",
+        "Like it's waiting for something."
+      ]
+    },
+    {
+      "id": "EternaForest_Text_Arc2RuthGardenia",
+      "en_US": [
+        "Ruth: ...Oh! Gardenia's the Gym\n",
+        "Leader in Eterna.\r",
+        "Maybe it's waiting for her to vouch\n",
+        "for you."
+      ]
     }
   ]
 }

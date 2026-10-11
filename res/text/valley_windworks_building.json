@@ -176,6 +176,144 @@
         "upon numbers.\r",
         "Better not disturb it."
       ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2BoltHoles",
+      "en_US": [
+        "Four bolt holes in the floor.\n",
+        "The metal is scorched violet."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2Generator",
+      "en_US": "The generator is still warm."
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2DragMarks",
+      "en_US": [
+        "Drag marks lead to the loading door.\n",
+        "Something heavy went out this way."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2Cage",
+      "en_US": [
+        "A small cage. The door is bent open.\r",
+        "A tag on it reads: PLUSLE, MINUN.\n",
+        "Only one Minun is left inside."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2CageEmpty",
+      "en_US": [
+        "A small cage. The door is bent open.\r",
+        "A tag on it reads: PLUSLE, MINUN.\n",
+        "It's empty now."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2MinunCry",
+      "en_US": "Minun: Minu...!"
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2MinunRanOut",
+      "en_US": "The Minun ran out the loading door!"
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2WorkerDarkCoats",
+      "en_US": [
+        "Windworks Worker: Those folks in\n",
+        "the dark coats?\r",
+        "Cleared out about an hour ago.\r",
+        "One of them got a call, and they\n",
+        "packed up in a real hurry."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2RuthACall",
+      "en_US": "Ruth: ...A call."
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2CyrusSawLights",
+      "en_US": [
+        "Cyrus: I saw lights here last night.\r",
+        "By the time I reached the fence,\n",
+        "they were loading trucks.\r",
+        "I came back to tell you."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2RuthCouldHaveWokenUs",
+      "en_US": "Ruth: ...You could have woken us."
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2RuthWhoToldThem",
+      "en_US": [
+        "Ruth: So who told them?\n",
+        "Who could have?"
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2LedgerCyrus",
+      "en_US": "Cyrus"
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2LedgerGarius",
+      "en_US": "Garius"
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2LedgerRuth",
+      "en_US": "Ruth"
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2LedgerBadLuck",
+      "en_US": "Bad luck"
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2ReactCyrus",
+      "en_US": [
+        "Ruth: Cyrus? He came back to tell us\n",
+        "about the trucks. Spies don't."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2ReactGarius",
+      "en_US": [
+        "Ruth: {STRVAR_1 3, 0, 0}? He was halfway\n",
+        "through the forest by then. Maybe."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2ReactRuth",
+      "en_US": [
+        "Ruth: Me? I was asleep! I snore.\n",
+        "Ask anyone. ...Don't ask anyone."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2ReactBadLuck",
+      "en_US": [
+        "Ruth: Bad luck? An hour early is a\n",
+        "lot of bad luck. But maybe."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2RuthEternaForestNext",
+      "en_US": [
+        "Ruth: Whoever it was... the readings\n",
+        "point at Eterna Forest next."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2RuthLookAround",
+      "en_US": [
+        "Ruth: Look around. Somebody here\n",
+        "must have seen something."
+      ]
+    },
+    {
+      "id": "ValleyWindworksBuilding_Text_Arc2CyrusEllipsis",
+      "en_US": "Cyrus: ..."
     }
   ]
 }
