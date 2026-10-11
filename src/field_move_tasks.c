@@ -297,7 +297,8 @@ void FieldMoves_ApplyResonatorGhostPalette(const Pokemon *mon, u16 *palette, int
 // every map object draws (MapObjectTask_Draw), turns those actors into ghosts the way the Resonator cut-in shows a
 // totem: the sprite's palette washed pale violet (FieldMoves_ApplyResonatorGhostPalette's wash, precomputed per
 // sprite by tools/arc2_echo/echo_palettes.py) and the billboard drawn translucent with no shadow (the Lost Tower ghost
-// acts' material-callback approach, src/overlay009/ov9_02249960.c). At opacity 0 the actors are hidden.
+// acts' material-callback approach, src/overlay009/ov9_02249960.c). At opacity 0 the actors are hidden (so they
+// spawn with the opacity already above 0, and stay hidden if it drops back to 0).
 // The washed palettes sit in their own texture-palette VRAM block while an echo plays: allocated on the first ghost
 // draw, freed on the first draw after the opacity is back to 0. Echo scripts set it to 0 and wait a frame before they
 // release the player, so the block never outlives the field.
@@ -440,8 +441,9 @@ void FieldMoves_EchoGhostDraw(MapObject *mapObj)
         return;
     }
 
-    if (MapObject_IsHidden(mapObj) != (opacity == 0)) {
-        MapObject_SetHidden(mapObj, opacity == 0);
+    // Hidden while the opacity is 0; otherwise the script's own visibility (SetInvisible/SetVisible) stands.
+    if (opacity == 0 && MapObject_IsHidden(mapObj) == FALSE) {
+        MapObject_SetHidden(mapObj, TRUE);
     }
 
     MapObject_SetStatusFlagOn(mapObj, MAP_OBJ_STATUS_HIDE_SHADOW);
