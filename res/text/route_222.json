@@ -67,6 +67,34 @@
         "Pokémon Size Contest\n",
         "Big Pokémon Wanted!"
       ]
+    },
+    {
+      "id": "Route222_Text_Arc2KahnSevenYearsToday",
+      "en_US": "Kahn: Seven years today, Lucario."
+    },
+    {
+      "id": "Route222_Text_Arc2KahnEveryoneSays",
+      "en_US": [
+        "Kahn: Everyone says there's no\n",
+        "world where you come back."
+      ]
+    },
+    {
+      "id": "Route222_Text_Arc2KahnThereIs",
+      "en_US": [
+        "Kahn: There is.\n",
+        "Somewhere, you didn't fall.\r",
+        "Somewhere, you're still waiting for\n",
+        "me to come home."
+      ]
+    },
+    {
+      "id": "Route222_Text_Arc2KahnPalkiaCanTakeMeThere",
+      "en_US": [
+        "Kahn: Palkia can take me there.\r",
+        "I just need enough shards to hold\n",
+        "it."
+      ]
     }
   ]
 }
