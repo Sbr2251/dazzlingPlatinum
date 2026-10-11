@@ -133,6 +133,85 @@
         "Pokémon News Press\n",
         "Wanted: Pro Pokémon Catcher!"
       ]
+    },
+    {
+      "id": "SolaceonTown_Text_Arc2WallPhotos",
+      "en_US": [
+        "A wall of photos. Each card has a\n",
+        "name, a date and a place."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_Arc2WallPonyta",
+      "en_US": [
+        "A child's drawing of a man and a\n",
+        "Ponyta.\r",
+        "The card gives her name, her\n",
+        "birthday, and where it happened."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_Arc2WallElias",
+      "en_US": [
+        "A card: ELIAS. VALOR BASIN.\r",
+        "No one signed for it."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_Arc2WallBanner",
+      "en_US": [
+        "A banner, pinned above the wall:\r",
+        "WHO DID YOU LOSE?\n",
+        "Team Eclipse"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_Arc2WallTeo",
+      "en_US": [
+        "A new card: TEO. A boy, smiling.\n",
+        "The pin is still shiny."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_Arc2IndraAnotherName",
+      "en_US": [
+        "Indra: Another name today.\n",
+        "A boy from Floaroma.\r",
+        "His dad cried the whole time.\n",
+        "I wrote it all down anyway.\r"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_Arc2IndraSomebodyHasTo",
+      "en_US": [
+        "Indra: Somebody has to.\r"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_Arc2IndraMorningDoor",
+      "en_US": [
+        "Indra: Saros wants a morning.\n",
+        "Kahn wants a door.\r",
+        "I don't care which one works, Teo.\r",
+        "Either one brings you home.\r"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_Arc2IndraHandsShake",
+      "en_US": [
+        "Indra: Saros's hands shake now.\n",
+        "Kahn doesn't sleep.\r",
+        "The shards are taking something\n",
+        "out of them.\r"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_Arc2IndraKeepTheDoor",
+      "en_US": [
+        "Indra: So I keep the door.\r",
+        "Nobody gets through who could\n",
+        "break it.\r"
+      ]
     }
   ]
 }

@@ -7,6 +7,46 @@
             "z": 640,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 13,
+            "type": 0,
+            "x": 556,
+            "z": 652,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_WEST"
+        },
+        {
+            "script": 14,
+            "type": 0,
+            "x": 556,
+            "z": 653,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_WEST"
+        },
+        {
+            "script": 15,
+            "type": 0,
+            "x": 556,
+            "z": 654,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_WEST"
+        },
+        {
+            "script": 16,
+            "type": 0,
+            "x": 556,
+            "z": 655,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_WEST"
+        },
+        {
+            "script": 17,
+            "type": 0,
+            "x": 556,
+            "z": 656,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_WEST"
         }
     ],
     "object_events": [
@@ -337,6 +377,21 @@
             "x": 594,
             "z": 653,
             "y": 0
+        },
+        {
+            "id": "SOLACEON_TOWN_ARC2_INDRA",
+            "graphics_id": "OBJ_EVENT_GFX_INDRA",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 0,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 557,
+            "z": 654,
+            "y": 0
         }
     ],
     "warp_events": [
@@ -405,7 +460,16 @@
             "length": 1,
             "var": "VAR_UNK_0x4073",
             "value": 0
+        },
+        {
+            "script": 18,
+            "x": 557,
+            "z": 640,
+            "y": 0,
+            "width": 7,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 44
         }
     ]
 }
-
