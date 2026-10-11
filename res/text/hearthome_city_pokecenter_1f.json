@@ -100,6 +100,59 @@
         "So, did you come to Hearthome to\n",
         "compete in Contests?"
       ]
+    },
+    {
+      "id": "HearthomeCenter_Text_CalledProfessor",
+      "en_US": "{STRVAR_1 3, 0, 0} called the Professor."
+    },
+    {
+      "id": "HearthomeCenter_Text_RowanAnySign",
+      "en_US": [
+        "Rowan: {STRVAR_1 3, 0, 0}? Any sign of\n",
+        "Cyrus?"
+      ]
+    },
+    {
+      "id": "HearthomeCenter_Text_ToldVein",
+      "en_US": [
+        "You told the Professor about the\n",
+        "vein."
+      ]
+    },
+    {
+      "id": "HearthomeCenter_Text_RowanWholeVein",
+      "en_US": [
+        "Rowan: A whole vein? Growing in that\n",
+        "world?\r",
+        "...Tell no one else. Not yet.\n",
+        "Not until we understand it."
+      ]
+    },
+    {
+      "id": "HearthomeCenter_Text_RowanGariusHere",
+      "en_US": [
+        "Rowan: Garius is here, by the way.\n",
+        "He came by asking about Cyrus."
+      ]
+    },
+    {
+      "id": "HearthomeCenter_Text_GariusShards",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}: Shards.\n",
+        "Just sitting there.\r",
+        "Huh."
+      ]
+    },
+    {
+      "id": "HearthomeCenter_Text_RowanFirstThing",
+      "en_US": [
+        "Rowan: I'll come to Hearthome first\n",
+        "thing. Get some rest."
+      ]
+    },
+    {
+      "id": "HearthomeCenter_Text_NextMorning",
+      "en_US": "The next morning..."
     }
   ]
 }
