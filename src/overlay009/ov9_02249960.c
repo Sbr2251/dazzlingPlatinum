@@ -2293,6 +2293,8 @@ static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
 #define RAVAGED_PATH_HALFWAY_Z       20
 #define RAVAGED_PATH_SCAR_COUNT      2
 #define RAVAGED_PATH_NO_SCAR         0xFF
+#define RAVAGED_PATH_SCAR_PROP_GROUP 2 // ghost-prop group of scar 0 (scar n: group 2 + n): the loose rocks hovering
+                                       // in front of its tiles, which fade away when it crumbles
 
 enum Arc2ScarState {
     ARC2_SCAR_INTACT = 0,
@@ -2334,10 +2336,14 @@ static u8 RavagedPath_GetScarAt(int x, int y, int z)
     return RAVAGED_PATH_NO_SCAR;
 }
 
-static void RavagedPath_ResetScars(void)
+static void RavagedPath_ResetScars(DistWorldSystem *system)
 {
     for (int i = 0; i < RAVAGED_PATH_SCAR_COUNT; i++) {
         sRavagedPathScarStates[i] = ARC2_SCAR_INTACT;
+
+        if (IsActiveGhostPropGroupHidden(system, RAVAGED_PATH_SCAR_PROP_GROUP + i)) {
+            ShowGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + i);
+        }
     }
 
     sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
@@ -2355,7 +2361,7 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
 
     // Back on the entry walkway or the jump-on ledge (after a fall, or never left): the wall is whole again.
     if (y == RAVAGED_PATH_FLOOR_Y && z <= 15 && x >= 12) {
-        RavagedPath_ResetScars();
+        RavagedPath_ResetScars(system);
         return FALSE;
     }
 
@@ -2365,6 +2371,7 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
     for (i = 0; i < RAVAGED_PATH_SCAR_COUNT; i++) {
         if (sRavagedPathScarStates[i] == ARC2_SCAR_LEFT) {
             sRavagedPathScarStates[i] = ARC2_SCAR_CRUMBLED;
+            HideGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + i);
             Sound_PlayEffect(SEQ_SE_DP_UG_023);
         }
     }
@@ -2377,7 +2384,9 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
     if (scar != RAVAGED_PATH_NO_SCAR) {
         if (sRavagedPathScarStates[scar] != ARC2_SCAR_INTACT) {
             // A second step on the same scar, or back onto a spent one: it gives way.
-            RavagedPath_ResetScars();
+            // (The fall's warp rebuilds the props; the first step on the walkway resets the scars.)
+            HideGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + scar);
+            sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
             Sound_PlayEffect(SEQ_SE_DP_UG_023);
             ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_FALL, NULL);
             return TRUE;

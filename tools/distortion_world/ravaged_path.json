@@ -12,10 +12,38 @@
         15,
         16
     ],
-    "notes": "rift-a, scene 2.6. West wall x=11, z 13-22 (columns), y 5..2 (rows, top first). '.' seam, '*' SCAR (walkable; the step hook Arc2DwRavagedPath_HandleStep in src/overlay009/ov9_02249960.c tracks it: one step per scar, crumbles one step after you leave), '#' blocked (top rim, the two wall trees). Keep the '*' tiles in sync with sRavagedPathScarTiles. Fork at z19; the seam climbs to y4 over the scar at z20-21 and comes down at z22.",
+    "notes": "rift-a, scene 2.6. West wall x=11, z 13-22 (columns), y 5..2 (rows, top first). '.' seam, '*' SCAR (walkable; the step hook Arc2DwRavagedPath_HandleStep in src/overlay009/ov9_02249960.c tracks it: one step per scar, crumbles one step after you leave), '#' blocked (top rim, the two wall trees). Keep the '*' tiles in sync with sRavagedPathScarTiles. Fork at z19; the seam climbs to y4 over the scar at z20-21 and comes down at z22. Each scar has a ghost-prop group of loose rocks hovering in front of its tiles (x=12): group 2 for scar 0, group 3 for scar 1 (extra_ghost_props; default visible 0x1|0x4|0x8). The rocks fade away when the scar crumbles and come back when the wall resets.",
     "scars": [
-        {"scar": 0, "tiles": [[2, 16]]},
-        {"scar": 1, "tiles": [[2, 20], [2, 21], [3, 20], [3, 21]]}
+        {
+            "scar": 0,
+            "tiles": [
+                [
+                    2,
+                    16
+                ]
+            ]
+        },
+        {
+            "scar": 1,
+            "tiles": [
+                [
+                    2,
+                    20
+                ],
+                [
+                    2,
+                    21
+                ],
+                [
+                    3,
+                    20
+                ],
+                [
+                    3,
+                    21
+                ]
+            ]
+        }
     ],
     "platforms": [
         {
@@ -27,5 +55,43 @@
                 "...*...**."
             ]
         }
-    ]
+    ],
+    "extra_ghost_props": [
+        {
+            "group": 2,
+            "kind": 1,
+            "x": 12,
+            "y": 2,
+            "z": 16
+        },
+        {
+            "group": 3,
+            "kind": 1,
+            "x": 12,
+            "y": 2,
+            "z": 20
+        },
+        {
+            "group": 3,
+            "kind": 1,
+            "x": 12,
+            "y": 2,
+            "z": 21
+        },
+        {
+            "group": 3,
+            "kind": 1,
+            "x": 12,
+            "y": 3,
+            "z": 20
+        },
+        {
+            "group": 3,
+            "kind": 1,
+            "x": 12,
+            "y": 3,
+            "z": 21
+        }
+    ],
+    "ghost_default_visible": 13
 }
