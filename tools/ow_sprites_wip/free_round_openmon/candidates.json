@@ -1,0 +1,308 @@
+[
+ {
+  "char": "darren_boy",
+  "key": "B1_openmon_teal_jacket",
+  "name": "Openmon NPC: dark-skinned boy, teal jacket",
+  "colors_in": 18,
+  "colors_out": 15,
+  "shift": [
+   0,
+   1
+  ],
+  "sets": "walk only",
+  "source_short": "Openmon NPC Sprites Set 1 (Screen Smith), CC0",
+  "licence": "CC0 1.0 (public domain)",
+  "lic_quote": "\"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "Screen Smith (Openmon project), commissioned from a Fiverr artist",
+  "credit": "none required (optional: \"Overworld sprite: Openmon NPC Sprites Set 1 by Screen Smith, CC0\")"
+ },
+ {
+  "char": "darren_boy",
+  "key": "B2_openmon_blue_hair",
+  "name": "Openmon NPC: navy hair, green jacket",
+  "colors_in": 12,
+  "colors_out": 12,
+  "shift": [
+   -1,
+   0
+  ],
+  "sets": "walk only",
+  "source_short": "Openmon NPC Sprites Set 1 (Screen Smith), CC0",
+  "licence": "CC0 1.0 (public domain)",
+  "lic_quote": "\"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "Screen Smith (Openmon project), commissioned from a Fiverr artist",
+  "credit": "none required (optional: \"Overworld sprite: Openmon NPC Sprites Set 1 by Screen Smith, CC0\")"
+ },
+ {
+  "char": "darren_boy",
+  "key": "B3_tuxemon_adventurer",
+  "name": "Tuxemon \"Adventurer\" (protagonist option)",
+  "colors_in": 16,
+  "colors_out": 15,
+  "shift": [
+   0,
+   -1
+  ],
+  "sets": "walk only",
+  "source_short": "Tuxemon, overland by Catch Challenger adapted by Sanglorian; CC BY / CC BY-SA",
+  "url": "https://github.com/Tuxemon/Tuxemon/tree/development/mods/tuxemon/sprites/adventurer.png",
+  "creator": "Catch Challenger art team (Jordan Brule), adapted by Sanglorian; design by Leo",
+  "licence": "CC BY-SA 4.0 per Tuxemon wiki (\"Content is available under Creative Commons Attribution-ShareAlike unless otherwise noted\"); Tuxemon labels Catch Challenger art \"(CC BY)\"  [FLAG: attribution + share-alike]",
+  "lic_quote": "wiki.tuxemon.org/Adventurer: \"Overland sprites by Catch Challenger, adapted by Sanglorian. Art by Leo.\" Wiki footer: \"Content is available under Creative Commons Attribution-ShareAlike unless otherwise noted.\" Tuxemon ATTRIBUTIONS.md / wiki File:Swim.png: \"A sprite from Catch Challenger (CC BY), art director Jordan Brule. Project developer Herman Brule.\"",
+  "credit": "\"Overworld sprite: Tuxemon Adventurer, Catch Challenger (Jordan Brule), adapted by Sanglorian, CC BY-SA 4.0\""
+ },
+ {
+  "char": "darren_boy",
+  "key": "B4_kit_boy",
+  "name": "Kit build: hoodie + jeans + backpack (boy)",
+  "colors_in": 23,
+  "colors_out": 15,
+  "shift": [
+   0,
+   1
+  ],
+  "sets": "walk, run, bike (kit); swimming add-on exists (TechSkylander1518, eeveeexpo 373); no surf-on-Pokemon or fishing",
+  "source_short": "Poltergeist character kit (Eevee Expo 317) - FLAG: vanilla-based bodies",
+  "licence": "Free use: \"use, edit and share\", credit appreciated  [FLAG: bodies built on vanilla Pokemon sprites]",
+  "url": "https://eeveeexpo.com/resources/317/",
+  "creator": "Poltergeist / Coffee Cup (character-creation kit; also PokeCommunity thread 421381)",
+  "lic_quote": "\"You can freely use, edit and share it if you want. Credit and a link to your project would be appreciated, though!\" Also: \"even though some of the clothes are inspired by the game I created all resources from scratch (well, and from the vanilla sprites).\"",
+  "credit": "\"Overworld sprite built with Poltergeist's Character Customization Resources (eeveeexpo.com/resources/317)\""
+ },
+ {
+  "char": "darren_girl",
+  "key": "G1_openmon_blue",
+  "name": "Openmon NPC: light-blue ponytail girl",
+  "colors_in": 9,
+  "colors_out": 9,
+  "shift": [
+   0,
+   0
+  ],
+  "sets": "walk only",
+  "source_short": "Openmon NPC Sprites Set 1 (Screen Smith), CC0",
+  "licence": "CC0 1.0 (public domain)",
+  "lic_quote": "\"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "Screen Smith (Openmon project), commissioned from a Fiverr artist",
+  "credit": "none required (optional: \"Overworld sprite: Openmon NPC Sprites Set 1 by Screen Smith, CC0\")"
+ },
+ {
+  "char": "darren_girl",
+  "key": "G2_openmon_dark_hair",
+  "name": "Openmon NPC: dark hair, pink outfit",
+  "colors_in": 14,
+  "colors_out": 14,
+  "shift": [
+   -1,
+   1
+  ],
+  "sets": "walk only",
+  "source_short": "Openmon NPC Sprites Set 1 (Screen Smith), CC0",
+  "licence": "CC0 1.0 (public domain)",
+  "lic_quote": "\"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "Screen Smith (Openmon project), commissioned from a Fiverr artist",
+  "credit": "none required (optional: \"Overworld sprite: Openmon NPC Sprites Set 1 by Screen Smith, CC0\")"
+ },
+ {
+  "char": "darren_girl",
+  "key": "G3_tuxemon_heroine",
+  "name": "Tuxemon \"Heroine\" (protagonist option)",
+  "colors_in": 16,
+  "colors_out": 15,
+  "shift": [
+   0,
+   -2
+  ],
+  "sets": "walk only",
+  "source_short": "Tuxemon, overland by josepharaoh99 (minor changes Sanglorian); CC BY-SA 4.0",
+  "url": "https://github.com/Tuxemon/Tuxemon/tree/development/mods/tuxemon/sprites/heroine.png",
+  "creator": "josepharaoh99 (\"Maple\"), minor changes by Sanglorian; design by Leo",
+  "licence": "CC BY-SA 4.0  [FLAG: attribution + share-alike]",
+  "lic_quote": "Tuxemon ATTRIBUTIONS.md: \"\\\"Girl 1 Sprite\\\" by josepharaoh99 is licensed under CC-BY-SA 4.0\" and \"\\\"Female Trainer\\\" by Leo is licensed under CC-BY-SA 4.0\"; wiki.tuxemon.org/Heroine shows File:Josepharaoh99_maple_overland.png as the overland sprite; wiki footer \"Content is available under Creative Commons Attribution-ShareAlike unless otherwise noted.\"",
+  "credit": "\"Overworld sprite: Tuxemon Heroine by josepharaoh99 and Leo (edits Sanglorian), CC BY-SA 4.0, https://wiki.tuxemon.org/Heroine\""
+ },
+ {
+  "char": "darren_girl",
+  "key": "G4_kit_girl",
+  "name": "Kit build: open jacket + capris + bag (girl)",
+  "colors_in": 23,
+  "colors_out": 15,
+  "shift": [
+   -1,
+   1
+  ],
+  "sets": "walk, run, bike (kit); swimming add-on exists; no surf-on-Pokemon or fishing",
+  "source_short": "Poltergeist character kit (Eevee Expo 317) - FLAG: vanilla-based bodies",
+  "licence": "Free use: \"use, edit and share\", credit appreciated  [FLAG: bodies built on vanilla Pokemon sprites]",
+  "url": "https://eeveeexpo.com/resources/317/",
+  "creator": "Poltergeist / Coffee Cup (character-creation kit; also PokeCommunity thread 421381)",
+  "lic_quote": "\"You can freely use, edit and share it if you want. Credit and a link to your project would be appreciated, though!\" Also: \"even though some of the clothes are inspired by the game I created all resources from scratch (well, and from the vanilla sprites).\"",
+  "credit": "\"Overworld sprite built with Poltergeist's Character Customization Resources (eeveeexpo.com/resources/317)\""
+ },
+ {
+  "char": "garius",
+  "key": "R1_openmon_red_spiky",
+  "name": "Openmon NPC: spiky maroon hair, red shirt",
+  "colors_in": 15,
+  "colors_out": 15,
+  "shift": [
+   0,
+   1
+  ],
+  "sets": "walk only",
+  "source_short": "Openmon NPC Sprites Set 1 (Screen Smith), CC0",
+  "licence": "CC0 1.0 (public domain)",
+  "lic_quote": "\"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "Screen Smith (Openmon project), commissioned from a Fiverr artist",
+  "credit": "none required (optional: \"Overworld sprite: Openmon NPC Sprites Set 1 by Screen Smith, CC0\")"
+ },
+ {
+  "char": "garius",
+  "key": "R1e_openmon_red_eclipse",
+  "name": "R1 recoloured: \"Eclipse\" Garius (Arc 3)",
+  "colors_in": 15,
+  "colors_out": 15,
+  "shift": [
+   0,
+   1
+  ],
+  "sets": "walk (palette swap of R1, allowed by CC0)",
+  "source_short": "palette swap of Openmon spiky maroon hair (this research), CC0",
+  "licence": "CC0 1.0 (public domain)",
+  "lic_quote": "\"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "Screen Smith (Openmon project), commissioned from a Fiverr artist",
+  "credit": "none required (optional: \"Overworld sprite: Openmon NPC Sprites Set 1 by Screen Smith, CC0\")"
+ },
+ {
+  "char": "garius",
+  "key": "R2_tuxemon_cooldude",
+  "name": "Tuxemon \"Cool Dude\" (spiky hair, shades)",
+  "colors_in": 18,
+  "colors_out": 15,
+  "shift": [
+   0,
+   -1
+  ],
+  "sets": "walk only",
+  "source_short": "Tuxemon, overland by Catch Challenger; CC BY / CC BY-SA",
+  "url": "https://github.com/Tuxemon/Tuxemon/tree/development/mods/tuxemon/sprites/cooldude.png",
+  "creator": "Catch Challenger art team (Jordan Brule); front sprite by Sanglorian",
+  "licence": "CC BY-SA 4.0 per Tuxemon wiki footer; Tuxemon labels Catch Challenger art \"(CC BY)\"  [FLAG: attribution + share-alike; weaker per-file chain]",
+  "lic_quote": "wiki.tuxemon.org/Cool_Dude: \"Front sprite by Sanglorian. Overland sprite by Catch Challenger.\" Wiki footer: \"Content is available under Creative Commons Attribution-ShareAlike unless otherwise noted.\" Tuxemon: \"A sprite from Catch Challenger (CC BY), art director Jordan Brule.\"",
+  "credit": "\"Overworld sprite: Tuxemon Cool Dude, Catch Challenger (Jordan Brule), CC BY-SA 4.0\""
+ },
+ {
+  "char": "garius",
+  "key": "R3_openmon_green_spiky",
+  "name": "Openmon NPC: spiky green hair",
+  "colors_in": 9,
+  "colors_out": 9,
+  "shift": [
+   0,
+   0
+  ],
+  "sets": "walk only",
+  "source_short": "Openmon NPC Sprites Set 1 (Screen Smith), CC0",
+  "licence": "CC0 1.0 (public domain)",
+  "lic_quote": "\"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "Screen Smith (Openmon project), commissioned from a Fiverr artist",
+  "credit": "none required (optional: \"Overworld sprite: Openmon NPC Sprites Set 1 by Screen Smith, CC0\")"
+ },
+ {
+  "char": "garius",
+  "key": "R4_stock_acetrainer_recolour",
+  "name": "FALLBACK: stock Ace Trainer M, recoloured",
+  "colors_in": 14,
+  "colors_out": 14,
+  "shift": [
+   0,
+   0
+  ],
+  "sets": "walk (stock member, every movement)",
+  "source_short": "Platinum OBJ_EVENT_GFX_ACE_TRAINER_M palette swap (game asset, not free art)",
+  "url": "repo: res/prebuilt/data/mmodel/mmodel (stock member 0x0B)",
+  "creator": "Game Freak (stock Platinum)",
+  "licence": "n/a: the game's own asset (owner-approved fallback)",
+  "lic_quote": "n/a",
+  "credit": "n/a"
+ },
+ {
+  "char": "ruth",
+  "key": "T1_openmon_purple_glasses",
+  "name": "Openmon NPC: purple hair, white coat",
+  "colors_in": 24,
+  "colors_out": 15,
+  "shift": [
+   0,
+   1
+  ],
+  "sets": "walk only",
+  "source_short": "Openmon NPC Sprites Set 1 (Screen Smith), CC0",
+  "licence": "CC0 1.0 (public domain)",
+  "lic_quote": "\"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "Screen Smith (Openmon project), commissioned from a Fiverr artist",
+  "credit": "none required (optional: \"Overworld sprite: Openmon NPC Sprites Set 1 by Screen Smith, CC0\")"
+ },
+ {
+  "char": "ruth",
+  "key": "T2_openmon_green_hood",
+  "name": "Openmon NPC: green hood girl",
+  "colors_in": 9,
+  "colors_out": 9,
+  "shift": [
+   -1,
+   1
+  ],
+  "sets": "walk only",
+  "source_short": "Openmon NPC Sprites Set 1 (Screen Smith), CC0",
+  "licence": "CC0 1.0 (public domain)",
+  "lic_quote": "\"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "Screen Smith (Openmon project), commissioned from a Fiverr artist",
+  "credit": "none required (optional: \"Overworld sprite: Openmon NPC Sprites Set 1 by Screen Smith, CC0\")"
+ },
+ {
+  "char": "ruth",
+  "key": "T3_tuxemon_professor",
+  "name": "Tuxemon \"Professor\" (lab coat), red-hair variant",
+  "colors_in": 24,
+  "colors_out": 15,
+  "shift": [
+   0,
+   -2
+  ],
+  "sets": "walk only",
+  "source_short": "Tuxemon, Professor sprite by Kurt Stine; CC BY-SA 4.0",
+  "url": "https://github.com/Tuxemon/Tuxemon/tree/development/mods/tuxemon/sprites/professor_fiery.png",
+  "creator": "Kurt Stine (Qiangong2); hair colour variants by the Tuxemon team",
+  "licence": "CC BY-SA 4.0  [FLAG: attribution + share-alike]",
+  "lic_quote": "Tuxemon ATTRIBUTIONS.md: \"\\\"Professor Sprite\\\" by Kurt Stine is licensed under CC-BY-SA 4.0\"",
+  "credit": "\"Overworld sprite: Tuxemon Professor by Kurt Stine, CC BY-SA 4.0, https://github.com/Tuxemon/Tuxemon\""
+ },
+ {
+  "char": "ruth",
+  "key": "T4_stock_scientist_recolour",
+  "name": "FALLBACK: stock Scientist F, recoloured",
+  "colors_in": 13,
+  "colors_out": 13,
+  "shift": [
+   0,
+   0
+  ],
+  "sets": "walk (stock member, every movement)",
+  "source_short": "Platinum OBJ_EVENT_GFX_SCIENTIST_F palette swap (game asset, not free art)",
+  "url": "repo: res/prebuilt/data/mmodel/mmodel (stock member)",
+  "creator": "Game Freak (stock Platinum)",
+  "licence": "n/a: the game's own asset (owner-approved fallback)",
+  "lic_quote": "n/a",
+  "credit": "n/a"
+ }
+]

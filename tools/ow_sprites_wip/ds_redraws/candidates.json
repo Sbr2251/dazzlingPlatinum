@@ -1,0 +1,157 @@
+[
+ {
+  "char": "darren_boy",
+  "key": "D1_redraw_teal_jacket",
+  "name": "DS redraw: teal-jacket boy",
+  "colors_in": 15,
+  "colors_out": 15,
+  "source_short": "DS redraw of Openmon teal-jacket boy (CC0 design)",
+  "om": [
+   "OM2",
+   5
+  ],
+  "kind": "redraw",
+  "licence": "CC0 1.0 (source design) + new pixels authored for this project",
+  "lic_quote": "Source design licence (Openmon NPC Sprites Set 1, https://screensmith.itch.io/openmon-npc-sprites-set-1): \"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "credit": "none required (optional: \"Designs based on Openmon NPC Sprites Set 1 by Screen Smith, CC0\")",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "pixels: this project (tools/ds_cast2.py, hand-authored grids); design: Openmon (Screen Smith, commissioned Fiverr artist)",
+  "sets": "walk only (redraw); run/bike/surf/fish would follow the same grids"
+ },
+ {
+  "char": "darren_girl",
+  "key": "D2_redraw_blue_ponytail",
+  "name": "DS redraw: light-blue ponytail girl",
+  "colors_in": 14,
+  "colors_out": 14,
+  "source_short": "DS redraw of Openmon light-blue ponytail girl (CC0 design)",
+  "om": [
+   "OM2",
+   1
+  ],
+  "kind": "redraw",
+  "licence": "CC0 1.0 (source design) + new pixels authored for this project",
+  "lic_quote": "Source design licence (Openmon NPC Sprites Set 1, https://screensmith.itch.io/openmon-npc-sprites-set-1): \"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "credit": "none required (optional: \"Designs based on Openmon NPC Sprites Set 1 by Screen Smith, CC0\")",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "pixels: this project (tools/ds_cast2.py, hand-authored grids); design: Openmon (Screen Smith, commissioned Fiverr artist)",
+  "sets": "walk only (redraw); run/bike/surf/fish would follow the same grids"
+ },
+ {
+  "char": "garius",
+  "key": "D3_redraw_garius",
+  "name": "DS redraw: maroon spiky Garius",
+  "colors_in": 14,
+  "colors_out": 14,
+  "source_short": "DS redraw of Openmon spiky maroon-hair boy (CC0 design)",
+  "om": [
+   "OM2",
+   6
+  ],
+  "kind": "redraw",
+  "licence": "CC0 1.0 (source design) + new pixels authored for this project",
+  "lic_quote": "Source design licence (Openmon NPC Sprites Set 1, https://screensmith.itch.io/openmon-npc-sprites-set-1): \"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "credit": "none required (optional: \"Designs based on Openmon NPC Sprites Set 1 by Screen Smith, CC0\")",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "pixels: this project (tools/ds_cast2.py, hand-authored grids); design: Openmon (Screen Smith, commissioned Fiverr artist)",
+  "sets": "walk only (redraw); run/bike/surf/fish would follow the same grids"
+ },
+ {
+  "char": "garius",
+  "key": "D3e_redraw_garius_eclipse",
+  "name": "DS redraw: Garius, Eclipse palette",
+  "colors_in": 14,
+  "colors_out": 14,
+  "source_short": "palette variant of D3 (Arc 3 look)",
+  "om": [
+   "OM2",
+   6
+  ],
+  "kind": "redraw",
+  "licence": "CC0 1.0 (source design) + new pixels authored for this project",
+  "lic_quote": "Source design licence (Openmon NPC Sprites Set 1, https://screensmith.itch.io/openmon-npc-sprites-set-1): \"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "credit": "none required (optional: \"Designs based on Openmon NPC Sprites Set 1 by Screen Smith, CC0\")",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "pixels: this project (tools/ds_cast2.py, hand-authored grids); design: Openmon (Screen Smith, commissioned Fiverr artist)",
+  "sets": "walk only (redraw); run/bike/surf/fish would follow the same grids"
+ },
+ {
+  "char": "ruth",
+  "key": "D4_redraw_ruth",
+  "name": "DS redraw: purple-hair Ruth with glasses",
+  "colors_in": 14,
+  "colors_out": 14,
+  "source_short": "DS redraw of Openmon purple-hair glasses girl (CC0 design)",
+  "om": [
+   "OM2",
+   4
+  ],
+  "kind": "redraw",
+  "licence": "CC0 1.0 (source design) + new pixels authored for this project",
+  "lic_quote": "Source design licence (Openmon NPC Sprites Set 1, https://screensmith.itch.io/openmon-npc-sprites-set-1): \"NOT AI GENERATED, MADE BY A FIVERR ARTIST ... These sprites are released under a CC0 License. They were created as a part of commissions that I ordered and have the full rights to. Use them however you want, no attribution needed.\"",
+  "credit": "none required (optional: \"Designs based on Openmon NPC Sprites Set 1 by Screen Smith, CC0\")",
+  "url": "https://screensmith.itch.io/openmon-npc-sprites-set-1",
+  "creator": "pixels: this project (tools/ds_cast2.py, hand-authored grids); design: Openmon (Screen Smith, commissioned Fiverr artist)",
+  "sets": "walk only (redraw); run/bike/surf/fish would follow the same grids"
+ },
+ {
+  "char": "darren_boy",
+  "key": "K1_kit_boy",
+  "name": "Kit build: dark skin, green open jacket, black hair",
+  "colors_in": 19,
+  "colors_out": 15,
+  "sets": "walk, run, bike in kit (+ swimming add-on, Eevee Expo 373); no surf-on-Pokemon or fishing",
+  "source_short": "Poltergeist kit build (FLAG: vanilla-derived bodies)",
+  "kind": "found",
+  "licence": "Free use, edits allowed; credit appreciated  [FLAG: bodies derived from vanilla Pokemon sprites]",
+  "lic_quote": "Eevee Expo resource 317 / PokeCommunity thread 421381 (Poltergeist / Coffee Cup): \"You can freely use, edit and share it if you want. Credit and a link to your project would be appreciated, though!\" ... \"even though some of the clothes are inspired by the game I created all resources from scratch (well, and from the vanilla sprites).\"",
+  "credit": "\"Overworld sprite built with Poltergeist's Character Customization Resources (eeveeexpo.com/resources/317)\"",
+  "url": "https://eeveeexpo.com/resources/317/",
+  "creator": "Poltergeist / Coffee Cup (layer kit); combination built here"
+ },
+ {
+  "char": "darren_girl",
+  "key": "K2_kit_girl",
+  "name": "Kit build: cyan long hair, white tee, blue bag",
+  "colors_in": 21,
+  "colors_out": 15,
+  "sets": "walk, run, bike in kit (+ swimming add-on); no surf-on-Pokemon or fishing",
+  "source_short": "Poltergeist kit build (FLAG: vanilla-derived bodies)",
+  "kind": "found",
+  "licence": "Free use, edits allowed; credit appreciated  [FLAG: bodies derived from vanilla Pokemon sprites]",
+  "lic_quote": "Eevee Expo resource 317 / PokeCommunity thread 421381 (Poltergeist / Coffee Cup): \"You can freely use, edit and share it if you want. Credit and a link to your project would be appreciated, though!\" ... \"even though some of the clothes are inspired by the game I created all resources from scratch (well, and from the vanilla sprites).\"",
+  "credit": "\"Overworld sprite built with Poltergeist's Character Customization Resources (eeveeexpo.com/resources/317)\"",
+  "url": "https://eeveeexpo.com/resources/317/",
+  "creator": "Poltergeist / Coffee Cup (layer kit); combination built here"
+ },
+ {
+  "char": "garius",
+  "key": "K3_kit_garius",
+  "name": "Kit build: red hair, red tee, black jeans",
+  "colors_in": 18,
+  "colors_out": 15,
+  "sets": "walk, run, bike in kit",
+  "source_short": "Poltergeist kit build (FLAG: vanilla-derived bodies)",
+  "kind": "found",
+  "licence": "Free use, edits allowed; credit appreciated  [FLAG: bodies derived from vanilla Pokemon sprites]",
+  "lic_quote": "Eevee Expo resource 317 / PokeCommunity thread 421381 (Poltergeist / Coffee Cup): \"You can freely use, edit and share it if you want. Credit and a link to your project would be appreciated, though!\" ... \"even though some of the clothes are inspired by the game I created all resources from scratch (well, and from the vanilla sprites).\"",
+  "credit": "\"Overworld sprite built with Poltergeist's Character Customization Resources (eeveeexpo.com/resources/317)\"",
+  "url": "https://eeveeexpo.com/resources/317/",
+  "creator": "Poltergeist / Coffee Cup (layer kit); combination built here"
+ },
+ {
+  "char": "ruth",
+  "key": "K4_kit_ruth",
+  "name": "Kit build: purple hair, glasses, beige coat",
+  "colors_in": 19,
+  "colors_out": 15,
+  "sets": "walk, run, bike in kit",
+  "source_short": "Poltergeist kit build (FLAG: vanilla-derived bodies)",
+  "kind": "found",
+  "licence": "Free use, edits allowed; credit appreciated  [FLAG: bodies derived from vanilla Pokemon sprites]",
+  "lic_quote": "Eevee Expo resource 317 / PokeCommunity thread 421381 (Poltergeist / Coffee Cup): \"You can freely use, edit and share it if you want. Credit and a link to your project would be appreciated, though!\" ... \"even though some of the clothes are inspired by the game I created all resources from scratch (well, and from the vanilla sprites).\"",
+  "credit": "\"Overworld sprite built with Poltergeist's Character Customization Resources (eeveeexpo.com/resources/317)\"",
+  "url": "https://eeveeexpo.com/resources/317/",
+  "creator": "Poltergeist / Coffee Cup (layer kit); combination built here"
+ }
+]
