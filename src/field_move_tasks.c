@@ -5,9 +5,10 @@
 
 #include "constants/field/dynamic_map_features.h"
 #include "constants/field/map_load.h"
-#include "constants/scrcmd.h"
+#include "constants/overworld_weather.h"
 #include "constants/species.h"
 #include "generated/badges.h"
+#include "generated/items.h"
 #include "generated/journal_location_events.h"
 #include "generated/moves.h"
 #include "generated/object_events_gfx.h"
@@ -23,6 +24,7 @@
 #include "overlay005/ov5_021F101C.h"
 #include "overlay006/ov6_02247100.h"
 
+#include "bag.h"
 #include "field_overworld_state.h"
 #include "field_task.h"
 #include "heap.h"
@@ -60,6 +62,7 @@ typedef struct {
 } FieldMoveTaskData;
 
 static void FieldMoves_CanUseSurfDistortionWorld(FieldSystem *fieldSystem, FieldMoveContext *param1);
+static enum FieldMoveError FieldMoves_CheckResonatorObstacle(const FieldMoveContext *fieldMoveContext);
 
 static enum FieldMoveError FieldMoves_CheckFly(const FieldMoveContext *fieldMoveContext);
 static void FieldMoves_SetFlyTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
@@ -68,15 +71,12 @@ static enum FieldMoveError FieldMoves_CheckTeleport(const FieldMoveContext *fiel
 static void FieldMoves_SetTeleportTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 static BOOL FieldMoves_TeleportTask(FieldTask *taskMan);
 
-static enum FieldMoveError FieldMoves_CheckSurf(const FieldMoveContext *fieldMoveContext);
 static void FieldMoves_SetSurfTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 static BOOL FieldMoves_SurfTask(FieldTask *taskMan);
 
-static enum FieldMoveError FieldMoves_CheckWaterfall(const FieldMoveContext *fieldMoveContext);
 static void FieldMoves_SetWaterfallTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 static BOOL FieldMoves_WaterfallTask(FieldTask *taskMan);
 
-static enum FieldMoveError FieldMoves_CheckRockClimb(const FieldMoveContext *fieldMoveContext);
 static void FieldMoves_SetRockClimbTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 static BOOL FieldMoves_RockClimbTask(FieldTask *taskMan);
 
@@ -84,15 +84,12 @@ static enum FieldMoveError FieldMoves_CheckFlash(const FieldMoveContext *fieldMo
 static void FieldMoves_SetFlashTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 static BOOL FieldMoves_FlashTask(FieldTask *taskMan);
 
-static enum FieldMoveError FieldMoves_CheckDefog(const FieldMoveContext *fieldMoveContext);
 static void FieldMoves_SetDefogTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 static BOOL FieldMoves_DefogTask(FieldTask *taskMan);
 
-static enum FieldMoveError FieldMoves_CheckRockSmash(const FieldMoveContext *fieldMoveContext);
 static void FieldMoves_SetRockSmashTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 static BOOL FieldMoves_RockSmashTask(FieldTask *taskMan);
 
-static enum FieldMoveError FieldMoves_CheckStrength(const FieldMoveContext *fieldMoveContext);
 static void FieldMoves_SetStrengthTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 static BOOL FieldMoves_StrengthTask(FieldTask *taskMan);
 
@@ -107,19 +104,18 @@ static enum FieldMoveError FieldMoves_CheckChatter(const FieldMoveContext *field
 static void FieldMoves_SetChatterTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 static BOOL FieldMoves_ChatterTask(FieldTask *taskMan);
 
-static enum FieldMoveError FieldMoves_CheckCut(const FieldMoveContext *fieldMoveContext);
 static void FieldMoves_SetCutTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 static BOOL FieldMoves_CutTask(FieldTask *taskMan);
 
 static const FieldMoveTaskOrError fieldMoveTaskOrError[] = {
-    { FieldMoves_SetCutTask, FieldMoves_CheckCut },
+    { FieldMoves_SetCutTask, FieldMoves_CheckResonatorObstacle },
     { FieldMoves_SetFlyTask, FieldMoves_CheckFly },
-    { FieldMoves_SetSurfTask, FieldMoves_CheckSurf },
-    { FieldMoves_SetStrengthTask, FieldMoves_CheckStrength },
-    { FieldMoves_SetDefogTask, FieldMoves_CheckDefog },
-    { FieldMoves_SetRockSmashTask, FieldMoves_CheckRockSmash },
-    { FieldMoves_SetWaterfallTask, FieldMoves_CheckWaterfall },
-    { FieldMoves_SetRockClimbTask, FieldMoves_CheckRockClimb },
+    { FieldMoves_SetSurfTask, FieldMoves_CheckResonatorObstacle },
+    { FieldMoves_SetStrengthTask, FieldMoves_CheckResonatorObstacle },
+    { FieldMoves_SetDefogTask, FieldMoves_CheckResonatorObstacle },
+    { FieldMoves_SetRockSmashTask, FieldMoves_CheckResonatorObstacle },
+    { FieldMoves_SetWaterfallTask, FieldMoves_CheckResonatorObstacle },
+    { FieldMoves_SetRockClimbTask, FieldMoves_CheckResonatorObstacle },
     { FieldMoves_SetFlashTask, FieldMoves_CheckFlash },
     { FieldMoves_SetTeleportTask, FieldMoves_CheckTeleport },
     { FieldMoves_SetDigTask, FieldMoves_CheckDig },
@@ -154,34 +150,87 @@ static enum FieldMoveError FieldMoves_CheckProgression(const FieldMoveContext *f
     return FIELD_MOVE_ERROR_NONE;
 }
 
-typedef struct {
+// Arc 2 Resonator (S8 stages 1-2, D10/D11): every field power is the Resonator channelling a calmed totem. It needs
+// ITEM_RESONATOR in the bag, the totem's FLAG_TOTEM_*_DEFEATED and the region's Gym badge (the Leader vouching).
+// The totems and badges follow docs/story/bible.md.
+typedef struct ResonatorPower {
     u16 move;
-    u8 badge;
+    u16 species;
     u16 totemDefeatedFlag;
-} HMProgression;
+    u8 fieldMove;
+    u8 badge;
+} ResonatorPower;
 
-static const HMProgression sHMProgression[] = {
-    { MOVE_CUT, BADGE_ID_FOREST, FLAG_TOTEM_VESPIQUEN_DEFEATED },
-    { MOVE_FLY, BADGE_ID_COBBLE, FLAG_TOTEM_SKARMORY_DEFEATED },
-    { MOVE_SURF, BADGE_ID_FEN, FLAG_TOTEM_LAPRAS_DEFEATED },
-    { MOVE_STRENGTH, BADGE_ID_MINE, FLAG_TOTEM_AGGRON_DEFEATED },
-    { MOVE_DEFOG, BADGE_ID_RELIC, FLAG_TOTEM_SPIRITOMB_DEFEATED },
-    { MOVE_ROCK_SMASH, BADGE_ID_COAL, FLAG_TOTEM_HITMONLEE_DEFEATED },
-    { MOVE_WATERFALL, BADGE_ID_BEACON, FLAG_TOTEM_KINGDRA_DEFEATED },
-    { MOVE_ROCK_CLIMB, BADGE_ID_ICICLE, FLAG_TOTEM_MAMOSWINE_DEFEATED },
+static const ResonatorPower sResonatorPowers[] = {
+    { MOVE_ROCK_SMASH, SPECIES_HITMONLEE, FLAG_TOTEM_HITMONLEE_DEFEATED, FIELD_MOVE_ROCK_SMASH, BADGE_ID_COAL },
+    { MOVE_CUT, SPECIES_VESPIQUEN, FLAG_TOTEM_VESPIQUEN_DEFEATED, FIELD_MOVE_CUT, BADGE_ID_FOREST },
+    { MOVE_FLY, SPECIES_SKARMORY, FLAG_TOTEM_SKARMORY_DEFEATED, FIELD_MOVE_FLY, BADGE_ID_COBBLE },
+    { MOVE_SURF, SPECIES_LAPRAS, FLAG_TOTEM_LAPRAS_DEFEATED, FIELD_MOVE_SURF, BADGE_ID_FEN },
+    { MOVE_DEFOG, SPECIES_SPIRITOMB, FLAG_TOTEM_SPIRITOMB_DEFEATED, FIELD_MOVE_DEFOG, BADGE_ID_RELIC },
+    { MOVE_STRENGTH, SPECIES_AGGRON, FLAG_TOTEM_AGGRON_DEFEATED, FIELD_MOVE_STRENGTH, BADGE_ID_MINE },
+    { MOVE_ROCK_CLIMB, SPECIES_MAMOSWINE, FLAG_TOTEM_MAMOSWINE_DEFEATED, FIELD_MOVE_ROCK_CLIMB, BADGE_ID_ICICLE },
+    { MOVE_WATERFALL, SPECIES_KINGDRA, FLAG_TOTEM_KINGDRA_DEFEATED, FIELD_MOVE_WATERFALL, BADGE_ID_BEACON },
 };
 
-// The Bidoof that performs HMs from the overworld. The HM cut-in keeps a pointer to it, so it can't live on the heap.
-static Pokemon sHMBidoof;
-static BOOL sHMBidoofReady = FALSE;
+// The ghost totem the Resonator shows in the cut-in. The cut-in and the ride tasks keep a pointer to it, so it can't
+// live on the heap. Fixed personality and OT id (not shiny) so building it never touches the RNG.
+static Pokemon sResonatorGhost;
+
+static const ResonatorPower *FieldMoves_FindResonatorPowerByMove(u16 move)
+{
+    for (int i = 0; i < NELEMS(sResonatorPowers); i++) {
+        if (sResonatorPowers[i].move == move) {
+            return &sResonatorPowers[i];
+        }
+    }
+
+    return NULL;
+}
+
+static const ResonatorPower *FieldMoves_FindResonatorPowerByFieldMove(u32 fieldMove)
+{
+    for (int i = 0; i < NELEMS(sResonatorPowers); i++) {
+        if (sResonatorPowers[i].fieldMove == fieldMove) {
+            return &sResonatorPowers[i];
+        }
+    }
+
+    return NULL;
+}
+
+// The Resonator is a key item. Reading the pocket directly needs no heap, so this also works from the party menu,
+// where the field heaps are gone.
+static BOOL FieldMoves_HasResonator(FieldSystem *fieldSystem)
+{
+    Bag *bag = SaveData_GetBag(fieldSystem->saveData);
+    return Pocket_GetItemQuantity(bag->keyItems, KEY_ITEM_POCKET_SIZE, ITEM_RESONATOR, HEAP_ID_SYSTEM) > 0;
+}
 
 BOOL FieldMoves_IsHMUnlocked(FieldSystem *fieldSystem, u16 move)
 {
-    for (int i = 0; i < NELEMS(sHMProgression); i++) {
-        if (sHMProgression[i].move == move) {
-            return TrainerInfo_HasBadge(SaveData_GetTrainerInfo(fieldSystem->saveData), sHMProgression[i].badge)
-                && VarsFlags_CheckFlag(SaveData_GetVarsFlags(fieldSystem->saveData), sHMProgression[i].totemDefeatedFlag);
-        }
+    const ResonatorPower *power = FieldMoves_FindResonatorPowerByMove(move);
+
+    if (power == NULL) {
+        return FALSE;
+    }
+
+    return FieldMoves_HasResonator(fieldSystem)
+        && TrainerInfo_HasBadge(SaveData_GetTrainerInfo(fieldSystem->saveData), power->badge)
+        && VarsFlags_CheckFlag(SaveData_GetVarsFlags(fieldSystem->saveData), power->totemDefeatedFlag);
+}
+
+// Field obstacles are Resonator-only (D11): the party menu no longer lists these moves.
+BOOL FieldMoves_IsResonatorObstacleMove(u16 move)
+{
+    switch (move) {
+    case MOVE_CUT:
+    case MOVE_SURF:
+    case MOVE_STRENGTH:
+    case MOVE_DEFOG:
+    case MOVE_ROCK_SMASH:
+    case MOVE_WATERFALL:
+    case MOVE_ROCK_CLIMB:
+        return TRUE;
     }
 
     return FALSE;
@@ -189,16 +238,62 @@ BOOL FieldMoves_IsHMUnlocked(FieldSystem *fieldSystem, u16 move)
 
 Pokemon *FieldMoves_GetHMPerformer(FieldSystem *fieldSystem, int partySlot)
 {
-    if (partySlot != HM_PERFORMER_BIDOOF) {
+    const ResonatorPower *power = NULL;
+
+    if (partySlot >= RESONATOR_SLOT_BASE) {
+        power = FieldMoves_FindResonatorPowerByFieldMove(partySlot - RESONATOR_SLOT_BASE);
+    }
+
+    if (power == NULL) {
         return Party_GetPokemonBySlotIndex(SaveData_GetParty(fieldSystem->saveData), partySlot);
     }
 
-    if (sHMBidoofReady == FALSE) {
-        Pokemon_InitWith(&sHMBidoof, SPECIES_BIDOOF, 15, INIT_IVS_RANDOM, TRUE, 0xFF, OTID_NOT_SHINY, 0);
-        sHMBidoofReady = TRUE;
+    Pokemon_InitWith(&sResonatorGhost, power->species, 50, 15, TRUE, 0, OTID_SET, 0xFFFF);
+    return &sResonatorGhost;
+}
+
+// Fly is Skarmory's power through the Resonator: whichever Pokemon's menu it was picked from, Skarmory's ghost flies.
+Pokemon *FieldMoves_GetFlyPerformer(FieldSystem *fieldSystem, int partySlot)
+{
+    return FieldMoves_GetHMPerformer(fieldSystem, RESONATOR_SLOT(FIELD_MOVE_FLY));
+}
+
+BOOL FieldMoves_IsResonatorGhost(const Pokemon *mon)
+{
+    return mon == &sResonatorGhost;
+}
+
+// Ghost palette for the Resonator cut-in: each colour keeps its brightness but is washed into a pale violet, with
+// the darkest shades lifted to indigo so the outline still reads. Colour 0 is transparent and stays as it is.
+void FieldMoves_ApplyResonatorGhostPalette(const Pokemon *mon, u16 *palette, int numColors)
+{
+    if (FieldMoves_IsResonatorGhost(mon) == FALSE) {
+        return;
     }
 
-    return &sHMBidoof;
+    for (int i = 1; i < numColors; i++) {
+        u32 r = palette[i] & 0x1F;
+        u32 g = (palette[i] >> 5) & 0x1F;
+        u32 b = (palette[i] >> 10) & 0x1F;
+        u32 luma = (r * 77 + g * 151 + b * 28) >> 8;
+
+        r = 8 + (luma * 20) / 31;
+        g = 6 + (luma * 20) / 31;
+        b = 15 + (luma * 16) / 31;
+
+        palette[i] = (palette[i] & 0x8000) | (r > 31 ? 31 : r) | ((g > 31 ? 31 : g) << 5) | ((b > 31 ? 31 : b) << 10);
+    }
+}
+
+// Pressing A in fog with nothing else to interact with offers the Resonator's Defog (FieldMoves_Fog).
+u16 FieldMoves_GetFogInteractScript(FieldSystem *fieldSystem)
+{
+    if (FieldOverworldState_GetWeather(SaveData_GetFieldOverworldState(fieldSystem->saveData)) == OVERWORLD_WEATHER_FOG
+        && SystemFlag_CheckDefogActive(SaveData_GetVarsFlags(fieldSystem->saveData)) == FALSE) {
+        return 10005;
+    }
+
+    return 0xFFFF;
 }
 
 static inline BOOL PlayerTravellingWithPartner(const FieldMoveContext *fieldMoveContext)
@@ -319,6 +414,13 @@ static void FieldMoves_CanUseSurfDistortionWorld(FieldSystem *fieldSystem, Field
     }
 }
 
+// D11: field obstacles are cleared with the Resonator only. The party menu doesn't list these moves any more; if one
+// is ever selected from it anyway, it's refused like a move with nothing to act on.
+static enum FieldMoveError FieldMoves_CheckResonatorObstacle(const FieldMoveContext *fieldMoveContext)
+{
+    return FIELD_MOVE_ERROR_LOCATION;
+}
+
 static FieldMoveTaskData *FieldMoves_AllocateTaskData(const FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)
 {
     FieldMoveTaskData *taskData = Heap_Alloc(HEAP_ID_FIELD3, sizeof(FieldMoveTaskData));
@@ -334,26 +436,6 @@ static void FieldMoves_FreeTaskData(FieldMoveTaskData *taskData)
 {
     GF_ASSERT(taskData->magicNumber == 0x19740205);
     Heap_Free(taskData);
-}
-
-static enum FieldMoveError FieldMoves_CheckCut(const FieldMoveContext *fieldMoveContext)
-{
-    enum FieldMoveError progressionError;
-
-    if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
-        return FIELD_MOVE_ERROR_LOCATION;
-    }
-
-    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_FOREST, FLAG_TOTEM_VESPIQUEN_DEFEATED);
-    if (progressionError != FIELD_MOVE_ERROR_NONE) {
-        return progressionError;
-    }
-
-    if (FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_CUT)) {
-        return FIELD_MOVE_ERROR_NONE;
-    }
-
-    return FIELD_MOVE_ERROR_LOCATION;
 }
 
 static void FieldMoves_SetCutTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)
@@ -385,6 +467,11 @@ static enum FieldMoveError FieldMoves_CheckFly(const FieldMoveContext *fieldMove
     enum FieldMoveError progressionError;
 
     if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
+        return FIELD_MOVE_ERROR_LOCATION;
+    }
+
+    // Fly is Skarmory's power through the Resonator (S8), like the obstacle powers.
+    if (FieldMoves_HasResonator(fieldMoveContext->fieldSystem) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
@@ -424,34 +511,6 @@ static void FieldMoves_SetFlyTask(FieldMovePokemon *fieldMoveMon, const FieldMov
     sub_0203B674(menu, sub_0203C434);
 }
 
-static enum FieldMoveError FieldMoves_CheckSurf(const FieldMoveContext *fieldMoveContext)
-{
-    enum FieldMoveError progressionError;
-
-    if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
-        return FIELD_MOVE_ERROR_LOCATION;
-    }
-
-    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_FEN, FLAG_TOTEM_LAPRAS_DEFEATED);
-    if (progressionError != FIELD_MOVE_ERROR_NONE) {
-        return progressionError;
-    }
-
-    if (PlayerAvatar_GetPlayerState(fieldMoveContext->fieldSystem->playerAvatar) == 0x2) {
-        return FIELD_MOVE_ERROR_STATE;
-    }
-
-    if (!(FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_SURF))) {
-        return FIELD_MOVE_ERROR_LOCATION;
-    }
-
-    if (PlayerTravellingWithPartner(fieldMoveContext) == TRUE) {
-        return FIELD_MOVE_ERROR_PARTNER;
-    }
-
-    return FIELD_MOVE_ERROR_NONE;
-}
-
 static void FieldMoves_SetSurfTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)
 {
     StartMenu *menu = FieldTask_GetEnv(fieldMoveMon->fieldTask);
@@ -474,26 +533,6 @@ static BOOL FieldMoves_SurfTask(FieldTask *taskMan)
     FieldMoves_FreeTaskData(taskData);
 
     return 0;
-}
-
-static enum FieldMoveError FieldMoves_CheckStrength(const FieldMoveContext *fieldMoveContext)
-{
-    enum FieldMoveError progressionError;
-
-    if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
-        return FIELD_MOVE_ERROR_LOCATION;
-    }
-
-    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_MINE, FLAG_TOTEM_AGGRON_DEFEATED);
-    if (progressionError != FIELD_MOVE_ERROR_NONE) {
-        return progressionError;
-    }
-
-    if (FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_STRENGTH)) {
-        return FIELD_MOVE_ERROR_NONE;
-    }
-
-    return FIELD_MOVE_ERROR_LOCATION;
 }
 
 static void FieldMoves_SetStrengthTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)
@@ -520,26 +559,6 @@ static BOOL FieldMoves_StrengthTask(FieldTask *param0)
     return 0;
 }
 
-static enum FieldMoveError FieldMoves_CheckDefog(const FieldMoveContext *fieldMoveContext)
-{
-    enum FieldMoveError progressionError;
-
-    if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
-        return FIELD_MOVE_ERROR_LOCATION;
-    }
-
-    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_RELIC, FLAG_TOTEM_SPIRITOMB_DEFEATED);
-    if (progressionError != FIELD_MOVE_ERROR_NONE) {
-        return progressionError;
-    }
-
-    if (FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_DEFOG)) {
-        return FIELD_MOVE_ERROR_NONE;
-    }
-
-    return FIELD_MOVE_ERROR_LOCATION;
-}
-
 static void FieldMoves_SetDefogTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)
 {
     StartMenu *menu = FieldTask_GetEnv(fieldMoveMon->fieldTask);
@@ -562,30 +581,6 @@ static BOOL FieldMoves_DefogTask(FieldTask *taskMan)
     FieldMoves_FreeTaskData(taskData);
 
     return 0;
-}
-
-static enum FieldMoveError FieldMoves_CheckRockSmash(const FieldMoveContext *fieldMoveContext)
-{
-    enum FieldMoveError progressionError;
-
-    if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
-        return FIELD_MOVE_ERROR_LOCATION;
-    }
-
-    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_COAL, FLAG_TOTEM_HITMONLEE_DEFEATED);
-    if (progressionError != FIELD_MOVE_ERROR_NONE) {
-        return progressionError;
-    }
-
-    if (PlayerAvatar_GetPlayerState(fieldMoveContext->fieldSystem->playerAvatar) == 0x2) {
-        return FIELD_MOVE_ERROR_LOCATION;
-    }
-
-    if (FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_ROCK_SMASH)) {
-        return FIELD_MOVE_ERROR_NONE;
-    }
-
-    return FIELD_MOVE_ERROR_LOCATION;
 }
 
 static void FieldMoves_SetRockSmashTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)
@@ -612,26 +607,6 @@ static BOOL FieldMoves_RockSmashTask(FieldTask *taskMan)
     return 0;
 }
 
-static enum FieldMoveError FieldMoves_CheckWaterfall(const FieldMoveContext *fieldMoveContext)
-{
-    enum FieldMoveError progressionError;
-
-    if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
-        return FIELD_MOVE_ERROR_LOCATION;
-    }
-
-    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_BEACON, FLAG_TOTEM_KINGDRA_DEFEATED);
-    if (progressionError != FIELD_MOVE_ERROR_NONE) {
-        return progressionError;
-    }
-
-    if (FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_WATERFALL)) {
-        return FIELD_MOVE_ERROR_NONE;
-    }
-
-    return FIELD_MOVE_ERROR_LOCATION;
-}
-
 static void FieldMoves_SetWaterfallTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)
 {
     StartMenu *menu = FieldTask_GetEnv(fieldMoveMon->fieldTask);
@@ -654,30 +629,6 @@ static BOOL FieldMoves_WaterfallTask(FieldTask *param0)
     FieldMoves_FreeTaskData(taskData);
 
     return 0;
-}
-
-static enum FieldMoveError FieldMoves_CheckRockClimb(const FieldMoveContext *fieldMoveContext)
-{
-    enum FieldMoveError progressionError;
-
-    if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) {
-        return FIELD_MOVE_ERROR_LOCATION;
-    }
-
-    progressionError = FieldMoves_CheckProgression(fieldMoveContext, BADGE_ID_ICICLE, FLAG_TOTEM_MAMOSWINE_DEFEATED);
-    if (progressionError != FIELD_MOVE_ERROR_NONE) {
-        return progressionError;
-    }
-
-    if (!(FieldMoves_IsMoveUsable(fieldMoveContext, FIELD_MOVE_ROCK_CLIMB))) {
-        return FIELD_MOVE_ERROR_LOCATION;
-    }
-
-    if (PlayerTravellingWithPartner(fieldMoveContext) == TRUE) {
-        return FIELD_MOVE_ERROR_PARTNER;
-    }
-
-    return FIELD_MOVE_ERROR_NONE;
 }
 
 static void FieldMoves_SetRockClimbTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)

@@ -5,7 +5,7 @@
       "id": "FieldMoves_Text_WouldYouLikeToUseCut",
       "en_US": [
         "This tree looks like it can be\n",
-        "cut down! Would you like to cut it?"
+        "cut down! Use the Resonator?"
       ]
     },
     {
@@ -23,14 +23,14 @@
       "id": "FieldMoves_Text_WouldYouLikeToUseRockSmash",
       "en_US": [
         "This rock appears to be breakable.\n",
-        "Would you like to use Rock Smash?"
+        "Use the Resonator?"
       ]
     },
     {
       "id": "FieldMoves_Text_PokemonMayBeAbleToSmashRock",
       "en_US": [
-        "It’s a rugged rock, but a Pokémon\n",
-        "may be able to smash it."
+        "It's a rugged rock, but it looks\n",
+        "like it could be smashed."
       ]
     },
     {
@@ -40,9 +40,9 @@
     {
       "id": "FieldMoves_Text_WouldYouLikeToUseStrength",
       "en_US": [
-        "It’s a big boulder, but a Pokémon\n",
-        "may be able to push it aside.\r",
-        "Would you like to use Strength?"
+        "It's a big boulder, but it looks\n",
+        "like it could be pushed aside.\r",
+        "Use the Resonator?"
       ]
     },
     {
@@ -52,8 +52,8 @@
     {
       "id": "FieldMoves_Text_BoulderMayBeAbleToPush",
       "en_US": [
-        "It’s a big boulder, but a Pokémon\n",
-        "may be able to push it aside."
+        "It's a big boulder, but it looks\n",
+        "like it could be pushed aside."
       ]
     },
     {
@@ -70,7 +70,7 @@
     {
       "id": "FieldMoves_Text_PokemonStrengthMadePossibleToMove",
       "en_US": [
-        "{STRVAR_1 0, 0, 0}’s Strength made it\n",
+        "{STRVAR_1 0, 0, 0}'s Strength made it\n",
         "possible to move boulders around!"
       ]
     },
@@ -78,7 +78,7 @@
       "id": "FieldMoves_Text_WouldYouLikeToUseSurf",
       "en_US": [
         "The water is a deep blue color...\n",
-        "Would you like to surf on it?"
+        "Use the Resonator to cross it?"
       ]
     },
     {
@@ -88,7 +88,7 @@
     {
       "id": "FieldMoves_Text_NoSurfingWithPartner",
       "en_US": [
-        "Surf can’t be used if you have\n",
+        "Surf can't be used if you have\n",
         "someone with you."
       ]
     },
@@ -96,7 +96,7 @@
       "id": "FieldMoves_Text_WouldYouLikeToUseDefog_Unused",
       "en_US": [
         "A deep fog drapes the area...\n",
-        "Would you like to use Defog?"
+        "Use the Resonator to clear it?"
       ]
     },
     {
@@ -106,15 +106,14 @@
     {
       "id": "FieldMoves_Text_DeepFogDrapesArea_Unused",
       "en_US": [
-        "A deep fog drapes the area...\n",
-        "Will a Pokémon’s move lift it?"
+        "A deep fog drapes the area..."
       ]
     },
     {
       "id": "FieldMoves_Text_WouldYouLikeToUseRockClimb",
       "en_US": [
         "The wall is very rocky...\n",
-        "Would you like to use Rock Climb?"
+        "Use the Resonator to scale it?"
       ]
     },
     {
@@ -125,21 +124,21 @@
       "id": "FieldMoves_Text_RockyWallWillMoveScale",
       "en_US": [
         "The wall is very rocky...\n",
-        "Will a Pokémon’s move scale it?"
+        "It looks like it could be scaled."
       ]
     },
     {
       "id": "FieldMoves_Text_NoRockClimbingWithPartner",
       "en_US": [
-        "Rock Climb can’t be used if you have\n",
+        "Rock Climb can't be used if you have\n",
         "someone with you."
       ]
     },
     {
       "id": "FieldMoves_Text_WouldYouLikeToUseWaterfall",
       "en_US": [
-        "It’s a large waterfall.\n",
-        "Would you like to use Waterfall?"
+        "It's a large waterfall.\n",
+        "Use the Resonator to climb it?"
       ]
     },
     {
@@ -164,8 +163,21 @@
     {
       "id": "FieldMoves_Text_TotemNotDefeated",
       "en_US": [
-        "This can’t be used until the area’s\n",
+        "This can't be used until the area's\n",
         "Totem has been defeated."
+      ]
+    },
+    {
+      "id": "FieldMoves_Text_WaterIsDeepBlue",
+      "en_US": [
+        "The water is a deep blue color..."
+      ]
+    },
+    {
+      "id": "FieldMoves_Text_ResonatorStrengthMadePossibleToMove",
+      "en_US": [
+        "{STRVAR_1 1, 1, 0}'s strength made it\n",
+        "possible to move boulders around!"
       ]
     }
   ]

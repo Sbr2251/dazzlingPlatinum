@@ -323,6 +323,13 @@ BOOL FieldInput_Process(const FieldInput *input, FieldSystem *fieldSystem)
         if (ov5_021F8410(fieldSystem, playerX, playerZ, playerDir) == TRUE) {
             return TRUE;
         }
+
+        int fogScript = FieldMoves_GetFogInteractScript(fieldSystem);
+
+        if (fogScript != 0xffff) {
+            ScriptManager_Set(fieldSystem, fogScript, NULL);
+            return TRUE;
+        }
     }
 
     if (input->mapTransition) {
@@ -694,14 +701,11 @@ u16 Field_TileBehaviorToScript(FieldSystem *fieldSystem, u8 behavior)
     }
 
     if (PlayerAvatar_GetPlayerState(fieldSystem->playerAvatar) != PLAYER_STATE_SURFING) {
-        TrainerInfo *info = SaveData_GetTrainerInfo(fieldSystem->saveData);
         u32 distortionBehavior = PlayerAvatar_GetDistortionCurrTileBehaviour(fieldSystem->playerAvatar);
 
-        if (PlayerAvatar_CanUseSurf(fieldSystem->playerAvatar, distortionBehavior, behavior) && TrainerInfo_HasBadge(info, 3)) {
-            if (VarsFlags_CheckFlag(SaveData_GetVarsFlags(fieldSystem->saveData), FLAG_TOTEM_LAPRAS_DEFEATED) == FALSE) {
-                return 10016;
-            }
-
+        // Arc 2 Resonator: water always answers A; FieldMoves_Water checks the Resonator, Lapras and the Fen Badge
+        // and says what's missing.
+        if (PlayerAvatar_CanUseSurf(fieldSystem->playerAvatar, distortionBehavior, behavior)) {
             return 10004;
         }
     }

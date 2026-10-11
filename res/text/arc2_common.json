@@ -26,15 +26,94 @@
     {
       "id": "Arc2Common_Text_ResonatorMissing",
       "en_US": [
-        "Nothing answers.\n",
-        "Something seems to be missing."
+        "Nothing you carry can help\n",
+        "with this yet."
       ]
     },
     {
       "id": "Arc2Common_Text_ResonatorSurge",
       "en_US": [
-        "{STRVAR_1 1, 0, 0}'s energy surges\n",
+        "{STRVAR_1 1, 1, 0}'s energy surges\n",
         "through the Resonator!"
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNoTotem",
+      "en_US": [
+        "The Resonator stays silent.\n",
+        "It needs another calmed totem."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsCoalBadge",
+      "en_US": [
+        "{STRVAR_1 1, 1, 0}'s energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Coal Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsForestBadge",
+      "en_US": [
+        "{STRVAR_1 1, 1, 0}'s energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Forest Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsCobbleBadge",
+      "en_US": [
+        "{STRVAR_1 1, 1, 0}'s energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Cobble Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsFenBadge",
+      "en_US": [
+        "{STRVAR_1 1, 1, 0}'s energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Fen Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsRelicBadge",
+      "en_US": [
+        "{STRVAR_1 1, 1, 0}'s energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Relic Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsMineBadge",
+      "en_US": [
+        "{STRVAR_1 1, 1, 0}'s energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Mine Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsIcicleBadge",
+      "en_US": [
+        "{STRVAR_1 1, 1, 0}'s energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Icicle Badge."
+      ]
+    },
+    {
+      "id": "Arc2Common_Text_ResonatorNeedsBeaconBadge",
+      "en_US": [
+        "{STRVAR_1 1, 1, 0}'s energy stirs, but\n",
+        "it holds back.\r",
+        "It won't answer until you earn\n",
+        "the Beacon Badge."
       ]
     }
   ]
