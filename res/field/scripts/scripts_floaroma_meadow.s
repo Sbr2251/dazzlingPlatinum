@@ -1,6 +1,10 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/floaroma_meadow.h"
 
+// Arc 2 (s-floaroma): the stock Galactic grunts (locals 0, 1) and the Works Key ball (local 3) are hidden for
+// good (FLAG_UNK_0x003F, map-local temp, set every load); the grunt battle coord event is gone and the Works Key
+// gives below are unreachable. The Honey seller (local 2) stays.
+
 
     ScriptEntry _001E
     ScriptEntry _0024
@@ -13,9 +17,12 @@
 
 _001E:
     SetFlag FLAG_FIRST_ARRIVAL_FLOAROMA_MEADOW
+    SetFlag FLAG_UNK_0x003F
     End
 
 _0024:
+    // Arc 2: unreachable (no coord event, no grunts)
+    End
     LockAll
     Call _00CC
     StartTrainerBattle TRAINER_GALACTIC_GRUNT_FLOAROMA_MEADOW_1
@@ -232,6 +239,8 @@ _02EF:
     End
 
 _0306:
+    // Arc 2: no Works Key
+    End
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer

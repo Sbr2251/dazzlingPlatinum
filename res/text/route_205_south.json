@@ -94,6 +94,13 @@
         "It’s very convenient!\n",
         "It’s a Trainer’s best friend!"
       ]
+    },
+    {
+      "id": "Route205South_Text_Arc2WaitingAtWindworks",
+      "en_US": [
+        "Ruth and Cyrus are waiting inside\n",
+        "the Valley Windworks."
+      ]
     }
   ]
 }

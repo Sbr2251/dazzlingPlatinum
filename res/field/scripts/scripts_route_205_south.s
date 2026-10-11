@@ -1,6 +1,11 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/route_205_south.h"
 
+// Arc 2 (s-floaroma): the stock Galactic bridge guards (locals 12, 13) and the twin asking for her papa
+// (local 18) are hidden for good (FLAG_UNK_0x003F, map-local temp, set every load); their coord events are gone.
+// While Ruth and Cyrus wait inside the Windworks (VAR_ARC2_PROGRESS 21), the bridge north (x216-218, z653)
+// turns the player back.
+
 
     ScriptEntry _002A
     ScriptEntry _00F8
@@ -12,9 +17,11 @@
     ScriptEntry _0280
     ScriptEntry _0297
     ScriptEntry _02AE
+    ScriptEntry Route205South_Arc2WindworksGate
     ScriptEntryEnd
 
 _002A:
+    SetFlag FLAG_UNK_0x003F
     End
 
 _002C:
@@ -244,3 +251,18 @@ _02AE:
     End
 
     .balign 4, 0
+
+Route205South_Arc2WindworksGate:
+    LockAll
+    Message Route205South_Text_Arc2WaitingAtWindworks
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, Route205South_Movement_Arc2StepBack
+    WaitMovement
+    ReleaseAll
+    End
+
+    .balign 4, 0
+Route205South_Movement_Arc2StepBack:
+    WalkNormalSouth
+    EndMovement
