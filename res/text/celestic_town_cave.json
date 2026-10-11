@@ -467,8 +467,8 @@
     {
       "id": "CelesticTownCave_Text_Arc2GariusVeilstone",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: I'm off to Veilstone. Third\n",
-        "badge. Don't wait up.\r"
+        "{STRVAR_1 3, 0, 0}: I'm off to Veilstone.\n",
+        "Third badge. Don't wait up.\r"
       ]
     },
     {
