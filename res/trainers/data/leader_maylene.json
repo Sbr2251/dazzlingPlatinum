@@ -5,50 +5,69 @@
     "ai_flags": [
         "AI_FLAG_BASIC",
         "AI_FLAG_EVAL_ATTACK",
-        "AI_FLAG_EXPERT"
+        "AI_FLAG_EXPERT",
+        "AI_FLAG_SETUP_FIRST_TURN",
+        "AI_FLAG_CHECK_HP"
     ],
     "double_battle": false,
     "party": [
         {
+            "species": "SPECIES_HITMONTOP",
+            "form": 0,
+            "level": 27,
+            "item": "ITEM_SITRUS_BERRY",
+            "moves": [
+                "MOVE_FAKE_OUT",
+                "MOVE_RAPID_SPIN",
+                "MOVE_MACH_PUNCH",
+                "MOVE_ROCK_SLIDE"
+            ],
+            "power": 150,
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
+        },
+        {
             "species": "SPECIES_MEDITITE",
             "form": 0,
             "level": 28,
-            "item": "ITEM_NONE",
+            "item": "ITEM_FOCUS_SASH",
             "moves": [
-                "MOVE_DRAIN_PUNCH",
-                "MOVE_CONFUSION",
-                "MOVE_ROCK_TOMB",
-                "MOVE_FAKE_OUT"
+                "MOVE_BULLET_PUNCH",
+                "MOVE_FORCE_PALM",
+                "MOVE_DETECT",
+                "MOVE_CONFUSION"
             ],
-            "power": 200,
-            "ball_seal": 0
+            "power": 150,
+            "ball_seal": 0,
+            "ability": "ABILITY_PURE_POWER"
         },
         {
             "species": "SPECIES_MACHOKE",
             "form": 0,
             "level": 29,
-            "item": "ITEM_NONE",
+            "item": "ITEM_FLAME_ORB",
             "moves": [
+                "MOVE_FACADE",
                 "MOVE_KARATE_CHOP",
-                "MOVE_ROCK_TOMB",
-                "MOVE_STRENGTH",
-                "MOVE_FOCUS_ENERGY"
+                "MOVE_REVENGE",
+                "MOVE_ROCK_SLIDE"
             ],
-            "power": 200,
-            "ball_seal": 0
+            "power": 150,
+            "ball_seal": 0,
+            "ability": "ABILITY_GUTS"
         },
         {
             "species": "SPECIES_LUCARIO",
             "form": 0,
-            "level": 32,
-            "item": "ITEM_NONE",
+            "level": 31,
+            "item": "ITEM_LIFE_ORB",
             "moves": [
+                "MOVE_SWORDS_DANCE",
+                "MOVE_EXTREME_SPEED",
                 "MOVE_DRAIN_PUNCH",
-                "MOVE_FORCE_PALM",
-                "MOVE_METAL_CLAW",
-                "MOVE_BONE_RUSH"
+                "MOVE_BULLET_PUNCH"
             ],
-            "power": 200,
+            "power": 150,
             "ball_seal": 0
         }
     ],
@@ -57,12 +76,12 @@
             "type": "TRMSG_LAST_BATTLER",
             "en_US": [
                 "Oh!\n",
-                "But this isn’t the end, my friend!\n"
+                "But this isn't the end, my friend!\n"
             ]
         },
         {
             "type": "TRMSG_LAST_BATTLER_HALF_HP",
-            "en_US": "I’m in a bit of a bind, aren’t I?\n"
+            "en_US": "I'm in a bit of a bind, aren't I?\n"
         },
         {
             "type": "TRMSG_DEFEAT",
