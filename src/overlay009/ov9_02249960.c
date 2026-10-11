@@ -13612,7 +13612,7 @@ static const UnkStruct_ov9_0224EF30 *sArc2DwEternaForestObjects[] = {
 
 // rift-b object conditions (ov9_02251104): 20 flag set, 21 flag clear, 22 VAR_ARC2_PROGRESS >= param, 23 < param,
 // 6 script-only (ScrCmd_311). Talk scripts are the map's script entries (1-based).
-// Route 214: Cyrus behind the player at the entry, until the boost choice (FLAG_ARC2_RIFTB_A).
+// Route 214: Cyrus at the edge of the entry trees (the player steps out to (17,12)), until the boost choice (FLAG_ARC2_RIFTB_A).
 static const UnkStruct_ov9_0224EF30 sArc2DwRoute214CyrusEntry = {
     21,
     FLAG_ARC2_RIFTB_A,
@@ -13625,13 +13625,13 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute214CyrusEntry = {
         0x0,
         0x0,
         5,
-        DIR_WEST,
+        DIR_EAST,
         0x0,
         0x0,
         0x0,
         0x0,
         0x0,
-        21,
+        16,
         12,
         ((1 << 4) * FX32_ONE),
     },
@@ -13687,7 +13687,7 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute214Frame = {
     },
 };
 
-// Route 213: Cyrus at the entry (he stays there; the card is out of his earshot).
+// Route 213: Cyrus at the edge of the entry trees (he stays there; the card is out of his earshot).
 static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Cyrus = {
     0,
     0,
@@ -13700,13 +13700,13 @@ static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Cyrus = {
         0x0,
         0x0,
         5,
-        DIR_WEST,
+        DIR_EAST,
         0x0,
         0x0,
         0x0,
         0x0,
         0x0,
-        21,
+        16,
         12,
         ((1 << 4) * FX32_ONE),
     },
