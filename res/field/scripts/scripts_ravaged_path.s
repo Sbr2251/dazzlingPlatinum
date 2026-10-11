@@ -1,51 +1,15 @@
 #include "macros/scrcmd.inc"
-#include "constants/totem_battle.h"
 
 
     ScriptEntry _0006
-    ScriptEntry TotemHitmonlee_Encounter
     ScriptEntryEnd
 
 _0006:
     SetFlag FLAG_FIRST_ARRIVAL_RAVAGED_PATH
-    GoToIfSet FLAG_TOTEM_HITMONLEE_DEFEATED, RavagedPath_OnTransitionEnd
-    // Arc 1: the Hitmonlee totem only appears once Arc 2 starts (VAR_ARC1_PROGRESS 17)
-    GoToIfLt VAR_ARC1_PROGRESS, 17, RavagedPath_Arc1HideTotem
-    ClearFlag FLAG_HIDE_TOTEM_HITMONLEE
-    End
-
-RavagedPath_Arc1HideTotem:
-    SetFlag FLAG_HIDE_TOTEM_HITMONLEE
-RavagedPath_OnTransitionEnd:
+    // D15 (Arc 2): the Hitmonlee totem is fought inside DW_RAVAGED_PATH; the overworld totem object is gone.
     End
 
 RavagedPath_Unused:
-    End
-
-    .balign 4, 0
-
-TotemHitmonlee_Encounter:
-    PlayFanfare SEQ_SE_CONFIRM
-    LockAll
-    FacePlayer
-    WaitFanfare SEQ_SE_CONFIRM
-    PlayBattleMusic SEQ_BATTLE_TOTEM
-    PlayCry SPECIES_HITMONLEE
-    WaitCry
-    SetFlag FLAG_MAP_LOCAL
-    StartTotemBattle TOTEM_ENCOUNTER_HITMONLEE
-    ClearFlag FLAG_MAP_LOCAL
-    CheckWonBattle VAR_RESULT
-    GoToIfEq VAR_RESULT, FALSE, TotemHitmonlee_Encounter_LostBattle
-    SetFlag FLAG_TOTEM_HITMONLEE_DEFEATED
-    SetFlag FLAG_HIDE_TOTEM_HITMONLEE
-    RemoveObject VAR_LAST_TALKED
-    ReleaseAll
-    End
-
-TotemHitmonlee_Encounter_LostBattle:
-    BlackOutFromBattle
-    ReleaseAll
     End
 
     .balign 4, 0
