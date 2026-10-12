@@ -2432,6 +2432,13 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
 // on a frame timer that runs whenever the map is loaded at VAR_ARC2_PROGRESS 24. Standing on it when it goes, or
 // stepping onto it while it is gone, drops the player (back to the hive start). Past it, the first step at z >= 41
 // on the ceiling starts the totem scene.
+//
+// fix2-honey: the collision follows what is drawn. The timer counts field frames (about 30 a second). Hiding the
+// group starts the ghost props' fade (opacity 31 -> 0, one step a frame, on screen about 2 frames later), so the
+// honeycomb still holds for the whole fade (the warning, about a second) and drops the player the frame it has
+// faded out. Coming back, the group is shown a few frames before it holds again, so it is already drawn when it
+// does. The slab drawn behind it is cut away (map_data_679, tools/distortion_world/build_dw_eterna_forest_map.py),
+// so once it has faded the void shows.
 #define ETERNA_FOREST_SCRIPT_HONEY_FALL 5 // map script entries (1-based)
 #define ETERNA_FOREST_SCRIPT_TOTEM      6
 #define ETERNA_FOREST_SCRIPT_TALK       7
@@ -2442,15 +2449,23 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
 #define ETERNA_FOREST_HONEY_Z_MAX       36
 #define ETERNA_FOREST_HONEY_GROUP       1
 #define ETERNA_FOREST_TOTEM_Z           41
-#define ETERNA_FOREST_HONEY_SOLID       120 // DW task ticks (about 30 a second): solid, fading (still holds), gone
-#define ETERNA_FOREST_HONEY_FADE        20
-#define ETERNA_FOREST_HONEY_GONE        60
+#define ETERNA_FOREST_HONEY_SOLID       120 // frames: shown and solid
+#define ETERNA_FOREST_HONEY_FADE        33 // hidden and fading out (31 opacity steps + 2 frames' lag): still solid
+#define ETERNA_FOREST_HONEY_GONE        60 // faded out: drops the player
+#define ETERNA_FOREST_HONEY_LEAD        3 // the last frames of GONE: shown again, so it is drawn by the time it holds
+#define ETERNA_FOREST_HONEY_CYCLE       (ETERNA_FOREST_HONEY_SOLID + ETERNA_FOREST_HONEY_FADE + ETERNA_FOREST_HONEY_GONE)
 
 static u16 sEternaForestHoneyTimer;
 
 static BOOL EternaForest_IsHoneyGone(void)
 {
     return sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_SOLID + ETERNA_FOREST_HONEY_FADE;
+}
+
+static BOOL EternaForest_IsHoneyHidden(void)
+{
+    return sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_SOLID
+        && sEternaForestHoneyTimer < ETERNA_FOREST_HONEY_CYCLE - ETERNA_FOREST_HONEY_LEAD;
 }
 
 static BOOL EternaForest_IsHoneyTile(int x, int y, int z)
@@ -2470,14 +2485,14 @@ static void Arc2DwEternaForest_HandleFrame(DistWorldSystem *system)
         return;
     }
 
-    if (++sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_SOLID + ETERNA_FOREST_HONEY_FADE + ETERNA_FOREST_HONEY_GONE) {
+    if (++sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_CYCLE) {
         sEternaForestHoneyTimer = 0;
     }
 
     // The ghost props follow the timer (a warp re-reads the default visibility, so re-assert it every frame).
     hidden = IsActiveGhostPropGroupHidden(system, ETERNA_FOREST_HONEY_GROUP);
 
-    if (sEternaForestHoneyTimer >= ETERNA_FOREST_HONEY_SOLID) {
+    if (EternaForest_IsHoneyHidden()) {
         if (!hidden) {
             HideGhostPropGroup(system, ETERNA_FOREST_HONEY_GROUP);
         }
