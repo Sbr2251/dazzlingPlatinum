@@ -5,10 +5,10 @@
     "coord_events": [
         {
             "script": 2,
-            "x": 16,
+            "x": 20,
             "z": 13,
             "y": 0,
-            "width": 6,
+            "width": 2,
             "length": 1,
             "var": "VAR_MAP_LOCAL_3",
             "value": 0
@@ -18,7 +18,17 @@
             "x": 15,
             "z": 11,
             "y": 0,
-            "width": 7,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_3",
+            "value": 0
+        },
+        {
+            "script": 2,
+            "x": 19,
+            "z": 11,
+            "y": 0,
+            "width": 3,
             "length": 1,
             "var": "VAR_MAP_LOCAL_3",
             "value": 0

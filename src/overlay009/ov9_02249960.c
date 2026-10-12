@@ -2576,6 +2576,15 @@ static BOOL Arc2DwRoute213_HandleStep(DistWorldSystem *system, int x, int y, int
 // (0, 1 Hitmonlee, 2 Vespiquen), VAR_MAP_LOCAL_7 the deeper acts (0, 1 Lapras, 2 Skarmory), VAR_MAP_LOCAL_6 the
 // ghosts' target opacity (0-31; scripts set it, this hook fades toward it). Once the vein was found
 // (FLAG_ARC2_RIFTB_E), the wall's work stays done: the scar stays shut and the seam stays lit on later visits.
+// Each act is played once per save (fix2-lost, owner playtest round 2: "A fall in the Lost Tower replays the ghost
+// acts"): a fall warps back to the entry, which cleared the map-local acts, so the scar came back and Hitmonlee and
+// Vespiquen acted again; a blackout before the Spiritomb sank the stones again. The scripts also set a persistent
+// flag per act, and the hooks count an act as done if either is set (LostTower_WallActs / LostTower_DeeperActs).
+// Skarmory still carries the player across on every visit that needs it (the gap is the only way to the island),
+// but after the first time without the surge, the cut-in and the lines. Flags (docs/arc2/registry.md, unused
+// letters of finished blocks; lead: rename at merge): FLAG_ARC2_RESONATOR_B (0x0925) Hitmonlee's act,
+// FLAG_ARC2_CELESTIC_B (0x0943) Vespiquen's, FLAG_ARC2_CELESTIC_C (0x0944) Lapras's, FLAG_ARC2_CELESTIC_D (0x0945)
+// Skarmory's (read by the script only).
 // Litwick candles (decor objects 0x8E-0x93) burn at the seams: a stand-in sprite (the rift flame) at 3/5 size with a
 // pale-flame palette, until a real Litwick overworld sprite exists.
 #define LOST_TOWER_WALL_X               11
@@ -2686,6 +2695,37 @@ static VarsFlags *LostTower_VarsFlags(DistWorldSystem *system)
 static u16 LostTower_Var(DistWorldSystem *system, u16 varID)
 {
     return *VarsFlags_GetVarAddress(LostTower_VarsFlags(system), varID);
+}
+
+#define FLAG_ARC2_LOST_TOWER_ACT_HITMONLEE FLAG_ARC2_RESONATOR_B
+#define FLAG_ARC2_LOST_TOWER_ACT_VESPIQUEN FLAG_ARC2_CELESTIC_B
+#define FLAG_ARC2_LOST_TOWER_ACT_LAPRAS    FLAG_ARC2_CELESTIC_C
+
+// The wall acts done: this load's map-local count, or the persistent flags (a fall clears the map-locals).
+static u16 LostTower_WallActs(DistWorldSystem *system)
+{
+    VarsFlags *varsFlags = LostTower_VarsFlags(system);
+    u16 acts = LostTower_Var(system, VAR_MAP_LOCAL_1);
+
+    if (VarsFlags_CheckFlag(varsFlags, FLAG_ARC2_LOST_TOWER_ACT_VESPIQUEN)) {
+        acts = acts > 2 ? acts : 2;
+    } else if (VarsFlags_CheckFlag(varsFlags, FLAG_ARC2_LOST_TOWER_ACT_HITMONLEE)) {
+        acts = acts > 1 ? acts : 1;
+    }
+
+    return acts;
+}
+
+// The deeper acts done: Lapras's is persistent (the stones stay up after a blackout); Skarmory's carry is per load.
+static u16 LostTower_DeeperActs(DistWorldSystem *system)
+{
+    u16 acts = LostTower_Var(system, VAR_MAP_LOCAL_7);
+
+    if (acts == 0 && VarsFlags_CheckFlag(LostTower_VarsFlags(system), FLAG_ARC2_LOST_TOWER_ACT_LAPRAS)) {
+        acts = 1;
+    }
+
+    return acts;
 }
 
 static BOOL LostTower_WallWorkDone(DistWorldSystem *system)
@@ -2805,8 +2845,8 @@ static void LostTower_SetGroupShown(DistWorldSystem *system, u32 group, BOOL sho
 static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system)
 {
     VarsFlags *varsFlags = LostTower_VarsFlags(system);
-    u16 wallActs = LostTower_Var(system, VAR_MAP_LOCAL_1);
-    u16 deeperActs = LostTower_Var(system, VAR_MAP_LOCAL_7);
+    u16 wallActs = LostTower_WallActs(system);
+    u16 deeperActs = LostTower_DeeperActs(system);
     u16 ghostTarget = LostTower_Var(system, VAR_MAP_LOCAL_6);
     BOOL wallDone = LostTower_WallWorkDone(system);
 
@@ -2834,8 +2874,8 @@ static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system)
 static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
     VarsFlags *varsFlags = LostTower_VarsFlags(system);
-    u16 wallActs = LostTower_Var(system, VAR_MAP_LOCAL_1);
-    u16 deeperActs = LostTower_Var(system, VAR_MAP_LOCAL_7);
+    u16 wallActs = LostTower_WallActs(system);
+    u16 deeperActs = LostTower_DeeperActs(system);
 
     if (x == LOST_TOWER_WALL_X && y > LOST_TOWER_FLOOR_Y) {
         // The false seam past the fork gives way under you, lit or not.

@@ -5,7 +5,8 @@ The lake that vanished: the Valor Basin portal swallowed Lake Valor into the Dis
 upside down as the ceiling and its old bed is the floor, with what it swallowed still lying there.
 
 Base: rift-b's Phase 0 floor, the stock DW B4F (map_data 612/613) with rift-b's permission edits
-(build_rift_b_maps.py B4F_OPEN / B4F_BLOCK), written to map_data_675/676 and matrix 294. On top of that:
+(build_rift_b_maps.py B4F_OPEN / B4F_BLOCK / B4F_PLAIN), written to map_data_675/676 and matrix 294 (chunk (0,1) is
+rift-b's map_data_672, B4F's 614 with B4F_PLAIN; (1,1) the stock 615). On top of that:
 
   map_data_675  the rowboat on the old lakebed beside the path down to the first hop (terrain: material dw213_wood,
                 ~30 faces around (19,18)); the invisible ghost-prop walkways of stock B4F south of the lip are blocked
@@ -58,7 +59,9 @@ CHUNKS = {675: (612, 0, 0), 676: (613, 1, 0)}       # dst: (stock B4F src, chunk
 
 # stock B4F's floating-rock walkways (ghost props, dropped by rift-b) left walkable tiles with no floor under them,
 # reachable from the lip row (20-25, 23): (20-24, 24-31). Every walkable tile of 675 whose centre has no floor face
-# (facing up, h -0.6..1.2) is blocked, so nobody walks on the void. (614/615 are stock and shared: untouched.)
+# (facing up, h -0.6..1.2) is blocked, so nobody walks on the void. The jump tiles that hopped onto those walkways
+# anyway (a jump ignores the landing tile's block bit) are plain blocked by rift-b's B4F_PLAIN (fix2-lost), which
+# also covers the south-west walkway in chunk (0,1): matrix 294 uses rift-b's fixed copy of 614, map_data_672.
 FLOOR_FIX_CHUNK = 675
 
 
@@ -618,7 +621,7 @@ def outputs():
     out = {}
     stats = {}
     for dst, (src, cx, cz) in CHUNKS.items():
-        raw = rb.build_block(src, cx * 32, cz * 32, rb.B4F_OPEN, rb.B4F_BLOCK)
+        raw = rb.build_block(src, cx * 32, cz * 32, rb.B4F_OPEN, rb.B4F_BLOCK, rb.B4F_PLAIN)
         ch = Chunk(raw, cx, cz)
         perm = mapdata.read_permissions(ch.parts["permissions"])
         if dst == 675:
@@ -641,7 +644,7 @@ def outputs():
         out[os.path.join(DATA, f"map_data_{dst}.bin")] = mapdata.pack(mapdata.write_permissions(perm),
                                                                       ch.parts["props"], model, ch.parts["bdhc"])
     out[os.path.join(MATRICES, f"map_matrix_{MATRIX_ID}.json")] = (json.dumps(
-        {"name": MATRIX_NAME, "headers": [], "altitudes": [], "maps": [["MAP_675", "MAP_676"], ["MAP_614", "MAP_615"]]},
+        {"name": MATRIX_NAME, "headers": [], "altitudes": [], "maps": [["MAP_675", "MAP_676"], ["MAP_672", "MAP_615"]]},
         indent=4) + "\n").encode()
     out[TEXSET] = texture_set()
     return out, stats

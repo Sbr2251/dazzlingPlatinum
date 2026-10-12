@@ -16,6 +16,10 @@
 // waits. Stepping onto z >= 45 there starts the fight (step hook Arc2DwRoute213_HandleStep runs entry 4).
 //
 // rift-b flags: see scripts_dw_route_214.s. Here: FLAG_UNK_0x092E = FLAG_ARC2_ELIAS_CARD (the card picked up).
+// fix2-lost: FLAG_ARC2_RAID_B (0x0952, unused in s-raid's block; docs/arc2/registry.md) = Cyrus's lake line at the
+// entry was played. Persistent, so walking back in through the cave rift after a blackout (the rift still warps in
+// at 83) doesn't replay it; the map-local VAR_MAP_LOCAL_1 alone reset on every load. Lead: rename at merge
+// (suggested FLAG_ARC2_DW_ROUTE_213_LAKE_LINE).
 // Map-local: VAR_MAP_LOCAL_1 entry line played this load (not VAR_MAP_LOCAL_0: see scripts_dw_route_214.s).
 // DW overlay objects (src/overlay009 sArc2DwRoute213Objects): 0x80 Cyrus at the entry, 0x81 the rusted frame,
 // 0x82 the card, 0x83 the Lapras (on the island of the hanging lake), 0x84 the lakefront sign.
@@ -45,7 +49,8 @@ DWRoute213_OnTransition:
     InitPersistedMapFeaturesForDistortionWorld
     End
 
-// First frame of every load (init script, VAR_MAP_LOCAL_1 == 0): Cyrus's line, only on the entry tile.
+// First frame of every load (init script, VAR_MAP_LOCAL_1 == 0): Cyrus's line, only on the entry tile, once per save
+// (FLAG_ARC2_RAID_B); later entries only step out of the trees beside him.
 DWRoute213_EntryScene:
     SetVar VAR_MAP_LOCAL_1, 1
     GetPlayerMapPos VAR_0x8004, VAR_0x8005
@@ -57,9 +62,12 @@ DWRoute213_EntryScene:
     WaitTime 20, VAR_RESULT
     ApplyMovement LOCALID_PLAYER, DWRoute213_Movement_StepOutOfTrees
     WaitMovement
+    GoToIfSet FLAG_ARC2_RAID_B, DWRoute213_EntryEnd
+    SetFlag FLAG_ARC2_RAID_B
     Message DWRoute213_Text_CyrusThereWasALake
     WaitABXPadPress
     CloseMessage
+DWRoute213_EntryEnd:
     ReleaseAll
     End
 

@@ -29,7 +29,19 @@
 //
 // rift-b flags (see scripts_dw_route_214.s): FLAG_ARC2_RIFTB_C = first-seam memory shown, FLAG_ARC2_RIFTB_D = the
 // shadow has parted, FLAG_ARC2_RIFTB_E (0x092F) = the vein found (s-hearthome reads it for the 2.25 call).
-// set-tower adds no flags. Map-local (each load): VAR_MAP_LOCAL_1 wall acts done (1 Hitmonlee, 2 Vespiquen),
+// set-tower adds no flags. fix2-lost (owner playtest round 2, "A fall in the Lost Tower replays the ghost acts"):
+// each act plays once per save. A fall warps back to the entry and clears the map-locals below, so the acts used
+// to replay; now each act also sets a persistent flag, and the step/frame hooks count an act as done if either its
+// map-local or its flag says so. Flags (docs/arc2/registry.md, unused letters of finished blocks; lead: rename at
+// merge):
+//   FLAG_ARC2_RESONATOR_B (0x0925) = Hitmonlee's act (or its fallback line) done   (FLAG_ARC2_LOST_TOWER_ACT_HITMONLEE)
+//   FLAG_ARC2_CELESTIC_B  (0x0943) = Vespiquen's act (or its fallback) done          (FLAG_ARC2_LOST_TOWER_ACT_VESPIQUEN)
+//   FLAG_ARC2_CELESTIC_C  (0x0944) = Lapras's act (or its fallback) done: the stones stay up (..._ACT_LAPRAS)
+//   FLAG_ARC2_CELESTIC_D  (0x0945) = the island reached once: Skarmory's act and Cyrus's two lines played. After a
+//                                    blackout Skarmory (or the leap) still carries the player over the gap, the only
+//                                    way to the island, but with no surge, cut-in or lines, and Cyrus goes straight
+//                                    to the battle (FLAG_ARC2_LOST_TOWER_ISLAND_REACHED)
+// Map-local (each load): VAR_MAP_LOCAL_1 wall acts done (1 Hitmonlee, 2 Vespiquen),
 // VAR_MAP_LOCAL_2 memory coord done, VAR_MAP_LOCAL_3 always 0 (fall lips), VAR_MAP_LOCAL_4 vein coord done,
 // VAR_MAP_LOCAL_5 shadow coord done, VAR_MAP_LOCAL_6 the ghosts' opacity (0-31, the frame hook fades toward it),
 // VAR_MAP_LOCAL_7 deeper acts done (1 Lapras, 2 Skarmory).
@@ -150,6 +162,7 @@ DWLostTower_ActHitmonlee:
     WaitMovement
     PlayFanfare SEQ_SE_DP_WALL_HIT2
     SetVar VAR_MAP_LOCAL_1, 1
+    SetFlag FLAG_ARC2_RESONATOR_B
     ShakeCamera 12, 3
     ApplyMovement LOCALID_GHOST_HITMONLEE, DWLostTower_Movement_HitmonleeBack
     WaitMovement
@@ -167,6 +180,7 @@ DWLostTower_NoHitmonlee:
     WaitABXPadPress
     CloseMessage
     SetVar VAR_MAP_LOCAL_1, 1
+    SetFlag FLAG_ARC2_RESONATOR_B
     ReleaseAll
     End
 
@@ -185,6 +199,7 @@ DWLostTower_ActVespiquen:
     WaitCry
     PlayFanfare SEQ_SE_DP_KIRAKIRA
     SetVar VAR_MAP_LOCAL_1, 2
+    SetFlag FLAG_ARC2_CELESTIC_B
     ApplyMovement LOCALID_GHOST_VESPIQUEN, DWLostTower_Movement_VespiquenAlongSeam
     WaitMovement
     WaitFanfare SEQ_SE_DP_KIRAKIRA
@@ -202,6 +217,7 @@ DWLostTower_NoVespiquen:
     WaitABXPadPress
     CloseMessage
     SetVar VAR_MAP_LOCAL_1, 2
+    SetFlag FLAG_ARC2_CELESTIC_B
     ReleaseAll
     End
 
@@ -283,6 +299,7 @@ DWLostTower_ActLapras:
     WaitCry
     PlayFanfare SEQ_SE_DP_NAMI
     SetVar VAR_MAP_LOCAL_7, 1
+    SetFlag FLAG_ARC2_CELESTIC_C
     WaitTime 40, VAR_RESULT
     WaitFanfare SEQ_SE_DP_NAMI
     Message DWLostTower_Text_LaprasSang
@@ -301,6 +318,7 @@ DWLostTower_NoLapras:
     WaitABXPadPress
     CloseMessage
     SetVar VAR_MAP_LOCAL_7, 1
+    SetFlag FLAG_ARC2_CELESTIC_C
     WaitTime 40, VAR_RESULT
     ReleaseAll
     End
@@ -313,12 +331,15 @@ DWLostTower_ActSkarmory:
     ApplyMovement LOCALID_PLAYER, DWLostTower_Movement_FaceEast
     WaitMovement
     GoToIfUnset FLAG_TOTEM_SKARMORY_DEFEATED, DWLostTower_NoSkarmory
+    // Back after a blackout: the ghost carries the player over again, with no surge, cut-in or lines
+    GoToIfSet FLAG_ARC2_CELESTIC_D, DWLostTower_SkarmoryCarry
     Message DWLostTower_Text_GapTooWide
     WaitABXPadPress
     CloseMessage
     SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeSkarmory
     SetVar VAR_0x8004, RESONATOR_SLOT_SKARMORY
     Call DWLostTower_ResonatorGlows
+DWLostTower_SkarmoryCarry:
     ScrCmd_311 LOCALID_GHOST_SKARMORY
     Call DWLostTower_GhostFadeIn
     PlayCry SPECIES_SKARMORY
@@ -335,6 +356,7 @@ DWLostTower_ActSkarmory:
     Call DWLostTower_GhostFadeOut
     WaitMovement
     ScrCmd_312 LOCALID_GHOST_SKARMORY
+    GoToIfSet FLAG_ARC2_CELESTIC_D, DWLostTower_FindCyrus
     Message DWLostTower_Text_SkarmoryCarried
     WaitABXPadPress
     CloseMessage
@@ -342,12 +364,14 @@ DWLostTower_ActSkarmory:
     End
 
 DWLostTower_NoSkarmory:
+    GoToIfSet FLAG_ARC2_CELESTIC_D, DWLostTower_NoSkarmoryLeap
     Message DWLostTower_Text_GapTooWide
     WaitABXPadPress
     Call DWLostTower_ResonatorSilent
     Message DWLostTower_Text_YouLeap
     WaitABXPadPress
     CloseMessage
+DWLostTower_NoSkarmoryLeap:
     ApplyMovement LOCALID_PLAYER, DWLostTower_Movement_PlayerLeaps
     WaitMovement
     SetVar VAR_MAP_LOCAL_7, 2
@@ -366,11 +390,15 @@ DWLostTower_FindCyrus:
     WaitTime 30, VAR_RESULT
     ApplyMovement LOCALID_CYRUS, DWLostTower_Movement_CyrusLooksUp
     WaitMovement
+    // His two lines once per save (FLAG_ARC2_CELESTIC_D): after a blackout he only looks up, and the battle starts
+    GoToIfSet FLAG_ARC2_CELESTIC_D, DWLostTower_FindCyrusBattle
+    SetFlag FLAG_ARC2_CELESTIC_D
     Message DWLostTower_Text_CyrusYouCame
     WaitABXPadPress
     Message DWLostTower_Text_CyrusHundredVoices
     WaitABXPadPress
     CloseMessage
+DWLostTower_FindCyrusBattle:
     ApplyMovement LOCALID_PLAYER, DWLostTower_Movement_FaceEast
     WaitMovement
     PlayCry SPECIES_SPIRITOMB

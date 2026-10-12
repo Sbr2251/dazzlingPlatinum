@@ -32,8 +32,8 @@ Scripts: `res/field/scripts/scripts_distortion_world_arc1_seams.s`; objects and 
 
 | map | floor | land data / matrix | tw_arc spec | attr ids |
 |---|---|---|---|---|
-| `MAP_HEADER_DW_ROUTE_214` | DW B4F clone | `map_data_673/674` (B4F 612/613, edited) + stock 614/615, matrix 293 | `route_214.json` | 21 (east wall), 22 (ceiling) |
-| `MAP_HEADER_DW_ROUTE_213` | DW B4F clone, dressed as the Drowned Lake (set-lake) | `map_data_675/676` (B4F 612/613, edited; built by `build_dw_route_213.py`) + stock 614/615, matrix 294 | `route_213.json` | 25 (east wall), 26 (ceiling) |
+| `MAP_HEADER_DW_ROUTE_214` | DW B4F clone | `map_data_673/674` (B4F 612/613, edited) + `672` (B4F 614, edited) + stock 615, matrix 293 | `route_214.json` | 21 (east wall), 22 (ceiling) |
+| `MAP_HEADER_DW_ROUTE_213` | DW B4F clone, dressed as the Drowned Lake (set-lake) | `map_data_675/676` (B4F 612/613, edited; built by `build_dw_route_213.py`) + `672` + stock 615, matrix 294 | `route_213.json` | 25 (east wall), 26 (ceiling) |
 | `MAP_HEADER_DW_LOST_TOWER` | Arc 1 seams (B1F) clone | `map_data_677/678` (667/668, edited), matrix 295 | `lost_tower.json` | 29 (west wall) |
 
 Rebuild (all idempotent; `--check` / `check` verify):
@@ -81,3 +81,22 @@ dropped floating-rock walkways (20-24, 24-31) blocked. The island and its spur a
 z 44-47; spur x 46-47, z 43); the old leg down x 44 past z 42 is water now. The texture set is rebuilt from the current file minus any `dw213_*` entries, so rerun the script after
 merging another workstream's texture-set change. Objects (the lakefront sign 0x84, the frame, the card, the Lapras on
 the island at (46,46), rotated 180) are in `sArc2DwRoute213Objects`.
+
+## Collision vs drawn geometry (fix2-lost, owner playtest round 2)
+
+Every walkable floor tile of the Arc 2 DW maps must be drawn (map model or a visible ghost prop), every fall trigger
+must sit on open void, and no jump tile may land on an undrawn tile. A jump ignores the landing tile's block bit, so
+a hop past the drawn stones is closed by making the **jump tiles** plain blocked (0x8000, no behaviour), not the
+landing. The builders do it:
+
+| map | builder | what is plain blocked |
+|---|---|---|
+| DW Ravaged Path | `build_ravaged_path_map.py` (fix2-dwrp) | the last hops, the drawn lips |
+| DW Eterna Forest | `build_dw_eterna_forest_map.py` (671 from 667) | the drawn lips (16..19,13), (16..18,11); B1F's hop chains (23..30,12) and (21..31,22): this map's tw_arc record is B4F's, so no stones are drawn |
+| DW Route 214 / 213 | `build_rift_b_maps.py` `B4F_PLAIN` (673, 675 via `build_dw_route_213.py`, and 672 = 614 for both) | B4F's jumps onto its floating-rock walkways (ghost props, dropped by rift-b) and the walkway tiles |
+| DW Lost Tower | `build_rift_b_maps.py` `LOST_TOWER_PLAIN` | the drawn lips; the hop past (28,12); the hops north of (32,22) to B1F's dropped stones |
+
+Fall coord events (`events_dw_*.json`) cover only the open-void lips: (15,11), (19..21,11), (20..21,13), (12..15,15).
+`map_data_672` was registered for DW Eterna Forest by R0 but never used there (matrix 292 shows the stock B4F
+chunks); it is now the shared fixed copy of B4F's 614. A tile-by-tile audit (model faces, ghost props, permissions,
+jumps, coord events) is in `/tmp/a2/fix2/fix2-lost/harness/audit.py`.
