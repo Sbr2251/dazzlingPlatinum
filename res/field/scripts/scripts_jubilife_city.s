@@ -3277,20 +3277,20 @@ JubilifeCity_Arc2Movement_WatchGariusLeavePlaza:
     FaceEast
     EndMovement
 
-    // From (168,779): one step east, then north up the avenue toward Route 204
+    // From (168,779): east along row 779 (south of Ruth at 170,778) to the avenue, then north up it toward Route 204.
+    // Column 172 is open street all the way up; the old path went up column 171 and through the street lamp at the
+    // school's corner (171,775, a blocked tile).
     .balign 4, 0
 JubilifeCity_Arc2Movement_CyrusLeaveSchool:
-    WalkNormalEast
-    WalkNormalNorth
-    WalkNormalEast 2
-    WalkNormalNorth 8
+    WalkNormalEast 4
+    WalkNormalNorth 12
     EndMovement
 
     .balign 4, 0
 JubilifeCity_Arc2Movement_PlayerWatchCyrusEast:
-    Delay16
+    Delay16 2
     FaceEast
-    Delay16 3
+    Delay16 5
     FaceNorth
     EndMovement
 
