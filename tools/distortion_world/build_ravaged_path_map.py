@@ -10,6 +10,11 @@ model and BDHC are copied unchanged; only permissions change, so the walkable ti
   props), but B1F's hop tiles (29..30,12) then jumped the player to (31,12), where nothing is drawn (an invisible
   ledge). The hop tiles past the last stone lose their jump behaviour and stay blocked, so (28,12) is a dead end.
   The same for the lower chain's last hop (30..31,22), which jumps into the all-blocked 670 block.
+- The chasm-lip rows next to the walkway fall (coord events, the fall script), but some lip tiles are drawn
+  ground: (16..19,13) is the floor under the two trees south of the walkway, and (16..18,11) is the rock block
+  north of it. Stepping there dropped the player while they stood on solid-looking ground. Those tiles are
+  blocked again, as in stock B1F. The lips that are open void stay walkable (and fall): (15,11), (19..21,11),
+  (20..21,13), (12..15,15). Keep in sync with res/field/events/events_dw_ravaged_path.json.
 
 Tile coordinates are DW world tiles (the map sits at DW offset (0,0,0)): x 0-31 is 669, x 32-63 is 670.
 
@@ -30,6 +35,8 @@ BLOCKED = 0x8000
 BLOCK = [
     (29, 12, 30, 12),   # the hop off the last upper stepping stone (28,12) onto the undrawn (31,12)
     (30, 22, 31, 22),   # the hop off the last lower stepping stone (29,22) into the 670 block
+    (16, 13, 19, 13),   # drawn ground under the two trees south of the walkway (was a falling lip)
+    (16, 11, 18, 11),   # the drawn rock block north of the walkway (was a falling lip)
 ]
 
 
