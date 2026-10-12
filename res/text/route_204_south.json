@@ -221,6 +221,19 @@
         "The hum fades.\n",
         "The restraints hang empty again."
       ]
+    },
+    {
+      "id": "Route204South_Text_BlockGuard",
+      "en_US": [
+        "Hold it! The tremors keep shaking\n",
+        "rocks loose on the path up ahead.\r",
+        "And the wild Pok\u00e9mon up there\n",
+        "are on edge. It isn't safe.\r",
+        "I can only let Trainers with a\n",
+        "Gym Badge through. Sorry, kid.\r",
+        "Oreburgh City has a Gym. It's east,\n",
+        "past Route 203."
+      ]
     }
   ]
 }

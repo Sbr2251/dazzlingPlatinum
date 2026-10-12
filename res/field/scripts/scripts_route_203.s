@@ -11,6 +11,7 @@
     ScriptEntry Route203_Hiker
     ScriptEntry Route203_Picnicker
     ScriptEntry Route203_StarlyFlee
+    ScriptEntry Route203_OnTransition
     ScriptEntryEnd
 
 _001A:
@@ -140,6 +141,18 @@ _0207:
     BlackOutFromBattle
     ReleaseAll
     End
+
+// fix2: Garius (local 5, hide flag FLAG_UNK_0x017B) stands at the scar only until his Route 203 battle. The battle
+// hides him with RemoveObject, but a save that reached 14 any other way (the owner's test saves) still had him
+// standing there on the walk back. Hide him whenever the battle is done (VAR_UNK_0x4088) or progress is past it.
+Route203_OnTransition:
+    CallIfNe VAR_UNK_0x4088, 0, Route203_HideGarius
+    CallIfGe VAR_ARC1_PROGRESS, 14, Route203_HideGarius
+    End
+
+Route203_HideGarius:
+    SetFlag FLAG_UNK_0x017B
+    Return
 
     // Garius runs off: from (211,744) or (211,745), east to x 212, south to the old road (z 757), east up the
     // x 214 stairs and out of sight

@@ -191,10 +191,10 @@
       ]
     },
     {
-      "id": "OreburghMineB2F_Text_Arc1EndOfArc1",
+      "id": "OreburghMineB2F_Text_Arc1RuthJubilifeNext",
       "en_US": [
-        "END OF ARC 1\n",
-        "To be continued..."
+        "{STRVAR_1 3, 2, 0}: ...Jubilife, then.\n",
+        "That's where this goes next."
       ]
     },
     {
