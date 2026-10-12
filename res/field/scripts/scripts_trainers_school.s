@@ -4,7 +4,9 @@
 
 // Dazzling Platinum Arc 2 (s-jubilife), scene 2.2: the confession, after hours (VAR_ARC2_PROGRESS 1, sets 3).
 // Map-local temporary flags (the engine clears flags 0-63 on every map change; set on every load):
-//   FLAG_UNK_0x0030 = hide the stock teacher and students (night)   FLAG_UNK_0x0031 = hide the Arc 2 cast
+//   FLAG_UNK_0x0030 = hide the stock teacher and students (night), and the stock book on the table (4,9): its sprite
+//                     drew over Cyrus's head at (4,10) and read as a stray object next to the player and Cyrus
+//   FLAG_UNK_0x0031 = hide the Arc 2 cast
 //   FLAG_UNK_0x0032 = hide the Poke Ball on the table (Rowan's case)
 
 
