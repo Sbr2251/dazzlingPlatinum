@@ -740,7 +740,17 @@ OreburghCity_OnTransition:
     SetVar VAR_MAP_LOCAL_0, 0
     SetVar VAR_MAP_LOCAL_1, 0
     CallIfSet FLAG_HUM_STARTED, OreburghCity_HumArmBuzz
+    // fix2: Garius (local 3, stock FLAG_UNK_0x017C) waits at the Gym door only until the player meets Roark in
+    // Mine B2F. Once the Coal Badge is won he is gone for good, even if the save never played the mine meeting
+    // (the owner's A1-07 save). The badge check goes into a map-local var: VAR_RESULT in OnTransition hangs.
+    CheckBadgeAcquired BADGE_ID_COAL, VAR_MAP_LOCAL_2
+    CallIfEq VAR_MAP_LOCAL_2, TRUE, OreburghCity_HideGymDoorRival
+    CallIfGe VAR_ARC1_PROGRESS, 15, OreburghCity_HideGymDoorRival
     End
+
+OreburghCity_HideGymDoorRival:
+    SetFlag FLAG_UNK_0x017C
+    Return
 
 OreburghCity_HumShowMachop:
     ClearFlag FLAG_HUM_HIDE_CITY_MACHOP
