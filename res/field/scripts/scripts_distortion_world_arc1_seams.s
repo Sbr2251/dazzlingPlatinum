@@ -381,8 +381,11 @@ DistortionWorldArc1Seams_Movement_CyrusPickUpShard:
     FaceWest
     EndMovement
 
+// Cyrus picks the shard up from the briefcase spot (16,23) standing on (16,22). Both are on the player's east side
+// (15,23), and this map's camera draws an east-facing sprite turned toward Cyrus; FaceNorth was drawn with the
+// player's back to him for the whole exchange. Keep the player facing east (the shard spot and Cyrus).
     .balign 4, 0
 DistortionWorldArc1Seams_Movement_PlayerWatchCyrus:
     Delay16
-    FaceNorth
+    FaceEast
     EndMovement
