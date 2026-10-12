@@ -183,8 +183,8 @@ OreburghMineB2F_Arc1SetStateDone:
 // Frame script at VAR_ARC1_PROGRESS 15. The player arrives at (12,17) facing west; Garius is at (9,16) facing
 // the rift at (9,15). Rowan (15,9) and Ruth (15,8) start off screen up the north shaft and come down it in single
 // file to (13,16) and (14,16).
-// Roark (local 0) follows later to (13,17), behind the player. Ends at 16 with the END OF ARC 1 card; the
-// player stays at (12,17) and walks out normally.
+// Roark (local 0) follows later to (13,17), behind the player. Ends at 16 with Ruth's line toward Jubilife (fix2:
+// the END OF ARC 1 card is gone); the player stays at (12,17) and walks out normally.
 OreburghMineB2F_Arc1OnFrameRift:
     LockAll
     WaitTime 10, VAR_RESULT
@@ -320,7 +320,12 @@ OreburghMineB2F_Arc1OnFrameRift:
     Message OreburghMineB2F_Text_Arc1RowanFindHim
     WaitABXPadPress
     CloseMessage
-    // Fade out. END OF ARC 1.
+    // fix2: Arc 2 is in the game, so no END OF ARC 1 card. Ruth points the way (Arc 2's 2.1 starts on the walk
+    // into Jubilife at VAR_ARC1_PROGRESS 16, VAR_ARC2_PROGRESS 0), the cast leaves, and the player has control.
+    BufferCounterpartName 2
+    Message OreburghMineB2F_Text_Arc1RuthJubilifeNext
+    WaitABXPadPress
+    CloseMessage
     WaitTime 15, VAR_RESULT
     FadeScreenOut FADE_SCREEN_SPEED_SLOW
     WaitFadeScreen
@@ -334,9 +339,6 @@ OreburghMineB2F_Arc1OnFrameRift:
     WaitTime 30, VAR_RESULT
     FadeScreenIn FADE_SCREEN_SPEED_SLOW
     WaitFadeScreen
-    Message OreburghMineB2F_Text_Arc1EndOfArc1
-    WaitABXPadPress
-    CloseMessage
     ReleaseAll
     End
 
