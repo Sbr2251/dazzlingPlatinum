@@ -2,7 +2,7 @@
 """Builds the land data of rift-b's three Arc 2 Distortion World maps (Phase 0, docs/arc2/PLAN.md D8).
 
   DW_ROUTE_214  matrix 293 [[673, 674], [672, 615]]  DW B4F (stock 612-615): 673 = 612, 674 = 613, 672 = 614, edited
-  DW_ROUTE_213  matrix 294 [[675, 676], [614, 615]]  the same B4F floor: built by build_dw_route_213.py (set-lake)
+  DW_ROUTE_213  matrix 294 [[675, 676], [672, 615]]  the same B4F floor: built by build_dw_route_213.py (set-lake)
   DW_LOST_TOWER matrix 295 [[677, 678]]              the Arc 1 seams floor (DW B1F clone, map_data 667/668)
 
 B4F gives the floor -> east wall -> ceiling hops (the wall at x=49, the ceiling at y=10 over x 44-49, z 25-47);
@@ -67,7 +67,7 @@ MAPS = {
     "route_214": (293, "m_dwa2_3", {673: (612, 0, 0), 674: (613, 32, 0), 672: (614, 0, 32)}, B4F_OPEN, B4F_BLOCK,
                   B4F_PLAIN, [["MAP_673", "MAP_674"], ["MAP_672", "MAP_615"]]),
     # route_213 (matrix 294, map_data_675/676) is built by build_dw_route_213.py (set-lake: the Drowned Lake
-    # dressing on top of this same B4F base, B4F_OPEN / B4F_BLOCK included)
+    # dressing on top of this same B4F base, B4F_OPEN / B4F_BLOCK / B4F_PLAIN included; it shares 672)
     "lost_tower": (295, "m_dwa2_5", {677: (667, 0, 0), 678: (668, 32, 0)}, LOST_TOWER_OPEN, LOST_TOWER_BLOCK,
                    [], [["MAP_677", "MAP_678"]]),
 }
