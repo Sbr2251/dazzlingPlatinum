@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Builds the land data of rift-b's three Arc 2 Distortion World maps (Phase 0, docs/arc2/PLAN.md D8).
 
-  DW_ROUTE_214  matrix 293 [[673, 674], [614, 615]]  DW B4F (stock 612-615): 673 = 612, 674 = 613, both edited
+  DW_ROUTE_214  matrix 293 [[673, 674], [672, 615]]  DW B4F (stock 612-615): 673 = 612, 674 = 613, 672 = 614, edited
   DW_ROUTE_213  matrix 294 [[675, 676], [614, 615]]  the same B4F floor: built by build_dw_route_213.py (set-lake)
   DW_LOST_TOWER matrix 295 [[677, 678]]              the Arc 1 seams floor (DW B1F clone, map_data 667/668)
 
 B4F gives the floor -> east wall -> ceiling hops (the wall at x=49, the ceiling at y=10 over x 44-49, z 25-47);
 the B1F clone gives the west-wall seam. The terrain models and BDHC are copied unchanged; only permissions change.
 Tile coordinates below are map tiles (the maps sit at DW offset (0,0,0), so map tiles = DW world tiles).
-The 614/615 halves of B4F are referenced unchanged (nothing walkable there is reachable).
+615 is referenced unchanged. 614 was too, but its jump tiles hop onto B4F's dropped walkways (B4F_PLAIN): its
+edited copy is map_data_672.
 
 Usage: python3 tools/distortion_world/build_rift_b_maps.py [--check]
 Then:  python3 tools/distortion_world/twarc.py build tools/distortion_world/{route_214,route_213,lost_tower}.json
@@ -32,6 +33,22 @@ B4F_OPEN = [
 B4F_BLOCK = [
     (33, 20, 37, 25),   # the pool: no Surf prompt in the DW; the hop crosses it
 ]
+# fix2-lost (owner playtest round 2): stock B4F's floating-rock walkways are ghost props, and rift-b dropped B4F's
+# ghost props, so the walkways are not drawn any more, but B4F's jump-twice tiles still hop the player onto them:
+# from the island's south edge (20..24,23) down onto (20..24,26), from (20..22,38) down onto (20..22,41), from
+# (15,43..46) east onto (18,43..46), and back. The player stood on thin air (Route 214's walkway tiles are even
+# walkable; Route 213's are blocked, but a jump ignores the landing tile's block bit). These tiles become plain
+# blocked: no behaviour, so no jump. Applied last, after B4F_BLOCK / B4F_OPEN. The rows z >= 32 lie in B4F's stock
+# chunk 614, shared with DW Eterna Forest's matrix: the fixed copy is map_data_672 (registered by R0 for DW Eterna
+# Forest, which never used it: matrix 292 shows the stock 613/614/615).
+B4F_PLAIN = [
+    (20, 24, 24, 25),   # the hops between the island's south edge (z 23) and the walkway (z 26)
+    (20, 26, 24, 30),   # the dropped walkway south of the island
+    (20, 31, 22, 32),   # the hops between the walkway (z 30) and the floor south of it (z 33)
+    (20, 39, 22, 40),   # the hops from (20..22,38) south onto the dropped walkway (z 41)
+    (18, 41, 23, 46),   # the dropped walkway in the south-west
+    (16, 43, 17, 46),   # the hops from (15,43..46) east onto it
+]
 
 # Lost Tower (Arc 1 seams floor) edits: the same lips stay walkable for the fall script (copied from 667/668).
 LOST_TOWER_OPEN = [
@@ -46,20 +63,20 @@ LOST_TOWER_BLOCK = [
 ]
 
 MAPS = {
-    # name: (matrix id, matrix name, {dst: (src, x_base, z_base)}, open, block, matrix rows)
-    "route_214": (293, "m_dwa2_3", {673: (612, 0, 0), 674: (613, 32, 0)}, B4F_OPEN, B4F_BLOCK,
-                  [["MAP_673", "MAP_674"], ["MAP_614", "MAP_615"]]),
+    # name: (matrix id, matrix name, {dst: (src, x_base, z_base)}, open, block, plain, matrix rows)
+    "route_214": (293, "m_dwa2_3", {673: (612, 0, 0), 674: (613, 32, 0), 672: (614, 0, 32)}, B4F_OPEN, B4F_BLOCK,
+                  B4F_PLAIN, [["MAP_673", "MAP_674"], ["MAP_672", "MAP_615"]]),
     # route_213 (matrix 294, map_data_675/676) is built by build_dw_route_213.py (set-lake: the Drowned Lake
     # dressing on top of this same B4F base, B4F_OPEN / B4F_BLOCK included)
     "lost_tower": (295, "m_dwa2_5", {677: (667, 0, 0), 678: (668, 32, 0)}, LOST_TOWER_OPEN, LOST_TOWER_BLOCK,
-                   [["MAP_677", "MAP_678"]]),
+                   [], [["MAP_677", "MAP_678"]]),
 }
 
 
-def build_block(src, x_base, z_base, open_, block):
+def build_block(src, x_base, z_base, open_, block, plain=()):
     parts = mapdata.unpack(open(os.path.join(DATA, f"map_data_{src}.bin"), "rb").read())
     perm = mapdata.read_permissions(parts["permissions"])
-    for rects, fn in ((block, lambda v: v | BLOCKED), (open_, lambda v: 0)):
+    for rects, fn in ((block, lambda v: v | BLOCKED), (open_, lambda v: 0), (plain, lambda v: BLOCKED)):
         for x0, z0, x1, z1 in rects:
             for z in range(z0, z1 + 1):
                 for x in range(x0, x1 + 1):
@@ -71,9 +88,9 @@ def build_block(src, x_base, z_base, open_, block):
 
 def outputs():
     out = {}
-    for name, (mid, mname, blocks, open_, block, rows) in MAPS.items():
+    for name, (mid, mname, blocks, open_, block, plain, rows) in MAPS.items():
         for dst, (src, xb, zb) in blocks.items():
-            out[os.path.join(DATA, f"map_data_{dst}.bin")] = build_block(src, xb, zb, open_, block)
+            out[os.path.join(DATA, f"map_data_{dst}.bin")] = build_block(src, xb, zb, open_, block, plain)
         out[os.path.join(MATRICES, f"map_matrix_{mid}.json")] = (json.dumps(
             {"name": mname, "headers": [], "altitudes": [], "maps": rows}, indent=4) + "\n").encode()
     return out
