@@ -1487,31 +1487,34 @@ _11BC:
     WalkNormalSouth 2
     EndMovement
 
+// Dazzling Platinum (fix2-poketch, owner playtest round 2): the Pokétch is earned by returning the case of
+// Pokétch Company prototypes that Eclipse stole during the rally (the crate in Looker's tail, below). The stock
+// clown quiz and its Coupons are gone. FLAG_UNK_0x091C (tail done) means the player got the case back; the case
+// is not an item, so "case in hand" is FLAG_UNK_0x091C set with the Pokétch (FLAG_UNK_0x00F3) not yet given.
+// Fallback: the tail is only offered at VAR_ARC1_PROGRESS 13-15. From 16 on (Arc 2), the president gives the
+// Pokétch anyway ("A man in a trench coat dropped this off."), so it can never become unobtainable.
+// Talk to the president (stock object 23)
 _11CC:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    SetVar VAR_0x8004, 0
-    Call _11F8
-    GoToIfEq VAR_0x8004, 3, _1223
-    Message 41
+    GoToIfSet FLAG_UNK_0x091C, JubilifeCity_PoketchCaseReturned
+    GoToIfGe VAR_ARC1_PROGRESS, 16, JubilifeCity_PoketchFallback
+    Message JubilifeCity_Text_PoketchPresidentNoCase
     WaitABXPadPress
     CloseMessage
     ReleaseAll
     End
 
-_11F8:
-    CallIfSet FLAG_OBTAINED_COUPON_1, _121B
-    CallIfSet FLAG_OBTAINED_COUPON_2, _121B
-    CallIfSet FLAG_OBTAINED_COUPON_3, _121B
-    Return
+JubilifeCity_PoketchFallback:
+    Message JubilifeCity_Text_PoketchPresidentFallback
+    GoTo JubilifeCity_PoketchGive
+    End
 
-_121B:
-    AddVar VAR_0x8004, 1
-    Return
-
-_1223:
-    Message 42
+JubilifeCity_PoketchCaseReturned:
+    Message JubilifeCity_Text_PoketchPresidentReturned
+JubilifeCity_PoketchGive:
+    // Saves from before this change may still hold stock Coupons: take them back (no-op when absent)
     RemoveItem ITEM_COUPON_1, 1, VAR_RESULT
     RemoveItem ITEM_COUPON_2, 1, VAR_RESULT
     RemoveItem ITEM_COUPON_3, 1, VAR_RESULT
@@ -1526,6 +1529,14 @@ _1223:
     PlaySound SEQ_FANFA4
     WaitSound
     Message 44
+    // Bonus app: the Coin Toss. Its only other giver (Route 213 house) checks for it first; the Dot Artist
+    // would break the Sunyshore Calendar -> Dot Artist -> Roulette chain (it skips the Calendar).
+    Message JubilifeCity_Text_PoketchPresidentThanksApp
+    SetVar VAR_0x8004, POKETCH_APPID_COINTOSS
+    GivePoketchApp
+    WaitABXPadPress
+    Message JubilifeCity_Text_PoketchPresidentHint
+    WaitABXPadPress
     CloseMessage
     GetPlayerDir VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _12A1
@@ -1582,129 +1593,83 @@ _1314:
     WalkOnSpotNormalNorth
     EndMovement
 
+// The three clowns (stock objects 24, 25, 27): no quiz, no Coupons. Before the case is back, each points the
+// player to the trench-coat man (Looker) at the east exit; in Arc 2 (tail no longer offered) they send the
+// player to the president instead.
 _1320:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    GoToIfSet FLAG_OBTAINED_COUPON_1, _138C
-    Message 45
-    ShowYesNoMenu VAR_RESULT
-    GoToIfEq VAR_RESULT, MENU_YES, _1356
-    GoToIfEq VAR_RESULT, MENU_NO, _137D
+    GoToIfSet FLAG_UNK_0x00F3, JubilifeCity_PoketchClown1After
+    Call JubilifeCity_PoketchClownState
+    GoToIfEq VAR_0x8004, 1, JubilifeCity_PoketchClownCaseInHand
+    GoToIfEq VAR_0x8004, 2, JubilifeCity_PoketchClownFallback
+    Message JubilifeCity_Text_PoketchClown1
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
-_1356:
-    PlayFanfare SEQ_SE_DP_PINPON
-    Message 46
-    Message 48
-    Message 49
-    SetVar VAR_0x8004, ITEM_COUPON_1
-    SetVar VAR_0x8005, 1
-    SetFlag FLAG_OBTAINED_COUPON_1
-    GiveItemQuantityNoLineFeed
-    CloseMessage
-    ReleaseAll
-    End
-
-_137D:
-    PlayFanfare SEQ_SE_DP_BOX03
-    Message 47
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
-    End
-
-_138C:
-    Message 50
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
+JubilifeCity_PoketchClown1After:
+    Message JubilifeCity_Text_PoketchClown1After
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
 _1397:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    GoToIfSet FLAG_OBTAINED_COUPON_2, _1403
-    Message 51
-    ShowYesNoMenu VAR_RESULT
-    GoToIfEq VAR_RESULT, MENU_YES, _13CD
-    GoToIfEq VAR_RESULT, MENU_NO, _13F4
+    GoToIfSet FLAG_UNK_0x00F3, JubilifeCity_PoketchClown2After
+    Call JubilifeCity_PoketchClownState
+    GoToIfEq VAR_0x8004, 1, JubilifeCity_PoketchClownCaseInHand
+    GoToIfEq VAR_0x8004, 2, JubilifeCity_PoketchClownFallback
+    Message JubilifeCity_Text_PoketchClown2
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
-_13CD:
-    PlayFanfare SEQ_SE_DP_PINPON
-    Message 52
-    Message 54
-    Message 55
-    SetVar VAR_0x8004, ITEM_COUPON_2
-    SetVar VAR_0x8005, 1
-    SetFlag FLAG_OBTAINED_COUPON_2
-    GiveItemQuantityNoLineFeed
-    CloseMessage
-    ReleaseAll
-    End
-
-_13F4:
-    PlayFanfare SEQ_SE_DP_BOX03
-    Message 53
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
-    End
-
-_1403:
-    Message 56
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
+JubilifeCity_PoketchClown2After:
+    Message JubilifeCity_Text_PoketchClown2After
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
 _140E:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    GoToIfLt VAR_UNK_0x40E7, 2, _149E
-    GoToIfSet FLAG_OBTAINED_COUPON_3, _1493
-    Message 57
-    ShowYesNoMenu VAR_RESULT
-    GoToIfEq VAR_RESULT, MENU_YES, _1451
-    GoToIfEq VAR_RESULT, MENU_NO, _1484
+    GoToIfSet FLAG_UNK_0x00F3, JubilifeCity_PoketchClown3After
+    Call JubilifeCity_PoketchClownState
+    GoToIfEq VAR_0x8004, 1, JubilifeCity_PoketchClownCaseInHand
+    GoToIfEq VAR_0x8004, 2, JubilifeCity_PoketchClownFallback
+    Message JubilifeCity_Text_PoketchClown3
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
-_1451:
-    PlayFanfare SEQ_SE_DP_PINPON
-    Message 58
-    Message 60
-    Message 61
-    // Arc 1: from state 12 the president never walks (no forced intro) and may not be loaded at all (the rally
-    // only un-hides him), so don't SetPosition him: on a missing object it writes through a NULL MapObject.
-    CallIfLt VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1ResetPresidentPos
-    SetVar VAR_0x8004, ITEM_COUPON_3
-    SetVar VAR_0x8005, 1
-    SetFlag FLAG_OBTAINED_COUPON_3
-    GiveItemQuantityNoLineFeed
-    CloseMessage
-    ReleaseAll
+JubilifeCity_PoketchClown3After:
+    Message JubilifeCity_Text_PoketchClown3After
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
-_1484:
-    PlayFanfare SEQ_SE_DP_BOX03
-    Message 59
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
+// VAR_0x8004: 0 = case still missing (tail on offer), 1 = case in hand, 2 = Arc 2 fallback (see the president)
+JubilifeCity_PoketchClownState:
+    SetVar VAR_0x8004, 0
+    GoToIfSet FLAG_UNK_0x091C, JubilifeCity_PoketchClownStateCase
+    GoToIfGe VAR_ARC1_PROGRESS, 16, JubilifeCity_PoketchClownStateFallback
+    Return
+
+JubilifeCity_PoketchClownStateCase:
+    SetVar VAR_0x8004, 1
+    Return
+
+JubilifeCity_PoketchClownStateFallback:
+    SetVar VAR_0x8004, 2
+    Return
+
+JubilifeCity_PoketchClownCaseInHand:
+    Message JubilifeCity_Text_PoketchClownCaseInHand
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
-_1493:
-    Message 63
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
-    End
-
-_149E:
-    Message 62
+JubilifeCity_PoketchClownFallback:
+    Message JubilifeCity_Text_PoketchClownFallback
+JubilifeCity_PoketchClownEnd:
     WaitABXPadPress
     CloseMessage
     ReleaseAll
@@ -1795,11 +1760,22 @@ JubilifeCity_Arc1OnTransition:
     CallIfEq VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1SetUpRally
     CallIfEq VAR_ARC1_PROGRESS, 13, JubilifeCity_Arc1AfterRally
     CallIfGe VAR_ARC1_PROGRESS, 14, JubilifeCity_Arc1RallyOver
+    CallIfUnset FLAG_UNK_0x00F3, JubilifeCity_PoketchOnTransition
+    Return
+
+// Until the Pokétch is given, keep the president and the clowns out from 14 on, and in Arc 2 once its Jubilife
+// scenes are over (VAR_ARC2_PROGRESS 9+), so the fallback is always reachable. (13 is AfterRally's; Arc 2 0-8 are
+// left alone for scenes 2.1-2.4.)
+JubilifeCity_PoketchOnTransition:
+    GoToIfLt VAR_ARC1_PROGRESS, 14, JubilifeCity_PoketchOnTransitionEnd
+    GoToIfLt VAR_ARC1_PROGRESS, 16, JubilifeCity_Arc1RestorePoketchCampaign
+    GoToIfGe VAR_ARC2_PROGRESS, 9, JubilifeCity_Arc1RestorePoketchCampaign
+JubilifeCity_PoketchOnTransitionEnd:
     Return
 
 // The stock first visit (counterpart escort, Looker and the VS Recorder, Barry and the Parcel in the Trainers'
 // School, Looker blocking the east exit) never happens in Arc 1. State 2 makes coord events 0 and 2 and _00AC
-// inert. The Pokétch campaign stays as optional side content, without the forced president intro (coord 4).
+// inert. The Pokétch is earned through the crate tail (see _11CC), without the forced president intro (coord 4).
 JubilifeCity_Arc1SkipStockIntro:
     SetVar VAR_JUBILIFE_STATE, 2
     SetFlag FLAG_UNK_0x00F1
@@ -1871,11 +1847,6 @@ JubilifeCity_Arc1UnhidePresident:
 
 JubilifeCity_Arc1RemoveLooker:
     RemoveObject JUBILIFE_CITY_LOOKER_31
-    Return
-
-// Stock _1451: put the president back at his post after his (stock-only) walk-up intro
-JubilifeCity_Arc1ResetPresidentPos:
-    SetPosition 23, 174, 1, 0x303, 1
     Return
 
 // Talk to Garius (object script)

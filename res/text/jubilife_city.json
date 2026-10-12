@@ -387,28 +387,24 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00041",
+      "id": "JubilifeCity_Text_PoketchPresidentNoCase",
       "en_US": [
-        "The three clowns will each ask you\n",
-        "a skill-testing question.\r",
-        "The questions will all have to do\n",
-        "with Pokémon.\r",
-        "After all, a Pokétch is a tool for\n",
-        "Pokémon Trainers.\r",
-        "Collect a Coupon from each clown,\n",
-        "then come see me, OK?"
+        "I'm the president of the Pok\u00e9tch\n",
+        "Company, and I'm in a real pickle!\r",
+        "A case of our prototypes went\n",
+        "missing during that rally.\r",
+        "No prototypes, no campaign...\n",
+        "and no Pok\u00e9tch for you. Sorry!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00042",
+      "id": "JubilifeCity_Text_PoketchPresidentReturned",
       "en_US": [
-        "OK, let me count your Coupons!\n",
-        "I’ll use the Pokétch here...\r",
-        "One, two, three!\n",
+        "That case... Our prototypes!\n",
+        "You brought them back!\r",
         "Bravo! I say, bravo!\r",
-        "In return for these Coupons,\n",
-        "I present you this Pokémon Watch,\f",
-        "or Pokétch for short!\r"
+        "Please, take this Pok\u00e9mon Watch,\n",
+        "or Pok\u00e9tch for short!\r"
       ]
     },
     {
@@ -425,26 +421,27 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00045",
+      "id": "JubilifeCity_Text_PoketchClown1",
       "en_US": [
-        "Hi! I’m a Pokétch campaign clown!\n",
-        "Let’s roll out my question!\r",
-        "Does a Pokémon grow by defeating\n",
-        "others and gaining Exp. Points?"
+        "Clown: Our prototypes vanished\n",
+        "during the rally! No campaign today.\r",
+        "A man in a trench coat was eyeing\n",
+        "the crowd. He's by the east exit!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00046",
+      "id": "JubilifeCity_Text_PoketchClownCaseInHand",
       "en_US": [
-        "Ding-ding!\n",
-        "You’re absolutely correct!\r"
+        "Clown: You got the case back?!\n",
+        "Quick, show the president!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00047",
+      "id": "JubilifeCity_Text_PoketchClownFallback",
       "en_US": [
-        "Bzzzzt!\n",
-        "That’s the wrong answer..."
+        "Clown: A man in a trench coat left\n",
+        "something with the president.\f",
+        "He was asking about you!"
       ]
     },
     {
@@ -458,29 +455,30 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00049",
+      "id": "JubilifeCity_Text_PoketchPresidentFallback",
       "en_US": [
-        "Here you go!\n",
-        "Your Pokétch Coupon!\r"
+        "Ah, there you are! A man in a\n",
+        "trench coat dropped this off.\r",
+        "Our stolen prototypes! He said\n",
+        "you'd earned it.\r",
+        "Please, take this Pok\u00e9mon Watch,\n",
+        "or Pok\u00e9tch for short!\r"
       ]
     },
     {
-      "id": "pl_msg_00000023_00050",
+      "id": "JubilifeCity_Text_PoketchClown1After",
       "en_US": [
-        "Pokémon grow stronger through\n",
-        "battling.\r",
-        "Some Pokémon even grow into an\n",
-        "entirely different form in a process\f",
-        "known as evolution."
+        "Clown: The prototypes are back, and\n",
+        "you got a Pok\u00e9tch! Honk honk!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00051",
+      "id": "JubilifeCity_Text_PoketchClown2",
       "en_US": [
-        "Hi! I’m a Pokétch campaign clown!\n",
-        "Let’s roll out my question!\r",
-        "Just like Pokémon types, the moves\n",
-        "of Pokémon also have types?"
+        "Clown: Honk... Our prototype case\n",
+        "got swiped in all that rally noise.\r",
+        "That trench-coat fellow at the east\n",
+        "exit saw something. Ask him!"
       ]
     },
     {
@@ -491,18 +489,19 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00053",
+      "id": "JubilifeCity_Text_PoketchPresidentThanksApp",
       "en_US": [
-        "Bzzzzt!\n",
-        "That’s the wrong answer..."
+        "And as thanks for the prototypes,\n",
+        "here's an app we just finished!\r"
       ]
     },
     {
-      "id": "pl_msg_00000023_00054",
+      "id": "JubilifeCity_Text_PoketchPresidentHint",
       "en_US": [
-        "If the Pokémon’s type matches its\n",
-        "move’s type, that move is made much\f",
-        "more powerful!\r"
+        "Our prototypes can read faint\n",
+        "signals...\r",
+        "I'd hate to think what someone\n",
+        "would track with them."
       ]
     },
     {
@@ -513,19 +512,19 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00056",
+      "id": "JubilifeCity_Text_PoketchClown2After",
       "en_US": [
-        "If the Pokémon’s type matches its\n",
-        "move’s type, that move is made much\f",
-        "more powerful!"
+        "Clown: Prototypes home safe! Now I\n",
+        "can finally take off this wig."
       ]
     },
     {
-      "id": "pl_msg_00000023_00057",
+      "id": "JubilifeCity_Text_PoketchClown3",
       "en_US": [
-        "Hi! I’m a Pokétch campaign clown!\n",
-        "Let’s roll out my question!\r",
-        "Can a Pokémon hold an item?"
+        "Clown: No quiz today! Someone took\n",
+        "our prototypes during the rally.\r",
+        "Psst... the trench-coat man at the\n",
+        "east exit saw it all."
       ]
     },
     {
@@ -569,13 +568,10 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00063",
+      "id": "JubilifeCity_Text_PoketchClown3After",
       "en_US": [
-        "A Pokémon may hold a single item.\r",
-        "Some items become effective as soon\n",
-        "as they are held by Pokémon.\r",
-        "Berries are eaten by Pokémon as\n",
-        "necessary during battle."
+        "Clown: Try every app on your\n",
+        "Pok\u00e9tch! Even the silly ones!"
       ]
     },
     {
