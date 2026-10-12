@@ -1084,11 +1084,11 @@
         },
         {
             "script": 48,
-            "x": 158,
+            "x": 156,
             "z": 752,
             "y": 0,
-            "width": 12,
-            "length": 9,
+            "width": 14,
+            "length": 10,
             "var": "VAR_MAP_LOCAL_2",
             "value": 1
         }

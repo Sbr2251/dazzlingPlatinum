@@ -14,7 +14,7 @@
 // map-local temporaries (the engine clears flags 0-63 on every map change), set again on every load:
 //   FLAG_UNK_0x0032 = hide LOCALID_ARC2_GARIUS     FLAG_UNK_0x0033 = hide LOCALID_ARC2_CYRUS
 //   FLAG_UNK_0x0034 = hide LOCALID_ARC2_ROWAN      FLAG_UNK_0x0035 = hide LOCALID_ARC2_RUTH
-// VAR_MAP_LOCAL_2 arms the scenes: 1 = 2.1's coord event (the plaza, x 158-169, z 752-760), 3 = the on-frame 2.3
+// VAR_MAP_LOCAL_2 arms the scenes: 1 = 2.1's coord event (the plaza, x 156-169, z 752-761), 3 = the on-frame 2.3
 // (scripts_init_jubilife_city.s).
 // Arc 2 quests (R3, S11): the Duchess reunion. The Route 202 pilgrim old man has left Route 202 by Arc 2
 // (route_202 shows him only at VAR_ARC1_PROGRESS 11-15), so from VAR_ARC2_PROGRESS 9 he stands at the rally
