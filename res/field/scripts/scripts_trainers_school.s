@@ -4,7 +4,9 @@
 
 // Dazzling Platinum Arc 2 (s-jubilife), scene 2.2: the confession, after hours (VAR_ARC2_PROGRESS 1, sets 3).
 // Map-local temporary flags (the engine clears flags 0-63 on every map change; set on every load):
-//   FLAG_UNK_0x0030 = hide the stock teacher and students (night)   FLAG_UNK_0x0031 = hide the Arc 2 cast
+//   FLAG_UNK_0x0030 = hide the stock teacher and students (night), and the stock book on the table (4,9): its sprite
+//                     drew over Cyrus's head at (4,10) and read as a stray object next to the player and Cyrus
+//   FLAG_UNK_0x0031 = hide the Arc 2 cast
 //   FLAG_UNK_0x0032 = hide the Poke Ball on the table (Rowan's case)
 
 
@@ -419,9 +421,17 @@ TrainersSchool_Arc2OnTransitionEnd:
 TrainersSchool_Arc2Cast:
     End
 
-// On frame at VAR_ARC2_PROGRESS 1 (scripts_init_trainers_school.s)
+// On frame at VAR_ARC2_PROGRESS 1 (scripts_init_trainers_school.s). The player has walked here from the plaza (2.1
+// no longer warps in): from the door mat (7,11) they walk to their seat at the table (2,9), below Rowan.
 TrainersSchool_Arc2Confession:
     LockAll
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfNe VAR_0x8004, 7, TrainersSchool_Arc2ConfessionSeated
+    GoToIfNe VAR_0x8005, 11, TrainersSchool_Arc2ConfessionSeated
+    WaitTime 15, VAR_RESULT
+    ApplyMovement LOCALID_PLAYER, TrainersSchool_Arc2Movement_PlayerToSeat
+    WaitMovement
+TrainersSchool_Arc2ConfessionSeated:
     WaitTime 30, VAR_RESULT
     Message TrainersSchool_Text_Arc2RowanReadings
     WaitABXPadPress
@@ -555,15 +565,20 @@ TrainersSchool_Arc2Confession:
     RemoveObject LOCALID_ARC2_CYRUS
     WaitFanfare SEQ_SE_DP_KAIDAN2
     WaitTime 20, VAR_RESULT
-    // Rowan and Ruth follow him out
-    FadeScreenOut
-    WaitFadeScreen
-    RemoveObject LOCALID_ARC2_ROWAN
+    // Rowan and Ruth follow him out the door (no fade: the player watches them go, then walks out too)
+    ApplyMovement LOCALID_ARC2_RUTH, TrainersSchool_Arc2Movement_RuthLeave
+    ApplyMovement LOCALID_PLAYER, TrainersSchool_Arc2Movement_FaceEast
+    WaitMovement
+    PlayFanfare SEQ_SE_DP_KAIDAN2
     RemoveObject LOCALID_ARC2_RUTH
+    WaitFanfare SEQ_SE_DP_KAIDAN2
+    ApplyMovement LOCALID_ARC2_ROWAN, TrainersSchool_Arc2Movement_RowanLeave
+    ApplyMovement LOCALID_PLAYER, TrainersSchool_Arc2Movement_PlayerWatchRowanLeave
+    WaitMovement
+    PlayFanfare SEQ_SE_DP_KAIDAN2
+    RemoveObject LOCALID_ARC2_ROWAN
+    WaitFanfare SEQ_SE_DP_KAIDAN2
     SetVar VAR_ARC2_PROGRESS, 3
-    WaitTime 15, VAR_RESULT
-    FadeScreenIn
-    WaitFadeScreen
     ReleaseAll
     End
 
@@ -640,4 +655,39 @@ TrainersSchool_Arc2Movement_RuthStep:
 TrainersSchool_Arc2Movement_CyrusLeave:
     WalkNormalEast 3
     WalkNormalSouth
+    EndMovement
+
+    // From the door mat (7,11): north, west along row 10 (the open floor below the table), north into the seat (2,9)
+    .balign 4, 0
+TrainersSchool_Arc2Movement_PlayerToSeat:
+    WalkNormalNorth
+    WalkNormalWest 5
+    WalkNormalNorth
+    FaceNorth
+    EndMovement
+
+    // Ruth (5,9, after her step): south, east along row 10, out the door (7,11)
+    .balign 4, 0
+TrainersSchool_Arc2Movement_RuthLeave:
+    WalkNormalSouth
+    WalkNormalEast 2
+    WalkNormalSouth
+    EndMovement
+
+    // Rowan (2,8, north of the player): around the west end of the table (column 1), east along row 10, out (7,11)
+    .balign 4, 0
+TrainersSchool_Arc2Movement_RowanLeave:
+    WalkNormalWest
+    WalkNormalSouth 2
+    WalkNormalEast 6
+    WalkNormalSouth
+    EndMovement
+
+    .balign 4, 0
+TrainersSchool_Arc2Movement_PlayerWatchRowanLeave:
+    FaceWest
+    Delay16 2
+    FaceSouth
+    Delay16 3
+    FaceEast
     EndMovement

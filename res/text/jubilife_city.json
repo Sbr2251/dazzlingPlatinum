@@ -1312,6 +1312,13 @@
       ]
     },
     {
+      "id": "JubilifeCity_Text_Arc2GariusGetProfessor",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: I'll go get Rowan.\n",
+        "See you at the Trainers' School."
+      ]
+    },
+    {
       "id": "JubilifeCity_Text_QuestsOldManHaven",
       "en_US": [
         "I gave my wife's Clefairy to that\n",

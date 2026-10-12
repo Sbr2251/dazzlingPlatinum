@@ -1081,6 +1081,16 @@
             "length": 46,
             "var": "VAR_MAP_LOCAL_5",
             "value": 1
+        },
+        {
+            "script": 48,
+            "x": 156,
+            "z": 752,
+            "y": 0,
+            "width": 14,
+            "length": 10,
+            "var": "VAR_MAP_LOCAL_2",
+            "value": 1
         }
     ]
 }
