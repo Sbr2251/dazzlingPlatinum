@@ -505,11 +505,8 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00055",
-      "en_US": [
-        "Here you go!\n",
-        "Your Pokétch Coupon!\r"
-      ]
+      "id": "JubilifeCity_Text_Arc1CrateGotCase",
+      "en_US": "{STRVAR_1 3, 0, 0} got the case back!"
     },
     {
       "id": "JubilifeCity_Text_PoketchClown2After",
@@ -528,34 +525,33 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00058",
+      "id": "JubilifeCity_Text_Arc1CrateArgueYourTurn",
       "en_US": [
-        "Ding-ding!\n",
-        "You’re absolutely correct!\r"
+        "Eclipse Grunt: I dragged it across\n",
+        "the whole city! It's your turn!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00059",
+      "id": "JubilifeCity_Text_Arc1CrateLookerStepsIn",
       "en_US": [
-        "Bzzzzt!\n",
-        "That’s the wrong answer..."
+        "Man in a Trench Coat: Pardon me.\n",
+        "That case looks heavy. May I help?"
       ]
     },
     {
-      "id": "pl_msg_00000023_00060",
+      "id": "JubilifeCity_Text_Arc1CrateScram",
       "en_US": [
-        "A Pokémon may hold a single item.\r",
-        "Some items become effective as soon\n",
-        "as they are held by a Pokémon.\r",
-        "Berries are eaten by Pokémon as\n",
-        "necessary during battle.\r"
+        "Eclipse Grunt: It's that snoop from\n",
+        "the rally! Scram!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00061",
+      "id": "JubilifeCity_Text_Arc1CratePrototypes",
       "en_US": [
-        "Here you go!\n",
-        "Your Pokétch Coupon!\r"
+        "Man in a Trench Coat: ...Pok\u00e9tch\n",
+        "prototypes. Why would they want\f",
+        "those?\r",
+        "Take it back to the company, kid."
       ]
     },
     {
@@ -1185,8 +1181,8 @@
     {
       "id": "JubilifeCity_Text_Arc1CrateBox",
       "en_US": [
-        "A sturdy wooden crate.\n",
-        "It's sealed tight."
+        "A heavy case, locked tight.\n",
+        "The label reads 'Pok\u00e9tch Co.'"
       ]
     },
     {
@@ -1203,10 +1199,10 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1CrateDidItMove",
+      "id": "JubilifeCity_Text_Arc1CrateBeeping",
       "en_US": [
         "Eclipse Grunt: Same as always.\r",
-        "...Did it just move?"
+        "...Is it beeping?"
       ]
     },
     {
@@ -1217,9 +1213,10 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1CrateDrink",
+      "id": "JubilifeCity_Text_Arc1CrateArgueHaulIt",
       "en_US": [
-        "Eclipse Grunt: I'm getting a drink."
+        "Eclipse Grunt: Then you haul it up\n",
+        "the path. I'm not touching it."
       ]
     },
     {
@@ -1227,13 +1224,9 @@
       "en_US": [
         "Man in a Trench Coat: Ravaged Path.\r",
         "...Yes. That fits.\r",
-        "Pokémon go in. Crates come out.\r",
+        "Pok\u00e9mon go in. Crates come out.\r",
         "And I do not yet know what\n",
-        "happens in between.\r",
-        "You did well, child. Better than\n",
-        "some officers I know.\r",
-        "I will remember you, child.\r",
-        "For your trouble."
+        "happens in between."
       ]
     },
     {
@@ -1244,11 +1237,12 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1CrateBagFull",
+      "id": "JubilifeCity_Text_Arc1CrateWellDone",
       "en_US": [
-        "Man in a Trench Coat: Your bag is\n",
-        "full. Hm.\r",
-        "Then my thanks will have to do."
+        "Man in a Trench Coat: You did well,\n",
+        "child. Better than some officers\f",
+        "I know.\r",
+        "I will remember you, child."
       ]
     },
     {
