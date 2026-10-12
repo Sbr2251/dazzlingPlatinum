@@ -61,6 +61,17 @@ LOST_TOWER_OPEN = [
 LOST_TOWER_BLOCK = [
     (15, 24, 15, 26),   # the arm south of the vein room: the wall of shadow at (16,23) must close the only way deeper
 ]
+# fix2-lost (owner playtest round 2; the faults fix2-dwrp fixed in DW Ravaged Path, build_ravaged_path_map.py, which
+# this floor inherited from 667): plain blocked, no tile behaviour. Keep the lips in sync with
+# res/field/events/events_dw_lost_tower.json (the open-void lips (15,11), (19..21,11), (20..21,13), (12..15,15) fall).
+LOST_TOWER_PLAIN = [
+    (16, 13, 19, 13),   # drawn ground under the two trees south of the walkway (was a falling lip)
+    (16, 11, 18, 11),   # the drawn rock block north of the walkway (was a falling lip)
+    (29, 12, 30, 12),   # the hop off the last upper stone (28,12) onto the undrawn (31,12) (a jump ignores the
+                        # landing tile's block bit, so the jump tiles themselves go)
+    (32, 20, 32, 21),   # the hops between the last lower stone (32,22) and B1F's stone (32,19), which is dropped
+    (33, 19, 34, 19),   # and on from there to B1F's (35,19), dropped too
+]
 
 MAPS = {
     # name: (matrix id, matrix name, {dst: (src, x_base, z_base)}, open, block, plain, matrix rows)
@@ -69,7 +80,7 @@ MAPS = {
     # route_213 (matrix 294, map_data_675/676) is built by build_dw_route_213.py (set-lake: the Drowned Lake
     # dressing on top of this same B4F base, B4F_OPEN / B4F_BLOCK / B4F_PLAIN included; it shares 672)
     "lost_tower": (295, "m_dwa2_5", {677: (667, 0, 0), 678: (668, 32, 0)}, LOST_TOWER_OPEN, LOST_TOWER_BLOCK,
-                   [], [["MAP_677", "MAP_678"]]),
+                   LOST_TOWER_PLAIN, [["MAP_677", "MAP_678"]]),
 }
 
 
