@@ -23,6 +23,13 @@ and for every terrain on BACKGROUND_PLAIN at day. Images go to --out (default
     contact_home_<tod>.png   (--all) the home pose of every background
     contact_view<N>.png      (--all) debug view N of every background at day
     contact_terrains.png     (--all) every terrain on BACKGROUND_PLAIN at day
+    contact_pose_<name>.png  (--poses) one gameplay camera pose of every background at day
+
+--poses renders every background with its usual terrain at day from the poses the battle
+camera really takes (battle_stage_camera.c: the battle-start focus, the command-menu drift,
+Mega Evolution's orbit, a move's push-in; PoseCamera in floats) and prints the holes of
+each. The debug views only cover yaw +-20 around the home target; these push in on a
+battler as well, which is what showed a room's side wall at the screen edge.
 
 In the diff images grey is equal, red is different (brighter = larger difference),
 magenta is a hole; rows 144+ are dimmed. Holes are magenta in the renders as well.
@@ -540,6 +547,95 @@ def aggregate(results, label):
               f"max diff {max(r.max for r in rs)}, holes {holes}")
 
 
+# Gameplay camera poses: (name, focus, yaw, pitch, distance). focus is "home" (the home
+# target), "player" / "enemy" (the battler's foot point at the target's height, as
+# BattlerFocus), or (side, fraction) for the drift's partial moves toward a side.
+GAMEPLAY_POSES = (
+    ("intro_focus", "enemy", -20, -3, 0.70),  # OpponentsGoal: the battle-start focus and sweep
+    ("drift_wide", "home", 10, 2, 1.00),  # sIdlePoses
+    ("drift_enemy", ("enemy", 0.35), -14, -2, 0.86),
+    ("drift_player", ("player", 0.15), 12, 1, 1.00),
+    ("mega_orbit", "player", 40, -4, 0.70),  # Mega Evolution: push in, then orbit 40 degrees
+    ("move_pushin", "enemy", -10, 2, 0.48),  # the closest move push-ins
+)
+
+# sHomeX of the singles battlers and sBlobRow (battle_stage_camera.c, battle_stage_sprites.c)
+POSE_HOME_X = {"player": 64, "enemy": 192}
+POSE_BLOB_ROW = {"player": 142, "enemy": 90}
+
+
+def pose_camera(piece, focus, yaw, pitch, distance):
+    """fx.Camera of a gameplay pose, following PoseCamera in floats."""
+    h = piece.header
+    home = fx.Camera(h.cam_pos, h.cam_target, h.fovy_sin, h.fovy_cos, h.near, h.far, h.vertex_scale, 0)
+    pos = [c / fx.FX32_ONE for c in h.cam_pos]
+    target = [c / fx.FX32_ONE for c in h.cam_target]
+
+    def foot(side):
+        origin, d = home.ray(POSE_HOME_X[side], POSE_BLOB_ROW[side])
+        t = -origin[1] / d[1]
+        return [origin[0] + t * d[0], target[1], origin[2] + t * d[2]]
+
+    if focus == "home":
+        point = target
+    elif isinstance(focus, tuple):
+        f = foot(focus[0])
+        point = [target[i] + (f[i] - target[i]) * focus[1] for i in range(3)]
+    else:
+        point = foot(focus)
+
+    off = [pos[i] - target[i] for i in range(3)]
+
+    if pitch:
+        # right = up x off (normalised), lift = off x right: |lift| = |off|
+        right = [off[2], 0.0, -off[0]]
+        n = math.hypot(right[0], right[2])
+        right = [c / n for c in right]
+        lift = [off[1] * right[2] - off[2] * right[1], off[2] * right[0] - off[0] * right[2], off[0] * right[1] - off[1] * right[0]]
+        c, sn = math.cos(math.radians(pitch)), math.sin(math.radians(pitch))
+        off = [off[i] * c + lift[i] * sn for i in range(3)]
+
+    if yaw:
+        c, sn = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        off = [off[0] * c + off[2] * sn, off[1], off[2] * c - off[0] * sn]
+
+    cam_pos = tuple(fx.to_fx32(point[i] + off[i] * distance) for i in range(3))
+    cam_target = tuple(fx.to_fx32(c) for c in point)
+    return fx.Camera(cam_pos, cam_target, h.fovy_sin, h.fovy_cos, h.near, h.far, h.vertex_scale, 0)
+
+
+def run_poses(stage, args, rasters):
+    tiles = {name: [] for name, *_ in GAMEPLAY_POSES}
+    worst = 0
+    print("bg  tr  holes " + " ".join(f"{name:>12}" for name, *_ in GAMEPLAY_POSES))
+
+    for background in range(sf.BACKGROUND_MAX):
+        terrain = USUAL_TERRAIN[background]
+        backdrop, platforms, _frame_px = stage.classic(background, terrain)
+        column = classic.palette_column(background, 0)
+        palettes = {"bg": palette5(backdrop.palettes[column])}
+
+        for plat in platforms:
+            palettes["platform", plat.side] = palette5(plat.palettes[column])
+
+        pieces = stage.pieces(background, terrain)
+        renderer = Renderer(pieces, palettes, rasters[0], column, args.frame)
+        holes = []
+
+        for name, focus, yaw, pitch, distance in GAMEPLAY_POSES:
+            img, cov = renderer.render(pose_camera(pieces[0], focus, yaw, pitch, distance))
+            holes.append(int((~cov[:HOME_VISIBLE_ROWS]).sum()))
+            tiles[name].append(labelled(img, f"bg {background}"))
+
+        worst = max(worst, max(holes))
+        print(f"{background:2}  {terrain:2}        " + " ".join(f"{n:12}" for n in holes))
+
+    for name, imgs in tiles.items():
+        save(os.path.join(args.out, f"contact_pose_{name}.png"), grid(imgs))
+
+    print(f"worst holes (rows 0..143) {worst}; wrote {args.out}/contact_pose_*.png")
+
+
 def run_one(stage, args, rasters):
     background = args.bg
     terrain = USUAL_TERRAIN[background] if args.terrain is None else args.terrain
@@ -632,12 +728,15 @@ def main():
     parser.add_argument("--tod", type=int, choices=(0, 1, 2), help="0 day, 1 twilight, 2 night; default: all three")
     parser.add_argument("--frame", type=int, help="sway SCROLL meshes to this arena draw (30 per second; default: no sway)")
     parser.add_argument("--all", action="store_true", help="every background and every terrain")
+    parser.add_argument("--poses", action="store_true", help="every background from the gameplay camera poses")
     args = parser.parse_args()
     os.makedirs(args.out, exist_ok=True)
     rasters = RASTERS if args.raster == "both" else (args.raster,)
     stage = Stage(args.narc)
 
-    if args.all:
+    if args.poses:
+        run_poses(stage, args, rasters)
+    elif args.all:
         run_all(stage, args, rasters)
     else:
         run_one(stage, args, rasters)

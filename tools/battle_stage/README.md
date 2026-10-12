@@ -40,6 +40,7 @@ show); twilight, night and caves show a small tint.
 | `--frame N` | sway `SCROLL` meshes to arena draw N (30 per second; default: no sway) |
 | `--raster desmume/hardware/both` | `desmume` (default): the soft rasterizer of DeSmuME 0.9.12, which py-desmume and so the critic use (1/16 pixel positions, fog depth one more than the DS); `hardware`: whole-pixel vertices and the DS fog depth |
 | `--all` | every background with its usual terrain at the three times of day, and every terrain on `BACKGROUND_PLAIN` at day (about 110 s with `--raster both`) |
+| `--poses` | every background with its usual terrain at day from the gameplay camera poses (`GAMEPLAY_POSES`: the battle-start focus, the menu drift, Mega Evolution's orbit, a move push-in), writing `contact_pose_<name>.png` and the holes in rows 0..143 per pose |
 | `--out DIR` | where the PNGs go (default `/tmp/battle_stage_preview`) |
 
 One background writes `sheet_bgNN_tT.png` (classic, home and diff above views 1..3)
@@ -130,9 +131,16 @@ the other. So the result doesn't depend on which polygon the rasterizer gives th
     flat wall standing on the base row's ground line across the home view that bends
     toward the camera past the screen edges as a 30-unit radius arc;
   - room (indoors 1..3, the Elite Four and Champion rooms, the Frontier facilities): a
-    floor plus a box of walls, the back wall on the base row's floor line and a
-    straight side wall on each side where the back wall meets the home frustum. The
-    side walls continue the back wall's texture round the corner.
+    floor plus a box of walls, the back wall on the base row's floor line. The back
+    wall and the floor go on past the home frustum to x = +-60 (`ROOM_SIDE_X`; the
+    back wall's texture coordinates stay the home projection there, like the classic
+    BG3 scrolled sideways), where a side wall stands on each side. Near the camera the
+    side walls bend in to where the floor's texture coordinates still fit
+    (`MAX_TEXCOORD`, about x = 33.5 on the last ground row). The side walls continue the
+    back wall's texture round the corner. The camera pans (battle-start focus, menu
+    drift, debug views) see the back wall out to about x = 25 (39 in the Champion
+    room), Mega Evolution's orbit to about 58; with the side walls at the frustum edge,
+    as before, every pan showed one as a flat grey slab in the upper corner.
 - The panorama or back wall goes up to home row -64. Rows 0..base are exact; above row
   0 texture A's t clamps to the top sky row.
 - Textures A and B are 8bpp BG palette indices with REPEAT_S | FLIP_S, which is what

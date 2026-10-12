@@ -60,7 +60,9 @@ typedef struct MapHeaderData {
     const ObjectEvent *objectEvents;
     const WarpEvent *warpEvents;
     const CoordEvent *coordEvents;
-    u32 tmpEventsBuf[512];
+    // Dazzling Platinum: 512 words (2048 bytes) in vanilla. Jubilife's events file outgrew it (2220+ bytes), and the
+    // overflow ran into initScripts, which MapHeaderData_LoadInitScripts clears: every Jubilife coord event was lost.
+    u32 tmpEventsBuf[768];
     u32 initScripts[64];
     WildEncounters wildEncounters;
 } MapHeaderData;

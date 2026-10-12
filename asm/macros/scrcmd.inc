@@ -4204,8 +4204,9 @@
     .short \hidden
     .endm
 
-    @ Wild Mawile Lv3 (Hyper Cutter; Astonish, Fake Tears). No critical hits
-    @ and no running away. Waits for the battle. Losing does not white out:
+    @ Wild Mawile Lv3 (Hyper Cutter; Astonish, Fake Tears). No critical hits;
+    @ running always succeeds (GetBattleResult gives BATTLE_RESULT_PLAYER_FLED).
+    @ Waits for the battle. Losing does not white out:
     @ the field is already restored and faded in afterwards whatever the
     @ result, so do NOT follow it with ReturnToField/FadeScreenIn.
     @ CheckWonBattle still works for branching.
