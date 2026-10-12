@@ -92,11 +92,25 @@ landing. The builders do it:
 | map | builder | what is plain blocked |
 |---|---|---|
 | DW Ravaged Path | `build_ravaged_path_map.py` (fix2-dwrp) | the last hops, the drawn lips |
-| DW Eterna Forest | `build_dw_eterna_forest_map.py` (671 from 667) | the drawn lips (16..19,13), (16..18,11); B1F's hop chains (23..30,12) and (21..31,22): this map's tw_arc record is B4F's, so no stones are drawn |
+| DW Eterna Forest | `build_dw_eterna_forest_map.py` (671 from 667; 679 from 613, fix2-honey) | the drawn lips (16..19,13), (16..18,11); B1F's hop chains (23..30,12) and (21..31,22): this map's tw_arc record is B4F's, so no stones are drawn |
 | DW Route 214 / 213 | `build_rift_b_maps.py` `B4F_PLAIN` (673, 675 via `build_dw_route_213.py`, and 672 = 614 for both) | B4F's jumps onto its floating-rock walkways (ghost props, dropped by rift-b) and the walkway tiles |
 | DW Lost Tower | `build_rift_b_maps.py` `LOST_TOWER_PLAIN` | the drawn lips; the hop past (28,12); the hops north of (32,22) to B1F's dropped stones |
 
 Fall coord events (`events_dw_*.json`) cover only the open-void lips: (15,11), (19..21,11), (20..21,13), (12..15,15).
-`map_data_672` was registered for DW Eterna Forest by R0 but never used there (matrix 292 shows the stock B4F
-chunks); it is now the shared fixed copy of B4F's 614. A tile-by-tile audit (model faces, ghost props, permissions,
+`map_data_672` was registered for DW Eterna Forest by R0 but never used there (matrix 292 showed the stock B4F
+chunks); it is now the shared fixed copy of B4F's 614. DW Eterna Forest's own second block is `map_data_679` (below). A tile-by-tile audit (model faces, ghost props, permissions,
 jumps, coord events) is in `/tmp/a2/fix2/fix2-lost/harness/audit.py`.
+
+### DW Eterna Forest: the honeycomb (fix2-honey, owner playtest round 2)
+
+The honeycomb (ghost-prop group 1, ceiling tiles x 44-45, z 33-36) fades out on a timer and drops the player, but
+stock B4F's ceiling slab (chunk 613) stayed drawn where the player's feet are. Matrix 292 is now
+`[[671, 679], [614, 615]]`: `map_data_679` (registered in `generated/maps.txt`, `map_data.order` and the data
+`meson.build`) is 613 with the slab's underside cut away under the feet, built by `build_dw_eterna_forest_map.py`
+(its docstring has the measurements). Note for any other ceiling work: the player sprite hangs upside down with its
+feet on the slab underside (h 11, two tiles above the walking plane y=10), so the slab under the feet is the slab
+at the player's own tile (0.4 east, 0.4 south with the ceiling camera), while ghost props at y=10 are drawn 2-4
+tiles below the slab, round the player's body. The timer (`Arc2DwEternaForest_HandleFrame`, field frames, ~30 a
+second): shown and solid 120, fading out but still solid 33 (the props' fade, 31 opacity steps plus 2 frames' lag),
+gone 60, shown again 3 frames before it holds. So it holds exactly while it is drawn.
+
