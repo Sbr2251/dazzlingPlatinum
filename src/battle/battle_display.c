@@ -3119,7 +3119,9 @@ static void ov16_022604C8(SysTask *param0, void *param1)
             if (v3->unk_193) {
                 ov16_0226BCCC(v2, 1);
 
-                if (BattleSystem_BattleStatus(v0->unk_00) & 0x1) {
+                // The FIGHT-only menu is for the first rival battle. The Arc 1 Mawile (a wild battle with
+                // BATTLE_STATUS_FIRST_BATTLE) gets the normal menu, so the player can run.
+                if ((BattleSystem_BattleStatus(v0->unk_00) & 0x1) && (BattleSystem_BattleType(v0->unk_00) & BATTLE_TYPE_TRAINER)) {
                     ov16_02268C04(v12, v13, v2, 6, 0, &v11);
                 } else if (BattleSystem_BattleType(v0->unk_00) & BATTLE_TYPE_PAL_PARK) {
                     ov16_02268C04(v12, v13, v2, 10, 0, &v11);
@@ -3133,7 +3135,7 @@ static void ov16_022604C8(SysTask *param0, void *param1)
 
                 BattleSystem_SetCommandSelectionFlags(v0->unk_00, 1);
             } else {
-                if (BattleSystem_BattleStatus(v0->unk_00) & 0x1) {
+                if ((BattleSystem_BattleStatus(v0->unk_00) & 0x1) && (BattleSystem_BattleType(v0->unk_00) & BATTLE_TYPE_TRAINER)) {
                     ov16_02268C04(v12, v13, v2, 5, 0, &v11);
                 } else if (BattleSystem_BattleType(v0->unk_00) & BATTLE_TYPE_PAL_PARK) {
                     ov16_02268C04(v12, v13, v2, 9, 0, &v11);
