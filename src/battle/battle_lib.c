@@ -3390,6 +3390,9 @@ BOOL Battler_CanEscape(BattleSystem *battleSys, BattleContext *battleCtx, int ba
         result = TRUE;
     } else if (battleType & BATTLE_TYPE_NO_EXPERIENCE) {
         result = TRUE;
+    } else if (BattleSystem_BattleStatus(battleSys) & BATTLE_STATUS_FIRST_BATTLE) {
+        // Arc 1 Mawile (the only wild battle with this status): running always works
+        result = TRUE;
     } else if (Battler_Ability(battleCtx, battler) == ABILITY_RUN_AWAY) {
         battleCtx->turnFlags[battler].fleeing = 2;
         result = TRUE;
