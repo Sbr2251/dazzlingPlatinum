@@ -2298,6 +2298,10 @@ static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
 #define RAVAGED_PATH_NO_SCAR         0xFF
 #define RAVAGED_PATH_SCAR_PROP_GROUP 2 // ghost-prop group of scar 0 (scar n: group 2 + n): the loose rocks hovering
                                        // in front of its tiles, which fade away when it crumbles
+// Cyrus's fork line plays once per visit, not once per attempt: a fall reloads the map (and the scars reset), so a
+// static or map-local guard replayed it on every return to the fork. The flag persists in the save. rift-a's own
+// block (0x0926-0x0929) is full; 0x0924 is the unused resonator block (docs/arc2/registry.md). Lead: rename at merge.
+#define FLAG_ARC2_RAVAGED_PATH_FORK_SEEN FLAG_ARC2_RESONATOR_A
 
 enum Arc2ScarState {
     ARC2_SCAR_INTACT = 0,
@@ -2322,7 +2326,6 @@ static const Arc2ScarTile sRavagedPathScarTiles[] = {
 
 static u8 sRavagedPathScarStates[RAVAGED_PATH_SCAR_COUNT];
 static u8 sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
-static u8 sRavagedPathForkShown;
 
 static u8 RavagedPath_GetScarAt(int x, int y, int z)
 {
@@ -2350,7 +2353,6 @@ static void RavagedPath_ResetScars(DistWorldSystem *system)
     }
 
     sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
-    sRavagedPathForkShown = FALSE;
 }
 
 static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, int z)
@@ -2405,8 +2407,9 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
         return FALSE;
     }
 
-    if (!sRavagedPathForkShown && x == RAVAGED_PATH_WALL_X && y > RAVAGED_PATH_FLOOR_Y && z == RAVAGED_PATH_FORK_Z) {
-        sRavagedPathForkShown = TRUE;
+    if (!VarsFlags_CheckFlag(varsFlags, FLAG_ARC2_RAVAGED_PATH_FORK_SEEN)
+        && x == RAVAGED_PATH_WALL_X && y > RAVAGED_PATH_FLOOR_Y && z == RAVAGED_PATH_FORK_Z) {
+        VarsFlags_SetFlag(varsFlags, FLAG_ARC2_RAVAGED_PATH_FORK_SEEN);
         ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_FORK, NULL);
         return TRUE;
     }
