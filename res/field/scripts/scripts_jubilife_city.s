@@ -1490,31 +1490,34 @@ _11BC:
     WalkNormalSouth 2
     EndMovement
 
+// Dazzling Platinum (fix2-poketch, owner playtest round 2): the Pokétch is earned by returning the case of
+// Pokétch Company prototypes that Eclipse stole during the rally (the crate in Looker's tail, below). The stock
+// clown quiz and its Coupons are gone. FLAG_UNK_0x091C (tail done) means the player got the case back; the case
+// is not an item, so "case in hand" is FLAG_UNK_0x091C set with the Pokétch (FLAG_UNK_0x00F3) not yet given.
+// Fallback: the tail is only offered at VAR_ARC1_PROGRESS 13-15. From 16 on (Arc 2), the president gives the
+// Pokétch anyway ("A man in a trench coat dropped this off."), so it can never become unobtainable.
+// Talk to the president (stock object 23)
 _11CC:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    SetVar VAR_0x8004, 0
-    Call _11F8
-    GoToIfEq VAR_0x8004, 3, _1223
-    Message 41
+    GoToIfSet FLAG_UNK_0x091C, JubilifeCity_PoketchCaseReturned
+    GoToIfGe VAR_ARC1_PROGRESS, 16, JubilifeCity_PoketchFallback
+    Message JubilifeCity_Text_PoketchPresidentNoCase
     WaitABXPadPress
     CloseMessage
     ReleaseAll
     End
 
-_11F8:
-    CallIfSet FLAG_OBTAINED_COUPON_1, _121B
-    CallIfSet FLAG_OBTAINED_COUPON_2, _121B
-    CallIfSet FLAG_OBTAINED_COUPON_3, _121B
-    Return
+JubilifeCity_PoketchFallback:
+    Message JubilifeCity_Text_PoketchPresidentFallback
+    GoTo JubilifeCity_PoketchGive
+    End
 
-_121B:
-    AddVar VAR_0x8004, 1
-    Return
-
-_1223:
-    Message 42
+JubilifeCity_PoketchCaseReturned:
+    Message JubilifeCity_Text_PoketchPresidentReturned
+JubilifeCity_PoketchGive:
+    // Saves from before this change may still hold stock Coupons: take them back (no-op when absent)
     RemoveItem ITEM_COUPON_1, 1, VAR_RESULT
     RemoveItem ITEM_COUPON_2, 1, VAR_RESULT
     RemoveItem ITEM_COUPON_3, 1, VAR_RESULT
@@ -1529,6 +1532,14 @@ _1223:
     PlaySound SEQ_FANFA4
     WaitSound
     Message 44
+    // Bonus app: the Coin Toss. Its only other giver (Route 213 house) checks for it first; the Dot Artist
+    // would break the Sunyshore Calendar -> Dot Artist -> Roulette chain (it skips the Calendar).
+    Message JubilifeCity_Text_PoketchPresidentThanksApp
+    SetVar VAR_0x8004, POKETCH_APPID_COINTOSS
+    GivePoketchApp
+    WaitABXPadPress
+    Message JubilifeCity_Text_PoketchPresidentHint
+    WaitABXPadPress
     CloseMessage
     GetPlayerDir VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _12A1
@@ -1585,129 +1596,83 @@ _1314:
     WalkOnSpotNormalNorth
     EndMovement
 
+// The three clowns (stock objects 24, 25, 27): no quiz, no Coupons. Before the case is back, each points the
+// player to the trench-coat man (Looker) at the east exit; in Arc 2 (tail no longer offered) they send the
+// player to the president instead.
 _1320:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    GoToIfSet FLAG_OBTAINED_COUPON_1, _138C
-    Message 45
-    ShowYesNoMenu VAR_RESULT
-    GoToIfEq VAR_RESULT, MENU_YES, _1356
-    GoToIfEq VAR_RESULT, MENU_NO, _137D
+    GoToIfSet FLAG_UNK_0x00F3, JubilifeCity_PoketchClown1After
+    Call JubilifeCity_PoketchClownState
+    GoToIfEq VAR_0x8004, 1, JubilifeCity_PoketchClownCaseInHand
+    GoToIfEq VAR_0x8004, 2, JubilifeCity_PoketchClownFallback
+    Message JubilifeCity_Text_PoketchClown1
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
-_1356:
-    PlayFanfare SEQ_SE_DP_PINPON
-    Message 46
-    Message 48
-    Message 49
-    SetVar VAR_0x8004, ITEM_COUPON_1
-    SetVar VAR_0x8005, 1
-    SetFlag FLAG_OBTAINED_COUPON_1
-    GiveItemQuantityNoLineFeed
-    CloseMessage
-    ReleaseAll
-    End
-
-_137D:
-    PlayFanfare SEQ_SE_DP_BOX03
-    Message 47
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
-    End
-
-_138C:
-    Message 50
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
+JubilifeCity_PoketchClown1After:
+    Message JubilifeCity_Text_PoketchClown1After
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
 _1397:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    GoToIfSet FLAG_OBTAINED_COUPON_2, _1403
-    Message 51
-    ShowYesNoMenu VAR_RESULT
-    GoToIfEq VAR_RESULT, MENU_YES, _13CD
-    GoToIfEq VAR_RESULT, MENU_NO, _13F4
+    GoToIfSet FLAG_UNK_0x00F3, JubilifeCity_PoketchClown2After
+    Call JubilifeCity_PoketchClownState
+    GoToIfEq VAR_0x8004, 1, JubilifeCity_PoketchClownCaseInHand
+    GoToIfEq VAR_0x8004, 2, JubilifeCity_PoketchClownFallback
+    Message JubilifeCity_Text_PoketchClown2
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
-_13CD:
-    PlayFanfare SEQ_SE_DP_PINPON
-    Message 52
-    Message 54
-    Message 55
-    SetVar VAR_0x8004, ITEM_COUPON_2
-    SetVar VAR_0x8005, 1
-    SetFlag FLAG_OBTAINED_COUPON_2
-    GiveItemQuantityNoLineFeed
-    CloseMessage
-    ReleaseAll
-    End
-
-_13F4:
-    PlayFanfare SEQ_SE_DP_BOX03
-    Message 53
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
-    End
-
-_1403:
-    Message 56
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
+JubilifeCity_PoketchClown2After:
+    Message JubilifeCity_Text_PoketchClown2After
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
 _140E:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
-    GoToIfLt VAR_UNK_0x40E7, 2, _149E
-    GoToIfSet FLAG_OBTAINED_COUPON_3, _1493
-    Message 57
-    ShowYesNoMenu VAR_RESULT
-    GoToIfEq VAR_RESULT, MENU_YES, _1451
-    GoToIfEq VAR_RESULT, MENU_NO, _1484
+    GoToIfSet FLAG_UNK_0x00F3, JubilifeCity_PoketchClown3After
+    Call JubilifeCity_PoketchClownState
+    GoToIfEq VAR_0x8004, 1, JubilifeCity_PoketchClownCaseInHand
+    GoToIfEq VAR_0x8004, 2, JubilifeCity_PoketchClownFallback
+    Message JubilifeCity_Text_PoketchClown3
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
-_1451:
-    PlayFanfare SEQ_SE_DP_PINPON
-    Message 58
-    Message 60
-    Message 61
-    // Arc 1: from state 12 the president never walks (no forced intro) and may not be loaded at all (the rally
-    // only un-hides him), so don't SetPosition him: on a missing object it writes through a NULL MapObject.
-    CallIfLt VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1ResetPresidentPos
-    SetVar VAR_0x8004, ITEM_COUPON_3
-    SetVar VAR_0x8005, 1
-    SetFlag FLAG_OBTAINED_COUPON_3
-    GiveItemQuantityNoLineFeed
-    CloseMessage
-    ReleaseAll
+JubilifeCity_PoketchClown3After:
+    Message JubilifeCity_Text_PoketchClown3After
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
-_1484:
-    PlayFanfare SEQ_SE_DP_BOX03
-    Message 59
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
+// VAR_0x8004: 0 = case still missing (tail on offer), 1 = case in hand, 2 = Arc 2 fallback (see the president)
+JubilifeCity_PoketchClownState:
+    SetVar VAR_0x8004, 0
+    GoToIfSet FLAG_UNK_0x091C, JubilifeCity_PoketchClownStateCase
+    GoToIfGe VAR_ARC1_PROGRESS, 16, JubilifeCity_PoketchClownStateFallback
+    Return
+
+JubilifeCity_PoketchClownStateCase:
+    SetVar VAR_0x8004, 1
+    Return
+
+JubilifeCity_PoketchClownStateFallback:
+    SetVar VAR_0x8004, 2
+    Return
+
+JubilifeCity_PoketchClownCaseInHand:
+    Message JubilifeCity_Text_PoketchClownCaseInHand
+    GoTo JubilifeCity_PoketchClownEnd
     End
 
-_1493:
-    Message 63
-    WaitABXPadPress
-    CloseMessage
-    ReleaseAll
-    End
-
-_149E:
-    Message 62
+JubilifeCity_PoketchClownFallback:
+    Message JubilifeCity_Text_PoketchClownFallback
+JubilifeCity_PoketchClownEnd:
     WaitABXPadPress
     CloseMessage
     ReleaseAll
@@ -1798,11 +1763,22 @@ JubilifeCity_Arc1OnTransition:
     CallIfEq VAR_ARC1_PROGRESS, 12, JubilifeCity_Arc1SetUpRally
     CallIfEq VAR_ARC1_PROGRESS, 13, JubilifeCity_Arc1AfterRally
     CallIfGe VAR_ARC1_PROGRESS, 14, JubilifeCity_Arc1RallyOver
+    CallIfUnset FLAG_UNK_0x00F3, JubilifeCity_PoketchOnTransition
+    Return
+
+// Until the Pokétch is given, keep the president and the clowns out from 14 on, and in Arc 2 once its Jubilife
+// scenes are over (VAR_ARC2_PROGRESS 9+), so the fallback is always reachable. (13 is AfterRally's; Arc 2 0-8 are
+// left alone for scenes 2.1-2.4.)
+JubilifeCity_PoketchOnTransition:
+    GoToIfLt VAR_ARC1_PROGRESS, 14, JubilifeCity_PoketchOnTransitionEnd
+    GoToIfLt VAR_ARC1_PROGRESS, 16, JubilifeCity_Arc1RestorePoketchCampaign
+    GoToIfGe VAR_ARC2_PROGRESS, 9, JubilifeCity_Arc1RestorePoketchCampaign
+JubilifeCity_PoketchOnTransitionEnd:
     Return
 
 // The stock first visit (counterpart escort, Looker and the VS Recorder, Barry and the Parcel in the Trainers'
 // School, Looker blocking the east exit) never happens in Arc 1. State 2 makes coord events 0 and 2 and _00AC
-// inert. The Pokétch campaign stays as optional side content, without the forced president intro (coord 4).
+// inert. The Pokétch is earned through the crate tail (see _11CC), without the forced president intro (coord 4).
 JubilifeCity_Arc1SkipStockIntro:
     SetVar VAR_JUBILIFE_STATE, 2
     SetFlag FLAG_UNK_0x00F1
@@ -1874,11 +1850,6 @@ JubilifeCity_Arc1UnhidePresident:
 
 JubilifeCity_Arc1RemoveLooker:
     RemoveObject JUBILIFE_CITY_LOOKER_31
-    Return
-
-// Stock _1451: put the president back at his post after his (stock-only) walk-up intro
-JubilifeCity_Arc1ResetPresidentPos:
-    SetPosition 23, 174, 1, 0x303, 1
     Return
 
 // Talk to Garius (object script)
@@ -2258,6 +2229,9 @@ JubilifeCity_Arc1Movement_StepSouth:
 //
 // Looker (still the "Man in a Trench Coat") waits at the east exit and asks the player to tail an Eclipse
 // grunt who drags a crate from the Pokémon Center to the Route 204 mouth, where a second grunt takes it.
+// fix2-poketch: the crate (a case) holds Pokétch Company prototypes. At the handoff the two grunts argue over
+// who carries it, Looker steps in, they bolt and leave it, and Looker gives it to the player, who returns it to
+// the Pokétch president for the Pokétch (_11CC). No Great Balls any more: the Pokétch is the reward.
 // The engine can't move an NPC while the player walks, and scripts can't read an NPC's live facing, so the
 // tail is stepped: a coord event covering the east half of the city runs on every player step while the
 // tail is on, and each step is one beat of the grunt's look cycle at his current stop.
@@ -2720,28 +2694,22 @@ JubilifeCity_Arc1CrateHandoff:
     WaitMovement
     ApplyMovement LOCALID_ARC1_CRATE_RECEIVER, JubilifeCity_Arc1CrateMovement_LookAtCrate
     WaitMovement
-    Message JubilifeCity_Text_Arc1CrateDidItMove
+    Message JubilifeCity_Text_Arc1CrateBeeping
     WaitABXPadPress
     CloseMessage
     Message JubilifeCity_Text_Arc1CrateDontAsk
     WaitABXPadPress
     CloseMessage
-    // The receiver takes the crate north up Route 204, toward Ravaged Path
-    ApplyMovement LOCALID_ARC1_CRATE_RECEIVER, JubilifeCity_Arc1CrateMovement_ReceiverLeave
-    ApplyMovement LOCALID_ARC1_CRATE, JubilifeCity_Arc1CrateMovement_CrateLeave
-    WaitMovement
-    Message JubilifeCity_Text_Arc1CrateDrink
+    // fix2-poketch: they argue over who carries it, Looker steps in, they bolt and leave the case behind
+    Message JubilifeCity_Text_Arc1CrateArgueHaulIt
     WaitABXPadPress
     CloseMessage
-    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_GruntLeave
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_Stomp
     WaitMovement
-    RemoveObject LOCALID_ARC1_CRATE_RECEIVER
-    RemoveObject LOCALID_ARC1_CRATE
-    RemoveObject LOCALID_ARC1_CRATE_GRUNT
-    ApplyFreeCameraMovement JubilifeCity_Arc1CrateMovement_CameraDown
-    WaitMovement
-    RestoreCamera
-    // Looker catches up from behind
+    Message JubilifeCity_Text_Arc1CrateArgueYourTurn
+    WaitABXPadPress
+    CloseMessage
+    // Looker walks up the x174 line (the player is never on it here), then round to the case's east side (175,733)
     SetObjectEventPos LOCALID_ARC1_CRATE_LOOKER, 174, 745
     SetObjectEventDir LOCALID_ARC1_CRATE_LOOKER, DIR_NORTH
     SetObjectEventMovementType LOCALID_ARC1_CRATE_LOOKER, MOVEMENT_TYPE_LOOK_NORTH
@@ -2749,29 +2717,110 @@ JubilifeCity_Arc1CrateHandoff:
     AddObject LOCALID_ARC1_CRATE_LOOKER
     ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_LookerCatchUp
     WaitMovement
-    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1CrateMovement_FaceSouth
+    Message JubilifeCity_Text_Arc1CrateLookerStepsIn
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_FaceSouthNotice
+    ApplyMovement LOCALID_ARC1_CRATE_RECEIVER, JubilifeCity_Arc1CrateMovement_Notice
+    WaitMovement
+    Message JubilifeCity_Text_Arc1CrateScram
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_ARC1_CRATE_RECEIVER, JubilifeCity_Arc1CrateMovement_Flee
+    ApplyMovement LOCALID_ARC1_CRATE_GRUNT, JubilifeCity_Arc1CrateMovement_Flee
+    WaitMovement
+    RemoveObject LOCALID_ARC1_CRATE_RECEIVER
+    RemoveObject LOCALID_ARC1_CRATE_GRUNT
+    ApplyFreeCameraMovement JubilifeCity_Arc1CrateMovement_CameraDown
+    WaitMovement
+    RestoreCamera
+    // He opens the case
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_Inspect
     WaitMovement
     Message JubilifeCity_Text_Arc1CrateLookerEnd
-    SetVar VAR_0x8004, ITEM_GREAT_BALL
-    SetVar VAR_0x8005, 3
-    GoToIfCannotFitItem VAR_0x8004, VAR_0x8005, VAR_RESULT, JubilifeCity_Arc1CrateBagFull
-    GiveItemQuantity
-    GoTo JubilifeCity_Arc1CrateLookerLeave
-    End
-
-JubilifeCity_Arc1CrateBagFull:
-    Message JubilifeCity_Text_Arc1CrateBagFull
     WaitABXPadPress
-JubilifeCity_Arc1CrateLookerLeave:
+    Message JubilifeCity_Text_Arc1CratePrototypes
+    WaitABXPadPress
+    CloseMessage
+    RemoveObject LOCALID_ARC1_CRATE
+    // ...and brings it to the player: back to (174,736), then along row 736 next to (z736) or above (z737) the player
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_LookerToRow736
+    WaitMovement
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    SetVar VAR_0x8008, 174
+    SetVar VAR_0x8009, VAR_0x8004
+    CallIfEq VAR_0x8005, 736, JubilifeCity_Arc1CrateBesidePlayer
+    Call JubilifeCity_Arc1CrateLookerWalkX
+    Call JubilifeCity_Arc1CrateFaceEachOther
+    BufferPlayerName 0
+    Message JubilifeCity_Text_Arc1CrateGotCase
+    PlaySound SEQ_FANFA4
+    WaitSound
+    WaitABXPadPress
+    Message JubilifeCity_Text_Arc1CrateWellDone
+    WaitABXPadPress
     Message JubilifeCity_Text_Arc1CrateNeverSawMe
     WaitABXPadPress
     CloseMessage
+    // He follows the grunts up Route 204: back along row 736 to x174, then north
+    SetVar VAR_0x8009, 174
+    Call JubilifeCity_Arc1CrateLookerWalkX
     ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_LookerLeave
     WaitMovement
     RemoveObject LOCALID_ARC1_CRATE_LOOKER
     SetFlag FLAG_UNK_0x091C
     ReleaseAll
     End
+
+// Player on row 736 (x != 174): Looker stops on the tile next to the player on the x174 side
+JubilifeCity_Arc1CrateBesidePlayer:
+    GoToIfGt VAR_0x8004, 174, JubilifeCity_Arc1CrateBesidePlayerEast
+    AddVar VAR_0x8009, 1
+    Return
+
+JubilifeCity_Arc1CrateBesidePlayerEast:
+    SubVar VAR_0x8009, 1
+    Return
+
+// Looker walks along row 736 from x VAR_0x8008 to x VAR_0x8009
+JubilifeCity_Arc1CrateLookerWalkX:
+    GoToIfEq VAR_0x8008, VAR_0x8009, JubilifeCity_Arc1CrateLookerWalkXDone
+    GoToIfLt VAR_0x8008, VAR_0x8009, JubilifeCity_Arc1CrateLookerStepEast
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_WalkWest
+    WaitMovement
+    SubVar VAR_0x8008, 1
+    GoTo JubilifeCity_Arc1CrateLookerWalkX
+    End
+
+JubilifeCity_Arc1CrateLookerStepEast:
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_WalkEast
+    WaitMovement
+    AddVar VAR_0x8008, 1
+    GoTo JubilifeCity_Arc1CrateLookerWalkX
+    End
+
+JubilifeCity_Arc1CrateLookerWalkXDone:
+    Return
+
+JubilifeCity_Arc1CrateFaceEachOther:
+    GoToIfEq VAR_0x8005, 736, JubilifeCity_Arc1CrateFaceEachOtherSide
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_FaceSouth
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1CrateMovement_FaceNorth
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateFaceEachOtherSide:
+    GoToIfGt VAR_0x8004, 174, JubilifeCity_Arc1CrateFaceEachOtherEast
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_FaceWest
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1CrateMovement_FaceEast
+    WaitMovement
+    Return
+
+JubilifeCity_Arc1CrateFaceEachOtherEast:
+    ApplyMovement LOCALID_ARC1_CRATE_LOOKER, JubilifeCity_Arc1CrateMovement_FaceEast
+    ApplyMovement LOCALID_PLAYER, JubilifeCity_Arc1CrateMovement_FaceWest
+    WaitMovement
+    Return
 
 // Talk to the grunt: before the tail he brushes the player off; during it, the player has been seen
 JubilifeCity_Arc1CrateGrunt:
@@ -2924,33 +2973,61 @@ JubilifeCity_Arc1CrateMovement_LookAtCrate:
     EndMovement
 
     .balign 4, 0
-JubilifeCity_Arc1CrateMovement_ReceiverLeave:
-    FaceNorth
+JubilifeCity_Arc1CrateMovement_Stomp:
+    WalkOnSpotFastEast
+    WalkOnSpotFastEast
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_FaceSouthNotice:
+    FaceSouth
+    EmoteExclamationMark
     Delay8
-    WalkNormalNorth 9
     EndMovement
 
     .balign 4, 0
-JubilifeCity_Arc1CrateMovement_CrateLeave:
-    Delay16
-    WalkNormalNorth 9
-    EndMovement
-
-    .balign 4, 0
-JubilifeCity_Arc1CrateMovement_GruntLeave:
-    WalkNormalNorth 9
+JubilifeCity_Arc1CrateMovement_Flee:
+    WalkFastNorth 10
     EndMovement
 
     .balign 4, 0
 JubilifeCity_Arc1CrateMovement_LookerCatchUp:
-    WalkNormalNorth 7
+    WalkNormalNorth 10
+    WalkNormalEast
+    WalkNormalNorth 2
+    FaceWest
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_Inspect:
+    FaceWest
+    Delay8 2
+    WalkOnSpotSlowWest
+    Delay8 2
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_LookerToRow736:
+    WalkNormalSouth 2
+    WalkNormalWest
+    WalkNormalSouth
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_WalkWest:
+    WalkNormalWest
+    EndMovement
+
+    .balign 4, 0
+JubilifeCity_Arc1CrateMovement_WalkEast:
+    WalkNormalEast
     EndMovement
 
     .balign 4, 0
 JubilifeCity_Arc1CrateMovement_LookerLeave:
-    FaceSouth
+    FaceNorth
     Delay8
-    WalkNormalSouth 7
+    WalkNormalNorth 14
     EndMovement
 
 // ------------------------------------------------------------------------------------------------------------

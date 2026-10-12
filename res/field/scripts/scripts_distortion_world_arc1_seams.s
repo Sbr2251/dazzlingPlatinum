@@ -220,12 +220,13 @@ DistortionWorldArc1Seams_Briefcase:
     CloseMessage
     StartArc1MawileBattle
     HealParty
-    // The Mawile drops a shard and fades into the dark; Cyrus picks it up
+    // The Mawile drops a shard and fades into the dark; Cyrus picks it up. Win, loss or running away (the battle
+    // allows it, and running always works) all lead here; running only changes the narration line.
+    GetBattleResult VAR_0x8004
     ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_FaceEast
     WaitMovement
-    Message DistortionWorldArc1Seams_Text_MawileDroppedSomething
-    WaitABXPadPress
-    CloseMessage
+    CallIfEq VAR_0x8004, BATTLE_RESULT_PLAYER_FLED, DistortionWorldArc1Seams_MawileFledLine
+    CallIfNe VAR_0x8004, BATTLE_RESULT_PLAYER_FLED, DistortionWorldArc1Seams_MawileDroppedLine
     PlayFanfare SEQ_SE_PL_SYUWA
     ScrCmd_312 LOCALID_MAWILE
     WaitTime 20, VAR_RESULT
@@ -261,6 +262,18 @@ DistortionWorldArc1Seams_Briefcase:
     WaitFadeScreen
     ReleaseAll
     End
+
+DistortionWorldArc1Seams_MawileDroppedLine:
+    Message DistortionWorldArc1Seams_Text_MawileDroppedSomething
+    WaitABXPadPress
+    CloseMessage
+    Return
+
+DistortionWorldArc1Seams_MawileFledLine:
+    Message DistortionWorldArc1Seams_Text_MawileFledIntoTheDark
+    WaitABXPadPress
+    CloseMessage
+    Return
 
 DistortionWorldArc1Seams_StepToCase:
     ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_PlayerStepToCase
@@ -381,8 +394,11 @@ DistortionWorldArc1Seams_Movement_CyrusPickUpShard:
     FaceWest
     EndMovement
 
+// Cyrus picks the shard up from the briefcase spot (16,23) standing on (16,22). Both are on the player's east side
+// (15,23), and this map's camera draws an east-facing sprite turned toward Cyrus; FaceNorth was drawn with the
+// player's back to him for the whole exchange. Keep the player facing east (the shard spot and Cyrus).
     .balign 4, 0
 DistortionWorldArc1Seams_Movement_PlayerWatchCyrus:
     Delay16
-    FaceNorth
+    FaceEast
     EndMovement

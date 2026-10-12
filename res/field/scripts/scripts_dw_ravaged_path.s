@@ -17,6 +17,9 @@
 // Flags (rift-a block 0x0926-0x0929; the lead names them at merge):
 //   FLAG_ARC2_RIFTA_A (0x0926)  Ravaged Path: the player has fallen once (Cyrus's retry line played)
 //   FLAG_ARC2_RIFTA_B (0x0927)  Ravaged Path: the halfway point reached (fork hint stops, GIRATINA's shadow seen)
+//   FLAG_ARC2_RESONATOR_A (0x0924, unused block; fix2-dwrp) Ravaged Path: Cyrus's fork line played. Set by the step
+//                               hook (FLAG_ARC2_RAVAGED_PATH_FORK_SEEN in ov9). Persistent, so a fall and return
+//                               doesn't replay it; talking to Cyrus repeats the scar hint instead.
 //   FLAG_UNK_0x0030 (map-local) Cyrus has crossed to the totem platform (hides him at the entry, kept through the battle)
 //   FLAG_UNK_0x0031 (map-local) the violet totem object stays hidden after the battle reload
 // VAR_MAP_LOCAL_1 (map-local): 0 until the map-load script has run (cleared by every warp, including a fall). Not
@@ -92,8 +95,8 @@ DWRavagedPath_FallEnd:
     ReleaseAll
     End
 
-// Step hook: the first step onto the fork column (z=19) on the wall, until the halfway point is reached. Cyrus calls
-// it from the entry; the bottom row on is the scar.
+// Step hook: the first step onto the fork column (z=19) on the wall, once (FLAG_ARC2_RESONATOR_A, set by the hook),
+// and never after the halfway point. Cyrus calls it from the entry; the bottom row on is the scar.
 DWRavagedPath_Fork:
     LockAll
     Message DWRavagedPath_Text_CyrusFollowTheSeam
@@ -202,6 +205,7 @@ DWRavagedPath_TalkCyrus:
     FacePlayer
     GoToIfSet FLAG_ARC2_RIFTA_A, DWRavagedPath_TalkCyrusScar
     GoToIfSet FLAG_ARC2_RIFTA_B, DWRavagedPath_TalkCyrusScar
+    GoToIfSet FLAG_ARC2_RESONATOR_A, DWRavagedPath_TalkCyrusScar
     Message DWRavagedPath_Text_CyrusFrightened
     GoTo DWRavagedPath_TalkEnd
 

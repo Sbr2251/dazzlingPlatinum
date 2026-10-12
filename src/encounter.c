@@ -708,8 +708,9 @@ void Encounter_NewVsFirstBattle(FieldTask *task, int trainerID, enum HeapID heap
 
 // Arc 1 Mawile battle (the Distortion World briefcase platform,
 // scripts_distortion_world_arc1_seams.s). Like the first rival battle, losing does
-// not white out: the field is restored and faded back in whatever the result,
-// so the calling script just continues (it can still branch on CheckWonBattle).
+// not white out: the field is restored and faded back in whatever the result
+// (win, loss or running away), so the calling script just continues (it can still
+// branch on CheckWonBattle / GetBattleResult).
 static BOOL FieldTask_Arc1MawileEncounter(FieldTask *task)
 {
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
@@ -781,8 +782,11 @@ void Encounter_NewArc1MawileBattle(FieldTask *task, int *resultMaskPtr)
     Pokemon_SetMoveSlot(wildMon, MOVE_NONE, 2);
     Pokemon_SetMoveSlot(wildMon, MOVE_NONE, 3);
 
-    // No critical hits, like the first rival battle, and no running away
-    dto->battleStatusMask |= BATTLE_STATUS_FIRST_BATTLE | BATTLE_STATUS_NO_RUNNING;
+    // No critical hits, like the first rival battle. Running is allowed, and always works:
+    // Battler_CanEscape lets the player flee any wild battle with BATTLE_STATUS_FIRST_BATTLE
+    // (only this one; the first rival battle is a trainer battle). The script branches on
+    // BATTLE_RESULT_PLAYER_FLED. Totem battles keep BATTLE_STATUS_NO_RUNNING.
+    dto->battleStatusMask |= BATTLE_STATUS_FIRST_BATTLE;
 
     GameRecords_IncrementRecordValue(SaveData_GetGameRecords(fieldSystem->saveData), RECORD_WILD_BATTLES_FOUGHT);
 

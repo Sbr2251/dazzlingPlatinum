@@ -109,12 +109,28 @@ MAX_TEXCOORD = 1900
 # On-screen column width. The spans along a row are exact at any width.
 COLUMN_PX = 32
 SIDE_SEGMENTS = 4  # ground columns each side of the home frustum
+# A room's floor runs to its side walls in one column each side: its base row is also the
+# foot of the back wall's part past the screen edge, one quad wide, and a floor vertex
+# inside that edge would leave a crack (a T-junction). Along a row the floor's texture
+# coordinates are affine, so one column is exact.
+ROOM_SIDE_SEGMENTS = 1
 
 # The panorama curves toward the camera beyond the home frustum: a circular arc of
 # this radius, tangent to the frontal part, that ends on ARC_END_ROW's ground line
 ARC_RADIUS = 30.0
 ARC_END_ROW = 90
 ARC_EXTRA_ROWS = (2, 4)  # extra ground rows below the base row, to smooth the start of the curve
+
+# A room's back wall and floor reach this far sideways (world units) before its side walls
+# stand. The home view ends at about x = 12..20 on the back wall, but the camera pans see
+# much farther: the battle-start focus and the debug views about 25 (39 in the Champion
+# room), the command-menu drift about 21, Mega Evolution's 40 degree orbit about 58. With
+# the side walls at the home frustum's edge, every pan showed one of them as a flat grey
+# slab (the back wall's blurred top rows in the side-wall shading) in the upper corner
+# (owner playtest round 2). 60 keeps every vertex inside fx16 (+-64). Near the camera the
+# floor's texture coordinates would pass MAX_TEXCOORD first, so there the side walls bend
+# in to where the floor's texture still fits (about 33.5 on the last ground row).
+ROOM_SIDE_X = 60.0
 
 # Band height rule: max interpolation error in pixels
 BAND_ERROR_PX = 0.25
@@ -461,20 +477,26 @@ class Backdrop:
         row_z = [world_of(grid[fx.SCREEN_W, y].pos)[2] for y in rows]
 
         # Outdoors the panorama's arc starts at the frontal part's edge and bends toward
-        # the camera; in a room the side walls stand straight at that edge
+        # the camera; in a room the back wall goes on sideways to ROOM_SIDE_X, where the
+        # side walls stand (bending in near the camera, see ROOM_SIDE_X)
         edge_x = world_of(grid[fx.SCREEN_W, base_row].pos)[0]
         centre_z = self.wall_z + ARC_RADIUS
         end_k = len(rows) - 1 if room else rows.index(ARC_END_ROW)
         self.edge_x = edge_x
 
-        def arc_x(z):
-            if room:
-                return edge_x
+        def row_px_to_x(z):
+            depth = cam.world_to_view((0, 0, z))[2] * -1
+            return depth / (cam.p00 * 128)
 
+        # Per ground row: how far the room's floor reaches, the side wall's foot
+        room_x = [min(ROOM_SIDE_X, (MAX_TEXCOORD - 128) * row_px_to_x(z)) for z in row_z]
+        self.side_x = room_x[0] if room else None
+
+        def arc_x(z):
             c = (centre_z - z) / ARC_RADIUS
             return edge_x + ARC_RADIUS * math.sqrt(max(0.0, 1 - c * c))
 
-        arc_end_x = arc_x(row_z[end_k])
+        arc_end_x = room_x[end_k] if room else arc_x(row_z[end_k])
 
         # Side ground: row lines from the frustum edge out to the arc (or the side
         # wall), or beyond the arc's end
@@ -488,16 +510,17 @@ class Backdrop:
                 inner = world_of(grid[edge_col, y].pos)
 
                 if k <= end_k:
-                    outer_x = arc_x(z)
+                    outer_x = room_x[k] if room else arc_x(z)
                 else:
-                    depth = cam.world_to_view((0, 0, z))[2] * -1
-                    px_to_x = depth / (cam.p00 * 128)
+                    px_to_x = row_px_to_x(z)
                     outer_x = min(max(arc_end_x, (GROUND_FAR_X - 128) * px_to_x), (MAX_TEXCOORD - 128) * px_to_x)
 
                 line = [grid[edge_col, y]]
 
-                for i in range(1, SIDE_SEGMENTS + 1):
-                    x = inner[0] + (sign * outer_x - inner[0]) * i / SIDE_SEGMENTS
+                segments = ROOM_SIDE_SEGMENTS if room else SIDE_SEGMENTS
+
+                for i in range(1, segments + 1):
+                    x = inner[0] + (sign * outer_x - inner[0]) * i / segments
                     line.append(place.free((x, 0.0, z)))
 
                 sides[sign, k] = line
@@ -542,17 +565,46 @@ class Backdrop:
         heights = [world_of(wall_grid[fx.SCREEN_W, y].pos)[1] for y in wall_rows]
         self.wall_top = heights[-1]
 
+        # A room's back wall goes on past the home view to the side walls' corner, on the
+        # wall plane, so its home-projected texture coordinates stay exact (the plane faces
+        # the camera: they are affine in x and y), like the classic BG3 scrolled sideways
+        def room_corner(sign, j):
+            foot = sides[sign, 0][-1]
+
+            if j == 0:
+                return foot
+
+            x, _y, z = world_of(foot.pos)
+            return place.free((x, heights[j], z))
+
         # Side walls aren't in the home view, so their texture coordinates don't come
         # from it: the back wall's texture continues round the corner at the density it
-        # has at the corner (mirrored by FLIP_S), rows at the corner's rows
+        # has at the corner (mirrored by FLIP_S), rows at the corner's rows, s along the
+        # wall's foot (straight, then bending in near the camera)
         corner_depth = -cam.world_to_view((edge_x, 0.0, self.wall_z))[2]
         texels_per_unit = cam.p00 * (fx.SCREEN_W / 2) / corner_depth
+        foot_run = [0.0]
+
+        for k in range(1, len(rows)):
+            foot_run.append(foot_run[-1] + math.hypot(room_x[k] - room_x[k - 1], row_z[k] - row_z[k - 1]))
 
         def side_wall_vertex(sign, j, k):
-            p = (sign * edge_x, heights[j], row_z[k])
-            corner = wall_grid[fx.SCREEN_W if sign > 0 else 0, wall_rows[j]]
-            s = corner.screen[0] + sign * (self.wall_z - p[2]) * texels_per_unit
+            p = (sign * room_x[k], heights[j], row_z[k])
+            corner = room_corner(sign, j)
+            s = corner.screen[0] - sign * foot_run[k] * texels_per_unit
             return Vertex(fx16_vec(p), (s, corner.screen[1]), False)
+
+        def side_wall_normal(sign, k):
+            # Inward, across the wall's foot: the mean of the segments' normals at k
+            dx = dz = 0.0
+
+            for a, b in ((k - 1, k), (k, k + 1)):
+                if 0 <= a and b < len(rows):
+                    sx, sz = room_x[b] - room_x[a], row_z[b] - row_z[a]
+                    n = math.hypot(sx, sz)
+                    dx, dz = dx + sx / n, dz + sz / n
+
+            return normalize((-sign * dz, 0.0, dx))
 
         def arc_normal(sign, v):
             x, _y, z = world_of(v.pos)
@@ -567,28 +619,26 @@ class Backdrop:
 
                 for k in range(1, end_k + 1):
                     if room:
-                        arc.append((side_wall_vertex(sign, j, k), (-sign, 0.0, 0.0)))
+                        arc.append((side_wall_vertex(sign, j, k), side_wall_normal(sign, k)))
                     else:
                         outer = world_of(sides[sign, k][-1].pos)
                         v = sides[sign, k][-1] if j == 0 else place.free((outer[0], heights[j], outer[2]))
                         arc.append((v, arc_normal(sign, v)))
 
-                corner = wall_grid[fx.SCREEN_W if sign > 0 else 0, y]
+                # A room's back wall reaches past the screen edge to the corner, a crease:
+                # the corner vertex twice, with each wall's normal (the quad between them
+                # has no area)
+                crease = []
+
+                if room:
+                    corner = room_corner(sign, j)
+                    crease = [(corner, TOWARD_CAMERA), (corner, side_wall_normal(sign, 0))]
 
                 if sign < 0:
-                    line += arc[::-1]
-
-                    # A room's corner is a crease: repeat the corner vertex with each
-                    # wall's normal (the quad between them has no area)
-                    if room:
-                        line.append((corner, (1.0, 0.0, 0.0)))
-
+                    line += arc[::-1] + crease[::-1]
                     line += [(wall_grid[x, y], TOWARD_CAMERA) for x in columns]
                 else:
-                    if room:
-                        line.append((corner, (-1.0, 0.0, 0.0)))
-
-                    line += arc
+                    line += crease + arc
 
             return line
 

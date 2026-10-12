@@ -2280,8 +2280,10 @@ static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
 
 // Arc 2 rift-a, DW Ravaged Path (scene 2.6, res/field/scripts/scripts_dw_ravaged_path.s): SCARS on the west wall x=11
 // (the Arc 1 seams clone). A scar is a group of cracked wall tiles that holds you for exactly one step: stepping onto
-// it cracks (sound), one step after you leave it it crumbles (sound), and stepping onto a scar that already held you,
-// or from one scar tile onto another of the same scar, drops you (the fall script resets you at the entry). The scars
+// it cracks (sound) and its loose rocks (ghost props hanging under it) fall away, one step after you leave it it
+// crumbles (sound), and stepping onto a scar that already held you, or from one scar tile onto another of the same
+// scar, drops you (the fall script resets you at the entry). The scar tiles are drawn with loose-boulder decals on the
+// wall face (tools/distortion_world/build_ravaged_path_map.py), so every scar fall is from a visibly loose patch. The scars
 // reset whenever the player is back on the entry walkway or ledge. Fork and halfway triggers need the height, which
 // coord events can't check. Tile list mirrored in tools/distortion_world/ravaged_path.json ("scars").
 #define RAVAGED_PATH_WALL_X          11
@@ -2298,6 +2300,10 @@ static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
 #define RAVAGED_PATH_NO_SCAR         0xFF
 #define RAVAGED_PATH_SCAR_PROP_GROUP 2 // ghost-prop group of scar 0 (scar n: group 2 + n): the loose rocks hovering
                                        // in front of its tiles, which fade away when it crumbles
+// Cyrus's fork line plays once per visit, not once per attempt: a fall reloads the map (and the scars reset), so a
+// static or map-local guard replayed it on every return to the fork. The flag persists in the save. rift-a's own
+// block (0x0926-0x0929) is full; 0x0924 is the unused resonator block (docs/arc2/registry.md). Lead: rename at merge.
+#define FLAG_ARC2_RAVAGED_PATH_FORK_SEEN FLAG_ARC2_RESONATOR_A
 
 enum Arc2ScarState {
     ARC2_SCAR_INTACT = 0,
@@ -2322,7 +2328,6 @@ static const Arc2ScarTile sRavagedPathScarTiles[] = {
 
 static u8 sRavagedPathScarStates[RAVAGED_PATH_SCAR_COUNT];
 static u8 sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
-static u8 sRavagedPathForkShown;
 
 static u8 RavagedPath_GetScarAt(int x, int y, int z)
 {
@@ -2350,7 +2355,6 @@ static void RavagedPath_ResetScars(DistWorldSystem *system)
     }
 
     sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
-    sRavagedPathForkShown = FALSE;
 }
 
 static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, int z)
@@ -2370,11 +2374,10 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
 
     scar = RavagedPath_GetScarAt(x, y, z);
 
-    // A scar left on the previous step crumbles now.
+    // A scar left on the previous step crumbles now (its loose rocks already went when it was stepped on).
     for (i = 0; i < RAVAGED_PATH_SCAR_COUNT; i++) {
         if (sRavagedPathScarStates[i] == ARC2_SCAR_LEFT) {
             sRavagedPathScarStates[i] = ARC2_SCAR_CRUMBLED;
-            HideGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + i);
             Sound_PlayEffect(SEQ_SE_DP_UG_023);
         }
     }
@@ -2395,7 +2398,10 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
             return TRUE;
         }
 
+        // It holds this once and is spent from now on: the rocks hanging under it fall away at once, so a scar that
+        // will drop the player never still looks whole (fix2-dwrp; it used to fade only one step after you left).
         sRavagedPathScarStates[scar] = ARC2_SCAR_HOLDING;
+        HideGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + scar);
         Sound_PlayEffect(SEQ_SE_PL_KEZURI);
     }
 
@@ -2405,8 +2411,9 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
         return FALSE;
     }
 
-    if (!sRavagedPathForkShown && x == RAVAGED_PATH_WALL_X && y > RAVAGED_PATH_FLOOR_Y && z == RAVAGED_PATH_FORK_Z) {
-        sRavagedPathForkShown = TRUE;
+    if (!VarsFlags_CheckFlag(varsFlags, FLAG_ARC2_RAVAGED_PATH_FORK_SEEN)
+        && x == RAVAGED_PATH_WALL_X && y > RAVAGED_PATH_FLOOR_Y && z == RAVAGED_PATH_FORK_Z) {
+        VarsFlags_SetFlag(varsFlags, FLAG_ARC2_RAVAGED_PATH_FORK_SEEN);
         ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_FORK, NULL);
         return TRUE;
     }
