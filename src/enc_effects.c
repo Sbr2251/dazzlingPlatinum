@@ -8,6 +8,7 @@
 #include "constants/species.h"
 #include "generated/sdat.h"
 #include "generated/trainer_classes.h"
+#include "generated/trainers.h"
 
 #include "overlay005/encounter_effect.h"
 
@@ -57,6 +58,7 @@ enum EncEffectsPairID {
     ENCEFF_GALACTIC_CMDR,
     ENCEFF_GALACTIC_CYRUS,
     ENCEFF_WANDERER,
+    ENCEFF_WANDERER_ARC2,
 
     ENCEFF_FRONTIER,
     ENCEFF_LINK_BATTLE,
@@ -103,6 +105,9 @@ static const EncEffectsPair sEncEffectsTable[ENCEFF_MAX] = {
     // Arc 2: the boss cut-in now shows the Team Eclipse mark, which Cyrus (the "Wanderer") must not get,
     // so his battles use the ordinary trainer cut-in and keep his music.
     [ENCEFF_WANDERER] = { ENCEFF_CUTIN_USE_LOCAL, SEQ_BATTLE_CYRUS },
+    // Arc 2 playtest round 2: the Galactic boss theme was too intense for Cyrus the guide (TRAINER_CYRUS_ARC2_*).
+    // His Arc 2 battles are tests between allies, so they use the Gym Leader theme instead.
+    [ENCEFF_WANDERER_ARC2] = { ENCEFF_CUTIN_USE_LOCAL, SEQ_BATTLE_GYM_LEADER },
     [ENCEFF_FRONTIER] = { ENCEFF_CUTIN_FRONTIER, SEQ_BATTLE_TRAINER },
     [ENCEFF_LINK_BATTLE] = { ENCEFF_CUTIN_FRONTIER, SEQ_BATTLE_TRAINER },
     [ENCEFF_DOUBLE_BATTLE] = { ENCEFF_CUTIN_DOUBLE, SEQ_BATTLE_TRAINER },
@@ -133,6 +138,12 @@ static u32 EncEffects_GetEffectPair(const FieldBattleDTO *dto)
 
     if (battleType & BATTLE_TYPE_TRAINER) {
         u32 trainerEffect = EncEffects_TrainerClassEffect(dto->trainer[1].header.trainerType);
+
+        if (trainerEffect == ENCEFF_WANDERER
+            && dto->trainerIDs[1] >= TRAINER_CYRUS_ARC2_1_TURTWIG
+            && dto->trainerIDs[1] <= TRAINER_CYRUS_ARC2_3_PIPLUP) {
+            trainerEffect = ENCEFF_WANDERER_ARC2;
+        }
 
         if (battleType & BATTLE_TYPE_FRONTIER) {
             if (trainerEffect == ENCEFF_FRONTIER_BRAIN) {

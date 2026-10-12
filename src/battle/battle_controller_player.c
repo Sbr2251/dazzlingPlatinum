@@ -14,6 +14,7 @@
 #include "generated/abilities.h"
 #include "generated/game_records.h"
 #include "generated/trainer_classes.h"
+#include "generated/trainers.h"
 
 #include "struct_decls/battle_system.h"
 #include "struct_defs/trainer.h"
@@ -4564,9 +4565,18 @@ static BOOL BattleControllerPlayer_CheckBattleOver(BattleSystem *battleSys, Batt
             Sound_PlayBGM(SEQ_VICTORY_GALACTIC_GRUNT);
             break;
 
-        case TRAINER_CLASS_GALACTIC_BOSS:
-            Sound_PlayBGM(SEQ_VICTORY_CYRUS);
+        case TRAINER_CLASS_GALACTIC_BOSS: {
+            // Arc 2: Cyrus's battles as the player's guide use the Gym Leader theme (enc_effects.c), so the win
+            // jingle matches it. The stock Galactic boss battles keep his own.
+            u16 trainerID = Battler_TrainerID(battleSys, BATTLER_ENEMY_1);
+
+            if (trainerID >= TRAINER_CYRUS_ARC2_1_TURTWIG && trainerID <= TRAINER_CYRUS_ARC2_3_PIPLUP) {
+                Sound_PlayBGM(SEQ_VICTORY_GYM_LEADER);
+            } else {
+                Sound_PlayBGM(SEQ_VICTORY_CYRUS);
+            }
             break;
+        }
 
         case TRAINER_CLASS_ELITE_FOUR_AARON:
         case TRAINER_CLASS_ELITE_FOUR_BERTHA:
