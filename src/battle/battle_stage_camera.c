@@ -79,7 +79,7 @@ enum CameraSequence {
 };
 
 enum CameraCurve {
-    CURVE_LINEAR = 0, // BW2's MoveTo timing: constant speed, an optional half-speed tail
+    CURVE_LINEAR = 0, // BW2's MoveTo: constant speed on the chord, an optional half-speed tail
     CURVE_SMOOTH, // smoothstep on each pose component (an arc for a turn)
 };
 
@@ -124,6 +124,8 @@ typedef struct StageCamera {
     CameraPose cur;
     CameraPose from;
     CameraPose goal;
+    VecFx32 fromPos; // the camera positions of from and goal: CURVE_LINEAR moves on the line between
+    VecFx32 goalPos;
     int curve;
     int easeT; // screen frames into the ease
     int easeLen; // BW2's frames: the length at full speed
@@ -158,6 +160,10 @@ typedef struct StageCamera {
     BOOL holdAfterScript; // the script's end pose becomes a held focus (the Totem aura)
     int idlePose; // the next of sIdlePoses
     BOOL idleHoming; // easing home from the idle drift
+    // Home offset of the camera in angle form, for poses built from a camera position
+    u16 homeAzimuth;
+    u16 homeElevation;
+    fx32 homeLength;
     // Particles
     int particleFocus;
     int particleBattlers[2];
@@ -278,11 +284,16 @@ static void SnapHome(void)
     sStageCamera.sequence = SEQUENCE_NONE;
 }
 
+static void PoseCamera(const CameraPose *pose, VecFx32 *camPos, VecFx32 *offsetOut);
+
 // bw2vis:camera-core. Ease from wherever the camera is now over frames screen frames (BW2's frames); 0
-// snaps. CURVE_LINEAR is BW2's MoveTo timing (btlv_camera.c:92-111, :185-204): constant speed, and brake
-// (BW2's brakeFrames, 0 for none) halves the speed after brake - 1 frames. CURVE_SMOOTH eases in and out.
+// snaps. CURVE_LINEAR is BW2's MoveTo (btlv_camera.c:92-111, :185-204): the camera position and the
+// target move in a straight line at constant speed, and brake (BW2's brakeFrames, 0 for none) halves the
+// speed after brake - 1 frames. CURVE_SMOOTH eases each pose component in and out.
 static void EaseToCurve(const CameraPose *goal, int frames, int brake, int curve)
 {
+    VecFx32 offset;
+
     sStageCamera.from = sStageCamera.cur;
     sStageCamera.goal = *goal;
     sStageCamera.easeT = 0;
@@ -300,6 +311,11 @@ static void EaseToCurve(const CameraPose *goal, int frames, int brake, int curve
         sStageCamera.easeEnd = 2 * frames - (sStageCamera.easeBrake - 1);
     } else {
         sStageCamera.easeEnd = frames;
+    }
+
+    if (curve == CURVE_LINEAR) {
+        PoseCamera(&sStageCamera.from, &sStageCamera.fromPos, &offset);
+        PoseCamera(&sStageCamera.goal, &sStageCamera.goalPos, &offset);
     }
 }
 
@@ -376,6 +392,25 @@ static fx32 Lerp(fx32 a, fx32 b, fx32 t)
     return a + FX_Mul(b - a, t);
 }
 
+// fx32 degrees of an angle index difference
+static fx32 IdxToDeg(int idx)
+{
+    return (s16)idx * 45 / 2;
+}
+
+// The yaw, pitch and distance of a pose whose camera sits at offset from its focus: the inverse of
+// PoseCamera (the pitch lifts the home offset's elevation, the yaw turns its azimuth)
+static void PoseAnglesFromOffset(const VecFx32 *offset, CameraPose *pose)
+{
+    fx32 horizontal = FX_Sqrt(FX_Mul(offset->x, offset->x) + FX_Mul(offset->z, offset->z));
+    u16 azimuth = FX_Atan2Idx(offset->x, offset->z);
+    u16 elevation = FX_Atan2Idx(offset->y, horizontal);
+
+    pose->yaw = IdxToDeg((u16)(azimuth - sStageCamera.homeAzimuth));
+    pose->pitch = IdxToDeg((u16)(elevation - sStageCamera.homeElevation));
+    pose->distance = FX_Div(VEC_Mag(offset), sStageCamera.homeLength);
+}
+
 static void AdvanceEase(int frames)
 {
     CameraPose *from = &sStageCamera.from;
@@ -402,9 +437,21 @@ static void AdvanceEase(int frames)
     cur->focus.y = Lerp(from->focus.y, goal->focus.y, s);
     cur->focus.z = Lerp(from->focus.z, goal->focus.z, s);
     cur->fov = Lerp(from->fov, goal->fov, s);
-    cur->yaw = Lerp(from->yaw, goal->yaw, s);
-    cur->pitch = Lerp(from->pitch, goal->pitch, s);
-    cur->distance = Lerp(from->distance, goal->distance, s);
+
+    if (sStageCamera.curve == CURVE_LINEAR) {
+        VecFx32 pos, offset;
+
+        // The camera on the straight line between the two positions (a turn takes the chord)
+        pos.x = Lerp(sStageCamera.fromPos.x, sStageCamera.goalPos.x, s);
+        pos.y = Lerp(sStageCamera.fromPos.y, sStageCamera.goalPos.y, s);
+        pos.z = Lerp(sStageCamera.fromPos.z, sStageCamera.goalPos.z, s);
+        VEC_Subtract(&pos, &cur->focus, &offset);
+        PoseAnglesFromOffset(&offset, cur);
+    } else {
+        cur->yaw = Lerp(from->yaw, goal->yaw, s);
+        cur->pitch = Lerp(from->pitch, goal->pitch, s);
+        cur->distance = Lerp(from->distance, goal->distance, s);
+    }
 }
 
 // Sine and cosine of an angle in fx32 degrees; a negative angle takes the sine of its
@@ -925,7 +972,19 @@ void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fi
     sStageCamera.drawProjection = home->projection;
     SnapHome();
 
-    // bw2vis:camera-core: the debug block
+    // bw2vis:camera-core: the home offset in angle form (PoseAnglesFromOffset), the menu camera's state
+    // and the debug block
+    {
+        VecFx32 offset;
+        fx32 horizontal;
+
+        VEC_Subtract(&home->camPos, &home->camTarget, &offset);
+        horizontal = FX_Sqrt(FX_Mul(offset.x, offset.x) + FX_Mul(offset.z, offset.z));
+        sStageCamera.homeAzimuth = FX_Atan2Idx(offset.x, offset.z);
+        sStageCamera.homeElevation = FX_Atan2Idx(offset.y, horizontal);
+        sStageCamera.homeLength = VEC_Mag(&offset);
+    }
+
     memset(&sStageCameraDebug, 0, sizeof(sStageCameraDebug));
     sStageCameraDebug.magic = CAMERA_DEBUG_MAGIC;
 
@@ -1338,6 +1397,8 @@ void BattleStage_CameraMove(int focus, int attacker, int defender, int distanceP
     CommandEase(&goal, frames);
 }
 
+// bw2vis:camera-core: with BW2's curve (the default) the camera turns along the chord, as
+// CmdCameraRotate's MoveTo does, so it dips toward the focus mid-turn; STAGE_CAMERA_SMOOTH keeps the arc
 void BattleStage_CameraOrbit(int yawDeltaDeg, int frames)
 {
     CameraPose goal;

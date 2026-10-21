@@ -13,7 +13,7 @@
     .macro MegaSequence x:req, y:req, symbolY:req
     // The orb forms round the Pokemon while ribbons of light circle it
     Func_MegaEvolutionCue MEGA_EVOLUTION_CUE_CHARGE
-    // The stage camera circles the Pokemon through the charge
+    // The stage camera circles the Pokemon through the charge (BW2's CameraRotate: along the chord)
     StageCameraOrbit 40, 36
     MegaEmitter 0, \x, \y
     MegaEmitter 1, \x, \y

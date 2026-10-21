@@ -160,9 +160,9 @@
 // bw2vis:camera-core. Options carried in the existing words of the stage camera commands (camera.md,
 // "Motion", "Framing" and "Shake"), so no command changes its arguments.
 // Any frames word (Move, Orbit, Home, Zoom): the low byte counts drawn frames. The motion is BW2's: constant
-// speed. STAGE_CAMERA_BRAKE(n) halves the speed
+// speed, along the straight line between the two camera positions. STAGE_CAMERA_BRAKE(n) halves the speed
 // after n - 1 drawn frames (BW2's brakeFrames, which count 60 Hz frames: halve BW2's frames and brake).
-// STAGE_CAMERA_SMOOTH eases in and out (smoothstep) instead.
+// STAGE_CAMERA_SMOOTH eases in and out (smoothstep) and turns on an arc instead.
 #define STAGE_CAMERA_FRAMES_MASK 0xFF
 #define STAGE_CAMERA_BRAKE(n)    (((n) & 0xFF) << 8)
 #define STAGE_CAMERA_SMOOTH      (1 << 16)
