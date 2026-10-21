@@ -696,6 +696,31 @@ void BattleStageStream_SetRate(int index, u32 rate)
     }
 }
 
+// bw2vis:idle: battler index's sprite plays a stream, or will once its tables are read (its
+// template changed this frame)
+BOOL BattleStageStream_HasStream(int index)
+{
+    const PokemonSprite *sprite;
+    const BattlerStream *stream;
+
+    if (sStageStream.monSpriteMan == NULL || !sStageStream.hasVram || sStageStream.index == NULL || index < 0 || index >= MAX_MON_SPRITES) {
+        return FALSE;
+    }
+
+    sprite = &sStageStream.monSpriteMan->sprites[index];
+    stream = &sStageStream.battlers[index];
+
+    if (!sprite->active) {
+        return FALSE;
+    }
+
+    if (sprite->template.narcID == stream->narcID && sprite->template.character == stream->character) {
+        return stream->data != NULL;
+    }
+
+    return FindMember(&sprite->template) != 0;
+}
+
 const u8 *BattleStageStream_GetFrame(int index)
 {
     if (sStageStream.monSpriteMan == NULL

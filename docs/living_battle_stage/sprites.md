@@ -68,6 +68,37 @@ day.
 All of this deforms grid vertex positions only. The sprite's `transforms` in RAM are never
 written, so move animations, the critic and the game logic see the same values as before.
 
+## Gen 5 motion (bw2vis:idle)
+
+What replaces Platinum's own motion on a battler the stage draws from its Gen 5 stream, and the
+B/W behaviour added on top. The B/W behaviour comes from the pokebw2 decomp (`src/ov168/btlv_mcss.c`,
+`btlv_effect.c`); where B/W use an effect script that isn't in the decomp (send-out, faint), the
+look is approximated and says so. The code is `src/battle/battle_stage_idle.c` (and
+`battle_stage_copies.c` for the move copies). Every change falls back to Platinum's behaviour on
+the classic path: the stage off (L+R+SELECT), `CLASSIC_SPRITES`, `NO_SPRITE_STREAM`, and the
+species without a stream (forms, Spinda, the Egg).
+
+"Uses Gen 5 motion" (`BattleStage_UsesGen5Motion`) means: the stage is on and its streams play
+(the arena drawn, or hidden with its texture VRAM kept), neither debug flag is set, and the
+battler's sprite template has a stream (`BattleStageStream_HasStream`, which also answers for a
+template that changed this frame, before its tables are read).
+
+The harness reads `sGen5MotionStats` and `sMonCopyStats` (in the xMAP), zeroed at each battle's
+`BattleStage_Init`.
+
+### Entry animation
+
+B/W play no per-species motion at send-out or wild appear: the stream's loop plays and the cry
+plays. Platinum ran its per-species animation there: the frame swaps (`PokemonSprite_InitAnim`,
+which also writes an x offset per frame) and the `PokemonAnim` script (`PokemonSprite_LoadAnim`:
+hops, squash, rotation and palette fades; Luxio flashed solid yellow 4 times on top of its B/W
+loop). All 19 call sites in `battle_display.c` now go through `BattleStage_InitEntryAnim` and
+`BattleStage_LoadEntryAnim`, with the same arguments. For a battler that uses Gen 5 motion the
+frame swaps don't start and the script is set up and deleted at once, before its task runs a
+command, so its anim slot reads complete and the send-out tasks go on. The send-out's own ball
+colour fade and scale-in, the wild silhouette fade and the cry are unchanged. Counted in
+`entryAnimsSkipped` and `entryAnimsPlayed`.
+
 ## Blob shadows
 
 A soft translucent ellipse sits on the 3D ground under each visible mon. It uses a small
