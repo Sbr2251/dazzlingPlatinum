@@ -19,6 +19,9 @@ void AbilityPopup_OnBattleMessage(BattleSystem *battleSys, const BattleMessage *
 // Frees both banners at once. Call before the battle's sprite system is torn down.
 void AbilityPopup_Shutdown(void);
 
+// bw2vis:followups: the command menu is opening; any banner still up slides out now.
+void AbilityPopup_Dismiss(void);
+
 // TRUE while either side's banner is on screen or moving.
 BOOL AbilityPopup_IsActive(void);
 

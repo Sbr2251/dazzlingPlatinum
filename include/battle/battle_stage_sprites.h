@@ -21,6 +21,7 @@ enum BattleStageDebugFlag {
     BATTLE_STAGE_DEBUG_NO_IDLE_CAMERA = 1 << 5, // no idle drift at the command menu (camera.md)
     BATTLE_STAGE_DEBUG_NO_SPRITE_STREAM = 1 << 6, // the classic frames, not the Gen 5 streams (sprite_stream.md)
     BATTLE_STAGE_DEBUG_PLATINUM_LAYOUT = 1 << 12, // bw2vis:layout - classic places and 1.75x backs (layout.md)
+    BATTLE_STAGE_DEBUG_NO_SHADOWS = 1 << 13, // bw2vis:followups - with NO_BLOB_SHADOWS: no classic shadow either (the critic's bare ground)
 };
 
 // The fields of BattleStage at +32, in order

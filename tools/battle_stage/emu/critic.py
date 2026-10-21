@@ -1536,6 +1536,7 @@ NO_SPRITE_STREAM = 64                    # the classic frames, not the Gen 5 str
 # bw2vis:layout - the battlers at their classic places with 1.75x backs (layout.md); set_flags adds it unless layout=True,
 # so the home-vs-classic comparisons still line the stage up with the classic screen. A ROM without it ignores the bit.
 PLATINUM_LAYOUT = 1 << 12
+NO_SHADOWS = 1 << 13                     # bw2vis:followups: with NO_BLOB_SHADOWS, no classic shadow either (bare ground)
 FLAG_NAMES = ((FREEZE_IDLE, "FREEZE_IDLE"), (NO_BLOB_SHADOWS, "NO_BLOB_SHADOWS"), (CLASSIC_SPRITES, "CLASSIC_SPRITES"),
               (NO_CINEMATICS, "NO_CINEMATICS"), (CRIT_KICK_ON_HIT, "CRIT_KICK_ON_HIT"), (NO_IDLE_CAMERA, "NO_IDLE_CAMERA"),
               (NO_SPRITE_STREAM, "NO_SPRITE_STREAM"), (PLATINUM_LAYOUT, "PLATINUM_LAYOUT"))
@@ -3181,7 +3182,11 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
     day_on: List[Image.Image]
     if live:
         # -- FREEZE_IDLE stops breathing
-        ram.set_flags(FREEZE_IDLE)
+        # bw2vis:followups: shadows off for the rest-pose check. A BW2 silhouette shadow
+        # (shadows.md) lies behind the mon and leans up the screen, so part of it can fall in the
+        # upper box this check assumed was shadow-free (the 0.29% FREEZE_IDLE FAIL on the mid-merge
+        # ROM was silhouette pixels). The shadows are graded by the blob checks below.
+        ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS)
         a = ram.field("idleFrames")
         frozen = [top(f.img) for f in e.record(60, every=6, label="frozen")]
         b = ram.field("idleFrames")
@@ -3194,29 +3199,35 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
         still = box_novelty(frozen, off, upper)
         worst = max(box_novelty([f], off, upper) for f in frozen)
         sc.check("FREEZE_IDLE: the enemy rests in the classic pose", still <= FREEZE_STILL,
-                 f"median {still:.2%} (worst frame {worst:.2%}) of the upper enemy box {upper} differs from the "
+                 f"median {still:.2%} (worst frame {worst:.2%}) of the upper enemy box {upper} (shadows off) differs from the "
                  f"closest stage-off frame over 60 frames (needs <= {FREEZE_STILL:.1%}); change from the first frozen "
                  f"frame up to {box_change(frozen, eb):.2%}, classic up to {box_change(off, eb):.2%}",
                  why="the mon does not return to the rest pose while breathing is frozen")
 
         # -- blob shadows: darker under each mon than with NO_BLOB_SHADOWS
+        ram.set_flags(FREEZE_IDLE)  # bw2vis:followups: shadows back on
         with_blob = idle_samples(e, n=8, every=4)
         ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS)
         n_blob = ram.field("blobShadows")
         sc.check("NO_BLOB_SHADOWS turns the blobs off", n_blob == 0, f"blobShadows {n_blob}")
         day_on = idle_samples(e, n=8, every=4)
+        # bw2vis:followups: the reference is the bare ground. NO_BLOB_SHADOWS brings the classic shadow back,
+        # which until the hideShadows fix (pokemon_sprite.c) was hidden at the first menu by a heap leftover, so
+        # this check compared against no shadow by accident; a ROM without NO_SHADOWS ignores the bit
+        ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS | NO_SHADOWS)
+        bare = idle_samples(e, n=8, every=4)
         blob_cells = []
         silhouettes = "sStageShadowStats" in ram.syms  # bw2vis:shadow: a ROM with BW2 silhouette shadows
         for mon in ("enemy", "player"):
             ub = under_box(boxes[mon], silhouettes)
-            a_img, b_img = best_pair([i.crop(ub) for i in with_blob], [i.crop(ub) for i in day_on])
+            a_img, b_img = best_pair([i.crop(ub) for i in with_blob], [i.crop(ub) for i in bare])
             la, lb = _luma(a_img), _luma(b_img)
             darker = sum(1 for p, q in zip(la, lb) if q - p > BLOB_DARKER)
             drop = (sum(lb) - sum(la)) / float(max(1, len(la)))
             sc.check(f"blob shadow darkens the ground under the {mon}", darker >= BLOB_PIXELS and drop > 0,
                      f"region {ub}: {darker} pixels darker by more than {BLOB_DARKER} with blobs than with "
-                     f"NO_BLOB_SHADOWS (needs {BLOB_PIXELS}), mean luma {drop:+.1f} darker")
-            blob_cells += [(f"{mon} blob ON", a_img), (f"{mon} blob OFF", b_img)]
+                     f"no shadow (NO_BLOB_SHADOWS|NO_SHADOWS) (needs {BLOB_PIXELS}), mean luma {drop:+.1f} darker")
+            blob_cells += [(f"{mon} blob ON", a_img), (f"{mon} no shadow", b_img)]
         _crop_sheet(sc, blob_cells, "blobs", "ground under each mon with and without blob shadows (FREEZE_IDLE)",
                     cols=4, zoom=3)
 
@@ -4040,8 +4051,9 @@ def copy_tint_check(sc: Scenario, tag: str, day: dict, night: dict) -> None:
 
 def _audit_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str, m: dict, cur: int,
                 idle: List[Image.Image], boxes: List[Image.Image], after: List[Frame], fades: List[Frame],
-                days: dict, cam_log: list) -> Optional[bool]:
-    """One move_audit move. True = go on, False = the battle is stuck, None = the overlay is gone."""
+                days: dict, cam_log: list, redo: Optional[dict] = None) -> Optional[bool]:
+    """One move_audit move. True = go on, False = the battle is stuck, None = the overlay is gone. redo: the move's
+    redo entry (load_redo), for the moves whose SwitchBg cuts (bw2vis:followups)."""
     mid, mech = m["id"], set(m.get("mechanisms", []))
     tag = f"{tod} {mid:03d} {m.get('name', '')}".rstrip()
     print(f"  [move] {tag}", flush=True)              # the parent attributes CPU exceptions by these lines
@@ -4051,6 +4063,7 @@ def _audit_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str
     _nav_move(e, cur, mid)
     pre = e.snap(f"{tag} pre", after)
     before = ram.compat()
+    ebg0 = ram.effect_bg()  # bw2vis:followups
     anim, done, polls, fade, by_t = _play_compat(e, ov, ram, "A", args.anim_frames, f"{mid:03d}")
     if froze(sc, e, anim, f"playing {tag}"):
         return False
@@ -4097,7 +4110,13 @@ def _audit_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str
                      f"tintedCopies +{d['tintedCopies']}", warn_only=True, why="F2 did not tint the copy")
             if mid in days:
                 copy_tint_check(sc, tag, days[mid], rec)
-    if "switch_bg" in mech:
+    if "switch_bg" in mech and redo and (redo.get("expect") == "cut" or redo.get("bw2_bg")):
+        # bw2vis:followups: effect-bg's BW2 backgrounds (effect_bg.json), graded as switchbg_moves grades them.
+        # A move whose SwitchBg cuts, as BW2 does, hides the arena without a fade: its "arena faded out" check
+        # was the 30 FAILs on bw2vis (15 moves at day and night, every one hiddenFrames > 0, fades 0)
+        counts = f"hardPops +{d['hardPops']}, fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}"
+        effect_bg_checks(sc, tag, d, counts, ebg0, ram.effect_bg(), redo)
+    if "switch_bg" in mech and not (redo and redo.get("expect") == "cut"):
         need = fade_required(m)
         sc.check(f"{tag}: arena faded out (fades rose)", d["fades"] > 0,
                  f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}, suppress {m.get('suppress', [])}",
@@ -4133,8 +4152,10 @@ def _audit_battle(sc: Scenario, e: Emu, args, tod: str, plan: List[dict], fades:
     cam_log: list = []
     cur = MOVE_ID_POUND
     ok = True
+    redo = load_redo(args.redo)[0]  # bw2vis:followups: which SwitchBg moves cut (effect_bg.json)
     for m in plan:
-        r = _audit_move(sc, e, args, ram, ov, tod, m, cur, idle, boxes, after, fades, days, cam_log)
+        r = _audit_move(sc, e, args, ram, ov, tod, m, cur, idle, boxes, after, fades, days, cam_log,
+                        redo.get(m["id"]))
         if r is None:
             break
         cur = m["id"]

@@ -422,6 +422,9 @@ void *PokemonSpriteManager_New(enum HeapID heapID)
     NNS_G2dSetupSoftwareSpriteCamera();
 
     monSpriteMan->excludeIdentity = FALSE;
+    // bw2vis:followups: was never initialised, so the heap's leftovers decided whether the classic shadows
+    // showed until the first move script cleared it (0x55555555 in battle: no enemy shadow at the first menu)
+    monSpriteMan->hideShadows = 0;
     monSpriteMan->drawHook = NULL;
     monSpriteMan->stream = NULL;
 
