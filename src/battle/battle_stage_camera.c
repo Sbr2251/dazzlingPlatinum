@@ -55,6 +55,15 @@
 #define IDLE_WAIT_FRAMES 900
 #define MENU_HOME_FRAMES 10
 #define MENU_HOME_BRAKE 8
+// The beats after the first prompt (switches, the catch, the end of a trainer battle): an ease in,
+// then a hold, then an ease home
+#define BEAT_IN_FRAMES 16
+#define BEAT_IN_BRAKE 12
+#define BEAT_HOME_FRAMES 20
+#define BEAT_HOME_BRAKE 14
+#define BEAT_SENDOUT_HOLD 24 // after the sent-out battler's healthbar shows
+#define BEAT_RECALL_MAX 300 // a recall with no send-in after it gives up
+#define BEAT_HOLD_FOREVER -1
 
 // Shake periods in steps for the old decaying shake, different in x and y so the path isn't a line
 #define SHAKE_PERIOD_X 4
@@ -80,6 +89,7 @@ enum CameraSequence {
     SEQUENCE_IDLE, // the command menu's idle shots, after the prompt's wait, until ended
     SEQUENCE_PROMPT, // the command prompt: on the battler choosing, until the idle shots or the end
     SEQUENCE_SELECT, // move and target select in a double battle: the wide shot, then the idle shots
+    SEQUENCE_BEAT, // a beat after the first prompt: there until released (beatHold), then home
 };
 
 enum CameraCurve {
@@ -91,6 +101,14 @@ enum ShakeMode {
     SHAKE_TRIANGLE_Y = 0, // BW2: a triangle wave on world up, constant amplitude, whole swings
     SHAKE_TRIANGLE_X, // the same sideways (camera right, on the ground)
     SHAKE_DECAY, // the old shake: decaying sines on both screen axes
+};
+
+enum CameraBeat {
+    BEAT_NONE = 0,
+    BEAT_RECALL,
+    BEAT_SENDOUT,
+    BEAT_CATCH,
+    BEAT_END,
 };
 
 enum ParticleFocus {
@@ -164,13 +182,16 @@ typedef struct StageCamera {
     BOOL holdAfterScript; // the script's end pose becomes a held focus (the Totem aura)
     int idlePose; // the idle shot playing, or -1 (bw2vis:camera-core)
     BOOL idleHoming; // easing home from the idle drift
-    // The command menu camera (bw2vis:camera-core)
-    BOOL promptSeen; // the first command prompt of the battle has opened
+    // The command menu camera and the beats (bw2vis:camera-core)
+    BOOL promptSeen; // the first command prompt of the battle has opened: the beats may play
     int promptBattler;
     int idleTimer; // screen frames since the last prompt (or double battle move select)
     int idleLast; // the last idle shot, never played twice in a row
     int idleHold; // screen frames the idle shot holds at its end pose
     u32 idleRandom; // the idle shots' own random state (the battle's RNG is never touched)
+    int beat;
+    int beatBattler;
+    int beatHold; // screen frames still to hold; BEAT_HOLD_FOREVER until the battle ends
     // Home offset of the camera in angle form, for poses built from a camera position
     u16 homeAzimuth;
     u16 homeElevation;
@@ -212,7 +233,7 @@ typedef struct StageCameraDebug {
     s32 promptBattler; // the battler the last prompt framed, -1 before the first
     s32 idleShot; // the idle shot playing, -1 for none
     s32 idleTimer; // screen frames since the prompt
-    s32 beat; // the beat playing, 0 for none
+    s32 beat; // enum CameraBeat
     s32 flags; // bit 0: the first prompt has opened
     s32 yaw; // the current pose: fx32 degrees, fx32 distance, focus relative to the home target
     s32 pitch;
@@ -254,6 +275,10 @@ static const s16 sPresetRow[BATTLER_TYPE_MAX] = { 124, 113, 125, 111, 139, 104 }
 // The camera's reach: every one of the 30 arenas still covers the whole scene from 1.6x the home distance
 // (BG0 renders, camera.md "Camera range"); the wide shot needs about 1.4x
 #define CAMERA_MAX_DISTANCE FX32_CONST(1.45)
+// The beats close in on the battler along the ray through its feet, so the 2D Poke Ball and trainer
+// OBJs, which only move with the side, keep their place (camera.md, "Beats")
+#define BEAT_ENEMY_SCALE FX32_CONST(1.35)
+#define BEAT_PLAYER_SCALE FX32_CONST(1.12)
 
 // The idle shots (BW2 picks one of 6 idle effect scripts at random, never the same twice in a row; their
 // camera data is in the ROM's archive 66, which isn't extracted). Each is a cut to a start pose and a slow
@@ -330,6 +355,7 @@ static void SnapHome(void)
     sStageCamera.backdropDx = 0;
     sStageCamera.backdropDy = 0;
     sStageCamera.sequence = SEQUENCE_NONE;
+    sStageCamera.beat = BEAT_NONE;
     sStageCamera.idlePose = -1;
 }
 
@@ -915,6 +941,7 @@ static void UpdateCutGuard(BOOL visible, const CameraPose *pose)
 
 static void StartNextIdleShot(void);
 static void IdleTestHook(void);
+static void AdvanceBeat(void);
 
 // The command menu camera is off: a debug flag (the critic's frame comparisons at the menu want home)
 static BOOL MenuCameraOff(void)
@@ -991,6 +1018,9 @@ static void AdvanceSequence(void)
         }
 
         StartNextIdleShot();
+        break;
+    case SEQUENCE_BEAT:
+        AdvanceBeat();
         break;
     default:
         if (sStageCamera.introHoming && !IsEasing()) {
@@ -1096,6 +1126,7 @@ static void UpdateDebugBlock(const CameraPose *pose, OSTick startTick)
     dbg->promptBattler = sStageCamera.promptBattler;
     dbg->idleShot = sStageCamera.sequence == SEQUENCE_IDLE ? sStageCamera.idlePose : -1;
     dbg->idleTimer = sStageCamera.idleTimer;
+    dbg->beat = sStageCamera.beat;
     dbg->flags = sStageCamera.promptSeen ? 1 : 0;
     dbg->yaw = pose->yaw;
     dbg->pitch = pose->pitch;
@@ -1689,11 +1720,11 @@ void BattleStage_CameraScriptStart(void)
         return;
     }
 
-    // The menu camera (prompt, select shot, idle shots) is expected to be cut short;
+    // The menu camera (prompt, select shot, idle shots) and the beats are expected to be cut short;
     // anything else off home is counted
     if (!PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) || IsEasing() || IsShaking() || sStageCamera.sequence != SEQUENCE_NONE) {
         if (sStageCamera.sequence != SEQUENCE_IDLE && sStageCamera.sequence != SEQUENCE_PROMPT
-            && sStageCamera.sequence != SEQUENCE_SELECT
+            && sStageCamera.sequence != SEQUENCE_SELECT && sStageCamera.sequence != SEQUENCE_BEAT
             && !sStageCamera.idleHoming) {
             sStageCamera.fields->guardSnaps++;
         }
@@ -1956,6 +1987,13 @@ BOOL BattleStage_IsCameraReadyForMenu(void)
         return TRUE;
     }
 
+    // bw2vis:camera-core: a beat still holding (a send-out's, a catch's) goes home for the menu
+    if (sStageCamera.sequence == SEQUENCE_BEAT) {
+        EaseToCurve(&sStageCamera.homePose, BEAT_HOME_FRAMES, BEAT_HOME_BRAKE, CURVE_LINEAR);
+        sStageCamera.sequence = SEQUENCE_NONE;
+        sStageCamera.beat = BEAT_NONE;
+    }
+
     busy = !PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) || IsEasing() || IsShaking() || sStageCamera.sequence != SEQUENCE_NONE;
 
     if (!busy) {
@@ -2178,7 +2216,7 @@ void BattleStage_StartIdleCamera(int battler)
 {
     CameraPose goal;
 
-    // The first prompt of the battle has opened
+    // The prompt framed the battler choosing: the beats may play from here on (the battle start is the intro's)
     sStageCamera.promptSeen = TRUE;
 
     if (!CanRunCamera() || sStageCamera.scriptActive || MenuCameraOff()) {
@@ -2333,4 +2371,170 @@ void BattleStage_FaintKick(int battler)
     goal.pitch = FX32_CONST(-3);
     sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_FAINT;
     StartKick(&goal, 6, 2, 1, 12, 8);
+}
+
+// bw2vis:camera-core. The beats after the first prompt (BW2: the recall 0x26C and send-in 0x26D of
+// BtlvScu_StartMemberOut / MemberIn, the ball effect 0x23a, the trainer's return 0x270; their camera data
+// isn't extracted). The Poke Balls and trainers are 2D OBJs that only move with their side
+// (BattleStage_GetSideOffset), so a beat that frames them keeps their place on screen: the switch and
+// catch beats close in along the ray through the battler's feet (the battler stays where it stands, and
+// the ball lands on it), and the trainer's return trucks over at home size (the trainer keeps its size).
+
+static BOOL CanBeat(void)
+{
+    return sStageCamera.promptSeen && CanKick() && sStageCamera.sequence != SEQUENCE_TO && sStageCamera.sequence != SEQUENCE_HOLD
+        && sStageCamera.sequence != SEQUENCE_INTRO;
+}
+
+// Closer in on a battler along the ray from the home camera through its feet: its feet keep their
+// screen point and its size grows to scale
+static BOOL DollyGoal(int battler, fx32 scale, CameraPose *goal)
+{
+    VecFx32 foot, rel, offset;
+    int homeX, homeY;
+
+    if (battler < 0 || battler >= MaxBattlers() || !BattlerFoot(battler, &homeX, &homeY, &foot) || scale <= 0) {
+        return FALSE;
+    }
+
+    VEC_Subtract(&sStageCamera.home.camPos, &foot, &rel);
+    VEC_Subtract(&sStageCamera.home.camPos, &sStageCamera.home.camTarget, &offset);
+    *goal = sStageCamera.homePose;
+    goal->focus.x = foot.x + FX_Div(rel.x, scale) - offset.x;
+    goal->focus.y = foot.y + FX_Div(rel.y, scale) - offset.y;
+    goal->focus.z = foot.z + FX_Div(rel.z, scale) - offset.z;
+    return TRUE;
+}
+
+static void StartBeat(int beat, int battler, const CameraPose *goal, int hold)
+{
+    sStageCamera.beat = beat;
+    sStageCamera.beatBattler = battler;
+    sStageCamera.beatHold = hold;
+    sStageCamera.holdFrames = 0;
+    sStageCamera.idlePose = -1;
+    sStageCamera.particleFocus = PARTICLE_FOCUS_BATTLER;
+    sStageCamera.particleBattlers[0] = battler;
+    sStageCamera.sequence = SEQUENCE_BEAT;
+    EaseToCurve(goal, BEAT_IN_FRAMES, BEAT_IN_BRAKE, CURVE_LINEAR);
+}
+
+static void EndBeat(void)
+{
+    sStageCamera.beat = BEAT_NONE;
+    sStageCamera.sequence = SEQUENCE_NONE;
+    EaseToCurve(&sStageCamera.homePose, BEAT_HOME_FRAMES, BEAT_HOME_BRAKE, CURVE_LINEAR);
+}
+
+// The battler's healthbar is in (a send-out's last step)
+static BOOL HealthbarIn(int battler)
+{
+    Healthbar *healthbar;
+
+    if (battler < 0 || battler >= MaxBattlers()) {
+        return TRUE;
+    }
+
+    healthbar = ov16_02263B08(BattleSystem_BattlerData(sStageCamera.battleSys, battler));
+    return healthbar->mainSprite != NULL && ManagedSprite_GetDrawFlag(healthbar->mainSprite) && healthbar->doneScrolling;
+}
+
+static void AdvanceBeat(void)
+{
+    if (sStageCamera.debugFlags != NULL && (*sStageCamera.debugFlags & BATTLE_STAGE_DEBUG_NO_CINEMATICS)) {
+        SnapHome();
+        return;
+    }
+
+    if (IsEasing()) {
+        return;
+    }
+
+    // A send-out holds until the new battler's healthbar is in (at most BEAT_RECALL_MAX), then a moment more
+    if (sStageCamera.beat == BEAT_SENDOUT && sStageCamera.beatHold == BEAT_HOLD_FOREVER) {
+        sStageCamera.holdFrames += STEP_FRAMES;
+
+        if (HealthbarIn(sStageCamera.beatBattler) || sStageCamera.holdFrames >= BEAT_RECALL_MAX) {
+            sStageCamera.beatHold = BEAT_SENDOUT_HOLD;
+        }
+        return;
+    }
+
+    if (sStageCamera.beatHold == BEAT_HOLD_FOREVER) {
+        return;
+    }
+
+    sStageCamera.beatHold -= STEP_FRAMES;
+
+    if (sStageCamera.beatHold <= 0) {
+        EndBeat();
+    }
+}
+
+static fx32 BeatScale(int battler)
+{
+    return (BattleSystem_BattlerSlot(sStageCamera.battleSys, battler) & 1) ? BEAT_ENEMY_SCALE : BEAT_PLAYER_SCALE;
+}
+
+void BattleStage_RecallCamera(int battler)
+{
+    CameraPose goal;
+
+    if (!CanBeat() || !DollyGoal(battler, BeatScale(battler), &goal)) {
+        return;
+    }
+
+    StartBeat(BEAT_RECALL, battler, &goal, BEAT_RECALL_MAX);
+}
+
+void BattleStage_SendOutCamera(int battler)
+{
+    CameraPose goal;
+
+    // The Totem's summoned ally has its own entrance
+    if (TotemBattle_IsActive(sStageCamera.battleSys) && battler == BATTLER_ENEMY_2) {
+        return;
+    }
+
+    if (!CanBeat() || !DollyGoal(battler, BeatScale(battler), &goal)) {
+        return;
+    }
+
+    // From the recall of the same slot (or a broken-free catch) the camera is already there
+    if (sStageCamera.sequence == SEQUENCE_BEAT && sStageCamera.beatBattler == battler) {
+        sStageCamera.beat = BEAT_SENDOUT;
+        sStageCamera.beatHold = BEAT_HOLD_FOREVER;
+        sStageCamera.holdFrames = 0;
+        return;
+    }
+
+    StartBeat(BEAT_SENDOUT, battler, &goal, BEAT_HOLD_FOREVER);
+    sStageCamera.holdFrames = 0;
+}
+
+void BattleStage_CatchCamera(int battler)
+{
+    CameraPose goal;
+
+    if (!CanBeat() || !DollyGoal(battler, BEAT_ENEMY_SCALE, &goal)) {
+        return;
+    }
+
+    // Held through the shakes: a break-free sends the Pokemon out again (SendOutCamera takes over and
+    // lets go), a catch holds until the battle ends
+    StartBeat(BEAT_CATCH, battler, &goal, BEAT_HOLD_FOREVER);
+}
+
+void BattleStage_EndBattleCamera(int battler)
+{
+    CameraPose goal;
+    VecFx32 foot;
+
+    // The defeated trainer comes back: truck over to the opponents' side at home size and stay
+    if (!CanBeat() || !SideFoot(BattleSystem_BattlerSlot(sStageCamera.battleSys, battler) & 1, &foot) || !TruckGoal(&foot, FX32_ONE, sPresetRow[1], &goal)) {
+        return;
+    }
+
+    StartBeat(BEAT_END, battler, &goal, BEAT_HOLD_FOREVER);
+    sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
 }

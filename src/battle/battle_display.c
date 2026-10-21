@@ -407,6 +407,7 @@ void ov16_0225CF70(BattleSystem *battleSys, BattlerData *param1, MonShowMessage 
         v2->unk_28.personalities[i] = message->battleMonPersonalities[i];
     }
 
+    BattleStage_SendOutCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_0225F0C0, v2, 0);
 }
 
@@ -433,6 +434,7 @@ void ov16_0225D118(BattleSystem *battleSys, BattlerData *param1, MonReturnMessag
         v1->unk_10.personalities[i] = message->battleMonPersonalities[i];
     }
 
+    BattleStage_RecallCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_0225F764, v1, 0);
 }
 
@@ -450,6 +452,7 @@ void ov16_0225D1C4(BattleSystem *battleSys, BattlerData *param1, CaptureOpenBall
 
     PokemonSprite_StartFade(v0->unk_04, 0, 16, 0, Unk_ov16_0226F1AE[message->ball]);
     PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_SHADOW_IS_AFFINE, 1);
+    BattleStage_CatchCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_0225FA00, v0, 0);
 }
 
@@ -566,6 +569,7 @@ void ov16_0225D414(BattleSystem *battleSys, BattlerData *param1, TrainerSlideInM
     v3->unk_08 = message->command;
     v3->unk_09 = param1->battler;
 
+    BattleStage_EndBattleCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_02260384, v3, 0);
 }
 
