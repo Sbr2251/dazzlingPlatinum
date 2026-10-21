@@ -719,6 +719,8 @@ Overlay battle
 	Object main.nef.p/src_battle_battle_stage_sprites.c.o
 	Object main.nef.p/src_battle_battle_stage_stream.c.o
 	Object main.nef.p/src_battle_battle_stage_camera.c.o
+	Object main.nef.p/src_battle_battle_stage_layout.c.o
+	Object main.nef.p/src_battle_battle_textbox.c.o
 	Object main.nef.p/src_battle_battle_debug.c.o
 }
 

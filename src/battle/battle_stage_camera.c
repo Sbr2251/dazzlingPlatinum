@@ -10,6 +10,7 @@
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_sprites.h"
+#include "battle/battle_textbox.h"
 #include "battle/healthbar.h"
 #include "battle/ov16_0223DF00.h"
 
@@ -52,8 +53,9 @@
 #define SHAKE_PERIOD_X 4
 #define SHAKE_PERIOD_Y 3
 
-// The cut-line guard (cut_guard.md). The top screen's battle textbox is up for the whole
-// battle, so off home the limit is its top edge; a change of limit eases over 8 screen frames.
+// The cut-line guard (cut_guard.md). Off home the limit is the battle textbox's top edge while
+// any of the box shows, the screen bottom once it has faded (battle_textbox.c); a change of
+// limit eases over 8 screen frames.
 #define CUT_EDGE_NONE 0x7FFF
 #define CUT_LIMIT_TEXTBOX 144
 #define CUT_LIMIT_SCREEN 192
@@ -585,7 +587,8 @@ static int CutShortfall(int limit)
 static void UpdateCutGuard(BOOL visible, const CameraPose *pose)
 {
     BattleStageCutGuardFields *guard = sStageCamera.cutGuard;
-    int limit = CUT_LIMIT_TEXTBOX;
+    // bw2vis:layout - the text box fades out for animations (battle_textbox.c)
+    int limit = BattleTextbox_IsClear() ? CUT_LIMIT_SCREEN : CUT_LIMIT_TEXTBOX;
     BOOL violation = FALSE;
     int max, pass, need, i;
 

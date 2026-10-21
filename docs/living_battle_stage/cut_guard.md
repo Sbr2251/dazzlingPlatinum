@@ -11,8 +11,12 @@ towards the middle of the screen. The flat bottom of the sprite then shows as a 
 ## The rule
 
 While the camera is off home, the cut edge of every cut sprite must stay at or below the limit:
-- **144**, the textbox top, while the battle textbox window is shown;
-- **192**, the screen bottom, while it is hidden.
+- **144**, the textbox top, while any of the battle textbox window shows;
+- **192**, the screen bottom, from the moment it starts to fade out until it shows again.
+
+The box fades out before animations and back in for text (textbox.md);
+`BattleTextbox_IsClear()` gives its state. The existing 8-frame ease of the limit covers the
+change. The Mega Evolution animation keeps the box up, so its framing is the same as before.
 
 At home nothing changes. The guard only runs on the off-home path, so the home frame stays
 byte-identical, and `stage_ab` stays an exact match.
@@ -53,8 +57,7 @@ bottom row, row 79.
 - The pan never goes the other way. The guard only pushes down, and never lifts anything.
 - **Continuity:** the required pan is a continuous function of the eased pose, so apply it
   directly. When the limit itself jumps (the textbox showing or hiding while off home), ease
-  the limit towards its new value over about 8 frames instead of popping. If the textbox state
-  can't be read cheaply and reliably, use 144 whenever off home.
+  the limit towards its new value over about 8 frames instead of popping.
 - The guard applies to every off-home pose, the debug views included.
 
 ## Mega re-aim (player branch)
