@@ -338,6 +338,7 @@ It plays the list in a day Plain battle, runs, and plays it again in a night one
 | effect visible: over the run, the largest share of the scene (HUD masked, pixels over 24 off) that differs from the closest of the pre-move frame and the idle frames reaches `min_change_pct` | FAIL; WARN as above | `expect: kept`. The classic run's share is in the detail |
 | arena faded: `fades` rose | FAIL | `expect: fade`. The stage and classic scene changes are a note |
 | camera home (`AT_HOME`) 90 frames after the move, `offHomeMoveFrames` in the detail | FAIL | camera fields |
+| particles stay on screen off home: see "Particles off home" below | PASS / WARN / FAIL | `sParticleSystems` and `sStageCamera` in the xMAP, and the camera left home during the move |
 | classic run (stage off) finished | FAIL | every move |
 | `<tod>`: stage switched off and back on around every classic run (the overlay text changed and RAM `enabled` read 0, then 1) | FAIL | once per battle |
 | no CPU exceptions (scenario-level, naming the moves) | FAIL | every move |
@@ -360,6 +361,31 @@ A critic agent compares the two rows. The stage version should read as the same 
 only on the 3D arena. At day the home pose is meant to match classic exactly (`stage_ab`), so the rows only
 differ where the effect does. Example on the 2026-09-26 main ROM: Muddy Water's classic row shows the water
 rising at +36..+63, and the stage row does not, because the arena is still in front of it.
+
+### Particles off home (per-move camera)
+
+Added by the camera templates (moves.md, "Per-move camera", "Templates"). While a move plays, `move_redo` reads
+every live particle every 2nd frame (`ParticleProbe`): the battle particle systems are `sParticleSystems`, each
+manager's active emitters, and each emitter's particles and child particles (`SPLParticle.position +
+emitterPos`). The battle particle cameras are orthographic at (0, 0, 4), fovy 45, aspect 4/3, so a particle at
+world (X, Y) draws at classic pixel (128 + 24 X, 96 - 24 Y); this was checked against the frames of Ember,
+Thunderbolt and Ice Beam. Off home the projection hook moves every particle by the camera's one particle
+similarity, read from `sStageCamera.particle` (and each battler's from `sStageCamera.anchors`, at fixed offsets
+from the struct's end: anchors 124 bytes before it, the particle anchor 28).
+
+Over the move's off-home samples:
+
+- **lost:** of the particle draws that classic shows inside the scene (above the text box, at least 16 px from
+  its edges), the share the camera puts outside it by more than 8 px. PASS at 5% or less, WARN up to 15%, FAIL
+  above.
+- **drift:** for particle draws within 44 px of a battler's body (20 px above its foot anchor), the distance
+  between where the particle similarity draws them and where that battler's own similarity would; the 95th
+  percentile. PASS at 16 px or less, WARN up to 32, FAIL above. Particles in flight between the battlers are
+  left to the lost share: their depth is unknown.
+
+On a ROM without the symbols the check is a note. The hand-authored camera moves give a reference: at 85% on
+the enemy's side (1.46x) Tackle, X-Scissor, Leaf Blade, Stone Edge and Air Slash WARN on lost (6-9%), and
+Shadow Ball FAILs (15% lost, 48 px drift: its charge sits off the attacker it frames, camera auditor bug B1).
 
 ## How a critic agent should use this
 
