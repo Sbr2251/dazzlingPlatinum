@@ -52,10 +52,13 @@
 #define HEALTHBAR_Y_OFFSET_PLAYER_SLOT_1 HEALTHBAR_Y_OFFSET_SOLO_PLAYER - 13
 #define HEALTHBAR_X_OFFSET_PLAYER_SLOT_2 HEALTHBAR_X_OFFSET_SOLO_PLAYER + 6
 #define HEALTHBAR_Y_OFFSET_PLAYER_SLOT_2 HEALTHBAR_Y_OFFSET_SOLO_PLAYER + 16
+// bw2vis:hud-gauges: the doubles foe gauges sit 4 px lower than Platinum's (-20 / +9), toward BW2, whose foe gauges
+// rest 12 px above and below its single foe gauge (btlv_gauge.c:662, after the 16 px nudge). Slot 2 is now +13; slot
+// 1 can't go past -16, as the boxes are 29 px tall and would overlap. 8 px stay clear above the doubles back sprites
 #define HEALTHBAR_X_OFFSET_ENEMY_SLOT_1  HEALTHBAR_X_OFFSET_SOLO_ENEMY + 6
-#define HEALTHBAR_Y_OFFSET_ENEMY_SLOT_1  HEALTHBAR_Y_OFFSET_SOLO_ENEMY - 20
+#define HEALTHBAR_Y_OFFSET_ENEMY_SLOT_1  HEALTHBAR_Y_OFFSET_SOLO_ENEMY - 16
 #define HEALTHBAR_X_OFFSET_ENEMY_SLOT_2  HEALTHBAR_X_OFFSET_SOLO_ENEMY
-#define HEALTHBAR_Y_OFFSET_ENEMY_SLOT_2  HEALTHBAR_Y_OFFSET_SOLO_ENEMY + 9
+#define HEALTHBAR_Y_OFFSET_ENEMY_SLOT_2  HEALTHBAR_Y_OFFSET_SOLO_ENEMY + 13
 
 // The selection sway. BW2 advances a 16-bit angle by 0x400 per 60 Hz frame (a 64-frame period); the battle's
 // tasks run at 30 Hz, so 0x800 per update keeps the period at 64 frames
