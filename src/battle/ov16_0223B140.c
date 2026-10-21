@@ -1571,18 +1571,23 @@ static void ov16_0223CF1C(void *param0)
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
-// The trainers are 2D OBJs: while the stage camera is off home they draw moved with their
-// side's platform, then go back, so the game's own position checks never see the offset
+// The trainers are 2D OBJs: while the stage camera is off home they draw moved and scaled with
+// their side's platform (the intro shots), then go back, so the game's own position checks
+// never see it (bw2vis:intro: was translate-only, which left the player's trainer full size
+// with a slice at the bottom-left while the camera was pushed in)
+static BattleStageIntroSpriteSave sTrainerSpriteSaves[MAX_BATTLERS];
+
 static void OffsetTrainerSprites(BattleSystem *battleSys, int sign)
 {
-    int i, dx, dy;
+    int i;
 
-    for (i = 0; i < battleSys->maxBattlers; i++) {
+    for (i = 0; i < battleSys->maxBattlers && i < MAX_BATTLERS; i++) {
         BattlerData *battlerData = battleSys->battlers[i];
 
-        if (battlerData != NULL && battlerData->unk_18 != NULL
-            && BattleStage_GetSideOffset(battlerData->battlerType & 1, &dx, &dy)) {
-            ManagedSprite_OffsetPositionXY(battlerData->unk_18, sign * dx, sign * dy);
+        if (battlerData != NULL && battlerData->unk_18 != NULL) {
+            BattleStage_FollowIntroSprite(battlerData->unk_18, battlerData->battlerType & 1, sign, &sTrainerSpriteSaves[i]);
+        } else {
+            sTrainerSpriteSaves[i].moved = FALSE;
         }
     }
 }

@@ -210,7 +210,10 @@ static const u16 Unk_ov16_0226F1AE[] = {
     0x151E
 };
 
-// bw2vis:intro. The stage's opening fade-in has started (the battle overlay's .bss is cleared per battle)
+// bw2vis:intro. The player-side battlers whose intro throw is on its way: the mon isn't out yet.
+// The stage's send-out shot goes home once the last one is out.
+static u8 sIntroSendOutPending;
+// The stage's opening fade-in has started (the battle overlay's .bss is cleared per battle)
 static BOOL sIntroFadeStarted;
 // The stage's opening: a master brightness fade-in over this many task frames (BW2: 16 levels,
 // 2 frames apart, btlv_scu.c:580-587), with the camera's opening shot
@@ -236,10 +239,21 @@ static void IntroBlackout(void)
     }
 }
 
+static void IntroMonOut(int battler)
+{
+    if (!(sIntroSendOutPending & (1 << battler))) {
+        return;
+    }
+
+    sIntroSendOutPending &= ~(1 << battler);
+    BattleStage_IntroMonOut(battler, sIntroSendOutPending == 0);
+}
+
 void ov16_0225CBB8(BattleSystem *battleSys, BattlerData *param1)
 {
     UnkStruct_ov16_0225CBB8 *v0 = (UnkStruct_ov16_0225CBB8 *)Heap_Alloc(HEAP_ID_BATTLE, sizeof(UnkStruct_ov16_0225CBB8));
 
+    sIntroSendOutPending = 0;
     IntroBlackout();
     v0->unk_00 = battleSys;
     v0->unk_14 = 0;
@@ -296,8 +310,13 @@ void ov16_0225CBDC(BattleSystem *battleSys, BattlerData *param1, MonEncounterMes
 
     v4->unk_08 = param1->unk_20 = ov16_02263B30(battleSys, v2, &v1, Unk_ov12_0223B0B8[BattleDisplay_LayoutType(param1->battlerType)][0], Unk_ov12_0223B0B8[param1->battlerType][1], Unk_ov12_0223B0B8[param1->battlerType][2], v6, v7, v8, v9, param1->battler, &v3[0], NULL);
 
-    if (v4->unk_13 == 2) {
+    // bw2vis:intro: the wild mon is added in colour on the stage (BW2, btlv_scu.c:650-658); the
+    // Platinum silhouette came back to colour only at the end of the slide
+    v4->unk_2D[0] = FALSE;
+
+    if (v4->unk_13 == 2 && !IntroNoSlide(battleSys)) {
         PokemonSprite_StartFade(v4->unk_08, 8, 8, 0, 0x0);
+        v4->unk_2D[0] = TRUE; // the silhouette, cleared when it lands
     }
 
     if ((v4->unk_13 == 2) && (BattleSystem_BattleStatus(battleSys) & 0x40)) {
@@ -540,9 +559,15 @@ void ov16_0225D360(BattleSystem *battleSys, BattlerData *param1, TrainerThrowBal
     if (param1->battlerType & 0x1) {
         v0->unk_0B = 2;
         v0->unk_0C = 0;
+        // bw2vis:intro: the trainer intro shot tightens on the opponent's throw (BW2 0x238)
+        BattleStage_IntroEnemyThrow(param1->battler);
     } else {
-        // The player's side sends out: the stage camera's battle-start focus eases home
+        // The player's side sends out: the stage camera's battle-start focus eases home (the
+        // legacy focus), or turns to the send-out shot (the intro shots, from the throw task)
         BattleStage_EndIntroFocus();
+
+        // bw2vis:intro: the send-out shot holds until the mon is out
+        sIntroSendOutPending |= 1 << param1->battler;
 
         {
             Trainer *trainer = BattleSystem_GetTrainer(battleSys, param1->battler);
@@ -1145,9 +1170,10 @@ void ov16_0225DEDC(BattleSystem *battleSys, BattlerData *param1, LeadMonMsgMessa
 
     ov16_02263E7C(battleSys, param1, message, &v2);
 
-    // "Go! {0}!": the stage camera's battle-start focus eases home
+    // "Go! {0}!": the stage camera's battle-start focus eases home, or (the intro shots) turns
+    // to the player's send-out shot (bw2vis:intro)
     if (!(param1->battlerType & 1)) {
-        BattleStage_EndIntroFocus();
+        BattleStage_IntroPlayerSendOut();
     }
 
     v1 = BattleSystem_GetMessageLoader(battleSys);
@@ -1618,7 +1644,10 @@ static void ov16_0225E4E8(SysTask *param0, void *param1)
                     ManagedSprite_SetPositionXY(v0->unk_0C->unk_00, 24 * 8, 8 * 11);
                 }
 
-                PokemonSprite_StartFade(v0->unk_08, 8, 0, 0, 0x0);
+                if (v0->unk_2D[0]) {
+                    PokemonSprite_StartFade(v0->unk_08, 8, 0, 0, 0x0);
+                }
+
                 v0->unk_12++;
             }
         } else {
@@ -1889,6 +1918,12 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
             v0->unk_83++;
         }
     case 4:
+        // bw2vis:intro: a player-side mon is out (full size): its healthbar may follow, and the
+        // send-out shot goes home once the last one is out
+        if (v0->unk_84 != 2 && PokemonSprite_GetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_X) >= 0x100) {
+            IntroMonOut(v0->unk_81);
+        }
+
         if ((PokemonSprite_GetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_X) == 0x100) && (ov12_022363C4(v0->unk_08) == 0)) {
             if (v0->unk_84 == 2) {
                 PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
@@ -1985,6 +2020,10 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
         }
         break;
     default:
+        if (v0->unk_84 != 2) {
+            IntroMonOut(v0->unk_81);
+        }
+
         Sound_Set2PokemonCriesAllowed(0);
         BattleController_EmitClearCommand(v0->unk_00, v0->unk_81, v0->unk_80);
         Heap_Free(param1);
@@ -3003,7 +3042,8 @@ static void SlideHealthbarInTask(SysTask *task, void *data)
             break;
         }
 
-        // The player's throw waited for the stage camera: the bar still comes in after the mon
+        // The player's throw waited for the stage camera, or the send-out shot isn't home yet:
+        // the bar still comes in after the mon (bw2vis:intro)
         if (BattleStage_HoldSendOutHealthbar(healthbar->battler)) {
             break;
         }
@@ -5297,7 +5337,8 @@ static const int Unk_ov16_0226F1D0[] = {
 
 // bw2vis:intro. The opening on the 3D stage, BW2's way (presentation.md rows 1-2): no Platinum
 // curtain (the terrain's particle wipe and the white burst); the scene is set up at once, in
-// colour, and fades in from black with master brightness on both screens (btlv_scu.c:580-587).
+// colour, and fades in from black with master brightness on both screens while the camera
+// plays its opening shot (BattleStage_StartIntroOpen; btlv_scu.c:652-658, 758-762).
 static BOOL IntroStageOpening(SysTask *task, UnkStruct_ov16_0225CBB8 *data, PaletteData *paletteSys)
 {
     int brightness;
@@ -5338,6 +5379,7 @@ static BOOL IntroStageOpening(SysTask *task, UnkStruct_ov16_0225CBB8 *data, Pale
         PaletteData_StartFade(paletteSys, 0x4, 0x3fff, 0, 0, 0, 0xffff);
         PaletteData_StartFade(paletteSys, 0x2 | 0x8, 0xffff, 0, 0, 0, 0x7fff);
 
+        BattleStage_StartIntroOpen();
         data->unk_16 = 0;
         data->unk_14 = 10;
         return TRUE;
@@ -5968,10 +6010,9 @@ static void ov16_02263688(SysTask *param0, void *param1)
 
     switch (v0->unk_0E) {
     case 0:
-        // An OBJ can't follow the stage camera: the battle-start focus eases home first
-        BattleStage_EndIntroFocus();
-
-        if (!BattleStage_IsIntroFocusDone()) {
+        // An OBJ can't follow the stage camera: the battle-start focus eases home first. A
+        // streamed opponent's copy stays hidden, so the intro shots go on (bw2vis:intro).
+        if (!BattleStage_IntroSpriteToOAM(v0->unk_0D)) {
             break;
         }
 

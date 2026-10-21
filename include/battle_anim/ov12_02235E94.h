@@ -41,6 +41,10 @@ void ov12_02237E34(BallRotation *param0, int param1);
 void ov12_02237E40(BallRotation *param0, int param1);
 // The thrown ball's sprite (the battle raises it over the 3D stage, see ov16_0223B140.c)
 ManagedSprite *BallRotation_GetSprite(BallRotation *ballRotation);
+// bw2vis:intro: called around each draw of a battle's ball OBJ, with the throw's target battler
+// and sign 1 before the draw, -1 after it (the stage camera's intro follow)
+typedef void (*BallRotationDrawHook)(ManagedSprite *sprite, int target, int sign);
+void BallRotation_SetDrawHook(BallRotationDrawHook hook);
 void ov12_02237E4C(BallRotation *param0, int param1);
 
 #endif // POKEPLATINUM_OV12_02235E94_H
