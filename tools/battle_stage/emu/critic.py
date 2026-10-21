@@ -874,7 +874,7 @@ def _stream_lasting(sc: Scenario, mid: int, direction: str, key: str, st0: Optio
                     now: Optional[dict]) -> None:
     """After the move tester's Transform or Substitute: the user's sprite streams what its new template says
     (sprite_stream.md, "Battle events"). Transform: the target's art, so a different member than the user's
-    own (both species have one); Substitute: the doll, which has no stream, so nothing stale stays bound."""
+    own (both species have one); Substitute: the doll's own stream (or classic), nothing stale stays bound."""
     if now is None or "member" not in now or st0 is None:
         return
     user = 0 if key == "A" else 1
@@ -889,11 +889,13 @@ def _stream_lasting(sc: Scenario, mid: int, direction: str, key: str, st0: Optio
                  f"Transform, {cur} after; drawnMask {_bits(now['drawnMask'])}",
                  why="still the user's own stream (stale) or none: the template change did not reload the stream")
     elif mid == 164:
-        cur = now["member"][user]
-        sc.check(f"{tag}: Substitute doll drawn classic (no stream bound)",
-                 cur == 0 and not now["loadedMask"] & (1 << user) and not now["drawnMask"] & (1 << user),
-                 f"sprite {user}: member {cur}, loadedMask {_bits(now['loadedMask'])}, drawnMask {_bits(now['drawnMask'])}",
-                 why="the doll kept a mon's stream: the user's animation would draw over the doll")
+        # bw2vis:sprite-source: the doll streams BW2's doll now (its own member); a NARC without one draws it classic
+        own, cur = st0["member"][user], now["member"][user]
+        sc.check(f"{tag}: Substitute doll drawn from its own stream or classic (not the mon's)",
+                 cur != own and (cur == 0 or bool(now["drawnMask"] & (1 << user))),
+                 f"sprite {user}: member {own} before the battle's first move, {cur} after, loadedMask "
+                 f"{_bits(now['loadedMask'])}, drawnMask {_bits(now['drawnMask'])}",
+                 why="the doll kept the mon's stream: the user's animation would draw over the doll")
 
 
 def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
