@@ -1,121 +1,254 @@
 # Gen 5 animated battle sprites (sprite stream)
 
-This is step 2 of the Gen 5 sprite plan. Step 1 streamed Black/White's animated battle sprites
-into the battle for 16 species and measured the cost. Step 2 does every species that has B/W
-art. It reads the frames from the card while the battle runs, so a stream costs a few KB of
-heap instead of the whole member. It also plays the animation on the summary screen, in the
-Pokedex and on the evolution screen. It builds on sprites.md: in battle, the stage's sprite
-mesh draws the stream in place of the classic 80x80 frame.
+This is step 3 of the Gen 5 sprite plan. Step 1 streamed Black/White's animated battle sprites into
+the battle for 16 species and measured the cost. Step 2 did every species that had B/W art, from the
+PokeAPI B/W GIFs. Step 3 (bw2vis, workstream sprite-source) re-sources every stream from Black 2/
+White 2's own sprite data, played the way BW2's battle plays it. The frames are read from the card while
+the battle runs, so a stream costs a few KB of heap instead of the whole member. The animation also
+plays on the summary screen, in the Pokedex and on the evolution screen. It builds on sprites.md: in
+battle, the stage's sprite mesh draws the stream in place of the classic 80x80 frame.
 
-Species with a stream: 483, with 1152 streams. 93 species have their own female front and
-back art. Species without a stream draw exactly as before:
+Streams: 523 species (every species with B/W art, the 43 Gen 5 species added after Arceus included),
+1390 faces in 1369 members. 96 species have their own female front and back art. The 12 form species
+have a stream per form (150 form faces, see Forms), and so has the Substitute doll. Without a stream,
+and drawn exactly as before:
 
-- the form species, whose battle sprite comes from PL_OTHERPOKE: Arceus, Burmy, Castform,
-  Cherrim, Deoxys, Gastrodon, Giratina, Rotom, Shaymin, Shellos, Unown, Wormadam;
-- Spinda;
+- Spinda (see Spinda);
+- Arceus's ??? form (BW2 has no ??? type);
 - the Egg.
 
-The 11 Megas have no B/W art. Each Mega's classic back becomes a still stream (see Megas), and
-its front stays classic.
+The 11 Megas have no B/W art. Each Mega's classic back and front become still streams (see Megas).
 
 ## Data
 
-`tools/gen5_sprites/gen5_stream.py` builds `res/prebuilt/battle/graphic/mon_stream.narc` from
-the PokeAPI B/W animated GIFs. With no arguments it does every species. The GIFs are cached in
-`~/.cache/gen5_sprites` and are not checked in, and so is each species' result, so a rerun
-takes seconds. The tool's docstring has the member format:
+`tools/gen5_sprites/gen5_stream.py` builds `res/prebuilt/battle/graphic/mon_stream.narc`. With no
+arguments it does every species, the forms and the doll; each unit's result is cached in
+`~/.cache/gen5_sprites/built`, so a rerun takes seconds (a cold run about 15 s on the devserver).
 
-- **Member 0** is the index, version 2: `{u16 version, numPokegra, numOtherpoke, reserved}`,
-  then one `u16` member per PL_POKEGRA file, by `PokemonSpriteTemplate.character`
-  (species * 6 + file: 0 female back, 1 male back, 2 female front, 3 male front), then one
-  per PL_OTHERPOKE file.
+**Source.** pokebw2's extracted MCSS data (`/data/repos/pokebw2/res/pokemon/<species>[/form_<n>]/`,
+read-only; the battle side of this hack already uses B/W art, see the bw2vis asset policy): the NMAR
+multi-cell animation, the NMCR multi-cells, the NANR cell animations, `info.bin` (MCSS's quad table
+and idle nodes), the 256x128 atlas (`front.png`, `front_female.png`, `back*.png`) and `normal.pal`/
+`shiny.pal`. Species map to pokebw2's folders by national dex number (`dex_numbers.json` for the species
+after Arceus; pokebw2's `generated/species.txt` gives the folder). A species pokebw2 lacked would fall
+back to the step 2 path, the PokeAPI B/W animated GIFs (`--gif` builds everything that way); today none
+does.
+
+**Playback.** `tools/gen5_sprites/mcss.py` plays a face one 60 Hz tick at a time and draws it, ported
+from pokebw2:
+
+- NitroSystem's animation controller (`lib/nnsys/src/g2d/g2d_Animation.c`), line for line: loop start,
+  the four play modes, zero-length frames, the end-of-sequence callback.
+- The multi-cell animation in share-cell-animation mode (`g2d_MultiCellAnimation.c`): at each NMAR
+  keyframe every node's cell animation is bound again, and a node in play mode CONTINUE is played on to
+  the multi-cell animation's total time.
+- MCSS's draw (`src/system/mcss.c` `MCSSSys_Draw`, `MCSS_DrawQuad`): multi-cell offset, rotation and
+  scale; node position plus cell translation; cell rotation and scale; quad offset and size. Nodes from
+  node 0 with the depth stepping back per quad, so node 0 and a cell's second quad are in front. Ortho
+  ("flat") at one texel per pixel, nearest texel at each pixel centre. Tick 0 matches pokebw2's
+  `front_single.png` stills to within a few pixels.
+- The battle's loop (`src/ov168/btlv_mcss.c` `BtlvMcss_Main`, `BtlvMcss_OnAnimationEnd`): a face
+  without idle data restarts the animation the frame after its loop ends, so its loop is the pose at the
+  loop's end followed by ticks 1 .. L-1; a face with idle data runs on into the next loop until an idle,
+  and the first loop (ticks 0 .. L-1) is kept.
+
+So the frames, their durations and the loop length are BW2's, every part moves at full rate, and the
+colours are BW2's normal and shiny palettes, index for index. Each distinct frame is stored once; the
+steps give each its duration in 60 Hz ticks.
+
+**Classic files.** The tool also writes, from the same frames, each species'
+`{male,female}_{front,back}.png`, `normal.pal` and `shiny.pal` (BW2's palettes, colour 0 the repo's
+transparent grey), each form's `forms/<form>/{front,back}.png` and palettes, and the doll's
+`.shared/substitute_{front,back}.png` and `substitute.pal`. The PNGs hold frame A (step 0) and a mid-loop
+frame B, cut from the canvas's classic window, so everything that still draws the classic sprite matches
+the stream, and so does the battler's palette slot. Their first four pixels are always transparent:
+pokegra and otherpoke NCGRs are encrypted front to back with the `.png.key` (nitrogfx `-scan`) and
+the game takes the first encrypted u16 as the seed, which only holds when those pixels are 0; otherwise the
+whole classic sprite decodes to noise. In `sprite_data.json` the tool sets `y_offset` to 0 and the
+front's `addl_y_offset` to the species' lift (Hover); in `res/prebuilt/poketool/pokegra/height_o.narc` it
+sets the y_offset of every streamed form face and of the doll to 0 (`LoadPokemonSpriteYOffset` reads
+HEIGHT_O for the form species; its index is the PL_OTHERPOKE character, plus 2 from Shaymin on, and 134
+and 135 are the doll's).
+
+### Member format
+
+- **Member 0** is the index, version 3: `{u16 version, numPokegra, numOtherpoke, reserved}`, then one
+  `u16` member per PL_POKEGRA file, by `PokemonSpriteTemplate.character` (species * 6 + file: 0 female
+  back, 1 male back, 2 female front, 3 male front), then one per PL_OTHERPOKE file.
   - 0 means no stream. A female file with 0 falls back to the male file's member.
-  - The PL_OTHERPOKE table holds only the Mega backs, at each Mega's `spriteCharacter`.
-  - The step 1 index had no header (its first `u16` is 0); the readers still take it.
-- **Every other member** is one stream:
-  - a header with the animation's box in the canvas and its draw scale in eighths
-    (`u8 numFrames, scale`; 0 reads as 8, 1:1, so step 1 members still work);
+  - The PL_OTHERPOKE table holds the form species' forms (their characters in `BuildPokemonSpriteTemplate`,
+    which is how the form index reaches the lookup), the Mega backs and fronts, and the doll (the two
+    PL_OTHERPOKE files after the species' ones, `SUBSTITUTE_BACK_NCGR`/`SUBSTITUTE_FRONT_NCGR`).
+  - Identical members are stored once (Arceus's forms differ only in their palettes).
+  - Version 2 had the same index with 8-byte stream headers. The runtimes take only version 3; any other
+    index draws everything classic.
+- **Every other member** is one stream (`MonStreamHeader`, `include/pokemon_sprite_stream.h`):
+  - a 12-byte header: `u8 numFrames, scale` (eighths; 8 fronts, 14 backs, 14 to 16 Mega backs),
+    `u16 numSteps`, the animation's box in the canvas (`u8 left, width` in bytes, `top, height` in rows),
+    `u8 idleKind, numIdleSteps, u16 reserved` (see Idle data);
   - frame offsets, in order and on 4-byte boundaries;
-  - `{frame, duration}` steps on the 60 Hz clock;
+  - the loop's `{u8 frame, u8 duration}` steps on the 60 Hz clock, then the idle clip's;
   - LZ77 frames that cover the box only.
 
-The NARC is 24.8 MB (23.6 MiB). The ROM now uses 93.7 MB of a 128 MiB cartridge. A stream is
-17 KB at the median, and members are capped at 96 KB. A stream over the cap drops its most
-similar frames until it fits ("dropped" in `report.json`). Six faces lost frames:
+### Idle data
 
-| | dropped frames |
-|---|---|
-| Masquerain back | 117 |
-| Yanmega back | 79 |
-| Vespiquen back | 74 |
-| Masquerain front | 9 |
-| Magmortar back | 1 |
-| Yanmega front | 1 |
+What BW2 does at the end of a loop (pokebw2 `btlv_mcss.c` `BtlvMcss_OnAnimationEnd` :2055-2091,
+`BtlvMcss_IdleTask` :1921-1954, `BtlvMcss_IdleNodeCallback`): a face whose `info.bin` idle node count is
+0xFF just restarts. Any other face rolls an idle, with a chance of 1/3, then 1/2, then 1 at successive
+loop ends (back to 1/3 after an idle). An idle switches to the face's second NMAR sequence if it has one
+(always a single keyframe: a pose, often eyes shut), stops the multi-cell clock and every node's cell
+animation except the listed idle nodes, holds for 48, 56 or 64 frames (`data_ov168_021f4184`, at random),
+then restarts sequence 0 from tick 0.
 
-The tool also rewrites, from the same art, each species' `{male,female}_{front,back}.png`,
-`normal.pal` and `shiny.pal`. The PNGs hold frame A and a mid-loop frame B, cut from the
-canvas's classic window. So everything that still draws the classic sprite matches the
-stream, and so does the battler's palette slot.
+| `idleKind` | BW2 | idle steps | faces (species' male faces) |
+|---|---|---|---|
+| `MON_STREAM_IDLE_NONE` 0 | idle node count 0xFF (Zubat, Beautifly, Hydreigon...) | none | 43 fronts, 43 backs |
+| `MON_STREAM_IDLE_FREEZE` 1 | no second sequence | one step: step 0's frame (what is on screen as the loop wraps), 64 ticks | 442 fronts, 443 backs |
+| `MON_STREAM_IDLE_POSE` 2 | a second sequence: the pose, with the idle nodes (flames, Gastly's gas...) still moving, the rest held | the pose rendered at 60 Hz for 64 ticks, one step per change (1 step without idle nodes) | 38 fronts, 37 backs |
 
-- `shiny.pal` is mapped index for index: each colour is paired with the shiny colour at the
-  same pixels of the shiny GIF, so a battler's shiny palette slot just works.
-- The tool sets `y_offset` in `sprite_data.json` to 0, because the art already stands on the
-  frame's last row. `res/pokemon/meson.build` lists every `sprite_data.json` as a dependency of
-  `height.narc`, so that edit rebuilds the NARC.
+The idle clip's frames are in the member's frame table (shared when identical), so the idle nodes need no
+per-part data at runtime. `numIdleSteps` is 0 exactly when `idleKind` is NONE. `MonStream_Steps` and
+`MonStream_IdleSteps` give the two step tables; in battle, `BattleStageStream_GetHeader(battler)` returns
+the loaded member (header, offsets, both step tables, already in RAM; NULL for a classic battler). The
+battle plays it (bw2vis:idle, Runtime "Special idle"): at a loop wrap it rolls BW2's chance, plays the
+idle steps for the wait and restarts the loop at step 0.
 
-**Canvas.** The canvas is 128x96: a whole texture row wide. A Gen 5 frame is 96x96, centred,
-with the union of all frames standing on row 87. At 1:1 the classic 80x80 frame is the
+### Counts and sizes
+
+The NARC is 31.0 MB (26.98 MB in step 2). The ROM now uses 101.1 MB of its 128 MiB (97.2 MB before;
+measured on main plus this work, before the other bw2vis workstreams).
+A stream is 18 KB at the median (17.7 KB before). Members stay capped at 96 KB (`MAX_MEMBER`, kept for
+the ROM size) and at 255 frames (a step's frame is a u8). A stream over either drops its most similar
+frames: the frame before it in the loop takes its steps, so every step keeps its duration and the loop its
+BW2 length ("dropped" in `report.json`). The faces that lost frames are the fast wing-beaters and the
+busiest bodies:
+
+| | distinct frames | dropped |
+|---|---|---|
+| Yanmega front / back | 351 / 351 | 269 / 265 |
+| Vespiquen front / back | 308 / 320 | 210 / 216 |
+| Masquerain front / back | 230 / 232 | 122 / 118 |
+| Scizor front / back (female the same) | 183 / 156 | 99 / 63 |
+| Beedrill front | 177 | 78 |
+| Tentacruel front / back | 110 / 112 | 32 / 37 |
+| Magmortar front / back | 92 / 95 | 28 / 26 |
+| Swoobat front / back | | 27 / 21 |
+| Gastly front / back | 132 / 132 | 16 / 4 |
+| Dodrio front (female 10), Yanma front | | 9, 6 |
+
+(Step 2's GIFs had 10 to 20 fps steps; the kept frames are still at least that dense.)
+
+### Canvas, scale and hover
+
+**Canvas.** The canvas is 128x96: a whole texture row wide. The foot point (MCSS's origin, where BW2's
+battle puts the Pokemon) is on the canvas's centre column (64) and on the top edge of row 88, the first
+row below the classic frame's last; art may reach 8 rows below it (Turtwig, Excadrill). A face is shifted
+sideways only as far as it must to fit (Gyarados, Gorebyss). At 1:1 the classic 80x80 frame is the
 canvas window at (24, 8).
 
-**Scale.** A member's scale is in eighths. Fronts are 1:1. Backs are stored 1:1 and drawn at a
-flat 1.75x (14/8). Black/White draw them at 2x, but at 2x Garchomp's back is about 166 px tall,
-more than the 144 px above the textbox; at 1.75x it just fits. Every path maps a classic frame
-pixel (x, y) to the texel `u = ((x - 40) * 8 + 64s) / s`, `v = ((y - 80) * 8 + 88s) / s`
-(`MON_STREAM_TEXEL_U/V`, nearest neighbour), so the canvas's centre column stays on the frame's
-centre and the ground row stays on its bottom row. At 1.75x the classic window of a back holds
-only its bottom-centre 46x46 texels; the PNGs, the move copies and the other screens all show
-that window.
+**Scale.** A member's scale is in eighths. Fronts are 1:1, as in BW2. Backs are stored 1:1 and drawn
+at a flat 1.75x (14/8); BW2 draws them at 2x (the layout workstream owns the drawn scale). Every path
+maps a classic frame pixel (x, y) to the texel `u = ((x - 40) * 8 + 64s) / s`,
+`v = ((y - 80) * 8 + 88s) / s` (`MON_STREAM_TEXEL_U/V`, nearest neighbour), so the canvas's centre column
+stays on the frame's centre and the ground row on its bottom row. At 1.75x the classic window of a back
+holds only its bottom-centre 46x46 texels; the PNGs, the move copies and the other screens all show that
+window.
 
-**Sink.** The healthbars are OBJs, drawn over the 3D layer, so a tall back reaching the
-opponent's HP box (its bottom is about 86 screen px above the player's feet) has its head
-hidden behind it. Black/White have the same layering, but their textbox is on the touch screen,
-which leaves them 48 more rows. So a back taller than 100 frame px sinks by the excess, at most
-40 (`BACK_ROOM`, `BACK_MAX_SINK` in `battle_stage_stream.c`), and its feet go behind the
-textbox, the way B/W's screen edge crops tall backs. Garchomp, Torterra and 67 others sink the
-full 40, Lucario 15, Staraptor 19; about half the backs (Budew, Finneon, ...) don't move. The
-blob shadow stays on the ground. The sink is in `BattleStageStream_CanvasRect`, so every draw
-of the battler, the faint slide and the send-out included, takes it; the move copies don't.
+**Hover.** BW2 has no altitude table: every battler stands at the same y, and a floater's hover is in
+its art, above the foot point (pokebw2 `btlv_mcss.c:192-195`). Step 2 stood every animation's lowest
+point on the ground row and kept Platinum's `addl_y_offset`, tuned for Platinum's art, so 120 species sank
+into the platform (Metagross 12 px), 34 grounded ones floated (Whimsicott 18) and the Gen 5 species had
+their Sinnoh stand-in's value (`gen5_species.py`). Now:
 
-**Megas.** B/W has no Megas, and their classic backs, drawn 1:1, came out about half the size
-of the B/W backs around them (Mega Lucario 65 px against Lucario's 116). The tool makes each
-Mega's frame A from `forms/mega/back.png` a one-frame stream in the Mega's own palette, standing
-on the ground row, at the scale that matches its base form's back height: at least 1.75x, at
-most 2x (`MON_STREAM_MAX_SCALE`). Lucario, Alakazam, Empoleon and Staraptor get 1.75x; Gengar,
-Gyarados and Torterra 1.875x; Garchomp, Gardevoir, Infernape and Scizor 2x. The sink applies the
-same way (Mega Garchomp 36, Mega Lucario 13). The base species' `y_offset` is 0, and the Mega
-uses it too, so the stream stands where the base form does. The members are in `report.json`
-under `megas`. The fronts aren't streamed: at 1:1 most are already about as big as their
-base form's B/W front. Mega Gyarados is the smallest, at about two thirds of Gyarados.
+- Backs carry their hover in the canvas, exactly as BW2 draws them (119 backs hover).
+- A front is drawn down in the canvas by its species' lift, the hover of its lowest point over the whole
+  loop and idle clip (the least over the species' front faces: male, female, forms), and
+  `addl_y_offset` (the battle's shadow height, which raises enemy fronts: `battle_display.c`,
+  `pokemon_sprite.c`) is that lift. Every front frame then lands where BW2 draws it relative to the foot
+  point; floaters keep their canvas room, and move animations aiming at `MON_SPRITE_SHADOW_HEIGHT` aim at
+  the body. 118 species have a lift (Wingull 26, Zubat and Magnemite 22, Woobat 14, Bronzor and Frillish 7); a floater that dips to
+  the ground somewhere in its loop has lift 0 and its hover in the canvas (Gastly, which sinks to the
+  ground mid-loop; Hydreigon; Jellicent).
+- Measured in battle (`/tmp/bw2vis/sprite-source/README.md`): every enemy front's BW2 foot point lands on
+  the same screen row.
 
-**Fit.** Art taller than the room above the ground row (88 rows), or wider than the canvas, is
-cropped at the top when it overflows by a few rows; otherwise a front is scaled down. Backs are
-never scaled down: at 1.75x the room's top rows are off the screen anyway, so they are only
-cropped. (A back wider than 137 texels would also pass the mesh's 240-pixel quad; the canvas is
-narrower.)
+**Sink.** The healthbars are OBJs, drawn over the 3D layer, so a tall back reaching the opponent's HP
+box (its bottom is about 86 screen px above the player's feet) has its head hidden behind it. BW2 has the
+same layering but another layout: its player foot point is about 20 px below the bottom of the top screen,
+so BW2 crops tall backs at the screen edge. (Its message window is on the top screen too, rows 152-184,
+and fades out before move animations: `btlv_scu.c:420,432`. Step 2 said it was on the touch screen; it
+isn't.) So a back taller than 100 frame px above its feet sinks by the excess, at most 40 (`BACK_ROOM`,
+`BACK_MAX_SINK` in `battle_stage_stream.c`), and its feet go behind the textbox. A back's baked hover
+counts in that height, so a high floater's back sinks too (Zubat 24). The shadow stays on the
+ground. The sink is in `BattleStageStream_CanvasRect`, so every draw of the battler, the faint slide,
+the send-out and the move copies included, takes it.
 
-- Fronts: 5 cropped (Yanmega, Kingdra, ...), 7 scaled down, to 0.75 at the least (Pidgeotto,
-  Hydreigon, Lugia, Fearow, Ho-Oh, Rayquaza, Moltres).
-- Backs: 11 cropped. Fearow and Hydreigon lose 24 rows, Rayquaza 19, Lugia 10 rows and 18
-  columns, Ho-Oh 9, the rest 7 or fewer.
+**Fit.** A front that would reach more than 8 rows above the canvas once lifted, or is wider than it,
+is scaled down about its feet (Pillow's box filter, colours back to the palette); one at most 8 rows over
+loses its top rows. Backs are never scaled down: at 1.75x the room's top rows are off the screen anyway,
+so they are only cropped, and their sides are cut to the canvas.
 
-`report.json` lists every species.
+- Fronts scaled down: Pidgeotto 0.76, Hydreigon 0.82, Lugia 0.84, Fearow 0.85, Ho-Oh 0.87, Swoobat
+  0.89, Rayquaza 0.91, Moltres 0.98. Cropped at the top: Giratina Origin 9 rows, Yanmega 6, Kingdra and
+  Charizard 3, Mesprit 2, Chandelure, Giratina, Rayquaza 1.
+- Backs cropped at the top: Hydreigon 23 rows, Pidgeotto 22, Fearow 21, Lugia 18 (and 18 columns),
+  Rayquaza 13, Latios 12, Chandelure 11, Mismagius and Swoobat 6, Kingdra 5, Ho-Oh 4, the rest 2 or fewer.
+- Art more than 8 rows below the feet loses its bottom rows: Yanmega back 4, Excadrill back 2, Conkeldurr
+  front 1. Shifted sideways to fit: Gyarados front 10 px, Moltres front 5, Gorebyss back 5, Drapion back 1.
+
+`report.json` lists every face: source folder, loop length, distinct and kept frames, steps, idle kind
+and steps, bytes, box, lift, hover, shrink, crops, shift.
+
+### Forms
+
+The form species draw from PL_OTHERPOKE (`BuildPokemonSpriteTemplate`), so each form face's stream is at
+its PL_OTHERPOKE character: the form index reaches the stream through the template. The tool reads each
+species' `meson.build` (`otherpoke_index`) for the characters and palette files, and maps our form
+directories to pokebw2's (`FORM_BW2`, checked against pokebw2's `form_<n>.json` types):
+
+| species | forms streamed |
+|---|---|
+| Unown | 28: A-Z, !, ? (one shared palette, as in BW2) |
+| Arceus | 17 types (BW2's forms are palettes on the base art); ??? stays classic |
+| Rotom | 6 | 
+| Castform, Deoxys | 4 each (Deoxys: one shared palette) |
+| Burmy, Wormadam | 3 each |
+| Shellos, Gastrodon, Cherrim, Giratina, Shaymin | 2 each |
+
+### Substitute doll
+
+BW2's doll (`res/pokemon/shared/substitute`, one still keyframe front and back) is a stream at the doll's
+two PL_OTHERPOKE characters: the front 1:1, the back at the backs' 1.75x. Its classic PNGs and
+`substitute.pal` are rewritten from it, and its HEIGHT_O y_offsets (134, 135) are 0.
+
+### Megas
+
+B/W has no Megas. Each Mega's classic back, drawn 1:1, came out about half the size of the B/W backs
+around them, so frame A of `forms/mega/back.png` is a one-frame stream in the Mega's own palette,
+standing on the ground row, at the scale that matches its base form's back height: at least 1.75x, at
+most 2x (`MON_STREAM_MAX_SCALE`). Frame A of `forms/mega/front.png` is a one-frame stream at 1:1, standing
+on the ground row: the Mega shares its base species' `y_offset` (0) and `addl_y_offset` (the B/W art's
+lift, 0 for all 11 bases), so its classic front would float by its own blank rows (Mega Gyarados 12).
+Members: `report.json` under `megas`.
+
+### Spinda
+
+Not streamed. BW2 paints Spinda's spots into the MCSS atlas at load, per personality
+(`mcss_tool.c` `MCSS_DrawSpindaSpots`: two copies of four spots, one for the head cells sampled from atlas
+rows 0-24, which rotate by up to 20 degrees in a quarter of the front's frames, one for the face cell
+from rows 48-96), and the parts then move with them. A pre-rendered stream can't carry 2^32 spot layouts,
+and painting them at runtime needs each frame's atlas-to-canvas map for those cells plus a painter in
+both stream runtimes. Platinum's classic spot overlay can't simply be laid on a stream frame either: it
+paints fixed places of the classic frame, which the moving head leaves. So Spinda keeps its classic
+sprite, whose spots are right for its personality.
 
 ## Runtime
 
 One format header serves both runtimes: `include/pokemon_sprite_stream.h`. It has the index
-lookup (`MonStream_IndexEntries`: v1 and v2, the female fallback, no Spinda), the member checks
-(`MonStream_IsValid`, `MonStream_FrameEnd`, `MonStream_IsFrameValid`, which checks a frame's
-LZ77 header before decoding) and `MonStream_ReadFile`. A member or frame that fails a check
+lookup (`MonStream_IndexEntries`: version 3 only, the female fallback, no Spinda), the member checks
+(`MonStream_IsValid`, which also checks the idle steps, `MonStream_FrameEnd`, `MonStream_IsFrameValid`,
+which checks a frame's LZ77 header before decoding), the step tables (`MonStream_Steps`,
+`MonStream_IdleSteps`) and `MonStream_ReadFile`. A member or frame that fails a check
 draws the classic sprite.
 
 **No card DMA.** Every stream read takes the CPU path, never card DMA. The card DMA is an auto
@@ -137,10 +270,14 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
   - The load is refused when it would leave less than 128 KB of `HEAP_ID_BATTLE` free. The
     battler then draws classic.
   - The classic frame shows until the first stream frame is in.
-- **Frame reads.** Each battler has its own `FSFile` on the NARC. It asks for the next frame
-  the steps change to, one frame ahead, with `FS_ReadFileAsync`.
+- **Frame reads.** Each battler has its own `FSFile` on the NARC. It asks, one draw ahead, for the
+  frame of the step the next draw lands on (`StepAfter`: as many vblanks on as the last draw took,
+  at the battler's rate), or else the next frame the steps change to, with `FS_ReadFileAsync`.
   - The card thread outranks the game's, so the read is done before the call returns.
-  - A step whose frame isn't in yet holds the step before it (`stallFrames`).
+  - The battle draws every second vblank and B2W2's steps can last one, so the steps skip the frames
+    no draw lands on, and their time never stops: a step whose frame isn't in yet leaves the frame
+    on screen one draw longer (`stallFrames`). Step 2 held the step instead, which slowed B2W2's
+    fast loops (Vespiquen by 11%).
   - A failed read drops the stream for good; the battler draws classic.
 - **Each frame (`BeginFrame`).** The runtime advances the steps by VBlank count. When the step's
   frame is in, it decompresses it (`MI_UncompressLZ8`) and copies the box rows into the texture
@@ -174,8 +311,12 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
   - No healthbar (hidden, the send-out, a faint) keeps the battler's last rate and tint, as
     B/W does. A new mon (an inactive sprite, or a different sprite template) starts at full
     speed with no tint.
+  - Special idle (bw2vis:idle): at a loop's end B/W may hold the mon for 48-64 frames; the
+    stream plays it as a second step table, from the member's idle clip or, without one, the
+    loop's first frame held (sprites.md, "Gen 5 motion").
   - Still missing: B/W closes the eyes asleep and blinks at random (1 in 100 a frame, about
-    5 frames shut), which needs eyes-shut art the GIFs don't have.
+    5 frames shut). The streams carry no eyes-shut frames beyond the POSE idle clips (BW2's
+    second sequence, 47 species).
 - **Draw (`Bind`).** The draw hook binds the battler's texture and draws the canvas around
   the classic frame (`BattleStageStream_CanvasRect`): the whole 128x96 canvas at 1:1, the
   stream's box at its scale otherwise. Mosaic,
@@ -192,14 +333,16 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
 - **Arena hidden.** With the arena hidden but its texture VRAM kept (the debug toggle, a move's
   backdrop: `BattleStage_KeepsTextureVram`), the streams go on, and the draw hook draws the
   canvas flat (`DrawFlatStream`). Hiding the arena then doesn't snap a battler back to frame A.
-- **Move copies.** A move's BG or OAM copy of a battler (`LoadPokemonSpriteIntoBg`,
-  `AddPokemonSprite`, `ov12_022234F8`) takes the classic 80x80 window of the frame on screen
-  (`BattleStage_GetStreamFrameTiles`), not frame A. Contests keep frame A.
+- **Move copies.** (bw2vis:idle) A move's OAM copy of a streamed battler (`AddPokemonSprite`) is
+  drawn by the stage from the live stream frame at the mesh's scale, its 2D tiles blank; a BG2
+  copy (`LoadPokemonSpriteIntoBg`) is the live frame at the mesh's scale in BG2's tiles (sprites.md,
+  "Gen 5 motion", "Move copies"). `ov12_022234F8`'s copies and contests keep the classic 80x80
+  window of the frame on screen (`BattleStage_GetStreamFrameTiles`), contests frame A.
 - **Overlay copies.** Copies that only sit over the battler (SpriteToOAM, the send-out copies)
   stay hidden while it is streamed (`BattleStage_IsSpriteStreamed`), so frame A doesn't double
   the animated sprite.
-- **Transform and Substitute.** Transform streams the target's art. The Substitute doll is
-  classic.
+- **Transform and Substitute.** Transform streams the target's art, form included. The Substitute
+  doll streams BW2's doll (still, one frame).
 
 ### Other screens (`src/pokemon_sprite_stream.c`)
 
@@ -243,6 +386,26 @@ Eterna Forest, Finneon against a wild Budew or Buneary (two critic runs; the wor
 | Upload, worst frame | 3.1 KB | 3.1 KB | 6.3 KB |
 | Heap left free | 36 KB | 87 to 97 KB | 113 KB |
 
+Step 3 (BW2 MCSS frames at 60 Hz), the emulator, a Plain quick battle with the same species on both
+sides, 2000 frames at the command menu (`/tmp/bw2vis/sprite-source/timing`), and the critic's quick battle:
+
+| Battle | Gastly | Vespiquen | Yanmega | Chandelure |
+|---|---|---|---|---|
+| Loop in battle (BW2) | (idle species, sampled irregularly) | 672 (672) | 336 (336) | 504 (504) |
+| Card reads / 2000 frames, both battlers | 1316 | 1261 | 999 | 667 |
+| Decode and copy, worst frame | 1216 ticks = 2.3 ms | 1461 = 2.8 ms | 1935 = 3.7 ms | 1138 = 2.2 ms |
+| Upload, worst frame | 10.7 KB | 10.9 KB | 10.9 KB | 6.0 KB |
+| Frame read, worst | 645 ticks = 1.2 ms | 773 = 1.5 ms | 785 = 1.5 ms | 783 = 1.5 ms |
+| Late frames (stallFrames) | 0 | 0 | 0 | 0 (step 2's hold: Vespiquen 455, Gastly 152) |
+
+- Heap: a battler holds its tables plus the 6 KB texture copy and a one-frame buffer: 7.2 KB at the
+  median, 8.5 KB at most (step 2: 7.2 and 8.6 KB); the index is 7 KB. The critic's quick battle: least
+  HEAP_ID_BATTLE free after a load 376 KB, the same as before.
+- Loop lengths measured in battle (stream frame on screen, every vblank): Turtwig 264, Pikachu 348,
+  Lucario 432, Garchomp 480, as BW2 (step 2: 338/288, 690/378, 778/594, 480/324 front/back).
+- Summary screen (Gastly): one paged stream, no load failure, 36 KB of heap left (as before); it writes
+  more frames (72 against 43 in the same span) as BW2's frames change faster.
+
 Texture VRAM can only be written while the 3D engine isn't reading it. That leaves about
 1.4 ms after VBlank begins (the engine starts the next frame at line 214). At DMA speed that is
 about 40 KB, so 10 KB in a frame fits with room left for the battle's own transfers.
@@ -251,20 +414,26 @@ The card timing is the emulator's. A frame read costs the game thread about 0.3 
 
 ## Known gaps (later steps)
 
-- **Forms and Spinda.** The PL_OTHERPOKE table has only the Mega backs, so the form species
-  draw classic. The Mega backs are still frames.
-  Spinda's spots are painted on the classic frame only.
-- **80x80 crop.** The other screens and the battle's move copies show only the classic window
-  of the canvas. Wide or tall art loses what is outside it, and a back shows only its
-  bottom-centre 46x46 texels.
-- **Doubles.** Not measured. Four streams hold about 40 KB, well inside the 128 KB floor, but
+- **Spinda.** Classic (see Spinda).
+- **Blink.** BW2's random blink (a visibility flicker, `BtlvMcss_Blink`) needs no art; the idle
+  workstream owns it with the special idle (Idle data).
+- **Loops 2 and 3 of an idling face.** BW2 runs an idling face's loop on (up to three times before an
+  idle), and a node in CONTINUE mode whose length doesn't divide the loop's then shows other phases than
+  in the first loop. The stream holds the first loop only.
+- **Dropped frames.** 22 large faces lost frames to the 96 KB and 255-frame caps (see Counts and sizes);
+  their timing stays BW2's. A member format with frames stored as differences was tried and came out
+  larger (XOR against frame A: 1.23x), since whole bodies move.
+- **Back scale.** Backs are drawn at 1.75x, BW2 at 2x (the layout workstream owns it). Backs whose BW2
+  art hovers high also sink (see Sink), which eats part of their hover (Zubat: 24 of its 42 screen px).
+- **80x80 crop.** The other screens show only the classic window of the canvas. Wide or tall art
+  loses what is outside it, and a back shows only its bottom-centre 46x46 texels. The battle's
+  move copies no longer do (bw2vis:idle), except `ov12_022234F8`'s.
+- **Mega fronts on the classic path.** With the stage off, a Mega front draws its classic frame with the
+  base species' offsets (both 0 now), so it stands its blank rows above the ground (Mega Gyarados 12 px;
+  4 px with step 2's Platinum offset).
+- **Doubles.** Not measured. Four streams hold about 30 KB, well inside the 128 KB floor, but
   four frame reads and decodes in one frame would pass the budget, so some battlers would wait.
 - **Read cost.** Reads can't use DMA (see above), so each costs the game thread about 1 ms. A
   later step could read only when no HBlank DMA runs, or read during the VBlank wait.
-- **Hatch.** The hatch screen opts in but hasn't been run.
-- **Dropped frames.** Six large faces lost frames to the 96 KB cap (see Data).
-- **Timing.** The GIF frame durations are used as-is, and haven't been checked against
-  footage of the games.
-- **Stray files.** `gen5_stream.py` wrote `male_front.png` and `male_back.png` for the 15
-  female-only species (Blissey, Chansey, Cresselia, ...). No `meson.build` lists them. Delete
-  them, and stop the tool from writing them.
+- **Hatch.** The hatch screen opts in but hasn't been run. The Egg has no stream (BW2's Egg is MCSS,
+  26 keyframes, but it is not a battle sprite).

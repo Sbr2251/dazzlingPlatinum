@@ -211,6 +211,11 @@ the script as a **camera script**.
 Every cinematic sets its bit in `cinematicsSeen` when it starts, and runs only while the
 stage is visible. The crit and faint kicks are skipped when `debugFlags` has `NO_CINEMATICS`.
 
+**Battle intro** (bit 6, and bit 0 outside Totem battles; bw2vis:intro). The BW2 opening shots, the
+fade-in without Platinum's curtain and platform slide, and the 2D trainer and ball OBJs scaling with
+the camera are in intro.md. When they play, the battle-start focus below doesn't; it remains the
+fallback (the stage wasn't visible at the opening, a recorded battle, Giratina's entrance).
+
 **Battle-start focus** (bit 0)
 - **When:** once per battle, when the opponent's healthbar first slides in
   (`BattleDisplay_SlideHealthbarIn`): the opponent's Pokemon is out and, in a trainer battle,

@@ -12,7 +12,7 @@
     "range": "RANGE_USER_SIDE",
     "priority": 0,
     "flags": [
-        "MOVE_FLAG_HIDES_HP_GAUGES"
+        "MOVE_FLAG_KEEPS_HP_GAUGES"
     ],
     "contest": {
         "effect": "CONTEST_EFFECT_SUPPRESS_VOLTAGE",

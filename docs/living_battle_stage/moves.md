@@ -29,6 +29,9 @@ and the sprites as the move intended. Contests never touch the stage: keep the
 
 **A move whose backdrop really changes** (SwitchBg to a picture: Psychic, Hyper Beam,
 Moonlight and so on) keeps the chunk 5 fade. That is the intended look, not a chunk 6 item.
+Since bw2vis (effect_bg.md) these 55 moves show Black 2/White 2's effect backgrounds, and most of them cut
+from the arena to the picture (`BATTLE_BG_SWITCH_MODE_CUT`), as Gen 5 does; the fade stays where the move
+depends on it (Moonlight, Wish, Cosmic Power, Lunar Dance, Moonblast, Nightmare, Dark Void, Trick Room).
 
 ## Categories
 
@@ -233,11 +236,14 @@ Distances in the table read player side / enemy side.
 
 All eight end with `StageCameraHome 12` and `StageCameraWait`.
 
-**Healthbars.** Seven of the eight moves hide the healthbars for the whole script, as they do in
-the classic look (their move data lacks flag `0x40`, which keeps the bars). Tackle and Swords
-Dance have the flag, so on the stage they hide the bars themselves with command 91
-(`StageHealthbars FALSE`) before the wind-up, and show them again 6 frames into
-`StageCameraHome 12`.
+**Healthbars.** While the stage is visible, every move animation hides the healthbars for the
+whole script, as Black/White 2 does (`btlv_effvm.c:584-586`), except Transform, Mirror Move and
+Nature Power, which BW2 also exempts (`Healthbar_MoveAnimHidesHealthbars`, healthbar.c). The
+classic look keeps Platinum's per-move flag `MOVE_FLAG_KEEPS_HP_GAUGES` (bit `0x40`, which was
+misnamed `MOVE_FLAG_HIDES_HP_GAUGES`): 119 moves carry it and keep the bars there. Tackle and
+Swords Dance still carry command 91 (`StageHealthbars FALSE` before the wind-up, `TRUE` 6 frames
+into `StageCameraHome 12`); with the bars already hidden it finds none showing, so they come back
+when the script ends, like every other move's.
 
 ### Particles and per-move cameras (particles-3d)
 

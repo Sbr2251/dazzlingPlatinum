@@ -99,8 +99,10 @@ _118:
     SetTrainerEncounter BTLSCR_ALL_BATTLERS
     WaitTime 96
     LoadPartyGaugeGraphics 
+    // BW2's order (btlv_scu.c:766-804): only the opponent's ball tray with "You are challenged
+    // by", the player's tray once the opponent's Pokemon is out. It used to come in here with the
+    // opponent's and stayed screen-fixed over the camera's push in on the opponent (bw2vis:intro)
     ShowBattleStartPartyGauge BTLSCR_ENEMY
-    ShowBattleStartPartyGauge BTLSCR_PLAYER
     PrintEncounterMessage BTLSCR_ENEMY
     Wait 
     WaitButtonABTime 30
@@ -110,6 +112,8 @@ _118:
     PokemonSlideIn BTLSCR_ENEMY
     WaitTime 112
     HealthbarSlideInDelay BTLSCR_ENEMY
+    Wait 
+    ShowBattleStartPartyGauge BTLSCR_PLAYER
     Wait 
     PrintFirstSendOutMessage BTLSCR_PLAYER
     HideBattleStartPartyGauge BTLSCR_PLAYER

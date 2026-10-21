@@ -17,7 +17,7 @@ L_0:
     Delay 5
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 22, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_SUN_BLAST, BATTLE_BG_SWITCH_MODE_CUT
     StopSoundEffect SEQ_SE_DP_W172
     PlaySoundEffectR SEQ_SE_DP_W172B
     Delay 10
@@ -28,6 +28,6 @@ L_0:
     WaitForAllEmitters
     UnloadParticleSystem 0
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 22, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_SUN_BLAST, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

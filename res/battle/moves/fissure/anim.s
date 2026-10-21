@@ -12,7 +12,7 @@ L_0:
     CreateEmitter 0, 2, EMITTER_CB_SET_POS_TO_DEFENDER
     CreateEmitter 0, 3, EMITTER_CB_SET_POS_TO_DEFENDER
     SetVar BATTLE_ANIM_VAR_BG_FADE_TYPE, 0
-    SwitchBg 53, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_EARTH, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     PlaySoundEffectC SEQ_SE_DP_W090
     Func_Shake 4, 0, 1, 30, BATTLE_ANIM_BATTLER_SPRITE_DEFENDER
@@ -22,6 +22,6 @@ L_0:
     UnloadParticleSystem 0
     WaitForAnimTasks
     SetVar BATTLE_ANIM_VAR_BG_FADE_TYPE, 0
-    RestoreBg 53, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_EARTH, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

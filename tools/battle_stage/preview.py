@@ -48,8 +48,10 @@ clamp/repeat/flip modes, and the arena atmosphere:
                their 15-bit depth (GX_BUFFERMODE_Z), interpolated between entries like
                DeSmuME; density 127 counts as 128
     sway       with --frame N (arena draws, 30 per second), SCROLL meshes shift their
-               texture by amplitude * (sin, cos)(2pi N / period) texels (default: no
-               sway)
+               texture by amplitude * (sin, sin 2)(2pi N / period) texels and DRIFT
+               meshes by velocity * N / period texels, and SWAY meshes shear along x by
+               (s8)amplitude[0] / 256 * sin(2pi N / period) per unit of height above
+               amplitude[1] / 64 (default: frame 0, nothing moves)
 
 --raster picks how screen positions, spans and depth work:
 
@@ -69,6 +71,7 @@ import argparse
 import math
 import os
 import time
+import types
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -179,10 +182,11 @@ def fog_density_lut(atm):
 
 
 class Renderer:
-    def __init__(self, pieces, palettes, raster="desmume", column=0, frame=None):
+    def __init__(self, pieces, palettes, raster="desmume", column=0, frame=None, light=None):
         """pieces: [backdrop piece, platform piece or None]; palettes: {"bg" or
         ("platform", side): (N, 3) 5-bit colours}; column: the lighting column
-        (ov16_0223EC04); frame: sway frame or None."""
+        (ov16_0223EC04); frame: sway frame or None; light: (Lighting, (fog shift, offset,
+        table)) as atmosphere.resolve() picks it for a clock and weather, instead of column."""
         self.pieces = [p for p in pieces if p is not None]
         self.palettes = palettes
         self.raster = raster
@@ -190,7 +194,14 @@ class Renderer:
         atm = pieces[0].atmosphere
         self.lighting = atm.lighting[column] if atm else None
         self.fog = atm if atm and atm.fog_enabled else None
-        self.fog_lut = fog_density_lut(atm) if self.fog else None
+
+        if light is not None and atm is not None:
+            self.lighting = light[0]
+
+            if self.fog is not None:
+                self.fog = types.SimpleNamespace(fog_shift=light[1][0], fog_offset=light[1][1], fog_table=light[1][2])
+
+        self.fog_lut = fog_density_lut(self.fog) if self.fog else None
 
     def render(self, camera):
         """(rgb888 image, covered mask) of one camera."""
@@ -200,14 +211,25 @@ class Renderer:
         covered = np.zeros((H, W), bool)
         self.num_polygons = 0
 
-        for piece in self.pieces:
-            for mesh in piece.meshes:
+        # Translucent polygons (polygon alpha under 31, or a3i5 texels) draw after the opaque
+        # ones, in order, testing depth without writing it, as the DS sorts them (manual sort)
+        order = [(piece, mesh) for piece in self.pieces for mesh in piece.meshes]
+        order = [pm for pm in order if not self.translucent(*pm)] + [pm for pm in order if self.translucent(*pm)]
+
+        for piece, mesh in order:
+            if True:
                 tex = piece.textures[mesh.texture_index]
                 pal = self.palette_for(tex, mesh)
                 ds, dt = self.sway(mesh)
                 clip = []
 
+                shear = self.shear(mesh)
+
                 for pos, tc, color, normal in mesh.vertices:
+                    if shear is not None:
+                        k, pivot = shear
+                        pos = (int(round(pos[0] + k * (pos[1] - pivot))), pos[1], pos[2])
+
                     x, y, _z, w = camera.to_clip(pos)
 
                     if mesh.flags & sf.FLAG_LIT and self.lighting is not None:
@@ -225,7 +247,8 @@ class Renderer:
 
                     if len(verts) >= 3:
                         self.num_polygons += 1
-                        self.draw(verts, tex, mesh.flags, pal, col6, depth, fog_bit, covered)
+                        self.draw(verts, tex, mesh.flags, pal, col6, depth, fog_bit, covered,
+                                  mesh.alpha if self.translucent(piece, mesh) else None)
 
         if self.fog is not None:
             self.apply_fog(col6, depth, fog_bit & covered)
@@ -235,7 +258,23 @@ class Renderer:
         rgb[~covered] = HOLE_RGB
         return rgb, covered
 
+    @staticmethod
+    def translucent(piece, mesh):
+        return mesh.alpha < sf.MAX_ALPHA or piece.textures[mesh.texture_index].format == sf.TEXFMT_A3I5
+
+    def shear(self, mesh):
+        """SWAY: (x per unit of y, pivot y in fx16 vertex units) at this frame, or None."""
+        if self.frame is None or not mesh.flags & sf.FLAG_SWAY:
+            return None
+
+        k = sf.signed8(mesh.scroll_amplitude[0]) / 256 * math.sin(2 * math.pi * self.frame / mesh.scroll_period)
+        pivot = mesh.scroll_amplitude[1] / 64 * fx.FX32_ONE / sf_vertex_scale(self.pieces[0])
+        return k, pivot
+
     def sway(self, mesh):
+        if self.frame is not None and mesh.flags & sf.FLAG_DRIFT:
+            return tuple(sf.drift_offset(v, mesh.scroll_period, self.frame) for v in mesh.scroll_amplitude)
+
         if self.frame is None or not mesh.flags & sf.FLAG_SCROLL:
             return 0.0, 0.0
 
@@ -275,7 +314,9 @@ class Renderer:
         # DeSmuME keeps positions in 28.4 fixed point
         return math.floor(sx * 16 + 0.5) / 16, math.floor(sy * 16 + 0.5) / 16
 
-    def draw(self, verts, tex, flags, pal, col6, depth, fog_bit, covered):
+    def draw(self, verts, tex, flags, pal, col6, depth, fog_bit, covered, alpha=None):
+        """alpha: None for an opaque polygon, else its polygon alpha (0..31): the pixels blend
+        over what is there and leave the depth as it is."""
         # Screen vertices: x, y, then 1/w, s/w, t/w, z/w, r/w, g/w, b/w, linear in
         # screen space
         sv = []
@@ -336,24 +377,45 @@ class Renderer:
             s = wrap(s, tex.width, flags & sf.FLAG_REPEAT_S, flags & sf.FLAG_FLIP_S)
             t = wrap(t, tex.height, flags & sf.FLAG_REPEAT_T, flags & sf.FLAG_FLIP_T)
             index = tex.array[t, s]
+            texel_alpha = None
+
+            if tex.format == sf.TEXFMT_A3I5:
+                a3 = index >> 5
+                texel_alpha = (a3 << 2) + (a3 >> 1)
+                index = index & 31
 
             visible = z < depth[py, x0:x1]
 
             if flags & sf.FLAG_COLOR0_TRANSPARENT:
                 visible &= index != 0
 
-            cols = px[visible]
             vtx6 = np.stack([np.clip(np.floor(c / inv_w + 1e-4), 0, 63) for c in (r_w, g_w, b_w)], axis=1).astype(np.int32)
             tex6 = to6(pal[index])
             out6 = ((tex6 + 1) * (vtx6 + 1) - 1) >> 6
+
+            if alpha is not None:
+                a = np.full(len(px), alpha, np.int32) if texel_alpha is None else ((texel_alpha + 1) * (alpha + 1) - 1) >> 5
+                visible &= a > 0
+                cols = px[visible]
+                a = a[visible][:, None]
+                col6[py, cols] = (out6[visible] * (a + 1) + col6[py, cols] * (31 - a)) >> 5
+                covered[py, cols] = True
+                continue
+
+            cols = px[visible]
             depth[py, cols] = z[visible]
             col6[py, cols] = out6[visible]
             fog_bit[py, cols] = bool(flags & sf.FLAG_FOG)
             covered[py, cols] = True
 
 
+def sf_vertex_scale(piece):
+    """World units per fx16 vertex unit's FX32_ONE (the header's vertexScale)."""
+    return piece.header.vertex_scale / fx.FX32_ONE
+
+
 def texture_array(tex):
-    if tex.format == sf.TEXFMT_PLTT256:
+    if tex.format in (sf.TEXFMT_PLTT256, sf.TEXFMT_A3I5):
         return np.frombuffer(tex.data, np.uint8).reshape(tex.height, tex.width)
 
     packed = np.frombuffer(tex.data, np.uint8).reshape(tex.height, tex.width // 2)
@@ -718,6 +780,53 @@ def run_all(stage, args, rasters):
     print(f"wrote {args.out}/sheet_bg*.png, contact_*.png in {time.time() - started:.0f} s")
 
 
+def parse_clock(text):
+    hour, minute = (int(v) for v in text.split(":"))
+    return hour * 60 + minute
+
+
+# TimeOfDayForHour (src/rtc.c) -> the classic palette column (ov16_0223EC04)
+def classic_tod(minute):
+    hour = minute // 60
+    return 1 if 17 <= hour < 20 else (2 if hour >= 20 or hour < 4 else 0)
+
+
+def run_strip(stage, args, rasters):
+    """--strip: the home pose of each --strip-bgs background at each --clocks time (and each
+    --weathers weather) as the renderer lights it at battle start (atmosphere.resolve), on the
+    classic palettes of that hour. One row per background and weather."""
+    clocks = [c.strip() for c in args.clocks.split(",")]
+    weathers = [w.strip() or None for w in args.weathers.split(",")]
+    rows = []
+
+    for background in [int(b) for b in args.strip_bgs.split(",")]:
+        terrain = USUAL_TERRAIN[background] if args.terrain is None else args.terrain
+        backdrop, platforms, _ = stage.classic(background, terrain)
+        pieces = stage.pieces(background, terrain)
+        atm = pieces[0].atmosphere
+
+        for weather in weathers:
+            tiles = []
+
+            for clock in clocks:
+                minute = parse_clock(clock)
+                column = classic.palette_column(background, classic_tod(minute))
+                palettes = {"bg": palette5(backdrop.palettes[column])}
+
+                for plat in platforms:
+                    palettes["platform", plat.side] = palette5(plat.palettes[column])
+
+                light = atmosphere.resolve(atm, background, minute, weather)
+                img, _ = Renderer(pieces, palettes, rasters[0], column, args.frame, light).render(camera_for(pieces[0], 0))
+                li = light[0]
+                tiles.append(labelled(img, f"bg{background} {clock} {weather or 'clear'} h{li.haze}"))
+
+            rows.append(hstack(tiles))
+
+    save(os.path.join(args.out, "strip.png"), vstack(rows))
+    print(f"wrote {args.out}/strip.png")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--narc", default=os.path.join(classic.ROOT, "res/prebuilt/battle/graphic/battle_stage.narc"))
@@ -729,12 +838,18 @@ def main():
     parser.add_argument("--frame", type=int, help="sway SCROLL meshes to this arena draw (30 per second; default: no sway)")
     parser.add_argument("--all", action="store_true", help="every background and every terrain")
     parser.add_argument("--poses", action="store_true", help="every background from the gameplay camera poses")
+    parser.add_argument("--strip", action="store_true", help="time-of-day / weather strip (atmosphere.resolve)")
+    parser.add_argument("--strip-bgs", default="0,3,4", help="--strip: backgrounds")
+    parser.add_argument("--clocks", default="06:00,09:00,12:00,17:00,18:30,20:00,23:00", help="--strip: HH:MM list")
+    parser.add_argument("--weathers", default="", help="--strip: weather column names (atmosphere.WEATHER), '' = clear")
     args = parser.parse_args()
     os.makedirs(args.out, exist_ok=True)
     rasters = RASTERS if args.raster == "both" else (args.raster,)
     stage = Stage(args.narc)
 
-    if args.poses:
+    if args.strip:
+        run_strip(stage, args, rasters)
+    elif args.poses:
         run_poses(stage, args, rasters)
     elif args.all:
         run_all(stage, args, rasters)

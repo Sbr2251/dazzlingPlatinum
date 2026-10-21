@@ -1,4 +1,5 @@
 subdir('moves')
+subdir('effect_bg') # bw2vis:effect-bg
 
 healthbar_parts_embed = custom_target('healthbar_parts.4bpp.h',
     output: [

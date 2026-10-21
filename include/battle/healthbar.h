@@ -140,4 +140,15 @@ void ov16_0226846C(Healthbar *param0);
 void ov16_02268470(Healthbar *param0);
 void ov16_02268498(Healthbar *param0);
 
+/**
+ * @brief Whether a move's animation hides the healthbars while it plays.
+ *
+ * With the 3D stage visible every move hides them, as in Black/White 2, but Transform, Mirror Move and
+ * Nature Power. The classic look keeps the move's MOVE_FLAG_KEEPS_HP_GAUGES flag.
+ *
+ * @param move
+ * @return TRUE to hide them
+ */
+BOOL Healthbar_MoveAnimHidesHealthbars(u16 move);
+
 #endif // POKEPLATINUM_OV16_02266F1C_H

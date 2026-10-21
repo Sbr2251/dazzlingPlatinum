@@ -15,6 +15,7 @@ import sys
 
 import arena as arena_mod
 import atmosphere
+import bw2_assets
 import classic
 import nitro
 import stage_format as sf
@@ -36,26 +37,36 @@ def enum_count(name):
     return next(i for i, line in enumerate(lines) if line.endswith("_MAX"))
 
 
-def backdrop_textures(backdrop):
-    """Textures A (rows 0..127) and B (rows 127..158) of the BG3 backdrop."""
+def backdrop_textures(backdrop, with_wave=False):
+    """Textures A (rows 0..127) and B (rows 127..158) of the BG3 backdrop, plus the BW2 water
+    glint layer (arena.TEX_WAVE) when with_wave."""
     image = backdrop.image
     a = bytes(image[y][x] for y in range(arena_mod.TEX_A_ROWS) for x in range(256))
     first = arena_mod.TEX_B_FIRST_ROW
     b = bytes(image[y][x] for y in range(first, first + arena_mod.TEX_B_ROWS) for x in range(256))
     palette = backdrop.palettes[DAY]
-    return [
+    textures = [
         sf.Texture(256, arena_mod.TEX_A_ROWS, sf.TEXFMT_PLTT256, sf.PALETTE_BG, a, palette),
         sf.Texture(256, arena_mod.TEX_B_ROWS, sf.TEXFMT_PLTT256, sf.PALETTE_BG, b, palette),
     ]
 
+    if with_wave:
+        wave = bw2_assets.load("wave")
+        assert len(textures) == arena_mod.TEX_WAVE
+        textures.append(sf.Texture(wave.width, wave.height, wave.format, sf.PALETTE_EMBEDDED, wave.data, wave.palette))
 
-def platform_texture(platform):
+    return textures
+
+
+def platform_texture(platform, pixels=None):
+    """The platform OBJ art as a texture; pixels ({(x, y): index}) replaces the art's own,
+    for the overlay textures of arena.PlatformDisc.extra_textures."""
     side = platform.side
     width, height = arena_mod.PLATFORM_TEX_SIZE[side]
     ox, oy = arena_mod.PLATFORM_TEX_ORIGIN[side]
     rows = [[0] * width for _ in range(height)]
 
-    for (x, y), index in platform.pixels.items():
+    for (x, y), index in (platform.pixels if pixels is None else pixels).items():
         s, t = x + ox, y + oy
         assert 0 <= s < width and 0 <= t < height or index == 0, f"platform {side} pixel ({x}, {y}) is outside its texture"
 
@@ -71,10 +82,9 @@ def texcoord(v):
     return tc
 
 
-def file_mesh(mesh, texture_index=None):
+def file_mesh(mesh, texture_base=0):
     vertices = [(v.pos, (texcoord(st[0]), texcoord(st[1])), sf.VERTEX_COLOR_UNSHADED, sf.pack_normal(n)) for v, st, n in mesh.vertices]
-    texture = mesh.texture if texture_index is None else texture_index
-    return sf.Mesh(mesh.primitive, sf.MAX_ALPHA, texture, mesh.flags, vertices, mesh.scroll_amplitude, mesh.scroll_period)
+    return sf.Mesh(mesh.primitive, mesh.alpha, texture_base + mesh.texture, mesh.flags, vertices, mesh.scroll_amplitude, mesh.scroll_period)
 
 
 def header(arena):
@@ -87,14 +97,24 @@ def header(arena):
 def backdrop_piece(home_header, backdrop):
     art = classic.Backdrop(backdrop.background)
     assert art.is_mirrored(), f"background {backdrop.background}: REPEAT_S | FLIP_S needs a mirrored 512-wide map"
-    return sf.Piece(home_header, backdrop_textures(art), [file_mesh(m) for m in backdrop.meshes], atmosphere.build(backdrop))
+    with_wave = any(m.texture == arena_mod.TEX_WAVE for m in backdrop.meshes)
+    return sf.Piece(home_header, backdrop_textures(art, with_wave), [file_mesh(m) for m in backdrop.meshes], atmosphere.build(backdrop))
 
 
 def platform_piece(home_header, platforms):
-    """Platform piece of the non-empty platforms; textures in side order."""
-    present = [p for p in platforms if p is not None]
-    textures = [platform_texture(p.art) for p in present]
-    meshes = [file_mesh(m, i) for i, p in enumerate(present) for m in p.meshes]
+    """Platform piece of the non-empty platforms; each platform's textures (its art, then its
+    extra textures) in side order."""
+    textures, meshes = [], []
+
+    for p in platforms:
+        if p is None:
+            continue
+
+        base = len(textures)
+        textures.append(platform_texture(p.art, p.main_pixels))
+        textures += [platform_texture(p.art, pixels) for pixels in p.extra_textures]
+        meshes += [file_mesh(m, base) for m in p.meshes]
+
     return sf.Piece(home_header, textures, meshes)
 
 

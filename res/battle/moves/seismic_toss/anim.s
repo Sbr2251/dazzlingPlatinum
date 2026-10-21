@@ -3,7 +3,7 @@
 L_0:
     LoadParticleResource 0, seismic_toss_spa
     SetVar BATTLE_ANIM_VAR_BG_MOVE_STEP_Y, 26
-    SwitchBg 51, BATTLE_BG_SWITCH_MODE_FADE | BATTLE_BG_SWITCH_FLAG_MOVE
+    SwitchBg BATTLE_BG_BW2_FALLING_SPARKS, BATTLE_BG_SWITCH_MODE_CUT | BATTLE_BG_SWITCH_FLAG_MOVE
     WaitForBgSwitch
     PlaySoundEffectC SEQ_SE_DP_W327
     Delay 5
@@ -32,7 +32,7 @@ L_0:
     Func_ShakeBg 0, 5, 1, 3, 0
     Delay 10
     SetVar BATTLE_ANIM_VAR_BG_MOVE_STEP_Y, -34
-    RestoreBg 51, BATTLE_BG_SWITCH_MODE_FADE | BATTLE_BG_SWITCH_FLAG_STOP
+    RestoreBg BATTLE_BG_BW2_FALLING_SPARKS, BATTLE_BG_SWITCH_MODE_CUT | BATTLE_BG_SWITCH_FLAG_STOP
     PlaySoundEffectR SEQ_SE_DP_W088
     WaitForBgSwitch
     WaitForAllEmitters

@@ -8,11 +8,13 @@
 #include "constants/battle/battle_anim.h"
 #include "constants/graphics.h"
 
+#include "battle_anim/battle_anim_effect_bg.h"
 #include "battle_anim/battle_anim_helpers.h"
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_copies.h"
 #include "global/utility.h"
 
 #include "battle_script_battlers.h"
@@ -1499,7 +1501,7 @@ void BattleAnimScriptFunc_FadeBg(BattleAnimSystem *system)
         paletteToFade = BATTLE_BG_PALETTE_FLAG_MON_SPRITE;
         break;
     case FADE_BG_TYPE_EFFECT:
-        paletteToFade = BATTLE_BG_PALETTE_FLAG_EFFECT;
+        paletteToFade = BattleEffectBg_CurrentPaletteMask(); // bw2vis:effect-bg: every row of a BW2 background
         break;
     default:
         GF_ASSERT(FALSE);
@@ -2551,6 +2553,7 @@ void BattleAnimScriptFunc_Superpower(BattleAnimSystem *system)
 
     ctx->sprite = BattleAnimSystem_GetPokemonSprite(ctx->common.battleAnimSys, BATTLE_ANIM_MON_SPRITE_0);
 
+    BattleStage_ReleaseMonCopiesOf(ctx->sprite); // bw2vis:idle: an OBJ window needs the 2D copy
     ManagedSprite_SetExplicitOamMode(ctx->sprite, GX_OAM_MODE_OBJWND);
     ManagedSprite_SetAffineOverwriteMode(ctx->sprite, AFFINE_OVERWRITE_MODE_DOUBLE);
     ManagedSprite_SetAffineScale(ctx->sprite, 1.2f, 1.2f);

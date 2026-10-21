@@ -87,18 +87,6 @@ int MonStream_IndexEntries(const MonStreamIndexHeader *index, const PokemonSprit
         return 0;
     }
 
-    if (index->version == 0) {
-        // Step 1: u16 [species][back, front], PL_POKEGRA only
-        file = template->character % POKEGRA_FILES_PER_SPECIES;
-
-        if (template->narcID != NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA || file >= POKEGRA_MAX_FACE_FILE) {
-            return 0;
-        }
-
-        entries[0] = template->character / POKEGRA_FILES_PER_SPECIES * 2 + (file >> 1);
-        return 1;
-    }
-
     if (index->version != MON_STREAM_INDEX_VERSION) {
         return 0;
     }
@@ -161,7 +149,7 @@ BOOL MonStream_ReadFile(FSFile *file, void *dst, u32 size)
 
 u32 MonStream_HeaderSize(const MonStreamHeader *data)
 {
-    return sizeof(MonStreamHeader) + data->numFrames * sizeof(u32) + data->numSteps * 2;
+    return sizeof(MonStreamHeader) + data->numFrames * sizeof(u32) + (data->numSteps + data->numIdleSteps) * 2;
 }
 
 BOOL MonStream_IsValid(const MonStreamHeader *data, u32 memberSize)
@@ -171,6 +159,8 @@ BOOL MonStream_IsValid(const MonStreamHeader *data, u32 memberSize)
     if (memberSize < sizeof(MonStreamHeader)
         || data->numFrames == 0
         || data->numSteps == 0
+        || data->idleKind > MON_STREAM_IDLE_POSE
+        || (data->idleKind == MON_STREAM_IDLE_NONE) != (data->numIdleSteps == 0)
         || (data->scale != 0 && (data->scale < MON_STREAM_SCALE_ONE || data->scale > MON_STREAM_MAX_SCALE))
         || data->width == 0
         || data->height == 0
@@ -191,8 +181,8 @@ BOOL MonStream_IsValid(const MonStreamHeader *data, u32 memberSize)
         }
     }
 
-    for (i = 0; i < data->numSteps; i++) {
-        const u8 *step = (const u8 *)&data->frameOffsets[data->numFrames] + i * 2;
+    for (i = 0; i < data->numSteps + data->numIdleSteps; i++) {
+        const u8 *step = MonStream_Steps(data) + i * 2;
 
         if (step[0] >= data->numFrames || step[1] == 0) {
             return FALSE;

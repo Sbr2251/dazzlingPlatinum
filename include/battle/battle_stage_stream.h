@@ -41,7 +41,7 @@ typedef struct BattleStageStreamStats {
     u32 stallFrames; // frames a step was held because its frame wasn't in from the card yet
     u32 readVBlanksMax; // the slowest frame read, in vblanks from asking to polling it done
     u32 heapFreeMin; // the least HEAP_ID_BATTLE left free after a load
-    u32 indexVersion; // of mon_stream.narc's member 0: 1 or 2; 0 when there is no index
+    u32 indexVersion; // of mon_stream.narc's member 0 (MON_STREAM_INDEX_VERSION); 0 when there is no index
     u32 deferredUploads; // frames sent a frame late, the upload budget being spent
     u16 member[MAX_MON_SPRITES]; // the NARC member each battler streams, 0 for none
     u32 readTicksMax; // the longest frame read: the card thread copies it with the CPU
@@ -56,6 +56,9 @@ void BattleStageStream_BeginFrame(BOOL visible, BOOL frozen);
 // Plays battler index's animation at rate / STREAM_RATE_ONE of its speed (as B/W, slower at
 // low HP or asleep), holding its frame at 0 (frozen solid); STREAM_RATE_ONE from Init
 void BattleStageStream_SetRate(int index, u32 rate);
+// bw2vis:idle: battler index's sprite has a stream (loaded, or found in the index for a
+// template that changed this frame)
+BOOL BattleStageStream_HasStream(int index);
 // From the draw hook: when battler index's current frame is in VRAM, binds its texture
 // (the canvas from texel 0, 0) and returns TRUE. Unbind gives the manager's
 // texture back.
@@ -87,6 +90,11 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
 // last decoded, which is on screen or goes there at the next VBlank; NULL when the battler has
 // no stream or no frame in yet
 const u8 *BattleStageStream_GetFrame(int index);
+// The battler's stream member as loaded: header, frame offsets, the loop's steps and the idle
+// clip's (MonStream_Steps, MonStream_IdleSteps; idleKind, numIdleSteps: sprite_stream.md "Idle
+// data"). NULL when the battler has no stream (it draws classic). Valid until the battler's
+// sprite template changes or the battle ends
+const MonStreamHeader *BattleStageStream_GetHeader(int index);
 // The scale the battler's stream is drawn at (MonStream_Scale, in eighths), 1:1 when it has none
 int BattleStageStream_GetScale(int index);
 
