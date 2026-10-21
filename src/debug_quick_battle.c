@@ -220,6 +220,9 @@ static u8 sBackgroundChoice = 0;
 static u8 sTimeOfDayChoice = 0;
 static u8 sOpponentChoice = 0;
 static u8 sTotemChoice = TOTEM_ENCOUNTER_HITMONLEE;
+// bw2vis:camera-core: B steps the X battle through the Totem encounters and then this one, a plain
+// wild double battle (Y is the gym leader battle)
+#define QUICK_BATTLE_DOUBLES_CHOICE TOTEM_ENCOUNTER_COUNT
 
 // bw2vis:battle-events: L+R+Y battles the Gym Leaders the player meets in Arcs 1-2, one after another, to test
 // the leader "last Pokemon" music (docs/battle_events.md).
@@ -361,7 +364,12 @@ static void DrawPanel(FieldSystem *fieldSystem, DebugQuickBattle *quickBattle)
         String_AppendAscii(line, " Lv");
         String_AppendNumber(line, GetOpponentLevel(SaveData_GetParty(fieldSystem->saveData)), 3, PADDING_MODE_NONE);
         String_AppendAscii(line, " X:");
-        String_AppendSpeciesName(line, TotemBattle_GetEncounterConfig(sTotemChoice)->party[0].species);
+
+        if (sTotemChoice == QUICK_BATTLE_DOUBLES_CHOICE) {
+            String_AppendAscii(line, "Doubles"); // bw2vis:camera-core
+        } else {
+            String_AppendSpeciesName(line, TotemBattle_GetEncounterConfig(sTotemChoice)->party[0].species);
+        }
         String_AppendAscii(line, " Y:");
         String_AppendAscii(line, sLeaderChoices[sLeaderChoice].name);
     }
@@ -439,7 +447,14 @@ static void StartLeaderBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQu
     quickBattle->state = QUICK_BATTLE_STATE_AFTER_BATTLE;
 }
 
-static void StartBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBattle *quickBattle, BOOL totem)
+enum QuickBattleKind {
+    QUICK_BATTLE_SINGLE = 0,
+    QUICK_BATTLE_TOTEM,
+    QUICK_BATTLE_DOUBLE, // bw2vis:camera-core: a plain wild double battle (the selected species and the next)
+};
+
+
+static void StartBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBattle *quickBattle, int kind)
 {
     ClosePanel(fieldSystem, quickBattle);
 
@@ -452,8 +467,11 @@ static void StartBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBat
         FieldBattleDTO_SetDebugTimeOfDayOverride(sTimeOfDayChoices[sTimeOfDayChoice - 1].timeOfDay);
     }
 
-    if (totem) {
+    if (kind == QUICK_BATTLE_TOTEM) {
         Encounter_NewTotemBattle(task, sTotemChoice, &quickBattle->battleResult);
+    } else if (kind == QUICK_BATTLE_DOUBLE) {
+        u8 level = GetOpponentLevel(SaveData_GetParty(fieldSystem->saveData));
+        Encounter_NewVsDoubleSpeciesAtLevel(task, sOpponentSpecies[sOpponentChoice], sOpponentSpecies[(sOpponentChoice + 1) % NELEMS(sOpponentSpecies)], level, &quickBattle->battleResult);
     } else {
         u8 level = GetOpponentLevel(SaveData_GetParty(fieldSystem->saveData));
         Encounter_NewVsSpeciesAtLevel(task, sOpponentSpecies[sOpponentChoice], level, &quickBattle->battleResult, FALSE);
@@ -479,13 +497,13 @@ static BOOL FieldTask_DebugQuickBattle(FieldTask *task)
 
         if (pressed & PAD_BUTTON_A) {
             Sound_PlayEffect(SEQ_SE_CONFIRM);
-            StartBattle(task, fieldSystem, quickBattle, FALSE);
+            StartBattle(task, fieldSystem, quickBattle, QUICK_BATTLE_SINGLE);
             return FALSE;
         }
 
         if (pressed & PAD_BUTTON_X) {
             Sound_PlayEffect(SEQ_SE_CONFIRM);
-            StartBattle(task, fieldSystem, quickBattle, TRUE);
+            StartBattle(task, fieldSystem, quickBattle, sTotemChoice == QUICK_BATTLE_DOUBLES_CHOICE ? QUICK_BATTLE_DOUBLE : QUICK_BATTLE_TOTEM);
             return FALSE;
         }
 
@@ -509,7 +527,7 @@ static BOOL FieldTask_DebugQuickBattle(FieldTask *task)
         } else if (pressed & PAD_KEY_RIGHT) {
             sOpponentChoice = (sOpponentChoice + 1) % NELEMS(sOpponentSpecies);
         } else if (pressed & PAD_BUTTON_B) {
-            sTotemChoice = (sTotemChoice + 1) % TOTEM_ENCOUNTER_COUNT;
+            sTotemChoice = (sTotemChoice + 1) % (TOTEM_ENCOUNTER_COUNT + 1); // bw2vis:camera-core: + the doubles
         } else if (pressed & PAD_BUTTON_START) {
             quickBattle->status = GiveMegaMon(fieldSystem);
             Sound_PlayEffect(SEQ_SE_CONFIRM);

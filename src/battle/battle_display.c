@@ -481,6 +481,7 @@ void ov16_0225CF70(BattleSystem *battleSys, BattlerData *param1, MonShowMessage 
         v2->unk_28.personalities[i] = message->battleMonPersonalities[i];
     }
 
+    BattleStage_SendOutCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_0225F0C0, v2, 0);
 }
 
@@ -507,6 +508,7 @@ void ov16_0225D118(BattleSystem *battleSys, BattlerData *param1, MonReturnMessag
         v1->unk_10.personalities[i] = message->battleMonPersonalities[i];
     }
 
+    BattleStage_RecallCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_0225F764, v1, 0);
 }
 
@@ -524,6 +526,7 @@ void ov16_0225D1C4(BattleSystem *battleSys, BattlerData *param1, CaptureOpenBall
 
     PokemonSprite_StartFade(v0->unk_04, 0, 16, 0, Unk_ov16_0226F1AE[message->ball]);
     PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_SHADOW_IS_AFFINE, 1);
+    BattleStage_CatchCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_0225FA00, v0, 0);
 }
 
@@ -651,6 +654,7 @@ void ov16_0225D414(BattleSystem *battleSys, BattlerData *param1, TrainerSlideInM
     v3->unk_08 = message->command;
     v3->unk_09 = param1->battler;
 
+    BattleStage_EndBattleCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_02260384, v3, 0);
 }
 
@@ -3233,7 +3237,7 @@ static void ov16_022604C8(SysTask *param0, void *param1)
     case 3:
         ov16_0226757C(v0->unk_04);
         ov16_02264798(v3, v0->unk_00);
-        BattleStage_StartIdleCamera();
+        BattleStage_StartIdleCamera(v0->unk_09); // bw2vis:camera-core: the prompt frames the battler choosing
         v0->unk_0A = 4;
     case 4:
         if (ov16_02269348(v2) == 0) {
@@ -3566,6 +3570,7 @@ static void ov16_02260C00(SysTask *param0, void *param1)
             NARC_dtor(v10);
             NARC_dtor(v11);
         }
+        BattleStage_MoveSelectCamera(v0->unk_1D); // bw2vis:camera-core
         v0->unk_20++;
         break;
     case 1:
@@ -3731,6 +3736,7 @@ static void ov16_02260F14(SysTask *param0, void *param1)
             NARC_dtor(v9);
         }
 
+        BattleStage_TargetSelectCamera(v0->unk_0D); // bw2vis:camera-core
         v0->unk_0F++;
         break;
     case 1:

@@ -217,7 +217,7 @@ def wait_first_menu(e: Emu, timeout: int = 2400, **kw) -> Optional[int]:
     if waited is not None and XMAP_PATH:
         ram = StageRam(e, XMAP_PATH)
         FIRST_MENU_CAM = ram.cam()
-        if FIRST_MENU_CAM is not None and not FIRST_MENU_CAM["home"]:
+        if FIRST_MENU_CAM is not None and not FIRST_MENU_CAM["home"] and not FIRST_MENU_CAM["menu"]:
             ram.wait_home(SWEEP_MARGIN)
     return waited
 
@@ -566,8 +566,9 @@ def _totem_camera(sc: Scenario, e: Emu, cam: Optional[dict]) -> None:
              f"cinematicsSeen = {seen:#x} ({cine_names(seen)})")
     sc.check("totem: no battle-start sweep (cinematicsSeen bit 0 clear)", not seen & CINE_SWEEP,
              f"cinematicsSeen = {seen:#x} ({cine_names(seen)})")
-    sc.check("totem: camera home at the first command menu", cam["home"],
-             f"camFlags = {cam['camFlags']:#x} ({cam_names(cam['camFlags'])}) when the menu showed")
+    sc.check("totem: camera home at the first command menu", cam["home"] or cam["menu"],
+             f"camFlags = {cam['camFlags']:#x} ({cam_names(cam['camFlags'])}) when the menu showed"
+             + (", on the command prompt shot (it starts from home)" if cam["menu"] else ""))
     sc.check("totem: offHomeMoveFrames == 0", cam["offHomeMoveFrames"] == 0,
              f"offHomeMoveFrames = {cam['offHomeMoveFrames']}, guardSnaps = {cam['guardSnaps']}, "
              f"offHomeFrames = {cam['offHomeFrames']}")
@@ -1528,7 +1529,9 @@ NO_BLOB_SHADOWS = 2                      # blob shadows off, classic shadow back
 CLASSIC_SPRITES = 4                      # sprites take the old unlit path even while the arena shows
 NO_CINEMATICS = 8                        # chunk 4: no crit or faint kicks (the sweep plays before the critic can write)
 CRIT_KICK_ON_HIT = 16                    # chunk 4: every hit blink plays the crit kick
-NO_IDLE_CAMERA = 32                      # no idle drift at the command menu; set_flags adds it unless idle=True
+NO_IDLE_CAMERA = 32                      # no command menu camera (prompt shot, idle shots); set_flags adds it unless idle=True
+CAM_DEBUG_MAGIC = 0x4D414343             # bw2vis:camera-core: sStageCameraDebug (battle_stage_camera.c)
+CAM_MENU_SEQUENCES = (4, 5, 6)           # its sequence: SEQUENCE_IDLE, SEQUENCE_PROMPT, SEQUENCE_SELECT
 NO_SPRITE_STREAM = 64                    # the classic frames, not the Gen 5 streams (sprite_stream.md)
 # bw2vis:layout - the battlers at their classic places with 1.75x backs (layout.md); set_flags adds it unless layout=True,
 # so the home-vs-classic comparisons still line the stage up with the classic screen. A ROM without it ignores the bit.
@@ -1729,7 +1732,18 @@ class StageRam:
         st["scales"] = list(struct.unpack("<4H", self.e.read(addr + SCALE_OFFSET, 8)))
         st["home"] = bool(st["camFlags"] & AT_HOME)
         st["cut"] = self._read_cutguard() if self.has_cutguard else None
+        st["menu"] = self.menu_camera()        # bw2vis:camera-core
         return st
+
+    def menu_camera(self) -> bool:
+        """bw2vis:camera-core (camera.md, "Command menu camera"): the command menu camera is on (the prompt shot,
+        the doubles select shot or the idle shots: sStageCameraDebug.sequence). It starts from home, so at a
+        command menu it stands for AT_HOME. False on a ROM without the debug block."""
+        sym = self.syms.get("sStageCameraDebug")
+        if not sym:
+            return False
+        magic, seq = struct.unpack("<Ii", self.e.read(sym[0], 8))
+        return magic == CAM_DEBUG_MAGIC and seq in CAM_MENU_SEQUENCES
 
     def wait_home(self, timeout: int = 120) -> Optional[int]:
         """Runs frames until camFlags has AT_HOME; the frames it took, or None (timeout or no camera fields)."""
@@ -3326,7 +3340,8 @@ def _sweep_checks(sc: Scenario, polls: List[tuple], menu_cam: Optional[dict], fr
              f"{len(off)} frames off home in {len(runs)} stretch(es) {runs[:3]}; {len(close)} with the opponent's "
              f"scale above 256 (peak {peak}/256)" if off else "the camera never left home before the menu",
              why="the sweep did not push in on the opponent (or the anchors do not follow the camera)")
-    sc.check("sweep: camera home (AT_HOME) when the menu shows", menu_cam["home"], _cam_detail(menu_cam),
+    sc.check("sweep: camera home (AT_HOME) when the menu shows", menu_cam["home"] or menu_cam["menu"],
+             _cam_detail(menu_cam) + ("; on the command prompt shot, which starts from home" if menu_cam["menu"] else ""),
              why="the command menu must wait for the camera to reach home (90-frame cap, then a snap)")
     if runs:
         first, last = runs[0]
