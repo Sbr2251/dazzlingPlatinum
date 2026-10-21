@@ -211,8 +211,12 @@ static const u16 Unk_ov16_0226F1AE[] = {
 };
 
 // bw2vis:intro. The player-side battlers whose intro throw is on its way: the mon isn't out yet.
-// The stage's send-out shot goes home once the last one is out.
+// Their healthbars wait for it (BW2 shows the player's gauges after the mons are out,
+// btlv_scu.c:1594-1598; Platinum's fixed WaitTime 96 brought them in before the balls opened
+// in a double battle), at most INTRO_SENDOUT_WAIT_MAX task frames.
+#define INTRO_SENDOUT_WAIT_MAX 240
 static u8 sIntroSendOutPending;
+static u16 sIntroSendOutWait;
 // The stage's opening fade-in has started (the battle overlay's .bss is cleared per battle)
 static BOOL sIntroFadeStarted;
 // The stage's opening: a master brightness fade-in over this many task frames (BW2: 16 levels,
@@ -249,11 +253,28 @@ static void IntroMonOut(int battler)
     BattleStage_IntroMonOut(battler, sIntroSendOutPending == 0);
 }
 
+// A player-side healthbar of the intro waits while its mon isn't out yet (or the stage's
+// send-out shot is still up); TRUE: wait a frame
+static BOOL IntroHoldHealthbar(int battler)
+{
+    if (sIntroSendOutPending & (1 << battler)) {
+        if (++sIntroSendOutWait <= INTRO_SENDOUT_WAIT_MAX) {
+            return TRUE;
+        }
+
+        // Never came out (a task this doesn't see): don't keep the battle waiting
+        sIntroSendOutPending &= ~(1 << battler);
+    }
+
+    return BattleStage_HoldSendOutHealthbar(battler);
+}
+
 void ov16_0225CBB8(BattleSystem *battleSys, BattlerData *param1)
 {
     UnkStruct_ov16_0225CBB8 *v0 = (UnkStruct_ov16_0225CBB8 *)Heap_Alloc(HEAP_ID_BATTLE, sizeof(UnkStruct_ov16_0225CBB8));
 
     sIntroSendOutPending = 0;
+    sIntroSendOutWait = 0;
     IntroBlackout();
     v0->unk_00 = battleSys;
     v0->unk_14 = 0;
@@ -566,8 +587,9 @@ void ov16_0225D360(BattleSystem *battleSys, BattlerData *param1, TrainerThrowBal
         // legacy focus), or turns to the send-out shot (the intro shots, from the throw task)
         BattleStage_EndIntroFocus();
 
-        // bw2vis:intro: the send-out shot holds until the mon is out
+        // bw2vis:intro: its healthbar waits until the mon is out
         sIntroSendOutPending |= 1 << param1->battler;
+        sIntroSendOutWait = 0;
 
         {
             Trainer *trainer = BattleSystem_GetTrainer(battleSys, param1->battler);
@@ -719,6 +741,7 @@ void ov16_0225D5B8(BattleSystem *battleSys, BattlerData *param1, CommandSetMessa
 
     // The first command menu of the battle: the stage camera sweeps the opponents first
     BattleStage_StartBattleSweep();
+    sIntroSendOutPending = 0; // bw2vis:intro: the intro's send-outs are over
     TotemBattle_ShowHealthbars(battleSys);
     SysTask_Start(param1->unk_00.unk_00, v0, 0);
 }
@@ -3042,9 +3065,9 @@ static void SlideHealthbarInTask(SysTask *task, void *data)
             break;
         }
 
-        // The player's throw waited for the stage camera, or the send-out shot isn't home yet:
-        // the bar still comes in after the mon (bw2vis:intro)
-        if (BattleStage_HoldSendOutHealthbar(healthbar->battler)) {
+        // The player's throw waited for the stage camera, or its mon isn't out yet: the bar
+        // still comes in after the mon (bw2vis:intro)
+        if (IntroHoldHealthbar(healthbar->battler)) {
             break;
         }
 
