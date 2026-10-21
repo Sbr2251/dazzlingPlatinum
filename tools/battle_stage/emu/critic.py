@@ -2856,7 +2856,15 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
 
     # -- mesh and blob counts, 3 s of idle, idleFrames
     if live:
-        st = ram.read()
+        # bw2vis:sprite-source: the counts are reset when a frame begins and counted as it draws, and the
+        # battle draws every second vblank, so one read can land between the two and see 0: take the
+        # most over 4 vblanks
+        reads = []
+        for _ in range(4):
+            reads.append(ram.read())
+            e.run(1)
+        st = dict(reads[-1], spriteMeshes=max(r["spriteMeshes"] for r in reads),
+                  blobShadows=max(r["blobShadows"] for r in reads))
         sc.check("spriteMeshes == 2 at the command menu", st["spriteMeshes"] == SPRITE_COUNT,
                  f"spriteMeshes {st['spriteMeshes']}", why="the mons are not drawn as meshes")
         sc.check("blob shadows show (blobShadows == 2)", st["blobShadows"] == SPRITE_COUNT,
