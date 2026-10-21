@@ -30,6 +30,7 @@
 #include "battle/battle_controller.h"
 #include "battle/battle_controller_player.h"
 #include "battle/battle_display.h"
+#include "battle/battle_events.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
 #include "battle/battle_mon.h"
@@ -340,7 +341,7 @@ static int BattleMessage_TrainerNameTag(BattleSystem *battleSys, BattleContext *
 
 static u32 BattleScript_CalcPrizeMoney(BattleSystem *battleSys, BattleContext *battleCtx, int battler);
 static void BattleScript_CalcEffortValues(Party *party, int slot, int species, int form);
-static int BattleScript_CalcCatchShakes(BattleSystem *battleSys, BattleContext *battleCtx);
+static int BattleScript_CalcCatchShakes(BattleSystem *battleSys, BattleContext *battleCtx, BOOL *critical);
 static void BattleScript_LoadPartyLevelUpIcon(BattleSystem *battleSys, BattleScriptTaskData *data, Pokemon *mon);
 static void BattleScript_FreePartyLevelUpIcon(BattleSystem *battleSys, BattleScriptTaskData *data);
 static void BattleScript_UpdateFriendship(BattleSystem *battleSys, BattleContext *battleCtx, int faintingBattler);
@@ -10653,13 +10654,15 @@ enum CatchMonTaskState {
     SEQ_CATCH_MON_PRINT_POKEMON_BROKE_FREE,
     SEQ_CATCH_MON_DONE_POKEMON_BROKE_FREE,
     SEQ_CATCH_MON_DONE,
+    SEQ_CATCH_MON_CRITICAL_FLASH, // bw2vis:battle-events
 };
 
 enum CatchMonTaskDataIndex {
     CATCH_MON_MSG_INDEX = 0,
     CATCH_MON_DELAY,
     CATCH_MON_TOTAL_SHAKES,
-    CATCH_MON_REMAINING_SHAKES
+    CATCH_MON_REMAINING_SHAKES,
+    CATCH_MON_CRITICAL, // bw2vis:battle-events
 };
 
 static void BattleScript_CatchMonTask(SysTask *task, void *inData)
@@ -10743,13 +10746,20 @@ static void BattleScript_CatchMonTask(SysTask *task, void *inData)
     case SEQ_CATCH_MON_CALC_SHAKES:
         if (--data->tmpData[CATCH_MON_DELAY] == 0) {
             BattleController_EmitOpenCaptureBall(data->battleSys, battler, data->ball);
-            data->tmpData[CATCH_MON_TOTAL_SHAKES] = BattleScript_CalcCatchShakes(data->battleSys, data->battleCtx);
+            BOOL critical;
+            data->tmpData[CATCH_MON_TOTAL_SHAKES] = BattleScript_CalcCatchShakes(data->battleSys, data->battleCtx, &critical);
+            data->tmpData[CATCH_MON_CRITICAL] = critical;
 
-            if (data->tmpData[CATCH_MON_TOTAL_SHAKES] < BALL_3_SHAKES_SUCCESS) {
+            if (critical) {
+                // A critical capture shakes once before the click, or breaks out without shaking
+                data->tmpData[CATCH_MON_REMAINING_SHAKES] = data->tmpData[CATCH_MON_TOTAL_SHAKES] == BALL_3_SHAKES_SUCCESS ? 1 : 0;
+            } else if (data->tmpData[CATCH_MON_TOTAL_SHAKES] < BALL_3_SHAKES_SUCCESS) {
                 data->tmpData[CATCH_MON_REMAINING_SHAKES] = data->tmpData[CATCH_MON_TOTAL_SHAKES];
             } else {
                 data->tmpData[CATCH_MON_REMAINING_SHAKES] = 3;
             }
+
+            gBattleEventsDebug.lastCaptureShakes = data->tmpData[CATCH_MON_TOTAL_SHAKES];
 
             data->seqNum = SEQ_CATCH_MON_UNK_03;
         }
@@ -10762,6 +10772,17 @@ static void BattleScript_CatchMonTask(SysTask *task, void *inData)
         break;
     case SEQ_CATCH_MON_UNK_04:
         if (ov12_022368D0(data->ballRotation, 3) == FALSE) {
+            if (data->tmpData[CATCH_MON_CRITICAL]) {
+                // The ball has landed: the critical capture's sound and flash before its one shake
+                BattleEvents_StartCriticalCaptureFlash(data->battleSys);
+                data->seqNum = SEQ_CATCH_MON_CRITICAL_FLASH;
+            } else {
+                data->seqNum = SEQ_CATCH_MON_DO_SHAKES;
+            }
+        }
+        break;
+    case SEQ_CATCH_MON_CRITICAL_FLASH:
+        if (BattleEvents_IsCriticalCaptureFlashDone()) {
             data->seqNum = SEQ_CATCH_MON_DO_SHAKES;
         }
         break;
@@ -11212,8 +11233,10 @@ static const struct Fraction sSafariCatchRate[] = {
  * @return The number of times that a Poke Ball will shake during a capture
  * attempt. 4 shakes is defined as a successful capture.
  */
-static int BattleScript_CalcCatchShakes(BattleSystem *battleSys, BattleContext *battleCtx)
+static int BattleScript_CalcCatchShakes(BattleSystem *battleSys, BattleContext *battleCtx, BOOL *critical)
 {
+    *critical = FALSE;
+
     if (BattleSystem_BattleType(battleSys) & BATTLE_TYPE_ALWAYS_CATCH) {
         return BALL_3_SHAKES_SUCCESS;
     }
@@ -11298,9 +11321,30 @@ static int BattleScript_CalcCatchShakes(BattleSystem *battleSys, BattleContext *
         catchRate = catchRate * 15 / 10;
     }
 
+    // Gen 5 critical capture (pokebw2 btl_server_flow_sub.c:936-952): rolled from the catch rate and the number of
+    // species caught; a critical capture makes one shake check instead of Platinum's four, and shows one shake.
+    // The Master Ball never rolls one (BW2 returns before the roll).
+    if (battleCtx->msgItemTemp != ITEM_MASTER_BALL) {
+        *critical = BattleEvents_RollCriticalCapture(battleSys, catchRate);
+    }
+
     int shakes;
     if (catchRate >= 255) {
         shakes = BALL_3_SHAKES_SUCCESS;
+    } else if (*critical) {
+        u32 sqrtRate = (0xFF << 16) / catchRate;
+        CP_SetSqrt32(sqrtRate);
+        CP_WaitSqrt();
+
+        sqrtRate = CP_GetSqrtResult32();
+        CP_SetSqrt32(sqrtRate);
+        CP_WaitSqrt();
+
+        catchRate = CP_GetSqrtResult32();
+        catchRate = (0xFFFF << 4) / catchRate;
+
+        // One check with the same per-shake chance: caught after one shake, or out with none (BW2's shake count 0)
+        shakes = BattleSystem_RandNext(battleSys) < catchRate ? BALL_3_SHAKES_SUCCESS : 0;
     } else {
         u32 sqrtRate = (0xFF << 16) / catchRate;
         CP_SetSqrt32(sqrtRate);

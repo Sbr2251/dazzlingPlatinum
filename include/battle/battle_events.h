@@ -44,6 +44,16 @@ typedef struct BattleEventsDebug {
 
 extern BattleEventsDebug gBattleEventsDebug;
 
+// Critical capture (pokebw2 btl_server_flow_sub.c:1045 CheckCriticalCapture). catchRate is the modified catch rate
+// (Platinum's "a", 0-255+, before the shake-probability square roots). Returns TRUE for a critical capture, which
+// then gets a single shake check.
+BOOL BattleEvents_RollCriticalCapture(BattleSystem *battleSys, u32 catchRate);
+
+// The critical capture's own sound and flash, played when the ball has dropped, before its one shake. No BW2 effect
+// script is used: a white flash of the main screen (the 3D arena follows the 2D brightness) plus a sparkle SE.
+void BattleEvents_StartCriticalCaptureFlash(BattleSystem *battleSys);
+BOOL BattleEvents_IsCriticalCaptureFlashDone(void);
+
 // Ends the pop-up banners, the capture flash and a pending music switch. Call before the battle frees its systems.
 void BattleEvents_Shutdown(void);
 
