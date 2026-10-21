@@ -434,9 +434,10 @@ cuts to its end pose.
 
 ## Budget
 
-- The per-frame work is 4 projections plus a view rebuild while off home: about 150-260 OS ticks
-  (0.3-0.5 ms) per `BattleStageCamera_Advance` off home in DeSmuME (`advanceTicksMax`), against a
-  33 ms frame.
+- The per-frame work is 4 projections plus a view rebuild while off home (with BW2's curve, a
+  square root and two arctangents more): about 130 OS ticks (0.25 ms) per `BattleStageCamera_Advance`
+  on average off home in DeSmuME, at most about 490 (0.9 ms, `advanceTicksMax`, a double battle with
+  the cut guard's second pass), against a 33 ms frame. No polygons, VRAM or heap are added.
 - There is no new VRAM.
 - The new code lives in a new `src/battle/battle_stage_camera.c`, in the battle overlay,
   with its internal header next to `battle_stage_sprites.h`. The public calls go in
