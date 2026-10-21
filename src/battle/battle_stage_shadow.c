@@ -304,19 +304,19 @@ static BOOL DrawSilhouette(int index, PokemonSprite *sprite, int side, const Sha
     px = transforms->xCenter + transforms->xOffset - 128;
     row = side ? transforms->yCenter + MON_SPRITE_FRAME_HEIGHT / 2 - BattleStageSprites_BlobRow(side) : 0;
 
-    // bw2vis:shadow+layout: the battler's rest offset (screen px), as the sprite and the blob take it
+    foot.x = centre.x + (s32)((s64)right128.x * px / 128) + down.x * row;
+    foot.y = centre.y + (s32)((s64)right128.y * px / 128) + down.y * row;
+    foot.z = centre.z + (s32)((s64)right128.z * px / 128) + down.z * row;
+
+    // bw2vis:shadow+layout: the battler's rest offset (screen px), as the sprite and the blob take
+    // it; the exact ground point, as the offset can be tens of rows
     {
         int dx, dy;
 
         if (BattleStageLayout_Offset(index, &dx, &dy)) {
-            px += dx;
-            row += dy;
+            BattleStageSprites_GroundPointAt(px + 128 + dx, BattleStageSprites_BlobRow(side) + row + dy, &foot);
         }
     }
-
-    foot.x = centre.x + (s32)((s64)right128.x * px / 128) + down.x * row;
-    foot.y = centre.y + (s32)((s64)right128.y * px / 128) + down.y * row;
-    foot.z = centre.z + (s32)((s64)right128.z * px / 128) + down.z * row;
     place.groundPer128 = VEC_Mag(&right128);
 
     // Screen pixels per texel: the stream's scale and the sprite's own (a negative x flips)

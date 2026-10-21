@@ -55,9 +55,9 @@ int BattleStageSprites_BlobRow(int side);
 // Where the home camera sees screen column px of a side's blob row on the ground; FALSE
 // when there is no ground mapping (no arena, or the row is above the horizon)
 BOOL BattleStageSprites_GroundPoint(int side, int px, VecFx32 *point);
-// bw2vis:layout - the ground's world shift under a side's blob row for a move of dx, dy screen
-// pixels (linear about the row); FALSE when there is no ground mapping
-BOOL BattleStageSprites_GroundShift(int side, int dx, int dy, VecFx32 *shift);
+// bw2vis:layout - where the home camera sees screen pixel (px, row) on the ground (the blobs'
+// height), exactly; FALSE when there is no ground mapping or the row is above the horizon
+BOOL BattleStageSprites_GroundPointAt(int px, int row, VecFx32 *point);
 // bw2vis:shadow: the ground mapping of a side at its blob row: the point seen at screen column
 // 128, the ground vector across 128 screen pixels and the one down a screen row (toward the
 // camera); FALSE when there is no ground mapping

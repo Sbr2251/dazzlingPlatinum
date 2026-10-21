@@ -801,19 +801,11 @@ static BOOL BattlerFoot(int battler, int *homeX, int *homeY, VecFx32 *foot)
     // bw2vis:layout - the foot at the battler's BW2 place (battle_stage_layout.c)
     {
         int dx, dy;
-        VecFx32 shift;
 
         if (BattleStageLayout_Offset(battler, &dx, &dy)) {
             *homeX += dx;
             *homeY += dy;
-
-            if (!BattleStageSprites_GroundPoint(side, *homeX, foot) || !BattleStageSprites_GroundShift(side, 0, dy, &shift)) {
-                return FALSE;
-            }
-
-            foot->x += shift.x;
-            foot->z += shift.z;
-            return TRUE;
+            return BattleStageSprites_GroundPointAt(*homeX, *homeY, foot);
         }
     }
 

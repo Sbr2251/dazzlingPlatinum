@@ -1368,6 +1368,15 @@ static void BuildBlobTexture(void)
     }
 }
 
+// bw2vis:layout - the home camera's rays, for exact ground points off the blob rows
+static struct {
+    BattleStageSpriteCamera camera;
+    VecFx32 back;
+    VecFx32 camUp;
+    fx32 tanY;
+    fx32 tanX;
+} sGroundRay;
+
 // Where the home camera sees a screen row (column 128) on the ground; FALSE above the horizon
 static BOOL GroundAtRow(const BattleStageSpriteCamera *camera, const VecFx32 *back, const VecFx32 *camUp, fx32 tanY, int row, VecFx32 *point, fx32 *dist)
 {
@@ -1406,6 +1415,13 @@ static void BuildGroundMapping(const BattleStageSpriteCamera *camera)
 
     tanY = FX_Div(camera->fovySin, camera->fovyCos);
     tanX = tanY * 4 / 3;
+
+    // bw2vis:layout - for BattleStageSprites_GroundPointAt
+    sGroundRay.camera = *camera;
+    sGroundRay.back = back;
+    sGroundRay.camUp = camUp;
+    sGroundRay.tanY = tanY;
+    sGroundRay.tanX = tanX;
 
     for (side = 0; side < 2; side++) {
         // A row above the horizon never meets the ground; leave the blobs off
@@ -1447,17 +1463,30 @@ BOOL BattleStageSprites_GroundPoint(int side, int px, VecFx32 *point)
 }
 
 // bw2vis:layout
-BOOL BattleStageSprites_GroundShift(int side, int dx, int dy, VecFx32 *shift)
+BOOL BattleStageSprites_GroundPointAt(int px, int row, VecFx32 *point)
 {
-    side &= 1;
+    fx32 lift, across, dist;
+    VecFx32 dir;
 
     if (!sStageSprites.hooked || sStageSprites.groundHalfWidth[0] <= 0 || sStageSprites.groundHalfWidth[1] <= 0) {
         return FALSE;
     }
 
-    shift->x = sStageSprites.groundRight[side].x * dx / 128 + sStageSprites.groundDown[side].x * dy;
-    shift->y = sStageSprites.groundRight[side].y * dx / 128;
-    shift->z = sStageSprites.groundRight[side].z * dx / 128 + sStageSprites.groundDown[side].z * dy;
+    // The ray through the pixel; right is level, so the row alone sets the distance
+    lift = FX_Mul((96 - row) * FX32_ONE / 96, sGroundRay.tanY);
+    across = FX_Mul((px - 128) * FX32_ONE / 128, sGroundRay.tanX);
+    dir.x = -sGroundRay.back.x + FX_Mul(sGroundRay.camUp.x, lift) + FX_Mul(sStageSprites.right.x, across);
+    dir.y = -sGroundRay.back.y + FX_Mul(sGroundRay.camUp.y, lift) + FX_Mul(sStageSprites.right.y, across);
+    dir.z = -sGroundRay.back.z + FX_Mul(sGroundRay.camUp.z, lift) + FX_Mul(sStageSprites.right.z, across);
+
+    if (dir.y >= 0) {
+        return FALSE;
+    }
+
+    dist = FX_Div(BLOB_GROUND_Y - sGroundRay.camera.camPos.y, dir.y);
+    point->x = sGroundRay.camera.camPos.x + FX_Mul(dir.x, dist);
+    point->y = BLOB_GROUND_Y;
+    point->z = sGroundRay.camera.camPos.z + FX_Mul(dir.z, dist);
     return TRUE;
 }
 
@@ -1650,11 +1679,9 @@ static void GroundQuadAxes(int battler, int widthPx, int scale, VecFx32 *centre,
     // bw2vis:layout - under the battler's BW2 place
     {
         int dx, dy;
-        VecFx32 shift;
 
-        if (BattleStageLayout_Offset(battler, &dx, &dy) && BattleStageSprites_GroundShift(side, dx, dy, &shift)) {
-            centre->x += shift.x;
-            centre->z += shift.z;
+        if (BattleStageLayout_Offset(battler, &dx, &dy)) {
+            BattleStageSprites_GroundPointAt(px + 128 + dx, sBlobRow[side] + dy, centre);
         }
     }
     a->x = FX_Mul(sStageSprites.right.x, *radius);

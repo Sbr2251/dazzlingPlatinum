@@ -886,15 +886,23 @@ int BattleStageStream_GetScale(int index)
 }
 
 // How far a scaled member (a back) sinks below the frame's bottom edge, in frame pixels
-static int BackSink(const BattlerStream *stream, int scale)
+static int BackSink(int index, int scale)
 {
+    const BattlerStream *stream = &sStageStream.battlers[index];
     int sink = (MON_STREAM_GROUND_V - stream->data->top) * scale / MON_STREAM_SCALE_ONE - BACK_ROOM;
+    int dx, dy;
 
     sink = sink < 0 ? 0 : (sink > BattleStageLayout_BackMaxSink() ? BattleStageLayout_BackMaxSink() : sink);
 
     // bw2vis:layout
     if (stream->groundCut == GROUND_CUT_YES && sink < BattleStageLayout_CutBackSink()) {
         sink = BattleStageLayout_CutBackSink();
+    }
+
+    // bw2vis:layout - a battler already moved down by the layout (a doubles back at its BW2 row)
+    // sinks only by what that leaves: the sink is a depth below the classic foot row
+    if (BattleStageLayout_Offset(index, &dx, &dy) && dy > 0) {
+        sink = sink > dy ? sink - dy : 0;
     }
 
     return sink;
@@ -911,7 +919,7 @@ int BattleStageStream_SinkPixels(int index, int frameHeight)
 
     stream = &sStageStream.battlers[index];
     scale = BattleStageLayout_StreamScale(MonStream_Scale(stream->data));
-    return scale == MON_STREAM_SCALE_ONE ? 0 : BackSink(stream, scale) * frameHeight / MON_SPRITE_FRAME_HEIGHT;
+    return scale == MON_STREAM_SCALE_ONE ? 0 : BackSink(index, scale) * frameHeight / MON_SPRITE_FRAME_HEIGHT;
 }
 
 void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *transforms, const PokemonSpriteDrawRect *rect, BattleStageStreamRect *out)
@@ -934,7 +942,7 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
         boxV0 = data->top;
         boxU1 = (data->left + data->width) * 2;
         boxV1 = data->top + data->height;
-        sink = BackSink(&sStageStream.battlers[index], scale);
+        sink = BackSink(index, scale);
     }
 
     if (!transforms->partialDraw) {

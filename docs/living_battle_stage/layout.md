@@ -50,22 +50,34 @@ camera (`btlv_camera.c:41-52`). The classic feet are the bottom of the 80x80 fra
 |---|---|---|---|---|
 | singles player | (64, 152) | (62, 212) | (-2, 0) | the row: under an opaque box, small backs would vanish at the menu (tall ones sink toward it) |
 | singles enemy | (192, 88) | (184, 98) | (-8, 0) | the row: the feet and blob would go behind our player healthbar (from y 95 at x >= 150; BW2's gauge is smaller and lower, `btlv_gauge.c:662`) |
-| doubles player 1 | (40, 152) | (16, 192) | (-12, 0) | x: keeps the pair 72 px apart (classic 40, BW2 97) without slot 2 going under the gauges; row: as singles |
-| doubles player 2 | (80, 160) | (113, 234) | (+20, 0) | x: at BW2's x its head goes under the player gauges (x >= 140) |
+| doubles player 1 | (40, 152) | (16, 192) | (-24, +20) | the row halfway: at the classic row the two 2x backs filled the middle of the screen, over the foes' platform; at BW2's they'd be all but gone behind our opaque box and the ability banner |
+| doubles player 2 | (80, 160) | (113, 234) | (+20, +37) | the row halfway, as slot 1; x: at BW2's x its body goes under the player gauges (x >= 136) |
 | doubles enemy 1 | (216, 90) | (216, 100) | (0, 0) | the row: behind the doubles player gauges (from y 88) |
 | doubles enemy 2 | (176, 82) | (156, 91) | (-20, 0) | the row: as enemy 1 |
 
 If workstream hud-gauges moves the player gauges to BW2's spot, the enemy rows can take BW2's +10
 (and doubles player 2 its x 113) by editing that table alone.
 
+A battler moved down (the doubles backs) is a real move on the ground: its foot, blob, silhouette,
+camera anchor and platform go to the exact ground point under the new row
+(`BattleStageSprites_GroundPointAt`, the home camera's ray), so the prompt shot (camera.md) frames
+it there. A tall back's sink counts from the classic row, so the move down takes the sink's place
+instead of adding to it (`BackSink` in `battle_stage_stream.c`): Wailord or Steelix stand where they
+did, short backs go down to the new row.
+
+At the prompt shot camera-core scales the framed back by its preset size (1.19x / 1.06x in doubles),
+on top of the 2x. BW2's flat mode (`mcss.c:353-376`) keeps a sprite's size whatever the camera does,
+unless an effect script switches it to perspective; whether its prompt effects (0x23f-0x241, not
+extracted) do is unknown, so the prompt's sprite size is left to camera-core.
+
 What follows the offset:
 - **Sprites:** `DrawHook` takes `BattleStageLayout_Similarity`. That is the camera's similarity
   with the anchors at the layout place, or a translation at home. Whatever a script does to the
   sprite rides along, and so do the classic shadow and the stat overlay.
 - **Platforms:** the platform meshes in `DrawArena` move by the ground shift of their side's mean
-  offset (`BattleStageSprites_GroundShift`, linear about the blob row).
-- **Blobs:** `GroundQuadAxes` moves the blob, and Dig's hole, by the battler's ground shift.
-  Workstream shadow, which is replacing the blobs, must keep this.
+  offset, from the side's mean classic foot point to the moved one (`BattleStageSprites_GroundPointAt`).
+- **Blobs and silhouettes:** `GroundQuadAxes` puts the blob, and Dig's hole, on the ground under
+  the moved foot, and the silhouette (`battle_stage_shadow.c`, `DrawSilhouette`) does the same.
 - **Camera anchors:** `BattlerFoot` (camera) puts each anchor at the layout place, so the idle
   drift, the intro focus and the cinematics frame the battlers where they stand.
 - **Trainers:** `BattleStage_GetSideOffset` adds the side's mean offset, so the intro trainers

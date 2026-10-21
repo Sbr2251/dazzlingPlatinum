@@ -40,23 +40,29 @@
 // data_ov168_021f327c, doubles data_ov168_021f32ac) through its default camera
 // (btlv_camera.c:41-52): singles player (62, 212), enemy (184, 98); doubles player (16, 192) and
 // (113, 234), enemy (216, 100) and (156, 91). The classic feet are the bottom of the 80x80
-// frame at BATTLER_POS_*: x, y + 40. BW2's x is taken where Platinum's HUD allows it:
-// - The player side keeps its classic row: BW2's is 20 to 42 px below the screen, which only
-//   works under BW2's translucent text box; under Platinum's opaque one a small back would
-//   vanish at the command menu. Tall backs still sink toward it (BattleStageLayout_BackMaxSink).
-// - The enemy side keeps its classic row too: BW2's, 8 to 10 px lower, puts the feet and the
-//   blob behind Platinum's player healthbar (from y 95 for x >= 150 in singles, 88 in doubles;
-//   BW2's gauge is smaller and lower, btlv_gauge.c:662).
-// - Doubles player slot 2 stops at x 100 (BW2 113), where its head would go under the player
-//   gauges, and slot 1 at 28 (BW2 16) keeps the pair as far apart (72 px; BW2 97, classic 40).
+// frame at BATTLER_POS_*: x, y + 40. BW2's place is taken where Platinum's HUD allows it:
+// - Doubles, the player side: halfway down to BW2's rows (172, 197; BW2 192, 234). At the classic
+//   rows the two 2x backs filled the middle of the screen, over the foes' platform; at BW2's they
+//   would be all but gone behind Platinum's opaque text box (and the ability banner), where BW2's
+//   translucent box shows them through (layout.md). The prompt shot (camera.md) frames each one
+//   in turn. x: BW2's for the left one (16); the right one stops at 100 (BW2 113), where its body
+//   would go under the player gauges (x >= 136).
+// - Singles, the player side keeps its row: BW2's is 60 px lower, and the lone back is framed by
+//   the prompt shot at the menu anyway; tall backs sink toward it (BattleStageLayout_BackMaxSink).
+// - The enemy side keeps its classic row too: BW2's, 8 to 10 px lower, puts the feet and the blob
+//   behind Platinum's player healthbar (from y 95 for x >= 150 in singles, 88 in doubles; BW2's
+//   gauge is smaller and lower, btlv_gauge.c:662).
 static const s8 sRestOffset[BATTLER_TYPE_MAX][2] = {
     [BATTLER_TYPE_SOLO_PLAYER] = { 62 - 64, 0 },
     [BATTLER_TYPE_SOLO_ENEMY] = { 184 - 192, 0 },
-    [BATTLER_TYPE_PLAYER_SIDE_SLOT_1] = { 28 - 40, 0 },
+    [BATTLER_TYPE_PLAYER_SIDE_SLOT_1] = { 16 - 40, (192 - 152) / 2 },
     [BATTLER_TYPE_ENEMY_SIDE_SLOT_1] = { 216 - 216, 0 },
-    [BATTLER_TYPE_PLAYER_SIDE_SLOT_2] = { 100 - 80, 0 },
+    [BATTLER_TYPE_PLAYER_SIDE_SLOT_2] = { 100 - 80, (234 - 160) / 2 },
     [BATTLER_TYPE_ENEMY_SIDE_SLOT_2] = { 156 - 176, 0 },
 };
+
+// The classic home x of each battler slot (BATTLER_POS_*), as the camera's sHomeX
+static const s16 sClassicX[BATTLER_TYPE_MAX] = { 64, 192, 40, 216, 80, 176 };
 
 typedef struct StageLayout {
     BattleSystem *battleSys;
@@ -212,7 +218,8 @@ BOOL BattleStageLayout_SideOffset(int side, int *dx, int *dy)
 
 BOOL BattleStageLayout_PlatformShift(int side, VecFx32 *shift)
 {
-    int dx, dy;
+    int dx, dy, cx, row, max, i, count = 0, sumX = 0;
+    VecFx32 from, to;
 
     shift->x = 0;
     shift->y = 0;
@@ -222,7 +229,28 @@ BOOL BattleStageLayout_PlatformShift(int side, VecFx32 *shift)
         return FALSE;
     }
 
-    return BattleStageSprites_GroundShift(side, dx, dy, shift);
+    // From the side's classic foot point (the mean of its battlers') to the moved one, exactly:
+    // the offset can be tens of rows, over which the ground per row changes
+    max = BattleSystem_MaxBattlers(sStageLayout.battleSys);
+
+    for (i = 0; i < max && i < MAX_BATTLERS; i++) {
+        int type = BattleSystem_BattlerSlot(sStageLayout.battleSys, i);
+
+        if (type < BATTLER_TYPE_MAX && (type & 1) == side) {
+            sumX += sClassicX[type];
+            count++;
+        }
+    }
+
+    cx = count > 0 ? sumX / count : (side ? 192 : 64);
+    row = BattleStageSprites_BlobRow(side);
+
+    if (!BattleStageSprites_GroundPointAt(cx, row, &from) || !BattleStageSprites_GroundPointAt(cx + dx, row + dy, &to)) {
+        return FALSE;
+    }
+
+    VEC_Subtract(&to, &from, shift);
+    return TRUE;
 }
 
 BOOL BattleStageLayout_Similarity(int battler, BattleStageCameraSimilarity *similarity)
