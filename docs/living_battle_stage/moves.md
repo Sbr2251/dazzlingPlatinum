@@ -164,8 +164,9 @@ The existing scenarios must still pass: `stage_ab`, `move_audit`, `move_tester`,
 
 ## Per-move camera
 
-Eight moves move the stage camera with the move, in the Black/White pattern. Every other move
-still plays at the home pose.
+254 of the 474 move animations move the stage camera with the move, in the Black/White pattern:
+eight hand-authored scripts (below) and 246 that use the camera templates ("Templates"). Every
+other move still plays at the home pose.
 
 **The pattern:**
 
@@ -234,6 +235,128 @@ Dance have the flag, so on the stage they hide the bars themselves with command 
 (`StageHealthbars FALSE`) before the wind-up, and show them again 6 frames into
 `StageCameraHome 12`.
 
+### Templates
+
+246 moves use one of six camera templates built from Black 2/White 2's camera presets. They are
+macros in `asm/macros/btlanimcam.inc`, and `tools/battle_stage/camera_templates.py` writes them into
+the scripts. Its table is the list of templated moves: `--check` says whether the scripts match it,
+`--list` prints it by template and `--strip` takes every template out.
+
+**Where the poses come from.** pokebw2 has no BW2 move scripts (archive 65 is not extracted), but the
+move VM's camera commands and their preset poses are there: `CmdCameraMovePreset` and the other camera
+opcodes in `src/ov168/btlv_effvm.c:762-1124`, the preset table at `:468-505`, and the home pose in
+`src/ov167/btlv_camera.c:41-53`. Every BW2 preset is the home camera trucked onto a mon or a group, with no
+rotation. In singles that frames the enemy's mon at about 1.50x home size and the player's mon at about
+0.91x (a pan with a slight pull-back), and `CmdCameraShake` punches the hit. The templates use those
+framings in our relative poses (camera auditor, C6):
+
+| shot | player's side | enemy's side |
+|---|---|---|
+| close (`CAMTPL_CLOSE_*`, `CAMTPL_SELF_*`) | 78%: 0.91x, BW2's player shot | 92%: 1.35x |
+| two-shot (`CAMTPL_BETWEEN`, focus `BETWEEN`) | 95% | 95% |
+| wide (`CAMTPL_WIDE`, focus `CENTER`) | 112%: the player's mon at 0.85x, the enemy's at 0.91x | |
+
+The scales are the battlers' `anchorScale`, read in the move tester on the Plain stage. From a mon on the
+player's side, 100% frames it at 0.71x and 48% at 1.46x. On the enemy's side, BW2's 1.50x is 85% (Tackle's
+1.46x), but at that size the sparks around a hit fly out of the frame: the particle check below WARNs for
+five of the hand-authored moves. So the templates stop at 92%. Yaw stays within 8 degrees and pitch within 3.
+
+**The templates.** Each opens at the top of the script and ends with `CamTplClose` before every `End`:
+`StageCameraHome 12`, the healthbars it hid back 6 frames in, then `StageCameraWait`. Every template but
+"wide" hides the healthbars that are showing (`StageHealthbars FALSE`) for its close shots.
+
+| template | open | at each hit (the defender's `Func_Shake`) | moves |
+|---|---|---|---|
+| contact | the attacker's close shot (yaw 6) over 8 frames, hold 8, then the defender's close shot (yaw -6) over 6. The whole animation then plays on the defender | `CamTplImpact`: a 2 px shake for 6 frames (3 px for 8 when the mon's own shake is 3 px or more) | 49 |
+| push | the two-shot (yaw -4) over 10 frames while it flies | `CamTplPushImpact`, the defender's close shot over 6 frames, then `CamTplImpact` | 76 |
+| twoshot | the two-shot for the whole move | `CamTplImpact` | 60 |
+| self | the attacker's close shot (yaw -8, pitch 2) over 10 frames, then a 14-degree orbit over 40 | - | 34 |
+| wide | the pull-back, pitch 3, over 12 frames | `CamTplImpact`, a spread hit included | 27 |
+| shake | none: the camera stays home | `CamTplImpact` | 0 |
+
+The contact template adds 8 frames before the move's own animation. Every template adds about 12 at its
+end (the ease home and the wait).
+
+**How each move got its template.** The candidates were the 277 moves `move_audit.json` rates risk: low
+(particles and sprite moves only), less the eight hand-authored ones and the 23 rejected below. None of
+them uses `SwitchBg`, `FadeBg` or any other background change; those belong to the effect-bg workstream.
+
+1. A first pick by the move data. `RANGE_USER`, `RANGE_USER_SIDE` and `RANGE_USER_OR_ALLY` get "self";
+   spread and field ranges get "wide". A single-target move gets "contact" if it makes contact or its
+   particles sit on the defender (90% of them in the classic run), else "push".
+2. Every move was played with its template in the move tester, player->enemy and enemy->player, and every
+   live particle was read from RAM every other frame (the particle check under Checking).
+3. A move whose particles left the scene (more than 3% of them) or drifted off a battler (more than
+   10 px), in either direction, stepped down and was played again: contact to push when its particles
+   also sit on the attacker, contact or push to twoshot, self to wide, twoshot or wide to shake. The
+   margin under the check's PASS limits (5%, 16 px) keeps a move whose sparks are random from failing on
+   another run. Secret Power went the other way, push to contact: its one emitter is on the defender, and
+   the two-shot drifted it.
+
+86 moves ended on another template than their first pick, none on shake. Every templated move ends at
+home, keeps its particles on screen and passes the move_redo, move_tester and move_audit checks at day and
+at night (Checking).
+
+The emitters are still flat 2D, which the particles-3d workstream is changing. The templates live with that
+by keeping each move's particles on the battler that is framed: contact plays the whole animation on the
+defender and self on the attacker, push only moves in on the defender at the hit, and the two-shot and the
+wide shot keep both mons in the frame, where the particle similarity stays close to both battlers' own.
+Once particles are projected in 3D, the moves that stepped down to twoshot can go back to contact or push.
+
+**The moves by template** (`camera_templates.py --list`; move_audit.json notes each one as "per-move camera
+(template ...)"):
+
+- **contact (49):** Karate Chop, Comet Punch, Scratch, Cut, Wing Attack, Bind, Vine Whip, Horn Attack,
+  Fury Attack, Body Slam, Wrap, Thrash, Pin Missile, Ember, Peck, Drill Peck, Submission, Low Kick,
+  Strength, Lick, Smog, Clamp, Hi Jump Kick, Dizzy Punch, Fury Swipes, Struggle, Triple Kick, False Swipe,
+  Attract, Return, Vital Throw, Rock Smash, Beat Up, Brick Break, Secret Power, Arm Thrust, Poison Fang,
+  Astonish, Poison Tail, Feint, Pluck, Wring Out, Sucker Punch, Force Palm, Poison Jab, Bullet Punch, Iron
+  Head, Grass Knot, Play Rough.
+- **push (76):** Pay Day, Sand Attack, Poison Sting, Twineedle, Roar, Psybeam, Poison Powder, Stun Spore,
+  Sleep Powder, Fire Spin, Rock Throw, Dig, Hypnosis, Screech, Sludge, Bone Club, Poison Gas, Leech Life,
+  Lovely Kiss, Spore, Psywave, Spider Web, Flail, Cotton Spore, Mach Punch, Sweet Kiss, Sludge Bomb, Giga
+  Drain, Charm, Rollout, Steel Wing, Sleep Talk, Mirror Coat, Ancient Power, Uproar, Spit Up, Flatter,
+  Will-O-Wisp, Facade, Magic Coat, Yawn, Skill Swap, Snatch, Dive, Feather Dance, Ice Ball, Fake Tears,
+  Tickle, Sand Tomb, Block, Bounce, Covet, Magical Leaf, Rock Blast, Gyro Ball, Brine, Natural Gift,
+  Payback, Fling, Psycho Shift, Gastro Acid, Me First, Copycat, Power Swap, Guard Swap, Worry Seed, Heart
+  Swap, Seed Bomb, Vacuum Wave, Mud Bomb, Psycho Cut, Rock Climb, Magnet Bomb, Chatter, Attack Order, Crush
+  Grip.
+- **twoshot (60):** Pound, Double Slap, Vice Grip, Whirlwind, Slam, Stomp, Double Kick, Jump Kick,
+  Headbutt, Horn Drill, Take Down, Bite, Sonic Boom, Water Gun, Bubble Beam, Counter, Leech Seed, Petal
+  Dance, Dragon Rage, Rage, Smokescreen, Egg Bomb, Spike Cannon, Hyper Fang, Super Fang, Slash, Thief,
+  Flame Wheel, Mud-Slap, Octazooka, Bone Rush, Frustration, Pain Split, Dragon Breath, Rapid Spin, Cross
+  Chop, Crunch, Knock Off, Endeavor, Blaze Kick, Needle Arm, Signal Beam, Bullet Seed, Mud Shot, Wake-Up
+  Slap, U-turn, Assurance, Embargo, Trump Card, Punishment, Last Resort, Night Slash, Bug Buzz, Shadow
+  Claw, Mirror Shot, Cross Poison, Bug Bite, Aqua Jet, Double Hit, Ominous Wind.
+- **self (34):** Growth, Recover, Withdraw, Defense Curl, Barrier, Light Screen, Reflect, Focus Energy,
+  Bide, Softboiled, Splash, Rest, Sharpen, Conversion, Protect, Belly Drum, Endure, Milk Drink, Safeguard,
+  Synthesis, Stockpile, Recycle, Slack Off, Bulk Up, Dragon Dance, Roost, Acupressure, Power Trick, Lucky
+  Chant, Aqua Ring, Magnet Rise, Nasty Plot, Defend Order, Heal Order.
+- **wide (27):** Razor Wind, Tail Whip, Growl, Acid, Razor Leaf, Haze, Bubble, Rock Slide, Conversion 2,
+  Spikes, Sandstorm, Sweet Scent, Swallow, Heat Wave, Imprison, Teeter Dance, Mud Sport, Air Cutter, Water
+  Spout, Howl, Water Sport, Gravity, Tailwind, Toxic Spikes, Lava Plume, Captivate, Stealth Rock.
+
+**Rejected** (risk: low, but no template; `REJECTED` in the tool):
+
+- 2D OBJ effect sprites, which are drawn in screen space and can't follow the camera: Bonemerang,
+  Swagger, Baton Pass, Torment, Smelling Salts, Crush Claw, Icicle Spear, Dragon Claw, and Metronome,
+  Constrict and Follow Me (OBJ sprites only).
+- A background-layer shake (`Func_ShakeBg`), which the stage mirrors onto the camera: Barrage, Snore,
+  Hammer Arm, Dragon Rush, Wood Hammer and Rock Tomb. Magnitude too (its BG3 shake is mirrored, chunk 6
+  category A).
+- Particles switched to the perspective particle camera (`SetCameraProjection`): Gust and Twister (and Rock
+  Tomb).
+- Substitute: its doll is drawn in screen space (`BtlAnimCmd_068`), and sprite_life checks it.
+- No animation of its own: Mirror Move and Nature Power.
+
+The other 197 moves (risk medium or high in move_audit: background switches and fades, OAM and BG2 copies,
+windows, per-line waves) were not candidates. The eight hand-authored moves are unchanged.
+
+**The pull-back on every arena.** The wide template is the only pose farther out than home. Growl was
+played on all 30 quick-battle backgrounds, and the 3D layer was rendered alone with the magenta marker
+while the camera was pulled back. No background showed a hole: the panoramas reach 64 rows above the home
+frame, and the ground 48 rows below it and out to x = 720 at the sides (`arena.py`).
+
 ### Command 90: `StageCameraZoom fovDeg, frames`
 
 Eases the vertical field of view to `fovDeg` degrees over `frames` camera frames (30 Hz, the
@@ -267,6 +390,33 @@ compare each move against the classic look.
 still on the Plain stage, and writes the sheets as `move_redo/<id>_<tod>_rev.png`. That run
 checks the other branch of every `JumpIfBattlerSide`: the attacker close-up on the enemy and the
 defender close-up on the player's mon.
+
+**Particles off home.** `move_redo` also reads every live particle from RAM every other frame while a
+move plays, and grades "particles stay on screen off home" for any move whose camera left home
+(`tools/battle_stage/emu/README.md`, "Particles off home"):
+
+- **lost:** of the particles classic shows inside the scene (above the text box, at least 16 px from its
+  edges), the share the camera puts more than 8 px outside it. PASS at 5% or less, FAIL above 15%.
+- **drift:** for particles on a battler (within 44 px of its body, and not emitted by the other battler),
+  how far the particle similarity draws them from that battler's own similarity, 95th percentile. PASS at
+  16 px or less, FAIL above 32.
+
+The hand-authored moves at 85% on the enemy's side WARN on lost (Tackle, X-Scissor, Leaf Blade, Stone
+Edge and Air Slash, 6-9%: sparks leave the 1.46x frame), and Shadow Ball FAILs (15% lost, 48 px drift: its
+charge sits off the attacker it frames, the camera auditor's bug B1). Earthquake and Swords Dance PASS.
+
+**The templated moves** are checked with the same scenarios and their full list (the ids are in
+`camera_templates.py --list` and move_audit.json):
+
+```
+critic.py ROM OUT --scenario move_redo --moves <the 246 ids> --map build/main.nef.xMAP
+critic.py ROM OUT --scenario move_redo --reverse --moves <the 246 ids> --map build/main.nef.xMAP
+critic.py ROM OUT --scenario move_tester --reverse --moves <the 246 ids> --sprite-moves "" --map ...
+critic.py ROM OUT --scenario move_audit --moves <the 246 ids> --map build/main.nef.xMAP
+```
+
+move_tester's battle (the save's Eterna Forest) has no arena, so it checks the animations and the menu
+but not the camera; move_redo and move_audit play on the Plain stage at day and at night.
 
 **Known looks:**
 

@@ -106,6 +106,7 @@
   {"id": 459, "name": "ROAR_OF_TIME", "category": "backdrop_fade", "expect": "kept", "needs": [], "min_change_pct": 3, "effect": "backdrop fades to black / white (15/16) and the arena fades with it; no fade"},
   {"id": 465, "name": "SEED_FLARE", "category": "backdrop_fade", "expect": "kept", "needs": ["shake"], "min_change_pct": 3, "effect": "backdrop fades to white (13/16) and the arena fades with it; arena shakes too; no fade"},
   {"id": 467, "name": "SHADOW_FORCE", "category": "backdrop_fade", "expect": "kept", "needs": [], "min_change_pct": 3, "effect": "backdrop goes grayscale and the arena grays with it; no fade"},
+  {"id": 469, "name": "FAIRY_WIND", "category": "backdrop_fade", "expect": "kept", "needs": [], "min_change_pct": 3, "effect": "backdrop fades to dusk pink (10/16) and the arena fades with it; no fade"},
   {"id": 470, "name": "DISARMING_VOICE", "category": "backdrop_fade", "expect": "kept", "needs": [], "min_change_pct": 3, "effect": "backdrop fades to black (12/16) and the arena fades with it; no fade"},
   {"id": 471, "name": "DRAINING_KISS", "category": "backdrop_fade", "expect": "kept", "needs": [], "min_change_pct": 3, "effect": "backdrop fades to black (12/16) and the arena fades with it; no fade"},
   {"id": 473, "name": "DAZZLING_GLEAM", "category": "backdrop_fade", "expect": "kept", "needs": [], "min_change_pct": 3, "effect": "backdrop fades to white (16/16) and the arena fades with it; no fade"}
