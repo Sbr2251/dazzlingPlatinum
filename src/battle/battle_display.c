@@ -102,6 +102,7 @@
 #include "pokemon_anim.h"
 #include "pokemon_sprite.h"
 #include "render_window.h"
+#include "screen_fade.h"
 #include "sound.h"
 #include "sound_playback.h"
 #include "sprite_system.h"
@@ -209,9 +210,37 @@ static const u16 Unk_ov16_0226F1AE[] = {
     0x151E
 };
 
+// bw2vis:intro. The stage's opening fade-in has started (the battle overlay's .bss is cleared per battle)
+static BOOL sIntroFadeStarted;
+// The stage's opening: a master brightness fade-in over this many task frames (BW2: 16 levels,
+// 2 frames apart, btlv_scu.c:580-587), with the camera's opening shot
+#define INTRO_FADE_IN_STEPS 24
+
+// The stage opens without Platinum's platform slide: the platforms, the trainers and the wild
+// mon start at their places and the camera provides the motion (BW2 sets its trainers at
+// their 3D spots, btlv_scu.c:747). Not for Giratina's own entrance (it drops in from above).
+static BOOL IntroNoSlide(BattleSystem *battleSys)
+{
+    return BattleStage_IsVisible() && !(BattleSystem_BattleStatus(battleSys) & BATTLE_STATUS_GIRATINA);
+}
+
+// The first intro commands black the screens out on the stage, so nothing shows before the
+// fade-in (the battle draws from its first frame; Platinum's curtain covered that)
+static void IntroBlackout(void)
+{
+    // Enabled rather than visible: the stage only reports visible from its first drawn frame.
+    // Without an arena the opening task undoes it at once (the classic curtain).
+    if (!sIntroFadeStarted && BattleStage_IsEnabled() && GX_GetMasterBrightness() == 0) {
+        SetScreenMasterBrightness(DS_SCREEN_MAIN, -16);
+        SetScreenMasterBrightness(DS_SCREEN_SUB, -16);
+    }
+}
+
 void ov16_0225CBB8(BattleSystem *battleSys, BattlerData *param1)
 {
     UnkStruct_ov16_0225CBB8 *v0 = (UnkStruct_ov16_0225CBB8 *)Heap_Alloc(HEAP_ID_BATTLE, sizeof(UnkStruct_ov16_0225CBB8));
+
+    IntroBlackout();
     v0->unk_00 = battleSys;
     v0->unk_14 = 0;
     v0->unk_15 = 0;
@@ -236,6 +265,7 @@ void ov16_0225CBDC(BattleSystem *battleSys, BattlerData *param1, MonEncounterMes
     v2 = BattleSystem_GetPokemonSpriteManager(battleSys);
     battleType = BattleSystem_BattleType(battleSys);
     v4 = (UnkStruct_ov16_0225E4E8 *)Heap_Alloc(HEAP_ID_BATTLE, sizeof(UnkStruct_ov16_0225E4E8));
+    IntroBlackout();
 
     v4->unk_12 = 0;
 
@@ -461,6 +491,7 @@ void ov16_0225D228(BattleSystem *battleSys, BattlerData *param1, TrainerEncounte
 
     v1 = (UnkStruct_ov16_02264650_1 *)Heap_Alloc(HEAP_ID_BATTLE, sizeof(UnkStruct_ov16_02264650_1));
     v1->unk_0E = 0;
+    IntroBlackout();
 
     if (param1->battlerType & 0x1) {
         v1->unk_0F = 2;
@@ -1525,6 +1556,17 @@ static void ov16_0225E4E8(SysTask *param0, void *param1)
     case 0:
         v0->unk_20 = 28;
         v0->unk_12++;
+
+        // bw2vis:intro: on the stage the platform and the mon are at their places from the start
+        if (IntroNoSlide(v0->unk_00)) {
+            if (v0->unk_13 == 2) {
+                ManagedSprite_SetPositionXY(v0->unk_0C->unk_00, 24 * 8, 8 * 11);
+            } else {
+                ManagedSprite_SetPositionXY(v0->unk_0C->unk_00, 64, 128 + 8);
+            }
+
+            PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_X_CENTER, v0->unk_14);
+        }
     case 1:
         if (--v0->unk_20) {
             break;
@@ -2423,6 +2465,25 @@ static void ov16_0225FA70(SysTask *param0, void *param1)
 
         v0->unk_18 = 28;
         v0->unk_0E = 1;
+
+        // bw2vis:intro: on the stage the platform and the trainer are at their places from the
+        // start, and the backdrop's scroll (BG3, under the arena) is already done
+        if (IntroNoSlide(v0->unk_00)) {
+            s16 x, y;
+
+            // Every trainer of the side places the platform: a later trainer's encounter set it
+            // back to its start (a tag battle's second trainer on each side)
+            if (v0->unk_0F == 2) {
+                ManagedSprite_SetPositionXY(v0->unk_04->unk_00, 24 * 8, 8 * 11);
+            } else {
+                ManagedSprite_SetPositionXY(v0->unk_04->unk_00, 64, 128 + 8);
+                Bg_SetOffset(BattleSystem_BGL(v0->unk_00), 3, 0, 0);
+                v0->unk_1C = 33;
+            }
+
+            ManagedSprite_GetPositionXY(v0->unk_08, &x, &y);
+            ManagedSprite_SetPositionXY(v0->unk_08, v0->unk_10, y);
+        }
     case 1:
         if (--v0->unk_18) {
             break;
@@ -5234,6 +5295,78 @@ static const int Unk_ov16_0226F1D0[] = {
     0x7FFF
 };
 
+// bw2vis:intro. The opening on the 3D stage, BW2's way (presentation.md rows 1-2): no Platinum
+// curtain (the terrain's particle wipe and the white burst); the scene is set up at once, in
+// colour, and fades in from black with master brightness on both screens (btlv_scu.c:580-587).
+static BOOL IntroStageOpening(SysTask *task, UnkStruct_ov16_0225CBB8 *data, PaletteData *paletteSys)
+{
+    int brightness;
+
+    switch (data->unk_14) {
+    case 0:
+        if (!BattleStage_IsVisible()) {
+            // The classic curtain: undo a blackout from a stage that is gone again
+            if (!sIntroFadeStarted) {
+                sIntroFadeStarted = TRUE;
+                SetScreenMasterBrightness(DS_SCREEN_MAIN, 0);
+                SetScreenMasterBrightness(DS_SCREEN_SUB, 0);
+            }
+
+            return FALSE;
+        }
+
+        // From white when the field's transition ended white (battle init kept it), else black
+        sIntroFadeStarted = TRUE;
+        data->unk_17 = GX_GetMasterBrightness() > 0;
+        SetScreenMasterBrightness(DS_SCREEN_MAIN, data->unk_17 ? 16 : -16);
+        SetScreenMasterBrightness(DS_SCREEN_SUB, data->unk_17 ? 16 : -16);
+
+        // The palettes the curtain would have revealed, at once (as its skip, state 5, does)
+        MI_CpuCopy16(ov16_0223F204(data->unk_00), PaletteData_GetUnfadedBuffer(paletteSys, 0), 0x20 * 7);
+
+        if (BattleSystem_BattleType(data->unk_00) == BATTLE_TYPE_AI_PARTNER) {
+            MI_CpuCopy16(ov16_0223F210(data->unk_00), PaletteData_GetUnfadedBuffer(paletteSys, 2), 0x20 * 5);
+        } else if (BattleSystem_BattleType(data->unk_00) & BATTLE_TYPE_DOUBLES) {
+            MI_CpuCopy16(ov16_0223F210(data->unk_00), PaletteData_GetUnfadedBuffer(paletteSys, 2), 0x20 * 7);
+        } else if (BattleSystem_BattleType(data->unk_00) & BATTLE_TYPE_TRAINER) {
+            MI_CpuCopy16(ov16_0223F210(data->unk_00), PaletteData_GetUnfadedBuffer(paletteSys, 2), 0x20 * 5);
+        } else {
+            MI_CpuCopy16(ov16_0223F210(data->unk_00), PaletteData_GetUnfadedBuffer(paletteSys, 2), 0x20 * 4);
+        }
+
+        PaletteData_StartFade(paletteSys, 0x1, 0xffff, 0, 0, 0, 0x7fff);
+        PaletteData_StartFade(paletteSys, 0x4, 0x3fff, 0, 0, 0, 0xffff);
+        PaletteData_StartFade(paletteSys, 0x2 | 0x8, 0xffff, 0, 0, 0, 0x7fff);
+
+        data->unk_16 = 0;
+        data->unk_14 = 10;
+        return TRUE;
+    case 10:
+        data->unk_16++;
+        brightness = 16 - 16 * data->unk_16 / INTRO_FADE_IN_STEPS;
+
+        if (brightness <= 0) {
+            brightness = 0;
+            data->unk_14 = 11;
+        }
+
+        if (!data->unk_17) {
+            brightness = -brightness;
+        }
+
+        SetScreenMasterBrightness(DS_SCREEN_MAIN, brightness);
+        SetScreenMasterBrightness(DS_SCREEN_SUB, brightness);
+        return TRUE;
+    case 11:
+        sub_02015738(ov16_0223E220(data->unk_00), 0);
+        Heap_Free(data);
+        SysTask_Done(task);
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
 static void ov16_02263014(SysTask *param0, void *param1)
 {
     UnkStruct_ov16_0225CBB8 *v0 = (UnkStruct_ov16_0225CBB8 *)param1;
@@ -5246,6 +5379,10 @@ static void ov16_02263014(SysTask *param0, void *param1)
     v2 = BattleSystem_PaletteSys(v0->unk_00);
     v3 = BattleSystem_Terrain(v0->unk_00);
     v4 = Unk_ov16_0226F1D0[BattleSystem_Background(v0->unk_00)];
+
+    if (IntroStageOpening(param0, v0, v2)) {
+        return;
+    }
 
     v0->unk_15++;
 

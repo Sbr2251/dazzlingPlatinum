@@ -117,6 +117,9 @@ static void ov16_0223D10C(ApplicationManager *appMan, FieldBattleDTO *param1);
 static BOOL ov16_0223D354(ApplicationManager *appMan);
 static void ov16_0223D7B4(ApplicationManager *appMan);
 static void ov16_0223C004(BattleSystem *battleSys, BgConfig *param1);
+
+// The field's master brightness when the battle started (bw2vis:intro)
+static int sIntroFieldBrightness;
 static void ov16_0223C210(BattleSystem *battleSys);
 static void ov16_0223C288(BgConfig *param0);
 static void ov16_0223C2BC(BattleSystem *battleSys);
@@ -571,6 +574,9 @@ static void ov16_0223B790(ApplicationManager *appMan)
         NARC_dtor(v7);
     }
 
+    // bw2vis:intro: the field's transition left the screen black or white (its master brightness):
+    // the stage's opening fades in from that colour, as BW2 does (btlv_scu.c:580-587)
+    sIntroFieldBrightness = GX_GetMasterBrightness();
     ov16_0223C004(battleSys, battleSys->unk_04);
 
     Window_Add(battleSys->unk_04, &battleSys->windows[0], 1, 2, 0x13, 27, 4, 11, (18 + 12) + 1);
@@ -612,6 +618,14 @@ static void ov16_0223B790(ApplicationManager *appMan)
     ov16_0223CE28();
     TotemBattle_ResetLayout(battleSys);
     BattleStage_Init(battleSys);
+
+    // bw2vis:intro: the stage's opening fades in from black (battle_display.c, IntroStageOpening).
+    // Until then the BG palettes are filled with the curtain's colour, which Platinum's curtain
+    // covered: keep the screens black from the first frame. The classic opening undoes it.
+    if (BattleStage_IsEnabled()) {
+        SetScreenMasterBrightness(DS_SCREEN_MAIN, sIntroFieldBrightness > 0 ? 16 : -16);
+        SetScreenMasterBrightness(DS_SCREEN_SUB, sIntroFieldBrightness > 0 ? 16 : -16);
+    }
 #if DEBUG_BATTLE_TOOLS
     BattleDebug_Init();
 #endif
