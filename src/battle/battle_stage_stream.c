@@ -124,7 +124,7 @@ static void OpenFiles(void)
     if (sStageStream.index != NULL) {
         sStageStream.indexEntries = NARC_GetMemberSize(sStageStream.narc, 0) / sizeof(u16);
         sSpriteStreamStats.streamBytes += sStageStream.indexEntries * sizeof(u16) + sizeof(NARC);
-        sSpriteStreamStats.indexVersion = sStageStream.index->version == 0 ? 1 : sStageStream.index->version;
+        sSpriteStreamStats.indexVersion = sStageStream.index->version;
     }
 }
 
@@ -336,7 +336,7 @@ static void Load(int index, const PokemonSpriteTemplate *template)
     }
 
     stream->romStart = FS_GetFileImageTop(&narc->file) + narc->fimgStart + 8 + fat[0];
-    stream->steps = (const u8 *)&stream->data->frameOffsets[head.numFrames];
+    stream->steps = MonStream_Steps(stream->data);
     stream->numSteps = head.numSteps;
     stream->loopSteps = stream->steps;
     stream->loopNumSteps = head.numSteps;
@@ -519,8 +519,10 @@ static BOOL StartSpecialIdle(int index, BattlerStream *stream)
     return TRUE;
 }
 
-// Moves on by the vblanks gone, but never onto a step whose frame isn't in yet: the step
-// before it waits for the card
+// Moves on by the vblanks gone, keeping the steps' time exact. The battle draws every second vblank and
+// B2W2's steps can be one vblank long, so a step may come due before its frame is in: the frame on
+// screen then stays a draw longer (counted in stallFrames) while the time goes on, and the read ahead
+// (StepAfter) asks for the frame of the step the next draw lands on
 static void Advance(int index, BattlerStream *stream, u32 elapsed, BOOL frozen, u32 rate)
 {
     int next;
@@ -569,15 +571,31 @@ static void Advance(int index, BattlerStream *stream, u32 elapsed, BOOL frozen, 
             continue;
         }
 
-        if (!HasFrame(stream, StepFrame(stream, next))) {
-            stream->left = 0;
-            sSpriteStreamStats.stallFrames++;
-            break;
-        }
-
         stream->step = next;
         stream->left += stream->steps[next * 2 + 1];
     }
+
+    if (!HasFrame(stream, StepFrame(stream, stream->step))) {
+        sSpriteStreamStats.stallFrames++;
+    }
+}
+
+// The step the battler is on after vblanks more vblanks at its rate
+static int StepAfter(const BattlerStream *stream, u32 vblanks, u32 rate)
+{
+    int i, step = stream->step;
+    s32 left = stream->left - (s32)((vblanks * rate + stream->rateLeft) / STREAM_RATE_ONE);
+
+    for (i = 0; left <= 0 && i < stream->numSteps; i++) {
+        if (step + 1 >= stream->numSteps && stream->idleLeft != 0) {
+            break; // the idle clip's last step holds
+        }
+
+        step = step + 1 < stream->numSteps ? step + 1 : 0;
+        left += stream->steps[step * 2 + 1];
+    }
+
+    return step;
 }
 
 // Decompresses the buffered frame into the battler's texture copy; a bad frame drops the stream
@@ -678,9 +696,15 @@ static void UpdateBattler(int index, u32 elapsed, BOOL visible, BOOL frozen)
         SendFrame(index);
     }
 
-    // One frame ahead: the step's own if it is still missing, else the next one the steps
-    // change to
-    next = want != stream->texFrame ? want : NextFrame(stream);
+    // One draw ahead: the frame of the step the next draw lands on (as many vblanks on as this one
+    // took), else the next one the steps change to. Before the first frame, frozen, and when the
+    // step's own frame is in but waits for the decode budget: the step's own
+    if (stream->texFrame == STREAM_NO_FRAME || frozen || (want != stream->texFrame && want == stream->bufFrame)) {
+        next = want;
+    } else {
+        next = StepFrame(stream, StepAfter(stream, elapsed != 0 ? elapsed : 1, sStageStream.rate[index]));
+        next = next != stream->texFrame ? next : NextFrame(stream);
+    }
 
     if (stream->bufFrame != STREAM_NO_FRAME && stream->bufFrame != next) {
         stream->bufFrame = STREAM_NO_FRAME; // after a freeze or a stall: not the one needed
@@ -899,4 +923,9 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
         out->y += sink;
         out->centreY += sink * FX32_ONE;
     }
+}
+
+const MonStreamHeader *BattleStageStream_GetHeader(int index)
+{
+    return sStageStream.battlers[index].data;
 }
