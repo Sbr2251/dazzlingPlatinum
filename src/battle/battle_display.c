@@ -13,6 +13,7 @@
 #include "struct_defs/sprite_animation_frame.h"
 #include "struct_defs/trainer.h"
 
+#include "battle/ability_popup.h"
 #include "battle/battle_anim_battler_context.h"
 #include "battle/battle_context.h"
 #include "battle/battle_controller.h"
@@ -21,6 +22,7 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_trainer_bw2.h"
 #include "battle/healthbar.h"
 #include "battle/mega_evolution.h"
 #include "battle/message_defs.h"
@@ -28,6 +30,7 @@
 #include "battle/ov16_0223B140.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02264798.h"
+#include "battle/battle_stage_idle.h" // bw2vis:idle
 #include "battle/party_gauge.h"
 #include "battle/struct_ov16_0224DDA8.h"
 #include "battle/struct_ov16_0225BFFC_decl.h"
@@ -102,6 +105,7 @@
 #include "pokemon_anim.h"
 #include "pokemon_sprite.h"
 #include "render_window.h"
+#include "screen_fade.h"
 #include "sound.h"
 #include "sound_playback.h"
 #include "sprite_system.h"
@@ -209,9 +213,72 @@ static const u16 Unk_ov16_0226F1AE[] = {
     0x151E
 };
 
+// bw2vis:intro. The player-side battlers whose intro throw is on its way: the mon isn't out yet.
+// Their healthbars wait for it (BW2 shows the player's gauges after the mons are out,
+// btlv_scu.c:1594-1598; Platinum's fixed WaitTime 96 brought them in before the balls opened
+// in a double battle), at most INTRO_SENDOUT_WAIT_MAX task frames.
+#define INTRO_SENDOUT_WAIT_MAX 240
+static u8 sIntroSendOutPending;
+static u16 sIntroSendOutWait;
+// The stage's opening fade-in has started (the battle overlay's .bss is cleared per battle)
+static BOOL sIntroFadeStarted;
+// The stage's opening: a master brightness fade-in over this many task frames (BW2: 16 levels,
+// 2 frames apart, btlv_scu.c:580-587), with the camera's opening shot
+#define INTRO_FADE_IN_STEPS 24
+
+// The stage opens without Platinum's platform slide: the platforms, the trainers and the wild
+// mon start at their places and the camera provides the motion (BW2 sets its trainers at
+// their 3D spots, btlv_scu.c:747). Not for Giratina's own entrance (it drops in from above).
+static BOOL IntroNoSlide(BattleSystem *battleSys)
+{
+    return BattleStage_IsVisible() && !(BattleSystem_BattleStatus(battleSys) & BATTLE_STATUS_GIRATINA);
+}
+
+// The first intro commands black the screens out on the stage, so nothing shows before the
+// fade-in (the battle draws from its first frame; Platinum's curtain covered that)
+static void IntroBlackout(void)
+{
+    // Enabled rather than visible: the stage only reports visible from its first drawn frame.
+    // Without an arena the opening task undoes it at once (the classic curtain).
+    if (!sIntroFadeStarted && BattleStage_IsEnabled() && GX_GetMasterBrightness() == 0) {
+        SetScreenMasterBrightness(DS_SCREEN_MAIN, -16);
+        SetScreenMasterBrightness(DS_SCREEN_SUB, -16);
+    }
+}
+
+static void IntroMonOut(int battler)
+{
+    if (!(sIntroSendOutPending & (1 << battler))) {
+        return;
+    }
+
+    sIntroSendOutPending &= ~(1 << battler);
+    BattleStage_IntroMonOut(battler, sIntroSendOutPending == 0);
+}
+
+// A player-side healthbar of the intro waits while its mon isn't out yet (or the stage's
+// send-out shot is still up); TRUE: wait a frame
+static BOOL IntroHoldHealthbar(int battler)
+{
+    if (sIntroSendOutPending & (1 << battler)) {
+        if (++sIntroSendOutWait <= INTRO_SENDOUT_WAIT_MAX) {
+            return TRUE;
+        }
+
+        // Never came out (a task this doesn't see): don't keep the battle waiting
+        sIntroSendOutPending &= ~(1 << battler);
+    }
+
+    return BattleStage_HoldSendOutHealthbar(battler);
+}
+
 void ov16_0225CBB8(BattleSystem *battleSys, BattlerData *param1)
 {
     UnkStruct_ov16_0225CBB8 *v0 = (UnkStruct_ov16_0225CBB8 *)Heap_Alloc(HEAP_ID_BATTLE, sizeof(UnkStruct_ov16_0225CBB8));
+
+    sIntroSendOutPending = 0;
+    sIntroSendOutWait = 0;
+    IntroBlackout();
     v0->unk_00 = battleSys;
     v0->unk_14 = 0;
     v0->unk_15 = 0;
@@ -236,6 +303,7 @@ void ov16_0225CBDC(BattleSystem *battleSys, BattlerData *param1, MonEncounterMes
     v2 = BattleSystem_GetPokemonSpriteManager(battleSys);
     battleType = BattleSystem_BattleType(battleSys);
     v4 = (UnkStruct_ov16_0225E4E8 *)Heap_Alloc(HEAP_ID_BATTLE, sizeof(UnkStruct_ov16_0225E4E8));
+    IntroBlackout();
 
     v4->unk_12 = 0;
 
@@ -266,8 +334,13 @@ void ov16_0225CBDC(BattleSystem *battleSys, BattlerData *param1, MonEncounterMes
 
     v4->unk_08 = param1->unk_20 = ov16_02263B30(battleSys, v2, &v1, Unk_ov12_0223B0B8[BattleDisplay_LayoutType(param1->battlerType)][0], Unk_ov12_0223B0B8[param1->battlerType][1], Unk_ov12_0223B0B8[param1->battlerType][2], v6, v7, v8, v9, param1->battler, &v3[0], NULL);
 
-    if (v4->unk_13 == 2) {
+    // bw2vis:intro: the wild mon is added in colour on the stage (BW2, btlv_scu.c:650-658); the
+    // Platinum silhouette came back to colour only at the end of the slide
+    v4->unk_2D[0] = FALSE;
+
+    if (v4->unk_13 == 2 && !IntroNoSlide(battleSys)) {
         PokemonSprite_StartFade(v4->unk_08, 8, 8, 0, 0x0);
+        v4->unk_2D[0] = TRUE; // the silhouette, cleared when it lands
     }
 
     if ((v4->unk_13 == 2) && (BattleSystem_BattleStatus(battleSys) & 0x40)) {
@@ -461,6 +534,7 @@ void ov16_0225D228(BattleSystem *battleSys, BattlerData *param1, TrainerEncounte
 
     v1 = (UnkStruct_ov16_02264650_1 *)Heap_Alloc(HEAP_ID_BATTLE, sizeof(UnkStruct_ov16_02264650_1));
     v1->unk_0E = 0;
+    IntroBlackout();
 
     if (param1->battlerType & 0x1) {
         v1->unk_0F = 2;
@@ -509,9 +583,16 @@ void ov16_0225D360(BattleSystem *battleSys, BattlerData *param1, TrainerThrowBal
     if (param1->battlerType & 0x1) {
         v0->unk_0B = 2;
         v0->unk_0C = 0;
+        // bw2vis:intro: the trainer intro shot tightens on the opponent's throw (BW2 0x238)
+        BattleStage_IntroEnemyThrow(param1->battler);
     } else {
-        // The player's side sends out: the stage camera's battle-start focus eases home
+        // The player's side sends out: the stage camera's battle-start focus eases home (the
+        // legacy focus), or turns to the send-out shot (the intro shots, from the throw task)
         BattleStage_EndIntroFocus();
+
+        // bw2vis:intro: its healthbar waits until the mon is out
+        sIntroSendOutPending |= 1 << param1->battler;
+        sIntroSendOutWait = 0;
 
         {
             Trainer *trainer = BattleSystem_GetTrainer(battleSys, param1->battler);
@@ -561,6 +642,9 @@ void ov16_0225D414(BattleSystem *battleSys, BattlerData *param1, TrainerSlideInM
     }
 
     v3->unk_04 = param1->unk_18 = ov16_022643B8(battleSys, param1->battlerType & 1, message->trainerType, param1->battlerType, Unk_ov12_0223B0DC[param1->battlerType & 1][0], Unk_ov12_0223B0DC[param1->battlerType & 1][1]);
+    // bw2vis:trainers-anim: a BW2 front idles as it slides in for its line (BW2 plays the trainer's
+    // animation while it moves in, btl_client.c); Platinum art keeps its still first frame
+    BattleTrainerBW2_StartIdle(v3->unk_04);
     v3->unk_0C = Unk_ov12_0223B0A0[param1->battlerType & 1][message->posIn];
     v3->unk_00 = battleSys;
     v3->unk_08 = message->command;
@@ -663,6 +747,7 @@ void ov16_0225D5B8(BattleSystem *battleSys, BattlerData *param1, CommandSetMessa
 
     // The first command menu of the battle: the stage camera sweeps the opponents first
     BattleStage_StartBattleSweep();
+    sIntroSendOutPending = 0; // bw2vis:intro: the intro's send-outs are over
     TotemBattle_ShowHealthbars(battleSys);
     SysTask_Start(param1->unk_00.unk_00, v0, 0);
 }
@@ -838,6 +923,7 @@ void BattleDisplay_PrintMessage(BattleSystem *battleSys, BattlerData *battlerDat
     taskData->command = battlerData->data[0];
     taskData->battler = battlerData->battler;
     taskData->msgIdx = BattleMessage_Print(battleSys, msgLoader, battleMsg, BattleSystem_TextSpeed(battleSys));
+    AbilityPopup_OnBattleMessage(battleSys, battleMsg, taskData->msgIdx); // bw2vis:battle-events
 
     SysTask_Start(WaitForBattleMessagePrint, taskData, 0);
 }
@@ -876,6 +962,9 @@ void ov16_0225DA44(BattleSystem *battleSys, BattlerData *param1)
     v0->unk_04 = param1->unk_20;
     v0->unk_08 = param1->battler;
     v0->unk_0A = 0;
+    // bw2vis:idle: B/W's hit flash colour, by the move's category
+    v0->flashColor = BattleStage_HitFlashColor(battleSys);
+    v0->hiddenAtStart = PokemonSprite_GetAttribute(param1->unk_20, MON_SPRITE_HIDE) != 0;
 
     // The hit blink: the stage sprite wobbles too, and a critical hit kicks the camera
     BattleStage_NotifyHit(param1->battler);
@@ -1114,9 +1203,10 @@ void ov16_0225DEDC(BattleSystem *battleSys, BattlerData *param1, LeadMonMsgMessa
 
     ov16_02263E7C(battleSys, param1, message, &v2);
 
-    // "Go! {0}!": the stage camera's battle-start focus eases home
+    // "Go! {0}!": the stage camera's battle-start focus eases home, or (the intro shots) turns
+    // to the player's send-out shot (bw2vis:intro)
     if (!(param1->battlerType & 1)) {
-        BattleStage_EndIntroFocus();
+        BattleStage_IntroPlayerSendOut();
     }
 
     v1 = BattleSystem_GetMessageLoader(battleSys);
@@ -1525,6 +1615,17 @@ static void ov16_0225E4E8(SysTask *param0, void *param1)
     case 0:
         v0->unk_20 = 28;
         v0->unk_12++;
+
+        // bw2vis:intro: on the stage the platform and the mon are at their places from the start
+        if (IntroNoSlide(v0->unk_00)) {
+            if (v0->unk_13 == 2) {
+                ManagedSprite_SetPositionXY(v0->unk_0C->unk_00, 24 * 8, 8 * 11);
+            } else {
+                ManagedSprite_SetPositionXY(v0->unk_0C->unk_00, 64, 128 + 8);
+            }
+
+            PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_X_CENTER, v0->unk_14);
+        }
     case 1:
         if (--v0->unk_20) {
             break;
@@ -1560,11 +1661,11 @@ static void ov16_0225E4E8(SysTask *param0, void *param1)
             }
 
             if (PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_X_CENTER) >= v0->unk_14) {
-                PokemonSprite_InitAnim(v0->unk_08, 1);
+                BattleStage_InitEntryAnim(v0->unk_08, 1);
                 PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_SHADOW_SHOULD_FOLLOW_Y, 0);
                 PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_SHADOW_IS_AFFINE, 0);
                 PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_X_CENTER, v0->unk_14);
-                PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
+                BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
 
                 {
                     u8 v4;
@@ -1576,7 +1677,10 @@ static void ov16_0225E4E8(SysTask *param0, void *param1)
                     ManagedSprite_SetPositionXY(v0->unk_0C->unk_00, 24 * 8, 8 * 11);
                 }
 
-                PokemonSprite_StartFade(v0->unk_08, 8, 0, 0, 0x0);
+                if (v0->unk_2D[0]) {
+                    PokemonSprite_StartFade(v0->unk_08, 8, 0, 0, 0x0);
+                }
+
                 v0->unk_12++;
             }
         } else {
@@ -1606,7 +1710,7 @@ static void ov16_0225E4E8(SysTask *param0, void *param1)
 
             if (PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_X_CENTER) <= v0->unk_14) {
                 PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_X_CENTER, v0->unk_14);
-                PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
+                BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
 
                 {
                     u8 v5;
@@ -1686,11 +1790,11 @@ static void ov16_0225E894(SysTask *param0, void *param1)
         PokemonSprite_AddAttribute(v0->unk_08, MON_SPRITE_Y_CENTER, 8 / 2);
 
         if (PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_Y_CENTER) >= v0->unk_14) {
-            PokemonSprite_InitAnim(v0->unk_08, 1);
+            BattleStage_InitEntryAnim(v0->unk_08, 1);
             PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_SHADOW_SHOULD_FOLLOW_Y, 0);
             PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_SHADOW_IS_AFFINE, 0);
             PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_Y_CENTER, v0->unk_14);
-            PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
+            BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
 
             {
                 u8 v4;
@@ -1847,9 +1951,15 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
             v0->unk_83++;
         }
     case 4:
+        // bw2vis:intro: a player-side mon is out (full size): its healthbar may follow, and the
+        // send-out shot goes home once the last one is out
+        if (v0->unk_84 != 2 && PokemonSprite_GetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_X) >= 0x100) {
+            IntroMonOut(v0->unk_81);
+        }
+
         if ((PokemonSprite_GetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_X) == 0x100) && (ov12_022363C4(v0->unk_08) == 0)) {
             if (v0->unk_84 == 2) {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
                 PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
 
                 {
@@ -1859,7 +1969,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
                     Species_PlayDelayedCry(BattleSystem_ChatotVoice(v0->unk_00, v0->unk_81), v0->unk_88, v0->unk_86, v0->unk_97, 117, 127, NULL, 5, v4);
                 }
             } else {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
 
                 {
                     u8 v5;
@@ -1869,7 +1979,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
                 }
             }
 
-            PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
+            BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
             PokemonSprite_StartFade(v0->unk_04->unk_20, 16, 0, 0, Unk_ov16_0226F1AE[v0->unk_8E]);
 
             v0->unk_83 = 5;
@@ -1878,7 +1988,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
             PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_Y, 0x100);
 
             if (v0->unk_84 == 2) {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
                 PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
 
                 {
@@ -1888,7 +1998,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
                     Species_PlayDelayedCry(BattleSystem_ChatotVoice(v0->unk_00, v0->unk_81), v0->unk_88, v0->unk_86, v0->unk_97, 117, 127, NULL, 5, v6);
                 }
             } else {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
 
                 {
                     u8 v7;
@@ -1898,7 +2008,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
                 }
             }
 
-            PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
+            BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
             PokemonSprite_StartFade(v0->unk_04->unk_20, 16, 0, 1, Unk_ov16_0226F1AE[v0->unk_8E]);
 
             v0->unk_83 = 5;
@@ -1943,6 +2053,10 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
         }
         break;
     default:
+        if (v0->unk_84 != 2) {
+            IntroMonOut(v0->unk_81);
+        }
+
         Sound_Set2PokemonCriesAllowed(0);
         BattleController_EmitClearCommand(v0->unk_00, v0->unk_81, v0->unk_80);
         Heap_Free(param1);
@@ -2016,11 +2130,11 @@ static void BattleDisplay_SummonTotemAlly(UnkStruct_ov16_0225EA80 *param0)
     param0->unk_08 = NULL;
     param0->unk_10 = NULL;
 
-    PokemonSprite_InitAnim(param0->unk_04->unk_20, 1);
+    BattleStage_InitEntryAnim(param0->unk_04->unk_20, 1);
     PokemonSprite_SetAttribute(param0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
     PokemonSprite_LoadCryDelay(param0->unk_04->unk_1A0, &v2, param0->unk_86, param0->unk_82);
     Species_PlayDelayedCry(BattleSystem_ChatotVoice(param0->unk_00, param0->unk_81), param0->unk_88, param0->unk_86, param0->unk_97, 117, 127, NULL, 5, v2);
-    PokemonSprite_LoadAnim(param0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(param0->unk_00), param0->unk_04->unk_20, param0->unk_86, param0->unk_84, 0, param0->unk_81);
+    BattleStage_LoadEntryAnim(param0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(param0->unk_00), param0->unk_04->unk_20, param0->unk_86, param0->unk_84, 0, param0->unk_81);
     PokemonSprite_StartFade(param0->unk_04->unk_20, 16, 0, 1, 0x7FFF);
     BattleDisplay_StartTotemStepAside(param0->unk_00);
 
@@ -2125,7 +2239,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
     case 4:
         if ((PokemonSprite_GetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_X) == 0x100) && (ov12_022363C4(v0->unk_08) == 0)) {
             if (v0->unk_84 == 2) {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
                 PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
 
                 {
@@ -2135,7 +2249,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
                     Species_PlayDelayedCry(BattleSystem_ChatotVoice(v0->unk_00, v0->unk_81), v0->unk_88, v0->unk_86, v0->unk_97, 117, 127, NULL, 5, v6);
                 }
             } else {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
 
                 {
                     u8 v7;
@@ -2145,7 +2259,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
                 }
             }
 
-            PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
+            BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
             PokemonSprite_StartFade(v0->unk_04->unk_20, 16, 0, 0, Unk_ov16_0226F1AE[v0->unk_8E]);
             v0->unk_83 = 5;
         } else if (PokemonSprite_GetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_X) >= 0x100) {
@@ -2153,7 +2267,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
             PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_Y, 0x100);
 
             if (v0->unk_84 == 2) {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
                 PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
 
                 {
@@ -2163,7 +2277,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
                     Species_PlayDelayedCry(BattleSystem_ChatotVoice(v0->unk_00, v0->unk_81), v0->unk_88, v0->unk_86, v0->unk_97, 117, 127, NULL, 5, v8);
                 }
             } else {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
 
                 {
                     u8 v9;
@@ -2173,7 +2287,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
                 }
             }
 
-            PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
+            BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
             PokemonSprite_StartFade(v0->unk_04->unk_20, 16, 0, 1, Unk_ov16_0226F1AE[v0->unk_8E]);
             v0->unk_83 = 5;
         } else {
@@ -2423,6 +2537,25 @@ static void ov16_0225FA70(SysTask *param0, void *param1)
 
         v0->unk_18 = 28;
         v0->unk_0E = 1;
+
+        // bw2vis:intro: on the stage the platform and the trainer are at their places from the
+        // start, and the backdrop's scroll (BG3, under the arena) is already done
+        if (IntroNoSlide(v0->unk_00)) {
+            s16 x, y;
+
+            // Every trainer of the side places the platform: a later trainer's encounter set it
+            // back to its start (a tag battle's second trainer on each side)
+            if (v0->unk_0F == 2) {
+                ManagedSprite_SetPositionXY(v0->unk_04->unk_00, 24 * 8, 8 * 11);
+            } else {
+                ManagedSprite_SetPositionXY(v0->unk_04->unk_00, 64, 128 + 8);
+                Bg_SetOffset(BattleSystem_BGL(v0->unk_00), 3, 0, 0);
+                v0->unk_1C = 33;
+            }
+
+            ManagedSprite_GetPositionXY(v0->unk_08, &x, &y);
+            ManagedSprite_SetPositionXY(v0->unk_08, v0->unk_10, y);
+        }
     case 1:
         if (--v0->unk_18) {
             break;
@@ -2942,8 +3075,9 @@ static void SlideHealthbarInTask(SysTask *task, void *data)
             break;
         }
 
-        // The player's throw waited for the stage camera: the bar still comes in after the mon
-        if (BattleStage_HoldSendOutHealthbar(healthbar->battler)) {
+        // The player's throw waited for the stage camera, or its mon isn't out yet: the bar
+        // still comes in after the mon (bw2vis:intro)
+        if (IntroHoldHealthbar(healthbar->battler)) {
             break;
         }
 
@@ -4824,24 +4958,51 @@ static void ov16_022626C0(SysTask *param0, void *param1)
     }
 }
 
+// bw2vis:idle: the hit blink as B/W's (btlv_effect.c BtlvEffect_BlinkTask), 3 times: the palette
+// all the hit flash's colour (dark for a physical move, light grey otherwise), then hidden,
+// then shown with its own colours, 4 frames each. B/W run it at 60 Hz, this task at 30 Hz: a
+// phase is 2 of its frames. A battler hidden when the hit came (Fly, Dig) doesn't flash, as in
+// B/W, but is shown at the end as Platinum's blink always did. The fade works on the palette,
+// so the streamed mesh and the classic sprite both flash.
+#define HIT_FLASH_CYCLES      3
+#define HIT_FLASH_PHASE_TICKS 2
+enum {
+    HIT_FLASH_TINT,
+    HIT_FLASH_HIDE,
+    HIT_FLASH_SHOW,
+};
+
 static void ov16_0226292C(SysTask *param0, void *param1)
 {
     UnkStruct_ov16_0225DA44 *v0 = (UnkStruct_ov16_0225DA44 *)param1;
-    int v1;
 
-    if (v0->unk_09 < 6) {
-        if (v0->unk_0A == 0) {
-            v0->unk_0A = 2;
-            v0->unk_09++;
-            v1 = PokemonSprite_GetAttribute(v0->unk_04, MON_SPRITE_HIDE);
-            v1 ^= 1;
-            PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_HIDE, v1);
-        } else {
-            v0->unk_0A--;
+    // unk_09: the phases done, unk_0A: frames left in the phase
+    if (v0->unk_0A != 0) {
+        v0->unk_0A--;
+        return;
+    }
+
+    if (v0->unk_09 < HIT_FLASH_CYCLES * 3) {
+        if (!v0->hiddenAtStart) {
+            switch (v0->unk_09 % 3) {
+            case HIT_FLASH_TINT:
+                PokemonSprite_StartFade(v0->unk_04, 16, 16, 0, v0->flashColor);
+                break;
+            case HIT_FLASH_HIDE:
+                PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_HIDE, 1);
+                break;
+            default:
+                PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_HIDE, 0);
+                PokemonSprite_StartFade(v0->unk_04, 0, 0, 0, 0x7FFF);
+                break;
+            }
         }
+
+        v0->unk_09++;
+        v0->unk_0A = HIT_FLASH_PHASE_TICKS - 1;
     } else {
-        v1 = 0;
-        PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_HIDE, v1);
+        // Shown at the end whatever it was, as Platinum's blink always left it
+        PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_HIDE, 0);
         BattleController_EmitClearCommand(v0->unk_00, v0->unk_08, 23);
         Heap_Free(param1);
         SysTask_Done(param0);
@@ -4914,6 +5075,11 @@ static void ov16_022629DC(SysTask *param0, void *param1)
         break;
     }
 }
+
+// bw2vis:idle: the faint's sink, per frame of this 30 Hz task, and its fade-out (about half a
+// second, as B/W's from memory: their faint is effect script 0x23B, not in the decomp)
+#define FAINT_SINK_PX     3
+#define FAINT_FADE_TICKS  16
 
 static void ov16_02262A9C(SysTask *param0, void *param1)
 {
@@ -5007,14 +5173,20 @@ static void ov16_02262A9C(SysTask *param0, void *param1)
         v3 = LoadPokemonSpriteYOffset(v0->unk_68, v0->unk_6A, v0->unk_67, v0->unk_6B, v0->unk_6C);
         v3 = 80 - v3;
         PokemonSprite_SetPartialDraw(v0->unk_08, 0, 0, 80, v3);
+        v0->faintTick = 0;
+        sGen5MotionStats.faints++;
         v0->unk_66++;
         break;
     case 9:
+        // bw2vis:idle: a BW2-like faint, a slower sink under the ground line (FAINT_SINK_PX a
+        // frame, was 8) that fades out over FAINT_FADE_TICKS frames; the mon is gone when it has
+        // faded or sunk. Polygon alpha 0 would draw wireframe, so it never gets there
+        v0->faintTick++;
         v2 = PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_Y_CENTER);
-        v2 += 8;
+        v2 += FAINT_SINK_PX;
         PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_Y_CENTER, v2);
         v3 = PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_DRAW_HEIGHT);
-        v3 -= 8;
+        v3 -= FAINT_SINK_PX;
 
         if (v3 < 0) {
             v3 = 0;
@@ -5022,9 +5194,11 @@ static void ov16_02262A9C(SysTask *param0, void *param1)
 
         PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_DRAW_HEIGHT, v3);
 
-        if (v3 == 0) {
+        if (v3 == 0 || v0->faintTick >= FAINT_FADE_TICKS) {
             PokemonSprite_Delete(v0->unk_08);
             v0->unk_66++;
+        } else {
+            PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_ALPHA, 31 - 30 * v0->faintTick / (FAINT_FADE_TICKS - 1));
         }
         break;
     case 10:
@@ -5234,6 +5408,80 @@ static const int Unk_ov16_0226F1D0[] = {
     0x7FFF
 };
 
+// bw2vis:intro. The opening on the 3D stage, BW2's way (presentation.md rows 1-2): no Platinum
+// curtain (the terrain's particle wipe and the white burst); the scene is set up at once, in
+// colour, and fades in from black with master brightness on both screens while the camera
+// plays its opening shot (BattleStage_StartIntroOpen; btlv_scu.c:652-658, 758-762).
+static BOOL IntroStageOpening(SysTask *task, UnkStruct_ov16_0225CBB8 *data, PaletteData *paletteSys)
+{
+    int brightness;
+
+    switch (data->unk_14) {
+    case 0:
+        if (!BattleStage_IsVisible()) {
+            // The classic curtain: undo a blackout from a stage that is gone again
+            if (!sIntroFadeStarted) {
+                sIntroFadeStarted = TRUE;
+                SetScreenMasterBrightness(DS_SCREEN_MAIN, 0);
+                SetScreenMasterBrightness(DS_SCREEN_SUB, 0);
+            }
+
+            return FALSE;
+        }
+
+        // From white when the field's transition ended white (battle init kept it), else black
+        sIntroFadeStarted = TRUE;
+        data->unk_17 = GX_GetMasterBrightness() > 0;
+        SetScreenMasterBrightness(DS_SCREEN_MAIN, data->unk_17 ? 16 : -16);
+        SetScreenMasterBrightness(DS_SCREEN_SUB, data->unk_17 ? 16 : -16);
+
+        // The palettes the curtain would have revealed, at once (as its skip, state 5, does)
+        MI_CpuCopy16(ov16_0223F204(data->unk_00), PaletteData_GetUnfadedBuffer(paletteSys, 0), 0x20 * 7);
+
+        if (BattleSystem_BattleType(data->unk_00) == BATTLE_TYPE_AI_PARTNER) {
+            MI_CpuCopy16(ov16_0223F210(data->unk_00), PaletteData_GetUnfadedBuffer(paletteSys, 2), 0x20 * 5);
+        } else if (BattleSystem_BattleType(data->unk_00) & BATTLE_TYPE_DOUBLES) {
+            MI_CpuCopy16(ov16_0223F210(data->unk_00), PaletteData_GetUnfadedBuffer(paletteSys, 2), 0x20 * 7);
+        } else if (BattleSystem_BattleType(data->unk_00) & BATTLE_TYPE_TRAINER) {
+            MI_CpuCopy16(ov16_0223F210(data->unk_00), PaletteData_GetUnfadedBuffer(paletteSys, 2), 0x20 * 5);
+        } else {
+            MI_CpuCopy16(ov16_0223F210(data->unk_00), PaletteData_GetUnfadedBuffer(paletteSys, 2), 0x20 * 4);
+        }
+
+        PaletteData_StartFade(paletteSys, 0x1, 0xffff, 0, 0, 0, 0x7fff);
+        PaletteData_StartFade(paletteSys, 0x4, 0x3fff, 0, 0, 0, 0xffff);
+        PaletteData_StartFade(paletteSys, 0x2 | 0x8, 0xffff, 0, 0, 0, 0x7fff);
+
+        BattleStage_StartIntroOpen();
+        data->unk_16 = 0;
+        data->unk_14 = 10;
+        return TRUE;
+    case 10:
+        data->unk_16++;
+        brightness = 16 - 16 * data->unk_16 / INTRO_FADE_IN_STEPS;
+
+        if (brightness <= 0) {
+            brightness = 0;
+            data->unk_14 = 11;
+        }
+
+        if (!data->unk_17) {
+            brightness = -brightness;
+        }
+
+        SetScreenMasterBrightness(DS_SCREEN_MAIN, brightness);
+        SetScreenMasterBrightness(DS_SCREEN_SUB, brightness);
+        return TRUE;
+    case 11:
+        sub_02015738(ov16_0223E220(data->unk_00), 0);
+        Heap_Free(data);
+        SysTask_Done(task);
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
 static void ov16_02263014(SysTask *param0, void *param1)
 {
     UnkStruct_ov16_0225CBB8 *v0 = (UnkStruct_ov16_0225CBB8 *)param1;
@@ -5246,6 +5494,10 @@ static void ov16_02263014(SysTask *param0, void *param1)
     v2 = BattleSystem_PaletteSys(v0->unk_00);
     v3 = BattleSystem_Terrain(v0->unk_00);
     v4 = Unk_ov16_0226F1D0[BattleSystem_Background(v0->unk_00)];
+
+    if (IntroStageOpening(param0, v0, v2)) {
+        return;
+    }
 
     v0->unk_15++;
 
@@ -5831,10 +6083,9 @@ static void ov16_02263688(SysTask *param0, void *param1)
 
     switch (v0->unk_0E) {
     case 0:
-        // An OBJ can't follow the stage camera: the battle-start focus eases home first
-        BattleStage_EndIntroFocus();
-
-        if (!BattleStage_IsIntroFocusDone()) {
+        // An OBJ can't follow the stage camera: the battle-start focus eases home first. A
+        // streamed opponent's copy stays hidden, so the intro shots go on (bw2vis:intro).
+        if (!BattleStage_IntroSpriteToOAM(v0->unk_0D)) {
             break;
         }
 
@@ -6558,7 +6809,12 @@ static ManagedSprite *ov16_022643B8(BattleSystem *battleSys, int param1, int par
         v4 = 0;
     }
 
-    v3 = sub_02076994(v0, v1, v2, param4, param5, param2, v4, param3, 5);
+    // bw2vis:trainers-anim: classes with a BW2 animated front load it instead
+    v3 = BattleTrainerBW2_NewFront(v0, v1, v2, param4, param5, param2, v4, param3, 5);
+
+    if (v3 == NULL) {
+        v3 = sub_02076994(v0, v1, v2, param4, param5, param2, v4, param3, 5);
+    }
 
     return v3;
 }
@@ -6645,11 +6901,8 @@ static void ov16_02264530(BattleSystem *battleSys, MoveAnimation *animation, Unk
 static void ov16_022645B8(u8 *param0, u8 *param1, int param2, int param3, u16 param4)
 {
     if (param2 == 0) {
-        if ((MoveTable_LoadParam(param4, MOVEATTRIBUTE_FLAGS) & 0x40) == 0) {
-            param0[0] = 1;
-        } else {
-            param0[0] = 0;
-        }
+        // bw2vis:hud-gauges: the hide-healthbars rule (every move on the 3D stage, the flag on the classic look)
+        param0[0] = Healthbar_MoveAnimHidesHealthbars(param4);
 
         if (MoveTable_LoadParam(param4, MOVEATTRIBUTE_FLAGS) & 0x80) {
             param1[0] = 1;

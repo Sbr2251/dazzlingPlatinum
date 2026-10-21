@@ -13,6 +13,7 @@
 #include "battle/healthbar.h"
 #include "battle/ov16_0223DF00.h"
 
+#include "battle_anim/ov12_02235E94.h"
 #include "particle_system.h"
 #include "totem_battle.h"
 
@@ -39,6 +40,21 @@
 #define INTRO_MIN_HOLD_FRAMES SCREEN_FRAMES(30)
 #define INTRO_HOME_FRAMES SCREEN_FRAMES(20)
 #define INTRO_WAIT_MAX_FRAMES SCREEN_FRAMES(120)
+// The BW2 intro shots (intro.md; btlv_scu.c's 0x231/0x237-0x239/0x232/0x234).
+// Wild: open close on the wild mon with the fade-in and pull out to home before the
+// opponent's healthbar. Trainer: open on the opponent's trainer, ease out a little through
+// "You are challenged by", tighten on the throw. Then the player's send-out shot: a pan to the
+// player's side with a slight pull back, held until every mon thrown is out, then home.
+#define INTRO_OPEN_FRAMES SCREEN_FRAMES(120)
+#define INTRO_FOE_OPEN_FRAMES SCREEN_FRAMES(150)
+#define INTRO_FOE_THROW_FRAMES SCREEN_FRAMES(40)
+#define INTRO_SENDOUT_TO_FRAMES SCREEN_FRAMES(36)
+#define INTRO_SENDOUT_SETTLE_FRAMES SCREEN_FRAMES(16)
+#define INTRO_SENDOUT_HOME_FRAMES SCREEN_FRAMES(30)
+// A send-out shot that is never released (no mon came out) gives up after this long
+#define INTRO_SENDOUT_MAX_FRAMES SCREEN_FRAMES(720)
+// The 2D trainer and ball OBJs follow the camera up to this scale (an affine double-size OBJ)
+#define INTRO_OBJ_MAX_SCALE (FX32_ONE * 2)
 // The idle drift at the command menu: home for a moment, then a slow loop of poses (each an
 // ease and a hold), and a quick ease home once the commands are in
 #define IDLE_START_FRAMES SCREEN_FRAMES(60)
@@ -67,6 +83,23 @@ enum CameraSequence {
     SEQUENCE_HOLD, // holding there (and until the shake ends)
     SEQUENCE_INTRO, // the battle-start focus: there until released, at least holdFrames
     SEQUENCE_IDLE, // the command menu's drift: through sIdlePoses until ended
+};
+
+// The BW2 intro shots (bw2vis:intro)
+enum IntroShot {
+    INTRO_SHOT_NONE = 0, // the legacy battle-start focus, or the Totem aura's held pose
+    INTRO_SHOT_OPEN, // wild: pulling out from the wild mon to home
+    INTRO_SHOT_FOE, // trainer: on the opponent's side until its healthbar
+    INTRO_SHOT_SENDOUT, // the player's side sends out
+    INTRO_SHOT_HOMING, // easing home from the send-out shot (outside SEQUENCE_INTRO)
+};
+
+enum IntroPoseID {
+    INTRO_POSE_WILD_OPEN = 0,
+    INTRO_POSE_FOE_OPEN,
+    INTRO_POSE_FOE_HOLD,
+    INTRO_POSE_FOE_MON,
+    INTRO_POSE_SENDOUT,
 };
 
 enum ParticleFocus {
@@ -127,6 +160,11 @@ typedef struct StageCamera {
     u8 heldHealthbars; // battlers whose healthbar slides in once the focus is home
     u8 throwWaiting; // player battlers whose trainer throw is waiting for the focus to get home
     u8 throwLate[MAX_BATTLERS]; // task frames that throw waited, owed by its healthbar's slide-in
+    int introShot; // enum IntroShot: the BW2 intro shot on screen (SEQUENCE_INTRO) or easing home
+    BOOL introShotsPlayed; // the intro opened with a shot (the legacy battle-start focus stays off)
+    BOOL introTrainer; // a trainer battle's intro: the send-out shot starts at the opponent's healthbar
+    BOOL introNoSendOutShot; // an opponent's OAM copy can't follow the camera: the player sends out at home
+    int introShotFrames; // frames the send-out shot has held
     u8 scriptHidHealthbars; // battlers whose healthbar command 91 hid; shown again by the script end at the latest
     BOOL holdAfterScript; // the script's end pose becomes a held focus (the Totem aura)
     int idlePose; // the next of sIdlePoses
@@ -145,6 +183,7 @@ typedef struct StageCamera {
 } StageCamera;
 
 static void ParticleProjectionHook(MtxFx44 *projection);
+static void BallDrawHook(ManagedSprite *sprite, int target, int sign);
 static BOOL IntroFocusHidesHealthbars(void);
 static void ReleaseHealthbars(void);
 static void ShowScriptHealthbars(void);
@@ -648,6 +687,7 @@ static void UpdateCutGuard(BOOL visible, const CameraPose *pose)
 }
 
 static BOOL IdleGoal(int index, CameraPose *goal);
+static void AdvanceIntro(void);
 
 static void AdvanceSequence(void)
 {
@@ -670,19 +710,7 @@ static void AdvanceSequence(void)
         }
         break;
     case SEQUENCE_INTRO:
-        if (IsEasing()) {
-            break;
-        }
-
-        if (sStageCamera.holdFrames > 0) {
-            sStageCamera.holdFrames--;
-        }
-
-        if (sStageCamera.holdFrames <= 0 && sStageCamera.introRelease) {
-            EaseTo(&sStageCamera.homePose, INTRO_HOME_FRAMES);
-            sStageCamera.sequence = SEQUENCE_NONE;
-            sStageCamera.introHoming = TRUE;
-        }
+        AdvanceIntro();
         break;
     case SEQUENCE_IDLE:
         if (sStageCamera.debugFlags != NULL && (*sStageCamera.debugFlags & IDLE_OFF_FLAGS)) {
@@ -755,12 +783,14 @@ void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fi
     SnapHome();
 
     ParticleSystem_SetProjectionHook(ParticleProjectionHook);
+    BallRotation_SetDrawHook(BallDrawHook); // bw2vis:intro
 }
 
 void BattleStageCamera_Free(void)
 {
     if (sStageCamera.hasHome) {
         ParticleSystem_SetProjectionHook(NULL);
+        BallRotation_SetDrawHook(NULL); // bw2vis:intro
         SnapHome();
     }
 
@@ -927,6 +957,7 @@ void BattleStageCamera_SetScriptActive(BOOL active)
         sStageCamera.introRelease = FALSE;
         sStageCamera.introWait = 0;
         sStageCamera.holdFrames = 0;
+        sStageCamera.introShot = INTRO_SHOT_NONE; // bw2vis:intro: a held pose, not an intro shot
         sStageCamera.sequence = SEQUENCE_INTRO;
         return;
     }
@@ -983,6 +1014,12 @@ static BOOL CanRunCamera(void)
 // The battle-start focus is pushed in or easing home (not the Totem aura's held pose)
 static BOOL IntroFocusHidesHealthbars(void)
 {
+    // bw2vis:intro: only the wild opening's pull out and the legacy focus hold them; the trainer
+    // and send-out shots show the opponent's healthbar as BW2 does
+    if (sStageCamera.introShot != INTRO_SHOT_OPEN && sStageCamera.introShot != INTRO_SHOT_NONE) {
+        return FALSE;
+    }
+
     return sStageCamera.introHidesHealthbars && CanRunCamera()
         && (sStageCamera.sequence == SEQUENCE_INTRO || (sStageCamera.introHoming && IsEasing()));
 }
@@ -1330,10 +1367,294 @@ void BattleStage_StartBattleSweep(void)
     StartSequence(&goal, SCREEN_FRAMES(28), 0, 0, SCREEN_FRAMES(10), SCREEN_FRAMES(20));
 }
 
+// ---- The battle intro (bw2vis:intro; docs/living_battle_stage/intro.md) ----
+
+typedef struct IntroPose {
+    s8 side; // 0 the player's, 1 the opponent's
+    u8 towardPct; // how far the focus moves from the home target toward the side's mons
+    u8 distancePct;
+    s8 yawDeg;
+    s8 pitchDeg;
+} IntroPose;
+
+// The opponent close-ups keep the legacy focus's angle (it swung yaw -20; these turn less so a
+// trainer OBJ, a flat 2D sprite, reads as standing there). BW2's own presets frame the opponent
+// at 1.50x and the player's mon at 0.91x, a pan with a slight pull back (btlv_effvm.c:468-505):
+// the send-out shot is that player preset, about 0.92x, panned only 40% of the way so the
+// platform stays bottom left and the player's ball tray, which is screen-fixed, beside it.
+static const IntroPose sIntroPoses[] = {
+    [INTRO_POSE_WILD_OPEN] = { 1, 100, 62, -14, -3 },
+    [INTRO_POSE_FOE_OPEN] = { 1, 100, 80, -12, -2 },
+    [INTRO_POSE_FOE_HOLD] = { 1, 100, 92, -8, -1 },
+    [INTRO_POSE_FOE_MON] = { 1, 100, 82, -14, -2 },
+    [INTRO_POSE_SENDOUT] = { 0, 40, 94, 0, 3 },
+};
+
+static BOOL IntroGoal(int pose, CameraPose *goal)
+{
+    const IntroPose *intro = &sIntroPoses[pose];
+    VecFx32 focus;
+
+    if (!SideFocus(intro->side, &focus)) {
+        return FALSE;
+    }
+
+    *goal = sStageCamera.homePose;
+    goal->focus.x += FX_Mul(focus.x - goal->focus.x, intro->towardPct * FX32_ONE / 100);
+    goal->focus.y += FX_Mul(focus.y - goal->focus.y, intro->towardPct * FX32_ONE / 100);
+    goal->focus.z += FX_Mul(focus.z - goal->focus.z, intro->towardPct * FX32_ONE / 100);
+    goal->yaw = intro->yawDeg * FX32_ONE;
+    goal->pitch = intro->pitchDeg * FX32_ONE;
+    goal->distance = intro->distancePct * FX32_ONE / 100;
+    return TRUE;
+}
+
+// The particles (a ball's burst, the Platinum entry effects) follow a side's mons
+static void IntroParticleFocus(int side)
+{
+    int battlers[2];
+    int max = MaxBattlers();
+    int count = 0;
+    int i;
+
+    for (i = 0; i < max && count < 2; i++) {
+        if ((BattleSystem_BattlerSlot(sStageCamera.battleSys, i) & 1) == side) {
+            battlers[count++] = i;
+        }
+    }
+
+    if (count == 0) {
+        sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
+    } else if (count == 1) {
+        sStageCamera.particleFocus = PARTICLE_FOCUS_BATTLER;
+        sStageCamera.particleBattlers[0] = battlers[0];
+    } else {
+        sStageCamera.particleFocus = PARTICLE_FOCUS_BETWEEN;
+        sStageCamera.particleBattlers[0] = battlers[0];
+        sStageCamera.particleBattlers[1] = battlers[1];
+    }
+}
+
+// The intro shot on screen now: INTRO_SHOT_NONE when none (or only the legacy focus)
+static int ActiveIntroShot(void)
+{
+    if (!CanRunCamera()) {
+        return INTRO_SHOT_NONE;
+    }
+
+    if (sStageCamera.sequence == SEQUENCE_INTRO) {
+        return sStageCamera.introShot;
+    }
+
+    if (sStageCamera.introShot == INTRO_SHOT_HOMING) {
+        if (sStageCamera.introHoming && IsEasing()) {
+            return INTRO_SHOT_HOMING;
+        }
+
+        sStageCamera.introShot = INTRO_SHOT_NONE;
+    }
+
+    return INTRO_SHOT_NONE;
+}
+
+static BOOL StartIntroShot(int shot, int pose, int frames)
+{
+    CameraPose goal;
+
+    if (!IntroGoal(pose, &goal)) {
+        return FALSE;
+    }
+
+    EaseTo(&goal, frames);
+    sStageCamera.introShot = shot;
+    sStageCamera.introRelease = FALSE;
+    sStageCamera.introWait = 0;
+    sStageCamera.introShotFrames = 0;
+    sStageCamera.holdFrames = 0;
+    sStageCamera.sequence = SEQUENCE_INTRO;
+    return TRUE;
+}
+
+static void StartSendOutShot(void)
+{
+    int shot = ActiveIntroShot();
+
+    if (!sStageCamera.introShotsPlayed || sStageCamera.introNoSendOutShot
+        || shot == INTRO_SHOT_SENDOUT || shot == INTRO_SHOT_HOMING || sStageCamera.scriptActive) {
+        return;
+    }
+
+    if (StartIntroShot(INTRO_SHOT_SENDOUT, INTRO_POSE_SENDOUT, INTRO_SENDOUT_TO_FRAMES)) {
+        IntroParticleFocus(0);
+    }
+}
+
+// SEQUENCE_INTRO, from AdvanceSequence
+static void AdvanceIntro(void)
+{
+    switch (sStageCamera.introShot) {
+    case INTRO_SHOT_OPEN:
+        // Home: the pull out is over, the opponent's healthbar may come in
+        if (!IsEasing()) {
+            sStageCamera.sequence = SEQUENCE_NONE;
+            sStageCamera.introShot = INTRO_SHOT_NONE;
+        }
+        return;
+    case INTRO_SHOT_FOE:
+        // Held until the opponent's healthbar (StartIntroFocus) or the player's throw
+        return;
+    case INTRO_SHOT_SENDOUT:
+        if (++sStageCamera.introShotFrames > INTRO_SENDOUT_MAX_FRAMES) {
+            sStageCamera.introRelease = TRUE;
+        }
+
+        if (IsEasing() || !sStageCamera.introRelease) {
+            return;
+        }
+
+        if (sStageCamera.holdFrames > 0) {
+            sStageCamera.holdFrames--;
+            return;
+        }
+
+        EaseTo(&sStageCamera.homePose, INTRO_SENDOUT_HOME_FRAMES);
+        sStageCamera.sequence = SEQUENCE_NONE;
+        sStageCamera.introShot = INTRO_SHOT_HOMING;
+        sStageCamera.introHoming = TRUE;
+        return;
+    default:
+        break;
+    }
+
+    // The legacy focus and the Totem aura's held pose: there until released, at least holdFrames
+    if (IsEasing()) {
+        return;
+    }
+
+    if (sStageCamera.holdFrames > 0) {
+        sStageCamera.holdFrames--;
+    }
+
+    if (sStageCamera.holdFrames <= 0 && sStageCamera.introRelease) {
+        EaseTo(&sStageCamera.homePose, INTRO_HOME_FRAMES);
+        sStageCamera.sequence = SEQUENCE_NONE;
+        sStageCamera.introHoming = TRUE;
+    }
+}
+
+void BattleStage_StartIntroOpen(void)
+{
+    u32 battleType, battleStatus;
+    BOOL totem;
+    int pose;
+
+    if (sStageCamera.introOver || sStageCamera.introShotsPlayed || !CanRunCamera() || sStageCamera.scriptActive) {
+        return;
+    }
+
+    battleType = BattleSystem_BattleType(sStageCamera.battleSys);
+    battleStatus = BattleSystem_BattleStatus(sStageCamera.battleSys);
+
+    // A recorded battle sends the player's side out first: it opens at home. Giratina keeps its
+    // own entrance (it drops in from above, the platforms slide): the legacy focus follows it.
+    if (battleStatus & (BATTLE_STATUS_RECORDED | BATTLE_STATUS_GIRATINA)) {
+        return;
+    }
+
+    totem = TotemBattle_IsActive(sStageCamera.battleSys);
+    sStageCamera.introTrainer = (battleType & BATTLE_TYPE_TRAINER) != 0;
+    pose = sStageCamera.introTrainer ? INTRO_POSE_FOE_OPEN : INTRO_POSE_WILD_OPEN;
+
+    if (!StartIntroShot(INTRO_SHOT_NONE, pose, 0)) {
+        return;
+    }
+
+    sStageCamera.introShotsPlayed = TRUE;
+    sStageCamera.introOver = TRUE;
+    sStageCamera.sweepDone = TRUE;
+    sStageCamera.introNoSendOutShot = FALSE;
+    sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_INTRO;
+
+    // The Totem's own push in is the aura script's; the critic tells the two apart by bit 0
+    if (!totem) {
+        sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_SWEEP;
+    }
+
+    IntroParticleFocus(1);
+
+    if (sStageCamera.introTrainer) {
+        StartIntroShot(INTRO_SHOT_FOE, INTRO_POSE_FOE_HOLD, INTRO_FOE_OPEN_FRAMES);
+    } else {
+        EaseTo(&sStageCamera.homePose, INTRO_OPEN_FRAMES);
+        sStageCamera.introShot = INTRO_SHOT_OPEN;
+        sStageCamera.introHidesHealthbars = TRUE;
+    }
+}
+
+void BattleStage_IntroEnemyThrow(int battler)
+{
+    (void)battler;
+
+    if (ActiveIntroShot() != INTRO_SHOT_FOE) {
+        return;
+    }
+
+    StartIntroShot(INTRO_SHOT_FOE, INTRO_POSE_FOE_MON, INTRO_FOE_THROW_FRAMES);
+    IntroParticleFocus(1);
+}
+
+void BattleStage_IntroPlayerSendOut(void)
+{
+    StartSendOutShot();
+    BattleStage_EndIntroFocus();
+}
+
+void BattleStage_IntroMonOut(int battler, BOOL lastOut)
+{
+    (void)battler;
+
+    if (lastOut && ActiveIntroShot() == INTRO_SHOT_SENDOUT && !sStageCamera.introRelease) {
+        sStageCamera.introRelease = TRUE;
+        sStageCamera.holdFrames = INTRO_SENDOUT_SETTLE_FRAMES;
+    }
+}
+
+BOOL BattleStage_IntroSpriteToOAM(int battler)
+{
+    // A streamed opponent's OAM copy stays hidden (BattleStage_IsSpriteStreamed): the stage
+    // sprite, which follows the camera, is what shows
+    if (sStageCamera.introShotsPlayed && BattleStage_IsSpriteStreamed(battler)) {
+        return TRUE;
+    }
+
+    // A copy that shows can't follow the camera: the player's side sends out at home
+    if (sStageCamera.introShotsPlayed && !sStageCamera.introNoSendOutShot) {
+        sStageCamera.introNoSendOutShot = TRUE;
+
+        if (ActiveIntroShot() == INTRO_SHOT_SENDOUT) {
+            sStageCamera.introRelease = TRUE;
+            sStageCamera.holdFrames = 0;
+        }
+    }
+
+    BattleStage_EndIntroFocus();
+    return BattleStage_IsIntroFocusDone();
+}
+
 void BattleStage_StartIntroFocus(void)
 {
     CameraPose goal;
 
+    // A trainer's intro: the opponent is out, its healthbar comes in and the camera turns to
+    // the player's side (BW2 shows the foe's gauge as 0x232 starts, btlv_scu.c:807-811)
+    if (sStageCamera.introShotsPlayed) {
+        if (sStageCamera.introTrainer && ActiveIntroShot() == INTRO_SHOT_FOE) {
+            StartSendOutShot();
+        }
+        return;
+    }
+
+    // The legacy focus, when the intro didn't open with a shot (the stage wasn't visible then)
     if (sStageCamera.introOver || sStageCamera.sweepDone || !CanRunCamera()
         || TotemBattle_IsActive(sStageCamera.battleSys) || sStageCamera.scriptActive || !OpponentsGoal(&goal)) {
         return;
@@ -1345,6 +1666,7 @@ void BattleStage_StartIntroFocus(void)
     sStageCamera.introRelease = FALSE;
     sStageCamera.introWait = 0;
     sStageCamera.introHidesHealthbars = TRUE;
+    sStageCamera.introShot = INTRO_SHOT_NONE;
     sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_SWEEP;
     sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
     EaseTo(&goal, INTRO_TO_FRAMES);
@@ -1356,7 +1678,8 @@ void BattleStage_EndIntroFocus(void)
 {
     sStageCamera.introOver = TRUE;
 
-    if (sStageCamera.sequence == SEQUENCE_INTRO) {
+    // Only the legacy focus; the intro shots end on their own beats
+    if (sStageCamera.sequence == SEQUENCE_INTRO && sStageCamera.introShot == INTRO_SHOT_NONE) {
         sStageCamera.introRelease = TRUE;
     }
 }
@@ -1388,14 +1711,24 @@ BOOL BattleStage_IsIntroFocusDone(void)
     return FALSE;
 }
 
-// The trainer battle's script slides the player's healthbar in a fixed time after it issues
-// the throw (subscript_start_encounter.s: ThrowPokeball, WaitTime 96, HealthbarSlideInDelay)
-// and doesn't wait for the throw. While the throw waits for the focus to get home, the bar
-// came in before the ball had even left the trainer's hand. The throw counts the frames it
-// waited, and the bar's slide-in waits them out, so the bar comes in as long after the throw
-// as it does without the stage.
+// The player's trainer throw. The trainer and the ball are 2D OBJs, but they follow the
+// camera (BattleStage_FollowIntroSprite), so during the intro shots they throw at once: from
+// the opponent's shot the camera turns to the send-out shot as the throw starts. Only the
+// legacy focus (an OBJ that couldn't follow) still makes the throw wait for home; the frames
+// it waited are owed by the healthbar (HoldSendOutHealthbar), so the bar comes in after the
+// Pokemon, as long after the throw as without the stage.
 BOOL BattleStage_IsIntroThrowReady(int battler)
 {
+    int shot = ActiveIntroShot();
+
+    if (sStageCamera.introShotsPlayed && !sStageCamera.introNoSendOutShot) {
+        if (shot != INTRO_SHOT_SENDOUT && shot != INTRO_SHOT_HOMING) {
+            StartSendOutShot();
+        }
+
+        return TRUE;
+    }
+
     if (battler < 0 || battler >= MAX_BATTLERS) {
         return BattleStage_IsIntroFocusDone();
     }
@@ -1414,10 +1747,21 @@ BOOL BattleStage_IsIntroThrowReady(int battler)
     return FALSE;
 }
 
+// The player's healthbar comes in once the send-out shot is home (BW2 shows the player's
+// gauge after 0x234 ends, btlv_scu.c:838-842)
 BOOL BattleStage_HoldSendOutHealthbar(int battler)
 {
+    int shot;
+
     if (battler < 0 || battler >= MAX_BATTLERS) {
         return FALSE;
+    }
+
+    shot = ActiveIntroShot();
+
+    if ((shot == INTRO_SHOT_SENDOUT || shot == INTRO_SHOT_HOMING)
+        && (BattleSystem_BattlerSlot(sStageCamera.battleSys, battler) & 1) == 0) {
+        return TRUE;
     }
 
     if (sStageCamera.throwWaiting & (1 << battler)) {
@@ -1432,14 +1776,12 @@ BOOL BattleStage_HoldSendOutHealthbar(int battler)
     return FALSE;
 }
 
-BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy)
+// The mean similarity of a side's anchors, for the 2D trainer and ball OBJs
+static BOOL GetSideSimilarity(int side, BattleStageCameraSimilarity *similarity)
 {
-    fx32 sumX = 0, sumY = 0;
+    fx32 homeX = 0, homeY = 0, nowX = 0, nowY = 0, scale = 0;
     int count = 0;
     int max, i;
-
-    *dx = 0;
-    *dy = 0;
 
     if (!sStageCamera.hasHome || sStageCamera.atHome || sStageCamera.battleSys == NULL) {
         return FALSE;
@@ -1451,8 +1793,11 @@ BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy)
         const CameraAnchor *anchor = &sStageCamera.anchors[i];
 
         if (anchor->valid && (BattleSystem_BattlerSlot(sStageCamera.battleSys, i) & 1) == side) {
-            sumX += anchor->nowX - anchor->homeX * FX32_ONE;
-            sumY += anchor->nowY - anchor->homeY * FX32_ONE;
+            homeX += anchor->homeX;
+            homeY += anchor->homeY;
+            nowX += anchor->nowX;
+            nowY += anchor->nowY;
+            scale += anchor->scale;
             count++;
         }
     }
@@ -1461,8 +1806,94 @@ BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy)
         return FALSE;
     }
 
-    *dx = (sumX / count + FX32_HALF) >> FX32_SHIFT;
-    *dy = (sumY / count + FX32_HALF) >> FX32_SHIFT;
+    similarity->homeX = homeX / count;
+    similarity->homeY = homeY / count;
+    similarity->nowX = nowX / count;
+    similarity->nowY = nowY / count;
+    similarity->scale = scale / count;
+    return TRUE;
+}
+
+// Moves (sign 1) and scales a 2D OBJ with its side's similarity for one draw, and puts it back
+// (sign -1). The scale is capped where an affine double-size OBJ still fits; past it the OBJ
+// is well off screen anyway.
+void BattleStage_FollowIntroSprite(ManagedSprite *managedSprite, int side, int sign, BattleStageIntroSpriteSave *save)
+{
+    BattleStageCameraSimilarity similarity;
+    Sprite *sprite;
+    fx32 s, x, y;
+
+    if (managedSprite == NULL || managedSprite->sprite == NULL) {
+        return;
+    }
+
+    sprite = managedSprite->sprite;
+
+    if (sign < 0) {
+        if (save->moved) {
+            sprite->position = save->position;
+            sprite->affineScale = save->scale;
+            sprite->affineOverwriteMode = save->mode;
+            save->moved = FALSE;
+        }
+        return;
+    }
+
+    save->moved = FALSE;
+
+    if (!GetSideSimilarity(side, &similarity)) {
+        return;
+    }
+
+    save->position = sprite->position;
+    save->scale = sprite->affineScale;
+    save->mode = sprite->affineOverwriteMode;
+    save->moved = TRUE;
+
+    s = similarity.scale > INTRO_OBJ_MAX_SCALE ? INTRO_OBJ_MAX_SCALE : similarity.scale;
+    x = similarity.nowX + FX_Mul(similarity.scale, sprite->position.x - similarity.homeX * FX32_ONE);
+    y = similarity.nowY + FX_Mul(similarity.scale, sprite->position.y - similarity.homeY * FX32_ONE);
+
+    // Far off screen the OBJ position would wrap: park it out of view
+    if (x < -128 * FX32_ONE || x > 384 * FX32_ONE || y < -128 * FX32_ONE || y > 320 * FX32_ONE) {
+        x = -128 * FX32_ONE;
+        y = -128 * FX32_ONE;
+    }
+
+    sprite->position.x = x;
+    sprite->position.y = y;
+    sprite->affineScale.x = FX_Mul(save->scale.x, s);
+    sprite->affineScale.y = FX_Mul(save->scale.y, s);
+    sprite->affineOverwriteMode = AFFINE_OVERWRITE_MODE_DOUBLE;
+}
+
+// The ball OBJ of a throw (its own task draws it): it follows its target's side
+static BattleStageIntroSpriteSave sBallSpriteSave;
+
+static void BallDrawHook(ManagedSprite *sprite, int target, int sign)
+{
+    if (sStageCamera.battleSys == NULL || target < 0 || target >= MaxBattlers()) {
+        sBallSpriteSave.moved = FALSE;
+        return;
+    }
+
+    BattleStage_FollowIntroSprite(sprite, BattleSystem_BattlerSlot(sStageCamera.battleSys, target) & 1, sign, &sBallSpriteSave);
+}
+
+// The old translate-only follow, kept for callers outside the intro
+BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy)
+{
+    BattleStageCameraSimilarity similarity;
+
+    *dx = 0;
+    *dy = 0;
+
+    if (!GetSideSimilarity(side, &similarity)) {
+        return FALSE;
+    }
+
+    *dx = ((similarity.nowX - similarity.homeX * FX32_ONE) + FX32_HALF) >> FX32_SHIFT;
+    *dy = ((similarity.nowY - similarity.homeY * FX32_ONE) + FX32_HALF) >> FX32_SHIFT;
     return TRUE;
 }
 

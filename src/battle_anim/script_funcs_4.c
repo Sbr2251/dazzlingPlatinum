@@ -5,6 +5,7 @@
 
 #include "constants/battle/battle_anim.h"
 
+#include "battle/battle_stage_copies.h"
 #include "battle_anim/battle_anim_helpers.h"
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
@@ -778,6 +779,7 @@ void BattleAnimScriptFunc_Camouflage(BattleAnimSystem *system)
     BattleAnimSystem_GetCommonData(system, &ctx->common);
 
     ctx->maskSprite = BattleAnimSystem_GetPokemonSprite(ctx->common.battleAnimSys, BATTLE_ANIM_MON_SPRITE_0);
+    BattleStage_ReleaseMonCopiesOf(ctx->maskSprite); // bw2vis:idle: an OBJ window needs the 2D copy
     ManagedSprite_SetExplicitOamMode(ctx->maskSprite, GX_OAM_MODE_OBJWND);
 
     // Mask background to attacker sprite

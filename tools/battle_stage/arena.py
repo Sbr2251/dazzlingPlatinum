@@ -30,6 +30,7 @@ import math
 
 import classic
 import fx
+import nitro
 from fx import FX32_ONE, to_fx32
 
 # Camera
@@ -96,6 +97,63 @@ WATER_SCROLL_AMPLITUDE = (3, 1)  # texels, s and t
 # Arena draws: the battle draws the 3D scene at 30 fps, so 105 draws = 3.5 s (210 VBlanks)
 WATER_SCROLL_PERIOD = 105
 
+# Drifting clouds (BW2's outdoor fields scroll their sky texture sideways all battle: NSBTA
+# translateS on batt_sky*, res/graphics/btlv/075.nsbta etc. in pokebw2, 1 texture width per 5000
+# frames). Outdoors the panorama bands above the background's sky row DRIFT sideways. BW2's
+# 128-texel sky spans its whole half cylinder, about 16 texels across the screen, so that rate
+# moves the clouds about 0.42 px per frame at 60 fps, 25 px per second (measured through the
+# BW2 camera, /tmp/bw2vis/stage-anim/tools/bw2_sky_speed.py). Our sky is the classic art at one
+# texel per pixel, so the same apparent speed is 21 texels per 25 arena draws (30 per second).
+# Positive moves the art left, as a BG3 X scroll would. REPEAT_S | FLIP_S makes the texture
+# periodic every 512 texels and continuous at the mirror lines, so the drift wraps without a seam.
+SKY_DRIFT = (21, 0)  # texels per SKY_DRIFT_PERIOD draws, s and t
+SKY_DRIFT_PERIOD = 25
+
+# A pixel of the day palette counts as sky when it is bright and blue (or white): the cyan,
+# blue, white and pale grey skies of the outdoor art pass, the tree lines, mountains, buildings
+# and the forest's foliage do not
+SKY_MIN_BLUE = 176
+
+
+def is_sky_color(rgb):
+    r, g, b = rgb
+    return b >= SKY_MIN_BLUE and b >= r and 4 * b >= 3 * g
+
+
+def sky_row(background, base_row):
+    """First home screen row (0..base_row) that is not all sky: rows above it hold only sky in
+    every column of the classic art at day, so they can drift without moving the horizon's
+    silhouette. 0 for a background without a clear sky band (the forest)."""
+    art = classic.Backdrop(background)
+    palette = [nitro.gxrgb_to_rgb888(c) for c in art.palettes[0]]
+    row = 0
+
+    while row < base_row and all(is_sky_color(palette[i]) for i in art.image[row][:fx.SCREEN_W]):
+        row += 1
+
+    return row
+
+
+# Water's second layer (BW2's water field batt_bg21 flows its base texture under a translucent
+# a3i5 glint layer, batt_field21n, 115.nsbmd / 117.nsbta in pokebw2): BW2's glint texture
+# (bw2_assets.py "wave", 128x32) tiled in world space on a plane just above the water, from
+# the water row down past the screen, that DRIFTs toward the camera and a little sideways. It
+# is translucent per texel, so at frame 0 it adds sparse glints to the classic water rather
+# than replacing it. The glints run along x like the classic art's streaks.
+TEX_WAVE = 2
+WAVE_LIFT = 0.1  # above the ground; more than Placer.exact moves a ground vertex in y (+-0.03)
+WAVE_HALF_X = 44.0  # the side ground ends at the panorama's arc, about x = +-40, which hides the rest
+WAVE_TEXELS_PER_UNIT = (32, 4)  # s along x, t along z: a tile is 4 x 8 world units
+WAVE_COLUMNS = 4
+# Band edges after the water row (home screen rows). The layer stops at row 120: nearer, its
+# 128x32 texture would be magnified into blocks
+WAVE_ROWS = (90, 120)
+WAVE_DRIFT = (8, -2)  # texels per WAVE_DRIFT_PERIOD draws: 0.5 unit/s sideways, 0.5 unit/s toward the camera
+WAVE_DRIFT_PERIOD = 15
+# Polygon alpha on top of the texels' own: the glints stay under 48 levels from the classic water
+# (the critic's 'big' difference), a sparkle rather than a second picture
+WAVE_ALPHA = 20
+
 WALL_TOP_ROW = -64  # home screen row of its top edge (clamps to texture row 0)
 WALL_ROW_STEP = 16
 
@@ -147,6 +205,67 @@ PLATFORM_TEX_SIZE = ((256, 32), (128, 64))
 # clamped edge rows are transparent; the player's texture mirrors at t 32 (sprite row
 # 16) instead.
 PLATFORM_TEX_ORIGIN = ((128, 16), (64, 24))
+
+# Water on the platforms (BW2's puddle stages batt_stage08/09 wobble their water texture,
+# 023/025.nsbta). A platform art's water pixels (bright blue in the day palette), shrunk by the
+# sway amplitude so they never move onto the rim or the sand, go to an overlay texture with the
+# platform texture's layout. The overlay is a copy of the visible disc strips that hold them,
+# PLATFORM_OVERLAY_LIFTS above the disc on the same pixels and texture coordinates, so at frame
+# 0 it shows exactly what the disc does, and it sways (SCROLL). Per TERRAIN_*: amplitude
+# (texels s, t) and period (draws).
+TERRAIN_PUDDLE = 3
+TERRAIN_WATER = 7
+PLATFORM_WATER_SWAY = {
+    TERRAIN_PUDDLE: ((1, 1), 40),  # puddles shimmer
+    TERRAIN_WATER: ((2, 1), 60),  # the wave stripes roll
+}
+# Over the disc: more than Placer.exact moves a vertex along the view ray; the first height
+# that has a vertex on the pixel grid
+PLATFORM_OVERLAY_LIFTS = (0.06, 0.07, 0.05, 0.08, 0.09, 0.1)
+WATER_MIN_BLUE = 200
+
+
+def is_water_color(rgb):
+    r, g, b = rgb
+    return b >= WATER_MIN_BLUE and b > r + 32 and b >= g
+
+
+# Grass on the platforms (BW2's grass stages batt_stage06/12/23/24 move their blades and
+# leaves, NSBCA joint translation 016-058.nsbca, 500-800-frame loops). The art's pixels above
+# the plain platform's ellipse (TERRAIN_PLAIN's art, the same shape for every terrain) stand
+# up: a fringe of vertical quads along the back rim, between home screen columns, whose foot
+# is the rim on the disc and whose top is above the highest such pixel. They show those pixels
+# through the home camera from an extra texture (the main texture loses them), so at home the
+# platform looks as before and off home the blades stand on the rim instead of lying flat
+# behind it. TERRAIN_GRASS's fringe SWAYs: a shear along x about the disc's height.
+TERRAIN_PLAIN = 0
+TERRAIN_GRASS = 2
+PLATFORM_FRINGE = {
+    # terrain: sway period (draws) per side (player, enemy), None for a still fringe
+    TERRAIN_GRASS: (56, 46),
+}
+# Rocks on the platforms (BW2's stages carry stones up to 1.8 units tall). On these terrains
+# every rock of the art (a blob of at least ROCK_MIN_PIXELS grey pixels: channel spread <=
+# ROCK_CORE_SPREAD, plus the outline around it, <= ROCK_MAX_SPREAD) stands up: one vertical quad facing the camera on the rock's bottom row,
+# textured through the home camera from an extra texture that holds the rocks. The main
+# texture fills each rock's pixels from the nearest ground pixel of its row, which shows once
+# the camera moves and the rock stands in front of it. At home nothing changes.
+TERRAIN_MOUNTAIN = 4
+PLATFORM_ROCKS = (TERRAIN_MOUNTAIN,)
+ROCK_CORE_SPREAD = 20
+ROCK_MAX_SPREAD = 24
+ROCK_MIN_PIXELS = 8
+
+FRINGE_COLUMN_PX = 32  # widest fringe quad; narrower where the rim's depth changes fast
+FRINGE_ERROR_PX = 0.25  # largest texture error of a quad at home (perspective, across its width)
+FRINGE_TIP_PX = 1.0  # SWAY: how far the fringe's top row moves at the sway's peak, in home pixels
+
+
+def shrink_mask(pixels, inside, radius):
+    """The pixels of `pixels` (a set of (x, y)) whose every neighbour within `radius`
+    (Chebyshev) is in `inside`."""
+    return {(x, y) for x, y in pixels
+            if all((x + dx, y + dy) in inside for dx in range(-radius, radius + 1) for dy in range(-radius, radius + 1))}
 
 
 def fx16(world):
@@ -214,8 +333,9 @@ class Vertex:
 
 
 class Mesh:
-    def __init__(self, name, texture, flags, primitive, vertices, scroll_amplitude=(0, 0), scroll_period=1):
+    def __init__(self, name, texture, flags, primitive, vertices, scroll_amplitude=(0, 0), scroll_period=1, alpha=31):
         self.name = name
+        self.alpha = alpha  # polygon alpha 0..31
         self.texture = texture  # index into the piece's textures
         self.flags = flags | FLAG_LIT | FLAG_FOG
         self.primitive = primitive
@@ -223,7 +343,9 @@ class Mesh:
         self.scroll_amplitude = scroll_amplitude
         self.scroll_period = scroll_period
 
-        if scroll_amplitude != (0, 0):
+        # scroll_amplitude is the sway amplitude of SCROLL (unsigned texels) or the velocity of
+        # DRIFT (signed texels per scroll_period draws)
+        if scroll_amplitude != (0, 0) and not self.flags & (FLAG_DRIFT | FLAG_SWAY):
             self.flags |= FLAG_SCROLL
 
     def num_polygons(self):
@@ -259,6 +381,8 @@ FLAG_FLIP_T = 1 << 7
 FLAG_LIT = 1 << 8
 FLAG_FOG = 1 << 9
 FLAG_SCROLL = 1 << 10
+FLAG_DRIFT = 1 << 11
+FLAG_SWAY = 1 << 12
 
 UP = (0.0, 1.0, 0.0)
 TOWARD_CAMERA = (0.0, 0.0, 1.0)
@@ -519,6 +643,15 @@ class Backdrop:
 
                 segments = ROOM_SIDE_SEGMENTS if room else SIDE_SEGMENTS
 
+                if k == 0 and not room:
+                    # Outdoors the arc starts at the frontal part's edge on the base row, so the
+                    # whole line is that one vertex, the very one the panorama's foot starts from.
+                    # Free vertices at (x, 0, z) there were a hair off it (Placer.exact moves the
+                    # edge vertex in y), which left a sliver between the first band and the arc's
+                    # first foot segment: 1-px holes in the menu drift (BUG 7)
+                    sides[sign, k] = line * (segments + 1)
+                    continue
+
                 for i in range(1, segments + 1):
                     x = inner[0] + (sign * outer_x - inner[0]) * i / segments
                     line.append(place.free((x, 0.0, z)))
@@ -542,15 +675,44 @@ class Backdrop:
                 return sides[-1, kk][::-1] + [grid[x, yy] for x in columns[1:-1]] + sides[1, kk]
 
             top, bottom = full_row(k, y0), full_row(k + 1, y1)
-            # The first band's far edge collapses to a point at each end (the arc starts
-            # there); quads with two equal vertices are triangles, which is fine
+            # Outdoors the first band's far edge collapses to the frontal edge vertex at each
+            # end (the arc starts there); quads with two equal vertices are triangles, and the
+            # outermost one shares its far side with the arc's first foot segment exactly
             self.meshes.append(strip_mesh(f"ground {y0}-{y1}", texture, flags, top, bottom, origin, UP, **scroll))
+
+        # Water: the translucent glint layer over the ground (TEX_WAVE). Its texture
+        # coordinates are world-linear, which the DS interpolates exactly per polygon, so a
+        # coarse grid is enough
+        if water_row is not None:
+            wave_rows = sorted({water_row} | {min(rows, key=lambda r: abs(r - w)) for w in WAVE_ROWS if w > water_row})
+            wave_z = [row_z[rows.index(r)] for r in wave_rows]
+            wave_x = [-WAVE_HALF_X + 2 * WAVE_HALF_X * i / WAVE_COLUMNS for i in range(WAVE_COLUMNS + 1)]
+            quads = []
+
+            def wave_vertex(x, z):
+                v = Vertex(fx16_vec((x, WAVE_LIFT, z)), None, False)
+                p = world_of(v.pos)
+                return (v, (p[0] * WAVE_TEXELS_PER_UNIT[0], p[2] * WAVE_TEXELS_PER_UNIT[1]), UP)
+
+            for k in range(len(wave_z) - 1):
+                for i in range(WAVE_COLUMNS):
+                    quads += [wave_vertex(wave_x[i], wave_z[k]), wave_vertex(wave_x[i], wave_z[k + 1]),
+                              wave_vertex(wave_x[i + 1], wave_z[k + 1]), wave_vertex(wave_x[i + 1], wave_z[k])]
+
+            self.meshes.append(Mesh("water glints", TEX_WAVE, FLAG_REPEAT_S | FLAG_REPEAT_T | FLAG_DRIFT, PRIM_QUADS, quads,
+                                    scroll_amplitude=WAVE_DRIFT, scroll_period=WAVE_DRIFT_PERIOD, alpha=WAVE_ALPHA))
 
         # Panorama or walls: frontal part on the wall plane, the arc or the side walls
         # through the side ground's outer ends. Rows are horizontal lines (constant
         # height). Everything above screen row 0 shows texture row 0 (t clamps), so one
         # band covers it
         wall_rows = list(range(base_row, 0, -WALL_ROW_STEP)) + [0, WALL_TOP_ROW]
+
+        # Outdoors the bands above the sky row drift (SKY_DRIFT); the sky row is a band edge
+        self.sky_row = sky_row(background, base_row) if self.kind == KIND_OUTDOOR else 0
+
+        if 0 < self.sky_row < base_row:
+            wall_rows = sorted(set(wall_rows) | {self.sky_row}, reverse=True)
         wall_grid = {}
 
         for y in wall_rows:
@@ -644,7 +806,13 @@ class Backdrop:
 
         for j in range(len(wall_rows) - 1):
             top, bottom = wall_row(j + 1), wall_row(j)
-            self.meshes.append(strip_mesh(f"panorama {wall_rows[j + 1]}-{wall_rows[j]}", TEX_A, TEX_A_FLAGS, top, bottom, (0, 0)))
+            anim = {}
+
+            if wall_rows[j] <= self.sky_row:
+                anim = dict(flags=FLAG_DRIFT, scroll_amplitude=SKY_DRIFT, scroll_period=SKY_DRIFT_PERIOD)
+
+            self.meshes.append(strip_mesh(f"panorama {wall_rows[j + 1]}-{wall_rows[j]}", TEX_A, TEX_A_FLAGS | anim.pop("flags", 0),
+                                          top, bottom, (0, 0), **anim))
 
         self.num_polygons = sum(m.num_polygons() for m in self.meshes)
 
@@ -653,10 +821,16 @@ class PlatformDisc:
     """One platform: a disc PLATFORM_HEIGHT above the ground whose home projection plus
     its side band covers the platform art, both textured through the home camera."""
 
-    def __init__(self, home, side, art):
+    def __init__(self, home, side, art, terrain=None):
         self.home = home
         self.side = side
         self.art = art
+        self.terrain = terrain
+        # Extra textures with the main texture's layout, after it in the piece: {(x, y): index}
+        # relative to the sprite, as art.pixels. Mesh.texture is 0 for the main texture, 1.. for these
+        self.extra_textures = []
+        self.main_pixels = art.pixels  # the main texture's pixels (the fringe takes some away)
+        self.fringe_sway = None  # (shear / 256, pivot / 64, period) of a SWAY fringe
         place = Placer(home)
         disc = plane_y(PLATFORM_HEIGHT)
         hx, hy = classic.PLATFORM_HOME[side]
@@ -736,7 +910,7 @@ class PlatformDisc:
         name = ("player", "enemy")[side]
 
         for k in range(len(rows) - 1):
-            self.meshes.append(strip_mesh(f"{name} disc {rows[k]}-{rows[k + 1]}", side, flags, grid[k], grid[k + 1], origin))
+            self.meshes.append(strip_mesh(f"{name} disc {rows[k]}-{rows[k + 1]}", 0, flags, grid[k], grid[k + 1], origin))
 
         # Side band along the front half of the rim, from the widest row round the
         # front: top at the art's outline on the disc, bottom on (just under) the ground,
@@ -782,13 +956,236 @@ class PlatformDisc:
 
             tops.append((v, n))
 
-        self.meshes.append(strip_mesh(f"{name} band", side, flags, tops, bottoms, origin))
+        self.meshes.append(strip_mesh(f"{name} band", 0, flags, tops, bottoms, origin))
         self.band_px = band_px
+
+        if terrain in PLATFORM_WATER_SWAY:
+            self.add_water_overlay(place, rows, xs, origin, flags, name)
+
+        if terrain in PLATFORM_FRINGE:
+            self.add_fringe(place, disc, origin, flags, name)
+
+        if terrain in PLATFORM_ROCKS:
+            self.add_rocks(place, disc, origin, flags, name)
+
         self.num_polygons = sum(m.num_polygons() for m in self.meshes)
 
         # Where the disc is in view space, for platformPixelToWorld
         centre = place.screen_point(hx + VERTEX_NUDGE, PLATFORM_CENTRE_ROW[side] + VERTEX_NUDGE, disc)
         self.depth = -home.cam.world_to_view(centre)[2]
+
+    def add_fringe(self, place, disc, origin, flags, name):
+        side = self.side
+        hx, hy = classic.PLATFORM_HOME[side]
+        cam = self.home.cam
+        plain = {p for p, i in classic.Platform(side, TERRAIN_PLAIN).pixels.items() if i}
+        top_plain = {}
+
+        for x, y in plain:
+            top_plain[x] = min(y, top_plain.get(x, y))
+
+        fringe = {p: i for p, i in self.art.pixels.items() if i and p[0] in top_plain and p[1] < top_plain[p[0]]}
+
+        if not fringe:
+            return
+
+        self.main_pixels = {p: i for p, i in self.art.pixels.items() if p not in fringe}
+        self.extra_textures.append(fringe)
+        texture = len(self.extra_textures)
+
+        # Home screen extent: columns [x_lo, x_hi], top row (the quads cover pixel rows
+        # top_row + 1 ..)
+        x_lo, x_hi = min(x for x, _ in fringe) + hx, max(x for x, _ in fringe) + hx + 1
+        top_row = min(y for _, y in fringe) + hy - 1
+
+        def foot_row(sx):
+            col = min(top_plain, key=lambda c: abs(c + hx - sx))
+            return top_plain[col] + hy
+
+        def column(sx):
+            foot = place.exact(sx, foot_row(sx), disc)
+            z = world_of(foot.pos)[2]
+            top = place.exact(sx, top_row, plane_z(z))
+            return foot, top
+
+        def depth(v):
+            return -cam.world_to_view(world_of(v.pos))[2]
+
+        def error(a, b):
+            # Screen-affine texture coordinates under perspective-correct interpolation:
+            # off by about width * |dw| / (4 w) at mid-quad
+            (fa, ta), (fb, tb) = a, b
+            width = fb.screen[0] - fa.screen[0]
+            return max(width * abs(depth(vb) - depth(va)) / (4 * (depth(va) + depth(vb)) / 2) for va, vb in ((fa, fb), (ta, tb)))
+
+        xs = list(range(x_lo, x_hi, FRINGE_COLUMN_PX)) + [x_hi]
+        cols = {x: column(x) for x in xs}
+        i = 0
+
+        while i < len(xs) - 1:
+            if error(cols[xs[i]], cols[xs[i + 1]]) > FRINGE_ERROR_PX and xs[i + 1] - xs[i] > 2:
+                mid = (xs[i] + xs[i + 1]) // 2
+                xs.insert(i + 1, mid)
+                cols[mid] = column(mid)
+            else:
+                i += 1
+
+        bottoms = [(cols[x][0], TOWARD_CAMERA) for x in xs]
+        tops = [(cols[x][1], TOWARD_CAMERA) for x in xs]
+        anim = {}
+        period = PLATFORM_FRINGE[self.terrain]
+
+        if period is not None:
+            # The shear that moves the top row FRINGE_TIP_PX at the fringe's middle column
+            foot, top = cols[min(xs, key=lambda x: abs(x - (x_lo + x_hi) / 2))]
+            height = world_of(top.pos)[1] - PLATFORM_HEIGHT
+            px_per_unit = cam.p00 * fx.SCREEN_W / 2 / depth(top)
+            shear = min(127, max(1, int(round(FRINGE_TIP_PX / (height * px_per_unit) * 256))))
+            pivot = int(round(PLATFORM_HEIGHT * 64))
+            anim = dict(scroll_amplitude=(shear, pivot), scroll_period=period[side])
+            self.fringe_sway = (shear, pivot, period[side])
+
+        mesh = strip_mesh(f"{name} fringe", texture, flags, tops, bottoms, origin, **anim)
+
+        if anim:
+            mesh.flags = (mesh.flags & ~FLAG_SCROLL) | FLAG_SWAY
+
+        self.meshes.append(mesh)
+        self.fringe_columns = xs
+        self.num_polygons = sum(m.num_polygons() for m in self.meshes)
+
+    def add_rocks(self, place, disc, origin, flags, name):
+        hx, hy = classic.PLATFORM_HOME[self.side]
+        palette = [nitro.gxrgb_to_rgb888(c) for c in self.art.palettes[0]]
+        def spread(i):
+            return max(palette[i]) - min(palette[i])
+
+        # Rocks grow from their grey body (ROCK_CORE_SPREAD); their darker outline, which the
+        # art also draws the ground's cracks with, only joins where it touches a body
+        grey = {p for p, i in self.art.pixels.items() if i and spread(i) <= ROCK_CORE_SPREAD}
+        outline = {p for p, i in self.art.pixels.items() if i and ROCK_CORE_SPREAD < spread(i) <= ROCK_MAX_SPREAD}
+        blobs, seen = [], set()
+
+        for start in sorted(grey):
+            if start in seen:
+                continue
+
+            seen.add(start)
+            stack, blob = [start], []
+
+            while stack:
+                x, y = stack.pop()
+                blob.append((x, y))
+
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        n = (x + dx, y + dy)
+
+                        if n in grey and n not in seen:
+                            seen.add(n)
+                            stack.append(n)
+
+            # A rock's foot is one row under it, on the pixel grid, so rocks reaching under the
+            # text box (the player's front rocks) stay flat
+            blob += [(x + dx, y + dy) for x, y in list(blob) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                     if (x + dx, y + dy) in outline and (x + dx, y + dy) not in seen]
+            blob = sorted(set(blob))
+            seen.update(blob)
+
+            if len(blob) >= ROCK_MIN_PIXELS and max(y for _, y in blob) + hy < HIDDEN_FROM_ROW:
+                blobs.append(blob)
+
+        if not blobs:
+            return
+
+        rocks = {p for blob in blobs for p in blob}
+        main = dict(self.main_pixels)
+
+        # Fill each rock pixel inside the platform's ellipse (TERRAIN_PLAIN's art) from the
+        # nearest ground pixel of its row (then of the rows around it), so a standing rock
+        # leaves ground behind it; the part of a rock above the rim leaves nothing
+        plain = {p for p, i in classic.Platform(self.side, TERRAIN_PLAIN).pixels.items() if i}
+
+        for x, y in rocks:
+            if (x, y) not in plain:
+                main.pop((x, y), None)
+                continue
+
+            for d in range(1, 64):
+                fill = next((main[q] for q in ((x - d, y), (x + d, y), (x, y + d), (x, y - d))
+                             if q in main and q not in rocks and main[q]), None)
+
+                if fill is not None:
+                    main[(x, y)] = fill
+                    break
+
+        self.main_pixels = main
+        self.extra_textures.append({p: self.art.pixels[p] for p in rocks})
+        texture = len(self.extra_textures)
+        quads = []
+
+        # Each rock: a quad over its pixel columns [x0, x1) and rows (top, bottom], standing on
+        # the disc just under its bottom row (on the row itself the quad would tie with the
+        # disc's depth and lose to it)
+        for blob in blobs:
+            x0, x1 = min(x for x, _ in blob) + hx, max(x for x, _ in blob) + hx + 1
+            top, bottom = min(y for _, y in blob) + hy - 1, max(y for _, y in blob) + hy + 1
+            feet = [place.exact(x, bottom, disc) for x in (x0, x1)]
+            wall = plane_z(world_of(feet[0].pos)[2])
+            heads = [place.exact(x, top, wall) for x in (x0, x1)]
+
+            for v in (heads[0], feet[0], feet[1], heads[1]):
+                quads.append((v, tex_coord(v, origin), TOWARD_CAMERA))
+
+        self.meshes.append(Mesh(f"{name} rocks", texture, flags, PRIM_QUADS, quads))
+        self.rocks = len(blobs)
+        self.num_polygons = sum(m.num_polygons() for m in self.meshes)
+
+    def add_water_overlay(self, place, rows, xs, origin, flags, name):
+        amplitude, period = PLATFORM_WATER_SWAY[self.terrain]
+        hx, hy = classic.PLATFORM_HOME[self.side]
+        palette = [nitro.gxrgb_to_rgb888(c) for c in self.art.palettes[0]]
+        opaque = {p for p, i in self.art.pixels.items() if i}
+        water = {p for p in opaque if is_water_color(palette[self.art.pixels[p]])}
+        mask = shrink_mask(water, water, max(amplitude))
+
+        if not mask:
+            return
+
+        self.extra_textures.append({p: self.art.pixels[p] for p in mask})
+        texture = len(self.extra_textures)
+        def vertex(x, y):
+            # Near the camera the fx16 lattice reaches only some sub-pixel positions on a
+            # plane; a vertex a little higher or lower serves as well
+            for lift in PLATFORM_OVERLAY_LIFTS:
+                try:
+                    return place.exact(x, y, plane_y(PLATFORM_HEIGHT + lift))
+                except AssertionError:
+                    continue
+
+            raise AssertionError(f"no overlay vertex projects to pixel ({x}, {y})")
+
+        # Visible strips only: the disc covers pixel rows (rows[k], rows[k + 1]], and a quad
+        # pixel columns [xs[i], xs[i + 1])
+        screen = {(x + hx, y + hy) for x, y in mask}
+
+        for k in range(len(rows) - 1):
+            if rows[k + 1] > HIDDEN_FROM_ROW:
+                break
+
+            cols = [i for i in range(len(xs) - 1)
+                    if any((x, y) in screen for x in range(xs[i], xs[i + 1]) for y in range(rows[k] + 1, rows[k + 1] + 1))]
+
+            if not cols:
+                continue
+
+            span = xs[cols[0]:cols[-1] + 2]
+            top = [vertex(x, rows[k]) for x in span]
+            bottom = [vertex(x, rows[k + 1]) for x in span]
+            self.meshes.append(strip_mesh(f"{name} water {rows[k]}-{rows[k + 1]}", texture, flags, top, bottom, origin,
+                                          scroll_amplitude=amplitude, scroll_period=period))
+
+        self.num_polygons = sum(m.num_polygons() for m in self.meshes)
 
     def band_pixels(self, row):
         """Screen height of the side band at a row near the platform's front."""
@@ -824,7 +1221,7 @@ class Arena:
         if terrain is not None:
             for side in (classic.SIDE_PLAYER, classic.SIDE_ENEMY):
                 art = classic.Platform(side, terrain)
-                self.platforms.append(None if art.is_empty() else PlatformDisc(self.home, side, art))
+                self.platforms.append(None if art.is_empty() else PlatformDisc(self.home, side, art, terrain))
 
         self.pixel_to_world = [self.home.pixel_to_world(d) for d in platform_depths(self.home)]
 

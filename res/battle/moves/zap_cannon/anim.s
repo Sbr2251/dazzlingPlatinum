@@ -4,7 +4,7 @@ L_0:
     LoadParticleResource 0, zap_cannon_spa
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 26, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_BLUE_AURA, BATTLE_BG_SWITCH_MODE_CUT
     Delay 5
     PlayLoopedSoundEffectC SEQ_SE_DP_W086, 2, 3
     Func_ShakeBg 8, 8, 0, 20, 0
@@ -22,6 +22,6 @@ L_0:
     WaitForAllEmitters
     UnloadParticleSystem 0
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 26, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_BLUE_AURA, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

@@ -14,7 +14,7 @@
 // and 4-byte aligned.
 
 #define BATTLE_STAGE_MAGIC   0x47545342 // "BSTG"
-#define BATTLE_STAGE_VERSION 2
+#define BATTLE_STAGE_VERSION 3
 
 enum BattleStagePaletteSource {
     // Texture indices are BG palette indices; the palette is copied from the live
@@ -50,10 +50,42 @@ enum BattleStageMeshFlag {
     // The texture sways by scrollAmplitude texels over scrollPeriod frames (water surfaces).
     // Adds to FOLLOW_BG3_SCROLL when both are set
     BATTLE_STAGE_MESH_SCROLL = 1 << 10,
+    // The texture moves at a constant speed (drifting clouds, flowing water): the texcoord
+    // offset is (s8)scrollAmplitude[i] texels every scrollPeriod frames, on s and t, wrapped at
+    // the texture's repeat period (the size, twice it with FLIP). An axis that moves needs its
+    // REPEAT flag. Not with SCROLL, whose fields it shares. Adds to FOLLOW_BG3_SCROLL
+    BATTLE_STAGE_MESH_DRIFT = 1 << 11,
+    // The mesh sways (grass): its positions shear along x, x += k * (y - pivot), with
+    // k = (s8)scrollAmplitude[0] / 256 * sin(2pi * frame / scrollPeriod) and pivot =
+    // scrollAmplitude[1] / 64 world units. Not with SCROLL or DRIFT, whose fields it shares
+    BATTLE_STAGE_MESH_SWAY = 1 << 12,
 };
 
-// Arena light and fog for one time-of-day column: [0] day, [1] twilight, [2] night, as
-// picked by ov16_0223EC04 (indoor backgrounds always use [0])
+// Lighting columns of the atmosphere. [0..2] are the classic time-of-day columns that
+// ov16_0223EC04 picks (and the classic BG palettes follow); the renderer blends the others in
+// at battle start by the RTC hour and minute and the field weather (battle_stage_light.c,
+// stage_format.md "Time of day and weather")
+enum BattleStageLightingColumn {
+    BATTLE_STAGE_LIGHTING_DAY = 0,
+    BATTLE_STAGE_LIGHTING_TWILIGHT,
+    BATTLE_STAGE_LIGHTING_NIGHT,
+    BATTLE_STAGE_LIGHTING_MORNING, // cool blue, 06:00-09:00
+    BATTLE_STAGE_LIGHTING_DUSK, // orange, 18:30
+    // Field weather at battle start (each "day under that weather")
+    BATTLE_STAGE_LIGHTING_RAIN,
+    BATTLE_STAGE_LIGHTING_STORM, // heavy rain, thunderstorm
+    BATTLE_STAGE_LIGHTING_SNOW, // snow, heavy snow, hail
+    BATTLE_STAGE_LIGHTING_BLIZZARD,
+    BATTLE_STAGE_LIGHTING_FOG, // fog, deep fog
+    BATTLE_STAGE_LIGHTING_SAND,
+    BATTLE_STAGE_LIGHTING_RIFT_MIST, // the hack's violet mist (Route 210 North)
+    BATTLE_STAGE_LIGHTING_MAX,
+};
+
+#define BATTLE_STAGE_LIGHTING_TOD_COUNT (BATTLE_STAGE_LIGHTING_DUSK + 1)
+#define BATTLE_STAGE_HAZE_FULL          128
+
+// Arena light and fog for one lighting column (enum BattleStageLightingColumn)
 typedef struct BattleStageFileLighting {
     s16 lightDir[3]; // fx16 world-space direction the light travels, |v| < 1 (G3_LightVector)
     u16 lightColor; // GXRgb
@@ -62,7 +94,8 @@ typedef struct BattleStageFileLighting {
     u16 emission; // GXRgb, G3_MaterialColorSpecEmi (specular is always black)
     u16 fogColor; // GXRgb
     u8 fogAlpha; // 0..31
-    u8 padding[3];
+    u8 haze; // 0..BATTLE_STAGE_HAZE_FULL: how much of the atmosphere's haze fog (weather) applies
+    u8 padding[2];
 } BattleStageFileLighting;
 
 // Only read from the backdrop piece
@@ -71,7 +104,15 @@ typedef struct BattleStageFileAtmosphere {
     u8 fogShift; // G3X_SetFog slope: GX_FOGSLOPE_*, 0..10
     u16 fogOffset; // G3X_SetFog offset, 15-bit depth where fogTable[0] starts
     u8 fogTable[32]; // density 0..127 (G3X_SetFogTable)
-    BattleStageFileLighting lighting[3];
+    BattleStageFileLighting lighting[BATTLE_STAGE_LIGHTING_MAX];
+    // Weather haze: a fog grid that starts just in front of the platforms. With a lighting
+    // haze h > 0 the renderer uses hazeShift/hazeOffset and the table
+    // hazeBase + (hazeTable - hazeBase) * h / BATTLE_STAGE_HAZE_FULL
+    u8 hazeShift;
+    u8 hazePadding;
+    u16 hazeOffset;
+    u8 hazeBase[32]; // the distance fog above, resampled on the haze grid
+    u8 hazeTable[32]; // full-strength haze (never below hazeBase)
 } BattleStageFileAtmosphere;
 
 typedef struct BattleStageFileHeader {
@@ -102,7 +143,7 @@ typedef struct BattleStageFileTexture {
     u32 dataSize;
     u16 width; // 8..1024, power of two
     u16 height;
-    u8 format; // GX_TEXFMT_PLTT16 or GX_TEXFMT_PLTT256
+    u8 format; // GX_TEXFMT_PLTT16, GX_TEXFMT_PLTT256 or GX_TEXFMT_A3I5 (BATTLE_STAGE_PALETTE_EMBEDDED only)
     u8 paletteSource; // enum BattleStagePaletteSource
     u16 padding;
     u32 paletteOffset; // embedded palette (GXRgb), always present as a fallback
@@ -117,8 +158,9 @@ typedef struct BattleStageFileMesh {
     u16 textureIndex;
     u16 flags; // enum BattleStageMeshFlag
     // BATTLE_STAGE_MESH_SCROLL: texcoord offset = amplitude * (sin(a), sin(2a)), a = 2pi * frame / period
-    // (a figure eight that is 0 at frame 0)
-    u8 scrollAmplitude[2]; // texels, s and t
+    // (a figure eight that is 0 at frame 0). BATTLE_STAGE_MESH_DRIFT: offset = (s8)amplitude * frame / period.
+    // BATTLE_STAGE_MESH_SWAY: [0] the peak shear (s8, 1/256), [1] the pivot height (1/64 world units)
+    u8 scrollAmplitude[2]; // texels, s and t (DRIFT: s8 texels per period)
     u16 scrollPeriod; // frames, > 0
 } BattleStageFileMesh;
 

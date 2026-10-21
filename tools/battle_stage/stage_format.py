@@ -8,7 +8,7 @@ aligned.
 import struct
 
 MAGIC = 0x47545342  # "BSTG"
-VERSION = 2
+VERSION = 3
 
 # BACKGROUND_MAX and TERRAIN_MAX (include/constants/battle/...)
 BACKGROUND_MAX = 23
@@ -20,10 +20,18 @@ TEXTURE = struct.Struct("<IIHHBBHII")
 MESH = struct.Struct("<IHBBHH2BH")
 VERTEX = struct.Struct("<3h2hHI")
 ATMOSPHERE = struct.Struct("<BBH32B")
-LIGHTING = struct.Struct("<3h5HB3x")
-NUM_LIGHTING = 3  # day, twilight, night columns (ov16_0223EC04)
+LIGHTING = struct.Struct("<3h5HBB2x")
+HAZE = struct.Struct("<BBH32B32B")
+# enum BattleStageLightingColumn: day, twilight, night (ov16_0223EC04), then the columns the
+# renderer blends in at battle start (battle_stage_light.c)
+LIGHTING_COLUMNS = ("day", "twilight", "night", "morning", "dusk",
+                    "rain", "storm", "snow", "blizzard", "fog", "sand", "rift_mist")
+NUM_LIGHTING = len(LIGHTING_COLUMNS)
+NUM_TOD_COLUMNS = 5
+HAZE_FULL = 128
 
 # GXTexFmt
+TEXFMT_A3I5 = 1  # 8bpp: palette index (5 bits, 32 colours) plus alpha (3 bits)
 TEXFMT_PLTT16 = 3
 TEXFMT_PLTT256 = 4
 
@@ -43,7 +51,8 @@ TEXCOORD_ONE = 16  # texCoord units per texel
 class Texture:
     def __init__(self, width, height, fmt, palette_source, data, palette):
         assert width in (8, 16, 32, 64, 128, 256, 512, 1024) and height in (8, 16, 32, 64, 128, 256, 512, 1024)
-        assert fmt in (TEXFMT_PLTT16, TEXFMT_PLTT256)
+        assert fmt in (TEXFMT_A3I5, TEXFMT_PLTT16, TEXFMT_PLTT256)
+        assert fmt != TEXFMT_A3I5 or palette_source == PALETTE_EMBEDDED
         assert palette_source != PALETTE_PLATFORM_OBJ or fmt == TEXFMT_PLTT16
         assert len(data) == width * height // (2 if fmt == TEXFMT_PLTT16 else 1)
         self.width = width
@@ -55,7 +64,7 @@ class Texture:
 
     def texel(self, s, t):
         """Palette index of texel (s, t), both in range."""
-        if self.format == TEXFMT_PLTT256:
+        if self.format in (TEXFMT_PLTT256, TEXFMT_A3I5):
             return self.data[t * self.width + s]
 
         byte = self.data[(t * self.width + s) // 2]
@@ -87,8 +96,20 @@ FLAG_FLIP_T = 1 << 7
 FLAG_LIT = 1 << 8
 FLAG_FOG = 1 << 9
 FLAG_SCROLL = 1 << 10
+FLAG_DRIFT = 1 << 11
+FLAG_SWAY = 1 << 12
 
 FX10_ONE = 512  # GX_FX10: 1.9 fixed point, -512..511
+
+
+def signed8(v):
+    """A scrollAmplitude byte as the s8 that DRIFT reads."""
+    return v - 256 if v & 0x80 else v
+
+
+def drift_offset(velocity, period, frame):
+    """Texels a DRIFT axis has moved after `frame` draws (before the texture wraps)."""
+    return signed8(velocity) * frame / period
 
 
 def pack_normal(n):
@@ -117,7 +138,8 @@ class Mesh:
     def __init__(self, primitive, alpha, texture_index, flags, vertices, scroll_amplitude=(0, 0), scroll_period=1):
         """vertices: [((x, y, z) fx16, (s, t) texCoord units, colour, packed normal)]"""
         assert 0 <= alpha <= MAX_ALPHA and 0 <= primitive <= 3 and vertices
-        assert scroll_period > 0 and all(0 <= a <= 255 for a in scroll_amplitude)
+        assert scroll_period > 0 and all(-128 <= a <= 255 for a in scroll_amplitude)
+        assert bin(flags & (FLAG_SCROLL | FLAG_DRIFT | FLAG_SWAY)).count("1") <= 1, "SCROLL, DRIFT and SWAY share the scroll fields"
         self.primitive = primitive
         self.alpha = alpha
         self.texture_index = texture_index
@@ -130,10 +152,10 @@ class Mesh:
 class Lighting:
     """BattleStageFileLighting: one time-of-day column. Colours are GXRgb."""
 
-    FIELDS = ("light_dir", "light_color", "diffuse", "ambient", "emission", "fog_color", "fog_alpha")
+    FIELDS = ("light_dir", "light_color", "diffuse", "ambient", "emission", "fog_color", "fog_alpha", "haze")
 
-    def __init__(self, light_dir, light_color, diffuse, ambient, emission, fog_color, fog_alpha):
-        assert all(-0x1000 < c < 0x1000 for c in light_dir) and 0 <= fog_alpha <= 31
+    def __init__(self, light_dir, light_color, diffuse, ambient, emission, fog_color, fog_alpha, haze=0):
+        assert all(-0x1000 < c < 0x1000 for c in light_dir) and 0 <= fog_alpha <= 31 and 0 <= haze <= HAZE_FULL
         self.light_dir = tuple(light_dir)  # fx16
         self.light_color = light_color
         self.diffuse = diffuse
@@ -141,15 +163,31 @@ class Lighting:
         self.emission = emission
         self.fog_color = fog_color
         self.fog_alpha = fog_alpha
+        self.haze = haze  # 0..HAZE_FULL of the atmosphere's haze fog
+
+    def copy(self, **kw):
+        out = Lighting(self.light_dir, self.light_color, self.diffuse, self.ambient, self.emission, self.fog_color,
+                       self.fog_alpha, self.haze)
+        out.__dict__.update(kw)
+        return out
 
 
 class Atmosphere:
     """BattleStageFileAtmosphere, only in backdrop pieces."""
 
-    def __init__(self, fog_enabled, fog_shift, fog_offset, fog_table, lighting):
+    def __init__(self, fog_enabled, fog_shift, fog_offset, fog_table, lighting, haze=None):
+        """haze: (shift, offset, base table, full table) of the weather haze grid; None = the
+        distance fog's own grid and table (no haze)."""
         assert 0 <= fog_shift <= 10 and 0 <= fog_offset <= 0x7FFF
         assert len(fog_table) == 32 and all(0 <= d <= 127 for d in fog_table)
         assert len(lighting) == NUM_LIGHTING
+        if haze is None:
+            haze = (fog_shift, fog_offset, list(fog_table), list(fog_table))
+        assert 0 <= haze[0] <= 10 and 0 <= haze[1] <= 0x7FFF
+        assert all(len(t) == 32 and all(0 <= d <= 127 for d in t) for t in haze[2:4])
+        assert all(f >= b for b, f in zip(haze[2], haze[3]))
+        self.haze_shift, self.haze_offset = haze[0], haze[1]
+        self.haze_base, self.haze_table = list(haze[2]), list(haze[3])
         self.fog_enabled = int(bool(fog_enabled))
         self.fog_shift = fog_shift
         self.fog_offset = fog_offset
@@ -160,8 +198,10 @@ class Atmosphere:
         out = ATMOSPHERE.pack(self.fog_enabled, self.fog_shift, self.fog_offset, *self.fog_table)
 
         for li in self.lighting:
-            out += LIGHTING.pack(*li.light_dir, li.light_color, li.diffuse, li.ambient, li.emission, li.fog_color, li.fog_alpha)
+            out += LIGHTING.pack(*li.light_dir, li.light_color, li.diffuse, li.ambient, li.emission, li.fog_color, li.fog_alpha,
+                                 li.haze)
 
+        out += HAZE.pack(self.haze_shift, 0, self.haze_offset, *self.haze_base, *self.haze_table)
         return out
 
     @classmethod
@@ -172,13 +212,14 @@ class Atmosphere:
 
         for _ in range(NUM_LIGHTING):
             g = LIGHTING.unpack_from(data, offset)
-            lighting.append(Lighting(g[0:3], *g[3:9]))
+            lighting.append(Lighting(g[0:3], *g[3:10]))
             offset += LIGHTING.size
 
-        return cls(f[0], f[1], f[2], f[3:35], lighting)
+        h = HAZE.unpack_from(data, offset)
+        return cls(f[0], f[1], f[2], f[3:35], lighting, (h[0], h[2], list(h[3:35]), list(h[35:67])))
 
 
-ATMOSPHERE_SIZE = ATMOSPHERE.size + LIGHTING.size * NUM_LIGHTING  # 96
+ATMOSPHERE_SIZE = ATMOSPHERE.size + LIGHTING.size * NUM_LIGHTING + HAZE.size  # 344
 
 
 class Header:
@@ -248,7 +289,7 @@ def write_piece(piece):
             blob += VERTEX.pack(pos[0], pos[1], pos[2], tc[0], tc[1], color, normal)
 
         mesh_entries.append(MESH.pack(vertex_offset, len(mesh.vertices), mesh.primitive, mesh.alpha, mesh.texture_index, mesh.flags,
-                                      mesh.scroll_amplitude[0], mesh.scroll_amplitude[1], mesh.scroll_period))
+                                      mesh.scroll_amplitude[0] & 0xFF, mesh.scroll_amplitude[1] & 0xFF, mesh.scroll_period))
 
     h = piece.header
     header = HEADER.pack(

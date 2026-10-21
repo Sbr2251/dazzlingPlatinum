@@ -23,6 +23,7 @@ typedef struct {
     u32 unk_6C;
     u16 unk_70;
     u16 unk_72;
+    u8 faintTick; // bw2vis:idle: frames into the sink (FAINT_FADE_TICKS)
 } UnkStruct_ov16_0225DB74;
 
 #endif // POKEPLATINUM_STRUCT_OV16_0225DB74_H

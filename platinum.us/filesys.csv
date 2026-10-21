@@ -144,6 +144,7 @@ res/prebuilt/poketool/pokegra/poke_shadow_ofx.narc,/poketool/pokegra/poke_shadow
 res/prebuilt/poketool/pokegra/poke_yofs.narc,/poketool/pokegra/poke_yofs.narc
 res/trainers/classes/trbgra.narc,/poketool/trgra/trbgra.narc
 res/trainers/classes/trfgra.narc,/poketool/trgra/trfgra.narc
+res/trainers/bw2/trfgra_bw2.narc,/poketool/trgra/trfgra_bw2.narc
 res/pokemon/pl_personal.narc,/poketool/personal/pl_personal.narc
 res/pokemon/evo.narc,/poketool/personal/evo.narc
 res/prebuilt/poketool/personal/growtbl.narc,/poketool/personal/growtbl.narc
@@ -161,6 +162,7 @@ res/prebuilt/battle/graphic/pl_batt_obj.narc,/battle/graphic/pl_batt_obj.narc
 res/prebuilt/battle/graphic/vs_demo_gra.narc,/battle/graphic/vs_demo_gra.narc
 res/prebuilt/battle/graphic/battle_stage.narc,/battle/graphic/battle_stage.narc
 res/prebuilt/battle/graphic/mon_stream.narc,/battle/graphic/mon_stream.narc
+res/graphics/battle/effect_bg/bw2_effect_bg.narc,/battle/graphic/bw2_effect_bg.narc
 res/battle/moves/anim_scripts.narc,/wazaeffect/we.arc
 res/battle/scripts/common_anims/anim_subscripts.narc,/wazaeffect/we_sub.narc
 res/battle/scripts/be_seq.narc,/battle/skill/be_seq.narc

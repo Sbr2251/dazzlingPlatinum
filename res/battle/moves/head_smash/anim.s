@@ -4,7 +4,7 @@ L_0:
     LoadParticleResource 0, head_smash_spa
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 40, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_ORANGE_FLARE, BATTLE_BG_SWITCH_MODE_CUT
     PlaySoundEffectR SEQ_SE_DP_143
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 14, -8, 2
     WaitForAnimTasks
@@ -23,6 +23,6 @@ L_0:
     UnloadParticleSystem 0
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 40, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_ORANGE_FLARE, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

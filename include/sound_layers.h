@@ -22,4 +22,8 @@ void SoundLayers_Set(enum BGMLayer layer, BOOL on);
 // Steps the layer fades. Call once per frame while a battle runs.
 void SoundLayers_Update(void);
 
+// TRUE if the layer is on and the song on the BGM player has tracks for it, i.e. the layer is (fading in or)
+// playing. A song without layers never plays one, whatever SoundLayers_Set asked for.
+BOOL SoundLayers_IsActive(enum BGMLayer layer);
+
 #endif // POKEPLATINUM_SOUND_LAYERS_H
