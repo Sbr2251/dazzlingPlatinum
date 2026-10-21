@@ -13,6 +13,7 @@
 #include "struct_defs/sprite_animation_frame.h"
 #include "struct_defs/trainer.h"
 
+#include "battle/ability_popup.h"
 #include "battle/battle_anim_battler_context.h"
 #include "battle/battle_context.h"
 #include "battle/battle_controller.h"
@@ -838,6 +839,7 @@ void BattleDisplay_PrintMessage(BattleSystem *battleSys, BattlerData *battlerDat
     taskData->command = battlerData->data[0];
     taskData->battler = battlerData->battler;
     taskData->msgIdx = BattleMessage_Print(battleSys, msgLoader, battleMsg, BattleSystem_TextSpeed(battleSys));
+    AbilityPopup_OnBattleMessage(battleSys, battleMsg, taskData->msgIdx); // bw2vis:battle-events
 
     SysTask_Start(WaitForBattleMessagePrint, taskData, 0);
 }

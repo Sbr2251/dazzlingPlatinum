@@ -720,6 +720,8 @@ Overlay battle
 	Object main.nef.p/src_battle_battle_stage_stream.c.o
 	Object main.nef.p/src_battle_battle_stage_camera.c.o
 	Object main.nef.p/src_battle_battle_debug.c.o
+	Object main.nef.p/src_battle_ability_popup.c.o
+	Object main.nef.p/src_battle_battle_events.c.o
 }
 
 Overlay overlay17
