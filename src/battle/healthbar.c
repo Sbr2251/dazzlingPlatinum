@@ -32,8 +32,12 @@
 
 #include "res/text/bank/battle_strings.h"
 
-#define HEALTHBAR_SCROLL_SPEED      24
-#define HEALTHBAR_SCROLL_OUT_OFFSET 160
+// bw2vis:hud-gauges: BW2's entrance and exit (btlv_gauge.c:612-656, 1503-1539). A gauge is drawn 16 px out from its
+// rest and nudged in at 8 px a frame, so it pops in; leaving, it jumps 128 px off screen with no slide. At the
+// battle's 30 Hz that is one 16 px step in
+#define HEALTHBAR_SCROLL_SPEED      16
+#define HEALTHBAR_SCROLL_OUT_OFFSET 16
+#define HEALTHBAR_HIDE_OFFSET       128
 
 #define HEALTHBAR_X_OFFSET_SOLO_PLAYER   192
 #define HEALTHBAR_Y_OFFSET_SOLO_PLAYER   116
@@ -767,6 +771,12 @@ void ov16_02267220(Healthbar *param0)
         param0->unk_50 = NULL;
     }
 
+    if (param0->scrollTask != NULL) {
+        SysTask_Done(param0->scrollTask);
+        param0->scrollTask = NULL;
+        param0->doneScrolling = TRUE;
+    }
+
     if (param0->mainSprite == NULL) {
         return;
     }
@@ -1043,6 +1053,20 @@ void Healthbar_OffsetPositionXY(Healthbar *healthbar, int x, int y)
     }
 }
 
+static BOOL Healthbar_IsPlayerSide(Healthbar *healthbar)
+{
+    switch (healthbar->type) {
+    case HEALTHBAR_TYPE_PLAYER_SOLO:
+    case HEALTHBAR_TYPE_PLAYER_SLOT_1:
+    case HEALTHBAR_TYPE_PLAYER_SLOT_2:
+    case HEALTHBAR_TYPE_SAFARI_ZONE:
+    case HEALTHBAR_TYPE_PAL_PARK:
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
 void Healthbar_Scroll(Healthbar *healthbar, enum HealthbarScrollDirection direction)
 {
     GF_ASSERT(healthbar != NULL);
@@ -1051,31 +1075,34 @@ void Healthbar_Scroll(Healthbar *healthbar, enum HealthbarScrollDirection direct
     healthbar->doneScrolling = 0;
     healthbar->scrollDirection = direction;
 
-    if (direction == HEALTHBAR_SCROLL_IN) {
-        switch (healthbar->type) {
-        case HEALTHBAR_TYPE_PLAYER_SOLO:
-        case HEALTHBAR_TYPE_PLAYER_SLOT_1:
-        case HEALTHBAR_TYPE_PLAYER_SLOT_2:
-        case HEALTHBAR_TYPE_SAFARI_ZONE:
-        case HEALTHBAR_TYPE_PAL_PARK:
-            // Player-side healthbar
-            Healthbar_OffsetPositionXY(healthbar, HEALTHBAR_SCROLL_OUT_OFFSET, 0);
-            break;
-
-        default:
-            // Enemy-side healthbar
-            Healthbar_OffsetPositionXY(healthbar, -HEALTHBAR_SCROLL_OUT_OFFSET, 0);
-            break;
-        }
-    } else {
-        Healthbar_OffsetPositionXY(healthbar, 0, 0);
+    if (healthbar->scrollTask != NULL) {
+        SysTask_Done(healthbar->scrollTask);
+        healthbar->scrollTask = NULL;
     }
 
-    SysTask_Start(ScrollHealthbarTask, healthbar, 990);
+    if (direction == HEALTHBAR_SCROLL_IN) {
+        // Drawn out toward its own screen edge, then nudged in
+        if (Healthbar_IsPlayerSide(healthbar)) {
+            Healthbar_OffsetPositionXY(healthbar, HEALTHBAR_SCROLL_OUT_OFFSET, 0);
+        } else {
+            Healthbar_OffsetPositionXY(healthbar, -HEALTHBAR_SCROLL_OUT_OFFSET, 0);
+        }
+
+        healthbar->scrollTask = SysTask_Start(ScrollHealthbarTask, healthbar, 990);
+    } else {
+        // BW2 doesn't slide a gauge out: it jumps off screen at once (btlv_gauge.c:642-656)
+        if (Healthbar_IsPlayerSide(healthbar)) {
+            Healthbar_OffsetPositionXY(healthbar, HEALTHBAR_HIDE_OFFSET, 0);
+        } else {
+            Healthbar_OffsetPositionXY(healthbar, -HEALTHBAR_HIDE_OFFSET, 0);
+        }
+
+        healthbar->doneScrolling = TRUE;
+    }
 }
 
 /**
- * @brief Scroll the healthbar in or out by the configured scroll-speed value.
+ * @brief Nudge the healthbar in toward its rest by the configured scroll-speed value.
  *
  * @param task
  * @param data
@@ -1089,49 +1116,20 @@ static void ScrollHealthbarTask(SysTask *task, void *data)
     s16 x, y;
     ManagedSprite_GetPositionXY(healthbar->mainSprite, &x, &y);
 
-    // Determine new X and Y based on the type of healthbar
-    switch (healthbar->type) {
-    case HEALTHBAR_TYPE_PLAYER_SOLO:
-    case HEALTHBAR_TYPE_PLAYER_SLOT_1:
-    case HEALTHBAR_TYPE_PLAYER_SLOT_2:
-    case HEALTHBAR_TYPE_SAFARI_ZONE:
-    case HEALTHBAR_TYPE_PAL_PARK:
-        // Player-side healthbar
-        if (healthbar->scrollDirection == HEALTHBAR_SCROLL_IN) {
-            x -= HEALTHBAR_SCROLL_SPEED;
+    if (Healthbar_IsPlayerSide(healthbar)) {
+        x -= HEALTHBAR_SCROLL_SPEED;
 
-            if (x < template->x) {
-                x = template->x;
-                done++;
-            }
-        } else {
-            x += HEALTHBAR_SCROLL_SPEED;
-
-            if (x > template->x + HEALTHBAR_SCROLL_OUT_OFFSET) {
-                x = template->x + HEALTHBAR_SCROLL_OUT_OFFSET;
-                done++;
-            }
+        if (x <= template->x) {
+            x = template->x;
+            done++;
         }
-        break;
+    } else {
+        x += HEALTHBAR_SCROLL_SPEED;
 
-    default:
-        // Enemy-side healthbar
-        if (healthbar->scrollDirection == HEALTHBAR_SCROLL_IN) {
-            x += HEALTHBAR_SCROLL_SPEED;
-
-            if (x > template->x) {
-                x = template->x;
-                done++;
-            }
-        } else {
-            x -= HEALTHBAR_SCROLL_SPEED;
-
-            if (x < template->x - HEALTHBAR_SCROLL_SPEED) {
-                x = template->x - HEALTHBAR_SCROLL_SPEED;
-                done++;
-            }
+        if (x >= template->x) {
+            x = template->x;
+            done++;
         }
-        break;
     }
 
     // Update positions of the sprites on the screen
@@ -1143,6 +1141,7 @@ static void ScrollHealthbarTask(SysTask *task, void *data)
     // If the sprites are now in position, we're done
     if (done > 0) {
         healthbar->doneScrolling = TRUE;
+        healthbar->scrollTask = NULL;
         SysTask_Done(task);
     }
 }

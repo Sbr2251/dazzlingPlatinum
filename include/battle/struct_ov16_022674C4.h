@@ -40,6 +40,7 @@ typedef struct {
     u8 : 4;
     SysTask *unk_50;
     u16 unk_54;
+    SysTask *scrollTask; // bw2vis:hud-gauges: the running slide-in, so a hide can stop it
 } Healthbar;
 
 #endif // POKEPLATINUM_STRUCT_OV16_022674C4_H
