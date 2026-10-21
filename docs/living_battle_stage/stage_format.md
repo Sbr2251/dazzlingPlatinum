@@ -322,3 +322,20 @@ Cost: 18 polygons and 8 KB of textures on `TERRAIN_GRASS` (grass battles: 572 po
 plain background with its sky drift, 550 in the forest). The forest's panorama itself stays still:
 it is horizontal streaks of foliage, and a sway of the whole band reads as the background sliding,
 not as bushes moving.
+
+## Platform relief: standing rocks
+
+BW2's platforms carry stones and tufts up to 1.8 units tall; ours are the flat classic art. On
+`TERRAIN_MOUNTAIN` every rock of the art stands up: a blob of at least 8 grey pixels (channel
+spread <= 20, plus the darker outline around it, <= 24, which only joins where it touches a body:
+the art draws the ground's cracks with the same colour) becomes one vertical quad facing the
+camera, its foot on the disc one row under the rock (on the rock's own bottom row the quad would
+tie with the disc's depth and lose), textured through the home camera from an extra texture that
+holds the rocks. The main texture fills each rock pixel inside the platform's ellipse from the
+nearest ground pixel of its row, so a standing rock leaves ground behind it, and drops the parts
+of rocks above the rim. At home the platform is pixel-identical at every time of day (preview,
+both rasters); off home the rocks stand. Rocks that reach under the text box (the player's front
+rocks) stay flat, because their foot would be off the pixel grid. Cost: 8 polygons (2 player
+rocks, 6 opponent rocks) and 8 KB of textures on `TERRAIN_MOUNTAIN` (mountain battle 565
+polygons). Every new prop sits inside the home-pose look: nothing is added that the classic art
+doesn't draw.

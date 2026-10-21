@@ -244,6 +244,18 @@ PLATFORM_FRINGE = {
     # terrain: sway period (draws) per side (player, enemy), None for a still fringe
     TERRAIN_GRASS: (56, 46),
 }
+# Rocks on the platforms (BW2's stages carry stones up to 1.8 units tall). On these terrains
+# every rock of the art (a blob of at least ROCK_MIN_PIXELS grey pixels: channel spread <=
+# ROCK_CORE_SPREAD, plus the outline around it, <= ROCK_MAX_SPREAD) stands up: one vertical quad facing the camera on the rock's bottom row,
+# textured through the home camera from an extra texture that holds the rocks. The main
+# texture fills each rock's pixels from the nearest ground pixel of its row, which shows once
+# the camera moves and the rock stands in front of it. At home nothing changes.
+TERRAIN_MOUNTAIN = 4
+PLATFORM_ROCKS = (TERRAIN_MOUNTAIN,)
+ROCK_CORE_SPREAD = 20
+ROCK_MAX_SPREAD = 24
+ROCK_MIN_PIXELS = 8
+
 FRINGE_COLUMN_PX = 32  # widest fringe quad; narrower where the rim's depth changes fast
 FRINGE_ERROR_PX = 0.25  # largest texture error of a quad at home (perspective, across its width)
 FRINGE_TIP_PX = 1.0  # SWAY: how far the fringe's top row moves at the sway's peak, in home pixels
@@ -953,6 +965,9 @@ class PlatformDisc:
         if terrain in PLATFORM_FRINGE:
             self.add_fringe(place, disc, origin, flags, name)
 
+        if terrain in PLATFORM_ROCKS:
+            self.add_rocks(place, disc, origin, flags, name)
+
         self.num_polygons = sum(m.num_polygons() for m in self.meshes)
 
         # Where the disc is in view space, for platformPixelToWorld
@@ -1037,6 +1052,93 @@ class PlatformDisc:
 
         self.meshes.append(mesh)
         self.fringe_columns = xs
+        self.num_polygons = sum(m.num_polygons() for m in self.meshes)
+
+    def add_rocks(self, place, disc, origin, flags, name):
+        hx, hy = classic.PLATFORM_HOME[self.side]
+        palette = [nitro.gxrgb_to_rgb888(c) for c in self.art.palettes[0]]
+        def spread(i):
+            return max(palette[i]) - min(palette[i])
+
+        # Rocks grow from their grey body (ROCK_CORE_SPREAD); their darker outline, which the
+        # art also draws the ground's cracks with, only joins where it touches a body
+        grey = {p for p, i in self.art.pixels.items() if i and spread(i) <= ROCK_CORE_SPREAD}
+        outline = {p for p, i in self.art.pixels.items() if i and ROCK_CORE_SPREAD < spread(i) <= ROCK_MAX_SPREAD}
+        blobs, seen = [], set()
+
+        for start in sorted(grey):
+            if start in seen:
+                continue
+
+            seen.add(start)
+            stack, blob = [start], []
+
+            while stack:
+                x, y = stack.pop()
+                blob.append((x, y))
+
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        n = (x + dx, y + dy)
+
+                        if n in grey and n not in seen:
+                            seen.add(n)
+                            stack.append(n)
+
+            # A rock's foot is one row under it, on the pixel grid, so rocks reaching under the
+            # text box (the player's front rocks) stay flat
+            blob += [(x + dx, y + dy) for x, y in list(blob) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                     if (x + dx, y + dy) in outline and (x + dx, y + dy) not in seen]
+            blob = sorted(set(blob))
+            seen.update(blob)
+
+            if len(blob) >= ROCK_MIN_PIXELS and max(y for _, y in blob) + hy < HIDDEN_FROM_ROW:
+                blobs.append(blob)
+
+        if not blobs:
+            return
+
+        rocks = {p for blob in blobs for p in blob}
+        main = dict(self.main_pixels)
+
+        # Fill each rock pixel inside the platform's ellipse (TERRAIN_PLAIN's art) from the
+        # nearest ground pixel of its row (then of the rows around it), so a standing rock
+        # leaves ground behind it; the part of a rock above the rim leaves nothing
+        plain = {p for p, i in classic.Platform(self.side, TERRAIN_PLAIN).pixels.items() if i}
+
+        for x, y in rocks:
+            if (x, y) not in plain:
+                main.pop((x, y), None)
+                continue
+
+            for d in range(1, 64):
+                fill = next((main[q] for q in ((x - d, y), (x + d, y), (x, y + d), (x, y - d))
+                             if q in main and q not in rocks and main[q]), None)
+
+                if fill is not None:
+                    main[(x, y)] = fill
+                    break
+
+        self.main_pixels = main
+        self.extra_textures.append({p: self.art.pixels[p] for p in rocks})
+        texture = len(self.extra_textures)
+        quads = []
+
+        # Each rock: a quad over its pixel columns [x0, x1) and rows (top, bottom], standing on
+        # the disc just under its bottom row (on the row itself the quad would tie with the
+        # disc's depth and lose to it)
+        for blob in blobs:
+            x0, x1 = min(x for x, _ in blob) + hx, max(x for x, _ in blob) + hx + 1
+            top, bottom = min(y for _, y in blob) + hy - 1, max(y for _, y in blob) + hy + 1
+            feet = [place.exact(x, bottom, disc) for x in (x0, x1)]
+            wall = plane_z(world_of(feet[0].pos)[2])
+            heads = [place.exact(x, top, wall) for x in (x0, x1)]
+
+            for v in (heads[0], feet[0], feet[1], heads[1]):
+                quads.append((v, tex_coord(v, origin), TOWARD_CAMERA))
+
+        self.meshes.append(Mesh(f"{name} rocks", texture, flags, PRIM_QUADS, quads))
+        self.rocks = len(blobs)
         self.num_polygons = sum(m.num_polygons() for m in self.meshes)
 
     def add_water_overlay(self, place, rows, xs, origin, flags, name):
