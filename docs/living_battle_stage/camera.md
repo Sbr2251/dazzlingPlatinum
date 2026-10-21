@@ -166,10 +166,11 @@ screen while the camera moves: full-screen weather, screen flashes. Scripts mark
 **Budget.** No polygons are added (the same particles draw; off home some fall off screen and are
 clipped). Off home, the field costs about 100-300 ARM9 cycles per particle and up to one 4x4
 projection load per particle (18 geometry words), skipped while consecutive particles snap to the
-same mon. The heaviest particle move measured, Draco Meteor, peaks at 830 polygons with the arena
-(641 at the command menu, about 190 particles), under half of the 2048 the hardware takes; its
-animation length is unchanged with the field (368 frames either way, within its own run-to-run
-spread).
+same mon. The heaviest particle move measured, Draco Meteor, peaks at 852 polygons with the arena
+(663 at the command menu, about 190 particles), under half of the 2048 the hardware takes. Held
+off home (debug view 3) it draws the same number of stage frames per emulated frame with the
+field as with the old similarity (2.044 for Draco Meteor, 2.063 Energy Ball, 2.087 Ice Beam), so
+the per-particle work costs no frames.
 
 ## New animation script commands
 

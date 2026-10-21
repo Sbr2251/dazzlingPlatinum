@@ -259,20 +259,20 @@ still limits a move is the rest of its 2D grammar, unchanged:
 - A particle drawn far from every mon (more than about 32 times farther, in d^2, from the second
   nearest than the nearest) takes the nearest mon's similarity, so it moves rigidly with that mon.
 
-The heaviest particle moves, measured on the Plain stage (3D engine polygon count, `RAM_COUNT`,
-the peak over the animation; 641 at the command menu: arena 564, mons and blobs about 77; the
-hardware takes 2048):
+The heaviest particle moves, measured on the Plain stage with every bw2vis stream merged (3D engine
+polygon count, `RAM_COUNT`, the peak over the animation; 663 at the command menu: arena 564, mons
+and their silhouette shadows; the hardware takes 2048):
 
 | Move | Peak | Particles at the peak | Arena | Off home (view 2 / 3) |
 |---|---|---|---|---|
-| Draco Meteor (434) | 830 | about 190 | kept (mirrored shake) | 785 / 789 (meteors leave the frame) |
-| Energy Ball (412) | 780 | about 140 | kept (backdrop fade) | 780 / 780 |
-| Ice Beam (58) | 722 | about 80 | kept (backdrop fade) | 722 / 722 |
-| Fire Blast (126) | 689 | about 50 with the arena, 100 once it hides | hides (SwitchBg) | 689 / 689 |
-| Surf (57) | 688 | about 50 | kept, its wave a BG2 picture lifted over it (water_ground) | 688 / 688 |
-| Blizzard (59) | 641 (before the fade) | about 60, arena hidden | hides (SwitchBg) | same |
-| Thunder (87) | 641 (before the fade) | about 40, arena hidden | hides (SwitchBg) | same |
-| Hyper Beam (63) | 641 (before the fade) | about 45, arena hidden | hides (SwitchBg) | same |
+| Draco Meteor (434) | 852 | about 190 | kept (backdrop fade, mirrored shake) | 851 / 856 |
+| Energy Ball (412) | 802 | about 140 | kept (backdrop fade) | 802 / 802 |
+| Ice Beam (58) | 744 | about 80 | kept (backdrop fade) | 744 / 744 |
+| Surf (57) | 710 | about 50 | kept, its wave a BG2 picture lifted over it (water_ground) | 710 / 710 |
+| Fire Blast (126) | 701 | about 40 with the arena, 100 once it hides | hides (BG switch) | 701 / 701 |
+| Blizzard (59) | 665 (before the fade) | about 60, arena hidden | hides (BG switch) | same |
+| Hyper Beam (63) | 665 (before the fade) | about 50, arena hidden | hides (BG switch) | same |
+| Thunder (87) | 665 (before the fade) | about 40, arena hidden | hides (BG switch) | same |
 
 So particles never push the scene past half the hardware's polygons, and the field adds none.
 Blizzard, Thunder, Hyper Beam and Fire Blast switch the background, which already rules out a

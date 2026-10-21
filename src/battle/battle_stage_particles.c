@@ -57,6 +57,15 @@ typedef struct StageParticles {
     MtxFx44 base; // the system's own projection
     int numBattlers;
     FieldBattler battlers[MAX_BATTLERS];
+    // The last particle's emission point (view space), its home screen point and its field
+    BOOL anchorValid;
+    BOOL anchorFieldValid;
+    VecFx32 anchorView;
+    fx32 anchorX;
+    fx32 anchorY;
+    fx32 anchorNowX;
+    fx32 anchorNowY;
+    fx32 anchorScale;
     BOOL loaded; // a similarity is loaded in this system's draw: the one below
     fx32 loadedTx;
     fx32 loadedTy;
@@ -311,6 +320,7 @@ BOOL BattleStageParticles_BeginSystem(const MtxFx44 *projection)
 
     sStageParticles.base = *projection;
     sStageParticles.loaded = FALSE;
+    sStageParticles.anchorValid = FALSE;
     return TRUE;
 }
 
@@ -326,6 +336,13 @@ static BOOL HomeScreen(const VecFx32 *viewPos, fx32 *px, fx32 *py)
 
     if (cw <= 0) {
         return FALSE;
+    }
+
+    // An orthographic camera (most battle particle systems) has w = 1: no division
+    if (cw == FX32_ONE) {
+        *px = 128 * FX32_ONE + 128 * cx;
+        *py = 96 * FX32_ONE - 96 * cy;
+        return TRUE;
     }
 
     *px = 128 * FX32_ONE + 128 * FX_Div(cx, cw);
@@ -373,7 +390,8 @@ static void Field(fx32 px, fx32 py, fx32 *nowX, fx32 *nowY, fx32 *scale)
         return;
     }
 
-    // A blend: weights (nearest / spread)^3, which sum to at least 1
+    // A blend: weights (nearest / spread)^3, which sum to at least 1 (FX_Div of two px^2 counts
+    // is their ratio in fx32, through the hardware divider)
     sum = 0;
 
     for (i = 0; i < sStageParticles.numBattlers; i++) {
@@ -384,11 +402,12 @@ static void Field(fx32 px, fx32 py, fx32 *nowX, fx32 *nowY, fx32 *scale)
             continue;
         }
 
-        ratio = (fx32)(((u64)nearest << FX32_SHIFT) / spread[i]);
+        ratio = i == near ? FX32_ONE : FX_Div((fx32)nearest, (fx32)spread[i]);
         weight[i] = FX_Mul(FX_Mul(ratio, ratio), ratio);
         sum += weight[i];
     }
 
+    sum = FX_Inv(sum);
     *nowX = 0;
     *nowY = 0;
     *scale = 0;
@@ -401,7 +420,7 @@ static void Field(fx32 px, fx32 py, fx32 *nowX, fx32 *nowY, fx32 *scale)
         }
 
         b = &sStageParticles.battlers[i];
-        w = FX_Div(weight[i], sum);
+        w = FX_Mul(weight[i], sum);
         *nowX += FX_Mul(w, b->nowX + FX_Mul(b->scale, px - b->homeX));
         *nowY += FX_Mul(w, b->nowY + FX_Mul(b->scale, py - b->homeY));
         *scale += FX_Mul(w, b->scale);
@@ -440,49 +459,65 @@ static void LoadSimilarity(fx32 homeX, fx32 homeY, fx32 nowX, fx32 nowY, fx32 s)
 
 void BattleStageParticles_DrawParticle(const VecFx32 *viewPos, const VecFx32 *anchorViewPos)
 {
-    fx32 px, py, ax, ay, anchorNowX, anchorNowY, anchorScale, nowX, nowY, s, t;
+    StageParticles *sp = &sStageParticles;
+    fx32 px, py, nowX, nowY, s, t, rigidX, rigidY;
     s32 dx, dy;
     u32 d2;
 
-    if (sStageParticles.numBattlers == 0) {
+    if (sp->numBattlers == 0) {
         return;
     }
 
     if (!HomeScreen(viewPos, &px, &py)) {
-        px = sStageParticles.battlers[0].homeX;
-        py = sStageParticles.battlers[0].homeY;
+        px = sp->battlers[0].homeX;
+        py = sp->battlers[0].homeY;
     }
 
-    if (!HomeScreen(anchorViewPos, &ax, &ay)) {
-        ax = px;
-        ay = py;
+    // The emission point; the particles of one burst share it, so it is kept from the last particle
+    if (!sp->anchorValid || anchorViewPos->x != sp->anchorView.x || anchorViewPos->y != sp->anchorView.y
+        || anchorViewPos->z != sp->anchorView.z) {
+        sp->anchorView = *anchorViewPos;
+        sp->anchorValid = TRUE;
+        sp->anchorFieldValid = FALSE;
+
+        if (!HomeScreen(anchorViewPos, &sp->anchorX, &sp->anchorY)) {
+            sp->anchorX = px;
+            sp->anchorY = py;
+        }
     }
 
-    // The particle's emission point takes the field; a particle near it moves rigidly with it, so
-    // a ball made of several particles holds together between the mons
-    Field(ax, ay, &anchorNowX, &anchorNowY, &anchorScale);
-
-    dx = (px - ax) >> FX32_SHIFT;
-    dy = (py - ay) >> FX32_SHIFT;
+    dx = (px - sp->anchorX) >> FX32_SHIFT;
+    dy = (py - sp->anchorY) >> FX32_SHIFT;
     dx = dx < -1024 ? -1024 : (dx > 1024 ? 1024 : dx);
     dy = dy < -1024 ? -1024 : (dy > 1024 ? 1024 : dy);
     d2 = (u32)(dx * dx + dy * dy);
 
-    if (d2 <= RIGID_RADIUS * RIGID_RADIUS) {
-        LoadSimilarity(ax, ay, anchorNowX, anchorNowY, anchorScale);
+    // Farther than FREE_RADIUS from it (a beam's far end): the field at the particle's own place
+    if (d2 >= FREE_RADIUS * FREE_RADIUS) {
+        Field(px, py, &nowX, &nowY, &s);
+        LoadSimilarity(px, py, nowX, nowY, s);
         return;
     }
 
-    // Farther out (a beam streaming from the attacker) it takes the field at its own place,
-    // reached smoothly by FREE_RADIUS
-    Field(px, py, &nowX, &nowY, &s);
-
-    if (d2 < FREE_RADIUS * FREE_RADIUS) {
-        t = (fx32)((d2 - RIGID_RADIUS * RIGID_RADIUS) * FX32_ONE / (FREE_RADIUS * FREE_RADIUS - RIGID_RADIUS * RIGID_RADIUS));
-        nowX = anchorNowX + FX_Mul(anchorScale, px - ax) + FX_Mul(t, nowX - anchorNowX - FX_Mul(anchorScale, px - ax));
-        nowY = anchorNowY + FX_Mul(anchorScale, py - ay) + FX_Mul(t, nowY - anchorNowY - FX_Mul(anchorScale, py - ay));
-        s = anchorScale + FX_Mul(t, s - anchorScale);
+    // Nearer: the emission point takes the field and the particle moves rigidly with it, so a ball
+    // made of several particles holds together between the mons
+    if (!sp->anchorFieldValid) {
+        Field(sp->anchorX, sp->anchorY, &sp->anchorNowX, &sp->anchorNowY, &sp->anchorScale);
+        sp->anchorFieldValid = TRUE;
     }
 
+    if (d2 <= RIGID_RADIUS * RIGID_RADIUS) {
+        LoadSimilarity(sp->anchorX, sp->anchorY, sp->anchorNowX, sp->anchorNowY, sp->anchorScale);
+        return;
+    }
+
+    // In between, the two blend
+    Field(px, py, &nowX, &nowY, &s);
+    t = (fx32)((d2 - RIGID_RADIUS * RIGID_RADIUS) * FX32_ONE / (FREE_RADIUS * FREE_RADIUS - RIGID_RADIUS * RIGID_RADIUS));
+    rigidX = sp->anchorNowX + FX_Mul(sp->anchorScale, px - sp->anchorX);
+    rigidY = sp->anchorNowY + FX_Mul(sp->anchorScale, py - sp->anchorY);
+    nowX = rigidX + FX_Mul(t, nowX - rigidX);
+    nowY = rigidY + FX_Mul(t, nowY - rigidY);
+    s = sp->anchorScale + FX_Mul(t, s - sp->anchorScale);
     LoadSimilarity(px, py, nowX, nowY, s);
 }
