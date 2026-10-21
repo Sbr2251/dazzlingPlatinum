@@ -2976,7 +2976,11 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
     day_on: List[Image.Image]
     if live:
         # -- FREEZE_IDLE stops breathing
-        ram.set_flags(FREEZE_IDLE)
+        # bw2vis:followups: shadows off for the rest-pose check. A BW2 silhouette shadow
+        # (shadows.md) lies behind the mon and leans up the screen, so part of it can fall in the
+        # upper box this check assumed was shadow-free (the 0.29% FREEZE_IDLE FAIL on the mid-merge
+        # ROM was silhouette pixels). The shadows are graded by the blob checks below.
+        ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS)
         a = ram.field("idleFrames")
         frozen = [top(f.img) for f in e.record(60, every=6, label="frozen")]
         b = ram.field("idleFrames")
@@ -2989,12 +2993,13 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
         still = box_novelty(frozen, off, upper)
         worst = max(box_novelty([f], off, upper) for f in frozen)
         sc.check("FREEZE_IDLE: the enemy rests in the classic pose", still <= FREEZE_STILL,
-                 f"median {still:.2%} (worst frame {worst:.2%}) of the upper enemy box {upper} differs from the "
+                 f"median {still:.2%} (worst frame {worst:.2%}) of the upper enemy box {upper} (shadows off) differs from the "
                  f"closest stage-off frame over 60 frames (needs <= {FREEZE_STILL:.1%}); change from the first frozen "
                  f"frame up to {box_change(frozen, eb):.2%}, classic up to {box_change(off, eb):.2%}",
                  why="the mon does not return to the rest pose while breathing is frozen")
 
         # -- blob shadows: darker under each mon than with NO_BLOB_SHADOWS
+        ram.set_flags(FREEZE_IDLE)  # bw2vis:followups: shadows back on
         with_blob = idle_samples(e, n=8, every=4)
         ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS)
         n_blob = ram.field("blobShadows")
