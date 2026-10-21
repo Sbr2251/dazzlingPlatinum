@@ -8,6 +8,7 @@
 #include "constants/battle/battle_anim.h"
 #include "constants/graphics.h"
 
+#include "battle_anim/battle_anim_effect_bg.h"
 #include "battle_anim/battle_anim_helpers.h"
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
@@ -1500,7 +1501,7 @@ void BattleAnimScriptFunc_FadeBg(BattleAnimSystem *system)
         paletteToFade = BATTLE_BG_PALETTE_FLAG_MON_SPRITE;
         break;
     case FADE_BG_TYPE_EFFECT:
-        paletteToFade = BATTLE_BG_PALETTE_FLAG_EFFECT;
+        paletteToFade = BattleEffectBg_CurrentPaletteMask(); // bw2vis:effect-bg: every row of a BW2 background
         break;
     default:
         GF_ASSERT(FALSE);

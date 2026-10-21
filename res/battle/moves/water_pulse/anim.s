@@ -5,7 +5,7 @@ L_0:
     LoadParticleResource 1, water_pulse_spa
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 35, BATTLE_BG_SWITCH_MODE_FADE | BATTLE_BG_SWITCH_FLAG_MOVE
+    SwitchBg BATTLE_BG_BW2_SEABED, BATTLE_BG_SWITCH_MODE_CUT | BATTLE_BG_SWITCH_FLAG_MOVE
     WaitForPartialBgSwitch
     Func_ScrollSwitchedBg 75
     WaitForBgSwitch
@@ -23,7 +23,7 @@ L_0:
     UnloadParticleSystem 0
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 35, BATTLE_BG_SWITCH_MODE_FADE | BATTLE_BG_SWITCH_FLAG_STOP
+    RestoreBg BATTLE_BG_BW2_SEABED, BATTLE_BG_SWITCH_MODE_CUT | BATTLE_BG_SWITCH_FLAG_STOP
     WaitForBgSwitch
     End
 

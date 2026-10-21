@@ -1010,6 +1010,8 @@ SWITCHBG_COPY_MOVES = {151}
 # Chunk 6 (backdrop_fade): a FadeBg BASE or SetBgGrayscale backdrop keeps the arena up and fades it along (the
 # arena textures take the faded BG palette, the stage fades its fog and light), so no fade and no hiddenFrames
 SWITCHBG_KEPT_MOVES = {101, 399}
+# bw2vis:effect-bg: the share of the scene a --moves move must change mid-animation
+SWITCHBG_NEED_GIVEN = 0.20
 # the scene's mean brightness or saturation must drop to this share of the pre-move frame's at some point
 SWITCHBG_KEPT_DIM = 0.85
 RESTORE_PASS, RESTORE_WARN = 0.02, 0.08
@@ -1196,7 +1198,13 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
     else:
         sc.note(f"compat checks skipped: {ram.compat_why or ram.why}; the old expectations only")
     cur = MOVE_ID_POUND
-    for mid, name, need in SWITCHBG_MOVES:
+    # bw2vis:effect-bg: the redo files say which moves cut (effect_bg.json); --moves picks the moves here too
+    moves, redo = SWITCHBG_MOVES, load_redo(args.redo)[0]
+    if args.moves_given:
+        moves = [(mid, move_name(mid), SWITCHBG_NEED_GIVEN) for mid in args.moves]
+        sc.note("--moves overrides the switchbg list: " + ", ".join(
+            f"{mid} ({redo.get(mid, {}).get('expect', 'audit')})" for mid in args.moves))
+    for mid, name, need in moves:
         tag = f"{mid:03d} {name}"
         if not ov.up() and not ov.show():
             sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay back")
@@ -1205,6 +1213,7 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
         cur = mid
         pre_frame = e.snap(f"{tag} pre", after)
         pre = scene(pre_frame.img)
+        ebg0 = ram.effect_bg() if compat else None
         if compat:
             before = ram.compat()
             anim, done, polls, fade, _ = _play_compat(e, ov, ram, "A", args.anim_frames, f"{mid:03d}")
@@ -1217,7 +1226,9 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
         at = f" at {anim[changes.index(peak)].label}" if anim else ""
         sc.check(f"{tag}: special background shown mid-animation", peak >= need,
                  f"up to {peak:.1%} of the scene (HUD masked) differs from the pre-move frame{at}; "
-                 f"needs {need:.0%}", why="the move's background never showed: the 3D stage may cover it")
+                 f"needs {need:.0%}" + (f" ({FIRST_BRANCH_MOVES[mid]})" if mid in FIRST_BRANCH_MOVES else ""),
+                 warn_only=mid in FIRST_BRANCH_MOVES,
+                 why="the move's background never showed: the 3D stage may cover it")
         sc.sheet(anim, f"{mid:03d}", f"{tag}: player->enemy, every 3 frames (deduped)", screen="top",
                  dedupe_screen="top")
         if not sc.check(f"{tag}: animation finished", done is not None,
@@ -1237,7 +1248,8 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
         if mid in SWITCHBG_KEPT_MOVES:
             _switchbg_dimmed(sc, tag, pre, anim)
         if compat:
-            _switchbg_compat(sc, tag, mid, ram, before, pre_frame.img, polls, fade, fades, audit.get(mid))
+            _switchbg_compat(sc, tag, mid, ram, before, pre_frame.img, polls, fade, fades, audit.get(mid),
+                             redo.get(mid), ebg0)
     camera_log_checks(sc, ram, cam_log[1], "switchbg moves")
     sc.sheet(after, "after", "pre-move frame and 90 frames after each move", screen="top", cols=4, scale=1.0)
     if fades:
@@ -1263,7 +1275,8 @@ def _switchbg_dimmed(sc: Scenario, tag: str, pre: Image.Image, anim: List[Frame]
 
 
 def _switchbg_compat(sc: Scenario, tag: str, mid: int, ram: StageRam, before: Optional[dict], pre: Image.Image,
-                     polls: List[tuple], fade: List[Frame], fades: List[Frame], m: Optional[dict]) -> None:
+                     polls: List[tuple], fade: List[Frame], fades: List[Frame], m: Optional[dict],
+                     redo: Optional[dict] = None, ebg0: Optional[dict] = None) -> None:
     """Chunk 5: the move background came in by a fade (fades rose, hardPops did not) and the arena is back at
     alpha 31 90 frames later. Acid Armor may instead keep the arena up for its lifted BG2 copy (F1). The fade is
     a FAIL only where the audit's `suppress` list has bg_switch (fade_required), else a WARN. Chunk 6: the
@@ -1279,6 +1292,12 @@ def _switchbg_compat(sc: Scenario, tag: str, mid: int, ram: StageRam, before: Op
     sc.check(f"{tag}: arenaAlpha 31 after the move", after_c["arenaAlpha"] == ARENA_ALPHA_FULL,
              f"arenaAlpha {after_c['arenaAlpha']}, visible {after_c['visible']}, 90 frames after the move",
              why="the arena was left faded or hidden")
+    if redo and (redo.get("expect") == "cut" or redo.get("bw2_bg")):
+        # bw2vis:effect-bg: the BW2 effect backgrounds (effect_bg.json); a fade move falls through to the fade check
+        counts = f"hardPops +{d['hardPops']}, fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}"
+        effect_bg_checks(sc, tag, d, counts, ebg0, ram.effect_bg(), redo)
+        if redo.get("expect") == "cut":
+            return
     if mid in SWITCHBG_KEPT_MOVES:
         sc.check(f"{tag}: arena kept up (no fade, no hiddenFrames)", d["fades"] == 0 and d["hiddenFrames"] == 0,
                  f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}",
@@ -1472,6 +1491,8 @@ SCALE_OFFSET = 88                        # u16 anchorScale[4]: per battler s in 
 STAGE_SIZE_COMPAT = 120                  # sBattleStage at least this big: has the compat fields
 COMPAT_OFFSET = 96
 COMPAT_FIELDS = ("hardPops", "hiddenFrames", "fades", "arenaAlpha", "liftedBg2Frames", "tintedCopies")
+# bw2vis:effect-bg: sBattleEffectBgStats, the BW2 effect backgrounds' counters (effect_bg.md)
+EFFECT_BG_FIELDS = ("loads", "cuts", "palAnimSteps", "lastBgID", "lastTiles", "cutActive", "palAnimActive")
 # Cut-line guard fields at +120..+139 (BattleStageCutGuardFields, docs/living_battle_stage/cut_guard.md): s16
 # cutEdgeY[4] (per battler the on-screen y of its cut edge this frame), s16 cutLimit (144 textbox top, 192 screen
 # bottom, or between while easing), u16 guardPanPx (the downward pan this frame), u32 guardFrames and u32
@@ -1605,6 +1626,15 @@ class StageRam:
             return (f"sBattleStage is {self.stage[1]} bytes in {self.xmap}, under {STAGE_SIZE_COMPAT}: a ROM from "
                     "before chunk 5, without the compat fields")
         return ""
+
+    def effect_bg(self) -> Optional[dict]:
+        """bw2vis:effect-bg: sBattleEffectBgStats (battle_anim_effect_bg.c, effect_bg.md) as a dict, or None on a
+        ROM without the BW2 effect backgrounds."""
+        sym = self.syms.get("sBattleEffectBgStats")
+        if sym is None or sym[1] < 4 * len(EFFECT_BG_FIELDS):
+            return None
+        return dict(zip(EFFECT_BG_FIELDS, struct.unpack(f"<{len(EFFECT_BG_FIELDS)}I",
+                                                       self.e.read(sym[0], 4 * len(EFFECT_BG_FIELDS)))))
 
     def compat(self) -> Optional[dict]:
         """The chunk 5 compat fields as a dict, or None on a ROM without them (or when sBattleStage does not
@@ -3910,7 +3940,7 @@ def sc_move_audit(sc: Scenario, e: Emu, args) -> None:
 
 REDO_DIR = HERE.parents[2] / "docs" / "living_battle_stage" / "redo"
 MOVES_TXT = HERE.parents[2] / "generated" / "moves.txt"
-REDO_EXPECTS = ("kept", "fade")
+REDO_EXPECTS = ("kept", "fade", "cut")  # cut: bw2vis:effect-bg, a SwitchBg that cuts to the picture (effect_bg.md)
 REDO_MIN_CHANGE = 3.0                    # percent of the scene (HUD masked) the effect must change (min_change_pct)
 REDO_OFFSETS = 8                         # side-by-side sheet: frames per row
 REDO_SCALE = 0.75                        # side-by-side sheet: cell scale (192x144 per top screen)
@@ -3969,9 +3999,12 @@ def load_redo(path: Optional[str]) -> tuple:
                                              "min_change_pct": pct, "effect": []})
             if cat not in cur["categories"]:
                 cur["categories"].append(cat)
-            if expect == "fade":
-                cur["expect"] = "fade"
+            if expect == "cut" or (expect == "fade" and cur["expect"] != "cut"):
+                cur["expect"] = expect
             cur["min_change_pct"] = max(cur["min_change_pct"], pct)
+            for flag in ("bw2_bg", "pal_anim", "bw2_bg_id"):    # bw2vis:effect-bg (effect_bg.json)
+                if m.get(flag):
+                    cur[flag] = m[flag]
             cur["needs"] += [str(n) for n in m.get("needs", []) or [] if str(n) not in cur["needs"]]
             if m.get("effect"):
                 cur["effect"].append(str(m["effect"]))
@@ -4146,6 +4179,7 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
     _nav_move(e, cur, mid)
     pre = e.snap(f"{tag} pre", after)
     before = ram.compat()
+    ebg0 = ram.effect_bg()
     cam0 = ram.cam()
     anim, done, _, _, _ = _play_compat(e, ov, ram, key, args.anim_frames, f"{mid:03d}")
     if froze(sc, e, anim, f"playing {tag}"):
@@ -4167,6 +4201,7 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
     sc.check(f"{tag}: battle text restored", tb < 0.02, f"{tb:.1%} of the text box differs")
     after_c = ram.compat()
     d = compat_delta(before, after_c)
+    ebg1 = ram.effect_bg()
     info = f" (info: needs {', '.join(missing)}, which has no redo file on this branch)" if missing else ""
     if mid in FIRST_BRANCH_MOVES:
         info += f"; {FIRST_BRANCH_MOVES[mid]}"
@@ -4181,10 +4216,13 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
             sc.check(f"{tag}: arena kept (fades and hiddenFrames unchanged)",
                      d["fades"] == 0 and d["hiddenFrames"] == 0, counts + info, warn_only=bool(missing),
                      why="the arena faded or hid during a move its redo file marks kept")
+        elif expect == "cut":
+            pass                                          # effect_bg_checks below
         else:
             sc.check(f"{tag}: arena faded (fades rose)", d["fades"] > 0,
                      counts + (f"; {m['effect']}" if m.get("effect") else ""),
                      why="the redo file says this move still fades, but no fade started")
+    effect_bg_checks(sc, tag, d, counts if d is not None else "", ebg0, ebg1, dict(m, expect=expect))
     if cam is not None:
         omf = cam["offHomeMoveFrames"] - (cam0["offHomeMoveFrames"] if cam0 else 0)
         sc.check(f"{tag}: camera home (AT_HOME) at the menu", cam["home"],
@@ -4233,6 +4271,48 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
                                 "categories": m.get("categories", []), "status": {}, "thumbs": {}})
     row["thumbs"][tod] = tuple([top(f.img).resize(REDO_INDEX_CELL, Image.BILINEAR) for f in fr] for fr in (on, off))
     return True
+
+
+def effect_bg_checks(sc: Scenario, tag: str, d: Optional[dict], counts: str, ebg0: Optional[dict],
+                     ebg1: Optional[dict], m: Optional[dict]) -> None:
+    """bw2vis:effect-bg. A move whose SwitchBg cuts (BATTLE_BG_SWITCH_MODE_CUT, expect "cut"): the arena hid
+    (hiddenFrames rose) without a fade, and sBattleEffectBgStats counted a cut. A move the redo file marks
+    `bw2_bg` loaded a BW2 background; one marked `pal_anim` stepped its palette anim. Nothing is left running."""
+    m = m or {}
+    if m.get("id") in FIRST_BRANCH_MOVES:
+        sc.note(f"{tag}: background checks skipped: {FIRST_BRANCH_MOVES[m['id']]}")
+        return
+    if m.get("expect") == "cut" and d is not None:
+        sc.check(f"{tag}: arena cut to the move background (hidden, no fade)",
+                 d["fades"] == 0 and d["hiddenFrames"] > 0,
+                 counts + (f"; {m['effect']}" if m.get("effect") else ""),
+                 why="a cut move faded the arena, or never hid it for its background")
+    if not (m.get("expect") == "cut" or m.get("bw2_bg")):
+        return
+    if ebg0 is None or ebg1 is None:
+        sc.note(f"{tag}: sBattleEffectBgStats not in the xMAP: BW2 background counters not checked")
+        return
+    # The battle_anim overlay swaps with trainer_ai every turn, which zeroes the counters: a move's own counts
+    # are the rise, or after a reset the whole count, with lastBgID naming the move's background
+    want = m.get("bw2_bg_id")
+    reset = ebg1["loads"] < ebg0["loads"] or ebg1["cuts"] < ebg0["cuts"] or ebg1["palAnimSteps"] < ebg0["palAnimSteps"]
+    dc = {k: (ebg1[k] if reset else ebg1[k] - ebg0[k]) for k in ("loads", "cuts", "palAnimSteps")}
+    if not reset and dc["loads"] == 0 and ebg1["lastBgID"] == want and ebg1 != ebg0:
+        dc = {k: ebg1[k] for k in dc}                       # reset to exactly the same counts: take them whole
+    detail = (f"cuts +{dc['cuts']}, loads +{dc['loads']}, palAnimSteps +{dc['palAnimSteps']}, last bgID "
+              f"{ebg1['lastBgID']} (want {want}; {ebg1['lastTiles']} tiles, {ebg1['lastTiles'] * 32} bytes of BG VRAM)")
+    if m.get("bw2_bg"):
+        sc.check(f"{tag}: BW2 background loaded", dc["loads"] > 0 and (want is None or ebg1["lastBgID"] == want),
+                 detail, why="the move still shows a Platinum background, or another BW2 one")
+    if m.get("expect") == "cut":
+        sc.check(f"{tag}: cut counted (the arena was up when the background came)", dc["cuts"] > 0, detail,
+                 why="the cut did not happen from a visible arena")
+    if m.get("pal_anim"):
+        sc.check(f"{tag}: palette anim stepped", dc["palAnimSteps"] > 1, detail,
+                 why="the background's BW2 palette anim never ran")
+    sc.check(f"{tag}: no cut or palette anim left running", ebg1["cutActive"] == 0 and ebg1["palAnimActive"] == 0,
+             f"cutActive {ebg1['cutActive']}, palAnimActive {ebg1['palAnimActive']} 90 frames after the move",
+             why="the effect background outlived its move")
 
 
 def _redo_battle(sc: Scenario, e: Emu, args, tod: str, plan: List[dict], cats: set, rows: Dict[int, dict]) -> bool:
@@ -4299,6 +4379,112 @@ def sc_move_redo(sc: Scenario, e: Emu, args) -> None:
     write_redo_index(sc, [rows[m["id"]] for m in plan if m["id"] in rows], AUDIT_TODS)
 
 
+
+# bw2vis:effect-bg -------------------------------------------------------------------------------------------
+EFFECT_BG_CUT_FRAMES = 900       # frames recorded per move at most (every frame; stops when the move ends)
+EFFECT_BG_BLACK = 10.0           # mean scene brightness under this is a black frame
+EFFECT_BG_STRIP = (-3, 7)        # frames around each transition shown in the strip
+
+
+def _effect_bg_record(e: Emu, ov: Overlay, ram: StageRam, frames: int, label: str) -> tuple:
+    """Plays the move from the tester and snaps every frame with arenaAlpha/visible. ([(t, img, alpha)], done)."""
+    start = e.frame
+    e.hold("A", 6, 0)
+    e.release("L+R")
+    out = []
+    while e.frame - start < frames:
+        e.run(1)
+        t = e.frame - start
+        c = ram.compat()
+        img = e.screens()
+        out.append((t, top(img), None if c is None else (c["arenaAlpha"] if c["visible"] else 0)))
+        if t >= 12 and not ov.up(img):
+            break
+    return out, (e.frame - start if not ov.up() else None)
+
+
+def _effect_bg_transitions(rec: List[tuple], pre: Image.Image) -> List[int]:
+    """Indexes where the scene crosses into and back out of the move background: its difference from the
+    pre-move frame goes over 30%, then (8+ frames later) back under 15%."""
+    marks = []
+    ref = scene(pre)
+    inside = False
+    for i, (_t, img, _a) in enumerate(rec):
+        d = diff_fraction(ref, scene(img))
+        if not inside and d > 0.30 and (not marks or i - marks[-1] > 8):
+            marks.append(i)
+            inside = True
+        elif inside and d < 0.15 and i - marks[-1] > 8:
+            marks.append(i)
+            inside = False
+    return marks
+
+
+def sc_effect_bg_cut(sc: Scenario, e: Emu, args) -> None:
+    """bw2vis:effect-bg. Every frame around the stage-to-background transitions of the --moves list, stage on
+    and then off: a cut move must hide the arena in one step (no arenaAlpha between 0 and 31) and show at most
+    two black frames per transition; a fade move fades (intermediate alphas). Sheets cut_<id>_<tod>.png."""
+    if not _plain_battle(sc, e, args.stage_tod):
+        return
+    ram = _sprite_flags(sc, e, args, FREEZE_IDLE | NO_CINEMATICS)
+    redo = load_redo(args.redo)[0]
+    ov = Overlay(e)
+    if not ov.show():
+        _no_combo(sc, "L+R overlay shown", "the in-battle move tester")
+        run_away(sc, e)
+        return
+    cur = MOVE_ID_POUND
+    for stage_on in (True, False):
+        if not stage_on and _redo_toggle(e, ov, ram, 0):
+            sc.warn("stage switched off for the classic pass", "SELECT did not switch it")
+            break
+        for mid in args.moves:
+            m = redo.get(mid, {})
+            expect = m.get("expect", "fade")
+            if mid in FIRST_BRANCH_MOVES:
+                sc.note(f"{mid:03d}: skipped, {FIRST_BRANCH_MOVES[mid]}")
+                continue
+            tag = f"{mid:03d} {move_name(mid)} {'stage' if stage_on else 'classic'}"
+            if not ov.up() and not ov.show():
+                sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay back")
+                return
+            _nav_move(e, cur, mid)
+            cur = mid
+            pre = e.screens()
+            rec, done = _effect_bg_record(e, ov, ram, EFFECT_BG_CUT_FRAMES, tag)
+            sc.check(f"{tag}: animation finished", done is not None, f"{done} frames")
+            e.run(60)
+            marks = _effect_bg_transitions(rec, pre)
+            alphas = [a for _t, _i, a in rec if a is not None]
+            mid_alpha = sum(1 for a in alphas if 0 < a < ARENA_ALPHA_FULL)
+            blacks = []
+            for i in marks:
+                lo, hi = max(0, i + EFFECT_BG_STRIP[0]), min(len(rec), i + EFFECT_BG_STRIP[1])
+                blacks.append(sum(1 for _t, img, _a in rec[lo:hi] if mean_brightness(scene(img)) < EFFECT_BG_BLACK))
+            detail = (f"transitions at t={[rec[i][0] for i in marks]}, frames with 0 < arenaAlpha < 31: {mid_alpha}, "
+                      f"black frames around each transition: {blacks}")
+            if stage_on and expect == "cut":
+                sc.check(f"{tag}: cut, not faded (arenaAlpha jumps 31 -> 0)", mid_alpha == 0 and marks, detail,
+                         why="the arena faded, or no transition was seen")
+            elif stage_on:
+                sc.check(f"{tag}: fade kept ({expect})", mid_alpha > 0 or not alphas, detail,
+                         why="this move keeps its fade, but the arena never took an intermediate alpha")
+            if expect == "cut":
+                sc.check(f"{tag}: at most 2 black frames per transition", all(b <= 2 for b in blacks), detail,
+                         warn_only=True, why="the cut goes through black for longer than the one frame BG3 is off")
+            else:
+                sc.note(f"{tag}: {detail}")
+            strip = []
+            for i in marks[:2]:
+                lo, hi = max(0, i + EFFECT_BG_STRIP[0]), min(len(rec), i + EFFECT_BG_STRIP[1])
+                strip += [Frame(f"+{t}" + ("" if a is None else f" a{a}"), t, img) for t, img, a in rec[lo:hi]]
+            if strip:
+                sc.sheet(strip, f"cut_{mid}_{args.stage_tod}{'' if stage_on else '_classic'}",
+                         f"{tag} ({expect}): every frame around the switch in and the switch back", screen="top",
+                         cols=EFFECT_BG_STRIP[1] - EFFECT_BG_STRIP[0], scale=0.5)
+    _redo_toggle(e, ov, ram, 1)
+    _finish(sc, e)
+
 SCENARIOS: Dict[str, Callable] = {
     "boot": sc_boot,
     "wild_battle": sc_wild_battle,
@@ -4317,6 +4503,7 @@ SCENARIOS: Dict[str, Callable] = {
     "camera": sc_camera,
     "move_audit": sc_move_audit,
     "move_redo": sc_move_redo,
+    "effect_bg_cut": sc_effect_bg_cut,  # bw2vis:effect-bg
 }
 DEFAULT_SCENARIOS = ["boot", "wild_battle", "quick_battle", "move_tester", "stage_toggle"]
 

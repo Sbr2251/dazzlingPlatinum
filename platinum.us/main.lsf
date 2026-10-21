@@ -642,6 +642,7 @@ Overlay battle_anim
 {
 	After overlay11
 	Object main.nef.p/src_battle_anim_battle_anim_system.c.o
+	Object main.nef.p/src_battle_anim_battle_anim_effect_bg.c.o
 	Object main.nef.p/src_battle_anim_battle_particle_util.c.o
 	Object main.nef.p/src_battle_anim_emitter_callbacks.c.o
 	Object main.nef.p/src_battle_anim_generic_emitter_callback.c.o

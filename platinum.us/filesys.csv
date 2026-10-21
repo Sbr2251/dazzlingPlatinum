@@ -162,6 +162,7 @@ res/prebuilt/battle/graphic/pl_batt_obj.narc,/battle/graphic/pl_batt_obj.narc
 res/prebuilt/battle/graphic/vs_demo_gra.narc,/battle/graphic/vs_demo_gra.narc
 res/prebuilt/battle/graphic/battle_stage.narc,/battle/graphic/battle_stage.narc
 res/prebuilt/battle/graphic/mon_stream.narc,/battle/graphic/mon_stream.narc
+res/graphics/battle/effect_bg/bw2_effect_bg.narc,/battle/graphic/bw2_effect_bg.narc
 res/battle/moves/anim_scripts.narc,/wazaeffect/we.arc
 res/battle/scripts/common_anims/anim_subscripts.narc,/wazaeffect/we_sub.narc
 res/battle/scripts/be_seq.narc,/battle/skill/be_seq.narc

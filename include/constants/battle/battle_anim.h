@@ -41,7 +41,8 @@
 #define BATTLE_BG_SWITCH_MODE_BLEND     0 //< Switch BG by blending between normal and effect BG
 #define BATTLE_BG_SWITCH_MODE_FADE      1 //< Switch BG by fading to black/white and then to effect BG
 #define BATTLE_BG_SWITCH_MODE_FLAGS     2 //< Don't switch BG, apply flags only
-#define BATTLE_BG_SWITCH_MODE_COUNT     3
+#define BATTLE_BG_SWITCH_MODE_CUT       3 //< Switch BG at once and hide the 3D stage in the same frame, as Gen 5 does (effect_bg.md)
+#define BATTLE_BG_SWITCH_MODE_COUNT     4
 
 #define BATTLE_BG_SWITCH_STATE_NONE     0 //< No switch in progress
 #define BATTLE_BG_SWITCH_STATE_RUNNING  1 //< Switch in progress

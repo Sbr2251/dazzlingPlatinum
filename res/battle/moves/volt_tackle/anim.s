@@ -2,7 +2,7 @@
 
 L_0:
     LoadParticleResource 0, volt_tackle_spa
-    SwitchBg 27, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_DARK_HALO, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     Func_ShakeBg 1, 1, 0, 25, 0
     PlayLoopedSoundEffectL SEQ_SE_DP_W120, 2, 4
@@ -29,6 +29,6 @@ L_0:
     PlayLoopedSoundEffectR SEQ_SE_DP_W085B, 3, 2
     WaitForAllEmitters
     UnloadParticleSystem 0
-    RestoreBg 27, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_DARK_HALO, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

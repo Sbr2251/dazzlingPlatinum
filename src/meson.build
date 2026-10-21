@@ -501,6 +501,7 @@ pokeplatinum_c = files(
     'overlay011/particle_helper.c',
     'battle_anim/is_form_symmetrical.c',
     'battle_anim/battle_anim_system.c',
+    'battle_anim/battle_anim_effect_bg.c', # bw2vis:effect-bg
     'battle_anim/battle_particle_util.c',
     'battle_anim/emitter_callbacks.c',
     'battle_anim/generic_emitter_callback.c',

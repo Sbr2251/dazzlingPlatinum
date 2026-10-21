@@ -14,7 +14,7 @@ L_0:
     Delay 10
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 3, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_RED_BURST, BATTLE_BG_SWITCH_MODE_CUT
     Delay 5
     PlaySoundEffectR SEQ_SE_DP_W025B
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 16, -8, 2
@@ -28,7 +28,7 @@ L_0:
     UnloadParticleSystem 0
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 3, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_RED_BURST, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     FreePokemonSpriteManager
     RemovePokemonSprite BATTLE_ANIM_MON_SPRITE_0

@@ -20,6 +20,7 @@
 #include "battle/ov16_0223DF00.h"
 #include "battle/pokemon_sprite_data.h"
 #include "battle/struct_ov16_02265BBC.h"
+#include "battle_anim/battle_anim_effect_bg.h"
 #include "battle_anim/battle_anim_helpers.h"
 #include "battle_anim/battle_anim_util.h"
 #include "battle_anim/battle_particle_util.h"
@@ -237,6 +238,7 @@ static void BattleAnimScriptCmd_StageCameraHome(BattleAnimSystem *system);
 static void BattleAnimScriptCmd_StageCameraWait(BattleAnimSystem *system);
 static void BattleAnimScriptCmd_StageCameraZoom(BattleAnimSystem *system);
 static void BattleAnimScriptCmd_StageHealthbars(BattleAnimSystem *system);
+static void BattleAnimScriptCmd_BgPalAnim(BattleAnimSystem *system);
 static int BattleAnimSystem_GetBattlerWithRole(BattleAnimSystem *param0, int param1);
 static BOOL BattleBgSwitch_ShouldBeReversed(BattleBgSwitch *param0, BattleAnimSystem *param1, int param2);
 static void BattleBgSwitch_SetBg(BattleBgSwitch *param0, BattleAnimSystem *param1, enum BgLayer param2, int param3);
@@ -248,6 +250,8 @@ static BOOL BattleBgSwitch_FlagsOnly(SysTask *param0, BattleBgSwitch *param1);
 static BOOL BattleBgRestore_Blend(SysTask *param0, BattleBgSwitch *param1);
 static BOOL BattleBgRestore_Fade(SysTask *param0, BattleBgSwitch *param1);
 static BOOL BattleBgRestore_FlagsOnly(SysTask *param0, BattleBgSwitch *param1);
+static BOOL BattleBgSwitch_Cut(SysTask *task, BattleBgSwitch *bgSwitch);
+static BOOL BattleBgRestore_Cut(SysTask *task, BattleBgSwitch *bgSwitch);
 static BOOL BattleBgSwitch_AnimNone(BattleBgSwitch *param0);
 static BOOL BattleBgSwitch_AnimMoveStart(BattleBgSwitch *param0);
 static BOOL BattleBgSwitch_AnimStop(BattleBgSwitch *param0);
@@ -686,6 +690,7 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
     BOOL window = BattleAnimSystem_WindowShapesBackdrop(system);
 
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH, bgSwitch);
+    BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_EFFECT_BG_CUT, BattleEffectBg_IsCut()); // bw2vis:effect-bg
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG2_EFFECT, bg2Effect);
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_WINDOW, window);
     // The stage sprites pause their idle breathing while a script runs
@@ -947,7 +952,8 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
 
     if (BattleAnimSystem_IsContest(system) == FALSE) {
         BattleStage_ClearGroundHoles();
-        BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT | BATTLE_STAGE_SUPPRESS_WINDOW, FALSE);
+        BattleEffectBg_Reset(); // bw2vis:effect-bg
+        BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT | BATTLE_STAGE_SUPPRESS_WINDOW | BATTLE_STAGE_SUPPRESS_EFFECT_BG_CUT, FALSE);
         BattleStage_ClearCurtain();
         BattleStage_EndStatEffect();
         BattleStage_DropAllMonCopies(); // bw2vis:idle
@@ -1458,7 +1464,8 @@ static const BattleAnimScriptCmd sBattleAnimScriptCmdTable[] = {
     [88] = BattleAnimScriptCmd_StageCameraHome,
     [89] = BattleAnimScriptCmd_StageCameraWait,
     [90] = BattleAnimScriptCmd_StageCameraZoom,
-    [91] = BattleAnimScriptCmd_StageHealthbars
+    [91] = BattleAnimScriptCmd_StageHealthbars,
+    [96] = BattleAnimScriptCmd_BgPalAnim, // bw2vis:effect-bg; 92-95 left free for the camera streams
 };
 
 void BattleAnimSystem_SetDefaultAlphaBlending(void)
@@ -1602,6 +1609,28 @@ static void BattleAnimScriptCmd_StageHealthbars(BattleAnimSystem *system)
     visible = BattleAnimScript_ReadWord(system->scriptPtr);
     BattleAnimScript_Next(system);
     BattleStage_ScriptHealthbars(visible);
+}
+
+// Command 96, BgPalAnim anim, loops: plays a BW2 palette-cycle anim on the effect background (effect_bg.md).
+// Loading a BW2 background already starts its own anim; this one replaces it, and
+// BATTLE_BG_PAL_ANIM_STOP stops it. loops 0 runs until the background goes.
+static void BattleAnimScriptCmd_BgPalAnim(BattleAnimSystem *system)
+{
+    BattleAnimScript_Next(system);
+    int anim = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+    int loops = BattleAnimScript_ReadWord(system->scriptPtr);
+    BattleAnimScript_Next(system);
+
+    if (BattleAnimSystem_IsContest(system) == TRUE) {
+        return;
+    }
+
+    if (anim == BATTLE_BG_PAL_ANIM_STOP) {
+        BattleEffectBg_StopPalAnim();
+    } else {
+        BattleEffectBg_StartPalAnim(system, anim, loops);
+    }
 }
 
 static void BattleAnimScriptCmd_StageCameraZoom(BattleAnimSystem *system)
@@ -3016,13 +3045,16 @@ static void BattleAnimScriptCmd_Nop8(BattleAnimSystem *)
     return;
 }
 
+// Indexed by BATTLE_BG_SWITCH_MODE_*, then the restores at + BATTLE_BG_SWITCH_MODE_COUNT
 static BOOL (*const sBattleBgSwitchFuncs[])(SysTask *, BattleBgSwitch *) = {
     BattleBgSwitch_Blend,
     BattleBgSwitch_Fade,
     BattleBgSwitch_FlagsOnly,
+    BattleBgSwitch_Cut,
     BattleBgRestore_Blend,
     BattleBgRestore_Fade,
-    BattleBgRestore_FlagsOnly
+    BattleBgRestore_FlagsOnly,
+    BattleBgRestore_Cut
 };
 
 static BOOL (*const sBattleBgAnimFuncs[])(BattleBgSwitch *) = {
@@ -3059,8 +3091,29 @@ static BOOL BattleBgSwitch_ShouldBeReversed(BattleBgSwitch *bgSwitch, BattleAnim
     return FALSE;
 }
 
+// bw2vis:effect-bg: the BG palette rows a switched background fades with (one row for Platinum's)
+static u16 BattleBgSwitch_EffectPalettes(BattleBgSwitch *bgSwitch)
+{
+    if (BattleAnimSystem_IsContest(bgSwitch->battleAnimSystem) == TRUE) {
+        return BATTLE_BG_PALETTE_FLAG_EFFECT;
+    }
+
+    return BattleEffectBg_PaletteMask(bgSwitch->bgID);
+}
+
 static void BattleBgSwitch_SetBg(BattleBgSwitch *bgSwitch, BattleAnimSystem *system, enum BgLayer bgLayer, int bgID)
 {
+    // bw2vis:effect-bg: Black 2/White 2's backgrounds from BATTLE_BG_BW2_FIRST; a contest shows the Platinum
+    // picture the entry names instead, since its BG layout differs
+    if (BattleEffectBg_IsBw2(bgID)) {
+        if (BattleAnimSystem_IsContest(system) == TRUE) {
+            bgID = BattleEffectBg_ContestBg(bgID);
+        } else {
+            BattleEffectBg_Load(system, bgLayer, bgID, BattleBgSwitch_ShouldBeReversed(bgSwitch, system, BATTLE_ANIM_VAR_BG_SCREEN_MODE), bgSwitch->mode != BATTLE_BG_SWITCH_MODE_BLEND);
+            return;
+        }
+    }
+
     Graphics_LoadTilesToBgLayer(
         NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG,
         BattleAnimSystem_GetBgNarcMemberIndex(bgID, BG_NARC_MEMBER_NCGR),
@@ -3375,11 +3428,18 @@ static BOOL BattleBgSwitch_Fade(SysTask *task, BattleBgSwitch *bgSwitch)
         Bg_SetControlParam(bgSwitch->battleAnimSystem->bgConfig, BATTLE_BG_EFFECT, BG_CONTROL_PARAM_COLOR_MODE, GX_BG_COLORMODE_16);
         BattleBgSwitch_SetBg(bgSwitch, bgSwitch->battleAnimSystem, BATTLE_BG_EFFECT, bgSwitch->bgID);
 
+        // bw2vis:effect-bg: a BW2 background has more rows than the effect row; they start black too
+        u16 effectPalettes = BattleBgSwitch_EffectPalettes(bgSwitch);
+
+        if (effectPalettes != BATTLE_BG_PALETTE_FLAG_EFFECT) {
+            PaletteData_BlendMulti(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG, effectPalettes, 16, bgSwitch->fadeType == BATTLE_BG_FADE_TO_BLACK ? GX_RGBA(0, 0, 0, 0) : GX_RGBA(31, 31, 31, 1));
+        }
+
         // Fade effect BG palette back to normal
         if (bgSwitch->fadeType == BATTLE_BG_FADE_TO_BLACK) {
-            PaletteData_StartFade(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG_F, BATTLE_BG_PALETTE_FLAG_EFFECT, 0, 16, 0, GX_RGBA(0, 0, 0, 0));
+            PaletteData_StartFade(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG_F, effectPalettes, 0, 16, 0, GX_RGBA(0, 0, 0, 0));
         } else {
-            PaletteData_StartFade(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG_F, BATTLE_BG_PALETTE_FLAG_EFFECT, 0, 16, 0, GX_RGBA(31, 31, 31, 1));
+            PaletteData_StartFade(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG_F, effectPalettes, 0, 16, 0, GX_RGBA(31, 31, 31, 1));
         }
 
         BattleBgSwitch_ApplyFlags(bgSwitch);
@@ -3412,10 +3472,10 @@ static BOOL BattleBgRestore_Fade(SysTask *task, BattleBgSwitch *bgSwitch)
         // Fade effect BG palette to black/white and
         // set normal battle/contest BG palettes to black/white
         if (bgSwitch->fadeType == BATTLE_BG_FADE_TO_BLACK) {
-            PaletteData_StartFade(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG_F, BATTLE_BG_PALETTE_FLAG_EFFECT, 0, 0, 16, GX_RGBA(0, 0, 0, 0));
+            PaletteData_StartFade(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG_F, BattleBgSwitch_EffectPalettes(bgSwitch), 0, 0, 16, GX_RGBA(0, 0, 0, 0));
             PaletteData_BlendMulti(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG, bgSwitch->battleAnimSystem->baseBgPalettes, 16, GX_RGBA(0, 0, 0, 0));
         } else {
-            PaletteData_StartFade(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG_F, BATTLE_BG_PALETTE_FLAG_EFFECT, 0, 0, 16, GX_RGBA(31, 31, 31, 1));
+            PaletteData_StartFade(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG_F, BattleBgSwitch_EffectPalettes(bgSwitch), 0, 0, 16, GX_RGBA(31, 31, 31, 1));
             PaletteData_BlendMulti(bgSwitch->battleAnimSystem->paletteData, PLTTBUF_MAIN_BG, bgSwitch->battleAnimSystem->baseBgPalettes, 16, GX_RGBA(31, 31, 31, 1));
         }
 
@@ -3497,6 +3557,93 @@ static BOOL BattleBgRestore_FlagsOnly(SysTask *task, BattleBgSwitch *bgSwitch)
     }
 
     return FALSE;
+}
+
+// bw2vis:effect-bg: BATTLE_BG_SWITCH_MODE_CUT, Gen 5's grammar (BtlvEffect_SetVanish then LoadBg): the 3D stage
+// goes and the effect background is there in the same frame, with no fade either way. State 0 runs inside the
+// SwitchBg command, so the stage hides before it draws again. A BW2 background changes BG3's mode, tiles and
+// screen in the next VBlank, with its palette, so no frame shows the change half done; a Platinum picture
+// (a contest) hides BG3 for the frame it loads in.
+static BOOL BattleBgSwitch_Cut(SysTask *task, BattleBgSwitch *bgSwitch)
+{
+    BattleAnimSystem *system = bgSwitch->battleAnimSystem;
+
+    switch (bgSwitch->state) {
+    case 0:
+        if (BattleEffectBg_IsBw2(bgSwitch->bgID) && BattleAnimSystem_IsContest(system) == FALSE) {
+            BattleEffectBg_LoadOnVBlank(system, BATTLE_BG_EFFECT, bgSwitch->bgID, BattleBgSwitch_ShouldBeReversed(bgSwitch, system, BATTLE_ANIM_VAR_BG_SCREEN_MODE));
+        } else {
+            Bg_ToggleLayer(BATTLE_BG_EFFECT, FALSE);
+            Bg_SetControlParam(system->bgConfig, BATTLE_BG_EFFECT, BG_CONTROL_PARAM_COLOR_MODE, GX_BG_COLORMODE_16);
+            BattleBgSwitch_SetBg(bgSwitch, system, BATTLE_BG_EFFECT, bgSwitch->bgID);
+        }
+
+        BattleBgSwitch_ApplyFlags(bgSwitch);
+
+        if (BattleAnimSystem_IsContest(system) == FALSE) {
+            if (BattleStage_IsVisible()) {
+                BattleEffectBg_CountCut();
+            }
+
+            BattleEffectBg_SetCut(TRUE);
+        }
+
+        system->bgSwitchState = BATTLE_BG_SWITCH_STATE_PARTIAL;
+        bgSwitch->state++;
+        return TRUE;
+
+    default:
+        if (BattleEffectBg_IsUploading()) {
+            return TRUE;
+        }
+
+        Bg_ToggleLayer(BATTLE_BG_EFFECT, TRUE);
+        return FALSE;
+    }
+}
+
+// The cut back: the backdrop returns to BG3 in the next VBlank and the stage with it (BattleStage's instant
+// comeback once no reason is left)
+static BOOL BattleBgRestore_Cut(SysTask *task, BattleBgSwitch *bgSwitch)
+{
+    BattleAnimSystem *system = bgSwitch->battleAnimSystem;
+
+    switch (bgSwitch->state) {
+    case 0: {
+        BattleBgSwitch_ApplyFlags(bgSwitch);
+
+        if (bgSwitch->bgMoveAnimActive == TRUE || bgSwitch->unk_44_1 == 1) {
+            BattleAnimSystem_CancelBgAnim(system);
+        }
+
+        BattleEffectBg_StopPalAnim();
+
+        NNSG2dScreenData *screen;
+        void *screenFile = Graphics_GetScrnData(system->battleBgRefs.narcID, system->battleBgRefs.tilemapNarcMemberIdx, TRUE, &screen, system->heapID);
+
+        if (!BattleAnimSystem_IsContest(system)) {
+            BattleAnimSystem_LoadBattleBgPaletteBuffer(system);
+            BattleEffectBg_UploadOnVBlank(system->bgConfig, BATTLE_BG_EFFECT, GX_BG_COLORMODE_256, system->context->bgTiles, 0x10000, NULL, screen->rawData, screen->szByte, screenFile);
+        } else {
+            NNSG2dCharacterData *chars;
+            void *charFile = Graphics_GetCharData(system->battleBgRefs.narcID, system->battleBgRefs.tilesNarcMemberIdx, TRUE, &chars, system->heapID);
+
+            PaletteData_LoadBufferFromFileStart(system->paletteData, system->battleBgRefs.narcID, system->battleBgRefs.paletteNarcMemberIdx, system->heapID, 0, system->battleBgRefs.paletteSrcSize * 0x20, system->battleBgRefs.paletteDestStart);
+            BattleEffectBg_UploadOnVBlank(system->bgConfig, BATTLE_BG_EFFECT, GX_BG_COLORMODE_16, chars->pRawData, chars->szByte, charFile, screen->rawData, screen->szByte, screenFile);
+        }
+
+        Bg_SetOffset(system->bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_X, 0);
+        Bg_SetOffset(system->bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_Y, 0);
+        BattleEffectBg_SetCut(FALSE);
+
+        system->bgSwitchState = BATTLE_BG_SWITCH_STATE_PARTIAL;
+        bgSwitch->state++;
+        return TRUE;
+    }
+
+    default:
+        return BattleEffectBg_IsUploading();
+    }
 }
 
 static void BattleBgAnimTask_Move(SysTask *task, void *param)
@@ -3732,6 +3879,11 @@ static void BattleAnimScriptCmd_SwitchBg(BattleAnimSystem *system)
     bgSwitch->mode = BATTLE_BG_SWITCH_MODE(param);
     bgSwitch->flags = BATTLE_BG_SWITCH_FLAGS(param);
 
+    // bw2vis:effect-bg: a cut lands in this frame (BattleBgSwitch_Cut)
+    if (bgSwitch->mode == BATTLE_BG_SWITCH_MODE_CUT) {
+        sBattleBgSwitchFuncs[bgSwitch->mode](NULL, bgSwitch);
+    }
+
     SysTask_Start(BattleBgSwitchTask_Start, bgSwitch, 1100);
 }
 
@@ -3780,12 +3932,20 @@ static void BattleAnimScriptCmd_RestoreBg(BattleAnimSystem *system)
     bgSwitch->mode = BATTLE_BG_SWITCH_MODE(param) + BATTLE_BG_SWITCH_MODE_COUNT;
     bgSwitch->flags = BATTLE_BG_SWITCH_FLAGS(param);
 
+    // bw2vis:effect-bg: the palette anim belongs to the background going away; a cut back lands in this frame
+    BattleEffectBg_StopPalAnim();
+
+    if (BATTLE_BG_SWITCH_MODE(param) == BATTLE_BG_SWITCH_MODE_CUT) {
+        sBattleBgSwitchFuncs[bgSwitch->mode](NULL, bgSwitch);
+    }
+
     SysTask_Start(BattleBgSwitchTask_Start, bgSwitch, 1100);
 }
 
 static void BattleAnimScriptCmd_WaitForPartialBgSwitch(BattleAnimSystem *system)
 {
-    if (system->bgSwitchState == BATTLE_BG_SWITCH_STATE_PARTIAL) {
+    // bw2vis:effect-bg: a cut can finish before the script waits; a finished switch is past partial too
+    if (system->bgSwitchState == BATTLE_BG_SWITCH_STATE_PARTIAL || system->bgSwitchState == BATTLE_BG_SWITCH_STATE_NONE) {
         BattleAnimScript_Next(system);
         system->scriptDelay = 0;
     } else {
