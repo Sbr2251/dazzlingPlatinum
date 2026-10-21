@@ -704,6 +704,7 @@ Overlay battle
 	Object main.nef.p/src_battle_battle_lib.c.o
 	Object main.nef.p/src_battle_battle_io_command.c.o
 	Object main.nef.p/src_battle_battle_display.c.o
+	Object main.nef.p/src_battle_battle_trainer_bw2.c.o
 	Object main.nef.p/src_battle_ov16_02264798.c.o
 	Object main.nef.p/src_battle_battle_controller.c.o
 	Object main.nef.p/src_battle_healthbar.c.o
@@ -719,6 +720,7 @@ Overlay battle
 	Object main.nef.p/src_battle_battle_stage_sprites.c.o
 	Object main.nef.p/src_battle_battle_stage_stream.c.o
 	Object main.nef.p/src_battle_battle_stage_camera.c.o
+	Object main.nef.p/src_battle_battle_stage_light.c.o
 	Object main.nef.p/src_battle_battle_debug.c.o
 }
 

@@ -48,6 +48,7 @@ nitrofs_files += datagen_trainer_out
 
 
 subdir('classes')
+subdir('bw2')
 subdir('frontier')
 
 trainer_ball_capsules_env = environment()

@@ -105,7 +105,7 @@ generated yet are empty (`numMeshes == 0`). In chunk 1 only `BACKGROUND_PLAIN` a
 
 # Chunk 2: light, atmosphere and all backgrounds (format v2)
 
-`BATTLE_STAGE_VERSION` is 2. The renderer only accepts v2. The changes from v1:
+`BATTLE_STAGE_VERSION` was 2 for chunk 2 (it is 3 now, see "Time of day and weather"). The changes from v1:
 
 - `BattleStageFileHeader.atmosphereOffset` points at a `BattleStageFileAtmosphere`. Only the
   backdrop piece has one; platform pieces write 0. With 0 the arena is unlit white with no
@@ -142,8 +142,9 @@ Budget: at most 64 KB of textures per battle (backdrop plus platform), and at mo
 ## Light
 
 `LIT` meshes send `G3C_Normal` for each vertex instead of `G3C_Color`, with
-`GX_LIGHTMASK_0`. The renderer sets these once per frame from
-`atmosphere.lighting[ov16_0223EC04(battleSys)]`:
+`GX_LIGHTMASK_0`. The renderer sets these once per frame from the lighting it picked at
+battle start (format v3: a blend of `atmosphere.lighting[]` by the clock and the weather, see
+"Time of day and weather" below; in v2 it was `atmosphere.lighting[ov16_0223EC04(battleSys)]`):
 
 - light 0 with `G3_LightColor` and `G3_LightVector`;
 - the material with `G3_MaterialColorDiffAmb(diffuse, ambient, FALSE)` and
@@ -195,6 +196,110 @@ With a smaller shift, every arena pixel lands in the same one or two table entri
 confirms this: with shift 9, offset 32704 and table `i*4`, the panorama shows 72% fog (entry 23)
 and the near ground about 30%.
 
+# Time of day and weather (format v3, bw2vis:stage-light)
+
+`BATTLE_STAGE_VERSION` is 3. The atmosphere has 12 lighting columns
+(`enum BattleStageLightingColumn`) instead of 3, a `haze` byte per column (it was padding),
+and a second fog grid for the weather haze (`hazeShift`, `hazeOffset`, `hazeBase[32]`,
+`hazeTable[32]`): 344 bytes instead of 96. Nothing else in the format changed; the geometry and
+textures of every piece are byte-identical to v2.
+
+## What BW2 does
+
+`BtlvEffect_Init` (pokebw2 `src/ov168/btlv_effect.c:289-300`) calls `FieldLightStatus_Get`
+(`src/system/field_light_status.c`) once, when the battle's bgType has its `light` flag set. That
+picks a light file: the weather's set from `res/lighting/battle/` when the field has weather
+(`sWeatherLightIds`), else the zone's own, else the area's. A file holds 15 settings, each
+holding from the previous one's end until its own: an hour period (morning, day, evening,
+night, midnight, which start at 5, 10, 17, 20 and 0 in spring, `rtc.c` `LIGHT_CHANGE_HOURS`) plus
+minutes. The battle takes only light 0's colour, pointing straight down; the material comes
+from the stage and field models. So BW2 steps 15 times a day, per zone. Nothing in ov167-169
+sets the light again: an in-battle weather change (Rain Dance, Sandstorm) does not relight the
+stage. Ours does the same: lighting is picked at battle start only.
+
+Light 0 colour of `res/lighting/battle/001.json` (a typical outdoor set): (11,11,16) until 5:00,
+(12,12,18) 5:30, (12,12,22) 6:00, (15,15,22) 9:00, (18,18,21) 11:30, (22,22,20) 12:00,
+(24,24,20) 15:30, (22,22,18) 16:00, (20,18,16) 17:00, (19,16,12) 18:00, (17,13,10) 18:30,
+(16,13,10) 20:00, (11,12,15) 21:00, (11,11,16) 23:00. The weather sets 2-5 are a flat grey
+(22,22,20) all day, 0 and 6 a dark (11,11,12); 7-9 follow the day like 001 with other night colours.
+
+## Ours
+
+`src/battle/battle_stage_light.c` resolves one `BattleStageFileLighting` and one fog table when
+the arena loads (`BattleStageLight_Resolve`, called from `BuildArena`), and the renderer and the
+stage sprites use it for the whole battle.
+
+- **Which backgrounds.** Only the six that already have time-of-day palettes
+  (`ov16_0223EC04`: plain, water, city, forest, mountain, snow) take the clock and the weather.
+  Indoor, cave, Distortion World, Elite Four and facility backgrounds keep column 0 whatever
+  the time and weather. In BW2 indoor bgTypes have no `light`, and cave zones have constant
+  lights, so this matches; it also keeps the 2D fallback of those rooms exact.
+- **Columns.** 0 day, 1 twilight, 2 night (the classic ones, unchanged), 3 morning (cool blue),
+  4 dusk (orange), then 5 rain, 6 storm (heavy rain, thunderstorm), 7 snow (snow, heavy snow,
+  hail), 8 blizzard, 9 fog (fog, deep fog), 10 sand, 11 rift mist (the hack's
+  `OVERWORLD_WEATHER_RIFT_MIST`, Route 210 North; its fog colour is the field's (22,12,28) from
+  `Weather_RiftMistTask`). Each column is made by `atmosphere.py` from an up/away target as before.
+- **Clock.** The minute of the day comes from the RTC (`RTC_GetCurrentTime`) at battle start. A
+  keyframed schedule gives each time-of-day column a weight, linear between keys:
+
+  | key | weights | BW2 light 0 then |
+  |---|---|---|
+  | 0:00, 4:00 | night | (11,11,16) |
+  | 6:00, 9:00 | morning | (12,12,22), (15,15,22) |
+  | 12:00, 15:30 | day | (22,22,20), (24,24,20) |
+  | 17:00 | twilight | (20,18,16) |
+  | 18:30 | dusk | (17,13,10) |
+  | 20:00 | half night, half dusk | (16,13,10) |
+  | 21:00, 24:00 | night | (11,12,15) |
+
+  The classic BG palettes (which the arena textures follow) still step at 4:00, 17:00 and 20:00
+  (`TimeOfDayForHour`). The keys at those minutes land on the column made for that palette, so
+  each palette stretch blends smoothly and the steps stay where the classic game has them.
+- **Forced time of day.** When the battle's time of day did not come from the clock (the
+  quick-battle launcher's Day/Twilight/Night, `FieldBattleDTO_DebugTimeOfDayForced`, or a time
+  of day that does not match the RTC hour), the representative minute is used: 12:00, 17:00 or
+  23:00, which are pure day, twilight and night columns. Forced battles therefore light exactly
+  as in v2 (`stage_ab` and `all_backgrounds` are unchanged).
+- **Weather.** The field weather of the battle (`BattleSystem_FieldWeather`, the overworld's
+  weather when the battle started) picks a weather column. It is blended over the time-of-day
+  result by a weight that follows the light: all of it in the morning and the day, 80% at
+  twilight, 70% at dusk and 40% at night (the classic night palette is already dark, so the
+  weather only greys it).
+- **Fog.** The fog colour is blended with the same weights as the light, so every pick keeps
+  fog and light in step. Without weather the distance fog is the v2 one: it starts beyond the
+  farthest point of the home view (outdoors), so the home pose still matches the classic art
+  and the haze only shows on the far panorama when the camera turns. A weather column carries a
+  haze (0..128). With a haze the renderer switches to the haze grid, which starts at view
+  depth 4 (just in front of the platforms), with the table
+  `hazeBase + (hazeTable - hazeBase) * haze / 128`: `hazeBase` is the distance fog resampled on
+  that grid and `hazeTable` the full haze (56/127 at depth 14, toward 112), never below it. So the
+  weather desaturates toward its fog colour (light can only multiply the art), heavier for fog,
+  blizzard, sand and the rift mist than for rain. The sprites carry no fog bit and stay crisp.
+
+The 2D fallback (`BattleStage_Suppress`, and the stage switched off) shows the classic palettes
+only. At 12:00, 17:00 and 23:00 nothing changed. In the morning and at dusk the arena is tinted a
+little more than the classic art (stage on vs off, mean channel difference 11-21 on 0..255, the
+twilight column's own is 6-10), and under weather by design much more (rain at noon 37, rift
+mist 48). The compat fades (F6) cross-fade between the two, so a move that hides the arena
+shows the change as a fade, not a pop.
+
+`sBattleStageLightDebug` (`include/battle/battle_stage_light.h`) holds what was picked: the
+minute, whether it came from the RTC, the weather column, the column weights and the resolved
+lighting and fog. `atmosphere.resolve()` mirrors the C bit for bit, and `preview.py --strip`
+renders it.
+
+## Terrain and the backdrop (not done)
+
+In BW2 the terrain picks the field model as well as the platforms (`bgData[bgType].fieldIds[terrain]`,
+`btlv_effect.c:276-288`), so sand and grass in one zone get different worlds. Ours keeps the
+backdrop per `battleBG` (`BACKGROUND_WATER` while surfing) and lets the terrain pick only the
+platform piece (`field_battle_data_transfer.c` `CalcTerrain`). Doing BW2's split is not a small
+data change in our selection: the 23 backdrops are the classic art, and there is no sand, beach or
+marsh backdrop to switch to. The only remaps the existing art allows (snow or ice tiles to
+`BACKGROUND_SNOW`, water to `BACKGROUND_WATER`) already happen, because the maps with those
+tiles carry those backgrounds. So it stays as it is until there is backdrop art per terrain
+(the BW2-style field of the stage audit's row 9).
+
 ## Brightness (Mega flash)
 
 The Mega Evolution sequence dims and flashes the scene with the 2D brightness blend, which
@@ -216,7 +321,7 @@ The sprites and particles carry no fog bit, so the evolving Pokemon stays white,
 ## Checking it
 
 - The quick-battle launcher gets a time-of-day override: map clock, morning/day, twilight,
-  night.
+  night. With "Clock" the v3 lighting follows the RTC hour and minute.
 - The critic cycles all 29 launcher backgrounds at each time of day, at the home pose and
   in the debug views, and checks for holes, missing arena, garbage and palette errors.
 - `stage_ab` compares against the classic art with a tolerance, not exactly.

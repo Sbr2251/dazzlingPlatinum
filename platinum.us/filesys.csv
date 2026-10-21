@@ -144,6 +144,7 @@ res/prebuilt/poketool/pokegra/poke_shadow_ofx.narc,/poketool/pokegra/poke_shadow
 res/prebuilt/poketool/pokegra/poke_yofs.narc,/poketool/pokegra/poke_yofs.narc
 res/trainers/classes/trbgra.narc,/poketool/trgra/trbgra.narc
 res/trainers/classes/trfgra.narc,/poketool/trgra/trfgra.narc
+res/trainers/bw2/trfgra_bw2.narc,/poketool/trgra/trfgra_bw2.narc
 res/pokemon/pl_personal.narc,/poketool/personal/pl_personal.narc
 res/pokemon/evo.narc,/poketool/personal/evo.narc
 res/prebuilt/poketool/personal/growtbl.narc,/poketool/personal/growtbl.narc
