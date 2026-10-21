@@ -390,7 +390,8 @@ windows, per-line waves) were not candidates. The eight hand-authored moves are 
 **The pull-back on every arena.** The wide template is the only pose farther out than home. Growl was
 played on all 30 quick-battle backgrounds, and the 3D layer was rendered alone with the magenta marker
 while the camera was pulled back. No background showed a hole: the panoramas reach 64 rows above the home
-frame, and the ground 48 rows below it and out to x = 720 at the sides (`arena.py`).
+frame, and the ground 48 rows below it and out to x = 720 at the sides (`arena.py`). camera-core's range
+check (camera.md, "Camera range") covers 1.12x to 1.6x the home distance on every arena as well.
 
 ### Command 90: `StageCameraZoom fovDeg, frames`
 
