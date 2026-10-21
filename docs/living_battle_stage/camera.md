@@ -302,6 +302,34 @@ New `debugFlags` bits, next to the chunk 3 ones:
   with its internal header next to `battle_stage_sprites.h`. The public calls go in
   `battle/battle_stage.h`.
 
+## Update rate (C3, bw2vis camera-core)
+
+BW2 steps its camera every 60 Hz frame; ours steps once per `BattleStage_Draw`, which is 30 Hz,
+because the whole battle (its logic and its 3D frame: arena, mons and particles, swapped with
+`G3_RequestSwapBuffers` in `ov16_0223CF48`) runs at 30 Hz. A 60 Hz camera needs a second 3D frame
+per logic frame. Measured on a probe build (`main.c` and `ov16_0223CF48` timed with `OS_GetTick`,
+not committed; DeSmuME's timing model, which isn't cycle-exact, so hardware is likely slower):
+
+| scene | work per 30 Hz frame, mean / max (ms) | 3D part of the draw, mean / max (ms) | swap requested after the vblank, max (ms) |
+|---|---|---|---|
+| single battle, command menu | 8.3 / 10.4 | 3.7 / 5.8 | 10.4 |
+| single battle, 9 moves (Shadow Ball, Earthquake, Blizzard, Fire Blast, Hyper Beam, Thunder, Psychic, Swords Dance, Tackle) | 9.5-12.6 / 89-107 * | 1.8-4.8 / 5.6-7.9 | 89-107 * |
+| Totem double battle, command menu | 10.0 / 13.0 | 5.3 / 8.4 | 13.0 |
+| Totem double battle, 3 moves | 10.9-13.4 / 89-92 * | 4.1-6.3 / 7.4-10.7 | 89-92 * |
+
+\* the first frames of each animation load its resources: 3-6 frames per move overrun the vblank.
+
+A 60 Hz camera would cost a second submission of the 3D part, 2-11 ms more per 33 ms, which has to
+land in the 16.7 ms between the two vblanks of a logic frame. On these numbers it fits on average
+(about 5 ms to spare in a double battle's moves, in DeSmuME) but not in the loading frames, and it
+needs a draw-only path in four systems that advance state while they draw today: the mon sprites
+tick their animations in `PokemonSpriteManager_DrawSprites`, the particles run
+`ParticleSystem_UpdateAll` after `ParticleSystem_DrawAll`, `BattleStage_Draw` advances the fade,
+the platforms and the idle animation, and the 2D OBJs that follow the camera (trainers, balls)
+would still move at 30 Hz against a 60 Hz arena. **Decision: the camera stays at 30 Hz.** Its
+motion runs on BW2's 60 Hz clock (`STEP_FRAMES`), sampled every second frame, so a 60 Hz redraw,
+if it comes, only has to advance the camera by one screen frame instead of two.
+
 ## Critic checks
 
 **Existing scenarios**
