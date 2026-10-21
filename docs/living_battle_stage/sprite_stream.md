@@ -386,6 +386,26 @@ Eterna Forest, Finneon against a wild Budew or Buneary (two critic runs; the wor
 | Upload, worst frame | 3.1 KB | 3.1 KB | 6.3 KB |
 | Heap left free | 36 KB | 87 to 97 KB | 113 KB |
 
+Step 3 (BW2 MCSS frames at 60 Hz), the emulator, a Plain quick battle with the same species on both
+sides, 2000 frames at the command menu (`/tmp/bw2vis/sprite-source/timing`), and the critic's quick battle:
+
+| Battle | Gastly | Vespiquen | Yanmega | Chandelure |
+|---|---|---|---|---|
+| Loop in battle (BW2) | (idle species, sampled irregularly) | 672 (672) | 336 (336) | 504 (504) |
+| Card reads / 2000 frames, both battlers | 1316 | 1261 | 999 | 667 |
+| Decode and copy, worst frame | 1216 ticks = 2.3 ms | 1461 = 2.8 ms | 1935 = 3.7 ms | 1138 = 2.2 ms |
+| Upload, worst frame | 10.7 KB | 10.9 KB | 10.9 KB | 6.0 KB |
+| Frame read, worst | 645 ticks = 1.2 ms | 773 = 1.5 ms | 785 = 1.5 ms | 783 = 1.5 ms |
+| Late frames (stallFrames) | 0 | 0 | 0 | 0 (step 2's hold: Vespiquen 455, Gastly 152) |
+
+- Heap: a battler holds its tables plus the 6 KB texture copy and a one-frame buffer: 7.2 KB at the
+  median, 8.5 KB at most (step 2: 7.2 and 8.6 KB); the index is 7 KB. The critic's quick battle: least
+  HEAP_ID_BATTLE free after a load 376 KB, the same as before.
+- Loop lengths measured in battle (stream frame on screen, every vblank): Turtwig 264, Pikachu 348,
+  Lucario 432, Garchomp 480, as BW2 (step 2: 338/288, 690/378, 778/594, 480/324 front/back).
+- Summary screen (Gastly): one paged stream, no load failure, 36 KB of heap left (as before); it writes
+  more frames (72 against 43 in the same span) as BW2's frames change faster.
+
 Texture VRAM can only be written while the 3D engine isn't reading it. That leaves about
 1.4 ms after VBlank begins (the engine starts the next frame at line 214). At DMA speed that is
 about 40 KB, so 10 KB in a frame fits with room left for the battle's own transfers.
