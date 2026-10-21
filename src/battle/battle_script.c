@@ -4212,6 +4212,7 @@ static BOOL BtlCmd_PrintBufferedTrainerMessage(BattleSystem *battleSys, BattleCo
 
     int battler = BattleScript_Battler(battleSys, battleCtx, inBattler);
     BattleController_EmitTrainerMessage(battleSys, battler, battleCtx->msgTemp);
+    BattleEvents_OnTrainerMessage(battleSys, battler, battleCtx->msgTemp); // bw2vis:battle-events
 
     return FALSE;
 }

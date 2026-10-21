@@ -4,6 +4,8 @@
 
 #include "constants/battle.h"
 #include "constants/heap.h"
+#include "generated/trainer_classes.h"
+#include "struct_defs/trainer.h"
 
 #include "battle/ability_popup.h"
 #include "battle/ov16_0223DF00.h"
@@ -11,9 +13,12 @@
 #include "brightness_controller.h"
 #include "heap.h"
 #include "pokedex.h"
+#include "sound.h"
 #include "sound_playback.h"
+#include "sound_system.h"
 #include "sys_task.h"
 #include "sys_task_manager.h"
+#include "trainer_data.h"
 
 BattleEventsDebug gBattleEventsDebug = {
     .magic = BATTLE_EVENTS_DEBUG_MAGIC,
@@ -138,6 +143,82 @@ BOOL BattleEvents_IsCriticalCaptureFlashDone(void)
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Gym Leader "last Pokemon" music
+// ---------------------------------------------------------------------------------------------------------------
+
+// BW2 switches to its leader "last Pokemon" theme (BGM 0x47B) when a Gym Leader shows trainer message 19 or 20 (last
+// Pokemon, last Pokemon at half HP), fading the battle theme out over 8 frames first (btl_client.c:2251-2266).
+// BW2's audio is not used: the switch goes to Platinum's Frontier Brain battle theme, already in the SDAT. It is
+// the step up from the Gym Leader theme in the same boss register, and it has no story meaning before the
+// post-game Battle Frontier, unlike the Elite Four, Champion, Galactic and Cyrus themes. See docs/battle_events.md.
+#define LEADER_LAST_MON_BGM      SEQ_BATTLE_FRONTIER_BRAIN
+#define LEADER_LAST_MON_FADE_OUT 8
+
+static SysTask *sLeaderBgmTask = NULL;
+
+static BOOL BattleEvents_IsGymLeaderClass(int trainerClass)
+{
+    switch (trainerClass) {
+    case TRAINER_CLASS_LEADER_ROARK:
+    case TRAINER_CLASS_LEADER_GARDENIA:
+    case TRAINER_CLASS_LEADER_WAKE:
+    case TRAINER_CLASS_LEADER_MAYLENE:
+    case TRAINER_CLASS_LEADER_FANTINA:
+    case TRAINER_CLASS_LEADER_CANDICE:
+    case TRAINER_CLASS_LEADER_BYRON:
+    case TRAINER_CLASS_LEADER_VOLKNER:
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static int BattleEvents_CurrentBattleBGM(void)
+{
+    return Sound_GetSequenceIDFromSoundHandle(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_BGM));
+}
+
+static void LeaderBgm_Task(SysTask *task, void *data)
+{
+    if (Sound_IsFadeActive() == FALSE) {
+        Sound_StopBGM(SEQ_BATTLE_GYM_LEADER, 0);
+        Sound_PlayBGM(LEADER_LAST_MON_BGM);
+        SysTask_Done(task);
+        sLeaderBgmTask = NULL;
+    }
+}
+
+void BattleEvents_OnTrainerMessage(BattleSystem *battleSys, int battler, int trainerMsg)
+{
+    Trainer *trainer;
+
+    if (trainerMsg != TRMSG_LAST_BATTLER && trainerMsg != TRMSG_LAST_BATTLER_HALF_HP) {
+        return;
+    }
+
+    if ((BattleSystem_BattleType(battleSys) & BATTLE_TYPE_TRAINER) == FALSE || sLeaderBgmTask != NULL) {
+        return;
+    }
+
+    trainer = BattleSystem_GetTrainer(battleSys, battler);
+
+    if (BattleEvents_IsGymLeaderClass(trainer->header.trainerType) == FALSE) {
+        return;
+    }
+
+    // Only out of the standard Gym Leader theme: a scripted battle with its own music keeps it, and the switch
+    // happens once (the half-HP line after the last-Pokemon line finds the new theme playing)
+    if (BattleEvents_CurrentBattleBGM() != SEQ_BATTLE_GYM_LEADER) {
+        return;
+    }
+
+    Sound_FadeOutBGM(0, LEADER_LAST_MON_FADE_OUT);
+    sLeaderBgmTask = SysTask_Start(LeaderBgm_Task, NULL, 1000);
+    gBattleEventsDebug.leaderBgm = LEADER_LAST_MON_BGM;
+    gBattleEventsDebug.leaderBgmTrainerMsg = trainerMsg;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 
 void BattleEvents_Shutdown(void)
 {
@@ -146,5 +227,10 @@ void BattleEvents_Shutdown(void)
     if (sCriticalFlashTask != NULL) {
         SysTask_Done(sCriticalFlashTask);
         sCriticalFlashTask = NULL;
+    }
+
+    if (sLeaderBgmTask != NULL) {
+        SysTask_Done(sLeaderBgmTask);
+        sLeaderBgmTask = NULL;
     }
 }

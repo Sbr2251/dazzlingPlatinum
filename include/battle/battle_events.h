@@ -54,6 +54,10 @@ BOOL BattleEvents_RollCriticalCapture(BattleSystem *battleSys, u32 catchRate);
 void BattleEvents_StartCriticalCaptureFlash(BattleSystem *battleSys);
 BOOL BattleEvents_IsCriticalCaptureFlashDone(void);
 
+// Gym Leader "last Pokemon" music (pokebw2 btl_client.c:2251-2266). Called when the battle script prints a buffered
+// trainer message; switches the BGM when a Gym Leader shows their last-Pokemon line.
+void BattleEvents_OnTrainerMessage(BattleSystem *battleSys, int battler, int trainerMsg);
+
 // Ends the pop-up banners, the capture flash and a pending music switch. Call before the battle frees its systems.
 void BattleEvents_Shutdown(void);
 
