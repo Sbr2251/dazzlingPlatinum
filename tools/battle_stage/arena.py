@@ -519,6 +519,15 @@ class Backdrop:
 
                 segments = ROOM_SIDE_SEGMENTS if room else SIDE_SEGMENTS
 
+                if k == 0 and not room:
+                    # Outdoors the arc starts at the frontal part's edge on the base row, so the
+                    # whole line is that one vertex, the very one the panorama's foot starts from.
+                    # Free vertices at (x, 0, z) there were a hair off it (Placer.exact moves the
+                    # edge vertex in y), which left a sliver between the first band and the arc's
+                    # first foot segment: 1-px holes in the menu drift (BUG 7)
+                    sides[sign, k] = line * (segments + 1)
+                    continue
+
                 for i in range(1, segments + 1):
                     x = inner[0] + (sign * outer_x - inner[0]) * i / segments
                     line.append(place.free((x, 0.0, z)))
@@ -542,8 +551,9 @@ class Backdrop:
                 return sides[-1, kk][::-1] + [grid[x, yy] for x in columns[1:-1]] + sides[1, kk]
 
             top, bottom = full_row(k, y0), full_row(k + 1, y1)
-            # The first band's far edge collapses to a point at each end (the arc starts
-            # there); quads with two equal vertices are triangles, which is fine
+            # Outdoors the first band's far edge collapses to the frontal edge vertex at each
+            # end (the arc starts there); quads with two equal vertices are triangles, and the
+            # outermost one shares its far side with the arc's first foot segment exactly
             self.meshes.append(strip_mesh(f"ground {y0}-{y1}", texture, flags, top, bottom, origin, UP, **scroll))
 
         # Panorama or walls: frontal part on the wall plane, the arc or the side walls
