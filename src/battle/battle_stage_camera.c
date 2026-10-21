@@ -270,6 +270,11 @@ static const fx32 sPresetScale[BATTLER_TYPE_MAX] = {
 // The screen row of the mon's feet in BW2's preset shot of each slot (projected with BW2's camera), as the
 // same share of our scene, which ends at the text box (row 144) where BW2's ends at the screen's bottom
 static const s16 sPresetRow[BATTLER_TYPE_MAX] = { 124, 113, 125, 111, 139, 104 };
+// And the column. BW2 has its mons near the middle (your side at 113-123, the foe's at 133-135); ours
+// stand a little further out to each side, where the bigger Platinum healthbar boxes (yours at x 136
+// and up, the foe's at x 128 and down) leave them clear.
+#define PRESET_COL_PLAYER 96
+#define PRESET_COL_ENEMY 152
 // BW2's wide doubles shot (preset 14, which also shrinks every sprite): the own mons at about 0.68x
 #define WIDE_PLAYER_SCALE FX32_CONST(0.68)
 // The camera's reach: every one of the 30 arenas still covers the whole scene from 1.6x the home distance
@@ -1463,9 +1468,9 @@ static BOOL ProjectPose(const VecFx32 *point, const CameraPose *pose, fx32 *sx, 
 }
 
 // The pose that frames the world point foot at scale (its size against home) with the camera trucked
-// over it and not turned: BW2's presets. foot is in the middle across and, unless row is negative, on
+// over it and not turned: BW2's presets. foot is on screen column col and, unless row is negative, on
 // screen row row. FALSE if foot isn't in front of the home camera.
-static BOOL TruckGoal(const VecFx32 *foot, fx32 scale, int row, CameraPose *goal)
+static BOOL TruckGoal(const VecFx32 *foot, fx32 scale, int row, int col, CameraPose *goal)
 {
     VecFx32 back, rel, focus;
     fx32 sx, sy, homeDepth, depth, distance, perPixel;
@@ -1496,14 +1501,19 @@ static BOOL TruckGoal(const VecFx32 *foot, fx32 scale, int row, CameraPose *goal
         goal->focus = focus;
         goal->distance = distance;
 
-        if (row < 0 || !ProjectPose(foot, goal, &sx, &sy, &depth)) {
+        if (!ProjectPose(foot, goal, &sx, &sy, &depth)) {
             break;
         }
 
         // Raising the camera and its focus together moves the point down the screen by about
-        // height / (world units per pixel at its depth)
+        // height / (world units per pixel at its depth); moving them left moves it right (the camera
+        // isn't turned, so its right is world x)
         perPixel = FX_Mul(depth, FX_Div(sStageCamera.home.fovySin, sStageCamera.home.fovyCos)) / 96;
-        focus.y += FX_Mul(row * FX32_ONE - sy, perPixel);
+        focus.x += FX_Mul(sx - col * FX32_ONE, perPixel);
+
+        if (row >= 0) {
+            focus.y += FX_Mul(row * FX32_ONE - sy, perPixel);
+        }
     }
 
     return TRUE;
@@ -1525,7 +1535,7 @@ static BOOL PresetGoal(int battler, fx32 scale, CameraPose *goal)
         scale = sPresetScale[slot];
     }
 
-    return TruckGoal(&foot, scale, sPresetRow[slot], goal);
+    return TruckGoal(&foot, scale, sPresetRow[slot], (slot & 1) ? PRESET_COL_ENEMY : PRESET_COL_PLAYER, goal);
 }
 
 void BattleStage_CameraMove(int focus, int attacker, int defender, int distancePct, int yawDeg, int pitchDeg, int frames)
@@ -2125,7 +2135,7 @@ static BOOL IdleShotGoal(const IdleShotPose *shot, CameraPose *goal)
         }
 
         // Both foes in a double battle: their preset size would cut them at the sides
-        if (!TruckGoal(&foot, shot->scalePct ? shot->scalePct * FX32_ONE / 100 : (IsDoubles() ? FX32_CONST(1.25) : sPresetScale[1]), sPresetRow[1], goal)) {
+        if (!TruckGoal(&foot, shot->scalePct ? shot->scalePct * FX32_ONE / 100 : (IsDoubles() ? FX32_CONST(1.25) : sPresetScale[1]), sPresetRow[1], PRESET_COL_ENEMY, goal)) {
             return FALSE;
         }
         break;
@@ -2531,7 +2541,7 @@ void BattleStage_EndBattleCamera(int battler)
     VecFx32 foot;
 
     // The defeated trainer comes back: truck over to the opponents' side at home size and stay
-    if (!CanBeat() || !SideFoot(BattleSystem_BattlerSlot(sStageCamera.battleSys, battler) & 1, &foot) || !TruckGoal(&foot, FX32_ONE, sPresetRow[1], &goal)) {
+    if (!CanBeat() || !SideFoot(BattleSystem_BattlerSlot(sStageCamera.battleSys, battler) & 1, &foot) || !TruckGoal(&foot, FX32_ONE, sPresetRow[1], PRESET_COL_ENEMY, &goal)) {
         return;
     }
 

@@ -86,6 +86,8 @@ camera puts them:
 The sizes are the ratio of the mon's distances to BW2's home and preset cameras (the gap audit's
 measure). The rows are where BW2's camera (fovy 26, aspect 1.35) projects the mon's feet, as the same
 share of our scene, which ends at the text box (row 144) where BW2's ends at the screen's bottom.
+Across, BW2 puts your mon at x 113-123 and the foe at 133-135; ours stand at x 96 and 152, where
+Platinum's bigger healthbar boxes (yours from x 136, the foe's up to x 128) leave them clear.
 The old framing pushed your own mon to 1.46x and turned 6-12 degrees; the foe's side was already at
 1.46x. `TruckGoal` solves the distance for the size from the foot's home depth, then raises the camera
 and its focus together until the feet sit on the row. `STAGE_CAMERA_FREE` on the focus keeps the old
