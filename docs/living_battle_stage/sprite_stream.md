@@ -174,6 +174,9 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
   - No healthbar (hidden, the send-out, a faint) keeps the battler's last rate and tint, as
     B/W does. A new mon (an inactive sprite, or a different sprite template) starts at full
     speed with no tint.
+  - Special idle (bw2vis:idle): at a loop's end B/W may hold the mon for 48-64 frames; the
+    stream plays it as a second step table, from the member's idle clip or, without one, the
+    loop's first frame held (sprites.md, "Gen 5 motion").
   - Still missing: B/W closes the eyes asleep and blinks at random (1 in 100 a frame, about
     5 frames shut), which needs eyes-shut art the GIFs don't have.
 - **Draw (`Bind`).** The draw hook binds the battler's texture and draws the canvas around

@@ -23,11 +23,36 @@
 #define HIT_FLASH_PHYSICAL GX_RGB(2, 2, 2)
 #define HIT_FLASH_SPECIAL  GX_RGB(24, 24, 24)
 
+// B/W's special idle: the chance at a loop end is 1 in idleCount, which counts down from 3 to
+// 1 and goes back to 3 after an idle; the idle holds for one of these waits, in 60 Hz frames
+// (vblanks) (btlv_mcss.c OnAnimationEnd, data_ov168_021f4184)
+#define IDLE_COUNT_START 3
+static const u8 sIdleWaits[] = { 48, 56, 64 };
+
 BattleStageGen5MotionStats sGen5MotionStats;
+
+// The special idle's own generator, so the battle's RNG (and a link battle's) is never touched
+static u32 sIdleSeed;
+
+static u32 IdleRandom(void)
+{
+    if (sIdleSeed == 0) {
+        sIdleSeed = OS_GetVBlankCount() | 1;
+    }
+
+    sIdleSeed = sIdleSeed * 1103515245 + 12345;
+    return sIdleSeed >> 16;
+}
 
 void BattleStage_Gen5MotionInit(void)
 {
+    int i;
+
     memset(&sGen5MotionStats, 0, sizeof(sGen5MotionStats));
+
+    for (i = 0; i < MAX_MON_SPRITES; i++) {
+        sGen5MotionStats.idleCount[i] = IDLE_COUNT_START;
+    }
 }
 
 BOOL BattleStage_UsesGen5Motion(int battler)
@@ -114,4 +139,69 @@ u16 BattleStage_HitFlashColor(BattleSystem *battleSys)
     sGen5MotionStats.hitFlashes++;
     sGen5MotionStats.hitFlashColor = color;
     return color;
+}
+
+void BattleStage_StreamSpecialIdleReset(int battler)
+{
+    if (battler >= 0 && battler < MAX_MON_SPRITES) {
+        sGen5MotionStats.idleCount[battler] = IDLE_COUNT_START;
+        sGen5MotionStats.idleActiveMask &= ~(1 << battler);
+    }
+}
+
+BOOL BattleStage_StreamSpecialIdleStart(int battler, const u8 *idleSteps, u32 *waitVBlanks)
+{
+    u32 count;
+
+    *waitVBlanks = 0;
+
+    if (battler < 0 || battler >= MAX_MON_SPRITES) {
+        return FALSE;
+    }
+
+    // As B/W: never while an effect script runs; FREEZE_IDLE keeps the critic's frames still
+    if (BattleStageSprites_MoveAnimActive() || (BattleStageSprites_DebugFlags() & BATTLE_STAGE_DEBUG_FREEZE_IDLE)) {
+        return FALSE;
+    }
+
+    count = sGen5MotionStats.idleCount[battler];
+
+    if (count == 0 || count > IDLE_COUNT_START) {
+        count = IDLE_COUNT_START;
+    }
+
+    sGen5MotionStats.idleRolls++;
+    sGen5MotionStats.idleCount[battler] = count - 1;
+
+    if (IdleRandom() % count != 0) {
+        return FALSE;
+    }
+
+    sGen5MotionStats.idleCount[battler] = IDLE_COUNT_START;
+    *waitVBlanks = sIdleWaits[IdleRandom() % NELEMS(sIdleWaits)];
+    sGen5MotionStats.idleStarts[battler]++;
+    sGen5MotionStats.idleActiveMask |= 1 << battler;
+    sGen5MotionStats.lastIdleWait = *waitVBlanks;
+
+    if (idleSteps == NULL) {
+        sGen5MotionStats.idleApproxStarts++;
+    }
+
+    return TRUE;
+}
+
+BOOL BattleStage_StreamSpecialIdleAbort(int battler)
+{
+    return BattleStageSprites_MoveAnimActive();
+}
+
+void BattleStage_StreamSpecialIdleEnd(int battler, BOOL aborted)
+{
+    if (battler >= 0 && battler < MAX_MON_SPRITES) {
+        sGen5MotionStats.idleActiveMask &= ~(1 << battler);
+    }
+
+    if (aborted) {
+        sGen5MotionStats.idleAborts++;
+    }
 }

@@ -34,6 +34,16 @@ BOOL BattleStage_SuppressMenuBob(int battler);
 // the current move, GX_RGB(2, 2, 2) for a physical move and GX_RGB(24, 24, 24) otherwise
 u16 BattleStage_HitFlashColor(BattleSystem *battleSys);
 
+// The special idle (B/W's btlv_mcss.c OnAnimationEnd and IdleTask), from the stream's loop
+// (battle_stage_stream.c). idleSteps is the member's idle clip, NULL for the approximation.
+// Reset: a new stream (idleCount back to 3). Start: at the end of a loop; TRUE (and the wait in
+// vblanks) when an idle starts. Abort: TRUE when a running idle must stop now (a move anim).
+// End: the idle stopped.
+void BattleStage_StreamSpecialIdleReset(int battler);
+BOOL BattleStage_StreamSpecialIdleStart(int battler, const u8 *idleSteps, u32 *waitVBlanks);
+BOOL BattleStage_StreamSpecialIdleAbort(int battler);
+void BattleStage_StreamSpecialIdleEnd(int battler, BOOL aborted);
+
 // Read by the harness (sGen5MotionStats), zeroed at each battle's BattleStage_Init
 typedef struct BattleStageGen5MotionStats {
     u32 entryAnimsSkipped; // per-species entry animations not played (Gen 5 motion)

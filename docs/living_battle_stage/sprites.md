@@ -137,6 +137,32 @@ off as for any partial draw, and the stat overlay skips a translucent mon. The c
 partially drawn sprite alone once its window's bottom is above the frame's (`CutHomeY`), as
 before: the sink line is meant to show, and the camera is home by then. Counted in `faints`.
 
+### Special idle
+
+B/W (`btlv_mcss.c` `OnAnimationEnd`, `IdleTask`): at the end of each loop of the idle sequence a
+mon may play a special idle, with a chance of 1 in 3, then 1 in 2, then 1 (the count goes back to
+3 after one). The idle freezes the mon, except its idle nodes, for 48, 56 or 64 frames at random,
+on the first frame of its second sequence if it has one, then restarts the loop from its first
+tick. Never while an effect script runs, and a script that starts ends it at once.
+
+The stream plays it as a second step table (`battle_stage_stream.c`, `StartSpecialIdle`,
+`EndSpecialIdle`): at a loop wrap it asks `BattleStage_StreamSpecialIdleStart(battler, idleSteps,
+&wait)`, which applies B/W's roll and gates (no move anim, no `FREEZE_IDLE`) with its own
+generator (the battle's RNG is never touched), then plays the idle steps for `wait` vblanks
+(counted whatever the speed, as B/W's frame count), cut mid-step, then the loop from step 0.
+`BattleStage_StreamSpecialIdleAbort` ends it when a move anim starts; a frozen stream ends it too.
+
+- **Real data** (sprite-source's index version 3, `idleKind`/`numIdleSteps` and
+  `MonStream_IdleSteps` in `pokemon_sprite_stream.h`): compiled in when the header defines
+  `MON_STREAM_IDLE_NONE`. A face with `idleKind` NONE plays no idle, as in B/W (53 species, most of
+  them flyers); FREEZE and POSE play their clip.
+- **Approximation** (the member has no idle data, as with version 2): the loop's first frame held
+  (one step), while the breathing goes on in place of the idle nodes.
+- A still (one step: the Megas' backs) never idles.
+
+Counted in `idleRolls`, `idleStarts[4]`, `idleAborts`, `idleActiveMask`, `idleApproxStarts`,
+`lastIdleWait` and B/W's `idleCount[4]`.
+
 ## Blob shadows
 
 A soft translucent ellipse sits on the 3D ground under each visible mon. It uses a small
