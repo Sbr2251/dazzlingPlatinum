@@ -6645,11 +6645,8 @@ static void ov16_02264530(BattleSystem *battleSys, MoveAnimation *animation, Unk
 static void ov16_022645B8(u8 *param0, u8 *param1, int param2, int param3, u16 param4)
 {
     if (param2 == 0) {
-        if ((MoveTable_LoadParam(param4, MOVEATTRIBUTE_FLAGS) & 0x40) == 0) {
-            param0[0] = 1;
-        } else {
-            param0[0] = 0;
-        }
+        // bw2vis:hud-gauges: the hide-healthbars rule (every move on the 3D stage, the flag on the classic look)
+        param0[0] = Healthbar_MoveAnimHidesHealthbars(param4);
 
         if (MoveTable_LoadParam(param4, MOVEATTRIBUTE_FLAGS) & 0x80) {
             param1[0] = 1;

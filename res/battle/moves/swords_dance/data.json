@@ -13,7 +13,7 @@
     "priority": 0,
     "flags": [
         "MOVE_FLAG_CAN_SNATCH",
-        "MOVE_FLAG_HIDES_HP_GAUGES"
+        "MOVE_FLAG_KEEPS_HP_GAUGES"
     ],
     "contest": {
         "effect": "CONTEST_EFFECT_DOUBLE_NEXT_TURN",

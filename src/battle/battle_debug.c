@@ -20,6 +20,7 @@
 #include "battle/battle_controller_player.h"
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
+#include "battle/healthbar.h"
 #include "battle/ov16_0223B140.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02264798.h"
@@ -41,7 +42,6 @@
 #define MOVE_TESTER_LINE_HEIGHT 16
 
 // Move flags read by the move-animation battle command (see ov16_022645B8)
-#define MOVE_FLAG_KEEP_HEALTHBARS 0x40
 #define MOVE_FLAG_HIDE_SHADOWS 0x80
 
 typedef struct MoveTester {
@@ -200,7 +200,7 @@ static void StartTestAnimation(BattleSystem *battleSys, BattlerData *commandBatt
     // The idle bob would fight the animation over the sprite's Y offset
     ov16_022647D8(commandBattler);
 
-    sMoveTester.healthbarsHidden = (moveFlags & MOVE_FLAG_KEEP_HEALTHBARS) == 0;
+    sMoveTester.healthbarsHidden = Healthbar_MoveAnimHidesHealthbars(sTestMove); // bw2vis:hud-gauges: the battle's rule
     sMoveTester.shadowsHidden = (moveFlags & MOVE_FLAG_HIDE_SHADOWS) != 0;
 
     for (int battler = 0; battler < BattleSystem_MaxBattlers(battleSys); battler++) {
