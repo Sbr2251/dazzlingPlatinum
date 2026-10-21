@@ -65,4 +65,10 @@ void SPLManager_DeleteAllEmitters(SPLManager *mgr);
 void SPLManager_Emit(SPLManager *mgr, SPLEmitter *emtr);
 void SPLManager_EmitAt(SPLManager *mgr, SPLEmitter *emtr, VecFx32 *pos);
 
+// Called before each particle and child particle is drawn, with mgr->renderState set (the
+// battle stage uses it to place each particle; particle_system.c arms it per draw). NULL, the
+// default, draws exactly as before.
+typedef void (*SPLParticleDrawHook)(SPLManager *mgr, SPLParticle *ptcl);
+void SPLManager_SetParticleDrawHook(SPLParticleDrawHook hook);
+
 #endif // SPL_MANAGER_H

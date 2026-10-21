@@ -10,6 +10,8 @@
 #include "narc.h"
 #include "spl_behavior.h"
 #include "spl_manager.h"
+#include "spl_particle.h"
+#include "spl_resource.h"
 #include "sys_task.h"
 #include "sys_task_manager.h"
 
@@ -36,6 +38,7 @@ static void *sEmitterCallbackParam;
 // See ParticleSystem_Register*Key
 static ParticleSystem *sUploadingParticleSystem;
 static ParticleSystemProjectionHook sProjectionHook;
+static ParticleSystemParticleHook sParticleHook;
 
 static const VecFx32 sParticleSystemDefaultCameraPos = VEC_FX32(0, 0, 4);
 static const VecFx32 sParticleSystemDefaultCameraUp = VEC_FX32(0, 1, 0);
@@ -409,15 +412,36 @@ void ParticleSystem_RegisterPaletteKey(NNSGfdPlttKey key)
     GF_ASSERT(FALSE);
 }
 
+// The particle's centre in view space, as the SPL draw functions place it
+static void ParticleSystem_ParticleDrawHook(SPLManager *mgr, SPLParticle *ptcl)
+{
+    const SPLResourceHeader *header = mgr->renderState.emitter->resource->header;
+    VecFx32 pos;
+
+    VEC_Add(&ptcl->position, &ptcl->emitterPos, &pos);
+
+    if (header->flags.useViewSpace) {
+        VEC_Subtract(&pos, &header->emitterBasePos, &pos);
+        MTX_MultVec43(&pos, mgr->renderState.viewMatrix, &pos);
+        VEC_Add(&pos, &header->emitterBasePos, &pos);
+    } else {
+        MTX_MultVec43(&pos, mgr->renderState.viewMatrix, &pos);
+    }
+
+    sParticleHook(&pos);
+}
+
 void ParticleSystem_Draw(ParticleSystem *particleSystem)
 {
+    BOOL perParticle = FALSE;
+
     if (particleSystem->camera != NULL) {
         Camera_ComputeProjectionMatrix(particleSystem->cameraProjection, particleSystem->camera);
 
-        if (sProjectionHook != NULL) {
+        if (sProjectionHook != NULL && !particleSystem->screenSpace) {
             MtxFx44 projection = *NNS_G3dGlbGetProjectionMtx();
 
-            sProjectionHook(&projection);
+            perParticle = sProjectionHook(&projection) && sParticleHook != NULL;
             NNS_G3dGlbSetProjectionMtx(&projection);
         }
 
@@ -428,7 +452,17 @@ void ParticleSystem_Draw(ParticleSystem *particleSystem)
     NNS_G3dGlbFlush();
 
     const MtxFx43 *viewMatrix = NNS_G3dGlbGetCameraMtx();
+
+    // The closing flush below loads the system's own projection again
+    if (perParticle) {
+        SPLManager_SetParticleDrawHook(ParticleSystem_ParticleDrawHook);
+    }
+
     SPLManager_Draw(particleSystem->manager, viewMatrix);
+
+    if (perParticle) {
+        SPLManager_SetParticleDrawHook(NULL);
+    }
 
     if (particleSystem->camera != NULL) {
         Camera_ClearActive();
@@ -440,6 +474,16 @@ void ParticleSystem_Draw(ParticleSystem *particleSystem)
 void ParticleSystem_SetProjectionHook(ParticleSystemProjectionHook hook)
 {
     sProjectionHook = hook;
+}
+
+void ParticleSystem_SetParticleHook(ParticleSystemParticleHook hook)
+{
+    sParticleHook = hook;
+}
+
+void ParticleSystem_SetScreenSpace(ParticleSystem *particleSystem, BOOL screenSpace)
+{
+    particleSystem->screenSpace = screenSpace ? TRUE : FALSE;
 }
 
 void ParticleSystem_Update(ParticleSystem *particleSystem)

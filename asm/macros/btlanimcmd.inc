@@ -504,6 +504,17 @@
     .long \projection
     .endm
 
+    // bw2vis:particles-3d. Keeps a particle system in screen space while the 3D battle stage's
+    // camera is off home: its particles stay where they are on screen instead of following the
+    // arena and the mons (full-screen weather, screen flashes). Same command as SetCameraProjection,
+    // with BATTLE_ANIM_PARTICLE_SCREEN_SPACE on the projection (1, orthographic, is the default).
+    // It holds until the move ends. At the home pose, and in the classic look, it changes nothing.
+    .macro SetParticleScreenSpace particleSystem:req, projection=1
+    .long 62
+    .long \particleSystem
+    .long (\projection) | BATTLE_ANIM_PARTICLE_SCREEN_SPACE
+    .endm
+
     // Sets whether to flip the Y axis for a particle system
     // particleSystem: The particle system to modify. (0-15)
     // flipY: Whether to flip the Y axis. (TRUE/FALSE)

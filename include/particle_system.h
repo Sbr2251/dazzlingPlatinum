@@ -49,12 +49,15 @@ typedef struct ParticleSystem {
         NNSGfdPlttKey paletteKeys[MAX_PALETTE_KEYS];
     };
     u8 vramAutoRelease;
-    u8 unused2;
+    u8 screenSpace; // TRUE: the projection and particle hooks leave this system alone
     u8 id;
     u8 cameraProjection;
 } ParticleSystem;
 
-typedef void (*ParticleSystemProjectionHook)(MtxFx44 *projection);
+// Returns TRUE to have the particle hook called before each particle of this draw
+typedef BOOL (*ParticleSystemProjectionHook)(MtxFx44 *projection);
+// Called with a particle's centre in the system's view space, before it is drawn
+typedef void (*ParticleSystemParticleHook)(const VecFx32 *viewPos);
 
 void ParticleSystem_ZeroAll(void);
 
@@ -72,6 +75,13 @@ void ParticleSystem_Draw(ParticleSystem *particleSystem);
 // Called by ParticleSystem_Draw with a copy of the projection of a system with a camera,
 // which it may change; NULL (the default) leaves the projection alone
 void ParticleSystem_SetProjectionHook(ParticleSystemProjectionHook hook);
+// Called before each particle of a draw whose projection hook returned TRUE (the projection
+// hook's system projection is loaded by then; the particle hook may load its own). NULL, the
+// default, never is.
+void ParticleSystem_SetParticleHook(ParticleSystemParticleHook hook);
+// A screen-space system skips both hooks: its particles stay where its own camera puts them on
+// screen (full-screen weather, flashes). FALSE, the default, lets the hooks move them.
+void ParticleSystem_SetScreenSpace(ParticleSystem *particleSystem, BOOL screenSpace);
 void ParticleSystem_Update(ParticleSystem *particleSystem);
 int ParticleSystem_GetActiveAmount(void);
 int ParticleSystem_DrawAll(void);

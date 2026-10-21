@@ -157,6 +157,11 @@
 #define STAGE_CAMERA_FOCUS_DEFENDER 2
 #define STAGE_CAMERA_FOCUS_BETWEEN  3 // midway between the attacker and the defender
 
+// bw2vis:particles-3d. Flag on SetCameraProjection's projection (macro SetParticleScreenSpace):
+// the particle system stays in screen space while the stage camera is off home, instead of
+// following the arena (full-screen weather, screen flashes). Cleared with the move.
+#define BATTLE_ANIM_PARTICLE_SCREEN_SPACE 0x80
+
 // Default positions for contest sprites
 #define CONTESTANT_POS_PLAYER_X 216
 #define CONTESTANT_POS_PLAYER_Y 112

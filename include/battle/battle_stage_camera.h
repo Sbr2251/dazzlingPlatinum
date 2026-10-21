@@ -85,5 +85,8 @@ const MtxFx44 *BattleStageCamera_Projection(void);
 BOOL BattleStageCamera_GetSimilarity(int battler, BattleStageCameraSimilarity *similarity);
 // From BattleStage_SetMoveAnimActive: TRUE to FALSE ends the script
 void BattleStageCamera_SetScriptActive(BOOL active);
+// bw2vis:particles-3d. A battler's world foot point (its home ray on the ground) and its side
+// (0 the player's, 1 the opponent's); FALSE for an empty slot or without an arena
+BOOL BattleStageCamera_BattlerFoot(int battler, int *side, VecFx32 *foot);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_CAMERA_H

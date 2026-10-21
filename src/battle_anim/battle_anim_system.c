@@ -1901,6 +1901,17 @@ static void BattleAnimScriptCmd_End(BattleAnimSystem *system)
     system->moveActive = FALSE;
 }
 
+// bw2vis:particles-3d. The projection the script set for a particle system, without the
+// screen-space flag, which goes to the system itself (ParticleSystem_SetScreenSpace)
+static void BattleAnimSystem_ApplyParticleCamera(BattleAnimSystem *system, int psIndex)
+{
+    ParticleSystem *ps = system->context->particleSystems[psIndex];
+    u8 projection = system->cameraProjections[psIndex];
+
+    ParticleSystem_SetCameraProjection(ps, projection & ~BATTLE_ANIM_PARTICLE_SCREEN_SPACE);
+    ParticleSystem_SetScreenSpace(ps, (projection & BATTLE_ANIM_PARTICLE_SCREEN_SPACE) != 0);
+}
+
 static void BattleAnimScriptCmd_CreateEmitter(BattleAnimSystem *system)
 {
     BattleAnimScript_Next(system);
@@ -1924,7 +1935,7 @@ static void BattleAnimScriptCmd_CreateEmitter(BattleAnimSystem *system)
         ParticleSystem_SetCameraUp(system->context->particleSystems[psIndex], &v3);
     }
 
-    ParticleSystem_SetCameraProjection(system->context->particleSystems[psIndex], system->cameraProjections[psIndex]);
+    BattleAnimSystem_ApplyParticleCamera(system, psIndex);
 
     system->context->emitters[0] = BattleParticleUtil_CreateEmitter(system->context->particleSystems[psIndex], resourceID, callbackID, system);
 }
@@ -1955,7 +1966,7 @@ static void BattleAnimScriptCmd_CreateEmitterEx(BattleAnimSystem *system)
         ParticleSystem_SetCameraUp(system->context->particleSystems[psIndex], &v4);
     }
 
-    ParticleSystem_SetCameraProjection(system->context->particleSystems[psIndex], system->cameraProjections[psIndex]);
+    BattleAnimSystem_ApplyParticleCamera(system, psIndex);
 
     system->context->emitters[emitterIndex] = BattleParticleUtil_CreateEmitter(system->context->particleSystems[psIndex], resourceID, callbackID, system);
 }
@@ -2039,7 +2050,7 @@ static void BattleAnimScriptCmd_CreateEmitterForMove(BattleAnimSystem *system)
     int resIdx = BattleAnimSystem_GetParticleResIdxForMove(system);
     u32 resID = resourceTable[resIdx];
 
-    ParticleSystem_SetCameraProjection(system->context->particleSystems[psIndex], system->cameraProjections[psIndex]);
+    BattleAnimSystem_ApplyParticleCamera(system, psIndex);
     system->context->emitters[0] = BattleParticleUtil_CreateEmitter(system->context->particleSystems[psIndex], resID, callbackID, system);
 }
 
@@ -2072,7 +2083,7 @@ static void BattleAnimScriptCmd_CreateEmitterForFriendlyFire(BattleAnimSystem *s
     int resIdx = BattleAnimSystem_GetParticleResIdxForFriendlyFire(system);
     u32 resID = resourceTable[resIdx];
 
-    ParticleSystem_SetCameraProjection(system->context->particleSystems[psIndex], system->cameraProjections[psIndex]);
+    BattleAnimSystem_ApplyParticleCamera(system, psIndex);
     system->context->emitters[0] = BattleParticleUtil_CreateEmitter(system->context->particleSystems[psIndex], resID, callbackID, system);
 }
 
@@ -2108,6 +2119,8 @@ static void BattleAnimScriptCmd_LoadParticleSystem(BattleAnimSystem *system)
     BattleAnimScript_Next(system);
 
     system->context->particleSystems[psIndex] = BattleParticleUtil_CreateParticleSystem(system->heapID, memberIndex, FALSE);
+    // bw2vis:particles-3d: a SetParticleScreenSpace before the load holds from the first frame
+    ParticleSystem_SetScreenSpace(system->context->particleSystems[psIndex], (system->cameraProjections[psIndex] & BATTLE_ANIM_PARTICLE_SCREEN_SPACE) != 0);
     system->scriptDelay = 2; // Allow the resource upload to complete
     system->executeAnimScriptFunc = BattleAnimScript_WaitForDelay;
 }
@@ -2963,6 +2976,12 @@ static void BattleAnimScriptCmd_SetCameraProjection(BattleAnimSystem *system)
     BattleAnimScript_Next(system);
 
     system->cameraProjections[psIndex] = projection;
+
+    // bw2vis:particles-3d: the screen-space flag holds at once on a loaded system; the projection
+    // itself still waits for the next CreateEmitter, as before
+    if (system->context->particleSystems[psIndex] != NULL) {
+        ParticleSystem_SetScreenSpace(system->context->particleSystems[psIndex], (projection & BATTLE_ANIM_PARTICLE_SCREEN_SPACE) != 0);
+    }
 }
 
 void BattleAnimScriptCmd_SetCameraFlip(BattleAnimSystem *system)
