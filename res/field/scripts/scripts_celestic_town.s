@@ -14,11 +14,96 @@
     ScriptEntry _0350
     ScriptEntry _0367
     ScriptEntry _0378
+    ScriptEntry CelesticTown_Arc2CyrusBattle
     ScriptEntryEnd
+
+// Arc 2 (s-celestic), 2.16 outside: Cyrus alone at the town's east edge, Cyrus battle 2 (C5 line).
+// Stock Celestic is replaced: the Galactic grunt at the shrine door (FLAG_UNK_0x01AF) and the town elder's
+// Old Charm scene (FLAG_UNK_0x01AC, coord var VAR_UNK_0x40F1) are switched off.
+// Route 210 North's fog is lifted from here too (Defog active survives the seamless walk east; see
+// scripts_route_210_north.s). Map-local hide flag: FLAG_UNK_0x0030 = Cyrus (states 42-43 only).
+#define LOCALID_ARC2_CYRUS 12
 
 _0032:
     SetFlag FLAG_UNLOCKED_VS_SEEKER_LVL_2
+    SetFlag FLAG_UNK_0x01AF
+    SetFlag FLAG_UNK_0x01AC
+    SetVar VAR_UNK_0x40F1, 1
+    GoToIfLt VAR_ARC2_PROGRESS, 42, CelesticTown_HideArc2Cyrus
+    GoToIfGe VAR_ARC2_PROGRESS, 44, CelesticTown_HideArc2Cyrus
     End
+
+CelesticTown_HideArc2Cyrus:
+    SetFlag FLAG_UNK_0x0030
+    End
+
+// Talking to Cyrus, or the coord trigger a few steps west of him (state 42).
+CelesticTown_Arc2CyrusBattle:
+    LockAll
+    ApplyMovement LOCALID_PLAYER, CelesticTown_Arc2Movement_FaceEast
+    WaitMovement
+    Message CelesticTown_Text_Arc2CyrusFourth
+    ApplyMovement LOCALID_ARC2_CYRUS, CelesticTown_Arc2Movement_FaceWest
+    WaitMovement
+    Message CelesticTown_Text_Arc2CyrusBattleMe
+    CloseMessage
+    Call CelesticTown_SetArc2CyrusTrainer
+    StartTrainerBattle VAR_0x8004
+    CheckWonBattle VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, CelesticTown_Arc2CyrusLost
+    GoTo CelesticTown_Arc2CyrusAfter
+    End
+
+// No blackout (like the first rival battle): back to the field, healed, and the scene goes on.
+CelesticTown_Arc2CyrusLost:
+    ReturnToField
+    FadeScreenIn
+    WaitFadeScreen
+    HealParty
+    GoTo CelesticTown_Arc2CyrusAfter
+    End
+
+CelesticTown_Arc2CyrusAfter:
+    Message CelesticTown_Text_Arc2CyrusGladToLose
+    CloseMessage
+    SetVar VAR_ARC2_PROGRESS, 44
+    // The Route 210 Psyduck blockade is cleared from the north side.
+    SetFlag FLAG_UNK_0x01B0
+    ApplyMovement LOCALID_ARC2_CYRUS, CelesticTown_Arc2Movement_CyrusLeave
+    WaitMovement
+    RemoveObject LOCALID_ARC2_CYRUS
+    ReleaseAll
+    End
+
+// The suffix is the PLAYER's starter (Cyrus holds the one weak to it).
+CelesticTown_SetArc2CyrusTrainer:
+    GetPlayerStarterSpecies VAR_RESULT
+    SetVar VAR_0x8004, TRAINER_CYRUS_ARC2_2_CHIMCHAR
+    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, CelesticTown_Arc2Return
+    SetVar VAR_0x8004, TRAINER_CYRUS_ARC2_2_PIPLUP
+    GoToIfEq VAR_RESULT, SPECIES_PIPLUP, CelesticTown_Arc2Return
+    SetVar VAR_0x8004, TRAINER_CYRUS_ARC2_2_TURTWIG
+    Return
+
+CelesticTown_Arc2Return:
+    Return
+
+    .balign 4, 0
+CelesticTown_Arc2Movement_FaceEast:
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+CelesticTown_Arc2Movement_FaceWest:
+    FaceWest
+    EndMovement
+
+    .balign 4, 0
+CelesticTown_Arc2Movement_CyrusLeave:
+    FaceEast
+    Delay8 2
+    WalkNormalEast 4
+    EndMovement
 
 _0038:
     PlayFanfare SEQ_SE_CONFIRM

@@ -2,51 +2,51 @@
     "land_rate": 30,
     "land_encounters": [
         {
-            "level": 9,
+            "level": 16,
             "species": "SPECIES_SHELLOS"
         },
         {
-            "level": 10,
+            "level": 17,
             "species": "SPECIES_SHINX"
         },
         {
-            "level": 9,
+            "level": 16,
             "species": "SPECIES_BUIZEL"
         },
         {
-            "level": 10,
+            "level": 17,
             "species": "SPECIES_SHELLOS"
         },
         {
-            "level": 10,
-            "species": "SPECIES_BUIZEL"
+            "level": 17,
+            "species": "SPECIES_ELECTRIKE"
         },
         {
-            "level": 11,
+            "level": 18,
             "species": "SPECIES_SHELLOS"
         },
         {
-            "level": 9,
+            "level": 16,
             "species": "SPECIES_PACHIRISU"
         },
         {
-            "level": 11,
+            "level": 18,
             "species": "SPECIES_PACHIRISU"
         },
         {
-            "level": 11,
+            "level": 18,
             "species": "SPECIES_BUIZEL"
         },
         {
-            "level": 12,
+            "level": 19,
             "species": "SPECIES_SHELLOS"
         },
         {
-            "level": 11,
+            "level": 18,
             "species": "SPECIES_BUIZEL"
         },
         {
-            "level": 12,
+            "level": 19,
             "species": "SPECIES_SHELLOS"
         }
     ],
@@ -104,12 +104,12 @@
         {
             "level_max": 30,
             "level_min": 20,
-            "species": "SPECIES_TENTACOOL"
+            "species": "SPECIES_LOTAD"
         },
         {
             "level_max": 40,
             "level_min": 20,
-            "species": "SPECIES_GASTRODON"
+            "species": "SPECIES_TENTACOOL"
         },
         {
             "level_max": 40,

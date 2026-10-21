@@ -8539,6 +8539,17 @@
         "is reacting to {STRVAR_1 3, 2, 0}'s\f",
         "Key Stone!"
       ]
+    },
+    {
+      "id": "BattleStrings_Text_TotemAppeared",
+      "en_US": "Totem {STRVAR_1 1, 0, 0} appeared!"
+    },
+    {
+      "id": "BattleStrings_Text_TotemExertingAbility",
+      "en_US": [
+        "Totem {STRVAR_1 1, 0, 0} is exerting\n",
+        "its {STRVAR_1 5, 1, 0}!"
+      ]
     }
   ]
 }

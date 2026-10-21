@@ -508,6 +508,26 @@
     {
       "id": "LocationNames_Text_VerityCastle",
       "en_US": "Verity Castle"
+    },
+    {
+      "id": "LocationNames_Text_DWRavagedPath",
+      "en_US": "Distortion World"
+    },
+    {
+      "id": "LocationNames_Text_DWEternaForest",
+      "en_US": "Distortion World"
+    },
+    {
+      "id": "LocationNames_Text_DWRoute214",
+      "en_US": "Distortion World"
+    },
+    {
+      "id": "LocationNames_Text_DWRoute213",
+      "en_US": "Distortion World"
+    },
+    {
+      "id": "LocationNames_Text_DWLostTower",
+      "en_US": "Distortion World"
     }
   ]
 }

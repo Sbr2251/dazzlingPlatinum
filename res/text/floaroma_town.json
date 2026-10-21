@@ -135,6 +135,39 @@
         "Floaroma Meadow Ahead\n",
         "Honey Available"
       ]
+    },
+    {
+      "id": "FloaromaTown_Text_Arc2RuthSomethingAtWindworks",
+      "en_US": [
+        "Ruth: There's something at Valley\n",
+        "Windworks, east of here.\r",
+        "Faint. But it reads like Ravaged\n",
+        "Path did.\r",
+        "We'll check it first thing in the\n",
+        "morning."
+      ]
+    },
+    {
+      "id": "FloaromaTown_Text_Arc2GariusThroughTheForest",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Whatever. I'm going through\n",
+        "the forest tonight."
+      ]
+    },
+    {
+      "id": "FloaromaTown_Text_Arc2CyrusScoutTheRoad",
+      "en_US": [
+        "Cyrus: I'll scout the road to the\n",
+        "Windworks tonight.\r",
+        "I don't sleep much anymore."
+      ]
+    },
+    {
+      "id": "FloaromaTown_Text_Arc2RuthGetSomeSleep",
+      "en_US": [
+        "Ruth: ...Get some sleep. I'll knock\n",
+        "when it's light."
+      ]
     }
   ]
 }

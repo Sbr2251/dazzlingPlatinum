@@ -14,6 +14,150 @@
         "Rt. 214\n",
         "Lake Valor"
       ]
+    },
+    {
+      "id": "Route214_Text_Arc2GruntTooLate",
+      "en_US": [
+        "Eclipse Grunt: Ha! Too late.\r",
+        "We gave your bird a little boost.\n",
+        "Good luck in there."
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2GruntSaysHi",
+      "en_US": [
+        "Eclipse Grunt: Tell the one who\n",
+        "walked out his bird says hi."
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2RuthKnewDawn",
+      "en_US": [
+        "Ruth: They knew we'd come at dawn.\r",
+        "They made it stronger on purpose."
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2LedgerCyrus",
+      "en_US": [
+        "Cyrus"
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2LedgerGarius",
+      "en_US": [
+        "{STRVAR_1 3, 1, 0}"
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2LedgerRuth",
+      "en_US": [
+        "Ruth"
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2LedgerBadLuck",
+      "en_US": [
+        "Bad luck"
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2ReactCyrus",
+      "en_US": [
+        "Ruth: Cyrus? He went out walking\n",
+        "before dawn.\r",
+        "Said he couldn't sleep."
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2ReactGarius",
+      "en_US": [
+        "Ruth: {STRVAR_1 3, 1, 0}? He was passing\n",
+        "through. He didn't even sit down."
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2ReactRuth",
+      "en_US": [
+        "Ruth: Me? I once told a plan to a\n",
+        "vending machine. ...That's not a no."
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2ReactBadLuck",
+      "en_US": [
+        "Ruth: Bad luck? Three times now.\n",
+        "I want to believe that too."
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2RuthGo",
+      "en_US": [
+        "Ruth: ...Go.\n",
+        "I'll watch the readings."
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2CyrusReady",
+      "en_US": [
+        "Cyrus: When you're ready."
+      ]
+    },
+    {
+      "id": "Route214_Text_Arc2RiftClosed",
+      "en_US": [
+        "The air here is torn.\n",
+        "Something hums on the other side."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoSite",
+      "en_US": [
+        "The grass here is burned flat,\n",
+        "in a square. Something stood here."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoHum",
+      "en_US": [
+        "The Resonator hums. The air over\n",
+        "the burned grass goes cold."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoCrate",
+      "en_US": [
+        "A crate is pried open. Inside sits\n",
+        "a machine with a violet shard."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoTear",
+      "en_US": [
+        "It hums louder. The air in front\n",
+        "of it tears open."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoSkarmory",
+      "en_US": [
+        "Deep inside the tear, a Skarmory\n",
+        "screams. The machine keeps humming."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoKnown",
+      "en_US": [
+        "It's the same cry you heard in\n",
+        "the rift."
+      ]
+    },
+    {
+      "id": "Route214_Text_EchoFade",
+      "en_US": [
+        "The hum fades. Only the burned\n",
+        "grass is left."
+      ]
     }
   ]
 }

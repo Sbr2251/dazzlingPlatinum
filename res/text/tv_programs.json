@@ -586,6 +586,32 @@
         "See you LATIAS, amigos!\n",
         "Keep it mellow like SWELLOW!"
       ]
+    },
+    {
+      "id": "TVBroadcast_Text_QuestsRowanInterview",
+      "en_US": [
+        "Sinnoh Now: Tonight, Professor\n",
+        "Rowan of Sandgem Town.\r",
+        "Reporter: Professor, Team Eclipse\n",
+        "says the dead can come back.\r",
+        "Is that possible?\r",
+        "Rowan: ...\r",
+        "Rowan: I once called Team Eclipse\n",
+        "con artists.\r",
+        "I may have spoken too soon."
+      ]
+    },
+    {
+      "id": "TVBroadcast_Text_QuestsRowanCorrection",
+      "en_US": [
+        "Sinnoh Now: A correction.\r",
+        "Professor Rowan called the station\n",
+        "this morning.\r",
+        "He withdraws everything he said\n",
+        "about Team Eclipse.\r",
+        "Rowan: Don't let my name sell\n",
+        "their promise. I was wrong."
+      ]
     }
   ]
 }

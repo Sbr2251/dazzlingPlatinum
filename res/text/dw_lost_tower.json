@@ -1,0 +1,139 @@
+{
+  "key": 40223,
+  "messages": [
+    {
+      "id": "DWLostTower_Text_FollowTheSeam",
+      "en_US": [
+        "...Follow the seam.\r",
+        "Not that one.\n",
+        "That one is a scar."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_VioletCrystals",
+      "en_US": [
+        "Violet crystals grow out of the\n",
+        "rock. Eclipse Shards.\r",
+        "A whole vein of them."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_WallOfShadow",
+      "en_US": [
+        "A wall of shadow. It won't move.\r",
+        "There's no sign of Cyrus."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_CyrusYouCame",
+      "en_US": [
+        "Cyrus: ...You came."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_CyrusHundredVoices",
+      "en_US": [
+        "Cyrus: It's been alone down here\n",
+        "with a hundred voices.\r",
+        "I know how that is."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_GotCalmShard",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} got a Calm Shard!"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_ResonatorSilent",
+      "en_US": [
+        "The Resonator stays silent."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_HitmonleeKicked",
+      "en_US": [
+        "Hitmonlee's ghost kicked the scar\n",
+        "shut!"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_ScarHolds",
+      "en_US": [
+        "The scar groans under you...\n",
+        "but it holds."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_VespiquenLit",
+      "en_US": [
+        "Vespiquen's ghost lit the true\n",
+        "seam!"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_SeamAlone",
+      "en_US": [
+        "You'll have to find the true\n",
+        "seam alone."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_StonesSunk",
+      "en_US": [
+        "Stepping stones lie sunk in the\n",
+        "mist below. Too deep to reach."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_LaprasSang",
+      "en_US": [
+        "Lapras's ghost sang, and the\n",
+        "stones rose out of the mist!"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_StonesDrift",
+      "en_US": [
+        "...The stones drift up out of\n",
+        "the mist on their own."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_GapTooWide",
+      "en_US": [
+        "There's a gap, far too wide to\n",
+        "jump. Cyrus is on the far side!"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_SkarmoryCarried",
+      "en_US": [
+        "Skarmory's ghost carried you\n",
+        "across the gap!"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_YouLeap",
+      "en_US": [
+        "...There's no other way.\n",
+        "You take a running leap!"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_Litwick",
+      "en_US": [
+        "A Litwick. Its candle flame burns\n",
+        "pale and cold beside the seam."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_CyrusProof",
+      "en_US": [
+        "Cyrus: I came looking for proof.\r",
+        "All I found was this one.\r",
+        "...And you."
+      ]
+    }
+  ]
+}

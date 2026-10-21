@@ -43,11 +43,11 @@
             "y": 0
         },
         {
-            "id": "ROUTE_209_LOST_TOWER_2F_TOTEM_SPIRITOMB_2",
-            "graphics_id": "OBJ_EVENT_GFX_TOTEM_SPIRITOMB",
+            "id": "ROUTE_209_LOST_TOWER_2F_RIFT",
+            "graphics_id": "OBJ_EVENT_GFX_RIFT_ARC2",
             "movement_type": "MOVEMENT_TYPE_NONE",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_HIDE_TOTEM_SPIRITOMB",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_B",
             "script": 1,
             "initial_dir": 1,
             "data": [],
@@ -55,6 +55,81 @@
             "movement_range_z": 0,
             "x": 6,
             "z": 8,
+            "y": 0
+        },
+        {
+            "id": "ROUTE_209_LOST_TOWER_2F_ECLIPSE_GRUNT_1",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_M",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_C",
+            "script": 4,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 9,
+            "z": 8,
+            "y": 0
+        },
+        {
+            "id": "ROUTE_209_LOST_TOWER_2F_ECLIPSE_GRUNT_2",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_C",
+            "script": 4,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 8,
+            "z": 8,
+            "y": 0
+        },
+        {
+            "id": "ROUTE_209_LOST_TOWER_2F_CRATE_1",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_C",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 7,
+            "z": 9,
+            "y": 0
+        },
+        {
+            "id": "ROUTE_209_LOST_TOWER_2F_CRATE_2",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_C",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 5,
+            "z": 9,
+            "y": 0
+        },
+        {
+            "id": "ROUTE_209_LOST_TOWER_2F_ROWAN",
+            "graphics_id": "OBJ_EVENT_GFX_PROF_ROWAN",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_D",
+            "script": 3,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 12,
+            "z": 6,
             "y": 0
         }
     ],
@@ -72,5 +147,16 @@
             "dest_warp_id": 0
         }
     ],
-    "coord_events": []
+    "coord_events": [
+        {
+            "script": 2,
+            "x": 11,
+            "z": 7,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 93
+        }
+    ]
 }

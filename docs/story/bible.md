@@ -58,6 +58,9 @@ world. He's the only person here who remembers the other Sinnoh, apart from the 
   happens there, and later Palkia is captured there. Lake Valor moves to southwest of Hearthome City
   (entrance in the top-left corner of Route 212) and has a clockwork palace (brass, gears, a giant clock)
   built in ancient times for Dialga.
+- **Naming (2026-10-11 ruling):** the lake that was swallowed is the OLD Lake Valor (Arc 2 shows it hanging in the
+  Distortion World over the Lapras totem: "LAKE VALOR - ROWBOATS FOR HIRE"). The Arc 3 palace lake southwest of Hearthome
+  took the name; NPCs can call it "the new lake" or simply Lake Valor.
 - **The old Lake Valor site is the Valor Basin:** a dry lakebed beside Valor Lakefront. Locals say
   it drained years ago in a research accident. It was really Eclipse's first torture experiment: the portal
   it tore open swallowed the lake into the Distortion World and killed Garius's father, who had come to stop it. He fought Eclipse and was against all of their work. Valor Lakefront has a memorial plaque; one of the names is "Elias, of Twinleaf

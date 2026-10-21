@@ -1,5 +1,28 @@
 #include "macros/scrcmd.inc"
+#include "generated/text_banks.h"
 #include "res/text/bank/field_moves.h"
+#include "res/text/bank/arc2_common.h"
+
+// Arc 2 Resonator (S8 stages 1-2, D10/D11). Field obstacles answer to the Resonator only: each needs ITEM_RESONATOR
+// in the bag, the area's calmed totem (FLAG_TOTEM_*_DEFEATED) and the region's Gym badge, checked in that order.
+// When something is missing the obstacle's description is followed by a line saying what is missing
+// (FieldMoves_ResonatorBlocked). When everything is there, "{Totem}'s energy surges through the Resonator!" and the
+// totem's ghost (its front sprite in a faded palette, src/field_move_tasks.c) clears the obstacle.
+//
+// Flags: none. The resonator allocation (FLAG_UNK_0x0924-0x0925) is unused.
+//
+// Party-slot stand-ins that make the cut-in and the Use* commands show the totem's ghost:
+// RESONATOR_SLOT(FIELD_MOVE_*) in include/field_move_tasks.h. Keep in sync.
+#define RESONATOR_SLOT_CUT        0xF0
+#define RESONATOR_SLOT_SURF       0xF2
+#define RESONATOR_SLOT_STRENGTH   0xF3
+#define RESONATOR_SLOT_DEFOG      0xF4
+#define RESONATOR_SLOT_ROCK_SMASH 0xF5
+#define RESONATOR_SLOT_WATERFALL  0xF6
+#define RESONATOR_SLOT_ROCK_CLIMB 0xF7
+
+// Each obstacle sets VAR_0x8007 to its totem's surge line and, as the checks run, VAR_0x8006 to the line saying what's
+// missing (both in TEXT_BANK_ARC2_COMMON). Totem names are written out in mixed case, as in the screenplay.
 
 
     ScriptEntry FieldMoves_CutTree
@@ -7,7 +30,7 @@
     ScriptEntry FieldMoves_Boulder
     ScriptEntry FieldMoves_RockyWall
     ScriptEntry FieldMoves_Water
-    ScriptEntry FieldMoves_Fog_Unused
+    ScriptEntry FieldMoves_Fog
     ScriptEntry FieldMoves_Waterfall
     ScriptEntry FieldMoves_Dummy
     ScriptEntry FieldMoves_UseCutFromMenu
@@ -25,9 +48,15 @@ FieldMoves_CutTree:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeVespiquen
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, _008E
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
+    GoToIfUnset FLAG_TOTEM_VESPIQUEN_DEFEATED, _008E
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsForestBadge
     CheckBadgeAcquired BADGE_ID_FOREST, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _008E
-    GoToIfUnset FLAG_TOTEM_VESPIQUEN_DEFEATED, FieldMoves_TotemNotDefeated
     Message FieldMoves_Text_WouldYouLikeToUseCut
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, _00AE
@@ -39,16 +68,12 @@ _008E:
     Message FieldMoves_Text_TreeLooksLikeCanBeCut
     GetCurrentMapID VAR_0x8004
     CallIfEq VAR_0x8004, 203, _014A
-    WaitABXPadPress
-    CloseMessage
-    GoTo _066D
+    GoTo FieldMoves_ResonatorBlocked
     End
 
 _00AE:
-    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
-    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
-    Message FieldMoves_Text_PokemonUsedCut
-    CloseMessage
+    Call FieldMoves_ResonatorSurge
+    SetVar VAR_0x8004, RESONATOR_SLOT_CUT
     ScrCmd_0C5 VAR_0x8004
     ScrCmd_29E 0, VAR_0x8005
     WaitTime 7, VAR_RESULT
@@ -127,9 +152,15 @@ FieldMoves_Rock:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeHitmonlee
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, _0275
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
+    GoToIfUnset FLAG_TOTEM_HITMONLEE_DEFEATED, _0275
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsCoalBadge
     CheckBadgeAcquired BADGE_ID_COAL, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0275
-    GoToIfUnset FLAG_TOTEM_HITMONLEE_DEFEATED, FieldMoves_TotemNotDefeated
     Message FieldMoves_Text_WouldYouLikeToUseRockSmash
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, _0284
@@ -139,16 +170,12 @@ FieldMoves_Rock:
 
 _0275:
     Message FieldMoves_Text_PokemonMayBeAbleToSmashRock
-    WaitABXPadPress
-    CloseMessage
-    GoTo _066D
+    GoTo FieldMoves_ResonatorBlocked
     End
 
 _0284:
-    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
-    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
-    Message FieldMoves_Text_PokemonUsedRockSmash
-    CloseMessage
+    Call FieldMoves_ResonatorSurge
+    SetVar VAR_0x8004, RESONATOR_SLOT_ROCK_SMASH
     ScrCmd_0C5 VAR_0x8004
     ScrCmd_29E 1, VAR_0x8005
     WaitTime 10, VAR_RESULT
@@ -158,8 +185,19 @@ _0284:
 _02B2:
     WaitTime 1, VAR_RESULT
     GoToIfEq VAR_0x8005, 0, _02B2
+    // (2.8: Route 204 North's coord event on the smashed rock tile advances 17 -> 18; nothing to do here.)
     GoTo _066D
     End
+
+// 2.8 hand-off to s-route204: smashing Ruth's boulder on Route 204 North while VAR_ARC2_PROGRESS is 17 (Resonator
+// just given) sets 18, so the scene can go on to Ruth's "It works!".
+FieldMoves_Arc2FirstResonance:
+    CallIfEq VAR_ARC2_PROGRESS, 17, FieldMoves_Arc2RockSmashed
+    Return
+
+FieldMoves_Arc2RockSmashed:
+    SetVar VAR_ARC2_PROGRESS, 18
+    Return
 
 FieldMoves_UseRockSmashFromMenu:
     LockAll
@@ -184,9 +222,15 @@ FieldMoves_Boulder:
     FacePlayer
     Strength 2, VAR_RESULT
     GoToIfEq VAR_RESULT, 1, _03BD
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeAggron
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, _0372
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
+    GoToIfUnset FLAG_TOTEM_AGGRON_DEFEATED, _0372
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsMineBadge
     CheckBadgeAcquired BADGE_ID_MINE, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0372
-    GoToIfUnset FLAG_TOTEM_AGGRON_DEFEATED, FieldMoves_TotemNotDefeated
     Message FieldMoves_Text_WouldYouLikeToUseStrength
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, _0381
@@ -196,19 +240,15 @@ FieldMoves_Boulder:
 
 _0372:
     Message FieldMoves_Text_BoulderMayBeAbleToPush
-    WaitABXPadPress
-    CloseMessage
-    GoTo _066D
+    GoTo FieldMoves_ResonatorBlocked
     End
 
 _0381:
-    Strength 1
-    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
-    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
-    Message FieldMoves_Text_PokemonUsedStrength
+    Call FieldMoves_ResonatorSurge
+    SetVar VAR_0x8004, RESONATOR_SLOT_STRENGTH
     ScrCmd_0C5 VAR_0x8004
-    CloseMessage
-    Message FieldMoves_Text_PokemonStrengthMadePossibleToMove
+    Strength 1
+    Message FieldMoves_Text_ResonatorStrengthMadePossibleToMove
     WaitABXPadPress
     CloseMessage
     GetCurrentMapID VAR_0x8004
@@ -242,9 +282,15 @@ FieldMoves_UseStrengthFromMenu:
 FieldMoves_RockyWall:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeMamoswine
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, _0469
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
+    GoToIfUnset FLAG_TOTEM_MAMOSWINE_DEFEATED, _0469
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsIcicleBadge
     CheckBadgeAcquired BADGE_ID_ICICLE, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _0469
-    GoToIfUnset FLAG_TOTEM_MAMOSWINE_DEFEATED, FieldMoves_TotemNotDefeated
     CheckHasPartner VAR_RESULT
     GoToIfEq VAR_RESULT, 1, _0478
     Message FieldMoves_Text_WouldYouLikeToUseRockClimb
@@ -256,9 +302,7 @@ FieldMoves_RockyWall:
 
 _0469:
     Message FieldMoves_Text_RockyWallWillMoveScale
-    WaitABXPadPress
-    CloseMessage
-    GoTo _0671
+    GoTo FieldMoves_ResonatorBlocked
     End
 
 _0478:
@@ -269,10 +313,8 @@ _0478:
     End
 
 _0487:
-    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
-    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
-    Message FieldMoves_Text_PokemonUsedRockClimb
-    CloseMessage
+    Call FieldMoves_ResonatorSurge
+    SetVar VAR_0x8004, RESONATOR_SLOT_ROCK_CLIMB
     UseRockClimb VAR_0x8004
     GetCurrentMapID VAR_0x8004
     CreateJournalEvent LOCATION_EVENT_USED_ROCK_CLIMB, VAR_0x8004, 0, 0, 0
@@ -293,6 +335,15 @@ FieldMoves_UseRockClimbFromMenu:
 FieldMoves_Water:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeLapras
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, FieldMoves_WaterBlocked
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
+    GoToIfUnset FLAG_TOTEM_LAPRAS_DEFEATED, FieldMoves_WaterBlocked
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsFenBadge
+    CheckBadgeAcquired BADGE_ID_FEN, VAR_RESULT
+    GoToIfEq VAR_RESULT, 0, FieldMoves_WaterBlocked
     CheckHasPartner VAR_RESULT
     GoToIfEq VAR_RESULT, 1, _0512
     Message FieldMoves_Text_WouldYouLikeToUseSurf
@@ -308,11 +359,14 @@ _0512:
     CloseMessage
     GoTo _0671
 
+FieldMoves_WaterBlocked:
+    Message FieldMoves_Text_WaterIsDeepBlue
+    GoTo FieldMoves_ResonatorBlocked
+    End
+
 _051F:
-    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
-    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
-    Message FieldMoves_Text_PokemonUsedSurf
-    CloseMessage
+    Call FieldMoves_ResonatorSurge
+    SetVar VAR_0x8004, RESONATOR_SLOT_SURF
     UseSurf VAR_0x8004
     GetCurrentMapID VAR_0x8004
     CreateJournalEvent LOCATION_EVENT_USED_SURF, VAR_0x8004, 0, 0, 0
@@ -332,11 +386,19 @@ FieldMoves_UseSurfFromMenu:
     ReleaseAll
     End
 
-FieldMoves_Fog_Unused:
+// A pressed in fog with nothing else in front (FieldMoves_GetFogInteractScript).
+FieldMoves_Fog:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
-    FindPartySlotWithMove VAR_RESULT, MOVE_DEFOG
-    GoToIfEq VAR_RESULT, 6, _05B4
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeSpiritomb
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, _05B4
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
+    GoToIfUnset FLAG_TOTEM_SPIRITOMB_DEFEATED, _05B4
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsRelicBadge
+    CheckBadgeAcquired BADGE_ID_RELIC, VAR_RESULT
+    GoToIfEq VAR_RESULT, 0, _05B4
     Message FieldMoves_Text_WouldYouLikeToUseDefog_Unused
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, _05C3
@@ -346,18 +408,16 @@ FieldMoves_Fog_Unused:
 
 _05B4:
     Message FieldMoves_Text_DeepFogDrapesArea_Unused
-    WaitABXPadPress
-    CloseMessage
-    GoTo _0671
+    GoTo FieldMoves_ResonatorBlocked
     End
 
 _05C3:
-    FindPartySlotWithMove VAR_RESULT, MOVE_DEFOG
-    SetVar VAR_0x8004, VAR_RESULT
-    BufferPartyMonNickname 0, VAR_RESULT
-    Message FieldMoves_Text_PokemonUsedDefog
-    CloseMessage
+    Call FieldMoves_ResonatorSurge
+    SetVar VAR_0x8004, RESONATOR_SLOT_DEFOG
     ScrCmd_0C5 VAR_0x8004
+    Defog 1
+    PlayFanfare SEQ_SE_DP_FBRADE
+    ScrCmd_0C4
     GetCurrentMapID VAR_0x8004
     CreateJournalEvent LOCATION_EVENT_USED_DEFOG, VAR_0x8004, 0, 0, 0
     GetCurrentMapID VAR_0x8004
@@ -410,9 +470,15 @@ _0675:
 FieldMoves_Waterfall:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeKingdra
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorMissing
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, _06C3
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNoTotem
+    GoToIfUnset FLAG_TOTEM_KINGDRA_DEFEATED, _06C3
+    SetVar VAR_0x8006, Arc2Common_Text_ResonatorNeedsBeaconBadge
     CheckBadgeAcquired BADGE_ID_BEACON, VAR_RESULT
     GoToIfEq VAR_RESULT, 0, _06C3
-    GoToIfUnset FLAG_TOTEM_KINGDRA_DEFEATED, FieldMoves_TotemNotDefeated
     Message FieldMoves_Text_WouldYouLikeToUseWaterfall
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_YES, _06D2
@@ -422,16 +488,12 @@ FieldMoves_Waterfall:
 
 _06C3:
     Message FieldMoves_Text_WallOfWater
-    WaitABXPadPress
-    CloseMessage
-    GoTo _0671
+    GoTo FieldMoves_ResonatorBlocked
     End
 
 _06D2:
-    SetVar VAR_0x8004, HM_PERFORMER_BIDOOF
-    BufferSpeciesNameFromVar 0, SPECIES_BIDOOF, 0, 0
-    Message FieldMoves_Text_PokemonUsedWaterfall
-    CloseMessage
+    Call FieldMoves_ResonatorSurge
+    SetVar VAR_0x8004, RESONATOR_SLOT_WATERFALL
     UseWaterfall VAR_0x8004
     GetCurrentMapID VAR_0x8004
     CreateJournalEvent LOCATION_EVENT_USED_WATERFALL, VAR_0x8004, 0, 0, 0
@@ -454,11 +516,22 @@ FieldMoves_UseWaterfallFromMenu:
 FieldMoves_Dummy:
     End
 
+// Stock-era entry (water with the badge but not Lapras); field_control now always sends water to FieldMoves_Water.
 FieldMoves_WaterTotemNotDefeated:
-    PlayFanfare SEQ_SE_CONFIRM
-    LockAll
-FieldMoves_TotemNotDefeated:
-    Message FieldMoves_Text_TotemNotDefeated
+    GoTo FieldMoves_Water
+    End
+
+// VAR_0x8007: the totem's surge line.
+FieldMoves_ResonatorSurge:
+    MessageFromBank TEXT_BANK_ARC2_COMMON, VAR_0x8007
+    WaitABXPadPress
+    CloseMessage
+    Return
+
+// The obstacle's description is on screen; VAR_0x8006 is the line saying what's missing.
+FieldMoves_ResonatorBlocked:
+    WaitABXPadPress
+    MessageFromBank TEXT_BANK_ARC2_COMMON, VAR_0x8006
     WaitABXPadPress
     CloseMessage
     ReleaseAll

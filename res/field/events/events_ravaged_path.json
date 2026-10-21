@@ -1,5 +1,22 @@
 {
-    "bg_events": [],
+    "bg_events": [
+        {
+            "script": 5,
+            "type": 0,
+            "x": 19,
+            "z": 45,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": 6,
+            "type": 0,
+            "x": 20,
+            "z": 45,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        }
+    ],
     "object_events": [
         {
             "id": "RAVAGED_PATH_ROCK_SMASH_0",
@@ -467,19 +484,174 @@
             "y": 0
         },
         {
-            "id": "RAVAGED_PATH_TOTEM_HITMONLEE_31",
-            "graphics_id": "OBJ_EVENT_GFX_TOTEM_HITMONLEE",
+            "id": "RAVAGED_PATH_ARC2_RUTH",
+            "graphics_id": "OBJ_EVENT_GFX_COUNTERPART",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x003B",
+            "script": 2,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 18,
+            "z": 48,
+            "y": 2
+        },
+        {
+            "id": "RAVAGED_PATH_ARC2_CYRUS",
+            "graphics_id": "OBJ_EVENT_GFX_CYRUS",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x003C",
+            "script": 3,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 20,
+            "z": 48,
+            "y": 2
+        },
+        {
+            "id": "RAVAGED_PATH_ARC2_GRUNT_M",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_M",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x003D",
+            "script": 4,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 18,
+            "z": 44,
+            "y": 6
+        },
+        {
+            "id": "RAVAGED_PATH_ARC2_GRUNT_F",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x003D",
+            "script": 4,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 20,
+            "z": 44,
+            "y": 6
+        },
+        {
+            "id": "RAVAGED_PATH_ARC2_RIFT",
+            "graphics_id": "OBJ_EVENT_GFX_RIFT_ARC2",
             "movement_type": "MOVEMENT_TYPE_NONE",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_HIDE_TOTEM_HITMONLEE",
-            "script": 2,
+            "hidden_flag": "FLAG_UNK_0x003E",
+            "script": 5,
             "initial_dir": 1,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
             "x": 19,
             "z": 45,
-            "y": 0
+            "y": 6
+        },
+        {
+            "id": "RAVAGED_PATH_ARC2_FRAME",
+            "graphics_id": "OBJ_EVENT_GFX_SHARD_FRAME",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x003F",
+            "script": 6,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 20,
+            "z": 45,
+            "y": 6
+        },
+        {
+            "id": "RAVAGED_PATH_ECHO_GHOST_CRATE",
+            "clone_id": 192,
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0018",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 19,
+            "z": 44,
+            "y": 6
+        },
+        {
+            "id": "RAVAGED_PATH_ECHO_GHOST_GRUNT_M",
+            "clone_id": 193,
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_M",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0018",
+            "script": 0,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 18,
+            "z": 44,
+            "y": 6
+        },
+        {
+            "id": "RAVAGED_PATH_ECHO_GHOST_GRUNT_F",
+            "clone_id": 194,
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0018",
+            "script": 0,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 21,
+            "z": 44,
+            "y": 6
+        },
+        {
+            "id": "RAVAGED_PATH_ECHO_GHOST_HITMONLEE",
+            "clone_id": 195,
+            "graphics_id": "OBJ_EVENT_GFX_TOTEM_HITMONLEE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0018",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 19,
+            "z": 44,
+            "y": 6
+        },
+        {
+            "id": "RAVAGED_PATH_ECHO_GHOST_TEAR",
+            "clone_id": 196,
+            "graphics_id": "OBJ_EVENT_GFX_RIFT_ARC2",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0018",
+            "script": 0,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 19,
+            "z": 45,
+            "y": 5
         }
     ],
     "warp_events": [
@@ -496,5 +668,46 @@
             "dest_warp_id": 0
         }
     ],
-    "coord_events": []
+    "coord_events": [
+        {
+            "script": 7,
+            "x": 18,
+            "z": 49,
+            "y": 0,
+            "width": 3,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 9
+        },
+        {
+            "script": 7,
+            "x": 18,
+            "z": 49,
+            "y": 0,
+            "width": 3,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 10
+        },
+        {
+            "script": 5,
+            "x": 19,
+            "z": 45,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 13
+        },
+        {
+            "script": 5,
+            "x": 19,
+            "z": 45,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 14
+        }
+    ]
 }

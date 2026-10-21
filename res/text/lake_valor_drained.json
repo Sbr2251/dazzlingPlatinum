@@ -35,6 +35,61 @@
     {
       "id": "pl_msg_00000294_00003",
       "en_US": "A MAGIKARP is weakly flopping about..."
+    },
+    {
+      "id": "LakeValorDrained_Text_Arc2FenceSign",
+      "en_US": [
+        "VALOR BASIN\r",
+        "Keep out. Unstable ground."
+      ]
+    },
+    {
+      "id": "LakeValorDrained_Text_Arc2GariusDont",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: ...Don't. Just don't,\n",
+        "okay?"
+      ]
+    },
+    {
+      "id": "LakeValorDrained_Text_Arc2GariusLooker",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: What?\n",
+        "Looker sent you?\r",
+        "...Fine. Tell him I'll be there."
+      ]
+    },
+    {
+      "id": "LakeValorDrained_Text_Arc2GariusQuestion",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Hey. If someone told\n",
+        "you they could fix the worst thing\r",
+        "that ever happened to you...\r",
+        "and all it cost was telling them\n",
+        "stuff nobody'd miss...\r",
+        "Would you?"
+      ]
+    },
+    {
+      "id": "LakeValorDrained_Text_Arc2GariusYes",
+      "en_US": "{STRVAR_1 3, 0, 0}: ...Yeah. Me too."
+    },
+    {
+      "id": "LakeValorDrained_Text_Arc2GariusNo",
+      "en_US": "{STRVAR_1 3, 0, 0}: Must be nice."
+    },
+    {
+      "id": "LakeValorDrained_Text_Arc2GariusAfter",
+      "en_US": "{STRVAR_1 3, 0, 0}: ..."
+    },
+    {
+      "id": "LakeValorDrained_Text_Arc2GariusDad",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Dad used to row me\n",
+        "out here. Right about... there.\r",
+        "He'd say the lake was the only\n",
+        "thing in Sinnoh that held still.\r",
+        "...Then it didn't."
+      ]
     }
   ]
 }

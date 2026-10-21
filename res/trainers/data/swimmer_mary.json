@@ -8,9 +8,9 @@
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_FINNEON",
+            "species": "SPECIES_LUMINEON",
             "form": 0,
-            "level": 33,
+            "level": 35,
             "item": null,
             "moves": null,
             "power": 0,
@@ -19,7 +19,7 @@
         {
             "species": "SPECIES_PELIPPER",
             "form": 0,
-            "level": 33,
+            "level": 35,
             "item": null,
             "moves": null,
             "power": 0,

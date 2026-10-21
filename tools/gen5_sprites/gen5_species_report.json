@@ -55,7 +55,10 @@
    "to": "MOVE_ROCK_POLISH",
    "why": "Speed +2 (Autotomize also lowers weight)",
    "where": [
-    "roggenrola egg"
+    "roggenrola egg",
+    "klink Lv31",
+    "klang Lv31",
+    "klinklang Lv31"
    ]
   },
   "MOVE_SMACK_DOWN": {
@@ -112,6 +115,146 @@
    "where": [
     "leavanny Lv43"
    ]
+  },
+  "MOVE_SYNCHRONOISE": {
+   "to": "MOVE_EXTRASENSORY",
+   "why": "Psychic special (70, only hits foes sharing a type -> 80, flinch)",
+   "where": [
+    "woobat egg",
+    "elgyem Lv53",
+    "beheeyem Lv63"
+   ]
+  },
+  "MOVE_STORED_POWER": {
+   "to": "MOVE_PSYBEAM",
+   "why": "Psychic special (20 + 20 a boost -> 65)",
+   "where": [
+    "woobat egg"
+   ]
+  },
+  "MOVE_HEART_STAMP": {
+   "to": "MOVE_ZEN_HEADBUTT",
+   "why": "Psychic physical with a flinch chance (60/30% -> 80/20%)",
+   "where": [
+    "woobat Lv15",
+    "swoobat Lv15"
+   ]
+  },
+  "MOVE_COTTON_GUARD": {
+   "to": "MOVE_BARRIER",
+   "why": "Defense boost (+3 -> +2)",
+   "where": [
+    "cottonee Lv37"
+   ]
+  },
+  "MOVE_HURRICANE": {
+   "to": "MOVE_AIR_SLASH",
+   "why": "special Flying attack (120/70% acc -> 75/95%)",
+   "where": [
+    "whimsicott Lv46"
+   ]
+  },
+  "MOVE_FOUL_PLAY (level-up)": {
+   "to": "MOVE_NIGHT_SLASH",
+   "why": "Dark physical (95 off the target's Attack -> 70, high critical ratio)",
+   "where": [
+    "sandile Lv37",
+    "krokorok Lv40",
+    "krookodile Lv42"
+   ]
+  },
+  "MOVE_GUARD_SPLIT": {
+   "to": "MOVE_GUARD_SWAP",
+   "why": "Defense/Sp. Def exchange with the target (average -> swap the boosts)",
+   "where": [
+    "yamask Lv33",
+    "cofagrigus Lv33",
+    "elgyem Lv50",
+    "beheeyem Lv56"
+   ]
+  },
+  "MOVE_POWER_SPLIT": {
+   "to": "MOVE_POWER_SWAP",
+   "why": "Attack/Sp. Atk exchange with the target (average -> swap the boosts)",
+   "where": [
+    "yamask Lv33",
+    "cofagrigus Lv33",
+    "elgyem Lv50",
+    "beheeyem Lv58"
+   ]
+  },
+  "MOVE_HEX": {
+   "to": "MOVE_OMINOUS_WIND",
+   "why": "Ghost special (50, 100 on a statused target -> 60, 10% all stats up)",
+   "where": [
+    "yamask Lv17",
+    "cofagrigus Lv17",
+    "frillish Lv43",
+    "jellicent Lv45",
+    "litwick Lv28",
+    "lampent Lv28",
+    "chandelure Lv1"
+   ]
+  },
+  "MOVE_SHIFT_GEAR": {
+   "to": "MOVE_DRAGON_DANCE",
+   "why": "raises Attack and Speed (+1 Atk/+2 Spe -> +1/+1)",
+   "where": [
+    "klink Lv48",
+    "klang Lv52",
+    "klinklang Lv54"
+   ]
+  },
+  "MOVE_GEAR_GRIND": {
+   "to": "MOVE_IRON_HEAD",
+   "why": "Steel physical, about the same damage (2x50 at 85% -> 80 at 100%)",
+   "where": [
+    "klink Lv16",
+    "klang Lv1",
+    "klang Lv16",
+    "klinklang Lv1",
+    "klinklang Lv16"
+   ]
+  },
+  "MOVE_WONDER_ROOM": {
+   "to": "MOVE_TRICK_ROOM",
+   "why": "the five-turn Psychic room, priority -7",
+   "where": [
+    "elgyem Lv56",
+    "beheeyem Lv68"
+   ]
+  },
+  "MOVE_SIMPLE_BEAM": {
+   "to": "MOVE_WORRY_SEED",
+   "why": "replaces the target's ability (as Entrainment)",
+   "where": [
+    "elgyem Lv29",
+    "beheeyem Lv29"
+   ]
+  },
+  "MOVE_FLAME_BURST": {
+   "to": "MOVE_LAVA_PLUME",
+   "why": "Fire special that also hits the others in Doubles (70 -> 80)",
+   "where": [
+    "litwick Lv20",
+    "lampent Lv20",
+    "chandelure Lv1"
+   ]
+  },
+  "MOVE_CLEAR_SMOG": {
+   "to": "MOVE_SMOG",
+   "why": "Poison special gas attack (the stat reset is lost)",
+   "where": [
+    "litwick egg"
+   ]
+  },
+  "MOVE_INFERNO": {
+   "to": "MOVE_FIRE_BLAST",
+   "why": "big inaccurate Fire special that burns (100/50%, always burns -> 120/85%, 10%)",
+   "where": [
+    "litwick Lv38",
+    "lampent Lv38"
+   ]
   }
  },
  "abilities": {
@@ -142,6 +285,55 @@
     "gurdurr",
     "conkeldurr"
    ]
+  },
+  "ABILITY_PRANKSTER": {
+   "to": "ABILITY_CHLOROPHYLL",
+   "why": "lets it act first (status priority -> Speed in sun; its own hidden ability)",
+   "species": [
+    "cottonee",
+    "whimsicott"
+   ]
+  },
+  "ABILITY_INFILTRATOR": {
+   "to": "ABILITY_MOLD_BREAKER",
+   "why": "attacks get past the target's defences (screens/Substitute -> abilities)",
+   "species": [
+    "cottonee",
+    "whimsicott"
+   ]
+  },
+  "ABILITY_MOXIE": {
+   "to": "ABILITY_ANGER_POINT",
+   "why": "Attack boost on a battle event (KO -> critical hit; its own hidden ability)",
+   "species": [
+    "sandile",
+    "krokorok",
+    "krookodile"
+   ]
+  },
+  "ABILITY_MUMMY": {
+   "to": "ABILITY_ROUGH_SKIN",
+   "why": "punishes every contact hit (ability becomes Mummy -> 1/8 HP)",
+   "species": [
+    "yamask",
+    "cofagrigus"
+   ]
+  },
+  "ABILITY_CURSED_BODY": {
+   "to": "ABILITY_CUTE_CHARM",
+   "why": "30% chance the attacker can't use its move (disable -> infatuation)",
+   "species": [
+    "frillish",
+    "jellicent"
+   ]
+  },
+  "ABILITY_TELEPATHY": {
+   "to": "ABILITY_FOREWARN",
+   "why": "psychic sense of the foe (dodges ally moves -> reveals the foe's strongest move)",
+   "species": [
+    "elgyem",
+    "beheeyem"
+   ]
   }
  },
  "dropped_hidden_abilities": {
@@ -157,16 +349,33 @@
   "unfezant": "ABILITY_RIVALRY",
   "drilbur": "ABILITY_MOLD_BREAKER",
   "excadrill": "ABILITY_MOLD_BREAKER",
-  "timburr": "ABILITY_IRON_FIST",
-  "gurdurr": "ABILITY_IRON_FIST",
-  "conkeldurr": "ABILITY_IRON_FIST",
   "sewaddle": "ABILITY_OVERCOAT",
   "swadloon": "ABILITY_OVERCOAT",
-  "leavanny": "ABILITY_OVERCOAT"
+  "leavanny": "ABILITY_OVERCOAT",
+  "woobat": "ABILITY_SIMPLE",
+  "swoobat": "ABILITY_SIMPLE",
+  "frillish": "ABILITY_DAMP",
+  "jellicent": "ABILITY_DAMP",
+  "klink": "ABILITY_CLEAR_BODY",
+  "klang": "ABILITY_CLEAR_BODY",
+  "klinklang": "ABILITY_CLEAR_BODY",
+  "elgyem": "ABILITY_ANALYTIC",
+  "beheeyem": "ABILITY_ANALYTIC",
+  "litwick": "ABILITY_SHADOW_TAG",
+  "lampent": "ABILITY_SHADOW_TAG",
+  "chandelure": "ABILITY_SHADOW_TAG"
  },
  "evolutions": {
   "boldore": "trade -> level 37 (gigalith)",
   "gurdurr": "trade -> level 37 (conkeldurr)"
  },
- "cries": {}
+ "cries": {},
+ "fairy_moves": {
+  "cottonee": [
+   "MOVE_FAIRY_WIND Lv1 (X/Y)"
+  ],
+  "whimsicott": [
+   "MOVE_MOONBLAST Lv50 (X/Y)"
+  ]
+ }
 }

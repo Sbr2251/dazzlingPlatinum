@@ -1,0 +1,67 @@
+{
+  "key": 40211,
+  "messages": [
+    {
+      "id": "DWRavagedPath_Text_CyrusFrightened",
+      "en_US": [
+        "Cyrus: It's frightened. The whole\n",
+        "space is. Can you feel it shake?"
+      ]
+    },
+    {
+      "id": "DWRavagedPath_Text_CyrusFollowTheSeam",
+      "en_US": [
+        "Cyrus: Follow the seam.\r",
+        "...Not that one.\n",
+        "That one is a scar."
+      ]
+    },
+    {
+      "id": "DWRavagedPath_Text_CyrusScarHoldsYouOnce",
+      "en_US": [
+        "Cyrus: A scar holds you once.\n",
+        "Then it remembers it was a wound."
+      ]
+    },
+    {
+      "id": "DWRavagedPath_Text_CyrusAgainSlower",
+      "en_US": [
+        "Cyrus: Again. Slower. It doesn't\n",
+        "punish you for trying."
+      ]
+    },
+    {
+      "id": "DWRavagedPath_Text_CyrusThereTheShard",
+      "en_US": [
+        "Cyrus: There. The shard is in its\n",
+        "chest. It's been fighting that\r",
+        "thing for days."
+      ]
+    },
+    {
+      "id": "DWRavagedPath_Text_CyrusItsCalm",
+      "en_US": [
+        "Cyrus: ...It's calm."
+      ]
+    },
+    {
+      "id": "DWRavagedPath_Text_GotCalmShard",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} got a Calm Shard!"
+      ]
+    },
+    {
+      "id": "DWRavagedPath_Text_CyrusITook",
+      "en_US": [
+        "Cyrus: I took. You were given."
+      ]
+    },
+    {
+      "id": "DWRavagedPath_Text_CyrusComeTheRift",
+      "en_US": [
+        "Cyrus: Come. The rift will close\n",
+        "behind us."
+      ]
+    }
+  ]
+}

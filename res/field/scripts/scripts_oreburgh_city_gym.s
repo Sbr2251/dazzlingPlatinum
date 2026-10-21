@@ -10,6 +10,12 @@
 // blocks from one side. (5,12) blocks from above, (5,14) from below, (5,13) is for looks.
 // Value 0/1 = which gate the pile is on, 2 = cleared. Map-local flags 0x30-0x33 hide the four piles; map-local
 // flags and vars are cleared on every map change, so OreburghGym_Init re-arms the puzzle on entry.
+// fix2 (playtest round 2): the stock wooden bridge on row 17 (x4-7, deck height 32 over the floor) joined the west
+// ledge to the east platform, and from there the east ramp (9,11) is open while chute 1's pile sits on the lower
+// stairs (the start state): Roark with no trainer and no winch. Both bridge ends, (3,17) and (8,17), are now
+// solid in map_data_229 and carry a rubble pile (LOCALID_BRIDGE_RUBBLE_*), so the east platform is reached only
+// up the lower stairs (past Jonathon's sight line) and Roark only up the upper stairs (past Darius's).
+// Proof: /tmp/a2/fix2/oreburgh/harness/softlock2.py (per-plate heights, objects, sight lines, every winch state).
 #define FLAG_GYM_RUBBLE_1C FLAG_UNK_0x0030
 #define FLAG_GYM_RUBBLE_1E FLAG_UNK_0x0031
 #define FLAG_GYM_RUBBLE_2M FLAG_UNK_0x0032

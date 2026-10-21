@@ -1,6 +1,11 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/contest_hall_lobby.h"
 
+// Arc 2 polish-c (critic #9): the Gardevoirite, a Contest Hall prize handed on by the coordinator (Ace Trainer F,
+// 28,9) once Arc 2 reaches Hearthome (VAR_ARC2_PROGRESS >= 90).
+//   Flag: FLAG_UNK_0x053F = FLAG_ARC2_GOT_GARDEVOIRITE (a Route 206 Mega Stone test-ball flag freed by 9a33d828c6)
+#define FLAG_ARC2_GOT_GARDEVOIRITE FLAG_UNK_0x053F
+
 
     ScriptEntry _002E
     ScriptEntry _01EC
@@ -255,6 +260,8 @@ _0328:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
     FacePlayer
+    GoToIfGe VAR_ARC2_PROGRESS, 90, ContestHallLobby_Arc2TryGardevoirite
+ContestHallLobby_Arc2CoordinatorStock:
     Message 21
     WaitABXPadPress
     CloseMessage
@@ -518,3 +525,23 @@ _0660:
     FaceSouth 4
     FaceWest 4
     EndMovement
+
+ContestHallLobby_Arc2TryGardevoirite:
+    GoToIfSet FLAG_ARC2_GOT_GARDEVOIRITE, ContestHallLobby_Arc2CoordinatorStock
+    Message ContestHallLobby_Text_Arc2Gardevoirite
+    SetVar VAR_0x8004, ITEM_GARDEVOIRITE
+    SetVar VAR_0x8005, 1
+    GoToIfCannotFitItem VAR_0x8004, VAR_0x8005, VAR_RESULT, ContestHallLobby_Arc2GardevoiriteFull
+    GiveItemQuantity
+    SetFlag FLAG_ARC2_GOT_GARDEVOIRITE
+    Message ContestHallLobby_Text_Arc2GardevoiriteBond
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+ContestHallLobby_Arc2GardevoiriteFull:
+    MessageBagIsFull
+    CloseMessage
+    ReleaseAll
+    End

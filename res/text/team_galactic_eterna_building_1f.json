@@ -2,79 +2,83 @@
   "key": 5147,
   "messages": [
     {
-      "id": "pl_msg_00000092_00000",
+      "id": "Haven1F_Text_ReceptionistNoVisitors",
       "en_US": [
-        "Looker: Hello! It is me! Me!\n",
-        "Hahaha! I have startled you, yes?\r",
-        "I am, after all, an officer of the\n",
-        "International Police.\r",
-        "It is only natural that I be a master of\n",
-        "disguise.\r"
+        "Haven Receptionist: No visitors\n",
+        "today, I'm afraid.\r",
+        "The Pokémon are resting."
       ]
     },
     {
-      "id": "pl_msg_00000092_00001",
+      "id": "Haven1F_Text_GardeniaAlwaysResting",
+      "en_US": "Gardenia: They're always resting."
+    },
+    {
+      "id": "Haven1F_Text_JanitorCrates",
       "en_US": [
-        "...Incidentally, you are a first-rate\n",
-        "Trainer. Of that, I am very aware.\r",
-        "I therefore think you will be OK, but\n",
-        "I must warn you to be careful anyway.\r",
-        "Also, a word of advice.\r",
-        "This building, it has two stairs.\n",
-        "One of them, a trap it must be.\r",
-        "But the crooks of Team Galactic, they\n",
-        "do not appear, how shall I say, smart.\r",
-        "There should be an easy way to tell\n",
-        "the stairs apart!\r"
+        "Janitor: Psst. You. The child from\n",
+        "the crates in Jubilife.\r",
+        "I said I would remember you.\r",
+        "Do not look at me. Look at the\n",
+        "floor."
       ]
     },
     {
-      "id": "pl_msg_00000092_00002",
+      "id": "Haven1F_Text_JanitorPokedex",
       "en_US": [
-        "Looker: Now, I have been conducting\n",
-        "my investigation into Team Galactic.\r",
-        "But I have no clue as to who they are\n",
-        "or what it is they wish to do.\r",
-        "The minions, they appear ignorant of\n",
-        "the intentions of their boss.\r",
-        "Also, a word of advice.\r",
-        "This building, it has two stairs.\n",
-        "One of them, a trap it must be.\r",
-        "But the crooks of Team Galactic, they\n",
-        "do not appear, how shall I say, smart.\r",
-        "There should be an easy way to tell\n",
-        "the stairs apart!"
+        "Janitor: Psst. You. With the\n",
+        "Pokédex.\r",
+        "Do not look at me. Look at the\n",
+        "floor. It is very clean."
       ]
     },
     {
-      "id": "pl_msg_00000092_00003",
+      "id": "Haven1F_Text_JanitorIAmLooker",
       "en_US": [
-        "Welcome to Team Galactic. Are you\n",
-        "here to donate your Pokémon?\r",
-        "What? You’re not?\n",
-        "Then kindly get off our property!\r",
-        "Do we have to bring the pain like we\n",
-        "did with the Cycle Shop manager?"
+        "Janitor: I am Looker. International\n",
+        "Police. ...You did not hear that."
       ]
     },
     {
-      "id": "pl_msg_00000092_00004",
+      "id": "Haven1F_Text_LookerServiceDoor",
       "en_US": [
-        "As a group, Team Galactic has its sights\n",
-        "set on the stars, not on this world!"
+        "Looker: There is a service door at\n",
+        "the back. In five minutes, it will\r",
+        "be unlocked. I will be... mopping\n",
+        "elsewhere."
       ]
     },
     {
-      "id": "pl_msg_00000092_00005",
-      "en_US": "The path you chose leads to glory."
+      "id": "Haven1F_Text_ReceptionistAfter",
+      "en_US": [
+        "Haven Receptionist: No visitors\n",
+        "today, I'm afraid."
+      ]
     },
     {
-      "id": "pl_msg_00000092_00006",
-      "en_US": "{STRVAR_1 3, 0, 0} used the {STRVAR_1 8, 1, 0}!\r"
+      "id": "Haven1F_Text_EmptyLobby",
+      "en_US": [
+        "The lobby is empty. Somebody left\n",
+        "the lights on."
+      ]
     },
     {
-      "id": "pl_msg_00000092_00007",
-      "en_US": "It’s the entrance to a secret room!"
+      "id": "Haven1F_Text_Sign",
+      "en_US": [
+        "A HOME FOR THE ONES LEFT BEHIND\n",
+        "Eclipse Haven"
+      ]
+    },
+    {
+      "id": "Haven1F_Text_UsedSecretKey",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} used the\n",
+        "{STRVAR_1 8, 1, 0}!"
+      ]
+    },
+    {
+      "id": "Haven1F_Text_SecretRoom",
+      "en_US": "It's the entrance to a secret room!"
     }
   ]
 }

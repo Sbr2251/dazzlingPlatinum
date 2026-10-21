@@ -12,7 +12,7 @@
         {
             "species": "SPECIES_AIPOM",
             "form": 0,
-            "level": 32,
+            "level": 29,
             "item": null,
             "moves": [
                 "MOVE_SWIFT",
@@ -26,10 +26,10 @@
         {
             "species": "SPECIES_GIRAFARIG",
             "form": 0,
-            "level": 32,
+            "level": 29,
             "item": null,
             "moves": [
-                "MOVE_DOUBLE_HIT",
+                "MOVE_BATON_PASS",
                 "MOVE_PSYBEAM",
                 "MOVE_ASSURANCE",
                 "MOVE_LIGHT_SCREEN"
@@ -40,7 +40,7 @@
         {
             "species": "SPECIES_GROTLE",
             "form": 0,
-            "level": 33,
+            "level": 29,
             "item": null,
             "moves": [
                 "MOVE_MEGA_DRAIN",

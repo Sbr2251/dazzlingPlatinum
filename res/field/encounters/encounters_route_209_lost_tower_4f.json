@@ -2,51 +2,51 @@
     "land_rate": 10,
     "land_encounters": [
         {
-            "level": 19,
+            "level": 34,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 18,
+            "level": 33,
             "species": "SPECIES_ZUBAT"
         },
         {
-            "level": 20,
+            "level": 35,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 18,
-            "species": "SPECIES_GASTLY"
+            "level": 33,
+            "species": "SPECIES_LITWICK"
         },
         {
-            "level": 19,
+            "level": 34,
             "species": "SPECIES_ZUBAT"
         },
         {
-            "level": 18,
-            "species": "SPECIES_GASTLY"
+            "level": 33,
+            "species": "SPECIES_SHUPPET"
         },
         {
-            "level": 20,
+            "level": 35,
             "species": "SPECIES_ZUBAT"
         },
         {
-            "level": 21,
-            "species": "SPECIES_GASTLY"
+            "level": 36,
+            "species": "SPECIES_LITWICK"
         },
         {
-            "level": 21,
-            "species": "SPECIES_GASTLY"
+            "level": 36,
+            "species": "SPECIES_DUSKULL"
         },
         {
-            "level": 21,
+            "level": 36,
             "species": "SPECIES_GOLBAT"
         },
         {
-            "level": 21,
+            "level": 36,
             "species": "SPECIES_GASTLY"
         },
         {
-            "level": 21,
+            "level": 36,
             "species": "SPECIES_GOLBAT"
         }
     ],
@@ -56,11 +56,11 @@
     ],
     "day": [
         "SPECIES_GASTLY",
-        "SPECIES_GASTLY"
+        "SPECIES_LITWICK"
     ],
     "night": [
         "SPECIES_DUSKULL",
-        "SPECIES_DUSKULL"
+        "SPECIES_LITWICK"
     ],
     "radar": [
         "SPECIES_ZUBAT",

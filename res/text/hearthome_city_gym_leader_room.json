@@ -40,8 +40,8 @@
     {
       "id": "HearthomeGym_Text_FantinaExplainRelicBadge",
       "en_US": [
-        "That Badge will let you use the\n",
-        "hidden move Defog outside of battle.\r",
+        "That Badge lets a calmed totem\n",
+        "clear the fog for your Resonator.\r",
         "Also, you can make use of this\n",
         "Technical Machine.\r",
         "That is what I think.\r"
@@ -79,6 +79,16 @@
     {
       "id": "pl_msg_00000109_00008",
       "garbage": 15
+    },
+    {
+      "id": "HearthomeGym_Text_FantinaLostTower",
+      "en_US": [
+        "Fantina: Ze Lost Tower, on Route\n",
+        "209... it is a place for ze dead\r",
+        "to rest. But now it cries.\r",
+        "Even ze ghosts are afraid.\r",
+        "Please, mon ami. Go and listen."
+      ]
     }
   ]
 }

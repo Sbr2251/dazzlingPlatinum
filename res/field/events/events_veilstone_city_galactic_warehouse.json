@@ -1,5 +1,22 @@
 {
-    "bg_events": [],
+    "bg_events": [
+        {
+            "script": 10,
+            "type": 0,
+            "x": 12,
+            "z": 7,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": 10,
+            "type": 0,
+            "x": 13,
+            "z": 7,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        }
+    ],
     "object_events": [
         {
             "id": "VEILSTONE_CITY_GALACTIC_WAREHOUSE_POKEBALL_0",
@@ -17,63 +34,108 @@
             "y": 0
         },
         {
-            "id": "VEILSTONE_CITY_GALACTIC_WAREHOUSE_POKEBALL_1",
-            "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
+            "id": "LOCALID_DEPOT_LOOKER",
+            "graphics_id": "OBJ_EVENT_GFX_LOOKER_NEWSPAPER",
             "movement_type": "MOVEMENT_TYPE_NONE",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x04E2",
-            "script": 7236,
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 3,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 9,
+            "z": 11,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_DEPOT_SENTRY_07",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_M",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0031",
+            "script": 4,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 14,
+            "z": 10,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_DEPOT_SENTRY_08",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_F",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0031",
+            "script": 4,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 4,
+            "z": 8,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_DEPOT_GUARD_05",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_M",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0032",
+            "script": 8,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 12,
+            "z": 9,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_DEPOT_GUARD_06",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_M",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0032",
+            "script": 8,
             "initial_dir": 0,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
             "x": 13,
-            "z": 8,
+            "z": 9,
             "y": 0
         },
         {
-            "id": "VEILSTONE_CITY_GALACTIC_WAREHOUSE_GALACTIC_HQ_DOOR_2",
-            "graphics_id": "OBJ_EVENT_GFX_GALACTIC_HQ_DOOR",
+            "id": "LOCALID_DEPOT_MANIFEST",
+            "graphics_id": "OBJ_EVENT_GFX_BOOK",
             "movement_type": "MOVEMENT_TYPE_NONE",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x0228",
-            "script": 1,
+            "hidden_flag": "FLAG_UNK_0x0033",
+            "script": 7,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 7,
+            "z": 3,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_DEPOT_INDRA",
+            "graphics_id": "OBJ_EVENT_GFX_INDRA",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0034",
+            "script": 0,
             "initial_dir": 0,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
             "x": 8,
-            "z": 7,
-            "y": 0
-        },
-        {
-            "id": "VEILSTONE_CITY_GALACTIC_WAREHOUSE_GALACTIC_HQ_DOOR_3",
-            "graphics_id": "OBJ_EVENT_GFX_GALACTIC_HQ_DOOR",
-            "movement_type": "MOVEMENT_TYPE_NONE",
-            "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x0228",
-            "script": 1,
-            "initial_dir": 0,
-            "data": [],
-            "movement_range_x": 0,
-            "movement_range_z": 0,
-            "x": 9,
-            "z": 7,
-            "y": 0
-        },
-        {
-            "id": "VEILSTONE_CITY_GALACTIC_WAREHOUSE_LOOKER_4",
-            "graphics_id": "OBJ_EVENT_GFX_LOOKER",
-            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
-            "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x020D",
-            "script": 3,
-            "initial_dir": 1,
-            "data": [],
-            "movement_range_x": 0,
-            "movement_range_z": 0,
-            "x": 12,
-            "z": 8,
+            "z": 11,
             "y": 0
         }
     ],
@@ -87,20 +149,50 @@
         {
             "x": 13,
             "z": 3,
-            "dest_header_id": "MAP_HEADER_GALACTIC_HQ_B2F",
-            "dest_warp_id": 2
+            "dest_header_id": "MAP_HEADER_VEILSTONE_CITY",
+            "dest_warp_id": 4
         }
     ],
     "coord_events": [
         {
             "script": 5,
+            "x": 1,
+            "z": 5,
+            "y": 0,
+            "width": 15,
+            "length": 7,
+            "var": "VAR_MAP_LOCAL_5",
+            "value": 1
+        },
+        {
+            "script": 6,
             "x": 8,
-            "z": 8,
+            "z": 4,
             "y": 0,
             "width": 2,
             "length": 1,
-            "var": "VAR_UNK_0x411F",
-            "value": 3
+            "var": "VAR_MAP_LOCAL_5",
+            "value": 1
+        },
+        {
+            "script": 9,
+            "x": 8,
+            "z": 6,
+            "y": 0,
+            "width": 2,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_C",
+            "value": 1
+        },
+        {
+            "script": 8,
+            "x": 12,
+            "z": 10,
+            "y": 0,
+            "width": 2,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_9",
+            "value": 1
         }
     ]
 }

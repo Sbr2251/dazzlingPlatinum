@@ -10,16 +10,16 @@
         {
             "species": "SPECIES_PONYTA",
             "form": 0,
-            "level": 20,
+            "level": 26,
             "item": null,
             "moves": null,
             "power": 0,
             "ball_seal": 0
         },
         {
-            "species": "SPECIES_SHINX",
+            "species": "SPECIES_LUXIO",
             "form": 0,
-            "level": 18,
+            "level": 25,
             "item": null,
             "moves": null,
             "power": 0,

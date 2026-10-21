@@ -20,6 +20,7 @@
 #include "savedata.h"
 #include "trainer_info.h"
 
+#include "res/pokemon/pokedex_sizes.h"
 #include "res/text/bank/pokedex_ratings.h"
 
 typedef struct {
@@ -96,53 +97,59 @@ u16 Item_IsTMHM(u16 item)
     return FALSE;
 }
 
+// Rowan's tiers were written for vanilla's 210-species Sinnoh dex. Scale them to the
+// hack's Sinnoh dex so the last tier ends one short of SINNOH_DEX_COUNT and "complete"
+// means every Sinnoh species seen (the same goal as Pokedex_LocalDexCompleted).
+#define VANILLA_SINNOH_DEX_COUNT    210
+#define LOCAL_DEX_RATING_TIER(seen) ((seen) * SINNOH_DEX_COUNT / VANILLA_SINNOH_DEX_COUNT)
+
 u16 Pokedex_GetRatingMessageID_Local(u16 pokemonSeen, u16 reachedEternaCity)
 {
-    if (pokemonSeen <= 15) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(15)) {
         return PokedexRatings_Text_RowanPokemonSeenUpTo15;
     }
 
-    if (pokemonSeen <= 30) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(30)) {
         return PokedexRatings_Text_RowanPokemonSeenOver15;
     }
 
-    if (pokemonSeen <= 45) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(45)) {
         return PokedexRatings_Text_RowanPokemonSeenOver30;
     }
 
-    if (pokemonSeen <= 60) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(60)) {
         return PokedexRatings_Text_RowanPokemonSeenOver45;
     }
 
-    if (pokemonSeen <= 80) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(80)) {
         return PokedexRatings_Text_RowanPokemonSeenOver60;
     }
 
-    if (pokemonSeen <= 100) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(100)) {
         return PokedexRatings_Text_RowanPokemonSeenOver80;
     }
 
-    if (pokemonSeen <= 120) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(120)) {
         return PokedexRatings_Text_RowanPokemonSeenOver100;
     }
 
-    if (pokemonSeen <= 140) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(140)) {
         return PokedexRatings_Text_RowanPokemonSeenOver120;
     }
 
-    if (pokemonSeen <= 160) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(160)) {
         return PokedexRatings_Text_RowanPokemonSeenOver140;
     }
 
-    if (pokemonSeen <= 180) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(180)) {
         return PokedexRatings_Text_RowanPokemonSeenOver160;
     }
 
-    if (pokemonSeen <= 200) {
+    if (pokemonSeen <= LOCAL_DEX_RATING_TIER(200)) {
         return PokedexRatings_Text_RowanPokemonSeenOver180;
     }
 
-    if (pokemonSeen <= 209) {
+    if (pokemonSeen < SINNOH_DEX_COUNT) {
         return PokedexRatings_Text_RowanPokemonSeenOver200;
     }
 

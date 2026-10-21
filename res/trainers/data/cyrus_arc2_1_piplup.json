@@ -1,0 +1,37 @@
+{
+    "name": "Cyrus",
+    "class": "TRAINER_CLASS_GALACTIC_BOSS",
+    "items": [],
+    "ai_flags": [
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK",
+        "AI_FLAG_EXPERT"
+    ],
+    "double_battle": false,
+    "party": [
+        {
+            "species": "SPECIES_CHIMCHAR",
+            "form": 0,
+            "level": 17,
+            "item": "ITEM_ORAN_BERRY",
+            "moves": [
+                "MOVE_FLAME_WHEEL",
+                "MOVE_FURY_SWIPES",
+                "MOVE_TAUNT",
+                "MOVE_LEER"
+            ],
+            "power": 120,
+            "ball_seal": 0,
+            "ability": "ABILITY_BLAZE"
+        }
+    ],
+    "messages": [
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": [
+                "Hm. Well fought.\n",
+                "Both of you.\n"
+            ]
+        }
+    ]
+}

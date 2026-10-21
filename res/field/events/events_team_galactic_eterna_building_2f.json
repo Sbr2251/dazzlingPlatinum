@@ -7,71 +7,97 @@
             "z": 2,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": 4,
+            "type": 0,
+            "x": 9,
+            "z": 13,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_SOUTH"
+        },
+        {
+            "script": 5,
+            "type": 0,
+            "x": 11,
+            "z": 13,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_SOUTH"
+        },
+        {
+            "script": 6,
+            "type": 0,
+            "x": 13,
+            "z": 13,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_SOUTH"
+        },
+        {
+            "script": 7,
+            "type": 0,
+            "x": 19,
+            "z": 13,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_SOUTH"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 7,
+            "z": 13,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_SOUTH"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 16,
+            "z": 13,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_SOUTH"
+        },
+        {
+            "script": 8,
+            "type": 0,
+            "x": 21,
+            "z": 13,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_SOUTH"
         }
     ],
     "object_events": [
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_2F_GRUNT_M_0",
-            "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
-            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "id": "HAVEN_2F_GARDENIA",
+            "graphics_id": "OBJ_EVENT_GFX_GARDENIA",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01FD",
+            "hidden_flag": "FLAG_UNK_0x0030",
             "script": 1,
-            "initial_dir": 0,
+            "initial_dir": 1,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 7,
-            "z": 6,
+            "x": 14,
+            "z": 11,
             "y": 0
         },
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_2F_GRUNT_F_1",
-            "graphics_id": "OBJ_EVENT_GFX_GRUNT_F",
-            "movement_type": "MOVEMENT_TYPE_NONE",
+            "id": "HAVEN_2F_RUTH",
+            "graphics_id": "OBJ_EVENT_GFX_COUNTERPART",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01FD",
+            "hidden_flag": "FLAG_UNK_0x0031",
             "script": 2,
-            "initial_dir": 2,
+            "initial_dir": 1,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 19,
-            "z": 8,
+            "x": 16,
+            "z": 11,
             "y": 0
         },
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_2F_GALACTIC_GRUNT_2",
-            "graphics_id": "OBJ_EVENT_GFX_GRUNT_F",
-            "movement_type": "MOVEMENT_TYPE_NONE",
-            "trainer_type": "TRAINER_TYPE_NORMAL",
-            "hidden_flag": "FLAG_UNK_0x01FD",
-            "script": "TRAINER_GALACTIC_GRUNT_TEAM_GALACTIC_ETERNA_BUILDING_2F_2",
-            "initial_dir": 2,
-            "data": [],
-            "movement_range_x": 0,
-            "movement_range_z": 0,
-            "x": 13,
-            "z": 8,
-            "y": 0
-        },
-        {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_2F_GALACTIC_GRUNT_1",
-            "graphics_id": "OBJ_EVENT_GFX_GRUNT_M",
-            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
-            "trainer_type": "TRAINER_TYPE_NORMAL",
-            "hidden_flag": "FLAG_UNK_0x01FD",
-            "script": "TRAINER_GALACTIC_GRUNT_TEAM_GALACTIC_ETERNA_BUILDING_2F_1",
-            "initial_dir": 0,
-            "data": [],
-            "movement_range_x": 0,
-            "movement_range_z": 0,
-            "x": 3,
-            "z": 6,
-            "y": 0
-        },
-        {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_2F_POKEBALL_4",
+            "id": "HAVEN_2F_POKEBALL",
             "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
             "movement_type": "MOVEMENT_TYPE_NONE",
             "trainer_type": "TRAINER_TYPE_NONE",
@@ -82,6 +108,21 @@
             "movement_range_x": 0,
             "movement_range_z": 0,
             "x": 3,
+            "z": 12,
+            "y": 0
+        },
+        {
+            "id": "HAVEN_2F_QUESTS_DUCHESS",
+            "graphics_id": "OBJ_EVENT_GFX_CLEFAIRY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0032",
+            "script": 11,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 20,
             "z": 12,
             "y": 0
         }
@@ -112,5 +153,16 @@
             "dest_warp_id": 2
         }
     ],
-    "coord_events": []
+    "coord_events": [
+        {
+            "script": 9,
+            "x": 13,
+            "z": 12,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 0
+        }
+    ]
 }

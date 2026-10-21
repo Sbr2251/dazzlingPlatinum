@@ -14,6 +14,7 @@
 #include "bg_window.h"
 #include "character_sprite.h"
 #include "field_message.h"
+#include "field_move_tasks.h"
 #include "fx_util.h"
 #include "gx_layers.h"
 #include "heap.h"
@@ -2143,6 +2144,7 @@ static void CutIn_LoadPokemonSpritePalette(HMCutIn *cutIn, void *paletteSource)
     plttProxy = SpriteTransfer_GetPaletteProxy(plttResource, imageProxy);
     plttLocationInSource = NNS_G2dGetImagePaletteLocation(plttProxy, NNS_G2D_VRAM_TYPE_2DMAIN);
 
+    FieldMoves_ApplyResonatorGhostPalette(cutIn->mon, paletteSource, 16);
     DC_FlushRange((void *)paletteSource, 32);
     GX_LoadOBJPltt(paletteSource, plttLocationInSource, 32);
 }

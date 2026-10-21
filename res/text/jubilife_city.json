@@ -387,28 +387,24 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00041",
+      "id": "JubilifeCity_Text_PoketchPresidentNoCase",
       "en_US": [
-        "The three clowns will each ask you\n",
-        "a skill-testing question.\r",
-        "The questions will all have to do\n",
-        "with Pokémon.\r",
-        "After all, a Pokétch is a tool for\n",
-        "Pokémon Trainers.\r",
-        "Collect a Coupon from each clown,\n",
-        "then come see me, OK?"
+        "I'm the president of the Pok\u00e9tch\n",
+        "Company, and I'm in a real pickle!\r",
+        "A case of our prototypes went\n",
+        "missing during that rally.\r",
+        "No prototypes, no campaign...\n",
+        "and no Pok\u00e9tch for you. Sorry!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00042",
+      "id": "JubilifeCity_Text_PoketchPresidentReturned",
       "en_US": [
-        "OK, let me count your Coupons!\n",
-        "I’ll use the Pokétch here...\r",
-        "One, two, three!\n",
+        "That case... Our prototypes!\n",
+        "You brought them back!\r",
         "Bravo! I say, bravo!\r",
-        "In return for these Coupons,\n",
-        "I present you this Pokémon Watch,\f",
-        "or Pokétch for short!\r"
+        "Please, take this Pok\u00e9mon Watch,\n",
+        "or Pok\u00e9tch for short!\r"
       ]
     },
     {
@@ -425,26 +421,27 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00045",
+      "id": "JubilifeCity_Text_PoketchClown1",
       "en_US": [
-        "Hi! I’m a Pokétch campaign clown!\n",
-        "Let’s roll out my question!\r",
-        "Does a Pokémon grow by defeating\n",
-        "others and gaining Exp. Points?"
+        "Clown: Our prototypes vanished\n",
+        "during the rally! No campaign today.\r",
+        "A man in a trench coat was eyeing\n",
+        "the crowd. He's by the east exit!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00046",
+      "id": "JubilifeCity_Text_PoketchClownCaseInHand",
       "en_US": [
-        "Ding-ding!\n",
-        "You’re absolutely correct!\r"
+        "Clown: You got the case back?!\n",
+        "Quick, show the president!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00047",
+      "id": "JubilifeCity_Text_PoketchClownFallback",
       "en_US": [
-        "Bzzzzt!\n",
-        "That’s the wrong answer..."
+        "Clown: A man in a trench coat left\n",
+        "something with the president.\f",
+        "He was asking about you!"
       ]
     },
     {
@@ -458,29 +455,30 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00049",
+      "id": "JubilifeCity_Text_PoketchPresidentFallback",
       "en_US": [
-        "Here you go!\n",
-        "Your Pokétch Coupon!\r"
+        "Ah, there you are! A man in a\n",
+        "trench coat dropped this off.\r",
+        "Our stolen prototypes! He said\n",
+        "you'd earned it.\r",
+        "Please, take this Pok\u00e9mon Watch,\n",
+        "or Pok\u00e9tch for short!\r"
       ]
     },
     {
-      "id": "pl_msg_00000023_00050",
+      "id": "JubilifeCity_Text_PoketchClown1After",
       "en_US": [
-        "Pokémon grow stronger through\n",
-        "battling.\r",
-        "Some Pokémon even grow into an\n",
-        "entirely different form in a process\f",
-        "known as evolution."
+        "Clown: The prototypes are back, and\n",
+        "you got a Pok\u00e9tch! Honk honk!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00051",
+      "id": "JubilifeCity_Text_PoketchClown2",
       "en_US": [
-        "Hi! I’m a Pokétch campaign clown!\n",
-        "Let’s roll out my question!\r",
-        "Just like Pokémon types, the moves\n",
-        "of Pokémon also have types?"
+        "Clown: Honk... Our prototype case\n",
+        "got swiped in all that rally noise.\r",
+        "That trench-coat fellow at the east\n",
+        "exit saw something. Ask him!"
       ]
     },
     {
@@ -491,72 +489,69 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00053",
+      "id": "JubilifeCity_Text_PoketchPresidentThanksApp",
       "en_US": [
-        "Bzzzzt!\n",
-        "That’s the wrong answer..."
+        "And as thanks for the prototypes,\n",
+        "here's an app we just finished!\r"
       ]
     },
     {
-      "id": "pl_msg_00000023_00054",
+      "id": "JubilifeCity_Text_PoketchPresidentHint",
       "en_US": [
-        "If the Pokémon’s type matches its\n",
-        "move’s type, that move is made much\f",
-        "more powerful!\r"
+        "Our prototypes can read faint\n",
+        "signals...\r",
+        "I'd hate to think what someone\n",
+        "would track with them."
       ]
     },
     {
-      "id": "pl_msg_00000023_00055",
+      "id": "JubilifeCity_Text_Arc1CrateGotCase",
+      "en_US": "{STRVAR_1 3, 0, 0} got the case back!"
+    },
+    {
+      "id": "JubilifeCity_Text_PoketchClown2After",
       "en_US": [
-        "Here you go!\n",
-        "Your Pokétch Coupon!\r"
+        "Clown: Prototypes home safe! Now I\n",
+        "can finally take off this wig."
       ]
     },
     {
-      "id": "pl_msg_00000023_00056",
+      "id": "JubilifeCity_Text_PoketchClown3",
       "en_US": [
-        "If the Pokémon’s type matches its\n",
-        "move’s type, that move is made much\f",
-        "more powerful!"
+        "Clown: No quiz today! Someone took\n",
+        "our prototypes during the rally.\r",
+        "Psst... the trench-coat man at the\n",
+        "east exit saw it all."
       ]
     },
     {
-      "id": "pl_msg_00000023_00057",
+      "id": "JubilifeCity_Text_Arc1CrateArgueYourTurn",
       "en_US": [
-        "Hi! I’m a Pokétch campaign clown!\n",
-        "Let’s roll out my question!\r",
-        "Can a Pokémon hold an item?"
+        "Eclipse Grunt: I dragged it across\n",
+        "the whole city! It's your turn!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00058",
+      "id": "JubilifeCity_Text_Arc1CrateLookerStepsIn",
       "en_US": [
-        "Ding-ding!\n",
-        "You’re absolutely correct!\r"
+        "Man in a Trench Coat: Pardon me.\n",
+        "That case looks heavy. May I help?"
       ]
     },
     {
-      "id": "pl_msg_00000023_00059",
+      "id": "JubilifeCity_Text_Arc1CrateScram",
       "en_US": [
-        "Bzzzzt!\n",
-        "That’s the wrong answer..."
+        "Eclipse Grunt: It's that snoop from\n",
+        "the rally! Scram!"
       ]
     },
     {
-      "id": "pl_msg_00000023_00060",
+      "id": "JubilifeCity_Text_Arc1CratePrototypes",
       "en_US": [
-        "A Pokémon may hold a single item.\r",
-        "Some items become effective as soon\n",
-        "as they are held by a Pokémon.\r",
-        "Berries are eaten by Pokémon as\n",
-        "necessary during battle.\r"
-      ]
-    },
-    {
-      "id": "pl_msg_00000023_00061",
-      "en_US": [
-        "Here you go!\n",
-        "Your Pokétch Coupon!\r"
+        "Man in a Trench Coat: ...Pok\u00e9tch\n",
+        "prototypes. Why would they want\f",
+        "those?\r",
+        "Take it back to the company, kid."
       ]
     },
     {
@@ -569,13 +564,10 @@
       ]
     },
     {
-      "id": "pl_msg_00000023_00063",
+      "id": "JubilifeCity_Text_PoketchClown3After",
       "en_US": [
-        "A Pokémon may hold a single item.\r",
-        "Some items become effective as soon\n",
-        "as they are held by Pokémon.\r",
-        "Berries are eaten by Pokémon as\n",
-        "necessary during battle."
+        "Clown: Try every app on your\n",
+        "Pok\u00e9tch! Even the silly ones!"
       ]
     },
     {
@@ -1030,10 +1022,6 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1ToBeContinued",
-      "en_US": "To be continued..."
-    },
-    {
       "id": "JubilifeCity_Text_Arc1GruntTakeAFlyer",
       "en_US": [
         "Eclipse Grunt: Team Eclipse is here\n",
@@ -1193,8 +1181,8 @@
     {
       "id": "JubilifeCity_Text_Arc1CrateBox",
       "en_US": [
-        "A sturdy wooden crate.\n",
-        "It's sealed tight."
+        "A heavy case, locked tight.\n",
+        "The label reads 'Pok\u00e9tch Co.'"
       ]
     },
     {
@@ -1211,10 +1199,10 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1CrateDidItMove",
+      "id": "JubilifeCity_Text_Arc1CrateBeeping",
       "en_US": [
         "Eclipse Grunt: Same as always.\r",
-        "...Did it just move?"
+        "...Is it beeping?"
       ]
     },
     {
@@ -1225,9 +1213,10 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1CrateDrink",
+      "id": "JubilifeCity_Text_Arc1CrateArgueHaulIt",
       "en_US": [
-        "Eclipse Grunt: I'm getting a drink."
+        "Eclipse Grunt: Then you haul it up\n",
+        "the path. I'm not touching it."
       ]
     },
     {
@@ -1235,13 +1224,9 @@
       "en_US": [
         "Man in a Trench Coat: Ravaged Path.\r",
         "...Yes. That fits.\r",
-        "Pokémon go in. Crates come out.\r",
+        "Pok\u00e9mon go in. Crates come out.\r",
         "And I do not yet know what\n",
-        "happens in between.\r",
-        "You did well, child. Better than\n",
-        "some officers I know.\r",
-        "I will remember you, child.\r",
-        "For your trouble."
+        "happens in between."
       ]
     },
     {
@@ -1252,11 +1237,177 @@
       ]
     },
     {
-      "id": "JubilifeCity_Text_Arc1CrateBagFull",
+      "id": "JubilifeCity_Text_Arc1CrateWellDone",
       "en_US": [
-        "Man in a Trench Coat: Your bag is\n",
-        "full. Hm.\r",
-        "Then my thanks will have to do."
+        "Man in a Trench Coat: You did well,\n",
+        "child. Better than some officers\f",
+        "I know.\r",
+        "I will remember you, child."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2GariusThereHeIs",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: There he is.\n",
+        "Spacesuit guy."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2CyrusRowanSentYou",
+      "en_US": "Cyrus: ...Rowan sent you."
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2GariusLuckyUs",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: He says you're our guide\n",
+        "now. Lucky us."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2CyrusRiftOpened",
+      "en_US": [
+        "Cyrus: The rift opened again.\n",
+        "North of here. I felt it.\r",
+        "Bring Rowan to the Trainers'\n",
+        "School tonight. Everyone.\r",
+        "You should all hear what I am\n",
+        "before I take another step."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2CyrusLongTime",
+      "en_US": [
+        "Cyrus: It has been a long time since\n",
+        "a Pokémon chose to stand with me.\r",
+        "Show me how it's done."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2CyrusItListened",
+      "en_US": [
+        "Cyrus: Hm. It listened to me.\n",
+        "I didn't expect that."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2CyrusMeetYouThere",
+      "en_US": [
+        "Cyrus: Ravaged Path is north, on\n",
+        "Route 204. I'll meet you there."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2RowanRuthWillGo",
+      "en_US": [
+        "Rowan: Ruth will go with you and\n",
+        "watch the readings from outside.\r",
+        "Be careful. All of you."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2TeachingAfterHours",
+      "en_US": [
+        "Odd. Someone was teaching in there\n",
+        "after hours. Nobody I knew."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_Arc2GariusGetProfessor",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: I'll go get Rowan.\n",
+        "See you at the Trainers' School."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManHaven",
+      "en_US": [
+        "I gave my wife's Clefairy to that\n",
+        "Haven in Eterna. Duchess.\r",
+        "They said she'd be with others like\n",
+        "her. Others whose people were gone.\r",
+        "...I thought that was kinder than\n",
+        "an old man's quiet house."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManDuchess",
+      "en_US": [
+        "Old Man: ...Duchess?"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsDuchessCry",
+      "en_US": [
+        "Duchess: Piii! Pi pi!"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManTheyTold",
+      "en_US": [
+        "Old Man: Bring them all back, they\n",
+        "said. Everyone.\r",
+        "I stood in that crowd and I wanted\n",
+        "it so badly I couldn't breathe."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManNeverAsked",
+      "en_US": [
+        "I never once asked her if she'd want\n",
+        "to come back.\r",
+        "...But this one, I can ask."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManComeHome",
+      "en_US": [
+        "Old Man: Duchess. Would you like to\n",
+        "come home with me?"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsDuchessYes",
+      "en_US": [
+        "Duchess: Pii!"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManThankYou",
+      "en_US": [
+        "Old Man: ...Thank you.\n",
+        "Thank you both."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManMoonStone",
+      "en_US": [
+        "Old Man: This sat on her windowsill\n",
+        "for forty years.\r",
+        "Duchess liked the way it shone.\n",
+        "I'd like you to have it.\r"
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManBagFull",
+      "en_US": [
+        "Old Man: Your bag's full? Then I'll\n",
+        "keep it by the window for you."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsOldManBeside",
+      "en_US": [
+        "Old Man: Forty years, she walked\n",
+        "one step ahead of me.\r",
+        "Duchess walks beside me.\n",
+        "That, I can keep up with."
+      ]
+    },
+    {
+      "id": "JubilifeCity_Text_QuestsDuchessStays",
+      "en_US": [
+        "Duchess: Pi! Pippi!\r",
+        "She won't leave the old man's side."
       ]
     }
   ]

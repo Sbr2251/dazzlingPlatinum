@@ -2,26 +2,106 @@
   "key": 5143,
   "messages": [
     {
-      "id": "pl_msg_00000093_00000",
+      "id": "Haven2F_Text_KennelBramble",
       "en_US": [
-        "Team Galactic is working hard to find\n",
-        "new energy sources for the future!"
+        "A name tag: BRAMBLE.\n",
+        "The kennel is empty."
       ]
     },
     {
-      "id": "pl_msg_00000093_00001",
+      "id": "Haven2F_Text_KennelPip",
       "en_US": [
-        "We are conducting research on new\n",
-        "forms of energy!\r",
-        "We want to harness the mysterious\n",
-        "power of Pokémon and use it as energy!"
+        "A name tag: PIP.\n",
+        "The kennel is empty."
       ]
     },
     {
-      "id": "pl_msg_00000093_00002",
+      "id": "Haven2F_Text_KennelClover",
       "en_US": [
-        "Let us make progress together!\n",
-        "             Team Galactic"
+        "A name tag: CLOVER.\n",
+        "The kennel is empty."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_KennelDuchess",
+      "en_US": [
+        "A name tag: DUCHESS.\n",
+        "OWNER: DECEASED. LAKE VALOR.\r",
+        "The kennel is empty."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_GardeniaTheseAreMine",
+      "en_US": [
+        "Gardenia: Bramble... Pip... Clover.\r",
+        "These are mine. Where are they?"
+      ]
+    },
+    {
+      "id": "Haven2F_Text_KennelEmpty",
+      "en_US": [
+        "An empty kennel. The name tag\n",
+        "has been torn off."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_Sign",
+      "en_US": [
+        "Every one of them is loved.\n",
+        "Eclipse Haven"
+      ]
+    },
+    {
+      "id": "Haven2F_Text_RuthTalk",
+      "en_US": [
+        "Ruth: Every kennel's empty. Every\n",
+        "single one."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_GardeniaTalk",
+      "en_US": [
+        "Gardenia: I fed them myself, the day\n",
+        "I brought them here."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_QuestsDuchessCurled",
+      "en_US": [
+        "A Clefairy is curled up in front of\n",
+        "the DUCHESS kennel.\r",
+        "It must have slipped out of a crate\n",
+        "when the Haven was shut."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_QuestsDuchessCry",
+      "en_US": "Duchess: Pi... piii."
+    },
+    {
+      "id": "Haven2F_Text_QuestsDuchessLakeValor",
+      "en_US": [
+        "Lake Valor... The old man walking\n",
+        "Route 202 spoke of Lake Valor.\r",
+        "Their honeymoon was there."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_QuestsTakeDuchess",
+      "en_US": "Take Duchess with you?"
+    },
+    {
+      "id": "Haven2F_Text_QuestsDuchessFollows",
+      "en_US": [
+        "Duchess took hold of your sleeve.\n",
+        "She's coming with you."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_QuestsDuchessStays",
+      "en_US": [
+        "Duchess curled up by the kennel\n",
+        "again."
       ]
     }
   ]

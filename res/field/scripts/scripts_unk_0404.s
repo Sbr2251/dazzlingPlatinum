@@ -330,18 +330,8 @@
     ScriptEntry _1E86
     ScriptEntry _1E9A
     ScriptEntry _1EAE
-    ScriptEntry _mega_garchompite
-    ScriptEntry _mega_lucarionite
-    ScriptEntry _mega_gengarite
-    ScriptEntry _mega_gardevoirite
-    ScriptEntry _mega_alakazite
-    ScriptEntry _mega_gyaradosite
-    ScriptEntry _mega_scizorite
-    ScriptEntry _mega_torterrite
-    ScriptEntry _mega_infernapite
-    ScriptEntry _mega_empoleonite
-    ScriptEntry _mega_staraptite
-    ScriptEntry _key_stone
+    ScriptEntry _Arc2Gengarite
+    ScriptEntry _Arc2Staraptite
     ScriptEntryEnd
 
 _0522:
@@ -2439,74 +2429,21 @@ _20C6:
     PrintPlateObtainedMessage
     Return
 
-_mega_garchompite:
-    SetVar VAR_0x8008, ITEM_GARCHOMPITE
-    SetVar VAR_0x8009, 1
-    GoTo _1EAE
-    End
-
-_mega_lucarionite:
-    SetVar VAR_0x8008, ITEM_LUCARIONITE
-    SetVar VAR_0x8009, 1
-    GoTo _1EAE
-    End
-
-_mega_gengarite:
+// Arc 2 polish-c: Gengarite in the Old Chateau back middle room (script 7328)
+_Arc2Gengarite:
     SetVar VAR_0x8008, ITEM_GENGARITE
     SetVar VAR_0x8009, 1
     GoTo _1EAE
     End
 
-_mega_gardevoirite:
-    SetVar VAR_0x8008, ITEM_GARDEVOIRITE
-    SetVar VAR_0x8009, 1
-    GoTo _1EAE
-    End
-
-_mega_alakazite:
-    SetVar VAR_0x8008, ITEM_ALAKAZITE
-    SetVar VAR_0x8009, 1
-    GoTo _1EAE
-    End
-
-_mega_gyaradosite:
-    SetVar VAR_0x8008, ITEM_GYARADOSITE
-    SetVar VAR_0x8009, 1
-    GoTo _1EAE
-    End
-
-_mega_torterrite:
-    SetVar VAR_0x8008, ITEM_TORTERRITE
-    SetVar VAR_0x8009, 1
-    GoTo _1EAE
-    End
-
-_mega_infernapite:
-    SetVar VAR_0x8008, ITEM_INFERNAPITE
-    SetVar VAR_0x8009, 1
-    GoTo _1EAE
-    End
-
-_mega_empoleonite:
-    SetVar VAR_0x8008, ITEM_EMPOLEONITE
-    SetVar VAR_0x8009, 1
-    GoTo _1EAE
-    End
-
-_mega_scizorite:
-    SetVar VAR_0x8008, ITEM_SCIZORITE
-    SetVar VAR_0x8009, 1
-    GoTo _1EAE
-    End
-
-_mega_staraptite:
+// Arc 2 polish-c: Staraptite in the Meteor Shrine pit, Veilstone City (733,629) (script 7329). The ball's
+// hidden flag is Veilstone's map-local 0x0036 (shown from VAR_ARC2_PROGRESS 57 by VeilstoneCity_Arc2OnTransition);
+// the pickup itself is remembered in FLAG_UNK_0x053C, set only when the stone fits in the bag.
+_Arc2Staraptite:
     SetVar VAR_0x8008, ITEM_STARAPTITE
     SetVar VAR_0x8009, 1
-    GoTo _1EAE
-    End
-
-_key_stone:
-    SetVar VAR_0x8008, ITEM_KEY_STONE
-    SetVar VAR_0x8009, 1
+    CanFitItem VAR_0x8008, VAR_0x8009, VAR_RESULT
+    GoToIfEq VAR_RESULT, 0, _1EAE
+    SetFlag FLAG_UNK_0x053C
     GoTo _1EAE
     End

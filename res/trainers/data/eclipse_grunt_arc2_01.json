@@ -1,0 +1,51 @@
+{
+    "name": "Grunt",
+    "class": "TRAINER_CLASS_ECLIPSE_GRUNT_M",
+    "items": [],
+    "ai_flags": [
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK"
+    ],
+    "double_battle": false,
+    "party": [
+        {
+            "species": "SPECIES_POOCHYENA",
+            "form": 0,
+            "level": 15,
+            "item": null,
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_HOWL",
+                "MOVE_SAND_ATTACK",
+                "MOVE_TACKLE"
+            ],
+            "power": 30,
+            "ball_seal": 0,
+            "ability": "ABILITY_QUICK_FEET"
+        },
+        {
+            "species": "SPECIES_ZUBAT",
+            "form": 0,
+            "level": 16,
+            "item": null,
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_ASTONISH",
+                "MOVE_SUPERSONIC",
+                "MOVE_LEECH_LIFE"
+            ],
+            "power": 30,
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
+        }
+    ],
+    "messages": [
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": [
+                "Tch. Lucky.\n",
+                "The boss will hear about this.\n"
+            ]
+        }
+    ]
+}

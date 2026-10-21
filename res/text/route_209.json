@@ -167,6 +167,56 @@
         "Simply press the Y Button to use the\n",
         "registered item instantly."
       ]
+    },
+    {
+      "id": "Route209_Text_RowanDoubted",
+      "en_US": [
+        "Rowan: Cyrus. I doubted you.\n",
+        "I'm sorry."
+      ]
+    },
+    {
+      "id": "Route209_Text_CyrusRightTo",
+      "en_US": [
+        "Cyrus: You were right to. I would\n",
+        "have doubted me too."
+      ]
+    },
+    {
+      "id": "Route209_Text_LookerNeverHere",
+      "en_US": [
+        "Looker: Do not be alarmed. I was\n",
+        "never here."
+      ]
+    },
+    {
+      "id": "Route209_Text_LookerCrates",
+      "en_US": [
+        "Looker: Someone has been opening\n",
+        "Eclipse's crates on Route 215.\r",
+        "Every Pokémon, released."
+      ]
+    },
+    {
+      "id": "Route209_Text_LookerKnowWho",
+      "en_US": [
+        "Looker: ...I suspect I now know\n",
+        "who."
+      ]
+    },
+    {
+      "id": "Route209_Text_CyrusToldYou",
+      "en_US": [
+        "Cyrus: I told you that you would not\n",
+        "believe me."
+      ]
+    },
+    {
+      "id": "Route209_Text_GariusGuess",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: ...Huh.\r",
+        "Guess it wasn't him."
+      ]
     }
   ]
 }

@@ -1,0 +1,268 @@
+{
+    "base_stats": {
+        "hp": 60,
+        "attack": 82,
+        "defense": 45,
+        "speed": 74,
+        "special_attack": 45,
+        "special_defense": 45
+    },
+    "types": [
+        "TYPE_GROUND",
+        "TYPE_DARK"
+    ],
+    "catch_rate": 90,
+    "base_exp_reward": 123,
+    "ev_yields": {
+        "hp": 0,
+        "attack": 2,
+        "defense": 0,
+        "speed": 0,
+        "special_attack": 0,
+        "special_defense": 0
+    },
+    "held_items": {
+        "common": "ITEM_NONE",
+        "rare": "ITEM_NONE"
+    },
+    "gender_ratio": "GENDER_RATIO_FEMALE_50",
+    "hatch_cycles": 20,
+    "base_friendship": 70,
+    "exp_rate": "EXP_RATE_MEDIUM_SLOW",
+    "egg_groups": [
+        "EGG_GROUP_FIELD",
+        "EGG_GROUP_FIELD"
+    ],
+    "abilities": [
+        "ABILITY_INTIMIDATE",
+        "ABILITY_ANGER_POINT"
+    ],
+    "safari_flee_rate": 0,
+    "body_color": "MON_COLOR_BROWN",
+    "flip_sprite": false,
+    "icon_palette": 1,
+    "learnset": {
+        "by_level": [
+            [
+                1,
+                "MOVE_SAND_ATTACK"
+            ],
+            [
+                1,
+                "MOVE_LEER"
+            ],
+            [
+                1,
+                "MOVE_BITE"
+            ],
+            [
+                1,
+                "MOVE_RAGE"
+            ],
+            [
+                4,
+                "MOVE_BITE"
+            ],
+            [
+                7,
+                "MOVE_SAND_ATTACK"
+            ],
+            [
+                10,
+                "MOVE_TORMENT"
+            ],
+            [
+                13,
+                "MOVE_SAND_TOMB"
+            ],
+            [
+                16,
+                "MOVE_ASSURANCE"
+            ],
+            [
+                19,
+                "MOVE_MUD_SLAP"
+            ],
+            [
+                22,
+                "MOVE_EMBARGO"
+            ],
+            [
+                25,
+                "MOVE_SWAGGER"
+            ],
+            [
+                28,
+                "MOVE_CRUNCH"
+            ],
+            [
+                32,
+                "MOVE_DIG"
+            ],
+            [
+                36,
+                "MOVE_SCARY_FACE"
+            ],
+            [
+                40,
+                "MOVE_NIGHT_SLASH"
+            ],
+            [
+                44,
+                "MOVE_SANDSTORM"
+            ],
+            [
+                48,
+                "MOVE_EARTHQUAKE"
+            ],
+            [
+                52,
+                "MOVE_THRASH"
+            ]
+        ],
+        "by_tm": [
+            "TM01",
+            "TM02",
+            "TM05",
+            "TM06",
+            "TM10",
+            "TM12",
+            "TM17",
+            "TM21",
+            "TM23",
+            "TM26",
+            "TM27",
+            "TM28",
+            "TM31",
+            "TM32",
+            "TM36",
+            "TM37",
+            "TM39",
+            "TM40",
+            "TM41",
+            "TM42",
+            "TM43",
+            "TM44",
+            "TM45",
+            "TM46",
+            "TM49",
+            "TM56",
+            "TM58",
+            "TM63",
+            "TM65",
+            "TM66",
+            "TM71",
+            "TM76",
+            "TM78",
+            "TM79",
+            "TM80",
+            "TM82",
+            "TM83",
+            "TM86",
+            "TM87",
+            "TM90",
+            "HM01",
+            "HM04",
+            "HM06"
+        ],
+        "by_tutor": [
+            "MOVE_MUD_SLAP",
+            "MOVE_AQUA_TAIL",
+            "MOVE_SNORE",
+            "MOVE_SPITE",
+            "MOVE_HELPING_HAND",
+            "MOVE_ENDEAVOR",
+            "MOVE_EARTH_POWER",
+            "MOVE_KNOCK_OFF",
+            "MOVE_UPROAR"
+        ],
+        "egg_moves": []
+    },
+    "evolutions": [
+        [
+            "EVO_LEVEL",
+            40,
+            "SPECIES_KROOKODILE"
+        ]
+    ],
+    "offspring": "SPECIES_SANDILE",
+    "footprint": {
+        "has": true,
+        "size": "FOOTPRINT_MEDIUM",
+        "type": "FOOTPRINT_TYPE_TOUGH"
+    },
+    "pokedex_data": {
+        "height": 10,
+        "weight": 334,
+        "body_shape": "SHAPE_QUADRUPED",
+        "trainer_scale_f": 272,
+        "pokemon_scale_f": 276,
+        "trainer_scale_m": 256,
+        "pokemon_scale_m": 276,
+        "trainer_pos_f": 8,
+        "pokemon_pos_f": 15,
+        "trainer_pos_m": 9,
+        "pokemon_pos_m": 15,
+        "en": {
+            "name": "KROKOROK",
+            "category": "Desert Croc Pokémon",
+            "entry_text": [
+                "They live in groups of a few\n",
+                "individuals. Protective membranes\n",
+                "shield their eyes from sandstorms."
+            ]
+        },
+        "fr": {
+            "name": "ESCROCO",
+            "category": "Pokémon Croco Sable",
+            "entry_text": [
+                "Ils vivent en petits groupes. La\n",
+                "membrane qui couvre leurs yeux les\n",
+                "protège du soleil."
+            ]
+        },
+        "de": {
+            "name": "ROKKAIMAN",
+            "category": "Wüstenkroko-Pokémon",
+            "entry_text": [
+                "Bildet mit mehreren Artgenossen ein\n",
+                "Rudel. Eine Membran schützt seine\n",
+                "Augen vor Sandstürmen."
+            ]
+        },
+        "it": {
+            "name": "KROKOROK",
+            "category": "Pokémon Sabbiadrillo",
+            "entry_text": [
+                "Forma gruppi di pochi esemplari. La\n",
+                "pellicola che ricopre i suoi occhi lo\n",
+                "protegge dalle tempeste di sabbia."
+            ]
+        },
+        "es": {
+            "name": "KROKOROK",
+            "category": "Pokémon Desierdrilo",
+            "entry_text": [
+                "Viven en manadas. La membrana que\n",
+                "cubre sus ojos los protege de la\n",
+                "arena."
+            ]
+        },
+        "jp": {
+            "name": "ワルビル",
+            "category": "さばくワニポケモン",
+            "entry_text": [
+                "すうひきで　むれを　つくる。\n",
+                "がんきゅうを　カバ－する　まくが\n",
+                "すなあらしから　めを　まもる。"
+            ]
+        }
+    },
+    "catching_show": {
+        "pal_park_land_area": "PAL_PARK_AREA_LAND_NONE",
+        "pal_park_water_area": "PAL_PARK_AREA_WATER_NORTH_EAST",
+        "catching_points": 80,
+        "rarity": 10,
+        "unused": 771
+    }
+}

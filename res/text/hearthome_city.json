@@ -548,6 +548,46 @@
         "The Poffin House\n",
         "Delicious Poffins--Smiles for All"
       ]
+    },
+    {
+      "id": "HearthomeCity_Text_GymAway",
+      "en_US": [
+        "The Gym Leader is away.\r",
+        "She keeps a vigil at the Lost Tower\n",
+        "every night."
+      ]
+    },
+    {
+      "id": "HearthomeCity_Text_GariusWalkedOff",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: So he walked off into a\n",
+        "rift. Alone.\r",
+        "And you're still worried about HIM?"
+      ]
+    },
+    {
+      "id": "HearthomeCity_Text_GariusRowanAsked",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Even Rowan asked if\n",
+        "the dead can come back.\r",
+        "I was there. I heard him."
+      ]
+    },
+    {
+      "id": "HearthomeCity_Text_GariusStupidStone",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: Ruth gave me this stupid\n",
+        "stone. It won't do a thing for me.\r",
+        "...Whatever. Battle me."
+      ]
+    },
+    {
+      "id": "HearthomeCity_Text_GariusForgetIt",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: You're picking him.\n",
+        "Fine.\r",
+        "I'd have picked you."
+      ]
     }
   ]
 }

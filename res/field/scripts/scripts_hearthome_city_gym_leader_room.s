@@ -79,9 +79,12 @@ HearthomeGym_FantinaMain:
     SetTrainerFlag TRAINER_SCHOOL_KID_MACKENZIE
     SetTrainerFlag TRAINER_YOUNGSTER_DONNY
     CreateJournalEvent LOCATION_EVENT_BEAT_GYM_LEADER, 91, TRAINER_LEADER_FANTINA, 0, 0
-    SetVar VAR_HEARTHOME_STATE, 1
+    // Dazzling Platinum Arc 2 (s-hearthome): the stock Barry battle in the Route 209 gate is not armed
+    // (VAR_HEARTHOME_STATE stays 0; Garius battle 2 is in the city), and the roadblock is lifted by the city's
+    // OnTransition. Progress 89 (Cyrus gone to the Lost Tower) jumps to 91 here; a win before 89 keeps the badge
+    // and the city sets 91 later (screenplay decision 17).
     SetFlag FLAG_HIDE_HEARTHOME_ROUTE_209_ROADBLOCK
-    ClearFlag FLAG_HIDE_HEARTHOME_ROUTE_209_GATE_RIVAL
+    CallIfEq VAR_ARC2_PROGRESS, 89, HearthomeGym_SetRelicProgress
     Message HearthomeGym_Text_FantinaExplainRelicBadge
     GoTo HearthomeGym_FantinaTryGiveTM65
 
@@ -95,9 +98,15 @@ HearthomeGym_FantinaTryGiveTM65:
     BufferTMHMMoveName 1, VAR_0x8004
     Message HearthomeGym_FantinaExplainTM65
     WaitABXPadPress
+    Message HearthomeGym_Text_FantinaLostTower
+    WaitABXPadPress
     CloseMessage
     ReleaseAll
     End
+
+HearthomeGym_SetRelicProgress:
+    SetVar VAR_ARC2_PROGRESS, 91
+    Return
 
 HearthomeGym_FantinaCannotGiveTM65:
     MessageBagIsFull
@@ -107,7 +116,7 @@ HearthomeGym_FantinaCannotGiveTM65:
 
 HearthomeGym_FantinaAfterBadge:
     GoToIfUnset FLAG_OBTAINED_FANTINA_TM65, HearthomeGym_FantinaTryGiveTM65
-    Message HearthomeGym_Text_FantinaAfterBadge
+    Message HearthomeGym_Text_FantinaLostTower
     WaitABXPadPress
     CloseMessage
     ReleaseAll

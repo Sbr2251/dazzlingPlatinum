@@ -193,6 +193,30 @@
         "Space is ever-expanding dimensions...\n",
         "Our spirits, too, are as space..."
       ]
+    },
+    {
+      "id": "CelesticTown_Text_Arc2CyrusFourth",
+      "en_US": [
+        "Cyrus: A king. A sailor. A sister.\r",
+        "She could have told a fourth.\r"
+      ]
+    },
+    {
+      "id": "CelesticTown_Text_Arc2CyrusBattleMe",
+      "en_US": [
+        "Cyrus: Battle me. I need to know my\n",
+        "hands are steady.\r"
+      ]
+    },
+    {
+      "id": "CelesticTown_Text_Arc2CyrusGladToLose",
+      "en_US": [
+        "Cyrus: She told my story without\n",
+        "knowing it. She even knew the end.\r",
+        "Something rose from beneath, and\n",
+        "stopped me.\r",
+        "I have never been so glad to lose.\r"
+      ]
     }
   ]
 }

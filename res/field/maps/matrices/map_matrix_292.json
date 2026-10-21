@@ -1,0 +1,15 @@
+{
+    "name": "m_dwa2_2",
+    "headers": [],
+    "altitudes": [],
+    "maps": [
+        [
+            "MAP_671",
+            "MAP_679"
+        ],
+        [
+            "MAP_614",
+            "MAP_615"
+        ]
+    ]
+}

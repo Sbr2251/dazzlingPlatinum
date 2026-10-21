@@ -10,7 +10,7 @@
         {
             "species": "SPECIES_JOLTEON",
             "form": 0,
-            "level": 24,
+            "level": 31,
             "item": null,
             "moves": null,
             "power": 0,
@@ -19,7 +19,7 @@
         {
             "species": "SPECIES_VAPOREON",
             "form": 0,
-            "level": 24,
+            "level": 31,
             "item": null,
             "moves": null,
             "power": 0,
@@ -28,7 +28,7 @@
         {
             "species": "SPECIES_FLAREON",
             "form": 0,
-            "level": 24,
+            "level": 31,
             "item": null,
             "moves": null,
             "power": 0,

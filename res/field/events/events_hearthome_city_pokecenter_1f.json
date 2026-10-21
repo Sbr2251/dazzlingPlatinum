@@ -112,5 +112,16 @@
             "dest_warp_id": 0
         }
     ],
-    "coord_events": []
+    "coord_events": [
+        {
+            "script": 5,
+            "x": 3,
+            "z": 11,
+            "y": 0,
+            "width": 11,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 92
+        }
+    ]
 }

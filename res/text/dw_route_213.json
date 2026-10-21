@@ -1,0 +1,76 @@
+{
+  "key": 40219,
+  "messages": [
+    {
+      "id": "DWRoute213_Text_CyrusThereWasALake",
+      "en_US": [
+        "Cyrus: In my world there was a lake\n",
+        "here. Lake Valor.\r",
+        "...So this is where it went."
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_OldTrainerCard",
+      "en_US": [
+        "An old Trainer Card. The name has\n",
+        "worn away.\r",
+        "Hometown: Twinleaf."
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_GotCalmShard",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} got a Calm Shard!"
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_CyrusYouFixedItAnyway",
+      "en_US": [
+        "Cyrus: It wasn't yours to fix. You\n",
+        "fixed it anyway."
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_CyrusItsStillInThere",
+      "en_US": [
+        "Cyrus: The lake hangs over us.\n",
+        "Whatever it swallowed is still here."
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_LakeSign",
+      "en_US": [
+        "The board is warped and bleached.\n",
+        "The paint is almost gone.\r",
+        "LAKE VALOR - ROWBOATS FOR HIRE\n",
+        "Please return boats by sundown."
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_RustedFrame",
+      "en_US": [
+        "A frame of bolted iron, rusted\n",
+        "through. Straps hang from it.\r",
+        "It is the same shape as the frames\n",
+        "in the cave. Only much older."
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_Rowboat",
+      "en_US": [
+        "A wooden rowboat, tipped onto its\n",
+        "side in the dry lakebed.\r",
+        "Its planks have gone grey and soft.\n",
+        "Lake water still pools under a seat."
+      ]
+    },
+    {
+      "id": "DWRoute213_Text_MooringPost",
+      "en_US": [
+        "A mooring post. A rope is still\n",
+        "tied to it.\r",
+        "The other end is frayed through."
+      ]
+    }
+  ]
+}

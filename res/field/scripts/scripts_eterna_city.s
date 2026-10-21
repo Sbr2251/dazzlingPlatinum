@@ -1,6 +1,7 @@
 #include "macros/scrcmd.inc"
 #include "res/text/bank/eterna_city.h"
 #include "res/text/bank/special_met_location_names.h"
+#include "res/field/events/events_eterna_city.h"
 
 
     ScriptEntry _01BF
@@ -31,9 +32,33 @@
     ScriptEntry _0D00
     ScriptEntry _0FDC
     ScriptEntry _0EB4
+    ScriptEntry EternaCity_Arc2RuthTalk
+    ScriptEntry EternaCity_Arc2CyrusTalk
+    ScriptEntry EternaCity_Arc2GariusScene
+    ScriptEntry EternaCity_Arc2HavenArrival
+    ScriptEntry EternaCity_Arc2GardeniaHavenTalk
     ScriptEntryEnd
 
+// Dazzling Platinum Arc 2, workstream s-eterna (screenplay 2.11-2.12). VAR_ARC2_PROGRESS block 30-39:
+//   29 (read) Vespiquen calmed, arrived from Eterna Forest
+//   31 Forest Badge (scripts_eterna_city_gym.s) -> Garius waits outside the Gym (frame trigger)
+//   32 Garius battle done (whatever the result)
+//   33 Gardenia asked for help; the party stands at the Haven trees
+//   34 inside the Haven, Looker met (scripts_team_galactic_eterna_building_1f.s)
+//   35 Haven shut (4F), then the 2.13 cutaway (s-cutaways) sets 39 and returns here
+// Flags (s-eterna allocation 0x093E-0x0941, already named by R0):
+//   FLAG_ARC2_ETERNA_A (0x093E)  Haven caretakers beaten (3F double battle)
+//   FLAG_ARC2_ETERNA_B (0x093F)  Haven kennel scene seen (2F)
+//   FLAG_ARC2_ETERNA_C (0x0940)  Haven manifests read (3F)
+//   FLAG_ARC2_ETERNA_D (0x0941)  spare
+// Map-local hide flags (cleared on every map change, recomputed in EternaCity_Arc2SetObjects):
+//   0x30 Ruth, 0x31 the stock Galactic grunts (always hidden), 0x32 Cyrus, 0x33 Garius, 0x34 Gardenia at the Haven.
+// Stock content removed here: the Barry/Cyrus statue scene (coord, VAR_UNK_0x407A 0) and Cynthia's HM01 give
+// (coords, VAR_UNK_0x407A 1; plan D11). VAR_UNK_0x407A now stays 0, so Cynthia's stock Egg scene never runs.
+
+
 _0072:
+    Call EternaCity_Arc2SetObjects
     CallIfEq VAR_UNK_0x407A, 4, _00B5
     CheckItem ITEM_BICYCLE, 1, VAR_MAP_LOCAL_0
     GoToIfEq VAR_MAP_LOCAL_0, 1, _0096
@@ -121,6 +146,21 @@ _0163:
     End
 
 _017A:
+    GoToIfLt VAR_ARC2_PROGRESS, 29, EternaCity_HavenSignPlain
+    GoToIfGe VAR_ARC2_PROGRESS, 35, EternaCity_HavenSignPlain
+    CheckItem ITEM_RESONATOR, 1, VAR_RESULT
+    GoToIfEq VAR_RESULT, FALSE, EternaCity_HavenSignPlain
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    Message 39
+    WaitABXPadPress
+    Message EternaCity_Text_Arc2HavenBuzz
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+EternaCity_HavenSignPlain:
     ShowLandmarkSign 39
     End
 
@@ -133,241 +173,9 @@ _01A8:
     End
 
 _01BF:
-    LockAll
-    GetPlayerMapPos VAR_0x8004, VAR_0x8005
-    GoToIfEq VAR_0x8005, 0x20A, _01FD
-    GoToIfEq VAR_0x8005, 0x20B, _0256
-    GoToIfEq VAR_0x8005, 0x20C, _0266
-    GoToIfEq VAR_0x8005, 0x20D, _0276
+    // Stock: Cynthia gives HM01 at the Galactic building trees. Removed for Arc 2 (plan D11): field moves are
+    // Resonator-only. The entry slot stays so the script numbering doesn't move.
     End
-
-_01FD:
-    GoToIfEq VAR_0x8004, 0x130, _0226
-    GoToIfEq VAR_0x8004, 0x131, _0236
-    GoToIfEq VAR_0x8004, 0x132, _0246
-    End
-
-_0226:
-    SetObjectEventPos 12, 0x139, 0x20C
-    GoTo _0286
-    End
-
-_0236:
-    SetObjectEventPos 12, 0x13A, 0x20C
-    GoTo _0286
-    End
-
-_0246:
-    SetObjectEventPos 12, 0x13B, 0x20C
-    GoTo _0286
-    End
-
-_0256:
-    SetObjectEventPos 12, 0x139, 0x20B
-    GoTo _0286
-    End
-
-_0266:
-    SetObjectEventPos 12, 0x139, 0x20C
-    GoTo _0286
-    End
-
-_0276:
-    SetObjectEventPos 12, 0x139, 0x20D
-    GoTo _0286
-    End
-
-_0286:
-    ClearFlag FLAG_UNK_0x0180
-    AddObject 12
-    LockObject 12
-    CallIfEq VAR_0x8005, 0x20A, _034B
-    CallIfNe VAR_0x8005, 0x20A, _0361
-    BufferPlayerName 0
-    Message 6
-    CloseMessage
-    CallIfEq VAR_0x8005, 0x20A, _0377
-    CallIfNe VAR_0x8005, 0x20A, _0383
-    Message 7
-    SetVar VAR_0x8004, ITEM_HM01
-    SetVar VAR_0x8005, 1
-    GiveItemQuantity
-    Message 8
-    CloseMessage
-    GetPlayerMapPos VAR_0x8004, VAR_0x8005
-    GoToIfEq VAR_0x8005, 0x20A, _0322
-    GoToIfEq VAR_0x8005, 0x20B, _03DD
-    GoToIfEq VAR_0x8005, 0x20C, _03F7
-    GoToIfEq VAR_0x8005, 0x20D, _0411
-    End
-
-_0322:
-    GoToIfEq VAR_0x8004, 0x130, _038F
-    GoToIfEq VAR_0x8004, 0x131, _03A9
-    GoToIfEq VAR_0x8004, 0x132, _03C3
-    End
-
-_034B:
-    ApplyMovement 12, _043C
-    WaitMovement
-    ApplyMovement LOCALID_PLAYER, _04D4
-    WaitMovement
-    Return
-
-_0361:
-    ApplyMovement 12, _0450
-    WaitMovement
-    ApplyMovement LOCALID_PLAYER, _04DC
-    WaitMovement
-    Return
-
-_0377:
-    ApplyMovement 12, _0460
-    WaitMovement
-    Return
-
-_0383:
-    ApplyMovement 12, _0470
-    WaitMovement
-    Return
-
-_038F:
-    ApplyMovement 12, _0480
-    ApplyMovement LOCALID_PLAYER, _04E4
-    WaitMovement
-    GoTo _042B
-    End
-
-_03A9:
-    ApplyMovement 12, _048C
-    ApplyMovement LOCALID_PLAYER, _04E4
-    WaitMovement
-    GoTo _042B
-    End
-
-_03C3:
-    ApplyMovement 12, _0498
-    ApplyMovement LOCALID_PLAYER, _04E4
-    WaitMovement
-    GoTo _042B
-    End
-
-_03DD:
-    ApplyMovement 12, _04A4
-    ApplyMovement LOCALID_PLAYER, _04F0
-    WaitMovement
-    GoTo _042B
-    End
-
-_03F7:
-    ApplyMovement 12, _04B4
-    ApplyMovement LOCALID_PLAYER, _04F0
-    WaitMovement
-    GoTo _042B
-    End
-
-_0411:
-    ApplyMovement 12, _04C4
-    ApplyMovement LOCALID_PLAYER, _04F0
-    WaitMovement
-    GoTo _042B
-    End
-
-_042B:
-    RemoveObject 12
-    SetVar VAR_UNK_0x407A, 2
-    ReleaseAll
-    End
-
-    .balign 4, 0
-_043C:
-    WalkNormalWest 4
-    EmoteExclamationMark
-    WalkNormalWest 5
-    WalkNormalNorth
-    EndMovement
-
-    .balign 4, 0
-_0450:
-    WalkNormalWest 4
-    EmoteExclamationMark
-    WalkNormalWest 4
-    EndMovement
-
-    .balign 4, 0
-_0460:
-    WalkOnSpotNormalEast
-    Delay8 2
-    WalkOnSpotNormalNorth
-    EndMovement
-
-    .balign 4, 0
-_0470:
-    WalkOnSpotNormalEast
-    Delay8 2
-    WalkOnSpotNormalWest
-    EndMovement
-
-    .balign 4, 0
-_0480:
-    WalkNormalWest 5
-    WalkNormalSouth 10
-    EndMovement
-
-    .balign 4, 0
-_048C:
-    WalkNormalWest 6
-    WalkNormalSouth 10
-    EndMovement
-
-    .balign 4, 0
-_0498:
-    WalkNormalWest 7
-    WalkNormalSouth 10
-    EndMovement
-
-    .balign 4, 0
-_04A4:
-    WalkNormalSouth
-    WalkNormalWest 6
-    WalkNormalSouth 10
-    EndMovement
-
-    .balign 4, 0
-_04B4:
-    WalkNormalSouth
-    WalkNormalWest 6
-    WalkNormalSouth 10
-    EndMovement
-
-    .balign 4, 0
-_04C4:
-    WalkNormalNorth
-    WalkNormalWest 6
-    WalkNormalSouth 11
-    EndMovement
-
-    .balign 4, 0
-_04D4:
-    WalkOnSpotNormalSouth
-    EndMovement
-
-    .balign 4, 0
-_04DC:
-    WalkOnSpotNormalEast
-    EndMovement
-
-    .balign 4, 0
-_04E4:
-    Delay8
-    WalkOnSpotNormalWest
-    EndMovement
-
-    .balign 4, 0
-_04F0:
-    Delay8 2
-    WalkOnSpotNormalWest
-    EndMovement
 
 _04FC:
     PlayFanfare SEQ_SE_CONFIRM
@@ -767,310 +575,9 @@ _094C:
     EndMovement
 
 _0954:
-    LockAll
-    ScrCmd_32D
-    ScrCmd_331
-    SetObjectEventPos 33, 0x12B, 0x215
-    ClearFlag FLAG_UNK_0x018C
-    AddObject 33
-    LockObject 33
-    GetPlayerMapPos VAR_0x8004, VAR_0x8005
-    GoToIfEq VAR_0x8005, 0x20B, _099D
-    GoToIfEq VAR_0x8005, 0x20C, _09B7
-    GoToIfEq VAR_0x8005, 0x20D, _09D1
+    // Stock: Barry runs in and Galactic boss Cyrus speaks at the statue. Removed for Arc 2 (Cyrus travels with
+    // the player). Its coord event is gone; the entry slot stays.
     End
-
-_099D:
-    ApplyMovement 33, _0B58
-    ApplyMovement LOCALID_PLAYER, _0BDC
-    WaitMovement
-    GoTo _09EB
-    End
-
-_09B7:
-    ApplyMovement 33, _0B64
-    ApplyMovement LOCALID_PLAYER, _0BFC
-    WaitMovement
-    GoTo _09EB
-    End
-
-_09D1:
-    ApplyMovement 33, _0B70
-    ApplyMovement LOCALID_PLAYER, _0C1C
-    WaitMovement
-    GoTo _09EB
-    End
-
-_09EB:
-    PlayFanfare SEQ_SE_DP_WALL_HIT2
-    Message 0
-    CloseMessage
-    SetRivalBGM
-    BufferRivalName 0
-    BufferPlayerName 1
-    Message 1
-    CloseMessage
-    GetPlayerMapPos VAR_0x8004, VAR_0x8005
-    GoToIfEq VAR_0x8005, 0x20B, _0A32
-    GoToIfEq VAR_0x8005, 0x20C, _0A5E
-    GoToIfEq VAR_0x8005, 0x20D, _0A8A
-    End
-
-_0A32:
-    ApplyMovement 33, _0B7C
-    ApplyMovement LOCALID_PLAYER, _0C3C
-    WaitMovement
-    ApplyMovement 33, _0BB0
-    ApplyMovement LOCALID_PLAYER, _0C74
-    WaitMovement
-    GoTo _0AB6
-    End
-
-_0A5E:
-    ApplyMovement 33, _0B8C
-    ApplyMovement LOCALID_PLAYER, _0C4C
-    WaitMovement
-    ApplyMovement 33, _0BB8
-    ApplyMovement LOCALID_PLAYER, _0C88
-    WaitMovement
-    GoTo _0AB6
-    End
-
-_0A8A:
-    ApplyMovement 33, _0BA0
-    ApplyMovement LOCALID_PLAYER, _0C64
-    WaitMovement
-    ApplyMovement 33, _0BB0
-    ApplyMovement LOCALID_PLAYER, _0C98
-    WaitMovement
-    GoTo _0AB6
-    End
-
-_0AB6:
-    BufferRivalName 0
-    Message 2
-    CloseMessage
-    FadeToDefaultMusic2
-    ScrCmd_32E
-    ScrCmd_332
-    AddFreeCamera 0x143, 0x20C
-    ApplyFreeCameraMovement _0CD4
-    WaitMovement
-    Message 3
-    CloseMessage
-    WaitTime 15, VAR_RESULT
-    ApplyMovement 32, _0CE4
-    ApplyFreeCameraMovement _0CDC
-    WaitMovement
-    RestoreCamera
-    Message 4
-    CloseMessage
-    ApplyMovement 32, _0CF4
-    ApplyMovement 33, _0BC0
-    ApplyMovement LOCALID_PLAYER, _0CAC
-    WaitMovement
-    RemoveObject 32
-    WaitTime 35, VAR_RESULT
-    ApplyMovement 33, _0BD4
-    ApplyMovement LOCALID_PLAYER, _0CC0
-    WaitMovement
-    BufferRivalName 0
-    Message 5
-    CloseMessage
-    ApplyMovement 33, _0BCC
-    ApplyMovement LOCALID_PLAYER, _0CC8
-    WaitMovement
-    RemoveObject 33
-    SetVar VAR_UNK_0x407A, 1
-    ReleaseAll
-    End
-
-    .balign 4, 0
-_0B58:
-    WalkFastNorth 10
-    WalkFastEast 4
-    EndMovement
-
-    .balign 4, 0
-_0B64:
-    WalkFastNorth 9
-    WalkFastEast 4
-    EndMovement
-
-    .balign 4, 0
-_0B70:
-    WalkFastNorth 8
-    WalkFastEast 4
-    EndMovement
-
-    .balign 4, 0
-_0B7C:
-    WalkNormalSouth
-    WalkNormalEast
-    WalkOnSpotNormalNorth
-    EndMovement
-
-    .balign 4, 0
-_0B8C:
-    WalkNormalSouth
-    WalkNormalEast 2
-    WalkNormalNorth
-    WalkOnSpotNormalWest
-    EndMovement
-
-    .balign 4, 0
-_0BA0:
-    WalkNormalNorth
-    WalkNormalEast
-    WalkOnSpotNormalSouth
-    EndMovement
-
-    .balign 4, 0
-_0BB0:
-    WalkNormalEast 19
-    EndMovement
-
-    .balign 4, 0
-_0BB8:
-    WalkNormalEast 18
-    EndMovement
-
-    .balign 4, 0
-_0BC0:
-    Delay8 3
-    WalkOnSpotFastWest
-    EndMovement
-
-    .balign 4, 0
-_0BCC:
-    WalkFastWest 12
-    EndMovement
-
-    .balign 4, 0
-_0BD4:
-    WalkFastSouth
-    EndMovement
-
-    .balign 4, 0
-_0BDC:
-    Delay4 10
-    Delay2
-    Delay1
-    LockDir
-    WalkFastEast
-    UnlockDir
-    FaceWest
-    EndMovement
-
-    .balign 4, 0
-_0BFC:
-    Delay4 9
-    Delay2
-    Delay1
-    LockDir
-    WalkFastEast
-    UnlockDir
-    FaceWest
-    EndMovement
-
-    .balign 4, 0
-_0C1C:
-    Delay4 8
-    Delay2
-    Delay1
-    LockDir
-    WalkFastEast
-    UnlockDir
-    FaceWest
-    EndMovement
-
-    .balign 4, 0
-_0C3C:
-    Delay8
-    Delay4
-    WalkOnSpotNormalSouth
-    EndMovement
-
-    .balign 4, 0
-_0C4C:
-    Delay8
-    Delay4
-    WalkOnSpotNormalSouth
-    Delay4
-    WalkOnSpotNormalEast
-    EndMovement
-
-    .balign 4, 0
-_0C64:
-    Delay8
-    Delay4
-    WalkOnSpotNormalNorth
-    EndMovement
-
-    .balign 4, 0
-_0C74:
-    WalkNormalSouth
-    WalkNormalEast 18
-    WalkNormalSouth
-    WalkNormalEast
-    EndMovement
-
-    .balign 4, 0
-_0C88:
-    WalkNormalEast 18
-    WalkNormalSouth
-    WalkNormalEast
-    EndMovement
-
-    .balign 4, 0
-_0C98:
-    WalkNormalNorth
-    WalkNormalEast 18
-    WalkNormalSouth
-    WalkNormalEast
-    EndMovement
-
-    .balign 4, 0
-_0CAC:
-    WalkNormalSouth
-    WalkOnSpotNormalEast
-    Delay8 2
-    WalkOnSpotNormalWest
-    EndMovement
-
-    .balign 4, 0
-_0CC0:
-    WalkOnSpotNormalNorth
-    EndMovement
-
-    .balign 4, 0
-_0CC8:
-    Delay8
-    WalkOnSpotNormalWest
-    EndMovement
-
-    .balign 4, 0
-_0CD4:
-    WalkNormalEast 4
-    EndMovement
-
-    .balign 4, 0
-_0CDC:
-    WalkNormalWest 4
-    EndMovement
-
-    .balign 4, 0
-_0CE4:
-    WalkNormalWest 3
-    WalkNormalNorth
-    WalkOnSpotNormalWest
-    EndMovement
-
-    .balign 4, 0
-_0CF4:
-    Delay8 2
-    WalkNormalWest 14
-    EndMovement
 
 _0D00:
     LockAll
@@ -1358,5 +865,235 @@ _10E0:
 _10EC:
     Delay8 2
     Delay4
+    WalkOnSpotNormalWest
+    EndMovement
+
+// ---------------------------------------------------------------------------------------------------------------
+// Dazzling Platinum Arc 2 (s-eterna): object placement per VAR_ARC2_PROGRESS. Called at the top of OnTransition.
+// ---------------------------------------------------------------------------------------------------------------
+EternaCity_Arc2SetObjects:
+    SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (Arc 1 D1) */
+    SetFlag FLAG_UNK_0x0030
+    SetFlag FLAG_UNK_0x0031
+    SetFlag FLAG_UNK_0x0032
+    SetFlag FLAG_UNK_0x0033
+    SetFlag FLAG_UNK_0x0034
+    GoToIfLt VAR_ARC2_PROGRESS, 29, EternaCity_Arc2Return
+    // From 34 on, the middle Haven tree (305,521) stays cut, so leaving the Haven never shuts the player in.
+    CallIfGe VAR_ARC2_PROGRESS, 34, EternaCity_Arc2KeepHavenTreeCut
+    GoToIfGe VAR_ARC2_PROGRESS, 34, EternaCity_Arc2SetObjectsHaven
+    GoToIfEq VAR_ARC2_PROGRESS, 33, EternaCity_Arc2SetObjectsTrees
+    // 29-32: Ruth and Cyrus wait by the Gym; Garius is there at 31
+    ClearFlag FLAG_UNK_0x0030
+    ClearFlag FLAG_UNK_0x0032
+    CallIfEq VAR_ARC2_PROGRESS, 31, EternaCity_Arc2ShowGarius
+    Return
+
+EternaCity_Arc2KeepHavenTreeCut:
+    SetFlag FLAG_UNK_0x0021
+    Return
+
+EternaCity_Arc2ShowGarius:
+    ClearFlag FLAG_UNK_0x0033
+    Return
+
+// 33: Gardenia and Ruth by the Haven trees, Cyrus a little apart. The arrival line runs from the frame table.
+EternaCity_Arc2SetObjectsTrees:
+    ClearFlag FLAG_UNK_0x0030
+    ClearFlag FLAG_UNK_0x0032
+    ClearFlag FLAG_UNK_0x0034
+    SetObjectEventPos ETERNA_CITY_RUTH, 306, 523
+    SetObjectEventDir ETERNA_CITY_RUTH, DIR_NORTH
+    SetObjectEventMovementType ETERNA_CITY_RUTH, MOVEMENT_TYPE_LOOK_NORTH
+    SetObjectEventPos ETERNA_CITY_CYRUS, 308, 522
+    SetObjectEventDir ETERNA_CITY_CYRUS, DIR_WEST
+    SetObjectEventMovementType ETERNA_CITY_CYRUS, MOVEMENT_TYPE_LOOK_WEST
+    SetVar VAR_MAP_LOCAL_2, 1
+    Return
+
+// 34: Gardenia and Ruth are inside; Cyrus waits outside by the trees. 35+: the party has moved on.
+EternaCity_Arc2SetObjectsHaven:
+    GoToIfGe VAR_ARC2_PROGRESS, 35, EternaCity_Arc2Return
+    ClearFlag FLAG_UNK_0x0032
+    SetObjectEventPos ETERNA_CITY_CYRUS, 308, 522
+    SetObjectEventDir ETERNA_CITY_CYRUS, DIR_WEST
+    SetObjectEventMovementType ETERNA_CITY_CYRUS, MOVEMENT_TYPE_LOOK_WEST
+EternaCity_Arc2Return:
+    Return
+
+EternaCity_Arc2RuthTalk:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    GoToIfGe VAR_ARC2_PROGRESS, 33, EternaCity_Arc2RuthTalkHaven
+    Message EternaCity_Text_Arc2RuthBeforeGym
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+EternaCity_Arc2RuthTalkHaven:
+    Message EternaCity_Text_Arc2RuthAtHaven
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+EternaCity_Arc2CyrusTalk:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    GoToIfGe VAR_ARC2_PROGRESS, 33, EternaCity_Arc2CyrusTalkHaven
+    Message EternaCity_Text_Arc2CyrusBeforeGym
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+EternaCity_Arc2CyrusTalkHaven:
+    Message EternaCity_Text_Arc2CyrusWaitHere
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+EternaCity_Arc2GardeniaHavenTalk:
+    PlayFanfare SEQ_SE_CONFIRM
+    LockAll
+    FacePlayer
+    Message EternaCity_Text_Arc2GardeniaTrees
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+// ---------------------------------------------------------------------------------------------------------------
+// 2.11: Garius by the Gym door (frame trigger at progress 31; the player has just walked out of the Gym onto
+// (312,563)). Garius battle 1, then Gardenia comes out (2.12 start), then the walk to the Haven.
+// ---------------------------------------------------------------------------------------------------------------
+EternaCity_Arc2GariusScene:
+    LockAll
+    ApplyMovement ETERNA_CITY_GARIUS, EternaCity_Arc2Movement_GariusWalkUp
+    WaitMovement
+    ApplyMovement LOCALID_PLAYER, EternaCity_Arc2Movement_FaceEast
+    WaitMovement
+    BufferRivalName 0
+    Message EternaCity_Text_Arc2GariusTookYouLongEnough
+    BufferRivalName 0
+    Message EternaCity_Text_Arc2GariusStillFollowing
+    BufferRivalName 0
+    Message EternaCity_Text_Arc2GariusBattleMe
+    CloseMessage
+    GetPlayerStarterSpecies VAR_RESULT
+    GoToIfEq VAR_RESULT, SPECIES_TURTWIG, EternaCity_Arc2GariusBattleTurtwig
+    GoToIfEq VAR_RESULT, SPECIES_CHIMCHAR, EternaCity_Arc2GariusBattleChimchar
+    StartTrainerBattle TRAINER_GARIUS_ARC2_ETERNA_PIPLUP
+    GoTo EternaCity_Arc2GariusAfterBattle
+
+EternaCity_Arc2GariusBattleTurtwig:
+    StartTrainerBattle TRAINER_GARIUS_ARC2_ETERNA_TURTWIG
+    GoTo EternaCity_Arc2GariusAfterBattle
+
+EternaCity_Arc2GariusBattleChimchar:
+    StartTrainerBattle TRAINER_GARIUS_ARC2_ETERNA_CHIMCHAR
+    GoTo EternaCity_Arc2GariusAfterBattle
+
+// The screenplay sets 32 whatever the result: a loss heals the party and the scene goes on (no blackout).
+EternaCity_Arc2GariusAfterBattle:
+    CheckWonBattle VAR_RESULT
+    CallIfEq VAR_RESULT, FALSE, EternaCity_Arc2HealAfterLoss
+    SetVar VAR_ARC2_PROGRESS, 32
+    BufferRivalName 0
+    Message EternaCity_Text_Arc2GariusYoureGood
+    BufferRivalName 0
+    Message EternaCity_Text_Arc2GariusRowanCalled
+    CloseMessage
+    ApplyMovement ETERNA_CITY_GARIUS, EternaCity_Arc2Movement_GariusLeave
+    WaitMovement
+    RemoveObject ETERNA_CITY_GARIUS
+    GoTo EternaCity_Arc2GardeniaComesOut
+
+// A lost scripted battle leaves the field unloaded (COMMON hazards): reload it, then heal.
+EternaCity_Arc2HealAfterLoss:
+    ReturnToField
+    FadeScreenIn
+    WaitFadeScreen
+    HealParty
+    Return
+
+// 2.12 start: Gardenia steps out of the Gym door (312,562) behind the player.
+EternaCity_Arc2GardeniaComesOut:
+    WaitTime 15, VAR_RESULT
+    LoadDoorAnimation 9, 17, 24, 18, ANIMATION_TAG_DOOR_1
+    PlayDoorOpenAnimation ANIMATION_TAG_DOOR_1
+    WaitForAnimation ANIMATION_TAG_DOOR_1
+    ClearFlag FLAG_UNK_0x0218
+    SetObjectEventPos ETERNA_CITY_GARDENIA, 312, 562
+    SetObjectEventDir ETERNA_CITY_GARDENIA, DIR_SOUTH
+    SetObjectEventMovementType ETERNA_CITY_GARDENIA, MOVEMENT_TYPE_LOOK_SOUTH
+    AddObject ETERNA_CITY_GARDENIA
+    PlayDoorCloseAnimation ANIMATION_TAG_DOOR_1
+    WaitForAnimation ANIMATION_TAG_DOOR_1
+    UnloadAnimation ANIMATION_TAG_DOOR_1
+    ApplyMovement LOCALID_PLAYER, EternaCity_Arc2Movement_FaceNorth
+    WaitMovement
+    Message EternaCity_Text_Arc2GardeniaOffTheRecord
+    WaitABXPadPress
+    Message EternaCity_Text_Arc2GardeniaShelter
+    WaitABXPadPress
+    Message EternaCity_Text_Arc2GardeniaSomethingsWrong
+    WaitABXPadPress
+    CloseMessage
+    SetVar VAR_ARC2_PROGRESS, 33
+    FadeScreenOut
+    WaitFadeScreen
+    RemoveObject ETERNA_CITY_GARDENIA
+    Warp MAP_HEADER_ETERNA_CITY, 0, 305, 522, DIR_NORTH
+    FadeScreenIn
+    WaitFadeScreen
+    ReleaseAll
+    End
+
+// 33, after the warp to the Haven trees (frame trigger on VAR_MAP_LOCAL_2, which OnTransition sets at 33).
+// Runs only when the map loaded with the player at the trees spot, i.e. right after the walk.
+EternaCity_Arc2HavenArrival:
+    SetVar VAR_MAP_LOCAL_2, 0
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfNe VAR_0x8004, 305, EternaCity_Arc2HavenArrivalEnd
+    GoToIfNe VAR_0x8005, 522, EternaCity_Arc2HavenArrivalEnd
+    LockAll
+    ApplyMovement ETERNA_CITY_CYRUS, EternaCity_Arc2Movement_FaceWest
+    WaitMovement
+    Message EternaCity_Text_Arc2CyrusWaitHere
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+EternaCity_Arc2HavenArrivalEnd:
+    End
+
+    .balign 4, 0
+EternaCity_Arc2Movement_GariusWalkUp:
+    WalkNormalWest 2
+    EndMovement
+
+    .balign 4, 0
+EternaCity_Arc2Movement_GariusLeave:
+    WalkNormalSouth
+    WalkNormalWest 6
+    WalkNormalNorth 8
+    EndMovement
+
+    .balign 4, 0
+EternaCity_Arc2Movement_FaceEast:
+    WalkOnSpotNormalEast
+    EndMovement
+
+    .balign 4, 0
+EternaCity_Arc2Movement_FaceNorth:
+    WalkOnSpotNormalNorth
+    EndMovement
+
+    .balign 4, 0
+EternaCity_Arc2Movement_FaceWest:
     WalkOnSpotNormalWest
     EndMovement

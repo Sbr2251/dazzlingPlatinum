@@ -5,9 +5,13 @@
     ScriptEntry TVBroadcast_Interact
     ScriptEntryEnd
 
+// Arc 2 quests (R3, S10): Rowan's public turn. Every TV shows his Sinnoh Now interview from VAR_ARC2_PROGRESS 44
+// to 85, and the station's correction from 86 (2.22, Rowan calls the station back) to 99. Stock programs otherwise.
 TVBroadcast_Interact:
     PlayFanfare SEQ_SE_CONFIRM
     LockAll
+    GoToIfGe VAR_ARC2_PROGRESS, 44, TVBroadcast_QuestsRowan
+TVBroadcast_Stock:
     IncrementGameRecord RECORD_WATCHED_TV
     CheckBroadcastStatus VAR_RESULT
     TVBroadcastDummy VAR_RESULT
@@ -69,6 +73,21 @@ TVBroadcast_PlaySegment:
 TVBroadcast_End:
     CloseMessage
     ReleaseAll
+    End
+
+TVBroadcast_QuestsRowan:
+    GoToIfGe VAR_ARC2_PROGRESS, 100, TVBroadcast_Stock
+    IncrementGameRecord RECORD_WATCHED_TV
+    GoToIfGe VAR_ARC2_PROGRESS, 86, TVBroadcast_QuestsRowanCorrection
+    Message TVBroadcast_Text_QuestsRowanInterview
+    WaitABXPadPress
+    GoTo TVBroadcast_End
+    End
+
+TVBroadcast_QuestsRowanCorrection:
+    Message TVBroadcast_Text_QuestsRowanCorrection
+    WaitABXPadPress
+    GoTo TVBroadcast_End
     End
 
     .balign 4, 0

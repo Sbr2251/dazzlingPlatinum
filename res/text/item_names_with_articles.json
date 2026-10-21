@@ -483,19 +483,19 @@
     },
     {
       "id": "pl_msg_00000393_00120",
-      "en_US": "???"
+      "en_US": "a {COLOR 255}Torterrite{COLOR 0}"
     },
     {
       "id": "pl_msg_00000393_00121",
-      "en_US": "???"
+      "en_US": "an {COLOR 255}Infernapite{COLOR 0}"
     },
     {
       "id": "pl_msg_00000393_00122",
-      "en_US": "???"
+      "en_US": "an {COLOR 255}Empoleonite{COLOR 0}"
     },
     {
       "id": "pl_msg_00000393_00123",
-      "en_US": "a Staraptite"
+      "en_US": "a {COLOR 255}Staraptite{COLOR 0}"
     },
     {
       "id": "pl_msg_00000393_00124",
@@ -511,11 +511,11 @@
     },
     {
       "id": "pl_msg_00000393_00127",
-      "en_US": "???"
+      "en_US": "a {COLOR 255}Resonator{COLOR 0}"
     },
     {
       "id": "pl_msg_00000393_00128",
-      "en_US": "???"
+      "en_US": "a {COLOR 255}Worn Trainer Card{COLOR 0}"
     },
     {
       "id": "pl_msg_00000393_00129",

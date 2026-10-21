@@ -1,7 +1,7 @@
 {
     "bg_events": [
         {
-            "script": 6,
+            "script": 5,
             "type": 0,
             "x": 16,
             "z": 10,
@@ -11,67 +11,67 @@
     ],
     "object_events": [
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_4F_JUPITER_0",
-            "graphics_id": "OBJ_EVENT_GFX_JUPITER",
-            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "id": "HAVEN_4F_LOOKER",
+            "graphics_id": "OBJ_EVENT_GFX_LOOKER_JANITOR",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01FD",
-            "script": 2,
-            "initial_dir": 1,
+            "hidden_flag": "FLAG_UNK_0x0030",
+            "script": 0,
+            "initial_dir": 0,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 14,
-            "z": 6,
+            "x": 13,
+            "z": 11,
             "y": 0
         },
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_4F_CLEFAIRY_1",
-            "graphics_id": "OBJ_EVENT_GFX_CLEFAIRY",
-            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH_AND_WEST",
+            "id": "HAVEN_4F_PIP_CRATE",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01FF",
+            "hidden_flag": "FLAG_UNK_0x0034",
             "script": 3,
             "initial_dir": 1,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 13,
+            "x": 18,
             "z": 5,
             "y": 0
         },
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_4F_POKEFAN_M_2",
-            "graphics_id": "OBJ_EVENT_GFX_POKEFAN_M",
+            "id": "HAVEN_4F_GARDENIA",
+            "graphics_id": "OBJ_EVENT_GFX_GARDENIA",
             "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
             "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01FF",
-            "script": 5,
+            "hidden_flag": "FLAG_UNK_0x0031",
+            "script": 0,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 13,
+            "z": 11,
+            "y": 0
+        },
+        {
+            "id": "HAVEN_4F_RUTH",
+            "graphics_id": "OBJ_EVENT_GFX_COUNTERPART",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0032",
+            "script": 0,
             "initial_dir": 0,
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
             "x": 14,
-            "z": 9,
+            "z": 11,
             "y": 0
         },
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_4F_BUNEARY_3",
-            "graphics_id": "OBJ_EVENT_GFX_BUNEARY",
-            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH_AND_EAST",
-            "trainer_type": "TRAINER_TYPE_NONE",
-            "hidden_flag": "FLAG_UNK_0x01FF",
-            "script": 4,
-            "initial_dir": 1,
-            "data": [],
-            "movement_range_x": 0,
-            "movement_range_z": 0,
-            "x": 15,
-            "z": 5,
-            "y": 0
-        },
-        {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_4F_POKEBALL_4",
+            "id": "HAVEN_4F_POKEBALL_0",
             "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
             "movement_type": "MOVEMENT_TYPE_NONE",
             "trainer_type": "TRAINER_TYPE_NONE",
@@ -86,7 +86,7 @@
             "y": 0
         },
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_4F_POKEBALL_5",
+            "id": "HAVEN_4F_POKEBALL_1",
             "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
             "movement_type": "MOVEMENT_TYPE_NONE",
             "trainer_type": "TRAINER_TYPE_NONE",
@@ -101,7 +101,7 @@
             "y": 0
         },
         {
-            "id": "TEAM_GALACTIC_ETERNA_BUILDING_4F_POKEBALL_6",
+            "id": "HAVEN_4F_POKEBALL_2",
             "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
             "movement_type": "MOVEMENT_TYPE_NONE",
             "trainer_type": "TRAINER_TYPE_NONE",
@@ -113,6 +113,66 @@
             "movement_range_z": 0,
             "x": 21,
             "z": 5,
+            "y": 0
+        },
+        {
+            "id": "HAVEN_4F_CRATE_1",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0034",
+            "script": 4,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 16,
+            "z": 4,
+            "y": 0
+        },
+        {
+            "id": "HAVEN_4F_CRATE_2",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0034",
+            "script": 4,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 19,
+            "z": 5,
+            "y": 0
+        },
+        {
+            "id": "HAVEN_4F_CRATE_3",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0034",
+            "script": 4,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 20,
+            "z": 6,
+            "y": 0
+        },
+        {
+            "id": "HAVEN_4F_CRATE_4",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0034",
+            "script": 4,
+            "initial_dir": 1,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 22,
+            "z": 6,
             "y": 0
         }
     ],
@@ -130,5 +190,16 @@
             "dest_warp_id": 3
         }
     ],
-    "coord_events": []
+    "coord_events": [
+        {
+            "script": 2,
+            "x": 13,
+            "z": 10,
+            "y": 0,
+            "width": 3,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0",
+            "value": 0
+        }
+    ]
 }

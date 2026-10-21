@@ -1,0 +1,139 @@
+{
+    "map": "MAP_HEADER_DW_ETERNA_FOREST",
+    "clone_from": "MAP_HEADER_DISTORTION_WORLD_B4F",
+    "offset": [
+        0,
+        0,
+        0
+    ],
+    "attr_ids": [
+        17,
+        18,
+        19,
+        20
+    ],
+    "notes": "rift-a, scene 2.10. Hybrid map (matrix 292): the Arc 1 seams entry walkway (map_data_671) at chunk (0,0), DW B4F's chunks 613/614/615 at (1,0)/(0,1)/(1,1). This record is B4F's, shifted to (0,0,0): east wall x=49 (z20-29, y1-10; rows bottom first) and the CEILING y=10 (x49..x44 rows, top row = x49; z25..z47 columns). The '*' tiles (x44-45, z33-36) are the HONEYCOMB: ghost-prop group 1, shown and hidden on a timer by Arc2DwEternaForest_HandleFrame (src/overlay009/ov9_02249960.c); walking on it while it is gone drops you. B4F's own ghost props are replaced (five of its floating rocks kept as decor, group 0) and its triggers dropped.",
+    "honeycomb": {
+        "group": 1,
+        "y": 10,
+        "x": [
+            44,
+            45
+        ],
+        "z": [
+            33,
+            36
+        ]
+    },
+    "platforms": [
+        {
+            "attr": 17
+        },
+        {
+            "attr": 18,
+            "rows": [
+                "........####.##########",
+                "........####.##########",
+                "##......####...........",
+                "##......####...........",
+                "##......****...........",
+                "##......****..........."
+            ]
+        }
+    ],
+    "ghost_props": [
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 47,
+            "y": 10,
+            "z": 17
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 42,
+            "y": 1,
+            "z": 29
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 52,
+            "y": 3,
+            "z": 33
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 31,
+            "y": 1,
+            "z": 40
+        },
+        {
+            "group": 0,
+            "kind": 1,
+            "x": 27,
+            "y": -8,
+            "z": 29
+        },
+        {
+            "group": 1,
+            "kind": 0,
+            "x": 44,
+            "y": 10,
+            "z": 33
+        },
+        {
+            "group": 1,
+            "kind": 0,
+            "x": 45,
+            "y": 10,
+            "z": 33
+        },
+        {
+            "group": 1,
+            "kind": 0,
+            "x": 44,
+            "y": 10,
+            "z": 34
+        },
+        {
+            "group": 1,
+            "kind": 0,
+            "x": 45,
+            "y": 10,
+            "z": 34
+        },
+        {
+            "group": 1,
+            "kind": 0,
+            "x": 44,
+            "y": 10,
+            "z": 35
+        },
+        {
+            "group": 1,
+            "kind": 0,
+            "x": 45,
+            "y": 10,
+            "z": 35
+        },
+        {
+            "group": 1,
+            "kind": 0,
+            "x": 44,
+            "y": 10,
+            "z": 36
+        },
+        {
+            "group": 1,
+            "kind": 0,
+            "x": 45,
+            "y": 10,
+            "z": 36
+        }
+    ],
+    "ghost_triggers": [],
+    "ghost_default_visible": 3
+}

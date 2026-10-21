@@ -29,6 +29,20 @@ None of them changes the `VAR_ARC1_PROGRESS` ladder (9-16, see `docs/arc1/part2/
 - Flags: `FLAG_UNK_0x091C` = done, `0x091D-0x091F` = hide flags recomputed per load. Suggested names:
   `FLAG_ARC1_CRATE_DONE`, `FLAG_HIDE_ARC1_CRATE_LOOKER/GRUNT/RECEIVER`.
 - Plants the Arc 2 Eterna Haven manifests and the Ravaged Path (Hitmonlee) totem. No torture is revealed.
+- **Playtest round 2 (fix2-poketch): the Pokétch is earned here.** The crate is a case of Pokétch Company
+  prototypes. At the handoff the grunts argue over who carries it ("...Is it beeping?"), Looker steps in ("That
+  case looks heavy. May I help?"), they bolt, and Looker keeps his Ravaged Path lines, then: "...Pokétch
+  prototypes. Why would they want those? Take it back to the company, kid." The player gets the case (no item:
+  `FLAG_UNK_0x091C` set and Pokétch not yet given = case in hand). No Great Balls any more.
+  - The stock clown quiz and Coupons are gone. The three clowns each point to the trench-coat man at the east exit
+    (case in hand: "show the president"; Arc 2: "he left something with the president"; after: one line each).
+  - The president (stock object 23, outside the Pokétch Co.) takes the case and gives the Pokétch exactly as the
+    stock coupon path did (`ScrCmd_131`, DIGITALWATCH/CALCULATOR/PEDOMETER/PARTYSTATUS, `FLAG_UNK_0x00F3`, walks
+    into the building), plus the Coin Toss app, and plants the tracking hint ("Our prototypes can read faint
+    signals... I'd hate to think what someone would track with them.").
+  - Fallback: the tail stays offered at 13-15 only. From `VAR_ARC1_PROGRESS` 16 (Arc 2) the president gives the
+    Pokétch anyway ("A man in a trench coat dropped this off. ...He said you'd earned it."); the president and
+    clowns are un-hidden on every Jubilife load from 14, and in Arc 2 from `VAR_ARC2_PROGRESS` 9 (after 2.1-2.4).
 
 ## Route 203: the rift scar (scene 12)
 - Chunk `map_data_019` only: a violet glowing fissure, scorched and cracked ground, and a split tree fallen across the

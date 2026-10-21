@@ -2,6 +2,8 @@
 
 
 _000:
+    // A boosted Totem (Arc 2: the Skarmory still fed by the grunts' shard) starts +2 Attack and +2 Defense
+    CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_SYS_STATUS, BATTLE_STATUS_TOTEM_BOOSTED, _Boosted
     // The Totem's boosts are announced by the aura message alone
     UpdateVar OPCODE_SET, BTLVAR_SIDE_EFFECT_PARAM, MOVE_SUBSCRIPT_PTR_ATTACK_UP_1_STAGE
     ChangeStatStage _Defense, _Defense, _Defense
@@ -30,3 +32,14 @@ _Aura:
     Wait
     WaitButtonABTime 30
     End
+
+_Boosted:
+    UpdateVar OPCODE_SET, BTLVAR_SIDE_EFFECT_PARAM, MOVE_SUBSCRIPT_PTR_ATTACK_UP_2_STAGES
+    ChangeStatStage _BoostedDefense, _BoostedDefense, _BoostedDefense
+
+_BoostedDefense:
+    UpdateVar OPCODE_SET, BTLVAR_SIDE_EFFECT_PARAM, MOVE_SUBSCRIPT_PTR_DEFENSE_UP_2_STAGES
+    ChangeStatStage _BoostedSpeed, _BoostedSpeed, _BoostedSpeed
+
+_BoostedSpeed:
+    GoTo _Speed

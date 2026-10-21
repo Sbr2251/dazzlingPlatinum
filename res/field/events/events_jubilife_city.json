@@ -803,6 +803,96 @@
             "x": 174,
             "z": 728,
             "y": 0
+        },
+        {
+            "id": "LOCALID_ARC2_GARIUS",
+            "graphics_id": "OBJ_EVENT_GFX_BARRY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0032",
+            "script": 50,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 165,
+            "z": 759,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC2_CYRUS",
+            "graphics_id": "OBJ_EVENT_GFX_CYRUS",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0033",
+            "script": 50,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 164,
+            "z": 753,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC2_ROWAN",
+            "graphics_id": "OBJ_EVENT_GFX_PROF_ROWAN",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0034",
+            "script": 50,
+            "initial_dir": 3,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 166,
+            "z": 778,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ARC2_RUTH",
+            "graphics_id": "OBJ_EVENT_GFX_COUNTERPART",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0035",
+            "script": 50,
+            "initial_dir": 2,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 170,
+            "z": 778,
+            "y": 0
+        },
+        {
+            "id": "JUBILIFE_CITY_QUESTS_OLD_MAN",
+            "graphics_id": "OBJ_EVENT_GFX_EXPERT_M",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0036",
+            "script": 51,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 158,
+            "z": 758,
+            "y": 0
+        },
+        {
+            "id": "JUBILIFE_CITY_QUESTS_DUCHESS",
+            "graphics_id": "OBJ_EVENT_GFX_CLEFAIRY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_UNK_0x0037",
+            "script": 52,
+            "initial_dir": 0,
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 157,
+            "z": 758,
+            "y": 0
         }
     ],
     "warp_events": [
@@ -973,16 +1063,6 @@
             "value": 12
         },
         {
-            "script": 32,
-            "x": 172,
-            "z": 743,
-            "y": 0,
-            "width": 6,
-            "length": 1,
-            "var": "VAR_ARC1_PROGRESS",
-            "value": 16
-        },
-        {
             "script": 46,
             "x": 186,
             "z": 757,
@@ -1000,6 +1080,16 @@
             "width": 34,
             "length": 46,
             "var": "VAR_MAP_LOCAL_5",
+            "value": 1
+        },
+        {
+            "script": 48,
+            "x": 156,
+            "z": 752,
+            "y": 0,
+            "width": 14,
+            "length": 10,
+            "var": "VAR_MAP_LOCAL_2",
             "value": 1
         }
     ]

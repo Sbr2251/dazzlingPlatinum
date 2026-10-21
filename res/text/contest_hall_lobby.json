@@ -231,6 +231,24 @@
         "It’s a photo frame for a Pokémon\n",
         "portrait."
       ]
+    },
+    {
+      "id": "ContestHallLobby_Text_Arc2Gardevoirite",
+      "en_US": [
+        "This stone was my Master Rank prize.\n",
+        "It glitters when a Gardevoir dances.\r",
+        "My Gardevoir and I have retired from\n",
+        "the stage, though.\r",
+        "Here! A Contest Hall prize, passed\n",
+        "on to a rising star!\r"
+      ]
+    },
+    {
+      "id": "ContestHallLobby_Text_Arc2GardevoiriteBond",
+      "en_US": [
+        "It only shines for a Pokémon that\n",
+        "trusts you. Show off that bond!"
+      ]
     }
   ]
 }

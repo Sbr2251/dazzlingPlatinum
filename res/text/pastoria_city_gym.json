@@ -37,10 +37,12 @@
     {
       "id": "PastoriaGym_Text_WakeExplainFenBadge",
       "en_US": [
-        "You need that Fen Badge to use the\n",
-        "hidden move Surf outside of battle.\r",
+        "With the Fen Badge, a calmed totem\n",
+        "can carry you across the water.\r",
+        "And with four Gym Badges, Pokémon\n",
+        "from trades obey you up to Lv. 50.\r",
         "This is a special reward from me in\n",
-        "recognition of your team’s power.\r"
+        "recognition of your team's power.\r"
       ]
     },
     {
@@ -108,6 +110,34 @@
         "Certified Trainers:\n",
         "{STRVAR_1 3, 0, 0}\f",
         "{STRVAR_1 3, 1, 0}"
+      ]
+    },
+    {
+      "id": "PastoriaGym_Text_Arc2WakeRoute213",
+      "en_US": [
+        "Crasher Wake: Something's choking\n",
+        "the water on Route 213!\r",
+        "The fish won't bite! The Pokémon\n",
+        "won't swim!\r",
+        "A true Trainer would look into it!\n",
+        "WHAAAAH!"
+      ]
+    },
+    {
+      "id": "PastoriaGym_Text_Arc2WakeGyaradosite",
+      "en_US": [
+        "Crasher Wake: One more thing!\r",
+        "You saw my Gyarados Mega Evolve!\n",
+        "That's the fallen star's power!\r",
+        "Here! A stone like mine, for a\n",
+        "Gyarados of your own!\r"
+      ]
+    },
+    {
+      "id": "PastoriaGym_Text_Arc2WakeGyaradositeBond",
+      "en_US": [
+        "It only answers a bond, so ride\n",
+        "the waves together! WHAAAAH!"
       ]
     }
   ]

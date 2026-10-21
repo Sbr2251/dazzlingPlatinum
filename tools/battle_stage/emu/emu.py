@@ -32,6 +32,7 @@ Gotchas:
 """
 
 from __future__ import annotations
+import atexit
 
 import os
 import pathlib
@@ -220,11 +221,28 @@ def contact_sheet(frames: Sequence[Frame], path, title: str = "", screen: str = 
 
 # --------------------------------------------------------------------------- emulator
 
+
+def _sweep_stale_tmp(workdir: Optional[str] = None, max_age_s: int = 3600) -> None:
+    """Each instance copies the ROM (128 MB) into a bsemu_* temp dir. Processes killed by a timeout never clean up,
+    so remove leftovers older than an hour before making a new one (they filled the disk overnight)."""
+    import glob, time
+    base = workdir or tempfile.gettempdir()
+    now = time.time()
+    for d in glob.glob(os.path.join(base, "bsemu_*")):
+        try:
+            if now - os.path.getmtime(d) > max_age_s:
+                shutil.rmtree(d, True)
+        except OSError:
+            pass
+
+
 class Emu:
     """One headless DeSmuME instance booted from a raw .sav."""
 
     def __init__(self, rom, sav, workdir: Optional[str] = None, verbose: bool = False):
+        _sweep_stale_tmp(workdir)
         self.tmp = tempfile.mkdtemp(prefix="bsemu_", dir=workdir)
+        atexit.register(shutil.rmtree, self.tmp, True)
         self.rom = os.path.join(self.tmp, f"rom_{uuid.uuid4().hex[:10]}.nds")
         shutil.copyfile(rom, self.rom)
         self.sav = str(sav)
