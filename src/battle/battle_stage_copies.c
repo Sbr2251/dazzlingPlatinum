@@ -10,6 +10,7 @@
 
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_camera.h"
+#include "battle/battle_stage_layout.h"
 #include "battle/battle_stage_sprites.h"
 #include "battle/battle_stage_stream.h"
 #include "battle/ov16_0223DF00.h"
@@ -219,7 +220,7 @@ void BattleStage_DrawMonCopies(PokemonSpriteManager *monSpriteMan)
 
         // Off home the copy follows the camera as its battler does (the copy's place is a home
         // screen place, like the battler's)
-        if (BattleStage_IsVisible() && BattleStageCamera_GetSimilarity(copy->battler, &similarity)) {
+        if (BattleStage_IsVisible() && BattleStageLayout_Similarity(copy->battler, &similarity)) { // bw2vis:layout - and its BW2 place
             G3_Translate(similarity.nowX, similarity.nowY, 0);
             G3_Scale(similarity.scale, similarity.scale, FX32_ONE);
             G3_Translate(-(similarity.homeX << FX32_SHIFT), -(similarity.homeY << FX32_SHIFT), 0);

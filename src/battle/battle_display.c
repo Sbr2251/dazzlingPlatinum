@@ -22,6 +22,7 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_layout.h"
 #include "battle/battle_trainer_bw2.h"
 #include "battle/healthbar.h"
 #include "battle/mega_evolution.h"
@@ -954,6 +955,11 @@ void ov16_0225D9A8(BattleSystem *battleSys, BattlerData *param1, MoveAnimation *
     }
 
     ov16_022645B8(&v0->unk_6B, &v0->unk_6C, animation->unk_4C, animation->unk_50, animation->move);
+    // bw2vis:layout - the battlers go to their classic places first, and the text box fades out,
+    // except over the Mega Evolution, whose "reacting to the Key Stone" line stays up through it
+    // (subscript_mega_evolution.s), and the Substitute doll stepping aside for it
+    BattleStage_BeginAnimSequence(!(animation->unk_4C != 0
+        && (animation->unk_50 == BATTLE_ANIMATION_MEGA_EVOLUTION || animation->unk_50 == BATTLE_ANIMATION_SUB_OUT || animation->unk_50 == BATTLE_ANIMATION_SUB_IN)));
     SysTask_Start(ov16_022626C0, v0, 0);
 }
 
@@ -4867,6 +4873,11 @@ static void ov16_022626C0(SysTask *param0, void *param1)
 {
     UnkStruct_ov16_0225D9A8 *v0 = (UnkStruct_ov16_0225D9A8 *)param1;
 
+    // bw2vis:layout - no script before the text box is out and the battlers are in place
+    if (v0->unk_6A == 0 && !BattleStage_IsReadyForAnim()) {
+        return;
+    }
+
     switch (v0->unk_6A) {
     case 0:
         if ((v0->unk_10.isSubstitute) && (v0->unk_10.unk_4C == 0) && (PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_HIDE) == 0)) {
@@ -4945,6 +4956,7 @@ static void ov16_022626C0(SysTask *param0, void *param1)
         v0->unk_6A++;
         break;
     case 10:
+        BattleStage_EndAnimSequence(); // bw2vis:layout
         BattleController_EmitClearCommand(v0->unk_00, v0->unk_69, v0->unk_68);
         Heap_Free(param1);
         SysTask_Done(param0);

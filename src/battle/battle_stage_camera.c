@@ -9,7 +9,9 @@
 
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_layout.h"
 #include "battle/battle_stage_sprites.h"
+#include "battle/battle_textbox.h"
 #include "battle/healthbar.h"
 #include "battle/ov16_0223DF00.h"
 
@@ -88,8 +90,9 @@
 // steps, so even at 30 Hz the shake is seen to start from rest (half the amplitude, then all of it)
 #define SHAKE_QUARTER_FRAMES (2 * STEP_FRAMES)
 
-// The cut-line guard (cut_guard.md). The top screen's battle textbox is up for the whole
-// battle, so off home the limit is its top edge; a change of limit eases over 8 screen frames.
+// The cut-line guard (cut_guard.md). Off home the limit is the battle textbox's top edge while
+// any of the box shows, the screen bottom once it has faded (battle_textbox.c); a change of
+// limit eases over 8 screen frames.
 #define CUT_EDGE_NONE 0x7FFF
 #define CUT_LIMIT_TEXTBOX 144
 #define CUT_LIMIT_SCREEN 192
@@ -794,6 +797,18 @@ static BOOL BattlerFoot(int battler, int *homeX, int *homeY, VecFx32 *foot)
     side = type & 1;
     *homeX = sHomeX[type] + TotemBattle_HomeOffsetX(type);
     *homeY = BattleStageSprites_BlobRow(side);
+
+    // bw2vis:layout - the foot at the battler's BW2 place (battle_stage_layout.c)
+    {
+        int dx, dy;
+
+        if (BattleStageLayout_Offset(battler, &dx, &dy)) {
+            *homeX += dx;
+            *homeY += dy;
+            return BattleStageSprites_GroundPointAt(*homeX, *homeY, foot);
+        }
+    }
+
     return BattleStageSprites_GroundPoint(side, *homeX, foot);
 }
 
@@ -921,7 +936,8 @@ static int CutShortfall(int limit)
 static void UpdateCutGuard(BOOL visible, const CameraPose *pose)
 {
     BattleStageCutGuardFields *guard = sStageCamera.cutGuard;
-    int limit = CUT_LIMIT_TEXTBOX;
+    // bw2vis:layout - the text box fades out for animations (battle_textbox.c)
+    int limit = BattleTextbox_IsClear() ? CUT_LIMIT_SCREEN : CUT_LIMIT_TEXTBOX;
     BOOL violation = FALSE;
     int max, pass, need, i;
 
@@ -2299,9 +2315,24 @@ static BOOL GetSideSimilarity(int side, BattleStageCameraSimilarity *similarity)
     fx32 homeX = 0, homeY = 0, nowX = 0, nowY = 0, scale = 0;
     int count = 0;
     int max, i;
+    int layoutX, layoutY;
+
+    // bw2vis:layout - the side's platform stands at its battlers' BW2 places (battle_stage_layout.c).
+    // Off home the anchors' home is that place already, so an OBJ at its classic place p maps to
+    // now + s * (p + d - home): the home taken back by d. At home it is the translation d alone.
+    BOOL moved = BattleStageLayout_SideOffset(side, &layoutX, &layoutY);
 
     if (!sStageCamera.hasHome || sStageCamera.atHome || sStageCamera.battleSys == NULL) {
-        return FALSE;
+        if (!moved) {
+            return FALSE;
+        }
+
+        similarity->homeX = 0;
+        similarity->homeY = 0;
+        similarity->nowX = layoutX * FX32_ONE;
+        similarity->nowY = layoutY * FX32_ONE;
+        similarity->scale = FX32_ONE;
+        return TRUE;
     }
 
     max = MaxBattlers();
@@ -2323,8 +2354,8 @@ static BOOL GetSideSimilarity(int side, BattleStageCameraSimilarity *similarity)
         return FALSE;
     }
 
-    similarity->homeX = homeX / count;
-    similarity->homeY = homeY / count;
+    similarity->homeX = homeX / count - layoutX;
+    similarity->homeY = homeY / count - layoutY;
     similarity->nowX = nowX / count;
     similarity->nowY = nowY / count;
     similarity->scale = scale / count;
@@ -2379,9 +2410,13 @@ void BattleStage_FollowIntroSprite(ManagedSprite *managedSprite, int side, int s
 
     sprite->position.x = x;
     sprite->position.y = y;
-    sprite->affineScale.x = FX_Mul(save->scale.x, s);
-    sprite->affineScale.y = FX_Mul(save->scale.y, s);
-    sprite->affineOverwriteMode = AFFINE_OVERWRITE_MODE_DOUBLE;
+
+    // bw2vis:layout - a translation alone (the layout's rest offset at home) leaves the OBJ unscaled
+    if (similarity.scale != FX32_ONE) {
+        sprite->affineScale.x = FX_Mul(save->scale.x, s);
+        sprite->affineScale.y = FX_Mul(save->scale.y, s);
+        sprite->affineOverwriteMode = AFFINE_OVERWRITE_MODE_DOUBLE;
+    }
 }
 
 // The ball OBJ of a throw (its own task draws it): it follows its target's side
