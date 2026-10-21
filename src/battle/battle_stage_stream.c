@@ -9,6 +9,7 @@
 #include "constants/narc.h"
 
 #include "battle/battle_stage_idle.h"
+#include "battle/battle_stage_layout.h"
 
 #include "heap.h"
 #include "narc.h"
@@ -36,11 +37,20 @@
 #define READ_BUF_ALIGN 32
 
 // A scaled member (a back) taller than BACK_ROOM frame pixels sinks by the rest, at most
-// BACK_MAX_SINK, so its top clears the opponent's healthbar (OBJs, drawn over the 3D layer) and
-// its feet go behind the textbox. Black/White have the 48 rows of the textbox above the touch
-// screen; Platinum's sits on the top screen. Fronts and short backs stand on the ground
-#define BACK_ROOM     100
-#define BACK_MAX_SINK 40
+// BattleStageLayout_BackMaxSink(), so its top clears the opponent's healthbar (OBJs, drawn
+// over the 3D layer). BW2 stands the player's feet 64 rows below ours, 20 below the screen,
+// and its text box is translucent, so small backs show through it (sprite_stream.md "Sink").
+// Ours is opaque, so short backs keep the classic row and only tall ones go down, at most to
+// BW2's foot row. Fronts stand on the ground. bw2vis:layout
+#define BACK_ROOM 100
+// bw2vis:layout - a back whose art ends in a flat cut along the ground row (a run of at least
+// GROUND_CUT_RUN opaque texels: the Mega stills, Platinum-style art) sinks at least
+// BattleStageLayout_CutBackSink(), so the cut is at the screen's bottom edge when the text box
+// fades, as BW2's backs are cut by the screen. Feet are narrower than the run.
+#define GROUND_CUT_UNKNOWN 0
+#define GROUND_CUT_NO      1
+#define GROUND_CUT_YES     2
+#define GROUND_CUT_RUN     16
 
 typedef struct BattlerStream {
     u16 narcID; // the sprite template looked up last
@@ -55,6 +65,7 @@ typedef struct BattlerStream {
     s16 left; // vblanks the step has left
     u16 rateLeft; // the part of a vblank (of STREAM_RATE_ONE) not counted yet at a slow rate
     u16 texFrame; // frame in the texture copy, STREAM_NO_FRAME before the first
+    u8 groundCut; // bw2vis:layout - GROUND_CUT_*: the first frame's art is cut flat along the ground row
     u16 shown; // frame in VRAM, STREAM_NO_FRAME when it has to be sent whole
     u16 queued; // frame queued for the next VBlank, STREAM_NO_FRAME if none
     u16 bufFrame; // compressed frame waiting in the read buffer
@@ -229,6 +240,7 @@ static void Unload(int index)
 
     sSpriteStreamStats.streamBytes -= stream->size;
     stream->size = 0;
+    stream->groundCut = GROUND_CUT_UNKNOWN;
     stream->texFrame = STREAM_NO_FRAME;
     stream->shown = STREAM_NO_FRAME;
     stream->queued = STREAM_NO_FRAME;
@@ -620,6 +632,20 @@ static BOOL DecodeFrame(int index)
 
     stream->texFrame = stream->bufFrame;
     stream->bufFrame = STREAM_NO_FRAME;
+
+    // bw2vis:layout - judged once per stream, on its first frame, so the sink holds still
+    if (stream->groundCut == GROUND_CUT_UNKNOWN) {
+        const u8 *ground = stream->texture + (MON_STREAM_GROUND_V - 1) * STREAM_ROW_BYTES;
+        int u, run = 0, longest = 0;
+
+        for (u = 0; u < STREAM_CANVAS_WIDTH; u++) {
+            run = ((ground[u / 2] >> ((u & 1) * 4)) & 0xF) != 0 ? run + 1 : 0;
+            longest = run > longest ? run : longest;
+        }
+
+        stream->groundCut = longest >= GROUND_CUT_RUN ? GROUND_CUT_YES : GROUND_CUT_NO;
+    }
+
     sSpriteStreamStats.decodeTicksThisFrame += OS_GetTick() - start;
     return TRUE;
 }
@@ -856,13 +882,50 @@ int BattleStageStream_GetScale(int index)
         return MON_STREAM_SCALE_ONE;
     }
 
-    return MonStream_Scale(sStageStream.battlers[index].data);
+    return BattleStageLayout_StreamScale(MonStream_Scale(sStageStream.battlers[index].data)); // bw2vis:layout - backs at 2x
+}
+
+// How far a scaled member (a back) sinks below the frame's bottom edge, in frame pixels
+static int BackSink(int index, int scale)
+{
+    const BattlerStream *stream = &sStageStream.battlers[index];
+    int sink = (MON_STREAM_GROUND_V - stream->data->top) * scale / MON_STREAM_SCALE_ONE - BACK_ROOM;
+    int dx, dy;
+
+    sink = sink < 0 ? 0 : (sink > BattleStageLayout_BackMaxSink() ? BattleStageLayout_BackMaxSink() : sink);
+
+    // bw2vis:layout
+    if (stream->groundCut == GROUND_CUT_YES && sink < BattleStageLayout_CutBackSink()) {
+        sink = BattleStageLayout_CutBackSink();
+    }
+
+    // bw2vis:layout - a battler already moved down by the layout (a doubles back at its BW2 row)
+    // sinks only by what that leaves: the sink is a depth below the classic foot row
+    if (BattleStageLayout_Offset(index, &dx, &dy) && dy > 0) {
+        sink = sink > dy ? sink - dy : 0;
+    }
+
+    return sink;
+}
+
+int BattleStageStream_SinkPixels(int index, int frameHeight)
+{
+    const BattlerStream *stream;
+    int scale;
+
+    if (index < 0 || index >= MAX_MON_SPRITES || sStageStream.battlers[index].data == NULL) {
+        return 0;
+    }
+
+    stream = &sStageStream.battlers[index];
+    scale = BattleStageLayout_StreamScale(MonStream_Scale(stream->data));
+    return scale == MON_STREAM_SCALE_ONE ? 0 : BackSink(index, scale) * frameHeight / MON_SPRITE_FRAME_HEIGHT;
 }
 
 void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *transforms, const PokemonSpriteDrawRect *rect, BattleStageStreamRect *out)
 {
     const MonStreamHeader *data = sStageStream.battlers[index].data;
-    int scale = MonStream_Scale(data);
+    int scale = BattleStageLayout_StreamScale(MonStream_Scale(data)); // bw2vis:layout - backs at 2x
     int boxU0, boxV0, boxU1, boxV1; // what a side reaching the frame's edge extends to
     int frameX, frameY, frameW, frameH; // the classic frame on screen; flipped when negative
     int x0, x1, y0, y1; // the quad in the frame, in eighths of a pixel
@@ -879,8 +942,7 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
         boxV0 = data->top;
         boxU1 = (data->left + data->width) * 2;
         boxV1 = data->top + data->height;
-        sink = (MON_STREAM_GROUND_V - data->top) * scale / MON_STREAM_SCALE_ONE - BACK_ROOM;
-        sink = sink < 0 ? 0 : (sink > BACK_MAX_SINK ? BACK_MAX_SINK : sink);
+        sink = BackSink(index, scale);
     }
 
     if (!transforms->partialDraw) {

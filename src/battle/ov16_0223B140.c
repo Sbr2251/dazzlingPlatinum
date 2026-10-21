@@ -26,6 +26,7 @@
 #include "battle/battle_io_command.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_textbox.h"
 #include "battle/battle_stage_copies.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02268520.h"
@@ -376,6 +377,7 @@ void ov16_0223B53C(BattleSystem *battleSys)
     // Only used after a capture: the Pokedex entry takes over BG0, then the platforms stay
     // hidden until the battle ends, so the stage stays off too. BattleStage_Init clears it.
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_MENU, TRUE);
+    BattleTextbox_Suspend(); // bw2vis:layout - BG1 goes to the Pokedex entry
     Window_Remove(&battleSys->windows[0]);
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG0, 0);
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, 0);
@@ -479,6 +481,7 @@ void ov16_0223B578(BattleSystem *battleSys)
     Window_Add(battleSys->unk_04, battleSys->windows, 1, 0x2, 0x13, 27, 4, 0xb, (18 + 12) + 1);
     Window_FillTilemap(battleSys->windows, 0xff);
     Window_DrawMessageBoxWithScrollCursor(&battleSys->windows[0], 0, 1, 10);
+    BattleTextbox_Resume(); // bw2vis:layout - the battle's BG1 is back, shown
 
     ov16_0223DD4C(battleSys);
 }
@@ -621,6 +624,7 @@ static void ov16_0223B790(ApplicationManager *appMan)
     ov16_0223CE28();
     TotemBattle_ResetLayout(battleSys);
     BattleStage_Init(battleSys);
+    BattleTextbox_Init(battleSys); // bw2vis:layout - after the stage: the box starts hidden over it
 
     // bw2vis:intro: the stage's opening fades in from black (battle_display.c, IntroStageOpening).
     // Until then the BG palettes are filled with the curtain's colour, which Platinum's curtain
@@ -1639,6 +1643,7 @@ static void ov16_0223CF48(SysTask *param0, void *param1)
     BattleSystem *v0 = param1;
 
     sub_02038A1C(5, v0->unk_04);
+    BattleTextbox_Update(); // bw2vis:layout - the message box fade
 
     if ((v0->unk_23F9 == 0) || (v0->unk_23F9 == 3)) {
         BattleStage_Draw();

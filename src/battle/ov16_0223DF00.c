@@ -25,6 +25,7 @@
 #include "battle/battle_display.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
+#include "battle/battle_textbox.h"
 #include "battle/common.h"
 #include "battle/healthbar.h"
 #include "battle/ov16_02268520.h"
@@ -1655,6 +1656,7 @@ u8 ov16_0223F9FC(BattleSystem *battleSys, int trainerID, int param2, enum Traine
         v1 = Text_AddPrinterWithParams(v0, FONT_MESSAGE, battleSys->msgBuffer, 0, 0, param4, BattleMessage_Callback);
     }
 
+    BattleTextbox_NotePrint(v1); // bw2vis:layout - the box shows for every message
     return v1;
 }
 
@@ -1668,7 +1670,13 @@ u8 BattleMessage_Print(BattleSystem *battleSys, MessageLoader *msgLoader, Battle
 
     Window_FillTilemap(textWindow, 0xFF);
 
-    return Text_AddPrinterWithParams(textWindow, FONT_MESSAGE, battleSys->msgBuffer, 0, 0, renderDelay, BattleMessage_Callback);
+    // bw2vis:layout - the box shows for every message
+    {
+        u8 printer = Text_AddPrinterWithParams(textWindow, FONT_MESSAGE, battleSys->msgBuffer, 0, 0, renderDelay, BattleMessage_Callback);
+
+        BattleTextbox_NotePrint(printer);
+        return printer;
+    }
 }
 
 u8 BattleMessage_PrintToWindow(BattleSystem *battleSystem, Window *param1, MessageLoader *param2, BattleMessage *param3, int param4, int param5, int param6, int param7, int param8)
@@ -1689,7 +1697,16 @@ u8 BattleMessage_PrintToWindow(BattleSystem *battleSystem, Window *param1, Messa
         v0 = 0;
     }
 
-    return Text_AddPrinterWithParams(param1, FONT_SYSTEM, battleSystem->msgBuffer, param4 + v0, param5, param8, BattleMessage_Callback);
+    // bw2vis:layout - the box shows for every message in it
+    {
+        u8 printer = Text_AddPrinterWithParams(param1, FONT_SYSTEM, battleSystem->msgBuffer, param4 + v0, param5, param8, BattleMessage_Callback);
+
+        if (param1 == BattleSystem_Window(battleSystem, 0)) {
+            BattleTextbox_NotePrint(printer);
+        }
+
+        return printer;
+    }
 }
 
 /**
