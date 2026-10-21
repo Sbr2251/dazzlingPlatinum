@@ -34,9 +34,10 @@ void BattleStageParticles_Free(void);
 // system's own projection, takes this frame's battler similarities; FALSE when no battler has
 // one. Then DrawParticle, before each particle, loads the projection that gives that particle
 // the similarity of the battlers around it: exactly a mon's own similarity near that mon, a
-// blend between them.
+// blend between them. viewPos is the particle's centre, anchorViewPos the point it was emitted
+// from: particles near their emission point move rigidly with it.
 BOOL BattleStageParticles_BeginSystem(const MtxFx44 *projection);
-void BattleStageParticles_DrawParticle(const VecFx32 *viewPos);
+void BattleStageParticles_DrawParticle(const VecFx32 *viewPos, const VecFx32 *anchorViewPos);
 
 // The battle plane (debug A/B; the true 3D placement, for sprites drawn in perspective): turns
 // a particle system's projection into one that puts every particle on the upright plane through

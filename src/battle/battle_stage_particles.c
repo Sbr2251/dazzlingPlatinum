@@ -24,8 +24,11 @@
 #define BODY_LIFT   24
 #define SOFT_RADIUS 16
 #define SNAP_RATIO  32
-#define KEY_NONE    -2 // nothing loaded yet in this system's draw
-#define KEY_BLEND   -1 // the last particle's similarity was a blend
+// A particle within RIGID_RADIUS px of the point it was emitted from moves rigidly with that point
+// (so the particles of one ball keep together); from FREE_RADIUS on, it takes the field at its own
+// place (a beam's far end lands on the defender)
+#define RIGID_RADIUS 32
+#define FREE_RADIUS  96
 
 typedef struct FieldBattler {
     fx32 bodyX; // home body point, px
@@ -54,7 +57,10 @@ typedef struct StageParticles {
     MtxFx44 base; // the system's own projection
     int numBattlers;
     FieldBattler battlers[MAX_BATTLERS];
-    int lastKey; // KEY_*, or the battler whose similarity is loaded
+    BOOL loaded; // a similarity is loaded in this system's draw: the one below
+    fx32 loadedTx;
+    fx32 loadedTy;
+    fx32 loadedScale;
 } StageParticles;
 
 static StageParticles sStageParticles;
@@ -304,81 +310,46 @@ BOOL BattleStageParticles_BeginSystem(const MtxFx44 *projection)
     }
 
     sStageParticles.base = *projection;
-    sStageParticles.lastKey = KEY_NONE;
+    sStageParticles.loaded = FALSE;
     return TRUE;
 }
 
-// The base projection followed by p' = now + s * (p - home) in pixels (as the 2D similarity hook)
-static void LoadSimilarity(fx32 homeX, fx32 homeY, fx32 nowX, fx32 nowY, fx32 s)
+// Where the system's own camera puts a view-space point on the home screen, px. FALSE behind it.
+static BOOL HomeScreen(const VecFx32 *viewPos, fx32 *px, fx32 *py)
 {
     const MtxFx44 *base = &sStageParticles.base;
-    MtxFx44 m = *base;
-    fx32 tx = s - FX32_ONE + (nowX - FX_Mul(s, homeX)) / 128;
-    fx32 ty = FX32_ONE - s + (FX_Mul(s, homeY) - nowY) / 96;
-    int r;
+    fx32 cx, cy, cw;
 
-    for (r = 0; r < 4; r++) {
-        m.m[r][0] = FX_Mul(base->m[r][0], s) + FX_Mul(base->m[r][3], tx);
-        m.m[r][1] = FX_Mul(base->m[r][1], s) + FX_Mul(base->m[r][3], ty);
-    }
-
-    G3_MtxMode(GX_MTXMODE_PROJECTION);
-    G3_LoadMtx44(&m);
-    G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
-}
-
-void BattleStageParticles_DrawParticle(const VecFx32 *viewPos)
-{
-    const MtxFx44 *base = &sStageParticles.base;
-    const FieldBattler *b;
-    fx32 cx, cy, cw, px, py, nowX, nowY, s, sum;
-    u32 spread[MAX_BATTLERS];
-    fx32 weight[MAX_BATTLERS];
-    u32 nearest;
-    int i, near, count;
-
-    if (sStageParticles.numBattlers == 0) {
-        return;
-    }
-
-    // Where the system's own camera puts the particle's centre (the classic picture)
     cx = FX_Mul(viewPos->x, base->_00) + FX_Mul(viewPos->y, base->_10) + FX_Mul(viewPos->z, base->_20) + base->_30;
     cy = FX_Mul(viewPos->x, base->_01) + FX_Mul(viewPos->y, base->_11) + FX_Mul(viewPos->z, base->_21) + base->_31;
     cw = FX_Mul(viewPos->x, base->_03) + FX_Mul(viewPos->y, base->_13) + FX_Mul(viewPos->z, base->_23) + base->_33;
 
     if (cw <= 0) {
-        if (sStageParticles.lastKey != 0) {
-            b = &sStageParticles.battlers[0];
-            LoadSimilarity(b->homeX, b->homeY, b->nowX, b->nowY, b->scale);
-            sStageParticles.lastKey = 0;
-        }
-
-        return;
+        return FALSE;
     }
 
-    px = 128 * FX32_ONE + 128 * FX_Div(cx, cw);
-    py = 96 * FX32_ONE - 96 * FX_Div(cy, cw);
+    *px = 128 * FX32_ONE + 128 * FX_Div(cx, cw);
+    *py = 96 * FX32_ONE - 96 * FX_Div(cy, cw);
+    return TRUE;
+}
+
+// The field at a home-screen point: where it lands now and its scale
+static void Field(fx32 px, fx32 py, fx32 *nowX, fx32 *nowY, fx32 *scale)
+{
+    const FieldBattler *b;
+    u32 spread[MAX_BATTLERS];
+    fx32 weight[MAX_BATTLERS];
+    u32 nearest = 0xFFFFFFFF;
+    fx32 sum;
+    int i, near = 0, count = 0;
 
     // (d^2 + r^2) to each body point, in whole px^2
-    near = 0;
-    nearest = 0xFFFFFFFF;
-
     for (i = 0; i < sStageParticles.numBattlers; i++) {
         s32 dx = (px - sStageParticles.battlers[i].bodyX) >> FX32_SHIFT;
         s32 dy = (py - sStageParticles.battlers[i].bodyY) >> FX32_SHIFT;
 
-        if (dx < -1024) {
-            dx = -1024;
-        } else if (dx > 1024) {
-            dx = 1024;
-        }
-
-        if (dy < -1024) {
-            dy = -1024;
-        } else if (dy > 1024) {
-            dy = 1024;
-        }
-
+        dx = dx < -1024 ? -1024 : (dx > 1024 ? 1024 : dx);
+        dy = dy < -1024 ? -1024 : (dy > 1024 ? 1024 : dy);
         spread[i] = (u32)(dx * dx + dy * dy + SOFT_RADIUS * SOFT_RADIUS);
 
         if (spread[i] < nearest) {
@@ -386,8 +357,6 @@ void BattleStageParticles_DrawParticle(const VecFx32 *viewPos)
             near = i;
         }
     }
-
-    count = 0;
 
     for (i = 0; i < sStageParticles.numBattlers; i++) {
         if (i != near && spread[i] < nearest * SNAP_RATIO) {
@@ -397,12 +366,10 @@ void BattleStageParticles_DrawParticle(const VecFx32 *viewPos)
 
     // One battler: its own similarity, as the mons have
     if (count == 0) {
-        if (sStageParticles.lastKey != near) {
-            b = &sStageParticles.battlers[near];
-            LoadSimilarity(b->homeX, b->homeY, b->nowX, b->nowY, b->scale);
-            sStageParticles.lastKey = near;
-        }
-
+        b = &sStageParticles.battlers[near];
+        *nowX = b->nowX + FX_Mul(b->scale, px - b->homeX);
+        *nowY = b->nowY + FX_Mul(b->scale, py - b->homeY);
+        *scale = b->scale;
         return;
     }
 
@@ -422,9 +389,9 @@ void BattleStageParticles_DrawParticle(const VecFx32 *viewPos)
         sum += weight[i];
     }
 
-    nowX = 0;
-    nowY = 0;
-    s = 0;
+    *nowX = 0;
+    *nowY = 0;
+    *scale = 0;
 
     for (i = 0; i < sStageParticles.numBattlers; i++) {
         fx32 w;
@@ -435,12 +402,87 @@ void BattleStageParticles_DrawParticle(const VecFx32 *viewPos)
 
         b = &sStageParticles.battlers[i];
         w = FX_Div(weight[i], sum);
-        nowX += FX_Mul(w, b->nowX + FX_Mul(b->scale, px - b->homeX));
-        nowY += FX_Mul(w, b->nowY + FX_Mul(b->scale, py - b->homeY));
-        s += FX_Mul(w, b->scale);
+        *nowX += FX_Mul(w, b->nowX + FX_Mul(b->scale, px - b->homeX));
+        *nowY += FX_Mul(w, b->nowY + FX_Mul(b->scale, py - b->homeY));
+        *scale += FX_Mul(w, b->scale);
+    }
+}
+
+// The base projection followed by p' = now + s * (p - home) in pixels (as the 2D similarity hook);
+// skipped when it is the one loaded last
+static void LoadSimilarity(fx32 homeX, fx32 homeY, fx32 nowX, fx32 nowY, fx32 s)
+{
+    const MtxFx44 *base = &sStageParticles.base;
+    MtxFx44 m = *base;
+    fx32 tx = s - FX32_ONE + (nowX - FX_Mul(s, homeX)) / 128;
+    fx32 ty = FX32_ONE - s + (FX_Mul(s, homeY) - nowY) / 96;
+    int r;
+
+    if (sStageParticles.loaded && tx == sStageParticles.loadedTx && ty == sStageParticles.loadedTy
+        && s == sStageParticles.loadedScale) {
+        return;
     }
 
-    // About the particle's own centre: it lands at the blended point, sized by the blended scale
+    for (r = 0; r < 4; r++) {
+        m.m[r][0] = FX_Mul(base->m[r][0], s) + FX_Mul(base->m[r][3], tx);
+        m.m[r][1] = FX_Mul(base->m[r][1], s) + FX_Mul(base->m[r][3], ty);
+    }
+
+    G3_MtxMode(GX_MTXMODE_PROJECTION);
+    G3_LoadMtx44(&m);
+    G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
+
+    sStageParticles.loaded = TRUE;
+    sStageParticles.loadedTx = tx;
+    sStageParticles.loadedTy = ty;
+    sStageParticles.loadedScale = s;
+}
+
+void BattleStageParticles_DrawParticle(const VecFx32 *viewPos, const VecFx32 *anchorViewPos)
+{
+    fx32 px, py, ax, ay, anchorNowX, anchorNowY, anchorScale, nowX, nowY, s, t;
+    s32 dx, dy;
+    u32 d2;
+
+    if (sStageParticles.numBattlers == 0) {
+        return;
+    }
+
+    if (!HomeScreen(viewPos, &px, &py)) {
+        px = sStageParticles.battlers[0].homeX;
+        py = sStageParticles.battlers[0].homeY;
+    }
+
+    if (!HomeScreen(anchorViewPos, &ax, &ay)) {
+        ax = px;
+        ay = py;
+    }
+
+    // The particle's emission point takes the field; a particle near it moves rigidly with it, so
+    // a ball made of several particles holds together between the mons
+    Field(ax, ay, &anchorNowX, &anchorNowY, &anchorScale);
+
+    dx = (px - ax) >> FX32_SHIFT;
+    dy = (py - ay) >> FX32_SHIFT;
+    dx = dx < -1024 ? -1024 : (dx > 1024 ? 1024 : dx);
+    dy = dy < -1024 ? -1024 : (dy > 1024 ? 1024 : dy);
+    d2 = (u32)(dx * dx + dy * dy);
+
+    if (d2 <= RIGID_RADIUS * RIGID_RADIUS) {
+        LoadSimilarity(ax, ay, anchorNowX, anchorNowY, anchorScale);
+        return;
+    }
+
+    // Farther out (a beam streaming from the attacker) it takes the field at its own place,
+    // reached smoothly by FREE_RADIUS
+    Field(px, py, &nowX, &nowY, &s);
+
+    if (d2 < FREE_RADIUS * FREE_RADIUS) {
+        t = (fx32)((d2 - RIGID_RADIUS * RIGID_RADIUS) * FX32_ONE / (FREE_RADIUS * FREE_RADIUS - RIGID_RADIUS * RIGID_RADIUS));
+        nowX = anchorNowX + FX_Mul(anchorScale, px - ax) + FX_Mul(t, nowX - anchorNowX - FX_Mul(anchorScale, px - ax));
+        nowY = anchorNowY + FX_Mul(anchorScale, py - ay) + FX_Mul(t, nowY - anchorNowY - FX_Mul(anchorScale, py - ay));
+        s = anchorScale + FX_Mul(t, s - anchorScale);
+    }
+
     LoadSimilarity(px, py, nowX, nowY, s);
-    sStageParticles.lastKey = KEY_BLEND;
 }

@@ -412,23 +412,30 @@ void ParticleSystem_RegisterPaletteKey(NNSGfdPlttKey key)
     GF_ASSERT(FALSE);
 }
 
-// The particle's centre in view space, as the SPL draw functions place it
-static void ParticleSystem_ParticleDrawHook(SPLManager *mgr, SPLParticle *ptcl)
+// A particle-space point in view space, as the SPL draw functions place a particle
+static void ParticleSystem_ToView(SPLManager *mgr, const VecFx32 *pos, VecFx32 *out)
 {
     const SPLResourceHeader *header = mgr->renderState.emitter->resource->header;
-    VecFx32 pos;
-
-    VEC_Add(&ptcl->position, &ptcl->emitterPos, &pos);
 
     if (header->flags.useViewSpace) {
-        VEC_Subtract(&pos, &header->emitterBasePos, &pos);
-        MTX_MultVec43(&pos, mgr->renderState.viewMatrix, &pos);
-        VEC_Add(&pos, &header->emitterBasePos, &pos);
+        VEC_Subtract(pos, &header->emitterBasePos, out);
+        MTX_MultVec43(out, mgr->renderState.viewMatrix, out);
+        VEC_Add(out, &header->emitterBasePos, out);
     } else {
-        MTX_MultVec43(&pos, mgr->renderState.viewMatrix, &pos);
+        MTX_MultVec43(pos, mgr->renderState.viewMatrix, out);
     }
+}
 
-    sParticleHook(&pos);
+// The particle's centre (its position relative to the point it was emitted from, plus that
+// point) and the point itself, in view space
+static void ParticleSystem_ParticleDrawHook(SPLManager *mgr, SPLParticle *ptcl)
+{
+    VecFx32 pos, centre, anchor;
+
+    VEC_Add(&ptcl->position, &ptcl->emitterPos, &pos);
+    ParticleSystem_ToView(mgr, &pos, &centre);
+    ParticleSystem_ToView(mgr, &ptcl->emitterPos, &anchor);
+    sParticleHook(&centre, &anchor);
 }
 
 void ParticleSystem_Draw(ParticleSystem *particleSystem)

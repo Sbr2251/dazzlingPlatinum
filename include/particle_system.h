@@ -56,8 +56,9 @@ typedef struct ParticleSystem {
 
 // Returns TRUE to have the particle hook called before each particle of this draw
 typedef BOOL (*ParticleSystemProjectionHook)(MtxFx44 *projection);
-// Called with a particle's centre in the system's view space, before it is drawn
-typedef void (*ParticleSystemParticleHook)(const VecFx32 *viewPos);
+// Called with a particle's centre and the point it was emitted from (its emitter's position when
+// it was born), both in the system's view space, before it is drawn
+typedef void (*ParticleSystemParticleHook)(const VecFx32 *viewPos, const VecFx32 *anchorViewPos);
 
 void ParticleSystem_ZeroAll(void);
 
