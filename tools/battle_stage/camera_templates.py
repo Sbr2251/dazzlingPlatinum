@@ -65,7 +65,6 @@ TEMPLATES = {
     "arm_thrust": "contact",
     "astonish": "contact",
     "attract": "contact",
-    "beat_up": "contact",
     "bind": "contact",
     "body_slam": "contact",
     "brick_break": "contact",
@@ -76,7 +75,6 @@ TEMPLATES = {
     "dizzy_punch": "contact",
     "drill_peck": "contact",
     "ember": "contact",
-    "false_swipe": "contact",
     "feint": "contact",
     "force_palm": "contact",
     "fury_attack": "contact",
@@ -97,7 +95,6 @@ TEMPLATES = {
     "poison_tail": "contact",
     "return": "contact",
     "rock_smash": "contact",
-    "scratch": "contact",
     "secret_power": "contact",
     "smog": "contact",
     "strength": "contact",
@@ -122,7 +119,6 @@ TEMPLATES = {
     "chatter": "push",
     "copycat": "push",
     "cotton_spore": "push",
-    "covet": "push",
     "crush_grip": "push",
     "dig": "push",
     "dive": "push",
@@ -189,6 +185,9 @@ TEMPLATES = {
     "worry_seed": "push",
     "yawn": "push",
     # twoshot
+    "beat_up": "twoshot",
+    "covet": "twoshot",
+    "scratch": "twoshot",
     "aqua_jet": "twoshot",
     "assurance": "twoshot",
     "bite": "twoshot",
@@ -228,7 +227,6 @@ TEMPLATES = {
     "ominous_wind": "twoshot",
     "pain_split": "twoshot",
     "petal_dance": "twoshot",
-    "pound": "twoshot",
     "punishment": "twoshot",
     "rage": "twoshot",
     "rapid_spin": "twoshot",
@@ -317,6 +315,8 @@ TEMPLATES = {
 # move dir -> why it keeps the home camera (candidates only: risk low in move_audit.json, no
 # background change, no 2D OBJ effect sprites, not a camera-core move).
 REJECTED = {
+    "false_swipe": "the critic's reference move for real turns at home (camera: the no-kick and crit-kick turns; move_tester)",
+    "pound": "the critic's reference move at home (camera: tester Pound at home; stage_toggle; move_tester turn 2)",
     "barrage": "shakes a background layer (Func_ShakeBg)",
     "baton_pass": "draws 2D OBJ effect sprites, which cannot follow the camera",
     "bonemerang": "draws 2D OBJ effect sprites, which cannot follow the camera",

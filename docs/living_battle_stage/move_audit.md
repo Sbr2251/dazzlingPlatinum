@@ -152,7 +152,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | id | name | mechanisms | suppress | fix | risk | notes |
 |---|---|---|---|---|---|---|
 | 0 | NONE | partial_draw, bg2_copy, window, particles, sprite_fade_tint | bg2_effect | F1, F2, F3 | medium | MOVE_NONE placeholder (a Sketch copy), never played in battle; see SKETCH |
-| 1 | POUND | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
+| 1 | POUND | sprite_xy, particles | - | - | low |  |
 | 2 | KARATE_CHOP | sprite_xy, particles | - | - | low | per-move camera (template contact) |
 | 3 | DOUBLE_SLAP | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 4 | COMET_PUNCH | sprite_xy, particles | - | - | low | per-move camera (template contact) |
@@ -357,7 +357,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 203 | ENDURE | particles, sprite_fade_tint | - | - | low | per-move camera (template self) |
 | 204 | CHARM | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template push) |
 | 205 | ROLLOUT | sprite_xy, particles | - | - | low | per-move camera (template push) |
-| 206 | FALSE_SWIPE | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 206 | FALSE_SWIPE | sprite_xy, particles | - | - | low |  |
 | 207 | SWAGGER | sprite_xy, sprite_scale_rot, sprite_fade_tint | - | - | low |  |
 | 208 | MILK_DRINK | particles, sprite_fade_tint | - | - | low | per-move camera (template self) |
 | 209 | SPARK | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |

@@ -3510,7 +3510,9 @@ def _crit_checks(sc: Scenario, polls: List[tuple], what: str) -> None:
     sc.check(f"{what}: home again within {CRIT_KICK_MAX} frames of the hit blink", 0 <= back <= CRIT_KICK_MAX,
              f"home at turn frame {last_off + 1}, {back} frames after the blink (frame {blink})",
              why="the kick lasts at most 24 frames by the contract")
-    long = [r for r in runs[1:] if r[1] - r[0] + 1 > CRIT_KICK_MAX]
+    # bw2vis:camera-moves: a templated move (moves.md, Templates) is a long stretch off home inside a camera script
+    script_at = {t for t, c in polls if c["camFlags"] & CAMERA_SCRIPT}
+    long = [r for r in runs[1:] if r[1] - r[0] + 1 > CRIT_KICK_MAX and r[0] not in script_at]
     if len(runs) > 1:
         sc.check(f"{what}: later kicks (one per hit blink) are as short", not long,
                  f"{len(runs) - 1} more stretch(es) off home: {runs[1:4]}", warn_only=True)
@@ -3658,9 +3660,14 @@ def sc_camera(sc: Scenario, e: Emu, args) -> None:
              dedupe_screen="top")
     after = ram.cam()
     if before is not None and after is not None:
-        sc.check("no kicks: offHomeFrames unchanged over the turn with NO_CINEMATICS",
-                 after["offHomeFrames"] == before["offHomeFrames"],
-                 f"offHomeFrames {before['offHomeFrames']} -> {after['offHomeFrames']}; {_cam_detail(after)}",
+        # bw2vis:camera-moves: a move with a per-move camera (moves.md, Per-move camera) may leave home; only
+        # frames off home outside a camera script count (CAMERA_SCRIPT stays set until the next script starts)
+        stray = [t for t, c in polls if not c["home"] and not c["camFlags"] & CAMERA_SCRIPT]
+        scripted = sum(1 for _, c in polls if not c["home"] and c["camFlags"] & CAMERA_SCRIPT)
+        sc.check("no kicks: camera home over the turn with NO_CINEMATICS, outside camera scripts", not stray,
+                 f"offHomeFrames {before['offHomeFrames']} -> {after['offHomeFrames']}, of them {scripted} in a "
+                 f"move's camera script" + (f"; off home outside one at {stray[:6]}" if stray else "") +
+                 f"; {_cam_detail(after)}",
                  why="a kick (or something else) moved the camera although NO_CINEMATICS was set")
         sc.check("no kicks: no crit or faint bit", not after["cinematicsSeen"] & (CINE_CRIT | CINE_FAINT),
                  f"cinematicsSeen {after['cinematicsSeen']:#x} ({cine_names(after['cinematicsSeen'])})")
