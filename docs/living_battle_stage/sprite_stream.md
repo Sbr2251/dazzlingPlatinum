@@ -110,8 +110,8 @@ The idle clip's frames are in the member's frame table (shared when identical), 
 per-part data at runtime. `numIdleSteps` is 0 exactly when `idleKind` is NONE. `MonStream_Steps` and
 `MonStream_IdleSteps` give the two step tables; in battle, `BattleStageStream_GetHeader(battler)` returns
 the loaded member (header, offsets, both step tables, already in RAM; NULL for a classic battler). The
-playback (rolling the chance at a loop wrap, playing the idle steps for the wait, restarting the loop
-at step 0) belongs to the idle workstream; this stream format only carries the data.
+battle plays it (bw2vis:idle, Runtime "Special idle"): at a loop wrap it rolls BW2's chance, plays the
+idle steps for the wait and restarts the loop at step 0.
 
 ### Counts and sizes
 
@@ -180,8 +180,8 @@ and fades out before move animations: `btlv_scu.c:420,432`. Step 2 said it was o
 isn't.) So a back taller than 100 frame px above its feet sinks by the excess, at most 40 (`BACK_ROOM`,
 `BACK_MAX_SINK` in `battle_stage_stream.c`), and its feet go behind the textbox. A back's baked hover
 counts in that height, so a high floater's back sinks too (Zubat 24). The shadow stays on the
-ground. The sink is in `BattleStageStream_CanvasRect`, so every draw of the battler, the faint slide and
-the send-out included, takes it; the move copies don't.
+ground. The sink is in `BattleStageStream_CanvasRect`, so every draw of the battler, the faint slide,
+the send-out and the move copies included, takes it.
 
 **Fit.** A front that would reach more than 8 rows above the canvas once lifted, or is wider than it,
 is scaled down about its feet (Pillow's box filter, colours back to the palette); one at most 8 rows over
@@ -311,8 +311,12 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
   - No healthbar (hidden, the send-out, a faint) keeps the battler's last rate and tint, as
     B/W does. A new mon (an inactive sprite, or a different sprite template) starts at full
     speed with no tint.
+  - Special idle (bw2vis:idle): at a loop's end B/W may hold the mon for 48-64 frames; the
+    stream plays it as a second step table, from the member's idle clip or, without one, the
+    loop's first frame held (sprites.md, "Gen 5 motion").
   - Still missing: B/W closes the eyes asleep and blinks at random (1 in 100 a frame, about
-    5 frames shut), which needs eyes-shut art the GIFs don't have.
+    5 frames shut). The streams carry no eyes-shut frames beyond the POSE idle clips (BW2's
+    second sequence, 47 species).
 - **Draw (`Bind`).** The draw hook binds the battler's texture and draws the canvas around
   the classic frame (`BattleStageStream_CanvasRect`): the whole 128x96 canvas at 1:1, the
   stream's box at its scale otherwise. Mosaic,
@@ -329,9 +333,11 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
 - **Arena hidden.** With the arena hidden but its texture VRAM kept (the debug toggle, a move's
   backdrop: `BattleStage_KeepsTextureVram`), the streams go on, and the draw hook draws the
   canvas flat (`DrawFlatStream`). Hiding the arena then doesn't snap a battler back to frame A.
-- **Move copies.** A move's BG or OAM copy of a battler (`LoadPokemonSpriteIntoBg`,
-  `AddPokemonSprite`, `ov12_022234F8`) takes the classic 80x80 window of the frame on screen
-  (`BattleStage_GetStreamFrameTiles`), not frame A. Contests keep frame A.
+- **Move copies.** (bw2vis:idle) A move's OAM copy of a streamed battler (`AddPokemonSprite`) is
+  drawn by the stage from the live stream frame at the mesh's scale, its 2D tiles blank; a BG2
+  copy (`LoadPokemonSpriteIntoBg`) is the live frame at the mesh's scale in BG2's tiles (sprites.md,
+  "Gen 5 motion", "Move copies"). `ov12_022234F8`'s copies and contests keep the classic 80x80
+  window of the frame on screen (`BattleStage_GetStreamFrameTiles`), contests frame A.
 - **Overlay copies.** Copies that only sit over the battler (SpriteToOAM, the send-out copies)
   stay hidden while it is streamed (`BattleStage_IsSpriteStreamed`), so frame A doesn't double
   the animated sprite.
@@ -389,9 +395,8 @@ The card timing is the emulator's. A frame read costs the game thread about 0.3 
 ## Known gaps (later steps)
 
 - **Spinda.** Classic (see Spinda).
-- **Idle playback.** The streams carry BW2's idle data (Idle data); playing it is the idle workstream's.
-  Until then a loop just repeats, and BW2's random blink (a visibility flicker, `BtlvMcss_Blink`) is
-  not played either.
+- **Blink.** BW2's random blink (a visibility flicker, `BtlvMcss_Blink`) needs no art; the idle
+  workstream owns it with the special idle (Idle data).
 - **Loops 2 and 3 of an idling face.** BW2 runs an idling face's loop on (up to three times before an
   idle), and a node in CONTINUE mode whose length doesn't divide the loop's then shows other phases than
   in the first loop. The stream holds the first loop only.
@@ -400,9 +405,9 @@ The card timing is the emulator's. A frame read costs the game thread about 0.3 
   larger (XOR against frame A: 1.23x), since whole bodies move.
 - **Back scale.** Backs are drawn at 1.75x, BW2 at 2x (the layout workstream owns it). Backs whose BW2
   art hovers high also sink (see Sink), which eats part of their hover (Zubat: 24 of its 42 screen px).
-- **80x80 crop.** The other screens and the battle's move copies show only the classic window
-  of the canvas. Wide or tall art loses what is outside it, and a back shows only its
-  bottom-centre 46x46 texels.
+- **80x80 crop.** The other screens show only the classic window of the canvas. Wide or tall art
+  loses what is outside it, and a back shows only its bottom-centre 46x46 texels. The battle's
+  move copies no longer do (bw2vis:idle), except `ov12_022234F8`'s.
 - **Mega fronts on the classic path.** With the stage off, a Mega front draws its classic frame with the
   base species' offsets (both 0 now), so it stands its blank rows above the ground (Mega Gyarados 12 px;
   4 px with step 2's Platinum offset).

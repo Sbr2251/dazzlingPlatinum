@@ -44,11 +44,10 @@ typedef struct MonStreamIndexHeader {
 
 // MonStreamHeader.idleKind: what Black 2/White 2 do at the end of a loop (btlv_mcss.c
 // BtlvMcss_OnAnimationEnd, BtlvMcss_IdleTask; sprite_stream.md "Idle data")
-enum MonStreamIdleKind {
-    MON_STREAM_IDLE_NONE = 0, // the loop restarts; never idles (numIdleSteps 0)
-    MON_STREAM_IDLE_FREEZE, // an idle holds the whole sprite (the idle steps: one frame)
-    MON_STREAM_IDLE_POSE, // an idle shows B2W2's second sequence, a pose, its idle nodes still moving
-};
+// (macros, so code can test for the idle data with #ifdef MON_STREAM_IDLE_NONE)
+#define MON_STREAM_IDLE_NONE   0 // the loop restarts; never idles (numIdleSteps 0)
+#define MON_STREAM_IDLE_FREEZE 1 // an idle holds the whole sprite (the idle steps: one frame)
+#define MON_STREAM_IDLE_POSE   2 // an idle shows B2W2's second sequence, a pose, its idle nodes still moving
 
 // The idle steps cover this many vblanks, the longest of B2W2's idles (48, 56 or 64 frames)
 #define MON_STREAM_IDLE_TICKS 64
@@ -62,7 +61,7 @@ typedef struct MonStreamHeader {
     u8 width; // bytes
     u8 top;
     u8 height;
-    u8 idleKind; // enum MonStreamIdleKind
+    u8 idleKind; // MON_STREAM_IDLE_*
     u8 numIdleSteps; // 0 with MON_STREAM_IDLE_NONE
     u16 reserved;
     u32 frameOffsets[]; // from the member's start, to LZ77 frames of height rows of width bytes

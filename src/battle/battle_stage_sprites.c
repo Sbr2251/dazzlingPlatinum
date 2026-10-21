@@ -14,6 +14,8 @@
 #include "battle/battle_stage_camera.h"
 #include "battle/battle_stage_shadow.h" // bw2vis:shadow
 #include "battle/battle_display.h"
+#include "battle/battle_stage_copies.h"
+#include "battle/battle_stage_idle.h"
 #include "battle/battle_stage_stream.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle_anim/ov12_022380BC.h"
@@ -245,6 +247,8 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     sStageSprites.bg2Lifted = FALSE;
     BattleStage_ClearGroundHoles();
     memset(&sStatFx, 0, sizeof(sStatFx));
+    BattleStage_Gen5MotionInit();
+    BattleStageCopies_Init();
 
     for (i = 0; i < MAX_MON_SPRITES; i++) {
         sStageSprites.states[i].phase = 0;
@@ -451,6 +455,42 @@ BOOL BattleStage_GetStreamFrameTiles(int battler, u8 *tiles)
     }
 
     return TRUE;
+}
+
+// bw2vis:idle: the state battle_stage_idle.c reads (docs/living_battle_stage/sprites.md, "Gen 5
+// motion")
+BOOL BattleStageSprites_MoveAnimActive(void)
+{
+    return sStageSprites.moveAnimActive;
+}
+
+u32 BattleStageSprites_DebugFlags(void)
+{
+    return sStageSprites.fields != NULL ? sStageSprites.fields->debugFlags : 0;
+}
+
+BOOL BattleStageSprites_StreamsLive(void)
+{
+    return BATTLE_STAGE_3D && sStageSprites.fields != NULL && sStageSprites.hooked && sStageSprites.streamLive;
+}
+
+BOOL BattleStageSprites_IsVisible(void)
+{
+    return BATTLE_STAGE_3D && sStageSprites.fields != NULL && sStageSprites.hooked && sStageSprites.visible;
+}
+
+BOOL BattleStageSprites_DrawsBattler(int battler)
+{
+    if (!BATTLE_STAGE_3D || sStageSprites.fields == NULL || !sStageSprites.hooked || battler < 0 || battler >= MAX_MON_SPRITES) {
+        return FALSE;
+    }
+
+    return ((sStageSprites.meshMask | sStageSprites.lastMeshMask | sStageSprites.streamedMask | sStageSprites.lastStreamedMask) & (1 << battler)) != 0;
+}
+
+BattleSystem *BattleStageSprites_BattleSystem(void)
+{
+    return sStageSprites.hooked ? sStageSprites.battleSys : NULL;
 }
 
 void BattleStage_SetGroundHole(int battler, BOOL open)

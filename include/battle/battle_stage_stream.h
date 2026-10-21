@@ -56,6 +56,9 @@ void BattleStageStream_BeginFrame(BOOL visible, BOOL frozen);
 // Plays battler index's animation at rate / STREAM_RATE_ONE of its speed (as B/W, slower at
 // low HP or asleep), holding its frame at 0 (frozen solid); STREAM_RATE_ONE from Init
 void BattleStageStream_SetRate(int index, u32 rate);
+// bw2vis:idle: battler index's sprite has a stream (loaded, or found in the index for a
+// template that changed this frame)
+BOOL BattleStageStream_HasStream(int index);
 // From the draw hook: when battler index's current frame is in VRAM, binds its texture
 // (the canvas from texel 0, 0) and returns TRUE. Unbind gives the manager's
 // texture back.
