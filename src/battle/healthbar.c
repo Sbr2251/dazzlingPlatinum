@@ -75,6 +75,14 @@
 #define HEALTHBAR_GHOST_ROW_LAST      4
 #define HEALTHBAR_LOSS_TASK_PRIORITY  1001
 
+// bw2vis:hud-gauges: the red flash. BW2 fades each gauge losing HP toward colour 0x10 (dark red) to 8/16 and back,
+// 2/16 a frame, 3 times (BtlvGauge_FlashTask, btlv_gauge.c:1541-1588). We blend the healthbar's effects palette
+// slot, as the level-up flash does (ov16_02268380), sampling BW2's curve every other frame: one cycle is 10 frames
+#define HEALTHBAR_FLASH_COLOR  GX_RGB(16, 0, 0)
+#define HEALTHBAR_FLASH_CYCLES 3
+
+static const u8 sHealthbarFlashFractions[] = { 2, 6, 8, 4, 0 };
+
 #define HEALTHBAR_WINDOW_BLOCK_SIZE 32
 
 #define HEALTHBAR_NAME_BLOCK_COUNT_X    8
@@ -214,6 +222,7 @@ void ov16_02268470(Healthbar *param0);
 void ov16_02268498(Healthbar *param0);
 static void ov16_022684BC(SysTask *param0, void *param1);
 static void Healthbar_EnableArrow(Healthbar *param0, int param1);
+static void Healthbar_SetFlashPalette(Healthbar *healthbar, BOOL flash);
 static void Healthbar_StartLossEffects(Healthbar *healthbar);
 static void Healthbar_StopLossEffects(Healthbar *healthbar);
 static void Healthbar_LossTask(SysTask *task, void *data);
@@ -2106,10 +2115,33 @@ BOOL Healthbar_MoveAnimHidesHealthbars(u16 move)
 }
 
 /**
- * @brief Start BW2's effects of an HP loss: the lost-HP segment (and, later, the red flash).
+ * @brief Start BW2's effects of an HP loss: the lost-HP segment and the red flash.
  *
  * @param healthbar A healthbar whose HP is about to drain, curHP still the HP before the hit
  */
+/**
+ * @brief Put the healthbar on its effects palette slot for the red flash, or back on its own (the effects slot
+ * cleared of the blend).
+ */
+static void Healthbar_SetFlashPalette(Healthbar *healthbar, BOOL flash)
+{
+    SpriteManager *spriteMan = BattleSystem_GetSpriteManager(healthbar->battleSys);
+    int slot = SpriteManager_FindPlttResourceOffset(spriteMan, HEALTHBAR_EFFECTS_PALETTE_RESID, NNS_G2D_VRAM_TYPE_2DMAIN);
+
+    if (!flash) {
+        PaletteData_Blend(BattleSystem_PaletteSys(healthbar->battleSys), PLTTBUF_MAIN_OBJ, slot * 16, 16, 0, HEALTHBAR_FLASH_COLOR);
+        slot = SpriteManager_FindPlttResourceOffset(spriteMan, HEALTHBAR_MAIN_PALETTE_RESID, NNS_G2D_VRAM_TYPE_2DMAIN);
+    }
+
+    if (healthbar->mainSprite != NULL) {
+        ManagedSprite_SetExplicitPalette(healthbar->mainSprite, slot);
+    }
+
+    if (healthbar->arrowSprite != NULL) {
+        ManagedSprite_SetExplicitPalette(healthbar->arrowSprite, slot);
+    }
+}
+
 static void Healthbar_StartLossEffects(Healthbar *healthbar)
 {
     if (healthbar->mainSprite == NULL || healthbar->type > HEALTHBAR_TYPE_ENEMY_SLOT_2) {
@@ -2119,6 +2151,14 @@ static void Healthbar_StartLossEffects(Healthbar *healthbar)
     healthbar->ghostEndPx = Healthbar_HpPixels(healthbar->curHP, healthbar->maxHP);
     healthbar->ghostBlink = 0;
     healthbar->ghostHidden = FALSE;
+
+    // A flash already running goes on; BW2 doesn't restart it either
+    if (!healthbar->flashing) {
+        healthbar->flashing = TRUE;
+        healthbar->flashStep = 0;
+        healthbar->flashCycle = 0;
+        Healthbar_SetFlashPalette(healthbar, TRUE);
+    }
 
     if (healthbar->lossTask == NULL) {
         healthbar->lossTask = SysTask_Start(Healthbar_LossTask, healthbar, HEALTHBAR_LOSS_TASK_PRIORITY);
@@ -2132,6 +2172,11 @@ static void Healthbar_StopLossEffects(Healthbar *healthbar)
         healthbar->lossTask = NULL;
     }
 
+    if (healthbar->flashing) {
+        Healthbar_SetFlashPalette(healthbar, FALSE);
+        healthbar->flashing = FALSE;
+    }
+
     healthbar->ghostEndPx = 0;
     healthbar->ghostBlink = 0;
     healthbar->ghostHidden = FALSE;
@@ -2140,6 +2185,21 @@ static void Healthbar_StopLossEffects(Healthbar *healthbar)
 static void Healthbar_LossTask(SysTask *task, void *data)
 {
     Healthbar *healthbar = data;
+
+    if (healthbar->flashing) {
+        PaletteData_Blend(BattleSystem_PaletteSys(healthbar->battleSys), PLTTBUF_MAIN_OBJ,
+            SpriteManager_FindPlttResourceOffset(BattleSystem_GetSpriteManager(healthbar->battleSys), HEALTHBAR_EFFECTS_PALETTE_RESID, NNS_G2D_VRAM_TYPE_2DMAIN) * 16,
+            16, sHealthbarFlashFractions[healthbar->flashStep], HEALTHBAR_FLASH_COLOR);
+
+        if (++healthbar->flashStep == NELEMS(sHealthbarFlashFractions)) {
+            healthbar->flashStep = 0;
+
+            if (++healthbar->flashCycle == HEALTHBAR_FLASH_CYCLES) {
+                Healthbar_SetFlashPalette(healthbar, FALSE);
+                healthbar->flashing = FALSE;
+            }
+        }
+    }
 
     // After the drain: off and on phases (off first, as BW2's blinkCount 18 starts hidden), then gone
     if (healthbar->ghostBlink > 0) {
@@ -2156,7 +2216,7 @@ static void Healthbar_LossTask(SysTask *task, void *data)
     }
 
     // During the drain the segment is drawn with the bar; the task waits
-    if (healthbar->ghostEndPx == 0) {
+    if (healthbar->ghostEndPx == 0 && !healthbar->flashing) {
         healthbar->lossTask = NULL;
         SysTask_Done(task);
     }
