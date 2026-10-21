@@ -150,15 +150,19 @@ static const SpriteTemplate sPokeballTemplate = {
 #define POKEBALL_Y_POS_THEIRS   (ARROW_Y_POS_THEIRS - 6)
 
 #define POKEBALL_SPACING          16
-#define POKEBALL_OVERFLOW_SPACING 15
-#define POKEBALL_OVERFLOW_LEN     6
 
 #define ARROW_IN_SPEED   (18 << 8)
 #define ARROW_OUT_SPEED  (4 << 8)
 #define ARROW_FADE_SPEED (1 << 8)
 
 #define POKEBALL_IN_SPEED      (18 << 8)
-#define POKEBALL_IN_SPEED_SLOW (6 << 8)
+
+// bw2vis:hud-gauges: at the battle's start BW2's balls roll in at 12 px a frame, overshoot their rest by 2 px per
+// slot (2, 4 ... 12) and, once all have stopped, settle back at 2 px a frame (btlv_b_gauge.c LoadResources,
+// SlideTask). The tasks run at 30 Hz, so the per-update steps are doubled
+#define POKEBALL_IN_SPEED_BATTLE_START (24 << 8)
+#define POKEBALL_SETTLE_SPEED          (4 << 8)
+#define POKEBALL_OVERSHOOT_PER_SLOT    2
 #define POKEBALL_OUT_SPEED     (12 << 8)
 
 #define POKEBALL_SLOT_SHOW_DELAY 3
@@ -481,10 +485,10 @@ static void ShowPokeballs(PartyGaugePokeballs *pokeballs, s8 *numBalls, enum Par
 
     if (side == PARTY_GAUGE_OURS) {
         pokeballs->xEnd = POKEBALL_X_END_OURS + slot * POKEBALL_SPACING;
-        pokeballs->xOverflow = POKEBALL_X_END_OURS + slot * POKEBALL_OVERFLOW_SPACING - POKEBALL_OVERFLOW_LEN;
+        pokeballs->xOverflow = pokeballs->xEnd - POKEBALL_OVERSHOOT_PER_SLOT * (slot + 1);
     } else {
         pokeballs->xEnd = POKEBALL_X_END_THEIRS - slot * POKEBALL_SPACING;
-        pokeballs->xOverflow = POKEBALL_X_END_THEIRS - slot * POKEBALL_OVERFLOW_SPACING + POKEBALL_OVERFLOW_LEN;
+        pokeballs->xOverflow = pokeballs->xEnd + POKEBALL_OVERSHOOT_PER_SLOT * (slot + 1);
     }
 
     pokeballs->state = SHOW_POKEBALLS_INIT;
@@ -520,7 +524,7 @@ static void ShowPokeballsStartOfBattleTask(SysTask *task, void *data)
         // fall-through
     case SHOW_POKEBALLS_DRAW:
         if (pokeballs->side == PARTY_GAUGE_OURS) {
-            pokeballs->xStart -= POKEBALL_IN_SPEED;
+            pokeballs->xStart -= POKEBALL_IN_SPEED_BATTLE_START;
 
             if (pokeballs->xStart <= pokeballs->xOverflow << 8) {
                 pokeballs->xStart = pokeballs->xOverflow << 8;
@@ -530,7 +534,7 @@ static void ShowPokeballsStartOfBattleTask(SysTask *task, void *data)
 
             ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, sPokeballYPosOurs[pokeballs->position]);
         } else {
-            pokeballs->xStart += POKEBALL_IN_SPEED;
+            pokeballs->xStart += POKEBALL_IN_SPEED_BATTLE_START;
 
             if (pokeballs->xStart >= pokeballs->xOverflow << 8) {
                 pokeballs->xStart = pokeballs->xOverflow << 8;
@@ -575,7 +579,7 @@ static void ShowPokeballsStartOfBattleTask(SysTask *task, void *data)
         // fall-through
     case SHOW_POKEBALLS_SCROLL:
         if (pokeballs->side == PARTY_GAUGE_OURS) {
-            pokeballs->xStart += POKEBALL_IN_SPEED_SLOW; // need more dissection on what exactly this is for
+            pokeballs->xStart += POKEBALL_SETTLE_SPEED; // the settle back from the overshoot
 
             if (pokeballs->xStart >= pokeballs->xEnd << 8) {
                 pokeballs->xStart = pokeballs->xEnd << 8;
@@ -584,7 +588,7 @@ static void ShowPokeballsStartOfBattleTask(SysTask *task, void *data)
 
             ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, sPokeballYPosOurs[pokeballs->position]);
         } else {
-            pokeballs->xStart -= POKEBALL_IN_SPEED_SLOW;
+            pokeballs->xStart -= POKEBALL_SETTLE_SPEED;
 
             if (pokeballs->xStart <= pokeballs->xEnd << 8) {
                 pokeballs->xStart = pokeballs->xEnd << 8;

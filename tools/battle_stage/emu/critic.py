@@ -2661,6 +2661,7 @@ IDLE_STOP_MAX = 2                        # idleFrames may advance this much whil
 BLOB_DARKER = 8                          # a ground pixel counts as darker by more than this (luma) ...
 BLOB_PIXELS = 30                         # ... and at least this many must be, with the mean luma lower
 BLOB_BELOW = 10                          # the "under the mon" region reaches this far below the box
+SILHOUETTE_RIGHT = 32                    # bw2vis:shadow: ... and, for a silhouette shadow, this far right of it
 NIGHT_TINT_MIN = 4.0                     # night: mean max-channel difference on the mon's pixels vs stage off
 NIGHT_BLACK = (24.0, 0.35)               # ... and not black: mean brightness >= 24 and >= 35% of stage off
 SPRITE_COUNT = 2                         # singles: spriteMeshes and blobShadows at the home pose
@@ -2733,9 +2734,14 @@ def _luma(img: Image.Image) -> List[int]:
     return list(img.convert("L").getdata())
 
 
-def under_box(box: tuple) -> tuple:
-    """The ground under a mon: the lower quarter of its box and BLOB_BELOW pixels below it."""
+def under_box(box: tuple, silhouette: bool = False) -> tuple:
+    """The ground under a mon: the lower quarter of its box and BLOB_BELOW pixels below it.
+    bw2vis:shadow: a BW2 silhouette shadow (docs/living_battle_stage/shadows.md) lies behind the mon
+    and leans right, so a back sprite hides most of it: with `silhouette`, the lower half of the box
+    plus SILHOUETTE_RIGHT pixels to its right."""
     x0, y0, x1, y1 = box
+    if silhouette:
+        return (x0, y1 - (y1 - y0) // 2, min(SCENE[2], x1 + SILHOUETTE_RIGHT), min(SCENE[3], y1 + BLOB_BELOW))
     return (x0, y1 - (y1 - y0) // 4, x1, min(SCENE[3], y1 + BLOB_BELOW))
 
 
@@ -2936,8 +2942,9 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
         sc.check("NO_BLOB_SHADOWS turns the blobs off", n_blob == 0, f"blobShadows {n_blob}")
         day_on = idle_samples(e, n=8, every=4)
         blob_cells = []
+        silhouettes = "sStageShadowStats" in ram.syms  # bw2vis:shadow: a ROM with BW2 silhouette shadows
         for mon in ("enemy", "player"):
-            ub = under_box(boxes[mon])
+            ub = under_box(boxes[mon], silhouettes)
             a_img, b_img = best_pair([i.crop(ub) for i in with_blob], [i.crop(ub) for i in day_on])
             la, lb = _luma(a_img), _luma(b_img)
             darker = sum(1 for p, q in zip(la, lb) if q - p > BLOB_DARKER)
