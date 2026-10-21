@@ -21,6 +21,7 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_trainer_bw2.h"
 #include "battle/healthbar.h"
 #include "battle/mega_evolution.h"
 #include "battle/message_defs.h"
@@ -561,6 +562,9 @@ void ov16_0225D414(BattleSystem *battleSys, BattlerData *param1, TrainerSlideInM
     }
 
     v3->unk_04 = param1->unk_18 = ov16_022643B8(battleSys, param1->battlerType & 1, message->trainerType, param1->battlerType, Unk_ov12_0223B0DC[param1->battlerType & 1][0], Unk_ov12_0223B0DC[param1->battlerType & 1][1]);
+    // bw2vis:trainers-anim: a BW2 front idles as it slides in for its line (BW2 plays the trainer's
+    // animation while it moves in, btl_client.c); Platinum art keeps its still first frame
+    BattleTrainerBW2_StartIdle(v3->unk_04);
     v3->unk_0C = Unk_ov12_0223B0A0[param1->battlerType & 1][message->posIn];
     v3->unk_00 = battleSys;
     v3->unk_08 = message->command;
@@ -6558,7 +6562,12 @@ static ManagedSprite *ov16_022643B8(BattleSystem *battleSys, int param1, int par
         v4 = 0;
     }
 
-    v3 = sub_02076994(v0, v1, v2, param4, param5, param2, v4, param3, 5);
+    // bw2vis:trainers-anim: classes with a BW2 animated front load it instead
+    v3 = BattleTrainerBW2_NewFront(v0, v1, v2, param4, param5, param2, v4, param3, 5);
+
+    if (v3 == NULL) {
+        v3 = sub_02076994(v0, v1, v2, param4, param5, param2, v4, param3, 5);
+    }
 
     return v3;
 }
