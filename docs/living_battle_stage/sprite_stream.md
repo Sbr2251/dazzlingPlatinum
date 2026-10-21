@@ -146,13 +146,16 @@ row below the classic frame's last; art may reach 8 rows below it (Turtwig, Exca
 sideways only as far as it must to fit (Gyarados, Gorebyss). At 1:1 the classic 80x80 frame is the
 canvas window at (24, 8).
 
-**Scale.** A member's scale is in eighths. Fronts are 1:1, as in BW2. Backs are stored 1:1 and drawn
-at a flat 1.75x (14/8); BW2 draws them at 2x (the layout workstream owns the drawn scale). Every path
-maps a classic frame pixel (x, y) to the texel `u = ((x - 40) * 8 + 64s) / s`,
-`v = ((y - 80) * 8 + 88s) / s` (`MON_STREAM_TEXEL_U/V`, nearest neighbour), so the canvas's centre column
-stays on the frame's centre and the ground row on its bottom row. At 1.75x the classic window of a back
-holds only its bottom-centre 46x46 texels; the PNGs, the move copies and the other screens all show that
-window.
+**Scale.** A member's scale is in eighths. Fronts are 1:1, as in BW2. Backs are stored at the 1.75x
+baseline (14/8) and the battle draws them at BW2's 2x (16/8, `btlv_mcss.c:2203`); Mega backs, stored at
+14 to 16, draw at 16 to 18 (`stored * 16 / 14`, `BattleStageLayout_StreamScale`, layout.md "Back sprites
+at 2x"). At 2x Garchomp's back is about 190 px tall, more than the 144 px above the text box, but the box
+fades out during animations (textbox.md) and tall backs sink below the screen as in BW2 (see Sink).
+Every path maps a classic frame pixel (x, y) to the texel `u = ((x - 40) * 8 + 64s) / s`,
+`v = ((y - 80) * 8 + 88s) / s` (`MON_STREAM_TEXEL_U/V`, nearest neighbour), s the drawn scale, so the
+canvas's centre column stays on the frame's centre and the ground row on its bottom row. At 2x the
+classic window of a back holds only its bottom-centre 40x40 texels, which the battle's move copies show;
+the PNGs and the other screens are cut at the stored 1.75x (46x46 texels).
 
 **Hover.** BW2 has no altitude table: every battler stands at the same y, and a floater's hover is in
 its art, above the foot point (pokebw2 `btlv_mcss.c:192-195`). Step 2 stood every animation's lowest
@@ -175,13 +178,19 @@ their Sinnoh stand-in's value (`gen5_species.py`). Now:
 **Sink.** The healthbars are OBJs, drawn over the 3D layer, so a tall back reaching the opponent's HP
 box (its bottom is about 86 screen px above the player's feet) has its head hidden behind it. BW2 has the
 same layering but another layout: its player foot point is about 20 px below the bottom of the top screen,
-so BW2 crops tall backs at the screen edge. (Its message window is on the top screen too, rows 152-184,
-and fades out before move animations: `btlv_scu.c:420,432`. Step 2 said it was on the touch screen; it
-isn't.) So a back taller than 100 frame px above its feet sinks by the excess, at most 40 (`BACK_ROOM`,
-`BACK_MAX_SINK` in `battle_stage_stream.c`), and its feet go behind the textbox. A back's baked hover
-counts in that height, so a high floater's back sinks too (Zubat 24). The shadow stays on the
-ground. The sink is in `BattleStageStream_CanvasRect`, so every draw of the battler, the faint slide,
-the send-out and the move copies included, takes it.
+so BW2 crops tall backs at the screen edge, and its message window, on the top screen too (rows 152-184,
+not the touch screen as step 2 said), is translucent and fades out before move animations
+(`btlv_scu.c:420,432`; textbox.md). Ours is opaque, so short backs keep the classic foot row, where they
+show whole above the box at the command menu, and a back taller than 100 frame px above its feet (at
+its drawn 2x) sinks by the excess, at most 64, BW2's foot row (`BACK_ROOM` in `battle_stage_stream.c`,
+`BattleStageLayout_BackMaxSink`). A back's baked hover counts in that height, so a high floater's back
+sinks too. A back whose first frame ends in a flat cut along the ground row (a run of 16 or more opaque
+texels: the Mega stills) sinks at least 44 (`BattleStageLayout_CutBackSink`), so the cut is at the
+screen's edge while the box is faded. The shadow stays on the ground. The sink is in
+`BattleStageStream_CanvasRect`, so every draw of the battler, the faint slide, the send-out and the move
+copies included, takes it, and the cut guard adds it to a streamed battler's cut edge
+(`BattleStageStream_SinkPixels`). The `PLATINUM_LAYOUT` debug flag gives back the stored 1.75x, a cap of
+40 and no cut-back sink (layout.md).
 
 **Fit.** A front that would reach more than 8 rows above the canvas once lifted, or is wider than it,
 is scaled down about its feet (Pillow's box filter, colours back to the palette); one at most 8 rows over
@@ -218,7 +227,8 @@ directories to pokebw2's (`FORM_BW2`, checked against pokebw2's `form_<n>.json` 
 ### Substitute doll
 
 BW2's doll (`res/pokemon/shared/substitute`, one still keyframe front and back) is a stream at the doll's
-two PL_OTHERPOKE characters: the front 1:1, the back at the backs' 1.75x. Its classic PNGs and
+two PL_OTHERPOKE characters: the front 1:1, the back at the backs' 1.75x baseline (drawn at 2x, as
+BW2's doll back). Its classic PNGs and
 `substitute.pal` are rewritten from it, and its HEIGHT_O y_offsets (134, 135) are 0.
 
 ### Megas
@@ -226,7 +236,8 @@ two PL_OTHERPOKE characters: the front 1:1, the back at the backs' 1.75x. Its cl
 B/W has no Megas. Each Mega's classic back, drawn 1:1, came out about half the size of the B/W backs
 around them, so frame A of `forms/mega/back.png` is a one-frame stream in the Mega's own palette,
 standing on the ground row, at the scale that matches its base form's back height: at least 1.75x, at
-most 2x (`MON_STREAM_MAX_SCALE`). Frame A of `forms/mega/front.png` is a one-frame stream at 1:1, standing
+most 2x (`MON_STREAM_MAX_SCALE`), drawn at 16/14 of that like every back (see Scale) and sunk at
+least 44 for its cut bottom (see Sink). Frame A of `forms/mega/front.png` is a one-frame stream at 1:1, standing
 on the ground row: the Mega shares its base species' `y_offset` (0) and `addl_y_offset` (the B/W art's
 lift, 0 for all 11 bases), so its classic front would float by its own blank rows (Mega Gyarados 12).
 Members: `report.json` under `megas`.
@@ -423,8 +434,10 @@ The card timing is the emulator's. A frame read costs the game thread about 0.3 
 - **Dropped frames.** 22 large faces lost frames to the 96 KB and 255-frame caps (see Counts and sizes);
   their timing stays BW2's. A member format with frames stored as differences was tried and came out
   larger (XOR against frame A: 1.23x), since whole bodies move.
-- **Back scale.** Backs are drawn at 1.75x, BW2 at 2x (the layout workstream owns it). Backs whose BW2
-  art hovers high also sink (see Sink), which eats part of their hover (Zubat: 24 of its 42 screen px).
+- **Back hover.** Backs are drawn at BW2's 2x (layout.md). Backs whose BW2 art hovers high also sink
+  (see Sink), which eats most of their hover (Zubat: 42 of its 48 screen px at 2x): BW2 stands every
+  back 60 px lower instead, which our opaque text box doesn't allow. Zubat, Golbat, Bronzor and Gastly
+  still show whole above the box at the command menu (`/tmp/bw2vis/layout/strips/merge_floaters.png`).
 - **80x80 crop.** The other screens show only the classic window of the canvas. Wide or tall art
   loses what is outside it, and a back shows only its bottom-centre 46x46 texels. The battle's
   move copies no longer do (bw2vis:idle), except `ov12_022234F8`'s.

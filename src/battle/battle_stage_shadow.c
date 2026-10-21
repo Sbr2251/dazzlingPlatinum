@@ -8,6 +8,7 @@
 #include "constants/narc.h"
 #include "constants/species.h"
 
+#include "battle/battle_stage_layout.h" // bw2vis:layout
 #include "battle/battle_stage_sprites.h"
 #include "battle/battle_stage_stream.h"
 #include "battle/ov16_0223DF00.h"
@@ -302,9 +303,20 @@ static BOOL DrawSilhouette(int index, PokemonSprite *sprite, int side, const Sha
     // the text box, so its shadow starts on the side's blob row, above it, as the blob does
     px = transforms->xCenter + transforms->xOffset - 128;
     row = side ? transforms->yCenter + MON_SPRITE_FRAME_HEIGHT / 2 - BattleStageSprites_BlobRow(side) : 0;
+
     foot.x = centre.x + (s32)((s64)right128.x * px / 128) + down.x * row;
     foot.y = centre.y + (s32)((s64)right128.y * px / 128) + down.y * row;
     foot.z = centre.z + (s32)((s64)right128.z * px / 128) + down.z * row;
+
+    // bw2vis:shadow+layout: the battler's rest offset (screen px), as the sprite and the blob take
+    // it; the exact ground point, as the offset can be tens of rows
+    {
+        int dx, dy;
+
+        if (BattleStageLayout_Offset(index, &dx, &dy)) {
+            BattleStageSprites_GroundPointAt(px + 128 + dx, BattleStageSprites_BlobRow(side) + row + dy, &foot);
+        }
+    }
     place.groundPer128 = VEC_Mag(&right128);
 
     // Screen pixels per texel: the stream's scale and the sprite's own (a negative x flips)

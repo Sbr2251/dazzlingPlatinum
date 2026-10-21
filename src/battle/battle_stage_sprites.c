@@ -12,6 +12,7 @@
 
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_camera.h"
+#include "battle/battle_stage_layout.h"
 #include "battle/battle_stage_shadow.h" // bw2vis:shadow
 #include "battle/battle_display.h"
 #include "battle/battle_stage_copies.h"
@@ -382,6 +383,7 @@ void BattleStage_SetMoveAnimActive(BOOL active)
 {
     sStageSprites.moveAnimActive = active;
     BattleStageCamera_SetScriptActive(active);
+    BattleStageLayout_SetScriptActive(active); // bw2vis:layout
 }
 
 void BattleStage_NotifyHit(int battler)
@@ -1151,7 +1153,7 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
     follow = sStageSprites.visible
         && BattleStage_IsVisible()
         && monSpriteMan->excludeIdentity != TRUE
-        && BattleStageCamera_GetSimilarity(index, &similarity);
+        && BattleStageLayout_Similarity(index, &similarity); // bw2vis:layout - the camera's, over the BW2 place
 
     // Called again for the classic shadow (MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX), after its G3_Identity
     if (rect == NULL) {
@@ -1366,6 +1368,15 @@ static void BuildBlobTexture(void)
     }
 }
 
+// bw2vis:layout - the home camera's rays, for exact ground points off the blob rows
+static struct {
+    BattleStageSpriteCamera camera;
+    VecFx32 back;
+    VecFx32 camUp;
+    fx32 tanY;
+    fx32 tanX;
+} sGroundRay;
+
 // Where the home camera sees a screen row (column 128) on the ground; FALSE above the horizon
 static BOOL GroundAtRow(const BattleStageSpriteCamera *camera, const VecFx32 *back, const VecFx32 *camUp, fx32 tanY, int row, VecFx32 *point, fx32 *dist)
 {
@@ -1404,6 +1415,13 @@ static void BuildGroundMapping(const BattleStageSpriteCamera *camera)
 
     tanY = FX_Div(camera->fovySin, camera->fovyCos);
     tanX = tanY * 4 / 3;
+
+    // bw2vis:layout - for BattleStageSprites_GroundPointAt
+    sGroundRay.camera = *camera;
+    sGroundRay.back = back;
+    sGroundRay.camUp = camUp;
+    sGroundRay.tanY = tanY;
+    sGroundRay.tanX = tanX;
 
     for (side = 0; side < 2; side++) {
         // A row above the horizon never meets the ground; leave the blobs off
@@ -1444,6 +1462,34 @@ BOOL BattleStageSprites_GroundPoint(int side, int px, VecFx32 *point)
     return TRUE;
 }
 
+// bw2vis:layout
+BOOL BattleStageSprites_GroundPointAt(int px, int row, VecFx32 *point)
+{
+    fx32 lift, across, dist;
+    VecFx32 dir;
+
+    if (!sStageSprites.hooked || sStageSprites.groundHalfWidth[0] <= 0 || sStageSprites.groundHalfWidth[1] <= 0) {
+        return FALSE;
+    }
+
+    // The ray through the pixel; right is level, so the row alone sets the distance
+    lift = FX_Mul((96 - row) * FX32_ONE / 96, sGroundRay.tanY);
+    across = FX_Mul((px - 128) * FX32_ONE / 128, sGroundRay.tanX);
+    dir.x = -sGroundRay.back.x + FX_Mul(sGroundRay.camUp.x, lift) + FX_Mul(sStageSprites.right.x, across);
+    dir.y = -sGroundRay.back.y + FX_Mul(sGroundRay.camUp.y, lift) + FX_Mul(sStageSprites.right.y, across);
+    dir.z = -sGroundRay.back.z + FX_Mul(sGroundRay.camUp.z, lift) + FX_Mul(sStageSprites.right.z, across);
+
+    if (dir.y >= 0) {
+        return FALSE;
+    }
+
+    dist = FX_Div(BLOB_GROUND_Y - sGroundRay.camera.camPos.y, dir.y);
+    point->x = sGroundRay.camera.camPos.x + FX_Mul(dir.x, dist);
+    point->y = BLOB_GROUND_Y;
+    point->z = sGroundRay.camera.camPos.z + FX_Mul(dir.z, dist);
+    return TRUE;
+}
+
 // bw2vis:shadow
 BOOL BattleStageSprites_GroundFrame(int side, VecFx32 *centre, VecFx32 *right, VecFx32 *down)
 {
@@ -1457,6 +1503,15 @@ BOOL BattleStageSprites_GroundFrame(int side, VecFx32 *centre, VecFx32 *right, V
     *right = sStageSprites.groundRight[side];
     *down = sStageSprites.groundDown[side];
     return TRUE;
+}
+
+// bw2vis:layout - the cut edge moves with the battler's layout place
+static int CutLayoutDy(int battler)
+{
+    int dx, dy;
+
+    BattleStageLayout_Offset(battler, &dx, &dy);
+    return dy;
 }
 
 BOOL BattleStageSprites_CutHomeY(int battler, int *y)
@@ -1486,6 +1541,7 @@ BOOL BattleStageSprites_CutHomeY(int battler, int *y)
         }
 
         *y = transforms->yCenter - MON_SPRITE_FRAME_HEIGHT / 2 + transforms->drawYOffset + transforms->yOffset - sprite->shadow.height + transforms->drawHeight;
+        *y += CutLayoutDy(battler); // bw2vis:layout
         return TRUE;
     }
 
@@ -1496,6 +1552,13 @@ BOOL BattleStageSprites_CutHomeY(int battler, int *y)
     }
 
     *y = transforms->yCenter - height / 2 + transforms->yOffset - sprite->shadow.height + height;
+    *y += CutLayoutDy(battler); // bw2vis:layout
+
+    // bw2vis:layout - a streamed back's art stands below the frame's edge by its sink
+    if (BattleStage_IsSpriteStreamed(battler)) {
+        *y += BattleStageStream_SinkPixels(battler, height);
+    }
+
     return TRUE;
 }
 
@@ -1612,6 +1675,15 @@ static void GroundQuadAxes(int battler, int widthPx, int scale, VecFx32 *centre,
     centre->x = sStageSprites.groundCentre[side].x + sStageSprites.groundRight[side].x * px / 128;
     centre->y = sStageSprites.groundCentre[side].y + sStageSprites.groundRight[side].y * px / 128;
     centre->z = sStageSprites.groundCentre[side].z + sStageSprites.groundRight[side].z * px / 128;
+
+    // bw2vis:layout - under the battler's BW2 place
+    {
+        int dx, dy;
+
+        if (BattleStageLayout_Offset(battler, &dx, &dy)) {
+            BattleStageSprites_GroundPointAt(px + 128 + dx, sBlobRow[side] + dy, centre);
+        }
+    }
     a->x = FX_Mul(sStageSprites.right.x, *radius);
     a->y = FX_Mul(sStageSprites.right.y, *radius);
     a->z = FX_Mul(sStageSprites.right.z, *radius);

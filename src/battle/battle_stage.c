@@ -12,6 +12,7 @@
 
 #include "battle/battle_stage_camera.h"
 #include "battle/battle_stage_format.h"
+#include "battle/battle_stage_layout.h"
 #include "battle/battle_stage_light.h"
 #include "battle/battle_stage_sprites.h"
 #include "battle/ov16_0223DF00.h"
@@ -236,10 +237,13 @@ void BattleStage_Init(BattleSystem *battleSys)
     } else {
         BattleStageCamera_Init(battleSys, &sBattleStage.camera, &sBattleStage.cutGuard, NULL, &sBattleStage.sprites.debugFlags);
     }
+
+    BattleStageLayout_Init(battleSys, sBattleStage.arena != NULL, &sBattleStage.sprites.debugFlags); // bw2vis:layout
 }
 
 void BattleStage_Free(void)
 {
+    BattleStageLayout_Free(); // bw2vis:layout
     BattleStageCamera_Free();
     BattleStageSprites_Free();
 
@@ -274,6 +278,9 @@ void BattleStage_Draw(void)
 
     UpdateFade();
     visible = BattleStage_IsVisible();
+
+    // bw2vis:layout - the battlers' BW2 places, which the camera's anchors stand on
+    BattleStageLayout_Advance(visible);
 
     // Home draws with the arena's own matrices, exactly as before the camera
     BattleStageCamera_Advance(visible, sBattleStage.debugView);
@@ -1368,11 +1375,13 @@ static void SwayMesh(StageArena *arena, const StageMesh *mesh)
 static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *projection)
 {
     int platformOffset[2];
+    VecFx32 layoutShift[2]; // bw2vis:layout - the platform under its battlers' BW2 places
     int bg3X = 0, bg3Y = 0;
     int side, i;
 
     for (side = 0; side < 2; side++) {
         platformOffset[side] = BattlePlatform_GetOffsetX(ov16_0223E020(sBattleStage.battleSys, side));
+        BattleStageLayout_PlatformShift(side, &layoutShift[side]);
     }
 
     NNS_G3dGeFlushBuffer();
@@ -1415,7 +1424,7 @@ static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *pro
 
         if (mesh->flags & (BATTLE_STAGE_MESH_FOLLOW_PLATFORM_PLAYER | BATTLE_STAGE_MESH_FOLLOW_PLATFORM_ENEMY)) {
             side = (mesh->flags & BATTLE_STAGE_MESH_FOLLOW_PLATFORM_PLAYER) ? 0 : 1;
-            G3_Translate(arena->platformStep[side].x * platformOffset[side], arena->platformStep[side].y * platformOffset[side], arena->platformStep[side].z * platformOffset[side]);
+            G3_Translate(arena->platformStep[side].x * platformOffset[side] + layoutShift[side].x, arena->platformStep[side].y * platformOffset[side] + layoutShift[side].y, arena->platformStep[side].z * platformOffset[side] + layoutShift[side].z);
         }
 
         if (mesh->flags & BATTLE_STAGE_MESH_SWAY) {
