@@ -175,7 +175,8 @@ BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy);
 BOOL BattleStage_IsCameraReadyForMenu(void);
 // The command menu camera (bw2vis:camera-core; BW2's, camera.md "Command menu camera"): every command
 // prompt eases onto the battler choosing (its slot's BW2 preset shot); in a double battle, move select
-// cuts to BW2's wide shot, which target select keeps. It does nothing while NO_CINEMATICS or NO_IDLE_CAMERA is set
+// cuts to BW2's wide shot, which target select keeps; 900 frames (15 s) after the prompt, BW2-style idle
+// shots follow one another in random order. It does nothing while NO_CINEMATICS or NO_IDLE_CAMERA is set
 // (and snaps home if one is set while it runs), and a menu shown while it runs doesn't wait.
 // EndIdleCamera, when every battler's command is in, eases it home; an anim script start or a hidden
 // arena snaps it home without counting a guard snap.

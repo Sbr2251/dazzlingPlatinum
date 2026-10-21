@@ -48,9 +48,11 @@
 // as they are; a script's drawn frames are doubled.
 #define STEP_FRAMES 2
 // The command menu camera (BW2: btlv_input.c, btlv_effect.c). Every prompt eases onto the battler
-// choosing as BtlvEffect_ZoomCamera does (MoveTo, 10 frames, brake 8); the commands in, it eases home.
+// choosing as BtlvEffect_ZoomCamera does (MoveTo, 10 frames, brake 8); 900 frames (15 s) after the
+// prompt the idle shots start; the commands in, it eases home.
 #define PROMPT_FRAMES 10
 #define PROMPT_BRAKE 8
+#define IDLE_WAIT_FRAMES 900
 #define MENU_HOME_FRAMES 10
 #define MENU_HOME_BRAKE 8
 
@@ -166,6 +168,9 @@ typedef struct StageCamera {
     BOOL promptSeen; // the first command prompt of the battle has opened
     int promptBattler;
     int idleTimer; // screen frames since the last prompt (or double battle move select)
+    int idleLast; // the last idle shot, never played twice in a row
+    int idleHold; // screen frames the idle shot holds at its end pose
+    u32 idleRandom; // the idle shots' own random state (the battle's RNG is never touched)
     // Home offset of the camera in angle form, for poses built from a camera position
     u16 homeAzimuth;
     u16 homeElevation;
@@ -250,6 +255,47 @@ static const s16 sPresetRow[BATTLER_TYPE_MAX] = { 124, 113, 125, 111, 139, 104 }
 // (BG0 renders, camera.md "Camera range"); the wide shot needs about 1.4x
 #define CAMERA_MAX_DISTANCE FX32_CONST(1.45)
 
+// The idle shots (BW2 picks one of 6 idle effect scripts at random, never the same twice in a row; their
+// camera data is in the ROM's archive 66, which isn't extracted). Each is a cut to a start pose and a slow
+// move at constant speed to an end pose, built like BW2's from its presets: a slide (no turn) onto a mon
+// at its preset size, a turn about a point (CameraRotate), and a truck of the home pose (preset 18).
+enum IdleFocus {
+    IDLE_FOCUS_HOME = 0, // the home target, moved towardPct of the way to a side
+    IDLE_FOCUS_ENEMY, // the opponents' preset (the first opponent, or both)
+    IDLE_FOCUS_PLAYER, // the battler whose command is being picked, at its preset
+};
+
+typedef struct IdleShotPose {
+    u8 focus; // enum IdleFocus
+    s8 towardPct; // IDLE_FOCUS_HOME: toward the opponents (+) or the player's side (-)
+    u8 scalePct; // battler focus: the mon's size against home; 0 = its preset size
+    s8 yawDeg;
+    s8 pitchDeg;
+} IdleShotPose;
+
+typedef struct IdleShot {
+    IdleShotPose start;
+    IdleShotPose end;
+    u16 moveFrames; // screen frames, constant speed
+    u16 holdFrames;
+} IdleShot;
+
+static const IdleShot sIdleShots[] = {
+    // 0x235-like: the foe, a slow push to its preset size
+    { { IDLE_FOCUS_ENEMY, 0, 125, 0, 0 }, { IDLE_FOCUS_ENEMY, 0, 0, 0, 0 }, 240, 60 },
+    // your mon at its preset size, sliding a little toward the foe
+    { { IDLE_FOCUS_PLAYER, 0, 0, 0, 0 }, { IDLE_FOCUS_HOME, -45, 0, 0, 0 }, 240, 60 },
+    // a slow turn across the field about the home target
+    { { IDLE_FOCUS_HOME, 0, 0, -16, 0 }, { IDLE_FOCUS_HOME, 0, 0, 16, 0 }, 300, 45 },
+    // a low turn about the foe
+    { { IDLE_FOCUS_ENEMY, 0, 120, 10, -3 }, { IDLE_FOCUS_ENEMY, 0, 120, -10, -3 }, 240, 45 },
+    // preset 18: the home pose trucked across, from the foe's side to yours
+    { { IDLE_FOCUS_HOME, 30, 0, 0, 0 }, { IDLE_FOCUS_HOME, -30, 0, 0, 0 }, 300, 45 },
+    // over the field from your side to a high look at the foe
+    { { IDLE_FOCUS_HOME, -20, 0, 8, 2 }, { IDLE_FOCUS_HOME, 40, 0, -6, 4 }, 240, 60 },
+};
+
+#define IDLE_SHOT_COUNT NELEMS(sIdleShots)
 
 static BOOL PoseEquals(const CameraPose *a, const CameraPose *b)
 {
@@ -867,6 +913,8 @@ static void UpdateCutGuard(BOOL visible, const CameraPose *pose)
     }
 }
 
+static void StartNextIdleShot(void);
+static void IdleTestHook(void);
 
 // The command menu camera is off: a debug flag (the critic's frame comparisons at the menu want home)
 static BOOL MenuCameraOff(void)
@@ -907,7 +955,8 @@ static void AdvanceSequence(void)
             sStageCamera.introHoming = TRUE;
         }
         break;
-    // bw2vis:camera-core. The command menu: the prompt (or the wide select shot) holds
+    // bw2vis:camera-core. The command menu: the prompt (or the wide select shot) holds until 900 frames
+    // after the prompt, then the idle shots follow one another (BtlvEffect_UpdateIdleEffect)
     case SEQUENCE_PROMPT:
     case SEQUENCE_SELECT:
         if (MenuCameraOff()) {
@@ -916,6 +965,32 @@ static void AdvanceSequence(void)
         }
 
         sStageCamera.idleTimer += STEP_FRAMES;
+        IdleTestHook();
+
+        if (sStageCamera.sequence != SEQUENCE_IDLE && sStageCamera.idleTimer >= IDLE_WAIT_FRAMES && !IsEasing()) {
+            sStageCamera.sequence = SEQUENCE_IDLE;
+            StartNextIdleShot();
+        }
+        break;
+    case SEQUENCE_IDLE:
+        if (MenuCameraOff()) {
+            SnapHome();
+            break;
+        }
+
+        sStageCamera.idleTimer += STEP_FRAMES;
+        IdleTestHook();
+
+        if (IsEasing()) {
+            break;
+        }
+
+        if (sStageCamera.idleHold > 0) {
+            sStageCamera.idleHold -= STEP_FRAMES;
+            break;
+        }
+
+        StartNextIdleShot();
         break;
     default:
         if (sStageCamera.introHoming && !IsEasing()) {
@@ -979,6 +1054,8 @@ void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fi
     }
 
     sStageCamera.promptBattler = -1;
+    sStageCamera.idleLast = -1;
+    sStageCamera.idleRandom = (u32)OS_GetTick() | 1;
     memset(&sStageCameraDebug, 0, sizeof(sStageCameraDebug));
     sStageCameraDebug.magic = CAMERA_DEBUG_MAGIC;
 
@@ -1612,7 +1689,7 @@ void BattleStage_CameraScriptStart(void)
         return;
     }
 
-    // The menu camera (prompt, select shot) is expected to be cut short;
+    // The menu camera (prompt, select shot, idle shots) is expected to be cut short;
     // anything else off home is counted
     if (!PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) || IsEasing() || IsShaking() || sStageCamera.sequence != SEQUENCE_NONE) {
         if (sStageCamera.sequence != SEQUENCE_IDLE && sStageCamera.sequence != SEQUENCE_PROMPT
@@ -1898,6 +1975,58 @@ BOOL BattleStage_IsCameraReadyForMenu(void)
 // bw2vis:camera-core. The command menu camera (BW2: btlv_input.c:888-890, :947-951, :3376-3379;
 // btlv_effect.c:840-888, :1087-1112, :1322-1366).
 
+// The idle shots' random numbers: a private LCG, so the battle's own RNG (and so a recorded or linked
+// battle) never sees the camera
+static int IdleRandom(int range)
+{
+    sStageCamera.idleRandom = sStageCamera.idleRandom * 1103515245 + 12345;
+    return (int)((sStageCamera.idleRandom >> 16) % (u32)range);
+}
+
+// The mean foot point of a side's battlers
+static BOOL SideFoot(int side, VecFx32 *foot)
+{
+    VecFx32 sum, point;
+    int count = 0;
+    int max, i, homeX, homeY;
+
+    sum.x = sum.y = sum.z = 0;
+    max = MaxBattlers();
+
+    for (i = 0; i < max; i++) {
+        if ((BattleSystem_BattlerSlot(sStageCamera.battleSys, i) & 1) == side && BattlerFoot(i, &homeX, &homeY, &point)) {
+            sum.x += point.x;
+            sum.y += point.y;
+            sum.z += point.z;
+            count++;
+        }
+    }
+
+    if (count == 0) {
+        return FALSE;
+    }
+
+    foot->x = sum.x / count;
+    foot->y = sum.y / count;
+    foot->z = sum.z / count;
+    return TRUE;
+}
+
+// The battler of a side, the first one there
+static int SideBattler(int side)
+{
+    int max = MaxBattlers();
+    int i;
+
+    for (i = 0; i < max; i++) {
+        if ((BattleSystem_BattlerSlot(sStageCamera.battleSys, i) & 1) == side) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 static BOOL IsDoubles(void)
 {
     return MaxBattlers() > 2;
@@ -1943,6 +2072,106 @@ static void WideGoal(CameraPose *goal)
 static BOOL PromptGoal(int battler, CameraPose *goal)
 {
     return PresetGoal(battler, 0, goal);
+}
+
+static BOOL IdleShotGoal(const IdleShotPose *shot, CameraPose *goal)
+{
+    VecFx32 focus, foot;
+    fx32 toward;
+    int battler;
+
+    switch (shot->focus) {
+    case IDLE_FOCUS_ENEMY:
+        if (!SideFoot(1, &foot)) {
+            return FALSE;
+        }
+
+        // Both foes in a double battle: their preset size would cut them at the sides
+        if (!TruckGoal(&foot, shot->scalePct ? shot->scalePct * FX32_ONE / 100 : (IsDoubles() ? FX32_CONST(1.25) : sPresetScale[1]), sPresetRow[1], goal)) {
+            return FALSE;
+        }
+        break;
+    case IDLE_FOCUS_PLAYER:
+        battler = sStageCamera.promptBattler >= 0 ? sStageCamera.promptBattler : SideBattler(0);
+
+        if (!PresetGoal(battler, shot->scalePct * FX32_ONE / 100, goal)) {
+            return FALSE;
+        }
+        break;
+    default:
+        *goal = sStageCamera.homePose;
+
+        if (shot->towardPct != 0) {
+            if (!SideFocus(shot->towardPct > 0 ? 1 : 0, &focus)) {
+                return FALSE;
+            }
+
+            toward = (shot->towardPct > 0 ? shot->towardPct : -shot->towardPct) * FX32_ONE / 100;
+            goal->focus.x += FX_Mul(focus.x - goal->focus.x, toward);
+            goal->focus.y += FX_Mul(focus.y - goal->focus.y, toward);
+            goal->focus.z += FX_Mul(focus.z - goal->focus.z, toward);
+        }
+        break;
+    }
+
+    goal->yaw = shot->yawDeg * FX32_ONE;
+    goal->pitch = shot->pitchDeg * FX32_ONE;
+    return TRUE;
+}
+
+// Idle shot pick: a cut to its start, then a slow move at constant speed to its end (atEnd: a cut
+// straight to the end, the test hook's way to check a pose)
+static BOOL StartIdleShot(int pick, BOOL atEnd)
+{
+    CameraPose start, end;
+
+    if (!IdleShotGoal(&sIdleShots[pick].start, &start) || !IdleShotGoal(&sIdleShots[pick].end, &end)) {
+        return FALSE;
+    }
+
+    sStageCamera.idleLast = pick;
+    sStageCamera.idlePose = pick;
+    sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
+    sStageCamera.sequence = SEQUENCE_IDLE;
+    EaseToCurve(atEnd ? &end : &start, 0, 0, CURVE_LINEAR);
+
+    if (!atEnd) {
+        EaseToCurve(&end, sIdleShots[pick].moveFrames, 0, CURVE_LINEAR);
+    }
+
+    sStageCamera.idleHold = sIdleShots[pick].holdFrames;
+    return TRUE;
+}
+
+// A new idle shot, never the last one again
+static void StartNextIdleShot(void)
+{
+    int tries, pick;
+
+    for (tries = 0; tries < 8; tries++) {
+        do {
+            pick = IdleRandom(IDLE_SHOT_COUNT);
+        } while (pick == sStageCamera.idleLast);
+
+        sStageCamera.idleLast = pick;
+
+        if (StartIdleShot(pick, FALSE)) {
+            return;
+        }
+    }
+
+    sStageCamera.idleHold = IDLE_WAIT_FRAMES;
+}
+
+// The test hook (StageCameraDebug.forcePose): 0x100 + n starts idle shot n now, 0x200 + n cuts to its end
+static void IdleTestHook(void)
+{
+    int request = sStageCameraDebug.forcePose;
+
+    if (request >= 0x100 && request < 0x300 && (request & 0xFF) < (int)IDLE_SHOT_COUNT) {
+        sStageCameraDebug.forcePose = 0;
+        StartIdleShot(request & 0xFF, request >= 0x200);
+    }
 }
 
 void BattleStage_StartIdleCamera(int battler)
