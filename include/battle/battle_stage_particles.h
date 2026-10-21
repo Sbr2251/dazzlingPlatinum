@@ -18,12 +18,13 @@
 // classic screen position. At home nothing changes.
 
 // debugFlags bits (sBattleStage+32), for A/B captures: the old single 2D similarity, or the
-// battle plane below instead of the particle field
-#define BATTLE_STAGE_DEBUG_PARTICLES_2D    (1 << 12)
-#define BATTLE_STAGE_DEBUG_PARTICLES_PLANE (1 << 13)
+// battle plane below instead of the particle field. (Bits 20-22: bit 12 is layout's
+// PLATINUM_LAYOUT, which the critic sets by default.)
+#define BATTLE_STAGE_DEBUG_PARTICLES_2D    (1 << 20)
+#define BATTLE_STAGE_DEBUG_PARTICLES_PLANE (1 << 21)
 // debugFlags bit: the move tester keeps its debug view (1-3) through the animation, an off-home
 // test bed for any move's particles (the view still resets when the overlay hides)
-#define BATTLE_STAGE_DEBUG_KEEP_VIEW_IN_MOVES (1 << 14)
+#define BATTLE_STAGE_DEBUG_KEEP_VIEW_IN_MOVES (1 << 22)
 
 // At BattleStageCamera_Init, when there is an arena (installs the particle hook). debugFlags is
 // the stage's debugFlags field.

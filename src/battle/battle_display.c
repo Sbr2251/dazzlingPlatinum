@@ -22,6 +22,7 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_layout.h"
 #include "battle/battle_trainer_bw2.h"
 #include "battle/healthbar.h"
 #include "battle/mega_evolution.h"
@@ -480,6 +481,7 @@ void ov16_0225CF70(BattleSystem *battleSys, BattlerData *param1, MonShowMessage 
         v2->unk_28.personalities[i] = message->battleMonPersonalities[i];
     }
 
+    BattleStage_SendOutCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_0225F0C0, v2, 0);
 }
 
@@ -506,6 +508,7 @@ void ov16_0225D118(BattleSystem *battleSys, BattlerData *param1, MonReturnMessag
         v1->unk_10.personalities[i] = message->battleMonPersonalities[i];
     }
 
+    BattleStage_RecallCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_0225F764, v1, 0);
 }
 
@@ -523,6 +526,7 @@ void ov16_0225D1C4(BattleSystem *battleSys, BattlerData *param1, CaptureOpenBall
 
     PokemonSprite_StartFade(v0->unk_04, 0, 16, 0, Unk_ov16_0226F1AE[message->ball]);
     PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_SHADOW_IS_AFFINE, 1);
+    BattleStage_CatchCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_0225FA00, v0, 0);
 }
 
@@ -650,6 +654,7 @@ void ov16_0225D414(BattleSystem *battleSys, BattlerData *param1, TrainerSlideInM
     v3->unk_08 = message->command;
     v3->unk_09 = param1->battler;
 
+    BattleStage_EndBattleCamera(param1->battler); // bw2vis:camera-core
     SysTask_Start(ov16_02260384, v3, 0);
 }
 
@@ -950,6 +955,11 @@ void ov16_0225D9A8(BattleSystem *battleSys, BattlerData *param1, MoveAnimation *
     }
 
     ov16_022645B8(&v0->unk_6B, &v0->unk_6C, animation->unk_4C, animation->unk_50, animation->move);
+    // bw2vis:layout - the battlers go to their classic places first, and the text box fades out,
+    // except over the Mega Evolution, whose "reacting to the Key Stone" line stays up through it
+    // (subscript_mega_evolution.s), and the Substitute doll stepping aside for it
+    BattleStage_BeginAnimSequence(!(animation->unk_4C != 0
+        && (animation->unk_50 == BATTLE_ANIMATION_MEGA_EVOLUTION || animation->unk_50 == BATTLE_ANIMATION_SUB_OUT || animation->unk_50 == BATTLE_ANIMATION_SUB_IN)));
     SysTask_Start(ov16_022626C0, v0, 0);
 }
 
@@ -3227,7 +3237,7 @@ static void ov16_022604C8(SysTask *param0, void *param1)
     case 3:
         ov16_0226757C(v0->unk_04);
         ov16_02264798(v3, v0->unk_00);
-        BattleStage_StartIdleCamera();
+        BattleStage_StartIdleCamera(v0->unk_09); // bw2vis:camera-core: the prompt frames the battler choosing
         v0->unk_0A = 4;
     case 4:
         if (ov16_02269348(v2) == 0) {
@@ -3560,6 +3570,7 @@ static void ov16_02260C00(SysTask *param0, void *param1)
             NARC_dtor(v10);
             NARC_dtor(v11);
         }
+        BattleStage_MoveSelectCamera(v0->unk_1D); // bw2vis:camera-core
         v0->unk_20++;
         break;
     case 1:
@@ -3725,6 +3736,7 @@ static void ov16_02260F14(SysTask *param0, void *param1)
             NARC_dtor(v9);
         }
 
+        BattleStage_TargetSelectCamera(v0->unk_0D); // bw2vis:camera-core
         v0->unk_0F++;
         break;
     case 1:
@@ -4861,6 +4873,11 @@ static void ov16_022626C0(SysTask *param0, void *param1)
 {
     UnkStruct_ov16_0225D9A8 *v0 = (UnkStruct_ov16_0225D9A8 *)param1;
 
+    // bw2vis:layout - no script before the text box is out and the battlers are in place
+    if (v0->unk_6A == 0 && !BattleStage_IsReadyForAnim()) {
+        return;
+    }
+
     switch (v0->unk_6A) {
     case 0:
         if ((v0->unk_10.isSubstitute) && (v0->unk_10.unk_4C == 0) && (PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_HIDE) == 0)) {
@@ -4939,6 +4956,7 @@ static void ov16_022626C0(SysTask *param0, void *param1)
         v0->unk_6A++;
         break;
     case 10:
+        BattleStage_EndAnimSequence(); // bw2vis:layout
         BattleController_EmitClearCommand(v0->unk_00, v0->unk_69, v0->unk_68);
         Heap_Free(param1);
         SysTask_Done(param0);

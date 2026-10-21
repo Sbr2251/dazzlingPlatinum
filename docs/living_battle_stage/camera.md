@@ -39,18 +39,64 @@ From a pose the camera position is `focus + R(yaw, pitch) * (home camPos - home 
 * distance`, looking at `focus` with world up. Debug views 1 to 3 become poses in this model:
 yaw -20 / +20 degrees, and pitch +15 degrees at distance 0.8. They must look as they do today.
 
-**Motion:**
+**Motion** (bw2vis camera-core: BW2's, `btlv_camera.c`):
 
-- A move, orbit or home command eases from the current pose to a goal pose over N drawn
-  frames. Use smoothstep, (3t^2 - 2t^3) in fixed point, and interpolate each pose component.
-- N = 0 snaps to the goal pose.
-- A new command starts from wherever the camera is at that moment, so there is no jump.
-- **Shake** is added on top: a decaying offset along camera-right and camera-up, in screen
-  pixels converted to world units at the focus depth. The pattern is deterministic (a fixed
-  table or a sine), never random, so the critic can reproduce it. A shake with a pose at home
-  ends exactly at home.
-- The camera advances once per `BattleStage_Draw` call, while the arena exists, whether or
-  not the stage is visible.
+- **The clock.** Eases and shakes run on BW2's 60 Hz clock: each is a function of the screen
+  frames since it started. The camera advances once per `BattleStage_Draw` call (while the arena
+  exists, whether or not the stage is visible), which is two screen frames at the battle's 30 Hz
+  (`STEP_FRAMES`). BW2's frame counts are used as they are; a script's drawn frames are doubled.
+  "Update rate" below has why the camera stays at 30 Hz.
+- **BW2's curve, the default** (`CURVE_LINEAR`, `BtlvCamera_MoveTo` and `BtlvEffTool_CalcStepVec`):
+  the camera position and the target each move in a straight line at constant speed, so a turn
+  takes the chord (C7). An optional brake halves the speed after `brake - 1` frames (BW2's
+  `brakeFrames`, `btlv_camera.c:185-204`): BW2's command prompt zoom, 10 frames with brake 8, is 7
+  frames at full speed and 6 at half speed, 13 in all. With no brake the camera starts and stops
+  dead. The pose is rebuilt from the interpolated position each frame (`PoseAnglesFromOffset`), so
+  everything downstream (shake, anchors, cut guard) still works on poses.
+- **Smoothstep** (`CURVE_SMOOTH`): (3t^2 - 2t^3) on each pose component, so a turn takes the arc.
+  The chunk 4 cinematics the intro workstream owns (the battle-start focus and sweep, the Totem
+  aura's held pose going home) still use it through `EaseTo`; scripts get it with
+  `STAGE_CAMERA_SMOOTH`.
+- N = 0 snaps to the goal pose. A new command starts from wherever the camera is at that moment,
+  so there is no jump.
+- **Shake** is added on top. **BW2's shake, the default** (`BtlvCamera_Shake`, `BtlvEffTool_Move`
+  type 3): a triangle wave of the full amplitude on one world axis (up by default, or sideways along
+  the ground), `count` whole swings of 4 quarters, starting at rest and ending exactly at rest, so it
+  keeps its strength to the end and stops dead. The amplitude is in screen pixels converted to world
+  units at the focus depth. A quarter is 4 screen frames (2 drawn frames) unless the script says
+  otherwise, so even sampled at 30 Hz it is seen to start from rest (half the amplitude, then all
+  of it). The old shake (decaying sines on both screen axes) is `STAGE_CAMERA_SHAKE_DECAY`; its
+  vertical sine used to start at full amplitude (a cosine), a one-frame jump on every shake (C5),
+  and now starts at 0 too. Every shake is deterministic, never random, and a shake with a pose at
+  home ends exactly at home.
+
+**Framing** (bw2vis camera-core, C6). A `StageCameraMove` with a battler focus (attacker or
+defender) is BW2's attacker or defender preset (`CmdCameraMovePreset` types 9-12, which resolve to
+the battler's slot preset, `btlv_effvm.c:468-505`): the home camera trucked onto the mon with no turn
+(the script's yaw and pitch are dropped) at BW2's size for that slot, with its feet where BW2's
+camera puts them:
+
+| slot | BW2 preset | size against home | feet on row |
+|---|---|---|---|
+| single battle, your mon | 0 | 0.91x | 124 |
+| single battle, the foe | 1 | 1.50x | 113 |
+| double battle, your left / right mon | 2 / 4 | 1.19x / 1.06x | 125 / 139 |
+| double battle, the right / left foe | 3 / 5 | 1.47x / 1.49x | 111 / 104 |
+
+The sizes are the ratio of the mon's distances to BW2's home and preset cameras (the gap audit's
+measure). The rows are where BW2's camera (fovy 26, aspect 1.35) projects the mon's feet, as the same
+share of our scene, which ends at the text box (row 144) where BW2's ends at the screen's bottom.
+Across, BW2 puts your mon at x 113-123 and the foe at 133-135; ours stand at x 96 and 152, where
+Platinum's bigger healthbar boxes (yours from x 136, the foe's up to x 128) leave them clear.
+The old framing pushed your own mon to 1.46x and turned 6-12 degrees; the foe's side was already at
+1.46x. `TruckGoal` solves the distance for the size from the foot's home depth, then raises the camera
+and its focus together until the feet sit on the row. `STAGE_CAMERA_FREE` on the focus keeps the old
+free framing (the script's distance, yaw and pitch), as the Mega Evolution and Totem aura scripts do.
+
+**Camera range.** Every pose the camera now takes was checked with BG0 renders (magenta where the
+arena draws nothing) on all 30 quick-battle arenas: the prompt shots, the 6 idle shots (start and
+end), the wide shot, 1.12x to 1.6x the home distance, yaw -20 at 1.12x and pitch -6. All are clean
+(at most 0.01% at pitch -6 on one arena). `CAMERA_MAX_DISTANCE` is 1.45x.
 
 **The camera is home** (`AT_HOME`) when all of these hold:
 
@@ -159,14 +205,14 @@ screen while the camera moves: full-screen weather, screen flashes. Scripts mark
 
 | bit | name | effect |
 |---|---|---|
-| 12 | `PARTICLES_2D` | the old single similarity: the focused battler's (`StageCameraMove` ATTACKER or DEFENDER), the midpoint for `BETWEEN`, the home camTarget for `CENTER`. It is also the fallback when no battler has an anchor |
-| 13 | `PARTICLES_PLANE` | the 3D battle plane: each particle on the upright plane through both sides' feet where the home camera sees it, drawn with the stage view and projection in one projection matrix per system. The right mode if the mons are ever drawn in perspective (Gen 5's MCSS) |
-| 14 | `KEEP_VIEW_IN_MOVES` | the move tester keeps its debug view (1-3) through the animation: an off-home test bed for any move's particles. The view still resets when the overlay hides |
+| 20 | `PARTICLES_2D` | the old single similarity: the focused battler's (`StageCameraMove` ATTACKER or DEFENDER), the midpoint for `BETWEEN`, the home camTarget for `CENTER`. It is also the fallback when no battler has an anchor |
+| 21 | `PARTICLES_PLANE` | the 3D battle plane: each particle on the upright plane through both sides' feet where the home camera sees it, drawn with the stage view and projection in one projection matrix per system. The right mode if the mons are ever drawn in perspective (Gen 5's MCSS) |
+| 22 | `KEEP_VIEW_IN_MOVES` | the move tester keeps its debug view (1-3) through the animation: an off-home test bed for any move's particles. The view still resets when the overlay hides |
 
 **Budget.** No polygons are added (the same particles draw; off home some fall off screen and are
 clipped). Off home, the field costs about 100-300 ARM9 cycles per particle and up to one 4x4
-projection load per particle (18 geometry words), skipped while consecutive particles snap to the
-same mon. The heaviest particle move measured, Draco Meteor, peaks at 852 polygons with the arena
+projection load per particle (18 geometry words), skipped when it equals the last one (the
+particles of one burst, or all snapped to one mon). The heaviest particle move measured, Draco Meteor, peaks at 852 polygons with the arena
 (663 at the command menu, about 190 particles), under half of the 2048 the hardware takes. Held
 off home (debug view 3) it draws the same number of stage frames per emulated frame with the
 field as with the old similarity (2.044 for Draco Meteor, 2.063 Energy Ball, 2.087 Ice Beam), so
@@ -184,16 +230,21 @@ visible.
 
 | # | macro | arguments |
 |---|---|---|
-| 85 | `StageCameraMove focus, distancePct, yawDeg, pitchDeg, frames` | focus is `STAGE_CAMERA_FOCUS_CENTER` (0), `_ATTACKER` (1), `_DEFENDER` (2) or `_BETWEEN` (3). distancePct: 100 is home, smaller is closer. yawDeg: signed, positive swings the camera to the right like debug view 2. pitchDeg: signed, positive is higher. |
-| 86 | `StageCameraOrbit yawDeltaDeg, frames` | adds yawDeltaDeg to the goal yaw, keeping focus, distance and pitch |
-| 87 | `StageCameraShake amplitudePx, frames` | decaying shake on top of the pose |
+| 85 | `StageCameraMove focus, distancePct, yawDeg, pitchDeg, frames` | focus is `STAGE_CAMERA_FOCUS_CENTER` (0), `_ATTACKER` (1), `_DEFENDER` (2) or `_BETWEEN` (3). distancePct: 100 is home, smaller is closer. yawDeg: signed, positive swings the camera to the right like debug view 2. pitchDeg: signed, positive is higher. A battler focus is BW2's preset for its slot and ignores the three ("Framing") unless the focus has `\| STAGE_CAMERA_FREE` |
+| 86 | `StageCameraOrbit yawDeltaDeg, frames` | adds yawDeltaDeg to the goal yaw, keeping focus, distance and pitch. BW2's curve turns along the chord (the camera dips toward the focus mid-turn), `STAGE_CAMERA_SMOOTH` along the arc |
+| 87 | `StageCameraShake amplitudePx, frames` | BW2's shake on top of the pose: vertical, full strength, whole swings (frames is rounded up to them). `amplitudePx \| STAGE_CAMERA_SHAKE_X` shakes sideways, `\| STAGE_CAMERA_SHAKE_DECAY` is the old decaying shake; `frames \| STAGE_CAMERA_SHAKE_QUARTER(n)` makes a quarter swing n drawn frames (default 2) |
 | 88 | `StageCameraHome frames` | eases back to the home pose (0 snaps) |
 | 89 | `StageCameraWait` | the script waits until no ease and no shake is in progress |
 | 90 | `StageCameraZoom fovDeg, frames` | eases the vertical field of view to fovDeg degrees (clamped to 10-60; home is 40), keeping the rest of the pose. 0 eases back to the home fov. `StageCameraHome` restores it too (moves.md, "Per-move camera") |
 | 91 | `StageHealthbars visible` | FALSE hides the healthbars showing now, for a close-up they would cover; TRUE shows again the ones the script hid. The script end shows any still hidden. Does nothing while the stage is not visible (moves.md, "Per-move camera") |
 
-`frames` counts drawn frames, as `Delay` does. The first camera command of a script marks
-the script as a **camera script**.
+`frames` counts drawn frames, as `Delay` does, in its low byte. Every frames word of 85, 86, 88
+and 90 takes BW2's motion by default; `| STAGE_CAMERA_BRAKE(n)` adds BW2's half-speed tail after
+n - 1 drawn frames (BW2's frames and brakeFrames count 60 Hz frames: halve both, so BW2's 10 / brake
+8 is `5 | STAGE_CAMERA_BRAKE(4)`), and `| STAGE_CAMERA_SMOOTH` is the old smoothstep. The options ride
+in the existing words (`constants/battle/battle_anim.h`), so no command changed its arguments and
+every existing script still assembles. The first camera command of a script marks the script as a
+**camera script**.
 
 ## The home guard
 
@@ -269,18 +320,22 @@ fallback (the stage wasn't visible at the opening, a recorded battle, Giratina's
   the camera snaps home.
 
 **Mega Evolution** (bit 1) is played by the Mega Evolution script with the new commands:
-- before the charge, push in on the attacker over 10 frames (distance 70%, pitch -4);
-- during the 36-frame charge, orbit 40 degrees;
-- at the burst, shake by 4 px for 12 frames;
-- ease home over 20 frames while the burst particles play, then `StageCameraWait` before
-  `End`.
+- before the charge, push in on the attacker over 10 frames with BW2's tail from frame 7 (distance
+  70% on the foe's side, 42% and pitch -8 on yours; `STAGE_CAMERA_FREE` keeps this shot rather than
+  BW2's preset, which pulls back from your mon);
+- during the 36-frame charge, orbit 40 degrees along the chord (BW2's CameraRotate: the camera dips
+  about 6% toward the Pokemon mid-turn, so it grows a little and settles);
+- at the burst, BW2's shake by 4 px (12 frames, rounded up to 2 whole swings);
+- ease home over 20 frames with a tail from frame 14 while the burst particles play, then
+  `StageCameraWait` before `End`.
 
 The AffinePulse sprite and the particles stay attached through the sprite and particle
 follow (the particles take the attacker's own similarity, "Particles follow the camera"). Bit 1 is set by the Mega script, through its first camera command.
 
 **Totem intro** (bit 2) is played by the Totem aura script:
-- push in on the Totem over 16 frames (distance 72%, pitch -4);
-- at the flare, shake by 3 px for 10 frames, then `StageCameraWait`;
+- push in on the Totem over 16 frames with BW2's tail from frame 11 (distance 72%, pitch -4,
+  `STAGE_CAMERA_FREE`);
+- at the flare, BW2's shake by 3 px (2 whole swings), then `StageCameraWait`;
 - the script ends off home. `BattleStage_HoldCameraAfterScript` (called when the aura
   animation starts) turns the end pose into a held focus (`SEQUENCE_INTRO`), so the camera
   stays on the Totem through the "aura flared to life" message;
@@ -297,39 +352,94 @@ offset reaches 0. It stays on the right after that, even if the ally faints.
 **Critical hit kick** (bit 3)
 - **When:** the hit blink (`ov16_0225DA44`) starts on a battler that just took a critical
   hit.
-- **Motion:** push 8% toward that battler over 4 frames, shake 3 px for 12 frames, then home
-  over 10 frames. The whole kick lasts at most 24 frames and must never delay the battle.
+- **Motion:** push 8% toward that battler over 4 screen frames at constant speed, with one swing
+  of BW2's 3 px shake (16 screen frames) from the start, then home over 8. The whole kick lasts 24
+  screen frames and must never delay the battle. (Not in Gen 5: BW2's damage reaction is a tint.)
 - **Critic hook:** `debugFlags` bit `CRIT_KICK_ON_HIT` makes every hit blink play it.
 
 **Faint kick** (bit 4)
 - **When:** the fainting sequence (`ov16_0225DB74`) starts.
-- **Motion:** dip 3 degrees in pitch toward the fainting battler over 6 frames, shake 2 px for
-  10 frames, then home over 12 frames. At most 28 frames.
+- **Motion:** dip 3 degrees in pitch toward the fainting battler over 6 screen frames, with one
+  swing of BW2's 2 px shake (16), then home over 12 with a tail from frame 8 (17). 33 screen frames.
 
 Any camera command from a script sets bit 5.
 
-## Idle drift at the command menu
+## Command menu camera (bw2vis camera-core; BW2's, `btlv_input.c`, `btlv_effect.c`)
 
-The Gen 5 look: while the command menu is up, the camera drifts slowly between a few poses.
-It sets no `cinematicsSeen` bit.
+It sets no `cinematicsSeen` bit. Everything here is off while `NO_CINEMATICS` or `NO_IDLE_CAMERA`
+is set, and either flag set while it runs snaps the camera home (the critic sets `NO_IDLE_CAMERA`
+by default, so its frame comparisons at the menu see the home frame).
 
-- **Start:** `BattleStage_StartIdleCamera`, when the command menu task shows its buttons
-  (`ov16_022604C8`, case 3). It only starts if the camera is home and idle: no script, no
-  sequence, no ease, no shake, and neither `NO_CINEMATICS` nor `NO_IDLE_CAMERA` is set.
-- **Loop (`SEQUENCE_IDLE`):** hold home for 60 frames, then ease to each pose over 180
-  frames and hold it for 50 frames, round and round:
-  1. the wide shot, yaw +10, pitch +2;
-  2. focus 35% of the way to the opponent's side, yaw -14, pitch -2, distance 86%;
-  3. focus 15% of the way to the player's side, yaw +12, pitch +1 (no push-in: a bigger back
-     sprite makes the cut guard pan it off the bottom);
-  4. back through near home, yaw -6.
-- **The menu doesn't wait** for home while the drift runs (`BattleStage_IsCameraReadyForMenu`
-  returns TRUE for `SEQUENCE_IDLE`).
+- **The prompt (E4).** Every command prompt (`ov16_022604C8` case 3,
+  `BattleStage_StartIdleCamera(battler)`) eases onto the battler whose command is being picked, as
+  BW2's `BtlvInput_StartFingerCursor` does: `BtlvEffect_ZoomCamera`, a MoveTo of 10 frames with brake
+  8. BW2 plays effect 0x23f (doubles: 0x240 / 0x241) there, whose camera data isn't extracted; the
+  shot is the slot's BW2 preset ("Framing"): your mon at 0.91x in a single battle, 1.19x / 1.06x for
+  your left / right mon in a double battle, re-aimed when the next battler's prompt opens. It starts
+  from home (the menu still waits for home first) or from the previous battler's prompt.
+- **Move and target select in a double battle (E6).** Move select (`ov16_02260C00`) eases to BW2's
+  wide doubles shot over the same 10 frames with brake 8 and restarts the idle wait, as BW2's
+  `RestartIdleEffect(2)` with effect 0x244 does (its data isn't extracted; the shot is BW2's preset
+  14: from the home target, pulled back until your mons are 0.68x, which leaves the foes at about
+  0.79x; BW2's are 0.65-0.70x and 0.81x). Target select (`ov16_02260F14`) keeps it. A single battle's
+  move list keeps the prompt shot and its wait, as in BW2. Back at the command menu, the prompt plays
+  again.
+- **The idle shots (E5).** 900 screen frames (15 s) after the prompt (BW2's `idleEffectWait`; a
+  double battle's move select restarts the wait), the idle shots start and follow one another
+  until the commands are in. BW2 picks one of 6 idle effect scripts (0x235, 0x24c-0x250) at random,
+  never the same twice in a row; their camera data isn't extracted, so the 6 shots here are built
+  from BW2's camera grammar (preset slides, chord turns, the trucked home pose of preset 18): each
+  is a cut to a start pose and a slow move at constant speed to an end pose, then a short hold
+  (screen frames):
+
+  | # | shot | move | hold |
+  |---|---|---|---|
+  | 0 | the foe, a slow push from 1.25x to its preset size (1.50x) | 240 | 60 |
+  | 1 | your mon at its preset size, sliding 45% of the way from home toward your side | 240 | 60 |
+  | 2 | a slow turn across the field about the home target, yaw -16 to +16 | 300 | 45 |
+  | 3 | a low turn about the foe at 1.2x, yaw +10 to -10, pitch -3 | 240 | 45 |
+  | 4 | BW2's preset 18: the home pose trucked from 30% toward the foes to 30% toward your side | 300 | 45 |
+  | 5 | over the field from your side (yaw +8, pitch +2) to a high look at the foe (yaw -6, pitch +4) | 240 | 60 |
+
+  In a double battle the foe shots frame both foes at 1.25x. The random numbers are a private LCG
+  seeded at battle load, so the battle's own RNG (and a recorded or linked battle) never sees them.
+- **The menu doesn't wait** for home while any of these runs (`BattleStage_IsCameraReadyForMenu`
+  returns TRUE for `SEQUENCE_PROMPT`, `SEQUENCE_SELECT` and `SEQUENCE_IDLE`).
 - **End:** `BattleStage_EndIdleCamera`, when every battler's command is in
-  (`battle_controller_player.c`, before `BattleSystem_RecordCommand`): ease home over 16
-  frames. If the first animation script starts before that, the script start snaps home and
-  this doesn't count as a guard snap. A hidden stage snaps home as usual.
-- `NO_CINEMATICS` or `NO_IDLE_CAMERA` set mid-drift snaps the camera home.
+  (`battle_controller_player.c`, before `BattleSystem_RecordCommand`): ease home over BW2's 10
+  frames with brake 8 (BW2 plays its return effect 0x236 there). If the first animation script
+  starts before that, the script start snaps home and this doesn't count as a guard snap. A hidden
+  stage snaps home as usual; the bag and party screens keep the stage up, so the menu camera runs
+  on under them.
+
+## Beats after the first prompt (bw2vis camera-core)
+
+The first command prompt of a battle opens the beats (the battle start is the intro workstream's).
+BW2 plays an effect script for each: the recall 0x26C and send-in 0x26D (`BtlvScu_StartMemberOut`
+/ `MemberIn`), the ball 0x23a, the trainer's return 0x270. Their camera data isn't extracted, so
+these are BW2-like. Each eases in at constant speed (16 screen frames, brake 12), holds, and eases
+home (20, brake 14). Each is skipped with `NO_CINEMATICS`, a hidden arena or a running anim script
+(and snapped home if one starts, which isn't a guard snap), and the next command menu sends a beat
+still holding home (the menu then waits for home as usual).
+
+The Poke Balls and the trainers are 2D OBJs. They follow their side's mean similarity (the intro
+workstream's `BattleStage_FollowIntroSprite` and ball draw hook: moved and scaled, up to 2x), not
+their own battler's, and their flights are screen paths drawn for home. So the beats keep the
+battler's feet where they stand:
+
+- **Switch (E7).** A recall (`ov16_0225D118`) closes in on the battler along the ray from the home
+  camera through its feet (`DollyGoal`): its feet keep their screen point, so the recall ball's and
+  the send-in ball's paths still end on it, and it grows to 1.12x (your side) or 1.35x (the foe's). The send-in
+  (`ov16_0225CF70`) stays there (or closes in, after a faint) and holds until the new battler's
+  healthbar is in, then 24 frames more. A recall with no send-in gives up after 300 frames. The
+  Totem's summoned ally keeps its own entrance.
+- **Ball throw and catch (E12).** The throw plays at home. When the ball opens on the foe
+  (`ov16_0225D1C4`) the camera closes in on it (1.35x, the same ray), so the ball keeps its place on
+  the platform through the shakes. A break-free sends the Pokemon out again: the send-in beat takes
+  over and lets go. A catch holds until the battle ends. The ball grows with the foe's side.
+- **End of a trainer battle (E13).** When the defeated trainer slides back in (`ov16_0225D414`), the
+  camera trucks over to the foes' side at home size (`TruckGoal` at 1.0x, feet on row 113, x 152), so
+  the trainer OBJ slides in to where it stands, and holds until the battle ends.
 
 ## Debug fields in sBattleStage (read by the critic from RAM via the xMAP)
 
@@ -349,16 +459,70 @@ New `debugFlags` bits, next to the chunk 3 ones:
 - bit3 `NO_CINEMATICS`: no crit or faint kicks. The sweep can't be switched off this way,
   because the flags are zeroed at battle load, before the critic can write them.
 - bit4 `CRIT_KICK_ON_HIT`: every hit blink plays the crit kick.
-- bit5 `NO_IDLE_CAMERA`: no idle drift at the command menu. The critic's `set_flags` sets it
+- bit5 `NO_IDLE_CAMERA`: no command menu camera (the prompt shot, the doubles select shot, the idle
+  shots). The critic's `set_flags` sets it
   by default, so frame comparisons at the menu see the home frame.
+
+## Debug launcher: a double battle (bw2vis camera-core)
+
+In the field, L+R opens the quick-battle panel; B steps the X battle through the Totem encounters
+and then "X: Doubles" (the 10th choice), and X starts a plain wild double battle against the
+selected species and the next one (`Encounter_NewVsDoubleSpeciesAtLevel`). The panel's background
+and time of day apply as for A. (Y is the gym leader battle, from battle-events.)
+
+## Debug block (bw2vis camera-core)
+
+`sStageCameraDebug` (battle_stage_camera.c, `StageCameraDebug`, 124 bytes, in the xMAP) holds the
+camera's state for the critic and the capture scripts, all s32: `magic` (0x4D414343 once set up),
+`sequence` (0 none, 1 to, 2 hold, 3 intro, 4 idle, 5 prompt, 6 select, 7 beat), `curve` (0 BW2, 1
+smoothstep), `brake`, `easeT`, `easeEnd` (screen frames; 0 when not easing), `shakeMode` (0 vertical,
+1 sideways, 2 decay), `shakeAmp`, `shakeT`, `shakeEnd`, `promptBattler` (-1 before the first prompt),
+`idleShot` (-1 for none), `idleTimer`, `beat` (0 none, 1 recall, 2 send-out, 3 catch, 4 end), `flags`
+(bit 0: the first prompt has opened), the pose (`yaw`, `pitch` in fx32 degrees, `distance` in fx32,
+`focusX/Y/Z` relative to the home target), `progress` (fx32 0..1 of the ease), `advanceTicks` and
+`advanceTicksMax` (OS ticks of the last and the longest `BattleStageCamera_Advance`), then a test
+hook: `forcePose` 1 shows the pose `forceFocusX/Y/Z`, `forceYaw`, `forcePitch` (fx32 degrees),
+`forceDistance` (fx32, 0 = home) like a debug view; 0x100 + n starts idle shot n now; 0x200 + n
+cuts to its end pose.
 
 ## Budget
 
-- The per-frame work is 4 projections plus a view rebuild while off home: trivial.
+- The per-frame work is 4 projections plus a view rebuild while off home (with BW2's curve, a
+  square root and two arctangents more): about 130 OS ticks (0.25 ms) per `BattleStageCamera_Advance`
+  on average off home in DeSmuME, at most about 490 (0.9 ms, `advanceTicksMax`, a double battle with
+  the cut guard's second pass), against a 33 ms frame. No polygons, VRAM or heap are added.
 - There is no new VRAM.
 - The new code lives in a new `src/battle/battle_stage_camera.c`, in the battle overlay,
   with its internal header next to `battle_stage_sprites.h`. The public calls go in
   `battle/battle_stage.h`.
+
+## Update rate (C3, bw2vis camera-core)
+
+BW2 steps its camera every 60 Hz frame; ours steps once per `BattleStage_Draw`, which is 30 Hz,
+because the whole battle (its logic and its 3D frame: arena, mons and particles, swapped with
+`G3_RequestSwapBuffers` in `ov16_0223CF48`) runs at 30 Hz. A 60 Hz camera needs a second 3D frame
+per logic frame. Measured on a probe build (`main.c` and `ov16_0223CF48` timed with `OS_GetTick`,
+not committed; DeSmuME's timing model, which isn't cycle-exact, so hardware is likely slower):
+
+| scene | work per 30 Hz frame, mean / max (ms) | 3D part of the draw, mean / max (ms) | swap requested after the vblank, max (ms) |
+|---|---|---|---|
+| single battle, command menu | 8.3 / 10.4 | 3.7 / 5.8 | 10.4 |
+| single battle, 9 moves (Shadow Ball, Earthquake, Blizzard, Fire Blast, Hyper Beam, Thunder, Psychic, Swords Dance, Tackle) | 9.5-12.6 / 89-107 * | 1.8-4.8 / 5.6-7.9 | 89-107 * |
+| Totem double battle, command menu | 10.0 / 13.0 | 5.3 / 8.4 | 13.0 |
+| Totem double battle, 3 moves | 10.9-13.4 / 89-92 * | 4.1-6.3 / 7.4-10.7 | 89-92 * |
+
+\* the first frames of each animation load its resources: 3-6 frames per move overrun the vblank.
+
+A 60 Hz camera would cost a second submission of the 3D part, 2-11 ms more per 33 ms, which has to
+land in the 16.7 ms between the two vblanks of a logic frame. On these numbers it fits on average
+(about 5 ms to spare in a double battle's moves, in DeSmuME) but not in the loading frames, and it
+needs a draw-only path in four systems that advance state while they draw today: the mon sprites
+tick their animations in `PokemonSpriteManager_DrawSprites`, the particles run
+`ParticleSystem_UpdateAll` after `ParticleSystem_DrawAll`, `BattleStage_Draw` advances the fade,
+the platforms and the idle animation, and the 2D OBJs that follow the camera (trainers, balls)
+would still move at 30 Hz against a 60 Hz arena. **Decision: the camera stays at 30 Hz.** Its
+motion runs on BW2's 60 Hz clock (`STEP_FRAMES`), sampled every second frame, so a 60 Hz redraw,
+if it comes, only has to advance the camera by one screen frame instead of two.
 
 ## Critic checks
 
@@ -378,20 +542,23 @@ New `debugFlags` bits, next to the chunk 3 ones:
   - the camera is home (`AT_HOME`) before the following move's animation starts;
   - `offHomeMoveFrames == 0`;
   - the existing checks still pass.
-- **`totem_battle`:** bit 2 is set, the sweep bit 0 is not, and the camera is home at the
-  first command menu.
+- **`totem_battle`:** bit 2 is set, the sweep bit 0 is not, and the camera is home at the first
+  command menu, or on the command prompt shot, which starts from home (`StageRam.menu_camera`, from
+  `sStageCameraDebug.sequence`).
 
 **New `camera` scenario** (Plain, wild battle, day)
 - **The sweep (the battle-start focus):** bit 0 is set by the first command menu. During the
   intro at least one frame
   has `AT_HOME` clear and the opponent's anchor scale is above 256, and `AT_HOME` is set when
-  the menu shows. Save a contact sheet of the sweep.
+  the menu shows (or the command menu camera is on: the prompt shot starts from home). Save a
+  contact sheet of the sweep.
 - **Crit kick:** with `CRIT_KICK_ON_HIT`, a damaging move sets bit 3. `AT_HOME` clears for at
   least a few frames and is back within 30 frames of the hit blink.
 - **No kicks:** with `NO_CINEMATICS` instead, the same move leaves `offHomeFrames` unchanged
   after the move.
 - **Faint:** a fainting (a KO of the wild mon, or whatever the debug party makes reliable)
   sets bit 4, and the camera is home again within 40 frames.
-- **Idle drift:** with no flags, at the menu `AT_HOME` clears within 90 frames and the menu
-  stays up (contact sheet `idle`). After a move is picked the camera is home within 40
-  frames, `guardSnaps` doesn't rise and `offHomeMoveFrames == 0`.
+- **Idle drift** (now the command menu camera): with no flags, at the menu `AT_HOME` clears
+  within 90 frames (the prompt shot clears it at once) and the menu stays up (contact sheet
+  `idle`). After a move is picked the camera is home within 40 frames, `guardSnaps` doesn't rise
+  and `offHomeMoveFrames == 0`.

@@ -12,6 +12,7 @@ void Encounter_StartVsWild(FieldSystem *fieldSystem, FieldTask *task, FieldBattl
 void Encounter_NewVsHoneyTree(FieldTask *task, int *resultMaskPtr);
 void Encounter_NewVsSpeciesAtLevel(FieldTask *task, u16 species, u8 level, int *resultMaskPtr, BOOL isLegendary);
 void Encounter_NewTotemBattle(FieldTask *task, u8 encounterID, int *resultMaskPtr);
+void Encounter_NewVsDoubleSpeciesAtLevel(FieldTask *task, u16 species1, u16 species2, u8 level, int *resultMaskPtr); // bw2vis:camera-core
 void Encounter_NewFatefulVsSpeciesAtLevel(FieldTask *taskMan, u16 species, u8 level, int *resultMaskPtr, BOOL isLegendary);
 void Encounter_NewVsPalParkTransfer(FieldSystem *fieldSystem, FieldBattleDTO *dto);
 void Encounter_NewVsFirstBattle(FieldTask *task, int trainerID, enum HeapID heapID, int *resultMaskPtr);

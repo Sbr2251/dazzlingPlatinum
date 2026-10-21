@@ -213,9 +213,9 @@ parameter names now say player first; the bytes are unchanged.
   between the mons in flight (camera.md, "Particles follow the camera"; particles-3d). The old
   rule, emitters only on the battler the camera frames, is lifted: a close-up of the attacker
   keeps the defender's impact on the defender and the other way round. What a particle can't
-  follow is its classic screen position itself: a charge drawn 75 px in front of the attacker
-  (Shadow Ball) is still 75 px in front of it, scaled, so a tight close-up can push it to the
-  frame edge. Frame such moves with `BETWEEN` or a wider distance.
+  change is its classic screen position itself: a charge drawn 75 px in front of the attacker
+  (Shadow Ball's) is still 75 px in front of it, scaled, so a tight attacker close-up pushes it to
+  the frame edge. Frame such moves with `BETWEEN` or a wider distance (Shadow Ball now does).
 - A particle system meant to stay on screen (full-screen weather, a flash) takes
   `SetParticleScreenSpace` before its emitters; otherwise it follows the mons with the rest.
 - These moves use no `SwitchBg`, no OAM copies and no window masks, so nothing drawn in screen
@@ -227,7 +227,7 @@ Distances in the table read player side / enemy side.
 |---|---|---|---|
 | Tackle (33) | Attacker 48/85%, yaw 6, 8 frames | Defender 48/85%, yaw -6, 6 frames, at the lunge | Shake 2, 6 frames |
 | Earthquake (89) | - | Defender 48/88%, yaw -8, pitch -3, 10 frames | The mirrored 2x BG3 shake (category A) |
-| Shadow Ball (247) | Attacker 48/85%, yaw 8, 10 frames, during the charge | Between 95%, yaw -4, 8 frames, as the ball flies | Shake 3, 8 frames |
+| Shadow Ball (247) | Between 88%, no turn, 10 frames (half speed from frame 7), during the charge | Between 96%, 8 frames, as the ball flies | Shake 3, 8 frames |
 | X-Scissor (404) | Attacker 48/85%, yaw 6, 8 frames | Defender 48/82%, yaw -8, 6 frames | Shake 2, 6 frames |
 | Leaf Blade (348) | Attacker 48/85%, yaw 6, 8 frames | Defender 48/85%, yaw -10, pitch 2, 10 frames | Shake 3, 8 frames |
 | Stone Edge (444) | Attacker 48/85%, yaw 6, 8 frames | Defender 48/85%, yaw -8, pitch -3, 10 frames | Shake 4, 12 frames |
@@ -249,7 +249,7 @@ when the script ends, like every other move's.
 
 With the particle field, particles no longer limit where a per-move camera may go: off home they
 stay on their mons in any pose, measured with the move tester holding debug views 2 (yaw +20) and
-3 (pitch +15, 80%) through the move (`debugFlags` bit 14) and in the eight camera scripts. What
+3 (pitch +15, 80%) through the move (`debugFlags` bit 22) and in the eight camera scripts. What
 still limits a move is the rest of its 2D grammar, unchanged:
 
 - `SwitchBg`/`FadeBg` to a picture, OAM copies, window masks and HBlank waves are drawn in screen
