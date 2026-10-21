@@ -43,6 +43,9 @@
 // Polygon IDs of the arena meshes while they are translucent: one per mesh, so an arena mesh
 // still draws over another (a translucent polygon skips pixels of its own ID), and clear
 // of the mons' low IDs and the shadows' 62
+// Mesh flags that move the texture through the texture matrix (texgen TEXCOORD)
+#define STAGE_TEXMTX_FLAGS (BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL | BATTLE_STAGE_MESH_SCROLL | BATTLE_STAGE_MESH_DRIFT)
+
 #define STAGE_FADE_POLYGON_ID_BASE  32
 #define STAGE_FADE_POLYGON_ID_COUNT 30
 // The layers under BG0 that the translucent arena blends with (2nd targets)
@@ -79,6 +82,7 @@ typedef struct StageMesh {
     u16 flags;
     u8 scrollAmplitude[2];
     u16 scrollPeriod;
+    u16 wrap[2]; // DRIFT: the texture's repeat period in texels, s and t (0: clamps)
     u16 attrIndex; // word of the POLYGON_ATTR parameter in the mesh's DL, 0 when not found
     u16 alpha; // the mesh's own polygon alpha
     u32 attr; // its POLYGON_ATTR parameter as built
@@ -104,7 +108,7 @@ typedef struct StageArena {
     BOOL hasTexMtxMesh; // FOLLOW_BG3_SCROLL or SCROLL
     BOOL hasLitMesh;
     BOOL hasAtmosphere;
-    u32 frame; // drawn frames, for SCROLL
+    u32 frame; // drawn frames, for SCROLL and DRIFT; held at 0 while the critic freezes the idle motion
     int dlAlpha; // arena alpha the DL's POLYGON_ATTR words are patched for
     BattleStageFileAtmosphere atmosphere;
 } StageArena;
@@ -720,8 +724,17 @@ static BOOL IsPieceValid(const BattleStageFileHeader *piece, u32 size, BOOL isBa
             return FALSE;
         }
 
-        if ((mesh->flags & BATTLE_STAGE_MESH_SCROLL) && mesh->scrollPeriod == 0) {
+        if ((mesh->flags & (BATTLE_STAGE_MESH_SCROLL | BATTLE_STAGE_MESH_DRIFT)) && mesh->scrollPeriod == 0) {
             return FALSE;
+        }
+
+        // DRIFT reads the scroll fields as velocities, and an axis that moves must repeat
+        if (mesh->flags & BATTLE_STAGE_MESH_DRIFT) {
+            if ((mesh->flags & BATTLE_STAGE_MESH_SCROLL)
+                || (mesh->scrollAmplitude[0] != 0 && !(mesh->flags & BATTLE_STAGE_MESH_REPEAT_S))
+                || (mesh->scrollAmplitude[1] != 0 && !(mesh->flags & BATTLE_STAGE_MESH_REPEAT_T))) {
+                return FALSE;
+            }
         }
     }
 
@@ -792,7 +805,7 @@ static u32 BuildMeshDL(u32 *dest, u32 capacity, const BattleStageFileHeader *pie
 {
     GXDLInfo info;
     const BattleStageFileVertex *vertices = PieceData(piece, mesh->vertexOffset);
-    GXTexGen texGen = (mesh->flags & (BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL | BATTLE_STAGE_MESH_SCROLL)) ? GX_TEXGEN_TEXCOORD : GX_TEXGEN_NONE;
+    GXTexGen texGen = (mesh->flags & STAGE_TEXMTX_FLAGS) ? GX_TEXGEN_TEXCOORD : GX_TEXGEN_NONE;
     GXTexPlttColor0 color0 = (mesh->flags & BATTLE_STAGE_MESH_COLOR0_TRANSPARENT) ? GX_TEXPLTTCOLOR0_TRNS : GX_TEXPLTTCOLOR0_USE;
     BOOL lit = (mesh->flags & BATTLE_STAGE_MESH_LIT) != 0;
     int misc = GX_POLYGON_ATTR_MISC_FAR_CLIPPING;
@@ -1065,9 +1078,11 @@ static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes)
             stageMesh->scrollAmplitude[0] = mesh->scrollAmplitude[0];
             stageMesh->scrollAmplitude[1] = mesh->scrollAmplitude[1];
             stageMesh->scrollPeriod = mesh->scrollPeriod;
+            stageMesh->wrap[0] = (mesh->flags & BATTLE_STAGE_MESH_REPEAT_S) ? texture->width << ((mesh->flags & BATTLE_STAGE_MESH_FLIP_S) ? 1 : 0) : 0;
+            stageMesh->wrap[1] = (mesh->flags & BATTLE_STAGE_MESH_REPEAT_T) ? texture->height << ((mesh->flags & BATTLE_STAGE_MESH_FLIP_T) ? 1 : 0) : 0;
             dlBytes += stageMesh->dlSize;
 
-            if (mesh->flags & (BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL | BATTLE_STAGE_MESH_SCROLL)) {
+            if (mesh->flags & STAGE_TEXMTX_FLAGS) {
                 arena->hasTexMtxMesh = TRUE;
             }
 
@@ -1262,7 +1277,33 @@ static void SetLight(StageArena *arena)
     G3_MaterialColorSpecEmi(GX_RGB(0, 0, 0), lighting->emission, FALSE);
 }
 
-// Texture matrix of a FOLLOW_BG3_SCROLL and/or SCROLL mesh, in texels << 16
+// DRIFT offset of one axis after `frame` draws, in texels << 16: velocity texels every period
+// draws, wrapped into -wrap/2..wrap/2 so the texture coordinates stay in range
+static fx32 DriftOffset(u32 frame, int velocity, u16 period, u16 wrap)
+{
+    s32 whole, fraction, offset, span;
+    u32 rem;
+
+    if (velocity == 0 || wrap == 0) {
+        return 0;
+    }
+
+    rem = frame % period;
+    whole = velocity * (s32)((frame / period) % wrap) % wrap;
+    fraction = velocity * (s32)((rem << 16) / period);
+    span = (s32)wrap << 16;
+    offset = ((whole << 16) + fraction) % span;
+
+    if (offset >= span / 2) {
+        offset -= span;
+    } else if (offset < -span / 2) {
+        offset += span;
+    }
+
+    return offset;
+}
+
+// Texture matrix of a FOLLOW_BG3_SCROLL, SCROLL and/or DRIFT mesh, in texels << 16
 static void SetTexMtx(StageArena *arena, const StageMesh *mesh, int bg3X, int bg3Y)
 {
     fx32 s = 0, t = 0;
@@ -1278,6 +1319,11 @@ static void SetTexMtx(StageArena *arena, const StageMesh *mesh, int bg3X, int bg
 
         s += mesh->scrollAmplitude[0] * FX_SinIdx(index) * 16;
         t += mesh->scrollAmplitude[1] * FX_SinIdx((u16)(index * 2)) * 16;
+    }
+
+    if (mesh->flags & BATTLE_STAGE_MESH_DRIFT) {
+        s += DriftOffset(arena->frame, (s8)mesh->scrollAmplitude[0], mesh->scrollPeriod, mesh->wrap[0]);
+        t += DriftOffset(arena->frame, (s8)mesh->scrollAmplitude[1], mesh->scrollPeriod, mesh->wrap[1]);
     }
 
     G3_MtxMode(GX_MTXMODE_TEXTURE);
@@ -1328,7 +1374,7 @@ static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *pro
             continue;
         }
 
-        if (mesh->flags & (BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL | BATTLE_STAGE_MESH_SCROLL)) {
+        if (mesh->flags & STAGE_TEXMTX_FLAGS) {
             SetTexMtx(arena, mesh, bg3X, bg3Y);
         }
 
@@ -1359,7 +1405,13 @@ static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *pro
     G3_MtxMode(GX_MTXMODE_POSITION);
     G3_Color(GX_RGB(31, 31, 31));
 
-    arena->frame++;
+    // The critic's frozen idle (stage_ab, all_backgrounds) compares the home pose with the
+    // classic art, so the arena's animations hold their first frame then
+    if (sBattleStage.sprites.debugFlags & BATTLE_STAGE_DEBUG_FREEZE_IDLE) {
+        arena->frame = 0;
+    } else {
+        arena->frame++;
+    }
 }
 
 // NDC x of the left edge of screen column x

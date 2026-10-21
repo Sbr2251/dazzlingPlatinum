@@ -30,6 +30,7 @@ import math
 
 import classic
 import fx
+import nitro
 from fx import FX32_ONE, to_fx32
 
 # Camera
@@ -95,6 +96,43 @@ WATER_FIRST_ROW_BELOW = 4
 WATER_SCROLL_AMPLITUDE = (3, 1)  # texels, s and t
 # Arena draws: the battle draws the 3D scene at 30 fps, so 105 draws = 3.5 s (210 VBlanks)
 WATER_SCROLL_PERIOD = 105
+
+# Drifting clouds (BW2's outdoor fields scroll their sky texture sideways all battle: NSBTA
+# translateS on batt_sky*, res/graphics/btlv/075.nsbta etc. in pokebw2, 1 texture width per 5000
+# frames). Outdoors the panorama bands above the background's sky row DRIFT sideways. BW2's
+# 128-texel sky spans its whole half cylinder, about 16 texels across the screen, so that rate
+# moves the clouds about 0.42 px per frame at 60 fps, 25 px per second (measured through the
+# BW2 camera, /tmp/bw2vis/stage-anim/tools/bw2_sky_speed.py). Our sky is the classic art at one
+# texel per pixel, so the same apparent speed is 21 texels per 25 arena draws (30 per second).
+# Positive moves the art left, as a BG3 X scroll would. REPEAT_S | FLIP_S makes the texture
+# periodic every 512 texels and continuous at the mirror lines, so the drift wraps without a seam.
+SKY_DRIFT = (21, 0)  # texels per SKY_DRIFT_PERIOD draws, s and t
+SKY_DRIFT_PERIOD = 25
+
+# A pixel of the day palette counts as sky when it is bright and blue (or white): the cyan,
+# blue, white and pale grey skies of the outdoor art pass, the tree lines, mountains, buildings
+# and the forest's foliage do not
+SKY_MIN_BLUE = 176
+
+
+def is_sky_color(rgb):
+    r, g, b = rgb
+    return b >= SKY_MIN_BLUE and b >= r and 4 * b >= 3 * g
+
+
+def sky_row(background, base_row):
+    """First home screen row (0..base_row) that is not all sky: rows above it hold only sky in
+    every column of the classic art at day, so they can drift without moving the horizon's
+    silhouette. 0 for a background without a clear sky band (the forest)."""
+    art = classic.Backdrop(background)
+    palette = [nitro.gxrgb_to_rgb888(c) for c in art.palettes[0]]
+    row = 0
+
+    while row < base_row and all(is_sky_color(palette[i]) for i in art.image[row][:fx.SCREEN_W]):
+        row += 1
+
+    return row
+
 
 WALL_TOP_ROW = -64  # home screen row of its top edge (clamps to texture row 0)
 WALL_ROW_STEP = 16
@@ -223,7 +261,9 @@ class Mesh:
         self.scroll_amplitude = scroll_amplitude
         self.scroll_period = scroll_period
 
-        if scroll_amplitude != (0, 0):
+        # scroll_amplitude is the sway amplitude of SCROLL (unsigned texels) or the velocity of
+        # DRIFT (signed texels per scroll_period draws)
+        if scroll_amplitude != (0, 0) and not self.flags & FLAG_DRIFT:
             self.flags |= FLAG_SCROLL
 
     def num_polygons(self):
@@ -259,6 +299,7 @@ FLAG_FLIP_T = 1 << 7
 FLAG_LIT = 1 << 8
 FLAG_FOG = 1 << 9
 FLAG_SCROLL = 1 << 10
+FLAG_DRIFT = 1 << 11
 
 UP = (0.0, 1.0, 0.0)
 TOWARD_CAMERA = (0.0, 0.0, 1.0)
@@ -561,6 +602,12 @@ class Backdrop:
         # height). Everything above screen row 0 shows texture row 0 (t clamps), so one
         # band covers it
         wall_rows = list(range(base_row, 0, -WALL_ROW_STEP)) + [0, WALL_TOP_ROW]
+
+        # Outdoors the bands above the sky row drift (SKY_DRIFT); the sky row is a band edge
+        self.sky_row = sky_row(background, base_row) if self.kind == KIND_OUTDOOR else 0
+
+        if 0 < self.sky_row < base_row:
+            wall_rows = sorted(set(wall_rows) | {self.sky_row}, reverse=True)
         wall_grid = {}
 
         for y in wall_rows:
@@ -654,7 +701,13 @@ class Backdrop:
 
         for j in range(len(wall_rows) - 1):
             top, bottom = wall_row(j + 1), wall_row(j)
-            self.meshes.append(strip_mesh(f"panorama {wall_rows[j + 1]}-{wall_rows[j]}", TEX_A, TEX_A_FLAGS, top, bottom, (0, 0)))
+            anim = {}
+
+            if wall_rows[j] <= self.sky_row:
+                anim = dict(flags=FLAG_DRIFT, scroll_amplitude=SKY_DRIFT, scroll_period=SKY_DRIFT_PERIOD)
+
+            self.meshes.append(strip_mesh(f"panorama {wall_rows[j + 1]}-{wall_rows[j]}", TEX_A, TEX_A_FLAGS | anim.pop("flags", 0),
+                                          top, bottom, (0, 0), **anim))
 
         self.num_polygons = sum(m.num_polygons() for m in self.meshes)
 

@@ -87,8 +87,19 @@ FLAG_FLIP_T = 1 << 7
 FLAG_LIT = 1 << 8
 FLAG_FOG = 1 << 9
 FLAG_SCROLL = 1 << 10
+FLAG_DRIFT = 1 << 11
 
 FX10_ONE = 512  # GX_FX10: 1.9 fixed point, -512..511
+
+
+def signed8(v):
+    """A scrollAmplitude byte as the s8 that DRIFT reads."""
+    return v - 256 if v & 0x80 else v
+
+
+def drift_offset(velocity, period, frame):
+    """Texels a DRIFT axis has moved after `frame` draws (before the texture wraps)."""
+    return signed8(velocity) * frame / period
 
 
 def pack_normal(n):
@@ -117,7 +128,8 @@ class Mesh:
     def __init__(self, primitive, alpha, texture_index, flags, vertices, scroll_amplitude=(0, 0), scroll_period=1):
         """vertices: [((x, y, z) fx16, (s, t) texCoord units, colour, packed normal)]"""
         assert 0 <= alpha <= MAX_ALPHA and 0 <= primitive <= 3 and vertices
-        assert scroll_period > 0 and all(0 <= a <= 255 for a in scroll_amplitude)
+        assert scroll_period > 0 and all(-128 <= a <= 255 for a in scroll_amplitude)
+        assert not (flags & FLAG_SCROLL and flags & FLAG_DRIFT), "SCROLL and DRIFT share the scroll fields"
         self.primitive = primitive
         self.alpha = alpha
         self.texture_index = texture_index
@@ -248,7 +260,7 @@ def write_piece(piece):
             blob += VERTEX.pack(pos[0], pos[1], pos[2], tc[0], tc[1], color, normal)
 
         mesh_entries.append(MESH.pack(vertex_offset, len(mesh.vertices), mesh.primitive, mesh.alpha, mesh.texture_index, mesh.flags,
-                                      mesh.scroll_amplitude[0], mesh.scroll_amplitude[1], mesh.scroll_period))
+                                      mesh.scroll_amplitude[0] & 0xFF, mesh.scroll_amplitude[1] & 0xFF, mesh.scroll_period))
 
     h = piece.header
     header = HEADER.pack(

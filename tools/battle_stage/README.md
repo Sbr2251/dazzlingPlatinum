@@ -37,7 +37,7 @@ show); twilight, night and caves show a small tint.
 | `--bg N` | background (default 0, `BACKGROUND_PLAIN`) |
 | `--terrain N` | platform piece (default: the one the background usually comes with) |
 | `--tod 0/1/2` | day, twilight or night only (default: all three) |
-| `--frame N` | sway `SCROLL` meshes to arena draw N (30 per second; default: no sway) |
+| `--frame N` | animate to arena draw N (30 per second): `SCROLL` sway, `DRIFT` scroll (default: frame 0, nothing moves) |
 | `--raster desmume/hardware/both` | `desmume` (default): the soft rasterizer of DeSmuME 0.9.12, which py-desmume and so the critic use (1/16 pixel positions, fog depth one more than the DS); `hardware`: whole-pixel vertices and the DS fog depth |
 | `--all` | every background with its usual terrain at the three times of day, and every terrain on `BACKGROUND_PLAIN` at day (about 110 s with `--raster both`) |
 | `--poses` | every background with its usual terrain at day from the gameplay camera poses (`GAMEPLAY_POSES`: the battle-start focus, the menu drift, Mega Evolution's orbit, a move push-in), writing `contact_pose_<name>.png` and the holes in rows 0..143 per pose |
@@ -87,6 +87,9 @@ backdrop piece with its terrain's platform piece.
 - Every mesh is `LIT` and `FOG`. The ground bands of `BACKGROUND_WATER` from 4 rows
   below the base row are `SCROLL`, amplitude (3, 1) texels, period 105 arena draws
   (3.5 s at 30 draws per second).
+- Outdoors the panorama bands above the background's sky row (`arena.sky_row`, from the
+  art) `DRIFT` sideways at BW2's on-screen cloud speed, 21 texels per 25 draws (see
+  `docs/living_battle_stage/stage_format.md`, "BW2 visual parity: stage animation").
 
 ## How the home pose matches
 

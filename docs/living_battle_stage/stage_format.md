@@ -221,3 +221,48 @@ The sprites and particles carry no fog bit, so the evolving Pokemon stays white,
   in the debug views, and checks for holes, missing arena, garbage and palette errors.
 - `stage_ab` compares against the classic art with a tolerance, not exactly.
 - A Mega scenario checks that the stage stays visible and dims during the pulse.
+
+# BW2 visual parity: stage animation (workstream stage-anim)
+
+Gen 5's battle fields animate: the sky of the outdoor fields drifts, water flows under a wave
+layer, grass and bushes sway (audit: `/tmp/bw2gap/stage.md` rows 1-3). The arena plays the same
+kinds of motion from data in the pieces. Nothing here needs a new format version: the new mesh
+flags reuse the scroll fields, and a v2 renderer without them ignores the flags.
+
+The animations count arena draws (`StageArena.frame`, 30 per second). While the critic sets
+`BATTLE_STAGE_DEBUG_FREEZE_IDLE` (stage_ab and all_backgrounds compare the home pose with the
+classic art) the frame holds at 0, where every animation shows the classic art.
+
+## Drifting clouds (`DRIFT`)
+
+`BATTLE_STAGE_MESH_DRIFT` moves a mesh's texture at a constant speed: the offset is
+`(s8)scrollAmplitude[i]` texels every `scrollPeriod` draws, on s and t, wrapped at the texture's
+repeat period (its size, twice that with FLIP) so the texture coordinates stay in range. An axis
+that moves needs its REPEAT flag, and DRIFT can't be combined with SCROLL. It adds to
+`FOLLOW_BG3_SCROLL`.
+
+Outdoors (`KIND_OUTDOOR`) the panorama gets an extra band edge at the background's **sky row**,
+derived from the art: the first row, from the top, with a pixel that isn't sky in the day
+palette (bright and blue or white: blue >= 176, blue >= red, 4 * blue >= 3 * green). Every
+panorama band above it drifts. The rows below it, the horizon's tree line, mountains, buildings
+and the sea, stay put.
+
+| background | sky rows | base row |
+|---|---|---|
+| plain | 0..49 | 57 |
+| water | 0..56 | 57 |
+| city | 0..38 | 56 |
+| forest | none (all foliage) | 53 |
+| mountain | 0..44 | 58 |
+| snow | 0..38 | 48 |
+
+The speed matches BW2's on screen. BW2's sky texture (128x64, `batt_sky01` in `074.nsbmd`)
+spans its whole half-cylinder, about 16 texels across the screen through the battle camera, and
+`075.nsbta` scrolls it one texture width per 5000 frames: about 0.42 px per frame at 60 fps, 25 px
+per second. Our sky is the classic art at one texel per pixel, so the drift is 21 texels per 25
+draws. Positive s moves the art left, as a BG3 X scroll does. The texture is REPEAT_S | FLIP_S, so
+it is periodic every 512 texels and continuous at the mirror lines: the drift never shows a seam.
+
+Each sky split costs one panorama band (22 polygons). The classic fallback (`BattleStage_Suppress`)
+shows the sky at frame 0, so it can jump by the drifted amount while a move hides the arena; the
+fade (F6) covers most of it. The palettes stay live, so twilight and night drift the same way.

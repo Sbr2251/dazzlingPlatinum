@@ -48,8 +48,8 @@ clamp/repeat/flip modes, and the arena atmosphere:
                their 15-bit depth (GX_BUFFERMODE_Z), interpolated between entries like
                DeSmuME; density 127 counts as 128
     sway       with --frame N (arena draws, 30 per second), SCROLL meshes shift their
-               texture by amplitude * (sin, cos)(2pi N / period) texels (default: no
-               sway)
+               texture by amplitude * (sin, sin 2)(2pi N / period) texels and DRIFT
+               meshes by velocity * N / period texels (default: frame 0, nothing moves)
 
 --raster picks how screen positions, spans and depth work:
 
@@ -236,6 +236,9 @@ class Renderer:
         return rgb, covered
 
     def sway(self, mesh):
+        if self.frame is not None and mesh.flags & sf.FLAG_DRIFT:
+            return tuple(sf.drift_offset(v, mesh.scroll_period, self.frame) for v in mesh.scroll_amplitude)
+
         if self.frame is None or not mesh.flags & sf.FLAG_SCROLL:
             return 0.0, 0.0
 

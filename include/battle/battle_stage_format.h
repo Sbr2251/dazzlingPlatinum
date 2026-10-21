@@ -50,6 +50,11 @@ enum BattleStageMeshFlag {
     // The texture sways by scrollAmplitude texels over scrollPeriod frames (water surfaces).
     // Adds to FOLLOW_BG3_SCROLL when both are set
     BATTLE_STAGE_MESH_SCROLL = 1 << 10,
+    // The texture moves at a constant speed (drifting clouds, flowing water): the texcoord
+    // offset is (s8)scrollAmplitude[i] texels every scrollPeriod frames, on s and t, wrapped at
+    // the texture's repeat period (the size, twice it with FLIP). An axis that moves needs its
+    // REPEAT flag. Not with SCROLL, whose fields it shares. Adds to FOLLOW_BG3_SCROLL
+    BATTLE_STAGE_MESH_DRIFT = 1 << 11,
 };
 
 // Arena light and fog for one time-of-day column: [0] day, [1] twilight, [2] night, as
@@ -117,8 +122,8 @@ typedef struct BattleStageFileMesh {
     u16 textureIndex;
     u16 flags; // enum BattleStageMeshFlag
     // BATTLE_STAGE_MESH_SCROLL: texcoord offset = amplitude * (sin(a), sin(2a)), a = 2pi * frame / period
-    // (a figure eight that is 0 at frame 0)
-    u8 scrollAmplitude[2]; // texels, s and t
+    // (a figure eight that is 0 at frame 0). BATTLE_STAGE_MESH_DRIFT: offset = (s8)amplitude * frame / period
+    u8 scrollAmplitude[2]; // texels, s and t (DRIFT: s8 texels per period)
     u16 scrollPeriod; // frames, > 0
 } BattleStageFileMesh;
 
