@@ -86,6 +86,14 @@ typedef struct DebugTimeOfDayOverride {
 } DebugTimeOfDayOverride;
 
 static DebugTimeOfDayOverride sDebugTimeOfDayOverride;
+// bw2vis:stage-light: the last DTO's time of day came from the override, not the clock, so
+// the arena lighting uses that time of day's representative hour instead of the RTC's
+static BOOL sDebugTimeOfDayForced;
+
+BOOL FieldBattleDTO_DebugTimeOfDayForced(void)
+{
+    return sDebugTimeOfDayForced;
+}
 
 void FieldBattleDTO_SetDebugTimeOfDayOverride(enum TimeOfDay timeOfDay)
 {
@@ -99,6 +107,9 @@ FieldBattleDTO *FieldBattleDTO_New(enum HeapID heapID, u32 battleType)
     int i;
     FieldBattleDTO *dto = Heap_Alloc(heapID, sizeof(FieldBattleDTO));
     MI_CpuClear8(dto, sizeof(FieldBattleDTO));
+#if DEBUG_BATTLE_TOOLS
+    sDebugTimeOfDayForced = FALSE; // bw2vis:stage-light
+#endif
 
     dto->battleType = battleType;
     dto->battleStatusMask = 0;
@@ -284,6 +295,7 @@ void FieldBattleDTO_InitFromGameState(FieldBattleDTO *dto, const FieldSystem *fi
         if (sDebugTimeOfDayOverride.active) {
             dto->timeOfDay = sDebugTimeOfDayOverride.timeOfDay;
             sDebugTimeOfDayOverride.active = FALSE;
+            sDebugTimeOfDayForced = TRUE; // bw2vis:stage-light
         }
 #endif
     } else {

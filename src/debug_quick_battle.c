@@ -13,6 +13,7 @@
 #include "generated/items.h"
 #include "generated/moves.h"
 #include "generated/species.h"
+#include "generated/trainers.h"
 
 #include "field/field_system.h"
 
@@ -220,6 +221,21 @@ static u8 sTimeOfDayChoice = 0;
 static u8 sOpponentChoice = 0;
 static u8 sTotemChoice = TOTEM_ENCOUNTER_HITMONLEE;
 
+// bw2vis:battle-events: L+R+Y battles the Gym Leaders the player meets in Arcs 1-2, one after another, to test
+// the leader "last Pokemon" music (docs/battle_events.md).
+static const struct {
+    u16 trainerID;
+    const char *name;
+} sLeaderChoices[] = {
+    { TRAINER_LEADER_ROARK, "Roark" },
+    { TRAINER_LEADER_GARDENIA, "Gardenia" },
+    { TRAINER_LEADER_MAYLENE, "Maylene" },
+    { TRAINER_LEADER_WAKE, "Wake" },
+    { TRAINER_LEADER_FANTINA, "Fantina" },
+};
+
+static u8 sLeaderChoice = 0;
+
 static charcode_t AsciiToCharCode(char c)
 {
     if (c >= '0' && c <= '9') {
@@ -344,8 +360,10 @@ static void DrawPanel(FieldSystem *fieldSystem, DebugQuickBattle *quickBattle)
         String_AppendSpeciesName(line, sOpponentSpecies[sOpponentChoice]);
         String_AppendAscii(line, " Lv");
         String_AppendNumber(line, GetOpponentLevel(SaveData_GetParty(fieldSystem->saveData)), 3, PADDING_MODE_NONE);
-        String_AppendAscii(line, "  X: ");
+        String_AppendAscii(line, " X:");
         String_AppendSpeciesName(line, TotemBattle_GetEncounterConfig(sTotemChoice)->party[0].species);
+        String_AppendAscii(line, " Y:");
+        String_AppendAscii(line, sLeaderChoices[sLeaderChoice].name);
     }
 
     Text_AddPrinterWithParams(&quickBattle->window, FONT_MESSAGE, line, 0, LINE_HEIGHT, TEXT_SPEED_INSTANT, NULL);
@@ -403,6 +421,24 @@ static const char *GiveMegaMon(FieldSystem *fieldSystem)
     return status;
 }
 
+static void StartLeaderBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBattle *quickBattle)
+{
+    ClosePanel(fieldSystem, quickBattle);
+
+    if (sBackgroundChoice != 0) {
+        const BackgroundTerrainPair *pair = &sBackgroundTerrainPairs[sBackgroundChoice - 1];
+        FieldBattleDTO_SetDebugBackgroundOverride(pair->background, pair->terrain);
+    }
+
+    if (sTimeOfDayChoice != 0) {
+        FieldBattleDTO_SetDebugTimeOfDayOverride(sTimeOfDayChoices[sTimeOfDayChoice - 1].timeOfDay);
+    }
+
+    Encounter_NewVsTrainer(task, sLeaderChoices[sLeaderChoice].trainerID, 0, 0, HEAP_ID_FIELD2, &quickBattle->battleResult);
+    sLeaderChoice = (sLeaderChoice + 1) % NELEMS(sLeaderChoices);
+    quickBattle->state = QUICK_BATTLE_STATE_AFTER_BATTLE;
+}
+
 static void StartBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBattle *quickBattle, BOOL totem)
 {
     ClosePanel(fieldSystem, quickBattle);
@@ -450,6 +486,12 @@ static BOOL FieldTask_DebugQuickBattle(FieldTask *task)
         if (pressed & PAD_BUTTON_X) {
             Sound_PlayEffect(SEQ_SE_CONFIRM);
             StartBattle(task, fieldSystem, quickBattle, TRUE);
+            return FALSE;
+        }
+
+        if (pressed & PAD_BUTTON_Y) {
+            Sound_PlayEffect(SEQ_SE_CONFIRM);
+            StartLeaderBattle(task, fieldSystem, quickBattle);
             return FALSE;
         }
 

@@ -13,7 +13,10 @@
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_camera.h"
 #include "battle/battle_stage_layout.h"
+#include "battle/battle_stage_shadow.h" // bw2vis:shadow
 #include "battle/battle_display.h"
+#include "battle/battle_stage_copies.h"
+#include "battle/battle_stage_idle.h"
 #include "battle/battle_stage_stream.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle_anim/ov12_022380BC.h"
@@ -245,6 +248,8 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     sStageSprites.bg2Lifted = FALSE;
     BattleStage_ClearGroundHoles();
     memset(&sStatFx, 0, sizeof(sStatFx));
+    BattleStage_Gen5MotionInit();
+    BattleStageCopies_Init();
 
     for (i = 0; i < MAX_MON_SPRITES; i++) {
         sStageSprites.states[i].phase = 0;
@@ -272,6 +277,7 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     }
 
     sStageSprites.hasBlobs = InitBlobs(camera);
+    BattleStageShadow_Init(battleSys); // bw2vis:shadow
     PokemonSpriteManager_SetDrawHook(BattleSystem_GetPokemonSpriteManager(battleSys), DrawHook);
     sStageSprites.hooked = TRUE;
     BattleStageStream_Init(BattleSystem_GetPokemonSpriteManager(battleSys));
@@ -289,6 +295,7 @@ void BattleStageSprites_Free(void)
     BattleStageStream_Free();
     FreeStatFx();
     FreeBlobs();
+    BattleStageShadow_Free(); // bw2vis:shadow
     sStageSprites.battleSys = NULL;
     sStageSprites.visible = FALSE;
     sStageSprites.streamLive = FALSE;
@@ -450,6 +457,42 @@ BOOL BattleStage_GetStreamFrameTiles(int battler, u8 *tiles)
     }
 
     return TRUE;
+}
+
+// bw2vis:idle: the state battle_stage_idle.c reads (docs/living_battle_stage/sprites.md, "Gen 5
+// motion")
+BOOL BattleStageSprites_MoveAnimActive(void)
+{
+    return sStageSprites.moveAnimActive;
+}
+
+u32 BattleStageSprites_DebugFlags(void)
+{
+    return sStageSprites.fields != NULL ? sStageSprites.fields->debugFlags : 0;
+}
+
+BOOL BattleStageSprites_StreamsLive(void)
+{
+    return BATTLE_STAGE_3D && sStageSprites.fields != NULL && sStageSprites.hooked && sStageSprites.streamLive;
+}
+
+BOOL BattleStageSprites_IsVisible(void)
+{
+    return BATTLE_STAGE_3D && sStageSprites.fields != NULL && sStageSprites.hooked && sStageSprites.visible;
+}
+
+BOOL BattleStageSprites_DrawsBattler(int battler)
+{
+    if (!BATTLE_STAGE_3D || sStageSprites.fields == NULL || !sStageSprites.hooked || battler < 0 || battler >= MAX_MON_SPRITES) {
+        return FALSE;
+    }
+
+    return ((sStageSprites.meshMask | sStageSprites.lastMeshMask | sStageSprites.streamedMask | sStageSprites.lastStreamedMask) & (1 << battler)) != 0;
+}
+
+BattleSystem *BattleStageSprites_BattleSystem(void)
+{
+    return sStageSprites.hooked ? sStageSprites.battleSys : NULL;
 }
 
 void BattleStage_SetGroundHole(int battler, BOOL open)
@@ -1418,6 +1461,21 @@ BOOL BattleStageSprites_GroundShift(int side, int dx, int dy, VecFx32 *shift)
     return TRUE;
 }
 
+// bw2vis:shadow
+BOOL BattleStageSprites_GroundFrame(int side, VecFx32 *centre, VecFx32 *right, VecFx32 *down)
+{
+    side &= 1;
+
+    if (!sStageSprites.hooked || sStageSprites.groundHalfWidth[0] <= 0 || sStageSprites.groundHalfWidth[1] <= 0) {
+        return FALSE;
+    }
+
+    *centre = sStageSprites.groundCentre[side];
+    *right = sStageSprites.groundRight[side];
+    *down = sStageSprites.groundDown[side];
+    return TRUE;
+}
+
 // bw2vis:layout - the cut edge moves with the battler's layout place
 static int CutLayoutDy(int battler)
 {
@@ -1616,6 +1674,7 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
     BOOL started = FALSE;
     BOOL blobsOn = BlobsOn();
     BOOL holesOn = HolesOn();
+    u32 shownMask, noBlob; // bw2vis:shadow
 
     if (!blobsOn && !holesOn) {
         return;
@@ -1628,12 +1687,14 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
         numBattlers = MAX_MON_SPRITES;
     }
 
+    // bw2vis:shadow: the battlers a shadow shows for. The streamed ones get BW2's silhouette
+    // (battle_stage_shadow.c) and those whose shadow is off get none; the rest keep the blob
+    shownMask = 0;
+    noBlob = 0;
+
     for (i = 0; i < numBattlers && blobsOn; i++) {
         const PokemonSprite *sprite = &monSpriteMan->sprites[i];
         const PokemonSpriteTransforms *transforms = &sprite->transforms;
-        int side, widthPx, scale;
-        fx32 radius;
-        VecFx32 centre, a, b;
 
         // hideShadows is never initialised (PokemonSpriteManager_New leaves it as the heap
         // had it), so it only means something while a script runs: the battle sets it before
@@ -1642,7 +1703,30 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
             continue;
         }
 
+        shownMask |= 1 << i;
+    }
+
+    if (shownMask != 0) {
+        noBlob = BattleStageShadow_Draw(projection, shownMask, sStageSprites.fields->debugFlags, &sStageSprites.fields->blobShadows);
+    }
+
+    for (i = 0; i < numBattlers && blobsOn; i++) {
+        const PokemonSprite *sprite = &monSpriteMan->sprites[i];
+        const PokemonSpriteTransforms *transforms = &sprite->transforms;
+        int side, widthPx, scale;
+        fx32 radius;
+        VecFx32 centre, a, b;
+
+        if ((shownMask & (1 << i)) == 0 || (noBlob & (1 << i))) {
+            continue;
+        }
+
         side = BattleSystem_BattlerSlot(sStageSprites.battleSys, i) & 1;
+
+        // bw2vis:shadow: an enemy with no classic shadow (SHADOW_SIZE_NONE) gets no blob either
+        if (side && sprite->shadow.size == SHADOW_SIZE_NONE) {
+            continue;
+        }
         widthPx = side ? sEnemyBlobWidth[sprite->shadow.size] : BLOB_PLAYER_WIDTH;
         scale = transforms->scaleX < 0 ? -transforms->scaleX : transforms->scaleX;
 

@@ -642,6 +642,7 @@ Overlay battle_anim
 {
 	After overlay11
 	Object main.nef.p/src_battle_anim_battle_anim_system.c.o
+	Object main.nef.p/src_battle_anim_battle_anim_effect_bg.c.o
 	Object main.nef.p/src_battle_anim_battle_particle_util.c.o
 	Object main.nef.p/src_battle_anim_emitter_callbacks.c.o
 	Object main.nef.p/src_battle_anim_generic_emitter_callback.c.o
@@ -704,6 +705,7 @@ Overlay battle
 	Object main.nef.p/src_battle_battle_lib.c.o
 	Object main.nef.p/src_battle_battle_io_command.c.o
 	Object main.nef.p/src_battle_battle_display.c.o
+	Object main.nef.p/src_battle_battle_trainer_bw2.c.o
 	Object main.nef.p/src_battle_ov16_02264798.c.o
 	Object main.nef.p/src_battle_battle_controller.c.o
 	Object main.nef.p/src_battle_healthbar.c.o
@@ -717,11 +719,17 @@ Overlay battle
 	Object main.nef.p/src_battle_totem_aura.c.o
 	Object main.nef.p/src_battle_battle_stage.c.o
 	Object main.nef.p/src_battle_battle_stage_sprites.c.o
+	Object main.nef.p/src_battle_battle_stage_shadow.c.o
 	Object main.nef.p/src_battle_battle_stage_stream.c.o
+	Object main.nef.p/src_battle_battle_stage_idle.c.o
+	Object main.nef.p/src_battle_battle_stage_copies.c.o
 	Object main.nef.p/src_battle_battle_stage_camera.c.o
 	Object main.nef.p/src_battle_battle_stage_layout.c.o
 	Object main.nef.p/src_battle_battle_textbox.c.o
+	Object main.nef.p/src_battle_battle_stage_light.c.o
 	Object main.nef.p/src_battle_battle_debug.c.o
+	Object main.nef.p/src_battle_ability_popup.c.o
+	Object main.nef.p/src_battle_battle_events.c.o
 }
 
 Overlay overlay17

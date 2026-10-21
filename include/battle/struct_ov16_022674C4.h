@@ -40,6 +40,14 @@ typedef struct {
     u8 : 4;
     SysTask *unk_50;
     u16 unk_54;
+    SysTask *scrollTask; // bw2vis:hud-gauges: the running slide-in, so a hide can stop it
+    SysTask *lossTask; // bw2vis:hud-gauges: the lost-HP segment's blink and the red flash
+    u8 ghostEndPx; // the HP bar's pixels before the hit, the lost-HP segment's end; 0 for none
+    u8 ghostBlink; // the segment's blink updates left once the drain ends
+    u8 ghostHidden; // the segment is in a blink's off phase
+    u8 flashing; // the red flash runs, on the effects palette
+    u8 flashStep;
+    u8 flashCycle;
 } Healthbar;
 
 #endif // POKEPLATINUM_STRUCT_OV16_022674C4_H

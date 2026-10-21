@@ -4,6 +4,7 @@
 #include "struct_decls/battle_system.h"
 
 #include "palette.h"
+#include "sprite.h"
 
 // The 3D arena drawn behind the battle sprites. With BATTLE_STAGE_3D off, every function does nothing.
 void BattleStage_Init(BattleSystem *battleSys);
@@ -28,6 +29,7 @@ enum BattleStageSuppress {
     BATTLE_STAGE_SUPPRESS_MENU = 1 << 3, // a screen that owns the 3D layer or VRAM
     BATTLE_STAGE_SUPPRESS_OTHER = 1 << 4,
     BATTLE_STAGE_SUPPRESS_WINDOW = 1 << 5, // a move window shapes the BG3 backdrop under the arena (compat.md, F3)
+    BATTLE_STAGE_SUPPRESS_EFFECT_BG_CUT = 1 << 6, // bw2vis:effect-bg: a SwitchBg cut hides the arena at once, no fade (effect_bg.md)
 };
 
 void BattleStage_Suppress(u32 reasons, BOOL suppress);
@@ -117,6 +119,7 @@ enum BattleStageCinematic {
     BATTLE_STAGE_CINEMATIC_CRIT = 1 << 3,
     BATTLE_STAGE_CINEMATIC_FAINT = 1 << 4,
     BATTLE_STAGE_CINEMATIC_SCRIPT = 1 << 5, // an anim script used a camera command
+    BATTLE_STAGE_CINEMATIC_INTRO = 1 << 6, // the BW2 intro shots opened the battle (bw2vis:intro)
 };
 
 // Anim script commands 85-88 and 90. focus is a STAGE_CAMERA_FOCUS_* constant; attacker and
@@ -149,8 +152,34 @@ void BattleStage_HoldCameraAfterScript(void);
 // battle-start focus played. It also releases a focus still holding (no send-out: Safari; the
 // Totem aura).
 void BattleStage_StartBattleSweep(void);
+// The BW2 intro shots (bw2vis:intro; camera.md, "Battle intro"). StartIntroOpen, when the
+// battle's opening starts (the fade-in): a wild battle opens close on the wild mon and pulls
+// out to home before the opponent's healthbar; a trainer battle opens on the opponent's
+// trainer and holds on the opponent's side (tightening on its throw, IntroEnemyThrow) until
+// the opponent's healthbar (StartIntroFocus) turns the camera to the player's send-out shot.
+// IntroPlayerSendOut ("Go! {0}!") starts that shot in a wild battle. IntroMonOut, when a mon
+// the player's side threw is out (lastOut: no other throw of the intro is still on its way),
+// sends the shot home after a short settle. IntroSpriteToOAM: the opponent's OAM copy for the
+// player's send-out waits while this is FALSE (a copy that shows can't follow the camera: the
+// send-out then plays at home).
+void BattleStage_StartIntroOpen(void);
+void BattleStage_IntroEnemyThrow(int battler);
+void BattleStage_IntroPlayerSendOut(void);
+void BattleStage_IntroMonOut(int battler, BOOL lastOut);
+BOOL BattleStage_IntroSpriteToOAM(int battler);
+// The 2D trainer and ball OBJs follow the camera off home: sign 1 before the OBJ draw moves
+// and scales it with its side's similarity (saving it), sign -1 after the draw puts it back
+typedef struct BattleStageIntroSpriteSave {
+    BOOL moved;
+    VecFx32 position;
+    VecFx32 scale;
+    u8 mode;
+} BattleStageIntroSpriteSave;
+void BattleStage_FollowIntroSprite(ManagedSprite *managedSprite, int side, int sign, BattleStageIntroSpriteSave *save);
 // The battle-start focus: when the opponent's healthbar first slides in, the camera pushes in
-// on the opponents and holds there until the player's side sends out
+// on the opponents and holds there until the player's side sends out (the legacy shot, when
+// the intro didn't open with the shots above); in a trainer battle's intro it starts the
+// player's send-out shot
 void BattleStage_StartIntroFocus(void);
 // The player's side is sending out: the focus eases home (after its least hold). Before the
 // focus started, it keeps the focus from starting (the player sent out first).
@@ -158,10 +187,12 @@ void BattleStage_EndIntroFocus(void);
 // A send-out (a trainer's throw, an opponent turning into an OBJ) waits until this is TRUE:
 // no focus holds or eases home. Call it once per frame while waiting; it snaps after a cap.
 BOOL BattleStage_IsIntroFocusDone(void);
-// The player's trainer throw (ov16_0225D360) waits with this rather than IsIntroFocusDone: it
-// also counts the frames the throw waited, which the battler's healthbar slide-in then waits
-// out (HoldSendOutHealthbar, TRUE: wait a frame), so the bar still comes in after the
-// Pokemon, as long after the throw as without the stage.
+// The player's trainer throw (ov16_0225D360) waits with this rather than IsIntroFocusDone.
+// With the intro shots it never waits (the trainer and ball OBJs follow the camera) and
+// starts the send-out shot. Under the legacy focus it waits for home and counts the frames it
+// waited, which the battler's healthbar slide-in then waits out. HoldSendOutHealthbar (TRUE:
+// wait a frame) also holds a player-side healthbar while the send-out shot is up or easing
+// home, so the bar comes in after the Pokemon and the camera, as in BW2.
 BOOL BattleStage_IsIntroThrowReady(int battler);
 BOOL BattleStage_HoldSendOutHealthbar(int battler);
 // An opponent's healthbar sliding in during the battle-start focus stays hidden (it would

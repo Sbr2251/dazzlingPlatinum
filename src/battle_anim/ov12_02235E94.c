@@ -1946,6 +1946,27 @@ static BOOL ov12_02237694(BallRotation *param0)
     return 1;
 }
 
+// bw2vis:intro: the battle's stage camera moves and scales the ball OBJ for its draw (a trainer's
+// throw during the intro shots), and puts it back after; NULL outside battles
+static BallRotationDrawHook sBallDrawHook;
+
+void BallRotation_SetDrawHook(BallRotationDrawHook hook)
+{
+    sBallDrawHook = hook;
+}
+
+static void DrawBall(BallRotation *ballRotation)
+{
+    if (sBallDrawHook != NULL && ballRotation->unk_90.battleSys != NULL) {
+        sBallDrawHook(ballRotation->unk_30, ballRotation->unk_90.target, 1);
+        SpriteSystem_DrawSprites(ballRotation->unk_2C);
+        sBallDrawHook(ballRotation->unk_30, ballRotation->unk_90.target, -1);
+        return;
+    }
+
+    SpriteSystem_DrawSprites(ballRotation->unk_2C);
+}
+
 static void ov12_022376D0(SysTask *param0, void *param1)
 {
     BOOL v0;
@@ -1957,7 +1978,7 @@ static void ov12_022376D0(SysTask *param0, void *param1)
 
     if (v1->unk_DC > 0) {
         v1->unk_DC--;
-        SpriteSystem_DrawSprites(v1->unk_2C);
+        DrawBall(v1);
         return;
     }
 
@@ -1971,7 +1992,7 @@ static void ov12_022376D0(SysTask *param0, void *param1)
         ManagedSprite_TickFrame(v1->unk_30);
     }
 
-    SpriteSystem_DrawSprites(v1->unk_2C);
+    DrawBall(v1);
 }
 
 BallRotation *ov12_02237728(BallThrow *param0)

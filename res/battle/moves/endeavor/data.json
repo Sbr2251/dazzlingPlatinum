@@ -16,7 +16,7 @@
         "MOVE_FLAG_CAN_PROTECT",
         "MOVE_FLAG_CAN_MIRROR_MOVE",
         "MOVE_FLAG_TRIGGERS_KINGS_ROCK",
-        "MOVE_FLAG_HIDES_HP_GAUGES"
+        "MOVE_FLAG_KEEPS_HP_GAUGES"
     ],
     "contest": {
         "effect": "CONTEST_EFFECT_DOUBLE_FINAL_ACT",

@@ -17,6 +17,7 @@
 #include "struct_defs/struct_0207A778.h"
 
 #include "battle/battle_context.h"
+#include "battle/battle_events.h"
 #include "battle/battle_controller.h"
 #include "battle/battle_controller_player.h"
 #include "battle/battle_debug.h"
@@ -26,6 +27,7 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_stage.h"
 #include "battle/battle_textbox.h"
+#include "battle/battle_stage_copies.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02268520.h"
 #include "battle/ov16_0226E148.h"
@@ -118,6 +120,9 @@ static void ov16_0223D10C(ApplicationManager *appMan, FieldBattleDTO *param1);
 static BOOL ov16_0223D354(ApplicationManager *appMan);
 static void ov16_0223D7B4(ApplicationManager *appMan);
 static void ov16_0223C004(BattleSystem *battleSys, BgConfig *param1);
+
+// The field's master brightness when the battle started (bw2vis:intro)
+static int sIntroFieldBrightness;
 static void ov16_0223C210(BattleSystem *battleSys);
 static void ov16_0223C288(BgConfig *param0);
 static void ov16_0223C2BC(BattleSystem *battleSys);
@@ -237,6 +242,7 @@ BOOL Battle_Main(ApplicationManager *appMan, int *param1)
         SoundLayers_Update();
 
         if (ov16_0223BBD0(appMan) == 1) {
+            BattleEvents_Shutdown(); // bw2vis:battle-events
             ov16_0223BCB4(appMan);
             SoundLayers_Reset();
             *param1 = 10;
@@ -574,6 +580,9 @@ static void ov16_0223B790(ApplicationManager *appMan)
         NARC_dtor(v7);
     }
 
+    // bw2vis:intro: the field's transition left the screen black or white (its master brightness):
+    // the stage's opening fades in from that colour, as BW2 does (btlv_scu.c:580-587)
+    sIntroFieldBrightness = GX_GetMasterBrightness();
     ov16_0223C004(battleSys, battleSys->unk_04);
 
     Window_Add(battleSys->unk_04, &battleSys->windows[0], 1, 2, 0x13, 27, 4, 11, (18 + 12) + 1);
@@ -616,6 +625,14 @@ static void ov16_0223B790(ApplicationManager *appMan)
     TotemBattle_ResetLayout(battleSys);
     BattleStage_Init(battleSys);
     BattleTextbox_Init(battleSys); // bw2vis:layout - after the stage: the box starts hidden over it
+
+    // bw2vis:intro: the stage's opening fades in from black (battle_display.c, IntroStageOpening).
+    // Until then the BG palettes are filled with the curtain's colour, which Platinum's curtain
+    // covered: keep the screens black from the first frame. The classic opening undoes it.
+    if (BattleStage_IsEnabled()) {
+        SetScreenMasterBrightness(DS_SCREEN_MAIN, sIntroFieldBrightness > 0 ? 16 : -16);
+        SetScreenMasterBrightness(DS_SCREEN_SUB, sIntroFieldBrightness > 0 ? 16 : -16);
+    }
 #if DEBUG_BATTLE_TOOLS
     BattleDebug_Init();
 #endif
@@ -1561,18 +1578,23 @@ static void ov16_0223CF1C(void *param0)
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
-// The trainers are 2D OBJs: while the stage camera is off home they draw moved with their
-// side's platform, then go back, so the game's own position checks never see the offset
+// The trainers are 2D OBJs: while the stage camera is off home they draw moved and scaled with
+// their side's platform (the intro shots), then go back, so the game's own position checks
+// never see it (bw2vis:intro: was translate-only, which left the player's trainer full size
+// with a slice at the bottom-left while the camera was pushed in)
+static BattleStageIntroSpriteSave sTrainerSpriteSaves[MAX_BATTLERS];
+
 static void OffsetTrainerSprites(BattleSystem *battleSys, int sign)
 {
-    int i, dx, dy;
+    int i;
 
-    for (i = 0; i < battleSys->maxBattlers; i++) {
+    for (i = 0; i < battleSys->maxBattlers && i < MAX_BATTLERS; i++) {
         BattlerData *battlerData = battleSys->battlers[i];
 
-        if (battlerData != NULL && battlerData->unk_18 != NULL
-            && BattleStage_GetSideOffset(battlerData->battlerType & 1, &dx, &dy)) {
-            ManagedSprite_OffsetPositionXY(battlerData->unk_18, sign * dx, sign * dy);
+        if (battlerData != NULL && battlerData->unk_18 != NULL) {
+            BattleStage_FollowIntroSprite(battlerData->unk_18, battlerData->battlerType & 1, sign, &sTrainerSpriteSaves[i]);
+        } else {
+            sTrainerSpriteSaves[i].moved = FALSE;
         }
     }
 }
@@ -1632,6 +1654,7 @@ static void ov16_0223CF48(SysTask *param0, void *param1)
         }
 
         PokemonSpriteManager_DrawSprites(v0->unk_88);
+        BattleStage_DrawMonCopies(v0->unk_88); // bw2vis:idle: move copies of streamed battlers
         RaiseIntroSprites(v0);
         OffsetTrainerSprites(v0, 1);
         SpriteSystem_DrawSprites(v0->spriteMan);
@@ -1681,6 +1704,12 @@ static void ov16_0223CF8C(SysTask *param0, void *param1)
                 }
             }
         }
+    }
+
+    // bw2vis:battle-events: BW2 has no low-HP beep. While the low-HP music layer plays, it stands in for the beep,
+    // so the beep is held off (and stopped if it was on); without the layer the beep works as in Platinum.
+    if (BattleEvents_SuppressLowHPBeep()) {
+        v5 = 0;
     }
 
     if ((v5) && (ov16_0223F450(v0) == 0)) {
