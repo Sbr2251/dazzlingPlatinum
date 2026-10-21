@@ -7,6 +7,10 @@
 #include "constants/graphics.h"
 #include "constants/heap.h"
 
+#include "generated/move_flags.h"
+#include "generated/moves.h"
+
+#include "battle/battle_stage.h"
 #include "battle/mega_evolution.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/struct_ov16_022674C4.h"
@@ -17,6 +21,7 @@
 #include "heap.h"
 #include "math_util.h"
 #include "message.h"
+#include "move_table.h"
 #include "narc.h"
 #include "palette.h"
 #include "pokemon.h"
@@ -1985,4 +1990,16 @@ static void ov16_022684BC(SysTask *param0, void *param1)
     v0->unk_54 += HEALTHBAR_SWAY_STEP;
     v1 = FX_SinIdx(v0->unk_54) / HEALTHBAR_SWAY_DIVISOR;
     Healthbar_OffsetPositionXY(v0, 0, v1);
+}
+
+BOOL Healthbar_MoveAnimHidesHealthbars(u16 move)
+{
+    // bw2vis:hud-gauges: with the 3D stage up, every move script hides both sides' gauges, as BW2's do, except
+    // Transform, Mirror Move and Nature Power (btlv_effvm.c:584-586; shown again at the end, :536)
+    if (BattleStage_IsVisible()) {
+        return move != MOVE_TRANSFORM && move != MOVE_MIRROR_MOVE && move != MOVE_NATURE_POWER;
+    }
+
+    // The classic look keeps Platinum's per-move flag
+    return (MoveTable_LoadParam(move, MOVEATTRIBUTE_FLAGS) & MOVE_FLAG_KEEPS_HP_GAUGES) == 0;
 }
