@@ -54,18 +54,27 @@ enum BattleStageMeshFlag {
 
 // Lighting columns of the atmosphere. [0..2] are the classic time-of-day columns that
 // ov16_0223EC04 picks (and the classic BG palettes follow); the renderer blends the others in
-// at battle start by the RTC hour and minute (battle_stage_light.c, stage_format.md
-// "Time of day")
+// at battle start by the RTC hour and minute and the field weather (battle_stage_light.c,
+// stage_format.md "Time of day and weather")
 enum BattleStageLightingColumn {
     BATTLE_STAGE_LIGHTING_DAY = 0,
     BATTLE_STAGE_LIGHTING_TWILIGHT,
     BATTLE_STAGE_LIGHTING_NIGHT,
     BATTLE_STAGE_LIGHTING_MORNING, // cool blue, 06:00-09:00
     BATTLE_STAGE_LIGHTING_DUSK, // orange, 18:30
+    // Field weather at battle start (each "day under that weather")
+    BATTLE_STAGE_LIGHTING_RAIN,
+    BATTLE_STAGE_LIGHTING_STORM, // heavy rain, thunderstorm
+    BATTLE_STAGE_LIGHTING_SNOW, // snow, heavy snow, hail
+    BATTLE_STAGE_LIGHTING_BLIZZARD,
+    BATTLE_STAGE_LIGHTING_FOG, // fog, deep fog
+    BATTLE_STAGE_LIGHTING_SAND,
+    BATTLE_STAGE_LIGHTING_RIFT_MIST, // the hack's violet mist (Route 210 North)
     BATTLE_STAGE_LIGHTING_MAX,
 };
 
 #define BATTLE_STAGE_LIGHTING_TOD_COUNT (BATTLE_STAGE_LIGHTING_DUSK + 1)
+#define BATTLE_STAGE_HAZE_FULL          128
 
 // Arena light and fog for one lighting column (enum BattleStageLightingColumn)
 typedef struct BattleStageFileLighting {
@@ -76,7 +85,8 @@ typedef struct BattleStageFileLighting {
     u16 emission; // GXRgb, G3_MaterialColorSpecEmi (specular is always black)
     u16 fogColor; // GXRgb
     u8 fogAlpha; // 0..31
-    u8 padding[3];
+    u8 haze; // 0..BATTLE_STAGE_HAZE_FULL: how much of the atmosphere's haze fog (weather) applies
+    u8 padding[2];
 } BattleStageFileLighting;
 
 // Only read from the backdrop piece
@@ -86,6 +96,14 @@ typedef struct BattleStageFileAtmosphere {
     u16 fogOffset; // G3X_SetFog offset, 15-bit depth where fogTable[0] starts
     u8 fogTable[32]; // density 0..127 (G3X_SetFogTable)
     BattleStageFileLighting lighting[BATTLE_STAGE_LIGHTING_MAX];
+    // Weather haze: a fog grid that starts just in front of the platforms. With a lighting
+    // haze h > 0 the renderer uses hazeShift/hazeOffset and the table
+    // hazeBase + (hazeTable - hazeBase) * h / BATTLE_STAGE_HAZE_FULL
+    u8 hazeShift;
+    u8 hazePadding;
+    u16 hazeOffset;
+    u8 hazeBase[32]; // the distance fog above, resampled on the haze grid
+    u8 hazeTable[32]; // full-strength haze (never below hazeBase)
 } BattleStageFileAtmosphere;
 
 typedef struct BattleStageFileHeader {

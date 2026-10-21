@@ -660,7 +660,18 @@ static BOOL IsAtmosphereValid(const BattleStageFileAtmosphere *atmosphere)
     }
 
     for (i = 0; i < BATTLE_STAGE_LIGHTING_MAX; i++) {
-        if (atmosphere->lighting[i].fogAlpha > 31) {
+        if (atmosphere->lighting[i].fogAlpha > 31 || atmosphere->lighting[i].haze > BATTLE_STAGE_HAZE_FULL) {
+            return FALSE;
+        }
+    }
+
+    // bw2vis:stage-light: the weather haze grid
+    if (atmosphere->hazeShift > GX_FOGSLOPE_0x0020 || atmosphere->hazeOffset > 0x7FFF) {
+        return FALSE;
+    }
+
+    for (i = 0; i < 32; i++) {
+        if (atmosphere->hazeBase[i] > 127 || atmosphere->hazeTable[i] > 127) {
             return FALSE;
         }
     }
@@ -1220,8 +1231,8 @@ static void SendDL(const u32 *dl, u32 size)
     }
 }
 
-// Material and light 0 of the LIT meshes (and the stage sprites) for the time of day,
-// blended at battle start (bw2vis:stage-light, battle_stage_light.c)
+// Material and light 0 of the LIT meshes (and the stage sprites) for the time of day and the
+// weather, blended at battle start (bw2vis:stage-light, battle_stage_light.c)
 static const BattleStageFileLighting *CurrentLighting(StageArena *arena)
 {
     return arena->hasAtmosphere ? &arena->light.lighting : &sDefaultLighting;
@@ -1437,7 +1448,8 @@ static void UpdateFog(StageArena *arena)
     } else if (arena->hasAtmosphere && arena->light.fogEnabled) {
         const BattleStageFileLighting *lighting = &arena->light.lighting;
 
-        // The fog stands for the backdrop's distance, so it fades with the backdrop
+        // The fog stands for the backdrop's distance, so it fades with the backdrop. The
+        // weather haze (bw2vis:stage-light) uses its own grid, from battle_stage_light.c
         color = BackdropFadeActive() ? BackdropFadeColor(lighting->fogColor) : lighting->fogColor;
         alpha = lighting->fogAlpha;
         shift = arena->light.fogShift;

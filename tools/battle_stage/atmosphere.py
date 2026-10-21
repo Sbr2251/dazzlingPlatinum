@@ -84,6 +84,30 @@ CLASS_ATMOSPHERE = {
     CLASS_VOID: ((((29, 28, 31), (20, 18, 28), (6, 2, 10)),) * 3, (12.0, 30.0, 20, 28)),
 }
 
+# Weather columns (bw2vis:stage-light): (up target, away target, fog colour, haze 0..128) of
+# "day under that weather", for the backgrounds with time of day. BW2 swaps in a weather
+# light set at battle start (field_light_status.c sWeatherLightIds; its rain sets 2-5 are a
+# flat grey (22,22,20) all day, sets 0/6 a dark (11,11,12)). Lighting can only multiply the
+# art, so the desaturation is the haze: fog in the weather's colour from just in front of the
+# platforms (HAZE_*). The rift mist takes the field's fog colour (22,12,28), Weather_RiftMistTask.
+WEATHER = {
+    "rain": ((24, 25, 27), (17, 18, 21), (17, 18, 21), 44),
+    "storm": ((20, 21, 24), (13, 14, 17), (12, 13, 16), 64),
+    "snow": ((29, 30, 31), (22, 23, 26), (28, 29, 31), 48),
+    "blizzard": ((27, 28, 30), (21, 22, 25), (29, 30, 31), 100),
+    "fog": ((27, 27, 28), (21, 21, 22), (26, 26, 27), 96),
+    "sand": ((31, 27, 20), (24, 19, 13), (27, 22, 14), 80),
+    "rift_mist": ((27, 23, 31), (19, 14, 25), (22, 12, 28), 88),
+}
+
+# The full-strength weather haze over view depth: none up to HAZE_NEAR (just in front of the
+# platforms, so the grid's resolution goes to the scene), HAZE_REF_DENSITY at HAZE_REF,
+# rising toward HAZE_MAX. A column's haze scales it (battle_stage_light.c)
+HAZE_NEAR = 4.0
+HAZE_REF = 14.0
+HAZE_REF_DENSITY = 56
+HAZE_MAX = 112
+
 # Rooms: saturated on top, the away side tinted to the room; no fog
 ROOM_AWAY_TINT = {
     12: (20, 26, 20),  # Aaron
@@ -111,22 +135,29 @@ def background_class(background):
 
 
 def has_time_of_day(background):
-    """The backgrounds whose battles take the time of day (ov16_0223EC04,
+    """The backgrounds whose battles take the time of day and the weather (ov16_0223EC04,
     battle_stage_light.c HasTimeOfDay): the six outdoor ones."""
     return background in classic.TIME_OF_DAY_BACKGROUNDS
 
 
 def spec(background):
-    """(columns, fog ramp or None) of a background: NUM_COLUMNS (up, away, fog colour)."""
+    """(columns, fog ramp or None) of a background: NUM_COLUMNS (up, away, fog colour, haze)."""
     cls = background_class(background)
 
     if cls == CLASS_ROOM:
         away = ROOM_AWAY_TINT.get(background, ROOM_AWAY_DEFAULT)
-        return ((WHITE, away, (0, 0, 0)),) * NUM_COLUMNS, None
+        return ((WHITE, away, (0, 0, 0), 0),) * NUM_COLUMNS, None
 
     tod, ramp = CLASS_ATMOSPHERE[cls]
+    tod = tuple(c + (0,) for c in tod)
     tod = tod + (tod[0],) * (sf.NUM_TOD_COLUMNS - len(tod))  # caves and the void: one column
-    return tod, ramp
+
+    if has_time_of_day(background):
+        weather = tuple(WEATHER[name] for name in sf.LIGHTING_COLUMNS[sf.NUM_TOD_COLUMNS:])
+    else:
+        weather = (tod[0],) * (NUM_COLUMNS - sf.NUM_TOD_COLUMNS)  # never picked
+
+    return tod + weather, ramp
 
 
 def home_far(backdrop):
@@ -252,17 +283,26 @@ def build(backdrop):
     level_up = diffuse_level(light10, sf.unpack_normal(sf.pack_normal(arena.UP)))
     lighting = []
 
-    for up, away, fog_color in cols:
+    for up, away, fog_color, haze in cols:
         dif, amb = material(up, away, level_up)
-        lighting.append(sf.Lighting(light_dir_fx16(), rgb(LIGHT_COLOR), rgb(dif), rgb(amb), 0, rgb(fog_color), FOG_ALPHA))
+        lighting.append(sf.Lighting(light_dir_fx16(), rgb(LIGHT_COLOR), rgb(dif), rgb(amb), 0, rgb(fog_color), FOG_ALPHA, haze))
 
     if ramp is None:
         return sf.Atmosphere(0, 0, 0, [0] * 32, lighting)
 
+    cam = backdrop.home.cam
     near_d = home_far(backdrop) if ramp[0] == HOME_FAR else ramp[0]
     ref_d = max(ramp[1], near_d + 1)
-    shift, offset, table = fog_table(backdrop.home.cam, near_d, ref_d, ramp[2], ramp[3])
-    return sf.Atmosphere(1, shift, offset, table, lighting)
+    base = ramp_density(near_d, ref_d, ramp[2], ramp[3])
+    shift, offset, table = fog_table(cam, near_d, ref_d, ramp[2], ramp[3])
+
+    # The weather haze grid: the distance fog resampled on it, and the full haze (never less)
+    haze_near = min(HAZE_NEAR, near_d)
+    hshift, hoffset = fog_grid(cam, haze_near)
+    haze = ramp_density(haze_near, HAZE_REF, HAZE_REF_DENSITY, HAZE_MAX)
+    haze_base = sample_table(cam, hshift, hoffset, base)
+    haze_full = sample_table(cam, hshift, hoffset, lambda d: max(base(d), haze(d)))
+    return sf.Atmosphere(1, shift, offset, table, lighting, (hshift, hoffset, haze_base, haze_full))
 
 
 # ---- The renderer's pick at battle start (mirrors src/battle/battle_stage_light.c) ----------
@@ -284,7 +324,11 @@ LIGHT_KEYS = (
     (12 * 60, _w(D=256)), (15 * 60 + 30, _w(D=256)), (17 * 60, _w(T=256)), (18 * 60 + 30, _w(K=256)),
     (20 * 60, _w(N=128, K=128)), (21 * 60, _w(N=256)), (24 * 60, _w(N=256)),
 )
+DAYLIGHT = (256, 204, 102, 256, 180)  # sDaylight
 FORCED_MINUTE = {"day": 12 * 60, "twilight": 17 * 60, "night": 23 * 60, "morning": 9 * 60}
+# OVERWORLD_WEATHER_* -> weather column name (WeatherColumn)
+FIELD_WEATHER = {2: "rain", 3: "storm", 4: "storm", 5: "snow", 6: "snow", 11: "snow", 7: "blizzard",
+                 14: "fog", 15: "fog", 10: "sand", 31: "rift_mist"}
 
 
 def schedule_weights(minute):
@@ -306,16 +350,35 @@ def _blend(colors, w):
     return rgb(tuple((sum(wi * unrgb(c)[ch] for wi, c in zip(w, colors)) + 128) // 256 for ch in range(3)))
 
 
-def resolve(atm, background, minute=None):
+def _lerp(a, b, w):
+    return rgb(tuple((unrgb(a)[ch] * (256 - w) + unrgb(b)[ch] * w + 128) // 256 for ch in range(3)))
+
+
+def resolve(atm, background, minute=None, weather=None):
     """(Lighting, (fog_shift, fog_offset, fog_table)) the renderer uses for a battle on
-    `background` at `minute` of the day."""
+    `background` at `minute` of the day with the weather column name `weather` (None: clear)."""
     if has_time_of_day(background) and minute is not None:
         w = schedule_weights(minute)
+        wcol = COLUMN[weather] if weather else 0
+        ww = (sum(wi * d for wi, d in zip(w, DAYLIGHT)) + 128) // 256 if wcol else 0
     else:
         w = [256] + [0] * (sf.NUM_TOD_COLUMNS - 1)
+        wcol, ww = 0, 0
     cols = atm.lighting[:sf.NUM_TOD_COLUMNS]
     li = cols[0].copy()
     for f in ("light_color", "diffuse", "ambient", "emission", "fog_color"):
         setattr(li, f, _blend([getattr(c, f) for c in cols], w))
     li.fog_alpha = (sum(wi * c.fog_alpha for wi, c in zip(w, cols)) + 128) // 256
-    return li, (atm.fog_shift, atm.fog_offset, list(atm.fog_table))
+    li.haze = (sum(wi * c.haze for wi, c in zip(w, cols)) + 128) // 256
+    if wcol and ww > 0:
+        wc = atm.lighting[wcol]
+        for f in ("light_color", "diffuse", "ambient", "emission", "fog_color"):
+            setattr(li, f, _lerp(getattr(li, f), getattr(wc, f), ww))
+        li.fog_alpha = (li.fog_alpha * (256 - ww) + wc.fog_alpha * ww + 128) // 256
+        li.haze = (li.haze * (256 - ww) + wc.haze * ww + 128) // 256
+    if atm.fog_enabled and li.haze > 0:
+        table = [b + ((f - b) * li.haze + sf.HAZE_FULL // 2) // sf.HAZE_FULL for b, f in zip(atm.haze_base, atm.haze_table)]
+        fog = (atm.haze_shift, atm.haze_offset, table)
+    else:
+        fog = (atm.fog_shift, atm.fog_offset, list(atm.fog_table))
+    return li, fog

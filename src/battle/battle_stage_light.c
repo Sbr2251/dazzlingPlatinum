@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "config/battle_stage.h"
+#include "constants/overworld_weather.h"
 #include "constants/rtc.h"
 #include "generated/battle_backgrounds.h"
 
@@ -15,10 +16,11 @@
 
 // bw2vis:stage-light. BW2 lights its battle stage with the colour the field light of the zone
 // has at the battle's hour and minute (15 settings a day, res/lighting/battle/*.json of
-// pokebw2); it reads it once, in BtlvEffect_Init (pokebw2 src/ov168/btlv_effect.c:289-300,
-// src/system/field_light_status.c). Here the clock blends the atmosphere's lighting columns
-// with a keyframed schedule over the day (the minute times follow BW2's spring table:
-// morning 5:00, day 10:00, evening 17:00, night 20:00). Only the six outdoor backgrounds that have
+// pokebw2), or with the weather's light set when the field has weather; it reads it once, in
+// BtlvEffect_Init (pokebw2 src/ov168/btlv_effect.c:289-300, src/system/field_light_status.c).
+// Here the same inputs blend the atmosphere's lighting columns: a keyframed schedule over the
+// day (the minute times follow BW2's spring table: morning 5:00, day 10:00, evening 17:00,
+// night 20:00), then the weather column on top. Only the six outdoor backgrounds that have
 // time-of-day palettes (ov16_0223EC04) take part; indoor, cave, Distortion World and facility
 // backgrounds keep column 0, as BW2's indoor bgTypes have no zone light.
 
@@ -58,6 +60,17 @@ static const LightKey sLightKeys[] = {
     { HM(24, 0), { 0, 0, 256, 0, 0 } },
 };
 
+// How much of a weather column applies under each time-of-day column (of WEIGHT_ONE): the
+// weather columns are each "day under that weather"; at night the classic night palette is
+// already dark, so the weather only greys it
+static const u16 sDaylight[TOD_COUNT] = {
+    [D] = 256,
+    [T] = 204,
+    [N] = 102,
+    [M] = 256,
+    [K] = 180,
+};
+
 BattleStageLightDebug sBattleStageLightDebug;
 
 // The representative minute of a time of day forced by the launcher: a pure column, so the
@@ -88,6 +101,35 @@ static BOOL HasTimeOfDay(enum BattleBackground background)
         return TRUE;
     default:
         return FALSE;
+    }
+}
+
+// The weather column of a field weather, 0 for none. BW2 maps its own weathers to light sets
+// with sWeatherLightIds (field_light_status.c:37); these are Platinum's weathers plus the
+// hack's rift mist
+static int WeatherColumn(int fieldWeather)
+{
+    switch (fieldWeather) {
+    case OVERWORLD_WEATHER_RAINING:
+        return BATTLE_STAGE_LIGHTING_RAIN;
+    case OVERWORLD_WEATHER_HEAVY_RAIN:
+    case OVERWORLD_WEATHER_THUNDERSTORM:
+        return BATTLE_STAGE_LIGHTING_STORM;
+    case OVERWORLD_WEATHER_SNOWING:
+    case OVERWORLD_WEATHER_HEAVY_SNOW:
+    case OVERWORLD_WEATHER_HAILING:
+        return BATTLE_STAGE_LIGHTING_SNOW;
+    case OVERWORLD_WEATHER_BLIZZARD:
+        return BATTLE_STAGE_LIGHTING_BLIZZARD;
+    case OVERWORLD_WEATHER_FOG:
+    case OVERWORLD_WEATHER_DEEP_FOG:
+        return BATTLE_STAGE_LIGHTING_FOG;
+    case OVERWORLD_WEATHER_SANDSTORM:
+        return BATTLE_STAGE_LIGHTING_SAND;
+    case OVERWORLD_WEATHER_RIFT_MIST:
+        return BATTLE_STAGE_LIGHTING_RIFT_MIST;
+    default:
+        return 0;
     }
 }
 
@@ -145,6 +187,25 @@ static u16 BlendColors(const BattleStageFileLighting *columns, const u16 *weight
     return result;
 }
 
+static u16 LerpColor(u16 a, u16 b, int w)
+{
+    int c;
+    u16 result = 0;
+
+    for (c = 0; c < 3; c++) {
+        int value = (Channel(a, c * 5) * (WEIGHT_ONE - w) + Channel(b, c * 5) * w + WEIGHT_ONE / 2) / WEIGHT_ONE;
+
+        result |= value << (c * 5);
+    }
+
+    return result;
+}
+
+static int LerpByte(int a, int b, int w)
+{
+    return (a * (WEIGHT_ONE - w) + b * w + WEIGHT_ONE / 2) / WEIGHT_ONE;
+}
+
 #define LIGHTING_COLOR_OFFSET(field) offsetof(BattleStageFileLighting, field)
 
 void BattleStageLight_Resolve(BattleSystem *battleSys, const BattleStageFileAtmosphere *atmosphere, BattleStageLight *out)
@@ -155,6 +216,7 @@ void BattleStageLight_Resolve(BattleSystem *battleSys, const BattleStageFileAtmo
     enum TimeOfDay timeOfDay = BattleSystem_Time(battleSys);
     int fieldWeather = BattleSystem_FieldWeather(battleSys);
     u16 weight[TOD_COUNT];
+    int weatherColumn = 0, weatherWeight = 0;
     int minute, clock, i;
 
     memset(debug, 0, sizeof(*debug));
@@ -179,6 +241,15 @@ void BattleStageLight_Resolve(BattleSystem *battleSys, const BattleStageFileAtmo
         }
 
         ScheduleWeights(minute, weight);
+        weatherColumn = WeatherColumn(fieldWeather);
+
+        if (weatherColumn != 0) {
+            for (i = 0; i < TOD_COUNT; i++) {
+                weatherWeight += weight[i] * sDaylight[i];
+            }
+
+            weatherWeight = (weatherWeight + WEIGHT_ONE / 2) / WEIGHT_ONE;
+        }
     } else {
         minute = 0;
         clock = BATTLE_STAGE_LIGHT_CLOCK_FIXED;
@@ -195,28 +266,58 @@ void BattleStageLight_Resolve(BattleSystem *battleSys, const BattleStageFileAtmo
     lighting.fogColor = BlendColors(atmosphere->lighting, weight, LIGHTING_COLOR_OFFSET(fogColor));
 
     {
-        int alpha = 0;
+        int alpha = 0, haze = 0;
 
         for (i = 0; i < TOD_COUNT; i++) {
             alpha += weight[i] * atmosphere->lighting[i].fogAlpha;
+            haze += weight[i] * atmosphere->lighting[i].haze;
         }
 
         lighting.fogAlpha = (alpha + WEIGHT_ONE / 2) / WEIGHT_ONE;
+        lighting.haze = (haze + WEIGHT_ONE / 2) / WEIGHT_ONE;
+    }
+
+    if (weatherColumn != 0 && weatherWeight > 0) {
+        const BattleStageFileLighting *weather = &atmosphere->lighting[weatherColumn];
+
+        lighting.lightColor = LerpColor(lighting.lightColor, weather->lightColor, weatherWeight);
+        lighting.diffuse = LerpColor(lighting.diffuse, weather->diffuse, weatherWeight);
+        lighting.ambient = LerpColor(lighting.ambient, weather->ambient, weatherWeight);
+        lighting.emission = LerpColor(lighting.emission, weather->emission, weatherWeight);
+        lighting.fogColor = LerpColor(lighting.fogColor, weather->fogColor, weatherWeight);
+        lighting.fogAlpha = LerpByte(lighting.fogAlpha, weather->fogAlpha, weatherWeight);
+        lighting.haze = LerpByte(lighting.haze, weather->haze, weatherWeight);
     }
 
     out->lighting = lighting;
     out->fogEnabled = atmosphere->fogEnabled;
 
-    out->fogShift = atmosphere->fogShift;
-    out->fogOffset = atmosphere->fogOffset;
-    memcpy(out->fogTable, atmosphere->fogTable, sizeof(out->fogTable));
+    // The haze grid starts nearer the camera than the distance fog, so the weather shows at
+    // the home pose; its fog colour is the blended one, so the haze matches the light
+    if (atmosphere->fogEnabled && lighting.haze > 0) {
+        out->fogShift = atmosphere->hazeShift;
+        out->fogOffset = atmosphere->hazeOffset;
+
+        for (i = 0; i < 32; i++) {
+            int base = atmosphere->hazeBase[i];
+
+            out->fogTable[i] = base + ((atmosphere->hazeTable[i] - base) * lighting.haze + BATTLE_STAGE_HAZE_FULL / 2) / BATTLE_STAGE_HAZE_FULL;
+        }
+    } else {
+        out->fogShift = atmosphere->fogShift;
+        out->fogOffset = atmosphere->fogOffset;
+        memcpy(out->fogTable, atmosphere->fogTable, sizeof(out->fogTable));
+    }
 
     debug->minute = minute;
     debug->clock = clock;
+    debug->weatherColumn = weatherColumn;
     debug->fieldWeather = fieldWeather;
     memcpy(debug->todWeight, weight, sizeof(weight));
+    debug->weatherWeight = weatherWeight;
     debug->lighting = lighting;
     debug->fogShift = out->fogShift;
+    debug->haze = lighting.haze;
     debug->fogOffset = out->fogOffset;
     debug->magic = BATTLE_STAGE_LIGHT_DEBUG_MAGIC;
 }

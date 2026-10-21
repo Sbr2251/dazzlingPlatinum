@@ -739,10 +739,11 @@ def classic_tod(minute):
 
 
 def run_strip(stage, args, rasters):
-    """--strip: the home pose of each --strip-bgs background at each --clocks time as the
-    renderer lights it at battle start (atmosphere.resolve), on the classic palettes of that
-    hour. One row per background."""
+    """--strip: the home pose of each --strip-bgs background at each --clocks time (and each
+    --weathers weather) as the renderer lights it at battle start (atmosphere.resolve), on the
+    classic palettes of that hour. One row per background and weather."""
     clocks = [c.strip() for c in args.clocks.split(",")]
+    weathers = [w.strip() or None for w in args.weathers.split(",")]
     rows = []
 
     for background in [int(b) for b in args.strip_bgs.split(",")]:
@@ -751,21 +752,23 @@ def run_strip(stage, args, rasters):
         pieces = stage.pieces(background, terrain)
         atm = pieces[0].atmosphere
 
-        tiles = []
+        for weather in weathers:
+            tiles = []
 
-        for clock in clocks:
-            minute = parse_clock(clock)
-            column = classic.palette_column(background, classic_tod(minute))
-            palettes = {"bg": palette5(backdrop.palettes[column])}
+            for clock in clocks:
+                minute = parse_clock(clock)
+                column = classic.palette_column(background, classic_tod(minute))
+                palettes = {"bg": palette5(backdrop.palettes[column])}
 
-            for plat in platforms:
-                palettes["platform", plat.side] = palette5(plat.palettes[column])
+                for plat in platforms:
+                    palettes["platform", plat.side] = palette5(plat.palettes[column])
 
-            light = atmosphere.resolve(atm, background, minute)
-            img, _ = Renderer(pieces, palettes, rasters[0], column, args.frame, light).render(camera_for(pieces[0], 0))
-            tiles.append(labelled(img, f"bg{background} {clock}"))
+                light = atmosphere.resolve(atm, background, minute, weather)
+                img, _ = Renderer(pieces, palettes, rasters[0], column, args.frame, light).render(camera_for(pieces[0], 0))
+                li = light[0]
+                tiles.append(labelled(img, f"bg{background} {clock} {weather or 'clear'} h{li.haze}"))
 
-        rows.append(hstack(tiles))
+            rows.append(hstack(tiles))
 
     save(os.path.join(args.out, "strip.png"), vstack(rows))
     print(f"wrote {args.out}/strip.png")
@@ -782,9 +785,10 @@ def main():
     parser.add_argument("--frame", type=int, help="sway SCROLL meshes to this arena draw (30 per second; default: no sway)")
     parser.add_argument("--all", action="store_true", help="every background and every terrain")
     parser.add_argument("--poses", action="store_true", help="every background from the gameplay camera poses")
-    parser.add_argument("--strip", action="store_true", help="time-of-day strip (atmosphere.resolve)")
+    parser.add_argument("--strip", action="store_true", help="time-of-day / weather strip (atmosphere.resolve)")
     parser.add_argument("--strip-bgs", default="0,3,4", help="--strip: backgrounds")
     parser.add_argument("--clocks", default="06:00,09:00,12:00,17:00,18:30,20:00,23:00", help="--strip: HH:MM list")
+    parser.add_argument("--weathers", default="", help="--strip: weather column names (atmosphere.WEATHER), '' = clear")
     args = parser.parse_args()
     os.makedirs(args.out, exist_ok=True)
     rasters = RASTERS if args.raster == "both" else (args.raster,)
