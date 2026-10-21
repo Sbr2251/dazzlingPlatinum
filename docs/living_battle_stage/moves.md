@@ -290,9 +290,9 @@ move that rule exempts.
 
 | template | open | at each hit (the defender's `Func_Shake`) | moves |
 |---|---|---|---|
-| contact | the attacker's close shot (yaw 6), hold 8 frames, then the defender's close shot (yaw -6). The whole animation then plays on the defender | `CamTplImpact`: a 2 px shake of one swing (3 px and 8 frames when the mon's own shake is 3 px or more) | 43 |
+| contact | the attacker's close shot (yaw 6), hold 8 frames, then the defender's close shot (yaw -6). The whole animation then plays on the defender | `CamTplImpact`: a 2 px shake of one swing (3 px and 8 frames when the mon's own shake is 3 px or more) | 42 |
 | push | the two-shot (yaw -4) while it flies | `CamTplPushImpact`, the defender's close shot, then `CamTplImpact` | 70 |
-| twoshot | the two-shot for the whole move | `CamTplImpact` | 70 |
+| twoshot | the two-shot for the whole move | `CamTplImpact` | 71 |
 | self | the attacker's close shot (yaw -8, pitch 2), then a 14-degree orbit over 40 frames | - | 34 |
 | wide | the pull-back, pitch 3 | `CamTplImpact`, a spread hit included | 27 |
 | shake | none: the camera stays home | `CamTplImpact` | 0 |
@@ -321,9 +321,11 @@ them uses `SwitchBg`, `FadeBg` or any other background change; those belong to t
 5. After merging camera-core (BW2's motion, brake and triangle shake; the preset framing, which the
    templates opt out of with `STAGE_CAMERA_FREE`), every templated move was profiled again, both
    directions, with Finneon and with the debug Garchomp (whose back sprite is cut) in the lead. Only Iron
-   Head drifted (25 px, Garchomp, enemy->player); it went to twoshot.
+   Head drifted (25 px, Garchomp, enemy->player); it went to twoshot. After merging layout (back sprites at
+   2x, BW2 placement, the message box fading out during moves) the same profile passed every move; Wing
+   Attack, at 3.5% off the scene enemy->player, went to twoshot for the margin.
 
-94 moves ended on another template than their first pick, none on shake. Every templated move ends at
+95 moves ended on another template than their first pick, none on shake. Every templated move ends at
 home, keeps its particles on screen and passes the move_redo, move_tester and move_audit checks at day and
 at night (Checking).
 
@@ -336,11 +338,11 @@ Once particles are projected in 3D, the moves that stepped down to twoshot can g
 **The moves by template** (`camera_templates.py --list`; move_audit.json notes each one as "per-move camera
 (template ...)"):
 
-- **contact (43):** Comet Punch, Cut, Wing Attack, Bind, Vine Whip, Horn Attack, Fury Attack, Body Slam,
-  Wrap, Thrash, Pin Missile, Ember, Peck, Drill Peck, Submission, Low Kick, Strength, Lick, Smog, Clamp,
-  Hi Jump Kick, Dizzy Punch, Fury Swipes, Struggle, Triple Kick, Attract, Return, Vital Throw, Brick
-  Break, Secret Power, Arm Thrust, Poison Fang, Astonish, Poison Tail, Feint, Pluck, Wring Out, Sucker
-  Punch, Force Palm, Poison Jab, Bullet Punch, Grass Knot, Play Rough.
+- **contact (42):** Comet Punch, Cut, Bind, Vine Whip, Horn Attack, Fury Attack, Body Slam, Wrap, Thrash,
+  Pin Missile, Ember, Peck, Drill Peck, Submission, Low Kick, Strength, Lick, Smog, Clamp, Hi Jump Kick,
+  Dizzy Punch, Fury Swipes, Struggle, Triple Kick, Attract, Return, Vital Throw, Brick Break, Secret
+  Power, Arm Thrust, Poison Fang, Astonish, Poison Tail, Feint, Pluck, Wring Out, Sucker Punch, Force
+  Palm, Poison Jab, Bullet Punch, Grass Knot, Play Rough.
 - **push (70):** Sand-Attack, Poison Sting, Twineedle, Roar, Psybeam, PoisonPowder, Stun Spore, Sleep
   Powder, Fire Spin, Rock Throw, Dig, Hypnosis, Screech, Sludge, Poison Gas, Leech Life, Spore, Psywave,
   Spider Web, Flail, Cotton Spore, Mach Punch, Sweet Kiss, Sludge Bomb, Giga Drain, Charm, Rollout, Steel
@@ -349,14 +351,14 @@ Once particles are projected in 3D, the moves that stepped down to twoshot can g
   Magical Leaf, Rock Blast, Gyro Ball, Brine, Natural Gift, Payback, Fling, Psycho Shift, Gastro Acid, Me
   First, Copycat, Power Swap, Guard Swap, Worry Seed, Heart Swap, Vacuum Wave, Psycho Cut, Rock Climb,
   Magnet Bomb, Chatter, Attack Order, Crush Grip.
-- **twoshot (70):** Karate Chop, DoubleSlap, Pay Day, Scratch, ViceGrip, Whirlwind, Slam, Stomp, Double
-  Kick, Jump Kick, Headbutt, Horn Drill, Take Down, Bite, SonicBoom, Water Gun, BubbleBeam, Counter, Leech
-  Seed, Petal Dance, Dragon Rage, Rage, SmokeScreen, Egg Bomb, Bone Club, Spike Cannon, Lovely Kiss, Hyper
-  Fang, Super Fang, Slash, Thief, Flame Wheel, Mud-Slap, Octazooka, Bone Rush, Frustration, Pain Split,
-  DragonBreath, Rapid Spin, Cross Chop, Crunch, Rock Smash, Beat Up, Knock Off, Endeavor, Blaze Kick,
-  Needle Arm, Signal Beam, Bullet Seed, Mud Shot, Covet, Wake-Up Slap, U-turn, Assurance, Embargo, Trump
-  Card, Punishment, Last Resort, Night Slash, Seed Bomb, Bug Buzz, Shadow Claw, Mud Bomb, Mirror Shot,
-  Cross Poison, Iron Head, Bug Bite, Aqua Jet, Double Hit, Ominous Wind.
+- **twoshot (71):** Karate Chop, DoubleSlap, Pay Day, Scratch, ViceGrip, Wing Attack, Whirlwind, Slam,
+  Stomp, Double Kick, Jump Kick, Headbutt, Horn Drill, Take Down, Bite, SonicBoom, Water Gun, BubbleBeam,
+  Counter, Leech Seed, Petal Dance, Dragon Rage, Rage, SmokeScreen, Egg Bomb, Bone Club, Spike Cannon,
+  Lovely Kiss, Hyper Fang, Super Fang, Slash, Thief, Flame Wheel, Mud-Slap, Octazooka, Bone Rush,
+  Frustration, Pain Split, DragonBreath, Rapid Spin, Cross Chop, Crunch, Rock Smash, Beat Up, Knock Off,
+  Endeavor, Blaze Kick, Needle Arm, Signal Beam, Bullet Seed, Mud Shot, Covet, Wake-Up Slap, U-turn,
+  Assurance, Embargo, Trump Card, Punishment, Last Resort, Night Slash, Seed Bomb, Bug Buzz, Shadow Claw,
+  Mud Bomb, Mirror Shot, Cross Poison, Iron Head, Bug Bite, Aqua Jet, Double Hit, Ominous Wind.
 - **self (34):** Growth, Recover, Withdraw, Defense Curl, Barrier, Light Screen, Reflect, Focus Energy,
   Bide, Softboiled, Splash, Rest, Sharpen, Conversion, Protect, Belly Drum, Endure, Milk Drink, Safeguard,
   Synthesis, Stockpile, Recycle, Slack Off, Bulk Up, Dragon Dance, Roost, Acupressure, Power Trick, Lucky

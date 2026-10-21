@@ -102,7 +102,6 @@ TEMPLATES = {
     "triple_kick": "contact",
     "vine_whip": "contact",
     "vital_throw": "contact",
-    "wing_attack": "contact",
     "wrap": "contact",
     "wring_out": "contact",
     # push
@@ -247,6 +246,7 @@ TEMPLATES = {
     "wake_up_slap": "twoshot",
     "water_gun": "twoshot",
     "whirlwind": "twoshot",
+    "wing_attack": "twoshot",
     # self
     "acupressure": "self",
     "aqua_ring": "self",

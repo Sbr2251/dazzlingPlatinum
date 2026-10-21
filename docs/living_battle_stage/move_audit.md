@@ -168,7 +168,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 14 | SWORDS_DANCE | particles | - | - | low | per-move camera (hand-authored) |
 | 15 | CUT | sprite_xy, particles | - | - | low | per-move camera (template contact) |
 | 16 | GUST | sprite_xy, particles | - | - | low |  |
-| 17 | WING_ATTACK | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 17 | WING_ATTACK | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 18 | WHIRLWIND | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 19 | FLY | sprite_xy, switch_bg, particles | bg_switch | F6 | high |  |
 | 20 | BIND | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template contact) |

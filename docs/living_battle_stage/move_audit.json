@@ -16,7 +16,7 @@
 {"id": 14, "name": "SWORDS_DANCE", "dir": "swords_dance", "mechanisms": ["particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (hand-authored)"},
 {"id": 15, "name": "CUT", "dir": "cut", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (template contact)"},
 {"id": 16, "name": "GUST", "dir": "gust", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": ""},
-{"id": 17, "name": "WING_ATTACK", "dir": "wing_attack", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (template contact)"},
+{"id": 17, "name": "WING_ATTACK", "dir": "wing_attack", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (template twoshot)"},
 {"id": 18, "name": "WHIRLWIND", "dir": "whirlwind", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (template twoshot)"},
 {"id": 19, "name": "FLY", "dir": "fly", "mechanisms": ["sprite_xy", "switch_bg", "particles"], "suppress": ["bg_switch"], "fix": ["F6"], "risk": "high", "notes": ""},
 {"id": 20, "name": "BIND", "dir": "bind", "mechanisms": ["sprite_xy", "sprite_scale_rot", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (template contact)"},
