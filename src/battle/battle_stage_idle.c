@@ -80,3 +80,17 @@ void BattleStage_LoadEntryAnim(NARC *narc, PokemonAnimManager *monAnimMan, Pokem
         sGen5MotionStats.entryAnimsPlayed++;
     }
 }
+
+BOOL BattleStage_SuppressMenuBob(int battler)
+{
+    if (!BATTLE_STAGE_3D || (BattleStageSprites_DebugFlags() & BATTLE_STAGE_DEBUG_CLASSIC_SPRITES)) {
+        return FALSE;
+    }
+
+    if (BattleStageSprites_DrawsBattler(battler)) {
+        sGen5MotionStats.bobSuppressedFrames++;
+        return TRUE;
+    }
+
+    return FALSE;
+}

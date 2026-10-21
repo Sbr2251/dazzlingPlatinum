@@ -26,6 +26,10 @@ BOOL BattleStage_UsesGen5Motion(int battler);
 void BattleStage_InitEntryAnim(PokemonSprite *sprite, int dummy);
 void BattleStage_LoadEntryAnim(NARC *narc, PokemonAnimManager *monAnimMan, PokemonSprite *sprite, u16 species, int face, int flipSprite, int frame);
 
+// The classic command-menu bob (ov16_02264798.c) leaves a battler alone while the stage draws
+// it as a mesh or from its stream: B/W bob only the HP gauge
+BOOL BattleStage_SuppressMenuBob(int battler);
+
 // Read by the harness (sGen5MotionStats), zeroed at each battle's BattleStage_Init
 typedef struct BattleStageGen5MotionStats {
     u32 entryAnimsSkipped; // per-species entry animations not played (Gen 5 motion)

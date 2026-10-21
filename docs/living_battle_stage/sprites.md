@@ -99,6 +99,16 @@ command, so its anim slot reads complete and the send-out tasks go on. The send-
 colour fade and scale-in, the wild silhouette fade and the cry are unchanged. Counted in
 `entryAnimsSkipped` and `entryAnimsPlayed`.
 
+### Command-menu bob
+
+B/W bob only the active mon's HP gauge at the command menu (`btlv_gauge.c`). Platinum's task
+(`ov16_02264798.c`) also bobbed the player's sprite 1 px on a 36-frame period, a third idle
+motion on top of the stream and the breathing. The task still runs (it starts and stops as
+before), but writes a y offset of 0 while the stage draws the battler as a mesh or from its
+stream (`BattleStage_SuppressMenuBob`, from the stage's mesh and stream masks of this frame and
+the last), so toggling the stage off at the menu brings the bob back. The gauge's own sway is the
+hud-gauges stream's. Counted in `bobSuppressedFrames`.
+
 ## Blob shadows
 
 A soft translucent ellipse sits on the 3D ground under each visible mon. It uses a small
