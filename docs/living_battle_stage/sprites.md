@@ -70,6 +70,9 @@ written, so move animations, the critic and the game logic see the same values a
 
 ## Blob shadows
 
+bw2vis:shadow: streamed battlers now get BW2's silhouette shadow instead of the blob
+(shadows.md); the blob below is the fallback for the rest.
+
 A soft translucent ellipse sits on the 3D ground under each visible mon. It uses a small
 alpha texture (A3I5 or A5I3) generated at init and placed in the arena's texture VRAM
 range, so it survives the menu bank swap. It follows the mon's x (and the platform offset

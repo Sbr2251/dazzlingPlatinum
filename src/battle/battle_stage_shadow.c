@@ -270,8 +270,8 @@ static BOOL DrawSilhouette(int index, PokemonSprite *sprite, int side, const Sha
     ShadowPlace place;
     VecFx32 centre, right128, down, foot;
     int streamScale = BattleStageStream_GetScale(index);
-    fx32 kx, ky, rotZ, offX, offZ, unitPx;
-    int px, alpha, u, v;
+    fx32 kx, ky, hover, rotZ, offX, offZ, unitPx;
+    int px, row, alpha, u, v;
     fx32 x[2], y[2];
 
     alpha = transforms->alpha / 2;
@@ -296,17 +296,23 @@ static BOOL DrawSilhouette(int index, PokemonSprite *sprite, int side, const Sha
     frame.v1 = MON_SPRITE_FRAME_HEIGHT;
     BattleStageStream_CanvasRect(index, transforms, &frame, &canvas);
 
-    // The foot point: the sprite's x on the ground row of its side (the blob place, without the
-    // classic shadow's per-species x offset: the silhouette lines up with the art itself)
+    // The foot point: the sprite's x (without the classic shadow's per-species x offset: the
+    // silhouette lines up with the art itself) on the ground row under its feet. A front stands
+    // its ground row (MON_STREAM_GROUND_V) on the bottom of its home frame; a back's feet are under
+    // the text box, so its shadow starts on the side's blob row, above it, as the blob does
     px = transforms->xCenter + transforms->xOffset - 128;
-    foot.x = centre.x + (s32)((s64)right128.x * px / 128);
-    foot.y = centre.y + (s32)((s64)right128.y * px / 128);
-    foot.z = centre.z + (s32)((s64)right128.z * px / 128);
+    row = side ? transforms->yCenter + MON_SPRITE_FRAME_HEIGHT / 2 - BattleStageSprites_BlobRow(side) : 0;
+    foot.x = centre.x + (s32)((s64)right128.x * px / 128) + down.x * row;
+    foot.y = centre.y + (s32)((s64)right128.y * px / 128) + down.y * row;
+    foot.z = centre.z + (s32)((s64)right128.z * px / 128) + down.z * row;
     place.groundPer128 = VEC_Mag(&right128);
 
     // Screen pixels per texel: the stream's scale and the sprite's own (a negative x flips)
     kx = (fx32)((s64)streamScale * transforms->scaleX * FX32_ONE / (MON_STREAM_SCALE_ONE * MON_AFFINE_SCALE(1)));
     ky = (fx32)((s64)streamScale * transforms->scaleY * FX32_ONE / (MON_STREAM_SCALE_ONE * MON_AFFINE_SCALE(1)));
+    // A floater's lift (the classic altitude, enemy fronts only) is baked into BW2's art above its
+    // foot point, so BW2 lays it down behind the foot point: the shadow starts that far back
+    hover = sprite->shadow.height * FX32_ONE;
 
     rotZ = adjust != NULL ? adjust->rotZ : SHADOW_DEFAULT_ROTZ;
     offX = adjust != NULL ? adjust->x : SHADOW_DEFAULT_X;
@@ -323,7 +329,7 @@ static BOOL DrawSilhouette(int index, PokemonSprite *sprite, int side, const Sha
     }
 
     for (v = 0; v < 2; v++) {
-        y[v] = FX_Mul((MON_STREAM_GROUND_V - (v ? canvas.v1 : canvas.v0)) * FX32_ONE, ky);
+        y[v] = FX_Mul((MON_STREAM_GROUND_V - (v ? canvas.v1 : canvas.v0)) * FX32_ONE, ky) + hover;
     }
 
     // The stream texture with texcoords as is: the arena may have left a texture matrix loaded
