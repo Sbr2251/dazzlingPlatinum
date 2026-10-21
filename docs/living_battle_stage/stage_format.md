@@ -342,7 +342,10 @@ Per-battle budget over the launcher's 30 pairs, after these features: at most 57
 
 The animations count arena draws (`StageArena.frame`, 30 per second). While the critic sets
 `BATTLE_STAGE_DEBUG_FREEZE_IDLE` (stage_ab and all_backgrounds compare the home pose with the
-classic art) the frame holds at 0, where every animation shows the classic art.
+classic art) the frame holds at 0, where every animation shows the classic art. The one
+exception is the water glint layer below, an addition the classic art doesn't have: it keeps the
+water battle's home pose a WARN (about 1.1% of the scene off by more than 48, limit 1%) in
+all_backgrounds.
 
 ## Drifting clouds (`DRIFT`)
 

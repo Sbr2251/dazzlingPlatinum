@@ -2848,7 +2848,16 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
 
     # -- mesh and blob counts, 3 s of idle, idleFrames
     if live:
+        # bw2vis:stage-anim: the counters are reset at the start of each drawn frame and count up
+        # as it draws, so a read that lands while a frame's work spills past the VBlank sees 0
+        # (both before and after the stage animation work; about 1 frame in 6). Take the
+        # largest of a few consecutive frames.
         st = ram.read()
+        for _ in range(6):
+            e.run(1)
+            nxt = ram.read()
+            st = {**nxt, "spriteMeshes": max(st["spriteMeshes"], nxt["spriteMeshes"]),
+                  "blobShadows": max(st["blobShadows"], nxt["blobShadows"])}
         sc.check("spriteMeshes == 2 at the command menu", st["spriteMeshes"] == SPRITE_COUNT,
                  f"spriteMeshes {st['spriteMeshes']}", why="the mons are not drawn as meshes")
         sc.check("blob shadows show (blobShadows == 2)", st["blobShadows"] == SPRITE_COUNT,
