@@ -4946,6 +4946,11 @@ static void ov16_022629DC(SysTask *param0, void *param1)
     }
 }
 
+// bw2vis:idle: the faint's sink, per frame of this 30 Hz task, and its fade-out (about half a
+// second, as B/W's from memory: their faint is effect script 0x23B, not in the decomp)
+#define FAINT_SINK_PX     3
+#define FAINT_FADE_TICKS  16
+
 static void ov16_02262A9C(SysTask *param0, void *param1)
 {
     UnkStruct_ov16_0225DB74 *v0 = (UnkStruct_ov16_0225DB74 *)param1;
@@ -5038,14 +5043,20 @@ static void ov16_02262A9C(SysTask *param0, void *param1)
         v3 = LoadPokemonSpriteYOffset(v0->unk_68, v0->unk_6A, v0->unk_67, v0->unk_6B, v0->unk_6C);
         v3 = 80 - v3;
         PokemonSprite_SetPartialDraw(v0->unk_08, 0, 0, 80, v3);
+        v0->faintTick = 0;
+        sGen5MotionStats.faints++;
         v0->unk_66++;
         break;
     case 9:
+        // bw2vis:idle: a BW2-like faint, a slower sink under the ground line (FAINT_SINK_PX a
+        // frame, was 8) that fades out over FAINT_FADE_TICKS frames; the mon is gone when it has
+        // faded or sunk. Polygon alpha 0 would draw wireframe, so it never gets there
+        v0->faintTick++;
         v2 = PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_Y_CENTER);
-        v2 += 8;
+        v2 += FAINT_SINK_PX;
         PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_Y_CENTER, v2);
         v3 = PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_DRAW_HEIGHT);
-        v3 -= 8;
+        v3 -= FAINT_SINK_PX;
 
         if (v3 < 0) {
             v3 = 0;
@@ -5053,9 +5064,11 @@ static void ov16_02262A9C(SysTask *param0, void *param1)
 
         PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_DRAW_HEIGHT, v3);
 
-        if (v3 == 0) {
+        if (v3 == 0 || v0->faintTick >= FAINT_FADE_TICKS) {
             PokemonSprite_Delete(v0->unk_08);
             v0->unk_66++;
+        } else {
+            PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_ALPHA, 31 - 30 * v0->faintTick / (FAINT_FADE_TICKS - 1));
         }
         break;
     case 10:

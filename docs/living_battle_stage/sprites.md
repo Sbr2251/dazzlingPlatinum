@@ -124,6 +124,19 @@ as in B/W, and is shown at the end as Platinum's blink always left it. The stage
 shear wobble still plays (B/W has none). Counted in `hitFlashes`, the last colour in
 `hitFlashColor`.
 
+### Faint
+
+B/W's faint is effect script 0x23B, which isn't in the decomp; from memory it is a slow sink
+with a fade-out. Platinum slid the clip window down 8 px a 30 Hz frame, so the mon was gone in
+about 10 frames, with no fade. Now it sinks 3 px a frame (`FAINT_SINK_PX`) and its polygon alpha
+ramps from 31 to 1 over 16 frames (`FAINT_FADE_TICKS`, about half a second); it is deleted when it
+has faded or sunk (alpha 0 would draw wireframe). The cry, the drop sound and the faint kick are
+unchanged; the kick has settled home before the sink starts, which waits for the cry. On the mesh
+the partial draw keeps its cuts (`BattleStageStream_CanvasRect`), the breathing and the blob are
+off as for any partial draw, and the stat overlay skips a translucent mon. The cut guard leaves a
+partially drawn sprite alone once its window's bottom is above the frame's (`CutHomeY`), as
+before: the sink line is meant to show, and the camera is home by then. Counted in `faints`.
+
 ## Blob shadows
 
 A soft translucent ellipse sits on the 3D ground under each visible mon. It uses a small
