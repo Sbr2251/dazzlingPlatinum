@@ -605,6 +605,24 @@ void Encounter_NewTotemBattle(FieldTask *task, u8 encounterID, int *resultMaskPt
     StartEncounter(task, dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);
 }
 
+// bw2vis:camera-core: a plain wild double battle against two given species (the debug quick battle: L+R, B to "X: Doubles", X)
+void Encounter_NewVsDoubleSpeciesAtLevel(FieldTask *task, u16 species1, u16 species2, u8 level, int *resultMaskPtr)
+{
+    FieldBattleDTO *dto;
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+
+    RadarChain_Clear(fieldSystem->chain);
+
+    dto = FieldBattleDTO_New(HEAP_ID_FIELD2, BATTLE_TYPE_WILD_MON | BATTLE_TYPE_DOUBLES);
+    FieldBattleDTO_Init(dto, fieldSystem);
+
+    CreateWildMon_Scripted(fieldSystem, species1, level, dto);
+    CreateWildMon_Scripted(fieldSystem, species2, level, dto);
+
+    GameRecords_IncrementRecordValue(SaveData_GetGameRecords(fieldSystem->saveData), RECORD_WILD_BATTLES_FOUGHT);
+    StartEncounter(task, dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);
+}
+
 void Encounter_NewFatefulVsSpeciesAtLevel(FieldTask *taskMan, u16 species, u8 level, int *resultMaskPtr, BOOL isLegendary)
 {
     FieldBattleDTO *dto;
