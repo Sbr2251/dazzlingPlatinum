@@ -4,7 +4,7 @@
             "female": 0,
             "male": 0
         },
-        "addl_y_offset": 0,
+        "addl_y_offset": 1,
         "animation": 11,
         "cry_delay": 14,
         "start_delay": 12,

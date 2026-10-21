@@ -700,7 +700,8 @@ def build(name, natdex, analog, table, species_names):
         json.dump(data, f, indent=4, ensure_ascii=False)
         f.write("\n")
 
-    # sprite_data.json and keys from the analogue (gen5_stream.py rewrites the PNGs and y_offset)
+    # sprite_data.json and keys from the analogue. gen5_stream.py rewrites the PNGs, the y_offsets and
+    # the front's addl_y_offset (from BW2's art, so the analogue's hover doesn't stay)
     sd = os.path.join(outdir, "sprite_data.json")
     if not os.path.exists(sd):
         with open(os.path.join(MON, analog, "sprite_data.json")) as f:
