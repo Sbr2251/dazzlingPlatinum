@@ -326,3 +326,144 @@ The sprites and particles carry no fog bit, so the evolving Pokemon stays white,
   in the debug views, and checks for holes, missing arena, garbage and palette errors.
 - `stage_ab` compares against the classic art with a tolerance, not exactly.
 - A Mega scenario checks that the stage stays visible and dims during the pulse.
+
+# BW2 visual parity: stage animation (workstream stage-anim)
+
+Gen 5's battle fields animate: the sky of the outdoor fields drifts, water flows under a wave
+layer, grass and bushes sway (audit: `/tmp/bw2gap/stage.md` rows 1-3). The arena plays the same
+kinds of motion from data in the pieces. It sits on format v3 (stage-light's lighting columns)
+without changing any struct layout: the new mesh flags (`DRIFT`, `SWAY`) reuse the scroll
+fields, and a3i5 is one more `GXTexFmt` value. A renderer without them ignores the flags and
+refuses a piece with an a3i5 texture (only `BACKGROUND_WATER` has one), so the version stays 3.
+
+Per-battle budget over the launcher's 30 pairs, after these features: at most 572 polygons
+(plain/grass; 564 before), 7 textures, 49 meshes and 60 KB of textures (the water battle; limit
+64 KB). BW2's worst realistic pair is about 570 polygons.
+
+The animations count arena draws (`StageArena.frame`, 30 per second). While the critic sets
+`BATTLE_STAGE_DEBUG_FREEZE_IDLE` (stage_ab and all_backgrounds compare the home pose with the
+classic art) the frame holds at 0, where every animation shows the classic art. The one
+exception is the water glint layer below, an addition the classic art doesn't have: it keeps the
+water battle's home pose a WARN (about 1.1% of the scene off by more than 48, limit 1%) in
+all_backgrounds.
+
+## Drifting clouds (`DRIFT`)
+
+`BATTLE_STAGE_MESH_DRIFT` moves a mesh's texture at a constant speed: the offset is
+`(s8)scrollAmplitude[i]` texels every `scrollPeriod` draws, on s and t, wrapped at the texture's
+repeat period (its size, twice that with FLIP) so the texture coordinates stay in range. An axis
+that moves needs its REPEAT flag, and DRIFT can't be combined with SCROLL. It adds to
+`FOLLOW_BG3_SCROLL`.
+
+Outdoors (`KIND_OUTDOOR`) the panorama gets an extra band edge at the background's **sky row**,
+derived from the art: the first row, from the top, with a pixel that isn't sky in the day
+palette (bright and blue or white: blue >= 176, blue >= red, 4 * blue >= 3 * green). Every
+panorama band above it drifts. The rows below it, the horizon's tree line, mountains, buildings
+and the sea, stay put.
+
+| background | sky rows | base row |
+|---|---|---|
+| plain | 0..49 | 57 |
+| water | 0..56 | 57 |
+| city | 0..38 | 56 |
+| forest | none (all foliage) | 53 |
+| mountain | 0..44 | 58 |
+| snow | 0..38 | 48 |
+
+The speed matches BW2's on screen. BW2's sky texture (128x64, `batt_sky01` in `074.nsbmd`)
+spans its whole half-cylinder, about 16 texels across the screen through the battle camera, and
+`075.nsbta` scrolls it one texture width per 5000 frames: about 0.42 px per frame at 60 fps, 25 px
+per second. Our sky is the classic art at one texel per pixel, so the drift is 21 texels per 25
+draws. Positive s moves the art left, as a BG3 X scroll does. The texture is REPEAT_S | FLIP_S, so
+it is periodic every 512 texels and continuous at the mirror lines: the drift never shows a seam.
+
+Each sky split costs one panorama band (22 polygons). The classic fallback (`BattleStage_Suppress`)
+shows the sky at frame 0, so it can jump by the drifted amount while a move hides the arena; the
+fade (F6) covers most of it. The palettes stay live, so twilight and night drift the same way.
+
+## Water: glint layer and platform water
+
+BW2's water field (`batt_bg21`, `115.nsbmd`) flows its base texture under a translucent a3i5
+glint layer (`batt_field21n`, scrolled by `117.nsbta`). Our water keeps its base sway (`SCROLL`
+on the ground bands, above) and adds the glint layer:
+
+- `GX_TEXFMT_A3I5` textures are allowed, with an embedded 32-colour palette
+  (`BATTLE_STAGE_PALETTE_EMBEDDED` only). A mesh with an a3i5 texture, or an alpha under 31, is
+  translucent: the DS draws it after the opaque polygons and it doesn't write depth.
+- `BACKGROUND_WATER`'s backdrop piece has a third texture, BW2's glint texture (every other row,
+  128x32, checked in as `tools/battle_stage/bw2/wave.bin` by `bw2_assets.py`), and one more mesh:
+  a plane 0.1 above the water from the water row to row 120, 12 polygons, with world-linear
+  texture coordinates (a 4 x 8 unit tile) that `DRIFT` toward the camera and sideways at 0.5
+  units per second each. Polygon alpha 20 keeps the glints under the critic's "big"
+  difference (48 levels) from the classic water: at frame 0 they are a sparse sparkle, about 0.6%
+  of the scene. Below row 120 the 128x32 texture would be magnified into blocks, so the layer
+  stops there.
+
+The platform water of `TERRAIN_WATER` and `TERRAIN_PUDDLE` sways (BW2's puddle stages
+`batt_stage08/09` wobble their water, `023/025.nsbta`). The art's water pixels (bright blue in
+the day palette: blue >= 200, blue > red + 32, blue >= green), shrunk by the sway amplitude so
+they never move onto the rim or the sand, go to an overlay texture with the platform texture's
+layout (the platform piece's textures are now each platform's art, then its extra textures). The
+overlay meshes copy the visible disc strips that hold water pixels, 0.06 above the disc on the
+same pixels and texture coordinates, so at frame 0 they show exactly what the disc does; they
+`SCROLL` (water: amplitude (2, 1) texels over 60 draws, the stripes roll; puddle: (1, 1) over 40,
+a shimmer). Cost: water platforms +43 polygons, puddle +19, and 8 KB of textures; the water
+battle is at 60 KB of the 64 KB texture budget.
+
+The glints' palette is embedded, so a palette fade of the BG palette doesn't darken them (the
+backdrop fade, `BattleStage_SetBackdropFade`, does, through the lighting).
+
+## Grass sway (`SWAY`) and the platform fringe
+
+`BATTLE_STAGE_MESH_SWAY` sways a mesh: its positions shear along x, `x += k * (y - pivot)`, with
+`k = (s8)scrollAmplitude[0] / 256 * sin(2pi * frame / scrollPeriod)` and `pivot =
+scrollAmplitude[1] / 64` world units, applied in world units before the vertex scale (a
+`G3_MultMtx43` after the platform's translation). Its normals keep their direction.
+
+BW2's grass stages move their blades and leaves (NSBCA joint translation, 500-800-frame loops).
+The classic platform art has its own blades: on `TERRAIN_GRASS` they stick out above the
+platform's ellipse. Those pixels (the art's pixels above `TERRAIN_PLAIN`'s ellipse, which every
+terrain shares) stand up as a **fringe**: one strip of vertical quads along the back rim, between
+home screen columns, the foot of each column on the rim on the disc and its top above the highest
+such pixel, textured through the home camera from an extra texture that holds only them (the main
+texture loses them). At home the platform looks exactly as before (the preview's diff is 0 under
+both rasters); off home the blades stand on the rim instead of lying flat behind it. The quads
+are at most 32 px wide, narrower where the rim's depth changes fast, so the perspective texture
+error stays under 0.25 px. The fringe sways with the shear that moves its top row 1 px at the
+peak, pivot at the disc's height, over 56 draws on the player's side and 46 on the opponent's.
+
+Cost: 18 polygons and 8 KB of textures on `TERRAIN_GRASS` (grass battles: 572 polygons on the
+plain background with its sky drift, 550 in the forest). The forest's panorama itself stays still:
+it is horizontal streaks of foliage, and a sway of the whole band reads as the background sliding,
+not as bushes moving.
+
+## Platform relief: standing rocks
+
+BW2's platforms carry stones and tufts up to 1.8 units tall; ours are the flat classic art. On
+`TERRAIN_MOUNTAIN` every rock of the art stands up: a blob of at least 8 grey pixels (channel
+spread <= 20, plus the darker outline around it, <= 24, which only joins where it touches a body:
+the art draws the ground's cracks with the same colour) becomes one vertical quad facing the
+camera, its foot on the disc one row under the rock (on the rock's own bottom row the quad would
+tie with the disc's depth and lose), textured through the home camera from an extra texture that
+holds the rocks. The main texture fills each rock pixel inside the platform's ellipse from the
+nearest ground pixel of its row, so a standing rock leaves ground behind it, and drops the parts
+of rocks above the rim. At home the platform is pixel-identical at every time of day (preview,
+both rasters); off home the rocks stand. Rocks that reach under the text box (the player's front
+rocks) stay flat, because their foot would be off the pixel grid. Cost: 8 polygons (2 player
+rocks, 6 opponent rocks) and 8 KB of textures on `TERRAIN_MOUNTAIN` (mountain battle 565
+polygons). Every new prop sits inside the home-pose look: nothing is added that the classic art
+doesn't draw.
+
+## Not done: the off-home smear (audit row 9)
+
+In the Mega orbit the ground and the panorama streak: rows of the projected classic art run off
+toward the vanishing point. The cause is the art itself, not the panorama's shape: the classic
+backdrops are horizontal streaks, one colour per row, so any surface that keeps the home
+projection's rows (the ground past the screen edges, the arc) shows each row as a line seen
+from the side. An experiment that gave the side ground and the arc cylindrical texture
+coordinates (constant density past the frustum edge, `/tmp/bw2vis/stage-anim/item6/`) rendered
+the Mega orbit almost unchanged, and wrapping the panorama further round behind the camera only
+changes the sky band, which is already clean. The fix is BW2's: an isotropic tiled ground (and
+sky cylinder) that the renderer blends in as the camera leaves home, with the home-matched arena
+blended out. That needs new textures, a pose-dependent blend in the stage C and its own VRAM, so it
+was left for its own piece of work rather than shipped half-done.

@@ -31,6 +31,7 @@ NUM_TOD_COLUMNS = 5
 HAZE_FULL = 128
 
 # GXTexFmt
+TEXFMT_A3I5 = 1  # 8bpp: palette index (5 bits, 32 colours) plus alpha (3 bits)
 TEXFMT_PLTT16 = 3
 TEXFMT_PLTT256 = 4
 
@@ -50,7 +51,8 @@ TEXCOORD_ONE = 16  # texCoord units per texel
 class Texture:
     def __init__(self, width, height, fmt, palette_source, data, palette):
         assert width in (8, 16, 32, 64, 128, 256, 512, 1024) and height in (8, 16, 32, 64, 128, 256, 512, 1024)
-        assert fmt in (TEXFMT_PLTT16, TEXFMT_PLTT256)
+        assert fmt in (TEXFMT_A3I5, TEXFMT_PLTT16, TEXFMT_PLTT256)
+        assert fmt != TEXFMT_A3I5 or palette_source == PALETTE_EMBEDDED
         assert palette_source != PALETTE_PLATFORM_OBJ or fmt == TEXFMT_PLTT16
         assert len(data) == width * height // (2 if fmt == TEXFMT_PLTT16 else 1)
         self.width = width
@@ -62,7 +64,7 @@ class Texture:
 
     def texel(self, s, t):
         """Palette index of texel (s, t), both in range."""
-        if self.format == TEXFMT_PLTT256:
+        if self.format in (TEXFMT_PLTT256, TEXFMT_A3I5):
             return self.data[t * self.width + s]
 
         byte = self.data[(t * self.width + s) // 2]
@@ -94,8 +96,20 @@ FLAG_FLIP_T = 1 << 7
 FLAG_LIT = 1 << 8
 FLAG_FOG = 1 << 9
 FLAG_SCROLL = 1 << 10
+FLAG_DRIFT = 1 << 11
+FLAG_SWAY = 1 << 12
 
 FX10_ONE = 512  # GX_FX10: 1.9 fixed point, -512..511
+
+
+def signed8(v):
+    """A scrollAmplitude byte as the s8 that DRIFT reads."""
+    return v - 256 if v & 0x80 else v
+
+
+def drift_offset(velocity, period, frame):
+    """Texels a DRIFT axis has moved after `frame` draws (before the texture wraps)."""
+    return signed8(velocity) * frame / period
 
 
 def pack_normal(n):
@@ -124,7 +138,8 @@ class Mesh:
     def __init__(self, primitive, alpha, texture_index, flags, vertices, scroll_amplitude=(0, 0), scroll_period=1):
         """vertices: [((x, y, z) fx16, (s, t) texCoord units, colour, packed normal)]"""
         assert 0 <= alpha <= MAX_ALPHA and 0 <= primitive <= 3 and vertices
-        assert scroll_period > 0 and all(0 <= a <= 255 for a in scroll_amplitude)
+        assert scroll_period > 0 and all(-128 <= a <= 255 for a in scroll_amplitude)
+        assert bin(flags & (FLAG_SCROLL | FLAG_DRIFT | FLAG_SWAY)).count("1") <= 1, "SCROLL, DRIFT and SWAY share the scroll fields"
         self.primitive = primitive
         self.alpha = alpha
         self.texture_index = texture_index
@@ -274,7 +289,7 @@ def write_piece(piece):
             blob += VERTEX.pack(pos[0], pos[1], pos[2], tc[0], tc[1], color, normal)
 
         mesh_entries.append(MESH.pack(vertex_offset, len(mesh.vertices), mesh.primitive, mesh.alpha, mesh.texture_index, mesh.flags,
-                                      mesh.scroll_amplitude[0], mesh.scroll_amplitude[1], mesh.scroll_period))
+                                      mesh.scroll_amplitude[0] & 0xFF, mesh.scroll_amplitude[1] & 0xFF, mesh.scroll_period))
 
     h = piece.header
     header = HEADER.pack(

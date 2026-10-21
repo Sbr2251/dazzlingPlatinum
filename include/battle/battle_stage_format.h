@@ -50,6 +50,15 @@ enum BattleStageMeshFlag {
     // The texture sways by scrollAmplitude texels over scrollPeriod frames (water surfaces).
     // Adds to FOLLOW_BG3_SCROLL when both are set
     BATTLE_STAGE_MESH_SCROLL = 1 << 10,
+    // The texture moves at a constant speed (drifting clouds, flowing water): the texcoord
+    // offset is (s8)scrollAmplitude[i] texels every scrollPeriod frames, on s and t, wrapped at
+    // the texture's repeat period (the size, twice it with FLIP). An axis that moves needs its
+    // REPEAT flag. Not with SCROLL, whose fields it shares. Adds to FOLLOW_BG3_SCROLL
+    BATTLE_STAGE_MESH_DRIFT = 1 << 11,
+    // The mesh sways (grass): its positions shear along x, x += k * (y - pivot), with
+    // k = (s8)scrollAmplitude[0] / 256 * sin(2pi * frame / scrollPeriod) and pivot =
+    // scrollAmplitude[1] / 64 world units. Not with SCROLL or DRIFT, whose fields it shares
+    BATTLE_STAGE_MESH_SWAY = 1 << 12,
 };
 
 // Lighting columns of the atmosphere. [0..2] are the classic time-of-day columns that
@@ -134,7 +143,7 @@ typedef struct BattleStageFileTexture {
     u32 dataSize;
     u16 width; // 8..1024, power of two
     u16 height;
-    u8 format; // GX_TEXFMT_PLTT16 or GX_TEXFMT_PLTT256
+    u8 format; // GX_TEXFMT_PLTT16, GX_TEXFMT_PLTT256 or GX_TEXFMT_A3I5 (BATTLE_STAGE_PALETTE_EMBEDDED only)
     u8 paletteSource; // enum BattleStagePaletteSource
     u16 padding;
     u32 paletteOffset; // embedded palette (GXRgb), always present as a fallback
@@ -149,8 +158,9 @@ typedef struct BattleStageFileMesh {
     u16 textureIndex;
     u16 flags; // enum BattleStageMeshFlag
     // BATTLE_STAGE_MESH_SCROLL: texcoord offset = amplitude * (sin(a), sin(2a)), a = 2pi * frame / period
-    // (a figure eight that is 0 at frame 0)
-    u8 scrollAmplitude[2]; // texels, s and t
+    // (a figure eight that is 0 at frame 0). BATTLE_STAGE_MESH_DRIFT: offset = (s8)amplitude * frame / period.
+    // BATTLE_STAGE_MESH_SWAY: [0] the peak shear (s8, 1/256), [1] the pivot height (1/64 world units)
+    u8 scrollAmplitude[2]; // texels, s and t (DRIFT: s8 texels per period)
     u16 scrollPeriod; // frames, > 0
 } BattleStageFileMesh;
 
