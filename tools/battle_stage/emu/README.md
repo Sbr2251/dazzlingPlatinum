@@ -369,9 +369,14 @@ every live particle every 2nd frame (`ParticleProbe`): the battle particle syste
 manager's active emitters, and each emitter's particles and child particles (`SPLParticle.position +
 emitterPos`). The battle particle cameras are orthographic at (0, 0, 4), fovy 45, aspect 4/3, so a particle at
 world (X, Y) draws at classic pixel (128 + 24 X, 96 - 24 Y); this was checked against the frames of Ember,
-Thunderbolt and Ice Beam. Off home the projection hook moves every particle by the camera's one particle
-similarity, read from `sStageCamera.particle` (and each battler's from `sStageCamera.anchors`, at fixed offsets
-from the struct's end: anchors 124 bytes before it, the particle anchor 28).
+Thunderbolt and Ice Beam. Off home the stage moves each particle; the check models how. On a build with particles-3d's particle field
+(`sStageParticles` in the xMAP) it repeats `BattleStageParticles_DrawParticle`: a blend of the battlers'
+similarities by 1 / (d^2 + 16^2)^3 from the particle to each body point (24 px above the foot anchor), moving
+rigidly with its emission point within 32 px of it and on its own from 96 px. Without the field, every particle
+takes the camera's one particle similarity, `sStageCamera.particle`. A system marked screen space
+(`SetParticleScreenSpace`, `ParticleSystem.screenSpace`) stays put. The battlers' similarities are read from
+`sStageCamera.anchors`, at fixed offsets from the struct's end: anchors 124 bytes before it, the particle
+anchor 28.
 
 Over the move's off-home samples:
 
@@ -383,9 +388,9 @@ Over the move's off-home samples:
   percentile. PASS at 16 px or less, WARN up to 32, FAIL above. Particles in flight between the battlers are
   left to the lost share: their depth is unknown.
 
-On a ROM without the symbols the check is a note. The hand-authored camera moves give a reference: at 85% on
-the enemy's side (1.46x) Tackle, X-Scissor, Leaf Blade, Stone Edge and Air Slash WARN on lost (6-9%), and
-Shadow Ball FAILs (15% lost, 48 px drift: its charge sits off the attacker it frames, camera auditor bug B1).
+On a ROM without the symbols the check is a note. The hand-authored camera moves gave a reference on the ROM
+before camera-core and particles-3d (50482f8902): at 85% on the enemy's side (1.46x) Tackle, X-Scissor, Leaf Blade, Stone Edge and Air Slash WARN on lost (6-9%), and
+Shadow Ball FAILed (15% lost, 48 px drift: its charge sits off the attacker it frames, camera auditor bug B1).
 
 ## How a critic agent should use this
 

@@ -1833,6 +1833,12 @@ class StreamRam:
 # ParticleProjectionHook): p' = now + scale * (p - home). The particle's own battler moves by that battler's
 # similarity, so the gap between the two is the drift moves.md describes.
 PARTICLE_PX_PER_UNIT = 24.0
+# particles-3d's particle field (battle_stage_particles.c, Field and BattleStageParticles_DrawParticle), when the
+# build has sStageParticles: each particle takes a blend of the battlers' similarities by 1 / (d^2 + r^2)^3 from
+# its classic position to each body point, and moves rigidly with its emission point within RIGID px of it
+FIELD_BODY_LIFT, FIELD_SOFT_RADIUS, FIELD_SNAP_RATIO = 24, 16, 32
+FIELD_RIGID_RADIUS, FIELD_FREE_RADIUS = 32, 96
+PS_SCREEN_SPACE, PS_ID = 217, 218       # ParticleSystem.screenSpace (was unused2) and .id
 PARTICLE_MAX_SYSTEMS = 16
 PARTICLE_WALK_CAP = 1500                # particles read per sample at most (a guard against a broken list)
 CAM_ANCHORS_FROM_END = 124              # sStageCamera: anchors[4] (24 bytes each), then the particle anchor,
@@ -1858,6 +1864,7 @@ class ParticleProbe:
         syms = _XMAP_CACHE[xmap] if xmap else {}
         self.systems = syms.get("sParticleSystems")
         self.cam = syms.get("sStageCamera")
+        self.field = "sStageParticles" in syms
         self.why = ""
         if not xmap:
             self.why = "no xMAP (pass --map)"
@@ -1890,9 +1897,11 @@ class ParticleProbe:
             return None
         pts: List[tuple] = []
         table = struct.unpack("<16I", self.e.read(self.systems[0], 4 * PARTICLE_MAX_SYSTEMS))
-        for ps in table:
+        for i, ps in enumerate(table):
             if not self._ptr(ps):
                 continue
+            flags = self.e.read(ps + PS_SCREEN_SPACE, 2)
+            screen = bool(flags[0]) if flags[1] == i else False
             mgr = self._u32(ps)
             if not self._ptr(mgr):
                 continue
@@ -1910,15 +1919,54 @@ class ParticleProbe:
                         pts.append((128 + PARTICLE_PX_PER_UNIT * (x + ex) / 4096.0,
                                     96 - PARTICLE_PX_PER_UNIT * (y + ey) / 4096.0,
                                     128 + PARTICLE_PX_PER_UNIT * ex / 4096.0,
-                                    96 - PARTICLE_PX_PER_UNIT * ey / 4096.0))
+                                    96 - PARTICLE_PX_PER_UNIT * ey / 4096.0, screen))
                         p, n = nxt, n + 1
                 emitter = head[0]
-        return {"home": at_home, "particle": particle, "anchors": anchors, "points": pts}
+        return {"home": at_home, "particle": particle, "anchors": anchors, "points": pts, "field": self.field}
 
 
 def _on_screen(x: float, y: float, margin: float = 0) -> bool:
     """In the scene above the text box (SCENE), which covers the rows below it while a move plays."""
     return -margin <= x < SCENE[2] + margin and -margin <= y < SCENE[3] + margin
+
+
+def _field_at(anchors: List[Optional[tuple]], px: float, py: float) -> Optional[tuple]:
+    """particles-3d's Field: (nowX, nowY, scale) at classic point (px, py)."""
+    live = [a for a in anchors if a and a[0]]
+    if not live:
+        return None
+    spread = [(px - a[1]) ** 2 + (py - (a[2] - FIELD_BODY_LIFT)) ** 2 + FIELD_SOFT_RADIUS ** 2 for a in live]
+    near = min(range(len(live)), key=lambda i: spread[i])
+    w = [(spread[near] / sp) ** 3 if (i == near or sp < spread[near] * FIELD_SNAP_RATIO) else 0.0
+         for i, sp in enumerate(spread)]
+    tot = sum(w)
+    nx = sum(wi * (a[3] + a[5] * (px - a[1])) for wi, a in zip(w, live)) / tot
+    ny = sum(wi * (a[4] + a[5] * (py - a[2])) for wi, a in zip(w, live)) / tot
+    sc = sum(wi * a[5] for wi, a in zip(w, live)) / tot
+    return nx, ny, sc
+
+
+def _drawn_at(smp: dict, x: float, y: float, ex: float, ey: float, screen: bool) -> tuple:
+    """Where the stage draws a particle at classic (x, y), emitted at (ex, ey): put for a screen-space system;
+    through particles-3d's field on a build with it (BattleStageParticles_DrawParticle); else through the
+    camera's one particle similarity (ParticleProjectionHook)."""
+    if screen:
+        return x, y
+    if smp.get("field"):
+        d2 = (x - ex) ** 2 + (y - ey) ** 2
+        f = _field_at(smp["anchors"], x, y)
+        if f is None:
+            return x, y
+        if d2 >= FIELD_FREE_RADIUS ** 2:
+            return f[0], f[1]
+        a = _field_at(smp["anchors"], ex, ey)
+        rx, ry = a[0] + a[2] * (x - ex), a[1] + a[2] * (y - ey)
+        if d2 <= FIELD_RIGID_RADIUS ** 2:
+            return rx, ry
+        t = (d2 - FIELD_RIGID_RADIUS ** 2) / float(FIELD_FREE_RADIUS ** 2 - FIELD_RIGID_RADIUS ** 2)
+        return rx + t * (f[0] - rx), ry + t * (f[1] - ry)
+    _, phx, phy, pnx, pny, ps = smp["particle"]
+    return pnx + ps * (x - phx), pny + ps * (y - phy)
 
 
 def _owner_point(anchors: List[Optional[tuple]], x: float, y: float, ex: float, ey: float) -> Optional[tuple]:
@@ -1948,18 +1996,19 @@ def particle_stats(samples: List[dict]) -> Optional[dict]:
     off_home = 0
     worst = (0.0, None)
     for k, smp in enumerate(samples):
-        if smp is None or smp["home"] or not smp["particle"][0]:
+        if smp is None or smp["home"] or (not smp["particle"][0] and not smp.get("field")):
             continue
         off_home += 1
-        _, phx, phy, pnx, pny, ps = smp["particle"]
-        for (x, y, ex, ey) in smp["points"]:
+        for pt in smp["points"]:
+            x, y, ex, ey = pt[:4]
+            screen = pt[4] if len(pt) > 4 else False
             if not _on_screen(x, y, -PARTICLE_SCREEN_INSET):
                 continue
             shown += 1
-            mx, my = pnx + ps * (x - phx), pny + ps * (y - phy)
+            mx, my = _drawn_at(smp, x, y, ex, ey, screen)
             if not _on_screen(mx, my, PARTICLE_SCREEN_MARGIN):
                 lost += 1
-            own = _owner_point(smp["anchors"], x, y, ex, ey)
+            own = None if screen else _owner_point(smp["anchors"], x, y, ex, ey)
             if own is not None:
                 dr = ((mx - own[0]) ** 2 + (my - own[1]) ** 2) ** 0.5
                 drifts.append(dr)

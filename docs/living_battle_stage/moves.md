@@ -295,9 +295,9 @@ move that rule exempts.
 
 | template | open | at each hit (the defender's `Func_Shake`) | moves |
 |---|---|---|---|
-| contact | the attacker's close shot (yaw 6), hold 8 frames, then the defender's close shot (yaw -6). The whole animation then plays on the defender | `CamTplImpact`: a 2 px shake of one swing (3 px and 8 frames when the mon's own shake is 3 px or more) | 42 |
-| push | the two-shot (yaw -4) while it flies | `CamTplPushImpact`, the defender's close shot, then `CamTplImpact` | 70 |
-| twoshot | the two-shot for the whole move | `CamTplImpact` | 71 |
+| contact | the attacker's close shot (yaw 6), hold 8 frames, then the defender's close shot (yaw -6). The whole animation then plays on the defender | `CamTplImpact`: a 2 px shake of one swing (3 px and 8 frames when the mon's own shake is 3 px or more) | 34 |
+| push | the two-shot (yaw -4) while it flies | `CamTplPushImpact`, the defender's close shot, then `CamTplImpact` | 68 |
+| twoshot | the two-shot for the whole move | `CamTplImpact` | 81 |
 | self | the attacker's close shot (yaw -8, pitch 2), then a 14-degree orbit over 40 frames | - | 34 |
 | wide | the pull-back, pitch 3 | `CamTplImpact`, a spread hit included | 27 |
 | shake | none: the camera stays home | `CamTplImpact` | 0 |
@@ -329,41 +329,50 @@ them uses `SwitchBg`, `FadeBg` or any other background change; those belong to t
    Head drifted (25 px, Garchomp, enemy->player); it went to twoshot. After merging layout (back sprites at
    2x, BW2 placement, the message box fading out during moves) the same profile passed every move; Wing
    Attack, at 3.5% off the scene enemy->player, went to twoshot for the margin.
+6. After merging particles-3d, the check models its particle field (each particle takes a blend of the
+   battlers' similarities by its place, rigid with its emission point near it). Off home the field puts a
+   particle emitted between the mons partly on the far mon's similarity, and in a close-up that mon's is
+   extreme (the player's mon at 2x, off screen), so contact framing now dragged the sparks of a mid-flight
+   emitter: Sucker Punch (38 px), Horn Attack, Body Slam, Clamp, Fury Swipes and Return, and over the margin
+   Hi Jump Kick, Vital Throw, Rock Throw and Ice Ball, went to twoshot. Sandstorm, Sweet Scent and Water Sport
+   fill the screen, so their particle system is `SetParticleScreenSpace` (particles-3d's opt-out): it stays
+   put while the wide template pulls back, and the effect still reaches the screen's edges.
 
-95 moves ended on another template than their first pick, none on shake. Every templated move ends at
+104 moves ended on another template than their first pick, none on shake. Every templated move ends at
 home, keeps its particles on screen and passes the move_redo, move_tester and move_audit checks at day and
 at night (Checking).
 
-The emitters are still flat 2D, which the particles-3d workstream is changing. The templates live with that
-by keeping each move's particles on the battler that is framed: contact plays the whole animation on the
-defender and self on the attacker, push only moves in on the defender at the hit, and the two-shot and the
-wide shot keep both mons in the frame, where the particle similarity stays close to both battlers' own.
-Once particles are projected in 3D, the moves that stepped down to twoshot can go back to contact or push.
+The templates keep each move's particles with the battler that is framed: contact plays the whole animation
+on the defender and self on the attacker, push only moves in on the defender at the hit, and the two-shot and
+the wide shot keep both mons in the frame, where both battlers' similarities stay moderate. With particles-3d's
+field, particles on a mon follow it in any pose; what still limits a close-up is a particle between the mons,
+which takes part of the far mon's similarity (step 6).
 
 **The moves by template** (`camera_templates.py --list`; move_audit.json notes each one as "per-move camera
 (template ...)"):
 
-- **contact (42):** Comet Punch, Cut, Bind, Vine Whip, Horn Attack, Fury Attack, Body Slam, Wrap, Thrash,
-  Pin Missile, Ember, Peck, Drill Peck, Submission, Low Kick, Strength, Lick, Smog, Clamp, Hi Jump Kick,
-  Dizzy Punch, Fury Swipes, Struggle, Triple Kick, Attract, Return, Vital Throw, Brick Break, Secret
-  Power, Arm Thrust, Poison Fang, Astonish, Poison Tail, Feint, Pluck, Wring Out, Sucker Punch, Force
-  Palm, Poison Jab, Bullet Punch, Grass Knot, Play Rough.
-- **push (70):** Sand-Attack, Poison Sting, Twineedle, Roar, Psybeam, PoisonPowder, Stun Spore, Sleep
-  Powder, Fire Spin, Rock Throw, Dig, Hypnosis, Screech, Sludge, Poison Gas, Leech Life, Spore, Psywave,
-  Spider Web, Flail, Cotton Spore, Mach Punch, Sweet Kiss, Sludge Bomb, Giga Drain, Charm, Rollout, Steel
-  Wing, Sleep Talk, Mirror Coat, AncientPower, Uproar, Spit Up, Flatter, Will-O-Wisp, Facade, Magic Coat,
-  Yawn, Skill Swap, Snatch, Dive, FeatherDance, Ice Ball, Fake Tears, Tickle, Sand Tomb, Block, Bounce,
-  Magical Leaf, Rock Blast, Gyro Ball, Brine, Natural Gift, Payback, Fling, Psycho Shift, Gastro Acid, Me
-  First, Copycat, Power Swap, Guard Swap, Worry Seed, Heart Swap, Vacuum Wave, Psycho Cut, Rock Climb,
-  Magnet Bomb, Chatter, Attack Order, Crush Grip.
-- **twoshot (71):** Karate Chop, DoubleSlap, Pay Day, Scratch, ViceGrip, Wing Attack, Whirlwind, Slam,
-  Stomp, Double Kick, Jump Kick, Headbutt, Horn Drill, Take Down, Bite, SonicBoom, Water Gun, BubbleBeam,
-  Counter, Leech Seed, Petal Dance, Dragon Rage, Rage, SmokeScreen, Egg Bomb, Bone Club, Spike Cannon,
-  Lovely Kiss, Hyper Fang, Super Fang, Slash, Thief, Flame Wheel, Mud-Slap, Octazooka, Bone Rush,
-  Frustration, Pain Split, DragonBreath, Rapid Spin, Cross Chop, Crunch, Rock Smash, Beat Up, Knock Off,
-  Endeavor, Blaze Kick, Needle Arm, Signal Beam, Bullet Seed, Mud Shot, Covet, Wake-Up Slap, U-turn,
-  Assurance, Embargo, Trump Card, Punishment, Last Resort, Night Slash, Seed Bomb, Bug Buzz, Shadow Claw,
-  Mud Bomb, Mirror Shot, Cross Poison, Iron Head, Bug Bite, Aqua Jet, Double Hit, Ominous Wind.
+- **contact (34):** Comet Punch, Cut, Bind, Vine Whip, Fury Attack, Wrap, Thrash, Pin Missile, Ember,
+  Peck, Drill Peck, Submission, Low Kick, Strength, Lick, Smog, Dizzy Punch, Struggle, Triple Kick,
+  Attract, Brick Break, Secret Power, Arm Thrust, Poison Fang, Astonish, Poison Tail, Feint, Pluck, Wring
+  Out, Force Palm, Poison Jab, Bullet Punch, Grass Knot, Play Rough.
+- **push (68):** Sand-Attack, Poison Sting, Twineedle, Roar, Psybeam, PoisonPowder, Stun Spore, Sleep
+  Powder, Fire Spin, Dig, Hypnosis, Screech, Sludge, Poison Gas, Leech Life, Spore, Psywave, Spider Web,
+  Flail, Cotton Spore, Mach Punch, Sweet Kiss, Sludge Bomb, Giga Drain, Charm, Rollout, Steel Wing, Sleep
+  Talk, Mirror Coat, AncientPower, Uproar, Spit Up, Flatter, Will-O-Wisp, Facade, Magic Coat, Yawn, Skill
+  Swap, Snatch, Dive, FeatherDance, Fake Tears, Tickle, Sand Tomb, Block, Bounce, Magical Leaf, Rock
+  Blast, Gyro Ball, Brine, Natural Gift, Payback, Fling, Psycho Shift, Gastro Acid, Me First, Copycat,
+  Power Swap, Guard Swap, Worry Seed, Heart Swap, Vacuum Wave, Psycho Cut, Rock Climb, Magnet Bomb,
+  Chatter, Attack Order, Crush Grip.
+- **twoshot (81):** Karate Chop, DoubleSlap, Pay Day, Scratch, ViceGrip, Wing Attack, Whirlwind, Slam,
+  Stomp, Double Kick, Jump Kick, Headbutt, Horn Attack, Horn Drill, Body Slam, Take Down, Bite, SonicBoom,
+  Water Gun, BubbleBeam, Counter, Leech Seed, Petal Dance, Dragon Rage, Rock Throw, Rage, SmokeScreen, Egg
+  Bomb, Bone Club, Clamp, Spike Cannon, Hi Jump Kick, Lovely Kiss, Fury Swipes, Hyper Fang, Super Fang,
+  Slash, Thief, Flame Wheel, Mud-Slap, Octazooka, Bone Rush, Return, Frustration, Pain Split,
+  DragonBreath, Rapid Spin, Vital Throw, Cross Chop, Crunch, Rock Smash, Beat Up, Knock Off, Endeavor,
+  Blaze Kick, Ice Ball, Needle Arm, Signal Beam, Bullet Seed, Mud Shot, Covet, Wake-Up Slap, U-turn,
+  Assurance, Embargo, Trump Card, Punishment, Last Resort, Sucker Punch, Night Slash, Seed Bomb, Bug Buzz,
+  Shadow Claw, Mud Bomb, Mirror Shot, Cross Poison, Iron Head, Bug Bite, Aqua Jet, Double Hit, Ominous
+  Wind.
 - **self (34):** Growth, Recover, Withdraw, Defense Curl, Barrier, Light Screen, Reflect, Focus Energy,
   Bide, Softboiled, Splash, Rest, Sharpen, Conversion, Protect, Belly Drum, Endure, Milk Drink, Safeguard,
   Synthesis, Stockpile, Recycle, Slack Off, Bulk Up, Dragon Dance, Roost, Acupressure, Power Trick, Lucky
@@ -477,9 +486,9 @@ move plays, and grades "particles stay on screen off home" for any move whose ca
   how far the particle similarity draws them from that battler's own similarity, 95th percentile. PASS at
   16 px or less, FAIL above 32.
 
-The hand-authored moves at 85% on the enemy's side WARN on lost (Tackle, X-Scissor, Leaf Blade, Stone
-Edge and Air Slash, 6-9%: sparks leave the 1.46x frame), and Shadow Ball FAILs (15% lost, 48 px drift: its
-charge sits off the attacker it frames, the camera auditor's bug B1). Earthquake and Swords Dance PASS.
+On the ROM before camera-core and particles-3d (50482f8902), the hand-authored moves at 85% on the enemy's side WARNed on lost (Tackle, X-Scissor, Leaf Blade, Stone
+Edge and Air Slash, 6-9%: sparks leave the 1.46x frame), and Shadow Ball FAILed (15% lost, 48 px drift: its
+charge sits off the attacker it frames, the camera auditor's bug B1). Earthquake and Swords Dance PASSed.
 
 **The templated moves** are checked with the same scenarios and their full list (the ids are in
 `camera_templates.py --list` and move_audit.json):

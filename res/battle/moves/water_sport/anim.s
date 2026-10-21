@@ -4,6 +4,7 @@
 // Per-move camera template "wide" (moves.md, "Templates"): a pull-back over the whole field.
 L_0:
     LoadParticleResource 0, water_sport_spa
+    SetParticleScreenSpace 0 // camera template: full-screen
     CamTplWideOpen
     Func_ScaleBattlerSprite BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 100, 110, 100, 80, 100, HOLD_F(5) | CYCLES(1), SCALE_F(5) | RESTORE_F(5)
     WaitForAnimTasks

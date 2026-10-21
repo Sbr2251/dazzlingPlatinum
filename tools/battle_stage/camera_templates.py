@@ -10,7 +10,10 @@ TEMPLATES below, and only those. Each listed res/battle/moves/<dir>/anim.s gets:
   lines that follow it);
 - `CamTplImpact` (and for template "push" first `CamTplPushImpact`) right before every hit, which is
   every `Func_Shake` on the defender (or, for "wide", on every battler but the attacker);
-- `CamTplClose` right before every `End`.
+- `CamTplClose` right before every `End`;
+- for the full-screen particle systems in SCREEN_SPACE, `SetParticleScreenSpace` right after their
+  `LoadParticleResource` (particles-3d: the system stays put on screen while the camera moves, so a
+  full-screen effect still covers the screen in the pull-back).
 
 Every line it writes carries a CamTpl macro or the marker comment, so a rerun first strips its own
 lines and gives the same file. The table is the result of the particle profile and the checks in
@@ -57,6 +60,7 @@ DEFENDER_HIT = re.compile(r"^\s*Func_Shake\s+([^,]+),[^,]*,[^,]*,[^,]*,\s*BATTLE
 SPREAD_HIT = re.compile(r"^\s*Func_Shake\s+([^,]+),[^,]*,[^,]*,[^,]*,\s*"
                         r"(?:BATTLE_ANIM_BATTLER_SPRITE_DEFENDER|BATTLE_ANIM_BATTLER_SPRITES\s*\|\s*BATTLE_ANIM_NOT_ATTACKER)\s*$")
 END = re.compile(r"^\s*End\s*$")
+SCREEN_TAG = "// camera template: full-screen"
 LOAD = re.compile(r"^\s*(LoadParticleResource|LoadParticleSystem)\b")
 
 # move dir -> template. Filled from the particle profile (moves.md, "Templates").
@@ -66,10 +70,8 @@ TEMPLATES = {
     "astonish": "contact",
     "attract": "contact",
     "bind": "contact",
-    "body_slam": "contact",
     "brick_break": "contact",
     "bullet_punch": "contact",
-    "clamp": "contact",
     "comet_punch": "contact",
     "cut": "contact",
     "dizzy_punch": "contact",
@@ -78,10 +80,7 @@ TEMPLATES = {
     "feint": "contact",
     "force_palm": "contact",
     "fury_attack": "contact",
-    "fury_swipes": "contact",
     "grass_knot": "contact",
-    "hi_jump_kick": "contact",
-    "horn_attack": "contact",
     "lick": "contact",
     "low_kick": "contact",
     "peck": "contact",
@@ -91,17 +90,14 @@ TEMPLATES = {
     "poison_fang": "contact",
     "poison_jab": "contact",
     "poison_tail": "contact",
-    "return": "contact",
     "secret_power": "contact",
     "smog": "contact",
     "strength": "contact",
     "struggle": "contact",
     "submission": "contact",
-    "sucker_punch": "contact",
     "thrash": "contact",
     "triple_kick": "contact",
     "vine_whip": "contact",
-    "vital_throw": "contact",
     "wrap": "contact",
     "wring_out": "contact",
     # push
@@ -130,7 +126,6 @@ TEMPLATES = {
     "gyro_ball": "push",
     "heart_swap": "push",
     "hypnosis": "push",
-    "ice_ball": "push",
     "leech_life": "push",
     "mach_punch": "push",
     "magic_coat": "push",
@@ -151,7 +146,6 @@ TEMPLATES = {
     "roar": "push",
     "rock_blast": "push",
     "rock_climb": "push",
-    "rock_throw": "push",
     "rollout": "push",
     "sand_attack": "push",
     "sand_tomb": "push",
@@ -181,12 +175,14 @@ TEMPLATES = {
     "beat_up": "twoshot",
     "bite": "twoshot",
     "blaze_kick": "twoshot",
+    "body_slam": "twoshot",
     "bone_club": "twoshot",
     "bone_rush": "twoshot",
     "bubble_beam": "twoshot",
     "bug_bite": "twoshot",
     "bug_buzz": "twoshot",
     "bullet_seed": "twoshot",
+    "clamp": "twoshot",
     "counter": "twoshot",
     "covet": "twoshot",
     "cross_chop": "twoshot",
@@ -202,9 +198,13 @@ TEMPLATES = {
     "endeavor": "twoshot",
     "flame_wheel": "twoshot",
     "frustration": "twoshot",
+    "fury_swipes": "twoshot",
     "headbutt": "twoshot",
+    "hi_jump_kick": "twoshot",
+    "horn_attack": "twoshot",
     "horn_drill": "twoshot",
     "hyper_fang": "twoshot",
+    "ice_ball": "twoshot",
     "iron_head": "twoshot",
     "jump_kick": "twoshot",
     "karate_chop": "twoshot",
@@ -226,7 +226,9 @@ TEMPLATES = {
     "punishment": "twoshot",
     "rage": "twoshot",
     "rapid_spin": "twoshot",
+    "return": "twoshot",
     "rock_smash": "twoshot",
+    "rock_throw": "twoshot",
     "scratch": "twoshot",
     "seed_bomb": "twoshot",
     "shadow_claw": "twoshot",
@@ -237,12 +239,14 @@ TEMPLATES = {
     "sonic_boom": "twoshot",
     "spike_cannon": "twoshot",
     "stomp": "twoshot",
+    "sucker_punch": "twoshot",
     "super_fang": "twoshot",
     "take_down": "twoshot",
     "thief": "twoshot",
     "trump_card": "twoshot",
     "u_turn": "twoshot",
     "vice_grip": "twoshot",
+    "vital_throw": "twoshot",
     "wake_up_slap": "twoshot",
     "water_gun": "twoshot",
     "whirlwind": "twoshot",
@@ -312,6 +316,13 @@ TEMPLATES = {
     "water_spout": "wide",
 }
 
+# move dir -> the particle systems that fill the whole screen (moves.md, "Templates")
+SCREEN_SPACE = {
+    "sandstorm": [0],
+    "sweet_scent": [0],
+    "water_sport": [0],
+}
+
 # move dir -> why it keeps the home camera (candidates only: risk low in move_audit.json, no
 # background change, no 2D OBJ effect sprites, not a camera-core move).
 REJECTED = {
@@ -356,13 +367,13 @@ def strip(lines):
     out = []
     for ln in lines:
         s = ln.strip()
-        if s == INCLUDE_CAM or s.startswith(MARKER) or re.match(r"^CamTpl\w+", s):
+        if s == INCLUDE_CAM or s.startswith(MARKER) or re.match(r"^CamTpl\w+", s) or s.endswith(SCREEN_TAG):
             continue
         out.append(ln)
     return out
 
 
-def apply(text, template):
+def apply(text, template, screen=()):
     lines = strip(text.split("\n"))
     if template is None:
         return "\n".join(lines)
@@ -384,9 +395,20 @@ def apply(text, template):
             i += 1
             while i < len(lines) and LOAD.match(lines[i]):
                 out.append(lines[i])
+                sysid = re.match(r"^\s*\w+\s+(\d+)", lines[i])
+                if sysid and int(sysid.group(1)) in screen:
+                    out.append(f"    SetParticleScreenSpace {sysid.group(1)} {SCREEN_TAG}")
                 i += 1
             out.append(f"    {OPEN[template]}")
             opened = True
+            continue
+        lm = LOAD.match(ln)
+        if lm and screen:
+            out.append(ln)
+            sysid = re.match(r"^\s*\w+\s+(\d+)", ln)
+            if sysid and int(sysid.group(1)) in screen:
+                out.append(f"    SetParticleScreenSpace {sysid.group(1)} {SCREEN_TAG}")
+            i += 1
             continue
         m = hit.match(ln)
         if m and template != "self":
@@ -426,7 +448,7 @@ def main(argv):
     for d in targets(everything=True):
         path = MOVES / d / "anim.s"
         old = path.read_text()
-        new = apply(old, None if mode == "--strip" else TEMPLATES.get(d))
+        new = apply(old, None if mode == "--strip" else TEMPLATES.get(d), SCREEN_SPACE.get(d, ()))
         new.encode("ascii")
         if new != old:
             stale.append(d)

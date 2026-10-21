@@ -1,10 +1,10 @@
 #include "macros/btlanimcmd.inc"
 #include "macros/btlanimcam.inc"
 
-// Per-move camera template "contact" (moves.md, "Templates"): the attacker for the wind-up, then a cut to the defender, a punch on the hit.
+// Per-move camera template "twoshot" (moves.md, "Templates"): both mons for the whole move, a punch on the hit.
 L_0:
     LoadParticleResource 0, vital_throw_spa
-    CamTplContactOpen
+    CamTplTwoShotOpen
     Func_VitalThrow
     PlayLoopedSoundEffectL SEQ_SE_DP_W233, 22, 3
     Delay 66
