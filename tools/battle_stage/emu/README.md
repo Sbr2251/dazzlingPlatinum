@@ -228,7 +228,7 @@ camera, in order:
 |---|---|---|
 | sweep: bit 0 | `cinematicsSeen` at the first command menu | set |
 | sweep: pushes in | the intro, camera read every frame: some frame with `AT_HOME` clear and the enemy's `anchorScale` above 256 | at least one frame; the note gives the off-home stretch (58 frames by the contract) |
-| sweep: home at the menu | `camFlags` read when the command menu is first detected | `AT_HOME` |
+| sweep: home at the menu | `camFlags` read when the command menu is first detected | `AT_HOME`, or the command menu camera on (`sStageCameraDebug.sequence` 4-6: the prompt shot starts from home; bw2vis camera-core) |
 | no kicks | `NO_CINEMATICS`, then a False Swipe turn (ours and the enemy's), camera read every frame | `AT_HOME` on every frame outside a move's camera script (`CAMERA_SCRIPT` clear; the enemy's move may have a per-move camera, moves.md "Templates"); no crit or faint bit. The detail gives `offHomeFrames` and how many of them were in a camera script |
 | tester Pound at home | camera read every frame of the tester's Pound | `AT_HOME` on every frame; `offHomeMoveFrames` 0 |
 | crit kick: bit 3 | `CRIT_KICK_ON_HIT` (no `FREEZE_IDLE`, so `wobbleMask` marks the hit blink), a False Swipe turn read every frame | bit 3 set during the turn |
@@ -247,7 +247,7 @@ The other scenarios:
 | move_tester, switchbg_moves, sprite_life's arena sprite moves | `NO_CINEMATICS`; 90 frames after every move: `offHomeMoveFrames` == 0 and `AT_HOME` (aggregated into one check each). The save's Eterna Forest battle has no arena, so move_tester only notes the skip; the other two run on the Plain arena |
 | debug_views | view 0 home with scales 256; views 1-3 clear `AT_HOME` and move both anchors; wrapped view 0 home with the view 0 anchors; `sheet_feet` (feet on the blob, judged by eye within about 3 px) |
 | mega | bits 1 and 5 set; the attacker's (battler 0) anchor moves at least 4 px, or its scale leaves 256, in a recorded frame off home; **mid-orbit frames differ from home**: of the full frames off home (those in a camera script first), the middle half, each against the home frame taken before the turn with the frame's 2D brightness applied to it (`blend_like`), the share of the scene off by more than 40, is at least 5% in the most different one; `guardSnaps` does not rise over the turn (so the camera was home before the next move's animation, Swords Dance or the enemy's move, started); the largest `offHomeMoveFrames` is 0; `AT_HOME` at the next command menu |
-| totem_battle | bit 2 set, bit 0 clear, `AT_HOME` at the first menu, `offHomeMoveFrames` 0 |
+| totem_battle | bit 2 set, bit 0 clear, `AT_HOME` (or the command menu camera on) at the first menu, `offHomeMoveFrames` 0 |
 
 **Older ROMs.** With `sBattleStage` under 96 bytes in the xMAP (the main ROM's is 52), or without an xMAP, the camera checks are skipped with a note (camera: one WARN) and no camera wait happens. `NO_CINEMATICS` and `CRIT_KICK_ON_HIT` are still written where `debugFlags` exists; a pre-chunk-4 renderer ignores those bits.
 

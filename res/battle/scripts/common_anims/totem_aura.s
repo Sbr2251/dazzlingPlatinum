@@ -8,7 +8,8 @@ L_0:
     LoadParticleResource 0, 485 // totem_aura_spa
     // The stage camera pushes in on the Totem and shakes at the flare. It stays there through
     // the aura message and eases home at the first command menu (BattleStage_HoldCameraAfterScript).
-    StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER, 72, 0, -4, 16
+    // (bw2vis:camera-core: FREE keeps this low shot rather than BW2's preset; BW2's half-speed tail at the end)
+    StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER | STAGE_CAMERA_FREE, 72, 0, -4, 16 | STAGE_CAMERA_BRAKE(11)
     Delay 16
     StageCameraShake 3, 10
     PlayPannedSoundEffect SEQ_SE_DP_W082, BATTLE_SOUND_PAN_RIGHT

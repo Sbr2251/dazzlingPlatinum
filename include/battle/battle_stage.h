@@ -204,13 +204,25 @@ BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy);
 // The command menu waits until this is TRUE: the camera is home, or it has waited too long
 // (then the camera snaps home). Call it once per frame while waiting.
 BOOL BattleStage_IsCameraReadyForMenu(void);
-// The idle drift (Gen 5's command menu camera): once the command menu is up, the camera holds
-// home for a second, then loops slowly through a few gentle poses. It does nothing while
-// NO_CINEMATICS or NO_IDLE_CAMERA is set, and a menu shown while it runs doesn't wait.
-// EndIdleCamera, when every battler's command is in, eases it home; an anim script start or
-// a hidden arena snaps it home without counting a guard snap.
-void BattleStage_StartIdleCamera(void);
+// The command menu camera (bw2vis:camera-core; BW2's, camera.md "Command menu camera"): every command
+// prompt eases onto the battler choosing (its slot's BW2 preset shot); in a double battle, move select
+// cuts to BW2's wide shot, which target select keeps; 900 frames (15 s) after the prompt, BW2-style idle
+// shots follow one another in random order. It does nothing while NO_CINEMATICS or NO_IDLE_CAMERA is set
+// (and snaps home if one is set while it runs), and a menu shown while it runs doesn't wait.
+// EndIdleCamera, when every battler's command is in, eases it home; an anim script start or a hidden
+// arena snaps it home without counting a guard snap. The first prompt also opens the beats below.
+void BattleStage_StartIdleCamera(int battler);
+void BattleStage_MoveSelectCamera(int battler);
+void BattleStage_TargetSelectCamera(int battler);
 void BattleStage_EndIdleCamera(void);
+// The beats after the first prompt (bw2vis:camera-core, camera.md "Beats"): a recall, a send-out (it
+// holds until the battler's healthbar is in), the ball opening on a catch (held until a break-free or
+// the battle's end), and a defeated trainer coming back (held until the battle ends). Each is skipped
+// with NO_CINEMATICS, a hidden arena or a running anim script; the next command menu sends one home.
+void BattleStage_RecallCamera(int battler);
+void BattleStage_SendOutCamera(int battler);
+void BattleStage_CatchCamera(int battler);
+void BattleStage_EndBattleCamera(int battler);
 // The hit blink started on a battler; critical is TRUE when the hit was a critical hit
 void BattleStage_CritKick(int battler, BOOL critical);
 // The fainting sequence of a battler started
