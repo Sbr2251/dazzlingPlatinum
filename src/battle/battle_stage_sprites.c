@@ -1638,6 +1638,10 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
 
         side = BattleSystem_BattlerSlot(sStageSprites.battleSys, i) & 1;
 
+        // bw2vis:shadow: an enemy with no classic shadow (SHADOW_SIZE_NONE) gets no blob either
+        if (side && sprite->shadow.size == SHADOW_SIZE_NONE) {
+            continue;
+        }
         widthPx = side ? sEnemyBlobWidth[sprite->shadow.size] : BLOB_PLAYER_WIDTH;
         scale = transforms->scaleX < 0 ? -transforms->scaleX : transforms->scaleX;
 

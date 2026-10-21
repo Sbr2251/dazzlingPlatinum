@@ -6,6 +6,7 @@
 
 #include "constants/battle.h"
 #include "constants/narc.h"
+#include "constants/species.h"
 
 #include "battle/battle_stage_sprites.h"
 #include "battle/battle_stage_stream.h"
@@ -27,7 +28,8 @@
 //   translate(foot + offset) * RotX(SHADOW_ROT_X) * RotZ(rotZ) * the sprite's quads (y up)
 // RotX(0xc400) tips the sprite back by 84.4 degrees: up becomes "away from the camera", 5.6
 // degrees off the ground. RotZ turns it first in its own plane (default 0xf800, -11.25 degrees,
-// which leans the top to the left). The offset is (-0.25, 0, -0.375).
+// which leans the top to the left). The offset and rotZ come from the per-species adjust table,
+// else (-0.25, 0, -0.375) and 0xf800.
 //
 // Our arena's home camera looks straight down -z; BW2's is yawed 21.2 degrees (it sits at x 6.7,
 // z 17.3 from its target). The shadow is laid along BW2's world axes as the BW2 camera sees them,
@@ -53,10 +55,68 @@
 #define SHADOW_DEPTH 4000
 // Vertices are fx16 world units over this, so a 2x back sprite's shadow fits
 #define SHADOW_VTX_SCALE 8
+// Same as pokemon_sprite_stream.c: the pl_pokegra layout (species * 6 + face + male)
+#define POKEGRA_FILES_PER_SPECIES 6
 
 // The stream's battler textures: battle_stage_stream.c packs them from vramAddr, a battler each
 #define STREAM_TEX_BYTES (STREAM_CANVAS_HEIGHT * STREAM_CANVAS_WIDTH / 2)
 extern BattleStageStreamStats sSpriteStreamStats;
+
+// BW2's adjust table (btlv_mcss.c data_ov168_021f3414), by face: front is BW2's enemy side.
+// shadow FALSE turns the shadow off. x and z are fx32 world offsets, rotZ the in-plane turn.
+// BW2 species numbers are the national dex; ours keep the same constant names, so each entry is
+// written with our SPECIES_ constant (tools/battle_shadow/bw2_shadow_table.py checks it). BW2's
+// entries for species this game lacks (Samurott, Zoroark, Galvantula, Haxorus, Mienfoo,
+// Bouffalant, Reshiram, Zekrom) are left out.
+typedef struct ShadowAdjust {
+    u16 species;
+    u8 front;
+    u8 shadow;
+    s16 x;
+    s16 z;
+    u16 rotZ;
+} ShadowAdjust;
+
+static const ShadowAdjust sShadowAdjust[] = {
+    { SPECIES_RATTATA, 1, 1, 0x0, -0x1200, 0xee00 },
+    { SPECIES_PARASECT, 0, 1, -0x400, -0x400, 0xfc00 },
+    { SPECIES_DIGLETT, 1, 0, -0x400, -0x400, 0xfc00 },
+    { SPECIES_DUGTRIO, 1, 0, -0x400, -0x400, 0xfc00 },
+    { SPECIES_GROWLITHE, 1, 1, 0x0, -0x1200, 0xee00 },
+    { SPECIES_RHYHORN, 0, 1, -0x400, -0x600, 0xf400 },
+    { SPECIES_TAUROS, 1, 1, 0x0, -0x1200, 0xee00 },
+    { SPECIES_SPINARAK, 1, 1, 0x0, -0x1200, 0xee00 },
+    { SPECIES_SKARMORY, 1, 1, -0x400, -0x600, 0xfe00 },
+    { SPECIES_ENTEI, 0, 1, -0x400, -0x900, 0xf400 },
+    { SPECIES_GROVYLE, 1, 1, -0x400, -0xc00, 0x100 },
+    { SPECIES_SCEPTILE, 1, 1, -0x400, -0xc00, 0x100 },
+    { SPECIES_SCEPTILE, 0, 1, -0x400, -0xa00, 0xf000 },
+    { SPECIES_BLAZIKEN, 1, 1, -0x800, -0x1400, 0x100 },
+    { SPECIES_MIGHTYENA, 1, 1, 0x0, -0x1200, 0xee00 },
+    { SPECIES_MIGHTYENA, 0, 1, -0x400, -0x900, 0xf400 },
+    { SPECIES_LINOONE, 1, 1, 0x0, -0x1200, 0xee00 },
+    { SPECIES_SURSKIT, 1, 1, -0x400, -0x1800, 0xf800 },
+    { SPECIES_ARON, 1, 1, 0x0, -0x1200, 0xf000 },
+    { SPECIES_LAIRON, 1, 1, 0x0, -0x1200, 0xee00 },
+    { SPECIES_SWALOT, 1, 1, 0x0, -0x1200, 0xee00 },
+    { SPECIES_ABSOL, 1, 1, 0x0, -0x1a00, 0xee00 },
+    { SPECIES_SALAMENCE, 0, 1, -0x400, -0xa00, 0xf000 },
+    { SPECIES_METAGROSS, 1, 1, -0x800, -0x1400, 0x100 },
+    { SPECIES_GROTLE, 1, 1, 0x0, -0x1600, 0xee00 },
+    { SPECIES_GROTLE, 0, 1, -0x400, -0x900, 0xf400 },
+    { SPECIES_TORTERRA, 1, 1, 0x0, -0x1600, 0xee00 },
+    { SPECIES_TORTERRA, 0, 1, -0x400, -0x900, 0xf400 },
+    { SPECIES_INFERNAPE, 1, 1, -0x800, -0x1400, 0x100 },
+    { SPECIES_HIPPOWDON, 1, 0, -0x400, -0x400, 0xfc00 },
+    { SPECIES_HIPPOWDON, 0, 0, -0x400, -0x400, 0xfc00 },
+    { SPECIES_ELECTIVIRE, 1, 1, -0x400, -0xc00, 0x100 },
+    { SPECIES_MAGMORTAR, 1, 1, -0x400, -0xc00, 0x100 },
+    { SPECIES_DIALGA, 1, 1, -0x400, -0x1000, 0xfc00 },
+    { SPECIES_HEATRAN, 1, 1, 0x0, -0x2000, 0xf800 },
+    { SPECIES_HEATRAN, 0, 1, -0x400, -0x900, 0xf400 },
+    { SPECIES_LIEPARD, 1, 1, -0x400, -0x1000, 0xf800 },
+    { SPECIES_UNFEZANT, 1, 1, -0x400, -0xc00, 0x100 },
+};
 
 typedef struct StageShadow {
     BattleSystem *battleSys;
@@ -139,6 +199,28 @@ static BOOL BuildAxes(void)
     return TRUE;
 }
 
+// The adjust entry of a sprite (by the species and face its template shows), NULL for the default
+static const ShadowAdjust *FindAdjust(const PokemonSprite *sprite, int side)
+{
+    u32 species = 0;
+    int front = side;
+    int i;
+
+    // Other archives (Megas, forms, the doll) have no species in their template and no BW2 entry
+    if (sprite->template.narcID == NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA) {
+        species = sprite->template.character / POKEGRA_FILES_PER_SPECIES;
+        front = (sprite->template.character % POKEGRA_FILES_PER_SPECIES) / 2 == FACE_FRONT / 2;
+    }
+
+    for (i = 0; i < NELEMS(sShadowAdjust); i++) {
+        if (sShadowAdjust[i].species == species && sShadowAdjust[i].front == front) {
+            return &sShadowAdjust[i];
+        }
+    }
+
+    return NULL;
+}
+
 // The projection with z' = SHADOW_DEPTH * w, as the blobs' (the projection stack has one entry)
 static void LoadFlatProjection(const MtxFx44 *projection)
 {
@@ -180,7 +262,7 @@ static void SendVertex(const ShadowPlace *place, fx32 x, fx32 y)
 }
 
 // The silhouette of one battler whose stream is bound this frame
-static BOOL DrawSilhouette(int index, PokemonSprite *sprite, int side)
+static BOOL DrawSilhouette(int index, PokemonSprite *sprite, int side, const ShadowAdjust *adjust)
 {
     const PokemonSpriteTransforms *transforms = &sprite->transforms;
     PokemonSpriteDrawRect frame;
@@ -226,9 +308,9 @@ static BOOL DrawSilhouette(int index, PokemonSprite *sprite, int side)
     kx = (fx32)((s64)streamScale * transforms->scaleX * FX32_ONE / (MON_STREAM_SCALE_ONE * MON_AFFINE_SCALE(1)));
     ky = (fx32)((s64)streamScale * transforms->scaleY * FX32_ONE / (MON_STREAM_SCALE_ONE * MON_AFFINE_SCALE(1)));
 
-    rotZ = SHADOW_DEFAULT_ROTZ;
-    offX = SHADOW_DEFAULT_X;
-    offZ = SHADOW_DEFAULT_Z;
+    rotZ = adjust != NULL ? adjust->rotZ : SHADOW_DEFAULT_ROTZ;
+    offX = adjust != NULL ? adjust->x : SHADOW_DEFAULT_X;
+    offZ = adjust != NULL ? adjust->z : SHADOW_DEFAULT_Z;
     place.cosZ = FX_CosIdx((u16)rotZ);
     place.negSinZ = -FX_SinIdx((u16)rotZ);
     // World units to screen pixels: BW2's art pixels per unit, times our art's scale on screen
@@ -304,10 +386,19 @@ u32 BattleStageShadow_Draw(const MtxFx44 *projection, u32 shownMask, u32 debugFl
     for (i = 0; i < numBattlers; i++) {
         PokemonSprite *sprite = &monSpriteMan->sprites[i];
         int side = BattleSystem_BattlerSlot(sStageShadow.battleSys, i) & 1;
+        const ShadowAdjust *adjust;
 
         // The blobs' rule (shownMask): nothing while hidden (Fly, Dig, a faint), cut (the faint
         // slide, the send-out reveal) or while a move hides the shadows
         if ((shownMask & (1 << i)) == 0) {
+            continue;
+        }
+
+        adjust = FindAdjust(sprite, side);
+
+        if (adjust != NULL && !adjust->shadow) {
+            noBlob |= 1 << i;
+            sStageShadowStats.offMask |= 1 << i;
             continue;
         }
 
@@ -326,7 +417,7 @@ u32 BattleStageShadow_Draw(const MtxFx44 *projection, u32 shownMask, u32 debugFl
             started = TRUE;
         }
 
-        if (DrawSilhouette(i, sprite, side)) {
+        if (DrawSilhouette(i, sprite, side, adjust)) {
             noBlob |= 1 << i;
             sStageShadowStats.silhouetteMask |= 1 << i;
             sStageShadowStats.silhouettes++;
