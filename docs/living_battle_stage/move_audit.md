@@ -161,7 +161,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 7 | FIRE_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 8 | ICE_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 9 | THUNDER_PUNCH | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
-| 10 | SCRATCH | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 10 | SCRATCH | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 11 | VICE_GRIP | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 12 | GUILLOTINE | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 13 | RAZOR_WIND | sprite_xy, particles | - | - | low | per-move camera (template wide) |
@@ -402,7 +402,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 248 | FUTURE_SIGHT | sprite_xy, oam_copy, sprite_bg_blend, switch_bg, sprite_fade_tint | - | F2, F4 | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 249 | ROCK_SMASH | sprite_xy, particles | - | - | low | per-move camera (template contact) |
 | 250 | WHIRLPOOL | sprite_xy, hblank_wave, switch_bg, particles, sprite_fade_tint | bg_switch | F5, F6 | high | per-line wave on BG3; ScrollSwitchedBg: per-line BG3 wave |
-| 251 | BEAT_UP | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 251 | BEAT_UP | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 252 | FAKE_OUT | sprite_xy, sprite_scale_rot, window, sprite_bg_blend, switch_bg, particles | - | F3 | high | chunk 6: the stage draws the curtain in 3D, over the arena and under the mons (F3 option c) |
 | 253 | UPROAR | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template push) |
 | 254 | STOCKPILE | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low | per-move camera (template self) |
@@ -494,7 +494,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 340 | BOUNCE | sprite_xy, particles | - | - | low | per-move camera (template push) |
 | 341 | MUD_SHOT | sprite_xy, particles, sprite_fade_tint | - | - | low | per-move camera (template twoshot) |
 | 342 | POISON_TAIL | sprite_xy, particles, sprite_fade_tint | - | - | low | per-move camera (template contact) |
-| 343 | COVET | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template push) |
+| 343 | COVET | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template twoshot) |
 | 344 | VOLT_TACKLE | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 345 | MAGICAL_LEAF | sprite_xy, particles | - | - | low | per-move camera (template push) |
 | 346 | WATER_SPORT | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template wide) |
