@@ -625,6 +625,38 @@ void AbilityPopup_Shutdown(void)
     AbilityPopup_Free(&sPopups[1]);
 }
 
+// bw2vis:followups: the command menu opens. BW2's pop-up-out comes before the next selection, so a banner still
+// holding (or on its way in) leaves now from where it is, at the slide's speed, instead of finishing its hold over
+// the menu.
+void AbilityPopup_Dismiss(void)
+{
+    int side;
+
+    for (side = 0; side < 2; side++) {
+        AbilityPopup *popup = &sPopups[side];
+        int distance;
+
+        if (popup->state == POPUP_NONE || popup->state == POPUP_SLIDE_OUT) {
+            continue;
+        }
+
+        if (popup->state == POPUP_FLASH) {
+            AbilityPopup_LoadPalette(popup, 0);
+        }
+
+        distance = popup->x - AbilityPopup_OffscreenX(side);
+        distance = distance < 0 ? -distance : distance;
+        popup->state = POPUP_SLIDE_OUT;
+        popup->timer = (distance + POPUP_SLIDE_STEP - 1) / POPUP_SLIDE_STEP;
+
+        if (popup->timer < 1) {
+            popup->timer = 1;
+        }
+
+        AbilityPopup_UpdateDebug(popup);
+    }
+}
+
 BOOL AbilityPopup_IsActive(void)
 {
     return sPopups[0].state != POPUP_NONE || sPopups[1].state != POPUP_NONE;

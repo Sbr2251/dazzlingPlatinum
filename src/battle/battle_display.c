@@ -3238,6 +3238,7 @@ static void ov16_022604C8(SysTask *param0, void *param1)
         ov16_0226757C(v0->unk_04);
         ov16_02264798(v3, v0->unk_00);
         BattleStage_StartIdleCamera(v0->unk_09); // bw2vis:camera-core: the prompt frames the battler choosing
+        AbilityPopup_Dismiss(); // bw2vis:followups: no ability banner over the command menu
         v0->unk_0A = 4;
     case 4:
         if (ov16_02269348(v2) == 0) {
