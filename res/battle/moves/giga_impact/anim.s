@@ -8,7 +8,7 @@ L_0:
     Delay 15
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 5, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_MAGENTA_BURST, BATTLE_BG_SWITCH_MODE_CUT
     PlaySoundEffectL SEQ_SE_DP_140
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 32, -16, 4
     WaitForAnimTasks
@@ -32,6 +32,6 @@ L_0:
     UnloadParticleSystem 0
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 5, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_MAGENTA_BURST, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

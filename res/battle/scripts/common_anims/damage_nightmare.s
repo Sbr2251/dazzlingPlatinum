@@ -6,7 +6,7 @@ L_0:
     InitPokemonSpriteManager
     LoadPokemonSpriteDummyResources 0
     AddPokemonSprite BATTLER_ROLE_ATTACKER, FALSE, BATTLE_ANIM_MON_SPRITE_0, 0
-    SwitchBg 24, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_NIGHTMARE_SWIRLS, BATTLE_BG_SWITCH_MODE_FADE
     WaitForPartialBgSwitch
     Func_ScrollSwitchedBg 130
     WaitForBgSwitch
@@ -18,7 +18,7 @@ L_0:
     Delay 15
     SetPokemonSpriteVisible 0, 0
     Delay 30
-    RestoreBg 24, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_NIGHTMARE_SWIRLS, BATTLE_BG_SWITCH_MODE_FADE
     WaitForAnimTasks
     WaitForBgSwitch
     RemovePokemonSprite BATTLE_ANIM_MON_SPRITE_0

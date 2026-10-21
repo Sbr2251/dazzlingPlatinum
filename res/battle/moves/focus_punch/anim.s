@@ -22,7 +22,7 @@ L_2:
     PlaySoundEffectR SEQ_SE_DP_W025B
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 31, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_LIGHT_BURST, BATTLE_BG_SWITCH_MODE_CUT
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 16, -8, 2
     Delay 10
     Func_ShakeBg 5, 0, 1, 6, 0
@@ -33,6 +33,6 @@ L_2:
     UnloadParticleSystem 0
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 31, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_LIGHT_BURST, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

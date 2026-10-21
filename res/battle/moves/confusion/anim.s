@@ -1,7 +1,7 @@
 #include "macros/btlanimcmd.inc"
 
 L_0:
-    SwitchBg 20, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_HYPNO_RINGS, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     InitPokemonSpriteManager
     LoadPokemonSpriteDummyResources 0
@@ -19,6 +19,6 @@ L_0:
     RemovePokemonSprite BATTLE_ANIM_MON_SPRITE_0
     BtlAnimCmd_083 0
     RemovePokemonSprite BATTLE_ANIM_MON_SPRITE_4
-    RestoreBg 20, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_HYPNO_RINGS, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End
