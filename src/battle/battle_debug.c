@@ -20,6 +20,7 @@
 #include "battle/battle_controller_player.h"
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_particles.h"
 #include "battle/healthbar.h"
 #include "battle/ov16_0223B140.h"
 #include "battle/ov16_0223DF00.h"
@@ -187,8 +188,9 @@ static void StartTestAnimation(BattleSystem *battleSys, BattlerData *commandBatt
     MoveAnimation animation;
     u32 moveFlags = MoveTable_LoadParam(sTestMove, MOVEATTRIBUTE_FLAGS);
 
-    // The sprites don't follow the debug camera yet
-    if (BattleStage_GetDebugView() != 0) {
+    // The sprites don't follow the debug camera yet. bw2vis:particles-3d: unless the critic asks
+    // to keep it (BATTLE_STAGE_DEBUG_KEEP_VIEW_IN_MOVES), to see a move's particles off home
+    if (BattleStage_GetDebugView() != 0 && !BattleStageParticles_KeepDebugViewInMoves()) {
         BattleStage_SetDebugView(0);
         DrawOverlay(battleSys);
     }

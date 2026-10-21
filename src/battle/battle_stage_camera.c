@@ -10,6 +10,7 @@
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_layout.h"
+#include "battle/battle_stage_particles.h"
 #include "battle/battle_stage_sprites.h"
 #include "battle/battle_textbox.h"
 #include "battle/healthbar.h"
@@ -250,7 +251,7 @@ typedef struct StageCamera {
     int guardPan; // the cut guard's downward pan, px, added to the shake
 } StageCamera;
 
-static void ParticleProjectionHook(MtxFx44 *projection);
+static BOOL ParticleProjectionHook(MtxFx44 *projection);
 static void BallDrawHook(ManagedSprite *sprite, int target, int sign);
 static BOOL IntroFocusHidesHealthbars(void);
 static void ReleaseHealthbars(void);
@@ -1139,6 +1140,7 @@ void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fi
     sStageCameraDebug.magic = CAMERA_DEBUG_MAGIC;
 
     ParticleSystem_SetProjectionHook(ParticleProjectionHook);
+    BattleStageParticles_Init(battleSys, home, debugFlags); // bw2vis:particles-3d
     BallRotation_SetDrawHook(BallDrawHook); // bw2vis:intro
 }
 
@@ -1146,6 +1148,7 @@ void BattleStageCamera_Free(void)
 {
     if (sStageCamera.hasHome) {
         ParticleSystem_SetProjectionHook(NULL);
+        BattleStageParticles_Free(); // bw2vis:particles-3d
         BallRotation_SetDrawHook(NULL); // bw2vis:intro
         SnapHome();
     }
@@ -1376,16 +1379,36 @@ void BattleStageCamera_SetScriptActive(BOOL active)
     }
 }
 
+// bw2vis:particles-3d. Off home every particle follows the mons around it, each by that mon's
+// own similarity (battle_stage_particles.c, the particle hook). The single similarity below is
+// the fallback (no battler anchors) and the A/B debug path (BATTLE_STAGE_DEBUG_PARTICLES_2D);
+// BATTLE_STAGE_DEBUG_PARTICLES_PLANE draws them on the 3D battle plane instead.
 // p' = now + s * (p - home) in pixels, as clip space: x_ndc = x / 128 - 1, y_ndc = 1 - y / 96.
 // The translation is scaled by w, so it holds for any particle camera.
-static void ParticleProjectionHook(MtxFx44 *projection)
+static BOOL ParticleProjectionHook(MtxFx44 *projection)
 {
     const CameraAnchor *anchor = &sStageCamera.particle;
+    u32 debugFlags = sStageCamera.debugFlags != NULL ? *sStageCamera.debugFlags : 0;
     fx32 s, tx, ty;
     int r;
 
-    if (sStageCamera.atHome || !sStageCamera.hasHome || !anchor->valid) {
-        return;
+    // A debug view stays off home while the stage hides; the classic picture never follows it
+    if (sStageCamera.atHome || !sStageCamera.hasHome || !BattleStage_IsVisible()) {
+        return FALSE;
+    }
+
+    if (!(debugFlags & BATTLE_STAGE_DEBUG_PARTICLES_2D)) {
+        if (debugFlags & BATTLE_STAGE_DEBUG_PARTICLES_PLANE) {
+            if (BattleStageParticles_ProjectOnPlane(projection)) {
+                return FALSE;
+            }
+        } else if (BattleStageParticles_BeginSystem(projection)) {
+            return TRUE;
+        }
+    }
+
+    if (!anchor->valid) {
+        return FALSE;
     }
 
     s = anchor->scale;
@@ -1396,6 +1419,22 @@ static void ParticleProjectionHook(MtxFx44 *projection)
         projection->m[r][0] = FX_Mul(projection->m[r][0], s) + FX_Mul(projection->m[r][3], tx);
         projection->m[r][1] = FX_Mul(projection->m[r][1], s) + FX_Mul(projection->m[r][3], ty);
     }
+
+    return FALSE;
+}
+
+// bw2vis:particles-3d. A battler's world foot point and its side (0 the player's, 1 the opponent's)
+BOOL BattleStageCamera_BattlerFoot(int battler, int *side, VecFx32 *foot)
+{
+    int homeX, homeY;
+
+    if (!sStageCamera.hasHome || sStageCamera.battleSys == NULL || battler < 0 || battler >= MaxBattlers()
+        || !BattlerFoot(battler, &homeX, &homeY, foot)) {
+        return FALSE;
+    }
+
+    *side = BattleSystem_BattlerSlot(sStageCamera.battleSys, battler) & 1;
+    return TRUE;
 }
 
 // The focus point of a battler: its foot, at the home target's height

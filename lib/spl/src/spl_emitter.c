@@ -11,6 +11,8 @@
 #include "spl_resource.h"
 #include "spl_texture.h"
 
+static SPLParticleDrawHook sParticleDrawHook;
+
 #define ANIM_FUNC_NO_LOOP 0
 #define ANIM_FUNC_LOOP    1
 
@@ -352,6 +354,11 @@ static void SPLManager_DrawParticles(SPLManager *mgr)
 
     for (SPLParticle *ptcl = emtr->particles.first; ptcl != NULL; ptcl = ptcl->next) {
         setTexFunc(mgr->textures + ptcl->texture);
+
+        if (sParticleDrawHook != NULL) {
+            sParticleDrawHook(mgr, ptcl);
+        }
+
         drawFunc(mgr, ptcl);
     }
 }
@@ -387,8 +394,17 @@ static void SPLManager_DrawChildParticles(SPLManager *mgr)
     }
 
     for (SPLParticle *ptcl = emtr->childParticles.first; ptcl != NULL; ptcl = ptcl->next) {
+        if (sParticleDrawHook != NULL) {
+            sParticleDrawHook(mgr, ptcl);
+        }
+
         drawFunc(mgr, ptcl);
     }
+}
+
+void SPLManager_SetParticleDrawHook(SPLParticleDrawHook hook)
+{
+    sParticleDrawHook = hook;
 }
 
 void SPLManager_DoDraw(SPLManager *mgr)

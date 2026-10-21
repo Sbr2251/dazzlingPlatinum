@@ -18,8 +18,8 @@ said so.
   default: a triangle wave at full strength on one world axis, whole swings, ending at rest.
 - Battler close-ups as BW2's presets: a slide with no turn, at BW2's size and screen row per slot
   (your mon 0.91x, the foe 1.50x in a single battle). `STAGE_CAMERA_FREE` keeps the old free framing.
-- Mons as camera-facing billboards. Their feet stay on their platforms off home, and particles follow
-  through a 2D similarity hook.
+- Mons as camera-facing billboards. Their feet stay on their platforms off home, and every particle
+  follows the mons around it by their own similarities (foundation E, particles-3d).
 - Seven script commands (`StageCameraMove/Orbit/Shake/Home/Wait/Zoom`, `StageHealthbars`), with the
   curve, brake, framing and shake options in their existing words. `mega_evolution.s`, `totem_aura.s`
   and eight move scripts use them (moves.md, "Per-move camera").
@@ -76,6 +76,6 @@ said so.
 | B | Zoom | Command 90 exists; no script uses it, and BW2 never changes the fov | - | - |
 | C | OBJ actors | Trainers and Poke Balls are 2D OBJs that follow their side's mean similarity off home, moved and scaled up to 2x (intro); OAM copies don't follow. The beats keep the battler's feet in place (a dolly along the ray through them, or a truck at home size) because the balls' flights are screen paths drawn for home | Trainers and balls as stage billboards that sit in depth, with flights in world space | 2, 3, 9, 10, 11 |
 | D | Menu gating | Done: the menu doesn't wait during the menu camera; a held beat goes home for the menu | - | 4, 5, 6 |
-| E | Particles off home | Scale plus translate only (no perspective), through one similarity (Shadow Ball's charge drifted to the frame's edge in an attacker close-up; it now frames the pair) | Depth-correct emitters (the particles-3d workstream) | 7, 10 |
+| E | Particles off home | **Done (bw2vis particles-3d):** every particle takes the similarity of the mons around it, the same one their sprites use, so it stays on its mon in any pose (camera.md, "Particles follow the camera"). Full-screen effects opt out with `SetParticleScreenSpace`. A true 3D battle-plane mode exists for A/B (debug bit 21). Before, one similarity moved them all (Shadow Ball's charge drifted to the frame's edge in an attacker close-up; it now frames the pair) | Particles no longer limit per-move cameras; the 2D effects (SwitchBg, OAM copies, windows, HBlank) still do (moves.md, "Particles and per-move cameras") | 7, 10 |
 | F | Back-sprite cut line | 89 of 568 back sprites are cut at the frame bottom; the cut guard pans so the cut edge stays under the text box off home | Full-body back art for over-the-shoulder shots | 3, 4 |
 | G | Critic | Checks the home invariants, sweep, Mega, Totem, crit and faint; accepts the prompt shot at the first menu (`sStageCameraDebug`) | Scenarios for the prompt, idle shots, select and beats (the bw2vis camera-core captures in `/tmp/bw2vis/camera-core/` do it by hand) | all |

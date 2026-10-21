@@ -549,6 +549,7 @@ pokeplatinum_c = files(
     'battle/battle_stage_idle.c',
     'battle/battle_stage_copies.c',
     'battle/battle_stage_camera.c',
+    'battle/battle_stage_particles.c',
     'battle/battle_stage_layout.c',
     'battle/battle_textbox.c',
     'battle/battle_stage_light.c',

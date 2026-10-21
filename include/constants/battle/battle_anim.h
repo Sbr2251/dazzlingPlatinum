@@ -158,6 +158,11 @@
 #define STAGE_CAMERA_FOCUS_DEFENDER 2
 #define STAGE_CAMERA_FOCUS_BETWEEN  3 // midway between the attacker and the defender
 
+// bw2vis:particles-3d. Flag on SetCameraProjection's projection (macro SetParticleScreenSpace):
+// the particle system stays in screen space while the stage camera is off home, instead of
+// following the arena (full-screen weather, screen flashes). Cleared with the move.
+#define BATTLE_ANIM_PARTICLE_SCREEN_SPACE 0x80
+
 // bw2vis:camera-core. Options carried in the existing words of the stage camera commands (camera.md,
 // "Motion", "Framing" and "Shake"), so no command changes its arguments.
 // StageCameraMove focus: the given distance, yaw and pitch on a battler focus. Without it a battler focus is
