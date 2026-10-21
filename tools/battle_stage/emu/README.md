@@ -294,7 +294,8 @@ DeSmuME's own output can lag).
 | arena stayed visible: `hiddenFrames` unchanged | WARN | `bg2_copy` without `switch_bg`, `bg2_effect` or `window`, and without `bg_switch` in `suppress` |
 | copy tinted at night: `tintedCopies` rose | WARN | `bg2_copy`, night |
 | night copy tinted like the mesh | WARN | `bg2_copy`, night: for each mon box, the per-channel mean ratio night / day of the move frame in the middle of the day's lifted frames is within 50% (of the mesh's own tint) of the same ratio for the idle frames; skipped where night changes the mesh by under 3% |
-| arena faded out: `fades` rose | FAIL | `switch_bg` with `bg_switch` in the audit's `suppress` list (the engine hid the arena for the switch; F6 makes that a fade) |
+| arena faded out: `fades` rose | FAIL | `switch_bg` with `bg_switch` in the audit's `suppress` list (the engine hid the arena for the switch; F6 makes that a fade), unless the redo files mark the move `cut` |
+| arena cut to the move background (hidden, no fade); cut counted; BW2 background loaded; palette anim stepped; nothing left running | FAIL | `switch_bg` moves the redo files (`effect_bg.json`) mark `cut` or `bw2_bg`: effect-bg's BW2 backgrounds, graded as in switchbg_moves (`effect_bg_checks`). A `cut` move is not graded on the fade |
 | arena faded out: `fades` rose | WARN | other `switch_bg` moves: an empty `suppress` list (Fake Out: it may keep the arena up if the engine cannot suppress it) or only `bg2_effect` |
 | mid-fade frame mixes arena and move background | WARN | `switch_bg` with a fade: of the scene pixels where the pre-move frame and the frame 6 after `arenaAlpha` reached 0 differ by more than 48, at least 20% of some frame in between are more than 16 away from both (a blend; a pop scores about 0) |
 

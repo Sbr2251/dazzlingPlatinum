@@ -3828,8 +3828,9 @@ def copy_tint_check(sc: Scenario, tag: str, day: dict, night: dict) -> None:
 
 def _audit_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str, m: dict, cur: int,
                 idle: List[Image.Image], boxes: List[Image.Image], after: List[Frame], fades: List[Frame],
-                days: dict, cam_log: list) -> Optional[bool]:
-    """One move_audit move. True = go on, False = the battle is stuck, None = the overlay is gone."""
+                days: dict, cam_log: list, redo: Optional[dict] = None) -> Optional[bool]:
+    """One move_audit move. True = go on, False = the battle is stuck, None = the overlay is gone. redo: the move's
+    redo entry (load_redo), for the moves whose SwitchBg cuts (bw2vis:followups)."""
     mid, mech = m["id"], set(m.get("mechanisms", []))
     tag = f"{tod} {mid:03d} {m.get('name', '')}".rstrip()
     print(f"  [move] {tag}", flush=True)              # the parent attributes CPU exceptions by these lines
@@ -3839,6 +3840,7 @@ def _audit_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str
     _nav_move(e, cur, mid)
     pre = e.snap(f"{tag} pre", after)
     before = ram.compat()
+    ebg0 = ram.effect_bg()  # bw2vis:followups
     anim, done, polls, fade, by_t = _play_compat(e, ov, ram, "A", args.anim_frames, f"{mid:03d}")
     if froze(sc, e, anim, f"playing {tag}"):
         return False
@@ -3885,7 +3887,13 @@ def _audit_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str
                      f"tintedCopies +{d['tintedCopies']}", warn_only=True, why="F2 did not tint the copy")
             if mid in days:
                 copy_tint_check(sc, tag, days[mid], rec)
-    if "switch_bg" in mech:
+    if "switch_bg" in mech and redo and (redo.get("expect") == "cut" or redo.get("bw2_bg")):
+        # bw2vis:followups: effect-bg's BW2 backgrounds (effect_bg.json), graded as switchbg_moves grades them.
+        # A move whose SwitchBg cuts, as BW2 does, hides the arena without a fade: its "arena faded out" check
+        # was the 30 FAILs on bw2vis (15 moves at day and night, every one hiddenFrames > 0, fades 0)
+        counts = f"hardPops +{d['hardPops']}, fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}"
+        effect_bg_checks(sc, tag, d, counts, ebg0, ram.effect_bg(), redo)
+    if "switch_bg" in mech and not (redo and redo.get("expect") == "cut"):
         need = fade_required(m)
         sc.check(f"{tag}: arena faded out (fades rose)", d["fades"] > 0,
                  f"fades +{d['fades']}, hiddenFrames +{d['hiddenFrames']}, suppress {m.get('suppress', [])}",
@@ -3921,8 +3929,10 @@ def _audit_battle(sc: Scenario, e: Emu, args, tod: str, plan: List[dict], fades:
     cam_log: list = []
     cur = MOVE_ID_POUND
     ok = True
+    redo = load_redo(args.redo)[0]  # bw2vis:followups: which SwitchBg moves cut (effect_bg.json)
     for m in plan:
-        r = _audit_move(sc, e, args, ram, ov, tod, m, cur, idle, boxes, after, fades, days, cam_log)
+        r = _audit_move(sc, e, args, ram, ov, tod, m, cur, idle, boxes, after, fades, days, cam_log,
+                        redo.get(m["id"]))
         if r is None:
             break
         cur = m["id"]
