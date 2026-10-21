@@ -3093,7 +3093,7 @@ static void ov16_022604C8(SysTask *param0, void *param1)
     case 3:
         ov16_0226757C(v0->unk_04);
         ov16_02264798(v3, v0->unk_00);
-        BattleStage_StartIdleCamera();
+        BattleStage_StartIdleCamera(v0->unk_09); // bw2vis:camera-core: the prompt frames the battler choosing
         v0->unk_0A = 4;
     case 4:
         if (ov16_02269348(v2) == 0) {
@@ -3426,6 +3426,7 @@ static void ov16_02260C00(SysTask *param0, void *param1)
             NARC_dtor(v10);
             NARC_dtor(v11);
         }
+        BattleStage_MoveSelectCamera(v0->unk_1D); // bw2vis:camera-core
         v0->unk_20++;
         break;
     case 1:
@@ -3591,6 +3592,7 @@ static void ov16_02260F14(SysTask *param0, void *param1)
             NARC_dtor(v9);
         }
 
+        BattleStage_TargetSelectCamera(v0->unk_0D); // bw2vis:camera-core
         v0->unk_0F++;
         break;
     case 1:

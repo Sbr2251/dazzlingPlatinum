@@ -403,7 +403,13 @@ static const char *GiveMegaMon(FieldSystem *fieldSystem)
     return status;
 }
 
-static void StartBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBattle *quickBattle, BOOL totem)
+enum QuickBattleKind {
+    QUICK_BATTLE_SINGLE = 0,
+    QUICK_BATTLE_TOTEM,
+    QUICK_BATTLE_DOUBLE, // bw2vis:camera-core: L+R+Y, a plain wild double battle (the selected species and the next)
+};
+
+static void StartBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBattle *quickBattle, int kind)
 {
     ClosePanel(fieldSystem, quickBattle);
 
@@ -416,8 +422,11 @@ static void StartBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBat
         FieldBattleDTO_SetDebugTimeOfDayOverride(sTimeOfDayChoices[sTimeOfDayChoice - 1].timeOfDay);
     }
 
-    if (totem) {
+    if (kind == QUICK_BATTLE_TOTEM) {
         Encounter_NewTotemBattle(task, sTotemChoice, &quickBattle->battleResult);
+    } else if (kind == QUICK_BATTLE_DOUBLE) {
+        u8 level = GetOpponentLevel(SaveData_GetParty(fieldSystem->saveData));
+        Encounter_NewVsDoubleSpeciesAtLevel(task, sOpponentSpecies[sOpponentChoice], sOpponentSpecies[(sOpponentChoice + 1) % NELEMS(sOpponentSpecies)], level, &quickBattle->battleResult);
     } else {
         u8 level = GetOpponentLevel(SaveData_GetParty(fieldSystem->saveData));
         Encounter_NewVsSpeciesAtLevel(task, sOpponentSpecies[sOpponentChoice], level, &quickBattle->battleResult, FALSE);
@@ -443,13 +452,19 @@ static BOOL FieldTask_DebugQuickBattle(FieldTask *task)
 
         if (pressed & PAD_BUTTON_A) {
             Sound_PlayEffect(SEQ_SE_CONFIRM);
-            StartBattle(task, fieldSystem, quickBattle, FALSE);
+            StartBattle(task, fieldSystem, quickBattle, QUICK_BATTLE_SINGLE);
             return FALSE;
         }
 
         if (pressed & PAD_BUTTON_X) {
             Sound_PlayEffect(SEQ_SE_CONFIRM);
-            StartBattle(task, fieldSystem, quickBattle, TRUE);
+            StartBattle(task, fieldSystem, quickBattle, QUICK_BATTLE_TOTEM);
+            return FALSE;
+        }
+
+        if (pressed & PAD_BUTTON_Y) {
+            Sound_PlayEffect(SEQ_SE_CONFIRM);
+            StartBattle(task, fieldSystem, quickBattle, QUICK_BATTLE_DOUBLE);
             return FALSE;
         }
 

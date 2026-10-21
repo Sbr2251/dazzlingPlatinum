@@ -39,13 +39,7 @@
 #define INTRO_MIN_HOLD_FRAMES SCREEN_FRAMES(30)
 #define INTRO_HOME_FRAMES SCREEN_FRAMES(20)
 #define INTRO_WAIT_MAX_FRAMES SCREEN_FRAMES(120)
-// The idle drift at the command menu: home for a moment, then a slow loop of poses (each an
-// ease and a hold), and a quick ease home once the commands are in
-#define IDLE_START_FRAMES SCREEN_FRAMES(60)
-#define IDLE_MOVE_FRAMES SCREEN_FRAMES(180)
-#define IDLE_HOLD_FRAMES SCREEN_FRAMES(50)
-#define IDLE_END_FRAMES SCREEN_FRAMES(16)
-// The debug flags that keep the drift off (and snap it home when set while it runs)
+// The debug flags that keep the command menu camera off (and snap it home when set while it runs)
 #define IDLE_OFF_FLAGS (BATTLE_STAGE_DEBUG_NO_CINEMATICS | BATTLE_STAGE_DEBUG_NO_IDLE_CAMERA)
 
 // bw2vis:camera-core. The motion runs on BW2's clock, 60 Hz screen frames: an ease or a shake is a
@@ -53,6 +47,12 @@
 // screen frames at the battle's 30 Hz) moves that clock by STEP_FRAMES. BW2's frame counts are used
 // as they are; a script's drawn frames are doubled.
 #define STEP_FRAMES 2
+// The command menu camera (BW2: btlv_input.c, btlv_effect.c). Every prompt eases onto the battler
+// choosing as BtlvEffect_ZoomCamera does (MoveTo, 10 frames, brake 8); the commands in, it eases home.
+#define PROMPT_FRAMES 10
+#define PROMPT_BRAKE 8
+#define MENU_HOME_FRAMES 10
+#define MENU_HOME_BRAKE 8
 
 // Shake periods in steps for the old decaying shake, different in x and y so the path isn't a line
 #define SHAKE_PERIOD_X 4
@@ -75,7 +75,9 @@ enum CameraSequence {
     SEQUENCE_TO, // easing to the goal
     SEQUENCE_HOLD, // holding there (and until the shake ends)
     SEQUENCE_INTRO, // the battle-start focus: there until released, at least holdFrames
-    SEQUENCE_IDLE, // the command menu's drift: through sIdlePoses until ended
+    SEQUENCE_IDLE, // the command menu's idle shots, after the prompt's wait, until ended
+    SEQUENCE_PROMPT, // the command prompt: on the battler choosing, until the idle shots or the end
+    SEQUENCE_SELECT, // move and target select in a double battle: the wide shot, then the idle shots
 };
 
 enum CameraCurve {
@@ -158,8 +160,12 @@ typedef struct StageCamera {
     u8 throwLate[MAX_BATTLERS]; // task frames that throw waited, owed by its healthbar's slide-in
     u8 scriptHidHealthbars; // battlers whose healthbar command 91 hid; shown again by the script end at the latest
     BOOL holdAfterScript; // the script's end pose becomes a held focus (the Totem aura)
-    int idlePose; // the next of sIdlePoses
+    int idlePose; // the idle shot playing, or -1 (bw2vis:camera-core)
     BOOL idleHoming; // easing home from the idle drift
+    // The command menu camera (bw2vis:camera-core)
+    BOOL promptSeen; // the first command prompt of the battle has opened
+    int promptBattler;
+    int idleTimer; // screen frames since the last prompt (or double battle move select)
     // Home offset of the camera in angle form, for poses built from a camera position
     u16 homeAzimuth;
     u16 homeElevation;
@@ -228,25 +234,6 @@ StageCameraDebug sStageCameraDebug;
 // Classic home x of each battler type (BATTLER_TYPE_*)
 static const int sHomeX[BATTLER_TYPE_MAX] = { 64, 192, 40, 216, 80, 176 };
 
-#define IDLE_SIDE_NONE -1
-
-// The idle drift's loop. The focus moves towardPct of the way from the home target toward a
-// side's mons; the poses stay inside the checked range (yaw +/-20, no farther than home).
-typedef struct IdlePose {
-    s8 side; // IDLE_SIDE_NONE, or 0 (the player's) / 1 (the opponent's)
-    u8 towardPct;
-    s8 yawDeg;
-    s8 pitchDeg;
-    u8 distancePct;
-} IdlePose;
-
-static const IdlePose sIdlePoses[] = {
-    { IDLE_SIDE_NONE, 0, 10, 2, 100 }, // the wide shot, turned a little
-    { 1, 35, -14, -2, 86 }, // in on the opponent
-    { 0, 15, 12, 1, 100 }, // over toward the player's mon
-    { IDLE_SIDE_NONE, 0, -6, 0, 100 }, // back through near home
-};
-
 // bw2vis:camera-core. BW2's preset shot of each battler slot (btlv_effvm.c:468-505, CmdCameraMovePreset
 // types 0-5): the home camera trucked onto the mon with no turn. The mon's size against home, as the ratio
 // of its distances to the two cameras: 0.91x for a single battle's own mon, 1.50x for the opponent; in a
@@ -257,6 +244,8 @@ static const fx32 sPresetScale[BATTLER_TYPE_MAX] = {
 // The screen row of the mon's feet in BW2's preset shot of each slot (projected with BW2's camera), as the
 // same share of our scene, which ends at the text box (row 144) where BW2's ends at the screen's bottom
 static const s16 sPresetRow[BATTLER_TYPE_MAX] = { 124, 113, 125, 111, 139, 104 };
+// BW2's wide doubles shot (preset 14, which also shrinks every sprite): the own mons at about 0.68x
+#define WIDE_PLAYER_SCALE FX32_CONST(0.68)
 // The camera's reach: every one of the 30 arenas still covers the whole scene from 1.6x the home distance
 // (BG0 renders, camera.md "Camera range"); the wide shot needs about 1.4x
 #define CAMERA_MAX_DISTANCE FX32_CONST(1.45)
@@ -295,6 +284,7 @@ static void SnapHome(void)
     sStageCamera.backdropDx = 0;
     sStageCamera.backdropDy = 0;
     sStageCamera.sequence = SEQUENCE_NONE;
+    sStageCamera.idlePose = -1;
 }
 
 static void PoseCamera(const CameraPose *pose, VecFx32 *camPos, VecFx32 *offsetOut);
@@ -878,12 +868,14 @@ static void UpdateCutGuard(BOOL visible, const CameraPose *pose)
 }
 
 
-static BOOL IdleGoal(int index, CameraPose *goal);
+// The command menu camera is off: a debug flag (the critic's frame comparisons at the menu want home)
+static BOOL MenuCameraOff(void)
+{
+    return sStageCamera.debugFlags != NULL && (*sStageCamera.debugFlags & IDLE_OFF_FLAGS);
+}
 
 static void AdvanceSequence(void)
 {
-    CameraPose goal;
-
     switch (sStageCamera.sequence) {
     case SEQUENCE_TO:
         if (!IsEasing()) {
@@ -915,27 +907,15 @@ static void AdvanceSequence(void)
             sStageCamera.introHoming = TRUE;
         }
         break;
-    case SEQUENCE_IDLE:
-        if (sStageCamera.debugFlags != NULL && (*sStageCamera.debugFlags & IDLE_OFF_FLAGS)) {
+    // bw2vis:camera-core. The command menu: the prompt (or the wide select shot) holds
+    case SEQUENCE_PROMPT:
+    case SEQUENCE_SELECT:
+        if (MenuCameraOff()) {
             SnapHome();
             break;
         }
 
-        if (IsEasing()) {
-            break;
-        }
-
-        if (sStageCamera.holdFrames > 0) {
-            sStageCamera.holdFrames--;
-            break;
-        }
-
-        if (IdleGoal(sStageCamera.idlePose, &goal)) {
-            EaseTo(&goal, IDLE_MOVE_FRAMES);
-        }
-
-        sStageCamera.holdFrames = IDLE_HOLD_FRAMES;
-        sStageCamera.idlePose = (sStageCamera.idlePose + 1) % NELEMS(sIdlePoses);
+        sStageCamera.idleTimer += STEP_FRAMES;
         break;
     default:
         if (sStageCamera.introHoming && !IsEasing()) {
@@ -998,6 +978,7 @@ void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fi
         sStageCamera.homeLength = VEC_Mag(&offset);
     }
 
+    sStageCamera.promptBattler = -1;
     memset(&sStageCameraDebug, 0, sizeof(sStageCameraDebug));
     sStageCameraDebug.magic = CAMERA_DEBUG_MAGIC;
 
@@ -1035,8 +1016,10 @@ static void UpdateDebugBlock(const CameraPose *pose, OSTick startTick)
     dbg->shakeAmp = sStageCamera.shakeAmp;
     dbg->shakeT = IsShaking() ? sStageCamera.shakeT : 0;
     dbg->shakeEnd = IsShaking() ? sStageCamera.shakeEnd : 0;
-    dbg->promptBattler = -1;
+    dbg->promptBattler = sStageCamera.promptBattler;
     dbg->idleShot = sStageCamera.sequence == SEQUENCE_IDLE ? sStageCamera.idlePose : -1;
+    dbg->idleTimer = sStageCamera.idleTimer;
+    dbg->flags = sStageCamera.promptSeen ? 1 : 0;
     dbg->yaw = pose->yaw;
     dbg->pitch = pose->pitch;
     dbg->distance = pose->distance;
@@ -1629,9 +1612,12 @@ void BattleStage_CameraScriptStart(void)
         return;
     }
 
-    // The idle drift is expected to be cut short; anything else off home is counted
+    // The menu camera (prompt, select shot) is expected to be cut short;
+    // anything else off home is counted
     if (!PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) || IsEasing() || IsShaking() || sStageCamera.sequence != SEQUENCE_NONE) {
-        if (sStageCamera.sequence != SEQUENCE_IDLE && !sStageCamera.idleHoming) {
+        if (sStageCamera.sequence != SEQUENCE_IDLE && sStageCamera.sequence != SEQUENCE_PROMPT
+            && sStageCamera.sequence != SEQUENCE_SELECT
+            && !sStageCamera.idleHoming) {
             sStageCamera.fields->guardSnaps++;
         }
 
@@ -1887,8 +1873,8 @@ BOOL BattleStage_IsCameraReadyForMenu(void)
         return TRUE;
     }
 
-    // The idle drift runs under the menu (the next battler's menu in a double battle)
-    if (sStageCamera.sequence == SEQUENCE_IDLE) {
+    // The menu camera runs under the menu (the next battler's menu in a double battle re-aims it)
+    if (sStageCamera.sequence == SEQUENCE_IDLE || sStageCamera.sequence == SEQUENCE_PROMPT || sStageCamera.sequence == SEQUENCE_SELECT) {
         sStageCamera.menuWait = 0;
         return TRUE;
     }
@@ -1909,57 +1895,141 @@ BOOL BattleStage_IsCameraReadyForMenu(void)
     return FALSE;
 }
 
-static BOOL IdleGoal(int index, CameraPose *goal)
+// bw2vis:camera-core. The command menu camera (BW2: btlv_input.c:888-890, :947-951, :3376-3379;
+// btlv_effect.c:840-888, :1087-1112, :1322-1366).
+
+static BOOL IsDoubles(void)
 {
-    const IdlePose *idle = &sIdlePoses[index];
-    VecFx32 focus;
-    fx32 toward = idle->towardPct * FX32_ONE / 100;
-
-    *goal = sStageCamera.homePose;
-
-    if (idle->side != IDLE_SIDE_NONE) {
-        if (!SideFocus(idle->side, &focus)) {
-            return FALSE;
-        }
-
-        goal->focus.x += FX_Mul(focus.x - goal->focus.x, toward);
-        goal->focus.y += FX_Mul(focus.y - goal->focus.y, toward);
-        goal->focus.z += FX_Mul(focus.z - goal->focus.z, toward);
-    }
-
-    goal->yaw = idle->yawDeg * FX32_ONE;
-    goal->pitch = idle->pitchDeg * FX32_ONE;
-    goal->distance = idle->distancePct * FX32_ONE / 100;
-    return TRUE;
+    return MaxBattlers() > 2;
 }
 
-void BattleStage_StartIdleCamera(void)
+// BW2's wide doubles shot (preset 14): from the home target, pulled back until the player's mons are at
+// about 0.68x (as far as the arenas cover)
+static void WideGoal(CameraPose *goal)
 {
-    if (sStageCamera.sequence == SEQUENCE_IDLE || !CanRunCamera() || sStageCamera.scriptActive
-        || sStageCamera.sequence != SEQUENCE_NONE || IsEasing() || IsShaking()
-        || !PoseEquals(&sStageCamera.cur, &sStageCamera.homePose)
-        || (sStageCamera.debugFlags != NULL && (*sStageCamera.debugFlags & IDLE_OFF_FLAGS))) {
+    VecFx32 back, rel, foot;
+    fx32 sx, sy, homeDepth, sum = 0;
+    int count = 0;
+    int max = MaxBattlers();
+    int i, homeX, homeY;
+
+    *goal = sStageCamera.homePose;
+    VEC_Subtract(&sStageCamera.home.camPos, &sStageCamera.home.camTarget, &back);
+    VEC_Normalize(&back, &back);
+
+    for (i = 0; i < max; i++) {
+        if ((BattleSystem_BattlerSlot(sStageCamera.battleSys, i) & 1) == 0 && BattlerFoot(i, &homeX, &homeY, &foot)
+            && Project(&foot, sStageCamera.home.view, sStageCamera.home.projection, &sx, &sy, &homeDepth)) {
+            VEC_Subtract(&foot, &sStageCamera.home.camTarget, &rel);
+            sum += FX_Div(FX_Div(homeDepth, WIDE_PLAYER_SCALE) + VEC_DotProduct(&rel, &back), sStageCamera.homeLength);
+            count++;
+        }
+    }
+
+    if (count > 0) {
+        goal->distance = sum / count;
+    }
+
+    if (goal->distance > CAMERA_MAX_DISTANCE) {
+        goal->distance = CAMERA_MAX_DISTANCE;
+    } else if (goal->distance < FX32_ONE) {
+        goal->distance = FX32_ONE;
+    }
+}
+
+// The prompt's shot of the battler choosing: BW2 runs effect 0x23f (doubles: 0x240 / 0x241) on it,
+// whose camera data isn't extracted; this is its slot's preset, the shot BW2's own camera tables have
+// for that mon (0.91x in a single battle, 1.19x / 1.06x for the left / right mon of a double)
+static BOOL PromptGoal(int battler, CameraPose *goal)
+{
+    return PresetGoal(battler, 0, goal);
+}
+
+void BattleStage_StartIdleCamera(int battler)
+{
+    CameraPose goal;
+
+    // The first prompt of the battle has opened
+    sStageCamera.promptSeen = TRUE;
+
+    if (!CanRunCamera() || sStageCamera.scriptActive || MenuCameraOff()) {
+        return;
+    }
+
+    // From home, or from the previous battler's prompt in a double battle (re-aimed); not over a
+    // cinematic or a shake
+    if (sStageCamera.sequence != SEQUENCE_PROMPT && sStageCamera.sequence != SEQUENCE_SELECT && sStageCamera.sequence != SEQUENCE_IDLE
+        && (sStageCamera.sequence != SEQUENCE_NONE || IsShaking() || (!PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) && !sStageCamera.idleHoming))) {
+        return;
+    }
+
+    if (!PromptGoal(battler, &goal)) {
         return;
     }
 
     sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
-    sStageCamera.idlePose = 0;
+    sStageCamera.promptBattler = battler;
+    sStageCamera.idlePose = -1;
     sStageCamera.idleHoming = FALSE;
-    sStageCamera.holdFrames = IDLE_START_FRAMES;
-    sStageCamera.sequence = SEQUENCE_IDLE;
+    sStageCamera.idleTimer = 0;
+    sStageCamera.sequence = SEQUENCE_PROMPT;
+    EaseToCurve(&goal, PROMPT_FRAMES, PROMPT_BRAKE, CURVE_LINEAR);
+}
+
+// Move select in a double battle: BW2 restarts the idle wait and plays effect 0x244 (its camera data isn't
+// extracted); the shot here is BW2's wide doubles preset, which shows every mon to pick from. Target
+// select keeps it. A single battle's move list keeps the prompt shot and its wait, as in BW2.
+static void SelectCamera(int battler, BOOL restartWait)
+{
+    CameraPose goal;
+
+    if (!IsDoubles() || !CanRunCamera() || sStageCamera.scriptActive || MenuCameraOff()) {
+        return;
+    }
+
+    if (sStageCamera.sequence != SEQUENCE_PROMPT && sStageCamera.sequence != SEQUENCE_SELECT && sStageCamera.sequence != SEQUENCE_IDLE) {
+        return;
+    }
+
+    if (restartWait) {
+        sStageCamera.idleTimer = 0;
+    }
+
+    if (sStageCamera.sequence == SEQUENCE_SELECT) {
+        return;
+    }
+
+    WideGoal(&goal);
+    sStageCamera.particleFocus = PARTICLE_FOCUS_CENTER;
+    sStageCamera.promptBattler = battler;
+    sStageCamera.idlePose = -1;
+    sStageCamera.sequence = SEQUENCE_SELECT;
+    EaseToCurve(&goal, PROMPT_FRAMES, PROMPT_BRAKE, CURVE_LINEAR);
+}
+
+void BattleStage_MoveSelectCamera(int battler)
+{
+    SelectCamera(battler, TRUE);
+}
+
+void BattleStage_TargetSelectCamera(int battler)
+{
+    SelectCamera(battler, FALSE);
 }
 
 void BattleStage_EndIdleCamera(void)
 {
-    if (sStageCamera.sequence != SEQUENCE_IDLE) {
+    if (sStageCamera.sequence != SEQUENCE_IDLE && sStageCamera.sequence != SEQUENCE_PROMPT && sStageCamera.sequence != SEQUENCE_SELECT) {
         return;
     }
 
+    // BW2's StopIdleEffect plays the return effect 0x236 (not extracted): an ease home at the prompt's speed
     sStageCamera.sequence = SEQUENCE_NONE;
     sStageCamera.holdFrames = 0;
+    sStageCamera.idlePose = -1;
 
     if (!PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) || IsEasing()) {
-        EaseTo(&sStageCamera.homePose, IDLE_END_FRAMES);
+        EaseToCurve(&sStageCamera.homePose, MENU_HOME_FRAMES, MENU_HOME_BRAKE, CURVE_LINEAR);
         sStageCamera.idleHoming = TRUE;
     }
 }
