@@ -229,11 +229,11 @@ camera, in order:
 | sweep: bit 0 | `cinematicsSeen` at the first command menu | set |
 | sweep: pushes in | the intro, camera read every frame: some frame with `AT_HOME` clear and the enemy's `anchorScale` above 256 | at least one frame; the note gives the off-home stretch (58 frames by the contract) |
 | sweep: home at the menu | `camFlags` read when the command menu is first detected | `AT_HOME` |
-| no kicks | `NO_CINEMATICS`, then a False Swipe turn (ours and the enemy's) | `offHomeFrames` unchanged over the turn; no crit or faint bit |
+| no kicks | `NO_CINEMATICS`, then a False Swipe turn (ours and the enemy's), camera read every frame | `AT_HOME` on every frame outside a move's camera script (`CAMERA_SCRIPT` clear; the enemy's move may have a per-move camera, moves.md "Templates"); no crit or faint bit. The detail gives `offHomeFrames` and how many of them were in a camera script |
 | tester Pound at home | camera read every frame of the tester's Pound | `AT_HOME` on every frame; `offHomeMoveFrames` 0 |
 | crit kick: bit 3 | `CRIT_KICK_ON_HIT` (no `FREEZE_IDLE`, so `wobbleMask` marks the hit blink), a False Swipe turn read every frame | bit 3 set during the turn |
 | crit kick: leaves home | the first off-home stretch that ends at or after the frame bit 3 appeared | at least 3 frames |
-| crit kick: back in time | the blink is the earlier of the bit 3 frame and a `wobbleMask` frame up to 8 frames before it; the first frame home again after the stretch | within 30 frames of the blink (the kick is at most 24); later stretches (the enemy's hit) no longer than 30 (WARN) |
+| crit kick: back in time | the blink is the earlier of the bit 3 frame and a `wobbleMask` frame up to 8 frames before it; the first frame home again after the stretch | within 30 frames of the blink (the kick is at most 24); later stretches (the enemy's hit) no longer than 30 (WARN), except one that starts inside a move's camera script |
 | battle 1 offHomeMoveFrames | the largest value over the crit turn | 0 |
 | faint: bit 4 | L+R+START (the debug Garchomp to the lead), a second Plain battle, flags 0; Earthquake (slot 0), read every frame, until the Bidoof faints (at most 4 turns) | set; FAIL if the battle ended (the Bidoof fainted) without it; WARN, with the reason, if no faint happened |
 | faint: home in time | the first frame home again after the off-home stretch that follows bit 4 | within 40 frames of bit 4 (the kick is at most 28); WARN if the camera never left home |

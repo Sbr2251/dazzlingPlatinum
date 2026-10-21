@@ -167,8 +167,8 @@ The existing scenarios must still pass: `stage_ab`, `move_audit`, `move_tester`,
 
 ## Per-move camera
 
-254 of the 474 move animations move the stage camera with the move, in the Black/White pattern:
-eight hand-authored scripts (below) and 246 that use the camera templates ("Templates"). Every
+252 of the 474 move animations move the stage camera with the move, in the Black/White pattern:
+eight hand-authored scripts (below) and 244 that use the camera templates ("Templates"). Every
 other move still plays at the home pose.
 
 **The pattern:**
@@ -243,7 +243,7 @@ when the script ends, like every other move's.
 
 ### Templates
 
-246 moves use one of six camera templates built from Black 2/White 2's camera presets. They are
+244 moves use one of six camera templates built from Black 2/White 2's camera presets. They are
 macros in `asm/macros/btlanimcam.inc`, and `tools/battle_stage/camera_templates.py` writes them into
 the scripts. Its table is the list of templated moves: `--check` says whether the scripts match it,
 `--list` prints it by template and `--strip` takes every template out.
@@ -273,9 +273,9 @@ five of the hand-authored moves. So the templates stop at 92%. Yaw stays within 
 
 | template | open | at each hit (the defender's `Func_Shake`) | moves |
 |---|---|---|---|
-| contact | the attacker's close shot (yaw 6) over 8 frames, hold 8, then the defender's close shot (yaw -6) over 6. The whole animation then plays on the defender | `CamTplImpact`: a 2 px shake for 6 frames (3 px for 8 when the mon's own shake is 3 px or more) | 49 |
-| push | the two-shot (yaw -4) over 10 frames while it flies | `CamTplPushImpact`, the defender's close shot over 6 frames, then `CamTplImpact` | 76 |
-| twoshot | the two-shot for the whole move | `CamTplImpact` | 60 |
+| contact | the attacker's close shot (yaw 6) over 8 frames, hold 8, then the defender's close shot (yaw -6) over 6. The whole animation then plays on the defender | `CamTplImpact`: a 2 px shake for 6 frames (3 px for 8 when the mon's own shake is 3 px or more) | 44 |
+| push | the two-shot (yaw -4) over 10 frames while it flies | `CamTplPushImpact`, the defender's close shot over 6 frames, then `CamTplImpact` | 70 |
+| twoshot | the two-shot for the whole move | `CamTplImpact` | 69 |
 | self | the attacker's close shot (yaw -8, pitch 2) over 10 frames, then a 14-degree orbit over 40 | - | 34 |
 | wide | the pull-back, pitch 3, over 12 frames | `CamTplImpact`, a spread hit included | 27 |
 | shake | none: the camera stays home | `CamTplImpact` | 0 |
@@ -284,7 +284,7 @@ The contact template adds 8 frames before the move's own animation. Every templa
 end (the ease home and the wait).
 
 **How each move got its template.** The candidates were the 277 moves `move_audit.json` rates risk: low
-(particles and sprite moves only), less the eight hand-authored ones and the 23 rejected below. None of
+(particles and sprite moves only), less the eight hand-authored ones and the 25 rejected below. None of
 them uses `SwitchBg`, `FadeBg` or any other background change; those belong to the effect-bg workstream.
 
 1. A first pick by the move data. `RANGE_USER`, `RANGE_USER_SIDE` and `RANGE_USER_OR_ALLY` get "self";
@@ -298,8 +298,11 @@ them uses `SwitchBg`, `FadeBg` or any other background change; those belong to t
    margin under the check's PASS limits (5%, 16 px) keeps a move whose sparks are random from failing on
    another run. Secret Power went the other way, push to contact: its one emitter is on the defender, and
    the two-shot drifted it.
+4. After merging bw2vis, a full critic run and a second profile on the merged ROM put ten more over the
+   margin (random sparks on another day): Covet, Beat Up, Scratch, Karate Chop, Pay Day, Bone Club, Lovely
+   Kiss, Rock Smash, Seed Bomb and Mud Bomb went to twoshot.
 
-86 moves ended on another template than their first pick, none on shake. Every templated move ends at
+87 moves ended on another template than their first pick, none on shake. Every templated move ends at
 home, keeps its particles on screen and passes the move_redo, move_tester and move_audit checks at day and
 at night (Checking).
 
@@ -312,28 +315,27 @@ Once particles are projected in 3D, the moves that stepped down to twoshot can g
 **The moves by template** (`camera_templates.py --list`; move_audit.json notes each one as "per-move camera
 (template ...)"):
 
-- **contact (49):** Karate Chop, Comet Punch, Scratch, Cut, Wing Attack, Bind, Vine Whip, Horn Attack,
-  Fury Attack, Body Slam, Wrap, Thrash, Pin Missile, Ember, Peck, Drill Peck, Submission, Low Kick,
-  Strength, Lick, Smog, Clamp, Hi Jump Kick, Dizzy Punch, Fury Swipes, Struggle, Triple Kick, False Swipe,
-  Attract, Return, Vital Throw, Rock Smash, Beat Up, Brick Break, Secret Power, Arm Thrust, Poison Fang,
-  Astonish, Poison Tail, Feint, Pluck, Wring Out, Sucker Punch, Force Palm, Poison Jab, Bullet Punch, Iron
-  Head, Grass Knot, Play Rough.
-- **push (76):** Pay Day, Sand Attack, Poison Sting, Twineedle, Roar, Psybeam, Poison Powder, Stun Spore,
-  Sleep Powder, Fire Spin, Rock Throw, Dig, Hypnosis, Screech, Sludge, Bone Club, Poison Gas, Leech Life,
-  Lovely Kiss, Spore, Psywave, Spider Web, Flail, Cotton Spore, Mach Punch, Sweet Kiss, Sludge Bomb, Giga
-  Drain, Charm, Rollout, Steel Wing, Sleep Talk, Mirror Coat, Ancient Power, Uproar, Spit Up, Flatter,
-  Will-O-Wisp, Facade, Magic Coat, Yawn, Skill Swap, Snatch, Dive, Feather Dance, Ice Ball, Fake Tears,
-  Tickle, Sand Tomb, Block, Bounce, Covet, Magical Leaf, Rock Blast, Gyro Ball, Brine, Natural Gift,
-  Payback, Fling, Psycho Shift, Gastro Acid, Me First, Copycat, Power Swap, Guard Swap, Worry Seed, Heart
-  Swap, Seed Bomb, Vacuum Wave, Mud Bomb, Psycho Cut, Rock Climb, Magnet Bomb, Chatter, Attack Order, Crush
-  Grip.
-- **twoshot (60):** Pound, Double Slap, Vice Grip, Whirlwind, Slam, Stomp, Double Kick, Jump Kick,
-  Headbutt, Horn Drill, Take Down, Bite, Sonic Boom, Water Gun, Bubble Beam, Counter, Leech Seed, Petal
-  Dance, Dragon Rage, Rage, Smokescreen, Egg Bomb, Spike Cannon, Hyper Fang, Super Fang, Slash, Thief,
-  Flame Wheel, Mud-Slap, Octazooka, Bone Rush, Frustration, Pain Split, Dragon Breath, Rapid Spin, Cross
-  Chop, Crunch, Knock Off, Endeavor, Blaze Kick, Needle Arm, Signal Beam, Bullet Seed, Mud Shot, Wake-Up
-  Slap, U-turn, Assurance, Embargo, Trump Card, Punishment, Last Resort, Night Slash, Bug Buzz, Shadow
-  Claw, Mirror Shot, Cross Poison, Bug Bite, Aqua Jet, Double Hit, Ominous Wind.
+- **contact (44):** Comet Punch, Cut, Wing Attack, Bind, Vine Whip, Horn Attack, Fury Attack, Body Slam,
+  Wrap, Thrash, Pin Missile, Ember, Peck, Drill Peck, Submission, Low Kick, Strength, Lick, Smog, Clamp,
+  Hi Jump Kick, Dizzy Punch, Fury Swipes, Struggle, Triple Kick, Attract, Return, Vital Throw, Brick
+  Break, Secret Power, Arm Thrust, Poison Fang, Astonish, Poison Tail, Feint, Pluck, Wring Out, Sucker
+  Punch, Force Palm, Poison Jab, Bullet Punch, Iron Head, Grass Knot, Play Rough.
+- **push (70):** Sand-Attack, Poison Sting, Twineedle, Roar, Psybeam, PoisonPowder, Stun Spore, Sleep
+  Powder, Fire Spin, Rock Throw, Dig, Hypnosis, Screech, Sludge, Poison Gas, Leech Life, Spore, Psywave,
+  Spider Web, Flail, Cotton Spore, Mach Punch, Sweet Kiss, Sludge Bomb, Giga Drain, Charm, Rollout, Steel
+  Wing, Sleep Talk, Mirror Coat, AncientPower, Uproar, Spit Up, Flatter, Will-O-Wisp, Facade, Magic Coat,
+  Yawn, Skill Swap, Snatch, Dive, FeatherDance, Ice Ball, Fake Tears, Tickle, Sand Tomb, Block, Bounce,
+  Magical Leaf, Rock Blast, Gyro Ball, Brine, Natural Gift, Payback, Fling, Psycho Shift, Gastro Acid, Me
+  First, Copycat, Power Swap, Guard Swap, Worry Seed, Heart Swap, Vacuum Wave, Psycho Cut, Rock Climb,
+  Magnet Bomb, Chatter, Attack Order, Crush Grip.
+- **twoshot (69):** Karate Chop, DoubleSlap, Pay Day, Scratch, ViceGrip, Whirlwind, Slam, Stomp, Double
+  Kick, Jump Kick, Headbutt, Horn Drill, Take Down, Bite, SonicBoom, Water Gun, BubbleBeam, Counter, Leech
+  Seed, Petal Dance, Dragon Rage, Rage, SmokeScreen, Egg Bomb, Bone Club, Spike Cannon, Lovely Kiss, Hyper
+  Fang, Super Fang, Slash, Thief, Flame Wheel, Mud-Slap, Octazooka, Bone Rush, Frustration, Pain Split,
+  DragonBreath, Rapid Spin, Cross Chop, Crunch, Rock Smash, Beat Up, Knock Off, Endeavor, Blaze Kick,
+  Needle Arm, Signal Beam, Bullet Seed, Mud Shot, Covet, Wake-Up Slap, U-turn, Assurance, Embargo, Trump
+  Card, Punishment, Last Resort, Night Slash, Seed Bomb, Bug Buzz, Shadow Claw, Mud Bomb, Mirror Shot,
+  Cross Poison, Bug Bite, Aqua Jet, Double Hit, Ominous Wind.
 - **self (34):** Growth, Recover, Withdraw, Defense Curl, Barrier, Light Screen, Reflect, Focus Energy,
   Bide, Softboiled, Splash, Rest, Sharpen, Conversion, Protect, Belly Drum, Endure, Milk Drink, Safeguard,
   Synthesis, Stockpile, Recycle, Slack Off, Bulk Up, Dragon Dance, Roost, Acupressure, Power Trick, Lucky
@@ -354,6 +356,10 @@ Once particles are projected in 3D, the moves that stepped down to twoshot can g
   Tomb).
 - Substitute: its doll is drawn in screen space (`BtlAnimCmd_068`), and sprite_life checks it.
 - No animation of its own: Mirror Move and Nature Power.
+- The critic's reference moves at home: Pound (the camera scenario's "tester Pound at home", stage_toggle,
+  move_tester's second turn) and False Swipe (the real turns of camera and move_tester, which never KO).
+  With a template the camera scenario's checks that nothing but a kick leaves home would have nothing to
+  hold on to.
 
 The other 197 moves (risk medium or high in move_audit: background switches and fades, OAM and BG2 copies,
 windows, per-line waves) were not candidates. The eight hand-authored moves are unchanged.
