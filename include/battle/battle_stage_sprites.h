@@ -20,6 +20,7 @@ enum BattleStageDebugFlag {
     BATTLE_STAGE_DEBUG_CRIT_KICK_ON_HIT = 1 << 4, // every hit blink plays the crit kick
     BATTLE_STAGE_DEBUG_NO_IDLE_CAMERA = 1 << 5, // no idle drift at the command menu (camera.md)
     BATTLE_STAGE_DEBUG_NO_SPRITE_STREAM = 1 << 6, // the classic frames, not the Gen 5 streams (sprite_stream.md)
+    BATTLE_STAGE_DEBUG_PLATINUM_LAYOUT = 1 << 12, // bw2vis:layout - classic places and 1.75x backs (layout.md)
 };
 
 // The fields of BattleStage at +32, in order
@@ -54,6 +55,9 @@ int BattleStageSprites_BlobRow(int side);
 // Where the home camera sees screen column px of a side's blob row on the ground; FALSE
 // when there is no ground mapping (no arena, or the row is above the horizon)
 BOOL BattleStageSprites_GroundPoint(int side, int px, VecFx32 *point);
+// bw2vis:layout - the ground's world shift under a side's blob row for a move of dx, dy screen
+// pixels (linear about the row); FALSE when there is no ground mapping
+BOOL BattleStageSprites_GroundShift(int side, int dx, int dy, VecFx32 *shift);
 // Home screen row just below a battler's cut sprite (the bottom of its 80 px frame, as the
 // draw rect places it); FALSE when the sprite is not cut, is drawn with excludeIdentity or
 // has its bottom row off

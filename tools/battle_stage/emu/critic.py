@@ -1507,9 +1507,12 @@ NO_CINEMATICS = 8                        # chunk 4: no crit or faint kicks (the 
 CRIT_KICK_ON_HIT = 16                    # chunk 4: every hit blink plays the crit kick
 NO_IDLE_CAMERA = 32                      # no idle drift at the command menu; set_flags adds it unless idle=True
 NO_SPRITE_STREAM = 64                    # the classic frames, not the Gen 5 streams (sprite_stream.md)
+# bw2vis:layout - the battlers at their classic places with 1.75x backs (layout.md); set_flags adds it unless layout=True,
+# so the home-vs-classic comparisons still line the stage up with the classic screen. A ROM without it ignores the bit.
+PLATINUM_LAYOUT = 1 << 12
 FLAG_NAMES = ((FREEZE_IDLE, "FREEZE_IDLE"), (NO_BLOB_SHADOWS, "NO_BLOB_SHADOWS"), (CLASSIC_SPRITES, "CLASSIC_SPRITES"),
               (NO_CINEMATICS, "NO_CINEMATICS"), (CRIT_KICK_ON_HIT, "CRIT_KICK_ON_HIT"), (NO_IDLE_CAMERA, "NO_IDLE_CAMERA"),
-              (NO_SPRITE_STREAM, "NO_SPRITE_STREAM"))
+              (NO_SPRITE_STREAM, "NO_SPRITE_STREAM"), (PLATINUM_LAYOUT, "PLATINUM_LAYOUT"))
 XMAP_PATH: Optional[str] = None          # set per scenario process (run_in_process), for helpers without args
 
 
@@ -1707,17 +1710,20 @@ class StageRam:
             self.e.run(1)
         return None
 
-    def set_flags(self, flags: int, settle: int = 10, idle: bool = False) -> bool:
+    def set_flags(self, flags: int, settle: int = 10, idle: bool = False, layout: bool = False) -> bool:
         """Writes debugFlags (sBattleStage+32) and runs `settle` frames so the screen shows them: the RAM
         counters follow in about 2 frames, the picture only after about 5 (the 3D pipeline plus the
         emulator's frame delay), so a shorter settle leaves a stale frame in the next recording.
         Call in a battle, at the command menu. False (nothing written) on a ROM without the field or
         when sBattleStage does not validate, so a wrong xMAP never corrupts RAM. NO_IDLE_CAMERA is added
-        (the drift snaps home) unless idle is True, so frames compared at the menu hold still."""
+        (the drift snaps home) unless idle is True, so frames compared at the menu hold still. PLATINUM_LAYOUT is
+        added (classic places, 1.75x backs) unless layout is True, so frames compared with classic line up."""
         if not self.has_sprites or not self.validate(self.read()):
             return False
         if not idle:
             flags |= NO_IDLE_CAMERA
+        if not layout:
+            flags |= PLATINUM_LAYOUT
         self.e.write(self.stage[0] + DEBUG_FLAGS_OFFSET, struct.pack("<I", flags))
         self.e.run(settle)
         return True

@@ -5,7 +5,7 @@ for the whole battle, where it covers the bottom 48 rows of the top screen throu
 animation. The battle now does what BW2 does, on the 3D stage.
 
 Code: `src/battle/battle_textbox.c` (the fade), `src/battle/battle_stage_layout.c` (the
-move-animation command's wait). Header: `include/battle/battle_textbox.h`.
+move-animation command's wait, see layout.md). Header: `include/battle/battle_textbox.h`.
 
 ## What BW2 does (pokebw2)
 
@@ -36,7 +36,8 @@ move-animation command's wait). Header: `include/battle/battle_textbox.h`.
   `ov16_0223F9FC`). A hidden box fades in over 6 vblanks, starting on the frame the text starts
   printing; the first letter or two print during the fade.
 - **Hide:** the move-animation battle command (`ov16_0225D9A8`, task `ov16_022626C0`) asks for a
-  hide and waits before its first script until the box is gone. This covers every move animation, multi-hit hits, and the status,
+  hide and waits before its first script until the box is gone and the battlers are at their
+  classic places (layout.md). This covers every move animation, multi-hit hits, and the status,
   weather, stat, item and ability animations, which all come through that command. The box then
   stays hidden until the next message: across all the hits of a multi-hit move, the HP drain, a
   faint, and the turn-end weather animation.
@@ -54,7 +55,8 @@ move-animation command's wait). Header: `include/battle/battle_textbox.h`.
     black, so the box never hides there and the classic path is unchanged.
   - A player-side back sprite that the stage draws from Platinum art with its art running into
     the frame's bottom row (the form species such as Giratina, Spinda, the classic Substitute
-    doll). The box keeps hiding the cut, as in Platinum. The Gen 5 streams stand on their feet.
+    doll). The box keeps hiding the cut, as in Platinum. The Gen 5 streams stand on their feet,
+    and flat-cut stream backs (the Mega stills) sink their cut off the screen instead (layout.md).
 - **The fade:** BG1 is the first target, and BW2's second targets are kept. Each update steps the
   level by the vblanks since the last one (6 for a whole fade), since the battle logic runs at
   30 Hz. At the end of a hide, BG1 is switched off (`GXLayers_EngineAToggleLayers`) before the

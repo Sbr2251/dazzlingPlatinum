@@ -9,6 +9,7 @@
 
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_layout.h"
 #include "battle/battle_stage_sprites.h"
 #include "battle/battle_textbox.h"
 #include "battle/healthbar.h"
@@ -460,6 +461,26 @@ static BOOL BattlerFoot(int battler, int *homeX, int *homeY, VecFx32 *foot)
     side = type & 1;
     *homeX = sHomeX[type] + TotemBattle_HomeOffsetX(type);
     *homeY = BattleStageSprites_BlobRow(side);
+
+    // bw2vis:layout - the foot at the battler's BW2 place (battle_stage_layout.c)
+    {
+        int dx, dy;
+        VecFx32 shift;
+
+        if (BattleStageLayout_Offset(battler, &dx, &dy)) {
+            *homeX += dx;
+            *homeY += dy;
+
+            if (!BattleStageSprites_GroundPoint(side, *homeX, foot) || !BattleStageSprites_GroundShift(side, 0, dy, &shift)) {
+                return FALSE;
+            }
+
+            foot->x += shift.x;
+            foot->z += shift.z;
+            return TRUE;
+        }
+    }
+
     return BattleStageSprites_GroundPoint(side, *homeX, foot);
 }
 
@@ -1440,12 +1461,17 @@ BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy)
     fx32 sumX = 0, sumY = 0;
     int count = 0;
     int max, i;
+    int layoutX, layoutY;
 
-    *dx = 0;
-    *dy = 0;
+    // bw2vis:layout - the side's platform stands at its battlers' BW2 places; the anchors
+    // below already include them
+    BOOL moved = BattleStageLayout_SideOffset(side, &layoutX, &layoutY);
+
+    *dx = layoutX;
+    *dy = layoutY;
 
     if (!sStageCamera.hasHome || sStageCamera.atHome || sStageCamera.battleSys == NULL) {
-        return FALSE;
+        return moved;
     }
 
     max = MaxBattlers();
@@ -1461,11 +1487,11 @@ BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy)
     }
 
     if (count == 0) {
-        return FALSE;
+        return moved;
     }
 
-    *dx = (sumX / count + FX32_HALF) >> FX32_SHIFT;
-    *dy = (sumY / count + FX32_HALF) >> FX32_SHIFT;
+    *dx = layoutX + ((sumX / count + FX32_HALF) >> FX32_SHIFT);
+    *dy = layoutY + ((sumY / count + FX32_HALF) >> FX32_SHIFT);
     return TRUE;
 }
 

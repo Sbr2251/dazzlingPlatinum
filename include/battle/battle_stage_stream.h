@@ -89,5 +89,8 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
 const u8 *BattleStageStream_GetFrame(int index);
 // The scale the battler's stream is drawn at (MonStream_Scale, in eighths), 1:1 when it has none
 int BattleStageStream_GetScale(int index);
+// bw2vis:layout - how far below its frame's bottom edge the battler's stream stands (a tall or
+// cut back's sink), in screen pixels for a frame frameHeight tall; 0 when it has no stream
+int BattleStageStream_SinkPixels(int index, int frameHeight);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_STREAM_H

@@ -38,7 +38,10 @@ bottom row, row 79.
 
 - **At home:** the cut edge is the bottom edge of the sprite quad, `cutHomeY`. It is the same
   y the classic draw gives the bottom of the 80-px frame, including the sprite's y offset.
-  Take it from the same transforms `DrawHook` in `battle_stage_sprites.c` uses.
+  Take it from the same transforms `DrawHook` in `battle_stage_sprites.c` uses. Two additions
+  (layout.md): the battler's layout offset in y, and for a streamed battler its sink
+  (`BattleStageStream_SinkPixels`), where its art really ends. Without the sink, a tall back
+  sunk 40 to 64 px was panned for an edge it didn't have.
 - **Off home:** the battler's similarity maps it to
   `edgeY = nowY + scale * (cutHomeY - homeY)`, with `anchors[i]`.
 

@@ -12,6 +12,7 @@
 
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_camera.h"
+#include "battle/battle_stage_layout.h"
 #include "battle/battle_display.h"
 #include "battle/battle_stage_stream.h"
 #include "battle/ov16_0223DF00.h"
@@ -375,6 +376,7 @@ void BattleStage_SetMoveAnimActive(BOOL active)
 {
     sStageSprites.moveAnimActive = active;
     BattleStageCamera_SetScriptActive(active);
+    BattleStageLayout_SetScriptActive(active); // bw2vis:layout
 }
 
 void BattleStage_NotifyHit(int battler)
@@ -1108,7 +1110,7 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
     follow = sStageSprites.visible
         && BattleStage_IsVisible()
         && monSpriteMan->excludeIdentity != TRUE
-        && BattleStageCamera_GetSimilarity(index, &similarity);
+        && BattleStageLayout_Similarity(index, &similarity); // bw2vis:layout - the camera's, over the BW2 place
 
     // Called again for the classic shadow (MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX), after its G3_Identity
     if (rect == NULL) {
@@ -1401,6 +1403,30 @@ BOOL BattleStageSprites_GroundPoint(int side, int px, VecFx32 *point)
     return TRUE;
 }
 
+// bw2vis:layout
+BOOL BattleStageSprites_GroundShift(int side, int dx, int dy, VecFx32 *shift)
+{
+    side &= 1;
+
+    if (!sStageSprites.hooked || sStageSprites.groundHalfWidth[0] <= 0 || sStageSprites.groundHalfWidth[1] <= 0) {
+        return FALSE;
+    }
+
+    shift->x = sStageSprites.groundRight[side].x * dx / 128 + sStageSprites.groundDown[side].x * dy;
+    shift->y = sStageSprites.groundRight[side].y * dx / 128;
+    shift->z = sStageSprites.groundRight[side].z * dx / 128 + sStageSprites.groundDown[side].z * dy;
+    return TRUE;
+}
+
+// bw2vis:layout - the cut edge moves with the battler's layout place
+static int CutLayoutDy(int battler)
+{
+    int dx, dy;
+
+    BattleStageLayout_Offset(battler, &dx, &dy);
+    return dy;
+}
+
 BOOL BattleStageSprites_CutHomeY(int battler, int *y)
 {
     PokemonSpriteManager *monSpriteMan;
@@ -1428,6 +1454,7 @@ BOOL BattleStageSprites_CutHomeY(int battler, int *y)
         }
 
         *y = transforms->yCenter - MON_SPRITE_FRAME_HEIGHT / 2 + transforms->drawYOffset + transforms->yOffset - sprite->shadow.height + transforms->drawHeight;
+        *y += CutLayoutDy(battler); // bw2vis:layout
         return TRUE;
     }
 
@@ -1438,6 +1465,13 @@ BOOL BattleStageSprites_CutHomeY(int battler, int *y)
     }
 
     *y = transforms->yCenter - height / 2 + transforms->yOffset - sprite->shadow.height + height;
+    *y += CutLayoutDy(battler); // bw2vis:layout
+
+    // bw2vis:layout - a streamed back's art stands below the frame's edge by its sink
+    if (BattleStage_IsSpriteStreamed(battler)) {
+        *y += BattleStageStream_SinkPixels(battler, height);
+    }
+
     return TRUE;
 }
 
@@ -1554,6 +1588,17 @@ static void GroundQuadAxes(int battler, int widthPx, int scale, VecFx32 *centre,
     centre->x = sStageSprites.groundCentre[side].x + sStageSprites.groundRight[side].x * px / 128;
     centre->y = sStageSprites.groundCentre[side].y + sStageSprites.groundRight[side].y * px / 128;
     centre->z = sStageSprites.groundCentre[side].z + sStageSprites.groundRight[side].z * px / 128;
+
+    // bw2vis:layout - under the battler's BW2 place
+    {
+        int dx, dy;
+        VecFx32 shift;
+
+        if (BattleStageLayout_Offset(battler, &dx, &dy) && BattleStageSprites_GroundShift(side, dx, dy, &shift)) {
+            centre->x += shift.x;
+            centre->z += shift.z;
+        }
+    }
     a->x = FX_Mul(sStageSprites.right.x, *radius);
     a->y = FX_Mul(sStageSprites.right.y, *radius);
     a->z = FX_Mul(sStageSprites.right.z, *radius);
