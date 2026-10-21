@@ -232,6 +232,11 @@ Distances in the table read player side / enemy side.
 
 All eight end with `StageCameraHome 12` and `StageCameraWait`.
 
+Since camera-core, a battler focus without `STAGE_CAMERA_FREE` is BW2's preset shot of the slot
+(camera.md, "Framing": your mon at 0.91x, the foe at 1.50x, no turn), so the distances and yaws of the
+battler shots in this table are ignored; Shadow Ball now frames `BETWEEN` at 88% and 96% (camera-core,
+the camera auditor's B1). The templates below keep their own framing with `STAGE_CAMERA_FREE`.
+
 **Healthbars.** While the stage is visible, every move animation hides the healthbars for the
 whole script, as Black/White 2 does (`btlv_effvm.c:584-586`), except Transform, Mirror Move and
 Nature Power, which BW2 also exempts (`Healthbar_MoveAnimHidesHealthbars`, healthbar.c). The
@@ -263,25 +268,37 @@ framings in our relative poses (camera auditor, C6):
 | wide (`CAMTPL_WIDE`, focus `CENTER`) | 112%: the player's mon at 0.85x, the enemy's at 0.91x | |
 
 The scales are the battlers' `anchorScale`, read in the move tester on the Plain stage. From a mon on the
-player's side, 100% frames it at 0.71x and 48% at 1.46x. On the enemy's side, BW2's 1.50x is 85% (Tackle's
-1.46x), but at that size the sparks around a hit fly out of the frame: the particle check below WARNs for
-five of the hand-authored moves. So the templates stop at 92%. Yaw stays within 8 degrees and pitch within 3.
+player's side, 100% frames it at 0.71x and 48% at 1.46x. On the enemy's side, BW2's 1.50x is 85% (the old
+1.46x of the hand-authored moves), but at that size the sparks around a hit fly out of the frame: the
+particle check below WARNs for five of them at 85%. So the templates stop at 92%. Every battler shot carries
+`STAGE_CAMERA_FREE`, which keeps these distances instead of camera-core's preset shot (camera.md,
+"Framing"); on the player's side the size is the preset's anyway. Yaw stays within 8 degrees and pitch
+within 3.
+
+The motion is BW2's, camera-core's default: constant speed on a straight line, with BW2's brake on every
+move (`8 | STAGE_CAMERA_BRAKE(6)` for the wind-up, `6 | BRAKE(4)` for the cut, `10 | BRAKE(7)` for the
+two-shot and the self shot, `12 | BRAKE(8)` for the pull-back and the ease home), as the Mega Evolution and
+Totem scripts do. The self template's orbit is `STAGE_CAMERA_SMOOTH`, an arc around the mon rather than
+BW2's chord, which would dip toward it. The punch on the hit is BW2's shake, camera-core's default: a
+vertical triangle at full strength that ends at rest, rounded up to whole 8-frame swings.
 
 **The templates.** Each opens at the top of the script and ends with `CamTplClose` before every `End`:
 `StageCameraHome 12`, the healthbars it hid back 6 frames in, then `StageCameraWait`. Every template but
-"wide" hides the healthbars that are showing (`StageHealthbars FALSE`) for its close shots.
+"wide" also sends `StageHealthbars FALSE` for its close shots; since hud-gauges hides the bars for every
+move on the stage (Healthbars, above), it finds none showing and does nothing, and it still covers a
+move that rule exempts.
 
 | template | open | at each hit (the defender's `Func_Shake`) | moves |
 |---|---|---|---|
-| contact | the attacker's close shot (yaw 6) over 8 frames, hold 8, then the defender's close shot (yaw -6) over 6. The whole animation then plays on the defender | `CamTplImpact`: a 2 px shake for 6 frames (3 px for 8 when the mon's own shake is 3 px or more) | 44 |
-| push | the two-shot (yaw -4) over 10 frames while it flies | `CamTplPushImpact`, the defender's close shot over 6 frames, then `CamTplImpact` | 70 |
-| twoshot | the two-shot for the whole move | `CamTplImpact` | 69 |
-| self | the attacker's close shot (yaw -8, pitch 2) over 10 frames, then a 14-degree orbit over 40 | - | 34 |
-| wide | the pull-back, pitch 3, over 12 frames | `CamTplImpact`, a spread hit included | 27 |
+| contact | the attacker's close shot (yaw 6), hold 8 frames, then the defender's close shot (yaw -6). The whole animation then plays on the defender | `CamTplImpact`: a 2 px shake of one swing (3 px and 8 frames when the mon's own shake is 3 px or more) | 43 |
+| push | the two-shot (yaw -4) while it flies | `CamTplPushImpact`, the defender's close shot, then `CamTplImpact` | 70 |
+| twoshot | the two-shot for the whole move | `CamTplImpact` | 70 |
+| self | the attacker's close shot (yaw -8, pitch 2), then a 14-degree orbit over 40 frames | - | 34 |
+| wide | the pull-back, pitch 3 | `CamTplImpact`, a spread hit included | 27 |
 | shake | none: the camera stays home | `CamTplImpact` | 0 |
 
-The contact template adds 8 frames before the move's own animation. Every template adds about 12 at its
-end (the ease home and the wait).
+The contact template adds 8 frames before the move's own animation. Every template adds about 17 at its
+end (the braked ease home and the wait).
 
 **How each move got its template.** The candidates were the 277 moves `move_audit.json` rates risk: low
 (particles and sprite moves only), less the eight hand-authored ones and the 25 rejected below. None of
@@ -301,8 +318,12 @@ them uses `SwitchBg`, `FadeBg` or any other background change; those belong to t
 4. After merging bw2vis, a full critic run and a second profile on the merged ROM put ten more over the
    margin (random sparks on another day): Covet, Beat Up, Scratch, Karate Chop, Pay Day, Bone Club, Lovely
    Kiss, Rock Smash, Seed Bomb and Mud Bomb went to twoshot.
+5. After merging camera-core (BW2's motion, brake and triangle shake; the preset framing, which the
+   templates opt out of with `STAGE_CAMERA_FREE`), every templated move was profiled again, both
+   directions, with Finneon and with the debug Garchomp (whose back sprite is cut) in the lead. Only Iron
+   Head drifted (25 px, Garchomp, enemy->player); it went to twoshot.
 
-93 moves ended on another template than their first pick, none on shake. Every templated move ends at
+94 moves ended on another template than their first pick, none on shake. Every templated move ends at
 home, keeps its particles on screen and passes the move_redo, move_tester and move_audit checks at day and
 at night (Checking).
 
@@ -315,11 +336,11 @@ Once particles are projected in 3D, the moves that stepped down to twoshot can g
 **The moves by template** (`camera_templates.py --list`; move_audit.json notes each one as "per-move camera
 (template ...)"):
 
-- **contact (44):** Comet Punch, Cut, Wing Attack, Bind, Vine Whip, Horn Attack, Fury Attack, Body Slam,
+- **contact (43):** Comet Punch, Cut, Wing Attack, Bind, Vine Whip, Horn Attack, Fury Attack, Body Slam,
   Wrap, Thrash, Pin Missile, Ember, Peck, Drill Peck, Submission, Low Kick, Strength, Lick, Smog, Clamp,
   Hi Jump Kick, Dizzy Punch, Fury Swipes, Struggle, Triple Kick, Attract, Return, Vital Throw, Brick
   Break, Secret Power, Arm Thrust, Poison Fang, Astonish, Poison Tail, Feint, Pluck, Wring Out, Sucker
-  Punch, Force Palm, Poison Jab, Bullet Punch, Iron Head, Grass Knot, Play Rough.
+  Punch, Force Palm, Poison Jab, Bullet Punch, Grass Knot, Play Rough.
 - **push (70):** Sand-Attack, Poison Sting, Twineedle, Roar, Psybeam, PoisonPowder, Stun Spore, Sleep
   Powder, Fire Spin, Rock Throw, Dig, Hypnosis, Screech, Sludge, Poison Gas, Leech Life, Spore, Psywave,
   Spider Web, Flail, Cotton Spore, Mach Punch, Sweet Kiss, Sludge Bomb, Giga Drain, Charm, Rollout, Steel
@@ -328,14 +349,14 @@ Once particles are projected in 3D, the moves that stepped down to twoshot can g
   Magical Leaf, Rock Blast, Gyro Ball, Brine, Natural Gift, Payback, Fling, Psycho Shift, Gastro Acid, Me
   First, Copycat, Power Swap, Guard Swap, Worry Seed, Heart Swap, Vacuum Wave, Psycho Cut, Rock Climb,
   Magnet Bomb, Chatter, Attack Order, Crush Grip.
-- **twoshot (69):** Karate Chop, DoubleSlap, Pay Day, Scratch, ViceGrip, Whirlwind, Slam, Stomp, Double
+- **twoshot (70):** Karate Chop, DoubleSlap, Pay Day, Scratch, ViceGrip, Whirlwind, Slam, Stomp, Double
   Kick, Jump Kick, Headbutt, Horn Drill, Take Down, Bite, SonicBoom, Water Gun, BubbleBeam, Counter, Leech
   Seed, Petal Dance, Dragon Rage, Rage, SmokeScreen, Egg Bomb, Bone Club, Spike Cannon, Lovely Kiss, Hyper
   Fang, Super Fang, Slash, Thief, Flame Wheel, Mud-Slap, Octazooka, Bone Rush, Frustration, Pain Split,
   DragonBreath, Rapid Spin, Cross Chop, Crunch, Rock Smash, Beat Up, Knock Off, Endeavor, Blaze Kick,
   Needle Arm, Signal Beam, Bullet Seed, Mud Shot, Covet, Wake-Up Slap, U-turn, Assurance, Embargo, Trump
   Card, Punishment, Last Resort, Night Slash, Seed Bomb, Bug Buzz, Shadow Claw, Mud Bomb, Mirror Shot,
-  Cross Poison, Bug Bite, Aqua Jet, Double Hit, Ominous Wind.
+  Cross Poison, Iron Head, Bug Bite, Aqua Jet, Double Hit, Ominous Wind.
 - **self (34):** Growth, Recover, Withdraw, Defense Curl, Barrier, Light Screen, Reflect, Focus Energy,
   Bide, Softboiled, Splash, Rest, Sharpen, Conversion, Protect, Belly Drum, Endure, Milk Drink, Safeguard,
   Synthesis, Stockpile, Recycle, Slack Off, Bulk Up, Dragon Dance, Roost, Acupressure, Power Trick, Lucky

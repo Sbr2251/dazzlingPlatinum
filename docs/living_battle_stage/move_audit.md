@@ -593,7 +593,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 439 | ROCK_WRECKER | sprite_xy, switch_bg, particles | bg_switch | F6 | high |  |
 | 440 | CROSS_POISON | sprite_xy, particles, sprite_fade_tint | - | - | low | per-move camera (template twoshot) |
 | 441 | GUNK_SHOT | sprite_xy, switch_bg, particles, sprite_fade_tint | bg_switch | F6 | high |  |
-| 442 | IRON_HEAD | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 442 | IRON_HEAD | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 443 | MAGNET_BOMB | sprite_xy, particles | - | - | low | per-move camera (template push) |
 | 444 | STONE_EDGE | sprite_xy, particles | - | - | low | per-move camera (hand-authored) |
 | 445 | CAPTIVATE | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template wide) |

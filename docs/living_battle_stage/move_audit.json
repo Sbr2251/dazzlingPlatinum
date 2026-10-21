@@ -441,7 +441,7 @@
 {"id": 439, "name": "ROCK_WRECKER", "dir": "rock_wrecker", "mechanisms": ["sprite_xy", "switch_bg", "particles"], "suppress": ["bg_switch"], "fix": ["F6"], "risk": "high", "notes": ""},
 {"id": 440, "name": "CROSS_POISON", "dir": "cross_poison", "mechanisms": ["sprite_xy", "particles", "sprite_fade_tint"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (template twoshot)"},
 {"id": 441, "name": "GUNK_SHOT", "dir": "gunk_shot", "mechanisms": ["sprite_xy", "switch_bg", "particles", "sprite_fade_tint"], "suppress": ["bg_switch"], "fix": ["F6"], "risk": "high", "notes": ""},
-{"id": 442, "name": "IRON_HEAD", "dir": "iron_head", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (template contact)"},
+{"id": 442, "name": "IRON_HEAD", "dir": "iron_head", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (template twoshot)"},
 {"id": 443, "name": "MAGNET_BOMB", "dir": "magnet_bomb", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (template push)"},
 {"id": 444, "name": "STONE_EDGE", "dir": "stone_edge", "mechanisms": ["sprite_xy", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (hand-authored)"},
 {"id": 445, "name": "CAPTIVATE", "dir": "captivate", "mechanisms": ["sprite_xy", "sprite_scale_rot", "particles"], "suppress": [], "fix": [], "risk": "low", "notes": "per-move camera (template wide)"},
