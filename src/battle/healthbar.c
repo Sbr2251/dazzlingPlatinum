@@ -62,6 +62,19 @@
 #define HEALTHBAR_SWAY_STEP    0x800
 #define HEALTHBAR_SWAY_DIVISOR 0x800
 
+// bw2vis:hud-gauges: the lost-HP segment. BW2 draws the HP the bar has lost so far as a light segment between the
+// bar's end and where it stood before the hit (btlv_gauge.c:826-852, 1295-1322); when the drain ends the segment
+// blinks for 18 frames (blinkCount 18, one toggle a frame, :866-867, 252-264) and goes. Our tasks run at 30 Hz, so
+// it blinks a phase per update for 9 updates. It is drawn into the bar's own 6 tiles (no extra OBJ), over the
+// empty part, in the light grey of the healthbar palette
+#define HEALTHBAR_HP_GAUGE_TILES      6
+#define HEALTHBAR_HP_GAUGE_PIXELS     (HEALTHBAR_HP_GAUGE_TILES * 8)
+#define HEALTHBAR_GHOST_BLINK_UPDATES 9
+#define HEALTHBAR_GHOST_COLOR         4
+#define HEALTHBAR_GHOST_ROW_FIRST     3
+#define HEALTHBAR_GHOST_ROW_LAST      4
+#define HEALTHBAR_LOSS_TASK_PRIORITY  1001
+
 #define HEALTHBAR_WINDOW_BLOCK_SIZE 32
 
 #define HEALTHBAR_NAME_BLOCK_COUNT_X    8
@@ -201,6 +214,9 @@ void ov16_02268470(Healthbar *param0);
 void ov16_02268498(Healthbar *param0);
 static void ov16_022684BC(SysTask *param0, void *param1);
 static void Healthbar_EnableArrow(Healthbar *param0, int param1);
+static void Healthbar_StartLossEffects(Healthbar *healthbar);
+static void Healthbar_StopLossEffects(Healthbar *healthbar);
+static void Healthbar_LossTask(SysTask *task, void *data);
 
 __attribute__((aligned(4))) static const s8 sArrowOffsetX[] = {
     [HEALTHBAR_TYPE_PLAYER_SOLO] = 72,
@@ -782,6 +798,8 @@ void ov16_02267220(Healthbar *param0)
         param0->doneScrolling = TRUE;
     }
 
+    Healthbar_StopLossEffects(param0);
+
     if (param0->mainSprite == NULL) {
         return;
     }
@@ -921,6 +939,11 @@ void Healthbar_CalcHP(Healthbar *healthbar, int damage)
     // update cached values
     healthbar->damage = -damage;
 
+    // A loss starts BW2's HP effects
+    if (healthbar->damage > 0) {
+        Healthbar_StartLossEffects(healthbar);
+    }
+
     if (healthbar->curHP < 0) {
         healthbar->curHP = 0;
     }
@@ -935,6 +958,11 @@ s32 ov16_022674F8(Healthbar *param0)
     s32 v0 = Healthbar_DrawGauge(param0, 0);
 
     if (v0 == -1) {
+        // The drain is over: the lost-HP segment blinks, then goes
+        if (param0->damage > 0 && param0->ghostEndPx != 0) {
+            param0->ghostBlink = HEALTHBAR_GHOST_BLINK_UPDATES;
+        }
+
         param0->curHP -= param0->damage;
         Healthbar_DrawInfo(param0, param0->curHP, HEALTHBAR_INFO_CURRENT_HP);
     } else {
@@ -1095,6 +1123,10 @@ void Healthbar_Scroll(Healthbar *healthbar, enum HealthbarScrollDirection direct
 
         healthbar->scrollTask = SysTask_Start(ScrollHealthbarTask, healthbar, 990);
     } else {
+        // A gauge that leaves takes its lost-HP segment with it, as BW2's does
+        healthbar->ghostEndPx = 0;
+        healthbar->ghostBlink = 0;
+
         // BW2 doesn't slide a gauge out: it jumps off screen at once (btlv_gauge.c:642-656)
         if (Healthbar_IsPlayerSide(healthbar)) {
             Healthbar_OffsetPositionXY(healthbar, HEALTHBAR_HIDE_OFFSET, 0);
@@ -1553,6 +1585,68 @@ static s32 Healthbar_DrawGauge(Healthbar *healthbar, enum HealthbarGaugeType gau
     return result;
 }
 
+/**
+ * @brief The HP bar's pixels for an HP value, as FillCells counts them (at least 1 while any HP is left).
+ */
+static u8 Healthbar_HpPixels(s32 hp, s32 maxHP)
+{
+    u32 pixels;
+
+    if (hp <= 0 || maxHP <= 0) {
+        return 0;
+    }
+
+    if (maxHP < HEALTHBAR_HP_GAUGE_PIXELS) {
+        pixels = ((hp << 8) * HEALTHBAR_HP_GAUGE_PIXELS / maxHP) >> 8;
+    } else {
+        pixels = hp * HEALTHBAR_HP_GAUGE_PIXELS / maxHP;
+    }
+
+    if (pixels == 0) {
+        pixels = 1;
+    }
+
+    return pixels > HEALTHBAR_HP_GAUGE_PIXELS ? HEALTHBAR_HP_GAUGE_PIXELS : pixels;
+}
+
+/**
+ * @brief One HP bar tile with the lost-HP segment drawn over its empty part.
+ *
+ * @param buf        A tile-sized buffer for the result
+ * @param fillTile   The bar's own tile for this cell
+ * @param cell       The cell, 0-5
+ * @param fillPx     The bar's filled pixels
+ * @param ghostEndPx Where the segment ends: the bar's pixels before the hit
+ * @return buf, or fillTile when the segment doesn't reach this cell
+ */
+static const u8 *Healthbar_GhostTile(u8 *buf, const u8 *fillTile, int cell, int fillPx, int ghostEndPx)
+{
+    int start = fillPx > cell * 8 ? fillPx : cell * 8;
+    int end = ghostEndPx < cell * 8 + 8 ? ghostEndPx : cell * 8 + 8;
+
+    if (start >= end) {
+        return fillTile;
+    }
+
+    MI_CpuCopy8(fillTile, buf, TILE_SIZE_4BPP);
+
+    for (int px = start; px < end; px++) {
+        int x = px - cell * 8;
+
+        for (int row = HEALTHBAR_GHOST_ROW_FIRST; row <= HEALTHBAR_GHOST_ROW_LAST; row++) {
+            u8 *p = &buf[row * 4 + x / 2];
+
+            if (x & 1) {
+                *p = (*p & 0x0F) | (HEALTHBAR_GHOST_COLOR << 4);
+            } else {
+                *p = (*p & 0xF0) | HEALTHBAR_GHOST_COLOR;
+            }
+        }
+    }
+
+    return buf;
+}
+
 static void DrawGauge(Healthbar *param0, u8 param1)
 {
     u8 v0;
@@ -1595,10 +1689,17 @@ static void DrawGauge(Healthbar *param0, u8 param1)
         v9 = Unk_ov16_0226F44C[param0->type][0].size / 0x20;
 
         for (v0 = 0; v0 < 6; v0++) {
+            const u8 *tile = v6 + (v1[v0] << 5);
+            u8 ghostTile[TILE_SIZE_4BPP];
+
+            if (param0->ghostEndPx > v4 && !param0->ghostHidden) {
+                tile = Healthbar_GhostTile(ghostTile, tile, v0, v4, param0->ghostEndPx);
+            }
+
             if (v0 < v9) {
-                MI_CpuCopy16(v6 + (v1[v0] << 5), (void *)((u32)v7 + Unk_ov16_0226F44C[param0->type][0].pos + (v0 * 0x20) + v8->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 0x20);
+                MI_CpuCopy16(tile, (void *)((u32)v7 + Unk_ov16_0226F44C[param0->type][0].pos + (v0 * 0x20) + v8->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 0x20);
             } else {
-                MI_CpuCopy16(v6 + (v1[v0] << 5), (void *)((u32)v7 + Unk_ov16_0226F44C[param0->type][1].pos + ((v0 - v9) * 0x20) + v8->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 0x20);
+                MI_CpuCopy16(tile, (void *)((u32)v7 + Unk_ov16_0226F44C[param0->type][1].pos + ((v0 - v9) * 0x20) + v8->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 0x20);
             }
         }
         break;
@@ -2002,4 +2103,61 @@ BOOL Healthbar_MoveAnimHidesHealthbars(u16 move)
 
     // The classic look keeps Platinum's per-move flag
     return (MoveTable_LoadParam(move, MOVEATTRIBUTE_FLAGS) & MOVE_FLAG_KEEPS_HP_GAUGES) == 0;
+}
+
+/**
+ * @brief Start BW2's effects of an HP loss: the lost-HP segment (and, later, the red flash).
+ *
+ * @param healthbar A healthbar whose HP is about to drain, curHP still the HP before the hit
+ */
+static void Healthbar_StartLossEffects(Healthbar *healthbar)
+{
+    if (healthbar->mainSprite == NULL || healthbar->type > HEALTHBAR_TYPE_ENEMY_SLOT_2) {
+        return;
+    }
+
+    healthbar->ghostEndPx = Healthbar_HpPixels(healthbar->curHP, healthbar->maxHP);
+    healthbar->ghostBlink = 0;
+    healthbar->ghostHidden = FALSE;
+
+    if (healthbar->lossTask == NULL) {
+        healthbar->lossTask = SysTask_Start(Healthbar_LossTask, healthbar, HEALTHBAR_LOSS_TASK_PRIORITY);
+    }
+}
+
+static void Healthbar_StopLossEffects(Healthbar *healthbar)
+{
+    if (healthbar->lossTask != NULL) {
+        SysTask_Done(healthbar->lossTask);
+        healthbar->lossTask = NULL;
+    }
+
+    healthbar->ghostEndPx = 0;
+    healthbar->ghostBlink = 0;
+    healthbar->ghostHidden = FALSE;
+}
+
+static void Healthbar_LossTask(SysTask *task, void *data)
+{
+    Healthbar *healthbar = data;
+
+    // After the drain: off and on phases (off first, as BW2's blinkCount 18 starts hidden), then gone
+    if (healthbar->ghostBlink > 0) {
+        healthbar->ghostBlink--;
+
+        if (healthbar->ghostBlink == 0) {
+            healthbar->ghostEndPx = 0;
+            healthbar->ghostHidden = FALSE;
+        } else {
+            healthbar->ghostHidden = (healthbar->ghostBlink & 1) == 0;
+        }
+
+        Healthbar_DrawInfo(healthbar, healthbar->curHP, HEALTHBAR_INFO_HP_GAUGE);
+    }
+
+    // During the drain the segment is drawn with the bar; the task waits
+    if (healthbar->ghostEndPx == 0) {
+        healthbar->lossTask = NULL;
+        SysTask_Done(task);
+    }
 }
