@@ -29,17 +29,29 @@
 // drawn larger (a back sprite), which grows up and to the sides from there
 #define MON_STREAM_FEET_Y        MON_SPRITE_FRAME_HEIGHT
 
-#define MON_STREAM_INDEX_VERSION 2
+#define MON_STREAM_INDEX_VERSION 3
 
-// Member 0 of mon_stream.narc, version 2 (tools/gen5_sprites/gen5_stream.py)
+// Member 0 of mon_stream.narc, version 3 (tools/gen5_sprites/gen5_stream.py). Version 2 had the
+// same index but 8-byte stream headers (no idle data); a NARC of another version draws classic
 typedef struct MonStreamIndexHeader {
-    u16 version; // 0 reads as the step 1 index, u16 [species][back, front]
+    u16 version;
     u16 numPokegra;
     u16 numOtherpoke;
     u16 reserved;
     // u16 pokegra[numPokegra]: member for each PL_POKEGRA file (template character)
     // u16 otherpoke[numOtherpoke]: member for each PL_OTHERPOKE file
 } MonStreamIndexHeader;
+
+// MonStreamHeader.idleKind: what Black 2/White 2 do at the end of a loop (btlv_mcss.c
+// BtlvMcss_OnAnimationEnd, BtlvMcss_IdleTask; sprite_stream.md "Idle data")
+enum MonStreamIdleKind {
+    MON_STREAM_IDLE_NONE = 0, // the loop restarts; never idles (numIdleSteps 0)
+    MON_STREAM_IDLE_FREEZE, // an idle holds the whole sprite (the idle steps: one frame)
+    MON_STREAM_IDLE_POSE, // an idle shows B2W2's second sequence, a pose, its idle nodes still moving
+};
+
+// The idle steps cover this many vblanks, the longest of B2W2's idles (48, 56 or 64 frames)
+#define MON_STREAM_IDLE_TICKS 64
 
 // A stream member
 typedef struct MonStreamHeader {
@@ -50,9 +62,24 @@ typedef struct MonStreamHeader {
     u8 width; // bytes
     u8 top;
     u8 height;
+    u8 idleKind; // enum MonStreamIdleKind
+    u8 numIdleSteps; // 0 with MON_STREAM_IDLE_NONE
+    u16 reserved;
     u32 frameOffsets[]; // from the member's start, to LZ77 frames of height rows of width bytes
-    // then {u8 frame, u8 duration} steps, duration in 1/60 s, looping
+    // then {u8 frame, u8 duration} steps[numSteps], duration in 1/60 s, looping (B2W2's loop at
+    // 60 Hz), then the idle clip's steps[numIdleSteps] on the same frames
 } MonStreamHeader;
+
+// The loop's {u8 frame, u8 duration} steps, and the idle clip's after them
+static inline const u8 *MonStream_Steps(const MonStreamHeader *data)
+{
+    return (const u8 *)&data->frameOffsets[data->numFrames];
+}
+
+static inline const u8 *MonStream_IdleSteps(const MonStreamHeader *data)
+{
+    return MonStream_Steps(data) + data->numSteps * 2;
+}
 
 // Read by probes (sMonSpriteStreamStats)
 typedef struct MonSpriteStreamStats {
@@ -81,7 +108,7 @@ typedef struct MonSpriteStreamStats {
 // The u16 entries of member 0 that may hold a template's member, in order: the first that
 // isn't 0 is it. Returns how many (0 to 2). A female PL_POKEGRA file with no stream takes the
 // male file's (odd characters are male: species * 6 + face + male). Spinda's spots are drawn
-// into the classic frame only, so it has none. version 0 reads as the step 1 index.
+// into the classic frame only, so it has none.
 int MonStream_IndexEntries(const MonStreamIndexHeader *index, const PokemonSpriteTemplate *template, u32 entries[2]);
 // The member's scale in eighths, MON_STREAM_SCALE_ONE to MON_STREAM_MAX_SCALE
 static inline int MonStream_Scale(const MonStreamHeader *data)
@@ -98,7 +125,7 @@ static inline int MonStream_Scale(const MonStreamHeader *data)
 #define MON_STREAM_FRAME_X8(u, scale) (MON_SPRITE_FRAME_WIDTH / 2 * MON_STREAM_SCALE_ONE + ((u) - MON_STREAM_ANCHOR_U) * (scale))
 #define MON_STREAM_FRAME_Y8(v, scale) (MON_STREAM_FEET_Y * MON_STREAM_SCALE_ONE + ((v) - MON_STREAM_GROUND_V) * (scale))
 
-// The header, frame offsets and steps
+// The header, frame offsets and steps (the idle clip's included)
 u32 MonStream_HeaderSize(const MonStreamHeader *data);
 // A member the runtimes can play without reading past it: the box inside the canvas, frames in
 // order on 4-byte boundaries and at least 4 bytes, steps on real frames (data: its HeaderSize)
