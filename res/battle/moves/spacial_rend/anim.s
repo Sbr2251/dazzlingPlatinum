@@ -10,7 +10,7 @@ L_0:
     Delay 50
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 41, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_PINK_MANDALA, BATTLE_BG_SWITCH_MODE_CUT
     Delay 10
     Func_ShakeBg 0, 3, 0, 10, 0
     PlaySoundEffectR SEQ_SE_PL_W460B
@@ -23,6 +23,6 @@ L_0:
     UnloadParticleSystem 0
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 41, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_PINK_MANDALA, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

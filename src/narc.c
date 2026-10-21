@@ -205,6 +205,7 @@ static const char *sNarcPaths[] = {
     [NARC_INDEX_BATTLE__GRAPHIC__BATTLE_STAGE] = "battle/graphic/battle_stage.narc",
     [NARC_INDEX_BATTLE__GRAPHIC__MON_STREAM] = "battle/graphic/mon_stream.narc",
     [NARC_INDEX_POKETOOL__TRGRA__TRFGRA_BW2] = "poketool/trgra/trfgra_bw2.narc", // bw2vis:trainers-anim
+    [NARC_INDEX_BATTLE__GRAPHIC__BW2_EFFECT_BG] = "battle/graphic/bw2_effect_bg.narc", // bw2vis:effect-bg
 };
 
 static void ReadFromNarcMemberByPathAndIndex(void *dest, const char *path, int memberIndex, int offset, int bytesToRead);

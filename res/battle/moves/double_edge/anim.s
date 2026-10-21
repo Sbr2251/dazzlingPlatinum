@@ -9,7 +9,7 @@ L_0:
     WaitForAnimTasks
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 6, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_ORANGE_BURST, BATTLE_BG_SWITCH_MODE_CUT
     Func_RevolveBattler BATTLE_ANIM_ATTACKER, 1, 10
     WaitForAnimTasks
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 14, -8, 2
@@ -30,6 +30,6 @@ L_0:
     UnloadParticleSystem 0
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 6, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_ORANGE_BURST, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

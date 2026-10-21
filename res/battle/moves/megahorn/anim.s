@@ -7,7 +7,7 @@ L_0:
     Delay 10
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 2, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_RED_BURST, BATTLE_BG_SWITCH_MODE_CUT
     Delay 5
     CreateEmitter 0, 3, EMITTER_CB_GENERIC
     SetExtraParams 0, 2, 1, 1, 0, 0
@@ -25,6 +25,6 @@ L_0:
     WaitForAnimTasks
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 2, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_RED_BURST, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

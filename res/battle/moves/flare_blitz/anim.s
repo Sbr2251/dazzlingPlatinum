@@ -13,7 +13,7 @@ L_0:
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, -16, 8, 2
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 33, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_FIRE_VORTEX, BATTLE_BG_SWITCH_MODE_CUT
     Delay 5
     Func_Shake 1, 0, 1, 2, BATTLE_ANIM_BATTLER_SPRITE_DEFENDER
     PlaySoundEffectR SEQ_SE_DP_186
@@ -24,6 +24,6 @@ L_0:
     UnloadParticleSystem 0
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 33, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_FIRE_VORTEX, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

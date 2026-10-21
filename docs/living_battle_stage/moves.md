@@ -29,6 +29,9 @@ and the sprites as the move intended. Contests never touch the stage: keep the
 
 **A move whose backdrop really changes** (SwitchBg to a picture: Psychic, Hyper Beam,
 Moonlight and so on) keeps the chunk 5 fade. That is the intended look, not a chunk 6 item.
+Since bw2vis (effect_bg.md) these 55 moves show Black 2/White 2's effect backgrounds, and most of them cut
+from the arena to the picture (`BATTLE_BG_SWITCH_MODE_CUT`), as Gen 5 does; the fade stays where the move
+depends on it (Moonlight, Wish, Cosmic Power, Lunar Dance, Moonblast, Nightmare, Dark Void, Trick Room).
 
 ## Categories
 

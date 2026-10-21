@@ -1,5 +1,6 @@
 #include "generated/sdat.h"
 #include "constants/battle/battle_anim.h"
+#include "constants/battle/battle_effect_bg.h"
 #include "res/battle/particles/battle_particles.naix.h"
 #include "res/graphics/battle/moves/anim_ncer.naix.h"
 #include "res/graphics/battle/moves/anim_nanr.naix.h"
@@ -102,8 +103,10 @@
     .endm
 
     // Switches the background to a specified background from pl_batt_bg.narc
-    // bgID: ID of the background to switch to (0-57)
+    // bgID: ID of the background to switch to (0-57), or a BATTLE_BG_BW2_* Black 2/White 2 background
+    //       (constants/battle/battle_effect_bg.h; a contest shows the Platinum picture it names instead)
     // param: Additional parameters for the background switch (see BATTLE_BG_SWITCH_MODE_* and BATTLE_BG_SWITCH_FLAG_*)
+    //        BATTLE_BG_SWITCH_MODE_CUT hides the 3D stage and shows the background in the same frame, with no fade
     // Note: When using BATTLE_BG_SWITCH_MODE_FADE, you must set BATTLE_ANIM_VAR_BG_FADE_TYPE
     // to either BATTLE_BG_FADE_TO_BLACK or BATTLE_BG_FADE_TO_WHITE using the SetVar command.
     .macro SwitchBg bgID:req, param:req
@@ -881,6 +884,16 @@
     // z: Z axis angle (as index)
     .macro EmitterCameraParams x:req, y:req, z:req
     SetExtraParams 0, \x, \y, \z
+    .endm
+
+    // bw2vis:effect-bg: plays a Black 2/White 2 palette-cycle anim (BW2's BgPalAnim) on the effect background.
+    // A BATTLE_BG_BW2_* background starts its own anim when it loads (effect_bg.md); this replaces it.
+    // anim: BATTLE_BG_PAL_ANIM_NN, or BATTLE_BG_PAL_ANIM_STOP to stop the running one
+    // loops: times through the anim, 0 = until the background is restored
+    .macro BgPalAnim anim:req, loops:req
+    .long 96
+    .long \anim
+    .long \loops
     .endm
 
     .text
