@@ -17,6 +17,7 @@
 #include "struct_defs/struct_0207A778.h"
 
 #include "battle/battle_context.h"
+#include "battle/battle_events.h"
 #include "battle/battle_controller.h"
 #include "battle/battle_controller_player.h"
 #include "battle/battle_debug.h"
@@ -236,6 +237,7 @@ BOOL Battle_Main(ApplicationManager *appMan, int *param1)
         SoundLayers_Update();
 
         if (ov16_0223BBD0(appMan) == 1) {
+            BattleEvents_Shutdown(); // bw2vis:battle-events
             ov16_0223BCB4(appMan);
             SoundLayers_Reset();
             *param1 = 10;
@@ -1676,6 +1678,12 @@ static void ov16_0223CF8C(SysTask *param0, void *param1)
                 }
             }
         }
+    }
+
+    // bw2vis:battle-events: BW2 has no low-HP beep. While the low-HP music layer plays, it stands in for the beep,
+    // so the beep is held off (and stopped if it was on); without the layer the beep works as in Platinum.
+    if (BattleEvents_SuppressLowHPBeep()) {
+        v5 = 0;
     }
 
     if ((v5) && (ov16_0223F450(v0) == 0)) {
