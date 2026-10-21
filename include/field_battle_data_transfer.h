@@ -119,6 +119,8 @@ void FieldBattleDTO_SetDebugBackgroundOverride(enum BattleBackground background,
 // The next battle set up from the field uses this time of day (backdrop palettes, arena lighting)
 // instead of the clock's.
 void FieldBattleDTO_SetDebugTimeOfDayOverride(enum TimeOfDay timeOfDay);
+// bw2vis:stage-light: TRUE if the newest DTO took its time of day from that override
+BOOL FieldBattleDTO_DebugTimeOfDayForced(void);
 #endif
 
 #endif // POKEPLATINUM_FIELD_BATTLE_DATA_TRANSFER_H

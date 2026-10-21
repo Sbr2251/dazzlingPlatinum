@@ -8,7 +8,7 @@ aligned.
 import struct
 
 MAGIC = 0x47545342  # "BSTG"
-VERSION = 2
+VERSION = 3
 
 # BACKGROUND_MAX and TERRAIN_MAX (include/constants/battle/...)
 BACKGROUND_MAX = 23
@@ -20,8 +20,15 @@ TEXTURE = struct.Struct("<IIHHBBHII")
 MESH = struct.Struct("<IHBBHH2BH")
 VERTEX = struct.Struct("<3h2hHI")
 ATMOSPHERE = struct.Struct("<BBH32B")
-LIGHTING = struct.Struct("<3h5HB3x")
-NUM_LIGHTING = 3  # day, twilight, night columns (ov16_0223EC04)
+LIGHTING = struct.Struct("<3h5HBB2x")
+HAZE = struct.Struct("<BBH32B32B")
+# enum BattleStageLightingColumn: day, twilight, night (ov16_0223EC04), then the columns the
+# renderer blends in at battle start (battle_stage_light.c)
+LIGHTING_COLUMNS = ("day", "twilight", "night", "morning", "dusk",
+                    "rain", "storm", "snow", "blizzard", "fog", "sand", "rift_mist")
+NUM_LIGHTING = len(LIGHTING_COLUMNS)
+NUM_TOD_COLUMNS = 5
+HAZE_FULL = 128
 
 # GXTexFmt
 TEXFMT_PLTT16 = 3
@@ -130,10 +137,10 @@ class Mesh:
 class Lighting:
     """BattleStageFileLighting: one time-of-day column. Colours are GXRgb."""
 
-    FIELDS = ("light_dir", "light_color", "diffuse", "ambient", "emission", "fog_color", "fog_alpha")
+    FIELDS = ("light_dir", "light_color", "diffuse", "ambient", "emission", "fog_color", "fog_alpha", "haze")
 
-    def __init__(self, light_dir, light_color, diffuse, ambient, emission, fog_color, fog_alpha):
-        assert all(-0x1000 < c < 0x1000 for c in light_dir) and 0 <= fog_alpha <= 31
+    def __init__(self, light_dir, light_color, diffuse, ambient, emission, fog_color, fog_alpha, haze=0):
+        assert all(-0x1000 < c < 0x1000 for c in light_dir) and 0 <= fog_alpha <= 31 and 0 <= haze <= HAZE_FULL
         self.light_dir = tuple(light_dir)  # fx16
         self.light_color = light_color
         self.diffuse = diffuse
@@ -141,15 +148,31 @@ class Lighting:
         self.emission = emission
         self.fog_color = fog_color
         self.fog_alpha = fog_alpha
+        self.haze = haze  # 0..HAZE_FULL of the atmosphere's haze fog
+
+    def copy(self, **kw):
+        out = Lighting(self.light_dir, self.light_color, self.diffuse, self.ambient, self.emission, self.fog_color,
+                       self.fog_alpha, self.haze)
+        out.__dict__.update(kw)
+        return out
 
 
 class Atmosphere:
     """BattleStageFileAtmosphere, only in backdrop pieces."""
 
-    def __init__(self, fog_enabled, fog_shift, fog_offset, fog_table, lighting):
+    def __init__(self, fog_enabled, fog_shift, fog_offset, fog_table, lighting, haze=None):
+        """haze: (shift, offset, base table, full table) of the weather haze grid; None = the
+        distance fog's own grid and table (no haze)."""
         assert 0 <= fog_shift <= 10 and 0 <= fog_offset <= 0x7FFF
         assert len(fog_table) == 32 and all(0 <= d <= 127 for d in fog_table)
         assert len(lighting) == NUM_LIGHTING
+        if haze is None:
+            haze = (fog_shift, fog_offset, list(fog_table), list(fog_table))
+        assert 0 <= haze[0] <= 10 and 0 <= haze[1] <= 0x7FFF
+        assert all(len(t) == 32 and all(0 <= d <= 127 for d in t) for t in haze[2:4])
+        assert all(f >= b for b, f in zip(haze[2], haze[3]))
+        self.haze_shift, self.haze_offset = haze[0], haze[1]
+        self.haze_base, self.haze_table = list(haze[2]), list(haze[3])
         self.fog_enabled = int(bool(fog_enabled))
         self.fog_shift = fog_shift
         self.fog_offset = fog_offset
@@ -160,8 +183,10 @@ class Atmosphere:
         out = ATMOSPHERE.pack(self.fog_enabled, self.fog_shift, self.fog_offset, *self.fog_table)
 
         for li in self.lighting:
-            out += LIGHTING.pack(*li.light_dir, li.light_color, li.diffuse, li.ambient, li.emission, li.fog_color, li.fog_alpha)
+            out += LIGHTING.pack(*li.light_dir, li.light_color, li.diffuse, li.ambient, li.emission, li.fog_color, li.fog_alpha,
+                                 li.haze)
 
+        out += HAZE.pack(self.haze_shift, 0, self.haze_offset, *self.haze_base, *self.haze_table)
         return out
 
     @classmethod
@@ -172,13 +197,14 @@ class Atmosphere:
 
         for _ in range(NUM_LIGHTING):
             g = LIGHTING.unpack_from(data, offset)
-            lighting.append(Lighting(g[0:3], *g[3:9]))
+            lighting.append(Lighting(g[0:3], *g[3:10]))
             offset += LIGHTING.size
 
-        return cls(f[0], f[1], f[2], f[3:35], lighting)
+        h = HAZE.unpack_from(data, offset)
+        return cls(f[0], f[1], f[2], f[3:35], lighting, (h[0], h[2], list(h[3:35]), list(h[35:67])))
 
 
-ATMOSPHERE_SIZE = ATMOSPHERE.size + LIGHTING.size * NUM_LIGHTING  # 96
+ATMOSPHERE_SIZE = ATMOSPHERE.size + LIGHTING.size * NUM_LIGHTING + HAZE.size  # 344
 
 
 class Header:
