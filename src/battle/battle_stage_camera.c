@@ -247,6 +247,19 @@ static const IdlePose sIdlePoses[] = {
     { IDLE_SIDE_NONE, 0, -6, 0, 100 }, // back through near home
 };
 
+// bw2vis:camera-core. BW2's preset shot of each battler slot (btlv_effvm.c:468-505, CmdCameraMovePreset
+// types 0-5): the home camera trucked onto the mon with no turn. The mon's size against home, as the ratio
+// of its distances to the two cameras: 0.91x for a single battle's own mon, 1.50x for the opponent; in a
+// double battle 1.19x / 1.06x for the left / right mon and 1.47x / 1.49x for the right / left foe.
+static const fx32 sPresetScale[BATTLER_TYPE_MAX] = {
+    FX32_CONST(0.91), FX32_CONST(1.50), FX32_CONST(1.19), FX32_CONST(1.47), FX32_CONST(1.06), FX32_CONST(1.49)
+};
+// The screen row of the mon's feet in BW2's preset shot of each slot (projected with BW2's camera), as the
+// same share of our scene, which ends at the text box (row 144) where BW2's ends at the screen's bottom
+static const s16 sPresetRow[BATTLER_TYPE_MAX] = { 124, 113, 125, 111, 139, 104 };
+// The camera's reach: every one of the 30 arenas still covers the whole scene from 1.6x the home distance
+// (BG0 renders, camera.md "Camera range"); the wide shot needs about 1.4x
+#define CAMERA_MAX_DISTANCE FX32_CONST(1.45)
 
 
 static BOOL PoseEquals(const CameraPose *a, const CameraPose *b)
@@ -1346,15 +1359,95 @@ static void CommandEase(const CameraPose *goal, int framesWord)
     EaseToCurve(goal, frames, brake, (framesWord & STAGE_CAMERA_SMOOTH) ? CURVE_SMOOTH : CURVE_LINEAR);
 }
 
+// The pose's projection of a world point, without touching the frame's view
+static BOOL ProjectPose(const VecFx32 *point, const CameraPose *pose, fx32 *sx, fx32 *sy, fx32 *depth)
+{
+    VecFx32 up = { 0, FX32_ONE, 0 };
+    VecFx32 camPos, offset;
+    MtxFx43 view;
+
+    PoseCamera(pose, &camPos, &offset);
+    MTX_LookAt(&camPos, &up, &pose->focus, &view);
+    return Project(point, &view, sStageCamera.home.projection, sx, sy, depth);
+}
+
+// The pose that frames the world point foot at scale (its size against home) with the camera trucked
+// over it and not turned: BW2's presets. foot is in the middle across and, unless row is negative, on
+// screen row row. FALSE if foot isn't in front of the home camera.
+static BOOL TruckGoal(const VecFx32 *foot, fx32 scale, int row, CameraPose *goal)
+{
+    VecFx32 back, rel, focus;
+    fx32 sx, sy, homeDepth, depth, distance, perPixel;
+    int pass;
+
+    if (scale <= 0 || !Project(foot, sStageCamera.home.view, sStageCamera.home.projection, &sx, &sy, &homeDepth)) {
+        return FALSE;
+    }
+
+    VEC_Subtract(&sStageCamera.home.camPos, &sStageCamera.home.camTarget, &back);
+    VEC_Normalize(&back, &back);
+    focus = *foot;
+    focus.y = sStageCamera.home.camTarget.y;
+
+    for (pass = 0; pass < 3; pass++) {
+        // The camera sits at focus + back * homeLength * distance, so the depth of foot is
+        // homeLength * distance - (foot - focus) . back; solve that for homeDepth / scale
+        VEC_Subtract(foot, &focus, &rel);
+        distance = FX_Div(FX_Div(homeDepth, scale) + VEC_DotProduct(&rel, &back), sStageCamera.homeLength);
+
+        if (distance < CAMERA_MIN_DEPTH) {
+            distance = CAMERA_MIN_DEPTH;
+        } else if (distance > CAMERA_MAX_DISTANCE) {
+            distance = CAMERA_MAX_DISTANCE;
+        }
+
+        *goal = sStageCamera.homePose;
+        goal->focus = focus;
+        goal->distance = distance;
+
+        if (row < 0 || !ProjectPose(foot, goal, &sx, &sy, &depth)) {
+            break;
+        }
+
+        // Raising the camera and its focus together moves the point down the screen by about
+        // height / (world units per pixel at its depth)
+        perPixel = FX_Mul(depth, FX_Div(sStageCamera.home.fovySin, sStageCamera.home.fovyCos)) / 96;
+        focus.y += FX_Mul(row * FX32_ONE - sy, perPixel);
+    }
+
+    return TRUE;
+}
+
+// A battler's BW2 preset shot: its slot's size and where on the screen it stands, a slide with no turn
+static BOOL PresetGoal(int battler, fx32 scale, CameraPose *goal)
+{
+    VecFx32 foot;
+    int homeX, homeY, slot;
+
+    if (battler < 0 || battler >= MaxBattlers() || !BattlerFoot(battler, &homeX, &homeY, &foot)) {
+        return FALSE;
+    }
+
+    slot = BattleSystem_BattlerSlot(sStageCamera.battleSys, battler);
+
+    if (scale <= 0) {
+        scale = sPresetScale[slot];
+    }
+
+    return TruckGoal(&foot, scale, sPresetRow[slot], goal);
+}
+
 void BattleStage_CameraMove(int focus, int attacker, int defender, int distancePct, int yawDeg, int pitchDeg, int frames)
 {
     CameraPose goal;
     VecFx32 a, b;
+    BOOL freeFraming = (focus & STAGE_CAMERA_FREE) != 0;
 
     if (!ScriptCommand()) {
         return;
     }
 
+    focus &= ~STAGE_CAMERA_FREE;
     goal = sStageCamera.cur;
     goal.fov = sStageCamera.goal.fov; // a StageCameraZoom still easing keeps its target
     goal.focus = sStageCamera.home.camTarget;
@@ -1364,6 +1457,17 @@ void BattleStage_CameraMove(int focus, int attacker, int defender, int distanceP
     case STAGE_CAMERA_FOCUS_ATTACKER:
     case STAGE_CAMERA_FOCUS_DEFENDER: {
         int battler = focus == STAGE_CAMERA_FOCUS_ATTACKER ? attacker : defender;
+
+        // bw2vis:camera-core: BW2's attacker / defender preset (types 9-12 resolve to the battler's slot
+        // preset): a slide with no turn, at the slot's size. The player's own mon pulls back a little
+        // (0.91x) where the old free framing pushed in to 1.46x and turned.
+        if (!freeFraming && PresetGoal(battler, 0, &goal)) {
+            goal.fov = sStageCamera.goal.fov;
+            sStageCamera.particleFocus = PARTICLE_FOCUS_BATTLER;
+            sStageCamera.particleBattlers[0] = battler;
+            CommandEase(&goal, frames);
+            return;
+        }
 
         if (BattlerFocus(battler, &a)) {
             goal.focus = a;

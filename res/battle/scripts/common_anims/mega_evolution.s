@@ -51,15 +51,16 @@ L_player:
     // The stage camera pushes in on the Pokemon before the charge. A back sprite is anchored at its feet, below
     // the focus, so pushing in close drops them behind the text box: the shot frames the upper body and a sprite
     // whose art is cut off at the bottom keeps its cut edge out of sight (cut_guard.md)
-    // (bw2vis:camera-core: the push slows into its last frames on BW2's half-speed tail)
-    StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER, 42, 0, -8, 10 | STAGE_CAMERA_BRAKE(7)
+    // (bw2vis:camera-core: FREE keeps this shot rather than BW2's preset, which pulls back from the player's mon;
+    // the push slows into its last frames on BW2's half-speed tail)
+    StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER | STAGE_CAMERA_FREE, 42, 0, -8, 10 | STAGE_CAMERA_BRAKE(7)
     Delay 10
     MegaSequence 614, 4506, 4506 // (0.15, 1.1)
     Jump L_blend
 
 L_enemy:
     // The stage camera pushes in on the Pokemon before the charge
-    StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER, 70, 0, -4, 10 | STAGE_CAMERA_BRAKE(7)
+    StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER | STAGE_CAMERA_FREE, 70, 0, -4, 10 | STAGE_CAMERA_BRAKE(7)
     Delay 10
     // An enemy's head sits higher above this point, so the symbol (emitters 14-16) is raised to clear it
     MegaSequence 0, 819, 3686 // (0, 0.2), symbol (0, 0.9)

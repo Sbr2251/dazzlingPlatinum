@@ -159,6 +159,9 @@
 
 // bw2vis:camera-core. Options carried in the existing words of the stage camera commands (camera.md,
 // "Motion", "Framing" and "Shake"), so no command changes its arguments.
+// StageCameraMove focus: the given distance, yaw and pitch on a battler focus. Without it a battler focus is
+// BW2's preset shot of that battler: a slide onto it with no turn, at BW2's size for its slot.
+#define STAGE_CAMERA_FREE (1 << 8)
 // Any frames word (Move, Orbit, Home, Zoom): the low byte counts drawn frames. The motion is BW2's: constant
 // speed, along the straight line between the two camera positions. STAGE_CAMERA_BRAKE(n) halves the speed
 // after n - 1 drawn frames (BW2's brakeFrames, which count 60 Hz frames: halve BW2's frames and brake).
