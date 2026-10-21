@@ -109,6 +109,21 @@ stream (`BattleStage_SuppressMenuBob`, from the stage's mesh and stream masks of
 the last), so toggling the stage off at the menu brings the bob back. The gauge's own sway is the
 hud-gauges stream's. Counted in `bobSuppressedFrames`.
 
+### Hit flash
+
+B/W's `BtlvEffect_StartDamage` / `BtlvEffect_BlinkTask`, 3 times: the palette all
+GX_RGB(2, 2, 2) for a physical move or GX_RGB(24, 24, 24) otherwise, then hidden, then shown with
+its own colours, 4 frames each (36 frames). Platinum's blink task (`ov16_0226292C`) now does
+exactly that; it runs at 30 Hz, so a phase is 2 of its frames, and B/W's battle runs at 60 Hz (its
+main loop waits one vblank a frame; 30 Hz mode is the field's). The colour comes from the current
+move's category (`BattleStage_HitFlashColor`: `moveCur`'s class in the battle's move table). The
+flash is a palette fade (`PokemonSprite_StartFade` 16 to the colour, then 0), so it shows on the
+streamed mesh and on the classic sprite alike, and the status tint (`PokemonSpriteManager_SetTint`)
+waits under it and comes back after. A battler hidden when the hit came (Fly, Dig) doesn't flash,
+as in B/W, and is shown at the end as Platinum's blink always left it. The stage's 12-frame
+shear wobble still plays (B/W has none). Counted in `hitFlashes`, the last colour in
+`hitFlashColor`.
+
 ## Blob shadows
 
 A soft translucent ellipse sits on the 3D ground under each visible mon. It uses a small

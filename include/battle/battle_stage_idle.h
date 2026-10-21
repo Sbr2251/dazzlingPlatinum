@@ -30,6 +30,10 @@ void BattleStage_LoadEntryAnim(NARC *narc, PokemonAnimManager *monAnimMan, Pokem
 // it as a mesh or from its stream: B/W bob only the HP gauge
 BOOL BattleStage_SuppressMenuBob(int battler);
 
+// The hit flash (B/W's BtlvEffect_StartDamage): the colour the battler's palette goes to for
+// the current move, GX_RGB(2, 2, 2) for a physical move and GX_RGB(24, 24, 24) otherwise
+u16 BattleStage_HitFlashColor(BattleSystem *battleSys);
+
 // Read by the harness (sGen5MotionStats), zeroed at each battle's BattleStage_Init
 typedef struct BattleStageGen5MotionStats {
     u32 entryAnimsSkipped; // per-species entry animations not played (Gen 5 motion)
