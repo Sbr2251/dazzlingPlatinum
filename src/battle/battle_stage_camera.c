@@ -54,9 +54,12 @@
 // as they are; a script's drawn frames are doubled.
 #define STEP_FRAMES 2
 
-// Shake periods in steps, different in x and y so the path isn't a line
+// Shake periods in steps for the old decaying shake, different in x and y so the path isn't a line
 #define SHAKE_PERIOD_X 4
 #define SHAKE_PERIOD_Y 3
+// BW2's shake: a quarter swing of this many screen frames unless the command says otherwise. Two
+// steps, so even at 30 Hz the shake is seen to start from rest (half the amplitude, then all of it)
+#define SHAKE_QUARTER_FRAMES (2 * STEP_FRAMES)
 
 // The cut-line guard (cut_guard.md). The top screen's battle textbox is up for the whole
 // battle, so off home the limit is its top edge; a change of limit eases over 8 screen frames.
@@ -78,6 +81,12 @@ enum CameraSequence {
 enum CameraCurve {
     CURVE_LINEAR = 0, // BW2's MoveTo timing: constant speed, an optional half-speed tail
     CURVE_SMOOTH, // smoothstep on each pose component (an arc for a turn)
+};
+
+enum ShakeMode {
+    SHAKE_TRIANGLE_Y = 0, // BW2: a triangle wave on world up, constant amplitude, whole swings
+    SHAKE_TRIANGLE_X, // the same sideways (camera right, on the ground)
+    SHAKE_DECAY, // the old shake: decaying sines on both screen axes
 };
 
 enum ParticleFocus {
@@ -120,8 +129,10 @@ typedef struct StageCamera {
     int easeLen; // BW2's frames: the length at full speed
     int easeBrake; // BW2's brakeFrames: the speed halves after easeBrake - 1 frames; 0 never
     int easeEnd; // screen frames until it ends (a brake makes it longer than easeLen)
+    int shakeMode;
     int shakeT; // screen frames into the shake
     int shakeEnd;
+    int shakeQuarter; // screen frames per quarter swing (the triangle)
     int shakeAmp; // pixels
     // The BG3 shake of a move, mirrored (BattleStage_SetBackdropShake); pixels, BG scroll sign
     int backdropDx;
@@ -177,7 +188,7 @@ typedef struct StageCameraDebug {
     s32 brake; // its BW2 brakeFrames
     s32 easeT; // screen frames into the ease
     s32 easeEnd; // its length in screen frames, 0 when not easing
-    s32 shakeMode; // 0 (the shake's kind comes with C4)
+    s32 shakeMode; // enum ShakeMode
     s32 shakeAmp; // pixels
     s32 shakeT;
     s32 shakeEnd; // 0 when not shaking
@@ -326,17 +337,38 @@ static fx32 EaseProgress(void)
     return x > FX32_ONE ? FX32_ONE : x;
 }
 
-static void StartShake(int amplitudePx, int frames)
+// BW2's shake (btlv_camera.c:114-138, btlv_effect.c:1441-1490): a triangle wave of the full amplitude on
+// one axis, count whole swings of 4 quarters of quarter screen frames each, starting and ending at rest
+static void StartShakeBW2(int mode, int amplitudePx, int quarter, int count)
 {
-    if (frames <= 0 || amplitudePx <= 0) {
+    if (amplitudePx <= 0 || count <= 0) {
         sStageCamera.shakeEnd = 0;
         sStageCamera.shakeT = 0;
         return;
     }
 
+    if (quarter <= 0) {
+        quarter = SHAKE_QUARTER_FRAMES;
+    }
+
+    sStageCamera.shakeMode = mode;
     sStageCamera.shakeAmp = amplitudePx;
+    sStageCamera.shakeQuarter = quarter;
     sStageCamera.shakeT = 0;
-    sStageCamera.shakeEnd = frames * STEP_FRAMES;
+    sStageCamera.shakeEnd = 4 * quarter * count;
+}
+
+// A shake lasting about frames drawn frames: whole swings of BW2's triangle, at least one
+static void StartShake(int amplitudePx, int frames)
+{
+    int quarter = SHAKE_QUARTER_FRAMES;
+
+    if (frames <= 0) {
+        StartShakeBW2(SHAKE_TRIANGLE_Y, 0, quarter, 0);
+        return;
+    }
+
+    StartShakeBW2(SHAKE_TRIANGLE_Y, amplitudePx, quarter, (frames * STEP_FRAMES + 4 * quarter - 1) / (4 * quarter));
 }
 
 static fx32 Lerp(fx32 a, fx32 b, fx32 t)
@@ -429,9 +461,10 @@ static void PoseCamera(const CameraPose *pose, VecFx32 *camPos, VecFx32 *offsetO
     *offsetOut = offset;
 }
 
-// The shake offset in pixels for this frame, along camera-right and camera-up: a decaying
-// sine, the same every time, plus the mirrored BG3 shake. BG3 scrolled by (dx, dy) shows its
-// picture moved by (-dx, -dy), so the camera moves by dx right and dy down.
+// The shake offset in pixels for this frame, along camera-right and camera-up: the old decaying
+// sines (now from rest on both axes: the vertical one started at full amplitude, a one-frame jump),
+// plus the mirrored BG3 shake. BG3 scrolled by (dx, dy) shows its picture moved by (-dx, -dy), so the
+// camera moves by dx right and dy down. BW2's triangle is ShakeTriangle's, along a world axis.
 static void ShakePixels(int *dx, int *dy)
 {
     int k = sStageCamera.shakeT / STEP_FRAMES;
@@ -441,23 +474,46 @@ static void ShakePixels(int *dx, int *dy)
     *dx = sStageCamera.backdropDx;
     *dy = -sStageCamera.backdropDy;
 
-    if (IsShaking() && n > 0) {
+    if (IsShaking() && sStageCamera.shakeMode == SHAKE_DECAY && n > 0) {
         *dx += amp * FX_SinIdx((u16)(k * 0x10000 / SHAKE_PERIOD_X)) * (n - k) / n / FX32_ONE;
-        *dy += amp * FX_SinIdx((u16)(k * 0x10000 / SHAKE_PERIOD_Y + 0x4000)) * (n - k) / n / FX32_ONE;
+        *dy += amp * FX_SinIdx((u16)(k * 0x10000 / SHAKE_PERIOD_Y)) * (n - k) / n / FX32_ONE;
     }
+}
+
+// BW2's triangle in pixels at this frame (EffTool_Move type 3): up to +amp over the first quarter, down
+// through 0 to -amp, back to 0, so it never jumps and ends exactly at rest. fx32 pixels.
+static fx32 ShakeTriangle(void)
+{
+    int q = sStageCamera.shakeQuarter;
+    int j;
+
+    if (!IsShaking() || sStageCamera.shakeMode == SHAKE_DECAY || q <= 0) {
+        return 0;
+    }
+
+    j = sStageCamera.shakeT % (4 * q);
+
+    if (j <= q) {
+        return sStageCamera.shakeAmp * FX32_ONE * j / q;
+    } else if (j <= 3 * q) {
+        return sStageCamera.shakeAmp * FX32_ONE * (2 * q - j) / q;
+    }
+
+    return sStageCamera.shakeAmp * FX32_ONE * (j - 4 * q) / q;
 }
 
 static void BuildView(const CameraPose *pose)
 {
     VecFx32 up = { 0, FX32_ONE, 0 };
     VecFx32 camPos, offset, target;
+    fx32 triangle = ShakeTriangle();
 
     PoseCamera(pose, &camPos, &offset);
     target = pose->focus;
 
     if (IsShaking() || IsBackdropShaking() || sStageCamera.guardPan != 0) {
-        VecFx32 back, right, camUp;
-        fx32 depth, perPixel, sx, sy;
+        VecFx32 back, right, camUp, shift;
+        fx32 depth, perPixel, sx, sy, w;
         int dx, dy;
 
         // The camera going up moves the picture down
@@ -475,12 +531,25 @@ static void BuildView(const CameraPose *pose)
         sx = perPixel * dx;
         sy = perPixel * dy;
 
-        camPos.x += FX_Mul(right.x, sx) + FX_Mul(camUp.x, sy);
-        camPos.y += FX_Mul(right.y, sx) + FX_Mul(camUp.y, sy);
-        camPos.z += FX_Mul(right.z, sx) + FX_Mul(camUp.z, sy);
-        target.x += FX_Mul(right.x, sx) + FX_Mul(camUp.x, sy);
-        target.y += FX_Mul(right.y, sx) + FX_Mul(camUp.y, sy);
-        target.z += FX_Mul(right.z, sx) + FX_Mul(camUp.z, sy);
+        shift.x = FX_Mul(right.x, sx) + FX_Mul(camUp.x, sy);
+        shift.y = FX_Mul(right.y, sx) + FX_Mul(camUp.y, sy);
+        shift.z = FX_Mul(right.z, sx) + FX_Mul(camUp.z, sy);
+
+        // BW2's shake moves the position and the target together along a world axis: up, or sideways
+        // along the ground (camera right has no height, as the camera never rolls)
+        if (triangle != 0) {
+            w = FX_Mul(perPixel, triangle);
+
+            if (sStageCamera.shakeMode == SHAKE_TRIANGLE_X) {
+                shift.x += FX_Mul(right.x, w);
+                shift.z += FX_Mul(right.z, w);
+            } else {
+                shift.y += w;
+            }
+        }
+
+        VEC_Add(&camPos, &shift, &camPos);
+        VEC_Add(&target, &shift, &target);
     }
 
     MTX_LookAt(&camPos, &up, &target, &sStageCamera.view);
@@ -890,6 +959,7 @@ static void UpdateDebugBlock(const CameraPose *pose, OSTick startTick)
     dbg->brake = sStageCamera.easeBrake;
     dbg->easeT = IsEasing() ? sStageCamera.easeT : 0;
     dbg->easeEnd = IsEasing() ? sStageCamera.easeEnd : 0;
+    dbg->shakeMode = sStageCamera.shakeMode;
     dbg->shakeAmp = sStageCamera.shakeAmp;
     dbg->shakeT = IsShaking() ? sStageCamera.shakeT : 0;
     dbg->shakeEnd = IsShaking() ? sStageCamera.shakeEnd : 0;
@@ -1334,13 +1404,28 @@ void BattleStage_ScriptHealthbars(BOOL visible)
     }
 }
 
+// bw2vis:camera-core: BW2's shake by default (constants/battle/battle_anim.h has the options)
 void BattleStage_CameraShake(int amplitudePx, int frames)
 {
+    int amp = amplitudePx & 0xFF;
+    int length = (frames & STAGE_CAMERA_FRAMES_MASK) * STEP_FRAMES;
+    int quarter = ((frames >> 8) & 0xFF) * STEP_FRAMES;
+
     if (!ScriptCommand()) {
         return;
     }
 
-    StartShake(amplitudePx, frames);
+    if (quarter <= 0) {
+        quarter = SHAKE_QUARTER_FRAMES;
+    }
+
+    if (amplitudePx & STAGE_CAMERA_SHAKE_DECAY) {
+        StartShakeBW2(SHAKE_DECAY, amp, quarter, 1);
+        sStageCamera.shakeEnd = length;
+        return;
+    }
+
+    StartShakeBW2((amplitudePx & STAGE_CAMERA_SHAKE_X) ? SHAKE_TRIANGLE_X : SHAKE_TRIANGLE_Y, amp, quarter, length > 0 ? (length + 4 * quarter - 1) / (4 * quarter) : 0);
 }
 
 void BattleStage_SetBackdropShake(int dx, int dy)
@@ -1739,6 +1824,20 @@ static BOOL KickGoal(int battler, fx32 fraction, CameraPose *goal)
     return TRUE;
 }
 
+// bw2vis:camera-core. A kick on BW2's motion: a push at constant speed over inFrames screen frames with
+// BW2's shake (count swings of 4 quarters of 4 frames) from the start, then home over homeFrames (BW2's
+// frames and brake)
+static void StartKick(const CameraPose *goal, int inFrames, int shakePx, int shakeCount, int homeFrames, int homeBrake)
+{
+    EaseToCurve(goal, inFrames, 0, CURVE_LINEAR);
+    StartShakeBW2(SHAKE_TRIANGLE_Y, shakePx, SHAKE_QUARTER_FRAMES, shakeCount);
+    sStageCamera.holdFrames = 0;
+    sStageCamera.homeFrames = homeFrames / STEP_FRAMES;
+    sStageCamera.homeCurve = CURVE_LINEAR;
+    sStageCamera.homeBrake = homeBrake;
+    sStageCamera.sequence = SEQUENCE_TO;
+}
+
 void BattleStage_CritKick(int battler, BOOL critical)
 {
     CameraPose goal;
@@ -1751,10 +1850,10 @@ void BattleStage_CritKick(int battler, BOOL critical)
         return;
     }
 
-    // Push 4, shake 12 from the start, then home over 10: 22 screen frames
+    // Push 4 with a 3 px shake of 1 swing (16) from the start, then home over 8: 24 screen frames
     goal.distance = FX32_CONST(0.92);
     sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_CRIT;
-    StartSequence(&goal, SCREEN_FRAMES(4), 3, SCREEN_FRAMES(12), 0, SCREEN_FRAMES(10));
+    StartKick(&goal, 4, 3, 1, 8, 0);
 }
 
 void BattleStage_FaintKick(int battler)
@@ -1765,8 +1864,9 @@ void BattleStage_FaintKick(int battler)
         return;
     }
 
-    // Dip 6, shake 10 from the start, then home over 12: 22 screen frames
+    // Dip 6 with a 2 px shake of 1 swing (16) from the start, then home over 12 with a tail from frame 8
+    // (17): 33 screen frames
     goal.pitch = FX32_CONST(-3);
     sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_FAINT;
-    StartSequence(&goal, SCREEN_FRAMES(6), 2, SCREEN_FRAMES(10), 0, SCREEN_FRAMES(12));
+    StartKick(&goal, 6, 2, 1, 12, 8);
 }

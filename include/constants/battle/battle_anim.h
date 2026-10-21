@@ -166,6 +166,14 @@
 #define STAGE_CAMERA_FRAMES_MASK 0xFF
 #define STAGE_CAMERA_BRAKE(n)    (((n) & 0xFF) << 8)
 #define STAGE_CAMERA_SMOOTH      (1 << 16)
+// StageCameraShake amplitude word: the low byte is the amplitude in pixels. BW2's shake is a triangle wave at
+// full strength on one axis that ends exactly at rest: vertical by default, sideways with STAGE_CAMERA_SHAKE_X.
+// STAGE_CAMERA_SHAKE_DECAY is the old decaying shake on both axes.
+#define STAGE_CAMERA_SHAKE_X     (1 << 8)
+#define STAGE_CAMERA_SHAKE_DECAY (1 << 9)
+// StageCameraShake frames word: the low byte is the length in drawn frames (rounded up to whole swings);
+// STAGE_CAMERA_SHAKE_QUARTER(n) makes each quarter swing n drawn frames (default 2: a swing of 8)
+#define STAGE_CAMERA_SHAKE_QUARTER(n) (((n) & 0xFF) << 8)
 
 // Default positions for contest sprites
 #define CONTESTANT_POS_PLAYER_X 216
