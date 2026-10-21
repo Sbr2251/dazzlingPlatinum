@@ -288,6 +288,18 @@ minute, whether it came from the RTC, the weather column, the column weights and
 lighting and fog. `atmosphere.resolve()` mirrors the C bit for bit, and `preview.py --strip`
 renders it.
 
+## Terrain and the backdrop (not done)
+
+In BW2 the terrain picks the field model as well as the platforms (`bgData[bgType].fieldIds[terrain]`,
+`btlv_effect.c:276-288`), so sand and grass in one zone get different worlds. Ours keeps the
+backdrop per `battleBG` (`BACKGROUND_WATER` while surfing) and lets the terrain pick only the
+platform piece (`field_battle_data_transfer.c` `CalcTerrain`). Doing BW2's split is not a small
+data change in our selection: the 23 backdrops are the classic art, and there is no sand, beach or
+marsh backdrop to switch to. The only remaps the existing art allows (snow or ice tiles to
+`BACKGROUND_SNOW`, water to `BACKGROUND_WATER`) already happen, because the maps with those
+tiles carry those backgrounds. So it stays as it is until there is backdrop art per terrain
+(the BW2-style field of the stage audit's row 9).
+
 ## Brightness (Mega flash)
 
 The Mega Evolution sequence dims and flashes the scene with the 2D brightness blend, which
