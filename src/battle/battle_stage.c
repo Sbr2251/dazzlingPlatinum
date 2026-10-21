@@ -12,6 +12,7 @@
 
 #include "battle/battle_stage_camera.h"
 #include "battle/battle_stage_format.h"
+#include "battle/battle_stage_light.h"
 #include "battle/battle_stage_sprites.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02268520.h"
@@ -107,6 +108,7 @@ typedef struct StageArena {
     u32 frame; // drawn frames, for SCROLL
     int dlAlpha; // arena alpha the DL's POLYGON_ATTR words are patched for
     BattleStageFileAtmosphere atmosphere;
+    BattleStageLight light; // bw2vis:stage-light: picked at battle start from the atmosphere
 } StageArena;
 
 typedef struct BattleStage {
@@ -657,7 +659,7 @@ static BOOL IsAtmosphereValid(const BattleStageFileAtmosphere *atmosphere)
         }
     }
 
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < BATTLE_STAGE_LIGHTING_MAX; i++) {
         if (atmosphere->lighting[i].fogAlpha > 31) {
             return FALSE;
         }
@@ -1084,6 +1086,7 @@ static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes)
     if (pieces[0]->atmosphereOffset != 0) {
         arena->hasAtmosphere = TRUE;
         arena->atmosphere = *(const BattleStageFileAtmosphere *)PieceData(pieces[0], pieces[0]->atmosphereOffset);
+        BattleStageLight_Resolve(sBattleStage.battleSys, &arena->atmosphere, &arena->light); // bw2vis:stage-light
     }
 
     return arena;
@@ -1217,24 +1220,11 @@ static void SendDL(const u32 *dl, u32 size)
     }
 }
 
-// Time-of-day column of the atmosphere: 0 day, 1 twilight, 2 night
-static int LightingColumn(void)
-{
-    int column = ov16_0223EC04(sBattleStage.battleSys);
-
-    if (column < 0) {
-        column = 0;
-    } else if (column > 2) {
-        column = 2;
-    }
-
-    return column;
-}
-
-// Material and light 0 of the LIT meshes (and the stage sprites) for the time of day
+// Material and light 0 of the LIT meshes (and the stage sprites) for the time of day,
+// blended at battle start (bw2vis:stage-light, battle_stage_light.c)
 static const BattleStageFileLighting *CurrentLighting(StageArena *arena)
 {
-    return arena->hasAtmosphere ? &arena->atmosphere.lighting[LightingColumn()] : &sDefaultLighting;
+    return arena->hasAtmosphere ? &arena->light.lighting : &sDefaultLighting;
 }
 
 // The same at day, whatever the time
@@ -1444,15 +1434,15 @@ static void UpdateFog(StageArena *arena)
         for (i = 0; i < 8; i++) {
             table[i] = density * 0x01010101;
         }
-    } else if (arena->hasAtmosphere && arena->atmosphere.fogEnabled) {
-        const BattleStageFileLighting *lighting = &arena->atmosphere.lighting[LightingColumn()];
+    } else if (arena->hasAtmosphere && arena->light.fogEnabled) {
+        const BattleStageFileLighting *lighting = &arena->light.lighting;
 
         // The fog stands for the backdrop's distance, so it fades with the backdrop
         color = BackdropFadeActive() ? BackdropFadeColor(lighting->fogColor) : lighting->fogColor;
         alpha = lighting->fogAlpha;
-        shift = arena->atmosphere.fogShift;
-        offset = arena->atmosphere.fogOffset;
-        memcpy(table, arena->atmosphere.fogTable, sizeof(table));
+        shift = arena->light.fogShift;
+        offset = arena->light.fogOffset;
+        memcpy(table, arena->light.fogTable, sizeof(table));
     } else {
         FogOff();
         return;

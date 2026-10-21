@@ -69,6 +69,7 @@ import argparse
 import math
 import os
 import time
+import types
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -179,10 +180,11 @@ def fog_density_lut(atm):
 
 
 class Renderer:
-    def __init__(self, pieces, palettes, raster="desmume", column=0, frame=None):
+    def __init__(self, pieces, palettes, raster="desmume", column=0, frame=None, light=None):
         """pieces: [backdrop piece, platform piece or None]; palettes: {"bg" or
         ("platform", side): (N, 3) 5-bit colours}; column: the lighting column
-        (ov16_0223EC04); frame: sway frame or None."""
+        (ov16_0223EC04); frame: sway frame or None; light: (Lighting, (fog shift, offset,
+        table)) as atmosphere.resolve() picks it for a clock and weather, instead of column."""
         self.pieces = [p for p in pieces if p is not None]
         self.palettes = palettes
         self.raster = raster
@@ -190,7 +192,14 @@ class Renderer:
         atm = pieces[0].atmosphere
         self.lighting = atm.lighting[column] if atm else None
         self.fog = atm if atm and atm.fog_enabled else None
-        self.fog_lut = fog_density_lut(atm) if self.fog else None
+
+        if light is not None and atm is not None:
+            self.lighting = light[0]
+
+            if self.fog is not None:
+                self.fog = types.SimpleNamespace(fog_shift=light[1][0], fog_offset=light[1][1], fog_table=light[1][2])
+
+        self.fog_lut = fog_density_lut(self.fog) if self.fog else None
 
     def render(self, camera):
         """(rgb888 image, covered mask) of one camera."""
@@ -718,6 +727,50 @@ def run_all(stage, args, rasters):
     print(f"wrote {args.out}/sheet_bg*.png, contact_*.png in {time.time() - started:.0f} s")
 
 
+def parse_clock(text):
+    hour, minute = (int(v) for v in text.split(":"))
+    return hour * 60 + minute
+
+
+# TimeOfDayForHour (src/rtc.c) -> the classic palette column (ov16_0223EC04)
+def classic_tod(minute):
+    hour = minute // 60
+    return 1 if 17 <= hour < 20 else (2 if hour >= 20 or hour < 4 else 0)
+
+
+def run_strip(stage, args, rasters):
+    """--strip: the home pose of each --strip-bgs background at each --clocks time as the
+    renderer lights it at battle start (atmosphere.resolve), on the classic palettes of that
+    hour. One row per background."""
+    clocks = [c.strip() for c in args.clocks.split(",")]
+    rows = []
+
+    for background in [int(b) for b in args.strip_bgs.split(",")]:
+        terrain = USUAL_TERRAIN[background] if args.terrain is None else args.terrain
+        backdrop, platforms, _ = stage.classic(background, terrain)
+        pieces = stage.pieces(background, terrain)
+        atm = pieces[0].atmosphere
+
+        tiles = []
+
+        for clock in clocks:
+            minute = parse_clock(clock)
+            column = classic.palette_column(background, classic_tod(minute))
+            palettes = {"bg": palette5(backdrop.palettes[column])}
+
+            for plat in platforms:
+                palettes["platform", plat.side] = palette5(plat.palettes[column])
+
+            light = atmosphere.resolve(atm, background, minute)
+            img, _ = Renderer(pieces, palettes, rasters[0], column, args.frame, light).render(camera_for(pieces[0], 0))
+            tiles.append(labelled(img, f"bg{background} {clock}"))
+
+        rows.append(hstack(tiles))
+
+    save(os.path.join(args.out, "strip.png"), vstack(rows))
+    print(f"wrote {args.out}/strip.png")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--narc", default=os.path.join(classic.ROOT, "res/prebuilt/battle/graphic/battle_stage.narc"))
@@ -729,12 +782,17 @@ def main():
     parser.add_argument("--frame", type=int, help="sway SCROLL meshes to this arena draw (30 per second; default: no sway)")
     parser.add_argument("--all", action="store_true", help="every background and every terrain")
     parser.add_argument("--poses", action="store_true", help="every background from the gameplay camera poses")
+    parser.add_argument("--strip", action="store_true", help="time-of-day strip (atmosphere.resolve)")
+    parser.add_argument("--strip-bgs", default="0,3,4", help="--strip: backgrounds")
+    parser.add_argument("--clocks", default="06:00,09:00,12:00,17:00,18:30,20:00,23:00", help="--strip: HH:MM list")
     args = parser.parse_args()
     os.makedirs(args.out, exist_ok=True)
     rasters = RASTERS if args.raster == "both" else (args.raster,)
     stage = Stage(args.narc)
 
-    if args.poses:
+    if args.strip:
+        run_strip(stage, args, rasters)
+    elif args.poses:
         run_poses(stage, args, rasters)
     elif args.all:
         run_all(stage, args, rasters)

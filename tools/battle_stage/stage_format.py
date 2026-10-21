@@ -8,7 +8,7 @@ aligned.
 import struct
 
 MAGIC = 0x47545342  # "BSTG"
-VERSION = 2
+VERSION = 3
 
 # BACKGROUND_MAX and TERRAIN_MAX (include/constants/battle/...)
 BACKGROUND_MAX = 23
@@ -21,7 +21,11 @@ MESH = struct.Struct("<IHBBHH2BH")
 VERTEX = struct.Struct("<3h2hHI")
 ATMOSPHERE = struct.Struct("<BBH32B")
 LIGHTING = struct.Struct("<3h5HB3x")
-NUM_LIGHTING = 3  # day, twilight, night columns (ov16_0223EC04)
+# enum BattleStageLightingColumn: day, twilight, night (ov16_0223EC04), then the columns the
+# renderer blends in at battle start (battle_stage_light.c)
+LIGHTING_COLUMNS = ("day", "twilight", "night", "morning", "dusk")
+NUM_LIGHTING = len(LIGHTING_COLUMNS)
+NUM_TOD_COLUMNS = 5
 
 # GXTexFmt
 TEXFMT_PLTT16 = 3
@@ -142,6 +146,12 @@ class Lighting:
         self.fog_color = fog_color
         self.fog_alpha = fog_alpha
 
+    def copy(self, **kw):
+        out = Lighting(self.light_dir, self.light_color, self.diffuse, self.ambient, self.emission, self.fog_color,
+                       self.fog_alpha)
+        out.__dict__.update(kw)
+        return out
+
 
 class Atmosphere:
     """BattleStageFileAtmosphere, only in backdrop pieces."""
@@ -178,7 +188,7 @@ class Atmosphere:
         return cls(f[0], f[1], f[2], f[3:35], lighting)
 
 
-ATMOSPHERE_SIZE = ATMOSPHERE.size + LIGHTING.size * NUM_LIGHTING  # 96
+ATMOSPHERE_SIZE = ATMOSPHERE.size + LIGHTING.size * NUM_LIGHTING  # 136
 
 
 class Header:

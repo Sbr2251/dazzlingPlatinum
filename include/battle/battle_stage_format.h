@@ -14,7 +14,7 @@
 // and 4-byte aligned.
 
 #define BATTLE_STAGE_MAGIC   0x47545342 // "BSTG"
-#define BATTLE_STAGE_VERSION 2
+#define BATTLE_STAGE_VERSION 3
 
 enum BattleStagePaletteSource {
     // Texture indices are BG palette indices; the palette is copied from the live
@@ -52,8 +52,22 @@ enum BattleStageMeshFlag {
     BATTLE_STAGE_MESH_SCROLL = 1 << 10,
 };
 
-// Arena light and fog for one time-of-day column: [0] day, [1] twilight, [2] night, as
-// picked by ov16_0223EC04 (indoor backgrounds always use [0])
+// Lighting columns of the atmosphere. [0..2] are the classic time-of-day columns that
+// ov16_0223EC04 picks (and the classic BG palettes follow); the renderer blends the others in
+// at battle start by the RTC hour and minute (battle_stage_light.c, stage_format.md
+// "Time of day")
+enum BattleStageLightingColumn {
+    BATTLE_STAGE_LIGHTING_DAY = 0,
+    BATTLE_STAGE_LIGHTING_TWILIGHT,
+    BATTLE_STAGE_LIGHTING_NIGHT,
+    BATTLE_STAGE_LIGHTING_MORNING, // cool blue, 06:00-09:00
+    BATTLE_STAGE_LIGHTING_DUSK, // orange, 18:30
+    BATTLE_STAGE_LIGHTING_MAX,
+};
+
+#define BATTLE_STAGE_LIGHTING_TOD_COUNT (BATTLE_STAGE_LIGHTING_DUSK + 1)
+
+// Arena light and fog for one lighting column (enum BattleStageLightingColumn)
 typedef struct BattleStageFileLighting {
     s16 lightDir[3]; // fx16 world-space direction the light travels, |v| < 1 (G3_LightVector)
     u16 lightColor; // GXRgb
@@ -71,7 +85,7 @@ typedef struct BattleStageFileAtmosphere {
     u8 fogShift; // G3X_SetFog slope: GX_FOGSLOPE_*, 0..10
     u16 fogOffset; // G3X_SetFog offset, 15-bit depth where fogTable[0] starts
     u8 fogTable[32]; // density 0..127 (G3X_SetFogTable)
-    BattleStageFileLighting lighting[3];
+    BattleStageFileLighting lighting[BATTLE_STAGE_LIGHTING_MAX];
 } BattleStageFileAtmosphere;
 
 typedef struct BattleStageFileHeader {
