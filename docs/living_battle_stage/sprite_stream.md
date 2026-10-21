@@ -434,8 +434,10 @@ The card timing is the emulator's. A frame read costs the game thread about 0.3 
 - **Dropped frames.** 22 large faces lost frames to the 96 KB and 255-frame caps (see Counts and sizes);
   their timing stays BW2's. A member format with frames stored as differences was tried and came out
   larger (XOR against frame A: 1.23x), since whole bodies move.
-- **Back scale.** Backs are drawn at 1.75x, BW2 at 2x (the layout workstream owns it). Backs whose BW2
-  art hovers high also sink (see Sink), which eats part of their hover (Zubat: 24 of its 42 screen px).
+- **Back hover.** Backs are drawn at BW2's 2x (layout.md). Backs whose BW2 art hovers high also sink
+  (see Sink), which eats most of their hover (Zubat: 42 of its 48 screen px at 2x): BW2 stands every
+  back 60 px lower instead, which our opaque text box doesn't allow. Zubat, Golbat, Bronzor and Gastly
+  still show whole above the box at the command menu (`/tmp/bw2vis/layout/strips/merge_floaters.png`).
 - **80x80 crop.** The other screens show only the classic window of the canvas. Wide or tall art
   loses what is outside it, and a back shows only its bottom-centre 46x46 texels. The battle's
   move copies no longer do (bw2vis:idle), except `ov12_022234F8`'s.
