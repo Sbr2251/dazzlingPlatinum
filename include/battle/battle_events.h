@@ -58,6 +58,10 @@ BOOL BattleEvents_IsCriticalCaptureFlashDone(void);
 // trainer message; switches the BGM when a Gym Leader shows their last-Pokemon line.
 void BattleEvents_OnTrainerMessage(BattleSystem *battleSys, int battler, int trainerMsg);
 
+// Low-HP beep vs the low-HP music layer: TRUE if Platinum's HINSI beep must stay off this frame. Called by the
+// beep task every frame.
+BOOL BattleEvents_SuppressLowHPBeep(void);
+
 // Ends the pop-up banners, the capture flash and a pending music switch. Call before the battle frees its systems.
 void BattleEvents_Shutdown(void);
 

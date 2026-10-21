@@ -1680,6 +1680,12 @@ static void ov16_0223CF8C(SysTask *param0, void *param1)
         }
     }
 
+    // bw2vis:battle-events: BW2 has no low-HP beep. While the low-HP music layer plays, it stands in for the beep,
+    // so the beep is held off (and stopped if it was on); without the layer the beep works as in Platinum.
+    if (BattleEvents_SuppressLowHPBeep()) {
+        v5 = 0;
+    }
+
     if ((v5) && (ov16_0223F450(v0) == 0)) {
         Sound_PlayEffect(SEQ_SE_DP_HINSI);
         BattleSystem_SetRedHPSoundFlag(v0, 1);

@@ -14,6 +14,7 @@
 #include "heap.h"
 #include "pokedex.h"
 #include "sound.h"
+#include "sound_layers.h"
 #include "sound_playback.h"
 #include "sound_system.h"
 #include "sys_task.h"
@@ -216,6 +217,28 @@ void BattleEvents_OnTrainerMessage(BattleSystem *battleSys, int battler, int tra
     sLeaderBgmTask = SysTask_Start(LeaderBgm_Task, NULL, 1000);
     gBattleEventsDebug.leaderBgm = LEADER_LAST_MON_BGM;
     gBattleEventsDebug.leaderBgmTrainerMsg = trainerMsg;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Low-HP beep vs the low-HP music layer
+// ---------------------------------------------------------------------------------------------------------------
+
+// BW2 has no low-HP beep (btlv_gauge.c:1459-1501 swaps in a pinch BGM instead). The hack's low-HP music layer
+// plays that part, so Platinum's HINSI beep stays off while the layer plays. A battle theme without the layer
+// (every theme but the wild one today) keeps the beep.
+BOOL BattleEvents_SuppressLowHPBeep(void)
+{
+    BOOL layer = SoundLayers_IsActive(BGM_LAYER_LOW_HP);
+
+    gBattleEventsDebug.lowHPLayerActive = layer;
+    gBattleEventsDebug.hinsiPlaying = Sound_IsEffectPlaying(SEQ_SE_DP_HINSI);
+    gBattleEventsDebug.beepSuppressed = layer;
+
+    if (layer) {
+        gBattleEventsDebug.beepSuppressedFrames++;
+    }
+
+    return layer;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
