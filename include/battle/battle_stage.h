@@ -28,6 +28,7 @@ enum BattleStageSuppress {
     BATTLE_STAGE_SUPPRESS_MENU = 1 << 3, // a screen that owns the 3D layer or VRAM
     BATTLE_STAGE_SUPPRESS_OTHER = 1 << 4,
     BATTLE_STAGE_SUPPRESS_WINDOW = 1 << 5, // a move window shapes the BG3 backdrop under the arena (compat.md, F3)
+    BATTLE_STAGE_SUPPRESS_EFFECT_BG_CUT = 1 << 6, // bw2vis:effect-bg: a SwitchBg cut hides the arena at once, no fade (effect_bg.md)
 };
 
 void BattleStage_Suppress(u32 reasons, BOOL suppress);

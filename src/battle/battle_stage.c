@@ -51,7 +51,8 @@
 // stays on screen until the next geometry swap
 #define STAGE_FADE_BLEND_HOLD 2
 // Reasons that always hide at once: a screen that owns VRAM
-#define STAGE_SUPPRESS_INSTANT BATTLE_STAGE_SUPPRESS_MENU
+// bw2vis:effect-bg: a SwitchBg cut is instant on purpose, so it is not counted as a hard pop
+#define STAGE_SUPPRESS_INSTANT (BATTLE_STAGE_SUPPRESS_MENU | BATTLE_STAGE_SUPPRESS_EFFECT_BG_CUT)
 // BattleStage_SetCurtain: the bars lie in front of the arena and the shadows (0.977) and
 // behind the sprites (0.625 at most); their own polygon ID, clear of the shadows' 62
 #define STAGE_CURTAIN_DEPTH       FX16_CONST(0.95)
@@ -377,7 +378,8 @@ static void UpdateFade(void)
 
     if (IsHiddenInstantly()) {
         // A pop during a move animation; the toggle and the menu outside one aren't counted
-        if (sBattleStage.fadePos > 0 && !sBattleStage.instantHidden && sBattleStage.inMoveAnim) {
+        if (sBattleStage.fadePos > 0 && !sBattleStage.instantHidden && sBattleStage.inMoveAnim
+            && (sBattleStage.suppressed & BATTLE_STAGE_SUPPRESS_EFFECT_BG_CUT) == 0) {
             compat->hardPops++;
         }
 
