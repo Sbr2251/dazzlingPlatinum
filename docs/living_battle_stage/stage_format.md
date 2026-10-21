@@ -331,8 +331,14 @@ The sprites and particles carry no fog bit, so the evolving Pokemon stays white,
 
 Gen 5's battle fields animate: the sky of the outdoor fields drifts, water flows under a wave
 layer, grass and bushes sway (audit: `/tmp/bw2gap/stage.md` rows 1-3). The arena plays the same
-kinds of motion from data in the pieces. Nothing here needs a new format version: the new mesh
-flags reuse the scroll fields, and a v2 renderer without them ignores the flags.
+kinds of motion from data in the pieces. It sits on format v3 (stage-light's lighting columns)
+without changing any struct layout: the new mesh flags (`DRIFT`, `SWAY`) reuse the scroll
+fields, and a3i5 is one more `GXTexFmt` value. A renderer without them ignores the flags and
+refuses a piece with an a3i5 texture (only `BACKGROUND_WATER` has one), so the version stays 3.
+
+Per-battle budget over the launcher's 30 pairs, after these features: at most 572 polygons
+(plain/grass; 564 before), 7 textures, 49 meshes and 60 KB of textures (the water battle; limit
+64 KB). BW2's worst realistic pair is about 570 polygons.
 
 The animations count arena draws (`StageArena.frame`, 30 per second). While the critic sets
 `BATTLE_STAGE_DEBUG_FREEZE_IDLE` (stage_ab and all_backgrounds compare the home pose with the
@@ -444,3 +450,17 @@ rocks) stay flat, because their foot would be off the pixel grid. Cost: 8 polygo
 rocks, 6 opponent rocks) and 8 KB of textures on `TERRAIN_MOUNTAIN` (mountain battle 565
 polygons). Every new prop sits inside the home-pose look: nothing is added that the classic art
 doesn't draw.
+
+## Not done: the off-home smear (audit row 9)
+
+In the Mega orbit the ground and the panorama streak: rows of the projected classic art run off
+toward the vanishing point. The cause is the art itself, not the panorama's shape: the classic
+backdrops are horizontal streaks, one colour per row, so any surface that keeps the home
+projection's rows (the ground past the screen edges, the arc) shows each row as a line seen
+from the side. An experiment that gave the side ground and the arc cylindrical texture
+coordinates (constant density past the frustum edge, `/tmp/bw2vis/stage-anim/item6/`) rendered
+the Mega orbit almost unchanged, and wrapping the panorama further round behind the camera only
+changes the sky band, which is already clean. The fix is BW2's: an isotropic tiled ground (and
+sky cylinder) that the renderer blends in as the camera leaves home, with the home-matched arena
+blended out. That needs new textures, a pose-dependent blend in the stage C and its own VRAM, so it
+was left for its own piece of work rather than shipped half-done.
