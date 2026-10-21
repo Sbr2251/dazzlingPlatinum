@@ -5,6 +5,7 @@
 
 #include "struct_decls/battle_system.h"
 
+#include "battle/battle_stage_idle.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/struct_ov16_0225BFFC_decl.h"
 #include "battle/struct_ov16_0225BFFC_t.h"
@@ -56,5 +57,13 @@ static void ov16_02264800(SysTask *param0, void *param1)
     }
 
     v1 = FX_Mul(CalcSineDegrees(v0->unk_198), 0x1800) / FX32_ONE;
+
+    // bw2vis:idle: B/W bob only the HP gauge at the command menu (btlv_gauge.c); a battler the
+    // stage draws as a mesh or from its stream keeps still, with its own idle. On the classic
+    // path (stage off, CLASSIC_SPRITES) it bobs as before
+    if (BattleStage_SuppressMenuBob(v0->battler)) {
+        v1 = 0;
+    }
+
     PokemonSprite_SetAttribute(v0->unk_20, MON_SPRITE_Y_OFFSET, v1);
 }

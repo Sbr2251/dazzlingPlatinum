@@ -4,7 +4,7 @@ L_0:
     LoadParticleResource 0, mega_kick_spa
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 0, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_STAR_IMPACT, BATTLE_BG_SWITCH_MODE_CUT
     Delay 5
     CreateEmitter 0, 1, EMITTER_CB_SET_POS_TO_DEFENDER
     CreateEmitter 0, 2, EMITTER_CB_SET_POS_TO_DEFENDER
@@ -19,6 +19,6 @@ L_0:
     UnloadParticleSystem 0
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 0, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_STAR_IMPACT, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

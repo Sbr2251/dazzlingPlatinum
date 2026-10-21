@@ -13,7 +13,7 @@ L_0:
     PlaySoundEffectL SEQ_SE_DP_W379
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    SwitchBg 4, BATTLE_BG_SWITCH_MODE_FADE
+    SwitchBg BATTLE_BG_BW2_PSYCHIC_MARBLE, BATTLE_BG_SWITCH_MODE_CUT
     Delay 5
     Func_FadeBattlerSprite BATTLE_ANIM_DEFENDER, 0, 1, BATTLE_COLOR_WHITE, 10, 10
     PlayDelayedSoundEffectR SEQ_SE_DP_480, 10
@@ -25,6 +25,6 @@ L_0:
     UnloadParticleSystem 0
     ResetVars
     SetVar BATTLE_ANIM_VAR_BG_SCREEN_MODE, 1
-    RestoreBg 4, BATTLE_BG_SWITCH_MODE_FADE
+    RestoreBg BATTLE_BG_BW2_PSYCHIC_MARBLE, BATTLE_BG_SWITCH_MODE_CUT
     WaitForBgSwitch
     End

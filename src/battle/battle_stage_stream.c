@@ -8,6 +8,8 @@
 #include "constants/heap.h"
 #include "constants/narc.h"
 
+#include "battle/battle_stage_idle.h"
+
 #include "heap.h"
 #include "narc.h"
 #include "pokemon_sprite.h"
@@ -47,7 +49,8 @@ typedef struct BattlerStream {
     u32 size; // heap this battler holds
     u32 romStart; // the member's first byte, from the start of the card
     u32 memberSize;
-    const u8 *steps; // {frame, duration}
+    const u8 *steps; // {frame, duration}: the table playing, the loop's or the special idle's
+    u16 numSteps; // in steps
     u16 step;
     s16 left; // vblanks the step has left
     u16 rateLeft; // the part of a vblank (of STREAM_RATE_ONE) not counted yet at a slow rate
@@ -61,6 +64,11 @@ typedef struct BattlerStream {
     void *bufAlloc;
     u8 *buf; // bufAlloc, MON_STREAM_READ_MISALIGN past a 32-byte boundary
     FSFile file; // the NARC, for this battler's background reads
+    // bw2vis:idle: B/W's special idle (battle_stage_idle.c), played as a second step table
+    const u8 *loopSteps; // the loop (B/W's sequence 0)
+    u16 loopNumSteps;
+    u16 idleLeft; // vblanks the special idle has left; 0 while the loop plays
+    u8 approxIdle[2]; // the approximation's clip: the loop's first frame held, one step
 } BattlerStream;
 
 typedef struct StageStream {
@@ -329,6 +337,11 @@ static void Load(int index, const PokemonSpriteTemplate *template)
 
     stream->romStart = FS_GetFileImageTop(&narc->file) + narc->fimgStart + 8 + fat[0];
     stream->steps = (const u8 *)&stream->data->frameOffsets[head.numFrames];
+    stream->numSteps = head.numSteps;
+    stream->loopSteps = stream->steps;
+    stream->loopNumSteps = head.numSteps;
+    stream->idleLeft = 0;
+    BattleStage_StreamSpecialIdleReset(index);
     maxFrame = 0;
 
     for (i = 0; i < head.numFrames; i++) {
@@ -442,8 +455,8 @@ static u16 NextFrame(const BattlerStream *stream)
 {
     int i, step = stream->step;
 
-    for (i = 0; i < stream->data->numSteps; i++) {
-        step = step + 1 < stream->data->numSteps ? step + 1 : 0;
+    for (i = 0; i < stream->numSteps; i++) {
+        step = step + 1 < stream->numSteps ? step + 1 : 0;
 
         if (StepFrame(stream, step) != stream->texFrame) {
             return StepFrame(stream, step);
@@ -453,16 +466,85 @@ static u16 NextFrame(const BattlerStream *stream)
     return stream->texFrame;
 }
 
+// bw2vis:idle: back to the loop, from its first step (B/W restart sequence 0 from tick 0)
+static void EndSpecialIdle(int index, BattlerStream *stream, BOOL aborted)
+{
+    stream->steps = stream->loopSteps;
+    stream->numSteps = stream->loopNumSteps;
+    stream->step = 0;
+    stream->left = stream->steps[1];
+    stream->idleLeft = 0;
+    BattleStage_StreamSpecialIdleEnd(index, aborted);
+}
+
+// bw2vis:idle: at the end of a loop, B/W may play a special idle (btlv_mcss.c OnAnimationEnd):
+// the member's idle clip (pokemon_sprite_stream.h, index version 3), or without one the
+// approximation, the loop's first frame held. TRUE when it started; the step it shows may still
+// be on its way from the card, as after a stall
+static BOOL StartSpecialIdle(int index, BattlerStream *stream)
+{
+    const u8 *idleSteps = NULL;
+    u16 numIdleSteps = 1;
+    u32 wait;
+
+    if (stream->loopNumSteps <= 1) {
+        return FALSE; // a still (the Megas' backs)
+    }
+
+#ifdef MON_STREAM_IDLE_NONE
+    // B/W play no special idle for the faces without idle nodes (most flyers)
+    if (stream->data->idleKind == MON_STREAM_IDLE_NONE || stream->data->numIdleSteps == 0) {
+        return FALSE;
+    }
+
+    idleSteps = MonStream_IdleSteps(stream->data);
+    numIdleSteps = stream->data->numIdleSteps;
+#endif
+
+    if (!BattleStage_StreamSpecialIdleStart(index, idleSteps, &wait) || wait == 0) {
+        return FALSE;
+    }
+
+    if (idleSteps == NULL) {
+        stream->approxIdle[0] = stream->loopSteps[0];
+        stream->approxIdle[1] = 0xFF;
+        idleSteps = stream->approxIdle;
+    }
+
+    stream->steps = idleSteps;
+    stream->numSteps = numIdleSteps;
+    stream->step = 0;
+    stream->left = idleSteps[1];
+    stream->idleLeft = wait;
+    return TRUE;
+}
+
 // Moves on by the vblanks gone, but never onto a step whose frame isn't in yet: the step
 // before it waits for the card
-static void Advance(BattlerStream *stream, u32 elapsed, BOOL frozen, u32 rate)
+static void Advance(int index, BattlerStream *stream, u32 elapsed, BOOL frozen, u32 rate)
 {
     int next;
 
     if (frozen) {
+        if (stream->idleLeft != 0) {
+            EndSpecialIdle(index, stream, TRUE);
+        }
+
         stream->step = 0;
         stream->left = stream->steps[1];
         return;
+    }
+
+    // bw2vis:idle: the special idle's wait counts every vblank, whatever the speed (B/W's
+    // IdleTask counts frames), and a move animation ends it at once
+    if (stream->idleLeft != 0) {
+        if (BattleStage_StreamSpecialIdleAbort(index)) {
+            EndSpecialIdle(index, stream, TRUE);
+        } else if (stream->idleLeft <= elapsed) {
+            EndSpecialIdle(index, stream, FALSE);
+        } else {
+            stream->idleLeft -= elapsed;
+        }
     }
 
     // Below STREAM_RATE_ONE a vblank counts for less; at 0 the step holds
@@ -475,7 +557,17 @@ static void Advance(BattlerStream *stream, u32 elapsed, BOOL frozen, u32 rate)
     stream->left -= elapsed / STREAM_RATE_ONE;
 
     while (stream->left <= 0) {
-        next = stream->step + 1 < stream->data->numSteps ? stream->step + 1 : 0;
+        next = stream->step + 1 < stream->numSteps ? stream->step + 1 : 0;
+
+        if (next == 0 && stream->idleLeft != 0) {
+            // The idle clip covers the longest wait and doesn't loop: its last step holds
+            stream->left = 0;
+            break;
+        }
+
+        if (next == 0 && StartSpecialIdle(index, stream)) {
+            continue;
+        }
 
         if (!HasFrame(stream, StepFrame(stream, next))) {
             stream->left = 0;
@@ -567,7 +659,7 @@ static void UpdateBattler(int index, u32 elapsed, BOOL visible, BOOL frozen)
     }
 
     if (stream->texFrame != STREAM_NO_FRAME) {
-        Advance(stream, elapsed, frozen, sStageStream.rate[index]);
+        Advance(index, stream, elapsed, frozen, sStageStream.rate[index]);
     }
 
     want = StepFrame(stream, stream->step);
@@ -694,6 +786,31 @@ void BattleStageStream_SetRate(int index, u32 rate)
     if (index >= 0 && index < MAX_MON_SPRITES) {
         sStageStream.rate[index] = rate > STREAM_RATE_ONE ? STREAM_RATE_ONE : rate;
     }
+}
+
+// bw2vis:idle: battler index's sprite plays a stream, or will once its tables are read (its
+// template changed this frame)
+BOOL BattleStageStream_HasStream(int index)
+{
+    const PokemonSprite *sprite;
+    const BattlerStream *stream;
+
+    if (sStageStream.monSpriteMan == NULL || !sStageStream.hasVram || sStageStream.index == NULL || index < 0 || index >= MAX_MON_SPRITES) {
+        return FALSE;
+    }
+
+    sprite = &sStageStream.monSpriteMan->sprites[index];
+    stream = &sStageStream.battlers[index];
+
+    if (!sprite->active) {
+        return FALSE;
+    }
+
+    if (sprite->template.narcID == stream->narcID && sprite->template.character == stream->character) {
+        return stream->data != NULL;
+    }
+
+    return FindMember(&sprite->template) != 0;
 }
 
 const u8 *BattleStageStream_GetFrame(int index)

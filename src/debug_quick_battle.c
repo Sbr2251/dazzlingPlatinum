@@ -13,6 +13,7 @@
 #include "generated/items.h"
 #include "generated/moves.h"
 #include "generated/species.h"
+#include "generated/trainers.h"
 
 #include "field/field_system.h"
 
@@ -219,6 +220,24 @@ static u8 sBackgroundChoice = 0;
 static u8 sTimeOfDayChoice = 0;
 static u8 sOpponentChoice = 0;
 static u8 sTotemChoice = TOTEM_ENCOUNTER_HITMONLEE;
+// bw2vis:camera-core: B steps the X battle through the Totem encounters and then this one, a plain
+// wild double battle (Y is the gym leader battle)
+#define QUICK_BATTLE_DOUBLES_CHOICE TOTEM_ENCOUNTER_COUNT
+
+// bw2vis:battle-events: L+R+Y battles the Gym Leaders the player meets in Arcs 1-2, one after another, to test
+// the leader "last Pokemon" music (docs/battle_events.md).
+static const struct {
+    u16 trainerID;
+    const char *name;
+} sLeaderChoices[] = {
+    { TRAINER_LEADER_ROARK, "Roark" },
+    { TRAINER_LEADER_GARDENIA, "Gardenia" },
+    { TRAINER_LEADER_MAYLENE, "Maylene" },
+    { TRAINER_LEADER_WAKE, "Wake" },
+    { TRAINER_LEADER_FANTINA, "Fantina" },
+};
+
+static u8 sLeaderChoice = 0;
 
 static charcode_t AsciiToCharCode(char c)
 {
@@ -344,8 +363,15 @@ static void DrawPanel(FieldSystem *fieldSystem, DebugQuickBattle *quickBattle)
         String_AppendSpeciesName(line, sOpponentSpecies[sOpponentChoice]);
         String_AppendAscii(line, " Lv");
         String_AppendNumber(line, GetOpponentLevel(SaveData_GetParty(fieldSystem->saveData)), 3, PADDING_MODE_NONE);
-        String_AppendAscii(line, "  X: ");
-        String_AppendSpeciesName(line, TotemBattle_GetEncounterConfig(sTotemChoice)->party[0].species);
+        String_AppendAscii(line, " X:");
+
+        if (sTotemChoice == QUICK_BATTLE_DOUBLES_CHOICE) {
+            String_AppendAscii(line, "Doubles"); // bw2vis:camera-core
+        } else {
+            String_AppendSpeciesName(line, TotemBattle_GetEncounterConfig(sTotemChoice)->party[0].species);
+        }
+        String_AppendAscii(line, " Y:");
+        String_AppendAscii(line, sLeaderChoices[sLeaderChoice].name);
     }
 
     Text_AddPrinterWithParams(&quickBattle->window, FONT_MESSAGE, line, 0, LINE_HEIGHT, TEXT_SPEED_INSTANT, NULL);
@@ -403,11 +429,30 @@ static const char *GiveMegaMon(FieldSystem *fieldSystem)
     return status;
 }
 
+static void StartLeaderBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBattle *quickBattle)
+{
+    ClosePanel(fieldSystem, quickBattle);
+
+    if (sBackgroundChoice != 0) {
+        const BackgroundTerrainPair *pair = &sBackgroundTerrainPairs[sBackgroundChoice - 1];
+        FieldBattleDTO_SetDebugBackgroundOverride(pair->background, pair->terrain);
+    }
+
+    if (sTimeOfDayChoice != 0) {
+        FieldBattleDTO_SetDebugTimeOfDayOverride(sTimeOfDayChoices[sTimeOfDayChoice - 1].timeOfDay);
+    }
+
+    Encounter_NewVsTrainer(task, sLeaderChoices[sLeaderChoice].trainerID, 0, 0, HEAP_ID_FIELD2, &quickBattle->battleResult);
+    sLeaderChoice = (sLeaderChoice + 1) % NELEMS(sLeaderChoices);
+    quickBattle->state = QUICK_BATTLE_STATE_AFTER_BATTLE;
+}
+
 enum QuickBattleKind {
     QUICK_BATTLE_SINGLE = 0,
     QUICK_BATTLE_TOTEM,
-    QUICK_BATTLE_DOUBLE, // bw2vis:camera-core: L+R+Y, a plain wild double battle (the selected species and the next)
+    QUICK_BATTLE_DOUBLE, // bw2vis:camera-core: a plain wild double battle (the selected species and the next)
 };
+
 
 static void StartBattle(FieldTask *task, FieldSystem *fieldSystem, DebugQuickBattle *quickBattle, int kind)
 {
@@ -458,13 +503,13 @@ static BOOL FieldTask_DebugQuickBattle(FieldTask *task)
 
         if (pressed & PAD_BUTTON_X) {
             Sound_PlayEffect(SEQ_SE_CONFIRM);
-            StartBattle(task, fieldSystem, quickBattle, QUICK_BATTLE_TOTEM);
+            StartBattle(task, fieldSystem, quickBattle, sTotemChoice == QUICK_BATTLE_DOUBLES_CHOICE ? QUICK_BATTLE_DOUBLE : QUICK_BATTLE_TOTEM);
             return FALSE;
         }
 
         if (pressed & PAD_BUTTON_Y) {
             Sound_PlayEffect(SEQ_SE_CONFIRM);
-            StartBattle(task, fieldSystem, quickBattle, QUICK_BATTLE_DOUBLE);
+            StartLeaderBattle(task, fieldSystem, quickBattle);
             return FALSE;
         }
 
@@ -482,7 +527,7 @@ static BOOL FieldTask_DebugQuickBattle(FieldTask *task)
         } else if (pressed & PAD_KEY_RIGHT) {
             sOpponentChoice = (sOpponentChoice + 1) % NELEMS(sOpponentSpecies);
         } else if (pressed & PAD_BUTTON_B) {
-            sTotemChoice = (sTotemChoice + 1) % TOTEM_ENCOUNTER_COUNT;
+            sTotemChoice = (sTotemChoice + 1) % (TOTEM_ENCOUNTER_COUNT + 1); // bw2vis:camera-core: + the doubles
         } else if (pressed & PAD_BUTTON_START) {
             quickBattle->status = GiveMegaMon(fieldSystem);
             Sound_PlayEffect(SEQ_SE_CONFIRM);

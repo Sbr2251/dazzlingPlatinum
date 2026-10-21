@@ -189,3 +189,16 @@ void SoundLayers_Update(void)
         NNS_SndPlayerSetTrackVolume(handle, LAYER_TRACK(track), volume);
     }
 }
+
+BOOL SoundLayers_IsActive(enum BGMLayer layer)
+{
+    if ((u32)layer >= BGM_LAYER_COUNT || (sLayersOn & (1 << layer)) == 0) {
+        return FALSE;
+    }
+
+    if (SoundLayers_SyncSong() == FALSE) {
+        return FALSE;
+    }
+
+    return sSong->layers[layer].trackMask != 0;
+}

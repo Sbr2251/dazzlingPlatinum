@@ -210,6 +210,11 @@ every existing script still assembles. The first camera command of a script mark
 Every cinematic sets its bit in `cinematicsSeen` when it starts, and runs only while the
 stage is visible. The crit and faint kicks are skipped when `debugFlags` has `NO_CINEMATICS`.
 
+**Battle intro** (bit 6, and bit 0 outside Totem battles; bw2vis:intro). The BW2 opening shots, the
+fade-in without Platinum's curtain and platform slide, and the 2D trainer and ball OBJs scaling with
+the camera are in intro.md. When they play, the battle-start focus below doesn't; it remains the
+fallback (the stage wasn't visible at the opening, a recorded battle, Giratina's entrance).
+
 **Battle-start focus** (bit 0)
 - **When:** once per battle, when the opponent's healthbar first slides in
   (`BattleDisplay_SlideHealthbarIn`): the opponent's Pokemon is out and, in a trainer battle,
@@ -364,23 +369,24 @@ home (20, brake 14). Each is skipped with `NO_CINEMATICS`, a hidden arena or a r
 (and snapped home if one starts, which isn't a guard snap), and the next command menu sends a beat
 still holding home (the menu then waits for home as usual).
 
-The Poke Balls and the trainers are 2D OBJs that only move with their side
-(`BattleStage_GetSideOffset`), and a ball can't grow. So:
+The Poke Balls and the trainers are 2D OBJs. They follow their side's mean similarity (the intro
+workstream's `BattleStage_FollowIntroSprite` and ball draw hook: moved and scaled, up to 2x), not
+their own battler's, and their flights are screen paths drawn for home. So the beats keep the
+battler's feet where they stand:
 
 - **Switch (E7).** A recall (`ov16_0225D118`) closes in on the battler along the ray from the home
-  camera through its feet (`DollyGoal`): its feet keep their screen point, so the recall ball and the
-  send-in ball land on it, and it grows to 1.12x (your side) or 1.35x (the foe's). The send-in
+  camera through its feet (`DollyGoal`): its feet keep their screen point, so the recall ball's and
+  the send-in ball's paths still end on it, and it grows to 1.12x (your side) or 1.35x (the foe's). The send-in
   (`ov16_0225CF70`) stays there (or closes in, after a faint) and holds until the new battler's
   healthbar is in, then 24 frames more. A recall with no send-in gives up after 300 frames. The
   Totem's summoned ally keeps its own entrance.
 - **Ball throw and catch (E12).** The throw plays at home. When the ball opens on the foe
   (`ov16_0225D1C4`) the camera closes in on it (1.35x, the same ray), so the ball keeps its place on
   the platform through the shakes. A break-free sends the Pokemon out again: the send-in beat takes
-  over and lets go. A catch holds until the battle ends. The ball OBJ keeps its home size, so it
-  looks about 25% small against the 1.35x platform.
+  over and lets go. A catch holds until the battle ends. The ball grows with the foe's side.
 - **End of a trainer battle (E13).** When the defeated trainer slides back in (`ov16_0225D414`), the
-  camera trucks over to the foes' side at home size (`TruckGoal` at 1.0x, feet on row 113), so the
-  trainer OBJ, moved with its side, keeps its size, and holds until the battle ends.
+  camera trucks over to the foes' side at home size (`TruckGoal` at 1.0x, feet on row 113, x 152), so
+  the trainer OBJ slides in to where it stands, and holds until the battle ends.
 
 ## Debug fields in sBattleStage (read by the critic from RAM via the xMAP)
 
@@ -403,6 +409,13 @@ New `debugFlags` bits, next to the chunk 3 ones:
 - bit5 `NO_IDLE_CAMERA`: no command menu camera (the prompt shot, the doubles select shot, the idle
   shots). The critic's `set_flags` sets it
   by default, so frame comparisons at the menu see the home frame.
+
+## Debug launcher: a double battle (bw2vis camera-core)
+
+In the field, L+R opens the quick-battle panel; B steps the X battle through the Totem encounters
+and then "X: Doubles" (the 10th choice), and X starts a plain wild double battle against the
+selected species and the next one (`Encounter_NewVsDoubleSpeciesAtLevel`). The panel's background
+and time of day apply as for A. (Y is the gym leader battle, from battle-events.)
 
 ## Debug block (bw2vis camera-core)
 

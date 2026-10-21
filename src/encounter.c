@@ -605,7 +605,7 @@ void Encounter_NewTotemBattle(FieldTask *task, u8 encounterID, int *resultMaskPt
     StartEncounter(task, dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);
 }
 
-// bw2vis:camera-core: a plain wild double battle against two given species (the debug quick battle's L+R+Y)
+// bw2vis:camera-core: a plain wild double battle against two given species (the debug quick battle: L+R, B to "X: Doubles", X)
 void Encounter_NewVsDoubleSpeciesAtLevel(FieldTask *task, u16 species1, u16 species2, u8 level, int *resultMaskPtr)
 {
     FieldBattleDTO *dto;
