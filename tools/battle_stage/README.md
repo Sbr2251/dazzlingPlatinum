@@ -68,7 +68,8 @@ SDL_VIDEODRIVER=dummy ~/.venvs/desmume39/bin/python tools/battle_stage/emu/criti
 | `fx.py` | bit-exact NitroSDK camera math (`MTX_PerspectiveW`, `MTX_LookAt`, `VEC_*`, `FX_*`), the renderer's debug-view cameras, the geometry engine's vertex-to-screen transform and the remapped 15-bit fog depth |
 | `classic.py` | the classic scene the arena must match: the BG3 backdrop image and palettes, the platform OBJ art, and a composite of the home screen |
 | `nitro.py` | NARC read/write, LZ77, and NCLR/NCGR/NSCR/NCER decoding |
-| `preview.py` | software renderer (light, fog, sway) for the four views, the home-vs-classic diff and hole check, contact sheets |
+| `preview.py` | software renderer (light, fog, sway, drift, shear, a3i5 and translucency) for the four views, the home-vs-classic diff and hole check, contact sheets |
+| `bw2_assets.py`, `bw2/` | battle field textures from pokebw2's `res/graphics/btlv` (allowed for battle visuals), extracted once and checked in: `bw2/wave.bin` is the water glint layer (`batt_field21n` of `115.nsbmd`). Rerun the script with a pokebw2 checkout to refresh them |
 
 ## What is generated
 
@@ -77,13 +78,16 @@ pieces (`TERRAIN_*` order). Every piece is real; a battle draws its background's
 backdrop piece with its terrain's platform piece.
 
 - Backdrop piece: textures A (256x128) and B (256x32) of the background's BG3 image,
-  8bpp, 20..23 meshes and 382..472 polygons, and the atmosphere (three lighting
+  8bpp (`BACKGROUND_WATER` adds BW2's a3i5 glint texture, 128x32), 20..23 meshes and 382..472 polygons, and the atmosphere (three lighting
   columns and the fog table).
 - Platform piece: one 4bpp texture per platform (player 256x32, enemy 128x64) from the
-  terrain's platform OBJ art, 17..21 meshes. `TERRAIN_GIRATINA` has only the player
+  terrain's platform OBJ art, 17..26 meshes, plus each platform's extra textures with
+  the same layout: the swaying water of `TERRAIN_WATER`/`TERRAIN_PUDDLE`, the grass
+  fringe of `TERRAIN_GRASS`, the standing rocks of `TERRAIN_MOUNTAIN`. `TERRAIN_GIRATINA` has only the player
   platform (the classic scene has no enemy platform there).
-- Per battle at most 48 KB of textures (limit 64 KB), 44 meshes (both pieces), 4
-  textures and about 630 polygons.
+- Per battle at most 60 KB of textures (limit 64 KB: the water battle), 49 meshes (both
+  pieces), 5 textures and 580 polygons over every backdrop x terrain pair (the
+  launcher's real pairs: at most 572).
 - Every mesh is `LIT` and `FOG`. The ground bands of `BACKGROUND_WATER` from 4 rows
   below the base row are `SCROLL`, amplitude (3, 1) texels, period 105 arena draws
   (3.5 s at 30 draws per second).
