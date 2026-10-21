@@ -1,18 +1,21 @@
 # Gen 5 species
 
-This directory holds the tools that add Gen 5 Pokemon after Arceus. The B/W battle sprites
-(`gen5_stream.py`) are covered in `docs/living_battle_stage/sprite_stream.md`. This file covers
-the species themselves.
+This directory holds the tools that add Gen 5 Pokemon after Arceus, and the battle sprite streams of
+every species. The streams (`gen5_stream.py`, `mcss.py`) are covered in
+`docs/living_battle_stage/sprite_stream.md`. This file covers the species themselves.
 
 | tool | what it writes |
 |---|---|
 | `gen5_species.py` | `res/pokemon/<species>/`: data.json (stats, types, abilities, learnsets, evolutions, Pokedex data and text in six languages), icon.png, footprint.png, meson.build, sprite_data.json and the `.png.key` files (from an analogous Sinnoh species), plus placeholder PNG/PAL files for `gen5_stream.py` to overwrite. Substitutions go to `gen5_species_report.json`. |
-| `gen5_stream.py` | the battle streams in `mon_stream.narc`, `{male,female}_{front,back}.png`, `normal.pal` and `shiny.pal` |
+| `gen5_stream.py` | for every species (Gen 5 or not), the forms and the Substitute doll: the battle streams in `mon_stream.narc`, `{male,female}_{front,back}.png`, `normal.pal` and `shiny.pal`; in `sprite_data.json` the `y_offset`s (0) and the front's `addl_y_offset` (the BW2 hover lift, replacing the analogue's value `gen5_species.py` copied); the form and doll y_offsets in `height_o.narc`. `report.json` has every face |
+| `mcss.py` | plays and draws a pokebw2 MCSS face (NMAR/NMCR/NANR/info.bin and its atlas) tick by tick, as BW2's battle does; `gen5_stream.py`'s source |
 | `gen5_cries.py` | the cries: an SDAT bank and wave archive per species, at the species ID |
-| `dex_numbers.json` | the national dex number of each species after Arceus (the PokeAPI/B/W art key) |
+| `dex_numbers.json` | the national dex number of each species after Arceus (the pokebw2 folder and PokeAPI key) |
 
-Sources: PokeAPI (stats, learnsets, dex text, B/W sprites) and pokeemerald-expansion (B/W icons,
-footprints and cries). Both are downloaded once and cached under `~/.cache/gen5_sprites`.
+Sources: PokeAPI (stats, learnsets, dex text) and pokeemerald-expansion (B/W icons, footprints and
+cries), downloaded once and cached under `~/.cache/gen5_sprites`. The battle sprites come from pokebw2's
+extracted Black 2/White 2 MCSS data (`/data/repos/pokebw2/res/pokemon`, read-only), mapped by national
+dex number; the PokeAPI B/W animated GIFs are only the fallback for a species pokebw2 lacks (none today).
 
 ## Adding a species
 
@@ -26,7 +29,8 @@ footprints and cries). Both are downloaded once and cached under `~/.cache/gen5_
    entries in `gen5_species_report.json`; a run with no arguments rewrites every species and the
    whole report (the Arc 1 files come out byte-identical).
 3. Run `gen5_stream.py`. With no arguments it rebuilds the whole NARC, which takes seconds when the
-   cache is warm.
+   cache is warm. It also gives the species its BW2 hover (`addl_y_offset`), so the Sinnoh analogue's
+   value that step 2 copied doesn't stay.
 4. Run `python3 tools/gen5_sprites/gen5_cries.py`.
 5. Add the species to `res/pokemon/sinnoh_pokedex.json` if the player meets it before the National
    Dex. Without the National Dex, the Pokedex lists only Sinnoh dex species, and the summary shows
