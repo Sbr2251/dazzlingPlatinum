@@ -1536,6 +1536,7 @@ NO_SPRITE_STREAM = 64                    # the classic frames, not the Gen 5 str
 # bw2vis:layout - the battlers at their classic places with 1.75x backs (layout.md); set_flags adds it unless layout=True,
 # so the home-vs-classic comparisons still line the stage up with the classic screen. A ROM without it ignores the bit.
 PLATINUM_LAYOUT = 1 << 12
+NO_SHADOWS = 1 << 13                     # bw2vis:followups: with NO_BLOB_SHADOWS, no classic shadow either (bare ground)
 FLAG_NAMES = ((FREEZE_IDLE, "FREEZE_IDLE"), (NO_BLOB_SHADOWS, "NO_BLOB_SHADOWS"), (CLASSIC_SPRITES, "CLASSIC_SPRITES"),
               (NO_CINEMATICS, "NO_CINEMATICS"), (CRIT_KICK_ON_HIT, "CRIT_KICK_ON_HIT"), (NO_IDLE_CAMERA, "NO_IDLE_CAMERA"),
               (NO_SPRITE_STREAM, "NO_SPRITE_STREAM"), (PLATINUM_LAYOUT, "PLATINUM_LAYOUT"))
@@ -3005,18 +3006,23 @@ def sc_sprite_life(sc: Scenario, e: Emu, args) -> None:
         n_blob = ram.field("blobShadows")
         sc.check("NO_BLOB_SHADOWS turns the blobs off", n_blob == 0, f"blobShadows {n_blob}")
         day_on = idle_samples(e, n=8, every=4)
+        # bw2vis:followups: the reference is the bare ground. NO_BLOB_SHADOWS brings the classic shadow back,
+        # which until the hideShadows fix (pokemon_sprite.c) was hidden at the first menu by a heap leftover, so
+        # this check compared against no shadow by accident; a ROM without NO_SHADOWS ignores the bit
+        ram.set_flags(FREEZE_IDLE | NO_BLOB_SHADOWS | NO_SHADOWS)
+        bare = idle_samples(e, n=8, every=4)
         blob_cells = []
         silhouettes = "sStageShadowStats" in ram.syms  # bw2vis:shadow: a ROM with BW2 silhouette shadows
         for mon in ("enemy", "player"):
             ub = under_box(boxes[mon], silhouettes)
-            a_img, b_img = best_pair([i.crop(ub) for i in with_blob], [i.crop(ub) for i in day_on])
+            a_img, b_img = best_pair([i.crop(ub) for i in with_blob], [i.crop(ub) for i in bare])
             la, lb = _luma(a_img), _luma(b_img)
             darker = sum(1 for p, q in zip(la, lb) if q - p > BLOB_DARKER)
             drop = (sum(lb) - sum(la)) / float(max(1, len(la)))
             sc.check(f"blob shadow darkens the ground under the {mon}", darker >= BLOB_PIXELS and drop > 0,
                      f"region {ub}: {darker} pixels darker by more than {BLOB_DARKER} with blobs than with "
-                     f"NO_BLOB_SHADOWS (needs {BLOB_PIXELS}), mean luma {drop:+.1f} darker")
-            blob_cells += [(f"{mon} blob ON", a_img), (f"{mon} blob OFF", b_img)]
+                     f"no shadow (NO_BLOB_SHADOWS|NO_SHADOWS) (needs {BLOB_PIXELS}), mean luma {drop:+.1f} darker")
+            blob_cells += [(f"{mon} blob ON", a_img), (f"{mon} no shadow", b_img)]
         _crop_sheet(sc, blob_cells, "blobs", "ground under each mon with and without blob shadows (FREEZE_IDLE)",
                     cols=4, zoom=3)
 

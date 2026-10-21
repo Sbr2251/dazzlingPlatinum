@@ -1165,7 +1165,7 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         return 0;
     }
 
-    result = BlobsOn() ? MON_SPRITE_DRAW_HOOK_NO_SHADOW : 0;
+    result = BlobsOn() || (sStageSprites.fields->debugFlags & BATTLE_STAGE_DEBUG_NO_SHADOWS) ? MON_SPRITE_DRAW_HOOK_NO_SHADOW : 0; // bw2vis:followups
     sprite = &monSpriteMan->sprites[index];
     transforms = &sprite->transforms;
 
