@@ -48,6 +48,12 @@
 // The debug flags that keep the drift off (and snap it home when set while it runs)
 #define IDLE_OFF_FLAGS (BATTLE_STAGE_DEBUG_NO_CINEMATICS | BATTLE_STAGE_DEBUG_NO_IDLE_CAMERA)
 
+// bw2vis:camera-core. The motion runs on BW2's clock, 60 Hz screen frames: an ease or a shake is a
+// function of the screen frames since it started, and each Advance (one BattleStage_Draw, so two
+// screen frames at the battle's 30 Hz) moves that clock by STEP_FRAMES. BW2's frame counts are used
+// as they are; a script's drawn frames are doubled.
+#define STEP_FRAMES 2
+
 // Shake periods in steps, different in x and y so the path isn't a line
 #define SHAKE_PERIOD_X 4
 #define SHAKE_PERIOD_Y 3
@@ -67,6 +73,11 @@ enum CameraSequence {
     SEQUENCE_HOLD, // holding there (and until the shake ends)
     SEQUENCE_INTRO, // the battle-start focus: there until released, at least holdFrames
     SEQUENCE_IDLE, // the command menu's drift: through sIdlePoses until ended
+};
+
+enum CameraCurve {
+    CURVE_LINEAR = 0, // BW2's MoveTo timing: constant speed, an optional half-speed tail
+    CURVE_SMOOTH, // smoothstep on each pose component (an arc for a turn)
 };
 
 enum ParticleFocus {
@@ -100,21 +111,26 @@ typedef struct StageCamera {
     BOOL hasHome;
     BattleStageCameraHome home;
     CameraPose homePose;
-    // Motion
+    // Motion (bw2vis:camera-core: on the 60 Hz clock, see STEP_FRAMES)
     CameraPose cur;
     CameraPose from;
     CameraPose goal;
-    int easeFrame;
-    int easeFrames;
-    int shakeFrame;
-    int shakeFrames;
+    int curve;
+    int easeT; // screen frames into the ease
+    int easeLen; // BW2's frames: the length at full speed
+    int easeBrake; // BW2's brakeFrames: the speed halves after easeBrake - 1 frames; 0 never
+    int easeEnd; // screen frames until it ends (a brake makes it longer than easeLen)
+    int shakeT; // screen frames into the shake
+    int shakeEnd;
     int shakeAmp; // pixels
     // The BG3 shake of a move, mirrored (BattleStage_SetBackdropShake); pixels, BG scroll sign
     int backdropDx;
     int backdropDy;
     int sequence;
     int holdFrames;
-    int homeFrames; // the ease home at the end of the sequence
+    int homeFrames; // the ease home at the end of the sequence, in drawn frames
+    int homeCurve; // and its curve and brake (bw2vis:camera-core)
+    int homeBrake;
     // Script and cinematics
     BOOL scriptActive;
     BOOL sweepDone;
@@ -151,6 +167,47 @@ static void ShowScriptHealthbars(void);
 
 static StageCamera sStageCamera;
 
+// bw2vis:camera-core. The camera's state for the critic and the capture scripts, read from RAM through
+// the xMAP (camera.md, "Debug block"). The force* fields are a test hook: with forcePose set, the
+// camera shows that pose (relative to home) instead, like a debug view.
+typedef struct StageCameraDebug {
+    u32 magic; // CAMERA_DEBUG_MAGIC once the camera is set up
+    s32 sequence; // enum CameraSequence
+    s32 curve; // enum CameraCurve of the ease
+    s32 brake; // its BW2 brakeFrames
+    s32 easeT; // screen frames into the ease
+    s32 easeEnd; // its length in screen frames, 0 when not easing
+    s32 shakeMode; // 0 (the shake's kind comes with C4)
+    s32 shakeAmp; // pixels
+    s32 shakeT;
+    s32 shakeEnd; // 0 when not shaking
+    s32 promptBattler; // the battler the last prompt framed, -1 before the first
+    s32 idleShot; // the idle shot playing, -1 for none
+    s32 idleTimer; // screen frames since the prompt
+    s32 beat; // the beat playing, 0 for none
+    s32 flags; // bit 0: the first prompt has opened
+    s32 yaw; // the current pose: fx32 degrees, fx32 distance, focus relative to the home target
+    s32 pitch;
+    s32 distance;
+    s32 focusX;
+    s32 focusY;
+    s32 focusZ;
+    s32 progress; // fx32 0..1 of the ease
+    s32 advanceTicks; // OS ticks of the last Advance, and the most of any this battle
+    s32 advanceTicksMax;
+    s32 forcePose;
+    s32 forceFocusX;
+    s32 forceFocusY;
+    s32 forceFocusZ;
+    s32 forceYaw; // fx32 degrees
+    s32 forcePitch;
+    s32 forceDistance; // fx32, 0 = home
+} StageCameraDebug;
+
+#define CAMERA_DEBUG_MAGIC 0x4D414343
+
+StageCameraDebug sStageCameraDebug;
+
 // Classic home x of each battler type (BATTLER_TYPE_*)
 static const int sHomeX[BATTLER_TYPE_MAX] = { 64, 192, 40, 216, 80, 176 };
 
@@ -173,6 +230,8 @@ static const IdlePose sIdlePoses[] = {
     { IDLE_SIDE_NONE, 0, -6, 0, 100 }, // back through near home
 };
 
+
+
 static BOOL PoseEquals(const CameraPose *a, const CameraPose *b)
 {
     return a->focus.x == b->focus.x && a->focus.y == b->focus.y && a->focus.z == b->focus.z
@@ -181,12 +240,12 @@ static BOOL PoseEquals(const CameraPose *a, const CameraPose *b)
 
 static BOOL IsEasing(void)
 {
-    return sStageCamera.easeFrames > 0 && sStageCamera.easeFrame < sStageCamera.easeFrames;
+    return sStageCamera.easeEnd > 0 && sStageCamera.easeT < sStageCamera.easeEnd;
 }
 
 static BOOL IsShaking(void)
 {
-    return sStageCamera.shakeFrames > 0 && sStageCamera.shakeFrame < sStageCamera.shakeFrames;
+    return sStageCamera.shakeEnd > 0 && sStageCamera.shakeT < sStageCamera.shakeEnd;
 }
 
 static BOOL IsBackdropShaking(void)
@@ -199,41 +258,85 @@ static void SnapHome(void)
     sStageCamera.cur = sStageCamera.homePose;
     sStageCamera.from = sStageCamera.homePose;
     sStageCamera.goal = sStageCamera.homePose;
-    sStageCamera.easeFrame = 0;
-    sStageCamera.easeFrames = 0;
-    sStageCamera.shakeFrame = 0;
-    sStageCamera.shakeFrames = 0;
+    sStageCamera.easeT = 0;
+    sStageCamera.easeEnd = 0;
+    sStageCamera.shakeT = 0;
+    sStageCamera.shakeEnd = 0;
     sStageCamera.backdropDx = 0;
     sStageCamera.backdropDy = 0;
     sStageCamera.sequence = SEQUENCE_NONE;
 }
 
-// Ease from wherever the camera is now; 0 frames snaps
-static void EaseTo(const CameraPose *goal, int frames)
+// bw2vis:camera-core. Ease from wherever the camera is now over frames screen frames (BW2's frames); 0
+// snaps. CURVE_LINEAR is BW2's MoveTo timing (btlv_camera.c:92-111, :185-204): constant speed, and brake
+// (BW2's brakeFrames, 0 for none) halves the speed after brake - 1 frames. CURVE_SMOOTH eases in and out.
+static void EaseToCurve(const CameraPose *goal, int frames, int brake, int curve)
 {
     sStageCamera.from = sStageCamera.cur;
     sStageCamera.goal = *goal;
-    sStageCamera.easeFrame = 0;
+    sStageCamera.easeT = 0;
+    sStageCamera.curve = curve;
+    sStageCamera.easeLen = frames;
+    sStageCamera.easeBrake = curve == CURVE_LINEAR ? brake : 0;
 
     if (frames <= 0) {
         sStageCamera.cur = *goal;
-        sStageCamera.easeFrames = 0;
-    } else {
-        sStageCamera.easeFrames = frames;
+        sStageCamera.easeEnd = 0;
+        return;
     }
+
+    if (sStageCamera.easeBrake > 0 && sStageCamera.easeBrake <= frames) {
+        sStageCamera.easeEnd = 2 * frames - (sStageCamera.easeBrake - 1);
+    } else {
+        sStageCamera.easeEnd = frames;
+    }
+}
+
+// The ease the chunk 4 cinematics use: smoothstep over a number of drawn frames (steps)
+static void EaseTo(const CameraPose *goal, int frames)
+{
+    EaseToCurve(goal, frames * STEP_FRAMES, 0, CURVE_SMOOTH);
+}
+
+// The share of the way the ease has come, 0..FX32_ONE
+static fx32 EaseProgress(void)
+{
+    int t = sStageCamera.easeT;
+    int n = sStageCamera.easeLen;
+    int full;
+    fx32 x;
+
+    if (n <= 0) {
+        return FX32_ONE;
+    }
+
+    if (sStageCamera.curve == CURVE_SMOOTH) {
+        x = t * FX32_ONE / n;
+        return FX_Mul(FX_Mul(x, x), 3 * FX32_ONE - 2 * x);
+    }
+
+    full = sStageCamera.easeBrake > 0 && sStageCamera.easeBrake <= n ? sStageCamera.easeBrake - 1 : n;
+
+    if (t <= full) {
+        x = t * FX32_ONE / n;
+    } else {
+        x = (2 * full + (t - full)) * FX32_ONE / (2 * n);
+    }
+
+    return x > FX32_ONE ? FX32_ONE : x;
 }
 
 static void StartShake(int amplitudePx, int frames)
 {
     if (frames <= 0 || amplitudePx <= 0) {
-        sStageCamera.shakeFrames = 0;
-        sStageCamera.shakeFrame = 0;
+        sStageCamera.shakeEnd = 0;
+        sStageCamera.shakeT = 0;
         return;
     }
 
     sStageCamera.shakeAmp = amplitudePx;
-    sStageCamera.shakeFrames = frames;
-    sStageCamera.shakeFrame = 0;
+    sStageCamera.shakeT = 0;
+    sStageCamera.shakeEnd = frames * STEP_FRAMES;
 }
 
 static fx32 Lerp(fx32 a, fx32 b, fx32 t)
@@ -241,37 +344,35 @@ static fx32 Lerp(fx32 a, fx32 b, fx32 t)
     return a + FX_Mul(b - a, t);
 }
 
-static void AdvanceEase(void)
+static void AdvanceEase(int frames)
 {
     CameraPose *from = &sStageCamera.from;
     CameraPose *goal = &sStageCamera.goal;
     CameraPose *cur = &sStageCamera.cur;
-    fx32 t, s;
+    fx32 s;
 
     if (!IsEasing()) {
         return;
     }
 
-    sStageCamera.easeFrame++;
+    sStageCamera.easeT += frames;
 
-    if (sStageCamera.easeFrame >= sStageCamera.easeFrames) {
+    if (sStageCamera.easeT >= sStageCamera.easeEnd) {
         *cur = *goal;
-        sStageCamera.easeFrames = 0;
-        sStageCamera.easeFrame = 0;
+        sStageCamera.easeEnd = 0;
+        sStageCamera.easeT = 0;
         return;
     }
 
-    // Smoothstep, 3t^2 - 2t^3
-    t = sStageCamera.easeFrame * FX32_ONE / sStageCamera.easeFrames;
-    s = FX_Mul(FX_Mul(t, t), 3 * FX32_ONE - 2 * t);
+    s = EaseProgress();
 
     cur->focus.x = Lerp(from->focus.x, goal->focus.x, s);
     cur->focus.y = Lerp(from->focus.y, goal->focus.y, s);
     cur->focus.z = Lerp(from->focus.z, goal->focus.z, s);
+    cur->fov = Lerp(from->fov, goal->fov, s);
     cur->yaw = Lerp(from->yaw, goal->yaw, s);
     cur->pitch = Lerp(from->pitch, goal->pitch, s);
     cur->distance = Lerp(from->distance, goal->distance, s);
-    cur->fov = Lerp(from->fov, goal->fov, s);
 }
 
 // Sine and cosine of an angle in fx32 degrees; a negative angle takes the sine of its
@@ -333,14 +434,14 @@ static void PoseCamera(const CameraPose *pose, VecFx32 *camPos, VecFx32 *offsetO
 // picture moved by (-dx, -dy), so the camera moves by dx right and dy down.
 static void ShakePixels(int *dx, int *dy)
 {
-    int k = sStageCamera.shakeFrame;
-    int n = sStageCamera.shakeFrames;
+    int k = sStageCamera.shakeT / STEP_FRAMES;
+    int n = sStageCamera.shakeEnd / STEP_FRAMES;
     int amp = sStageCamera.shakeAmp;
 
     *dx = sStageCamera.backdropDx;
     *dy = -sStageCamera.backdropDy;
 
-    if (IsShaking()) {
+    if (IsShaking() && n > 0) {
         *dx += amp * FX_SinIdx((u16)(k * 0x10000 / SHAKE_PERIOD_X)) * (n - k) / n / FX32_ONE;
         *dy += amp * FX_SinIdx((u16)(k * 0x10000 / SHAKE_PERIOD_Y + 0x4000)) * (n - k) / n / FX32_ONE;
     }
@@ -647,6 +748,7 @@ static void UpdateCutGuard(BOOL visible, const CameraPose *pose)
     }
 }
 
+
 static BOOL IdleGoal(int index, CameraPose *goal);
 
 static void AdvanceSequence(void)
@@ -665,7 +767,7 @@ static void AdvanceSequence(void)
         }
 
         if (sStageCamera.holdFrames <= 0 && !IsShaking()) {
-            EaseTo(&sStageCamera.homePose, sStageCamera.homeFrames);
+            EaseToCurve(&sStageCamera.homePose, sStageCamera.homeFrames * STEP_FRAMES, sStageCamera.homeBrake, sStageCamera.homeCurve);
             sStageCamera.sequence = SEQUENCE_NONE;
         }
         break;
@@ -754,6 +856,10 @@ void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fi
     sStageCamera.drawProjection = home->projection;
     SnapHome();
 
+    // bw2vis:camera-core: the debug block
+    memset(&sStageCameraDebug, 0, sizeof(sStageCameraDebug));
+    sStageCameraDebug.magic = CAMERA_DEBUG_MAGIC;
+
     ParticleSystem_SetProjectionHook(ParticleProjectionHook);
 }
 
@@ -773,29 +879,63 @@ void BattleStageCamera_Free(void)
     sStageCamera.battleSys = NULL;
 }
 
+// bw2vis:camera-core: the debug block, after the frame's pose is known
+static void UpdateDebugBlock(const CameraPose *pose, OSTick startTick)
+{
+    StageCameraDebug *dbg = &sStageCameraDebug;
+    s32 ticks = (s32)(OS_GetTick() - startTick);
+
+    dbg->sequence = sStageCamera.sequence;
+    dbg->curve = sStageCamera.curve;
+    dbg->brake = sStageCamera.easeBrake;
+    dbg->easeT = IsEasing() ? sStageCamera.easeT : 0;
+    dbg->easeEnd = IsEasing() ? sStageCamera.easeEnd : 0;
+    dbg->shakeAmp = sStageCamera.shakeAmp;
+    dbg->shakeT = IsShaking() ? sStageCamera.shakeT : 0;
+    dbg->shakeEnd = IsShaking() ? sStageCamera.shakeEnd : 0;
+    dbg->promptBattler = -1;
+    dbg->idleShot = sStageCamera.sequence == SEQUENCE_IDLE ? sStageCamera.idlePose : -1;
+    dbg->yaw = pose->yaw;
+    dbg->pitch = pose->pitch;
+    dbg->distance = pose->distance;
+    dbg->focusX = pose->focus.x - sStageCamera.home.camTarget.x;
+    dbg->focusY = pose->focus.y - sStageCamera.home.camTarget.y;
+    dbg->focusZ = pose->focus.z - sStageCamera.home.camTarget.z;
+    dbg->progress = IsEasing() ? EaseProgress() : 0;
+    dbg->advanceTicks = ticks;
+
+    if (ticks > dbg->advanceTicksMax) {
+        dbg->advanceTicksMax = ticks;
+    }
+}
+
 void BattleStageCamera_Advance(BOOL visible, int debugView)
 {
     BattleStageCameraFields *fields = sStageCamera.fields;
     CameraPose pose;
     BOOL poseHome;
+    BOOL forced;
+    OSTick startTick;
     u32 flags;
 
     if (!sStageCamera.hasHome || fields == NULL) {
         return;
     }
 
+    startTick = OS_GetTick();
+
     // The classic path never sees an off-home camera (SnapHome also drops the backdrop shake)
     if (!visible) {
         SnapHome();
     } else {
-        AdvanceEase();
+        AdvanceEase(STEP_FRAMES);
 
         if (IsShaking()) {
-            sStageCamera.shakeFrame++;
+            sStageCamera.shakeT += STEP_FRAMES;
 
-            if (sStageCamera.shakeFrame >= sStageCamera.shakeFrames) {
-                sStageCamera.shakeFrames = 0;
-                sStageCamera.shakeFrame = 0;
+            if (sStageCamera.shakeT >= sStageCamera.shakeEnd) {
+                sStageCamera.shakeEnd = 0;
+                sStageCamera.shakeT = 0;
             }
         }
 
@@ -806,7 +946,8 @@ void BattleStageCamera_Advance(BOOL visible, int debugView)
         ReleaseHealthbars();
     }
 
-    poseHome = PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) && !IsEasing() && !IsShaking() && debugView == 0;
+    forced = visible && sStageCameraDebug.forcePose == 1;
+    poseHome = PoseEquals(&sStageCamera.cur, &sStageCamera.homePose) && !IsEasing() && !IsShaking() && debugView == 0 && !forced;
     // A mirrored BG3 shake rebuilds the view, but it is the move's own backdrop moving, not
     // the camera leaving home: the off-home counters skip it
     sStageCamera.atHome = poseHome && !IsBackdropShaking();
@@ -843,7 +984,16 @@ void BattleStageCamera_Advance(BOOL visible, int debugView)
         sStageCamera.drawProjection = sStageCamera.home.projection;
     } else {
         // The debug views are fixed poses around the home target
-        if (debugView != 0) {
+        if (forced) {
+            // bw2vis:camera-core: the test hook's pose (the harness writes it)
+            pose = sStageCamera.homePose;
+            pose.focus.x += sStageCameraDebug.forceFocusX;
+            pose.focus.y += sStageCameraDebug.forceFocusY;
+            pose.focus.z += sStageCameraDebug.forceFocusZ;
+            pose.yaw = sStageCameraDebug.forceYaw;
+            pose.pitch = sStageCameraDebug.forcePitch;
+            pose.distance = sStageCameraDebug.forceDistance > 0 ? sStageCameraDebug.forceDistance : FX32_ONE;
+        } else if (debugView != 0) {
             pose = sStageCamera.homePose;
 
             if (debugView == 1) {
@@ -864,6 +1014,7 @@ void BattleStageCamera_Advance(BOOL visible, int debugView)
     }
 
     UpdateCutGuard(visible, &pose);
+    UpdateDebugBlock(&pose, startTick);
 }
 
 BOOL BattleStageCamera_IsHome(void)
@@ -1056,6 +1207,16 @@ static BOOL ScriptCommand(void)
     return TRUE;
 }
 
+// bw2vis:camera-core. A command's frames word: drawn frames in the low byte, BW2's brake and the curve
+// above it (constants/battle/battle_anim.h). Eases from the current pose to goal.
+static void CommandEase(const CameraPose *goal, int framesWord)
+{
+    int frames = (framesWord & STAGE_CAMERA_FRAMES_MASK) * STEP_FRAMES;
+    int brake = ((framesWord >> 8) & 0xFF) * STEP_FRAMES;
+
+    EaseToCurve(goal, frames, brake, (framesWord & STAGE_CAMERA_SMOOTH) ? CURVE_SMOOTH : CURVE_LINEAR);
+}
+
 void BattleStage_CameraMove(int focus, int attacker, int defender, int distancePct, int yawDeg, int pitchDeg, int frames)
 {
     CameraPose goal;
@@ -1104,7 +1265,7 @@ void BattleStage_CameraMove(int focus, int attacker, int defender, int distanceP
         goal.distance = FX32_ONE;
     }
 
-    EaseTo(&goal, frames);
+    CommandEase(&goal, frames);
 }
 
 void BattleStage_CameraOrbit(int yawDeltaDeg, int frames)
@@ -1117,7 +1278,7 @@ void BattleStage_CameraOrbit(int yawDeltaDeg, int frames)
 
     goal = sStageCamera.goal;
     goal.yaw += yawDeltaDeg * FX32_ONE;
-    EaseTo(&goal, frames);
+    CommandEase(&goal, frames);
 }
 
 // The vertical field of view in degrees, as pose.fov: the ratio of its half-angle tangent to
@@ -1146,7 +1307,7 @@ void BattleStage_CameraZoom(int fovDeg, int frames)
         goal.fov = FX_Div(FX_Mul(sinA, sStageCamera.home.fovyCos), FX_Mul(cosA, sStageCamera.home.fovySin));
     }
 
-    EaseTo(&goal, frames);
+    CommandEase(&goal, frames);
 }
 
 void BattleStage_ScriptHealthbars(BOOL visible)
@@ -1200,7 +1361,7 @@ void BattleStage_CameraHome(int frames)
         return;
     }
 
-    EaseTo(&sStageCamera.homePose, frames);
+    CommandEase(&sStageCamera.homePose, frames);
 }
 
 BOOL BattleStage_IsCameraMoving(void)
@@ -1254,6 +1415,8 @@ static void StartSequence(const CameraPose *goal, int frames, int shakePx, int s
     StartShake(shakePx, shakeFrames);
     sStageCamera.holdFrames = holdFrames;
     sStageCamera.homeFrames = homeFrames;
+    sStageCamera.homeCurve = CURVE_SMOOTH;
+    sStageCamera.homeBrake = 0;
     sStageCamera.sequence = SEQUENCE_TO;
 }
 
