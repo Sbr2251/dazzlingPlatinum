@@ -119,6 +119,9 @@ static void ov16_0223D10C(ApplicationManager *appMan, FieldBattleDTO *param1);
 static BOOL ov16_0223D354(ApplicationManager *appMan);
 static void ov16_0223D7B4(ApplicationManager *appMan);
 static void ov16_0223C004(BattleSystem *battleSys, BgConfig *param1);
+
+// The field's master brightness when the battle started (bw2vis:intro)
+static int sIntroFieldBrightness;
 static void ov16_0223C210(BattleSystem *battleSys);
 static void ov16_0223C288(BgConfig *param0);
 static void ov16_0223C2BC(BattleSystem *battleSys);
@@ -574,6 +577,9 @@ static void ov16_0223B790(ApplicationManager *appMan)
         NARC_dtor(v7);
     }
 
+    // bw2vis:intro: the field's transition left the screen black or white (its master brightness):
+    // the stage's opening fades in from that colour, as BW2 does (btlv_scu.c:580-587)
+    sIntroFieldBrightness = GX_GetMasterBrightness();
     ov16_0223C004(battleSys, battleSys->unk_04);
 
     Window_Add(battleSys->unk_04, &battleSys->windows[0], 1, 2, 0x13, 27, 4, 11, (18 + 12) + 1);
@@ -615,6 +621,14 @@ static void ov16_0223B790(ApplicationManager *appMan)
     ov16_0223CE28();
     TotemBattle_ResetLayout(battleSys);
     BattleStage_Init(battleSys);
+
+    // bw2vis:intro: the stage's opening fades in from black (battle_display.c, IntroStageOpening).
+    // Until then the BG palettes are filled with the curtain's colour, which Platinum's curtain
+    // covered: keep the screens black from the first frame. The classic opening undoes it.
+    if (BattleStage_IsEnabled()) {
+        SetScreenMasterBrightness(DS_SCREEN_MAIN, sIntroFieldBrightness > 0 ? 16 : -16);
+        SetScreenMasterBrightness(DS_SCREEN_SUB, sIntroFieldBrightness > 0 ? 16 : -16);
+    }
 #if DEBUG_BATTLE_TOOLS
     BattleDebug_Init();
 #endif
@@ -1560,18 +1574,23 @@ static void ov16_0223CF1C(void *param0)
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
-// The trainers are 2D OBJs: while the stage camera is off home they draw moved with their
-// side's platform, then go back, so the game's own position checks never see the offset
+// The trainers are 2D OBJs: while the stage camera is off home they draw moved and scaled with
+// their side's platform (the intro shots), then go back, so the game's own position checks
+// never see it (bw2vis:intro: was translate-only, which left the player's trainer full size
+// with a slice at the bottom-left while the camera was pushed in)
+static BattleStageIntroSpriteSave sTrainerSpriteSaves[MAX_BATTLERS];
+
 static void OffsetTrainerSprites(BattleSystem *battleSys, int sign)
 {
-    int i, dx, dy;
+    int i;
 
-    for (i = 0; i < battleSys->maxBattlers; i++) {
+    for (i = 0; i < battleSys->maxBattlers && i < MAX_BATTLERS; i++) {
         BattlerData *battlerData = battleSys->battlers[i];
 
-        if (battlerData != NULL && battlerData->unk_18 != NULL
-            && BattleStage_GetSideOffset(battlerData->battlerType & 1, &dx, &dy)) {
-            ManagedSprite_OffsetPositionXY(battlerData->unk_18, sign * dx, sign * dy);
+        if (battlerData != NULL && battlerData->unk_18 != NULL) {
+            BattleStage_FollowIntroSprite(battlerData->unk_18, battlerData->battlerType & 1, sign, &sTrainerSpriteSaves[i]);
+        } else {
+            sTrainerSpriteSaves[i].moved = FALSE;
         }
     }
 }
