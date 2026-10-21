@@ -17,9 +17,10 @@
 #define PLANE_MIN_DISTANCE FX32_CONST(0.5)
 
 // The particle field: each particle takes the similarity of the battlers around it, weighted by
-// 1 / (d^2 + r^2)^2 from its home screen position to each battler's body point (the foot anchor
+// 1 / (d^2 + r^2)^3 from its home screen position to each battler's body point (the foot anchor
 // raised by BODY_LIFT px); a battler whose (d^2 + r^2) is SNAP_RATIO times the nearest one's or
-// more counts for nothing
+// more counts for nothing. The cube keeps a far mon's pull under a pixel near a mon even when
+// that mon's similarity is far off (a close-up on the other side).
 #define BODY_LIFT   24
 #define SOFT_RADIUS 16
 #define SNAP_RATIO  32
@@ -405,7 +406,7 @@ void BattleStageParticles_DrawParticle(const VecFx32 *viewPos)
         return;
     }
 
-    // A blend: weights (nearest / spread)^2, which sum to at least 1
+    // A blend: weights (nearest / spread)^3, which sum to at least 1
     sum = 0;
 
     for (i = 0; i < sStageParticles.numBattlers; i++) {
@@ -417,7 +418,7 @@ void BattleStageParticles_DrawParticle(const VecFx32 *viewPos)
         }
 
         ratio = (fx32)(((u64)nearest << FX32_SHIFT) / spread[i]);
-        weight[i] = FX_Mul(ratio, ratio);
+        weight[i] = FX_Mul(FX_Mul(ratio, ratio), ratio);
         sum += weight[i];
     }
 
