@@ -1,7 +1,10 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "push" (moves.md, "Templates"): both mons while it flies, then a push-in on the defender at the hit.
 L_0:
     LoadParticleResource 0, me_first_spa
+    CamTplPushOpen
     PlaySoundEffectR SEQ_SE_DP_SHUSHU
     JumpIfContest L_1
     CreateEmitter 0, 0, EMITTER_CB_SET_POS_TO_DEFENDER
@@ -16,6 +19,7 @@ L_0:
     Func_FadeBattlerSprite BATTLE_ANIM_ATTACKER, 0, 1, BATTLE_COLOR_TEAL_GREEN, 10, 10
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_1:
@@ -31,4 +35,5 @@ L_1:
     Func_FadeBattlerSprite BATTLE_ANIM_ATTACKER, 0, 1, BATTLE_COLOR_TEAL_GREEN, 10, 10
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

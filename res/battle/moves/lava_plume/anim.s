@@ -1,11 +1,15 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "wide" (moves.md, "Templates"): a pull-back over the whole field.
 L_0:
     LoadParticleResource 0, lava_plume_spa
+    CamTplWideOpen
     PlaySoundEffectL SEQ_SE_DP_W436
     CreateEmitter 0, 1, EMITTER_CB_SET_POS_TO_ATTACKER
     CreateEmitter 0, 2, EMITTER_CB_SET_POS_TO_ATTACKER
     CreateEmitter 0, 0, EMITTER_CB_SET_POS_TO_ATTACKER
+    CamTplImpact 2, 6
     Func_Shake 2, 0, 1, 2, BATTLE_ANIM_BATTLER_SPRITES | BATTLE_ANIM_NOT_ATTACKER
     Delay 1
     JumpIfFriendlyFire L_1
@@ -14,10 +18,12 @@ L_0:
     Func_FadeBattlerSprite BATTLE_ANIM_ATTACKER_PARTNER, 0, 1, BATTLE_COLOR_RED, 10, 0
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_1:
     JumpIfBattlerSide BATTLER_ROLE_ATTACKER, L_2, L_3
+    CamTplClose
     End
 
 L_2:
@@ -27,6 +33,7 @@ L_2:
     WaitForAnimTasks
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_3:
@@ -36,6 +43,9 @@ L_3:
     WaitForAnimTasks
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
+    CamTplClose
     End
+    CamTplClose
     End

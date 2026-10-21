@@ -1,7 +1,10 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "self" (moves.md, "Templates"): a close shot of the attacker with a slow orbit.
 L_0:
     LoadParticleResource 0, splash_spa
+    CamTplSelfOpen
     Func_Splash
     BeginLoop 3
     CreateEmitter 0, 0, EMITTER_CB_SET_POS_TO_ATTACKER
@@ -10,4 +13,5 @@ L_0:
     Delay 20
     EndLoop
     WaitForAnimTasks
+    CamTplClose
     End

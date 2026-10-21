@@ -1,14 +1,19 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "contact" (moves.md, "Templates"): the attacker for the wind-up, then a cut to the defender, a punch on the hit.
 L_0:
     LoadParticleResource 0, brick_break_spa
+    CamTplContactOpen
     JumpIfBattlerSide BATTLER_ROLE_ATTACKER, L_1, L_2
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_1:
     BtlAnimCmd_013 L_3, L_4
+    CamTplClose
     End
 
 L_3:
@@ -19,6 +24,7 @@ L_3:
     Delay 10
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_4:
@@ -32,10 +38,12 @@ L_4:
     PlaySoundEffectR SEQ_SE_DP_W280
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_2:
     BtlAnimCmd_013 L_5, L_6
+    CamTplClose
     End
 
 L_5:
@@ -46,6 +54,7 @@ L_5:
     Delay 10
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_6:
@@ -59,4 +68,5 @@ L_6:
     PlaySoundEffectR SEQ_SE_DP_W280
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

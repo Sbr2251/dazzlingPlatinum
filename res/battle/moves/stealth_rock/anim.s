@@ -1,7 +1,10 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "wide" (moves.md, "Templates"): a pull-back over the whole field.
 L_0:
     LoadParticleResource 0, stealth_rock_spa
+    CamTplWideOpen
     PlayMovingSoundEffectAtkDef SEQ_SE_DP_W070, BATTLE_SOUND_PAN_LEFT, BATTLE_SOUND_PAN_RIGHT, 4, 2
     CreateEmitterEx 0, 0, 0, EMITTER_CB_SET_POS_TO_ATTACKER
     Func_MoveEmitterA2BParabolic 0, 8, -3, 0, 12, 64
@@ -11,6 +14,7 @@ L_0:
     Func_MoveEmitterA2BParabolic 1, 4, -5, 0, 12, 64
     Delay 5
     CreateEmitter 0, 1, EMITTER_CB_SET_POS_TO_DEFENDER_SIDE
+    CamTplImpact 2, 6
     Func_Shake 1, 0, 1, 6, BATTLE_ANIM_BATTLER_SPRITE_DEFENDER
     Func_Shake 1, 0, 1, 6, BATTLE_ANIM_BATTLER_SPRITE_DEFENDER_PARTNER
     PlayMovingSoundEffectAtkDef SEQ_SE_DP_W070, BATTLE_SOUND_PAN_LEFT, BATTLE_SOUND_PAN_RIGHT, 4, 2
@@ -27,4 +31,5 @@ L_0:
     WaitForAnimTasks
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

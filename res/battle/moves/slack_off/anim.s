@@ -1,7 +1,10 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "self" (moves.md, "Templates"): a close shot of the attacker with a slow orbit.
 L_0:
     LoadParticleResource 0, slack_off_spa
+    CamTplSelfOpen
     PlaySoundEffectL SEQ_SE_DP_W281
     Func_ScaleBattlerSprite BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 100, 100, 100, 60, 100, HOLD_F(20) | CYCLES(1), SCALE_F(4) | RESTORE_F(4)
     WaitForAnimTasks
@@ -11,4 +14,5 @@ L_0:
     WaitForAnimTasks
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

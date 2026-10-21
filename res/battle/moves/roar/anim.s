@@ -1,7 +1,10 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "push" (moves.md, "Templates"): both mons while it flies, then a push-in on the defender at the hit.
 L_0:
     LoadParticleResource 0, roar_spa
+    CamTplPushOpen
     CreateEmitter 0, 1, EMITTER_CB_GENERIC
     SetExtraParams 0, 2, 6, 1, 0, 0
     PlayPokemonCry 7, -117, 100
@@ -19,4 +22,5 @@ L_0:
     Delay 2
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

@@ -1,7 +1,11 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "wide" (moves.md, "Templates"): a pull-back over the whole field.
 L_0:
+    CamTplWideOpen
     JumpIfBattlerSide BATTLER_ROLE_ATTACKER, L_1, L_2
+    CamTplClose
     End
 
 L_1:
@@ -16,6 +20,7 @@ L_1:
     Func_FadeBattlerSprite BATTLE_ANIM_DEFENDER_PARTNER, 0, 2, BATTLE_COLOR_LIGHT_RED, 12, 
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_2:
@@ -30,4 +35,5 @@ L_2:
     Func_FadeBattlerSprite BATTLE_ANIM_DEFENDER_PARTNER, 0, 2, BATTLE_COLOR_LIGHT_RED, 12, 
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

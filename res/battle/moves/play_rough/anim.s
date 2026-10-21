@@ -1,9 +1,12 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "contact" (moves.md, "Templates"): the attacker for the wind-up, then a cut to the defender, a punch on the hit.
 L_0:
     LoadParticleResource 0, smoke_screen_spa
     LoadParticleResource 1, struggle_spa
     LoadParticleResource 2, attract_spa
+    CamTplContactOpen
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 0, 16, 4
     WaitForAnimTasks
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 0, -16, 4
@@ -16,6 +19,7 @@ L_0:
     BeginLoop 3
     PlaySoundEffectR SEQ_SE_DP_W025B
     CreateEmitter 1, 0, EMITTER_CB_SET_POS_TO_DEFENDER
+    CamTplImpact 3, 8
     Func_Shake 3, 0, 1, 2, BATTLE_ANIM_BATTLER_SPRITE_DEFENDER
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, -6, 4, 2
     WaitForAnimTasks
@@ -26,6 +30,7 @@ L_0:
     CreateEmitter 1, 0, EMITTER_CB_SET_POS_TO_DEFENDER
     CreateEmitter 2, 0, EMITTER_CB_SET_POS_TO_DEFENDER
     Func_FadeBattlerSprite BATTLE_ANIM_DEFENDER, 0, 1, BATTLE_COLOR_LIGHT_RED, 14, 0
+    CamTplImpact 3, 8
     Func_Shake 4, 0, 1, 4, BATTLE_ANIM_BATTLER_SPRITE_DEFENDER
     Func_MoveBattler BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, -24, 0, 4
     WaitForAnimTasks
@@ -33,4 +38,5 @@ L_0:
     UnloadParticleSystem 0
     UnloadParticleSystem 1
     UnloadParticleSystem 2
+    CamTplClose
     End

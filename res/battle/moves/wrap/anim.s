@@ -1,7 +1,10 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "contact" (moves.md, "Templates"): the attacker for the wind-up, then a cut to the defender, a punch on the hit.
 L_0:
     LoadParticleResource 0, wrap_spa
+    CamTplContactOpen
     BeginLoop 2
     PlayLoopedSoundEffectR SEQ_SE_DP_W020B, 4, 2
     CreateEmitter 0, 0, EMITTER_CB_SET_POS_TO_DEFENDER
@@ -11,4 +14,5 @@ L_0:
     EndLoop
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

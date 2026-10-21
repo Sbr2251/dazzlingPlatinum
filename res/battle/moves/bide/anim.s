@@ -1,7 +1,11 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "self" (moves.md, "Templates"): a close shot of the attacker with a slow orbit.
 L_0:
+    CamTplSelfOpen
     BtlAnimCmd_013 L_1, L_2
+    CamTplClose
     End
 
 L_1:
@@ -13,6 +17,7 @@ L_1:
     WaitForAnimTasks
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_2:
@@ -28,4 +33,5 @@ L_2:
     PlaySoundEffectR SEQ_SE_DP_W025B
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
