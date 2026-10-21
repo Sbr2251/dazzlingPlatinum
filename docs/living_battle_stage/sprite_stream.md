@@ -67,32 +67,42 @@ stream, and so does the battler's palette slot.
 with the union of all frames standing on row 87. At 1:1 the classic 80x80 frame is the
 canvas window at (24, 8).
 
-**Scale.** A member's scale is in eighths. Fronts are 1:1. Backs are stored 1:1 and drawn at a
-flat 1.75x (14/8). Black/White draw them at 2x, but at 2x Garchomp's back is about 166 px tall,
-more than the 144 px above the textbox; at 1.75x it just fits. Every path maps a classic frame
-pixel (x, y) to the texel `u = ((x - 40) * 8 + 64s) / s`, `v = ((y - 80) * 8 + 88s) / s`
-(`MON_STREAM_TEXEL_U/V`, nearest neighbour), so the canvas's centre column stays on the frame's
-centre and the ground row stays on its bottom row. At 1.75x the classic window of a back holds
-only its bottom-centre 46x46 texels; the PNGs, the move copies and the other screens all show
-that window.
+**Scale.** A member's scale is in eighths. Fronts are 1:1. Backs are stored at the 1.75x
+baseline (14/8), and the battle draws them at Black/White's 2x (16/8). Megas are stored at 14 to
+16 and drawn at 16 to 18 (`stored * 16 / 14`, `BattleStageLayout_StreamScale`; layout.md "Back
+sprites at 2x"). At 2x Garchomp's back is about 190 px tall. That is more than the 144 px above
+the text box, but the box fades out during animations (textbox.md) and tall backs sink below the
+screen as in B/W (see Sink). Every path maps a classic frame pixel (x, y) to the texel
+`u = ((x - 40) * 8 + 64s) / s`, `v = ((y - 80) * 8 + 88s) / s` (`MON_STREAM_TEXEL_U/V`, nearest
+neighbour), where s is the drawn scale. So the canvas's centre column stays on the frame's centre
+and the ground row stays on its bottom row. At 2x the classic window of a back holds only its
+bottom-centre 40x40 texels. The battle's move copies show that window. The PNGs and the other
+screens show the 1.75x window (46x46 texels), because they are cut at the stored scale.
 
-**Sink.** The healthbars are OBJs, drawn over the 3D layer, so a tall back reaching the
-opponent's HP box (its bottom is about 86 screen px above the player's feet) has its head
-hidden behind it. Black/White have the same layering, but their textbox is on the touch screen,
-which leaves them 48 more rows. So a back taller than 100 frame px sinks by the excess, at most
-40 (`BACK_ROOM`, `BACK_MAX_SINK` in `battle_stage_stream.c`), and its feet go behind the
-textbox, the way B/W's screen edge crops tall backs. Garchomp, Torterra and 67 others sink the
-full 40, Lucario 15, Staraptor 19; about half the backs (Budew, Finneon, ...) don't move. The
-blob shadow stays on the ground. The sink is in `BattleStageStream_CanvasRect`, so every draw
-of the battler, the faint slide and the send-out included, takes it; the move copies don't.
+**Sink.** The healthbars are OBJs, drawn over the 3D layer. A tall back that reaches the
+opponent's HP box (its bottom is about 86 screen px above the player's feet) has its head hidden
+behind it. Black/White have the same layering. Their text box is on the top screen too, not the
+touch screen, but they stand the player's feet about 20 px below the screen and their box is
+translucent, so the lower body shows through it (textbox.md, layout.md). Ours is opaque. So a back
+taller than 100 frame px sinks by the excess, at most 64 (`BACK_ROOM` in
+`battle_stage_stream.c`, `BattleStageLayout_BackMaxSink`), which is BW2's foot row. Short backs
+keep the classic row, so they show whole above the box at the command menu. A back whose first
+frame ends in a flat cut along the ground row (a run of 16 or more opaque texels: the Mega stills)
+sinks at least 44 (`BattleStageLayout_CutBackSink`), so the cut sits at the screen's edge while
+the box is faded. The blob shadow stays on the ground. The sink is in `BattleStageStream_CanvasRect`,
+so every draw of the battler, the faint slide and the send-out included, takes it; the move copies
+don't. The cut guard adds it to a streamed battler's cut edge (`BattleStageStream_SinkPixels`).
+With the `PLATINUM_LAYOUT` debug flag, the cap is 40, there is no cut-back sink and the scale is
+the stored 1.75x (layout.md).
 
 **Megas.** B/W has no Megas, and their classic backs, drawn 1:1, came out about half the size
 of the B/W backs around them (Mega Lucario 65 px against Lucario's 116). The tool makes each
 Mega's frame A from `forms/mega/back.png` a one-frame stream in the Mega's own palette, standing
 on the ground row, at the scale that matches its base form's back height: at least 1.75x, at
 most 2x (`MON_STREAM_MAX_SCALE`). Lucario, Alakazam, Empoleon and Staraptor get 1.75x; Gengar,
-Gyarados and Torterra 1.875x; Garchomp, Gardevoir, Infernape and Scizor 2x. The sink applies the
-same way (Mega Garchomp 36, Mega Lucario 13). The base species' `y_offset` is 0, and the Mega
+Gyarados and Torterra 1.875x; Garchomp, Gardevoir, Infernape and Scizor 2x. The battle draws them
+at 16/14 of that, like every back (see Scale). The sink applies the same way. Their cut bottoms
+also take the cut-back sink of at least 44. The base species' `y_offset` is 0, and the Mega
 uses it too, so the stream stands where the base form does. The members are in `report.json`
 under `megas`. The fronts aren't streamed: at 1:1 most are already about as big as their
 base form's B/W front. Mega Gyarados is the smallest, at about two thirds of Gyarados.
