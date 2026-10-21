@@ -136,6 +136,23 @@ by themselves.
 
 Sprite depth (z) is unchanged; the sprites still draw over the arena.
 
+**Why the scale follows the camera (BW2's flat and perspective modes; bw2vis camera-core).** BW2
+draws its mons flat (MCSS ortho: projected position, fixed size, your backs at 2x) only at home. Every
+effect starts with `unk244 = 1` (`btlv_effvm.c` `BtlvEffvm_Start`), and its first camera command
+(`CmdCameraMove`, `CmdCameraRotate`, `CmdCameraMovePreset` for any preset but 8 and 14-17) calls
+`BtlvEffvm_ResetMcss`, which then switches every mon to perspective billboards
+(`BtlvMcss_ClearFlatAll`) that scale with the camera; the effect's camera reset sets flat again. Its
+perspective scales (`btlv_mcss.c` `BtlvMcss_GetDefaultScaleImpl`) are tuned so that at the home
+camera each mon is its flat size to within 2% (your backs 2.01-2.04 screen px per sprite px against
+flat's 2, the foes 1.01-1.02 against 1), so the switch doesn't show at home, and a camera that frames
+your left mon of a double at 1.19x draws its 2x back at about 2.4x, as here. The prompt and idle
+effects (0x23f-0x241, 0x235, 0x24c-0x250) start with no attacker (`BtlvEffect_Start`: 0xff), so the
+flat-keeping attacker presets 15/16 can't aim at a mon; they need a slot preset or a camera move,
+which switch to perspective (the scripts themselves are in archive 66, not extracted: a script that
+sets flat first with `CmdMcssCameraMode` 0 is the one case this can't rule out). The one camera move
+BW2 makes in flat mode, the wide doubles preset 14/19, shrinks the mons itself (`BtlvEffvm_ScaleAllMcss`
+0xa66 / 0xb9a: your backs to 2x * 0.65, the foes to 0.73x) rather than keeping them at home size.
+
 ## Particles follow the camera
 
 `particle_system.c` (ARM9 main) gets a projection hook, the same pattern as the sprite draw
