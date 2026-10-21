@@ -107,7 +107,7 @@ typedef struct BattleStageFileTexture {
     u32 dataSize;
     u16 width; // 8..1024, power of two
     u16 height;
-    u8 format; // GX_TEXFMT_PLTT16 or GX_TEXFMT_PLTT256
+    u8 format; // GX_TEXFMT_PLTT16, GX_TEXFMT_PLTT256 or GX_TEXFMT_A3I5 (BATTLE_STAGE_PALETTE_EMBEDDED only)
     u8 paletteSource; // enum BattleStagePaletteSource
     u16 padding;
     u32 paletteOffset; // embedded palette (GXRgb), always present as a fallback

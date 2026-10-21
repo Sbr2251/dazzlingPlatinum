@@ -266,3 +266,35 @@ it is periodic every 512 texels and continuous at the mirror lines: the drift ne
 Each sky split costs one panorama band (22 polygons). The classic fallback (`BattleStage_Suppress`)
 shows the sky at frame 0, so it can jump by the drifted amount while a move hides the arena; the
 fade (F6) covers most of it. The palettes stay live, so twilight and night drift the same way.
+
+## Water: glint layer and platform water
+
+BW2's water field (`batt_bg21`, `115.nsbmd`) flows its base texture under a translucent a3i5
+glint layer (`batt_field21n`, scrolled by `117.nsbta`). Our water keeps its base sway (`SCROLL`
+on the ground bands, above) and adds the glint layer:
+
+- `GX_TEXFMT_A3I5` textures are allowed, with an embedded 32-colour palette
+  (`BATTLE_STAGE_PALETTE_EMBEDDED` only). A mesh with an a3i5 texture, or an alpha under 31, is
+  translucent: the DS draws it after the opaque polygons and it doesn't write depth.
+- `BACKGROUND_WATER`'s backdrop piece has a third texture, BW2's glint texture (every other row,
+  128x32, checked in as `tools/battle_stage/bw2/wave.bin` by `bw2_assets.py`), and one more mesh:
+  a plane 0.1 above the water from the water row to row 120, 12 polygons, with world-linear
+  texture coordinates (a 4 x 8 unit tile) that `DRIFT` toward the camera and sideways at 0.5
+  units per second each. Polygon alpha 20 keeps the glints under the critic's "big"
+  difference (48 levels) from the classic water: at frame 0 they are a sparse sparkle, about 0.6%
+  of the scene. Below row 120 the 128x32 texture would be magnified into blocks, so the layer
+  stops there.
+
+The platform water of `TERRAIN_WATER` and `TERRAIN_PUDDLE` sways (BW2's puddle stages
+`batt_stage08/09` wobble their water, `023/025.nsbta`). The art's water pixels (bright blue in
+the day palette: blue >= 200, blue > red + 32, blue >= green), shrunk by the sway amplitude so
+they never move onto the rim or the sand, go to an overlay texture with the platform texture's
+layout (the platform piece's textures are now each platform's art, then its extra textures). The
+overlay meshes copy the visible disc strips that hold water pixels, 0.06 above the disc on the
+same pixels and texture coordinates, so at frame 0 they show exactly what the disc does; they
+`SCROLL` (water: amplitude (2, 1) texels over 60 draws, the stripes roll; puddle: (1, 1) over 40,
+a shimmer). Cost: water platforms +43 polygons, puddle +19, and 8 KB of textures; the water
+battle is at 60 KB of the 64 KB texture budget.
+
+The glints' palette is embedded, so a palette fade of the BG palette doesn't darken them (the
+backdrop fade, `BattleStage_SetBackdropFade`, does, through the lighting).

@@ -200,8 +200,13 @@ class Renderer:
         covered = np.zeros((H, W), bool)
         self.num_polygons = 0
 
-        for piece in self.pieces:
-            for mesh in piece.meshes:
+        # Translucent polygons (polygon alpha under 31, or a3i5 texels) draw after the opaque
+        # ones, in order, testing depth without writing it, as the DS sorts them (manual sort)
+        order = [(piece, mesh) for piece in self.pieces for mesh in piece.meshes]
+        order = [pm for pm in order if not self.translucent(*pm)] + [pm for pm in order if self.translucent(*pm)]
+
+        for piece, mesh in order:
+            if True:
                 tex = piece.textures[mesh.texture_index]
                 pal = self.palette_for(tex, mesh)
                 ds, dt = self.sway(mesh)
@@ -225,7 +230,8 @@ class Renderer:
 
                     if len(verts) >= 3:
                         self.num_polygons += 1
-                        self.draw(verts, tex, mesh.flags, pal, col6, depth, fog_bit, covered)
+                        self.draw(verts, tex, mesh.flags, pal, col6, depth, fog_bit, covered,
+                                  mesh.alpha if self.translucent(piece, mesh) else None)
 
         if self.fog is not None:
             self.apply_fog(col6, depth, fog_bit & covered)
@@ -234,6 +240,10 @@ class Renderer:
         rgb = ((c5 << 3) | (c5 >> 2)).astype(np.uint8)
         rgb[~covered] = HOLE_RGB
         return rgb, covered
+
+    @staticmethod
+    def translucent(piece, mesh):
+        return mesh.alpha < sf.MAX_ALPHA or piece.textures[mesh.texture_index].format == sf.TEXFMT_A3I5
 
     def sway(self, mesh):
         if self.frame is not None and mesh.flags & sf.FLAG_DRIFT:
@@ -278,7 +288,9 @@ class Renderer:
         # DeSmuME keeps positions in 28.4 fixed point
         return math.floor(sx * 16 + 0.5) / 16, math.floor(sy * 16 + 0.5) / 16
 
-    def draw(self, verts, tex, flags, pal, col6, depth, fog_bit, covered):
+    def draw(self, verts, tex, flags, pal, col6, depth, fog_bit, covered, alpha=None):
+        """alpha: None for an opaque polygon, else its polygon alpha (0..31): the pixels blend
+        over what is there and leave the depth as it is."""
         # Screen vertices: x, y, then 1/w, s/w, t/w, z/w, r/w, g/w, b/w, linear in
         # screen space
         sv = []
@@ -339,16 +351,32 @@ class Renderer:
             s = wrap(s, tex.width, flags & sf.FLAG_REPEAT_S, flags & sf.FLAG_FLIP_S)
             t = wrap(t, tex.height, flags & sf.FLAG_REPEAT_T, flags & sf.FLAG_FLIP_T)
             index = tex.array[t, s]
+            texel_alpha = None
+
+            if tex.format == sf.TEXFMT_A3I5:
+                a3 = index >> 5
+                texel_alpha = (a3 << 2) + (a3 >> 1)
+                index = index & 31
 
             visible = z < depth[py, x0:x1]
 
             if flags & sf.FLAG_COLOR0_TRANSPARENT:
                 visible &= index != 0
 
-            cols = px[visible]
             vtx6 = np.stack([np.clip(np.floor(c / inv_w + 1e-4), 0, 63) for c in (r_w, g_w, b_w)], axis=1).astype(np.int32)
             tex6 = to6(pal[index])
             out6 = ((tex6 + 1) * (vtx6 + 1) - 1) >> 6
+
+            if alpha is not None:
+                a = np.full(len(px), alpha, np.int32) if texel_alpha is None else ((texel_alpha + 1) * (alpha + 1) - 1) >> 5
+                visible &= a > 0
+                cols = px[visible]
+                a = a[visible][:, None]
+                col6[py, cols] = (out6[visible] * (a + 1) + col6[py, cols] * (31 - a)) >> 5
+                covered[py, cols] = True
+                continue
+
+            cols = px[visible]
             depth[py, cols] = z[visible]
             col6[py, cols] = out6[visible]
             fog_bit[py, cols] = bool(flags & sf.FLAG_FOG)
@@ -356,7 +384,7 @@ class Renderer:
 
 
 def texture_array(tex):
-    if tex.format == sf.TEXFMT_PLTT256:
+    if tex.format in (sf.TEXFMT_PLTT256, sf.TEXFMT_A3I5):
         return np.frombuffer(tex.data, np.uint8).reshape(tex.height, tex.width)
 
     packed = np.frombuffer(tex.data, np.uint8).reshape(tex.height, tex.width // 2)

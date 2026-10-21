@@ -134,6 +134,26 @@ def sky_row(background, base_row):
     return row
 
 
+# Water's second layer (BW2's water field batt_bg21 flows its base texture under a translucent
+# a3i5 glint layer, batt_field21n, 115.nsbmd / 117.nsbta in pokebw2): BW2's glint texture
+# (bw2_assets.py "wave", 128x32) tiled in world space on a plane just above the water, from
+# the water row down past the screen, that DRIFTs toward the camera and a little sideways. It
+# is translucent per texel, so at frame 0 it adds sparse glints to the classic water rather
+# than replacing it. The glints run along x like the classic art's streaks.
+TEX_WAVE = 2
+WAVE_LIFT = 0.1  # above the ground; more than Placer.exact moves a ground vertex in y (+-0.03)
+WAVE_HALF_X = 44.0  # the side ground ends at the panorama's arc, about x = +-40, which hides the rest
+WAVE_TEXELS_PER_UNIT = (32, 4)  # s along x, t along z: a tile is 4 x 8 world units
+WAVE_COLUMNS = 4
+# Band edges after the water row (home screen rows). The layer stops at row 120: nearer, its
+# 128x32 texture would be magnified into blocks
+WAVE_ROWS = (90, 120)
+WAVE_DRIFT = (8, -2)  # texels per WAVE_DRIFT_PERIOD draws: 0.5 unit/s sideways, 0.5 unit/s toward the camera
+WAVE_DRIFT_PERIOD = 15
+# Polygon alpha on top of the texels' own: the glints stay under 48 levels from the classic water
+# (the critic's 'big' difference), a sparkle rather than a second picture
+WAVE_ALPHA = 20
+
 WALL_TOP_ROW = -64  # home screen row of its top edge (clamps to texture row 0)
 WALL_ROW_STEP = 16
 
@@ -185,6 +205,36 @@ PLATFORM_TEX_SIZE = ((256, 32), (128, 64))
 # clamped edge rows are transparent; the player's texture mirrors at t 32 (sprite row
 # 16) instead.
 PLATFORM_TEX_ORIGIN = ((128, 16), (64, 24))
+
+# Water on the platforms (BW2's puddle stages batt_stage08/09 wobble their water texture,
+# 023/025.nsbta). A platform art's water pixels (bright blue in the day palette), shrunk by the
+# sway amplitude so they never move onto the rim or the sand, go to an overlay texture with the
+# platform texture's layout. The overlay is a copy of the visible disc strips that hold them,
+# PLATFORM_OVERLAY_LIFTS above the disc on the same pixels and texture coordinates, so at frame
+# 0 it shows exactly what the disc does, and it sways (SCROLL). Per TERRAIN_*: amplitude
+# (texels s, t) and period (draws).
+TERRAIN_PUDDLE = 3
+TERRAIN_WATER = 7
+PLATFORM_WATER_SWAY = {
+    TERRAIN_PUDDLE: ((1, 1), 40),  # puddles shimmer
+    TERRAIN_WATER: ((2, 1), 60),  # the wave stripes roll
+}
+# Over the disc: more than Placer.exact moves a vertex along the view ray; the first height
+# that has a vertex on the pixel grid
+PLATFORM_OVERLAY_LIFTS = (0.06, 0.07, 0.05, 0.08, 0.09, 0.1)
+WATER_MIN_BLUE = 200
+
+
+def is_water_color(rgb):
+    r, g, b = rgb
+    return b >= WATER_MIN_BLUE and b > r + 32 and b >= g
+
+
+def shrink_mask(pixels, inside, radius):
+    """The pixels of `pixels` (a set of (x, y)) whose every neighbour within `radius`
+    (Chebyshev) is in `inside`."""
+    return {(x, y) for x, y in pixels
+            if all((x + dx, y + dy) in inside for dx in range(-radius, radius + 1) for dy in range(-radius, radius + 1))}
 
 
 def fx16(world):
@@ -252,8 +302,9 @@ class Vertex:
 
 
 class Mesh:
-    def __init__(self, name, texture, flags, primitive, vertices, scroll_amplitude=(0, 0), scroll_period=1):
+    def __init__(self, name, texture, flags, primitive, vertices, scroll_amplitude=(0, 0), scroll_period=1, alpha=31):
         self.name = name
+        self.alpha = alpha  # polygon alpha 0..31
         self.texture = texture  # index into the piece's textures
         self.flags = flags | FLAG_LIT | FLAG_FOG
         self.primitive = primitive
@@ -597,6 +648,28 @@ class Backdrop:
             # outermost one shares its far side with the arc's first foot segment exactly
             self.meshes.append(strip_mesh(f"ground {y0}-{y1}", texture, flags, top, bottom, origin, UP, **scroll))
 
+        # Water: the translucent glint layer over the ground (TEX_WAVE). Its texture
+        # coordinates are world-linear, which the DS interpolates exactly per polygon, so a
+        # coarse grid is enough
+        if water_row is not None:
+            wave_rows = sorted({water_row} | {min(rows, key=lambda r: abs(r - w)) for w in WAVE_ROWS if w > water_row})
+            wave_z = [row_z[rows.index(r)] for r in wave_rows]
+            wave_x = [-WAVE_HALF_X + 2 * WAVE_HALF_X * i / WAVE_COLUMNS for i in range(WAVE_COLUMNS + 1)]
+            quads = []
+
+            def wave_vertex(x, z):
+                v = Vertex(fx16_vec((x, WAVE_LIFT, z)), None, False)
+                p = world_of(v.pos)
+                return (v, (p[0] * WAVE_TEXELS_PER_UNIT[0], p[2] * WAVE_TEXELS_PER_UNIT[1]), UP)
+
+            for k in range(len(wave_z) - 1):
+                for i in range(WAVE_COLUMNS):
+                    quads += [wave_vertex(wave_x[i], wave_z[k]), wave_vertex(wave_x[i], wave_z[k + 1]),
+                              wave_vertex(wave_x[i + 1], wave_z[k + 1]), wave_vertex(wave_x[i + 1], wave_z[k])]
+
+            self.meshes.append(Mesh("water glints", TEX_WAVE, FLAG_REPEAT_S | FLAG_REPEAT_T | FLAG_DRIFT, PRIM_QUADS, quads,
+                                    scroll_amplitude=WAVE_DRIFT, scroll_period=WAVE_DRIFT_PERIOD, alpha=WAVE_ALPHA))
+
         # Panorama or walls: frontal part on the wall plane, the arc or the side walls
         # through the side ground's outer ends. Rows are horizontal lines (constant
         # height). Everything above screen row 0 shows texture row 0 (t clamps), so one
@@ -716,10 +789,14 @@ class PlatformDisc:
     """One platform: a disc PLATFORM_HEIGHT above the ground whose home projection plus
     its side band covers the platform art, both textured through the home camera."""
 
-    def __init__(self, home, side, art):
+    def __init__(self, home, side, art, terrain=None):
         self.home = home
         self.side = side
         self.art = art
+        self.terrain = terrain
+        # Extra textures with the main texture's layout, after it in the piece: {(x, y): index}
+        # relative to the sprite, as art.pixels. Mesh.texture is 0 for the main texture, 1.. for these
+        self.extra_textures = []
         place = Placer(home)
         disc = plane_y(PLATFORM_HEIGHT)
         hx, hy = classic.PLATFORM_HOME[side]
@@ -799,7 +876,7 @@ class PlatformDisc:
         name = ("player", "enemy")[side]
 
         for k in range(len(rows) - 1):
-            self.meshes.append(strip_mesh(f"{name} disc {rows[k]}-{rows[k + 1]}", side, flags, grid[k], grid[k + 1], origin))
+            self.meshes.append(strip_mesh(f"{name} disc {rows[k]}-{rows[k + 1]}", 0, flags, grid[k], grid[k + 1], origin))
 
         # Side band along the front half of the rim, from the widest row round the
         # front: top at the art's outline on the disc, bottom on (just under) the ground,
@@ -845,13 +922,63 @@ class PlatformDisc:
 
             tops.append((v, n))
 
-        self.meshes.append(strip_mesh(f"{name} band", side, flags, tops, bottoms, origin))
+        self.meshes.append(strip_mesh(f"{name} band", 0, flags, tops, bottoms, origin))
         self.band_px = band_px
+
+        if terrain in PLATFORM_WATER_SWAY:
+            self.add_water_overlay(place, rows, xs, origin, flags, name)
+
         self.num_polygons = sum(m.num_polygons() for m in self.meshes)
 
         # Where the disc is in view space, for platformPixelToWorld
         centre = place.screen_point(hx + VERTEX_NUDGE, PLATFORM_CENTRE_ROW[side] + VERTEX_NUDGE, disc)
         self.depth = -home.cam.world_to_view(centre)[2]
+
+    def add_water_overlay(self, place, rows, xs, origin, flags, name):
+        amplitude, period = PLATFORM_WATER_SWAY[self.terrain]
+        hx, hy = classic.PLATFORM_HOME[self.side]
+        palette = [nitro.gxrgb_to_rgb888(c) for c in self.art.palettes[0]]
+        opaque = {p for p, i in self.art.pixels.items() if i}
+        water = {p for p in opaque if is_water_color(palette[self.art.pixels[p]])}
+        mask = shrink_mask(water, water, max(amplitude))
+
+        if not mask:
+            return
+
+        self.extra_textures.append({p: self.art.pixels[p] for p in mask})
+        texture = len(self.extra_textures)
+        def vertex(x, y):
+            # Near the camera the fx16 lattice reaches only some sub-pixel positions on a
+            # plane; a vertex a little higher or lower serves as well
+            for lift in PLATFORM_OVERLAY_LIFTS:
+                try:
+                    return place.exact(x, y, plane_y(PLATFORM_HEIGHT + lift))
+                except AssertionError:
+                    continue
+
+            raise AssertionError(f"no overlay vertex projects to pixel ({x}, {y})")
+
+        # Visible strips only: the disc covers pixel rows (rows[k], rows[k + 1]], and a quad
+        # pixel columns [xs[i], xs[i + 1])
+        screen = {(x + hx, y + hy) for x, y in mask}
+
+        for k in range(len(rows) - 1):
+            if rows[k + 1] > HIDDEN_FROM_ROW:
+                break
+
+            cols = [i for i in range(len(xs) - 1)
+                    if any((x, y) in screen for x in range(xs[i], xs[i + 1]) for y in range(rows[k] + 1, rows[k + 1] + 1))]
+
+            if not cols:
+                continue
+
+            span = xs[cols[0]:cols[-1] + 2]
+            top = [vertex(x, rows[k]) for x in span]
+            bottom = [vertex(x, rows[k + 1]) for x in span]
+            self.meshes.append(strip_mesh(f"{name} water {rows[k]}-{rows[k + 1]}", texture, flags, top, bottom, origin,
+                                          scroll_amplitude=amplitude, scroll_period=period))
+
+        self.num_polygons = sum(m.num_polygons() for m in self.meshes)
 
     def band_pixels(self, row):
         """Screen height of the side band at a row near the platform's front."""
@@ -887,7 +1014,7 @@ class Arena:
         if terrain is not None:
             for side in (classic.SIDE_PLAYER, classic.SIDE_ENEMY):
                 art = classic.Platform(side, terrain)
-                self.platforms.append(None if art.is_empty() else PlatformDisc(self.home, side, art))
+                self.platforms.append(None if art.is_empty() else PlatformDisc(self.home, side, art, terrain))
 
         self.pixel_to_world = [self.home.pixel_to_world(d) for d in platform_depths(self.home)]
 

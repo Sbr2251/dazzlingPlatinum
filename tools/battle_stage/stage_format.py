@@ -24,6 +24,7 @@ LIGHTING = struct.Struct("<3h5HB3x")
 NUM_LIGHTING = 3  # day, twilight, night columns (ov16_0223EC04)
 
 # GXTexFmt
+TEXFMT_A3I5 = 1  # 8bpp: palette index (5 bits, 32 colours) plus alpha (3 bits)
 TEXFMT_PLTT16 = 3
 TEXFMT_PLTT256 = 4
 
@@ -43,7 +44,8 @@ TEXCOORD_ONE = 16  # texCoord units per texel
 class Texture:
     def __init__(self, width, height, fmt, palette_source, data, palette):
         assert width in (8, 16, 32, 64, 128, 256, 512, 1024) and height in (8, 16, 32, 64, 128, 256, 512, 1024)
-        assert fmt in (TEXFMT_PLTT16, TEXFMT_PLTT256)
+        assert fmt in (TEXFMT_A3I5, TEXFMT_PLTT16, TEXFMT_PLTT256)
+        assert fmt != TEXFMT_A3I5 or palette_source == PALETTE_EMBEDDED
         assert palette_source != PALETTE_PLATFORM_OBJ or fmt == TEXFMT_PLTT16
         assert len(data) == width * height // (2 if fmt == TEXFMT_PLTT16 else 1)
         self.width = width
@@ -55,7 +57,7 @@ class Texture:
 
     def texel(self, s, t):
         """Palette index of texel (s, t), both in range."""
-        if self.format == TEXFMT_PLTT256:
+        if self.format in (TEXFMT_PLTT256, TEXFMT_A3I5):
             return self.data[t * self.width + s]
 
         byte = self.data[(t * self.width + s) // 2]

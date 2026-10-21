@@ -695,7 +695,12 @@ static BOOL IsPieceValid(const BattleStageFileHeader *piece, u32 size, BOOL isBa
             return FALSE;
         }
 
-        if (texture->format != GX_TEXFMT_PLTT16 && texture->format != GX_TEXFMT_PLTT256) {
+        if (texture->format != GX_TEXFMT_PLTT16 && texture->format != GX_TEXFMT_PLTT256 && texture->format != GX_TEXFMT_A3I5) {
+            return FALSE;
+        }
+
+        // An a3i5 texture (translucent per texel) has its own 32 colours
+        if (texture->format == GX_TEXFMT_A3I5 && texture->paletteSource != BATTLE_STAGE_PALETTE_EMBEDDED) {
             return FALSE;
         }
 
@@ -1006,7 +1011,12 @@ static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes)
                 continue;
             }
 
-            slot->numColors = (slot == &arena->palettes[SLOT_BG] || texture->format == GX_TEXFMT_PLTT256) ? 256 : 16;
+            if (slot == &arena->palettes[SLOT_BG] || texture->format == GX_TEXFMT_PLTT256) {
+                slot->numColors = 256;
+            } else {
+                slot->numColors = texture->format == GX_TEXFMT_A3I5 ? 32 : 16;
+            }
+
             slot->offset = plttBytes;
             plttBytes += slot->numColors * sizeof(u16);
 
