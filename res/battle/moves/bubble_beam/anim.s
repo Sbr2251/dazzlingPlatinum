@@ -1,7 +1,10 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "twoshot" (moves.md, "Templates"): both mons for the whole move, a punch on the hit.
 L_0:
     LoadParticleResource 0, bubble_beam_spa
+    CamTplTwoShotOpen
     CreateEmitter 0, 0, EMITTER_CB_GENERIC
     SetExtraParams 0, 2, 6, 1, 4096, 0
     SetExtraParams 4, 0, 2, 5, 0
@@ -18,4 +21,5 @@ L_0:
     PlayLoopedSoundEffectR SEQ_SE_DP_W202B, 4, 6
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

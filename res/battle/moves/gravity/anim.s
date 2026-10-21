@@ -1,7 +1,10 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "wide" (moves.md, "Templates"): a pull-back over the whole field.
 L_0:
     LoadParticleResource 0, gravity_spa
+    CamTplWideOpen
     Delay 10
     PlaySoundEffectL SEQ_SE_DP_W356
     CreateEmitter 0, 0, EMITTER_CB_GENERIC
@@ -20,4 +23,5 @@ L_0:
     WaitForAnimTasks
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

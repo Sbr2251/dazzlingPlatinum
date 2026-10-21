@@ -1,12 +1,16 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "self" (moves.md, "Templates"): a close shot of the attacker with a slow orbit.
 L_0:
     LoadParticleResource 0, magnet_rise_spa
+    CamTplSelfOpen
     CreateEmitter 0, 0, EMITTER_CB_GENERIC
     SetExtraParams 0, 1, 2, 0, 0, 0
     CreateEmitter 0, 1, EMITTER_CB_GENERIC
     SetExtraParams 0, 1, 2, 0, 0, 0
     JumpIfBattlerSide BATTLER_ROLE_ATTACKER, L_1, L_2
+    CamTplClose
     End
 
 L_1:
@@ -22,6 +26,7 @@ L_1:
     EndLoop
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_2:
@@ -37,4 +42,5 @@ L_2:
     EndLoop
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

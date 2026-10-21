@@ -271,6 +271,12 @@ OPCODE_TAGS = {
     "CreateEmitterForFriendlyFire": (["particles"], []),
 }
 
+# The open macro of each per-move camera template (asm/macros/btlanimcam.inc, camera_templates.py)
+CAMERA_TEMPLATE_OPS = {
+    "CamTplContactOpen": "contact", "CamTplPushOpen": "push", "CamTplTwoShotOpen": "twoshot",
+    "CamTplSelfOpen": "self", "CamTplWideOpen": "wide", "CamTplShakeOpen": "shake",
+}
+
 # Label arguments per control-flow op. JumpIfContest targets are contest-only paths
 # (never on the stage), so they are not followed.
 BRANCH_ARGS = {
@@ -294,8 +300,17 @@ OVERRIDES = {
              "notes": "MOVE_NONE placeholder (a Sketch copy), never played in battle; see SKETCH"},
     "HARDEN": {"notes": "StatChangeUp: BG2 picture only inside the OBJ window; F3 option a"},
     "SKETCH": {"notes": "BG2 copy lifted above BG0 by the func, WIN0 reveal keeps BG0 on; F3 option a"},
-    "EARTHQUAKE": {"notes": "BG3 shake + backdrop fade; chunk 6: the stage camera mirrors the BG3 shake"},
+    "EARTHQUAKE": {"notes": "BG3 shake + backdrop fade; chunk 6: the stage camera mirrors the BG3 shake; "
+                            "per-move camera (hand-authored)"},
     "MAGNITUDE": {"notes": "BG3 shake; chunk 6: the stage camera mirrors the BG3 shake"},
+    # chunk 6 water_ground (redo/water_ground.json, expect kept): the BG2 picture is lifted above the 3D
+    # layer, so nothing is suppressed any more
+    "SURF": {"suppress": [], "risk": "medium", "fix": ["F1", "F4"],
+             "notes": "ScrollCustomBg: picture on BG2 blended over BG0|BG3; chunk 6: BG2 lifted above BG0, "
+                      "the arena stays (redo/water_ground.json)"},
+    "MUDDY_WATER": {"suppress": [], "risk": "medium", "fix": ["F1", "F4"],
+                    "notes": "MuddyWater: picture on BG2 blended over BG0|BG3; chunk 6: BG2 lifted above BG0, "
+                             "the arena stays (redo/water_ground.json)"},
 }
 
 CHUNK6 = {
@@ -503,6 +518,12 @@ def audit_move(mid, name, d, func_ids):
             notes.append(note)
     if waves:
         notes.insert(0, "per-line wave on " + "/".join(sorted(waves)))
+    # moves.md "Per-move camera": the camera templates of asm/macros/btlanimcam.inc, or hand-authored commands
+    tpl = sorted({CAMERA_TEMPLATE_OPS[op] for op, _, _, _ in instrs if op in CAMERA_TEMPLATE_OPS})
+    if tpl:
+        notes.append("per-move camera (template " + ", ".join(tpl) + ")")
+    elif any(op.startswith("StageCamera") for op, _, _, _ in instrs):
+        notes.append("per-move camera (hand-authored)")
     if unresolved:
         notes.append("unresolved labels: " + " ".join(unresolved))
     rec["mechanisms"] = [m for m in MECHANISMS if m in mechs]

@@ -1,7 +1,10 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "twoshot" (moves.md, "Templates"): both mons for the whole move, a punch on the hit.
 L_0:
     LoadParticleResource 0, octazooka_spa
+    CamTplTwoShotOpen
     PlayMovingSoundEffectAtkDef SEQ_SE_DP_W025B, BATTLE_SOUND_PAN_LEFT, BATTLE_SOUND_PAN_RIGHT, 4, 2
     CreateEmitter 0, 2, EMITTER_CB_SET_POS_TO_ATTACKER
     CreateEmitter 0, 0, EMITTER_CB_GENERIC
@@ -11,9 +14,11 @@ L_0:
     Delay 5
     CreateEmitter 0, 1, EMITTER_CB_SET_POS_TO_DEFENDER
     PlaySoundEffectR SEQ_SE_DP_W120
+    CamTplImpact 2, 6
     Func_Shake 2, 0, 1, 10, BATTLE_ANIM_BATTLER_SPRITE_DEFENDER
     Func_MoveBattlerX2 3, 24, BATTLE_ANIM_BATTLER_SPRITE_ATTACKER
     WaitForAnimTasks
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

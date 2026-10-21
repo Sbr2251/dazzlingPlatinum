@@ -229,11 +229,11 @@ camera, in order:
 | sweep: bit 0 | `cinematicsSeen` at the first command menu | set |
 | sweep: pushes in | the intro, camera read every frame: some frame with `AT_HOME` clear and the enemy's `anchorScale` above 256 | at least one frame; the note gives the off-home stretch (58 frames by the contract) |
 | sweep: home at the menu | `camFlags` read when the command menu is first detected | `AT_HOME`, or the command menu camera on (`sStageCameraDebug.sequence` 4-6: the prompt shot starts from home; bw2vis camera-core) |
-| no kicks | `NO_CINEMATICS`, then a False Swipe turn (ours and the enemy's) | `offHomeFrames` unchanged over the turn; no crit or faint bit |
+| no kicks | `NO_CINEMATICS`, then a False Swipe turn (ours and the enemy's), camera read every frame | `AT_HOME` on every frame outside a move's camera script (`CAMERA_SCRIPT` clear; the enemy's move may have a per-move camera, moves.md "Templates"); no crit or faint bit. The detail gives `offHomeFrames` and how many of them were in a camera script |
 | tester Pound at home | camera read every frame of the tester's Pound | `AT_HOME` on every frame; `offHomeMoveFrames` 0 |
 | crit kick: bit 3 | `CRIT_KICK_ON_HIT` (no `FREEZE_IDLE`, so `wobbleMask` marks the hit blink), a False Swipe turn read every frame | bit 3 set during the turn |
 | crit kick: leaves home | the first off-home stretch that ends at or after the frame bit 3 appeared | at least 3 frames |
-| crit kick: back in time | the blink is the earlier of the bit 3 frame and a `wobbleMask` frame up to 8 frames before it; the first frame home again after the stretch | within 30 frames of the blink (the kick is at most 24); later stretches (the enemy's hit) no longer than 30 (WARN) |
+| crit kick: back in time | the blink is the earlier of the bit 3 frame and a `wobbleMask` frame up to 8 frames before it; the first frame home again after the stretch | within 30 frames of the blink (the kick is at most 24); later stretches (the enemy's hit) no longer than 30 (WARN), except one that starts inside a move's camera script |
 | battle 1 offHomeMoveFrames | the largest value over the crit turn | 0 |
 | faint: bit 4 | L+R+START (the debug Garchomp to the lead), a second Plain battle, flags 0; Earthquake (slot 0), read every frame, until the Bidoof faints (at most 4 turns) | set; FAIL if the battle ended (the Bidoof fainted) without it; WARN, with the reason, if no faint happened |
 | faint: home in time | the first frame home again after the off-home stretch that follows bit 4 | within 40 frames of bit 4 (the kick is at most 28); WARN if the camera never left home |
@@ -338,6 +338,7 @@ It plays the list in a day Plain battle, runs, and plays it again in a night one
 | effect visible: over the run, the largest share of the scene (HUD masked, pixels over 24 off) that differs from the closest of the pre-move frame and the idle frames reaches `min_change_pct` | FAIL; WARN as above | `expect: kept`. The classic run's share is in the detail |
 | arena faded: `fades` rose | FAIL | `expect: fade`. The stage and classic scene changes are a note |
 | camera home (`AT_HOME`) 90 frames after the move, `offHomeMoveFrames` in the detail | FAIL | camera fields |
+| particles stay on screen off home: see "Particles off home" below | PASS / WARN / FAIL | `sParticleSystems` and `sStageCamera` in the xMAP, and the camera left home during the move |
 | classic run (stage off) finished | FAIL | every move |
 | `<tod>`: stage switched off and back on around every classic run (the overlay text changed and RAM `enabled` read 0, then 1) | FAIL | once per battle |
 | no CPU exceptions (scenario-level, naming the moves) | FAIL | every move |
@@ -360,6 +361,36 @@ A critic agent compares the two rows. The stage version should read as the same 
 only on the 3D arena. At day the home pose is meant to match classic exactly (`stage_ab`), so the rows only
 differ where the effect does. Example on the 2026-09-26 main ROM: Muddy Water's classic row shows the water
 rising at +36..+63, and the stage row does not, because the arena is still in front of it.
+
+### Particles off home (per-move camera)
+
+Added by the camera templates (moves.md, "Per-move camera", "Templates"). While a move plays, `move_redo` reads
+every live particle every 2nd frame (`ParticleProbe`): the battle particle systems are `sParticleSystems`, each
+manager's active emitters, and each emitter's particles and child particles (`SPLParticle.position +
+emitterPos`). The battle particle cameras are orthographic at (0, 0, 4), fovy 45, aspect 4/3, so a particle at
+world (X, Y) draws at classic pixel (128 + 24 X, 96 - 24 Y); this was checked against the frames of Ember,
+Thunderbolt and Ice Beam. Off home the stage moves each particle; the check models how. On a build with particles-3d's particle field
+(`sStageParticles` in the xMAP) it repeats `BattleStageParticles_DrawParticle`: a blend of the battlers'
+similarities by 1 / (d^2 + 16^2)^3 from the particle to each body point (24 px above the foot anchor), moving
+rigidly with its emission point within 32 px of it and on its own from 96 px. Without the field, every particle
+takes the camera's one particle similarity, `sStageCamera.particle`. A system marked screen space
+(`SetParticleScreenSpace`, `ParticleSystem.screenSpace`) stays put. The battlers' similarities are read from
+`sStageCamera.anchors`, at fixed offsets from the struct's end: anchors 124 bytes before it, the particle
+anchor 28.
+
+Over the move's off-home samples:
+
+- **lost:** of the particle draws that classic shows inside the scene (above the text box, at least 16 px from
+  its edges), the share the camera puts outside it by more than 8 px. PASS at 5% or less, WARN up to 15%, FAIL
+  above.
+- **drift:** for particle draws within 44 px of a battler's body (20 px above its foot anchor), the distance
+  between where the particle similarity draws them and where that battler's own similarity would; the 95th
+  percentile. PASS at 16 px or less, WARN up to 32, FAIL above. Particles in flight between the battlers are
+  left to the lost share: their depth is unknown.
+
+On a ROM without the symbols the check is a note. The hand-authored camera moves gave a reference on the ROM
+before camera-core and particles-3d (50482f8902): at 85% on the enemy's side (1.46x) Tackle, X-Scissor, Leaf Blade, Stone Edge and Air Slash WARN on lost (6-9%), and
+Shadow Ball FAILed (15% lost, 48 px drift: its charge sits off the attacker it frames, camera auditor bug B1).
 
 ## How a critic agent should use this
 

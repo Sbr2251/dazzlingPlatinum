@@ -1,7 +1,10 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "wide" (moves.md, "Templates"): a pull-back over the whole field.
 L_0:
     LoadParticleResource 0, mud_sport_spa
+    CamTplWideOpen
     PlaySoundEffectL SEQ_SE_DP_W091
     Func_ScaleBattlerSprite BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 100, 120, 100, 80, 100, CYCLES(1), SCALE_F(5) | RESTORE_F(5)
     WaitForAnimTasks
@@ -51,4 +54,5 @@ L_0:
     PlaySoundEffectL SEQ_SE_DP_W145B
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End

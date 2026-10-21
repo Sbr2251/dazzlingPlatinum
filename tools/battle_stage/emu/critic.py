@@ -1826,6 +1826,211 @@ class StreamRam:
         return d
 
 
+# bw2vis:camera-moves. Live particles against the stage camera (moves.md, "Per-move camera", Checking).
+# The battle particle cameras are orthographic at (0, 0, 4) with fovy 45 and aspect 4/3 (particle_system.c,
+# camera.c), so a particle at world (X, Y) draws at classic pixel (128 + 24 X, 96 - 24 Y). Off home the
+# projection hook moves every particle by the camera's one particle similarity (battle_stage_camera.c,
+# ParticleProjectionHook): p' = now + scale * (p - home). The particle's own battler moves by that battler's
+# similarity, so the gap between the two is the drift moves.md describes.
+PARTICLE_PX_PER_UNIT = 24.0
+# particles-3d's particle field (battle_stage_particles.c, Field and BattleStageParticles_DrawParticle), when the
+# build has sStageParticles: each particle takes a blend of the battlers' similarities by 1 / (d^2 + r^2)^3 from
+# its classic position to each body point, and moves rigidly with its emission point within RIGID px of it
+FIELD_BODY_LIFT, FIELD_SOFT_RADIUS, FIELD_SNAP_RATIO = 24, 16, 32
+FIELD_RIGID_RADIUS, FIELD_FREE_RADIUS = 32, 96
+PS_SCREEN_SPACE, PS_ID = 217, 218       # ParticleSystem.screenSpace (was unused2) and .id
+PARTICLE_MAX_SYSTEMS = 16
+PARTICLE_WALK_CAP = 1500                # particles read per sample at most (a guard against a broken list)
+CAM_ANCHORS_FROM_END = 124              # sStageCamera: anchors[4] (24 bytes each), then the particle anchor,
+CAM_PARTICLE_FROM_END = 28              # then guardPan (4) at the very end of the struct
+CAM_FOCUS_FROM_END = 256                # particleFocus, particleBattlers[2], atHome, view, projection, ...
+PARTICLE_SPRITE_RISE = 20               # px above the foot anchor: the middle of a battler's body
+PARTICLE_ON_BATTLER = 44                # px: a particle this close to that point is on the battler
+PARTICLE_SCREEN_MARGIN = 8              # px a particle may leave the scene by before it counts as off screen
+PARTICLE_SCREEN_INSET = 16              # px: a particle this close to the scene's edge at home is already leaving
+PARTICLE_LOST_PASS, PARTICLE_LOST_FAIL = 0.05, 0.15     # share of on-screen particles pushed off screen
+PARTICLE_DRIFT_PASS, PARTICLE_DRIFT_FAIL = 16, 32       # px, 95th percentile drift from their battler
+
+
+class ParticleProbe:
+    """Every live particle of the battle particle systems (sParticleSystems) with its classic pixel position, and
+    where the stage camera's particle similarity (sStageCamera.particle) draws it this frame. sample() is None on
+    a ROM without the symbols, or when the camera struct does not look like this layout."""
+
+    def __init__(self, e: Emu, xmap: Optional[str]):
+        self.e = e
+        if xmap and xmap not in _XMAP_CACHE:
+            _XMAP_CACHE[xmap] = read_xmap(xmap)
+        syms = _XMAP_CACHE[xmap] if xmap else {}
+        self.systems = syms.get("sParticleSystems")
+        self.cam = syms.get("sStageCamera")
+        self.field = "sStageParticles" in syms
+        self.why = ""
+        if not xmap:
+            self.why = "no xMAP (pass --map)"
+        elif not self.systems or not self.cam:
+            self.why = f"no sParticleSystems / sStageCamera in {xmap}"
+        elif self.cam[1] < CAM_FOCUS_FROM_END + 8:
+            self.why = f"sStageCamera is {self.cam[1]} bytes, too small for the known layout"
+
+    @staticmethod
+    def _ptr(v: int) -> bool:
+        return RAM_BASE <= v < RAM_END and v & 3 == 0
+
+    def _u32(self, addr: int) -> int:
+        return struct.unpack("<I", self.e.read(addr, 4))[0]
+
+    def _anchor(self, raw: bytes, off: int) -> Optional[tuple]:
+        valid, hx, hy, nx, ny, s = struct.unpack_from("<6i", raw, off)
+        if valid not in (0, 1) or not (-64 <= hx <= 320 and -64 <= hy <= 256) or not (0 < s < 16 * 4096):
+            return None
+        return (bool(valid), hx, hy, nx / 4096.0, ny / 4096.0, s / 4096.0)
+
+    def sample(self, at_home: bool) -> Optional[dict]:
+        if self.why:
+            return None
+        base = self.cam[0] + self.cam[1] - CAM_ANCHORS_FROM_END
+        raw = self.e.read(base, CAM_ANCHORS_FROM_END)
+        particle = self._anchor(raw, CAM_ANCHORS_FROM_END - CAM_PARTICLE_FROM_END)
+        anchors = [self._anchor(raw, 24 * i) for i in range(4)]
+        if particle is None:
+            return None
+        pts: List[tuple] = []
+        table = struct.unpack("<16I", self.e.read(self.systems[0], 4 * PARTICLE_MAX_SYSTEMS))
+        for i, ps in enumerate(table):
+            if not self._ptr(ps):
+                continue
+            flags = self.e.read(ps + PS_SCREEN_SPACE, 2)
+            screen = bool(flags[0]) if flags[1] == i else False
+            mgr = self._u32(ps)
+            if not self._ptr(mgr):
+                continue
+            emitter, guard = self._u32(mgr + 4), 0
+            while self._ptr(emitter) and guard < 64 and len(pts) < PARTICLE_WALK_CAP:
+                guard += 1
+                head = struct.unpack("<8I", self.e.read(emitter, 32))
+                for p in (head[2], head[5]):            # particles, childParticles
+                    n = 0
+                    while self._ptr(p) and n < PARTICLE_WALK_CAP and len(pts) < PARTICLE_WALK_CAP:
+                        b = self.e.read(p, 68)
+                        nxt = struct.unpack_from("<I", b, 0)[0]
+                        x, y, _ = struct.unpack_from("<3i", b, 8)
+                        ex, ey, _ = struct.unpack_from("<3i", b, 56)
+                        pts.append((128 + PARTICLE_PX_PER_UNIT * (x + ex) / 4096.0,
+                                    96 - PARTICLE_PX_PER_UNIT * (y + ey) / 4096.0,
+                                    128 + PARTICLE_PX_PER_UNIT * ex / 4096.0,
+                                    96 - PARTICLE_PX_PER_UNIT * ey / 4096.0, screen))
+                        p, n = nxt, n + 1
+                emitter = head[0]
+        return {"home": at_home, "particle": particle, "anchors": anchors, "points": pts, "field": self.field}
+
+
+def _on_screen(x: float, y: float, margin: float = 0) -> bool:
+    """In the scene above the text box (SCENE), which covers the rows below it while a move plays."""
+    return -margin <= x < SCENE[2] + margin and -margin <= y < SCENE[3] + margin
+
+
+def _field_at(anchors: List[Optional[tuple]], px: float, py: float) -> Optional[tuple]:
+    """particles-3d's Field: (nowX, nowY, scale) at classic point (px, py)."""
+    live = [a for a in anchors if a and a[0]]
+    if not live:
+        return None
+    spread = [(px - a[1]) ** 2 + (py - (a[2] - FIELD_BODY_LIFT)) ** 2 + FIELD_SOFT_RADIUS ** 2 for a in live]
+    near = min(range(len(live)), key=lambda i: spread[i])
+    w = [(spread[near] / sp) ** 3 if (i == near or sp < spread[near] * FIELD_SNAP_RATIO) else 0.0
+         for i, sp in enumerate(spread)]
+    tot = sum(w)
+    nx = sum(wi * (a[3] + a[5] * (px - a[1])) for wi, a in zip(w, live)) / tot
+    ny = sum(wi * (a[4] + a[5] * (py - a[2])) for wi, a in zip(w, live)) / tot
+    sc = sum(wi * a[5] for wi, a in zip(w, live)) / tot
+    return nx, ny, sc
+
+
+def _drawn_at(smp: dict, x: float, y: float, ex: float, ey: float, screen: bool) -> tuple:
+    """Where the stage draws a particle at classic (x, y), emitted at (ex, ey): put for a screen-space system;
+    through particles-3d's field on a build with it (BattleStageParticles_DrawParticle); else through the
+    camera's one particle similarity (ParticleProjectionHook)."""
+    if screen:
+        return x, y
+    if smp.get("field"):
+        d2 = (x - ex) ** 2 + (y - ey) ** 2
+        f = _field_at(smp["anchors"], x, y)
+        if f is None:
+            return x, y
+        if d2 >= FIELD_FREE_RADIUS ** 2:
+            return f[0], f[1]
+        a = _field_at(smp["anchors"], ex, ey)
+        rx, ry = a[0] + a[2] * (x - ex), a[1] + a[2] * (y - ey)
+        if d2 <= FIELD_RIGID_RADIUS ** 2:
+            return rx, ry
+        t = (d2 - FIELD_RIGID_RADIUS ** 2) / float(FIELD_FREE_RADIUS ** 2 - FIELD_RIGID_RADIUS ** 2)
+        return rx + t * (f[0] - rx), ry + t * (f[1] - ry)
+    _, phx, phy, pnx, pny, ps = smp["particle"]
+    return pnx + ps * (x - phx), pny + ps * (y - phy)
+
+
+def _owner_point(anchors: List[Optional[tuple]], x: float, y: float, ex: float, ey: float) -> Optional[tuple]:
+    """Where the particle at classic (x, y), emitted at (ex, ey), should land off home when it is on a battler
+    (within PARTICLE_ON_BATTLER of the middle of its body): that battler's similarity, so a particle on the
+    framed battler has no drift and a hit on the other one shows how far off it lands. A particle that the
+    other battler emitted (a spark flying across) is not counted, and neither is one on no battler: in flight
+    between them its depth is unknown, so only the off-screen count judges it."""
+    def near(a, px, py):
+        return (px - a[1]) ** 2 + (py - (a[2] - PARTICLE_SPRITE_RISE)) ** 2 <= PARTICLE_ON_BATTLER ** 2
+
+    live = [a for a in anchors if a and a[0]]
+    owner = [a for a in live if near(a, x, y)]
+    if len(owner) != 1:
+        return None
+    a = owner[0]
+    if any(near(b, ex, ey) for b in live if b is not a):
+        return None
+    return (a[3] + a[5] * (x - a[1]), a[4] + a[5] * (y - a[2]))
+
+
+def particle_stats(samples: List[dict]) -> Optional[dict]:
+    """Over the off-home samples of one move: how many particles that the classic look shows on screen the stage
+    camera pushes off it, and how far particles on a battler land from that battler (drift, px)."""
+    shown = lost = 0
+    drifts: List[float] = []
+    off_home = 0
+    worst = (0.0, None)
+    for k, smp in enumerate(samples):
+        if smp is None or smp["home"] or (not smp["particle"][0] and not smp.get("field")):
+            continue
+        off_home += 1
+        for pt in smp["points"]:
+            x, y, ex, ey = pt[:4]
+            screen = pt[4] if len(pt) > 4 else False
+            if not _on_screen(x, y, -PARTICLE_SCREEN_INSET):
+                continue
+            shown += 1
+            mx, my = _drawn_at(smp, x, y, ex, ey, screen)
+            if not _on_screen(mx, my, PARTICLE_SCREEN_MARGIN):
+                lost += 1
+            own = None if screen else _owner_point(smp["anchors"], x, y, ex, ey)
+            if own is not None:
+                dr = ((mx - own[0]) ** 2 + (my - own[1]) ** 2) ** 0.5
+                drifts.append(dr)
+                if dr > worst[0]:
+                    worst = (dr, k)
+    if off_home == 0:
+        return {"offHome": 0, "shown": 0, "lost": 0, "lostShare": 0.0, "drift95": 0.0, "driftMax": 0.0, "worst": None}
+    drifts.sort()
+    p95 = drifts[min(len(drifts) - 1, int(0.95 * len(drifts)))] if drifts else 0.0
+    return {"offHome": off_home, "shown": shown, "lost": lost, "lostShare": lost / shown if shown else 0.0,
+            "drift95": p95, "driftMax": drifts[-1] if drifts else 0.0, "worst": worst[1]}
+
+
+def particle_grade(st: dict) -> str:
+    lost, drift = st["lostShare"], st["drift95"]
+    if lost > PARTICLE_LOST_FAIL or drift > PARTICLE_DRIFT_FAIL:
+        return "FAIL"
+    if lost > PARTICLE_LOST_PASS or drift > PARTICLE_DRIFT_PASS:
+        return "WARN"
+    return "PASS"
+
+
 def _bits(mask: int) -> str:
     return "{" + ", ".join(str(i) for i in range(4) if mask & (1 << i)) + "}"
 
@@ -3377,7 +3582,9 @@ def _crit_checks(sc: Scenario, polls: List[tuple], what: str) -> None:
     sc.check(f"{what}: home again within {CRIT_KICK_MAX} frames of the hit blink", 0 <= back <= CRIT_KICK_MAX,
              f"home at turn frame {last_off + 1}, {back} frames after the blink (frame {blink})",
              why="the kick lasts at most 24 frames by the contract")
-    long = [r for r in runs[1:] if r[1] - r[0] + 1 > CRIT_KICK_MAX]
+    # bw2vis:camera-moves: a templated move (moves.md, Templates) is a long stretch off home inside a camera script
+    script_at = {t for t, c in polls if c["camFlags"] & CAMERA_SCRIPT}
+    long = [r for r in runs[1:] if r[1] - r[0] + 1 > CRIT_KICK_MAX and r[0] not in script_at]
     if len(runs) > 1:
         sc.check(f"{what}: later kicks (one per hit blink) are as short", not long,
                  f"{len(runs) - 1} more stretch(es) off home: {runs[1:4]}", warn_only=True)
@@ -3525,9 +3732,14 @@ def sc_camera(sc: Scenario, e: Emu, args) -> None:
              dedupe_screen="top")
     after = ram.cam()
     if before is not None and after is not None:
-        sc.check("no kicks: offHomeFrames unchanged over the turn with NO_CINEMATICS",
-                 after["offHomeFrames"] == before["offHomeFrames"],
-                 f"offHomeFrames {before['offHomeFrames']} -> {after['offHomeFrames']}; {_cam_detail(after)}",
+        # bw2vis:camera-moves: a move with a per-move camera (moves.md, Per-move camera) may leave home; only
+        # frames off home outside a camera script count (CAMERA_SCRIPT stays set until the next script starts)
+        stray = [t for t, c in polls if not c["home"] and not c["camFlags"] & CAMERA_SCRIPT]
+        scripted = sum(1 for _, c in polls if not c["home"] and c["camFlags"] & CAMERA_SCRIPT)
+        sc.check("no kicks: camera home over the turn with NO_CINEMATICS, outside camera scripts", not stray,
+                 f"offHomeFrames {before['offHomeFrames']} -> {after['offHomeFrames']}, of them {scripted} in a "
+                 f"move's camera script" + (f"; off home outside one at {stray[:6]}" if stray else "") +
+                 f"; {_cam_detail(after)}",
                  why="a kick (or something else) moved the camera although NO_CINEMATICS was set")
         sc.check("no kicks: no crit or faint bit", not after["cinematicsSeen"] & (CINE_CRIT | CINE_FAINT),
                  f"cinematicsSeen {after['cinematicsSeen']:#x} ({cine_names(after['cinematicsSeen'])})")
@@ -3703,10 +3915,12 @@ def audit_plan(sc: Scenario, args) -> List[dict]:
     return plan
 
 
-def _play_compat(e: Emu, ov: Overlay, ram: StageRam, key: str, frames: int, label: str) -> tuple:
+def _play_compat(e: Emu, ov: Overlay, ram: StageRam, key: str, frames: int, label: str,
+                 particles: Optional[list] = None, probe: Optional["ParticleProbe"] = None) -> tuple:
     """Overlay.play that also reads the compat fields on every frame (on a ROM with them) and, from the first
     frame with the arena mid-fade (0 < arenaAlpha < 31) until FADE_LAG frames after the last, snaps every
-    frame. Returns (frames every 3, finished_after or None, [(t, compat)], fade frames, {t: image})."""
+    frame. Returns (frames every 3, finished_after or None, [(t, compat)], fade frames, {t: image}).
+    With a probe (bw2vis:camera-moves), appends a ParticleProbe sample every 2nd frame to `particles`."""
     live = ram.has_compat
     start = e.frame
     e.hold(key, 6, 0)
@@ -3724,6 +3938,9 @@ def _play_compat(e: Emu, ov: Overlay, ram: StageRam, key: str, frames: int, labe
             polls.append((t, c))
             if 0 < c["arenaAlpha"] < ARENA_ALPHA_FULL:
                 tail = FADE_LAG + 1
+        if probe is not None and particles is not None and t % 2 == 0:
+            cam = ram.cam()
+            particles.append(probe.sample(bool(cam and cam["home"])))
         snap_fade = tail > 0 and len(fade) < FADE_SNAPS
         tail = max(0, tail - 1)
         if t % 3 == 0 or snap_fade:
@@ -4184,7 +4401,7 @@ def _scene_change(ref: List[Image.Image], anim: List[Frame]) -> float:
 
 def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str, m: dict, cur: int, cats: set,
                idle: List[Image.Image], boxes: List[Image.Image], after: List[Frame], rows: Dict[int, dict],
-               toggles: List[str]) -> Optional[bool]:
+               toggles: List[str], probe: Optional["ParticleProbe"] = None) -> Optional[bool]:
     """One move_redo move: played with the stage on (the checks), then with it off (the classic row).
     True = go on, False = the battle is stuck, None = the overlay is gone."""
     mid, expect = m["id"], m["expect"]
@@ -4202,7 +4419,8 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
     before = ram.compat()
     ebg0 = ram.effect_bg()
     cam0 = ram.cam()
-    anim, done, _, _, _ = _play_compat(e, ov, ram, key, args.anim_frames, f"{mid:03d}")
+    psamples: List[Optional[dict]] = []
+    anim, done, _, _, _ = _play_compat(e, ov, ram, key, args.anim_frames, f"{mid:03d}", psamples, probe)
     if froze(sc, e, anim, f"playing {tag}"):
         return False
     if not sc.check(f"{tag}: animation finished", done is not None,
@@ -4249,6 +4467,16 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
         sc.check(f"{tag}: camera home (AT_HOME) at the menu", cam["home"],
                  f"camFlags {cam['camFlags']:#x} ({cam_names(cam['camFlags'])}) 90 frames after the move, "
                  f"offHomeMoveFrames +{omf}")
+    if probe is not None and not probe.why:
+        pst = particle_stats(psamples)
+        if pst["offHome"]:
+            sc.grade(f"{tag}: particles stay on screen off home", particle_grade(pst),
+                     f"{pst['lost']} of {pst['shown']} particle draws in the scene pushed off it "
+                     f"({pst['lostShare']:.1%}; PASS <= {PARTICLE_LOST_PASS:.0%}, FAIL > {PARTICLE_LOST_FAIL:.0%}); "
+                     f"drift of particles on a battler from it: 95th percentile {pst['drift95']:.0f} px, max "
+                     f"{pst['driftMax']:.0f} px (PASS <= {PARTICLE_DRIFT_PASS}, FAIL > {PARTICLE_DRIFT_FAIL}); "
+                     f"{pst['offHome']} off-home samples",
+                     why="the camera frames the effect away (moves.md, Per-move camera, Checking)")
     # The classic look of the same move: the stage off (the debug A/B toggle), played again, back on
     why = _redo_toggle(e, ov, ram, 0)
     off_anim: List[Frame] = []
@@ -4345,6 +4573,9 @@ def _redo_battle(sc: Scenario, e: Emu, args, tod: str, plan: List[dict], cats: s
         sc.note(f"{tod}: compat checks skipped: {ram.compat_why or ram.why}; only the pixel checks run")
     if not ram.has_camera:
         sc.note(f"{tod}: AT_HOME not checked: {ram.camera_why}")
+    probe = ParticleProbe(e, find_xmap(args))     # bw2vis:camera-moves
+    if probe.why:
+        sc.note(f"{tod}: particle checks skipped: {probe.why}")
     ov = Overlay(e)
     idle_frames = e.record(60, every=5, label=f"{tod} idle")
     idle = [scene(f.img) for f in idle_frames]
@@ -4358,7 +4589,7 @@ def _redo_battle(sc: Scenario, e: Emu, args, tod: str, plan: List[dict], cats: s
     cur, ok, played = MOVE_ID_POUND, True, 0
     for m in plan:
         n0 = len(sc.checks)
-        r = _redo_move(sc, e, args, ram, ov, tod, m, cur, cats, idle, boxes, after, rows, toggles)
+        r = _redo_move(sc, e, args, ram, ov, tod, m, cur, cats, idle, boxes, after, rows, toggles, probe)
         if m["id"] in rows:
             rows[m["id"]]["status"][tod] = _worst([c["status"] for c in sc.checks[n0:]])
         if r is None:

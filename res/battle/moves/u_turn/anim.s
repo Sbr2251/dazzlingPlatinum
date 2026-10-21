@@ -1,8 +1,12 @@
 #include "macros/btlanimcmd.inc"
+#include "macros/btlanimcam.inc"
 
+// Per-move camera template "twoshot" (moves.md, "Templates"): both mons for the whole move, a punch on the hit.
 L_0:
     LoadParticleResource 0, u_turn_spa
+    CamTplTwoShotOpen
     BtlAnimCmd_013 L_1, L_2
+    CamTplClose
     End
 
 L_1:
@@ -22,6 +26,7 @@ L_1:
     SetExtraParams 0, 2, 2, 0, 0, 0
     CreateEmitter 0, 5, EMITTER_CB_GENERIC
     SetExtraParams 0, 2, 2, 0, 0, 0
+    CamTplImpact 2, 6
     Func_Shake 2, 0, 1, 2, BATTLE_ANIM_BATTLER_SPRITE_DEFENDER
     Delay 15
     PlaySoundEffectL SEQ_SE_DP_080
@@ -31,6 +36,7 @@ L_1:
     Func_HideBattler BATTLE_ANIM_ATTACKER, FALSE
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_2:
@@ -42,18 +48,21 @@ L_2:
     JumpIfBattlerSide BATTLER_ROLE_ATTACKER, L_4, L_5
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_4:
     CreateEmitter 0, 6, EMITTER_CB_SET_POS_TO_ATTACKER
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_5:
     CreateEmitter 0, 7, EMITTER_CB_SET_POS_TO_ATTACKER
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
 
 L_3:
@@ -71,6 +80,7 @@ L_3:
     SetExtraParams 0, 2, 2, 0, 0, 0
     CreateEmitter 0, 5, EMITTER_CB_GENERIC
     SetExtraParams 0, 2, 2, 0, 0, 0
+    CamTplImpact 2, 6
     Func_Shake 2, 0, 1, 2, BATTLE_ANIM_BATTLER_SPRITE_DEFENDER
     Delay 15
     PlaySoundEffectL SEQ_SE_DP_080
@@ -80,4 +90,5 @@ L_3:
     Func_HideBattler BATTLE_ANIM_ATTACKER, FALSE
     WaitForAllEmitters
     UnloadParticleSystem 0
+    CamTplClose
     End
