@@ -302,7 +302,7 @@ them uses `SwitchBg`, `FadeBg` or any other background change; those belong to t
    margin (random sparks on another day): Covet, Beat Up, Scratch, Karate Chop, Pay Day, Bone Club, Lovely
    Kiss, Rock Smash, Seed Bomb and Mud Bomb went to twoshot.
 
-87 moves ended on another template than their first pick, none on shake. Every templated move ends at
+93 moves ended on another template than their first pick, none on shake. Every templated move ends at
 home, keeps its particles on screen and passes the move_redo, move_tester and move_audit checks at day and
 at night (Checking).
 
