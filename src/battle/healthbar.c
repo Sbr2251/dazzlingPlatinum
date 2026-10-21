@@ -48,6 +48,11 @@
 #define HEALTHBAR_X_OFFSET_ENEMY_SLOT_2  HEALTHBAR_X_OFFSET_SOLO_ENEMY
 #define HEALTHBAR_Y_OFFSET_ENEMY_SLOT_2  HEALTHBAR_Y_OFFSET_SOLO_ENEMY + 9
 
+// The selection sway. BW2 advances a 16-bit angle by 0x400 per 60 Hz frame (a 64-frame period); the battle's
+// tasks run at 30 Hz, so 0x800 per update keeps the period at 64 frames
+#define HEALTHBAR_SWAY_STEP    0x800
+#define HEALTHBAR_SWAY_DIVISOR 0x800
+
 #define HEALTHBAR_WINDOW_BLOCK_SIZE 32
 
 #define HEALTHBAR_NAME_BLOCK_COUNT_X    8
@@ -1977,12 +1982,8 @@ static void ov16_022684BC(SysTask *param0, void *param1)
     Healthbar *v0 = param1;
     int v1;
 
-    v0->unk_54 += 20;
-
-    if (v0->unk_54 >= 360) {
-        v0->unk_54 -= 360;
-    }
-
-    v1 = FX_Mul(CalcSineDegrees(v0->unk_54), 0x1800) / FX32_ONE;
+    // bw2vis:hud-gauges: BW2's slow sway (btlv_gauge.c:1353-1359), y = sin / 0x800, so +-2 px
+    v0->unk_54 += HEALTHBAR_SWAY_STEP;
+    v1 = FX_SinIdx(v0->unk_54) / HEALTHBAR_SWAY_DIVISOR;
     Healthbar_OffsetPositionXY(v0, 0, v1);
 }
