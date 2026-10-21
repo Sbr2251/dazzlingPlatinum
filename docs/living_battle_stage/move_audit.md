@@ -152,7 +152,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | id | name | mechanisms | suppress | fix | risk | notes |
 |---|---|---|---|---|---|---|
 | 0 | NONE | partial_draw, bg2_copy, window, particles, sprite_fade_tint | bg2_effect | F1, F2, F3 | medium | MOVE_NONE placeholder (a Sketch copy), never played in battle; see SKETCH |
-| 1 | POUND | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 1 | POUND | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 2 | KARATE_CHOP | sprite_xy, particles | - | - | low | per-move camera (template contact) |
 | 3 | DOUBLE_SLAP | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 4 | COMET_PUNCH | sprite_xy, particles | - | - | low | per-move camera (template contact) |
@@ -172,10 +172,10 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 18 | WHIRLWIND | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 19 | FLY | sprite_xy, switch_bg, particles | bg_switch | F6 | high |  |
 | 20 | BIND | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template contact) |
-| 21 | SLAM | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 21 | SLAM | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 22 | VINE_WHIP | sprite_xy, particles | - | - | low | per-move camera (template contact) |
-| 23 | STOMP | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template contact) |
-| 24 | DOUBLE_KICK | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 23 | STOMP | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template twoshot) |
+| 24 | DOUBLE_KICK | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 25 | MEGA_KICK | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 26 | JUMP_KICK | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 27 | ROLLING_KICK | sprite_xy, oam_copy, sprite_bg_blend, particles | - | F2, F4 | medium |  |
@@ -187,7 +187,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 33 | TACKLE | sprite_xy, particles | - | - | low | per-move camera (hand-authored) |
 | 34 | BODY_SLAM | sprite_xy, particles | - | - | low | per-move camera (template contact) |
 | 35 | WRAP | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template contact) |
-| 36 | TAKE_DOWN | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 36 | TAKE_DOWN | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 37 | THRASH | sprite_xy, particles | - | - | low | per-move camera (template contact) |
 | 38 | DOUBLE_EDGE | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 39 | TAIL_WHIP | sprite_xy | - | - | low | per-move camera (template wide) |
@@ -219,7 +219,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 65 | DRILL_PECK | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template contact) |
 | 66 | SUBMISSION | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template contact) |
 | 67 | LOW_KICK | sprite_xy, particles | - | - | low | per-move camera (template contact) |
-| 68 | COUNTER | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 68 | COUNTER | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 69 | SEISMIC_TOSS | sprite_xy, switch_bg, particles | bg_switch | F6 | high | ShakeBg on BG3 |
 | 70 | STRENGTH | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low | per-move camera (template contact) |
 | 71 | ABSORB | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
@@ -282,7 +282,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 128 | CLAMP | sprite_xy, particles | - | - | low | per-move camera (template contact) |
 | 129 | SWIFT | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 130 | SKULL_BASH | sprite_xy, sprite_scale_rot, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
-| 131 | SPIKE_CANNON | sprite_xy, particles | - | - | low | per-move camera (template push) |
+| 131 | SPIKE_CANNON | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 132 | CONSTRICT | sprite_xy | - | - | low |  |
 | 133 | AMNESIA | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 134 | KINESIS | sprite_bg_blend | - | F4 | medium |  |
@@ -313,8 +313,8 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 159 | SHARPEN | particles | - | - | low | per-move camera (template self) |
 | 160 | CONVERSION | particles | - | - | low | per-move camera (template self) |
 | 161 | TRI_ATTACK | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
-| 162 | SUPER_FANG | sprite_xy, particles | - | - | low | per-move camera (template contact) |
-| 163 | SLASH | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 162 | SUPER_FANG | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
+| 163 | SLASH | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 164 | SUBSTITUTE | sprite_xy, sprite_scale_rot | - | - | low |  |
 | 165 | STRUGGLE | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template contact) |
 | 166 | SKETCH | partial_draw, bg2_copy, window, particles, sprite_fade_tint | bg2_effect | F1, F2, F3 | high | BG2 copy lifted above BG0 by the func, WIN0 reveal keeps BG0 on; F3 option a |
@@ -349,7 +349,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 195 | PERISH_SONG | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 196 | ICY_WIND | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 197 | DETECT | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
-| 198 | BONE_RUSH | sprite_xy, particles | - | - | low | per-move camera (template push) |
+| 198 | BONE_RUSH | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 199 | LOCK_ON | sprite_bg_blend, sprite_fade_tint | - | F4 | medium |  |
 | 200 | OUTRAGE | sprite_xy, oam_copy, switch_bg, particles, sprite_fade_tint | bg_switch | F2, F6 | high | FadeBg: backdrop palette fade, the arena follows it |
 | 201 | SANDSTORM | particles | - | - | low | per-move camera (template wide) |
@@ -407,7 +407,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 253 | UPROAR | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template push) |
 | 254 | STOCKPILE | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low | per-move camera (template self) |
 | 255 | SPIT_UP | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template push) |
-| 256 | SWALLOW | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low | per-move camera (template self) |
+| 256 | SWALLOW | sprite_xy, sprite_scale_rot, particles, sprite_fade_tint | - | - | low | per-move camera (template wide) |
 | 257 | HEAT_WAVE | sprite_xy, particles | - | - | low | per-move camera (template wide) |
 | 258 | HAIL | switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 259 | TORMENT | sprite_xy, sprite_scale_rot, sprite_fade_tint | - | - | low |  |
@@ -509,7 +509,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 355 | ROOST | particles, sprite_fade_tint | - | - | low | per-move camera (template self) |
 | 356 | GRAVITY | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template wide) |
 | 357 | MIRACLE_EYE | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
-| 358 | WAKE_UP_SLAP | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 358 | WAKE_UP_SLAP | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 359 | HAMMER_ARM | sprite_xy, sprite_scale_rot, particles | - | - | low | ShakeBg on BG3 |
 | 360 | GYRO_BALL | sprite_xy, particles | - | - | low | per-move camera (template push) |
 | 361 | HEALING_WISH | switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
@@ -524,10 +524,10 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 370 | CLOSE_COMBAT | sprite_xy, switch_bg, particles | bg_switch | F6 | high |  |
 | 371 | PAYBACK | sprite_xy, particles | - | - | low | per-move camera (template push) |
 | 372 | ASSURANCE | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
-| 373 | EMBARGO | particles, sprite_fade_tint | - | - | low | per-move camera (template contact) |
+| 373 | EMBARGO | particles, sprite_fade_tint | - | - | low | per-move camera (template twoshot) |
 | 374 | FLING | sprite_xy, particles | - | - | low | per-move camera (template push) |
 | 375 | PSYCHO_SHIFT | particles, sprite_fade_tint | - | - | low | per-move camera (template push) |
-| 376 | TRUMP_CARD | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 376 | TRUMP_CARD | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 377 | HEAL_BLOCK | switch_bg, particles, sprite_fade_tint | - | - | medium | SetBgGrayscale: backdrop palette, the arena follows it |
 | 378 | WRING_OUT | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template contact) |
 | 379 | POWER_TRICK | sprite_xy, sprite_scale_rot, particles | - | - | low | per-move camera (template self) |
@@ -538,7 +538,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 384 | POWER_SWAP | particles | - | - | low | per-move camera (template push) |
 | 385 | GUARD_SWAP | particles | - | - | low | per-move camera (template push) |
 | 386 | PUNISHMENT | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
-| 387 | LAST_RESORT | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 387 | LAST_RESORT | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 388 | WORRY_SEED | sprite_xy, particles | - | - | low | per-move camera (template push) |
 | 389 | SUCKER_PUNCH | sprite_xy, particles | - | - | low | per-move camera (template contact) |
 | 390 | TOXIC_SPIKES | particles, sprite_fade_tint | - | - | low | per-move camera (template wide) |
@@ -572,7 +572,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 418 | BULLET_PUNCH | sprite_xy, particles | - | - | low | per-move camera (template contact) |
 | 419 | AVALANCHE | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 420 | ICE_SHARD | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
-| 421 | SHADOW_CLAW | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 421 | SHADOW_CLAW | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 422 | THUNDER_FANG | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 423 | ICE_FANG | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 424 | FIRE_FANG | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
@@ -601,7 +601,7 @@ SwitchBg's per-line flag (FLAG_UNK_20, a BG3 wave) is not used by any script.
 | 447 | GRASS_KNOT | sprite_xy, particles | - | - | low | per-move camera (template contact) |
 | 448 | CHATTER | sprite_xy, particles | - | - | low | per-move camera (template push) |
 | 449 | JUDGMENT | sprite_xy, switch_bg, particles | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
-| 450 | BUG_BITE | sprite_xy, particles | - | - | low | per-move camera (template contact) |
+| 450 | BUG_BITE | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
 | 451 | CHARGE_BEAM | sprite_xy, switch_bg, particles, sprite_fade_tint | - | - | medium | FadeBg: backdrop palette fade, the arena follows it |
 | 452 | WOOD_HAMMER | sprite_xy, particles | - | - | low | ShakeBg on BG3 |
 | 453 | AQUA_JET | sprite_xy, particles | - | - | low | per-move camera (template twoshot) |
