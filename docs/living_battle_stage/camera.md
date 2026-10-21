@@ -11,7 +11,7 @@ below), every frame must be byte-for-byte what chunk 3 draws:
 
 - the arena uses the view matrix it builds today;
 - no sprite matrix is touched;
-- the particle projection hook does nothing.
+- the particle hooks do nothing.
 
 This must be an explicit code path ("home: skip it all"), not the result of a transform
 that happens to come out as the identity in fixed point. `stage_ab` still expects an exact
@@ -155,32 +155,85 @@ BW2 makes in flat mode, the wide doubles preset 14/19, shrinks the mons itself (
 
 ## Particles follow the camera
 
-`particle_system.c` (ARM9 main) gets a projection hook, the same pattern as the sprite draw
-hook:
+Off home every particle follows the mons around it, the way the mons themselves follow the
+camera (particles-3d, bw2vis). At home nothing changes.
+
+**Why not a plain 3D projection.** A battle particle system draws with its own orthographic
+camera, which gives the classic 2D picture. Putting the particles on a 3D surface and drawing
+them with the stage camera (the "battle plane" mode below) is correct 3D, but the mons are not:
+they are camera-facing billboards moved by a screen-space similarity. Measured on the Plain
+stage, a particle 30 px from the enemy in the enemy close-up (85%, yaw -6) lands 3-16 px off the
+mon with the 3D plane, against 0 px with the field. So the default places each particle with the
+same similarity as the mon it is on.
+
+**The two hooks** (`particle_system.c`, ARM9 main; with no hook set, both are byte-for-byte the
+old code):
 
 ```c
-typedef void (*ParticleSystemProjectionHook)(MtxFx44 *projection);
+typedef BOOL (*ParticleSystemProjectionHook)(MtxFx44 *projection);
+typedef void (*ParticleSystemParticleHook)(const VecFx32 *viewPos, const VecFx32 *anchorViewPos);
 void ParticleSystem_SetProjectionHook(ParticleSystemProjectionHook hook);
+void ParticleSystem_SetParticleHook(ParticleSystemParticleHook hook);
 ```
 
-- In `ParticleSystem_Draw`, after `Camera_ComputeProjectionMatrix` and only when the system
-  has a camera: if a hook is set, read `NNS_G3dGlbGetProjectionMtx()`, let the hook modify a
-  copy, and put it back with `NNS_G3dGlbSetProjectionMtx`.
-- With no hook set, the function is byte-for-byte the old code.
-- The battle sets the hook in `BattleStage_Init`, when there is an arena, and clears it in
+- `ParticleSystem_Draw` calls the projection hook with a copy of the system's projection, after
+  `Camera_ComputeProjectionMatrix` and only when the system has a camera and is not screen space.
+  The hook may change the copy, and returns TRUE to have the particle hook called for this draw.
+- The particle hook gets each particle's centre and its emission point in the system's view space
+  (the SPL library calls it through `SPLManager_SetParticleDrawHook`, before each particle and
+  child particle is drawn), and may load its own projection. The closing `NNS_G3dGlbFlush`
+  restores the system's.
+- The battle sets both in `BattleStage_Init`, when there is an arena, and clears them in
   `BattleStage_Free`.
 
-The hook post-multiplies the projection by the screen-space similarity of the camera's
-**particle focus**, turned into clip space: `x_ndc = x_px / 128 - 1`, `y_ndc = 1 - y_px / 96`,
-and the translation is multiplied by w, so it works for orthographic and perspective
-particle cameras alike. The focus depends on the command:
+**At home**, and whenever the stage is not visible (a debug view held while the stage hides, the
+classic look), the projection hook returns FALSE at once and leaves the matrix alone.
 
-- `StageCameraMove` with a battler focus: that battler's similarity;
-- `CENTER`: the similarity of the home camTarget point;
-- `BETWEEN`: the midpoint of the two battlers' anchors, with the mean of their scales.
+**The particle field** (`battle_stage_particles.c`, the default off home):
 
-When the camera is home, the hook returns at once and leaves the matrix alone. Every battle
-particle system goes through it, including the Totem aura's own system.
+- Each battler on the field has the screen similarity its sprite uses ("Sprites follow the
+  camera"): its home foot anchor, its foot anchor now and its scale.
+- For a particle, the system's own projection gives its classic screen point p. Each battler gets
+  the weight 1 / (d^2 + 16^2)^3, d the distance in pixels from p to the battler's body point (its
+  home foot anchor raised 24 px). A battler whose d^2 + 16^2 is 32 times the nearest one's or more
+  counts for nothing, so a particle near one mon takes that mon's similarity exactly; between the
+  mons (a projectile in flight) the similarities blend smoothly.
+- The field is evaluated at the point the particle was emitted from (its emitter's position at
+  its birth, `SPLParticle.emitterPos`), and a particle within 32 px of that point moves rigidly with
+  it, so the particles of one ball or burst hold together even between the mons, where the blend
+  is not rigid. From 96 px on (a beam streaming from the attacker to the defender) a particle takes
+  the field at its own place; in between the two blend smoothly.
+- The particle lands at that point and is scaled by that scale, about its own centre: the
+  projection loaded for it is the system's projection followed by the similarity in clip space
+  (`x_ndc = x_px / 128 - 1`, `y_ndc = 1 - y_px / 96`, the translation scaled by w, so it holds for
+  orthographic and perspective particle cameras alike).
+- A projection is loaded only when it differs from the last one in the draw, so the particles of
+  one group, or all snapped to one mon, share one load.
+- A zoom alone (`StageCameraZoom`) is exact: every battler's similarity is then the same scale
+  about the screen centre.
+
+**Screen space.** A system marked screen space skips both hooks and keeps its classic place on
+screen while the camera moves: full-screen weather, screen flashes. Scripts mark it with
+`SetParticleScreenSpace particleSystem[, projection]` (command 62, `SetCameraProjection`, with
+`BATTLE_ANIM_PARTICLE_SCREEN_SPACE` on the projection; it holds until the move ends), and C with
+`ParticleSystem_SetScreenSpace`.
+
+**Debug and A/B** (`debugFlags`, sBattleStage+32):
+
+| bit | name | effect |
+|---|---|---|
+| 20 | `PARTICLES_2D` | the old single similarity: the focused battler's (`StageCameraMove` ATTACKER or DEFENDER), the midpoint for `BETWEEN`, the home camTarget for `CENTER`. It is also the fallback when no battler has an anchor |
+| 21 | `PARTICLES_PLANE` | the 3D battle plane: each particle on the upright plane through both sides' feet where the home camera sees it, drawn with the stage view and projection in one projection matrix per system. The right mode if the mons are ever drawn in perspective (Gen 5's MCSS) |
+| 22 | `KEEP_VIEW_IN_MOVES` | the move tester keeps its debug view (1-3) through the animation: an off-home test bed for any move's particles. The view still resets when the overlay hides |
+
+**Budget.** No polygons are added (the same particles draw; off home some fall off screen and are
+clipped). Off home, the field costs about 100-300 ARM9 cycles per particle and up to one 4x4
+projection load per particle (18 geometry words), skipped when it equals the last one (the
+particles of one burst, or all snapped to one mon). The heaviest particle move measured, Draco Meteor, peaks at 852 polygons with the arena
+(663 at the command menu, about 190 particles), under half of the 2048 the hardware takes. Held
+off home (debug view 3) it draws the same number of stage frames per emulated frame with the
+field as with the old similarity (2.044 for Draco Meteor, 2.063 Energy Ball, 2.087 Ice Beam), so
+the per-particle work costs no frames.
 
 ## New animation script commands
 
@@ -294,7 +347,7 @@ fallback (the stage wasn't visible at the opening, a recorded battle, Giratina's
   `StageCameraWait` before `End`.
 
 The AffinePulse sprite and the particles stay attached through the sprite and particle
-follow. Bit 1 is set by the Mega script, through its first camera command.
+follow (the particles take the attacker's own similarity, "Particles follow the camera"). Bit 1 is set by the Mega script, through its first camera command.
 
 **Totem intro** (bit 2) is played by the Totem aura script:
 - push in on the Totem over 16 frames with BW2's tail from frame 11 (distance 72%, pitch -4,
