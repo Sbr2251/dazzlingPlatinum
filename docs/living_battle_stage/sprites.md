@@ -163,6 +163,37 @@ generator (the battle's RNG is never touched), then plays the idle steps for `wa
 Counted in `idleRolls`, `idleStarts[4]`, `idleAborts`, `idleActiveMask`, `idleApproxStarts`,
 `lastIdleWait` and B/W's `idleCount[4]`.
 
+### Move copies
+
+A move's copies of a battler (an OAM copy, `AddPokemonSprite`: Double Team, Agility, Minimize,
+Transform and 33 more: 37 moves; a BG2 copy, `LoadPokemonSpriteIntoBg`: Acid Armor, Extrasensory, Sketch,
+Spite) were the classic 80x80 window of the stream frame: a back at 1.75x showed only its
+bottom-centre 46x46 texels, with no sink, and the mesh popped back larger and lower when the copy
+went. Now, for a streamed battler:
+
+- **OAM copies** (`battle_stage_copies.c`): `AddPokemonSprite` registers the copy with the stage
+  (`BattleStage_AdoptMonCopy`) and uploads blank tiles in place of its own, so the 2D copy shows
+  nothing and the script keeps driving it as before. After the battle's sprites,
+  `BattleStage_DrawMonCopies` draws each visible copy as one quad of the battler's live stream
+  frame, as the mesh draws it: its canvas at its scale (`BattleStageStream_CanvasRect`, sink
+  included) about the copy's position, with the copy's affine scale and rotation, the arena's
+  sprite tint, polygon alpha from the blend's EVA for a translucent copy (40 + slot as polygon ID,
+  so copies over each other blend), and the battler's camera similarity off home. The copy's own
+  palette tint (Double Team's) is not reproduced. `RemovePokemonSprite`, `FreePokemonSpriteManager`
+  and the script's end drop the copies. An effect that uses a copy as an OBJ window (Harden,
+  Superpower, Camouflage, the 2D stat change) gives the battler's copies back to 2D with their own
+  tiles first (`BattleStage_ReleaseMonCopiesOf`), so the window and the copy shown still match.
+  Cost: one quad a visible copy (at most 5), no VRAM.
+- **BG2 copies**: after `LoadPokemonSpriteIntoBg` loaded the classic copy,
+  `BattleStage_BuildBg2Copy` replaces it with the live stream frame at the mesh's scale: the
+  canvas rect (sink included) in BG pixels about the classic frame's place, tile-aligned, written
+  into BG2's tiles from tile 1 (tile 0 stays blank) and its 512x512 tilemap with wrap, so the
+  move's BG offsets and per-line scrolls still place it. BG2's tiles end where BG3's begin: 511
+  tiles at most, enough for the largest back (a 96x96 box at 1.75x is 22x22 tiles); a larger copy
+  keeps the classic one. `RemovePokemonSpriteFromBg` clears the tiles it used and its tilemap.
+
+Counted in `sMonCopyStats`: `adopted`, `released`, `drawnFrames`, `bg2Copies`.
+
 ## Blob shadows
 
 A soft translucent ellipse sits on the 3D ground under each visible mon. It uses a small

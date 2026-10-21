@@ -25,6 +25,7 @@
 #include "battle/battle_io_command.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_copies.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02268520.h"
 #include "battle/ov16_0226E148.h"
@@ -1627,6 +1628,7 @@ static void ov16_0223CF48(SysTask *param0, void *param1)
         }
 
         PokemonSpriteManager_DrawSprites(v0->unk_88);
+        BattleStage_DrawMonCopies(v0->unk_88); // bw2vis:idle: move copies of streamed battlers
         RaiseIntroSprites(v0);
         OffsetTrainerSprites(v0, 1);
         SpriteSystem_DrawSprites(v0->spriteMan);

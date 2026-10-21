@@ -13,6 +13,7 @@
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_camera.h"
 #include "battle/battle_display.h"
+#include "battle/battle_stage_copies.h"
 #include "battle/battle_stage_idle.h"
 #include "battle/battle_stage_stream.h"
 #include "battle/ov16_0223DF00.h"
@@ -246,6 +247,7 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     BattleStage_ClearGroundHoles();
     memset(&sStatFx, 0, sizeof(sStatFx));
     BattleStage_Gen5MotionInit();
+    BattleStageCopies_Init();
 
     for (i = 0; i < MAX_MON_SPRITES; i++) {
         sStageSprites.states[i].phase = 0;

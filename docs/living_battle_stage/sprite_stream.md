@@ -84,7 +84,7 @@ which leaves them 48 more rows. So a back taller than 100 frame px sinks by the 
 textbox, the way B/W's screen edge crops tall backs. Garchomp, Torterra and 67 others sink the
 full 40, Lucario 15, Staraptor 19; about half the backs (Budew, Finneon, ...) don't move. The
 blob shadow stays on the ground. The sink is in `BattleStageStream_CanvasRect`, so every draw
-of the battler, the faint slide and the send-out included, takes it; the move copies don't.
+of the battler, the faint slide, the send-out and the move copies included, takes it.
 
 **Megas.** B/W has no Megas, and their classic backs, drawn 1:1, came out about half the size
 of the B/W backs around them (Mega Lucario 65 px against Lucario's 116). The tool makes each
@@ -195,9 +195,11 @@ fix, Extrasensory froze the battle whenever a battler's stream was animating.
 - **Arena hidden.** With the arena hidden but its texture VRAM kept (the debug toggle, a move's
   backdrop: `BattleStage_KeepsTextureVram`), the streams go on, and the draw hook draws the
   canvas flat (`DrawFlatStream`). Hiding the arena then doesn't snap a battler back to frame A.
-- **Move copies.** A move's BG or OAM copy of a battler (`LoadPokemonSpriteIntoBg`,
-  `AddPokemonSprite`, `ov12_022234F8`) takes the classic 80x80 window of the frame on screen
-  (`BattleStage_GetStreamFrameTiles`), not frame A. Contests keep frame A.
+- **Move copies.** (bw2vis:idle) A move's OAM copy of a streamed battler (`AddPokemonSprite`) is
+  drawn by the stage from the live stream frame at the mesh's scale, its 2D tiles blank; a BG2
+  copy (`LoadPokemonSpriteIntoBg`) is the live frame at the mesh's scale in BG2's tiles (sprites.md,
+  "Gen 5 motion", "Move copies"). `ov12_022234F8`'s copies and contests keep the classic 80x80
+  window of the frame on screen (`BattleStage_GetStreamFrameTiles`), contests frame A.
 - **Overlay copies.** Copies that only sit over the battler (SpriteToOAM, the send-out copies)
   stay hidden while it is streamed (`BattleStage_IsSpriteStreamed`), so frame A doesn't double
   the animated sprite.
@@ -257,9 +259,9 @@ The card timing is the emulator's. A frame read costs the game thread about 0.3 
 - **Forms and Spinda.** The PL_OTHERPOKE table has only the Mega backs, so the form species
   draw classic. The Mega backs are still frames.
   Spinda's spots are painted on the classic frame only.
-- **80x80 crop.** The other screens and the battle's move copies show only the classic window
-  of the canvas. Wide or tall art loses what is outside it, and a back shows only its
-  bottom-centre 46x46 texels.
+- **80x80 crop.** The other screens show only the classic window of the canvas. Wide or tall art
+  loses what is outside it, and a back shows only its bottom-centre 46x46 texels. The battle's
+  move copies no longer do (bw2vis:idle), except `ov12_022234F8`'s.
 - **Doubles.** Not measured. Four streams hold about 40 KB, well inside the 128 KB floor, but
   four frame reads and decodes in one frame would pass the budget, so some battlers would wait.
 - **Read cost.** Reads can't use DMA (see above), so each costs the game thread about 1 ms. A

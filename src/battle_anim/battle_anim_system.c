@@ -16,6 +16,7 @@
 #include "battle/battle_anim_battler_context.h"
 #include "battle/battle_background_reference.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_copies.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/pokemon_sprite_data.h"
 #include "battle/struct_ov16_02265BBC.h"
@@ -949,6 +950,7 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
         BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT | BATTLE_STAGE_SUPPRESS_WINDOW, FALSE);
         BattleStage_ClearCurtain();
         BattleStage_EndStatEffect();
+        BattleStage_DropAllMonCopies(); // bw2vis:idle
         BattleStage_SetMoveAnimActive(FALSE);
         BattleStage_SetInMoveAnim(FALSE);
         BattleStage_SetBackdropShake(0, 0);
@@ -1876,6 +1878,7 @@ static void BattleAnimScriptCmd_End(BattleAnimSystem *system)
         BattleStage_ClearCurtain();
         // A stat change drawn on the stage sprite, should its task outlive the script
         BattleStage_EndStatEffect();
+        BattleStage_DropAllMonCopies(); // bw2vis:idle
     } else {
         ov17_022413D8();
     }
@@ -2571,6 +2574,12 @@ static void BattleAnimScriptCmd_LoadPokemonSpriteIntoBg(BattleAnimSystem *system
     if (BattleAnimSystem_LiftBg2Copy(system) == TRUE) {
         BattleStage_TintCopyPalette(system->paletteData, PLTTBUF_MAIN_BG, PLTT_DEST(BATTLE_BG_PALETTE_MON_SPRITE), PALETTE_SIZE);
     }
+
+    // bw2vis:idle: a streamed battler's copy is its live stream frame at the mesh's scale, not
+    // the classic 80x80 window, so it neither crops it nor pops back to the mesh at the end
+    if (BattleAnimSystem_IsContest(system) == FALSE) {
+        BattleStage_BuildBg2Copy(battler, system->bgConfig, BATTLE_BG_BASE, system->heapID);
+    }
 }
 
 static void BattleAnimScriptCmd_RemovePokemonSpriteFromBg(BattleAnimSystem *system)
@@ -2578,8 +2587,16 @@ static void BattleAnimScriptCmd_RemovePokemonSpriteFromBg(BattleAnimSystem *syst
     BattleAnimScript_Next(system);
     BattleAnimScript_Next(system);
 
+    // bw2vis:idle: the stage's copy (BattleStage_BuildBg2Copy) takes more tiles and tilemap
+    u32 clearBytes;
+    BOOL stageCopy = BattleStage_TakeBg2Copy(&clearBytes);
+
     u8 *bgTiles = Bg_GetCharPtr(BG_LAYER_MAIN_2);
-    MI_CpuFill8(bgTiles, 0, 10 * 10 * 2 * TILE_SIZE_4BPP);
+    MI_CpuFill8(bgTiles, 0, clearBytes);
+
+    if (stageCopy) {
+        Bg_ClearTilemap(system->bgConfig, BG_LAYER_MAIN_2);
+    }
 
     BattleAnimSystem_CancelTrackingTask(system, BATTLE_ANIM_TRACKING_TASK_BG);
 
@@ -2742,11 +2759,19 @@ static void BattleAnimScriptCmd_AddPokemonSprite(BattleAnimSystem *system)
 
     if (BattleAnimSystem_GetBattlerSprite(system, battler) != NULL) {
         NNSG2dImageProxy *proxy = Sprite_GetImageProxy(sprite->sprite);
-        VramTransfer_Request(
-            NNS_GFD_DST_2D_OBJ_CHAR_MAIN,
-            proxy->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN],
-            charData,
-            10 * 10 * ((8 / 2) * 8));
+        u32 vramAddr = proxy->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN];
+
+        // bw2vis:idle: a streamed battler's copy is drawn by the stage, from the live stream at
+        // the mesh's scale (battle_stage_copies.c); the 2D copy's tiles go blank
+        if (BattleAnimSystem_IsContest(system) == FALSE && BattleStage_AdoptMonCopy(spriteID, sprite, battler, charData, vramAddr)) {
+            VramTransfer_Request(NNS_GFD_DST_2D_OBJ_CHAR_MAIN, vramAddr, (void *)BattleStage_BlankCopyTiles(), 10 * 10 * ((8 / 2) * 8));
+        } else {
+            VramTransfer_Request(
+                NNS_GFD_DST_2D_OBJ_CHAR_MAIN,
+                vramAddr,
+                charData,
+                10 * 10 * ((8 / 2) * 8));
+        }
     }
 
     if (BattleAnimSystem_GetBattlerSprite(system, battler) != NULL) {
@@ -2790,6 +2815,8 @@ static void BattleAnimScriptCmd_FreePokemonSpriteManager(BattleAnimSystem *syste
 {
     BattleAnimScript_Next(system);
 
+    BattleStage_DropAllMonCopies(); // bw2vis:idle: the copies go with their manager
+
     if (system->pokemonSpriteManager != NULL) {
         SpriteSystem_FreeResourcesAndManager(system->context->spriteSystem, system->pokemonSpriteManager);
     }
@@ -2803,6 +2830,8 @@ static void BattleAnimScriptCmd_RemovePokemonSprite(BattleAnimSystem *system)
 
     int spriteID = BattleAnimScript_ReadWord(system->scriptPtr);
     BattleAnimScript_Next(system);
+
+    BattleStage_DropMonCopy(spriteID); // bw2vis:idle
 
     if (system->pokemonSprites[spriteID] != NULL) {
         Sprite_DeleteAndFreeResources(system->pokemonSprites[spriteID]);
