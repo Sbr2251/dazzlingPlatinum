@@ -111,7 +111,7 @@ def platform_piece(home_header, platforms):
             continue
 
         base = len(textures)
-        textures.append(platform_texture(p.art))
+        textures.append(platform_texture(p.art, p.main_pixels))
         textures += [platform_texture(p.art, pixels) for pixels in p.extra_textures]
         meshes += [file_mesh(m, base) for m in p.meshes]
 

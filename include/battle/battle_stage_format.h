@@ -55,6 +55,10 @@ enum BattleStageMeshFlag {
     // the texture's repeat period (the size, twice it with FLIP). An axis that moves needs its
     // REPEAT flag. Not with SCROLL, whose fields it shares. Adds to FOLLOW_BG3_SCROLL
     BATTLE_STAGE_MESH_DRIFT = 1 << 11,
+    // The mesh sways (grass): its positions shear along x, x += k * (y - pivot), with
+    // k = (s8)scrollAmplitude[0] / 256 * sin(2pi * frame / scrollPeriod) and pivot =
+    // scrollAmplitude[1] / 64 world units. Not with SCROLL or DRIFT, whose fields it shares
+    BATTLE_STAGE_MESH_SWAY = 1 << 12,
 };
 
 // Arena light and fog for one time-of-day column: [0] day, [1] twilight, [2] night, as
@@ -122,7 +126,8 @@ typedef struct BattleStageFileMesh {
     u16 textureIndex;
     u16 flags; // enum BattleStageMeshFlag
     // BATTLE_STAGE_MESH_SCROLL: texcoord offset = amplitude * (sin(a), sin(2a)), a = 2pi * frame / period
-    // (a figure eight that is 0 at frame 0). BATTLE_STAGE_MESH_DRIFT: offset = (s8)amplitude * frame / period
+    // (a figure eight that is 0 at frame 0). BATTLE_STAGE_MESH_DRIFT: offset = (s8)amplitude * frame / period.
+    // BATTLE_STAGE_MESH_SWAY: [0] the peak shear (s8, 1/256), [1] the pivot height (1/64 world units)
     u8 scrollAmplitude[2]; // texels, s and t (DRIFT: s8 texels per period)
     u16 scrollPeriod; // frames, > 0
 } BattleStageFileMesh;

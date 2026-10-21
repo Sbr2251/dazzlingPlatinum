@@ -90,6 +90,7 @@ FLAG_LIT = 1 << 8
 FLAG_FOG = 1 << 9
 FLAG_SCROLL = 1 << 10
 FLAG_DRIFT = 1 << 11
+FLAG_SWAY = 1 << 12
 
 FX10_ONE = 512  # GX_FX10: 1.9 fixed point, -512..511
 
@@ -131,7 +132,7 @@ class Mesh:
         """vertices: [((x, y, z) fx16, (s, t) texCoord units, colour, packed normal)]"""
         assert 0 <= alpha <= MAX_ALPHA and 0 <= primitive <= 3 and vertices
         assert scroll_period > 0 and all(-128 <= a <= 255 for a in scroll_amplitude)
-        assert not (flags & FLAG_SCROLL and flags & FLAG_DRIFT), "SCROLL and DRIFT share the scroll fields"
+        assert bin(flags & (FLAG_SCROLL | FLAG_DRIFT | FLAG_SWAY)).count("1") <= 1, "SCROLL, DRIFT and SWAY share the scroll fields"
         self.primitive = primitive
         self.alpha = alpha
         self.texture_index = texture_index

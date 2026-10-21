@@ -230,6 +230,25 @@ def is_water_color(rgb):
     return b >= WATER_MIN_BLUE and b > r + 32 and b >= g
 
 
+# Grass on the platforms (BW2's grass stages batt_stage06/12/23/24 move their blades and
+# leaves, NSBCA joint translation 016-058.nsbca, 500-800-frame loops). The art's pixels above
+# the plain platform's ellipse (TERRAIN_PLAIN's art, the same shape for every terrain) stand
+# up: a fringe of vertical quads along the back rim, between home screen columns, whose foot
+# is the rim on the disc and whose top is above the highest such pixel. They show those pixels
+# through the home camera from an extra texture (the main texture loses them), so at home the
+# platform looks as before and off home the blades stand on the rim instead of lying flat
+# behind it. TERRAIN_GRASS's fringe SWAYs: a shear along x about the disc's height.
+TERRAIN_PLAIN = 0
+TERRAIN_GRASS = 2
+PLATFORM_FRINGE = {
+    # terrain: sway period (draws) per side (player, enemy), None for a still fringe
+    TERRAIN_GRASS: (56, 46),
+}
+FRINGE_COLUMN_PX = 32  # widest fringe quad; narrower where the rim's depth changes fast
+FRINGE_ERROR_PX = 0.25  # largest texture error of a quad at home (perspective, across its width)
+FRINGE_TIP_PX = 1.0  # SWAY: how far the fringe's top row moves at the sway's peak, in home pixels
+
+
 def shrink_mask(pixels, inside, radius):
     """The pixels of `pixels` (a set of (x, y)) whose every neighbour within `radius`
     (Chebyshev) is in `inside`."""
@@ -314,7 +333,7 @@ class Mesh:
 
         # scroll_amplitude is the sway amplitude of SCROLL (unsigned texels) or the velocity of
         # DRIFT (signed texels per scroll_period draws)
-        if scroll_amplitude != (0, 0) and not self.flags & FLAG_DRIFT:
+        if scroll_amplitude != (0, 0) and not self.flags & (FLAG_DRIFT | FLAG_SWAY):
             self.flags |= FLAG_SCROLL
 
     def num_polygons(self):
@@ -351,6 +370,7 @@ FLAG_LIT = 1 << 8
 FLAG_FOG = 1 << 9
 FLAG_SCROLL = 1 << 10
 FLAG_DRIFT = 1 << 11
+FLAG_SWAY = 1 << 12
 
 UP = (0.0, 1.0, 0.0)
 TOWARD_CAMERA = (0.0, 0.0, 1.0)
@@ -797,6 +817,8 @@ class PlatformDisc:
         # Extra textures with the main texture's layout, after it in the piece: {(x, y): index}
         # relative to the sprite, as art.pixels. Mesh.texture is 0 for the main texture, 1.. for these
         self.extra_textures = []
+        self.main_pixels = art.pixels  # the main texture's pixels (the fringe takes some away)
+        self.fringe_sway = None  # (shear / 256, pivot / 64, period) of a SWAY fringe
         place = Placer(home)
         disc = plane_y(PLATFORM_HEIGHT)
         hx, hy = classic.PLATFORM_HOME[side]
@@ -928,11 +950,94 @@ class PlatformDisc:
         if terrain in PLATFORM_WATER_SWAY:
             self.add_water_overlay(place, rows, xs, origin, flags, name)
 
+        if terrain in PLATFORM_FRINGE:
+            self.add_fringe(place, disc, origin, flags, name)
+
         self.num_polygons = sum(m.num_polygons() for m in self.meshes)
 
         # Where the disc is in view space, for platformPixelToWorld
         centre = place.screen_point(hx + VERTEX_NUDGE, PLATFORM_CENTRE_ROW[side] + VERTEX_NUDGE, disc)
         self.depth = -home.cam.world_to_view(centre)[2]
+
+    def add_fringe(self, place, disc, origin, flags, name):
+        side = self.side
+        hx, hy = classic.PLATFORM_HOME[side]
+        cam = self.home.cam
+        plain = {p for p, i in classic.Platform(side, TERRAIN_PLAIN).pixels.items() if i}
+        top_plain = {}
+
+        for x, y in plain:
+            top_plain[x] = min(y, top_plain.get(x, y))
+
+        fringe = {p: i for p, i in self.art.pixels.items() if i and p[0] in top_plain and p[1] < top_plain[p[0]]}
+
+        if not fringe:
+            return
+
+        self.main_pixels = {p: i for p, i in self.art.pixels.items() if p not in fringe}
+        self.extra_textures.append(fringe)
+        texture = len(self.extra_textures)
+
+        # Home screen extent: columns [x_lo, x_hi], top row (the quads cover pixel rows
+        # top_row + 1 ..)
+        x_lo, x_hi = min(x for x, _ in fringe) + hx, max(x for x, _ in fringe) + hx + 1
+        top_row = min(y for _, y in fringe) + hy - 1
+
+        def foot_row(sx):
+            col = min(top_plain, key=lambda c: abs(c + hx - sx))
+            return top_plain[col] + hy
+
+        def column(sx):
+            foot = place.exact(sx, foot_row(sx), disc)
+            z = world_of(foot.pos)[2]
+            top = place.exact(sx, top_row, plane_z(z))
+            return foot, top
+
+        def depth(v):
+            return -cam.world_to_view(world_of(v.pos))[2]
+
+        def error(a, b):
+            # Screen-affine texture coordinates under perspective-correct interpolation:
+            # off by about width * |dw| / (4 w) at mid-quad
+            (fa, ta), (fb, tb) = a, b
+            width = fb.screen[0] - fa.screen[0]
+            return max(width * abs(depth(vb) - depth(va)) / (4 * (depth(va) + depth(vb)) / 2) for va, vb in ((fa, fb), (ta, tb)))
+
+        xs = list(range(x_lo, x_hi, FRINGE_COLUMN_PX)) + [x_hi]
+        cols = {x: column(x) for x in xs}
+        i = 0
+
+        while i < len(xs) - 1:
+            if error(cols[xs[i]], cols[xs[i + 1]]) > FRINGE_ERROR_PX and xs[i + 1] - xs[i] > 2:
+                mid = (xs[i] + xs[i + 1]) // 2
+                xs.insert(i + 1, mid)
+                cols[mid] = column(mid)
+            else:
+                i += 1
+
+        bottoms = [(cols[x][0], TOWARD_CAMERA) for x in xs]
+        tops = [(cols[x][1], TOWARD_CAMERA) for x in xs]
+        anim = {}
+        period = PLATFORM_FRINGE[self.terrain]
+
+        if period is not None:
+            # The shear that moves the top row FRINGE_TIP_PX at the fringe's middle column
+            foot, top = cols[min(xs, key=lambda x: abs(x - (x_lo + x_hi) / 2))]
+            height = world_of(top.pos)[1] - PLATFORM_HEIGHT
+            px_per_unit = cam.p00 * fx.SCREEN_W / 2 / depth(top)
+            shear = min(127, max(1, int(round(FRINGE_TIP_PX / (height * px_per_unit) * 256))))
+            pivot = int(round(PLATFORM_HEIGHT * 64))
+            anim = dict(scroll_amplitude=(shear, pivot), scroll_period=period[side])
+            self.fringe_sway = (shear, pivot, period[side])
+
+        mesh = strip_mesh(f"{name} fringe", texture, flags, tops, bottoms, origin, **anim)
+
+        if anim:
+            mesh.flags = (mesh.flags & ~FLAG_SCROLL) | FLAG_SWAY
+
+        self.meshes.append(mesh)
+        self.fringe_columns = xs
+        self.num_polygons = sum(m.num_polygons() for m in self.meshes)
 
     def add_water_overlay(self, place, rows, xs, origin, flags, name):
         amplitude, period = PLATFORM_WATER_SWAY[self.terrain]

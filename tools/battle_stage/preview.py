@@ -49,7 +49,9 @@ clamp/repeat/flip modes, and the arena atmosphere:
                DeSmuME; density 127 counts as 128
     sway       with --frame N (arena draws, 30 per second), SCROLL meshes shift their
                texture by amplitude * (sin, sin 2)(2pi N / period) texels and DRIFT
-               meshes by velocity * N / period texels (default: frame 0, nothing moves)
+               meshes by velocity * N / period texels, and SWAY meshes shear along x by
+               (s8)amplitude[0] / 256 * sin(2pi N / period) per unit of height above
+               amplitude[1] / 64 (default: frame 0, nothing moves)
 
 --raster picks how screen positions, spans and depth work:
 
@@ -212,7 +214,13 @@ class Renderer:
                 ds, dt = self.sway(mesh)
                 clip = []
 
+                shear = self.shear(mesh)
+
                 for pos, tc, color, normal in mesh.vertices:
+                    if shear is not None:
+                        k, pivot = shear
+                        pos = (int(round(pos[0] + k * (pos[1] - pivot))), pos[1], pos[2])
+
                     x, y, _z, w = camera.to_clip(pos)
 
                     if mesh.flags & sf.FLAG_LIT and self.lighting is not None:
@@ -244,6 +252,15 @@ class Renderer:
     @staticmethod
     def translucent(piece, mesh):
         return mesh.alpha < sf.MAX_ALPHA or piece.textures[mesh.texture_index].format == sf.TEXFMT_A3I5
+
+    def shear(self, mesh):
+        """SWAY: (x per unit of y, pivot y in fx16 vertex units) at this frame, or None."""
+        if self.frame is None or not mesh.flags & sf.FLAG_SWAY:
+            return None
+
+        k = sf.signed8(mesh.scroll_amplitude[0]) / 256 * math.sin(2 * math.pi * self.frame / mesh.scroll_period)
+        pivot = mesh.scroll_amplitude[1] / 64 * fx.FX32_ONE / sf_vertex_scale(self.pieces[0])
+        return k, pivot
 
     def sway(self, mesh):
         if self.frame is not None and mesh.flags & sf.FLAG_DRIFT:
@@ -381,6 +398,11 @@ class Renderer:
             col6[py, cols] = out6[visible]
             fog_bit[py, cols] = bool(flags & sf.FLAG_FOG)
             covered[py, cols] = True
+
+
+def sf_vertex_scale(piece):
+    """World units per fx16 vertex unit's FX32_ONE (the header's vertexScale)."""
+    return piece.header.vertex_scale / fx.FX32_ONE
 
 
 def texture_array(tex):

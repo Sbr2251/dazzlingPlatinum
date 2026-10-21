@@ -298,3 +298,27 @@ battle is at 60 KB of the 64 KB texture budget.
 
 The glints' palette is embedded, so a palette fade of the BG palette doesn't darken them (the
 backdrop fade, `BattleStage_SetBackdropFade`, does, through the lighting).
+
+## Grass sway (`SWAY`) and the platform fringe
+
+`BATTLE_STAGE_MESH_SWAY` sways a mesh: its positions shear along x, `x += k * (y - pivot)`, with
+`k = (s8)scrollAmplitude[0] / 256 * sin(2pi * frame / scrollPeriod)` and `pivot =
+scrollAmplitude[1] / 64` world units, applied in world units before the vertex scale (a
+`G3_MultMtx43` after the platform's translation). Its normals keep their direction.
+
+BW2's grass stages move their blades and leaves (NSBCA joint translation, 500-800-frame loops).
+The classic platform art has its own blades: on `TERRAIN_GRASS` they stick out above the
+platform's ellipse. Those pixels (the art's pixels above `TERRAIN_PLAIN`'s ellipse, which every
+terrain shares) stand up as a **fringe**: one strip of vertical quads along the back rim, between
+home screen columns, the foot of each column on the rim on the disc and its top above the highest
+such pixel, textured through the home camera from an extra texture that holds only them (the main
+texture loses them). At home the platform looks exactly as before (the preview's diff is 0 under
+both rasters); off home the blades stand on the rim instead of lying flat behind it. The quads
+are at most 32 px wide, narrower where the rim's depth changes fast, so the perspective texture
+error stays under 0.25 px. The fringe sways with the shear that moves its top row 1 px at the
+peak, pivot at the disc's height, over 56 draws on the player's side and 46 on the opponent's.
+
+Cost: 18 polygons and 8 KB of textures on `TERRAIN_GRASS` (grass battles: 572 polygons on the
+plain background with its sky drift, 550 in the forest). The forest's panorama itself stays still:
+it is horizontal streaks of foliage, and a sway of the whole band reads as the background sliding,
+not as bushes moving.

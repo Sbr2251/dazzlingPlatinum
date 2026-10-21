@@ -729,7 +729,12 @@ static BOOL IsPieceValid(const BattleStageFileHeader *piece, u32 size, BOOL isBa
             return FALSE;
         }
 
-        if ((mesh->flags & (BATTLE_STAGE_MESH_SCROLL | BATTLE_STAGE_MESH_DRIFT)) && mesh->scrollPeriod == 0) {
+        if ((mesh->flags & (BATTLE_STAGE_MESH_SCROLL | BATTLE_STAGE_MESH_DRIFT | BATTLE_STAGE_MESH_SWAY)) && mesh->scrollPeriod == 0) {
+            return FALSE;
+        }
+
+        // SWAY reads the scroll fields as its shear and pivot
+        if ((mesh->flags & BATTLE_STAGE_MESH_SWAY) && (mesh->flags & (BATTLE_STAGE_MESH_SCROLL | BATTLE_STAGE_MESH_DRIFT))) {
             return FALSE;
         }
 
@@ -1342,6 +1347,21 @@ static void SetTexMtx(StageArena *arena, const StageMesh *mesh, int bg3X, int bg
     G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
 }
 
+// SWAY: shears world x by k * (y - pivot), before the vertex scale (so in world units); the
+// normals keep their direction, which a few pixels of lean don't need
+static void SwayMesh(StageArena *arena, const StageMesh *mesh)
+{
+    u16 index = (u32)(arena->frame % mesh->scrollPeriod) * 0x10000 / mesh->scrollPeriod;
+    fx32 shear = (s8)mesh->scrollAmplitude[0] * FX_SinIdx(index) / 256;
+    fx32 pivot = mesh->scrollAmplitude[1] * FX32_ONE / 64;
+    MtxFx43 m;
+
+    MTX_Identity43(&m);
+    m._10 = shear;
+    m._30 = -FX_Mul(shear, pivot);
+    G3_MultMtx43(&m);
+}
+
 static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *projection)
 {
     int platformOffset[2];
@@ -1393,6 +1413,10 @@ static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *pro
         if (mesh->flags & (BATTLE_STAGE_MESH_FOLLOW_PLATFORM_PLAYER | BATTLE_STAGE_MESH_FOLLOW_PLATFORM_ENEMY)) {
             side = (mesh->flags & BATTLE_STAGE_MESH_FOLLOW_PLATFORM_PLAYER) ? 0 : 1;
             G3_Translate(arena->platformStep[side].x * platformOffset[side], arena->platformStep[side].y * platformOffset[side], arena->platformStep[side].z * platformOffset[side]);
+        }
+
+        if (mesh->flags & BATTLE_STAGE_MESH_SWAY) {
+            SwayMesh(arena, mesh);
         }
 
         // The scale only goes to the position matrix, so the normals stay unit length
