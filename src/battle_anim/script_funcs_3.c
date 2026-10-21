@@ -13,6 +13,7 @@
 #include "battle_anim/battle_anim_util.h"
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_copies.h"
 #include "global/utility.h"
 
 #include "battle_script_battlers.h"
@@ -2551,6 +2552,7 @@ void BattleAnimScriptFunc_Superpower(BattleAnimSystem *system)
 
     ctx->sprite = BattleAnimSystem_GetPokemonSprite(ctx->common.battleAnimSys, BATTLE_ANIM_MON_SPRITE_0);
 
+    BattleStage_ReleaseMonCopiesOf(ctx->sprite); // bw2vis:idle: an OBJ window needs the 2D copy
     ManagedSprite_SetExplicitOamMode(ctx->sprite, GX_OAM_MODE_OBJWND);
     ManagedSprite_SetAffineOverwriteMode(ctx->sprite, AFFINE_OVERWRITE_MODE_DOUBLE);
     ManagedSprite_SetAffineScale(ctx->sprite, 1.2f, 1.2f);

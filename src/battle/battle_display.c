@@ -30,6 +30,7 @@
 #include "battle/ov16_0223B140.h"
 #include "battle/ov16_0223DF00.h"
 #include "battle/ov16_02264798.h"
+#include "battle/battle_stage_idle.h" // bw2vis:idle
 #include "battle/party_gauge.h"
 #include "battle/struct_ov16_0224DDA8.h"
 #include "battle/struct_ov16_0225BFFC_decl.h"
@@ -882,6 +883,9 @@ void ov16_0225DA44(BattleSystem *battleSys, BattlerData *param1)
     v0->unk_04 = param1->unk_20;
     v0->unk_08 = param1->battler;
     v0->unk_0A = 0;
+    // bw2vis:idle: B/W's hit flash colour, by the move's category
+    v0->flashColor = BattleStage_HitFlashColor(battleSys);
+    v0->hiddenAtStart = PokemonSprite_GetAttribute(param1->unk_20, MON_SPRITE_HIDE) != 0;
 
     // The hit blink: the stage sprite wobbles too, and a critical hit kicks the camera
     BattleStage_NotifyHit(param1->battler);
@@ -1566,11 +1570,11 @@ static void ov16_0225E4E8(SysTask *param0, void *param1)
             }
 
             if (PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_X_CENTER) >= v0->unk_14) {
-                PokemonSprite_InitAnim(v0->unk_08, 1);
+                BattleStage_InitEntryAnim(v0->unk_08, 1);
                 PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_SHADOW_SHOULD_FOLLOW_Y, 0);
                 PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_SHADOW_IS_AFFINE, 0);
                 PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_X_CENTER, v0->unk_14);
-                PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
+                BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
 
                 {
                     u8 v4;
@@ -1612,7 +1616,7 @@ static void ov16_0225E4E8(SysTask *param0, void *param1)
 
             if (PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_X_CENTER) <= v0->unk_14) {
                 PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_X_CENTER, v0->unk_14);
-                PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
+                BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
 
                 {
                     u8 v5;
@@ -1692,11 +1696,11 @@ static void ov16_0225E894(SysTask *param0, void *param1)
         PokemonSprite_AddAttribute(v0->unk_08, MON_SPRITE_Y_CENTER, 8 / 2);
 
         if (PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_Y_CENTER) >= v0->unk_14) {
-            PokemonSprite_InitAnim(v0->unk_08, 1);
+            BattleStage_InitEntryAnim(v0->unk_08, 1);
             PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_SHADOW_SHOULD_FOLLOW_Y, 0);
             PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_SHADOW_IS_AFFINE, 0);
             PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_Y_CENTER, v0->unk_14);
-            PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
+            BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_08, v0->unk_16, v0->unk_13, 0, v0->unk_11);
 
             {
                 u8 v4;
@@ -1855,7 +1859,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
     case 4:
         if ((PokemonSprite_GetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_X) == 0x100) && (ov12_022363C4(v0->unk_08) == 0)) {
             if (v0->unk_84 == 2) {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
                 PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
 
                 {
@@ -1865,7 +1869,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
                     Species_PlayDelayedCry(BattleSystem_ChatotVoice(v0->unk_00, v0->unk_81), v0->unk_88, v0->unk_86, v0->unk_97, 117, 127, NULL, 5, v4);
                 }
             } else {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
 
                 {
                     u8 v5;
@@ -1875,7 +1879,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
                 }
             }
 
-            PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
+            BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
             PokemonSprite_StartFade(v0->unk_04->unk_20, 16, 0, 0, Unk_ov16_0226F1AE[v0->unk_8E]);
 
             v0->unk_83 = 5;
@@ -1884,7 +1888,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
             PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_Y, 0x100);
 
             if (v0->unk_84 == 2) {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
                 PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
 
                 {
@@ -1894,7 +1898,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
                     Species_PlayDelayedCry(BattleSystem_ChatotVoice(v0->unk_00, v0->unk_81), v0->unk_88, v0->unk_86, v0->unk_97, 117, 127, NULL, 5, v6);
                 }
             } else {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
 
                 {
                     u8 v7;
@@ -1904,7 +1908,7 @@ static void ov16_0225EA80(SysTask *param0, void *param1)
                 }
             }
 
-            PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
+            BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
             PokemonSprite_StartFade(v0->unk_04->unk_20, 16, 0, 1, Unk_ov16_0226F1AE[v0->unk_8E]);
 
             v0->unk_83 = 5;
@@ -2022,11 +2026,11 @@ static void BattleDisplay_SummonTotemAlly(UnkStruct_ov16_0225EA80 *param0)
     param0->unk_08 = NULL;
     param0->unk_10 = NULL;
 
-    PokemonSprite_InitAnim(param0->unk_04->unk_20, 1);
+    BattleStage_InitEntryAnim(param0->unk_04->unk_20, 1);
     PokemonSprite_SetAttribute(param0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
     PokemonSprite_LoadCryDelay(param0->unk_04->unk_1A0, &v2, param0->unk_86, param0->unk_82);
     Species_PlayDelayedCry(BattleSystem_ChatotVoice(param0->unk_00, param0->unk_81), param0->unk_88, param0->unk_86, param0->unk_97, 117, 127, NULL, 5, v2);
-    PokemonSprite_LoadAnim(param0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(param0->unk_00), param0->unk_04->unk_20, param0->unk_86, param0->unk_84, 0, param0->unk_81);
+    BattleStage_LoadEntryAnim(param0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(param0->unk_00), param0->unk_04->unk_20, param0->unk_86, param0->unk_84, 0, param0->unk_81);
     PokemonSprite_StartFade(param0->unk_04->unk_20, 16, 0, 1, 0x7FFF);
     BattleDisplay_StartTotemStepAside(param0->unk_00);
 
@@ -2131,7 +2135,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
     case 4:
         if ((PokemonSprite_GetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_X) == 0x100) && (ov12_022363C4(v0->unk_08) == 0)) {
             if (v0->unk_84 == 2) {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
                 PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
 
                 {
@@ -2141,7 +2145,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
                     Species_PlayDelayedCry(BattleSystem_ChatotVoice(v0->unk_00, v0->unk_81), v0->unk_88, v0->unk_86, v0->unk_97, 117, 127, NULL, 5, v6);
                 }
             } else {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
 
                 {
                     u8 v7;
@@ -2151,7 +2155,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
                 }
             }
 
-            PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
+            BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
             PokemonSprite_StartFade(v0->unk_04->unk_20, 16, 0, 0, Unk_ov16_0226F1AE[v0->unk_8E]);
             v0->unk_83 = 5;
         } else if (PokemonSprite_GetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_X) >= 0x100) {
@@ -2159,7 +2163,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
             PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SCALE_Y, 0x100);
 
             if (v0->unk_84 == 2) {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
                 PokemonSprite_SetAttribute(v0->unk_04->unk_20, MON_SPRITE_SHADOW_IS_AFFINE, 0);
 
                 {
@@ -2169,7 +2173,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
                     Species_PlayDelayedCry(BattleSystem_ChatotVoice(v0->unk_00, v0->unk_81), v0->unk_88, v0->unk_86, v0->unk_97, 117, 127, NULL, 5, v8);
                 }
             } else {
-                PokemonSprite_InitAnim(v0->unk_04->unk_20, 1);
+                BattleStage_InitEntryAnim(v0->unk_04->unk_20, 1);
 
                 {
                     u8 v9;
@@ -2179,7 +2183,7 @@ static void ov16_0225F0C0(SysTask *param0, void *param1)
                 }
             }
 
-            PokemonSprite_LoadAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
+            BattleStage_LoadEntryAnim(v0->unk_04->unk_1A0, BattleSystem_GetPokemonAnimManager(v0->unk_00), v0->unk_04->unk_20, v0->unk_86, v0->unk_84, 0, v0->unk_81);
             PokemonSprite_StartFade(v0->unk_04->unk_20, 16, 0, 1, Unk_ov16_0226F1AE[v0->unk_8E]);
             v0->unk_83 = 5;
         } else {
@@ -4830,24 +4834,51 @@ static void ov16_022626C0(SysTask *param0, void *param1)
     }
 }
 
+// bw2vis:idle: the hit blink as B/W's (btlv_effect.c BtlvEffect_BlinkTask), 3 times: the palette
+// all the hit flash's colour (dark for a physical move, light grey otherwise), then hidden,
+// then shown with its own colours, 4 frames each. B/W run it at 60 Hz, this task at 30 Hz: a
+// phase is 2 of its frames. A battler hidden when the hit came (Fly, Dig) doesn't flash, as in
+// B/W, but is shown at the end as Platinum's blink always did. The fade works on the palette,
+// so the streamed mesh and the classic sprite both flash.
+#define HIT_FLASH_CYCLES      3
+#define HIT_FLASH_PHASE_TICKS 2
+enum {
+    HIT_FLASH_TINT,
+    HIT_FLASH_HIDE,
+    HIT_FLASH_SHOW,
+};
+
 static void ov16_0226292C(SysTask *param0, void *param1)
 {
     UnkStruct_ov16_0225DA44 *v0 = (UnkStruct_ov16_0225DA44 *)param1;
-    int v1;
 
-    if (v0->unk_09 < 6) {
-        if (v0->unk_0A == 0) {
-            v0->unk_0A = 2;
-            v0->unk_09++;
-            v1 = PokemonSprite_GetAttribute(v0->unk_04, MON_SPRITE_HIDE);
-            v1 ^= 1;
-            PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_HIDE, v1);
-        } else {
-            v0->unk_0A--;
+    // unk_09: the phases done, unk_0A: frames left in the phase
+    if (v0->unk_0A != 0) {
+        v0->unk_0A--;
+        return;
+    }
+
+    if (v0->unk_09 < HIT_FLASH_CYCLES * 3) {
+        if (!v0->hiddenAtStart) {
+            switch (v0->unk_09 % 3) {
+            case HIT_FLASH_TINT:
+                PokemonSprite_StartFade(v0->unk_04, 16, 16, 0, v0->flashColor);
+                break;
+            case HIT_FLASH_HIDE:
+                PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_HIDE, 1);
+                break;
+            default:
+                PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_HIDE, 0);
+                PokemonSprite_StartFade(v0->unk_04, 0, 0, 0, 0x7FFF);
+                break;
+            }
         }
+
+        v0->unk_09++;
+        v0->unk_0A = HIT_FLASH_PHASE_TICKS - 1;
     } else {
-        v1 = 0;
-        PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_HIDE, v1);
+        // Shown at the end whatever it was, as Platinum's blink always left it
+        PokemonSprite_SetAttribute(v0->unk_04, MON_SPRITE_HIDE, 0);
         BattleController_EmitClearCommand(v0->unk_00, v0->unk_08, 23);
         Heap_Free(param1);
         SysTask_Done(param0);
@@ -4920,6 +4951,11 @@ static void ov16_022629DC(SysTask *param0, void *param1)
         break;
     }
 }
+
+// bw2vis:idle: the faint's sink, per frame of this 30 Hz task, and its fade-out (about half a
+// second, as B/W's from memory: their faint is effect script 0x23B, not in the decomp)
+#define FAINT_SINK_PX     3
+#define FAINT_FADE_TICKS  16
 
 static void ov16_02262A9C(SysTask *param0, void *param1)
 {
@@ -5013,14 +5049,20 @@ static void ov16_02262A9C(SysTask *param0, void *param1)
         v3 = LoadPokemonSpriteYOffset(v0->unk_68, v0->unk_6A, v0->unk_67, v0->unk_6B, v0->unk_6C);
         v3 = 80 - v3;
         PokemonSprite_SetPartialDraw(v0->unk_08, 0, 0, 80, v3);
+        v0->faintTick = 0;
+        sGen5MotionStats.faints++;
         v0->unk_66++;
         break;
     case 9:
+        // bw2vis:idle: a BW2-like faint, a slower sink under the ground line (FAINT_SINK_PX a
+        // frame, was 8) that fades out over FAINT_FADE_TICKS frames; the mon is gone when it has
+        // faded or sunk. Polygon alpha 0 would draw wireframe, so it never gets there
+        v0->faintTick++;
         v2 = PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_Y_CENTER);
-        v2 += 8;
+        v2 += FAINT_SINK_PX;
         PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_Y_CENTER, v2);
         v3 = PokemonSprite_GetAttribute(v0->unk_08, MON_SPRITE_DRAW_HEIGHT);
-        v3 -= 8;
+        v3 -= FAINT_SINK_PX;
 
         if (v3 < 0) {
             v3 = 0;
@@ -5028,9 +5070,11 @@ static void ov16_02262A9C(SysTask *param0, void *param1)
 
         PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_DRAW_HEIGHT, v3);
 
-        if (v3 == 0) {
+        if (v3 == 0 || v0->faintTick >= FAINT_FADE_TICKS) {
             PokemonSprite_Delete(v0->unk_08);
             v0->unk_66++;
+        } else {
+            PokemonSprite_SetAttribute(v0->unk_08, MON_SPRITE_ALPHA, 31 - 30 * v0->faintTick / (FAINT_FADE_TICKS - 1));
         }
         break;
     case 10:

@@ -9,6 +9,7 @@
 #include "constants/graphics.h"
 
 #include "battle/battle_stage.h"
+#include "battle/battle_stage_copies.h"
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
 
@@ -296,6 +297,7 @@ static void BattleAnimScriptFunc_StatChangeCommon(BattleAnimSystem *system, Stat
     G2_SetWndOutsidePlane(GX_WND_PLANEMASK_BG0 | GX_WND_PLANEMASK_BG1 | GX_WND_PLANEMASK_BG3 | GX_WND_PLANEMASK_OBJ, TRUE);
     GX_SetVisibleWnd(GX_WNDMASK_OW);
 
+    BattleStage_ReleaseMonCopiesOf(ctx->attackerSprite2); // bw2vis:idle: an OBJ window needs the 2D copy
     ManagedSprite_SetExplicitOamMode(ctx->attackerSprite2, GX_OAM_MODE_OBJWND);
 
     ctx->param.offsetX = 0;

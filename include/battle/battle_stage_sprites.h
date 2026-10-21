@@ -63,4 +63,15 @@ BOOL BattleStageSprites_GroundFrame(int side, VecFx32 *centre, VecFx32 *right, V
 // has its bottom row off
 BOOL BattleStageSprites_CutHomeY(int battler, int *y);
 
+// bw2vis:idle: for battle_stage_idle.c. A move or anim script runs; the critic's debugFlags;
+// the streams play (the arena drawn, or hidden with its texture VRAM kept); the sprites take
+// the mesh path this frame; the battler was drawn by the stage (as a mesh or from its stream)
+// in this frame or the last; the battle the sprites belong to (NULL when not hooked)
+BOOL BattleStageSprites_MoveAnimActive(void);
+u32 BattleStageSprites_DebugFlags(void);
+BOOL BattleStageSprites_StreamsLive(void);
+BOOL BattleStageSprites_IsVisible(void);
+BOOL BattleStageSprites_DrawsBattler(int battler);
+BattleSystem *BattleStageSprites_BattleSystem(void);
+
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_SPRITES_H
