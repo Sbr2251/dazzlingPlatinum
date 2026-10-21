@@ -8,8 +8,8 @@ row against B/W footage before building it.
 
 - An orbit camera (focus, yaw, pitch, distance, fov) with smoothstep eases and deterministic shake
   (`src/battle/battle_stage_camera.c`).
-- Mons as camera-facing billboards. Their feet stay on their platforms off home, and particles follow
-  through a 2D similarity hook.
+- Mons as camera-facing billboards. Their feet stay on their platforms off home, and every particle
+  follows the mons around it by their own similarities (foundation E).
 - Seven script commands (`StageCameraMove/Orbit/Shake/Home/Wait/Zoom`, `StageHealthbars`). `mega_evolution.s`,
   `totem_aura.s` and eight move scripts use them (feature/gen5-move-camera; moves.md, "Per-move
   camera").
@@ -48,6 +48,6 @@ row against B/W footage before building it.
 | B | Zoom | **Done (feature/gen5-move-camera):** command 90, `StageCameraZoom fovDeg, frames`, eases the fov (10-60 degrees, home 40). `StageCameraHome` and the script-start snap restore it. No script uses it yet | - | 1, 4, 6 |
 | C | OBJ actors | Trainers, Poke Balls and OAM copies are 2D OBJs, only translated off home | Trainers and balls drawn as stage billboards (like the mons), so they scale and sit in depth | 2, 3, 8, 9, 10 |
 | D | Menu gating | **Done** with #4: the menu doesn't wait during `SEQUENCE_IDLE`, and the camera eases home when the commands are in | - | 4, 5 |
-| E | Particles off home | Scale plus translate only (no perspective), through the particle projection hook | Fine for short kicks. Real per-move camera shots need depth-correct emitters or per-move limits | 6, 9 |
+| E | Particles off home | **Done (bw2vis particles-3d):** every particle takes the similarity of the mons around it, the same one their sprites use, so it stays on its mon in any pose (camera.md, "Particles follow the camera"). Full-screen effects opt out with `SetParticleScreenSpace`. A true 3D battle-plane mode exists for A/B (debug bit 13) | Particles no longer limit per-move cameras; the 2D effects (SwitchBg, OAM copies, windows, HBlank) still do (moves.md, "Particles and per-move cameras") | 6, 9 |
 | F | Back-sprite cut line | 89 of 568 back sprites are cut at the frame bottom. The cut guard stops the player's mon rising above the textbox off home | Over-the-shoulder shots need the guard to reframe (as it does today) or full-body back art | 3, 4 |
 | G | Critic | Checks the home invariants, sweep, Mega, Totem, crit and faint | Scenarios for the idle camera, the send-out shots, catch framing and a camera-range hole sweep | all |

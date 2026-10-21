@@ -206,10 +206,15 @@ parameter names now say player first; the bytes are unchanged.
 
 - Yaw stays within about 15 degrees and pitch within about 5 degrees, inside the range the
   arenas are checked at (stage_format.md, debug views 1-3).
-- Particles off home follow one 2D similarity, anchored on the focused battler, or on the
-  midpoint for `BETWEEN` (foundation E in gen5_camera_gaps.md). Particles on the focused battler
-  land exactly. Particles far from it drift slightly, so each script keeps its emitters on the
-  battler the camera is framing at that moment.
+- Particles off home follow the mons they are on, each by that mon's own similarity, and blend
+  between the mons in flight (camera.md, "Particles follow the camera"; particles-3d). The old
+  rule, emitters only on the battler the camera frames, is lifted: a close-up of the attacker
+  keeps the defender's impact on the defender and the other way round. What a particle can't
+  follow is its classic screen position itself: a charge drawn 75 px in front of the attacker
+  (Shadow Ball) is still 75 px in front of it, scaled, so a tight close-up can push it to the
+  frame edge. Frame such moves with `BETWEEN` or a wider distance.
+- A particle system meant to stay on screen (full-screen weather, a flash) takes
+  `SetParticleScreenSpace` before its emitters; otherwise it follows the mons with the rest.
 - These moves use no `SwitchBg`, no OAM copies and no window masks, so nothing drawn in screen
   space breaks off home.
 
@@ -234,6 +239,41 @@ Dance have the flag, so on the stage they hide the bars themselves with command 
 (`StageHealthbars FALSE`) before the wind-up, and show them again 6 frames into
 `StageCameraHome 12`.
 
+### Particles and per-move cameras (particles-3d)
+
+With the particle field, particles no longer limit where a per-move camera may go: off home they
+stay on their mons in any pose, measured with the move tester holding debug views 2 (yaw +20) and
+3 (pitch +15, 80%) through the move (`debugFlags` bit 14) and in the eight camera scripts. What
+still limits a move is the rest of its 2D grammar, unchanged:
+
+- `SwitchBg`/`FadeBg` to a picture, OAM copies, window masks and HBlank waves are drawn in screen
+  space. A move that switches the background hides the arena anyway (chunk 5's fade), and its
+  particles then draw over the classic picture at home.
+- Full-screen particle effects need `SetParticleScreenSpace`, or they ride the camera.
+- A particle drawn far from every mon (more than about 32 times farther, in d^2, from the second
+  nearest than the nearest) takes the nearest mon's similarity, so it moves rigidly with that mon.
+
+The heaviest particle moves, measured on the Plain stage (3D engine polygon count, `RAM_COUNT`,
+the peak over the animation; 641 at the command menu: arena 564, mons and blobs about 77; the
+hardware takes 2048):
+
+| Move | Peak | Particles at the peak | Arena | Off home (view 2 / 3) |
+|---|---|---|---|---|
+| Draco Meteor (434) | 830 | about 190 | kept (mirrored shake) | 785 / 789 (meteors leave the frame) |
+| Energy Ball (412) | 780 | about 140 | kept (backdrop fade) | 780 / 780 |
+| Ice Beam (58) | 722 | about 80 | kept (backdrop fade) | 722 / 722 |
+| Fire Blast (126) | 689 | about 50 with the arena, 100 once it hides | hides (SwitchBg) | 689 / 689 |
+| Surf (57) | 688 | about 50 | kept, its wave a BG2 picture lifted over it (water_ground) | 688 / 688 |
+| Blizzard (59) | 641 (before the fade) | about 60, arena hidden | hides (SwitchBg) | same |
+| Thunder (87) | 641 (before the fade) | about 40, arena hidden | hides (SwitchBg) | same |
+| Hyper Beam (63) | 641 (before the fade) | about 45, arena hidden | hides (SwitchBg) | same |
+
+So particles never push the scene past half the hardware's polygons, and the field adds none.
+Blizzard, Thunder, Hyper Beam and Fire Blast switch the background, which already rules out a
+camera for them. Surf's wave is a screen-space BG2 picture, so it stays at home too. Draco Meteor,
+Energy Ball and Ice Beam keep the arena (their backdrop fade reaches it) and are particle moves a
+per-move camera can now frame freely; Draco Meteor's mirrored BG3 shake adds to the camera's.
+
 ### Command 90: `StageCameraZoom fovDeg, frames`
 
 Eases the vertical field of view to `fovDeg` degrees over `frames` camera frames (30 Hz, the
@@ -245,8 +285,8 @@ issued while a zoom is still easing keeps the zoom's target fov.
 In a contest, the command skips its two arguments and does nothing, like commands 85-89.
 
 A zoom alone keeps the particles exact: changing the fov is a pure 2D scale about the screen
-centre, which the particle similarity reproduces. None of the eight moves uses it yet. It is
-there for quick push-ins and dolly-zooms (gap B).
+centre, which every mon's similarity, and so the particle field, reproduces. None of the eight
+moves uses it yet. It is there for quick push-ins and dolly-zooms (gap B).
 
 ### Command 91: `StageHealthbars visible`
 
