@@ -71,6 +71,15 @@ draw so the game's own position checks never see it (`BattleStage_FollowIntroSpr
   battles). The hook ignores a target that isn't a battler (a capture ball's target is 20000+).
 - This is what lets the player's throw happen off home: it no longer waits for the camera to get
   home (`BattleStage_IsIntroThrowReady`), except under the legacy focus.
+- The bottom screen (bw2vis:dblfix, `KeepIntroSpriteOffSubScreen`): the battle renderer draws an OBJ
+  on each screen whose view rect its bounds reach, and the bottom screen's starts 80 px below the
+  top screen (`SetSubScreenViewRect(.., 192 + 80)`). A followed OBJ whose scaled bounds would reach
+  it parks if it is wholly below the top screen, else draws 256 px higher: OAM Y is 8 bits, so its
+  OAMs are the same. Before, the player's 2x trainer under the foes' send-out shot (28 px lower in
+  doubles, with the layout's side offset) drew on the bottom screen too. A trainer is a
+  VRAM-transfer cell with no bottom-screen place, so its frame went to the unset sub address (-1)
+  and overwrote the bottom screen's OBJ characters from 0, which is the command menu's party ball
+  row: QA's doubles ball-row bug.
 
 ## Script order (both paths)
 
