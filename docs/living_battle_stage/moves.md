@@ -420,6 +420,13 @@ still limits a move is the rest of its 2D grammar, unchanged:
 - Full-screen particle effects need `SetParticleScreenSpace`, or they ride the camera.
 - A particle drawn far from every mon (more than about 32 times farther, in d^2, from the second
   nearest than the nearest) takes the nearest mon's similarity, so it moves rigidly with that mon.
+- CPU: the field runs per particle whenever the mons don't share one similarity (camera.md,
+  "Budget"). Over all 248 moves that have a per-move camera and particles it costs 12 main-loop
+  frames in total against the old single similarity (Needle Arm 5, Rock Slide 4, three moves 1). A move whose
+  particles fly far from where they were emitted, through the sky between the mons, by the
+  hundred (Draco Meteor) still costs frames when held off home: 87 more lost frames over Draco's
+  370 (30 to about 22 fps); Energy Ball and Ice Beam held off home cost none. Keep such moves at home, or in shared poses (shakes, pans, a zoom),
+  which cost nothing.
 
 The heaviest particle moves, measured on the Plain stage with every bw2vis stream merged (3D engine
 polygon count, `RAM_COUNT`, the peak over the animation; 663 at the command menu: arena 564, mons
@@ -440,7 +447,8 @@ So particles never push the scene past half the hardware's polygons, and the fie
 Blizzard, Thunder, Hyper Beam and Fire Blast switch the background, which already rules out a
 camera for them. Surf's wave is a screen-space BG2 picture, so it stays at home too. Draco Meteor,
 Energy Ball and Ice Beam keep the arena (their backdrop fade reaches it) and are particle moves a
-per-move camera can now frame freely; Draco Meteor's mirrored BG3 shake adds to the camera's.
+per-move camera can frame; Draco Meteor's mirrored BG3 shake adds to the camera's, and its
+meteors cost CPU off home (above), so give it at most short shots.
 
 ### Command 90: `StageCameraZoom fovDeg, frames`
 

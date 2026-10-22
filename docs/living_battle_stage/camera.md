@@ -192,25 +192,41 @@ classic look), the projection hook returns FALSE at once and leaves the matrix a
 **The particle field** (`battle_stage_particles.c`, the default off home):
 
 - Each battler on the field has the screen similarity its sprite uses ("Sprites follow the
-  camera"): its home foot anchor, its foot anchor now and its scale.
-- For a particle, the system's own projection gives its classic screen point p. Each battler gets
-  the weight 1 / (d^2 + 16^2)^3, d the distance in pixels from p to the battler's body point (its
-  home foot anchor raised 24 px). A battler whose d^2 + 16^2 is 32 times the nearest one's or more
-  counts for nothing, so a particle near one mon takes that mon's similarity exactly; between the
-  mons (a projectile in flight) the similarities blend smoothly.
-- The field is evaluated at the point the particle was emitted from (its emitter's position at
-  its birth, `SPLParticle.emitterPos`), and a particle within 32 px of that point moves rigidly with
-  it, so the particles of one ball or burst hold together even between the mons, where the blend
-  is not rigid. From 96 px on (a beam streaming from the attacker to the defender) a particle takes
-  the field at its own place; in between the two blend smoothly.
+  camera"): its home foot anchor, its foot anchor now and its scale. They are taken once per frame
+  (keyed on `gSystem.vblankCounter`), as `p' = scale * p + trans` in pixels.
+- **Shared.** When every mon's similarity is within 1.5 px of their mean (at its body point, a
+  scale difference counting over 128 px), the mons move together: a camera shake (the mirrored BG3
+  shake moves the camera across, and the mons shift with parallax only: Draco Meteor's 4 px shake
+  leaves them about 2 px apart), a cut-guard pan, the first frames of a camera ease. The particle
+  system then takes that one similarity in its projection, as the classic hook did, and nothing
+  runs per particle.
+- **The field.** Otherwise each battler gets the weight 1 / (d^2 + 16^2)^3, d the distance in
+  pixels from the particle's classic screen point to the battler's body point (its home foot
+  anchor raised 24 px), and the particle takes the weighted mean of the similarities. A battler
+  whose d^2 + 16^2 is 32 times the nearest one's or more counts for nothing, so near one mon the
+  field is that mon's similarity; between the mons (a projectile in flight) it blends smoothly.
+- **Per particle** (the hook runs for every particle off home, and the heaviest moves draw 100-200
+  a frame, so it costs a few instructions):
+  - within 80 px of the point it was emitted from (its emitter's position at its birth,
+    `SPLParticle.emitterPos`; a square, tested in view units) a particle moves rigidly with that
+    point, which takes the field once: the particles of one ball or burst hold together between
+    the mons, where the blend is not rigid, and a projectile carries its trail;
+  - from 96 px on (a beam streaming from the attacker to the defender) it takes the field at its
+    own place: a mon's own similarity where the field is within half a pixel of it (an integer
+    log2 test on the weights), else the field at its 16 px cell, evaluated once per cell and frame
+    (a 64-entry cache; the field varies over the distance between the mons, much more than a
+    cell);
+  - in between the two blend, so a beam bends instead of breaking where it leaves the square.
 - The particle lands at that point and is scaled by that scale, about its own centre: the
   projection loaded for it is the system's projection followed by the similarity in clip space
   (`x_ndc = x_px / 128 - 1`, `y_ndc = 1 - y_px / 96`, the translation scaled by w, so it holds for
-  orthographic and perspective particle cameras alike).
-- A projection is loaded only when it differs from the last one in the draw, so the particles of
-  one group, or all snapped to one mon, share one load.
+  orthographic and perspective particle cameras alike). With a plain orthographic camera (every
+  battle particle system but four moves') that is a 4x3 load with four entries changed.
+- Similarities are rounded to 1/1024 of scale and half a pixel (under 0.6 px anywhere on screen),
+  and a projection is loaded only when it differs from the last one in the draw, so a burst, a
+  cell or a mon's surroundings share one load.
 - A zoom alone (`StageCameraZoom`) is exact: every battler's similarity is then the same scale
-  about the screen centre.
+  about the screen centre (and the mons share it).
 
 **Screen space.** A system marked screen space skips both hooks and keeps its classic place on
 screen while the camera moves: full-screen weather, screen flashes. Scripts mark it with
@@ -227,13 +243,25 @@ screen while the camera moves: full-screen weather, screen flashes. Scripts mark
 | 22 | `KEEP_VIEW_IN_MOVES` | the move tester keeps its debug view (1-3) through the animation: an off-home test bed for any move's particles. The view still resets when the overlay hides |
 
 **Budget.** No polygons are added (the same particles draw; off home some fall off screen and are
-clipped). Off home, the field costs about 100-300 ARM9 cycles per particle and up to one 4x4
-projection load per particle (18 geometry words), skipped when it equals the last one (the
-particles of one burst, or all snapped to one mon). The heaviest particle move measured, Draco Meteor, peaks at 852 polygons with the arena
-(663 at the command menu, about 190 particles), under half of the 2048 the hardware takes. Held
-off home (debug view 3) it draws the same number of stage frames per emulated frame with the
-field as with the old similarity (2.044 for Draco Meteor, 2.063 Energy Ball, 2.087 Ice Beam), so
-the per-particle work costs no frames.
+clipped). The cost is ARM9 time per particle, which only matters on the heaviest moves: the
+battle's 3D frames run close to a vblank there, and a frame that overruns drops the main loop to
+every other vblank (QA's measure: `/tmp/bw2vis/qa/harness/perf.py`, emulator vblanks minus
+`gSystem.vblankCounter` steps). Measured that way on the Plain stage:
+
+| case | old single similarity | particle field |
+|---|---|---|
+| Draco Meteor's camera shake (48 frames, home pose otherwise) | 0 | 0 (shared) |
+| all 248 moves with a per-move camera and particles, their own cameras | 2315 | 2327 (Needle Arm +5, Rock Slide +4, three moves +1) |
+| Energy Ball / Ice Beam held off home (debug view 3) | 9 / 9 | 9 / 9 |
+| Draco Meteor held off home (debug view 3, 370 frames) | 9 | 96 |
+
+Draco Meteor's 130 meteors fly far from where they were emitted and through the sky between the
+mons, so each takes the field at its own cell: held off home for the whole move it drops to about
+22 fps. Particles that stay near where they were emitted (Energy Ball's 140, Ice Beam's 80) cost
+nothing measurable. It has no per-move camera (its only off-home frames are the shake, which is shared). A
+first version of the field (one exact evaluation per particle) cost 6-35 frames per move on the
+per-move cameras and 24 on Draco's shake; the shared similarity, the emission-point squares and
+the cells took that out.
 
 ## New animation script commands
 
