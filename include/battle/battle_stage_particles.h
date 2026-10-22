@@ -31,13 +31,21 @@
 void BattleStageParticles_Init(BattleSystem *battleSys, const BattleStageCameraHome *home, const u32 *debugFlags);
 void BattleStageParticles_Free(void);
 
+// What BattleStageParticles_BeginSystem did with a particle system
+enum BattleStageParticlesDraw {
+    BATTLE_STAGE_PARTICLES_NONE = 0, // no battler has a similarity: the caller's fallback
+    BATTLE_STAGE_PARTICLES_SHARED, // the mons share one similarity (a shake, a pan): it is in the projection
+    BATTLE_STAGE_PARTICLES_FIELD, // call DrawParticle before each particle
+};
+
 // The particle field (the default off home). BeginSystem, from the projection hook with the
-// system's own projection, takes this frame's battler similarities; FALSE when no battler has
-// one. Then DrawParticle, before each particle, loads the projection that gives that particle
-// the similarity of the battlers around it: exactly a mon's own similarity near that mon, a
-// blend between them. viewPos is the particle's centre, anchorViewPos the point it was emitted
-// from: particles near their emission point move rigidly with it.
-BOOL BattleStageParticles_BeginSystem(const MtxFx44 *projection);
+// system's own projection, takes this frame's battler similarities (once per frame). When the mons
+// share one (a shake, a pan), it puts that in the projection and nothing runs per particle;
+// otherwise DrawParticle, before each particle, loads the projection that gives that particle the
+// similarity of the battlers around it: a mon's own near that mon, a blend between them. viewPos is
+// the particle's centre, anchorViewPos the point it was emitted from: particles near their
+// emission point move rigidly with it.
+int BattleStageParticles_BeginSystem(MtxFx44 *projection);
 void BattleStageParticles_DrawParticle(const VecFx32 *viewPos, const VecFx32 *anchorViewPos);
 
 // The battle plane (debug A/B; the true 3D placement, for sprites drawn in perspective): turns

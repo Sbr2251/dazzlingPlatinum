@@ -1402,8 +1402,13 @@ static BOOL ParticleProjectionHook(MtxFx44 *projection)
             if (BattleStageParticles_ProjectOnPlane(projection)) {
                 return FALSE;
             }
-        } else if (BattleStageParticles_BeginSystem(projection)) {
-            return TRUE;
+        } else {
+            switch (BattleStageParticles_BeginSystem(projection)) {
+            case BATTLE_STAGE_PARTICLES_FIELD:
+                return TRUE;
+            case BATTLE_STAGE_PARTICLES_SHARED:
+                return FALSE;
+            }
         }
     }
 
