@@ -190,7 +190,10 @@ went. Now, for a streamed battler:
   into BG2's tiles from tile 1 (tile 0 stays blank) and its 512x512 tilemap with wrap, so the
   move's BG offsets and per-line scrolls still place it. BG2's tiles end where BG3's begin: 511
   tiles at most, enough for the largest back (a 96x96 box at 1.75x is 22x22 tiles); a larger copy
-  keeps the classic one. `RemovePokemonSpriteFromBg` clears the tiles it used and its tilemap.
+  keeps the classic one. It is built before compat F1 lifts the copy over the arena
+  (`BattleAnimSystem_LiftBg2Copy` keeps the BG2 tilemap's hash and drops the lift when it
+  changes), so the arena stays visible with the copy lifted as before. `RemovePokemonSpriteFromBg`
+  clears the tiles it used and its tilemap.
 
 Counted in `sMonCopyStats`: `adopted`, `released`, `drawnFrames`, `bg2Copies`.
 

@@ -58,6 +58,12 @@
 #define INTRO_SENDOUT_MAX_FRAMES SCREEN_FRAMES(720)
 // The 2D trainer and ball OBJs follow the camera up to this scale (an affine double-size OBJ)
 #define INTRO_OBJ_MAX_SCALE (FX32_ONE * 2)
+// bw2vis:dblfix - the battle renderer's view rects: the top screen is y 0..192, the bottom
+// screen's starts 80 px below it (SetSubScreenViewRect(.., (192 + 80) << FX32_SHIFT), ov16_0223B140.c)
+#define INTRO_OBJ_TOP_SCREEN_H  (192 * FX32_ONE)
+#define INTRO_OBJ_SUB_VIEW_TOP  ((192 + 80) * FX32_ONE)
+// A followed OBJ with no single cell to measure: its half size is taken as the largest OBJ's
+#define INTRO_OBJ_FALLBACK_HALF 64
 // The debug flags that keep the command menu camera off (and snap it home when set while it runs)
 #define IDLE_OFF_FLAGS (BATTLE_STAGE_DEBUG_NO_CINEMATICS | BATTLE_STAGE_DEBUG_NO_IDLE_CAMERA)
 
@@ -2406,6 +2412,61 @@ static BOOL GetSideSimilarity(int side, BattleStageCameraSimilarity *similarity)
     return TRUE;
 }
 
+// bw2vis:dblfix - keeps a followed OBJ out of the bottom screen's view rect. The battle renderer
+// draws an OBJ on each screen whose view rect its bounds reach (render_view.c IsObjectInView), and
+// a followed OBJ scaled up to 2x can reach the bottom screen's (a 2x trainer back during the foes'
+// send-out shot, 28 px lower still in doubles with the layout's side offset). The trainers are
+// VRAM-transfer cells with a top-screen place only: drawn on the bottom screen too, their frame
+// transfer goes to the unset bottom-screen place (NNS_G2D_VRAM_ADDR_NONE, offset -1) and overwrote
+// the bottom screen's OBJ characters from 0, the command menu's party ball row; a ball would draw
+// garbage there. An OBJ wholly below the top screen parks with the far ones. One still partly on
+// it draws 256 px higher: OAM Y is 8 bits (G2_SetOBJPosition), so its OAMs come out the same, and
+// its bounds are then clear of the bottom screen's view rect.
+static void KeepIntroSpriteOffSubScreen(Sprite *sprite)
+{
+    fx32 minY = -INTRO_OBJ_FALLBACK_HALF * FX32_ONE;
+    fx32 maxY = INTRO_OBJ_FALLBACK_HALF * FX32_ONE;
+    fx32 pivot = 0, scale = FX32_ONE, top, bottom, tmp;
+
+    if (sprite->type == CELL_ANIM_TYPE_CELL || sprite->type == CELL_ANIM_TYPE_VRAM_CELL) {
+        const NNSG2dCellData *cell = ((CellAnimationData *)&sprite->animData)->anim.pCurrentCell;
+
+        if (cell != NULL && NNS_G2dCellHasBR(cell)) {
+            minY = NNS_G2dGetCellBoundingRect(cell)->minY * FX32_ONE;
+            maxY = NNS_G2dGetCellBoundingRect(cell)->maxY * FX32_ONE;
+        } else if (cell != NULL) {
+            maxY = NNS_G2dGetCellBoundingSphereR(cell) * FX32_ONE;
+            minY = -maxY;
+        }
+    }
+
+    // As SpriteList_DrawSprite places it: the position, then the scale about affineTranslation
+    if (sprite->affineOverwriteMode != AFFINE_OVERWRITE_MODE_NONE) {
+        pivot = sprite->affineTranslation.y;
+        scale = sprite->affineScale.y;
+    }
+
+    top = sprite->position.y + pivot + FX_Mul(minY - pivot, scale);
+    bottom = sprite->position.y + pivot + FX_Mul(maxY - pivot, scale);
+
+    if (bottom < top) {
+        tmp = top;
+        top = bottom;
+        bottom = tmp;
+    }
+
+    if (bottom <= INTRO_OBJ_SUB_VIEW_TOP) {
+        return;
+    }
+
+    if (top >= INTRO_OBJ_TOP_SCREEN_H) {
+        sprite->position.x = -128 * FX32_ONE;
+        sprite->position.y = -128 * FX32_ONE;
+    } else {
+        sprite->position.y -= 256 * FX32_ONE;
+    }
+}
+
 // Moves (sign 1) and scales a 2D OBJ with its side's similarity for one draw, and puts it back
 // (sign -1). The scale is capped where an affine double-size OBJ still fits; past it the OBJ
 // is well off screen anyway.
@@ -2461,6 +2522,8 @@ void BattleStage_FollowIntroSprite(ManagedSprite *managedSprite, int side, int s
         sprite->affineScale.y = FX_Mul(save->scale.y, s);
         sprite->affineOverwriteMode = AFFINE_OVERWRITE_MODE_DOUBLE;
     }
+
+    KeepIntroSpriteOffSubScreen(sprite); // bw2vis:dblfix
 }
 
 // The ball OBJ of a throw (its own task draws it): it follows its target's side
