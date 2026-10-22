@@ -2612,15 +2612,16 @@ static void BattleAnimScriptCmd_LoadPokemonSpriteIntoBg(BattleAnimSystem *system
     Bg_ToggleLayer(BATTLE_BG_BASE, TRUE);
     Bg_SetPriority(BATTLE_BG_BASE, BattleAnimSystem_GetPokemonSpritePriority(system));
 
+    // bw2vis:idle: a streamed battler's copy is its live stream frame at the mesh's scale, not
+    // the classic 80x80 window, so it neither crops it nor pops back to the mesh at the end.
+    // Before the lift: F1 takes the BG2 tilemap's hash and drops the lift when it changes
+    if (BattleAnimSystem_IsContest(system) == FALSE) {
+        BattleStage_BuildBg2Copy(battler, system->bgConfig, BATTLE_BG_BASE, system->heapID);
+    }
+
     // F1 and F2: over the arena, lit like the mesh it replaces
     if (BattleAnimSystem_LiftBg2Copy(system) == TRUE) {
         BattleStage_TintCopyPalette(system->paletteData, PLTTBUF_MAIN_BG, PLTT_DEST(BATTLE_BG_PALETTE_MON_SPRITE), PALETTE_SIZE);
-    }
-
-    // bw2vis:idle: a streamed battler's copy is its live stream frame at the mesh's scale, not
-    // the classic 80x80 window, so it neither crops it nor pops back to the mesh at the end
-    if (BattleAnimSystem_IsContest(system) == FALSE) {
-        BattleStage_BuildBg2Copy(battler, system->bgConfig, BATTLE_BG_BASE, system->heapID);
     }
 }
 
