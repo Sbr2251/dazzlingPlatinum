@@ -426,16 +426,43 @@ static void ParticleSystem_ToView(SPLManager *mgr, const VecFx32 *pos, VecFx32 *
     }
 }
 
+// The last particle's emission point in view space (the particles of one burst share it), and
+// whether the draw's view matrix has no rotation (a battle particle camera looks straight down -z)
+static struct {
+    BOOL valid;
+    BOOL noRotation;
+    const void *emitter;
+    VecFx32 pos;
+    VecFx32 view;
+} sAnchorView;
+
 // The particle's centre (its position relative to the point it was emitted from, plus that
 // point) and the point itself, in view space
 static void ParticleSystem_ParticleDrawHook(SPLManager *mgr, SPLParticle *ptcl)
 {
-    VecFx32 pos, centre, anchor;
+    VecFx32 centre;
 
-    VEC_Add(&ptcl->position, &ptcl->emitterPos, &pos);
-    ParticleSystem_ToView(mgr, &pos, &centre);
-    ParticleSystem_ToView(mgr, &ptcl->emitterPos, &anchor);
-    sParticleHook(&centre, &anchor);
+    if (!sAnchorView.valid || sAnchorView.emitter != mgr->renderState.emitter || sAnchorView.pos.x != ptcl->emitterPos.x
+        || sAnchorView.pos.y != ptcl->emitterPos.y || sAnchorView.pos.z != ptcl->emitterPos.z) {
+        sAnchorView.valid = TRUE;
+        sAnchorView.emitter = mgr->renderState.emitter;
+        sAnchorView.pos = ptcl->emitterPos;
+        ParticleSystem_ToView(mgr, &ptcl->emitterPos, &sAnchorView.view);
+    }
+
+    // Without rotation the view only translates: the centre is the emission point plus the offset
+    if (sAnchorView.noRotation) {
+        centre.x = sAnchorView.view.x + ptcl->position.x;
+        centre.y = sAnchorView.view.y + ptcl->position.y;
+        centre.z = sAnchorView.view.z + ptcl->position.z;
+    } else {
+        VecFx32 pos;
+
+        VEC_Add(&ptcl->position, &ptcl->emitterPos, &pos);
+        ParticleSystem_ToView(mgr, &pos, &centre);
+    }
+
+    sParticleHook(&centre, &sAnchorView.view);
 }
 
 void ParticleSystem_Draw(ParticleSystem *particleSystem)
@@ -462,6 +489,10 @@ void ParticleSystem_Draw(ParticleSystem *particleSystem)
 
     // The closing flush below loads the system's own projection again
     if (perParticle) {
+        sAnchorView.valid = FALSE;
+        sAnchorView.noRotation = viewMatrix->_00 == FX32_ONE && viewMatrix->_01 == 0 && viewMatrix->_02 == 0
+            && viewMatrix->_10 == 0 && viewMatrix->_11 == FX32_ONE && viewMatrix->_12 == 0 && viewMatrix->_20 == 0
+            && viewMatrix->_21 == 0 && viewMatrix->_22 == FX32_ONE;
         SPLManager_SetParticleDrawHook(ParticleSystem_ParticleDrawHook);
     }
 
