@@ -340,8 +340,22 @@ mode + 4) does that:
 - The BW2 picture's mode, tiles and screen go to VRAM in the next VBlank (`BattleEffectBg_UploadOnVBlank`), with
   its palette, which PaletteData commits in the same VBlank. No frame shows it half loaded, and there is no
   black frame (`effect_bg_cut` below).
-- `RestoreBg ... BATTLE_BG_SWITCH_MODE_CUT` puts the backdrop back the same way and clears the reason; the arena
-  comes back at once (its instant comeback after an instant hide).
+- `RestoreBg ... BATTLE_BG_SWITCH_MODE_CUT` is the cut back. With the stage on, the arena comes back first,
+  over the effect picture still on BG3, and BG3 goes back to the backdrop only once the arena has been on screen
+  for 2 ticks (`BattleBgRestore_Cut`; at most 10 ticks if something else keeps the arena hidden). Meanwhile:
+  - the cut-back phase (`BattleEffectBg_IsCutBack`) exempts the effect picture, its scroll and the old scroll
+    task from the arena's suppression, and stops the BG3 shake mirror;
+  - the arena draws with the backdrop's palette (`BattleStage_SetBgPaletteOverride`, the battle's copy of the
+    BG palette), because the BG palette still holds the effect's rows, which the arena's textures also index;
+  - BG3's scroll goes back to 0,0 at once, since arena meshes that follow the BG3 scroll would take the effect's.
+  - a per-line BG3 wave still running (Whirlpool's and Water Pulse's `Func_ScrollSwitchedBg` outlives their
+    `RestoreBg`) no longer hides the arena once a cut back has started in the script (F5 assumed the wave was
+    on a visible BG3; after the cut back it ripples the backdrop under the arena).
+  The 3D layer shows a frame or more after it is drawn, while BG3 changes at once; restoring BG3 first (the first
+  version) showed the classic backdrop for 8-10 frames, and its rows 160-191 are black. With the message window
+  faded during moves that is a black band at the bottom of the screen (QA, Wake's Waterfall, enemy->player).
+  Without the stage (classic, contests) the backdrop returns in the next VBlank as before. End or Delete during a
+  cut back restores the backdrop at once (`BattleAnimSystem_FinishCutBack`).
 - `WaitForPartialBgSwitch` also passes when the switch has already finished, since a cut can finish first.
 - Without the stage (classic, L+R+SELECT), the same code makes a 2D cut between backdrop and picture.
 
@@ -376,6 +390,13 @@ The critic (tools/battle_stage/emu/critic.py) knows this work through `docs/livi
 - `switchbg_moves --moves <list>`: plays the list instead of its four moves, with the same checks.
 - New scenario `effect_bg_cut --moves <list>`: every frame around the switch in and back, stage on and off.
   A cut move must never show an arenaAlpha between 0 and 31, and at most 2 black frames per transition; a fade
-  move must still fade. Sheets `cut_<id>_<tod>[_classic].png`.
+  move must still fade. Sheets `cut_<id>_<tod>[_rev][_classic].png`. Since the cut-back fix, for a cut move it
+  also checks:
+  - no black band in rows 150-191 after the switch back (under SCENE, which the other checks crop away; in the
+    move tester the tester's text box covers those rows, so this rarely fires there);
+  - a second, probed run that renders every other frame with BG0 alone over a magenta backdrop: no frame may
+    show the arena off screen while BG3 is back on the backdrop (the classic look; the band QA saw), and the
+    first arena frames after the switch back must match the restored scene (no effect palette or scroll).
+  `--reverse` plays enemy->player; `--stage-entry N` picks the quick-battle arena (7-9 indoors).
 
 Evidence: `/tmp/bw2vis/effect-bg/README.md`.
