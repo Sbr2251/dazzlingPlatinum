@@ -167,6 +167,7 @@ static void UpdateFadeBlend(BOOL translucent);
 static void DrawCurtain(int alpha);
 
 static BattleStage sBattleStage;
+static const u16 *sBgPaletteOverride; // bw2vis:effect-bg, BattleStage_SetBgPaletteOverride
 static StageFog sStageFog;
 
 // Without an atmosphere LIT meshes render unlit white, as in format v1
@@ -180,6 +181,7 @@ static const BattleStageFileLighting sDefaultLighting = {
 
 void BattleStage_Init(BattleSystem *battleSys)
 {
+    sBgPaletteOverride = NULL; // bw2vis:effect-bg
     sBattleStage.battleSys = battleSys;
     sBattleStage.arena = NULL;
     sBattleStage.enabled = BATTLE_STAGE_3D;
@@ -552,6 +554,13 @@ void BattleStage_SetBackdropFade(u16 color, int alpha)
 void BattleStage_SetBackdropGrayscale(BOOL grayscale)
 {
     sBattleStage.backdropGrayscale = grayscale;
+}
+
+// bw2vis:effect-bg: the arena's BG palette from `colors` (256) instead of the faded BG palette, NULL to go back.
+// A cut back from an effect BG draws the arena while BG3 and the BG palette still hold the effect's.
+void BattleStage_SetBgPaletteOverride(const u16 *colors)
+{
+    sBgPaletteOverride = colors;
 }
 
 // The brightness wins over the backdrop fade, as it does in 2D where it applies last
@@ -1245,7 +1254,7 @@ static void SyncPalettes(StageArena *arena)
         }
     }
 
-    SyncPalette(arena, &arena->palettes[SLOT_BG], PaletteData_GetFadedBuffer(paletteSys, PLTTBUF_MAIN_BG));
+    SyncPalette(arena, &arena->palettes[SLOT_BG], sBgPaletteOverride != NULL ? sBgPaletteOverride : PaletteData_GetFadedBuffer(paletteSys, PLTTBUF_MAIN_BG));
     SyncPalette(arena, &arena->palettes[SLOT_PLATFORM_PLAYER], PlatformPalette(paletteSys, 0));
     SyncPalette(arena, &arena->palettes[SLOT_PLATFORM_ENEMY], PlatformPalette(paletteSys, 1));
 

@@ -54,6 +54,7 @@ typedef struct BgUpload {
     const void *screen;
     u32 screenSize;
     void *screenFile;
+    BOOL resetOffset; // the scroll goes back to 0,0 with the screen
 } BgUpload;
 
 static BattleEffectBgStats sBattleEffectBgStats;
@@ -63,6 +64,8 @@ static SysTask *sPalAnimTask;
 static PalAnim *sPalAnim;
 static int sLoadedBgID = -1;
 static BOOL sCut;
+static BOOL sCutBack;
+static BOOL sCutBackDone; // a cut back started in this script
 
 static const BattleEffectBgEntry *GetEntry(int bgID)
 {
@@ -103,6 +106,12 @@ static void UploadTask(SysTask *task, void *data)
     Bg_LoadTilesToVRAM(upload->bgConfig, upload->layer, (void *)upload->chars, upload->charSize, 0);
     Bg_LoadTilemapBuffer(upload->bgConfig, upload->layer, (void *)upload->screen, upload->screenSize);
     Bg_CopyTilemapBufferToVRAM(upload->bgConfig, upload->layer);
+
+    if (upload->resetOffset) {
+        Bg_SetOffset(upload->bgConfig, upload->layer, BG_OFFSET_UPDATE_SET_X, 0);
+        Bg_SetOffset(upload->bgConfig, upload->layer, BG_OFFSET_UPDATE_SET_Y, 0);
+    }
+
     Bg_ToggleLayer(upload->layer, TRUE);
 
     // Runs in the VBlank handler: the files are freed later, on the main loop (BattleEffectBg_IsUploading)
@@ -139,10 +148,10 @@ BOOL BattleEffectBg_IsUploading(void)
     return FALSE;
 }
 
-// Sets the layer's colour mode, tiles (at its char base) and whole screen in the next VBlank, then frees the
-// files it was given. The palette goes through PaletteData as usual, which the battle commits in the same
+// Sets the layer's colour mode, tiles (at its char base) and whole screen (and with resetOffset its scroll to
+// 0,0) in the next VBlank, then frees the files it was given. The palette goes through PaletteData as usual, which the battle commits in the same
 // VBlank.
-void BattleEffectBg_UploadOnVBlank(BgConfig *bgConfig, enum BgLayer layer, u8 colorMode, const void *chars, u32 charSize, void *charFile, const void *screen, u32 screenSize, void *screenFile)
+void BattleEffectBg_UploadOnVBlank(BgConfig *bgConfig, enum BgLayer layer, u8 colorMode, const void *chars, u32 charSize, void *charFile, const void *screen, u32 screenSize, void *screenFile, BOOL resetOffset)
 {
     BattleEffectBg_CancelUpload();
 
@@ -155,6 +164,7 @@ void BattleEffectBg_UploadOnVBlank(BgConfig *bgConfig, enum BgLayer layer, u8 co
     sUpload.screen = screen;
     sUpload.screenSize = screenSize;
     sUpload.screenFile = screenFile;
+    sUpload.resetOffset = resetOffset;
     sUploadTask = SysTask_ExecuteOnVBlank(UploadTask, &sUpload, 0);
 }
 
@@ -211,7 +221,7 @@ void BattleEffectBg_LoadOnVBlank(BattleAnimSystem *system, enum BgLayer layer, i
     void *screenFile = Graphics_GetScrnData(NARC_INDEX_BATTLE__GRAPHIC__BW2_EFFECT_BG, reversed ? entry->nscrReversed : entry->nscr, TRUE, &screen, heapID);
 
     LoadPalettes(system, entry, TRUE);
-    BattleEffectBg_UploadOnVBlank(BattleAnimSystem_GetBgConfig(system), layer, GX_BG_COLORMODE_16, chars->pRawData, chars->szByte, charFile, screen->rawData, screen->szByte, screenFile);
+    BattleEffectBg_UploadOnVBlank(BattleAnimSystem_GetBgConfig(system), layer, GX_BG_COLORMODE_16, chars->pRawData, chars->szByte, charFile, screen->rawData, screen->szByte, screenFile, FALSE);
     Loaded(system, bgID, entry);
 }
 
@@ -366,6 +376,26 @@ BOOL BattleEffectBg_IsCut(void)
     return sCut;
 }
 
+// A cut back is running: the arena comes back while BG3 still holds the effect picture
+void BattleEffectBg_SetCutBack(BOOL cutBack)
+{
+    sCutBack = cutBack;
+
+    if (cutBack) {
+        sCutBackDone = TRUE;
+    }
+}
+
+BOOL BattleEffectBg_IsCutBackDone(void)
+{
+    return sCutBackDone;
+}
+
+BOOL BattleEffectBg_IsCutBack(void)
+{
+    return sCutBack;
+}
+
 void BattleEffectBg_CountCut(void)
 {
     sBattleEffectBgStats.cuts++;
@@ -377,5 +407,7 @@ void BattleEffectBg_Reset(void)
     BattleEffectBg_CancelUpload();
     BattleEffectBg_StopPalAnim();
     BattleEffectBg_SetCut(FALSE);
+    sCutBack = FALSE;
+    sCutBackDone = FALSE;
     sLoadedBgID = -1;
 }

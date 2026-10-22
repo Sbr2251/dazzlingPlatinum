@@ -4657,12 +4657,21 @@ def sc_move_redo(sc: Scenario, e: Emu, args) -> None:
 EFFECT_BG_CUT_FRAMES = 900       # frames recorded per move at most (every frame; stops when the move ends)
 EFFECT_BG_BLACK = 10.0           # mean scene brightness under this is a black frame
 EFFECT_BG_STRIP = (-3, 7)        # frames around each transition shown in the strip
+EFFECT_BG_BAND = (0, 150, 256, 192)  # the bottom of the top screen, under SCENE: QA's black band (y 165-192)
+EFFECT_BG_BAND_BLACK = 0.80      # share of near-black band pixels that makes a band frame
 
 
-def _effect_bg_record(e: Emu, ov: Overlay, ram: StageRam, frames: int, label: str) -> tuple:
-    """Plays the move from the tester and snaps every frame with arenaAlpha/visible. ([(t, img, alpha)], done)."""
+def _band_black(img: Image.Image) -> float:
+    """Share of the bottom band of the top screen that is near black (every channel under 24)."""
+    px = img.crop(EFFECT_BG_BAND).convert("RGB").getdata()
+    return sum(1 for r, g, b in px if r < 24 and g < 24 and b < 24) / float(len(px))
+
+
+def _effect_bg_record(e: Emu, ov: Overlay, ram: StageRam, frames: int, label: str, key: str = "A") -> tuple:
+    """Plays the move from the tester (A, or Y enemy->player) and snaps every frame with arenaAlpha/visible.
+    ([(t, top image, alpha)], done)."""
     start = e.frame
-    e.hold("A", 6, 0)
+    e.hold(key, 6, 0)
     e.release("L+R")
     out = []
     while e.frame - start < frames:
@@ -4693,6 +4702,31 @@ def _effect_bg_transitions(rec: List[tuple], pre: Image.Image) -> List[int]:
     return marks
 
 
+REG_BG3CNT = 0x0400000E          # main BG3 control; bit 7 set = 256 colours (the backdrop), clear = 16 (an effect BG)
+
+
+def _effect_bg_probe(e: Emu, ov: Overlay, frames: int, key: str) -> List[tuple]:
+    """Plays the move again and renders every other frame with BG0 alone over a magenta backdrop (Emu.render_layers):
+    [(t, arena on screen, BG3 shows the backdrop, the next (normal) frame's top screen)]. A frame where the arena
+    is not on screen while BG3 already shows the backdrop is the classic look, which a cut must never show."""
+    start = e.frame
+    e.hold(key, 6, 0)
+    e.release("L+R")
+    out = []
+    while e.frame - start < frames:
+        # Every other frame: the probe frame shows BG0 alone, the normal one tells when the overlay is back
+        img = e.render_layers(LAYER_BG0, marker=True)
+        t = e.frame - start
+        arena = marker_fraction(top(img).crop(SCENE)) < 0.5
+        backdrop = bool(struct.unpack("<H", e.read(REG_BG3CNT, 2))[0] & 0x80)
+        e.run(1)
+        img = e.screens()
+        out.append((t, arena, backdrop, top(img)))
+        if t >= 12 and not ov.up(img):
+            break
+    return out
+
+
 def sc_effect_bg_cut(sc: Scenario, e: Emu, args) -> None:
     """bw2vis:effect-bg. Every frame around the stage-to-background transitions of the --moves list, stage on
     and then off: a cut move must hide the arena in one step (no arenaAlpha between 0 and 31) and show at most
@@ -4707,6 +4741,8 @@ def sc_effect_bg_cut(sc: Scenario, e: Emu, args) -> None:
         run_away(sc, e)
         return
     cur = MOVE_ID_POUND
+    band_frames: List[Frame] = []
+    rev = "_rev" if args.reverse else ""
     for stage_on in (True, False):
         if not stage_on and _redo_toggle(e, ov, ram, 0):
             sc.warn("stage switched off for the classic pass", "SELECT did not switch it")
@@ -4717,14 +4753,14 @@ def sc_effect_bg_cut(sc: Scenario, e: Emu, args) -> None:
             if mid in FIRST_BRANCH_MOVES:
                 sc.note(f"{mid:03d}: skipped, {FIRST_BRANCH_MOVES[mid]}")
                 continue
-            tag = f"{mid:03d} {move_name(mid)} {'stage' if stage_on else 'classic'}"
+            tag = f"{mid:03d} {move_name(mid)} {'stage' if stage_on else 'classic'}" + (" enemy->player" if rev else "")
             if not ov.up() and not ov.show():
                 sc.check(f"{tag}: overlay shown", False, "holding L+R did not bring the overlay back")
                 return
             _nav_move(e, cur, mid)
             cur = mid
             pre = e.screens()
-            rec, done = _effect_bg_record(e, ov, ram, EFFECT_BG_CUT_FRAMES, tag)
+            rec, done = _effect_bg_record(e, ov, ram, EFFECT_BG_CUT_FRAMES, tag, "Y" if args.reverse else "A")
             sc.check(f"{tag}: animation finished", done is not None, f"{done} frames")
             e.run(60)
             marks = _effect_bg_transitions(rec, pre)
@@ -4747,14 +4783,54 @@ def sc_effect_bg_cut(sc: Scenario, e: Emu, args) -> None:
                          warn_only=True, why="the cut goes through black for longer than the one frame BG3 is off")
             else:
                 sc.note(f"{tag}: {detail}")
+            # QA (Wake, Waterfall enemy->player): after the cut back the bottom rows went black for 5-11 frames.
+            # Judged with the stage on, from the last transition (the cut back) to the end, against the pre frame.
+            if stage_on and marks:
+                base = _band_black(top(pre))
+                tail = rec[marks[-1]:]
+                bands = [t for t, img, _a in tail if _band_black(img) >= EFFECT_BG_BAND_BLACK and base < 0.5]
+                sc.check(f"{tag}: no black band at the bottom after the switch back", not bands,
+                         f"{len(bands)} frames with the band y {EFFECT_BG_BAND[1]}-{EFFECT_BG_BAND[3]} "
+                         f">= {EFFECT_BG_BAND_BLACK:.0%} black (pre-move frame {base:.0%}): t={bands[:12]}",
+                         why="the cut back left the bottom of the screen black (QA: Wake's Waterfall)")
+                for t, img, a in tail:
+                    if t in bands[:4]:
+                        band_frames.append(Frame(f"{mid} +{t}" + ("" if a is None else f" a{a}"), t, img))
+            if stage_on and expect == "cut":
+                # The classic look between the effect picture and the arena (QA, Wake's Waterfall: black band)
+                e.run(30)
+                if not ov.up() and not ov.show():
+                    sc.check(f"{tag}: overlay shown (probe run)", False, "holding L+R did not bring the overlay back")
+                    return
+                probe = _effect_bg_probe(e, ov, EFFECT_BG_CUT_FRAMES, "Y" if args.reverse else "A")
+                seen = [t for t, arena, _b, _i in probe if not arena]
+                classic = [t for t, arena, backdrop, _i in probe if not arena and backdrop and seen and t > seen[0]]
+                sc.check(f"{tag}: no classic frame between the effect BG and the arena", not classic,
+                         f"{len(classic)} frames with the arena off screen and BG3 back on the backdrop: t={classic[:12]}"
+                         f"; arena off screen t={seen[0] if seen else '-'}..{seen[-1] if seen else '-'}",
+                         why="the cut back showed the classic backdrop (its rows 160-191 are black) before the arena")
+                # The first arena frames after the cut back must already look like the restored scene: an arena
+                # drawn with the effect BG's palette or scroll is caught here
+                if seen and probe:
+                    end_scene = scene(probe[-1][3])
+                    back = [(t, img) for t, arena, _b, img in probe if arena and t > seen[-1]][:8]
+                    wrong = [t for t, img in back if diff_fraction(scene(img), end_scene) > 0.25]
+                    sc.check(f"{tag}: the arena comes back looking right", bool(back) and not wrong,
+                             f"{len(back)} arena frames right after the switch back, {len(wrong)} differ from the last "
+                             f"frame by > 25% of the scene: t={wrong[:10]}",
+                             why="the arena came back with the effect BG's palette or scroll, or not at all")
+                e.run(60)
             strip = []
             for i in marks[:2]:
                 lo, hi = max(0, i + EFFECT_BG_STRIP[0]), min(len(rec), i + EFFECT_BG_STRIP[1])
                 strip += [Frame(f"+{t}" + ("" if a is None else f" a{a}"), t, img) for t, img, a in rec[lo:hi]]
             if strip:
-                sc.sheet(strip, f"cut_{mid}_{args.stage_tod}{'' if stage_on else '_classic'}",
+                sc.sheet(strip, f"cut_{mid}_{args.stage_tod}{rev}{'' if stage_on else '_classic'}",
                          f"{tag} ({expect}): every frame around the switch in and the switch back", screen="top",
                          cols=EFFECT_BG_STRIP[1] - EFFECT_BG_STRIP[0], scale=0.5)
+    if band_frames:
+        sc.sheet(band_frames, f"band_{args.stage_tod}{rev}", "frames with the black band after the switch back",
+                 screen="top", cols=8, scale=0.5)
     _redo_toggle(e, ov, ram, 1)
     _finish(sc, e)
 
@@ -4878,6 +4954,9 @@ def main() -> int:
                     help="xMAP of the ROM's build for the RAM checks (default: next to the ROM or its "
                          "build/main.nef.xMAP; 'none' = pixels only)")
     ap.add_argument("--species-steps", type=int, default=0, help="quick_battle: RIGHT presses before the first battle")
+    ap.add_argument("--stage-entry", type=int, default=None,
+                    help="bw2vis:effect-bg: quick-battle entry (0-30, QB_NAMES) the 3D stage scenarios use instead of "
+                         "--stage-terrain's (7-9 indoors; those are always day)")
     ap.add_argument("--stage-terrain", choices=("plain", "grass"), default="plain",
                     help="3D stage scenarios: platforms of the Plain background battle (quick-battle entry 01 or 30)")
     ap.add_argument("--verbose", action="store_true", help="show DeSmuME's own stdout")
@@ -4898,6 +4977,8 @@ def main() -> int:
         ap.error(f"--tods: unknown {bad}, pick from {', '.join(TODS)}")
     global STAGE_ENTRY
     STAGE_ENTRY = QB_PLAIN_GRASS if args.stage_terrain == "grass" else QB_PLAIN
+    if args.stage_entry is not None:                   # bw2vis:effect-bg
+        STAGE_ENTRY = args.stage_entry
     outdir = pathlib.Path(args.outdir).resolve()
     outdir.mkdir(parents=True, exist_ok=True)
 

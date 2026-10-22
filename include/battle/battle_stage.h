@@ -78,6 +78,7 @@ void BattleStage_ClearCurtain(void);
 // Init and Free reset it.
 void BattleStage_SetBackdropFade(u16 color, int alpha);
 void BattleStage_SetBackdropGrayscale(BOOL grayscale);
+void BattleStage_SetBgPaletteOverride(const u16 *colors); // bw2vis:effect-bg
 
 // Lit, deformable sprites (chunk 3, battle_stage_sprites.c). While the arena shows, the
 // battle's mons are drawn as lit 8x8 grids that breathe at rest, with a blob shadow.

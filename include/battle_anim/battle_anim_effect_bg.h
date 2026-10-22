@@ -39,7 +39,7 @@ BOOL BattleEffectBg_IsBw2(int bgID);
 int BattleEffectBg_ContestBg(int bgID);
 void BattleEffectBg_Load(BattleAnimSystem *system, enum BgLayer layer, int bgID, BOOL reversed, BOOL blackBackdrop);
 void BattleEffectBg_LoadOnVBlank(BattleAnimSystem *system, enum BgLayer layer, int bgID, BOOL reversed);
-void BattleEffectBg_UploadOnVBlank(BgConfig *bgConfig, enum BgLayer layer, u8 colorMode, const void *chars, u32 charSize, void *charFile, const void *screen, u32 screenSize, void *screenFile);
+void BattleEffectBg_UploadOnVBlank(BgConfig *bgConfig, enum BgLayer layer, u8 colorMode, const void *chars, u32 charSize, void *charFile, const void *screen, u32 screenSize, void *screenFile, BOOL resetOffset);
 void BattleEffectBg_CancelUpload(void);
 BOOL BattleEffectBg_IsUploading(void);
 u16 BattleEffectBg_PaletteMask(int bgID);
@@ -49,6 +49,9 @@ void BattleEffectBg_StopPalAnim(void);
 void BattleEffectBg_SetCut(BOOL cut);
 BOOL BattleEffectBg_IsCut(void);
 void BattleEffectBg_CountCut(void);
+void BattleEffectBg_SetCutBack(BOOL cutBack);
+BOOL BattleEffectBg_IsCutBack(void);
+BOOL BattleEffectBg_IsCutBackDone(void);
 void BattleEffectBg_Reset(void);
 
 #endif // POKEPLATINUM_BATTLE_ANIM_EFFECT_BG_H

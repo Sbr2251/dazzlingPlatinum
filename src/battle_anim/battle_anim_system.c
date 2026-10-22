@@ -122,6 +122,8 @@ typedef struct BattleBgSwitch {
     u16 unk_44_1 : 1;
     u16 unk_44_2 : 14;
     BattleAnimSystem *battleAnimSystem;
+    u8 cutBackShown; // bw2vis:effect-bg: BattleBgRestore_Cut's ticks with the arena visible
+    u8 cutBackWaited; // and ticks waited
 } BattleBgSwitch;
 
 enum BattleAnimTaskKind {
@@ -678,10 +680,17 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
             bgSwitch = TRUE;
         }
 
-        // F5: a per-line (HBlank DMA) scroll of BG3 would wave unseen under the arena
-        if (BattleAnimUtil_IsBg3LineScrollActive()) {
+        // F5: a per-line (HBlank DMA) scroll of BG3 would wave unseen under the arena. After a cut back
+        // (bw2vis:effect-bg) the wave belonged to the effect BG, which is gone: it may finish under the arena
+        if (BattleAnimUtil_IsBg3LineScrollActive() && !BattleEffectBg_IsCutBackDone()) {
             bgSwitch = TRUE;
         }
+    }
+
+    // bw2vis:effect-bg: during a cut back BG3 still holds the effect picture (and its scroll) under the arena
+    // on purpose, until the arena is on screen (BattleBgRestore_Cut)
+    if (BattleEffectBg_IsCutBack()) {
+        bgSwitch = FALSE;
     }
 
     // F6: reasons that start while the move (or its background restore) runs fade the arena
@@ -697,7 +706,7 @@ static void BattleAnimSystem_UpdateStageSuppress(BattleAnimSystem *system)
     BattleStage_SetMoveAnimActive(system->moveActive == TRUE);
 
     // The shake tasks sync again right after they write BG3, so the arena moves in their frame
-    sStageBackdropShakeOk = system->moveActive == TRUE && !bgSwitch && !bg2Effect && !window;
+    sStageBackdropShakeOk = system->moveActive == TRUE && !bgSwitch && !bg2Effect && !window && !BattleEffectBg_IsCutBack();
     BattleAnimSystem_SyncStageBackdropShake(system);
     BattleAnimSystem_UpdateStageBackdropFade(system);
 }
@@ -952,7 +961,8 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
 
     if (BattleAnimSystem_IsContest(system) == FALSE) {
         BattleStage_ClearGroundHoles();
-        BattleEffectBg_Reset(); // bw2vis:effect-bg
+        BattleAnimSystem_FinishCutBack(system); // bw2vis:effect-bg
+        BattleEffectBg_Reset();
         BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_BG_SWITCH | BATTLE_STAGE_SUPPRESS_BG2_EFFECT | BATTLE_STAGE_SUPPRESS_WINDOW | BATTLE_STAGE_SUPPRESS_EFFECT_BG_CUT, FALSE);
         BattleStage_ClearCurtain();
         BattleStage_EndStatEffect();
@@ -1094,6 +1104,7 @@ BOOL BattleAnimSystem_StartMove(BattleAnimSystem *system, MoveAnimation *param1,
     system->bgAnim = NULL;
     system->stageBgDirty = FALSE;
     BattleAnimUtil_ResetBg3LineScrolls();
+    BattleEffectBg_Reset(); // bw2vis:effect-bg: nothing of the last script's effect BG carries over
     sStageBackdropShakeGain = moveID == MOVE_EARTHQUAKE || moveID == MOVE_MAGNITUDE || moveID == MOVE_FISSURE ? 2 : 1;
     system->executeAnimScriptFunc = BattleAnimScript_Execute;
     system->scriptDelay = 0;
@@ -3622,48 +3633,108 @@ static BOOL BattleBgSwitch_Cut(SysTask *task, BattleBgSwitch *bgSwitch)
     }
 }
 
-// The cut back: the backdrop returns to BG3 in the next VBlank and the stage with it (BattleStage's instant
-// comeback once no reason is left)
+// bw2vis:effect-bg: the backdrop's tiles, screen and palette back on BG3, in the next VBlank
+static void BattleBgRestore_CutUpload(BattleAnimSystem *system)
+{
+    NNSG2dScreenData *screen;
+    void *screenFile = Graphics_GetScrnData(system->battleBgRefs.narcID, system->battleBgRefs.tilemapNarcMemberIdx, TRUE, &screen, system->heapID);
+
+    if (!BattleAnimSystem_IsContest(system)) {
+        BattleAnimSystem_LoadBattleBgPaletteBuffer(system);
+        BattleEffectBg_UploadOnVBlank(system->bgConfig, BATTLE_BG_EFFECT, GX_BG_COLORMODE_256, system->context->bgTiles, 0x10000, NULL, screen->rawData, screen->szByte, screenFile, TRUE);
+    } else {
+        NNSG2dCharacterData *chars;
+        void *charFile = Graphics_GetCharData(system->battleBgRefs.narcID, system->battleBgRefs.tilesNarcMemberIdx, TRUE, &chars, system->heapID);
+
+        PaletteData_LoadBufferFromFileStart(system->paletteData, system->battleBgRefs.narcID, system->battleBgRefs.paletteNarcMemberIdx, system->heapID, 0, system->battleBgRefs.paletteSrcSize * 0x20, system->battleBgRefs.paletteDestStart);
+        BattleEffectBg_UploadOnVBlank(system->bgConfig, BATTLE_BG_EFFECT, GX_BG_COLORMODE_16, chars->pRawData, chars->szByte, charFile, screen->rawData, screen->szByte, screenFile, TRUE);
+    }
+}
+
+// The cut back. With the 3D stage on, the arena comes back first, over the effect picture still on BG3, and
+// BG3 goes back to the backdrop only once the arena is on screen (the 3D layer shows a frame or more after it
+// is drawn, BG3 changes at once): no frame shows the classic backdrop between the two, whose rows 160-191 are
+// black (QA, Wake's Waterfall: a black band for 5-11 frames). Without the stage (classic, a contest) the
+// backdrop returns in the next VBlank.
+#define CUT_BACK_SHOWN_TICKS 2 // ticks the arena is visible before BG3 changes under it
+#define CUT_BACK_MAX_TICKS   10 // the arena did not come back (another reason): restore anyway
+
 static BOOL BattleBgRestore_Cut(SysTask *task, BattleBgSwitch *bgSwitch)
 {
     BattleAnimSystem *system = bgSwitch->battleAnimSystem;
 
     switch (bgSwitch->state) {
-    case 0: {
+    case 0:
         BattleBgSwitch_ApplyFlags(bgSwitch);
 
-        if (bgSwitch->bgMoveAnimActive == TRUE || bgSwitch->unk_44_1 == 1) {
+        // The scroll task frees itself; dropping the pointer now lets the stage come back before End
+        if ((bgSwitch->bgMoveAnimActive == TRUE || bgSwitch->unk_44_1 == 1) && system->bgAnim != NULL) {
             BattleAnimSystem_CancelBgAnim(system);
+            system->bgAnim = NULL;
         }
 
         BattleEffectBg_StopPalAnim();
+        system->bgSwitchState = BATTLE_BG_SWITCH_STATE_PARTIAL;
 
-        NNSG2dScreenData *screen;
-        void *screenFile = Graphics_GetScrnData(system->battleBgRefs.narcID, system->battleBgRefs.tilemapNarcMemberIdx, TRUE, &screen, system->heapID);
-
-        if (!BattleAnimSystem_IsContest(system)) {
-            BattleAnimSystem_LoadBattleBgPaletteBuffer(system);
-            BattleEffectBg_UploadOnVBlank(system->bgConfig, BATTLE_BG_EFFECT, GX_BG_COLORMODE_256, system->context->bgTiles, 0x10000, NULL, screen->rawData, screen->szByte, screenFile);
+        if (!BattleAnimSystem_IsContest(system) && BattleStage_HasArena() && BattleStage_IsEnabled()) {
+            // The arena takes the backdrop's palette while BG3 keeps the effect's, and BG3's scroll goes back to
+            // 0,0 (arena meshes that follow the BG3 scroll would take the effect's)
+            BattleStage_SetBgPaletteOverride(system->context->bgPaletteBuffer);
+            Bg_SetOffset(system->bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_X, 0);
+            Bg_SetOffset(system->bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_Y, 0);
+            BattleEffectBg_SetCutBack(TRUE);
+            BattleEffectBg_SetCut(FALSE);
+            BattleAnimSystem_UpdateStageSuppress(system);
+            bgSwitch->state = 1;
         } else {
-            NNSG2dCharacterData *chars;
-            void *charFile = Graphics_GetCharData(system->battleBgRefs.narcID, system->battleBgRefs.tilesNarcMemberIdx, TRUE, &chars, system->heapID);
-
-            PaletteData_LoadBufferFromFileStart(system->paletteData, system->battleBgRefs.narcID, system->battleBgRefs.paletteNarcMemberIdx, system->heapID, 0, system->battleBgRefs.paletteSrcSize * 0x20, system->battleBgRefs.paletteDestStart);
-            BattleEffectBg_UploadOnVBlank(system->bgConfig, BATTLE_BG_EFFECT, GX_BG_COLORMODE_16, chars->pRawData, chars->szByte, charFile, screen->rawData, screen->szByte, screenFile);
+            BattleEffectBg_SetCut(FALSE);
+            BattleBgRestore_CutUpload(system);
+            bgSwitch->state = 2;
         }
 
-        Bg_SetOffset(system->bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_X, 0);
-        Bg_SetOffset(system->bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_Y, 0);
-        BattleEffectBg_SetCut(FALSE);
-
-        system->bgSwitchState = BATTLE_BG_SWITCH_STATE_PARTIAL;
-        bgSwitch->state++;
         return TRUE;
-    }
+
+    case 1:
+        if (BattleStage_IsVisible()) {
+            bgSwitch->cutBackShown++;
+        }
+
+        if (bgSwitch->cutBackShown < CUT_BACK_SHOWN_TICKS && ++bgSwitch->cutBackWaited < CUT_BACK_MAX_TICKS) {
+            return TRUE;
+        }
+
+        BattleBgRestore_CutUpload(system);
+        bgSwitch->state = 2;
+        return TRUE;
 
     default:
-        return BattleEffectBg_IsUploading();
+        if (BattleEffectBg_IsUploading()) {
+            return TRUE;
+        }
+
+        BattleEffectBg_SetCutBack(FALSE);
+        BattleStage_SetBgPaletteOverride(NULL);
+        return FALSE;
     }
+}
+
+// End or Delete came before a cut back finished: the backdrop goes back now
+void BattleAnimSystem_FinishCutBack(BattleAnimSystem *system)
+{
+    if (!BattleEffectBg_IsCutBack() && !BattleEffectBg_IsUploading()) {
+        return;
+    }
+
+    BattleEffectBg_CancelUpload();
+    Bg_SetControlParam(system->bgConfig, BATTLE_BG_EFFECT, BG_CONTROL_PARAM_COLOR_MODE, GX_BG_COLORMODE_256);
+    BattleAnimSystem_LoadBattleBgTiles(system, BATTLE_BG_EFFECT);
+    BattleAnimSystem_LoadBattleBgPaletteBuffer(system);
+    Graphics_LoadTilemapToBgLayer(system->battleBgRefs.narcID, system->battleBgRefs.tilemapNarcMemberIdx, system->bgConfig, BG_LAYER_MAIN_3, 0, 0, TRUE, system->heapID);
+    Bg_SetOffset(system->bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_X, 0);
+    Bg_SetOffset(system->bgConfig, BATTLE_BG_EFFECT, BG_OFFSET_UPDATE_SET_Y, 0);
+    Bg_ToggleLayer(BATTLE_BG_EFFECT, TRUE);
+    BattleEffectBg_SetCutBack(FALSE);
+    BattleStage_SetBgPaletteOverride(NULL);
 }
 
 static void BattleBgAnimTask_Move(SysTask *task, void *param)

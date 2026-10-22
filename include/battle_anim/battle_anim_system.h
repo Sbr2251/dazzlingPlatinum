@@ -298,6 +298,7 @@ void BattleAnimSystem_LoadBattleBgTiles(BattleAnimSystem *system, enum BgLayer l
 void BattleAnimSystem_LoadBattleBgPaletteBuffer(BattleAnimSystem *system);
 BOOL BattleAnimSystem_ShouldBattlerSpriteBeFlipped(BattleAnimSystem *system, int battlerRole);
 int BattleAnimSystem_GetBgNarcMemberIndex(int bgID, enum BgNarcMemberType type);
+void BattleAnimSystem_FinishCutBack(BattleAnimSystem *system); // bw2vis:effect-bg
 UnkStruct_ov12_02223764 *ov12_022234F8(BattleSystem *battleSys, enum HeapID heapID, int param2);
 UnkStruct_ov12_02223764 *ov12_02223764(BattleSystem *battleSys, enum HeapID heapID);
 void ov12_02223770(UnkStruct_ov12_02223764 *param0);
