@@ -114,3 +114,121 @@ tiles below the slab, round the player's body. The timer (`Arc2DwEternaForest_Ha
 second): shown and solid 120, fading out but still solid 33 (the props' fade, 31 opacity steps plus 2 frames' lag),
 gone 60, shown again 3 frames before it holds. So it holds exactly while it is drawn.
 
+
+## DW puzzle engine (engine-a): API and data-table usage guide
+
+Engine: `include/overlay009/dw_puzzle.h` + `src/overlay009/dw_puzzle.c`, hooked from
+`src/overlay009/ov9_02249960.c` (hook calls only). A map with no puzzle table behaves
+exactly as today: the hooks return "no table" and change nothing.
+
+### Writing a puzzle: one table per map
+
+Each rift workstream writes `src/overlay009/dw_puzzle_<map>.c` (tables only) defining
+one `const DwPuzzleTable gDwPuzzle<Map>Table`, and adds one extern + one line to the
+registry in `dw_puzzle.c` (`sPuzzleTables[]`). Example skeleton (Ravaged Path sigils):
+
+    static const DwPuzzleTile sBridgeTiles[] = { { 11, 3, 20, 0, 0 }, { 11, 3, 21, 0, 0 } };
+    static const DwPuzzleGroup sGroups[] = {
+        { sBridgeTiles, 2, 3, 0, 0, DW_PUZZLE_TILE_SOLID, DW_PUZZLE_TILE_BLOCKED, 0, 0 },
+        /* tiles, count, ghost-prop group (tw_arc id), fadeOut, fadeInLead, on, off, initial, pad */
+    };
+    static const DwPuzzleSigil sSigils[] = {
+        { 12, 1, 14, DW_PUZZLE_SIGIL_TOGGLE, 0, 0, 0 },
+        /* x, y, z, kind, targetGroup, setValue, pad */
+    };
+    static const DwPuzzleCheckpoint sCheckpoints[] = { { 20, 1, 12, -1 } };
+    const DwPuzzleTable gDwPuzzleRavagedPathTable = {
+        MAP_HEADER_DW_RAVAGED_PATH, 14, 14, 2, VAR_MAP_LOCAL_3,
+        1, 1, 0, 0, 1, 0, 0, 0, sGroups, sSigils, NULL, NULL, sCheckpoints, NULL,
+    };
+    /* mapHeader, min/max VAR_ARC2_PROGRESS (0/0 = any), fallScriptId,
+       fallVar, group/sigil/rune/current/checkpoint/tile counts, pad, tables */
+
+Coordinates are DW world tiles (x, y, z) as the ov9 step hook sees them: floor y = 1,
+wall y >= 2 at a fixed x, ceiling y = 10. Surfaces use the ov9 numbering
+(FLOOR 0, WEST_WALL 1, EAST_WALL 2, CEILING 3); directions are FACE_* as pressed
+on the surface the player stands on.
+
+### Modules
+
+- **Tile state.** `tiles[]` are explicit overrides (SOLID / VOID / BLOCKED). The walk
+  check consults them on every surface, floor included: BLOCKED is impassable,
+  SOLID is walkable even where the stock grid says blocked, VOID is walkable in
+  the collision check (so the player can step onto it) and the step/frame hook
+  then starts the fall. Explicit overrides win over groups; among groups the
+  later group in the table wins.
+- **Groups.** A group = tiles + one tw_arc ghost-prop group, on/off. Walkability
+  follows the honeycomb rule: turning off starts the props fading at once but
+  the tiles stay solid for `fadeOutFrames` (default 33); turning on shows the
+  props at once but the tiles hold only after `fadeInLeadFrames` (default 3).
+  The glue in ov9 applies the show/hide the engine requests each frame, so a
+  group is never drawn-but-not-solid or solid-but-not-drawn. A group with
+  ghostPropGroup = DW_PUZZLE_GHOST_GROUP_NONE switches at once.
+- **Sigils.** TOGGLE flips the target group; SET sets it to `setValue`;
+  MOMENTARY holds the group on while any momentary sigil for it is stood on
+  (a holder count, so two momentary sigils for one group behave); RESET
+  restores the puzzle to the last checkpoint snapshot without moving the
+  player. Every sigil activation plays a sound (SEQ_SE_PL_SYUWA) and starts a
+  flash (`gDwPuzzleDebug.flashFrames`). Sigils fire once per step onto the
+  tile; momentary sigils release on stepping off.
+- **Gravity runes.** A rune tile changes surface in place. The engine returns
+  the rune action and the ov9 glue builds a `DistWorldFloatingPlatformJumpPointTemplate`
+  from it (target tile, target surface, facing, rot, steps, optional camera
+  transition) and starts `CreateJumpOnFloatingPlatformTask` -- the exact
+  jump-point surface-change path, with its camera and rotation. The target
+  tile must lie in a tw_arc platform of the target surface (the glue resolves
+  the platform index; FLOOR targets use index -1); otherwise the rune does
+  not fire.
+- **Rift currents.** A current tile has a FACE_* drift direction. Stepping on
+  one starts a slide: input is locked (player movement paused) and the player
+  moves one tile per DW_PUZZLE_SLIDE_FRAMES_PER_TILE (6) field frames until
+  blocked (BLOCKED tile, actor block, edge of the surface) or off-current.
+  Landing on a current with a different direction turns the slide; landing
+  on a sigil / rune / checkpoint ends the slide there and that tile's logic
+  runs. Arrow visuals are the rift's tw_arc ghost props (`arrowGhostGroup`).
+- **Checkpoints and reset.** Stepping on a checkpoint tile snapshots the
+  puzzle (group on/off + sigil states; engine-b actors poll
+  `gDwPuzzleDebug.resetGeneration` and restore their own snapshot when it
+  changes) and makes it the fall target. Checkpoint 0 should be the map entry.
+  A fall restores the player and puzzle state to the last checkpoint without
+  losing the run: the step hook marks the fall, the map's existing fall script
+  runs its warp, and on the first frame after the warp the engine restores
+  the snapshot and respawns the player at the checkpoint. Puzzle state is
+  RAM-only; persistent once-only flags (Lost Tower) are never touched, so
+  they keep working. A fall the step hook never sees (a coord-event lip not
+  marked VOID in the table) still warps, but the puzzle resets to its initial
+  state on the fresh load -- mark every fall lip VOID in the table.
+  A fresh entry (no fall pending) also resets the puzzle to its initial state.
+- **Debug export.** `gDwPuzzleDebug` (in the xMAP): map, active, player tile,
+  surface, tile state, group solid/display bits, sigil bits, checkpoint,
+  fall count, slide state, last event + frame, flash frames, reset
+  generation, and engine-b's stone positions / shadow phase / echo position
+  (engine-b writes those fields). The harness reads it; it costs a RAM struct.
+- **Engine-b hooks.** `DwPuzzle_SetActorBlock(i, x, y, z, present)`: a stone /
+  actor on a tile makes it BLOCKED, and a stone on a current tile plugs the
+  current (slides stop before it). `DwPuzzle_ClearActorBlocks()` clears all.
+  `DwPuzzle_DirDelta(surface, dir, &dx, &dy, &dz)` is the shared
+  FACE_*-to-step table.
+
+### Per-map glue a rift must add (in ov9_02249960.c, hook calls only)
+
+- Step hook: call `DwPuzzle_HandleStep` first; on `fallRequested` start the
+  table's `fallScriptId`; on `runeRequested` build the jump template.
+- Frame hook (`Arc2Dw_HandleFrame`): call `DwPuzzle_HandleFrame`; apply
+  `ghostShowMask` / `ghostHideMask` with Hide/ShowGhostPropGroup; on
+  `slideStep` move the player one tile; on `respawnRequested` move the
+  player to the checkpoint.
+- Collision: `DistWorld_CheckCollisionOnCurrentFloatingPlatform` and
+  `DistWorld_DynamicMapFeaturesCheckCollision` (floor path) consult
+  `DwPuzzle_QueryTile` -- a map with no table returns DEFAULT and the stock
+  grid decides.
+- Frame-detected falls need the init-table line and the fall script clearing
+  it, as in `DwPuzzleTable.fallVar` above (the Eterna honeycomb pattern).
+
+### Test map (debug only)
+
+`src/overlay009/dw_puzzle_test.c` holds a puzzle table for Ravaged Path that
+exercises every module (sigil + group bridge, rune, current, checkpoint,
+VOID fall). It is returned only while test mode is on (`gDwPuzzleTestMode`,
+set by the harness writing that RAM word, or `DwPuzzle_SetTestMode`). With
+test mode off, Ravaged Path has no table and plays exactly as today.
