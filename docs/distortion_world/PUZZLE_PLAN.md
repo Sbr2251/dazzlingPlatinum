@@ -23,26 +23,37 @@ groups that fade in and out, step and frame hooks per map (`src/overlay009/ov9_0
 fall/respawn path, and DW objects. Not yet possible: changing walkability at runtime, forced movement, objects that
 move on a surface, and puzzle state that survives a fall.
 
-## 2. The curve
+## 2. The curve (revised 2026-10-23: eight totem rifts, not five)
 
-Each rift adds **one** new mechanic, taught safely at the start of the map. It then mixes that mechanic with the
-earlier ones before the totem. The totem fight stays behind the puzzle.
+Arc 3 still has three totem rifts after the Lost Tower: Aggron, Mamoswine and Kingdra, at Gyms 6-8. The curve runs over
+all eight, so Arc 2 stops at 6/10 and Arc 3 climbs to 10. Each rift adds **one** new mechanic, taught safely at the
+start of the map, then mixes it with **at most one or two** earlier mechanics before the totem. The totem fight stays
+behind the puzzle.
 
-| # | Rift | New mechanic | Combined with | Target difficulty (1-10) | Optimal solution | Fail cost |
+| # | Rift (story point) | New mechanic | Combined with | Difficulty (1-10) | Optimal solution | Fail cost |
 |---|---|---|---|---|---|---|
-| 0 | Arc 1 seams | (tutorial, unchanged) | - | 1 | ~15 steps | none |
-| 1 | Ravaged Path | **Rift sigils**: stepping on a sigil toggles a group of stone bridges (ghost props + live walkability) | crumbling scars (one-use tiles) | 3 | 25-40 steps, order matters | fall → wall resets |
-| 2 | Eterna Forest | **Gravity runes**: a rune tile flips you between surfaces (wall ↔ ceiling, ceiling ↔ floor) on the spot, not only at edges | honeycomb timing, sigils | 4-5 | 40-60 | fall → back to the last rune checkpoint |
-| 3 | Route 214 | **Rift currents**: drift tiles slide you until you hit a block, ice-style, on any surface. Arrows show the drift | sigils (toggling blocks changes where a slide stops), hops | 6 | 50-70, a slide maze | fall → reset the strip |
-| 4 | Route 213 | **Rift stones**: push a stone along a surface. Pushed off an edge it falls to the surface below and lands as a stepping stone there; it can also plug a current | currents, gravity runes | 7-8 | 70-100, two surfaces | soft-lock impossible: a reset sigil returns the stones |
-| 5 | Lost Tower | **The shadow**: Giratina's shadow patrols set lanes on a fixed beat; caught = back to checkpoint. **Echo self**: a mirrored ghost of you walks the opposite wall and presses its own sigils | sigils, runes, currents, stones (one of each) | 9 | 100+, multi-stage | caught → checkpoint |
+| 0 | Arc 1 seams (prologue) | (tutorial, unchanged) | - | 1 | ~15 steps | none |
+| 1 | Ravaged Path, Hitmonlee (after Gym 1) | **Rift sigils**: stepping on a sigil toggles a group of stone bridges (ghost props + live walkability) | crumbling scars (one-use tiles) | 2 | 15-25 steps, one ordering idea | fall → wall resets |
+| 2 | Eterna Forest, Vespiquen (Gym 1-2) | **Gravity runes**: a rune tile flips you between surfaces in place (wall ↔ ceiling, ceiling ↔ floor) | honeycomb timing; one sigil at most | 3 | 25-40 | fall → last rune checkpoint |
+| 3 | Route 214, Skarmory (after Gym 3) | **Rift currents**: drift tiles slide you until blocked, ice-style; arrows show the drift | sigils (a toggled block changes where a slide stops) | 4 | 35-50, a small slide maze | fall → reset the strip |
+| 4 | Route 213, Lapras (Gym 4) | **Rift stones**: push a stone along a surface; pushed off an edge it falls to the surface below as a stepping stone; it can plug a current | currents (runes only if needed for the two surfaces) | 5 | 45-65, two surfaces | a reset sigil returns the stones; no soft-lock |
+| 5 | Lost Tower, Spiritomb (Gym 5, two visits) | **Giratina's shadow** (one slow, readable patrol; caught = checkpoint) and **totem-echo pads** (call a calmed totem's power; the 4 ghost acts become player choices) | sigils and runes, lightly | 6 (visit 1 is a ~3 warm-up) | visit 1 ~20, visit 2 55-80 | caught → checkpoint |
+| 6 | Arc 3: Aggron (Gym 6) | **Echo self**: a mirrored ghost of you on a paired surface that presses its own sigils | stones or currents | 7 | 80-100 | checkpoint |
+| 7 | Arc 3: Mamoswine (Gym 7) | (Arc 3 design: e.g. a faster shadow pattern with currents, or icy currents that don't stop on sigils) | shadow, currents, runes | 8-9 | 100-120 | checkpoint |
+| 8 | Arc 3: Kingdra (Gym 8) | finale: every mechanic in play | all | 10 | 120+ multi-stage | checkpoint |
 
-Totem echoes. In the Lost Tower the scripted ghost acts become **player-used**: echo pads let you call a calmed totem's
-power (Hitmonlee breaks a crystal, Vespiquen lights hidden tiles, Lapras lifts sunk stones, Skarmory carries you over
-a gap). The story beats stay; the choice of pad and order becomes part of the puzzle.
+Scope of this build: rifts 1-5, plus engine support for all mechanics including the echo self, so the Arc 3 rifts can
+use them when Arc 3 is built. Rifts 6-8 are design targets only for now.
 
-Difficulty bar, per rift: minimum step count above, at least one non-obvious move (a wrong-looking step that is
-right), no dead ends without a visible reset, and a hint from Cyrus (or Ruth's voice in the Resonator) after two falls.
+Totem echoes. In the Lost Tower the scripted ghost acts become **player-used**: on echo pads you call a calmed totem's
+power (Hitmonlee breaks a crystal, Vespiquen lights hidden tiles, Lapras lifts sunk stones, Skarmory carries you over a
+gap). The story beats stay; which pad and in what order is the puzzle. Keep it readable, as a recap of Arc 2, not a
+trap.
+
+Difficulty bar per rift: hit the step range above, and include at least one non-obvious move from rift 3 on (a
+wrong-looking step that is right). No dead ends without a visible reset. Cyrus (or Ruth's voice in the Resonator) gives
+a hint after two falls. Lower rifts must stay easy: if the solver's optimal length or branching is above the row's
+range, simplify.
 
 ## 3. Engine work (new code in `src/overlay009/`, data-driven)
 
@@ -78,7 +89,7 @@ with `tools/distortion_world/*.json`; the builder or a checker enforces it.
 | `rift-ef` | Eterna Forest puzzle (#2) | engine-a |
 | `rift-214` | Route 214 puzzle (#3) | engine-a |
 | `rift-213` | Route 213 puzzle (#4) | engine-a, engine-b (stones) |
-| `rift-lt` | Lost Tower puzzle (#5), totem echoes | engine-a, engine-b |
+| `rift-lt` | Lost Tower puzzle (#5): shadow + totem-echo pads | engine-a, engine-b |
 | `qa` | Final chained playthrough of all 6 rifts from the owner's saves, difficulty review | all |
 
 The rift workstreams design first (layout on the existing geometry, a solver model, solvability and no soft-locks,
