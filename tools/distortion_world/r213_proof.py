@@ -606,21 +606,28 @@ def cmd_reentry():
                "restored hint flags A/B not set after re-entry")
         # The hint must not re-fire: two more falls, fallCount counts
         # from 0 in this session, no textbox, flags stay set.
+        # The textbox check must come BEFORE pump_text(): pump_text
+        # dismisses any textbox, so checking after it would pass
+        # vacuously even if the hint had fired.
         approach_to_ceiling(sess)
         drive(sess, faces[0:11])
         sess.step(FACE_UP)
         settle_after_fall(sess)
+        hint_after_fall1 = sess.textbox_up()
         dbg = read_debug(sess)
         expect(dbg["fallCount"] == 1, f"re-entry fall 1: count {dbg['fallCount']}, want 1")
+        expect(not hint_after_fall1,
+               "hint fired on re-entry fall 1 (flag B must skip it)")
         drive(sess, faces[8:11])
         drive(sess, faces[11:25])
         sess.step(FACE_UP, advance_text=False)
         settle_after_fall(sess)
-        sess.pump_text()
+        hint_after_fall2 = sess.textbox_up()
         dbg = read_debug(sess)
         expect(dbg["fallCount"] == 2, f"re-entry fall 2: count {dbg['fallCount']}, want 2")
-        expect(not sess.textbox_up(),
+        expect(not hint_after_fall2,
                "hint re-fired after re-entry (flag B must skip it)")
+        sess.pump_text()
         expect(flag_correct(sess, 0x0A18) and flag_correct(sess, 0x0A19),
                "hint flags A/B cleared by the re-entry falls")
         save("reentry.json", {"dirty": dirty, "fresh_entry": fresh_entry,
@@ -628,7 +635,8 @@ def cmd_reentry():
                                   "stones": stones_summary(read_debug(sess)),
                                   "checkpoint": dbg["checkpointIndex"],
                                   "fallCount": dbg["fallCount"],
-                                  "hint_refired": False}})
+                                  "hint_refired": bool(hint_after_fall1
+                                                       or hint_after_fall2)}})
         print("reentry PASS: fresh init after a dirty visit, flags persist, "
               "hint does not re-fire")
     finally:
