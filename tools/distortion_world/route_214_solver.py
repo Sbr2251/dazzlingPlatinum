@@ -18,20 +18,16 @@ Fade timing (honeycomb rule). The engine does NOT flip a group's tile
 state at once: turning a group off leaves its tiles solid for
 fadeOutFrames (default 33), and turning one on shows its props at once
 but holds its tiles only after fadeInLeadFrames (default 3). The solver
-models this conservatively: a sigil toggle flips the group's *logical*
-state and marks a fade pending; the *effective* tile state changes only
-on a WAIT transition ("wait until the fades settle", cost 0 tile steps,
-offered only while a fade is pending). Walking/sliding steps do not
-advance fades in this model, although in the real engine they take
-frames too — so the model is stricter than the engine: any path the
-model finds works in the engine (waiting is always a legal action),
-and a slide that succeeds in the model (after a WAIT) also succeeds in
-the engine. Toggle-on is modelled the same way (tile stays open until
-WAIT), which can only make the model miss a slide through a barely-
-closing gap; such a slide lands in the same chamber the model reaches
-after a WAIT, so it cannot create a soft-lock the model misses.
-Checkpoint snapshots store logical group states, and a fall settles
-pending fades (the respawn warp takes longer than any fade).
+models this strictly: a sigil toggle flips the group's *logical* state
+and marks a fade pending, and while a fade is pending the only
+transitions are WAIT (settle the fade) and FALL -- movement is
+forbidden. That makes the model sound in both directions: it cannot
+slide through a gap that is still closing (the engine blocks it after
+3 frames), nor through a gap that is still opening (the engine holds
+it blocked for 33 frames). WAIT is always a legal action, so any path
+the model finds works in the engine. Checkpoint snapshots store
+logical group states, and a fall settles pending fades (the respawn
+warp takes longer than any fade).
 
 Other rules:
 - A step onto a current tile starts a slide in that tile's FACE_* direction.
@@ -239,7 +235,19 @@ def is_goal(state):
     return state[1] >= 45
 
 def transitions(state, mode):
-    """All transitions from a state: (new_state, tile_cost, label)."""
+    """All transitions from a state: (new_state, tile_cost, label).
+
+    While a fade is pending, movement is forbidden: only WAIT (settle
+    the fade) and FALL are offered. Allowing movement while pending
+    would be unsound in the toggle-on direction — the real engine
+    blocks the gap after the 3-frame fade-in lead, so a slide through
+    a barely-closing gap is impossible, while the model would have
+    let it through indefinitely.
+    """
+    if state[6] or state[7]:
+        w = wait(state)
+        assert w is not None
+        return [(w, 0, "W"), (fall(state), 0, "F")]
     out = []
     for d in "UDLR":
         try:

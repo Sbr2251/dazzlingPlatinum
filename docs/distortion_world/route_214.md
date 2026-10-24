@@ -254,7 +254,7 @@ letters are slide tiles, upper-case are player steps.
 | 21 | U | (47,44) C | W4 slide, stops at checkpoint |
 | 22 | U | (47,45) | step south: totem triggers (z >= 45) |
 
-- Solver stats: 2608 reachable states (tile-step Dijkstra, goal terminal,
+- Solver stats: 267 reachable states (tile-step Dijkstra, goal terminal,
   fade-pending states + fall transitions included — see sections 4/9);
   **every reachable non-goal state can still reach the goal** (reverse
   BFS from the goal over the same transitions, steps + waits + falls) —
@@ -265,11 +265,12 @@ letters are slide tiles, upper-case are player steps.
 (engine-a honeycomb rule): turning a group off leaves its tiles solid
 for `fadeOutFrames` (default 33 field frames, ~1 s) while its props fade;
 turning one on shows its props at once but blocks only after
-`fadeInLeadFrames` (default 3). The solver models this with a
-fade-pending state and an explicit WAIT ("wait until the fades
-settle"); walking/sliding steps do not advance fades in the model,
-although in the real engine they take frames too, so the model is
-stricter than the engine and any path it finds works in the engine.
+`fadeInLeadFrames` (default 3). The solver models this strictly: while
+a fade is pending, the only transitions are WAIT (settle the fade) and
+FALL — movement is forbidden. That makes the model sound in both
+directions: it cannot slide through a gap that is still closing (the
+engine blocks it after 3 frames), nor through a gap that is still
+opening (the engine holds it blocked for 33 frames).
 In practice the player waits ~1 s after each sigil press (or walks
 slowly to the gap); pressing a sigil and sliding through its gap in
 under 33 frames would find the gap still closed, which is a wasted
@@ -330,10 +331,11 @@ kinds B4F already uses), drawn where the attr grid says BLOCKED.
 carries B4F's 47 ghost triggers with zero props ("their triggers stay
 and toggle nothing"). Phase 2 must set `ghost_triggers` to `[]` in the
 Route 214 spec, so none of the inherited triggers can touch groups 1-5,
-and must set `ghost_default_visible` to `0x3E` (groups 1-5 visible at
-map load). The inherited `0xF55` mask leaves groups 1, 3, 4 and 5
-hidden — without the new mask the walls, the B block, the arrows and
-the sigils would start invisible.
+and must set `ghost_default_visible` to `62` in the JSON (decimal for
+`0x3E`; JSON has no hex literals) so groups 1-5 are visible at
+map load. The inherited `0xF55` mask leaves groups 1, 3 and 5
+hidden — group 4 is in fact visible under `0xF55`, so the new mask is
+needed for groups 1, 3 and 5, and harmless for 2 and 4.
 
 ### Collision vs drawn (fix2-lost rule)
 
@@ -433,8 +435,8 @@ The sigil moves the block.
    section 1.3 (`#` = BLOCKED, `.` = walkable; group tiles are BLOCKED
    in the stock grid and opened by the engine), the 39 ghost props
    (groups 1-5), `ghost_triggers` set to `[]` (clearing B4F's
-   inherited 47), `ghost_default_visible` set to `0x3E` (groups 1-5
-   visible at load), no jump/camera changes.
+   inherited 47), `ghost_default_visible` set to `62` (decimal for
+   `0x3E`, groups 1-5 visible at load), no jump/camera changes.
    Rebuild with `twarc.py build` and `twarc.py check`.
 3. `build_rift_b_maps.py`: no change (the floor is unchanged). If the
    ceiling attr edit needs a land-data change, do it there and keep
