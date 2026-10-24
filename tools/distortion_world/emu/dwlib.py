@@ -25,7 +25,12 @@ except engine-a's documented gDwPuzzleTestMode gate):
 
 After boot, the requested progress is read back from RAM through
 SaveData's page table and asserted, so a wrong save offset fails loudly
-instead of silently playing the wrong state.
+instead of silently playing the wrong state. Var/flag reads resolve
+the live SaveData pointer and page table from RAM on EVERY call, never
+from a cached pointer: the game's SaveData pointer can move (a cached
+pointer reads a stale save copy -- rift-rp saw VAR_ARC2_PROGRESS read
+2 when the game state was 14), and a stale read poisons every proof
+built on it.
 
 Save-file VarsFlags. In the .sav file the VarsFlags page sits at
 partition_base + 3500 (the SaveTable pageInfo[4].location for this
@@ -677,8 +682,6 @@ class DwSession:
         self.emu = None
         self.rift = None
         self.verbose = verbose
-        self._pageinfo = None
-        self._save_ptr_val = None
         self._debug_addr = None
 
     # -- lifecycle ------------------------------------------------------
@@ -724,6 +727,17 @@ class DwSession:
         if not self.emu.boot(timeout=boot_timeout):
             raise RuntimeError(f"boot failed for overworld rift {rift.key}")
         self.emu.run(60)
+        # Self-check: the progress var read back from live RAM must
+        # equal the crafted pre-entry value. A stale save-pointer
+        # read (or a wrong VarsFlags offset) fails here, before any
+        # step is taken -- not at the end, after a replay has
+        # "proved" the wrong state. No script runs on boot itself,
+        # so the read-back must equal the crafted value exactly.
+        got = self.var(ow.var)
+        if got != ow.pre_progress:
+            raise RuntimeError(
+                f"post-boot read-back: {ow.var} = {got}, want crafted "
+                f"{ow.pre_progress} (live VarsFlags read is stale or wrong)")
         # walk_in walks from the approach tile to the trigger (Ravaged
         # Path's coord event; Lost Tower's walk to the rift). 'talk' /
         # 'bg' rifts then press A on the object / bg event. A wild
@@ -786,6 +800,9 @@ class DwSession:
             raise RuntimeError(f"entry tile moved to {self.player_tile()}")
         if test_mode:
             self.set_test_mode(True)
+        # Read-back self-check: the entry var must equal the crafted
+        # value (a stale VarsFlags read fails here, before any check
+        # trusts it).
         got = self.var(rift.var)
         if got != rift.progress:
             raise RuntimeError(f"entry var {rift.var} = {got}, want {rift.progress}")
@@ -815,6 +832,9 @@ class DwSession:
         self.wait_settled(timeout=300)
         if test_mode:
             self.set_test_mode(True)
+        # Read-back self-check: the entry var must equal the crafted
+        # value (a stale VarsFlags read fails here, before any check
+        # trusts it).
         got = self.var(rift.var)
         if got != rift.progress:
             raise RuntimeError(f"entry var {rift.var} = {got}, want {rift.progress}")
@@ -837,29 +857,29 @@ class DwSession:
         return struct.unpack("<I", self.emu.read(addr, 4))[0]
 
     def _save_ptr(self):
-        if self._save_ptr_val is None:
-            addr = self.syms["sSaveDataPtr"][0]
-            self._save_ptr_val = self._read32(addr)
-            if not _in_ram(self._save_ptr_val):
-                raise RuntimeError(f"sSaveDataPtr {self._save_ptr_val:#x} outside RAM")
-        return self._save_ptr_val
+        # Resolved on EVERY call, never cached: the game's SaveData
+        # pointer can move, and a cached pointer reads a stale save
+        # copy (rift-rp: VAR_ARC2_PROGRESS read 2, game state 14).
+        addr = self.syms["sSaveDataPtr"][0]
+        ptr = self._read32(addr)
+        if not _in_ram(ptr):
+            raise RuntimeError(f"sSaveDataPtr {ptr:#x} outside RAM")
+        return ptr
 
     def _pageinfo_addr(self):
         """SaveData.pageInfo: validated candidate, else a full RAM scan
         for the page-table signature (pageIDs 0..7, sane sizes, monotone
-        locations). The scan is the fallback, not the path."""
-        if self._pageinfo is not None:
-            return self._pageinfo
+        locations). The scan is the fallback, not the path. Resolved
+        on every call, like _save_ptr: the page table moves with the
+        SaveData pointer, so caching it is the same staleness bug."""
         sd = self._save_ptr()
         cand = sd + 20 + 0x20000 + 4 + 8 + 4
         if self._pageinfo_valid(cand):
-            self._pageinfo = cand
             return cand
         ram = self.emu.ram()
         for o in range(0, len(ram) - 16 * 8, 4):
             if self._pageinfo_valid_ram(ram, o):
-                self._pageinfo = RAM_BASE + o
-                return self._pageinfo
+                return RAM_BASE + o
         raise RuntimeError("SaveData.pageInfo not found in RAM")
 
     def _pageinfo_valid(self, addr):
