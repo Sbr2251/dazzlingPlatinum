@@ -50,7 +50,25 @@ B4F_PLAIN = [
     (16, 43, 17, 46),   # the hops from (15,43..46) east onto it
 ]
 
-# Lost Tower (Arc 1 seams floor) edits: the same lips stay walkable for the fall script (copied from 667/668).
+# ROUTE_214_OPEN (owner playtest: drawn-vs-collision fix). The stock B4F attr blocks 69 tiles of the entry
+# island box that are drawn as plain pink cobble (the lead: "trees can't cover that many"). Derived from the
+# map model (nsbmd, 213's rule): a tile is drawn floor iff an upward-facing (normal y>0.7) face at h in
+# [-0.6, 1.2] of a non-water material covers its centre. These 74 tiles are drawn cobble + attr-blocked +
+# no tree trunk (no tree face-chain from ground h<=0.3 to canopy h>=4.0) + not Cyrus/frame-object/frame-coord/
+# jump. Every one is plain 0x8000 (no behaviour bits), so clearing is safe. Kept blocked: the tree trunks
+# (105 drawn+blocked tiles with a trunk face-chain), the void edges / hop gaps / pool / walkways (no floor
+# face), Cyrus (16,12), the frame object (47,23), the frame coord (44,22)-(44,23), and the jumps.
+# All 74 are on the entry island (x 9-24); none is near the corridor hops, the frame or the wall, so nothing
+# here lets the player skip the frame, the hops or the wall climb. Overlay: /tmp/dwp/rift-214/floor_overlay.png.
+ROUTE_214_OPEN = [
+    (9, 18, 11, 23),    # island west clearing (under the western canopy)
+    (13, 25, 15, 30),   # island south-west clearing
+    (18, 10, 21, 12),   # island north clearing + the entry row east to (21,12); (18-20,12) already open (no-op)
+    (18, 13, 21, 13),   # the row south of the spawn, under the canopy (trunks at (16-17,13) stay blocked)
+    (18, 16, 21, 19),   # island middle clearing
+    (22, 20, 24, 22),   # island south-east clearing, the visible path to the corridor (25,18) -> hops
+]
+
 LOST_TOWER_OPEN = [
     # set-tower (S7): the second visit goes deeper than the shadow wall. Lapras lifts the stones (23..32, 22): B1F's
     # own hop chain, ending on (32,22) in the east block; Skarmory carries the player from there to Cyrus's island
@@ -75,7 +93,7 @@ LOST_TOWER_PLAIN = [
 
 MAPS = {
     # name: (matrix id, matrix name, {dst: (src, x_base, z_base)}, open, block, plain, matrix rows)
-    "route_214": (293, "m_dwa2_3", {673: (612, 0, 0), 674: (613, 32, 0), 672: (614, 0, 32)}, B4F_OPEN, B4F_BLOCK,
+    "route_214": (293, "m_dwa2_3", {673: (612, 0, 0), 674: (613, 32, 0), 672: (614, 0, 32)}, B4F_OPEN + ROUTE_214_OPEN, B4F_BLOCK,
                   B4F_PLAIN, [["MAP_673", "MAP_674"], ["MAP_672", "MAP_615"]]),
     # route_213 (matrix 294, map_data_675/676) is built by build_dw_route_213.py (set-lake: the Drowned Lake
     # dressing on top of this same B4F base, B4F_OPEN / B4F_BLOCK / B4F_PLAIN included; it shares 672)
