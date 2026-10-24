@@ -1,41 +1,67 @@
 #!/usr/bin/env python3
 """Solver model for DW Route 213, the Drowned Lake (rift #4, difficulty 5).
 
-Standalone BFS/Dijkstra over the puzzle model, with the engine-a
-semantics from ``include/overlay009/dw_puzzle.h`` (commit 623ccce7ee
-on dw/engine-a):
+Standalone Dijkstra over the puzzle model, with the engine-a semantics
+from ``include/overlay009/dw_puzzle.h`` (commit 623ccce7ee on
+dw/engine-a) and the engine-b stone semantics from
+``docs/distortion_world/actors_design.md`` (branch dw/engine-b):
 
 * tile overrides: SOLID / VOID (step = fall) / BLOCKED, consulted by
   the walk check on every surface, floor included;
 * currents: stepping on a current tile starts a slide in its FACE_*
-  dir until blocked, stopped by an actor block / a stone, or
-  off-current; landing on a sigil / rune / checkpoint ends the slide;
+  dir until blocked, stopped by a RESTING stone, or off-current;
+  landing on a sigil / rune / checkpoint ends the slide. A slide
+  never pushes a stone;
 * sigils: RESET restores the puzzle to the last checkpoint snapshot
   (player does not move);
 * checkpoints: stepping on one snapshots the puzzle (here, the stone
-  positions) and makes it the fall target. A fall restores the player
+  states) and makes it the fall target. A fall restores the player
   and the stones to the last checkpoint snapshot. No checkpoint is a
-  rune landing: every checkpoint is reached by walking (engine-a's
-  rune starts a jump task and does not promise a step-hook call at
-  its destination), so the solver does not check for a checkpoint
-  on a rune landing tile;
+  rune landing or a jump landing: engine-a's rune starts a jump task
+  and does not promise a step-hook call at its destination, so the
+  solver never checks for a checkpoint on a rune landing tile;
 * runes: stepping on a rune tile changes surface in place to its target;
-* stones (engine-b, via ``DwPuzzle_SetActorBlock``): a stone on a
-  tile makes that tile BLOCKED for walking. On the ceiling a stone is
-  pushable. Pushed into a VOID gap tile it falls to the floor at that
-  (x, z) and stays there as an actor block: it stops a slide that
-  would enter its tile (it plugs the current) and the player walks
-  *around* it, never onto it. The causeway's outer rim blocks stones
-  at the slab edge: a stone pushed at an edge stops, so a stone can
-  only leave the ceiling through a gap. A stone pushed into a
-  BLOCKED tile is blocked (water tiles are walls for stones).
+* stones (engine-b, via ``DwPuzzle_SetActorTile``). Max 4 per map; this
+  puzzle uses 4. A stone is RESTING, FALLING, or LANDED:
+  - RESTING: actor tile BLOCKED, pushable. A slide stops before it.
+    Pushing it onto a current tile plugs the current (the BLOCKED
+    actor tile stops the slide). A push fails if the target is
+    another stone, a protected tile, a landing tile, BLOCKED, or VOID
+    that is not a designated edge. A push that changes surface never
+    happens; a non-unit (jump/diagonal) delta never pushes.
+  - FALLING: occupies no tile, lasts 12 frames (modelled as instant:
+    a push that targets a designated edge lands the stone at once).
+    A fall is blocked by a landing clash (another stone LANDED at the
+    landing tile, or FALLING toward it).
+  - LANDED: actor tile SOLID. The stone is walkable terrain, not an
+    obstacle, and not pushable. Landing tiles are reserved per stone:
+    they are never current tiles, never sigils, pads, checkpoints or
+    rune tiles, and have no explicit engine-a override. Their base
+    kind is VOID (a gap the stone plugs) or WALKABLE. A stone can
+    only fall at a designated edge with a designated landing.
+  - A RESTING stone can never occupy a checkpoint, pad, sigil,
+    landing, or reset-sigil tile (push-block rules), so the reset
+    path is never stone-blocked.
+
+Surfaces: 'C' = ceiling (y = 10), 'G' = GROUND (y = 1, base map
+terrain). Route 213's lakebed is base terrain, so engine-b requires
+GROUND, not FLOOR (a floating platform). For GROUND there is no
+platform grid and a DEFAULT ground tile reads BLOCKED (conservative
+cross-surface rule), so the table gives every ground actor tile an
+explicit state: the three landing tiles are VOID base kind in the
+map data (Phase 2 builder work — today they are stock BLOCKED
+0x8000 in map_data_615, which engine-b forbids for a landing tile
+that must be VOID-or-WALKABLE with no explicit override), the
+(48, 40) hazard is an explicit VOID override, and all other ground
+detour tiles are SOLID overrides.
 
 Coordinates are DW world tiles (x, z) plus a surface: 'C' = ceiling
-(y = 10), 'F' = floor (y = 1). The puzzle is counted from the ceiling
-entry checkpoint (49, 27) to the totem trigger (any ceiling tile with
-z >= 45). One tile move (walk, push, or slide step) = 1 step; a rune
-surface change costs 0 steps. The rift entry-to-wall approach is plain
-travel, not puzzle, and is not counted.
+(y = 10), 'G' = ground (y = 1, base map terrain). The puzzle is counted from the ceiling
+entry (the jump landing at (49, 27), checkpoint at (49, 28)) to the
+totem trigger (any ceiling tile with z >= 45). One tile move (walk,
+push, or slide step) = 1 step; a rune surface change costs 0 steps.
+The rift entry-to-wall approach is plain travel, not puzzle, and is
+not counted.
 
 Run: ``python3 tools/distortion_world/route_213_solver.py``
 Prints the optimal solution, difficulty stats, fall scenarios, and the
@@ -59,67 +85,59 @@ for _r, _line in enumerate(_CEIL_ROWS):
             CEIL_BASE.add((49 - _r, 25 + _c))
 
 # Ceiling VOID gaps (explicit overrides): the three drop chutes.
+# Each is a designated edge for one ceiling stone, with the landing
+# on the floor below at the same (x, z).
 CEIL_VOID = {(44, 34), (49, 40), (47, 42)}
 # Ceiling alcove tiles (SOLID overrides, drawn as rune / sigil circles):
 # rune-down tiles and reset-sigil tiles. RESETS are engine sigils.
 RUNES_C = {  # (x, z) -> (target x, target z, target surface)
-    (45, 33): (47, 33, "F"),  # stage 1: down to the floor detour
-    (48, 39): (49, 34, "F"),  # stage 2: down to the floor detour
-    (48, 43): (43, 43, "F"),  # stage 3: down to the floor detour
+    (45, 33): (47, 33, "G"),  # stage 1: down to the floor detour
+    (48, 39): (49, 34, "G"),  # stage 2: down to the floor detour
+    (48, 43): (43, 43, "G"),  # stage 3: down to the floor detour
 }
 RESETS = {(45, 29), (48, 37)}  # stage 1 / 2 reset sigils (RESET kind)
-# Reset sigils sit BEFORE their stage's stone (reachable from the
-# pre-stage path only), so stepping on one can never undo a push
-# the player has already walked past: returning to one passes a
-# checkpoint, which snapshots the pushed stones first.
 CEIL_WALK = CEIL_BASE | set(RUNES_C) | RESETS
 
-# Floor detour tiles (SOLID overrides, drawn as sunken reef shelves).
-# No floor tile is ever a stone tile the player stands on: a dropped
-# stone is a BLOCKED actor, and the player walks around it.
-FLOOR_WALK = {
-    # stage 1: landing, snake to the current (the ONLY way on), rune-up
-    # west of the stop tile. (45,34)/(45,35) are deliberately NOT
-    # shelves: a shelf there would let the player walk around the
-    # current and skip stone 1.
-    (47, 33), (47, 32), (46, 32), (45, 32), (45, 33), (44, 33), (43, 33),
-    # stage 2: approach, current, stop tile, walk west twice to rune-up
-    (49, 34), (49, 35), (49, 36), (49, 37), (49, 38), (49, 39), (48, 39),
-    (47, 39),
-    # stage 3: approach, current, rune-up east of it
-    (43, 43), (44, 43), (45, 43), (46, 43), (47, 43), (48, 43),
+# Ground detour tiles (SOLID overrides, drawn as sunken reef shelves).
+# Landing tiles (44, 34), (49, 40), (47, 42) are NOT listed: they have
+# no explicit override (engine-b table rule), base kind VOID.
+GROUND_WALK = {
+    # stage 1: landing, walk to the landed stone, walk across it, rune-up
+    (47, 33), (46, 33), (45, 33), (44, 33), (43, 34),
+    # stage 2: approach, push the plug stone twice down the current
+    # column, walk around the plugged column, across the landed stone,
+    # rune-up
+    (49, 34), (49, 35), (49, 36), (48, 36),
+    (48, 37), (48, 38), (48, 39), (49, 38), (49, 39), (49, 41),
+    # stage 3: walk to the current, ride it onto the landed stone, rune-up
+    (43, 43), (44, 43), (45, 43), (46, 43), (47, 43), (48, 42),
 }
-# Floor tiles that are VOID until a dropped stone lands on them (as a
-# BLOCKED actor that plugs the current sliding into them).
-FLOOR_VOID = {(44, 34), (49, 40), (47, 42)}
+# Ground tiles that are VOID until a dropped stone lands on them (as a
+# SOLID actor tile). These are the landing tiles; no explicit override.
+# (48, 40) is an explicit VOID hazard at the end of the stage-2
+# current column (not a landing tile): without the plug, the slide
+# runs (48, 37) -> (48, 38) -> (48, 39) -> VOID (48, 40) and falls.
+GROUND_VOID = {(44, 34), (49, 40), (47, 42), (48, 40)}
 RUNES_F = {  # (x, z) -> (target x, target z, target surface)
-    (43, 33): (44, 35, "C"),  # stage 1: back to the ceiling past gap 1
-    (47, 39): (49, 41, "C"),  # stage 2: back to the ceiling past gap 2
-    (48, 43): (47, 43, "C"),  # stage 3: back to the ceiling past gap 3
+    (43, 34): (44, 35, "C"),  # stage 1: back to the ceiling past gap 1
+    (49, 41): (49, 41, "C"),  # stage 2: back to the ceiling past gap 2
+    (48, 42): (47, 43, "C"),  # stage 3: back to the ceiling past gap 3
 }
-# Floor currents: (x, z) -> (dx, dz). Each stage's current chain
-# ends at its stage's stone, which stops the slide. A chain of two
-# or three current tiles makes the slide a real move, not a 0-step
-# stop: stage 1 slides west then south, stage 2 slides south three
-# tiles, stage 3 slides east then north.
-CURRENTS = {(45, 33): (-1, 0), (44, 33): (0, 1),
-            (49, 37): (0, 1), (49, 38): (0, 1), (49, 39): (0, 1),
-            (46, 43): (1, 0), (47, 43): (0, -1)}
+# Ground currents: (x, z) -> (dx, dz).
+# Stage 2: the column (48, 37) -> (48, 38) -> (48, 39). The plug stone
+# is pushed down the column onto (48, 39); the slide stops at (48, 38).
+# Stage 3: (47, 43) slides north onto the landed stone at (47, 42).
+CURRENTS = {(48, 37): (0, 1), (48, 38): (0, 1), (48, 39): (0, 1),
+            (47, 43): (0, -1)}
 
-# Checkpoints, in order. Checkpoint 0 is the puzzle entry (the engine
-# rule is checkpoint 0 = map entry; the rift-entry checkpoint at
-# (20, 1, 12) on the floor is checkpoint 0 of the full map table and is
-# outside this puzzle model, which starts at the ceiling entry).
-# No checkpoint is a rune landing: every checkpoint below is reached
-# by walking (the normal step hook). Engine-a's rune starts a jump
-# task and does not promise a step-hook call at the destination, so
-# the design never relies on one. In particular there is no
-# checkpoint at (49, 41), the stage-2 rune-up landing.
+# Checkpoints, in order. Checkpoint 0 is the puzzle entry in the
+# solver's numbering (the engine rule is checkpoint 0 = map entry;
+# the rift-entry checkpoint at (20, 1, 12) on the ground is checkpoint
+# 0 of the full map table and is outside this puzzle model, which
+# starts at the ceiling entry). No checkpoint is a rune landing or a
+# jump landing.
 CHECKPOINTS = [
-    (49, 28, "C"),  # CP1: first walked ceiling tile past the jump
-                    # landing at (49, 27) (the stock wall->ceiling jump
-                    # does not promise a step-hook call, so the
-                    # checkpoint is one step south of the landing)
+    (49, 28, "C"),  # CP1: first walked ceiling tile past the jump landing
     (44, 30, "C"),  # CP2: before stone 1 is pushed
     (48, 36, "C"),  # CP3: before stone 2 is pushed; forced before
                     # reset 2 (48, 37), so a reset cannot undo stone 1
@@ -130,28 +148,52 @@ CP_INDEX = {(x, z, s): i for i, (x, z, s) in enumerate(CHECKPOINTS)}
 GOAL = (47, 45, "C")  # totem trigger: ceiling, z >= 45 (the island)
 START_PLAYER = (49, 27, "C")
 
-# Stones: (surface, x, z). A stone is an actor block wherever it is.
-SPAWN = (("C", 44, 31), ("C", 49, 37), ("C", 48, 42))
+# Stones, in engine-b form: (surface, x, z, state). RESTING = pushable
+# BLOCKED actor tile; LANDED = SOLID walkable terrain; FALLING is
+# modelled as instant (a push into a designated edge lands at once).
+# S1-S3 are the ceiling stones; S4 is the ground plug stone, which
+# spawns RESTING on the stage-2 current column at (48, 37) — it is the
+# current-path obstacle the player pushes down the column to (48, 39).
+SPAWN = (("C", 44, 31, "RESTING"), ("C", 49, 37, "RESTING"),
+         ("C", 48, 42, "RESTING"), ("G", 48, 37, "RESTING"))
+# Designated edges: (surface, x, z) -> (landing surface, x, z).
+# Each ceiling gap is an edge for the ceiling stone above it.
+EDGES = {("C", 44, 34): ("G", 44, 34), ("C", 49, 40): ("G", 49, 40),
+         ("C", 47, 42): ("G", 47, 42)}
+# Landing tiles, reserved per stone: no pushes onto them, no other
+# stone lands there. Each ceiling stone's landing is its own gap's.
+LANDINGS = {("G", 44, 34), ("G", 49, 40), ("G", 47, 42)}
+# Protected tiles (engine-b table: protectedTiles). Engine-b does
+# NOT auto-protect engine-a checkpoints / reset sigils, so the table
+# lists them: CP0 (20, 1, 12) ground, CP1 (49, 28) ceiling,
+# CP2 (44, 30) ceiling, CP3 (48, 36) ceiling, CP4 (49, 42) ceiling,
+# reset 1 (45, 29) ceiling, reset 2 (48, 37) ceiling. 7 of max 8.
+# A push whose target is a protected tile fails.
+PROTECTED = {("G", 20, 12), ("C", 49, 28), ("C", 44, 30),
+             ("C", 48, 36), ("C", 49, 42), ("C", 45, 29), ("C", 48, 37)}
 DIRS = {"N": (0, -1), "S": (0, 1), "W": (-1, 0), "E": (1, 0)}
 
 
-def tile_kind(surf, x, z, stones):
-    """Tile kind: WALK / VOID / BLOCKED / STONE_CEIL / STONE.
+def stone_at(surf, x, z, stones):
+    """(index, state) of the stone at (surf, x, z), or (None, None)."""
+    for i, st in enumerate(stones):
+        if st[0] == surf and st[1] == x and st[2] == z:
+            return i, st[3]
+    return None, None
 
-    STONE (a dropped stone on the floor, or any stone the player is
-    not pushing) is BLOCKED for walking. STONE_CEIL is a pushable
-    stone on the ceiling.
-    """
-    for st in stones:
-        if st == (surf, x, z):
-            return "STONE_CEIL" if surf == "C" else "STONE"
+
+def tile_kind(surf, x, z, stones):
+    """Tile kind: WALK / VOID / BLOCKED / STONE_RESTING / STONE_LANDED."""
+    idx, state = stone_at(surf, x, z, stones)
+    if idx is not None:
+        return "STONE_LANDED" if state == "LANDED" else "STONE_RESTING"
     if surf == "C":
         if (x, z) in CEIL_VOID:
             return "VOID"
         return "WALK" if (x, z) in CEIL_WALK else "BLOCKED"
-    if (x, z) in FLOOR_VOID:
+    if (x, z) in GROUND_VOID:
         return "VOID"
-    return "WALK" if (x, z) in FLOOR_WALK else "BLOCKED"
+    return "WALK" if (x, z) in GROUND_WALK else "BLOCKED"
 
 
 def _checkpoint(state_parts, nstones):
@@ -169,33 +211,46 @@ def step(state, dx, dz):
     A fall returns the player/stones to the checkpoint snapshot (cost 1
     for the step onto the VOID tile). A reset sigil restores the stones
     to the checkpoint snapshot and leaves the player where they are.
+    A push moves a RESTING stone one tile and the player into its tile;
+    a push into a designated edge makes the stone LANDED at the landing.
     """
     (x, z, surf), stones, cp, snap = state
     nx, nz = x + dx, z + dz
     kind = tile_kind(surf, nx, nz, stones)
+    pushed = False  # a push step's slide is a no-op start/stop (see below)
     nstones = list(stones)
     ncp, nsnap = cp, snap
-    if kind == "STONE_CEIL":
+    if kind == "STONE_RESTING":
+        idx = [i for i, st in enumerate(stones)
+               if st[0] == surf and st[1] == nx and st[2] == nz][0]
         sx, sy = nx + dx, nz + dz
-        idx = [i for i, st in enumerate(stones) if st == (surf, nx, nz)][0]
-        if (sx, sy) in CEIL_VOID and surf == "C":
-            nstones[idx] = ("F", sx, sy)  # into the gap: drops to the floor
-        elif surf == "C" and not (44 <= sx <= 49 and 27 <= sy <= 47):
-            return None, 0  # rim at the slab edge: the stone stops
+        # Push-block rules (engine-b section 3).
+        if (surf, sx, sy) in EDGES:
+            # Designated edge: fall, unless a landing clash.
+            landing = EDGES[(surf, sx, sy)]
+            if any(st[0] == landing[0] and st[1] == landing[1]
+                   and st[2] == landing[2] for st in stones):
+                return None, 0  # landing clash
+            nstones[idx] = (landing[0], landing[1], landing[2], "LANDED")
+        elif (surf, sx, sy) in LANDINGS:
+            return None, 0  # landing tiles are reserved: never push there
+        elif (surf, sx, sy) in PROTECTED:
+            return None, 0  # protected tile (checkpoint / reset sigil)
+        elif tile_kind(surf, sx, sy, stones) != "WALK":
+            # Target is BLOCKED / VOID (not a designated edge) /
+            # another stone.
+            return None, 0
         else:
-            skind = tile_kind(surf, sx, sy, stones)
-            if skind == "WALK":
-                nstones[idx] = (surf, sx, sy)
-            else:
-                return None, 0  # stone blocked (wall, water, another stone)
+            nstones[idx] = (surf, sx, sy, "RESTING")
+        pushed = True
         px, pz, psurf = nx, nz, surf
     elif kind == "VOID":
         cx, cz, csurf = CHECKPOINTS[cp]
         return ((cx, cz, csurf), snap, cp, snap), 1  # fall -> checkpoint
-    elif kind == "WALK":
+    elif kind in ("WALK", "STONE_LANDED"):
         px, pz, psurf = nx, nz, surf
     else:
-        return None, 0  # BLOCKED, or a dropped (floor) stone: impassable
+        return None, 0  # BLOCKED
     moves = 1
     # Checkpoint at the stepped-onto tile.
     ncp, nsnap = _checkpoint((px, pz, psurf, ncp, nsnap), nstones)
@@ -203,19 +258,23 @@ def step(state, dx, dz):
     if psurf == "C" and (px, pz) in RESETS:
         nstones = list(nsnap)
     # Rune: surface change in place (0 extra steps). No checkpoint
-    # check at the landing tile: engine-a's rune starts a jump task
-    # and does not promise a step-hook call there, and no rune
-    # target in this design is a checkpoint.
+    # check at the landing tile (see the module docstring).
     if psurf == "C" and (px, pz) in RUNES_C:
         px, pz, psurf = RUNES_C[(px, pz)]
-    elif psurf == "F" and (px, pz) in RUNES_F:
+    elif psurf == "G" and (px, pz) in RUNES_F:
         px, pz, psurf = RUNES_F[(px, pz)]
-    # Current slide: one tile at a time until blocked / stone / off-current.
-    while psurf == "F" and (px, pz) in CURRENTS:
+    # Current slide: one tile at a time until blocked / stone /
+    # off-current. A slide never pushes a stone. A push step onto
+    # a current tile still reaches the step hook, so the slide
+    # starts — but it immediately stops before the BLOCKED actor
+    # tile of the stone just pushed there (no extra tile move).
+    # `while not pushed` collapses that immediate start/stop with
+    # zero movement.
+    while not pushed and psurf == "G" and (px, pz) in CURRENTS:
         cdx, cdz = CURRENTS[(px, pz)]
         tx, tz = px + cdx, pz + cdz
         tkind = tile_kind(psurf, tx, tz, nstones)
-        if tkind in ("BLOCKED", "STONE_CEIL", "STONE"):
+        if tkind in ("BLOCKED", "STONE_RESTING"):
             break  # plugged / blocked: slide stops before the stone
         if tkind == "VOID":
             cx, cz, csurf = CHECKPOINTS[ncp]
@@ -224,6 +283,8 @@ def step(state, dx, dz):
         px, pz = tx, tz
         moves += 1
         ncp, nsnap = _checkpoint((px, pz, psurf, ncp, nsnap), nstones)
+        # A LANDED stone is walkable terrain: the slide passes over it
+        # and, if it is off-current, the slide ends there.
     return ((px, pz, psurf), tuple(nstones), ncp, tuple(nsnap)), moves
 
 
@@ -303,26 +364,27 @@ def fall_scenarios(reachable):
     """One fall per stage, from states asserted to be reachable.
 
     Stage 1: after dropping stone 1, stepped south from (44,33,C)
-    onto the ceiling gap (44,34) instead of going to the rune.
-    (The floor current cannot be met with stone 1 undropped: the
-    rune-down is only reachable after the drop, and the pre-stage
-    reset sigils cannot undo a push the player walked past.)
+    onto the ceiling gap (44,34) instead of east to the rune.
     Stage 2: after dropping stone 2, stepped south from (49,39,C)
-    onto the ceiling gap (49,40) instead of going to the rune.
+    onto the ceiling gap (49,40) instead of west to the rune.
     Stage 3: after returning upstairs, stepped north from (47,43,C)
     into the ceiling gap (47,42) instead of walking to the totem.
     """
-    spawn = SPAWN
     cases = [
         ("stage 1: ceiling gap (44,34) after dropping stone 1",
-         ((44, 33, "C"), (("F", 44, 34), ("C", 49, 37), ("C", 48, 42)), 1,
-          spawn), (0, 1)),
+         ((44, 33, "C"), (("G", 44, 34, "LANDED"), ("C", 49, 37, "RESTING"),
+                          ("C", 48, 42, "RESTING"), ("G", 48, 37, "RESTING")),
+          1, SPAWN), (0, 1)),
         ("stage 2: ceiling gap (49,40) after dropping stone 2",
-         ((49, 39, "C"), (("F", 44, 34), ("F", 49, 40), ("C", 48, 42)), 2,
-          (("F", 44, 34), ("C", 49, 37), ("C", 48, 42))), (0, 1)),
+         ((49, 39, "C"), (("G", 44, 34, "LANDED"), ("G", 49, 40, "LANDED"),
+                          ("C", 48, 42, "RESTING"), ("G", 48, 37, "RESTING")),
+          2, (("G", 44, 34, "LANDED"), ("C", 49, 37, "RESTING"),
+              ("C", 48, 42, "RESTING"), ("G", 48, 37, "RESTING"))), (0, 1)),
         ("stage 3: ceiling gap (47,42) after returning upstairs",
-         ((47, 43, "C"), (("F", 44, 34), ("F", 49, 40), ("F", 47, 42)), 3,
-          (("F", 44, 34), ("F", 49, 40), ("C", 48, 42))), (0, -1)),
+         ((47, 43, "C"), (("G", 44, 34, "LANDED"), ("G", 49, 40, "LANDED"),
+                          ("G", 47, 42, "LANDED"), ("G", 48, 39, "RESTING")),
+          3, (("G", 44, 34, "LANDED"), ("G", 49, 40, "LANDED"),
+              ("C", 48, 42, "RESTING"), ("G", 48, 39, "RESTING"))), (0, -1)),
     ]
     out = []
     for label, setup, d in cases:
@@ -340,11 +402,12 @@ def main():
     print(f"states that can reach the totem: {len(can_reach)}")
     print(f"soft-lock free: {reachable == can_reach}")
     # No stage can be skipped: every state that reaches the totem must
-    # have all three stones dropped on the floor (a reset can never
-    # undo a completed stage, because the next checkpoint is forced
-    # before the next reset sigil).
+    # have all three ceiling stones LANDED on the ground (a reset can
+    # never undo a completed stage, because the next checkpoint is
+    # forced before the next reset sigil).
     goal_states = [s for s in reachable if s[0] == GOAL]
-    dropped = (("F", 44, 34), ("F", 49, 40), ("F", 47, 42))
+    dropped = (("G", 44, 34, "LANDED"), ("G", 49, 40, "LANDED"),
+               ("G", 47, 42, "LANDED"), ("G", 48, 39, "RESTING"))
     print(f"goal states: {len(goal_states)}; "
           f"all with all stones dropped: "
           f"{all(s[1] == dropped for s in goal_states)}")
@@ -361,8 +424,17 @@ def main():
     print("fall scenarios (post-fall player, stones, checkpoint):")
     for label, st in fall_scenarios(reachable):
         print(f"  {label}: -> {st[0]} stones={st[1]} cp={st[2]}")
-    print("engine table budget: tiles <= 32, currents <= 16, runes <= 8, "
-          "sigils <= 16, checkpoints <= 8, stones <= 8")
+    # Engine-a table budget: tiles = explicit overrides (landing tiles
+    # have none); currents / runes / sigils / checkpoints as listed.
+    # Current tiles need their own SOLID overrides (they are all in
+    # GROUND_WALK above); landing tiles have none; (48, 40) is one
+    # explicit VOID override (a hazard, not a landing).
+    n_tiles = (len(CEIL_VOID) + len(RUNES_C) + len(RESETS)
+               + len(GROUND_WALK) + 1)  # +1: (48, 40) explicit VOID
+    print(f"engine table budget: tiles {n_tiles}<=32, currents "
+          f"{len(CURRENTS)}<=16, runes {len(RUNES_C) + len(RUNES_F)}<=8, "
+          f"sigils {len(RESETS)}<=16, checkpoints {len(CHECKPOINTS) + 1}<=8, "
+          f"stones {len(SPAWN)}<=4 (engine-b max), protected {len(PROTECTED)}<=8")
 
 
 if __name__ == "__main__":
