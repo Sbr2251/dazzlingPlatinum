@@ -43,7 +43,10 @@ Rift approaches (`OVERWORLD_RIFTS` in `dwlib.py`):
 | Eterna Forest | (84,37) facing south | A, then Yes |
 | Route 214 | (726,665) facing north | A |
 | Route 213 | (715,831) facing north | A |
-| Lost Tower (both visits) | (7,8) facing west | A |
+| Lost Tower (both visits) | (11,3), walk corridor + ledge + maze to (5,8) | A facing east |
+
+Arc 1 enters through the Lake Verity portal bg event: (32,23)
+facing south, A, then Yes.
 
 The Ravaged Path approach is the bottom of the stairs: the rift tile
 (19,45) sits at height 2 and the stairs raise the player. Teleporting
@@ -119,15 +122,26 @@ legal, a scar holds exactly once -- as does the documented line).
 
 ## Status (2026-10-23)
 
-- DONE: Ravaged Path overworld entry + replay to the totem tile and
-  the totem battle menu; Eterna Forest entry, fold, and ceiling route
-  to the honeycomb. `solver.py` with all examples + the Ravaged Path
-  sanity model. `gDwPuzzleDebug` reader at engine-a's layout, with
-  tolerant `stoneStates`.
-- IN PROGRESS: Eterna Forest honeycomb crossing (retry loop),
-  Route 214 / Route 213 entries and floor routes, Lost Tower entries
-  and routes, `rifts_regress.py` (one worker process per rift: boot,
-  replay, frame strip, report).
+- DONE: all 8 rifts, overworld entry + replay to the totem fight
+  start (Arc 1 to its goal tile; the rest to the totem battle menu),
+  via `rifts_regress.py` (one worker process per rift: boot, replay,
+  frame strip, report). Eterna Forest's honeycomb crossing is a
+  fast-step retry loop across its 213-frame cycle. Route 214 /
+  Route 213 floor routes come from the B4F collision + tw_arc jump
+  tables; Route 213's totem hook fires on the island's first tile
+  (47,10,45). Lost Tower visit 1 reaches the vein + the shadow-wall
+  exit warp to 2F; visit 2 rides the Lapras stones + Skarmory carry
+  to the Spiritomb battle menu.
+- DONE: `solver.py` with all examples + the Ravaged Path sanity
+  model. `gDwPuzzleDebug` reader at engine-a's layout, with
+  `u8 stoneStates[8]` (landed engine-a 35bc80df5b).
+- Entry notes. Every crafted save gets Repel 250 + the lead mon at
+  level 40 (file patches: SpecialEncounter.repelSteps, PK4 level
+  byte), so wild encounters never fire on overworld walk-ins; a
+  wild battle is still fled (RUN) if one starts. Lost Tower 2F is
+  entered by the walked path from the 1F stairs (corridor, ledge,
+  maze) -- spawning directly beside the rift leaves A dead for
+  unknown reasons (open item), so the walk stays.
 - NOT COVERED: the post-calm exit warps (they need the totem battle
   won; QA's chained playthrough covers those). The regress exit leg
   is the Lost Tower visit-1 shadow-wall warp only.

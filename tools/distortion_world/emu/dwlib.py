@@ -99,6 +99,8 @@ sys.path.insert(0, str(_REPO / "tools"))
 
 from emu import Emu, contact_sheet, dedupe, read_xmap  # noqa: E402
 from make_save import fix_crc, newest_partition  # noqa: E402
+from platinum_save_utils import (  # noqa: E402
+    PARTY_COUNT_OFFSET, PARTY_OFFSET, PK4_PARTY_SIZE, decrypt_pk4, encrypt_pk4)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -138,6 +140,11 @@ DIR_WEST = 2
 BASE_SAVE = _REPO / "tools" / "battle_stage" / "emu" / "saves" / "eterna_forest_grass.sav"
 
 
+class _BattleDuringEntry(Exception):
+    """A battle started before the rift warp (a wild encounter on
+    the overworld walk-in). The caller reboots and retries."""
+
+
 class Rift:
     """One DW rift as the harness sees it: entry state, wall geometry, goal."""
 
@@ -168,7 +175,7 @@ class Rift:
 RIFTS = {
     # Arc 1 seams: the tutorial wall-walk. No totem battle; the goal is
     # stepping off the wall onto the far ledge (12, 23).
-    "arc1": Rift("arc1", "MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS", 595, 5,
+    "arc1": Rift("arc1", "MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS", 594, 5,
                  var="VAR_ARC1_PROGRESS", wall_x=11, wall_side=SURF_WEST,
                  goal_tile=(12, 1, 23), notes="tutorial; no totem"),
     "rp": Rift("rp", "MAP_HEADER_DW_RAVAGED_PATH", 596, 14,
@@ -177,10 +184,15 @@ RIFTS = {
                wall_x=49, wall_side=SURF_EAST, totem_tile=(45, 10, 41),
                checkpoint_tile=(40, 1, 22),
                notes="honeycomb fall returns to the hive (40,22)"),
+    # r214/r213: the entry scene steps the player out of the trees to
+    # (17,12) beside Cyrus; falls respawn there too (the fall warp
+    # lands on (20,12) and the entry scene steps out again).
     "r214": Rift("r214", "MAP_HEADER_DW_ROUTE_214", 598, 62,
-                 wall_x=49, wall_side=SURF_EAST, totem_tile=(49, 10, 45)),
+                 entry=(17, 12), wall_x=49, wall_side=SURF_EAST,
+                 totem_tile=(49, 10, 45), checkpoint_tile=(17, 12)),
     "r213": Rift("r213", "MAP_HEADER_DW_ROUTE_213", 599, 83,
-                 wall_x=49, wall_side=SURF_EAST, totem_tile=(46, 10, 46)),
+                 entry=(17, 12), wall_x=49, wall_side=SURF_EAST,
+                 totem_tile=(47, 10, 45), checkpoint_tile=(17, 12)),
     # Lost Tower visit 1 (92): the vein at (13, 23) is the goal; the
     # shadow wall ends the visit. Visit 2 (94): the Spiritomb. The
     # visit-2 entry state is the story-true one: all four earlier totems
@@ -190,7 +202,13 @@ RIFTS = {
     "lt2": Rift("lt2", "MAP_HEADER_DW_LOST_TOWER", 600, 94,
                 wall_x=11, wall_side=SURF_WEST, totem_tile=(37, 1, 22),
                 flags=("FLAG_TOTEM_HITMONLEE_DEFEATED", "FLAG_TOTEM_VESPIQUEN_DEFEATED",
-                       "FLAG_TOTEM_SKARMORY_DEFEATED", "FLAG_TOTEM_LAPRAS_DEFEATED")),
+                       "FLAG_TOTEM_SKARMORY_DEFEATED", "FLAG_TOTEM_LAPRAS_DEFEATED",
+                       # Story-true visit 2: the vein was found in
+                       # visit 1, and the visit-1 ghost acts are done.
+                       # The shadow wall parts during this visit, and
+                       # the Lapras/Skarmory acts play in it.
+                       "FLAG_ARC2_RIFTB_E", "FLAG_ARC2_RESONATOR_B",
+                       "FLAG_ARC2_CELESTIC_B")),
 }
 
 # Recorded solutions (move strings; see parse_moves). Verified by
@@ -216,18 +234,42 @@ SOLUTIONS = {
     # The honeycomb timing is handled by rifts_regress (wait for a solid
     # window); the raw string below is the shape, not the final timing.
     "ef": "L L L R R R R R R R R R R R R R U U U U U U U U U U U U U U L L L L U U U U U U U U U",
-    # R214/R213: entry steps out to (17,12); floor route found by
-    # emulator exploration (see rifts_regress.py); wall/ceiling as EF.
-    # PLACEHOLDER -- replaced by exploration below (regress fills it in).
-    "r214": "D D D D D D D D D D R R R R R R R R R R R R R R R U U U U U U U U U U U U U U U U U U",
-    "r213": "D D D D D D D D D D R R R R R R R R R R R R R R R U U U U U U U U U U U U U U U U U U",
-    # LT visit 1: as RP to (12,23), then RIGHT to the vein (13,23).
-    "lt1": "L L L L L L L L D D L L L L L L U U L L L D D L R R R",
-    # LT visit 2: as visit 1 past the shadow wall, then east along the
-    # deeper ledge to (20,22), hop the stones to (32,22); Skarmory's
-    # carry (scripted) lands on the island (37,22). PLACEHOLDER for the
-    # hop inputs -- replaced by exploration.
-    "lt2": "L L L L L L L L D D L L L L L L U U L L L D D L R R R R R R R R",
+    # R214: floor maze U3 R9 D5 L D8 from (17,12) to the chasm
+    # (25,22); hop R to (31,22), R to (32,22), hop R to (38,22);
+    # corridor R10 through the Frame coord event at (44,22) (Cyrus
+    # pulls the shard, A = Yes) to (48,22); R onto the east wall
+    # (49,1,21), R6 to z27, U8 to y9, U onto the ceiling (49,10,27),
+    # U18 to the Skarmory totem (49,10,45). Floor from the B4F
+    # collision (build_rift_b_maps.py); wall/ceiling from twarc.
+    "r214": "U U U R R R R R R R R R D D D D D L D D D D D D D D "
+            "R R R R R R R R R R R R R R R R R R R R U U U U U U U U U "
+            "U U U U U U U U U U U U U U U U U U",
+    # R213: same floor/wall to the ceiling (49,10,27), then the
+    # winding causeway: U3 to (49,30), L5 to (44,30), U6 to (44,36),
+    # R5 to (49,36), U6 to (49,42), L2 to (47,42), U3 onto the
+    # Lapras island (47,45) -- the totem hook fires there, not on
+    # the island's centre (46,46). Ceiling rows are x = 49 - row
+    # (build_dw_route_213.py ceiling_grid).
+    "r213": "U U U R R R R R R R R R D D D D D L D D D D D D D D "
+            "R R R R R R R R R R R R R R R R R R R R U U U U U U U U U "
+            "U U U L L L L L U U U U U U R R R R R U U U U U U L L "
+            "U U U",
+    # LT visit 1: as Arc 1 to the fork (11,2,19), but the fork
+    # differs: L along the bottom row is the FALSE seam (stepping
+    # it falls), and Vespiquen lights the TRUE seam over it -- U to
+    # (11,3,19), L x3 to (11,3,22), D to (11,2,22), D off-jump to
+    # (12,1,23), R to the vein (13,1,23). The visit-1 ghost acts
+    # (Hitmonlee on (11,2,14), Vespiquen at the fork) fire on the
+    # way; the step pump clears their dialogue.
+    "lt1": "L L L L L D D L L L L L L L L L L U L L L D D R",
+    # LT visit 2: as visit 1 to the vein (13,23), R twice to the
+    # shadow wall (15,23) -- it parts at 94 -- then R to (16,23), U
+    # to the deeper ledge (16,22), R x4 to its east end (20,22)
+    # (the Lapras act lifts the stones), R x4 hopping the stones
+    # (23/26/29/32,22) to the last stone, where Skarmory's carry
+    # lands on the island (37,22) and the Spiritomb battle starts.
+    "lt2": "L L L L L D D L L L L L L L L L L U L L L D D R "
+            "R R R U R R R R R R R R",
 }
 
 
@@ -304,6 +346,7 @@ def make_entry_save(rift, out_path, base_save=None, extra_vars=None, set_flags=(
     for name in tuple(rift.clear_flags) + tuple(clear_flags):
         fid = ids[name]
         raw[base + FLAGS_BYTE_OFFSET + fid // 8] &= ~(1 << (fid % 8)) & 0xFF
+    _set_repel_and_lead(raw, base)
     fix_crc(raw, base)
     pathlib.Path(out_path).write_bytes(raw)
     return str(out_path)
@@ -318,7 +361,8 @@ class OverworldRift:
     method 'step': a coord event fires when the player steps onto the
     rift tile (Ravaged Path). method 'talk': press A facing the rift
     object, then answer the prompt (Eterna Forest: Yes; the others
-    warp at once). approach: where the player stands; approach_dir:
+    warp at once). method 'bg': press A on a map-plane bg event (the
+    Lake Verity portal). approach: where the player stands; approach_dir:
     the facing enum (0 north, 1 south, 2 west, 3 east); walk_in: the
     moves from the approach tile onto the rift tile (step method).
     The RP approach is the bottom of the stairs (19,50): the rift
@@ -328,7 +372,7 @@ class OverworldRift:
 
     def __init__(self, key, ow_map_id, approach, approach_dir, rift_tile,
                  method, trigger, pre_progress, clear_flags=(), walk_in=(),
-                 rift_object=None):
+                 rift_object=None, var="VAR_ARC2_PROGRESS", spawn_y=None):
         self.key = key
         self.ow_map_id = ow_map_id
         self.approach = approach
@@ -337,6 +381,12 @@ class OverworldRift:
         self.method = method
         self.trigger = trigger
         self.pre_progress = pre_progress
+        self.var = var
+        # MapObject y to spawn at (None = the base save's y). Lost
+        # Tower needs 0: the base save spawns at y 2, but the rift
+        # object sits at ground height 0, and A never fires across
+        # the height mismatch.
+        self.spawn_y = spawn_y
         self.clear_flags = tuple(clear_flags)
         self.walk_in = list(walk_in)
         # (localID, gfx, hide flag name, script, x, z, dir) for talk
@@ -345,6 +395,13 @@ class OverworldRift:
 
 
 OVERWORLD_RIFTS = {
+    # Arc 1: the Lake Verity portal. Stand (32,23) on the terrace
+    # facing south, press A on the portal edge bg event at (32,24),
+    # answer Yes; StepIn sets progress 4 -> 5 and warps to the seams.
+    # No rift object: the portal is a map-plane bg event.
+    "arc1": OverworldRift("arc1", 312, (32, 23), 1, (32, 24), "bg", None, 4,
+                          clear_flags=("FLAG_LAKE_VERITY_PORTAL_HIDDEN",),
+                          var="VAR_ARC1_PROGRESS"),
     # RP: walk up the stairs to the coord event at (19,45), progress 13/14.
     "rp": OverworldRift("rp", 254, (19, 50), 0, (19, 45), "step", FACE_UP, 13,
                         clear_flags=("FLAG_UNK_0x003E",),
@@ -361,14 +418,37 @@ OVERWORLD_RIFTS = {
     "r213": OverworldRift("r213", 373, (715, 831), 0, (715, 830), "talk", None, 83,
                           clear_flags=("FLAG_UNK_0x0038",),
                           rift_object=(42, 296, "FLAG_UNK_0x0038", 9, 715, 830, 1)),
-    # Lost Tower 2F: object at (6,8); stand (7,8) facing west, A.
-    # Visit 1 pre-progress 92, visit 2 pre-progress 94.
-    "lt1": OverworldRift("lt1", 358, (7, 8), 2, (6, 8), "talk", None, 92,
+    # Lost Tower 2F: object at (6,8). Walk in from the 1F stairs
+    # at (11,3): corridor south to (11,14), one-way ledge west to
+    # (10,14), maze to (5,8), then a blocked RIGHT press turns the
+    # player east (the rift object is solid), and A warps in. The
+    # walk is 46 steps, every tile asserted in the probe; Repel
+    # covers the corridor's wild encounters. OPEN ITEM: spawning
+    # directly at (5,8) (even at ground height 0, even after a
+    # D-U walk and a blocked-R turn) leaves A dead -- the walked
+    # path is the only entry proven to work, and nobody knows why
+    # the spawn differs. Spawning at (7,8) (the DW exit landing)
+    # fails the same way (height-2 ledge above the rift).
+    "lt1": OverworldRift("lt1", 358, (11, 3), 1, (6, 8), "talk", None, 92,
                          clear_flags=("FLAG_ARC2_HEARTHOME_B",),
-                         rift_object=(2, 296, "FLAG_ARC2_HEARTHOME_B", 1, 6, 8, 1)),
-    "lt2": OverworldRift("lt2", 358, (7, 8), 2, (6, 8), "talk", None, 94,
+                         rift_object=(2, 296, "FLAG_ARC2_HEARTHOME_B", 1, 6, 8, 1),
+                         walk_in=([FACE_DOWN] * 11 + [FACE_LEFT] * 4 + [FACE_UP]
+                                  + [FACE_LEFT] * 2 + [FACE_DOWN] + [FACE_LEFT]
+                                  + [FACE_UP] + [FACE_LEFT] * 3 + [FACE_UP]
+                                  + [FACE_RIGHT] + [FACE_UP] + [FACE_LEFT]
+                                  + [FACE_UP] * 5 + [FACE_RIGHT] * 3
+                                  + [FACE_DOWN] * 3 + [FACE_RIGHT] + [FACE_UP]
+                                  + [FACE_RIGHT])),
+    "lt2": OverworldRift("lt2", 358, (11, 3), 1, (6, 8), "talk", None, 94,
                          clear_flags=("FLAG_ARC2_HEARTHOME_B",),
-                         rift_object=(2, 296, "FLAG_ARC2_HEARTHOME_B", 1, 6, 8, 1)),
+                         rift_object=(2, 296, "FLAG_ARC2_HEARTHOME_B", 1, 6, 8, 1),
+                         walk_in=([FACE_DOWN] * 11 + [FACE_LEFT] * 4 + [FACE_UP]
+                                  + [FACE_LEFT] * 2 + [FACE_DOWN] + [FACE_LEFT]
+                                  + [FACE_UP] + [FACE_LEFT] * 3 + [FACE_UP]
+                                  + [FACE_RIGHT] + [FACE_UP] + [FACE_LEFT]
+                                  + [FACE_UP] * 5 + [FACE_RIGHT] * 3
+                                  + [FACE_DOWN] * 3 + [FACE_RIGHT] + [FACE_UP]
+                                  + [FACE_RIGHT])),
 }
 
 
@@ -382,6 +462,36 @@ OVERWORLD_RIFTS = {
 OBJECT_LIST_FILE_OFFSET = 10328
 MAP_OBJECT_SAVE_SIZE = 80
 MAP_OBJECT_SAVE_COUNT = 64
+
+# Repel (wild encounters off on overworld walk-ins). The crafted
+# saves get SpecialEncounter.repelSteps = 250 and the lead mon raised
+# to level 40: Repel blocks wilds below the lead's level (LT 2F's
+# wilds top out at 35), and 250 steps covers every walk-in + replay
+# with margin. Offsets: ENCOUNTERS is SaveTable entry 25, its page
+# sits at file offset 32548 (pageInfo[25].location, read from a
+# booted game's RAM page table); repelSteps is at struct offset 335
+# (gdb on build/main.nef's DWARF: sizeof SpecialEncounter = 340,
+# BodySize 348 = 340 + 4 pad + 4 checksum slot). The lead's level
+# byte is PK4 0x8C of party slot 0 (decrypted), outside the
+# checksummed core, so encrypt_pk4 leaves the checksum valid.
+# Per-page checksums are not verified on load -- only the partition
+# footer CRC, which fix_crc rewrites -- so these file patches load
+# as written. Fleeing (battle_escape) stays as the fallback.
+ENCOUNTERS_PAGE_FILE_OFFSET = 32548
+REPEL_STEPS_OFFSET = 335
+REPEL_STEPS = 250
+REPEL_MIN_LEAD_LEVEL = 40
+
+
+def _set_repel_and_lead(raw, base):
+    """Repel + lead level in a crafted save (see constants above)."""
+    raw[base + ENCOUNTERS_PAGE_FILE_OFFSET + REPEL_STEPS_OFFSET] = REPEL_STEPS
+    if raw[base + PARTY_COUNT_OFFSET] > 0:
+        o = base + PARTY_OFFSET
+        rec = decrypt_pk4(bytes(raw[o:o + PK4_PARTY_SIZE]))
+        if rec[0x8C] < REPEL_MIN_LEAD_LEVEL:
+            rec[0x8C] = REPEL_MIN_LEAD_LEVEL
+            raw[o:o + PK4_PARTY_SIZE] = encrypt_pk4(rec)
 
 
 def _append_rift_object(raw, base, ow, ids):
@@ -447,8 +557,13 @@ def make_overworld_save(rift_key, out_path, base_save=None, ids=None):
         struct.pack_into("<h", raw, obj + off, x)
     for off in (0x24, 0x2A):
         struct.pack_into("<h", raw, obj + off, z)
+    if ow.spawn_y is not None:
+        # MapObjectSave yInitial @0x22 and y @0x28: the spawn
+        # height (Continue restores it as written).
+        for off in (0x22, 0x28):
+            struct.pack_into("<h", raw, obj + off, ow.spawn_y)
     struct.pack_into("<H", raw, base + VARS_FLAGS_FILE_OFFSET
-                     + (ids["VAR_ARC2_PROGRESS"] - VARS_START) * 2, ow.pre_progress)
+                     + (ids[ow.var] - VARS_START) * 2, ow.pre_progress)
     for name in ow.clear_flags:
         fid = ids[name]
         raw[base + FLAGS_BYTE_OFFSET + fid // 8] &= ~(1 << (fid % 8)) & 0xFF
@@ -462,6 +577,7 @@ def make_overworld_save(rift_key, out_path, base_save=None, ids=None):
         raw[base + FLAGS_BYTE_OFFSET + fid // 8] &= ~(1 << (fid % 8)) & 0xFF
     if ow.rift_object is not None:
         _append_rift_object(raw, base, ow, ids)
+    _set_repel_and_lead(raw, base)
     fix_crc(raw, base)
     pathlib.Path(out_path).write_bytes(raw)
     return str(out_path)
@@ -542,7 +658,32 @@ class DwSession:
         boot at the approach tile, trigger the rift, wait for the
         warp into the DW map, and assert the entry state. For 'talk'
         rifts the prompt is answered Yes (Eterna Forest) or the warp
-        runs at once (the rest)."""
+        runs at once (the rest); 'bg' is the same A press, on a
+        map-plane bg event (the Lake Verity portal).
+        A wild battle during the overworld walk-in (Lost Tower 2F
+        has land_rate 10) aborts that attempt and reboots from the
+        save: the game's RNG is seeded from the RTC, so a fresh boot
+        rolls different encounters. Up to 4 attempts; a trainer
+        battle would fail every attempt the same way and surfaces
+        as the final RuntimeError."""
+        last_err = None
+        for _attempt in range(4):
+            try:
+                return self._boot_overworld_rift_once(
+                    rift_key, save_path, test_mode, boot_timeout)
+            except _BattleDuringEntry as exc:
+                last_err = exc
+                if self.emu is not None:
+                    self.emu.close()
+                    self.emu = None
+                continue
+        raise RuntimeError(f"overworld entry for {rift_key} hit a battle "
+                           f"on every attempt ({last_err})")
+
+    def _boot_overworld_rift_once(self, rift_key, save_path, test_mode,
+                                  boot_timeout):
+        """One entry attempt; raises _BattleDuringEntry on a battle
+        before the rift warp (the caller retries with a fresh boot)."""
         ow = OVERWORLD_RIFTS[rift_key]
         rift = RIFTS[rift_key]
         self.rift = rift
@@ -552,20 +693,50 @@ class DwSession:
         if not self.emu.boot(timeout=boot_timeout):
             raise RuntimeError(f"boot failed for overworld rift {rift.key}")
         self.emu.run(60)
-        if ow.method == "step":
-            for face in ow.walk_in:
-                self.step(face, advance_text=True)
-        else:
+        # walk_in walks from the approach tile to the trigger (Ravaged
+        # Path's coord event; Lost Tower's walk to the rift). 'talk' /
+        # 'bg' rifts then press A on the object / bg event. A wild
+        # battle on the walk-in (Lost Tower 2F, land_rate 10) is fled
+        # via RUN and the step retried -- the step that triggered it
+        # never moved the player. Only a battle that cannot be fled
+        # aborts the attempt (the caller reboots on a fresh RNG).
+        for face in ow.walk_in:
+            while True:
+                st = self.step(face, advance_text=True)
+                if st["status"] != "battle":
+                    break
+                if not self.emu.battle_escape() or not self.emu.in_overworld():
+                    raise _BattleDuringEntry(
+                        f"unfleeable battle during walk-in at {st['after']}")
+                # A battle fires AFTER the step lands (the player is
+                # already on the new tile when the encounter starts),
+                # so a step that moved must NOT be retried -- fleeing
+                # leaves the player where the step landed, and a
+                # retry would step twice. Only a step that did not
+                # move (encounter on a turn-in-place) is retried.
+                if st["moved"]:
+                    break
+        if ow.method != "step":
             # Face the rift object and press A; Eterna Forest asks
             # Yes/No (Yes is the default, A confirms it).
-            self.step(INTERACT, advance_text=True)
+            for _ in range(2):
+                st = self.step(INTERACT, advance_text=True)
+                if st["status"] != "battle":
+                    break
+                if not self.emu.battle_escape() or not self.emu.in_overworld():
+                    raise _BattleDuringEntry("unfleeable battle on the A press")
         # The rift script (fanfare, fades, warp) still runs after the
         # trigger step: keep tapping A (menu answers, dialogue) until
-        # the map changes or the wait expires.
+        # the map changes or the wait expires. A wild battle here is
+        # fled, never A-tapped (A would pick FIGHT).
         start = self.emu.frame
         while self.emu.frame - start < 1800:
             if self.current_map() == rift.map_id:
                 break
+            if self.emu.battle_menu_up():
+                if not self.emu.battle_escape():
+                    raise _BattleDuringEntry("unfleeable battle before the rift warp")
+                continue
             self.emu.tap("A", 30)
         if self.current_map() != rift.map_id:
             raise RuntimeError(
@@ -748,22 +919,37 @@ class DwSession:
         except Exception:
             return None
 
-    def probe_controllable(self, tries=3):
+    def probe_controllable(self, tries=2):
         """True once the game answers input. A press right after a
         warp or an entry script is dropped by the game, so replay
-        must not start until this passes: turn east and back west
-        (short taps that only turn, never step) and check the facing
-        actually changed. Only runs when the player faces west, as
-        after a DW entry warp."""
+        must not start until this passes. A turn-only tap does NOT
+        work in the DW: a short hold never turns (the seams map
+        needed 15 frames, by which time it had already stepped), so
+        the probe steps in the solution's first direction and back
+        and asserts the player is back on the entry tile. The first
+        solution step is known-safe for every rift; if a script
+        moves the player instead, the probe fails loudly (boot
+        aborts) rather than corrupting the replay."""
+        opposite = {FACE_UP: FACE_DOWN, FACE_DOWN: FACE_UP,
+                    FACE_LEFT: FACE_RIGHT, FACE_RIGHT: FACE_LEFT}
+        entry = (self.rift.entry[0], 1, self.rift.entry[1]) \
+            if self.rift is not None else self.player_tile_or_none()
+        first = FACE_RIGHT
+        if self.rift is not None and self.rift.key in SOLUTIONS:
+            parsed = parse_moves(SOLUTIONS[self.rift.key])
+            if parsed and parsed[0] in opposite:
+                first = parsed[0]
         for _ in range(tries):
-            if self.facing() != FACE_LEFT:
+            if self.player_tile_or_none() != entry:
                 return False
-            self.emu.hold("RIGHT", 6, 20)
-            if self.facing() != FACE_RIGHT:
+            st1 = self.step(first)
+            if not st1["moved"]:
                 self.emu.run(120)
                 continue
-            self.emu.hold("LEFT", 6, 20)
-            return self.facing() == FACE_LEFT
+            st2 = self.step(opposite[first])
+            if st2["after"] == entry:
+                return True
+            return False
         return False
 
     def player_tile_or_none(self):
@@ -776,9 +962,14 @@ class DwSession:
             x, y, z = struct.unpack("<iii", self.emu.read(mobj + 100, 12))
         except Exception:
             return None
-        # y == 0 (and (0,0,0)) is the transient mid-warp garbage, not
-        # a real tile: floor is y 1, walls 2+, ceiling 10, stairs 2.
-        if not (-64 <= x <= 160 and 1 <= y <= 32 and -64 <= z <= 160):
+        # (0,0,0) is the transient mid-warp garbage, not a real tile.
+        # y == 0 alone is legitimate: overworld ground level (Lost
+        # Tower 2F's west floor) reads MapObject y 0 while the DW
+        # floor reads y 1 (MapObject 2). Overworld maps use big
+        # coords (Route 214 x726, Route 213 z831), so the bound is
+        # 1600, not the DW maps' ~64.
+        if (x == 0 and y == 0 and z == 0) or not (
+                -64 <= x <= 1600 and 0 <= y <= 32 and -64 <= z <= 1600):
             return None
         return (x, y // 2, z)
 
@@ -858,18 +1049,13 @@ class DwSession:
         stone_count, shadow_phase, shx, shy, shz, ex, ey, ez = struct.unpack(
             "<IIhhhhhh", raw[152:172])
         # stoneStates[] (engine-a/b, for rift-213 stones): RESTING 0,
-        # FALLING 1, LANDED 2, one per stone. Layout provisional until
-        # engine-a lands it: if the symbol is big enough for 8 u32s
-        # after the 172-byte prefix, read those; else if there is any
-        # tail at all, read it as u8s; else []. The first 172 bytes
-        # are always parsed as above, so growth never breaks the
-        # reader -- it only adds (possibly empty) stoneStates.
-        stone_states = []
-        tail = raw[172:]
-        if len(tail) >= 32:
-            stone_states = list(struct.unpack("<8I", tail[:32]))
-        elif tail:
-            stone_states = list(tail)
+        # FALLING 1, LANDED 2, one per stone. Landed layout
+        # (engine-a 35bc80df5b): u8 stoneStates[8] at offset 172,
+        # right after the 172-byte prefix. Read the first 8 tail
+        # bytes as u8s; a shorter/absent tail yields [] (tolerant of
+        # pre-stoneStates ROMs). The first 172 bytes are always
+        # parsed as above, so growth never breaks the reader.
+        stone_states = list(raw[172:180]) if len(raw) > 172 else []
         return {"mapHeader": map_header, "active": active,
                 "player": (px, py, pz), "surface": surf, "tileState": tile_state,
                 "groupBits": group_bits, "groupDisplayBits": group_disp,
@@ -916,18 +1102,23 @@ class DwSession:
     def textbox_up(self, img=None):
         """Field message box open? The box sits on the top screen,
         rows 140-175, with a light background. Calibrated: 0.56 with
-        a box open, 0.00 without (the DW floor has no such band).
-        The Poketch bottom screen stays up during field dialogue, so
+        a box open, 0.00 without. A fade (white) lights the whole
+        screen, so the rows just above the box (100-130) must stay
+        dark -- that guard separates a box from a white fade. The
+        Poketch bottom screen stays up during field dialogue, so
         in_overworld() alone cannot detect it."""
         img = img or self.emu.screens()
-        tot = white = 0
-        for y in range(140, 175):
-            for x in range(256):
-                r, g, b = img.getpixel((x, y))[:3]
-                tot += 1
-                if r > 200 and g > 200 and b > 200:
-                    white += 1
-        return white / tot > 0.25
+
+        def light(y0, y1):
+            tot = white = 0
+            for y in range(y0, y1):
+                for x in range(256):
+                    r, g, b = img.getpixel((x, y))[:3]
+                    tot += 1
+                    if r > 200 and g > 200 and b > 200:
+                        white += 1
+            return white / tot
+        return light(140, 175) > 0.25 and light(100, 130) < 0.25
 
     def pump_text(self, max_frames=900, tap_every=40):
         """Advance field dialogue with A until no message box is open
@@ -952,7 +1143,7 @@ class DwSession:
             return "battle"
         return "timeout" if self.textbox_up() or not self.emu.in_overworld() else "overworld"
 
-    def step(self, face, advance_text=True, timeout=200):
+    def step(self, face, advance_text=True, timeout=200, fast=False):
         """Press one FACE_* direction and wait for the step to finish.
         Returns a dict: moved, fell, tile before/after, surface, event,
         and where the game ended up ('overworld' / 'battle' / 'script').
@@ -980,9 +1171,36 @@ class DwSession:
         surf_before = self.surface()
         dbg_before = self.debug()
         falls_before = dbg_before["fallCount"] if dbg_before else None
+        result = self._do_step(face, before, surf_before, falls_before,
+                                advance_text, timeout, fast)
+        if not result["moved"] and not fast:
+            # Guarded retry: a press can be dropped by the game (the
+            # first press after a script, an input-lock window). Only
+            # retry when the game looks idle -- no box, overworld,
+            # no battle menu -- so a press is never repeated into a
+            # running script. A genuinely blocked tile fails the
+            # retry too, harmlessly.
+            if not self.textbox_up() and self.emu.in_overworld() \
+                    and not self.emu.battle_menu_up():
+                self.emu.run(60)
+                if not self.textbox_up():
+                    result = self._do_step(face, before, surf_before,
+                                           falls_before, advance_text,
+                                           timeout, fast)
+        return result
+
+    def _do_step(self, face, before, surf_before, falls_before,
+                 advance_text, timeout, fast):
+        """One press + settle + script handling. See step()."""
         changed = self._press_step(face, before, timeout)
         after = self.wait_settled(timeout=600)
         status = "overworld"
+        if fast:
+            # Time-critical crossing (the Eterna honeycomb): skip the
+            # recheck loop and grace. A step costs ~40 frames instead
+            # of ~300; the caller re-tries across honeycomb cycles.
+            return self._finish_step(face, before, after, surf_before,
+                                     falls_before, changed, status)
         # A step hook's script opens its first message box well after
         # the step settles (the totem script's first line is ~150
         # frames in, after fanfare and movements). Re-check a few
@@ -1006,6 +1224,12 @@ class DwSession:
         if advance_text and status != "battle":
             self.emu.run(100)
             after = self.wait_settled(timeout=600)
+        return self._finish_step(face, before, after, surf_before,
+                                 falls_before, changed, status)
+
+    def _finish_step(self, face, before, after, surf_before, falls_before,
+                     changed, status):
+        """Fell detection + the step dict, shared by fast/slow steps."""
         # A fall warp (or a checkpoint respawn) settles the player at
         # the entry/checkpoint. It is a fall only when the step did
         # not target that tile itself: walking back onto the entry
@@ -1023,7 +1247,10 @@ class DwSession:
             delta = DIR_DELTA[surf_before][face]
             target = (before[0] + delta[0], before[1] + delta[1],
                       before[2] + delta[2])
-            fell = changed and target != after
+            # `moved`, not `changed`: a fall script starts on the step
+            # but warps after the press poll, so the press itself
+            # shows no tile change while the step still ends in a fall.
+            fell = (after != before) and target != after
         return {"move": FACE_LETTER[face], "face": face, "before": before,
                 "after": after, "surfaceBefore": surf_before,
                 "surface": self.surface(), "moved": changed or after != before,
@@ -1056,15 +1283,16 @@ class DwSession:
         return changed
 
     def replay(self, moves, advance_text=True, frames_out=None, label="replay",
-               stop=None):
+               stop=None, fast=False):
         """Replay a move list (string or [FACE_*]). Returns the trace
         (one dict per step, as step() returns). `stop` is an optional
         predicate(trace_so_far) -> True to halt early. With frames_out,
-        a frame is snapped after every step for a strip."""
+        a frame is snapped after every step for a strip. `fast` skips
+        the script settling (time-critical crossings)."""
         moves = parse_moves(moves) if isinstance(moves, str) else list(moves)
         trace = []
         for face in moves:
-            st = self.step(face, advance_text=advance_text)
+            st = self.step(face, advance_text=advance_text, fast=fast)
             trace.append(st)
             if frames_out is not None:
                 tag = "A" if face == INTERACT else ("." if face == WAIT else FACE_LETTER[face])
@@ -1074,6 +1302,20 @@ class DwSession:
         return trace
 
     # -- events ------------------------------------------------------------
+
+    def wait_battle_menu(self, max_frames=3000, tap_every=50):
+        """Tap A until the battle command menu appears (the totem
+        scripts have ~1100 frames of intro before the menu) or the
+        budget runs out. Returns True if the menu is up."""
+        start = self.emu.frame
+        while self.emu.frame - start < max_frames:
+            if self.emu.battle_menu_up():
+                return True
+            if self.textbox_up() or not self.emu.in_overworld():
+                self.emu.tap("A", tap_every)
+            else:
+                self.emu.run(tap_every)
+        return self.emu.battle_menu_up()
 
     def wait_for(self, pred, timeout=1800, step_frames=5, label="wait"):
         """wait_until with the DwSession signature (pred takes self)."""
