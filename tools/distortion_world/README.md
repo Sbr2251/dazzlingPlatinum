@@ -127,108 +127,157 @@ Each rift workstream writes `src/overlay009/dw_puzzle_<map>.c` (tables only) def
 one `const DwPuzzleTable gDwPuzzle<Map>Table`, and adds one extern + one line to the
 registry in `dw_puzzle.c` (`sPuzzleTables[]`). Example skeleton (Ravaged Path sigils):
 
-    static const DwPuzzleTile sBridgeTiles[] = { { 11, 3, 20, 0, 0 }, { 11, 3, 21, 0, 0 } };
+    static const DwPuzzleTile sBridgeTiles[] = {
+        { 11, 3, 20, 0, DW_PUZZLE_SURFACE_WEST_WALL, 0, 0 },
+        { 11, 3, 21, 0, DW_PUZZLE_SURFACE_WEST_WALL, 0, 0 },
+    };
+    /* x, y, z, state (group tiles: unused), surface, fallScriptId, pad */
     static const DwPuzzleGroup sGroups[] = {
         { sBridgeTiles, 2, 3, 0, 0, DW_PUZZLE_TILE_SOLID, DW_PUZZLE_TILE_BLOCKED, 0, 0 },
-        /* tiles, count, ghost-prop group (tw_arc id), fadeOut, fadeInLead, on, off, initial, pad */
+        /* tiles, count, ghost-prop group (tw_arc id), fadeOut, fadeInLead, on, off, initial, fallScriptId */
     };
     static const DwPuzzleSigil sSigils[] = {
-        { 12, 1, 14, DW_PUZZLE_SIGIL_TOGGLE, 0, 0, 0 },
-        /* x, y, z, kind, targetGroup, setValue, pad */
+        { 12, 1, 14, DW_PUZZLE_SIGIL_TOGGLE, 0, 0, DW_PUZZLE_SURFACE_GROUND },
+        /* x, y, z, kind, targetGroup, setValue, surface */
     };
-    static const DwPuzzleCheckpoint sCheckpoints[] = { { 20, 1, 12, -1 } };
+    static const DwPuzzleCheckpoint sCheckpoints[] = { { 20, 1, 12, -1, DW_PUZZLE_SURFACE_GROUND, { 0, 0 } } };
     const DwPuzzleTable gDwPuzzleRavagedPathTable = {
         MAP_HEADER_DW_RAVAGED_PATH, 14, 14, 2, VAR_MAP_LOCAL_3,
         1, 1, 0, 0, 1, 0, 0, 0, sGroups, sSigils, NULL, NULL, sCheckpoints, NULL,
     };
     /* mapHeader, min/max VAR_ARC2_PROGRESS (0/0 = any), fallScriptId,
-       fallVar, group/sigil/rune/current/checkpoint/tile counts, pad, tables */
+       fallVar, group/sigil/rune/current/checkpoint/tile counts, testOnly, pad, tables */
 
-Coordinates are DW world tiles (x, y, z) as the ov9 step hook sees them: floor y = 1,
-wall y >= 2 at a fixed x, ceiling y = 10. Surfaces use the ov9 numbering
-(FLOOR 0, WEST_WALL 1, EAST_WALL 2, CEILING 3); directions are FACE_* as pressed
-on the surface the player stands on.
+Coordinates are DW world tiles (x, y, z) as the ov9 step hook sees them: base
+ground y = 1, wall y >= 2 at a fixed x, ceiling y = 10. (x, y, z) alone does
+NOT identify a tile -- a wall and a ceiling can share one (the B4F wall->ceiling
+transfers sit on the same tile) -- so every table entry carries a surface,
+and every query passes the surface the player stands on. An entry matches
+when its surface is DW_PUZZLE_SURFACE_ANY or equals the queried surface.
+
+Surfaces: FLOOR 0 is a *floating* floor platform (ov9 kind 0, walked via its
+tw_arc_attr grid); GROUND 4 is base map terrain (ov9 kind INVALID, platform
+index -1, avatar distortion ACTIVE, walked via terrain collision). They are
+different surfaces: a rune to GROUND must translate to platform kind INVALID
+/ index -1, never to kind FLOOR. WEST_WALL 1, EAST_WALL 2, CEILING 3 follow
+the ov9 numbering. Directions are FACE_* as pressed on the surface the
+player stands on.
 
 ### Modules
 
-- **Tile state.** `tiles[]` are explicit overrides (SOLID / VOID / BLOCKED). The walk
-  check consults them on every surface, floor included: BLOCKED is impassable,
-  SOLID is walkable even where the stock grid says blocked, VOID is walkable in
-  the collision check (so the player can step onto it) and the step/frame hook
-  then starts the fall. Explicit overrides win over groups; among groups the
-  later group in the table wins.
-- **Groups.** A group = tiles + one tw_arc ghost-prop group, on/off. Walkability
-  follows the honeycomb rule: turning off starts the props fading at once but
-  the tiles stay solid for `fadeOutFrames` (default 33); turning on shows the
-  props at once but the tiles hold only after `fadeInLeadFrames` (default 3).
-  The glue in ov9 applies the show/hide the engine requests each frame, so a
-  group is never drawn-but-not-solid or solid-but-not-drawn. A group with
-  ghostPropGroup = DW_PUZZLE_GHOST_GROUP_NONE switches at once.
+- **Tile state.** `tiles[]` are explicit overrides (SOLID / VOID / BLOCKED).
+  The walk check consults them on every surface, base ground included:
+  BLOCKED is impassable, SOLID is walkable even where the stock grid says
+  blocked, VOID is walkable in the collision check (so the player can step
+  onto it) and the step/frame hook then starts the fall. Precedence:
+  explicit overrides > actor tiles > groups (later group wins).
+- **Groups.** A group = tiles + one tw_arc ghost-prop group, on/off.
+  Walkability follows the honeycomb rule: turning off starts the props
+  fading at once but the tiles stay solid for `fadeOutFrames` (default 33);
+  turning on shows the props at once but the tiles hold only after
+  `fadeInLeadFrames` (default 3). Solid implies drawn; drawn does not
+  imply solid during the fade-in lead (a step onto a drawn-but-not-yet-solid
+  tile bumps, it never drops the player). The glue in ov9 applies the
+  show/hide the engine requests each frame. A group with ghostPropGroup =
+  DW_PUZZLE_GHOST_GROUP_NONE switches at once.
 - **Sigils.** TOGGLE flips the target group; SET sets it to `setValue`;
   MOMENTARY holds the group on while any momentary sigil for it is stood on
-  (a holder count, so two momentary sigils for one group behave); RESET
-  restores the puzzle to the last checkpoint snapshot without moving the
-  player. Every sigil activation plays a sound (SEQ_SE_PL_SYUWA) and starts a
-  flash (`gDwPuzzleDebug.flashFrames`). Sigils fire once per step onto the
-  tile; momentary sigils release on stepping off.
+  by any occupant (holder counts are per occupant: player, engine-b's echo,
+  two momentary sigils for one group all behave); RESET restores the puzzle
+  to the last checkpoint snapshot without moving the player. Every sigil
+  activation plays a sound (SEQ_SE_PL_SYUWA) and starts a flash
+  (`gDwPuzzleDebug.flashFrames`). Sigils fire once per step onto the tile;
+  momentary sigils release on stepping off (per occupant).
 - **Gravity runes.** A rune tile changes surface in place. The engine returns
   the rune action and the ov9 glue builds a `DistWorldFloatingPlatformJumpPointTemplate`
   from it (target tile, target surface, facing, rot, steps, optional camera
   transition) and starts `CreateJumpOnFloatingPlatformTask` -- the exact
-  jump-point surface-change path, with its camera and rotation. The target
+  jump-point surface-change path, with its camera and rotation. `steps` 0
+  means 16 (the stock jumps); `cameraSteps` 0 means 16; `cameraX/Y/Z` are
+  camera angles in tw_arc camera-template units, not positions. The target
   tile must lie in a tw_arc platform of the target surface (the glue resolves
-  the platform index; FLOOR targets use index -1); otherwise the rune does
-  not fire.
+  the platform index; GROUND targets use kind INVALID / index -1); otherwise
+  the rune does not fire.
 - **Rift currents.** A current tile has a FACE_* drift direction. Stepping on
   one starts a slide: input is locked (player movement paused) and the player
   moves one tile per DW_PUZZLE_SLIDE_FRAMES_PER_TILE (6) field frames until
-  blocked (BLOCKED tile, actor block, edge of the surface) or off-current.
+  blocked (BLOCKED tile, actor tile, edge of the surface) or off-current
+  (the first non-current tile is the landing tile, then the slide ends).
   Landing on a current with a different direction turns the slide; landing
   on a sigil / rune / checkpoint ends the slide there and that tile's logic
   runs. Arrow visuals are the rift's tw_arc ghost props (`arrowGhostGroup`).
+  Table rule: a current strip must not be a closed cycle with no exit; the
+  engine also caps a slide at DW_PUZZLE_MAX_SLIDE_STEPS (64) tiles and ends
+  it, so a bad table can never lock input forever.
 - **Checkpoints and reset.** Stepping on a checkpoint tile snapshots the
-  puzzle (group on/off + sigil states; engine-b actors poll
-  `gDwPuzzleDebug.resetGeneration` and restore their own snapshot when it
-  changes) and makes it the fall target. Checkpoint 0 should be the map entry.
-  A fall restores the player and puzzle state to the last checkpoint without
-  losing the run: the step hook marks the fall, the map's existing fall script
-  runs its warp, and on the first frame after the warp the engine restores
-  the snapshot and respawns the player at the checkpoint. Puzzle state is
-  RAM-only; persistent once-only flags (Lost Tower) are never touched, so
-  they keep working. A fall the step hook never sees (a coord-event lip not
-  marked VOID in the table) still warps, but the puzzle resets to its initial
+  puzzle (group base / target / solid / display states; momentary holders
+  are NOT snapshotted -- they are per-occupant and cleared on restore, so
+  occupants must re-press after a restore) and makes it the fall target.
+  Checkpoint 0 should be the map entry: the fresh-entry reset snapshots it
+  without anyone stepping on it, so an early fall or reset always has a
+  snapshot. A fall restores the player and puzzle state to the last
+  checkpoint without losing the run: the step hook marks the fall, the
+  map's existing fall script runs its warp, and on the first frame after
+  the warp the engine restores the snapshot and respawns the player at the
+  checkpoint (platform + distortion state + height mode from the glue,
+  using the checkpoint's surface). Restore semantics: group states restored,
+  fade timers cleared (props snap, no fade), holders cleared, slide cleared,
+  actors notified via `gDwPuzzleDebug.resetGeneration` (engine-b restores
+  its own snapshot when the generation changes). Puzzle state is RAM-only;
+  persistent once-only flags (Lost Tower) are never touched, so they keep
+  working. A fall the step hook never sees (a coord-event lip not marked
+  VOID in the table) still warps, but the puzzle resets to its initial
   state on the fresh load -- mark every fall lip VOID in the table.
   A fresh entry (no fall pending) also resets the puzzle to its initial state.
-- **Debug export.** `gDwPuzzleDebug` (in the xMAP): map, active, player tile,
-  surface, tile state, group solid/display bits, sigil bits, checkpoint,
-  fall count, slide state, last event + frame, flash frames, reset
-  generation, and engine-b's stone positions / shadow phase / echo position
-  (engine-b writes those fields). The harness reads it; it costs a RAM struct.
-- **Engine-b hooks.** `DwPuzzle_SetActorBlock(i, x, y, z, present)`: a stone /
-  actor on a tile makes it BLOCKED, and a stone on a current tile plugs the
-  current (slides stop before it). `DwPuzzle_ClearActorBlocks()` clears all.
+- **Fall routing.** A table has one frame-fall script (`fallScriptId` +
+  `fallVar`, the Eterna honeycomb pattern). Step falls use the per-tile
+  (`DwPuzzleTile.fallScriptId`) or per-group (`DwPuzzleGroup.fallScriptId`)
+  script, falling back to the table's. Eterna Forest's split is the model:
+  entry-chasm lips are VOID tiles with fallScriptId 2 (their own script),
+  the honeycomb group's fallScriptId is 5, and the table's is 5.
+- **Debug export.** `gDwPuzzleDebug` (in the xMAP, one RAM struct): map,
+  active, player tile, surface, tile state, group solid/display bits, sigil
+  bits, checkpoint, fall count, slide state + steps, last event + frame,
+  flash frames, reset generation, and engine-b's stone positions / shadow
+  phase + position / echo position (engine-b writes those fields; each
+  actor position carries `present` and `surface`, so (0,0,0) on GROUND is
+  unambiguous). The harness reads it.
+- **Engine-b hooks.** `DwPuzzle_SetActorTile(i, x, y, z, surface, state,
+  present)`: an actor tile overrides a tile's state -- a stone landed as a
+  stepping stone is SOLID, a stone sitting on a path is BLOCKED, and a
+  stone on a current tile plugs the current (slides stop before it).
+  `DwPuzzle_ClearActorTiles()` clears all. `DwPuzzle_PressSigil(...,
+  occupant)` / `DwPuzzle_ReleaseSigils(..., occupant)` let the echo press
+  and release sigils without triggering runes, currents, checkpoints or
+  falls. `DwPuzzle_RequestCheckpointRespawn()` is the shadow-catch path:
+  restore + respawn at the checkpoint with no fall script.
   `DwPuzzle_DirDelta(surface, dir, &dx, &dy, &dz)` is the shared
   FACE_*-to-step table.
 
 ### Per-map glue a rift must add (in ov9_02249960.c, hook calls only)
 
-- Step hook: call `DwPuzzle_HandleStep` first; on `fallRequested` start the
-  table's `fallScriptId`; on `runeRequested` build the jump template.
+- Step hook: call `DwPuzzle_HandleStep` first; on `fallRequested` start
+  `out->fallScriptId`; on `runeRequested` build the jump template.
 - Frame hook (`Arc2Dw_HandleFrame`): call `DwPuzzle_HandleFrame`; apply
   `ghostShowMask` / `ghostHideMask` with Hide/ShowGhostPropGroup; on
-  `slideStep` move the player one tile; on `respawnRequested` move the
-  player to the checkpoint.
+  `slideStep` move the player one tile and re-run the step hook; on
+  `respawnRequested` move the player to the checkpoint (surface-aware).
 - Collision: `DistWorld_CheckCollisionOnCurrentFloatingPlatform` and
   `DistWorld_DynamicMapFeaturesCheckCollision` (floor path) consult
-  `DwPuzzle_QueryTile` -- a map with no table returns DEFAULT and the stock
-  grid decides.
+  `DwPuzzle_QueryTile` with the player's current surface -- a map with no
+  table returns DEFAULT and the stock grid decides.
 - Frame-detected falls need the init-table line and the fall script clearing
   it, as in `DwPuzzleTable.fallVar` above (the Eterna honeycomb pattern).
 
 ### Test map (debug only)
 
-`src/overlay009/dw_puzzle_test.c` holds a puzzle table for Ravaged Path that
-exercises every module (sigil + group bridge, rune, current, checkpoint,
-VOID fall). It is returned only while test mode is on (`gDwPuzzleTestMode`,
-set by the harness writing that RAM word, or `DwPuzzle_SetTestMode`). With
-test mode off, Ravaged Path has no table and plays exactly as today.
+Two debug-only tables exercise every module, one per rift:
+`src/overlay009/dw_puzzle_test.c` (Ravaged Path: sigil + group bridge,
+momentary sigil, reset sigil, rune, current, checkpoint, VOID fall) and
+`src/overlay009/dw_puzzle_test_eterna.c` (Eterna Forest: the same modules
+on the hive floor, east wall and ceiling; it does not touch the honeycomb,
+which stays owned by the stock Eterna timer/frame hook). Both have
+`testOnly = 1` and are returned only while test mode is on
+(`gDwPuzzleTestMode`, set by the harness writing that RAM word, or
+`DwPuzzle_SetTestMode`). With test mode off, both rifts have no table and
+play exactly as today.
