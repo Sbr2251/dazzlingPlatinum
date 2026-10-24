@@ -38,12 +38,23 @@ extern const DwPuzzleTable gDwPuzzleTestEternaTable;
 extern const DwPuzzleTable gDwPuzzleLostTowerV1Table; // dwp:rift-lt
 extern const DwPuzzleTable gDwPuzzleLostTowerV2Table; // dwp:rift-lt
 extern const DwActorTable gDwActorsLostTowerTable; // dwp:rift-lt (visit 2)
+extern const DwPuzzleTable gDwPuzzleRavagedPathTable; // dwp:rift-rp
+extern const DwPuzzleTable gDwPuzzleEternaForestTable;
+extern const DwPuzzleTable gDwPuzzleRoute214Table; // dwp:rift-214
+// dwp:rift-213
+extern const DwPuzzleTable gDwPuzzleRoute213Table;
+extern const DwActorTable gDwPuzzleRoute213ActorTable;
 
 static const DwPuzzleTable *const sPuzzleTables[] = {
     &gDwPuzzleTestTable,
     &gDwPuzzleTestEternaTable,
     &gDwPuzzleLostTowerV1Table, // dwp:rift-lt
     &gDwPuzzleLostTowerV2Table, // dwp:rift-lt
+    &gDwPuzzleRavagedPathTable,
+    &gDwPuzzleEternaForestTable,
+    &gDwPuzzleRoute214Table, // dwp:rift-214
+    // dwp:rift-213
+    &gDwPuzzleRoute213Table,
 };
 
 // Rift actor tables (engine-b), one per puzzle table, NULL until the
@@ -54,6 +65,11 @@ static const DwActorTable *const sActorTables[] = {
     NULL, // Eterna Forest test table: no actor table yet
     NULL, // dwp:rift-lt: Lost Tower visit 1: no actor table (Phase 0 acts)
     &gDwActorsLostTowerTable, // dwp:rift-lt: Lost Tower visit 2: pads + shadow
+    NULL, // Ravaged Path production table: no actors // dwp:rift-rp
+    NULL, // Eterna Forest production table: no actor table
+    NULL, // DW Route 214: no actor table (currents + sigils only)
+    // dwp:rift-213
+    &gDwPuzzleRoute213ActorTable,
 };
 
 

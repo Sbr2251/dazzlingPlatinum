@@ -19,12 +19,12 @@
         {
             "attr": 22,
             "rows": [
-                "##.....................",
-                "##.....................",
-                "##.....................",
-                "##.....................",
-                "##.....................",
-                "##....................."
+                "....#...#.....#.#......",
+                "....#...#...#.#.#......",
+                "....#...#...#.#........",
+                "........#...#.#.#......",
+                "....#...#...#.#.#......",
+                "....#.........#........"
             ]
         }
     ],
@@ -278,5 +278,282 @@
             "steps": 16
         }
     ],
-    "ghost_props": []
+    "ghost_props": [
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 44,
+            "y": 10,
+            "z": 29
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 45,
+            "y": 10,
+            "z": 29
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 45,
+            "y": 10,
+            "z": 33
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 45,
+            "y": 10,
+            "z": 37
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 45,
+            "y": 10,
+            "z": 39
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 45,
+            "y": 10,
+            "z": 41
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 46,
+            "y": 10,
+            "z": 33
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 46,
+            "y": 10,
+            "z": 37
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 46,
+            "y": 10,
+            "z": 39
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 46,
+            "y": 10,
+            "z": 41
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 47,
+            "y": 10,
+            "z": 29
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 47,
+            "y": 10,
+            "z": 33
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 47,
+            "y": 10,
+            "z": 37
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 47,
+            "y": 10,
+            "z": 39
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 48,
+            "y": 10,
+            "z": 29
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 48,
+            "y": 10,
+            "z": 37
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 48,
+            "y": 10,
+            "z": 39
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 48,
+            "y": 10,
+            "z": 41
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 49,
+            "y": 10,
+            "z": 29
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 49,
+            "y": 10,
+            "z": 33
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 49,
+            "y": 10,
+            "z": 39
+        },
+        {
+            "group": 1,
+            "kind": 23,
+            "x": 49,
+            "y": 10,
+            "z": 41
+        },
+        {
+            "group": 2,
+            "kind": 23,
+            "x": 48,
+            "y": 10,
+            "z": 33
+        },
+        {
+            "group": 3,
+            "kind": 23,
+            "x": 44,
+            "y": 10,
+            "z": 39
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 44,
+            "y": 10,
+            "z": 33
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 44,
+            "y": 10,
+            "z": 37
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 44,
+            "y": 10,
+            "z": 38
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 44,
+            "y": 10,
+            "z": 41
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 46,
+            "y": 10,
+            "z": 29
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 46,
+            "y": 10,
+            "z": 30
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 46,
+            "y": 10,
+            "z": 31
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 47,
+            "y": 10,
+            "z": 41
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 47,
+            "y": 10,
+            "z": 42
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 47,
+            "y": 10,
+            "z": 43
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 48,
+            "y": 10,
+            "z": 34
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 48,
+            "y": 10,
+            "z": 35
+        },
+        {
+            "group": 4,
+            "kind": 0,
+            "x": 49,
+            "y": 10,
+            "z": 37
+        },
+        {
+            "group": 5,
+            "kind": 1,
+            "x": 45,
+            "y": 10,
+            "z": 31
+        },
+        {
+            "group": 5,
+            "kind": 1,
+            "x": 45,
+            "y": 10,
+            "z": 35
+        }
+    ],
+    "ghost_triggers": [],
+    "ghost_default_visible": 62,
+    "notes": "rift-214 (Phase 2): ceiling attr 22 rows are x=49-row, z25..47; '#' = a stone-block tile (22 permanent + A/B gap tiles, opened by engine groups 1-3). Ghost props: 39 total -- group 1: 22 LAND_ROCK stone blocks; group 2: A block (48,33); group 3: B block (44,39); group 4: 13 SMALL_PLATFORM current pads (no arrow prop kind exists in the engine enum; the pad marks a current tile, drift direction = the slide-path direction); group 5: 2 FLOATING_BLUE_ROCK sigil markers. ghost_triggers [] clears B4F's inherited 47; ghost_default_visible 62 = groups 1-5 visible at load (inherited 0xF55 left 1, 3, 5 hidden)."
 }

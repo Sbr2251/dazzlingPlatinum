@@ -69,6 +69,14 @@
         "Cyrus: My hand will mend.\n",
         "Go. It's waiting for you."
       ]
+    },
+    {
+      "id": "DWRoute214_Text_CyrusDriftHint",
+      "en_US": [
+        "Cyrus: The drift carries you\r",
+        "until a stone block stops it.\n",
+        "The sigil moves the block."
+      ]
     }
   ]
 }

@@ -17,6 +17,8 @@
 // Flags (rift-a block 0x0926-0x0929; the lead names them at merge):
 //   FLAG_ARC2_RIFTA_A (0x0926)  Ravaged Path: the player has fallen once (Cyrus's retry line played)
 //   FLAG_ARC2_RIFTA_B (0x0927)  Ravaged Path: the halfway point reached (fork hint stops, GIRATINA's shadow seen)
+//   FLAG_DW_RP_A (0x0A00)       Ravaged Path: Cyrus's sigil teaching line played (dwp:rift-rp)
+//   FLAG_DW_RP_B (0x0A01)       Ravaged Path: Cyrus's two-fall hint played (dwp:rift-rp)
 //   FLAG_ARC2_RESONATOR_A (0x0924, unused block; fix2-dwrp) Ravaged Path: Cyrus's fork line played. Set by the step
 //                               hook (FLAG_ARC2_RAVAGED_PATH_FORK_SEEN in ov9). Persistent, so a fall and return
 //                               doesn't replay it; talking to Cyrus repeats the scar hint instead.
@@ -40,6 +42,7 @@
     ScriptEntry DWRavagedPath_Halfway
     ScriptEntry DWRavagedPath_Totem
     ScriptEntry DWRavagedPath_TalkCyrus
+    ScriptEntry DWRavagedPath_Sigil
     ScriptEntryEnd
 
 DWRavagedPath_OnTransition:
@@ -67,8 +70,10 @@ DWRavagedPath_MapLoad:
 DWRavagedPath_End:
     End
 
-// The Arc 1 fall script: from a scar (the step hook) or a chasm lip (coord events). The void sends the player back to
-// the entry; Cyrus's retry line plays after the first fall only.
+// The Arc 1 fall script: from a scar (the step hook, which calls DwPuzzle_NotifyFall first) or a chasm lip
+// (an engine VOID tile / coord event). The void sends the player back to the entry; the engine restores the
+// checkpoint snapshot (the bridges stay as they were when the entry checkpoint was last snapshotted).
+// Cyrus's retry line plays after the first fall only; his hint plays after the second fall only (FLAG_DW_RP_B).
 DWRavagedPath_Fall:
     // dwp:engine-a: clear the puzzle frame-fall var (raised by the engine when the ground goes from under a
     // standing player); normally 0, so this is a no-op for non-puzzle falls.
@@ -85,11 +90,22 @@ DWRavagedPath_Fall:
     Warp MAP_HEADER_DW_RAVAGED_PATH, 0, ENTRY_X, ENTRY_Z, DIR_WEST
     FadeScreenIn
     WaitFadeScreen
-    GoToIfSet FLAG_ARC2_RIFTA_A, DWRavagedPath_FallEnd
+    GoToIfSet FLAG_ARC2_RIFTA_A, DWRavagedPath_FallSecond
     SetFlag FLAG_ARC2_RIFTA_A
     ApplyMovement LOCALID_PLAYER, DWRavagedPath_Movement_FaceEast
     WaitMovement
     Message DWRavagedPath_Text_CyrusAgainSlower
+    WaitABXPadPress
+    CloseMessage
+    ApplyMovement LOCALID_PLAYER, DWRavagedPath_Movement_FaceWest
+    WaitMovement
+    GoTo DWRavagedPath_FallEnd
+DWRavagedPath_FallSecond:
+    GoToIfSet FLAG_DW_RP_B, DWRavagedPath_FallEnd
+    SetFlag FLAG_DW_RP_B
+    ApplyMovement LOCALID_PLAYER, DWRavagedPath_Movement_FaceEast
+    WaitMovement
+    Message DWRavagedPath_Text_CyrusHintAfterTwoFalls
     WaitABXPadPress
     CloseMessage
     ApplyMovement LOCALID_PLAYER, DWRavagedPath_Movement_FaceWest
@@ -206,15 +222,31 @@ DWRavagedPath_TotemLost:
 DWRavagedPath_TalkCyrus:
     LockAll
     FacePlayer
+    GoToIfSet FLAG_DW_RP_B, DWRavagedPath_TalkCyrusHint
     GoToIfSet FLAG_ARC2_RIFTA_A, DWRavagedPath_TalkCyrusScar
     GoToIfSet FLAG_ARC2_RIFTA_B, DWRavagedPath_TalkCyrusScar
     GoToIfSet FLAG_ARC2_RESONATOR_A, DWRavagedPath_TalkCyrusScar
     Message DWRavagedPath_Text_CyrusFrightened
     GoTo DWRavagedPath_TalkEnd
 
+DWRavagedPath_TalkCyrusHint:
+    Message DWRavagedPath_Text_CyrusHintAfterTwoFalls
+    GoTo DWRavagedPath_TalkEnd
+
 DWRavagedPath_TalkCyrusScar:
     Message DWRavagedPath_Text_CyrusScarHoldsYouOnce
 DWRavagedPath_TalkEnd:
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+// Step hook: first step onto the sigil (FLAG_DW_RP_A, set by the hook). Cyrus names what just happened:
+// the rune switched the bridges on. Standing on the sigil through this message also covers the
+// group's 3-frame fade-in lead, so the first bridge holds when the player steps onto it.
+DWRavagedPath_Sigil:
+    LockAll
+    Message DWRavagedPath_Text_CyrusSigil
     WaitABXPadPress
     CloseMessage
     ReleaseAll

@@ -71,6 +71,14 @@
         "tied to it.\r",
         "The other end is frayed through."
       ]
+    },
+    {
+      "id": "DWRoute213_Text_CyrusPuzzleHint",
+      "en_US": [
+        "Cyrus: Push the stone into\n",
+        "the gap. It falls below.\n",
+        "A stone stops the current."
+      ]
     }
   ]
 }

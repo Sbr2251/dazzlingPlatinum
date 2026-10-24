@@ -21,6 +21,13 @@
 // at 83) doesn't replay it; the map-local VAR_MAP_LOCAL_1 alone reset on every load. Lead: rename at merge
 // (suggested FLAG_ARC2_DW_ROUTE_213_LAKE_LINE).
 // Map-local: VAR_MAP_LOCAL_1 entry line played this load (not VAR_MAP_LOCAL_0: see scripts_dw_route_214.s).
+// VAR_MAP_LOCAL_3 is the puzzle frame-fall var (engine-a): the engine raises it when the ground goes from under a
+// standing player; the fall script clears it first. This map's puzzle (src/overlay009/dw_puzzle_route_213.c) has
+// no frame falls (no fading groups), so the var is normally 0 and the init-table line below is a no-op (the
+// Eterna honeycomb pattern).
+// dwp:rift-213 flags (docs/arc2/registry.md, FLAG_DW_213_A..H 0x0A18-0x0A1F): FLAG_DW_213_A = fell once,
+// FLAG_DW_213_B = the puzzle hint was shown. The hint fires once per save, on the second fall, in DWRoute213_Fall.
+// Persistent flags, not map-local vars: map-local vars reset on the fall warp, so they cannot count falls.
 // DW overlay objects (src/overlay009 sArc2DwRoute213Objects): 0x80 Cyrus at the entry, 0x81 the rusted frame,
 // 0x82 the card, 0x83 the Lapras (on the island of the hanging lake), 0x84 the lakefront sign.
 // set-lake dressing (docs/arc2/PLAN.md S6, D6): the debris on the old lakebed is examinable (entries 6-9); the
@@ -43,6 +50,7 @@
     ScriptEntry DWRoute213_RustedFrame
     ScriptEntry DWRoute213_Rowboat
     ScriptEntry DWRoute213_MooringPost
+    ScriptEntry DWRoute213_Fall
     ScriptEntryEnd
 
 DWRoute213_OnTransition:
@@ -186,6 +194,52 @@ DWRoute213_MooringPost:
     CloseMessage
     ReleaseAll
     End
+
+// The puzzle fall script (entry 10; the engine starts it when the step hook reports a VOID-tile fall, and the
+// init frame table starts it when the frame hook raises VAR_MAP_LOCAL_3). The fall animation plays, the warp
+// returns the player to the entry, and the engine's frame hook then respawns the player at the last checkpoint
+// with the checkpoint snapshot restored (stones included). The hint: on the second fall, Cyrus gives it, here
+// at the entry where he stands. First fall only sets FLAG_DW_213_A; the hint itself is FLAG_DW_213_B, once per
+// save. The entry scene (script 2) runs after this script on the same load and steps the player out of the
+// trees; the engine respawn follows it to the checkpoint. Either order is consistent (the entry scene is
+// position-gated on (20,12)).
+DWRoute213_Fall:
+    SetVar VAR_MAP_LOCAL_3, 0
+    LockAll
+    ApplyMovement LOCALID_PLAYER, DWRoute213_Movement_PlayerFall
+    WaitMovement
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut
+    WaitFadeScreen
+    ApplyMovement LOCALID_PLAYER, DWRoute213_Movement_SetVisible
+    WaitMovement
+    ResetDistortionWorldPersistedCameraAngles
+    Warp MAP_HEADER_DW_ROUTE_213, 0, ENTRY_X, ENTRY_Z, DIR_WEST
+    FadeScreenIn
+    WaitFadeScreen
+    GoToIfSet FLAG_DW_213_A, DWRoute213_FallSecond
+    SetFlag FLAG_DW_213_A
+    GoTo DWRoute213_FallEnd
+DWRoute213_FallSecond:
+    GoToIfSet FLAG_DW_213_B, DWRoute213_FallEnd
+    SetFlag FLAG_DW_213_B
+    Message DWRoute213_Text_CyrusPuzzleHint
+    WaitABXPadPress
+    CloseMessage
+DWRoute213_FallEnd:
+    ReleaseAll
+    End
+
+    .balign 4, 0
+DWRoute213_Movement_PlayerFall:
+    JumpOnSpotFastSouth
+    SetInvisible
+    EndMovement
+
+    .balign 4, 0
+DWRoute213_Movement_SetVisible:
+    SetVisible
+    EndMovement
 
     .balign 4, 0
 DWRoute213_Movement_FaceEast:

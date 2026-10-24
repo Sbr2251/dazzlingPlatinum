@@ -36,6 +36,7 @@
     ScriptEntry DWRoute214_Frame
     ScriptEntry DWRoute214_Totem
     ScriptEntry DWRoute214_TalkCyrus
+    ScriptEntry DWRoute214_Fall
     ScriptEntryEnd
 
 DWRoute214_OnTransition:
@@ -163,6 +164,44 @@ DWRoute214_TotemLost:
     ReleaseAll
     End
 
+// Puzzle fall script (entry 6; the table's fallScriptId in dw_puzzle_route_214.c,
+// started by the engine on a VOID step fall -- two production VOID edge lips,
+// (49,34) and (44,42), section 9 of the design doc -- and by the init frame
+// table when the engine raises VAR_MAP_LOCAL_3 for a frame-detected fall,
+// ground gone under a standing player). It plays the fall, warps to the map
+// entry, and the engine restores the last checkpoint snapshot and respawns
+// at the checkpoint after the warp. Cyrus's hint plays on the second fall
+// (FLAG_DW_214_A fell once, FLAG_DW_214_B hint shown).
+DWRoute214_Fall:
+    // dwp:rift-214: clear the puzzle frame-fall var (raised by the engine
+    // when the ground goes from under a standing player); normally 0, so
+    // this is a no-op for non-puzzle falls.
+    SetVar VAR_MAP_LOCAL_3, 0
+    LockAll
+    ApplyMovement LOCALID_PLAYER, DWRoute214_Movement_PlayerFall
+    WaitMovement
+    PlayFanfare SEQ_SE_PL_SYUWA
+    FadeScreenOut
+    WaitFadeScreen
+    ApplyMovement LOCALID_PLAYER, DWRoute214_Movement_SetVisible
+    WaitMovement
+    ResetDistortionWorldPersistedCameraAngles
+    Warp MAP_HEADER_DW_ROUTE_214, 0, ENTRY_X, ENTRY_Z, DIR_WEST
+    FadeScreenIn
+    WaitFadeScreen
+    GoToIfSet FLAG_DW_214_B, DWRoute214_FallEnd
+    GoToIfUnset FLAG_DW_214_A, DWRoute214_FallFirst
+    SetFlag FLAG_DW_214_B
+    Message DWRoute214_Text_CyrusDriftHint
+    WaitABXPadPress
+    CloseMessage
+    GoTo DWRoute214_FallEnd
+DWRoute214_FallFirst:
+    SetFlag FLAG_DW_214_A
+DWRoute214_FallEnd:
+    ReleaseAll
+    End
+
 DWRoute214_TalkCyrus:
     LockAll
     FacePlayer
@@ -182,6 +221,17 @@ DWRoute214_TalkEnd:
     CloseMessage
     ReleaseAll
     End
+
+    .balign 4, 0
+DWRoute214_Movement_PlayerFall:
+    JumpOnSpotFastSouth
+    SetInvisible
+    EndMovement
+
+    .balign 4, 0
+DWRoute214_Movement_SetVisible:
+    SetVisible
+    EndMovement
 
     .balign 4, 0
 DWRoute214_Movement_FaceEast:
