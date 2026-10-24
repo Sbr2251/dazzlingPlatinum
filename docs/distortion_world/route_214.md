@@ -229,31 +229,53 @@ letters are slide tiles, upper-case are player steps.
   tile steps, not BFS over player inputs, so 36 is the true tile-step
   optimum: no 35-tile route exists, and sigil B is required (the C3
   wall z39 is solid except the B gap, so B cannot be walked around).
-  Solution string (23 player steps):
+  Solution string (23 player steps + 2 waits):
   `LLLUUuuuLDRuRRUuuuLLLDLUUuuuRRRUuuuU`.
+  The 2 waits are the fade waits after the two sigil presses (see
+  "Fade timing" below): in the real engine the walk to the gap may
+  already cover the 33-frame fade, but waiting is always safe, and
+  the solver models the wait explicitly.
 - Trace (player steps):
 
 | step | press | ends on | note |
 |---|---|---|---|
 | 0-2 | L L L | (46,27) | walk west across C0 to the W1 arrow column |
 | 3-4 | U U | (46,32) C | walk to (46,28), W1 slide (teaching), stops at checkpoint |
-| 5-6 | L D | (45,31) s | walk to sigil A, toggle A off (W2 gap opens) |
-| 7 | R | (46,32) C | step east onto (46,31) `v`, slides south to checkpoint |
+| 5-6 | L D | (45,31) s | walk to sigil A, toggle A off (fade pending) |
+| 6b | wait | (45,31) | wait for the A fade to settle (gap opens) |
+| 7 | R | (46,32) C | step east onto (46,31) `v`, slides south to checkpoint; snapshot now has A off |
 | 8-9 | R R | (48,32) | walk to the W2 gap |
 | 10 | U | (48,36) C | W2 slide, stops at checkpoint |
-| 11-14 | L L L D | (45,35) t | walk to sigil B, toggle B off (C3 wall gap opens) |
+| 11-14 | L L L D | (45,35) t | walk to sigil B, toggle B off (fade pending) |
+| 14b | wait | (45,35) | wait for the B fade to settle (gap opens) |
 | 15-16 | L U | (44,36) | walk to the W3 gap |
 | 17 | U | (44,40) C | W3 slide, stops at checkpoint |
 | 18-20 | R R R | (47,40) | walk to the W4 gap |
 | 21 | U | (47,44) C | W4 slide, stops at checkpoint |
 | 22 | U | (47,45) | step south: totem triggers (z >= 45) |
 
-- Solver stats: 247 reachable states (tile-step Dijkstra, goal terminal,
-  fall transitions included — see section 9);
+- Solver stats: 2608 reachable states (tile-step Dijkstra, goal terminal,
+  fade-pending states + fall transitions included — see sections 4/9);
   **every reachable non-goal state can still reach the goal** (reverse
-  BFS from the goal over the same transitions, steps + falls) — no
-  soft-lock. No slide loops in any reachable state (the solver raises
-  on a loop). Falls in the optimal solution: 0.
+  BFS from the goal over the same transitions, steps + waits + falls) —
+  no soft-lock. No slide loops in any reachable state (the solver raises
+  on a loop). Falls in the optimal solution: 0; waits: 2.
+
+**Fade timing.** A sigil toggle does not change its block at once
+(engine-a honeycomb rule): turning a group off leaves its tiles solid
+for `fadeOutFrames` (default 33 field frames, ~1 s) while its props fade;
+turning one on shows its props at once but blocks only after
+`fadeInLeadFrames` (default 3). The solver models this with a
+fade-pending state and an explicit WAIT ("wait until the fades
+settle"); walking/sliding steps do not advance fades in the model,
+although in the real engine they take frames too, so the model is
+stricter than the engine and any path it finds works in the engine.
+In practice the player waits ~1 s after each sigil press (or walks
+slowly to the gap); pressing a sigil and sliding through its gap in
+under 33 frames would find the gap still closed, which is a wasted
+slide, not a soft-lock — the return gaps let the player try again.
+Re-entering a checkpoint after a toggle re-snapshots with the new
+state (step 7 above re-snapshots C1 with A off).
 - Recovery cost (tile steps to goal from a missed-sigil state):
   short stop at (44,38) with B on (checkpoint snapshot still C2):
   **18** — walk east to the W3 return gap, slide back to C2, press B,
@@ -304,11 +326,14 @@ tiles, and keep only the 17 moving/sigil/arrow props.)
 The permanent blocks are the stock B4F rock-maze blocks (the same prop
 kinds B4F already uses), drawn where the attr grid says BLOCKED.
 
-**Inherited triggers:** `route_214.json` today carries B4F's 47 ghost
-triggers with zero props ("their triggers stay and toggle nothing").
-Phase 2 must set `ghost_triggers` to `[]` in the Route 214 spec, so
-none of the inherited triggers can touch groups 1-5; the new props use
-only the numeric group ids above.
+**Inherited triggers and default visibility:** `route_214.json` today
+carries B4F's 47 ghost triggers with zero props ("their triggers stay
+and toggle nothing"). Phase 2 must set `ghost_triggers` to `[]` in the
+Route 214 spec, so none of the inherited triggers can touch groups 1-5,
+and must set `ghost_default_visible` to `0x3E` (groups 1-5 visible at
+map load). The inherited `0xF55` mask leaves groups 1, 3, 4 and 5
+hidden — without the new mask the walls, the B block, the arrows and
+the sigils would start invisible.
 
 ### Collision vs drawn (fix2-lost rule)
 
@@ -336,9 +361,13 @@ any state returns to that checkpoint with those groups. The soft-lock
 proof (section 7) includes those fall transitions.
 
 Concretely: a fall in C2 after pressing B returns the player to the
-C2 checkpoint (48,36) with B off (the snapshot taken there), so B does
-not need re-pressing. A fall in C1 after pressing A returns the player
-to the C1 checkpoint (46,32) with A on, so A must be pressed again.
+C2 checkpoint (48,36) with **B on** — the checkpoint was reached
+before B was pressed, so its snapshot still has B on, and B must be
+pressed again. (An earlier draft had this backwards.) A fall in C1
+after pressing A but before re-entering the (46,32) checkpoint also
+returns with A on. But if the player re-enters a checkpoint after a
+toggle — as step 7 of the solution re-enters (46,32) with A off — the
+snapshot updates, and a later fall returns with A off.
 
 **Hint after two falls.** Cyrus's hint plays on the respawn after the
 **second** fall in this rift. It is wired through the fall script's
@@ -363,13 +392,19 @@ The sigil moves the block.
   falls (he stands at the frame; the talk script checks the two flags).
 - A fall on this map is a fall anywhere in the rift (floor hops, wall,
   ceiling edge): the engine restores the player and the puzzle to the
-  last checkpoint on any fall warp. **Phase 2 must give this map a
-  concrete fall path to prove against** (today
-  `events_dw_route_214.json` has only the boost-choice event): either
-  mark the existing floor/wall fall lips as VOID in the puzzle table so
-  the engine's fall path runs, or trigger the fall warp from the harness
-  and prove the checkpoint restore. The solver's fall transition covers
-  both: it does not depend on which tile caused the fall.
+  last checkpoint on any fall warp. **Scope:** the solver's fall proof
+  covers falls from any ceiling state. Falls *before* the ceiling are
+  not in the solver: no sigil is reachable before the ceiling, so the
+  puzzle state there is always the initial one, and a fall there
+  returns the player to the map entry with initial groups — equivalent
+  to a fresh entry. Phase 2 must still headless-test one floor/wall
+  fall. **Phase 2 must give this map a concrete fall path to prove
+  against** (today `events_dw_route_214.json` has only the boost-choice
+  event): either mark the existing floor/wall fall lips as VOID in the
+  puzzle table so the engine's fall path runs, or trigger the fall warp
+  from the harness and prove the checkpoint restore. The solver's fall
+  transition covers both: it does not depend on which tile caused the
+  fall.
 
 ## 10. Boost choice, re-entry, contract (unchanged)
 
@@ -398,7 +433,8 @@ The sigil moves the block.
    section 1.3 (`#` = BLOCKED, `.` = walkable; group tiles are BLOCKED
    in the stock grid and opened by the engine), the 39 ghost props
    (groups 1-5), `ghost_triggers` set to `[]` (clearing B4F's
-   inherited 47), no jump/camera changes.
+   inherited 47), `ghost_default_visible` set to `0x3E` (groups 1-5
+   visible at load), no jump/camera changes.
    Rebuild with `twarc.py build` and `twarc.py check`.
 3. `build_rift_b_maps.py`: no change (the floor is unchanged). If the
    ceiling attr edit needs a land-data change, do it there and keep
@@ -444,3 +480,10 @@ The sigil moves the block.
 5. **Concrete fall path**: Phase 2 must give this map a fall path to
    prove against (section 9): mark real fall lips VOID in the table,
    or trigger the fall warp from the harness.
+6. **Fade/snapshot assumptions** (solver section, modelled): checkpoint
+   snapshots store *logical* group states, and a fall settles pending
+   fades (respawn warp outlasts any fade). If the engine snapshots
+   effective states instead, the only change is the C2-after-B example
+   in section 9 (a fall after pressing B but before re-entering the
+   checkpoint would return with B off); confirm against the engine-a
+   implementation when it lands.
