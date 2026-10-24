@@ -189,15 +189,19 @@ const DwActorTable gDwActorsLostTowerTable = {
     { { { 0, 0, 0, 0, 0 }, { { { 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0 } } }, 0, 0 } },
     0,
     { 0, 0, 0 },
-    /* shadow: the DwActors_MakeShadowLane expansion of (17,22)-(31,22) */
+    /* shadow: (17,22)-(30,22), 14 tiles. The lane stops at 30 so the
+       S pad on the last stone (32,22) is not on the lane or at its
+       end (two tiles clear of the patrol). Beat 30 field frames =
+       60 emu frames/tile (the field runs at 2 emu frames per field
+       frame): a 28-beat ping-pong cycle, not the ~50 s cycle a
+       100-emu-frame beat gave. */
     { { { 17, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 }, { 18, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 },
           { 19, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 }, { 20, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 },
           { 21, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 }, { 22, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 },
           { 23, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 }, { 24, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 },
           { 25, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 }, { 26, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 },
           { 27, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 }, { 28, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 },
-          { 29, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 }, { 30, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 },
-          { 31, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 } }, 15, 50, 1 },
+          { 29, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 }, { 30, 1, 22, DW_ACTOR_SURFACE_GROUND, 0 } }, 14, 30, 1 },
     /* echo: inactive (active, playerSurface, echoSurface, echoAxis, echoValue, mirrorAxis, mirrorMin, mirrorMax, sigilTiles, sigilCount) */
     { 0, 0, 0, 0, 0, 0, 0, 0, { { 0, 0, 0, 0, 0 } }, 0 },
     /* pads: H, V, L, S (pad indices 0-3, matched by the prompt script) */

@@ -3411,20 +3411,37 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
     return FALSE;
 }
 
+// dwp:rift-lt: no catch right after a prompt or a carry. Engine-b's
+// grace (shadowGrace) is only set at spawn / checkpoint-respawn, so
+// the glue grants it when a pad prompt closes (PadResolve runs for
+// Yes AND No) and when a carry ends. 60 field frames (~2 s) -- at
+// least the 60 frames the lead asked for, in either frame unit.
+// Engine-b exposes no grace setter, so the glue writes the field
+// directly (gDwActorState is extern in dw_puzzle_actors.h).
+static void LostTower_GrantShadowGrace(void)
+{
+    gDwActorState.shadowGrace = 60;
+}
+
 // dwp:rift-lt: script-command wrappers. Scripts run in the main binary
 // and cannot call overlay-9 actor functions directly (the ov9_ entry
 // points are the overlay boundary, as with ScrCmd_311/312). These are
 // the only new ov9 entry points this workstream adds.
 u16 DwPuzzle_Ov9ResolvePad(FieldSystem *fieldSystem, int padIndex, BOOL accepted)
 {
+    u16 event;
+
     (void)fieldSystem;
-    return (u16)DwActors_ResolvePad(padIndex, accepted);
+    event = (u16)DwActors_ResolvePad(padIndex, accepted);
+    LostTower_GrantShadowGrace();
+    return event;
 }
 
 void DwPuzzle_Ov9ConfirmCarryDone(FieldSystem *fieldSystem)
 {
     (void)fieldSystem;
     DwActors_ConfirmCarryDone();
+    LostTower_GrantShadowGrace();
 }
 
 int DwPuzzle_Ov9TakePendingCutin(FieldSystem *fieldSystem)
