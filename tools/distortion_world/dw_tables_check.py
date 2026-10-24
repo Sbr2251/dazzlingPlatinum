@@ -61,11 +61,15 @@ oversize array as absent.
       WALKABLE for a platform); the VOID-only override rule still
       applies if a landing override is present. Non-GROUND actor
       tiles resolve via the stock grid on the player's surface --
-      no walkability query in the engine is cross-surface (TryPush,
-      the step hook, Currents, and the slide all query the player's
-      surface; shadow/echo/pad checks are TileEq), so the
-      cross-surface BLOCKED is a latent contract, not an
-      enforceable table rule.
+      except an active echo's sigil tiles, which need explicit
+      states on ANY surface: EchoUpdate queries TileAt(desired) on
+      echoSurface while the player is on playerSurface, and a
+      DEFAULT sigil reads BLOCKED, hiding the echo so it never
+      presses. The echo's full path (mirrored tiles) needs explicit
+      states too, or the echo flickers while crossing a DEFAULT
+      path tile -- the validator cannot enumerate the path from
+      the tables, so the replay verifies the echo appears along
+      its path; the sigil tiles are the logic-critical ones.
     - shadow beatFrames >= 30 (Arc 2 rule; the test table uses a 6-frame
       beat on purpose)
     - every pad tile has a sigil in the engine-a table (pads are sigil
@@ -521,29 +525,39 @@ static int is_pad_tile(const DwActorTable *a, int x, int y, int z, int s)
  * reads BLOCKED for any surface other than the player's (the glue
  * compares against gDwPuzzleDebug.surface); for GROUND there is no
  * stock grid, so DEFAULT always reads BLOCKED (fail closed). The
- * enforceable rule is GROUND-only: an audit of the engine's
- * queries shows no walkability query is cross-surface --
- * TryPush, the step hook, Currents, and the slide all query the
- * player's surface; the shadow/echo/pad checks are TileEq, not
- * tile queries; the one cross-surface tile is the landing, and
- * section 3 explicitly permits it to use its base kind (VOID for
- * a gap, WALKABLE for a platform -- the LANDED actor tile wins
+ * enforceable rule is GROUND-only for most actors -- except echo
+ * sigils. TryPush, the step hook, Currents, and the slide all query
+ * the player's surface, and the shadow/pad checks are TileEq, not
+ * tile queries -- but EchoUpdate queries TileAt(desired) on
+ * echoSurface while the player remains on playerSurface, a genuine
+ * cross-surface walkability query. A DEFAULT echo-sigil tile reads
+ * BLOCKED there and the echo hides, never pressing. So an active
+ * echo's sigil tiles need explicit states on ANY surface (see
+ * check_pair). The one other cross-surface tile is the landing,
+ * and section 3 explicitly permits it to use its base kind (VOID
+ * for a gap, WALKABLE for a platform -- the LANDED actor tile wins
  * once the stone is there). So production tables need explicit
  * states for GROUND actor tiles EXCEPT landings (the VOID-only
- * override rule still applies if a landing override is present).
- * Non-GROUND actor tiles resolve via the stock grid on the
- * player's surface; the cross-surface BLOCKED is a latent
- * contract, not an enforceable table rule. */
+ * override rule still applies if a landing override is present),
+ * plus echo sigils on any surface when the echo is active.
+ * Non-GROUND non-echo actor tiles resolve via the stock grid on
+ * the player's surface. */
+static int has_explicit_state(const DwPuzzleTable *t,
+                              const DwActorTile *tile)
+{
+    return is_group_tile(t, tile->x, tile->y, tile->z, tile->surface)
+        || (find_explicit(t, tile->x, tile->y, tile->z, tile->surface) != NULL
+            && find_explicit(t, tile->x, tile->y, tile->z, tile->surface)->state
+               != DW_PUZZLE_TILE_DEFAULT);
+}
+
 static void check_ground_actor_tile(const DwPuzzleTable *t, const DwActorTile *tile,
                                     const char *what, int production)
 {
     char buf[64];
     if (!production || tile->surface != DW_PUZZLE_SURFACE_GROUND)
         return;
-    CHECK(is_group_tile(t, tile->x, tile->y, tile->z, tile->surface)
-          || (find_explicit(t, tile->x, tile->y, tile->z, tile->surface) != NULL
-              && find_explicit(t, tile->x, tile->y, tile->z, tile->surface)->state
-                 != DW_PUZZLE_TILE_DEFAULT),
+    CHECK(has_explicit_state(t, tile),
           "ground actor tile %s %s has no explicit engine-a state "
           "(group tile or explicit override, state != DEFAULT)",
           what, actor_tile_name(tile, buf));
@@ -637,9 +651,35 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
         CHECK(a->shadow.beatFrames >= 30,
               "shadow beat %d frames, Arc 2 needs >= 30 (readable patrol)",
               a->shadow.beatFrames);
-    /* Echo sigils. */
+    /* Echo sigils. GROUND sigils need explicit state via the ground
+     * rule (the player walks on GROUND); an ACTIVE echo's sigils
+     * need explicit state on ANY surface -- EchoUpdate queries
+     * TileAt(desired) on echoSurface while the player is on
+     * playerSurface, and a DEFAULT sigil reads BLOCKED, hiding the
+     * echo so it never presses. GROUND sigils are skipped here
+     * (the ground rule already covers them) to avoid a duplicate
+     * failure. The echo's full path (mirrored tiles) needs explicit
+     * states too, or the echo flickers (hides) while crossing a
+     * DEFAULT path tile -- the validator cannot enumerate the path
+     * from the tables (it is the mirror of the player's path),
+     * so the replay verifies the echo appears along its path;
+     * the sigil tiles are the logic-critical ones (presses). */
     for (i = 0; i < necho; i++)
         check_ground_actor_tile(t, &a->echo.sigilTiles[i], "echo sigil", production);
+    if (production && a->echo.active) {
+        for (i = 0; i < necho; i++) {
+            const DwActorTile *tile = &a->echo.sigilTiles[i];
+            char buf[64];
+            if (tile->surface == DW_PUZZLE_SURFACE_GROUND)
+                continue;
+            CHECK(has_explicit_state(t, tile),
+                  "echo sigil %s has no explicit engine-a state "
+                  "(group tile or explicit override, state != DEFAULT; "
+                  "EchoUpdate queries it cross-surface on echoSurface, "
+                  "DEFAULT reads BLOCKED and hides the echo)",
+                  actor_tile_name(tile, buf));
+        }
+    }
     /* Pads. */
     for (i = 0; i < npads; i++) {
         const DwActorTile *tile = &a->pads[i].tile;

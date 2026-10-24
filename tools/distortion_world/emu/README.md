@@ -121,10 +121,18 @@ explicit, so ANY never matches), and for production tables
 (testOnly == 0): explicit states for GROUND actor tiles except
 landings (GROUND has no stock grid; landings are exempt per
 section 3 -- base kind decides; non-GROUND tiles resolve via the
-stock grid on the player's surface, and no walkability query in
-the engine is cross-surface), shadow beat >= 30 frames, and every
-pad tile has a sigil in the engine-a table. Test tables are exempt
-from the production-only rules. Pairs come from the engine
+stock grid on the player's surface, except an active echo's sigil
+tiles -- see below), shadow beat >= 30 frames, and every pad tile
+has a sigil in the engine-a table. Test tables are exempt from the
+production-only rules. One cross-surface exception: an active
+echo's sigil tiles need explicit states on ANY surface --
+`EchoUpdate` queries `TileAt` on the echo surface while the player
+is on the player surface, and a DEFAULT sigil reads BLOCKED,
+hiding the echo so it never presses. The echo's full mirrored
+path needs explicit states too, or the echo flickers while
+crossing a DEFAULT path tile -- the validator cannot enumerate
+the path from the tables, so the replay verifies the echo
+appears along its path. Pairs come from the engine
 registry (`dw_puzzle.c` sPuzzleTables / sActorTables, by index)
 first, then same-file pairing, then the known test pair. Only
 fixture tables exist so far (Phase 2 has not written production
