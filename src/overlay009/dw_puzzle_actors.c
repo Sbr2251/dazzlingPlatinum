@@ -40,53 +40,14 @@
 // Core state
 // ---------------------------------------------------------------------------
 
-typedef struct {
-    DwActorTile tile;
-    DwActorTile fallLanding;
-    u8 state;
-    u8 fallTimer;
-} DwActorStoneRuntime;
-
-typedef struct {
-    DwActorStoneRuntime stones[DW_ACTORS_MAX_STONES];
-    u8 shadowPhase;
-    s8 shadowDir;
-    u16 shadowFrameCounter;
-    u8 padUsed;
-} DwActorSnapshot;
-
-typedef struct {
-    const DwActorTable *tableSrc; // identity for the idempotent re-init path
-    const DwActorTable *table; // &tableCopy (sanitised)
-    DwActorTable tableCopy;
-    DwActorPlatform platform;
-    BOOL active;
-    BOOL generationInit;
-    u32 lastResetGeneration;
-    DwActorStoneRuntime stones[DW_ACTORS_MAX_STONES];
-    u8 shadowPhase;
-    s8 shadowDir;
-    u16 shadowFrameCounter;
-    u16 shadowGrace;
-    u8 shadowState;
-    u16 shadowCaughtTimer;
-    BOOL catchResetIssued;
-    u16 catchWatchdog;
-    DwActorTile echoTile;
-    BOOL echoShown;
-    BOOL echoBlocked;
-    u16 echoSigilPresses;
-    s8 pendingPad;
-    u8 padUsed;
-    BOOL padDenied;
-    s8 pendingCutin;
-    s8 carryPending;
-    u16 caughtCount;
-    u16 respawnRequests;
-    DwActorSnapshot snapshot;
-} DwActorState;
-
+#ifdef DW_ACTORS_HOST_TEST
+// The host test has no overlay reload: a plain static is fine.
 static DwActorState sActors;
+#else
+// The ROM: the state lives in main-binary RAM (src/dw_actors_state.c),
+// NOT in overlay 9's .bss (a warp reloads ov9 and zeroes its .bss).
+#define sActors (gDwActorState)
+#endif
 
 static BOOL TileEq(DwActorTile a, DwActorTile b)
 {

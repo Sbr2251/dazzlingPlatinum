@@ -173,6 +173,9 @@ pokeplatinum_c = files(
     # dwp:engine-a: puzzle engine state in MAIN-binary RAM (survives
     # overlay 9 reloads). NOT in overlay 9 (see src/dw_puzzle_state.c).
     'dw_puzzle_state.c',
+    # dwp:engine-b: actor core state in MAIN-binary RAM (same reason;
+    # see src/dw_actors_state.c). NOT in overlay 9.
+    'dw_actors_state.c',
     'location.c',
     'unk_0203D1B8.c',
     'field_script_context.c',

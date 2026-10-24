@@ -49,15 +49,7 @@ static const DwActorTable *const sActorTables[] = {
     NULL, // Eterna Forest test table: no actor table yet
 };
 
-const DwActorTable *DwPuzzle_GetActorTable(u32 mapHeader)
-{
-    for (u32 i = 0; i < NELEMS(sPuzzleTables); i++) {
-        if (sPuzzleTables[i] != NULL && sPuzzleTables[i]->mapHeader == mapHeader) {
-            return sActorTables[i];
-        }
-    }
-    return NULL;
-}
+
 
 // ---- runtime state (main-binary RAM; see DwPuzzleState) ---------------
 #define sTable (gDwPuzzleState.table)
@@ -75,6 +67,7 @@ const DwActorTable *DwPuzzle_GetActorTable(u32 mapHeader)
 #define sLastX (gDwPuzzleState.lastX)
 #define sLastY (gDwPuzzleState.lastY)
 #define sLastZ (gDwPuzzleState.lastZ)
+#define sLastSurface (gDwPuzzleState.lastSurface)
 #define sLastTileState (gDwPuzzleState.lastTileState)
 #define sFrameCount (gDwPuzzleState.frameCount)
 #define sFallCount (gDwPuzzleState.fallCount)
@@ -264,6 +257,28 @@ static const DwPuzzleTable *FindTable(u32 mapHeader, u16 progress)
         production = table;
     }
     return production;
+}
+
+// The actor table for a map: the one parallel to the ACTIVE puzzle
+// table (progress + test gated), not the first table for the map.
+// Lost Tower's visit gate lives here: for progress 92-93 FindTable
+// returns the visit-1 puzzle table (whose parallel actor table is
+// NULL, so actors stay inert); for progress 94 it returns the visit-2
+// puzzle table and its actor table. Selecting by map alone would return
+// the first match and could never distinguish the visits.
+const DwActorTable *DwPuzzle_GetActorTable(FieldSystem *fieldSystem, u32 mapHeader)
+{
+    const DwPuzzleTable *table = FindTable(mapHeader, PuzzleProgress(fieldSystem));
+
+    if (table == NULL) {
+        return NULL;
+    }
+    for (u32 i = 0; i < NELEMS(sPuzzleTables); i++) {
+        if (sPuzzleTables[i] == table) {
+            return sActorTables[i];
+        }
+    }
+    return NULL;
 }
 
 // Activate (or deactivate) for this map, applying a pending fresh reset.
@@ -483,7 +498,10 @@ static int FindCheckpoint(int x, int y, int z, int surface)
 }
 
 // Release one occupant's momentary sigils it is no longer standing on.
-static void ReleaseMomentaryFor(int x, int y, int z, int occupant)
+// Standing on means the same tile AND the same surface: an in-place
+// surface rune (same coordinates, new surface) lifts the occupant off
+// the sigil, so the hold must release.
+static void ReleaseMomentaryFor(int x, int y, int z, int surface, int occupant)
 {
     u8 bit = (u8)(1u << occupant);
 
@@ -496,7 +514,7 @@ static void ReleaseMomentaryFor(int x, int y, int z, int occupant)
         if (sigil->kind != DW_PUZZLE_SIGIL_MOMENTARY || (sSigilPressed[i] & bit) == 0) {
             continue;
         }
-        if (sigil->x == x && sigil->y == y && sigil->z == z) {
+        if (sigil->x == x && sigil->y == y && sigil->z == z && SurfaceMatches(sigil->surface, surface)) {
             continue;
         }
         sSigilPressed[i] &= (u8)~bit;
@@ -626,7 +644,7 @@ BOOL DwPuzzle_HandleStep(FieldSystem *fieldSystem, int x, int y, int z, int surf
         return FALSE;
     }
 
-    ReleaseMomentaryFor(x, y, z, DW_PUZZLE_OCCUPANT_PLAYER);
+    ReleaseMomentaryFor(x, y, z, surface, DW_PUZZLE_OCCUPANT_PLAYER);
 
     // A slide that lands off-current ends here (sigils / runes /
     // checkpoints / falls on the landing tile still run below).
@@ -806,7 +824,7 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
         }
     }
 
-    ReleaseMomentaryFor(x, y, z, DW_PUZZLE_OCCUPANT_PLAYER);
+    ReleaseMomentaryFor(x, y, z, surface, DW_PUZZLE_OCCUPANT_PLAYER);
 
     // --- shadow catch: restore + respawn, no fall script --------------
     if (sRespawnPending) {
@@ -819,7 +837,11 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
         if (sCheckpointIndex < (u32)sTable->checkpointCount) {
             const DwPuzzleCheckpoint *cp = &sTable->checkpoints[sCheckpointIndex];
 
-            if (x == cp->x && y == cp->y && z == cp->z) {
+            // Complete only on the checkpoint tile AND its surface: a
+            // warp that already lands at the checkpoint coordinates on a
+            // different surface must still apply the checkpoint's
+            // surface and facing (glue respawn).
+            if (x == cp->x && y == cp->y && z == cp->z && SurfaceMatches(cp->surface, surface)) {
                 sRespawnPending = FALSE;
                 sRespawnRestored = FALSE;
             } else if (out != NULL) {
@@ -834,6 +856,7 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
         sLastX = x;
         sLastY = y;
         sLastZ = z;
+        sLastSurface = surface;
         sTrackingValid = TRUE;
         sLastTileState = (u8)tileState;
         RefreshDebug(x, y, z, surface);
@@ -866,7 +889,9 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
         if (sFallRestored && sCheckpointIndex < (u32)sTable->checkpointCount) {
             const DwPuzzleCheckpoint *cp = &sTable->checkpoints[sCheckpointIndex];
 
-            if (x == cp->x && y == cp->y && z == cp->z) {
+            // Complete only on the checkpoint tile AND its surface
+            // (see the shadow-catch block above).
+            if (x == cp->x && y == cp->y && z == cp->z && SurfaceMatches(cp->surface, surface)) {
                 sFallPending = FALSE;
                 sFallRestored = FALSE;
             } else if (out != NULL) {
@@ -881,6 +906,7 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
         sLastX = x;
         sLastY = y;
         sLastZ = z;
+        sLastSurface = surface;
         sTrackingValid = TRUE;
         sLastTileState = (u8)tileState;
         RefreshDebug(x, y, z, surface);
@@ -890,9 +916,12 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
     // --- ground went away under a standing player ----------------------
     // Only when the player did NOT step: the step hook owns steps onto
     // VOID. A changed tile state under a stationary player means a group
-    // faded out beneath them (the honeycomb case). Raise fallVar so the
-    // rift's init frame table starts the fall script from the idle field.
-    if (sTrackingValid && x == sLastX && y == sLastY && z == sLastZ
+    // faded out beneath them (the honeycomb case). Stationary means the
+    // same tile AND the same surface: a rune landing changes the surface
+    // at unchanged coordinates, and a landing must fire nothing
+    // (landing rule). Raise fallVar so the rift's init frame table
+    // starts the fall script from the idle field.
+    if (sTrackingValid && x == sLastX && y == sLastY && z == sLastZ && surface == sLastSurface
         && tileState == DW_PUZZLE_TILE_VOID && sLastTileState != DW_PUZZLE_TILE_VOID
         && fieldSystem != NULL && fieldSystem->saveData != NULL
         && sTable->fallVar != 0 && sTable->fallScriptId != 0) {
@@ -958,6 +987,7 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
     sLastX = x;
     sLastY = y;
     sLastZ = z;
+    sLastSurface = surface;
     sTrackingValid = TRUE;
     sLastTileState = (u8)tileState;
     RefreshDebug(x, y, z, surface);
@@ -1020,6 +1050,34 @@ void DwPuzzle_OnMapEnter(FieldSystem *fieldSystem, u32 mapHeader)
     sTable = NULL;
 }
 
+void DwPuzzle_OnMapExit(FieldSystem *fieldSystem, u32 mapHeader)
+{
+    (void)fieldSystem;
+    (void)mapHeader;
+    // A real departure: the next load of this map is a fresh entry, so
+    // invalidate the table cache now; OnMapEnter will reset then.
+    // Same-map warps never call this (the glue only calls it when the
+    // destination differs from the freed map).
+    sTableMap = 0xFFFFFFFF;
+    sTable = NULL;
+}
+
+void DwPuzzle_CancelSlide(FieldSystem *fieldSystem)
+{
+    u32 mapHeader = 0;
+
+    if (fieldSystem != NULL && fieldSystem->location != NULL) {
+        mapHeader = (u32)fieldSystem->location->mapId;
+    }
+    if (!EnsureActive(fieldSystem, mapHeader)) {
+        return;
+    }
+    if (sSliding) {
+        sSliding = FALSE;
+        PuzzleSetEvent(DW_PUZZLE_EVENT_CURRENT_STOP, 0);
+    }
+}
+
 void DwPuzzle_SetActorTile(int index, int x, int y, int z, int surface, DwPuzzleTileState state, BOOL present)
 {
     if (index < 0 || index >= DW_PUZZLE_MAX_ACTOR_BLOCKS) {
@@ -1052,7 +1110,7 @@ BOOL DwPuzzle_PressSigil(FieldSystem *fieldSystem, int x, int y, int z, int surf
     if (!EnsureActive(fieldSystem, mapHeader)) {
         return FALSE;
     }
-    ReleaseMomentaryFor(x, y, z, occupant);
+    ReleaseMomentaryFor(x, y, z, surface, occupant);
     sigil = FindSigil(x, y, z, surface);
     if (sigil == NULL) {
         return FALSE;

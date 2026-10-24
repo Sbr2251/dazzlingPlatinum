@@ -465,9 +465,10 @@ typedef struct DwPuzzleActorTile {
  * zeroes its .bss, which would wipe the fall-pending flag, the checkpoint
  * snapshot and the group state mid-fall. Main-binary RAM survives
  * overlay reloads, so the fall warp keeps the state and the frame hook
- * can restore + respawn after it. The debug struct lives there too, for
- * the same reason (it is repopulated every frame, but the harness reads
- * it across warps). The test-mode flag intentionally stays in overlay 9:
+ * can restore + respawn after it. `gDwPuzzleDebug` stays in overlay 9
+ * (it is repopulated every frame by RefreshDebug; the harness reads it
+ * across warps, and a warp's zeroing is harmless because the next frame
+ * repopulates it). The test-mode flag intentionally stays in overlay 9:
  * a warp resets it to off (the safe production default); the harness
  * re-enables it after each warp.
  */
@@ -489,6 +490,10 @@ typedef struct DwPuzzleState {
     BOOL respawnRestored;   // snapshot restored for the catch respawn
     BOOL trackingValid;
     int lastX, lastY, lastZ;
+    int lastSurface; // surface the player was on last frame (a rune
+    // landing changes the surface at unchanged coordinates; the
+    // frame-fall and momentary-release checks must not treat that
+    // as "stationary" / "still on the sigil").
     u8 lastTileState; // DwPuzzleTileState at the player's tile last frame
     u8 padding1[3];
     u32 frameCount;
@@ -561,11 +566,24 @@ BOOL DwPuzzle_HandleStep(FieldSystem *fieldSystem, int x, int y, int z, int surf
  * releases, slides, fall detection and respawns; fills out for the glue. */
 void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int surface, int facing, DwPuzzleFrameResult *out);
 
+/* Cancel a running slide (the glue's stock-collision check found the
+ * slide target blocked). Stops the slide, fires CURRENT_STOP, unlocks
+ * input. The player stays on the current tile. */
+void DwPuzzle_CancelSlide(FieldSystem *fieldSystem);
+
 /* Map-load hook. Call from DistWorld_DynamicMapFeaturesInit. It does NOT
  * reset puzzle state: a fall warp reloads the same map, and the state
  * must survive it. A fresh entry is detected on the first hook call
  * (no fall pending) and resets then. */
 void DwPuzzle_OnMapEnter(FieldSystem *fieldSystem, u32 mapHeader);
+
+/* Map-unload hook. Call from DistWorld_DynamicMapFeaturesFree ONLY on a
+ * real departure (the warp destination differs from the freed map --
+ * a battle return / same-map reload is NOT a departure). It invalidates
+ * the table cache so the next load of this map is a fresh entry and
+ * resets then (leaving to a non-DW map and re-entering the same rift
+ * must not retain the old state). */
+void DwPuzzle_OnMapExit(FieldSystem *fieldSystem, u32 mapHeader);
 
 /*
  * Actor tiles (engine-b): a stone / actor on a tile overrides that
@@ -574,7 +592,10 @@ void DwPuzzle_OnMapEnter(FieldSystem *fieldSystem, u32 mapHeader);
  * current (a slide stops before it, because the tile resolves BLOCKED).
  * Up to DW_PUZZLE_MAX_ACTOR_BLOCKS, keyed by (index). Set present =
  * FALSE to clear. Engine-a's own modules never call this. Actor tiles
- * win over groups but lose to explicit table overrides.
+ * win over explicit table overrides and over groups: a LANDED stone's
+ * SOLID actor tile shields an explicit VOID override, and a RESTING
+ * stone's BLOCKED actor tile plugs a current tile that has an explicit
+ * SOLID override.
  */
 void DwPuzzle_SetActorTile(int index, int x, int y, int z, int surface, DwPuzzleTileState state, BOOL present);
 void DwPuzzle_ClearActorTiles(void);
@@ -614,7 +635,11 @@ void DwPuzzle_NotifyFall(FieldSystem *fieldSystem);
  * DwActorTable type is in overlay009/dw_puzzle_actors.h; this is a
  * forward declaration so this header stays includable without it. */
 typedef struct DwActorTable DwActorTable;
-const DwActorTable *DwPuzzle_GetActorTable(u32 mapHeader);
+/* The actor table parallel to the ACTIVE puzzle table for this map
+ * (progress + test gated): Lost Tower visit 1 (progress 92-93) has no
+ * actor table, visit 2 (progress 94) does. Returns NULL when there is
+ * no active puzzle table. */
+const DwActorTable *DwPuzzle_GetActorTable(FieldSystem *fieldSystem, u32 mapHeader);
 
 /* Convert a FACE_* on a surface to a (dx, dy, dz) step. Shared with the
  * solver / harness: the same tables the stock DW movement code uses. */

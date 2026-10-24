@@ -100,8 +100,12 @@ stones affect walkability - there is no separate override layer, and no base-kin
 - FALLING: no actor tile (present FALSE). The stone occupies no tile.
 `SyncActorTiles` is clear-then-reapply: it clears all actor tiles and re-registers the
 present stones, so a stale override can never survive a restore (e.g. LANDED-B -> snapshot
-LANDED-A leaves nothing behind). Actor tiles win over groups but lose to explicit table
-overrides - so landing tiles must not have explicit overrides (table rule).
+LANDED-A leaves nothing behind). Actor tiles win over explicit table
+overrides and over groups (lead decision, engine-b (1)): a LANDED stone's
+SOLID actor tile shields an explicit VOID override, and a RESTING stone's
+BLOCKED actor tile plugs a current tile that has an explicit SOLID override.
+Landing tiles therefore need not avoid explicit overrides; a stone's actor
+tile wins on a landing tile too.
 
 - **Push (pre-move).** The glue's collision path calls `DwActors_TryPush(prevTile, curTile)`
   **before** allowing a step onto a stone tile, for **voluntary walking only** - never for
@@ -479,12 +483,10 @@ authoritative; actors do not keep their own copy.
 
 ## 10. Open
 
-- Engine-a's `dw_puzzle.c` (implementation) + the ov9 glue calls (engine-a owns them): the
-  frame-hook call and Lost Tower gating are already on this branch; the rest (collision
-  TryPush, step incl. PAD_READY suppression, checkpoint, visuals, RegisterTable) is engine-a's.
+- Engine-a's `dw_puzzle.c` (implementation) + the ov9 glue calls (engine-a owns them): all wired on this branch (frame hook, collision TryPush, step incl. PAD_READY suppression, OnCheckpoint, visuals, RegisterTable, teardown).
 - The header on this branch is engine-a's landing version, synced from engine-a's worktree;
   engine-a's own commit must replace it at merge, and the weak-fallback block in
-  `dw_puzzle_actors.c` must be deleted then.
+  `dw_puzzle_actors.c` must be deleted then. (Done: merged, header replaced, shim deleted.)
 - Rift tables: rift-213 (stones) and rift-lt (visit-2 shadow + pads) - rift workstreams.
 - Table validator: beat < 30 rejected for Arc 2, landing-tile reservation, seam-corner actor
   tiles rejected, cross-surface actor tiles need explicit state, pad tiles need a sigil in
