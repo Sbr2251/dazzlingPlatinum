@@ -24,12 +24,12 @@
 //   FLAG_ARC2_RIFTA_D (0x0929)  Eterna Forest: the hive reached once (Cyrus's ceiling line played)
 // VAR_MAP_LOCAL_2 (map-local): set to 1 by the frame timer when the honeycomb goes with the player on it; the init
 // frame table then runs the fall script.
-// VAR_MAP_LOCAL_4 (map-local, this map only): honeycomb falls counted in this script run; the hint plays on
-// fall 2. Map-local vars are wiped by the fall warp (FieldMapChange_UpdateGameDataDistortionWorld calls
-// ClearLocalFlags on every DW map load), so the count is only read BEFORE the warp: on fall 2 it sets the
-// FLAG_DW_EF_A latch, and the post-warp branch reads the latch.
-// FLAG_DW_EF_A (0x0A08, rift-ef block): honeycomb hint pending: set before the warp on fall 2, cleared after
-// the hint plays. It is only ever set and cleared inside this script, so it cannot leak to another visit.
+// The hint state machine (persistent flags -- a map-local var CANNOT count falls: ClearLocalFlags wipes all
+// VAR_MAP_LOCAL_* on every DW map load, including the fall warp itself, so a counter would read 1 on every
+// fall). FLAG_DW_EF_B (0x0A09) = a honeycomb fall has happened and the hint has not played yet; FLAG_DW_EF_A
+// (0x0A08) = the hint is pending this fall (set before the warp on the second fall, cleared after the hint
+// plays); FLAG_DW_EF_C (0x0A0A) = the hint has played. The hint is once per save, like the other Cyrus
+// once-only lines (RIFTA_C/D): a later visit's falls show no hint, because C is already set.
 
 #define LOCALID_CYRUS_ENTRY 0x80
 #define LOCALID_CYRUS_HIVE  0x81
@@ -107,11 +107,14 @@ DWEternaForest_FoldEnd:
 DWEternaForest_HoneyFall:
     LockAll
     SetVar VAR_MAP_LOCAL_2, 0
-    AddVar VAR_MAP_LOCAL_4, 1
-    GoToIfEq VAR_MAP_LOCAL_4, 2, DWEternaForest_HoneyFallSetHint
+    GoToIfSet FLAG_DW_EF_C, DWEternaForest_HoneyFallContinue
+    GoToIfSet FLAG_DW_EF_B, DWEternaForest_HoneyFallSetHint
+    SetFlag FLAG_DW_EF_B
     GoTo DWEternaForest_HoneyFallContinue
 DWEternaForest_HoneyFallSetHint:
+    ClearFlag FLAG_DW_EF_B
     SetFlag FLAG_DW_EF_A
+    SetFlag FLAG_DW_EF_C
 DWEternaForest_HoneyFallContinue:
     ApplyMovement LOCALID_PLAYER, DWEternaForest_Movement_PlayerFall
     WaitMovement
