@@ -459,6 +459,7 @@ static BOOL ScriptContext_ShakeCameraStep(ScriptContext *ctx);
 static BOOL ScrCmd_DwActorsResolvePad(ScriptContext *ctx);
 static BOOL ScrCmd_DwActorsConfirmCarryDone(ScriptContext *ctx);
 static BOOL ScrCmd_DwActorsTakePendingCutin(ScriptContext *ctx);
+static BOOL ScrCmd_DwActorsGrantGrace(ScriptContext *ctx);
 static BOOL ScrCmd_SlatherHoneyTree(ScriptContext *ctx);
 static BOOL ScrCmd_GetHoneyTreeStatus(ScriptContext *ctx);
 static BOOL ScrCmd_StartHoneyTreeBattle(ScriptContext *ctx);
@@ -1628,6 +1629,7 @@ const ScrCmdFunc Unk_020EAC58[] = {
     ScrCmd_DwActorsResolvePad,
     ScrCmd_DwActorsConfirmCarryDone,
     ScrCmd_DwActorsTakePendingCutin,
+    ScrCmd_DwActorsGrantGrace,
 };
 
 const u32 Unk_020EAB80 = NELEMS(Unk_020EAC58);
@@ -5023,6 +5025,15 @@ static BOOL ScrCmd_DwActorsTakePendingCutin(ScriptContext *ctx)
     u16 *destVar = ScriptContext_GetVarPointer(ctx);
 
     *destVar = (u16)DwPuzzle_Ov9TakePendingCutin(ctx->fieldSystem);
+    return FALSE;
+}
+
+// dwp:rift-lt: grant the post-prompt shadow grace (the pad script calls
+// it at PadEnd, after the cut-in closes; granting at ResolvePad is
+// consumed while the cut-in plays).
+static BOOL ScrCmd_DwActorsGrantGrace(ScriptContext *ctx)
+{
+    DwPuzzle_Ov9GrantShadowGrace(ctx->fieldSystem);
     return FALSE;
 }
 

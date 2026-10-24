@@ -630,6 +630,11 @@ void DwPuzzle_RequestCheckpointRespawn(FieldSystem *fieldSystem);
  * a fall is already in flight. Generic: any scripted fall can use it. */
 void DwPuzzle_NotifyFall(FieldSystem *fieldSystem);
 
+/* dwp:rift-lt: commit a checkpoint by index (scripted landings, e.g.
+ * the Lost Tower Skarmory carry landing at CP3), mirroring HandleStep's
+ * checkpoint block. The caller also calls DwActors_OnCheckpoint. */
+void DwPuzzle_CommitCheckpointByIndex(FieldSystem *fieldSystem, int checkpointIndex);
+
 /* The rift's actor table (engine-b) for a map, or NULL. The glue
  * registers it on map load (DwActors_RegisterTable). The full
  * DwActorTable type is in overlay009/dw_puzzle_actors.h; this is a

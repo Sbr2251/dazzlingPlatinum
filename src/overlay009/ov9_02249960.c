@@ -3066,7 +3066,7 @@ static BOOL Arc2DwRoute213_HandleStep(DistWorldSystem *system, int x, int y, int
 #define LOST_TOWER_WALL_X               11
 #define LOST_TOWER_FLOOR_Y              1
 #define LOST_TOWER_SCRIPT_FALL          2 // map script entries (1-based)
-#define LOST_TOWER_SCRIPT_SHADOW_WALL  5 // dwp:rift-lt (coord event for V1; started from C in V2)
+#define LOST_TOWER_SCRIPT_SHADOW_WALL  5 // dwp:rift-lt (coord event, both visits)
 #define LOST_TOWER_SCRIPT_ACT_HITMONLEE 7
 #define LOST_TOWER_SCRIPT_ACT_VESPIQUEN 8
 #define LOST_TOWER_SCRIPT_ACT_LAPRAS    9
@@ -3463,18 +3463,13 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
             ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_PAD_PROMPT, NULL);
             return TRUE;
         }
-        // The shadow wall parts (visit 2): stepping onto (15,23) starts
-        // DWLostTower_ShadowWall directly. The (15,23) coord event does
-        // not fire in V2 (root cause unknown; see the report's Open
-        // list), so the per-map hook starts it; the coord event stays
-        // for V1, where actors are inactive and this branch is not
-        // reached. Guarded to fire once: the script sets
-        // VAR_MAP_LOCAL_5, then FLAG_ARC2_RIFTB_D in ShadowParts.
-        if (y == LOST_TOWER_FLOOR_Y && x == 15 && z == 23
-            && !VarsFlags_CheckFlag(varsFlags, FLAG_ARC2_RIFTB_D)) {
-            ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_SHADOW_WALL, NULL);
-            return TRUE;
-        }
+        // The shadow wall parts (visit 2) via the (15,23) coord event:
+        // the earlier V2 non-firing was the old wall early-return
+        // leaving V's pendingPad=1, which made every later step enter
+        // the pending-pad branch and return before coord-event
+        // dispatch. b75000247c fixed that cause, so no direct
+        // trigger is needed here; returning FALSE lets the coord
+        // event fire.
         // Find Cyrus (visit 2): stepping onto (38,22) starts it. The
         // carry landing (37,22) must NOT start it (the gate is still
         // closed there); the gate sigil at (37,23) opens the way first.
@@ -3506,11 +3501,13 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
 
 // dwp:rift-lt: no catch right after a prompt or a carry. Engine-b's
 // grace (shadowGrace) is only set at spawn / checkpoint-respawn, so
-// the glue grants it when a pad prompt closes (PadResolve runs for
-// Yes AND No) and when a carry ends. 60 field frames (~2 s) -- at
-// least the 60 frames the lead asked for, in either frame unit.
-// Engine-b exposes no grace setter, so the glue writes the field
-// directly (gDwActorState is extern in dw_puzzle_actors.h).
+// the glue grants it when the pad script reaches PadEnd (after the
+// cut-in or the denial message closes; granting at ResolvePad is
+// consumed while the cut-in plays) and when a carry ends. 60 field
+// frames (~2 s) -- at least the 60 frames the lead asked for, in
+// either frame unit. Engine-b exposes no grace setter, so the glue
+// writes the field directly (gDwActorState is extern in
+// dw_puzzle_actors.h).
 static void LostTower_GrantShadowGrace(void)
 {
     gDwActorState.shadowGrace = 60;
@@ -3522,18 +3519,29 @@ static void LostTower_GrantShadowGrace(void)
 // the only new ov9 entry points this workstream adds.
 u16 DwPuzzle_Ov9ResolvePad(FieldSystem *fieldSystem, int padIndex, BOOL accepted)
 {
-    u16 event;
-
     (void)fieldSystem;
-    event = (u16)DwActors_ResolvePad(padIndex, accepted);
-    LostTower_GrantShadowGrace();
-    return event;
+    // No grace here: the pad script grants it at PadEnd, after the
+    // cut-in closes. Granting here is consumed while the cut-in
+    // plays (the actor grace counter runs during non-carry cut-ins).
+    return (u16)DwActors_ResolvePad(padIndex, accepted);
 }
 
 void DwPuzzle_Ov9ConfirmCarryDone(FieldSystem *fieldSystem)
 {
-    (void)fieldSystem;
+    // The S carry is this wrapper's only caller: the scripted landing
+    // at (37,22) never runs Field_ProcessStep, so the engine-a CP3
+    // checkpoint would never commit without this explicit commit.
+    // Commit it here (engine snapshot) + the actor snapshot, so a
+    // later fall respawns on the island instead of back at CP2.
     DwActors_ConfirmCarryDone();
+    DwPuzzle_CommitCheckpointByIndex(fieldSystem, 3); // CP3 (37,22) // dwp:rift-lt
+    DwActors_OnCheckpoint();
+    LostTower_GrantShadowGrace();
+}
+
+void DwPuzzle_Ov9GrantShadowGrace(FieldSystem *fieldSystem)
+{
+    (void)fieldSystem;
     LostTower_GrantShadowGrace();
 }
 

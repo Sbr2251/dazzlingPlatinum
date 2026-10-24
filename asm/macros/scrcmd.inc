@@ -4239,6 +4239,10 @@
     .short \destVar
     .endm
 
+    .macro DwActorsGrantGrace
+    .short 848
+    .endm
+
     .macro GetTrainerCardLevel destVar
     .short 702
     .short \destVar

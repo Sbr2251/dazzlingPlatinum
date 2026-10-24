@@ -603,6 +603,9 @@ DWLostTower_PadCarry:
     End
 
 DWLostTower_PadEnd:
+    // Grace here, after the cut-in (or the denial message) closes:
+    // granting at ResolvePad is consumed while the cut-in plays.
+    DwActorsGrantGrace
     ReleaseAll
     End
 

@@ -1172,6 +1172,33 @@ void DwPuzzle_ReleaseSigils(FieldSystem *fieldSystem, int occupant)
     }
 }
 
+// dwp:rift-lt: commit a checkpoint by index, mirroring HandleStep's
+// checkpoint block (sound + CHECKPOINT event + snapshot). Scripted
+// landings never run Field_ProcessStep, so the landing's checkpoint
+// would otherwise never commit (e.g. the Lost Tower Skarmory carry
+// landing at CP3). The caller also calls DwActors_OnCheckpoint for
+// the actor snapshot.
+void DwPuzzle_CommitCheckpointByIndex(FieldSystem *fieldSystem, int checkpointIndex)
+{
+    u32 mapHeader = 0;
+
+    if (fieldSystem != NULL && fieldSystem->location != NULL) {
+        mapHeader = (u32)fieldSystem->location->mapId;
+    }
+    if (!EnsureActive(fieldSystem, mapHeader)) {
+        return;
+    }
+    if (checkpointIndex < 0 || (u32)checkpointIndex >= (u32)sTable->checkpointCount) {
+        return;
+    }
+    if ((u32)checkpointIndex != sCheckpointIndex) {
+        sCheckpointIndex = (u32)checkpointIndex;
+        Sound_PlayEffect(SEQ_SE_PL_SYUWA);
+        PuzzleSetEvent(DW_PUZZLE_EVENT_CHECKPOINT, (u32)checkpointIndex);
+    }
+    TakeSnapshot();
+}
+
 void DwPuzzle_RequestCheckpointRespawn(FieldSystem *fieldSystem)
 {
     u32 mapHeader = 0;
