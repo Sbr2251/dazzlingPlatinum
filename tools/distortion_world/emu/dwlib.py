@@ -89,12 +89,14 @@ this kit's probes: a crafted save with the base save's stale object
 list left in place booted fine on Route 214, and a direct Continue
 boot into a DW map on the merged ROM survived (DW system inactive).
 The crash that IS real is booting a second save in the same
-process: a second DeSmuME() segfaults, whatever the map. So the
-kit zeroes the stale object list anyway (see _append_rift_object --
-it is the only map-specific state in the save besides
-Location/vars, and the game's object loader runs over it), and
-never boots twice per process: one DwSession owns the one Emu, and
-rifts_regress.py spawns one worker process per rift. Direct
+process: a second DeSmuME() segfaults, whatever the map. So
+talk-rift saves rebuild the object list (see _append_rift_object:
+zero the stale list, append the rift object -- the object list is
+the only map-specific state in the save besides Location/vars,
+and the game's object loader runs over it); walk-in/bg saves
+leave the base save's object list in place. The kit never boots
+twice per process: one DwSession owns the one Emu, and
+rifts_regress.py spawns one worker process per (rift, leg). Direct
 Continue boots into a DW map do not run OnTransition, so the DW
 system stays inactive (no jumps); overworld entry is the only
 supported replay entry, and boot_rift is for tile/pixel checks

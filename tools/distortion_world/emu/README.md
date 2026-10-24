@@ -133,11 +133,13 @@ Run it before committing a table change.
 `solver.py` is pure Python (no emulator). A model is surfaces (grids
 per surface), jumps (edge jumps / hop points), start, goal, and
 mechanics: `Sigils` (toggle/set/momentary/reset), `Runes`, `Currents`
-(slides), `Stones` (push, drop to the surface below, plug currents),
-`Crumbling` (per-tile one-use), `ScarGroups` (the Ravaged Path
-scars' exact rule), `Shadow` (patrol lane, WAIT `.` beats), `Echo`
-(mirror ghost pressing its own sigils), plus `gate_tiles` (a tile
-walkable only while its group is on).
+(slides), `Stones` (push, drop to the surface below, plug currents,
+protected push targets -- protected tiles are player-walkable, only
+stone pushes are blocked), `Crumbling` (per-tile one-use),
+`ScarGroups` (the Ravaged Path scars' exact rule), `Shadow`
+(patrol lane, loop or ping-pong, WAIT `.` beats), `Echo` (mirror
+ghost pressing its own sigils), plus `gate_tiles` (a tile walkable
+only while its group is on).
 
 It BFSes the shortest solution (pressed moves only; a current slide
 is part of the one press that started it), proves no reachable
@@ -155,14 +157,21 @@ ranges; the floor is a harness heuristic).
 The proof is exact over the model, so the model's fidelity is the
 workstream's responsibility: stones distinguish RESTING (BLOCKED,
 pushable, plugs currents) from LANDED (SOLID walkable terrain,
-unpushable, a slide passes over it); checkpoints snapshot groups,
-stones, shadow phase and landed stones (momentary holders are
+unpushable, a slide passes over it); pushes follow the engine's
+order (a designated edge drops before any walkability check; a
+plain push is blocked on a protected tile, a stone, a non-walkable
+tile, or a VOID tile); checkpoints snapshot groups, stones, shadow
+phase + direction, and landed stones (momentary holders are
 per-occupant and cleared on restore; a reset sigil's restore wins
-over the same press's shadow tick); stone falls are atomic within a
-press (the falling stone occupies no tile). Pads (totem-gated
-prompts) carry no puzzle state and are not modelled. A rift ships
-its model with its tables, and the replay of the solver's solution
-on the ROM is the cross-check that model and engine agree.
+over the same press's shadow tick); stone falls are atomic within
+a press (the engine falls a stone over 12 frames, reserving its
+edge and landing, but a step takes longer, so the reservation
+lifts before the next press's push hook runs). Pads are not
+modelled: they carry padUsed (one use per load per pad,
+checkpointed and restored), which gates the totem-act
+prompt/cutscene, not movement. A rift ships its model with its
+tables, and the replay of the solver's solution on the ROM is the
+cross-check that model and engine agree.
 
 Worked examples: one per mechanic, plus `ravaged_path_model()`, a
 sanity model of today's Ravaged Path wall that reproduces a 16-move
@@ -176,12 +185,13 @@ unsolvable models, soft-locks, or target violations.
 
 - DONE: all 6 scoped maps (Arc 1 prologue + the 5 Arc-2 rifts),
   7 entries (Lost Tower has 2 visits), 8 regress legs -- overworld
-  entry + replay to the totem fight start (Arc 1 to its goal tile;
-  the rest to the totem battle menu), via `rifts_regress.py` (one
-  worker process per rift: boot, replay, frame strip, report; a
-  battle-failed leg is retried by re-spawning the worker, never by
-  booting twice in one process, and a worker result is only
-  accepted if the worker exited 0 and its result.json is fresh).
+  entry + replay to the totem fight start (Arc 1 to its goal tile,
+  LT1 to the vein goal tile, the rest to the totem battle menu),
+  via `rifts_regress.py` (one worker process per (rift, leg): boot,
+  replay, frame strip, report; a battle-failed leg is retried by
+  re-spawning the worker, never by booting twice in one process,
+  and a worker result is only accepted if the worker exited 0 and
+  its result.json is fresh).
   The plan's 8 totem rifts include 3 Arc-3 design targets (Aggron,
   Mamoswine, Kingdra) not in this build's scope. Eterna Forest's
   honeycomb crossing is a fast-step retry loop across its 213-frame
@@ -206,8 +216,10 @@ unsolvable models, soft-locks, or target violations.
   does not crash the emulator in this kit's probes (stale-object
   Route 214 boot; direct DW boot on the merged ROM); the real crash
   is a second DeSmuME() in one process, so the kit never boots twice
-  per process (one worker per rift in the regress runner) and
-  zeroes the stale object list in every crafted save.
+  per process (one worker per (rift, leg) in the regress runner).
+  Talk-rift saves rebuild the object list (zero the stale list,
+  append the rift object); walk-in/bg saves leave the base save's
+  object list in place (harmless: the probes prove it).
 - NOT COVERED: the post-calm exit warps (they need the totem battle
   won; QA's chained playthrough covers those). The regress exit leg
   is the Lost Tower visit-1 shadow-wall warp only.

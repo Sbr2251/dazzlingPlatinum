@@ -33,6 +33,9 @@ oversize array as absent.
       (seam-corner proxy: a jump teleports the shadow across a seam);
       stone start tiles unique; pad tiles unique; pad totems in range
     - echo mirrorAxis (geometric: MIRROR_X/Y/Z -> AXIS_X/Y/Z) != echoAxis
+    - every actor tile surface in range 0..4 (actor surfaces are
+      explicit: exact-equality match, so ANY (0xFF) never matches);
+      group tiles too (puzzle ANY allowed there)
   pairs (engine registry in dw_puzzle.c first, then same-file, then the
   known test pair):
     - landing tiles never current tiles; landing-tile overrides VOID-only
@@ -49,10 +52,15 @@ oversize array as absent.
     - pad tiles never checkpoint / rune / current tiles
   production-only (paired puzzle testOnly == 0; test tables are
   fixtures for the host test and the engine's test mode):
-    - every GROUND actor tile (stone start/edge/landing, shadow lane,
-      echo sigil, pad, protected) has an explicit engine-a state: a
-      group tile or an explicit override with state != DEFAULT
-      (a DEFAULT ground tile reads BLOCKED, fail closed)
+    - every actor tile (stone start/edge/landing, shadow lane, echo
+      sigil, pad, protected, any surface) has an explicit engine-a
+      state: a group tile or an explicit override with state !=
+      DEFAULT (cross-surface rule, section 2: DEFAULT resolves only
+      on the player's current surface, else BLOCKED; GROUND has no
+      stock grid, so DEFAULT always reads BLOCKED, fail closed).
+      Landings are included: section 3 allows a landing without an
+      override (base kind decides), but the validator cannot verify
+      base kinds, so it enforces section 2's contract.
     - shadow beatFrames >= 30 (Arc 2 rule; the test table uses a 6-frame
       beat on purpose)
     - every pad tile has a sigil in the engine-a table (pads are sigil
@@ -120,6 +128,15 @@ static int same_tile(int x1, int y1, int z1, int s1,
 static int valid_surface(int s)
 {
     return s <= DW_PUZZLE_SURFACE_GROUND || s == DW_PUZZLE_SURFACE_ANY;
+}
+
+/* Actor tiles carry EXPLICIT surfaces (actors_design.md section 2):
+ * the actor core compares surfaces with exact equality (TileEq),
+ * so DW_ACTOR_SURFACE_ANY (0xFF) would never match a real tile.
+ * An actor surface must be a real surface, 0..4. */
+static int valid_actor_surface(int s)
+{
+    return s <= DW_ACTOR_SURFACE_GROUND;
 }
 
 /* Clamp a declared count to its array size: an oversize count is
@@ -238,9 +255,15 @@ static void check_puzzle(const char *name, const DwPuzzleTable *t)
     CHECK(t->checkpointCount <= DW_PUZZLE_MAX_CHECKPOINTS,
           "%d checkpoints, cap %d", t->checkpointCount, DW_PUZZLE_MAX_CHECKPOINTS);
     for (i = 0; i < ngroups; i++) {
+        int gt, ngt = t->groups[i].tileCount <= DW_PUZZLE_MAX_GROUP_TILES
+            ? t->groups[i].tileCount : 0; /* oversize: entries skipped */
         CHECK(t->groups[i].tileCount <= DW_PUZZLE_MAX_GROUP_TILES,
               "group %d has %d tiles, cap %d", i, t->groups[i].tileCount,
               DW_PUZZLE_MAX_GROUP_TILES);
+        for (gt = 0; gt < ngt; gt++)
+            CHECK(valid_surface(t->groups[i].tiles[gt].surface),
+                  "group %d tile %d surface %d out of range",
+                  i, gt, t->groups[i].tiles[gt].surface);
         CHECK(t->groups[i].onState <= DW_PUZZLE_TILE_BLOCKED,
               "group %d onState %d out of range", i, t->groups[i].onState);
         CHECK(t->groups[i].offState <= DW_PUZZLE_TILE_BLOCKED,
@@ -344,9 +367,24 @@ static void check_actor(const char *name, const DwActorTable *a)
           "echo %d sigils, cap %d",
           a->echo.sigilCount, DW_ACTORS_MAX_ECHO_SIGILS);
     for (i = 0; i < nstones; i++) {
+        int e, nedges = CLAMP(a->stones[i].edgeCount, DW_ACTORS_MAX_STONE_EDGES);
         CHECK(a->stones[i].edgeCount <= DW_ACTORS_MAX_STONE_EDGES,
               "stone %d edgeCount %d, cap %d",
               i, a->stones[i].edgeCount, DW_ACTORS_MAX_STONE_EDGES);
+        CHECK(valid_actor_surface(a->stones[i].start.surface),
+              "stone %d start %s surface %d out of range (actor surfaces are explicit, 0..4)",
+              i, actor_tile_name(&a->stones[i].start, buf),
+              a->stones[i].start.surface);
+        for (e = 0; e < nedges; e++) {
+            CHECK(valid_actor_surface(a->stones[i].edges[e].edge.surface),
+                  "stone %d edge %d %s surface %d out of range",
+                  i, e, actor_tile_name(&a->stones[i].edges[e].edge, buf),
+                  a->stones[i].edges[e].edge.surface);
+            CHECK(valid_actor_surface(a->stones[i].edges[e].landing.surface),
+                  "stone %d edge %d landing %s surface %d out of range",
+                  i, e, actor_tile_name(&a->stones[i].edges[e].landing, buf),
+                  a->stones[i].edges[e].landing.surface);
+        }
         for (j = i + 1; j < nstones; j++)
             CHECK(!same_tile(a->stones[i].start.x, a->stones[i].start.y,
                              a->stones[i].start.z, a->stones[i].start.surface,
@@ -357,11 +395,16 @@ static void check_actor(const char *name, const DwActorTable *a)
     }
     if (nshadow > 0) {
         int s = a->shadow.tiles[0].surface;
+        CHECK(valid_actor_surface(s),
+              "shadow lane tile 0 surface %d out of range", s);
         for (i = 1; i < nshadow; i++) {
             const DwActorTile *prev = &a->shadow.tiles[i - 1];
             const DwActorTile *tile = &a->shadow.tiles[i];
             int step = abs(tile->x - prev->x) + abs(tile->y - prev->y)
                 + abs(tile->z - prev->z);
+            CHECK(valid_actor_surface(tile->surface),
+                  "shadow lane tile %d surface %d out of range",
+                  i, tile->surface);
             CHECK(tile->surface == s,
                   "shadow lane tile %d surface %d, lane surface %d (one surface)",
                   i, tile->surface, s);
@@ -377,6 +420,10 @@ static void check_actor(const char *name, const DwActorTable *a)
         }
     }
     for (i = 0; i < npads; i++) {
+        CHECK(valid_actor_surface(a->pads[i].tile.surface),
+              "pad %d tile %s surface %d out of range",
+              i, actor_tile_name(&a->pads[i].tile, buf),
+              a->pads[i].tile.surface);
         CHECK(a->pads[i].totem < DW_ACTOR_TOTEM_COUNT,
               "pad %d totem %d out of range", i, a->pads[i].totem);
         for (j = i + 1; j < npads; j++)
@@ -387,6 +434,16 @@ static void check_actor(const char *name, const DwActorTable *a)
                   "pads %d and %d share tile %s",
                   i, j, actor_tile_name(&a->pads[i].tile, buf));
     }
+    for (i = 0; i < CLAMP(a->protectedCount, DW_ACTORS_MAX_PROTECTED_TILES); i++)
+        CHECK(valid_actor_surface(a->protectedTiles[i].surface),
+              "protected tile %d %s surface %d out of range",
+              i, actor_tile_name(&a->protectedTiles[i], buf),
+              a->protectedTiles[i].surface);
+    for (i = 0; i < CLAMP(a->echo.sigilCount, DW_ACTORS_MAX_ECHO_SIGILS); i++)
+        CHECK(valid_actor_surface(a->echo.sigilTiles[i].surface),
+              "echo sigil %d %s surface %d out of range",
+              i, actor_tile_name(&a->echo.sigilTiles[i], buf),
+              a->echo.sigilTiles[i].surface);
     CHECK(a->echo.active <= 1, "echo active %d (want 0/1)", a->echo.active);
     if (a->echo.active) {
         CHECK(a->echo.playerSurface <= DW_ACTOR_SURFACE_GROUND,
@@ -454,18 +511,31 @@ static int is_pad_tile(const DwActorTable *a, int x, int y, int z, int s)
     return 0;
 }
 
-static void check_ground_actor_tile(const DwPuzzleTable *t, const DwActorTile *tile,
-                                    const char *what, int production)
+/* Explicit-state rule (actors_design.md section 2, cross-surface):
+ * DEFAULT resolves via the stock grid only on the player's current
+ * surface, and reads BLOCKED for any surface other than the player's
+ * (the glue compares against gDwPuzzleDebug.surface); for GROUND
+ * there is no stock grid, so DEFAULT always reads BLOCKED (fail
+ * closed). The validator cannot know the player's surface per
+ * query, so for production tables EVERY actor tile needs an
+ * explicit engine-a state: a group tile or an explicit override
+ * with state != DEFAULT. Section 3 allows a landing without an
+ * override (base kind decides), but the validator cannot verify
+ * base kinds, so it enforces section 2's contract -- the preferred
+ * form is an explicit VOID override for gap landings. */
+static void check_actor_tile_explicit(const DwPuzzleTable *t, const DwActorTile *tile,
+                                      const char *what, int production)
 {
     char buf[64];
-    if (!production || tile->surface != DW_PUZZLE_SURFACE_GROUND)
+    if (!production)
         return;
     CHECK(is_group_tile(t, tile->x, tile->y, tile->z, tile->surface)
           || (find_explicit(t, tile->x, tile->y, tile->z, tile->surface) != NULL
               && find_explicit(t, tile->x, tile->y, tile->z, tile->surface)->state
                  != DW_PUZZLE_TILE_DEFAULT),
-          "ground actor tile %s %s has no explicit engine-a state "
-          "(group tile or explicit override, state != DEFAULT)",
+          "actor tile %s %s has no explicit engine-a state "
+          "(group tile or explicit override, state != DEFAULT; "
+          "DEFAULT reads BLOCKED cross-surface)",
           what, actor_tile_name(tile, buf));
 }
 
@@ -535,13 +605,13 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
             CHECK(!is_protected(a, edge),
                   "stone %d edge %d %s is protected (pad/echo/landing/listed)",
                   s, e, actor_tile_name(edge, buf));
-            check_ground_actor_tile(t, edge, "edge", production);
-            check_ground_actor_tile(t, land, "landing", production);
+            check_actor_tile_explicit(t, edge, "edge", production);
+            check_actor_tile_explicit(t, land, "landing", production);
         }
         CHECK(!is_protected(a, &a->stones[s].start),
               "stone %d start %s is protected (pad/echo/landing/listed)",
               s, actor_tile_name(&a->stones[s].start, buf));
-        check_ground_actor_tile(t, &a->stones[s].start, "stone start", production);
+        check_actor_tile_explicit(t, &a->stones[s].start, "stone start", production);
     }
     /* Shadow. */
     for (i = 0; i < nshadow; i++) {
@@ -552,7 +622,7 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
                              t->checkpoints[j].z, t->checkpoints[j].surface),
                   "shadow tile %s is checkpoint %d (entry/checkpoint are script tiles)",
                   actor_tile_name(tile, buf), j);
-        check_ground_actor_tile(t, tile, "shadow", production);
+        check_actor_tile_explicit(t, tile, "shadow", production);
     }
     if (production && nshadow > 0)
         CHECK(a->shadow.beatFrames >= 30,
@@ -560,7 +630,7 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
               a->shadow.beatFrames);
     /* Echo sigils. */
     for (i = 0; i < necho; i++)
-        check_ground_actor_tile(t, &a->echo.sigilTiles[i], "echo sigil", production);
+        check_actor_tile_explicit(t, &a->echo.sigilTiles[i], "echo sigil", production);
     /* Pads. */
     for (i = 0; i < npads; i++) {
         const DwActorTile *tile = &a->pads[i].tile;
@@ -586,11 +656,11 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
             CHECK(is_sigil(t, tile->x, tile->y, tile->z, tile->surface),
                   "pad %d tile %s has no sigil in the engine-a table",
                   i, actor_tile_name(tile, buf));
-        check_ground_actor_tile(t, tile, "pad", production);
+        check_actor_tile_explicit(t, tile, "pad", production);
     }
     /* Protected. */
     for (i = 0; i < nprotected; i++)
-        check_ground_actor_tile(t, &a->protectedTiles[i], "protected", production);
+        check_actor_tile_explicit(t, &a->protectedTiles[i], "protected", production);
 }
 """
 
