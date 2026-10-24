@@ -4,30 +4,39 @@
 Semantics mirror engine-a (include/overlay009/dw_puzzle.h) exactly, as far as
 a tile model can:
 
-* One TOGGLE sigil at wall (11, 2, 14) flips bridge group 0. Sigils fire
-  once per step onto the tile.
+* One SET sigil at wall (11, 2, 14) sets bridge group 0 ON. Sigils fire
+  once per step onto the tile. The sigil never switches the group
+  off, so the fade-out path is never exercised in this rift.
 * Group 0 = bridge tiles (11, 2, 15), (11, 4, 20), (11, 4, 21), ghost-prop
   group 4, onState SOLID, offState BLOCKED, initialOn 0. A bridge that is
   off is impassable (the engine-a skeleton's choice); it never drops the
-  player. Sub-step fade timing (3-frame lead in, 33-frame hold out) only
-  ever makes the real game more permissive than this model, and a tile
-  step lasts longer than the 3-frame lead, so the model's reachable set
-  is a subset of the game's: solvable here => solvable in-game.
+  player. Fade-in: props show at once, tiles hold after the 3-frame
+  lead; a normal step is 8 frames, so a bridge holds by the time the
+  player arrives on it.
 * Scars (existing ov9 hook, unchanged): a scar tile may be stepped on
   while its scar is INTACT; stepping onto a spent scar, or onto a second
   tile of the scar you are standing on, is a fall. Leaving a scar spends
   it. Scar 0 = {(2, 16)}; scar 1 = {(2, 20), (2, 21), (3, 20), (3, 21)}
   (wall (y, z), x = 11).
-* Fall lips (coord events, marked VOID in the engine table) and scar
-  falls: respawn at checkpoint (20, 1, 12) with the group state restored
-  to the checkpoint snapshot. Stepping on the checkpoint snapshots the
-  current group state. Scars are intact again after a fall (the existing
-  entry-walkway reset). A fall is a 1-cost edge to the entry state.
+* Falls are asymmetric (engine-a has no "mark a fall" entry point for a
+  per-map hook, so only engine-seen falls restore the snapshot):
+  - Lip fall (chasm lip, VOID in the engine table): respawn at the
+    checkpoint with group := snapshot, snapshot unchanged.
+  - Scar fall (per-map hook starts fall script 2 directly): re-entry
+    looks fresh to the engine, which resets the puzzle to initial
+    (group OFF, snapshot OFF).
+  Scars are intact again after any fall (the existing entry-walkway
+  reset). A fall is a 1-cost edge to the entry state.
 * Wall moves are 4-neighbour on the attr-13 grid (ravaged_path.json).
   Jump-on / hop-off at the two wall ends are 1-cost moves. DOWN off the
   wall at an intermediate z does nothing in-game (no jump point) and is
   no edge here. Floor moves are 4-neighbour on the map_data_669
   walkable tiles (permissions dump; lips included as fall edges).
+  The five bidirectional JUMP_*_TWICE stone hops (tile behaviours
+  0x5d JUMP_EAST_TWICE / 0x5c JUMP_WEST_TWICE in map_data_669) are
+  1-cost edges: (22,12)<->(25,12)<->(28,12) and
+  (20,22)<->(23,22)<->(26,22)<->(29,22). Cyrus's object at (22, 11)
+  blocks that tile; it is excluded from the floor graph.
 
 "Puzzle steps" are the moves from the jump-on to the hop-off inclusive,
 the plan's counting convention (Arc 1 seams is ~15 by it: the flat entry
@@ -49,9 +58,11 @@ FLOOR = 0
 WALL = 1
 
 # Floor walkable tiles (x, z) from map_data_669 permissions (y = 1).
+# (22, 11) is walkable in the permissions but occupied by Cyrus's
+# object, so it is excluded: objects block their tile.
 FLOOR_TILES = {
     (22, 10),
-    (15, 11), (19, 11), (20, 11), (21, 11), (22, 11),
+    (15, 11), (19, 11), (20, 11), (21, 11),
     (15, 12), (16, 12), (17, 12), (18, 12), (19, 12), (20, 12), (21, 12), (22, 12),
     (25, 12), (28, 12),
     (15, 13), (20, 13), (21, 13),
@@ -64,6 +75,17 @@ FLOOR_TILES = {
     (10, 24), (15, 24), (16, 24), (17, 24),
     (15, 25), (15, 26),
 }
+# Bidirectional JUMP_*_TWICE stone hops (map_data_669 tile behaviours
+# 0x5d JUMP_EAST_TWICE / 0x5c JUMP_WEST_TWICE on the tiles between
+# the stones). Middle stones have two partners (west and east), so
+# this is an adjacency list, not a dict: a dict would silently drop
+# one partner (that bug made the stones look soft-locked).
+JUMP_PAIRS = (((22, 12), (25, 12)), ((25, 12), (28, 12)),
+              ((20, 22), (23, 22)), ((23, 22), (26, 22)), ((26, 22), (29, 22)))
+JUMP_ADJ = {}
+for _a, _b in JUMP_PAIRS:
+    JUMP_ADJ.setdefault(_a, []).append(_b)
+    JUMP_ADJ.setdefault(_b, []).append(_a)
 # Fall-lip coord events (events_dw_ravaged_path.json): step = fall.
 LIPS = {(15, 11), (19, 11), (20, 11), (21, 11),
         (20, 13), (21, 13),
@@ -97,9 +119,15 @@ def scar_state_of(state, sid):
     return state[5 + sid]
 
 
-def fall_state(state):
-    """Fall edge: respawn at the checkpoint, group := snapshot, scars intact."""
-    return (FLOOR, 20, 1, 12, state[4], state[4], INTACT, INTACT)
+def fall_state(state, kind):
+    """Fall edge: respawn at the checkpoint, scars intact.
+    kind 'lip': group := snapshot, snapshot unchanged (engine-seen fall).
+    kind 'scar': reset to initial (group OFF, snapshot OFF), because the
+    per-map scar hook starts the fall script directly and the engine
+    never marks a fall pending, so re-entry looks fresh to it."""
+    if kind == "lip":
+        return (FLOOR, 20, 1, 12, state[4], state[4], INTACT, INTACT)
+    return (FLOOR, 20, 1, 12, False, False, INTACT, INTACT)
 
 
 def transitions(state, sigil_enabled=True, falls=True):
@@ -113,12 +141,15 @@ def transitions(state, sigil_enabled=True, falls=True):
             yield (WALL, 11, 2, 13, group, snap, s0, s1), "jump-on", False
         if (x, z) == (12, 23):
             yield (WALL, 11, 2, 22, group, snap, s0, s1), "jump-on", False
+        # JUMP_*_TWICE stone hops (1-cost edges, each partner).
+        for jx, jz in JUMP_ADJ.get((x, z), ()):
+            yield (FLOOR, jx, 1, jz, group, snap, s0, s1), "jump", False
         for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             nx, nz = x + dx, z + dz
             if (nx, nz) not in FLOOR_TILES:
                 continue
             if falls and (nx, nz) in LIPS:
-                yield fall_state(state), "fall(lip)", True
+                yield fall_state(state, "lip"), "fall(lip)", True
                 continue
             nsnap = group if (nx, nz) == (CHECKPOINT[0], CHECKPOINT[2]) else snap
             yield (FLOOR, nx, 1, nz, group, nsnap, s0, s1), "walk", False
@@ -137,7 +168,7 @@ def transitions(state, sigil_enabled=True, falls=True):
         sid = SCAR_OF.get((ny, nz))
         if sid is not None and scars[sid] != INTACT:
             if falls:
-                yield fall_state(state), "fall(scar)", True
+                yield fall_state(state, "scar"), "fall(scar)", True
             continue
         # Leaving a scar spends it (unless the destination is the same
         # scar, which the INTACT check above already turned into a fall).
@@ -149,7 +180,7 @@ def transitions(state, sigil_enabled=True, falls=True):
             nscars[sid] = STANDING
         ngroup = group
         if sigil_enabled and (ny, nz) == SIGIL:
-            ngroup = not group
+            ngroup = True  # SET sigil: sets group 0 ON, never toggles off
         yield (WALL, 11, ny, nz, ngroup, snap, nscars[0], nscars[1]), "walk", False
 
 
@@ -199,14 +230,15 @@ def main():
     puzzle_len = hop_i - jump_i + 1
     falls_on_path = sum(1 for (_a, lab, _b) in path if lab.startswith("fall"))
 
-    # Soft-lock proof: reverse reachability from the goal over the full graph.
-    rev = {goal: True}
+    # Soft-lock proof: reverse reachability from ALL goal states (the
+    # totem tile with any group/snapshot/scar state), over the full graph.
+    rev = {g: True for g in goal_states}
     # Reverse adjacency from stored edges (all visited states were expanded).
     incoming = {}
     for src, succs in edges.items():
         for dst in succs:
             incoming.setdefault(dst, []).append(src)
-    q = deque([goal])
+    q = deque(goal_states)
     while q:
         cur = q.popleft()
         for src in incoming.get(cur, []):
@@ -246,7 +278,7 @@ def main():
     for i, (a, lab, b) in enumerate(path, 1):
         mark = ""
         if b[0] == WALL and (b[2], b[3]) == SIGIL:
-            mark = " <- SIGIL (group toggles)"
+            mark = " <- SIGIL (group SET ON)"
         if b[0] == WALL and (b[2], b[3]) in BRIDGES:
             mark = " <- BRIDGE"
         if b[0] == WALL and (b[2], b[3]) in SCAR_OF:

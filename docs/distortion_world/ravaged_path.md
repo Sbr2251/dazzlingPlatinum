@@ -9,7 +9,7 @@ meets a puzzle mechanic, so it stays gentle: the sigil is on the main
 line, the ordering is taught rather than tested, and a missed bridge
 bounces the player off instead of dropping them.
 
-New mechanic: **rift sigils** -- stepping on a sigil toggles a group of
+New mechanic: **rift sigils** -- stepping on a sigil switches on a group of
 stone bridges (ghost props + live walkability, engine-a `DwPuzzleGroup` /
 `DwPuzzleSigil`). Combined with: **crumbling scars** (one-use tiles, the
 existing `Arc2DwRavagedPath_HandleStep` hook, unchanged).
@@ -60,8 +60,11 @@ to the initial state).
 The west column x = 10, z = 14..24 is a dead strip (no connection to
 the ledge: (11, 14) is blocked). The east stones (25, 12), (28, 12)
 and the lower stones (23 / 26 / 29, 22) are dead ends, as today. The
-solver's floor graph includes all of these, so it proves none of them
-is a shortcut.
+solver's floor graph includes all of them, plus the five
+bidirectional JUMP_TWICE stone hops (22, 12) <-> (25, 12) <->
+(28, 12) and (20, 22) <-> (23, 22) <-> (26, 22) <-> (29, 22), so it
+proves none of them is a shortcut. It excludes Cyrus's occupied tile
+(22, 11), which his object blocks.
 
 ### West wall (x = 11, attr 13)
 
@@ -80,7 +83,7 @@ y2  .SB*...**.
 
 | Tile | What | Engine / hook |
 |---|---|---|
-| (11, 2, 14) `S` | Sigil. TOGGLE, target group 0. Rune decal on the wall face. | `DwPuzzleSigil`, fires once per step onto the tile |
+| (11, 2, 14) `S` | Sigil. SET group 0 to 1. Rune decal on the wall face. | `DwPuzzleSigil`, fires once per step onto the tile |
 | (11, 2, 15) `B` | Bridge. Socket decal; ghost-prop stone (group 4) when on. | Group 0, on SOLID / off BLOCKED, initial off |
 | (11, 4, 20), (11, 4, 21) `B` | Bridge, the top crossing over scar 1. Same decals / props. | Group 0 |
 | (11, 2, 16) `*` | Scar 0. Loose-boulder decal + ghost-prop rocks (group 2), as today. | Existing scar hook, unchanged |
@@ -129,8 +132,18 @@ boulder, which would make a socket look like ground.
 
 ## 2. The mechanic
 
-* Stepping on the sigil toggles group 0 (sound `SEQ_SE_PL_SYUWA` +
-  flash, per engine-a). Step on again and it toggles back.
+* Stepping on the sigil sets group 0 ON (sound `SEQ_SE_PL_SYUWA` +
+  flash, per engine-a). It stays on for the rest of the visit: the
+  sigil is SET (setValue 1), **not** TOGGLE. Stepping on it again
+  does nothing -- there is no way to switch a bridge back off in play.
+  This is deliberate. With a toggle, switching the group off would
+  start the 33-frame fade-out while the tiles stay solid (a normal
+  step is 8 frames), so the player could re-enter a fading bridge
+  and still be standing on it when it becomes BLOCKED, with no
+  frame-fall path (`fallVar = 0`) to catch them. SET removes that
+  whole failure mode: the fade-out path is never exercised in this
+  rift (the only OFF transition is a fall restore, which happens
+  across a warp while the player is at the entry).
 * Group 0 on: the three bridge tiles are SOLID and their ghost props
   are shown. Group 0 off: the bridge tiles are BLOCKED (impassable)
   and their props are hidden.
@@ -139,13 +152,10 @@ boulder, which would make a socket look like ground.
   punishment for looking. This is the gentle choice for difficulty 2
   (the engine-a skeleton in the README uses BLOCKED for bridges too).
   Falls in this rift come only from scars and chasm lips, as today.
-* Fade timing: the engine's honeycomb rule (props show at once, tiles
-  hold after the 3-frame fade-in lead; props fade at once, tiles hold
-  for the 33-frame fade-out). A tile step lasts longer than the
-  3-frame lead, so by the time the player arrives on a bridge it
-  already pressed the sigil for, the bridge holds. The solver models
-  the switch as immediate; the real game is only ever more permissive
-  (see section 6).
+* Fade-in: the engine's honeycomb rule shows the props at once and
+  the tiles hold after the 3-frame fade-in lead. A normal step is 8
+  frames, so by the time the player arrives on a bridge whose sigil
+  they just pressed, the bridge holds.
 
 ## 3. Teaching beat
 
@@ -157,9 +167,7 @@ player cannot miss it, and the lesson is immediate:
    ahead with a flash and a sound, and Cyrus's teaching line plays
    (once, section 5). Cause and effect are one step apart.
 3. Player steps onto the now-solid bridge (2, 15) and on to scar 0.
-   If they step back onto the sigil (toggling the group off again)
-   before crossing, the bridge at (2, 15) is BLOCKED and they bounce
-   off it -- safe, and it teaches that the sigil toggles.
+   Pressing the sigil again does nothing -- the bridges stay on.
 4. The top bridges (4, 20), (4, 21) were switched on by the same
    press, so when the player arrives at the top of the seam they are
    already there. The player learns the ordering (sigil before scar)
@@ -246,34 +254,36 @@ that, talking to Cyrus keeps the existing lines.
 
 * **Checkpoint:** exactly one -- the entry (20, 1, 12), facing kept.
   `DwPuzzleCheckpoint { 20, 1, 12, -1 }`.
-* **Fall:** scar fall (per-map hook) or lip fall (engine VOID tile /
-  coord event) warps the player to the entry and restores the puzzle
-  state to the checkpoint snapshot (group on/off). Scars are intact
-  again after a fall (the existing entry-walkway reset). Fail cost,
-  per the plan row: fall -> wall resets.
+* **Fall:** every fall warps the player to the entry checkpoint and
+  leaves the scars intact again (the existing entry-walkway reset).
+  Which group state the player comes back to depends on how the fall
+  happened, and the asymmetry is part of the design:
+  * **Lip fall** (chasm lip, a VOID tile in the engine table): the
+    engine step hook sees the VOID tile, marks a fall pending, and
+    on the first frame after the warp restores the puzzle to the
+    checkpoint snapshot (the group state snapshotted when the player
+    last stepped on the entry checkpoint).
+  * **Scar fall** (per-map hook): the scar hook starts fall script 2
+    directly, so the engine never marks a fall pending; re-entry
+    looks like a fresh entry to the engine, which resets the puzzle
+    to initial (group OFF, snapshot OFF). This is the correct
+    reading of the engine-a API, which has no "mark a fall" entry
+    point for a per-map hook.
+  Fail cost, per the plan row: fall -> wall resets. With the SET
+  sigil, both fall outcomes are trivially re-solvable: step on the
+  sigil (SET to ON) and go.
 * **Snapshot corner:** the player can walk back to the entry checkpoint
   *before* crossing scar 0 (the wall hop-off at z = 13 exists), which
   re-snapshots the group in its current state -- e.g. ON, if they
-  pressed the sigil, walked back, and then fell later. The solver
-  models the exact snapshot semantics (state includes the snapshot),
-  and its soft-lock proof covers both snapshot values.
-* **Engine glue behaviour (Phase 2 must confirm):** if the engine's
-  fall-pending flag is only set by `DwPuzzle_HandleStep`, a fall
-  started by the per-map scar hook may look like a fresh entry to the
-  engine, which resets the puzzle to initial (group off) instead of
-  restoring the snapshot. Either behaviour is safe here: the
-  solver's state space includes both (group off after a fall is the
-  pessimistic case, and every explored state reaches the totem).
-  Phase 2 must confirm which one the glue implements and test the
-  walk-back-then-fall corner headlessly. Do not "fix" it by
-  special-casing: group-off-after-fall is always solvable.
+  pressed the sigil and walked back. A later lip fall then restores
+  ON; a later scar fall resets to OFF. The solver models both fall
+  kinds exactly, and its soft-lock proof covers every snapshot value.
 * **No soft-lock invariants** (checked exhaustively by the solver,
-  section 7):
-  * A bridge can never switch off under the player: the only sigil is
-    behind scar 0, and scar 0 is one-way. Standing on a bridge while
-    stepping back to the sigil is impossible (you leave the bridge
-    first, and the group then switches off behind you, where the
-    only consequence is that re-entering the bridge is BLOCKED).
+  section 8):
+  * The group can never switch off under the player: the sigil only
+    ever sets it ON, and the only OFF transition in the whole rift
+    is a fall restore, which happens across a warp while the player
+    is at the entry.
   * Every scar tile has a non-scar neighbour to retreat to.
   * From any reachable state there is a path to the totem (solver
     reverse-reachability, fall edges included), so a "stranded"
@@ -295,7 +305,7 @@ static const DwPuzzleGroup sRavagedPathGroups[] = {
     /* tiles, count, ghost group, fadeOut, fadeInLead, on, off, initial, pad */
 };
 static const DwPuzzleSigil sRavagedPathSigils[] = {
-    { 11, 2, 14, DW_PUZZLE_SIGIL_TOGGLE, 0, 0, 0 },
+    { 11, 2, 14, DW_PUZZLE_SIGIL_SET, 0, 1, 0 },   /* SET group 0 to 1 */
 };
 static const DwPuzzleCheckpoint sRavagedPathCheckpoints[] = {
     { 20, 1, 12, -1 },
@@ -375,8 +385,8 @@ python3 tools/distortion_world/ravaged_path_solver.py
 Result (this commit):
 
 ```
-states explored: 274
-avg branching (out-degree over reachable states): 2.57
+states explored: 232
+avg branching (out-degree over reachable states): 2.53
 optimal total steps (entry -> totem coord): 27
 optimal puzzle steps (jump-on .. hop-off): 15 (plan range 15-25: PASS)
 falls on optimal path: 0
@@ -386,7 +396,7 @@ optimal path presses sigil (step 12) before scar 0 (step 14): PASS
 OVERALL: PASS
 ```
 
-Difficulty reading: 274 reachable states, branching 2.57, one sigil,
+Difficulty reading: 232 reachable states, branching 2.53, one sigil,
 one ordering idea, optimal 15 puzzle steps at the bottom of the
 15-25 range -- this is a gentle first mechanic, as the revised curve
 requires. If Phase 2 playtesting finds it too easy, the sanctioned
@@ -400,9 +410,11 @@ Engine not merged yet, so none of this runs in Phase 1:
 * Solver output above (done, Phase 1).
 * Harness replay of the solver's solution from entry to totem + calm.
 * A fall at each stage (scar 0 re-step, scar 1 from the fork, each
-  lip): return to the entry checkpoint with the puzzle state kept per
-  the snapshot rules (section 6), including the walk-back-then-fall
-  corner.
+  lip): return to the entry checkpoint. Scar falls reset the group
+  to OFF; lip falls restore the checkpoint snapshot (section 6).
+  Test the walk-back-then-fall corner for both kinds: snapshot ON,
+  then a lip fall (group comes back ON) and a scar fall (group
+  comes back OFF).
 * Re-entry after a blackout (totem loss): fresh entry resets the
   puzzle; Cyrus's once-only lines do not replay.
 * Collision-vs-drawn audit: every walkable tile drawn (bridge props
@@ -416,8 +428,6 @@ Engine not merged yet, so none of this runs in Phase 1:
 * Rune / socket decal textures (section 1).
 * Group-4 bridge props read as stone ledges in a frame strip
   (section 1).
-* Which fall-restore behaviour the ov9 glue implements for scar
-  falls (section 6) -- both are safe; confirm and test.
 * Lead assigns the two `FLAG_DW_RIFT_RP_*` values (section 7).
 * The harness workstream's `tools/distortion_world/emu/solver.py`
   (when it lands): re-express this model in its format and confirm
