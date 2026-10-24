@@ -37,7 +37,10 @@
 #include "overlay005/struct_ov5_021DF47C_decl.h"
 #include "overlay005/struct_ov5_021ED0A4.h"
 #include "overlay009/camera_configuration.h"
+#include "overlay009/dw_puzzle_actors.h"
 #include "overlay009/struct_ov9_0224F6EC_decl.h"
+#include "overlay009/dw_puzzle.h"
+#include "overlay009/dw_puzzle_actors.h" // dwp:engine-a + engine-b: actor teardown wiring
 
 #include "bg_window.h"
 #include "camera.h"
@@ -710,6 +713,12 @@ typedef struct {
 
 struct DistWorldSystem {
     FieldSystem *fieldSystem;
+    // The DW map this system was created for (the map header at Init).
+    // GetMapHeaderID returns THIS, not the current location: on a warp
+    // the location is already the destination, so comparing the location
+    // to itself can never detect a departure (the old GetMapHeaderID did
+    // exactly that, and the actor OnExit never fired).
+    enum MapHeader mapHeaderID;
     DistWorldPersistedData *persistedData;
     NARC *distortionWorldNARC;
     NARC *distortionWorldAttrNARC;
@@ -1258,6 +1267,14 @@ static int CalculateCameraAngleDelta(u16 currentAngleComponent, u16 targetAngleC
 static void ov9_02250EE8(s16 *param0, s16 param1);
 static void ov9_02250F1C(fx32 *param0, fx32 param1);
 static void GetPlayerPos(DistWorldSystem *system, int *playerX, int *playerY, int *playerZ);
+// dwp:engine-a: puzzle glue (defined with the Arc 2 hooks below).
+BOOL ov9_0224A71C(FieldSystem *fieldSystem);
+static int DwPuzzle_Ov9Surface(FieldSystem *fieldSystem);
+static DwPuzzleTileState DwPuzzle_Ov9TryPushTile(FieldSystem *fieldSystem, int destX, int destY, int destZ,
+    int surface, int playerX, int playerY, int playerZ);
+static void DwPuzzle_Ov9StartRune(DistWorldSystem *system, int x, int y, int z, int facing, const DwPuzzleRuneAction *rune);
+static void DwPuzzle_Ov9MovePlayer(DistWorldSystem *system, int x, int y, int z, int facing);
+static void DwPuzzle_Ov9Respawn(DistWorldSystem *system, const DwPuzzleFrameResult *result);
 static u32 DistWorldSystem_GetMapHeaderID(DistWorldSystem *system);
 static enum AvatarDistortionState GetAvatarDistortionStateForFloatingPlatformKind(u32 platformKind);
 static BOOL ov9_02251104(DistWorldSystem *param0, u32 param1, u32 param2);
@@ -1303,6 +1320,7 @@ void DistWorld_DynamicMapFeaturesInit(FieldSystem *fieldSystem)
 
     dwSystem->fieldSystem = fieldSystem;
     dwSystem->persistedData = data;
+    dwSystem->mapHeaderID = (enum MapHeader)fieldSystem->location->mapId;
 
     fieldSystem->unk_04->dynamicMapFeaturesData = dwSystem;
 
@@ -1338,6 +1356,12 @@ void DistWorld_DynamicMapFeaturesInit(FieldSystem *fieldSystem)
     ov5_021F34B8(dwSystem->fieldSystem->unk_40);
     ov9_02249EF0(dwSystem);
     Arc2DwLostTower_ResetFieldState(); // set-tower: the ghosts' palettes are reloaded with each field
+    DwPuzzle_OnMapEnter(fieldSystem, DistWorldSystem_GetMapHeaderID(dwSystem)); // dwp:engine-a
+    // dwp:engine-a + engine-b (3): register the map's actor table (NULL =
+    // inert) and (re)spawn the actor visuals from core state. Idempotent:
+    // a battle reload re-calls Init without losing actor state.
+    DwActors_RegisterTable(fieldSystem, DwPuzzle_GetActorTable(fieldSystem, DistWorldSystem_GetMapHeaderID(dwSystem)));
+    DwActors_VisualsInit(fieldSystem);
 
     data->valid = TRUE;
 }
@@ -1345,6 +1369,19 @@ void DistWorld_DynamicMapFeaturesInit(FieldSystem *fieldSystem)
 void DistWorld_DynamicMapFeaturesFree(FieldSystem *fieldSystem)
 {
     DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
+
+    // dwp:engine-a + engine-b (3): actor teardown. VisualsExit always
+    // (deletes the actor MapObjects, keeps core state). OnExit / OnMapExit
+    // only when the player actually leaves this DW map: on a warp the new
+    // location is already set, so a mapId different from the freed map
+    // (the stored header in the system, NOT the current location) means
+    // departure; a battle return / same-map reload keeps the mapId.
+    DwActors_VisualsExit(fieldSystem);
+    if (fieldSystem->location != NULL
+        && (u32)fieldSystem->location->mapId != DistWorldSystem_GetMapHeaderID(v0)) {
+        DwActors_OnExit();
+        DwPuzzle_OnMapExit(fieldSystem, DistWorldSystem_GetMapHeaderID(v0));
+    }
 
     ov9_02249F18(v0);
     ov9_0224E988(v0);
@@ -1613,6 +1650,39 @@ BOOL DistWorld_DynamicMapFeaturesCheckCollision(FieldSystem *fieldSystem, const 
             *isColliding = TRUE;
             return TRUE;
         }
+    }
+
+    // dwp:engine-a: puzzle tile overrides on the base-ground path. Only
+    // while the player stands on base ground: on a wall/ceiling the DW
+    // walk check (DistWorld_CheckCollisionOnCurrentFloatingPlatform)
+    // consults the overrides instead, with that surface.
+    if (DwPuzzle_Ov9Surface(fieldSystem) == DW_PUZZLE_SURFACE_GROUND) {
+        int playerX, playerY, playerZ;
+        DwPuzzleTileState tileState;
+
+        GetPlayerPos(dwSystem, &playerX, &playerY, &playerZ);
+        tileState = DwPuzzle_QueryTile(fieldSystem, tileX, playerY, tileZ, DW_PUZZLE_SURFACE_GROUND);
+
+        if (tileState == DW_PUZZLE_TILE_BLOCKED) {
+            // dwp:engine-b: a step onto a RESTING stone's tile pushes it
+            // (TryPush) before the step is blocked. Only the step target
+            // (see Ov9TryPushTile); a side probe never pushes.
+            tileState = DwPuzzle_Ov9TryPushTile(fieldSystem, tileX, playerY, tileZ,
+                DW_PUZZLE_SURFACE_GROUND, playerX, playerY, playerZ);
+        }
+        if (tileState == DW_PUZZLE_TILE_BLOCKED) {
+            *isColliding = TRUE;
+            return TRUE;
+        } else if (tileState == DW_PUZZLE_TILE_SOLID || tileState == DW_PUZZLE_TILE_VOID) {
+            // SOLID and VOID both override the stock collision bit (0x8000):
+            // the player must be able to step onto an explicitly-VOID
+            // ground tile even when the stock grid says colliding, so the
+            // step hook can start the fall (rift-213). A LANDED stone's
+            // SOLID actor tile shields a VOID tile the same way.
+            *isColliding = FALSE;
+            return TRUE;
+        }
+        // DEFAULT: fall through to the stock grid.
     }
 
     *isColliding = FALSE;
@@ -2275,6 +2345,205 @@ static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
 }
 
 
+// dwp:engine-a: puzzle glue. The engine (dw_puzzle.c) owns the logic;
+// these helpers translate between its results and the ov9 internals
+// (platform indices, the jump task, ghost-prop groups, the player object).
+
+// The player's surface, from the avatar distortion state. ACTIVE/NONE
+// means base map terrain (GROUND), not a floating floor platform.
+static int DwPuzzle_Ov9Surface(FieldSystem *fieldSystem)
+{
+    switch (PlayerAvatar_MapDistortionState(fieldSystem->playerAvatar)) {
+    case AVATAR_DISTORTION_STATE_FLOOR:
+        return DW_PUZZLE_SURFACE_FLOOR;
+    case AVATAR_DISTORTION_STATE_WEST_WALL:
+        return DW_PUZZLE_SURFACE_WEST_WALL;
+    case AVATAR_DISTORTION_STATE_EAST_WALL:
+        return DW_PUZZLE_SURFACE_EAST_WALL;
+    case AVATAR_DISTORTION_STATE_CEILING:
+        return DW_PUZZLE_SURFACE_CEILING;
+    default:
+        return DW_PUZZLE_SURFACE_GROUND;
+    }
+}
+
+// dwp:engine-b: TryPush for a step onto a BLOCKED tile. Returns the
+// tile's state after the push attempt (BLOCKED if no push happened).
+// Only for the tile the player is stepping onto (dest == player tile +
+// the facing delta -- the collision probe also hits side tiles, which
+// must never push), and only when a RESTING stone occupies it
+// (IsStoneAt). A push that moves the stone re-queries the tile (the
+// actor tile changed). Slides never reach this: a slide teleports via
+// Ov9MovePlayer, it does not go through the walk check.
+static DwPuzzleTileState DwPuzzle_Ov9TryPushTile(FieldSystem *fieldSystem, int destX, int destY, int destZ,
+    int surface, int playerX, int playerY, int playerZ)
+{
+    int facing = PlayerAvatar_GetDir(fieldSystem->playerAvatar);
+    int dx, dy, dz;
+    DwActorTile prevTile, destTile;
+
+    DwPuzzle_DirDelta(surface, facing, &dx, &dy, &dz);
+    if (destX != playerX + dx || destY != playerY + dy || destZ != playerZ + dz) {
+        return DW_PUZZLE_TILE_BLOCKED; // a side probe, not the step target
+    }
+    destTile.x = (s16)destX;
+    destTile.y = (s16)destY;
+    destTile.z = (s16)destZ;
+    destTile.surface = (u8)surface;
+    destTile.padding = 0;
+    if (!DwActors_IsStoneAt(destTile)) {
+        return DW_PUZZLE_TILE_BLOCKED; // not a stone; the BLOCKED stands
+    }
+    prevTile.x = (s16)playerX;
+    prevTile.y = (s16)playerY;
+    prevTile.z = (s16)playerZ;
+    prevTile.surface = (u8)surface;
+    prevTile.padding = 0;
+    if (!DwActors_TryPush(prevTile, destTile)) {
+        return DW_PUZZLE_TILE_BLOCKED; // push failed; the step stays blocked
+    }
+    return DwPuzzle_QueryTile(fieldSystem, destX, destY, destZ, surface);
+}
+
+// dwp:engine-a: stock collision for a slide target (the engine's
+// ResolveTile only sees puzzle overrides; DEFAULT means "no override",
+// not "walkable"). A stock-blocked slide target (a stock-blocked tile or
+// an out-of-bounds platform edge) must end the slide, not be teleported
+// onto. Platform surfaces use the stock platform grid; GROUND uses the
+// stock terrain collision (the terrain collision manager's attributes).
+static BOOL DwPuzzle_Ov9SlideTargetBlocked(DistWorldSystem *system, int destX, int destY, int destZ, int surface)
+{
+    FieldSystem *fieldSystem = system->fieldSystem;
+
+    if (surface == DW_PUZZLE_SURFACE_GROUND) {
+        u16 attributes;
+
+        if (!fieldSystem->terrainCollisionMan->getTileAttributes(fieldSystem, destX, destZ, &attributes)) {
+            return TRUE; // no stock attributes: treat as blocked (safe)
+        }
+        return (attributes & TERRAIN_ATTRIBUTES_COLLISION_MASK) != 0;
+    }
+    {
+        u16 tileAttributes = GetCurrentFloatingPlatformTileAttributes(system, destX, destY, destZ);
+
+        if (tileAttributes == (u16)INVALID_TERRAIN_ATTRIBUTES
+            || tileAttributes == (u16)OUT_OF_BOUNDS_TERRAIN_ATTRIBUTES) {
+            return TRUE;
+        }
+        return ((tileAttributes & TERRAIN_ATTRIBUTES_COLLISION_MASK) >> TERRAIN_ATTRIBUTES_COLLISION_SHIFT) != 0;
+    }
+}
+
+// Find the tw_arc platform index for (x, y, z) on a platform surface, or
+// -1 when there is none (the rune must not fire then).
+static int DwPuzzle_Ov9FindPlatform(DistWorldSystem *system, int x, int y, int z, int surface)
+{
+    DistWorldFloatingPlatformManager *man = &system->unk_169C.floatingPlatformMan;
+
+    for (int i = 0; i < man->platformCount; i++) {
+        if (man->templates[i].kind == surface
+            && DistWorldBounds_AreCoordinatesInBounds(x, y, z, &man->templates[i].bounds)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Start a gravity rune: a jump-point surface change, built from the
+// engine's rune action. The target platform index resolves here; a rune
+// to GROUND becomes platform kind INVALID / index -1 (stock ground
+// jumps), never kind FLOOR.
+static void DwPuzzle_Ov9StartRune(DistWorldSystem *system, int x, int y, int z, int facing, const DwPuzzleRuneAction *rune)
+{
+    DistWorldFloatingPlatformJumpPointTemplate tpl;
+    int platformIndex;
+
+    if (rune->targetSurface == DW_PUZZLE_SURFACE_GROUND) {
+        platformIndex = -1;
+    } else {
+        platformIndex = DwPuzzle_Ov9FindPlatform(system, rune->targetX, rune->targetY, rune->targetZ, rune->targetSurface);
+        if (platformIndex < 0) {
+            return; // no platform of the target surface there: do not fire
+        }
+    }
+
+    memset(&tpl, 0, sizeof(tpl));
+    tpl.handlerIndex = 0;
+    tpl.playerDir = (s16)facing;
+    tpl.bounds.startTileX = (s16)x;
+    tpl.bounds.startTileY = (s16)y;
+    tpl.bounds.startTileZ = (s16)z;
+    tpl.bounds.sizeX = 1;
+    tpl.bounds.sizeY = 1;
+    tpl.bounds.sizeZ = 1;
+    tpl.xDisplacement = (s16)(rune->targetX - x);
+    tpl.yDisplacement = (s16)(rune->targetY - y);
+    tpl.zDisplacement = (s16)(rune->targetZ - z);
+    tpl.unk_1A = rune->rot;
+    tpl.movementAnimSteps = rune->steps != 0 ? rune->steps : 16;
+    tpl.unk_1E = 1;
+    tpl.unk_20 = 0;
+    tpl.finalFacingDir = rune->facing >= 0 ? rune->facing : (s16)facing;
+    tpl.floatingPlatformKind = (s16)(rune->targetSurface == DW_PUZZLE_SURFACE_GROUND
+        ? FLOATING_PLATFORM_KIND_INVALID : rune->targetSurface);
+    tpl.floatingPlatformIndex = (u16)platformIndex;
+
+    if (rune->useCamera) {
+        DistWorldCameraAngleTemplate cameraTpl;
+
+        memset(&cameraTpl, 0, sizeof(cameraTpl));
+        cameraTpl.bounds.startTileX = rune->targetX;
+        cameraTpl.bounds.startTileY = rune->targetY;
+        cameraTpl.bounds.startTileZ = rune->targetZ;
+        cameraTpl.bounds.sizeX = 1;
+        cameraTpl.bounds.sizeY = 1;
+        cameraTpl.bounds.sizeZ = 1;
+        cameraTpl.angleX = (u16)rune->cameraX;
+        cameraTpl.angleY = (u16)rune->cameraY;
+        cameraTpl.angleZ = (u16)rune->cameraZ;
+        cameraTpl.playerDir = tpl.finalFacingDir;
+        cameraTpl.transitionSteps = rune->cameraSteps != 0 ? rune->cameraSteps : 16;
+        DoCameraTransition(system, &cameraTpl);
+    }
+
+    CreateJumpOnFloatingPlatformTask(system, &tpl);
+}
+
+// Teleport the player one tile (a slide step). The step hook re-runs at
+// the landing tile via ov9_0224A71C from the frame glue.
+static void DwPuzzle_Ov9MovePlayer(DistWorldSystem *system, int x, int y, int z, int facing)
+{
+    MapObject *playerMapObj = Player_MapObject(system->fieldSystem->playerAvatar);
+
+    MapObject_SetPosDirFromCoords(playerMapObj, x, y * 2, z, facing);
+}
+
+// Respawn the player at a checkpoint: tile + pos, platform, distortion
+// state, height mode, facing, and camera for the checkpoint's surface.
+static void DwPuzzle_Ov9Respawn(DistWorldSystem *system, const DwPuzzleFrameResult *result)
+{
+    FieldSystem *fieldSystem = system->fieldSystem;
+    MapObject *playerMapObj = Player_MapObject(fieldSystem->playerAvatar);
+    int facing = result->respawnFacing >= 0 ? result->respawnFacing : PlayerAvatar_GetDir(fieldSystem->playerAvatar);
+    u32 platformKind;
+    enum AvatarDistortionState distortionState;
+
+    MapObject_SetPosDirFromCoords(playerMapObj, result->respawnX, result->respawnY * 2, result->respawnZ, facing);
+
+    if (result->respawnSurface == DW_PUZZLE_SURFACE_GROUND) {
+        PrepareNewCurrentFloatingPlatform(system, (u32)-1); // no platform
+    } else {
+        FindAndPrepareNewCurrentFloatingPlatform(system, result->respawnX, result->respawnY, result->respawnZ,
+            (s16)result->respawnSurface);
+    }
+
+    platformKind = GetCurrentFloatingPlatformKind(system);
+    distortionState = GetAvatarDistortionStateForFloatingPlatformKind(platformKind);
+    PlayerAvatar_SetDistortionState(fieldSystem->playerAvatar, distortionState);
+    MapObject_SetHeightCalculationDisabled(playerMapObj, distortionState == AVATAR_DISTORTION_STATE_ACTIVE ? FALSE : TRUE);
+    ApplyCameraAngleForPlayerPosition(system, result->respawnX, result->respawnY, result->respawnZ, facing);
+}
+
 // Arc 2 rifts (R0 stubs): per-map step hooks, called from ov9_0224A71C with DW world tile coordinates. Each
 // rift workstream fills in only its own function (rift-a: RavagedPath, EternaForest; rift-b: the rest).
 
@@ -2500,12 +2769,17 @@ static void Arc2DwEternaForest_HandleFrame(DistWorldSystem *system)
         ShowGhostPropGroup(system, ETERNA_FOREST_HONEY_GROUP);
     }
 
-    // Gone with the player on it: raise VAR_MAP_LOCAL_2, and the map's init frame table starts the fall script from
-    // the idle field (never from this task, never mid-script). A step onto it while gone is the step hook's job.
+    // Gone with the player on it: record the fall with the engine
+    // (NotifyFall, BEFORE raising the var -- HoneyFall clears
+    // VAR_MAP_LOCAL_2 first thing, and the engine's record must survive
+    // it), then raise VAR_MAP_LOCAL_2, and the map's init frame table
+    // starts the fall script from the idle field (never from this task,
+    // never mid-script). A step onto it while gone is the step hook's job.
     if (EternaForest_IsHoneyGone()) {
         GetPlayerPos(system, &x, &y, &z);
 
         if (EternaForest_IsHoneyTile(x, y, z)) {
+            DwPuzzle_NotifyFall(fieldSystem); // dwp:engine-a
             *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_MAP_LOCAL_2) = 1;
         }
     }
@@ -2518,6 +2792,7 @@ static BOOL Arc2DwEternaForest_HandleStep(DistWorldSystem *system, int x, int y,
     }
 
     if (EternaForest_IsHoneyTile(x, y, z) && EternaForest_IsHoneyGone()) {
+        DwPuzzle_NotifyFall(system->fieldSystem); // dwp:engine-a
         ScriptManager_Set(system->fieldSystem, ETERNA_FOREST_SCRIPT_HONEY_FALL, NULL);
         return TRUE;
     }
@@ -2534,14 +2809,107 @@ static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system);
 
 // Per-frame hook for the Arc 2 rifts, from the DW system task (ov9_02249EDC): Eterna Forest (rift-a) and the Lost
 // Tower's ghost acts (set-tower).
+// dwp:engine-a: the slide input lock lives here: pause the player while
+// the slide is active, unpause when it ends. Only the transitions toggle
+// the flag, so a script lock that starts mid-slide is never undone early
+// (its own ReleaseAll unpauses).
+static BOOL sDwPuzzleSlidePaused;
+
 static void Arc2Dw_HandleFrame(DistWorldSystem *system)
 {
     enum MapHeader mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+
+    // dwp:engine-a: puzzle engine frame hook (no-op without a table).
+    {
+        DwPuzzleFrameResult puzzleResult;
+        FieldSystem *fieldSystem = system->fieldSystem;
+        int x, y, z;
+        MapObject *playerMapObj = Player_MapObject(fieldSystem->playerAvatar);
+
+        GetPlayerPos(system, &x, &y, &z);
+        DwPuzzle_HandleFrame(fieldSystem, x, y, z, DwPuzzle_Ov9Surface(fieldSystem),
+            PlayerAvatar_GetDir(fieldSystem->playerAvatar), &puzzleResult);
+
+        for (int g = 0; g < GHOST_PROP_GROUP_MAX_COUNT; g++) {
+            if (puzzleResult.ghostShowMask & (1u << g)) {
+                ShowGhostPropGroup(system, (u32)g);
+            } else if (puzzleResult.ghostHideMask & (1u << g)) {
+                HideGhostPropGroup(system, (u32)g);
+            }
+        }
+
+        if (puzzleResult.slideActive && !sDwPuzzleSlidePaused) {
+            MapObject_SetPauseMovementOn(playerMapObj);
+            sDwPuzzleSlidePaused = TRUE;
+        } else if (!puzzleResult.slideActive && sDwPuzzleSlidePaused) {
+            MapObject_SetPauseMovementOff(playerMapObj);
+            sDwPuzzleSlidePaused = FALSE;
+        }
+
+        if (puzzleResult.slideStep) {
+            // Stock-blocked slide target: cancel the slide (do NOT
+            // teleport onto a stock-blocked tile or an out-of-bounds
+            // platform edge). The stock grid only decides when the
+            // puzzle has NO override (QueryTile returns DEFAULT): an
+            // explicit/actor SOLID or VOID override over a stock-blocked
+            // tile -- e.g. a LANDED stone shielding a 0x8000 tile --
+            // wins, and the slide proceeds.
+            DwPuzzleTileState slideTargetState = DwPuzzle_QueryTile(fieldSystem,
+                puzzleResult.slideX, puzzleResult.slideY, puzzleResult.slideZ,
+                DwPuzzle_Ov9Surface(fieldSystem));
+            BOOL slideBlocked = (slideTargetState == DW_PUZZLE_TILE_BLOCKED);
+
+            if (slideTargetState == DW_PUZZLE_TILE_DEFAULT
+                && DwPuzzle_Ov9SlideTargetBlocked(system, puzzleResult.slideX, puzzleResult.slideY,
+                    puzzleResult.slideZ, DwPuzzle_Ov9Surface(fieldSystem))) {
+                slideBlocked = TRUE;
+            }
+            if (slideBlocked) {
+                DwPuzzle_CancelSlide(fieldSystem);
+            } else {
+                DwPuzzle_Ov9MovePlayer(system, puzzleResult.slideX, puzzleResult.slideY, puzzleResult.slideZ,
+                    PlayerAvatar_GetDir(fieldSystem->playerAvatar));
+                // Re-run the step hook at the landing tile (sigils, runes,
+                // checkpoints, falls on the landing tile; slide ends
+                // off-current via the engine step hook).
+                ov9_0224A71C(fieldSystem);
+            }
+        }
+
+        // Respawn at once when requested. Do NOT gate on
+        // LocalMapObj_IsAnimationSet: that returns TRUE for an idle
+        // player (it is the "animation ready" state the jump task waits
+        // FOR), so gating on its negation blocked every respawn after a
+        // fall warp. The engine only requests a respawn after a fall
+        // warp (the player just warped, idle) or a shadow catch (a
+        // forced teleport), so there is no mid-step animation to cut.
+        if (puzzleResult.respawnRequested) {
+            DwPuzzle_Ov9Respawn(system, &puzzleResult);
+        }
+    }
 
     if (mapHeaderID == MAP_HEADER_DW_ETERNA_FOREST) {
         Arc2DwEternaForest_HandleFrame(system);
     } else if (mapHeaderID == MAP_HEADER_DW_LOST_TOWER) {
         Arc2DwLostTower_HandleFrame(system);
+    }
+
+    // dwp:engine-b: actors frame tick + debug sync (inert until engine-a's map-load hook
+    // registers a table with DwActors_RegisterTable; the core no-ops without one).
+    // The ov9 platform kind numbers exactly like DwPuzzleSurface (INVALID 4 = GROUND 4).
+    {
+        int px, py, pz;
+        DwActorTile player;
+
+        GetPlayerPos(system, &px, &py, &pz);
+        player.x = (s16)px;
+        player.y = (s16)py;
+        player.z = (s16)pz;
+        player.surface = (u8)GetCurrentFloatingPlatformKind(system);
+        player.padding = 0;
+        DwActors_HandleFrame(player);
+        DwActors_VisualsUpdate(system->fieldSystem); // dwp:engine-a + engine-b (3)
+        DwActors_SyncDebug();
     }
 }
 
@@ -2866,10 +3234,15 @@ static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system)
     BOOL wallDone = LostTower_WallWorkDone(system);
 
     // The ghost props follow the acts (a warp re-reads the default visibility, so re-assert it every frame).
-    LostTower_SetGroupShown(system, LOST_TOWER_GROUP_SCAR, !(wallDone || wallActs >= 1));
-    LostTower_SetGroupShown(system, LOST_TOWER_GROUP_SEAM,
-        VarsFlags_CheckFlag(varsFlags, FLAG_TOTEM_VESPIQUEN_DEFEATED) && (wallDone || wallActs >= 2));
-    LostTower_SetGroupShown(system, LOST_TOWER_GROUP_STONES, deeperActs >= 1);
+    // dwp:engine-b: on visit 2 the totem-echo pads own these groups (engine-a groups + pads):
+    // the scripted acts step aside as soon as an actor table is registered, so the two
+    // owners never fight over the same groups. Without a table this is exactly as before.
+    if (!DwActors_IsActive()) {
+        LostTower_SetGroupShown(system, LOST_TOWER_GROUP_SCAR, !(wallDone || wallActs >= 1));
+        LostTower_SetGroupShown(system, LOST_TOWER_GROUP_SEAM,
+            VarsFlags_CheckFlag(varsFlags, FLAG_TOTEM_VESPIQUEN_DEFEATED) && (wallDone || wallActs >= 2));
+        LostTower_SetGroupShown(system, LOST_TOWER_GROUP_STONES, deeperActs >= 1);
+    }
 
     if (ghostTarget > GHOST_PROP_OPACITY_MAX) {
         ghostTarget = GHOST_PROP_OPACITY_MAX;
@@ -2900,6 +3273,12 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
             return TRUE;
         }
 
+        // dwp:engine-b: on visit 2 the totem-echo pads own the acts; the scripted wall acts
+        // step aside as soon as an actor table is registered (see the frame hook).
+        if (DwActors_IsActive()) {
+            return FALSE;
+        }
+
         if (LostTower_WallWorkDone(system)) {
             return FALSE;
         }
@@ -2915,6 +3294,11 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
             return TRUE;
         }
 
+        return FALSE;
+    }
+
+    // dwp:engine-b: same gate as the wall acts above (totem-echo pads own visit 2).
+    if (DwActors_IsActive()) {
         return FALSE;
     }
 
@@ -2957,6 +3341,64 @@ BOOL ov9_0224A71C(FieldSystem *fieldSystem)
 
         if (ov9_0224E434(v5, v1, v2, v3) == 1) {
             return 1;
+        }
+
+        // dwp:engine-b: actor step. HandlePlayerStep runs first (pads,
+        // echo, shadow catch, stone safety net). On PAD_READY, skip
+        // DwPuzzle_HandleStep -- the pad's sigil must not auto-fire --
+        // and fall through to the per-map chain, whose rift hook starts
+        // the pad script (the pad def carries no script id; the rift
+        // owns the prompt script). On STONE_PUSH_BLOCKED the player was
+        // already put back; the step is done.
+        {
+            int dx, dy, dz;
+            DwActorTile prevTile, curTile;
+            DwActorEvent actorEvent;
+            int puzzleSurface = DwPuzzle_Ov9Surface(fieldSystem);
+            BOOL skipPuzzleStep = FALSE;
+
+            DwPuzzle_DirDelta(puzzleSurface, v4, &dx, &dy, &dz);
+            prevTile.x = (s16)(v1 - dx);
+            prevTile.y = (s16)(v2 - dy);
+            prevTile.z = (s16)(v3 - dz);
+            prevTile.surface = (u8)puzzleSurface;
+            prevTile.padding = 0;
+            curTile.x = (s16)v1;
+            curTile.y = (s16)v2;
+            curTile.z = (s16)v3;
+            curTile.surface = (u8)puzzleSurface;
+            curTile.padding = 0;
+            actorEvent = DwActors_HandlePlayerStep(prevTile, curTile);
+            if (actorEvent == DW_ACTOR_EVENT_STONE_PUSH_BLOCKED) {
+                return 1;
+            }
+            if (actorEvent == DW_ACTOR_EVENT_PAD_READY) {
+                skipPuzzleStep = TRUE;
+            }
+
+            // dwp:engine-a: puzzle engine step hook (no-op without a table).
+            // checkpointReached is checked regardless of handled: a
+            // checkpoint-only step sets it but returns FALSE (the
+            // checkpoint does not consume the step, so the per-map
+            // chain still runs) -- OnCheckpoint must still snapshot.
+            if (!skipPuzzleStep) {
+                DwPuzzleStepResult puzzleResult;
+                BOOL handled;
+
+                memset(&puzzleResult, 0, sizeof(puzzleResult));
+                handled = DwPuzzle_HandleStep(fieldSystem, v1, v2, v3, puzzleSurface, v4, &puzzleResult);
+                if (puzzleResult.checkpointReached) {
+                    DwActors_OnCheckpoint();
+                }
+                if (handled) {
+                    if (puzzleResult.fallRequested) {
+                        ScriptManager_Set(fieldSystem, puzzleResult.fallScriptId, NULL);
+                    } else if (puzzleResult.runeRequested) {
+                        DwPuzzle_Ov9StartRune(v5, v1, v2, v3, v4, &puzzleResult.rune);
+                    }
+                    return 1;
+                }
+            }
         }
 
         {
@@ -10193,6 +10635,30 @@ BOOL ov9_02250F74(FieldSystem *fieldSystem)
 BOOL DistWorld_CheckCollisionOnCurrentFloatingPlatform(FieldSystem *fieldSystem, int tileX, int tileY, int tileZ)
 {
     DistWorldSystem *distWorldSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
+    // dwp:engine-a: puzzle tile overrides on the current platform. VOID
+    // stays walkable here; the step hook starts the fall.
+    {
+        u32 platformKind = GetCurrentFloatingPlatformKind(distWorldSystem);
+
+        if (platformKind != FLOATING_PLATFORM_KIND_INVALID) {
+            DwPuzzleTileState tileState = DwPuzzle_QueryTile(fieldSystem, tileX, tileY, tileZ, (int)platformKind);
+            int playerX, playerY, playerZ;
+
+            if (tileState == DW_PUZZLE_TILE_BLOCKED) {
+                // dwp:engine-b: TryPush (see the floor path above).
+                GetPlayerPos(distWorldSystem, &playerX, &playerY, &playerZ);
+                tileState = DwPuzzle_Ov9TryPushTile(fieldSystem, tileX, tileY, tileZ,
+                    (int)platformKind, playerX, playerY, playerZ);
+            }
+            if (tileState == DW_PUZZLE_TILE_BLOCKED) {
+                return TRUE;
+            } else if (tileState == DW_PUZZLE_TILE_SOLID || tileState == DW_PUZZLE_TILE_VOID) {
+                // VOID overrides the stock collision bit, as on the ground
+                // path: the step hook starts the fall.
+                return FALSE;
+            }
+        }
+    }
     u16 tileAttributes = GetCurrentFloatingPlatformTileAttributes(distWorldSystem, tileX, tileY, tileZ);
 
     if (tileAttributes == (u16)INVALID_TERRAIN_ATTRIBUTES || tileAttributes == (u16)OUT_OF_BOUNDS_TERRAIN_ATTRIBUTES) {
@@ -10270,7 +10736,7 @@ void ov9_02251094(int param0, int *param1, int *param2, int *param3)
 
 static u32 DistWorldSystem_GetMapHeaderID(DistWorldSystem *system)
 {
-    return system->fieldSystem->location->mapId;
+    return (u32)system->mapHeaderID;
 }
 
 static enum AvatarDistortionState GetAvatarDistortionStateForFloatingPlatformKind(u32 platformKind)
