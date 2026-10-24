@@ -3,55 +3,66 @@
 
 Models the Route 214 ceiling puzzle exactly as docs/distortion_world/route_214.md
 specifies it, using the engine-a semantics from include/overlay009/dw_puzzle.h
-and tools/distortion_world/README.md (DwPuzzleCurrent / DwPuzzleSigil / groups):
+and tools/distortion_world/README.md (DwPuzzleCurrent / DwPuzzleSigil / groups).
 
+Slide semantics. The engine-a guide says a slide runs "until blocked ...
+or off-current", which is ambiguous: it may mean a slide stops on the
+first non-current tile (mode A) or keeps sliding across plain tiles until
+a block (mode B, ice-style). The design is valid under BOTH, because every
+forward slide path is tiled with currents and ends on a checkpoint, and
+every return slide lands in the same chamber under both readings (only
+the exact landing tile inside that chamber differs). The solver runs
+both modes and reports both optima.
+
+Other rules:
 - A step onto a current tile starts a slide in that tile's FACE_* direction.
-- A slide continues tile by tile: across plain tiles (ice-style), turning when it
-  lands on a current with a different direction, stopping just before a BLOCKED
-  tile / edge, and stopping on a sigil or checkpoint tile (whose logic then runs).
-  Stepping onto a VOID tile during a slide would be a fall (this puzzle has no
-  VOID tiles, so no slide ever falls).
-- A step onto a sigil toggles its group. A step onto a checkpoint snapshots
-  (snapshot state is tracked only for the fall proof: no VOID tiles, so a fall
-  can only come from outside the ceiling puzzle, and the engine restores the
-  snapshot then).
-- Group A is the W2 forward-gap tile (48,33): BLOCKED while A is on, current
-  'v' (south) while A is off. Group B is the (44,39) mid-chamber tile: BLOCKED
-  while B is on, plain while B is off. The permanent wall group never toggles.
+- During a slide: landing on a current with a different direction turns
+  the slide; landing on a sigil or checkpoint ends it and that tile's
+  logic runs; a BLOCKED tile / surface edge stops it on the tile before.
+  In mode A, landing on any other plain tile also ends it. In mode B,
+  plain tiles are crossed (ice-style).
+- A step onto a sigil toggles its group. A step onto a checkpoint
+  snapshots the groups (sigil states) at that checkpoint.
+- A fall is an extra transition from any state: the player and the puzzle
+  return to the last checkpoint with its snapshot groups. Falls are
+  never useful for reaching the goal; they exist so the soft-lock proof
+  covers the engine's fall/checkpoint restore.
+- Group A is the W2 forward-gap tile (48,33): BLOCKED while A is on,
+  current 'v' (south) while A is off. Group B is the C3 wall gap
+  (44,39): BLOCKED while B is on, current 'v' while B is off. The
+  permanent wall group never toggles.
 
-The solver proves: (1) a solution exists with length in the design range,
-(2) every reachable non-goal state can still reach the goal (no soft-lock),
-(3) no slide ever loops.
-
-Layout rows are z = 27..47 (top to bottom), columns x = 44..49 (left to right).
-Symbols: '.' plain, '#' permanent blocker, 'v'/'^' current (+z/-z),
-'s' sigil A toggle, 't' sigil B toggle, 'C' checkpoint, 'E' ceiling entry.
-Group tiles: 'A' (48,33, used as 'v' when off), 'B' (44,39, plain when off).
+Layout rows are z = 27..47 (top to bottom), columns x = 44..49 (left to
+right). Symbols: '.' plain, '#' permanent blocker, 'v'/'^' current
+(+z/-z), 's' sigil A toggle, 't' sigil B toggle, 'C' checkpoint.
+Group tiles: 'A' (48,33), 'B' (44,39), both currents when off.
 
 Usage: python3 tools/distortion_world/route_214_solver.py
+Exits non-zero if either mode is unsolvable, soft-locked, has a slide
+loop, or has a tile-step optimum outside 35..50.
 """
 from collections import deque
+import heapq
 import sys
 
 # ---------------------------------------------------------------- model ---
-# Rows z27..47, cols x44..49.  W1 z29, W2 z33, W3 z37, W4 z41.
-# Symbols: '.' plain, '#' permanent blocker, 'v'/'^' current (+z/-z),
-# 's' sigil A toggle, 't' sigil B toggle, 'C' checkpoint, 'E' ceiling entry.
-# Group tiles: 'A' (48,33, used as 'v' when off), 'B' (44,39, plain when off).
-# The authoritative layout is GRID below, checked by _check_grid().
 GRID = {}
+
 def _put(x, z, ch):
     GRID[(x, z)] = ch
 
-# Plain chambers (every ceiling tile not named below is a permanent blocker).
+# Default: every ceiling tile is a permanent blocker.
 for z in range(27, 48):
     for x in range(44, 50):
         _put(x, z, "#")
-# C0: z27-28 all plain; C1: z30-32; C2: z34-36; C3: z38-40; C4: z42-44.
-for z in [27, 28, 30, 31, 32, 34, 35, 36, 38, 39, 40, 42, 43, 44, 45, 46, 47]:
+# Chambers (plain): C0 z27-28, C1 z30-32, C2 z34-36, C3 z38 + z40, C4 z42-47.
+for z in [27, 28, 30, 31, 32, 34, 35, 36, 38, 40, 42, 43, 44, 45, 46, 47]:
     for x in range(44, 50):
         _put(x, z, ".")
-# Walls: only the named gaps are passable; the rest stay '#'.
+# C3 wall z39: only the group B gap at x44 is passable.
+for x in range(45, 50):
+    _put(x, 39, "#")
+# Forward / return gaps (wall tiles).
 _put(46, 29, "v")  # W1 forward gap
 _put(48, 33, "A")  # W2 forward gap: group A (current 'v' when off)
 _put(44, 33, "^")  # W2 return gap
@@ -59,34 +70,48 @@ _put(44, 37, "v")  # W3 forward gap
 _put(49, 37, "^")  # W3 return gap
 _put(47, 41, "v")  # W4 forward gap
 _put(44, 41, "^")  # W4 return gap
+# Slide-path currents: every forward slide travels on currents only.
+_put(46, 30, "v"); _put(46, 31, "v")  # W1 slide
+_put(48, 34, "v"); _put(48, 35, "v")  # W2 slide
+_put(44, 38, "v")                     # W3 slide (then B gap, then checkpoint)
+_put(47, 42, "v"); _put(47, 43, "v")  # W4 slide
+# Sigils and the group B gap.
 _put(45, 31, "s")  # sigil A (toggle group A)
 _put(45, 35, "t")  # sigil B (toggle group B)
-_put(44, 39, "B")  # group B blocker (plain when off)
+_put(44, 39, "B")  # group B gap (current 'v' when off)
 # Checkpoints: ceiling entry + one landing per crossing.
-_put(49, 27, "C")  # entry checkpoint (pad)
-_put(46, 32, "C")  # W1 landing
-_put(48, 36, "C")  # W2 landing
-_put(44, 40, "C")  # W3 landing
-_put(47, 44, "C")  # W4 landing
+_put(49, 27, "C")
+_put(46, 32, "C")
+_put(48, 36, "C")
+_put(44, 40, "C")
+_put(47, 44, "C")
+
+CHECKPOINTS = [(49, 27), (46, 32), (48, 36), (44, 40), (47, 44)]
+CP_INDEX = {pos: i for i, pos in enumerate(CHECKPOINTS)}
+# (map-entry checkpoint 0 would be (20,12) on the floor; the ceiling solver
+# starts at the ceiling entry, so checkpoint indices here are ceiling-only
+# and index 0 is the ceiling entry. The full table has one more entry.)
+START = (49, 27, 1, 1, 0, 1, 1)  # x, z, A, B, cp, snapA, snapB
 
 DIRS = {"U": (0, 1), "D": (0, -1), "L": (-1, 0), "R": (1, 0)}  # FACE_* on ceiling
-CUR = {"v": "U", "^": "D"}  # current tile -> FACE_* drift
+CUR = {"v": "U", "^": "D"}
 
 def _check_grid():
     assert GRID[(46, 29)] == "v" and GRID[(48, 33)] == "A" and GRID[(44, 33)] == "^"
     assert GRID[(44, 37)] == "v" and GRID[(49, 37)] == "^"
     assert GRID[(47, 41)] == "v" and GRID[(44, 41)] == "^"
     assert GRID[(45, 31)] == "s" and GRID[(45, 35)] == "t" and GRID[(44, 39)] == "B"
+    assert GRID[(46, 30)] == "v" and GRID[(46, 31)] == "v"
+    assert GRID[(48, 34)] == "v" and GRID[(48, 35)] == "v"
+    assert GRID[(44, 38)] == "v" and GRID[(47, 42)] == "v" and GRID[(47, 43)] == "v"
+    for x in range(45, 50):
+        assert GRID[(x, 39)] == "#", f"C3 wall must be closed except the B gap, got {(x, 39)}"
     assert GRID[(49, 27)] == "C" and GRID[(46, 32)] == "C" and GRID[(48, 36)] == "C"
     assert GRID[(44, 40)] == "C" and GRID[(47, 44)] == "C"
 
 _check_grid()
 
-START = (49, 27)
-INIT_GROUPS = (1, 1)  # A on (gap closed), B on (stop-block present)
-
 def blocked(state, x, z):
-    """True if (x, z) is impassable in state (x, z, A, B)."""
     if not (44 <= x <= 49 and 27 <= z <= 47):
         return True
     ch = GRID[(x, z)]
@@ -99,24 +124,39 @@ def blocked(state, x, z):
     return False
 
 def current_dir(state, x, z):
-    """FACE_* drift of the tile, or None. Group A tile drifts 'U' when off."""
     ch = GRID[(x, z)]
     if ch in CUR:
         return CUR[ch]
     if ch == "A" and state[2] == 0:
         return "U"
+    if ch == "B" and state[3] == 0:
+        return "U"
     return None
 
-def slide(state, x, z, path):
-    """Resolve a slide that starts by stepping onto current tile (x, z).
+def land(state, x, z):
+    """Apply landing-tile logic (sigil toggle / checkpoint snapshot)."""
+    _, _, ga, gb, cp, sa, sb = state[0], state[1], state[2], state[3], state[4], state[5], state[6]
+    ch = GRID[(x, z)]
+    if ch == "s":
+        ga = 1 - ga
+    elif ch == "t":
+        gb = 1 - gb
+    if (x, z) in CP_INDEX:
+        cp = CP_INDEX[(x, z)]
+        sa, sb = ga, gb
+    return (x, z, ga, gb, cp, sa, sb)
 
-    Returns (final_state, path) or raises SlideLoop. path holds one letter
-    per tile entered: 'U/D/L/R' for slide tiles, plus the entry step.
-    """
-    _, _, ga, gb = state
+class SlideLoop(Exception):
+    pass
+
+def slide(state, x, z, mode):
+    """Resolve a slide starting on current tile (x, z). Returns
+    (new_state, tile_letters) with one letter per tile entered."""
     d = current_dir(state, x, z)
     seen = set()
     pos = (x, z)
+    letters = []
+    cur = state
     while True:
         key = (pos, d)
         if key in seen:
@@ -124,146 +164,148 @@ def slide(state, x, z, path):
         seen.add(key)
         dx, dz = DIRS[d]
         nx, nz = pos[0] + dx, pos[1] + dz
-        if blocked(state, nx, nz):
-            break  # stop just before the block / edge
+        if blocked(cur, nx, nz):
+            break
         pos = (nx, nz)
-        path.append(d.lower())
+        letters.append(d.lower())
         ch = GRID[pos]
         if ch in "stC":
-            break  # sigil / checkpoint ends the slide; its logic runs below
-        nd = current_dir(state, *pos)
+            break
+        if mode == "A":
+            # Off-current: the first non-current tile ends the slide.
+            if current_dir(cur, *pos) is None:
+                break
+        nd = current_dir(cur, *pos)
         if nd is not None:
-            d = nd  # turn
-        # else plain tile: keep sliding in the same direction (ice-style)
-    return (pos[0], pos[1], ga, gb), path
+            d = nd
+    return land(cur, pos[0], pos[1]), letters
 
-class SlideLoop(Exception):
-    pass
-
-def step(state, direction):
-    """One player step in FACE direction. Returns new state + path letters,
-    or None if the step is blocked. Raises SlideLoop if a slide never ends."""
-    x, z, ga, gb = state
+def step(state, direction, mode):
+    """One player step. Returns (new_state, tile_letters) or None."""
+    x, z = state[0], state[1]
     dx, dz = DIRS[direction]
     nx, nz = x + dx, z + dz
     if blocked(state, nx, nz):
         return None
-    path = [direction]
-    nstate = (nx, nz, ga, gb)
     if current_dir(state, nx, nz) is not None:
-        nstate, path = slide(state, nx, nz, path)
-    # Landing-tile logic (plain step or slide end).
-    ch = GRID[(nstate[0], nstate[1])]
-    ga, gb = nstate[2], nstate[3]
-    if ch == "s":
-        ga = 1 - ga
-    elif ch == "t":
-        gb = 1 - gb
-    return (nstate[0], nstate[1], ga, gb), path
+        nstate, letters = slide(state, nx, nz, mode)
+        return nstate, [direction] + letters
+    return land(state, nx, nz), [direction]
+
+def fall(state):
+    """The engine's fall transition: back to the last checkpoint with
+    its snapshot groups. Cost 0 tile steps (a fall is not a step)."""
+    _, _, _, _, cp, sa, sb = state
+    cx, cz = CHECKPOINTS[cp]
+    return (cx, cz, sa, sb, cp, sa, sb)
 
 def is_goal(state):
     return state[1] >= 45
 
-def solve():
-    """BFS over (x, z, A, B). Returns (solution_path, stats)."""
-    start = (START[0], START[1], INIT_GROUPS[0], INIT_GROUPS[1])
-    parent = {start: None}
-    action = {}
-    q = deque([start])
+def solve(mode):
+    """Dijkstra over tile steps (edge cost = tiles entered; falls cost 0).
+    Goal states are terminal. Returns (optimum, solution, stats)."""
+    dist = {START: 0}
+    parent = {START: None}
+    heap = [(0, START)]
     goal = None
-    while q:
-        st = q.popleft()
+    while heap:
+        cost, st = heapq.heappop(heap)
+        if cost != dist[st]:
+            continue
         if is_goal(st):
             if goal is None:
-                goal = st
-            continue  # goal states are terminal: do not expand past the totem
+                goal = st  # Dijkstra: first goal popped is optimal
+            continue
+        transitions = []
         for d in "UDLR":
             try:
-                res = step(st, d)
+                res = step(st, d, mode)
             except SlideLoop as e:
                 raise AssertionError(f"slide loop from reachable state {st}: {e}")
-            if res is None:
-                continue
-            nst, _ = res
-            if nst not in parent:
+            if res is not None:
+                transitions.append((res[0], len(res[1]), d))
+        transitions.append((fall(st), 0, "F"))
+        for nst, w, _ in transitions:
+            nc = cost + w
+            if nst not in dist or nc < dist[nst]:
+                dist[nst] = nc
                 parent[nst] = st
-                action[nst] = d
-                q.append(nst)
-    assert goal is not None, "no solution: puzzle unsolvable"
-    # Reconstruct the path (tile-step letters).
-    path = []
+                heapq.heappush(heap, (nc, nst))
+    assert goal is not None, f"mode {mode}: no solution"
+    # Reconstruct player steps and tile letters for the optimal path.
+    actions = []
     st = goal
     while parent[st] is not None:
-        path.append(action[st])
+        actions.append(st)
         st = parent[st]
-    path.reverse()
-    # Expand: replay the action sequence to get the full tile-step string
-    # (BFS edges are player steps; slide tiles are inside step()).
-    full, st = [], start
-    for d in path:
-        nst, letters = step(st, d)
-        full.extend(letters)
-        st = nst
+    actions.reverse()
+    full, letters = [], START
+    for nst in actions:
+        # Re-derive the transition (step or fall) between consecutive states.
+        if nst == fall(letters):
+            full.append("F")
+        else:
+            for d in "UDLR":
+                res = step(letters, d, mode)
+                if res is not None and res[0] == nst:
+                    full.extend(res[1])
+                    break
+            else:
+                raise AssertionError(f"cannot replay transition {letters} -> {nst}")
+        letters = nst
     stats = {
-        "states_reached": len(parent),
-        "solution_player_steps": len(path),
-        "solution_tile_steps": len(full),
-        "solution": "".join(full),
+        "states_reached": len(dist),
+        "solution_tile_steps": dist[goal],
+        "solution": "".join(c for c in full if c != "F"),
         "goal_state": goal,
+        "falls_in_solution": sum(1 for c in full if c == "F"),
     }
-    return "".join(full), stats, parent
-
-def soft_lock_proof(parent):
-    """Every reachable state must reach the goal: reverse-BFS from goal
-    states over the same transitions and compare with the forward set.
-    The forward set must be exhaustive (solve() expands every non-goal
-    reachable state), otherwise states beyond the first goal found would
-    go unchecked."""
-    # Build reverse edges from the forward BFS tree is not enough (a state
-    # can reach the goal via a state outside its own forward path), so
-    # re-walk all transitions from every reached state.
-    forward = set(parent)
-    transitions = {}
-    for st in forward:
+    # Soft-lock proof: reverse reachability from all goal states in `dist`
+    # over the same transition set (steps + falls). Every non-goal state in
+    # `dist` must reach a goal.
+    succ = {}
+    for st in dist:
         if is_goal(st):
-            continue  # terminal: no transitions past the totem
+            continue
         outs = set()
         for d in "UDLR":
-            try:
-                res = step(st, d)
-            except SlideLoop:
-                return False, f"slide loop from {st}"
+            res = step(st, d, mode)
             if res is not None:
                 outs.add(res[0])
-        transitions[st] = outs
-    can_reach = {st for st in forward if is_goal(st)}
-    dq = deque(can_reach)
+        outs.add(fall(st))
+        succ[st] = outs
+    can = {st for st in dist if is_goal(st)}
+    dq = deque(can)
     rev = {}
-    for st, outs in transitions.items():
+    for st, outs in succ.items():
         for o in outs:
             rev.setdefault(o, set()).add(st)
     while dq:
         st = dq.popleft()
         for pre in rev.get(st, ()):
-            if pre not in can_reach:
-                can_reach.add(pre)
+            if pre not in can:
+                can.add(pre)
                 dq.append(pre)
-    stuck = forward - can_reach
-    return (not stuck), (f"{len(stuck)} reachable states cannot reach the goal: "
-                        f"{sorted(stuck)[:5]}" if stuck else "all reachable states reach the goal")
+    stuck = set(dist) - can - {st for st in dist if is_goal(st)}
+    stats["soft_lock_free"] = not stuck
+    stats["stuck_states"] = sorted(stuck)[:5]
+    return dist[goal], "".join(c for c in full if c != "F"), stats
 
 def main():
-    full, stats, parent = solve()
-    ok, msg = soft_lock_proof(parent)
-    print(f"optimal tile steps : {stats['solution_tile_steps']} "
-          f"(player steps {stats['solution_player_steps']})")
-    print(f"solution           : {stats['solution']}")
-    print(f"goal state         : {stats['goal_state']} (A,B = groups off)")
-    print(f"states reached     : {stats['states_reached']}")
-    print(f"soft-lock free     : {ok} - {msg}")
-    print(f"slide loops       : none (a loop would have raised during BFS)")
-    print(f"in design range 35-50: {35 <= stats['solution_tile_steps'] <= 50}")
-    if not ok or not (35 <= stats['solution_tile_steps'] <= 50):
+    ok = True
+    for mode in ("A", "B"):
+        _, sol, stats = solve(mode)
+        print(f"mode {mode} (slide {'stops at first plain tile' if mode == 'A' else 'crosses plain tiles'}):")
+        print(f"  optimal tile steps : {stats['solution_tile_steps']}")
+        print(f"  solution           : {sol}")
+        print(f"  goal state         : {stats['goal_state']}")
+        print(f"  falls in solution  : {stats['falls_in_solution']}")
+        print(f"  states reached     : {stats['states_reached']}")
+        print(f"  soft-lock free     : {stats['soft_lock_free']} {stats['stuck_states']}")
+        print(f"  in range 35-50     : {35 <= stats['solution_tile_steps'] <= 50}")
+        ok &= stats["soft_lock_free"] and 35 <= stats["solution_tile_steps"] <= 50
+    if not ok:
         sys.exit(1)
 
 if __name__ == "__main__":
