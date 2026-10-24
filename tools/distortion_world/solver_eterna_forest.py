@@ -18,7 +18,7 @@ Key semantic rules (design section 7):
   and the bridge snapshot taken there.
 - Honeycomb: ceiling (44..45, 33..36). Phase cycle 213 frames:
   solid [0,153), gone [153,213). A move costs 16 frames; a move that
-  lands on a rune costs 32 (step + flip). A fall costs 60 frames.
+  lands on a rune costs 48 (16 step + 32 flip animation). A fall costs 60 frames.
   The model is CONSERVATIVE about step atomicity: a move whose
   honeycomb occupancy interval [phase, phase + cost] touches the gone
   window is a fall (the two possible engine models - tile updates at

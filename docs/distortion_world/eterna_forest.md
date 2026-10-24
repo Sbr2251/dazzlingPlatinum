@@ -63,7 +63,8 @@ x = 49 with y >= 1, ceiling tiles y = 10. Verified against
   pool (33..37, 22..23) is `WATER_SEA` (tile behaviour 0x15): Surf-only,
   not walkable on foot, so it is outside the solver's floor set. The
   dry tile (32, 22..23) is cut off by the pool and unreachable on foot.
-- The walkway chasm lips fall to the entry (existing coord events). The
+- The walkway chasm lips fall to the entry (engine VOID tiles in the
+  puzzle table; the old coord events were removed). The
   hive is not walkably connected back to the walkway, so lip falls can only
   happen before the puzzle starts; a lip fall resetting the puzzle is
   correct (see section 6).
