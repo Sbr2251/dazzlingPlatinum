@@ -8,11 +8,11 @@
   state 25; the lead confirmed 24 and corrected the table on dwpuzzles
   to "24 (as built)" during design review.)
 - Flags: the rift's flag block is `FLAG_DW_EF_A..H` (0x0A08-0x0A0F,
-  assigned in `docs/arc2/registry.md` on dwpuzzles). This design uses
-  none of them: all puzzle state is engine state or map-local vars.
-  If Phase 2 needs a persistent flag, take it from this block and
-  rename the matching `FLAG_UNK_0x0A..` line in
-  `generated/vars_flags.txt`; do not take flags from any other block.
+  assigned in `docs/arc2/registry.md` on dwpuzzles). Phase 2 takes
+  one: `FLAG_DW_EF_A` (renamed from `FLAG_UNK_0x0A08` in
+  `generated/vars_flags.txt`), the HoneyFall hint latch (section 6).
+  All other puzzle state is engine state or map-local vars; do not
+  take flags from any other block.
 - Curve row (revised 2026-10-23, `docs/distortion_world/PUZZLE_PLAN.md` section 2):
   difficulty **3**, gravity runes + honeycomb timing, **at most one sigil**, optimal **25-40 steps**,
   fail cost **fall -> last rune checkpoint**. No non-obvious move is required at this
@@ -327,9 +327,8 @@ open or blocked. Phase 2 edits:
     warp). The fall script keeps its fade-out / fade-in around the warp,
     so the respawn lands while faded out: one fade, no visible
     double-warp. Phase 2 verifies this on a frame strip.
-  - Fall count: the script bumps `VAR_MAP_LOCAL_4` (new, proposed) on
-    every honeycomb fall. It is map-local, so re-entering the rift
-    resets the count: the hint is per visit.
+  - Fall count: see the hint paragraph below (VAR_MAP_LOCAL_4 + the
+    FLAG_DW_EF_A latch).
   - Cyrus's lines: the first honeycomb fall still plays the existing
     once-only line (`FLAG_ARC2_RIFTA_C`, "Wait for it. It comes back.")
     as voice-over after the checkpoint respawn; Cyrus is not on the
@@ -339,10 +338,17 @@ open or blocked. Phase 2 edits:
     `FLAG_ARC2_RIFTA_D` (hive line) keep working exactly as today:
     they gate text, never puzzle state, so the engine's snapshot /
     reset never touches them.
-- Cyrus's hint after two falls: on the second honeycomb fall
-  (`VAR_MAP_LOCAL_4` == 2), after the respawn, the script plays the new
-  hint (two messages, ASCII, 197 px boxes). It plays once per visit
-  (exactly on fall 2, not on later falls). New text (append to
+- Cyrus's hint after two falls: on the second honeycomb fall,
+  after the respawn, the script plays the new hint (two messages,
+  ASCII, 197 px boxes). It plays once per visit (exactly on fall 2,
+  not on later falls). Counting: the script bumps `VAR_MAP_LOCAL_4`
+  at the top of HoneyFall and reads it BEFORE the warp -- map-local
+  vars are wiped by the warp (`FieldMapChange_UpdateGameDataDistortionWorld`
+  calls `ClearLocalFlags` on every DW map load), so on fall 2 the
+  script sets the `FLAG_DW_EF_A` latch before the warp, the post-warp
+  branch reads the latch, and the hint clears it after playing. The
+  latch is only set/cleared inside HoneyFall, so it cannot leak to
+  another visit. New text (append to
   `res/text/dw_eterna_forest.json`):
 
   `DWEternaForest_Text_CyrusRuneHint` (page break `\r` after line 2,

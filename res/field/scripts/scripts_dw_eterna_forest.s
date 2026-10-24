@@ -24,7 +24,12 @@
 //   FLAG_ARC2_RIFTA_D (0x0929)  Eterna Forest: the hive reached once (Cyrus's ceiling line played)
 // VAR_MAP_LOCAL_2 (map-local): set to 1 by the frame timer when the honeycomb goes with the player on it; the init
 // frame table then runs the fall script.
-// VAR_MAP_LOCAL_4 (map-local, this map only): honeycomb falls this visit; the hint plays on fall 2.
+// VAR_MAP_LOCAL_4 (map-local, this map only): honeycomb falls counted in this script run; the hint plays on
+// fall 2. Map-local vars are wiped by the fall warp (FieldMapChange_UpdateGameDataDistortionWorld calls
+// ClearLocalFlags on every DW map load), so the count is only read BEFORE the warp: on fall 2 it sets the
+// FLAG_DW_EF_A latch, and the post-warp branch reads the latch.
+// FLAG_DW_EF_A (0x0A08, rift-ef block): honeycomb hint pending: set before the warp on fall 2, cleared after
+// the hint plays. It is only ever set and cleared inside this script, so it cannot leak to another visit.
 
 #define LOCALID_CYRUS_ENTRY 0x80
 #define LOCALID_CYRUS_HIVE  0x81
@@ -103,6 +108,11 @@ DWEternaForest_HoneyFall:
     LockAll
     SetVar VAR_MAP_LOCAL_2, 0
     AddVar VAR_MAP_LOCAL_4, 1
+    GoToIfEq VAR_MAP_LOCAL_4, 2, DWEternaForest_HoneyFallSetHint
+    GoTo DWEternaForest_HoneyFallContinue
+DWEternaForest_HoneyFallSetHint:
+    SetFlag FLAG_DW_EF_A
+DWEternaForest_HoneyFallContinue:
     ApplyMovement LOCALID_PLAYER, DWEternaForest_Movement_PlayerFall
     WaitMovement
     PlayFanfare SEQ_SE_PL_SYUWA
@@ -114,7 +124,7 @@ DWEternaForest_HoneyFall:
     Warp MAP_HEADER_DW_ETERNA_FOREST, 0, HIVE_X, HIVE_Z, DIR_EAST
     FadeScreenIn
     WaitFadeScreen
-    GoToIfEq VAR_MAP_LOCAL_4, 2, DWEternaForest_HoneyFallHint
+    GoToIfSet FLAG_DW_EF_A, DWEternaForest_HoneyFallHint
     GoToIfSet FLAG_ARC2_RIFTA_C, DWEternaForest_HoneyFallEnd
     SetFlag FLAG_ARC2_RIFTA_C
     Message DWEternaForest_Text_CyrusWaitForIt
@@ -122,6 +132,7 @@ DWEternaForest_HoneyFall:
     CloseMessage
     GoTo DWEternaForest_HoneyFallEnd
 DWEternaForest_HoneyFallHint:
+    ClearFlag FLAG_DW_EF_A
     Message DWEternaForest_Text_CyrusRuneHint
     WaitABXPadPress
     CloseMessage
