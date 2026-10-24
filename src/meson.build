@@ -496,6 +496,8 @@ pokeplatinum_c = files(
     'overlay007/shop_menu.c',
     'overlay008/ov8_02249960.c',
     'overlay009/ov9_02249960.c',
+    # dwp:engine-b: stones, shadow, echo, totem-echo pads
+    'overlay009/dw_puzzle_actors.c',
     'overlay010/ov10_0221F800.c',
     'overlay011/move_palettes.c',
     'overlay011/particle_helper.c',

@@ -101,6 +101,64 @@ Fall coord events (`events_dw_*.json`) cover only the open-void lips: (15,11), (
 chunks); it is now the shared fixed copy of B4F's 614. DW Eterna Forest's own second block is `map_data_679` (below). A tile-by-tile audit (model faces, ghost props, permissions,
 jumps, coord events) is in `/tmp/a2/fix2/fix2-lost/harness/audit.py`.
 
+## DW puzzle actors (engine-b): stones, shadow, echo, totem-echo pads
+
+Design: `docs/distortion_world/actors_design.md`. Code: `src/overlay009/dw_puzzle_actors.c` +
+`include/overlay009/dw_puzzle_actors.h`, on engine-a's core API (`include/overlay009/dw_puzzle.h`).
+Build order: stones, shadow and pads first; echo self last (Arc 3 Aggron rift, no Arc 2 user).
+Rift workstreams own their actor tables (`dw_puzzle_<map>.c`); engine-b owns the actor code.
+
+- **Surfaces are explicit.** Every actor tile carries its surface (FLOOR / WEST_WALL /
+  EAST_WALL / CEILING / GROUND); `(x, y, z)` alone does not identify a tile.
+- **Stones.** Pushed one tile by `DwActors_TryPush`, which the glue's collision path calls
+  *before* allowing a step onto a stone tile, for voluntary walking only (never for slides).
+  A stone pushed into a designated edge falls 12 frames and lands as a SOLID tile on the
+  surface below. Stones affect walkability only through engine-a actor tiles
+  (`DwPuzzle_SetActorTile`): RESTING = BLOCKED (plugs currents), LANDED = SOLID (walkable
+  terrain, not pushable), FALLING = no tile. A reset (fall / catch / RESET sigil) restores
+  the checkpoint snapshot; `DwActors_ResetStones` is the explicit to-start reset.
+- **Shadow.** One slow, readable patrol per map, authored as `DwActors_MakeShadowLane(start,
+  end, beat)` (two endpoints + a beat; Lost Tower: beat 45-60, one lane). Overlap = caught:
+  Giratina cry, 30 frozen frames, then `DwPuzzle_RequestCheckpointRespawn` (latched, once)
+  and the checkpoint snapshot restores (snapshot holds phase + pingpong direction + beat
+  counter + grace). A 60-frame watchdog self-heals if engine-a never respawns.
+- **Echo self.** Desired tile = mirror of the player on a paired surface; if the desired tile
+  is not enterable the echo hides (never last-valid); it never blocks the player. Echo sigils
+  fire via `DwPuzzle_PressSigil` as occupant ECHO when the echo *enters* their tile; hiding
+  releases its momentary holds. Arc 3 only.
+- **Totem-echo pads.** A pad tile *is* an engine-a sigil tile. Step on a pad ->
+  `DW_ACTOR_EVENT_PAD_READY` -> the glue **must skip** engine-a's step handling for that
+  step -> the rift script shows Yes/No -> `DwActors_ResolvePad` fires the sigil via
+  `DwPuzzle_PressSigil` and returns `CUTIN` (Resonator ghost cut-in) or `CARRY_REQUESTED`
+  (Skarmory: the script plays the carry with the Lost Tower Act 4 machinery; actors never
+  step the player over VOID). Gated on `FLAG_TOTEM_*_DEFEATED`; a denied pad (or a pad
+  with no sigil) is not marked used. Lost Tower visit 1 registers no actor table (existing
+  scripted acts run); visit 2 registers the shadow + pads, and the old acts step aside
+  automatically via `DwActors_IsActive()`.
+- **Objects.** Actor MapObjects are all `MAP_OBJ_STATUS_18` (non-colliding), never use the
+  wall-rotation animation. Two exit paths: `DwActors_VisualsExit` on map unload (deletes
+  objects, keeps core state for same-map reloads) and `DwActors_OnExit` on departure (full
+  teardown). Actors consume zero ghost-prop templates/groups. Budgets: <= 6 MapObjects.
+- **Engine-a API.** Actors use the landing API (`QueryTile` with surface, `SetActorTile`,
+  `PressSigil`, `ReleaseSigils`, `RequestCheckpointRespawn`, `resetGeneration` polling,
+  `gDwPuzzleDebug`). No requested additions. Weak fallbacks for engine-a's symbols live in
+  `dw_puzzle_actors.c` until `dw_puzzle.c` lands (delete them at merge).
+
+### Headless proof (host test, same core)
+
+    cc -std=c99 -Wall -Wextra -DDW_ACTORS_HOST_TEST -I include \
+      tools/distortion_world/dw_actors_test.c src/overlay009/dw_puzzle_actors.c \
+      -o /tmp/dwp/engine-b/dw_actors_test
+    /tmp/dwp/engine-b/dw_actors_test > /tmp/dwp/engine-b/actors_test.log
+    python3 tools/distortion_world/dw_actors_strip.py /tmp/dwp/engine-b/actors_test.log /tmp/dwp/engine-b/
+
+The test drives `gDwActorsTestTable` (2 stones, shadow lane, echo + sigil, 4 pads) on a fake
+platform: push / push-blocked / fall-to-landing + SOLID / falling-occupies-nothing /
+landed-walkable / checkpoint snapshot + mid-fall restore / shadow patrol + pingpong snapshot /
+catch + grace + checkpoint restore / echo mirror + hide-on-blocked + sigil fire-on-change /
+pad gating + PressSigil effects + Skarmory carry request + reset restores pad bits / exit unloads
+everything. Evidence (log, frame strips) goes in `/tmp/dwp/engine-b/`.
+
 ### DW Eterna Forest: the honeycomb (fix2-honey, owner playtest round 2)
 
 The honeycomb (ghost-prop group 1, ceiling tiles x 44-45, z 33-36) fades out on a timer and drops the player, but

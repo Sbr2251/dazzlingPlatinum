@@ -13,13 +13,23 @@
  * jump-point surface change, slide teleports, checkpoint respawns).
  *
  * Coordinates are DW world tile coords (x, y, z) exactly as the ov9 step hook
- * sees them: floor tiles have y = 1, wall tiles y >= 2 at a fixed x, ceiling
- * tiles y = 10. A (surface, x, y, z) key is unambiguous because the surfaces
- * occupy disjoint (x, y, z) ranges, so tables address tiles directly and the
- * floor plane is just another surface (y = 1).
+ * sees them: base-ground tiles have y = 1, wall tiles y >= 2 at a fixed x,
+ * ceiling tiles y = 10. (x, y, z) alone does NOT identify a tile: a wall and
+ * a ceiling can share one (the B4F wall->ceiling transfers sit on the same
+ * tile). Every table entry therefore carries a surface, and every query
+ * passes the surface the player is standing on. An entry matches when its
+ * surface is DW_PUZZLE_SURFACE_ANY or equals the queried surface.
  *
- * Surfaces use the ov9 FloatingPlatformKind numbering:
- *   FLOOR = 0, WEST_WALL = 1, EAST_WALL = 2, CEILING = 3, INVALID = 4.
+ * Surfaces: the ov9 FloatingPlatformKind numbering for platforms
+ * (FLOOR = 0, WEST_WALL = 1, EAST_WALL = 2, CEILING = 3), plus
+ * GROUND = 4 (ov9 INVALID: base map terrain, no platform, platform index
+ * -1, avatar distortion ACTIVE). FLOOR and GROUND are different surfaces:
+ * a floating floor platform is walked on via its tw_arc_attr grid; base
+ * ground is walked on via the map's terrain collision. A rune to GROUND
+ * must translate to platform kind INVALID / index -1 in the jump template,
+ * never to kind FLOOR -- a player left in distortion FLOOR on base ground
+ * would consult a nonexistent platform grid and strand.
+ *
  * Directions use FACE_* (FACE_UP = 0, FACE_DOWN = 1, FACE_LEFT = 2,
  * FACE_RIGHT = 3), as pressed on the surface the player is standing on.
  * The engine converts a FACE_* on a surface to a (dx, dy, dz) step with the
@@ -44,12 +54,16 @@
 #define DW_PUZZLE_MAX_CHECKPOINTS   8
 #define DW_PUZZLE_MAX_ACTOR_BLOCKS  8
 #define DW_PUZZLE_MAX_STONES        8
+/* Safety cap on one slide (a closed current cycle must end). */
+#define DW_PUZZLE_MAX_SLIDE_STEPS   64
 
 /* Ghost-prop groups are numbered by tw_arc (0..23). */
 #define DW_PUZZLE_GHOST_GROUP_NONE  0xFF
 /* The honeycomb rule: a group that fades out stays solid for its whole
  * fade (31 opacity steps + lag), and a group that fades in is drawn a few
- * frames before it holds. */
+ * frames before it holds. Solid implies drawn; drawn does not imply solid
+ * during the fade-in lead (stepping onto a drawn-but-not-yet-solid tile
+ * bumps, it never drops the player). */
 #define DW_PUZZLE_FADE_OUT_FRAMES   33
 #define DW_PUZZLE_FADE_IN_LEAD      3
 /* Currents slide one tile per this many field frames. */
@@ -73,13 +87,23 @@ typedef enum DwPuzzleTileState {
 } DwPuzzleTileState;
 
 typedef enum DwPuzzleSurface {
+    /* Floating floor platform (ov9 kind 0). */
     DW_PUZZLE_SURFACE_FLOOR = 0,
     DW_PUZZLE_SURFACE_WEST_WALL = 1,
     DW_PUZZLE_SURFACE_EAST_WALL = 2,
     DW_PUZZLE_SURFACE_CEILING = 3,
+    /* Base map terrain (ov9 kind INVALID, platform index -1). */
+    DW_PUZZLE_SURFACE_GROUND = 4,
     DW_PUZZLE_SURFACE_INVALID = 4,
     DW_PUZZLE_SURFACE_ANY = 0xFF,
 } DwPuzzleSurface;
+
+/* Occupants that can press sigils (momentary holders are per occupant). */
+typedef enum DwPuzzleOccupant {
+    DW_PUZZLE_OCCUPANT_PLAYER = 0,
+    DW_PUZZLE_OCCUPANT_ECHO = 1, /* engine-b's echo self */
+    DW_PUZZLE_OCCUPANT_COUNT = 2,
+} DwPuzzleOccupant;
 
 /* ------------------------------------------------------------------ */
 /* Tables (all const, all in dw_puzzle_<map>.c)                        */
@@ -91,8 +115,15 @@ typedef struct DwPuzzleTile {
     s16 y;
     s16 z;
     /* For a group tile: unused (the group's on/off states decide).
-     * For an explicit override (DwPuzzleTable.tiles): the state. */
+     * For an explicit override (DwPuzzleTable.tiles): the state.
+     * state is the resolved state while the tile's surface matches. */
     u8 state;
+    /* DwPuzzleSurface of this tile, or ANY. */
+    u8 surface;
+    /* Step-fall script for this tile (1-based map script entry, as in the
+     * .s files); 0 = the table's fallScriptId. Only used when the tile
+     * resolves to VOID. */
+    u8 fallScriptId;
     u8 padding;
 } DwPuzzleTile;
 
@@ -104,8 +135,10 @@ typedef struct DwPuzzleTile {
  * hold only after fadeInLeadFrames. Groups with ghostPropGroup =
  * DW_PUZZLE_GHOST_GROUP_NONE have no props and switch at once.
  * Tiles take onState while the group is (solid-)on, offState while off.
- * Explicit overrides in DwPuzzleTable.tiles win over groups; among
- * groups, the later group in the table wins.
+ * Explicit overrides in DwPuzzleTable.tiles win over groups, actor tiles
+ * win over groups; among groups, the later group in the table wins.
+ * fallScriptId is the step-fall script for the group's tiles when they
+ * resolve to VOID (0 = the table's fallScriptId).
  */
 typedef struct DwPuzzleGroup {
     const DwPuzzleTile *tiles;
@@ -116,7 +149,7 @@ typedef struct DwPuzzleGroup {
     u8 onState;  /* DwPuzzleTileState while on (usually SOLID) */
     u8 offState; /* DwPuzzleTileState while off (usually BLOCKED or VOID) */
     u8 initialOn; /* 0 off, 1 on */
-    u8 padding;
+    u8 fallScriptId;
 } DwPuzzleGroup;
 
 typedef enum DwPuzzleSigilKind {
@@ -125,9 +158,9 @@ typedef enum DwPuzzleSigilKind {
     /* Step on: set the target group to setValue (0/1). */
     DW_PUZZLE_SIGIL_SET,
     /* Held while stood on: the group is on while any momentary sigil for
-     * it is stood on, off otherwise (unless a toggle/set says otherwise).
-     * The engine keeps a per-group holder count, so two momentary sigils
-     * for one group behave. */
+     * it is stood on by any occupant, off otherwise (unless a toggle/set
+     * says otherwise). Holder counts are per occupant, so the player,
+     * the echo and two momentary sigils for one group all behave. */
     DW_PUZZLE_SIGIL_MOMENTARY,
     /* Step on: restore the puzzle to the last checkpoint snapshot
      * (groups + sigil states). The player does not move. */
@@ -136,7 +169,8 @@ typedef enum DwPuzzleSigilKind {
 
 /* A sigil tile. Sigils fire once per step onto the tile (stepping off
  * and back on fires again); momentary sigils also release on stepping
- * off. A sigil on a tile that is VOID still fires before the fall. */
+ * off (per occupant). A sigil on a tile that is VOID still fires before
+ * the fall. */
 typedef struct DwPuzzleSigil {
     s16 x;
     s16 y;
@@ -144,7 +178,7 @@ typedef struct DwPuzzleSigil {
     u8 kind;       /* DwPuzzleSigilKind */
     u8 targetGroup; /* index into DwPuzzleTable.groups (RESET ignores it) */
     u8 setValue;   /* SET only: 0 or 1 */
-    u8 padding;
+    u8 surface;    /* DwPuzzleSurface of this sigil, or ANY */
 } DwPuzzleSigil;
 
 /*
@@ -154,10 +188,13 @@ typedef struct DwPuzzleSigil {
  * targetX/Y/Z is the tile on the destination surface (usually the same
  * (x, z), the y of the destination surface). rot is the jump template's
  * rotation (usually -90 / 90 / 180 / 0, as in the tw_arc jump points);
- * steps is the jump animation length (16 matches the stock jumps).
+ * steps is the jump animation length (0 = 16, the stock jumps).
  * If useCamera, the glue runs a camera transition to cameraX/Y/Z over
- * cameraSteps frames as the rune fires; otherwise the stock camera-angle
- * templates at the destination do it.
+ * cameraSteps frames (0 = 16) as the rune fires; otherwise the stock
+ * camera-angle templates at the destination do it. cameraX/Y/Z are camera
+ * angles in tw_arc camera-template units (the same units as
+ * DistWorldCameraAngleTemplate.angleX/Y/Z), not positions.
+ * A rune to GROUND translates to platform kind INVALID / index -1.
  */
 typedef struct DwPuzzleRune {
     s16 x;
@@ -166,15 +203,17 @@ typedef struct DwPuzzleRune {
     s16 targetX;
     s16 targetY;
     s16 targetZ;
+    u8 surface;      /* DwPuzzleSurface of the rune tile, or ANY */
     u8 targetSurface; /* DwPuzzleSurface */
     s8 facing;        /* FACE_* after the change, or -1 to keep facing */
+    s8 padding;
     s16 rot;
-    u8 steps;
+    u8 steps; /* 0 = 16 */
     u8 useCamera;
     s16 cameraX;
     s16 cameraY;
     s16 cameraZ;
-    s16 cameraSteps;
+    s16 cameraSteps; /* 0 = 16 */
 } DwPuzzleRune;
 
 typedef struct DwPuzzleCurrent {
@@ -182,22 +221,30 @@ typedef struct DwPuzzleCurrent {
     s16 y;
     s16 z;
     u8 dir; /* FACE_* drift direction on this tile's surface */
-    u8 padding;
+    u8 surface; /* DwPuzzleSurface of this tile, or ANY */
     /* The ghost-prop group holding this current's arrow visuals, or NONE.
      * Arrow props are drawn by the rift's tw_arc record; the engine does
      * not animate them, it only reports the slide in gDwPuzzleDebug. */
     u8 arrowGhostGroup;
-    u8 arrowIndex; /* which arrow in the group, for the debug struct */
+    u8 padding;
 } DwPuzzleCurrent;
 
-/* A checkpoint tile. Stepping on it snapshots the puzzle (groups +
- * sigil states, and engine-b's actors via the reset generation) and
- * makes it the fall target. Checkpoint 0 should be the map entry. */
+/* A checkpoint tile. Stepping on it snapshots the puzzle (group base /
+ * target / solid / display states; momentary holders are NOT snapshotted
+ * -- they are per-occupant and cleared on restore, so occupants must
+ * re-press after a restore) and makes it the fall target. Checkpoint 0
+ * should be the map entry: the fresh-entry reset snapshots it without
+ * anyone stepping on it, so an early fall or reset always has a snapshot.
+ * surface is the surface of the checkpoint tile: the respawn restores
+ * the player to (x, y, z) on that surface (platform + distortion state
+ * + height mode from the glue). */
 typedef struct DwPuzzleCheckpoint {
     s16 x;
     s16 y;
     s16 z;
     s8 facing; /* FACE_* to face on respawn, or -1 to keep facing */
+    u8 surface; /* DwPuzzleSurface of the checkpoint tile */
+    u8 padding[2];
 } DwPuzzleCheckpoint;
 
 typedef struct DwPuzzleTable {
@@ -205,12 +252,16 @@ typedef struct DwPuzzleTable {
     /* VAR_ARC2_PROGRESS gate: 0/0 = any progress. */
     u16 minProgress;
     u16 maxProgress;
-    /* The map's fall script entry (1-based, as in the .s files) and the
-     * map-local var the frame hook raises to start it when the ground
+    /* The map's frame-fall script entry (1-based, as in the .s files) and
+     * the map-local var the frame hook raises to start it when the ground
      * goes from under a standing player (the Eterna honeycomb pattern:
      * the rift's init frame table must have
      *   InitScriptGoToIfEqual <fallVar>, 1, <fallScriptId>
-     * and the fall script must clear <fallVar> first). 0 = no frame fall. */
+     * and the fall script must clear <fallVar> first). 0 = no frame fall.
+     * Step falls use the per-tile / per-group fallScriptId, falling back
+     * to this one. Eterna Forest's split is the model: entry-chasm lips
+     * are VOID tiles with fallScriptId 2 (their own script), the
+     * honeycomb group's fallScriptId is 5, and the table's is 5. */
     u16 fallScriptId;
     u16 fallVar; /* a VAR_MAP_LOCAL_* id, e.g. VAR_MAP_LOCAL_3 */
     u8 groupCount;
@@ -219,7 +270,10 @@ typedef struct DwPuzzleTable {
     u8 currentCount;
     u8 checkpointCount;
     u8 tileCount;
-    u8 padding[2];
+    /* Debug-only table (the test table): returned only while test mode
+     * is on. Production tables must set 0. */
+    u8 testOnly;
+    u8 padding;
     const DwPuzzleGroup *groups;
     const DwPuzzleSigil *sigils;
     const DwPuzzleRune *runes;
@@ -239,17 +293,18 @@ typedef struct DwPuzzleRuneAction {
     u8 targetSurface;
     s8 facing;
     s16 rot;
-    u8 steps;
+    u8 steps; /* 0 = 16 */
     u8 useCamera;
     s16 cameraX;
     s16 cameraY;
     s16 cameraZ;
-    s16 cameraSteps;
+    s16 cameraSteps; /* 0 = 16 */
 } DwPuzzleRuneAction;
 
 typedef struct DwPuzzleStepResult {
     BOOL handled;       /* TRUE: the per-map hook should return TRUE */
     BOOL fallRequested; /* step onto VOID: start fallScriptId */
+    u16 fallScriptId;   /* map script entry for this fall */
     BOOL runeRequested;
     DwPuzzleRuneAction rune;
     BOOL checkpointReached;
@@ -269,21 +324,22 @@ typedef struct DwPuzzleFrameResult {
     s16 slideX;
     s16 slideY;
     s16 slideZ;
-    /* Fall respawn: the warp after a fall has landed. The glue moves the
-     * player to the checkpoint (surface + facing as in the table) once
-     * the player is idle. */
+    /* Fall respawn: the warp after a fall has landed, or a shadow catch.
+     * The glue moves the player to the checkpoint (surface + facing as
+     * in the table) once the player is idle. */
     BOOL respawnRequested;
     s16 respawnX;
     s16 respawnY;
     s16 respawnZ;
     s8 respawnFacing;
+    u8 respawnSurface; /* DwPuzzleSurface of the checkpoint tile */
     /* Standing on ground that went away (frame-detected fall). The
      * engine has raised fallVar; the init frame table starts the fall. */
     BOOL frameFallRequested;
 } DwPuzzleFrameResult;
 
 /* ------------------------------------------------------------------ */
-/* Debug export (gDwPuzzleDebug, in the xMAP; no cost in release)     */
+/* Debug export (gDwPuzzleDebug, in the xMAP; one RAM struct)         */
 /* ------------------------------------------------------------------ */
 
 typedef enum DwPuzzleEvent {
@@ -296,15 +352,17 @@ typedef enum DwPuzzleEvent {
     DW_PUZZLE_EVENT_FALL,
     DW_PUZZLE_EVENT_RESPAWN,
     DW_PUZZLE_EVENT_RESET,
+    DW_PUZZLE_EVENT_CAUGHT, /* shadow catch -> checkpoint respawn */
 } DwPuzzleEvent;
 
-/* One stone / actor block (engine-b writes stone positions here). */
+/* One stone / actor position (engine-b writes stone/shadow/echo here). */
 typedef struct DwPuzzleActorPos {
     s16 x;
     s16 y;
     s16 z;
     u8 present;
-    u8 padding;
+    u8 surface; /* DwPuzzleSurface, so (0,0,0) on GROUND is unambiguous */
+    u8 padding[2];
 } DwPuzzleActorPos;
 
 typedef struct DwPuzzleDebug {
@@ -318,7 +376,7 @@ typedef struct DwPuzzleDebug {
     u16 padding;
     u32 groupBits;        /* group i solid-on */
     u32 groupDisplayBits; /* group i props shown */
-    u32 sigilBits;        /* sigil i currently pressed (momentary) */
+    u32 sigilBits;        /* sigil i currently pressed (any occupant) */
     u32 checkpointIndex;
     s16 checkpointX;
     s16 checkpointY;
@@ -332,25 +390,23 @@ typedef struct DwPuzzleDebug {
     s16 slideTargetX;
     s16 slideTargetY;
     s16 slideTargetZ;
+    u32 slideSteps; /* tiles slid in the current slide */
     /* Last event, for the harness. */
     u32 lastEvent; /* DwPuzzleEvent */
     u32 lastEventFrame;
     u32 lastEventGroup;
     /* Sigil flash: frames remaining of the sigil flash. */
     u32 flashFrames;
-    /* Bump on every checkpoint restore / reset sigil. Engine-b's actors
-     * poll this and restore their own snapshot when it changes. */
+    /* Bump on every checkpoint restore / reset sigil / shadow catch.
+     * Engine-b's actors poll this and restore their own snapshot when it
+     * changes. */
     u32 resetGeneration;
     /* Actors (engine-b owns these fields; engine-a zeroes them). */
     DwPuzzleActorPos stones[DW_PUZZLE_MAX_STONES];
     u32 stoneCount;
     u32 shadowPhase;
-    s16 shadowX;
-    s16 shadowY;
-    s16 shadowZ;
-    s16 echoX;
-    s16 echoY;
-    s16 echoZ;
+    DwPuzzleActorPos shadow; /* present = the shadow is on the map */
+    DwPuzzleActorPos echo;   /* present = the echo is on the map */
 } DwPuzzleDebug;
 
 extern DwPuzzleDebug gDwPuzzleDebug;
@@ -362,27 +418,32 @@ extern BOOL gDwPuzzleTestMode;
 /* Runtime API (dw_puzzle.c)                                         */
 /* ------------------------------------------------------------------ */
 
-/* The table for a map, or NULL (no puzzle on this map / progress gated
- * / test table with test mode off). Rift tables are in dw_puzzle_<map>.c. */
+/* The table for a map, or NULL (no puzzle on this map / test table with
+ * test mode off). No progress gate here: DwPuzzle_IsActive / the hook
+ * entry points apply the progress gate, because this function has no
+ * FieldSystem to read VAR_ARC2_PROGRESS from. Rift tables are in
+ * dw_puzzle_<map>.c. */
 const DwPuzzleTable *DwPuzzle_GetTable(u32 mapHeader);
 void DwPuzzle_SetTestMode(BOOL enabled);
 BOOL DwPuzzle_IsTestMode(void);
 /* TRUE when a table is loaded for this map at this FieldSystem's progress. */
 BOOL DwPuzzle_IsActive(FieldSystem *fieldSystem, u32 mapHeader);
 
-/* Resolved tile state at (x, y, z), after groups, overrides and actor
- * blocks. Called by the DW walk/collision check (wall/ceiling platforms)
- * and by the floor path (DistWorld_DynamicMapFeaturesCheckCollision).
- * BLOCKED = impassable, SOLID = walkable, VOID = step = fall (the
- * collision check must NOT block VOID, so the player can step onto it). */
-DwPuzzleTileState DwPuzzle_QueryTile(FieldSystem *fieldSystem, int x, int y, int z);
+/* Resolved tile state at (x, y, z) on surface, after groups, overrides
+ * and actor tiles. Called by the DW walk/collision check (wall/ceiling
+ * platforms) and by the floor path
+ * (DistWorld_DynamicMapFeaturesCheckCollision). BLOCKED = impassable,
+ * SOLID = walkable, VOID = step = fall (the collision check must NOT
+ * block VOID, so the player can step onto it). */
+DwPuzzleTileState DwPuzzle_QueryTile(FieldSystem *fieldSystem, int x, int y, int z, int surface);
 
 /* Per-map step hook. Call from the per-map HandleStep in ov9_02249960.c
  * (before the map's own step logic) with the player's tile, surface and
  * facing. If out->handled, the per-map hook returns TRUE. If
- * out->fallRequested, start the table's fallScriptId. If
- * out->runeRequested, the glue builds a jump-point template from
- * out->rune and starts CreateJumpOnFloatingPlatformTask. */
+ * out->fallRequested, start out->fallScriptId. If out->runeRequested, the
+ * glue builds a jump-point template from out->rune and starts
+ * CreateJumpOnFloatingPlatformTask (steps/cameraSteps 0 = 16; a rune to
+ * GROUND becomes platform kind INVALID / index -1). */
 BOOL DwPuzzle_HandleStep(FieldSystem *fieldSystem, int x, int y, int z, int surface, int facing, DwPuzzleStepResult *out);
 
 /* Per-frame hook. Call from Arc2Dw_HandleFrame (the DW SysTask) with the
@@ -392,18 +453,39 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
 
 /* Map-load hook. Call from DistWorld_DynamicMapFeaturesInit. It does NOT
  * reset puzzle state: a fall warp reloads the same map, and the state
- * must survive it. A fresh entry is detected on the first frame (no fall
- * pending) and resets then. */
+ * must survive it. A fresh entry is detected on the first hook call
+ * (no fall pending) and resets then. */
 void DwPuzzle_OnMapEnter(FieldSystem *fieldSystem, u32 mapHeader);
 
 /*
- * Actor blocks (engine-b): a stone / actor sitting on a tile makes it
- * BLOCKED for the walk check, and a stone on a current tile plugs the
- * current (a slide stops before it). Up to DW_PUZZLE_MAX_ACTOR_BLOCKS.
- * Set present = FALSE to clear. Engine-a's own modules never call this.
+ * Actor tiles (engine-b): a stone / actor on a tile overrides that
+ * tile's state -- a stone landed as a stepping stone is SOLID, a stone
+ * sitting on a path is BLOCKED. A stone on a current tile plugs the
+ * current (a slide stops before it, because the tile resolves BLOCKED).
+ * Up to DW_PUZZLE_MAX_ACTOR_BLOCKS, keyed by (index). Set present =
+ * FALSE to clear. Engine-a's own modules never call this. Actor tiles
+ * win over groups but lose to explicit table overrides.
  */
-void DwPuzzle_SetActorBlock(int index, int x, int y, int z, BOOL present);
-void DwPuzzle_ClearActorBlocks(void);
+void DwPuzzle_SetActorTile(int index, int x, int y, int z, int surface, DwPuzzleTileState state, BOOL present);
+void DwPuzzle_ClearActorTiles(void);
+
+/* Sigil presses for occupants other than the player (engine-b's echo).
+ * PressSigil fires the sigil at (x, y, z, surface) as occupant, and
+ * releases that occupant's momentary sigils elsewhere -- the same
+ * press/release the player step hook does for the player, without
+ * runes, currents, checkpoints or falls. ReleaseSigils releases all of
+ * an occupant's momentary holds (call when the echo leaves the map). */
+BOOL DwPuzzle_PressSigil(FieldSystem *fieldSystem, int x, int y, int z, int surface, int occupant);
+void DwPuzzle_ReleaseSigils(FieldSystem *fieldSystem, int occupant);
+
+/* Shadow catch (engine-b): restore the puzzle to the last checkpoint
+ * snapshot and respawn the player there, without a fall script. The next
+ * frame hook reports the respawn in DwPuzzleFrameResult (the glue moves
+ * the player). Restore semantics are the ResetSnapshot ones: group
+ * base/target/solid/display restored, momentary holders cleared, fade
+ * timers cleared (props snap, no fade), actors notified via
+ * resetGeneration. */
+void DwPuzzle_RequestCheckpointRespawn(FieldSystem *fieldSystem);
 
 /* Convert a FACE_* on a surface to a (dx, dy, dz) step. Shared with the
  * solver / harness: the same tables the stock DW movement code uses. */
