@@ -43,7 +43,7 @@ Save-file VarsFlags. In the .sav file the VarsFlags page sits at
 partition_base + 3500 (the SaveTable pageInfo[4].location for this
 save-table layout; verified by booting and comparing the file bytes with
 the RAM VarsFlags block -- see notes in make_entry_save). A var lives at
-(var_id - 0x4000) * 2; flags live at +580 (NUM_VARS = 290 u16 vars) as
+(var_id - 0x4000) * 2; flags live at +580 (NUM_VARS = 288 u16 vars) as
 flag_id // 8, bit flag_id % 8. Var/flag ids are parsed out of
 generated/vars_flags.txt, the same file the C enum is generated from.
 
@@ -154,7 +154,19 @@ EV_NAME = {0: "none", 1: "sigil", 2: "rune", 3: "current_start", 4: "current_sto
 
 VARS_START = 0x4000
 VARS_FLAGS_FILE_OFFSET = 3500   # SaveTable pageInfo[4].location; see module docstring.
-NUM_VARS = 290
+# NUM_VARS = VARS_END - VARS_START (include/constants/savedata/vars_flags.h). 288 in this
+# build; derived from build/generated/vars_flags.h when it exists so it cannot drift.
+def _num_vars(default=288):
+    import pathlib as _pl, re as _re
+    h = _pl.Path(__file__).resolve().parents[3] / 'build/generated/vars_flags.h'
+    try:
+        t = h.read_text()
+        a = int(_re.search(r'#define VARS_START\s+(\d+)', t).group(1))
+        b = int(_re.search(r'#define VARS_END\s+(\d+)', t).group(1))
+        return b - a
+    except Exception:
+        return default
+NUM_VARS = _num_vars()
 FLAGS_BYTE_OFFSET = VARS_FLAGS_FILE_OFFSET + NUM_VARS * 2
 LOCATION_OFFSET = 0x1280        # Location {mapId, warpId, x, z, dir}, s32 each.
 VAR_ARC2_PROGRESS_ID = 16495    # canonical id, asserted by parse_ids()
