@@ -7,6 +7,8 @@
 
 InitScriptFrameTable:
     InitScriptGoToIfEqual VAR_MAP_LOCAL_1, 0, 2
+    // dwp:rift-214: puzzle frame fall (ground gone under a standing player): the engine raises VAR_MAP_LOCAL_3.
+    InitScriptGoToIfEqual VAR_MAP_LOCAL_3, 1, 6
     InitScriptFrameTableEnd
 
     InitScriptEnd

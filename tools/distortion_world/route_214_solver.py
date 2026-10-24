@@ -108,16 +108,17 @@ _put(47, 42, "v"); _put(47, 43, "v")  # W4 slide
 _put(45, 31, "s")  # sigil A (toggle group A)
 _put(45, 35, "t")  # sigil B (toggle group B)
 _put(44, 39, "B")  # group B gap (current 'v' when effectively off)
-# Checkpoints: ceiling entry + one landing per crossing.
-_put(49, 27, "C")
+# Checkpoints: ceiling entry (49,28: the jump lands at (49,27) and
+# landings fire nothing) + one landing per crossing.
+_put(49, 28, "C")
 _put(46, 32, "C")
 _put(48, 36, "C")
 _put(44, 40, "C")
 _put(47, 44, "C")
 
-CHECKPOINTS = [(49, 27), (46, 32), (48, 36), (44, 40), (47, 44)]
+CHECKPOINTS = [(49, 28), (46, 32), (48, 36), (44, 40), (47, 44)]
 CP_INDEX = {pos: i for i, pos in enumerate(CHECKPOINTS)}
-START = (49, 27, 1, 1, 1, 1, False, False, 0, 1, 1)
+START = (49, 27, 1, 1, 1, 1, False, False, 0, 1, 1)  # jump landing (49,27); cp 0 = map entry until (49,28) is walked onto
 
 DIRS = {"U": (0, 1), "D": (0, -1), "L": (-1, 0), "R": (1, 0)}  # FACE_* on ceiling
 CUR = {"v": "U", "^": "D"}
@@ -132,7 +133,7 @@ def _check_grid():
     assert GRID[(44, 38)] == "v" and GRID[(47, 42)] == "v" and GRID[(47, 43)] == "v"
     for x in range(45, 50):
         assert GRID[(x, 39)] == "#", f"C3 wall must be closed except the B gap, got {(x, 39)}"
-    assert GRID[(49, 27)] == "C" and GRID[(46, 32)] == "C" and GRID[(48, 36)] == "C"
+    assert GRID[(49, 27)] == "." and GRID[(49, 28)] == "C" and GRID[(46, 32)] == "C" and GRID[(48, 36)] == "C"
     assert GRID[(44, 40)] == "C" and GRID[(47, 44)] == "C"
 
 _check_grid()
@@ -259,7 +260,12 @@ def transitions(state, mode):
     w = wait(state)
     if w is not None:
         out.append((w, 0, "W"))
-    out.append((fall(state), 0, "F"))
+    f = fall(state)
+    if f != state:
+        # A fall that returns to the very state it started from (standing
+        # on the last checkpoint with its snapshot groups) is a no-op
+        # and must not be offered, or Dijkstra wastes a zero-cost loop.
+        out.append((f, 0, "F"))
     return out
 
 def solve(mode):
