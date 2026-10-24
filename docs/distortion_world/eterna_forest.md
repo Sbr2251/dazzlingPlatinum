@@ -271,7 +271,7 @@ open or blocked. Phase 2 edits:
     starts off.
   - ghost props, group 1 (honeycomb): unchanged, 8 props.
   - Total ghost props 8 (group 1) + 16 (group 0) + 8 (group 2) = 32.
-    Stock DW records carry up to 49 ghost props (map 577 in the
+    Stock DW records carry up to 49 ghost props (map 576 in the
     current `twarc.py dump`), so 32 is inside the stock budget;
     Phase 2 confirms the polygon budget the same way (small
     platforms and rocks are the cheapest prop kinds).
@@ -299,14 +299,19 @@ open or blocked. Phase 2 edits:
   `fallVar` = `VAR_MAP_LOCAL_2` (the existing init-frame line
   `InitScriptGoToIfEqual VAR_MAP_LOCAL_2, 1, 5` already starts the fall
   script; the fall script already clears the var first). BOTH
-  honeycomb fall paths must mark the fall pending via `fallVar`:
-  the frame path (standing on the honeycomb when it goes) already
-  sets `fallVar` = 1; the step-hook path (stepping onto a gone
-  honeycomb) currently starts `HoneyFall` directly without setting
-  it, so Phase 2 glue must set `fallVar` = 1 before
-  `ScriptManager_Set` there, or call `DwPuzzle_NotifyFall` if that
-  API lands (section 9, open question 1). A fall path that does not
-  mark fall-pending would reload as a fresh entry and wipe the
+  honeycomb fall paths must mark the fall pending SYNCHRONOUSLY, by
+  calling `DwPuzzle_NotifyFall` (required new API, section 9, open
+  question 1) at fall detection, before starting HoneyFall: the
+  frame path (standing on the honeycomb when it goes) when it sets
+  `fallVar`, and the step-hook path (stepping onto a gone honeycomb),
+  which today starts HoneyFall directly. Polling `fallVar` from
+  the engine frame hook does NOT suffice: HoneyFall clears
+  `fallVar` first thing, so the engine frame poll is not guaranteed
+  to run between the set and the clear -- a race. `fallVar` stays
+  as the script trigger (the init-frame line starts HoneyFall);
+  `DwPuzzle_NotifyFall` is the engine's fall-pending signal, and
+  it must survive HoneyFall clearing `fallVar`. A fall path that
+  does not notify would reload as a fresh entry and wipe the
   bridge state and checkpoint.
 - `minProgress` / `maxProgress` = 24 / 24 (the puzzle is live at
   progress 24 only; the totem sets 26).
@@ -389,8 +394,11 @@ the published API, and rule 7 is a hard engine requirement.
    (covered by the walk back from the respawn).
 6. A fall restores the player to the last checkpoint tile and the
    puzzle snapshot taken there. The snapshot is per checkpoint, not
-   global: falling before the sigil restores bridge OFF, falling after
-   restores bridge ON.
+   global: falling before reaching a bridge checkpoint restores the
+   last checkpoint's snapshot (bridge OFF at the entry / approach
+   checkpoints, even if the sigil has already been latched -- that
+   is the backtrack redo); falling after stepping on a bridge
+   checkpoint restores bridge ON.
 7. REQUIRED: a rune must not re-fire on the landing its own flip
    produced. If the engine's step hook runs on a rune landing and
    would fire the rune there, the engine (or glue) must suppress
@@ -439,8 +447,13 @@ Total: 38 steps, 0 falls, checkpoints used: approach then bridge,
 honeycomb crossed once (4 timed steps), sigil used once. There is no
 long way round any more: the rune gate (section 2b) closes the wall
 climb, so a rune-free route to the ceiling does not exist (the solver
-confirms: Dijkstra over the gated grid still finds 38, and no
-rune-free path reaches the goal). The solver's output (per honeycomb
+confirms with three isolated floods: all rune tiles blocked,
+Rune A tiles blocked with Rune B live, and Rune B tiles blocked
+with Rune A live all fail to reach the goal -- each rune is
+individually required, and blocking the tiles (not merely
+disabling the flip) is the correct model, since a player who
+could walk through a rune tile as plain ground could pass the
+gate without flipping). The solver's output (per honeycomb
 start phase, waits, state counts, soft-lock proof) is in "Solver
 stats" below and in `/tmp/dwp/rift-ef/solver_output.txt`.
 
@@ -520,20 +533,22 @@ engine call. Register the table in `dw_puzzle.c` `sPuzzleTables[]`.
    tile) to mark the fall pending, and the usage guide says an
    unrecognised fall resets the puzzle as a fresh entry. That would
    wipe the bridge state and the checkpoint, breaking the design's
-   core promise. Preferred resolution, using only data already in
-   the table: the engine polls the table's `fallVar`
-   (`VAR_MAP_LOCAL_2`) in `DwPuzzle_HandleFrame` and marks
-   fall-pending whenever it is set. BOTH fall paths must mark it:
-   the frame path (standing on the honeycomb when it goes) already
-   sets `fallVar` = 1, and the Phase 2 glue must set `fallVar` = 1
-   before `ScriptManager_Set(HoneyFall)` in the step-hook path
+   core promise. REQUIRED: a new synchronous API,
+   `DwPuzzle_NotifyFall(FieldSystem *)`, which the honeycomb code
+   calls at fall detection on BOTH paths -- the frame path
+   (standing on the honeycomb when it goes) and the step-hook path
    (stepping onto a gone honeycomb), which today starts HoneyFall
-   without setting it. Fallbacks: a new `DwPuzzle_NotifyFall` API
-   the honeycomb code calls before starting HoneyFall; or the
-   honeycomb becomes an engine timer group. Phase 2 is blocked
-   until engine-a confirms one of these lands; the headless fall
-   tests (both honeycomb fall paths, bridge ON + bridge checkpoint
-   surviving) prove it.
+   directly -- before starting HoneyFall. The engine records
+   fall-pending in RAM at the call; it must survive HoneyFall
+   clearing `fallVar` (which stays as the script trigger). The
+   earlier polling idea (engine polls `fallVar`) is REJECTED: it
+   races, because HoneyFall clears `fallVar` first thing and the
+   engine frame poll is not guaranteed to run between the set and
+   the clear. Fallback if NotifyFall is refused: the honeycomb
+   becomes an engine timer group. Phase 2 is blocked until
+   engine-a confirms NotifyFall (or the timer-group fallback)
+   lands; the headless fall tests (both honeycomb fall paths,
+   bridge ON + bridge checkpoint surviving) prove it.
 2. REQUIRED ENGINE SEMANTIC (section 7 rule 7): no rune re-fire on a
    rune landing. Pin with headless tests reading `gDwPuzzleDebug`
    after each flip (one `DW_PUZZLE_EVENT_RUNE` per flip; no second

@@ -168,19 +168,23 @@ def _raw_dest(pos, delta, bridge):
     return cand
 
 
-def apply_move(state, delta, allow_flip=True):
+def apply_move(state, delta, blocked_tiles=()):
     """Abstract transition for one walked step. Returns (state, kind)
     with kind in {'walk', 'flip', 'blocked'}. Tile logic (rune, sigil,
     checkpoint) is evaluated on the WALKED-ON tile (the raw dest); the
-    flip landing fires nothing. allow_flip=False models the gate
-    check: rune tiles behave as plain walkable tiles."""
+    flip landing fires nothing. blocked_tiles lists tiles that are
+    impassable for this move (used by the per-rune requirement proofs:
+    a rune whose tiles are blocked cannot be stepped on, so the player
+    cannot pass its tile -- and with the rune gate, cannot pass the
+    wall at all. Merely disabling the flip would be wrong: the player
+    would walk through the rune tile as plain ground.)"""
     pos, bridge, just_landed, cp, snaps = state
     raw = _raw_dest(pos, delta, bridge)
-    if raw is None:
+    if raw is None or raw in blocked_tiles:
         return state, "blocked"
     flipped = False
     dest = raw
-    if allow_flip and raw in RUNES and not just_landed:
+    if raw in RUNES and not just_landed:
         dest = RUNES[raw]
         flipped = True
     just_landed = flipped
@@ -365,16 +369,20 @@ def simulate_path(start_phase):
     return len(PATH), waits, 0, frames
 
 
-def no_rune_proof(start):
-    """Flood with rune flips disabled: the gate check. Returns True if
-    the totem is reachable without any rune flip."""
+RUNE_A = ((WALL, 49, 1, 25), (CEIL, 49, 10, 25))
+RUNE_B = ((CEIL, 45, 10, 37), (FLOOR, 45, 1, 37))
+
+
+def flood_blocked(start, blocked_tiles):
+    """Flood with the given tiles impassable. Returns True if the
+    totem is reachable without stepping on them."""
     seen, dq = {start}, deque([start])
     while dq:
         st = dq.popleft()
         if _is_goal(st[0]):
             return True
         for d in DELTAS[st[0][0]]:
-            ns, kind = apply_move(st, d, allow_flip=False)
+            ns, kind = apply_move(st, d, blocked_tiles=blocked_tiles)
             if kind != "blocked" and ns not in seen:
                 seen.add(ns)
                 dq.append(ns)
@@ -387,8 +395,12 @@ def no_rune_proof(start):
 
 
 def main():
-    assert not no_rune_proof(START_STATE), "rune-free route exists!"
-    print("rune-free route to the totem: none (Rune A required): PASS")
+    assert not flood_blocked(START_STATE, tuple(RUNES)), "rune-free route exists!"
+    print("rune tiles blocked: totem unreachable (runes required): PASS")
+    assert not flood_blocked(START_STATE, RUNE_A), "Rune A not required!"
+    print("Rune A tiles blocked (Rune B live): totem unreachable (Rune A required): PASS")
+    assert not flood_blocked(START_STATE, RUNE_B), "Rune B not required!"
+    print("Rune B tiles blocked (Rune A live): totem unreachable (Rune B required): PASS")
     opt, goal, prev = dijkstra(START_STATE)
     print(f"optimal moves (Dijkstra, abstract graph): {opt}")
     print("optimal path (first solution found):")
