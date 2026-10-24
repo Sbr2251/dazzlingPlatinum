@@ -30,7 +30,14 @@ the live SaveData pointer and page table from RAM on EVERY call, never
 from a cached pointer: the game's SaveData pointer can move (a cached
 pointer reads a stale save copy -- rift-rp saw VAR_ARC2_PROGRESS read
 2 when the game state was 14), and a stale read poisons every proof
-built on it.
+built on it. The resolution is validated two ways: the page table
+must lie inside the live SaveData struct (a signature match
+elsewhere in RAM is a stale copy), and the resolved SaveData's
+Location must match the game's current map (Location is kept in
+sync on every warp and step). A mismatch fails loudly instead of
+returning stale vars/flags. The boot self-check (progress == the
+crafted pre-entry value) and the post-warp self-check (progress ==
+the rift's entry value) are the tight checks on top.
 
 Save-file VarsFlags. In the .sav file the VarsFlags page sits at
 partition_base + 3500 (the SaveTable pageInfo[4].location for this
@@ -148,6 +155,8 @@ VARS_FLAGS_FILE_OFFSET = 3500   # SaveTable pageInfo[4].location; see module doc
 NUM_VARS = 290
 FLAGS_BYTE_OFFSET = VARS_FLAGS_FILE_OFFSET + NUM_VARS * 2
 LOCATION_OFFSET = 0x1280        # Location {mapId, warpId, x, z, dir}, s32 each.
+VAR_ARC2_PROGRESS_ID = 16495    # canonical id, asserted by parse_ids()
+PROGRESS_SANE_MAX = 1000        # progress vars are small; see _vars_flags_addr
 DIR_WEST = 2
 
 
@@ -796,12 +805,15 @@ class DwSession:
             raise RuntimeError(f"entry tile moved to {self.player_tile()}")
         if test_mode:
             self.set_test_mode(True)
-        # Read-back self-check: the entry var must equal the crafted
-        # value (a stale VarsFlags read fails here, before any check
-        # trusts it).
+        # Post-warp self-check: after entry, progress must equal the
+        # rift's entry value, read through the Location-validated
+        # VarsFlags lookup. A stale post-warp read (rift-rp: progress
+        # 2, flags 0) fails here, before any replay trusts it.
         got = self.var(rift.var)
         if got != rift.progress:
-            raise RuntimeError(f"entry var {rift.var} = {got}, want {rift.progress}")
+            raise RuntimeError(
+                f"post-warp read-back: {rift.var} = {got}, want entry "
+                f"{rift.progress} (live VarsFlags read is stale or wrong)")
         # Story-true flags the save patch set (e.g. LT2's four totem
         # flags + visit-1 act flags) must still be set: entry scripts
         # must not clear them. clear_flags are NOT asserted here --
@@ -874,20 +886,29 @@ class DwSession:
         return ptr
 
     def _pageinfo_addr(self):
-        """SaveData.pageInfo: validated candidate, else a full RAM scan
-        for the page-table signature (pageIDs 0..7, sane sizes, monotone
+        """SaveData.pageInfo: validated candidate, else a RAM scan for
+        the page-table signature (pageIDs 0..7, sane sizes, monotone
         locations). The scan is the fallback, not the path. Resolved
         on every call, like _save_ptr: the page table moves with the
-        SaveData pointer, so caching it is the same staleness bug."""
+        SaveData pointer, so caching it is the same staleness bug.
+        The scan only accepts a match INSIDE the live SaveData struct
+        (within 0x40000 bytes after sd): a signature match elsewhere
+        in RAM is a stale copy (e.g. a leftover from the title
+        screen), and reading vars/flags through it gives stale
+        values (rift-rp: progress 2, flags 0 after the DW warp)."""
         sd = self._save_ptr()
         cand = sd + 20 + 0x20000 + 4 + 8 + 4
         if self._pageinfo_valid(cand):
             return cand
         ram = self.emu.ram()
-        for o in range(0, len(ram) - 16 * 8, 4):
+        base_o = sd - RAM_BASE
+        lo = max(0, base_o)
+        hi = min(len(ram) - 16 * 8, base_o + 0x40000)
+        for o in range(lo, hi, 4):
             if self._pageinfo_valid_ram(ram, o):
                 return RAM_BASE + o
-        raise RuntimeError("SaveData.pageInfo not found in RAM")
+        raise RuntimeError("SaveData.pageInfo not found in RAM "
+                           "(live SaveData has no in-struct page table)")
 
     def _pageinfo_valid(self, addr):
         if not _in_ram(addr):
@@ -909,12 +930,59 @@ class DwSession:
             prev = loc
         return True
 
+    def _validate_save_location(self):
+        """The resolved SaveData is live iff its Location matches the
+        game's current map (Location is kept in sync on every warp
+        and step -- verified: 254 on the overworld, 596 in the DW
+        map, matching FieldSystem.location). A stale SaveData copy
+        (wrong pointer, or a leftover from before the warp) has an
+        old Location. On mismatch, wait for a warp to settle and
+        re-check once; if it still differs, raise rather than read
+        stale vars/flags. If the current map cannot be read (boot,
+        mid-warp chain teardown), skip validation -- the resolution
+        may still be right, and var() must not fail on a map-read
+        failure."""
+        try:
+            current = self.current_map()
+        except Exception:
+            return
+        for _ in range(2):
+            sd = self._save_ptr()
+            loc = struct.unpack("<i", self.emu.read(sd + 20 + LOCATION_OFFSET, 4))[0]
+            if loc == current:
+                return
+            self.emu.run(120)
+            try:
+                current = self.current_map()
+            except Exception:
+                return
+        raise RuntimeError(
+            f"SaveData Location {loc} != current map {current}: "
+            f"the resolved SaveData is stale (wrong pointer / pre-warp copy)")
+
     def _vars_flags_addr(self):
+        # Re-resolves on every call (after every map change, a warp
+        # invalidates nothing cached -- there is no cache), and
+        # validates the candidate two ways: the page table must be
+        # in-struct (see _pageinfo_addr), and the resolved SaveData's
+        # Location must match the live map (see
+        # _validate_save_location). The progress-var sanity below is
+        # a weak third check (a garbage page reads an arbitrary u16);
+        # the tight check is the boot/post-warp self-check
+        # (progress == the rift's entry value).
         pi = self._pageinfo_addr()
         _pid, size, loc = struct.unpack("<I I I", self.emu.read(pi + 4 * 16, 12))
         if size != 948:
             raise RuntimeError(f"VarsFlags page size {size}, want 948")
-        return self._save_ptr() + 20 + loc
+        addr = self._save_ptr() + 20 + loc
+        self._validate_save_location()
+        prog = struct.unpack(
+            "<H", self.emu.read(addr + (VAR_ARC2_PROGRESS_ID - VARS_START) * 2, 2))[0]
+        if prog > PROGRESS_SANE_MAX:
+            raise RuntimeError(
+                f"VarsFlags candidate reads progress {prog} (want <= "
+                f"{PROGRESS_SANE_MAX}): the resolved page is not the live one")
+        return addr
 
     def var(self, name_or_id, ids=None):
         """Current value of a save var, read from RAM (read-only)."""
