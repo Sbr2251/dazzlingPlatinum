@@ -36,11 +36,13 @@ BOOL gDwPuzzleTestMode = FALSE;
 extern const DwPuzzleTable gDwPuzzleTestTable;
 extern const DwPuzzleTable gDwPuzzleTestEternaTable;
 extern const DwPuzzleTable gDwPuzzleRoute214Table; // dwp:rift-214
+extern const DwPuzzleTable gDwPuzzleRoute214TestTable; // dwp:rift-214 (testOnly)
 
 static const DwPuzzleTable *const sPuzzleTables[] = {
     &gDwPuzzleTestTable,
     &gDwPuzzleTestEternaTable,
     &gDwPuzzleRoute214Table, // dwp:rift-214
+    &gDwPuzzleRoute214TestTable, // dwp:rift-214 (testOnly)
 };
 
 // Rift actor tables (engine-b), one per puzzle table, NULL until the
@@ -50,6 +52,7 @@ static const DwActorTable *const sActorTables[] = {
     NULL, // Ravaged Path test table: no actor table yet
     NULL, // Eterna Forest test table: no actor table yet
     NULL, // DW Route 214: no actor table (currents + sigils only)
+    NULL, // DW Route 214 test table: no actor table
 };
 
 
@@ -314,7 +317,18 @@ static BOOL EnsureActive(FieldSystem *fieldSystem, u32 mapHeader)
                 // (a direct warp to another puzzle map, or first
                 // activation after load): the previous map's group state
                 // must not leak into this table.
-                ResetPuzzleToInitial();
+                // dwp:rift-214 (engine-a fix, needs engine-a review): a
+                // table swap between the test and production variants of
+                // the SAME map (test mode flips across a warp: the fall
+                // script's warp resets gDwPuzzleTestMode, the harness
+                // re-enables it) is not a different puzzle -- the group
+                // state is the same puzzle's. Resetting here wipes a
+                // just-restored fall snapshot (cp + groups back to
+                // initial) on the first step after the re-enable. Only
+                // reset when the map itself changes.
+                if (sPrevTable == NULL || sTable->mapHeader != sPrevTable->mapHeader) {
+                    ResetPuzzleToInitial();
+                }
             }
             sPrevTable = sTable;
         } else {

@@ -150,3 +150,38 @@ const DwPuzzleTable gDwPuzzleRoute214Table = {
     0, 0,                       // testOnly, padding
     sGroups, sSigils, NULL, sCurrents, sCheckpoints, NULL,
 };
+
+// Debug-only test table for MAP_HEADER_DW_ROUTE_214 (testOnly = 1,
+// returned only while test mode is on). Identical to the production
+// table except for six explicit VOID tiles -- one per checkpoint,
+// off the optimal path -- that let the harness prove the fall path:
+// a fall from each checkpoint restores that checkpoint's snapshot,
+// and the second fall shows Cyrus's hint. The production table has
+// no VOID tiles because this map has no fall lips (see the fall
+// script comment above); the VOID tiles here are debug triggers, not
+// designed hazards, and the production maze is unchanged (the optimal
+// route never steps on them):
+//   CP0 map entry .... (19,1,12)  on the entry walkway, west of (20,12)
+//   CP1 ceiling entry  (44,10,27) C0 corner, off the C0 walk
+//   CP2 W1 landing .... (44,10,30) C1 north-west, off the C1 walk
+//   CP3 W2 landing .... (49,10,34) C2 east edge, off the C2 walk
+//   CP4 W3 landing .... (49,10,40) C3 east end, off the C3 walk
+//   CP5 W4 landing .... (44,10,42) C4 west, off the C4 walk
+// All six use the same fall script (entry 6) as the production table.
+static const DwPuzzleTile sTestTiles[] = {
+    { 19, 1, 12, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_GROUND, 6, 0 },
+    { 44, 10, 27, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
+    { 44, 10, 30, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
+    { 49, 10, 34, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
+    { 49, 10, 40, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
+    { 44, 10, 42, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
+};
+
+const DwPuzzleTable gDwPuzzleRoute214TestTable = {
+    MAP_HEADER_DW_ROUTE_214,
+    62, 62,                     // VAR_ARC2_PROGRESS gate
+    6, VAR_MAP_LOCAL_3,         // fall script (DWRoute214_Fall), fallVar
+    3, 2, 0, 15, 6, 6,          // group/sigil/rune/current/checkpoint/tile counts
+    1, 0,                       // testOnly, padding
+    sGroups, sSigils, NULL, sCurrents, sCheckpoints, sTestTiles,
+};
