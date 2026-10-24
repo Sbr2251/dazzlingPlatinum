@@ -208,8 +208,8 @@ is taught with no shadow pressure. Surfaces: (17,23) is GROUND,
 ### Giratina's shadow (Visit 2, engine-b §4)
 
 One lane, authored by `DwActors_MakeShadowLane` from endpoints
-(17,22)-(30,22) on GROUND, PINGPONG, **beat 60 emu frames per tile
-(30 field frames; the field runs at 2 emu frames per field frame)**. 14 tiles, inside `DW_ACTORS_MAX_SHADOW_TILES`.
+(17,22)-(22,22) on GROUND, PINGPONG, **beat 60 emu frames per tile
+(30 field frames; the field runs at 2 emu frames per field frame)**. 6 tiles, inside `DW_ACTORS_MAX_SHADOW_TILES`. The lane ends before 23 so the stones (23,26,29,32,22) sit beyond the patrol: the stone crossing is shadow-free (QA: the shadow was ~1 tile behind at the stone landings, too tight for a 6/10 rift). The shadow still guards the H-pad approach (17-22).
 The lane stops at 30 so the S pad on the last stone (32,22) is not on the lane or at its end (two tiles clear of the patrol).
 = 16. Ledge + stones only: the island (carry landing, goal, S pad)
 is off-lane, and the lane avoids script tiles (the S pad at (32,22)
@@ -519,7 +519,7 @@ the model must stay in sync with it.
 - `lost_tower.json`: ghost groups 6, 7, 8, 9 + default-visible mask
   9 (done in Phase 2).
 - Engine-a table (Visit 2 only, progress 94-95) + engine-b actor
-  table (Visit 2 only, 4 pads + shadow lane (17,22)-(30,22), beat
+  table (Visit 2 only, 4 pads + shadow lane (17,22)-(22,22), beat
   60 emu frames/tile) in `dw_puzzle_lost_tower.c`.
 - Engine-a table: the pad tiles are sigil entries (target group +
   set value) with auto-fire suppressed on PAD_READY steps (glue).

@@ -229,6 +229,24 @@ BOOL FieldInput_Process(const FieldInput *input, FieldSystem *fieldSystem)
             playerEvent |= PLAYER_EVENT_DISTORTION_WORLD;
         }
 
+        // dwp:rift-lt: post-respawn release gate. A catch/fall respawn
+        // just teleported the player while a direction was held; the
+        // held direction would start a new step from the respawned
+        // position (e.g. CP2 (16,23) -> (17,23) rune tile -> rune
+        // landing). The step hook (ov9_0224A71C) only runs at step END,
+        // so it cannot prevent a step from STARTING (an idle player
+        // starting a step bypasses it, and the hook's correction
+        // oscillates). Consume the movement input here, before
+        // ov5_021DFDE0 starts the step. The gate clears when the
+        // D-pad is released (actor HandleFrame), so a genuine re-press
+        // after release still steps. Only movement is consumed (A /
+        // menu input still reaches the game).
+        if ((input->heldKeys & PAD_KEY) != 0
+            && PersistedMapFeatures_IsCurrentDynamicMap(fieldSystem, DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) == TRUE
+            && DwActors_IsAwaitingPadRelease(NULL, NULL, NULL)) {
+            return TRUE;
+        }
+
         if (ov5_021DFDE0(fieldSystem, fieldSystem->playerAvatar, direction, playerEvent) == TRUE) {
             return TRUE;
         }

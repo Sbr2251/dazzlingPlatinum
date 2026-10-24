@@ -2597,6 +2597,12 @@ static void DwPuzzle_Ov9Respawn(DistWorldSystem *system, const DwPuzzleFrameResu
 
     MapObject_SetPosDirFromCoords(playerMapObj, result->respawnX, result->respawnY * 2, result->respawnZ, facing);
 
+    // dwp:rift-lt: arm the release gate AT the teleport. Arming only at
+    // the later snapshot restore (OnFallReset) leaves a window where a
+    // held direction steps the respawned player (e.g. CP2 -> rune tile)
+    // before the gate arms.
+    DwActors_ArmPadReleaseGate(result->respawnX, result->respawnY, result->respawnZ);
+
     if (result->respawnSurface == DW_PUZZLE_SURFACE_GROUND) {
         PrepareNewCurrentFloatingPlatform(system, (u32)-1); // no platform
     } else {
@@ -3565,6 +3571,34 @@ BOOL ov9_0224A71C(FieldSystem *fieldSystem)
         DistWorldSystem *v5 = fieldSystem->unk_04->dynamicMapFeaturesData;
 
         GetPlayerPos(v5, &v1, &v2, &v3);
+
+        // dwp:rift-lt: post-respawn release gate. A catch/fall respawn
+        // just teleported the player while a direction was held; the
+        // held direction would start a new step from the respawned
+        // position (e.g. CP2 (16,23) -> (17,23) rune tile -> rune
+        // landing). The MapObject pause (setInputLocked) does NOT block
+        // the field system's step (it only pauses the sprite), so
+        // consume the step here: Field_ProcessStep returns TRUE and
+        // MoveControl is skipped, so the tile never changes. If the
+        // player already slipped off the recorded respawn tile (a step
+        // in the window before the gate armed), correct them back to
+        // it now, so the respawn lands on the checkpoint, not the
+        // rune tile. The gate clears when the D-pad is released
+        // (actor HandleFrame), so a genuine re-press after release
+        // still steps. Slides never coincide with the gate (route-214
+        // has currents but no actor table), so this only fires for
+        // player steps.
+        {
+            int gateX, gateY, gateZ;
+
+            if (DwActors_IsAwaitingPadRelease(&gateX, &gateY, &gateZ)) {
+                if (v1 != gateX || v2 != gateY || v3 != gateZ) {
+                    MapObject_SetPosDirFromCoords(Player_MapObject(fieldSystem->playerAvatar),
+                        gateX, gateY * 2, gateZ, v4);
+                }
+                return 1;
+            }
+        }
 
         if (ov9_0224D040(v5, v1, v2, v3) == 1) {
             return 1;

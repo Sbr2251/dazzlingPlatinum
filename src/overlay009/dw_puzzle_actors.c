@@ -33,6 +33,7 @@
 #include "player_avatar.h"
 #include "script_manager.h"
 #include "sound_playback.h"
+#include "system.h" // dwp:rift-lt: JOY_HELD(PAD_KEY) for the post-respawn release gate
 #include "vars_flags.h"
 #endif
 
@@ -97,6 +98,9 @@ static void ResetStateFromTable(void)
     sActors.shadowCaughtTimer = 0;
     sActors.catchResetIssued = FALSE;
     sActors.catchWatchdog = 0;
+    sActors.awaitPadRelease = FALSE; // dwp:rift-lt
+    sActors.padReleaseTimer = 0; // dwp:rift-lt
+    sActors.padReleaseDebounce = 0; // dwp:rift-lt
     sActors.echoTile = TileNone(DW_ACTOR_SURFACE_FLOOR);
     sActors.echoShown = FALSE;
     sActors.echoBlocked = FALSE;
@@ -667,6 +671,34 @@ void DwActors_HandleFrame(DwActorTile player)
     if (sActors.shadowState != DW_ACTOR_SHADOW_PATROL) {
         return;
     }
+    // dwp:rift-lt: post-respawn release gate (see OnFallReset). Hold the
+    // input lock until the D-pad is released, so a still-held direction
+    // cannot step the respawned player (e.g. CP2 -> rune tile). The
+    // safety timer unpauses after 300 frames even if the D-pad stays held.
+    if (sActors.awaitPadRelease) {
+#ifndef DW_ACTORS_HOST_TEST
+        BOOL padReleased = (JOY_HELD(PAD_KEY) == 0);
+#else
+        BOOL padReleased = TRUE;
+#endif
+        if (padReleased) {
+            // Debounce: a single released frame can be a transient
+            // clear from the warp/script while the D-pad is still held.
+            if (++sActors.padReleaseDebounce >= 5 || sActors.padReleaseTimer == 0) {
+                sActors.awaitPadRelease = FALSE;
+                sActors.padReleaseTimer = 0;
+                sActors.padReleaseDebounce = 0;
+                if (sActors.platform.setInputLocked != NULL) {
+                    sActors.platform.setInputLocked(sActors.platform.ctx, FALSE);
+                }
+            }
+        } else {
+            sActors.padReleaseDebounce = 0;
+            if (sActors.padReleaseTimer > 0) {
+                sActors.padReleaseTimer--;
+            }
+        }
+    }
     if (sActors.carryPending >= 0 || sActors.pendingPad >= 0) {
         return; // the patrol freezes during actor-owned script windows (carry, pad prompt)
     }
@@ -817,10 +849,47 @@ void DwActors_OnFallReset(void)
     sActors.padDenied = FALSE;
     sActors.pendingCutin = -1;
     sActors.carryPending = -1;
-    if (sActors.platform.setInputLocked != NULL) {
-        sActors.platform.setInputLocked(sActors.platform.ctx, FALSE);
-    }
+    // dwp:rift-lt: do NOT touch the input lock here. The gate is armed
+    // only by Ov9Respawn (at the teleport, with the recorded tile);
+    // this also runs for reset sigils (snapshot restore without a
+    // teleport), where arming would freeze the player and the stale
+    // recorded tile would teleport them to an old checkpoint. The
+    // gate's HandleFrame check releases the lock on D-pad release.
     SyncActorTiles();
+}
+
+// dwp:rift-lt: post-respawn release gate (see OnFallReset).
+BOOL DwActors_IsAwaitingPadRelease(int *x, int *y, int *z)
+{
+    if (!sActors.active || !sActors.awaitPadRelease) {
+        return FALSE;
+    }
+    if (x != NULL) {
+        *x = sActors.gateRespawnX;
+    }
+    if (y != NULL) {
+        *y = sActors.gateRespawnY;
+    }
+    if (z != NULL) {
+        *z = sActors.gateRespawnZ;
+    }
+    return TRUE;
+}
+
+void DwActors_ArmPadReleaseGate(int x, int y, int z)
+{
+    if (!sActors.active) {
+        return;
+    }
+    sActors.awaitPadRelease = TRUE;
+    sActors.padReleaseTimer = 300;
+    sActors.padReleaseDebounce = 0;
+    sActors.gateRespawnX = (s16)x;
+    sActors.gateRespawnY = (s16)y;
+    sActors.gateRespawnZ = (s16)z;
+    if (sActors.platform.setInputLocked != NULL) {
+        sActors.platform.setInputLocked(sActors.platform.ctx, TRUE);
+    }
 }
 
 BOOL DwActors_IsStoneAt(DwActorTile tile)

@@ -30,7 +30,7 @@ Conformance to engine-b (docs/distortion_world/actors_design.md, authoritative):
   favourable timing and (ii) that EVERY catch lands in a state from
   which the goal is still reachable. It does NOT prove a specific frame
   schedule: the timing proof is deferred to the harness (headless replay
-  against the real beat). Lane: (17,22)-(30,22), 14 tiles (<= 16),
+  against the real beat). Lane: (17,22)-(22,22), 6 tiles (<= 16),
   avoiding script tiles (the S pad at (32,22) is off-lane).
 - Catch/fall restores engine-b's checkpoint snapshot. The solver does
   not model the restored phase (it is abstracted away); the catch
@@ -127,11 +127,11 @@ SIGILS = {
 }
 # Rune: (17,23) -> wall (11,4,20), the V pad tile. Landing fires the pad.
 RUNES = {(17, 1, 23): (11, 4, 19)}  # landing fires NOTHING (landing rule); walk onto (11,4,20) for the V pad
-# Shadow lane (visit 2): (17,22)-(30,22), 14 tiles (<= DW_ACTORS_MAX_SHADOW_TILES
+# Shadow lane (visit 2): (17,22)-(22,22), 6 tiles (<= DW_ACTORS_MAX_SHADOW_TILES
 # = 16), endpoints via DwActors_MakeShadowLane, beat 45-60 frames/tile.
 # Ledge + stones only: the island (carry landing, goal, S pad) is off-lane,
 # and the lane avoids script tiles (the S pad at (32,22) is off-lane).
-SHADOW_LANE = {(x, 1, 22) for x in range(17, 31)}
+SHADOW_LANE = {(x, 1, 22) for x in range(17, 23)}
 # No clock/period in the model: the shadow phase is abstracted (see header).
 
 

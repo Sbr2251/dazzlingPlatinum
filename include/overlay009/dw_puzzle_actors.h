@@ -241,6 +241,22 @@ typedef struct {
     u16 shadowCaughtTimer;
     BOOL catchResetIssued;
     u16 catchWatchdog;
+    // dwp:rift-lt: after a catch/fall respawn, hold the input lock until
+    // the D-pad is released. A direction still held from the pre-catch
+    // step would otherwise start a new step from the respawned position
+    // (e.g. CP2 (16,23) -> (17,23) rune tile -> rune landing (11,4,19)).
+    // padReleaseTimer is the safety: unpause after 300 frames even if
+    // the D-pad stays held, so a stuck pad never soft-locks the player.
+    BOOL awaitPadRelease;
+    u16 padReleaseTimer;
+    // Debounce: the warp/script can clear heldKeys for a single frame
+    // even while the D-pad is still physically held; require several
+    // consecutive released frames before unpausing.
+    u8 padReleaseDebounce;
+    // The respawn tile the gate recorded (Ov9Respawn). The step hook
+    // corrects a player who slipped off it before the gate armed
+    // (e.g. onto the rune tile) back to this tile.
+    s16 gateRespawnX, gateRespawnY, gateRespawnZ;
     DwActorTile echoTile;
     BOOL echoShown;
     BOOL echoBlocked;
@@ -313,6 +329,16 @@ DwActorEvent DwActors_ResolvePad(int padIndex, BOOL accepted); // rift script's 
 int DwActors_TakePendingCutin(void); // totem id for the Resonator ghost cut-in, or -1; clears it
 void DwActors_ConfirmCarryDone(void); // rift script: the Skarmory carry completed
 void DwActors_OnCheckpoint(void); // snapshot stones/shadow/pads for the checkpoint
+// dwp:rift-lt: TRUE while the post-respawn release gate is armed (a
+// catch/fall respawn just teleported the player while a direction was
+// held); fills *x/*y/*z with the recorded respawn tile. The step hook
+// consumes steps while this is TRUE, and corrects a player who slipped
+// off the recorded respawn tile back to it.
+// Arm the gate at the respawn teleport (Ov9Respawn), not only at the
+// later snapshot restore (OnFallReset): a step in between would land
+// on the rune tile before the gate arms.
+BOOL DwActors_IsAwaitingPadRelease(int *x, int *y, int *z);
+void DwActors_ArmPadReleaseGate(int x, int y, int z);
 void DwActors_OnFallReset(void); // restore the checkpoint snapshot
 // TRUE iff a RESTING stone occupies the tile (blocks walking via TryPush, plugs currents).
 // LANDED stones are terrain (walkable, no block); FALLING stones occupy nothing.
