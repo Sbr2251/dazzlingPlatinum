@@ -70,6 +70,9 @@ DWRavagedPath_End:
 // The Arc 1 fall script: from a scar (the step hook) or a chasm lip (coord events). The void sends the player back to
 // the entry; Cyrus's retry line plays after the first fall only.
 DWRavagedPath_Fall:
+    // dwp:engine-a: clear the puzzle frame-fall var (raised by the engine when the ground goes from under a
+    // standing player); normally 0, so this is a no-op for non-puzzle falls.
+    SetVar VAR_MAP_LOCAL_3, 0
     LockAll
     ApplyMovement LOCALID_PLAYER, DWRavagedPath_Movement_PlayerFall
     WaitMovement
