@@ -635,6 +635,7 @@ Overlay overlay9
 	Object main.nef.p/src_overlay009_dw_puzzle_eterna_forest.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_actors.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_ravaged_path.c.o // dwp:rift-rp
+	Object main.nef.p/src_overlay009_dw_puzzle_route_214.c.o
 }
 
 Overlay overlay10

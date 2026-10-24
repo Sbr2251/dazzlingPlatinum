@@ -508,6 +508,7 @@ pokeplatinum_c = files(
     # dwp:rift-rp: Ravaged Path production puzzle table
     'overlay009/dw_puzzle_ravaged_path.c',
     'overlay009/dw_puzzle_eterna_forest.c',
+    'overlay009/dw_puzzle_route_214.c',
     # dwp:engine-b: stones, shadow, echo, totem-echo pads
     'overlay009/dw_puzzle_actors.c',
     'overlay010/ov10_0221F800.c',
