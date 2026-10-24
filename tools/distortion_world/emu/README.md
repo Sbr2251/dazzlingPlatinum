@@ -105,14 +105,25 @@ re-enables it after each warp when it needs the test table.
 every `dw_puzzle_<map>.c` table (engine-a) plus the actor table
 (engine-b): it compiles the table files themselves against the real
 headers (same pattern as `dw_actors_test.c`) and enforces the
-authoring rules -- caps (group tiles 32, explicit tiles 32, stones
-4, pads 4, shadow lane 16), landing tiles never current tiles,
-landing-tile overrides VOID-only, landing uniqueness, stone starts /
-edges never on protected tiles, pads never checkpoint/rune/current,
-shadow lanes never checkpoint tiles and on one surface,
-sigil targets in range, and for production tables (testOnly == 0):
-explicit states for ground actor tiles and shadow beat >= 30
-frames. Test tables are exempt from the production-only rules.
+authoring rules -- count caps (groups 8, sigils 16, runes 8,
+currents 16, checkpoints 8, group tiles 32, explicit tiles 32,
+stones 4, pads 4, shadow lane 16, edges 4/stone, protected 8,
+echo sigils 8), landing tiles never current tiles, landing-tile
+overrides VOID-only, landing uniqueness, landing tiles in no group
+and never sigil / pad / checkpoint / rune tiles, stone starts /
+edges never on protected tiles (no exemptions: a start may not sit
+on another stone's landing), pads never checkpoint/rune/current,
+shadow lanes never checkpoint tiles, on one surface, with
+consecutive tiles adjacent (a jump teleports across a seam corner),
+sigil targets in range, echo mirrorAxis != echoAxis (geometric
+mapping), and for production tables (testOnly == 0): explicit
+states for ground actor tiles, shadow beat >= 30 frames, and every
+pad tile has a sigil in the engine-a table. Test tables are exempt
+from the production-only rules. Pairs come from the engine
+registry (`dw_puzzle.c` sPuzzleTables / sActorTables, by index)
+first, then same-file pairing, then the known test pair. Only
+fixture tables exist so far (Phase 2 has not written production
+tables yet) -- the validator covers every table in the tree.
 Totem/talk spots are map scripts, not tables, so they need
 map-script review; the validator says so when it cannot see them.
 Run it before committing a table change.
@@ -130,33 +141,58 @@ walkable only while its group is on).
 
 It BFSes the shortest solution (pressed moves only; a current slide
 is part of the one press that started it), proves no reachable
-soft-lock (every reachable state can still reach the goal over the
-transition graph, falls/resets included), and prints difficulty
-stats: optimal length, branching (mean out-degree over reachable
-states), required toggles/pushes, and wrong-looking right moves
-(optimal steps that do not strictly decrease the plain-grid distance
-to the goal). `check_targets(rift, stats)` flags an optimal length
-outside the revised PUZZLE_PLAN section 2 range, and a branching
-below the 1.2 harness floor for difficulty >= 2 (the plan gives no
-branching ranges; the floor is a harness heuristic).
+soft-lock IN THE MODEL (every reachable state can still reach the
+goal over the model's transition graph, falls/resets included),
+and prints difficulty stats: optimal length, branching (mean
+out-degree over reachable states), required toggles/pushes, and
+wrong-looking right moves (optimal steps that do not strictly
+decrease the plain-grid distance to the goal).
+`check_targets(rift, stats)` flags an optimal length outside the
+revised PUZZLE_PLAN section 2 range, and a branching below the 1.2
+harness floor for difficulty >= 2 (the plan gives no branching
+ranges; the floor is a harness heuristic).
+
+The proof is exact over the model, so the model's fidelity is the
+workstream's responsibility: stones distinguish RESTING (BLOCKED,
+pushable, plugs currents) from LANDED (SOLID walkable terrain,
+unpushable, a slide passes over it); checkpoints snapshot groups,
+stones, shadow phase and landed stones (momentary holders are
+per-occupant and cleared on restore; a reset sigil's restore wins
+over the same press's shadow tick); stone falls are atomic within a
+press (the falling stone occupies no tile). Pads (totem-gated
+prompts) carry no puzzle state and are not modelled. A rift ships
+its model with its tables, and the replay of the solver's solution
+on the ROM is the cross-check that model and engine agree.
 
 Worked examples: one per mechanic, plus `ravaged_path_model()`, a
 sanity model of today's Ravaged Path wall that reproduces a 16-move
 optimum (the solver's line steps once on the (y3, z21) scar tile --
 legal, a scar holds exactly once -- as does the documented line).
+Per-rift models ship with the Phase-2 tables (this kit provides the
+framework + the Ravaged Path sanity model); `solver.py` exits 1 on
+unsolvable models, soft-locks, or target violations.
 
 ## Status (2026-10-23)
 
-- DONE: all 8 rifts, overworld entry + replay to the totem fight
-  start (Arc 1 to its goal tile; the rest to the totem battle menu),
-  via `rifts_regress.py` (one worker process per rift: boot, replay,
-  frame strip, report). Eterna Forest's honeycomb crossing is a
-  fast-step retry loop across its 213-frame cycle. Route 214 /
-  Route 213 floor routes come from the B4F collision + tw_arc jump
-  tables; Route 213's totem hook fires on the island's first tile
-  (47,10,45). Lost Tower visit 1 reaches the vein + the shadow-wall
-  exit warp to 2F; visit 2 rides the Lapras stones + Skarmory carry
-  to the Spiritomb battle menu.
+- DONE: all 6 scoped maps (Arc 1 prologue + the 5 Arc-2 rifts),
+  7 entries (Lost Tower has 2 visits), 8 regress legs -- overworld
+  entry + replay to the totem fight start (Arc 1 to its goal tile;
+  the rest to the totem battle menu), via `rifts_regress.py` (one
+  worker process per rift: boot, replay, frame strip, report; a
+  battle-failed leg is retried by re-spawning the worker, never by
+  booting twice in one process, and a worker result is only
+  accepted if the worker exited 0 and its result.json is fresh).
+  The plan's 8 totem rifts include 3 Arc-3 design targets (Aggron,
+  Mamoswine, Kingdra) not in this build's scope. Eterna Forest's
+  honeycomb crossing is a fast-step retry loop across its 213-frame
+  cycle. Route 214 / Route 213 floor routes come from the B4F
+  collision + tw_arc jump tables; Route 213's totem hook fires on
+  the island's first tile (47,10,45). Lost Tower visit 1 reaches
+  the vein + the shadow-wall exit warp to 2F; visit 2 rides the
+  Lapras stones + Skarmory carry to the Spiritomb battle menu. A
+  totem leg passes only on the battle menu at the expected map and
+  tile (`battle_tile`; LT2 is (38,1,22), one step past the carry
+  landing, after the FindCyrus scene steps the player).
 - DONE: `solver.py` with all examples + the Ravaged Path sanity
   model. `gDwPuzzleDebug` reader at engine-a's layout, with
   `u8 stoneStates[8]` (landed engine-a 35bc80df5b).

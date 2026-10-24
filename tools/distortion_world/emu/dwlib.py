@@ -187,7 +187,7 @@ class Rift:
     def __init__(self, key, map_header, map_id, progress, var="VAR_ARC2_PROGRESS",
                  entry=(20, 12), wall_x=None, wall_side=None, totem_tile=None,
                  goal_tile=None, flags=(), clear_flags=(), extra_vars=None,
-                 checkpoint_tile=(20, 12), notes=""):
+                 checkpoint_tile=(20, 12), notes="", battle_tile=None):
         self.key = key
         self.map_header = map_header
         self.map_id = map_id
@@ -198,6 +198,11 @@ class Rift:
         self.wall_side = wall_side        # SURF_WEST / SURF_EAST / None
         self.totem_tile = totem_tile      # (x, y, z) whose step starts the totem
         self.goal_tile = goal_tile or totem_tile
+        # Tile the battle menu appears at (default: the totem tile).
+        # LT2 differs: Skarmory's carry lands on (37,1,22), then the
+        # FindCyrus scene steps the player to (38,1,22) before the
+        # Spiritomb battle menu comes up.
+        self.battle_tile = battle_tile or totem_tile
         self.flags = tuple(flags)         # flags the story has set by entry
         self.clear_flags = tuple(clear_flags)
         self.extra_vars = dict(extra_vars or {})
@@ -237,6 +242,7 @@ RIFTS = {
                 wall_x=11, wall_side=SURF_WEST, goal_tile=(13, 1, 23)),
     "lt2": Rift("lt2", "MAP_HEADER_DW_LOST_TOWER", 600, 94,
                 wall_x=11, wall_side=SURF_WEST, totem_tile=(37, 1, 22),
+                battle_tile=(38, 1, 22),
                 flags=("FLAG_TOTEM_HITMONLEE_DEFEATED", "FLAG_TOTEM_VESPIQUEN_DEFEATED",
                        "FLAG_TOTEM_SKARMORY_DEFEATED", "FLAG_TOTEM_LAPRAS_DEFEATED",
                        # Story-true visit 2: the vein was found in
@@ -694,25 +700,15 @@ class DwSession:
         rifts the prompt is answered Yes (Eterna Forest) or the warp
         runs at once (the rest); 'bg' is the same A press, on a
         map-plane bg event (the Lake Verity portal).
-        A wild battle during the overworld walk-in (Lost Tower 2F
-        has land_rate 10) aborts that attempt and reboots from the
-        save: the game's RNG is seeded from the RTC, so a fresh boot
-        rolls different encounters. Up to 4 attempts; a trainer
-        battle would fail every attempt the same way and surfaces
-        as the final RuntimeError."""
-        last_err = None
-        for _attempt in range(4):
-            try:
-                return self._boot_overworld_rift_once(
-                    rift_key, save_path, test_mode, boot_timeout)
-            except _BattleDuringEntry as exc:
-                last_err = exc
-                if self.emu is not None:
-                    self.emu.close()
-                    self.emu = None
-                continue
-        raise RuntimeError(f"overworld entry for {rift_key} hit a battle "
-                           f"on every attempt ({last_err})")
+        A wild battle before the warp raises _BattleDuringEntry
+        (the walk-in flee logic usually avoids it; Repel in the
+        crafted save usually prevents it). The caller retries in a
+        FRESH process if it wants to: constructing a second Emu
+        here would be a second DeSmuME() in this process, which
+        segfaults. The regress runner retries battle-failed legs
+        by re-spawning the worker."""
+        return self._boot_overworld_rift_once(
+            rift_key, save_path, test_mode, boot_timeout)
 
     def _boot_overworld_rift_once(self, rift_key, save_path, test_mode,
                                   boot_timeout):
@@ -806,6 +802,14 @@ class DwSession:
         got = self.var(rift.var)
         if got != rift.progress:
             raise RuntimeError(f"entry var {rift.var} = {got}, want {rift.progress}")
+        # Story-true flags the save patch set (e.g. LT2's four totem
+        # flags + visit-1 act flags) must still be set: entry scripts
+        # must not clear them. clear_flags are NOT asserted here --
+        # an entry script may legitimately re-hide a rift behind the
+        # player, and the warp already proved it was visible.
+        for name in rift.flags:
+            if not self.flag(name):
+                raise RuntimeError(f"story flag {name} not set after entry (want set)")
         return self
 
     def boot_rift(self, rift_key, save_path=None, extra_vars=None, set_flags=(),
@@ -838,6 +842,9 @@ class DwSession:
         got = self.var(rift.var)
         if got != rift.progress:
             raise RuntimeError(f"entry var {rift.var} = {got}, want {rift.progress}")
+        for name in rift.flags:
+            if not self.flag(name):
+                raise RuntimeError(f"story flag {name} not set after entry (want set)")
         return self
 
     def close(self):

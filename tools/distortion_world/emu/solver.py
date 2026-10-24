@@ -1,9 +1,15 @@
 """Offline solver framework for DW puzzles (no emulator).
 
 A rift workstream describes its puzzle as a small Python model and the
-framework BFSes the shortest solution, proves no reachable soft-lock,
-and prints difficulty stats. Models are pure data + mechanics; nothing
-here knows about the ROM.
+framework BFSes the shortest solution, proves no reachable soft-lock
+IN THE MODEL, and prints difficulty stats. Models are pure data +
+mechanics; nothing here knows about the ROM. The soft-lock proof is
+exact over the model's transition graph -- which is why the model's
+fidelity matters: a model that omits a mechanic (or models one
+wrongly) proves nothing about the real puzzle. The replay of the
+solver's solution on the ROM (dwlib) is the cross-check that the
+model and the engine agree; a rift ships its model with its tables,
+and the replay must pass before the model is trusted.
 
 Model
 -----
@@ -30,17 +36,31 @@ A model is a PuzzleModel:
         7. shadow catch                      -- Shadow
         8. fall (VOID tile / scar fall)      -- the framework, from the
            step result: the player respawns at the last checkpoint with
-           the checkpoint's snapshot of groups/stones/crumble state.
+           the checkpoint's snapshot (groups, stones, shadow phase --
+           the engine's actor snapshot; see PuzzleModel._fall).
 
-State is (surface, tile, groups, stones, crumble, shadow_phase,
-checkpoint, held). `groups` is a tuple of bools (one per group);
-`stones` a tuple of (surface, tile) sorted; `crumble` is mechanic
-private state (a tuple); `checkpoint` is a snapshot
-((surface, tile), groups, stones) -- crumble/scar state is NOT
-snapshotted, because a fall warp reloads the map and one-use tiles
-and scars are whole again (Ravaged Path's walkway reset); `held`
-is the set of momentary sigils currently stood on (so releases fire
-on stepping off). States are hashable, so BFS is exact.
+State is (surface, tile, groups, stones, landed, crumble,
+shadow_phase, checkpoint, held, echo). `groups` is a tuple of bools
+(one per group); `stones` a tuple of (surface, tile) sorted; `landed`
+the frozenset of stone positions that have dropped (LANDED); `crumble`
+is mechanic private state (a tuple); `checkpoint` is a snapshot
+((surface, tile), groups, stones, shadow_phase, landed) --
+crumble/scar state is NOT snapshotted, because a fall warp reloads
+the map and one-use tiles and scars are whole again (Ravaged Path's
+walkway reset); `held` is the set of momentary sigils currently
+stood on (so releases fire on stepping off) and is NOT snapshotted:
+momentary holders are per-occupant and cleared on restore, so after
+a fall the player must re-press them. States are hashable, so BFS
+is exact over the model.
+
+Abstraction boundaries (documented, not hidden): a stone fall is
+atomic within the press -- the falling stone occupies no tile, so
+no press can interact with it mid-fall, and a fall warp's restore
+lands the same way whether the stone was mid-fall or landed. A
+LANDED stone's tile keeps its underlying mechanics (a current under
+a LANDED stone still fires -- the stone is terrain, not a plug).
+Pads (totem-gated prompts) are not modelled: they carry no puzzle
+state.
 
 A mechanic only has to implement:
   - tags(state, from_tile, to_tile, face) -> (extra_state_changes, tags)
@@ -153,8 +173,11 @@ class Sigils(Mechanic, GroupsMixin):
     kind: 'toggle' | 'set' | 'momentary' | 'reset'. Momentary sigils
     hold their group on while stood on (holder count kept in `held`:
     the set of momentary sigil keys currently pressed). Reset restores
-    the checkpoint snapshot (groups/stones/crumble) without moving the
-    player, and clears `held`."""
+    the checkpoint snapshot (groups/stones/shadow_phase/landed)
+    without moving the player, and clears `held`. Crumble is
+    map-load state: a reset does not reload the map, so the
+    fresh-crumble restore is the same map-load state a fall warp
+    produces."""
 
     def __init__(self, sigils, n_groups):
         GroupsMixin.__init__(self, n_groups)
@@ -180,10 +203,12 @@ class Sigils(Mechanic, GroupsMixin):
         if kind == "reset":
             tags.append("reset")
             cp = state["checkpoint"]
-            # A reset restores the checkpoint snapshot (groups/stones)
-            # and the fresh crumble state: a fall warp reloads the
-            # map, so scars / one-use tiles are whole again.
+            # A reset restores the checkpoint snapshot
+            # (groups/stones/shadow_phase/landed) and the fresh crumble
+            # state: a fall warp reloads the map, so scars / one-use
+            # tiles are whole again.
             return {"groups": cp[1], "stones": cp[2],
+                    "shadow_phase": cp[3], "landed": cp[4],
                     "crumble": model.fresh_crumble(),
                     "held": frozenset()}
         raise ValueError(f"bad sigil kind {kind!r}")
@@ -231,14 +256,16 @@ class Runes(Mechanic):
 class Currents(Mechanic):
     """currents: {(surface, tile): face} -- drift direction on the tile.
     After arrival, the player slides tile by tile in the current's
-    direction until blocked (not walkable, a stone there, or leaving
-    the surface set) or off-current. Landing on a sigil / rune /
-    checkpoint / a current with a different direction ends the slide
-    there (that tile's logic runs; a different-direction current
-    re-slides from the new direction, but a slide never re-enters a
-    tile it already visited in this slide). A slide's tiles are part
-    of the one pressed move. Also handles stone-plugged currents: a
-    slide stops before a tile holding a stone."""
+    direction until blocked (not walkable, a RESTING stone there, or
+    leaving the surface set) or off-current. Landing on a sigil /
+    rune / checkpoint / a current with a different direction ends
+    the slide there (that tile's logic runs; a different-direction
+    current re-slides from the new direction, but a slide never
+    re-enters a tile it already visited in this slide). A slide's
+    tiles are part of the one pressed move. Also handles
+    stone-plugged currents: a slide stops before a tile holding a
+    RESTING stone; a LANDED stone's tile is walkable terrain, so the
+    slide passes over it (the stone is not a plug)."""
 
     def __init__(self, currents):
         self.currents = dict(currents)
@@ -255,8 +282,9 @@ class Currents(Mechanic):
             nxt = add(tile, DIR_DELTA[surf][cur])
             if (surf, nxt) in seen or nxt not in model.surfaces.get(surf, ()):
                 break
-            if (surf, nxt) in state["stones"]:
-                break
+            if (surf, nxt) in state["stones"] \
+                    and (surf, nxt) not in state["landed"]:
+                break  # RESTING stone plugs; LANDED stone is terrain
             tile = nxt
             seen.add((surf, tile))
             # A sigil/rune/checkpoint tile ends the slide; its logic
@@ -271,9 +299,17 @@ class Stones(Mechanic):
     """Pushable stones. stones: initial tuple of (surface, tile).
     drops: {(surface, tile): (surface, tile)} -- pushing a stone off
     the edge at `tile` (the tile beyond the walkable surface) drops it
-    to the surface below at the mapped tile. A stone on a current tile
-    plugs the current (Currents stops before it). Pushing onto a
-    non-walkable tile, another stone, or an unmapped edge is blocked."""
+    to the surface below at the mapped tile. State: `stones` = tuple
+    of positions, `landed` = frozenset of positions whose stone has
+    dropped (LANDED). A RESTING stone is BLOCKED and pushable; a
+    LANDED stone is SOLID walkable terrain: the player steps onto
+    it, it cannot be pushed, and a slide passes over it. A RESTING
+    stone on a current tile plugs the current (Currents stops before
+    it). Pushing onto a non-walkable tile, another stone, or an
+    unmapped edge is blocked. A fall is modelled as atomic within
+    the press (see PuzzleModel._fall): the falling stone occupies
+    no tile, and by the time the next press resolves it has
+    landed."""
 
     def __init__(self, stones, drops=None):
         self.stones = tuple(sorted(stones))
@@ -284,28 +320,35 @@ class Stones(Mechanic):
 
     def try_push(self, model, state, surf, tile, face, tags):
         """If a stone sits at the destination tile, push it. Returns
-        (stones_tuple, ok). The framework calls this before moving."""
-        if (surf, tile) not in state["stones"]:
-            return state["stones"], True
+        ((stones_tuple, landed_frozenset), ok). The framework calls
+        this before moving. A LANDED stone is terrain, not an
+        obstacle: the step proceeds with no push."""
+        stones = state["stones"]
+        landed = state["landed"]
+        if (surf, tile) not in stones:
+            return (stones, landed), True
+        if (surf, tile) in landed:
+            return (stones, landed), True
         delta = DIR_DELTA[surf][face]
         beyond = add(tile, delta)
-        stones = set(state["stones"])
         if (surf, beyond) in stones:
-            return state["stones"], False
+            return (stones, landed), False  # no stacking, on any stone
         if beyond in model.surfaces.get(surf, ()):
-            stones.discard((surf, tile))
-            stones.add((surf, beyond))
+            new = set(stones)
+            new.discard((surf, tile))
+            new.add((surf, beyond))
             tags.append("push")
-            return tuple(sorted(stones)), True
+            return (tuple(sorted(new)), landed), True
         drop = self.drops.get((surf, beyond))
         if drop is not None and drop[1] in model.surfaces.get(drop[0], ()) \
                 and drop not in stones:
-            stones.discard((surf, tile))
-            stones.add(drop)
+            new = set(stones)
+            new.discard((surf, tile))
+            new.add(drop)
             tags.append("push")
             tags.append("drop")
-            return tuple(sorted(stones)), True
-        return state["stones"], False
+            return (tuple(sorted(new)), landed | {drop}), True
+        return (stones, landed), False
 
 
 class Crumbling(Mechanic):
@@ -485,19 +528,23 @@ class PuzzleModel:
     def initial_state(self):
         st = {"surface": self.start[0], "tile": self.start[1],
               "groups": tuple(False for _ in range(self.n_groups)),
-              "stones": tuple(), "crumble": self.fresh_crumble(),
+              "stones": tuple(), "landed": frozenset(),
+              "crumble": self.fresh_crumble(),
               "shadow_phase": 0, "held": frozenset(), "echo": None}
         for m in self.mechanics:
             st.update(m.initial(self))
-        # A checkpoint snapshots groups + stones only; crumble state
-        # is map-load state (see fresh_crumble).
-        st["checkpoint"] = (self.start, st["groups"], st["stones"])
+        # A checkpoint snapshots (tile, groups, stones, shadow_phase,
+        # landed) -- the engine's actor snapshot. Crumble state is
+        # map-load state (see fresh_crumble); `held` is per-occupant
+        # and cleared on restore, so it is not snapshotted.
+        st["checkpoint"] = (self.start, st["groups"], st["stones"],
+                            st["shadow_phase"], st["landed"])
         return st
 
     def _freeze(self, st):
         return (st["surface"], st["tile"], st["groups"], st["stones"],
-                st["crumble"], st["shadow_phase"], st["held"], st["echo"],
-                st["checkpoint"])
+                st["landed"], st["crumble"], st["shadow_phase"],
+                st["held"], st["echo"], st["checkpoint"])
 
     def successors(self, state):
         """Yields (face, new_state, tags). Falls/respawns are edges
@@ -547,18 +594,23 @@ class PuzzleModel:
             return None, tags
         # Stones: push before moving.
         stones = state["stones"]
+        landed = state["landed"]
         for m in self.mechanics:
             if isinstance(m, Stones):
-                stones, ok = m.try_push(self, state, surf, ntile, face, tags)
+                (stones, landed), ok = m.try_push(self, state, surf, ntile,
+                                                  face, tags)
                 if not ok:
                     return None, tags
         return self._arrive(state, (surf, tile), surf, ntile, face, tags,
-                            jumped=False, stones=stones)
+                            jumped=False, stones=stones, landed=landed)
 
-    def _arrive(self, state, prev, surf, tile, face, tags, jumped, stones=None):
+    def _arrive(self, state, prev, surf, tile, face, tags, jumped,
+                stones=None, landed=None):
         st = dict(state)
         if stones is not None:
             st["stones"] = stones
+        if landed is not None:
+            st["landed"] = landed
         st["surface"], st["tile"] = surf, tile
         # Momentary releases: leaving `prev` (all mechanics see it).
         for m in self.mechanics:
@@ -593,11 +645,24 @@ class PuzzleModel:
                             return self._respawn(st, tags), tags
                         st.update(upd2)
                 break
-        # Checkpoint snapshot (groups + stones only).
+        # A reset sigil's restore is authoritative over anything else
+        # this press did to the snapshotted fields: the shadow tick
+        # for this press must not undo the restore (mechanic list
+        # order must not decide whether the reset reset the shadow).
+        # The restore was already applied mid-pass (so later arrival
+        # logic sees restored state); re-apply it now so it wins.
+        if "reset" in tags:
+            cp = st["checkpoint"]
+            st["groups"], st["stones"] = cp[1], cp[2]
+            st["shadow_phase"], st["landed"] = cp[3], cp[4]
+            st["held"] = frozenset()
+        # Checkpoint snapshot (tile, groups, stones, shadow_phase,
+        # landed) -- the engine's actor snapshot.
         if (st["surface"], st["tile"]) in self.checkpoints:
             tags.append("checkpoint")
             st["checkpoint"] = ((st["surface"], st["tile"]), st["groups"],
-                                st["stones"])
+                                st["stones"], st["shadow_phase"],
+                                st["landed"])
         # VOID tile: fall.
         if (st["surface"], st["tile"]) in self.void_tiles:
             tags.append("fall")
@@ -605,12 +670,23 @@ class PuzzleModel:
         return st, tags
 
     def _fall(self, st, tags):
+        # Restore the checkpoint snapshot (groups, stones, shadow
+        # phase, landed) exactly as the engine's actor snapshot
+        # restore does; crumble is map-load state (a fall warp
+        # reloads the map); momentary holders are per-occupant and
+        # cleared; the echo is recomputed from the restored tile, so
+        # the stale cache is dropped. A stone that was mid-fall when
+        # the player fell is restored to its checkpoint state, the
+        # same as a stone that had already landed (a fall is atomic
+        # within a press -- see Stones).
         cp = st["checkpoint"]
         out = dict(st)
         out["surface"], out["tile"] = cp[0]
         out["groups"], out["stones"] = cp[1], cp[2]
+        out["shadow_phase"], out["landed"] = cp[3], cp[4]
         out["crumble"] = self.fresh_crumble()
         out["held"] = frozenset()
+        out["echo"] = None
         return out
 
     def _respawn(self, st, tags):
@@ -938,8 +1014,12 @@ EXAMPLES = {
 
 
 def main():
+    """Run the examples. Exit 1 on any failure (unsolvable, soft-lock,
+    or target violation) so CI and the regress runner can treat a
+    solver run as a check, not a report."""
     import sys
     names = sys.argv[1:] or list(EXAMPLES)
+    failed = False
     for name in names:
         model = EXAMPLES[name]()
         res = model.solve()
@@ -947,18 +1027,25 @@ def main():
         print(f"== {name}: {model.name}")
         if res is None:
             print("   UNSOLVABLE")
+            failed = True
             continue
         stats = res.stats()
         print(f"   solution ({stats['optimal_length']}): {res.move_string}")
         print(f"   stats: {stats}")
         print(f"   soft-locks: {len(locks)}" + (f" e.g. {locks[:2]}" if locks else ""))
+        if locks:
+            failed = True
         if name == "ravaged-path":
             rift = 1
-            print(f"   targets rift {rift}: {check_targets(rift, stats) or 'in range'}")
+            violations = check_targets(rift, stats)
+            print(f"   targets rift {rift}: {violations or 'in range'}")
+            if violations:
+                failed = True
             known = "L L L L L L U U L L L D D D R R"
             print(f"   known solution length: {len(known.split())} "
                   f"(solver optimum {stats['optimal_length']})")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

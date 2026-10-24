@@ -10,8 +10,16 @@ no re-parsed struct layouts to drift. It compiles the table .c files
 themselves (plus dw_puzzle_actors.c in DW_ACTORS_HOST_TEST mode for
 the actor test table).
 
-Rules (docs/distortion_world/actors_design.md + the engine headers):
+Rules (docs/distortion_world/actors_design.md + the engine headers).
+An oversize count is reported once by its cap CHECK and its entries
+are then skipped (puzzle tables) or the loop clamps to the cap
+(actor tables, whose arrays are inline). A puzzle count over its cap
+means the count lies about the pointed-to array, so reading its
+entries would read past the array; the helpers likewise treat an
+oversize array as absent.
   puzzle tables:
+    - count caps: groupCount <= 8, sigilCount <= 16, runeCount <= 8,
+      currentCount <= 16, checkpointCount <= 8 (DW_PUZZLE_MAX_*)
     - group tileCount <= DW_PUZZLE_MAX_GROUP_TILES (32)
     - explicit tileCount <= DW_PUZZLE_MAX_TILES (32)
     - sigil kind valid; non-RESET targetGroup < groupCount; SET setValue 0/1
@@ -21,13 +29,18 @@ Rules (docs/distortion_world/actors_design.md + the engine headers):
   actor tables:
     - stoneCount <= 4, padCount <= 4, shadow tileCount <= 16,
       edgeCount <= 4/stone, protectedCount <= 8, echo sigils <= 8
-    - shadow lane tiles all on one surface; stone start tiles unique;
-      pad tiles unique; pad totems in range
-  pairs (puzzle + actor table from the same dw_puzzle_<map>.c, or the
+    - shadow lane tiles all on one surface, consecutive tiles adjacent
+      (seam-corner proxy: a jump teleports the shadow across a seam);
+      stone start tiles unique; pad tiles unique; pad totems in range
+    - echo mirrorAxis (geometric: MIRROR_X/Y/Z -> AXIS_X/Y/Z) != echoAxis
+  pairs (engine registry in dw_puzzle.c first, then same-file, then the
   known test pair):
     - landing tiles never current tiles; landing-tile overrides VOID-only
+    - landing tiles in no group, and never sigil / pad / checkpoint /
+      rune tiles (landing tiles are reserved)
     - each landing tile belongs to at most one stone
     - stone starts never on a pad / protected / echo-sigil / landing tile
+      (no exemptions: a start may not sit on another stone's landing)
     - edges never on a protected / pad / echo-sigil / landing tile
       (edges are pushed into, then fall; a protected edge blocks the fall)
     - shadow lane tiles never checkpoint tiles (entry = checkpoint 0);
@@ -42,6 +55,12 @@ Rules (docs/distortion_world/actors_design.md + the engine headers):
       (a DEFAULT ground tile reads BLOCKED, fail closed)
     - shadow beatFrames >= 30 (Arc 2 rule; the test table uses a 6-frame
       beat on purpose)
+    - every pad tile has a sigil in the engine-a table (pads are sigil
+      tiles; the glue suppresses the auto-fire)
+  Not checked: a true seam-corner rule needs the seam geometry from
+  tw_arc (not in the tables): a cross-surface FLOOR/GROUND tile pair
+  is legal (a floating platform over base terrain shares coords), so
+  no same-coords cross-surface check is done.
 
 Usage:
   python3 tools/distortion_world/dw_tables_check.py [--keep] [--out DIR]
@@ -103,11 +122,23 @@ static int valid_surface(int s)
     return s <= DW_PUZZLE_SURFACE_GROUND || s == DW_PUZZLE_SURFACE_ANY;
 }
 
+/* Clamp a declared count to its array size: an oversize count is
+ * reported once by its cap CHECK, and every loop below uses the
+ * clamped value so the checker never reads past a fixed array.
+ * (Actor tables hold their arrays inline, so clamping to the cap is
+ * always in-bounds there. Puzzle tables hold pointers: a count over
+ * the cap means the count lies about the array, so the puzzle
+ * helpers below treat an oversize array as absent -- its entries
+ * are untrustworthy -- and check_puzzle skips its entry checks.) */
+#define CLAMP(n, cap) ((n) < (cap) ? (n) : (cap))
+
 static const DwPuzzleTile *find_explicit(const DwPuzzleTable *t,
                                          int x, int y, int z, int s)
 {
-    int i;
-    for (i = 0; i < t->tileCount; i++)
+    int i, n = t->tileCount;
+    if (n > DW_PUZZLE_MAX_TILES)
+        return NULL;
+    for (i = 0; i < n; i++)
         if (same_tile(t->tiles[i].x, t->tiles[i].y, t->tiles[i].z,
                       t->tiles[i].surface, x, y, z, s))
             return &t->tiles[i];
@@ -117,18 +148,26 @@ static const DwPuzzleTile *find_explicit(const DwPuzzleTable *t,
 static int is_group_tile(const DwPuzzleTable *t, int x, int y, int z, int s)
 {
     int g, i;
-    for (g = 0; g < t->groupCount; g++)
-        for (i = 0; i < t->groups[g].tileCount; i++)
+    if (t->groupCount > DW_PUZZLE_MAX_GROUPS)
+        return 0;
+    for (g = 0; g < t->groupCount; g++) {
+        int nt = t->groups[g].tileCount;
+        if (nt > DW_PUZZLE_MAX_GROUP_TILES)
+            continue; /* untrustworthy group, already failed on its cap */
+        for (i = 0; i < nt; i++)
             if (same_tile(t->groups[g].tiles[i].x, t->groups[g].tiles[i].y,
                           t->groups[g].tiles[i].z, t->groups[g].tiles[i].surface,
                           x, y, z, s))
                 return 1;
+    }
     return 0;
 }
 
 static int is_current(const DwPuzzleTable *t, int x, int y, int z, int s)
 {
     int i;
+    if (t->currentCount > DW_PUZZLE_MAX_CURRENTS)
+        return 0;
     for (i = 0; i < t->currentCount; i++)
         if (same_tile(t->currents[i].x, t->currents[i].y, t->currents[i].z,
                       t->currents[i].surface, x, y, z, s))
@@ -136,11 +175,69 @@ static int is_current(const DwPuzzleTable *t, int x, int y, int z, int s)
     return 0;
 }
 
+static int is_sigil(const DwPuzzleTable *t, int x, int y, int z, int s)
+{
+    int i;
+    if (t->sigilCount > DW_PUZZLE_MAX_SIGILS)
+        return 0;
+    for (i = 0; i < t->sigilCount; i++)
+        if (same_tile(t->sigils[i].x, t->sigils[i].y, t->sigils[i].z,
+                      t->sigils[i].surface, x, y, z, s))
+            return 1;
+    return 0;
+}
+
+static int is_checkpoint(const DwPuzzleTable *t, int x, int y, int z, int s)
+{
+    int i;
+    if (t->checkpointCount > DW_PUZZLE_MAX_CHECKPOINTS)
+        return 0;
+    for (i = 0; i < t->checkpointCount; i++)
+        if (same_tile(t->checkpoints[i].x, t->checkpoints[i].y,
+                      t->checkpoints[i].z, t->checkpoints[i].surface,
+                      x, y, z, s))
+            return 1;
+    return 0;
+}
+
+static int is_rune(const DwPuzzleTable *t, int x, int y, int z, int s)
+{
+    int i;
+    if (t->runeCount > DW_PUZZLE_MAX_RUNES)
+        return 0;
+    for (i = 0; i < t->runeCount; i++)
+        if (same_tile(t->runes[i].x, t->runes[i].y, t->runes[i].z,
+                      t->runes[i].surface, x, y, z, s))
+            return 1;
+    return 0;
+}
+
 static void check_puzzle(const char *name, const DwPuzzleTable *t)
 {
     int i, j;
+    /* Count caps (DW_PUZZLE_MAX_*). An oversize count is reported once
+     * above; its entries are skipped -- the count lies about the
+     * pointed-to array, so reading them would read past it. */
+    int ngroups = t->groupCount <= DW_PUZZLE_MAX_GROUPS ? t->groupCount : 0;
+    int ntiles = t->tileCount <= DW_PUZZLE_MAX_TILES ? t->tileCount : 0;
+    int ncheckpoints = t->checkpointCount <= DW_PUZZLE_MAX_CHECKPOINTS
+        ? t->checkpointCount : 0;
+    int nsigils = t->sigilCount <= DW_PUZZLE_MAX_SIGILS ? t->sigilCount : 0;
+    int nrunes = t->runeCount <= DW_PUZZLE_MAX_RUNES ? t->runeCount : 0;
+    int ncurrents = t->currentCount <= DW_PUZZLE_MAX_CURRENTS
+        ? t->currentCount : 0;
     g_table = name;
-    for (i = 0; i < t->groupCount; i++) {
+    CHECK(t->groupCount <= DW_PUZZLE_MAX_GROUPS,
+          "%d groups, cap %d", t->groupCount, DW_PUZZLE_MAX_GROUPS);
+    CHECK(t->sigilCount <= DW_PUZZLE_MAX_SIGILS,
+          "%d sigils, cap %d", t->sigilCount, DW_PUZZLE_MAX_SIGILS);
+    CHECK(t->runeCount <= DW_PUZZLE_MAX_RUNES,
+          "%d runes, cap %d", t->runeCount, DW_PUZZLE_MAX_RUNES);
+    CHECK(t->currentCount <= DW_PUZZLE_MAX_CURRENTS,
+          "%d currents, cap %d", t->currentCount, DW_PUZZLE_MAX_CURRENTS);
+    CHECK(t->checkpointCount <= DW_PUZZLE_MAX_CHECKPOINTS,
+          "%d checkpoints, cap %d", t->checkpointCount, DW_PUZZLE_MAX_CHECKPOINTS);
+    for (i = 0; i < ngroups; i++) {
         CHECK(t->groups[i].tileCount <= DW_PUZZLE_MAX_GROUP_TILES,
               "group %d has %d tiles, cap %d", i, t->groups[i].tileCount,
               DW_PUZZLE_MAX_GROUP_TILES);
@@ -153,12 +250,12 @@ static void check_puzzle(const char *name, const DwPuzzleTable *t)
     }
     CHECK(t->tileCount <= DW_PUZZLE_MAX_TILES,
           "%d explicit tiles, cap %d", t->tileCount, DW_PUZZLE_MAX_TILES);
-    for (i = 0; i < t->tileCount; i++) {
+    for (i = 0; i < ntiles; i++) {
         CHECK(valid_surface(t->tiles[i].surface),
               "explicit tile %d surface %d out of range", i, t->tiles[i].surface);
         CHECK(t->tiles[i].state <= DW_PUZZLE_TILE_BLOCKED,
               "explicit tile %d state %d out of range", i, t->tiles[i].state);
-        for (j = i + 1; j < t->tileCount; j++)
+        for (j = i + 1; j < ntiles; j++)
             CHECK(!(t->tiles[i].x == t->tiles[j].x
                     && t->tiles[i].y == t->tiles[j].y
                     && t->tiles[i].z == t->tiles[j].z
@@ -167,14 +264,14 @@ static void check_puzzle(const char *name, const DwPuzzleTable *t)
                   t->tiles[i].x, t->tiles[i].y, t->tiles[i].z, t->tiles[i].surface);
     }
     CHECK(t->checkpointCount >= 1, "no checkpoints (checkpoint 0 is the entry)");
-    for (i = 0; i < t->checkpointCount; i++) {
+    for (i = 0; i < ncheckpoints; i++) {
         CHECK(valid_surface(t->checkpoints[i].surface),
               "checkpoint %d surface %d out of range", i, t->checkpoints[i].surface);
         CHECK(t->checkpoints[i].facing == -1
               || (t->checkpoints[i].facing >= 0 && t->checkpoints[i].facing <= 3),
               "checkpoint %d facing %d (want -1..3)", i, t->checkpoints[i].facing);
     }
-    for (i = 0; i < t->sigilCount; i++) {
+    for (i = 0; i < nsigils; i++) {
         CHECK(t->sigils[i].kind <= DW_PUZZLE_SIGIL_RESET,
               "sigil %d kind %d out of range", i, t->sigils[i].kind);
         CHECK(valid_surface(t->sigils[i].surface),
@@ -187,7 +284,7 @@ static void check_puzzle(const char *name, const DwPuzzleTable *t)
             CHECK(t->sigils[i].setValue <= 1,
                   "SET sigil %d setValue %d (want 0/1)", i, t->sigils[i].setValue);
     }
-    for (i = 0; i < t->runeCount; i++) {
+    for (i = 0; i < nrunes; i++) {
         CHECK(valid_surface(t->runes[i].surface),
               "rune %d surface %d out of range", i, t->runes[i].surface);
         CHECK(t->runes[i].targetSurface <= DW_PUZZLE_SURFACE_GROUND,
@@ -196,7 +293,7 @@ static void check_puzzle(const char *name, const DwPuzzleTable *t)
               || (t->runes[i].facing >= 0 && t->runes[i].facing <= 3),
               "rune %d facing %d (want -1..3)", i, t->runes[i].facing);
     }
-    for (i = 0; i < t->currentCount; i++) {
+    for (i = 0; i < ncurrents; i++) {
         CHECK(valid_surface(t->currents[i].surface),
               "current %d surface %d out of range", i, t->currents[i].surface);
         CHECK(t->currents[i].dir <= 3,
@@ -211,10 +308,27 @@ static const char *actor_tile_name(const DwActorTile *t, char *buf)
     return buf;
 }
 
+/* DW_ACTOR_MIRROR_* -> DW_ACTOR_AXIS_* geometric mapping (NONE has no
+ * axis). A mirror along an axis and an echo that moves along the same
+ * axis would map the echo onto the player's axis -- the two must
+ * differ (actors_design.md section 10). */
+static int mirror_to_axis(int mirror)
+{
+    switch (mirror) {
+    case DW_ACTOR_MIRROR_X: return DW_ACTOR_AXIS_X;
+    case DW_ACTOR_MIRROR_Y: return DW_ACTOR_AXIS_Y;
+    case DW_ACTOR_MIRROR_Z: return DW_ACTOR_AXIS_Z;
+    default: return -1;
+    }
+}
+
 static void check_actor(const char *name, const DwActorTable *a)
 {
     int i, j;
-    char buf[64];
+    char buf[64], buf2[64];
+    int nstones = CLAMP(a->stoneCount, DW_ACTORS_MAX_STONES);
+    int npads = CLAMP(a->padCount, DW_ACTORS_MAX_PADS);
+    int nshadow = CLAMP(a->shadow.tileCount, DW_ACTORS_MAX_SHADOW_TILES);
     g_table = name;
     CHECK(a->stoneCount <= DW_ACTORS_MAX_STONES,
           "%d stones, cap %d", a->stoneCount, DW_ACTORS_MAX_STONES);
@@ -229,11 +343,11 @@ static void check_actor(const char *name, const DwActorTable *a)
     CHECK(a->echo.sigilCount <= DW_ACTORS_MAX_ECHO_SIGILS,
           "echo %d sigils, cap %d",
           a->echo.sigilCount, DW_ACTORS_MAX_ECHO_SIGILS);
-    for (i = 0; i < a->stoneCount; i++) {
+    for (i = 0; i < nstones; i++) {
         CHECK(a->stones[i].edgeCount <= DW_ACTORS_MAX_STONE_EDGES,
               "stone %d edgeCount %d, cap %d",
               i, a->stones[i].edgeCount, DW_ACTORS_MAX_STONE_EDGES);
-        for (j = i + 1; j < a->stoneCount; j++)
+        for (j = i + 1; j < nstones; j++)
             CHECK(!same_tile(a->stones[i].start.x, a->stones[i].start.y,
                              a->stones[i].start.z, a->stones[i].start.surface,
                              a->stones[j].start.x, a->stones[j].start.y,
@@ -241,17 +355,31 @@ static void check_actor(const char *name, const DwActorTable *a)
                   "stones %d and %d share start tile %s",
                   i, j, actor_tile_name(&a->stones[i].start, buf));
     }
-    if (a->shadow.tileCount > 0) {
+    if (nshadow > 0) {
         int s = a->shadow.tiles[0].surface;
-        for (i = 1; i < a->shadow.tileCount; i++)
-            CHECK(a->shadow.tiles[i].surface == s,
+        for (i = 1; i < nshadow; i++) {
+            const DwActorTile *prev = &a->shadow.tiles[i - 1];
+            const DwActorTile *tile = &a->shadow.tiles[i];
+            int step = abs(tile->x - prev->x) + abs(tile->y - prev->y)
+                + abs(tile->z - prev->z);
+            CHECK(tile->surface == s,
                   "shadow lane tile %d surface %d, lane surface %d (one surface)",
-                  i, a->shadow.tiles[i].surface, s);
+                  i, tile->surface, s);
+            /* Seam-corner proxy: the shadow walks its lane, so
+             * consecutive tiles must be adjacent (a pause -- the
+             * same tile twice -- is allowed). A jump of 2+ tiles
+             * teleports the shadow across a seam corner. */
+            CHECK(step <= 1,
+                  "shadow lane jumps %d tile(s) from %s to %s "
+                  "(seam-corner teleport; want adjacent)",
+                  step, actor_tile_name(prev, buf),
+                  actor_tile_name(tile, buf2));
+        }
     }
-    for (i = 0; i < a->padCount; i++) {
+    for (i = 0; i < npads; i++) {
         CHECK(a->pads[i].totem < DW_ACTOR_TOTEM_COUNT,
               "pad %d totem %d out of range", i, a->pads[i].totem);
-        for (j = i + 1; j < a->padCount; j++)
+        for (j = i + 1; j < npads; j++)
             CHECK(!same_tile(a->pads[i].tile.x, a->pads[i].tile.y, a->pads[i].tile.z,
                              a->pads[i].tile.surface, a->pads[j].tile.x,
                              a->pads[j].tile.y, a->pads[j].tile.z,
@@ -269,28 +397,38 @@ static void check_actor(const char *name, const DwActorTable *a)
               "echo echoAxis %d out of range", a->echo.echoAxis);
         CHECK(a->echo.mirrorAxis <= DW_ACTOR_MIRROR_Z,
               "echo mirrorAxis %d out of range", a->echo.mirrorAxis);
+        if (a->echo.mirrorAxis != DW_ACTOR_MIRROR_NONE)
+            CHECK(mirror_to_axis(a->echo.mirrorAxis) != a->echo.echoAxis,
+                  "echo mirrorAxis %d maps to the same axis as echoAxis %d "
+                  "(mirrorAxis != echoAxis)",
+                  a->echo.mirrorAxis, a->echo.echoAxis);
     }
 }
 
 /* An actor tile a stone may never occupy: pads, echo sigils, landings
- * (auto-protected) and the author-listed protected tiles. */
-static int is_protected(const DwActorTable *a, const DwActorTile *t,
-                        int skip_stone, int skip_edge)
+ * (auto-protected) and the author-listed protected tiles. No
+ * exemptions: a stone's own start may not sit on another stone's
+ * landing, and an edge may not sit on its own stone's landing
+ * (a protected edge blocks the fall). */
+static int is_protected(const DwActorTable *a, const DwActorTile *t)
 {
     int i, s, e;
-    for (i = 0; i < a->padCount; i++)
+    int npads = CLAMP(a->padCount, DW_ACTORS_MAX_PADS);
+    int nstones = CLAMP(a->stoneCount, DW_ACTORS_MAX_STONES);
+    int necho = CLAMP(a->echo.sigilCount, DW_ACTORS_MAX_ECHO_SIGILS);
+    int nprotected = CLAMP(a->protectedCount, DW_ACTORS_MAX_PROTECTED_TILES);
+    for (i = 0; i < npads; i++)
         if (same_tile(t->x, t->y, t->z, t->surface, a->pads[i].tile.x,
                       a->pads[i].tile.y, a->pads[i].tile.z, a->pads[i].tile.surface))
             return 1;
-    for (i = 0; i < a->echo.sigilCount; i++)
+    for (i = 0; i < necho; i++)
         if (same_tile(t->x, t->y, t->z, t->surface, a->echo.sigilTiles[i].x,
                       a->echo.sigilTiles[i].y, a->echo.sigilTiles[i].z,
                       a->echo.sigilTiles[i].surface))
             return 1;
-    for (s = 0; s < a->stoneCount; s++) {
-        if (s == skip_stone)
-            continue;
-        for (e = 0; e < a->stones[s].edgeCount; e++)
+    for (s = 0; s < nstones; s++) {
+        int nedges = CLAMP(a->stones[s].edgeCount, DW_ACTORS_MAX_STONE_EDGES);
+        for (e = 0; e < nedges; e++)
             if (same_tile(t->x, t->y, t->z, t->surface,
                           a->stones[s].edges[e].landing.x,
                           a->stones[s].edges[e].landing.y,
@@ -298,11 +436,20 @@ static int is_protected(const DwActorTable *a, const DwActorTile *t,
                           a->stones[s].edges[e].landing.surface))
                 return 1;
     }
-    (void)skip_edge;
-    for (i = 0; i < a->protectedCount; i++)
+    for (i = 0; i < nprotected; i++)
         if (same_tile(t->x, t->y, t->z, t->surface, a->protectedTiles[i].x,
                       a->protectedTiles[i].y, a->protectedTiles[i].z,
                       a->protectedTiles[i].surface))
+            return 1;
+    return 0;
+}
+
+static int is_pad_tile(const DwActorTable *a, int x, int y, int z, int s)
+{
+    int i, n = CLAMP(a->padCount, DW_ACTORS_MAX_PADS);
+    for (i = 0; i < n; i++)
+        if (same_tile(x, y, z, s, a->pads[i].tile.x, a->pads[i].tile.y,
+                      a->pads[i].tile.z, a->pads[i].tile.surface))
             return 1;
     return 0;
 }
@@ -326,27 +473,53 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
                        const char *actor_name, const DwActorTable *a)
 {
     int s, e, i, j;
-    char buf[64], buf2[64];
+    char buf[64];
     int production = !t->testOnly;
+    int nstones = CLAMP(a->stoneCount, DW_ACTORS_MAX_STONES);
+    int nshadow = CLAMP(a->shadow.tileCount, DW_ACTORS_MAX_SHADOW_TILES);
+    int necho = CLAMP(a->echo.sigilCount, DW_ACTORS_MAX_ECHO_SIGILS);
+    int npads = CLAMP(a->padCount, DW_ACTORS_MAX_PADS);
+    int nprotected = CLAMP(a->protectedCount, DW_ACTORS_MAX_PROTECTED_TILES);
+    int ncheckpoints = CLAMP(t->checkpointCount, DW_PUZZLE_MAX_CHECKPOINTS);
+    int nrunes = CLAMP(t->runeCount, DW_PUZZLE_MAX_RUNES);
     g_table = puzzle_name;
     printf("pair %s + %s (production=%d)\n", puzzle_name, actor_name, production);
     /* Landings. */
-    for (s = 0; s < a->stoneCount; s++) {
-        for (e = 0; e < a->stones[s].edgeCount; e++) {
+    for (s = 0; s < nstones; s++) {
+        int nedges = CLAMP(a->stones[s].edgeCount, DW_ACTORS_MAX_STONE_EDGES);
+        for (e = 0; e < nedges; e++) {
             const DwActorTile *land = &a->stones[s].edges[e].landing;
             const DwActorTile *edge = &a->stones[s].edges[e].edge;
             const DwPuzzleTile *ov;
             CHECK(!is_current(t, land->x, land->y, land->z, land->surface),
                   "stone %d edge %d landing %s is a current tile",
                   s, e, actor_tile_name(land, buf));
+            /* Landing tiles are reserved: in no group, and not a
+             * sigil / pad / checkpoint / rune tile. */
+            CHECK(!is_group_tile(t, land->x, land->y, land->z, land->surface),
+                  "stone %d edge %d landing %s is a group tile",
+                  s, e, actor_tile_name(land, buf));
+            CHECK(!is_sigil(t, land->x, land->y, land->z, land->surface),
+                  "stone %d edge %d landing %s is a sigil tile",
+                  s, e, actor_tile_name(land, buf));
+            CHECK(!is_pad_tile(a, land->x, land->y, land->z, land->surface),
+                  "stone %d edge %d landing %s is a pad tile",
+                  s, e, actor_tile_name(land, buf));
+            CHECK(!is_checkpoint(t, land->x, land->y, land->z, land->surface),
+                  "stone %d edge %d landing %s is a checkpoint tile",
+                  s, e, actor_tile_name(land, buf));
+            CHECK(!is_rune(t, land->x, land->y, land->z, land->surface),
+                  "stone %d edge %d landing %s is a rune tile",
+                  s, e, actor_tile_name(land, buf));
             ov = find_explicit(t, land->x, land->y, land->z, land->surface);
             CHECK(ov == NULL || ov->state == DW_PUZZLE_TILE_VOID,
                   "stone %d edge %d landing %s has explicit override state %d, "
                   "want VOID-only", s, e, actor_tile_name(land, buf),
                   ov ? ov->state : -1);
-            for (i = s; i < a->stoneCount; i++) {
+            for (i = s; i < nstones; i++) {
                 int e0 = (i == s) ? e + 1 : 0;
-                for (j = e0; j < a->stones[i].edgeCount; j++)
+                int nedges2 = CLAMP(a->stones[i].edgeCount, DW_ACTORS_MAX_STONE_EDGES);
+                for (j = e0; j < nedges2; j++)
                     CHECK(!same_tile(land->x, land->y, land->z, land->surface,
                                      a->stones[i].edges[j].landing.x,
                                      a->stones[i].edges[j].landing.y,
@@ -359,21 +532,21 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
                              land->x, land->y, land->z, land->surface),
                   "stone %d edge %d: edge == landing %s",
                   s, e, actor_tile_name(edge, buf));
-            CHECK(!is_protected(a, edge, s, e),
+            CHECK(!is_protected(a, edge),
                   "stone %d edge %d %s is protected (pad/echo/landing/listed)",
                   s, e, actor_tile_name(edge, buf));
             check_ground_actor_tile(t, edge, "edge", production);
             check_ground_actor_tile(t, land, "landing", production);
         }
-        CHECK(!is_protected(a, &a->stones[s].start, s, -1),
+        CHECK(!is_protected(a, &a->stones[s].start),
               "stone %d start %s is protected (pad/echo/landing/listed)",
               s, actor_tile_name(&a->stones[s].start, buf));
         check_ground_actor_tile(t, &a->stones[s].start, "stone start", production);
     }
     /* Shadow. */
-    for (i = 0; i < a->shadow.tileCount; i++) {
+    for (i = 0; i < nshadow; i++) {
         const DwActorTile *tile = &a->shadow.tiles[i];
-        for (j = 0; j < t->checkpointCount; j++)
+        for (j = 0; j < ncheckpoints; j++)
             CHECK(!same_tile(tile->x, tile->y, tile->z, tile->surface,
                              t->checkpoints[j].x, t->checkpoints[j].y,
                              t->checkpoints[j].z, t->checkpoints[j].surface),
@@ -381,23 +554,23 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
                   actor_tile_name(tile, buf), j);
         check_ground_actor_tile(t, tile, "shadow", production);
     }
-    if (production && a->shadow.tileCount > 0)
+    if (production && nshadow > 0)
         CHECK(a->shadow.beatFrames >= 30,
               "shadow beat %d frames, Arc 2 needs >= 30 (readable patrol)",
               a->shadow.beatFrames);
     /* Echo sigils. */
-    for (i = 0; i < a->echo.sigilCount; i++)
+    for (i = 0; i < necho; i++)
         check_ground_actor_tile(t, &a->echo.sigilTiles[i], "echo sigil", production);
     /* Pads. */
-    for (i = 0; i < a->padCount; i++) {
+    for (i = 0; i < npads; i++) {
         const DwActorTile *tile = &a->pads[i].tile;
-        for (j = 0; j < t->checkpointCount; j++)
+        for (j = 0; j < ncheckpoints; j++)
             CHECK(!same_tile(tile->x, tile->y, tile->z, tile->surface,
                              t->checkpoints[j].x, t->checkpoints[j].y,
                              t->checkpoints[j].z, t->checkpoints[j].surface),
                   "pad %d tile %s is checkpoint %d",
                   i, actor_tile_name(tile, buf), j);
-        for (j = 0; j < t->runeCount; j++)
+        for (j = 0; j < nrunes; j++)
             CHECK(!same_tile(tile->x, tile->y, tile->z, tile->surface,
                              t->runes[j].x, t->runes[j].y, t->runes[j].z,
                              t->runes[j].surface),
@@ -406,18 +579,61 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
         CHECK(!is_current(t, tile->x, tile->y, tile->z, tile->surface),
               "pad %d tile %s is a current tile",
               i, actor_tile_name(tile, buf));
+        /* A pad is an engine-a sigil tile: the glue suppresses the
+         * auto-fire and ResolvePad fires via PressSigil. Production
+         * only: the test fixtures' pads have no puzzle sigils. */
+        if (production)
+            CHECK(is_sigil(t, tile->x, tile->y, tile->z, tile->surface),
+                  "pad %d tile %s has no sigil in the engine-a table",
+                  i, actor_tile_name(tile, buf));
         check_ground_actor_tile(t, tile, "pad", production);
     }
     /* Protected. */
-    for (i = 0; i < a->protectedCount; i++)
+    for (i = 0; i < nprotected; i++)
         check_ground_actor_tile(t, &a->protectedTiles[i], "protected", production);
-    (void)buf2;
 }
 """
 
 
+def _registry_pairs():
+    """(puzzle, actor) pairs from the engine registry in dw_puzzle.c:
+    sPuzzleTables[i] pairs with sActorTables[i]; a NULL actor entry
+    means the rift has no actor table yet. This is the primary source
+    -- the registry is what the game loads, so it is the pairing that
+    matters at runtime."""
+    text = (OV9 / "dw_puzzle.c").read_text()
+    pairs = []
+    puzzles = _array_entries(text, "sPuzzleTables")
+    actors = _array_entries(text, "sActorTables")
+    for p_sym, a_sym in zip(puzzles, actors):
+        if p_sym != "NULL" and a_sym != "NULL":
+            pairs.append((p_sym, a_sym))
+    return pairs
+
+
+def _array_entries(text, name):
+    """Entry symbols of `static const ... <name>[] = { &X, NULL, ... };`."""
+    m = re.search(r"\b" + name + r"\s*\[\]\s*=\s*\{(.*?)\};", text, re.S)
+    if not m:
+        return []
+    entries = []
+    for tok in m.group(1).split(","):
+        tok = tok.strip()
+        tok = re.sub(r"//.*", "", tok).strip()
+        if not tok:
+            continue
+        entries.append(tok.lstrip("&"))
+    return entries
+
+
 def _find_tables():
-    """(puzzle tables, actor tables, pairs) from the sources."""
+    """(puzzle tables, actor tables, pairs) from the sources.
+    Pairing order: the engine registry (dw_puzzle.c sPuzzleTables /
+    sActorTables, by index) first; then same-file pairing (each actor
+    table pairs with one puzzle table in its file, for rifts that
+    ship both tables but are not registered yet -- one pair per
+    actor, so a shared actor table must be registered); then
+    EXTRA_PAIRS (cross-file pairs, e.g. the test tables)."""
     puzzles = []  # (symbol, file)
     actors = []
     for path in sorted(OV9.glob("dw_puzzle_*.c")):
@@ -429,16 +645,30 @@ def _find_tables():
         for sym in re.findall(r"const\s+DwActorTable\s+(\w+)\s*=", text):
             actors.append((sym, path))
     pairs = []
+    paired_puzzles = set()
+    paired_actors = set()
+    for p_sym, a_sym in _registry_pairs():
+        if (p_sym, a_sym) not in pairs:
+            pairs.append((p_sym, a_sym))
+            paired_puzzles.add(p_sym)
+            paired_actors.add(a_sym)
     by_file = {}
     for sym, path in puzzles:
-        by_file.setdefault(str(path), {})["puzzle"] = sym
+        by_file.setdefault(str(path), []).append(("puzzle", sym))
     for sym, path in actors:
-        by_file.setdefault(str(path), {})["actor"] = sym
-    for path, entry in by_file.items():
-        if "puzzle" in entry and "actor" in entry:
-            pairs.append((entry["puzzle"], entry["actor"]))
+        by_file.setdefault(str(path), []).append(("actor", sym))
+    for path, entries in by_file.items():
+        p_syms = [s for kind, s in entries if kind == "puzzle"]
+        a_syms = [s for kind, s in entries if kind == "actor"]
+        for a_sym in a_syms:
+            for p_sym in p_syms:
+                if p_sym not in paired_puzzles and a_sym not in paired_actors:
+                    pairs.append((p_sym, a_sym))
+                    paired_puzzles.add(p_sym)
+                    paired_actors.add(a_sym)
     for p_sym, a_sym in EXTRA_PAIRS:
-        pairs.append((p_sym, a_sym))
+        if (p_sym, a_sym) not in pairs:
+            pairs.append((p_sym, a_sym))
     return puzzles, actors, pairs
 
 
