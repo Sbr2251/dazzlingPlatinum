@@ -51,6 +51,13 @@ UnkStruct_ov9_0224F6EC *ov9_0224F2BC(FieldSystem *fieldSystem, FieldTask *param1
 BOOL ov9_0224F6EC(UnkStruct_ov9_0224F6EC *param0);
 void ov9_02250780(FieldSystem *fieldSystem);
 BOOL ov9_02250F74(FieldSystem *fieldSystem);
+// dwp:rift-lt: script-command wrappers for the DW puzzle actors
+// (scripts run in the main binary and cannot call overlay-9 actor
+// functions directly). ResolvePad returns the DwActorEvent;
+// TakePendingCutin returns the totem id, or -1.
+u16 DwPuzzle_Ov9ResolvePad(FieldSystem *fieldSystem, int padIndex, BOOL accepted);
+void DwPuzzle_Ov9ConfirmCarryDone(FieldSystem *fieldSystem);
+int DwPuzzle_Ov9TakePendingCutin(FieldSystem *fieldSystem);
 BOOL DistWorld_CheckCollisionOnCurrentFloatingPlatform(FieldSystem *fieldSystem, int tileX, int tileY, int tileZ);
 BOOL DistWorld_IsValidTileOnCurrentFloatingPlatform(FieldSystem *fieldSystem, int tileX, int tileY, int tileZ);
 BOOL ov9_02250FD8(FieldSystem *fieldSystem, int param1, int param2, int param3);

@@ -45,6 +45,13 @@
 // VAR_MAP_LOCAL_2 memory coord done, VAR_MAP_LOCAL_3 always 0 (fall lips), VAR_MAP_LOCAL_4 vein coord done,
 // VAR_MAP_LOCAL_5 shadow coord done, VAR_MAP_LOCAL_6 the ghosts' opacity (0-31, the frame hook fades toward it),
 // VAR_MAP_LOCAL_7 deeper acts done (1 Lapras, 2 Skarmory).
+// Phase 2 (dwp:rift-lt, docs/distortion_world/lost_tower.md): the puzzle tables live in
+// src/overlay009/dw_puzzle_lost_tower.c (visit 1: fall lips + entry checkpoint, no groups; visit 2: groups,
+// sigils, rune, checkpoints + the engine-b actor table: 4 pads + the shadow lane). The false seam is not a
+// VOID tile in the tables: the step hook calls DwPuzzle_NotifyFall before its fall script. Pad prompts run from
+// DWLostTower_PadPrompt (the step hook starts it on DW_ACTOR_EVENT_PAD_READY); the Skarmory carry reuses the
+// Act 4 movements and calls DwActorsConfirmCarryDone. VAR_MAP_LOCAL_8 hint stage (1 first hint, 2 second),
+// VAR_MAP_LOCAL_9 hint pending (the frame hook arms it, the init frame table starts the hint script).
 
 #define LOCALID_SHADOW           0x84
 #define LOCALID_CYRUS            0x85
@@ -80,6 +87,9 @@
     ScriptEntry DWLostTower_ActLapras
     ScriptEntry DWLostTower_ActSkarmory
     ScriptEntry DWLostTower_TalkLitwick
+    ScriptEntry DWLostTower_PadPrompt
+    ScriptEntry DWLostTower_FindCyrusV2
+    ScriptEntry DWLostTower_Hint
     ScriptEntryEnd
 
 DWLostTower_OnTransition:
@@ -452,6 +462,202 @@ DWLostTower_ShowTorterra:
 DWLostTower_ShowInfernape:
     ScrCmd_311 LOCALID_INFERNAPE
     Return
+
+// Visit 2: the totem-echo pad prompt (step hook starts it on DW_ACTOR_EVENT_PAD_READY; the generic glue
+// already suppressed the pad sigil's auto-fire). One entry for all four pads: the pad index comes from the
+// player's tile (VAR_0x8006: 0 Hitmonlee (16,22), 1 Vespiquen (11,20), 2 Lapras (16,24), 3 Skarmory (32,22)).
+// Yes calls DwActorsResolvePad: NONE = No (nothing more) or Yes-denied (the totem has not been calmed);
+// CUTIN = play the Resonator ghost cut-in + the totem's cry + its effect line; CARRY_REQUESTED = Skarmory,
+// play the cut-in, then the Act 4 carry, then DwActorsConfirmCarryDone. A denied pad is not marked used, so
+// stepping on it again re-prompts.
+DWLostTower_PadPrompt:
+    LockAll
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfEq VAR_0x8004, 11, DWLostTower_PadPromptVespiquen
+    GoToIfEq VAR_0x8004, 32, DWLostTower_PadPromptSkarmory
+    GoToIfEq VAR_0x8005, 24, DWLostTower_PadPromptLapras
+    GoTo DWLostTower_PadPromptHitmonlee
+    End
+
+DWLostTower_PadPromptHitmonlee:
+    SetVar VAR_0x8006, 0
+    Message DWLostTower_Text_PadPromptHitmonlee
+    GoTo DWLostTower_PadAsk
+    End
+
+DWLostTower_PadPromptVespiquen:
+    SetVar VAR_0x8006, 1
+    Message DWLostTower_Text_PadPromptVespiquen
+    GoTo DWLostTower_PadAsk
+    End
+
+DWLostTower_PadPromptLapras:
+    SetVar VAR_0x8006, 2
+    Message DWLostTower_Text_PadPromptLapras
+    GoTo DWLostTower_PadAsk
+    End
+
+DWLostTower_PadPromptSkarmory:
+    SetVar VAR_0x8006, 3
+    Message DWLostTower_Text_PadPromptSkarmory
+    GoTo DWLostTower_PadAsk
+    End
+
+DWLostTower_PadAsk:
+    ShowYesNoMenu VAR_RESULT
+    GoToIfEq VAR_RESULT, MENU_NO, DWLostTower_PadNo
+    SetVar VAR_0x8007, 1
+    CloseMessage
+    GoTo DWLostTower_PadResolve
+    End
+
+DWLostTower_PadNo:
+    SetVar VAR_0x8007, 0
+    CloseMessage
+    GoTo DWLostTower_PadResolve
+    End
+
+DWLostTower_PadResolve:
+    DwActorsResolvePad VAR_0x8006, VAR_0x8007, VAR_0x8008
+    GoToIfEq VAR_0x8008, 3, DWLostTower_PadCutin
+    GoToIfEq VAR_0x8008, 4, DWLostTower_PadCarry
+    GoToIfEq VAR_0x8007, 0, DWLostTower_PadEnd
+    Message DWLostTower_Text_PadDenied
+    WaitABXPadPress
+    CloseMessage
+    GoTo DWLostTower_PadEnd
+    End
+
+DWLostTower_PadCutin:
+    DwActorsTakePendingCutin VAR_0x8009
+    GoToIfEq VAR_0x8009, 0, DWLostTower_PadCutinHitmonlee
+    GoToIfEq VAR_0x8009, 1, DWLostTower_PadCutinVespiquen
+    GoToIfEq VAR_0x8009, 2, DWLostTower_PadCutinLapras
+    GoTo DWLostTower_PadEnd
+    End
+
+DWLostTower_PadCutinHitmonlee:
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeHitmonlee
+    SetVar VAR_0x8004, RESONATOR_SLOT_HITMONLEE
+    Call DWLostTower_ResonatorGlows
+    PlayCry SPECIES_HITMONLEE
+    WaitCry
+    Message DWLostTower_Text_PadEffectHitmonlee
+    WaitABXPadPress
+    CloseMessage
+    GoTo DWLostTower_PadEnd
+    End
+
+DWLostTower_PadCutinVespiquen:
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeVespiquen
+    SetVar VAR_0x8004, RESONATOR_SLOT_VESPIQUEN
+    Call DWLostTower_ResonatorGlows
+    PlayCry SPECIES_VESPIQUEN
+    WaitCry
+    Message DWLostTower_Text_PadEffectVespiquen
+    WaitABXPadPress
+    CloseMessage
+    GoTo DWLostTower_PadEnd
+    End
+
+DWLostTower_PadCutinLapras:
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeLapras
+    SetVar VAR_0x8004, RESONATOR_SLOT_LAPRAS
+    Call DWLostTower_ResonatorGlows
+    PlayCry SPECIES_LAPRAS
+    WaitCry
+    Message DWLostTower_Text_LaprasSang
+    WaitABXPadPress
+    CloseMessage
+    GoTo DWLostTower_PadEnd
+    End
+
+// Skarmory: the cut-in (as in Act 4), then the carry with the Act 4
+// movements. The carry never chains to Find Cyrus here: the gate is
+// still closed at the landing (37,22). ConfirmCarryDone clears the
+// actor's carryPending; the shadow cannot catch during the carry.
+DWLostTower_PadCarry:
+    DwActorsTakePendingCutin VAR_0x8009
+    SetVar VAR_0x8007, Arc2Common_Text_ResonatorSurgeSkarmory
+    SetVar VAR_0x8004, RESONATOR_SLOT_SKARMORY
+    Call DWLostTower_ResonatorGlows
+    ScrCmd_311 LOCALID_GHOST_SKARMORY
+    Call DWLostTower_GhostFadeIn
+    PlayCry SPECIES_SKARMORY
+    ApplyMovement LOCALID_GHOST_SKARMORY, DWLostTower_Movement_SkarmorySwoop
+    WaitMovement
+    WaitCry
+    PlayFanfare SEQ_SE_DP_PYUU2
+    ApplyMovement LOCALID_PLAYER, DWLostTower_Movement_PlayerCarried
+    ApplyMovement LOCALID_GHOST_SKARMORY, DWLostTower_Movement_SkarmoryCarry
+    WaitMovement
+    ApplyMovement LOCALID_GHOST_SKARMORY, DWLostTower_Movement_SkarmoryAway
+    Call DWLostTower_GhostFadeOut
+    WaitMovement
+    ScrCmd_312 LOCALID_GHOST_SKARMORY
+    DwActorsConfirmCarryDone
+    Message DWLostTower_Text_SkarmoryCarried
+    WaitABXPadPress
+    CloseMessage
+    GoTo DWLostTower_PadEnd
+    End
+
+DWLostTower_PadEnd:
+    ReleaseAll
+    End
+
+// Visit 2: Find Cyrus, starting from (38,22) (step hook). The initial
+// PlayerToCyrus movement is gone: the player is already at (38,22),
+// and moving east would walk into Cyrus at (39,22). Starter reveal,
+// Cyrus's two lines (once per save) and the battle are as in Phase 0:
+// jump into DWLostTower_FindCyrusBattle once the scene is set.
+DWLostTower_FindCyrusV2:
+    LockAll
+    GetPlayerStarterSpecies VAR_0x8006
+    CallIfEq VAR_0x8006, SPECIES_TURTWIG, DWLostTower_ShowEmpoleon
+    CallIfEq VAR_0x8006, SPECIES_CHIMCHAR, DWLostTower_ShowTorterra
+    CallIfEq VAR_0x8006, SPECIES_PIPLUP, DWLostTower_ShowInfernape
+    WaitTime 30, VAR_RESULT
+    ApplyMovement LOCALID_CYRUS, DWLostTower_Movement_CyrusLooksUp
+    WaitMovement
+    GoToIfSet FLAG_ARC2_CELESTIC_D, DWLostTower_FindCyrusBattle
+    SetFlag FLAG_ARC2_CELESTIC_D
+    Message DWLostTower_Text_CyrusYouCame
+    WaitABXPadPress
+    Message DWLostTower_Text_CyrusHundredVoices
+    WaitABXPadPress
+    CloseMessage
+    GoTo DWLostTower_FindCyrusBattle
+    End
+
+// Cyrus's hint after two falls (Ruth's voice in the Resonator; the
+// frame hook arms VAR_MAP_LOCAL_9, the init frame table starts this).
+// Clear the pending flag first (the HoneyFall pattern): the fall
+// counter lives in the engine, this var is only the trigger.
+DWLostTower_Hint:
+    SetVar VAR_MAP_LOCAL_9, 0
+    LockAll
+    GoToIfEq VAR_MAP_LOCAL_8, 2, DWLostTower_HintRune
+    GoToIfGe VAR_ARC2_PROGRESS, 94, DWLostTower_HintDeeper
+    Message DWLostTower_Text_HintWall
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+DWLostTower_HintDeeper:
+    Message DWLostTower_Text_HintDeeper
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+DWLostTower_HintRune:
+    Message DWLostTower_Text_HintRune
+    WaitABXPadPress
+    CloseMessage
+    ReleaseAll
+    End
 
 // A on a Litwick candle (decor objects; a stand-in sprite until a Litwick overworld sprite exists).
 DWLostTower_TalkLitwick:

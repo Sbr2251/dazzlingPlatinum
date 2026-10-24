@@ -134,6 +134,83 @@
         "All I found was this one.\r",
         "...And you."
       ]
+    },
+    {
+      "id": "DWLostTower_Text_PadPromptHitmonlee",
+      "en_US": [
+        "Hitmonlee's strength still\n",
+        "hums in the Resonator.\n",
+        "Call on it?"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_PadPromptVespiquen",
+      "en_US": [
+        "Vespiquen's light still glows\n",
+        "in the Resonator.\n",
+        "Call on it?"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_PadPromptLapras",
+      "en_US": [
+        "Lapras's song still echoes\n",
+        "in the Resonator.\n",
+        "Call on it?"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_PadPromptSkarmory",
+      "en_US": [
+        "Skarmory's wings still beat\n",
+        "in the Resonator.\n",
+        "Call on it?"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_PadDenied",
+      "en_US": [
+        "That totem has not been\n",
+        "calmed yet."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_PadEffectHitmonlee",
+      "en_US": [
+        "Hitmonlee's ghost smashed\n",
+        "the crystal!"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_PadEffectVespiquen",
+      "en_US": [
+        "Vespiquen's ghost lit the\n",
+        "dark tiles!"
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_HintWall",
+      "en_US": [
+        "Ruth's voice: The low seam\n",
+        "is a scar. Climb, and\n",
+        "follow the light."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_HintDeeper",
+      "en_US": [
+        "Ruth's voice: The shadow walks\n",
+        "the stones. Step aside and\n",
+        "let it pass, then cross."
+      ]
+    },
+    {
+      "id": "DWLostTower_Text_HintRune",
+      "en_US": [
+        "Ruth's voice: The rune takes you\n",
+        "up to Vespiquen's pad. Light\n",
+        "the dark tiles, then come down."
+      ]
     }
   ]
 }

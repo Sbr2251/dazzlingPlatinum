@@ -35,10 +35,15 @@ BOOL gDwPuzzleTestMode = FALSE;
 // The registry: one extern + one line per rift table (dw_puzzle_<map>.c).
 extern const DwPuzzleTable gDwPuzzleTestTable;
 extern const DwPuzzleTable gDwPuzzleTestEternaTable;
+extern const DwPuzzleTable gDwPuzzleLostTowerV1Table; // dwp:rift-lt
+extern const DwPuzzleTable gDwPuzzleLostTowerV2Table; // dwp:rift-lt
+extern const DwActorTable gDwActorsLostTowerTable; // dwp:rift-lt (visit 2)
 
 static const DwPuzzleTable *const sPuzzleTables[] = {
     &gDwPuzzleTestTable,
     &gDwPuzzleTestEternaTable,
+    &gDwPuzzleLostTowerV1Table, // dwp:rift-lt
+    &gDwPuzzleLostTowerV2Table, // dwp:rift-lt
 };
 
 // Rift actor tables (engine-b), one per puzzle table, NULL until the
@@ -47,6 +52,8 @@ static const DwPuzzleTable *const sPuzzleTables[] = {
 static const DwActorTable *const sActorTables[] = {
     NULL, // Ravaged Path test table: no actor table yet
     NULL, // Eterna Forest test table: no actor table yet
+    NULL, // dwp:rift-lt: Lost Tower visit 1: no actor table (Phase 0 acts)
+    &gDwActorsLostTowerTable, // dwp:rift-lt: Lost Tower visit 2: pads + shadow
 };
 
 

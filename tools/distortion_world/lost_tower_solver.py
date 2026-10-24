@@ -126,7 +126,7 @@ SIGILS = {
     (37, 1, 23): G_GATE,   # gate sigil on the island
 }
 # Rune: (17,23) -> wall (11,4,20), the V pad tile. Landing fires the pad.
-RUNES = {(17, 1, 23): (11, 4, 20)}
+RUNES = {(17, 1, 23): (11, 4, 19)}  # landing fires NOTHING (landing rule); walk onto (11,4,20) for the V pad
 # Shadow lane (visit 2): (17,22)-(31,22), 15 tiles (<= DW_ACTORS_MAX_SHADOW_TILES
 # = 16), endpoints via DwActors_MakeShadowLane, beat 45-60 frames/tile.
 # Ledge + stones only: the island (carry landing, goal, S pad) is off-lane,
@@ -240,7 +240,7 @@ class Model:
                 continue
             if q in RUNES:
                 landing = RUNES[q]
-                g2 = self.apply_trigger(landing, groups)  # landing fires sigil
+                g2 = groups  # landing fires NOTHING (landing rule): no sigil, no checkpoint re-fire
                 if self.blocked(landing, g2):
                     continue
                 cp_p, snap_p = ((self.cp_tiles[landing], g2) if landing in self.cp_tiles

@@ -4222,6 +4222,23 @@
     .short \amplitude
     .endm
 
+    // dwp:rift-lt: DW puzzle actor script commands (Lost Tower pads).
+    .macro DwActorsResolvePad padIndexVar, acceptedVar, destVar
+    .short 845
+    .short \padIndexVar
+    .short \acceptedVar
+    .short \destVar
+    .endm
+
+    .macro DwActorsConfirmCarryDone
+    .short 846
+    .endm
+
+    .macro DwActorsTakePendingCutin destVar
+    .short 847
+    .short \destVar
+    .endm
+
     .macro GetTrainerCardLevel destVar
     .short 702
     .short \destVar

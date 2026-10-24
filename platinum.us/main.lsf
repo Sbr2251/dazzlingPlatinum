@@ -633,6 +633,7 @@ Overlay overlay9
 	Object main.nef.p/src_overlay009_dw_puzzle_test.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_test_eterna.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_actors.c.o
+	Object main.nef.p/src_overlay009_dw_puzzle_lost_tower.c.o
 }
 
 Overlay overlay10

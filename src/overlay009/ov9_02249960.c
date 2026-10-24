@@ -2978,6 +2978,13 @@ static BOOL Arc2DwRoute213_HandleStep(DistWorldSystem *system, int x, int y, int
 #define LOST_TOWER_SCRIPT_ACT_LAPRAS    9
 #define LOST_TOWER_SCRIPT_ACT_SKARMORY  10
 #define LOST_TOWER_SCRIPT_TALK_LITWICK  11
+#define LOST_TOWER_SCRIPT_PAD_PROMPT    12 // dwp:rift-lt (appended; earlier entries unchanged)
+#define LOST_TOWER_SCRIPT_FIND_CYRUS_V2 13 // dwp:rift-lt
+#define LOST_TOWER_SCRIPT_HINT          14 // dwp:rift-lt
+#define LOST_TOWER_PAD_SKARMORY         3 // dwp:rift-lt: pad index in gDwActorsLostTowerTable
+#define LOST_TOWER_GROUP_STONES_IDX     3 // dwp:rift-lt: group index in gDwPuzzleLostTowerV2Table
+#define LOST_TOWER_CYRUS_X              38 // dwp:rift-lt: Find Cyrus trigger tile
+#define LOST_TOWER_CYRUS_Z              22
 #define LOST_TOWER_GROUP_SCAR           2 // ghost-prop groups (tools/distortion_world/lost_tower.json)
 #define LOST_TOWER_GROUP_SEAM           3
 #define LOST_TOWER_GROUP_STONES         4
@@ -3244,6 +3251,39 @@ static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system)
         LostTower_SetGroupShown(system, LOST_TOWER_GROUP_STONES, deeperActs >= 1);
     }
 
+    // dwp:rift-lt: Cyrus's hint after two falls (Ruth's voice in the
+    // Resonator). fallCount counts engine falls + shadow catches
+    // (RequestCheckpointRespawn bumps it); the C hook only arms
+    // VAR_MAP_LOCAL_9, and the init frame table starts the hint script
+    // from field context (the Ravaged Path frame-fall pattern). The
+    // hint flags are per-entry: a fresh entry resets fallCount to 0,
+    // which clears them here. No hint while a fall/catch respawn is
+    // still owed, and never twice for the same stage.
+    {
+        u32 falls = gDwPuzzleState.fallCount;
+        BOOL hintPending = LostTower_Var(system, VAR_MAP_LOCAL_9) != 0;
+
+        if (falls == 0) {
+            if (VarsFlags_CheckFlag(varsFlags, FLAG_DW_LT_A)) {
+                VarsFlags_ClearFlag(varsFlags, FLAG_DW_LT_A);
+            }
+            if (VarsFlags_CheckFlag(varsFlags, FLAG_DW_LT_B)) {
+                VarsFlags_ClearFlag(varsFlags, FLAG_DW_LT_B);
+            }
+        } else if (!hintPending && !gDwPuzzleState.fallPending && !gDwPuzzleState.respawnPending) {
+            if (falls >= 4 && VarsFlags_CheckFlag(varsFlags, FLAG_DW_LT_A)
+                && !VarsFlags_CheckFlag(varsFlags, FLAG_DW_LT_B)) {
+                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_8) = 2;
+                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_9) = 1;
+                VarsFlags_SetFlag(varsFlags, FLAG_DW_LT_B);
+            } else if (falls >= 2 && !VarsFlags_CheckFlag(varsFlags, FLAG_DW_LT_A)) {
+                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_8) = 1;
+                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_9) = 1;
+                VarsFlags_SetFlag(varsFlags, FLAG_DW_LT_A);
+            }
+        }
+    }
+
     if (ghostTarget > GHOST_PROP_OPACITY_MAX) {
         ghostTarget = GHOST_PROP_OPACITY_MAX;
     }
@@ -3267,8 +3307,13 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
 
     if (x == LOST_TOWER_WALL_X && y > LOST_TOWER_FLOOR_Y) {
         // The false seam past the fork gives way under you, lit or not.
+        // dwp:engine-a: NotifyFall BEFORE the fall script starts, so the
+        // engine restores the last checkpoint snapshot on the fall warp
+        // (the step hook never sees this fall: the false seam is not a
+        // VOID tile in the puzzle tables).
         if (y == LOST_TOWER_FALSE_SEAM_Y && z >= LOST_TOWER_FALSE_SEAM_Z_MIN && z <= LOST_TOWER_FALSE_SEAM_Z_MAX) {
             Sound_PlayEffect(SEQ_SE_DP_UG_023);
+            DwPuzzle_NotifyFall(system->fieldSystem); // dwp:rift-lt
             ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_FALL, NULL);
             return TRUE;
         }
@@ -3297,8 +3342,38 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
         return FALSE;
     }
 
-    // dwp:engine-b: same gate as the wall acts above (totem-echo pads own visit 2).
+    // dwp:rift-lt: visit 2 (actors active): pads + Find Cyrus. The
+    // generic glue already ran DwActors_HandlePlayerStep for this
+    // step (PAD_READY skips the engine step hook); the per-map hook
+    // starts the pad prompt script. pendingPad is authoritative:
+    // a used pad never reports PAD_READY, so the prompt cannot refire.
     if (DwActors_IsActive()) {
+        DwActorDebug actorDebug;
+
+        DwActors_FillDebug(&actorDebug);
+        if (actorDebug.pendingPad >= 0) {
+            // The S pad sits on the last stone: hopping onto a SUNK
+            // stone reports PAD_READY too (the actor step hook does
+            // not know the tile is VOID). The pad must not fire
+            // there -- the hop is a fall. Guard on the stones group
+            // (group 3 in the visit-2 table) and fall instead.
+            if (actorDebug.pendingPad == LOST_TOWER_PAD_SKARMORY
+                && (gDwPuzzleDebug.groupBits & (1u << LOST_TOWER_GROUP_STONES_IDX)) == 0) {
+                DwPuzzle_NotifyFall(system->fieldSystem);
+                ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_FALL, NULL);
+                return TRUE;
+            }
+            ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_PAD_PROMPT, NULL);
+            return TRUE;
+        }
+        // Find Cyrus (visit 2): stepping onto (38,22) starts it. The
+        // carry landing (37,22) must NOT start it (the gate is still
+        // closed there); the gate sigil at (37,23) opens the way first.
+        if (y == LOST_TOWER_FLOOR_Y && x == LOST_TOWER_CYRUS_X && z == LOST_TOWER_CYRUS_Z
+            && !VarsFlags_CheckFlag(varsFlags, FLAG_TOTEM_SPIRITOMB_DEFEATED)) {
+            ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_FIND_CYRUS_V2, NULL);
+            return TRUE;
+        }
         return FALSE;
     }
 
@@ -3318,6 +3393,28 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
     }
 
     return FALSE;
+}
+
+// dwp:rift-lt: script-command wrappers. Scripts run in the main binary
+// and cannot call overlay-9 actor functions directly (the ov9_ entry
+// points are the overlay boundary, as with ScrCmd_311/312). These are
+// the only new ov9 entry points this workstream adds.
+u16 DwPuzzle_Ov9ResolvePad(FieldSystem *fieldSystem, int padIndex, BOOL accepted)
+{
+    (void)fieldSystem;
+    return (u16)DwActors_ResolvePad(padIndex, accepted);
+}
+
+void DwPuzzle_Ov9ConfirmCarryDone(FieldSystem *fieldSystem)
+{
+    (void)fieldSystem;
+    DwActors_ConfirmCarryDone();
+}
+
+int DwPuzzle_Ov9TakePendingCutin(FieldSystem *fieldSystem)
+{
+    (void)fieldSystem;
+    return DwActors_TakePendingCutin();
 }
 
 BOOL ov9_0224A71C(FieldSystem *fieldSystem)

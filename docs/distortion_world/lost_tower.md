@@ -26,11 +26,14 @@ rune's upper landing instead.
 
 `docs/distortion_world/actors_design.md` (engine-b) governs the handover:
 
-- **Visit 1 (progress 92): no engine table is registered.** The existing
-  scripted ghost acts (Phase 0, `scripts_dw_lost_tower.s` + the ov9 hooks)
-  run unchanged. No engine-a table, no actor table.
-- **Visit 2 (progress 94): one engine-a table** (`gDwPuzzleLostTowerTable`,
-  minProgress 94, maxProgress 95) **plus one engine-b actor table**
+- **Visit 1 (progress 92-93): a minimal engine-a table**
+  (`gDwPuzzleLostTowerV1Table`: fall lips + entry checkpoint, no
+  groups/sigils/runes), no actor table. The scripted ghost acts
+  (Phase 0, `scripts_dw_lost_tower.s` + the ov9 hooks) run unchanged.
+  The V1 table exists so lip falls respawn at the entry through the
+  engine and the engine counts falls for the hint.
+- **Visit 2 (progress 94-95): one engine-a table** (`gDwPuzzleLostTowerV2Table`)
+  **plus one engine-b actor table**
   (4 pads + the shadow). The wall's scar/seam are already open in
   Visit 2 via the persistent Phase 0 acts, so the engine-a table
   carries no V1 groups.
@@ -107,14 +110,16 @@ still matches the collision (fix2-lost rule).
 
 ## Groups, pads, sigils, runes, shadow (Visit 2)
 
-Solver polarity: a group bit means "open" (SOLID). Engine polarities
-follow engine-b §6 exactly (Hitmonlee SET group->0, Vespiquen SET
-group->1, Lapras SET group->1); plain sigils SET 0.
+Solver polarity: a group bit means "open" (SOLID). Engine polarities:
+Hitmonlee SET group->0, Lapras SET group->1, Vespiquen SET group->0
+here (the shadow group is flipped so its blocked state is drawn: a
+group's props show only while it is ON, so the shadow props sit on
+the ON/blocked state); plain sigils SET 0.
 
 | Group | Tiles | Engine initial | Fired by (engine SET) | Ghost group / prop |
 |---|---|---|---|---|
 | G_H2 | (18,22) crystal | ON (crystal present, BLOCKED) | H pad (16,22) SET 0 | 6, one kind-1 crystal prop at (18,1,22) |
-| G_V2 | (19,22),(20,22) dark tiles | OFF (dark, BLOCKED) | V pad (11,4,20) SET 1 | 7, light props at (19,1,22),(20,1,22); tiles textured dark in the land data (see below) |
+| G_V2 | (19,22),(20,22) shadow | ON (shadow, BLOCKED) | V pad (11,4,20) SET 0 (light dispels) | 7, shadow props at (19,1,22),(20,1,22), shown while blocked |
 | G_SPUR | (16,24),(17,24) misted spur | ON (mist, BLOCKED) | spur sigil (20,22) SET 0 | 8, two kind-1 mist props at (16,1,24),(17,1,24) |
 | G_STONES | (23,22),(26,22),(29,22),(32,22) stones | OFF (sunk, VOID) | L pad (16,24) SET 1 | 4, existing kind-0 props at (23,26,29,32,22) |
 | G_GATE | (38,22) aura | ON (aura, BLOCKED) | gate sigil (37,23) SET 0 | 9, one kind-1 aura prop at (38,1,22) |
@@ -127,11 +132,14 @@ In Visit 1 (no actor table) the Phase 0 hook drives them as in
 Phase 0. In Visit 2 the engine-b gating disables the legacy
 group-update block entirely, so the completed state is initialised
 in the table instead: group 2 hidden (scar shut), group 3 shown
-(seam lit). Ghost default-visible mask (one mask for the map; the
-Visit 1 hook overrides it every frame, Visit 2 leaves it): groups
-0, 3, 6, 8, 9 shown = bits 0,3,6,8,9 = 1 + 8 + 64 + 256 + 512 =
-841. Groups 2, 4, 7 start hidden. Fade: engine defaults (33 frames
-out, 3 in) for every group with props.
+(seam lit). Ghost default-visible mask = 9 (groups 0, 3 only). The engine
+frame hook shows/hides its groups (4, 6, 7, 8, 9) from frame 1 on
+Visit 2, so the default must NOT pre-show them -- Visit 1 would
+draw Visit 2's crystal/shadow/mist/aura props. Group 3 (seam lit)
+is shown by default because nothing drives it on Visit 2; on Visit
+1 the Phase 0 hook hides it until the act. Group 2 is hidden by
+default; on Visit 1 the hook shows it until the act. Fade: engine
+defaults (33 frames out, 3 in) for every group with props.
 
 G_STONES off = VOID, not BLOCKED. Hopping onto a sunk stone falls
 (the tile is drawn as open mist), so no jump-point suppression glue
@@ -170,7 +178,10 @@ is (checkpoints are entry/vein/(16,23)/carry landing; R1 is (17,23)).
 
 The solver assumes the player answers Yes at every pad (optimal
 play). Answering No leaves the pad unused; the player can step on it
-again and answer Yes.
+again and answer Yes. A denied pad (totem not calmed) shows the
+denial line and is not marked used. The S pad sits on the last
+stone: hopping onto a SUNK stone reports PAD_READY too, so the step
+hook guards on the stones group and falls instead of prompting.
 
 ### Plain sigils (Visit 2, engine-a, auto-fire, no prompt)
 
@@ -181,10 +192,12 @@ across the shadow lane rather than a detour on the way in).
 
 ### Rune (Visit 2, one, one-way)
 
-R1 at floor (17,23) -> wall (11,4,20), the V pad's tile. Teleport
-landing re-enters tile processing, so landing on (11,4,20) fires the
-V pad (SET G_V2 on) at once. This is the rune's purpose: a recovery
-route to the V pad for a player who took the vein-room route first.
+R1 at floor (17,23) -> wall (11,4,19), ADJACENT to the V pad. The
+landing rule says a rune landing fires NOTHING, so landing on the
+pad tile itself would leave the pad unfired; from (11,4,19) the
+player walks onto (11,4,20) and the pad prompt fires normally.
+This is the rune's purpose: a recovery route to the V pad for a
+player who took the vein-room route first.
 It is not a shortcut (reaching the north arm costs more via the vein
 room than via the wall), and it uses 0 times on the optimal route.
 In Visit 1 the rune tile (17,23) is east of the shadow wall and
@@ -401,9 +414,9 @@ in Visit 2). ASCII, short lines. Text ids are proposals for Phase 2.
 Visit 1 (wall), `DWLostTower_Text_HintWall`:
 
 ```
-Ruth's voice: Step on the pad,
-then walk through what opens.
-The low seam is a scar.
+Ruth's voice: The low seam
+is a scar. Climb, and
+follow the light.
 ```
 
 Visit 2 (deeper), `DWLostTower_Text_HintDeeper`:
@@ -462,10 +475,11 @@ from scripted acts to pads (Visit 2):
   shown when on), aura (G_GATE, group 9, shown when on), sunk stones
   (G_STONES, group 4 props hidden, tiles VOID and drawn as open
   mist - hopping onto one falls, which is the correct VOID behaviour).
-- G_V2's blocked state is the base drawing: (19,22) and (20,22) are
-  textured dark in the land data (the dark tiles), so a blocked dark
-  tile is never drawn as open floor; the light props (group 7) show
-  when the group is on. Phase 0's seam light (group 3) is unchanged.
+- G_V2's blocked state is drawn by its group-7 shadow props (shown
+  while the group is ON/blocked, hidden once the V pad dispels them).
+  No land-data texture change was needed: the blocked tiles carry a
+  visible prop, and the open tiles are the drawn floor. Phase 0's
+  seam light (group 3) is unchanged.
 - No wall-rotated objects are loaded at the exit warp: the pads, the
   shadow and the gate are engine actors, not map objects. The existing
   ghost totem objects (0x8A-0x8D) are script-only and are hidden
@@ -502,7 +516,7 @@ the model must stay in sync with it.
   `ConfirmCarryDone`), the new Find Cyrus `ScriptEntry` from
   (38,22), hint boxes at fall count >= 2 (>= 4 for the second hint).
 - `lost_tower.json`: ghost groups 6, 7, 8, 9 + default-visible mask
-  841; dark texture for (19,22),(20,22) in the land data.
+  9 (done in Phase 2).
 - Engine-a table (Visit 2 only, progress 94-95) + engine-b actor
   table (Visit 2 only, 4 pads + shadow lane (17,22)-(31,22), beat
   45-60) in `dw_puzzle_lost_tower.c`.
