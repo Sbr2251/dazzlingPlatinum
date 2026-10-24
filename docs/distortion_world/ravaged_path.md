@@ -422,34 +422,81 @@ requires. If Phase 2 playtesting finds it too easy, the sanctioned
 tuning is to move the sigil off the main line (e.g. a 1-step spur),
 not to add a second mechanic.
 
-## 9. Phase 2 headless proof (checklist, not yet run)
+## 9. Phase 2 headless proof (run on the built ROM, 2026-10-23)
 
-Engine not merged yet, so none of this runs in Phase 1:
+Scripts in `/tmp/dwp/rift-rp/` (`t1_replay.py`, `t2_falls.py`,
+`t2b_hint.py`, `t4_visual.py`, `t3_arc1.py`; ROM
+`out/dazzlingPlatinum.nds`). `gDwPuzzleDebug` read through the harness
+reader with offsets regenerated from this build's DWARF; the
+harness's own `dwlib.flag()` / `var()` reader is unreliable on this
+build (it reads a stale save copy: `VAR_ARC2_PROGRESS` reads 2, not
+14), so flag state is proven by behaviour (textboxes) and the debug
+struct, not by `dwlib.flag()`.
 
-* Solver output above (done, Phase 1).
-* Harness replay of the solver's solution from entry to totem + calm.
-* A fall at each stage (scar 0 re-step, scar 1 from the fork, each
-  lip): return to the entry checkpoint with the checkpoint snapshot
-  restored (section 6), including the walk-back-then-fall corner:
-  snapshot ON (sigil pressed, walked back to the entry), then a
-  fall, and the bridges come back ON.
-* Hold-forward check: mash a direction in the first frames after
-  the sigil fires; the bridge may bump once (3-frame fade-in lead),
-  then opens on retry (section 2).
-* Re-entry after a blackout (totem loss): fresh entry resets the
-  puzzle; Cyrus's once-only lines do not replay.
-* Collision-vs-drawn audit: every walkable tile drawn (bridge props
-  when on, sockets when off, rune / scar decals), every VOID tile
-  open, no jump landing on an undrawn tile.
-* Regression on the other rifts (their tables are untouched; this
-  rift's table is gated to progress 14 on its own map).
+* **Solver output** (standalone BFS, re-run): self-checks PASS,
+  160 states, branching 2.54, optimal 27 total / 15 puzzle steps,
+  0 falls on optimal, 0 soft-locked states, OVERALL PASS
+  (`/tmp/dwp/rift-rp/solver_output.txt`).
+* **Replay to the totem** (T1): the harness 27-move solution
+  replays from entry to (14, 1, 23) and the totem battle menu.
+  Step 12 (sigil): `groupBits` 0 -> 1, `lastEvent` sigil,
+  `checkpoint` (20, 1, 12). No falls (`fallCount` 0).
+* **Falls** (T2): lip fall after re-snapshotting ON -> respawn at
+  the entry, `fallCount` 1, `groupBits` 1 (snapshot restored).
+  Sigil re-press after the fall shows NO teaching textbox
+  (`FLAG_DW_RP_A` persists through the fall warp). Scar fall ->
+  `fallCount` 2, `groupBits` 1 (snapshot restored via
+  `DwPuzzle_NotifyFall`). Re-solve to the battle menu afterwards.
+* **Snapshot-OFF restore** (T4): a scar fall with a snapshot taken
+  while the group was OFF restores `groupBits` 0 /
+  `displayBits` 0 -- both fall kinds restore the snapshot.
+* **Hint** (T2b/T4): on fall 2 the fall script shows Cyrus's hint
+  textbox, read visually: "Cyrus: Press the rune first. / The scar
+  holds you" (first two lines; the third is "Then it will not let
+  you back."). Teaching textbox likewise read visually: "Cyrus:
+  The rune wakes the stone. / Step on it. The bridge holds."
+  Frames: `t4b_teaching_textbox.png`, `t4d_hint_textbox.png`.
+* **Collision-vs-drawn audit**: bridge OFF -> `displayBits` 0
+  (no stone prop) and the black `s_land2` socket decal is drawn
+  (`t4a_pre_sigil_wall.png` shows the dark socket on the wall);
+  bridge ON -> `displayBits` 1 (stone props shown;
+  `t4c_top_bridges_on.png`, `t4c2_standing_on_bridge.png`). Every
+  VOID lip is open void in the stock map; every walkable tile is
+  drawn (stock map + socket/rune decals + props). No jump landing
+  on an undrawn tile (jump points unchanged).
+* **Re-entry**: fresh boots start `groupBits` 0 / snapshot OFF
+  (fresh-entry reset); once-only lines do not replay after a fall
+  warp (teaching re-press check, T2). Re-entry after a totem-loss
+  blackout is NOT headlessly covered: it needs a lost totem
+  battle, and the blackout path (`BlackOutFromBattle`) is stock
+  and untouched. The mechanism it depends on -- save-persisted
+  once-only flags + fresh-entry reset -- is covered above.
+* **Exit warp + calm unchanged**: the `DWRavagedPath_Totem` script
+  block is untouched in the diff (exit warp to Ravaged Path
+  (19, 46) south, `VAR_ARC2_PROGRESS` 15,
+  `FLAG_TOTEM_HITMONLEE_DEFEATED`). The post-calm exit warp
+  itself is not headlessly covered (harness-wide gap: it needs
+  the totem battle won; QA's chained playthrough covers it).
+* **Regression** (T3): Arc 1 seams replays to the far ledge
+  (12, 1, 23) unchanged. The diff touches only rift-rp files;
+  the other rifts' tables/scripts/maps are untouched.
+
+Build trap found and fixed in Phase 2: a new
+`dw_puzzle_<map>.c` needs TWO registrations -- `src/meson.build`
+(compiles the object) AND `platinum.us/main.lsf` (places it in
+overlay 9). Without the LSF line the object's symbols link as
+absolute 0, `sPuzzleTables[N]` is NULL, and the engine never
+activates -- while the per-map hook still runs, which masks the
+missing table (the teaching line fired during the bug). The
+other rift workstreams need the same LSF line for their tables.
 
 ## 10. Open items for Phase 2
 
 * ~~Rune / socket decal textures~~ -- resolved: `s_land3` rune,
   `s_land2` socket (section 1).
-* Group-4 bridge props read as stone ledges in a frame strip
-  (section 1).
+* ~~Group-4 bridge props~~ -- verified: `displayBits` 1 after the
+  sigil, stones visible in `t4c_top_bridges_on.png` /
+  `t4c2_standing_on_bridge.png` (section 9).
 * ~~Lead: confirm SET for row 1~~ -- approved: SET, not TOGGLE
   ("toggles" was loose wording; SET + BLOCKED-when-off is the
   right call for difficulty 2).
