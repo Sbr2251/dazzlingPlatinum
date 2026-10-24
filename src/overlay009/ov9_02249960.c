@@ -37,6 +37,7 @@
 #include "overlay005/struct_ov5_021DF47C_decl.h"
 #include "overlay005/struct_ov5_021ED0A4.h"
 #include "overlay009/camera_configuration.h"
+#include "overlay009/dw_puzzle_actors.h"
 #include "overlay009/struct_ov9_0224F6EC_decl.h"
 #include "overlay009/dw_puzzle.h"
 
@@ -2752,6 +2753,23 @@ static void Arc2Dw_HandleFrame(DistWorldSystem *system)
     } else if (mapHeaderID == MAP_HEADER_DW_LOST_TOWER) {
         Arc2DwLostTower_HandleFrame(system);
     }
+
+    // dwp:engine-b: actors frame tick + debug sync (inert until engine-a's map-load hook
+    // registers a table with DwActors_RegisterTable; the core no-ops without one).
+    // The ov9 platform kind numbers exactly like DwPuzzleSurface (INVALID 4 = GROUND 4).
+    {
+        int px, py, pz;
+        DwActorTile player;
+
+        GetPlayerPos(system, &px, &py, &pz);
+        player.x = (s16)px;
+        player.y = (s16)py;
+        player.z = (s16)pz;
+        player.surface = (u8)GetCurrentFloatingPlatformKind(system);
+        player.padding = 0;
+        DwActors_HandleFrame(player);
+        DwActors_SyncDebug();
+    }
 }
 
 // rift-b (Route 214, Route 213): the far end of the ceiling (y=10 over x 44-49; the wall below tops out at z=29)
@@ -3075,10 +3093,15 @@ static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system)
     BOOL wallDone = LostTower_WallWorkDone(system);
 
     // The ghost props follow the acts (a warp re-reads the default visibility, so re-assert it every frame).
-    LostTower_SetGroupShown(system, LOST_TOWER_GROUP_SCAR, !(wallDone || wallActs >= 1));
-    LostTower_SetGroupShown(system, LOST_TOWER_GROUP_SEAM,
-        VarsFlags_CheckFlag(varsFlags, FLAG_TOTEM_VESPIQUEN_DEFEATED) && (wallDone || wallActs >= 2));
-    LostTower_SetGroupShown(system, LOST_TOWER_GROUP_STONES, deeperActs >= 1);
+    // dwp:engine-b: on visit 2 the totem-echo pads own these groups (engine-a groups + pads):
+    // the scripted acts step aside as soon as an actor table is registered, so the two
+    // owners never fight over the same groups. Without a table this is exactly as before.
+    if (!DwActors_IsActive()) {
+        LostTower_SetGroupShown(system, LOST_TOWER_GROUP_SCAR, !(wallDone || wallActs >= 1));
+        LostTower_SetGroupShown(system, LOST_TOWER_GROUP_SEAM,
+            VarsFlags_CheckFlag(varsFlags, FLAG_TOTEM_VESPIQUEN_DEFEATED) && (wallDone || wallActs >= 2));
+        LostTower_SetGroupShown(system, LOST_TOWER_GROUP_STONES, deeperActs >= 1);
+    }
 
     if (ghostTarget > GHOST_PROP_OPACITY_MAX) {
         ghostTarget = GHOST_PROP_OPACITY_MAX;
@@ -3109,6 +3132,12 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
             return TRUE;
         }
 
+        // dwp:engine-b: on visit 2 the totem-echo pads own the acts; the scripted wall acts
+        // step aside as soon as an actor table is registered (see the frame hook).
+        if (DwActors_IsActive()) {
+            return FALSE;
+        }
+
         if (LostTower_WallWorkDone(system)) {
             return FALSE;
         }
@@ -3124,6 +3153,11 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
             return TRUE;
         }
 
+        return FALSE;
+    }
+
+    // dwp:engine-b: same gate as the wall acts above (totem-echo pads own visit 2).
+    if (DwActors_IsActive()) {
         return FALSE;
     }
 
