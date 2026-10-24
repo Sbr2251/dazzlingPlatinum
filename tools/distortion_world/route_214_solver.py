@@ -252,10 +252,10 @@ def is_goal(state):
     return state[1] >= 45
 
 def transitions(state, mode):
-    """All transitions from a state: (new_state, tile_cost, label).
+    """All transitions from a state: (new_state, tile_cost, label, fell).
 
     While a fade is pending, movement is forbidden: only WAIT (settle
-    the fade) and FALL are offered. Allowing movement while pending
+    the fade) is offered. Allowing movement while pending
     would be unsound in the toggle-on direction — the real engine
     blocks the gap after the 3-frame fade-in lead, so a slide through
     a barely-closing gap is impossible, while the model would have
@@ -264,7 +264,7 @@ def transitions(state, mode):
     if state[6] or state[7]:
         w = wait(state)
         assert w is not None
-        return [(w, 0, "W")]
+        return [(w, 0, "W", False)]
     out = []
     for d in "UDLR":
         try:
@@ -272,15 +272,16 @@ def transitions(state, mode):
         except SlideLoop as e:
             raise AssertionError(f"slide loop from reachable state {state}: {e}")
         if res is not None:
-            out.append((res[0], len(res[1]), d))
+            out.append((res[0], len(res[1]), d, res[2]))
     w = wait(state)
     if w is not None:
-        out.append((w, 0, "W"))
+        out.append((w, 0, "W", False))
     return out
 
 def solve(mode):
-    """Dijkstra over tile steps (steps cost tiles entered; WAIT/FALL cost
-    0). Goal states are terminal. Returns (optimum, solution, stats)."""
+    """Dijkstra over tile steps (steps cost tiles entered; WAIT costs 0;
+    a fall is forced on entering a VOID and costs 0 additional tiles).
+    Goal states are terminal. Returns (optimum, solution, stats)."""
     dist = {START: 0}
     parent = {START: None}
     heap = [(0, START)]
@@ -293,33 +294,32 @@ def solve(mode):
             if goal is None:
                 goal = st
             continue
-        for nst, w, _ in transitions(st, mode):
+        for nst, w, label, fell in transitions(st, mode):
             nc = cost + w
             if nst not in dist or nc < dist[nst]:
                 dist[nst] = nc
-                parent[nst] = st
+                parent[nst] = (st, label, fell)
                 heapq.heappush(heap, (nc, nst))
     assert goal is not None, f"mode {mode}: no solution"
-    # Reconstruct the optimal path by replaying transitions.
+    # Reconstruct the optimal path from the recorded parents (label +
+    # fell), not by re-matching transitions -- two directions can
+    # converge to the same state, and re-matching could mislabel a
+    # forced fall as an ordinary walk (or vice versa).
     seq = []
     st = goal
     while parent[st] is not None:
-        seq.append(st)
-        st = parent[st]
+        prev, label, fell = parent[st]
+        seq.append((prev, label, fell))
+        st = prev
     seq.reverse()
-    full, cur = [], START
-    for nst in seq:
-        for cand, w, label in transitions(cur, mode):
-            if cand == nst:
-                if label in "UDLR":
-                    # Re-derive the tile letters for this step.
-                    full.extend(step(cur, label, mode)[1])
-                else:
-                    full.append(label)
-                break
+    full = []
+    for prev, label, fell in seq:
+        if label in "UDLR":
+            full.extend(step(prev, label, mode)[1])
+            if fell:
+                full.append("F")
         else:
-            raise AssertionError(f"cannot replay transition {cur} -> {nst}")
-        cur = nst
+            full.append(label)
     stats = {
         "states_reached": len(dist),
         "solution_tile_steps": dist[goal],
@@ -329,12 +329,13 @@ def solve(mode):
         "falls_in_solution": sum(1 for c in full if c == "F"),
     }
     # Soft-lock proof: reverse reachability from all goal states in `dist`
-    # over the same transition set (steps + WAIT + falls).
+    # over the same transition set (steps + WAIT; falls are forced inside
+    # steps on entering a VOID).
     succ = {}
     for st in dist:
         if is_goal(st):
             continue
-        succ[st] = {n for n, _, _ in transitions(st, mode)}
+        succ[st] = {n for n, _, _, _ in transitions(st, mode)}
     can = {st for st in dist if is_goal(st)}
     dq = deque(can)
     rev = {}
