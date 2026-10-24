@@ -246,9 +246,17 @@ BOOL FieldInput_Process(const FieldInput *input, FieldSystem *fieldSystem)
         // below only runs on a DW map, where overlay 9 is loaded.
         // On any non-DW map the call is never made.
         if (PersistedMapFeatures_IsCurrentDynamicMap(fieldSystem, DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) == TRUE
-            && (input->heldKeys & PAD_KEY) != 0
             && DwActors_IsAwaitingPadRelease(NULL, NULL, NULL)) {
-            return TRUE;
+            // dwp:rift-lt: post-respawn release gate. A fresh D-pad
+            // press clears the gate AND steps (a first re-press that
+            // does nothing feels like dropped input). Only a direction
+            // held continuously since before the respawn (no new press)
+            // is blocked: consume the movement input.
+            if ((input->pressedKeys & PAD_KEY) != 0) {
+                DwActors_ClearPadReleaseGate();
+            } else if ((input->heldKeys & PAD_KEY) != 0) {
+                return TRUE;
+            }
         }
 
         if (ov5_021DFDE0(fieldSystem, fieldSystem->playerAvatar, direction, playerEvent) == TRUE) {

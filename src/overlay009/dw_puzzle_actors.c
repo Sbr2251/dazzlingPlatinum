@@ -890,6 +890,19 @@ void DwActors_ArmPadReleaseGate(int x, int y, int z)
     }
 }
 
+void DwActors_ClearPadReleaseGate(void)
+{
+    if (!sActors.active || !sActors.awaitPadRelease) {
+        return;
+    }
+    sActors.awaitPadRelease = FALSE;
+    sActors.padReleaseTimer = 0;
+    sActors.padReleaseDebounce = 0;
+    if (sActors.platform.setInputLocked != NULL) {
+        sActors.platform.setInputLocked(sActors.platform.ctx, FALSE);
+    }
+}
+
 BOOL DwActors_IsStoneAt(DwActorTile tile)
 {
     int i;

@@ -337,6 +337,11 @@ void DwActors_OnCheckpoint(void); // snapshot stones/shadow/pads for the checkpo
 // on the rune tile before the gate arms.
 BOOL DwActors_IsAwaitingPadRelease(int *x, int *y, int *z);
 void DwActors_ArmPadReleaseGate(int x, int y, int z);
+// dwp:rift-lt: clear the gate (unpause). The ov5 step-start check
+// calls this when it sees a fresh D-pad press, so the clearing press
+// itself steps (a first re-press that does nothing feels like dropped
+// input). Idempotent.
+void DwActors_ClearPadReleaseGate(void);
 void DwActors_OnFallReset(void); // restore the checkpoint snapshot
 // TRUE iff a RESTING stone occupies the tile (blocks walking via TryPush, plugs currents).
 // LANDED stones are terrain (walkable, no block); FALLING stones occupy nothing.

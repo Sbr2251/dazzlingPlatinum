@@ -62,8 +62,10 @@ void DwPuzzle_Ov9GrantShadowGrace(FieldSystem *fieldSystem);
 // dwp:rift-lt: TRUE while the post-respawn release gate is armed; fills
 // *x/*y/*z with the recorded respawn tile (NULLs allowed). Defined in
 // dw_puzzle_actors.c (overlay 9); the ov5 field input handler calls it
-// to consume a held-direction step before it starts.
+// to consume a held-direction step before it starts, and calls
+// ClearPadReleaseGate on a fresh press so the clearing press steps.
 BOOL DwActors_IsAwaitingPadRelease(int *x, int *y, int *z);
+void DwActors_ClearPadReleaseGate(void);
 BOOL DistWorld_CheckCollisionOnCurrentFloatingPlatform(FieldSystem *fieldSystem, int tileX, int tileY, int tileZ);
 BOOL DistWorld_IsValidTileOnCurrentFloatingPlatform(FieldSystem *fieldSystem, int tileX, int tileY, int tileZ);
 BOOL ov9_02250FD8(FieldSystem *fieldSystem, int param1, int param2, int param3);
