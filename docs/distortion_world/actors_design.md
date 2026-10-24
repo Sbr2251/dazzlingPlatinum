@@ -100,8 +100,11 @@ stones affect walkability - there is no separate override layer, and no base-kin
 - FALLING: no actor tile (present FALSE). The stone occupies no tile.
 `SyncActorTiles` is clear-then-reapply: it clears all actor tiles and re-registers the
 present stones, so a stale override can never survive a restore (e.g. LANDED-B -> snapshot
-LANDED-A leaves nothing behind). Actor tiles win over groups but lose to explicit table
-overrides - so landing tiles must not have explicit overrides (table rule).
+LANDED-A leaves nothing behind). Actor tiles win over groups AND explicit table overrides
+(engine-a precedence: actor tiles beat explicit overrides). That is what makes both stone
+mechanics work: a LANDED stone's SOLID actor tile beats a VOID explicit override on its
+landing tile, and a RESTING stone's BLOCKED actor tile beats a SOLID explicit override on
+a current tile it plugs.
 
 - **Push (pre-move).** The glue's collision path calls `DwActors_TryPush(prevTile, curTile)`
   **before** allowing a step onto a stone tile, for **voluntary walking only** - never for
@@ -136,12 +139,19 @@ overrides - so landing tiles must not have explicit overrides (table rule).
   - Currents: a RESTING stone on a current tile plugs the current via its BLOCKED actor tile.
     A LANDED stone never sits on a current tile (table rule: landing tiles are never current tiles).
 - **Landing tiles (reserved).** Each landing tile (+ surface) belongs to at most one stone; it
-  must not be in any group, must not have an explicit override, and must not be a sigil, pad,
-  checkpoint, current, or rune tile. Its base kind is VOID (a gap the stone plugs - the planned
-  mechanic) or WALKABLE (stock). A stone can never land outside the map: falls only happen at
-  designated edges with designated landings. Clearing a LANDED stone removes its actor tile
-  (present FALSE), which restores whatever the tile resolves to without it - no base-kind
-  bookkeeping.
+  must not be in any group, and must not be a sigil, pad, checkpoint, current, or rune tile.
+  It MAY carry an explicit VOID override - this is the preferred way to make a gap landing a
+  fall before the stone lands, with no map-data base-kind change: VOID before landing (no
+  actor tile yet), SOLID once the stone lands (the LANDED actor tile beats the VOID
+  override), VOID again when the actor tile is cleared (e.g. a reset restores a snapshot
+  without that LANDED stone). An explicit override on a landing tile, if present, must be
+  VOID only - a SOLID/BLOCKED override would make the gap walkable/blocked before landing
+  and would come back when the actor tile clears. Without an explicit override, the tile's
+  base kind decides: VOID (a gap the stone plugs) or WALKABLE (stock floor, no fall before
+  landing). A stone can never land outside the map: falls only happen at designated edges
+  with designated landings. Clearing a LANDED stone removes its actor tile (present FALSE),
+  which restores whatever the tile resolves to without it (explicit VOID override if present,
+  else base kind) - no base-kind bookkeeping.
 - **Reset.** The reset path is engine-a's: a fall, a catch, or a RESET sigil bumps
   `gDwPuzzleDebug.resetGeneration`, and actors restore their **checkpoint snapshot** (section 7).
   Groups and stones therefore restore together to one consistent, previously-occupied state (the
@@ -165,7 +175,9 @@ overrides - so landing tiles must not have explicit overrides (table rule).
   and (b); (c) is a table property.
 - **Table sanitising.** `DwActors_Init` copies the table and clamps every count to its maximum
   (stones, edges, shadow tiles, echo sigils, pads, protected) and `beatFrames` to >= 1, so a
-  malformed external table can never overrun the fixed arrays.
+  malformed external table can never overrun the fixed arrays. It does NOT inspect engine-a
+  table overrides (it has no access to them), so nothing in code rejects an override on a
+  landing tile - the VOID-only rule above is enforced by the table validator (section 10).
 
 Visual: one MapObject per stone, `OBJ_EVENT_GFX_STRENGTH_BOULDER`, movement NONE, no script,
 height calculation disabled, `MAP_OBJ_STATUS_18` (non-colliding), `useRotation = 0`. On a wall it
@@ -486,8 +498,9 @@ authoritative; actors do not keep their own copy.
   engine-a's own commit must replace it at merge, and the weak-fallback block in
   `dw_puzzle_actors.c` must be deleted then.
 - Rift tables: rift-213 (stones) and rift-lt (visit-2 shadow + pads) - rift workstreams.
-- Table validator: beat < 30 rejected for Arc 2, landing-tile reservation, seam-corner actor
-  tiles rejected, cross-surface actor tiles need explicit state, pad tiles need a sigil in
-  the engine-a table, `mirrorAxis` != `echoAxis`, shadow lanes off script tiles - harness
-  workstream or a checker.
+- Table validator: beat < 30 rejected for Arc 2, landing-tile reservation, an explicit
+  override on a landing tile must be VOID (any other override rejected), landing tiles in
+  no group, seam-corner actor tiles rejected, cross-surface actor tiles need explicit
+  state, pad tiles need a sigil in the engine-a table, `mirrorAxis` != `echoAxis`, shadow
+  lanes off script tiles - harness workstream or a checker.
 - The echo self is implemented but untested in-game (no Arc 2 user; Arc 3 Aggron rift).
