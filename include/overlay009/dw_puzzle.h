@@ -522,6 +522,13 @@ typedef struct DwPuzzleState {
     BOOL cachedTestMode; // test-mode value the table was resolved under
     u16 cachedProgress;  // progress value the table was resolved under
     u8 padding3[2];
+    // dwp:rift-lt: first step after a catch/fall respawn must not fire a
+    // rune. Post-respawn input may be stale/buffered (the press was
+    // issued from the pre-respawn position), and a rune is a one-way
+    // teleport: firing it strands the player on the rune landing
+    // instead of the checkpoint. Set when the respawn is requested,
+    // consumed by the first HandleStep after the respawn clears.
+    BOOL respawnRuneGrace;
 } DwPuzzleState;
 
 extern DwPuzzleState gDwPuzzleState;

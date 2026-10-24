@@ -2595,6 +2595,20 @@ static void DwPuzzle_Ov9Respawn(DistWorldSystem *system, const DwPuzzleFrameResu
     u32 platformKind;
     enum AvatarDistortionState distortionState;
 
+    // dwp:rift-lt: cancel any in-flight step BEFORE the teleport. A
+    // shadow catch can land mid-step (during the step's settle); the
+    // teleport alone does not reset the avatar's move state
+    // (Player_MoveState / PlayerAvatar_MoveState), so the paused step
+    // would resume from the checkpoint and land on its delta
+    // (CP2 (16,23) + east = the (17,23) rune tile), and the step hook
+    // would fire the rune. sub_0205F5E4 is the stock cancel used
+    // before scripts/interactions (field_control.c); it zeroes the
+    // avatar move states and clears the MapObject movement. Called
+    // unconditionally: the stock sub_0205F588 guard would refuse a
+    // mid-step cancel, and the teleport immediately after makes the
+    // snap safe.
+    sub_0205F5E4(fieldSystem->playerAvatar, PlayerAvatar_GetDir(fieldSystem->playerAvatar));
+
     MapObject_SetPosDirFromCoords(playerMapObj, result->respawnX, result->respawnY * 2, result->respawnZ, facing);
 
     // dwp:rift-lt: arm the release gate AT the teleport. Arming only at

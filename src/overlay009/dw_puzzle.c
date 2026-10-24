@@ -86,6 +86,7 @@ static const DwActorTable *const sActorTables[] = {
 #define sFallZ (gDwPuzzleState.fallZ)
 #define sRespawnPending (gDwPuzzleState.respawnPending)
 #define sRespawnRestored (gDwPuzzleState.respawnRestored)
+#define sRespawnRuneGrace (gDwPuzzleState.respawnRuneGrace)
 #define sTrackingValid (gDwPuzzleState.trackingValid)
 #define sLastX (gDwPuzzleState.lastX)
 #define sLastY (gDwPuzzleState.lastY)
@@ -248,6 +249,7 @@ static void ResetPuzzleToInitial(void)
     sFallRestored = FALSE;
     sRespawnPending = FALSE;
     sRespawnRestored = FALSE;
+    sRespawnRuneGrace = FALSE; // dwp:rift-lt: no respawn owed, no grace owed
     sResetGeneration++;
     gDwPuzzleDebug.resetGeneration = sResetGeneration;
     TakeSnapshot();
@@ -667,6 +669,13 @@ BOOL DwPuzzle_HandleStep(FieldSystem *fieldSystem, int x, int y, int z, int surf
         return FALSE;
     }
 
+    // dwp:rift-lt: consume the respawn rune grace on the first real
+    // step after a respawn (pending is clear here, so this step is
+    // post-respawn). The local is checked by the rune block below;
+    // sigils, checkpoints and falls on this step still run.
+    BOOL respawnRuneGrace = sRespawnRuneGrace;
+    sRespawnRuneGrace = FALSE;
+
     ReleaseMomentaryFor(x, y, z, surface, DW_PUZZLE_OCCUPANT_PLAYER);
 
     // A slide that lands off-current ends here (sigils / runes /
@@ -698,8 +707,13 @@ BOOL DwPuzzle_HandleStep(FieldSystem *fieldSystem, int x, int y, int z, int surf
     }
 
     // Runes: the slide ends, the glue runs the jump-point change.
+    // dwp:rift-lt: on the first step after a respawn (respawnRuneGrace),
+    // do NOT fire the rune: the step's input may be stale/buffered from
+    // the pre-respawn position, and the rune is a one-way teleport.
+    // The step resolves as a plain step (sigils/checkpoints/falls above
+    // and below still run); stepping off and back onto the rune fires it.
     rune = FindRune(x, y, z, surface);
-    if (rune != NULL) {
+    if (rune != NULL && !respawnRuneGrace) {
         if (sSliding) {
             sSliding = FALSE;
             PuzzleSetEvent(DW_PUZZLE_EVENT_CURRENT_STOP, 0);
@@ -870,6 +884,10 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
                 sRespawnRestored = FALSE;
             } else if (out != NULL) {
                 out->respawnRequested = TRUE;
+                // dwp:rift-lt: arm the respawn rune grace (see the
+                // field comment): the first step after this respawn
+                // must not fire a rune.
+                sRespawnRuneGrace = TRUE;
                 out->respawnX = cp->x;
                 out->respawnY = cp->y;
                 out->respawnZ = cp->z;
@@ -921,6 +939,10 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
                 sFallRestored = FALSE;
             } else if (out != NULL) {
                 out->respawnRequested = TRUE;
+                // dwp:rift-lt: arm the respawn rune grace (see the
+                // field comment): the first step after this respawn
+                // must not fire a rune.
+                sRespawnRuneGrace = TRUE;
                 out->respawnX = cp->x;
                 out->respawnY = cp->y;
                 out->respawnZ = cp->z;
