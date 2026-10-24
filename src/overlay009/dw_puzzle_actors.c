@@ -33,7 +33,7 @@
 #include "player_avatar.h"
 #include "script_manager.h"
 #include "sound_playback.h"
-#include "system.h" // dwp:rift-lt: JOY_HELD(PAD_KEY) for the post-respawn release gate
+#include "system.h" // dwp:rift-lt: JOY_NEW(PAD_KEY) for the post-respawn release gate
 #include "vars_flags.h"
 #endif
 
@@ -671,32 +671,30 @@ void DwActors_HandleFrame(DwActorTile player)
     if (sActors.shadowState != DW_ACTOR_SHADOW_PATROL) {
         return;
     }
-    // dwp:rift-lt: post-respawn release gate (see OnFallReset). Hold the
-    // input lock until the D-pad is released, so a still-held direction
-    // cannot step the respawned player (e.g. CP2 -> rune tile). The
-    // safety timer unpauses after 300 frames even if the D-pad stays held.
+    // dwp:rift-lt: post-respawn release gate (see OnFallReset). Hold
+    // the input lock until a NEW D-pad press (a re-press after the
+    // respawn), so a still-held pre-respawn direction cannot step the
+    // respawned player (e.g. CP2 -> rune tile). A new press clears it:
+    // JOY_NEW is edge-triggered, so the held direction (no new edge)
+    // does not clear it, but a fast driver's every step is a new press
+    // (a release-based gate would stall it: it never releases for 5
+    // frames). The safety timer unpauses after 300 frames even with
+    // no new press, so a stuck pad never soft-locks the player.
     if (sActors.awaitPadRelease) {
 #ifndef DW_ACTORS_HOST_TEST
-        BOOL padReleased = (JOY_HELD(PAD_KEY) == 0);
+        BOOL newPress = (JOY_NEW(PAD_KEY) != 0);
 #else
-        BOOL padReleased = TRUE;
+        BOOL newPress = TRUE;
 #endif
-        if (padReleased) {
-            // Debounce: a single released frame can be a transient
-            // clear from the warp/script while the D-pad is still held.
-            if (++sActors.padReleaseDebounce >= 5 || sActors.padReleaseTimer == 0) {
-                sActors.awaitPadRelease = FALSE;
-                sActors.padReleaseTimer = 0;
-                sActors.padReleaseDebounce = 0;
-                if (sActors.platform.setInputLocked != NULL) {
-                    sActors.platform.setInputLocked(sActors.platform.ctx, FALSE);
-                }
-            }
-        } else {
+        if (newPress || sActors.padReleaseTimer == 0) {
+            sActors.awaitPadRelease = FALSE;
+            sActors.padReleaseTimer = 0;
             sActors.padReleaseDebounce = 0;
-            if (sActors.padReleaseTimer > 0) {
-                sActors.padReleaseTimer--;
+            if (sActors.platform.setInputLocked != NULL) {
+                sActors.platform.setInputLocked(sActors.platform.ctx, FALSE);
             }
+        } else if (sActors.padReleaseTimer > 0) {
+            sActors.padReleaseTimer--;
         }
     }
     if (sActors.carryPending >= 0 || sActors.pendingPad >= 0) {

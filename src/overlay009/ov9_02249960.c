@@ -3583,7 +3583,7 @@ BOOL ov9_0224A71C(FieldSystem *fieldSystem)
         // player already slipped off the recorded respawn tile (a step
         // in the window before the gate armed), correct them back to
         // it now, so the respawn lands on the checkpoint, not the
-        // rune tile. The gate clears when the D-pad is released
+        // rune tile. The gate clears on a new D-pad press
         // (actor HandleFrame), so a genuine re-press after release
         // still steps. Slides never coincide with the gate (route-214
         // has currents but no actor table), so this only fires for

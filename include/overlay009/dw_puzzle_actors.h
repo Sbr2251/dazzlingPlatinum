@@ -242,17 +242,15 @@ typedef struct {
     BOOL catchResetIssued;
     u16 catchWatchdog;
     // dwp:rift-lt: after a catch/fall respawn, hold the input lock until
-    // the D-pad is released. A direction still held from the pre-catch
-    // step would otherwise start a new step from the respawned position
-    // (e.g. CP2 (16,23) -> (17,23) rune tile -> rune landing (11,4,19)).
-    // padReleaseTimer is the safety: unpause after 300 frames even if
-    // the D-pad stays held, so a stuck pad never soft-locks the player.
+    // a NEW D-pad press (a re-press after the respawn). A direction
+    // still held from the pre-catch step would otherwise start a new
+    // step from the respawned position (e.g. CP2 (16,23) -> (17,23)
+    // rune tile -> rune landing (11,4,19)). padReleaseTimer is the
+    // safety: unpause after 300 frames even with no new press, so a
+    // stuck pad never soft-locks the player.
     BOOL awaitPadRelease;
     u16 padReleaseTimer;
-    // Debounce: the warp/script can clear heldKeys for a single frame
-    // even while the D-pad is still physically held; require several
-    // consecutive released frames before unpausing.
-    u8 padReleaseDebounce;
+    u8 padReleaseDebounce; // unused (kept for struct stability)
     // The respawn tile the gate recorded (Ov9Respawn). The step hook
     // corrects a player who slipped off it before the gate armed
     // (e.g. onto the rune tile) back to this tile.
