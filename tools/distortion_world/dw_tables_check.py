@@ -52,15 +52,20 @@ oversize array as absent.
     - pad tiles never checkpoint / rune / current tiles
   production-only (paired puzzle testOnly == 0; test tables are
   fixtures for the host test and the engine's test mode):
-    - every actor tile (stone start/edge/landing, shadow lane, echo
-      sigil, pad, protected, any surface) has an explicit engine-a
-      state: a group tile or an explicit override with state !=
-      DEFAULT (cross-surface rule, section 2: DEFAULT resolves only
-      on the player's current surface, else BLOCKED; GROUND has no
-      stock grid, so DEFAULT always reads BLOCKED, fail closed).
-      Landings are included: section 3 allows a landing without an
-      override (base kind decides), but the validator cannot verify
-      base kinds, so it enforces section 2's contract.
+    - every GROUND actor tile EXCEPT landings (stone start/edge,
+      shadow lane, echo sigil, pad, protected) has an explicit
+      engine-a state: a group tile or an explicit override with
+      state != DEFAULT (GROUND has no stock grid, so DEFAULT always
+      reads BLOCKED, fail closed). Landings are exempt: section 3
+      permits a landing to use its base kind (VOID for a gap,
+      WALKABLE for a platform); the VOID-only override rule still
+      applies if a landing override is present. Non-GROUND actor
+      tiles resolve via the stock grid on the player's surface --
+      no walkability query in the engine is cross-surface (TryPush,
+      the step hook, Currents, and the slide all query the player's
+      surface; shadow/echo/pad checks are TileEq), so the
+      cross-surface BLOCKED is a latent contract, not an
+      enforceable table rule.
     - shadow beatFrames >= 30 (Arc 2 rule; the test table uses a 6-frame
       beat on purpose)
     - every pad tile has a sigil in the engine-a table (pads are sigil
@@ -511,31 +516,36 @@ static int is_pad_tile(const DwActorTable *a, int x, int y, int z, int s)
     return 0;
 }
 
-/* Explicit-state rule (actors_design.md section 2, cross-surface):
- * DEFAULT resolves via the stock grid only on the player's current
- * surface, and reads BLOCKED for any surface other than the player's
- * (the glue compares against gDwPuzzleDebug.surface); for GROUND
- * there is no stock grid, so DEFAULT always reads BLOCKED (fail
- * closed). The validator cannot know the player's surface per
- * query, so for production tables EVERY actor tile needs an
- * explicit engine-a state: a group tile or an explicit override
- * with state != DEFAULT. Section 3 allows a landing without an
- * override (base kind decides), but the validator cannot verify
- * base kinds, so it enforces section 2's contract -- the preferred
- * form is an explicit VOID override for gap landings. */
-static void check_actor_tile_explicit(const DwPuzzleTable *t, const DwActorTile *tile,
-                                      const char *what, int production)
+/* Explicit-state rule (actors_design.md section 2): DEFAULT
+ * resolves via the stock grid on the player's current surface, and
+ * reads BLOCKED for any surface other than the player's (the glue
+ * compares against gDwPuzzleDebug.surface); for GROUND there is no
+ * stock grid, so DEFAULT always reads BLOCKED (fail closed). The
+ * enforceable rule is GROUND-only: an audit of the engine's
+ * queries shows no walkability query is cross-surface --
+ * TryPush, the step hook, Currents, and the slide all query the
+ * player's surface; the shadow/echo/pad checks are TileEq, not
+ * tile queries; the one cross-surface tile is the landing, and
+ * section 3 explicitly permits it to use its base kind (VOID for
+ * a gap, WALKABLE for a platform -- the LANDED actor tile wins
+ * once the stone is there). So production tables need explicit
+ * states for GROUND actor tiles EXCEPT landings (the VOID-only
+ * override rule still applies if a landing override is present).
+ * Non-GROUND actor tiles resolve via the stock grid on the
+ * player's surface; the cross-surface BLOCKED is a latent
+ * contract, not an enforceable table rule. */
+static void check_ground_actor_tile(const DwPuzzleTable *t, const DwActorTile *tile,
+                                    const char *what, int production)
 {
     char buf[64];
-    if (!production)
+    if (!production || tile->surface != DW_PUZZLE_SURFACE_GROUND)
         return;
     CHECK(is_group_tile(t, tile->x, tile->y, tile->z, tile->surface)
           || (find_explicit(t, tile->x, tile->y, tile->z, tile->surface) != NULL
               && find_explicit(t, tile->x, tile->y, tile->z, tile->surface)->state
                  != DW_PUZZLE_TILE_DEFAULT),
-          "actor tile %s %s has no explicit engine-a state "
-          "(group tile or explicit override, state != DEFAULT; "
-          "DEFAULT reads BLOCKED cross-surface)",
+          "ground actor tile %s %s has no explicit engine-a state "
+          "(group tile or explicit override, state != DEFAULT)",
           what, actor_tile_name(tile, buf));
 }
 
@@ -605,13 +615,12 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
             CHECK(!is_protected(a, edge),
                   "stone %d edge %d %s is protected (pad/echo/landing/listed)",
                   s, e, actor_tile_name(edge, buf));
-            check_actor_tile_explicit(t, edge, "edge", production);
-            check_actor_tile_explicit(t, land, "landing", production);
+            check_ground_actor_tile(t, edge, "edge", production);
         }
         CHECK(!is_protected(a, &a->stones[s].start),
               "stone %d start %s is protected (pad/echo/landing/listed)",
               s, actor_tile_name(&a->stones[s].start, buf));
-        check_actor_tile_explicit(t, &a->stones[s].start, "stone start", production);
+        check_ground_actor_tile(t, &a->stones[s].start, "stone start", production);
     }
     /* Shadow. */
     for (i = 0; i < nshadow; i++) {
@@ -622,7 +631,7 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
                              t->checkpoints[j].z, t->checkpoints[j].surface),
                   "shadow tile %s is checkpoint %d (entry/checkpoint are script tiles)",
                   actor_tile_name(tile, buf), j);
-        check_actor_tile_explicit(t, tile, "shadow", production);
+        check_ground_actor_tile(t, tile, "shadow", production);
     }
     if (production && nshadow > 0)
         CHECK(a->shadow.beatFrames >= 30,
@@ -630,7 +639,7 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
               a->shadow.beatFrames);
     /* Echo sigils. */
     for (i = 0; i < necho; i++)
-        check_actor_tile_explicit(t, &a->echo.sigilTiles[i], "echo sigil", production);
+        check_ground_actor_tile(t, &a->echo.sigilTiles[i], "echo sigil", production);
     /* Pads. */
     for (i = 0; i < npads; i++) {
         const DwActorTile *tile = &a->pads[i].tile;
@@ -656,11 +665,11 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
             CHECK(is_sigil(t, tile->x, tile->y, tile->z, tile->surface),
                   "pad %d tile %s has no sigil in the engine-a table",
                   i, actor_tile_name(tile, buf));
-        check_actor_tile_explicit(t, tile, "pad", production);
+        check_ground_actor_tile(t, tile, "pad", production);
     }
     /* Protected. */
     for (i = 0; i < nprotected; i++)
-        check_actor_tile_explicit(t, &a->protectedTiles[i], "protected", production);
+        check_ground_actor_tile(t, &a->protectedTiles[i], "protected", production);
 }
 """
 

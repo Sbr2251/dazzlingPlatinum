@@ -33,25 +33,39 @@ A model is a PuzzleModel:
         4. sigil (toggle/set/momentary)      -- Sigils (+ Echo presses)
         5. current slide                     -- Currents
         6. crumble / scar state              -- Crumbling / ScarGroups
-        7. shadow catch                      -- Shadow
-        8. fall (VOID tile / scar fall)      -- the framework, from the
+        7. shadow catch                      -- Shadow (pre-empted by
+           a pad: the pad prompt freezes the patrol, see Pads)
+        8. pad Yes/No branch                 -- Pads (an unused pad at
+           the final tile branches; the Yes outcome fires the pad's
+           sigil, marks it used, and carries if any)
+        9. fall (VOID tile / scar fall)      -- the framework, from the
            step result: the player respawns at the last checkpoint with
-           the checkpoint's snapshot (groups, stones, shadow phase --
-           the engine's actor snapshot; see PuzzleModel._fall).
+           the checkpoint's snapshot (groups, stones, shadow, padUsed
+           -- the engine's actor snapshot; see PuzzleModel._fall).
 
 State is (surface, tile, groups, stones, landed, crumble,
-shadow_phase, shadow_dir, checkpoint, held, echo). `groups` is a
-tuple of bools (one per group); `stones` a tuple of (surface, tile)
-sorted; `landed` the frozenset of stone positions that have dropped
-(LANDED); `crumble` is mechanic private state (a tuple);
-`checkpoint` is a snapshot ((surface, tile), groups, stones,
-shadow_phase, landed, shadow_dir) -- crumble/scar state is NOT
-snapshotted, because a fall warp reloads the map and one-use tiles
-and scars are whole again (Ravaged Path's walkway reset); `held`
-is the set of momentary sigils currently stood on (so releases fire
-on stepping off) and is NOT snapshotted: momentary holders are
-per-occupant and cleared on restore, so after a fall the player must
-re-press them. States are hashable, so BFS is exact over the model.
+shadow_phase, shadow_dir, shadow_counter, pad_used, checkpoint,
+held, echo). `groups` is a tuple of bools (one per group); `stones`
+a tuple of (surface, tile) sorted; `landed` the frozenset of stone
+positions that have dropped (LANDED); `crumble` is mechanic
+private state (a tuple); `checkpoint` is a snapshot ((surface,
+tile), groups, stones, shadow_phase, landed, shadow_dir, pad_used,
+shadow_counter) -- crumble/scar state is NOT snapshotted, because
+a fall warp reloads the map and one-use tiles and scars are whole
+again (Ravaged Path's walkway reset); `held` is the set of
+momentary sigils currently stood on (so releases fire on stepping
+off) and is NOT snapshotted: momentary holders are per-occupant
+and cleared on restore, so after a fall the player must re-press
+them. States are hashable, so BFS is exact over the model.
+
+Mechanics that branch: stepping onto an unused pad yields TWO
+successors (Yes: fire the pad's sigil + mark used, plus the carry
+if any; No: leave it unused). A solution step whose tags include
+'pad-yes' needs an A press (Yes) after that step in the replay;
+'pad-no' needs the prompt declined. A pad pre-empts the shadow
+(StepHook returns PAD_READY before the shadow catch check, and
+the prompt freezes the patrol): a press landing on an unused pad
+neither ticks nor catches the shadow.
 
 Abstraction boundaries (documented, not hidden): a stone fall is
 atomic within the press. The engine falls a stone over 12 frames
@@ -64,11 +78,13 @@ checkpoint snapshot covers script/carry arrivals within 12 frames
 of a drop, which the solver (walking only) does not model. A
 LANDED stone's tile keeps its underlying mechanics (a current under
 a LANDED stone still fires -- the stone is terrain, not a plug).
-Pads are not modelled: they carry padUsed (one use per load per
-pad, checkpointed and restored), which gates the totem-act
-prompt/cutscene, not movement. The shadow's beat frame counter and
-the stone fall timer are sub-press timing: the solver steps each
-once per press/wait.
+The shadow's beat is approximated by `beats` (presses per shadow
+step; the workstream calibrates it from beatFrames / step time):
+the solver's catch is the shadow's position at the press's end
+(the engine checks TileEq every frame), so stepping onto the
+shadow's tile while its beat has not elapsed catches the player.
+The stone fall timer is sub-press timing: the solver lands the
+fall within the press that started it.
 
 A mechanic only has to implement:
   - tags(state, from_tile, to_tile, face) -> (extra_state_changes, tags)
@@ -182,7 +198,8 @@ class Sigils(Mechanic, GroupsMixin):
     hold their group on while stood on (holder count kept in `held`:
     the set of momentary sigil keys currently pressed). Reset restores
     the checkpoint snapshot (groups/stones/shadow_phase/landed/
-    shadow_dir) without moving the player, and clears `held`. Crumble is
+    shadow_dir/pad_used/shadow_counter) without moving the player,
+    and clears `held`. Crumble is
     map-load state: a reset does not reload the map, so the
     fresh-crumble restore is the same map-load state a fall warp
     produces."""
@@ -212,12 +229,14 @@ class Sigils(Mechanic, GroupsMixin):
             tags.append("reset")
             cp = state["checkpoint"]
             # A reset restores the checkpoint snapshot
-            # (groups/stones/shadow_phase/landed/shadow_dir) and the
-            # fresh crumble state: a fall warp reloads the map, so
-            # scars / one-use tiles are whole again.
+            # (groups/stones/shadow_phase/landed/shadow_dir/pad_used/
+            # shadow_counter) and the fresh crumble state: a fall
+            # warp reloads the map, so scars / one-use tiles are
+            # whole again.
             return {"groups": cp[1], "stones": cp[2],
                     "shadow_phase": cp[3], "landed": cp[4],
-                    "shadow_dir": cp[5],
+                    "shadow_dir": cp[5], "pad_used": cp[6],
+                    "shadow_counter": cp[7],
                     "crumble": model.fresh_crumble(),
                     "held": frozenset()}
         raise ValueError(f"bad sigil kind {kind!r}")
@@ -260,6 +279,39 @@ class Runes(Mechanic):
             return {}
         tags.append("rune")
         return {"surface": dest[0], "tile": dest[1]}
+
+
+class Pads(Mechanic):
+    """Totem pads: {(surface, tile): (kind, target_group, set_value)}
+    with kind 'toggle' | 'set' (a pad fires its engine-a sigil once,
+    on Yes). carry: {(surface, tile): (surface, tile)} -- Skarmory
+    pads teleport the player to the carry destination on Yes (the
+    sigil still fires). State: `pad_used` = frozenset of pad keys
+    accepted (one use per load per pad; checkpointed and restored,
+    like the engine's padUsed -- DwActors_StepHook fires a pad only
+    if its bit is clear; ResolvePad sets it and returns the cutin /
+    carry request). Stepping onto an unused pad branches Yes/No
+    (see PuzzleModel._arrive): Yes fires the sigil and marks the
+    pad used (plus the carry, if any); No leaves it unused. The pad
+    pre-empts the shadow (StepHook returns PAD_READY before the
+    shadow catch check, and the prompt freezes the patrol). A
+    solution step whose tags include 'pad-yes' needs an A press
+    (Yes) after that step in the replay; 'pad-no' needs the prompt
+    declined. Momentary/reset kinds are rejected: a pad is a
+    one-shot prompt, not a hold or a restore."""
+
+    def __init__(self, pads, n_groups, carry=None):
+        self.pads = dict(pads)
+        self.carry = dict(carry or {})
+        for key, (kind, target, _value) in self.pads.items():
+            if kind not in ("toggle", "set"):
+                raise ValueError(f"pad {key} kind {kind!r} (want toggle/set)")
+            if not 0 <= target < n_groups:
+                raise ValueError(
+                    f"pad {key} targets group {target}, only {n_groups} groups")
+
+    def initial(self, model):
+        return {"pad_used": frozenset()}
 
 
 class Currents(Mechanic):
@@ -445,36 +497,42 @@ class ScarGroups(Mechanic):
 
 class Shadow(Mechanic):
     """Giratina's shadow: patrol lanes. lane: [(surface, tile), ...]
-    walked on a fixed beat; phase advances one step per pressed move
-    (or per WAIT). `pingpong`: the lane reverses at its ends
-    (0,1,2,1,0,...), matching the engine's pingpong direction; loop
-    lanes wrap (0,1,2,0,...). The checkpoint snapshot stores phase
-    AND direction (the engine snapshots pattern index + pingpong
-    direction + beat frame counter). The beat frame counter is
-    sub-beat timing the press-level model does not represent: the
-    solver's phase advances once per press/wait, while the engine
-    advances once per beatFrames frames -- a press is not a beat.
-    For fast play the solver's shadow may step more often than the
-    engine's (conservative for catching: it catches the player where
-    the engine might not have arrived yet); timing-critical rifts
-    calibrate via the replay.
-    Caught = the shadow's tile equals the player's after the move
-    (and the player is not on a tile in `safe`), which respawns at the
-    last checkpoint (falls count as respawns, not falls). `phase0` is
-    the starting index into the lane."""
+    walked on a fixed beat. `beats` = presses per shadow step
+    (1 = every press; 2-3 for a slow shadow -- LT's beat is 45-60
+    frames vs a ~20-frame step, so its shadow steps every 2-3
+    presses). The beat counter (`shadow_counter`, snapshotted like
+    the engine's shadowFrameCounter) counts presses since the last
+    shadow step; when it reaches `beats`, the shadow steps (phase +
+    pingpong direction) and the counter resets. `pingpong`: the
+    lane reverses at its ends (0,1,2,1,0,...), matching the engine's
+    pingpong direction; loop lanes wrap (0,1,2,0,...).
+    Caught = the shadow is on the player's tile at the press's end
+    (the engine checks TileEq(player, ShadowTile()) every frame, on
+    player steps and on shadow beats): if the beat elapsed this
+    press, the shadow is at its new tile; if not, it is still at
+    its old tile -- stepping onto the shadow's current tile while
+    its beat has not elapsed catches the player (the old solver
+    advanced first and let that step through). `safe` tiles never
+    catch; a catch respawns at the last checkpoint (falls count as
+    respawns, not falls). `phase0` is the starting index into the
+    lane. The beats counter is a press-level approximation of the
+    engine's frame beat (the workstream calibrates `beats` from
+    beatFrames / step time); the replay is the cross-check."""
 
-    def __init__(self, lane, safe=(), phase0=0, pingpong=False):
+    def __init__(self, lane, safe=(), phase0=0, pingpong=False, beats=1):
         self.lane = list(lane)
         self.safe = set(safe)
         self.phase0 = phase0
         self.pingpong = pingpong
+        self.beats = max(1, beats)
 
     def initial(self, model):
-        return {"shadow_phase": self.phase0, "shadow_dir": 1}
+        return {"shadow_phase": self.phase0, "shadow_dir": 1,
+                "shadow_counter": 0}
 
     def advance(self, state):
-        """Next (phase, direction) after one beat. Pure: returns the
-        update dict."""
+        """Next (phase, direction) when the shadow steps. Pure:
+        returns the update dict (no counter)."""
         n = len(self.lane)
         if n <= 1:
             return {"shadow_phase": 0, "shadow_dir": 1}
@@ -487,9 +545,20 @@ class Shadow(Mechanic):
             nxt = phase + d
         return {"shadow_phase": nxt, "shadow_dir": d}
 
-    def on_arrive(self, model, state, prev, face, tags):
+    def tick(self, state):
+        """Advance the beat counter; step the shadow if the beat
+        elapsed this press. Returns (updates, stepped)."""
+        counter = state["shadow_counter"] + 1
+        if counter < self.beats:
+            return {"shadow_counter": counter}, False
         upd = self.advance(state)
-        shadow_here = self.lane[upd["shadow_phase"]]
+        upd["shadow_counter"] = 0
+        return upd, True
+
+    def on_arrive(self, model, state, prev, face, tags):
+        upd, _stepped = self.tick(state)
+        phase = upd.get("shadow_phase", state["shadow_phase"])
+        shadow_here = self.lane[phase]
         if (state["surface"], state["tile"]) == shadow_here \
                 and (state["surface"], state["tile"]) not in self.safe:
             tags.append("caught")
@@ -562,16 +631,56 @@ class PuzzleModel:
                 self._gate_of[t] = g
         self._sigil_keys = set()
         self._rune_keys = set()
+        self._pad_keys = set()
         for m in self.mechanics:
             if isinstance(m, Sigils):
                 self._sigil_keys |= set(m.sigils)
             if isinstance(m, Runes):
                 self._rune_keys |= set(m.runes)
+            if isinstance(m, Pads):
+                self._pad_keys |= set(m.pads)
 
     def is_mechanic_tile(self, surf, tile):
-        """Tiles whose own logic ends a slide (sigil / rune / checkpoint)."""
+        """Tiles whose own logic ends a slide (sigil / rune / pad /
+        checkpoint)."""
         return (surf, tile) in self._sigil_keys or (surf, tile) in self._rune_keys \
+            or (surf, tile) in self._pad_keys \
             or (surf, tile) in self.checkpoints
+
+    def _pad_at(self, st):
+        """(Pads mechanic, key) if (surface, tile) is an unused pad,
+        else None."""
+        for m in self.mechanics:
+            if isinstance(m, Pads):
+                key = (st["surface"], st["tile"])
+                if key in m.pads and key not in st["pad_used"]:
+                    return (m, key)
+        return None
+
+    def _pad_branch(self, st, pad, tags):
+        """Yes/No outcomes of stepping onto an unused pad. Yes fires
+        the pad's sigil and marks the pad used (plus the carry, if
+        any); No leaves the pad unused. The player ends on the pad
+        tile in the No outcome, or at the carry destination in a
+        carry Yes outcome."""
+        m, key = pad
+        kind, target, value = m.pads[key]
+        yes = dict(st)
+        groups = list(yes["groups"])
+        if kind == "toggle":
+            groups[target] = not groups[target]
+        else:  # set
+            groups[target] = bool(value)
+        yes["groups"] = tuple(groups)
+        yes["pad_used"] = st["pad_used"] | {key}
+        yes_tags = list(tags) + ["pad-yes", "toggle"]
+        dest = m.carry.get(key)
+        if dest is not None:
+            yes["surface"], yes["tile"] = dest
+            yes_tags.append("carry")
+        no = dict(st)
+        no_tags = list(tags) + ["pad-no"]
+        return [(yes, yes_tags), (no, no_tags)]
 
     def fresh_crumble(self):
         """The crumble/scar state of a freshly loaded map (a fall warp
@@ -589,35 +698,38 @@ class PuzzleModel:
               "groups": tuple(False for _ in range(self.n_groups)),
               "stones": tuple(), "landed": frozenset(),
               "crumble": self.fresh_crumble(),
-              "shadow_phase": 0, "shadow_dir": 1,
-              "held": frozenset(), "echo": None}
+              "shadow_phase": 0, "shadow_dir": 1, "shadow_counter": 0,
+              "pad_used": frozenset(), "held": frozenset(), "echo": None}
         for m in self.mechanics:
             st.update(m.initial(self))
         # A checkpoint snapshots (tile, groups, stones, shadow_phase,
-        # landed, shadow_dir) -- the engine's actor snapshot
-        # (pattern index + pingpong direction; the beat frame counter
-        # is sub-beat timing, see Shadow). Crumble state is map-load
+        # landed, shadow_dir, pad_used, shadow_counter) -- the
+        # engine's actor snapshot (pattern index + pingpong direction
+        # + padUsed + beat frame counter). Crumble state is map-load
         # state (see fresh_crumble); `held` is per-occupant and
         # cleared on restore, so it is not snapshotted.
         st["checkpoint"] = (self.start, st["groups"], st["stones"],
                             st["shadow_phase"], st["landed"],
-                            st["shadow_dir"])
+                            st["shadow_dir"], st["pad_used"],
+                            st["shadow_counter"])
         return st
 
     def _freeze(self, st):
         return (st["surface"], st["tile"], st["groups"], st["stones"],
                 st["landed"], st["crumble"], st["shadow_phase"],
-                st["shadow_dir"], st["held"], st["echo"],
+                st["shadow_dir"], st["shadow_counter"],
+                st["pad_used"], st["held"], st["echo"],
                 st["checkpoint"])
 
     def successors(self, state):
         """Yields (face, new_state, tags). Falls/respawns are edges
-        too: the new state's tile is the checkpoint tile. WAIT (face
-        4) stands still: only time-based mechanics (Shadow) tick."""
+        too: the new state's tile is the checkpoint tile. A step
+        onto an unused pad yields TWO successors (Yes/No). WAIT
+        (face 4) stands still: only time-based mechanics (Shadow)
+        tick."""
         out = []
         for face in range(4):
-            nxt, tags = self._step(state, face)
-            if nxt is not None:
+            for nxt, tags in self._step(state, face):
                 out.append((face, nxt, tags))
         nxt, tags = self._wait(state)
         if nxt is not None:
@@ -625,23 +737,27 @@ class PuzzleModel:
         return out
 
     def _wait(self, state):
-        """Stand still for one beat. Only Shadow advances; a wait that
+        """Stand still for one beat. Only Shadow ticks; a wait that
         gets the player caught is a respawn edge. Waiting while the
         shadow is elsewhere is a self-loop -- it is still a useful
-        edge (it changes the phase), so it is kept."""
+        edge (it changes the beat counter / phase), so it is kept."""
         tags = ["wait"]
         st = dict(state)
         for m in self.mechanics:
             if isinstance(m, Shadow):
-                upd = m.advance(st)
+                upd, _stepped = m.tick(st)
                 st.update(upd)
-                if (st["surface"], st["tile"]) == m.lane[upd["shadow_phase"]] \
+                # st["shadow_phase"] is now the post-tick phase (the
+                # shadow's position at the wait's end).
+                if (st["surface"], st["tile"]) == m.lane[st["shadow_phase"]] \
                         and (st["surface"], st["tile"]) not in m.safe:
                     tags.append("caught")
                     return self._respawn(st, tags), tags
         return st, tags
 
     def _step(self, state, face):
+        """Returns a LIST of (state, tags): usually one; a step onto
+        an unused pad branches Yes/No; [] when blocked."""
         tags = []
         surf, tile = state["surface"], state["tile"]
         # Jump (hop / edge surface change) beats a plain step.
@@ -653,9 +769,9 @@ class PuzzleModel:
         gate = self._gate_of.get((surf, ntile))
         if gate is not None:
             if not state["groups"][gate]:
-                return None, tags  # gated bridge is off
+                return []  # gated bridge is off
         elif ntile not in self.surfaces.get(surf, ()):
-            return None, tags
+            return []
         # Stones: push before moving.
         stones = state["stones"]
         landed = state["landed"]
@@ -664,12 +780,16 @@ class PuzzleModel:
                 (stones, landed), ok = m.try_push(self, state, surf, ntile,
                                                   face, tags)
                 if not ok:
-                    return None, tags
+                    return []
         return self._arrive(state, (surf, tile), surf, ntile, face, tags,
                             jumped=False, stones=stones, landed=landed)
 
     def _arrive(self, state, prev, surf, tile, face, tags, jumped,
                 stones=None, landed=None):
+        """Returns a LIST of (state, tags): usually one; a step onto
+        an unused pad branches Yes/No (see Pads). Falls/respawns
+        are singletons (a pad branch never survives them: a press
+        that falls takes the respawn state, not a pad decision)."""
         st = dict(state)
         if stones is not None:
             st["stones"] = stones
@@ -680,16 +800,23 @@ class PuzzleModel:
         for m in self.mechanics:
             upd = m.on_leave(self, st, prev, face, tags)
             st.update(upd)
+        # Pad pre-emption: the engine's StepHook returns PAD_READY
+        # before the shadow catch check, and the prompt freezes the
+        # patrol. If this press lands on an unused pad, the shadow
+        # does not tick or catch for this press.
+        pad_here = self._pad_at(st)
         # Arrival: stones already applied; runes, sigils, echo, scars,
         # shadow in mechanic order, then currents slide, then fall.
         for m in self.mechanics:
             if isinstance(m, (Stones, Currents)):
                 continue
+            if pad_here is not None and isinstance(m, Shadow):
+                continue  # patrol frozen: pad prompt pre-empts the shadow
             upd = m.on_arrive(self, st, prev, face, tags)
             if upd.pop("fall", False):
-                return self._fall(st, tags), tags
+                return [(self._fall(st, tags), tags)]
             if upd.pop("respawn", False):
-                return self._respawn(st, tags), tags
+                return [(self._respawn(st, tags), tags)]
             st.update(upd)
         # Currents slide (after the arrival logic of the landing tile).
         for m in self.mechanics:
@@ -699,14 +826,17 @@ class PuzzleModel:
                 # The slide's final tile may be a sigil/rune: run its
                 # arrival logic once (the landing tile, not the start).
                 if upd.get("tile") is not None and upd["tile"] != tile:
+                    pad_slide = self._pad_at(st)
                     for m2 in self.mechanics:
                         if isinstance(m2, (Stones, Currents)):
                             continue
+                        if pad_slide is not None and isinstance(m2, Shadow):
+                            continue  # pad pre-empts the shadow, as above
                         upd2 = m2.on_arrive(self, st, prev, face, tags)
                         if upd2.pop("fall", False):
-                            return self._fall(st, tags), tags
+                            return [(self._fall(st, tags), tags)]
                         if upd2.pop("respawn", False):
-                            return self._respawn(st, tags), tags
+                            return [(self._respawn(st, tags), tags)]
                         st.update(upd2)
                 break
         # A reset sigil's restore is authoritative over anything else
@@ -719,37 +849,54 @@ class PuzzleModel:
             cp = st["checkpoint"]
             st["groups"], st["stones"] = cp[1], cp[2]
             st["shadow_phase"], st["landed"] = cp[3], cp[4]
-            st["shadow_dir"] = cp[5]
+            st["shadow_dir"], st["pad_used"] = cp[5], cp[6]
+            st["shadow_counter"] = cp[7]
             st["held"] = frozenset()
-        # Checkpoint snapshot (tile, groups, stones, shadow_phase,
-        # landed, shadow_dir) -- the engine's actor snapshot.
-        if (st["surface"], st["tile"]) in self.checkpoints:
-            tags.append("checkpoint")
-            st["checkpoint"] = ((st["surface"], st["tile"]), st["groups"],
-                                st["stones"], st["shadow_phase"],
-                                st["landed"], st["shadow_dir"])
-        # VOID tile: fall.
-        if (st["surface"], st["tile"]) in self.void_tiles:
-            tags.append("fall")
-            return self._fall(st, tags), tags
-        return st, tags
+        # Pad branch: an unused pad at the final tile prompts Yes/No.
+        outcomes = [(st, tags)]
+        pad = self._pad_at(st)
+        if pad is not None:
+            outcomes = self._pad_branch(st, pad, tags)
+        results = []
+        for out_state, out_tags in outcomes:
+            # Checkpoint snapshot (tile, groups, stones, shadow_phase,
+            # landed, shadow_dir, pad_used, shadow_counter) -- the
+            # engine's actor snapshot.
+            if (out_state["surface"], out_state["tile"]) in self.checkpoints:
+                out_tags = list(out_tags) + ["checkpoint"]
+                out_state = dict(out_state)
+                out_state["checkpoint"] = (
+                    (out_state["surface"], out_state["tile"]),
+                    out_state["groups"], out_state["stones"],
+                    out_state["shadow_phase"], out_state["landed"],
+                    out_state["shadow_dir"], out_state["pad_used"],
+                    out_state["shadow_counter"])
+            # VOID tile: fall.
+            if (out_state["surface"], out_state["tile"]) in self.void_tiles:
+                out_tags = list(out_tags) + ["fall"]
+                results.append((self._fall(out_state, out_tags), out_tags))
+            else:
+                results.append((out_state, out_tags))
+        return results
 
     def _fall(self, st, tags):
         # Restore the checkpoint snapshot (groups, stones, shadow
-        # phase + direction, landed) exactly as the engine's actor
-        # snapshot restore does; crumble is map-load state (a fall
-        # warp reloads the map); momentary holders are per-occupant
-        # and cleared; the echo is recomputed from the restored tile,
-        # so the stale cache is dropped. A stone that was mid-fall
-        # when the player fell is restored to its checkpoint state,
-        # the same as a stone that had already landed (a fall is
-        # atomic within a press -- see Stones).
+        # phase + direction + counter, landed, pad_used) exactly as
+        # the engine's actor snapshot restore does; crumble is
+        # map-load state (a fall warp reloads the map); momentary
+        # holders are per-occupant and cleared; the echo is
+        # recomputed from the restored tile, so the stale cache is
+        # dropped. A stone that was mid-fall when the player fell is
+        # restored to its checkpoint state, the same as a stone that
+        # had already landed (a fall is atomic within a press -- see
+        # Stones).
         cp = st["checkpoint"]
         out = dict(st)
         out["surface"], out["tile"] = cp[0]
         out["groups"], out["stones"] = cp[1], cp[2]
         out["shadow_phase"], out["landed"] = cp[3], cp[4]
-        out["shadow_dir"] = cp[5]
+        out["shadow_dir"], out["pad_used"] = cp[5], cp[6]
+        out["shadow_counter"] = cp[7]
         out["crumble"] = self.fresh_crumble()
         out["held"] = frozenset()
         out["echo"] = None
@@ -876,18 +1023,22 @@ class SolveResult:
         flat = [t for step in self.tags for t in step]
         # Plain-grid distance to the goal tile (ignoring mechanics),
         # over surfaces+jumps, for the wrong-looking count.
-        goal_tiles = None
         dist = self._plain_distances()
+        # Walk the recorded trajectory (prev chain), not a
+        # re-simulation: re-simulation cannot know which pad branch
+        # (Yes/No) a step took.
+        keys = []
+        key = self.goal_key
+        while key is not None:
+            keys.append(key)
+            key = self.prev[key]
+        keys.reverse()
+        states = [self.seen[k] for k in keys]
         wrong = 0
-        st = model.initial_state()
-        for face in self.moves:
-            before = dist.get((st["surface"], st["tile"]), 10 ** 9)
-            if face == WAIT:
-                nxt, _tags = model._wait(st)
-            else:
-                nxt, _tags = model._step(st, face)
-            st = nxt
-            after = dist.get((st["surface"], st["tile"]), 10 ** 9)
+        for i, face in enumerate(self.moves):
+            before = dist.get((states[i]["surface"], states[i]["tile"]), 10 ** 9)
+            after = dist.get((states[i + 1]["surface"], states[i + 1]["tile"]),
+                             10 ** 9)
             if after >= before:
                 wrong += 1
         return {"optimal_length": len(self.moves), "branching": round(branching, 2),
@@ -1029,6 +1180,20 @@ def echo_example():
                        mechanics=[Echo(mirror, {(3, (3, 10, 2)): ("toggle", 0, 0)}, 1)])
 
 
+def pad_example():
+    """Pad: the pad at (2,1,1) toggles group 0 on Yes; the bridge
+    tile (3,1,1) is gated by group 0. Stepping onto the pad branches
+    Yes/No -- Yes opens the bridge and reaches (4,1,1); No leaves
+    the bridge closed and the goal unreachable from there. The
+    solution's tags carry 'pad-yes' on the pad step (the replay
+    presses A for Yes after that step)."""
+    surfaces = {0: {(1, 1, 1), (2, 1, 1), (4, 1, 1)}}
+    return PuzzleModel(
+        "pad", surfaces, (0, (1, 1, 1)), _goal_at(0, (4, 1, 1)),
+        n_groups=1, gate_tiles={0: {(0, (3, 1, 1))}},
+        mechanics=[Pads({(0, (2, 1, 1)): ("toggle", 0, 0)}, 1)])
+
+
 def crumble_example():
     """Crumbling: the tile (2,1,1) holds once; the goal is (3,1,1).
     Going there and back falls on the second step onto it."""
@@ -1075,6 +1240,7 @@ EXAMPLES = {
     "shadow": shadow_example,
     "echo": echo_example,
     "crumble": crumble_example,
+    "pad": pad_example,
     "ravaged-path": ravaged_path_model,
 }
 

@@ -116,8 +116,13 @@ on another stone's landing), pads never checkpoint/rune/current,
 shadow lanes never checkpoint tiles, on one surface, with
 consecutive tiles adjacent (a jump teleports across a seam corner),
 sigil targets in range, echo mirrorAxis != echoAxis (geometric
-mapping), and for production tables (testOnly == 0): explicit
-states for ground actor tiles, shadow beat >= 30 frames, and every
+mapping), actor-tile surfaces in range 0..4 (actor surfaces are
+explicit, so ANY never matches), and for production tables
+(testOnly == 0): explicit states for GROUND actor tiles except
+landings (GROUND has no stock grid; landings are exempt per
+section 3 -- base kind decides; non-GROUND tiles resolve via the
+stock grid on the player's surface, and no walkability query in
+the engine is cross-surface), shadow beat >= 30 frames, and every
 pad tile has a sigil in the engine-a table. Test tables are exempt
 from the production-only rules. Pairs come from the engine
 registry (`dw_puzzle.c` sPuzzleTables / sActorTables, by index)
@@ -137,9 +142,11 @@ mechanics: `Sigils` (toggle/set/momentary/reset), `Runes`, `Currents`
 protected push targets -- protected tiles are player-walkable, only
 stone pushes are blocked), `Crumbling` (per-tile one-use),
 `ScarGroups` (the Ravaged Path scars' exact rule), `Shadow`
-(patrol lane, loop or ping-pong, WAIT `.` beats), `Echo` (mirror
-ghost pressing its own sigils), plus `gate_tiles` (a tile walkable
-only while its group is on).
+(patrol lane, loop or ping-pong, `beats` presses per shadow step,
+WAIT `.` beats), `Echo` (mirror ghost pressing its own sigils),
+`Pads` (totem pads: stepping onto an unused pad branches Yes/No;
+Yes fires the pad's sigil, marks it used, and carries if any),
+plus `gate_tiles` (a tile walkable only while its group is on).
 
 It BFSes the shortest solution (pressed moves only; a current slide
 is part of the one press that started it), proves no reachable
@@ -161,17 +168,24 @@ unpushable, a slide passes over it); pushes follow the engine's
 order (a designated edge drops before any walkability check; a
 plain push is blocked on a protected tile, a stone, a non-walkable
 tile, or a VOID tile); checkpoints snapshot groups, stones, shadow
-phase + direction, and landed stones (momentary holders are
-per-occupant and cleared on restore; a reset sigil's restore wins
-over the same press's shadow tick); stone falls are atomic within
-a press (the engine falls a stone over 12 frames, reserving its
-edge and landing, but a step takes longer, so the reservation
-lifts before the next press's push hook runs). Pads are not
-modelled: they carry padUsed (one use per load per pad,
-checkpointed and restored), which gates the totem-act
-prompt/cutscene, not movement. A rift ships its model with its
+phase + direction + beat counter, landed stones, and padUsed
+(momentary holders are per-occupant and cleared on restore; a
+reset sigil's restore wins over the same press's shadow tick);
+stone falls are atomic within a press (the engine falls a stone
+over 12 frames, reserving its edge and landing, but a step takes
+longer, so the reservation lifts before the next press's push
+hook runs). Pads are modelled: stepping onto an unused pad
+branches Yes/No (Yes fires the pad's sigil -- a group change --
+marks it used, and carries if any; the pad pre-empts the shadow,
+and the prompt freezes the patrol). The shadow steps once per
+`beats` presses (the workstream calibrates it from beatFrames /
+step time), and the catch is the shadow's position at the press's
+end -- stepping onto the shadow's tile while its beat has not
+elapsed catches the player. A rift ships its model with its
 tables, and the replay of the solver's solution on the ROM is the
-cross-check that model and engine agree.
+cross-check that model and engine agree. A solution step whose
+tags include 'pad-yes' needs an A press (Yes) after that step in
+the replay.
 
 Worked examples: one per mechanic, plus `ravaged_path_model()`, a
 sanity model of today's Ravaged Path wall that reproduces a 16-move
