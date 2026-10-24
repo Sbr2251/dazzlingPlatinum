@@ -30,8 +30,10 @@
 
 #include "constants/map_object.h"
 #include "field/field_system.h"
+#include "field_task.h"
 #include "map_object.h"
 #include "player_avatar.h"
+#include "script_manager.h"
 #include "sound_playback.h"
 #include "vars_flags.h"
 #endif
@@ -597,14 +599,23 @@ static void EchoUpdate(DwActorTile player, int playerSurface)
         sActors.echoTile = desired;
         sActors.echoShown = TRUE;
         sActors.echoBlocked = FALSE;
-        // Fire an echo sigil only on entering its tile (hidden -> shown, or a move onto it).
+        // The echo moved (hidden -> shown, or a move onto a new tile): release its momentary
+        // holds first. PressSigil releases holds elsewhere when pressing a new sigil, but a
+        // move onto a NON-sigil tile releases nothing - the old momentary group would stay
+        // held forever. Releasing here covers both cases (re-pressing the destination sigil
+        // re-establishes its hold right after).
+        if (sActors.platform.releaseSigils != NULL) {
+            sActors.platform.releaseSigils(sActors.platform.ctx, DW_ACTOR_OCCUPANT_ECHO);
+        }
+        // Fire an echo sigil only on entering its tile (hidden -> shown, or a move onto it),
+        // and count only presses that actually fired (a missing sigil is a table error).
         for (i = 0; i < echo->sigilCount; i++) {
             if (TileEq(desired, echo->sigilTiles[i]) && (!prevShown || !TileEq(desired, prevTile))) {
-                if (sActors.platform.pressSigil != NULL) {
-                    sActors.platform.pressSigil(sActors.platform.ctx, desired.x, desired.y,
-                        desired.z, desired.surface, DW_ACTOR_OCCUPANT_ECHO);
+                if (sActors.platform.pressSigil != NULL
+                    && sActors.platform.pressSigil(sActors.platform.ctx, desired.x, desired.y,
+                        desired.z, desired.surface, DW_ACTOR_OCCUPANT_ECHO)) {
+                    sActors.echoSigilPresses++;
                 }
-                sActors.echoSigilPresses++;
                 break;
             }
         }
@@ -1049,13 +1060,14 @@ static DwActorTileKind RomTileAt(void *ctx, int x, int y, int z, int surface)
     // player's current surface (gDwPuzzleDebug.surface, refreshed by engine-a's hooks) in
     // every actors query that matters; a tile on any other surface reads INVALID here and
     // is BLOCKED (actors_design.md section 2: cross-surface actor tiles need explicit
-    // engine-a state). GROUND has no platform grid, so a DEFAULT ground tile reads
-    // WALKABLE: rift tables must give explicit states for ground actor tiles.
+    // engine-a state). GROUND has no platform grid and no reachable stock-terrain query
+    // from actors, so a DEFAULT ground tile reads BLOCKED too (fail closed): rift tables
+    // must give explicit states for ground actor tiles.
     if (surface != (int)gDwPuzzleDebug.surface) {
         return DW_ACTOR_TILE_BLOCKED;
     }
     if (surface == DW_PUZZLE_SURFACE_GROUND) {
-        return DW_ACTOR_TILE_WALKABLE;
+        return DW_ACTOR_TILE_BLOCKED;
     }
     if (DistWorld_CheckCollisionOnCurrentFloatingPlatform(fieldSystem, x, y, z)) {
         return DW_ACTOR_TILE_BLOCKED;
@@ -1138,12 +1150,28 @@ static void RomSetInputLocked(void *ctx, int locked)
 
 static int RomIsScriptRunning(void *ctx)
 {
-    // No script-running query exists in the codebase (ScriptManager has no IsRunning).
-    // The glue (engine-a) should supply a real gate when it wires the frame hook; until then
-    // the actor-owned script windows (pendingPad, carryPending, CAUGHT) freeze the patrol
-    // in-core, and shadow lanes must avoid script tiles (actors_design.md section 4).
-    (void)ctx;
-    return FALSE;
+    // A script is running while the ScriptManager has active contexts (set to 1 when a
+    // script starts, decremented as its contexts finish). The pad/carry/CAUGHT windows
+    // freeze the patrol in-core as well; shadow lanes must still avoid script tiles
+    // (actors_design.md section 4) as defence in depth.
+    // Safety: FieldSystem_GetScriptMemberPtr asserts that the current field task's env
+    // is a ScriptManager - it dereferences fieldSystem->task and its magic. During idle
+    // frames task can be NULL, and other field tasks have different envs, so calling it
+    // blindly would NULL-deref or trip the assert. Guard first: no task, or an env whose
+    // first word is not the ScriptManager magic, means no script is running.
+    FieldSystem *fieldSystem = (FieldSystem *)ctx;
+    void *env;
+    u8 *numActive;
+
+    if (fieldSystem == NULL || fieldSystem->task == NULL) {
+        return FALSE;
+    }
+    env = FieldTask_GetEnv(fieldSystem->task);
+    if (env == NULL || *(u32 *)env != SCRIPT_MANAGER_MAGIC_NUMBER) {
+        return FALSE;
+    }
+    numActive = (u8 *)FieldSystem_GetScriptMemberPtr(fieldSystem, SCRIPT_MANAGER_NUM_ACTIVE_CONTEXTS);
+    return (numActive != NULL && *numActive > 0) ? TRUE : FALSE;
 }
 
 static int RomTotemDefeated(void *ctx, int totem)

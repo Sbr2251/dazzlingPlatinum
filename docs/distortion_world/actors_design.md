@@ -82,8 +82,9 @@ tiles on any surface other than the player's current one** (the ROM glue compare
 `gDwPuzzleDebug.surface`). Consequence for rift authors: every tile an actor can occupy on a
 surface other than the player's must have an explicit engine-a state (group tile or explicit
 override); DEFAULT tiles are only resolved on the player's current surface. For GROUND,
-there is no platform grid, so a DEFAULT ground tile reads WALKABLE: rift tables must give
-explicit states for ground actor tiles (the stock terrain check is not reachable from actors).
+there is no platform grid and no reachable stock-terrain query from actors, so a DEFAULT
+ground tile reads BLOCKED (fail closed): rift tables must give explicit states for ground
+actor tiles.
 
 ## 3. Rift stones
 
@@ -191,8 +192,9 @@ tile), exactly **one** lane, and the lane tiles are all on one surface (no surfa
 mid-patrol). A faster beat (< 30 frames) is rejected by the table validator for Arc 2 tables -
 it is an Arc 3 opt-in, not a silent default. The beat is the whole difficulty knob.
 Table rule: shadow lane tiles must avoid script/cutscene tiles (entry, checkpoint, totem,
-talk spots) - there is no script-running query in the codebase, so a lane over a script tile
-could catch the player mid-cutscene; actor-owned script windows freeze the patrol in-core.
+talk spots) as defence in depth - the core also suppresses catches while a script is
+running (ScriptManager active-context count) and freezes the patrol during actor-owned
+script windows (pad prompt, carry, catch).
 
 - **Advance.** The frame hook ticks a frame counter; every `beatFrames` frames the shadow steps to
   the next pattern tile (pingpong reverses at the ends; loop wraps). Movement is stepwise, one
@@ -251,10 +253,15 @@ mirrorMin, mirrorMax, echo sigil tiles[] }`.
   and a hidden-to-appearing transition onto a sigil tile does fire. When the echo hides, its
   momentary holds are released (`DwPuzzle_ReleaseSigils(ECHO)`); on departure (`OnExit`) they
   are released too; on a checkpoint restore engine-a clears momentary holders, so the echo
-  re-presses after the restore. Echo sigil presses are counted in debug
-  (`echoSigilPresses`). The echo never triggers pads, currents, runes, or falls. Note: if the
-  player steps on an echo-sigil tile, engine-a fires it as PLAYER (same group effect) - echo
-  sigils are shared sigils, pressed by either occupant.
+  re-presses after the restore. On every visible echo move the core releases the echo's
+  momentary holds first (`ReleaseSigils(ECHO)`) and then optionally presses the destination:
+  `PressSigil` releases holds elsewhere when pressing a new sigil, but a move onto a
+  NON-sigil tile releases nothing, so without this the old momentary group would stay held
+  forever. Echo sigil presses are counted in debug (`echoSigilPresses`), and only presses
+  that actually fired count (a missing sigil is a table error). The echo never triggers pads,
+  currents, runes, or falls. Note: if the player steps on an echo-sigil tile, engine-a fires
+  it as PLAYER (same group effect) - echo sigils are shared sigils, pressed by either
+  occupant.
 - **Checkpoint.** The echo has no persistent position: it is recomputed every player step, so
   the snapshot stores nothing for it. The echo's tile is never restored from a snapshot - the
   next player step recomputes it, so it can never disagree with the player.
@@ -356,11 +363,10 @@ Published API used (actors `#include "overlay009/dw_puzzle.h"`):
 
 DEFAULT rule (platform `tileAt`): `SOLID` -> SOLID, `BLOCKED` -> BLOCKED, `VOID` -> VOID,
 `DEFAULT` -> if the queried surface is the player's current surface
-(`gDwPuzzleDebug.surface`, refreshed by engine-a's hooks): GROUND -> WALKABLE (no platform
-grid; tables must give explicit states for ground actor tiles), otherwise
-`DistWorld_CheckCollisionOnCurrentFloatingPlatform` (colliding -> BLOCKED, else WALKABLE); if
-the queried surface is any other surface -> BLOCKED (conservative rule in section 2:
-cross-surface actor tiles need explicit engine-a state).
+(`gDwPuzzleDebug.surface`, refreshed by engine-a's hooks) and is not GROUND:
+`DistWorld_CheckCollisionOnCurrentFloatingPlatform` (colliding -> BLOCKED, else WALKABLE);
+otherwise -> BLOCKED (fail closed: GROUND has no platform grid and no reachable
+stock-terrain query, and cross-surface tiles need explicit engine-a state per section 2).
 
 **Weak fallbacks.** Until `dw_puzzle.c` lands, `dw_puzzle_actors.c` carries
 `__attribute__((weak))` fallbacks for the engine-a symbols it uses (`gDwPuzzleDebug`,
@@ -399,11 +405,14 @@ frame-hook call and the Lost Tower gating):**
 **Platform interface.** The core runs over a `DwActorPlatform` (callbacks + ctx): tileAt,
 setActorTile, clearActorTiles, pressSigil, releaseSigils, requestCheckpointRespawn,
 setPlayerTile (push-back safety net, stock MapObject API), setInputLocked (catch freeze, stock
-MapObject movement-pause API), isScriptRunning (no query exists in the codebase; returns FALSE -
-the glue should supply a real gate when one exists), totemDefeated, getResetGeneration,
-playCatchEffect. The ROM glue implements it over `FieldSystem *`; the host test implements it
-over a fake grid. The core never touches game state directly, so the host test proves the
-same code.
+MapObject movement-pause API), isScriptRunning (ROM: `ScriptManager` active-context count via
+`FieldSystem_GetScriptMemberPtr(SCRIPT_MANAGER_NUM_ACTIVE_CONTEXTS)` - > 0 means a script is
+executing. Guarded first: the accessor asserts that the current field task's env is a
+ScriptManager, and during idle frames `fieldSystem->task` can be NULL or another task's, so
+the glue returns FALSE unless the task exists and its env's first word is the ScriptManager
+magic), totemDefeated, getResetGeneration, playCatchEffect. The ROM glue implements it
+over `FieldSystem *`; the host test implements it over a fake grid. The core never touches
+game state directly, so the host test proves the same code.
 
 **Debug.** `DwActorDebug` (actors header) is the full actor slice for the host test: stone
 tiles/surfaces/states, shadow tile/surface/phase/state, echo tile/surface/blocked/sigil

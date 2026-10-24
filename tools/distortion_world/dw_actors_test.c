@@ -47,6 +47,7 @@ typedef struct {
     int catchEffects;
     int pressCalls;
     int lastOccupant;
+    int echoHolds; // the echo's momentary sigil holds (fake model of engine-a's per-occupant tracking)
     int releaseCalls;
     int respawnCalls;
     int respawnWorks; // 0 = engine-a never restores (watchdog path)
@@ -136,7 +137,10 @@ static int FakePressSigil(void *ctx, int x, int y, int z, int surface, int occup
         return TRUE; // Skarmory pad: no-op group (the script carries)
     }
     if (surface == DW_ACTOR_SURFACE_EAST_WALL && x == 49 && z == 18) {
-        f->groupBits[2] = 1; // echo sigil
+        f->groupBits[2] = 1; // echo sigil (momentary in this fake model: held until released)
+        if (occupant == DW_ACTOR_OCCUPANT_ECHO) {
+            f->echoHolds = 1;
+        }
         return TRUE;
     }
     return FALSE; // no sigil at this tile (table error)
@@ -146,7 +150,9 @@ static void FakeReleaseSigils(void *ctx, int occupant)
 {
     Fake *f = (Fake *)ctx;
 
-    (void)occupant;
+    if (occupant == DW_ACTOR_OCCUPANT_ECHO) {
+        f->echoHolds = 0;
+    }
     f->releaseCalls++;
 }
 
@@ -498,6 +504,14 @@ static void TestEcho(void)
     DwActors_HandlePlayerStep(WALL(11, 3, 15), WALL(11, 3, 14));
     DwActors_FillDebug(&dbg);
     CHECK(dbg.echoSigilPresses == 1);
+    CHECK(sFake.echoHolds == 1); // the momentary echo sigil is held
+    // Echo moves to a NON-sigil tile: its momentary hold releases on the move.
+    DwActors_ResetStones(); // stone 0 back to 14, so the step below is not a push
+    DwActors_HandlePlayerStep(WALL(11, 3, 14), WALL(11, 3, 15));
+    DwActors_FillDebug(&dbg);
+    CHECK(dbg.echoTile[0] == 49 && dbg.echoTile[2] == 17);
+    CHECK(sFake.echoHolds == 0);
+    CHECK(dbg.echoSigilPresses == 1); // no press on a non-sigil tile
     // Player (11,3,17) -> echo desired (49,3,15) is BLOCKED: echo hides (not last-valid),
     // and hiding releases the echo's momentary holds.
     releases = sFake.releaseCalls;
@@ -508,8 +522,9 @@ static void TestEcho(void)
     CHECK(sFake.releaseCalls == releases + 1);
     // ...and the blocked echo never blocks the player: TryPush is unaffected.
     CHECK(DwActors_TryPush(WALL(11, 3, 16), WALL(11, 3, 17)) == TRUE);
-    // Player back to (11,3,14): echo reappears on the sigil (re-entry fires again).
-    DwActors_HandlePlayerStep(WALL(11, 3, 17), WALL(11, 3, 14));
+    // Player back to (11,3,14): the step pushes stone 0 aside (14->15) and the echo
+    // reappears on the sigil (re-entry fires again).
+    DwActors_HandlePlayerStep(WALL(11, 3, 13), WALL(11, 3, 14));
     DwActors_FillDebug(&dbg);
     CHECK(dbg.echoTile[0] == 49 && dbg.echoTile[2] == 18);
     CHECK(dbg.echoSigilPresses == 2);
