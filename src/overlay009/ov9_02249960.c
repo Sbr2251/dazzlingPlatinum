@@ -3320,27 +3320,30 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
         }
 
         // dwp:engine-b: on visit 2 the totem-echo pads own the acts; the scripted wall acts
-        // step aside as soon as an actor table is registered (see the frame hook).
-        if (DwActors_IsActive()) {
+        // step aside as soon as an actor table is registered (see the frame hook). But the
+        // V pad lives ON the wall, so a V2 wall step must still reach the actors branch
+        // below: the old early `return FALSE` swallowed the V pad's PadPrompt, leaving
+        // pendingPad stuck at 1, and every later step prompted for the wrong pad (the
+        // (15,23) Hitmonlee prompt). Only the scripted acts step aside; the step itself
+        // falls through to the actors branch.
+        if (!DwActors_IsActive()) {
+            if (LostTower_WallWorkDone(system)) {
+                return FALSE;
+            }
+
+            if (wallActs == 0 && y == LOST_TOWER_SCAR_Y && z == LOST_TOWER_SCAR_Z) {
+                Sound_PlayEffect(SEQ_SE_PL_KEZURI);
+                ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_ACT_HITMONLEE, NULL);
+                return TRUE;
+            }
+
+            if (wallActs == 1 && z == LOST_TOWER_FORK_Z) {
+                ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_ACT_VESPIQUEN, NULL);
+                return TRUE;
+            }
+
             return FALSE;
         }
-
-        if (LostTower_WallWorkDone(system)) {
-            return FALSE;
-        }
-
-        if (wallActs == 0 && y == LOST_TOWER_SCAR_Y && z == LOST_TOWER_SCAR_Z) {
-            Sound_PlayEffect(SEQ_SE_PL_KEZURI);
-            ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_ACT_HITMONLEE, NULL);
-            return TRUE;
-        }
-
-        if (wallActs == 1 && z == LOST_TOWER_FORK_Z) {
-            ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_ACT_VESPIQUEN, NULL);
-            return TRUE;
-        }
-
-        return FALSE;
     }
 
     // dwp:rift-lt: visit 2 (actors active): pads + Find Cyrus. The
