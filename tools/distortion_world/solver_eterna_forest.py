@@ -34,15 +34,16 @@ Proofs (all run by main()):
 2. No soft-lock: forward reachability on the abstract graph, plus a
    reverse Dijkstra from the goal states (dist-to-goal + parent tree).
    Every forward-reachable abstract state reaches the goal abstractly.
-   Realization lemma: a shortest abstract path is simple, so any
-   maximal run of consecutive honeycomb positions in it has at most 8
-   steps (8 honeycomb tiles); with the exit move that is 9 moves =
-   144 frames < 153, so the run always fits in one solid window, and
-   the player aligns it by waiting on the safe tile before the run.
-   A fall from a honeycomb position lands on a checkpoint (a safe
-   tile) whose tree path is realizable the same way. So every
-   concretely reachable state can reach the totem. The solver VERIFIES
-   the run-length bound on every reachable state's tree path.
+   Realization lemma: a shortest abstract path is simple. The solver
+   verifies the EXACT weighted occupancy of every maximal run of
+   consecutive honeycomb positions on every reachable state's
+   shortest tree path: 16f per honeycomb position plus the exit
+   move (16f walk, 32f flip exit). A run ending in a fall needs no
+   bound: the fall lands on a checkpoint (a safe tile) whose tree
+   path is realizable the same way. Every surviving run must fit
+   in one 153-frame solid window, and the player aligns it by
+   waiting on the safe tile before the run. So every concretely
+   reachable state can reach the totem.
 3. Concrete check: the documented 38-step path is simulated for every
    honeycomb start phase (0..212), with greedy waits at the safe tile
    (45,10,32) until the whole honeycomb occupancy (4 crossings + the
@@ -74,8 +75,13 @@ FLOOR_TILES = {(x, 12) for x in range(17, 23)}
 FLOOR_TILES |= {(x, z) for x in range(38, 49) for z in (22, 23)}
 FLOOR_TILES |= {(45, 37), (46, 37)}
 
-# East wall x=49: (y, z), rows y=1..10 bottom->top, from twarc dump 597.
-_WALL_ROWS = ["........##", "........##", "........##", "####......",
+# East wall x=49: (y, z), rows y=1..10 bottom->top. Stock B4F grid from
+# twarc dump 597, plus the rune gate: y=2, z=20..25 is BLOCKED (drawn
+# by rock props, design section 2b), so the wall cannot be climbed
+# past y=1 without Rune A: every bottom-row climb column at z<=25 is
+# closed, and reaching z>=26 on the bottom row means stepping on the
+# rune at z=25 first.
+_WALL_ROWS = ["........##", "######..##", "........##", "####......",
               "####......", "####......", "#######...", "#######...",
               "#######...", "#######..."]
 WALL_TILES = {(1 + i, 20 + j) for i, row in enumerate(_WALL_ROWS)
@@ -162,18 +168,19 @@ def _raw_dest(pos, delta, bridge):
     return cand
 
 
-def apply_move(state, delta):
+def apply_move(state, delta, allow_flip=True):
     """Abstract transition for one walked step. Returns (state, kind)
     with kind in {'walk', 'flip', 'blocked'}. Tile logic (rune, sigil,
     checkpoint) is evaluated on the WALKED-ON tile (the raw dest); the
-    flip landing fires nothing."""
+    flip landing fires nothing. allow_flip=False models the gate
+    check: rune tiles behave as plain walkable tiles."""
     pos, bridge, just_landed, cp, snaps = state
     raw = _raw_dest(pos, delta, bridge)
     if raw is None:
         return state, "blocked"
     flipped = False
     dest = raw
-    if raw in RUNES and not just_landed:
+    if allow_flip and raw in RUNES and not just_landed:
         dest = RUNES[raw]
         flipped = True
     just_landed = flipped
@@ -249,12 +256,13 @@ def soft_lock_proof(start):
                 dq.append(ns)
     rev_adj = {}
     for st, outs in cache.items():
-        for ns, cost, _ in outs:
-            rev_adj.setdefault(ns, []).append((st, cost))
-    # Reverse Dijkstra: dist-to-goal for every visited state.
+        for ns, cost, label in outs:
+            rev_adj.setdefault(ns, []).append((st, cost, label))
+    # Reverse Dijkstra: dist-to-goal + parent tree (with edge labels)
+    # for every visited state.
     INF = 1 << 30
     dist = {st: INF for st in fwd}
-    parent = {}
+    parent, parent_label = {}, {}
     pq = []
     for st in fwd:
         if _is_goal(st[0]):
@@ -264,28 +272,50 @@ def soft_lock_proof(start):
         d, st = heapq.heappop(pq)
         if d != dist[st]:
             continue
-        for ps, cost in rev_adj.get(st, []):
+        for ps, cost, label in rev_adj.get(st, []):
             nd = d + cost
             if nd < dist[ps]:
                 dist[ps] = nd
                 parent[ps] = st
+                parent_label[ps] = label
                 heapq.heappush(pq, (nd, ps))
     stranded = [st for st in fwd if dist[st] >= INF]
-    # Honeycomb-run bound on every reachable state's tree path.
-    max_run = 0
+    # Weighted honeycomb-occupancy bound on every reachable state's
+    # tree path. A run of k consecutive honeycomb positions costs
+    # 16f per position (the moves onto/within the run) plus the exit
+    # move: 16f for a walk, 32f for a flip exit (e.g. out through
+    # Rune B). A run ending in a fall needs no survival bound: the
+    # fall IS the outcome, and it lands on a checkpoint whose own
+    # path is realizable. Assert every surviving run fits in the
+    # 153-frame solid window.
+    max_occupancy = 0
     for st in fwd:
-        run, cur = 0, st
-        while cur in parent:
-            if _is_honey(cur[0]):
-                run += 1
-                max_run = max(max_run, run)
-            else:
-                run = 0
-            cur = parent[cur]
-        if _is_honey(cur[0]):
-            run += 1
-            max_run = max(max_run, run)
-    return len(fwd), stranded, max_run
+        # Chain from st to the goal via the parent tree.
+        chain = [st]
+        while chain[-1] in parent:
+            chain.append(parent[chain[-1]])
+        # Scan for maximal runs of consecutive honeycomb positions.
+        i = 0
+        while i < len(chain):
+            if not _is_honey(chain[i][0]):
+                i += 1
+                continue
+            j = i
+            while j < len(chain) and _is_honey(chain[j][0]):
+                j += 1
+            run_len = j - i  # honeycomb positions in this run
+            if j < len(chain):
+                # Exit transition: chain[j-1] -> chain[j].
+                label = parent_label[chain[j - 1]]
+                if "fall" not in label:
+                    exit_cost = (STEP_FRAMES + FLIP_EXTRA_FRAMES if "flip" in label
+                                 else STEP_FRAMES)
+                    occupancy = run_len * STEP_FRAMES + exit_cost
+                    max_occupancy = max(max_occupancy, occupancy)
+                    assert occupancy <= HONEY_GONE_START, \
+                        f"honeycomb run too long: {run_len} positions, exit {label}"
+            i = j
+    return len(fwd), stranded, max_occupancy
 
 
 # --- concrete simulation: the documented 38-step path, all phases --------
@@ -314,7 +344,7 @@ def _safe_to_cross(phase):
 def simulate_path(start_phase):
     """Returns (moves, waits, falls, frames) or raises AssertionError."""
     state = START_STATE
-    phase, waits = start_phase, 0
+    phase, waits, move_frames = start_phase, 0, 0
     for i, d in enumerate(PATH):
         # Greedy wait before the honeycomb crossing.
         if state[0] == WAIT_TILE and i == 27:  # next moves are the crossing
@@ -326,30 +356,53 @@ def simulate_path(start_phase):
         state, kind = apply_move(state, d)
         assert kind != "blocked", f"path blocked at step {i} {before} {d}"
         cost = STEP_FRAMES + (FLIP_EXTRA_FRAMES if kind == "flip" else 0)
+        move_frames += cost
         if (_is_honey(before[0]) or _is_honey(state[0])) and _gone_in_interval(phase, cost):
             raise AssertionError(f"path would fall at step {i} (phase {phase})")
         phase = (phase + cost) % HONEY_CYCLE
     assert _is_goal(state[0]), f"path did not reach totem: {state[0]}"
-    frames = len(PATH) * STEP_FRAMES + waits * WAIT_FRAMES
+    frames = move_frames + waits * WAIT_FRAMES
     return len(PATH), waits, 0, frames
 
 
+def no_rune_proof(start):
+    """Flood with rune flips disabled: the gate check. Returns True if
+    the totem is reachable without any rune flip."""
+    seen, dq = {start}, deque([start])
+    while dq:
+        st = dq.popleft()
+        if _is_goal(st[0]):
+            return True
+        for d in DELTAS[st[0][0]]:
+            ns, kind = apply_move(st, d, allow_flip=False)
+            if kind != "blocked" and ns not in seen:
+                seen.add(ns)
+                dq.append(ns)
+        if _is_honey(st[0]):
+            ns = apply_fall(st)
+            if ns not in seen:
+                seen.add(ns)
+                dq.append(ns)
+    return False
+
+
 def main():
+    assert not no_rune_proof(START_STATE), "rune-free route exists!"
+    print("rune-free route to the totem: none (Rune A required): PASS")
     opt, goal, prev = dijkstra(START_STATE)
     print(f"optimal moves (Dijkstra, abstract graph): {opt}")
     print("optimal path (first solution found):")
     for s in reconstruct(prev, goal):
         print(f"  {s}")
-    fwd, stranded, max_run = soft_lock_proof(START_STATE)
+    fwd, stranded, max_occupancy = soft_lock_proof(START_STATE)
     print(f"forward-reachable abstract states: {fwd}")
     print(f"stranded (reachable but cannot reach totem): {len(stranded)}")
     assert not stranded, f"SOFT-LOCK: {stranded[:3]}"
     print("no-soft-lock proof (abstract + realization lemma): PASS")
-    print(f"max honeycomb run on any reachable state's shortest path: "
-          f"{max_run} positions; run + exit = {(max_run + 1) * STEP_FRAMES} "
-          f"frames <= 153 solid window: "
-          f"{'PASS' if (max_run + 1) * STEP_FRAMES <= HONEY_GONE_START else 'FAIL'}")
-    assert (max_run + 1) * STEP_FRAMES <= HONEY_GONE_START
+    print(f"max honeycomb occupancy on any reachable state's shortest path: "
+          f"{max_occupancy} frames (16f per honeycomb position + 16f walk / "
+          f"32f flip exit) <= 153 solid window: PASS")
+    assert max_occupancy <= HONEY_GONE_START
     assert opt == len(PATH), f"documented path {len(PATH)} != optimal {opt}"
     print(f"documented path length {len(PATH)} == optimal: PASS")
     # Concrete check for every honeycomb start phase.
