@@ -776,7 +776,6 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
     int dx = 0, dy = 0, dz = 0;
     DwPuzzleTileState tileState;
 
-    (void)facing;
     if (out != NULL) {
         memset(out, 0, sizeof(*out));
     }
@@ -837,11 +836,13 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
         if (sCheckpointIndex < (u32)sTable->checkpointCount) {
             const DwPuzzleCheckpoint *cp = &sTable->checkpoints[sCheckpointIndex];
 
-            // Complete only on the checkpoint tile AND its surface: a
-            // warp that already lands at the checkpoint coordinates on a
-            // different surface must still apply the checkpoint's
-            // surface and facing (glue respawn).
-            if (x == cp->x && y == cp->y && z == cp->z && SurfaceMatches(cp->surface, surface)) {
+            // Complete only on the checkpoint tile AND its surface AND
+            // its facing: a warp that already lands at the checkpoint
+            // coordinates on the right surface but the wrong facing
+            // must still apply the checkpoint's facing (glue respawn).
+            // A facing of -1 (or out of range, a table error) means keep.
+            if (x == cp->x && y == cp->y && z == cp->z && SurfaceMatches(cp->surface, surface)
+                && (cp->facing < 0 || cp->facing > 3 || facing == cp->facing)) {
                 sRespawnPending = FALSE;
                 sRespawnRestored = FALSE;
             } else if (out != NULL) {
@@ -889,9 +890,10 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
         if (sFallRestored && sCheckpointIndex < (u32)sTable->checkpointCount) {
             const DwPuzzleCheckpoint *cp = &sTable->checkpoints[sCheckpointIndex];
 
-            // Complete only on the checkpoint tile AND its surface
-            // (see the shadow-catch block above).
-            if (x == cp->x && y == cp->y && z == cp->z && SurfaceMatches(cp->surface, surface)) {
+            // Complete only on the checkpoint tile AND its surface AND
+            // its facing (see the shadow-catch block above).
+            if (x == cp->x && y == cp->y && z == cp->z && SurfaceMatches(cp->surface, surface)
+                && (cp->facing < 0 || cp->facing > 3 || facing == cp->facing)) {
                 sFallPending = FALSE;
                 sFallRestored = FALSE;
             } else if (out != NULL) {

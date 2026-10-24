@@ -2849,10 +2849,22 @@ static void Arc2Dw_HandleFrame(DistWorldSystem *system)
         if (puzzleResult.slideStep) {
             // Stock-blocked slide target: cancel the slide (do NOT
             // teleport onto a stock-blocked tile or an out-of-bounds
-            // platform edge). The engine's ResolveTile only sees puzzle
-            // overrides; DEFAULT is "no override", not "walkable".
-            if (DwPuzzle_Ov9SlideTargetBlocked(system, puzzleResult.slideX, puzzleResult.slideY,
+            // platform edge). The stock grid only decides when the
+            // puzzle has NO override (QueryTile returns DEFAULT): an
+            // explicit/actor SOLID or VOID override over a stock-blocked
+            // tile -- e.g. a LANDED stone shielding a 0x8000 tile --
+            // wins, and the slide proceeds.
+            DwPuzzleTileState slideTargetState = DwPuzzle_QueryTile(fieldSystem,
+                puzzleResult.slideX, puzzleResult.slideY, puzzleResult.slideZ,
+                DwPuzzle_Ov9Surface(fieldSystem));
+            BOOL slideBlocked = (slideTargetState == DW_PUZZLE_TILE_BLOCKED);
+
+            if (slideTargetState == DW_PUZZLE_TILE_DEFAULT
+                && DwPuzzle_Ov9SlideTargetBlocked(system, puzzleResult.slideX, puzzleResult.slideY,
                     puzzleResult.slideZ, DwPuzzle_Ov9Surface(fieldSystem))) {
+                slideBlocked = TRUE;
+            }
+            if (slideBlocked) {
                 DwPuzzle_CancelSlide(fieldSystem);
             } else {
                 DwPuzzle_Ov9MovePlayer(system, puzzleResult.slideX, puzzleResult.slideY, puzzleResult.slideZ,
@@ -3365,17 +3377,24 @@ BOOL ov9_0224A71C(FieldSystem *fieldSystem)
             }
 
             // dwp:engine-a: puzzle engine step hook (no-op without a table).
+            // checkpointReached is checked regardless of handled: a
+            // checkpoint-only step sets it but returns FALSE (the
+            // checkpoint does not consume the step, so the per-map
+            // chain still runs) -- OnCheckpoint must still snapshot.
             if (!skipPuzzleStep) {
                 DwPuzzleStepResult puzzleResult;
+                BOOL handled;
 
-                if (DwPuzzle_HandleStep(fieldSystem, v1, v2, v3, puzzleSurface, v4, &puzzleResult)) {
+                memset(&puzzleResult, 0, sizeof(puzzleResult));
+                handled = DwPuzzle_HandleStep(fieldSystem, v1, v2, v3, puzzleSurface, v4, &puzzleResult);
+                if (puzzleResult.checkpointReached) {
+                    DwActors_OnCheckpoint();
+                }
+                if (handled) {
                     if (puzzleResult.fallRequested) {
                         ScriptManager_Set(fieldSystem, puzzleResult.fallScriptId, NULL);
                     } else if (puzzleResult.runeRequested) {
                         DwPuzzle_Ov9StartRune(v5, v1, v2, v3, v4, &puzzleResult.rune);
-                    }
-                    if (puzzleResult.checkpointReached) {
-                        DwActors_OnCheckpoint();
                     }
                     return 1;
                 }
