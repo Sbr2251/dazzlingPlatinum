@@ -36,9 +36,10 @@ dw/engine-a) and the engine-b stone semantics from
   - LANDED: actor tile SOLID. The stone is walkable terrain, not an
     obstacle, and not pushable. Landing tiles are reserved per stone:
     they are never current tiles, never sigils, pads, checkpoints or
-    rune tiles, and have no explicit engine-a override. Their base
-    kind is VOID (a gap the stone plugs) or WALKABLE. A stone can
-    only fall at a designated edge with a designated landing.
+    rune tiles. In this table they carry an explicit VOID override:
+    VOID before landing, and the LANDED actor tile beats the override
+    after landing (engine-a rule change). A stone can only fall at a
+    designated edge with a designated landing.
   - A RESTING stone can never occupy a checkpoint, pad, sigil,
     landing, or reset-sigil tile (push-block rules), so the reset
     path is never stone-blocked.
@@ -48,12 +49,12 @@ terrain). Route 213's lakebed is base terrain, so engine-b requires
 GROUND, not FLOOR (a floating platform). For GROUND there is no
 platform grid and a DEFAULT ground tile reads BLOCKED (conservative
 cross-surface rule), so the table gives every ground actor tile an
-explicit state: the three landing tiles are VOID base kind in the
-map data (Phase 2 builder work — today they are stock BLOCKED
-0x8000 in map_data_615, which engine-b forbids for a landing tile
-that must be VOID-or-WALKABLE with no explicit override), the
-(48, 40) hazard is an explicit VOID override, and all other ground
-detour tiles are SOLID overrides.
+explicit state: the three landing tiles carry an explicit VOID
+override in the table (no map-data change, no map_data_680 clone:
+the collision glue lets explicit ground overrides beat the stock
+0x8000 permission, and the LANDED actor tile beats the VOID
+override after landing), the (48, 40) hazard is an explicit VOID
+override, and all other ground detour tiles are SOLID overrides.
 
 Coordinates are DW world tiles (x, z) plus a surface: 'C' = ceiling
 (y = 10), 'G' = ground (y = 1, base map terrain). The puzzle is counted from the ceiling
@@ -91,19 +92,22 @@ CEIL_VOID = {(44, 34), (49, 40), (47, 42)}
 # Ceiling alcove tiles (SOLID overrides, drawn as rune / sigil circles):
 # rune-down tiles and reset-sigil tiles. RESETS are engine sigils.
 RUNES_C = {  # (x, z) -> (target x, target z, target surface)
-    (45, 33): (47, 33, "G"),  # stage 1: down to the floor detour
-    (48, 39): (49, 34, "G"),  # stage 2: down to the floor detour
-    (48, 43): (43, 43, "G"),  # stage 3: down to the floor detour
+    (45, 33): (46, 33, "G"),  # stage 1: down to the ground detour
+    (48, 39): (49, 34, "G"),  # stage 2: down to the ground detour
+    (48, 43): (43, 43, "G"),  # stage 3: down to the ground detour
 }
 RESETS = {(45, 29), (48, 37)}  # stage 1 / 2 reset sigils (RESET kind)
 CEIL_WALK = CEIL_BASE | set(RUNES_C) | RESETS
 
 # Ground detour tiles (SOLID overrides, drawn as sunken reef shelves).
-# Landing tiles (44, 34), (49, 40), (47, 42) are NOT listed: they have
-# no explicit override (engine-b table rule), base kind VOID.
+# Landing tiles (44, 34), (49, 40), (47, 42) are NOT in this set: they
+# are in GROUND_VOID below (explicit VOID overrides, beaten by the
+# LANDED actor tile after landing).
 GROUND_WALK = {
     # stage 1: landing, walk to the landed stone, walk across it, rune-up
-    (47, 33), (46, 33), (45, 33), (44, 33), (43, 34),
+    # (47, 33) was dropped to fit the 32-tile cap (see the tile-budget
+    # note): the stage-1 rune lands one tile closer, at (46, 33).
+    (46, 33), (45, 33), (44, 33), (43, 34),
     # stage 2: approach, push the plug stone twice down the current
     # column, walk around the plugged column, across the landed stone,
     # rune-up
@@ -112,11 +116,17 @@ GROUND_WALK = {
     # stage 3: walk to the current, ride it onto the landed stone, rune-up
     (43, 43), (44, 43), (45, 43), (46, 43), (47, 43), (48, 42),
 }
-# Ground tiles that are VOID until a dropped stone lands on them (as a
-# SOLID actor tile). These are the landing tiles; no explicit override.
-# (48, 40) is an explicit VOID hazard at the end of the stage-2
-# current column (not a landing tile): without the plug, the slide
-# runs (48, 37) -> (48, 38) -> (48, 39) -> VOID (48, 40) and falls.
+# Ground VOID tiles (explicit VOID overrides in the table).
+# The first three are the landing tiles: before landing the tile is
+# VOID (a step there is a fall); after landing, the LANDED stone's
+# SOLID actor tile beats the explicit VOID override (engine-a rule
+# change, lead 2026-10-23), so the tile becomes walkable. No
+# map_data_680 clone and no base-kind change is needed: the
+# collision glue lets explicit ground overrides beat the stock
+# 0x8000 permission. (48, 40) is an explicit VOID hazard at the end
+# of the stage-2 current column (not a landing tile): without the
+# plug, the slide runs (48, 37) -> (48, 38) -> (48, 39) ->
+# VOID (48, 40) and falls.
 GROUND_VOID = {(44, 34), (49, 40), (47, 42), (48, 40)}
 RUNES_F = {  # (x, z) -> (target x, target z, target surface)
     (43, 34): (44, 35, "C"),  # stage 1: back to the ceiling past gap 1
@@ -427,10 +437,13 @@ def main():
     # Engine-a table budget: tiles = explicit overrides (landing tiles
     # have none); currents / runes / sigils / checkpoints as listed.
     # Current tiles need their own SOLID overrides (they are all in
-    # GROUND_WALK above); landing tiles have none; (48, 40) is one
-    # explicit VOID override (a hazard, not a landing).
+    # GROUND_WALK above); landing tiles each have an explicit VOID
+    # override (counted in len(GROUND_VOID) below, which also holds
+    # the (48, 40) hazard).
+    # 8 ceiling + GROUND_WALK shelves + GROUND_VOID (3 landings +
+    # (48, 40) hazard). Exactly at the 32 cap: 8 + 20 + 4 = 32.
     n_tiles = (len(CEIL_VOID) + len(RUNES_C) + len(RESETS)
-               + len(GROUND_WALK) + 1)  # +1: (48, 40) explicit VOID
+               + len(GROUND_WALK) + len(GROUND_VOID))
     print(f"engine table budget: tiles {n_tiles}<=32, currents "
           f"{len(CURRENTS)}<=16, runes {len(RUNES_C) + len(RUNES_F)}<=8, "
           f"sigils {len(RESETS)}<=16, checkpoints {len(CHECKPOINTS) + 1}<=8, "

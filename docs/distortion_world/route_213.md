@@ -12,7 +12,7 @@ Plan: `docs/distortion_world/PUZZLE_PLAN.md` section 2, revised curve
   the two surfaces — three rune pairs, nothing else).
 * Solver: `tools/distortion_world/route_213_solver.py` (standalone
   Dijkstra over the puzzle model, with the engine-a and engine-b
-  semantics). Optimal solution **47 steps**, in range. All 300
+  semantics). Optimal solution **46 steps**, in range. All 296
   reachable states reach the totem: soft-lock free.
 * Surfaces: ceiling (y = 10) + **GROUND** (y = 1, base map terrain).
   Route 213's lakebed is base terrain, so engine-b requires GROUND,
@@ -60,7 +60,7 @@ of the east wall, (49, 27), with the first checkpoint (49, 28) one
 step south of it — and ends at the totem trigger on the island (any
 ceiling tile with z >= 45). The ground approach (entry (20, 12), the
 two hops, the jetty, the wall climb) is plain travel, not puzzle, and
-is not counted in the 47 steps. The ceiling causeway is the stock
+is not counted in the 46 steps. The ceiling causeway is the stock
 serpentine from `tools/distortion_world/route_213.json`; the ground
 detours are sunken reef shelves (see "Collision vs drawn").
 
@@ -117,13 +117,14 @@ shortcut around the stones.
 
 `#` = BLOCKED (stock lakebed), `.` = reef shelf (SOLID override),
 `V` = VOID until a dropped stone lands on it (as a SOLID actor tile;
-landing tiles have no explicit override), `v` = current tile
+landing tiles carry an explicit VOID override, beaten by the LANDED
+actor tile after landing), `v` = current tile
 (sliding south), `^` = current tile (sliding north), `r` = rune-up
 tile, `x` = rune-down landing, `s` = resting stone spawn.
 
 ```
 Stage 1 (under gap 1), x 43-47, z 33-34:  the bridge teach
-  z33:  #  .  .  .  x      <- x=(47,33) landing (rune-down); walk west
+  z33:  #  .  .  x  #      <- x=(46,33) landing (rune-down); walk west
   z34:  r  V  #  #  #      <- V=(44,34) landing; walk onto the landed stone;
                               r=(43,34) rune-up -> ceiling (44,35)
 
@@ -191,36 +192,36 @@ not a reachable fall: without the dropped stone the slide would run onto
 VOID (47, 42) and the player would fall, but the rune-down path to the
 ground detour requires dropping stone 3 first.)
 
-## Solution (47 steps, from the solver)
+## Solution (46 steps, from the solver)
 
 Counting: one tile move (walk, push, slide step) = 1 step; a rune
 surface change = 0 steps. `C`/`G` = surface after the move. The
-table lists 46 input steps; the total is 47 tile moves because step
-43 is a two-tile slide (step onto the current at (47,43), then slide
+table lists 45 input steps; the total is 46 tile moves because step
+42 is a two-tile slide (step onto the current at (47,43), then slide
 to (47,42)).
 
-Each row is one input step, except step 43, which is two tile moves
+Each row is one input step, except step 42, which is two tile moves
 (step onto the current at (47,43), then the slide to (47,42)). A rune
 fires as part of the step onto its tile (0 extra steps). Numbering is
 the solver trace, verified.
 
 | # | Move | # | Move |
 |---|---|---|---|
-| 1-3 | C (49,27) -> (49,30) | 25-26 | C (49,37) -> (49,39), push stone 2 twice |
-| 4-8 | C (49,30) -> (44,30) [CP2] | 27 | C (49,39) -> rune (48,39) -> G (49,34) |
-| 9-11 | C (44,30) -> (44,33), push stone 1 twice, drop into gap 1 | 28-30 | G (49,34) -> (48,36) |
-| 12 | C (44,33) -> rune (45,33) -> G (47,33) | 31 | G (48,36) -> (48,37), push plug stone to (48,38) |
-| 13-15 | G (47,33) -> (44,33) | 32 | G (48,37) -> (48,38), push plug stone to (48,39), plug |
-| 16 | G (44,33) -> (44,34), onto landed stone 1 | 33-34 | G (48,38) -> (49,39) via (49,38) |
-| 17 | G (44,34) -> rune (43,34) -> C (44,35) | 35 | G (49,39) -> (49,40), onto landed stone 2 |
-| 18-23 | C (44,35) -> (49,36), via CP3 (48,36) | 36 | G (49,40) -> rune (49,41) -> C (49,41) |
-| 24 | C (49,36) -> (49,37), push stone 2 | 37 | C (49,41) -> (49,42) [CP4] |
-| | | 38 | C (49,42) -> (48,42), push stone 3 into gap 3 |
-| | | 39 | C (48,42) -> rune (48,43) -> G (43,43) |
-| | | 40-42 | G (43,43) -> (46,43) |
-| | | 43 | G (46,43) -> slide to (47,42), onto landed stone 3 |
-| | | 44 | G (47,42) -> rune (48,42) -> C (47,43) |
-| | | 45-46 | C (47,43) -> (47,45), totem |
+| 1-3 | C (49,27) -> (49,30) | 24-25 | C (49,37) -> (49,39), push stone 2 twice |
+| 4-8 | C (49,30) -> (44,30) [CP2] | 26 | C (49,39) -> rune (48,39) -> G (49,34) |
+| 9-11 | C (44,30) -> (44,33), push stone 1 twice, drop into gap 1 | 27-29 | G (49,34) -> (48,36) |
+| 12 | C (44,33) -> rune (45,33) -> G (46,33) | 30 | G (48,36) -> (48,37), push plug stone to (48,38) |
+| 13-14 | G (46,33) -> (44,33) | 31 | G (48,37) -> (48,38), push plug stone to (48,39), plug |
+| 15 | G (44,33) -> (44,34), onto landed stone 1 | 32-33 | G (48,38) -> (49,39) via (49,38) |
+| 16 | G (44,34) -> rune (43,34) -> C (44,35) | 34 | G (49,39) -> (49,40), onto landed stone 2 |
+| 17-22 | C (44,35) -> (49,36), via CP3 (48,36) | 35 | G (49,40) -> rune (49,41) -> C (49,41) |
+| 23 | C (49,36) -> (49,37), push stone 2 | 36 | C (49,41) -> (49,42) [CP4] |
+| | | 37 | C (49,42) -> (48,42), push stone 3 into gap 3 |
+| | | 38 | C (48,42) -> rune (48,43) -> G (43,43) |
+| | | 39-41 | G (43,43) -> (46,43) |
+| | | 42 | G (46,43) -> slide to (47,42), onto landed stone 3 |
+| | | 43 | G (47,42) -> rune (48,42) -> C (47,43) |
+| | | 44-45 | C (47,43) -> (47,45), totem |
 
 Checkpoint snapshots: each checkpoint is stepped on **before** its
 stage's stone is pushed, so the snapshot is always a clean state
@@ -280,44 +281,35 @@ One `DwPuzzleTable` in `src/overlay009/dw_puzzle_route_213.c`
 the table stays active for the totem visit), plus the actor table
 (engine-b) in the same file.
 
-* `tiles[]` (explicit overrides): 30 of 32 max.
+* `tiles[]` (explicit overrides): 32 of 32 max — exactly at the cap.
+  How it fits (lead rule change, 2026-10-23): engine-a now makes
+  actor tiles beat explicit overrides, so the 3 landing tiles get an
+  explicit VOID override each (VOID before landing, LANDED SOLID
+  actor tile wins after). That took the budget from 30 to 33, over
+  the 32 cap. Instead of asking engine-a for a bigger cap, one
+  override was dropped: the stage-1 rune-down landing moved from
+  (47, 1, 33) to (46, 1, 33), so (47, 1, 33) is no longer a shelf.
+  30 + 3 - 1 = 32.
   * Ceiling: VOID (44, 10, 34), (49, 10, 40), (47, 10, 42); SOLID
     rune alcoves (45, 10, 33), (48, 10, 39), (48, 10, 43); SOLID
     reset alcoves (45, 10, 29), (48, 10, 37).
-  * Ground: SOLID reef shelves — the 21 tiles of `GROUND_WALK` in the
+  * Ground: SOLID reef shelves — the 20 tiles of `GROUND_WALK` in the
     solver (this includes the four current tiles; current tiles need
-    their own SOLID overrides); plus one explicit VOID override,
-    (48, 1, 40), the hazard at the end of the stage-2 current column.
-    Landing tiles (44, 1, 34), (49, 1, 40), (47, 1, 42) have NO
-    explicit override (engine-b table rule: landing tiles must not
-    have explicit overrides; their base kind is VOID).
-  * **Phase 2 builder work (map data).** All three landing tiles
-    (44, 34), (49, 40), (47, 42) — and every other ground detour tile
-    — sit in matrix chunk (1, 1), which is the **stock `map_data_615`**
-    (matrix 294 `[[675, 676], [672, 615]]`), not `map_data_675`
-    (chunk (0, 0), x < 32, z < 32). The current builder
-    (`build_dw_route_213.py`) only writes 675/676 and references the
-    stock 615 unchanged. Phase 2 therefore needs a Route-213-specific
-    clone of 615 — next free id `map_data_680` (679 is DW Eterna
-    Forest's; 680+ are free) — registered in `generated/maps.txt`,
-    `map_data.order` and the data `meson.build`, with matrix 294's
-    (1, 1) entry pointed at it. In that clone: the three landing
-    tiles' **base kind is VOID** (today they are stock BLOCKED
-    0x8000, which engine-b forbids for a landing tile: base kind
-    must be VOID or WALKABLE, with no explicit override). VOID base
-    kind = fall / open-void permission behaviour (the same behaviour
-    the existing fall-lip tiles carry — see the fix2-lost fall
-    lips), with no shelf face drawn, so that stepping onto one before
-    its stone lands is a fall, and the LANDED actor tile makes it
-    SOLID after. The (48, 40) hazard's VOID is the explicit engine-a
-    override (it is not a landing tile), not a base-kind change.
-    Until that builder change lands, the claimed pre-landing falls
-    are false in the built ROM — the solver models the intended base
-    kind, not today's stock BLOCKED.
+    their own SOLID overrides); plus four explicit VOID overrides:
+    the 3 landing tiles (44, 1, 34), (49, 1, 40), (47, 1, 42), and
+    (48, 1, 40), the hazard at the end of the stage-2 current
+    column. The landing tiles' VOID override is beaten by the LANDED
+    actor tile after landing (engine-a rule change), so no
+    `map_data_680` clone and no base-kind change is needed: the
+    collision glue lets explicit ground overrides beat the stock
+    0x8000 permission in `map_data_615`, and engine-a is adding a
+    guard so a LANDED (SOLID) stone suppresses the stock fall-lip.
+    The landing tiles must still *look* like holes or water
+    (collision-vs-drawn: no shelf face drawn on them).
 * `currents[]`: 4 of 16. Stage 2: (48, 1, 37), (48, 1, 38),
   (48, 1, 39) dir S. Stage 3: (47, 1, 43) dir N. Arrow ghost groups
   to be assigned in Phase 2.
-* `runes[]`: 6 of 8. Ceiling -> ground: (45, 10, 33) -> (47, 1, 33),
+* `runes[]`: 6 of 8. Ceiling -> ground: (45, 10, 33) -> (46, 1, 33),
   (48, 10, 39) -> (49, 1, 34), (48, 10, 43) -> (43, 1, 43).
   Ground -> ceiling: (43, 1, 34) -> (44, 10, 35),
   (49, 1, 41) -> (49, 10, 41), (48, 1, 42) -> (47, 10, 43).
@@ -348,9 +340,9 @@ the table stays active for the totem visit), plus the actor table
     The solver models the two surfaces as C/G. For GROUND, a DEFAULT
     tile reads BLOCKED (engine-b's conservative cross-surface rule),
     so every ground tile the puzzle uses gets an explicit state:
-    the landing tiles get VOID base kind in the map data (above),
-    the (48, 40) hazard gets an explicit VOID override, and all other
-    ground detour tiles get SOLID overrides.
+    the landing tiles get an explicit VOID override in the table
+    (above), the (48, 40) hazard gets an explicit VOID override, and
+    all other ground detour tiles get SOLID overrides.
   * Protected tiles (`protectedTiles`, engine-b): engine-b does NOT
     auto-protect engine-a checkpoints / reset sigils, so the actor
     table lists all seven: CP0 (20, 1, 12) GROUND, CP1 (49, 10, 28)
@@ -379,7 +371,7 @@ table below is the drawing brief, not the audit.
 | 3 ceiling gaps (VOID) | open water: the hanging-lake water face, no stone quad |
 | Rune alcoves (3 ceiling) | rune circle decal on the water / slab edge + a low rim (see below) |
 | Reset alcoves (2 ceiling) | sigil circle decal, distinct colour from runes |
-| Ground reef shelves (21) | sunken reef / lakebed shelf props (ghost props, group NONE) — the ground under the ceiling is not stock-drawn walkable ground, so each shelf needs a prop face |
+| Ground reef shelves (20) | sunken reef / lakebed shelf props (ghost props, group NONE) — the ground under the ceiling is not stock-drawn walkable ground, so each shelf needs a prop face |
 | Ground landing tiles (3) | open water / void: no shelf face; the landed stone's MapObject fills the tile when it lands (the sprite is the drawn proof of the SOLID tile) |
 | Landed stones (3 ground) | the stone MapObject itself, settled on the gap; drawn as a stepping stone |
 | Ceiling stones (3) | the stone MapObject, pushable; drawn as a boulder on the causeway |
@@ -416,12 +408,12 @@ purely visual now; the solver does not rely on it.
 `python3 tools/distortion_world/route_213_solver.py` prints:
 
 ```
-optimal solution: 47 steps (tile moves)
-reachable states: 300
-states that can reach the totem: 300
+optimal solution: 46 steps (tile moves)
+reachable states: 296
+states that can reach the totem: 296
 soft-lock free: True
 goal states: 2; all with all stones dropped: True
-engine table budget: tiles 30<=32, currents 4<=16, runes 6<=8,
+engine table budget: tiles 32<=32, currents 4<=16, runes 6<=8,
   sigils 2<=16, checkpoints 5<=8, stones 4<=4 (engine-b max),
   protected 7<=8
 ```
@@ -464,6 +456,18 @@ claimed here.
   z40 row shows `V V`; stage-1 ground fall and stage-3 stone-less
   ride labelled counterfactual (unreachable — the rune-down paths
   require dropping those stones first).
+* Phase 1 round 8 (Codex delta review): stale open question, stale
+  solver comment, budget-quote suffix fixed. APPROVED.
+* Phase 1 rule change (lead, engine-a: actor tiles beat explicit
+  overrides): the 3 landing tiles now get an explicit VOID override
+  each (VOID before landing, LANDED SOLID wins after) — no
+  `map_data_680` clone, no base-kind change, and the round-7 clone
+  plan above is superseded. Budget went 30 + 3 = 33, over the 32
+  cap; instead of asking engine-a for a bigger cap, one override was
+  dropped (stage-1 rune-down landing (47, 33) -> (46, 33), so
+  (47, 33) is no longer a shelf). Budget 32/32, solution 46 steps,
+  296 reachable states, all reaching the totem. No full Codex round
+  for this change (lead: reviewed in the Phase 2 review).
 
 ## Open questions for engine-b (stones)
 
@@ -471,12 +475,11 @@ claimed here.
    onto a current tile plugs it via its BLOCKED actor tile, and the
    slide that starts on the push step stops immediately before the
    stone (no extra tile move).
-2. Confirm the Phase 2 builder approach for the landing tiles' base
-   kind: the three landing tiles are stock BLOCKED (0x8000) in
-   `map_data_615` today, which engine-b forbids for a landing
-   tile — they must be VOID base kind with no explicit override, in
-   the Route-213-specific clone `map_data_680` (see "Engine tables").
-   The solver models them as G (GROUND surface).
+2. RESOLVED by the lead's rule change (no answer needed): landing
+   tiles get an explicit VOID override in the table; actor tiles
+   beat overrides, so the LANDED stone wins after landing. No
+   `map_data_680` clone, no base-kind change. The landing tiles
+   must still *look* like holes or water (collision-vs-drawn).
 3. Confirm the fall is 12 frames and the stone's MapObject is hidden
    during FALLING (nothing drawn in the void).
 4. Stone visuals / exit warp: stones are DW objects; the README
