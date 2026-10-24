@@ -462,8 +462,6 @@ script, and the same restore runs.
    (choice stands, puzzle initial); collision-vs-drawn audit;
    regression on the other rifts; `make release`.
 7. Codex reviews at first-playable and at final, per `COMMON.md`.
-   Engine-a fix made in this branch (needs engine-a review): see
-   section 12 item 7.
 
 ## 12. Open questions / assumptions (for engine-a + lead)
 
@@ -504,15 +502,20 @@ script, and the same restore runs.
    in section 9 (a fall after pressing B but before re-entering the
    checkpoint would return with B off); confirm against the engine-a
    implementation when it lands.
-7. **Engine-a `EnsureActive` fix (in this branch, needs engine-a
-   review).** `EnsureActive` reset the puzzle whenever the table
-   pointer changed with no fall in flight — including a test<->production
+7. **Engine-a `EnsureActive` reset (known limitation, NOT patched
+   here).** `EnsureActive` resets the puzzle whenever the table
+   pointer changes with no fall in flight — including a test<->production
    swap of the SAME map (test mode flips across a fall warp: the warp
    resets `gDwPuzzleTestMode`, the harness re-enables it). The first
-   step after the re-enable then wiped a just-restored fall snapshot
-   (cp + groups back to initial). The reset now only fires when the
-   `mapHeader` changes. Production is unaffected (test mode never
-   flips there). Found while proving the falls; the dwlib `flag()`
-   offset bug (harness hardcodes `NUM_VARS` 290; the game has 288)
-   masked the flag reads during the same investigation and is flagged
-   to the harness workstream.
+   step after the re-enable then wipes a just-restored fall snapshot.
+   An earlier revision of this branch narrowed the guard to same-map
+   changes; Codex review (final round 1) correctly rejected that as
+   too broad — the engine supports progress-gated tables sharing a
+   map, whose isolation the guard would break — and since the test
+   table was removed, the guard was reverted to engine-a's exact
+   code. Production is unaffected (test mode never flips there), and
+   the production falls proof runs with test mode off throughout.
+   Engine-a owns a proper test-mode-aware fix if it ever needs one.
+   The dwlib `flag()` offset bug (harness hardcodes `NUM_VARS` 290;
+   the game has 288) masked the flag reads during the same
+   investigation and is flagged to the harness workstream.

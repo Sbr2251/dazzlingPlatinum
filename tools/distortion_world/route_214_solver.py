@@ -195,6 +195,11 @@ def slide(state, x, z, mode):
             break
         pos = (nx, nz)
         letters.append(d.lower())
+        if pos in VOIDS:
+            # Entering a VOID forces the fall immediately (engine):
+            # the slide stops here and the player restores to the
+            # last checkpoint with its snapshot groups.
+            return fall(land(state, pos[0], pos[1])), letters, True
         ch = GRID[pos]
         if ch in "stC":
             break
@@ -203,19 +208,23 @@ def slide(state, x, z, mode):
         nd = current_dir(state, *pos)
         if nd is not None:
             d = nd
-    return land(state, pos[0], pos[1]), letters
+    return land(state, pos[0], pos[1]), letters, False
 
 def step(state, direction, mode):
-    """One player step. Returns (new_state, tile_letters) or None."""
+    """One player step. Returns (new_state, tile_letters, fell) or None.
+    Entering a VOID forces the fall at once (see VOIDS); the returned
+    state is the fall-restored state and fell is True."""
     x, z = state[0], state[1]
     dx, dz = DIRS[direction]
     nx, nz = x + dx, z + dz
     if blocked(state, nx, nz):
         return None
     if current_dir(state, nx, nz) is not None:
-        nstate, letters = slide(state, nx, nz, mode)
-        return nstate, [direction] + letters
-    return land(state, nx, nz), [direction]
+        nstate, letters, fell = slide(state, nx, nz, mode)
+        return nstate, [direction] + letters, fell
+    if (nx, nz) in VOIDS:
+        return fall(land(state, nx, nz)), [direction], True
+    return land(state, nx, nz), [direction], False
 
 def wait(state):
     """Wait until pending fades settle: effective state becomes logical.
@@ -226,10 +235,10 @@ def wait(state):
     return (x, z, la, lb, la, lb, False, False, cp, sa, sb)
 
 # Production VOID lips (the only tiles where a fall can start in the
-# shipped table). A fall is offered ONLY standing on one of these:
-# the universal-fall model was sound for the 6-VOID test table, but the
-# shipped table restricts falls, so the soft-lock proof must use the
-# restricted set (a fall from a non-VOID tile cannot happen).
+# shipped table). Entering one forces the fall IMMEDIATELY (the engine
+# restores the checkpoint the moment the tile is entered); the player
+# never stands on a VOID and walks away. step()/slide() apply fall()
+# at once on entering a VOID, and transitions() offers no separate FALL.
 VOIDS = {(49, 34), (44, 42)}
 
 def fall(state):
@@ -255,10 +264,7 @@ def transitions(state, mode):
     if state[6] or state[7]:
         w = wait(state)
         assert w is not None
-        out = [(w, 0, "W")]
-        if (state[0], state[1]) in VOIDS:
-            out.append((fall(state), 0, "F"))
-        return out
+        return [(w, 0, "W")]
     out = []
     for d in "UDLR":
         try:
@@ -270,13 +276,6 @@ def transitions(state, mode):
     w = wait(state)
     if w is not None:
         out.append((w, 0, "W"))
-    if (state[0], state[1]) in VOIDS:
-        f = fall(state)
-        if f != state:
-            # A fall that returns to the very state it started from (standing
-            # on the last checkpoint with its snapshot groups) is a no-op
-            # and must not be offered, or Dijkstra wastes a zero-cost loop.
-            out.append((f, 0, "F"))
     return out
 
 def solve(mode):
