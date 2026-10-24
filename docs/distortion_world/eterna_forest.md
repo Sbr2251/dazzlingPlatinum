@@ -1,6 +1,14 @@
 # DW Eterna Forest puzzle design (rift #2, revised curve)
 
 - Map: `MAP_HEADER_DW_ETERNA_FOREST`, Arc 2 scene 2.10, progress 24 -> 26, Vespiquen totem.
+- Progress note: the design gates on 24 because the story sets 24
+  (`res/field/scripts/scripts_eterna_forest.s`, `SetVar VAR_ARC2_PROGRESS, 24`
+  before the entry warp), the DW hooks and coord events gate on 24, and the
+  task brief says 24 -> 26. The rift-contract table lists entry state 25;
+  that row is stale against the shipped code. Open item for the lead:
+  correct the contract table to 24 (or confirm 24), do not change the
+  design to 25: a contract-compliant entry at 25 would not even fold
+  into the hive under the current code.
 - Curve row (revised 2026-10-23, `docs/distortion_world/PUZZLE_PLAN.md` section 2):
   difficulty **3**, gravity runes + honeycomb timing, **at most one sigil**, optimal **25-40 steps**,
   fail cost **fall -> last rune checkpoint**. No non-obvious move is required at this
@@ -21,11 +29,11 @@ The existing route (wall climb, ceiling, honeycomb, totem) is kept, but two
 gravity runes shortcut it. Rune A sits on the wall where the player walks
 anyway: stepping on it flips wall -> ceiling, teaching the rune safely
 (both sides are flat, empty, and flippable back). Past the honeycomb, Rune B
-flips ceiling -> floor onto a two-tile floating platform whose landing tile
-is carved as the puzzle's one sigil. Landing on the sigil raises a stone
-bridge over a gap cut in the ceiling; flipping back up (step off the rune,
-step back on) returns the player to the ceiling, and the bridge carries them
-to the totem. A fall sends the player back to the last rune checkpoint, not
+flips ceiling -> floor onto a two-tile floating platform whose east
+tile is carved as the puzzle's one sigil. Stepping east onto the sigil
+raises a stone bridge over a gap cut in the ceiling; stepping west back
+onto the rune flips the player up to the ceiling, and the bridge
+carries them to the totem. A fall sends the player back to the last rune checkpoint, not
 to the hive. The bridge latches on (a SET sigil), so a fall never costs the
 player the bridge, and no state can soft-lock: every rune and the sigil stay
 reachable from every checkpoint.
@@ -41,8 +49,11 @@ x = 49 with y >= 1, ceiling tiles y = 10. Verified against
 
 - Entry: (20,12) facing west. Walk west to (17,12); the seam folds the
   player to the hive floor (40,22) facing east.
-- Hive strip: (32..48, 22..23) walkable. Walk east to (48,22); pressing
-  east jumps onto the wall at (49,1,21).
+- Hive strip, on foot: (38..48, 22..23) walkable. Walk east to (48,22);
+  pressing east jumps onto the wall at (49,1,21). West of the hive, the
+  pool (33..37, 22..23) is `WATER_SEA` (tile behaviour 0x15): Surf-only,
+  not walkable on foot, so it is outside the solver's floor set. The
+  dry tile (32, 22..23) is cut off by the pool and unreachable on foot.
 - The walkway chasm lips fall to the entry (existing coord events). The
   hive is not walkably connected back to the walkway, so lip falls can only
   happen before the puzzle starts; a lip fall resetting the puzzle is
@@ -75,8 +86,16 @@ z27-29. The stock jumps survive: (48,22) -> wall (49,1,21); wall
 ceiling (49,10,27) back -> wall (49,9,27). The long way round (climb to
 y9, jump to the ceiling) still works and is the fallback if the player
 somehow walks past Rune A: climb at z21-24, cross at y4-6, come down at
-z27. It costs 48 steps end to end, which is why Rune A is worth using but
-never required for solvability.
+z27. It costs 47 steps end to end (38 - 4 + 15 - 2: the bypass climb is
+15 steps against 4 for Rune A, but it lands on the ceiling at (49,27)
+instead of (49,25), saving 2 ceiling steps). Rune A is a teaching rune,
+not a gate: it sits on the natural line (walking east along the wall's
+bottom row steps on it), so a first-time player flips it without knowing
+it is there, and only a player who already knows the layout can bypass
+it by deliberately climbing early. The REQUIRED rune is Rune B: it is
+the only way to the sigil. The bypass is kept, not gated: blocking the
+wall tiles the bypass uses would be invisible walls against the stock
+wall face.
 
 ### 2c. Ceiling (y = 10, attr 18; rows x = 49 top -> 44 bottom, columns z = 25 -> 47)
 
@@ -126,32 +145,40 @@ the far side is split into a honeycomb side (z <= 38) and a totem side
 - Ceiling tile (45,10,37) <-> floor tile (45,1,37), the west tile of the
   two-tile platform. Table: two `DwPuzzleRune` entries, rot 180 both
   ways (upside-down <-> upright), steps 16, facing -1, useCamera 0.
-- The platform is (45,1,37) + (46,1,37) on the floor (y = 1). The east
-  tile exists so the player can step off the rune and step back on to
-  flip up again (section 7: a rune does not fire on a landing). Both
-  platform tiles are made SOLID by the table (explicit overrides; the
-  stock floor grid there is blocked) and are drawn by ghost props
+- The platform is (45,1,37) + (46,1,37) on the floor (y = 1). The west
+  tile is the rune landing; the east tile is the sigil (below). The
+  flow is: flip down onto (45,37), step east onto the sigil (46,37),
+  step west back onto the rune (45,37), flip up. The platform FORCES
+  the sigil visit: from the landing tile the only walkable step is
+  east to the sigil, and from the sigil the only walkable step is
+  west back to the rune. No landing activation is assumed anywhere
+  (section 7): the sigil fires on the walked step east, the flip up
+  fires on the walked step west.
+- Both platform tiles are made SOLID by the table (explicit overrides;
+  the stock floor grid there is blocked) and are drawn by ghost props
   (section 5). From the platform the player cannot walk anywhere else:
   every neighbouring floor tile is void/blocked, so the only way out is
   the rune.
-- The platform's west tile (45,1,37) is also the sigil (below). Landing
-  on it fires the sigil (section 7).
 
 ### The one sigil: SET, latching, on the floor
 
-- Sigil tile: (45,1,37), kind `DW_PUZZLE_SIGIL_SET`, target = bridge
-  group, setValue 1. Stepping (or landing) on it sets the bridge group
-  ON. It is not a toggle: stepping on it again sets 1 again, so the
+- Sigil tile: (46,1,37), kind `DW_PUZZLE_SIGIL_SET`, target = bridge
+  group, setValue 1. A walked step onto it sets the bridge group ON.
+  It is not a toggle: stepping on it again sets 1 again, so the
   bridge can never be turned off by accident, and a fall can never cost
   the player the bridge.
 - Bridge group: 8 tiles, the gap (44..47, 10, 39..40), onState SOLID,
   offState BLOCKED, initialOn 0, ghost-prop group 2 (8 small-platform
-  props, one per gap tile; section 5). Walkability follows the honeycomb
-  rule (group switches at once here: the props are solid stone, and the
-  group is only ever turned on, so no fade timing is needed; fadeOut /
-  fadeInLead left 0, which the API maps to the defaults, and the switch
-  is effectively immediate for this group because the props appear with
-  the flash).
+  props, one per gap tile; section 5). The group's fade fields are 0,
+  which the API maps to the defaults: fadeOut 33, fadeInLead 3. The
+  group only ever turns on, and the 3-frame fade-in lead is harmless:
+  at least 4 moves (64 frames: step west, flip up, two steps south)
+  elapse between the sigil and the first bridge step. The group only
+  ever turns off via a checkpoint restore (a fall to a checkpoint whose
+  snapshot has bridge OFF): then the props fade for 33 frames while
+  the tiles stay solid (the honeycomb rule), and the respawn tile is
+  at least 320 frames of walking from the gap, so the fade is over
+  before the player can reach the gap again.
 - Why SET and not TOGGLE: at difficulty 3 the sigil is a reward for
   reaching the platform, not a state to manage. A toggle would let the
   player close the bridge under their own feet and strand themself on
@@ -159,20 +186,31 @@ the far side is split into a honeycomb side (z <= 38) and a totem side
 
 ### Checkpoints
 
+Every checkpoint tile is a guaranteed WALKED, non-rune tile, so
+checkpoint activation needs no landing semantics at all (section 7).
+The table has 7 checkpoints (max 8):
+
 - Checkpoint 0: (20,1,12) facing -1, the map entry (required by the API:
-  checkpoint 0 is the map entry).
-- Checkpoint 1: (49,10,25) facing -1, the ceiling side of Rune A.
-- Checkpoint 2: (45,10,37) facing -1, the ceiling side of Rune B.
-- Stepping on (or landing on, section 7) a checkpoint tile snapshots the
-  puzzle (bridge on/off) and makes it the fall target. Snapshot contents
-  at each checkpoint: CP0 bridge OFF, CP1 bridge OFF, CP2 bridge ON
-  (the sigil fired on the floor before the flip back up).
+  checkpoint 0 is the map entry). Snapshot: bridge OFF.
+- Checkpoints 1-2: (44,10,32) and (45,10,32) facing -1, the two
+  honeycomb-approach tiles. Every first honeycomb entry steps on one of
+  them (the honeycomb can only be entered from the north: x46-49 at
+  z33-36 is blocked stock, and the south side is unreachable before a
+  first crossing). Snapshot: the bridge as it was on arrival (OFF the
+  first time; ON if the player walks back across later).
+- Checkpoints 3-6: (44..47,10,39) facing -1, the four bridge tiles at
+  z=39. Every crossing steps on one of them (the gap must be crossed
+  from z=38 to z=39; x48-49 is blocked stock). Snapshot: always ON,
+  by construction: the tile is only steppable while the bridge is on.
+- Stepping on a checkpoint tile snapshots the puzzle (bridge on/off)
+  and makes it the fall target.
 - Fall cost: a honeycomb fall returns the player to the last checkpoint.
-  Before any rune: the entry (20,12) via the existing fall path. After
-  Rune A: the ceiling (49,25) -- the honeycomb must be re-crossed, but
-  the walkway, floor, and wall climb are skipped. After Rune B: the
-  ceiling (45,37) -- the bridge is already latched, so the totem is 4
-  steps away. This is the curve's "fall -> last rune checkpoint".
+  Before the honeycomb: the entry (20,12) via the existing fall path.
+  After the approach: the approach tile (44/45,32) -- the honeycomb
+  must be re-crossed, but the walkway, floor, and wall climb are
+  skipped. After the bridge: the bridge tile (x,39) -- the bridge is
+  already latched, so the totem is 2 steps away. This is the curve's
+  "fall -> last rune checkpoint".
 
 ## 4. The honeycomb (unchanged, now a checkpointed hazard)
 
@@ -260,13 +298,15 @@ open or blocked. Phase 2 edits:
   (exactly on fall 2, not on later falls). New text (append to
   `res/text/dw_eterna_forest.json`):
 
-  `DWEternaForest_Text_CyrusRuneHint`:
+  `DWEternaForest_Text_CyrusRuneHint` (page break `\r` after line 2,
+  as in the existing texts: each page holds two lines):
   ```
   Cyrus: The runes flip you.
   Wall to ceiling. Ceiling
   to floor. Step off, then
   step on to flip back.
   ```
+  Stored as `"Cyrus: The runes flip you.\nWall to ceiling. Ceiling\rto floor. Step off, then\nstep on to flip back."`.
   `DWEternaForest_Text_CyrusSigilHint`:
   ```
   Cyrus: Under the last rune
@@ -274,6 +314,7 @@ open or blocked. Phase 2 edits:
   bridge. Cross while the
   honey holds.
   ```
+  Stored as `"Cyrus: Under the last rune\nis a sigil. It raises the\rbridge. Cross while the\nhoney holds."`.
 - `DWEternaForest_TalkCyrus` (talking to Cyrus at the entry / hive)
   is unchanged. No new flags are taken: `FLAG_ARC2_RIFTA_A/B` belong
   to Ravaged Path, C/D are already Eterna's, and the checkpoint / fall
@@ -287,41 +328,47 @@ open or blocked. Phase 2 edits:
 
 These are the observable rules the solver implements and Phase 2 must
 verify against the engine implementation with headless tests (reading
-`gDwPuzzleDebug`). If the engine behaves differently, the design still
-completes (see the Rune B note below), but the tests must be updated to
-match, and the solver re-run.
+`gDwPuzzleDebug`). Rules 1-5 are designed to follow from the published
+API alone: every activation in this puzzle is a WALKED step onto a
+tile, and no sigil or checkpoint tile is a rune landing tile, so the
+design assumes no landing activation for anything. Rule 6 is the one
+place the design needs a single engine semantic beyond the letter of
+the published API, and rule 7 is a hard engine requirement.
 
 1. A rune fires when the player takes a walked step onto its tile.
-   A landing on a rune tile as the result of a rune flip does NOT fire
-   that rune. The player must step off the landing tile and step back
-   on to flip again. (Without this, a rune pair ping-pongs forever.)
-2. Landing on a tile as the result of a rune flip DOES count as entering
-   it for sigils and checkpoints: the Rune B landing fires the sigil,
-   and a rune landing on a checkpoint tile sets that checkpoint (with
-   the snapshot taken after the sigil fired).
-3. A sigil fires once per entry onto its tile (walked step or landing);
-   a SET sigil with setValue 1 latches: re-entering sets 1 again.
-4. A group that is ON is walkable (SOLID) and drawn; a group that is OFF
-   is impassable (BLOCKED) and its props are hidden. For the bridge
-   group the switch is effectively immediate (it is only ever turned
-   on, with the sigil flash).
-5. A fall restores the player to the last checkpoint tile and the
+2. A landing on a tile as the result of a rune flip fires NOTHING:
+   not the rune, not a sigil, not a checkpoint. The player must step
+   off the landing tile and step back on to flip again.
+3. A sigil fires once per walked step onto its tile; a SET sigil with
+   setValue 1 latches: re-entering sets 1 again.
+4. A checkpoint sets on a walked step onto its tile, snapshotting the
+   puzzle (bridge on/off) at that moment.
+5. A group that is ON is walkable (SOLID) and drawn; a group that is OFF
+   is impassable (BLOCKED) and its props are hidden. Bridge timing:
+   fadeInLead 3 frames after the sigil (covered by the 64+ frames
+   before the first bridge step), fadeOut 33 frames on a restore-off
+   (covered by the walk back from the respawn).
+6. A fall restores the player to the last checkpoint tile and the
    puzzle snapshot taken there. The snapshot is per checkpoint, not
    global: falling before the sigil restores bridge OFF, falling after
    restores bridge ON.
-6. Honeycomb falls go through the same fall path (same checkpoint
+7. REQUIRED: a rune must not re-fire on the landing its own flip
+   produced. If the engine's step hook runs on a rune landing and
+   would fire the rune there, the engine (or glue) must suppress
+   exactly that re-fire. Without this, a rune pair ping-pongs forever
+   and Rune B is unusable: the player could never stay on the floor
+   long enough to walk to the sigil. This is not an open question:
+   Phase 2 must demonstrate it headlessly (flip Rune B down, show the
+   player stays on the floor platform, `gDwPuzzleDebug` shows one
+   `DW_PUZZLE_EVENT_RUNE` for the flip down, and no second rune event
+   until the player steps off and back on).
+8. Honeycomb falls go through the same fall path (same checkpoint
    respawn and snapshot restore), even though the honeycomb is detected
-   by the existing timer code, not by an engine VOID tile. See
-   section 9, open question 1: the Phase 2 glue must make sure the
-   engine does not treat the HoneyFall warp as a fresh entry (which
-   would reset the bridge and checkpoint).
-7. Rune B under the "fires on landing" alternative: if the engine fires
-   a rune on a landing too, Rune B becomes touch-and-return (flip down,
-   sigil fires, instant flip back up). The bridge still latches, the
-   totem is still reachable, and there is no soft-lock; only the floor
-   excursion (step off, step back on) never happens. The design does
-   not depend on which behaviour ships, but the headless test must pin
-   the shipped one.
+   by the existing timer code, not by an engine VOID tile. This
+   needs an engine change, specified in section 9, open question 1:
+   the Phase 2 glue must make sure the engine does not treat the
+   HoneyFall warp as a fresh entry (which would reset the bridge and
+   checkpoint).
 
 ## 8. Solution (38 steps) and solver stats
 
@@ -340,17 +387,17 @@ timed, the rest is not.
  19-22 -x x4 -> (45,10,27) ceiling
  23-27 +z x5 -> (45,10,32) ceiling (safe wait tile)
  28-31 +z x4 -> (45,10,36) ceiling, across the HONEYCOMB (timed)
- 32   +z -> (45,10,37) ceiling, RUNE B flips -> (45,1,37) floor, SIGIL latches bridge
- 33   +x -> (46,1,37) floor (step off the rune)
+ 32   +z -> (45,10,37) ceiling, RUNE B flips -> (45,1,37) floor
+ 33   +x -> (46,1,37) floor, SIGIL latches the bridge
  34   -x -> (45,1,37) floor, RUNE B flips -> (45,10,37) ceiling
  35-38 +z x4 -> (45,10,41) ceiling, across the BRIDGE, totem trigger (z >= 41)
 ```
 
-Total: 38 steps, 0 falls, checkpoints used: 1 then 2, honeycomb crossed
-once (4 timed steps), sigil used once. The long way round (no Rune A)
-is 48 steps. The solver's BFS output (per honeycomb start phase, waits,
-state counts, soft-lock proof) is in "Solver stats" below and in
-`/tmp/dwp/rift-ef/solver_output.txt`.
+Total: 38 steps, 0 falls, checkpoints used: approach then bridge,
+honeycomb crossed once (4 timed steps), sigil used once. The long way
+round (no Rune A) is 47 steps (section 2b). The solver's output (per
+honeycomb start phase, waits, state counts, soft-lock proof) is in
+"Solver stats" below and in `/tmp/dwp/rift-ef/solver_output.txt`.
 
 ### Solver stats
 
@@ -359,16 +406,28 @@ solver's model is section 9's table in code form.)
 
 - Optimal moves: 38 for every honeycomb start phase (0..212). The
   honeycomb never forces an extra move, only waits.
-- Worst-case wait: 108 frames (~3.6 s) at the safe tile (45,10,32),
-  at start phase 67; worst-case total 716 frames (~23.9 s at 30 fps)
-  for the whole route. The player can always wait at (45,10,32); the
-  crossing needs 4 steps inside a 153-frame solid window.
-- No soft-lock: reverse reachability over the full state graph
-  (position x surface x bridge x honeycomb phase x just-landed x
-  checkpoint) shows every forward-reachable state can reach the
-  totem. Falls included: a fall from any state lands on a checkpoint
-  from which the totem is reachable (bridge ON after CP2, OFF-but-
-  re-raisable before it).
+- Worst-case wait: 156 frames (~5.2 s) at the safe tile (45,10,32),
+  at start phase 35; worst-case total 764 frames (~25.5 s at 30 fps)
+  for the whole route. The wait rule is conservative: the player
+  waits until the whole crossing occupancy (4 crossing moves + the
+  32-frame flip exit = 96 frames) fits inside the 153-frame solid
+  window, so the result holds whether the engine updates the
+  player's tile at step start or at step end.
+- No soft-lock: forward reachability over the abstract state graph
+  (15,849 reachable states: position x surface x bridge x just-landed
+  x checkpoint x per-checkpoint snapshots) plus reverse Dijkstra
+  from the goal states shows every forward-reachable state can reach
+  the totem abstractly. Realization: a shortest abstract path is
+  simple, so any maximal run of consecutive honeycomb positions in
+  it is at most 8 steps; with the exit move that is 144 frames, inside
+  one 153-frame solid window, and the player aligns it by waiting on
+  the safe tile before the run; a fall from a honeycomb position
+  lands on a checkpoint (a safe tile) whose own path is realizable
+  the same way. The solver verifies the run bound on every
+  reachable state's shortest path (max run observed: 5 positions,
+  96 frames with the exit). Falls included: a fall from any state
+  lands on a checkpoint from which the totem is reachable (bridge ON
+  after a bridge checkpoint, OFF-but-re-raisable before it).
 - Falls in the optimal solution: 0. Deliberate-fall shortcuts: none
   (a fall always moves the player back to a checkpoint behind the
   honeycomb, never forward).
@@ -376,22 +435,25 @@ solver's model is section 9's table in code form.)
 ## 9. Phase 2 table (sketch; exact C in `dw_puzzle_eterna_forest.c`)
 
 ```c
-/* groups[0]: bridge. tiles = (44..47, 10, 39..40), 8 tiles. */
+/* groups[0]: bridge. tiles = (44..47, 10, 39..40), 8 tiles. Fade
+   fields 0 -> defaults (fadeOut 33, fadeInLead 3); see section 3. */
 { sBridgeTiles, 8, 2, 0, 0, DW_PUZZLE_TILE_SOLID, DW_PUZZLE_TILE_BLOCKED, 0, 0 },
-/* sigils[0]: SET the bridge on, on the Rune B floor tile. */
-{ 45, 1, 37, DW_PUZZLE_SIGIL_SET, 0, 1, 0 },
+/* sigils[0]: SET the bridge on, on the EAST platform tile (walked step). */
+{ 46, 1, 37, DW_PUZZLE_SIGIL_SET, 0, 1, 0 },
 /* runes: A wall->ceiling, A ceiling->wall, B ceiling->floor, B floor->ceiling. */
 { 49, 1, 25,  49, 10, 25, DW_PUZZLE_SURFACE_CEILING, -1, -90, 16, 0, 0, 0, 0, 0 },
 { 49, 10, 25, 49, 1, 25,  DW_PUZZLE_SURFACE_EAST_WALL, -1, 90, 16, 0, 0, 0, 0, 0 },
 { 45, 10, 37, 45, 1, 37,  DW_PUZZLE_SURFACE_FLOOR, -1, 180, 16, 0, 0, 0, 0, 0 },
 { 45, 1, 37,  45, 10, 37, DW_PUZZLE_SURFACE_CEILING, -1, 180, 16, 0, 0, 0, 0, 0 },
-/* checkpoints: entry, Rune A ceiling, Rune B ceiling. */
-{ 20, 1, 12, -1 }, { 49, 10, 25, -1 }, { 45, 10, 37, -1 },
+/* checkpoints (7): entry; honeycomb approach x44, x45; bridge x44-47 at z39. */
+{ 20, 1, 12, -1 },
+{ 44, 10, 32, -1 }, { 45, 10, 32, -1 },
+{ 44, 10, 39, -1 }, { 45, 10, 39, -1 }, { 46, 10, 39, -1 }, { 47, 10, 39, -1 },
 /* tiles: explicit overrides for the Rune B platform (stock floor blocked). */
 { 45, 1, 37, DW_PUZZLE_TILE_SOLID, 0 }, { 46, 1, 37, DW_PUZZLE_TILE_SOLID, 0 },
 /* table: mapHeader MAP_HEADER_DW_ETERNA_FOREST, progress 24..24,
    fallScriptId 5, fallVar VAR_MAP_LOCAL_2,
-   counts groups 1, sigils 1, runes 4, currents 0, checkpoints 3, tiles 2. */
+   counts groups 1, sigils 1, runes 4, currents 0, checkpoints 7, tiles 2. */
 ```
 
 Phase 2 glue (`ov9_02249960.c`, hook calls only): call
@@ -405,16 +467,27 @@ engine call. Register the table in `dw_puzzle.c` `sPuzzleTables[]`.
 
 ### Open questions for engine-a / Phase 2 (not assumed solved)
 
-1. Honeycomb falls and fresh-entry reset (section 7 rule 6): the
-   HoneyFall warp must be recognised as a fall, not a fresh entry.
-   Candidates: a fall-notification the honeycomb code calls; routing
-   the honeycomb fall through `DwPuzzle_HandleStep`; or the glue
-   marking fall-pending before starting HoneyFall. Pick one with the
-   engine implementation in hand; the headless fall test proves it.
-2. Rune landing semantics (section 7 rules 1-2): whether the engine
-   fires sigils/checkpoints on a rune landing, and whether it suppresses
-   rune re-fire on a landing. Pin with headless tests reading
-   `gDwPuzzleDebug` (checkpointIndex, groupBits) after each flip.
+1. REQUIRED ENGINE CHANGE: honeycomb falls and fresh-entry reset
+   (section 7 rule 8). The published API has no way for the existing
+   honeycomb timer code (which detects the fall, not an engine VOID
+   tile) to mark the fall pending, and the usage guide says an
+   unrecognised fall resets the puzzle as a fresh entry. That would
+   wipe the bridge state and the checkpoint, breaking the design's
+   core promise. Preferred resolution, using only data already in
+   the table: the engine polls the table's `fallVar`
+   (`VAR_MAP_LOCAL_2`) in `DwPuzzle_HandleFrame` and marks
+   fall-pending whenever it is set -- the bespoke honeycomb code
+   already sets it when the honeycomb goes under the player, and
+   the fall script already clears it first. Fallbacks: a new
+   `DwPuzzle_NotifyFall` API the honeycomb code calls before
+   starting HoneyFall; or the honeycomb becomes an engine timer
+   group. Phase 2 is blocked until engine-a confirms one of these
+   lands; the headless fall test (bridge ON + after-Rune-B
+   checkpoint surviving a honeycomb fall) proves it.
+2. REQUIRED ENGINE SEMANTIC (section 7 rule 7): no rune re-fire on a
+   rune landing. Pin with headless tests reading `gDwPuzzleDebug`
+   after each flip (one `DW_PUZZLE_EVENT_RUNE` per flip; no second
+   event until the player steps off and back on).
 3. Respawn timing: the engine respawn after the HoneyFall warp must
    land while faded out (one fade, no visible double-warp). Verify on
    a frame strip.
@@ -423,6 +496,9 @@ engine call. Register the table in `dw_puzzle.c` `sPuzzleTables[]`.
    adjust rot / useCamera if the capture shows otherwise.
 5. Bridge prop read: verify the group-2 small platforms read as a
    bridge over the cut gap, and the gap reads as a hole when off.
+6. Contract table: the rift-contract table lists Eterna entry state
+   25; the story sets 24 and this design uses 24. Lead to correct
+   the table (or confirm 24).
 
 ### Phase 2 headless proof (from the task brief, run then)
 

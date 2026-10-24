@@ -3,40 +3,50 @@
 
 Design: docs/distortion_world/eterna_forest.md. Semantics follow the
 engine-a API (include/overlay009/dw_puzzle.h) as published in commit
-623ccce7ee, plus the honeycomb timer in src/overlay009/ov9_02249960.c:
+623ccce7ee, plus the honeycomb timer in src/overlay009/ov9_02249960.c.
 
-- Surfaces: FLOOR (y=1), EAST_WALL (x=49), CEILING (y=10). A state is
-  (pos, bridge, just_landed, checkpoint, snap1, snap2, [phase]).
+Key semantic rules (design section 7):
 - A rune fires on a WALKED step onto its tile. A landing from a rune
-  flip does NOT fire that rune (just_landed suppresses it until the
-  player steps off the tile). Landing DOES fire sigils and checkpoints.
-- The sigil is SET (latching): landing on (45,1,37) sets bridge ON.
-- A fall restores the player to the last checkpoint and the bridge
-  snapshot taken there (snap0 is always OFF).
+  flip fires NOTHING (in particular it does not re-fire the rune:
+  otherwise a rune pair ping-pongs forever). The player must step off
+  the landing tile and step back on to flip again.
+- Sigils and checkpoints likewise fire on WALKED steps onto their
+  tiles only. In this design no sigil or checkpoint tile is a rune
+  landing tile, so the design assumes no landing activation at all.
+- The sigil is SET (latching): a walked step onto (46,1,37) sets the
+  bridge group ON. A fall restores the player to the last checkpoint
+  and the bridge snapshot taken there.
 - Honeycomb: ceiling (44..45, 33..36). Phase cycle 213 frames:
   solid [0,153), gone [153,213). A move costs 16 frames; a move that
-  lands on a rune costs 32 (step + flip); WAIT costs 1 frame; a fall
-  costs 60 frames (fade + warp). Stepping onto the honeycomb while
-  gone, or ending an action on it while gone, is a fall.
-- The fold (step onto (17,12)) warps to (40,22) for free. The stock
-  surface jumps are modelled as moves: (48,22)+x -> wall (49,1,21);
-  wall (49,1,21)-y -> (48,22); wall (49,9,27)+y -> ceiling (49,10,27)
-  (jump takes precedence over the plain wall step to (49,10,27));
-  ceiling (49,10,27)+x -> wall (49,9,27).
-- Goal: any ceiling tile with z >= 41 (the totem trigger).
+  lands on a rune costs 32 (step + flip). A fall costs 60 frames.
+  The model is CONSERVATIVE about step atomicity: a move whose
+  honeycomb occupancy interval [phase, phase + cost] touches the gone
+  window is a fall (the two possible engine models - tile updates at
+  step start vs step end - differ here, and the conservative rule is
+  safe under both). The documented path avoids the window entirely
+  by waiting on a safe tile, so the conservatism costs it nothing.
 
-Proofs:
-1. Abstract graph (phase abstracted away; a fall from any honeycomb
-   tile is always available because the player can wait until the
-   honeycomb goes): Dijkstra gives the minimum move count, and
-   forward-reachable vs reverse-reachable-from-goal shows every
-   reachable state can reach the totem (no soft-lock). The abstraction
-   only ADDS transitions (phase only ever gates the honeycomb, and the
-   crossing can always be aligned by waiting - see 2), so the abstract
-   proof covers every concretely reachable state.
-2. Concrete path check: the documented 38-step path is simulated for
-   every honeycomb start phase (0..212), with greedy waits at the safe
-   tile (45,10,32) before the honeycomb crossing.
+Proofs (all run by main()):
+1. Dijkstra on the phase-free abstract graph gives the minimum move
+   count. Every concrete path is an abstract path with the same moves
+   (phase only adds constraints), so abstract optimum == concrete
+   optimum when the documented path achieves it.
+2. No soft-lock: forward reachability on the abstract graph, plus a
+   reverse Dijkstra from the goal states (dist-to-goal + parent tree).
+   Every forward-reachable abstract state reaches the goal abstractly.
+   Realization lemma: a shortest abstract path is simple, so any
+   maximal run of consecutive honeycomb positions in it has at most 8
+   steps (8 honeycomb tiles); with the exit move that is 9 moves =
+   144 frames < 153, so the run always fits in one solid window, and
+   the player aligns it by waiting on the safe tile before the run.
+   A fall from a honeycomb position lands on a checkpoint (a safe
+   tile) whose tree path is realizable the same way. So every
+   concretely reachable state can reach the totem. The solver VERIFIES
+   the run-length bound on every reachable state's tree path.
+3. Concrete check: the documented 38-step path is simulated for every
+   honeycomb start phase (0..212), with greedy waits at the safe tile
+   (45,10,32) until the whole honeycomb occupancy (4 crossings + the
+   flip exit = 96 frames) fits in the solid window.
 
 Harness note: this file is standalone until tools/distortion_world/emu/
 solver.py (harness workstream) lands; it uses the same semantics that
@@ -57,9 +67,11 @@ HONEY_GONE_START = HONEY_SOLID + HONEY_FADE          # 153
 STEP_FRAMES, FLIP_EXTRA_FRAMES, WAIT_FRAMES, FALL_FRAMES = 16, 16, 1, 60
 
 # --- geometry (verified against tools/distortion_world/eterna_forest.json) ----
-# Floor: entry walkway, hive strip, Rune B platform.
+# Floor, on foot: entry walkway, hive strip, Rune B platform.
+# The pool (33..37, 22..23) is WATER_SEA (0x15) - Surf-only, not walkable
+# on foot; the dry tile (32, 22..23) is cut off by it and unreachable.
 FLOOR_TILES = {(x, 12) for x in range(17, 23)}
-FLOOR_TILES |= {(x, z) for x in range(32, 49) for z in (22, 23)}
+FLOOR_TILES |= {(x, z) for x in range(38, 49) for z in (22, 23)}
 FLOOR_TILES |= {(45, 37), (46, 37)}
 
 # East wall x=49: (y, z), rows y=1..10 bottom->top, from twarc dump 597.
@@ -79,18 +91,29 @@ CEIL_TILES = {(49 - i, 25 + j) for i, row in enumerate(_CEIL_ROWS)
 HONEY_TILES = {(x, z) for x in (44, 45) for z in range(33, 37)}
 BRIDGE_TILES = {(x, z) for x in range(44, 48) for z in (39, 40)}
 
-# Rune pairs: (surface, x, y, z) <-> (surface, x, y, z). A rune tile is
-# its own pair key.
+# Rune pairs: (surface, x, y, z) <-> (surface, x, y, z).
 RUNES = {
     (WALL, 49, 1, 25): (CEIL, 49, 10, 25),
     (CEIL, 49, 10, 25): (WALL, 49, 1, 25),
     (CEIL, 45, 10, 37): (FLOOR, 45, 1, 37),
     (FLOOR, 45, 1, 37): (CEIL, 45, 10, 37),
 }
-SIGIL_TILE = (FLOOR, 45, 1, 37)  # SET 1 (bridge on); = Rune B floor tile
-CHECKPOINTS = [(FLOOR, 20, 1, 12), (CEIL, 49, 10, 25), (CEIL, 45, 10, 37)]
+# The one sigil: SET 1 (bridge on). It is the EAST platform tile, reached
+# by a walked step after flipping down; the landing tile itself has no
+# sigil logic, so no landing activation is assumed anywhere.
+SIGIL_TILE = (FLOOR, 46, 1, 37)
+# Checkpoints, all on guaranteed WALKED, non-rune tiles: entry; the two
+# honeycomb-approach tiles (every first honeycomb entry steps on one);
+# the four bridge tiles at z=39 (every crossing steps on one - the gap
+# must be crossed from z=38 to z=39). Snapshots: approach snapshots the
+# bridge as it was on arrival (OFF first time); bridge snapshots ON.
+CHECKPOINTS = [(FLOOR, 20, 1, 12),
+               (CEIL, 44, 10, 32), (CEIL, 45, 10, 32),
+               (CEIL, 44, 10, 39), (CEIL, 45, 10, 39),
+               (CEIL, 46, 10, 39), (CEIL, 47, 10, 39)]
 CP_INDEX = {cp: i for i, cp in enumerate(CHECKPOINTS)}
 START = (FLOOR, 20, 1, 12)
+START_STATE = (START, False, False, 0, (False,) * len(CHECKPOINTS))
 
 DELTAS = {
     FLOOR: [(1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1)],
@@ -141,34 +164,31 @@ def _raw_dest(pos, delta, bridge):
 
 def apply_move(state, delta):
     """Abstract transition for one walked step. Returns (state, kind)
-    with kind in {'walk', 'flip', 'blocked'}; state has no phase."""
-    pos, bridge, just_landed, cp, snap1, snap2 = state
-    dest = _raw_dest(pos, delta, bridge)
-    if dest is None:
+    with kind in {'walk', 'flip', 'blocked'}. Tile logic (rune, sigil,
+    checkpoint) is evaluated on the WALKED-ON tile (the raw dest); the
+    flip landing fires nothing."""
+    pos, bridge, just_landed, cp, snaps = state
+    raw = _raw_dest(pos, delta, bridge)
+    if raw is None:
         return state, "blocked"
     flipped = False
-    if dest in RUNES and not just_landed:
-        dest = RUNES[dest]
+    dest = raw
+    if raw in RUNES and not just_landed:
+        dest = RUNES[raw]
         flipped = True
-        just_landed = True
-    else:
-        just_landed = False
-    if dest == SIGIL_TILE:
+    just_landed = flipped
+    if raw == SIGIL_TILE:
         bridge = True
-    if dest in CP_INDEX:
-        cp = CP_INDEX[dest]
-        if cp == 1:
-            snap1 = bridge
-        elif cp == 2:
-            snap2 = bridge
-    return (dest, bridge, just_landed, cp, snap1, snap2), ("flip" if flipped else "walk")
+    if raw in CP_INDEX:
+        cp = CP_INDEX[raw]
+        snaps = tuple(bridge if i == cp else s for i, s in enumerate(snaps))
+    return (dest, bridge, just_landed, cp, snaps), ("flip" if flipped else "walk")
 
 
 def apply_fall(state):
     """Fall to the last checkpoint with its snapshot."""
-    pos, bridge, just_landed, cp, snap1, snap2 = state
-    bridge = (False, snap1, snap2)[cp]
-    return (CHECKPOINTS[cp], bridge, False, cp, snap1, snap2)
+    pos, bridge, just_landed, cp, snaps = state
+    return (CHECKPOINTS[cp], snaps[cp], False, cp, snaps)
 
 
 def successors(state):
@@ -185,28 +205,8 @@ def successors(state):
     return out
 
 
-def all_positions():
-    poss = [(FLOOR, x, 1, z) for (x, z) in FLOOR_TILES]
-    poss += [(WALL, 49, y, z) for (y, z) in WALL_TILES]
-    poss += [(CEIL, x, 10, z) for (x, z) in CEIL_TILES]
-    return poss
-
-
-def build_graph():
-    """Full abstract transition graph: state -> [(state, cost, label)]."""
-    graph = {}
-    for pos in all_positions():
-        for bridge in (False, True):
-            for jl in (False, True):
-                for cp in range(3):
-                    for snap1 in (False, True):
-                        for snap2 in (False, True):
-                            st = (pos, bridge, jl, cp, snap1, snap2)
-                            graph[st] = successors(st)
-    return graph
-
-
-def dijkstra(graph, start):
+def dijkstra(start):
+    """Minimum moves to the totem. Returns (opt, goal_state, prev)."""
     dist, prev = {start: 0}, {}
     pq = [(0, start)]
     while pq:
@@ -214,14 +214,14 @@ def dijkstra(graph, start):
         if d != dist[st]:
             continue
         if _is_goal(st[0]):
-            return d, st, prev, dist
-        for ns, cost, label in graph[st]:
+            return d, st, prev
+        for ns, cost, label in successors(st):
             nd = d + cost
             if nd < dist.get(ns, 1 << 30):
                 dist[ns] = nd
                 prev[ns] = (st, label)
                 heapq.heappush(pq, (nd, ns))
-    return None, None, prev, dist
+    return None, None, prev
 
 
 def reconstruct(prev, goal):
@@ -233,27 +233,59 @@ def reconstruct(prev, goal):
     return list(reversed(path))
 
 
-def soft_lock_proof(graph, start):
-    """Forward-reachable vs reverse-reachable-from-goal on the abstract graph."""
-    fwd, dq = {start}, deque([start])
+def soft_lock_proof(start):
+    """Forward-reachable abstract states (flood, successors cached) +
+    reverse Dijkstra from goal states over the cached graph (dist to
+    goal + parent tree) + honeycomb-run bound on every reachable
+    state's tree path (see module docstring, proof 2)."""
+    cache, fwd, dq = {}, {start}, deque([start])
     while dq:
-        for ns, _, _ in graph[dq.popleft()]:
+        st = dq.popleft()
+        outs = successors(st)
+        cache[st] = outs
+        for ns, _, _ in outs:
             if ns not in fwd:
                 fwd.add(ns)
                 dq.append(ns)
     rev_adj = {}
-    for st, outs in graph.items():
-        for ns, _, _ in outs:
-            rev_adj.setdefault(ns, []).append(st)
-    goals = [st for st in graph if _is_goal(st[0])]
-    rev, dq = set(goals), deque(goals)
-    while dq:
-        for ps in rev_adj.get(dq.popleft(), []):
-            if ps not in rev:
-                rev.add(ps)
-                dq.append(ps)
-    stranded = fwd - rev
-    return len(fwd), len(rev), len(stranded), sorted(stranded)[:5]
+    for st, outs in cache.items():
+        for ns, cost, _ in outs:
+            rev_adj.setdefault(ns, []).append((st, cost))
+    # Reverse Dijkstra: dist-to-goal for every visited state.
+    INF = 1 << 30
+    dist = {st: INF for st in fwd}
+    parent = {}
+    pq = []
+    for st in fwd:
+        if _is_goal(st[0]):
+            dist[st] = 0
+            heapq.heappush(pq, (0, st))
+    while pq:
+        d, st = heapq.heappop(pq)
+        if d != dist[st]:
+            continue
+        for ps, cost in rev_adj.get(st, []):
+            nd = d + cost
+            if nd < dist[ps]:
+                dist[ps] = nd
+                parent[ps] = st
+                heapq.heappush(pq, (nd, ps))
+    stranded = [st for st in fwd if dist[st] >= INF]
+    # Honeycomb-run bound on every reachable state's tree path.
+    max_run = 0
+    for st in fwd:
+        run, cur = 0, st
+        while cur in parent:
+            if _is_honey(cur[0]):
+                run += 1
+                max_run = max(max_run, run)
+            else:
+                run = 0
+            cur = parent[cur]
+        if _is_honey(cur[0]):
+            run += 1
+            max_run = max(max_run, run)
+    return len(fwd), stranded, max_run
 
 
 # --- concrete simulation: the documented 38-step path, all phases --------
@@ -263,21 +295,29 @@ PATH = ([(-1, 0, 0)] * 3 + [(1, 0, 0)] * 8 + [(1, 0, 0)]
         + [(0, 0, 1)] * 5 + [(0, 0, 1)] * 4 + [(0, 0, 1)]
         + [(1, 0, 0)] + [(-1, 0, 0)] + [(0, 0, 1)] * 4)
 WAIT_TILE = (CEIL, 45, 10, 32)  # safe tile before the honeycomb
+# Honeycomb occupancy of the crossing: 4 crossing moves (16f each) +
+# the flip exit move (32f), starting from the tile before it.
+CROSS_FRAMES = 4 * STEP_FRAMES + (STEP_FRAMES + FLIP_EXTRA_FRAMES)  # 96
+
+
+def _gone_in_interval(phase, frames):
+    """True if the gone window [153,213) intersects [phase, phase+frames]."""
+    return any((phase + k) % HONEY_CYCLE >= HONEY_GONE_START
+               for k in range(frames + 1))
 
 
 def _safe_to_cross(phase):
-    """The next 4 moves (all onto honeycomb) must end in the solid window."""
-    return all((phase + STEP_FRAMES * k) % HONEY_CYCLE < HONEY_GONE_START
-               for k in (1, 2, 3, 4))
+    """The whole crossing occupancy fits in the solid window."""
+    return phase + CROSS_FRAMES < HONEY_GONE_START
 
 
 def simulate_path(start_phase):
     """Returns (moves, waits, falls, frames) or raises AssertionError."""
-    state = (START, False, False, 0, False, False)
-    phase, waits, falls = start_phase, 0, 0
+    state = START_STATE
+    phase, waits = start_phase, 0
     for i, d in enumerate(PATH):
         # Greedy wait before the honeycomb crossing.
-        if state[0] == WAIT_TILE and i == 27:  # next 4 moves are the crossing
+        if state[0] == WAIT_TILE and i == 27:  # next moves are the crossing
             while not _safe_to_cross(phase):
                 phase = (phase + WAIT_FRAMES) % HONEY_CYCLE
                 waits += 1
@@ -285,31 +325,31 @@ def simulate_path(start_phase):
         before = state
         state, kind = apply_move(state, d)
         assert kind != "blocked", f"path blocked at step {i} {before} {d}"
-        phase = (phase + STEP_FRAMES + (FLIP_EXTRA_FRAMES if kind == "flip" else 0)) % HONEY_CYCLE
-        if _is_honey(state[0]) and phase >= HONEY_GONE_START:
-            state, falls = apply_fall(state), falls + 1
-            phase = (phase + FALL_FRAMES) % HONEY_CYCLE
-            assert False, f"path fell at step {i} (phase {phase})"
+        cost = STEP_FRAMES + (FLIP_EXTRA_FRAMES if kind == "flip" else 0)
+        if (_is_honey(before[0]) or _is_honey(state[0])) and _gone_in_interval(phase, cost):
+            raise AssertionError(f"path would fall at step {i} (phase {phase})")
+        phase = (phase + cost) % HONEY_CYCLE
     assert _is_goal(state[0]), f"path did not reach totem: {state[0]}"
     frames = len(PATH) * STEP_FRAMES + waits * WAIT_FRAMES
-    return len(PATH), waits, falls, frames
+    return len(PATH), waits, 0, frames
 
 
 def main():
-    start = (START, False, False, 0, False, False)
-    graph = build_graph()
-    print(f"abstract states: {len(graph)}")
-    opt, goal, prev, dist = dijkstra(graph, start)
+    opt, goal, prev = dijkstra(START_STATE)
     print(f"optimal moves (Dijkstra, abstract graph): {opt}")
     print("optimal path (first solution found):")
     for s in reconstruct(prev, goal):
         print(f"  {s}")
-    fwd, rev, stranded, sample = soft_lock_proof(graph, start)
+    fwd, stranded, max_run = soft_lock_proof(START_STATE)
     print(f"forward-reachable abstract states: {fwd}")
-    print(f"states that can reach the totem: {rev}")
-    print(f"stranded (reachable but cannot reach totem): {stranded}")
-    assert stranded == 0, f"SOFT-LOCK: {sample}"
-    print("no-soft-lock proof: PASS (every reachable state can reach the totem)")
+    print(f"stranded (reachable but cannot reach totem): {len(stranded)}")
+    assert not stranded, f"SOFT-LOCK: {stranded[:3]}"
+    print("no-soft-lock proof (abstract + realization lemma): PASS")
+    print(f"max honeycomb run on any reachable state's shortest path: "
+          f"{max_run} positions; run + exit = {(max_run + 1) * STEP_FRAMES} "
+          f"frames <= 153 solid window: "
+          f"{'PASS' if (max_run + 1) * STEP_FRAMES <= HONEY_GONE_START else 'FAIL'}")
+    assert (max_run + 1) * STEP_FRAMES <= HONEY_GONE_START
     assert opt == len(PATH), f"documented path {len(PATH)} != optimal {opt}"
     print(f"documented path length {len(PATH)} == optimal: PASS")
     # Concrete check for every honeycomb start phase.
