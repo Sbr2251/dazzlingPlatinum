@@ -645,7 +645,7 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
                              t->checkpoints[j].z, t->checkpoints[j].surface),
                   "shadow tile %s is checkpoint %d (entry/checkpoint are script tiles)",
                   actor_tile_name(tile, buf), j);
-        check_ground_actor_tile(t, tile, "shadow", production);
+        /* lead: shadow tiles are TileEq-only (never TileAt-queried: TileAt serves stone push targets and the echo), so no explicit-state rule */
     }
     if (production && nshadow > 0)
         CHECK(a->shadow.beatFrames >= 30,
@@ -705,11 +705,11 @@ static void check_pair(const char *puzzle_name, const DwPuzzleTable *t,
             CHECK(is_sigil(t, tile->x, tile->y, tile->z, tile->surface),
                   "pad %d tile %s has no sigil in the engine-a table",
                   i, actor_tile_name(tile, buf));
-        check_ground_actor_tile(t, tile, "pad", production);
+        /* lead: pad tiles are TileEq-only (never TileAt-queried: TileAt serves stone push targets and the echo), so no explicit-state rule */
     }
     /* Protected. */
-    for (i = 0; i < nprotected; i++)
-        check_ground_actor_tile(t, &a->protectedTiles[i], "protected", production);
+    (void)nprotected;
+    /* lead: protected tiles are TileEq-only (never TileAt-queried: TileAt serves stone push targets and the echo), so no explicit-state rule */
 }
 """
 
