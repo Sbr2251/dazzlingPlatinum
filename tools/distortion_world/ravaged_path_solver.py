@@ -11,8 +11,13 @@ a tile model can:
   group 4, onState SOLID, offState BLOCKED, initialOn 0. A bridge that is
   off is impassable (the engine-a skeleton's choice); it never drops the
   player. Fade-in: props show at once, tiles hold after the 3-frame
-  lead; a normal step is 8 frames, so a bridge holds by the time the
-  player arrives on it.
+  lead. The lead is measured from the switch to the next walk check,
+  so a direction pressed within 3 frames of the sigil firing may bump
+  once; the player retries and it opens (the first time, the teaching
+  message supplies ample delay). No state depends on winning that race.
+* The Hitmonlee totem object blocks (19, 22), and the goal tile
+  (14, 1, 23) is absorbing: stepping on it starts the terminal
+  totem script.
 * Scars (existing ov9 hook, unchanged): a scar tile may be stepped on
   while its scar is INTACT; stepping onto a spent scar, or onto a second
   tile of the scar you are standing on, is a fall. Leaving a scar spends
@@ -59,7 +64,8 @@ WALL = 1
 
 # Floor walkable tiles (x, z) from map_data_669 permissions (y = 1).
 # (22, 11) is walkable in the permissions but occupied by Cyrus's
-# object, so it is excluded: objects block their tile.
+# object, so it is excluded: objects block their tile. (19, 22) is
+# likewise occupied by the Hitmonlee totem object.
 FLOOR_TILES = {
     (22, 10),
     (15, 11), (19, 11), (20, 11), (21, 11),
@@ -70,7 +76,7 @@ FLOOR_TILES = {
     (10, 15), (12, 15), (13, 15), (14, 15), (15, 15),
     (10, 16), (10, 17), (10, 18), (10, 19), (10, 20),
     (10, 21), (16, 21), (17, 21),
-    (10, 22), (16, 22), (17, 22), (18, 22), (19, 22), (20, 22), (23, 22), (26, 22), (29, 22),
+    (10, 22), (16, 22), (17, 22), (18, 22), (20, 22), (23, 22), (26, 22), (29, 22),
     (10, 23), (12, 23), (13, 23), (14, 23), (15, 23), (16, 23), (17, 23),
     (10, 24), (15, 24), (16, 24), (17, 24),
     (15, 25), (15, 26),
@@ -116,23 +122,29 @@ INTACT, STANDING, SPENT = 0, 1, 2
 
 
 def scar_state_of(state, sid):
-    return state[5 + sid]
+    # State layout: (surface, x, y, z, group, snap, scar0, scar1).
+    return state[6 + sid]
 
 
 def fall_state(state, kind):
     """Fall edge: respawn at the checkpoint, scars intact.
-    kind 'lip': group := snapshot, snapshot unchanged (engine-seen fall).
+    kind 'lip': group := snapshot (state[5]), snapshot unchanged
+    (engine-seen fall).
     kind 'scar': reset to initial (group OFF, snapshot OFF), because the
     per-map scar hook starts the fall script directly and the engine
     never marks a fall pending, so re-entry looks fresh to it."""
     if kind == "lip":
-        return (FLOOR, 20, 1, 12, state[4], state[4], INTACT, INTACT)
+        return (FLOOR, 20, 1, 12, state[5], state[5], INTACT, INTACT)
     return (FLOOR, 20, 1, 12, False, False, INTACT, INTACT)
 
 
 def transitions(state, sigil_enabled=True, falls=True):
     """Yield (new_state, label, is_fall). State:
-    (surface, x, y, z, group_on, snap_on, scar0, scar1)."""
+    (surface, x, y, z, group_on, snap_on, scar0, scar1).
+    The goal (totem coord) is absorbing: stepping on it starts the
+    terminal totem script, so no transitions leave it."""
+    if state[:4] == GOAL:
+        return
     surf, x, y, z, group, snap, s0, s1 = state
     scars = (s0, s1)
     if surf == FLOOR:
@@ -217,7 +229,36 @@ def reconstruct(parent, goal_state):
     return path
 
 
+def self_check():
+    """Targeted assertions for the fall / sigil semantics (these are
+    the transitions a BFS summary cannot show)."""
+    # Lip fall restores the SNAPSHOT, not the current group: group OFF,
+    # snapshot ON, standing next to a lip -> fall -> group ON.
+    st = (FLOOR, 13, 1, 14, False, True, INTACT, INTACT)
+    outs = [ns for ns, _lab, is_f in transitions(st) if is_f]
+    assert outs == [(FLOOR, 20, 1, 12, True, True, INTACT, INTACT)], outs
+    # Scar fall resets to initial even when the snapshot is ON.
+    st = (WALL, 11, 2, 17, True, True, SPENT, INTACT)
+    outs = [ns for ns, _lab, is_f in transitions(st) if is_f]
+    assert outs == [(FLOOR, 20, 1, 12, False, False, INTACT, INTACT)], outs
+    # SET sigil: OFF -> ON, and ON stays ON (never toggles off).
+    st = (WALL, 11, 2, 13, False, False, INTACT, INTACT)
+    outs = [ns for ns, _lab, _f in transitions(st)
+            if ns[0] == WALL and (ns[2], ns[3]) == SIGIL]
+    assert outs and outs[0][4] is True, outs
+    st = (WALL, 11, 2, 13, True, True, INTACT, INTACT)
+    outs = [ns for ns, _lab, _f in transitions(st)
+            if ns[0] == WALL and (ns[2], ns[3]) == SIGIL]
+    assert outs and outs[0][4] is True, outs
+    # Goal is absorbing; totem tile is blocked.
+    assert list(transitions((FLOOR, 14, 1, 23, True, True, SPENT, SPENT))) == []
+    assert (19, 22) not in FLOOR_TILES
+    print("self-checks: PASS (lip restore, scar reset, SET stays ON, "
+          "goal absorbing, totem tile blocked)")
+
+
 def main():
+    self_check()
     start = (FLOOR, 20, 1, 12, False, False, INTACT, INTACT)
     dist, parent, edges = bfs(start, want_edges=True)
     goal_states = [s for s in dist if s[:4] == GOAL]

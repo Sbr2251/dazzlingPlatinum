@@ -25,7 +25,7 @@ engine has landed in `dwpuzzles`.
 
 Walkable tiles only; `#` is blocked. `E` entry, `C` Cyrus (object),
 `J` jump tile (wall on/off), `X` totem coord event (14,23), `T` totem
-object (19,22), `o` ghost-prop stepping stone (dead end), `v` chasm lip
+object (19,22, blocks its tile), `o` ghost-prop stepping stone (dead end), `v` chasm lip
 (step = fall, marked VOID in the engine table).
 
 ```
@@ -153,9 +153,22 @@ boulder, which would make a socket look like ground.
   (the engine-a skeleton in the README uses BLOCKED for bridges too).
   Falls in this rift come only from scars and chasm lips, as today.
 * Fade-in: the engine's honeycomb rule shows the props at once and
-  the tiles hold after the 3-frame fade-in lead. A normal step is 8
-  frames, so by the time the player arrives on a bridge whose sigil
-  they just pressed, the bridge holds.
+  the tiles hold after the 3-frame fade-in lead. The lead is measured
+  from the switch to the next walk check, so a direction pressed
+  within 3 frames of the sigil firing may bump once; the player
+  retries and it opens. The first time, the teaching message
+  supplies ample delay, so this is not a teaching problem. Phase 2
+  headless check: mash a direction in the first frames after the
+  sigil fires and confirm the bridge opens on retry.
+* SET vs the plan's wording: PUZZLE_PLAN.md row 1 says the sigil
+  "toggles" bridges, but the plan's section 3 defines the sigil
+  mechanic as four kinds -- TOGGLE, SET, MOMENTARY, RESET -- and this
+  rift uses SET for the fade-safety reason above. The row-1 wording
+  is read as shorthand for the sigil mechanic, not as a mandate
+  for TOGGLE. Lead to confirm (section 10); if the lead wants the
+  literal TOGGLE, the fade-safety alternative is a wired frame fall
+  (`fallVar` + init-table line + fall script clearing it), not a
+  silent revert.
 
 ## 3. Teaching beat
 
@@ -385,8 +398,9 @@ python3 tools/distortion_world/ravaged_path_solver.py
 Result (this commit):
 
 ```
-states explored: 232
-avg branching (out-degree over reachable states): 2.53
+self-checks: PASS (lip restore, scar reset, SET stays ON, goal absorbing, totem tile blocked)
+states explored: 160
+avg branching (out-degree over reachable states): 2.54
 optimal total steps (entry -> totem coord): 27
 optimal puzzle steps (jump-on .. hop-off): 15 (plan range 15-25: PASS)
 falls on optimal path: 0
@@ -396,7 +410,7 @@ optimal path presses sigil (step 12) before scar 0 (step 14): PASS
 OVERALL: PASS
 ```
 
-Difficulty reading: 232 reachable states, branching 2.53, one sigil,
+Difficulty reading: 160 reachable states, branching 2.54, one sigil,
 one ordering idea, optimal 15 puzzle steps at the bottom of the
 15-25 range -- this is a gentle first mechanic, as the revised curve
 requires. If Phase 2 playtesting finds it too easy, the sanctioned
@@ -415,6 +429,9 @@ Engine not merged yet, so none of this runs in Phase 1:
   Test the walk-back-then-fall corner for both kinds: snapshot ON,
   then a lip fall (group comes back ON) and a scar fall (group
   comes back OFF).
+* Hold-forward check: mash a direction in the first frames after
+  the sigil fires; the bridge may bump once (3-frame fade-in lead),
+  then opens on retry (section 2).
 * Re-entry after a blackout (totem loss): fresh entry resets the
   puzzle; Cyrus's once-only lines do not replay.
 * Collision-vs-drawn audit: every walkable tile drawn (bridge props
@@ -428,6 +445,12 @@ Engine not merged yet, so none of this runs in Phase 1:
 * Rune / socket decal textures (section 1).
 * Group-4 bridge props read as stone ledges in a frame strip
   (section 1).
+* **Lead: confirm SET for row 1.** PUZZLE_PLAN.md row 1 says the
+  sigil "toggles" bridges; section 3 defines SET as one of the
+  sigil kinds and this design uses SET for fade safety (section 2).
+  If the lead wants the literal TOGGLE, the alternative is a wired
+  frame fall, not a silent revert. If the lead accepts SET, row-1
+  wording could say "switches" at the next plan touch.
 * Lead assigns the two `FLAG_DW_RIFT_RP_*` values (section 7).
 * The harness workstream's `tools/distortion_world/emu/solver.py`
   (when it lands): re-express this model in its format and confirm
