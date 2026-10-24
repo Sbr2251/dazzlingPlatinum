@@ -155,17 +155,20 @@ _DEBUG_OFFSETS = None
 
 def _debug_offsets():
     """DwPuzzleDebug field offsets from dw_debug_offsets.json
-    (gen_debug_offsets.py, from build/main.nef DWARF). Cached; None
-    if the JSON is missing (debug() then returns None, as for a
-    pre-engine-a ROM)."""
+    (gen_debug_offsets.py, from build/main.nef DWARF). Success is
+    cached; failure is NOT -- a load failure (missing JSON, e.g. a
+    worktree mid-sync) must not poison the process: the next
+    debug() call retries the load. (A process that cached a failure
+    would return None from every step trace while a fresh direct
+    debug() call worked -- exactly the rift-214 report.)"""
     global _DEBUG_OFFSETS
     if _DEBUG_OFFSETS is None:
         path = _HERE / "dw_debug_offsets.json"
         try:
             _DEBUG_OFFSETS = json.loads(path.read_text())
         except (OSError, ValueError):
-            _DEBUG_OFFSETS = False
-    return _DEBUG_OFFSETS or None
+            return None
+    return _DEBUG_OFFSETS
 
 
 class _BattleDuringEntry(Exception):
