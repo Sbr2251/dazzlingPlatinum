@@ -2973,6 +2973,7 @@ static BOOL Arc2DwRoute213_HandleStep(DistWorldSystem *system, int x, int y, int
 #define LOST_TOWER_WALL_X               11
 #define LOST_TOWER_FLOOR_Y              1
 #define LOST_TOWER_SCRIPT_FALL          2 // map script entries (1-based)
+#define LOST_TOWER_SCRIPT_SHADOW_WALL  5 // dwp:rift-lt (coord event for V1; started from C in V2)
 #define LOST_TOWER_SCRIPT_ACT_HITMONLEE 7
 #define LOST_TOWER_SCRIPT_ACT_VESPIQUEN 8
 #define LOST_TOWER_SCRIPT_ACT_LAPRAS    9
@@ -3364,6 +3365,18 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
                 return TRUE;
             }
             ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_PAD_PROMPT, NULL);
+            return TRUE;
+        }
+        // The shadow wall parts (visit 2): stepping onto (15,23) starts
+        // DWLostTower_ShadowWall directly. The (15,23) coord event does
+        // not fire in V2 (root cause unknown; see the report's Open
+        // list), so the per-map hook starts it; the coord event stays
+        // for V1, where actors are inactive and this branch is not
+        // reached. Guarded to fire once: the script sets
+        // VAR_MAP_LOCAL_5, then FLAG_ARC2_RIFTB_D in ShadowParts.
+        if (y == LOST_TOWER_FLOOR_Y && x == 15 && z == 23
+            && !VarsFlags_CheckFlag(varsFlags, FLAG_ARC2_RIFTB_D)) {
+            ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_SHADOW_WALL, NULL);
             return TRUE;
         }
         // Find Cyrus (visit 2): stepping onto (38,22) starts it. The
