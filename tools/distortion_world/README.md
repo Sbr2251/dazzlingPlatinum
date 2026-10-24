@@ -228,7 +228,14 @@ player stands on.
   BLOCKED is impassable, SOLID is walkable even where the stock grid says
   blocked, VOID is walkable in the collision check (so the player can step
   onto it) and the step/frame hook then starts the fall. Precedence:
-  explicit overrides > actor tiles > groups (later group wins).
+  actor tiles > explicit overrides > groups (later group wins). On GROUND
+  an explicit override (SOLID or VOID) takes precedence over the stock
+  terrain collision bit 0x8000: the glue returns NOT colliding for SOLIC
+  and for VOID before consulting the stock grid, so a player can step
+  onto an explicitly-VOID ground tile even where the map permission is
+  0x8000 (rift-213's landing tiles). There is no base-kind read: a tile
+  that must fall carries an explicit VOID override, and a LANDED stone's
+  SOLID actor tile shields it (see engine-b hooks).
 - **Groups.** A group = tiles + one tw_arc ghost-prop group, on/off.
   Walkability follows the honeycomb rule: turning off starts the props
   fading at once but the tiles stay solid for `fadeOutFrames` (default 33);
@@ -267,10 +274,30 @@ player stands on.
   Table rule: a current strip must not be a closed cycle with no exit; the
   engine also caps a slide at DW_PUZZLE_MAX_SLIDE_STEPS (64) tiles and ends
   it, so a bad table can never lock input forever.
+- **Group tile + current on one tile (rift-214).** A tile can be both a
+  group tile and a current. When the group's tile state is BLOCKED it
+  wins and no slide happens (the step hook never starts a slide on a
+  BLOCKED current tile, a stranded slide stops, and the frame hook stops
+  a slide whose current tile went BLOCKED under the player); when the
+  group is open, the current applies. A VOID current tile is a fall,
+  not a slide. A slide stays within one platform.
+- **Landing rule (rift-ef).** A jump, warp or respawn landing NEVER calls
+  the step hook, so no sigil, rune, checkpoint, current or fall fires on
+  the landing tile -- each fires only when the player next WALKS onto it.
+  A rune pair therefore cannot ping-pong, and the destination rune of a
+  rune pair fires only on a later walk. Checkpoints and sigils must sit
+  on WALKED tiles, never on landing tiles. Implemented by architecture:
+  the jump task, warps and respawn teleports do not call the step hook.
+  The glue re-runs the step hook on slide landings on purpose (a slide
+  is a movement), so slide landings DO fire.
 - **Checkpoints and reset.** Stepping on a checkpoint tile snapshots the
-  puzzle (group base / target / solid / display states; momentary holders
-  are NOT snapshotted -- they are per-occupant and cleared on restore, so
-  occupants must re-press after a restore) and makes it the fall target.
+  puzzle (the LOGICAL base (toggle/set) state only -- NOT the fading
+  display state, rift-214: a group mid-fade at snapshot time restores to
+  its logical value) and makes it the fall target. `groupBits` in the
+  debug struct is the LOGICAL state (target = base OR momentary holds),
+  not the lagging walkability; `groupDisplayBits` is the visual state.
+  Momentary holders are NOT snapshotted -- they are per-occupant and
+  cleared on restore, so occupants must re-press after a restore.
   Checkpoint 0 should be the map entry: the fresh-entry reset snapshots it
   without anyone stepping on it, so an early fall or reset always has a
   snapshot. A fall restores the player and puzzle state to the last
@@ -278,15 +305,40 @@ player stands on.
   map's existing fall script runs its warp, and on the first frame after
   the warp the engine restores the snapshot and respawns the player at the
   checkpoint (platform + distortion state + height mode from the glue,
-  using the checkpoint's surface). Restore semantics: group states restored,
+  using the checkpoint's surface). The warp is detected against the
+  persisted FALL TILE (the tile the fall started on), not the tracked
+  position: a warp reloads overlay 9 and invalidates tracking before the
+  frame hook sees it. The glue respawns at once when requested (it must
+  NOT gate on LocalMapObj_IsAnimationSet, which is TRUE for an idle
+  player). Restore semantics: group states restored to the snapshot base,
   fade timers cleared (props snap, no fade), holders cleared, slide cleared,
   actors notified via `gDwPuzzleDebug.resetGeneration` (engine-b restores
-  its own snapshot when the generation changes). Puzzle state is RAM-only;
-  persistent once-only flags (Lost Tower) are never touched, so they keep
-  working. A fall the step hook never sees (a coord-event lip not marked
-  VOID in the table) still warps, but the puzzle resets to its initial
-  state on the fresh load -- mark every fall lip VOID in the table.
+  its own snapshot when the generation changes). Puzzle state is RAM-only
+  and lives in MAIN-binary RAM (`src/dw_puzzle_state.c`, `DwPuzzleState
+  gDwPuzzleState`): a warp into a DW map -- including a same-map warp
+  (fold, fall) -- reloads overlay 9 and zeroes its .bss, which would wipe
+  the fall flag, the snapshot and the group state mid-fall. `gDwPuzzleDebug`
+  stays in overlay 9 (repopulated every frame); `gDwPuzzleTestMode` stays
+  in overlay 9 on purpose (a warp resets it to off, the safe production
+  default; the harness re-enables it after each warp). Persistent
+  once-only flags (Lost Tower) are never touched, so they keep working.
+  A fall the step hook never sees (a coord-event lip not marked VOID in
+  the table) still warps, but the puzzle resets to its initial state on
+  the fresh load -- mark every fall lip VOID in the table.
   A fresh entry (no fall pending) also resets the puzzle to its initial state.
+- **Scripted falls: `DwPuzzle_NotifyFall(FieldSystem *)`.** For falls the
+  step hook never sees (Eterna's honeycomb, which falls from the frame
+  hook; the Lost Tower false-seam drop; any scripted fall). Call it from
+  the fall site BEFORE the fall script starts. It records fall-pending
+  in engine RAM at the moment of the call -- the record survives the
+  fall script clearing its fallVar (HoneyFall clears VAR_MAP_LOCAL_2
+  first thing). On the fall script's warp, the frame hook restores the
+  last checkpoint snapshot and respawns, exactly as for a VOID-tile fall.
+  No-op without an active table; idempotent while a fall is in flight.
+  Glued on BOTH honeycomb paths (Eterna frame hook before raising
+  VAR_MAP_LOCAL_2, Eterna step hook before starting HoneyFall). Lost
+  Tower wiring is that workstream's: call it before its false-seam fall
+  script starts.
 - **Fall routing.** A table has one frame-fall script (`fallScriptId` +
   `fallVar`, the Eterna honeycomb pattern). Step falls use the per-tile
   (`DwPuzzleTile.fallScriptId`) or per-group (`DwPuzzleGroup.fallScriptId`)
@@ -296,21 +348,33 @@ player stands on.
 - **Debug export.** `gDwPuzzleDebug` (in the xMAP, one RAM struct): map,
   active, player tile, surface, tile state, group solid/display bits, sigil
   bits, checkpoint, fall count, slide state + steps, last event + frame,
-  flash frames, reset generation, and engine-b's stone positions / shadow
-  phase + position / echo position (engine-b writes those fields; each
-  actor position carries `present` and `surface`, so (0,0,0) on GROUND is
-  unambiguous). The harness reads it.
+  flash frames, reset generation, and engine-b's stone positions / stone
+  states (`u8 stoneStates[DW_PUZZLE_MAX_STONES]`, RESTING 0 / FALLING 1 /
+  LANDED 2, engine-b's `DwActors_SyncDebug` writes it) / shadow phase +
+  position / echo position (engine-b writes those fields; each actor
+  position carries `present` and `surface`, so (0,0,0) on GROUND is
+  unambiguous). The harness reads it. NOTE for harness readers: the
+  struct grew past the layout some readers were written against (it gained
+  `slideSteps` and per-actor `present`/`surface`/`padding`); read offsets
+  from `include/overlay009/dw_puzzle.h`, not from a stale copy.
 - **Engine-b hooks.** `DwPuzzle_SetActorTile(i, x, y, z, surface, state,
   present)`: an actor tile overrides a tile's state -- a stone landed as a
   stepping stone is SOLID, a stone sitting on a path is BLOCKED, and a
   stone on a current tile plugs the current (slides stop before it).
-  `DwPuzzle_ClearActorTiles()` clears all. `DwPuzzle_PressSigil(...,
-  occupant)` / `DwPuzzle_ReleaseSigils(..., occupant)` let the echo press
-  and release sigils without triggering runes, currents, checkpoints or
-  falls. `DwPuzzle_RequestCheckpointRespawn()` is the shadow-catch path:
-  restore + respawn at the checkpoint with no fall script.
-  `DwPuzzle_DirDelta(surface, dir, &dx, &dy, &dz)` is the shared
-  FACE_*-to-step table.
+  Actor tiles BEAT explicit overrides. `DwPuzzle_ClearActorTiles()` clears
+  all. `DwPuzzle_PressSigil(..., occupant)` / `DwPuzzle_ReleaseSigils(...,
+  occupant)` let the echo press and release sigils without triggering
+  runes, currents, checkpoints or falls. `DwPuzzle_RequestCheckpointRespawn()`
+  is the shadow-catch path: restore + respawn at the checkpoint with no
+  fall script. `DwPuzzle_DirDelta(surface, dir, &dx, &dy, &dz)` is the
+  shared FACE_*-to-step table. Teardown (wired in the same glue that
+  registers tables): `DwActors_RegisterTable` + `DwActors_VisualsInit` on
+  map load (`DistWorld_DynamicMapFeaturesInit`, idempotent; a battle
+  reload keeps state), `DwActors_VisualsUpdate` per frame, `DwActors_VisualsExit`
+  on every map unload (`DistWorld_DynamicMapFeaturesFree`, deletes the
+  MapObjects, keeps core state), and `DwActors_OnExit` only on a real
+  departure (warp destination mapId != the freed map's header -- a battle
+  return / same-map reload keeps the mapId, so it does NOT clear).
 
 ### Per-map glue a rift must add (in ov9_02249960.c, hook calls only)
 
