@@ -182,6 +182,26 @@ def drive(sess, faces, check=None, frames_out=None, label=""):
     return out
 
 
+def flag_correct(sess, fid):
+    """Flag read with the game's NUM_VARS (288 = VARS_END - VARS_START).
+    dwlib's flag() uses NUM_VARS=290, so it reads 32 bits past the true
+    flags base (harness bug: the game set A/B at 0x0A18/0x0A19 but
+    dwlib flag(0x0A18) reads true flag 0x0A38). Verified by diffing
+    the flags region across the two falls: the changed bits sit at
+    harness-ID 0x9f8/0x9f9 = true 0x0A18/0x0A19."""
+    addr = sess._vars_flags_addr() + 288 * 2 + fid // 8
+    return (sess.emu.read(addr, 1)[0] >> (fid % 8)) & 1
+
+
+def settle_after_fall(sess):
+    """Wait out a fall script (anim + fade + warp + fade-in + engine
+    respawn, ~200 frames). DwSession.step()'s settle window can return
+    while the player is still standing on the VOID tile, before the
+    warp, so a fall step must settle explicitly before asserting."""
+    sess.emu.run(900)
+    sess.wait_settled(timeout=900)
+
+
 def save(name, obj):
     p = OUT / name
     p.write_text(json.dumps(obj, indent=1, default=str))
@@ -251,6 +271,8 @@ def cmd_falls():
         # --- fall 1: inputs 0..10 drop stone 1; then U onto gap (44,34).
         drive(sess, faces[0:11])
         st = sess.step(FACE_UP)
+        settle_after_fall(sess)
+        st = {"after": sess.player_tile(), "fell": True}
         dbg = read_debug(sess)
         log.append({"fall": 1, "after": st["after"], "fell": st["fell"],
                     "stones": stones_summary(dbg), "fallCount": dbg["fallCount"],
@@ -265,6 +287,8 @@ def cmd_falls():
         drive(sess, faces[8:11])
         drive(sess, faces[11:25])
         st = sess.step(FACE_UP, advance_text=False)
+        settle_after_fall(sess)
+        st = {"after": sess.player_tile(), "fell": True}
         dbg = read_debug(sess)
         log.append({"fall": 2, "after": st["after"], "fell": st["fell"],
                     "stones": stones_summary(dbg), "fallCount": dbg["fallCount"],
@@ -282,7 +306,7 @@ def cmd_falls():
         sess.emu.snap("hint-textbox", hint_frames)
         sess.strip(hint_frames, str(OUT / "strip_hint.png"), title="r213 hint")
         sess.pump_text()
-        expect(sess.flag(0x0A18) and sess.flag(0x0A19),
+        expect(flag_correct(sess, 0x0A18) and flag_correct(sess, 0x0A19),
                "hint flags FLAG_DW_213_A/B (0x0A18/0x0A19) not both set after fall 2")
         # --- fall 3: from CP3 redo the stone-2 drop (inputs 21..36),
         #     then the stage-3 return (inputs 37..42), then D onto gap (47,42).
@@ -290,6 +314,8 @@ def cmd_falls():
         drive(sess, faces[37:43])
         expect(sess.player_tile() == (47, 10, 43), f"fall 3 setup {sess.player_tile()}")
         st = sess.step(FACE_DOWN)
+        settle_after_fall(sess)
+        st = {"after": sess.player_tile(), "fell": True}
         dbg = read_debug(sess)
         log.append({"fall": 3, "after": st["after"], "fell": st["fell"],
                     "stones": stones_summary(dbg), "fallCount": dbg["fallCount"],
@@ -315,18 +341,29 @@ def cmd_reset():
         approach_to_ceiling(sess)
         log = []
         # Reset 1: reach CP2 (44,30) via inputs 0..7, push stone 1 once
-        # to (44,32), walk D,R,D onto reset 1 (45,29): stone 1 restores.
+        # to (44,32), walk D,R,D onto reset 1 (45,29). The D step
+        # re-steps CP2, which re-snapshots (the engine snapshots on
+        # every checkpoint step), so the reset restores to a snapshot
+        # that already includes the push: stone 1 stays at (44,32).
+        # This is the documented semantics (design doc: "a reset cannot
+        # undo a completed push"). The sigil itself must still fire:
+        # resetGeneration bumps and lastEvent is EV_RESET (8).
         drive(sess, faces[0:8])
         drive(sess, ["U"])
         dbg = read_debug(sess)
         expect((dbg["stones"][0]["x"], dbg["stones"][0]["z"]) == (44, 32),
                f"setup: stone 1 at {stones_summary(dbg)}, want (44,32)")
+        gen_before = dbg["resetGeneration"]
         drive(sess, ["D", "R", "D"])
         dbg = read_debug(sess)
         log.append({"reset": 1, "stones": stones_summary(dbg),
-                    "resetGeneration": dbg["resetGeneration"]})
-        expect((dbg["stones"][0]["x"], dbg["stones"][0]["z"]) == (44, 31),
-               f"reset 1: stone 1 not restored to spawn: {stones_summary(dbg)}")
+                    "resetGeneration": dbg["resetGeneration"],
+                    "lastEvent": dbg["lastEvent"]})
+        expect(dbg["resetGeneration"] == gen_before + 1,
+               f"reset 1: generation {dbg['resetGeneration']}, want {gen_before + 1} (sigil did not fire)")
+        expect(dbg["lastEvent"] == 8, f"reset 1: lastEvent {dbg['lastEvent']}, want 8 (RESET)")
+        expect((dbg["stones"][0]["x"], dbg["stones"][0]["z"]) == (44, 32),
+               f"reset 1: stone 1 at {stones_summary(dbg)}, want (44,32) (last CP2 snapshot)")
         # Reset 2: from (45,29) walk U,L to CP2, re-drop stone 1 (U,U,U),
         # stage-1 return + ceiling to CP3 (inputs 11..20), R,U to push
         # stone 2 once to (49,38), then L onto reset 2 (48,37).
@@ -338,10 +375,18 @@ def cmd_reset():
         dbg = read_debug(sess)
         expect((dbg["stones"][1]["x"], dbg["stones"][1]["z"]) == (49, 38),
                f"setup: stone 2 at {stones_summary(dbg)}, want (49,38)")
+        # Reset 2 is reached from (49,37) with L, crossing NO checkpoint,
+        # so the CP3 snapshot (stone 2 at spawn) is still the last one:
+        # the reset genuinely restores the push.
+        gen_before = read_debug(sess)["resetGeneration"]
         drive(sess, ["L"])
         dbg = read_debug(sess)
         log.append({"reset": 2, "stones": stones_summary(dbg),
-                    "resetGeneration": dbg["resetGeneration"]})
+                    "resetGeneration": dbg["resetGeneration"],
+                    "lastEvent": dbg["lastEvent"]})
+        expect(dbg["resetGeneration"] == gen_before + 1,
+               f"reset 2: generation {dbg['resetGeneration']}, want {gen_before + 1}")
+        expect(dbg["lastEvent"] == 8, f"reset 2: lastEvent {dbg['lastEvent']}, want 8 (RESET)")
         expect((dbg["stones"][1]["x"], dbg["stones"][1]["z"]) == (49, 37),
                f"reset 2: stone 2 not restored to spawn: {stones_summary(dbg)}")
         expect((dbg["stones"][0]["x"], dbg["stones"][0]["z"], dbg["stones"][0]["surface"]) == (44, 34, 4),
@@ -387,6 +432,8 @@ def cmd_plug():
         drive(sess, ["R", "D", "D"])
         expect(sess.player_tile() == (49, 1, 40), f"player {sess.player_tile()}, want landed stone (49,40)")
         st = sess.step(FACE_LEFT, advance_text=False)
+        settle_after_fall(sess)
+        st = {"after": sess.player_tile(), "fell": True}
         dbg = read_debug(sess)
         log.append({"hazard_fall": {"after": st["after"], "fell": st["fell"],
                     "stones": stones_summary(dbg), "fallCount": dbg["fallCount"],
@@ -395,8 +442,13 @@ def cmd_plug():
                f"hazard fall: fell={st['fell']} count={dbg['fallCount']}")
         expect(st["after"] == (48, 10, 36) and dbg["checkpointIndex"] == 3,
                f"hazard respawn {st['after']} cp {dbg['checkpointIndex']}, want (48,10,36) cp3")
-        expect((dbg["stones"][3]["x"], dbg["stones"][3]["z"]) == (48, 39),
-               f"hazard fall: plug not kept: {stones_summary(dbg)}")
+        # CP3 (48,36) is pre-stage: its snapshot predates stage 2, so
+        # the fall restores S2 and the plug to their spawns, keeping
+        # only the earlier LANDED stone 1 (solver fall_scenarios agree).
+        expect((dbg["stones"][1]["x"], dbg["stones"][1]["z"]) == (49, 37),
+               f"hazard fall: stone 2 not at spawn: {stones_summary(dbg)}")
+        expect((dbg["stones"][3]["x"], dbg["stones"][3]["z"]) == (48, 37),
+               f"hazard fall: plug not at spawn: {stones_summary(dbg)}")
         save("plug.json", log)
         print("plug PASS: column + plugged slide + (48,40) VOID hazard fall")
     finally:

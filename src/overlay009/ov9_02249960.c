@@ -2368,22 +2368,23 @@ static int DwPuzzle_Ov9Surface(FieldSystem *fieldSystem)
 }
 
 // dwp:rift-213: world DIR -> surface FACE for DwPuzzle_DirDelta.
-// PlayerAvatar_GetDir is a WORLD dir (0 north/-z, 1 south/+z, 2 west/-x,
-// 3 east/+x), but DirDelta indexes by surface FACE. On GROUND/FLOOR the
-// frames coincide; on the CEILING z is flipped (surface UP = world
-// south); on the walls the horizontal dirs map to the z FACEs. Passing
-// the world DIR straight through made prevTile land on the wrong side,
-// so every ceiling push targeted the tile behind the player (usually
-// a protected checkpoint) and failed. Wall VERTICAL steps (climbs)
-// carry no usable facing (the avatar faces into the wall, +/-x): they
-// keep the old mapping, which is wrong for a wall push, but no table
-// has wall stones; a wall-push rift needs displacement-based prev,
-// not facing.
+// PlayerAvatar_GetDir is the avatar's facing DIR (0 north/-z, 1 south/+z,
+// 2 west/-x, 3 east/+x), but DirDelta indexes by surface FACE. On
+// GROUND/FLOOR the frames coincide. On the CEILING the avatar faces
+// mirrored in BOTH axes (the ceiling is viewed flipped: a LEFT press
+// faces DIR 3, a RIGHT press DIR 2, while UP/DOWN face DIR 1/0), so
+// FACE = DIR ^ 1; passing the DIR straight through made pushes along x
+// target the tile on the wrong side (the walk check's dest test failed
+// and the step was blocked). On the walls the horizontal dirs map to
+// the z FACEs. Wall VERTICAL steps (climbs) carry no usable facing
+// (the avatar faces into the wall, +/-x): they keep the old mapping,
+// which is wrong for a wall push, but no table has wall stones; a
+// wall-push rift needs displacement-based prev, not facing.
 static int DwPuzzle_Ov9FaceFromDir(int surface, int dir)
 {
     switch (surface) {
     case DW_PUZZLE_SURFACE_CEILING:
-        return (dir == 0) ? 1 : (dir == 1) ? 0 : dir;
+        return dir ^ 1;
     case DW_PUZZLE_SURFACE_WEST_WALL:
         return (dir == 0) ? 3 : (dir == 1) ? 2 : dir;
     case DW_PUZZLE_SURFACE_EAST_WALL:
@@ -3787,7 +3788,13 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
 
     ctx->accumulatedMovement.x += ctx->positionIncrementVecAbs.x;
 
-    if (ctx->accumulatedMovement.x >= MAP_OBJECT_TILE_SIZE) {
+    // dwp:rift-213: while, not if. A rune jump may displace up to 9
+    // tiles (a stock jump moves <= 1), so one tick's travel can exceed
+    // the threshold more than once; `if` stranded the excess and the
+    // jump landed short (ceiling -> ground stopped at y=2, and the
+    // player was stuck: the glue found no override at (x, 2, z)).
+    // Stock jumps (increment <= threshold) still fire at most once.
+    while (ctx->accumulatedMovement.x >= MAP_OBJECT_TILE_SIZE) {
         ctx->accumulatedMovement.x -= MAP_OBJECT_TILE_SIZE;
 
         int playerX = MapObject_GetX(playerMapObj);
@@ -3803,7 +3810,8 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
 
     ctx->accumulatedMovement.y += ctx->positionIncrementVecAbs.y;
 
-    if (ctx->accumulatedMovement.y >= MAP_OBJECT_TILE_SIZE / 2) {
+    // dwp:rift-213: while, not if (see x above).
+    while (ctx->accumulatedMovement.y >= MAP_OBJECT_TILE_SIZE / 2) {
         ctx->accumulatedMovement.y -= MAP_OBJECT_TILE_SIZE / 2;
 
         int playerY = MapObject_GetY(playerMapObj);
@@ -3819,7 +3827,8 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
 
     ctx->accumulatedMovement.z += ctx->positionIncrementVecAbs.z;
 
-    if (ctx->accumulatedMovement.z >= MAP_OBJECT_TILE_SIZE) {
+    // dwp:rift-213: while, not if (see x above).
+    while (ctx->accumulatedMovement.z >= MAP_OBJECT_TILE_SIZE) {
         ctx->accumulatedMovement.z -= MAP_OBJECT_TILE_SIZE;
 
         int playerZ = MapObject_GetZ(playerMapObj);

@@ -471,19 +471,111 @@ claimed here.
 
 ## Open questions for engine-b (stones)
 
-1. Confirm the plug push works as modelled: a RESTING stone pushed
-   onto a current tile plugs it via its BLOCKED actor tile, and the
-   slide that starts on the push step stops immediately before the
-   stone (no extra tile move).
+1. CONFIRMED by the Phase 2 plug proof: the plug stone lands on
+   (48, 39) and the slide stops at (48, 38).
 2. RESOLVED by the lead's rule change (no answer needed): landing
    tiles get an explicit VOID override in the table; actor tiles
    beat overrides, so the LANDED stone wins after landing. No
    `map_data_680` clone, no base-kind change. The landing tiles
    must still *look* like holes or water (collision-vs-drawn).
-3. Confirm the fall is 12 frames and the stone's MapObject is hidden
-   during FALLING (nothing drawn in the void).
-4. Stone visuals / exit warp: stones are DW objects; the README
-   rule (objects on walls hang the game if still loaded at the exit
-   warp) applies — Phase 2 unloads the stone actors on exit.
+3. CONFIRMED by the Phase 2 fallframes proof: FALLING spans 12
+   engine ticks (~21-22 emulator frames at the ~30 Hz tick).
+4. CONFIRMED by construction: the totem block (exit warp + calm)
+   is byte-identical to `dwpuzzles`, and the engine's `VisualsExit`
+   teardown runs on the exit warp (engine-a delivered).
 5. `gDwPuzzleDebug.stones[]`: engine-b writes the stone positions;
    the harness will read them to replay the solver's solution.
+
+## Phase 2 proof (headless, on the built ROM)
+
+`tools/distortion_world/r213_proof.py` (one Emu per process).
+Evidence in `/tmp/dwp/rift-213/` (`replay.json`, `falls.json`,
+`reset.json`, `plug.json`, `fallframes.json`, `reentry.json`,
+`audit.json`, `exit.json`, `strip_*.png`). All PASS:
+
+* **replay**: approach + the solver's 45 inputs; every step's
+  tile, surface, and all 4 stone positions/states match the solver
+  trace; ends at (47, 10, 45) with the Lapras battle menu up.
+* **falls**: one fall per stage (ceiling gaps). Fall 1 ->
+  (44, 30) CP2, fall 2 -> (48, 36) CP3, fall 3 -> (49, 42) CP4;
+  stones restore to the checkpoint snapshot (pre-stage snapshots:
+  CP3 predates stage 2, so a stage-2 fall restores S2 and the plug
+  to spawn). Fall 2 shows the Cyrus hint; `FLAG_DW_213_A/B`
+  (0x0A18/0x0A19) both set. `fallCount` survives the fall warp
+  (it reads 0 transiently mid-warp while the debug struct is
+  re-initialised).
+* **reset**: both sigils fire (`resetGeneration` +1, lastEvent
+  RESET). Reset 2 (reached without crossing a checkpoint)
+  genuinely restores the pushed stone 2 to spawn. Reset 1 is
+  reached via a CP2 re-step, which re-snapshots (the engine
+  snapshots stones on EVERY checkpoint step, not just index
+  changes), so it restores to a snapshot that already includes
+  the push — the documented "a reset cannot undo a completed
+  push" semantics. No test change to the engine was made for this.
+* **plug**: (47, 36) blocks; the plug stone lands on (48, 39);
+  the plugged slide stops at (48, 38); stepping W from the
+  landed stone 2 onto the (48, 40) VOID hazard falls (explicit
+  VOID override on a stock-`0x8000` ground tile) and respawns
+  at CP3.
+* **fallframes**: a stone's FALLING state spans 21-22 emulator
+  frames = 12 engine ticks (`DW_STONE_FALL_FRAMES`); the actor
+  frame tick runs at ~30 Hz.
+* **reentry**: fresh boot has stones at spawn, checkpoint 0,
+  fallCount 0.
+* **audit**: all 84 puzzle tiles covered (shelves + alcoves +
+  causeway + VOIDs + landed stones); ghost-prop set is exactly
+  the 20 shelves + 5 alcoves, `ghost_default_visible` 1,
+  `ghost_triggers` [].
+* **exit**: the totem block (exit warp + calm 84) is byte-identical
+  to `dwpuzzles`.
+* **regression**: `rifts_regress.py` on the other rifts against
+  this build: all 7 legs PASS (arc1 totem, rp totem, ef totem
+  after 3 honeycomb crossing attempts, r214 totem, lt1 totem +
+  shadow-wall exit to Lost Tower 2F (7, 8), lt2 totem).
+  r213 is excluded because its recorded solution is the obsolete
+  pre-puzzle route; the proof above supersedes it for r213.
+
+## Phase 2 engine glue fixes (in `src/overlay009/ov9_02249960.c`, marked `// dwp:rift-213`)
+
+Two bugs in the shared engine glue, both found by this rift's
+proof and both required for it. They are the lead's to merge or
+move to engine-a/b; they are NOT rift-213 table changes.
+
+1. **Ceiling facing (`DwPuzzle_Ov9FaceFromDir`)**: the glue fed
+   `PlayerAvatar_GetDir` (world DIR) straight into
+   `DwPuzzle_DirDelta`, which indexes by surface FACE. On the
+   ceiling the avatar faces mirrored in both axes (a LEFT press
+   faces DIR 3, RIGHT faces DIR 2, UP/DOWN face DIR 1/0), so the
+   correct conversion is `FACE = DIR ^ 1`. Before the fix, an
+   x-push on the ceiling targeted the tile on the wrong side
+   (the walk check's dest test failed, the step was blocked) —
+   stone 3 could never be pushed into gap 3. GROUND/FLOOR are
+   identity; walls map the horizontal dirs to the z FACEs (wall
+   vertical steps carry no usable facing; no table has wall
+   stones, so a wall-push rift needs displacement-based prev).
+   The fix applies at both `DirDelta` call sites (pre-move
+   `Ov9TryPushTile` and the step-hook prev computation).
+2. **Jump-task travel loss (`TickJump...`, `while` not `if`)**:
+   the per-axis accumulation used `if`, so when one tick's
+   travel exceeded the threshold the excess was stranded and
+   the jump landed short. A stock jump moves <= 1 tile, so it
+   never noticed; a rune jump displaces up to 9 tiles, and
+   ceiling -> ground stopped at y = 2 (the player was stuck:
+   the glue found no override at (x, 2, z)). With `while`, the
+   delivery is exact for all six runes; stock jumps
+   (increment <= threshold) still fire at most once per tick.
+
+Also: a new table file must be listed in
+`platinum.us/main.lsf` (overlay 9's Object list) as well as in
+`src/meson.build` — without the `.lsf` line it compiles but its
+symbols link as absolute 0 and the table pointer is NULL at
+runtime (rift-rp hit this first; the lead's heads-up).
+
+Harness note (for the harness workstream, not this rift):
+dwlib's `flag()` uses `NUM_VARS=290`, but the game has
+`NUM_VARS=288` (`VARS_END - VARS_START`), so it reads 32 bits
+past the true flags base — `flag(0x0A18)` reads true flag
+`0x0A38`. The proof works around it with `flag_correct`
+(`_vars_flags_addr() + 288*2`); the flag-bit diff across the
+two falls confirms the game sets the right bits (0x0A18/0x0A19).
+`var()` is unaffected (it uses `VARS_START`, not `NUM_VARS`).
