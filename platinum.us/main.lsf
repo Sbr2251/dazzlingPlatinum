@@ -182,6 +182,9 @@ Static main
 	Object main.nef.p/src_start_menu.c.o
 	Object main.nef.p/src_unk_0203C954.c.o
 	Object main.nef.p/src_field_system.c.o
+	// dwp:engine-a: puzzle engine state in MAIN-binary RAM (survives
+	// overlay 9 reloads). NOT in overlay 9 (see src/dw_puzzle_state.c).
+	Object main.nef.p/src_dw_puzzle_state.c.o
 	Object main.nef.p/src_location.c.o
 	Object main.nef.p/src_unk_0203D1B8.c.o
 	Object main.nef.p/src_field_script_context.c.o
@@ -626,6 +629,7 @@ Overlay overlay9
 	Object main.nef.p/src_overlay009_dw_puzzle.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_test.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_test_eterna.c.o
+	Object main.nef.p/src_overlay009_dw_puzzle_actors.c.o
 }
 
 Overlay overlay10

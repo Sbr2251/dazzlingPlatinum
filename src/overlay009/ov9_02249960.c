@@ -40,6 +40,7 @@
 #include "overlay009/dw_puzzle_actors.h"
 #include "overlay009/struct_ov9_0224F6EC_decl.h"
 #include "overlay009/dw_puzzle.h"
+#include "overlay009/dw_puzzle_actors.h" // dwp:engine-a + engine-b: actor teardown wiring
 
 #include "bg_window.h"
 #include "camera.h"
@@ -1347,6 +1348,11 @@ void DistWorld_DynamicMapFeaturesInit(FieldSystem *fieldSystem)
     ov9_02249EF0(dwSystem);
     Arc2DwLostTower_ResetFieldState(); // set-tower: the ghosts' palettes are reloaded with each field
     DwPuzzle_OnMapEnter(fieldSystem, DistWorldSystem_GetMapHeaderID(dwSystem)); // dwp:engine-a
+    // dwp:engine-a + engine-b (3): register the map's actor table (NULL =
+    // inert) and (re)spawn the actor visuals from core state. Idempotent:
+    // a battle reload re-calls Init without losing actor state.
+    DwActors_RegisterTable(fieldSystem, DwPuzzle_GetActorTable(DistWorldSystem_GetMapHeaderID(dwSystem)));
+    DwActors_VisualsInit(fieldSystem);
 
     data->valid = TRUE;
 }
@@ -1354,6 +1360,17 @@ void DistWorld_DynamicMapFeaturesInit(FieldSystem *fieldSystem)
 void DistWorld_DynamicMapFeaturesFree(FieldSystem *fieldSystem)
 {
     DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
+
+    // dwp:engine-a + engine-b (3): actor teardown. VisualsExit always
+    // (deletes the actor MapObjects, keeps core state). OnExit only when
+    // the player actually leaves this DW map: on a warp the new location
+    // is already set, so a mapId different from the freed map means
+    // departure; a battle return / same-map reload keeps the mapId.
+    DwActors_VisualsExit(fieldSystem);
+    if (fieldSystem->location != NULL
+        && (u32)fieldSystem->location->mapId != DistWorldSystem_GetMapHeaderID(v0)) {
+        DwActors_OnExit();
+    }
 
     ov9_02249F18(v0);
     ov9_0224E988(v0);
@@ -1638,12 +1655,16 @@ BOOL DistWorld_DynamicMapFeaturesCheckCollision(FieldSystem *fieldSystem, const 
         if (tileState == DW_PUZZLE_TILE_BLOCKED) {
             *isColliding = TRUE;
             return TRUE;
-        } else if (tileState == DW_PUZZLE_TILE_SOLID) {
+        } else if (tileState == DW_PUZZLE_TILE_SOLID || tileState == DW_PUZZLE_TILE_VOID) {
+            // SOLID and VOID both override the stock collision bit (0x8000):
+            // the player must be able to step onto an explicitly-VOID
+            // ground tile even when the stock grid says colliding, so the
+            // step hook can start the fall (rift-213). A LANDED stone's
+            // SOLID actor tile shields a VOID tile the same way.
             *isColliding = FALSE;
             return TRUE;
         }
-        // VOID / DEFAULT: fall through to the stock grid (a VOID tile
-        // must stay walkable here; the step hook starts the fall).
+        // DEFAULT: fall through to the stock grid.
     }
 
     *isColliding = FALSE;
@@ -2663,12 +2684,17 @@ static void Arc2DwEternaForest_HandleFrame(DistWorldSystem *system)
         ShowGhostPropGroup(system, ETERNA_FOREST_HONEY_GROUP);
     }
 
-    // Gone with the player on it: raise VAR_MAP_LOCAL_2, and the map's init frame table starts the fall script from
-    // the idle field (never from this task, never mid-script). A step onto it while gone is the step hook's job.
+    // Gone with the player on it: record the fall with the engine
+    // (NotifyFall, BEFORE raising the var -- HoneyFall clears
+    // VAR_MAP_LOCAL_2 first thing, and the engine's record must survive
+    // it), then raise VAR_MAP_LOCAL_2, and the map's init frame table
+    // starts the fall script from the idle field (never from this task,
+    // never mid-script). A step onto it while gone is the step hook's job.
     if (EternaForest_IsHoneyGone()) {
         GetPlayerPos(system, &x, &y, &z);
 
         if (EternaForest_IsHoneyTile(x, y, z)) {
+            DwPuzzle_NotifyFall(fieldSystem); // dwp:engine-a
             *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_MAP_LOCAL_2) = 1;
         }
     }
@@ -2681,6 +2707,7 @@ static BOOL Arc2DwEternaForest_HandleStep(DistWorldSystem *system, int x, int y,
     }
 
     if (EternaForest_IsHoneyTile(x, y, z) && EternaForest_IsHoneyGone()) {
+        DwPuzzle_NotifyFall(system->fieldSystem); // dwp:engine-a
         ScriptManager_Set(system->fieldSystem, ETERNA_FOREST_SCRIPT_HONEY_FALL, NULL);
         return TRUE;
     }
@@ -2743,7 +2770,14 @@ static void Arc2Dw_HandleFrame(DistWorldSystem *system)
             ov9_0224A71C(fieldSystem);
         }
 
-        if (puzzleResult.respawnRequested && !LocalMapObj_IsAnimationSet(playerMapObj)) {
+        // Respawn at once when requested. Do NOT gate on
+        // LocalMapObj_IsAnimationSet: that returns TRUE for an idle
+        // player (it is the "animation ready" state the jump task waits
+        // FOR), so gating on its negation blocked every respawn after a
+        // fall warp. The engine only requests a respawn after a fall
+        // warp (the player just warped, idle) or a shadow catch (a
+        // forced teleport), so there is no mid-step animation to cut.
+        if (puzzleResult.respawnRequested) {
             DwPuzzle_Ov9Respawn(system, &puzzleResult);
         }
     }
@@ -2768,6 +2802,7 @@ static void Arc2Dw_HandleFrame(DistWorldSystem *system)
         player.surface = (u8)GetCurrentFloatingPlatformKind(system);
         player.padding = 0;
         DwActors_HandleFrame(player);
+        DwActors_VisualsUpdate(system->fieldSystem); // dwp:engine-a + engine-b (3)
         DwActors_SyncDebug();
     }
 }
@@ -10461,7 +10496,9 @@ BOOL DistWorld_CheckCollisionOnCurrentFloatingPlatform(FieldSystem *fieldSystem,
 
             if (tileState == DW_PUZZLE_TILE_BLOCKED) {
                 return TRUE;
-            } else if (tileState == DW_PUZZLE_TILE_SOLID) {
+            } else if (tileState == DW_PUZZLE_TILE_SOLID || tileState == DW_PUZZLE_TILE_VOID) {
+                // VOID overrides the stock collision bit, as on the ground
+                // path: the step hook starts the fall.
                 return FALSE;
             }
         }

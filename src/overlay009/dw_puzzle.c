@@ -23,6 +23,8 @@
 #include "overlay009/dw_puzzle.h"
 
 #include "location.h"
+#include "map_object.h"
+#include "player_avatar.h"
 #include "savedata_misc.h"
 #include "sound_playback.h"
 #include "vars_flags.h"
@@ -39,59 +41,67 @@ static const DwPuzzleTable *const sPuzzleTables[] = {
     &gDwPuzzleTestEternaTable,
 };
 
-// ---- runtime state -------------------------------------------------------
+// Rift actor tables (engine-b), one per puzzle table, NULL until the
+// rift workstream ships one in its dw_puzzle_<map>.c. The glue registers
+// the map's actor table on map load (DwActors_RegisterTable).
+static const DwActorTable *const sActorTables[] = {
+    NULL, // Ravaged Path test table: no actor table yet
+    NULL, // Eterna Forest test table: no actor table yet
+};
 
-static const DwPuzzleTable *sTable;
-static const DwPuzzleTable *sPrevTable;
-static u32 sTableMap;
-static BOOL sFreshResetPending; // map loaded with no fall pending: reset on next use
-static BOOL sFallPending;       // fall requested, fall script running / warp pending
-static BOOL sFallRestored;      // snapshot restored for this fall, respawn still owed
-static BOOL sRespawnPending;    // shadow catch: restore + respawn, no fall script
-static BOOL sRespawnRestored;   // snapshot restored for the catch respawn
-static BOOL sTrackingValid;
-static int sLastX, sLastY, sLastZ;
-static u8 sLastTileState; // DwPuzzleTileState at the player's tile last frame
-static u32 sFrameCount;
-static u32 sFallCount;
-static u32 sResetGeneration;
-static u32 sLastEvent;
-static u32 sLastEventFrame;
-static u32 sLastEventGroup;
-static u32 sFlashFrames;
+const DwActorTable *DwPuzzle_GetActorTable(u32 mapHeader)
+{
+    for (u32 i = 0; i < NELEMS(sPuzzleTables); i++) {
+        if (sPuzzleTables[i] != NULL && sPuzzleTables[i]->mapHeader == mapHeader) {
+            return sActorTables[i];
+        }
+    }
+    return NULL;
+}
 
-static u8 sGroupBase[DW_PUZZLE_MAX_GROUPS];    // toggle/set state
-static u8 sGroupTarget[DW_PUZZLE_MAX_GROUPS];  // base OR momentary holders
-static u8 sGroupOn[DW_PUZZLE_MAX_GROUPS];      // solid (walkable) state
-static u8 sGroupDisplay[DW_PUZZLE_MAX_GROUPS]; // props shown
-static int sGroupTimer[DW_PUZZLE_MAX_GROUPS];  // fade frames left
-static u8 sMomentaryHolders[DW_PUZZLE_MAX_GROUPS]; // bitmask: bit per occupant
-static u8 sSigilPressed[DW_PUZZLE_MAX_SIGILS];     // bitmask: bit per occupant
-static u32 sCheckpointIndex;
-
-// Checkpoint snapshot: the LOGICAL base (toggle/set) state only
-// (rift-214). A group mid-fade at snapshot time restores to its logical
-// value; walkability/display snap to it (timers cleared), they are NOT
-// snapshotted. Momentary holds are not snapshotted either (holders are
-// cleared on restore; occupants must re-press).
-static u8 sSnapGroupBase[DW_PUZZLE_MAX_GROUPS];
-
-static BOOL sSliding;
-static int sSlideDir;
-static int sSlideFrames;
-static u32 sSlideSteps;
-
-typedef struct DwPuzzleActorTile {
-    s16 x;
-    s16 y;
-    s16 z;
-    u8 surface;
-    u8 state; // DwPuzzleTileState
-    u8 present;
-    u8 padding;
-} DwPuzzleActorTile;
-
+// ---- runtime state (main-binary RAM; see DwPuzzleState) ---------------
+#define sTable (gDwPuzzleState.table)
+#define sPrevTable (gDwPuzzleState.prevTable)
+#define sTableMap (gDwPuzzleState.tableMap)
+#define sFreshResetPending (gDwPuzzleState.freshResetPending)
+#define sFallPending (gDwPuzzleState.fallPending)
+#define sFallRestored (gDwPuzzleState.fallRestored)
+#define sFallX (gDwPuzzleState.fallX)
+#define sFallY (gDwPuzzleState.fallY)
+#define sFallZ (gDwPuzzleState.fallZ)
+#define sRespawnPending (gDwPuzzleState.respawnPending)
+#define sRespawnRestored (gDwPuzzleState.respawnRestored)
+#define sTrackingValid (gDwPuzzleState.trackingValid)
+#define sLastX (gDwPuzzleState.lastX)
+#define sLastY (gDwPuzzleState.lastY)
+#define sLastZ (gDwPuzzleState.lastZ)
+#define sLastTileState (gDwPuzzleState.lastTileState)
+#define sFrameCount (gDwPuzzleState.frameCount)
+#define sFallCount (gDwPuzzleState.fallCount)
+#define sResetGeneration (gDwPuzzleState.resetGeneration)
+#define sLastEvent (gDwPuzzleState.lastEvent)
+#define sLastEventFrame (gDwPuzzleState.lastEventFrame)
+#define sLastEventGroup (gDwPuzzleState.lastEventGroup)
+#define sFlashFrames (gDwPuzzleState.flashFrames)
+#define sGroupBase (gDwPuzzleState.groupBase)
+#define sGroupTarget (gDwPuzzleState.groupTarget)
+#define sGroupOn (gDwPuzzleState.groupOn)
+#define sGroupDisplay (gDwPuzzleState.groupDisplay)
+#define sGroupTimer (gDwPuzzleState.groupTimer)
+#define sMomentaryHolders (gDwPuzzleState.momentaryHolders)
+#define sSigilPressed (gDwPuzzleState.sigilPressed)
+#define sCheckpointIndex (gDwPuzzleState.checkpointIndex)
+#define sSnapGroupBase (gDwPuzzleState.snapGroupBase)
+#define sSliding (gDwPuzzleState.sliding)
+#define sSlideDir (gDwPuzzleState.slideDir)
+#define sSlideFrames (gDwPuzzleState.slideFrames)
+#define sSlideSteps (gDwPuzzleState.slideSteps)
+/* Actor tiles stay in overlay 9 (see DwPuzzleState): engine-b re-syncs
+ * them on every map load, and the harness pokes them by xMAP symbol. */
 static DwPuzzleActorTile sActorTiles[DW_PUZZLE_MAX_ACTOR_BLOCKS];
+
+#define sCachedTestMode (gDwPuzzleState.cachedTestMode)
+#define sCachedProgress (gDwPuzzleState.cachedProgress)
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -260,9 +270,14 @@ static const DwPuzzleTable *FindTable(u32 mapHeader, u16 progress)
 // Returns TRUE when a table is active.
 static BOOL EnsureActive(FieldSystem *fieldSystem, u32 mapHeader)
 {
-    if (sTableMap != mapHeader) {
-        sTable = FindTable(mapHeader, PuzzleProgress(fieldSystem));
+    u16 progress = PuzzleProgress(fieldSystem);
+    BOOL testMode = gDwPuzzleTestMode != 0;
+
+    if (sTableMap != mapHeader || sCachedTestMode != testMode || sCachedProgress != progress) {
+        sTable = FindTable(mapHeader, progress);
         sTableMap = mapHeader;
+        sCachedTestMode = testMode;
+        sCachedProgress = progress;
         // Do NOT touch sTrackingValid / sLastX/Y/Z here: a fall warp
         // reloads the map, and the frame hook detects the warp by
         // comparing the post-warp position against the pre-warp tracked
@@ -347,9 +362,14 @@ static void RefreshDebug(int x, int y, int z, int surface)
 }
 
 // Resolve a tile without side effects (used by QueryTile and by the
-// step/frame hooks). Precedence: explicit overrides > actor tiles >
-// groups (later group wins). fallScriptId is the step-fall script for
-// the winning VOID entry, or 0 for the table default.
+// step/frame hooks). Precedence: actor tiles (engine-b) > explicit
+// table overrides > groups (later group wins). An actor tile is the
+// most immediate physical reality (a stone sitting on a tile), so a
+// RESTING stone's BLOCKED actor tile plugs a current tile even if that
+// tile has an explicit SOLID override (rift-213), and a LANDED stone's
+// SOLID actor tile shields a VOID tile (no fall from any path).
+// fallScriptId is the step-fall script for the winning VOID entry, or 0
+// for the table default (actor tiles carry no fallScriptId).
 static DwPuzzleTileState ResolveTileEx(int x, int y, int z, int surface, u16 *fallScriptIdOut)
 {
     DwPuzzleTileState state = DW_PUZZLE_TILE_DEFAULT;
@@ -372,20 +392,20 @@ static DwPuzzleTileState ResolveTileEx(int x, int y, int z, int surface, u16 *fa
         }
     }
 
-    for (int i = 0; i < DW_PUZZLE_MAX_ACTOR_BLOCKS; i++) {
-        if (sActorTiles[i].present && sActorTiles[i].x == x && sActorTiles[i].y == y && sActorTiles[i].z == z
-            && SurfaceMatches(sActorTiles[i].surface, surface)) {
-            state = (DwPuzzleTileState)sActorTiles[i].state;
-            fallScriptId = 0;
-            break;
-        }
-    }
-
     for (int i = 0; i < sTable->tileCount; i++) {
         if (sTable->tiles[i].x == x && sTable->tiles[i].y == y && sTable->tiles[i].z == z
             && SurfaceMatches(sTable->tiles[i].surface, surface)) {
             state = (DwPuzzleTileState)sTable->tiles[i].state;
             fallScriptId = sTable->tiles[i].fallScriptId;
+            break;
+        }
+    }
+
+    for (int i = 0; i < DW_PUZZLE_MAX_ACTOR_BLOCKS; i++) {
+        if (sActorTiles[i].present && sActorTiles[i].x == x && sActorTiles[i].y == y && sActorTiles[i].z == z
+            && SurfaceMatches(sActorTiles[i].surface, surface)) {
+            state = (DwPuzzleTileState)sActorTiles[i].state;
+            fallScriptId = 0;
             break;
         }
     }
@@ -714,6 +734,9 @@ BOOL DwPuzzle_HandleStep(FieldSystem *fieldSystem, int x, int y, int z, int surf
         sSliding = FALSE;
         sFallPending = TRUE;
         sFallRestored = FALSE;
+        sFallX = x;
+        sFallY = y;
+        sFallZ = z;
         sFallCount++;
         PuzzleSetEvent(DW_PUZZLE_EVENT_FALL, 0);
         if (out != NULL) {
@@ -819,22 +842,17 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
 
     // --- fall warp landed? -------------------------------------------
     // sFallPending is set by the step/frame hook before the fall script
-    // runs. The script's warp is the first position discontinuity after
-    // that (a step is one tile; the fall animation does not move tiles).
-    // Only then restore the snapshot and respawn at the checkpoint.
+    // runs. The fall script locks input, so the FIRST position change
+    // after that is the script's warp -- even when it is only one tile
+    // (HoneyFall warps the hive's (39,22) VOID fall to the adjacent
+    // (40,22), a 1-tile move). Only then restore the snapshot and
+    // respawn at the checkpoint. The warp is detected against the FALL
+    // TILE, not the tracked position: a warp reloads overlay 9 and
+    // zeroes the test-mode gate, deactivating the engine and
+    // invalidating the tracking before the frame hook sees the warp;
+    // the fall tile persists in main RAM across the reload.
     if (sFallPending) {
-        BOOL warped = FALSE;
-
-        if (sTrackingValid && (x != sLastX || y != sLastY || z != sLastZ)) {
-            int adx = x - sLastX;
-            int ady = y - sLastY;
-            int adz = z - sLastZ;
-
-            if (adx < 0) adx = -adx;
-            if (ady < 0) ady = -ady;
-            if (adz < 0) adz = -adz;
-            warped = (adx > 1 || ady > 1 || adz > 1);
-        }
+        BOOL warped = (x != sFallX || y != sFallY || z != sFallZ);
         if (warped && !sFallRestored) {
             RestoreSnapshot();
             sFallRestored = TRUE;
@@ -883,6 +901,9 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
         *VarsFlags_GetVarAddress(varsFlags, sTable->fallVar) = 1;
         sFallPending = TRUE;
         sFallRestored = FALSE;
+        sFallX = x;
+        sFallY = y;
+        sFallZ = z;
         sFallCount++;
         PuzzleSetEvent(DW_PUZZLE_EVENT_FALL, 0);
         if (out != NULL) {
@@ -967,6 +988,13 @@ void DwPuzzle_NotifyFall(FieldSystem *fieldSystem)
     }
     sFallPending = TRUE;
     sFallRestored = FALSE;
+    if (fieldSystem != NULL && fieldSystem->playerAvatar != NULL) {
+        MapObject *playerMapObj = Player_MapObject(fieldSystem->playerAvatar);
+
+        sFallX = MapObject_GetX(playerMapObj);
+        sFallY = MapObject_GetY(playerMapObj) / 2;
+        sFallZ = MapObject_GetZ(playerMapObj);
+    }
     sFallCount++;
     PuzzleSetEvent(DW_PUZZLE_EVENT_FALL, 0);
     // No RefreshDebug here: the next frame hook refreshes with the real
@@ -976,13 +1004,16 @@ void DwPuzzle_NotifyFall(FieldSystem *fieldSystem)
 void DwPuzzle_OnMapEnter(FieldSystem *fieldSystem, u32 mapHeader)
 {
     (void)fieldSystem;
-    (void)mapHeader;
     // A fall warp reloads the same map: keep the state, the fall flag
-    // tells the frame hook a respawn is owed. A fresh entry has no fall
-    // pending, so the next hook call resets the puzzle to its initial
-    // state and snapshots it. The table itself resolves lazily in
-    // EnsureActive, so there is nothing to do when the map has no table.
-    if (!sFallPending && !sRespawnPending) {
+    // tells the frame hook a respawn is owed. A same-map warp (fold,
+    // fall) is not a fresh entry: the puzzle state persists across it
+    // (sTableMap still holds the map we came from; the state itself is
+    // in main-binary RAM, so it survives the overlay reload). Only a
+    // load of a DIFFERENT map with no fall pending is a fresh entry,
+    // and only that resets the puzzle to its initial state.
+    // The table itself resolves lazily in EnsureActive, so there is
+    // nothing to do when the map has no table.
+    if (!sFallPending && !sRespawnPending && sTableMap != mapHeader) {
         sFreshResetPending = TRUE;
     }
     sTableMap = 0xFFFFFFFF;

@@ -437,9 +437,89 @@ typedef struct DwPuzzleDebug {
     u32 shadowPhase;
     DwPuzzleActorPos shadow; /* present = the shadow is on the map */
     DwPuzzleActorPos echo;   /* present = the echo is on the map */
+    /* Engine-b stone states, one per stone (DwActorStoneState:
+     * RESTING = 0, FALLING = 1, LANDED = 2). Written by
+     * DwActors_SyncDebug from the actor core; DW_PUZZLE_MAX_STONES slots
+     * (only the first DW_ACTORS_MAX_STONES are used by the core). */
+    u8 stoneStates[DW_PUZZLE_MAX_STONES];
 } DwPuzzleDebug;
 
 extern DwPuzzleDebug gDwPuzzleDebug;
+
+/* Actor tile (engine-b): a stone / actor on a tile overrides that
+ * tile's state. */
+typedef struct DwPuzzleActorTile {
+    s16 x;
+    s16 y;
+    s16 z;
+    u8 surface;
+    u8 state; // DwPuzzleTileState
+    u8 present;
+    u8 padding;
+} DwPuzzleActorTile;
+
+/*
+ * Engine runtime state. This lives in the MAIN binary's RAM
+ * (src/dw_puzzle_state.c), NOT in overlay 9's .bss: a warp into a DW map
+ * -- including a same-map warp (fold, fall) -- reloads overlay 9 and
+ * zeroes its .bss, which would wipe the fall-pending flag, the checkpoint
+ * snapshot and the group state mid-fall. Main-binary RAM survives
+ * overlay reloads, so the fall warp keeps the state and the frame hook
+ * can restore + respawn after it. The debug struct lives there too, for
+ * the same reason (it is repopulated every frame, but the harness reads
+ * it across warps). The test-mode flag intentionally stays in overlay 9:
+ * a warp resets it to off (the safe production default); the harness
+ * re-enables it after each warp.
+ */
+typedef struct DwPuzzleState {
+    const DwPuzzleTable *table;
+    const DwPuzzleTable *prevTable;
+    u32 tableMap;
+    BOOL freshResetPending; // map loaded with no fall pending: reset on next use
+    BOOL fallPending;       // fall requested, fall script running / warp pending
+    BOOL fallRestored;      // snapshot restored for this fall, respawn still owed
+    int fallX, fallY, fallZ; // fall tile: the tile the fall started on.
+    // The fall warp is detected by comparing the position against the
+    // fall tile, NOT against the tracked position: a warp reloads
+    // overlay 9 and zeroes the test-mode gate, which deactivates the
+    // engine and invalidates the tracking before the frame hook sees
+    // the warp. The fall tile persists in main RAM across the reload,
+    // so the warp is still detected when the engine re-activates.
+    BOOL respawnPending;    // shadow catch: restore + respawn, no fall script
+    BOOL respawnRestored;   // snapshot restored for the catch respawn
+    BOOL trackingValid;
+    int lastX, lastY, lastZ;
+    u8 lastTileState; // DwPuzzleTileState at the player's tile last frame
+    u8 padding1[3];
+    u32 frameCount;
+    u32 fallCount;
+    u32 resetGeneration;
+    u32 lastEvent;
+    u32 lastEventFrame;
+    u32 lastEventGroup;
+    u32 flashFrames;
+    u8 groupBase[DW_PUZZLE_MAX_GROUPS];    // toggle/set state
+    u8 groupTarget[DW_PUZZLE_MAX_GROUPS];  // base OR momentary holders
+    u8 groupOn[DW_PUZZLE_MAX_GROUPS];      // solid (walkable) state
+    u8 groupDisplay[DW_PUZZLE_MAX_GROUPS]; // props shown
+    int groupTimer[DW_PUZZLE_MAX_GROUPS];  // fade frames left
+    u8 momentaryHolders[DW_PUZZLE_MAX_GROUPS]; // bitmask: bit per occupant
+    u8 sigilPressed[DW_PUZZLE_MAX_SIGILS];     // bitmask: bit per occupant
+    u32 checkpointIndex;
+    u8 snapGroupBase[DW_PUZZLE_MAX_GROUPS]; // checkpoint snapshot: logical base only
+    u8 padding2[3];
+    BOOL sliding;
+    int slideDir;
+    int slideFrames;
+    u32 slideSteps;
+    /* NOTE: the actor tiles are NOT here: they stay in overlay 9
+     * (engine-b re-syncs them on every map load). */
+    BOOL cachedTestMode; // test-mode value the table was resolved under
+    u16 cachedProgress;  // progress value the table was resolved under
+    u8 padding3[2];
+} DwPuzzleState;
+
+extern DwPuzzleState gDwPuzzleState;
 /* Test-mode gate (default off). The harness sets it by writing this RAM
  * word (xMAP symbol gDwPuzzleTestMode) before entering the test map. */
 extern BOOL gDwPuzzleTestMode;
@@ -528,6 +608,13 @@ void DwPuzzle_RequestCheckpointRespawn(FieldSystem *fieldSystem);
  * VOID-tile fall. No-op without an active table, and idempotent while
  * a fall is already in flight. Generic: any scripted fall can use it. */
 void DwPuzzle_NotifyFall(FieldSystem *fieldSystem);
+
+/* The rift's actor table (engine-b) for a map, or NULL. The glue
+ * registers it on map load (DwActors_RegisterTable). The full
+ * DwActorTable type is in overlay009/dw_puzzle_actors.h; this is a
+ * forward declaration so this header stays includable without it. */
+typedef struct DwActorTable DwActorTable;
+const DwActorTable *DwPuzzle_GetActorTable(u32 mapHeader);
 
 /* Convert a FACE_* on a surface to a (dx, dy, dz) step. Shared with the
  * solver / harness: the same tables the stock DW movement code uses. */

@@ -170,7 +170,7 @@ typedef struct {
 // A rift's actor table. Rift workstreams own their tables (dw_puzzle_<map>.c).
 // protectedTiles: tiles a stone may never occupy (reset sigil, player sigils, checkpoint tiles
 // the table author lists). Pads, echo-sigil tiles and landing tiles are protected automatically.
-typedef struct {
+typedef struct DwActorTable {
     DwActorStoneDef stones[DW_ACTORS_MAX_STONES];
     u8 stoneCount;
     u8 padding[3];

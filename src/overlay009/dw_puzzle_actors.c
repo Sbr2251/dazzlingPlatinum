@@ -1,17 +1,15 @@
 // DW puzzle actors (engine-b): rift stones, Giratina's shadow, the echo self, totem-echo pads.
 // Design: docs/distortion_world/actors_design.md. The core below is platform-independent and
-// runs over a DwActorPlatform; the ROM glue (platform callbacks, weak engine-a fallbacks,
+// runs over a DwActorPlatform; the ROM glue (platform callbacks,
 // MapObject visuals) is in the second half of this file, under #ifndef DW_ACTORS_HOST_TEST.
 //
 // Surfaces are EXPLICIT (engine-a: (x, y, z) alone does not identify a tile). Every actor tile
 // carries its surface; every entry point takes the player's surface; the core never derives a
 // surface from coordinates.
 //
-// Engine-a API status: dw_puzzle.h is the LANDING version (synced from engine-a's worktree;
-// engine-a's own commit must replace it at merge). dw_puzzle.c is still landing. The weak
-// fallbacks for the engine-a symbols this file uses (marked // dwp:engine-b TEMP SHIM) keep
-// the ROM linking until then; the strong definitions in dw_puzzle.c win at link time.
-// Delete the weak block when engine-a's implementation lands.
+// Engine-a API status: dw_puzzle.h is engine-a's (merged, engine-a wins on
+// conflict) and dw_puzzle.c has landed, so this file links against the
+// strong engine-a definitions (the weak TEMP SHIM block is deleted).
 
 #ifdef DW_ACTORS_HOST_TEST
 #include <string.h>
@@ -980,59 +978,8 @@ const DwActorTable gDwActorsTestTable = {
 
 #ifndef DW_ACTORS_HOST_TEST
 // ---------------------------------------------------------------------------
-// ROM glue: weak engine-a fallbacks, platform callbacks, visuals
+// ROM glue: platform callbacks, visuals
 // ---------------------------------------------------------------------------
-
-// dwp:engine-b TEMP SHIM: weak fallbacks for engine-a symbols until dw_puzzle.c lands.
-// The strong definitions in dw_puzzle.c win at link time. Delete this block at merge.
-__attribute__((weak)) DwPuzzleDebug gDwPuzzleDebug;
-
-__attribute__((weak)) DwPuzzleTileState DwPuzzle_QueryTile(FieldSystem *fieldSystem, int x, int y, int z, int surface)
-{
-    (void)fieldSystem;
-    (void)x;
-    (void)y;
-    (void)z;
-    (void)surface;
-    return DW_PUZZLE_TILE_DEFAULT;
-}
-
-__attribute__((weak)) void DwPuzzle_SetActorTile(int index, int x, int y, int z, int surface, DwPuzzleTileState state, BOOL present)
-{
-    (void)index;
-    (void)x;
-    (void)y;
-    (void)z;
-    (void)surface;
-    (void)state;
-    (void)present;
-}
-
-__attribute__((weak)) void DwPuzzle_ClearActorTiles(void)
-{
-}
-
-__attribute__((weak)) BOOL DwPuzzle_PressSigil(FieldSystem *fieldSystem, int x, int y, int z, int surface, int occupant)
-{
-    (void)fieldSystem;
-    (void)x;
-    (void)y;
-    (void)z;
-    (void)surface;
-    (void)occupant;
-    return FALSE;
-}
-
-__attribute__((weak)) void DwPuzzle_ReleaseSigils(FieldSystem *fieldSystem, int occupant)
-{
-    (void)fieldSystem;
-    (void)occupant;
-}
-
-__attribute__((weak)) void DwPuzzle_RequestCheckpointRespawn(FieldSystem *fieldSystem)
-{
-    (void)fieldSystem;
-}
 
 static const u16 sTotemFlags[DW_ACTOR_TOTEM_COUNT] = {
     FLAG_TOTEM_HITMONLEE_DEFEATED,
@@ -1233,6 +1180,10 @@ void DwActors_SyncDebug(void)
 
     DwActors_FillDebug(&dbg);
     gDwPuzzleDebug.stoneCount = dbg.stoneCount;
+    // dwp:engine-a (4): stone states (RESTING/FALLING/LANDED) for the harness.
+    for (i = 0; i < DW_PUZZLE_MAX_STONES; i++) {
+        gDwPuzzleDebug.stoneStates[i] = (u8)(i < DW_ACTORS_MAX_STONES ? dbg.stoneStates[i] : DW_ACTOR_STONE_RESTING);
+    }
     for (i = 0; i < DW_PUZZLE_MAX_STONES; i++) {
         if (i < DW_ACTORS_MAX_STONES) {
             gDwPuzzleDebug.stones[i].x = dbg.stoneTiles[i][0];
