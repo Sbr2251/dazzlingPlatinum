@@ -592,6 +592,13 @@ def cmd_reentry():
                                      {"x": 48, "y": 10, "z": 42, "present": 1, "surface": 3},
                                      {"x": 48, "y": 1, "z": 37, "present": 1, "surface": 4}],
                f"fresh entry stones: {stones_summary(dbg)}")
+        # Snapshot the fresh-entry state for the evidence: it is
+        # asserted above, and the final state (after the two re-entry
+        # falls below) reproduces the dirty state by design, so it
+        # must not be labelled "fresh".
+        fresh_entry = {"stones": stones_summary(dbg),
+                       "checkpoint": dbg["checkpointIndex"],
+                       "fallCount": dbg["fallCount"]}
         # The persistent flags DO carry over (a save carries them).
         set_flag(sess, 0x0A18)
         set_flag(sess, 0x0A19)
@@ -616,11 +623,12 @@ def cmd_reentry():
                "hint re-fired after re-entry (flag B must skip it)")
         expect(flag_correct(sess, 0x0A18) and flag_correct(sess, 0x0A19),
                "hint flags A/B cleared by the re-entry falls")
-        save("reentry.json", {"dirty": dirty, "fresh": {
-            "stones": stones_summary(read_debug(sess)),
-            "checkpoint": dbg["checkpointIndex"],
-            "fallCount": dbg["fallCount"],
-            "hint_refired": False}})
+        save("reentry.json", {"dirty": dirty, "fresh_entry": fresh_entry,
+                              "after_refalls": {
+                                  "stones": stones_summary(read_debug(sess)),
+                                  "checkpoint": dbg["checkpointIndex"],
+                                  "fallCount": dbg["fallCount"],
+                                  "hint_refired": False}})
         print("reentry PASS: fresh init after a dirty visit, flags persist, "
               "hint does not re-fire")
     finally:
