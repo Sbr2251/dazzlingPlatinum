@@ -72,12 +72,12 @@ soft-lock proof (every reachable state can reach the totem).
 # Ceiling causeway, from tools/distortion_world/route_213.json (platform
 # rows: x = 49 - row, columns z = 25 + col, '.' = walkable).
 _CEIL_ROWS = [
-    "##....#####.......#####",
+    "##....#####....#..#####",
     "#####.#####.#####.#....",
-    "#####.#####.#####......",
+    "#####.#####.######.....",
     "#####.#####.#####......",
     "#####.#####.#####.#....",
-    "#####.......#####.#####",
+    "#####....#..#####.#####",
 ]
 CEIL_BASE = set()
 for _r, _line in enumerate(_CEIL_ROWS):

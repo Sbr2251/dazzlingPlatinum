@@ -314,9 +314,11 @@ the table stays active for the totem visit), plus the actor table
   (48, 10, 39) -> (49, 1, 34), (48, 10, 43) -> (43, 1, 43).
   Ground -> ceiling: (43, 1, 34) -> (44, 10, 35),
   (49, 1, 41) -> (49, 10, 41), (48, 1, 42) -> (47, 10, 43).
-  Rotation / steps follow the stock ceiling/ground jump templates
-  (rot -90/90, steps 16); the Phase 2 glue picks the matching one
-  per direction. Rune targets are all in a tw_arc platform of the
+  Rotation: ceiling -> ground rot +180, ground -> ceiling rot
+  -180, steps 0 (= 16). (An earlier draft said +-90, mirroring the
+  stock wall -> ceiling turns; that was wrong: the ceiling and the
+  ground face opposite directions, a 180-degree flip, while a wall
+  meets the ceiling at 90 degrees. The replay proves +-180.) Rune targets are all in a tw_arc platform of the
   target surface: ceiling targets (44, 35), (49, 41), (47, 43) are
   causeway tiles; ground targets use surface GROUND (platform -1 for the rune glue).
 * `sigils[]`: 2 of 16, both RESET (targetGroup ignored).
@@ -369,7 +371,7 @@ table below is the drawing brief, not the audit.
 | Tile(s) | Drawn as |
 |---|---|
 | Stock causeway, island | existing hanging-lake stone (`build_dw_route_213.py`) |
-| 3 ceiling gaps (VOID) | open water: the hanging-lake water face, no stone quad |
+| 3 ceiling gaps (VOID) | open water: the 676 model's shore face (`dw213_lakep`, full tile) over the gap, no stone quad, rim (`criffp_lm9`) on every water->non-water edge. The gaps are `#` (blocked) in the stock ceiling grid (JSON rows + tw_arc_attr), so they behave like the ground VOIDs (stock-blocked + VOID override). Found by the Phase 2 audit: the gaps were `.` (stone) in the JSON rows, so the builder drew causeway stone over them; fixed by flipping the three chars to `#` (Codex round-1 finding 2). |
 | Rune alcoves (3 ceiling) | small-platform ghost prop (kind 0, group 0) at y=10 on the water tile (the Eterna honeycomb pattern for walkable ceiling tiles) |
 | Reset alcoves (2 ceiling) | small-platform ghost prop (kind 0, group 0) at y=10 on the water tile, same prop as runes (no separate sigil colour in the prop set) |
 | Ground reef shelves (20) | small-platform ghost props (kind 0, group 0, default-visible) at y=1 — stock 615 draws nothing at these tiles, so each shelf needs a prop face |
@@ -550,20 +552,29 @@ move to engine-a/b; they are NOT rift-213 table changes.
    x-push on the ceiling targeted the tile on the wrong side
    (the walk check's dest test failed, the step was blocked) —
    stone 3 could never be pushed into gap 3. GROUND/FLOOR are
-   identity; walls map the horizontal dirs to the z FACEs (wall
-   vertical steps carry no usable facing; no table has wall
-   stones, so a wall-push rift needs displacement-based prev).
-   The fix applies at both `DirDelta` call sites (pre-move
-   `Ov9TryPushTile` and the step-hook prev computation).
+   identity; the ceiling is `DIR ^ 1`; the walls are west
+   {3,2,0,1} / east {2,3,1,0} (DIR -> FACE), verified by headless
+   facing probes on both walls (the travel direction is uniquely
+   invertible from the facing: on the west wall, facing west =
+   climbing, east = descending, north = -z, south = +z; on the
+   east wall, facing east = climbing, west = descending, north =
+   -z, south = +z). The inverse (`DirFromFace`) converts the
+   table's FACE_* rune / checkpoint facings back to world DIRs
+   for the jump task / respawn, and `HandleFrame` gets a FACE
+   (the table's checkpoint facings are FACE_*). The fix applies
+   at both `DirDelta` call sites (pre-move `Ov9TryPushTile` and
+   the step-hook prev computation).
 2. **Jump-task travel loss (`TickJump...`, `while` not `if`)**:
    the per-axis accumulation used `if`, so when one tick's
    travel exceeded the threshold the excess was stranded and
-   the jump landed short. A stock jump moves <= 1 tile, so it
-   never noticed; a rune jump displaces up to 9 tiles, and
-   ceiling -> ground stopped at y = 2 (the player was stuck:
-   the glue found no override at (x, 2, z)). With `while`, the
-   delivery is exact for all six runes; stock jumps
-   (increment <= threshold) still fire at most once per tick.
+   the jump landed short. Stock jumps displace at most 6 tiles
+   over 16 steps (the hops), so each tick's increment stays
+   below the per-axis threshold (x: 24576 < 65536; y: 4096 <
+   32768) and `while` is equivalent to `if` for them; a rune
+   jump displaces up to 9 tiles, and ceiling -> ground stopped
+   at y = 2 (the player was stuck: the glue found no override
+   at (x, 2, z)). With `while`, the delivery is exact for all
+   six runes.
 
 Also: a new table file must be listed in
 `platinum.us/main.lsf` (overlay 9's Object list) as well as in

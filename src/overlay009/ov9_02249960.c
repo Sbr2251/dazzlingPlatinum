@@ -2367,30 +2367,61 @@ static int DwPuzzle_Ov9Surface(FieldSystem *fieldSystem)
     }
 }
 
-// dwp:rift-213: world DIR -> surface FACE for DwPuzzle_DirDelta.
+// dwp:rift-213: world DIR <-> surface FACE for DwPuzzle_DirDelta and
+// the table facings (DwPuzzleRune.facing / DwPuzzleCheckpoint.facing
+// are FACE_*, while MapObject facing is a world DIR).
 // PlayerAvatar_GetDir is the avatar's facing DIR (0 north/-z, 1 south/+z,
-// 2 west/-x, 3 east/+x), but DirDelta indexes by surface FACE. On
-// GROUND/FLOOR the frames coincide. On the CEILING the avatar faces
-// mirrored in BOTH axes (the ceiling is viewed flipped: a LEFT press
-// faces DIR 3, a RIGHT press DIR 2, while UP/DOWN face DIR 1/0), so
-// FACE = DIR ^ 1; passing the DIR straight through made pushes along x
-// target the tile on the wrong side (the walk check's dest test failed
-// and the step was blocked). On the walls the horizontal dirs map to
-// the z FACEs. Wall VERTICAL steps (climbs) carry no usable facing
-// (the avatar faces into the wall, +/-x): they keep the old mapping,
-// which is wrong for a wall push, but no table has wall stones; a
-// wall-push rift needs displacement-based prev, not facing.
+// 2 west/-x, 3 east/+x), but DirDelta indexes by surface FACE. The
+// facing after a step is the facing of the travel, in world terms:
+// GROUND/FLOOR: frames coincide. CEILING: the avatar faces mirrored in
+// BOTH axes (the ceiling is viewed flipped: a LEFT press faces DIR 3,
+// a RIGHT press DIR 2, UP/DOWN face DIR 1/0), so FACE = DIR ^ 1.
+// Walls: the avatar faces INTO the wall's frame while climbing —
+// west wall: facing west (DIR 2) while climbing, east (DIR 3) while
+// descending, north (DIR 0) for a -z step, south (DIR 1) for a +z step;
+// east wall: facing east (DIR 3) while climbing, west (DIR 2) while
+// descending, north (DIR 0) for a -z step, south (DIR 1) for a +z step.
+// Both wall tables are verified empirically (headless facing probes
+// on both walls: the travel direction is uniquely invertible from the
+// facing in every case). Passing the DIR straight through made pushes
+// along x on the ceiling target the tile on the wrong side (the walk
+// check's dest test failed and the step was blocked), and made pushes
+// up/down a wall target a z step.
 static int DwPuzzle_Ov9FaceFromDir(int surface, int dir)
 {
+    static const int sWest[4] = { 3, 2, 0, 1 };
+    static const int sEast[4] = { 2, 3, 1, 0 };
+
     switch (surface) {
     case DW_PUZZLE_SURFACE_CEILING:
         return dir ^ 1;
     case DW_PUZZLE_SURFACE_WEST_WALL:
-        return (dir == 0) ? 3 : (dir == 1) ? 2 : dir;
+        return sWest[dir & 3];
     case DW_PUZZLE_SURFACE_EAST_WALL:
-        return (dir == 0) ? 2 : (dir == 1) ? 3 : dir;
+        return sEast[dir & 3];
     default:
         return dir; // GROUND / FLOOR: frames coincide
+    }
+}
+
+// dwp:rift-213: inverse of FaceFromDir (table FACE -> world DIR), for
+// the rune / checkpoint facings, which the glue passes to
+// MapObject_SetPosDirFromCoords (world DIR). The ceiling map is an
+// involution; the wall maps are each other's inverse.
+static int DwPuzzle_Ov9DirFromFace(int surface, int face)
+{
+    static const int sWest[4] = { 2, 3, 1, 0 };
+    static const int sEast[4] = { 3, 2, 0, 1 };
+
+    switch (surface) {
+    case DW_PUZZLE_SURFACE_CEILING:
+        return face ^ 1;
+    case DW_PUZZLE_SURFACE_WEST_WALL:
+        return sWest[face & 3];
+    case DW_PUZZLE_SURFACE_EAST_WALL:
+        return sEast[face & 3];
+    default:
+        return face; // GROUND / FLOOR: frames coincide
     }
 }
 
@@ -2510,7 +2541,12 @@ static void DwPuzzle_Ov9StartRune(DistWorldSystem *system, int x, int y, int z, 
     tpl.movementAnimSteps = rune->steps != 0 ? rune->steps : 16;
     tpl.unk_1E = 1;
     tpl.unk_20 = 0;
-    tpl.finalFacingDir = rune->facing >= 0 ? rune->facing : (s16)facing;
+    // dwp:rift-213: rune->facing is a table FACE_* on the TARGET surface;
+    // the jump task wants a world DIR. `facing` (the passed-in avatar
+    // DIR) is already a world DIR and stays as-is.
+    tpl.finalFacingDir = rune->facing >= 0
+        ? (s16)DwPuzzle_Ov9DirFromFace(rune->targetSurface, rune->facing)
+        : (s16)facing;
     tpl.floatingPlatformKind = (s16)(rune->targetSurface == DW_PUZZLE_SURFACE_GROUND
         ? FLOATING_PLATFORM_KIND_INVALID : rune->targetSurface);
     tpl.floatingPlatformIndex = (u16)platformIndex;
@@ -2551,7 +2587,11 @@ static void DwPuzzle_Ov9Respawn(DistWorldSystem *system, const DwPuzzleFrameResu
 {
     FieldSystem *fieldSystem = system->fieldSystem;
     MapObject *playerMapObj = Player_MapObject(fieldSystem->playerAvatar);
-    int facing = result->respawnFacing >= 0 ? result->respawnFacing : PlayerAvatar_GetDir(fieldSystem->playerAvatar);
+    // dwp:rift-213: respawnFacing is a table FACE_* on the respawn
+    // surface; SetPosDirFromCoords wants a world DIR.
+    int facing = result->respawnFacing >= 0
+        ? DwPuzzle_Ov9DirFromFace(result->respawnSurface, result->respawnFacing)
+        : PlayerAvatar_GetDir(fieldSystem->playerAvatar);
     u32 platformKind;
     enum AvatarDistortionState distortionState;
 
@@ -2854,8 +2894,15 @@ static void Arc2Dw_HandleFrame(DistWorldSystem *system)
         MapObject *playerMapObj = Player_MapObject(fieldSystem->playerAvatar);
 
         GetPlayerPos(system, &x, &y, &z);
-        DwPuzzle_HandleFrame(fieldSystem, x, y, z, DwPuzzle_Ov9Surface(fieldSystem),
-            PlayerAvatar_GetDir(fieldSystem->playerAvatar), &puzzleResult);
+        {
+            // dwp:rift-213: HandleFrame compares `facing` against the
+            // table's checkpoint facings (FACE_*), so it wants a FACE,
+            // not the avatar's world DIR.
+            int surface = DwPuzzle_Ov9Surface(fieldSystem);
+            DwPuzzle_HandleFrame(fieldSystem, x, y, z, surface,
+                DwPuzzle_Ov9FaceFromDir(surface, PlayerAvatar_GetDir(fieldSystem->playerAvatar)),
+                &puzzleResult);
+        }
 
         for (int g = 0; g < GHOST_PROP_GROUP_MAX_COUNT; g++) {
             if (puzzleResult.ghostShowMask & (1u << g)) {
@@ -3789,11 +3836,14 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
     ctx->accumulatedMovement.x += ctx->positionIncrementVecAbs.x;
 
     // dwp:rift-213: while, not if. A rune jump may displace up to 9
-    // tiles (a stock jump moves <= 1), so one tick's travel can exceed
-    // the threshold more than once; `if` stranded the excess and the
-    // jump landed short (ceiling -> ground stopped at y=2, and the
-    // player was stuck: the glue found no override at (x, 2, z)).
-    // Stock jumps (increment <= threshold) still fire at most once.
+    // tiles, so one tick's travel can exceed the threshold more than
+    // once; `if` stranded the excess and the jump landed short
+    // (ceiling -> ground stopped at y=2, and the player was stuck:
+    // the glue found no override at (x, 2, z)). Stock jumps displace
+    // at most 6 tiles over 16 steps (the hops), so each tick's
+    // increment stays below the per-axis threshold (x: 24576 <
+    // 65536; y: 4096 < 32768) and `while` is equivalent to `if`
+    // for them.
     while (ctx->accumulatedMovement.x >= MAP_OBJECT_TILE_SIZE) {
         ctx->accumulatedMovement.x -= MAP_OBJECT_TILE_SIZE;
 

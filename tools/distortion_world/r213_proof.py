@@ -17,9 +17,20 @@ the harness workstream) and checks the puzzle against the design doc:
              (explicit VOID override on a stock-0x8000 ground tile)
   fallframes - one stone's 12-frame FALLING window, sampled per frame
              (stoneStates: RESTING 0 -> FALLING 1 -> LANDED 2)
-  reentry  - a fresh boot has stones at spawn, checkpoint 0, fallCount 0
-  audit    - collision-vs-drawn: every puzzle tile has a drawing source
-             (no emulator; pure table + JSON + stock-face check)
+  reentry  - two phases: a subprocess dirties the runtime state
+             (stones moved, 2 falls, hint flags A/B set) and dumps the
+             persistent flags a departure would carry in a save; the
+             main process boots fresh, restores those flags, and
+             proves fresh init (stones at spawn, CP0, fallCount 0,
+             flags A/B still set) plus no hint re-fire on two more
+             falls. The in-game exit-warp/blackout teardown is NOT
+             headlessly driven (the harness has no battle driver);
+             the exit warp is covered by the unchanged totem script
+             (exit) and the battle menu (replay).
+  audit    - collision-vs-drawn: the C table, the built tw_arc record,
+             the built attr grid, and the built chunk models (615/676)
+             are all inspected against the solver model (no emulator;
+             no hardcoded drawn status)
   exit     - the totem script's exit warp + calm lines are unchanged
              (git diff; the battle itself is not fought headlessly)
 
@@ -506,9 +517,73 @@ def cmd_fallframes():
 
 
 # ---------------------------------------------------------------- reentry
-def cmd_reentry():
+def set_flag(sess, fid):
+    """Set a persistent flag in RAM (the same bit math as flag_correct).
+    The reentry test restores the prior visit's persistent flags this
+    way: the game cannot distinguish a flag set by a save from one
+    set by a script, and this keeps the harness's entry path intact
+    (boot_overworld_rift always builds a fresh save)."""
+    addr = sess._vars_flags_addr() + 288 * 2 + fid // 8
+    cur = sess.emu.read(addr, 1)[0]
+    sess.emu.write(addr, bytes([cur | (1 << (fid % 8))]))
+
+
+def cmd_reentry_dirty():
+    """Phase 1 (its own process: one Emu per process): enter, dirty
+    the runtime state (stone 1 LANDED, 2 falls, hint flags A/B set),
+    and dump the persistent state a departure would carry in a save.
+    The runtime state (stones, fallCount, checkpoint) is NOT in the
+    save -- that is what phase 2 proves does not leak across."""
+    faces = solver_faces()
     sess = boot()
     try:
+        approach_to_ceiling(sess)
+        drive(sess, faces[0:11])
+        sess.step(FACE_UP)
+        settle_after_fall(sess)
+        drive(sess, faces[8:11])
+        drive(sess, faces[11:25])
+        sess.step(FACE_UP, advance_text=False)
+        settle_after_fall(sess)
+        sess.pump_text()
+        dbg = read_debug(sess)
+        dirty = {"flags": {"FLAG_DW_213_A": flag_correct(sess, 0x0A18),
+                           "FLAG_DW_213_B": flag_correct(sess, 0x0A19)},
+                 "progress": sess.var("VAR_ARC2_PROGRESS"),
+                 "stones": stones_summary(dbg), "fallCount": dbg["fallCount"],
+                 "checkpoint": dbg["checkpointIndex"]}
+        expect(dirty["flags"]["FLAG_DW_213_A"]
+               and dirty["flags"]["FLAG_DW_213_B"],
+               f"dirty phase: hint flags not both set: {dirty}")
+        expect(dbg["fallCount"] == 2, f"dirty phase: fallCount {dbg['fallCount']}, want 2")
+        expect(dbg["checkpointIndex"] == 3,
+               f"dirty phase: cp {dbg['checkpointIndex']}, want 3")
+        expect((dbg["stones"][0]["x"], dbg["stones"][0]["z"],
+                dbg["stones"][0]["surface"]) == (44, 34, 4),
+               f"dirty phase: stone 1 not LANDED: {stones_summary(dbg)}")
+        expect(dirty["progress"] == 83, f"dirty phase: progress {dirty['progress']}, want 83")
+        save("dirty.json", dirty)
+        print(f"dirty phase done: {dirty}")
+    finally:
+        sess.close()
+
+
+def cmd_reentry():
+    """Phase 2: fresh boot + the prior visit's persistent flags
+    restored, proving fresh init and no runtime-state leak."""
+    import subprocess
+    r = subprocess.run([sys.executable,
+                        str(pathlib.Path(__file__).resolve()),
+                        "_reentry_dirty"], check=False)
+    expect(r.returncode == 0, f"dirty phase failed (exit {r.returncode})")
+    dirty = json.loads((OUT / "dirty.json").read_text())
+    expect(dirty["flags"]["FLAG_DW_213_A"]
+           and dirty["flags"]["FLAG_DW_213_B"],
+           f"dirty phase left hint flags unset: {dirty}")
+    faces = solver_faces()
+    sess = boot()
+    try:
+        # Fresh init: no runtime state from the dirty visit survives.
         dbg = read_debug(sess)
         expect(dbg["checkpointIndex"] == 0 and dbg["fallCount"] == 0,
                f"fresh entry: cp {dbg['checkpointIndex']} falls {dbg['fallCount']}")
@@ -517,69 +592,310 @@ def cmd_reentry():
                                      {"x": 48, "y": 10, "z": 42, "present": 1, "surface": 3},
                                      {"x": 48, "y": 1, "z": 37, "present": 1, "surface": 4}],
                f"fresh entry stones: {stones_summary(dbg)}")
-        save("reentry.json", {"stones": stones_summary(dbg),
-                              "checkpoint": dbg["checkpointIndex"],
-                              "fallCount": dbg["fallCount"]})
-        print("reentry PASS: fresh state (stones at spawn, CP0, 0 falls)")
+        # The persistent flags DO carry over (a save carries them).
+        set_flag(sess, 0x0A18)
+        set_flag(sess, 0x0A19)
+        expect(flag_correct(sess, 0x0A18) and flag_correct(sess, 0x0A19),
+               "restored hint flags A/B not set after re-entry")
+        # The hint must not re-fire: two more falls, fallCount counts
+        # from 0 in this session, no textbox, flags stay set.
+        approach_to_ceiling(sess)
+        drive(sess, faces[0:11])
+        sess.step(FACE_UP)
+        settle_after_fall(sess)
+        dbg = read_debug(sess)
+        expect(dbg["fallCount"] == 1, f"re-entry fall 1: count {dbg['fallCount']}, want 1")
+        drive(sess, faces[8:11])
+        drive(sess, faces[11:25])
+        sess.step(FACE_UP, advance_text=False)
+        settle_after_fall(sess)
+        sess.pump_text()
+        dbg = read_debug(sess)
+        expect(dbg["fallCount"] == 2, f"re-entry fall 2: count {dbg['fallCount']}, want 2")
+        expect(not sess.textbox_up(),
+               "hint re-fired after re-entry (flag B must skip it)")
+        expect(flag_correct(sess, 0x0A18) and flag_correct(sess, 0x0A19),
+               "hint flags A/B cleared by the re-entry falls")
+        save("reentry.json", {"dirty": dirty, "fresh": {
+            "stones": stones_summary(read_debug(sess)),
+            "checkpoint": dbg["checkpointIndex"],
+            "fallCount": dbg["fallCount"],
+            "hint_refired": False}})
+        print("reentry PASS: fresh init after a dirty visit, flags persist, "
+              "hint does not re-fire")
     finally:
         sess.close()
 
 
 # ---------------------------------------------------------------- audit
+_B213 = None
+
+
+def _builder():
+    """The map builder module (build_dw_route_213.py), loaded once:
+    its Chunk/nsbmd parser and its ceiling_kind() classification."""
+    global _B213
+    if _B213 is None:
+        import importlib.util
+        sys.path.insert(0, str(HERE))
+        sys.path.insert(0, str(ROOT / "tools" / "lake_verity"))
+        spec = importlib.util.spec_from_file_location(
+            "b213_audit", HERE / "build_dw_route_213.py")
+        _B213 = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_B213)
+    return _B213
+
+
+def _model_faces(path, cx, cz):
+    """(material, x0, x1, z0, z1, h0, h1) per face of a chunk model.
+
+    Uses the map builder's Chunk/nsbmd parser on the source model file
+    (res/field/maps/data/map_data_*.bin), which the build packs verbatim.
+    """
+    b213 = _builder()
+    ch = b213.Chunk((ROOT / path).read_bytes(), cx, cz)
+    faces = []
+    for mi, m in enumerate(ch.model["materials"]):
+        for mm, si in ch.pairs:
+            if mm != mi:
+                continue
+            tris, quads = ch.faces(si)
+            for f in tris + quads:
+                ts = [ch.to_tile(v["pos"]) for v in f]
+                xs = [t[0] for t in ts]
+                zs = [t[2] for t in ts]
+                hs = [t[1] for t in ts]
+                faces.append((m["name"], min(xs), max(xs), min(zs), max(zs),
+                              min(hs), max(hs)))
+    return faces
+
+
+def _covers(face, tile):
+    """Tile centre strictly inside the face's vertex bbox (merged rects
+    cover whole tiles, so a centre test is exact for them)."""
+    _, x0, x1, z0, z1, _, _ = face
+    return x0 < tile[0] + 0.5 < x1 and z0 < tile[1] + 0.5 < z1
+
+
+def _h_overlap(face, lo, hi):
+    return face[5] <= hi and face[6] >= lo
+
+
+def _rim_on_edge(faces, x, z, edge):
+    """A criffp_lm9 rim face lying on one edge of tile (x, z):
+    edge = ('x', line, a, b) or ('z', line, a, b). Vertex coords
+    come from fx16 conversion, so compare with a tolerance."""
+    axis, line, a, b = edge
+    eps = 1e-4
+    for f in faces:
+        if f[0] != "criffp_lm9" or not _h_overlap(f, 10.9, 11.6):
+            continue
+        if (axis == "x" and abs(f[1] - line) < eps
+                and abs(f[2] - line) < eps
+                and f[3] <= a + eps and f[4] >= b - eps):
+            return True
+        if (axis == "z" and abs(f[3] - line) < eps
+                and abs(f[4] - line) < eps
+                and f[1] <= a + eps and f[2] >= b - eps):
+            return True
+    return False
+
+
 def cmd_audit():
+    import re
+    import struct
     sys.path.insert(0, str(HERE))
     import route_213_solver as solver
-    import json as _json
-    spec = _json.loads((ROOT / "tools" / "distortion_world" / "route_213.json").read_text())
-    props = spec["ghost_props"]
-    prop_tiles = {(p["x"], p["y"], p["z"]): p for p in props}
+    import twarc
+    import narc as _narc
+
     rows = []
-    # Every ground shelf must have a kind-0 ghost prop at y=1.
-    for (x, z) in sorted(solver.GROUND_WALK):
-        p = prop_tiles.get((x, 1, z))
-        rows.append({"tile": (x, 1, z), "surface": "GROUND", "kind": "SOLID shelf",
-                     "drawn": p is not None and p["kind"] == 0 and p["group"] == 0})
-    # Every ceiling alcove must have a kind-0 ghost prop at y=10.
-    for (x, z) in sorted(set(solver.RUNES_C) | solver.RESETS):
-        p = prop_tiles.get((x, 10, z))
-        rows.append({"tile": (x, 10, z), "surface": "CEILING", "kind": "SOLID alcove",
-                     "drawn": p is not None and p["kind"] == 0 and p["group"] == 0})
-    # Ceiling causeway tiles are drawn by the stock hanging-lake stone model.
-    for (x, z) in sorted(solver.CEIL_BASE):
-        rows.append({"tile": (x, 10, z), "surface": "CEILING", "kind": "stock causeway",
-                     "drawn": True})
-    # VOID tiles must look open: ceiling gaps are hanging-lake water;
-    # ground VOIDs have no stock faces in map_data_615 and no prop.
-    for (x, z) in sorted(solver.CEIL_VOID):
-        rows.append({"tile": (x, 10, z), "surface": "CEILING", "kind": "VOID gap",
-                     "drawn": "water (stock hanging lake)",
-                     "prop": prop_tiles.get((x, 10, z)) is None})
-    for (x, z) in sorted(solver.GROUND_VOID):
-        rows.append({"tile": (x, 1, z), "surface": "GROUND", "kind": "VOID",
-                     "drawn": "open void (no stock faces, no prop)",
-                     "prop": prop_tiles.get((x, 1, z)) is None})
-    # Landed stones are drawn by their MapObject (dynamic, not static).
-    for (x, z) in sorted({(44, 34), (49, 40), (47, 42)}):
-        rows.append({"tile": (x, 1, z), "surface": "GROUND", "kind": "LANDED stone",
-                     "drawn": "stone MapObject when landed"})
-    # No stray props: the prop set must be exactly the shelves + alcoves.
+
+    def check(cond, what):
+        # Record, don't raise: the audit saves the full check list, then
+        # fails on any bad check so the evidence shows every failure.
+        rows.append({"check": what, "ok": bool(cond)})
+
+    # --- 1. The C puzzle table equals the solver model ------------------
+    src = (ROOT / "src/overlay009/dw_puzzle_route_213.c").read_text()
+
+    def array_block(name):
+        m = re.search(rf"{name}\[\] = \{{(.*?)\n\}};", src, re.S)
+        assert m, f"no array {name}"
+        return m.group(1)
+
+    tiles = re.findall(
+        r"\{\s*(\d+),\s*(\d+),\s*(\d+),\s*DW_PUZZLE_TILE_(\w+),\s*"
+        r"DW_PUZZLE_SURFACE_(\w+),", array_block("sRoute213Tiles"))
+    tile_set = {(int(x), int(y), int(z), st, surf)
+                for x, y, z, st, surf in tiles}
+    exp_tiles = (
+        {(x, 10, z, "VOID", "CEILING") for (x, z) in solver.CEIL_VOID} |
+        {(x, 10, z, "SOLID", "CEILING")
+         for (x, z) in set(solver.RUNES_C) | solver.RESETS} |
+        {(x, 1, z, "SOLID", "GROUND") for (x, z) in solver.GROUND_WALK} |
+        {(x, 1, z, "VOID", "GROUND") for (x, z) in solver.GROUND_VOID})
+    check(tile_set == exp_tiles,
+          f"C tiles != solver: extra {tile_set - exp_tiles}, "
+          f"missing {exp_tiles - tile_set}")
+    check(len(tiles) == 32, f"C tile count {len(tiles)} != 32 (budget)")
+    # Array counts match the counts in the DwPuzzleTable struct.
+    counts = {"sRoute213Sigils": 2, "sRoute213Runes": 6,
+              "sRoute213Currents": 4, "sRoute213Checkpoints": 5,
+              "sRoute213Tiles": 32}
+    for name, want in counts.items():
+        got = len(re.findall(r"^\s*\{", array_block(name), re.M))
+        check(got == want, f"{name} has {got} entries, want {want}")
+    m = re.search(r"(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*// group",
+                  src)
+    check(m is not None, "table counts line not found")
+    check(tuple(map(int, m.groups())) == (0, 2, 6, 4, 5, 32),
+          f"table counts {m.groups()} != (0, 2, 6, 4, 5, 32)")
+    # Actor table: stone starts, edges, protected tiles, in file order.
+    actor = src[src.index("gDwPuzzleRoute213ActorTable"):]
+    actor_tiles = re.findall(
+        r"\{\s*(\d+),\s*(\d+),\s*(\d+),\s*DW_ACTOR_SURFACE_(\w+),", actor)
+    actor_tiles = [(int(x), int(y), int(z), surf)
+                   for x, y, z, surf in actor_tiles]
+    # Stone starts + edges, in file order: each ceiling stone's start,
+    # then its gap tile (ceiling) and its landing tile (ground); then
+    # the plug stone's start. Protected tiles follow in CP0-CP4 +
+    # reset1 + reset2 order (the C file's order).
+    exp_edges = [((44, 10, 34, "CEILING"), (44, 1, 34, "GROUND")),
+                 ((49, 10, 40, "CEILING"), (49, 1, 40, "GROUND")),
+                 ((47, 10, 42, "CEILING"), (47, 1, 42, "GROUND"))]
+    exp_actor = []
+    for i, (surf, x, z, _st) in enumerate(solver.SPAWN):
+        exp_actor.append((x, 10 if surf == "C" else 1, z,
+                          "CEILING" if surf == "C" else "GROUND"))
+        if i < 3:
+            exp_actor += list(exp_edges[i])
+    exp_protected = [(20, 1, 12, "GROUND"), (49, 10, 28, "CEILING"),
+                     (44, 10, 30, "CEILING"), (48, 10, 36, "CEILING"),
+                     (49, 10, 42, "CEILING"), (45, 10, 29, "CEILING"),
+                     (48, 10, 37, "CEILING")]
+    exp_actor += exp_protected
+    check(actor_tiles == exp_actor,
+          f"C actor tiles != solver: {actor_tiles} vs {exp_actor}")
+    check(src.count("edgeCount = 1") == 3 and "edgeCount = 0" in src,
+          "stone edgeCounts != 1,1,1,0")
+
+    # --- 2. The BUILT tw_arc record: ghost props, from the narc ---------
+    hdr, btnf, tw = _narc.read_files(twarc.TW)
+    index = twarc.read_index(tw[0])
+    mid = twarc.map_header_id("MAP_HEADER_DW_ROUTE_213")
+    entry = next(e for e in index if e[0] == mid)
+    rec = twarc.parse_record(tw[entry[1] + 1])
+    ghost = rec["ghost"]
+    prop_tiles = {(p["x"], p["y"], p["z"]): p for p in ghost["props"]}
     expected_props = {(x, 1, z) for (x, z) in solver.GROUND_WALK} | \
         {(x, 10, z) for (x, z) in set(solver.RUNES_C) | solver.RESETS}
-    expect(set(prop_tiles) == expected_props,
-           f"prop set mismatch: extra {set(prop_tiles) - expected_props}, "
-           f"missing {expected_props - set(prop_tiles)}")
-    expect(spec.get("ghost_default_visible") == 1, "ghost_default_visible != 1")
-    expect(spec.get("ghost_triggers") == [], "ghost_triggers not []")
-    bad = [r for r in rows if r.get("drawn") is not True and r.get("drawn") not in (
-        "water (stock hanging lake)", "open void (no stock faces, no prop)",
-        "stone MapObject when landed")]
+    check(set(prop_tiles) == expected_props,
+          f"narc prop set mismatch: extra {set(prop_tiles) - expected_props}, "
+          f"missing {expected_props - set(prop_tiles)}")
+    check(all(p["kind"] == 0 and p["group"] == 0 for p in ghost["props"]),
+          "narc props not all kind 0, group 0")
+    check(ghost["default_visible"] == 1,
+          f"narc default_visible {ghost['default_visible']} != 1")
+    check(ghost["triggers"] == [], f"narc triggers {ghost['triggers']} != []")
+
+    # --- 3. The BUILT attr grid: ceiling platform (kind 3) --------------
+    ahdr, abtnf, attr = _narc.read_files(twarc.ATTR)
+    plat = next(p for p in rec["platforms"] if p["kind"] == 3)
+    check((plat["x"], plat["y"], plat["z"], plat["sx"], plat["sz"])
+          == (44, 10, 25, 5, 22),
+          f"ceiling platform bounds {plat} != x=44,y=10,z=25,sx=5,sz=22")
+    grid = struct.unpack("<1024H", attr[plat["attr"]])
+
+    def blocked(x, z):
+        return bool(grid[(plat["x"] + plat["sx"] - x) + (z - plat["z"]) * 32]
+                     & 0x8000)
+
+    for (x, z) in sorted(solver.CEIL_BASE):
+        check(not blocked(x, z), f"ceiling grid: causeway {(x, z)} blocked")
+    for (x, z) in sorted(solver.CEIL_VOID):
+        check(blocked(x, z), f"ceiling grid: gap {(x, z)} walkable")
+    for (x, z) in sorted(set(solver.RUNES_C) | solver.RESETS):
+        check(blocked(x, z), f"ceiling grid: alcove {(x, z)} walkable")
+    # Rim: every causeway tile's non-causeway neighbour in the platform
+    # rect is blocked (this covers the slab edges and the gap rims).
+    for (x, z) in sorted(solver.CEIL_BASE):
+        for (nx, nz) in ((x + 1, z), (x - 1, z), (x, z + 1), (x, z - 1)):
+            if (nx, nz) in solver.CEIL_BASE:
+                continue
+            if not (44 <= nx <= 49 and 25 <= nz <= 47):
+                continue
+            check(blocked(nx, nz),
+                  f"ceiling grid: rim neighbour {(nx, nz)} of {(x, z)} walkable")
+
+    # --- 4. map_data_615: stock ground perms + no ground faces ---------
+    sys.path.insert(0, str(ROOT / "tools" / "lake_verity"))
+    import mapdata
+    parts = mapdata.unpack((ROOT / "res/field/maps/data/map_data_615.bin")
+                           .read_bytes())
+    perm = mapdata.read_permissions(parts["permissions"])
+    for (x, z) in sorted(solver.GROUND_WALK | solver.GROUND_VOID):
+        check(perm[z - 32][x - 32] == 0x8000,
+              f"615 perms: ground tile {(x, z)} = "
+              f"{perm[z - 32][x - 32]:#x}, want 0x8000 (stock-blocked)")
+    faces615 = _model_faces("res/field/maps/data/map_data_615.bin", 1, 1)
+    for (x, z) in sorted(solver.GROUND_WALK | solver.GROUND_VOID):
+        covering = [f for f in faces615
+                    if _h_overlap(f, 0, 3) and _covers(f, (x, z))]
+        check(not covering,
+              f"615 model draws a ground face over {(x, z)}: {covering}")
+
+    # --- 5. map_data_676: the ceiling model, face by face ---------------
+    faces676 = _model_faces("res/field/maps/data/map_data_676.bin", 1, 0)
+    # s_land3_lm6 is the stock hole's dark panel at h=12, BEHIND the
+    # ceiling plane (11.0-11.5): occluded by the ceiling faces, not a
+    # drawn stone surface. It is excluded from the solid set.
+    SOLID_MATS = {"adf", "s_grass_lm8", "s_land_att_lm1", "s_land2_lm2"}
+    WATER_MATS = {"dw213_lake", "dw213_lakep"}
+    kind = _builder().ceiling_kind()  # the builder's drawn classification
+    for (x, z) in sorted(solver.CEIL_VOID):
+        stone = [f for f in faces676 if f[0] in SOLID_MATS
+                 and _h_overlap(f, 10.5, 11.6) and _covers(f, (x, z))]
+        water = [f for f in faces676 if f[0] in WATER_MATS
+                 and _h_overlap(f, 10.5, 11.6) and _covers(f, (x, z))]
+        check(not stone, f"676 model draws stone over gap {(x, z)}: {stone}")
+        check(bool(water), f"676 model draws no water/shore over gap {(x, z)}")
+        # Rims are drawn only on water -> non-water edges (the builder's
+        # rim rule): a gap opening into water (e.g. (49, 40) into the
+        # east pool) has no rim on that side, which is correct.
+        for (dx, dz), edge in (
+                ((-1, 0), ("x", x, z, z + 1)),
+                ((1, 0), ("x", x + 1, z, z + 1)),
+                ((0, -1), ("z", z, x, x + 1)),
+                ((0, 1), ("z", z + 1, x, x + 1))):
+            if kind.get((x + dx, z + dz)) == "water":
+                continue
+            check(_rim_on_edge(faces676, x, z, edge),
+                  f"676 model: no rim on gap {(x, z)} edge {edge}")
+    for (x, z) in sorted(solver.CEIL_BASE):
+        stone = [f for f in faces676 if f[0] in SOLID_MATS
+                 and _h_overlap(f, 10.5, 11.6) and _covers(f, (x, z))]
+        water = [f for f in faces676 if f[0] in WATER_MATS
+                 and _h_overlap(f, 10.5, 11.6) and _covers(f, (x, z))]
+        check(bool(stone), f"676 model draws no solid face over {(x, z)}")
+        check(not water, f"676 model draws water over causeway {(x, z)}: {water}")
+    # Ground VOIDs: no prop (the stone MapObject draws the landed stone).
+    for (x, z) in sorted(solver.GROUND_VOID):
+        check((x, 1, z) not in prop_tiles, f"ground VOID {(x, z)} has a prop")
+    # Landing tiles are ground VOIDs with a designated edge per stone.
+    check({(x, z) for (_, x, z) in solver.LANDINGS}
+          == {(x, z) for (x, z) in solver.GROUND_VOID if (x, z) in
+              {(44, 34), (49, 40), (47, 42)}},
+          "landing tiles != the three gap landings")
+
+    bad = [r for r in rows if not r["ok"]]
     save("audit.json", {"rows": rows, "bad": bad,
-                        "ghost_props": len(props),
-                        "default_visible": spec.get("ghost_default_visible"),
-                        "triggers": spec.get("ghost_triggers")})
+                        "ghost_props": len(ghost["props"]),
+                        "default_visible": ghost["default_visible"],
+                        "triggers": ghost["triggers"]})
     expect(not bad, f"audit gaps: {bad}")
-    print(f"audit PASS: {len(rows)} tiles covered, {len(props)} ghost props, "
-          f"default_visible={spec.get('ghost_default_visible')}")
+    print(f"audit PASS: {len(rows)} checks, {len(ghost['props'])} ghost props "
+          f"(narc), default_visible={ghost['default_visible']}")
 
 
 # ---------------------------------------------------------------- exit
@@ -611,7 +927,8 @@ def cmd_exit():
 
 CMDS = {"replay": cmd_replay, "falls": cmd_falls, "reset": cmd_reset,
         "plug": cmd_plug, "fallframes": cmd_fallframes, "reentry": cmd_reentry,
-        "audit": cmd_audit, "exit": cmd_exit}
+        "audit": cmd_audit, "exit": cmd_exit,
+        "_reentry_dirty": cmd_reentry_dirty}
 
 
 if __name__ == "__main__":
