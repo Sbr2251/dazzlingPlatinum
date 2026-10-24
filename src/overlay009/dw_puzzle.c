@@ -36,11 +36,13 @@ BOOL gDwPuzzleTestMode = FALSE;
 extern const DwPuzzleTable gDwPuzzleTestTable;
 extern const DwPuzzleTable gDwPuzzleTestEternaTable;
 extern const DwPuzzleTable gDwPuzzleRavagedPathTable; // dwp:rift-rp
+extern const DwPuzzleTable gDwPuzzleEternaForestTable;
 
 static const DwPuzzleTable *const sPuzzleTables[] = {
     &gDwPuzzleTestTable,
     &gDwPuzzleTestEternaTable,
     &gDwPuzzleRavagedPathTable,
+    &gDwPuzzleEternaForestTable,
 };
 
 // Rift actor tables (engine-b), one per puzzle table, NULL until the
@@ -50,6 +52,7 @@ static const DwActorTable *const sActorTables[] = {
     NULL, // Ravaged Path test table: no actor table yet
     NULL, // Eterna Forest test table: no actor table yet
     NULL, // Ravaged Path production table: no actors // dwp:rift-rp
+    NULL, // Eterna Forest production table: no actor table
 };
 
 

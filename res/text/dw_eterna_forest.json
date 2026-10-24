@@ -36,6 +36,24 @@
       "en_US": [
         "Cyrus: ...So did I, once."
       ]
+    },
+    {
+      "id": "DWEternaForest_Text_CyrusRuneHint",
+      "en_US": [
+        "Cyrus: The runes flip you.\n",
+        "Wall to ceiling. Ceiling\r",
+        "to floor. Step off, then\n",
+        "step on to flip back."
+      ]
+    },
+    {
+      "id": "DWEternaForest_Text_CyrusSigilHint",
+      "en_US": [
+        "Cyrus: Beside the rune sits\n",
+        "a sigil. It raises the\r",
+        "bridge. Cross while the\n",
+        "honey holds."
+      ]
     }
   ]
 }
