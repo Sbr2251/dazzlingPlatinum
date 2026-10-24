@@ -139,6 +139,6 @@ Flags 0x0A00-0x0A3F (free: after the trainer-defeated block 1360+ and the totem 
 | rift-rp | `FLAG_DW_RP_A..H` (0x0A00-0x0A07) |
 | rift-ef | `FLAG_DW_EF_A..H` (0x0A08-0x0A0F) |
 | rift-214 | `FLAG_DW_214_A..H` (0x0A10-0x0A17) |
-| rift-213 | `FLAG_DW_213_A..H` (0x0A18-0x0A1F) |
+| rift-213 | `FLAG_DW_213_A..H` (0x0A18-0x0A1F); A = fell once in DW Route 213, B = puzzle hint shown |
 | rift-lt | `FLAG_DW_LT_A..P` (0x0A20-0x0A2F) |
 | engine-a / engine-b | `FLAG_DW_ENGINE_A..P` (0x0A30-0x0A3F) |

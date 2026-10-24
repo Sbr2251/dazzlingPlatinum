@@ -2367,6 +2367,32 @@ static int DwPuzzle_Ov9Surface(FieldSystem *fieldSystem)
     }
 }
 
+// dwp:rift-213: world DIR -> surface FACE for DwPuzzle_DirDelta.
+// PlayerAvatar_GetDir is a WORLD dir (0 north/-z, 1 south/+z, 2 west/-x,
+// 3 east/+x), but DirDelta indexes by surface FACE. On GROUND/FLOOR the
+// frames coincide; on the CEILING z is flipped (surface UP = world
+// south); on the walls the horizontal dirs map to the z FACEs. Passing
+// the world DIR straight through made prevTile land on the wrong side,
+// so every ceiling push targeted the tile behind the player (usually
+// a protected checkpoint) and failed. Wall VERTICAL steps (climbs)
+// carry no usable facing (the avatar faces into the wall, +/-x): they
+// keep the old mapping, which is wrong for a wall push, but no table
+// has wall stones; a wall-push rift needs displacement-based prev,
+// not facing.
+static int DwPuzzle_Ov9FaceFromDir(int surface, int dir)
+{
+    switch (surface) {
+    case DW_PUZZLE_SURFACE_CEILING:
+        return (dir == 0) ? 1 : (dir == 1) ? 0 : dir;
+    case DW_PUZZLE_SURFACE_WEST_WALL:
+        return (dir == 0) ? 3 : (dir == 1) ? 2 : dir;
+    case DW_PUZZLE_SURFACE_EAST_WALL:
+        return (dir == 0) ? 2 : (dir == 1) ? 3 : dir;
+    default:
+        return dir; // GROUND / FLOOR: frames coincide
+    }
+}
+
 // dwp:engine-b: TryPush for a step onto a BLOCKED tile. Returns the
 // tile's state after the push attempt (BLOCKED if no push happened).
 // Only for the tile the player is stepping onto (dest == player tile +
@@ -2382,7 +2408,7 @@ static DwPuzzleTileState DwPuzzle_Ov9TryPushTile(FieldSystem *fieldSystem, int d
     int dx, dy, dz;
     DwActorTile prevTile, destTile;
 
-    DwPuzzle_DirDelta(surface, facing, &dx, &dy, &dz);
+    DwPuzzle_DirDelta(surface, DwPuzzle_Ov9FaceFromDir(surface, facing), &dx, &dy, &dz);
     if (destX != playerX + dx || destY != playerY + dy || destZ != playerZ + dz) {
         return DW_PUZZLE_TILE_BLOCKED; // a side probe, not the step target
     }
@@ -3357,7 +3383,8 @@ BOOL ov9_0224A71C(FieldSystem *fieldSystem)
             int puzzleSurface = DwPuzzle_Ov9Surface(fieldSystem);
             BOOL skipPuzzleStep = FALSE;
 
-            DwPuzzle_DirDelta(puzzleSurface, v4, &dx, &dy, &dz);
+            // dwp:rift-213: v4 is a world DIR; DirDelta wants a surface FACE.
+            DwPuzzle_DirDelta(puzzleSurface, DwPuzzle_Ov9FaceFromDir(puzzleSurface, v4), &dx, &dy, &dz);
             prevTile.x = (s16)(v1 - dx);
             prevTile.y = (s16)(v2 - dy);
             prevTile.z = (s16)(v3 - dz);

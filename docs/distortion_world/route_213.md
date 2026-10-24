@@ -235,13 +235,14 @@ call at its destination. The reset sigils (stage 1: (45, 29); stage 2:
 
 ## Cyrus's hint (after two falls)
 
-Text id `DWRoute213_Text_CyrusPuzzleHint`, new in
-`res/text/dw_route_213.json` in Phase 2. ASCII, 197 px boxes, short
-lines in character. Trigger: the second fall (the engine's
-`gDwPuzzleDebug.fallCount` reaches 2; Phase 2 wires it to a one-shot
-script, map-local `VAR_MAP_LOCAL_2` so it survives neither a blackout
-nor a re-entry — it re-fires if the player falls twice again, which
-is the behaviour wanted).
+Text id `DWRoute213_Text_CyrusPuzzleHint`, in
+`res/text/dw_route_213.json`. ASCII, 197 px boxes, short
+lines in character. Trigger: the second fall, in the fall script
+(`DWRoute213_Fall`, entry 10). It fires once per save, via persistent
+flags `FLAG_DW_213_A` (fell once) + `FLAG_DW_213_B` (hint shown):
+map-local vars cannot count falls because they reset on the fall
+warp. (Phase 1 doc said map-local + re-fire; Phase 2 changed this —
+persistent flags are the only counter that survives the warp.)
 
 ```
 Cyrus: Push the stone into
@@ -369,14 +370,14 @@ table below is the drawing brief, not the audit.
 |---|---|
 | Stock causeway, island | existing hanging-lake stone (`build_dw_route_213.py`) |
 | 3 ceiling gaps (VOID) | open water: the hanging-lake water face, no stone quad |
-| Rune alcoves (3 ceiling) | rune circle decal on the water / slab edge + a low rim (see below) |
-| Reset alcoves (2 ceiling) | sigil circle decal, distinct colour from runes |
-| Ground reef shelves (20) | sunken reef / lakebed shelf props (ghost props, group NONE) — the ground under the ceiling is not stock-drawn walkable ground, so each shelf needs a prop face |
+| Rune alcoves (3 ceiling) | small-platform ghost prop (kind 0, group 0) at y=10 on the water tile (the Eterna honeycomb pattern for walkable ceiling tiles) |
+| Reset alcoves (2 ceiling) | small-platform ghost prop (kind 0, group 0) at y=10 on the water tile, same prop as runes (no separate sigil colour in the prop set) |
+| Ground reef shelves (20) | small-platform ghost props (kind 0, group 0, default-visible) at y=1 — stock 615 draws nothing at these tiles, so each shelf needs a prop face |
 | Ground landing tiles (3) | open water / void: no shelf face; the landed stone's MapObject fills the tile when it lands (the sprite is the drawn proof of the SOLID tile) |
 | Landed stones (3 ground) | the stone MapObject itself, settled on the gap; drawn as a stepping stone |
 | Ceiling stones (3) | the stone MapObject, pushable; drawn as a boulder on the causeway |
 | Plug stone (1 ground) | the stone MapObject, pushable; drawn as a boulder on the current column |
-| Current tiles (4 ground) | flowing-water decal + arrow ghost props (engine-a `arrowGhostGroup`) pointing in the slide direction |
+| Current tiles (4 ground) | reef shelf prop (kind 0) like the other shelves; no arrow ghost prop exists in the DW prop set — drift direction is shown by the corridor geometry (the stage-2 column points south to the hazard gap; the stage-3 tile points north to the landed stone) plus the Cyrus hint |
 | Rim | the ceiling rim (already built by `build_dw_route_213.py` where stone meets water) must also exist at the slab edges (44, 30-36), (49, 27-42) where a stone could be pushed at it — it is the visual reason an edge push stops. Phase 2 confirms the rim faces exist there; if any edge is open water with no rim, the rim face is added or that push is re-checked. |
 
 Note: the design has no "rim stops a stone" rule any more. A stone
@@ -398,10 +399,9 @@ purely visual now; the solver does not rely on it.
 * Story props: the sign (24, 22), the rusted frame (31, 20), the
   rowboat, the jetty, the Lapras on the island (46, 46). None moves.
   The totem hook (`Arc2DwRoute213_HandleStep`, z >= 45) is unchanged.
-* No new persistent flags: the design uses no `FLAG_DW_213_*`
-  flag. The hint uses map-local `VAR_MAP_LOCAL_2` only.
-* No `dwpuzzles` merge yet; Phase 2 waits for the lead's word that
-  engine-a and engine-b are merged.
+* Persistent flags: `FLAG_DW_213_A` (fell once) + `FLAG_DW_213_B`
+  (hint shown), from the assigned block, for the hint counter
+  (see above). Nothing else takes a flag.
 
 ## Solver evidence
 

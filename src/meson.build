@@ -505,6 +505,8 @@ pokeplatinum_c = files(
     'overlay009/dw_puzzle.c',
     'overlay009/dw_puzzle_test.c',
     'overlay009/dw_puzzle_test_eterna.c',
+    # dwp:rift-213: DW Route 213 puzzle + actor tables
+    'overlay009/dw_puzzle_route_213.c',
     # dwp:engine-b: stones, shadow, echo, totem-echo pads
     'overlay009/dw_puzzle_actors.c',
     'overlay010/ov10_0221F800.c',

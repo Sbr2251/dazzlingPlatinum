@@ -633,6 +633,8 @@ Overlay overlay9
 	Object main.nef.p/src_overlay009_dw_puzzle_test.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_test_eterna.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_actors.c.o
+	// dwp:rift-213: DW Route 213 puzzle + actor tables
+	Object main.nef.p/src_overlay009_dw_puzzle_route_213.c.o
 }
 
 Overlay overlay10
