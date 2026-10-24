@@ -143,15 +143,19 @@ the far side is split into a honeycomb side (z <= 38) and a totem side
   on y1 to (49,1,21), and jumps down -- the rune never strands them,
   because walking AWAY from it on y1 never re-triggers it.
 - Table: two `DwPuzzleRune` entries (one per direction; the API has one
-  entry per direction). rot/steps copy the stock wall<->ceiling jumps
-  (wall -> ceiling rot -90, ceiling -> wall rot 90, steps 16, facing -1,
-  useCamera 0).
+  entry per direction). rot copies the stock wall<->ceiling jumps
+  (wall -> ceiling rot -90, ceiling -> wall rot 90, facing -1,
+  useCamera 0). steps is 32, not the stock 16: the jump task moves Y
+  at most one half-tile per frame, so a 9-tile Y change needs > 18
+  steps; 16 steps landed the player a tile short, stranded at
+  (49,9,25) on the ceiling (found in headless testing).
 
 ### Rune B: ceiling <-> floor, the working rune
 
 - Ceiling tile (45,10,37) <-> floor tile (45,1,37), the west tile of the
   two-tile platform. Table: two `DwPuzzleRune` entries, rot 180 both
-  ways (upside-down <-> upright), steps 16, facing -1, useCamera 0.
+  ways (upside-down <-> upright), steps 32 (same jump-task Y cap as
+  Rune A), facing -1, useCamera 0.
 - The platform is (45,1,37) + (46,1,37) on the floor (y = 1). The west
   tile is the rune landing; the east tile is the sigil (below). The
   flow is: flip down onto (45,37), step east onto the sigil (46,37),
@@ -185,13 +189,13 @@ the far side is split into a honeycomb side (z <= 38) and a totem side
   props, one per gap tile; section 5). The group's fade fields are 0,
   which the API maps to the defaults: fadeOut 33, fadeInLead 3. The
   group only ever turns on, and the 3-frame fade-in lead is harmless:
-  at least 4 moves (64 frames: step west, flip up, two steps south)
+  80 frames (step west 16, flip up 32, two steps south 32)
   elapse between the sigil and the first bridge step. The group only
   ever turns off via a checkpoint restore (a fall to a checkpoint whose
   snapshot has bridge OFF): then the props fade for 33 frames while
   the tiles stay solid (the honeycomb rule), and the minimum re-solve
-  from the approach checkpoint to the gap is 176 frames (4 honeycomb
-  steps + flip down 32 + sigil step 16 + flip up 32 + 2 steps south
+  from the approach checkpoint to the gap is 208 frames (4 honeycomb
+  steps 64 + flip down 48 + sigil step 16 + flip up 48 + 2 steps south
   32), so the fade is over before the player can reach the gap again.
 - Why SET and not TOGGLE: at difficulty 3 the sigil is a reward for
   reaching the platform, not a state to manage. A toggle would let the
@@ -464,12 +468,12 @@ solver's model is section 9's table in code form.)
 
 - Optimal moves: 38 for every honeycomb start phase (0..212). The
   honeycomb never forces an extra move, only waits.
-- Worst-case wait: 156 frames (~5.2 s) at the safe tile (45,10,32),
-  at start phase 35; worst-case total 812 frames (~27.1 s at 30 fps)
-  for the whole route (38 moves at 16f + 3 flips at +16f each +
+- Worst-case wait: 172 frames (~5.7 s) at the safe tile (45,10,32),
+  at start phase 3; worst-case total 876 frames (~29.2 s at 30 fps)
+  for the whole route (38 moves at 16f + 3 flips at +32f each +
   waits). The wait rule is conservative: the player waits until the
-  whole crossing occupancy (4 crossing moves + the 32-frame flip
-  exit = 96 frames) fits inside the 153-frame solid window, so the
+  whole crossing occupancy (4 crossing moves + the 48-frame flip
+  exit = 112 frames) fits inside the 153-frame solid window, so the
   result holds whether the engine updates the player's tile at step
   start or at step end.
 - No soft-lock: forward reachability over the abstract state graph
@@ -480,9 +484,9 @@ solver's model is section 9's table in code form.)
   simple, so its honeycomb runs are short; the solver verifies the
   EXACT weighted occupancy of every run on every reachable state's
   shortest tree path -- 16f per honeycomb position plus the exit
-  move (16f walk, 32f flip exit); a run ending in a fall needs no
+  move (16f walk, 48f flip exit); a run ending in a fall needs no
   bound, since the fall lands on a checkpoint (a safe tile) whose
-  own path is realizable the same way. Max occupancy observed: 96
+  own path is realizable the same way. Max occupancy observed: 112
   frames, inside one 153-frame solid window; the player aligns a
   run by waiting on the safe tile before it. Falls included: a
   fall from any state lands on a checkpoint from which the totem is
@@ -494,40 +498,70 @@ solver's model is section 9's table in code form.)
 
 ## 9. Phase 2 table (sketch; exact C in `dw_puzzle_eterna_forest.c`)
 
+The shipped table is `src/overlay009/dw_puzzle_eterna_forest.c`
+(`gDwPuzzleEternaForestTable`); this sketch mirrors it. v2 API notes:
+base terrain is `GROUND` (not `FLOOR`, a floating platform); every
+entry carries a surface; tiles carry a per-tile fallScriptId; the
+table carries `testOnly`. The table is registered in `dw_puzzle.c`
+`sPuzzleTables[]` after the test tables (a test table still wins in
+test mode) and the file is listed in `src/meson.build` AND in
+`platinum.us/main.lsf` overlay 9 (meson alone compiles the .o but
+the linker script decides what lands in the overlay -- without the
+main.lsf line the table symbol linked as 0 and the engine never
+activated in production; caught by reading `sPuzzleTables` from
+live RAM).
+
 ```c
-/* groups[0]: bridge. tiles = (44..47, 10, 39..40), 8 tiles. Fade
-   fields 0 -> defaults (fadeOut 33, fadeInLead 3); see section 3. */
+/* groups[0]: bridge. tiles = (44..47, 10, 39..40) on CEILING, 8 tiles.
+   Fade fields 0 -> defaults (fadeOut 33, fadeInLead 3); see section 3. */
 { sBridgeTiles, 8, 2, 0, 0, DW_PUZZLE_TILE_SOLID, DW_PUZZLE_TILE_BLOCKED, 0, 0 },
-/* sigils[0]: SET the bridge on, on the EAST platform tile (walked step). */
-{ 46, 1, 37, DW_PUZZLE_SIGIL_SET, 0, 1, 0 },
-/* runes: A wall->ceiling, A ceiling->wall, B ceiling->floor, B floor->ceiling. */
-{ 49, 1, 25,  49, 10, 25, DW_PUZZLE_SURFACE_CEILING, -1, -90, 16, 0, 0, 0, 0, 0 },
-{ 49, 10, 25, 49, 1, 25,  DW_PUZZLE_SURFACE_EAST_WALL, -1, 90, 16, 0, 0, 0, 0, 0 },
-{ 45, 10, 37, 45, 1, 37,  DW_PUZZLE_SURFACE_FLOOR, -1, 180, 16, 0, 0, 0, 0, 0 },
-{ 45, 1, 37,  45, 10, 37, DW_PUZZLE_SURFACE_CEILING, -1, 180, 16, 0, 0, 0, 0, 0 },
+/* sigils[0]: SET the bridge on, on the EAST platform tile (walked step), GROUND. */
+{ 46, 1, 37, DW_PUZZLE_SIGIL_SET, 0, 1, DW_PUZZLE_SURFACE_GROUND },
+/* runes: A wall->ceiling, A ceiling->wall, B ceiling->ground, B ground->ceiling.
+   steps 32 (jump-task Y cap; section 3). */
+{ 49, 1, 25,  49, 10, 25, DW_PUZZLE_SURFACE_EAST_WALL, DW_PUZZLE_SURFACE_CEILING,
+  -1, 0, -90, 32, 0, 0, 0, 0, 0 },
+{ 49, 10, 25, 49, 1, 25,  DW_PUZZLE_SURFACE_CEILING, DW_PUZZLE_SURFACE_EAST_WALL,
+  -1, 0, 90, 32, 0, 0, 0, 0, 0 },
+{ 45, 10, 37, 45, 1, 37,  DW_PUZZLE_SURFACE_CEILING, DW_PUZZLE_SURFACE_GROUND,
+  -1, 0, 180, 32, 0, 0, 0, 0, 0 },
+{ 45, 1, 37,  45, 10, 37, DW_PUZZLE_SURFACE_GROUND, DW_PUZZLE_SURFACE_CEILING,
+  -1, 0, 180, 32, 0, 0, 0, 0, 0 },
 /* checkpoints (7): entry; honeycomb approach x44, x45; bridge x44-47 at z39. */
-{ 20, 1, 12, -1 },
-{ 44, 10, 32, -1 }, { 45, 10, 32, -1 },
-{ 44, 10, 39, -1 }, { 45, 10, 39, -1 }, { 46, 10, 39, -1 }, { 47, 10, 39, -1 },
-/* tiles: explicit overrides for the Rune B platform (stock floor blocked). */
-{ 45, 1, 37, DW_PUZZLE_TILE_SOLID, 0 }, { 46, 1, 37, DW_PUZZLE_TILE_SOLID, 0 },
+{ 20, 1, 12, -1, DW_PUZZLE_SURFACE_GROUND, { 0, 0 } },
+{ 44, 10, 32, -1, DW_PUZZLE_SURFACE_CEILING, { 0, 0 } },
+{ 45, 10, 32, -1, DW_PUZZLE_SURFACE_CEILING, { 0, 0 } },
+{ 44, 10, 39, -1, DW_PUZZLE_SURFACE_CEILING, { 0, 0 } },
+{ 45, 10, 39, -1, DW_PUZZLE_SURFACE_CEILING, { 0, 0 } },
+{ 46, 10, 39, -1, DW_PUZZLE_SURFACE_CEILING, { 0, 0 } },
+{ 47, 10, 39, -1, DW_PUZZLE_SURFACE_CEILING, { 0, 0 } },
+/* tiles (8): Rune B platform SOLID (GROUND) + 6 entry-lip VOID (GROUND, fall script 2). */
+{ 45, 1, 37, DW_PUZZLE_TILE_SOLID, DW_PUZZLE_SURFACE_GROUND, 0, 0 },
+{ 46, 1, 37, DW_PUZZLE_TILE_SOLID, DW_PUZZLE_SURFACE_GROUND, 0, 0 },
+{ 15, 1, 11, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_GROUND, 2, 0 },
+{ 19, 1, 11, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_GROUND, 2, 0 },
+{ 20, 1, 11, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_GROUND, 2, 0 },
+{ 21, 1, 11, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_GROUND, 2, 0 },
+{ 20, 1, 13, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_GROUND, 2, 0 },
+{ 21, 1, 13, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_GROUND, 2, 0 },
 /* table: mapHeader MAP_HEADER_DW_ETERNA_FOREST, progress 24..24,
    fallScriptId 5, fallVar VAR_MAP_LOCAL_2,
-   counts groups 1, sigils 1, runes 4, currents 0, checkpoints 7, tiles 2. */
+   counts groups 1, sigils 1, runes 4, currents 0, checkpoints 7, tiles 8,
+   testOnly 0. */
 ```
 
-Phase 2 glue (`ov9_02249960.c`, hook calls only): call
-`DwPuzzle_HandleStep` first in `Arc2DwEternaForest_HandleStep` (before the
-map's own honeycomb / totem logic); call `DwPuzzle_HandleFrame` in
-`Arc2Dw_HandleFrame`; apply its ghost show/hide masks (bridge group 2);
-on `respawnRequested` move the player to the checkpoint. The existing
-honeycomb frame code stays and keeps driving ghost group 1. The
-existing totem trigger (first ceiling step at z >= 41) stays after the
-engine call. Register the table in `dw_puzzle.c` `sPuzzleTables[]`.
+Glue (`ov9_02249960.c`): engine-a already ships the generic glue --
+`DwPuzzle_HandleStep` runs before the per-map chain in `ov9_0224A71C`,
+`DwPuzzle_HandleFrame` runs in `Arc2Dw_HandleFrame` (ghost masks,
+slide, respawn), and `DwPuzzle_NotifyFall` is wired on both honeycomb
+fall paths. This rift needed no per-map glue changes: the existing
+honeycomb frame code keeps driving ghost group 1, and the existing
+totem trigger (first ceiling step at z >= 41) runs after the engine
+step hook.
 
-### Open questions for engine-a / Phase 2 (not assumed solved)
+### Open questions resolved in Phase 2
 
-1. REQUIRED ENGINE CHANGE: honeycomb falls and fresh-entry reset
+1. DELIVERED by engine-a: honeycomb falls and fresh-entry reset
    (section 7 rule 8). The published API has no way for the existing
    honeycomb timer code (which detects the fall, not an engine VOID
    tile) to mark the fall pending, and the usage guide says an
@@ -549,10 +583,10 @@ engine call. Register the table in `dw_puzzle.c` `sPuzzleTables[]`.
    engine-a confirms NotifyFall (or the timer-group fallback)
    lands; the headless fall tests (both honeycomb fall paths,
    bridge ON + bridge checkpoint surviving) prove it.
-2. REQUIRED ENGINE SEMANTIC (section 7 rule 7): no rune re-fire on a
-   rune landing. Pin with headless tests reading `gDwPuzzleDebug`
-   after each flip (one `DW_PUZZLE_EVENT_RUNE` per flip; no second
-   event until the player steps off and back on).
+2. DELIVERED by engine-a: no rune re-fire on a rune landing
+   (the landing rule: a landing fires NOTHING). Pinned by the
+   headless rune test (one flip per step onto a rune; the player
+   stays on the floor platform after flipping down).
 3. Respawn timing: the engine respawn after the HoneyFall warp must
    land while faded out (one fade, no visible double-warp). Verify on
    a frame strip.

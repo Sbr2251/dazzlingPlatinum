@@ -50,19 +50,25 @@ static const DwPuzzleSigil sSigils[] = {
     { 46, 1, 37, DW_PUZZLE_SIGIL_SET, 0, 1, DW_PUZZLE_SURFACE_GROUND },
 };
 
-// Gravity runes, one entry per direction. rot/steps copy the stock
+// Gravity runes, one entry per direction. rot copies the stock
 // wall<->ceiling jumps (wall -> ceiling -90, ceiling -> wall 90);
-// Rune B is 180 both ways (upside-down <-> upright). steps 0 = 16,
+// Rune B is 180 both ways (upside-down <-> upright). steps is 32,
+// NOT the stock 16: the jump task moves Y at most one half-tile per
+// frame (TickJumpOnFloatingPlatformMovementAnimation increments the
+// Y tile counter per MAP_OBJECT_TILE_SIZE / 2 of accumulated Y), so
+// a 9-tile Y change (y1 <-> y10) needs > 18 steps; 16 steps landed
+// the player a tile short, at (49,9,25) on the ceiling, stranded
+// (the ceiling platform's bounds are y = 10 only). 32 gives margin.
 // useCamera 0 (the stock camera templates at the destination take over).
 static const DwPuzzleRune sRunes[] = {
     { 49, 1, 25, 49, 10, 25, DW_PUZZLE_SURFACE_EAST_WALL, DW_PUZZLE_SURFACE_CEILING,
-      -1, 0, -90, 0, 0, 0, 0, 0, 0 },
+      -1, 0, -90, 32, 0, 0, 0, 0, 0 },
     { 49, 10, 25, 49, 1, 25, DW_PUZZLE_SURFACE_CEILING, DW_PUZZLE_SURFACE_EAST_WALL,
-      -1, 0, 90, 0, 0, 0, 0, 0, 0 },
+      -1, 0, 90, 32, 0, 0, 0, 0, 0 },
     { 45, 10, 37, 45, 1, 37, DW_PUZZLE_SURFACE_CEILING, DW_PUZZLE_SURFACE_GROUND,
-      -1, 0, 180, 0, 0, 0, 0, 0, 0 },
+      -1, 0, 180, 32, 0, 0, 0, 0, 0 },
     { 45, 1, 37, 45, 10, 37, DW_PUZZLE_SURFACE_GROUND, DW_PUZZLE_SURFACE_CEILING,
-      -1, 0, 180, 0, 0, 0, 0, 0, 0 },
+      -1, 0, 180, 32, 0, 0, 0, 0, 0 },
 };
 
 // Checkpoints, all on guaranteed WALKED, non-rune tiles: entry;

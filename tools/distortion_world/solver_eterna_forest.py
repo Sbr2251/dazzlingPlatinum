@@ -38,7 +38,7 @@ Proofs (all run by main()):
    verifies the EXACT weighted occupancy of every maximal run of
    consecutive honeycomb positions on every reachable state's
    shortest tree path: 16f per honeycomb position plus the exit
-   move (16f walk, 32f flip exit). A run ending in a fall needs no
+   move (16f walk, 48f flip exit). A run ending in a fall needs no
    bound: the fall lands on a checkpoint (a safe tile) whose tree
    path is realizable the same way. Every surviving run must fit
    in one 153-frame solid window, and the player aligns it by
@@ -47,7 +47,7 @@ Proofs (all run by main()):
 3. Concrete check: the documented 38-step path is simulated for every
    honeycomb start phase (0..212), with greedy waits at the safe tile
    (45,10,32) until the whole honeycomb occupancy (4 crossings + the
-   flip exit = 96 frames) fits in the solid window.
+   flip exit = 112 frames) fits in the solid window.
 
 Harness note: this file is standalone until tools/distortion_world/emu/
 solver.py (harness workstream) lands; it uses the same semantics that
@@ -65,7 +65,7 @@ FLOOR, WALL, CEIL = 0, 1, 2
 HONEY_SOLID, HONEY_FADE, HONEY_GONE = 120, 33, 60
 HONEY_CYCLE = HONEY_SOLID + HONEY_FADE + HONEY_GONE  # 213
 HONEY_GONE_START = HONEY_SOLID + HONEY_FADE          # 153
-STEP_FRAMES, FLIP_EXTRA_FRAMES, WAIT_FRAMES, FALL_FRAMES = 16, 16, 1, 60
+STEP_FRAMES, FLIP_EXTRA_FRAMES, WAIT_FRAMES, FALL_FRAMES = 16, 32, 1, 60
 
 # --- geometry (verified against tools/distortion_world/eterna_forest.json) ----
 # Floor, on foot: entry walkway, hive strip, Rune B platform.
@@ -287,7 +287,7 @@ def soft_lock_proof(start):
     # Weighted honeycomb-occupancy bound on every reachable state's
     # tree path. A run of k consecutive honeycomb positions costs
     # 16f per position (the moves onto/within the run) plus the exit
-    # move: 16f for a walk, 32f for a flip exit (e.g. out through
+    # move: 16f for a walk, 48f for a flip exit (e.g. out through
     # Rune B). A run ending in a fall needs no survival bound: the
     # fall IS the outcome, and it lands on a checkpoint whose own
     # path is realizable. Assert every surviving run fits in the
@@ -330,8 +330,8 @@ PATH = ([(-1, 0, 0)] * 3 + [(1, 0, 0)] * 8 + [(1, 0, 0)]
         + [(1, 0, 0)] + [(-1, 0, 0)] + [(0, 0, 1)] * 4)
 WAIT_TILE = (CEIL, 45, 10, 32)  # safe tile before the honeycomb
 # Honeycomb occupancy of the crossing: 4 crossing moves (16f each) +
-# the flip exit move (32f), starting from the tile before it.
-CROSS_FRAMES = 4 * STEP_FRAMES + (STEP_FRAMES + FLIP_EXTRA_FRAMES)  # 96
+# the flip exit move (48f), starting from the tile before it.
+CROSS_FRAMES = 4 * STEP_FRAMES + (STEP_FRAMES + FLIP_EXTRA_FRAMES)  # 112
 
 
 def _gone_in_interval(phase, frames):
@@ -413,7 +413,7 @@ def main():
     print("no-soft-lock proof (abstract + realization lemma): PASS")
     print(f"max honeycomb occupancy on any reachable state's shortest path: "
           f"{max_occupancy} frames (16f per honeycomb position + 16f walk / "
-          f"32f flip exit) <= 153 solid window: PASS")
+          f"48f flip exit) <= 153 solid window: PASS")
     assert max_occupancy <= HONEY_GONE_START
     assert opt == len(PATH), f"documented path {len(PATH)} != optimal {opt}"
     print(f"documented path length {len(PATH)} == optimal: PASS")
