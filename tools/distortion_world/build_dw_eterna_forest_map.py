@@ -7,10 +7,11 @@ from DW B1F), chunks (1,0)/(0,1)/(1,1) are stock DW B4F (613/614/615). 671 was a
 edges that only made sense in Arc 1 (owner playtest round 2; the same faults fix2-dwrp fixed in DW Ravaged Path,
 build_ravaged_path_map.py). The model and BDHC are copied unchanged; only the permissions change (fix2-lost):
 
-- False falls: the chasm-lip rows next to the walkway fall (coord events, DWEternaForest_Fall), but some lip tiles
-  are drawn ground: (16..19,13) is the floor under the two trees south of the walkway and (16..18,11) the rock
-  block north of it. They are plain blocked again, as in stock B1F. The open-void lips stay walkable and fall:
-  (15,11), (19..21,11), (20..21,13). Keep in sync with res/field/events/events_dw_eterna_forest.json.
+- False falls: the chasm-lip rows next to the walkway fall (engine VOID tiles in dw_puzzle_eterna_forest.c,
+  fall script DWEternaForest_Fall -- their old coord events were removed so the fall goes through the engine
+  exactly once), but some lip tiles are drawn ground: (16..19,13) is the floor under the two trees south of the
+  walkway and (16..18,11) the rock block north of it. They are plain blocked again, as in stock B1F. The open-void
+  lips stay walkable and fall: (15,11), (19..21,11), (20..21,13). Keep in sync with the table's tiles.
 - Invisible stepping stones: east of the walkway, B1F's jump-twice tiles (23..24, 26..27, 29..30, z=12) hop the
   player from (22,12) to (25,12), (28,12) and (31,12). In Ravaged Path and the Lost Tower ghost props draw stones on
   (25,12) and (28,12), but this map's tw_arc record is B4F's (tools/distortion_world/eterna_forest.json), so nothing
@@ -48,6 +49,12 @@ through. No inner walls: at this camera's grazing angle the far wall filled the 
 void. The honeycomb, while it is there, is drawn over the hole. Permissions and BDHC are 613's (the ceiling's
 collision is the tw_arc grid). Matrix 292 is [[671, 679], [614, 615]].
 
+The BRIDGE-GAP notch (rift-ef puzzle): the same cut over the gap footprint (tiles x 44-47, z 39-40), shifted by
+the same feet offset (x 44.4-48.4, z 38.6-40.6). The gap is interior, so there is no bevelled edge to widen
+over. While the bridge group is off the hole shows the void; while it is on, its ghost props (group 2) draw
+over the hole. The gap's walkability comes from the bridge group in dw_puzzle_eterna_forest.c, not from 679's
+permissions (unchanged).
+
 Usage: python3 tools/distortion_world/build_dw_eterna_forest_map.py [--check]
 """
 import json
@@ -74,18 +81,34 @@ BLOCK = [
 ]
 
 
-# --- the honeycomb notch (679 from 613) -------------------------------------------------------------------------
+# --- the ceiling-slab notches (679 from 613) ------------------------------------------------------------------------
+# Two notches in the slab underside, both cut by the same code: the
+# honeycomb notch (fix2-honey) and the bridge-gap notch (rift-ef
+# puzzle: the gap tiles x 44-47, z 39-40, BLOCKED until the sigil
+# latches the bridge group on; the slab must show a hole there when
+# the bridge is off, and the bridge props draw over it when on).
 HONEY_SRC, HONEY_DST, HONEY_CHUNK = 613, 679, (1, 0)
 HONEY_X0, HONEY_X1, HONEY_Z0, HONEY_Z1 = 44.0, 46.0, 33.0, 37.0   # the honeycomb tiles x 44-45, z 33-36
+GAP_X0, GAP_X1, GAP_Z0, GAP_Z1 = 44.0, 48.0, 39.0, 41.0           # the bridge-gap tiles x 44-47, z 39-40
 FEET_OFFSET = (0.4, -0.4)            # where the feet meet the slab, from the player's tile (see the docstring)
 SLAB_EDGE_X = 43.4                   # the slab's bevelled west edge (x 43.5-44): cut with the notch
 NOTCH_H0, NOTCH_H1 = 10.5, 11.8      # the underside layers (h 11.0, 11.5); the top sheet (h 12.1) stays
 
 
 def notch_rect():
-    """The notch in plan (x0, x1, z0, z1), world tiles."""
+    """The honeycomb notch in plan (x0, x1, z0, z1), world tiles."""
     dx, dz = FEET_OFFSET
     return (SLAB_EDGE_X, HONEY_X1 + dx, HONEY_Z0 + dz, HONEY_Z1 + dz)
+
+
+def gap_notch_rect():
+    """The bridge-gap notch in plan (x0, x1, z0, z1), world tiles: the
+    gap footprint shifted by the feet offset, so on every gap tile the
+    feet are inside the hole and on the tiles round it they are outside
+    it. The gap is interior (slab continues on all sides), so unlike
+    the honeycomb notch there is no bevelled edge to widen over."""
+    dx, dz = FEET_OFFSET
+    return (GAP_X0 + dx, GAP_X1 + dx, GAP_Z0 + dz, GAP_Z1 + dz)
 
 
 def _units(model, chunk):
@@ -168,13 +191,15 @@ def _split(polys):
 
 
 def cut_honeycomb_notch(model_bytes):
-    """613's model with the notch cut in the ceiling slab's underside. Only the shapes the notch touches are
+    """613's model with the notches cut in the ceiling slab's underside
+    (honeycomb + bridge gap). Only the shapes the notches touch are
     re-encoded; the rest of the model is byte-identical."""
     bmd = nsbmd.parse_bmd(model_bytes)
     m = bmd["models"][0]
     u = _units(m, HONEY_CHUNK)
-    notch = notch_rect()
-    rect = (u["x"](notch[0]), u["x"](notch[1]), u["z"](notch[2]), u["z"](notch[3]))
+    rects = []
+    for notch in (notch_rect(), gap_notch_rect()):
+        rects.append((u["x"](notch[0]), u["x"](notch[1]), u["z"](notch[2]), u["z"](notch[3])))
     hrange = (u["h"](NOTCH_H0), u["h"](NOTCH_H1))
     mat_of_shape = {si: mi for mi, si in nsbmd.shape_material_pairs(m)}
     stats = {}
@@ -183,7 +208,12 @@ def cut_honeycomb_notch(model_bytes):
         tris, quads = nsbmd.prims_to_faces(nsbmd.dl_primitives(nsbmd.dl_decode(shape["dl"])))
         polys, changed = [], False
         for f in list(quads) + list(tris):
-            cut = _cut_face(f, rect, hrange)
+            cut = [f]
+            for rect in rects:
+                nxt = []
+                for p in cut:
+                    nxt += _cut_face(p, rect, hrange)
+                cut = nxt
             changed |= cut != [f]
             polys += cut
         if not changed:
@@ -231,6 +261,7 @@ def main():
             open(path, "wb").write(data)
             print(path, "unchanged" if same else "written")
     print("honeycomb notch (x0, x1, z0, z1):", notch_rect())
+    print("bridge-gap notch (x0, x1, z0, z1):", gap_notch_rect())
     if check:
         print("OK" if ok else "differs (run without --check)")
         sys.exit(0 if ok else 1)
