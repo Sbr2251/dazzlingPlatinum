@@ -241,8 +241,11 @@ BOOL FieldInput_Process(const FieldInput *input, FieldSystem *fieldSystem)
         // D-pad is released (actor HandleFrame), so a genuine re-press
         // after release still steps. Only movement is consumed (A /
         // menu input still reaches the game).
-        if ((input->heldKeys & PAD_KEY) != 0
-            && PersistedMapFeatures_IsCurrentDynamicMap(fieldSystem, DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) == TRUE
+        // The DW check is FIRST (short-circuit): the ov9 actor call
+        // below only runs on a DW map, where overlay 9 is loaded.
+        // On any non-DW map the call is never made.
+        if (PersistedMapFeatures_IsCurrentDynamicMap(fieldSystem, DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) == TRUE
+            && (input->heldKeys & PAD_KEY) != 0
             && DwActors_IsAwaitingPadRelease(NULL, NULL, NULL)) {
             return TRUE;
         }
