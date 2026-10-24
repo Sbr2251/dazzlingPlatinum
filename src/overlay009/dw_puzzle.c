@@ -35,10 +35,12 @@ BOOL gDwPuzzleTestMode = FALSE;
 // The registry: one extern + one line per rift table (dw_puzzle_<map>.c).
 extern const DwPuzzleTable gDwPuzzleTestTable;
 extern const DwPuzzleTable gDwPuzzleTestEternaTable;
+extern const DwPuzzleTable gDwPuzzleRavagedPathTable; // dwp:rift-rp
 
 static const DwPuzzleTable *const sPuzzleTables[] = {
     &gDwPuzzleTestTable,
     &gDwPuzzleTestEternaTable,
+    &gDwPuzzleRavagedPathTable,
 };
 
 // Rift actor tables (engine-b), one per puzzle table, NULL until the
@@ -47,6 +49,7 @@ static const DwPuzzleTable *const sPuzzleTables[] = {
 static const DwActorTable *const sActorTables[] = {
     NULL, // Ravaged Path test table: no actor table yet
     NULL, // Eterna Forest test table: no actor table yet
+    NULL, // Ravaged Path production table: no actors // dwp:rift-rp
 };
 
 

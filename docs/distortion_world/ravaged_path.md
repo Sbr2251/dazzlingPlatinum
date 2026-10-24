@@ -14,10 +14,12 @@ stone bridges (ghost props + live walkability, engine-a `DwPuzzleGroup` /
 `DwPuzzleSigil`). Combined with: **crumbling scars** (one-use tiles, the
 existing `Arc2DwRavagedPath_HandleStep` hook, unchanged).
 
-Engine-a API: `include/overlay009/dw_puzzle.h` (branch `dw/engine-a`,
-commit 623ccce7ee). This design is written against that API. **Do not
-merge `dw/engine-a` yet** -- implement in Phase 2 when the lead says the
-engine has landed in `dwpuzzles`.
+Engine-a API: `include/overlay009/dw_puzzle.h` (merged in `dwpuzzles`
+9c7137907b, engine v2: explicit surfaces, per-tile/per-group
+fallScriptId, `DwPuzzle_NotifyFall`). Phase 2 implements against it.
+Phase 1's scar-fall analysis is superseded: scar falls call
+`DwPuzzle_NotifyFall()`, so they restore the checkpoint snapshot like
+lip falls (section 6), instead of resetting to initial.
 
 ## 1. Layout
 
@@ -125,10 +127,15 @@ face, x = 11 + 0.03). Two new decal sets:
   drawn ground. When the bridge is on, its ghost-prop stone covers the
   socket. This is the collision-vs-drawn rule for bridges.
 
-Texture choice for the rune / socket decals is open for Phase 2: it
-must be a texture in DW texture set 73 that reads as a rune / an empty
-socket. Do not reuse `s_land4` (the scar decal texture): it reads as a
-boulder, which would make a socket look like ground.
+Texture choice (resolved in Phase 2, verified by rendering texture
+set 73): the rune decal uses `s_land3` (blue diamonds on pink -- a
+glowing rune marking, distinct from the wall and the boulder), and
+the socket decals use `s_land2` (flat black -- a dark empty socket).
+Do not reuse `s_land4` (the scar decal texture): it reads as a
+boulder, which would make a socket look like ground. The builder
+merges the new rune material into the stock `s_land3` tex/pltt bind
+entries (that texture is already bound by a wall material); the
+name dictionary cannot hold duplicate entries.
 
 ## 2. The mechanic
 
@@ -140,10 +147,10 @@ boulder, which would make a socket look like ground.
   start the 33-frame fade-out while the tiles stay solid (a normal
   step is 8 frames), so the player could re-enter a fading bridge
   and still be standing on it when it becomes BLOCKED, with no
-  frame-fall path (`fallVar = 0`) to catch them. SET removes that
-  whole failure mode: the fade-out path is never exercised in this
-  rift (the only OFF transition is a fall restore, which happens
-  across a warp while the player is at the entry).
+  frame-fall path to catch a standing player whose ground went
+  away. SET removes that whole failure mode: the fade-out path is
+  never exercised in this rift (the only OFF transition is a fall
+  restore, which happens across a warp while the player is at the entry).
 * Group 0 on: the three bridge tiles are SOLID and their ghost props
   are shown. Group 0 off: the bridge tiles are BLOCKED (impassable)
   and their props are hidden.
@@ -268,35 +275,30 @@ that, talking to Cyrus keeps the existing lines.
 * **Checkpoint:** exactly one -- the entry (20, 1, 12), facing kept.
   `DwPuzzleCheckpoint { 20, 1, 12, -1 }`.
 * **Fall:** every fall warps the player to the entry checkpoint and
-  leaves the scars intact again (the existing entry-walkway reset).
-  Which group state the player comes back to depends on how the fall
-  happened, and the asymmetry is part of the design:
+  restores the puzzle state to the checkpoint snapshot (group on/off),
+  and the scars are intact again (the existing entry-walkway reset).
   * **Lip fall** (chasm lip, a VOID tile in the engine table): the
-    engine step hook sees the VOID tile, marks a fall pending, and
-    on the first frame after the warp restores the puzzle to the
-    checkpoint snapshot (the group state snapshotted when the player
-    last stepped on the entry checkpoint).
-  * **Scar fall** (per-map hook): the scar hook starts fall script 2
-    directly, so the engine never marks a fall pending; re-entry
-    looks like a fresh entry to the engine, which resets the puzzle
-    to initial (group OFF, snapshot OFF). This is the correct
-    reading of the engine-a API, which has no "mark a fall" entry
-    point for a per-map hook.
+    engine step hook sees the VOID tile and marks the fall.
+  * **Scar fall** (per-map hook): the hook calls
+    `DwPuzzle_NotifyFall()` BEFORE starting fall script 2, so the
+    engine records the fall in its own RAM and restores the snapshot
+    on the fall warp, exactly like a lip fall. This is the engine-a
+    scripted-fall pattern (Eterna honeycomb, Lost Tower drop).
   Fail cost, per the plan row: fall -> wall resets. With the SET
-  sigil, both fall outcomes are trivially re-solvable: step on the
+  sigil, any fall outcome is trivially re-solvable: step on the
   sigil (SET to ON) and go.
 * **Snapshot corner:** the player can walk back to the entry checkpoint
   *before* crossing scar 0 (the wall hop-off at z = 13 exists), which
   re-snapshots the group in its current state -- e.g. ON, if they
-  pressed the sigil and walked back. A later lip fall then restores
-  ON; a later scar fall resets to OFF. The solver models both fall
-  kinds exactly, and its soft-lock proof covers every snapshot value.
+  pressed the sigil and walked back. A later fall of either kind
+  then restores ON. The solver models the exact snapshot semantics,
+  and its soft-lock proof covers every snapshot value.
 * **No soft-lock invariants** (checked exhaustively by the solver,
   section 8):
   * The group can never switch off under the player: the sigil only
     ever sets it ON, and the only OFF transition in the whole rift
-    is a fall restore, which happens across a warp while the player
-    is at the entry.
+    is a fall restore to a snapshot taken while the group was OFF,
+    which happens across a warp while the player is at the entry.
   * Every scar tile has a non-scar neighbour to retreat to.
   * From any reachable state there is a path to the totem (solver
     reverse-reachability, fall edges included), so a "stranded"
@@ -304,51 +306,50 @@ that, talking to Cyrus keeps the existing lines.
 
 ## 7. Phase 2 implementation (tables, not code, for the rift)
 
-### Engine table (`src/overlay009/dw_puzzle_ravaged_path.c`)
+### Engine table (`src/overlay009/dw_puzzle_ravaged_path.c`, as built)
 
 ```c
 static const DwPuzzleTile sRavagedPathBridgeTiles[] = {
-    { 11, 2, 15, 0, 0 },
-    { 11, 4, 20, 0, 0 },
-    { 11, 4, 21, 0, 0 },
+    { 11, 2, 15, 0, DW_PUZZLE_SURFACE_WEST_WALL, 0, 0 },
+    { 11, 4, 20, 0, DW_PUZZLE_SURFACE_WEST_WALL, 0, 0 },
+    { 11, 4, 21, 0, DW_PUZZLE_SURFACE_WEST_WALL, 0, 0 },
 };
 static const DwPuzzleGroup sRavagedPathGroups[] = {
     { sRavagedPathBridgeTiles, 3, 4, 0, 0,           /* ghost-prop group 4 */
       DW_PUZZLE_TILE_SOLID, DW_PUZZLE_TILE_BLOCKED, 0, 0 },
-    /* tiles, count, ghost group, fadeOut, fadeInLead, on, off, initial, pad */
+    /* tiles, count, ghost group, fadeOut, fadeInLead, on, off, initial, fallScriptId */
 };
 static const DwPuzzleSigil sRavagedPathSigils[] = {
-    { 11, 2, 14, DW_PUZZLE_SIGIL_SET, 0, 1, 0 },   /* SET group 0 to 1 */
+    { 11, 2, 14, DW_PUZZLE_SIGIL_SET, 0, 1, DW_PUZZLE_SURFACE_WEST_WALL },
 };
 static const DwPuzzleCheckpoint sRavagedPathCheckpoints[] = {
-    { 20, 1, 12, -1 },
+    { 20, 1, 12, -1, DW_PUZZLE_SURFACE_GROUND, { 0, 0 } },
 };
 /* Fall lips (coord events), VOID so a lip fall restores the snapshot. */
 static const DwPuzzleTile sRavagedPathTiles[] = {
-    { 15, 1, 11, DW_PUZZLE_TILE_VOID, 0 },
-    { 19, 1, 11, DW_PUZZLE_TILE_VOID, 0 },
-    { 20, 1, 11, DW_PUZZLE_TILE_VOID, 0 },
-    { 21, 1, 11, DW_PUZZLE_TILE_VOID, 0 },
-    { 20, 1, 13, DW_PUZZLE_TILE_VOID, 0 },
-    { 21, 1, 13, DW_PUZZLE_TILE_VOID, 0 },
-    { 12, 1, 15, DW_PUZZLE_TILE_VOID, 0 },
-    { 13, 1, 15, DW_PUZZLE_TILE_VOID, 0 },
-    { 14, 1, 15, DW_PUZZLE_TILE_VOID, 0 },
-    { 15, 1, 15, DW_PUZZLE_TILE_VOID, 0 },
+    { 15, 1, 11, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_GROUND, 2, 0 },
+    /* ... one per lip: (19,1,11), (20,1,11), (21,1,11), (20,1,13), */
+    /* (21,1,13), (12,1,15), (13,1,15), (14,1,15), (15,1,15), all */
+    /* VOID / GROUND / fallScriptId 2 */
 };
 const DwPuzzleTable gDwPuzzleRavagedPathTable = {
-    MAP_HEADER_DW_RAVAGED_PATH, 14, 14, 2, 0,   /* progress 14, fall script 2, no frame fall */
-    1, 1, 0, 0, 1, 10, 0, 0,                   /* groups, sigils, runes, currents, checkpoints, tiles, pad */
+    MAP_HEADER_DW_RAVAGED_PATH, 14, 14, 2, VAR_MAP_LOCAL_3,
+    1, 1, 0, 0, 1, 10, 0, 0,                   /* groups, sigils, runes, currents, checkpoints, tiles, testOnly, pad */
     sRavagedPathGroups, sRavagedPathSigils, NULL, NULL,
     sRavagedPathCheckpoints, sRavagedPathTiles,
 };
-/* + one extern + one line in the sPuzzleTables[] registry in dw_puzzle.c. */
+/* + one extern + one line in sPuzzleTables[] and one NULL in the
+   parallel sActorTables[] in dw_puzzle.c; + the file in src/meson.build. */
 ```
 
-Notes: `fallVar = 0` means no frame fall -- there is no frame-detected
-fall in this rift (bridges are BLOCKED when off, never VOID under the
-player; the honeycomb-style standing-ground fall does not apply).
-`minProgress = maxProgress = 14` gates the table to this scene.
+Notes: `fallScriptId = 2, fallVar = VAR_MAP_LOCAL_3` is the
+frame-fall pair (engine-a wired the init-table line and the
+`VAR_MAP_LOCAL_3` clear into the map's scripts). This rift has no
+frame-detected fall (bridges are BLOCKED when off, never VOID under
+the player), but the pair is wired so a frame fall would start the
+right script. The lip VOID tiles carry their own `fallScriptId = 2`,
+falling back to the table's. `minProgress = maxProgress = 14` gates
+the table to this scene.
 
 ### Other Phase 2 edits
 
@@ -359,20 +360,24 @@ player; the honeycomb-style standing-ground fall does not apply).
 * `tools/distortion_world/build_ravaged_path_map.py`: add the rune +
   socket decals (section 1). `SCAR_TILES` unchanged.
 * `res/field/scripts/scripts_dw_ravaged_path.s`: fall script gets the
-  second-fall hint branch; append the sigil teaching script entry
-  last (id 8, so existing ids do not shift); `TalkCyrus` repeats the
-  hint once shown.
+  second-fall hint branch (first fall: `CyrusAgainSlower`;
+  second fall: the hint, gated by `FLAG_DW_RP_B`); the sigil
+  teaching script entry appended last (id 8, so existing ids do
+  not shift); `TalkCyrus` repeats the hint once shown (it takes
+  precedence over the scar line).
 * `src/overlay009/ov9_02249960.c`: per-map step hook keeps the scar
-  logic and gains the sigil-teaching trigger (first S1 step, once);
-  add the engine glue (`DwPuzzle_HandleStep` first, etc.) per the
-  engine-a README. No other ov9 changes.
+  logic, gains the sigil-teaching trigger (first step onto
+  (11, 2, 14), once, gated by `FLAG_DW_RP_A`), and calls
+  `DwPuzzle_NotifyFall()` before starting the fall script on a scar
+  fall. The engine glue (`DwPuzzle_HandleStep` first, etc.) is
+  engine-a's, unchanged. No other ov9 changes.
 * `res/text/dw_ravaged_path.json`: two new messages (teaching, hint).
   ASCII only, straight apostrophes.
-* `docs/arc2/registry.md`: one block per workstream,
-  `FLAG_DW_RIFT_RP_SIGIL_SEEN` and `FLAG_DW_RIFT_RP_HINT_SHOWN` --
-  values assigned by the lead (the rift-a block is full; do not take
-  flags from another block without the lead). These are the only two
-  new flags this design needs.
+* `generated/vars_flags.txt`: rename `FLAG_UNK_0x0A00` ->
+  `FLAG_DW_RP_A` (sigil teaching seen) and `FLAG_UNK_0x0A01` ->
+  `FLAG_DW_RP_B` (two-fall hint shown), from the lead-assigned
+  `FLAG_DW_RP_A..H` block (0x0A00-0x0A07, registry.md). These are
+  the only two new flags this design needs.
 
 ### Unchanged
 
@@ -424,11 +429,10 @@ Engine not merged yet, so none of this runs in Phase 1:
 * Solver output above (done, Phase 1).
 * Harness replay of the solver's solution from entry to totem + calm.
 * A fall at each stage (scar 0 re-step, scar 1 from the fork, each
-  lip): return to the entry checkpoint. Scar falls reset the group
-  to OFF; lip falls restore the checkpoint snapshot (section 6).
-  Test the walk-back-then-fall corner for both kinds: snapshot ON,
-  then a lip fall (group comes back ON) and a scar fall (group
-  comes back OFF).
+  lip): return to the entry checkpoint with the checkpoint snapshot
+  restored (section 6), including the walk-back-then-fall corner:
+  snapshot ON (sigil pressed, walked back to the entry), then a
+  fall, and the bridges come back ON.
 * Hold-forward check: mash a direction in the first frames after
   the sigil fires; the bridge may bump once (3-frame fade-in lead),
   then opens on retry (section 2).
@@ -442,16 +446,15 @@ Engine not merged yet, so none of this runs in Phase 1:
 
 ## 10. Open items for Phase 2
 
-* Rune / socket decal textures (section 1).
+* ~~Rune / socket decal textures~~ -- resolved: `s_land3` rune,
+  `s_land2` socket (section 1).
 * Group-4 bridge props read as stone ledges in a frame strip
   (section 1).
-* **Lead: confirm SET for row 1.** PUZZLE_PLAN.md row 1 says the
-  sigil "toggles" bridges; section 3 defines SET as one of the
-  sigil kinds and this design uses SET for fade safety (section 2).
-  If the lead wants the literal TOGGLE, the alternative is a wired
-  frame fall, not a silent revert. If the lead accepts SET, row-1
-  wording could say "switches" at the next plan touch.
-* Lead assigns the two `FLAG_DW_RIFT_RP_*` values (section 7).
+* ~~Lead: confirm SET for row 1~~ -- approved: SET, not TOGGLE
+  ("toggles" was loose wording; SET + BLOCKED-when-off is the
+  right call for difficulty 2).
+* ~~Lead assigns flags~~ -- done: `FLAG_DW_RP_A..H` block
+  (0x0A00-0x0A07); A = sigil seen, B = hint shown.
 * The harness workstream's `tools/distortion_world/emu/solver.py`
   (when it lands): re-express this model in its format and confirm
   the same result; until then this standalone BFS is the model.

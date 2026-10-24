@@ -2562,6 +2562,12 @@ static void DwPuzzle_Ov9Respawn(DistWorldSystem *system, const DwPuzzleFrameResu
 #define RAVAGED_PATH_SCRIPT_HALFWAY  5
 #define RAVAGED_PATH_SCRIPT_TOTEM    6
 #define RAVAGED_PATH_SCRIPT_TALK     7
+#define RAVAGED_PATH_SCRIPT_SIGIL    8 // dwp:rift-rp: Cyrus's sigil teaching line, appended last
+#define RAVAGED_PATH_SIGIL_Y         2 // dwp:rift-rp: the SET sigil tile (11, 2, 14)
+#define RAVAGED_PATH_SIGIL_Z         14
+// dwp:rift-rp: FLAG_DW_RP_A = the sigil teaching line played; FLAG_DW_RP_B = the two-fall hint played.
+#define FLAG_DW_RP_SIGIL_SEEN        FLAG_DW_RP_A
+#define FLAG_DW_RP_HINT_SHOWN        FLAG_DW_RP_B
 #define RAVAGED_PATH_FORK_Z          19 // first column past the wall trees: the bottom row (scar) or up (the seam)
 #define RAVAGED_PATH_HALFWAY_Y       4  // the top of the seam, over the scar: GIRATINA's shadow passes below
 #define RAVAGED_PATH_HALFWAY_Z       20
@@ -2663,6 +2669,10 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
             HideGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + scar);
             sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
             Sound_PlayEffect(SEQ_SE_DP_UG_023);
+            // dwp:rift-rp: a scripted fall the engine step hook never sees -- record it with the engine
+            // BEFORE starting the fall script, so the fall warp restores the checkpoint snapshot exactly
+            // like an engine-seen (lip) fall. Same pattern as Eterna's honeycomb / the Lost Tower drop.
+            DwPuzzle_NotifyFall(system->fieldSystem);
             ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_FALL, NULL);
             return TRUE;
         }
@@ -2675,6 +2685,15 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
     }
 
     sRavagedPathPrevScar = scar;
+
+    // dwp:rift-rp: first step onto the sigil: Cyrus's teaching line, once. The engine step hook
+    // (which runs first) already fired the SET sigil, so the bridge is switching on as he speaks.
+    if (!VarsFlags_CheckFlag(varsFlags, FLAG_DW_RP_SIGIL_SEEN)
+        && x == RAVAGED_PATH_WALL_X && y == RAVAGED_PATH_SIGIL_Y && z == RAVAGED_PATH_SIGIL_Z) {
+        VarsFlags_SetFlag(varsFlags, FLAG_DW_RP_SIGIL_SEEN);
+        ScriptManager_Set(system->fieldSystem, RAVAGED_PATH_SCRIPT_SIGIL, NULL);
+        return TRUE;
+    }
 
     if (VarsFlags_CheckFlag(varsFlags, FLAG_ARC2_RIFTA_B)) {
         return FALSE;

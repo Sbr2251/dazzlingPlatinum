@@ -23,15 +23,12 @@ a tile model can:
   tile of the scar you are standing on, is a fall. Leaving a scar spends
   it. Scar 0 = {(2, 16)}; scar 1 = {(2, 20), (2, 21), (3, 20), (3, 21)}
   (wall (y, z), x = 11).
-* Falls are asymmetric (engine-a has no "mark a fall" entry point for a
-  per-map hook, so only engine-seen falls restore the snapshot):
-  - Lip fall (chasm lip, VOID in the engine table): respawn at the
-    checkpoint with group := snapshot, snapshot unchanged.
-  - Scar fall (per-map hook starts fall script 2 directly): re-entry
-    looks fresh to the engine, which resets the puzzle to initial
-    (group OFF, snapshot OFF).
-  Scars are intact again after any fall (the existing entry-walkway
-  reset). A fall is a 1-cost edge to the entry state.
+* Falls are uniform: any fall (chasm lip, an engine VOID tile, or a
+  scar, where the per-map hook calls DwPuzzle_NotifyFall() before
+  starting the fall script) respawns at the checkpoint with group :=
+  snapshot, snapshot unchanged. Scars are intact again after any fall
+  (the existing entry-walkway reset). A fall is a 1-cost edge to the
+  entry state.
 * Wall moves are 4-neighbour on the attr-13 grid (ravaged_path.json).
   Jump-on / hop-off at the two wall ends are 1-cost moves. DOWN off the
   wall at an intermediate z does nothing in-game (no jump point) and is
@@ -126,16 +123,12 @@ def scar_state_of(state, sid):
     return state[6 + sid]
 
 
-def fall_state(state, kind):
-    """Fall edge: respawn at the checkpoint, scars intact.
-    kind 'lip': group := snapshot (state[5]), snapshot unchanged
-    (engine-seen fall).
-    kind 'scar': reset to initial (group OFF, snapshot OFF), because the
-    per-map scar hook starts the fall script directly and the engine
-    never marks a fall pending, so re-entry looks fresh to it."""
-    if kind == "lip":
-        return (FLOOR, 20, 1, 12, state[5], state[5], INTACT, INTACT)
-    return (FLOOR, 20, 1, 12, False, False, INTACT, INTACT)
+def fall_state(state):
+    """Fall edge: respawn at the checkpoint, group := snapshot
+    (state[5]), snapshot unchanged, scars intact. Lip falls are
+    engine-seen (VOID tile); scar falls call DwPuzzle_NotifyFall()
+    before the fall script, so they restore the snapshot too."""
+    return (FLOOR, 20, 1, 12, state[5], state[5], INTACT, INTACT)
 
 
 def transitions(state, sigil_enabled=True, falls=True):
@@ -161,7 +154,7 @@ def transitions(state, sigil_enabled=True, falls=True):
             if (nx, nz) not in FLOOR_TILES:
                 continue
             if falls and (nx, nz) in LIPS:
-                yield fall_state(state, "lip"), "fall(lip)", True
+                yield fall_state(state), "fall(lip)", True
                 continue
             nsnap = group if (nx, nz) == (CHECKPOINT[0], CHECKPOINT[2]) else snap
             yield (FLOOR, nx, 1, nz, group, nsnap, s0, s1), "walk", False
@@ -180,7 +173,7 @@ def transitions(state, sigil_enabled=True, falls=True):
         sid = SCAR_OF.get((ny, nz))
         if sid is not None and scars[sid] != INTACT:
             if falls:
-                yield fall_state(state, "scar"), "fall(scar)", True
+                yield fall_state(state), "fall(scar)", True
             continue
         # Leaving a scar spends it (unless the destination is the same
         # scar, which the INTACT check above already turned into a fall).
@@ -237,8 +230,12 @@ def self_check():
     st = (FLOOR, 13, 1, 14, False, True, INTACT, INTACT)
     outs = [ns for ns, _lab, is_f in transitions(st) if is_f]
     assert outs == [(FLOOR, 20, 1, 12, True, True, INTACT, INTACT)], outs
-    # Scar fall resets to initial even when the snapshot is ON.
+    # Scar fall restores the snapshot too (via DwPuzzle_NotifyFall):
+    # group ON / snapshot ON stays ON; group OFF / snapshot OFF stays OFF.
     st = (WALL, 11, 2, 17, True, True, SPENT, INTACT)
+    outs = [ns for ns, _lab, is_f in transitions(st) if is_f]
+    assert outs == [(FLOOR, 20, 1, 12, True, True, INTACT, INTACT)], outs
+    st = (WALL, 11, 2, 17, False, False, SPENT, INTACT)
     outs = [ns for ns, _lab, is_f in transitions(st) if is_f]
     assert outs == [(FLOOR, 20, 1, 12, False, False, INTACT, INTACT)], outs
     # SET sigil: OFF -> ON, and ON stays ON (never toggles off).
@@ -253,7 +250,7 @@ def self_check():
     # Goal is absorbing; totem tile is blocked.
     assert list(transitions((FLOOR, 14, 1, 23, True, True, SPENT, SPENT))) == []
     assert (19, 22) not in FLOOR_TILES
-    print("self-checks: PASS (lip restore, scar reset, SET stays ON, "
+    print("self-checks: PASS (lip restore, scar restore, SET stays ON, "
           "goal absorbing, totem tile blocked)")
 
 

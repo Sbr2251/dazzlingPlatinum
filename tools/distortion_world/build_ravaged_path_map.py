@@ -23,6 +23,12 @@ scar decals (owner playtest round 2, fix2-dwrp):
   ravaged_path.json) at model z+1..z+2 and grid row y at model y-0.5..y+0.5 (the trees: grid z 15-18, y 3-4 are
   drawn at z 16-20, y 2.5-4.5). Keep SCAR_TILES in sync with sRavagedPathScarTiles and the spec's "scars".
 
+- The SIGIL (2,14) and the BRIDGES (2,15), (4,20), (4,21) get the same treatment (dwp:rift-rp): the sigil tile
+  carries an s_land3 decal (blue diamonds on pink: a glowing rune marking, distinct from the wall and the boulder),
+  and each bridge tile carries an s_land2 decal (flat black: a dark empty socket, i.e. "no ground here", not drawn
+  ground). When a bridge is on, its ghost-prop stone sits in the socket. Keep RUNE_TILE / BRIDGE_TILES in sync with
+  src/overlay009/dw_puzzle_ravaged_path.c.
+
 Tile coordinates are DW world tiles (the map sits at DW offset (0,0,0)): x 0-31 is 669, x 32-63 is 670.
 
 Usage: python3 tools/distortion_world/build_ravaged_path_map.py [--check]
@@ -50,27 +56,40 @@ BLOCK = [
 
 # Scar tiles (grid y, grid z), as in sRavagedPathScarTiles.
 SCAR_TILES = [(2, 16), (2, 20), (2, 21), (3, 20), (3, 21)]
+# Sigil tile (grid y, grid z), as in dw_puzzle_ravaged_path.c: the SET
+# sigil that switches bridge group 0 ON.
+RUNE_TILE = (2, 14)
+# Bridge tiles (grid y, grid z), as in dw_puzzle_ravaged_path.c group 0.
+BRIDGE_TILES = [(2, 15), (4, 20), (4, 21)]
 WALL_X = 11.0
 DECAL_DX = 0.03            # tiles in front of the face (about half a world unit)
-DECAL_TEXTURE = "s_land4"  # 16x16 pltt16, palette s_land4
 
 
-def add_scar_decals(model_bytes):
-    """Appends one material + shape (the scar decals) to the chunk model; the rest of the model is unchanged."""
+def add_wall_decals(model_bytes):
+    """Appends one material + shape per decal set (scar, rune, socket) to the chunk model; the rest is unchanged."""
+    for tiles, texture, suffix in ((SCAR_TILES, "s_land4", "scar"),
+                                   ([RUNE_TILE], "s_land3", "rune"),
+                                   (BRIDGE_TILES, "s_land2", "socket")):
+        model_bytes = add_decals(model_bytes, tiles, texture, suffix)
+    return model_bytes
+
+
+def add_decals(model_bytes, tiles, texture, suffix):
+    """Appends one material + shape (decals for `tiles`) to the chunk model; the rest of the model is unchanged."""
     bmd = nsbmd.parse_bmd(model_bytes)
     m = bmd["models"][0]
-    assert all(x["name"] != DECAL_TEXTURE + "_scar" for x in m["materials"]), "decals already present"
+    assert all(x["name"] != texture + "_" + suffix for x in m["materials"]), "decals already present"
     pos, uvs, quads = [], [], []
-    for gy, gz in SCAR_TILES:
+    for gy, gz in tiles:
         x, z0, y0 = WALL_X + DECAL_DX, gz + 1, gy - 0.5
         k = len(pos)
         # same corner order and UVs as the stock wall-face quads (front face +x)
         pos += [[x, y0 + 1, z0 + 1], [x, y0, z0 + 1], [x, y0, z0], [x, y0 + 1, z0]]
         uvs += [[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]
         quads.append([k, k + 1, k + 2, k + 3])
-    mat = {"name": DECAL_TEXTURE + "_scar", "texture": DECAL_TEXTURE, "palette": DECAL_TEXTURE, "size": [16, 16],
+    mat = {"name": texture + "_" + suffix, "texture": texture, "palette": texture, "size": [16, 16],
            "repeat": [True, True]}
-    mesh = {"name": "scar", "materials": [mat],
+    mesh = {"name": suffix, "materials": [mat],
             "meshes": [{"material": mat["name"], "positions": pos, "uvs": uvs, "normals": [[1.0, 0.0, 0.0]] * len(pos),
                         "tris": [], "quads": quads}]}
     dm = nsbmd.mesh_to_model(mesh, (0, 0), pos_scale=m["info"]["pos_scale"])
@@ -82,7 +101,15 @@ def add_scar_decals(model_bytes):
     end = m["sbc"].index("2b")
     m["sbc"][end:end] = ["04%02x" % mi, "05%02x" % si]
     for key in ("tex_bind", "pltt_bind"):
-        m[key].append({"name": DECAL_TEXTURE, "mats": [mi], "flag": m[key][0].get("flag", 0)})
+        # s_land3 is already bound by a stock wall material: merge the new
+        # material into the existing entry instead of adding a second
+        # entry with the same name (the name dictionary cannot hold
+        # duplicates). s_land2 / s_land4 have no stock entry: append one.
+        existing = next((b for b in m[key] if b["name"] == texture), None)
+        if existing is None:
+            m[key].append({"name": texture, "mats": [mi], "flag": m[key][0].get("flag", 0)})
+        elif mi not in existing["mats"]:
+            existing["mats"].append(mi)
         m[key].sort(key=lambda b: b["name"])
     for k in ("num_vertex", "num_polygon", "num_triangle", "num_quad"):
         m["info"][k] += dm["info"][k]
@@ -103,7 +130,7 @@ def build():
                     if x_base <= x < x_base + 32:
                         perm[z][x - x_base] = BLOCKED
         parts["permissions"] = mapdata.write_permissions(perm)
-        model = add_scar_decals(parts["model"]) if dst == 669 else parts["model"]
+        model = add_wall_decals(parts["model"]) if dst == 669 else parts["model"]
         out[dst] = mapdata.pack(parts["permissions"], parts["props"], model, parts["bdhc"])
     return out
 

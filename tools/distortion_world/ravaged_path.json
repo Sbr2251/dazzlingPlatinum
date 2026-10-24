@@ -12,7 +12,7 @@
         15,
         16
     ],
-    "notes": "rift-a, scene 2.6. West wall x=11, z 13-22 (columns), y 5..2 (rows, top first). '.' seam, '*' SCAR (walkable; the step hook Arc2DwRavagedPath_HandleStep in src/overlay009/ov9_02249960.c tracks it: one step per scar, crumbles one step after you leave), '#' blocked (top rim, the two wall trees). Keep the '*' tiles in sync with sRavagedPathScarTiles. Fork at z19; the seam climbs to y4 over the scar at z20-21 and comes down at z22. Each scar has a ghost-prop group of loose rocks hovering in front of its tiles (x=12): group 2 for scar 0, group 3 for scar 1 (extra_ghost_props; default visible 0x1|0x4|0x8). The rocks fade away the moment the scar is stepped on (it is spent) and come back when the wall resets. The scar tiles themselves carry loose-boulder decals on the wall face (map_data_669, tools/distortion_world/build_ravaged_path_map.py SCAR_TILES).",
+    "notes": "rift-a, scene 2.6. West wall x=11, z 13-22 (columns), y 5..2 (rows, top first). '.' seam, '*' SCAR (walkable; the step hook Arc2DwRavagedPath_HandleStep in src/overlay009/ov9_02249960.c tracks it: one step per scar, crumbles one step after you leave), '#' blocked (top rim, the two wall trees). Keep the '*' tiles in sync with sRavagedPathScarTiles. Fork at z19; the seam climbs to y4 over the scar at z20-21 and comes down at z22. SIGIL at (y2, z14): a SET sigil (src/overlay009/dw_puzzle_ravaged_path.c) that switches bridge group 0 ON. BRIDGES (group 0): (y2, z15), (y4, z20), (y4, z21) -- SOLID while on, BLOCKED while off; ghost-prop group 4 (extra_ghost_props), default hidden (ghost_default_visible 0x1|0x4|0x8 = 13). Each scar has a ghost-prop group of loose rocks hovering in front of its tiles (x=12): group 2 for scar 0, group 3 for scar 1 (extra_ghost_props). The rocks fade away the moment the scar is stepped on (it is spent) and come back when the wall resets. The scar tiles carry loose-boulder decals on the wall face (map_data_669, SCAR_TILES); the sigil tile carries a rune decal and the bridge tiles carry socket decals (RUNE_TILE / BRIDGE_TILES in build_ravaged_path_map.py).",
     "scars": [
         {
             "scar": 0,
@@ -91,7 +91,61 @@
             "x": 12,
             "y": 3,
             "z": 21
+        },
+        {
+            "group": 4,
+            "kind": 1,
+            "x": 12,
+            "y": 2,
+            "z": 15
+        },
+        {
+            "group": 4,
+            "kind": 1,
+            "x": 12,
+            "y": 4,
+            "z": 20
+        },
+        {
+            "group": 4,
+            "kind": 1,
+            "x": 12,
+            "y": 4,
+            "z": 21
         }
     ],
-    "ghost_default_visible": 13
+    "ghost_default_visible": 13,
+    "sigils": [
+        {
+            "sigil": 0,
+            "tile": [
+                2,
+                14
+            ],
+            "kind": "SET",
+            "target_group": 0,
+            "set_value": 1
+        }
+    ],
+    "bridges": [
+        {
+            "group": 0,
+            "tiles": [
+                [
+                    2,
+                    15
+                ],
+                [
+                    4,
+                    20
+                ],
+                [
+                    4,
+                    21
+                ]
+            ],
+            "ghost_prop_group": 4,
+            "initial_on": 0
+        }
+    ]
 }
