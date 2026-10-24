@@ -34,18 +34,21 @@
 // Fall script: DWRoute214_Fall, script entry 6 (see
 // res/field/scripts/scripts_dw_route_214.s). It clears VAR_MAP_LOCAL_3
 // (the frame-fall var), plays the fall, warps to the map entry, and
-// shows Cyrus's hint on the second fall. The table has no VOID tiles
-// and this map has no fall lips: every floor tile is drawn ground,
-// every ceiling tile is slab or a drawn stone block, and the
-// walls/ceiling are bounded by blocked tiles, so no step or
-// frame-detected fall can fire in normal play -- the script is wired
-// (fallScriptId + fallVar + init frame table) but unreachable. The
-// fall/restore path itself is engine code, proven by engine-a's test
-// tables; this table contributes only the checkpoint list. If ground
-// ever does go away under a standing player (a future group change),
-// the engine raises VAR_MAP_LOCAL_3, the init frame table starts this
-// script, and the engine restores the last checkpoint snapshot and
-// respawns at the checkpoint after the fall warp.
+// shows Cyrus's hint on the second fall.
+//
+// Two honest fall lips, in the production table (the lead's design call:
+// one honest fall is enough; two edge lips, east + west, are cheap and
+// both are off the optimal path). Each is a ceiling-strip edge tile
+// (x = 49 east boundary / x = 44 west boundary -- the slab's visible
+// edge), drawn as open edge: the slab ends there, so a step past the
+// chamber's edge drops the player. Neither is on the optimal route;
+// both are reachable by walking to the strip's edge:
+//   (49,10,34)  C2 east edge: from CP3 (48,36), R D D. Fall restores CP3.
+//   (44,10,42)  C4 west edge: from CP5 (47,44), L L L D D. Fall restores CP5.
+// The fall/restore path is engine code; the table contributes the VOID
+// tiles + the checkpoint list. A fall restores the last checkpoint's
+// snapshot (player + group states), so the cost is progress, not a
+// soft-lock.
 //
 // Progress gate: 62/62 (the whole visit runs at progress 62; the calm
 // at 63 ends the visit, so the table need not be active at 63).
@@ -142,46 +145,16 @@ static const DwPuzzleCheckpoint sCheckpoints[] = {
     { 47, 10, 44, -1, DW_PUZZLE_SURFACE_CEILING, { 0, 0 } },  // W4 landing (slide)
 };
 
+static const DwPuzzleTile sTiles[] = {
+    { 49, 10, 34, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
+    { 44, 10, 42, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
+};
+
 const DwPuzzleTable gDwPuzzleRoute214Table = {
     MAP_HEADER_DW_ROUTE_214,
     62, 62,                     // VAR_ARC2_PROGRESS gate
     6, VAR_MAP_LOCAL_3,         // fall script (DWRoute214_Fall), fallVar
-    3, 2, 0, 15, 6, 0,          // group/sigil/rune/current/checkpoint/tile counts
+    3, 2, 0, 15, 6, 2,          // group/sigil/rune/current/checkpoint/tile counts
     0, 0,                       // testOnly, padding
-    sGroups, sSigils, NULL, sCurrents, sCheckpoints, NULL,
-};
-
-// Debug-only test table for MAP_HEADER_DW_ROUTE_214 (testOnly = 1,
-// returned only while test mode is on). Identical to the production
-// table except for six explicit VOID tiles -- one per checkpoint,
-// off the optimal path -- that let the harness prove the fall path:
-// a fall from each checkpoint restores that checkpoint's snapshot,
-// and the second fall shows Cyrus's hint. The production table has
-// no VOID tiles because this map has no fall lips (see the fall
-// script comment above); the VOID tiles here are debug triggers, not
-// designed hazards, and the production maze is unchanged (the optimal
-// route never steps on them):
-//   CP0 map entry .... (19,1,12)  on the entry walkway, west of (20,12)
-//   CP1 ceiling entry  (44,10,27) C0 corner, off the C0 walk
-//   CP2 W1 landing .... (44,10,30) C1 north-west, off the C1 walk
-//   CP3 W2 landing .... (49,10,34) C2 east edge, off the C2 walk
-//   CP4 W3 landing .... (49,10,40) C3 east end, off the C3 walk
-//   CP5 W4 landing .... (44,10,42) C4 west, off the C4 walk
-// All six use the same fall script (entry 6) as the production table.
-static const DwPuzzleTile sTestTiles[] = {
-    { 19, 1, 12, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_GROUND, 6, 0 },
-    { 44, 10, 27, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
-    { 44, 10, 30, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
-    { 49, 10, 34, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
-    { 49, 10, 40, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
-    { 44, 10, 42, DW_PUZZLE_TILE_VOID, DW_PUZZLE_SURFACE_CEILING, 6, 0 },
-};
-
-const DwPuzzleTable gDwPuzzleRoute214TestTable = {
-    MAP_HEADER_DW_ROUTE_214,
-    62, 62,                     // VAR_ARC2_PROGRESS gate
-    6, VAR_MAP_LOCAL_3,         // fall script (DWRoute214_Fall), fallVar
-    3, 2, 0, 15, 6, 6,          // group/sigil/rune/current/checkpoint/tile counts
-    1, 0,                       // testOnly, padding
-    sGroups, sSigils, NULL, sCurrents, sCheckpoints, sTestTiles,
+    sGroups, sSigils, NULL, sCurrents, sCheckpoints, sTiles,
 };

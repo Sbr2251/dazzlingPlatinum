@@ -225,6 +225,13 @@ def wait(state):
     x, z, _, _, la, lb, _, _, cp, sa, sb = state
     return (x, z, la, lb, la, lb, False, False, cp, sa, sb)
 
+# Production VOID lips (the only tiles where a fall can start in the
+# shipped table). A fall is offered ONLY standing on one of these:
+# the universal-fall model was sound for the 6-VOID test table, but the
+# shipped table restricts falls, so the soft-lock proof must use the
+# restricted set (a fall from a non-VOID tile cannot happen).
+VOIDS = {(49, 34), (44, 42)}
+
 def fall(state):
     """The engine's fall transition: back to the last checkpoint with its
     snapshot groups, fades settled. Cost 0 tile steps."""
@@ -248,7 +255,10 @@ def transitions(state, mode):
     if state[6] or state[7]:
         w = wait(state)
         assert w is not None
-        return [(w, 0, "W"), (fall(state), 0, "F")]
+        out = [(w, 0, "W")]
+        if (state[0], state[1]) in VOIDS:
+            out.append((fall(state), 0, "F"))
+        return out
     out = []
     for d in "UDLR":
         try:
@@ -260,12 +270,13 @@ def transitions(state, mode):
     w = wait(state)
     if w is not None:
         out.append((w, 0, "W"))
-    f = fall(state)
-    if f != state:
-        # A fall that returns to the very state it started from (standing
-        # on the last checkpoint with its snapshot groups) is a no-op
-        # and must not be offered, or Dijkstra wastes a zero-cost loop.
-        out.append((f, 0, "F"))
+    if (state[0], state[1]) in VOIDS:
+        f = fall(state)
+        if f != state:
+            # A fall that returns to the very state it started from (standing
+            # on the last checkpoint with its snapshot groups) is a no-op
+            # and must not be offered, or Dijkstra wastes a zero-cost loop.
+            out.append((f, 0, "F"))
     return out
 
 def solve(mode):

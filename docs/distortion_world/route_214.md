@@ -9,8 +9,8 @@
   `include/overlay009/dw_puzzle.h` (commit `623ccce7ee`, header + guide only);
   nothing is implemented here. Phase 2 waits for the lead's merge notice.
 - Solver: `tools/distortion_world/route_214_solver.py` (Dijkstra over
-  tile steps, with fall transitions). Optimal solution **35 tile steps**
-  (35-50 required), **the same 35 under both slide readings** (section 2),
+  tile steps, with fall transitions). Optimal solution **36 tile steps**
+  (35-50 required), **the same 36 under both slide readings** (section 2),
   solvable, soft-lock free including falls, no slide loop.
 
 ## 1. Where the puzzle lives
@@ -224,13 +224,16 @@ Directions in the solution string are pad presses on the ceiling:
 `U` = +z (toward Skarmory), `D` = -z, `L` = -x, `R` = +x; lower-case
 letters are slide tiles, upper-case are player steps.
 
-- Optimal solution (tile steps): **35** (required 35-50), under **both**
-  slide readings (A and B, section 2). The solver now uses Dijkstra over
-  tile steps, not BFS over player inputs, so 35 is the true tile-step
-  optimum: no 34-tile route exists, and sigil B is required (the C3
-  wall z39 is solid except the B gap, so B cannot be walked around).
-  Solution string (24 player steps + 2 waits):
-  `ULLLUuuuLDRuRRUuuuLLLDLUUuuuRRRUuuuU`.
+- Optimal solution (tile steps): **36** (required 35-50), under **both**
+  slide readings (A and B, section 2). The solver uses Dijkstra over
+  tile steps, not BFS over player inputs, so 36 is the true tile-step
+  optimum for the shipped table (falls only on the two production
+  VOID lips, section 9 — the earlier 35 assumed a fall from any tile,
+  which the shipped table does not allow): no 35-tile route exists,
+  and sigil B is required (the C3 wall z39 is solid except the B gap,
+  so B cannot be walked around).
+  Solution string (23 player steps + 2 waits):
+  `LLLUUuuuLDRuRRUuuuLLLDLUUuuuRRRUuuuU`.
   The 2 waits are the fade waits after the two sigil presses (see
   "Fade timing" below): in the real engine the walk to the gap may
   already cover the 33-frame fade, but waiting is always safe, and
@@ -239,8 +242,8 @@ letters are slide tiles, upper-case are player steps.
 
 | step | press | ends on | note |
 |---|---|---|---|
-| 0 | U | (49,28) C | walk south onto the ceiling-entry checkpoint |
-| 1-3 | L L L | (46,28) | walk west across C0 to the W1 arrow column |
+| 0-2 | L L L | (46,27) | walk west across C0 to the W1 arrow column |
+| 3 | U | (46,28) C | walk south onto the ceiling-entry checkpoint |
 | 4 | U | (46,32) C | W1 slide (teaching), stops at checkpoint |
 | 5-6 | L D | (45,31) s | walk to sigil A, toggle A off (fade pending) |
 | 7b | wait | (45,31) | wait for the A fade to settle (gap opens) |
@@ -297,7 +300,7 @@ progress 62 -> 63 (min = max = 62: the whole visit runs at progress
 | Runes (0) | none |
 | Currents (15) | wall gaps: (46,29) U; (48,33) U (group A tile, drifts when A is off); (44,33) D; (44,37) U; (49,37) D; (47,41) U; (44,41) D. Slide paths: (46,30) U; (46,31) U; (48,34) U; (48,35) U; (44,38) U; (44,39) U (group B tile, drifts when B is off); (47,42) U; (47,43) U |
 | Checkpoints (6) | map entry (20,1,12); ceiling entry (49,10,28) (first walked tile south of the jump landing (49,10,27)); (46,10,32); (48,10,36); (44,10,40); (47,10,44). Checkpoint 0 is the map entry, per the engine guide |
-| Explicit tiles (0) | none: all blockers are group tiles, all other ceiling tiles are stock walkable |
+| Explicit tiles (2) | VOID edge lips (fallScriptId 6): (49,10,34) C2 east edge, (44,10,42) C4 west edge (section 9). All other ceiling tiles are stock walkable; all blockers are group tiles |
 | fallScriptId / fallVar | the map's fall script + `VAR_MAP_LOCAL_3`, Eterna-honeycomb pattern: the rift's init frame table gets `InitScriptGoToIfEqual <fallVar>, 1, <fallScriptId>` and the fall script clears `<fallVar>` first. Route 214 has no fall script today; Phase 2 adds one (a fall restores the player and puzzle state to the last checkpoint, section 9) |
 
 Coordinates are (x, y, z) as the ov9 step hook sees them: ceiling y = 10,
@@ -345,7 +348,9 @@ needed for groups 1, 3 and 5, and harmless for 2 and 4.
   props and walkability in step).
 - Every BLOCKED tile is a drawn stone block (a ghost prop above), never
   an invisible wall: the 22 permanent blocks + A + B are all props.
-- No VOID tiles on the ceiling, so no fall trigger sits on drawn ground.
+- Two VOID tiles on the ceiling, both drawn as open edge (the slab's
+  visible strip boundary — see section 9). No fall trigger sits on
+  drawn solid ground.
 - The attr grid for the ceiling (attr 22) is the only grid that changes:
   the rest of the ceiling strip stays as Phase 0. Phase 2 runs the
   collision-vs-drawn audit (the fix2-lost harness) over the final JSON.
@@ -390,23 +395,24 @@ The sigil moves the block.
   shown) is not, the fall script shows the hint above on respawn, then
   sets `FLAG_DW_214_B`. Later falls show no hint.
 
-**No natural fall exists on this map.** Every floor tile is drawn
-ground, every ceiling tile is slab or a drawn stone block, and the
-walls/ceiling are bounded by blocked tiles, so no step or
-frame-detected fall can fire in normal play. The fall script
-(`DWRoute214_Fall`, entry 6) is wired per the engine guide
-(`fallScriptId` + `fallVar` `VAR_MAP_LOCAL_3` + the init frame table
-line) but is unreachable in normal play; the fall/restore path itself
-is engine code, proven by engine-a's test tables (which exercise
-VOID falls and checkpoint restores on the same code path). This
-table contributes only the checkpoint list. If ground ever does go
-away under a standing player (a future group change), the engine
+**Two honest fall lips (production).** The lead's design call: one
+honest fall is enough; this map ships two real ceiling-edge lip tiles
+as VOID in the production table, both drawn as open edge — they sit
+on the slab's visible strip boundary (x = 49 east / x = 44 west), so
+the player sees the slab end there. Neither is on the optimal route:
+
+- `(49,10,34)` — C2 east edge. From CP3 (48,36): R D D. A fall here
+  restores CP3 (48,36) with snapshot groups 101 (A off, B on).
+- `(44,10,42)` — C4 west edge. From CP5 (47,44): L L L D D. A fall
+  here restores CP5 (47,44) with snapshot groups 001 (A off, B off).
+
+The fall script (`DWRoute214_Fall`, entry 6) is wired per the engine
+guide (`fallScriptId` + `fallVar` `VAR_MAP_LOCAL_3` + the init frame
+table line). A fall restores the last checkpoint's snapshot and
+respawns at the checkpoint after the fall warp. If ground ever does
+go away under a standing player (a future group change), the engine
 raises `VAR_MAP_LOCAL_3`, the init frame table starts the fall
-script, and the engine restores the last checkpoint snapshot and
-respawns at the checkpoint after the fall warp. No VOID tile was
-added to manufacture a fall: a VOID tile would be a new, un-designed
-hazard, and a VOID tile on a drawn block would violate the
-collision-vs-drawn rule.
+script, and the same restore runs.
 
 ## 10. Boost choice, re-entry, contract (unchanged)
 
@@ -428,9 +434,10 @@ collision-vs-drawn rule.
   The totem triggers at z >= 45 on the ceiling (`Arc2DwB4F_HandleCeilingEnd`),
   unchanged; the maze ends the moment the player steps onto z = 45.
 
-## 11. Phase 2 implementation checklist (not started)
+## 11. Phase 2 implementation checklist (done)
 
-1. `src/overlay009/dw_puzzle_route_214.c`: the table in section 8.
+1. `src/overlay009/dw_puzzle_route_214.c`: the table in section 8,
+   including the two production VOID edge lips (section 9).
 2. `tools/distortion_world/route_214.json`: ceiling attr 22 rows from
    section 1.3 (`#` = BLOCKED, `.` = walkable; group tiles are BLOCKED
    in the stock grid and opened by the engine), the 39 ghost props
@@ -449,11 +456,14 @@ collision-vs-drawn rule.
    `FLAG_DW_214_A`, `FLAG_UNK_0x0A11` -> `FLAG_DW_214_B` (registry
    block `FLAG_DW_214_A..H`, 0x0A10-0x0A17). `FLAG_DW_214_C..H` unused.
 6. Headless proof (Phase 2): solver replay from entry to the totem for
-   both boost choices; a fall at each stage (checkpoint restore);
-   re-entry after a blackout (choice stands, puzzle initial);
-   collision-vs-drawn audit; regression on the other rifts;
-   `make release`.
+   both boost choices; falls at the two production VOID lips (fall 1:
+   respawn at the checkpoint with its snapshot, flag A set; fall 2:
+   respawn, flag B set, hint shown); re-entry after a blackout
+   (choice stands, puzzle initial); collision-vs-drawn audit;
+   regression on the other rifts; `make release`.
 7. Codex reviews at first-playable and at final, per `COMMON.md`.
+   Engine-a fix made in this branch (needs engine-a review): see
+   section 12 item 7.
 
 ## 12. Open questions / assumptions (for engine-a + lead)
 
@@ -462,7 +472,7 @@ collision-vs-drawn rule.
    slide across plain tiles until a block). Forward slides are
    current-tiled and end on checkpoints, so they reach the same
    checkpoint under both readings; return slides land in the same
-   chamber under both. The solver proves the 35-tile optimum under
+   chamber under both. The solver proves the 36-tile optimum under
    both readings. No engine change needed; if the engine implements a
    third reading (e.g. a slide ends *before* the first non-current
    tile), re-run the solver with that reading before Phase 2.
@@ -480,11 +490,13 @@ collision-vs-drawn rule.
    the cap is the stock maximum. If the lead holds B4F's 24 as this
    map's cap, the fallback in section 8 draws the permanent walls as
    attr-blocked slab edges and keeps only 17 props.
-5. **Concrete fall path (resolved)**: there is no natural fall on this
-   map (section 9). The fall script is wired per the engine guide and
-   unreachable in normal play; the fall/restore path is engine code
-   proven by engine-a's test tables. No VOID tile was added to
-   manufacture a fall.
+5. **Concrete fall path (resolved, production VOIDs)**: two real
+   ceiling-edge lip tiles are VOID in the production table (section 9),
+   drawn as open edge. A fall at either restores the last checkpoint's
+   snapshot; the hint shows after two falls. (An earlier revision used
+   a test-only table with 6 VOIDs to prove restores from all 6
+   checkpoints; the lead scoped the proof to one honest fall, and the
+   test table was removed.)
 6. **Fade/snapshot assumptions** (solver section, modelled): checkpoint
    snapshots store *logical* group states, and a fall settles pending
    fades (respawn warp outlasts any fade). If the engine snapshots
@@ -492,3 +504,15 @@ collision-vs-drawn rule.
    in section 9 (a fall after pressing B but before re-entering the
    checkpoint would return with B off); confirm against the engine-a
    implementation when it lands.
+7. **Engine-a `EnsureActive` fix (in this branch, needs engine-a
+   review).** `EnsureActive` reset the puzzle whenever the table
+   pointer changed with no fall in flight — including a test<->production
+   swap of the SAME map (test mode flips across a fall warp: the warp
+   resets `gDwPuzzleTestMode`, the harness re-enables it). The first
+   step after the re-enable then wiped a just-restored fall snapshot
+   (cp + groups back to initial). The reset now only fires when the
+   `mapHeader` changes. Production is unaffected (test mode never
+   flips there). Found while proving the falls; the dwlib `flag()`
+   offset bug (harness hardcodes `NUM_VARS` 290; the game has 288)
+   masked the flag reads during the same investigation and is flagged
+   to the harness workstream.
