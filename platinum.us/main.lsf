@@ -630,6 +630,7 @@ Overlay overlay9
 	After overlay6
 	Object main.nef.p/src_overlay009_ov9_02249960.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle.c.o
+	Object main.nef.p/src_overlay009_dw_puzzle_test.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_test_eterna.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_actors.c.o
 	Object main.nef.p/src_overlay009_dw_puzzle_ravaged_path.c.o // dwp:rift-rp
