@@ -59,6 +59,9 @@ from the gate. A one-line summary is printed per map.
 | `LOOKS_WALKABLE_BUT_BLOCKED` | HIGH on DW maps, MEDIUM on stock maps | Drawn floor, nothing tall on the tile, no object, collision blocked. The Route 214 class and the main target. |
 | `LOOKS_BLOCKED_BUT_WALKABLE` | HIGH on DW maps, MEDIUM on stock maps | Drawn void/none, or a tall obstacle centred on the tile, but collision walkable. The "invisible floor" class (e.g. a DW ledge the player can walk through). On a DW wall, an undrawn walkable tile next to a drawn wall tile is MEDIUM (an edge/corner tile). |
 | `WATER_MISMATCH` | HIGH on DW maps, MEDIUM on stock maps | Drawn water with walkable non-water collision, or drawn floor with walkable water collision (surf) -- the player walks on drawn water, or surfs on drawn land. Drawn water that is blocked is decorative water and is not flagged. |
+| `WATER_MISMATCH` (tall drawn, water collision) | MEDIUM | A tall obstacle drawn over a walkable water tile. A tall classification that came from an approximate prop footprint never produces this class (prop tall is explanatory-only). |
+| `JUMP_LANDING_UNDRAWN` | HIGH | A DW jump lands on a tile that is undrawn on its actual surface (floor, ceiling, floor platform, or wall). A jump ignores the landing tile's block bit, so the ordinary checks cannot catch this. |
+| `JUMP_LANDING_OBSTRUCTED` | HIGH | A DW jump lands on a tall obstacle on the floor surface. |
 
 The severity split is deliberate: on stock maps an emulator sample
 of 30 HIGH tiles across 11 stock maps found 26 false positives
@@ -69,10 +72,6 @@ MEDIUM (reported for triage, never gating). On DW maps they stay
 HIGH: the DW floor is puzzle geometry, and the Route 214 bug was
 this class on a DW map. The DW gate therefore uses `--baseline`
 to absorb the DW maps' stock-geometry findings.
-| `WATER_MISMATCH` (tall drawn, water collision) | MEDIUM | A tall obstacle drawn over a walkable water tile. A tall classification that came from an approximate prop footprint never produces this class (prop tall is explanatory-only). |
-| `JUMP_LANDING_UNDRAWN` | HIGH | A DW jump lands on a tile that is undrawn on its actual surface (floor, ceiling, floor platform, or wall). A jump ignores the landing tile's block bit, so the ordinary checks cannot catch this. |
-| `JUMP_LANDING_OBSTRUCTED` | HIGH | A DW jump lands on a tall obstacle on the floor surface. |
-
 A tile is *explained*, not a mismatch, when an event explains the
 exact pair it is: an object tile (the base tile the object stands on
 -- its movement range does not explain blocked tiles; MapObjects
@@ -154,11 +153,13 @@ a DW matrix is leftover stock Distortion World floor, not the puzzle.
 
 `tools/qa/walkcheck_allow.json` holds intentional cases (hidden
 passages, puzzle tiles) as `{map, surface, class, x, y, z, severity,
-reason}`. `y` is required for wall entries (wall tiles are `(y, z)`);
-`severity` is optional -- an entry without it matches any severity,
-while one with it matches only that severity (so a HIGH<->MEDIUM
-change is not silently allowlisted). Only add entries with a design
-reason; never to hide a bug.
+reason}`. `y` is the wall tile's `y` for wall entries (wall tiles
+are `(y, z)`), the platform's `y` for ceiling/floor-platform
+entries, and null/absent for floor entries. `severity` is optional
+-- an entry without it matches any severity, while one with it
+matches only that severity (so a HIGH<->MEDIUM change is not
+silently allowlisted). Only add entries with a design reason;
+never to hide a bug.
 
 ## Baseline gating
 
@@ -222,3 +223,36 @@ baseline: a baseline is only as good as its triage.
 4. Report the false-positive rate as a number: sampled tiles whose
    drawn classification the emulator check disproves, divided by the
    tiles sampled. See "False-positive rate (emulator sample)" below.
+
+## False-positive rate (emulator sample)
+
+30 HIGH tiles across 11 stock maps with results (Eterna Forest,
+Jubilife City, Twinleaf Town, Route 214, Route 212 North, Valor
+Lakefront, Pastoria Great Marsh, Wayward Cave B1F, Canalave Gym,
+Amity Square, Oreburgh City; 7 tiles on Eterna City, Valor
+Lakefront and Sunyshore City could not be measured because the
+spot-check harness fails to locate the player in RAM there, and
+were replaced by 7 tiles from working maps), each checked by
+stepping toward it in the emulator and screenshotting the tile.
+**26/30 false positives (87%)**, per class:
+
+| class | sampled | FP | FP rate |
+|---|---|---|---|
+| `LOOKS_WALKABLE_BUT_BLOCKED` | 19 | 17 | 89% |
+| `LOOKS_BLOCKED_BUT_WALKABLE` | 7 | 5 | 71% |
+| `WATER_MISMATCH` | 4 | 4 | 100% |
+
+The FP patterns are all intentional stock design that geometry
+alone cannot tell from a bug: forest off-path grass, tree trunks
+and canopies, fences, flower beds, planters, buildings, rocks,
+pond/lake shores, marsh grass, and cave edges; plus tiles where
+the player stands on a visible path/floor the tool called void.
+The 4 true positives (genuine discrepancies, not fixed) are
+Wayward Cave B1F (24,32) and (36,45) (player stands on a
+black/void tile), Wayward Cave B1F (10,17) (plain cave floor,
+blocked), and Amity Square (41,55) (plain grass, blocked).
+Per-tile judgments: `/tmp/dwp/walkcheck/emu/sample_judgments.json`.
+
+Because the FP rate is 87% on stock maps, the three classes are
+MEDIUM there (never gating); they stay HIGH on DW maps, where the
+gate uses `--baseline`.

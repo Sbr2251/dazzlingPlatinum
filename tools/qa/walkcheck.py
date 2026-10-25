@@ -637,6 +637,40 @@ class MapData:
             for tr in rec["ghost"]["triggers"]:
                 tr["bounds"][0] -= off[0]; tr["bounds"][1] -= off[1]
                 tr["bounds"][2] -= off[2]
+            # Validate jump destinations: a non-65535 destination
+            # platform index must exist and must contain the landing
+            # rect. A corrupt index (e.g. 9999) must fail closed
+            # (dw_error -> exit 2), not fall back to coordinate
+            # inference as if it were a ground jump. The jump's
+            # `kind` field is the animation type, not the
+            # destination surface, so it is not validated here.
+            for ji, j in enumerate(rec["jumps"]):
+                if j["platform"] == 65535:
+                    continue
+                if j["platform"] >= len(rec["platforms"]):
+                    raise ValueError(
+                        "jump %d: destination platform %d out of range "
+                        "(%d platforms)" % (ji, j["platform"], len(rec["platforms"])))
+                plat = rec["platforms"][j["platform"]]
+                for dy in range(j["sy"] + 1):
+                    for dz in range(j["sz"] + 1):
+                        for dx in range(j["sx"] + 1):
+                            lx = j["x"] + j["dx"] + dx
+                            ly = j["y"] + j["dy"] + dy
+                            lz = j["z"] + j["dz"] + dz
+                            if plat["kind"] in (1, 2):
+                                ok = (lx == plat["x"]
+                                      and plat["y"] <= ly <= plat["y"] + plat["sy"]
+                                      and plat["z"] <= lz <= plat["z"] + plat["sz"])
+                            else:
+                                ok = (plat["x"] <= lx <= plat["x"] + plat["sx"]
+                                      and ly == plat["y"]
+                                      and plat["z"] <= lz <= plat["z"] + plat["sz"])
+                            if not ok:
+                                raise ValueError(
+                                    "jump %d: landing (%d,%d,%d) outside "
+                                    "destination platform %d rect"
+                                    % (ji, lx, ly, lz, j["platform"]))
             ahdr, abtnf, attr = _narc.read_files(twarc.ATTR)
             grids = {}
             for p in rec["platforms"]:
@@ -1287,28 +1321,35 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
                                 "behaviour": beh_name, "evidence": ev},
                                allow_key_for(header, surf, "WATER_MISMATCH", tx, tz, y=key[0]))
                     continue
-                # Ceiling / DW floor platform.
+                # Ceiling / DW floor platform. The entry carries the
+                # platform y, like wall entries carry the wall tile
+                # y: two platforms can overlap in (x, z) at
+                # different heights, so (x, z) alone does not
+                # identify a ceiling/platform tile. Floor entries
+                # carry no y.
                 if drawn == "floor" and coll == "blocked":
-                    record({"map": header, "x": tx, "z": tz, "surface": surf,
+                    record({"map": header, "x": tx, "y": plat["y"], "z": tz, "surface": surf,
                             "class": "LOOKS_WALKABLE_BUT_BLOCKED", "severity": "HIGH",
                             "drawn": drawn, "collision": coll,
                             "behaviour": beh_name,
                             "evidence": ev + "; drawn platform slab, collision blocked, no ghost prop"},
-                           allow_key_for(header, surf, "LOOKS_WALKABLE_BUT_BLOCKED", tx, tz))
+                           allow_key_for(header, surf, "LOOKS_WALKABLE_BUT_BLOCKED", tx, tz,
+                                         y=plat["y"]))
                 elif drawn == "water" and coll == "walkable":
-                    record({"map": header, "x": tx, "z": tz, "surface": surf,
+                    record({"map": header, "x": tx, "y": plat["y"], "z": tz, "surface": surf,
                             "class": "WATER_MISMATCH", "severity": "HIGH",
                             "drawn": drawn, "collision": coll,
                             "behaviour": beh_name,
                             "evidence": ev + "; drawn platform water, collision walkable"},
-                           allow_key_for(header, surf, "WATER_MISMATCH", tx, tz))
+                           allow_key_for(header, surf, "WATER_MISMATCH", tx, tz, y=plat["y"]))
                 elif drawn == "void" and coll == "walkable":
-                    record({"map": header, "x": tx, "z": tz, "surface": surf,
+                    record({"map": header, "x": tx, "y": plat["y"], "z": tz, "surface": surf,
                             "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "HIGH",
                             "drawn": drawn, "collision": coll,
                             "behaviour": beh_name,
                             "evidence": ev + "; nothing drawn on a walkable platform tile"},
-                           allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz))
+                           allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz,
+                                         y=plat["y"]))
 
     # ---- DW jump landings -------------------------------------------------
     # Jump destinations must be drawn on their surface: a jump ignores
