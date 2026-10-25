@@ -195,8 +195,11 @@ def behaviour_kind(names, beh):
     if ("WARP" in core or core == "DOOR" or "ESCALATOR" in core
             or "STAIR" in core):
         return "warp"
-    if core in ("TABLE", "PC", "TOWN_MAP", "TV", "BERRY_PATCH",
-                "UNKNOWN_x88", "UNKNOWN_x8E"):
+    if (core in ("TABLE", "PC", "TOWN_MAP", "TV", "BERRY_PATCH",
+                "UNKNOWN_x88", "UNKNOWN_x8E")
+            or "BOOKSHELF" in core or "TRASH_CAN" in core
+            or "MART_SHELF" in core or "SIGN" in core
+            or core in ("NOTICE_BOARD", "POSTER", "BULLETIN_BOARD")):
         return "special"
     if core in ("BRIDGE_START", "BRIDGE", "BRIDGE_OVER_CAVE",
                 "BRIDGE_OVER_WATER", "BRIDGE_OVER_SAND",
@@ -321,6 +324,8 @@ class Tree:
                               min(p[1] for p in pts), max(p[1] for p in pts),
                               pts, tuple(pts)))
         self._chunk_faces[chunk] = faces
+        while len(self._chunk_faces) > 256:
+            self._chunk_faces.pop(next(iter(self._chunk_faces)))
         return faces
 
     def build_models(self):
@@ -377,6 +382,8 @@ class Tree:
                             max(v[0] for v in verts), max(v[2] for v in verts),
                             min(v[1] for v in verts), max(v[1] for v in verts)))
         self._prop_cache[key] = out
+        while len(self._prop_cache) > 256:
+            self._prop_cache.pop(next(iter(self._prop_cache)))
         return out
 
     def chunk_perm(self, chunk):
@@ -385,6 +392,8 @@ class Tree:
                                 "map_data_%03d.bin" % chunk)
             parts = self.mapdata.unpack(open(path, "rb").read())
             self._chunk_perms[chunk] = self.mapdata.read_permissions(parts["permissions"])
+            while len(self._chunk_perms) > 256:
+                self._chunk_perms.pop(next(iter(self._chunk_perms)))
         return self._chunk_perms[chunk]
 
 
@@ -453,6 +462,7 @@ class MapData:
         pass
         self.events = {"objects": [], "warps": [], "coords": []}
         self.dw = None  # twarc record, if any
+        self.dw_error = None  # DW parse failure, if any (see _load_dw)
         self._load_events()
         self._load_dw()
         self._load_geometry()
@@ -482,14 +492,11 @@ class MapData:
                 return
 
     def object_tiles(self):
-        out = {}
-        for o in self.events["objects"]:
-            rx = o.get("movement_range_x", 0) or 0
-            rz = o.get("movement_range_z", 0) or 0
-            for dx in range(-rx, rx + 1):
-                for dz in range(-rz, rz + 1):
-                    out[(o.get("x", 0) + dx, o.get("z", 0) + dz)] = o
-        return out
+        # Base tile only. An object blocks the tile it stands on;
+        # its movement range is where it *might* walk, which does not
+        # explain plain blocked collision under visible floor there.
+        return {(o.get("x", 0), o.get("z", 0)): o
+                for o in self.events["objects"]}
 
     def warp_tiles(self):
         return {(w.get("x"), w.get("z")): w for w in self.events["warps"]}
@@ -632,12 +639,16 @@ class MapData:
                     grids[p["attr"]] = struct.unpack("<1024H", attr[p["attr"]])
             off = entry[2:5]
             self.dw = {"record": rec, "grids": grids, "offset": off}
-        except Exception:
+        except Exception as e:
+            # A corrupt/missing platform archive must not silently
+            # disable DW support: the report records dw_error and
+            # main() exits 2 rather than passing the gate.
             self.dw = None
+            self.dw_error = "%s: %s" % (type(e).__name__, e)
 
     # -- drawn classification --------------------------------------------
     def drawn_floor(self, x, z):
-        """-> (drawn, evidence, centred): drawn in
+        """-> (drawn, evidence, centred, from_prop): drawn in
         floor|water|stairs|raised|tall|canopy|void. centred is True
         when a gap-chain of faces with centroids in the tile runs
         from the ground to the canopy/roof: a tall obstacle centred
@@ -658,7 +669,7 @@ class MapData:
             if int(math.floor(ccx)) == x and int(math.floor(ccz)) == z:
                 centroid.append((mat, ny, mn, mx, pts))
         if not covering and not centroid:
-            return "void", "no face covers the tile centre", False
+            return "void", "no face covers the tile centre", False, False
         water = [f for f in covering
                  if f[1] > 0.7 and is_water_mat(f[0])
                  and base - 1.2 <= f[2] <= base + 1.2]
@@ -714,9 +725,9 @@ class MapData:
                 cover_why = "chain %s h %.2f..%.2f" % (fam, lo, hi)
                 break
         if centred:
-            return "tall", centred_why, True
+            return "tall", centred_why, True, False
         if cover_why:
-            return "tall", cover_why, False
+            return "tall", cover_why, False, False
         # A building-facade or ditch face covering the centre means
         # the tile is a wall/fence/ditch strip (city perimeter), not
         # floor -- even though the ground plane also covers it.
@@ -725,7 +736,7 @@ class MapData:
                   or re.match(r"^c\d+_d(_|$)", f[0]) is not None]
         if struct:
             return "tall", "facade/ditch face %s h %.2f..%.2f" % (
-                struct[0][0], struct[0][2], struct[0][3]), False
+                struct[0][0], struct[0][2], struct[0][3]), False, False
         # Chunk props: a tall building prop over the tile makes it
         # a tall obstacle; a flat water prop (a lake plane) makes it
         # drawn water. Rotation is ignored in the footprint, so a
@@ -737,24 +748,27 @@ class MapData:
                       if any(w in p[0] for w in ("lake", "water", "pond"))
                       and p[2] - p[1] < 0.5 and base - 1.2 <= p[1] <= base + 0.3]
         if tall_prop:
+            # A tall prop footprint is approximate (bbox, rotation
+            # ignored): it explains a blocked tile, but it must
+            # never itself produce a mismatch (from_prop=True).
             return "tall", "building prop %s h %.2f..%.2f" % (
-                tall_prop[0][0], tall_prop[0][1], tall_prop[0][2]), False
+                tall_prop[0][0], tall_prop[0][1], tall_prop[0][2]), False, True
         if water_prop and not floor:
             return "water", "water-plane prop %s h %.2f" % (
-                water_prop[0][0], water_prop[0][1]), False
+                water_prop[0][0], water_prop[0][1]), False, False
         if water and (not floor or water[0][2] >= floor[0][2] - 0.3):
-            return "water", "water face %s h %.2f" % (water[0][0], water[0][2]), False
+            return "water", "water face %s h %.2f" % (water[0][0], water[0][2]), False, False
         if floor:
-            return "floor", "floor face %s h %.2f..%.2f" % (floor[0][0], floor[0][2], floor[0][3]), False
+            return "floor", "floor face %s h %.2f..%.2f" % (floor[0][0], floor[0][2], floor[0][3]), False, False
         if stairs:
-            return "stairs", "sloped face %s h %.2f..%.2f" % (stairs[0][0], stairs[0][2], stairs[0][3]), False
+            return "stairs", "sloped face %s h %.2f..%.2f" % (stairs[0][0], stairs[0][2], stairs[0][3]), False, False
         if raised:
-            return "raised", "raised face %s h %.2f" % (raised[0][0], raised[0][2]), False
+            return "raised", "raised face %s h %.2f" % (raised[0][0], raised[0][2]), False, False
         non_shadow = [f for f in covering if not is_shadow_mat(f[0])]
         if non_shadow and all(is_tree_mat(f[0]) for f in non_shadow):
-            return "canopy", "tree canopy faces only (no trunk on this tile)", False
+            return "canopy", "tree canopy faces only (no trunk on this tile)", False, False
         return "void", "faces present but none is floor/water/tall: %s" % (
-            ", ".join(sorted({f[0] for f in covering}))), False
+            ", ".join(sorted({f[0] for f in covering}))), False, False
 
     def drawn_dw_surface(self, plat, x, z):
         """-> (drawn, evidence) for a ceiling- or floor-platform tile:
@@ -853,7 +867,8 @@ def dw_surface_name(plat):
 def analyse_map(tree, header, matrix_id, region, allowlist):
     md = MapData(tree, header, matrix_id)
     names = tree.names
-    objects = md.object_tiles()
+    objects = md.object_tiles()  # base tiles only: an object blocks the
+    # tile it stands on, not every tile of its movement range.
     warps = md.warp_tiles()
     coords = md.coord_tiles()
     # DW jump tiles (floor coords) and jump landings, from the twarc record.
@@ -866,24 +881,62 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
                     jump_tiles.add((j["x"] + dx, j["z"] + dz))
                     jump_landings.add((j["x"] + j["dx"] + dx,
                                        j["z"] + j["dz"] + dz))
-    # DW ghost props, keyed by surface tile.
-    ghost_by_tile = collections.defaultdict(list)  # (surface, key) -> kinds
+    # DW ghost props, keyed by surface tile: (kind, visible, group).
+    # Only props whose group is in the record's default_visible mask
+    # are drawn when the map loads; a hidden prop is not drawn, so
+    # it does not explain a blocked tile (its tile must show some
+    # other drawn geometry, or it is a mismatch).
+    ghost_by_tile = collections.defaultdict(list)
     if md.dw:
-        for p in md.dw["record"]["ghost"]["props"]:
+        default_visible = md.dw["record"]["ghost"]["default_visible"]
+        for pr in md.dw["record"]["ghost"]["props"]:
             surf = None
             key = None
             for plat in md.dw["record"]["platforms"]:
-                if plat["kind"] == 3 and p["y"] == plat["y"] and \
-                        plat["x"] <= p["x"] <= plat["x"] + plat["sx"] and \
-                        plat["z"] <= p["z"] <= plat["z"] + plat["sz"]:
-                    surf, key = "ceiling", (p["x"], p["z"])
-                elif plat["kind"] in (1, 2) and p["x"] == plat["x"] and \
-                        plat["y"] <= p["y"] <= plat["y"] + plat["sy"] and \
-                        plat["z"] <= p["z"] <= plat["z"] + plat["sz"]:
-                    surf, key = "wall", (p["y"], p["z"])
+                if plat["kind"] == 3 and pr["y"] == plat["y"] and \
+                        plat["x"] <= pr["x"] <= plat["x"] + plat["sx"] and \
+                        plat["z"] <= pr["z"] <= plat["z"] + plat["sz"]:
+                    surf, key = "ceiling", (pr["x"], pr["z"])
+                elif plat["kind"] in (1, 2) and pr["x"] == plat["x"] and \
+                        plat["y"] <= pr["y"] <= plat["y"] + plat["sy"] and \
+                        plat["z"] <= pr["z"] <= plat["z"] + plat["sz"]:
+                    surf, key = "wall", (pr["y"], pr["z"])
             if surf is None:
-                surf, key = ("floor", (p["x"], p["z"])) if p["y"] <= 1 else ("ceiling", (p["x"], p["z"]))
-            ghost_by_tile[(surf, key)].append(p["kind"])
+                surf, key = ("floor", (pr["x"], pr["z"])) if pr["y"] <= 1 else ("ceiling", (pr["x"], pr["z"]))
+            visible = bool(default_visible & (1 << pr["group"]))
+            ghost_by_tile[(surf, key)].append((pr["kind"], visible, pr["group"]))
+    # Per-surface jump source / landing keys, classified by the
+    # tile's own coordinates against the platforms (the jump
+    # record's "platform" field is the DESTINATION platform, so
+    # keying a source tile by it misclassifies wall sources as
+    # ceiling tiles). A landing that is also a jump source is a
+    # chain link (a designed transition), not a bug.
+    def _classify_tile(x, y, z):
+        for plat in md.dw["record"]["platforms"]:
+            if plat["kind"] in (1, 2) and x == plat["x"] and \
+                    plat["y"] <= y <= plat["y"] + plat["sy"] and \
+                    plat["z"] <= z <= plat["z"] + plat["sz"]:
+                return "wall", (y, z), plat
+            if plat["kind"] in (0, 3) and y == plat["y"] and \
+                    plat["x"] <= x <= plat["x"] + plat["sx"] and \
+                    plat["z"] <= z <= plat["z"] + plat["sz"]:
+                return dw_surface_name(plat), (x, z), plat
+        return "floor", (x, z), None
+
+    jump_src_by_surface = set()
+    jump_land_by_surface = set()
+    if md.dw:
+        for j in md.dw["record"]["jumps"]:
+            if j["platform"] != 65535 and j["platform"] < len(md.dw["record"]["platforms"]):
+                pass  # the platform field is the destination; classify by coords
+            for dy in range(j["sy"] + 1):
+                for dz in range(j["sz"] + 1):
+                    for dx in range(j["sx"] + 1):
+                        surf, key, _pl = _classify_tile(j["x"] + dx, j["y"] + dy, j["z"] + dz)
+                        jump_src_by_surface.add((surf, key))
+                        lsurf, lkey, _pl2 = _classify_tile(
+                            j["x"] + j["dx"] + dx, j["y"] + j["dy"] + dy, j["z"] + j["dz"] + dz)
+                        jump_land_by_surface.add((lsurf, lkey))
     # Tiles inside a DW platform footprint are checked as that
     # surface, not as ordinary floor (their perms are blocked there
     # because the ground is not the playable surface).
@@ -938,17 +991,24 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
     counts = collections.Counter()
 
     def record(entry, allow_key):
-        if allow_key is not None and allow_key in allowlist:
-            entry["allowlisted"] = allowlist[allow_key]
-            allowlisted.append(entry)
-            return
+        # allow_key is (map, surface, class, x, y, z); the allowlist
+        # is keyed by that plus severity, with a severity-less entry
+        # matching any severity (an entry WITH severity only matches
+        # that severity, so a HIGH<->MEDIUM change is not silenced).
+        for key in (allow_key + (entry["severity"],), allow_key + (None,)):
+            if key in allowlist:
+                entry["allowlisted"] = allowlist[key]
+                allowlisted.append(entry)
+                return
         mismatches.append(entry)
         counts[(entry["class"], entry["severity"])] += 1
 
-    def allow_key_for(m, surface, cls, x, z):
-        return (m, surface, cls, x, z)
+    def allow_key_for(m, surface, cls, x, z, y=None):
+        return (m, surface, cls, x, y, z)
 
     # ---- floor tiles ----------------------------------------------------
+    # Phase 1: classify every scoped tile once.
+    tiles_data = []
     for (x, z) in sorted(scope):
         if (x, z) in dw_footprint:
             continue
@@ -959,32 +1019,75 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
         chunk, lx, lz = md.tiles[(x, z)]
         raw = tree.chunk_perm(chunk)[lz][lx]
         coll, beh_name = classify_collision(raw, names)
-        drawn, dev, centred = md.drawn_floor(x, z)
+        drawn, dev, centred, from_prop = md.drawn_floor(x, z)
         ghosts = ghost_by_tile.get(("floor", (x, z)), [])
+        tiles_data.append({"x": x, "z": z, "raw": raw, "coll": coll,
+                           "beh": beh_name, "drawn": drawn, "dev": dev,
+                           "centred": centred, "from_prop": from_prop,
+                           "ghosts": ghosts})
+    # Phase 2: the drawn bounding box (of anything drawn, expanded
+    # by one tile) bounds the invisible-floor checks: padding
+    # outside an interior model is void + walkable in the perms,
+    # but it was never a room the player can see. Drawn-floor +
+    # blocked is still checked globally.
+    drawn_tiles = [t for t in tiles_data if t["drawn"] != "void"]
+    if drawn_tiles:
+        bx0 = min(t["x"] for t in drawn_tiles) - 1
+        bx1 = max(t["x"] for t in drawn_tiles) + 1
+        bz0 = min(t["z"] for t in drawn_tiles) - 1
+        bz1 = max(t["z"] for t in drawn_tiles) + 1
+    else:
+        bx0, bx1, bz0, bz1 = -10 ** 9, 10 ** 9, -10 ** 9, 10 ** 9
+    for t in tiles_data:
+        x, z, raw = t["x"], t["z"], t["raw"]
+        coll, beh_name = t["coll"], t["beh"]
+        drawn, dev = t["drawn"], t["dev"]
+        centred, from_prop = t["centred"], t["from_prop"]
+        ghosts = t["ghosts"]
+        visible = [g for g in ghosts if g[1]]
+        hidden = [g for g in ghosts if not g[1]]
         ev = "%s; collision 0x%04x (%s, beh %s)" % (dev, raw, coll, beh_name)
-        if ghosts:
-            ev += "; ghost props kinds %s" % (ghosts,)
+        if visible:
+            ev += "; ghost props kinds %s" % ([g[0] for g in visible],)
+        if hidden:
+            ev += "; ghost props hidden at load kinds %s" % ([g[0] for g in hidden],)
         if (x, z) in objects:
             # An object tile is explained whatever its perms say:
             # MapObjects block movement through the object system,
             # so the permissions grid need not (and often does not)
-            # mark the tile blocked.
+            # mark the tile blocked. Only the base tile counts:
+            # the object blocks the tile it stands on, not every
+            # tile of its movement range.
             ev += "; object %s" % (objects[(x, z)].get("id"),)
             explained += 1
             continue
-        if (x, z) in warps or (x, z) in coords or (x, z) in jump_tiles:
+        # Exemptions are class-specific: a warp / coord trigger /
+        # jump source only explains the pair it actually is.
+        if (x, z) in jump_tiles and drawn == "floor" and coll == "blocked":
+            # A jump source is plain blocked by design (a jump
+            # ignores the landing/source block bit), drawn as floor.
             explained += 1
             continue
-        if ghosts:
-            if GHOST_BLOCK_KIND in ghosts and coll == "walkable":
+        if (x, z) in warps and drawn in ("void", "tall") and coll == "walkable":
+            # A warp tile in a wall / tall structure (a door).
+            explained += 1
+            continue
+        if (x, z) in coords and drawn == "void" and coll == "walkable":
+            # A coord trigger over open void (a fall trigger).
+            explained += 1
+            continue
+        if visible:
+            if GHOST_BLOCK_KIND in [g[0] for g in visible] and coll == "walkable":
                 record({"map": header, "x": x, "z": z, "surface": "floor",
                         "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "HIGH",
                         "drawn": "tall", "collision": coll,
                         "behaviour": beh_name,
                         "evidence": ev + "; stone-block ghost prop on a walkable tile"},
                        allow_key_for(header, "floor", "LOOKS_BLOCKED_BUT_WALKABLE", x, z))
-            # Any ghost prop explains a blocked tile (alcove, pad, ...).
+            # A visible ghost prop explains a blocked tile
+            # (alcove, pad, ...).
             continue
+        in_bbox = bx0 <= x <= bx1 and bz0 <= z <= bz1
         if drawn == "floor" and coll == "blocked":
             record({"map": header, "x": x, "z": z, "surface": "floor",
                     "class": "LOOKS_WALKABLE_BUT_BLOCKED", "severity": "HIGH",
@@ -1005,21 +1108,24 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
                     "behaviour": beh_name,
                     "evidence": ev + "; drawn water, walkable non-water collision"},
                    allow_key_for(header, "floor", "WATER_MISMATCH", x, z))
-        elif drawn == "tall" and coll == "walkable" and centred:
+        elif drawn == "tall" and coll == "walkable" and centred and in_bbox:
             record({"map": header, "x": x, "z": z, "surface": "floor",
                     "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "HIGH",
                     "drawn": drawn, "collision": coll,
                     "behaviour": beh_name,
                     "evidence": ev + "; tall obstacle centred on the tile, collision walkable"},
                    allow_key_for(header, "floor", "LOOKS_BLOCKED_BUT_WALKABLE", x, z))
-        elif drawn == "void" and coll == "walkable":
+        elif drawn == "void" and coll == "walkable" and in_bbox:
             record({"map": header, "x": x, "z": z, "surface": "floor",
                     "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "HIGH",
                     "drawn": drawn, "collision": coll,
                     "behaviour": beh_name,
                     "evidence": ev + "; nothing drawn, collision walkable"},
                    allow_key_for(header, "floor", "LOOKS_BLOCKED_BUT_WALKABLE", x, z))
-        elif drawn == "tall" and coll == "water":
+        elif drawn == "tall" and coll == "water" and not from_prop:
+            # A tall obstacle over walkable water. Tall from an
+            # approximate prop footprint never flags (it is
+            # explanatory-only by construction).
             record({"map": header, "x": x, "z": z, "surface": "floor",
                     "class": "WATER_MISMATCH", "severity": "MEDIUM",
                     "drawn": drawn, "collision": coll,
@@ -1047,29 +1153,43 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
                     continue
                 coll, beh_name = classify_collision(raw, names)
                 ghosts = ghost_by_tile.get((surf, key), [])
+                visible = [g for g in ghosts if g[1]]
+                hidden = [g for g in ghosts if not g[1]]
                 if surf in ("ceiling", "floor"):
+                    # A floor platform is a floating platform whose
+                    # collision is the attr grid, not the perms.
                     drawn, dev = md.drawn_dw_surface(plat, key[0], key[1])
                     tx, tz = key
                 else:
                     drawn, dev = md.drawn_dw_wall(plat, key[0], key[1])
                     tx, tz = plat["x"], key[1]
                 ev = "%s; collision 0x%04x (%s, beh %s)" % (dev, raw, coll, beh_name)
-                if ghosts:
-                    ev += "; ghost props kinds %s" % (ghosts,)
-                # Jump transitions on this surface are designed tiles.
+                if visible:
+                    ev += "; ghost props kinds %s" % ([g[0] for g in visible],)
+                if hidden:
+                    ev += "; ghost props hidden at load kinds %s" % ([g[0] for g in hidden],)
+                # A jump source on a DW surface is a designed
+                # transition: its tile belongs to the jump system,
+                # not to the walkable surface (a wall source is
+                # void+walkable by design, a ceiling source is
+                # floor+blocked). This is the DW-surface analogue
+                # of the floor loop's narrower rule, where the
+                # collision is the attr grid rather than perms.
                 surf_y = plat["y"] if surf in ("ceiling", "floor") else key[0]
                 on_jump = any(j["x"] <= tx <= j["x"] + j["sx"]
                               and j["y"] <= surf_y <= j["y"] + j["sy"]
                               and j["z"] <= tz <= j["z"] + j["sz"]
                               for j in md.dw["record"]["jumps"])
-                if ghosts:
-                    if GHOST_BLOCK_KIND in ghosts and coll == "walkable":
-                        record({"map": header, "x": tx, "y": key[0], "z": tz, "surface": surf,
+                if visible:
+                    if GHOST_BLOCK_KIND in [g[0] for g in visible] and coll == "walkable":
+                        record({"map": header, "x": tx, "y": key[0] if surf == "wall" else None,
+                                "z": tz, "surface": surf,
                                 "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "HIGH",
                                 "drawn": "tall", "collision": coll,
                                 "behaviour": beh_name,
                                 "evidence": ev + "; stone-block ghost prop on a walkable tile"},
-                               allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz))
+                               allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz,
+                                             y=key[0] if surf == "wall" else None))
                     continue
                 if on_jump:
                     explained += 1
@@ -1095,27 +1215,30 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
                                     "drawn": drawn, "collision": coll,
                                     "behaviour": beh_name,
                                     "evidence": ev + "; undrawn walkable wall tile adjacent to drawn wall (edge/corner)"},
-                                   allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz))
+                                   allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz,
+                                                 y=key[0]))
                         elif key[0] == plat["y"] + plat["sy"]:
                             record({"map": header, "x": tx, "y": key[0], "z": tz, "surface": surf,
                                     "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "MEDIUM",
                                     "drawn": drawn, "collision": coll,
                                     "behaviour": beh_name,
                                     "evidence": ev + "; undrawn walkable wall tile on the top row (transition)"},
-                                   allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz))
+                                   allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz,
+                                                 y=key[0]))
                         else:
                             record({"map": header, "x": tx, "y": key[0], "z": tz, "surface": surf,
                                     "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "HIGH",
                                     "drawn": drawn, "collision": coll,
                                     "behaviour": beh_name,
                                     "evidence": ev + "; nothing drawn on a walkable wall tile"},
-                                   allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz))
+                                   allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz,
+                                                 y=key[0]))
                     elif drawn == "water" and coll == "walkable":
                         record({"map": header, "x": tx, "y": key[0], "z": tz, "surface": surf,
                                 "class": "WATER_MISMATCH", "severity": "HIGH",
                                 "drawn": drawn, "collision": coll,
                                 "behaviour": beh_name, "evidence": ev},
-                               allow_key_for(header, surf, "WATER_MISMATCH", tx, tz))
+                               allow_key_for(header, surf, "WATER_MISMATCH", tx, tz, y=key[0]))
                     continue
                 # Ceiling / DW floor platform.
                 if drawn == "floor" and coll == "blocked":
@@ -1123,28 +1246,89 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
                             "class": "LOOKS_WALKABLE_BUT_BLOCKED", "severity": "HIGH",
                             "drawn": drawn, "collision": coll,
                             "behaviour": beh_name,
-                            "evidence": ev + "; drawn ceiling slab, collision blocked, no ghost prop"},
+                            "evidence": ev + "; drawn platform slab, collision blocked, no ghost prop"},
                            allow_key_for(header, surf, "LOOKS_WALKABLE_BUT_BLOCKED", tx, tz))
                 elif drawn == "water" and coll == "walkable":
                     record({"map": header, "x": tx, "z": tz, "surface": surf,
                             "class": "WATER_MISMATCH", "severity": "HIGH",
                             "drawn": drawn, "collision": coll,
                             "behaviour": beh_name,
-                            "evidence": ev + "; drawn ceiling water, collision walkable"},
+                            "evidence": ev + "; drawn platform water, collision walkable"},
                            allow_key_for(header, surf, "WATER_MISMATCH", tx, tz))
                 elif drawn == "void" and coll == "walkable":
                     record({"map": header, "x": tx, "z": tz, "surface": surf,
                             "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "HIGH",
                             "drawn": drawn, "collision": coll,
                             "behaviour": beh_name,
-                            "evidence": ev + "; nothing drawn on a walkable ceiling tile"},
+                            "evidence": ev + "; nothing drawn on a walkable platform tile"},
                            allow_key_for(header, surf, "LOOKS_BLOCKED_BUT_WALKABLE", tx, tz))
 
+    # ---- DW jump landings -------------------------------------------------
+    # Jump destinations must be drawn on their surface: a jump ignores
+    # the landing tile's block bit, so the ordinary checks cannot
+    # catch a landing on an undrawn tile (the fix2-lost rule: "no jump
+    # tile may land on an undrawn tile"). The landing's surface is
+    # its own tile surface, not the jump record's destination
+    # platform (which can be a different surface for chain jumps).
+    if md.dw:
+        seen_landings = set()
+        for ji, j in enumerate(md.dw["record"]["jumps"]):
+            for dy in range(j["sy"] + 1):
+                for dz in range(j["sz"] + 1):
+                    for dx in range(j["sx"] + 1):
+                        lx = j["x"] + j["dx"] + dx
+                        ly = j["y"] + j["dy"] + dy
+                        lz = j["z"] + j["dz"] + dz
+                        surf, lkey, plat = _classify_tile(lx, ly, lz)
+                        if (surf, lkey) in seen_landings:
+                            continue
+                        seen_landings.add((surf, lkey))
+                        # A wall-surface landing that is also a jump
+                        # source is a chain link; drawn_dw_wall's void
+                        # is not reliable evidence there (face offset).
+                        if surf == "wall" and (surf, lkey) in jump_src_by_surface:
+                            continue
+                        if surf == "wall":
+                            drawn, dev = md.drawn_dw_wall(plat, lkey[0], lkey[1])
+                            tx, tz, ty = plat["x"], lkey[1], lkey[0]
+                            raw = dw_attr_collision(md, plat, lkey)
+                        elif plat is not None:
+                            drawn, dev = md.drawn_dw_surface(plat, lkey[0], lkey[1])
+                            tx, tz, ty = lkey[0], lkey[1], plat["y"]
+                            raw = dw_attr_collision(md, plat, lkey)
+                        else:
+                            if (lx, lz) not in md.tiles:
+                                continue
+                            drawn, dev, _centred, _fp = md.drawn_floor(lx, lz)
+                            tx, tz, ty = lx, lz, None
+                            chunk, llx, llz = md.tiles[(lx, lz)]
+                            raw = tree.chunk_perm(chunk)[llz][llx]
+                        coll = classify_collision(raw, names)[0] if raw is not None else "blocked"
+                        if drawn == "void":
+                            record({"map": header, "x": tx, "y": ty, "z": tz, "surface": surf,
+                                    "class": "JUMP_LANDING_UNDRAWN", "severity": "HIGH",
+                                    "drawn": drawn, "collision": coll,
+                                    "behaviour": "n/a (jump ignores the block bit)",
+                                    "evidence": "%s; jump %d from (%s, %s, %s) -> "
+                                    "landing (%s, %s, %s) on %s is undrawn" % (
+                                        dev, ji, j["x"], j["y"], j["z"], lx, ly, lz, surf)},
+                                   allow_key_for(header, surf, "JUMP_LANDING_UNDRAWN", tx, tz, y=ty))
+                        elif drawn == "tall":
+                            record({"map": header, "x": tx, "y": ty, "z": tz, "surface": surf,
+                                    "class": "JUMP_LANDING_OBSTRUCTED", "severity": "HIGH",
+                                    "drawn": drawn, "collision": coll,
+                                    "behaviour": "n/a (jump ignores the block bit)",
+                                    "evidence": "%s; jump %d from (%s, %s, %s) -> "
+                                    "landing (%s, %s, %s) on %s is on a tall obstacle" % (
+                                        dev, ji, j["x"], j["y"], j["z"], lx, ly, lz, surf)},
+                                   allow_key_for(header, surf, "JUMP_LANDING_OBSTRUCTED", tx, tz, y=ty))
+
     out = {"map": header, "matrix": matrix_id,
-            "tiles_checked": len(scope),
-            "counts": {("%s|%s" % k): v for k, v in sorted(counts.items())},
-            "mismatches": mismatches, "allowlisted": allowlisted,
-            "explained_tiles": explained, "_md": md}
+           "tiles_checked": len(scope),
+           "counts": {("%s|%s" % k): v for k, v in sorted(counts.items())},
+           "mismatches": mismatches, "allowlisted": allowlisted,
+           "explained_tiles": explained, "_md": md, "_scope": scope,
+           "dw_error": getattr(md, "dw_error", None)}
     return out
 
 
@@ -1268,24 +1452,19 @@ def render_map_overlays(tree, result, out_dir, region):
         return []
     md = data
     names = tree.names
-    tiles = sorted(md.tiles) if region is None else sorted(
-        t for t in md.tiles if region[0] <= t[0] <= region[2] and region[1] <= t[1] <= region[3])
+    # The analyzer's exact scope (result["_scope"]): the renderer must
+    # not recompute a narrower one (it used to, and omitted reported
+    # tiles from the PNG). Fall back to all tiles for old results.
+    scope = result.get("_scope")
+    tiles = sorted(scope) if scope is not None else sorted(
+        t for t in md.tiles if region is None or
+        (region[0] <= t[0] <= region[2] and region[1] <= t[1] <= region[3]))
     if not tiles:
         return []
     x0, x1 = min(t[0] for t in tiles), max(t[0] for t in tiles)
     z0, z1 = min(t[1] for t in tiles), max(t[1] for t in tiles)
     by_tile = {(m["x"], m["z"]): m for m in result["mismatches"] if m["surface"] == "floor"}
-    # Tiles outside the DW feature-chunk scope are not checked.
-    in_scope = set(md.tiles)
-    if md.dw:
-        feat = set()
-        for (x, z) in (DW_ENTRY,):
-            if (x, z) in md.tiles:
-                feat.add(md.tiles[(x, z)][0])
-        for j in md.dw["record"]["jumps"]:
-            if (j["x"], j["z"]) in md.tiles:
-                feat.add(md.tiles[(j["x"], j["z"])][0])
-        in_scope = {t for t in md.tiles if md.tiles[t][0] in feat}
+    in_scope = scope if scope is not None else set(md.tiles)
     grid = []
     for z in range(z0, z1 + 1):
         row = []
@@ -1296,7 +1475,7 @@ def render_map_overlays(tree, result, out_dir, region):
             chunk, lx, lz = md.tiles[(x, z)]
             raw = tree.chunk_perm(chunk)[lz][lx]
             coll, _ = classify_collision(raw, names)
-            drawn, _, _ = md.drawn_floor(x, z)
+            drawn, _, _, _ = md.drawn_floor(x, z)
             m = by_tile.get((x, z))
             if m is not None:
                 if m["class"] == "LOOKS_WALKABLE_BUT_BLOCKED":
@@ -1369,13 +1548,6 @@ def render_map_overlays(tree, result, out_dir, region):
                 for m in result["mismatches"]:
                     if m["surface"] == "wall":
                         by_w[(m.get("y", None), m["z"])] = m
-                # Wall mismatch entries carry (x=wall x, z); recover y
-                # from the platform: wall tiles are (y, z); the
-                # report stores x = plat x, z = z, and y is lost --
-                # rebuild it from the platform grid position: use the
-                # stored evidence-free key by matching z only when the
-                # platform has one wall. For two walls, ambiguous, so
-                # wall mismatches are coloured by (z, blocked) fallback.
                 grid = []
                 for y in range(plat["y"] + plat["sy"], plat["y"] - 1, -1):
                     row = []
@@ -1410,8 +1582,12 @@ def load_allowlist(path):
         except (OSError, ValueError):
             return out
         for e in data.get("entries", []):
+            # y and severity are optional: an entry without severity
+            # matches any severity; one with severity matches only
+            # that severity (so a HIGH<->MEDIUM change is not
+            # silenced). Wall entries must carry y.
             key = (e.get("map"), e.get("surface", "floor"), e.get("class"),
-                   e.get("x"), e.get("z"))
+                   e.get("x"), e.get("y"), e.get("z"), e.get("severity"))
             out[key] = e.get("reason", "")
     return out
 
@@ -1448,6 +1624,14 @@ def select_maps(tree, args):
     raise SystemExit("give --map, --all-dw or --all")
 
 
+def _ident(m):
+    # Full mismatch identity: map, coords (wall y included),
+    # surface, class, severity. Two map entries that differ only in
+    # severity or wall height are different findings.
+    return (m["map"], m.get("x"), m.get("y"), m["z"], m["surface"],
+            m["class"], m["severity"])
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--map", dest="map", default=None, action="append",
@@ -1460,6 +1644,9 @@ def main(argv=None):
                     help="repo checkout to check (default: this repo)")
     ap.add_argument("--diff", default=None,
                     help="compare against another checkout at this path")
+    ap.add_argument("--baseline", default=None,
+                    help="walkcheck.json from a reviewed run: the gate "
+                    "fails only on NEW HIGH findings vs that baseline")
     ap.add_argument("--out-dir", default="walkcheck_out",
                     help="where to write the JSON report and overlays")
     ap.add_argument("--allowlist", default=None,
@@ -1481,16 +1668,27 @@ def main(argv=None):
     report = {"tool": "tools/qa/walkcheck.py", "rom_tree": tree.root,
               "maps": [], "diff": None}
     any_high = False
+    errors = []
     for header in selected:
         matrix_id = tree.headers()[header][0]
         try:
             result = analyse_map(tree, header, matrix_id, region, allowlist)
         except FileNotFoundError as e:
-            print("%s: SKIP (missing file %s)" % (header, e.filename or e))
+            msg = "%s: missing file %s" % (header, e.filename or e)
+            print("%s: SKIP (%s)" % (header, msg))
+            errors.append(msg)
             continue
         except KeyError as e:
-            print("%s: SKIP (missing data %s)" % (header, e))
+            msg = "%s: missing data %s" % (header, e)
+            print("%s: SKIP (%s)" % (header, msg))
+            errors.append(msg)
             continue
+        if result.get("dw_error"):
+            # A failed DW parse is a hard error, not a silent skip:
+            # the map would otherwise leave the gate unchecked.
+            msg = "%s: DW parse failed: %s" % (header, result["dw_error"])
+            print(msg)
+            errors.append(msg)
         counts = collections.Counter()
         for m in result["mismatches"]:
             counts[(m["class"], m["severity"])] += 1
@@ -1506,12 +1704,20 @@ def main(argv=None):
         for (c, s), v in sorted(counts.items()):
             line += "; %s %s=%d" % (c, s, v)
         print(line, flush=True)
+        # Render now and strip the geometry: keeping every MapData
+        # alive until the end of a --all run peaked at 1.55 GB RSS.
+        if not args.no_png:
+            try:
+                render_map_overlays(tree, result, args.out_dir, region)
+            except Exception as e:
+                print("%s: overlay failed: %s" % (result["map"], e))
+        result.pop("_md", None)
+        result.pop("_scope", None)
         report["maps"].append(result)
     # Diff against another tree, same selection.
     if args.diff:
         other = Tree(args.diff)
-        mine = {(m["map"], m["x"], m["z"], m["surface"], m["class"])
-                for r in report["maps"] for m in r["mismatches"]}
+        mine = {_ident(m) for r in report["maps"] for m in r["mismatches"]}
         theirs = set()
         other_maps = []
         for header in selected:
@@ -1520,9 +1726,11 @@ def main(argv=None):
                 res = analyse_map(other, header, matrix_id, region, allowlist)
             except (FileNotFoundError, KeyError):
                 continue
+            res.pop("_md", None)
+            res.pop("_scope", None)
             other_maps.append(res)
             for m in res["mismatches"]:
-                theirs.add((m["map"], m["x"], m["z"], m["surface"], m["class"]))
+                theirs.add(_ident(m))
         report["diff"] = {
             "other_tree": other.root,
             "added_in_this_tree": sorted(mine - theirs),
@@ -1531,22 +1739,36 @@ def main(argv=None):
         }
         print("DIFF vs %s: +%d added, -%d fixed" % (
             other.root, len(mine - theirs), len(theirs - mine)))
+    # Baseline gating: with --baseline, only HIGH findings that are
+    # not in the reviewed baseline fail the gate. Without it, any
+    # HIGH finding fails.
+    new_high = None
+    if args.baseline:
+        try:
+            bdata = json.load(open(args.baseline))
+        except (OSError, ValueError) as e:
+            raise SystemExit("--baseline unreadable: %s" % e)
+        base_high = {_ident(m) for r in bdata.get("maps", [])
+                     for m in r.get("mismatches", [])
+                     if m["severity"] == "HIGH"}
+        cur_high = {_ident(m) for r in report["maps"]
+                    for m in r["mismatches"] if m["severity"] == "HIGH"}
+        new_high = sorted(cur_high - base_high)
+        report["baseline"] = {"path": args.baseline,
+                              "baseline_high": len(base_high),
+                              "new_high": new_high}
+        print("BASELINE %s: %d new HIGH vs %d baselined HIGH" % (
+            args.baseline, len(new_high), len(base_high)))
     os.makedirs(args.out_dir, exist_ok=True)
-    if not args.no_png:
-        for result in report["maps"]:
-            try:
-                render_map_overlays(tree, result, args.out_dir, region)
-            except Exception as e:
-                print("%s: overlay failed: %s" % (result["map"], e))
-    for result in report["maps"]:
-        result.pop("_md", None)
-    if report["diff"] is not None:
-        for result in report["diff"]["other_maps"]:
-            result.pop("_md", None)
     out_json = os.path.join(args.out_dir, "walkcheck.json")
     with open(out_json, "w") as f:
         json.dump(report, f, indent=1)
     print("wrote %s" % out_json)
+    if errors:
+        print("ERRORS: %d map(s) failed to parse; exiting 2" % len(errors))
+        return 2
+    if new_high is not None:
+        return 1 if new_high else 0
     return 1 if any_high else 0
 
 
