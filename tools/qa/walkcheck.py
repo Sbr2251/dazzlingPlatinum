@@ -642,16 +642,26 @@ class MapData:
             # rect. A corrupt index (e.g. 9999) must fail closed
             # (dw_error -> exit 2), not fall back to coordinate
             # inference as if it were a ground jump. The jump's
-            # `kind` field is the animation type, not the
-            # destination surface, so it is not validated here.
+            # `kind` field is the destination FloatingPlatformKind:
+            # it sets the avatar's floor/wall/ceiling distortion
+            # state, so it must equal the destination platform's
+            # kind, or be 4 (ground) for a platform-65535 jump.
             for ji, j in enumerate(rec["jumps"]):
                 if j["platform"] == 65535:
+                    if j["kind"] != 4:
+                        raise ValueError(
+                            "jump %d: ground jump with kind %d (expected 4)"
+                            % (ji, j["kind"]))
                     continue
                 if j["platform"] >= len(rec["platforms"]):
                     raise ValueError(
                         "jump %d: destination platform %d out of range "
                         "(%d platforms)" % (ji, j["platform"], len(rec["platforms"])))
                 plat = rec["platforms"][j["platform"]]
+                if j["kind"] != plat["kind"]:
+                    raise ValueError(
+                        "jump %d: kind %d != destination platform %d kind %d"
+                        % (ji, j["kind"], j["platform"], plat["kind"]))
                 for dy in range(j["sy"] + 1):
                     for dz in range(j["sz"] + 1):
                         for dx in range(j["sx"] + 1):
@@ -1562,6 +1572,17 @@ def render_map_overlays(tree, result, out_dir, region):
     z0, z1 = min(t[1] for t in tiles), max(t[1] for t in tiles)
     by_tile = {(m["x"], m["z"]): m for m in result["mismatches"] if m["surface"] == "floor"}
     in_scope = scope if scope is not None else set(md.tiles)
+    # Kind-0 floor platforms: the platform attr grid (not the perms)
+    # is the collision there, and the platform slab (not the chunk
+    # ground) is what is drawn. The ground PNG must use the
+    # platform's collision/geometry for those tiles.
+    floorplat = {}
+    if md.dw:
+        for plat in md.dw["record"]["platforms"]:
+            if plat["kind"] == 0:
+                for x in range(plat["x"], plat["x"] + plat["sx"] + 1):
+                    for z in range(plat["z"], plat["z"] + plat["sz"] + 1):
+                        floorplat.setdefault((x, z), plat)
     grid = []
     for z in range(z0, z1 + 1):
         row = []
@@ -1569,10 +1590,16 @@ def render_map_overlays(tree, result, out_dir, region):
             if (x, z) not in md.tiles or (x, z) not in in_scope:
                 row.append((255, 255, 255))
                 continue
-            chunk, lx, lz = md.tiles[(x, z)]
-            raw = tree.chunk_perm(chunk)[lz][lx]
-            coll, _ = classify_collision(raw, names)
-            drawn, _, _, _ = md.drawn_floor(x, z)
+            if (x, z) in floorplat:
+                plat = floorplat[(x, z)]
+                raw = dw_attr_collision(md, plat, (x, z))
+                coll = classify_collision(raw, names)[0] if raw is not None else "blocked"
+                drawn, _ = md.drawn_dw_surface(plat, x, z)
+            else:
+                chunk, lx, lz = md.tiles[(x, z)]
+                raw = tree.chunk_perm(chunk)[lz][lx]
+                coll, _ = classify_collision(raw, names)
+                drawn, _, _, _ = md.drawn_floor(x, z)
             m = by_tile.get((x, z))
             if m is not None:
                 if m["class"] == "LOOKS_WALKABLE_BUT_BLOCKED":
@@ -1601,16 +1628,60 @@ def render_map_overlays(tree, result, out_dir, region):
                   "%s floor x[%d,%d] z[%d,%d]" % (result["map"], x0, x1, z0, z1),
                   grid, LEGEND)
     out.append(base + ".png")
-    # DW surfaces.
+    # DW surfaces. Filenames carry the platform index: a map
+    # with several ceilings / walls / floor platforms must not
+    # overwrite one `_ceiling.png` / `_wall.png` with the next.
     if md.dw:
-        for plat in md.dw["record"]["platforms"]:
+        for pi, plat in enumerate(md.dw["record"]["platforms"]):
             surf = dw_surface_name(plat)
-            if surf == "ceiling":
+            if surf == "floor":
+                # Kind-0 floor platform: render on (x, z) at the
+                # platform's y, with platform collision/geometry.
+                # Y-aware: only this platform's tiles (its y)
+                # are coloured, and the region filter applies.
+                xs = range(plat["x"], plat["x"] + plat["sx"] + 1)
+                zs = range(plat["z"], plat["z"] + plat["sz"] + 1)
+                by_tile_s = {(m["x"], m["z"]): m for m in result["mismatches"]
+                             if m["surface"] == "floor" and m.get("y") == plat["y"]}
+                grid = []
+                for z in zs:
+                    if region is not None and not (region[1] <= z <= region[3]):
+                        continue
+                    row = []
+                    for x in xs:
+                        if region is not None and not (region[0] <= x <= region[2]):
+                            continue
+                        m = by_tile_s.get((x, z))
+                        raw = dw_attr_collision(md, plat, (x, z))
+                        coll = classify_collision(raw, names)[0] if raw is not None else "blocked"
+                        drawn, _ = md.drawn_dw_surface(plat, x, z)
+                        if m is not None:
+                            row.append((220, 30, 30) if m["class"] == "LOOKS_WALKABLE_BUT_BLOCKED"
+                                       else (240, 220, 0) if m["class"] == "LOOKS_BLOCKED_BUT_WALKABLE"
+                                       else (220, 80, 200))
+                        elif drawn == "floor" and coll == "walkable":
+                            row.append((60, 180, 60))
+                        elif drawn == "water":
+                            row.append((0, 140, 220))
+                        elif drawn == "floor" and coll == "blocked":
+                            row.append((230, 130, 30))
+                        elif coll == "blocked":
+                            row.append((30, 30, 90))
+                        else:
+                            row.append((255, 255, 255))
+                    grid.append(row)
+                if grid:
+                    write_overlay(tree.png, base + "_floorplat_%d.png" % pi,
+                                  "%s floor platform %d (y=%d)" % (result["map"], pi, plat["y"]),
+                                  grid, LEGEND)
+                    out.append(base + "_floorplat_%d.png" % pi)
+            elif surf == "ceiling":
                 keys = [(x, z) for x in range(plat["x"], plat["x"] + plat["sx"] + 1)
                         for z in range(plat["z"], plat["z"] + plat["sz"] + 1)]
                 xs = [k[0] for k in keys]
                 zs = [k[1] for k in keys]
-                by_tile_s = {(m["x"], m["z"]): m for m in result["mismatches"] if m["surface"] == surf}
+                by_tile_s = {(m["x"], m["z"]): m for m in result["mismatches"]
+                             if m["surface"] == surf and m.get("y") == plat["y"]}
                 grid = []
                 for z in range(min(zs), max(zs) + 1):
                     row = []
@@ -1634,9 +1705,9 @@ def render_map_overlays(tree, result, out_dir, region):
                         else:
                             row.append((255, 255, 255))
                     grid.append(row)
-                write_overlay(tree.png, base + "_ceiling.png",
-                              "%s ceiling" % result["map"], grid, LEGEND)
-                out.append(base + "_ceiling.png")
+                write_overlay(tree.png, base + "_ceiling_%d.png" % pi,
+                              "%s ceiling %d (y=%d)" % (result["map"], pi, plat["y"]), grid, LEGEND)
+                out.append(base + "_ceiling_%d.png" % pi)
             else:
                 keys = [(y, z) for y in range(plat["y"], plat["y"] + plat["sy"] + 1)
                         for z in range(plat["z"], plat["z"] + plat["sz"] + 1)]
@@ -1664,9 +1735,9 @@ def render_map_overlays(tree, result, out_dir, region):
                         else:
                             row.append((255, 255, 255))
                     grid.append(row)
-                write_overlay(tree.png, base + "_wall.png",
-                              "%s wall (y down, z across)" % result["map"], grid, LEGEND)
-                out.append(base + "_wall.png")
+                write_overlay(tree.png, base + "_wall_%d.png" % pi,
+                              "%s wall %d (y down, z across)" % (result["map"], pi), grid, LEGEND)
+                out.append(base + "_wall_%d.png" % pi)
     return out
 
 
