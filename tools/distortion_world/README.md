@@ -403,3 +403,12 @@ which stays owned by the stock Eterna timer/frame hook). Both have
 (`gDwPuzzleTestMode`, set by the harness writing that RAM word, or
 `DwPuzzle_SetTestMode`). With test mode off, both rifts have no table and
 play exactly as today.
+
+## QA gate: walkability-vs-graphics check
+
+Run `python3 tools/qa/walkcheck.py --all-dw` before any DW merge.
+It compares what is drawn (chunk model faces, chunk props, ghost props)
+against what the collision says (permissions for the floor,
+`tw_arc_attr` for DW walls/ceilings) and exits 1 if any HIGH-severity
+mismatch exists. See `tools/qa/README.md` for the mismatch classes,
+the allowlist, and how to spot-check reported tiles in the emulator.

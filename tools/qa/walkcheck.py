@@ -27,15 +27,17 @@ Drawn classification (floor surface), per tile, from the chunk models:
   raised  an upward face with height in (base+1.2, base+3.5]: a ledge
           top, cliff top or bridge deck. Raised is neutral: it is
           neither flagged as floor nor as blocked-looking.
-  tall    a chain of faces of one material family covering the tile
-          centre from the ground (h <= base+0.6) up to the canopy/roof
-          (h >= base+1.8), or a tree-trunk vertex cluster whose
-          centroid lands on the tile (the seed's trunk rule: a chain
-          of faces from the ground (h <= 0.3) up to the canopy
-          (h >= 4.0), generalised to per-chunk base heights), or a
-          building slab with a roof of the same building prefix above
-          it. Trees, rocks, buildings and cliff faces never count as
-          floor, so a tree tile is tall, not "drawn floor".
+  tall    a tall obstacle centred on the tile: a gap-chain of
+          faces whose centroids lie in the tile running from the
+          ground (h <= base+0.6) up to the canopy/roof (h >=
+          base+1.5), or a covering-centre chain of one material
+          family from the ground up to the canopy/roof (that only
+          explains a blocked tile -- a cone tree's canopy covers
+          the tiles around the trunk too), or a building prop, or
+          a facade/ditch face covering the tile centre. Trees,
+          rocks, buildings and cliff faces never count as floor,
+          so a tree tile is tall, not "drawn floor". A tile covered
+          only by tree-canopy faces is "canopy" (neutral).
   void    nothing drawn at the tile centre (shadow decals, the
           s_land3_lm6 backdrop panel and prop water planes are
           excluded: a shadow does not make a tile look walkable).
@@ -606,6 +608,23 @@ class MapData:
             if entry is None:
                 return
             rec = twarc.parse_record(tw[entry[1] + 1])
+            # The tw_arc record stores DW *world* coordinates; the
+            # chunk models (and the map's tile grid) are in map-local
+            # coordinates, so subtract the index offset. The custom
+            # DW maps use offset (0, 0, 0); the stock DW floors are
+            # stacked in world Y (B2F at y 224, ...).
+            off = list(entry[2:5])
+            for plat in rec["platforms"]:
+                plat["x"] -= off[0]; plat["y"] -= off[1]; plat["z"] -= off[2]
+            for j in rec["jumps"]:
+                j["x"] -= off[0]; j["y"] -= off[1]; j["z"] -= off[2]
+            for c in rec["cameras"]:
+                c["x"] -= off[0]; c["y"] -= off[1]; c["z"] -= off[2]
+            for pr in rec["ghost"]["props"]:
+                pr["x"] -= off[0]; pr["y"] -= off[1]; pr["z"] -= off[2]
+            for tr in rec["ghost"]["triggers"]:
+                tr["bounds"][0] -= off[0]; tr["bounds"][1] -= off[1]
+                tr["bounds"][2] -= off[2]
             ahdr, abtnf, attr = _narc.read_files(twarc.ATTR)
             grids = {}
             for p in rec["platforms"]:
@@ -657,7 +676,7 @@ class MapData:
                   and base + 1.2 < f[2] <= base + 3.5]
         # Gap-chain test over one family of faces: intervals from the
         # ground (first min_h <= base+0.6) to the canopy/roof (max_h
-        # >= base+1.8) with no gap > 0.75 between consecutive faces.
+        # >= base+1.5) with no gap > 0.75 between consecutive faces.
         def gap_chain(fl):
             ivs = sorted((f[2], f[3]) for f in fl)
             if not ivs or ivs[0][0] > base + 0.6:
@@ -1256,11 +1275,22 @@ def render_map_overlays(tree, result, out_dir, region):
     x0, x1 = min(t[0] for t in tiles), max(t[0] for t in tiles)
     z0, z1 = min(t[1] for t in tiles), max(t[1] for t in tiles)
     by_tile = {(m["x"], m["z"]): m for m in result["mismatches"] if m["surface"] == "floor"}
+    # Tiles outside the DW feature-chunk scope are not checked.
+    in_scope = set(md.tiles)
+    if md.dw:
+        feat = set()
+        for (x, z) in (DW_ENTRY,):
+            if (x, z) in md.tiles:
+                feat.add(md.tiles[(x, z)][0])
+        for j in md.dw["record"]["jumps"]:
+            if (j["x"], j["z"]) in md.tiles:
+                feat.add(md.tiles[(j["x"], j["z"])][0])
+        in_scope = {t for t in md.tiles if md.tiles[t][0] in feat}
     grid = []
     for z in range(z0, z1 + 1):
         row = []
         for x in range(x0, x1 + 1):
-            if (x, z) not in md.tiles:
+            if (x, z) not in md.tiles or (x, z) not in in_scope:
                 row.append((255, 255, 255))
                 continue
             chunk, lx, lz = md.tiles[(x, z)]
@@ -1312,7 +1342,7 @@ def render_map_overlays(tree, result, out_dir, region):
                         m = by_tile_s.get((x, z))
                         raw = dw_attr_collision(md, plat, (x, z))
                         coll = classify_collision(raw, names)[0] if raw is not None else "blocked"
-                        drawn, _ = md.drawn_dw_ceiling(plat, x, z)
+                        drawn, _ = md.drawn_dw_surface(plat, x, z)
                         if m is not None:
                             row.append((220, 30, 30) if m["class"] == "LOOKS_WALKABLE_BUT_BLOCKED"
                                        else (240, 220, 0) if m["class"] == "LOOKS_BLOCKED_BUT_WALKABLE"
@@ -1321,6 +1351,8 @@ def render_map_overlays(tree, result, out_dir, region):
                             row.append((60, 180, 60))
                         elif drawn == "water":
                             row.append((0, 140, 220))
+                        elif drawn == "floor" and coll == "blocked":
+                            row.append((230, 130, 30))
                         elif coll == "blocked":
                             row.append((30, 30, 90))
                         else:
@@ -1388,9 +1420,13 @@ def load_allowlist(path):
 def select_maps(tree, args):
     hdrs = tree.headers()
     if args.all_dw:
+        # The custom DW maps of this hack (the QA gate's scope).
+        # The stock DISTORTION_WORLD_* floors are intentionally not
+        # included: their floor platforms use stock DW mechanics the
+        # tool does not model (see tools/qa/README.md, Known limits).
         return sorted(h for h in hdrs
                       if h.startswith("MAP_HEADER_DW_")
-                      or h.startswith("MAP_HEADER_DISTORTION_WORLD_"))
+                      or h == "MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS")
     if args.all:
         return sorted(h for h in hdrs
                       if h not in ("MAP_HEADER_EVERYWHERE", "MAP_HEADER_NOTHING"))
