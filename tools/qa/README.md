@@ -17,6 +17,7 @@ python3 tools/qa/walkcheck.py --map 293 --region 8,5,55,31
 python3 tools/qa/walkcheck.py --all-dw            # the custom DW maps (QA gate)
 python3 tools/qa/walkcheck.py --all               # every map with a matrix
 python3 tools/qa/walkcheck.py --map MAP_HEADER_DW_ROUTE_214 --diff /path/to/other/tree
+python3 tools/qa/walkcheck.py --all-dw --baseline tools/qa/walkcheck_baseline.json
 ```
 
 - `--map`: a `MAP_HEADER_*` name (the `MAP_HEADER_` prefix is optional),
@@ -28,10 +29,16 @@ python3 tools/qa/walkcheck.py --map MAP_HEADER_DW_ROUTE_214 --diff /path/to/othe
 - `--out-dir <dir>`: JSON report + overlay PNGs (default `walkcheck_out`).
 - `--allowlist <path>`: allowlist JSON (default
   `tools/qa/walkcheck_allow.json` in `--rom-tree`).
+- `--baseline <walkcheck.json>`: gate on regressions only -- exit 1
+  only for HIGH findings not in the reviewed baseline run (see
+  "Baseline gating" below).
 - `--no-png`: skip overlay PNGs.
 
-Exit code is 1 if any HIGH-severity mismatch exists, so QA can gate on
-it. A one-line summary is printed per map.
+Exit code is 1 if any HIGH-severity mismatch exists (or, with
+`--baseline`, if any HIGH finding is new vs the baseline), so QA can
+gate on it. Exit code is 2 if a map fails to parse (missing file, DW
+parse failure): a corrupted archive must not silently drop a map
+from the gate. A one-line summary is printed per map.
 
 ## Outputs
 
@@ -49,18 +56,37 @@ it. A one-line summary is printed per map.
 
 | class | severity | meaning |
 |---|---|---|
-| `LOOKS_WALKABLE_BUT_BLOCKED` | HIGH | Drawn floor, nothing tall on the tile, no object, collision blocked. The Route 214 class and the main target. |
-| `LOOKS_BLOCKED_BUT_WALKABLE` | HIGH | Drawn void/none, or a tall obstacle centred on the tile, but collision walkable. The "invisible floor" class (e.g. a DW ledge the player can walk through). On a DW wall, an undrawn walkable tile next to a drawn wall tile is MEDIUM (an edge/corner tile). |
-| `WATER_MISMATCH` | HIGH | Drawn water with walkable non-water collision, or drawn floor with walkable water collision (surf) -- the player walks on drawn water, or surfs on drawn land. Drawn water that is blocked is decorative water and is not flagged. |
-| `WATER_MISMATCH` (tall drawn, water collision) | MEDIUM | A tall obstacle drawn over a walkable water tile. |
+| `LOOKS_WALKABLE_BUT_BLOCKED` | HIGH on DW maps, MEDIUM on stock maps | Drawn floor, nothing tall on the tile, no object, collision blocked. The Route 214 class and the main target. |
+| `LOOKS_BLOCKED_BUT_WALKABLE` | HIGH on DW maps, MEDIUM on stock maps | Drawn void/none, or a tall obstacle centred on the tile, but collision walkable. The "invisible floor" class (e.g. a DW ledge the player can walk through). On a DW wall, an undrawn walkable tile next to a drawn wall tile is MEDIUM (an edge/corner tile). |
+| `WATER_MISMATCH` | HIGH on DW maps, MEDIUM on stock maps | Drawn water with walkable non-water collision, or drawn floor with walkable water collision (surf) -- the player walks on drawn water, or surfs on drawn land. Drawn water that is blocked is decorative water and is not flagged. |
 
-A tile is *explained*, not a mismatch, when it holds an object
-(`object_events`, including movement ranges -- MapObjects block through
-the object system, so their perms need not be blocked), a warp tile, a
-coord-event rect, a DW jump tile, or a DW ghost prop (any prop explains
-a blocked tile; a stone-block prop, kind 23, on a walkable tile is
-flagged). Allowlisted tiles are listed separately in the report and do
-not gate the exit code.
+The severity split is deliberate: on stock maps an emulator sample
+of 30 HIGH tiles across 11 stock maps found 26 false positives
+(87% -- per class: `LOOKS_WALKABLE_BUT_BLOCKED` 17/19,
+`LOOKS_BLOCKED_BUT_WALKABLE` 5/7, `WATER_MISMATCH` 4/4; see
+"False-positive rate" below), so on stock maps these classes are
+MEDIUM (reported for triage, never gating). On DW maps they stay
+HIGH: the DW floor is puzzle geometry, and the Route 214 bug was
+this class on a DW map. The DW gate therefore uses `--baseline`
+to absorb the DW maps' stock-geometry findings.
+| `WATER_MISMATCH` (tall drawn, water collision) | MEDIUM | A tall obstacle drawn over a walkable water tile. A tall classification that came from an approximate prop footprint never produces this class (prop tall is explanatory-only). |
+| `JUMP_LANDING_UNDRAWN` | HIGH | A DW jump lands on a tile that is undrawn on its actual surface (floor, ceiling, floor platform, or wall). A jump ignores the landing tile's block bit, so the ordinary checks cannot catch this. |
+| `JUMP_LANDING_OBSTRUCTED` | HIGH | A DW jump lands on a tall obstacle on the floor surface. |
+
+A tile is *explained*, not a mismatch, when an event explains the
+exact pair it is: an object tile (the base tile the object stands on
+-- its movement range does not explain blocked tiles; MapObjects
+block through the object system, so their perms need not be
+blocked), a warp tile that is void/tall + walkable (a door in a
+wall), a coord tile that is void + walkable (a fall trigger), a DW
+jump source that is floor + blocked, or a DW ghost prop that is
+initially visible (its group is in the record's `default_visible`
+mask -- a hidden prop is not drawn, so it explains nothing; a
+stone-block prop, kind 23, on a walkable tile is flagged). On DW
+surfaces, a jump source tile is a designed transition whatever its
+drawn/collision pair (a wall source is void+walkable by design, a
+ceiling source is floor+blocked). Allowlisted tiles are listed
+separately in the report and do not gate the exit code.
 
 ## Drawn classification (floor surface)
 
@@ -127,8 +153,25 @@ a DW matrix is leftover stock Distortion World floor, not the puzzle.
 ## The allowlist
 
 `tools/qa/walkcheck_allow.json` holds intentional cases (hidden
-passages, puzzle tiles) as `{map, surface, class, x, z, reason}`.
-Only add entries with a design reason; never to hide a bug.
+passages, puzzle tiles) as `{map, surface, class, x, y, z, severity,
+reason}`. `y` is required for wall entries (wall tiles are `(y, z)`);
+`severity` is optional -- an entry without it matches any severity,
+while one with it matches only that severity (so a HIGH<->MEDIUM
+change is not silently allowlisted). Only add entries with a design
+reason; never to hide a bug.
+
+## Baseline gating
+
+`--all-dw` on the current tree reports hundreds of HIGH findings,
+most on maps whose floors are stock geometry the tool cannot yet
+tell apart from bugs (see Known limits). Gating on "zero HIGH"
+would fail every run, so the gate is regression-based: after a
+run has been triaged (every HIGH finding accepted as stock geometry
+or filed as a bug), save its `walkcheck.json` as the baseline and
+gate with `--baseline <that file>`. The gate then fails only on
+HIGH findings whose full identity (map, coords, surface, class,
+severity) is not in the baseline. Do not commit an unaudited
+baseline: a baseline is only as good as its triage.
 
 ## Known limits
 
@@ -153,6 +196,11 @@ Only add entries with a design reason; never to hide a bug.
   all their floor tiles.
 - Interiors on a second storey in the same chunk share one chunk
   ground base; the modal-height rule is a heuristic.
+- Invisible-floor checks (void+walkable, centred-tall+walkable) are
+  scoped to the drawn bounding box expanded by one tile: padding
+  outside an interior model is void+walkable in the perms but was
+  never a room the player can see. Drawn-floor+blocked and water
+  checks are still global.
 
 ## How to add it to a QA pass
 

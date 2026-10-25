@@ -989,6 +989,14 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
     allowlisted = []
     explained = 0
     counts = collections.Counter()
+    # Severity of the three mismatch classes on the floor surface:
+    # HIGH on DW maps (puzzle geometry -- the Route 214 bug was this
+    # class on a DW map), MEDIUM on stock maps, where an emulator
+    # sample of 30 HIGH tiles across 10 stock maps found 26 false
+    # positives (87%): stock maps are full of intentional impassable
+    # decoration (forest off-path, fences, flower beds, buildings,
+    # shores) that geometry alone cannot tell from a bug.
+    floor_sev = "HIGH" if md.dw is not None else "MEDIUM"
 
     def record(entry, allow_key):
         # allow_key is (map, surface, class, x, y, z); the allowlist
@@ -1079,7 +1087,7 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
         if visible:
             if GHOST_BLOCK_KIND in [g[0] for g in visible] and coll == "walkable":
                 record({"map": header, "x": x, "z": z, "surface": "floor",
-                        "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "HIGH",
+                        "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": floor_sev,
                         "drawn": "tall", "collision": coll,
                         "behaviour": beh_name,
                         "evidence": ev + "; stone-block ghost prop on a walkable tile"},
@@ -1090,34 +1098,34 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
         in_bbox = bx0 <= x <= bx1 and bz0 <= z <= bz1
         if drawn == "floor" and coll == "blocked":
             record({"map": header, "x": x, "z": z, "surface": "floor",
-                    "class": "LOOKS_WALKABLE_BUT_BLOCKED", "severity": "HIGH",
+                    "class": "LOOKS_WALKABLE_BUT_BLOCKED", "severity": floor_sev,
                     "drawn": drawn, "collision": coll,
                     "behaviour": beh_name, "evidence": ev},
                    allow_key_for(header, "floor", "LOOKS_WALKABLE_BUT_BLOCKED", x, z))
         elif drawn == "floor" and coll == "water":
             record({"map": header, "x": x, "z": z, "surface": "floor",
-                    "class": "WATER_MISMATCH", "severity": "HIGH",
+                    "class": "WATER_MISMATCH", "severity": floor_sev,
                     "drawn": drawn, "collision": coll,
                     "behaviour": beh_name,
                     "evidence": ev + "; drawn floor, walkable water collision"},
                    allow_key_for(header, "floor", "WATER_MISMATCH", x, z))
         elif drawn == "water" and coll == "walkable":
             record({"map": header, "x": x, "z": z, "surface": "floor",
-                    "class": "WATER_MISMATCH", "severity": "HIGH",
+                    "class": "WATER_MISMATCH", "severity": floor_sev,
                     "drawn": drawn, "collision": coll,
                     "behaviour": beh_name,
                     "evidence": ev + "; drawn water, walkable non-water collision"},
                    allow_key_for(header, "floor", "WATER_MISMATCH", x, z))
         elif drawn == "tall" and coll == "walkable" and centred and in_bbox:
             record({"map": header, "x": x, "z": z, "surface": "floor",
-                    "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "HIGH",
+                    "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": floor_sev,
                     "drawn": drawn, "collision": coll,
                     "behaviour": beh_name,
                     "evidence": ev + "; tall obstacle centred on the tile, collision walkable"},
                    allow_key_for(header, "floor", "LOOKS_BLOCKED_BUT_WALKABLE", x, z))
         elif drawn == "void" and coll == "walkable" and in_bbox:
             record({"map": header, "x": x, "z": z, "surface": "floor",
-                    "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": "HIGH",
+                    "class": "LOOKS_BLOCKED_BUT_WALKABLE", "severity": floor_sev,
                     "drawn": drawn, "collision": coll,
                     "behaviour": beh_name,
                     "evidence": ev + "; nothing drawn, collision walkable"},
