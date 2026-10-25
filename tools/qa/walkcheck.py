@@ -613,6 +613,11 @@ class MapData:
             mid = twarc.map_header_id(self.header)
             entry = next((e for e in index if e[0] == mid), None)
             if entry is None:
+                # A gate-scoped DW map with no tw_arc entry is
+                # missing DW data, not a stock map: fail closed.
+                if self.header.startswith("MAP_HEADER_DW_") or \
+                        "DISTORTION_WORLD" in self.header:
+                    self.dw_error = ("no tw_arc index entry for %s" % self.header)
                 return
             rec = twarc.parse_record(tw[entry[1] + 1])
             # The tw_arc record stores DW *world* coordinates; the
@@ -635,8 +640,14 @@ class MapData:
             ahdr, abtnf, attr = _narc.read_files(twarc.ATTR)
             grids = {}
             for p in rec["platforms"]:
-                if p["attr"] < len(attr):
-                    grids[p["attr"]] = struct.unpack("<1024H", attr[p["attr"]])
+                # A platform whose attr member is missing is corrupt
+                # data, not an absent platform: fail closed instead
+                # of silently skipping that surface.
+                if p["attr"] >= len(attr):
+                    raise ValueError(
+                        "platform attr %d out of range (%d attr members)"
+                        % (p["attr"], len(attr)))
+                grids[p["attr"]] = struct.unpack("<1024H", attr[p["attr"]])
             off = entry[2:5]
             self.dw = {"record": rec, "grids": grids, "offset": off}
         except Exception as e:
@@ -905,38 +916,66 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
                 surf, key = ("floor", (pr["x"], pr["z"])) if pr["y"] <= 1 else ("ceiling", (pr["x"], pr["z"]))
             visible = bool(default_visible & (1 << pr["group"]))
             ghost_by_tile[(surf, key)].append((pr["kind"], visible, pr["group"]))
-    # Per-surface jump source / landing keys, classified by the
-    # tile's own coordinates against the platforms (the jump
-    # record's "platform" field is the DESTINATION platform, so
-    # keying a source tile by it misclassifies wall sources as
-    # ceiling tiles). A landing that is also a jump source is a
-    # chain link (a designed transition), not a bug.
-    def _classify_tile(x, y, z):
+    # Per-surface jump source keys, for the landing validation's
+    # chain-link skip. A source tile is classified by the surface
+    # the player stands on before jumping. Where a tile sits in
+    # two platform rects (a wall's top row is also the ceiling's
+    # plane, e.g. DW214 (49,10,27)), the source is the candidate
+    # that is NOT the jump's destination platform: the player jumps
+    # from one surface to the other, so the source is the
+    # non-destination one.
+    def _platforms_containing(x, y, z):
+        out = []
         for plat in md.dw["record"]["platforms"]:
             if plat["kind"] in (1, 2) and x == plat["x"] and \
                     plat["y"] <= y <= plat["y"] + plat["sy"] and \
                     plat["z"] <= z <= plat["z"] + plat["sz"]:
-                return "wall", (y, z), plat
-            if plat["kind"] in (0, 3) and y == plat["y"] and \
+                out.append(plat)
+            elif plat["kind"] in (0, 3) and y == plat["y"] and \
                     plat["x"] <= x <= plat["x"] + plat["sx"] and \
                     plat["z"] <= z <= plat["z"] + plat["sz"]:
-                return dw_surface_name(plat), (x, z), plat
+                out.append(plat)
+        return out
+
+    def _classify_tile(x, y, z):
+        # Coordinate-only classification (walls first). Used only
+        # for ground / no-platform jumps, whose landing has no
+        # destination platform to identify its surface.
+        cands = _platforms_containing(x, y, z)
+        if cands and cands[0]["kind"] in (1, 2):
+            return "wall", (y, z), cands[0]
+        if cands:
+            return dw_surface_name(cands[0]), (x, z), cands[0]
         return "floor", (x, z), None
 
+    def _source_surface(j, x, y, z):
+        cands = _platforms_containing(x, y, z)
+        if not cands:
+            return "floor", (x, z), None
+        dest = None
+        if j["platform"] != 65535 and j["platform"] < len(md.dw["record"]["platforms"]):
+            dest = md.dw["record"]["platforms"][j["platform"]]
+        if len(cands) > 1 and dest is not None and dest in cands:
+            others = [c for c in cands if c is not dest]
+            if others:
+                plat = others[0]
+                if plat["kind"] in (1, 2):
+                    return "wall", (y, z), plat
+                return dw_surface_name(plat), (x, z), plat
+        plat = cands[0]
+        if plat["kind"] in (1, 2):
+            return "wall", (y, z), plat
+        return dw_surface_name(plat), (x, z), plat
+
     jump_src_by_surface = set()
-    jump_land_by_surface = set()
     if md.dw:
         for j in md.dw["record"]["jumps"]:
-            if j["platform"] != 65535 and j["platform"] < len(md.dw["record"]["platforms"]):
-                pass  # the platform field is the destination; classify by coords
             for dy in range(j["sy"] + 1):
                 for dz in range(j["sz"] + 1):
                     for dx in range(j["sx"] + 1):
-                        surf, key, _pl = _classify_tile(j["x"] + dx, j["y"] + dy, j["z"] + dz)
+                        surf, key, _pl = _source_surface(
+                            j, j["x"] + dx, j["y"] + dy, j["z"] + dz)
                         jump_src_by_surface.add((surf, key))
-                        lsurf, lkey, _pl2 = _classify_tile(
-                            j["x"] + j["dx"] + dx, j["y"] + j["dy"] + dy, j["z"] + j["dz"] + dz)
-                        jump_land_by_surface.add((lsurf, lkey))
     # Tiles inside a DW platform footprint are checked as that
     # surface, not as ordinary floor (their perms are blocked there
     # because the ground is not the playable surface).
@@ -1276,8 +1315,12 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
     # the landing tile's block bit, so the ordinary checks cannot
     # catch a landing on an undrawn tile (the fix2-lost rule: "no jump
     # tile may land on an undrawn tile"). The landing's surface is
-    # its own tile surface, not the jump record's destination
-    # platform (which can be a different surface for chain jumps).
+    # the jump record's destination platform: coordinate inference
+    # misclassifies ambiguous tiles (a wall's top row is also the
+    # ceiling's plane, so DW214's ceiling landings at (49,10,27..29)
+    # were called wall chain links and skipped). Coordinate
+    # inference is only the fallback for ground / no-platform jumps
+    # (platform 65535).
     if md.dw:
         seen_landings = set()
         for ji, j in enumerate(md.dw["record"]["jumps"]):
@@ -1287,7 +1330,12 @@ def analyse_map(tree, header, matrix_id, region, allowlist):
                         lx = j["x"] + j["dx"] + dx
                         ly = j["y"] + j["dy"] + dy
                         lz = j["z"] + j["dz"] + dz
-                        surf, lkey, plat = _classify_tile(lx, ly, lz)
+                        if j["platform"] != 65535 and j["platform"] < len(md.dw["record"]["platforms"]):
+                            plat = md.dw["record"]["platforms"][j["platform"]]
+                            surf = dw_surface_name(plat)
+                            lkey = (ly, lz) if plat["kind"] in (1, 2) else (lx, lz)
+                        else:
+                            surf, lkey, plat = _classify_tile(lx, ly, lz)
                         if (surf, lkey) in seen_landings:
                             continue
                         seen_landings.add((surf, lkey))
@@ -1729,11 +1777,23 @@ def main(argv=None):
         theirs = set()
         other_maps = []
         for header in selected:
-            matrix_id = other.headers()[header][0]
             try:
+                matrix_id = other.headers()[header][0]
                 res = analyse_map(other, header, matrix_id, region, allowlist)
-            except (FileNotFoundError, KeyError):
+            except FileNotFoundError as e:
+                msg = "%s (diff tree): missing file %s" % (header, e.filename or e)
+                print("%s: SKIP (%s)" % (header, msg))
+                errors.append(msg)
                 continue
+            except KeyError as e:
+                msg = "%s (diff tree): missing data %s" % (header, e)
+                print("%s: SKIP (%s)" % (header, msg))
+                errors.append(msg)
+                continue
+            if res.get("dw_error"):
+                msg = "%s (diff tree): DW parse failed: %s" % (header, res["dw_error"])
+                print(msg)
+                errors.append(msg)
             res.pop("_md", None)
             res.pop("_scope", None)
             other_maps.append(res)

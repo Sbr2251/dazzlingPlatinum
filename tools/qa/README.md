@@ -221,6 +221,4 @@ baseline: a baseline is only as good as its triage.
    worktree at `121becabde^`.
 4. Report the false-positive rate as a number: sampled tiles whose
    drawn classification the emulator check disproves, divided by the
-   tiles sampled. As of this writing: 3/6 sampled HIGH tiles were
-   false positives, all Jubilife edge structures (see Known limits);
-   sampled Twinleaf tiles were 0/2 false positive.
+   tiles sampled. See "False-positive rate (emulator sample)" below.

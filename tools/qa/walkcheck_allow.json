@@ -1,4 +1,4 @@
 {
-    "_doc": "Allowlist for tools/qa/walkcheck.py. Each entry silences one mismatch class at one tile, with a reason. Only add entries for tiles that are intentionally drawn-vs-collision mismatched (hidden passages, puzzle tiles, intentional invisible walls). Never add an entry to hide a bug: the entry must cite the design reason. Entries are matched by (map, surface, class, x, z).",
-    "entries": []
+  "_doc": "Allowlist for tools/qa/walkcheck.py. Each entry silences one mismatch: {map, surface, class, x, y, z, severity, reason}. y is required for wall entries (wall tiles are (y, z)); y is null/absent for floor/ceiling entries. severity is optional: an entry without it matches any severity, while one with it matches only that severity (so a HIGH<->MEDIUM change is not silently allowlisted). Only add entries with a design reason; never to hide a bug.",
+  "entries": []
 }
