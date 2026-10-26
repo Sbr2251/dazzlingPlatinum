@@ -14882,12 +14882,15 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileGlimpse = {
     },
 };
 
-// The Mawile that charges the player at the briefcase (kept through the battle reload). It spawns at (20,22),
-// the east end of walkable row 22, hidden until ScrCmd_311 in the briefcase scene; the charge movement walks
-// it west to (16,22), beside the player, never on top of them.
+// The Mawile that charges the player at the briefcase, spawning at (18,23) on the player's row, east of
+// the briefcase, out of the dark past the platform's walkable edge. Script-only (condition 6: it spawns on
+// no map load, so it stays hidden until ScrCmd_311 in the briefcase scene, at any HINTS value). Never gate
+// it on HINTS == 4: that auto-spawns it on a HINTS 4 map load, visible before the lunge. Post-battle, the
+// scene re-shows it (ScrCmd_311, a no-op if it was retained through the battle) before ScrCmd_312 hides
+// it, so the hide works whether or not the battle reloaded the map.
 static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileLunge = {
-    12,
-    ARC1_SEAMS_HINTS_STARTER,
+    6,
+    0x0,
     0x0,
     0x0,
     {
@@ -14903,8 +14906,8 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileLunge = {
         0x0,
         0x0,
         0x0,
-        20,
-        22,
+        18,
+        23,
         ((1 << 4) * FX32_ONE),
     },
 };
