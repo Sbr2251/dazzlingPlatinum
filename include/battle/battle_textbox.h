@@ -28,8 +28,9 @@
 // blending off or the idle blend, the box blend comes back on the next frame.
 //
 // Only the battle message window changes. Its text palette (BG palette slot 11) is the
-// dark palette below; the level-up stat window (windows[1]) reuses that slot, so it
-// loads the classic palette while it is up and the dark one again when it closes.
+// dark palette below; the level-up stat window (windows[1]) uses its own slot
+// (14: no battle background tilemap references slots 14-15), so the message box
+// keeps its dark translucent look while the stat window stays classic.
 
 // At battle start, after BattleStage_Init: records the battle system; the box blend is
 // written by the next Update
@@ -47,14 +48,8 @@ void BattleTextbox_LoadTextPalette(PaletteData *paletteSys);
 // The scroll cursor / wait dial palette (BG palette slot 10, the slot the
 // frame palette used to own): white arrow, dark shadow, dark fill
 void BattleTextbox_LoadCursorPalette(PaletteData *paletteSys);
-// The classic text palette (BG palette slot 11), for the level-up stat window
+// The classic text palette (BG palette slot 14), for the level-up stat window
 void BattleTextbox_LoadClassicTextPalette(PaletteData *paletteSys);
-// The level-up stat window (windows[1]) is up: it shares the message window's
-// text palette slot, so Update keeps the classic palette in it while it is up
-// (other writers, like the slot-11 palette animator's snapshot, would put the
-// dark palette back). Clear when the stat window closes.
-void BattleTextbox_StatWindowOpened(void);
-void BattleTextbox_StatWindowClosed(void);
 // Draws the battle message window: its tiles, no frame, and the scroll cursor
 // on a dark background. The frame's thick white border is Platinum's, not
 // BW's; the box is a borderless dark panel. The cursor's background tiles (the

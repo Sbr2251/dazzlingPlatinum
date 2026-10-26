@@ -114,10 +114,26 @@ static const u16 sBattleTextboxClassicTextPalette[16] = {
 #define TEXTBOX_TEXT_PALETTE_SLOT 11
 // BG palette slot of the scroll cursor / wait dial (was the frame's slot)
 #define TEXTBOX_CURSOR_PALETTE_SLOT 10
+// BG palette slot of the level-up stat window's text (windows[1]'s palette).
+// No battle background tilemap references slots 14-15, so the stat window's
+// classic palette lives here without disturbing the message box (slot 11) or
+// the background, and nothing re-applies it per frame.
+#define TEXTBOX_STAT_TEXT_PALETTE_SLOT 14
+// Char tile for the scroll cursor / wait dial's resting background: just past
+// the message window's own tiles (31-138), which nothing else uses. The
+// cursor rect's resting state must be this solid dark tile, not the frame
+// tiles (BG1's char memory is shared with the stage, so those hold stage
+// tiles and are rewritten by the stage).
+#define TEXTBOX_CURSOR_BG_TILE 139
+// Char tiles the printer / wait dial write into the cursor rect for the
+// resting state (the frame tiles) and for the active arrow/dial. Update
+// reasserts the dark tile only when the rect holds the resting tiles, so
+// the arrow/dial keeps working.
+#define TEXTBOX_CURSOR_RESTING_TILE_1 11
+#define TEXTBOX_CURSOR_RESTING_TILE_2 12
 
 static BattleSystem *sTextboxBattleSys;
 static BOOL sTextboxSuspended;
-static BOOL sTextboxStatWindowUp;
 
 static void WriteRestBlend(void)
 {
@@ -128,7 +144,54 @@ void BattleTextbox_Init(BattleSystem *battleSys)
 {
     sTextboxBattleSys = battleSys;
     sTextboxSuspended = FALSE;
-    sTextboxStatWindowUp = FALSE;
+}
+
+static void ReassertCursorRect(Window *window)
+{
+    // The printer and the wait dial rewrite the cursor rect when the
+    // arrow/dial is active, and clear it to the (shared, stage-owned) frame
+    // tiles when they finish. The cleared state would leave the rect
+    // transparent (the scene shows through as a seam), so put the dedicated
+    // dark tile back whenever the rect holds the resting tiles. The
+    // arrow/dial tiles (19-22) are left alone.
+    u8 bgLayer = Window_GetBgLayer(window);
+    u16 *tilemap = Bg_GetTilemapBuffer(window->bgConfig, bgLayer);
+    u8 screenSize;
+    u8 widthTiles;
+    u8 x;
+    u8 y;
+    u16 entry;
+
+    if (tilemap == NULL) {
+        return;
+    }
+
+    screenSize = window->bgConfig->bgs[bgLayer].screenSize;
+
+    if (screenSize == BG_SCREEN_SIZE_256x256 || screenSize == BG_SCREEN_SIZE_256x512) {
+        widthTiles = 32;
+    } else {
+        widthTiles = 64;
+    }
+
+    x = Window_GetXPos(window) + Window_GetWidth(window) + 1;
+    y = Window_GetYPos(window) + 2;
+    entry = tilemap[y * widthTiles + x] & 0x3FF;
+
+    if (entry != 0 && entry != TEXTBOX_CURSOR_RESTING_TILE_1 && entry != TEXTBOX_CURSOR_RESTING_TILE_2) {
+        // The dark tile itself, or the arrow/dial tiles: leave alone.
+        return;
+    }
+
+    Bg_FillTilemapRect(window->bgConfig,
+        bgLayer,
+        TEXTBOX_CURSOR_BG_TILE,
+        x,
+        y,
+        2,
+        2,
+        TEXTBOX_CURSOR_PALETTE_SLOT);
+    Bg_CopyTilemapBufferToVRAM(window->bgConfig, bgLayer);
 }
 
 void BattleTextbox_Update(void)
@@ -150,11 +213,8 @@ void BattleTextbox_Update(void)
         return;
     }
 
-    // The level-up stat window shares the message window's text palette slot:
-    // keep its classic palette in place while it is up.
-    if (sTextboxStatWindowUp) {
-        BattleTextbox_LoadClassicTextPalette(BattleSystem_PaletteSys(sTextboxBattleSys));
-    }
+    // Keep the cursor rect on the dedicated dark tile (see ReassertCursorRect).
+    ReassertCursorRect(window);
 
     bldcnt = reg_G2_BLDCNT;
     mode = bldcnt & TEXTBOX_BLDCNT_MODE_MASK;
@@ -219,44 +279,39 @@ void BattleTextbox_LoadTextPalette(PaletteData *paletteSys)
 
 void BattleTextbox_LoadClassicTextPalette(PaletteData *paletteSys)
 {
-    PaletteData_LoadBuffer(paletteSys, sBattleTextboxClassicTextPalette, PLTTBUF_MAIN_BG, TEXTBOX_TEXT_PALETTE_SLOT * 16, sizeof(sBattleTextboxClassicTextPalette));
-}
-
-void BattleTextbox_StatWindowOpened(void)
-{
-    sTextboxStatWindowUp = TRUE;
-}
-
-void BattleTextbox_StatWindowClosed(void)
-{
-    sTextboxStatWindowUp = FALSE;
+    PaletteData_LoadBuffer(paletteSys, sBattleTextboxClassicTextPalette, PLTTBUF_MAIN_BG, TEXTBOX_STAT_TEXT_PALETTE_SLOT * 16, sizeof(sBattleTextboxClassicTextPalette));
 }
 
 void BattleTextbox_DrawMessageWindow(Window *window)
 {
-    // The scroll cursor is drawn at the window's right edge, on the frame's
-    // tilemap ring: it keeps whatever palette is already there, so give that
-    // 2x2 rect the cursor palette first. The frame itself is not drawn.
+    // The scroll cursor / wait dial sits in a 2x2 rect at the window's right
+    // edge. Give it the cursor palette and a dedicated solid dark tile:
+    // tile 139, just past the window's own tiles (31-138), which nothing else
+    // uses. The frame tiles 10/11 (char tiles 11/12) must NOT be overwritten:
+    // BG1's char memory is shared with the stage, so those slots hold stage
+    // tiles and get rewritten by the stage (a write there corrupts the
+    // background and is lost anyway). The frame itself is not drawn.
+    //
+    // The printer and the wait dial rewrite this rect when the arrow/dial is
+    // active (arrow/dial tiles 19-22); Update puts the dark tile back when
+    // they clear it to the frame tiles (the resting state).
+    {
+        u8 darkTile[TILE_SIZE_4BPP];
+        u32 i;
+
+        for (i = 0; i < sizeof(darkTile); i++) {
+            darkTile[i] = 0xFF;
+        }
+
+        Bg_LoadTiles(window->bgConfig, Window_GetBgLayer(window), darkTile, sizeof(darkTile), TEXTBOX_CURSOR_BG_TILE);
+    }
     Bg_FillTilemapRect(window->bgConfig,
         Window_GetBgLayer(window),
-        0,
+        TEXTBOX_CURSOR_BG_TILE,
         Window_GetXPos(window) + Window_GetWidth(window) + 1,
         Window_GetYPos(window) + 2,
         2,
         2,
         TEXTBOX_CURSOR_PALETTE_SLOT);
-    // The cursor's background tiles (the frame's tiles 10/11 on BG1) become
-    // solid dark-fill tiles, so the cursor sits on the box's own background
-    // instead of on two light frame tiles.
-    {
-        u8 darkTiles[TILE_SIZE_4BPP * 2];
-        u32 i;
-
-        for (i = 0; i < sizeof(darkTiles); i++) {
-            darkTiles[i] = 0xFF;
-        }
-
-        Bg_LoadTiles(window->bgConfig, Window_GetBgLayer(window), darkTiles, sizeof(darkTiles), 1 + 10);
-    }
     Window_DrawMessageBoxWithoutFrame(window, 1);
 }
