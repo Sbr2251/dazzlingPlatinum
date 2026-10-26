@@ -96,7 +96,8 @@
 
 // Arc 1 wall-walk puzzle (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS, res/field/scripts/scripts_distortion_world_arc1_seams.s).
 // VAR_ARC1_DW_HINTS is a ladder: 0 nothing shown, 1 "walk the seam" hint given, 2 fork reached (fork line and Mawile
-// glimpse played), 3 briefcase reached (Cyrus and Barry moved over), 4 starter chosen, 5 Mawile fought.
+// glimpse played), 3 briefcase reached (briefcase scene re-runs on re-entry), 4 starter chosen (battle-only
+// re-entry), 5 Mawile fought.
 #define ARC1_SEAMS_HINTS_HINT_GIVEN       1
 #define ARC1_SEAMS_HINTS_FORK             2
 #define ARC1_SEAMS_HINTS_BRIEFCASE        3
@@ -14881,7 +14882,9 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileGlimpse = {
     },
 };
 
-// The Mawile that lunges once the starter is chosen (kept through the battle reload).
+// The Mawile that charges the player at the briefcase (kept through the battle reload). It spawns at (20,22),
+// the east end of walkable row 22, hidden until ScrCmd_311 in the briefcase scene; the charge movement walks
+// it west to (16,22), beside the player, never on top of them.
 static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileLunge = {
     12,
     ARC1_SEAMS_HINTS_STARTER,
@@ -14900,7 +14903,7 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileLunge = {
         0x0,
         0x0,
         0x0,
-        17,
+        20,
         22,
         ((1 << 4) * FX32_ONE),
     },

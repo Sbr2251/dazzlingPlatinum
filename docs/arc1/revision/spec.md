@@ -66,6 +66,30 @@ Spare, ask the lead before using: `VAR_UNUSED_0x406F`, `VAR_UNUSED_0x4031`, `FLA
 its first build), then the icon. Until `grep -q ITEM_ECLIPSE_SHARD generated/items.txt` succeeds, the DW
 and Lake Verity workstreams must not reference it.
 
+## Briefcase beat (Mawile-first)
+
+The starter pick is an emergency, not a calm choice (the Platinum Starly beat). Order in
+`scripts_distortion_world_arc1_seams.s` (`DistortionWorldArc1Seams_Briefcase`):
+
+1. Player reaches the case; Cyrus and Barry fold across. Cyrus: "There. Rowan's case."
+2. Short beat, then the Mawile charges: it appears at (20,22), the east end of walkable row 22, runs
+   west to (16,22), and knocks the player a step back. Cyrus and Barry react. It stays hidden until
+   the lunge (`ScrCmd_311`; the overlay spawn at (20,22) is condition `VAR_ARC1_DW_HINTS == 4`, so it is
+   also kept through the battle reload). `ScrCmd_311` only spawns an object whose condition currently
+   passes (`ov9_0224EF64`), so the scene raises `HINTS` to 4 to spawn the Mawile and drops it straight
+   back to 3 — the starter is not chosen yet, and no save or read can happen between the two `SetVar`s.
+3. Cyrus: "Take a Pokémon from the case. Now. I came with none. You are the only one who can stand."
+   Barry panics ("Grab one, quick!"). Starter select runs.
+4. Barry grabs his starter in the scramble (rival starter, as before). Straight into
+   `StartArc1MawileBattle` — no second lunge.
+5. Everything after the battle is unchanged: win / lose / flee lines, the shard, Cyrus picking it up,
+   `VAR_ARC1_DW_HINTS` 5, `VAR_ARC1_PROGRESS` 6 then 7, warp out.
+
+`VAR_ARC1_DW_HINTS` re-entry: 3 (briefcase reached, starter not yet chosen) re-runs the whole scene;
+4 (starter chosen, Mawile not yet fought) skips the starter select, lunges the Mawile again, and goes
+straight to the battle. Neither state soft-locks. The scene runs locked, so a fall cannot interrupt it
+between the briefcase and the battle.
+
 ## File ownership
 
 Only edit files you own. If the build fails in a file you don't own, it's another workstream's WIP: wait a
