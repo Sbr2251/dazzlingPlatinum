@@ -77,18 +77,9 @@
       "en_US": "Cyrus: There. Rowan's case."
     },
     {
-      "id": "DistortionWorldArc1Seams_Text_BarryPickOne",
-      "en_US": [
-        "{STRVAR_1 3, 0, 0}: We found it!\n",
-        "Now Rowan owes us one!\r",
-        "Go on, pick one first!\n",
-        "I'll take whatever beats yours!"
-      ]
-    },
-    {
       "id": "DistortionWorldArc1Seams_Text_BarryIllTakeThisOne",
       "en_US": [
-        "{STRVAR_1 3, 0, 0}: Then I'll take this\n",
+        "{STRVAR_1 3, 0, 0}: I'll take this\n",
         "one! Let's go, {STRVAR_1 0, 2, 0}!"
       ]
     },
@@ -169,10 +160,26 @@
       ]
     },
     {
-      "id": "DistortionWorldArc1Seams_Text_CyrusItFallsToYou",
+      "id": "DistortionWorldArc1Seams_Text_CyrusTakeOneFromTheCase",
       "en_US": [
-        "Cyrus: I have no Pokémon to stand\n",
-        "with. ...It falls to you."
+        "Cyrus: Take a Pokémon from\n",
+        "the case. Now.\r",
+        "I came with none. You are\n",
+        "the only one who can stand."
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_BarryGrabOneQuick",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0}: W-what?! It's coming!\n",
+        "Grab one, quick! GRAB ONE!"
+      ]
+    },
+    {
+      "id": "DistortionWorldArc1Seams_Text_CyrusItStillStands",
+      "en_US": [
+        "Cyrus: It is still here.\n",
+        "Fight it with what you took."
       ]
     },
     {

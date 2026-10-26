@@ -6,8 +6,8 @@
 // the jump-on ledge (12,14), pass under the two wall trees along the bottom row, fork at z=19 (a dead-end corner up
 // the wall, the way on goes along the bottom), drop off at (12,23) onto the briefcase platform. Falls: coord events on the chasm lips. Cyrus and Barry are DW overlay objects
 // (src/overlay009 sArc1SeamsObjects), spawned by VAR_ARC1_DW_HINTS:
-//   VAR_ARC1_DW_HINTS  0 nothing shown, 1 seam hint given, 2 fork reached, 3 briefcase reached,
-//                      4 starter chosen, 5 Mawile fought
+//   VAR_ARC1_DW_HINTS  0 nothing shown, 1 seam hint given, 2 fork reached, 3 briefcase reached (scene re-runs),
+//                      4 starter chosen (battle-only re-entry), 5 Mawile fought
 //   VAR_ARC1_DW_FALLS  0 entry scene (Barry's demo fall) not played yet, then 1 + the player's falls
 
 #define LOCALID_CYRUS_ENTRY     0x80
@@ -143,10 +143,19 @@ DistortionWorldArc1Seams_End:
     End
 
 // Coord event at (14,23) on the briefcase platform (or A on the case).
+// New order (Mawile-first, Platinum Starly beat): the Mawile charges the player, Cyrus orders the player
+// to grab a Pokemon from the case, the starter select runs, Barry grabs his in the scramble, and the battle
+// starts at once. The whole scene runs locked in this one script, so no fall can interrupt it mid-way.
+// Re-entry: HINTS 3 (briefcase reached, starter not yet chosen) re-runs the whole scene; HINTS 4 (starter
+// chosen, Mawile not yet fought) skips to the battle. Both states are only reachable from a crafted save
+// or a battle reload in normal play, but neither soft-locks.
 DistortionWorldArc1Seams_Briefcase:
-    GoToIfGe VAR_ARC1_DW_HINTS, 3, DistortionWorldArc1Seams_End
+    GoToIfGe VAR_ARC1_DW_HINTS, 5, DistortionWorldArc1Seams_End
+    GoToIfEq VAR_ARC1_DW_HINTS, 4, DistortionWorldArc1Seams_BriefcaseMawileOnly
+    GoToIfEq VAR_ARC1_DW_HINTS, 3, DistortionWorldArc1Seams_BriefcaseResetActors
     LockAll
     SetVar VAR_ARC1_DW_HINTS, 3
+DistortionWorldArc1Seams_BriefcaseScene:
     // Cyrus folds space: he steps through a rift at the entry and out beside the briefcase, then pulls Barry after
     Message DistortionWorldArc1Seams_Text_CyrusTheWorldFolds
     WaitABXPadPress
@@ -174,14 +183,33 @@ DistortionWorldArc1Seams_Briefcase:
     Message DistortionWorldArc1Seams_Text_CyrusThereRowansCase
     WaitABXPadPress
     CloseMessage
-    ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_FaceSouth
+    // A short beat, then the Mawile charges out of the dark straight at the player, along the player's
+    // row: it appears at (18,23), runs west to (17,23) while the player stumbles back, then vaults the
+    // briefcase with a far jump and lands at (15,23), right in front of the player, facing them.
+    // Cyrus and Barry are on the rows either side (22 and 24) and out of its path.
+    WaitTime 24, VAR_RESULT
+    PlayFanfare SEQ_SE_PL_SYUWA
+    // The Mawile is script-only (overlay condition 6): it spawns on no map load, so it stays hidden until
+    // this ScrCmd_311, at any HINTS value. Never gate it on HINTS == 4 again: that condition auto-spawns it
+    // on a HINTS 4 map load, visible before the lunge.
+    ScrCmd_311 LOCALID_MAWILE
+    ApplyMovement LOCALID_MAWILE, DistortionWorldArc1Seams_Movement_MawileChargeApproach
+    ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_PlayerKnockedBack
+    ApplyMovement LOCALID_BARRY_CASE, DistortionWorldArc1Seams_Movement_BarryStartled
+    ApplyMovement LOCALID_CYRUS_CASE, DistortionWorldArc1Seams_Movement_FaceEast
     WaitMovement
-    BufferRivalName 0
-    Message DistortionWorldArc1Seams_Text_BarryPickOne
+    ApplyMovement LOCALID_MAWILE, DistortionWorldArc1Seams_Movement_MawileChargeVault
+    WaitMovement
+    PlayCry SPECIES_MAWILE
+    WaitCry
+    // Forced pick: Cyrus came with no Pokemon, so it has to be the player. Barry panics.
+    Message DistortionWorldArc1Seams_Text_CyrusTakeOneFromTheCase
     WaitABXPadPress
     CloseMessage
-    ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_FaceEast
-    WaitMovement
+    BufferRivalName 0
+    Message DistortionWorldArc1Seams_Text_BarryGrabOneQuick
+    WaitABXPadPress
+    CloseMessage
     // Starter select (the block moved here from the Lake Verity terrace)
     FadeScreenOut
     WaitFadeScreen
@@ -204,21 +232,9 @@ DistortionWorldArc1Seams_Briefcase:
     Message DistortionWorldArc1Seams_Text_BarryIllTakeThisOne
     WaitABXPadPress
     CloseMessage
-    // One Mawile lunges out of the dark
-    PlayFanfare SEQ_SE_PL_SYUWA
-    ScrCmd_311 LOCALID_MAWILE
-    ApplyMovement LOCALID_MAWILE, DistortionWorldArc1Seams_Movement_MawileLunge
-    ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_PlayerStartled
-    ApplyMovement LOCALID_BARRY_CASE, DistortionWorldArc1Seams_Movement_FaceEast
-    ApplyMovement LOCALID_CYRUS_CASE, DistortionWorldArc1Seams_Movement_FaceEast
-    WaitMovement
-    PlayCry SPECIES_MAWILE
-    WaitCry
-    // Cyrus came through with no Pokemon: the fight is the player's
-    Message DistortionWorldArc1Seams_Text_CyrusItFallsToYou
-    WaitABXPadPress
-    CloseMessage
+    // The Mawile already lunged and is waiting: straight into the battle, no second lunge.
     StartArc1MawileBattle
+DistortionWorldArc1Seams_AfterMawileBattle:
     HealParty
     // The Mawile drops a shard and fades into the dark; Cyrus picks it up. Win, loss or running away (the battle
     // allows it, and running always works) all lead here; running only changes the narration line.
@@ -228,6 +244,10 @@ DistortionWorldArc1Seams_Briefcase:
     CallIfEq VAR_0x8004, BATTLE_RESULT_PLAYER_FLED, DistortionWorldArc1Seams_MawileFledLine
     CallIfNe VAR_0x8004, BATTLE_RESULT_PLAYER_FLED, DistortionWorldArc1Seams_MawileDroppedLine
     PlayFanfare SEQ_SE_PL_SYUWA
+    // Re-show the Mawile before hiding it: if the battle reloaded the map, the script-only Mawile did not
+    // respawn, and ScrCmd_312 on a missing object asserts. The 311 is a no-op (same frame, not rendered)
+    // if the Mawile was retained through the battle.
+    ScrCmd_311 LOCALID_MAWILE
     ScrCmd_312 LOCALID_MAWILE
     WaitTime 20, VAR_RESULT
     ApplyMovement LOCALID_CYRUS_CASE, DistortionWorldArc1Seams_Movement_CyrusPickUpShard
@@ -262,6 +282,42 @@ DistortionWorldArc1Seams_Briefcase:
     WaitFadeScreen
     ReleaseAll
     End
+
+// Recovery for HINTS 4 (starter chosen, Mawile not yet fought): ScrCmd_311 spawns the Mawile from its
+// configured tile, it charges again, then straight into the shared battle / post-battle flow. No starter
+// select: the player already has their starter.
+DistortionWorldArc1Seams_BriefcaseMawileOnly:
+    LockAll
+    PlayFanfare SEQ_SE_PL_SYUWA
+    ScrCmd_311 LOCALID_MAWILE
+    ApplyMovement LOCALID_MAWILE, DistortionWorldArc1Seams_Movement_MawileChargeApproach
+    ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_PlayerKnockedBack
+    ApplyMovement LOCALID_BARRY_CASE, DistortionWorldArc1Seams_Movement_BarryStartled
+    ApplyMovement LOCALID_CYRUS_CASE, DistortionWorldArc1Seams_Movement_FaceEast
+    WaitMovement
+    ApplyMovement LOCALID_MAWILE, DistortionWorldArc1Seams_Movement_MawileChargeVault
+    WaitMovement
+    PlayCry SPECIES_MAWILE
+    WaitCry
+    Message DistortionWorldArc1Seams_Text_CyrusItStillStands
+    WaitABXPadPress
+    CloseMessage
+    StartArc1MawileBattle
+    GoTo DistortionWorldArc1Seams_AfterMawileBattle
+
+// Re-entry at HINTS 3: a fresh map load already spawned Cyrus and Barry at the case and left the entry
+// actors unspawned, so the fold below would narrate them crossing while they stand at the case. Put the
+// actors back at the entry first (hide the case actors, briefly drop HINTS to 2 so the entry actors'
+// condition, HINTS < 3, passes their ScrCmd_311, then restore HINTS 3) and join the shared scene.
+DistortionWorldArc1Seams_BriefcaseResetActors:
+    LockAll
+    ScrCmd_312 LOCALID_CYRUS_CASE
+    ScrCmd_312 LOCALID_BARRY_CASE
+    SetVar VAR_ARC1_DW_HINTS, 2
+    ScrCmd_311 LOCALID_CYRUS_ENTRY
+    ScrCmd_311 LOCALID_BARRY_ENTRY
+    SetVar VAR_ARC1_DW_HINTS, 3
+    GoTo DistortionWorldArc1Seams_BriefcaseScene
 
 DistortionWorldArc1Seams_MawileDroppedLine:
     Message DistortionWorldArc1Seams_Text_MawileDroppedSomething
@@ -371,17 +427,33 @@ DistortionWorldArc1Seams_Movement_PlayerStepToCase:
     WalkNormalEast
     EndMovement
 
-// It lunges in place on its tile (17,22): a step west would put its 32px sprite over Cyrus's legs at (15,22), and the
-// map reload after the battle puts it back on (17,22) anyway.
+// The Mawile charges straight at the player along row 23. Approach: from its spawn at (18,23) west to
+// (17,23), east of the briefcase, while the player stumbles back. Vault: a far jump over the briefcase
+// at (16,23) to land at (15,23), right in front of the player, facing them. Cyrus (row 22) and Barry
+// (row 24) are out of its path. Split into two movements so the vault only fires once the player has
+// left (15,23): the Mawile must never land on the player's tile.
     .balign 4, 0
-DistortionWorldArc1Seams_Movement_MawileLunge:
+DistortionWorldArc1Seams_Movement_MawileChargeApproach:
     FaceWest
-    JumpOnSpotFastWest
-    JumpOnSpotFastWest
+    WalkFastWest 1
     EndMovement
 
     .balign 4, 0
-DistortionWorldArc1Seams_Movement_PlayerStartled:
+DistortionWorldArc1Seams_Movement_MawileChargeVault:
+    JumpFarWest
+    FaceWest
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldArc1Seams_Movement_PlayerKnockedBack:
+    EmoteExclamationMark
+    LockDir
+    JumpNearFastWest
+    UnlockDir
+    EndMovement
+
+    .balign 4, 0
+DistortionWorldArc1Seams_Movement_BarryStartled:
     FaceEast
     EmoteExclamationMark
     EndMovement

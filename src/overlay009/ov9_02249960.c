@@ -96,7 +96,8 @@
 
 // Arc 1 wall-walk puzzle (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS, res/field/scripts/scripts_distortion_world_arc1_seams.s).
 // VAR_ARC1_DW_HINTS is a ladder: 0 nothing shown, 1 "walk the seam" hint given, 2 fork reached (fork line and Mawile
-// glimpse played), 3 briefcase reached (Cyrus and Barry moved over), 4 starter chosen, 5 Mawile fought.
+// glimpse played), 3 briefcase reached (briefcase scene re-runs on re-entry), 4 starter chosen (battle-only
+// re-entry), 5 Mawile fought.
 #define ARC1_SEAMS_HINTS_HINT_GIVEN       1
 #define ARC1_SEAMS_HINTS_FORK             2
 #define ARC1_SEAMS_HINTS_BRIEFCASE        3
@@ -14881,10 +14882,15 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileGlimpse = {
     },
 };
 
-// The Mawile that lunges once the starter is chosen (kept through the battle reload).
+// The Mawile that charges the player at the briefcase, spawning at (18,23) on the player's row, east of
+// the briefcase, out of the dark past the platform's walkable edge. Script-only (condition 6: it spawns on
+// no map load, so it stays hidden until ScrCmd_311 in the briefcase scene, at any HINTS value). Never gate
+// it on HINTS == 4: that auto-spawns it on a HINTS 4 map load, visible before the lunge. Post-battle, the
+// scene re-shows it (ScrCmd_311, a no-op if it was retained through the battle) before ScrCmd_312 hides
+// it, so the hide works whether or not the battle reloaded the map.
 static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileLunge = {
-    12,
-    ARC1_SEAMS_HINTS_STARTER,
+    6,
+    0x0,
     0x0,
     0x0,
     {
@@ -14900,8 +14906,8 @@ static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileLunge = {
         0x0,
         0x0,
         0x0,
-        17,
-        22,
+        18,
+        23,
         ((1 << 4) * FX32_ONE),
     },
 };

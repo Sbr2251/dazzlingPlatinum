@@ -66,6 +66,34 @@ Spare, ask the lead before using: `VAR_UNUSED_0x406F`, `VAR_UNUSED_0x4031`, `FLA
 its first build), then the icon. Until `grep -q ITEM_ECLIPSE_SHARD generated/items.txt` succeeds, the DW
 and Lake Verity workstreams must not reference it.
 
+## Briefcase beat (Mawile-first)
+
+The starter pick is an emergency, not a calm choice (the Platinum Starly beat). Order in
+`scripts_distortion_world_arc1_seams.s` (`DistortionWorldArc1Seams_Briefcase`):
+
+1. Player reaches the case; Cyrus and Barry fold across. Cyrus: "There. Rowan's case."
+2. Short beat, then the Mawile charges straight at the player along row 23: it appears at (18,23),
+   out of the dark past the platform's east edge, runs west to (17,23) while the player stumbles back
+   a step, then vaults the briefcase with a far jump and lands at (15,23), right in front of the player,
+   facing them. Cyrus (row 22) and Barry (row 24) stay out of its path. It stays hidden until the lunge:
+   it is script-only (overlay condition 6, so no map load spawns it) and only `ScrCmd_311` in the
+   briefcase scene brings it in. Post-battle, the scene re-shows it with `ScrCmd_311` (a no-op if it was
+   retained through the battle) before `ScrCmd_312` hides it, so the hide works whether or not the battle
+   reloaded the map.
+3. Cyrus: "Take a Pokémon from the case. Now. I came with none. You are the only one who can stand."
+   Barry panics ("Grab one, quick!"). Starter select runs.
+4. Barry grabs his starter in the scramble (rival starter, as before). Straight into
+   `StartArc1MawileBattle` — no second lunge.
+5. Everything after the battle is unchanged: win / lose / flee lines, the shard, Cyrus picking it up,
+   `VAR_ARC1_DW_HINTS` 5, `VAR_ARC1_PROGRESS` 6 then 7, warp out.
+
+`VAR_ARC1_DW_HINTS` re-entry: 3 (briefcase reached, starter not yet chosen) resets the actors to the
+entry side (hide the case actors, briefly drop HINTS to 2 so the entry actors' `HINTS < 3` condition
+passes their `ScrCmd_311`, restore HINTS 3) and re-runs the whole scene, fold included;
+4 (starter chosen, Mawile not yet fought) skips the starter select, lunges the Mawile again, and goes
+straight to the battle. Neither state soft-locks. The scene runs locked, so a fall cannot interrupt it
+between the briefcase and the battle.
+
 ## File ownership
 
 Only edit files you own. If the build fails in a file you don't own, it's another workstream's WIP: wait a
