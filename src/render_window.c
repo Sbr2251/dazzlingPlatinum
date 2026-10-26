@@ -321,6 +321,12 @@ void Window_DrawMessageBoxWithScrollCursor(Window *window, u8 skipTransfer, u16 
     DrawMessageBoxScrollCursor(window, tile);
 }
 
+void Window_DrawMessageBoxWithoutFrame(Window *window, u16 tile)
+{
+    Window_CopyToVRAM(window);
+    DrawMessageBoxScrollCursor(window, tile);
+}
+
 void Window_EraseMessageBox(Window *window, u8 skipTransfer)
 {
     Bg_FillTilemapRect(window->bgConfig,

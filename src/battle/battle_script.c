@@ -33,6 +33,7 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_message.h"
 #include "battle/battle_mon.h"
+#include "battle/battle_textbox.h"
 #include "battle/btlcmd.h"
 #include "battle/common.h"
 #include "battle/mega_evolution.h"
@@ -10216,7 +10217,10 @@ static void BattleScript_GetExpTask(SysTask *task, void *inData)
 
         LoadStandardWindowTiles(bgl, 2, 1, 0, HEAP_ID_BATTLE);
         PaletteData_LoadBufferFromFileStart(paletteSys, NARC_INDEX_GRAPHIC__PL_WINFRAME, GetStandardWindowPaletteNARCMember(), HEAP_ID_BATTLE, 0, 0x20, 8 * 0x10);
-        Window_Add(bgl, window, 2, 17, 7, 14, 12, 11, 9 + 1);
+        // The stat window has its own text palette slot (14), so the message
+        // box keeps its dark palette while the stat window stays classic.
+        BattleTextbox_LoadClassicTextPalette(paletteSys);
+        Window_Add(bgl, window, 2, 17, 7, 14, 12, 14, 9 + 1);
         Window_FillTilemap(window, 0xFF);
         Window_DrawStandardFrame(window, 0, 1, 8);
 
@@ -10295,6 +10299,8 @@ static void BattleScript_GetExpTask(SysTask *task, void *inData)
 
         Window_EraseStandardFrame(window, 0);
         Window_Remove(window);
+        // The message window's dark palette (slot 11) was never disturbed: the
+        // stat window used its own slot (14).
 
         G2_SetBG0Priority(1);
         Bg_SetPriority(BG_LAYER_MAIN_1, 0);

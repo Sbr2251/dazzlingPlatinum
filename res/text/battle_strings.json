@@ -6282,11 +6282,11 @@
     },
     {
       "id": "pl_msg_00000368_00921",
-      "en_US": "What will {STRVAR_1 1, 0, 0} do?{YESNO 0}"
+      "en_US": "What will {STRVAR_1 1, 0, 0} do?"
     },
     {
       "id": "pl_msg_00000368_00922",
-      "en_US": "What will {STRVAR_1 3, 0, 0} throw?{YESNO 0}"
+      "en_US": "What will {STRVAR_1 3, 0, 0} throw?"
     },
     {
       "id": "pl_msg_00000368_00923",
@@ -8213,7 +8213,7 @@
     },
     {
       "id": "pl_msg_00000368_01222",
-      "en_US": "What will {STRVAR_1 3, 0, 0} do?{YESNO 0}"
+      "en_US": "What will {STRVAR_1 3, 0, 0} do?"
     },
     {
       "id": "pl_msg_00000368_01223",
