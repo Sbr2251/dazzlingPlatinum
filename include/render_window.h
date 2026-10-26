@@ -62,6 +62,10 @@ u32 GetMessageBoxPaletteNARCMember(u32 messageBoxFrame);
 void LoadMessageBoxGraphics(BgConfig *bgConfig, u8 bgLayer, u16 tileOffset, u8 palOffset, u8 messageBoxFrame, u32 heapID);
 void Window_DrawMessageBox(Window *window, u32 tile, u32 palette);
 void Window_DrawMessageBoxWithScrollCursor(Window *window, u8 skipTransfer, u16 tile, u8 palette);
+// The battle message box: the window's tiles plus the scroll cursor, but no
+// frame. The frame's tilemap ring would otherwise draw Platinum's thick
+// white border around a translucent box.
+void Window_DrawMessageBoxWithoutFrame(Window *window, u16 tile);
 void Window_EraseMessageBox(Window *window, u8 skipTransfer);
 void ReplaceTransparentTiles(BgConfig *bgConfig, u8 bgLayer, u16 bgBaseTile, u8 withTile, u8 messageBoxFrame, u32 heapID);
 

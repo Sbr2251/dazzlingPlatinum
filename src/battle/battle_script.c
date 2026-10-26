@@ -10221,6 +10221,7 @@ static void BattleScript_GetExpTask(SysTask *task, void *inData)
         // prints dark text on a white frame, so it gets the classic palette
         // while it is up.
         BattleTextbox_LoadClassicTextPalette(paletteSys);
+        BattleTextbox_StatWindowOpened();
         Window_Add(bgl, window, 2, 17, 7, 14, 12, 11, 9 + 1);
         Window_FillTilemap(window, 0xFF);
         Window_DrawStandardFrame(window, 0, 1, 8);
@@ -10301,6 +10302,7 @@ static void BattleScript_GetExpTask(SysTask *task, void *inData)
         Window_EraseStandardFrame(window, 0);
         Window_Remove(window);
         // The message window's dark text palette comes back with its box.
+        BattleTextbox_StatWindowClosed();
         BattleTextbox_LoadTextPalette(BattleSystem_PaletteSys(data->battleSys));
 
         G2_SetBG0Priority(1);

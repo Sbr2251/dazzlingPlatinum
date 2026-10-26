@@ -454,6 +454,7 @@ void ov16_0223B578(BattleSystem *battleSys)
         Graphics_LoadTilesToBgLayer(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, 3 + battleSys->background, battleSys->unk_04, 3, 0, 0, 1, HEAP_ID_BATTLE);
         PaletteData_LoadBufferFromFileStart(battleSys->paletteSys, 7, 172 + (battleSys->background * 3) + ov16_0223EC04(battleSys), 5, 0, 0, 0);
         PaletteData_LoadBufferFromFileStart(battleSys->paletteSys, 38, GetMessageBoxPaletteNARCMember(v1), 5, 0, 0x20, 10 * 0x10);
+        BattleTextbox_LoadCursorPalette(battleSys->paletteSys);
         BattleTextbox_LoadTextPalette(battleSys->paletteSys);
         Graphics_LoadTilemapToBgLayer(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, 2, battleSys->unk_04, 3, 0, 0, 1, HEAP_ID_BATTLE);
     }
@@ -475,7 +476,7 @@ void ov16_0223B578(BattleSystem *battleSys)
 
     Window_Add(battleSys->unk_04, battleSys->windows, 1, 0x2, 0x13, 27, 4, 0xb, (18 + 12) + 1);
     Window_FillTilemap(battleSys->windows, 0xff);
-    Window_DrawMessageBoxWithScrollCursor(&battleSys->windows[0], 0, 1, 10);
+    BattleTextbox_DrawMessageWindow(&battleSys->windows[0]);
 
     ov16_0223DD4C(battleSys);
     BattleTextbox_Resume();
@@ -579,7 +580,7 @@ static void ov16_0223B790(ApplicationManager *appMan)
 
     Window_Add(battleSys->unk_04, &battleSys->windows[0], 1, 2, 0x13, 27, 4, 11, (18 + 12) + 1);
     Window_FillTilemap(&battleSys->windows[0], 0xff);
-    Window_DrawMessageBoxWithScrollCursor(&battleSys->windows[0], 0, 1, 10);
+    BattleTextbox_DrawMessageWindow(&battleSys->windows[0]);
 
     battleSys->spriteSys = SpriteSystem_Alloc(5);
 
@@ -950,6 +951,7 @@ static void ov16_0223C004(BattleSystem *battleSys, BgConfig *param1)
         Graphics_LoadTilesToBgLayer(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, 3 + battleSys->background, param1, 3, 0, 0, 1, HEAP_ID_BATTLE);
         PaletteData_LoadBufferFromFileStart(battleSys->paletteSys, NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, 172 + (battleSys->background * 3) + ov16_0223EC04(battleSys), 5, 0, 0, 0);
         PaletteData_LoadBufferFromFileStart(battleSys->paletteSys, NARC_INDEX_GRAPHIC__PL_WINFRAME, GetMessageBoxPaletteNARCMember(v3), 5, 0, 0x20, 10 * 0x10);
+        BattleTextbox_LoadCursorPalette(battleSys->paletteSys);
         BattleTextbox_LoadTextPalette(battleSys->paletteSys);
         Graphics_LoadTilemapToBgLayer(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, 2, param1, 3, 0, 0, 1, HEAP_ID_BATTLE);
     }

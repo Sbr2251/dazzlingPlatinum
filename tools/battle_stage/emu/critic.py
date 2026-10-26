@@ -159,6 +159,30 @@ def text_box(img: Image.Image) -> Image.Image:
     return img.crop(TEXT_BOX)
 
 
+def bright_mask(img: Image.Image) -> Image.Image:
+    """Bilevel mask of the bright (glyph) pixels in a crop. The battle message
+    box is translucent, so box pixels include the blended scene; every glyph
+    has a channel that saturates the blend at 255, while scene-through pixels
+    stay at or below 214 (the box fill's B=40 blended with a white scene), so
+    a 230 threshold isolates the text from whatever the box shows through.
+    On an opaque box (baseline) the mask is inverted (white background, glyph
+    holes) but consistent within a ROM, so it works there too."""
+    return img.convert("RGB").point(lambda v: 255 if v > 230 else 0)
+
+
+def mask_diff(a: Image.Image, b: Image.Image) -> float:
+    """Fraction of pixels whose glyph mask differs: the text comparison for
+    the translucent box (raw pixel diffs are dominated by the scene behind
+    it, e.g. the background after a stage toggle)."""
+    return diff_fraction(bright_mask(a), bright_mask(b))
+
+
+def min_mask_diff(boxes: List[Image.Image], img: Image.Image) -> float:
+    """Closest glyph-mask diff between box samples and img."""
+    m = bright_mask(text_box(img))
+    return min(diff_fraction(bright_mask(b), m) for b in boxes)
+
+
 def health_detail(img: Image.Image) -> str:
     t, b = screen_health(top(img)), screen_health(bottom(img))
     return f"top {t}, bottom {b}"
@@ -310,7 +334,9 @@ class Overlay:
         if self.key is None:
             return False
         img = img if img is not None else self.e.screens()
-        return diff_fraction(self.key, img.crop(OVERLAY_KEY)) < 0.03
+        # Glyph mask, not raw pixels: a flash behind the translucent box
+        # changes the box's blended pixels without hiding the overlay.
+        return mask_diff(self.key, img.crop(OVERLAY_KEY)) < 0.03
 
     def show(self, tries: int = 4) -> bool:
         """Presses (and keeps holding) L+R until the overlay is up. False if it never comes."""
@@ -706,7 +732,7 @@ def _tester_move(sc: Scenario, e: Emu, args, ov: "Overlay", baseline: tuple, cur
             e.run(60)
             later = e.snap(f"{tag} +150", after).img
         restore_check(sc, tag, idle, shot.img, mid, later)
-    d = min_diff(base_boxes, text_box(shot.img))
+    d = min_mask_diff(base_boxes, shot.img)
     if not sc.check(f"{tag}: battle text restored", d < 0.02,
                     f"{d:.1%} of the text box differs from before the overlay (90 frames after)",
                     why="the message box was not restored (garbled or blank; see sheet_after)"):
@@ -924,7 +950,7 @@ def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
         ov.key = e.screens().crop(OVERLAY_KEY)
         states.append(o)
         prev = ov0 if i == 1 else states[0]
-        d = diff_fraction(text_box(prev.img), text_box(o.img))
+        d = mask_diff(text_box(prev.img), text_box(o.img))
         sc.check(f"SELECT #{i} changed the overlay text (3D stage ON/OFF)", d > 0.003,
                  f"{d:.2%} of the text box changed")
         e.release("L+R")
@@ -932,7 +958,7 @@ def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
         s = e.snap(f"scene after SELECT #{i}", shots)
         sc.note(f"scene after SELECT #{i}: {min_diff(base_samples, top(s.img)):.2%} differs from the initial idle")
         check_screens(sc, s.img, f"after SELECT #{i}")
-        d = min_diff(base_boxes, text_box(s.img))
+        d = min_mask_diff(base_boxes, s.img)
         sc.check(f"battle text restored after SELECT #{i}", d < 0.02, f"{d:.1%} of the text box differs")
         stream_checks(sc, e, f"after SELECT #{i}", frames=60)
         # One short animation (Pound, the tester's current move) in this stage state.
@@ -953,14 +979,14 @@ def sc_stage_toggle(sc: Scenario, e: Emu, args) -> None:
             break
         e.run(90)
         s = e.snap(f"90 frames after Pound #{i}", shots)
-        d = min_diff(base_boxes, text_box(s.img))
+        d = min_mask_diff(base_boxes, s.img)
         if not sc.check(f"battle text restored after Pound #{i}", d < 0.02, f"{d:.1%} of the text box differs"):
             if not sc.check(f"command menu still responds after Pound #{i}", menu_responds(e),
                             why="touching FIGHT no longer opens the move list: the battle is soft-locked"):
                 stuck = True
                 break
     if len(states) == 2:
-        d = diff_fraction(text_box(ov0.img), text_box(states[-1].img))
+        d = mask_diff(text_box(ov0.img), text_box(states[-1].img))
         sc.check("two SELECTs restore the original state text", d < 0.003, f"{d:.2%} differs", warn_only=True)
     sc.sheet(shots, "toggle", "stage toggle: overlay text (ON/OFF) and the scene after each SELECT",
              cols=4, scale=0.75)
@@ -1230,7 +1256,7 @@ def sc_switchbg_moves(sc: Scenario, e: Emu, args) -> None:
         sc.check(f"{tag}: normal look restored", d <= RESTORE_PASS,
                  f"{d:.2%} of the scene (HUD masked) differs from the closest idle frame, 90 frames after",
                  warn_only=d <= RESTORE_WARN, why="the backdrop did not come back (see sheet_after)")
-        t = min_diff(boxes, text_box(post.img))
+        t = min_mask_diff(boxes, post.img)
         sc.check(f"{tag}: battle text restored", t < 0.02, f"{t:.1%} of the text box differs")
         if mid in SWITCHBG_KEPT_MOVES:
             _switchbg_dimmed(sc, tag, pre, anim)
@@ -3782,7 +3808,7 @@ def _audit_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str
         e.run(60)
         later = e.snap(f"{tag} +150", after).img
     restore_check(sc, tag, idle, post.img, mid, later)
-    tb = min_diff(boxes, text_box(post.img))
+    tb = min_mask_diff(boxes, post.img)
     sc.check(f"{tag}: battle text restored", tb < 0.02, f"{tb:.1%} of the text box differs")
     after_c = ram.compat()
     d = compat_delta(before, after_c)
@@ -4145,7 +4171,7 @@ def _redo_move(sc: Scenario, e: Emu, args, ram: StageRam, ov: Overlay, tod: str,
         e.run(60)
         later = e.snap(f"{tag} +150", after).img
     restore_check(sc, tag, idle, post.img, mid, later)
-    tb = min_diff(boxes, text_box(post.img))
+    tb = min_mask_diff(boxes, post.img)
     sc.check(f"{tag}: battle text restored", tb < 0.02, f"{tb:.1%} of the text box differs")
     after_c = ram.compat()
     d = compat_delta(before, after_c)
