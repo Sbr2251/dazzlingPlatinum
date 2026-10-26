@@ -2,11 +2,16 @@
 
 ## Build & Test Workflow
 
-- **Build on the devserver**, in `/data/repos/dazzlingPlatinum`. The toolchain is already installed: MetroSkrew/mwccarm under `subprojects/metroskrew`, meson and ninja. There is no separate VM, and nothing is built on the Mac.
+- **Build on the devserver or on a Mac.** Both are supported; the commands are the same.
+  - **Devserver:** `/data/repos/dazzlingPlatinum`. The toolchain is already installed: MetroSkrew/mwccarm under `subprojects/metroskrew`, meson and ninja.
+  - **Mac (Apple silicon):** any clone of the repo. Install the dependencies listed in INSTALL.md's MacOS section: Xcode Command Line Tools; `brew install gcc@14 ninja libpng pkg-config arm-none-eabi-gcc xz`; `brew install --cask wine-stable`. The first `make release` downloads the rest of the toolchain into `subprojects/`.
+    - mwccarm runs through Wine. Authorize Wine once: in Applications, Control-click Wine Stable, then Open.
+    - Run the build from a logged-in Terminal session. Wine fails with `wineserver: Can't check in server_mach_port` when started from a background or daemon process, for example a remote agent node; that is the environment, not the repo.
+  - There is no separate VM.
 - Build with `make release`. The ROM is hardlinked to `out/dazzlingPlatinum.nds`, outside `build/`. Meson's own output, `build/pokeplatinum.us.nds`, is still there; set `OUT=<dir>` to put it somewhere else.
   - Don't use plain `make` (`make all`). It also runs `check`, which compares the ROM against the vanilla SHA1 and always fails for this hack.
   - Only one build can use `build/` at a time. "Some other Meson process is already using this build directory" means another build is running; wait for it rather than deleting the lock.
-- Smoke-test the ROM headlessly with py-desmume: `~/.venvs/desmume/bin/python` (Python 3.12). `~/.venvs/desmume39` is a Python 3.9 copy.
+- Smoke-test the ROM headlessly with py-desmume: `SDL_VIDEODRIVER=dummy ~/.venvs/desmume/bin/python` (Python 3.12), on both the devserver and the Mac. `~/.venvs/desmume39` is a Python 3.9 copy, devserver only.
 - When the ROM builds, commit and push the branch so the user can test on hardware or their own emulator.
 
 ## Important: Text Encoding
