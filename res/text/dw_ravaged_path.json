@@ -62,6 +62,21 @@
         "Cyrus: Come. The rift will close\n",
         "behind us."
       ]
+    },
+    {
+      "id": "DWRavagedPath_Text_CyrusSigil",
+      "en_US": [
+        "Cyrus: The rune wakes the stone.\n",
+        "Step on it. The bridge holds."
+      ]
+    },
+    {
+      "id": "DWRavagedPath_Text_CyrusHintAfterTwoFalls",
+      "en_US": [
+        "Cyrus: Press the rune first.\n",
+        "The scar holds you once.\n",
+        "Then it will not let you back."
+      ]
     }
   ]
 }

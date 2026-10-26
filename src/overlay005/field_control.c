@@ -229,6 +229,36 @@ BOOL FieldInput_Process(const FieldInput *input, FieldSystem *fieldSystem)
             playerEvent |= PLAYER_EVENT_DISTORTION_WORLD;
         }
 
+        // dwp:rift-lt: post-respawn release gate. A catch/fall respawn
+        // just teleported the player while a direction was held; the
+        // held direction would start a new step from the respawned
+        // position (e.g. CP2 (16,23) -> (17,23) rune tile -> rune
+        // landing). The step hook (ov9_0224A71C) only runs at step END,
+        // so it cannot prevent a step from STARTING (an idle player
+        // starting a step bypasses it, and the hook's correction
+        // oscillates). Consume the movement input here, before
+        // ov5_021DFDE0 starts the step. The gate clears on a new
+        // D-pad press (actor HandleFrame), so a genuine re-press still
+        // steps (the first re-press clears the gate, the next one
+        // steps). Only movement is consumed (A / menu input still
+        // reaches the game).
+        // The DW check is FIRST (short-circuit): the ov9 actor call
+        // below only runs on a DW map, where overlay 9 is loaded.
+        // On any non-DW map the call is never made.
+        if (PersistedMapFeatures_IsCurrentDynamicMap(fieldSystem, DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) == TRUE
+            && DwActors_IsAwaitingPadRelease(NULL, NULL, NULL)) {
+            // dwp:rift-lt: post-respawn release gate. A fresh D-pad
+            // press clears the gate AND steps (a first re-press that
+            // does nothing feels like dropped input). Only a direction
+            // held continuously since before the respawn (no new press)
+            // is blocked: consume the movement input.
+            if ((input->pressedKeys & PAD_KEY) != 0) {
+                DwActors_ClearPadReleaseGate();
+            } else if ((input->heldKeys & PAD_KEY) != 0) {
+                return TRUE;
+            }
+        }
+
         if (ov5_021DFDE0(fieldSystem, fieldSystem->playerAvatar, direction, playerEvent) == TRUE) {
             return TRUE;
         }

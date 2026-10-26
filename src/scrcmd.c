@@ -455,6 +455,11 @@ static BOOL ScrCmd_StartArc1MawileBattle(ScriptContext *ctx);
 static BOOL ScrCmd_SetLakeVerityPortalHidden(ScriptContext *ctx);
 static BOOL ScrCmd_ShakeCamera(ScriptContext *ctx);
 static BOOL ScriptContext_ShakeCameraStep(ScriptContext *ctx);
+// dwp:rift-lt: DW puzzle actor script commands (Lost Tower pads).
+static BOOL ScrCmd_DwActorsResolvePad(ScriptContext *ctx);
+static BOOL ScrCmd_DwActorsConfirmCarryDone(ScriptContext *ctx);
+static BOOL ScrCmd_DwActorsTakePendingCutin(ScriptContext *ctx);
+static BOOL ScrCmd_DwActorsGrantGrace(ScriptContext *ctx);
 static BOOL ScrCmd_SlatherHoneyTree(ScriptContext *ctx);
 static BOOL ScrCmd_GetHoneyTreeStatus(ScriptContext *ctx);
 static BOOL ScrCmd_StartHoneyTreeBattle(ScriptContext *ctx);
@@ -1620,6 +1625,11 @@ const ScrCmdFunc Unk_020EAC58[] = {
     ScrCmd_SetLakeVerityPortalHidden,
     ScrCmd_StartArc1MawileBattle,
     ScrCmd_ShakeCamera,
+    // dwp:rift-lt: opcodes 845-847 (appended; earlier entries unchanged).
+    ScrCmd_DwActorsResolvePad,
+    ScrCmd_DwActorsConfirmCarryDone,
+    ScrCmd_DwActorsTakePendingCutin,
+    ScrCmd_DwActorsGrantGrace,
 };
 
 const u32 Unk_020EAB80 = NELEMS(Unk_020EAC58);
@@ -4982,6 +4992,49 @@ static BOOL ScriptContext_ShakeCameraStep(ScriptContext *ctx)
     ctx->data[2] = (u32)target;
 
     return target == 0 && ctx->data[0] == 0;
+}
+
+// dwp:rift-lt: DW puzzle actor script commands (Lost Tower pads).
+// ResolvePad(padIndexVar, acceptedVar, destVar): answers the pending
+// pad prompt (accepted != 0 is Yes) and stores the DwActorEvent
+// (NONE 0, CUTIN 3, CARRY_REQUESTED 4) in destVar. A Yes that is
+// denied (totem not calmed, or no sigil) also returns NONE; the
+// script tells No apart from denial by the accepted value it passed.
+static BOOL ScrCmd_DwActorsResolvePad(ScriptContext *ctx)
+{
+    FieldSystem *fieldSystem = ctx->fieldSystem;
+    int padIndex = (int)ScriptContext_GetVar(ctx);
+    BOOL accepted = ScriptContext_GetVar(ctx) != 0;
+    u16 *destVar = ScriptContext_GetVarPointer(ctx);
+
+    *destVar = DwPuzzle_Ov9ResolvePad(fieldSystem, padIndex, accepted);
+    return FALSE;
+}
+
+static BOOL ScrCmd_DwActorsConfirmCarryDone(ScriptContext *ctx)
+{
+    DwPuzzle_Ov9ConfirmCarryDone(ctx->fieldSystem);
+    return FALSE;
+}
+
+// TakePendingCutin(destVar): the totem id for the Resonator ghost
+// cut-in (0 Hitmonlee, 1 Vespiquen, 2 Lapras, 3 Skarmory), or -1;
+// clears it.
+static BOOL ScrCmd_DwActorsTakePendingCutin(ScriptContext *ctx)
+{
+    u16 *destVar = ScriptContext_GetVarPointer(ctx);
+
+    *destVar = (u16)DwPuzzle_Ov9TakePendingCutin(ctx->fieldSystem);
+    return FALSE;
+}
+
+// dwp:rift-lt: grant the post-prompt shadow grace (the pad script calls
+// it at PadEnd, after the cut-in closes; granting at ResolvePad is
+// consumed while the cut-in plays).
+static BOOL ScrCmd_DwActorsGrantGrace(ScriptContext *ctx)
+{
+    DwPuzzle_Ov9GrantShadowGrace(ctx->fieldSystem);
+    return FALSE;
 }
 
 static BOOL ScrCmd_SlatherHoneyTree(ScriptContext *ctx)

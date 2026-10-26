@@ -130,3 +130,15 @@ golden save `/tmp/a2/golden/post_gym1.sav`.
 - `FLAG_ARC1_SPARE_A/B/D`: echo seen at Ravaged Path, Windworks and Route 214 (echo).
 - `OBJ_EVENT_GFX_VIOLET_CRYSTAL` (art-final); `OVERWORLD_WEATHER_RIFT_MIST` (31, world-art) on Route 210 North.
 - Progress 98: the final Eclipse cutaway in the violet room before END OF ARC 2 (polish-b; see cutaways.md).
+
+## Distortion World puzzle build (`dwpuzzles`, 2026-10-23)
+Flags 0x0A00-0x0A3F (free: after the trainer-defeated block 1360+ and the totem flags, unreferenced anywhere). Rename the
+`FLAG_UNK_0x0Axx` lines in `generated/vars_flags.txt` to these names when you use them:
+| ws | flags |
+|---|---|
+| rift-rp | `FLAG_DW_RP_A..H` (0x0A00-0x0A07) |
+| rift-ef | `FLAG_DW_EF_A..H` (0x0A08-0x0A0F) |
+| rift-214 | `FLAG_DW_214_A..H` (0x0A10-0x0A17) |
+| rift-213 | `FLAG_DW_213_A..H` (0x0A18-0x0A1F); A = fell once in DW Route 213, B = puzzle hint shown |
+| rift-lt | `FLAG_DW_LT_A..P` (0x0A20-0x0A2F) |
+| engine-a / engine-b | `FLAG_DW_ENGINE_A..P` (0x0A30-0x0A3F) |

@@ -170,6 +170,12 @@ pokeplatinum_c = files(
     'start_menu.c',
     'unk_0203C954.c',
     'field_system.c',
+    # dwp:engine-a: puzzle engine state in MAIN-binary RAM (survives
+    # overlay 9 reloads). NOT in overlay 9 (see src/dw_puzzle_state.c).
+    'dw_puzzle_state.c',
+    # dwp:engine-b: actor core state in MAIN-binary RAM (same reason;
+    # see src/dw_actors_state.c). NOT in overlay 9.
+    'dw_actors_state.c',
     'location.c',
     'unk_0203D1B8.c',
     'field_script_context.c',
@@ -496,6 +502,18 @@ pokeplatinum_c = files(
     'overlay007/shop_menu.c',
     'overlay008/ov8_02249960.c',
     'overlay009/ov9_02249960.c',
+    'overlay009/dw_puzzle.c',
+    'overlay009/dw_puzzle_test.c',
+    'overlay009/dw_puzzle_test_eterna.c',
+    'overlay009/dw_puzzle_lost_tower.c', # dwp:rift-lt
+    # dwp:rift-rp: Ravaged Path production puzzle table
+    'overlay009/dw_puzzle_ravaged_path.c',
+    'overlay009/dw_puzzle_eterna_forest.c',
+    'overlay009/dw_puzzle_route_214.c',
+    # dwp:rift-213: DW Route 213 puzzle + actor tables
+    'overlay009/dw_puzzle_route_213.c',
+    # dwp:engine-b: stones, shadow, echo, totem-echo pads
+    'overlay009/dw_puzzle_actors.c',
     'overlay010/ov10_0221F800.c',
     'overlay011/move_palettes.c',
     'overlay011/particle_helper.c',

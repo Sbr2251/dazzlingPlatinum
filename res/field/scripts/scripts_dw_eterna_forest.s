@@ -8,18 +8,28 @@
 //   exit    Warp MAP_HEADER_ETERNA_FOREST, 0, 84, 37, DIR_SOUTH (in front of the rift spot)
 //   calm    the Vespiquen totem calmed: FLAG_TOTEM_VESPIQUEN_DEFEATED, FLAG_HIDE_TOTEM_VESPIQUEN, VAR_ARC2_PROGRESS = 26
 //
-// Route: the entry walkway west to the seam at (17,12), which folds the player into the hive: B4F's floor strip at
-// (39,22). East to (48,22), onto the east wall x=49, up the wall's steps to (49,9,27), UP onto the CEILING (y10), along
-// it to the HONEYCOMB corridor (x44-45, z33-36), which is there for a while, fades, is gone, and comes back (a frame
-// timer in src/overlay009/ov9_02249960.c, Arc2DwEternaForest_HandleFrame). Past it, z41: the Vespiquen totem.
-// Standing on the honeycomb when it goes, or stepping onto it while it is gone, drops the player back to the hive start.
-// The walkway's chasm lips fall too (coord events, back to the entry).
+// Route (puzzle: docs/distortion_world/eterna_forest.md, table src/overlay009/dw_puzzle_eterna_forest.c): the entry
+// walkway west to the seam at (17,12), which folds the player into the hive: B4F's floor strip at (40,22). East to
+// (48,22), onto the east wall x=49 (the y2 rune gate blocks every climb past y1), east along y1 to RUNE A (49,1,25),
+// which flips wall -> ceiling. Along the ceiling to the HONEYCOMB corridor (x44-45, z33-36), which is there for a
+// while, fades, is gone, and comes back (a frame timer in src/overlay009/ov9_02249960.c,
+// Arc2DwEternaForest_HandleFrame). Past it, RUNE B (45,10,37) flips ceiling -> floor onto the two-tile platform;
+// the SIGIL at (46,1,37) latches the bridge over the gap (x44-47, z39-40); back up, across the bridge, z41: the
+// Vespiquen totem. A honeycomb fall respawns at the last checkpoint (engine snapshot), not the hive start.
+// The walkway's chasm lips fall too (engine VOID tiles in the table, fall script DWEternaForest_Fall, back to the
+// entry checkpoint).
 //
 // Flags (rift-a block 0x0926-0x0929; the lead names them at merge):
 //   FLAG_ARC2_RIFTA_C (0x0928)  Eterna Forest: the honeycomb has dropped the player once (Cyrus's line played)
 //   FLAG_ARC2_RIFTA_D (0x0929)  Eterna Forest: the hive reached once (Cyrus's ceiling line played)
 // VAR_MAP_LOCAL_2 (map-local): set to 1 by the frame timer when the honeycomb goes with the player on it; the init
 // frame table then runs the fall script.
+// The hint state machine (persistent flags -- a map-local var CANNOT count falls: ClearLocalFlags wipes all
+// VAR_MAP_LOCAL_* on every DW map load, including the fall warp itself, so a counter would read 1 on every
+// fall). FLAG_DW_EF_B (0x0A09) = a honeycomb fall has happened and the hint has not played yet; FLAG_DW_EF_A
+// (0x0A08) = the hint is pending this fall (set before the warp on the second fall, cleared after the hint
+// plays); FLAG_DW_EF_C (0x0A0A) = the hint has played. The hint is once per save, like the other Cyrus
+// once-only lines (RIFTA_C/D): a later visit's falls show no hint, because C is already set.
 
 #define LOCALID_CYRUS_ENTRY 0x80
 #define LOCALID_CYRUS_HIVE  0x81
@@ -46,7 +56,8 @@ DWEternaForest_OnTransition:
 DWEternaForest_Unused:
     End
 
-// Coord events on the walkway's chasm lips: the Arc 1 fall script, back to the entry.
+// The walkway's chasm lips: from the engine (VOID tiles in the table), back to the entry checkpoint.
+// The engine respawns at the checkpoint after the warp; the warp here lands on the same tile.
 DWEternaForest_Fall:
     LockAll
     ApplyMovement LOCALID_PLAYER, DWEternaForest_Movement_PlayerFall
@@ -88,10 +99,23 @@ DWEternaForest_FoldEnd:
     End
 
 // The honeycomb is gone under the player: from the step hook, or from the init frame table once the frame timer has
-// raised VAR_MAP_LOCAL_2 (it was standing there when it went). Back to the hive start; Cyrus's line once.
+// raised VAR_MAP_LOCAL_2 (it was standing there when it went). The engine (DwPuzzle_NotifyFall, called at fall
+// detection on both paths) respawns at the last checkpoint with its snapshot after this script's warp; the warp
+// itself lands on the hive, while faded out, so the respawn is invisible. Cyrus's lines are voice-over: he is not
+// on the ceiling, so no Face movements after the warp. Fall 1: the once-only "Wait for it" line. Fall 2: the
+// rune/sigil hint (two messages). Later falls: no lines.
 DWEternaForest_HoneyFall:
     LockAll
     SetVar VAR_MAP_LOCAL_2, 0
+    GoToIfSet FLAG_DW_EF_C, DWEternaForest_HoneyFallContinue
+    GoToIfSet FLAG_DW_EF_B, DWEternaForest_HoneyFallSetHint
+    SetFlag FLAG_DW_EF_B
+    GoTo DWEternaForest_HoneyFallContinue
+DWEternaForest_HoneyFallSetHint:
+    ClearFlag FLAG_DW_EF_B
+    SetFlag FLAG_DW_EF_A
+    SetFlag FLAG_DW_EF_C
+DWEternaForest_HoneyFallContinue:
     ApplyMovement LOCALID_PLAYER, DWEternaForest_Movement_PlayerFall
     WaitMovement
     PlayFanfare SEQ_SE_PL_SYUWA
@@ -103,15 +127,21 @@ DWEternaForest_HoneyFall:
     Warp MAP_HEADER_DW_ETERNA_FOREST, 0, HIVE_X, HIVE_Z, DIR_EAST
     FadeScreenIn
     WaitFadeScreen
+    GoToIfSet FLAG_DW_EF_A, DWEternaForest_HoneyFallHint
     GoToIfSet FLAG_ARC2_RIFTA_C, DWEternaForest_HoneyFallEnd
     SetFlag FLAG_ARC2_RIFTA_C
-    ApplyMovement LOCALID_PLAYER, DWEternaForest_Movement_FaceSouth
-    WaitMovement
     Message DWEternaForest_Text_CyrusWaitForIt
     WaitABXPadPress
     CloseMessage
-    ApplyMovement LOCALID_PLAYER, DWEternaForest_Movement_FaceEast
-    WaitMovement
+    GoTo DWEternaForest_HoneyFallEnd
+DWEternaForest_HoneyFallHint:
+    ClearFlag FLAG_DW_EF_A
+    Message DWEternaForest_Text_CyrusRuneHint
+    WaitABXPadPress
+    CloseMessage
+    Message DWEternaForest_Text_CyrusSigilHint
+    WaitABXPadPress
+    CloseMessage
 DWEternaForest_HoneyFallEnd:
     ReleaseAll
     End

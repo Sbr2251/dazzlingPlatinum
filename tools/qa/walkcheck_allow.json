@@ -1,0 +1,4 @@
+{
+  "_doc": "Allowlist for tools/qa/walkcheck.py. Each entry silences one mismatch: {map, surface, class, x, y, z, severity, reason}. y is the wall tile's y for wall entries (wall tiles are (y, z)), the platform's y for ceiling/floor-platform entries, and null/absent for floor entries. severity is optional: an entry without it matches any severity, while one with it matches only that severity (so a HIGH<->MEDIUM change is not silently allowlisted). Only add entries with a design reason; never to hide a bug.",
+  "entries": []
+}

@@ -213,8 +213,50 @@
             "x": 39,
             "y": 1,
             "z": 22
+        },
+        {
+            "group": 6,
+            "kind": 1,
+            "x": 18,
+            "y": 1,
+            "z": 22
+        },
+        {
+            "group": 7,
+            "kind": 1,
+            "x": 19,
+            "y": 1,
+            "z": 22
+        },
+        {
+            "group": 7,
+            "kind": 1,
+            "x": 20,
+            "y": 1,
+            "z": 22
+        },
+        {
+            "group": 8,
+            "kind": 1,
+            "x": 16,
+            "y": 1,
+            "z": 24
+        },
+        {
+            "group": 8,
+            "kind": 1,
+            "x": 17,
+            "y": 1,
+            "z": 24
+        },
+        {
+            "group": 9,
+            "kind": 1,
+            "x": 38,
+            "y": 1,
+            "z": 22
         }
     ],
     "ghost_triggers": [],
-    "ghost_default_visible": 5
+    "ghost_default_visible": 9
 }
