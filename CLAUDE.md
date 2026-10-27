@@ -11,7 +11,9 @@
 - Build with `make release`. The ROM is hardlinked to `out/dazzlingPlatinum.nds`, outside `build/`. Meson's own output, `build/pokeplatinum.us.nds`, is still there; set `OUT=<dir>` to put it somewhere else.
   - Don't use plain `make` (`make all`). It also runs `check`, which compares the ROM against the vanilla SHA1 and always fails for this hack.
   - Only one build can use `build/` at a time. "Some other Meson process is already using this build directory" means another build is running; wait for it rather than deleting the lock.
-- Smoke-test the ROM headlessly with py-desmume: `SDL_VIDEODRIVER=dummy ~/.venvs/desmume/bin/python` (Python 3.12), on both the devserver and the Mac. `~/.venvs/desmume39` is a Python 3.9 copy, devserver only.
+- Smoke-test the ROM headlessly with py-desmume, using `SDL_VIDEODRIVER=dummy` with the right venv for the machine:
+  - **Devserver:** `~/.venvs/desmume39/bin/python` (system Python 3.9). The Python 3.12 venv `~/.venvs/desmume` is built on fbcode's Python, which cannot find the system `libglib-2.0.so.0`, so it fails on devservers.
+  - **Mac:** `~/.venvs/desmume/bin/python` (Python 3.12).
 - When the ROM builds, commit and push the branch so the user can test on hardware or their own emulator.
 
 ## Important: Text Encoding
