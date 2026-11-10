@@ -46,7 +46,7 @@ public:
 };
 
 class UnkClass_ov66_02243B64_Sub1 : public UnkClass_ov66_0225B6E4 {
-    typedef std::map<u32, UnkClass_ov66_02243B64_Sub1_Sub1, std::less<u32>, PPW_Allocator<std::pair<u32, UnkClass_ov66_02243B64_Sub1_Sub1> > > UnkClass_ov66_02243B64_Sub1_UnkMap;
+    typedef std::map<u32, UnkClass_ov66_02243B64_Sub1_Sub1, std::less<u32>, PPW_Allocator<std::pair<const u32, UnkClass_ov66_02243B64_Sub1_Sub1> > > UnkClass_ov66_02243B64_Sub1_UnkMap;
     UnkClass_ov66_02243B64_Sub1_UnkMap unk_00;
 
 public:

@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <lobby/dwci_lobby.h>
 
 // include order necessary to match
@@ -1272,7 +1273,7 @@ static void ov66_022393C0(BOOL param0, const u8 *param1, u32 param2, void *param
 
 static void ov66_02239408(BOOL param0, DWCi_LOBBY_ENTER_RESULT param1, const char *param2, void *param3)
 {
-    PPW_LOBBY_CHANNEL_KIND v0 = (PPW_LOBBY_CHANNEL_KIND)(u32)param3;
+    PPW_LOBBY_CHANNEL_KIND v0 = (PPW_LOBBY_CHANNEL_KIND)(u32)(uintptr_t)param3;
     if (v0 == PPW_LOBBY_CHANNEL_KIND_INVALID) {
         return;
     }
@@ -1311,7 +1312,7 @@ static void ov66_02239408(BOOL param0, DWCi_LOBBY_ENTER_RESULT param1, const cha
 
 static void ov66_022399A8(BOOL param0, DWCi_LOBBY_ENTER_RESULT param1, const char *param2, void *param3)
 {
-    PPW_LOBBY_CHANNEL_KIND v0 = (PPW_LOBBY_CHANNEL_KIND)(u32)param3;
+    PPW_LOBBY_CHANNEL_KIND v0 = (PPW_LOBBY_CHANNEL_KIND)(u32)(uintptr_t)param3;
     if (v0 == PPW_LOBBY_CHANNEL_KIND_INVALID) {
         return;
     }
@@ -1331,7 +1332,7 @@ static void ov66_022399A8(BOOL param0, DWCi_LOBBY_ENTER_RESULT param1, const cha
         Unk_ov66_0225B6C4->UnkClass_ov66_0225B6C4_InlineFunc23().UnkClass_ov66_02235FC8_InlineFunc7();
     }
 
-    Unk_ov66_0225B6C4->UnkClass_ov66_0225B6C4_InlineFunc2().lobbyJoinChannelCallback(param0, (PPW_LOBBY_CHANNEL_KIND)(u32)param3);
+    Unk_ov66_0225B6C4->UnkClass_ov66_0225B6C4_InlineFunc2().lobbyJoinChannelCallback(param0, (PPW_LOBBY_CHANNEL_KIND)(u32)(uintptr_t)param3);
 }
 
 static void ov66_02239B54(const char *param0, s32 param1, void *param2)

@@ -105,6 +105,12 @@ public:
     {
         UnkClass_ov66_0225B6E4::operator delete((void *)param0);
     }
+
+    // Stateless: every instance can free what another allocated (libc++ compares allocators where libstdc++ does not)
+    template <class U>
+    bool operator==(const PPW_Allocator<U> &) const throw() { return true; }
+    template <class U>
+    bool operator!=(const PPW_Allocator<U> &) const throw() { return false; }
 };
 
 #endif // ILOBBY_LOBBYBASE_H

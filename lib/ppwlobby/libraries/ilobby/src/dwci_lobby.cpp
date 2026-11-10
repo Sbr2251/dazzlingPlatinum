@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <lobby/dwci_lobby.h>
 
 // include order necessary to match
@@ -275,9 +276,9 @@ static void ov66_02243B74(CHAT param0, CHATBool param1, int param2, const char *
 
     std::vector<char *, PPW_Allocator<char *> > v0 = Unk_ov66_0225B6DC->ov66_0224680C(param2, param3);
 
-    UnkClass_ov66_02243B74<DWCi_LobbyEnumChannelsCallback> *v1 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyEnumChannelsCallback>((u32)param6);
+    UnkClass_ov66_02243B74<DWCi_LobbyEnumChannelsCallback> *v1 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyEnumChannelsCallback>((u32)(uintptr_t)param6);
     v1->UnkClass_ov66_02243B74_InlineFunc0()(param1 == CHATTrue, param2, (const char **)ov66_022364B0(v0), param4, (s32 *)param5, v1->ov66_02243C74());
-    Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)param6);
+    Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)(uintptr_t)param6);
 }
 
 static void ov66_02243D28(CHAT param0, CHATBool param1, int param2, const char *param3, const char *param4, int param5, void *param6)
@@ -299,9 +300,9 @@ static void ov66_02243D30(CHAT param0, CHATBool param1, const char *param2, int 
         v0 = Unk_ov66_0225B6DC->ov66_02246DF0(param3, param4, param2);
     }
 
-    UnkClass_ov66_02243B74<DWCi_LobbyEnumUsersCallback> *v1 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyEnumUsersCallback>((u32)param6);
+    UnkClass_ov66_02243B74<DWCi_LobbyEnumUsersCallback> *v1 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyEnumUsersCallback>((u32)(uintptr_t)param6);
     v1->UnkClass_ov66_02243B74_InlineFunc0()(param1 == CHATTrue, Unk_ov66_0225B6DC->ov66_022467D4(param2).c_str(), (s32)v0.size(), ov66_022364B0(v0), v1->ov66_02243C74());
-    Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)param6);
+    Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)(uintptr_t)param6);
 }
 
 static void ov66_02243F64(CHAT param0, CHATBool param1, const char *param2, int param3, const char **param4, int *param5, void *param6)
@@ -316,9 +317,9 @@ static void ov66_02243F64(CHAT param0, CHATBool param1, const char *param2, int 
 
     Unk_ov66_0225B6DC->ov66_022476C8(param2);
 
-    const UnkClass_ov66_02243B74<DWCi_LobbyJoinChannelCallback> *v0 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyJoinChannelCallback>((u32)param6);
+    const UnkClass_ov66_02243B74<DWCi_LobbyJoinChannelCallback> *v0 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyJoinChannelCallback>((u32)(uintptr_t)param6);
     v0->UnkClass_ov66_02243B74_InlineFunc0()(param1 == CHATTrue, DWCi_LOBBY_ENTER_RESULT_SUCCESS, Unk_ov66_0225B6DC->ov66_022467D4(param2).c_str(), v0->ov66_02243C74());
-    Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)param6);
+    Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)(uintptr_t)param6);
 
     if (param1 == CHATFalse) {
         DWCi_LobbyLeaveChannel(Unk_ov66_0225B6DC->ov66_022467D4(param2).c_str());
@@ -355,9 +356,9 @@ static void ov66_0224413C(CHAT param0, CHATBool param1, CHATEnterResult param2, 
     } else {
         DWCi_LobbyLeaveChannel(Unk_ov66_0225B6DC->ov66_022467D4(param3).c_str());
 
-        const UnkClass_ov66_02243B74<DWCi_LobbyJoinChannelCallback> *v2 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyJoinChannelCallback>((u32)param4);
+        const UnkClass_ov66_02243B74<DWCi_LobbyJoinChannelCallback> *v2 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyJoinChannelCallback>((u32)(uintptr_t)param4);
         v2->UnkClass_ov66_02243B74_InlineFunc0()(FALSE, (DWCi_LOBBY_ENTER_RESULT)param2, Unk_ov66_0225B6DC->ov66_022467D4(param3).c_str(), v2->ov66_02243C74());
-        Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)param4);
+        Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)(uintptr_t)param4);
     }
 }
 
@@ -379,7 +380,7 @@ static void ov66_0224439C(CHAT param0, CHATBool param1, const char *param2, cons
         v0 = DWC_LOBBY_INVALID_USER_ID;
     }
 
-    UnkClass_ov66_02243B74<DWCi_LobbyGetChannelDataCallback> *v1 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyGetChannelDataCallback>((u32)param7);
+    UnkClass_ov66_02243B74<DWCi_LobbyGetChannelDataCallback> *v1 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyGetChannelDataCallback>((u32)(uintptr_t)param7);
 
     char *v2 = NULL;
     char *v3 = NULL;
@@ -389,7 +390,7 @@ static void ov66_0224439C(CHAT param0, CHATBool param1, const char *param2, cons
     }
     v1->UnkClass_ov66_02243B74_InlineFunc0()(param1 == CHATTrue, Unk_ov66_0225B6DC->ov66_022467D4(param2).c_str(), v0, v2, v3, v1->ov66_02243C74());
 
-    Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)param7);
+    Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)(uintptr_t)param7);
 }
 
 static void ov66_02244528(CHAT param0, const char *param1, const char *param2, const char *param3, const char *param4, void *param5)
@@ -423,9 +424,9 @@ static void ov66_02244620(CHAT param0, CHATBool param1, const char *param2, CHAT
         return;
     }
 
-    UnkClass_ov66_02243B74<DWCi_LobbyGetChannelModeCallback> *v0 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyGetChannelModeCallback>((u32)param4);
+    UnkClass_ov66_02243B74<DWCi_LobbyGetChannelModeCallback> *v0 = Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().UnkClass_ov66_0224640C_InlineFunc1<DWCi_LobbyGetChannelModeCallback>((u32)(uintptr_t)param4);
     v0->UnkClass_ov66_02243B74_InlineFunc0()(param1 == CHATTrue, Unk_ov66_0225B6DC->ov66_022467D4(param2).c_str(), (DWCi_LobbyChannelMode *)param3, v0->ov66_02243C74());
-    Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)param4);
+    Unk_ov66_0225B6DC->UnkClass_ov66_02243B64_InlineFunc17().ov66_0224640C((u32)(uintptr_t)param4);
 }
 
 static BOOL ov66_02244758(void *param0)
