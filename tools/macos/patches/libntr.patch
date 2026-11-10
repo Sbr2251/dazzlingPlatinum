@@ -87,6 +87,18 @@ index ad57dfa..312dae0 100644
  const char * SIM_GetLibntrGitHash();
  const char * SIM_GetProjectGitHash();
  SDL_Window * SIM_GetSDLWindow();
+diff --git a/include/simulator/sim_gui.hpp b/include/simulator/sim_gui.hpp
+index 285ed8d..d5a2519 100644
+--- a/include/simulator/sim_gui.hpp
++++ b/include/simulator/sim_gui.hpp
+@@ -17,6 +17,7 @@ void Toggle();
+ void Enable();
+ void OpenFileDialog(std::function<void(std::string)> callback);
+ bool IsGameLogicPaused();
++void SetGameLogicPaused(bool paused);
+ void AppButton(const char * label, bool * state, void (*aInitFunc)(void), void (*aAppFunc)(bool *));
+ 
+ 
 diff --git a/include/simulator/sim_helpers.hpp b/include/simulator/sim_helpers.hpp
 new file mode 100644
 index 0000000..c2b0286
@@ -383,7 +395,7 @@ index 77300c2..ecf6990 100644
  }
  
 diff --git a/libraries/sim/src/sim_gui.cpp b/libraries/sim/src/sim_gui.cpp
-index 2c40e59..a2511d7 100644
+index 2c40e59..d13175a 100644
 --- a/libraries/sim/src/sim_gui.cpp
 +++ b/libraries/sim/src/sim_gui.cpp
 @@ -1,5 +1,6 @@
@@ -425,12 +437,23 @@ index 2c40e59..a2511d7 100644
          ImGui::Checkbox("Pause Game Logic", &sPauseGameLogic);
  
          ImGui::End();
+@@ -147,6 +158,10 @@ bool IsGameLogicPaused() {
+     return sPauseGameLogic;
+ }
+ 
++void SetGameLogicPaused(bool paused) {
++    sPauseGameLogic = paused;
++}
++
+ // Generic button to open another GUI applet
+ void AppButton(const char * label, bool * state, void (*initFunc)(void), void (*appFunc)(bool *)) {
+     if(ImGui::Button(label, sButtonSize)) {
 diff --git a/libraries/sim/src/sim_helpers.cpp b/libraries/sim/src/sim_helpers.cpp
 new file mode 100644
-index 0000000..83c386f
+index 0000000..74d53a8
 --- /dev/null
 +++ b/libraries/sim/src/sim_helpers.cpp
-@@ -0,0 +1,338 @@
+@@ -0,0 +1,353 @@
 +// Player helpers for PC builds: a fast-forward badge and short messages drawn over the game, and save import/export.
 +//
 +// Saves: the game reads and writes save.bin in its working directory, a raw image of the DS cartridge's 512 KB flash, so it is
@@ -439,6 +462,7 @@ index 0000000..83c386f
 +
 +#include "simulator/sim.h"
 +#include "simulator/sim_helpers.hpp"
++#include "simulator/sim_gui.hpp"
 +
 +#include "simulator/imgui/imgui.hpp"
 +
@@ -503,7 +527,21 @@ index 0000000..83c386f
 +
 +    double speed = 0;
 +    int ff = SIM_GetFastForward(&speed);
-+    if (ff != 0) {
++    if (SIM::GUI::IsGameLogicPaused()) {
++        // Pause badge in the top-right corner: two bars and PAUSED
++        const char * label = "PAUSED";
++        ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
++        float h = 20.0f * scale, pad = 6.0f * scale, bar = 3.0f * scale, barH = 10.0f * scale;
++        float w = pad + bar * 3 + 4.0f * scale + textSize.x + pad;
++        ImVec2 p1(display.x - w - 6.0f * scale, 6.0f * scale);
++        ImVec2 p2(p1.x + w, p1.y + h);
++        dl->AddRectFilled(p1, p2, IM_COL32(0, 0, 0, 150), h / 2);
++        float cy = p1.y + h / 2, x = p1.x + pad;
++        ImU32 white = IM_COL32(255, 255, 255, 235);
++        dl->AddRectFilled(ImVec2(x, cy - barH / 2), ImVec2(x + bar, cy + barH / 2), white);
++        dl->AddRectFilled(ImVec2(x + bar * 2, cy - barH / 2), ImVec2(x + bar * 3, cy + barH / 2), white);
++        dl->AddText(font, fontSize, ImVec2(x + bar * 3 + 4.0f * scale, cy - textSize.y / 2), white, label);
++    } else if (ff != 0) {
 +        // Badge in the top-right corner: two triangles and the speed
 +        char label[16];
 +        if (ff == 2) snprintf(label, sizeof label, "MAX");
@@ -770,7 +808,7 @@ index 0000000..83c386f
 +
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..f3d3b44 100644
+index 910d7da..6c3f118 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -877,7 +915,7 @@ index 910d7da..f3d3b44 100644
                 backdropVec);
  
    glProgramUniform4f(g2shaderProgramID,
-@@ -950,6 +988,132 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,6 +988,142 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -890,6 +928,7 @@ index 910d7da..f3d3b44 100644
 +//   (a key T<x>;<y> touches the bottom screen at DS coordinates, e.g. "6000:T120;82/4")
 +//   SIM_DEBUG_FAST=1                                        no frame cap, no vsync
 +//   SIM_DEBUG_EXPORT_SAVE=<frame>:<path>, SIM_DEBUG_IMPORT_SAVE=<frame>:<path>  export / import the save (no dialogs; import restarts)
++//   SIM_DEBUG_PAUSE=<from>-<to>                             paused for those frames (as with F8)
 +//   SIM_DEBUG_FF_HOLD=1                                     as if the fast-forward key were held (SIM_FAST_FORWARD_SPEED x 60 fps)
 +//   SIM_DEBUG_DUMP_FRAME=<frame>                            prints the 2D display/blend registers and BG palette at that frame
 +static int sDebugTouch = 0;   // SIM_DEBUG_KEYS holds the touch screen: the mouse does not override it
@@ -996,6 +1035,15 @@ index 910d7da..f3d3b44 100644
 +    } }
 +  static struct timespec t100;
 +  if (frame == 100) clock_gettime(CLOCK_MONOTONIC, &t100);
++  // SIM_DEBUG_PAUSE=<from>-<to>: paused for those frames (as with F8)
++  {
++    static const char *pz = getenv("SIM_DEBUG_PAUSE");
++    if (pz && strchr(pz, '-')) {
++      u32 from = (u32)atoi(pz), to = (u32)atoi(strchr(pz, '-') + 1);
++      if (frame == from) SIM::GUI::SetGameLogicPaused(true);
++      if (frame == to) SIM::GUI::SetGameLogicPaused(false);
++    }
++  }
 +  // SIM_DEBUG_EXPORT_SAVE / SIM_DEBUG_IMPORT_SAVE="<frame>:<path>": export / import the save at that frame, without dialogs
 +  {
 +    static const char *exp = getenv("SIM_DEBUG_EXPORT_SAVE"), *imp = getenv("SIM_DEBUG_IMPORT_SAVE");
@@ -1010,7 +1058,7 @@ index 910d7da..f3d3b44 100644
  void *SIM_Render(void *arg) {
  
    SDL_Event Event;
-@@ -1073,9 +1237,14 @@ void *SIM_Render(void *arg) {
+@@ -1073,9 +1247,14 @@ void *SIM_Render(void *arg) {
        s_SIM_SDLJoystick = SDL_JoystickOpen(0);
      }
  
@@ -1025,10 +1073,16 @@ index 910d7da..f3d3b44 100644
        if (Event.type == SDL_WINDOWEVENT) {
          switch (Event.window.event) {
          case SDL_WINDOWEVENT_CLOSE:
-@@ -1083,6 +1252,12 @@ void *SIM_Render(void *arg) {
+@@ -1083,6 +1262,18 @@ void *SIM_Render(void *arg) {
            break;
          }
        }
++      if (Event.type == SDL_KEYDOWN && !Event.key.repeat &&
++          (Event.key.keysym.sym == SDLK_F8 || Event.key.keysym.sym == SDLK_AUDIOPLAY)) {
++        // F8 (fn+F8 on a Mac keyboard, where F8 is play/pause) pauses / resumes the game
++        SIM::GUI::SetGameLogicPaused(!SIM::GUI::IsGameLogicPaused());
++        continue;
++      }
 +      if (Event.type == SDL_KEYDOWN && (Event.key.keysym.mod & KMOD_GUI)) {
 +        // Cmd shortcuts (not passed to the game): Cmd+E export the save, Cmd+I import a save
 +        if (Event.key.keysym.sym == SDLK_e && !Event.key.repeat) SIM::Helpers::ExportSave();
@@ -1038,7 +1092,7 @@ index 910d7da..f3d3b44 100644
        if (Event.type == SDL_KEYDOWN) {
          int keyRead = Event.key.keysym.sym;
          if (keyRead == s_SIM_config.padSettings.aKey) {
-@@ -1261,7 +1436,9 @@ void *SIM_Render(void *arg) {
+@@ -1261,7 +1452,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -1049,7 +1103,7 @@ index 910d7da..f3d3b44 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1328,18 +1505,29 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +1521,29 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -1066,7 +1120,7 @@ index 910d7da..f3d3b44 100644
 +    // deadline with sub-millisecond sleeps, so a sleep that overshoots is made up on the next frames.
 +    if (s_SIM_config.capFrameRate && !(sFastForward && sFastForwardUncapped)) {
 +      static struct timespec paceDeadline;
-+      u64 target = (u64)(16600000.0 / (sFastForward ? sFastForwardSpeed : 1.0));
++      u64 target = (u64)(16600000.0 / (sFastForward && !SIM::GUI::IsGameLogicPaused() ? sFastForwardSpeed : 1.0));
 +      struct timespec now;
 +      clock_gettime(CLOCK_MONOTONIC, &now);
 +      s64 behind = (s64)(now.tv_sec - paceDeadline.tv_sec) * 1000000000 + (now.tv_nsec - paceDeadline.tv_nsec);
@@ -1088,7 +1142,20 @@ index 910d7da..f3d3b44 100644
      SDL_GL_SwapWindow(window);
  
      if(sChangeInternalResAfterRender) {
-@@ -1398,6 +1586,12 @@ void *SIM_Render(void *arg) {
+@@ -1369,6 +1573,12 @@ void *SIM_Render(void *arg) {
+     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+ 
++    // Pausing (F8 or the debug menu) also stops the sound: the audio callback drives the sound sequencer
++    {
++      static bool audioPaused = false;
++      bool paused = SIM::GUI::IsGameLogicPaused();
++      if (paused != audioPaused) { SDL_PauseAudio(paused ? 1 : 0); audioPaused = paused; }
++    }
+   } while (SIM::GUI::IsGameLogicPaused());
+   // Bind 3D Framebuffer & Renderbuffer
+   glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
+@@ -1398,6 +1608,12 @@ void *SIM_Render(void *arg) {
  }
  
  // Get the rendering time in nanoseconds

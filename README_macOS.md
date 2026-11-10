@@ -32,9 +32,10 @@ The DS ROM still builds from the same tree with `make release` as before.
 | Settings and debug menu | ` (grave accent) |
 | Export the save (.sav) | Cmd+E (or Export save… in the ` menu) |
 | Import a save (.sav or DeSmuME .dsv), then restart | Cmd+I (or Import save… in the ` menu) |
+| Pause / resume (stops the sound too) | F8 (fn+F8 on a Mac keyboard, where F8 is the media play key) |
 | Quit | Cmd+Q |
 
-While fast-forwarding, a badge in the top-right corner shows the speed (`MAX` when the frame cap is off).
+While fast-forwarding, a badge in the top-right corner shows the speed (`MAX` when the frame cap is off); while paused it shows PAUSED.
 
 **Saves.** The game keeps its save in `~/Library/Application Support/Pokemon Platinum/save.bin`, a raw image of the cartridge's
 512 KB flash: the same format as a `.sav` from DeSmuME (File > Export/Import Backup Memory), melonDS or a cartridge dump, so an
