@@ -4,10 +4,11 @@
 The pose, anatomy and shading come from a generated concept image
 (docs/story/art/src/garius_battle_concept.webp), shrunk to 80x80 and 15 colours by
 convert_concept.py (-> concept_grid.txt). This script applies the clean-up on top:
-  1. closes the outline wherever the shrink lost it,
-  2. lights the top edges of the jacket and keeps the shirt teal,
-  3. redraws by hand what does not survive at this size: face, hair lights, watch.
-Two frames for the intro animation: eyes shut and mouth flat, then eyes open with the smirk.
+  1. closes the outline wherever the shrink lost it and thins it back to one pixel,
+  2. shades the jacket, shirt and trousers (lit from the top left),
+  3. redraws by hand what does not survive at this size: the whole head and the watch,
+  4. mirrors the frame so he faces left, towards the player, like the stock opponents.
+Two frames for the intro animation: head bowed with eyes shut, then looking up with the smirk.
 
     python3 tools/garius_sprite/garius_battle.py            # write both frames (160x80)
     python3 tools/garius_sprite/garius_battle.py --preview  # also the preview (needs PIL)
@@ -37,29 +38,41 @@ PALETTE = [(255, 0, 255)] + [LETTER_COLOURS[k] for k in LETTERS]
 INDEX = {k: n + 1 for n, k in enumerate(LETTERS)}
 
 # Hand-drawn patches: (x, y, rows). '.' leaves the pixel alone, '_' clears it.
-FACE = (31, 20, [
-    "KHHHHHaSSaaSSHKK",
-    "_HHHsaeKaaKeaK__",
-    "_KKssawKaaKwaK__",
-    "__KSsaaaaaasaK__",
-    "___KsaaaSSSaaK__",
-    "__KKHKsaaaaaK___",
-    "__KKKKKKSssK____",
+# Drawn in the concept's orientation (facing right); the finished frame is mirrored so he
+# faces left, towards the player, like the stock opponents.
+HEAD_BOX = (28, 10, 51, 27)  # cleared before the head is painted (x0, y0, x1, y1)
+HEAD = (30, 10, [
+    "......KK...........",
+    "....KKHHK..........",
+    "...KHHhHK.KK.......",
+    "..KHHhhHKKHHKKK....",
+    ".KHHhhHHHHHhhHHKK..",
+    ".KHhhHHHHHhhhhHHHK.",
+    "KHHhHHHHHhhhHHHHHHK",
+    "KHhHHHHsaaHHhHHHHHK",
+    "KHhHHHsaaaaHHHHHKK.",
+    "KHHHHsaaaaaaaHHK...",
+    ".KHHsaHHaaaHHaK....",
+    ".KHssaeKaaaeKaK....",
+    ".KKsSawKaaawKaK....",
+    "..KSsaaaaaaaSsK....",
+    "...KsaaaaaSSaK.....",
+    "...KKHKsaaaaK......",
+    "...KKKKKKSssK......",
 ])
-EYES_SHUT = (31, 21, [
-    "_HHHsaaaaaaaaK__",
-    "_KKssaKKaaKKaK__",
-    "__KSsaaaaaasaK__",
-    "___KsaaaaSSaaK__",
-])
-HAIR_LIGHTS = [(35, 15), (36, 15), (40, 15), (41, 15), (34, 17), (35, 17), (33, 18), (33, 19)]
+# Frame 1 changes these rows of HEAD (eyes shut, no smirk) and bows the head one pixel.
+SHUT_ROWS = {
+    11: ".KHssaaaaaaaaaK....",
+    12: ".KKsSaKKaaaKKaK....",
+    13: "..KSsaaaaaaaasK....",
+}
 WATCH = (38, 50, [
-    "g.....",
-    ".gg...",
-    "...gg.",
-    "..gwwg",
-    "..gwwg",
-    "...gg.",
+    "g......",
+    ".gg....",
+    "...gggD",
+    "..cgwwg",
+    "..cgwwg",
+    "...DggD",
 ])
 
 
@@ -77,36 +90,59 @@ def base() -> list[list[str]]:
     def at(x, y):
         return grid[y][x] if 0 <= x < SIZE and 0 <= y < SIZE else "."
 
+    sides = ((1, 0), (-1, 0), (0, 1), (0, -1))
+    cells = [(x, y) for y in range(SIZE) for x in range(SIZE)]
     # 1. close the outline: an empty pixel beside a coloured (non-outline) one becomes outline
-    add = [(x, y) for y in range(SIZE) for x in range(SIZE) if grid[y][x] == "."
-           and any(at(x + dx, y + dy) not in ".K" for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
-    for x, y in add:
+    for x, y in [c for c in cells if at(*c) == "." and any(at(c[0] + dx, c[1] + dy) not in ".K" for dx, dy in sides)]:
         grid[y][x] = "K"
-    # 2. jacket: light the pixels just under a top edge; shirt: teal except its shadowed edge
+    #    ...then thin it: drop outline pixels on the outside that touch no colour at all
+    for x, y in [c for c in cells if at(*c) == "K"
+                 and any(at(c[0] + dx, c[1] + dy) == "." for dx, dy in sides)
+                 and all(at(c[0] + dx, c[1] + dy) in ".K" for dx, dy in sides)]:
+        grid[y][x] = "."
+    # 2. shading, lit from the top left. Jacket: light under a top edge, rust shadow against
+    #    a right or bottom edge. Shirt: teal except its shadowed edge. Trousers: the near
+    #    leg darkens towards its right edge, the far leg catches light on its left edge.
     for y in range(27, 50):
         for x in range(SIZE):
             if grid[y][x] == "o" and at(x, y - 1) in "Kw":
                 grid[y][x] = "p"
                 if at(x, y + 1) == "o" and at(x - 1, y) != "K":
                     grid[y + 1][x] = "p"
-        run = [x for x in range(SIZE) if grid[y][x] == "H"]
-        for x in run[1:]:
+        for x in [x for x in range(SIZE) if grid[y][x] == "H"][1:]:
             grid[y][x] = "t"
+    for x, y in [c for c in cells if at(*c) == "o" and 27 <= c[1] < 50
+                 and (at(c[0] + 1, c[1]) == "K" or at(c[0], c[1] + 1) == "K")]:
+        grid[y][x] = "S"
+    for x, y in [c for c in cells if c[1] >= 52]:
+        if grid[y][x] == "c" and "K" in (at(x + 1, y), at(x + 2, y)):
+            grid[y][x] = "D"
+    for x, y in [c for c in cells if c[1] >= 56 and at(*c) == "D" and at(c[0] - 1, c[1]) == "K"
+                 and at(c[0] + 1, c[1]) == "D"]:
+        grid[y][x] = "c"
     return grid
 
 
 def front_frames() -> list[list[int]]:
-    """[frame 1 (eyes shut), frame 2 (eyes open, smirk)]."""
+    """[frame 1 (head bowed, eyes shut), frame 2 (looking up, smirk)]."""
     frames = []
     for shut in (True, False):
         grid = base()
-        patch(grid, FACE)
+        x0, y0, x1, y1 = HEAD_BOX
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                grid[y][x] = "."
+        ox, oy, rows = HEAD
+        rows = list(rows)
         if shut:
-            patch(grid, EYES_SHUT)
-        for x, y in HAIR_LIGHTS:
-            grid[y][x] = "h"
+            for n, row in SHUT_ROWS.items():
+                rows[n] = row
+            patch(grid, (ox, oy + 1, rows[:-1]))  # the neck row stays where it is
+            patch(grid, (ox, oy + len(rows) - 1, rows[-1:]))
+        else:
+            patch(grid, (ox, oy, rows))
         patch(grid, WATCH)
-        frames.append([INDEX.get(ch, 0) for row in grid for ch in row])
+        frames.append([INDEX.get(ch, 0) for row in grid for ch in reversed(row)])
     return frames
 
 

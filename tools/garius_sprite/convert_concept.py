@@ -29,7 +29,7 @@ SIZE = 80
 PALETTE = {
     "K": (16, 12, 20),      # outline
     "H": (22, 28, 52),      # hair dark, also the shirt's shadow
-    "h": (44, 58, 100),     # hair mid
+    "h": (56, 76, 132),     # hair mid
     "S": (150, 72, 44),     # rust: skin shadow and jacket dark
     "s": (222, 165, 123),   # skin mid
     "a": (250, 212, 180),   # skin light
