@@ -15,4 +15,6 @@ Arc 3 look (after the reveal): no jacket, Eclipse dark with the violet ring; hai
 Epilogue: the jacket is back on.
 
 Source: `tools/garius_sprite/garius.py` (palette and pixel grid). Preview: `garius_design.png`.
+Style: stock Platinum. The key frame is drawn on stock Barry's skeleton (same height, face box, eye columns and stance);
+the preview is a line-up with stock Barry, Rowan and Cyrus.
 Status: front-facing overworld key frame only; not in the build yet.
