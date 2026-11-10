@@ -18,3 +18,8 @@ Source: `tools/garius_sprite/garius.py` (palette and pixel grid). Preview: `gari
 Style: stock Platinum. The key frame is drawn on stock Barry's skeleton (same height, face box, eye columns and stance);
 the preview is a line-up with stock Barry, Rowan and Cyrus.
 Status: front-facing overworld key frame only; not in the build yet.
+
+Battle front sprite (shown as a battle starts): `tools/garius_sprite/garius_battle.py`, built on stock Lucas's battle
+skeleton (same height, stance and open jacket, one hand at the lapel) with the head redrawn. Preview:
+`garius_battle_design.png` (stock Barry, Garius, stock Cyrus). Frame: `res/trainers/classes/garius/front_design.png`.
+Status: single 80x80 design frame; not a trainer class in the build yet.
