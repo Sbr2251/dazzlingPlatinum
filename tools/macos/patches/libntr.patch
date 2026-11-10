@@ -1,0 +1,385 @@
+diff --git a/include/nitro/hw/X86/mmap_global.h b/include/nitro/hw/X86/mmap_global.h
+index 3be08a2..89915a2 100644
+--- a/include/nitro/hw/X86/mmap_global.h
++++ b/include/nitro/hw/X86/mmap_global.h
+@@ -46,17 +46,34 @@ extern u8 s_HW_MAIN_MEM_EX[0x800000];
+ #define HW_IOREG_END            0x05000000
+ #define HW_REG_BASE             HW_IOREG        // alias
+ //----------------------------- VRAMs
++
++// The DS's palette RAM is one block: BG then OBJ palettes for the main screen, then the sub screen's. HW_PLTT and HW_DB_PLTT span two
++// of them (HW_PLTT_END is HW_OBJ_PLTT_END), so they must be adjacent. Separate arrays were adjacent only by the linker's choice
++// (GNU ld keeps definition order; Apple's ld does not), so on macOS they are fields of one struct.
++#ifdef SDK_BUILD_MACOS
++#define SDK_HW_PLTT_BLOCK 1
++typedef struct SIM_HWPlttBlock { u8 bg[0x200]; u8 obj[0x200]; u8 db_bg[0x200]; u8 db_obj[0x200]; } SIM_HWPlttBlock;
++extern SIM_HWPlttBlock s_HW_PLTT_BLOCK;
++#define s_HW_BG_PLTT     (s_HW_PLTT_BLOCK.bg)
++#define s_HW_OBJ_PLTT    (s_HW_PLTT_BLOCK.obj)
++#define s_HW_DB_BG_PLTT  (s_HW_PLTT_BLOCK.db_bg)
++#define s_HW_DB_OBJ_PLTT (s_HW_PLTT_BLOCK.db_obj)
++#endif
+ //#define HW_BG_PLTT              0x05000000
+ //#define HW_BG_PLTT_END          0x05000200
+ //#define HW_BG_PLTT_SIZE         (HW_BG_PLTT_END-HW_BG_PLTT)
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_BG_PLTT[0x200];
++#endif
+ #define HW_BG_PLTT              ((u64)s_HW_BG_PLTT)
+ #define HW_BG_PLTT_END          ((u64)s_HW_BG_PLTT + 0x200)
+ #define HW_BG_PLTT_SIZE         (HW_BG_PLTT_END-HW_BG_PLTT)
+ //#define HW_OBJ_PLTT             0x05000200
+ //#define HW_OBJ_PLTT_END         0x05000400
+ //#define HW_OBJ_PLTT_SIZE        (HW_OBJ_PLTT_END-HW_OBJ_PLTT)
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_OBJ_PLTT[0x200];
++#endif
+ #define HW_OBJ_PLTT             ((u64)s_HW_OBJ_PLTT)
+ #define HW_OBJ_PLTT_END         ((u64)s_HW_OBJ_PLTT + 0x200)
+ #define HW_OBJ_PLTT_SIZE        (HW_OBJ_PLTT_END-HW_OBJ_PLTT)
+@@ -67,14 +84,18 @@ extern u8 s_HW_OBJ_PLTT[0x200];
+ //#define HW_DB_BG_PLTT           0x05000400
+ //#define HW_DB_BG_PLTT_END       0x05000600
+ //#define HW_DB_BG_PLTT_SIZE      (HW_DB_BG_PLTT_END-HW_DB_BG_PLTT)
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_DB_BG_PLTT[0x200];
++#endif
+ #define HW_DB_BG_PLTT             ((u64)s_HW_DB_BG_PLTT)
+ #define HW_DB_BG_PLTT_END         ((u64)s_HW_DB_BG_PLTT + 0x200)
+ #define HW_DB_BG_PLTT_SIZE      (HW_DB_BG_PLTT_END-HW_DB_BG_PLTT)
+ //#define HW_DB_OBJ_PLTT          0x05000600
+ //#define HW_DB_OBJ_PLTT_END      0x05000800
+ //#define HW_DB_OBJ_PLTT_SIZE     (HW_DB_OBJ_PLTT_END-HW_DB_OBJ_PLTT)
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_DB_OBJ_PLTT[0x200];
++#endif
+ #define HW_DB_OBJ_PLTT            ((u64)s_HW_DB_OBJ_PLTT)
+ #define HW_DB_OBJ_PLTT_END        ((u64)s_HW_DB_OBJ_PLTT + 0x200)
+ #define HW_DB_OBJ_PLTT_SIZE     (HW_DB_OBJ_PLTT_END-HW_DB_OBJ_PLTT)
+@@ -94,7 +115,7 @@ extern u8 s_HW_BG_VRAM[0x80000];
+ extern u8 s_HW_DB_BG_VRAM[0x20000];
+ #define HW_DB_BG_VRAM              ((u64)s_HW_DB_BG_VRAM)
+ #define HW_DB_BG_VRAM_END          ((u64)s_HW_DB_BG_VRAM + 0x20000)
+-#define HW_DB_BG_VRAM_SIZE         (HW_BG_VRAM_END-HW_BG_VRAM)
++#define HW_DB_BG_VRAM_SIZE         (HW_DB_BG_VRAM_END-HW_DB_BG_VRAM)   /* was the main BG VRAM's 0x80000: a clear ran 0x60000 past this 0x20000 array */
+ 
+ //#define HW_OBJ_VRAM             0x06400000
+ //#define HW_OBJ_VRAM_END         0x06440000
+@@ -109,7 +130,7 @@ extern u8 s_HW_DB_OBJ_VRAM[0x20000];
+ //#define HW_DB_OBJ_VRAM          0x06600000
+ //#define HW_DB_OBJ_VRAM_END      0x06620000
+ #define HW_DB_OBJ_VRAM             ((u64)s_HW_DB_OBJ_VRAM)
+-#define HW_DB_OBJ_VRAM_END         ((u64)s_HW_DB_OBJ_VRAM + 0x40000)
++#define HW_DB_OBJ_VRAM_END         ((u64)s_HW_DB_OBJ_VRAM + 0x20000)   /* the array is 0x20000 */
+ #define HW_DB_OBJ_VRAM_SIZE     (HW_DB_OBJ_VRAM_END-HW_DB_OBJ_VRAM)
+ //#define HW_LCDC_VRAM            0x06800000
+ //#ifdef SDK_TS
+diff --git a/include/simulator/simvariables.h b/include/simulator/simvariables.h
+index 6e41f75..01e76a9 100644
+--- a/include/simulator/simvariables.h
++++ b/include/simulator/simvariables.h
+@@ -390,10 +390,18 @@ extern u8 s_HW_MAIN_MEM_SUB[0x400000];
+ //mmap_global
+ extern u8 s_HW_MAIN_MEM[0x800000];
+ extern u8 s_HW_MAIN_MEM_EX[0x800000];
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_BG_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_OBJ_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_DB_BG_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_DB_OBJ_PLTT[0x200];
++#endif
+ extern u8 s_HW_BG_VRAM[0x80000];
+ extern u8 s_HW_DB_BG_VRAM[0x20000];
+ extern u8 s_HW_OBJ_VRAM[0x40000];
+diff --git a/libraries/sim/meson.build b/libraries/sim/meson.build
+index d7a921e..240b2ac 100644
+--- a/libraries/sim/meson.build
++++ b/libraries/sim/meson.build
+@@ -2,8 +2,11 @@ subdir('src')
+ 
+ libsim_includes = include_directories('include')
+ 
++# placeholders for targets that set neither below; macOS's ar refuses an archive with no members, so not on the PC targets
++if(build_target != 'linux' and build_target != 'win64')
+ sdl2_lib = library('SDL2')
+ enet_lib = library('enet')
++endif
+ 
+ if(build_target == 'linux' or build_target == 'win64')
+ sdl2_lib = meson.get_compiler('c').find_library('SDL2')
+diff --git a/libraries/sim/src/g3_handler.cpp b/libraries/sim/src/g3_handler.cpp
+index e638798..550c270 100644
+--- a/libraries/sim/src/g3_handler.cpp
++++ b/libraries/sim/src/g3_handler.cpp
+@@ -410,7 +410,9 @@ void G3SIM_Begin(GXBegin type)
+     }
+     snprintf(debugMessage, 50, "GX_Begin %s", typeString);
+ 
++    #ifndef SDK_BUILD_MACOS
+     glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 1337, GL_DEBUG_SEVERITY_NOTIFICATION, 50, debugMessage);
++    #endif
+     s_primType = type;
+     s_G3numInPoly = 0;
+     s_G3drawPoly = 0;
+diff --git a/libraries/sim/src/sim_NitroMainThread.cpp b/libraries/sim/src/sim_NitroMainThread.cpp
+index 0766447..2261dcc 100644
+--- a/libraries/sim/src/sim_NitroMainThread.cpp
++++ b/libraries/sim/src/sim_NitroMainThread.cpp
+@@ -54,6 +54,10 @@ int RunNitroMain(void * arg) {
+   memset(s_HW_OBJ_VRAM, 0, sizeof(s_HW_OBJ_VRAM));
+   memset(s_HW_DB_OBJ_VRAM, 0, sizeof(s_HW_DB_OBJ_VRAM));
+ 
++  // X, Y, debug and hinge state live in HW_MAIN_MEM_SYSTEM, which was just cleared: set them released (active low) again. Set only before
++  // the clear, they read as held from the start, so the first press of X or Y did nothing (its release set the bit)
++  *(vu16 *)HW_BUTTON_XY_BUF = 0b0111110000000000;
++
+   // Zero out some registers
+   s_reg_G2_BG0CNT = 0;
+   s_reg_G2_BG1CNT = 0;
+diff --git a/libraries/sim/src/sim_g3_CommandHandler.cpp b/libraries/sim/src/sim_g3_CommandHandler.cpp
+index 18dbafe..f452e57 100644
+--- a/libraries/sim/src/sim_g3_CommandHandler.cpp
++++ b/libraries/sim/src/sim_g3_CommandHandler.cpp
+@@ -186,7 +186,9 @@ void Begin(GXBegin type)
+     }
+     snprintf(debugMessage, 50, "GX_Begin %s", typeString);
+ 
++    #ifndef SDK_BUILD_MACOS
+     glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 1337, GL_DEBUG_SEVERITY_NOTIFICATION, 50, debugMessage);
++    #endif
+ 
+     g3State.SetPrimitiveType(type);
+     g3State.SetCurrentIndexInPolygon(0);
+diff --git a/libraries/sim/src/sim_gui.cpp b/libraries/sim/src/sim_gui.cpp
+index 2c40e59..c89cdcd 100644
+--- a/libraries/sim/src/sim_gui.cpp
++++ b/libraries/sim/src/sim_gui.cpp
+@@ -51,7 +51,11 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+ 
+ 
+ 	ImGui_ImplSDL2_InitForOpenGL(sWindow, sContext);
++#ifdef SDK_BUILD_MACOS
++	const char * glsl_version = "#version 410";   // macOS: OpenGL 4.1
++#else
+ 	const char * glsl_version = "#version 420";
++#endif
+   	ImGui_ImplOpenGL3_Init(glsl_version);
+ 
+     ImGui::StyleColorsDark(NULL);
+diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
+index 910d7da..598fe10 100644
+--- a/libraries/sim/src/sim_main.cpp
++++ b/libraries/sim/src/sim_main.cpp
+@@ -1,3 +1,4 @@
++#include <vector>
+ extern "C" void NitroMain();
+ extern "C" int NitroSpMain(void *arg);
+ #define SDL_MAIN_HANDLED
+@@ -298,6 +299,16 @@ void SIM_SetInternalResolution(int internalRes) {
+       SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
+ }
+ 
++#ifdef SDK_BUILD_MACOS
++// The shaders say #version 420 core; macOS's OpenGL 4.1 compiles them as 410 (they use nothing past 4.1)
++static const char *SIM_MacShaderSource(const char *src) {
++  std::string *s = new std::string(src);
++  size_t at = s->find("#version 420");
++  if (at != std::string::npos) s->replace(at, 12, "#version 410");
++  return s->c_str();
++}
++#endif
++
+ static bool sChangeInternalResAfterRender = false;
+ static int sPendingInternalRes = 1;
+ 
+@@ -315,7 +326,13 @@ void *SIM_RenderInit(void *arg) {
+   SIM_Audio_Init(44100);
+ 
+   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
++#ifdef SDK_BUILD_MACOS
++  // macOS stops at OpenGL 4.1 core, and only gives a core context that is forward compatible
++  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
++  SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
++#else
+   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
++#endif
+   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+@@ -401,8 +418,10 @@ void *SIM_RenderInit(void *arg) {
+   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+   glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+ 
++#ifndef SDK_BUILD_MACOS
+   glEnable(GL_DEBUG_OUTPUT);
+   glDebugMessageCallback(MessageCallback, 0);
++#endif   // GL 4.3 / KHR_debug: not on macOS
+ 
+   GLenum glErrCode;
+   GLint status;
+@@ -453,8 +472,14 @@ void *SIM_RenderInit(void *arg) {
+   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
+                GL_UNSIGNED_BYTE, NULL);
+ 
++#ifdef SDK_BUILD_MACOS
++#define SIM_SHADER_SOURCE(_source) SIM_MacShaderSource(_source)
++#else
++#define SIM_SHADER_SOURCE(_source) (_source)
++#endif
+ #define CompileShaderCommon(_id, _source)                                      \
+-  glShaderSource(_id, 1, &_source, NULL);                                      \
++  { const char *_src = SIM_SHADER_SOURCE(_source);                             \
++  glShaderSource(_id, 1, &_src, NULL); }                                       \
+   glCompileShader(_id);                                                        \
+   glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
+   if (status != GL_TRUE) {                                                     \
+@@ -950,6 +975,96 @@ static void HandleJoystickKeyUp(int aKey) {
+   }
+ }
+ 
++
++// Debug automation (any PC build; off unless the variables are set), for checking a build without a person at the keyboard:
++//   SIM_DEBUG_SHOT_DIR=<dir> SIM_DEBUG_SHOT_EVERY=<frames>  saves the window every N frames as <dir>/frame_<n>.bmp
++//   SIM_DEBUG_KEYS="<frame>:<keys>[/<hold frames>],..."     presses DS buttons at those frames (keys joined by +: A B X Y L R START SELECT UP DOWN LEFT RIGHT;
++//                                                            hold 6 frames unless given), e.g. "300:START,420:A/2,600:A+B"
++//   SIM_DEBUG_EXIT_FRAME=<frame>                            exits after that frame
++//   (a key T<x>;<y> touches the bottom screen at DS coordinates, e.g. "6000:T120;82/4")
++//   SIM_DEBUG_FAST=1                                        no frame cap, no vsync
++static int sDebugTouch = 0;   // SIM_DEBUG_KEYS holds the touch screen: the mouse does not override it
++static u32 SIM_DebugKeyMask(const char *s, u32 *xy) {
++  static const struct { const char *n; u32 bit; int isXY; } names[] = {
++    {"A", 1u << 0, 0}, {"B", 1u << 1, 0}, {"SELECT", 1u << 2, 0}, {"START", 1u << 3, 0}, {"RIGHT", 1u << 4, 0}, {"LEFT", 1u << 5, 0},
++    {"UP", 1u << 6, 0}, {"DOWN", 1u << 7, 0}, {"R", 1u << 8, 0}, {"L", 1u << 9, 0}, {"X", 1u << 10, 1}, {"Y", 1u << 11, 1}};
++  u32 m = 0; *xy = 0;
++  std::string str(s);
++  size_t start = 0;
++  while (start <= str.size()) {
++    size_t end = str.find('+', start); if (end == std::string::npos) end = str.size();
++    std::string k = str.substr(start, end - start);
++    for (auto &n : names) if (k == n.n) { if (n.isXY) *xy |= n.bit; else m |= n.bit; }
++    start = end + 1;
++  }
++  return m;
++}
++static void SIM_DebugFrame(void) {
++  static int init = 0; static const char *shotDir; static u32 shotEvery, exitFrame;
++  struct Step { u32 frame, hold, mask, xy; int touch, tx, ty; };
++  static std::vector<Step> steps; static u32 heldMask, heldXY;
++  if (!init) {
++    init = 1;
++    if (getenv("SIM_DEBUG_FAST")) { sFastForward = true; SDL_GL_SetSwapInterval(0); printf("SIM_DEBUG_FAST: uncapped\n"); }   // automation runs as fast as it renders
++    shotDir = getenv("SIM_DEBUG_SHOT_DIR");
++    const char *e = getenv("SIM_DEBUG_SHOT_EVERY"); shotEvery = e ? (u32)atoi(e) : 0;
++    e = getenv("SIM_DEBUG_EXIT_FRAME"); exitFrame = e ? (u32)atoi(e) : 0;
++    e = getenv("SIM_DEBUG_KEYS");
++    if (e) {
++      std::string all(e); size_t start = 0;
++      while (start < all.size()) {
++        size_t end = all.find(',', start); if (end == std::string::npos) end = all.size();
++        std::string item = all.substr(start, end - start);
++        size_t colon = item.find(':');
++        if (colon != std::string::npos) {
++          Step st; st.frame = (u32)atoi(item.c_str()); st.hold = 6;
++          std::string keys = item.substr(colon + 1);
++          size_t slash = keys.find('/');
++          if (slash != std::string::npos) { st.hold = (u32)atoi(keys.c_str() + slash + 1); keys = keys.substr(0, slash); }
++          st.touch = 0; st.tx = st.ty = 0;
++          size_t t = keys.find('T');   // T<x>;<y>: touch the bottom screen at DS coordinates
++          if (t != std::string::npos && t + 1 < keys.size() && isdigit((unsigned char)keys[t + 1])) {
++            st.touch = 1; st.tx = atoi(keys.c_str() + t + 1);
++            size_t semi = keys.find(';', t); st.ty = semi != std::string::npos ? atoi(keys.c_str() + semi + 1) : 0;
++          }
++          st.mask = SIM_DebugKeyMask(keys.c_str(), &st.xy);
++          steps.push_back(st);
++        }
++        start = end + 1;
++      }
++      printf("SIM_DEBUG_KEYS: %zu steps\n", steps.size());
++    }
++  }
++  u32 frame = *((u32 *)HW_VBLANK_COUNT_BUF);
++  if (!steps.empty()) {
++    u32 mask = 0, xy = 0;
++    int touch = 0, tx = 0, ty = 0;
++    for (auto &st : steps) if (frame >= st.frame && frame < st.frame + st.hold) { mask |= st.mask; xy |= st.xy; if (st.touch) { touch = 1; tx = st.tx; ty = st.ty; } }
++    if (touch) { s_tpData.x = (u16)tx; s_tpData.y = (u16)ty; s_tpData.touch = 1; s_tpData.validity = 0; sDebugTouch = 1; }
++    else if (sDebugTouch) { s_tpData.touch = 0; s_tpData.validity = 0; sDebugTouch = 0; }
++    // the pad registers are active low: release what this script pressed before, then press what it holds now
++    s_reg_PAD_KEYINPUT = (u16)((s_reg_PAD_KEYINPUT | heldMask) & ~mask);
++    *(vu16 *)HW_BUTTON_XY_BUF = (u16)((*(vu16 *)HW_BUTTON_XY_BUF | heldXY) & ~xy);
++    heldMask = mask; heldXY = xy;
++  }
++  if (shotDir && shotEvery && frame % shotEvery == 0) {
++    int w = 0, h = 0;
++    SDL_GL_GetDrawableSize(window, &w, &h);
++    std::vector<u8> px((size_t)w * h * 4);
++    glReadBuffer(GL_BACK);
++    glPixelStorei(GL_PACK_ALIGNMENT, 1);
++    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
++    std::vector<u8> flipped(px.size());
++    for (int y = 0; y < h; y++) memcpy(&flipped[(size_t)y * w * 4], &px[(size_t)(h - 1 - y) * w * 4], (size_t)w * 4);
++    SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormatFrom(flipped.data(), w, h, 32, w * 4, SDL_PIXELFORMAT_RGBA32);
++    if (surf) {
++      char path[1024]; snprintf(path, sizeof path, "%s/frame_%06u.bmp", shotDir, frame);
++      SDL_SaveBMP(surf, path); SDL_FreeSurface(surf);
++    }
++  }
++  if (exitFrame && frame >= exitFrame) { printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); fflush(stdout); _exit(0); }
++}
++
+ void *SIM_Render(void *arg) {
+ 
+   SDL_Event Event;
+@@ -1261,7 +1376,9 @@ void *SIM_Render(void *arg) {
+     SDL_GetMouseState(&x, &y);
+ 
+     // Convert touch coordinate to DS screen coordinates
+-    if (x >= s_TouchPanelCoords[0] && x <= s_TouchPanelCoords[2] &&
++    if (sDebugTouch) {
++      // SIM_DEBUG_KEYS is touching the screen
++    } else if (x >= s_TouchPanelCoords[0] && x <= s_TouchPanelCoords[2] &&
+         y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
+       s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
+                             SIM_NDS_SCREEN_WIDTH);
+@@ -1340,6 +1457,7 @@ void *SIM_Render(void *arg) {
+       }
+     }
+ 
++    SIM_DebugFrame();
+     SDL_GL_SwapWindow(window);
+ 
+     if(sChangeInternalResAfterRender) {
+diff --git a/libraries/sim/src/sim_vars.c b/libraries/sim/src/sim_vars.c
+index 81309fd..72be77a 100644
+--- a/libraries/sim/src/sim_vars.c
++++ b/libraries/sim/src/sim_vars.c
+@@ -385,12 +385,23 @@ u8 s_HW_ARENA_INFO_BUF[sizeof(OSArenaInfo)];
+ u8 s_HW_MAIN_MEM_SUB[0x400000];
+ 
+ //mmap_global
++#ifdef SDK_HW_PLTT_BLOCK
++SIM_HWPlttBlock s_HW_PLTT_BLOCK;
++#endif
+ u8 s_HW_MAIN_MEM[0x800000];
+ u8 s_HW_MAIN_MEM_EX[0x800000];
++#ifndef SDK_HW_PLTT_BLOCK
+ u8 s_HW_BG_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ u8 s_HW_OBJ_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ u8 s_HW_DB_BG_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ u8 s_HW_DB_OBJ_PLTT[0x200];
++#endif
+ u8 s_HW_BG_VRAM[0x80000];
+ u8 s_HW_DB_BG_VRAM[0x20000];
+ u8 s_HW_OBJ_VRAM[0x40000];
