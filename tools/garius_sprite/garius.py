@@ -48,7 +48,7 @@ PALETTE = [
     (33, 107, 115),   # 12 t teal shirt
     (66, 66, 82),     # 13 c charcoal
     (247, 198, 82),   # 14 g brass
-    (206, 123, 24),   # 15 e amber
+    (189, 99, 8),    # 15 e amber
 ]
 
 LEGEND = {
@@ -69,19 +69,19 @@ FRONT = """
 |.HhhihhhHhhhhhHhhhH.|
 |.HhihhhHhhhhhHhhihH.|
 |.HhHhhHhhHhhHhhHhH..|
-|.HHhHhHhHhhHhHhHHH..|
-|.KHhHsHhHaaHhHsHHK..|
-|.KHHSsSsHaasSsSHHK..|
+|.HHhhHhhhHhhhHhhHH..|
+|.KHhHhaaaaHaaHhHHK..|
+|.KHHsaSSaaaSSsHHHK..|
 |..KSssweaaaewssSK...|
 |...KsswKaaaKwssK....|
 |....SsaaaaaaasS.....|
-|....KSsaaasasSK.....|
+|....KSsaaSsasSK.....|
 |...KpwKSsssSKwpK....|
 |..KopowwtttwwopoK...|
-|.KawOKowtttwoKOwaK..|
-|.KssKKOotttoOKKssK..|
+|.KawoOowtttwoOowaK..|
+|.KssKOOotttoOOKssK..|
 |..KK.KOOcccgOK.KK...|
-|....KccccKccccK.....|
+|....KccccKccgcK.....|
 |....KwOK...KOwK.....|
 |.....KK.....KK......|
 """
