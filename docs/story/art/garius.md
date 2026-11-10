@@ -19,8 +19,10 @@ Style: stock Platinum. The key frame is drawn on stock Barry's skeleton (same he
 the preview is a line-up with stock Barry, Rowan and Cyrus.
 Status: front-facing overworld key frame only; not in the build yet.
 
-Battle front sprite (shown as a battle starts): `tools/garius_sprite/garius_battle.py`. An original pose drawn by hand,
-not derived from a stock frame: facing the viewer, feet apart, both hands in the jacket pockets. Two frames for the
-intro animation: bowed with eyes shut, then looking up with the smirk. Preview: `garius_battle_design.png`
-(stock Barry, frame 1, frame 2, stock Cyrus). Frames: `res/trainers/classes/garius/front_design.png` (160x80).
+Battle front sprite (shown as a battle starts): the pose comes from a generated concept image
+(`src/garius_battle_concept.webp`). `tools/garius_sprite/convert_concept.py` shrinks it to 80x80 and 15 colours
+(`concept_grid.txt`); `tools/garius_sprite/garius_battle.py` closes the outline and redraws the face, hair lights and
+watch by hand. Two frames for the intro animation: eyes shut, then eyes open with the smirk.
+Preview: `garius_battle_design.png` (stock Barry, frame 1, frame 2, stock Cyrus).
+Frames: `res/trainers/classes/garius/front_design.png` (160x80).
 Status: design frames; not a trainer class in the build yet.
