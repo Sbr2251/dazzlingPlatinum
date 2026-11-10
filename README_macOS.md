@@ -30,6 +30,17 @@ The DS ROM still builds from the same tree with `make release` as before.
 | Fast-forward: hold for up to 4x (`SIM_FAST_FORWARD_SPEED=<1.5–16>` changes it) | Space |
 | Frame cap on/off (uncapped) | Tab |
 | Settings and debug menu | ` (grave accent) |
+| Export the save (.sav) | Cmd+E (or Export save… in the ` menu) |
+| Import a save (.sav or DeSmuME .dsv), then restart | Cmd+I (or Import save… in the ` menu) |
+| Quit | Cmd+Q |
+
+While fast-forwarding, a badge in the top-right corner shows the speed (`MAX` when the frame cap is off).
+
+**Saves.** The game keeps its save in `~/Library/Application Support/Pokemon Platinum/save.bin`, a raw image of the cartridge's
+512 KB flash: the same format as a `.sav` from DeSmuME (File > Export/Import Backup Memory), melonDS or a cartridge dump, so an
+exported save opens in those emulators and theirs open here. Import also reads DeSmuME/OpenEmu `.dsv` files (OpenEmu keeps them in
+`~/Library/Application Support/OpenEmu/DeSmuME/Battery Saves`). Before an import the current save is copied to `save-backups/` in
+that folder; the game restarts to load the imported one.
 
 A game controller is supported by the port (not tested on macOS yet).
 
@@ -69,4 +80,5 @@ A game controller is supported by the port (not tested on macOS yet).
 
 Boot, intro, title, new game (Rowan's touch-screen tutorial, naming), overworld (Twinleaf, houses, Route 201) with movement and
 events, start menu, saving and Continue, the starter briefcase and the first rival battle (moves, animations, touch-screen menus).
+Save import/export checked both ways with DeSmuME (an exported save loads in DeSmuME; a DeSmuME .dsv loads here).
 Not yet tested: audio by ear, a controller, Wi-Fi features, long play sessions.

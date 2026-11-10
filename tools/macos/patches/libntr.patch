@@ -74,6 +74,51 @@ index 3be08a2..89915a2 100644
  #define HW_DB_OBJ_VRAM_SIZE     (HW_DB_OBJ_VRAM_END-HW_DB_OBJ_VRAM)
  //#define HW_LCDC_VRAM            0x06800000
  //#ifdef SDK_TS
+diff --git a/include/simulator/sim.h b/include/simulator/sim.h
+index ad57dfa..312dae0 100644
+--- a/include/simulator/sim.h
++++ b/include/simulator/sim.h
+@@ -74,6 +74,8 @@ void SIM_u16ToRGB( u16 in, u8 * r, u8 *g, u8 * b );
+ SIM_config_type * SIM_GetConfigPtr();
+ u64 SIM_GetRenderFrameTime();
+ u64 SIM_GetFullFrameTime();
++// Fast-forward state: 0 off, 1 capped at *speed x normal speed, 2 uncapped
++int SIM_GetFastForward(double * speed);
+ const char * SIM_GetLibntrGitHash();
+ const char * SIM_GetProjectGitHash();
+ SDL_Window * SIM_GetSDLWindow();
+diff --git a/include/simulator/sim_helpers.hpp b/include/simulator/sim_helpers.hpp
+new file mode 100644
+index 0000000..c2b0286
+--- /dev/null
++++ b/include/simulator/sim_helpers.hpp
+@@ -0,0 +1,26 @@
++#pragma once
++
++// Player helpers for PC builds: a fast-forward badge and short messages drawn over the game, and save import/export
++// (a raw 512 KB .sav, as DeSmuME's "Export Backup Memory" writes, or a DeSmuME .dsv on import).
++
++#include <string>
++
++namespace SIM::Helpers {
++
++// Draws the overlay (fast-forward badge, message). Called once per frame inside the ImGui frame.
++void DrawOverlay();
++
++// Shows a short message at the top of the window.
++void Toast(const std::string & message, double seconds = 3.0);
++
++// Export the current save. With an empty path a save dialog asks where (macOS).
++void ExportSave(const std::string & path = "");
++
++// Import a save (.sav raw or DeSmuME .dsv), keeping a backup of the current one, then restart the game so it loads.
++// With an empty path a file dialog asks which, and the player confirms (macOS). A given path is imported without asking.
++void ImportSave(const std::string & path = "");
++
++// Called by the main loop each frame: restarts the game after an import.
++void Poll();
++
++}  // namespace SIM::Helpers
 diff --git a/include/simulator/simvariables.h b/include/simulator/simvariables.h
 index 6e41f75..01e76a9 100644
 --- a/include/simulator/simvariables.h
@@ -127,6 +172,18 @@ index e638798..550c270 100644
      s_primType = type;
      s_G3numInPoly = 0;
      s_G3drawPoly = 0;
+diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
+index 2d852bf..4142f05 100644
+--- a/libraries/sim/src/meson.build
++++ b/libraries/sim/src/meson.build
+@@ -31,6 +31,7 @@ libsim_srcs = files(
+     'sim_gui_config.cpp',
+     'sim_gui_net.cpp',
+     'sim_gui_pad.cpp',
++    'sim_helpers.cpp',
+     'sim_main.cpp',
+     'sim_net.cpp',
+     'sim_RenderContextManager.cpp',
 diff --git a/libraries/sim/src/shaders/g2_fragment.glsl b/libraries/sim/src/shaders/g2_fragment.glsl
 index b652bd5..f816f23 100644
 --- a/libraries/sim/src/shaders/g2_fragment.glsl
@@ -326,10 +383,17 @@ index 77300c2..ecf6990 100644
  }
  
 diff --git a/libraries/sim/src/sim_gui.cpp b/libraries/sim/src/sim_gui.cpp
-index 2c40e59..c89cdcd 100644
+index 2c40e59..a2511d7 100644
 --- a/libraries/sim/src/sim_gui.cpp
 +++ b/libraries/sim/src/sim_gui.cpp
-@@ -51,7 +51,11 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+@@ -1,5 +1,6 @@
+ #include "simulator/sim.h"
+ #include "simulator/sim_gui.hpp"
++#include "simulator/sim_helpers.hpp"
+ 
+ #include "simulator/imgui/imgui.hpp"
+ 
+@@ -51,7 +52,11 @@ void Init(SDL_Window * window, SDL_GLContext context) {
  
  
  	ImGui_ImplSDL2_InitForOpenGL(sWindow, sContext);
@@ -341,8 +405,372 @@ index 2c40e59..c89cdcd 100644
    	ImGui_ImplOpenGL3_Init(glsl_version);
  
      ImGui::StyleColorsDark(NULL);
+@@ -61,6 +66,8 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+ }
+ 
+ void Main() {
++    SIM::Helpers::DrawOverlay();
++
+     if(sEnabled) {
+         ImGui::Begin("libntr", &sEnabled);
+ 
+@@ -96,6 +103,10 @@ void Main() {
+         }
+         #endif
+ 
++        if (ImGui::Button("Export save...", ImVec2(110, 20))) SIM::Helpers::ExportSave();
++        ImGui::SameLine();
++        if (ImGui::Button("Import save...", ImVec2(110, 20))) SIM::Helpers::ImportSave();
++
+         ImGui::Checkbox("Pause Game Logic", &sPauseGameLogic);
+ 
+         ImGui::End();
+diff --git a/libraries/sim/src/sim_helpers.cpp b/libraries/sim/src/sim_helpers.cpp
+new file mode 100644
+index 0000000..83c386f
+--- /dev/null
++++ b/libraries/sim/src/sim_helpers.cpp
+@@ -0,0 +1,338 @@
++// Player helpers for PC builds: a fast-forward badge and short messages drawn over the game, and save import/export.
++//
++// Saves: the game reads and writes save.bin in its working directory, a raw image of the DS cartridge's 512 KB flash, so it is
++// the same format as the .sav DeSmuME (File > Export Backup Memory), melonDS and real-cartridge dumpers use. Import also takes a
++// DeSmuME .dsv (a raw image followed by a 122-byte footer). Before an import the current save is copied to save-backups/.
++
++#include "simulator/sim.h"
++#include "simulator/sim_helpers.hpp"
++
++#include "simulator/imgui/imgui.hpp"
++
++#include <atomic>
++#include <cerrno>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <ctime>
++#include <mutex>
++#include <string>
++#include <thread>
++#include <vector>
++
++#include <limits.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++#ifdef __APPLE__
++#include <crt_externs.h>
++#include <mach-o/dyld.h>
++#endif
++
++namespace SIM::Helpers {
++
++static const char * kSaveFile = "save.bin";
++static const char * kBackupDir = "save-backups";
++static const size_t kFlashSize = 512 * 1024;
++static const unsigned kSectorSignature = 0x20060623;   // Gen 4 save block footer signature
++static const char kDsvCookie[] = "|-DESMUME SAVE-|";
++static const size_t kDsvFooterSize = 122;
++
++static std::mutex sToastLock;
++static std::string sToastText;
++static double sToastUntil = 0;
++static std::atomic<bool> sBusy{false};      // a dialog or file operation is running
++static std::atomic<bool> sRestart{false};   // restart after an import
++
++static double Now() {
++    struct timespec t;
++    clock_gettime(CLOCK_MONOTONIC, &t);
++    return (double)t.tv_sec + (double)t.tv_nsec / 1e9;
++}
++
++void Toast(const std::string & message, double seconds) {
++    std::lock_guard<std::mutex> lock(sToastLock);
++    sToastText = message;
++    sToastUntil = Now() + seconds;
++    printf("SIM helpers: %s\n", message.c_str());
++    fflush(stdout);
++}
++
++// ---------------------------------------------------------------------------------------------------------------- overlay
++
++void DrawOverlay() {
++    ImDrawList * dl = ImGui::GetForegroundDrawList();
++    ImVec2 display = ImGui::GetIO().DisplaySize;
++    float scale = display.x / 512.0f;
++    if (scale < 1.0f) scale = 1.0f;
++    ImFont * font = ImGui::GetFont();
++    float fontSize = 13.0f * scale;
++
++    double speed = 0;
++    int ff = SIM_GetFastForward(&speed);
++    if (ff != 0) {
++        // Badge in the top-right corner: two triangles and the speed
++        char label[16];
++        if (ff == 2) snprintf(label, sizeof label, "MAX");
++        else if (speed == (int)speed) snprintf(label, sizeof label, "%dx", (int)speed);
++        else snprintf(label, sizeof label, "%.1fx", speed);
++        ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
++        float h = 20.0f * scale, pad = 6.0f * scale, tri = 7.0f * scale;
++        float w = pad + tri * 2 + 4.0f * scale + textSize.x + pad;
++        ImVec2 p1(display.x - w - 6.0f * scale, 6.0f * scale);
++        ImVec2 p2(p1.x + w, p1.y + h);
++        dl->AddRectFilled(p1, p2, IM_COL32(0, 0, 0, 150), h / 2);
++        float cy = p1.y + h / 2, x = p1.x + pad;
++        ImU32 white = IM_COL32(255, 255, 255, 235);
++        dl->AddTriangleFilled(ImVec2(x, cy - tri * 0.75f), ImVec2(x + tri, cy), ImVec2(x, cy + tri * 0.75f), white);
++        dl->AddTriangleFilled(ImVec2(x + tri, cy - tri * 0.75f), ImVec2(x + tri * 2, cy), ImVec2(x + tri, cy + tri * 0.75f), white);
++        dl->AddText(font, fontSize, ImVec2(x + tri * 2 + 4.0f * scale, cy - textSize.y / 2), white, label);
++    }
++
++    std::string toast;
++    {
++        std::lock_guard<std::mutex> lock(sToastLock);
++        if (Now() < sToastUntil) toast = sToastText;
++    }
++    if (!toast.empty()) {
++        float maxWidth = display.x - 40.0f * scale;
++        ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, maxWidth, toast.c_str());
++        float pad = 8.0f * scale;
++        ImVec2 p1((display.x - textSize.x) / 2 - pad, 32.0f * scale);
++        ImVec2 p2(p1.x + textSize.x + pad * 2, p1.y + textSize.y + pad * 2);
++        dl->AddRectFilled(p1, p2, IM_COL32(0, 0, 0, 190), 6.0f * scale);
++        dl->AddText(font, fontSize, ImVec2(p1.x + pad, p1.y + pad), IM_COL32(255, 255, 255, 255), toast.c_str(), nullptr, maxWidth);
++    }
++}
++
++// ---------------------------------------------------------------------------------------------------------------- files
++
++static bool ReadFile(const std::string & path, std::vector<unsigned char> & out, size_t maxSize) {
++    FILE * f = fopen(path.c_str(), "rb");
++    if (!f) return false;
++    out.clear();
++    unsigned char buf[65536];
++    size_t n;
++    while ((n = fread(buf, 1, sizeof buf, f)) > 0) {
++        out.insert(out.end(), buf, buf + n);
++        if (out.size() > maxSize) { fclose(f); return false; }
++    }
++    fclose(f);
++    return true;
++}
++
++// Write via a temporary file and rename, so a failed write never leaves half a file
++static bool WriteFile(const std::string & path, const std::vector<unsigned char> & data) {
++    std::string tmp = path + ".tmp";
++    FILE * f = fopen(tmp.c_str(), "wb");
++    if (!f) return false;
++    bool ok = fwrite(data.data(), 1, data.size(), f) == data.size();
++    ok = (fclose(f) == 0) && ok;
++    if (!ok || rename(tmp.c_str(), path.c_str()) != 0) { unlink(tmp.c_str()); return false; }
++    return true;
++}
++
++static std::string BaseName(const std::string & path) {
++    size_t slash = path.find_last_of('/');
++    return slash == std::string::npos ? path : path.substr(slash + 1);
++}
++
++static std::string Timestamp() {
++    time_t t = time(nullptr);
++    struct tm tmv;
++    localtime_r(&t, &tmv);
++    char buf[32];
++    strftime(buf, sizeof buf, "%Y%m%d-%H%M%S", &tmv);
++    return buf;
++}
++
++static unsigned Read32(const unsigned char * p) { return p[0] | (p[1] << 8) | (p[2] << 16) | ((unsigned)p[3] << 24); }
++
++// A Platinum save has a block footer signature at 0xCF24 in its primary (0x00000) or backup (0x40000) half. 0xCF38 is the
++// layout of saves from older versions of this port, which the game upgrades when it loads them.
++static bool LooksLikePlatinumSave(const std::vector<unsigned char> & d) {
++    const size_t offsets[] = {0xCF24, 0x40000 + 0xCF24, 0xCF38, 0x40000 + 0xCF38};
++    for (size_t off : offsets)
++        if (off + 4 <= d.size() && Read32(&d[off]) == kSectorSignature) return true;
++    return false;
++}
++
++// ---------------------------------------------------------------------------------------------------------------- dialogs
++
++#ifdef __APPLE__
++static std::string AppleScriptString(const std::string & s) {
++    std::string out = "\"";
++    for (char c : s) {
++        if (c == '"' || c == '\\') out += '\\';
++        out += c;
++    }
++    return out + "\"";
++}
++
++// Runs an AppleScript with osascript; false when it fails or the player cancels
++static bool RunAppleScript(const std::string & script, std::string * result) {
++    char tmpl[] = "/tmp/pokeplatinum-dialog-XXXXXX";
++    int fd = mkstemp(tmpl);
++    if (fd < 0) return false;
++    bool wrote = write(fd, script.data(), script.size()) == (ssize_t)script.size();
++    close(fd);
++    if (!wrote) { unlink(tmpl); return false; }
++    std::string cmd = std::string("/usr/bin/osascript ") + tmpl + " 2>/dev/null";
++    FILE * p = popen(cmd.c_str(), "r");
++    std::string out;
++    if (p) {
++        char buf[1024];
++        size_t n;
++        while ((n = fread(buf, 1, sizeof buf, p)) > 0) out.append(buf, n);
++    }
++    int status = p ? pclose(p) : -1;
++    unlink(tmpl);
++    while (!out.empty() && (out.back() == '\n' || out.back() == '\r')) out.pop_back();
++    if (result) *result = out;
++    return status == 0;
++}
++
++static std::string DefaultFolder(bool forImport) {
++    const char * home = getenv("HOME");
++    if (!home) return "/";
++    struct stat st;
++    if (forImport) {
++        // OpenEmu keeps DeSmuME saves here
++        std::string openEmu = std::string(home) + "/Library/Application Support/OpenEmu/DeSmuME/Battery Saves";
++        if (stat(openEmu.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) return openEmu;
++    }
++    std::string docs = std::string(home) + "/Documents";
++    return (stat(docs.c_str(), &st) == 0) ? docs : home;
++}
++#endif
++
++// ---------------------------------------------------------------------------------------------------------------- export
++
++static void DoExport(std::string path) {
++    std::vector<unsigned char> data;
++    if (!ReadFile(kSaveFile, data, 4 * kFlashSize) || data.empty()) {
++        Toast("No save yet: save in the game first");
++        return;
++    }
++    if (data.size() < kFlashSize) data.resize(kFlashSize, 0xFF);   // erased flash reads as 0xFF
++
++    if (path.empty()) {
++#ifdef __APPLE__
++        std::string script = "activate\nPOSIX path of (choose file name with prompt " + AppleScriptString("Export the save (.sav)") +
++                             " default name " + AppleScriptString("Pokemon Platinum " + Timestamp() + ".sav") +
++                             " default location (POSIX file " + AppleScriptString(DefaultFolder(false)) + "))";
++        if (!RunAppleScript(script, &path) || path.empty()) return;   // cancelled
++#else
++        Toast("Save export needs a path on this platform");
++        return;
++#endif
++    }
++    if (WriteFile(path, data)) Toast("Save exported to " + BaseName(path));
++    else Toast("Could not write " + path + ": " + strerror(errno));
++}
++
++void ExportSave(const std::string & path) {
++    if (sBusy.exchange(true)) return;
++    std::thread([path] { DoExport(path); sBusy = false; }).detach();
++}
++
++// ---------------------------------------------------------------------------------------------------------------- import
++
++static void DoImport(std::string path) {
++    bool interactive = path.empty();
++#ifdef __APPLE__
++    if (interactive) {
++        std::string script = "activate\nPOSIX path of (choose file with prompt " +
++                             AppleScriptString("Import a save (.sav, or a DeSmuME .dsv)") +
++                             " default location (POSIX file " + AppleScriptString(DefaultFolder(true)) + "))";
++        if (!RunAppleScript(script, &path) || path.empty()) return;   // cancelled
++    }
++#else
++    if (interactive) { Toast("Save import needs a path on this platform"); return; }
++#endif
++
++    std::vector<unsigned char> data;
++    if (!ReadFile(path, data, 4 * kFlashSize)) {
++        Toast("Could not read " + BaseName(path) + " (missing, or larger than a DS save)");
++        return;
++    }
++    // DeSmuME .dsv: the raw image, then a footer ending in its cookie
++    if (data.size() >= kDsvFooterSize && memcmp(&data[data.size() - 16], kDsvCookie, 16) == 0) {
++        size_t raw = data.size() - kDsvFooterSize;
++        size_t used = Read32(&data[raw + 82]);   // the footer's "actual size"
++        data.resize(used > 0 && used <= raw ? used : raw);
++    }
++    if (data.size() > kFlashSize) data.resize(kFlashSize);
++    if (data.size() < kFlashSize) data.resize(kFlashSize, 0xFF);
++    if (!LooksLikePlatinumSave(data)) {
++        bool empty = true;
++        for (unsigned char b : data) if (b != 0 && b != 0xFF) { empty = false; break; }
++        Toast(BaseName(path) + (empty ? " is empty (no game saved in it)" : " is not a Pokemon Platinum save"), 5.0);
++        return;
++    }
++
++#ifdef __APPLE__
++    if (interactive) {
++        std::string script = "activate\ndisplay dialog " +
++                             AppleScriptString("Replace the current save with " + BaseName(path) +
++                                               "?\n\nThe current save is kept in save-backups. The game restarts to load the imported save; "
++                                               "progress since your last in-game save is lost.") +
++                             " buttons {\"Cancel\", \"Import and Restart\"} default button 2 with icon caution";
++        if (!RunAppleScript(script, nullptr)) return;   // cancelled
++    }
++#endif
++
++    // Keep the current save
++    std::vector<unsigned char> current;
++    bool blank = true;   // the game creates an all-zero save.bin before anything is saved
++    if (ReadFile(kSaveFile, current, 4 * kFlashSize))
++        for (unsigned char b : current) if (b != 0 && b != 0xFF) { blank = false; break; }
++    if (!blank) {
++        mkdir(kBackupDir, 0755);
++        std::string backup = std::string(kBackupDir) + "/save-" + Timestamp() + ".sav";
++        if (!WriteFile(backup, current)) {
++            Toast("Could not back up the current save; nothing imported");
++            return;
++        }
++    }
++    if (!WriteFile(kSaveFile, data)) {
++        Toast(std::string("Could not write the save: ") + strerror(errno));
++        return;
++    }
++    Toast("Imported " + BaseName(path) + ", restarting");
++    sRestart = true;
++}
++
++void ImportSave(const std::string & path) {
++    if (sBusy.exchange(true)) return;
++    std::thread([path] { DoImport(path); sBusy = false; }).detach();
++}
++
++// ---------------------------------------------------------------------------------------------------------------- restart
++
++void Poll() {
++    if (!sRestart) return;
++    sRestart = false;
++#ifdef __APPLE__
++    // Run this executable again with the same arguments, working directory and output
++    char exe[PATH_MAX];
++    uint32_t size = sizeof exe;
++    if (_NSGetExecutablePath(exe, &size) == 0) {
++        char ** argv = *_NSGetArgv();
++        fflush(stdout);
++        execv(exe, argv);
++    }
++#else
++    char exe[PATH_MAX];
++    ssize_t n = readlink("/proc/self/exe", exe, sizeof exe - 1);
++    if (n > 0) {
++        exe[n] = 0;
++        char * argv[] = {exe, nullptr};
++        fflush(stdout);
++        execv(exe, argv);
++    }
++#endif
++    Toast("Imported; quit and reopen the game to load it", 8.0);
++}
++
++}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..71ea525 100644
+index 910d7da..f3d3b44 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -350,7 +778,13 @@ index 910d7da..71ea525 100644
  extern "C" void NitroMain();
  extern "C" int NitroSpMain(void *arg);
  #define SDL_MAIN_HANDLED
-@@ -38,6 +39,13 @@ extern "C" int NitroSpMain(void *arg);
+@@ -33,11 +34,19 @@ extern "C" int NitroSpMain(void *arg);
+ #include <simulator/simvariables.h>
+ #include <simulator/sim_g3_CommandHandler.hpp>
+ #include <simulator/sim_gui.hpp>
++#include <simulator/sim_helpers.hpp>
+ #include <simulator/sim_RenderContextManager.hpp>
+ #include <simulator/sim_NitroMainThread.hpp>
  
  #include <math.h>
  #include <time.h>
@@ -364,7 +798,7 @@ index 910d7da..71ea525 100644
  
  #include "nds-extract.hpp"
  
-@@ -178,6 +186,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +187,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -375,7 +809,7 @@ index 910d7da..71ea525 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -298,6 +310,16 @@ void SIM_SetInternalResolution(int internalRes) {
+@@ -298,6 +311,16 @@ void SIM_SetInternalResolution(int internalRes) {
        SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
  }
  
@@ -392,7 +826,7 @@ index 910d7da..71ea525 100644
  static bool sChangeInternalResAfterRender = false;
  static int sPendingInternalRes = 1;
  
-@@ -315,7 +337,13 @@ void *SIM_RenderInit(void *arg) {
+@@ -315,7 +338,13 @@ void *SIM_RenderInit(void *arg) {
    SIM_Audio_Init(44100);
  
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -406,7 +840,7 @@ index 910d7da..71ea525 100644
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-@@ -401,8 +429,10 @@ void *SIM_RenderInit(void *arg) {
+@@ -401,8 +430,10 @@ void *SIM_RenderInit(void *arg) {
    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -417,7 +851,7 @@ index 910d7da..71ea525 100644
  
    GLenum glErrCode;
    GLint status;
-@@ -453,8 +483,14 @@ void *SIM_RenderInit(void *arg) {
+@@ -453,8 +484,14 @@ void *SIM_RenderInit(void *arg) {
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
                 GL_UNSIGNED_BYTE, NULL);
  
@@ -433,7 +867,7 @@ index 910d7da..71ea525 100644
    glCompileShader(_id);                                                        \
    glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
    if (status != GL_TRUE) {                                                     \
-@@ -610,7 +646,8 @@ static void DrawEngine(BOOL isSub) {
+@@ -610,7 +647,8 @@ static void DrawEngine(BOOL isSub) {
    backdropVec[2] = (float)backdropB / 255.0f;
    backdropVec[3] = 1.0f;
  
@@ -443,7 +877,7 @@ index 910d7da..71ea525 100644
                 backdropVec);
  
    glProgramUniform4f(g2shaderProgramID,
-@@ -950,6 +987,125 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,6 +988,132 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -455,6 +889,7 @@ index 910d7da..71ea525 100644
 +//   SIM_DEBUG_EXIT_FRAME=<frame>                            exits after that frame
 +//   (a key T<x>;<y> touches the bottom screen at DS coordinates, e.g. "6000:T120;82/4")
 +//   SIM_DEBUG_FAST=1                                        no frame cap, no vsync
++//   SIM_DEBUG_EXPORT_SAVE=<frame>:<path>, SIM_DEBUG_IMPORT_SAVE=<frame>:<path>  export / import the save (no dialogs; import restarts)
 +//   SIM_DEBUG_FF_HOLD=1                                     as if the fast-forward key were held (SIM_FAST_FORWARD_SPEED x 60 fps)
 +//   SIM_DEBUG_DUMP_FRAME=<frame>                            prints the 2D display/blend registers and BG palette at that frame
 +static int sDebugTouch = 0;   // SIM_DEBUG_KEYS holds the touch screen: the mouse does not override it
@@ -561,6 +996,12 @@ index 910d7da..71ea525 100644
 +    } }
 +  static struct timespec t100;
 +  if (frame == 100) clock_gettime(CLOCK_MONOTONIC, &t100);
++  // SIM_DEBUG_EXPORT_SAVE / SIM_DEBUG_IMPORT_SAVE="<frame>:<path>": export / import the save at that frame, without dialogs
++  {
++    static const char *exp = getenv("SIM_DEBUG_EXPORT_SAVE"), *imp = getenv("SIM_DEBUG_IMPORT_SAVE");
++    if (exp && (u32)atoi(exp) == frame && strchr(exp, ':')) SIM::Helpers::ExportSave(strchr(exp, ':') + 1);
++    if (imp && (u32)atoi(imp) == frame && strchr(imp, ':')) { SIM::Helpers::ImportSave(strchr(imp, ':') + 1); unsetenv("SIM_DEBUG_IMPORT_SAVE"); imp = nullptr; }   // once: the import restarts the game
++  }
 +  if (exitFrame && frame >= exitFrame) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
 +    if (frame > 100) printf("SIM_DEBUG_EXIT_FRAME: %.1f fps since frame 100\n", (frame - 100) / ((t.tv_sec - t100.tv_sec) + (t.tv_nsec - t100.tv_nsec) / 1e9));
 +    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); fflush(stdout); _exit(0); }
@@ -569,7 +1010,35 @@ index 910d7da..71ea525 100644
  void *SIM_Render(void *arg) {
  
    SDL_Event Event;
-@@ -1261,7 +1417,9 @@ void *SIM_Render(void *arg) {
+@@ -1073,9 +1237,14 @@ void *SIM_Render(void *arg) {
+       s_SIM_SDLJoystick = SDL_JoystickOpen(0);
+     }
+ 
++    SIM::Helpers::Poll();   // restart after a save import
++
+     while (SDL_PollEvent(&Event)) {
+       SIM::GUI::ProcessEvent(&Event);
+ 
++      if (Event.type == SDL_QUIT) {
++        exit(0);   // Cmd+Q / Quit in the app menu
++      }
+       if (Event.type == SDL_WINDOWEVENT) {
+         switch (Event.window.event) {
+         case SDL_WINDOWEVENT_CLOSE:
+@@ -1083,6 +1252,12 @@ void *SIM_Render(void *arg) {
+           break;
+         }
+       }
++      if (Event.type == SDL_KEYDOWN && (Event.key.keysym.mod & KMOD_GUI)) {
++        // Cmd shortcuts (not passed to the game): Cmd+E export the save, Cmd+I import a save
++        if (Event.key.keysym.sym == SDLK_e && !Event.key.repeat) SIM::Helpers::ExportSave();
++        else if (Event.key.keysym.sym == SDLK_i && !Event.key.repeat) SIM::Helpers::ImportSave();
++        continue;
++      }
+       if (Event.type == SDL_KEYDOWN) {
+         int keyRead = Event.key.keysym.sym;
+         if (keyRead == s_SIM_config.padSettings.aKey) {
+@@ -1261,7 +1436,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -580,7 +1049,7 @@ index 910d7da..71ea525 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1328,18 +1486,29 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +1505,29 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -619,6 +1088,19 @@ index 910d7da..71ea525 100644
      SDL_GL_SwapWindow(window);
  
      if(sChangeInternalResAfterRender) {
+@@ -1398,6 +1586,12 @@ void *SIM_Render(void *arg) {
+ }
+ 
+ // Get the rendering time in nanoseconds
++int SIM_GetFastForward(double *speed) {
++  if (speed) *speed = sFastForwardSpeed;
++  if (!s_SIM_config.capFrameRate || (sFastForward && sFastForwardUncapped)) return 2;
++  return sFastForward ? 1 : 0;
++}
++
+ u64 SIM_GetRenderFrameTime() {
+   return sRenderFrameTime;
+ }
 diff --git a/libraries/sim/src/sim_vars.c b/libraries/sim/src/sim_vars.c
 index 81309fd..72be77a 100644
 --- a/libraries/sim/src/sim_vars.c
