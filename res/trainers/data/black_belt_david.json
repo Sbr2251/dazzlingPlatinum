@@ -4,7 +4,7 @@
     "items": [],
     "ai_flags": [
         "AI_FLAG_BASIC",
-        "AI_FLAG_DAMAGE_PRIORITY"
+        "AI_FLAG_PRIORITIZE_EXTREMES"
     ],
     "double_battle": false,
     "party": [
@@ -19,7 +19,7 @@
                 "MOVE_SANDSTORM",
                 "MOVE_SCREECH"
             ],
-            "power": 40,
+            "iv_scale": 40,
             "ball_seal": 0
         },
         {
@@ -33,7 +33,7 @@
                 "MOVE_SANDSTORM",
                 "MOVE_SCREECH"
             ],
-            "power": 40,
+            "iv_scale": 40,
             "ball_seal": 0
         }
     ],

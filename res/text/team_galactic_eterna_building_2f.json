@@ -2,21 +2,21 @@
   "key": 5143,
   "messages": [
     {
-      "id": "Haven2F_Text_KennelBramble",
+      "id": "TeamGalacticEternaBuilding2F_Text_WorkingToFindEnergySources",
       "en_US": [
         "A name tag: BRAMBLE.\n",
         "The kennel is empty."
       ]
     },
     {
-      "id": "Haven2F_Text_KennelPip",
+      "id": "TeamGalacticEternaBuilding2F_Text_ResearchOnFormsOfEnergy",
       "en_US": [
         "A name tag: PIP.\n",
         "The kennel is empty."
       ]
     },
     {
-      "id": "Haven2F_Text_KennelClover",
+      "id": "TeamGalacticEternaBuilding2F_Text_MakeProgressTogether",
       "en_US": [
         "A name tag: CLOVER.\n",
         "The kennel is empty."
@@ -102,6 +102,27 @@
       "en_US": [
         "Duchess curled up by the kennel\n",
         "again."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_KennelBramble",
+      "en_US": [
+        "A name tag: BRAMBLE.\n",
+        "The kennel is empty."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_KennelPip",
+      "en_US": [
+        "A name tag: PIP.\n",
+        "The kennel is empty."
+      ]
+    },
+    {
+      "id": "Haven2F_Text_KennelClover",
+      "en_US": [
+        "A name tag: CLOVER.\n",
+        "The kennel is empty."
       ]
     }
   ]

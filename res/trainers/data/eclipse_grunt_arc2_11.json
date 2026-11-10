@@ -19,7 +19,7 @@
                 "MOVE_CONFUSE_RAY",
                 "MOVE_AIR_CUTTER"
             ],
-            "power": 100,
+            "iv_scale": 100,
             "ball_seal": 0,
             "ability": "ABILITY_INNER_FOCUS"
         },
@@ -34,7 +34,7 @@
                 "MOVE_SCARY_FACE",
                 "MOVE_SCREECH"
             ],
-            "power": 100,
+            "iv_scale": 100,
             "ball_seal": 0,
             "ability": "ABILITY_ROUGH_SKIN"
         }

@@ -18,7 +18,7 @@
                 "MOVE_BIND",
                 "MOVE_SCREECH"
             ],
-            "power": 50,
+            "iv_scale": 50,
             "ball_seal": 0
         },
         {
@@ -32,7 +32,7 @@
                 "MOVE_HARDEN",
                 "MOVE_TACKLE"
             ],
-            "power": 50,
+            "iv_scale": 50,
             "ball_seal": 0
         }
     ],
@@ -41,7 +41,7 @@
             "type": "TRMSG_PRE_BATTLE",
             "en_US": [
                 "Only those who want to win can\n",
-                "challenge a Pokémon Gym!\r"
+                "challenge a Pok\u00e9mon Gym!\r"
             ]
         },
         {
@@ -54,7 +54,7 @@
         {
             "type": "TRMSG_POST_BATTLE",
             "en_US": [
-                "One day, I’m going to become a tough\n",
+                "One day, I\u2019m going to become a tough\n",
                 "Trainer like you.\n"
             ]
         }

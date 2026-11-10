@@ -12,14 +12,6 @@
 
 #include "res/text/bank/pokemon_storage_system.h"
 
-typedef struct PCBoxes {
-    u32 currentBoxID;
-    BoxPokemon boxMons[MAX_PC_BOXES][MAX_MONS_PER_BOX];
-    u16 names[MAX_PC_BOXES][PC_BOX_NAME_BUFFER_LEN];
-    u8 wallpapers[MAX_PC_BOXES];
-    u8 unlockedWallpapers;
-} PCBoxes;
-
 static void PCBoxes_InitInternal(PCBoxes *pcBoxes);
 
 void PCBoxes_Init(PCBoxes *pcBoxes)
@@ -119,7 +111,7 @@ BOOL PCBoxes_TryStoreBoxMonAt(PCBoxes *pcBoxes, u32 boxID, u32 monPosInBox, BoxP
         SaveData_SetFullSaveRequired();
         return TRUE;
     } else {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
     }
 
     return FALSE;
@@ -135,7 +127,7 @@ void PCBoxes_InitBoxMonAt(PCBoxes *pcBoxes, u32 boxID, u32 monPosInBox)
         BoxPokemon_Init(&pcBoxes->boxMons[boxID][monPosInBox]);
         SaveData_SetFullSaveRequired();
     } else {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -221,7 +213,7 @@ void PCBoxes_SetCurrentBox(PCBoxes *pcBoxes, u32 boxID)
         pcBoxes->currentBoxID = boxID;
         SaveData_SetFullSaveRequired();
     } else {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -230,7 +222,7 @@ u32 PCBoxes_GetWallpaper(const PCBoxes *pcBoxes, u32 boxID)
     if (boxID < MAX_PC_BOXES) {
         return pcBoxes->wallpapers[boxID];
     } else {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         return FALSE;
     }
 }
@@ -249,7 +241,7 @@ void PCBoxes_SetWallpaper(PCBoxes *pcBoxes, u32 boxID, u32 wallpaper)
         pcBoxes->wallpapers[boxID] = wallpaper;
         SaveData_SetFullSaveRequired();
     } else {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -262,7 +254,7 @@ void PCBoxes_BufferBoxName(const PCBoxes *pcBoxes, u32 boxID, String *dest)
     if (boxID < MAX_PC_BOXES) {
         String_CopyChars(dest, pcBoxes->names[boxID]);
     } else {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
     }
 }
 
@@ -295,7 +287,7 @@ u32 PCBoxes_CountMonsInBox(const PCBoxes *pcBoxes, u32 boxID)
 
         return count;
     } else {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
     }
 
     return 0;
@@ -320,7 +312,7 @@ u32 PCBoxes_CountNonEggMonsInBox(const PCBoxes *pcBoxes, u32 boxID)
 
         return count;
     } else {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
     }
 
     return 0;

@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "constants/species.h"
-#include "generated/sdat.h"
 
 #include "struct_defs/chatot_cry.h"
 
@@ -13,10 +12,11 @@
 #include "heap.h"
 #include "sound.h"
 #include "sound_chatot.h"
-#include "sound_stream.h"
 #include "sound_system.h"
 #include "sys_task.h"
 #include "sys_task_manager.h"
+
+#include "res/sound/pl_sound_data.naix"
 
 #define WAVE_OUT_SPEED_HYPERVOICE_1 (WAVE_OUT_SPEED(1.046875))
 #define WAVE_OUT_SPEED_UPROAR_1     (WAVE_OUT_SPEED(0.8125))
@@ -55,7 +55,6 @@ BOOL Sound_PlayBasicBGM(u16 seqID)
 
     BOOL result = NNS_SndArcPlayerStartSeq(SoundSystem_GetSoundHandle(handleType), seqID);
 
-    SoundStream_OnBGMStarted(seqID, handleType, result);
     Sound_Impl_HandleBGMChange(seqID, handleType);
     return result;
 }
@@ -78,7 +77,6 @@ BOOL Sound_PlayBGM(u16 bgmID)
     // Field BGM Bank may or may not have been switched, so set it to idle
     Sound_SetFieldBGMBankState(FIELD_BGM_BANK_STATE_IDLE);
 
-    SoundStream_OnBGMStarted(bgmID, handleType, result);
     Sound_Impl_HandleBGMChange(bgmID, handleType);
     return result;
 }
@@ -129,7 +127,6 @@ BOOL Sound_SetBGM(u8 scene, u16 seqID)
 
     BOOL success = SoundSystem_LoadSequenceEx(seqID, NNS_SND_ARC_LOAD_SEQ);
     success = NNS_SndArcPlayerStartSeq(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_BGM), seqID);
-    SoundStream_OnBGMStarted(seqID, SOUND_HANDLE_TYPE_BGM, success);
 
     Sound_SetCurrentBGM(seqID);
     SoundSystem_SetState(SOUND_SYSTEM_STATE_PLAY);
@@ -140,7 +137,6 @@ BOOL Sound_SetBGM(u8 scene, u16 seqID)
 void Sound_StopBGM(u16 bgmID, int fadeOutFrames)
 {
     NNS_SndPlayerStopSeqBySeqNo(bgmID, fadeOutFrames);
-    SoundStream_OnSeqStopped(bgmID, fadeOutFrames);
 
     u8 playerID = Sound_GetPlayerForSequence(bgmID);
 
@@ -216,7 +212,6 @@ void Sound_StopWaveOutAndSequences(void)
     u8 *secondaryAllocated = SoundSystem_GetParam(SOUND_SYSTEM_PARAM_WAVE_OUT_SECONDARY_ALLOCATED);
 
     NNS_SndPlayerStopSeqAll(0);
-    SoundStream_Stop(0);
 
     if (*primaryAllocated == TRUE) {
         Sound_StopWaveOut(WAVE_OUT_CHANNEL_PRIMARY);
@@ -235,7 +230,6 @@ void Sound_StopAll(void)
     u8 *secondaryAllocated = SoundSystem_GetParam(SOUND_SYSTEM_PARAM_WAVE_OUT_SECONDARY_ALLOCATED);
 
     NNS_SndPlayerStopSeq(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_BGM), 0);
-    SoundStream_OnHandleStopped(SOUND_HANDLE_TYPE_BGM, 0);
     Sound_Impl_ResetBGM();
 
     for (int i = 0; i < NUM_SFX_HANDLES; i++) {
@@ -338,16 +332,19 @@ BOOL Sound_PlayPokemonCry(u16 species, u8 form)
 
     u16 waveID = species;
     if (Sound_Impl_IsShayminSkyForm(species, form) == TRUE) {
-        waveID = WAVE_ARC_PV516_SKY;
+        waveID = shaymin_forms_sky_cry_swar;
     }
 
-    if (waveID != WAVE_ARC_PV516_SKY) {
-        if (waveID > MAX_SPECIES || waveID == SPECIES_NONE) {
-            waveID = SPECIES_BULBASAUR;
+    if (waveID != shaymin_forms_sky_cry_swar) {
+        // Sound is vanilla pret: cry wave arcs only exist up to SPECIES_ARCEUS.
+        // Dazzling's Gen-5 species (after Arceus) have no cry bank, so fall back
+        // to Bulbasaur's cry rather than requesting a non-existent wave arc.
+        if (waveID > SPECIES_ARCEUS || waveID == SPECIES_NONE) {
+            waveID = bulbasaur_cry_swar;
         }
     }
 
-    if (waveID == SPECIES_CHATOT) {
+    if (waveID == chatot_cry_swar) {
         if (Sound_Impl_PlayChatotCry(*chatotCry, 0, SOUND_VOLUME_MAX, 0) == TRUE) {
             Sound_SetUsingDefaultChatotCry(FALSE);
             return TRUE;
@@ -359,10 +356,10 @@ BOOL Sound_PlayPokemonCry(u16 species, u8 form)
             Sound_StopPokemonCries(0);
         }
 
-        success = NNS_SndArcPlayerStartSeqEx(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_POKEMON_CRY), -1, waveID, -1, SEQ_PV);
+        success = NNS_SndArcPlayerStartSeqEx(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_POKEMON_CRY), -1, waveID, -1, SEQ_PV001_sseq_1);
         Sound_AdjustVolumeForVoiceChatEx(waveID, SOUND_HANDLE_TYPE_POKEMON_CRY);
     } else {
-        success = NNS_SndArcPlayerStartSeqEx(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_ECHO), -1, waveID, -1, SEQ_PV);
+        success = NNS_SndArcPlayerStartSeqEx(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_ECHO), -1, waveID, -1, SEQ_PV001_sseq_1);
         Sound_AdjustVolumeForVoiceChatEx(waveID, SOUND_HANDLE_TYPE_ECHO);
     }
 
@@ -428,11 +425,12 @@ BOOL Sound_PlayPokemonCryEx(enum PokemonCryMod cryMod, u16 species, int pan, int
     UNUSED(SoundSystem_GetParam(SOUND_SYSTEM_PARAM_CHATOT_CRY));
 
     if (Sound_Impl_IsShayminSkyForm(species, form) == TRUE) {
-        species = WAVE_ARC_PV516_SKY;
+        species = shaymin_forms_sky_cry_swar;
     }
 
-    if (species != WAVE_ARC_PV516_SKY) {
-        if (species > MAX_SPECIES || species == SPECIES_NONE) {
+    if (species != shaymin_forms_sky_cry_swar) {
+        // Vanilla cry banks only exist up to SPECIES_ARCEUS (see Sound_PlayPokemonCry).
+        if (species > SPECIES_ARCEUS || species == SPECIES_NONE) {
             species = SPECIES_BULBASAUR;
         }
     }
@@ -706,7 +704,7 @@ void Sound_PlayDelayedPokemonCryEx(enum PokemonCryMod cryMod, u16 species, int p
     }
 
     if (Sound_Impl_IsShayminSkyForm(species, form) == TRUE) {
-        species = WAVE_ARC_PV516_SKY;
+        species = shaymin_forms_sky_cry_swar;
     }
 
     if (species == SPECIES_NONE) {
@@ -734,7 +732,7 @@ static BOOL Sound_Impl_IsShayminSkyForm(u16 species, u8 form)
         }
     }
 
-    if (species == WAVE_ARC_PV516_SKY) {
+    if (species == shaymin_forms_sky_cry_swar) {
         return TRUE;
     }
 

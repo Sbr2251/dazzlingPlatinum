@@ -14,7 +14,7 @@
 #include "battle/battle_stage_camera.h"
 #include "battle/battle_display.h"
 #include "battle/battle_stage_stream.h"
-#include "battle/ov16_0223DF00.h"
+#include "battle/battle_system.h"
 #include "battle_anim/ov12_022380BC.h"
 
 #include "graphics.h"
@@ -881,7 +881,7 @@ static u8 PulseAlpha(StageCondition *condition)
 // shows), as B/W; clear gives every sprite its own palette back
 static void UpdateConditions(PokemonSpriteManager *monSpriteMan, BOOL clear)
 {
-    Healthbar *healthbar;
+    HealthBox *healthbar;
     StageCondition *condition;
     const PokemonSprite *sprite;
     u32 rate;
@@ -902,8 +902,8 @@ static void UpdateConditions(PokemonSpriteManager *monSpriteMan, BOOL clear)
             condition->character = sprite->template.character;
         }
 
-        if (!clear && i < BattleSystem_MaxBattlers(sStageSprites.battleSys)) {
-            healthbar = ov16_02263B08(BattleSystem_BattlerData(sStageSprites.battleSys, i));
+        if (!clear && i < BattleSystem_GetMaxBattlers(sStageSprites.battleSys)) {
+            healthbar = BattlerData_GetHealthBox(BattleSystem_GetBattlerData(sStageSprites.battleSys, i));
         }
 
         if (sprite->active && IsSubstituteDoll(&sprite->template)) {
@@ -1544,7 +1544,7 @@ static void GroundQuadAxes(int battler, int widthPx, int scale, VecFx32 *centre,
 {
     const PokemonSprite *sprite = &BattleSystem_GetPokemonSpriteManager(sStageSprites.battleSys)->sprites[battler];
     const PokemonSpriteTransforms *transforms = &sprite->transforms;
-    int side = BattleSystem_BattlerSlot(sStageSprites.battleSys, battler) & 1;
+    int side = BattleSystem_GetBattlerType(sStageSprites.battleSys, battler) & 1;
     int px, rows;
 
     // Half the width, as a fraction of the 128 pixels groundHalfWidth covers
@@ -1577,7 +1577,7 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
     }
 
     monSpriteMan = BattleSystem_GetPokemonSpriteManager(sStageSprites.battleSys);
-    numBattlers = BattleSystem_MaxBattlers(sStageSprites.battleSys);
+    numBattlers = BattleSystem_GetMaxBattlers(sStageSprites.battleSys);
 
     if (numBattlers > MAX_MON_SPRITES) {
         numBattlers = MAX_MON_SPRITES;
@@ -1597,7 +1597,7 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
             continue;
         }
 
-        side = BattleSystem_BattlerSlot(sStageSprites.battleSys, i) & 1;
+        side = BattleSystem_GetBattlerType(sStageSprites.battleSys, i) & 1;
         widthPx = side ? sEnemyBlobWidth[sprite->shadow.size] : BLOB_PLAYER_WIDTH;
         scale = transforms->scaleX < 0 ? -transforms->scaleX : transforms->scaleX;
 
@@ -1640,7 +1640,7 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
             continue;
         }
 
-        side = BattleSystem_BattlerSlot(sStageSprites.battleSys, i) & 1;
+        side = BattleSystem_GetBattlerType(sStageSprites.battleSys, i) & 1;
         widthPx = side ? sEnemyBlobWidth[sprite->shadow.size] + HOLE_ENEMY_EXTRA : HOLE_PLAYER_WIDTH;
         GroundQuadAxes(i, widthPx, MON_AFFINE_SCALE(1), &centre, &a, &b, &radius);
 

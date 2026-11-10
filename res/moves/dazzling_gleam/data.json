@@ -1,0 +1,28 @@
+{
+    "name": "Dazzling Gleam",
+    "description": [
+        "The user damages\n",
+        "opposing Pok\u00e9mon by\n",
+        "emitting a powerful\n",
+        "flash."
+    ],
+    "class": "CLASS_SPECIAL",
+    "type": "TYPE_FAIRY",
+    "power": 80,
+    "accuracy": 100,
+    "pp": 10,
+    "effect": {
+        "type": "BATTLE_EFFECT_HIT",
+        "chance": 0
+    },
+    "range": "RANGE_ADJACENT_OPPONENTS",
+    "priority": 0,
+    "flags": [
+        "MOVE_FLAG_CAN_PROTECT",
+        "MOVE_FLAG_CAN_MIRROR_MOVE"
+    ],
+    "contest": {
+        "effect": "CONTEST_EFFECT_VOLTAGE",
+        "type": "CONTEST_TYPE_BEAUTY"
+    }
+}

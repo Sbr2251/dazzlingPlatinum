@@ -19,7 +19,7 @@
                 "MOVE_TAIL_WHIP",
                 "MOVE_HEADBUTT"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         },
         {
@@ -33,7 +33,7 @@
                 "MOVE_HARDEN",
                 "MOVE_TACKLE"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         }
     ],
@@ -42,7 +42,7 @@
             "type": "TRMSG_PRE_BATTLE",
             "en_US": [
                 "To celebrate my getting through this\n",
-                "cave, I’m going to battle you!\r"
+                "cave, I\u2019m going to battle you!\r"
             ]
         },
         {

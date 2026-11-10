@@ -18,7 +18,7 @@
                 "MOVE_RAPID_SPIN",
                 "MOVE_MUD_SLAP"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         },
         {
@@ -30,7 +30,7 @@
                 "MOVE_TACKLE",
                 "MOVE_HARDEN"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         }
     ],
@@ -38,19 +38,19 @@
         {
             "type": "TRMSG_PRE_BATTLE",
             "en_US": [
-                "I’m gonna let you in on a secret...\n",
-                "I snuck my Pokémon to work!\r"
+                "I\u2019m gonna let you in on a secret...\n",
+                "I snuck my Pok\u00e9mon to work!\r"
             ]
         },
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "Well, now aren’t you something!\n"
+            "en_US": "Well, now aren\u2019t you something!\n"
         },
         {
             "type": "TRMSG_POST_BATTLE",
             "en_US": [
-                "OK, OK, time for work! I’ll work up\n",
-                "a thirst with my Pokémon!\n"
+                "OK, OK, time for work! I\u2019ll work up\n",
+                "a thirst with my Pok\u00e9mon!\n"
             ]
         }
     ]

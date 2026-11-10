@@ -10,8 +10,8 @@
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_sprites.h"
-#include "battle/healthbar.h"
-#include "battle/ov16_0223DF00.h"
+#include "battle/healthbox.h"
+#include "battle/battle_system.h"
 
 #include "particle_system.h"
 #include "totem_battle.h"
@@ -440,7 +440,7 @@ static fx32 DepthScale(fx32 homeDepth, fx32 nowDepth, fx32 fov)
 
 static int MaxBattlers(void)
 {
-    int max = BattleSystem_MaxBattlers(sStageCamera.battleSys);
+    int max = BattleSystem_GetMaxBattlers(sStageCamera.battleSys);
 
     return max > MAX_BATTLERS ? MAX_BATTLERS : max;
 }
@@ -448,7 +448,7 @@ static int MaxBattlers(void)
 // The world foot point of a battler: the home ray through its home anchor, on the ground
 static BOOL BattlerFoot(int battler, int *homeX, int *homeY, VecFx32 *foot)
 {
-    int type = BattleSystem_BattlerSlot(sStageCamera.battleSys, battler);
+    int type = BattleSystem_GetBattlerType(sStageCamera.battleSys, battler);
     int side;
 
     if (type < 0 || type >= BATTLER_TYPE_MAX) {
@@ -547,7 +547,7 @@ static BOOL CutEdgeY(int battler, fx32 *edgeY)
     int homeY;
 
     if (!anchor->valid
-        || (BattleSystem_BattlerSlot(sStageCamera.battleSys, battler) & 1) != 0
+        || (BattleSystem_GetBattlerType(sStageCamera.battleSys, battler) & 1) != 0
         || !BattleStageSprites_CutHomeY(battler, &homeY)) {
         return FALSE;
     }
@@ -990,7 +990,7 @@ static BOOL IntroFocusHidesHealthbars(void)
 // The held healthbars slide in as they would have at the send-out
 static void ReleaseHealthbars(void)
 {
-    Healthbar *healthbar;
+    HealthBox *healthbar;
     int i;
 
     for (i = 0; i < MAX_BATTLERS; i++) {
@@ -998,7 +998,7 @@ static void ReleaseHealthbars(void)
             continue;
         }
 
-        healthbar = ov16_02263B08(BattleSystem_BattlerData(sStageCamera.battleSys, i));
+        healthbar = BattlerData_GetHealthBox(BattleSystem_GetBattlerData(sStageCamera.battleSys, i));
 
         if (healthbar->mainSprite == NULL) {
             sStageCamera.heldHealthbars &= ~(1 << i);
@@ -1010,8 +1010,8 @@ static void ReleaseHealthbars(void)
             continue;
         }
 
-        Healthbar_Scroll(healthbar, HEALTHBAR_SCROLL_IN);
-        Healthbar_Enable(healthbar, TRUE);
+        HealthBox_Scroll(healthbar, HEALTHBOX_SCROLL_IN);
+        HealthBox_Enable(healthbar, TRUE);
         sStageCamera.heldHealthbars &= ~(1 << i);
     }
 
@@ -1032,7 +1032,7 @@ static void ShowScriptHealthbars(void)
 
     for (i = 0; i < MAX_BATTLERS && sStageCamera.scriptHidHealthbars; i++) {
         if (sStageCamera.scriptHidHealthbars & (1 << i)) {
-            Healthbar_Enable(ov16_02263B08(BattleSystem_BattlerData(sStageCamera.battleSys, i)), TRUE);
+            HealthBox_Enable(BattlerData_GetHealthBox(BattleSystem_GetBattlerData(sStageCamera.battleSys, i)), TRUE);
             sStageCamera.scriptHidHealthbars &= ~(1 << i);
         }
     }
@@ -1151,7 +1151,7 @@ void BattleStage_CameraZoom(int fovDeg, int frames)
 
 void BattleStage_ScriptHealthbars(BOOL visible)
 {
-    Healthbar *healthbar;
+    HealthBox *healthbar;
     int i;
 
     if (visible) {
@@ -1164,10 +1164,10 @@ void BattleStage_ScriptHealthbars(BOOL visible)
     }
 
     for (i = 0; i < MaxBattlers(); i++) {
-        healthbar = ov16_02263B08(BattleSystem_BattlerData(sStageCamera.battleSys, i));
+        healthbar = BattlerData_GetHealthBox(BattleSystem_GetBattlerData(sStageCamera.battleSys, i));
 
         if (healthbar->mainSprite != NULL && ManagedSprite_GetDrawFlag(healthbar->mainSprite)) {
-            Healthbar_Enable(healthbar, FALSE);
+            HealthBox_Enable(healthbar, FALSE);
             sStageCamera.scriptHidHealthbars |= 1 << i;
         }
     }
@@ -1268,7 +1268,7 @@ static BOOL SideFocus(int side, VecFx32 *focus)
     max = MaxBattlers();
 
     for (i = 0; i < max; i++) {
-        if ((BattleSystem_BattlerSlot(sStageCamera.battleSys, i) & 1) == side && BattlerFocus(i, &point)) {
+        if ((BattleSystem_GetBattlerType(sStageCamera.battleSys, i) & 1) == side && BattlerFocus(i, &point)) {
             sum.x += point.x;
             sum.y += point.y;
             sum.z += point.z;
@@ -1363,7 +1363,7 @@ void BattleStage_EndIntroFocus(void)
 
 BOOL BattleStage_HoldIntroHealthbar(int battler)
 {
-    if ((BattleSystem_BattlerSlot(sStageCamera.battleSys, battler) & 1) == 0 || !IntroFocusHidesHealthbars()) {
+    if ((BattleSystem_GetBattlerType(sStageCamera.battleSys, battler) & 1) == 0 || !IntroFocusHidesHealthbars()) {
         return FALSE;
     }
 
@@ -1450,7 +1450,7 @@ BOOL BattleStage_GetSideOffset(int side, int *dx, int *dy)
     for (i = 0; i < max; i++) {
         const CameraAnchor *anchor = &sStageCamera.anchors[i];
 
-        if (anchor->valid && (BattleSystem_BattlerSlot(sStageCamera.battleSys, i) & 1) == side) {
+        if (anchor->valid && (BattleSystem_GetBattlerType(sStageCamera.battleSys, i) & 1) == side) {
             sumX += anchor->nowX - anchor->homeX * FX32_ONE;
             sumY += anchor->nowY - anchor->homeY * FX32_ONE;
             count++;

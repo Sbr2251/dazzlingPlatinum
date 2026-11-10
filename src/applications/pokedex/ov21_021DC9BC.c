@@ -29,7 +29,7 @@
 #include "sprite_util.h"
 #include "unk_02012744.h"
 
-#include "res/graphics/pokedex/zukan.naix.h"
+#include "res/graphics/pokedex/zukan.naix"
 #include "res/text/bank/pokedex.h"
 
 #define TERMINALVALUE      0xffff
@@ -124,7 +124,7 @@ typedef struct PokedexMapDisplay {
     FieldCoordinates *fieldCoordinatesArray;
     int unk_80C;
     int unk_810;
-    CursorTransformation unk_814;
+    SpriteTransformation unk_814;
     u32 numVisibleDungeons;
     u32 numVisibleFields;
     u32 dungeonsZero; // as far as I can tell these will always be zero
@@ -769,7 +769,7 @@ static BOOL ov21_021DD5E4(PokedexMapDisplay *mapDisplay, UnkStruct_ov21_021DCAE0
     int v1;
 
     if (param3 == 0) {
-        v0[0] = PokedexGraphics_TakeCursorTransformStep(&mapDisplay->unk_814);
+        v0[0] = PokedexGraphics_TakeTransformStep(&mapDisplay->unk_814);
         PokemonGraphics_SetCharCenterXY(param1->unk_00, mapDisplay->unk_814.currentX, mapDisplay->unk_814.currentY);
     } else {
         v0[0] = 1;
@@ -1160,7 +1160,7 @@ static void PokedexSort_PopulateDexStatus(EncounterCollection *encounterCollecti
         fieldCategory = PEFC_FIELDNIGHT;
         break;
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         break;
     }
 

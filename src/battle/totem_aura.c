@@ -6,8 +6,8 @@
 #include "constants/heap.h"
 
 #include "battle/battle_lib.h"
-#include "battle/ov16_0223DF00.h"
-#include "battle/struct_ov16_0225BFFC_t.h"
+#include "battle/battle_system.h"
+#include "struct_defs/battle_system.h"
 #include "battle_anim/battle_anim_system.h"
 #include "battle_anim/battle_anim_util.h"
 #include "overlay011/particle_helper.h"
@@ -21,7 +21,7 @@
 #include "sys_task.h"
 #include "sys_task_manager.h"
 
-#include "res/battle/particles/battle_particles.naix.h"
+#include "res/graphics/battle/particles/battle_particles.naix"
 
 // Emitters 0-2 of totem_aura.spa never expire; emitter 3 is the one-shot flare played by the aura animation
 #define TOTEM_AURA_EMITTERS 3
@@ -52,7 +52,7 @@ static SysTask *sTotemAuraTask = NULL;
 // lives, so it must never call into that overlay: read the anim system's flag directly instead.
 static void TotemAura_KeepTranslucent(TotemAura *aura)
 {
-    if (reg_G2_BLDCNT == 0 && ov16_0223E008(aura->battleSys)->moveActive == FALSE) {
+    if (reg_G2_BLDCNT == 0 && BattleSystem_GetBattleAnimSystem(aura->battleSys)->moveActive == FALSE) {
         G2_SetBlendAlpha(GX_BLEND_PLANEMASK_NONE, BATTLE_BG_BLENDMASK_ALL | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD, 8, 8);
     }
 }
@@ -90,14 +90,14 @@ static void TotemAura_FollowSprite(TotemAura *aura)
 static void TotemAura_Task(SysTask *task, void *data)
 {
     TotemAura *aura = data;
-    BattlerData *battlerData = BattleSystem_BattlerData(aura->battleSys, BATTLER_ENEMY_1);
+    BattlerData *battlerData = BattleSystem_GetBattlerData(aura->battleSys, BATTLER_ENEMY_1);
 
     if (aura->fadeTimer == 0
-        && BattleMon_Get(BattleSystem_Context(aura->battleSys), BATTLER_ENEMY_1, BATTLEMON_CUR_HP, NULL) == 0) {
+        && BattleMon_Get(BattleSystem_GetBattleContext(aura->battleSys), BATTLER_ENEMY_1, BATTLEMON_CUR_HP, NULL) == 0) {
         aura->fadeTimer = 1;
     }
 
-    if (battlerData->unk_20 != aura->sprite
+    if (battlerData->monSprite != aura->sprite
         || PokemonSprite_IsActive(aura->sprite) == FALSE
         || aura->fadeTimer > TOTEM_AURA_FADE_FRAMES) {
         TotemAura_Stop();
@@ -123,15 +123,15 @@ void TotemAura_Start(BattleSystem *battleSys)
         return;
     }
 
-    BattlerData *battlerData = BattleSystem_BattlerData(battleSys, BATTLER_ENEMY_1);
+    BattlerData *battlerData = BattleSystem_GetBattlerData(battleSys, BATTLER_ENEMY_1);
 
-    if (battlerData->unk_20 == NULL) {
+    if (battlerData->monSprite == NULL) {
         return;
     }
 
     TotemAura *aura = Heap_Alloc(HEAP_ID_BATTLE, sizeof(TotemAura));
     aura->battleSys = battleSys;
-    aura->sprite = battlerData->unk_20;
+    aura->sprite = battlerData->monSprite;
     aura->fadeTimer = 0;
     aura->particleSystem = ParticleHelper_CreateParticleSystem(HEAP_ID_BATTLE);
     ParticleSystem_SetResource(aura->particleSystem,

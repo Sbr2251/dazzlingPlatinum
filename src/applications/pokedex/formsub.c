@@ -3,7 +3,7 @@
 #include <nitro.h>
 #include <string.h>
 
-#include "applications/pokedex/ov21_021DF734.h"
+#include "applications/pokedex/formmain.h"
 #include "applications/pokedex/ov21_021E29DC.h"
 #include "applications/pokedex/pokedex_app.h"
 #include "applications/pokedex/pokedex_data_manager.h"
@@ -31,7 +31,7 @@
 #include "unk_02012744.h"
 #include "vram_transfer.h"
 
-#include "res/graphics/pokedex/zukan.naix.h"
+#include "res/graphics/pokedex/zukan.naix"
 #include "res/text/bank/pokedex.h"
 
 /*
@@ -655,5 +655,5 @@ static void TransformCursor(PokedexGraphicData **graphicdata, int x, int y, int 
 
 static void AdvanceMainScreen(const FormSubData *formSubData)
 {
-    ov21_021DF7A0(formSubData->mainScreen, 1);
+    FormMain_NextForm(formSubData->mainScreen, 1);
 }

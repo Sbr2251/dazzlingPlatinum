@@ -17,7 +17,7 @@
 #define TRAINER_MON_ABILITY_SHIFT  8
 
 #define MAX_TRAINER_ITEMS 4
-#define MAX_DV            255
+#define MAX_IV_SCALE      255
 
 enum TrainerDataType {
     TRDATATYPE_BASE = 0,
@@ -37,14 +37,14 @@ typedef struct TrainerHeader {
 } TrainerHeader;
 
 typedef struct TrainerMonBase {
-    u16 dv;
+    u16 ivScale;
     u16 level;
     u16 species;
     u16 cbSeal;
 } TrainerMonBase;
 
 typedef struct TrainerMonWithMoves {
-    u16 dv;
+    u16 ivScale;
     u16 level;
     u16 species;
     u16 moves[LEARNED_MOVES_MAX];
@@ -52,7 +52,7 @@ typedef struct TrainerMonWithMoves {
 } TrainerMonWithMoves;
 
 typedef struct TrainerMonWithItem {
-    u16 dv;
+    u16 ivScale;
     u16 level;
     u16 species;
     u16 item;
@@ -60,7 +60,7 @@ typedef struct TrainerMonWithItem {
 } TrainerMonWithItem;
 
 typedef struct TrainerMonWithMovesAndItem {
-    u16 dv;
+    u16 ivScale;
     u16 level;
     u16 species;
     u16 item;

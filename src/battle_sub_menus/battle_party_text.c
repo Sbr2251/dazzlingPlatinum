@@ -3,7 +3,7 @@
 #include "constants/graphics.h"
 
 #include "applications/pokemon_summary_screen/main.h"
-#include "battle/ov16_0223DF00.h"
+#include "battle/battle_system.h"
 #include "battle_sub_menus/battle_party.h"
 
 #include "bg_window.h"
@@ -1183,7 +1183,7 @@ static void PrintPokemonNameHeader(BattleParty *battleParty, u32 windowIndex, en
     String_Free(string);
     String_Free(formattedString);
 
-    if (pokemon->displayNidoranGender == FALSE && pokemon->isEgg == FALSE) {
+    if (pokemon->hideGenderMarker == FALSE && pokemon->isEgg == FALSE) {
         u32 genderIconXOffset;
         if (pokemon->gender == GENDER_MALE) {
             string = MessageLoader_GetNewString(battleParty->messageLoader, BattleParty_Text_MaleIcon);
@@ -1954,7 +1954,7 @@ static void PrintSelectedPokemonName(BattleParty *battleParty, u32 partyIndex)
 
     formattedString = NULL;
 
-    if (pokemon->displayNidoranGender == FALSE && pokemon->isEgg == FALSE) {
+    if (pokemon->hideGenderMarker == FALSE && pokemon->isEgg == FALSE) {
         if (pokemon->gender == GENDER_MALE) {
             formattedString = MessageLoader_GetNewString(battleParty->messageLoader, BattleParty_Text_MaleIcon);
         } else if (pokemon->gender == GENDER_FEMALE) {
@@ -2274,7 +2274,7 @@ void BattlePartyText_DisplayErrorMessage(BattleParty *battleParty)
 void BattlePartyText_PrintToErrorMessageBox(BattleParty *battleParty)
 {
     RenderControlFlags_SetCanABSpeedUpPrint(TRUE);
-    battleParty->textPrinterID = Text_AddPrinterWithParams(&battleParty->messageBoxWindows[BATTLE_PARTY_MESSAGE_BOX_ERROR], FONT_MESSAGE, battleParty->string, 0, 0, BattleSystem_TextSpeed(battleParty->context->battleSystem), NULL);
+    battleParty->textPrinterID = Text_AddPrinterWithParams(&battleParty->messageBoxWindows[BATTLE_PARTY_MESSAGE_BOX_ERROR], FONT_MESSAGE, battleParty->string, 0, 0, BattleSystem_GetTextSpeed(battleParty->context->battleSys), NULL);
 }
 
 void BattlePartyText_PrintUseItemEffect(BattleParty *battleParty)
@@ -2285,7 +2285,7 @@ void BattlePartyText_PrintUseItemEffect(BattleParty *battleParty)
     u16 newHP;
     u8 healedStatusEffectFlags;
 
-    mon = BattleSystem_PartyPokemon(context->battleSystem, context->battler, context->pokemonPartySlots[context->selectedPartyIndex]);
+    mon = BattleSystem_GetPartyPokemon(context->battleSys, context->battler, context->pokemonPartySlots[context->selectedPartyIndex]);
     newHP = Pokemon_GetValue(mon, MON_DATA_HP, NULL);
     healedStatusEffectFlags = 0;
 
@@ -2378,7 +2378,7 @@ void BattlePartyText_PrintUseItemEffect(BattleParty *battleParty)
 void BattlePartyText_PrintEmbargoPreventingItemUse(BattleParty *battleParty)
 {
     BattlePartyContext *context = battleParty->context;
-    Pokemon *mon = BattleSystem_PartyPokemon(context->battleSystem, context->battler, context->pokemonPartySlots[context->selectedPartyIndex]);
+    Pokemon *mon = BattleSystem_GetPartyPokemon(context->battleSys, context->battler, context->pokemonPartySlots[context->selectedPartyIndex]);
     String *string = MessageLoader_GetNewString(battleParty->messageLoader, BattleParty_Text_EmbargoPreventsItemUse);
 
     StringTemplate_SetNickname(battleParty->stringTemplate, 0, Pokemon_GetBoxPokemon(mon));

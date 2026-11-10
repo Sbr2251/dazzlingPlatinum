@@ -1,13 +1,14 @@
 #include "system_flags.h"
 
+#include "constants/fieldmap.h"
 #include "constants/savedata/vars_flags.h"
 #include "generated/first_arrival_to_zones.h"
-#include "generated/map_headers.h"
 #include "generated/pokemon_contest_types.h"
-#include "generated/sdat.h"
 
 #include "rtc.h"
 #include "vars_flags.h"
+
+#include "res/sound/pl_sound_data.naix"
 
 static void SetFlag(VarsFlags *varsFlags, u16 flagID);
 static void ClearFlag(VarsFlags *varsFlags, u16 flagID);
@@ -227,19 +228,19 @@ BOOL SystemFlag_CheckUnlockedVsSeekerLevel(VarsFlags *varsFlags, int level)
     return result;
 }
 
-u16 SystemFlag_GetAltMusicForHeader(VarsFlags *varsFlags, enum MapHeader mapHeader)
+u16 SystemFlag_GetAltMusicForHeader(VarsFlags *varsFlags, enum MapHeaderID mapHeader)
 {
     u16 sdatID = 0;
     switch (mapHeader) {
     case MAP_HEADER_LAKE_VALOR_DRAINED:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_LAKE_VALOR) == TRUE) {
-            sdatID = SEQ_D_LAKE;
+            sdatID = SEQ_D_LAKE_sseq;
         }
         break;
 
     case MAP_HEADER_VALOR_CAVERN:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_LAKE_VALOR) == TRUE) {
-            sdatID = SEQ_D_RYAYHY;
+            sdatID = SEQ_D_RYAYHY_sseq;
         }
         break;
 
@@ -247,25 +248,25 @@ u16 SystemFlag_GetAltMusicForHeader(VarsFlags *varsFlags, enum MapHeader mapHead
         // Also used before the Team Galactic visit (stock used MAP_HEADER_LAKE_VERITY_LOW_WATER, lake music)
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_LAKE_VERITY) == TRUE
             || CheckFlag(varsFlags, FLAG_DEFEATED_COMMANDER_SATURN_VALOR_CAVERN) == FALSE) {
-            sdatID = SEQ_D_LAKE;
+            sdatID = SEQ_D_LAKE_sseq;
         }
         break;
 
     case MAP_HEADER_LAKE_ACUITY:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_LAKE_ACUITY) == TRUE) {
-            sdatID = SEQ_D_LAKE;
+            sdatID = SEQ_D_LAKE_sseq;
         }
         break;
 
     case MAP_HEADER_PAL_PARK:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_PAL_PARK) == TRUE) {
-            sdatID = SEQ_D_SAFARI;
+            sdatID = SEQ_D_SAFARI_sseq;
         }
         break;
 
     case MAP_HEADER_SANDGEM_TOWN_POKEMON_RESEARCH_LAB:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_ROWANS_LAB) == TRUE) {
-            sdatID = SEQ_OPENING2;
+            sdatID = SEQ_OPENING_sseq_1;
         }
         break;
 
@@ -279,16 +280,16 @@ u16 SystemFlag_GetAltMusicForHeader(VarsFlags *varsFlags, enum MapHeader mapHead
     case MAP_HEADER_GALACTIC_HQ_LABORATORY:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_GALACTIC_HQ) == TRUE) {
             if (!IsNight()) {
-                sdatID = SEQ_CITY07_D;
+                sdatID = SEQ_CITY07_D_sseq;
             } else {
-                sdatID = SEQ_CITY07_N;
+                sdatID = SEQ_CITY07_N_sseq;
             }
             break;
         }
 
         if (mapHeader == MAP_HEADER_GALACTIC_HQ_1F) {
             if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_GALACTIC_HQ_1F) == TRUE) {
-                sdatID = SEQ_D_AGITO;
+                sdatID = SEQ_D_AGITO_sseq;
             }
         }
         break;
@@ -299,9 +300,9 @@ u16 SystemFlag_GetAltMusicForHeader(VarsFlags *varsFlags, enum MapHeader mapHead
     case MAP_HEADER_TEAM_GALACTIC_ETERNA_BUILDING_4F:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_GALACTIC_ETERNA_BUILDING) == TRUE) {
             if (!IsNight()) {
-                sdatID = SEQ_CITY04_D;
+                sdatID = SEQ_CITY04_D_sseq;
             } else {
-                sdatID = SEQ_CITY04_N;
+                sdatID = SEQ_CITY04_N_sseq;
             }
         }
         break;
@@ -309,9 +310,9 @@ u16 SystemFlag_GetAltMusicForHeader(VarsFlags *varsFlags, enum MapHeader mapHead
     case MAP_HEADER_VALLEY_WINDWORKS_BUILDING:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_VALLEY_WINDWORKS_BUILDING) == TRUE) {
             if (!IsNight()) {
-                sdatID = SEQ_ROAD_C_D;
+                sdatID = SEQ_ROAD_C_D_sseq;
             } else {
-                sdatID = SEQ_ROAD_C_N;
+                sdatID = SEQ_ROAD_C_N_sseq;
             }
         }
         break;
@@ -319,9 +320,9 @@ u16 SystemFlag_GetAltMusicForHeader(VarsFlags *varsFlags, enum MapHeader mapHead
     case MAP_HEADER_FLOAROMA_MEADOW:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_FLOAROMA_MEADOW) == TRUE) {
             if (!IsNight()) {
-                sdatID = SEQ_TOWN03_D;
+                sdatID = SEQ_TOWN03_D_sseq;
             } else {
-                sdatID = SEQ_TOWN03_N;
+                sdatID = SEQ_TOWN03_N_sseq;
             }
         }
         break;
@@ -329,16 +330,16 @@ u16 SystemFlag_GetAltMusicForHeader(VarsFlags *varsFlags, enum MapHeader mapHead
     case MAP_HEADER_ROUTE_224:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_ROUTE_224) == TRUE) {
             if (!IsNight()) {
-                sdatID = SEQ_TOWN03_D;
+                sdatID = SEQ_TOWN03_D_sseq;
             } else {
-                sdatID = SEQ_TOWN03_N;
+                sdatID = SEQ_TOWN03_N_sseq;
             }
         }
         break;
 
     case MAP_HEADER_POKEMON_LEAGUE_CHAMPION_ROOM:
         if (CheckFlag(varsFlags, FLAG_ALT_MUSIC_CHAMPION_ROOM) == TRUE) {
-            sdatID = SEQ_SILENCE_FIELD;
+            sdatID = SEQ_SILENCE_FIELD_sseq;
         }
         break;
 
@@ -371,9 +372,9 @@ BOOL SystemFlag_CheckContestHallVisited(VarsFlags *varsFlags)
     return CheckFlag(varsFlags, FLAG_CONTEST_HALL_VISITED);
 }
 
-BOOL SystemFlag_CheckUndergroundFirstEntered(VarsFlags *varsFlags)
+BOOL SystemFlag_CheckHasSeenUndergroundRoarkIntro(VarsFlags *varsFlags)
 {
-    return CheckFlag(varsFlags, FLAG_UNDERGROUND_FIRST_ENTERED);
+    return CheckFlag(varsFlags, FLAG_HAS_SEEN_UNDERGROUND_ROARK_INTRO);
 }
 
 BOOL SystemFlag_CheckFreedGalacticHQPokemon(VarsFlags *varsFlags)
@@ -431,7 +432,7 @@ BOOL SystemFlag_CheckInPalPark(VarsFlags *varsFlags)
     return CheckFlag(varsFlags, FLAG_IN_PAL_PARK);
 }
 
-void SystemFlag_CheckOnCyclingRoad(VarsFlags *varsFlags)
+void SystemFlag_ClearOnCyclingRoad(VarsFlags *varsFlags)
 {
     ClearFlag(varsFlags, FLAG_ON_CYCLING_ROAD);
 }
@@ -492,7 +493,7 @@ void SystemFlag_SetConnectedToWiFi(VarsFlags *varsFlags)
     SetFlag(varsFlags, FLAG_CONNECTED_TO_WIFI);
 }
 
-BOOL SystemFlag_HandleOwnsVillaFurniture(VarsFlags *varsFlags, enum HandleFlagOp op, enum VillaFurniture furniture)
+BOOL SystemFlag_HandleOwnsVillaFurniture(VarsFlags *varsFlags, enum HandleFlagOp op, enum VillaFurnitureType furniture)
 {
     GF_ASSERT(furniture < VILLA_FURNITURE_MAX);
     return HandleFlag(varsFlags, op, FLAG_VILLA_FURNITURE_START + furniture);

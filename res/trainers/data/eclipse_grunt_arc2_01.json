@@ -19,7 +19,7 @@
                 "MOVE_SAND_ATTACK",
                 "MOVE_TACKLE"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0,
             "ability": "ABILITY_QUICK_FEET"
         },
@@ -34,7 +34,7 @@
                 "MOVE_SUPERSONIC",
                 "MOVE_LEECH_LIFE"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0,
             "ability": "ABILITY_INNER_FOCUS"
         }

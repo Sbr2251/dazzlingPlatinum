@@ -38,7 +38,7 @@
 #include "system.h"
 #include "text.h"
 #include "totem_battle.h"
-#include "unk_0202F180.h"
+#include "save_catchrecords.h"
 #include "unk_020528D0.h"
 #include "unk_02054884.h"
 
@@ -319,7 +319,7 @@ static void DrawPanel(FieldSystem *fieldSystem, DebugQuickBattle *quickBattle)
     String_AppendAscii(line, " ");
 
     if (sBackgroundChoice == 0) {
-        background = MapHeader_GetBattleBG(fieldSystem->location->mapId);
+        background = MapHeader_GetBattleBG(fieldSystem->location->mapHeaderID);
         String_AppendAscii(line, "Map: ");
         String_AppendAscii(line, background < BACKGROUND_MAX ? sBackgroundNames[background] : "?");
     } else {
@@ -379,7 +379,7 @@ static const char *GiveMegaMon(FieldSystem *fieldSystem)
 
     Pokemon_Init(mon);
     Pokemon_InitWith(mon, megaMon->species, DEBUG_MON_LEVEL, INIT_IVS_RANDOM, FALSE, 0, OTID_NOT_SET, 0);
-    Pokemon_SetCatchData(mon, SaveData_GetTrainerInfo(saveData), ITEM_POKE_BALL, MapHeader_GetMapLabelTextID(fieldSystem->location->mapId), TERRAIN_MAX, HEAP_ID_FIELD3);
+    Pokemon_SetCatchData(mon, SaveData_GetTrainerInfo(saveData), ITEM_POKE_BALL, MapHeader_GetMapLabelTextID(fieldSystem->location->mapHeaderID), TERRAIN_MAX, HEAP_ID_FIELD3);
 
     heldItem = megaMon->megaStone;
     Pokemon_SetValue(mon, MON_DATA_HELD_ITEM, &heldItem);
@@ -442,13 +442,13 @@ static BOOL FieldTask_DebugQuickBattle(FieldTask *task)
         }
 
         if (pressed & PAD_BUTTON_A) {
-            Sound_PlayEffect(SEQ_SE_CONFIRM);
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
             StartBattle(task, fieldSystem, quickBattle, FALSE);
             return FALSE;
         }
 
         if (pressed & PAD_BUTTON_X) {
-            Sound_PlayEffect(SEQ_SE_CONFIRM);
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
             StartBattle(task, fieldSystem, quickBattle, TRUE);
             return FALSE;
         }
@@ -470,7 +470,7 @@ static BOOL FieldTask_DebugQuickBattle(FieldTask *task)
             sTotemChoice = (sTotemChoice + 1) % TOTEM_ENCOUNTER_COUNT;
         } else if (pressed & PAD_BUTTON_START) {
             quickBattle->status = GiveMegaMon(fieldSystem);
-            Sound_PlayEffect(SEQ_SE_CONFIRM);
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
         } else if (pressed & PAD_BUTTON_SELECT) {
             sTimeOfDayChoice = (sTimeOfDayChoice + 1) % NUM_TIME_OF_DAY_CHOICES;
         }
@@ -506,7 +506,7 @@ BOOL DebugQuickBattle_TryStart(FieldSystem *fieldSystem, u32 heldKeys)
         return FALSE;
     }
 
-    int moveState = Player_MoveState(fieldSystem->playerAvatar);
+    int moveState = PlayerAvatar_GetPlayerMoveState(fieldSystem->playerAvatar);
 
     if (moveState != PLAYER_MOVE_STATE_END && moveState != PLAYER_MOVE_STATE_NONE) {
         return FALSE;

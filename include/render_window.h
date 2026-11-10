@@ -43,12 +43,23 @@
 #define SIGNPOST_FRAME_TILE_H         3
 #define SIGNPOST_FRAME_TILE_COUNT     (SIGNPOST_FRAME_TILE_W * SIGNPOST_FRAME_TILE_H)
 
+#define YES_NO_MENU_TILE_W     6
+#define YES_NO_MENU_TILE_H     4
+#define YES_NO_MENU_TILE_COUNT (YES_NO_MENU_TILE_W * YES_NO_MENU_TILE_H)
+
 typedef struct WaitDial WaitDial;
 
 enum StandardWindowType {
     STANDARD_WINDOW_SYSTEM = 0,
     STANDARD_WINDOW_FIELD,
     STANDARD_WINDOW_UNDERGROUND,
+};
+
+enum PokemonPreviewState {
+    PREVIEW_STATE_WAIT = 0,
+    PREVIEW_STATE_REMOVE,
+    PREVIEW_STATE_SET_ANIM,
+    PREVIEW_STATE_WAIT_ANIM,
 };
 
 void LoadStandardWindowTiles(BgConfig *bgConfig, u8 bgLayer, u16 offset, u8 standardWindowType, u32 heapID);

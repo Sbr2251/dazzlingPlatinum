@@ -19,7 +19,7 @@
                 "MOVE_CONFUSE_RAY",
                 "MOVE_AIR_CUTTER"
             ],
-            "power": 120,
+            "iv_scale": 120,
             "ball_seal": 0,
             "ability": "ABILITY_INNER_FOCUS"
         },
@@ -34,7 +34,7 @@
                 "MOVE_THUNDER_FANG",
                 "MOVE_ROAR"
             ],
-            "power": 120,
+            "iv_scale": 120,
             "ball_seal": 0,
             "ability": "ABILITY_FLASH_FIRE"
         }

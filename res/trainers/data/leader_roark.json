@@ -24,7 +24,7 @@
                 "MOVE_MAGNITUDE",
                 "MOVE_DEFENSE_CURL"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0
         },
         {
@@ -38,7 +38,7 @@
                 "MOVE_ROCK_THROW",
                 "MOVE_BIND"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0
         },
         {
@@ -52,7 +52,7 @@
                 "MOVE_ZEN_HEADBUTT",
                 "MOVE_LEER"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0
         }
     ],
@@ -61,7 +61,7 @@
             "type": "TRMSG_LAST_BATTLER",
             "en_US": [
                 "Think you can take down the \n",
-                "next Pokémon like you did earlier?\n"
+                "next Pok\u00e9mon like you did earlier?\n"
             ]
         },
         {
@@ -74,8 +74,8 @@
         {
             "type": "TRMSG_DEFEAT",
             "en_US": [
-                "W-what? That can’t be!\n",
-                "My buffed-up Pokémon!\n"
+                "W-what? That can\u2019t be!\n",
+                "My buffed-up Pok\u00e9mon!\n"
             ]
         }
     ]

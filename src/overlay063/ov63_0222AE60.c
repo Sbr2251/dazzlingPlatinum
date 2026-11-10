@@ -448,7 +448,7 @@ UnkStruct_ov63_0222BB38 *ov63_0222B0C0(UnkStruct_ov63_0222AE60 *param0, const Un
     v1.priority = param1->unk_04;
     v1.heapID = heapID;
 
-    if ((param0->unk_10[v2].unk_0C == NNS_G2D_VRAM_TYPE_MAX) || (param0->unk_10[v2].unk_0C == NNS_G2D_VRAM_TYPE_2DMAIN)) {
+    if ((param0->unk_10[v2].unk_0C == NNS_G2D_VRAM_TYPE_2DBOTH) || (param0->unk_10[v2].unk_0C == NNS_G2D_VRAM_TYPE_2DMAIN)) {
         v1.vramType = NNS_G2D_VRAM_TYPE_2DMAIN;
     } else {
         v1.vramType = NNS_G2D_VRAM_TYPE_2DSUB;
@@ -481,7 +481,7 @@ UnkStruct_ov63_0222BB38 *ov63_0222B0C0(UnkStruct_ov63_0222AE60 *param0, const Un
         v1.priority = param0->unk_227C;
         v1.heapID = heapID;
 
-        if ((param0->unk_10[v2].unk_0C == NNS_G2D_VRAM_TYPE_MAX) || (param0->unk_10[v2].unk_0C == NNS_G2D_VRAM_TYPE_2DMAIN)) {
+        if ((param0->unk_10[v2].unk_0C == NNS_G2D_VRAM_TYPE_2DBOTH) || (param0->unk_10[v2].unk_0C == NNS_G2D_VRAM_TYPE_2DMAIN)) {
             v1.vramType = NNS_G2D_VRAM_TYPE_2DMAIN;
         } else {
             v1.vramType = NNS_G2D_VRAM_TYPE_2DSUB;
@@ -686,7 +686,7 @@ static u32 ov63_0222B450(u32 param0)
         }
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
     return 0;
 }
 
@@ -983,7 +983,7 @@ static UnkStruct_ov63_0222BB38 *ov63_0222BB00(UnkStruct_ov63_0222AE60 *param0)
         }
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -1124,10 +1124,10 @@ static void ov63_0222BC80(UnkStruct_ov63_0222AE60 *param0, SpriteResource *param
     v1[1] = SpriteTransfer_GetPlttOffset(param1, NNS_G2D_VRAM_TYPE_2DSUB);
 
     if (v1[0] != (NNS_G2D_VRAM_ADDR_NOT_INITIALIZED)) {
-        PaletteData_LoadBuffer(param0->unk_04, v0->pRawData, 2, v1[0] * 16, param2 * 32);
+        PaletteData_LoadBuffer(param0->unk_04, v0->pRawData, PLTTBUF_MAIN_OBJ, PLTT_DEST(v1[0]), param2 * PALETTE_SIZE_BYTES);
     }
 
     if (v1[1] != (NNS_G2D_VRAM_ADDR_NOT_INITIALIZED)) {
-        PaletteData_LoadBuffer(param0->unk_04, v0->pRawData, 3, v1[1] * 16, param2 * 32);
+        PaletteData_LoadBuffer(param0->unk_04, v0->pRawData, PLTTBUF_SUB_OBJ, PLTT_DEST(v1[1]), param2 * PALETTE_SIZE_BYTES);
     }
 }

@@ -9,7 +9,7 @@
 #include "heap.h"
 #include "narc.h"
 #include "pokemon_sprite.h"
-#include "unk_020366A0.h"
+#include "comm_manager.h"
 
 #define CHAR_ROW_BYTES    0x80 // the manager's char data is a 256 wide 4bpp texture
 #define SLOT_ROW_BYTES    (MON_SPRITE_FRAME_WIDTH / 2)
@@ -407,7 +407,7 @@ static void Load(PokemonSpriteManager *monSpriteMan, int index)
     stream->lookedUp = TRUE;
 
     // An allocation failure during communication resets the game
-    if (CommMan_IsInitialized()) {
+    if (CommManager_IsInitialized()) {
         return;
     }
 

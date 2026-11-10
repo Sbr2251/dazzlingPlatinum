@@ -55,7 +55,6 @@
 // turns off under a standing player: pads only SET toward open, and
 // the frame-fall init line is not needed).
 
-#include "generated/map_headers.h"
 #include "generated/vars_flags.h"
 
 #include "location.h"

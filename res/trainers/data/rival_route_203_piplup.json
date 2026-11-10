@@ -5,7 +5,7 @@
     "ai_flags": [
         "AI_FLAG_BASIC",
         "AI_FLAG_EVAL_ATTACK",
-        "AI_FLAG_DAMAGE_PRIORITY"
+        "AI_FLAG_PRIORITIZE_EXTREMES"
     ],
     "double_battle": false,
     "party": [
@@ -18,7 +18,7 @@
                 "MOVE_QUICK_ATTACK",
                 "MOVE_GROWL"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         },
         {
@@ -30,7 +30,7 @@
                 "MOVE_TACKLE",
                 "MOVE_GROWL"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         },
         {
@@ -42,7 +42,7 @@
                 "MOVE_TACKLE",
                 "MOVE_WITHDRAW"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         }
     ],
@@ -51,20 +51,20 @@
             "type": "TRMSG_FIRST_DAMAGE",
             "en_US": [
                 "Forget it!\n",
-                "This isn’t over yet!\n"
+                "This isn\u2019t over yet!\n"
             ]
         },
         {
             "type": "TRMSG_LAST_BATTLER_HALF_HP",
             "en_US": [
-                "My Pokémon’s getting low on HP...\n",
+                "My Pok\u00e9mon\u2019s getting low on HP...\n",
                 "Things could be tight here.\n"
             ]
         },
         {
             "type": "TRMSG_DEFEAT",
             "en_US": [
-                "What’s going on here?\n",
+                "What\u2019s going on here?\n",
                 "What, I lost?!\n"
             ]
         }

@@ -20,7 +20,7 @@
                 "MOVE_TAUNT",
                 "MOVE_LEER"
             ],
-            "power": 120,
+            "iv_scale": 120,
             "ball_seal": 0,
             "ability": "ABILITY_BLAZE"
         }

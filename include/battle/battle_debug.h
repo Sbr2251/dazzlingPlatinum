@@ -3,7 +3,7 @@
 
 #include "struct_decls/battle_system.h"
 
-#include "battle/struct_ov16_0225BFFC_decl.h"
+typedef struct BattlerData BattlerData;
 
 // In-battle debug tools (DEBUG_BATTLE_TOOLS only). At the Fight/Bag/Pokemon/Run menu, hold L+R and press:
 //   LEFT/RIGHT  move ID -1/+1        UP/DOWN  move ID +10/-10

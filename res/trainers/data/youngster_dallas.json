@@ -17,7 +17,7 @@
                 "MOVE_GROWL",
                 "MOVE_FOCUS_ENERGY"
             ],
-            "power": 20,
+            "iv_scale": 20,
             "ball_seal": 0
         },
         {
@@ -29,7 +29,7 @@
                 "MOVE_TACKLE",
                 "MOVE_LEER"
             ],
-            "power": 20,
+            "iv_scale": 20,
             "ball_seal": 0
         }
     ],
@@ -37,7 +37,7 @@
         {
             "type": "TRMSG_PRE_BATTLE",
             "en_US": [
-                "I’m never apart from my SHINX.\n",
+                "I\u2019m never apart from my SHINX.\n",
                 "Our bond is strong!\r"
             ]
         },
@@ -51,16 +51,16 @@
         {
             "type": "TRMSG_POST_BATTLE",
             "en_US": [
-                "I don’t bear grudges over losing.\n",
-                "But I promise I’ll get tougher!\n"
+                "I don\u2019t bear grudges over losing.\n",
+                "But I promise I\u2019ll get tougher!\n"
             ]
         },
         {
             "type": "TRMSG_REMATCH",
             "en_US": [
-                "I’m always with my Pokémon.\r",
-                "Actually, you’re always with your\n",
-                "Pokémon too, aren’t you?\r"
+                "I\u2019m always with my Pok\u00e9mon.\r",
+                "Actually, you\u2019re always with your\n",
+                "Pok\u00e9mon too, aren\u2019t you?\r"
             ]
         }
     ]

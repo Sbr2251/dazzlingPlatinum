@@ -22,7 +22,6 @@
 // removed from events_dw_eterna_forest.json so the fall goes through
 // the engine exactly once.
 
-#include "generated/map_headers.h"
 #include "generated/vars_flags.h"
 
 #include "location.h"
@@ -101,7 +100,7 @@ static const DwPuzzleTile sTiles[] = {
 const DwPuzzleTable gDwPuzzleEternaForestTable = {
     MAP_HEADER_DW_ETERNA_FOREST,
     24, 24,                      // VAR_ARC2_PROGRESS gate
-    5, VAR_MAP_LOCAL_2,           // frame-fall script (HoneyFall), fallVar
+    5, VAR_MAP_LOCAL_0x02,           // frame-fall script (HoneyFall), fallVar
     1, 1, 4, 0, 7, 8,            // group/sigil/rune/current/checkpoint/tile counts
     0, 0,                        // testOnly (production table), padding
     sGroups, sSigils, sRunes, NULL, sCheckpoints, sTiles,

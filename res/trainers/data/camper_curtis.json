@@ -19,7 +19,7 @@
                 "MOVE_LEER",
                 "MOVE_CHARGE"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         },
         {
@@ -32,7 +32,7 @@
                 "MOVE_HARDEN",
                 "MOVE_MUD_SLAP"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         }
     ],
@@ -41,7 +41,7 @@
             "type": "TRMSG_PRE_BATTLE",
             "en_US": [
                 "We Trainers will accept challenges\n",
-                "anywhere! It’s what we do.\r"
+                "anywhere! It\u2019s what we do.\r"
             ]
         },
         {
@@ -54,8 +54,8 @@
         {
             "type": "TRMSG_POST_BATTLE",
             "en_US": [
-                "Pokémon can appear anywhere in a cave.\n",
-                "It’s not like the tall grass by roads.\n"
+                "Pok\u00e9mon can appear anywhere in a cave.\n",
+                "It\u2019s not like the tall grass by roads.\n"
             ]
         }
     ]

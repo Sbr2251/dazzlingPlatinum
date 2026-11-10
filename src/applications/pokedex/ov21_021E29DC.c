@@ -3,9 +3,10 @@
 #include <nitro.h>
 #include <string.h>
 
+#include "applications/pokedex/infomain.h"
+#include "applications/pokedex/infomain_foreign.h"
 #include "applications/pokedex/ov21_021D4340.h"
 #include "applications/pokedex/ov21_021DC9BC.h"
-#include "applications/pokedex/ov21_021E0C68.h"
 #include "applications/pokedex/ov21_021E3FFC.h"
 #include "applications/pokedex/pokedex_app.h"
 #include "applications/pokedex/pokedex_data_manager.h"
@@ -18,7 +19,6 @@
 #include "applications/pokedex/pokedex_text_manager.h"
 #include "applications/pokedex/struct_ov21_021D4660.h"
 #include "applications/pokedex/struct_ov21_021D5B68.h"
-#include "applications/pokedex/struct_ov21_021DE6D4.h"
 #include "applications/pokedex/struct_ov21_021E68F4.h"
 
 #include "bg_window.h"
@@ -36,7 +36,7 @@
 #include "touch_screen_actions.h"
 #include "unk_02012744.h"
 
-#include "res/graphics/pokedex/zukan.naix.h"
+#include "res/graphics/pokedex/zukan.naix"
 #include "res/text/bank/pokedex.h"
 
 typedef struct {
@@ -44,7 +44,7 @@ typedef struct {
     PokedexSortData *unk_04;
     int unk_08;
     UnkStruct_ov21_021D5B68 *unk_0C;
-    UnkStruct_ov21_021DE6D4 *unk_10;
+    InfoMainState *unk_10;
     PokedexScreenManager *unk_14;
     PokedexScreenManager *unk_18;
     PokedexScreenManager *unk_1C;
@@ -315,7 +315,7 @@ static int ov21_021E2C24(PokedexDataManager *dataMan, void *data)
 {
     UnkStruct_ov21_021E2BA8 *v0 = data;
 
-    v0->unk_10->unk_1C = 1;
+    v0->unk_10->playCry = 1;
 
     return 1;
 }
@@ -378,7 +378,7 @@ static int ov21_021E2C64(void *graphics, PokedexGraphicsManager *graphicsMan, co
         ov21_021E3BFC(v3);
         return 1;
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         break;
     }
 
@@ -433,7 +433,7 @@ static int ov21_021E2D38(void *graphics, PokedexGraphicsManager *graphicsMan, co
     case 4:
         return 1;
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         break;
     }
 
@@ -450,15 +450,15 @@ static void ov21_021E2E10(UnkStruct_ov21_021E2BA8 *param0)
 {
     *param0->unk_00 |= (0x1 << 1);
     param0->unk_28 = 0;
-    param0->unk_10->unk_14 = 0;
+    param0->unk_10->animationMode = 0;
 
-    ov21_021E0CDC(param0->unk_18, 0);
+    InfoMainForeign_SetAnimationMode(param0->unk_18, ANIM_POSITION_BLEND);
 
     switch (param0->unk_08) {
     case 0:
-        param0->unk_10->unk_08 = 56;
-        param0->unk_10->unk_0C = 80;
-        ov21_021E0CD4(param0->unk_18, 56, 80);
+        param0->unk_10->displayPositionX = 56;
+        param0->unk_10->displayPositionY = 80;
+        InfoMainForeign_SetDisplayPosition(param0->unk_18, 56, 80);
         param0->unk_0C->unk_14 = 1;
         param0->unk_2C = 1;
         break;
@@ -502,9 +502,9 @@ static BOOL ov21_021E2EC4(UnkStruct_ov21_021E2BA8 *param0, int param1, int param
     switch (param1) {
     case 0:
         if (ov21_021E2EC0(param2)) {
-            param0->unk_10->unk_14 = 2;
+            param0->unk_10->animationMode = 2;
         } else {
-            param0->unk_10->unk_14 = 1;
+            param0->unk_10->animationMode = 1;
         }
 
         *param0->unk_00 |= (0x1 << 2);
@@ -555,23 +555,23 @@ static BOOL ov21_021E2EC4(UnkStruct_ov21_021E2BA8 *param0, int param1, int param
         }
         break;
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         break;
     }
 
     switch (param2) {
     case 0:
         if (ov21_021E2EC0(param1)) {
-            param0->unk_10->unk_14 = 2;
-            ov21_021E0CDC(param0->unk_18, 2);
+            param0->unk_10->animationMode = 2;
+            InfoMainForeign_SetAnimationMode(param0->unk_18, ANIM_POSITION);
         } else {
-            param0->unk_10->unk_14 = 1;
-            ov21_021E0CDC(param0->unk_18, 1);
+            param0->unk_10->animationMode = 1;
+            InfoMainForeign_SetAnimationMode(param0->unk_18, ANIM_BLEND);
         }
 
-        param0->unk_10->unk_08 = v0;
-        param0->unk_10->unk_0C = v1;
-        ov21_021E0CD4(param0->unk_18, v0, v1);
+        param0->unk_10->displayPositionX = v0;
+        param0->unk_10->displayPositionY = v1;
+        InfoMainForeign_SetDisplayPosition(param0->unk_18, v0, v1);
         break;
     case 1:
         if (ov21_021E2EC0(param1)) {
@@ -598,7 +598,7 @@ static BOOL ov21_021E2EC4(UnkStruct_ov21_021E2BA8 *param0, int param1, int param
     case 4:
         break;
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         break;
     }
 
@@ -737,7 +737,7 @@ static void ov21_021E331C(UnkStruct_ov21_021E326C *param0, int param1)
 static void ov21_021E3320(UnkStruct_ov21_021E2BA8 *param0)
 {
     param0->unk_28 = 1;
-    param0->unk_10->unk_14 = 1;
+    param0->unk_10->animationMode = 1;
 }
 
 void ov21_021E332C(PokedexScreenManager *screenMan, PokedexApp *param1, enum HeapID heapID)
@@ -1078,7 +1078,7 @@ static void ov21_021E3734(UnkStruct_ov21_021E37B4 *param0, UnkStruct_ov21_021E34
         }
         break;
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         break;
     }
 }
@@ -1109,38 +1109,38 @@ static void ov21_021E37CC(u32 param0, enum TouchScreenButtonState param1, void *
         switch (param0) {
         case 5:
             ov21_021E2E00(v3);
-            Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+            Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
             break;
         case 0:
             if (v3->unk_08 != 0) {
                 ov21_021E3C18(v1, 0, v3->unk_08);
                 ov21_021E3E8C(v2, v1);
-                Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
             }
             break;
         case 1:
             if (v3->unk_08 != 1) {
                 ov21_021E3C18(v1, 1, v3->unk_08);
                 ov21_021E3E8C(v2, v1);
-                Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
             }
             break;
         case 2:
             if (v3->unk_08 != 2) {
                 ov21_021E3C18(v1, 2, v3->unk_08);
                 ov21_021E3E8C(v2, v1);
-                Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
             }
             break;
         case 3:
             if (v3->unk_08 != 3) {
                 if (ov21_021E3C18(v1, 3, v3->unk_08)) {
                     ov21_021E3E8C(v2, v1);
-                    Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                    Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
                 } else {
                     if (v2->unk_10 == 0) {
                         if (v3->unk_08 != 2) {
-                            Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+                            Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
                         }
 
                         v2->unk_10 = 1;
@@ -1152,12 +1152,12 @@ static void ov21_021E37CC(u32 param0, enum TouchScreenButtonState param1, void *
             if (v3->unk_08 != 4) {
                 if (ov21_021E3C18(v1, 4, v3->unk_08)) {
                     ov21_021E3E8C(v2, v1);
-                    Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                    Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
                 } else {
                     if (v2->unk_10 == 0) {
                         if (PokedexSort_CanDetectForms(v3->unk_04) == 1) {
                             if (v3->unk_08 != 2) {
-                                Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+                                Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
                             }
                         }
 
@@ -1355,7 +1355,7 @@ static void ov21_021E3C34(UnkStruct_ov21_021E342C *param0)
     if (gSystem.pressedKeys & PAD_BUTTON_B) {
         ov21_021E2E00(v0);
         param0->unk_2C = 1;
-        Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+        Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
         return;
     }
 }
@@ -1411,31 +1411,31 @@ static void ov21_021E3D48(UnkStruct_ov21_021E37B4 *param0, UnkStruct_ov21_021E34
             if (v0->unk_08 != 0) {
                 ov21_021E3C18(param1, 0, v0->unk_08);
                 param1->unk_0C[0] = 2;
-                Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
             }
             break;
         case 1:
             if (v0->unk_08 != 1) {
                 ov21_021E3C18(param1, 1, v0->unk_08);
                 param1->unk_0C[1] = 2;
-                Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
             }
             break;
         case 2:
             if (v0->unk_08 != 2) {
                 ov21_021E3C18(param1, 2, v0->unk_08);
                 param1->unk_0C[2] = 2;
-                Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
             }
             break;
         case 3:
             if (v0->unk_08 != 3) {
                 if (ov21_021E3C18(param1, 3, v0->unk_08)) {
                     param1->unk_0C[3] = 2;
-                    Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                    Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
                 } else {
                     if (v0->unk_08 != 2) {
-                        Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+                        Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
                     }
                 }
             }
@@ -1444,10 +1444,10 @@ static void ov21_021E3D48(UnkStruct_ov21_021E37B4 *param0, UnkStruct_ov21_021E34
             if (v0->unk_08 != 4) {
                 if (ov21_021E3C18(param1, 4, v0->unk_08)) {
                     param1->unk_0C[4] = 2;
-                    Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                    Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
                 } else {
                     if (v0->unk_08 != 2) {
-                        Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+                        Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
                     }
                 }
             }
@@ -1456,7 +1456,7 @@ static void ov21_021E3D48(UnkStruct_ov21_021E37B4 *param0, UnkStruct_ov21_021E34
             ov21_021E2E00(v0);
             param1->unk_2C = 1;
             param1->unk_0C[5] = 2;
-            Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+            Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
             break;
         }
     }

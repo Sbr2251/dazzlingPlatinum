@@ -69,17 +69,17 @@ u32 Menu_ProcessInput(Menu *menu)
     menu->lastAction = MENU_ACTION_NONE;
 
     if (JOY_NEW(PAD_BUTTON_A)) {
-        Sound_PlayEffect(SEQ_SE_CONFIRM);
-        return menu->template.choices[menu->cursorPos].index;
+        Sound_PlayEffect(SE_CONFIRM_sseq_3);
+        return menu->template.choices[menu->cursorPos].callbackFunction;
     }
 
     if (JOY_NEW(menu->cancelKeys)) {
-        Sound_PlayEffect(SEQ_SE_CONFIRM);
-        return MENU_CANCELED;
+        Sound_PlayEffect(SE_CONFIRM_sseq_3);
+        return MENU_CANCEL;
     }
 
     if (JOY_NEW(PAD_KEY_UP)) {
-        if (TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_UP, SEQ_SE_CONFIRM) == TRUE) {
+        if (TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_UP, SE_CONFIRM_sseq_3) == TRUE) {
             menu->lastAction = MENU_ACTION_MOVE_UP;
         }
 
@@ -87,7 +87,7 @@ u32 Menu_ProcessInput(Menu *menu)
     }
 
     if (JOY_NEW(PAD_KEY_DOWN)) {
-        if (TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_DOWN, SEQ_SE_CONFIRM) == TRUE) {
+        if (TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_DOWN, SE_CONFIRM_sseq_3) == TRUE) {
             menu->lastAction = MENU_ACTION_MOVE_DOWN;
         }
 
@@ -95,7 +95,7 @@ u32 Menu_ProcessInput(Menu *menu)
     }
 
     if (JOY_NEW(PAD_KEY_LEFT)) {
-        if (TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_LEFT, SEQ_SE_CONFIRM) == TRUE) {
+        if (TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_LEFT, SE_CONFIRM_sseq_3) == TRUE) {
             menu->lastAction = MENU_ACTION_MOVE_LEFT;
         }
 
@@ -103,7 +103,7 @@ u32 Menu_ProcessInput(Menu *menu)
     }
 
     if (JOY_NEW(PAD_KEY_RIGHT)) {
-        if (TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_RIGHT, SEQ_SE_CONFIRM) == TRUE) {
+        if (TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_RIGHT, SE_CONFIRM_sseq_3) == TRUE) {
             menu->lastAction = MENU_ACTION_MOVE_RIGHT;
         }
 
@@ -118,13 +118,13 @@ u32 Menu_ProcessInputWithSound(Menu *menu, u16 sdatID)
     menu->lastAction = MENU_ACTION_NONE;
 
     if (JOY_NEW(PAD_BUTTON_A)) {
-        Sound_PlayEffect(SEQ_SE_CONFIRM);
+        Sound_PlayEffect(SE_CONFIRM_sseq_3);
         return menu->template.choices[menu->cursorPos].index;
     }
 
     if (JOY_NEW(menu->cancelKeys)) {
-        Sound_PlayEffect(SEQ_SE_CONFIRM);
-        return MENU_CANCELED;
+        Sound_PlayEffect(SE_CONFIRM_sseq_3);
+        return MENU_CANCEL;
     }
 
     if (JOY_NEW(PAD_KEY_UP)) {
@@ -166,27 +166,27 @@ u32 Menu_ProcessExternalInput(Menu *menu, u8 input)
 {
     switch (input) {
     case MENU_INPUT_CONFIRM:
-        Sound_PlayEffect(SEQ_SE_CONFIRM);
+        Sound_PlayEffect(SE_CONFIRM_sseq_3);
         return menu->template.choices[menu->cursorPos].index;
 
     case MENU_INPUT_CANCEL:
-        Sound_PlayEffect(SEQ_SE_CONFIRM);
+        Sound_PlayEffect(SE_CONFIRM_sseq_3);
         return 0xfffffffe;
 
     case MENU_INPUT_MOVE_UP:
-        TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_UP, SEQ_SE_CONFIRM);
+        TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_UP, SE_CONFIRM_sseq_3);
         return MENU_NOTHING_CHOSEN;
 
     case MENU_INPUT_MOVE_DOWN:
-        TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_DOWN, SEQ_SE_CONFIRM);
+        TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_DOWN, SE_CONFIRM_sseq_3);
         return MENU_NOTHING_CHOSEN;
 
     case MENU_INPUT_MOVE_LEFT:
-        TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_LEFT, SEQ_SE_CONFIRM);
+        TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_LEFT, SE_CONFIRM_sseq_3);
         return MENU_NOTHING_CHOSEN;
 
     case MENU_INPUT_MOVE_RIGHT:
-        TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_RIGHT, SEQ_SE_CONFIRM);
+        TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_RIGHT, SE_CONFIRM_sseq_3);
         return MENU_NOTHING_CHOSEN;
     }
 
@@ -284,7 +284,7 @@ static u8 TryMovingCursor(Menu *menu, u8 direction)
         }
     }
 
-    if (menu->template.choices[newCursorPos].index == MENU_DUMMY) {
+    if (menu->template.choices[newCursorPos].index == MENU_HEADER) {
         return FALSE;
     }
 
@@ -354,8 +354,8 @@ Menu *Menu_MakeYesNoChoiceWithCursorAt(BgConfig *bgConfig, const WindowTemplate 
     MessageLoader *msgLoader = MessageLoader_Init(MSG_LOADER_LOAD_ON_DEMAND, NARC_INDEX_MSGDATA__PL_MSG, TEXT_BANK_MENU_ENTRIES, heapID);
     StringList *choices = StringList_New(2, heapID);
 
-    StringList_AddFromMessageBank(choices, msgLoader, pl_msg_00000361_00041, 0);
-    StringList_AddFromMessageBank(choices, msgLoader, pl_msg_00000361_00042, MENU_CANCELED);
+    StringList_AddFromMessageBank(choices, msgLoader, MenuEntries_Text_Yes, 0);
+    StringList_AddFromMessageBank(choices, msgLoader, MenuEntries_Text_No, MENU_CANCEL);
     MessageLoader_Free(msgLoader);
 
     menuTemplate.choices = choices;

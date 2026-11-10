@@ -2,7 +2,7 @@
   "key": 5123,
   "messages": [
     {
-      "id": "pl_msg_00000091_00000",
+      "id": "CycleShop_Text_ThanksForRescuingMe",
       "en_US": [
         "You're the kid who shut down that\n",
         "so-called Haven, aren't you?\r",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "pl_msg_00000091_00001",
+      "id": "CycleShop_Text_IllReadOperatingManual",
       "en_US": [
         "It’s the latest model, so I’ll read\n",
         "the operating manual to you.\r",
@@ -26,11 +26,11 @@
       ]
     },
     {
-      "id": "pl_msg_00000091_00002",
+      "id": "CycleShop_Text_ClefairyPipPiih",
       "en_US": "CLEFAIRY: Pip piih!"
     },
     {
-      "id": "pl_msg_00000091_00003",
+      "id": "CycleShop_Text_ManagersGoneOff",
       "en_US": [
         "The manager's gone to that Haven\n",
         "place with his Buneary.\r",
@@ -39,14 +39,14 @@
       ]
     },
     {
-      "id": "pl_msg_00000091_00004",
+      "id": "CycleShop_Text_WhatWasTeamGalacticTrying",
       "en_US": [
         "What was Team Eclipse really\n",
         "doing with all those Pokémon?"
       ]
     },
     {
-      "id": "pl_msg_00000091_00005",
+      "id": "CycleShop_Text_ManualOnLatestBicycle",
       "en_US": [
         "There is a manual on the latest\n",
         "model Bicycle.\r",
@@ -57,7 +57,7 @@
       ]
     },
     {
-      "id": "pl_msg_00000091_00006",
+      "id": "CycleShop_Text_CatalogFromHoenn",
       "en_US": [
         "There’s a catalog from the Hoenn region\n",
         "on its popular Bikes...\r",

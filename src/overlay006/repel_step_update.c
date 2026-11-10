@@ -3,6 +3,8 @@
 #include <nitro.h>
 #include <string.h>
 
+#include "constants/field/script_ranges.h"
+
 #include "field/field_system_decl.h"
 
 #include "savedata.h"
@@ -17,7 +19,7 @@ BOOL Repel_UpdateSteps(SaveData *saveData, FieldSystem *fieldSystem)
         (*repelSteps)--;
 
         if (*repelSteps == 0) {
-            ScriptManager_Set(fieldSystem, 2032, NULL);
+            ScriptManager_Set(fieldSystem, SCRIPT_ID(COMMON_SCRIPTS, 32), NULL);
             return TRUE;
         }
     }

@@ -20,6 +20,7 @@ this is some code
   - [Fire Fang Always Bypasses Wonder Guard](#fire-fang-always-bypasses-wonder-guard)
   - [Post-KO Switch-In AI Scoring Overflow](#post-ko-switch-in-ai-scoring-overflow)
   - [Using a non-Rage Move After Rage Clears Every Volatile Status Except Rage](#using-a-non-rage-move-after-rage-clears-every-volatile-status-except-rage)
+  - [Trainers Do Not Use The Correct Stats of Pokémon Forms](#trainers-do-not-use-the-correct-stats-of-pokémon-forms)
 - [Battle Animations](#battle-animations)
   - [Using Facade Moves the Attacker's Sprite One Pixel Up](#using-facade-moves-the-attackers-sprite-one-pixel-up)
   - [Using DynamicPunch Moves the Target's Sprite One Pixel Left](#using-dynamicpunch-moves-the-targets-sprite-one-pixel-left)
@@ -28,6 +29,8 @@ this is some code
   - [Using Spit Up Moves the Attacker's Sprite Two Pixels Right](#using-spit-up-moves-the-attackers-sprite-two-pixels-right)
 - [Wild Encounters](#wild-encounters)
   - [Fishing Encounters ignore Sticky Hold and Suction Cups](#fishing-encounters-ignore-sticky-hold-and-suction-cups)
+- [Items](#items)
+  - [Defog HM Uses Water Palette](#defog-hm-uses-water-palette)
 - [Title Screen](#title-screen)
   - [Giratina Hover Range](#giratina-hover-range)
 - [3D Rendering](#3d-rendering)
@@ -81,7 +84,7 @@ or Uproar is in effect.
   trigger.
 </details>
 
-**Fix:** Edit [`res/battle/res/scripts/subscript_pursuit.s`](https://github.com/pret/pokeplatinum/blob/main/res/battle/scripts/subscripts/subscript_pursuit.s)
+**Fix:** Edit [`res/battle/scripts/subscripts/subscript_pursuit.s`](https://github.com/pret/pokeplatinum/blob/main/res/battle/scripts/subscripts/subscript_pursuit.s)
 
 ```diff
      UpdateVar OPCODE_ADD, BTLVAR_FAINTED_MON, BATTLER_ENEMY_1
@@ -158,6 +161,22 @@ as having a score equivalent to 65 rather than 320.
 +    battleCtx->battleMons[battler].statusVolatile &= ~VOLATILE_CONDITION_RAGE;
 ```
 
+### Trainers Do Not Use The Correct Stats of Pokémon Forms
+
+Some Pokémon forms, such as those of Wormadam and Rotom, have different stats. 
+However, Trainers do not use those different stats and instead use the stats
+of the base form (e.g., Sandy Cloak Wormadam would use Plant Cloak's stats).
+
+**Fix:** Edit the routine ``TrainerData_BuildParty`` in [`src/trainer_data.c`](https://github.com/pret/pokeplatinum/blob/cee98713fc2059bc15aab2bbd99e892ffd0a8ca5/src/trainer_data.c#L218):
+
+```diff
+      Pokemon_SetValue(mon, MON_DATA_FORM, &form);
++     Pokemon_CalcStats(mon);
+```
+
+There are multiple Trainer Pokémon data types, so there are multiple instances of the form being set.
+Repeat this process for every instance of ``Pokemon_SetValue(mon, MON_DATA_FORM, &form);``.
+
 ## Battle Animations
 
 ### Using Facade Moves the Attacker's Sprite One Pixel Up
@@ -165,7 +184,7 @@ as having a score equivalent to 65 rather than 320.
 Due to the delays between scale commands being too short, they overlap with
 each other, resulting in the sprite permanently moving upward.
 
-**Fix:** Increase the `Delay` values in [`res/battle/moves/facade/anim.s`](https://github.com/pret/pokeplatinum/blob/main/res/battle/moves/facade/anim.s)
+**Fix:** Increase the `Delay` values in [`res/moves/facade/anim.s`](https://github.com/pret/pokeplatinum/blob/main/res/moves/facade/anim.s)
 
 ```diff
 -    Delay 8
@@ -175,8 +194,8 @@ each other, resulting in the sprite permanently moving upward.
 Also update the sound effect timings to sync with the new delays:
 
 ```diff
--    PlayLoopedSoundEffectL SEQ_SE_DP_W207, 8, 6
-+    PlayLoopedSoundEffectL SEQ_SE_DP_W207, 10, 6
+-    PlayLoopedSoundEffectL SEQ_SE_DP_W207_sseq, 8, 6
++    PlayLoopedSoundEffectL SEQ_SE_DP_W207_sseq, 10, 6
 ```
 
 ### Using DynamicPunch Moves the Target's Sprite One Pixel Left
@@ -184,7 +203,7 @@ Also update the sound effect timings to sync with the new delays:
 Due to the delays between shake commands being too short, they overlap with
 each other, resulting in the sprite permanently moving left.
 
-**Fix:** Increase the `Delay` value in [`res/battle/moves/dynamic_punch/anim.s`](https://github.com/pret/pokeplatinum/blob/e7c9da4c9ff9e9c70c82fd03714cf9a9674d71cc/res/battle/moves/dynamic_punch/anim.s#L18)
+**Fix:** Increase the `Delay` value in [`res/moves/dynamic_punch/anim.s`](https://github.com/pret/pokeplatinum/blob/main/res/moves/dynamic_punch/anim.s#L18)
 
 ```diff
 -    Delay 3
@@ -196,7 +215,7 @@ each other, resulting in the sprite permanently moving left.
 Due to the delays between shake commands being too short, they overlap with
 each other, resulting in the sprite permanently moving left.
 
-**Fix:** Move the `Delay 1` command into the loop in [`res/battle/moves/helping_hand/anim.s`](https://github.com/pret/pokeplatinum/blob/e7c9da4c9ff9e9c70c82fd03714cf9a9674d71cc/res/battle/moves/helping_hand/anim.s#L19)
+**Fix:** Move the `Delay 1` command into the loop in [`res/moves/helping_hand/anim.s`](https://github.com/pret/pokeplatinum/blob/main/res/moves/helping_hand/anim.s#L19)
 
 
 ```diff
@@ -235,6 +254,23 @@ Essentially the same as Strength.
 +     PokemonSprite_SetAttribute(ctx->sprite, MON_SPRITE_X_CENTER, pos->x);
       ctx->state++;
     }
+```
+
+## Items
+
+### Defog HM Uses Water Palette
+
+HM05 (Defog) is a Flying-type move, but its TM/HM icon in the bag erroneously
+uses the water-type palette instead of the flying-type palette.
+
+**Fix:** Edit the `icon.palette` entry for the item data in [`res/items/data/hm05.json`](https://github.com/pret/pokeplatinum/blob/main/res/items/data/hm05.json):
+
+```diff
+  "icon": {
+    "sprite": "hm_NCGR",
+-   "palette": "tm_water_NCLR"
++   "palette": "tm_flying_NCLR"
+  },
 ```
 
 ## Wild Encounters

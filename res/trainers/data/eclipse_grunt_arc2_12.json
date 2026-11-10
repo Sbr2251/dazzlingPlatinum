@@ -19,7 +19,7 @@
                 "MOVE_SWAGGER",
                 "MOVE_SCARY_FACE"
             ],
-            "power": 100,
+            "iv_scale": 100,
             "ball_seal": 0,
             "ability": "ABILITY_INTIMIDATE"
         },
@@ -34,7 +34,7 @@
                 "MOVE_POISON_GAS",
                 "MOVE_SCREECH"
             ],
-            "power": 100,
+            "iv_scale": 100,
             "ball_seal": 0,
             "ability": "ABILITY_AFTERMATH"
         }

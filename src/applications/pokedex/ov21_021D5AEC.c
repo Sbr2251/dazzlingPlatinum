@@ -32,7 +32,7 @@
 #include "text.h"
 #include "unk_02012744.h"
 
-#include "res/graphics/pokedex/zukan.naix.h"
+#include "res/graphics/pokedex/zukan.naix"
 #include "res/text/bank/pokedex.h"
 
 typedef struct {
@@ -62,8 +62,8 @@ typedef struct {
     void *unk_D8;
     NNSG2dScreenData *unk_DC;
     PokedexLoadingScreen loadingScreen;
-    CursorTransformation unk_104;
-    CursorTransformation unk_124;
+    SpriteTransformation unk_104;
+    SpriteTransformation unk_124;
     int unk_144;
 } UnkStruct_ov21_021D71A8;
 
@@ -379,7 +379,7 @@ static int ov21_021D5D48(void *graphics, PokedexGraphicsManager *graphicsMan, co
         G2_SetBlendAlpha(GX_BLEND_PLANEMASK_BG0, GX_BLEND_PLANEMASK_BG3, 0, 16);
         return 1;
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         break;
     }
 
@@ -458,7 +458,7 @@ static int ov21_021D5EA8(void *graphics, PokedexGraphicsManager *graphicsMan, co
     case 3:
         return 1;
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         break;
     }
 
@@ -545,13 +545,13 @@ static BOOL ov21_021D601C(UnkStruct_ov21_021D5B68 *param0, UnkStruct_ov21_021D74
 {
     if (param0->unk_28) {
         ov21_021D744C(param0);
-        Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+        Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
         return 1;
     }
 
     if (param0->unk_24) {
         ov21_021D7538(param0, param2);
-        Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+        Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
         return 1;
     }
 
@@ -560,7 +560,7 @@ static BOOL ov21_021D601C(UnkStruct_ov21_021D5B68 *param0, UnkStruct_ov21_021D74
 
         if (PokedexSort_DisplayIndexToStatusIndex(param0->unk_04, v0) != (NATIONAL_DEX_COUNT + 1)) {
             ov21_021D7464(param1, param0);
-            Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+            Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
             return 1;
         }
     }
@@ -1362,7 +1362,7 @@ static void ov21_021D6FB4(UnkStruct_ov21_021D71A8 *param0, PokedexGraphicData **
     int v2, v3;
     int v4;
 
-    Sound_PlayEffect(SEQ_SE_DP_BUTTON01);
+    Sound_PlayEffect(SEQ_SE_DP_BUTTON01_sseq);
 
     if (param2->unk_10 == 0) {
         if (param3) {
@@ -1600,7 +1600,7 @@ static void ov21_021D7394(UnkStruct_ov21_021D71A8 *param0, PokedexGraphicData **
 
 static BOOL ov21_021D73C8(UnkStruct_ov21_021D71A8 *param0, PokedexGraphicData **param1)
 {
-    BOOL v0 = PokedexGraphics_TakeCursorTransformStep(&param0->unk_104);
+    BOOL v0 = PokedexGraphics_TakeTransformStep(&param0->unk_104);
     PokemonGraphics_SetCharCenterXY(*param1, param0->unk_104.currentX, param0->unk_104.currentY);
 
     return v0;
@@ -1614,7 +1614,7 @@ static void ov21_021D73F0(UnkStruct_ov21_021D71A8 *param0, PokedexGraphicData **
 
 static BOOL ov21_021D7424(UnkStruct_ov21_021D71A8 *param0, PokedexGraphicData **param1)
 {
-    BOOL v0 = PokedexGraphics_TakeCursorTransformStep(&param0->unk_124);
+    BOOL v0 = PokedexGraphics_TakeTransformStep(&param0->unk_124);
     ov21_021D1848(*param1, param0->unk_124.currentX, param0->unk_124.currentY);
 
     return v0;
@@ -1644,7 +1644,7 @@ static BOOL ov21_021D747C(UnkStruct_ov21_021D5B68 *param0)
         param0->unk_10 = 0;
         param0->unk_14 = 0;
         param0->unk_20 = 2;
-        Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+        Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
         return 1;
     }
 
@@ -1669,7 +1669,7 @@ static BOOL ov21_021D74B0(UnkStruct_ov21_021D5B68 *param0, int param1)
 
     if (ov21_021D36A4(param0->unk_04, v0)) {
         ov21_021D36C0(param0->unk_04, v0);
-        Sound_PlayEffect(SEQ_SE_DP_DECIDE);
+        Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
         PokedexSort_SortUnfiltered(param0->unk_04, 0, 0, 0, 0, 0, v0, param1);
         PokedexSort_SetCurrentStatusIndex(param0->unk_04, 0);
 
@@ -1712,7 +1712,7 @@ static void ov21_021D7590(UnkStruct_ov21_021D7464 *param0, UnkStruct_ov21_021D5B
         if (ov21_021D6108(param1, param0->unk_1C)) {
             ov21_021D60FC(param1, param0, param0->unk_20);
             param1->unk_20 = 1;
-            Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+            Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
         } else {
             param0->unk_18 = 0;
         }
@@ -1729,7 +1729,7 @@ static void ov21_021D75DC(UnkStruct_ov21_021D7464 *param0, UnkStruct_ov21_021D5B
         if (ov21_021D6108(param1, -1)) {
             ov21_021D60FC(param1, param0, 2);
             param1->unk_20 = 1;
-            Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+            Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
         } else {
             ov21_021D5F58(param1, param0);
             param1->unk_20 = 0;
@@ -1742,7 +1742,7 @@ static void ov21_021D75DC(UnkStruct_ov21_021D7464 *param0, UnkStruct_ov21_021D5B
         if (ov21_021D6108(param1, 1)) {
             ov21_021D60FC(param1, param0, 1);
             param1->unk_20 = 1;
-            Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+            Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
         } else {
             ov21_021D5F58(param1, param0);
             param1->unk_20 = 0;

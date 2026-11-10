@@ -12,7 +12,7 @@
 #include "pokemon_sprite.h"
 #include "pokemon_sprite_stream.h"
 
-#include "res/pokemon/pl_otherpoke.naix.h"
+#include "res/pokemon/pl_otherpoke.naix"
 
 #define MAX_SPINDA_SPOTS       4
 #define SPINDA_SPOT_COORDS_END 0xFF
@@ -438,7 +438,7 @@ void *PokemonSpriteManager_New(enum HeapID heapID)
     NNS_G2dGetUnpackedCharacterData(shadowsNCGR, &charData);
 
     monSpriteMan->charData.pixelFmt = charData->pixelFmt;
-    monSpriteMan->charData.mapingType = charData->mapingType;
+    monSpriteMan->charData.mappingType = charData->mappingType;
     monSpriteMan->charData.characterFmt = charData->characterFmt;
     rawCharData = charData->pRawData;
 
@@ -1371,7 +1371,7 @@ static void BufferPokemonSpriteCharData(PokemonSpriteManager *monSpriteMan)
             NNS_G2dGetUnpackedCharacterData(ncgrFile, &charData);
 
             monSpriteMan->charData.pixelFmt = charData->pixelFmt;
-            monSpriteMan->charData.mapingType = charData->mapingType;
+            monSpriteMan->charData.mappingType = charData->mappingType;
             monSpriteMan->charData.characterFmt = charData->characterFmt;
 
             rawCharData = charData->pRawData;
@@ -1654,7 +1654,7 @@ void PokemonSprite_DrawSpindaSpots(u8 *rawCharData, u32 personality, BOOL isAnim
 static u16 PokemonSprite_LCRNGNext(u32 *seed)
 {
     *seed = *seed * LCRNG_MULTIPLIER + LCRNG_INCREMENT;
-    return (u16)(*seed / 65536L);
+    return (u16)(*seed / LCRNG_DIVISOR);
 }
 
 void PokemonSprite_DecryptPt(u8 *rawCharData)

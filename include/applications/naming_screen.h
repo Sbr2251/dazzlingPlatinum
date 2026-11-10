@@ -1,10 +1,9 @@
 #ifndef POKEPLATINUM_KEYBOARD_H
 #define POKEPLATINUM_KEYBOARD_H
 
-#include "struct_decls/pc_boxes_decl.h"
-
 #include "game_options.h"
 #include "overlay_manager.h"
+#include "pc_boxes.h"
 #include "string_gf.h"
 
 enum NamingScreenType {
@@ -14,7 +13,7 @@ enum NamingScreenType {
     NAMING_SCREEN_TYPE_RIVAL,
     NAMING_SCREEN_TYPE_UNK4,
     NAMING_SCREEN_TYPE_GROUP,
-    NAMING_SCREEN_TYPE_UNK6,
+    NAMING_SCREEN_TYPE_SHAYMIN_TABLET,
     NAMING_SCREEN_TYPE_PAL_PAD,
 };
 

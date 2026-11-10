@@ -20,7 +20,7 @@
                 "MOVE_GROWL",
                 "MOVE_POUND"
             ],
-            "power": 120,
+            "iv_scale": 120,
             "ball_seal": 0,
             "ability": "ABILITY_TORRENT"
         }

@@ -3,10 +3,8 @@
 
 #include "constants/heap.h"
 #include "constants/string.h"
+#include "constants/versions.h"
 #include "generated/genders.h"
-
-#include "struct_decls/struct_02015920_decl.h"
-#include "struct_defs/struct_02015958.h"
 
 #include "applications/naming_screen.h"
 #include "applications/rowan_intro/main.h"
@@ -43,7 +41,7 @@
 #include "text_banks.h"
 #include "trainer_info.h"
 #include "unk_0201567C.h"
-#include "unk_02015920.h"
+#include "yes_no_touch_menu.h"
 
 #include "res/text/bank/rowan_intro.h"
 
@@ -155,9 +153,9 @@ typedef struct RowanIntro {
     enum DisplayMessageState displayMessageState;
     int textPrinterID;
     String *string;
-    UnkStruct_020157E4 *unk_60;
+    PaletteAnimator *unk_60;
     StringTemplate *strFormatter;
-    UnkStruct_02015920 *unk_68;
+    YesNoTouchMenu *yesNoTouchMenu;
     SysTask *unused;
     NamingScreenArgs *playerNamingScreenArgs;
     NamingScreenArgs *rivalNamingScreenArgs;
@@ -187,8 +185,8 @@ static void RowanIntro_FreeGraphics(RowanIntro *manager);
 static void RowanIntro_InitMessageStructs(RowanIntro *manager);
 static void RowanIntro_FreeMessageStructs(RowanIntro *manager);
 // relating to unkown structure
-static void ov73_021D1318(RowanIntro *manager);
-static void ov73_021D1328(RowanIntro *manager);
+static void RowanIntro_InitYesNoTouchMenu(RowanIntro *manager);
+static void RowanIntro_FreeYesNoTouchMenu(RowanIntro *manager);
 static void RowanIntro_LoadInitialTilemaps(RowanIntro *manager);
 static void RowanIntro_LoadLayer3Tilemap(RowanIntro *manager);
 static void RowanIntro_LoadTilemap(RowanIntro *manager);
@@ -261,7 +259,7 @@ BOOL RowanIntro_Main(ApplicationManager *appMan, int *state)
 
         RowanIntro_InitGraphics(manager);
         RowanIntro_InitMessageStructs(manager);
-        ov73_021D1318(manager);
+        RowanIntro_InitYesNoTouchMenu(manager);
 
         SetVBlankCallback(RowanIntro_VBlankCallback, (void *)manager);
         GXLayers_TurnBothDispOn();
@@ -297,7 +295,7 @@ BOOL RowanIntro_Main(ApplicationManager *appMan, int *state)
         if (IsScreenFadeDone() == TRUE) {
             RowanIntro_FreeMessageStructs(manager);
             RowanIntro_FreeGraphics(manager);
-            ov73_021D1328(manager);
+            RowanIntro_FreeYesNoTouchMenu(manager);
             SetVBlankCallback(NULL, NULL);
 
             isFinished = TRUE;
@@ -307,7 +305,7 @@ BOOL RowanIntro_Main(ApplicationManager *appMan, int *state)
         if (IsScreenFadeDone() == TRUE) {
             RowanIntro_FreeMessageStructs(manager);
             RowanIntro_FreeGraphics(manager);
-            ov73_021D1328(manager);
+            RowanIntro_FreeYesNoTouchMenu(manager);
             SetVBlankCallback(NULL, NULL);
             *state = RI_APP_STATE_CHANGE_APP;
         }
@@ -457,7 +455,7 @@ static void RowanIntro_InitGraphics(RowanIntro *manager)
             3,
             0,
             manager->heapID);
-        Font_LoadTextPalette(PAL_LOAD_MAIN_BG, 5 * (2 * 16), manager->heapID);
+        Font_LoadTextPalette(PAL_LOAD_MAIN_BG, PLTT_OFFSET(5), manager->heapID);
         Font_LoadScreenIndicatorsPalette(
             PAL_LOAD_MAIN_BG,
             6 * (2 * 16),
@@ -576,14 +574,14 @@ static void RowanIntro_FreeMessageStructs(RowanIntro *manager)
     MessageLoader_Free(manager->msgLoader);
 }
 
-static void ov73_021D1318(RowanIntro *manager)
+static void RowanIntro_InitYesNoTouchMenu(RowanIntro *manager)
 {
-    manager->unk_68 = sub_02015920(manager->heapID);
+    manager->yesNoTouchMenu = YesNoTouchMenu_New(manager->heapID);
 }
 
-static void ov73_021D1328(RowanIntro *manager)
+static void RowanIntro_FreeYesNoTouchMenu(RowanIntro *manager)
 {
-    sub_02015938(manager->unk_68);
+    YesNoTouchMenu_Free(manager->yesNoTouchMenu);
 }
 
 static BOOL RowanIntro_FadeBgLayer(
@@ -882,7 +880,7 @@ static BOOL RowanIntro_DisplayMessage(RowanIntro *manager, u32 textID, BOOL endE
 static void RowanIntro_ListMenuCursorCallback(ListMenu *menu, u32 index, u8 onInit)
 {
     if (onInit == FALSE) {
-        Sound_PlayEffect(SEQ_SE_CONFIRM);
+        Sound_PlayEffect(SE_CONFIRM_sseq_3);
     }
 }
 
@@ -953,11 +951,11 @@ static BOOL RowanIntro_ChoiceBox(RowanIntro *manager, enum ChoicesCase choicesCa
     case 1:
         manager->playerChoice = ListMenu_ProcessInput(manager->listMenu);
 
-        if (manager->playerChoice == LIST_NOTHING_CHOSEN) {
+        if (manager->playerChoice == MENU_NOTHING_CHOSEN) {
             break;
         }
 
-        if ((manager->playerChoice == LIST_CANCEL) && (allowCancel == TRUE)) {
+        if (manager->playerChoice == MENU_CANCEL && allowCancel == TRUE) {
             break;
         }
 
@@ -965,7 +963,7 @@ static BOOL RowanIntro_ChoiceBox(RowanIntro *manager, enum ChoicesCase choicesCa
         Window_Remove(&manager->choiceBoxWindow);
         ListMenu_Free(manager->listMenu, NULL, NULL);
         StringList_Free(manager->choices);
-        Sound_PlayEffect(SEQ_SE_CONFIRM);
+        Sound_PlayEffect(SE_CONFIRM_sseq_3);
 
         manager->choiceBoxState = 0;
         isFinished = TRUE;
@@ -1314,8 +1312,8 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
 
     switch (manager->state) {
     case RI_STATE_FIRST_FADE_BLACK_START:
-        Sound_SetSceneAndPlayBGM(SOUND_SCENE_2, SEQ_OPENING, 1);
-        Sound_StopBGM(SEQ_OPENING, 0);
+        Sound_SetSceneAndPlayBGM(SOUND_SCENE_2, SEQ_OPENING_sseq, 1);
+        Sound_StopBGM(SEQ_OPENING_sseq, 0);
         Bg_ToggleLayer(BG_LAYER_MAIN_0, TRUE);
         Bg_ToggleLayer(BG_LAYER_SUB_3, TRUE);
         StartScreenFade(
@@ -1336,7 +1334,7 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
         }
         break;
     case RI_STATE_FADE_IN_ROWAN_START:
-        Sound_PlayBGM(SEQ_OPENING);
+        Sound_PlayBGM(SEQ_OPENING_sseq);
         manager->bgLayer1TilemapIndex = 1;
         manager->bgLayer2TilemapIndex = 0;
         RowanIntro_LoadTilemap(manager);
@@ -1423,7 +1421,7 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
                 manager->playerGender = GENDER_MALE;
             }
 
-            Sound_PlayEffect(SEQ_SE_CONFIRM);
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
         }
 
         RowanIntro_AnimateAvatarRun(manager);
@@ -1470,7 +1468,7 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
                 manager->state = RI_STATE_NAME_DIALOGUE;
                 break;
             case 2:
-            case LIST_CANCEL: {
+            case MENU_CANCEL: {
                 Bg_ClearTilemap(manager->bgConfig, BG_LAYER_MAIN_0);
             }
                 manager->state = RI_STATE_GENDR_REPEAT;
@@ -1565,7 +1563,7 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
                 manager->state = RI_STATE_NAME_FADE_OUT_AVATAR;
                 break;
             case 2:
-            case LIST_CANCEL:
+            case MENU_CANCEL:
                 String_Clear(manager->playerNamingScreenArgs->textInputStr);
                 manager->bufferedState = RI_STATE_GENDR_FADE_IN_AVATAR_PREP;
                 manager->state = RI_STATE_NAME_FADE_OUT_AVATAR;
@@ -1711,7 +1709,7 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
                 manager->state = RI_STATE_FADE_OUT_RIVAL;
                 break;
             case 2:
-            case LIST_CANCEL:
+            case MENU_CANCEL:
                 String_Clear(manager->rivalNamingScreenArgs->textInputStr);
                 manager->state = RI_STATE_RIVAL_NAME_DIALOGUE;
                 break;

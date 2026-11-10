@@ -19,7 +19,7 @@
                 "MOVE_SMOKE_SCREEN",
                 "MOVE_TOXIC"
             ],
-            "power": 80,
+            "iv_scale": 80,
             "ball_seal": 0,
             "ability": "ABILITY_AFTERMATH"
         }

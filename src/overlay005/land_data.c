@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "constants/battle.h"
+#include "constants/communication/comm_error.h"
 #include "constants/field/map.h"
 #include "constants/heap.h"
 #include "constants/quadrant.h"
@@ -17,6 +18,7 @@
 #include "overlay005/map_prop_animation.h"
 #include "overlay005/model_attributes.h"
 
+#include "comm_manager.h"
 #include "easy3d.h"
 #include "heap.h"
 #include "map_matrix.h"
@@ -24,7 +26,6 @@
 #include "sys_task.h"
 #include "sys_task_manager.h"
 #include "system.h"
-#include "unk_020366A0.h"
 
 #define MAP_LAZY_LOADER_SLOT_COUNT            2
 #define MAP_LAZY_LOADER_MANAGER_COUNT         2
@@ -705,7 +706,7 @@ void LandDataManager_Tick(FieldSystem *fieldSystem, LandDataManager *landDataMan
                 trackedTarget->prevPosition = *trackedTarget->position;
 
                 if (trackedTarget->prevPosition.z % (MAP_OBJECT_TILE_SIZE / 2) != 0) {
-                    if (Link_SetErrorState(LINK_BATTLE_RESET_SAVEPOINT)) {
+                    if (CommManager_SetCommError(COMM_ERROR_RESET_SAVEPOINT)) {
                         return;
                     }
                 }
@@ -736,7 +737,7 @@ void LandDataManager_Tick(FieldSystem *fieldSystem, LandDataManager *landDataMan
                     }
 
                     if (trackedTarget->prevPosition.x % (MAP_OBJECT_TILE_SIZE / 2) != 0) {
-                        if (Link_SetErrorState(LINK_BATTLE_RESET_SAVEPOINT)) {
+                        if (CommManager_SetCommError(COMM_ERROR_RESET_SAVEPOINT)) {
                             return;
                         }
                     }
@@ -754,7 +755,7 @@ void LandDataManager_Tick(FieldSystem *fieldSystem, LandDataManager *landDataMan
                     }
 
                     if (trackedTarget->prevPosition.z % (MAP_OBJECT_TILE_SIZE / 2) != 0) {
-                        if (Link_SetErrorState(LINK_BATTLE_RESET_SAVEPOINT)) {
+                        if (CommManager_SetCommError(COMM_ERROR_RESET_SAVEPOINT)) {
                             return;
                         }
                     }
@@ -1843,7 +1844,7 @@ BOOL LandDataManager_GetRelativeLoadedMapsQuadrantOfTile(const LandDataManager *
     u32 mapMatrixIndex = mapMatrixX + (mapMatrixZ * landDataMan->mapMatrixWidth);
 
     if (mapMatrixIndex >= landDataMan->mapMatrixWidth * landDataMan->mapMatrixHeight) {
-        if (Link_SetErrorState(LINK_BATTLE_RESET_SAVEPOINT)) {
+        if (CommManager_SetCommError(COMM_ERROR_RESET_SAVEPOINT)) {
             return FALSE;
         }
     }
@@ -2351,7 +2352,7 @@ static void LandDataManager_DistortionWorldLoad(const int mapMatrixIndex, const 
     landDataMan->loadedMaps[loadedMapIndex]->mapMatrixIndex = mapMatrixIndex;
 }
 
-void LandDataManager_DistortionWorldRenderNextFloorMaps(const LandDataManager *landDataMan, const ModelAttributes *modelAttrs)
+void LandDataManager_DistortionWorldRenderInactiveFloor(const LandDataManager *landDataMan, const ModelAttributes *modelAttrs)
 {
     for (int i = 0; i < QUADRANT_COUNT; i++) {
         if (landDataMan->loadedMaps[i]->mapMatrixIndex != INVALID_MAP_MATRIX_INDEX) {
@@ -2517,7 +2518,7 @@ void LandDataManager_DistortionWorldTick(FieldSystem *fieldSystem, LandDataManag
                 trackedTarget->prevPosition = *trackedTarget->position;
 
                 if (trackedTarget->prevPosition.z % (MAP_OBJECT_TILE_SIZE / 2) != 0) {
-                    if (Link_SetErrorState(LINK_BATTLE_RESET_SAVEPOINT)) {
+                    if (CommManager_SetCommError(COMM_ERROR_RESET_SAVEPOINT)) {
                         return;
                     }
                 }
@@ -2546,7 +2547,7 @@ void LandDataManager_DistortionWorldTick(FieldSystem *fieldSystem, LandDataManag
                     }
 
                     if (trackedTarget->prevPosition.x % (MAP_OBJECT_TILE_SIZE / 2) != 0) {
-                        if (Link_SetErrorState(LINK_BATTLE_RESET_SAVEPOINT)) {
+                        if (CommManager_SetCommError(COMM_ERROR_RESET_SAVEPOINT)) {
                             return;
                         }
                     }
@@ -2564,7 +2565,7 @@ void LandDataManager_DistortionWorldTick(FieldSystem *fieldSystem, LandDataManag
                     }
 
                     if (trackedTarget->prevPosition.z % (MAP_OBJECT_TILE_SIZE / 2) != 0) {
-                        if (Link_SetErrorState(LINK_BATTLE_RESET_SAVEPOINT)) {
+                        if (CommManager_SetCommError(COMM_ERROR_RESET_SAVEPOINT)) {
                             return;
                         }
                     }

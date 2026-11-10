@@ -2,7 +2,7 @@
   "key": 25602,
   "messages": [
     {
-      "id": "pl_msg_00000230_00000",
+      "id": "MtCoronet1FSouth_Text_MtCoronetIsWhereSinnohBegan",
       "en_US": [
         "Fascinating...\r",
         "This heat is not geothermal.\n",
@@ -11,7 +11,7 @@
       ]
     },
     {
-      "id": "pl_msg_00000230_00001",
+      "id": "MtCoronet1FSouth_Text_InANewlyCreatedWorld",
       "en_US": [
         "Ah. A Trainer. You regard me with\n",
         "suspicion. Yet in this world,\r",
@@ -24,7 +24,7 @@
       ]
     },
     {
-      "id": "pl_msg_00000230_00002",
+      "id": "MtCoronet1FSouth_Text_ButWhatBecameOfThatWorld",
       "en_US": [
         "If the rifts remain unchecked,\n",
         "this world will tear itself apart.\r",

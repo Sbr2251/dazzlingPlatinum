@@ -19,7 +19,7 @@
                 "MOVE_HYPNOSIS",
                 "MOVE_FAKE_OUT"
             ],
-            "power": 60,
+            "iv_scale": 60,
             "ball_seal": 0,
             "ability": "ABILITY_LIMBER"
         },
@@ -34,7 +34,7 @@
                 "MOVE_ASSIST",
                 "MOVE_TORMENT"
             ],
-            "power": 60,
+            "iv_scale": 60,
             "ball_seal": 0,
             "ability": "ABILITY_LIMBER"
         }

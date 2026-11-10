@@ -1,0 +1,184 @@
+{
+    "bg_events": [
+        {
+            "script": "Route218_RiftShrine",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 95,
+            "z": 752,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "Route218_RiftShrine",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 96,
+            "z": 752,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        }
+    ],
+    "object_events": [
+        {
+            "id": "LOCALID_EVERSPRING_RIVAL",
+            "graphics_id": "OBJ_EVENT_GFX_BARRY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_HIDE_EVERSPRING_RIVAL",
+            "initial_dir": "DIR_SOUTH",
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 97,
+            "z": 755,
+            "y": 0,
+            "script": "Route218_RivalTalk",
+            "data": []
+        },
+        {
+            "id": "LOCALID_RIFT_RESEARCHER",
+            "graphics_id": "OBJ_EVENT_GFX_SCIENTIST_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "initial_dir": "DIR_SOUTH",
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 89,
+            "z": 749,
+            "y": 0,
+            "script": "Route218_Researcher",
+            "data": []
+        },
+        {
+            "id": "LOCALID_EVERSPRING_CLEFAIRY_WEST",
+            "graphics_id": "OBJ_EVENT_GFX_CLEFAIRY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "initial_dir": "DIR_NORTH",
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 84,
+            "z": 761,
+            "y": 1,
+            "script": "Route218_ClefairyWest",
+            "data": []
+        },
+        {
+            "id": "LOCALID_EVERSPRING_CLEFAIRY_EAST",
+            "graphics_id": "OBJ_EVENT_GFX_CLEFAIRY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "initial_dir": "DIR_WEST",
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 108,
+            "z": 749,
+            "y": 0,
+            "script": "Route218_ClefairyEast",
+            "data": []
+        },
+        {
+            "id": "LOCALID_EVERSPRING_ITEM_WEST",
+            "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_OBTAINED_ROUTE_221_PROTEIN",
+            "script": "VisibleItems_Route218_RareCandy",
+            "initial_dir": "DIR_NORTH",
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 78,
+            "z": 745,
+            "y": 1,
+            "data": []
+        },
+        {
+            "id": "LOCALID_EVERSPRING_ITEM_EAST",
+            "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_OBTAINED_ROUTE_221_TM81",
+            "script": "VisibleItems_Route218_HyperPotion",
+            "initial_dir": "DIR_NORTH",
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 112,
+            "z": 744,
+            "y": 1,
+            "data": []
+        },
+        {
+            "id": "LOCALID_EVERSPRING_SIGN_WEST",
+            "graphics_id": "OBJ_EVENT_GFX_SIGNBOARD",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": "Route218_SanctuarySign",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 72,
+            "z": 753,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_EVERSPRING_SIGN_EAST",
+            "graphics_id": "OBJ_EVENT_GFX_SIGNBOARD",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": "Route218_SanctuarySign",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 119,
+            "z": 757,
+            "y": 0
+        }
+    ],
+    "warp_events": [
+        {
+            "id": "WARP_ROUTE_218_GATE_TO_CANALAVE_CITY_1",
+            "x": 70,
+            "z": 754,
+            "dest_header_id": "MAP_HEADER_ROUTE_218_GATE_TO_CANALAVE_CITY",
+            "dest_warp_id": "WARP_ROUTE_218"
+        },
+        {
+            "id": "WARP_ROUTE_218_GATE_TO_CANALAVE_CITY_2",
+            "x": 70,
+            "z": 755,
+            "dest_header_id": "MAP_HEADER_ROUTE_218_GATE_TO_CANALAVE_CITY",
+            "dest_warp_id": "WARP_ROUTE_218"
+        },
+        {
+            "id": "WARP_ROUTE_218_GATE_TO_JUBILIFE_CITY_1",
+            "x": 121,
+            "z": 758,
+            "dest_header_id": "MAP_HEADER_ROUTE_218_GATE_TO_JUBILIFE_CITY",
+            "dest_warp_id": "WARP_ROUTE_218"
+        },
+        {
+            "id": "WARP_ROUTE_218_GATE_TO_JUBILIFE_CITY_2",
+            "x": 121,
+            "z": 759,
+            "dest_header_id": "MAP_HEADER_ROUTE_218_GATE_TO_JUBILIFE_CITY",
+            "dest_warp_id": "WARP_ROUTE_218"
+        }
+    ],
+    "coord_events": [
+        {
+            "script": "Route218_RivalScene",
+            "x": 91,
+            "z": 757,
+            "y": 0,
+            "width": 10,
+            "length": 2,
+            "var": "VAR_EVERSPRING_RIVAL_SCENE_STATE",
+            "value": 0
+        }
+    ]
+}

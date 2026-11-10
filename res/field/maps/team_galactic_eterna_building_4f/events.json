@@ -1,0 +1,204 @@
+{
+    "bg_events": [
+        {
+            "script": "Haven4F_Sign",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 16,
+            "z": 10,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        }
+    ],
+    "object_events": [
+        {
+            "id": "LOCALID_HAVEN_4F_LOOKER",
+            "graphics_id": "OBJ_EVENT_GFX_LOOKER_JANITOR",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_16",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 13,
+            "z": 11,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_HAVEN_4F_PIP_CRATE",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_20",
+            "script": "Haven4F_PipCrate",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 18,
+            "z": 5,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_HAVEN_4F_GARDENIA",
+            "graphics_id": "OBJ_EVENT_GFX_GARDENIA",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_17",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 13,
+            "z": 11,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_HAVEN_4F_RUTH",
+            "graphics_id": "OBJ_EVENT_GFX_VAR_0",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_18",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 14,
+            "z": 11,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ITEM_REVIVE",
+            "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_OBTAINED_TEAM_GALACTIC_ETERNA_BUILDING_4F_REVIVE",
+            "script": "VisibleItems_TeamGalacticEternaBuilding4F_Revive",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 9,
+            "z": 6,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ITEM_BLUE_SHARD",
+            "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_OBTAINED_TEAM_GALACTIC_ETERNA_BUILDING_4F_BLUE_SHARD",
+            "script": "VisibleItems_TeamGalacticEternaBuilding4F_BlueShard",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 8,
+            "z": 6,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ITEM_UPGRADE",
+            "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_OBTAINED_TEAM_GALACTIC_ETERNA_BUILDING_4F_UPGRADE",
+            "script": "VisibleItems_TeamGalacticEternaBuilding4F_Upgrade",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 21,
+            "z": 5,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_HAVEN_4F_CRATE_1",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_20",
+            "script": "Haven4F_Crate",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 16,
+            "z": 4,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_HAVEN_4F_CRATE_2",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_20",
+            "script": "Haven4F_Crate",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 19,
+            "z": 5,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_HAVEN_4F_CRATE_3",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_20",
+            "script": "Haven4F_Crate",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 20,
+            "z": 6,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_HAVEN_4F_CRATE_4",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_20",
+            "script": "Haven4F_Crate",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 22,
+            "z": 6,
+            "y": 0
+        }
+    ],
+    "warp_events": [
+        {
+            "id": "WARP_TEAM_GALACTIC_ETERNA_BUILDING_3F_1",
+            "x": 8,
+            "z": 3,
+            "dest_header_id": "MAP_HEADER_TEAM_GALACTIC_ETERNA_BUILDING_3F",
+            "dest_warp_id": "WARP_TEAM_GALACTIC_ETERNA_BUILDING_4F_1"
+        },
+        {
+            "id": "WARP_TEAM_GALACTIC_ETERNA_BUILDING_3F_2",
+            "x": 3,
+            "z": 3,
+            "dest_header_id": "MAP_HEADER_TEAM_GALACTIC_ETERNA_BUILDING_3F",
+            "dest_warp_id": "WARP_TEAM_GALACTIC_ETERNA_BUILDING_4F_2"
+        }
+    ],
+    "coord_events": [
+        {
+            "script": "Haven4F_LoadingBayScene",
+            "x": 13,
+            "z": 10,
+            "y": 0,
+            "width": 3,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0x00",
+            "value": 0
+        }
+    ]
+}

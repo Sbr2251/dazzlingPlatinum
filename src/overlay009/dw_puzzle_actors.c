@@ -1112,7 +1112,7 @@ static void RomSetPlayerTile(void *ctx, int x, int y, int z)
     // player object back with the stock MapObject API, keeping its facing. This does not
     // touch the DW platform state, which is why it is a last resort, not a path.
     FieldSystem *fieldSystem = (FieldSystem *)ctx;
-    MapObject *playerObj = fieldSystem != NULL ? Player_MapObject(fieldSystem->playerAvatar) : NULL;
+    MapObject *playerObj = fieldSystem != NULL ? PlayerAvatar_GetMapObject(fieldSystem->playerAvatar) : NULL;
 
     if (playerObj != NULL) {
         MapObject_SetPosDirFromCoords(playerObj, x, 2 * y, z, (int)MapObject_GetFacingDir(playerObj));
@@ -1124,7 +1124,7 @@ static void RomSetInputLocked(void *ctx, int locked)
 {
     // The catch freeze: pause the player object's movement with the stock MapObject API.
     FieldSystem *fieldSystem = (FieldSystem *)ctx;
-    MapObject *playerObj = fieldSystem != NULL ? Player_MapObject(fieldSystem->playerAvatar) : NULL;
+    MapObject *playerObj = fieldSystem != NULL ? PlayerAvatar_GetMapObject(fieldSystem->playerAvatar) : NULL;
 
     if (playerObj == NULL) {
         return;
@@ -1277,7 +1277,7 @@ static MapObject *sEchoObj;
 static MapObject *SpawnActorObject(FieldSystem *fieldSystem, int dispX, int dispZ, u16 graphicsID)
 {
     MapObject *obj = MapObjectMan_AddMapObject(fieldSystem->mapObjMan, dispX, dispZ, DIR_SOUTH,
-        graphicsID, MOVEMENT_TYPE_NONE, fieldSystem->location->mapId);
+        graphicsID, MOVEMENT_TYPE_NONE, fieldSystem->location->mapHeaderID);
 
     if (obj == NULL) {
         return NULL;
@@ -1372,7 +1372,7 @@ void DwActors_VisualsUpdate(FieldSystem *fieldSystem)
         tile.padding = 0;
         if (sEchoObj == NULL && !TileIsNone(tile)) {
             int dx, dy, dz;
-            MapObject *playerObj = Player_MapObject(fieldSystem->playerAvatar);
+            MapObject *playerObj = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
             u32 gfx = playerObj != NULL ? MapObject_GetGraphicsID(playerObj) : OBJ_EVENT_GFX_CYRUS;
 
             DisplayPos(tile, &dx, &dy, &dz);
@@ -1381,7 +1381,7 @@ void DwActors_VisualsUpdate(FieldSystem *fieldSystem)
         if (sEchoObj != NULL) {
             MapObject_SetHidden(sEchoObj, TileIsNone(tile) ? TRUE : FALSE);
             if (!TileIsNone(tile)) {
-                MapObject *playerObj = Player_MapObject(fieldSystem->playerAvatar);
+                MapObject *playerObj = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
                 if (playerObj != NULL && MapObject_GetGraphicsID(sEchoObj) != MapObject_GetGraphicsID(playerObj)) {
                     sub_02061AB4(sEchoObj, MapObject_GetGraphicsID(playerObj));

@@ -20,7 +20,7 @@
                 "MOVE_WITHDRAW",
                 "MOVE_CURSE"
             ],
-            "power": 120,
+            "iv_scale": 120,
             "ball_seal": 0,
             "ability": "ABILITY_OVERGROW"
         }

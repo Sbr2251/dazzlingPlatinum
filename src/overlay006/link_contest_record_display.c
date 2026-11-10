@@ -24,12 +24,6 @@
 
 #include "res/text/bank/link_contest_records.h"
 
-enum TextAlignment {
-    TEXT_ALIGN_LEFT,
-    TEXT_ALIGN_CENTER,
-    TEXT_ALIGN_RIGHT
-};
-
 typedef struct LinkContestRecordMessage {
     u32 messageID;
     s16 offsetX;
@@ -158,7 +152,7 @@ void *LinkContestRecordDisplay_Show(void *fieldSystem)
 
     Window_Add(bgConfig, &linkContestRecord->window, 3, 1, 3, 30, 17, 12, (1 + 10));
     LoadStandardWindowGraphics(bgConfig, BG_LAYER_MAIN_3, 1, 11, STANDARD_WINDOW_SYSTEM, HEAP_ID_FIELD2);
-    Window_DrawStandardFrame(&linkContestRecord->window, TRUE, 1, PLTT_11);
+    Window_DrawStandardFrame(&linkContestRecord->window, TRUE, 1, 11);
     Window_FillTilemap(&linkContestRecord->window, 15);
 
     String *linkContestRecordString = String_Init(100, HEAP_ID_FIELD2);

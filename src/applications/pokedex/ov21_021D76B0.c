@@ -33,7 +33,7 @@
 #include "touch_screen_actions.h"
 #include "unk_02012744.h"
 
-#include "res/graphics/pokedex/zukan.naix.h"
+#include "res/graphics/pokedex/zukan.naix"
 #include "res/text/bank/pokedex.h"
 
 typedef struct {
@@ -788,7 +788,7 @@ static void ov21_021D82A8(UnkStruct_ov21_021D7A64 *param0, UnkStruct_ov21_021D77
                 ov21_021D8530(param0, param1);
             } else {
                 param1->unk_1C->unk_0C = (64 * 10);
-                Sound_PlayEffect(SEQ_SE_DP_DENSI06);
+                Sound_PlayEffect(SEQ_SE_DP_DENSI06_sseq);
             }
         } else {
             param1->unk_1C->unk_08 = 0;

@@ -15,8 +15,7 @@
 #include <nitro.h>
 #include <string.h>
 
-#include "generated/map_headers.h"
-#include "generated/sdat.h"
+#include "res/sound/pl_sound_data.naix"
 #include "generated/vars_flags.h"
 
 #include "field/field_system.h"
@@ -582,7 +581,7 @@ static void FireSigilAs(const DwPuzzleSigil *sigil, int occupant)
         break;
     }
 
-    Sound_PlayEffect(SEQ_SE_PL_SYUWA);
+    Sound_PlayEffect(SEQ_SE_PL_SYUWA_sseq);
     sFlashFrames = 8;
     PuzzleSetEvent(sigil->kind == DW_PUZZLE_SIGIL_RESET ? DW_PUZZLE_EVENT_RESET : DW_PUZZLE_EVENT_SIGIL,
         sigil->targetGroup);
@@ -632,7 +631,7 @@ DwPuzzleTileState DwPuzzle_QueryTile(FieldSystem *fieldSystem, int x, int y, int
     u32 mapHeader = 0;
 
     if (fieldSystem != NULL && fieldSystem->location != NULL) {
-        mapHeader = (u32)fieldSystem->location->mapId;
+        mapHeader = (u32)fieldSystem->location->mapHeaderID;
     }
     if (!EnsureActive(fieldSystem, mapHeader)) {
         return DW_PUZZLE_TILE_DEFAULT;
@@ -655,7 +654,7 @@ BOOL DwPuzzle_HandleStep(FieldSystem *fieldSystem, int x, int y, int z, int surf
         memset(out, 0, sizeof(*out));
     }
     if (fieldSystem != NULL && fieldSystem->location != NULL) {
-        mapHeader = (u32)fieldSystem->location->mapId;
+        mapHeader = (u32)fieldSystem->location->mapHeaderID;
     }
     if (!EnsureActive(fieldSystem, mapHeader)) {
         return FALSE;
@@ -697,7 +696,7 @@ BOOL DwPuzzle_HandleStep(FieldSystem *fieldSystem, int x, int y, int z, int surf
     if (checkpoint >= 0) {
         if ((u32)checkpoint != sCheckpointIndex) {
             sCheckpointIndex = (u32)checkpoint;
-            Sound_PlayEffect(SEQ_SE_PL_SYUWA);
+            Sound_PlayEffect(SEQ_SE_PL_SYUWA_sseq);
             PuzzleSetEvent(DW_PUZZLE_EVENT_CHECKPOINT, (u32)checkpoint);
         }
         TakeSnapshot();
@@ -718,7 +717,7 @@ BOOL DwPuzzle_HandleStep(FieldSystem *fieldSystem, int x, int y, int z, int surf
             sSliding = FALSE;
             PuzzleSetEvent(DW_PUZZLE_EVENT_CURRENT_STOP, 0);
         }
-        Sound_PlayEffect(SEQ_SE_PL_SYUWA);
+        Sound_PlayEffect(SEQ_SE_PL_SYUWA_sseq);
         PuzzleSetEvent(DW_PUZZLE_EVENT_RUNE, 0);
         if (out != NULL) {
             out->handled = TRUE;
@@ -764,7 +763,7 @@ BOOL DwPuzzle_HandleStep(FieldSystem *fieldSystem, int x, int y, int z, int surf
             sSlideFrames = DW_PUZZLE_SLIDE_FRAMES_PER_TILE;
             sSlideSteps = 0;
             PuzzleSetEvent(DW_PUZZLE_EVENT_CURRENT_START, 0);
-            Sound_PlayEffect(SEQ_SE_PL_SYUWA);
+            Sound_PlayEffect(SEQ_SE_PL_SYUWA_sseq);
             if (out != NULL) {
                 out->slideStarted = TRUE;
             }
@@ -818,7 +817,7 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
     }
     sFrameCount++;
     if (fieldSystem != NULL && fieldSystem->location != NULL) {
-        mapHeader = (u32)fieldSystem->location->mapId;
+        mapHeader = (u32)fieldSystem->location->mapHeaderID;
     }
     if (!EnsureActive(fieldSystem, mapHeader)) {
         sTrackingValid = FALSE;
@@ -1044,7 +1043,7 @@ void DwPuzzle_HandleFrame(FieldSystem *fieldSystem, int x, int y, int z, int sur
 // honeycomb, the Lost Tower false-seam drop). The caller owns starting
 // the fall script; the engine records fall-pending in its own RAM at the
 // moment of the call. That record must survive the fall script clearing
-// its fallVar (HoneyFall clears VAR_MAP_LOCAL_2 first thing), which is
+// its fallVar (HoneyFall clears VAR_MAP_LOCAL_0x02 first thing), which is
 // why it lives here and not in any var. On the fall script's warp, the
 // frame hook restores the last checkpoint snapshot and respawns, exactly
 // as for a VOID-tile fall. No-op without an active table, and idempotent
@@ -1055,7 +1054,7 @@ void DwPuzzle_NotifyFall(FieldSystem *fieldSystem)
     u32 mapHeader = 0;
 
     if (fieldSystem != NULL && fieldSystem->location != NULL) {
-        mapHeader = (u32)fieldSystem->location->mapId;
+        mapHeader = (u32)fieldSystem->location->mapHeaderID;
     }
     if (!EnsureActive(fieldSystem, mapHeader)) {
         return;
@@ -1066,7 +1065,7 @@ void DwPuzzle_NotifyFall(FieldSystem *fieldSystem)
     sFallPending = TRUE;
     sFallRestored = FALSE;
     if (fieldSystem != NULL && fieldSystem->playerAvatar != NULL) {
-        MapObject *playerMapObj = Player_MapObject(fieldSystem->playerAvatar);
+        MapObject *playerMapObj = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         sFallX = MapObject_GetX(playerMapObj);
         sFallY = MapObject_GetY(playerMapObj) / 2;
@@ -1114,7 +1113,7 @@ void DwPuzzle_CancelSlide(FieldSystem *fieldSystem)
     u32 mapHeader = 0;
 
     if (fieldSystem != NULL && fieldSystem->location != NULL) {
-        mapHeader = (u32)fieldSystem->location->mapId;
+        mapHeader = (u32)fieldSystem->location->mapHeaderID;
     }
     if (!EnsureActive(fieldSystem, mapHeader)) {
         return;
@@ -1152,7 +1151,7 @@ BOOL DwPuzzle_PressSigil(FieldSystem *fieldSystem, int x, int y, int z, int surf
         return FALSE;
     }
     if (fieldSystem != NULL && fieldSystem->location != NULL) {
-        mapHeader = (u32)fieldSystem->location->mapId;
+        mapHeader = (u32)fieldSystem->location->mapHeaderID;
     }
     if (!EnsureActive(fieldSystem, mapHeader)) {
         return FALSE;
@@ -1175,7 +1174,7 @@ void DwPuzzle_ReleaseSigils(FieldSystem *fieldSystem, int occupant)
         return;
     }
     if (fieldSystem != NULL && fieldSystem->location != NULL) {
-        mapHeader = (u32)fieldSystem->location->mapId;
+        mapHeader = (u32)fieldSystem->location->mapHeaderID;
     }
     if (!EnsureActive(fieldSystem, mapHeader)) {
         return;
@@ -1205,7 +1204,7 @@ void DwPuzzle_CommitCheckpointByIndex(FieldSystem *fieldSystem, int checkpointIn
     u32 mapHeader = 0;
 
     if (fieldSystem != NULL && fieldSystem->location != NULL) {
-        mapHeader = (u32)fieldSystem->location->mapId;
+        mapHeader = (u32)fieldSystem->location->mapHeaderID;
     }
     if (!EnsureActive(fieldSystem, mapHeader)) {
         return;
@@ -1215,7 +1214,7 @@ void DwPuzzle_CommitCheckpointByIndex(FieldSystem *fieldSystem, int checkpointIn
     }
     if ((u32)checkpointIndex != sCheckpointIndex) {
         sCheckpointIndex = (u32)checkpointIndex;
-        Sound_PlayEffect(SEQ_SE_PL_SYUWA);
+        Sound_PlayEffect(SEQ_SE_PL_SYUWA_sseq);
         PuzzleSetEvent(DW_PUZZLE_EVENT_CHECKPOINT, (u32)checkpointIndex);
     }
     TakeSnapshot();
@@ -1226,7 +1225,7 @@ void DwPuzzle_RequestCheckpointRespawn(FieldSystem *fieldSystem)
     u32 mapHeader = 0;
 
     if (fieldSystem != NULL && fieldSystem->location != NULL) {
-        mapHeader = (u32)fieldSystem->location->mapId;
+        mapHeader = (u32)fieldSystem->location->mapHeaderID;
     }
     if (!EnsureActive(fieldSystem, mapHeader)) {
         return;

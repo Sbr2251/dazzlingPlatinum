@@ -19,7 +19,7 @@
                 "MOVE_SLASH",
                 "MOVE_TORMENT"
             ],
-            "power": 90,
+            "iv_scale": 90,
             "ball_seal": 0,
             "ability": "ABILITY_LIMBER"
         },
@@ -34,7 +34,7 @@
                 "MOVE_SWIFT",
                 "MOVE_PROTECT"
             ],
-            "power": 90,
+            "iv_scale": 90,
             "ball_seal": 0,
             "ability": "ABILITY_HYPER_CUTTER"
         }

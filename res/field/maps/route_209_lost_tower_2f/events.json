@@ -1,0 +1,161 @@
+{
+    "bg_events": [
+        {
+            "hidden_item": "FLAG_OBTAINED_HIDDEN_ROUTE_209_LOST_TOWER_2F_HONEY",
+            "x": 10,
+            "z": 13,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        }
+    ],
+    "object_events": [
+        {
+            "id": "LOCALID_ITEM_OVAL_STONE",
+            "graphics_id": "OBJ_EVENT_GFX_POKEBALL",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_OBTAINED_ROUTE_209_LOST_TOWER_2F_OVAL_STONE",
+            "script": "VisibleItems_Route209LostTower2F_OvalStone",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 8,
+            "z": 7,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_YOUNGSTER_OLIVER",
+            "graphics_id": "OBJ_EVENT_GFX_YOUNGSTER",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NORMAL",
+            "hidden_flag": "0",
+            "trainer": {
+                "id": "TRAINER_YOUNGSTER_OLIVER",
+                "sight_range": 2
+            },
+            "initial_dir": "DIR_NORTH",
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 8,
+            "z": 10,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_RIFT",
+            "graphics_id": "OBJ_EVENT_GFX_RIFT_ARC2",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_B",
+            "script": "LostTower2F_Rift",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 6,
+            "z": 8,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ECLIPSE_GRUNT_1",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_M",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_C",
+            "script": "LostTower2F_Grunt",
+            "initial_dir": "DIR_WEST",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 9,
+            "z": 8,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ECLIPSE_GRUNT_2",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_C",
+            "script": "LostTower2F_Grunt",
+            "initial_dir": "DIR_WEST",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 8,
+            "z": 8,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_CRATE_1",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_C",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 7,
+            "z": 9,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_CRATE_2",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_C",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 5,
+            "z": 9,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_ROWAN",
+            "graphics_id": "OBJ_EVENT_GFX_PROF_ROWAN",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_ARC2_HEARTHOME_D",
+            "script": "LostTower2F_Rowan",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 12,
+            "z": 6,
+            "y": 0
+        }
+    ],
+    "warp_events": [
+        {
+            "id": "WARP_ROUTE_209_LOST_TOWER_1F",
+            "x": 11,
+            "z": 3,
+            "dest_header_id": "MAP_HEADER_ROUTE_209_LOST_TOWER_1F",
+            "dest_warp_id": "WARP_ROUTE_209_LOST_TOWER_2F"
+        },
+        {
+            "id": "WARP_ROUTE_209_LOST_TOWER_3F",
+            "x": 4,
+            "z": 3,
+            "dest_header_id": "MAP_HEADER_ROUTE_209_LOST_TOWER_3F",
+            "dest_warp_id": "WARP_ROUTE_209_LOST_TOWER_2F"
+        }
+    ],
+    "coord_events": [
+        {
+            "script": "LostTower2F_GruntsTrigger",
+            "x": 11,
+            "z": 7,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_ARC2_PROGRESS",
+            "value": 93
+        }
+    ]
+}

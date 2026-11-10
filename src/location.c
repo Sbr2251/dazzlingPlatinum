@@ -1,12 +1,12 @@
 #include "location.h"
 
-#include "generated/map_headers.h"
+#include "constants/fieldmap.h"
 
 #include "field_overworld_state.h"
 #include "savedata.h"
 
 static const Location sPlayerStartLocation = {
-    .mapId = MAP_HEADER_TWINLEAF_TOWN_PLAYER_HOUSE_2F,
+    .mapHeaderID = MAP_HEADER_TWINLEAF_TOWN_PLAYER_HOUSE_2F,
     .warpId = WARP_ID_NONE,
     .x = 4,
     .z = 6,
@@ -17,7 +17,7 @@ static const Location sPlayerStartLocation = {
 // (scripts_distortion_world_giratina_room.s, VAR_ARC1_PROGRESS == 0), which then warps to
 // Lake Verity. sPlayerStartLocation above stays the bedroom: the Hall of Fame respawn uses it.
 static const Location sNewGameStartLocation = {
-    .mapId = MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM,
+    .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM,
     .warpId = WARP_ID_NONE,
     .x = 15,
     .z = 14,
@@ -25,7 +25,7 @@ static const Location sNewGameStartLocation = {
 };
 
 static const Location sPlayerFirstRespawnLocation = {
-    .mapId = MAP_HEADER_TWINLEAF_TOWN,
+    .mapHeaderID = MAP_HEADER_TWINLEAF_TOWN,
     .warpId = WARP_ID_NONE,
     .x = 116,
     .z = 886,

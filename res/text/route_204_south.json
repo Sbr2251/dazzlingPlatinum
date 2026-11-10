@@ -2,7 +2,7 @@
   "key": 2430,
   "messages": [
     {
-      "id": "pl_msg_00000469_00000",
+      "id": "Route204South_Text_BouldersBlockingInsideCavern",
       "en_US": [
         "There are boulders blocking the way\n",
         "inside the cavern...\r",
@@ -11,14 +11,14 @@
       ]
     },
     {
-      "id": "pl_msg_00000469_00001",
+      "id": "Route204South_Text_SignJubilifeCity",
       "en_US": [
         "Rt. 204\n",
         "Jubilife City"
       ]
     },
     {
-      "id": "pl_msg_00000469_00002",
+      "id": "Route204South_Text_SignRavagedPath",
       "en_US": "Ravaged Path"
     },
     {

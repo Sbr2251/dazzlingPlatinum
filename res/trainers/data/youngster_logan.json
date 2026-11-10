@@ -16,7 +16,7 @@
                 "MOVE_GUST",
                 "MOVE_GROWL"
             ],
-            "power": 0,
+            "iv_scale": 0,
             "ball_seal": 0
         },
         {
@@ -29,7 +29,7 @@
                 "MOVE_GROWL",
                 "MOVE_FOCUS_ENERGY"
             ],
-            "power": 0,
+            "iv_scale": 0,
             "ball_seal": 0
         }
     ],
@@ -37,29 +37,29 @@
         {
             "type": "TRMSG_PRE_BATTLE",
             "en_US": [
-                "Let’s have a Pokémon battle!\n",
-                "Humph! But I’m gonna win!\r"
+                "Let\u2019s have a Pok\u00e9mon battle!\n",
+                "Humph! But I\u2019m gonna win!\r"
             ]
         },
         {
             "type": "TRMSG_DEFEAT",
             "en_US": [
                 "You beat me?!\n",
-                "You’ve got talent!"
+                "You\u2019ve got talent!"
             ]
         },
         {
             "type": "TRMSG_POST_BATTLE",
             "en_US": [
                 "It was fun battling!\n",
-                "Yup! I’m going to battle everyone!"
+                "Yup! I\u2019m going to battle everyone!"
             ]
         },
         {
             "type": "TRMSG_REMATCH",
             "en_US": [
-                "Let’s have another Pokémon battle!\n",
-                "This time, I’m gonna win!\r"
+                "Let\u2019s have another Pok\u00e9mon battle!\n",
+                "This time, I\u2019m gonna win!\r"
             ]
         }
     ]

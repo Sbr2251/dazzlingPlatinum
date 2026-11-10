@@ -9,8 +9,10 @@
 #include "generated/mystery_gift_delivery_stages.h"
 
 #include "field/field_system.h"
+#include "underground/defs.h"
 
 #include "bag.h"
+#include "ball_seal_info.h"
 #include "battle_regulation.h"
 #include "field_script_context.h"
 #include "heap.h"
@@ -21,18 +23,17 @@
 #include "pokemon.h"
 #include "poketch.h"
 #include "ribbon.h"
+#include "ribbon_save_data.h"
+#include "save_catchrecords.h"
 #include "save_player.h"
 #include "script_manager.h"
 #include "string_gf.h"
 #include "string_template.h"
 #include "system_vars.h"
 #include "trainer_info.h"
+#include "underground.h"
 #include "unk_02017038.h"
-#include "unk_0202854C.h"
 #include "unk_020298BC.h"
-#include "unk_0202C9F4.h"
-#include "unk_0202D778.h"
-#include "unk_0202F180.h"
 #include "unk_02054884.h"
 #include "unk_02092494.h"
 #include "vars_flags.h"
@@ -91,10 +92,10 @@ BOOL ScrCmd_MysteryGiftGive(ScriptContext *ctx)
     case MYSTERY_GIFT_LOAD:
         MysteryGift_Load(ctx->fieldSystem->saveData, 32);
         break;
-    case MYSTERY_GIFT_UNLOAD_RECEIVED:
+    case MYSTERY_GIFT_UNLOAD_NOT_RECEIVED:
         MysteryGift_Unload(ctx->fieldSystem->saveData, 0);
         break;
-    case MYSTERY_GIFT_UNLOAD_NOT_RECEIVED:
+    case MYSTERY_GIFT_UNLOAD_RECEIVED:
         MysteryGift_Unload(ctx->fieldSystem->saveData, 1);
         break;
     case MYSTERY_GIFT_CHECK_AVAILABLE_PGT: {
@@ -426,7 +427,7 @@ static BOOL CanReceiveDecorationGood(FieldSystem *fieldSystem, GiftData *dummy)
 {
     int ownedCount = Underground_GetGoodsCountPC(SaveData_GetUnderground(fieldSystem->saveData));
 
-    return ownedCount < NUM_MAX_DECORATION_GOODS;
+    return ownedCount < MAX_GOODS_PC_SLOTS;
 }
 
 static void GiveDecorationGood(FieldSystem *fieldSystem, GiftData *dummy)

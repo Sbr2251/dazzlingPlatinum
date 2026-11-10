@@ -1,11 +1,11 @@
 #include "overlay005/honey_tree.h"
 
 #include <nitro.h>
-#include <string.h>
 
-#include "constants/field/map_prop.h"
+#include "constants/field/script_ranges.h"
+#include "constants/fieldmap.h"
 #include "constants/map_object.h"
-#include "generated/map_headers.h"
+#include "constants/versions.h"
 
 #include "field/field_system.h"
 #include "overlay005/land_data.h"
@@ -22,6 +22,8 @@
 #include "terrain_collision_manager.h"
 #include "trainer_info.h"
 
+#include "res/field/props/models/prop_models.naix"
+
 #define TREE_GROUP_NO_ENCOUNTER 0
 #define TREE_GROUP_A            1
 #define TREE_GROUP_B            2
@@ -30,14 +32,14 @@
 static void GetTreeEncounterGroup(const BOOL isMunchlaxTree, u8 *param1);
 static void GetTreeEncounterSlot(u8 *slot);
 static void DoTreeShakingAnimation(FieldSystem *fieldSystem, MapPropManager *param1, const int param2);
-static u8 GetTreeIdFromMapId(const int param0);
+static u8 GetTreeIDFromMapHeaderID(const enum MapHeaderID mapHeaderID);
 static const int GetEncounterTableFromGroup(const u8 param0);
 static const int GetShakesFromGroup(const u8 param0);
 static const BOOL GetShakingValue(const int numShakes, u8 *value);
 static const BOOL SixHoursSinceSlathered(const int param0);
 static BOOL IsMunchlaxTree(const u32 param0, const u8 param1);
 
-static const int sHoneyTreeMapIds[NUM_HONEY_TREES] = {
+static const int sHoneyTreeMapHeaderIDs[NUM_HONEY_TREES] = {
     MAP_HEADER_ROUTE_205_SOUTH,
     MAP_HEADER_ROUTE_205_NORTH,
     MAP_HEADER_ROUTE_206,
@@ -99,14 +101,14 @@ BOOL HoneyTree_TryInteract(FieldSystem *fieldSystem, int *eventId)
     int x, z;
     BOOL isFacingHoneyTree;
 
-    *eventId = SCRIPT_ID_OFFSET_COMMON_SCRIPTS + 8;
+    *eventId = SCRIPT_ID(COMMON_SCRIPTS, 8);
 
-    x = Player_GetXPos(fieldSystem->playerAvatar);
-    z = Player_GetZPos(fieldSystem->playerAvatar);
+    x = PlayerAvatar_GetXPos(fieldSystem->playerAvatar);
+    z = PlayerAvatar_GetZPos(fieldSystem->playerAvatar);
 
-    if (PlayerAvatar_GetDir(fieldSystem->playerAvatar) == DIR_NORTH) { // Honey Trees can only be interacted with from below.
+    if (PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar) == DIR_NORTH) { // Honey Trees can only be interacted with from below.
         TerrainCollisionHitbox_Init(x, z, 0, -1, 1, 1, &v0);
-        isFacingHoneyTree = FieldSystem_FindCollidingLoadedMapPropByModelID(fieldSystem, MAP_PROP_MODEL_HONEY_TREE, &v0, NULL);
+        isFacingHoneyTree = FieldSystem_FindCollidingLoadedMapPropByModelID(fieldSystem, honey_tree_nsbmd, &v0, NULL);
     } else {
         isFacingHoneyTree = FALSE;
     }
@@ -116,15 +118,11 @@ BOOL HoneyTree_TryInteract(FieldSystem *fieldSystem, int *eventId)
 
 u16 HoneyTree_GetTreeSlatherStatus(FieldSystem *fieldSystem)
 {
-    u8 treeId;
-    PlayerHoneyTreeStates *treeDat;
-    HoneyTree *tree;
-
-    treeId = GetTreeIdFromMapId(fieldSystem->location->mapId);
+    u8 treeId = GetTreeIDFromMapHeaderID(fieldSystem->location->mapHeaderID);
     GF_ASSERT(treeId != NUM_HONEY_TREES);
 
-    treeDat = SpecialEncounter_GetPlayerHoneyTreeStates(SaveData_GetSpecialEncounters(fieldSystem->saveData));
-    tree = SpecialEncounter_GetHoneyTree(treeId, treeDat);
+    PlayerHoneyTreeStates *treeDat = SpecialEncounter_GetPlayerHoneyTreeStates(SaveData_GetSpecialEncounters(fieldSystem->saveData));
+    HoneyTree *tree = SpecialEncounter_GetHoneyTree(treeId, treeDat);
 
     if (SixHoursSinceSlathered(tree->minutesRemaining)) {
         return TREE_STATUS_ENCOUNTER; // tree can have Pokemon
@@ -137,21 +135,16 @@ u16 HoneyTree_GetTreeSlatherStatus(FieldSystem *fieldSystem)
 
 void HoneyTree_SlatherTree(FieldSystem *fieldSystem)
 {
-    u8 treeId;
-    PlayerHoneyTreeStates *treeDat;
-    HoneyTree *tree;
-    BOOL munchlaxTree;
-
-    treeId = GetTreeIdFromMapId(fieldSystem->location->mapId);
+    u8 treeId = GetTreeIDFromMapHeaderID(fieldSystem->location->mapHeaderID);
     GF_ASSERT(treeId != NUM_HONEY_TREES);
 
-    treeDat = SpecialEncounter_GetPlayerHoneyTreeStates(SaveData_GetSpecialEncounters(fieldSystem->saveData));
-    tree = SpecialEncounter_GetHoneyTree(treeId, treeDat);
+    PlayerHoneyTreeStates *treeDat = SpecialEncounter_GetPlayerHoneyTreeStates(SaveData_GetSpecialEncounters(fieldSystem->saveData));
+    HoneyTree *tree = SpecialEncounter_GetHoneyTree(treeId, treeDat);
 
     tree->minutesRemaining = (24 * 60); // slathering lasts for one day
 
     TrainerInfo *trainer = SaveData_GetTrainerInfo(fieldSystem->saveData);
-    munchlaxTree = IsMunchlaxTree(TrainerInfo_ID(trainer), treeId);
+    BOOL munchlaxTree = IsMunchlaxTree(TrainerInfo_ID(trainer), treeId);
 
     // Slathering the same tree twice in succession has a 90% chance to give the same group again.
     if (SpecialEncounter_GetLastSlatheredTreeId(treeDat) == treeId) {
@@ -181,24 +174,21 @@ void HoneyTree_SlatherTree(FieldSystem *fieldSystem)
 
 void HoneyTree_StopShaking(FieldSystem *fieldSystem)
 {
-    u8 treeId = GetTreeIdFromMapId(fieldSystem->location->mapId);
+    u8 treeId = GetTreeIDFromMapHeaderID(fieldSystem->location->mapHeaderID);
     GF_ASSERT(treeId != NUM_HONEY_TREES);
 
     if (fieldSystem->unk_A8->trees[treeId].isShaking) {
-        u8 v1;
-        MapProp *v2;
         MapPropManager *v3;
-        NNSG3dRenderObj *v4;
 
-        v1 = LandDataManager_GetTrackedTargetLoadedMapsQuadrant(fieldSystem->landDataMan);
+        u8 v1 = LandDataManager_GetTrackedTargetLoadedMapsQuadrant(fieldSystem->landDataMan);
 
         LandDataManager_GetLoadedMapPropManager(v1, fieldSystem->landDataMan, &v3);
 
-        v2 = MapPropManager_FindLoadedPropByModelID(v3, MAP_PROP_MODEL_HONEY_TREE);
-        v4 = MapProp_GetRenderObj(v2);
+        MapProp *v2 = MapPropManager_FindLoadedPropByModelID(v3, honey_tree_nsbmd);
+        NNSG3dRenderObj *v4 = MapProp_GetRenderObj(v2);
 
         if (v2 != NULL) {
-            MapPropAnimationManager_RemoveAnimationFromRenderObj(fieldSystem->mapPropAnimMan, v4, MAP_PROP_MODEL_HONEY_TREE, fieldSystem->unk_A8->trees[treeId].shakeValue);
+            MapPropAnimationManager_RemoveAnimationFromRenderObj(fieldSystem->mapPropAnimMan, v4, honey_tree_nsbmd, fieldSystem->unk_A8->trees[treeId].shakeValue);
         }
 
         fieldSystem->unk_A8->trees[treeId].isShaking = FALSE;
@@ -340,54 +330,42 @@ static const BOOL GetShakingValue(const int numShakes, u8 *value)
 
 static void DoTreeShakingAnimation(FieldSystem *fieldSystem, MapPropManager *param1, const int param2)
 {
-    u16 mapId;
-    u8 treeId;
-
-    mapId = MapMatrix_GetMapHeaderIDAtIndex(fieldSystem->mapMatrix, param2);
-    treeId = GetTreeIdFromMapId(mapId);
+    u16 mapId = MapMatrix_GetMapHeaderIDAtIndex(fieldSystem->mapMatrix, param2);
+    u8 treeId = GetTreeIDFromMapHeaderID(mapId);
 
     if (treeId != NUM_HONEY_TREES) {
-        PlayerHoneyTreeStates *treeDat;
-        HoneyTree *tree;
-        MapProp *v4;
-
-        treeDat = SpecialEncounter_GetPlayerHoneyTreeStates(SaveData_GetSpecialEncounters(fieldSystem->saveData));
-        tree = SpecialEncounter_GetHoneyTree(treeId, treeDat);
+        PlayerHoneyTreeStates *treeDat = SpecialEncounter_GetPlayerHoneyTreeStates(SaveData_GetSpecialEncounters(fieldSystem->saveData));
+        HoneyTree *tree = SpecialEncounter_GetHoneyTree(treeId, treeDat);
 
         if (SixHoursSinceSlathered(tree->minutesRemaining)) {
-            BOOL isShaking;
             u8 shakeValue;
-
-            isShaking = GetShakingValue(tree->numShakes, &shakeValue);
-
+            BOOL isShaking = GetShakingValue(tree->numShakes, &shakeValue);
             if (!isShaking) {
                 return;
             }
 
-            v4 = MapPropManager_FindLoadedPropByModelID(param1, MAP_PROP_MODEL_HONEY_TREE);
+            MapProp *v4 = MapPropManager_FindLoadedPropByModelID(param1, honey_tree_nsbmd);
 
             if (v4 != NULL) {
-                NNSG3dRenderObj *v7;
+                NNSG3dRenderObj *v7 = MapProp_GetRenderObj(v4);
 
-                v7 = MapProp_GetRenderObj(v4);
-
-                MapPropAnimationManager_RemoveAnimationFromRenderObj(fieldSystem->mapPropAnimMan, v7, MAP_PROP_MODEL_HONEY_TREE, fieldSystem->unk_A8->trees[treeId].shakeValue);
+                MapPropAnimationManager_RemoveAnimationFromRenderObj(fieldSystem->mapPropAnimMan, v7, honey_tree_nsbmd, fieldSystem->unk_A8->trees[treeId].shakeValue);
 
                 fieldSystem->unk_A8->trees[treeId].shakeValue = shakeValue;
                 fieldSystem->unk_A8->trees[treeId].isShaking = isShaking;
 
-                MapPropAnimationManager_AddAnimationToRenderObj(MAP_PROP_MODEL_HONEY_TREE, shakeValue, 1, v7, fieldSystem->mapPropAnimMan);
+                MapPropAnimationManager_AddAnimationToRenderObj(honey_tree_nsbmd, shakeValue, 1, v7, fieldSystem->mapPropAnimMan);
             }
         }
     }
 }
 
 // Returns NUM_HONEY_TREES if map does not have a Honey Tree.
-static u8 GetTreeIdFromMapId(const int mapId)
+static u8 GetTreeIDFromMapHeaderID(const enum MapHeaderID mapHeaderID)
 {
     u8 i;
     for (i = 0; i < NUM_HONEY_TREES; i++) {
-        if (mapId == sHoneyTreeMapIds[i]) {
+        if (mapHeaderID == sHoneyTreeMapHeaderIDs[i]) {
             return i;
         }
     }
@@ -443,11 +421,10 @@ static BOOL IsMunchlaxTree(const u32 trainerId, const u8 treeId)
 
 int HoneyTree_GetSpecies(FieldSystem *fieldSystem)
 {
-    u8 treeId = GetTreeIdFromMapId(fieldSystem->location->mapId);
+    u8 treeId = GetTreeIDFromMapHeaderID(fieldSystem->location->mapHeaderID);
     GF_ASSERT(treeId != NUM_HONEY_TREES);
 
     int *narcData;
-    int species;
     PlayerHoneyTreeStates *treeDat = SpecialEncounter_GetPlayerHoneyTreeStates(SaveData_GetSpecialEncounters(fieldSystem->saveData));
     HoneyTree *tree = SpecialEncounter_GetHoneyTree(treeId, treeDat);
 
@@ -457,7 +434,7 @@ int HoneyTree_GetSpecies(FieldSystem *fieldSystem)
         narcData = NARC_AllocAtEndAndReadWholeMemberByIndexPair(NARC_INDEX_ARC__ENCDATA_EX, sEncounterTableIndexes_P_Unused[tree->encounterTableIndex], HEAP_ID_FIELD1);
     }
 
-    species = narcData[tree->encounterSlot];
+    int species = narcData[tree->encounterSlot];
     Heap_Free(narcData);
 
     return species;
@@ -465,27 +442,23 @@ int HoneyTree_GetSpecies(FieldSystem *fieldSystem)
 
 void ov5_021F0030(void *param0, const int param1, MapPropManager *const mapPropManager)
 {
-    FieldSystem *fieldSystem;
-
     if (param1 < 0) {
         return;
     }
 
-    fieldSystem = (FieldSystem *)param0;
+    FieldSystem *fieldSystem = (FieldSystem *)param0;
     DoTreeShakingAnimation(fieldSystem, mapPropManager, param1);
 }
 
 void HoneyTree_Unslather(FieldSystem *fieldSystem)
 {
-    PlayerHoneyTreeStates *treeDat;
-    HoneyTree *tree;
-    u8 treeId = GetTreeIdFromMapId(fieldSystem->location->mapId);
+    u8 treeId = GetTreeIDFromMapHeaderID(fieldSystem->location->mapHeaderID);
     GF_ASSERT(treeId != NUM_HONEY_TREES);
 
     fieldSystem->unk_A8->trees[treeId].isShaking = FALSE;
 
-    treeDat = SpecialEncounter_GetPlayerHoneyTreeStates(SaveData_GetSpecialEncounters(fieldSystem->saveData));
-    tree = SpecialEncounter_GetHoneyTree(treeId, treeDat);
+    PlayerHoneyTreeStates *treeDat = SpecialEncounter_GetPlayerHoneyTreeStates(SaveData_GetSpecialEncounters(fieldSystem->saveData));
+    HoneyTree *tree = SpecialEncounter_GetHoneyTree(treeId, treeDat);
 
     tree->minutesRemaining = 0;
 }

@@ -14,11 +14,10 @@
 // overrides with fallScriptId 2 (DWRavagedPath_Fall), so a lip fall is
 // seen by the engine step hook and restores the snapshot. The table's
 // fallScriptId / fallVar are the frame-fall pair (engine-a added the
-// init-table line and the VAR_MAP_LOCAL_3 clear to the map's scripts);
+// init-table line and the VAR_MAP_LOCAL_0x03 clear to the map's scripts);
 // this rift has no frame-detected fall, but the pair must be wired so a
 // fall the frame hook ever reports starts the right script.
 
-#include "generated/map_headers.h"
 #include "generated/vars_flags.h"
 
 #include "location.h"
@@ -61,7 +60,7 @@ static const DwPuzzleTile sRavagedPathTiles[] = {
 const DwPuzzleTable gDwPuzzleRavagedPathTable = {
     MAP_HEADER_DW_RAVAGED_PATH,
     14, 14,               // VAR_ARC2_PROGRESS gate: this scene only
-    2, VAR_MAP_LOCAL_3,   // fallScriptId (DWRavagedPath_Fall), fallVar (frame fall)
+    2, VAR_MAP_LOCAL_0x03,   // fallScriptId (DWRavagedPath_Fall), fallVar (frame fall)
     1, 1, 0, 0, 1, 10,    // group/sigil/rune/current/checkpoint/tile counts
     0, 0,                 // testOnly (production), padding
     sRavagedPathGroups, sRavagedPathSigils, NULL, NULL, sRavagedPathCheckpoints, sRavagedPathTiles,

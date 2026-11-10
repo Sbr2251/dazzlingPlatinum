@@ -6,7 +6,7 @@
 
 #include "constants/heap.h"
 
-#include "struct_decls/struct_0202B370_decl.h"
+#include "struct_decls/wi_fi_list.h"
 #include "struct_defs/wi_fi_history.h"
 
 #include "battle_regulation.h"
@@ -16,11 +16,11 @@
 #include "save_player.h"
 #include "savedata.h"
 #include "trainer_info.h"
-#include "unk_0202854C.h"
-#include "unk_0202ACE0.h"
-#include "unk_0202C858.h"
+#include "underground.h"
 #include "unk_02033200.h"
 #include "unk_0203909C.h"
+#include "wifi_history_save_data.h"
+#include "wifi_list.h"
 
 typedef struct CommPlayerInfo {
     u8 regulationBuffer[32];
@@ -31,7 +31,7 @@ typedef struct CommPlayerInfo {
     u8 netId;
     u8 country;
     u8 region;
-    u8 unk_65;
+    u8 hasGiftPenalty;
 } CommPlayerInfo;
 
 typedef struct CommPlayerRecord {
@@ -111,7 +111,7 @@ BOOL CommInfo_IsInitialized(void)
     return sCommInfo != NULL;
 }
 
-void CommInfo_SendBattleRegulation(void)
+void CommInfo_SendPlayerInfo(void)
 {
     u16 netId = CommSys_CurNetId();
     TrainerInfo *trainerInfo;
@@ -135,8 +135,8 @@ void CommInfo_SendBattleRegulation(void)
 
     sCommInfo->playerInfo[netId].country = WiFiHistory_GetCountry(wiFiHistory);
     sCommInfo->playerInfo[netId].region = WiFiHistory_GetRegion(wiFiHistory);
-    sCommInfo->playerInfo[netId].unk_65 = sub_02028810(sCommInfo->saveData);
-    sCommInfo->playerInfo[netId].unk_65 = 1 - sCommInfo->playerInfo[netId].unk_65;
+    sCommInfo->playerInfo[netId].hasGiftPenalty = Underground_CanExchangeGifts(sCommInfo->saveData);
+    sCommInfo->playerInfo[netId].hasGiftPenalty = 1 - sCommInfo->playerInfo[netId].hasGiftPenalty; // did they not know about the ! operator?
 
     DWC_CreateExchangeToken(WiFiList_GetUserData(v4), &sCommInfo->playerInfo[netId].friendData);
     MI_CpuClear8(sCommInfo->playerInfo[netId].regulationBuffer, 32);
@@ -153,7 +153,7 @@ int CommPlayerInfo_Size(void)
     return sizeof(CommPlayerInfo);
 }
 
-void CommunicatitonInformaion_FinishReading(int unused0, int unused1, void *unused2, void *unused3)
+void CommInfo_FinishReading(int unused0, int unused1, void *unused2, void *unused3)
 {
     if (sCommInfo) {
         sCommInfo->dataFinishedReading = TRUE;
@@ -388,13 +388,13 @@ int CommInfo_PlayerRegion(int netId)
     return 0;
 }
 
-int sub_02032FC0(int param0)
+BOOL CommInfo_PlayerHasGiftPenalty(int netID)
 {
-    if (sCommInfo->infoState[param0] != 0) {
-        return sCommInfo->playerInfo[param0].unk_65;
+    if (sCommInfo->infoState[netID] != INFO_STATE_EMPTY) {
+        return sCommInfo->playerInfo[netID].hasGiftPenalty;
     }
 
-    return 0;
+    return FALSE;
 }
 
 BOOL CommInfo_CheckBattleRegulation(void)

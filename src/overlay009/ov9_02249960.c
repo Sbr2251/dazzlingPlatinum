@@ -3,46 +3,48 @@
 #include <nitro.h>
 #include <string.h>
 
+#include "constants/colors.h"
+#include "constants/distortion_world.h"
 #include "constants/field/dynamic_map_features.h"
 #include "constants/field/map.h"
+#include "constants/field/script_ranges.h"
+#include "constants/fieldmap.h"
 #include "constants/graphics.h"
-#include "constants/map_object.h"
-#include "constants/species.h"
-#include "constants/types.h"
-#include "generated/map_headers.h"
-#include "generated/movement_actions.h"
+#include "constants/heap.h"
 #include "generated/object_events_gfx.h"
-#include "generated/sdat.h"
+#include "constants/map_object.h"
+#include "constants/quadrant.h"
+#include "constants/scrcmd.h"
+#include "constants/types.h"
+#include "generated/movement_actions.h"
+#include "generated/movement_types.h"
+#include "generated/object_events_gfx.h"
+#include "generated/trainer_types.h"
 
-#include "struct_decls/struct_020216E0_decl.h"
-#include "struct_decls/struct_0205E884_decl.h"
-#include "struct_decls/struct_02061830_decl.h"
-#include "struct_decls/struct_02061AB4_decl.h"
+#include "struct_decls/map_object.h"
+#include "struct_decls/map_object_manager.h"
 
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
 #include "overlay005/area_data.h"
+#include "overlay005/dist_world_surf_mount_renderer.h"
+#include "overlay005/field_effect_manager.h"
 #include "overlay005/fieldmap.h"
+#include "overlay005/fog_manager.h"
 #include "overlay005/land_data.h"
 #include "overlay005/land_data_manager_decl.h"
 #include "overlay005/map_object_anim_cmd.h"
-#include "overlay005/ov5_021D57BC.h"
-#include "overlay005/ov5_021DF440.h"
 #include "overlay005/ov5_021EB1A0.h"
 #include "overlay005/ov5_021ECA70.h"
 #include "overlay005/ov5_021ECE40.h"
 #include "overlay005/ov5_021F348C.h"
-#include "overlay005/ov5_021F8560.h"
-#include "overlay005/struct_ov5_021D57D8_decl.h"
-#include "overlay005/struct_ov5_021DF47C_decl.h"
 #include "overlay005/struct_ov5_021ED0A4.h"
 #include "overlay009/camera_configuration.h"
-#include "overlay009/dw_puzzle_actors.h"
-#include "overlay009/struct_ov9_0224F6EC_decl.h"
 #include "overlay009/dw_puzzle.h"
-#include "overlay009/dw_puzzle_actors.h" // dwp:engine-a + engine-b: actor teardown wiring
+#include "overlay009/dw_puzzle_actors.h"
 
 #include "bg_window.h"
+#include "billboard.h"
 #include "camera.h"
 #include "field_system.h"
 #include "field_task.h"
@@ -60,6 +62,7 @@
 #include "overworld_anim_manager.h"
 #include "persisted_map_features.h"
 #include "player_avatar.h"
+#include "player_move.h"
 #include "resource_collection.h"
 #include "savedata_misc.h"
 #include "script_manager.h"
@@ -73,11 +76,12 @@
 #include "sys_task_manager.h"
 #include "system_flags.h"
 #include "system_vars.h"
-#include "unk_02020AEC.h"
-#include "unk_0205F180.h"
 #include "unk_020655F4.h"
 #include "vars_flags.h"
 #include "vram_transfer.h"
+
+#include "res/graphics/field_effects/field_effects.naix"
+#include "res/sound/pl_sound_data.naix"
 
 #define DISTORTION_WORLD_CAMERA_BASE_ANGLE_X            -10750
 #define DISTORTION_WORLD_CAMERA_BASE_ANGLE_Y            0
@@ -89,6 +93,8 @@
 #define DISTORTION_WORLD_CAMERA_BASE_NEAR_CLIP          (FX32_ONE * 150)
 #define DISTORTION_WORLD_CAMERA_BASE_FAR_CLIP           (FX32_ONE * 1700)
 #define DISTORTION_WORLD_CAMERA_PERSISTED_ANGLES_FACTOR 0x100
+#define DISTORTION_WORLD_MIN_Y                          65
+#define DISTORTION_WORLD_MAX_Y                          289
 
 // 11: the Arc 1 wall-walk puzzle map (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS), standalone like the Giratina room.
 // 12-16: the five Arc 2 rifts (MAP_HEADER_DW_*), standalone (docs/arc2/rift_contract.md).
@@ -112,10 +118,17 @@
 #define ARC1_SEAMS_FLOOR_TILE_Y           1
 #define ARC1_SEAMS_IDLE_STEPS_BEFORE_HINT 20
 
-#define GIRATINA_ROOM_TELEPORT_TILE_X 15
-#define GIRATINA_ROOM_TELEPORT_TILE_Z 25
-#define B7F_TELEPORT_TILE_X           89
-#define B7F_TELEPORT_TILE_Z           57
+#define GIRATINA_ROOM_TELEPORT_TILE_X            15
+#define GIRATINA_ROOM_TELEPORT_TILE_Y            1
+#define GIRATINA_ROOM_TELEPORT_TILE_Z            25
+#define GIRATINA_ROOM_TELEPORT_SCRIPT_ID         4
+#define GIRATINA_ROOM_POST_BATTLE_CYNTHIA_TILE_X 15
+#define GIRATINA_ROOM_POST_BATTLE_CYNTHIA_TILE_Y 1
+#define GIRATINA_ROOM_POST_BATTLE_CYNTHIA_TILE_Z 15
+#define B7F_TELEPORT_TILE_X                      89
+#define B7F_TELEPORT_TILE_Y                      65
+#define B7F_TELEPORT_TILE_Z                      57
+#define B7F_TELEPORT_SCRIPT_ID                   2
 
 #define FIELD_TASK_CONTEXT_MAX_SIZE 128
 
@@ -126,7 +139,170 @@
 #define PLATFORM_PROP_ANIM_TIMING_COUNT 8
 #define PLATFORM_PROP_ANIM_DELTA        0x800
 
+#define GIRATINA_SHADOW_EXTERNAL_COUNT 1
+
 #define OBSTACLE_PROP_ANIM_DELTA 2
+
+#define SIMPLE_PROP_MANAGER_ANIMATOR_COUNT 8
+
+#define MOVING_PLATFORM_MAP_COUNT              8
+#define MOVING_PLATFORM_MANAGER_ANIMATOR_COUNT 32
+#define MOVING_PLATFORM_VIBRATION_Y_DELTA      (FX32_ONE * 3)
+
+#define ELEVATOR_PLATFORM_PATH_COUNT        22
+#define ELEVATOR_PLATFORM_PATH_INVALID      ELEVATOR_PLATFORM_PATH_COUNT
+#define ELEVATOR_PLATFORM_VIBRATION_Y_DELTA (FX32_ONE * 6)
+
+#define RUNNING_EVENT_DATA_BUFFER_SIZE 160
+
+#define MAP_OBJECT_MANAGER_OBJECT_COUNT 19
+
+#define UXIE_BOULDER_TUTO_ASCEND_Y_DELTA            (FX32_ONE * 2)
+#define UXIE_BOULDER_TUTO_ASCEND_Y_TARGET           17
+#define UXIE_BOULDER_TUTO_MOVE_TO_BOULDER_Z_DELTA   (FX32_ONE * 1)
+#define UXIE_BOULDER_TUTO_MOVE_TO_BOULDER_Z_TARGET  -2
+#define UXIE_BOULDER_TUTO_HOVER_STEP_COUNT          8
+#define UXIE_BOULDER_TUTO_HOVER_REPEAT_COUNT        3
+#define UXIE_BOULDER_TUTO_MOVE_AWAY_Z_DELTA         (FX32_ONE * 1)
+#define UXIE_BOULDER_TUTO_MOVE_AWAY_Z_TARGET        1
+#define UXIE_BOULDER_TUTO_DESCEND_Y_DELTA_INCREMENT 0x200
+#define UXIE_BOULDER_TUTO_DESCEND_Y_DELTA_TARGET    (FX32_ONE * 2)
+
+#define AZELF_BOULDER_TUTO_ASCEND_Y_DELTA            (FX32_ONE * 2)
+#define AZELF_BOULDER_TUTO_ASCEND_Y_TARGET           13
+#define AZELF_BOULDER_TUTO_DESCEND_Y_DELTA_INCREMENT 0x200
+#define AZELF_BOULDER_TUTO_DESCEND_Y_DELTA_TARGET    (FX32_ONE * 2)
+
+#define MESPRIT_BOULDER_TUTO_ASCEND_Y_DELTA            (FX32_ONE * 2)
+#define MESPRIT_BOULDER_TUTO_ASCEND_Y_TARGET           9
+#define MESPRIT_BOULDER_TUTO_DESCEND_Y_DELTA_INCREMENT 0x200
+#define MESPRIT_BOULDER_TUTO_DESCEND_Y_DELTA_TARGET    (FX32_ONE * 2)
+
+#define GIRATINA_ROOM_PLATFORMS_FIRST_GHOST_PROP_GROUP 1
+#define GIRATINA_ROOM_PLATFORMS_LAST_GHOST_PROP_GROUP  3
+
+#define GIRATINA_ROOM_SHOW_PLATFORMS_INITIAL_DELAY 36
+#define GIRATINA_ROOM_SHOW_PLATFORMS_DELAY         48
+
+#define GIRATINA_ROOM_HIDE_PLATFORMS_INITIAL_DELAY 16
+#define GIRATINA_ROOM_HIDE_PLATFORMS_DELAY         48
+#define GIRATINA_ROOM_HIDE_PLATFORMS_WAIT_DELAY    8
+
+#define SKY_BACKGROUND_MIN_DARKNESS 0
+#define SKY_BACKGROUND_MAX_DARKNESS 12
+
+#define SKY_CLOUD_SPRITE_LIST_CAPACITY 16
+#define SKY_CLOUD_RESOURCE_COUNT       7
+#define SKY_CLOUD_RESOURCE_BASE_ID     0xFF
+#define SKY_CLOUD_PALETTE_COUNT        5
+#define SKY_CLOUD_COUNT                9
+#define SKY_CLOUD_GROUP_COUNT          4
+#define SKY_CLOUD_VIEW_RECT_X          (FX32_ONE * 0)
+#define SKY_CLOUD_VIEW_RECT_Y          (FX32_ONE * -512)
+
+#define SPRITE_PALETTE_MAX_TINT_LEVEL 16
+
+#define GIRATINA_ROOM_PLAY_ARRIVAL_INITIAL_Y_OFFSET          ((10 << 4) * FX32_ONE)
+#define GIRATINA_ROOM_PLAY_ARRIVAL_INITIAL_SPRITE_DARKNESS   (FX32_ONE * SPRITE_PALETTE_MAX_TINT_LEVEL)
+#define GIRATINA_ROOM_PLAY_ARRIVAL_SKY_DARKNESS_DELTA        ((FX32_ONE * 8) / (3 * 30))
+#define GIRATINA_ROOM_PLAY_ARRIVAL_SKY_DARKNESS_TARGET       (FX32_ONE * SKY_BACKGROUND_MAX_DARKNESS)
+#define GIRATINA_ROOM_PLAY_ARRIVAL_DESCEND_Y_SLOW_THRESHOLD  ((1 << 4) * FX32_ONE)
+#define GIRATINA_ROOM_PLAY_ARRIVAL_DESCEND_Y_SLOW_DECREMENT  0x800
+#define GIRATINA_ROOM_PLAY_ARRIVAL_DESCEND_Y_FAST_DECREMENT  0x1000
+#define GIRATINA_ROOM_PLAY_ARRIVAL_SPRITE_DARKNESS_DECREMENT ((FX32_ONE * 16) / (3 * 30))
+#define GIRATINA_ROOM_PLAY_ARRIVAL_WAIT_DELAY                30
+
+#define WATERFALL_B4F_X       104
+#define WATERFALL_B4F_Y       170
+#define WATERFALL_B4F_START_Z 76
+#define WATERFALL_B4F_END_Z   79
+#define WATERFALL_B5F_X       104
+#define WATERFALL_B5F_Y       128
+#define WATERFALL_B5F_START_Z 76
+#define WATERFALL_B5F_END_Z   79
+
+#define CASCADE_FINISHING_THRESHOLD (16 * FX32_ONE)
+
+#define CASCADE_DOWN_FIRST_CAMERA_ANGLE_Y_OFFSET         -20
+#define CASCADE_DOWN_SECOND_CAMERA_ANGLE_Y_OFFSET        -36
+#define CASCADE_DOWN_FIRST_CAMERA_ANGLE_DELAY            32
+#define CASCADE_DOWN_INITIAL_SPRITE_ROTATION_STEPS       32
+#define CASCADE_DOWN_FIRST_CAMERA_TRANSITION_STEPS       72
+#define CASCADE_DOWN_SECOND_CAMERA_TRANSITION_STEPS      32
+#define CASCADE_DOWN_FINAL_SPRITE_ROTATION_STEPS         16
+#define CASCADE_DOWN_MOUNT_ROTATION_ANGLE_X              (FX32_ONE * -90)
+#define CASCADE_DOWN_MOUNT_ROTATION_ANGLE_Y              (FX32_ONE * 180)
+#define CASCADE_DOWN_MOUNT_ROTATION_ANGLE_Z              (FX32_ONE * 0)
+#define CASCADE_DOWN_FINAL_MOUNT_ROTATION_ANGLE_X        (FX32_ONE * -90)
+#define CASCADE_DOWN_FINAL_MOUNT_ROTATION_ANGLE_Y        (FX32_ONE * 0)
+#define CASCADE_DOWN_FINAL_MOUNT_ROTATION_ANGLE_Z        (FX32_ONE * 0)
+#define CASCADE_DOWN_ORBIT_ANGLE_START                   (FX32_ONE * 90)
+#define CASCADE_DOWN_ORBIT_ANGLE                         (FX32_ONE * -70)
+#define CASCADE_DOWN_FINAL_ORBIT_ANGLE                   (FX32_ONE * -110)
+#define CASCADE_DOWN_ORBIT_ANGLE_END                     270
+#define CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_X_START   (FX32_ONE * 0)
+#define CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_Y_START   (FX32_ONE * 0)
+#define CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_Z_START   (FX32_ONE * 6)
+#define CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_X         (FX32_ONE * 0)
+#define CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_Y         (FX32_ONE * 0)
+#define CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_Z         (FX32_ONE * 4)
+#define CASCADE_DOWN_CASCADE_MOUNT_POSITION_FIX_X_START  (FX32_ONE * 0)
+#define CASCADE_DOWN_CASCADE_MOUNT_POSITION_FIX_Y_START  (FX32_ONE * 0)
+#define CASCADE_DOWN_CASCADE_MOUNT_POSITION_FIX_Z_START  (FX32_ONE * 10)
+#define CASCADE_DOWN_FIRST_CASCADE_MOUNT_POSITION_FIX_X  (FX32_ONE * 0)
+#define CASCADE_DOWN_FIRST_CASCADE_MOUNT_POSITION_FIX_Y  (FX32_ONE * 0)
+#define CASCADE_DOWN_FIRST_CASCADE_MOUNT_POSITION_FIX_Z  (FX32_ONE * -16)
+#define CASCADE_DOWN_SECOND_CASCADE_MOUNT_POSITION_FIX_X (FX32_ONE * 0)
+#define CASCADE_DOWN_SECOND_CASCADE_MOUNT_POSITION_FIX_Y (FX32_ONE * 0)
+#define CASCADE_DOWN_SECOND_CASCADE_MOUNT_POSITION_FIX_Z (FX32_ONE * 6)
+#define CASCADE_DOWN_FINAL_MOUNT_POSITION_FIX_X          (FX32_ONE * 0)
+#define CASCADE_DOWN_FINAL_MOUNT_POSITION_FIX_Y          (FX32_ONE * 0)
+#define CASCADE_DOWN_FINAL_MOUNT_POSITION_FIX_Z          (FX32_ONE * -7)
+#define CASCADE_DOWN_FIRST_CASCADE_BOBBING_FIX           (FX32_ONE * -4)
+#define CASCADE_DOWN_SECOND_CASCADE_BOBBING_FIX          (FX32_ONE * 4)
+#define CASCADE_DOWN_BOBBING_DELTA                       1024
+#define CASCADE_DOWN_BOBBING_MAX                         (FX32_ONE * 4)
+
+#define CASCADE_UP_CAMERA_ANGLE_Y_OFFSET                  20
+#define CASCADE_UP_INITIAL_SPRITE_ROTATION_STEPS          4
+#define CASCADE_UP_CASCADE_STEPS                          16
+#define CASCADE_UP_FINAL_SPRITE_ROTATION_STEPS            2
+#define CASCADE_UP_MOUNT_ROTATION_ANGLE_X                 (FX32_ONE * -90)
+#define CASCADE_UP_MOUNT_ROTATION_ANGLE_Y                 (FX32_ONE * 180)
+#define CASCADE_UP_MOUNT_ROTATION_ANGLE_Z                 (FX32_ONE * 0)
+#define CASCADE_UP_FINAL_MOUNT_ROTATION_ANGLE_X           (FX32_ONE * 90)
+#define CASCADE_UP_FINAL_MOUNT_ROTATION_ANGLE_Y           (FX32_ONE * 0)
+#define CASCADE_UP_FINAL_MOUNT_ROTATION_ANGLE_Z           (FX32_ONE * 0)
+#define CASCADE_UP_ORBIT_ANGLE_START                      (FX32_ONE * 270)
+#define CASCADE_UP_ORBIT_ANGLE                            (FX32_ONE * 110)
+#define CASCADE_UP_FINAL_ORBIT_ANGLE                      (FX32_ONE * 70)
+#define CASCADE_UP_ORBIT_ANGLE_END                        90
+#define CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_X_START      (FX32_ONE * 0)
+#define CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_Y_START      (FX32_ONE * 0)
+#define CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_Z_START      (FX32_ONE * -7)
+#define CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_X            (FX32_ONE * 0)
+#define CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_Y            (FX32_ONE * 0)
+#define CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_Z            (FX32_ONE * 0)
+#define CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_X_START     (FX32_ONE * 0)
+#define CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_Y_START     (FX32_ONE * 0)
+#define CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_Z_START     (FX32_ONE * -7)
+#define CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_X           (FX32_ONE * 0)
+#define CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_Y           (FX32_ONE * 0)
+#define CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_Z           (FX32_ONE * 17)
+#define CASCADE_UP_FINAL_MOUNT_POSITION_FIX_X             (FX32_ONE * 0)
+#define CASCADE_UP_FINAL_MOUNT_POSITION_FIX_Y             (FX32_ONE * 0)
+#define CASCADE_UP_FINAL_MOUNT_POSITION_FIX_Z             (FX32_ONE * -4)
+#define CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_Z_THRESHOLD (FX32_ONE * 10)
+#define CASCADE_UP_BOBBING_DELTA                          512
+#define CASCADE_UP_BOBBING_MAX                            (FX32_ONE * 4)
+
+#define FOG_OFFSET  0x7600
+#define FOG_COLOR   COLOR_BLACK
+#define FOG_ALPHA   16
+#define FOG_DENSITY 88
+
+#define EDGE_COLOR                 COLOR_DARK_GRAY
+#define EDGE_GIRATINA_SHADOW_COLOR GX_RGB(4, 3, 7)
 
 enum FloatingPlatformKind {
     FLOATING_PLATFORM_KIND_FLOOR = 0,
@@ -148,9 +324,9 @@ enum PropKind {
     PROP_KIND_FLOATING_BLUE_ROCK,
     PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_1,
     PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_2,
-    PROP_KIND_MEDIUM_FLOATING_PLATFORM_SW,
-    PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_1,
-    PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_2,
+    PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_SW,
+    PROP_KIND_MEDIUM_MOVING_PLATFORM_1,
+    PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
     PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_3,
     PROP_KIND_LARGE_ELEVATOR_PLATFORM_1,
     PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_4,
@@ -164,21 +340,21 @@ enum PropKind {
     PROP_KIND_LARGE_ELEVATOR_PLATFORM_3,
     PROP_KIND_LARGE_ELEVATOR_PLATFORM_4,
     PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_5,
-    PROP_KIND_DUMMY20,
-    PROP_KIND_DUMMY21,
+    PROP_KIND_GIRATINA_SHADOW,
+    PROP_KIND_WATERFALL,
     PROP_KIND_LAND_VINE_FLOWER,
     PROP_KIND_LAND_ROCK,
-    PROP_KIND_DUMMY24,
+    PROP_KIND_PORTAL,
     PROP_KIND_COUNT,
     PROP_KIND_INVALID = PROP_KIND_COUNT,
 };
 
 enum PropAnimKind {
-    PROP_ANIM_KIND_DUMMY20 = 0,
+    PROP_ANIM_KIND_GIRATINA_SHADOW = 0,
     PROP_ANIM_KIND_LAND_VINE_FLOWER,
     PROP_ANIM_KIND_LAND_ROCK,
-    PROP_ANIM_KIND_DUMMY21,
-    PROP_ANIM_KIND_DUMMY24,
+    PROP_ANIM_KIND_WATERFALL,
+    PROP_ANIM_KIND_PORTAL,
     PROP_ANIM_KIND_COUNT,
     PROP_ANIM_KIND_INVALID = PROP_ANIM_KIND_COUNT,
 };
@@ -193,7 +369,230 @@ enum ObstaclePropSoundEffectState {
     OBSTACLE_PROP_SFX_STATE_APPEAR = 2,
 };
 
-typedef struct DistWorldSystem DistWorldSystem;
+enum GiratinaShadowPropState {
+    GIRATINA_SHADOW_PROP_STATE_SFX = 0,
+    GIRATINA_SHADOW_PROP_STATE_MOVE,
+    GIRATINA_SHADOW_PROP_STATE_END,
+};
+
+enum GiratinaShadowPropSoundEffectKind {
+    GIRATINA_SHADOW_PROP_SFX_KIND_NONE = 0,
+    GIRATINA_SHADOW_PROP_SFX_KIND_CRY,
+    GIRATINA_SHADOW_PROP_SFX_KIND_FLEE,
+};
+
+enum FlagCondition {
+    FLAG_COND_NONE = 0,
+    FLAG_COND_BOULDER_PUZZLE_FALSE,
+    FLAG_COND_BOULDER_PUZZLE_TRUE,
+    FLAG_COND_WORLD_PROGRESS_EQ,
+    FLAG_COND_WORLD_PROGRESS_LEQ,
+    FLAG_COND_WORLD_PROGRESS_GEQ,
+    FLAG_COND_MANUAL_ADD_ONLY,
+    FLAG_COND_GIRATINA_SHADOW,
+    FLAG_COND_CYRUS_APPEARANCE,
+};
+
+enum MovingPlatformElevatorDirection {
+    MOVING_PLATFORM_ELEVATOR_DIR_UP = 0,
+    MOVING_PLATFORM_ELEVATOR_DIR_DOWN,
+    MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+};
+
+enum MovingPlatformMapObjectData {
+    MOVING_PLATFORM_MAP_OBJ_DATA_INDEX = 0,
+    MOVING_PLATFORM_MAP_OBJ_DATA_MAP_HEADER_ID,
+    MOVING_PLATFORM_MAP_OBJ_DATA_EVELATOR_PATH_INDEX,
+};
+
+enum ElevatorPlatformState {
+    ELEVATOR_PLATFORM_STATE_INIT = 0,
+    ELEVATOR_PLATFORM_STATE_VIBRATE,
+    ELEVATOR_PLATFORM_STATE_MOVE_FIRST_HALF,
+    ELEVATOR_PLATFORM_STATE_CHANGE_MAPS,
+    ELEVATOR_PLATFORM_STATE_MOVE_SECOND_HALF,
+    ELEVATOR_PLATFORM_STATE_END,
+    ELEVATOR_PLATFORM_STATE_CYRUS_B4F_START_ANIMATION,
+    ELEVATOR_PLATFORM_STATE_CYRUS_B4F_END_ANIMATION,
+    ELEVATOR_PLATFORM_STATE_COUNT,
+};
+
+enum ElevatorPlatformHandlerResult {
+    ELEVATOR_PLATFORM_HANDLER_RES_CONTINUE = 0,
+    ELEVATOR_PLATFORM_HANDLER_RES_LOOP,
+    ELEVATOR_PLATFORM_HANDLER_RES_FINISH,
+};
+
+enum EventCmdKind {
+    EVENT_CMD_SET_MAP_OBJECT_ANIMATION = 0,
+    EVENT_CMD_MOVE_PLATFORM,
+    EVENT_CMD_ADD_MAP_OBJECT_WITH_LOCAL_ID,
+    EVENT_CMD_DELETE_MAP_OBJECT_WITH_LOCAL_ID,
+    EVENT_CMD_CASCADE_UP,
+    EVENT_CMD_START_SCRIPT,
+    EVENT_CMD_SET_DISTORTION_WORLD_PROGRESS,
+    EVENT_CMD_SHOW_GIRATINA_SHADOW,
+    EVENT_CMD_SET_GIRATINA_ANIMATION_FLAG,
+    EVENT_CMD_SET_PUZZLE_FLAG,
+    EVENT_CMD_CASCADE_DOWN,
+    EVENT_CMD_PLAY_GIRATINA_ARRIVAL,
+    EVENT_CMD_SHOW_UXIE_BOULDER_TUTO,
+    EVENT_CMD_SHOW_AZELF_BOULDER_TUTO,
+    EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO,
+    EVENT_CMD_SHOW_GIRATINA_ROOM_PLATFORMS,
+    EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS,
+    EVENT_CMD_CLEAR_PUZZLE_FLAG,
+    EVENT_CMD_KIND_COUNT,
+    EVENT_CMD_END = EVENT_CMD_KIND_COUNT,
+};
+
+enum EventCmdHandlerResult {
+    EVENT_CMD_HANDLER_RES_CONTINUE = 0,
+    EVENT_CMD_HANDLER_RES_LOOP,
+    EVENT_CMD_HANDLER_RES_FINISH,
+};
+
+enum EventCmdSetMapObjectAnimationState {
+    EVENT_CMD_SET_MAP_OBJECT_ANIMATION_STATE_INIT = 0,
+    EVENT_CMD_SET_MAP_OBJECT_ANIMATION_STATE_START,
+    EVENT_CMD_SET_MAP_OBJECT_ANIMATION_STATE_FINISH,
+};
+
+enum EventCmdMovePlatformState {
+    EVENT_CMD_MOVE_PLATFORM_STATE_INIT = 0,
+    EVENT_CMD_MOVE_PLATFORM_STATE_VIBRATE,
+    EVENT_CMD_MOVE_PLATFORM_STATE_MOVE,
+    EVENT_CMD_MOVE_PLATFORM_STATE_END,
+};
+
+enum EventCmdShowGiratinaShadowState {
+    EVENT_CMD_SHOW_GIRATINA_SHADOW_STATE_LOAD = 0,
+    EVENT_CMD_SHOW_GIRATINA_SHADOW_STATE_FINISH,
+};
+
+enum EventCmdShowUxieBoulderTutoState {
+    EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_INIT = 0,
+    EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_ASCEND,
+    EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_MOVE_TO_BOULDER,
+    EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_HOVER,
+    EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_MOVE_AWAY,
+    EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_DESCEND,
+};
+
+enum EventCmdShowAzelfBoulderTutoState {
+    EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_INIT = 0,
+    EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_ASCEND,
+    EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_WAIT_FOR_ANIMATION,
+    EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_DESCEND,
+};
+
+enum EventCmdShowMespritBoulderTutoState {
+    EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_INIT = 0,
+    EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_ASCEND,
+    EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_WAIT_FOR_ANIMATION,
+    EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_DESCEND,
+};
+
+enum EventCmdShowGiratinaRoomPlatformsState {
+    EVENT_CMD_SHOW_GIRATINA_ROOM_PLATFORMS_STATE_DO_CAMERA_TRANSITION = 0,
+    EVENT_CMD_SHOW_GIRATINA_ROOM_PLATFORMS_STATE_SHOW_PLATFORMS,
+};
+
+enum EventCmdHideGiratinaRoomPlatformsState {
+    EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS_STATE_INIT = 0,
+    EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS_STATE_HIDE_PLATFORMS,
+    EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS_STATE_WAIT,
+};
+
+enum EventCmdPlayGiratinaArrivalState {
+    EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_INIT_MAP_OBJECT = 0,
+    EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_INIT_SPRITE_AND_SKY,
+    EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_DESCEND,
+    EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_BRIGHTEN_SPRITE,
+    EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_WAIT,
+};
+
+enum EventCmdCascadeDownState {
+    EVENT_CMD_CASCADE_DOWN_STATE_INIT = 0,
+    EVENT_CMD_CASCADE_DOWN_STATE_ROTATE_PLAYER,
+    EVENT_CMD_CASCADE_DOWN_STATE_CASCADE_DOWN,
+    EVENT_CMD_CASCADE_DOWN_STATE_FINISH_CASCADING,
+    EVENT_CMD_CASCADE_DOWN_STATE_MOVE_AWAY,
+};
+
+enum EventCmdCascadeUpState {
+    EVENT_CMD_CASCADE_UP_STATE_INIT = 0,
+    EVENT_CMD_CASCADE_UP_STATE_ROTATE_PLAYER,
+    EVENT_CMD_CASCADE_UP_STATE_CASCADE_DOWN,
+    EVENT_CMD_CASCADE_UP_STATE_FINISH_CASCADING,
+    EVENT_CMD_CASCADE_UP_STATE_MOVE_AWAY,
+};
+
+enum Axis {
+    AXIS_X = 0,
+    AXIS_Y,
+    AXIS_Z,
+};
+
+enum CascadeMovementDirection {
+    CASCADE_MOVEMENT_DIR_UP = 0,
+    CASCADE_MOVEMENT_DIR_DOWN,
+};
+
+enum CascadeUpdateResult {
+    CASCADE_UPDATE_RES_NOTHING = 0,
+    CASCADE_UPDATE_RES_MAP_LOAD_REACHED,
+    CASCADE_UPDATE_RES_FINISHING_POS_REACHED,
+    CASCADE_UPDATE_RES_FINAL_POS_REACHED,
+};
+
+enum SkyKind {
+    SKY_NORMAL = 0,
+    SKY_GIRATINA_ROOM,
+    SKY_GIRATINA_ROOM_DARK,
+    SKY_KIND_COUNT,
+};
+
+enum MapObjectRotatorValidity {
+    MAP_OBJECT_ROTATOR_VALIDITY_OK = 0,
+    MAP_OBJECT_ROTATOR_VALIDITY_NEEDS_RESET,
+    MAP_OBJECT_ROTATOR_VALIDITY_NEEDS_FREE,
+};
+
+enum FloorLoadDirection {
+    FLOOR_LOAD_NONE = 0,
+    FLOOR_LOAD_PREVIOUS,
+    FLOOR_LOAD_NEXT,
+};
+
+enum FloorLoadHandlerResult {
+    FLOOR_LOAD_HANDLER_RES_CONTINUE = 0,
+    FLOOR_LOAD_HANDLER_RES_LOOP,
+    FLOOR_LOAD_HANDLER_RES_FINISH,
+};
+
+enum FloorLoadNextState {
+    FLOOR_LOAD_NEXT_STATE_PREPARE_UNLOAD_ACTIVE = 0,
+    FLOOR_LOAD_NEXT_STATE_MOVE_INACTIVE_TO_ACTIVE,
+    FLOOR_LOAD_NEXT_STATE_PREPARE_LOAD_INACTIVE,
+    FLOOR_LOAD_NEXT_STATE_LOAD_INACTIVE,
+    FLOOR_LOAD_NEXT_STATE_FINISH,
+    FLOOR_LOAD_NEXT_STATE_COUNT,
+};
+
+enum FloorLoadPreviousState {
+    FLOOR_LOAD_PREVIOUS_STATE_PREPARE_UNLOAD_INACTIVE = 0,
+    FLOOR_LOAD_PREVIOUS_STATE_PREPARE_LOAD_ACTIVE,
+    FLOOR_LOAD_PREVIOUS_STATE_LOAD_ACTIVE,
+    FLOOR_LOAD_PREVIOUS_STATE_FINISH,
+    FLOOR_LOAD_PREVIOUS_STATE_COUNT,
+};
+
+enum FallingBoulderDestination {
+    FALLING_BOULDER_DEST_B6F = 0,
+    FALLING_BOULDER_DEST_CORRECT_PIT,
+    FALLING_BOULDER_DEST_WRONG_PIT,
+};
 
 typedef struct DistWorldBounds {
     s16 startTileX;
@@ -204,82 +603,75 @@ typedef struct DistWorldBounds {
     s16 sizeZ;
 } DistWorldBounds;
 
-typedef struct {
-    u8 unk_00;
-    u8 unk_01;
-    u8 unk_02;
-    u8 unk_03;
-} UnkStruct_ov9_02251EC8;
+typedef struct DistWorldSkyCloudResourceIDs {
+    u8 charResID;
+    u8 plttResID;
+    u8 cellResID;
+    u8 animResID;
+} DistWorldSkyCloudResourceIDs;
 
-typedef struct {
-    SpriteList *unk_00;
-    G2dRenderer unk_04;
-    SpriteResourceCollection *unk_190;
-    SpriteResourceCollection *unk_194;
-    SpriteResourceCollection *unk_198;
-    SpriteResourceCollection *unk_19C;
-    SpriteResource *unk_1A0[7];
-    SpriteResource *unk_1BC[1];
-    SpriteResource *unk_1C0[7];
-    SpriteResource *unk_1DC[7];
-    SysTask *unk_1F8;
-} UnkStruct_ov9_0224B064;
+typedef struct DistWorldSkyClouds {
+    SpriteList *spriteList;
+    G2dRenderer renderer;
+    SpriteResourceCollection *charResColl;
+    SpriteResourceCollection *plttResColl;
+    SpriteResourceCollection *cellResColl;
+    SpriteResourceCollection *animResColl;
+    SpriteResource *charRes[SKY_CLOUD_RESOURCE_COUNT];
+    SpriteResource *plttRes;
+    SpriteResource *cellRes[SKY_CLOUD_RESOURCE_COUNT];
+    SpriteResource *animRes[SKY_CLOUD_RESOURCE_COUNT];
+    SysTask *updateTask;
+} DistWorldSkyClouds;
 
-typedef struct {
-    u16 unk_00_0 : 5;
-    u16 unk_00_5 : 5;
-    u16 unk_00_10 : 5;
-    u16 unk_00_15 : 1;
-} UnkStruct_ov9_0224F86C;
+typedef struct DistWorldSkyBackground {
+    s16 darknessLevel;
+    s16 renderedDarknessLevel;
+    u16 dirty;
+    u16 darknessCalculationDisabled;
+    u16 basePalette[PALETTE_SIZE];
+    u16 currPalette[PALETTE_SIZE];
+    u16 baseCloudPalettes[PALETTE_SIZE * SKY_CLOUD_PALETTE_COUNT];
+    u16 currCloudPalettes[PALETTE_SIZE * SKY_CLOUD_PALETTE_COUNT];
+} DistWorldSkyBackground;
 
-typedef struct {
-    s16 unk_00;
-    s16 unk_02;
-    u16 unk_04;
-    u16 unk_06;
-    u16 unk_08[16];
-    u16 unk_28[16];
-    u16 unk_48[80];
-    u16 unk_E8[80];
-} UnkStruct_ov9_0224ADC0;
+typedef struct DistWorldSkyCloudTemplate {
+    int resIDsIndex;
+    int group;
+    fx32 initialRotAngle;
+    fx32 rotAngleOffset;
+    int distToCenter;
+    fx32 baseRotAngleDelta;
+    VecFx32 basePos;
+    VecFx32 scale;
+} DistWorldSkyCloudTemplate;
 
-typedef struct {
-    int unk_00;
-    int unk_04;
-    fx32 unk_08;
-    fx32 unk_0C;
-    int unk_10;
-    fx32 unk_14;
-    VecFx32 unk_18;
-    VecFx32 unk_24;
-} UnkStruct_ov9_02253680;
+typedef struct DistWorldSkyCloudAnimatorUserData {
+    DistWorldSystem *system;
+    DistWorldSkyCloudTemplate template;
+    DistWorldSkyClouds *clouds;
+} DistWorldSkyCloudAnimatorUserData;
 
-typedef struct {
-    DistWorldSystem *unk_00;
-    UnkStruct_ov9_02253680 unk_04;
-    UnkStruct_ov9_0224B064 *unk_34;
-} UnkStruct_ov9_0224B1B4;
+typedef struct DistWorldSkyCloudAnimator {
+    fx32 rotAngle;
+    fx32 rotAngleDelta;
+    DistWorldSkyCloudAnimatorUserData userData;
+    Sprite *sprite;
+} DistWorldSkyCloudAnimator;
 
-typedef struct {
-    fx32 unk_00;
-    fx32 unk_04;
-    UnkStruct_ov9_0224B1B4 unk_08;
-    Sprite *unk_40;
-} UnkStruct_ov9_0224B2C0;
-
-typedef struct {
+typedef struct DistWorldMapInfo {
     u32 mapHeaderID;
-    u16 unk_04;
-    s16 unk_06;
-    s16 unk_08;
-    s16 unk_0A;
-} UnkStruct_ov9_0224C034;
+    u16 mapFileIndex;
+    s16 offsetTileX;
+    s16 offsetAltitude;
+    s16 offsetTileZ;
+} DistWorldMapInfo;
 
-typedef struct {
-    int unk_00;
-    UnkStruct_ov9_0224C034 *unk_04;
-    void *unk_08;
-} UnkStruct_ov9_0224BFE0;
+typedef struct DistWorldMapInfoFile {
+    int count;
+    DistWorldMapInfo *infos;
+    void *buffer;
+} DistWorldMapInfoFile;
 
 typedef struct DistWorldFloatingPlatformTemplate {
     s16 kind;
@@ -297,10 +689,10 @@ typedef struct DistWorldFloatingPlatformJumpPointTemplate {
     s16 xDisplacement;
     s16 yDisplacement;
     s16 zDisplacement;
-    s16 unk_1A;
+    s16 playerSpriteRotAngle;
     s16 movementAnimSteps;
-    u16 unk_1E;
-    u16 unk_20;
+    u16 jumpAxis;
+    u16 invertedJump;
     s16 finalFacingDir;
     s16 floatingPlatformKind;
     u16 floatingPlatformIndex;
@@ -344,10 +736,10 @@ typedef struct DistWorldFloatingPlatformManager {
     u16 *terrainAttributes;
 } DistWorldFloatingPlatformManager;
 
-typedef struct DistWorldFileFloatingPlatformJumpPointSection {
+typedef struct DistWorldMapFileFloatingPlatformJumpPointSection {
     int count;
     DistWorldFloatingPlatformJumpPointTemplate *templates;
-} DistWorldFileFloatingPlatformJumpPointSection;
+} DistWorldMapFileFloatingPlatformJumpPointSection;
 
 typedef struct DistWorldCameraAngleTemplates {
     int count;
@@ -360,44 +752,44 @@ typedef struct DistWorldGhostPropData {
     const DistWorldGhostPropTrigger *triggers;
 } DistWorldGhostPropData;
 
-typedef struct DistWorldFileHeader {
+typedef struct DistWorldMapFileHeader {
     int dummy00;
     int floatingPlatformSectionSize;
     int floatingPlatformJumpPointSectionSize;
     int cameraAngleSectionSize;
     int ghostPropSectionSize;
-} DistWorldFileHeader;
+} DistWorldMapFileHeader;
 
-typedef struct DistWorldFileFloatingPlatformSection {
+typedef struct DistWorldMapFileFloatingPlatformSection {
     int count;
     DistWorldFloatingPlatformTemplate *templates;
-} DistWorldFileFloatingPlatformSection;
+} DistWorldMapFileFloatingPlatformSection;
 
-typedef struct DistWorldFileCameraAngleSection {
+typedef struct DistWorldMapFileCameraAngleSection {
     int count;
     DistWorldCameraAngleTemplate *templates;
-} DistWorldFileCameraAngleSection;
+} DistWorldMapFileCameraAngleSection;
 
-typedef struct DistWorldFile {
+typedef struct DistWorldMapFile {
     u32 mapHeaderID;
-    DistWorldFileFloatingPlatformSection *floatingPlatformSection;
-    DistWorldFileFloatingPlatformJumpPointSection *floatingPlatformJumpPointSection;
-    DistWorldFileCameraAngleSection *cameraAngleSection;
+    DistWorldMapFileFloatingPlatformSection *floatingPlatformSection;
+    DistWorldMapFileFloatingPlatformJumpPointSection *floatingPlatformJumpPointSection;
+    DistWorldMapFileCameraAngleSection *cameraAngleSection;
     void *ghostPropSection;
-    DistWorldFileHeader *header;
+    DistWorldMapFileHeader *header;
     void *buffer;
-} DistWorldFile;
+} DistWorldMapFile;
 
-typedef struct {
-    UnkStruct_ov9_0224BFE0 unk_00;
-    DistWorldFile distortionWorldFile;
+typedef struct DistWorldMainArchive {
+    DistWorldMapInfoFile mapInfoFile;
+    DistWorldMapFile mapFile;
     DistWorldFloatingPlatformManager floatingPlatformMan;
-    DistWorldFileFloatingPlatformJumpPointSection floatingPlatformJumpPoints;
+    DistWorldMapFileFloatingPlatformJumpPointSection floatingPlatformJumpPoints;
     DistWorldCameraAngleTemplates cameraAngleTemplates;
     DistWorldGhostPropData ghostPropData;
-    DistWorldFile inactiveDistortionWorldFile;
+    DistWorldMapFile inactiveMapFile;
     DistWorldGhostPropData inactiveGhostPropData;
-} UnkStruct_ov9_02249B04_sub1;
+} DistWorldMainArchive;
 
 typedef struct DistWorldCameraTransition {
     BOOL isActive;
@@ -419,7 +811,7 @@ typedef struct DistWorldFloatingPlatformJumpTaskContext {
     int state;
     int stepsRemaining;
     VecFx32 positionIncrementVec;
-    fx32 unk_14;
+    fx32 jumpOffsetIndex;
     fx32 positionIncrement;
     VecFx32 accumulatedMovement;
     VecFx32 positionIncrementVecAbs;
@@ -431,26 +823,26 @@ typedef struct DistWorldFieldTaskContext {
     u8 data[FIELD_TASK_CONTEXT_MAX_SIZE];
 } DistWorldFieldTaskContext;
 
-typedef struct {
-    s16 unk_00;
-    s16 unk_02;
-    fx32 unk_04;
-    fx32 unk_08;
-    fx32 unk_0C;
-    NNSG3dAnmObj *unk_10;
-    u16 unk_14;
-    u16 unk_16;
-    MapObject *unk_18;
-    UnkStruct_020216E0 *unk_1C;
-} UnkStruct_ov9_0224A294;
+typedef struct DistWorldMapObjectRotator {
+    s16 finalRotAngle;
+    s16 animStepsLeft;
+    fx32 currRotAngle;
+    fx32 rotAngleDelta;
+    fx32 animFrame;
+    NNSG3dAnmObj *animObj;
+    u16 mapObjGraphicsID;
+    u16 mapObjLocalID;
+    MapObject *mapObj;
+    Billboard *billboard;
+} DistWorldMapObjectRotator;
 
-typedef struct {
-    int unk_00;
-    UnkStruct_ov9_0224A294 *unk_04;
-    void *unk_08;
-    void *unk_0C;
-    NNSFndAllocator unk_10;
-} UnkStruct_ov9_0224A228;
+typedef struct DistWorldMapObjectRotatorManager {
+    int count;
+    DistWorldMapObjectRotator *rotators;
+    void *animData;
+    void *anim;
+    NNSFndAllocator allocator;
+} DistWorldMapObjectRotatorManager;
 
 typedef struct DistWorldPropAnimInfo {
     u16 propKind;
@@ -496,82 +888,82 @@ typedef struct DistWorldGhostPropManager {
     OverworldAnimManager **animMans;
 } DistWorldGhostPropManager;
 
-typedef struct {
-    int unk_00;
-    int unk_04;
-    u32 unk_08;
-    NARC *unk_0C;
-    MapMatrix *unk_10;
-    AreaDataManager *unk_14;
-    LandDataManager *unk_18;
-} UnkStruct_ov9_0224C8E8;
+typedef struct DistWorldInactiveFloor {
+    int mapHeaderID;
+    BOOL valid;
+    BOOL ready;
+    NARC *dummy0C;
+    MapMatrix *mapMatrix;
+    AreaDataManager *areaDataMan;
+    LandDataManager *landDataMan;
+} DistWorldInactiveFloor;
 
-typedef struct {
-    s16 unk_00;
-    s16 unk_02;
-    s16 unk_04;
-    u16 unk_06;
-    u32 unk_08;
-    DistWorldSystem *unk_0C;
-} UnkStruct_ov9_0224DFA0;
+typedef struct DistWorldMovingPlatformPropUserData {
+    s16 tileX;
+    s16 tileY;
+    s16 tileZ;
+    u16 propKind;
+    BOOL isGiratinaRoomElevator;
+    DistWorldSystem *system;
+} DistWorldMovingPlatformPropUserData;
 
-typedef struct {
-    u8 unk_00;
-    u8 unk_01;
-    u8 unk_02;
-    u8 unk_03;
-    VecFx32 unk_04;
-    UnkStruct_ov9_0224DFA0 unk_10;
-    DistWorldPropRenderer *unk_20;
-} UnkStruct_ov9_0224E1CC;
+typedef struct DistWorldMovingPlatformProp {
+    u8 animated;
+    u8 hidden;
+    u8 opacity;
+    u8 animStep;
+    VecFx32 pos;
+    DistWorldMovingPlatformPropUserData userData;
+    DistWorldPropRenderer *renderer;
+} DistWorldMovingPlatformProp;
 
-typedef struct {
-    u16 unk_00;
-    u16 unk_02;
-    s16 unk_04;
-    s16 unk_06;
-    s16 unk_08;
-    s16 unk_0A;
-    s16 unk_0C;
-    s16 unk_0E;
-    VecFx32 unk_10;
-    u16 unk_1C;
-    u16 unk_1E;
-} UnkStruct_ov9_02253830;
+typedef struct DistWorldElevatorPlatformPath {
+    u16 index;
+    u16 nextIndex;
+    s16 finalTileXOffset;
+    s16 finalTileYOffset;
+    s16 finalTileZOffset;
+    s16 changeMapsTileXOffset;
+    s16 changeMapsTileYOffset;
+    s16 changeMapsTileZOffset;
+    VecFx32 posDelta;
+    u16 persistedFlagToSet;
+    u16 persistedFlagToClear;
+} DistWorldElevatorPlatformPath;
 
-typedef struct {
-    u16 unk_00;
-    s16 unk_02;
-    s16 unk_04;
-    s16 unk_06;
-    u16 unk_08;
-    u16 unk_0A;
-    u32 unk_0C;
-    u32 unk_10;
-    u32 unk_14;
-} UnkStruct_ov9_0224DF10;
+typedef struct DistWorldMovingPlatformTemplate {
+    u16 index;
+    s16 tileX;
+    s16 tileY;
+    s16 tileZ;
+    u16 elevatorPathIndex;
+    u16 elevatorDir;
+    u32 destIndex;
+    u32 propKind;
+    u32 persistedFlag;
+} DistWorldMovingPlatformTemplate;
 
-typedef struct {
-    u32 unk_00;
-    const UnkStruct_ov9_0224DF10 **unk_04;
-} UnkStruct_ov9_02252C38;
+typedef struct DistWorldMovingPlatformMapTemplates {
+    u32 mapHeaderID;
+    const DistWorldMovingPlatformTemplate **templates;
+} DistWorldMovingPlatformMapTemplates;
 
-typedef struct {
-    u8 unk_00;
-    u8 unk_01;
-    u16 unk_02;
-    UnkStruct_ov9_0224DF10 unk_04;
-    MapObject *unk_1C;
-    OverworldAnimManager *unk_20;
-} UnkStruct_ov9_0224E0DC;
+typedef struct DistWorldMovingPlatformPropAnimator {
+    u8 valid;
+    u8 preventDeletion;
+    u16 mapHeaderID;
+    DistWorldMovingPlatformTemplate template;
+    MapObject *mapObj;
+    OverworldAnimManager *animMan;
+} DistWorldMovingPlatformPropAnimator;
 
-typedef struct {
-    UnkStruct_ov9_0224E0DC unk_00[32];
-} UnkStruct_ov9_0224DC34;
+typedef struct DistWorldMovingPlatformPropManager {
+    DistWorldMovingPlatformPropAnimator animators[MOVING_PLATFORM_MANAGER_ANIMATOR_COUNT];
+} DistWorldMovingPlatformPropManager;
 
-typedef struct {
-    SysTask *unk_00;
-} UnkStruct_ov9_02249E94;
+typedef struct DistWorldCalculationTask {
+    SysTask *task;
+} DistWorldCalculationTask;
 
 typedef struct DistWorldMapConnections {
     u32 currID;
@@ -579,138 +971,138 @@ typedef struct DistWorldMapConnections {
     u32 nextID;
 } DistWorldMapConnections;
 
-typedef struct {
-    u32 unk_00;
-    u16 unk_04;
-    s16 unk_06;
-    s16 unk_08;
-    s16 unk_0A;
-    u16 unk_0C;
-    u16 unk_0E;
-} UnkStruct_ov9_0224EC10;
+typedef struct DistWorldSimplePropTemplate {
+    u32 dummy00;
+    u16 propKind;
+    s16 tileX;
+    s16 tileY;
+    s16 tileZ;
+    u16 flagCond;
+    u16 flagCondVal;
+} DistWorldSimplePropTemplate;
 
-typedef struct {
-    u32 unk_00;
-    const UnkStruct_ov9_0224EC10 *unk_04;
-} UnkStruct_ov9_02252548;
+typedef struct DistWorldSimplePropMapTemplates {
+    u32 mapHeaderID;
+    const DistWorldSimplePropTemplate *templates;
+} DistWorldSimplePropMapTemplates;
 
-typedef struct {
-    u16 unk_00;
-    OverworldAnimManager *unk_04;
-    UnkStruct_ov9_0224EC10 unk_08;
-} UnkStruct_ov9_0224EBB8;
+typedef struct DistWorldSimplePropAnimator {
+    u16 mapHeaderID;
+    OverworldAnimManager *animMan;
+    DistWorldSimplePropTemplate template;
+} DistWorldSimplePropAnimator;
 
-typedef struct {
-    UnkStruct_ov9_0224EBB8 unk_00[8];
-} UnkStruct_ov9_0224EB68;
+typedef struct DistWorldSimplePropManager {
+    DistWorldSimplePropAnimator animators[SIMPLE_PROP_MANAGER_ANIMATOR_COUNT];
+} DistWorldSimplePropManager;
 
-typedef struct {
-    DistWorldSystem *unk_00;
-    const UnkStruct_ov9_0224EBB8 *unk_04;
-} UnkStruct_ov9_0224EBCC;
+typedef struct DistWorldSimplePropUserData {
+    DistWorldSystem *system;
+    const DistWorldSimplePropAnimator *animator;
+} DistWorldSimplePropUserData;
 
-typedef struct {
-    u16 unk_00;
-    u16 unk_02;
-    u16 unk_04;
-    u16 unk_06;
-    ObjectEvent unk_08;
-} UnkStruct_ov9_0224EF30;
+typedef struct DistWorldObjectEvent {
+    u16 flagCond;
+    u16 flagCondVal;
+    u16 rotated;
+    u16 rotationAngle;
+    ObjectEvent objEvent;
+} DistWorldObjectEvent;
 
-typedef struct {
-    u32 unk_00;
-    const UnkStruct_ov9_0224EF30 **unk_04;
-} UnkStruct_ov9_02252EB4;
+typedef struct DistWorldMapObjectEvents {
+    u32 mapHeaderID;
+    const DistWorldObjectEvent **objEvents;
+} DistWorldMapObjectEvents;
 
-typedef struct {
-    MapObject *unk_00[19];
-} UnkStruct_ov9_0224EE40;
+typedef struct DistWorldMapObjectManager {
+    MapObject *mapObjs[MAP_OBJECT_MANAGER_OBJECT_COUNT];
+} DistWorldMapObjectManager;
 
-typedef struct {
-    u16 unk_00;
-    u16 unk_02;
-    u16 unk_04;
-    s16 unk_06;
-    s16 unk_08;
-    s16 unk_0A;
-    VecFx32 unk_0C;
-} UnkStruct_ov9_0224E550;
+typedef struct CmdParamsMovePlatform {
+    u16 platformIndex;
+    u16 movePlayer;
+    u16 dummy04;
+    s16 finalTileXOffset;
+    s16 finalTileYOffset;
+    s16 finalTileZOffset;
+    VecFx32 posDelta;
+} CmdParamsMovePlatform;
 
-typedef struct {
-    u32 unk_00;
-    u32 unk_04;
-} UnkStruct_ov9_0224E4E8;
+typedef struct CmdParamsSetMapObjectAnimation {
+    u32 mapObjLocalID;
+    enum MovementAction movementAction;
+} CmdParamsSetMapObjectAnimation;
 
-typedef struct {
-    int unk_00;
-    const void *unk_04;
-} UnkStruct_ov9_02251438;
+typedef struct DistWorldEventCmd {
+    enum EventCmdKind kind;
+    const void *params;
+} DistWorldEventCmd;
 
-typedef struct {
-    u32 unk_00;
-    u16 unk_04;
-    u16 unk_06;
-    const UnkStruct_ov9_02251438 *unk_08;
-    u8 unk_0C[160];
-} UnkFuncPtr_ov9_0224E33C;
+typedef struct DistWorldLoadedEvent {
+    BOOL running;
+    u16 cmdIndex;
+    u16 cmdState;
+    const DistWorldEventCmd *cmds;
+    u8 dataBuf[RUNNING_EVENT_DATA_BUFFER_SIZE];
+} DistWorldLoadedEvent;
 
-typedef int (*UnkFuncPtr_ov9_02253BE4)(DistWorldSystem *, FieldTask *, u16 *, const void *);
+typedef int (*DistWorldEventCmdHandler)(DistWorldSystem *, FieldTask *, u16 *, const void *);
 
-typedef struct {
-    s16 unk_00;
-    s16 unk_02;
-    s32 unk_04;
-    u16 unk_08;
-    u16 unk_0A;
-    const UnkStruct_ov9_02251438 *unk_0C;
-} UnkStruct_ov9_02252044;
+typedef struct DistWorldEvent {
+    s16 tileX;
+    s16 tileY;
+    s32 tileZ;
+    u16 flagCond;
+    u16 flagCondVal;
+    const DistWorldEventCmd *cmds;
+} DistWorldEvent;
 
-typedef struct {
-    u32 unk_00;
-    const UnkStruct_ov9_02252044 *unk_04;
-} UnkStruct_ov9_02252D38;
+typedef struct DistWorldMapEvents {
+    u32 mapHeaderID;
+    const DistWorldEvent *events;
+} DistWorldMapEvents;
 
-typedef struct {
-    s16 unk_00;
-    s16 unk_02;
-    s16 unk_04;
-    s8 unk_06;
-    u8 unk_07;
-    VecFx32 unk_08;
-    VecFx32 unk_14;
-    int unk_20;
-} UnkStruct_ov9_02252414;
+typedef struct DistWorldGiratinaShadowTemplate {
+    s16 initialTileX;
+    s16 initialTileY;
+    s16 initialTileZ;
+    s8 rotAnglesIndex;
+    u8 soundKind;
+    VecFx32 scale;
+    VecFx32 posDelta;
+    int movementAnimSteps;
+} DistWorldGiratinaShadowTemplate;
 
-typedef struct {
-    u32 unk_00;
-    DistWorldPropRenderer *unk_04;
-    OverworldAnimManager *unk_08;
-} UnkStruct_ov9_0224E8B4;
+typedef struct DistWorldGiratinaShadowPropRenderer {
+    BOOL valid;
+    DistWorldPropRenderer *renderer;
+    OverworldAnimManager *animMan;
+} DistWorldGiratinaShadowPropRenderer;
 
-typedef struct {
-    u8 unk_00;
-    u8 unk_01;
-    u8 unk_02;
-    u8 unk_03;
-    int unk_04;
-    int unk_08;
-    int unk_0C[4];
-    UnkStruct_ov9_0224E0DC *unk_1C;
-} UnkStruct_ov9_0224CA5C;
+typedef struct DistWorldInactiveFloorLoader {
+    u8 loadDir;
+    u8 state;
+    u8 loadedMapsCount;
+    u8 dummy03;
+    int playerPosX;
+    int playerPosZ;
+    int mapMatrixIndexes[QUADRANT_COUNT];
+    DistWorldMovingPlatformPropAnimator *movingPlatformAnimator;
+} DistWorldInactiveFloorLoader;
 
-typedef struct {
-    u32 unk_00;
-    u16 unk_04;
-    u16 unk_06;
-    s16 unk_08;
-    s16 unk_0A;
-    int unk_0C;
-    int unk_10[4];
-    int unk_20;
-    AreaDataManager *unk_24;
-    UnkStruct_ov9_0224E0DC *unk_28;
-    SysTask *unk_2C;
-} UnkStruct_ov9_0224CBD8;
+typedef struct DistWorldFloorLoader {
+    enum FloorLoadDirection loadDir;
+    u16 state;
+    u16 loadedMapsCount;
+    s16 playerPosX;
+    s16 playerPosZ;
+    int mapHeaderID;
+    int mapMatrixIndexes[QUADRANT_COUNT];
+    BOOL waitingToLoadInactive;
+    AreaDataManager *areaDataMan;
+    DistWorldMovingPlatformPropAnimator *movingPlatformAnimator;
+    SysTask *loadTask;
+} DistWorldFloorLoader;
 
 struct DistWorldSystem {
     FieldSystem *fieldSystem;
@@ -719,33 +1111,33 @@ struct DistWorldSystem {
     // the location is already the destination, so comparing the location
     // to itself can never detect a departure (the old GetMapHeaderID did
     // exactly that, and the actor OnExit never fired).
-    enum MapHeader mapHeaderID;
+    enum MapHeaderID mapHeaderID;
     DistWorldPersistedData *persistedData;
-    NARC *distortionWorldNARC;
-    NARC *distortionWorldAttrNARC;
-    NARC *unk_10;
+    NARC *mainNARC;
+    NARC *attrNARC;
+    NARC *etcNARC;
     DistWorldCameraManager cameraMan;
     DistWorldFieldTaskContext fieldTaskCtx;
-    UnkFuncPtr_ov9_0224E33C unk_D8;
-    UnkStruct_ov9_02249E94 unk_184;
-    UnkStruct_ov9_0224A228 unk_188;
-    UnkStruct_ov9_0224B064 unk_1A8;
+    DistWorldLoadedEvent loadedEvent;
+    DistWorldCalculationTask calculationTask;
+    DistWorldMapObjectRotatorManager mapObjRotatorMan;
+    DistWorldSkyClouds skyClouds;
     DistWorldPropRenderBuffers propRenderBuffs;
-    UnkStruct_ov9_02249B04_sub1 unk_169C;
+    DistWorldMainArchive mainArchive;
     DistWorldGhostPropManager ghostPropMan;
     DistWorldGhostPropManager inactiveGhostPropMan;
-    UnkStruct_ov9_0224DC34 unk_1734;
-    UnkStruct_ov9_0224EB68 unk_1BB4;
-    UnkStruct_ov9_0224EE40 unk_1C64;
-    UnkStruct_ov9_0224CA5C unk_1CB0;
-    UnkStruct_ov9_0224CBD8 unk_1CD0;
-    UnkStruct_ov9_0224ADC0 unk_1D00;
-    UnkStruct_ov9_0224C8E8 unk_1E88;
-    UnkStruct_ov9_0224E8B4 unk_1EA4;
-    GXRgb unk_1EB0[8];
-    u16 unk_1EC0;
-    u16 unk_1EC2;
-    SysTask *unk_1EC4;
+    DistWorldMovingPlatformPropManager movingPlatformPropMan;
+    DistWorldSimplePropManager simplePropMan;
+    DistWorldMapObjectManager mapObjMan;
+    DistWorldInactiveFloorLoader inactiveFloorLoader;
+    DistWorldFloorLoader floorLoader;
+    DistWorldSkyBackground skyBg;
+    DistWorldInactiveFloor inactiveFloor;
+    DistWorldGiratinaShadowPropRenderer giratinaShadowPropRenderer;
+    GXRgb edgeColorTable[G3X_EDGE_COLOR_TABLE_SIZE];
+    u16 playingGiratinaArrival;
+    u16 skyKind;
+    SysTask *skyPalettesTask;
 };
 
 typedef struct DistWorldPlatformProp {
@@ -773,298 +1165,281 @@ typedef struct DistWorldObstacleProp {
     DistWorldPropRenderer *renderer;
 } DistWorldObstacleProp;
 
-typedef struct {
-    u8 unk_00;
-    u8 unk_01;
-    u16 unk_02;
-    u16 unk_04;
-    u16 unk_06;
-    u16 unk_08;
-    s16 unk_0A;
-    s16 unk_0C;
-    s16 unk_0E;
-    u16 unk_10;
-    u16 unk_12;
-    VecFx32 unk_14;
-    VecFx32 unk_20;
-    VecFx32 unk_2C;
-    VecFx32 unk_38;
-    VecFx32 unk_44;
-    fx32 unk_50;
-    fx32 unk_54;
-    fx32 unk_58;
-    fx32 unk_5C;
-    u32 unk_60;
-    UnkStruct_ov9_0224E0DC *unk_64;
-    MapObject *unk_68;
-    SysTask *unk_6C;
-} UnkStruct_ov9_0224D078;
+typedef struct DistWorldElevatorPlatform {
+    u8 dir;
+    u8 vibrationAnimDone;
+    u16 pathIndex;
+    u16 state;
+    u16 destMapHeaderID;
+    u16 nextPathIndex;
+    s16 finalPlayerTileX;
+    s16 finalPlayerTileY;
+    s16 finalPlayerTileZ;
+    u16 persistedFlagToSet;
+    u16 persistedFlagToClear;
+    VecFx32 playerPos;
+    VecFx32 posDelta;
+    VecFx32 finalPosOffset;
+    VecFx32 changeMapsPosOffset;
+    VecFx32 currPosOffset;
+    fx32 initialPlayerY;
+    fx32 initialPassengerY;
+    fx32 initialPlatformY;
+    fx32 vibrationYDelta;
+    u32 vibrationAnimStep;
+    DistWorldMovingPlatformPropAnimator *animator;
+    MapObject *passengerMapObj;
+    SysTask *passengerAnimTask;
+} DistWorldElevatorPlatform;
 
-typedef struct {
-    int unk_00;
-} UnkStruct_ov9_0224E4D8;
+typedef struct CmdRunDataSetMapObjectAnimation {
+    int dummy00;
+} CmdRunDataSetMapObjectAnimation;
 
-typedef struct {
-    VecFx32 unk_00;
-    VecFx32 unk_0C;
-    VecFx32 unk_18;
-    UnkStruct_ov9_0224E0DC *unk_24;
-    fx32 unk_28;
-    fx32 unk_2C;
-    fx32 unk_30;
-    u32 unk_34;
-} UnkStruct_ov9_0224E5EC;
+typedef struct CmdRunDataMovePlatform {
+    VecFx32 currPosOffset;
+    VecFx32 finalPosOffset;
+    VecFx32 posDelta;
+    DistWorldMovingPlatformPropAnimator *animator;
+    fx32 initialPlayerY;
+    fx32 initialPlatformY;
+    fx32 vibrationYDelta;
+    u32 vibrationAnimStep;
+} CmdRunDataMovePlatform;
 
-typedef struct {
-    u16 unk_00;
-    u16 unk_02;
-} UnkStruct_ov9_0224E860;
+typedef struct CmdParamsAddMapObjWithLocalID {
+    u16 mapHeaderID;
+    u16 mapObjLocalID;
+} CmdParamsAddMapObjWithLocalID;
 
-typedef struct {
-    u32 unk_00;
-} UnkStruct_ov9_0224E870;
+typedef struct CmdParamsDeleteMapObjWithLocalID {
+    u32 mapObjLocalID;
+} CmdParamsDeleteMapObjWithLocalID;
 
-typedef struct {
-    DistWorldSystem *unk_00;
-    DistWorldPropRenderer *unk_04;
-    UnkStruct_ov9_02252414 unk_08;
-} UnkStruct_ov9_0224E91C;
+typedef struct DistWorldGiratinaShadowPropUserData {
+    DistWorldSystem *system;
+    DistWorldPropRenderer *renderer;
+    DistWorldGiratinaShadowTemplate template;
+} DistWorldGiratinaShadowPropUserData;
 
-typedef struct {
-    UnkStruct_ov9_0224E91C unk_00;
-    u16 unk_2C;
-    u16 unk_2E;
-    int unk_30;
-    int unk_34;
-    Simple3DRotationAngles unk_38;
-} UnkStruct_ov9_0224E964;
+typedef struct DistWorldGiratinaShadowProp {
+    DistWorldGiratinaShadowPropUserData userData;
+    u16 state;
+    u16 animStopped;
+    int movementAnimStep;
+    BOOL animFinished;
+    Simple3DRotationAngles rotAngles;
+} DistWorldGiratinaShadowProp;
 
-typedef struct {
-    s16 unk_00;
-    u16 unk_02;
-    VecFx32 unk_04;
-    VecFx32 unk_10;
-    UnkStruct_ov9_0224EBCC unk_1C;
-    DistWorldPropRenderer *unk_24;
-} UnkStruct_ov9_0224ED58;
+typedef struct DistWorldSimpleProp {
+    s16 dummy00;
+    u16 inView;
+    VecFx32 pos;
+    VecFx32 dummy10;
+    DistWorldSimplePropUserData userData;
+    DistWorldPropRenderer *renderer;
+} DistWorldSimpleProp;
 
-typedef struct {
-    u32 unk_00;
-    s16 unk_04;
-    s16 unk_06;
-    u32 unk_08;
-} UnkStruct_ov9_0225311C;
+typedef struct DistWorldBoulderFallLocation {
+    u32 mapHeaderID;
+    s16 tileX;
+    s16 tileZ;
+    u32 flagIndex;
+} DistWorldBoulderFallLocation;
 
-struct UnkStruct_ov9_0224F6EC_t {
-    DistWorldSystem *unk_00;
-    FieldSystem *fieldSystem;
-    FieldTask *unk_08;
-    MapObject *unk_0C;
-    u16 unk_10;
-    u16 unk_12;
-    u32 unk_14;
-    int unk_18;
-    fx32 unk_1C;
-    fx32 unk_20;
-};
+typedef struct CmdParamsCascadeBase {
+    u32 movementAxis;
+    u16 movementDir;
+    s16 finishingPosFixTileX;
+    s16 finishingPosFixTileY;
+    s16 finishingPosFixTileZ;
+    s16 finalPosOffsetTileX;
+    s16 finalPosOffsetTileY;
+    s16 finalPosOffsetTileZ;
+    s16 mapLoadPosOffsetTileX;
+    s16 mapLoadPosOffsetTileY;
+    s16 mapLoadPosOffsetTileZ;
+    VecFx32 posDelta;
+} CmdParamsCascadeBase;
 
-typedef struct {
-    u32 unk_00;
-    u16 unk_04;
-    s16 unk_06;
-    s16 unk_08;
-    s16 unk_0A;
-    s16 unk_0C;
-    s16 unk_0E;
-    s16 unk_10;
-    s16 unk_12;
-    s16 unk_14;
-    s16 unk_16;
-    VecFx32 unk_18;
-} UnkStruct_ov9_0224F8C4;
+typedef struct CmdRunDataCascadeBase {
+    u32 targetMapLoaded : 1;
+    u32 movementDir : 1;
+    u32 spriteBobbing : 1;
+    u32 movementAxis : 2;
+    VecFx32 posDelta;
+    VecFx32 currPosOffset;
+    VecFx32 finalPosOffset;
+    VecFx32 mapLoadPosOffset;
+    VecFx32 playerPos;
+    VecFx32 jumpOffset;
+    fx32 *bobbingOffset;
+    fx32 bobbingOffsetDelta;
+    fx32 bobbingOffsetMax;
+} CmdRunDataCascadeBase;
 
-typedef struct {
-    u32 unk_00_0 : 1;
-    u32 unk_00_1 : 1;
-    u32 unk_00_2 : 1;
-    u32 unk_00_3 : 2;
-    u32 unk_00_5 : 27;
-    VecFx32 unk_04;
-    VecFx32 unk_10;
-    VecFx32 unk_1C;
-    VecFx32 unk_28;
-    VecFx32 unk_34;
-    VecFx32 unk_40;
-    fx32 *unk_4C;
-    fx32 unk_50;
-    fx32 unk_54;
-} UnkStruct_ov9_0224F930;
+typedef struct CmdParamsCascadeDown {
+    CmdParamsCascadeBase base;
+} CmdParamsCascadeDown;
 
-typedef struct {
-    UnkStruct_ov9_0224F8C4 unk_00;
-} UnkStruct_ov9_02252384;
+typedef struct CmdRunDataCascadeDown {
+    s16 spriteRotationAnimStepsLeft;
+    u16 moveAwayAnimStep;
+    u16 cameraAngleState;
+    s16 cameraAngleDelay;
+    s16 firstCameraAnimStepsLeft;
+    s16 secondCameraAnimStepsLeft;
+    VecFx32 mountRotAngles;
+    VecFx32 mountRotAnglesDelta;
+    VecFx32 mountPosFixDelta;
+    fx32 orbitAngle;
+    fx32 orbitAngleDelta;
+    fx32 bobbingFix;
+    fx32 bobbingFixDelta;
+    CmdRunDataCascadeBase base;
+} CmdRunDataCascadeDown;
 
-typedef struct {
-    s16 unk_00;
-    u16 unk_02;
-    u16 unk_04;
-    s16 unk_06;
-    s16 unk_08;
-    s16 unk_0A;
-    VecFx32 unk_0C;
-    VecFx32 unk_18;
-    VecFx32 unk_24;
-    fx32 unk_30;
-    fx32 unk_34;
-    fx32 unk_38;
-    fx32 unk_3C;
-    UnkStruct_ov9_0224F930 unk_40;
-} UnkStruct_ov9_0224FA94;
+typedef struct CmdParamsCascadeUp {
+    CmdParamsCascadeBase base;
+} CmdParamsCascadeUp;
 
-typedef struct {
-    UnkStruct_ov9_0224F8C4 unk_00;
-} UnkStruct_ov9_022523F0;
+typedef struct CmdRunDataCascadeUp {
+    s16 spriteRotationAnimStepsLeft;
+    u16 moveAwayAnimStep;
+    u16 cameraAngleState;
+    s16 dummy06;
+    VecFx32 mountRotAngles;
+    VecFx32 mountRotAnglesDelta;
+    VecFx32 mountPosFixDelta;
+    fx32 orbitAngle;
+    fx32 orbitAngleDelta;
+    CmdRunDataCascadeBase base;
+} CmdRunDataCascadeUp;
 
-typedef struct {
-    s16 unk_00;
-    u16 unk_02;
-    u16 unk_04;
-    s16 unk_06;
-    VecFx32 unk_08;
-    VecFx32 unk_14;
-    VecFx32 unk_20;
-    fx32 unk_2C;
-    fx32 unk_30;
-    UnkStruct_ov9_0224F930 unk_34;
-} UnkStruct_ov9_02250138;
+typedef struct CmdParamsStartScript {
+    u32 scriptID;
+} CmdParamsStartScript;
 
-typedef struct {
-    u32 unk_00;
-} UnkStruct_ov9_022506AC;
+typedef struct CmdParamsSetDistortionWorldProgress {
+    u32 progress;
+} CmdParamsSetDistortionWorldProgress;
 
-typedef struct {
-    u32 unk_00;
-} UnkStruct_ov9_022506D0;
+typedef struct CmdParamsSetGiratinaAnimationFlag {
+    enum GiratinaShadowAnimation anim;
+} CmdParamsSetGiratinaAnimationFlag;
 
-typedef struct {
-    u32 unk_00;
-} UnkStruct_ov9_022506EC;
+typedef struct CmdParamsPuzzleFlag {
+    u32 flagIndex;
+} CmdParamsPuzzleFlag;
 
-typedef struct {
-    u32 unk_00;
-} UnkStruct_ov9_02250704;
+typedef struct CmdRunDataPlayGiratinaArrival {
+    fx32 spriteDarkness;
+    fx32 skyDarkness;
+    VecFx32 giratinaSpritePosOffset;
+    int delay;
+    MapObject *giratinaMapObj;
+    GXRgb giratinaSpritePalette[PALETTE_SIZE];
+} CmdRunDataPlayGiratinaArrival;
 
-typedef struct {
-    fx32 unk_00;
-    fx32 unk_04;
-    VecFx32 unk_08;
-    int unk_14;
-    MapObject *unk_18;
-    u16 unk_1C[16];
-} UnkStruct_ov9_0225074C;
+typedef struct CmdRunDataShowUxieBoulderTuto {
+    int hoverStep;
+    int hoverStepDelta;
+    int hoverRepeat;
+    fx32 finalUxieY;
+    fx32 descendYDelta;
+    VecFx32 uxieSpritePosOffset;
+    MapObject *uxieMapObj;
+} CmdRunDataShowUxieBoulderTuto;
 
-typedef struct {
-    int unk_00;
-    int unk_04;
-    int unk_08;
-    fx32 unk_0C;
-    fx32 unk_10;
-    VecFx32 unk_14;
-    MapObject *unk_20;
-} UnkStruct_ov9_02250918;
+typedef struct CmdRunDataShowAzelfBoulderTuto {
+    fx32 descendYDelta;
+    VecFx32 azelfSpritePosOffset;
+    SysTask *azelfAnimTask;
+    MapObject *azelfMapObj;
+} CmdRunDataShowAzelfBoulderTuto;
 
-typedef struct {
-    fx32 unk_00;
-    VecFx32 unk_04;
-    SysTask *unk_10;
-    MapObject *unk_14;
-} UnkStruct_ov9_02250AFC;
+typedef struct CmdRunDataShowMespritBoulderTuto {
+    fx32 descendYDelta;
+    VecFx32 mespritSpritePosOffset;
+    SysTask *mespritAnimTask;
+    SysTask *playerAnimTask;
+    MapObject *mespritMapObj;
+} CmdRunDataShowMespritBoulderTuto;
 
-typedef struct {
-    fx32 unk_00;
-    VecFx32 unk_04;
-    SysTask *unk_10;
-    SysTask *unk_14;
-    MapObject *unk_18;
-} UnkStruct_ov9_02250C14;
-
-typedef struct {
-    s16 unk_00;
-    s16 unk_02;
-} UnkStruct_ov9_02250D78;
-
-typedef struct {
-    s16 unk_00;
-    s16 unk_02;
-} UnkStruct_ov9_02250DE8;
+typedef struct CmdRunDataGiratinaRoomPlatforms {
+    s16 ghostPropGroup;
+    s16 delay;
+} CmdRunDataGiratinaRoomPlatforms;
 
 typedef void (*FloatingPlatformJumpPointHandler)(DistWorldSystem *, const DistWorldFloatingPlatformJumpPointTemplate *);
+typedef int (*ElevatorPlatformHandler)(DistWorldSystem *, DistWorldElevatorPlatform *);
+typedef int (*FloorLoadHandler)(DistWorldSystem *, DistWorldFloorLoader *);
 
-static void ov9_02249B04(DistWorldSystem *param0);
-static void ov9_02249B68(DistWorldSystem *param0);
+static void LoadNextFloorElements(DistWorldSystem *system);
+static void LoadPreviousFloorElements(DistWorldSystem *system);
 static void OpenArchives(DistWorldSystem *system);
 static void CloseArchives(DistWorldSystem *system);
-static void ov9_02249CC4(DistWorldSystem *param0);
+static void InitPersistedData(DistWorldSystem *system);
 static void SetPersistedCameraAngles(DistWorldSystem *system, u16 angleX, u16 angleY, u16 angleZ);
 static void GetPersistedCameraAngles(DistWorldSystem *system, u16 *angleX, u16 *angleY, u16 *angleZ);
 static BOOL IsPersistedDataValid(DistWorldSystem *system);
 static void SetPersistedHiddenGhostPropGroups(DistWorldSystem *system, u32 hiddenGhostPropGroups);
 static u32 GetPersistedHiddenGhostPropGroups(DistWorldSystem *system);
-static void ov9_02249D68(DistWorldSystem *param0, u32 param1);
-static void ov9_02249D70(DistWorldSystem *param0, u32 param1);
-static void ov9_02249D8C(DistWorldSystem *param0, u32 param1);
-static BOOL ov9_02249DA8(DistWorldSystem *param0, u32 param1);
-static void ov9_02249DC8(DistWorldSystem *param0, u32 param1);
-static void ov9_02249DE4(DistWorldSystem *param0, u32 param1);
-static BOOL ov9_02249E00(DistWorldSystem *param0, u32 param1);
+static void SetPersistedMovingPlatformFlags(DistWorldSystem *system, u32 movingPlatformFlags);
+static void SetPersistedMovingPlatformFlag(DistWorldSystem *system, u32 index);
+static void ClearPersistedMovingPlatformFlag(DistWorldSystem *system, u32 index);
+static BOOL CheckPersistedMovingPlatformFlag(DistWorldSystem *system, u32 index);
+static void SetPersistedBoulderPuzzleFlag(DistWorldSystem *system, u32 index);
+static void ClearPersistedBoulderPuzzleFlag(DistWorldSystem *system, u32 index);
+static BOOL CheckPersistedBoulderPuzzleFlag(DistWorldSystem *system, u32 index);
 static void SetPersistedCurrentFloatingPlatformIndex(DistWorldSystem *system, u32 floatingPlatformIndex);
 static u32 GetPersistedCurrentFloatingPlatformIndex(DistWorldSystem *system);
-static void ov9_02249E94(DistWorldSystem *param0);
-static void Arc2DwLostTower_ResetFieldState(void);
-static void ov9_02249EC8(DistWorldSystem *param0);
-static void ov9_02249EDC(SysTask *param0, void *param1);
-static void ov9_02249EF0(DistWorldSystem *param0);
-static void ov9_02249F18(DistWorldSystem *param0);
-static void ov9_02249F3C(SysTask *param0, void *param1);
-static void ov9_02249F50(DistWorldSystem *param0);
-static void ov9_02249F84(DistWorldSystem *param0);
-static void ov9_02249F88(DistWorldSystem *param0);
-static void ov9_02249F98(DistWorldSystem *param0);
+static void StartCalculateTask(DistWorldSystem *system);
+static void FinishCalculateTask(DistWorldSystem *system);
+static void Task_Calculate(SysTask *sysTask, void *sysTaskParam);
+static void StartSkyPalettesUpdateTask(DistWorldSystem *system);
+static void FinishSkyPalettesUpdateTask(DistWorldSystem *system);
+static void Task_SkyPalettesUpdate(SysTask *sysTask, void *sysTaskParam);
+static void InitEdgeColors(DistWorldSystem *system);
+static void Dummy02249F84(DistWorldSystem *system);
+static void InitMapObjectFlags(DistWorldSystem *system);
+static void Dummy02249F98(DistWorldSystem *system);
 static void CameraInit(DistWorldSystem *system);
 static void CameraFree(DistWorldSystem *system);
 static void CameraTransitionTask(SysTask *sysTask, void *sysTaskParam);
 static BOOL DoCameraTransition(DistWorldSystem *system, const DistWorldCameraAngleTemplate *cameraAngleTemplate);
-static void ov9_0224A1E4(DistWorldSystem *param0, int param1);
-static void ov9_0224A228(UnkStruct_ov9_0224A228 *param0, UnkStruct_ov9_0224A294 *param1, UnkStruct_020216E0 *param2);
-static void ov9_0224A294(UnkStruct_ov9_0224A228 *param0, UnkStruct_ov9_0224A294 *param1);
-static void ov9_0224A2AC(UnkStruct_ov9_0224A228 *param0, UnkStruct_ov9_0224A294 *param1);
-static void ov9_0224A334(DistWorldSystem *param0);
-static void ov9_0224A390(DistWorldSystem *param0, MapObject *param1, int param2);
-static void ov9_0224A3C4(DistWorldSystem *param0, UnkStruct_020216E0 *param1, int param2);
-static void ov9_0224A408(DistWorldSystem *param0, const UnkStruct_020216E0 *param1);
-static void ov9_0224A49C(DistWorldSystem *param0);
-static void ov9_0224A4C8(UnkStruct_020216E0 *param0, void *param1);
-static void ov9_0224A4D0(DistWorldSystem *param0, MapObject *param1, int param2, int param3);
+static void InitMapObjectRotatorManager(DistWorldSystem *system, int rotatorCount);
+static void DistWorldMapObjectRotatorManager_PrepareRotator(DistWorldMapObjectRotatorManager *mapObjRotatorMan, DistWorldMapObjectRotator *mapObjRotator, Billboard *billboard);
+static void DistWorldMapObjectRotatorManager_FreeRotator(DistWorldMapObjectRotatorManager *mapObjRotatorMan, DistWorldMapObjectRotator *mapObjRotator);
+static void DistWorldMapObjectRotatorManager_ResetRotator(DistWorldMapObjectRotatorManager *mapObjRotatorMan, DistWorldMapObjectRotator *mapObjRotator);
+static void Arc2DwLostTower_ResetFieldState(void);
+static void FreeMapObjectRotatorManager(DistWorldSystem *system);
+static void BindMapObjectRotator(DistWorldSystem *system, MapObject *mapObj, int initialAngle);
+static void BindMapObjectRotatorWithBillboard(DistWorldSystem *system, Billboard *billboard, int initialAngle);
+static void UnbindMapObjectRotatorWithBillboard(DistWorldSystem *system, const Billboard *billboard);
+static void TickAllMapObjectRotators(DistWorldSystem *system);
+static void MapObjectRotatorBillboardCallback(Billboard *billboard, void *cbParam);
+static void RotateMapObject(DistWorldSystem *system, MapObject *mapObj, int angle, int animSteps);
 static void FieldTaskContextNoOp1(DistWorldSystem *system);
 static void FieldTaskContextNoOp2(DistWorldSystem *system);
 static void *InitFieldTaskContext(DistWorldSystem *system, int ctxSize);
 static void *GetFieldTaskContext(DistWorldSystem *system);
-static BOOL ApplyCameraAngleForPlayerPosition(DistWorldSystem *system, int playerX, int playerY, int playerZ, int playerDir);
-static void ov9_0224A8C0(DistWorldSystem *param0);
-static void ov9_0224A9E8(DistWorldSystem *param0);
-static BOOL HandleFloatingPlatformJumpPointAt(DistWorldSystem *system, int playerX, int playerY, int playerZ, int playerDir);
+static BOOL ApplyCameraAngleForPlayerPosition(DistWorldSystem *system, int playerX, int playerY, int playerZ, enum FaceDirection playerDir);
+static void InitPlayer(DistWorldSystem *system);
+static void ResetPlayer(DistWorldSystem *system);
+static BOOL HandleFloatingPlatformJumpPointAt(DistWorldSystem *system, int playerX, int playerY, int playerZ, enum FaceDirection playerDir);
 static void CreateJumpOnFloatingPlatformTask(DistWorldSystem *system, const DistWorldFloatingPlatformJumpPointTemplate *template);
 static BOOL JumpOnFloatingPlatform(FieldTask *task);
 static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatformJumpTaskContext *ctx, MapObject *playerMapObj);
-static void ov9_0224ADC0(DistWorldSystem *param0);
-static void ov9_0224AED8(DistWorldSystem *param0);
-static void ov9_0224AEE4(DistWorldSystem *param0, UnkStruct_ov9_0224B064 *param1, NARC *param2);
-static void ov9_0224B064(UnkStruct_ov9_0224B064 *param0);
-static void ov9_0224B124(SysTask *param0, void *param1);
-static Sprite *ov9_0224B130(UnkStruct_ov9_0224B064 *param0, const VecFx32 *param1, u32 param2, u32 param3, u32 param4, u32 param5, int param6, int param7);
-static void ov9_0224B1B4(DistWorldSystem *param0, UnkStruct_ov5_021DF47C *param1, UnkStruct_ov9_0224B064 *param2);
-static void ov9_0224B3A8(DistWorldSystem *param0);
-static void ov9_0224B3F4(DistWorldSystem *param0);
+static void InitSkyBackground(DistWorldSystem *system);
+static void FinishSkyBackground(DistWorldSystem *system);
+static void InitSkyClouds(DistWorldSystem *system, DistWorldSkyClouds *clouds, NARC *etcNARC);
+static void FreeSkyClouds(DistWorldSkyClouds *clouds);
+static void Task_SkyCloudSpritesUpdate(SysTask *sysTask, void *sysTaskParam);
+static Sprite *CreateSkyCloudSprite(DistWorldSkyClouds *clouds, const VecFx32 *pos, u32 charResID, u32 plttResID, u32 cellResID, u32 animResID, int headerPriority, int listPriority);
+static void InitSkyCloudAnimators(DistWorldSystem *system, FieldEffectManager *fieldEffMan, DistWorldSkyClouds *clouds);
+static void InitFog(DistWorldSystem *system);
+static void Dummy0224B3F4(DistWorldSystem *system);
 static void InitGhostPropManager(DistWorldSystem *system, DistWorldGhostPropManager *ghostPropMan, const DistWorldGhostPropHeader *header, const DistWorldGhostPropTemplate *ghostPropTemplateList, int mapHeaderID, u32 hiddenGhostPropGroups);
 static void InitActiveGhostPropManager(DistWorldSystem *system, BOOL useDefaultVisibility);
 static void InitInactiveGhostPropManager(DistWorldSystem *system);
@@ -1078,10 +1453,10 @@ static BOOL IsInactiveGhostPropGroupHidden(DistWorldSystem *system, u32 groupID)
 static void PersistActiveHiddenGhostPropGroups(DistWorldSystem *system);
 static void InitAllGhostPropAnimManagers(DistWorldSystem *system, DistWorldGhostPropManager *ghostPropMan, const DistWorldGhostPropTemplate *iter, int mapHeaderID);
 static OverworldAnimManager *InitGhostPropAnimManager(DistWorldSystem *system, int animManIndex, int mapHeaderID, const DistWorldGhostPropTemplate *ghostPropTemplate);
-static void HandleGhostPropTriggerAt(DistWorldSystem *system, int tileX, int tileY, int tileZ, int direction);
-static BOOL ov9_0224B7B0(DistWorldSystem *param0, u32 param1);
-static BOOL ov9_0224B844(DistWorldSystem *param0, u32 param1);
-static BOOL HasActivePropAnimManager(DistWorldSystem *system, int propKind);
+static void HandleGhostPropTriggerAt(DistWorldSystem *system, int tileX, int tileY, int tileZ, enum FaceDirection direction);
+static BOOL HasActiveGhostProp2(DistWorldSystem *system, u32 propKind);
+static BOOL HasActiveGhostPropAnim(DistWorldSystem *system, u32 animKind);
+static BOOL HasActiveGhostProp(DistWorldSystem *system, int propKind);
 static void FinishActiveGhostPropManager(DistWorldSystem *system);
 static void FinishInactiveGhostPropManager(DistWorldSystem *system);
 static void ResetActiveGhostPropManager(DistWorldSystem *system);
@@ -1089,43 +1464,43 @@ static void ResetInactiveGhostPropManager(DistWorldSystem *system);
 static void MoveActiveGhostPropManagerToInactive(DistWorldSystem *system);
 static void MoveInactiveGhostPropManagerToActive(DistWorldSystem *system);
 static u16 GetAnimManagerGhostPropKind(OverworldAnimManager *system);
-static void ov9_0224BE14(DistWorldSystem *param0);
-static void ov9_0224BE8C(DistWorldSystem *param0);
-static void ov9_0224BEB4(DistWorldSystem *param0, u32 param1);
-static void ov9_0224BF18(DistWorldSystem *param0, u32 param1);
-static void ov9_0224BF8C(NARC *param0, UnkStruct_ov9_0224BFE0 *param1);
-static void ov9_0224BFBC(DistWorldSystem *param0);
-static void ov9_0224BFE0(UnkStruct_ov9_0224BFE0 *param0);
-static void ov9_0224BFFC(DistWorldSystem *param0);
-static const UnkStruct_ov9_0224C034 *ov9_0224C00C(const UnkStruct_ov9_0224BFE0 *param0, enum MapHeader mapHeaderID);
-static const UnkStruct_ov9_0224C034 *ov9_0224C034(DistWorldSystem *system, enum MapHeader mapHeaderID);
-static u32 FindNARCIndex(DistWorldSystem *system, enum MapHeader mapHeaderID);
-static void ov9_0224C050(const UnkStruct_ov9_0224BFE0 *param0, int param1, int *param2, int *param3, int *param4);
-static void ov9_0224C070(DistWorldSystem *param0, int param1, int *param2, int *param3, int *param4);
-static void DistWorldFile_Load(DistWorldSystem *system, DistWorldFile *file, enum MapHeader mapHeaderID);
-static void ov9_0224C0F8(DistWorldSystem *param0, enum MapHeader mapHeaderID, int param2);
-static void ov9_0224C10C(DistWorldSystem *param0, enum MapHeader mapHeaderID);
-static void ov9_0224C120(DistWorldSystem *param0, enum MapHeader mapHeaderID);
-static void DistWorldFile_Free(DistWorldFile *file);
-static void ov9_0224C164(DistWorldSystem *param0);
-static void ov9_0224C174(DistWorldSystem *param0);
-static void ov9_0224C184(DistWorldSystem *param0);
-static void ov9_0224C194(DistWorldSystem *param0);
-static void ov9_0224C1E4(DistWorldSystem *param0);
-static int DistWorldFile_GetFloatingPlatformSectionSize(DistWorldFile *file);
-static int DistWorldFile_GetFloatingPlatformCount(DistWorldFile *file);
-static DistWorldFloatingPlatformTemplate *DistWorldFile_GetFloatingPlatformSectionTemplates(DistWorldFile *file);
-static int DistWorldFile_GetFloatingPlatformJumpPointSectionSize(DistWorldFile *file);
-static int DistWorldFile_GetFloatingPlatformJumpPointCount(DistWorldFile *file);
-static DistWorldFloatingPlatformJumpPointTemplate *DistWorldFile_GetFloatingPlatformJumpPointTemplates(DistWorldFile *file);
-static int DistWorldFile_GetCameraAngleSectionSize(DistWorldFile *file);
-static int DistWorldFile_GetCameraAngleCount(DistWorldFile *file);
-static DistWorldCameraAngleTemplate *DistWorldFile_GetCameraAngleTemplates(DistWorldFile *file);
+static void InitMapElements(DistWorldSystem *system);
+static void FreeMapElements(DistWorldSystem *system);
+static void PrepareLoadingActiveFloor(DistWorldSystem *system, u32 mapHeaderID);
+static void PrepareLoadingInactiveFloor(DistWorldSystem *system, u32 mapHeaderID);
+static void DistWorldMapInfoFile_Load(NARC *mainNARC, DistWorldMapInfoFile *mapInfoFile);
+static void DistWorldMapInfoFile_LoadSafe(DistWorldSystem *system);
+static void DistWorldMapInfoFile_Free(DistWorldMapInfoFile *mapInfoFile);
+static void FreeMapInfoFile(DistWorldSystem *system);
+static const DistWorldMapInfo *DistWorldMapInfoFile_FindForMap(const DistWorldMapInfoFile *mapInfoFile, enum MapHeaderID mapHeaderID);
+static const DistWorldMapInfo *FindMapInfo(DistWorldSystem *system, enum MapHeaderID mapHeaderID);
+static u32 FindMapFileIndex(DistWorldSystem *system, enum MapHeaderID mapHeaderID);
+static void DistWorldMapInfoFile_FindMapOffsets(const DistWorldMapInfoFile *mapInfoFile, int mapHeaderID, int *offsetTileX, int *offsetAltitude, int *offsetTileZ);
+static void FindMapOffsets(DistWorldSystem *system, int mapHeaderID, int *offsetTileX, int *offsetAltitude, int *offsetTileZ);
+static void DistWorldMapFile_Load(DistWorldSystem *system, DistWorldMapFile *file, enum MapHeaderID mapHeaderID);
+static void LoadMapFiles(DistWorldSystem *system, enum MapHeaderID mapHeaderID, int nextMapHeaderID);
+static void LoadActiveMapFile(DistWorldSystem *system, enum MapHeaderID mapHeaderID);
+static void LoadInactiveMapFile(DistWorldSystem *system, enum MapHeaderID mapHeaderID);
+static void DistWorldMapFile_Free(DistWorldMapFile *file);
+static void FreeMapFiles(DistWorldSystem *system);
+static void FreeActiveMapFile(DistWorldSystem *system);
+static void FreeInactiveMapFile(DistWorldSystem *system);
+static void MoveActiveMapFileToInactive(DistWorldSystem *system);
+static void MoveInactiveMapFileToActive(DistWorldSystem *system);
+static int DistWorldMapFile_GetFloatingPlatformSectionSize(DistWorldMapFile *file);
+static int DistWorldMapFile_GetFloatingPlatformCount(DistWorldMapFile *file);
+static DistWorldFloatingPlatformTemplate *DistWorldMapFile_GetFloatingPlatformSectionTemplates(DistWorldMapFile *file);
+static int DistWorldMapFile_GetFloatingPlatformJumpPointSectionSize(DistWorldMapFile *file);
+static int DistWorldMapFile_GetFloatingPlatformJumpPointCount(DistWorldMapFile *file);
+static DistWorldFloatingPlatformJumpPointTemplate *DistWorldMapFile_GetFloatingPlatformJumpPointTemplates(DistWorldMapFile *file);
+static int DistWorldMapFile_GetCameraAngleSectionSize(DistWorldMapFile *file);
+static int DistWorldMapFile_GetCameraAngleCount(DistWorldMapFile *file);
+static DistWorldCameraAngleTemplate *DistWorldMapFile_GetCameraAngleTemplates(DistWorldMapFile *file);
 static int GetActiveGhostPropFileSectionSize(DistWorldSystem *system);
 static int GetInactiveGhostPropFileSectionSize(DistWorldSystem *system);
-static const DistWorldGhostPropHeader *DistWorldFile_GetGhostPropHeader(DistWorldFile *system);
-static const DistWorldGhostPropTemplate *DistWorldFile_GetGhostPropTemplates(DistWorldFile *system);
-static const DistWorldGhostPropTrigger *DistWorldFile_GetGhostPropTriggers(DistWorldFile *system);
+static const DistWorldGhostPropHeader *DistWorldMapFile_GetGhostPropHeader(DistWorldMapFile *system);
+static const DistWorldGhostPropTemplate *DistWorldMapFile_GetGhostPropTemplates(DistWorldMapFile *system);
+static const DistWorldGhostPropTrigger *DistWorldMapFile_GetGhostPropTriggers(DistWorldMapFile *system);
 static void InitFloatingPlatformManager(DistWorldSystem *system);
 static void ResetFloatingPlatformManager(DistWorldSystem *system);
 static void FindAndPrepareNewCurrentFloatingPlatform(DistWorldSystem *system, int tileX, int tileY, int tileZ, s16 floatingPlatformKind);
@@ -1139,11 +1514,11 @@ static u16 GetCurrentFloatingPlatformTileAttributesRelative(DistWorldSystem *sys
 static u16 GetCurrentFloatingPlatformTileAttributes(DistWorldSystem *system, int tileX, int tileY, int tileZ);
 static void InitFloatingPlatformJumpPoint(DistWorldSystem *system);
 static void ResetFloatingPlatformJumpPoint(DistWorldSystem *system);
-static const DistWorldFloatingPlatformJumpPointTemplate *FindFloatingPlatformJumpPointAt(DistWorldSystem *system, int playerX, int playerY, int playerZ, int playerDir);
+static const DistWorldFloatingPlatformJumpPointTemplate *FindFloatingPlatformJumpPointAt(DistWorldSystem *system, int playerX, int playerY, int playerZ, enum FaceDirection playerDir);
 static void InitCameraAngleTemplates(DistWorldSystem *system);
 static void ResetCameraAngleTemplates(DistWorldSystem *system);
-static const DistWorldCameraAngleTemplate *FindCameraAngleForPlayerPosition(DistWorldSystem *system, int playerX, int playerY, int playerZ, int playerDir);
-static void DistWorldGhostPropData_InitFromFile(DistWorldFile *file, DistWorldGhostPropData *data);
+static const DistWorldCameraAngleTemplate *FindCameraAngleForPlayerPosition(DistWorldSystem *system, int playerX, int playerY, int playerZ, enum FaceDirection playerDir);
+static void DistWorldGhostPropData_InitFromFile(DistWorldMapFile *file, DistWorldGhostPropData *data);
 static void InitActiveGhostPropData(DistWorldSystem *system);
 static void InitInactiveGhostPropData(DistWorldSystem *system);
 static void InitAllGhostPropData(DistWorldSystem *system);
@@ -1157,19 +1532,19 @@ static const DistWorldGhostPropHeader *GetInactiveGhostPropHeader(DistWorldSyste
 static const DistWorldGhostPropTemplate *GetActiveGhostPropTemplates(DistWorldSystem *system);
 static const DistWorldGhostPropTemplate *GetInactiveGhostPropTemplates(DistWorldSystem *system);
 static const DistWorldGhostPropTrigger *GetActiveGhostPropTriggers(DistWorldSystem *system);
-static void ov9_0224C8E8(DistWorldSystem *param0);
-static void ov9_0224C9E8(DistWorldSystem *param0);
-static void ov9_0224CA98(DistWorldSystem *param0);
-static void ov9_0224CB30(DistWorldSystem *param0);
-static void ov9_0224CBD8(DistWorldSystem *param0);
-static void ov9_0224CBF8(DistWorldSystem *param0);
-static void ov9_0224CC08(SysTask *param0, void *param1);
-static void ov9_0224CC4C(DistWorldSystem *param0);
-static void ov9_0224CC50(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1, u32 param2);
-static BOOL ov9_0224CC7C(DistWorldSystem *param0);
-static BOOL ov9_0224D040(DistWorldSystem *param0, int param1, int param2, int param3);
-static void ov9_0224D078(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1);
-static BOOL ov9_0224D098(FieldTask *param0);
+static void InitialLoadInactiveFloor(DistWorldSystem *system);
+static void FreeInactiveFloor(DistWorldSystem *system);
+static void LoadInactiveFloorNext(DistWorldSystem *system);
+static void LoadInactiveFloorPrevious(DistWorldSystem *system);
+static void StartLoadFloorTask(DistWorldSystem *system);
+static void FinishLoadFloorTask(DistWorldSystem *system);
+static void Task_LoadFloor(SysTask *sysTask, void *sysTaskParam);
+static void Dummy0224CC4C(DistWorldSystem *system);
+static void LoadFloor(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *movingPlatformAnimator, enum FloorLoadDirection loadDir);
+static BOOL IsFloorLoaderActive(DistWorldSystem *system);
+static BOOL HandleElevatorPlatformPropAnimatorAt(DistWorldSystem *system, int playerX, int playerY, int playerZ);
+static void CreateElevatorPlatformHandlerTask(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator);
+static BOOL CallElevatorPlatformHandler(FieldTask *task);
 static const DistWorldMapConnections *GetConnectionsForMap(int mapHeaderID);
 static void InitPropRenderBuffers(DistWorldSystem *system);
 static void LoadProp3DModel(DistWorldSystem *system, u32 propKind);
@@ -1185,89 +1560,91 @@ static void SetPropOpacity(DistWorldSystem *system, int propKind, int opacity);
 static void SetPropPolygonID(DistWorldSystem *system, int propKind, int polygonID);
 static BOOL DistWorldPropAnimInfo_IsAnimKindValid(int propKind);
 static BOOL DistWorldPropAnimInfo_IsStatic(int propKind);
-static void ov9_0224DB1C(DistWorldSystem *param0);
+static void FreeUnusedPropRenderers(DistWorldSystem *system);
 static DistWorldPropRenderer *DistWorldPropRenderer_Init(DistWorldSystem *system, u32 propKind, BOOL *alreadyInit);
 static void DistWorldPropRenderer_Invalidate(DistWorldSystem *system, DistWorldPropRenderer *propRenderer);
 static void DistWorldPropRenderer_InvalidateAnimated(DistWorldSystem *system, DistWorldPropRenderer *propRenderer);
 static void InvalidateAllPropRenderersOfKind(DistWorldSystem *system, int propKind);
 static BOOL IsPropInView(DistWorldSystem *system, int propKind, VecFx32 *pos);
-static void ov9_0224DC34(DistWorldSystem *param0);
-static void ov9_0224DC4C(DistWorldSystem *param0);
-static void ov9_0224DC74(DistWorldSystem *param0, u32 param1);
-static void ov9_0224DCA8(DistWorldSystem *param0);
-static void ov9_0224DD24(DistWorldSystem *param0, u32 param1);
-static void ov9_0224DD40(DistWorldSystem *param0, const UnkStruct_ov9_02252C38 *param1, u32 param2);
-static void ov9_0224DDA0(DistWorldSystem *param0, u32 param1, int param2);
-static UnkStruct_ov9_0224E0DC *ov9_0224DDDC(DistWorldSystem *param0);
-static UnkStruct_ov9_0224E0DC *ov9_0224DE08(DistWorldSystem *param0, u32 param1, u32 param2);
-static const UnkStruct_ov9_02252C38 *ov9_0224DE40(u32 param0);
-static const UnkStruct_ov9_0224DF10 *ov9_0224DE60(u32 param0, u32 param1);
-static const UnkStruct_ov9_02253830 *ov9_0224DE70(u32 param0);
-static MapObject *ov9_0224DE94(DistWorldSystem *param0, int param1, int param2, int param3, int param4, int param5, u32 param6);
-static void ov9_0224DF10(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1, MapObject *param2);
-static OverworldAnimManager *ov9_0224DFA0(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1);
-static void ov9_0224DFF4(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1, const UnkStruct_ov9_0224DF10 *param2, u32 param3);
-static void ov9_0224E044(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1);
-static void ov9_0224E060(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1);
-static void ov9_0224E07C(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1, u32 param2);
-static void ov9_0224E0DC(UnkStruct_ov9_0224E0DC *param0, u32 param1);
-static BOOL ov9_0224E0E0(DistWorldSystem *param0, u32 param1);
-static BOOL ov9_0224E120(DistWorldSystem *param0, u32 param1);
-static BOOL ov9_0224E160(DistWorldSystem *param0, int param1);
-static UnkStruct_ov9_0224E0DC *ov9_0224E188(DistWorldSystem *param0, int param1, int param2, int param3, u32 param4);
-static VecFx32 *ov9_0224E330(OverworldAnimManager *param0);
-static void ov9_0224E33C(DistWorldSystem *param0);
-static void ov9_0224E34C(DistWorldSystem *param0);
-static void ov9_0224E350(DistWorldSystem *param0, const UnkStruct_ov9_02251438 *param1);
-static void *ov9_0224E37C(DistWorldSystem *param0, u32 param1);
-static void *ov9_0224E39C(DistWorldSystem *param0);
-static BOOL ov9_0224E3A0(DistWorldSystem *param0, FieldTask *param1);
-static BOOL ov9_0224E434(DistWorldSystem *param0, int param1, int param2, int param3);
-static void ov9_0224E498(DistWorldSystem *param0, const UnkStruct_ov9_02251438 *param1);
-static void ov9_0224E4B0(DistWorldSystem *param0, const UnkStruct_ov9_02252044 *param1);
-static BOOL ov9_0224E4BC(FieldTask *param0);
-static void ov9_0224E8B4(DistWorldSystem *param0);
-static void ov9_0224E8EC(DistWorldSystem *param0);
-static void ov9_0224E91C(DistWorldSystem *param0, const UnkStruct_ov9_02252414 *param1);
-static BOOL ov9_0224E964(DistWorldSystem *param0);
-static void ov9_0224E984(DistWorldSystem *param0);
-static void ov9_0224E988(DistWorldSystem *param0);
-static BOOL ov9_0224E9A4(DistWorldSystem *param0, u32 param1);
-static BOOL ov9_0224E9CC(DistWorldSystem *param0, u32 param1);
-static BOOL ov9_0224E9F4(DistWorldSystem *param0, int param1);
-static void ov9_0224EB68(DistWorldSystem *param0);
-static void ov9_0224EB94(DistWorldSystem *param0);
-static void ov9_0224EBB8(UnkStruct_ov9_0224EBB8 *param0);
-static void ov9_0224EC10(DistWorldSystem *param0, const UnkStruct_ov9_02252548 *param1);
-static void ov9_0224EC48(DistWorldSystem *param0, u32 param1);
-static UnkStruct_ov9_0224EBB8 *ov9_0224EC70(DistWorldSystem *param0);
-static void ov9_0224EC94(DistWorldSystem *param0, u32 param1);
-static BOOL ov9_0224ECC0(DistWorldSystem *param0, int param1);
-static BOOL ov9_0224ECE8(DistWorldSystem *param0, u32 param1);
-static BOOL ov9_0224ED20(DistWorldSystem *param0, u32 param1);
-static void ov9_0224EE40(DistWorldSystem *param0);
-static void ov9_0224EE6C(DistWorldSystem *param0);
-static void ov9_0224EE70(DistWorldSystem *param0, MapObject *param1);
-static MapObject **ov9_0224EEA0(DistWorldSystem *param0);
-static BOOL ov9_0224EF30(DistWorldSystem *param0, const UnkStruct_ov9_0224EF30 *param1, u16 param2);
-static BOOL ov9_0224EF64(DistWorldSystem *param0, MapObject **param1, const UnkStruct_ov9_0224EF30 *param2, u32 param3, u16 param4);
-static BOOL ov9_0224F048(DistWorldSystem *param0, const UnkStruct_ov9_0224EF30 **param1, u32 param2);
-static void ov9_0224F078(DistWorldSystem *param0, u32 param1);
-static void ov9_0224F0A4(DistWorldSystem *param0, u32 param1);
-static MapObject *ov9_0224F0D4(DistWorldSystem *param0, u32 param1, u16 param2);
-static BOOL ov9_0224F1CC(DistWorldSystem *param0, MapObject *param1);
-static void ov9_0224F724(DistWorldSystem *param0);
-static void ov9_0224F760(DistWorldSystem *param0);
-static void ov9_0224F764(DistWorldSystem *param0);
-static void ov9_0224F804(DistWorldSystem *param0);
-static void ov9_0224F854(DistWorldSystem *param0, u32 param1);
-static void ov9_0224F860(DistWorldSystem *param0, s16 param1);
-static void ov9_0224F86C(u16 param0, u16 param1, u16 param2, u16 *param3);
+static void ResetMovingPlatformManager(DistWorldSystem *system);
+static void FinishAllMovingPlatformPropAnimators(DistWorldSystem *system);
+static void FinishMovingPlatformPropAnimatorForMap(DistWorldSystem *system, u32 mapHeaderID);
+static void InitMovingPlatformPropsForCurrentAndNextMaps(DistWorldSystem *system);
+static void InitMovingPlatformPropsForMap(DistWorldSystem *system, u32 mapHeaderID);
+static void InitMovingPlatformPropsForMapEx(DistWorldSystem *system, const DistWorldMovingPlatformMapTemplates *mapTemplates, u32 mapHeaderID);
+static void InitSpecificMovingPlatformPropForMap(DistWorldSystem *system, u32 mapHeaderID, int index);
+static DistWorldMovingPlatformPropAnimator *FindUnusedMovingPlatformPropAnimator(DistWorldSystem *system);
+static DistWorldMovingPlatformPropAnimator *GetAnimatorForMovingPlatform(DistWorldSystem *system, u32 index, u32 mapHeaderID);
+static const DistWorldMovingPlatformMapTemplates *GetMovingPlatformsTemplatesForMap(u32 mapHeaderID);
+static const DistWorldMovingPlatformTemplate *GetMovingPlatformTemplateForMap(u32 mapHeaderID, u32 index);
+static const DistWorldElevatorPlatformPath *GetMovingPlatformElevatorPath(u32 index);
+static MapObject *AddMovingPlatformMapObject(DistWorldSystem *system, int tileX, int tileY, int tileZ, int index, int elevatorPathIndex, u32 mapHeaderID);
+static void DistWorldMovingPlatformPropAnimator_InitFromMapObject(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator, MapObject *mapObj);
+static OverworldAnimManager *InitAnimManagerForMovingPlatform(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator);
+static void DistWorldMovingPlatformPropAnimator_InitFromTemplate(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator, const DistWorldMovingPlatformTemplate *movingPlatformTemplate, u32 mapHeaderID);
+static void DistWorldMovingPlatformPropAnimator_Finish(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator);
+static void DistWorldMovingPlatformPropAnimator_FinishAndDeleteMapObject(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator);
+static void DistWorldMovingPlatformPropAnimator_ChangeMaps(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator, u32 mapHeaderID);
+static void DistWorldMovingPlatformPropAnimator_SetPreventDeletion(DistWorldMovingPlatformPropAnimator *animator, BOOL preventDeletion);
+static BOOL HasActiveMovingPlatformProp2(DistWorldSystem *system, u32 propKind);
+static BOOL HasActiveMovingPlatformPropAnim(DistWorldSystem *system, u32 animKind);
+static BOOL HasActiveMovingPlatformProp(DistWorldSystem *system, int propKind);
+static DistWorldMovingPlatformPropAnimator *FindMovingPlatformPropAnimatorAt(DistWorldSystem *system, int tileX, int tileY, int tileZ, u32 mapHeaderID);
+static VecFx32 *GetMovingPlatformPropPos(OverworldAnimManager *animMan);
+static void UnloadEvent(DistWorldSystem *system);
+static void Dummy0224E34C(DistWorldSystem *system);
+static void LoadEvent(DistWorldSystem *system, const DistWorldEventCmd *cmds);
+static void *ResetLoadedEventDataBuffer(DistWorldSystem *system, u32 size);
+static void *GetLoadedEventDataBuffer(DistWorldSystem *system);
+static BOOL CallLoadedEventHandler(DistWorldSystem *system, FieldTask *task);
+static BOOL HandleEventAt(DistWorldSystem *system, int playerX, int playerY, int playerZ);
+static void RunEventCommands(DistWorldSystem *system, const DistWorldEventCmd *cmds);
+static void RunEvent(DistWorldSystem *system, const DistWorldEvent *event);
+static BOOL FieldTask_CallLoadedEventHandler(FieldTask *task);
+static void LoadGiratinaShadowPropRenderer(DistWorldSystem *system);
+static void FreeGiratinaShadowPropRenderer(DistWorldSystem *system);
+static void LoadGiratinaShadowPropAnimation(DistWorldSystem *system, const DistWorldGiratinaShadowTemplate *giratinaTemplate);
+static BOOL IsGiratinaShadowAnimationFinished(DistWorldSystem *system);
+static void Dummy0224E984(DistWorldSystem *system);
+static void FinishGiratinaShadowPropRenderer(DistWorldSystem *system);
+static BOOL IsGiratinaShadowPropRendererValid2(DistWorldSystem *system, u32 propKind);
+static BOOL IsGiratinaShadowPropRendererAnimValid(DistWorldSystem *system, u32 animKind);
+static BOOL IsGiratinaShadowPropRendererValid(DistWorldSystem *system, int propKind);
+static void InitSimplePropsForCurrentAndNextMaps(DistWorldSystem *system);
+static void FinishAllSimplePropAnimators(DistWorldSystem *system);
+static void DistWorldMapSimplePropAnimator_Finish(DistWorldSimplePropAnimator *animator);
+static void InitSimplePropsFromTemplates(DistWorldSystem *system, const DistWorldSimplePropMapTemplates *mapTemplates);
+static void InitSimplePropsForMap(DistWorldSystem *system, u32 mapHeaderID);
+static DistWorldSimplePropAnimator *FindUnusedSimplePropAnimator(DistWorldSystem *system);
+static void FinishSimplePropAnimatorForMap(DistWorldSystem *system, u32 mapHeaderID);
+static BOOL HasActiveSimpleProp(DistWorldSystem *system, int propKind);
+static BOOL HasActiveSimpleProp2(DistWorldSystem *system, u32 propKind);
+static BOOL HasActiveSimplePropAnim(DistWorldSystem *system, u32 animKind);
+static void AddMapObjectsForCurrentAndNextMap(DistWorldSystem *system);
+static void Dummy0224EE6C(DistWorldSystem *system);
+static void DeleteMapObject(DistWorldSystem *system, MapObject *mapObj);
+static MapObject **FindFreeMapObjectSlot(DistWorldSystem *system);
+static BOOL CheckFlagConditionForObjectEvent(DistWorldSystem *system, const DistWorldObjectEvent *objEvent, BOOL isManual);
+static BOOL AddMapObjectFromEvent(DistWorldSystem *system, MapObject **mapObj, const DistWorldObjectEvent *objEvent, u32 mapHeaderID, u16 isManual);
+static BOOL AddMapObjectsFromIter(DistWorldSystem *system, const DistWorldObjectEvent **objEventsIter, u32 mapHeaderID);
+static void AddMapObjectsForMap(DistWorldSystem *system, u32 mapHeaderID);
+static void DeleteMapObjectsForMap(DistWorldSystem *system, u32 mapHeaderID);
+static MapObject *AddMapObjectWithLocalID(DistWorldSystem *system, u32 mapHeaderID, u16 mapObjLocalID);
+static BOOL IsMapObjectManaged(DistWorldSystem *system, MapObject *mapObj);
+static void InitSkyBackgroundDarkness(DistWorldSystem *system);
+static void Dummy0224F760(DistWorldSystem *system);
+static void RecalculateSkyBackgroundDarkness(DistWorldSystem *system);
+static void UpdateSkyPalettes(DistWorldSystem *system);
+static void SetSkyBackgroundDarknessCalculationDisabled(DistWorldSystem *system, BOOL disabled);
+static void SetSkyBackgroundDarknessLevel(DistWorldSystem *system, s16 level);
+static void CalculateTintedColor(GXRgb baseRawColor, GXRgb tintRawColor, u16 tintLevel, GXRgb *outColor);
 static BOOL DistWorldBounds_AreCoordinatesInBounds(int tileX, int tileY, int tileZ, const DistWorldBounds *bounds);
 static int CalculateCameraAngleDelta(u16 currentAngleComponent, u16 targetAngleComponent);
-static void ov9_02250EE8(s16 *param0, s16 param1);
-static void ov9_02250F1C(fx32 *param0, fx32 param1);
+static void ApplyRotationToTarget(s16 *target, s16 angle);
+static void ApplyRotationToTargetFx32(fx32 *target, fx32 angle);
 static void GetPlayerPos(DistWorldSystem *system, int *playerX, int *playerY, int *playerZ);
+static void Arc2Dw_HandleFrame(DistWorldSystem *system);
+static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system);
 // dwp:engine-a: puzzle glue (defined with the Arc 2 hooks below).
 BOOL ov9_0224A71C(FieldSystem *fieldSystem);
 static int DwPuzzle_Ov9Surface(FieldSystem *fieldSystem);
@@ -1278,23 +1655,23 @@ static void DwPuzzle_Ov9MovePlayer(DistWorldSystem *system, int x, int y, int z,
 static void DwPuzzle_Ov9Respawn(DistWorldSystem *system, const DwPuzzleFrameResult *result);
 static u32 DistWorldSystem_GetMapHeaderID(DistWorldSystem *system);
 static enum AvatarDistortionState GetAvatarDistortionStateForFloatingPlatformKind(u32 platformKind);
-static BOOL ov9_02251104(DistWorldSystem *param0, u32 param1, u32 param2);
+static BOOL CheckFlagCondition(DistWorldSystem *system, enum FlagCondition flagCond, u32 val);
 static void PlaySoundIfNotActive(u16 seqID);
-static void ov9_022511F4(MapObject *param0, const VecFx32 *param1);
+static void SetMapObjectPos(MapObject *mapObj, const VecFx32 *pos);
 
-static const OverworldAnimManagerFuncs Unk_ov9_02251508;
-static const OverworldAnimManagerFuncs Unk_ov9_02251468;
-static const OverworldAnimManagerFuncs Unk_ov9_022514B8;
-static const OverworldAnimManagerFuncs Unk_ov9_02251530;
-static const fx32 Unk_ov9_02252CF8[16];
+static const OverworldAnimManagerFuncs sSkyCloudsAnimFuncs;
+static const OverworldAnimManagerFuncs sMovingPlatformPropAnimFuncs;
+static const OverworldAnimManagerFuncs sGiratinaShadowPropAnimFuncs;
+static const OverworldAnimManagerFuncs sSimplePropAnimFuncs;
+static const fx32 sFloatingPlatformJumpOffsets[MAP_OBJECT_TILE_SIZE / FX32_ONE];
 static const FloatingPlatformJumpPointHandler sFloatingPlatformJumpPointHandlers[1];
-static const int Unk_ov9_02251E58[7];
-static const int Unk_ov9_02251E90[7];
-static const int Unk_ov9_02251EAC[7];
-static const int Unk_ov9_02251210[1];
-static const UnkStruct_ov9_02251EC8 Unk_ov9_02251EC8[7];
-static const UnkStruct_ov9_02253680 Unk_ov9_02253680[9];
-static const fx32 Unk_ov9_02252C08[3][4];
+static const int sSkyCloudsCharNARCIndexes[SKY_CLOUD_RESOURCE_COUNT];
+static const int sSkyCloudsCellNARCIndexes[SKY_CLOUD_RESOURCE_COUNT];
+static const int sSkyCloudsAnimNARCIndexes[SKY_CLOUD_RESOURCE_COUNT];
+static const int sSkyCloudsPlttNARCIndexes[1];
+static const DistWorldSkyCloudResourceIDs sSkyCloudsResIDs[SKY_CLOUD_RESOURCE_COUNT];
+static const DistWorldSkyCloudTemplate sSkyCloudsTemplates[SKY_CLOUD_COUNT];
+static const fx32 sSkyCloudsRotAngleDeltas[SKY_KIND_COUNT][SKY_CLOUD_GROUP_COUNT];
 static const u32 sProp3DModelNARCIndexByKind[PROP_KIND_COUNT];
 static const u32 sPropAnimSetNARCIndexByKind[PROP_ANIM_KIND_COUNT];
 static const DistWorldPropAnimInfo sPropAnimInfoByKind[PROP_KIND_COUNT];
@@ -1302,14 +1679,14 @@ static const VecFx32 sPropInitialPosOffsetByKind[PROP_KIND_COUNT];
 static const VecFx32 sPropScaleByKind[PROP_KIND_COUNT];
 static const OverworldAnimManagerFuncs *const sPropAnimFuncsByKind[PROP_KIND_COUNT];
 static const DistWorldMapConnections sDistWorldMapConnectionList[DISTORTION_WORLD_MAP_COUNT];
-static const UnkStruct_ov9_02252C38 Unk_ov9_02252C38[8];
-static const UnkStruct_ov9_02253830 Unk_ov9_02253830[22];
-static const UnkFuncPtr_ov9_02253BE4 *Unk_ov9_02253BE4[18];
-const UnkStruct_ov9_02252D38 Unk_ov9_02252D38[];
-const UnkStruct_ov9_02251438 Unk_ov9_02251438[];
-const UnkStruct_ov9_02251438 Unk_ov9_022513D8[];
-const UnkStruct_ov9_02252548 Unk_ov9_02252548[];
-const UnkStruct_ov9_02252EB4 Unk_ov9_02252EB4[];
+static const DistWorldMovingPlatformMapTemplates sMovingPlatformsMapTemplates[MOVING_PLATFORM_MAP_COUNT];
+static const DistWorldElevatorPlatformPath sElevatorPlatformPaths[ELEVATOR_PLATFORM_PATH_COUNT];
+static const DistWorldEventCmdHandler *sEventCmdHandlers[EVENT_CMD_KIND_COUNT];
+static const DistWorldMapEvents sMapEvents[];
+static const DistWorldEventCmd sMapEventB4F_Waterfall[];
+static const DistWorldEventCmd sMapEventB5F_Waterfall[];
+static const DistWorldSimplePropMapTemplates sSimplePropsMapTemplates[];
+static const DistWorldMapObjectEvents sMapObjectEvents[];
 
 void DistWorld_DynamicMapFeaturesInit(FieldSystem *fieldSystem)
 {
@@ -1321,41 +1698,41 @@ void DistWorld_DynamicMapFeaturesInit(FieldSystem *fieldSystem)
 
     dwSystem->fieldSystem = fieldSystem;
     dwSystem->persistedData = data;
-    dwSystem->mapHeaderID = (enum MapHeader)fieldSystem->location->mapId;
+    dwSystem->mapHeaderID = (enum MapHeaderID)fieldSystem->location->mapHeaderID;
 
     fieldSystem->unk_04->dynamicMapFeaturesData = dwSystem;
 
     OpenArchives(dwSystem);
 
     if (!data->valid) {
-        ov9_02249CC4(dwSystem);
+        InitPersistedData(dwSystem);
     }
 
-    ov9_0224BE14(dwSystem);
-    ov9_02249F50(dwSystem);
-    ov9_02249F88(dwSystem);
-    ov9_0224A1E4(dwSystem, (4 + 2));
+    InitMapElements(dwSystem);
+    InitEdgeColors(dwSystem);
+    InitMapObjectFlags(dwSystem);
+    InitMapObjectRotatorManager(dwSystem, 6);
     InitPropRenderBuffers(dwSystem);
-    ov9_0224ADC0(dwSystem);
-    ov9_0224B3A8(dwSystem);
-    ov9_0224AEE4(dwSystem, &dwSystem->unk_1A8, dwSystem->unk_10);
-    ov9_0224F724(dwSystem);
+    InitSkyBackground(dwSystem);
+    InitFog(dwSystem);
+    InitSkyClouds(dwSystem, &dwSystem->skyClouds, dwSystem->etcNARC);
+    InitSkyBackgroundDarkness(dwSystem);
     CameraInit(dwSystem);
     FieldTaskContextNoOp1(dwSystem);
-    ov9_0224A8C0(dwSystem);
-    ov9_0224EE40(dwSystem);
-    ov9_0224EB68(dwSystem);
+    InitPlayer(dwSystem);
+    AddMapObjectsForCurrentAndNextMap(dwSystem);
+    InitSimplePropsForCurrentAndNextMaps(dwSystem);
     InitAllGhostPropManagers(dwSystem);
-    ov9_0224DC34(dwSystem);
-    ov9_0224E33C(dwSystem);
-    ov9_02249E94(dwSystem);
-    ov9_0224C8E8(dwSystem);
-    ov9_0224CBD8(dwSystem);
-    ov9_0224DCA8(dwSystem);
-    ov9_0224B1B4(dwSystem, dwSystem->fieldSystem->unk_40, &dwSystem->unk_1A8);
-    ov9_0224E984(dwSystem);
-    ov5_021F34B8(dwSystem->fieldSystem->unk_40);
-    ov9_02249EF0(dwSystem);
+    ResetMovingPlatformManager(dwSystem);
+    UnloadEvent(dwSystem);
+    StartCalculateTask(dwSystem);
+    InitialLoadInactiveFloor(dwSystem);
+    StartLoadFloorTask(dwSystem);
+    InitMovingPlatformPropsForCurrentAndNextMaps(dwSystem);
+    InitSkyCloudAnimators(dwSystem, dwSystem->fieldSystem->fieldEffMan, &dwSystem->skyClouds);
+    Dummy0224E984(dwSystem);
+    ov5_021F34B8(dwSystem->fieldSystem->fieldEffMan);
+    StartSkyPalettesUpdateTask(dwSystem);
     Arc2DwLostTower_ResetFieldState(); // set-tower: the ghosts' palettes are reloaded with each field
     DwPuzzle_OnMapEnter(fieldSystem, DistWorldSystem_GetMapHeaderID(dwSystem)); // dwp:engine-a
     // dwp:engine-a + engine-b (3): register the map's actor table (NULL =
@@ -1369,7 +1746,7 @@ void DistWorld_DynamicMapFeaturesInit(FieldSystem *fieldSystem)
 
 void DistWorld_DynamicMapFeaturesFree(FieldSystem *fieldSystem)
 {
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
 
     // dwp:engine-a + engine-b (3): actor teardown. VisualsExit always
     // (deletes the actor MapObjects, keeps core state). OnExit / OnMapExit
@@ -1379,149 +1756,160 @@ void DistWorld_DynamicMapFeaturesFree(FieldSystem *fieldSystem)
     // departure; a battle return / same-map reload keeps the mapId.
     DwActors_VisualsExit(fieldSystem);
     if (fieldSystem->location != NULL
-        && (u32)fieldSystem->location->mapId != DistWorldSystem_GetMapHeaderID(v0)) {
+        && (u32)fieldSystem->location->mapHeaderID != DistWorldSystem_GetMapHeaderID(dwSystem)) {
         DwActors_OnExit();
-        DwPuzzle_OnMapExit(fieldSystem, DistWorldSystem_GetMapHeaderID(v0));
+        DwPuzzle_OnMapExit(fieldSystem, DistWorldSystem_GetMapHeaderID(dwSystem));
     }
 
-    ov9_02249F18(v0);
-    ov9_0224E988(v0);
-    ov9_0224CBF8(v0);
-    ov9_0224C9E8(v0);
-    ov9_02249EC8(v0);
-    ov9_0224E34C(v0);
-    ov9_0224DC4C(v0);
-    FinishAllGhostPropManagers(v0);
-    ov9_0224EB94(v0);
-    ov9_0224EE6C(v0);
-    ov9_0224A9E8(v0);
-    FieldTaskContextNoOp2(v0);
-    CameraFree(v0);
-    ov9_0224F760(v0);
-    ov9_0224B064(&v0->unk_1A8);
-    ov9_0224B3F4(v0);
-    ov9_0224AED8(v0);
-    FreePropRenderBuffers(v0);
-    ov9_0224A334(v0);
-    ov9_02249F98(v0);
-    ov9_02249F84(v0);
-    ov9_0224BE8C(v0);
-    CloseArchives(v0);
+    FinishSkyPalettesUpdateTask(dwSystem);
+    FinishGiratinaShadowPropRenderer(dwSystem);
+    FinishLoadFloorTask(dwSystem);
+    FreeInactiveFloor(dwSystem);
+    FinishCalculateTask(dwSystem);
+    Dummy0224E34C(dwSystem);
+    FinishAllMovingPlatformPropAnimators(dwSystem);
+    FinishAllGhostPropManagers(dwSystem);
+    FinishAllSimplePropAnimators(dwSystem);
+    Dummy0224EE6C(dwSystem);
+    ResetPlayer(dwSystem);
+    FieldTaskContextNoOp2(dwSystem);
+    CameraFree(dwSystem);
+    Dummy0224F760(dwSystem);
+    FreeSkyClouds(&dwSystem->skyClouds);
+    Dummy0224B3F4(dwSystem);
+    FinishSkyBackground(dwSystem);
+    FreePropRenderBuffers(dwSystem);
+    FreeMapObjectRotatorManager(dwSystem);
+    Dummy02249F98(dwSystem);
+    Dummy02249F84(dwSystem);
+    FreeMapElements(dwSystem);
+    CloseArchives(dwSystem);
 
-    Heap_Free(v0);
-
+    Heap_Free(dwSystem);
     fieldSystem->unk_04->dynamicMapFeaturesData = NULL;
 }
 
-static void ov9_02249B04(DistWorldSystem *param0)
+static void LoadNextFloorElements(DistWorldSystem *system)
 {
-    u32 v0 = DistWorldSystem_GetMapHeaderID(param0);
-    const DistWorldMapConnections *v1 = GetConnectionsForMap(v0);
+    u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(mapHeaderID);
 
-    FinishActiveGhostPropManager(param0);
-    SetPersistedHiddenGhostPropGroups(param0, 0);
-    ov9_0224EC94(param0, v1->prevID);
-    ov9_0224DC74(param0, v1->prevID);
-    ov9_0224F0A4(param0, v1->prevID);
-    ov9_0224BF18(param0, v1->nextID);
-    ov9_0224DB1C(param0);
-    InitInactiveGhostPropManager(param0);
-    ov9_0224EC48(param0, v1->nextID);
-    ov9_0224DD24(param0, v1->nextID);
-    ov9_0224F078(param0, v1->nextID);
+    FinishActiveGhostPropManager(system);
+    SetPersistedHiddenGhostPropGroups(system, 0);
+    FinishSimplePropAnimatorForMap(system, mapConnections->prevID);
+    FinishMovingPlatformPropAnimatorForMap(system, mapConnections->prevID);
+    DeleteMapObjectsForMap(system, mapConnections->prevID);
+    PrepareLoadingInactiveFloor(system, mapConnections->nextID);
+    FreeUnusedPropRenderers(system);
+    InitInactiveGhostPropManager(system);
+    InitSimplePropsForMap(system, mapConnections->nextID);
+    InitMovingPlatformPropsForMap(system, mapConnections->nextID);
+    AddMapObjectsForMap(system, mapConnections->nextID);
 }
 
-static void ov9_02249B68(DistWorldSystem *param0)
+static void LoadPreviousFloorElements(DistWorldSystem *system)
 {
-    u32 v0 = DistWorldSystem_GetMapHeaderID(param0);
-    const DistWorldMapConnections *v1 = GetConnectionsForMap(v0);
+    u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(mapHeaderID);
+    mapConnections = GetConnectionsForMap(mapConnections->nextID);
 
-    v1 = GetConnectionsForMap(v1->nextID);
-
-    FinishInactiveGhostPropManager(param0);
-    SetPersistedHiddenGhostPropGroups(param0, 0);
-    ov9_0224EC94(param0, v1->nextID);
-    ov9_0224DC74(param0, v1->nextID);
-    ov9_0224F0A4(param0, v1->nextID);
-    ov9_0224BEB4(param0, v0);
-    ov9_0224DB1C(param0);
-    InitActiveGhostPropManager(param0, TRUE);
-    ov9_0224EC48(param0, v0);
-    ov9_0224DD24(param0, v0);
-    ov9_0224F078(param0, v0);
+    FinishInactiveGhostPropManager(system);
+    SetPersistedHiddenGhostPropGroups(system, 0);
+    FinishSimplePropAnimatorForMap(system, mapConnections->nextID);
+    FinishMovingPlatformPropAnimatorForMap(system, mapConnections->nextID);
+    DeleteMapObjectsForMap(system, mapConnections->nextID);
+    PrepareLoadingActiveFloor(system, mapHeaderID);
+    FreeUnusedPropRenderers(system);
+    InitActiveGhostPropManager(system, TRUE);
+    InitSimplePropsForMap(system, mapHeaderID);
+    InitMovingPlatformPropsForMap(system, mapHeaderID);
+    AddMapObjectsForMap(system, mapHeaderID);
 }
 
-static void ov9_02249BD4(DistWorldSystem *param0, u32 param1)
+static void PrepareUnloadingActiveFloor(DistWorldSystem *system, u32 mapHeaderID)
 {
-    FinishActiveGhostPropManager(param0);
-    SetPersistedHiddenGhostPropGroups(param0, 0);
-    ov9_0224EC94(param0, param1);
-    ov9_0224DC74(param0, param1);
-    ov9_0224F0A4(param0, param1);
-    ov9_0224DB1C(param0);
+    FinishActiveGhostPropManager(system);
+    SetPersistedHiddenGhostPropGroups(system, 0);
+    FinishSimplePropAnimatorForMap(system, mapHeaderID);
+    FinishMovingPlatformPropAnimatorForMap(system, mapHeaderID);
+    DeleteMapObjectsForMap(system, mapHeaderID);
+    FreeUnusedPropRenderers(system);
 }
 
-static void ov9_02249C08(DistWorldSystem *param0, u32 param1)
+static void FinishLoadingInactiveFloor(DistWorldSystem *system, u32 mapHeaderID)
 {
-    InitInactiveGhostPropManager(param0);
-    ov9_0224EC48(param0, param1);
-    ov9_0224DD24(param0, param1);
-    ov9_0224F078(param0, param1);
+    InitInactiveGhostPropManager(system);
+    InitSimplePropsForMap(system, mapHeaderID);
+    InitMovingPlatformPropsForMap(system, mapHeaderID);
+    AddMapObjectsForMap(system, mapHeaderID);
 }
 
-static void ov9_02249C2C(DistWorldSystem *param0, u32 param1)
+static void PrepareUnloadingInactiveFloor(DistWorldSystem *system, u32 mapHeaderID)
 {
-    FinishInactiveGhostPropManager(param0);
-    SetPersistedHiddenGhostPropGroups(param0, 0);
-    ov9_0224EC94(param0, param1);
-    ov9_0224DC74(param0, param1);
-    ov9_0224F0A4(param0, param1);
-    ov9_0224DB1C(param0);
+    FinishInactiveGhostPropManager(system);
+    SetPersistedHiddenGhostPropGroups(system, 0);
+    FinishSimplePropAnimatorForMap(system, mapHeaderID);
+    FinishMovingPlatformPropAnimatorForMap(system, mapHeaderID);
+    DeleteMapObjectsForMap(system, mapHeaderID);
+    FreeUnusedPropRenderers(system);
 }
 
-static void ov9_02249C60(DistWorldSystem *param0, u32 param1)
+static void FinishLoadingActiveFloor(DistWorldSystem *system, u32 mapHeaderID)
 {
-    InitActiveGhostPropManager(param0, TRUE);
-    ov9_0224EC48(param0, param1);
-    ov9_0224DD24(param0, param1);
-    ov9_0224F078(param0, param1);
+    InitActiveGhostPropManager(system, TRUE);
+    InitSimplePropsForMap(system, mapHeaderID);
+    InitMovingPlatformPropsForMap(system, mapHeaderID);
+    AddMapObjectsForMap(system, mapHeaderID);
 }
 
 static void OpenArchives(DistWorldSystem *system)
 {
-    system->distortionWorldNARC = NARC_ctor(NARC_INDEX_FIELDDATA__TORNWORLD__TW_ARC, HEAP_ID_FIELD1);
-    system->distortionWorldAttrNARC = NARC_ctor(NARC_INDEX_FIELDDATA__TORNWORLD__TW_ARC_ATTR, HEAP_ID_FIELD1);
-    system->unk_10 = NARC_ctor(NARC_INDEX_DATA__TW_ARC_ETC, HEAP_ID_FIELD1);
+    system->mainNARC = NARC_ctor(NARC_INDEX_FIELDDATA__TORNWORLD__TW_ARC, HEAP_ID_FIELD1);
+    system->attrNARC = NARC_ctor(NARC_INDEX_FIELDDATA__TORNWORLD__TW_ARC_ATTR, HEAP_ID_FIELD1);
+    system->etcNARC = NARC_ctor(NARC_INDEX_DATA__TW_ARC_ETC, HEAP_ID_FIELD1);
 }
 
 static void CloseArchives(DistWorldSystem *system)
 {
-    NARC_dtor(system->distortionWorldNARC);
-    NARC_dtor(system->distortionWorldAttrNARC);
-    NARC_dtor(system->unk_10);
+    NARC_dtor(system->mainNARC);
+    NARC_dtor(system->attrNARC);
+    NARC_dtor(system->etcNARC);
 }
 
-static void ov9_02249CC4(DistWorldSystem *param0)
+static void InitPersistedData(DistWorldSystem *system)
 {
-    DistWorldPersistedData *v0 = param0->persistedData;
-    VarsFlags *v1 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
+    DistWorldPersistedData *persistedData = system->persistedData;
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
 
-    v0->unk_0C = 0;
+    persistedData->boulderPuzzleFlags = 0;
 
-    {
-        u32 v2 = ((1 << 3) | (1 << 7));
+    u32 movingPlatformFlags = 1 << DIST_WORLD_PLATFORM_FLAG_B4F_1
+        | 1 << DIST_WORLD_PLATFORM_FLAG_B5F_1;
 
-        if (DistWorldSystem_GetMapHeaderID(param0) == 581) {
-            v2 = ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 7) | (1 << 9) | (1 << 10));
-        }
-
-        ov9_02249D68(param0, v2);
+    if (DistWorldSystem_GetMapHeaderID(system) == MAP_HEADER_DISTORTION_WORLD_B7F) {
+        movingPlatformFlags = 1 << DIST_WORLD_PLATFORM_FLAG_B1F_1
+            | 1 << DIST_WORLD_PLATFORM_FLAG_B2F_1
+            | 1 << DIST_WORLD_PLATFORM_FLAG_B3F_1
+            | 1 << DIST_WORLD_PLATFORM_FLAG_B4F_1
+            | 1 << DIST_WORLD_PLATFORM_FLAG_B4F_2
+            | 1 << DIST_WORLD_PLATFORM_FLAG_B5F_1
+            | 1 << DIST_WORLD_PLATFORM_FLAG_B6F_1
+            | 1 << DIST_WORLD_PLATFORM_FLAG_B7F_1;
     }
 
-    if (!SystemFlag_HandleDistortionWorldPuzzleFinished(v1, HANDLE_FLAG_CHECK)) {
-        v0->unk_0C |= ((1 << 0) | (1 << 1) | (1 << 2));
+    SetPersistedMovingPlatformFlags(system, movingPlatformFlags);
+
+    if (!SystemFlag_HandleDistortionWorldPuzzleFinished(varsFlags, HANDLE_FLAG_CHECK)) {
+        persistedData->boulderPuzzleFlags |= 1 << DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B5F
+            | 1 << DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B5F
+            | 1 << DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B5F;
     } else {
-        v0->unk_0C |= ((1 << 10) | (1 << 11) | (1 << 12) | (1 << 6) | (1 << 7) | (1 << 8));
+        persistedData->boulderPuzzleFlags |= 1 << DIST_WORLD_PUZZLE_FLAG_UXIE_TUTO_SEEN
+            | 1 << DIST_WORLD_PUZZLE_FLAG_AZELF_TUTO_SEEN
+            | 1 << DIST_WORLD_PUZZLE_FLAG_MESPRIT_TUTO_SEEN
+            | 1 << DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B6F_PIT
+            | 1 << DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B6F_PIT
+            | 1 << DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B6F_PIT;
     }
 }
 
@@ -1559,68 +1947,57 @@ static u32 GetPersistedHiddenGhostPropGroups(DistWorldSystem *system)
     return system->persistedData->hiddenGhostPropGroups;
 }
 
-static void ov9_02249D68(DistWorldSystem *param0, u32 param1)
+static void SetPersistedMovingPlatformFlags(DistWorldSystem *system, u32 movingPlatformFlags)
 {
-    DistWorldPersistedData *v0 = param0->persistedData;
-    v0->unk_0A = param1;
+    system->persistedData->movingPlatformFlags = movingPlatformFlags;
 }
 
-static void ov9_02249D70(DistWorldSystem *param0, u32 param1)
+static void SetPersistedMovingPlatformFlag(DistWorldSystem *system, u32 index)
 {
-    DistWorldPersistedData *v0 = param0->persistedData;
+    DistWorldPersistedData *persistedData = system->persistedData;
 
-    GF_ASSERT(param1 < 11);
-    v0->unk_0A |= (1 << param1);
+    GF_ASSERT(index < DIST_WORLD_PLATFORM_FLAG_COUNT);
+    persistedData->movingPlatformFlags |= (1 << index);
 }
 
-static void ov9_02249D8C(DistWorldSystem *param0, u32 param1)
+static void ClearPersistedMovingPlatformFlag(DistWorldSystem *system, u32 index)
 {
-    DistWorldPersistedData *v0 = param0->persistedData;
+    DistWorldPersistedData *persistedData = system->persistedData;
 
-    GF_ASSERT(param1 < 11);
-    v0->unk_0A &= ~(1 << param1);
+    GF_ASSERT(index < DIST_WORLD_PLATFORM_FLAG_COUNT);
+    persistedData->movingPlatformFlags &= ~(1 << index);
 }
 
-static BOOL ov9_02249DA8(DistWorldSystem *param0, u32 param1)
+static BOOL CheckPersistedMovingPlatformFlag(DistWorldSystem *system, u32 index)
 {
-    DistWorldPersistedData *v0 = param0->persistedData;
+    DistWorldPersistedData *persistedData = system->persistedData;
 
-    GF_ASSERT(param1 < 11);
-
-    if (v0->unk_0A & (1 << param1)) {
-        return 1;
-    }
-
-    return 0;
+    GF_ASSERT(index < DIST_WORLD_PLATFORM_FLAG_COUNT);
+    return persistedData->movingPlatformFlags & (1 << index) ? TRUE : FALSE;
 }
 
-static void ov9_02249DC8(DistWorldSystem *param0, u32 param1)
+static void SetPersistedBoulderPuzzleFlag(DistWorldSystem *system, u32 index)
 {
-    DistWorldPersistedData *v0 = param0->persistedData;
+    DistWorldPersistedData *persistedData = system->persistedData;
 
-    GF_ASSERT(param1 < 17);
-    v0->unk_0C |= (1 << param1);
+    GF_ASSERT(index < DIST_WORLD_PUZZLE_FLAG_COUNT);
+    persistedData->boulderPuzzleFlags |= (1 << index);
 }
 
-static void ov9_02249DE4(DistWorldSystem *param0, u32 param1)
+static void ClearPersistedBoulderPuzzleFlag(DistWorldSystem *system, u32 index)
 {
-    DistWorldPersistedData *v0 = param0->persistedData;
+    DistWorldPersistedData *persistedData = system->persistedData;
 
-    GF_ASSERT(param1 < 17);
-    v0->unk_0C &= ~(1 << param1);
+    GF_ASSERT(index < DIST_WORLD_PUZZLE_FLAG_COUNT);
+    persistedData->boulderPuzzleFlags &= ~(1 << index);
 }
 
-static BOOL ov9_02249E00(DistWorldSystem *param0, u32 param1)
+static BOOL CheckPersistedBoulderPuzzleFlag(DistWorldSystem *system, u32 index)
 {
-    DistWorldPersistedData *v0 = param0->persistedData;
+    DistWorldPersistedData *persistedData = system->persistedData;
 
-    GF_ASSERT(param1 < 17);
-
-    if (v0->unk_0C & (1 << param1)) {
-        return 1;
-    }
-
-    return 0;
+    GF_ASSERT(index < DIST_WORLD_PUZZLE_FLAG_COUNT);
+    return persistedData->boulderPuzzleFlags & (1 << index) ? TRUE : FALSE;
 }
 
 static void SetPersistedCurrentFloatingPlatformIndex(DistWorldSystem *system, u32 floatingPlatformIndex)
@@ -1639,7 +2016,7 @@ static u32 GetPersistedCurrentFloatingPlatformIndex(DistWorldSystem *system)
 BOOL DistWorld_DynamicMapFeaturesCheckCollision(FieldSystem *fieldSystem, const int tileX, const int tileZ, const fx32 height, BOOL *isColliding)
 {
     DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
-    enum MapHeader mapHeaderID = DistWorldSystem_GetMapHeaderID(dwSystem);
+    enum MapHeaderID mapHeaderID = DistWorldSystem_GetMapHeaderID(dwSystem);
 
     if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM) {
         if (tileX == GIRATINA_ROOM_TELEPORT_TILE_X && tileZ == GIRATINA_ROOM_TELEPORT_TILE_Z + 1) {
@@ -1690,94 +2067,78 @@ BOOL DistWorld_DynamicMapFeaturesCheckCollision(FieldSystem *fieldSystem, const 
     return FALSE;
 }
 
-static void ov9_02249E94(DistWorldSystem *param0)
+static void StartCalculateTask(DistWorldSystem *system)
 {
-    int v0;
-    UnkStruct_ov9_02249E94 *v1 = &param0->unk_184;
+    DistWorldCalculationTask *calculationTask = &system->calculationTask;
+    memset(calculationTask, 0, sizeof(DistWorldCalculationTask));
 
-    memset(v1, 0, sizeof(UnkStruct_ov9_02249E94));
-
-    v0 = sub_02062858(param0->fieldSystem->mapObjMan);
-    v0 += 2;
-
-    v1->unk_00 = SysTask_Start(ov9_02249EDC, param0, v0);
+    int priority = MapObjectMan_GetTaskBasePriority(system->fieldSystem->mapObjMan) + 2;
+    calculationTask->task = SysTask_Start(Task_Calculate, system, priority);
 }
 
-static void ov9_02249EC8(DistWorldSystem *param0)
+static void FinishCalculateTask(DistWorldSystem *system)
 {
-    UnkStruct_ov9_02249E94 *v0 = &param0->unk_184;
+    DistWorldCalculationTask *calculationTask = &system->calculationTask;
 
-    if (v0->unk_00 != NULL) {
-        SysTask_Done(v0->unk_00);
+    if (calculationTask->task != NULL) {
+        SysTask_Done(calculationTask->task);
     }
 }
+
+static void Task_Calculate(SysTask *sysTask, void *sysTaskParam)
+{
+    DistWorldSystem *system = sysTaskParam;
 
 static void Arc2Dw_HandleFrame(DistWorldSystem *system);
+static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system);
 
-static void ov9_02249EDC(SysTask *param0, void *param1)
+    TickAllMapObjectRotators(system);
+    RecalculateSkyBackgroundDarkness(system);
+    Arc2Dw_HandleFrame(system);
+}
+
+static void StartSkyPalettesUpdateTask(DistWorldSystem *system)
 {
-    DistWorldSystem *v0 = param1;
-    UnkStruct_ov9_02249E94 *v1 = &v0->unk_184;
+    GF_ASSERT(system->skyPalettesTask == NULL);
+    system->skyPalettesTask = SysTask_ExecuteOnVBlank(Task_SkyPalettesUpdate, system, 128);
+}
 
-    {
-        ov9_0224A49C(v0);
+static void FinishSkyPalettesUpdateTask(DistWorldSystem *system)
+{
+    GF_ASSERT(system->skyPalettesTask != NULL);
+    SysTask_Done(system->skyPalettesTask);
+    system->skyPalettesTask = NULL;
+}
+
+static void Task_SkyPalettesUpdate(SysTask *sysTask, void *sysTaskParam)
+{
+    DistWorldSystem *system = sysTaskParam;
+
+    Dummy0224CC4C(system);
+    UpdateSkyPalettes(system);
+}
+
+static void InitEdgeColors(DistWorldSystem *system)
+{
+    for (int i = 0; i < G3X_EDGE_COLOR_TABLE_SIZE; i++) {
+        system->edgeColorTable[i] = EDGE_COLOR;
     }
 
-    {
-        ov9_0224F764(v0);
-    }
-
-    Arc2Dw_HandleFrame(v0);
+    system->edgeColorTable[1] = EDGE_GIRATINA_SHADOW_COLOR;
+    G3X_SetEdgeColorTable(system->edgeColorTable);
 }
 
-static void ov9_02249EF0(DistWorldSystem *param0)
+static void Dummy02249F84(DistWorldSystem *system)
 {
-    GF_ASSERT(param0->unk_1EC4 == NULL);
-    param0->unk_1EC4 = SysTask_ExecuteOnVBlank(ov9_02249F3C, param0, 0x80);
 }
 
-static void ov9_02249F18(DistWorldSystem *param0)
+static void InitMapObjectFlags(DistWorldSystem *system)
 {
-    GF_ASSERT(param0->unk_1EC4 != NULL);
-    SysTask_Done(param0->unk_1EC4);
-    param0->unk_1EC4 = NULL;
+    MapObjectMan_SetEndMovement(system->fieldSystem->mapObjMan, FALSE);
 }
 
-static void ov9_02249F3C(SysTask *param0, void *param1)
+static void Dummy02249F98(DistWorldSystem *system)
 {
-    DistWorldSystem *v0 = param1;
-
-    ov9_0224CC4C(v0);
-    ov9_0224F804(v0);
-}
-
-static void ov9_02249F50(DistWorldSystem *param0)
-{
-    {
-        int v0;
-
-        for (v0 = 0; v0 < 8; v0++) {
-            param0->unk_1EB0[v0] = GX_RGB(4, 4, 4);
-        }
-
-        param0->unk_1EB0[1] = GX_RGB(4, 3, 7);
-        G3X_SetEdgeColorTable(param0->unk_1EB0);
-    }
-}
-
-static void ov9_02249F84(DistWorldSystem *param0)
-{
-    return;
-}
-
-static void ov9_02249F88(DistWorldSystem *param0)
-{
-    MapObjectMan_SetEndMovement(param0->fieldSystem->mapObjMan, 0);
-}
-
-static void ov9_02249F98(DistWorldSystem *param0)
-{
-    return;
 }
 
 void DistWorld_UpdateCameraAngle(FieldSystem *fieldSystem)
@@ -1859,6 +2220,8 @@ static void CameraFree(DistWorldSystem *system)
     if (cameraMan->transitionTask != NULL) {
         SysTask_Done(cameraMan->transitionTask);
     }
+
+    Arc2Dw_HandleFrame(system);
 }
 
 static void CameraTransitionTask(SysTask *sysTask, void *sysTaskParam)
@@ -1923,286 +2286,272 @@ static BOOL DoCameraTransition(DistWorldSystem *system, const DistWorldCameraAng
     return TRUE;
 }
 
-static void ov9_0224A1E4(DistWorldSystem *param0, int param1)
+static void InitMapObjectRotatorManager(DistWorldSystem *system, int rotatorCount)
 {
-    UnkStruct_ov9_0224A228 *v0 = &param0->unk_188;
+    DistWorldMapObjectRotatorManager *mapObjRotatorMan = &system->mapObjRotatorMan;
+    mapObjRotatorMan->count = rotatorCount;
 
-    v0->unk_00 = param1;
-    param1 *= sizeof(UnkStruct_ov9_0224A294);
-    v0->unk_04 = Heap_Alloc(HEAP_ID_FIELD1, param1);
+    int rotatorSize = rotatorCount * sizeof(DistWorldMapObjectRotator);
+    mapObjRotatorMan->rotators = Heap_Alloc(HEAP_ID_FIELD1, rotatorSize);
+    memset(mapObjRotatorMan->rotators, 0, rotatorSize);
 
-    memset(v0->unk_04, 0, param1);
-    HeapExp_FndInitAllocator(&v0->unk_10, HEAP_ID_FIELD1, 4);
-
-    v0->unk_08 = ov5_021DF5C0(param0->fieldSystem->unk_40, 197, 1);
-    v0->unk_0C = NNS_G3dGetAnmByIdx(v0->unk_08, 0);
+    HeapExp_FndInitAllocator(&mapObjRotatorMan->allocator, HEAP_ID_FIELD1, 4);
+    mapObjRotatorMan->animData = FieldEffectManager_AllocAndReadNARCWholeMember(system->fieldSystem->fieldEffMan, player_rotation_nsbta, TRUE);
+    mapObjRotatorMan->anim = NNS_G3dGetAnmByIdx(mapObjRotatorMan->animData, 0);
 }
 
-static void ov9_0224A228(UnkStruct_ov9_0224A228 *param0, UnkStruct_ov9_0224A294 *param1, UnkStruct_020216E0 *param2)
+static void DistWorldMapObjectRotatorManager_PrepareRotator(DistWorldMapObjectRotatorManager *mapObjRotatorMan, DistWorldMapObjectRotator *mapObjRotator, Billboard *billboard)
 {
-    NNSG3dResMdl *v0 = sub_02021430(param2);
-    NNSG3dResTex *v1 = sub_02021438(param2);
-    NNSG3dRenderObj *v2 = sub_02021440(param2);
+    NNSG3dResMdl *model = Billboard_GetModel2(billboard);
+    NNSG3dResTex *texture = Billboard_GetTexture(billboard);
+    NNSG3dRenderObj *renderObj = Billboard_GetRenderObj(billboard);
 
-    GF_ASSERT(param1->unk_10 == NULL);
+    GF_ASSERT(mapObjRotator->animObj == NULL);
 
-    param1->unk_1C = param2;
-    param1->unk_10 = NNS_G3dAllocAnmObj(&param0->unk_10, param0->unk_0C, v0);
+    mapObjRotator->billboard = billboard;
+    mapObjRotator->animObj = NNS_G3dAllocAnmObj(&mapObjRotatorMan->allocator, mapObjRotatorMan->anim, model);
 
-    NNS_G3dAnmObjInit(param1->unk_10, param0->unk_0C, v0, v1);
-    NNS_G3dRenderObjAddAnmObj(v2, param1->unk_10);
+    NNS_G3dAnmObjInit(mapObjRotator->animObj, mapObjRotatorMan->anim, model, texture);
+    NNS_G3dRenderObjAddAnmObj(renderObj, mapObjRotator->animObj);
 
-    sub_02021444(param2, ov9_0224A4C8, param1);
+    Billboard_SetCallback(billboard, MapObjectRotatorBillboardCallback, mapObjRotator);
 
-    if (param1->unk_18 != NULL) {
-        param1->unk_14 = MapObject_GetGraphicsID(param1->unk_18);
+    if (mapObjRotator->mapObj != NULL) {
+        mapObjRotator->mapObjGraphicsID = MapObject_GetGraphicsID(mapObjRotator->mapObj);
     }
 }
 
-static void ov9_0224A294(UnkStruct_ov9_0224A228 *param0, UnkStruct_ov9_0224A294 *param1)
+static void DistWorldMapObjectRotatorManager_FreeRotator(DistWorldMapObjectRotatorManager *mapObjRotatorMan, DistWorldMapObjectRotator *mapObjRotator)
 {
-    if (param1->unk_10 != NULL) {
-        NNS_G3dFreeAnmObj(&param0->unk_10, param1->unk_10);
-        param1->unk_10 = NULL;
+    if (mapObjRotator->animObj != NULL) {
+        NNS_G3dFreeAnmObj(&mapObjRotatorMan->allocator, mapObjRotator->animObj);
+        mapObjRotator->animObj = NULL;
     }
 }
 
-static void ov9_0224A2AC(UnkStruct_ov9_0224A228 *param0, UnkStruct_ov9_0224A294 *param1)
+static void DistWorldMapObjectRotatorManager_ResetRotator(DistWorldMapObjectRotatorManager *mapObjRotatorMan, DistWorldMapObjectRotator *mapObjRotator)
 {
-    ov9_0224A294(param0, param1);
-    memset(param1, 0, sizeof(UnkStruct_ov9_0224A294));
+    DistWorldMapObjectRotatorManager_FreeRotator(mapObjRotatorMan, mapObjRotator);
+    memset(mapObjRotator, 0, sizeof(DistWorldMapObjectRotator));
 }
 
-static void ov9_0224A2C0(UnkStruct_ov9_0224A228 *param0, UnkStruct_ov9_0224A294 *param1)
+static void DistWorldMapObjectRotatorManager_TryPrepareRotator(DistWorldMapObjectRotatorManager *mapObjRotatorMan, DistWorldMapObjectRotator *mapObjRotator)
 {
-    if (param1->unk_18 != NULL) {
-        if (param1->unk_10 == NULL) {
-            UnkStruct_020216E0 *v0 = ov5_021EB1A0(param1->unk_18);
+    if (mapObjRotator->mapObj != NULL) {
+        if (mapObjRotator->animObj == NULL) {
+            Billboard *billboard = ov5_021EB1A0(mapObjRotator->mapObj);
 
-            if (v0 == NULL) {
+            if (billboard == NULL) {
                 return;
             }
 
-            ov9_0224A228(param0, param1, v0);
+            DistWorldMapObjectRotatorManager_PrepareRotator(mapObjRotatorMan, mapObjRotator, billboard);
         }
     }
 }
 
-static int ov9_0224A2E4(UnkStruct_ov9_0224A294 *param0)
+static int DistWorldMapObjectRotator_GetValidity(DistWorldMapObjectRotator *mapObjRotator)
 {
-    if (param0->unk_18 != NULL) {
-        if (sub_02062CF8(param0->unk_18) == 0) {
-            return 1;
+    if (mapObjRotator->mapObj != NULL) {
+        if (!sub_02062CF8(mapObjRotator->mapObj)) {
+            return MAP_OBJECT_ROTATOR_VALIDITY_NEEDS_RESET;
+        } else if (MapObject_GetLocalID(mapObjRotator->mapObj) != mapObjRotator->mapObjLocalID) {
+            return MAP_OBJECT_ROTATOR_VALIDITY_NEEDS_RESET;
+        } else if (mapObjRotator->animObj != NULL && mapObjRotator->mapObjGraphicsID != MapObject_GetGraphicsID(mapObjRotator->mapObj)) {
+            return MAP_OBJECT_ROTATOR_VALIDITY_NEEDS_FREE;
+        }
+    } else if (Billboard_GetState(mapObjRotator->billboard) == BILLBOARD_STATE_INACTIVE) {
+        return MAP_OBJECT_ROTATOR_VALIDITY_NEEDS_RESET;
+    }
+
+    return MAP_OBJECT_ROTATOR_VALIDITY_OK;
+}
+
+static void FreeMapObjectRotatorManager(DistWorldSystem *system)
+{
+    DistWorldMapObjectRotatorManager *mapObjRotatorMan = &system->mapObjRotatorMan;
+    DistWorldMapObjectRotator *iter = mapObjRotatorMan->rotators;
+
+    for (int i = 0; i < mapObjRotatorMan->count; i++, iter++) {
+        DistWorldMapObjectRotatorManager_ResetRotator(mapObjRotatorMan, iter);
+    }
+
+    if (mapObjRotatorMan->animData != NULL) {
+        Heap_Free(mapObjRotatorMan->animData);
+        mapObjRotatorMan->animData = NULL;
+    }
+
+    Heap_Free(mapObjRotatorMan->rotators);
+    mapObjRotatorMan->rotators = NULL;
+}
+
+static void DistWorldMapObjectRotator_Init(DistWorldMapObjectRotator *mapObjRotator, MapObject *mapObj, int initialAngle)
+{
+    mapObjRotator->finalRotAngle = initialAngle;
+    mapObjRotator->currRotAngle = FX32_ONE * initialAngle;
+    mapObjRotator->animFrame = mapObjRotator->currRotAngle;
+
+    if (mapObj != NULL) {
+        mapObjRotator->mapObj = mapObj;
+        mapObjRotator->mapObjLocalID = MapObject_GetLocalID(mapObj);
+    }
+}
+
+static void BindMapObjectRotator(DistWorldSystem *system, MapObject *mapObj, int initialAngle)
+{
+    int i = 0;
+    DistWorldMapObjectRotatorManager *mapObjRotatorMan = &system->mapObjRotatorMan;
+    DistWorldMapObjectRotator *iter = mapObjRotatorMan->rotators;
+
+    while (i < mapObjRotatorMan->count) {
+        if (iter->mapObj == NULL && iter->billboard == NULL) {
+            DistWorldMapObjectRotator_Init(iter, mapObj, initialAngle);
+            return;
         }
 
-        if (MapObject_GetLocalID(param0->unk_18) != param0->unk_16) {
-            return 1;
+        i++;
+        iter++;
+    }
+
+    GF_ASSERT(FALSE);
+}
+
+static void BindMapObjectRotatorWithBillboard(DistWorldSystem *system, Billboard *billboard, int initialAngle)
+{
+    int i = 0;
+    DistWorldMapObjectRotatorManager *mapObjRotatorMan = &system->mapObjRotatorMan;
+    DistWorldMapObjectRotator *iter = mapObjRotatorMan->rotators;
+
+    while (i < mapObjRotatorMan->count) {
+        if (iter->mapObj == NULL && iter->billboard == NULL) {
+            DistWorldMapObjectRotator_Init(iter, NULL, initialAngle);
+            DistWorldMapObjectRotatorManager_PrepareRotator(mapObjRotatorMan, iter, billboard);
+            return;
         }
 
-        if (param0->unk_10 != NULL) {
-            if (param0->unk_14 != MapObject_GetGraphicsID(param0->unk_18)) {
-                return 2;
-            }
+        i++;
+        iter++;
+    }
+
+    GF_ASSERT(FALSE);
+}
+
+static void UnbindMapObjectRotatorWithBillboard(DistWorldSystem *system, const Billboard *billboard)
+{
+    int i = 0;
+    DistWorldMapObjectRotatorManager *mapObjRotatorMan = &system->mapObjRotatorMan;
+    DistWorldMapObjectRotator *iter = mapObjRotatorMan->rotators;
+
+    while (i < mapObjRotatorMan->count) {
+        if (iter->billboard == billboard) {
+            DistWorldMapObjectRotatorManager_ResetRotator(mapObjRotatorMan, iter);
+            return;
         }
-    } else if (sub_02021404(param0->unk_1C) == 0) {
-        return 1;
+
+        i++;
+        iter++;
+    }
+
+    GF_ASSERT(FALSE);
+}
+
+static void TickMapObjectRotator(DistWorldSystem *system, DistWorldMapObjectRotatorManager *mapObjRotatorMan, DistWorldMapObjectRotator *mapObjRotator)
+{
+    if (mapObjRotator->mapObj == NULL && mapObjRotator->billboard == NULL) {
+        return;
+    }
+
+    int validity = DistWorldMapObjectRotator_GetValidity(mapObjRotator);
+
+    if (validity == MAP_OBJECT_ROTATOR_VALIDITY_NEEDS_RESET) {
+        DistWorldMapObjectRotatorManager_ResetRotator(mapObjRotatorMan, mapObjRotator);
+        return;
+    } else if (validity == MAP_OBJECT_ROTATOR_VALIDITY_NEEDS_FREE) {
+        DistWorldMapObjectRotatorManager_FreeRotator(mapObjRotatorMan, mapObjRotator);
+    }
+
+    DistWorldMapObjectRotatorManager_TryPrepareRotator(mapObjRotatorMan, mapObjRotator);
+
+    if (mapObjRotator->animStepsLeft) {
+        mapObjRotator->animStepsLeft--;
+        ApplyRotationToTargetFx32(&mapObjRotator->currRotAngle, mapObjRotator->rotAngleDelta);
+
+        if (mapObjRotator->animStepsLeft == 0) {
+            mapObjRotator->currRotAngle = FX32_ONE * mapObjRotator->finalRotAngle;
+        }
+
+        mapObjRotator->animFrame = mapObjRotator->currRotAngle;
+    }
+}
+
+static void TickAllMapObjectRotators(DistWorldSystem *system)
+{
+    DistWorldMapObjectRotatorManager *mapObjRotatorMan = &system->mapObjRotatorMan;
+    DistWorldMapObjectRotator *iter = mapObjRotatorMan->rotators;
+
+    for (int i = 0; i < mapObjRotatorMan->count; i++, iter++) {
+        TickMapObjectRotator(system, mapObjRotatorMan, iter);
+    }
+}
+
+static void MapObjectRotatorBillboardCallback(Billboard *billboard, void *cbParam)
+{
+    DistWorldMapObjectRotator *mapObjRotator = cbParam;
+    NNS_G3dAnmObjSetFrame(mapObjRotator->animObj, mapObjRotator->animFrame);
+}
+
+static void RotateMapObject(DistWorldSystem *system, MapObject *mapObj, int angle, int animSteps)
+{
+    int i = 0;
+    DistWorldMapObjectRotatorManager *mapObjRotatorMan = &system->mapObjRotatorMan;
+    DistWorldMapObjectRotator *iter = mapObjRotatorMan->rotators;
+
+    while (i < mapObjRotatorMan->count) {
+        if (iter->mapObj == mapObj) {
+            iter->currRotAngle = FX32_ONE * iter->finalRotAngle;
+            iter->rotAngleDelta = FX32_ONE * angle / animSteps;
+            iter->animStepsLeft = animSteps;
+
+            ApplyRotationToTarget(&iter->finalRotAngle, angle);
+            return;
+        }
+
+        iter++;
+        i++;
+    }
+
+    GF_ASSERT(FALSE);
+}
+
+int DistWorld_GetMapObjectRotatorAnimFrame(FieldSystem *fieldSystem, MapObject *mapObj)
+{
+    int i = 0;
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
+    DistWorldMapObjectRotatorManager *mapObjRotatorMan = &dwSystem->mapObjRotatorMan;
+    DistWorldMapObjectRotator *iter = mapObjRotatorMan->rotators;
+
+    while (i < mapObjRotatorMan->count) {
+        if (iter->mapObj == mapObj) {
+            return iter->animFrame / FX32_ONE;
+        }
+
+        iter++;
+        i++;
     }
 
     return 0;
 }
 
-static void ov9_0224A334(DistWorldSystem *param0)
+void DistWorld_BindMapObjectRotator(FieldSystem *fieldSystem, Billboard *billboard, int initialAngle)
 {
-    int v0;
-    UnkStruct_ov9_0224A228 *v1 = &param0->unk_188;
-    UnkStruct_ov9_0224A294 *v2 = v1->unk_04;
-
-    for (v0 = 0; v0 < v1->unk_00; v0++, v2++) {
-        ov9_0224A2AC(v1, v2);
-    }
-
-    if (v1->unk_08 != NULL) {
-        Heap_Free(v1->unk_08);
-        v1->unk_08 = NULL;
-    }
-
-    Heap_Free(v1->unk_04);
-    v1->unk_04 = NULL;
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
+    BindMapObjectRotatorWithBillboard(dwSystem, billboard, initialAngle);
 }
 
-static void ov9_0224A374(UnkStruct_ov9_0224A294 *param0, MapObject *param1, int param2)
+void DistWorld_UnbindMapObjectRotator(FieldSystem *fieldSystem, const Billboard *billboard)
 {
-    param0->unk_00 = param2;
-    param0->unk_04 = (FX32_ONE * (param2));
-    param0->unk_0C = param0->unk_04;
-
-    if (param1 != NULL) {
-        param0->unk_18 = param1;
-        param0->unk_16 = MapObject_GetLocalID(param1);
-    }
-}
-
-static void ov9_0224A390(DistWorldSystem *param0, MapObject *param1, int param2)
-{
-    int v0 = 0;
-    UnkStruct_ov9_0224A228 *v1 = &param0->unk_188;
-    UnkStruct_ov9_0224A294 *v2 = v1->unk_04;
-
-    while (v0 < v1->unk_00) {
-        if ((v2->unk_18 == NULL) && (v2->unk_1C == NULL)) {
-            ov9_0224A374(v2, param1, param2);
-            return;
-        }
-
-        v0++;
-        v2++;
-    }
-
-    GF_ASSERT(0);
-}
-
-static void ov9_0224A3C4(DistWorldSystem *param0, UnkStruct_020216E0 *param1, int param2)
-{
-    int v0 = 0;
-    UnkStruct_ov9_0224A228 *v1 = &param0->unk_188;
-    UnkStruct_ov9_0224A294 *v2 = v1->unk_04;
-
-    while (v0 < v1->unk_00) {
-        if ((v2->unk_18 == NULL) && (v2->unk_1C == NULL)) {
-            ov9_0224A374(v2, NULL, param2);
-            ov9_0224A228(v1, v2, param1);
-            return;
-        }
-
-        v0++;
-        v2++;
-    }
-
-    GF_ASSERT(0);
-}
-
-static void ov9_0224A408(DistWorldSystem *param0, const UnkStruct_020216E0 *param1)
-{
-    int v0 = 0;
-    UnkStruct_ov9_0224A228 *v1 = &param0->unk_188;
-    UnkStruct_ov9_0224A294 *v2 = v1->unk_04;
-
-    while (v0 < v1->unk_00) {
-        if (v2->unk_1C == param1) {
-            ov9_0224A2AC(v1, v2);
-            return;
-        }
-
-        v0++;
-        v2++;
-    }
-
-    GF_ASSERT(0);
-}
-
-static void ov9_0224A438(DistWorldSystem *param0, UnkStruct_ov9_0224A228 *param1, UnkStruct_ov9_0224A294 *param2)
-{
-    int v0;
-
-    if ((param2->unk_18 == NULL) && (param2->unk_1C == NULL)) {
-        return;
-    }
-
-    v0 = ov9_0224A2E4(param2);
-
-    if (v0 == 1) {
-        ov9_0224A2AC(param1, param2);
-        return;
-    }
-
-    if (v0 == 2) {
-        ov9_0224A294(param1, param2);
-    }
-
-    ov9_0224A2C0(param1, param2);
-
-    if (param2->unk_02) {
-        param2->unk_02--;
-        ov9_02250F1C(&param2->unk_04, param2->unk_08);
-
-        if (param2->unk_02 == 0) {
-            param2->unk_04 = (FX32_ONE * (param2->unk_00));
-        }
-
-        param2->unk_0C = param2->unk_04;
-    }
-}
-
-static void ov9_0224A49C(DistWorldSystem *param0)
-{
-    int v0;
-    UnkStruct_ov9_0224A228 *v1 = &param0->unk_188;
-    UnkStruct_ov9_0224A294 *v2 = v1->unk_04;
-
-    for (v0 = 0; v0 < v1->unk_00; v0++, v2++) {
-        ov9_0224A438(param0, v1, v2);
-    }
-}
-
-static void ov9_0224A4C8(UnkStruct_020216E0 *param0, void *param1)
-{
-    UnkStruct_ov9_0224A294 *v0 = param1;
-    NNS_G3dAnmObjSetFrame(v0->unk_10, v0->unk_0C);
-}
-
-static void ov9_0224A4D0(DistWorldSystem *param0, MapObject *param1, int param2, int param3)
-{
-    int v0 = 0;
-    UnkStruct_ov9_0224A228 *v1 = &param0->unk_188;
-    UnkStruct_ov9_0224A294 *v2 = v1->unk_04;
-
-    while (v0 < v1->unk_00) {
-        if (v2->unk_18 == param1) {
-            v2->unk_04 = (FX32_ONE * (v2->unk_00));
-            v2->unk_08 = (FX32_ONE * (param2)) / param3;
-            v2->unk_02 = param3;
-            ov9_02250EE8(&v2->unk_00, param2);
-            return;
-        }
-
-        v2++;
-        v0++;
-    }
-
-    GF_ASSERT(0);
-}
-
-int ov9_0224A520(FieldSystem *fieldSystem, MapObject *param1)
-{
-    int v0 = 0;
-    DistWorldSystem *v1 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    UnkStruct_ov9_0224A228 *v2 = &v1->unk_188;
-    UnkStruct_ov9_0224A294 *v3 = v2->unk_04;
-
-    while (v0 < v2->unk_00) {
-        if (v3->unk_18 == param1) {
-            int v4 = ((v3->unk_0C) / FX32_ONE);
-
-            return v4;
-        }
-
-        v3++;
-        v0++;
-    }
-
-    return 0;
-}
-
-void ov9_0224A558(FieldSystem *fieldSystem, UnkStruct_020216E0 *param1, int param2)
-{
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    ov9_0224A3C4(v0, param1, param2);
-}
-
-void ov9_0224A564(FieldSystem *fieldSystem, const UnkStruct_020216E0 *param1)
-{
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    ov9_0224A408(v0, param1);
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
+    UnbindMapObjectRotatorWithBillboard(dwSystem, billboard);
 }
 
 static void FieldTaskContextNoOp1(DistWorldSystem *system)
@@ -2230,91 +2579,93 @@ static void *GetFieldTaskContext(DistWorldSystem *system)
     return system->fieldTaskCtx.data;
 }
 
-BOOL ov9_0224A59C(FieldSystem *fieldSystem, int param1)
+BOOL DistWorld_HandlePlayerMoved(FieldSystem *fieldSystem, enum FaceDirection playerDir)
 {
-    PersistedMapFeatures *v0 = MiscSaveBlock_GetPersistedMapFeatures(FieldSystem_GetSaveData(fieldSystem));
+    PersistedMapFeatures *persistedMapFeatures = MiscSaveBlock_GetPersistedMapFeatures(FieldSystem_GetSaveData(fieldSystem));
 
-    if (PersistedMapFeatures_GetID(v0) == DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) {
-        int v1, v2, v3, v4;
-        DistWorldSystem *v5 = fieldSystem->unk_04->dynamicMapFeaturesData;
+    if (PersistedMapFeatures_GetID(persistedMapFeatures) == DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) {
+        DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
+        int v4 = PlayerAvatar_GetMoveStateFromPlayerAvatarState(fieldSystem->playerAvatar, playerDir);
 
-        v4 = sub_02061434(fieldSystem->playerAvatar, param1);
-        GetPlayerPos(v5, &v1, &v2, &v3);
+        int playerX, playerY, playerZ;
+        GetPlayerPos(dwSystem, &playerX, &playerY, &playerZ);
 
         if (v4 == 1) {
-            HandleGhostPropTriggerAt(v5, v1, v2, v3, param1);
+            HandleGhostPropTriggerAt(dwSystem, playerX, playerY, playerZ, playerDir);
         }
 
-        if (ApplyCameraAngleForPlayerPosition(v5, v1, v2, v3, param1) == 1) {
-            (void)0;
+        ApplyCameraAngleForPlayerPosition(dwSystem, playerX, playerY, playerZ, playerDir);
+
+        if (HandleFloatingPlatformJumpPointAt(dwSystem, playerX, playerY, playerZ, playerDir) == TRUE) {
+            return TRUE;
         }
 
-        if (HandleFloatingPlatformJumpPointAt(v5, v1, v2, v3, param1) == 1) {
-            return 1;
-        }
+        u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(dwSystem);
 
-        {
-            u32 v6 = DistWorldSystem_GetMapHeaderID(v5);
-
-            if (v6 == 577) {
-                if ((param1 == 3) && (v1 == 104) && (v2 == 170) && (v3 >= 76) && (v3 <= 79)) {
-                    ov9_0224E498(v5, Unk_ov9_02251438);
-                    return 1;
-                }
-            } else if (v6 == 579) {
-                if ((param1 == 3) && (v1 == 104) && (v2 == 128) && (v3 >= 76) && (v3 <= 79)) {
-                    ov9_0224E498(v5, Unk_ov9_022513D8);
-                    return 1;
-                }
+        if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_B4F) {
+            if (playerDir == FACE_RIGHT && playerX == WATERFALL_B4F_X && playerY == WATERFALL_B4F_Y && playerZ >= WATERFALL_B4F_START_Z && playerZ <= WATERFALL_B4F_END_Z) {
+                RunEventCommands(dwSystem, sMapEventB4F_Waterfall);
+                return TRUE;
+            }
+        } else if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_B5F) {
+            if (playerDir == FACE_RIGHT && playerX == WATERFALL_B5F_X && playerY == WATERFALL_B5F_Y && playerZ >= WATERFALL_B5F_START_Z && playerZ <= WATERFALL_B5F_END_Z) {
+                RunEventCommands(dwSystem, sMapEventB5F_Waterfall);
+                return TRUE;
             }
         }
     }
 
-    return 0;
+    return FALSE;
 }
 
-BOOL ov9_0224A67C(FieldSystem *fieldSystem, int param1)
+BOOL DistWorld_HandlePlayerMovementEnd(FieldSystem *fieldSystem, enum FaceDirection playerDir)
 {
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    u32 v1 = DistWorldSystem_GetMapHeaderID(v0);
+    DistWorldSystem *system = fieldSystem->unk_04->dynamicMapFeaturesData;
+    u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
 
-    switch (v1) {
-    case 581:
-        if (param1 == 0) {
-            VarsFlags *v2 = SaveData_GetVarsFlags(v0->fieldSystem->saveData);
+    switch (mapHeaderID) {
+    case MAP_HEADER_DISTORTION_WORLD_B7F:
+        if (playerDir == FACE_UP) {
+            VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
 
-            if (SystemVars_GetDistortionWorldProgress(v2) >= 10) {
-                int v3, v4, v5;
+            if (SystemVars_GetDistortionWorldProgress(varsFlags) >= DIST_WORLD_PROGRESS_WON_CYRUS_BATTLE) {
+                int playerX;
+                int playerY;
+                int playerZ;
+                GetPlayerPos(system, &playerX, &playerY, &playerZ);
 
-                GetPlayerPos(v0, &v3, &v4, &v5);
-
-                if ((v3 == 89) && (v4 == 65) && (v5 == 57)) {
-                    ScriptManager_Set(fieldSystem, 2, NULL);
-                    return 1;
+                if (playerX == B7F_TELEPORT_TILE_X && playerY == B7F_TELEPORT_TILE_Y && playerZ == B7F_TELEPORT_TILE_Z) {
+                    ScriptManager_Set(fieldSystem, B7F_TELEPORT_SCRIPT_ID, NULL);
+                    return TRUE;
                 }
             }
         }
+
         break;
-    case 582:
-        if (param1 == 1) {
-            int v6, v7, v8;
 
-            GetPlayerPos(v0, &v6, &v7, &v8);
+    case MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM:
+        if (playerDir == FACE_DOWN) {
+            int playerX;
+            int playerY;
+            int playerZ;
+            GetPlayerPos(system, &playerX, &playerY, &playerZ);
 
-            if ((v6 == 15) && (v7 == 1) && (v8 == 25)) {
-                ScriptManager_Set(fieldSystem, 4, NULL);
-                return 1;
+            if (playerX == GIRATINA_ROOM_TELEPORT_TILE_X && playerY == GIRATINA_ROOM_TELEPORT_TILE_Y && playerZ == GIRATINA_ROOM_TELEPORT_TILE_Z) {
+                ScriptManager_Set(fieldSystem, GIRATINA_ROOM_TELEPORT_SCRIPT_ID, NULL);
+                return TRUE;
             }
         }
+
         break;
     }
 
-    return 0;
+    return FALSE;
 }
 
 // Arc 1 wall-walk puzzle: the fork trigger on the wall (needs the height, which coord events can't check) and the
 // idle-step counter behind Cyrus's "walk the seam" hint. The counter lives only while the map is loaded.
 static u16 sArc1SeamsIdleSteps;
+
 
 static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
 {
@@ -2345,13 +2696,6 @@ static BOOL Arc1Seams_HandleStep(DistWorldSystem *system, int x, int y, int z)
     return FALSE;
 }
 
-
-// dwp:engine-a: puzzle glue. The engine (dw_puzzle.c) owns the logic;
-// these helpers translate between its results and the ov9 internals
-// (platform indices, the jump task, ghost-prop groups, the player object).
-
-// The player's surface, from the avatar distortion state. ACTIVE/NONE
-// means base map terrain (GROUND), not a floating floor platform.
 static int DwPuzzle_Ov9Surface(FieldSystem *fieldSystem)
 {
     switch (PlayerAvatar_MapDistortionState(fieldSystem->playerAvatar)) {
@@ -2368,26 +2712,6 @@ static int DwPuzzle_Ov9Surface(FieldSystem *fieldSystem)
     }
 }
 
-// dwp:rift-213: world DIR <-> surface FACE for DwPuzzle_DirDelta and
-// the table facings (DwPuzzleRune.facing / DwPuzzleCheckpoint.facing
-// are FACE_*, while MapObject facing is a world DIR).
-// PlayerAvatar_GetDir is the avatar's facing DIR (0 north/-z, 1 south/+z,
-// 2 west/-x, 3 east/+x), but DirDelta indexes by surface FACE. The
-// facing after a step is the facing of the travel, in world terms:
-// GROUND/FLOOR: frames coincide. CEILING: the avatar faces mirrored in
-// BOTH axes (the ceiling is viewed flipped: a LEFT press faces DIR 3,
-// a RIGHT press DIR 2, UP/DOWN face DIR 1/0), so FACE = DIR ^ 1.
-// Walls: the avatar faces INTO the wall's frame while climbing —
-// west wall: facing west (DIR 2) while climbing, east (DIR 3) while
-// descending, north (DIR 0) for a -z step, south (DIR 1) for a +z step;
-// east wall: facing east (DIR 3) while climbing, west (DIR 2) while
-// descending, north (DIR 0) for a -z step, south (DIR 1) for a +z step.
-// Both wall tables are verified empirically (headless facing probes
-// on both walls: the travel direction is uniquely invertible from the
-// facing in every case). Passing the DIR straight through made pushes
-// along x on the ceiling target the tile on the wrong side (the walk
-// check's dest test failed and the step was blocked), and made pushes
-// up/down a wall target a z step.
 static int DwPuzzle_Ov9FaceFromDir(int surface, int dir)
 {
     static const int sWest[4] = { 3, 2, 0, 1 };
@@ -2405,10 +2729,6 @@ static int DwPuzzle_Ov9FaceFromDir(int surface, int dir)
     }
 }
 
-// dwp:rift-213: inverse of FaceFromDir (table FACE -> world DIR), for
-// the rune / checkpoint facings, which the glue passes to
-// MapObject_SetPosDirFromCoords (world DIR). The ceiling map is an
-// involution; the wall maps are each other's inverse.
 static int DwPuzzle_Ov9DirFromFace(int surface, int face)
 {
     static const int sWest[4] = { 2, 3, 1, 0 };
@@ -2426,18 +2746,10 @@ static int DwPuzzle_Ov9DirFromFace(int surface, int face)
     }
 }
 
-// dwp:engine-b: TryPush for a step onto a BLOCKED tile. Returns the
-// tile's state after the push attempt (BLOCKED if no push happened).
-// Only for the tile the player is stepping onto (dest == player tile +
-// the facing delta -- the collision probe also hits side tiles, which
-// must never push), and only when a RESTING stone occupies it
-// (IsStoneAt). A push that moves the stone re-queries the tile (the
-// actor tile changed). Slides never reach this: a slide teleports via
-// Ov9MovePlayer, it does not go through the walk check.
 static DwPuzzleTileState DwPuzzle_Ov9TryPushTile(FieldSystem *fieldSystem, int destX, int destY, int destZ,
     int surface, int playerX, int playerY, int playerZ)
 {
-    int facing = PlayerAvatar_GetDir(fieldSystem->playerAvatar);
+    int facing = PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar);
     int dx, dy, dz;
     DwActorTile prevTile, destTile;
 
@@ -2464,12 +2776,6 @@ static DwPuzzleTileState DwPuzzle_Ov9TryPushTile(FieldSystem *fieldSystem, int d
     return DwPuzzle_QueryTile(fieldSystem, destX, destY, destZ, surface);
 }
 
-// dwp:engine-a: stock collision for a slide target (the engine's
-// ResolveTile only sees puzzle overrides; DEFAULT means "no override",
-// not "walkable"). A stock-blocked slide target (a stock-blocked tile or
-// an out-of-bounds platform edge) must end the slide, not be teleported
-// onto. Platform surfaces use the stock platform grid; GROUND uses the
-// stock terrain collision (the terrain collision manager's attributes).
 static BOOL DwPuzzle_Ov9SlideTargetBlocked(DistWorldSystem *system, int destX, int destY, int destZ, int surface)
 {
     FieldSystem *fieldSystem = system->fieldSystem;
@@ -2493,11 +2799,9 @@ static BOOL DwPuzzle_Ov9SlideTargetBlocked(DistWorldSystem *system, int destX, i
     }
 }
 
-// Find the tw_arc platform index for (x, y, z) on a platform surface, or
-// -1 when there is none (the rune must not fire then).
 static int DwPuzzle_Ov9FindPlatform(DistWorldSystem *system, int x, int y, int z, int surface)
 {
-    DistWorldFloatingPlatformManager *man = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *man = &system->mainArchive.floatingPlatformMan;
 
     for (int i = 0; i < man->platformCount; i++) {
         if (man->templates[i].kind == surface
@@ -2508,10 +2812,6 @@ static int DwPuzzle_Ov9FindPlatform(DistWorldSystem *system, int x, int y, int z
     return -1;
 }
 
-// Start a gravity rune: a jump-point surface change, built from the
-// engine's rune action. The target platform index resolves here; a rune
-// to GROUND becomes platform kind INVALID / index -1 (stock ground
-// jumps), never kind FLOOR.
 static void DwPuzzle_Ov9StartRune(DistWorldSystem *system, int x, int y, int z, int facing, const DwPuzzleRuneAction *rune)
 {
     DistWorldFloatingPlatformJumpPointTemplate tpl;
@@ -2538,10 +2838,10 @@ static void DwPuzzle_Ov9StartRune(DistWorldSystem *system, int x, int y, int z, 
     tpl.xDisplacement = (s16)(rune->targetX - x);
     tpl.yDisplacement = (s16)(rune->targetY - y);
     tpl.zDisplacement = (s16)(rune->targetZ - z);
-    tpl.unk_1A = rune->rot;
+    tpl.playerSpriteRotAngle = rune->rot;
     tpl.movementAnimSteps = rune->steps != 0 ? rune->steps : 16;
-    tpl.unk_1E = 1;
-    tpl.unk_20 = 0;
+    tpl.jumpAxis = 1;
+    tpl.invertedJump = 0;
     // dwp:rift-213: rune->facing is a table FACE_* on the TARGET surface;
     // the jump task wants a world DIR. `facing` (the passed-in avatar
     // DIR) is already a world DIR and stays as-is.
@@ -2573,26 +2873,22 @@ static void DwPuzzle_Ov9StartRune(DistWorldSystem *system, int x, int y, int z, 
     CreateJumpOnFloatingPlatformTask(system, &tpl);
 }
 
-// Teleport the player one tile (a slide step). The step hook re-runs at
-// the landing tile via ov9_0224A71C from the frame glue.
 static void DwPuzzle_Ov9MovePlayer(DistWorldSystem *system, int x, int y, int z, int facing)
 {
-    MapObject *playerMapObj = Player_MapObject(system->fieldSystem->playerAvatar);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
 
     MapObject_SetPosDirFromCoords(playerMapObj, x, y * 2, z, facing);
 }
 
-// Respawn the player at a checkpoint: tile + pos, platform, distortion
-// state, height mode, facing, and camera for the checkpoint's surface.
 static void DwPuzzle_Ov9Respawn(DistWorldSystem *system, const DwPuzzleFrameResult *result)
 {
     FieldSystem *fieldSystem = system->fieldSystem;
-    MapObject *playerMapObj = Player_MapObject(fieldSystem->playerAvatar);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
     // dwp:rift-213: respawnFacing is a table FACE_* on the respawn
     // surface; SetPosDirFromCoords wants a world DIR.
     int facing = result->respawnFacing >= 0
         ? DwPuzzle_Ov9DirFromFace(result->respawnSurface, result->respawnFacing)
-        : PlayerAvatar_GetDir(fieldSystem->playerAvatar);
+        : PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar);
     u32 platformKind;
     enum AvatarDistortionState distortionState;
 
@@ -2608,7 +2904,7 @@ static void DwPuzzle_Ov9Respawn(DistWorldSystem *system, const DwPuzzleFrameResu
     // unconditionally: the stock sub_0205F588 guard would refuse a
     // mid-step cancel, and the teleport immediately after makes the
     // snap safe.
-    sub_0205F5E4(fieldSystem->playerAvatar, PlayerAvatar_GetDir(fieldSystem->playerAvatar));
+    PlayerAvatar_ClearMoveState(fieldSystem->playerAvatar);
 
     MapObject_SetPosDirFromCoords(playerMapObj, result->respawnX, result->respawnY * 2, result->respawnZ, facing);
 
@@ -2632,11 +2928,6 @@ static void DwPuzzle_Ov9Respawn(DistWorldSystem *system, const DwPuzzleFrameResu
     ApplyCameraAngleForPlayerPosition(system, result->respawnX, result->respawnY, result->respawnZ, facing);
 }
 
-// Arc 2 rifts (R0 stubs): per-map step hooks, called from ov9_0224A71C with DW world tile coordinates. Each
-// rift workstream fills in only its own function (rift-a: RavagedPath, EternaForest; rift-b: the rest).
-
-// Arc 2 rift-a, DW Ravaged Path (scene 2.6, res/field/scripts/scripts_dw_ravaged_path.s): SCARS on the west wall x=11
-// (the Arc 1 seams clone). A scar is a group of cracked wall tiles that holds you for exactly one step: stepping onto
 // it cracks (sound) and its loose rocks (ghost props hanging under it) fall away, one step after you leave it it
 // crumbles (sound), and stepping onto a scar that already held you, or from one scar tile onto another of the same
 // scar, drops you (the fall script resets you at the entry). The scar tiles are drawn with loose-boulder decals on the
@@ -2674,6 +2965,112 @@ enum Arc2ScarState {
     ARC2_SCAR_LEFT,
     ARC2_SCAR_CRUMBLED,
 };
+
+#define LOST_TOWER_WALL_X               11
+#define LOST_TOWER_FLOOR_Y              1
+#define LOST_TOWER_SCRIPT_FALL          2 // map script entries (1-based)
+#define LOST_TOWER_SCRIPT_SHADOW_WALL  5 // dwp:rift-lt (coord event, both visits)
+#define LOST_TOWER_SCRIPT_ACT_HITMONLEE 7
+#define LOST_TOWER_SCRIPT_ACT_VESPIQUEN 8
+#define LOST_TOWER_SCRIPT_ACT_LAPRAS    9
+#define LOST_TOWER_SCRIPT_ACT_SKARMORY  10
+#define LOST_TOWER_SCRIPT_TALK_LITWICK  11
+#define LOST_TOWER_SCRIPT_PAD_PROMPT    12 // dwp:rift-lt (appended; earlier entries unchanged)
+#define LOST_TOWER_SCRIPT_FIND_CYRUS_V2 13 // dwp:rift-lt
+#define LOST_TOWER_SCRIPT_HINT          14 // dwp:rift-lt
+#define LOST_TOWER_PAD_SKARMORY         3 // dwp:rift-lt: pad index in gDwActorsLostTowerTable
+#define LOST_TOWER_GROUP_STONES_IDX     3 // dwp:rift-lt: group index in gDwPuzzleLostTowerV2Table
+#define LOST_TOWER_CYRUS_X              38 // dwp:rift-lt: Find Cyrus trigger tile
+#define LOST_TOWER_CYRUS_Z              22
+#define LOST_TOWER_GROUP_SCAR           2 // ghost-prop groups (tools/distortion_world/lost_tower.json)
+#define LOST_TOWER_GROUP_SEAM           3
+#define LOST_TOWER_GROUP_STONES         4
+#define LOST_TOWER_SCAR_Y               2 // Hitmonlee's scar, the seam's second tile
+#define LOST_TOWER_SCAR_Z               14
+#define LOST_TOWER_FORK_Z               19
+#define LOST_TOWER_FALSE_SEAM_Y         2 // the bottom row past the fork: a scar
+#define LOST_TOWER_FALSE_SEAM_Z_MIN     20
+#define LOST_TOWER_FALSE_SEAM_Z_MAX     21
+#define LOST_TOWER_LAPRAS_X             20 // the deeper ledge's east end
+#define LOST_TOWER_LAPRAS_Z             22
+#define LOST_TOWER_SKARMORY_X           32 // the last stone
+#define LOST_TOWER_SKARMORY_Z           22
+#define LOST_TOWER_PROGRESS_DEEPER      94
+#define LOST_TOWER_LOCALID_GHOST_FIRST  0x8A // ghost Hitmonlee, Vespiquen, Skarmory, Lapras (script-only)
+#define LOST_TOWER_LOCALID_GHOST_LAST   0x8D
+#define LOST_TOWER_LOCALID_CANDLE_FIRST 0x8E // Litwick candles
+#define LOST_TOWER_LOCALID_CANDLE_LAST  0x93
+#define LOST_TOWER_CANDLE_ALPHA         28
+#define LOST_TOWER_CANDLE_SCALE         (FX32_ONE * 3 / 5)
+
+
+#define ETERNA_FOREST_SCRIPT_HONEY_FALL 5 // map script entries (1-based)
+#define ETERNA_FOREST_SCRIPT_TOTEM      6
+#define ETERNA_FOREST_SCRIPT_TALK       7
+#define ETERNA_FOREST_CEILING_Y         10
+#define ETERNA_FOREST_HONEY_X_MIN       44
+#define ETERNA_FOREST_HONEY_X_MAX       45
+#define ETERNA_FOREST_HONEY_Z_MIN       33
+#define ETERNA_FOREST_HONEY_Z_MAX       36
+#define ETERNA_FOREST_HONEY_GROUP       1
+#define ETERNA_FOREST_TOTEM_Z           41
+#define ETERNA_FOREST_HONEY_SOLID       120 // frames: shown and solid
+#define ETERNA_FOREST_HONEY_FADE        33 // hidden and fading out (31 opacity steps + 2 frames' lag): still solid
+#define ETERNA_FOREST_HONEY_LEAD        3 // the last frames of GONE: shown again, so it is drawn by the time it holds
+#define ETERNA_FOREST_HONEY_CYCLE       (ETERNA_FOREST_HONEY_SOLID + ETERNA_FOREST_HONEY_FADE + ETERNA_FOREST_HONEY_GONE)
+#define ARC2_DW_B4F_CEILING_MIN_Y    9
+#define ARC2_DW_B4F_TOTEM_MIN_Z      45
+#define ARC2_DW_ROUTE_214_SCRIPT_TOTEM 4
+#define ARC2_DW_ROUTE_213_SCRIPT_TOTEM 4
+#define FLAG_ARC2_LOST_TOWER_ACT_HITMONLEE FLAG_ARC2_RESONATOR_B
+#define FLAG_ARC2_LOST_TOWER_ACT_VESPIQUEN FLAG_ARC2_CELESTIC_B
+#define FLAG_ARC2_LOST_TOWER_ACT_LAPRAS    FLAG_ARC2_CELESTIC_C
+static u16 sEternaForestHoneyTimer;
+
+#define ETERNA_FOREST_HONEY_GONE        60 // faded out: drops the player
+
+static BOOL sDwPuzzleSlidePaused;
+
+static u8 sLostTowerGhostAlpha;
+static u8 sLostTowerCandleFlicker;
+
+#define LOST_TOWER_PALETTE_COUNT  5 // the four ghosts (by local ID), then the candles
+#define LOST_TOWER_PALETTE_CANDLE 4
+#define LOST_TOWER_RENDER_MAX     12
+
+// Generated from the sprites' palettes (res/field/objects/totems/*_idle_a.png, arc1/arc1_rift.png) with the
+// Resonator cut-in's ghost wash (FieldMoves_ApplyResonatorGhostPalette) for the totems, and a pale flame for the candles.
+static const u16 sLostTowerGhostPalettes[LOST_TOWER_PALETTE_COUNT][16] = {
+    { // Hitmonlee
+        0x0000, 0x771A, 0x3CC8, 0x5E12, 0x4D6D, 0x6654, 0x6A96, 0x55AF,
+        0x6ED8, 0x55AF, 0x492B, 0x59F1, 0x5E12, 0x3CC8, 0x3CC8, 0x3CC8,
+    },
+    { // Vespiquen
+        0x0000, 0x771A, 0x3CC8, 0x6654, 0x55D0, 0x59F1, 0x4D6D, 0x6A96,
+        0x492B, 0x59F1, 0x6EB7, 0x494C, 0x59F1, 0x55D0, 0x72F9, 0x3CC8,
+    },
+    { // Skarmory
+        0x0000, 0x771A, 0x3CC8, 0x6654, 0x51AF, 0x4D6D, 0x6ED8, 0x6675,
+        0x492B, 0x40E9, 0x55AF, 0x5E12, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8,
+    },
+    { // Lapras
+        0x0000, 0x771A, 0x3CC8, 0x59F1, 0x72D8, 0x6254, 0x518E, 0x6254,
+        0x4D6D, 0x6EB7, 0x6233, 0x59F1, 0x492B, 0x3CC8, 0x3CC8, 0x3CC8,
+    },
+    { // Candle
+        0x0000, 0x6A14, 0x6A14, 0x6A55, 0x6E97, 0x72F9, 0x7B9C, 0x7FFF,
+        0x773B, 0x6A14, 0x6A14, 0x6A14, 0x6A14, 0x6A14, 0x6A14, 0x6A14,
+    },
+};
+
+// The tinted palettes live in their own texture-palette VRAM block, allocated once per field (the field's VRAM managers
+// are rebuilt with it; Arc2DwLostTower_ResetFieldState runs from DistWorld_DynamicMapFeaturesInit). Each frame the
+// hook lists the ghosts' and candles' render objects; their material callback swaps in the tinted palette.
+static BOOL sLostTowerPalettesLoaded;
+static NNSGfdPlttKey sLostTowerPlttKey;
+static NNSG3dRenderObj *sLostTowerRenderObjs[LOST_TOWER_RENDER_MAX];
+static u8 sLostTowerRenderPalettes[LOST_TOWER_RENDER_MAX];
+static u8 sLostTowerRenderCount;
 
 typedef struct Arc2ScarTile {
     u8 y;
@@ -2741,7 +3138,7 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
     for (i = 0; i < RAVAGED_PATH_SCAR_COUNT; i++) {
         if (sRavagedPathScarStates[i] == ARC2_SCAR_LEFT) {
             sRavagedPathScarStates[i] = ARC2_SCAR_CRUMBLED;
-            Sound_PlayEffect(SEQ_SE_DP_UG_023);
+            Sound_PlayEffect(SEQ_SE_DP_UG_023_sseq);
         }
     }
 
@@ -2756,7 +3153,7 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
             // (The fall's warp rebuilds the props; the first step on the walkway resets the scars.)
             HideGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + scar);
             sRavagedPathPrevScar = RAVAGED_PATH_NO_SCAR;
-            Sound_PlayEffect(SEQ_SE_DP_UG_023);
+            Sound_PlayEffect(SEQ_SE_DP_UG_023_sseq);
             // dwp:rift-rp: a scripted fall the engine step hook never sees -- record it with the engine
             // BEFORE starting the fall script, so the fall warp restores the checkpoint snapshot exactly
             // like an engine-seen (lip) fall. Same pattern as Eterna's honeycomb / the Lost Tower drop.
@@ -2769,7 +3166,7 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
         // will drop the player never still looks whole (fix2-dwrp; it used to fade only one step after you left).
         sRavagedPathScarStates[scar] = ARC2_SCAR_HOLDING;
         HideGhostPropGroup(system, RAVAGED_PATH_SCAR_PROP_GROUP + scar);
-        Sound_PlayEffect(SEQ_SE_PL_KEZURI);
+        Sound_PlayEffect(SEQ_SE_PL_KEZURI_sseq);
     }
 
     sRavagedPathPrevScar = scar;
@@ -2801,37 +3198,6 @@ static BOOL Arc2DwRavagedPath_HandleStep(DistWorldSystem *system, int x, int y, 
 
     return FALSE;
 }
-
-// Arc 2 rift-a, DW Eterna Forest (scene 2.10, res/field/scripts/scripts_dw_eterna_forest.s): the CEILING (DW B4F's
-// east wall and ceiling, shifted to (0,0,0)) and the HONEYCOMB: the ceiling corridor x44-45 z33-36 is ghost-prop
-// group 1 (tools/distortion_world/eterna_forest.json), solid for a while, then it fades and is gone, then it comes back,
-// on a frame timer that runs whenever the map is loaded at VAR_ARC2_PROGRESS 24. Standing on it when it goes, or
-// stepping onto it while it is gone, drops the player (back to the hive start). Past it, the first step at z >= 41
-// on the ceiling starts the totem scene.
-//
-// fix2-honey: the collision follows what is drawn. The timer counts field frames (about 30 a second). Hiding the
-// group starts the ghost props' fade (opacity 31 -> 0, one step a frame, on screen about 2 frames later), so the
-// honeycomb still holds for the whole fade (the warning, about a second) and drops the player the frame it has
-// faded out. Coming back, the group is shown a few frames before it holds again, so it is already drawn when it
-// does. The slab drawn behind it is cut away (map_data_679, tools/distortion_world/build_dw_eterna_forest_map.py),
-// so once it has faded the void shows.
-#define ETERNA_FOREST_SCRIPT_HONEY_FALL 5 // map script entries (1-based)
-#define ETERNA_FOREST_SCRIPT_TOTEM      6
-#define ETERNA_FOREST_SCRIPT_TALK       7
-#define ETERNA_FOREST_CEILING_Y         10
-#define ETERNA_FOREST_HONEY_X_MIN       44
-#define ETERNA_FOREST_HONEY_X_MAX       45
-#define ETERNA_FOREST_HONEY_Z_MIN       33
-#define ETERNA_FOREST_HONEY_Z_MAX       36
-#define ETERNA_FOREST_HONEY_GROUP       1
-#define ETERNA_FOREST_TOTEM_Z           41
-#define ETERNA_FOREST_HONEY_SOLID       120 // frames: shown and solid
-#define ETERNA_FOREST_HONEY_FADE        33 // hidden and fading out (31 opacity steps + 2 frames' lag): still solid
-#define ETERNA_FOREST_HONEY_GONE        60 // faded out: drops the player
-#define ETERNA_FOREST_HONEY_LEAD        3 // the last frames of GONE: shown again, so it is drawn by the time it holds
-#define ETERNA_FOREST_HONEY_CYCLE       (ETERNA_FOREST_HONEY_SOLID + ETERNA_FOREST_HONEY_FADE + ETERNA_FOREST_HONEY_GONE)
-
-static u16 sEternaForestHoneyTimer;
 
 static BOOL EternaForest_IsHoneyGone(void)
 {
@@ -2878,8 +3244,8 @@ static void Arc2DwEternaForest_HandleFrame(DistWorldSystem *system)
 
     // Gone with the player on it: record the fall with the engine
     // (NotifyFall, BEFORE raising the var -- HoneyFall clears
-    // VAR_MAP_LOCAL_2 first thing, and the engine's record must survive
-    // it), then raise VAR_MAP_LOCAL_2, and the map's init frame table
+    // VAR_MAP_LOCAL_0x02 first thing, and the engine's record must survive
+    // it), then raise VAR_MAP_LOCAL_0x02, and the map's init frame table
     // starts the fall script from the idle field (never from this task,
     // never mid-script). A step onto it while gone is the step hook's job.
     if (EternaForest_IsHoneyGone()) {
@@ -2887,7 +3253,7 @@ static void Arc2DwEternaForest_HandleFrame(DistWorldSystem *system)
 
         if (EternaForest_IsHoneyTile(x, y, z)) {
             DwPuzzle_NotifyFall(fieldSystem); // dwp:engine-a
-            *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_MAP_LOCAL_2) = 1;
+            *VarsFlags_GetVarAddress(SaveData_GetVarsFlags(fieldSystem->saveData), VAR_MAP_LOCAL_0x02) = 1;
         }
     }
 }
@@ -2897,6 +3263,7 @@ static BOOL Arc2DwEternaForest_HandleStep(DistWorldSystem *system, int x, int y,
     if (*VarsFlags_GetVarAddress(SaveData_GetVarsFlags(system->fieldSystem->saveData), VAR_ARC2_PROGRESS) != 24) {
         return FALSE;
     }
+
 
     if (EternaForest_IsHoneyTile(x, y, z) && EternaForest_IsHoneyGone()) {
         DwPuzzle_NotifyFall(system->fieldSystem); // dwp:engine-a
@@ -2912,26 +3279,16 @@ static BOOL Arc2DwEternaForest_HandleStep(DistWorldSystem *system, int x, int y,
     return FALSE;
 }
 
-static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system);
-
-// Per-frame hook for the Arc 2 rifts, from the DW system task (ov9_02249EDC): Eterna Forest (rift-a) and the Lost
-// Tower's ghost acts (set-tower).
-// dwp:engine-a: the slide input lock lives here: pause the player while
-// the slide is active, unpause when it ends. Only the transitions toggle
-// the flag, so a script lock that starts mid-slide is never undone early
-// (its own ReleaseAll unpauses).
-static BOOL sDwPuzzleSlidePaused;
-
 static void Arc2Dw_HandleFrame(DistWorldSystem *system)
 {
-    enum MapHeader mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+    enum MapHeaderID mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
 
     // dwp:engine-a: puzzle engine frame hook (no-op without a table).
     {
         DwPuzzleFrameResult puzzleResult;
         FieldSystem *fieldSystem = system->fieldSystem;
         int x, y, z;
-        MapObject *playerMapObj = Player_MapObject(fieldSystem->playerAvatar);
+        MapObject *playerMapObj = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         GetPlayerPos(system, &x, &y, &z);
         {
@@ -2940,7 +3297,7 @@ static void Arc2Dw_HandleFrame(DistWorldSystem *system)
             // not the avatar's world DIR.
             int surface = DwPuzzle_Ov9Surface(fieldSystem);
             DwPuzzle_HandleFrame(fieldSystem, x, y, z, surface,
-                DwPuzzle_Ov9FaceFromDir(surface, PlayerAvatar_GetDir(fieldSystem->playerAvatar)),
+                DwPuzzle_Ov9FaceFromDir(surface, PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar)),
                 &puzzleResult);
         }
 
@@ -2982,11 +3339,11 @@ static void Arc2Dw_HandleFrame(DistWorldSystem *system)
                 DwPuzzle_CancelSlide(fieldSystem);
             } else {
                 DwPuzzle_Ov9MovePlayer(system, puzzleResult.slideX, puzzleResult.slideY, puzzleResult.slideZ,
-                    PlayerAvatar_GetDir(fieldSystem->playerAvatar));
+                    PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar));
                 // Re-run the step hook at the landing tile (sigils, runes,
                 // checkpoints, falls on the landing tile; slide ends
                 // off-current via the engine step hook).
-                ov9_0224A71C(fieldSystem);
+                DistWorld_HandlePlayerPositionChanged(fieldSystem);
             }
         }
 
@@ -3027,13 +3384,6 @@ static void Arc2Dw_HandleFrame(DistWorldSystem *system)
     }
 }
 
-// rift-b (Route 214, Route 213): the far end of the ceiling (y=10 over x 44-49; the wall below tops out at z=29)
-// runs the totem script, until that totem is calmed. res/field/scripts/scripts_dw_route_21{4,3}.s entry 4.
-#define ARC2_DW_B4F_CEILING_MIN_Y    9
-#define ARC2_DW_B4F_TOTEM_MIN_Z      45
-#define ARC2_DW_ROUTE_214_SCRIPT_TOTEM 4
-#define ARC2_DW_ROUTE_213_SCRIPT_TOTEM 4
-
 static BOOL Arc2DwB4F_HandleCeilingEnd(DistWorldSystem *system, int y, int z, u16 calmedFlag, u16 scriptID)
 {
     VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
@@ -3055,112 +3405,6 @@ static BOOL Arc2DwRoute213_HandleStep(DistWorldSystem *system, int x, int y, int
 {
     return Arc2DwB4F_HandleCeilingEnd(system, y, z, FLAG_TOTEM_LAPRAS_DEFEATED, ARC2_DW_ROUTE_213_SCRIPT_TOTEM);
 }
-
-// Arc 2 set-tower, DW Lost Tower (scenes 2.25-2.26, S7; res/field/scripts/scripts_dw_lost_tower.s): the first DW
-// without Cyrus. The totems the player calmed are the guides: at each seam the Resonator glows (the Resonator cut-in,
-// src/field_move_tasks.c) and a ghost totem acts. The ghosts are the totems' overworld sprites drawn translucent and
-// washed violet (a material callback on their billboards, below); they fade in, act and fade out.
-//   Act 1  Hitmonlee kicks a scar shut: the seam's second tile, (11, y2, z14), is a scar with loose rocks hovering in
-//          front of it (ghost-prop group 2). It cracks as the player steps on it, and the act starts.
-//   Act 2  Vespiquen lights the true seam: past the trees the seam forks (z19). The bottom row (z20-21) is a scar
-//          that drops you; Vespiquen's light (group 3, small platforms in front of the wall) marks the way over it.
-//   Act 3  Lapras lifts a submerged path (second visit, past the wall of shadow): the stepping stones east of the
-//          deeper ledge (group 4) lie sunk in the mist until Lapras sings them up; then they hop (jump-twice tiles).
-//   Act 4  Skarmory carries you across a gap: from the last stone (32,22) over the void to the island (group 5, a
-//          floating platform) where Cyrus kneels beside the Spiritomb.
-// Each act needs its FLAG_TOTEM_*; without it the script falls back to a plain line and the gate opens anyway.
-// Map-local state (cleared by every warp, the fall warp included): VAR_MAP_LOCAL_1 the wall acts done this load
-// (0, 1 Hitmonlee, 2 Vespiquen), VAR_MAP_LOCAL_7 the deeper acts (0, 1 Lapras, 2 Skarmory), VAR_MAP_LOCAL_6 the
-// ghosts' target opacity (0-31; scripts set it, this hook fades toward it). Once the vein was found
-// (FLAG_ARC2_RIFTB_E), the wall's work stays done: the scar stays shut and the seam stays lit on later visits.
-// Each act is played once per save (fix2-lost, owner playtest round 2: "A fall in the Lost Tower replays the ghost
-// acts"): a fall warps back to the entry, which cleared the map-local acts, so the scar came back and Hitmonlee and
-// Vespiquen acted again; a blackout before the Spiritomb sank the stones again. The scripts also set a persistent
-// flag per act, and the hooks count an act as done if either is set (LostTower_WallActs / LostTower_DeeperActs).
-// Skarmory still carries the player across on every visit that needs it (the gap is the only way to the island),
-// but after the first time without the surge, the cut-in and the lines. Flags (docs/arc2/registry.md, unused
-// letters of finished blocks; lead: rename at merge): FLAG_ARC2_RESONATOR_B (0x0925) Hitmonlee's act,
-// FLAG_ARC2_CELESTIC_B (0x0943) Vespiquen's, FLAG_ARC2_CELESTIC_C (0x0944) Lapras's, FLAG_ARC2_CELESTIC_D (0x0945)
-// Skarmory's (read by the script only).
-// Litwick candles (decor objects 0x8E-0x93) burn at the seams: a stand-in sprite (the rift flame) at 3/5 size with a
-// pale-flame palette, until a real Litwick overworld sprite exists.
-#define LOST_TOWER_WALL_X               11
-#define LOST_TOWER_FLOOR_Y              1
-#define LOST_TOWER_SCRIPT_FALL          2 // map script entries (1-based)
-#define LOST_TOWER_SCRIPT_SHADOW_WALL  5 // dwp:rift-lt (coord event, both visits)
-#define LOST_TOWER_SCRIPT_ACT_HITMONLEE 7
-#define LOST_TOWER_SCRIPT_ACT_VESPIQUEN 8
-#define LOST_TOWER_SCRIPT_ACT_LAPRAS    9
-#define LOST_TOWER_SCRIPT_ACT_SKARMORY  10
-#define LOST_TOWER_SCRIPT_TALK_LITWICK  11
-#define LOST_TOWER_SCRIPT_PAD_PROMPT    12 // dwp:rift-lt (appended; earlier entries unchanged)
-#define LOST_TOWER_SCRIPT_FIND_CYRUS_V2 13 // dwp:rift-lt
-#define LOST_TOWER_SCRIPT_HINT          14 // dwp:rift-lt
-#define LOST_TOWER_PAD_SKARMORY         3 // dwp:rift-lt: pad index in gDwActorsLostTowerTable
-#define LOST_TOWER_GROUP_STONES_IDX     3 // dwp:rift-lt: group index in gDwPuzzleLostTowerV2Table
-#define LOST_TOWER_CYRUS_X              38 // dwp:rift-lt: Find Cyrus trigger tile
-#define LOST_TOWER_CYRUS_Z              22
-#define LOST_TOWER_GROUP_SCAR           2 // ghost-prop groups (tools/distortion_world/lost_tower.json)
-#define LOST_TOWER_GROUP_SEAM           3
-#define LOST_TOWER_GROUP_STONES         4
-#define LOST_TOWER_SCAR_Y               2 // Hitmonlee's scar, the seam's second tile
-#define LOST_TOWER_SCAR_Z               14
-#define LOST_TOWER_FORK_Z               19
-#define LOST_TOWER_FALSE_SEAM_Y         2 // the bottom row past the fork: a scar
-#define LOST_TOWER_FALSE_SEAM_Z_MIN     20
-#define LOST_TOWER_FALSE_SEAM_Z_MAX     21
-#define LOST_TOWER_LAPRAS_X             20 // the deeper ledge's east end
-#define LOST_TOWER_LAPRAS_Z             22
-#define LOST_TOWER_SKARMORY_X           32 // the last stone
-#define LOST_TOWER_SKARMORY_Z           22
-#define LOST_TOWER_PROGRESS_DEEPER      94
-#define LOST_TOWER_LOCALID_GHOST_FIRST  0x8A // ghost Hitmonlee, Vespiquen, Skarmory, Lapras (script-only)
-#define LOST_TOWER_LOCALID_GHOST_LAST   0x8D
-#define LOST_TOWER_LOCALID_CANDLE_FIRST 0x8E // Litwick candles
-#define LOST_TOWER_LOCALID_CANDLE_LAST  0x93
-#define LOST_TOWER_CANDLE_ALPHA         28
-#define LOST_TOWER_CANDLE_SCALE         (FX32_ONE * 3 / 5)
-
-static u8 sLostTowerGhostAlpha;
-static u8 sLostTowerCandleFlicker;
-
-#define LOST_TOWER_PALETTE_COUNT  5 // the four ghosts (by local ID), then the candles
-#define LOST_TOWER_PALETTE_CANDLE 4
-#define LOST_TOWER_RENDER_MAX     12
-
-// Generated from the sprites' palettes (res/field/objects/totems/*_idle_a.png, arc1/arc1_rift.png) with the
-// Resonator cut-in's ghost wash (FieldMoves_ApplyResonatorGhostPalette) for the totems, and a pale flame for the candles.
-static const u16 sLostTowerGhostPalettes[LOST_TOWER_PALETTE_COUNT][16] = {
-    { // Hitmonlee
-        0x0000, 0x771A, 0x3CC8, 0x5E12, 0x4D6D, 0x6654, 0x6A96, 0x55AF,
-        0x6ED8, 0x55AF, 0x492B, 0x59F1, 0x5E12, 0x3CC8, 0x3CC8, 0x3CC8,
-    },
-    { // Vespiquen
-        0x0000, 0x771A, 0x3CC8, 0x6654, 0x55D0, 0x59F1, 0x4D6D, 0x6A96,
-        0x492B, 0x59F1, 0x6EB7, 0x494C, 0x59F1, 0x55D0, 0x72F9, 0x3CC8,
-    },
-    { // Skarmory
-        0x0000, 0x771A, 0x3CC8, 0x6654, 0x51AF, 0x4D6D, 0x6ED8, 0x6675,
-        0x492B, 0x40E9, 0x55AF, 0x5E12, 0x3CC8, 0x3CC8, 0x3CC8, 0x3CC8,
-    },
-    { // Lapras
-        0x0000, 0x771A, 0x3CC8, 0x59F1, 0x72D8, 0x6254, 0x518E, 0x6254,
-        0x4D6D, 0x6EB7, 0x6233, 0x59F1, 0x492B, 0x3CC8, 0x3CC8, 0x3CC8,
-    },
-    { // Candle
-        0x0000, 0x6A14, 0x6A14, 0x6A55, 0x6E97, 0x72F9, 0x7B9C, 0x7FFF,
-        0x773B, 0x6A14, 0x6A14, 0x6A14, 0x6A14, 0x6A14, 0x6A14, 0x6A14,
-    },
-};
-
-// The tinted palettes live in their own texture-palette VRAM block, allocated once per field (the field's VRAM managers
-// are rebuilt with it; Arc2DwLostTower_ResetFieldState runs from DistWorld_DynamicMapFeaturesInit). Each frame the
-// hook lists the ghosts' and candles' render objects; their material callback swaps in the tinted palette.
-static BOOL sLostTowerPalettesLoaded;
-static NNSGfdPlttKey sLostTowerPlttKey;
-static NNSG3dRenderObj *sLostTowerRenderObjs[LOST_TOWER_RENDER_MAX];
-static u8 sLostTowerRenderPalettes[LOST_TOWER_RENDER_MAX];
-static u8 sLostTowerRenderCount;
 
 static void Arc2DwLostTower_ResetFieldState(void)
 {
@@ -3187,6 +3431,23 @@ static void LostTower_LoadPalettes(void)
 
     addr = NNS_GfdGetPlttKeyAddr(sLostTowerPlttKey);
 
+// Skarmory still carries the player across on every visit that needs it (the gap is the only way to the island),
+// but after the first time without the surge, the cut-in and the lines. Flags (docs/arc2/registry.md, unused
+// letters of finished blocks; lead: rename at merge): FLAG_ARC2_RESONATOR_B (0x0925) Hitmonlee's act,
+// FLAG_ARC2_CELESTIC_B (0x0943) Vespiquen's, FLAG_ARC2_CELESTIC_C (0x0944) Lapras's, FLAG_ARC2_CELESTIC_D (0x0945)
+// Skarmory's (read by the script only).
+// Litwick candles (decor objects 0x8E-0x93) burn at the seams: a stand-in sprite (the rift flame) at 3/5 size with a
+// pale-flame palette, until a real Litwick overworld sprite exists.
+static u8 sLostTowerGhostAlpha;
+static u8 sLostTowerCandleFlicker;
+
+#define LOST_TOWER_PALETTE_COUNT  5 // the four ghosts (by local ID), then the candles
+#define LOST_TOWER_PALETTE_CANDLE 4
+#define LOST_TOWER_RENDER_MAX     12
+
+// Generated from the sprites' palettes (res/field/objects/totems/*_idle_a.png, arc1/arc1_rift.png) with the
+// Resonator cut-in's ghost wash (FieldMoves_ApplyResonatorGhostPalette) for the totems, and a pale flame for the candles.
+
     for (int i = 0; i < LOST_TOWER_PALETTE_COUNT; i++) {
         VramTransfer_Request(NNS_GFD_DST_3D_TEX_PLTT, addr + i * sizeof(sLostTowerGhostPalettes[0]), (void *)sLostTowerGhostPalettes[i], sizeof(sLostTowerGhostPalettes[0]));
     }
@@ -3202,15 +3463,10 @@ static u16 LostTower_Var(DistWorldSystem *system, u16 varID)
     return *VarsFlags_GetVarAddress(LostTower_VarsFlags(system), varID);
 }
 
-#define FLAG_ARC2_LOST_TOWER_ACT_HITMONLEE FLAG_ARC2_RESONATOR_B
-#define FLAG_ARC2_LOST_TOWER_ACT_VESPIQUEN FLAG_ARC2_CELESTIC_B
-#define FLAG_ARC2_LOST_TOWER_ACT_LAPRAS    FLAG_ARC2_CELESTIC_C
-
-// The wall acts done: this load's map-local count, or the persistent flags (a fall clears the map-locals).
 static u16 LostTower_WallActs(DistWorldSystem *system)
 {
     VarsFlags *varsFlags = LostTower_VarsFlags(system);
-    u16 acts = LostTower_Var(system, VAR_MAP_LOCAL_1);
+    u16 acts = LostTower_Var(system, VAR_MAP_LOCAL_0x01);
 
     if (VarsFlags_CheckFlag(varsFlags, FLAG_ARC2_LOST_TOWER_ACT_VESPIQUEN)) {
         acts = acts > 2 ? acts : 2;
@@ -3221,10 +3477,9 @@ static u16 LostTower_WallActs(DistWorldSystem *system)
     return acts;
 }
 
-// The deeper acts done: Lapras's is persistent (the stones stay up after a blackout); Skarmory's carry is per load.
 static u16 LostTower_DeeperActs(DistWorldSystem *system)
 {
-    u16 acts = LostTower_Var(system, VAR_MAP_LOCAL_7);
+    u16 acts = LostTower_Var(system, VAR_MAP_LOCAL_0x07);
 
     if (acts == 0 && VarsFlags_CheckFlag(LostTower_VarsFlags(system), FLAG_ARC2_LOST_TOWER_ACT_LAPRAS)) {
         acts = 1;
@@ -3238,9 +3493,6 @@ static BOOL LostTower_WallWorkDone(DistWorldSystem *system)
     return VarsFlags_CheckFlag(LostTower_VarsFlags(system), FLAG_ARC2_RIFTB_E);
 }
 
-// Material callback on a ghost's or a candle's billboard (NNS_G3D_SBC_MAT, timing B): the texture palette becomes the
-// tinted copy (16-colour textures address their palette in 16-byte units) and the polygon alpha the opacity. Each
-// billboard has its own render object, so stock sprites sharing the model are untouched.
 static void LostTower_MaterialCallback(NNSG3dRS *rs)
 {
     NNSG3dMatAnmResult *result = NNS_G3dRSGetMatAnmResult(rs);
@@ -3284,13 +3536,13 @@ static void LostTower_MaterialCallback(NNSG3dRS *rs)
 
 static void LostTower_UpdateObjects(DistWorldSystem *system)
 {
-    MapObject **slot = system->unk_1C64.unk_00;
+    MapObject **slot = system->mapObjMan.mapObjs;
 
     sLostTowerRenderCount = 0;
 
     for (int i = 0; i < 19; i++, slot++) {
         MapObject *mapObj = *slot;
-        UnkStruct_020216E0 *billboard;
+        Billboard *billboard;
         NNSG3dRenderObj *renderObj;
         u32 localID;
 
@@ -3319,14 +3571,14 @@ static void LostTower_UpdateObjects(DistWorldSystem *system)
             fx32 flicker = ((sLostTowerCandleFlicker >> 3) & 3) * (FX32_ONE / 32);
             VecFx32 scale = { LOST_TOWER_CANDLE_SCALE, LOST_TOWER_CANDLE_SCALE + flicker, LOST_TOWER_CANDLE_SCALE };
 
-            sub_020212D0(billboard, &scale);
+            Billboard_SetScale((Billboard *)billboard, &scale);
         }
 
         if (billboard == NULL || sLostTowerRenderCount >= LOST_TOWER_RENDER_MAX) {
             continue;
         }
 
-        renderObj = sub_02021440(billboard);
+        renderObj = Billboard_GetRenderObj((Billboard *)billboard);
         sLostTowerRenderObjs[sLostTowerRenderCount] = renderObj;
         sLostTowerRenderPalettes[sLostTowerRenderCount] = localID <= LOST_TOWER_LOCALID_GHOST_LAST
             ? localID - LOST_TOWER_LOCALID_GHOST_FIRST
@@ -3352,7 +3604,7 @@ static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system)
     VarsFlags *varsFlags = LostTower_VarsFlags(system);
     u16 wallActs = LostTower_WallActs(system);
     u16 deeperActs = LostTower_DeeperActs(system);
-    u16 ghostTarget = LostTower_Var(system, VAR_MAP_LOCAL_6);
+    u16 ghostTarget = LostTower_Var(system, VAR_MAP_LOCAL_0x06);
     BOOL wallDone = LostTower_WallWorkDone(system);
 
     // The ghost props follow the acts (a warp re-reads the default visibility, so re-assert it every frame).
@@ -3369,14 +3621,14 @@ static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system)
     // dwp:rift-lt: Cyrus's hint after two falls (Ruth's voice in the
     // Resonator). fallCount counts engine falls + shadow catches
     // (RequestCheckpointRespawn bumps it); the C hook only arms
-    // VAR_MAP_LOCAL_9, and the init frame table starts the hint script
+    // VAR_MAP_LOCAL_0x09, and the init frame table starts the hint script
     // from field context (the Ravaged Path frame-fall pattern). The
     // hint flags are per-entry: a fresh entry resets fallCount to 0,
     // which clears them here. No hint while a fall/catch respawn is
     // still owed, and never twice for the same stage.
     {
         u32 falls = gDwPuzzleState.fallCount;
-        BOOL hintPending = LostTower_Var(system, VAR_MAP_LOCAL_9) != 0;
+        BOOL hintPending = LostTower_Var(system, VAR_MAP_LOCAL_0x09) != 0;
 
         if (falls == 0) {
             if (VarsFlags_CheckFlag(varsFlags, FLAG_DW_LT_A)) {
@@ -3388,12 +3640,12 @@ static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system)
         } else if (!hintPending && !gDwPuzzleState.fallPending && !gDwPuzzleState.respawnPending) {
             if (falls >= 4 && VarsFlags_CheckFlag(varsFlags, FLAG_DW_LT_A)
                 && !VarsFlags_CheckFlag(varsFlags, FLAG_DW_LT_B)) {
-                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_8) = 2;
-                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_9) = 1;
+                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_0x08) = 2;
+                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_0x09) = 1;
                 VarsFlags_SetFlag(varsFlags, FLAG_DW_LT_B);
             } else if (falls >= 2 && !VarsFlags_CheckFlag(varsFlags, FLAG_DW_LT_A)) {
-                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_8) = 1;
-                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_9) = 1;
+                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_0x08) = 1;
+                *VarsFlags_GetVarAddress(varsFlags, VAR_MAP_LOCAL_0x09) = 1;
                 VarsFlags_SetFlag(varsFlags, FLAG_DW_LT_A);
             }
         }
@@ -3427,7 +3679,7 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
         // (the step hook never sees this fall: the false seam is not a
         // VOID tile in the puzzle tables).
         if (y == LOST_TOWER_FALSE_SEAM_Y && z >= LOST_TOWER_FALSE_SEAM_Z_MIN && z <= LOST_TOWER_FALSE_SEAM_Z_MAX) {
-            Sound_PlayEffect(SEQ_SE_DP_UG_023);
+            Sound_PlayEffect(SEQ_SE_DP_UG_023_sseq);
             DwPuzzle_NotifyFall(system->fieldSystem); // dwp:rift-lt
             ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_FALL, NULL);
             return TRUE;
@@ -3446,7 +3698,7 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
             }
 
             if (wallActs == 0 && y == LOST_TOWER_SCAR_Y && z == LOST_TOWER_SCAR_Z) {
-                Sound_PlayEffect(SEQ_SE_PL_KEZURI);
+                Sound_PlayEffect(SEQ_SE_PL_KEZURI_sseq);
                 ScriptManager_Set(system->fieldSystem, LOST_TOWER_SCRIPT_ACT_HITMONLEE, NULL);
                 return TRUE;
             }
@@ -3520,24 +3772,11 @@ static BOOL Arc2DwLostTower_HandleStep(DistWorldSystem *system, int x, int y, in
     return FALSE;
 }
 
-// dwp:rift-lt: no catch right after a prompt or a carry. Engine-b's
-// grace (shadowGrace) is only set at spawn / checkpoint-respawn, so
-// the glue grants it when the pad script reaches PadEnd (after the
-// cut-in or the denial message closes; granting at ResolvePad is
-// consumed while the cut-in plays) and when a carry ends. 60 field
-// frames (~2 s) -- at least the 60 frames the lead asked for, in
-// either frame unit. Engine-b exposes no grace setter, so the glue
-// writes the field directly (gDwActorState is extern in
-// dw_puzzle_actors.h).
 static void LostTower_GrantShadowGrace(void)
 {
     gDwActorState.shadowGrace = 60;
 }
 
-// dwp:rift-lt: script-command wrappers. Scripts run in the main binary
-// and cannot call overlay-9 actor functions directly (the ov9_ entry
-// points are the overlay boundary, as with ScrCmd_311/312). These are
-// the only new ov9 entry points this workstream adds.
 u16 DwPuzzle_Ov9ResolvePad(FieldSystem *fieldSystem, int padIndex, BOOL accepted)
 {
     (void)fieldSystem;
@@ -3572,203 +3811,183 @@ int DwPuzzle_Ov9TakePendingCutin(FieldSystem *fieldSystem)
     return DwActors_TakePendingCutin();
 }
 
-BOOL ov9_0224A71C(FieldSystem *fieldSystem)
+BOOL DistWorld_HandlePlayerPositionChanged(FieldSystem *fieldSystem)
 {
-    PersistedMapFeatures *v0 = MiscSaveBlock_GetPersistedMapFeatures(FieldSystem_GetSaveData(fieldSystem));
+    PersistedMapFeatures *persistedMapFeatures = MiscSaveBlock_GetPersistedMapFeatures(FieldSystem_GetSaveData(fieldSystem));
 
-    if (PersistedMapFeatures_GetID(v0) != DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) {
-        return 0;
+    if (PersistedMapFeatures_GetID(persistedMapFeatures) != DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) {
+        return FALSE;
     }
 
+    enum FaceDirection playerDir = PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar);
+    DistWorldSystem *system = fieldSystem->unk_04->dynamicMapFeaturesData;
+
+    int playerX;
+    int playerY;
+    int playerZ;
+    GetPlayerPos(system, &playerX, &playerY, &playerZ);
+
+    // dwp:rift-lt: post-respawn release gate (see dw_puzzle_actors.c). Consume the step while
+    // awaiting pad release, correcting the player back to the respawn tile if they slipped off it.
     {
-        int v1, v2, v3;
-        int v4 = PlayerAvatar_GetDir(fieldSystem->playerAvatar);
-        DistWorldSystem *v5 = fieldSystem->unk_04->dynamicMapFeaturesData;
+        int gateX, gateY, gateZ;
 
-        GetPlayerPos(v5, &v1, &v2, &v3);
-
-        // dwp:rift-lt: post-respawn release gate. A catch/fall respawn
-        // just teleported the player while a direction was held; the
-        // held direction would start a new step from the respawned
-        // position (e.g. CP2 (16,23) -> (17,23) rune tile -> rune
-        // landing). The MapObject pause (setInputLocked) does NOT block
-        // the field system's step (it only pauses the sprite), so
-        // consume the step here: Field_ProcessStep returns TRUE and
-        // MoveControl is skipped, so the tile never changes. If the
-        // player already slipped off the recorded respawn tile (a step
-        // in the window before the gate armed), correct them back to
-        // it now, so the respawn lands on the checkpoint, not the
-        // rune tile. The gate clears on a new D-pad press
-        // (actor HandleFrame), so a genuine re-press after release
-        // still steps. Slides never coincide with the gate (route-214
-        // has currents but no actor table), so this only fires for
-        // player steps.
-        {
-            int gateX, gateY, gateZ;
-
-            if (DwActors_IsAwaitingPadRelease(&gateX, &gateY, &gateZ)) {
-                if (v1 != gateX || v2 != gateY || v3 != gateZ) {
-                    MapObject_SetPosDirFromCoords(Player_MapObject(fieldSystem->playerAvatar),
-                        gateX, gateY * 2, gateZ, v4);
-                }
-                return 1;
+        if (DwActors_IsAwaitingPadRelease(&gateX, &gateY, &gateZ)) {
+            if (playerX != gateX || playerY != gateY || playerZ != gateZ) {
+                MapObject_SetPosDirFromCoords(PlayerAvatar_GetMapObject(fieldSystem->playerAvatar), gateX, gateY * 2, gateZ, playerDir);
             }
+            return TRUE;
+        }
+    }
+
+    if (HandleElevatorPlatformPropAnimatorAt(system, playerX, playerY, playerZ) == TRUE) {
+        return TRUE;
+    }
+
+    if (HandleEventAt(system, playerX, playerY, playerZ) == TRUE) {
+        return TRUE;
+    }
+
+    // dwp:engine-b: actor step, then the puzzle engine step hook.
+    {
+        int dx, dy, dz;
+        DwActorTile prevTile, curTile;
+        DwActorEvent actorEvent;
+        int puzzleSurface = DwPuzzle_Ov9Surface(fieldSystem);
+        BOOL skipPuzzleStep = FALSE;
+
+        DwPuzzle_DirDelta(puzzleSurface, DwPuzzle_Ov9FaceFromDir(puzzleSurface, playerDir), &dx, &dy, &dz);
+        prevTile.x = (s16)(playerX - dx);
+        prevTile.y = (s16)(playerY - dy);
+        prevTile.z = (s16)(playerZ - dz);
+        prevTile.surface = (u8)puzzleSurface;
+        prevTile.padding = 0;
+        curTile.x = (s16)playerX;
+        curTile.y = (s16)playerY;
+        curTile.z = (s16)playerZ;
+        curTile.surface = (u8)puzzleSurface;
+        curTile.padding = 0;
+        actorEvent = DwActors_HandlePlayerStep(prevTile, curTile);
+
+        if (actorEvent == DW_ACTOR_EVENT_STONE_PUSH_BLOCKED) {
+            return TRUE;
         }
 
-        if (ov9_0224D040(v5, v1, v2, v3) == 1) {
-            return 1;
+        if (actorEvent == DW_ACTOR_EVENT_PAD_READY) {
+            skipPuzzleStep = TRUE;
         }
 
-        if (ov9_0224E434(v5, v1, v2, v3) == 1) {
-            return 1;
-        }
+        if (!skipPuzzleStep) {
+            DwPuzzleStepResult puzzleResult;
+            BOOL handled;
 
-        // dwp:engine-b: actor step. HandlePlayerStep runs first (pads,
-        // echo, shadow catch, stone safety net). On PAD_READY, skip
-        // DwPuzzle_HandleStep -- the pad's sigil must not auto-fire --
-        // and fall through to the per-map chain, whose rift hook starts
-        // the pad script (the pad def carries no script id; the rift
-        // owns the prompt script). On STONE_PUSH_BLOCKED the player was
-        // already put back; the step is done.
-        {
-            int dx, dy, dz;
-            DwActorTile prevTile, curTile;
-            DwActorEvent actorEvent;
-            int puzzleSurface = DwPuzzle_Ov9Surface(fieldSystem);
-            BOOL skipPuzzleStep = FALSE;
+            memset(&puzzleResult, 0, sizeof(puzzleResult));
+            handled = DwPuzzle_HandleStep(fieldSystem, playerX, playerY, playerZ, puzzleSurface, playerDir, &puzzleResult);
 
-            // dwp:rift-213: v4 is a world DIR; DirDelta wants a surface FACE.
-            DwPuzzle_DirDelta(puzzleSurface, DwPuzzle_Ov9FaceFromDir(puzzleSurface, v4), &dx, &dy, &dz);
-            prevTile.x = (s16)(v1 - dx);
-            prevTile.y = (s16)(v2 - dy);
-            prevTile.z = (s16)(v3 - dz);
-            prevTile.surface = (u8)puzzleSurface;
-            prevTile.padding = 0;
-            curTile.x = (s16)v1;
-            curTile.y = (s16)v2;
-            curTile.z = (s16)v3;
-            curTile.surface = (u8)puzzleSurface;
-            curTile.padding = 0;
-            actorEvent = DwActors_HandlePlayerStep(prevTile, curTile);
-            if (actorEvent == DW_ACTOR_EVENT_STONE_PUSH_BLOCKED) {
-                return 1;
-            }
-            if (actorEvent == DW_ACTOR_EVENT_PAD_READY) {
-                skipPuzzleStep = TRUE;
+            if (puzzleResult.checkpointReached) {
+                DwActors_OnCheckpoint();
             }
 
-            // dwp:engine-a: puzzle engine step hook (no-op without a table).
-            // checkpointReached is checked regardless of handled: a
-            // checkpoint-only step sets it but returns FALSE (the
-            // checkpoint does not consume the step, so the per-map
-            // chain still runs) -- OnCheckpoint must still snapshot.
-            if (!skipPuzzleStep) {
-                DwPuzzleStepResult puzzleResult;
-                BOOL handled;
-
-                memset(&puzzleResult, 0, sizeof(puzzleResult));
-                handled = DwPuzzle_HandleStep(fieldSystem, v1, v2, v3, puzzleSurface, v4, &puzzleResult);
-                if (puzzleResult.checkpointReached) {
-                    DwActors_OnCheckpoint();
+            if (handled) {
+                if (puzzleResult.fallRequested) {
+                    ScriptManager_Set(fieldSystem, puzzleResult.fallScriptId, NULL);
+                } else if (puzzleResult.runeRequested) {
+                    DwPuzzle_Ov9StartRune(system, playerX, playerY, playerZ, playerDir, &puzzleResult.rune);
                 }
-                if (handled) {
-                    if (puzzleResult.fallRequested) {
-                        ScriptManager_Set(fieldSystem, puzzleResult.fallScriptId, NULL);
-                    } else if (puzzleResult.runeRequested) {
-                        DwPuzzle_Ov9StartRune(v5, v1, v2, v3, v4, &puzzleResult.rune);
-                    }
-                    return 1;
-                }
-            }
-        }
-
-        {
-            u32 v6 = DistWorldSystem_GetMapHeaderID(v5);
-            VarsFlags *v7 = SaveData_GetVarsFlags(v5->fieldSystem->saveData);
-
-            if ((v6 == 581) && (v4 == 0)) {
-                if (SystemVars_GetDistortionWorldProgress(v7) >= 10) {
-                    if ((v1 == 89) && (v2 == 65) && ((v3 == 56) || (v3 == 57))) {
-                        ScriptManager_Set(fieldSystem, 2, NULL);
-                        return 1;
-                    }
-                }
-            } else if ((v6 == 582) && (v4 == 1)) {
-                if ((v1 == 15) && (v2 == 1) && ((v3 == 25) || (v3 == 26))) {
-                    ScriptManager_Set(fieldSystem, 4, NULL);
-                    return 1;
-                }
-            } else if (v6 == MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS) {
-                if (Arc1Seams_HandleStep(v5, v1, v2, v3) == TRUE) {
-                    return 1;
-                }
-            } else if (v6 == MAP_HEADER_DW_RAVAGED_PATH) {
-                if (Arc2DwRavagedPath_HandleStep(v5, v1, v2, v3) == TRUE) {
-                    return 1;
-                }
-            } else if (v6 == MAP_HEADER_DW_ETERNA_FOREST) {
-                if (Arc2DwEternaForest_HandleStep(v5, v1, v2, v3) == TRUE) {
-                    return 1;
-                }
-            } else if (v6 == MAP_HEADER_DW_ROUTE_214) {
-                if (Arc2DwRoute214_HandleStep(v5, v1, v2, v3) == TRUE) {
-                    return 1;
-                }
-            } else if (v6 == MAP_HEADER_DW_ROUTE_213) {
-                if (Arc2DwRoute213_HandleStep(v5, v1, v2, v3) == TRUE) {
-                    return 1;
-                }
-            } else if (v6 == MAP_HEADER_DW_LOST_TOWER) {
-                if (Arc2DwLostTower_HandleStep(v5, v1, v2, v3) == TRUE) {
-                    return 1;
-                }
+                return TRUE;
             }
         }
     }
 
-    return 0;
+    u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+
+    if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_B7F && playerDir == FACE_UP) {
+        if (SystemVars_GetDistortionWorldProgress(varsFlags) >= DIST_WORLD_PROGRESS_WON_CYRUS_BATTLE) {
+            if (playerX == B7F_TELEPORT_TILE_X && playerY == B7F_TELEPORT_TILE_Y && (playerZ == B7F_TELEPORT_TILE_Z - 1 || playerZ == B7F_TELEPORT_TILE_Z)) {
+                ScriptManager_Set(fieldSystem, B7F_TELEPORT_SCRIPT_ID, NULL);
+                return TRUE;
+            }
+        }
+    } else if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM && playerDir == FACE_DOWN) {
+        if (playerX == GIRATINA_ROOM_TELEPORT_TILE_X && playerY == GIRATINA_ROOM_TELEPORT_TILE_Y && (playerZ == GIRATINA_ROOM_TELEPORT_TILE_Z || playerZ == GIRATINA_ROOM_TELEPORT_TILE_Z + 1)) {
+            ScriptManager_Set(fieldSystem, GIRATINA_ROOM_TELEPORT_SCRIPT_ID, NULL);
+            return TRUE;
+        }
+    } else if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS) {
+        if (Arc1Seams_HandleStep(system, playerX, playerY, playerZ) == TRUE) {
+            return TRUE;
+        }
+    } else if (mapHeaderID == MAP_HEADER_DW_RAVAGED_PATH) {
+        if (Arc2DwRavagedPath_HandleStep(system, playerX, playerY, playerZ) == TRUE) {
+            return TRUE;
+        }
+    } else if (mapHeaderID == MAP_HEADER_DW_ETERNA_FOREST) {
+        if (Arc2DwEternaForest_HandleStep(system, playerX, playerY, playerZ) == TRUE) {
+            return TRUE;
+        }
+    } else if (mapHeaderID == MAP_HEADER_DW_ROUTE_214) {
+        if (Arc2DwRoute214_HandleStep(system, playerX, playerY, playerZ) == TRUE) {
+            return TRUE;
+        }
+    } else if (mapHeaderID == MAP_HEADER_DW_ROUTE_213) {
+        if (Arc2DwRoute213_HandleStep(system, playerX, playerY, playerZ) == TRUE) {
+            return TRUE;
+        }
+    } else if (mapHeaderID == MAP_HEADER_DW_LOST_TOWER) {
+        if (Arc2DwLostTower_HandleStep(system, playerX, playerY, playerZ) == TRUE) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
 }
 
-BOOL ov9_0224A800(FieldSystem *fieldSystem, int param1)
+BOOL DistWorld_CheckMapTransition(FieldSystem *fieldSystem, enum FaceDirection transitionDir)
 {
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    u32 v1 = DistWorldSystem_GetMapHeaderID(v0);
+    DistWorldSystem *system = fieldSystem->unk_04->dynamicMapFeaturesData;
+    u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
 
-    switch (v1) {
-    case 581:
-        if (param1 == 0) {
-            VarsFlags *v2 = SaveData_GetVarsFlags(v0->fieldSystem->saveData);
+    switch (mapHeaderID) {
+    case MAP_HEADER_DISTORTION_WORLD_B7F:
+        if (transitionDir == FACE_UP) {
+            VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
 
-            if (SystemVars_GetDistortionWorldProgress(v2) >= 10) {
-                int v3, v4, v5;
+            if (SystemVars_GetDistortionWorldProgress(varsFlags) >= DIST_WORLD_PROGRESS_WON_CYRUS_BATTLE) {
+                int playerX;
+                int playerY;
+                int playerZ;
+                GetPlayerPos(system, &playerX, &playerY, &playerZ);
 
-                GetPlayerPos(v0, &v3, &v4, &v5);
-
-                if ((v3 == 89) && (v4 == 65) && (v5 == 57)) {
-                    ScriptManager_Set(fieldSystem, 2, NULL);
-                    return 1;
+                if (playerX == B7F_TELEPORT_TILE_X && playerY == B7F_TELEPORT_TILE_Y && playerZ == B7F_TELEPORT_TILE_Z) {
+                    ScriptManager_Set(fieldSystem, B7F_TELEPORT_SCRIPT_ID, NULL);
+                    return TRUE;
                 }
             }
         }
+
         break;
-    case 582:
-        if (param1 == 1) {
-            int v6, v7, v8;
 
-            GetPlayerPos(v0, &v6, &v7, &v8);
+    case MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM:
+        if (transitionDir == FACE_DOWN) {
+            int playerX;
+            int playerY;
+            int playerZ;
+            GetPlayerPos(system, &playerX, &playerY, &playerZ);
 
-            if ((v6 == 15) && (v7 == 1) && (v8 == 25)) {
-                ScriptManager_Set(fieldSystem, 4, NULL);
-                return 1;
+            if (playerX == GIRATINA_ROOM_TELEPORT_TILE_X && playerY == GIRATINA_ROOM_TELEPORT_TILE_Y && playerZ == GIRATINA_ROOM_TELEPORT_TILE_Z) {
+                ScriptManager_Set(fieldSystem, GIRATINA_ROOM_TELEPORT_SCRIPT_ID, NULL);
+                return TRUE;
             }
         }
+
         break;
     }
 
-    return 0;
+    return FALSE;
 }
 
-static BOOL ApplyCameraAngleForPlayerPosition(DistWorldSystem *system, int playerX, int playerY, int playerZ, int playerDir)
+static BOOL ApplyCameraAngleForPlayerPosition(DistWorldSystem *system, int playerX, int playerY, int playerZ, enum FaceDirection playerDir)
 {
     const DistWorldCameraAngleTemplate *cameraAngleTemplate = FindCameraAngleForPlayerPosition(system, playerX, playerY, playerZ, playerDir);
 
@@ -3780,85 +3999,91 @@ static BOOL ApplyCameraAngleForPlayerPosition(DistWorldSystem *system, int playe
     return TRUE;
 }
 
-static void ov9_0224A8C0(DistWorldSystem *param0)
+static void InitPlayer(DistWorldSystem *system)
 {
-    u32 v0, v1;
-    int v2, v3, v4, v5;
-    int v6[6] = { 0, 0, 0, 90, 270, 180 };
-    PlayerAvatar *playerAvatar = param0->fieldSystem->playerAvatar;
-    MapObject *v8 = Player_MapObject(playerAvatar);
+    int playerX;
+    int playerY;
+    int playerZ;
+    int playerState;
+    int rotAngles[6] = { 0, 0, 0, 90, 270, 180 };
+    PlayerAvatar *playerAvatar = system->fieldSystem->playerAvatar;
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(playerAvatar);
 
-    GetPlayerPos(param0, &v2, &v3, &v4);
+    GetPlayerPos(system, &playerX, &playerY, &playerZ);
 
-    v0 = GetCurrentFloatingPlatformKind(param0);
-    v0 = GetAvatarDistortionStateForFloatingPlatformKind(v0);
+    u32 floatingPlatformKind = GetCurrentFloatingPlatformKind(system);
+    floatingPlatformKind = GetAvatarDistortionStateForFloatingPlatformKind(floatingPlatformKind);
 
-    if (v0 == 1) {
-        MapObject_SetHeightCalculationDisabled(v8, FALSE);
+    if (floatingPlatformKind == FLOATING_PLATFORM_KIND_WEST_WALL) {
+        MapObject_SetHeightCalculationDisabled(playerMapObj, FALSE);
     } else {
-        MapObject_SetHeightCalculationDisabled(v8, TRUE);
+        MapObject_SetHeightCalculationDisabled(playerMapObj, TRUE);
     }
 
-    PlayerAvatar_SetDistortionState(playerAvatar, v0);
+    PlayerAvatar_SetDistortionState(playerAvatar, floatingPlatformKind);
 
-    v5 = 0x0;
-    v1 = MapObject_GetGraphicsID(v8);
+    playerState = PLAYER_AVATAR_WALKING;
+    u32 playerGraphicsID = MapObject_GetGraphicsID(playerMapObj);
 
-    switch (v1) {
-    case 0x0:
-    case 0xd4:
-        v1 = 0xd4;
+    switch (playerGraphicsID) {
+    case OBJ_EVENT_GFX_PLAYER_M:
+    case OBJ_EVENT_GFX_DIST_WORLD_PLAYER_M:
+        playerGraphicsID = OBJ_EVENT_GFX_DIST_WORLD_PLAYER_M;
         break;
-    case 0x61:
-    case 0x107:
-        v1 = 0x107;
+
+    case OBJ_EVENT_GFX_PLAYER_F:
+    case OBJ_EVENT_GFX_DIST_WORLD_PLAYER_F:
+        playerGraphicsID = OBJ_EVENT_GFX_DIST_WORLD_PLAYER_F;
         break;
-    case 0xb2:
-    case 0x102:
-        v1 = 0x102;
-        v5 = 0x2;
+
+    case OBJ_EVENT_GFX_PLAYER_M_SURF:
+    case OBJ_EVENT_GFX_DIST_WORLD_PLAYER_M_SURF:
+        playerGraphicsID = OBJ_EVENT_GFX_DIST_WORLD_PLAYER_M_SURF;
+        playerState = PLAYER_AVATAR_SURFING;
         break;
-    case 0xb3:
-    case 0x103:
-        v1 = 0x103;
-        v5 = 0x2;
+
+    case OBJ_EVENT_GFX_PLAYER_F_SURF:
+    case OBJ_EVENT_GFX_DIST_WORLD_PLAYER_F_SURF:
+        playerGraphicsID = OBJ_EVENT_GFX_DIST_WORLD_PLAYER_F_SURF;
+        playerState = PLAYER_AVATAR_SURFING;
         break;
+
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
     }
 
-    PlayerAvatar_SetPlayerState(playerAvatar, v5);
-    sub_02061AD4(v8, v1);
+    PlayerAvatar_SetPlayerState(playerAvatar, playerState);
+    sub_02061AD4(playerMapObj, playerGraphicsID);
 
-    if (v0 != 1) {
-        GF_ASSERT(MapObject_IsHeightCalculationDisabled(v8) == TRUE);
+    if (floatingPlatformKind != FLOATING_PLATFORM_KIND_WEST_WALL) {
+        GF_ASSERT(MapObject_IsHeightCalculationDisabled(playerMapObj) == TRUE);
     }
 
-    if (v5 == 0x2) {
-        OverworldAnimManager *v9;
-        int v10 = PlayerAvatar_GetDir(playerAvatar);
+    if (playerState == PLAYER_AVATAR_SURFING) {
+        OverworldAnimManager *animMan;
+        enum FaceDirection playerDir = PlayerAvatar_GetFacingDir(playerAvatar);
 
-        v9 = ov5_021F85BC(playerAvatar, v2, v3, v4, v10, 1, v0);
-        sub_0205EC00(playerAvatar, v9);
+        animMan = DistWorldSurfMountRenderer_HandleSurfBegin(playerAvatar, playerX, playerY, playerZ, playerDir, TRUE, floatingPlatformKind);
+        PlayerAvatar_SetSurfMountAnimManager(playerAvatar, animMan);
     }
 
-    ov9_0224A390(param0, v8, v6[v0]);
+    BindMapObjectRotator(system, playerMapObj, rotAngles[floatingPlatformKind]);
 }
 
-static void ov9_0224A9E8(DistWorldSystem *param0)
+static void ResetPlayer(DistWorldSystem *system)
 {
-    PlayerAvatar *v0 = param0->fieldSystem->playerAvatar;
+    PlayerAvatar *playerAvatar = system->fieldSystem->playerAvatar;
 
-    PlayerAvatar_SetDistortionState(v0, AVATAR_DISTORTION_STATE_NONE);
-    PlayerAvatar_ClearSpeed(v0);
+    PlayerAvatar_SetDistortionState(playerAvatar, AVATAR_DISTORTION_STATE_NONE);
+    PlayerAvatar_ClearSpeed(playerAvatar);
 }
 
-static BOOL HandleFloatingPlatformJumpPointAt(DistWorldSystem *system, int playerX, int playerY, int playerZ, int playerDir)
+static BOOL HandleFloatingPlatformJumpPointAt(DistWorldSystem *system, int playerX, int playerY, int playerZ, enum FaceDirection playerDir)
 {
     const DistWorldFloatingPlatformJumpPointTemplate *template = FindFloatingPlatformJumpPointAt(system, playerX, playerY, playerZ, playerDir);
 
     if (template) {
-        MapObject *playerMapObj = Player_MapObject(system->fieldSystem->playerAvatar);
+        MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
         sFloatingPlatformJumpPointHandlers[template->handlerIndex](system, template);
 
         return TRUE;
@@ -3900,7 +4125,7 @@ static BOOL JumpOnFloatingPlatform(FieldTask *task)
     DistWorldSystem *system = FieldTask_GetEnv(task);
     DistWorldFloatingPlatformJumpTaskContext *ctx = GetFieldTaskContext(system);
     PlayerAvatar *playerAvatar = fieldSystem->playerAvatar;
-    MapObject *playerMapObj = Player_MapObject(playerAvatar);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(playerAvatar);
 
     switch (ctx->state) {
     case FLOATING_PLATFORM_JUMP_TASK_STATE_INIT: {
@@ -3913,7 +4138,7 @@ static BOOL JumpOnFloatingPlatform(FieldTask *task)
             break;
         }
 
-        int playerDir = ctx->template.playerDir;
+        enum FaceDirection playerDir = ctx->template.playerDir;
         int platformKind = GetCurrentFloatingPlatformKind2(system);
 
         switch (platformKind) {
@@ -3962,7 +4187,7 @@ static BOOL JumpOnFloatingPlatform(FieldTask *task)
 
         LocalMapObj_SetAnimationCode(playerMapObj, animCode);
         MapObject_TryFace(playerMapObj, playerDir);
-        ov9_0224A4D0(system, playerMapObj, ctx->template.unk_1A, ctx->template.movementAnimSteps);
+        RotateMapObject(system, playerMapObj, ctx->template.playerSpriteRotAngle, ctx->template.movementAnimSteps);
 
         ctx->state++;
     }
@@ -3974,7 +4199,7 @@ static BOOL JumpOnFloatingPlatform(FieldTask *task)
 
         enum AvatarDistortionState playerAvatarDistortionState = AVATAR_DISTORTION_STATE_ACTIVE;
         int particlesDir = 0;
-        MapObject *playerMapObj = Player_MapObject(playerAvatar);
+        MapObject *playerMapObj = PlayerAvatar_GetMapObject(playerAvatar);
 
         PrepareNewCurrentFloatingPlatform(system, ctx->template.floatingPlatformIndex);
         playerAvatarDistortionState = GetAvatarDistortionStateForFloatingPlatformKind(ctx->template.floatingPlatformKind);
@@ -4005,7 +4230,7 @@ static BOOL JumpOnFloatingPlatform(FieldTask *task)
         // TODO: The following function plays the dust particle effects when
         // the player lands on the ground.
         ov5_021F3678(playerMapObj, particlesDir);
-        Sound_PlayEffect(SEQ_SE_DP_SUTYA2);
+        Sound_PlayEffect(SEQ_SE_PL_SUTYA2_sseq_3);
 
         ctx->state++;
         break;
@@ -4041,16 +4266,7 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
 
     ctx->accumulatedMovement.x += ctx->positionIncrementVecAbs.x;
 
-    // dwp:rift-213: while, not if. A rune jump may displace up to 9
-    // tiles, so one tick's travel can exceed the threshold more than
-    // once; `if` stranded the excess and the jump landed short
-    // (ceiling -> ground stopped at y=2, and the player was stuck:
-    // the glue found no override at (x, 2, z)). Stock jumps displace
-    // at most 6 tiles over 16 steps (the hops), so each tick's
-    // increment stays below the per-axis threshold (x: 24576 <
-    // 65536; y: 4096 < 32768) and `while` is equivalent to `if`
-    // for them.
-    while (ctx->accumulatedMovement.x >= MAP_OBJECT_TILE_SIZE) {
+    if (ctx->accumulatedMovement.x >= MAP_OBJECT_TILE_SIZE) {
         ctx->accumulatedMovement.x -= MAP_OBJECT_TILE_SIZE;
 
         int playerX = MapObject_GetX(playerMapObj);
@@ -4066,8 +4282,7 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
 
     ctx->accumulatedMovement.y += ctx->positionIncrementVecAbs.y;
 
-    // dwp:rift-213: while, not if (see x above).
-    while (ctx->accumulatedMovement.y >= MAP_OBJECT_TILE_SIZE / 2) {
+    if (ctx->accumulatedMovement.y >= MAP_OBJECT_TILE_SIZE / 2) {
         ctx->accumulatedMovement.y -= MAP_OBJECT_TILE_SIZE / 2;
 
         int playerY = MapObject_GetY(playerMapObj);
@@ -4083,8 +4298,7 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
 
     ctx->accumulatedMovement.z += ctx->positionIncrementVecAbs.z;
 
-    // dwp:rift-213: while, not if (see x above).
-    while (ctx->accumulatedMovement.z >= MAP_OBJECT_TILE_SIZE) {
+    if (ctx->accumulatedMovement.z >= MAP_OBJECT_TILE_SIZE) {
         ctx->accumulatedMovement.z -= MAP_OBJECT_TILE_SIZE;
 
         int playerZ = MapObject_GetZ(playerMapObj);
@@ -4098,39 +4312,40 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
         MapObject_SetZ(playerMapObj, playerZ);
     }
 
-    int v3;
-    fx32 *v4;
-    VecFx32 *v5 = MapObject_GetSpriteJumpOffset1(playerMapObj);
-    const fx32 *v6 = Unk_ov9_02252CF8;
+    fx32 *targetOffset;
+    VecFx32 *spriteJumpOffset = MapObject_GetSpriteJumpOffset1(playerMapObj);
 
-    ctx->unk_14 += ctx->positionIncrement;
-    v3 = ((ctx->unk_14) / FX32_ONE);
+    ctx->jumpOffsetIndex += ctx->positionIncrement;
+    int offsetIndex = ctx->jumpOffsetIndex / FX32_ONE;
 
-    switch (template->unk_1E) {
-    case 0:
-        v4 = &v5->x;
+    switch (template->jumpAxis) {
+    case AXIS_X:
+        targetOffset = &spriteJumpOffset->x;
         break;
-    case 1:
-        v4 = &v5->y;
+
+    case AXIS_Y:
+        targetOffset = &spriteJumpOffset->y;
         break;
-    case 2:
-        v4 = &v5->z;
+
+    case AXIS_Z:
+        targetOffset = &spriteJumpOffset->z;
         break;
+
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         break;
     }
 
-    *v4 = v6[v3];
+    *targetOffset = sFloatingPlatformJumpOffsets[offsetIndex];
 
-    if (template->unk_20 == 1) {
-        *v4 = -(*v4);
+    if (template->invertedJump == TRUE) {
+        *targetOffset = -(*targetOffset);
     }
 
     ctx->stepsRemaining--;
 
     if (ctx->stepsRemaining <= 0) {
-        *v4 = 0;
+        *targetOffset = 0;
 
         MapObject_UpdateCoords(playerMapObj);
         sub_02062B68(playerMapObj);
@@ -4143,331 +4358,292 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
     return FALSE;
 }
 
-static void ov9_0224ADC0(DistWorldSystem *param0)
+static void InitSkyBackground(DistWorldSystem *system)
 {
-    char *v0;
+    GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, FALSE);
 
-    GXLayers_EngineAToggleLayers(2, 0);
+    NNSG2dPaletteData *plttData;
+    char *nclrFile = NARC_AllocAndReadWholeMember(system->etcNARC, 1, HEAP_ID_FIELD1);
+    NNS_G2dGetUnpackedPaletteData(nclrFile, &plttData);
+    Bg_LoadPalette(BG_LAYER_MAIN_2, plttData->pRawData, PALETTE_SIZE_BYTES, 0);
 
-    {
-        char *v1;
-        NNSG2dPaletteData *v2;
+    DistWorldSkyBackground *skyBg = &system->skyBg;
+    u16 *plttRawData = plttData->pRawData;
 
-        v1 = NARC_AllocAndReadWholeMember(param0->unk_10, 1, 4);
-        NNS_G2dGetUnpackedPaletteData(v1, &v2);
-        Bg_LoadPalette(2, v2->pRawData, 32, 32 * 0);
-
-        {
-            int v3;
-            UnkStruct_ov9_0224ADC0 *v4 = &param0->unk_1D00;
-            u16 *v5 = v2->pRawData;
-
-            v5 = &v5[0 * 16];
-
-            for (v3 = 0; v3 < 16; v3++) {
-                v4->unk_08[v3] = v5[v3];
-                v4->unk_28[v3] = v5[v3];
-            }
-        }
-
-        Heap_Free(v1);
+    for (int i = 0; i < PALETTE_SIZE; i++) {
+        skyBg->basePalette[i] = plttRawData[i];
+        skyBg->currPalette[i] = plttRawData[i];
     }
 
-    {
-        char *v6;
-        NNSG2dCharacterData *v7;
+    Heap_Free(nclrFile);
 
-        v6 = NARC_AllocAndReadWholeMember(param0->unk_10, 0, 4);
-        NNS_G2dGetUnpackedCharacterData(v6, &v7);
+    NNSG2dCharacterData *charData;
+    char *ncgrFile = NARC_AllocAndReadWholeMember(system->etcNARC, 0, HEAP_ID_FIELD1);
+    NNS_G2dGetUnpackedCharacterData(ncgrFile, &charData);
 
-        Bg_LoadTiles(param0->fieldSystem->bgConfig, 2, v7->pRawData, v7->szByte, 0);
-        Heap_Free(v6);
-    }
+    Bg_LoadTiles(system->fieldSystem->bgConfig, BG_LAYER_MAIN_2, charData->pRawData, charData->szByte, 0);
+    Heap_Free(ncgrFile);
 
-    {
-        char *v8;
-        NNSG2dScreenData *v9;
+    NNSG2dScreenData *scrData;
+    char *nscrFile = NARC_AllocAndReadWholeMember(system->etcNARC, 2, HEAP_ID_FIELD1);
+    NNS_G2dGetUnpackedScreenData(nscrFile, &scrData);
 
-        v8 = NARC_AllocAndReadWholeMember(param0->unk_10, 2, 4);
-        NNS_G2dGetUnpackedScreenData(v8, &v9);
+    Bg_CopyTilemapBufferRangeToVRAM(system->fieldSystem->bgConfig, BG_LAYER_MAIN_2, scrData->rawData, scrData->szByte, 0);
+    Bg_LoadTilemapBuffer(system->fieldSystem->bgConfig, BG_LAYER_MAIN_2, scrData->rawData, scrData->szByte);
+    Bg_CopyTilemapBufferToVRAM(system->fieldSystem->bgConfig, BG_LAYER_MAIN_2);
+    Heap_Free(nscrFile);
 
-        Bg_CopyTilemapBufferRangeToVRAM(param0->fieldSystem->bgConfig, 2, (void *)v9->rawData, v9->szByte, 0);
-        Bg_LoadTilemapBuffer(param0->fieldSystem->bgConfig, 2, (void *)v9->rawData, v9->szByte);
-        Bg_CopyTilemapBufferToVRAM(param0->fieldSystem->bgConfig, 2);
-        Heap_Free(v8);
-    }
+    G2_SetBG0Priority(2);
+    G2_SetBG1Priority(1);
+    G2_SetBG2Priority(3);
+    G2_SetBG3Priority(0);
 
-    {
-        G2_SetBG0Priority(2);
-        G2_SetBG1Priority(1);
-        G2_SetBG2Priority(3);
-        G2_SetBG3Priority(0);
-    }
+    G2_SetBlendAlpha(GX_BLEND_PLANEMASK_BG0, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD, 0, 16);
 
-    {
-        G2_SetBlendAlpha(GX_BLEND_PLANEMASK_BG0, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2 | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD, 0, 16);
-    }
-
-    GXLayers_EngineAToggleLayers(2, 1);
-    GXLayers_EngineAToggleLayers(GX_PLANEMASK_OBJ, 1);
+    GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, TRUE);
+    GXLayers_EngineAToggleLayers(GX_PLANEMASK_OBJ, TRUE);
 }
 
-static void ov9_0224AED8(DistWorldSystem *param0)
+static void FinishSkyBackground(DistWorldSystem *system)
 {
     G2_BlendNone();
 }
 
-static void ov9_0224AEE4(DistWorldSystem *param0, UnkStruct_ov9_0224B064 *param1, NARC *param2)
+static void InitSkyClouds(DistWorldSystem *system, DistWorldSkyClouds *clouds, NARC *etcNARC)
 {
-    param1->unk_00 = SpriteList_InitRendering(16, &param1->unk_04, HEAP_ID_FIELD1);
-    SetMainScreenViewRect(&param1->unk_04, (FX32_ONE * 0), (FX32_ONE * -512));
-    param1->unk_190 = SpriteResourceCollection_New(7, 0, HEAP_ID_FIELD1);
-    param1->unk_194 = SpriteResourceCollection_New(1, 1, HEAP_ID_FIELD1);
-    param1->unk_198 = SpriteResourceCollection_New(7, 2, HEAP_ID_FIELD1);
-    param1->unk_19C = SpriteResourceCollection_New(7, 3, HEAP_ID_FIELD1);
+    clouds->spriteList = SpriteList_InitRendering(SKY_CLOUD_SPRITE_LIST_CAPACITY, &clouds->renderer, HEAP_ID_FIELD1);
+    SetMainScreenViewRect(&clouds->renderer, SKY_CLOUD_VIEW_RECT_X, SKY_CLOUD_VIEW_RECT_Y);
+    clouds->charResColl = SpriteResourceCollection_New(SKY_CLOUD_RESOURCE_COUNT, SPRITE_RESOURCE_CHAR, HEAP_ID_FIELD1);
+    clouds->plttResColl = SpriteResourceCollection_New(1, SPRITE_RESOURCE_PLTT, HEAP_ID_FIELD1);
+    clouds->cellResColl = SpriteResourceCollection_New(SKY_CLOUD_RESOURCE_COUNT, SPRITE_RESOURCE_CELL, HEAP_ID_FIELD1);
+    clouds->animResColl = SpriteResourceCollection_New(SKY_CLOUD_RESOURCE_COUNT, SPRITE_RESOURCE_ANIM, HEAP_ID_FIELD1);
 
-    {
-        int v0;
-
-        for (v0 = 0; v0 < 7; v0++) {
-            param1->unk_1A0[v0] = SpriteResourceCollection_AddTilesFrom(param1->unk_190, param2, Unk_ov9_02251E58[v0], 0, ((v0) + 0xff), NNS_G2D_VRAM_TYPE_2DMAIN, HEAP_ID_FIELD1);
-            SpriteTransfer_RequestCharAtEnd(param1->unk_1A0[v0]);
-        }
-
-        param1->unk_1BC[0] = SpriteResourceCollection_AddPaletteFrom(param1->unk_194, param2, Unk_ov9_02251210[0], 0, (0 + 0xff), NNS_G2D_VRAM_TYPE_2DMAIN, 5, HEAP_ID_FIELD1);
-
-        {
-            NNSG2dPaletteData *v1;
-
-            v1 = SpriteResource_GetPaletteFade(param1->unk_1BC[0]);
-            {
-                int v2 = 0;
-                UnkStruct_ov9_0224ADC0 *v3 = &param0->unk_1D00;
-                u16 *v4 = v3->unk_48;
-                u16 *v5 = v1->pRawData;
-
-                do {
-                    *v4 = *v5;
-                    v4++;
-                    v5++;
-                } while (++v2 < (16 * 5));
-            }
-        }
-
-        SpriteTransfer_RequestPlttFreeSpace(param1->unk_1BC[0]);
-
-        for (v0 = 0; v0 < 7; v0++) {
-            param1->unk_1C0[v0] = SpriteResourceCollection_AddFrom(param1->unk_198, param2, Unk_ov9_02251E90[v0], 0, ((v0) + 0xff), 2, HEAP_ID_FIELD1);
-        }
-
-        for (v0 = 0; v0 < 7; v0++) {
-            param1->unk_1DC[v0] = SpriteResourceCollection_AddFrom(param1->unk_19C, param2, Unk_ov9_02251EAC[v0], 0, ((v0) + 0xff), 3, HEAP_ID_FIELD1);
-        }
+    int i;
+    for (i = 0; i < SKY_CLOUD_RESOURCE_COUNT; i++) {
+        clouds->charRes[i] = SpriteResourceCollection_AddTilesFrom(clouds->charResColl, etcNARC, sSkyCloudsCharNARCIndexes[i], FALSE, SKY_CLOUD_RESOURCE_BASE_ID + i, NNS_G2D_VRAM_TYPE_2DMAIN, HEAP_ID_FIELD1);
+        SpriteTransfer_RequestCharAtEnd(clouds->charRes[i]);
     }
 
-    {
-        param1->unk_1F8 = SysTask_Start(ov9_0224B124, param1, 65535);
+    clouds->plttRes = SpriteResourceCollection_AddPaletteFrom(clouds->plttResColl, etcNARC, sSkyCloudsPlttNARCIndexes[0], FALSE, SKY_CLOUD_RESOURCE_BASE_ID, NNS_G2D_VRAM_TYPE_2DMAIN, 5, HEAP_ID_FIELD1);
+
+    NNSG2dPaletteData *plttData = SpriteResource_GetPaletteFade(clouds->plttRes);
+    int j = 0;
+    DistWorldSkyBackground *skyBg = &system->skyBg;
+    u16 *basePlttIter = skyBg->baseCloudPalettes;
+    u16 *plttIter = plttData->pRawData;
+
+    do {
+        *basePlttIter = *plttIter;
+        basePlttIter++;
+        plttIter++;
+    } while (++j < PALETTE_SIZE * SKY_CLOUD_PALETTE_COUNT);
+
+    SpriteTransfer_RequestPlttFreeSpace(clouds->plttRes);
+
+    for (i = 0; i < SKY_CLOUD_RESOURCE_COUNT; i++) {
+        clouds->cellRes[i] = SpriteResourceCollection_AddFrom(clouds->cellResColl, etcNARC, sSkyCloudsCellNARCIndexes[i], FALSE, SKY_CLOUD_RESOURCE_BASE_ID + i, SPRITE_RESOURCE_CELL, HEAP_ID_FIELD1);
     }
+
+    for (i = 0; i < SKY_CLOUD_RESOURCE_COUNT; i++) {
+        clouds->animRes[i] = SpriteResourceCollection_AddFrom(clouds->animResColl, etcNARC, sSkyCloudsAnimNARCIndexes[i], FALSE, SKY_CLOUD_RESOURCE_BASE_ID + i, SPRITE_RESOURCE_ANIM, HEAP_ID_FIELD1);
+    }
+
+    clouds->updateTask = SysTask_Start(Task_SkyCloudSpritesUpdate, clouds, 65535);
 }
 
-static void ov9_0224B064(UnkStruct_ov9_0224B064 *param0)
+static void FreeSkyClouds(DistWorldSkyClouds *clouds)
 {
-    int v0;
+    SysTask_Done(clouds->updateTask);
 
-    SysTask_Done(param0->unk_1F8);
-
-    for (v0 = 0; v0 < 7; v0++) {
-        if (param0->unk_1A0[v0] != NULL) {
-            SpriteTransfer_ResetCharTransfer(param0->unk_1A0[v0]);
+    for (int i = 0; i < SKY_CLOUD_RESOURCE_COUNT; i++) {
+        if (clouds->charRes[i] != NULL) {
+            SpriteTransfer_ResetCharTransfer(clouds->charRes[i]);
         }
     }
 
-    for (v0 = 0; v0 < 1; v0++) {
-        if (param0->unk_1BC[v0] != NULL) {
-            SpriteTransfer_ResetPlttTransfer(param0->unk_1BC[v0]);
+    if (clouds->plttRes != NULL) {
+        SpriteTransfer_ResetPlttTransfer(clouds->plttRes);
+    }
+
+    for (int i = 0; i < SKY_CLOUD_RESOURCE_COUNT; i++) {
+        if (clouds->cellRes[i] != NULL) {
+            SpriteResource_ReleaseData(clouds->cellRes[i]);
+            SpriteResourceCollection_Remove(clouds->cellResColl, clouds->cellRes[i]);
         }
     }
 
-    for (v0 = 0; v0 < 7; v0++) {
-        if (param0->unk_1C0[v0] != NULL) {
-            SpriteResource_ReleaseData(param0->unk_1C0[v0]);
-            SpriteResourceCollection_Remove(
-                param0->unk_198, param0->unk_1C0[v0]);
+    for (int i = 0; i < SKY_CLOUD_RESOURCE_COUNT; i++) {
+        if (clouds->animRes[i] != NULL) {
+            SpriteResource_ReleaseData(clouds->animRes[i]);
+            SpriteResourceCollection_Remove(clouds->animResColl, clouds->animRes[i]);
         }
     }
 
-    for (v0 = 0; v0 < 7; v0++) {
-        if (param0->unk_1DC[v0] != NULL) {
-            SpriteResource_ReleaseData(param0->unk_1DC[v0]);
-            SpriteResourceCollection_Remove(
-                param0->unk_19C, param0->unk_1DC[v0]);
-        }
-    }
+    SpriteResourceCollection_Delete(clouds->charResColl);
+    SpriteResourceCollection_Delete(clouds->plttResColl);
+    SpriteResourceCollection_Delete(clouds->cellResColl);
+    SpriteResourceCollection_Delete(clouds->animResColl);
 
-    SpriteResourceCollection_Delete(param0->unk_190);
-    SpriteResourceCollection_Delete(param0->unk_194);
-    SpriteResourceCollection_Delete(param0->unk_198);
-    SpriteResourceCollection_Delete(param0->unk_19C);
-
-    SpriteList_DeleteAll(param0->unk_00);
-    SpriteList_Delete(param0->unk_00);
+    SpriteList_DeleteAll(clouds->spriteList);
+    SpriteList_Delete(clouds->spriteList);
 }
 
-static void ov9_0224B124(SysTask *param0, void *param1)
+static void Task_SkyCloudSpritesUpdate(SysTask *sysTask, void *sysTaskParam)
 {
-    UnkStruct_ov9_0224B064 *v0 = param1;
-    SpriteList_Update(v0->unk_00);
+    DistWorldSkyClouds *clouds = sysTaskParam;
+    SpriteList_Update(clouds->spriteList);
 }
 
-static Sprite *ov9_0224B130(UnkStruct_ov9_0224B064 *param0, const VecFx32 *param1, u32 param2, u32 param3, u32 param4, u32 param5, int param6, int param7)
+static Sprite *CreateSkyCloudSprite(DistWorldSkyClouds *clouds, const VecFx32 *pos, u32 charResID, u32 plttResID, u32 cellResID, u32 animResID, int headerPriority, int listPriority)
 {
-    SpriteResourcesHeader v0;
-    SpriteListTemplate v1;
-    Sprite *v2;
+    SpriteResourcesHeader resHeader;
+    SpriteResourcesHeader_Init(
+        &resHeader,
+        SKY_CLOUD_RESOURCE_BASE_ID + charResID,
+        SKY_CLOUD_RESOURCE_BASE_ID + plttResID,
+        SKY_CLOUD_RESOURCE_BASE_ID + cellResID,
+        SKY_CLOUD_RESOURCE_BASE_ID + animResID,
+        RESOURCE_NONE,
+        RESOURCE_NONE,
+        FALSE,
+        headerPriority,
+        clouds->charResColl,
+        clouds->plttResColl,
+        clouds->cellResColl,
+        clouds->animResColl,
+        NULL,
+        NULL);
 
-    SpriteResourcesHeader_Init(&v0, ((param2) + 0xff), ((param3) + 0xff), ((param4) + 0xff), ((param5) + 0xff), 0xffffffff, 0xffffffff, 0, param6, param0->unk_190, param0->unk_194, param0->unk_198, param0->unk_19C, NULL, NULL);
+    SpriteListTemplate spriteListTemplate;
+    spriteListTemplate.list = clouds->spriteList;
+    spriteListTemplate.resourceData = &resHeader;
+    spriteListTemplate.position = *pos;
+    spriteListTemplate.priority = listPriority;
+    spriteListTemplate.vramType = NNS_G2D_VRAM_TYPE_2DMAIN;
+    spriteListTemplate.heapID = HEAP_ID_FIELD1;
 
-    v1.list = param0->unk_00;
-    v1.resourceData = &v0;
-    v1.position = *param1;
-    v1.priority = param7;
-    v1.vramType = NNS_G2D_VRAM_TYPE_2DMAIN;
-    v1.heapID = HEAP_ID_FIELD1;
+    Sprite *sprite = SpriteList_Add(&spriteListTemplate);
+    GF_ASSERT(sprite != NULL);
 
-    v2 = SpriteList_Add(&v1);
-    GF_ASSERT(v2 != NULL);
-
-    return v2;
+    return sprite;
 }
 
-static void ov9_0224B1B4(DistWorldSystem *param0, UnkStruct_ov5_021DF47C *param1, UnkStruct_ov9_0224B064 *param2)
+static void InitSkyCloudAnimators(DistWorldSystem *system, FieldEffectManager *fieldEffMan, DistWorldSkyClouds *clouds)
 {
-    int v0;
-    UnkStruct_ov9_0224B1B4 v1;
-    OverworldAnimManager *v2;
+    system->skyKind = SKY_NORMAL;
 
-    param0->unk_1EC2 = 0;
+    if (DistWorldSystem_GetMapHeaderID(system) == MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM) {
+        VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+        u32 distWorldProgress = SystemVars_GetDistortionWorldProgress(varsFlags);
 
-    if (DistWorldSystem_GetMapHeaderID(param0) == 582) {
-        VarsFlags *v3 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
-        u32 v4 = SystemVars_GetDistortionWorldProgress(v3);
-
-        if (v4 >= 10) {
-            if (v4 <= 12) {
-                param0->unk_1EC2 = 1;
-            } else if (v4 <= 13) {
-                param0->unk_1EC2 = 2;
+        if (distWorldProgress >= DIST_WORLD_PROGRESS_WON_CYRUS_BATTLE) {
+            if (distWorldProgress <= DIST_WORLD_PROGRESS_GIRATINA_ROOM_SECOND_SHADOW) {
+                system->skyKind = SKY_GIRATINA_ROOM;
+            } else if (distWorldProgress <= DIST_WORLD_PROGRESS_GIRATINA_ARRIVED) {
+                system->skyKind = SKY_GIRATINA_ROOM_DARK;
             }
         }
     }
 
-    v1.unk_00 = param0;
-    v1.unk_34 = param2;
+    DistWorldSkyCloudAnimatorUserData userData;
+    userData.system = system;
+    userData.clouds = clouds;
 
-    for (v0 = 0; v0 < 9; v0++) {
-        v1.unk_04 = Unk_ov9_02253680[v0];
-        v2 = ov5_021DF72C(param1, &Unk_ov9_02251508, NULL, 0, &v1, 0);
+    for (int i = 0; i < SKY_CLOUD_COUNT; i++) {
+        userData.template = sSkyCloudsTemplates[i];
+        FieldEffectManager_InitAnimManager(fieldEffMan, &sSkyCloudsAnimFuncs, NULL, 0, &userData, 0);
     }
 }
 
-static int ov9_0224B23C(OverworldAnimManager *param0, void *param1)
+static BOOL DistWorldSkyCloudAnimator_AnimInit(OverworldAnimManager *animMan, void *context)
 {
-    VecFx32 v0 = { 0, 0, 0 };
-    const UnkStruct_ov9_02251EC8 *v1;
-    const UnkStruct_ov9_0224B1B4 *v2 = OverworldAnimManager_GetUserData(param0);
-    UnkStruct_ov9_0224B2C0 *v3 = param1;
+    VecFx32 pos = { 0, 0, 0 };
+    const DistWorldSkyCloudAnimatorUserData *userData = OverworldAnimManager_GetUserData(animMan);
+    DistWorldSkyCloudAnimator *animator = context;
 
-    v3->unk_08 = *v2;
-    v3->unk_00 = v3->unk_08.unk_04.unk_08;
-    v3->unk_04 = Unk_ov9_02252C08[v2->unk_00->unk_1EC2][v2->unk_04.unk_04];
+    animator->userData = *userData;
+    animator->rotAngle = animator->userData.template.initialRotAngle;
+    animator->rotAngleDelta = sSkyCloudsRotAngleDeltas[userData->system->skyKind][userData->template.group];
 
-    v1 = &Unk_ov9_02251EC8[v3->unk_08.unk_04.unk_00];
-    v3->unk_40 = ov9_0224B130(v3->unk_08.unk_34, &v0, v1->unk_00, v1->unk_01, v1->unk_02, v1->unk_03, 3, 0xffff);
+    const DistWorldSkyCloudResourceIDs *resIDs = &sSkyCloudsResIDs[animator->userData.template.resIDsIndex];
+    animator->sprite = CreateSkyCloudSprite(animator->userData.clouds, &pos, resIDs->charResID, resIDs->plttResID, resIDs->cellResID, resIDs->animResID, 3, 0xFFFF);
 
-    Sprite_SetAffineScaleEx(v3->unk_40, &v3->unk_08.unk_04.unk_24, 2);
-    return 1;
+    Sprite_SetAffineScaleEx(animator->sprite, &animator->userData.template.scale, AFFINE_OVERWRITE_MODE_DOUBLE);
+    return TRUE;
 }
 
-static void ov9_0224B2C0(OverworldAnimManager *param0, void *param1)
+static void DistWorldSkyCloudAnimator_AnimExit(OverworldAnimManager *animMan, void *context)
 {
-    UnkStruct_ov9_0224B2C0 *v0 = param1;
-    Sprite_Delete(v0->unk_40);
+    DistWorldSkyCloudAnimator *animator = context;
+    Sprite_Delete(animator->sprite);
 }
 
-static void ov9_0224B2CC(OverworldAnimManager *param0, void *param1)
+static void DistWorldSkyCloudAnimator_AnimTick(OverworldAnimManager *animMan, void *context)
 {
-    fx32 v0, v1, v2;
-    VecFx32 v3;
-    UnkStruct_ov9_0224B2C0 *v4 = param1;
+    DistWorldSkyCloudAnimator *animator = context;
+    fx32 expectedRotAngleDelta = sSkyCloudsRotAngleDeltas[animator->userData.system->skyKind][animator->userData.template.group];
 
-    v2 = Unk_ov9_02252C08[v4->unk_08.unk_00->unk_1EC2][v4->unk_08.unk_04.unk_04];
+    if (expectedRotAngleDelta < animator->rotAngleDelta) {
+        animator->rotAngleDelta -= 0x200;
 
-    if (v2 < v4->unk_04) {
-        v4->unk_04 -= 0x200;
-
-        if (v2 > v4->unk_04) {
-            v4->unk_04 = v2;
+        if (expectedRotAngleDelta > animator->rotAngleDelta) {
+            animator->rotAngleDelta = expectedRotAngleDelta;
         }
-    } else if (v2 > v4->unk_04) {
-        v4->unk_04 += 0x200;
+    } else if (expectedRotAngleDelta > animator->rotAngleDelta) {
+        animator->rotAngleDelta += 0x200;
 
-        if (v2 < v4->unk_04) {
-            v4->unk_04 = v2;
+        if (expectedRotAngleDelta < animator->rotAngleDelta) {
+            animator->rotAngleDelta = expectedRotAngleDelta;
         }
     }
 
-    v1 = v4->unk_08.unk_04.unk_14 + v4->unk_04;
-    ov9_02250F1C(&v4->unk_00, v1);
+    fx32 rotAngleDelta = animator->userData.template.baseRotAngleDelta + animator->rotAngleDelta;
+    ApplyRotationToTargetFx32(&animator->rotAngle, rotAngleDelta);
 
-    v0 = v4->unk_00;
-    ov9_02250F1C(&v0, v4->unk_08.unk_04.unk_0C);
+    fx32 rotAngle = animator->rotAngle;
+    ApplyRotationToTargetFx32(&rotAngle, animator->userData.template.rotAngleOffset);
 
-    v3 = v4->unk_08.unk_04.unk_18;
+    VecFx32 pos = animator->userData.template.basePos;
+    pos.x += SKY_CLOUD_VIEW_RECT_X + CalcCosineDegrees(animator->rotAngle / FX32_ONE) * animator->userData.template.distToCenter;
+    pos.y += SKY_CLOUD_VIEW_RECT_Y + CalcSineDegrees(animator->rotAngle / FX32_ONE) * animator->userData.template.distToCenter;
 
-    v3.x += (FX32_ONE * 0) + (CalcCosineDegrees((v4->unk_00) / FX32_ONE) * v4->unk_08.unk_04.unk_10);
-    v3.y += (FX32_ONE * -512) + (CalcSineDegrees((v4->unk_00) / FX32_ONE) * v4->unk_08.unk_04.unk_10);
-
-    OverworldAnimManager_SetPosition(param0, &v3);
-    Sprite_SetPosition(v4->unk_40, &v3);
-    Sprite_SetAffineZRotation(v4->unk_40, CalcAngleRotationIdx_Wraparound((v0) / FX32_ONE));
+    OverworldAnimManager_SetPosition(animMan, &pos);
+    Sprite_SetPosition(animator->sprite, &pos);
+    Sprite_SetAffineZRotation(animator->sprite, CalcAngleRotationIdx_Wraparound(rotAngle / FX32_ONE));
 }
 
-static void ov9_0224B3A4(OverworldAnimManager *param0, void *param1)
+static void DistWorldSkyCloudAnimator_AnimRender(OverworldAnimManager *animMan, void *context)
 {
-    return;
 }
 
-static const OverworldAnimManagerFuncs Unk_ov9_02251508 = {
-    sizeof(UnkStruct_ov9_0224B2C0),
-    ov9_0224B23C,
-    ov9_0224B2C0,
-    ov9_0224B2CC,
-    ov9_0224B3A4
+static const OverworldAnimManagerFuncs sSkyCloudsAnimFuncs = {
+    sizeof(DistWorldSkyCloudAnimator),
+    DistWorldSkyCloudAnimator_AnimInit,
+    DistWorldSkyCloudAnimator_AnimExit,
+    DistWorldSkyCloudAnimator_AnimTick,
+    DistWorldSkyCloudAnimator_AnimRender
 };
 
-static void ov9_0224B3A8(DistWorldSystem *param0)
+static void InitFog(DistWorldSystem *system)
 {
-    UnkStruct_ov5_021D57D8 *v0 = param0->fieldSystem->unk_48;
+    FogManager *fogMan = system->fieldSystem->fogMan;
 
-    ov5_021D57FC(v0, 0xffffffff, 1, GX_FOGBLEND_COLOR_ALPHA, 6, 0x7600);
-    ov5_021D5834(v0, 0xffffffff, (GX_RGB(0, 0, 0)), 16);
+    FogManager_ApplyParameters(fogMan, FOG_PARAMETER_ALL, TRUE, GX_FOGBLEND_COLOR_ALPHA, GX_FOGSLOPE_0x0200, FOG_OFFSET);
+    FogManager_ApplyColor(fogMan, FOG_PARAMETER_ALL, FOG_COLOR, FOG_ALPHA);
 
-    {
-        int v1 = 0;
-        char v2[32];
+    int i = 0;
+    char densityTable[G3X_FOG_DENSITY_TABLE_SIZE];
 
-        do {
-            v2[v1] = (88 / 32) * v1;
-            v1++;
-        } while (v1 < 32);
+    do {
+        densityTable[i] = (FOG_DENSITY / G3X_FOG_DENSITY_TABLE_SIZE) * i;
+        i++;
+    } while (i < G3X_FOG_DENSITY_TABLE_SIZE);
 
-        ov5_021D585C(v0, v2);
-    }
+    FogManager_ApplyDensityTable(fogMan, densityTable);
 }
 
-static void ov9_0224B3F4(DistWorldSystem *param0)
+static void Dummy0224B3F4(DistWorldSystem *system)
 {
-    return;
 }
 
 static void InitGhostPropManager(DistWorldSystem *system, DistWorldGhostPropManager *ghostPropMan, const DistWorldGhostPropHeader *header, const DistWorldGhostPropTemplate *ghostPropTemplateList, int mapHeaderID, u32 hiddenGhostPropGroups)
@@ -4518,7 +4694,7 @@ static void InitActiveGhostPropManager(DistWorldSystem *system, BOOL useDefaultV
 
 static void InitInactiveGhostPropManager(DistWorldSystem *system)
 {
-    enum MapHeader mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+    enum MapHeaderID mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
     const DistWorldMapConnections *mapConnections = GetConnectionsForMap(mapHeaderID);
     mapHeaderID = mapConnections->nextID;
 
@@ -4660,10 +4836,10 @@ static OverworldAnimManager *InitGhostPropAnimManager(DistWorldSystem *system, i
     ghostProp.template = *ghostPropTemplate;
     ghostProp.system = system;
 
-    return ov5_021DF72C(system->fieldSystem->unk_40, animFuncs, NULL, 0, &ghostProp, 2);
+    return FieldEffectManager_InitAnimManager(system->fieldSystem->fieldEffMan, animFuncs, NULL, 0, &ghostProp, 2);
 }
 
-static void HandleGhostPropTriggerAt(DistWorldSystem *system, int tileX, int tileY, int tileZ, int direction)
+static void HandleGhostPropTriggerAt(DistWorldSystem *system, int tileX, int tileY, int tileZ, enum FaceDirection direction)
 {
     if (GetActiveGhostPropFileSectionSize(system)) {
         const DistWorldGhostPropHeader *header = GetActiveGhostPropHeader(system);
@@ -4687,19 +4863,17 @@ static void HandleGhostPropTriggerAt(DistWorldSystem *system, int tileX, int til
     }
 }
 
-static BOOL ov9_0224B7B0(DistWorldSystem *system, u32 param1)
+static BOOL HasActiveGhostProp2(DistWorldSystem *system, u32 propKind)
 {
-    const DistWorldPropAnimInfo *v2;
     DistWorldGhostPropManager *ghostPropMan = &system->ghostPropMan;
-
-    GF_ASSERT(param1 != 25);
+    GF_ASSERT(propKind != PROP_KIND_COUNT);
 
     for (int i = 0; i < ghostPropMan->templateCount; i++) {
         if (OverworldAnimManager_IsActive(ghostPropMan->animMans[i]) == TRUE) {
-            u16 ghostPropKind = GetAnimManagerGhostPropKind(ghostPropMan->animMans[i]);
-            v2 = &sPropAnimInfoByKind[ghostPropKind];
+            u16 currPropKind = GetAnimManagerGhostPropKind(ghostPropMan->animMans[i]);
+            const DistWorldPropAnimInfo *animInfo = &sPropAnimInfoByKind[currPropKind];
 
-            if (param1 == v2->propKind) {
+            if (propKind == animInfo->propKind) {
                 return TRUE;
             }
         }
@@ -4709,10 +4883,10 @@ static BOOL ov9_0224B7B0(DistWorldSystem *system, u32 param1)
 
     for (int i = 0; i < ghostPropMan->templateCount; i++) {
         if (OverworldAnimManager_IsActive(ghostPropMan->animMans[i]) == TRUE) {
-            u16 ghostPropKind = GetAnimManagerGhostPropKind(ghostPropMan->animMans[i]);
-            v2 = &sPropAnimInfoByKind[ghostPropKind];
+            u16 currPropKind = GetAnimManagerGhostPropKind(ghostPropMan->animMans[i]);
+            const DistWorldPropAnimInfo *animInfo = &sPropAnimInfoByKind[currPropKind];
 
-            if (param1 == v2->propKind) {
+            if (propKind == animInfo->propKind) {
                 return TRUE;
             }
         }
@@ -4721,43 +4895,39 @@ static BOOL ov9_0224B7B0(DistWorldSystem *system, u32 param1)
     return FALSE;
 }
 
-static BOOL ov9_0224B844(DistWorldSystem *param0, u32 param1)
+static BOOL HasActiveGhostPropAnim(DistWorldSystem *system, u32 animKind)
 {
-    int v0;
-    u16 v1;
-    const DistWorldPropAnimInfo *v2;
-    DistWorldGhostPropManager *v3 = &param0->ghostPropMan;
+    DistWorldGhostPropManager *ghostPropMan = &system->ghostPropMan;
+    GF_ASSERT(animKind != PROP_ANIM_KIND_COUNT);
 
-    GF_ASSERT(param1 != 5);
+    for (int i = 0; i < ghostPropMan->templateCount; i++) {
+        if (OverworldAnimManager_IsActive(ghostPropMan->animMans[i]) == 1) {
+            u16 currPropKind = GetAnimManagerGhostPropKind(ghostPropMan->animMans[i]);
+            const DistWorldPropAnimInfo *animInfo = &sPropAnimInfoByKind[currPropKind];
 
-    for (v0 = 0; v0 < v3->templateCount; v0++) {
-        if (OverworldAnimManager_IsActive(v3->animMans[v0]) == 1) {
-            v1 = GetAnimManagerGhostPropKind(v3->animMans[v0]);
-            v2 = &sPropAnimInfoByKind[v1];
-
-            if (param1 == v2->animKind) {
-                return 1;
+            if (animKind == animInfo->animKind) {
+                return TRUE;
             }
         }
     }
 
-    v3 = &param0->inactiveGhostPropMan;
+    ghostPropMan = &system->inactiveGhostPropMan;
 
-    for (v0 = 0; v0 < v3->templateCount; v0++) {
-        if (OverworldAnimManager_IsActive(v3->animMans[v0]) == 1) {
-            v1 = GetAnimManagerGhostPropKind(v3->animMans[v0]);
-            v2 = &sPropAnimInfoByKind[v1];
+    for (int i = 0; i < ghostPropMan->templateCount; i++) {
+        if (OverworldAnimManager_IsActive(ghostPropMan->animMans[i]) == 1) {
+            u16 currPropKind = GetAnimManagerGhostPropKind(ghostPropMan->animMans[i]);
+            const DistWorldPropAnimInfo *animInfo = &sPropAnimInfoByKind[currPropKind];
 
-            if (param1 == v2->animKind) {
-                return 1;
+            if (animKind == animInfo->animKind) {
+                return TRUE;
             }
         }
     }
 
-    return 0;
+    return FALSE;
 }
 
-static BOOL HasActivePropAnimManager(DistWorldSystem *system, int propKind)
+static BOOL HasActiveGhostProp(DistWorldSystem *system, int propKind)
 {
     DistWorldGhostPropManager *ghostPropMan = &system->ghostPropMan;
 
@@ -4822,7 +4992,7 @@ static BOOL DistWorldPlatformProp_AnimInit(OverworldAnimManager *animMan, void *
     }
 
     VecFx32_SetPosFromMapCoords(ghostPropTemplate->tileX, ghostPropTemplate->tileZ, &platformProp->initialPos);
-    platformProp->initialPos.y = MAP_OBJECT_COORD_TO_FX32(ghostPropTemplate->tileY);
+    platformProp->initialPos.y = MAP_OBJECT_COORD_CENTER_TO_FX32(ghostPropTemplate->tileY);
 
     const VecFx32 *initialPosOffset = &sPropInitialPosOffsetByKind[ghostPropTemplate->propKind];
     platformProp->initialPos.x += initialPosOffset->x;
@@ -4914,7 +5084,7 @@ static void DistWorldPlatformProp_AnimTick(OverworldAnimManager *animMan, void *
 
             if (platformProp->soundEffectState != PLATFORM_PROP_SFX_STATE_DISAPPEAR) {
                 platformProp->soundEffectState = PLATFORM_PROP_SFX_STATE_DISAPPEAR;
-                PlaySoundIfNotActive(SEQ_SE_PL_SYUWA3);
+                PlaySoundIfNotActive(SEQ_SE_PL_SYUWA3_sseq);
             }
         }
     } else if (platformProp->opacity < GHOST_PROP_OPACITY_MAX) {
@@ -4922,7 +5092,7 @@ static void DistWorldPlatformProp_AnimTick(OverworldAnimManager *animMan, void *
 
         if (platformProp->soundEffectState != PLATFORM_PROP_SFX_STATE_APPEAR) {
             platformProp->soundEffectState = PLATFORM_PROP_SFX_STATE_APPEAR;
-            PlaySoundIfNotActive(SEQ_SE_PL_SYUWA3);
+            PlaySoundIfNotActive(SEQ_SE_PL_SYUWA3_sseq);
         }
     }
 
@@ -4966,11 +5136,11 @@ static BOOL DistWorldObstacleProp_AnimInit(OverworldAnimManager *animMan, void *
     }
 
     if (ghostPropTemplate->propKind == PROP_KIND_LAND_ROCK) {
-        obstacleProp->seqIDAppear = SEQ_SE_PL_FW089_2;
-        obstacleProp->seqIDDisappear = SEQ_SE_PL_FW089_2;
+        obstacleProp->seqIDAppear = SEQ_SE_PL_FW089_2_sseq;
+        obstacleProp->seqIDDisappear = SEQ_SE_PL_FW089_2_sseq;
     } else {
-        obstacleProp->seqIDAppear = SEQ_SE_PL_MEKI;
-        obstacleProp->seqIDDisappear = SEQ_SE_PL_MEKI2;
+        obstacleProp->seqIDAppear = SEQ_SE_PL_MEKI_sseq;
+        obstacleProp->seqIDDisappear = SEQ_SE_PL_MEKI2_sseq;
     }
 
     BOOL ghostPropGroupHidden;
@@ -4989,7 +5159,7 @@ static BOOL DistWorldObstacleProp_AnimInit(OverworldAnimManager *animMan, void *
     }
 
     VecFx32_SetPosFromMapCoords(ghostPropTemplate->tileX, ghostPropTemplate->tileZ, &obstacleProp->pos);
-    obstacleProp->pos.y = MAP_OBJECT_COORD_TO_FX32(ghostPropTemplate->tileY);
+    obstacleProp->pos.y = MAP_OBJECT_COORD_CENTER_TO_FX32(ghostPropTemplate->tileY);
 
     const VecFx32 *initialPosOffset = &sPropInitialPosOffsetByKind[ghostPropTemplate->propKind];
     obstacleProp->pos.x += initialPosOffset->x;
@@ -5083,269 +5253,264 @@ static void DistWorldObstacleProp_AnimRender(OverworldAnimManager *animMan, void
     }
 }
 
-static void ov9_0224BE14(DistWorldSystem *param0)
+static void InitMapElements(DistWorldSystem *system)
 {
-    enum MapHeader mapHeaderID;
-    const DistWorldMapConnections *v1;
+    enum MapHeaderID mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(mapHeaderID);
 
-    mapHeaderID = DistWorldSystem_GetMapHeaderID(param0);
-    v1 = GetConnectionsForMap(mapHeaderID);
+    DistWorldMapInfoFile_LoadSafe(system);
+    LoadMapFiles(system, mapHeaderID, mapConnections->nextID);
 
-    ov9_0224BFBC(param0);
-    ov9_0224C0F8(param0, mapHeaderID, v1->nextID);
+    InitFloatingPlatformManager(system);
+    InitFloatingPlatformJumpPoint(system);
+    InitCameraAngleTemplates(system);
+    InitAllGhostPropData(system);
 
-    InitFloatingPlatformManager(param0);
-    InitFloatingPlatformJumpPoint(param0);
-    InitCameraAngleTemplates(param0);
-    InitAllGhostPropData(param0);
+    if (!IsPersistedDataValid(system)) {
+        int playerX;
+        int playerY;
+        int playerZ;
 
-    if (IsPersistedDataValid(param0) == 0) {
-        int v2, v3, v4;
-
-        GetPlayerPos(param0, &v2, &v3, &v4);
-        FindAndPrepareNewCurrentFloatingPlatform(param0, v2, v3, v4, 4);
+        GetPlayerPos(system, &playerX, &playerY, &playerZ);
+        FindAndPrepareNewCurrentFloatingPlatform(system, playerX, playerY, playerZ, FLOATING_PLATFORM_KIND_INVALID);
     } else {
-        u32 v5 = GetPersistedCurrentFloatingPlatformIndex(param0);
-        PrepareNewCurrentFloatingPlatform(param0, v5);
+        u32 floatingPlatformIndex = GetPersistedCurrentFloatingPlatformIndex(system);
+        PrepareNewCurrentFloatingPlatform(system, floatingPlatformIndex);
     }
 }
 
-static void ov9_0224BE8C(DistWorldSystem *param0)
+static void FreeMapElements(DistWorldSystem *system)
 {
-    ResetCameraAngleTemplates(param0);
-    ResetFloatingPlatformJumpPoint(param0);
-    ResetFloatingPlatformManager(param0);
-    ResetAllGhostPropData(param0);
-    ov9_0224C164(param0);
-    ov9_0224BFFC(param0);
+    ResetCameraAngleTemplates(system);
+    ResetFloatingPlatformJumpPoint(system);
+    ResetFloatingPlatformManager(system);
+    ResetAllGhostPropData(system);
+    FreeMapFiles(system);
+    FreeMapInfoFile(system);
 }
 
-static void ov9_0224BEB4(DistWorldSystem *param0, u32 param1)
+static void PrepareLoadingActiveFloor(DistWorldSystem *system, u32 mapHeaderID)
 {
-    ResetInactiveGhostPropData(param0);
-    ov9_0224C184(param0);
-    ResetCameraAngleTemplates(param0);
-    ResetFloatingPlatformJumpPoint(param0);
-    ResetFloatingPlatformManager(param0);
-    ov9_0224C194(param0);
-    MoveActiveGhostPropDataToInactive(param0);
-    MoveActiveGhostPropManagerToInactive(param0);
-    ResetActiveGhostPropManager(param0);
-    ov9_0224C10C(param0, param1);
-    InitFloatingPlatformManager(param0);
-    FreeFloatingPlatformManagerTerrainAttrs(param0);
-    InitFloatingPlatformJumpPoint(param0);
-    InitCameraAngleTemplates(param0);
-    InitActiveGhostPropData(param0);
+    ResetInactiveGhostPropData(system);
+    FreeInactiveMapFile(system);
+    ResetCameraAngleTemplates(system);
+    ResetFloatingPlatformJumpPoint(system);
+    ResetFloatingPlatformManager(system);
+    MoveActiveMapFileToInactive(system);
+    MoveActiveGhostPropDataToInactive(system);
+    MoveActiveGhostPropManagerToInactive(system);
+    ResetActiveGhostPropManager(system);
+    LoadActiveMapFile(system, mapHeaderID);
+    InitFloatingPlatformManager(system);
+    FreeFloatingPlatformManagerTerrainAttrs(system);
+    InitFloatingPlatformJumpPoint(system);
+    InitCameraAngleTemplates(system);
+    InitActiveGhostPropData(system);
 }
 
-static void ov9_0224BF18(DistWorldSystem *param0, u32 param1)
+static void PrepareLoadingInactiveFloor(DistWorldSystem *system, u32 mapHeaderID)
 {
-    ResetCameraAngleTemplates(param0);
-    ResetFloatingPlatformJumpPoint(param0);
-    ResetFloatingPlatformManager(param0);
-    ResetActiveGhostPropData(param0);
-    ov9_0224C174(param0);
-    ov9_0224C1E4(param0);
-    MoveInactiveGhostPropDataToActive(param0);
-    MoveInactiveGhostPropManagerToActive(param0);
-    PersistActiveHiddenGhostPropGroups(param0);
-    ResetInactiveGhostPropManager(param0);
-    InitFloatingPlatformManager(param0);
-    FreeFloatingPlatformManagerTerrainAttrs(param0);
-    InitFloatingPlatformJumpPoint(param0);
-    InitCameraAngleTemplates(param0);
+    ResetCameraAngleTemplates(system);
+    ResetFloatingPlatformJumpPoint(system);
+    ResetFloatingPlatformManager(system);
+    ResetActiveGhostPropData(system);
+    FreeActiveMapFile(system);
+    MoveInactiveMapFileToActive(system);
+    MoveInactiveGhostPropDataToActive(system);
+    MoveInactiveGhostPropManagerToActive(system);
+    PersistActiveHiddenGhostPropGroups(system);
+    ResetInactiveGhostPropManager(system);
+    InitFloatingPlatformManager(system);
+    FreeFloatingPlatformManagerTerrainAttrs(system);
+    InitFloatingPlatformJumpPoint(system);
+    InitCameraAngleTemplates(system);
 
-    if (param1 != MAP_HEADER_INVALID) {
-        ov9_0224C120(param0, param1);
-        InitInactiveGhostPropData(param0);
+    if (mapHeaderID != MAP_HEADER_INVALID) {
+        LoadInactiveMapFile(system, mapHeaderID);
+        InitInactiveGhostPropData(system);
     }
 }
 
-static void ov9_0224BF8C(NARC *distortionWorldNARC, UnkStruct_ov9_0224BFE0 *param1)
+static void DistWorldMapInfoFile_Load(NARC *mainNARC, DistWorldMapInfoFile *mapInfoFile)
 {
-    u32 v0 = NARC_GetMemberSize(distortionWorldNARC, 0);
+    u32 narcMemberSize = NARC_GetMemberSize(mainNARC, 0);
 
-    param1->unk_08 = Heap_Alloc(HEAP_ID_FIELD1, v0);
-    NARC_ReadWholeMember(distortionWorldNARC, 0, param1->unk_08);
+    mapInfoFile->buffer = Heap_Alloc(HEAP_ID_FIELD1, narcMemberSize);
+    NARC_ReadWholeMember(mainNARC, 0, mapInfoFile->buffer);
 
-    param1->unk_00 = *(int *)param1->unk_08;
-    param1->unk_04 = param1->unk_08;
-
-    (u8 *)param1->unk_04 += 4;
+    mapInfoFile->count = *(int *)mapInfoFile->buffer;
+    mapInfoFile->infos = (DistWorldMapInfo *)((u8 *)mapInfoFile->buffer + 4);
 }
 
-static void ov9_0224BFBC(DistWorldSystem *param0)
+static void DistWorldMapInfoFile_LoadSafe(DistWorldSystem *system)
 {
-    GF_ASSERT(param0->unk_169C.unk_00.unk_08 == NULL);
-    ov9_0224BF8C(param0->distortionWorldNARC, &param0->unk_169C.unk_00);
+    GF_ASSERT(system->mainArchive.mapInfoFile.buffer == NULL);
+    DistWorldMapInfoFile_Load(system->mainNARC, &system->mainArchive.mapInfoFile);
 }
 
-static void ov9_0224BFE0(UnkStruct_ov9_0224BFE0 *param0)
+static void DistWorldMapInfoFile_Free(DistWorldMapInfoFile *mapInfoFile)
 {
-    GF_ASSERT(param0->unk_08 != NULL);
+    GF_ASSERT(mapInfoFile->buffer != NULL);
 
-    Heap_Free(param0->unk_08);
-    param0->unk_08 = NULL;
+    Heap_Free(mapInfoFile->buffer);
+    mapInfoFile->buffer = NULL;
 }
 
-static void ov9_0224BFFC(DistWorldSystem *param0)
+static void FreeMapInfoFile(DistWorldSystem *system)
 {
-    ov9_0224BFE0(&param0->unk_169C.unk_00);
+    DistWorldMapInfoFile_Free(&system->mainArchive.mapInfoFile);
 }
 
-static const UnkStruct_ov9_0224C034 *ov9_0224C00C(const UnkStruct_ov9_0224BFE0 *param0, enum MapHeader mapHeaderID)
+static const DistWorldMapInfo *DistWorldMapInfoFile_FindForMap(const DistWorldMapInfoFile *mapInfoFile, enum MapHeaderID mapHeaderID)
 {
-    int v0 = 0;
-    const UnkStruct_ov9_0224C034 *v1 = param0->unk_04;
+    int i = 0;
+    const DistWorldMapInfo *iter = mapInfoFile->infos;
 
-    while (v0 < param0->unk_00) {
-        if (mapHeaderID == v1->mapHeaderID) {
-            return v1;
+    while (i < mapInfoFile->count) {
+        if (mapHeaderID == iter->mapHeaderID) {
+            return iter;
         }
 
-        v1++;
-        v0++;
+        iter++;
+        i++;
     }
 
-    GF_ASSERT(0);
-
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
-static const UnkStruct_ov9_0224C034 *ov9_0224C034(DistWorldSystem *system, enum MapHeader mapHeaderID)
+static const DistWorldMapInfo *FindMapInfo(DistWorldSystem *system, enum MapHeaderID mapHeaderID)
 {
-    return ov9_0224C00C(&system->unk_169C.unk_00, mapHeaderID);
+    return DistWorldMapInfoFile_FindForMap(&system->mainArchive.mapInfoFile, mapHeaderID);
 }
 
-static u32 FindNARCIndex(DistWorldSystem *system, enum MapHeader mapHeaderID)
+static u32 FindMapFileIndex(DistWorldSystem *system, enum MapHeaderID mapHeaderID)
 {
-    const UnkStruct_ov9_0224C034 *v0 = ov9_0224C034(system, mapHeaderID);
-    return v0->unk_04 + 1;
+    const DistWorldMapInfo *mapInfo = FindMapInfo(system, mapHeaderID);
+    return mapInfo->mapFileIndex + 1;
 }
 
-static void ov9_0224C050(const UnkStruct_ov9_0224BFE0 *param0, int param1, int *param2, int *param3, int *param4)
+static void DistWorldMapInfoFile_FindMapOffsets(const DistWorldMapInfoFile *mapInfoFile, int mapHeaderID, int *offsetTileX, int *offsetAltitude, int *offsetTileZ)
 {
-    const UnkStruct_ov9_0224C034 *v0 = ov9_0224C00C(param0, param1);
+    const DistWorldMapInfo *mapInfo = DistWorldMapInfoFile_FindForMap(mapInfoFile, mapHeaderID);
 
-    *param2 = v0->unk_06;
-    *param3 = v0->unk_08;
-    *param4 = v0->unk_0A;
+    *offsetTileX = mapInfo->offsetTileX;
+    *offsetAltitude = mapInfo->offsetAltitude;
+    *offsetTileZ = mapInfo->offsetTileZ;
 }
 
-static void ov9_0224C070(DistWorldSystem *param0, int param1, int *param2, int *param3, int *param4)
+static void FindMapOffsets(DistWorldSystem *system, int mapHeaderID, int *offsetTileX, int *offsetAltitude, int *offsetTileZ)
 {
-    ov9_0224C050(&param0->unk_169C.unk_00, param1, param2, param3, param4);
+    DistWorldMapInfoFile_FindMapOffsets(&system->mainArchive.mapInfoFile, mapHeaderID, offsetTileX, offsetAltitude, offsetTileZ);
 }
 
-static void DistWorldFile_Load(DistWorldSystem *system, DistWorldFile *file, enum MapHeader mapHeaderID)
+static void DistWorldMapFile_Load(DistWorldSystem *system, DistWorldMapFile *file, enum MapHeaderID mapHeaderID)
 {
     GF_ASSERT(file->buffer == NULL);
 
-    memset(file, 0, sizeof(DistWorldFile));
+    memset(file, 0, sizeof(DistWorldMapFile));
     file->mapHeaderID = mapHeaderID;
 
     if (mapHeaderID != MAP_HEADER_COUNT) {
         u8 *data;
         u32 narcMemberSize, narcIndex;
-        DistWorldFileHeader *header;
+        DistWorldMapFileHeader *header;
 
-        narcIndex = FindNARCIndex(system, mapHeaderID);
-        narcMemberSize = NARC_GetMemberSize(system->distortionWorldNARC, narcIndex);
+        narcIndex = FindMapFileIndex(system, mapHeaderID);
+        narcMemberSize = NARC_GetMemberSize(system->mainNARC, narcIndex);
 
         file->buffer = Heap_AllocAtEnd(HEAP_ID_FIELD1, narcMemberSize);
-        NARC_ReadWholeMember(system->distortionWorldNARC, narcIndex, file->buffer);
+        NARC_ReadWholeMember(system->mainNARC, narcIndex, file->buffer);
 
         header = file->buffer;
         file->header = header;
 
         data = file->buffer;
-        data += sizeof(DistWorldFileHeader);
+        data += sizeof(DistWorldMapFileHeader);
 
-        file->floatingPlatformSection = (DistWorldFileFloatingPlatformSection *)data;
-        file->floatingPlatformJumpPointSection = (DistWorldFileFloatingPlatformJumpPointSection *)((u8 *)file->floatingPlatformSection + header->floatingPlatformSectionSize);
-        file->cameraAngleSection = (DistWorldFileCameraAngleSection *)((u8 *)file->floatingPlatformJumpPointSection + header->floatingPlatformJumpPointSectionSize);
+        file->floatingPlatformSection = (DistWorldMapFileFloatingPlatformSection *)data;
+        file->floatingPlatformJumpPointSection = (DistWorldMapFileFloatingPlatformJumpPointSection *)((u8 *)file->floatingPlatformSection + header->floatingPlatformSectionSize);
+        file->cameraAngleSection = (DistWorldMapFileCameraAngleSection *)((u8 *)file->floatingPlatformJumpPointSection + header->floatingPlatformJumpPointSectionSize);
         file->ghostPropSection = (u8 *)file->cameraAngleSection + header->cameraAngleSectionSize;
     }
 }
 
-static void ov9_0224C0F8(DistWorldSystem *param0, enum MapHeader mapHeaderID, int param2)
+static void LoadMapFiles(DistWorldSystem *system, enum MapHeaderID mapHeaderID, int nextMapHeaderID)
 {
-    ov9_0224C10C(param0, mapHeaderID);
-    ov9_0224C120(param0, param2);
+    LoadActiveMapFile(system, mapHeaderID);
+    LoadInactiveMapFile(system, nextMapHeaderID);
 }
 
-static void ov9_0224C10C(DistWorldSystem *param0, enum MapHeader mapHeaderID)
+static void LoadActiveMapFile(DistWorldSystem *system, enum MapHeaderID mapHeaderID)
 {
-    DistWorldFile_Load(param0, &param0->unk_169C.distortionWorldFile, mapHeaderID);
+    DistWorldMapFile_Load(system, &system->mainArchive.mapFile, mapHeaderID);
 }
 
-static void ov9_0224C120(DistWorldSystem *param0, enum MapHeader mapHeaderID)
+static void LoadInactiveMapFile(DistWorldSystem *system, enum MapHeaderID mapHeaderID)
 {
-    DistWorldFile_Load(param0, &param0->unk_169C.inactiveDistortionWorldFile, mapHeaderID);
+    DistWorldMapFile_Load(system, &system->mainArchive.inactiveMapFile, mapHeaderID);
 }
 
-static void DistWorldFile_Invalidate(DistWorldFile *file)
+static void DistWorldMapFile_Invalidate(DistWorldMapFile *file)
 {
-    memset(file, 0, sizeof(DistWorldFile));
+    memset(file, 0, sizeof(DistWorldMapFile));
     file->mapHeaderID = MAP_HEADER_COUNT;
 }
 
-static void DistWorldFile_Free(DistWorldFile *file)
+static void DistWorldMapFile_Free(DistWorldMapFile *file)
 {
     if (file->buffer != NULL) {
         Heap_Free(file->buffer);
     }
 
-    DistWorldFile_Invalidate(file);
+    DistWorldMapFile_Invalidate(file);
 }
 
-static void ov9_0224C164(DistWorldSystem *param0)
+static void FreeMapFiles(DistWorldSystem *system)
 {
-    ov9_0224C174(param0);
-    ov9_0224C184(param0);
+    FreeActiveMapFile(system);
+    FreeInactiveMapFile(system);
 }
 
-static void ov9_0224C174(DistWorldSystem *param0)
+static void FreeActiveMapFile(DistWorldSystem *system)
 {
-    DistWorldFile_Free(&param0->unk_169C.distortionWorldFile);
+    DistWorldMapFile_Free(&system->mainArchive.mapFile);
 }
 
-static void ov9_0224C184(DistWorldSystem *param0)
+static void FreeInactiveMapFile(DistWorldSystem *system)
 {
-    DistWorldFile_Free(&param0->unk_169C.inactiveDistortionWorldFile);
+    DistWorldMapFile_Free(&system->mainArchive.inactiveMapFile);
 }
 
-static void ov9_0224C194(DistWorldSystem *param0)
+static void MoveActiveMapFileToInactive(DistWorldSystem *system)
 {
-    GF_ASSERT(param0->unk_169C.inactiveDistortionWorldFile.mapHeaderID == MAP_HEADER_COUNT);
-    GF_ASSERT(param0->unk_169C.inactiveDistortionWorldFile.buffer == NULL);
+    GF_ASSERT(system->mainArchive.inactiveMapFile.mapHeaderID == MAP_HEADER_COUNT);
+    GF_ASSERT(system->mainArchive.inactiveMapFile.buffer == NULL);
 
-    param0->unk_169C.inactiveDistortionWorldFile = param0->unk_169C.distortionWorldFile;
-
-    DistWorldFile_Invalidate(&param0->unk_169C.distortionWorldFile);
+    system->mainArchive.inactiveMapFile = system->mainArchive.mapFile;
+    DistWorldMapFile_Invalidate(&system->mainArchive.mapFile);
 }
 
-static void ov9_0224C1E4(DistWorldSystem *param0)
+static void MoveInactiveMapFileToActive(DistWorldSystem *system)
 {
-    GF_ASSERT(param0->unk_169C.distortionWorldFile.mapHeaderID == MAP_HEADER_COUNT);
-    GF_ASSERT(param0->unk_169C.distortionWorldFile.buffer == NULL);
+    GF_ASSERT(system->mainArchive.mapFile.mapHeaderID == MAP_HEADER_COUNT);
+    GF_ASSERT(system->mainArchive.mapFile.buffer == NULL);
 
-    param0->unk_169C.distortionWorldFile = param0->unk_169C.inactiveDistortionWorldFile;
-    DistWorldFile_Invalidate(&param0->unk_169C.inactiveDistortionWorldFile);
+    system->mainArchive.mapFile = system->mainArchive.inactiveMapFile;
+    DistWorldMapFile_Invalidate(&system->mainArchive.inactiveMapFile);
 }
 
-static int DistWorldFile_GetFloatingPlatformSectionSize(DistWorldFile *file)
+static int DistWorldMapFile_GetFloatingPlatformSectionSize(DistWorldMapFile *file)
 {
     return file->header->floatingPlatformSectionSize;
 }
 
-static int DistWorldFile_GetFloatingPlatformCount(DistWorldFile *file)
+static int DistWorldMapFile_GetFloatingPlatformCount(DistWorldMapFile *file)
 {
     return file->floatingPlatformSection->count;
 }
 
-static DistWorldFloatingPlatformTemplate *DistWorldFile_GetFloatingPlatformSectionTemplates(DistWorldFile *file)
+static DistWorldFloatingPlatformTemplate *DistWorldMapFile_GetFloatingPlatformSectionTemplates(DistWorldMapFile *file)
 {
     u8 *templates = (u8 *)file->floatingPlatformSection;
     templates += sizeof(file->floatingPlatformSection->count);
@@ -5353,17 +5518,17 @@ static DistWorldFloatingPlatformTemplate *DistWorldFile_GetFloatingPlatformSecti
     return (DistWorldFloatingPlatformTemplate *)templates;
 }
 
-static int DistWorldFile_GetFloatingPlatformJumpPointSectionSize(DistWorldFile *file)
+static int DistWorldMapFile_GetFloatingPlatformJumpPointSectionSize(DistWorldMapFile *file)
 {
     return file->header->floatingPlatformJumpPointSectionSize;
 }
 
-static int DistWorldFile_GetFloatingPlatformJumpPointCount(DistWorldFile *file)
+static int DistWorldMapFile_GetFloatingPlatformJumpPointCount(DistWorldMapFile *file)
 {
     return file->floatingPlatformJumpPointSection->count;
 }
 
-static DistWorldFloatingPlatformJumpPointTemplate *DistWorldFile_GetFloatingPlatformJumpPointTemplates(DistWorldFile *file)
+static DistWorldFloatingPlatformJumpPointTemplate *DistWorldMapFile_GetFloatingPlatformJumpPointTemplates(DistWorldMapFile *file)
 {
     u8 *templates = (u8 *)file->floatingPlatformJumpPointSection;
     templates += sizeof(file->floatingPlatformJumpPointSection->count);
@@ -5371,17 +5536,17 @@ static DistWorldFloatingPlatformJumpPointTemplate *DistWorldFile_GetFloatingPlat
     return (DistWorldFloatingPlatformJumpPointTemplate *)templates;
 }
 
-static int DistWorldFile_GetCameraAngleSectionSize(DistWorldFile *file)
+static int DistWorldMapFile_GetCameraAngleSectionSize(DistWorldMapFile *file)
 {
     return file->header->cameraAngleSectionSize;
 }
 
-static int DistWorldFile_GetCameraAngleCount(DistWorldFile *file)
+static int DistWorldMapFile_GetCameraAngleCount(DistWorldMapFile *file)
 {
     return file->cameraAngleSection->count;
 }
 
-static DistWorldCameraAngleTemplate *DistWorldFile_GetCameraAngleTemplates(DistWorldFile *file)
+static DistWorldCameraAngleTemplate *DistWorldMapFile_GetCameraAngleTemplates(DistWorldMapFile *file)
 {
     u8 *templates = (u8 *)file->cameraAngleSection;
     templates += sizeof(int);
@@ -5391,13 +5556,13 @@ static DistWorldCameraAngleTemplate *DistWorldFile_GetCameraAngleTemplates(DistW
 
 static int GetActiveGhostPropFileSectionSize(DistWorldSystem *system)
 {
-    return system->unk_169C.distortionWorldFile.header->ghostPropSectionSize;
+    return system->mainArchive.mapFile.header->ghostPropSectionSize;
 }
 
 static int GetInactiveGhostPropFileSectionSize(DistWorldSystem *system)
 {
     int ghostPropSectionSize = 0;
-    DistWorldFile *inactiveFile = &system->unk_169C.inactiveDistortionWorldFile;
+    DistWorldMapFile *inactiveFile = &system->mainArchive.inactiveMapFile;
 
     if (inactiveFile->mapHeaderID != MAP_HEADER_INVALID) {
         ghostPropSectionSize = inactiveFile->header->ghostPropSectionSize;
@@ -5406,12 +5571,12 @@ static int GetInactiveGhostPropFileSectionSize(DistWorldSystem *system)
     return ghostPropSectionSize;
 }
 
-static const DistWorldGhostPropHeader *DistWorldFile_GetGhostPropHeader(DistWorldFile *file)
+static const DistWorldGhostPropHeader *DistWorldMapFile_GetGhostPropHeader(DistWorldMapFile *file)
 {
     return file->ghostPropSection;
 }
 
-static const DistWorldGhostPropTemplate *DistWorldFile_GetGhostPropTemplates(DistWorldFile *file)
+static const DistWorldGhostPropTemplate *DistWorldMapFile_GetGhostPropTemplates(DistWorldMapFile *file)
 {
     const u8 *templates = file->ghostPropSection;
     templates += sizeof(DistWorldGhostPropHeader);
@@ -5419,7 +5584,7 @@ static const DistWorldGhostPropTemplate *DistWorldFile_GetGhostPropTemplates(Dis
     return (DistWorldGhostPropTemplate *)templates;
 }
 
-static const DistWorldGhostPropTrigger *DistWorldFile_GetGhostPropTriggers(DistWorldFile *file)
+static const DistWorldGhostPropTrigger *DistWorldMapFile_GetGhostPropTriggers(DistWorldMapFile *file)
 {
     const DistWorldGhostPropHeader *header = file->ghostPropSection;
     const u8 *triggers = file->ghostPropSection;
@@ -5430,21 +5595,21 @@ static const DistWorldGhostPropTrigger *DistWorldFile_GetGhostPropTriggers(DistW
 
 static void InitFloatingPlatformManager(DistWorldSystem *system)
 {
-    DistWorldFile *file = &system->unk_169C.distortionWorldFile;
+    DistWorldMapFile *file = &system->mainArchive.mapFile;
 
-    GF_ASSERT(system->unk_169C.floatingPlatformMan.templates == NULL);
+    GF_ASSERT(system->mainArchive.floatingPlatformMan.templates == NULL);
 
-    if (DistWorldFile_GetFloatingPlatformSectionSize(file)) {
-        DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    if (DistWorldMapFile_GetFloatingPlatformSectionSize(file)) {
+        DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
 
-        floatingPlatformMan->platformCount = DistWorldFile_GetFloatingPlatformCount(file);
-        floatingPlatformMan->templates = DistWorldFile_GetFloatingPlatformSectionTemplates(file);
+        floatingPlatformMan->platformCount = DistWorldMapFile_GetFloatingPlatformCount(file);
+        floatingPlatformMan->templates = DistWorldMapFile_GetFloatingPlatformSectionTemplates(file);
     }
 }
 
 static void ResetFloatingPlatformManager(DistWorldSystem *system)
 {
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
 
     if (floatingPlatformMan->terrainAttributes != NULL) {
         Heap_Free(floatingPlatformMan->terrainAttributes);
@@ -5455,7 +5620,7 @@ static void ResetFloatingPlatformManager(DistWorldSystem *system)
 
 static BOOL HasFloatingPlatformAtCoords(DistWorldSystem *system, int tileX, int tileY, int tileZ, s16 floatingPlatformKind)
 {
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
     const DistWorldFloatingPlatformTemplate *floatingPlatformTemplateIter = floatingPlatformMan->templates;
     int i = 0;
     int floatingPlatformCount = floatingPlatformMan->platformCount;
@@ -5480,7 +5645,7 @@ static BOOL HasFloatingPlatformAtCoords(DistWorldSystem *system, int tileX, int 
 
 static void FindAndPrepareNewCurrentFloatingPlatform(DistWorldSystem *system, int tileX, int tileY, int tileZ, s16 floatingPlatformKind)
 {
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
     const DistWorldFloatingPlatformTemplate *floatingPlatformTemplateIter = floatingPlatformMan->templates;
     int i = 0;
     int floatingPlatformCount = floatingPlatformMan->platformCount;
@@ -5515,7 +5680,7 @@ static void FindAndPrepareNewCurrentFloatingPlatform(DistWorldSystem *system, in
 
 static void PrepareNewCurrentFloatingPlatform(DistWorldSystem *system, u32 floatingPlatformIndex)
 {
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
     const DistWorldFloatingPlatformTemplate *floatingPlatformTemplates = floatingPlatformMan->templates;
     int floatingPlatformCount = floatingPlatformMan->platformCount;
 
@@ -5539,7 +5704,7 @@ static void PrepareNewCurrentFloatingPlatform(DistWorldSystem *system, u32 float
 
 static void FreeFloatingPlatformManagerTerrainAttrs(DistWorldSystem *system)
 {
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
 
     floatingPlatformMan->currentPlatformIndex = floatingPlatformMan->platformCount;
     SetPersistedCurrentFloatingPlatformIndex(system, floatingPlatformMan->platformCount);
@@ -5552,7 +5717,7 @@ static void FreeFloatingPlatformManagerTerrainAttrs(DistWorldSystem *system)
 
 static u32 GetCurrentFloatingPlatformKind2(DistWorldSystem *system)
 {
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
     int floatingPlatformCount = floatingPlatformMan->platformCount;
 
     if (floatingPlatformMan->platformCount == 0 || floatingPlatformMan->currentPlatformIndex >= floatingPlatformMan->platformCount) {
@@ -5565,7 +5730,7 @@ static u32 GetCurrentFloatingPlatformKind2(DistWorldSystem *system)
 
 static u32 GetCurrentFloatingPlatformKind(DistWorldSystem *system)
 {
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
     int floatingPlatformCount = floatingPlatformMan->platformCount;
 
     if (floatingPlatformMan->platformCount == 0 || floatingPlatformMan->currentPlatformIndex >= floatingPlatformMan->platformCount) {
@@ -5578,7 +5743,7 @@ static u32 GetCurrentFloatingPlatformKind(DistWorldSystem *system)
 
 static u32 GetCurrentFloatingPlatformKindSafely(DistWorldSystem *system, int tileX, int tileY, int tileZ)
 {
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
     int floatingPlatformCount = floatingPlatformMan->platformCount;
 
     if (floatingPlatformMan->platformCount == 0 || floatingPlatformMan->currentPlatformIndex >= floatingPlatformMan->platformCount) {
@@ -5596,21 +5761,21 @@ static u32 GetCurrentFloatingPlatformKindSafely(DistWorldSystem *system, int til
 
 static void LoadFloatingPlatformTerrainAttributes(DistWorldSystem *system, u32 distortionWorldAttrID)
 {
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
 
     if (floatingPlatformMan->terrainAttributes != NULL) {
         Heap_Free(floatingPlatformMan->terrainAttributes);
     }
 
-    floatingPlatformMan->terrainAttributesSize = NARC_GetMemberSize(system->distortionWorldAttrNARC, distortionWorldAttrID);
+    floatingPlatformMan->terrainAttributesSize = NARC_GetMemberSize(system->attrNARC, distortionWorldAttrID);
     floatingPlatformMan->terrainAttributes = Heap_AllocAtEnd(HEAP_ID_FIELD1, floatingPlatformMan->terrainAttributesSize);
 
-    NARC_ReadWholeMember(system->distortionWorldAttrNARC, distortionWorldAttrID, floatingPlatformMan->terrainAttributes);
+    NARC_ReadWholeMember(system->attrNARC, distortionWorldAttrID, floatingPlatformMan->terrainAttributes);
 }
 
 static u16 GetCurrentFloatingPlatformTileAttributesRelative(DistWorldSystem *system, int tileRelativeVerticalPos, int tileRelativeHorizontalPos)
 {
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
     const DistWorldFloatingPlatformTemplate *currentFloatingPlatform = &floatingPlatformMan->templates[floatingPlatformMan->currentPlatformIndex];
 
     GF_ASSERT(floatingPlatformMan->terrainAttributes != NULL);
@@ -5621,7 +5786,7 @@ static u16 GetCurrentFloatingPlatformTileAttributes(DistWorldSystem *system, int
 {
     int tileRelativeVerticalPos = 0;
     int tileRelativeHorizontalPos = 0;
-    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->unk_169C.floatingPlatformMan;
+    DistWorldFloatingPlatformManager *floatingPlatformMan = &system->mainArchive.floatingPlatformMan;
 
     if (floatingPlatformMan->platformCount == 0 || floatingPlatformMan->currentPlatformIndex >= floatingPlatformMan->platformCount) {
         return INVALID_TERRAIN_ATTRIBUTES;
@@ -5653,7 +5818,7 @@ static u16 GetCurrentFloatingPlatformTileAttributes(DistWorldSystem *system, int
         tileRelativeHorizontalPos = tileZ - currentFloatingPlatform->bounds.startTileZ;
         break;
     default:
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         break;
     }
 
@@ -5662,27 +5827,27 @@ static u16 GetCurrentFloatingPlatformTileAttributes(DistWorldSystem *system, int
 
 static void InitFloatingPlatformJumpPoint(DistWorldSystem *system)
 {
-    DistWorldFile *file = &system->unk_169C.distortionWorldFile;
+    DistWorldMapFile *file = &system->mainArchive.mapFile;
 
-    GF_ASSERT(system->unk_169C.floatingPlatformJumpPoints.templates == NULL);
+    GF_ASSERT(system->mainArchive.floatingPlatformJumpPoints.templates == NULL);
 
-    if (DistWorldFile_GetFloatingPlatformJumpPointSectionSize(file)) {
-        DistWorldFileFloatingPlatformJumpPointSection *floatingPlatformJumpPoints = &system->unk_169C.floatingPlatformJumpPoints;
+    if (DistWorldMapFile_GetFloatingPlatformJumpPointSectionSize(file)) {
+        DistWorldMapFileFloatingPlatformJumpPointSection *floatingPlatformJumpPoints = &system->mainArchive.floatingPlatformJumpPoints;
 
-        floatingPlatformJumpPoints->count = DistWorldFile_GetFloatingPlatformJumpPointCount(file);
-        floatingPlatformJumpPoints->templates = DistWorldFile_GetFloatingPlatformJumpPointTemplates(file);
+        floatingPlatformJumpPoints->count = DistWorldMapFile_GetFloatingPlatformJumpPointCount(file);
+        floatingPlatformJumpPoints->templates = DistWorldMapFile_GetFloatingPlatformJumpPointTemplates(file);
     }
 }
 
 static void ResetFloatingPlatformJumpPoint(DistWorldSystem *system)
 {
-    DistWorldFileFloatingPlatformJumpPointSection *floatingPlatformJumpPoints = &system->unk_169C.floatingPlatformJumpPoints;
-    memset(floatingPlatformJumpPoints, 0, sizeof(DistWorldFileFloatingPlatformJumpPointSection));
+    DistWorldMapFileFloatingPlatformJumpPointSection *floatingPlatformJumpPoints = &system->mainArchive.floatingPlatformJumpPoints;
+    memset(floatingPlatformJumpPoints, 0, sizeof(DistWorldMapFileFloatingPlatformJumpPointSection));
 }
 
-static const DistWorldFloatingPlatformJumpPointTemplate *FindFloatingPlatformJumpPointAt(DistWorldSystem *system, int playerX, int playerY, int playerZ, int playerDir)
+static const DistWorldFloatingPlatformJumpPointTemplate *FindFloatingPlatformJumpPointAt(DistWorldSystem *system, int playerX, int playerY, int playerZ, enum FaceDirection playerDir)
 {
-    DistWorldFileFloatingPlatformJumpPointSection *floatingPlatformJumpPoints = &system->unk_169C.floatingPlatformJumpPoints;
+    DistWorldMapFileFloatingPlatformJumpPointSection *floatingPlatformJumpPoints = &system->mainArchive.floatingPlatformJumpPoints;
     DistWorldFloatingPlatformJumpPointTemplate *iter = floatingPlatformJumpPoints->templates;
     int i = floatingPlatformJumpPoints->count;
 
@@ -5702,27 +5867,27 @@ static const DistWorldFloatingPlatformJumpPointTemplate *FindFloatingPlatformJum
 
 static void InitCameraAngleTemplates(DistWorldSystem *system)
 {
-    DistWorldFile *file = &system->unk_169C.distortionWorldFile;
+    DistWorldMapFile *file = &system->mainArchive.mapFile;
 
-    GF_ASSERT(system->unk_169C.cameraAngleTemplates.templates == NULL);
+    GF_ASSERT(system->mainArchive.cameraAngleTemplates.templates == NULL);
 
-    if (DistWorldFile_GetCameraAngleSectionSize(file)) {
-        DistWorldCameraAngleTemplates *cameraAngleTemplates = &system->unk_169C.cameraAngleTemplates;
+    if (DistWorldMapFile_GetCameraAngleSectionSize(file)) {
+        DistWorldCameraAngleTemplates *cameraAngleTemplates = &system->mainArchive.cameraAngleTemplates;
 
-        cameraAngleTemplates->count = DistWorldFile_GetCameraAngleCount(file);
-        cameraAngleTemplates->templates = DistWorldFile_GetCameraAngleTemplates(file);
+        cameraAngleTemplates->count = DistWorldMapFile_GetCameraAngleCount(file);
+        cameraAngleTemplates->templates = DistWorldMapFile_GetCameraAngleTemplates(file);
     }
 }
 
 static void ResetCameraAngleTemplates(DistWorldSystem *system)
 {
-    DistWorldCameraAngleTemplates *cameraAngleTemplates = &system->unk_169C.cameraAngleTemplates;
+    DistWorldCameraAngleTemplates *cameraAngleTemplates = &system->mainArchive.cameraAngleTemplates;
     memset(cameraAngleTemplates, 0, sizeof(DistWorldCameraAngleTemplates));
 }
 
-static const DistWorldCameraAngleTemplate *FindCameraAngleForPlayerPosition(DistWorldSystem *system, int playerX, int playerY, int playerZ, int playerDir)
+static const DistWorldCameraAngleTemplate *FindCameraAngleForPlayerPosition(DistWorldSystem *system, int playerX, int playerY, int playerZ, enum FaceDirection playerDir)
 {
-    DistWorldCameraAngleTemplates *cameraAngleTemplates = &system->unk_169C.cameraAngleTemplates;
+    DistWorldCameraAngleTemplates *cameraAngleTemplates = &system->mainArchive.cameraAngleTemplates;
     DistWorldCameraAngleTemplate *cameraAngleTemplateIter = cameraAngleTemplates->templates;
     int i = cameraAngleTemplates->count;
 
@@ -5740,22 +5905,22 @@ static const DistWorldCameraAngleTemplate *FindCameraAngleForPlayerPosition(Dist
     return NULL;
 }
 
-static void DistWorldGhostPropData_InitFromFile(DistWorldFile *file, DistWorldGhostPropData *data)
+static void DistWorldGhostPropData_InitFromFile(DistWorldMapFile *file, DistWorldGhostPropData *data)
 {
     GF_ASSERT(data->header == NULL);
     GF_ASSERT(data->templates == NULL);
     GF_ASSERT(data->triggers == NULL);
 
-    data->header = DistWorldFile_GetGhostPropHeader(file);
-    data->templates = DistWorldFile_GetGhostPropTemplates(file);
-    data->triggers = DistWorldFile_GetGhostPropTriggers(file);
+    data->header = DistWorldMapFile_GetGhostPropHeader(file);
+    data->templates = DistWorldMapFile_GetGhostPropTemplates(file);
+    data->triggers = DistWorldMapFile_GetGhostPropTriggers(file);
 }
 
 static void InitActiveGhostPropData(DistWorldSystem *system)
 {
     if (GetActiveGhostPropFileSectionSize(system)) {
-        DistWorldFile *file = &system->unk_169C.distortionWorldFile;
-        DistWorldGhostPropData *ghostPropData = &system->unk_169C.ghostPropData;
+        DistWorldMapFile *file = &system->mainArchive.mapFile;
+        DistWorldGhostPropData *ghostPropData = &system->mainArchive.ghostPropData;
 
         DistWorldGhostPropData_InitFromFile(file, ghostPropData);
     }
@@ -5764,8 +5929,8 @@ static void InitActiveGhostPropData(DistWorldSystem *system)
 static void InitInactiveGhostPropData(DistWorldSystem *system)
 {
     if (GetInactiveGhostPropFileSectionSize(system)) {
-        DistWorldFile *file = &system->unk_169C.inactiveDistortionWorldFile;
-        DistWorldGhostPropData *ghostPropData = &system->unk_169C.inactiveGhostPropData;
+        DistWorldMapFile *file = &system->mainArchive.inactiveMapFile;
+        DistWorldGhostPropData *ghostPropData = &system->mainArchive.inactiveGhostPropData;
 
         DistWorldGhostPropData_InitFromFile(file, ghostPropData);
     }
@@ -5784,12 +5949,12 @@ static void DistWorldGhostPropData_Reset(DistWorldGhostPropData *data)
 
 static void ResetActiveGhostPropData(DistWorldSystem *system)
 {
-    DistWorldGhostPropData_Reset(&system->unk_169C.ghostPropData);
+    DistWorldGhostPropData_Reset(&system->mainArchive.ghostPropData);
 }
 
 static void ResetInactiveGhostPropData(DistWorldSystem *system)
 {
-    DistWorldGhostPropData_Reset(&system->unk_169C.inactiveGhostPropData);
+    DistWorldGhostPropData_Reset(&system->mainArchive.inactiveGhostPropData);
 }
 
 static void ResetAllGhostPropData(DistWorldSystem *system)
@@ -5800,1034 +5965,982 @@ static void ResetAllGhostPropData(DistWorldSystem *system)
 
 static void MoveActiveGhostPropDataToInactive(DistWorldSystem *system)
 {
-    system->unk_169C.inactiveGhostPropData = system->unk_169C.ghostPropData;
-    DistWorldGhostPropData_Reset(&system->unk_169C.ghostPropData);
+    system->mainArchive.inactiveGhostPropData = system->mainArchive.ghostPropData;
+    DistWorldGhostPropData_Reset(&system->mainArchive.ghostPropData);
 }
 
 static void MoveInactiveGhostPropDataToActive(DistWorldSystem *system)
 {
-    system->unk_169C.ghostPropData = system->unk_169C.inactiveGhostPropData;
-    DistWorldGhostPropData_Reset(&system->unk_169C.inactiveGhostPropData);
+    system->mainArchive.ghostPropData = system->mainArchive.inactiveGhostPropData;
+    DistWorldGhostPropData_Reset(&system->mainArchive.inactiveGhostPropData);
 }
 
 static const DistWorldGhostPropHeader *GetActiveGhostPropHeader(DistWorldSystem *system)
 {
-    return system->unk_169C.ghostPropData.header;
+    return system->mainArchive.ghostPropData.header;
 }
 
 static const DistWorldGhostPropHeader *GetInactiveGhostPropHeader(DistWorldSystem *system)
 {
-    return system->unk_169C.inactiveGhostPropData.header;
+    return system->mainArchive.inactiveGhostPropData.header;
 }
 
 static const DistWorldGhostPropTemplate *GetActiveGhostPropTemplates(DistWorldSystem *system)
 {
-    return system->unk_169C.ghostPropData.templates;
+    return system->mainArchive.ghostPropData.templates;
 }
 
 static const DistWorldGhostPropTemplate *GetInactiveGhostPropTemplates(DistWorldSystem *system)
 {
-    return system->unk_169C.inactiveGhostPropData.templates;
+    return system->mainArchive.inactiveGhostPropData.templates;
 }
 
 static const DistWorldGhostPropTrigger *GetActiveGhostPropTriggers(DistWorldSystem *system)
 {
-    return system->unk_169C.ghostPropData.triggers;
+    return system->mainArchive.ghostPropData.triggers;
 }
 
-static void ov9_0224C8E8(DistWorldSystem *param0)
+static void InitialLoadInactiveFloor(DistWorldSystem *system)
 {
-    enum MapHeader mapHeaderID, v1;
-    UnkStruct_ov9_0224C8E8 *v2 = &param0->unk_1E88;
-    FieldSystem *fieldSystem = param0->fieldSystem;
-    const DistWorldMapConnections *v4, *v5;
+    DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
+    FieldSystem *fieldSystem = system->fieldSystem;
 
-    mapHeaderID = DistWorldSystem_GetMapHeaderID(param0);
-    v4 = GetConnectionsForMap(mapHeaderID);
-    v1 = v4->nextID;
+    enum MapHeaderID mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(mapHeaderID);
+    enum MapHeaderID nextMapHeaderID = mapConnections->nextID;
 
-    if (v1 == MAP_HEADER_INVALID) {
+    if (nextMapHeaderID == MAP_HEADER_INVALID) {
         return;
     }
 
-    v5 = GetConnectionsForMap(v1);
-    v2->unk_00 = v1;
+    const DistWorldMapConnections *nextMapConnections = GetConnectionsForMap(nextMapHeaderID);
+    inactiveFloor->mapHeaderID = nextMapHeaderID;
 
-    {
-        v2->unk_10 = MapMatrix_NewWithHeapID(4);
-        MapMatrix_Load(v1, v2->unk_10);
-    }
+    inactiveFloor->mapMatrix = MapMatrix_NewWithHeapID(HEAP_ID_FIELD1);
+    MapMatrix_Load(nextMapHeaderID, inactiveFloor->mapMatrix);
+    inactiveFloor->areaDataMan = fieldSystem->areaDataManager;
 
-    {
-        v2->unk_14 = fieldSystem->areaDataManager;
-    }
+    NARC *landDataNARC = LandDataManager_GetLandDataNARC(fieldSystem->landDataMan);
+    inactiveFloor->landDataMan = LandDataManager_DistortionWorldNew(inactiveFloor->mapMatrix, inactiveFloor->areaDataMan, landDataNARC);
+    LandDataManager_TrackTarget(PlayerAvatar_GetPos(fieldSystem->playerAvatar), inactiveFloor->landDataMan);
+    LandDataManager_SetInDistortionWorld(inactiveFloor->landDataMan, TRUE);
+    LandDataManager_SetSkipMapProps(inactiveFloor->landDataMan, TRUE);
 
-    {
-        NARC *v6 = LandDataManager_GetLandDataNARC(fieldSystem->landDataMan);
+    int offsetTileX;
+    int offsetAltitude;
+    int offsetTileZ;
 
-        v2->unk_18 = LandDataManager_DistortionWorldNew(v2->unk_10, v2->unk_14, v6);
-        LandDataManager_TrackTarget(PlayerAvatar_PosVector(fieldSystem->playerAvatar), v2->unk_18);
-    }
+    FindMapOffsets(system, nextMapHeaderID, &offsetTileX, &offsetAltitude, &offsetTileZ);
+    LandDataManager_DistortionWorldSetOffsets(inactiveFloor->landDataMan, offsetTileX, offsetAltitude, offsetTileZ);
 
-    {
-        LandDataManager_SetInDistortionWorld(v2->unk_18, 1);
-        LandDataManager_SetSkipMapProps(v2->unk_18, 1);
-    }
+    int playerPosX = PlayerAvatar_GetXPos(fieldSystem->playerAvatar);
+    int playerPosZ = PlayerAvatar_GetZPos(fieldSystem->playerAvatar);
 
-    {
-        int v7, v8, v9;
+    LandDataManager_DistortionWorldInitialLoad(inactiveFloor->landDataMan, playerPosX, playerPosZ);
+    inactiveFloor->ready = TRUE;
+    inactiveFloor->valid = TRUE;
 
-        ov9_0224C070(param0, v1, &v7, &v8, &v9);
-        LandDataManager_DistortionWorldSetOffsets(v2->unk_18, v7, v8, v9);
-    }
+    if (!IsPersistedDataValid(system)) {
+        MapObject *playerMapObj = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
+        VecFx32 mapOffset;
+        VecFx32 playerPos;
 
-    {
-        int v10 = Player_GetXPos(fieldSystem->playerAvatar);
-        int v11 = Player_GetZPos(fieldSystem->playerAvatar);
+        MapObject_GetPosPtr(playerMapObj, &playerPos);
+        LandDataManager_GetOffset(fieldSystem->landDataMan, &mapOffset);
 
-        LandDataManager_DistortionWorldInitialLoad(v2->unk_18, v10, v11);
-        v2->unk_08 = 1;
-    }
+        playerPos.y = mapOffset.y + MAP_OBJECT_TILE_SIZE;
 
-    v2->unk_04 = 1;
-
-    if (IsPersistedDataValid(param0) == 0) {
-        VecFx32 v12, v13;
-        MapObject *v14 = Player_MapObject(fieldSystem->playerAvatar);
-
-        MapObject_GetPosPtr(v14, &v13);
-        LandDataManager_GetOffset(fieldSystem->landDataMan, &v12);
-
-        v13.y = v12.y + ((1 << 4) * FX32_ONE);
-
-        MapObject_SetPos(v14, &v13);
-        MapObject_SetYPrev(v14, MapObject_GetY(v14));
-        MapObject_SetY(v14, (((v13.y) >> 3) / FX32_ONE));
+        MapObject_SetPos(playerMapObj, &playerPos);
+        MapObject_SetYPrev(playerMapObj, MapObject_GetY(playerMapObj));
+        MapObject_SetY(playerMapObj, (playerPos.y >> 3) / FX32_ONE);
     }
 }
 
-static void ov9_0224C9E8(DistWorldSystem *param0)
+static void FreeInactiveFloor(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224C8E8 *v0 = &param0->unk_1E88;
+    DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
 
-    if (v0->unk_04) {
-        LandDataManager_ForgetTrackedTarget(v0->unk_18);
-        LandDataManager_DistortionWorldEnd(v0->unk_18);
+    if (inactiveFloor->valid) {
+        LandDataManager_ForgetTrackedTarget(inactiveFloor->landDataMan);
+        LandDataManager_DistortionWorldEnd(inactiveFloor->landDataMan);
 
-        if (v0->unk_14 != NULL) {
-            v0->unk_14 = NULL;
+        if (inactiveFloor->areaDataMan != NULL) {
+            inactiveFloor->areaDataMan = NULL;
         }
 
-        if (v0->unk_18 != NULL) {
-            LandDataManager_DistortionWorldFreeLoadedMapBuffers(v0->unk_18);
-            v0->unk_18 = NULL;
+        if (inactiveFloor->landDataMan != NULL) {
+            LandDataManager_DistortionWorldFreeLoadedMapBuffers(inactiveFloor->landDataMan);
+            inactiveFloor->landDataMan = NULL;
         }
 
-        if (v0->unk_10 != NULL) {
-            MapMatrix_Free(v0->unk_10);
-            v0->unk_10 = NULL;
+        if (inactiveFloor->mapMatrix != NULL) {
+            MapMatrix_Free(inactiveFloor->mapMatrix);
+            inactiveFloor->mapMatrix = NULL;
         }
 
-        v0->unk_04 = 0;
+        inactiveFloor->valid = FALSE;
     }
 }
 
-static void ov9_0224CA30(DistWorldSystem *param0)
+static void RenderInactiveFloor(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224C8E8 *v0 = &param0->unk_1E88;
+    DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
 
-    if (v0->unk_08) {
-        LandDataManager_DistortionWorldRenderNextFloorMaps(v0->unk_18, param0->fieldSystem->areaModelAttrs);
+    if (inactiveFloor->ready) {
+        LandDataManager_DistortionWorldRenderInactiveFloor(inactiveFloor->landDataMan, system->fieldSystem->areaModelAttrs);
     }
 }
 
-void ov9_0224CA50(FieldSystem *fieldSystem)
+void DistWorld_RenderInactiveFloor(FieldSystem *fieldSystem)
 {
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    ov9_0224CA30(v0);
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
+    RenderInactiveFloor(dwSystem);
 }
 
-void ov9_0224CA5C(FieldSystem *fieldSystem)
+void DistWorld_TickInactiveFloor(FieldSystem *fieldSystem)
 {
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    UnkStruct_ov9_0224C8E8 *v1 = &v0->unk_1E88;
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
+    DistWorldInactiveFloor *inactiveFloor = &dwSystem->inactiveFloor;
+    DistWorldInactiveFloorLoader *inactiveFloorLoader = &dwSystem->inactiveFloorLoader;
 
-    {
-        UnkStruct_ov9_0224CA5C *v2 = &v0->unk_1CB0;
-
-        if (v2->unk_00 == 1) {
-            ov9_0224CB30(v0);
-        } else if (v2->unk_00 == 2) {
-            ov9_0224CA98(v0);
-        }
+    if (inactiveFloorLoader->loadDir == FLOOR_LOAD_PREVIOUS) {
+        LoadInactiveFloorPrevious(dwSystem);
+    } else if (inactiveFloorLoader->loadDir == FLOOR_LOAD_NEXT) {
+        LoadInactiveFloorNext(dwSystem);
     }
 
-    if (v1->unk_08 == 1) {
-        LandDataManager_DistortionWorldTick(fieldSystem, v1->unk_18);
+    if (inactiveFloor->ready == TRUE) {
+        LandDataManager_DistortionWorldTick(fieldSystem, inactiveFloor->landDataMan);
     }
 }
 
-static void ov9_0224CA98(DistWorldSystem *param0)
+static void LoadInactiveFloorNext(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224CA5C *v0 = &param0->unk_1CB0;
-    UnkStruct_ov9_0224C8E8 *v1 = &param0->unk_1E88;
+    DistWorldInactiveFloorLoader *inactiveFloorLoader = &system->inactiveFloorLoader;
+    DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
 
-    switch (v0->unk_01) {
+    switch (inactiveFloorLoader->state) {
     case 0:
-        LandDataManager_DistortionWorldInitLoadedMaps(v1->unk_18, v0->unk_04, v0->unk_08, v0->unk_0C);
-        v0->unk_01++;
+        LandDataManager_DistortionWorldInitLoadedMaps(inactiveFloor->landDataMan, inactiveFloorLoader->playerPosX, inactiveFloorLoader->playerPosZ, inactiveFloorLoader->mapMatrixIndexes);
+        inactiveFloorLoader->state++;
+
         break;
+
     case 1:
-        LandDataManager_DistortionWorldLoadAndInvalidate(v1->unk_18, v0->unk_02, v0->unk_0C[v0->unk_02]);
-        v0->unk_02++;
+        LandDataManager_DistortionWorldLoadAndInvalidate(inactiveFloor->landDataMan, inactiveFloorLoader->loadedMapsCount, inactiveFloorLoader->mapMatrixIndexes[inactiveFloorLoader->loadedMapsCount]);
+        inactiveFloorLoader->loadedMapsCount++;
 
-        if (v0->unk_02 >= 4) {
-            v0->unk_01++;
+        if (inactiveFloorLoader->loadedMapsCount >= QUADRANT_COUNT) {
+            inactiveFloorLoader->state++;
         }
+
         break;
+
     case 2:
-        LandDataManager_DistortionWorldUpdateTrackedTargetValues(v1->unk_18, v0->unk_04, v0->unk_08);
+        LandDataManager_DistortionWorldUpdateTrackedTargetValues(inactiveFloor->landDataMan, inactiveFloorLoader->playerPosX, inactiveFloorLoader->playerPosZ);
 
-        {
-            int v2 = 0;
-
-            do {
-                LandDataManager_SetLoadedMapValid(v1->unk_18, v2, 1);
-                v2++;
-            } while (v2 < 4);
+        for (int i = 0; i < QUADRANT_COUNT; i++) {
+            LandDataManager_SetLoadedMapValid(inactiveFloor->landDataMan, i, TRUE);
         }
 
-        ov9_02249B04(param0);
+        LoadNextFloorElements(system);
 
-        if (v0->unk_1C != NULL) {
-            ov9_0224E0DC(v0->unk_1C, 0);
+        if (inactiveFloorLoader->movingPlatformAnimator != NULL) {
+            DistWorldMovingPlatformPropAnimator_SetPreventDeletion(inactiveFloorLoader->movingPlatformAnimator, FALSE);
         }
 
-        v1->unk_08 = 1;
-        v0->unk_00 = 0;
+        inactiveFloor->ready = TRUE;
+        inactiveFloorLoader->loadDir = FLOOR_LOAD_NONE;
     }
 }
 
-static void ov9_0224CB30(DistWorldSystem *param0)
+static void LoadInactiveFloorPrevious(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224CA5C *v0 = &param0->unk_1CB0;
-    UnkStruct_ov9_0224C8E8 *v1 = &param0->unk_1E88;
-    FieldSystem *fieldSystem = param0->fieldSystem;
+    DistWorldInactiveFloorLoader *inactiveFloorLoader = &system->inactiveFloorLoader;
+    DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
+    FieldSystem *fieldSystem = system->fieldSystem;
 
-    switch (v0->unk_01) {
+    switch (inactiveFloorLoader->state) {
     case 0:
-        LandDataManager_DistortionWorldInvalidateLoadedMaps(fieldSystem->landDataMan, v0->unk_04, v0->unk_08, v0->unk_0C);
-        v0->unk_01++;
+        LandDataManager_DistortionWorldInvalidateLoadedMaps(fieldSystem->landDataMan, inactiveFloorLoader->playerPosX, inactiveFloorLoader->playerPosZ, inactiveFloorLoader->mapMatrixIndexes);
+        inactiveFloorLoader->state++;
+
         break;
+
     case 1:
-        LandDataManager_DistortionWorldLoadEntire(fieldSystem->landDataMan, v0->unk_02, v0->unk_0C[v0->unk_02]);
-        v0->unk_02++;
+        LandDataManager_DistortionWorldLoadEntire(fieldSystem->landDataMan, inactiveFloorLoader->loadedMapsCount, inactiveFloorLoader->mapMatrixIndexes[inactiveFloorLoader->loadedMapsCount]);
+        inactiveFloorLoader->loadedMapsCount++;
 
-        if (v0->unk_02 >= 4) {
-            v0->unk_01++;
+        if (inactiveFloorLoader->loadedMapsCount >= QUADRANT_COUNT) {
+            inactiveFloorLoader->state++;
         }
+
         break;
+
     case 2:
-        LandDataManager_DistortionWorldUpdateTrackedTargetValues(fieldSystem->landDataMan, v0->unk_04, v0->unk_08);
+        LandDataManager_DistortionWorldUpdateTrackedTargetValues(fieldSystem->landDataMan, inactiveFloorLoader->playerPosX, inactiveFloorLoader->playerPosZ);
 
-        {
-            int v3 = 0;
-
-            do {
-                LandDataManager_SetLoadedMapValid(fieldSystem->landDataMan, v3, 1);
-                v3++;
-            } while (v3 < 4);
+        for (int i = 0; i < QUADRANT_COUNT; i++) {
+            LandDataManager_SetLoadedMapValid(fieldSystem->landDataMan, i, TRUE);
         }
 
-        ov9_02249B68(param0);
+        LoadPreviousFloorElements(system);
 
-        if (v0->unk_1C != NULL) {
-            ov9_0224E0DC(v0->unk_1C, 0);
+        if (inactiveFloorLoader->movingPlatformAnimator != NULL) {
+            DistWorldMovingPlatformPropAnimator_SetPreventDeletion(inactiveFloorLoader->movingPlatformAnimator, FALSE);
         }
 
-        v0->unk_00 = 0;
+        inactiveFloorLoader->loadDir = FLOOR_LOAD_NONE;
     }
 }
 
-static int (*const Unk_ov9_022514E0[5])(DistWorldSystem *, UnkStruct_ov9_0224CBD8 *);
-static int (*const Unk_ov9_02251428[4])(DistWorldSystem *, UnkStruct_ov9_0224CBD8 *);
+static const FloorLoadHandler sLoadNextFloorHandlers[FLOOR_LOAD_NEXT_STATE_COUNT];
+static const FloorLoadHandler sLoadPreviousFloorHandlers[FLOOR_LOAD_PREVIOUS_STATE_COUNT];
 
-static void ov9_0224CBBC(LandDataManager *param0, BOOL param1)
+static void SetAllLoadedMapsValid(LandDataManager *landDataMan, BOOL valid)
 {
-    int v0 = 0;
+    int i = 0;
 
     do {
-        LandDataManager_SetLoadedMapValid(param0, v0++, param1);
-    } while (v0 < 4);
+        LandDataManager_SetLoadedMapValid(landDataMan, i++, valid);
+    } while (i < QUADRANT_COUNT);
 }
 
-static void ov9_0224CBD8(DistWorldSystem *param0)
+static void StartLoadFloorTask(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224CBD8 *v0 = &param0->unk_1CD0;
+    DistWorldFloorLoader *floorLoader = &system->floorLoader;
 
-    v0->unk_00 = 0;
-    v0->unk_2C = SysTask_Start(ov9_0224CC08, param0, 1);
+    floorLoader->loadDir = FLOOR_LOAD_NONE;
+    floorLoader->loadTask = SysTask_Start(Task_LoadFloor, system, 1);
 }
 
-static void ov9_0224CBF8(DistWorldSystem *param0)
+static void FinishLoadFloorTask(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224CBD8 *v0 = &param0->unk_1CD0;
-
-    SysTask_Done(v0->unk_2C);
+    DistWorldFloorLoader *floorLoader = &system->floorLoader;
+    SysTask_Done(floorLoader->loadTask);
 }
 
-static void ov9_0224CC08(SysTask *param0, void *param1)
+static void Task_LoadFloor(SysTask *sysTask, void *sysTaskParam)
 {
-    DistWorldSystem *v0 = param1;
-    UnkStruct_ov9_0224CBD8 *v1 = &v0->unk_1CD0;
+    DistWorldSystem *system = sysTaskParam;
+    DistWorldFloorLoader *floorLoader = &system->floorLoader;
+    FloorLoadHandler *floorLoadHandlers = NULL;
 
-    int (*const *v2)(DistWorldSystem *, UnkStruct_ov9_0224CBD8 *) = NULL;
-
-    if (v1->unk_00 == 2) {
-        v2 = Unk_ov9_022514E0;
-    } else if (v1->unk_00 == 1) {
-        v2 = Unk_ov9_02251428;
+    if (floorLoader->loadDir == FLOOR_LOAD_NEXT) {
+        floorLoadHandlers = sLoadNextFloorHandlers;
+    } else if (floorLoader->loadDir == FLOOR_LOAD_PREVIOUS) {
+        floorLoadHandlers = sLoadPreviousFloorHandlers;
     }
 
-    if (v2 != NULL) {
-        int v3;
+    if (floorLoadHandlers != NULL) {
+        int handlerRes;
 
         do {
-            v3 = v2[v1->unk_04](v0, v1);
-        } while (v3 == 1);
+            handlerRes = floorLoadHandlers[floorLoader->state](system, floorLoader);
+        } while (handlerRes == FLOOR_LOAD_HANDLER_RES_LOOP);
 
-        if (v3 == 2) {
-            v1->unk_00 = 0;
+        if (handlerRes == FLOOR_LOAD_HANDLER_RES_FINISH) {
+            floorLoader->loadDir = FLOOR_LOAD_NONE;
         }
     }
 }
 
-static void ov9_0224CC4C(DistWorldSystem *param0)
+static void Dummy0224CC4C(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224CBD8 *v0 = &param0->unk_1CD0;
 }
 
-static void ov9_0224CC50(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1, u32 param2)
+static void LoadFloor(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *movingPlatformAnimator, enum FloorLoadDirection loadDir)
 {
-    UnkStruct_ov9_0224CBD8 *v0 = &param0->unk_1CD0;
+    DistWorldFloorLoader *floorLoader = &system->floorLoader;
 
-    GF_ASSERT(v0->unk_00 == 0);
-    GF_ASSERT(param2 != 0);
+    GF_ASSERT(floorLoader->loadDir == FLOOR_LOAD_NONE);
+    GF_ASSERT(loadDir != FLOOR_LOAD_NONE);
 
-    v0->unk_00 = param2;
-    v0->unk_04 = 0;
-    v0->unk_06 = 0;
-    v0->unk_28 = param1;
+    floorLoader->loadDir = loadDir;
+    floorLoader->state = 0;
+    floorLoader->loadedMapsCount = 0;
+    floorLoader->movingPlatformAnimator = movingPlatformAnimator;
 }
 
-static BOOL ov9_0224CC7C(DistWorldSystem *param0)
+static BOOL IsFloorLoaderActive(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224CBD8 *v0 = &param0->unk_1CD0;
-
-    if (v0->unk_00 != 0) {
-        return 1;
-    }
-
-    return 0;
+    return system->floorLoader.loadDir != FLOOR_LOAD_NONE;
 }
 
-static int ov9_0224CC90(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
+static int FloorLoadNext_PrepareUnloadActive(DistWorldSystem *system, DistWorldFloorLoader *floorLoader)
 {
-    ov9_0224CBBC(param0->fieldSystem->landDataMan, 0);
-    ov9_02249BD4(param0, DistWorldSystem_GetMapHeaderID(param0));
+    SetAllLoadedMapsValid(system->fieldSystem->landDataMan, FALSE);
+    PrepareUnloadingActiveFloor(system, DistWorldSystem_GetMapHeaderID(system));
 
-    param1->unk_04 = 1;
-    return 0;
+    floorLoader->state = FLOOR_LOAD_NEXT_STATE_MOVE_INACTIVE_TO_ACTIVE;
+    return FLOOR_LOAD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224CCB8(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
+static int FloorLoadNext_MoveInactiveToActive(DistWorldSystem *system, DistWorldFloorLoader *floorLoader)
 {
-    FieldSystem *fieldSystem = param0->fieldSystem;
-    UnkStruct_ov9_0224C8E8 *v1 = &param0->unk_1E88;
-    const DistWorldMapConnections *v2 = GetConnectionsForMap(DistWorldSystem_GetMapHeaderID(param0));
-    GF_ASSERT(v2->nextID != MAP_HEADER_INVALID);
+    FieldSystem *fieldSystem = system->fieldSystem;
+    DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(DistWorldSystem_GetMapHeaderID(system));
+    GF_ASSERT(mapConnections->nextID != MAP_HEADER_INVALID);
 
-    v2 = GetConnectionsForMap(v2->nextID);
-    param1->unk_0C = v2->currID;
+    mapConnections = GetConnectionsForMap(mapConnections->nextID);
+    floorLoader->mapHeaderID = mapConnections->currID;
 
-    ov5_021D12D0(param0->fieldSystem, param1->unk_0C);
-    ov9_0224BF18(param0, v2->nextID);
+    FieldMap_ChangeZoneDistortionWorld(system->fieldSystem, floorLoader->mapHeaderID);
+    PrepareLoadingInactiveFloor(system, mapConnections->nextID);
     LandDataManager_DistortionWorldEndWithoutFreeing(fieldSystem->landDataMan);
 
-    param1->unk_08 = Player_GetXPos(fieldSystem->playerAvatar);
-    param1->unk_0A = Player_GetZPos(fieldSystem->playerAvatar);
+    floorLoader->playerPosX = PlayerAvatar_GetXPos(fieldSystem->playerAvatar);
+    floorLoader->playerPosZ = PlayerAvatar_GetZPos(fieldSystem->playerAvatar);
 
-    LandDataManager_DistortionWorldPrepareNextFloor(v1->unk_10, v1->unk_14, v1->unk_18, fieldSystem->landDataMan, param1->unk_08, param1->unk_0A);
-    v1->unk_08 = 0;
-    ov9_0224CBBC(v1->unk_18, 0);
+    LandDataManager_DistortionWorldPrepareNextFloor(inactiveFloor->mapMatrix, inactiveFloor->areaDataMan, inactiveFloor->landDataMan, fieldSystem->landDataMan, floorLoader->playerPosX, floorLoader->playerPosZ);
+    inactiveFloor->ready = FALSE;
+    SetAllLoadedMapsValid(inactiveFloor->landDataMan, FALSE);
 
-    MapMatrix_Free(v1->unk_10);
-    v1->unk_10 = NULL;
+    MapMatrix_Free(inactiveFloor->mapMatrix);
+    inactiveFloor->mapMatrix = NULL;
 
-    ov9_0224CBBC(param0->fieldSystem->landDataMan, 1);
-    v1->unk_00 = v2->nextID;
+    SetAllLoadedMapsValid(system->fieldSystem->landDataMan, TRUE);
+    inactiveFloor->mapHeaderID = mapConnections->nextID;
 
-    if (v1->unk_00 != MAP_HEADER_INVALID) {
-        v2 = GetConnectionsForMap(v2->nextID);
-        v1->unk_10 = MapMatrix_NewWithHeapID(4);
-        MapMatrix_Load(v2->currID, v1->unk_10);
-        param1->unk_04 = 2;
+    if (inactiveFloor->mapHeaderID != MAP_HEADER_INVALID) {
+        mapConnections = GetConnectionsForMap(mapConnections->nextID);
+        inactiveFloor->mapMatrix = MapMatrix_NewWithHeapID(HEAP_ID_FIELD1);
+        MapMatrix_Load(mapConnections->currID, inactiveFloor->mapMatrix);
+        floorLoader->state = FLOOR_LOAD_NEXT_STATE_PREPARE_LOAD_INACTIVE;
     } else {
-        param1->unk_04 = 4;
+        floorLoader->state = FLOOR_LOAD_NEXT_STATE_FINISH;
     }
 
-    return 0;
+    return FLOOR_LOAD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224CD84(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
+static int FloorLoadNext_PrepareLoadInactive(DistWorldSystem *system, DistWorldFloorLoader *floorLoader)
 {
-    if (param1->unk_20 == 0) {
-        int v0, v1, v2;
-        NARC *v3;
-        UnkStruct_ov9_0224C8E8 *v4 = &param0->unk_1E88;
+    if (!floorLoader->waitingToLoadInactive) {
+        DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
 
-        v3 = LandDataManager_GetLandDataNARC(param0->fieldSystem->landDataMan);
-        LandDataManager_DistortionWorldInit(v4->unk_18, v4->unk_10, v4->unk_14, v3);
+        NARC *landDataNARC = LandDataManager_GetLandDataNARC(system->fieldSystem->landDataMan);
+        LandDataManager_DistortionWorldInit(inactiveFloor->landDataMan, inactiveFloor->mapMatrix, inactiveFloor->areaDataMan, landDataNARC);
 
-        ov9_0224C070(param0, v4->unk_00, &v0, &v1, &v2);
-        LandDataManager_DistortionWorldSetOffsets(v4->unk_18, v0, v1, v2);
-        LandDataManager_SetInDistortionWorld(v4->unk_18, 1);
-        LandDataManager_SetSkipMapProps(v4->unk_18, 1);
-        LandDataManager_DistortionWorldInitLoadedMaps(v4->unk_18, param1->unk_08, param1->unk_0A, param1->unk_10);
+        int offsetTileX;
+        int offsetAltitude;
+        int offsetTileZ;
 
-        param1->unk_04 = 3;
-        return 1;
+        FindMapOffsets(system, inactiveFloor->mapHeaderID, &offsetTileX, &offsetAltitude, &offsetTileZ);
+        LandDataManager_DistortionWorldSetOffsets(inactiveFloor->landDataMan, offsetTileX, offsetAltitude, offsetTileZ);
+        LandDataManager_SetInDistortionWorld(inactiveFloor->landDataMan, TRUE);
+        LandDataManager_SetSkipMapProps(inactiveFloor->landDataMan, TRUE);
+        LandDataManager_DistortionWorldInitLoadedMaps(inactiveFloor->landDataMan, floorLoader->playerPosX, floorLoader->playerPosZ, floorLoader->mapMatrixIndexes);
+
+        floorLoader->state = FLOOR_LOAD_NEXT_STATE_LOAD_INACTIVE;
+        return FLOOR_LOAD_HANDLER_RES_LOOP;
     }
 
-    return 0;
+    return FLOOR_LOAD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224CE00(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
+static int FloorLoadNext_LoadInactive(DistWorldSystem *system, DistWorldFloorLoader *floorLoader)
 {
-    UnkStruct_ov9_0224C8E8 *v0 = &param0->unk_1E88;
+    DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
+    LandDataManager_DistortionWorldLoadAndInvalidate(inactiveFloor->landDataMan, floorLoader->loadedMapsCount, floorLoader->mapMatrixIndexes[floorLoader->loadedMapsCount]);
 
-    LandDataManager_DistortionWorldLoadAndInvalidate(v0->unk_18, param1->unk_06, param1->unk_10[param1->unk_06]);
+    floorLoader->loadedMapsCount++;
 
-    param1->unk_06++;
-
-    if (param1->unk_06 >= 4) {
-        param1->unk_04 = 4;
+    if (floorLoader->loadedMapsCount >= QUADRANT_COUNT) {
+        floorLoader->state = FLOOR_LOAD_NEXT_STATE_FINISH;
     }
 
-    return 0;
+    return FLOOR_LOAD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224CE2C(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
+static int FloorLoadNext_Finish(DistWorldSystem *system, DistWorldFloorLoader *floorLoader)
 {
-    const DistWorldMapConnections *v0;
-    UnkStruct_ov9_0224C8E8 *v1 = &param0->unk_1E88;
+    DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
 
-    if (v1->unk_00 != MAP_HEADER_INVALID) {
-        v1->unk_08 = 1;
-        ov9_0224CBBC(v1->unk_18, 1);
-        LandDataManager_DistortionWorldUpdateTrackedTargetValues(v1->unk_18, param1->unk_08, param1->unk_0A);
+    if (inactiveFloor->mapHeaderID != MAP_HEADER_INVALID) {
+        inactiveFloor->ready = TRUE;
+        SetAllLoadedMapsValid(inactiveFloor->landDataMan, TRUE);
+        LandDataManager_DistortionWorldUpdateTrackedTargetValues(inactiveFloor->landDataMan, floorLoader->playerPosX, floorLoader->playerPosZ);
     }
 
-    v0 = GetConnectionsForMap(param1->unk_0C);
-    ov9_02249C08(param0, v0->nextID);
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(floorLoader->mapHeaderID);
+    FinishLoadingInactiveFloor(system, mapConnections->nextID);
 
-    if (param1->unk_28 != NULL) {
-        ov9_0224E0DC(param1->unk_28, 0);
+    if (floorLoader->movingPlatformAnimator != NULL) {
+        DistWorldMovingPlatformPropAnimator_SetPreventDeletion(floorLoader->movingPlatformAnimator, FALSE);
     }
 
-    return 2;
+    return FLOOR_LOAD_HANDLER_RES_FINISH;
 }
 
-static int (*const Unk_ov9_022514E0[5])(DistWorldSystem *, UnkStruct_ov9_0224CBD8 *) = {
-    ov9_0224CC90,
-    ov9_0224CCB8,
-    ov9_0224CD84,
-    ov9_0224CE00,
-    ov9_0224CE2C
+static const FloorLoadHandler sLoadNextFloorHandlers[FLOOR_LOAD_NEXT_STATE_COUNT] = {
+    [FLOOR_LOAD_NEXT_STATE_PREPARE_UNLOAD_ACTIVE] = FloorLoadNext_PrepareUnloadActive,
+    [FLOOR_LOAD_NEXT_STATE_MOVE_INACTIVE_TO_ACTIVE] = FloorLoadNext_MoveInactiveToActive,
+    [FLOOR_LOAD_NEXT_STATE_PREPARE_LOAD_INACTIVE] = FloorLoadNext_PrepareLoadInactive,
+    [FLOOR_LOAD_NEXT_STATE_LOAD_INACTIVE] = FloorLoadNext_LoadInactive,
+    [FLOOR_LOAD_NEXT_STATE_FINISH] = FloorLoadNext_Finish
 };
 
-static int ov9_0224CE80(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
+static int FloorLoadPrevious_PrepareUnloadInactive(DistWorldSystem *system, DistWorldFloorLoader *floorLoader)
 {
-    const DistWorldMapConnections *v0;
-    UnkStruct_ov9_0224C8E8 *v1 = &param0->unk_1E88;
+    DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
+    inactiveFloor->ready = FALSE;
 
-    v1->unk_08 = 0;
-
-    if (v1->unk_04 == 1) {
-        ov9_0224CBBC(v1->unk_18, 0);
+    if (inactiveFloor->valid == TRUE) {
+        SetAllLoadedMapsValid(inactiveFloor->landDataMan, FALSE);
     }
 
-    v0 = GetConnectionsForMap(DistWorldSystem_GetMapHeaderID(param0));
-    ov9_02249C2C(param0, v0->nextID);
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(DistWorldSystem_GetMapHeaderID(system));
+    PrepareUnloadingInactiveFloor(system, mapConnections->nextID);
 
-    param1->unk_04 = 1;
-    return 0;
+    floorLoader->state = FLOOR_LOAD_PREVIOUS_STATE_PREPARE_LOAD_ACTIVE;
+    return FLOOR_LOAD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224CEBC(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
+static int FloorLoadPrevious_PrepareLoadActive(DistWorldSystem *system, DistWorldFloorLoader *floorLoader)
 {
-    FieldSystem *fieldSystem = param0->fieldSystem;
-    UnkStruct_ov9_0224C8E8 *v1 = &param0->unk_1E88;
-    const DistWorldMapConnections *v2 = GetConnectionsForMap(DistWorldSystem_GetMapHeaderID(param0));
-    GF_ASSERT(v2->prevID != MAP_HEADER_INVALID);
-    v2 = GetConnectionsForMap(v2->prevID);
+    FieldSystem *fieldSystem = system->fieldSystem;
+    DistWorldInactiveFloor *inactiveFloor = &system->inactiveFloor;
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(DistWorldSystem_GetMapHeaderID(system));
+    GF_ASSERT(mapConnections->prevID != MAP_HEADER_INVALID);
 
-    param1->unk_0C = v2->currID;
+    mapConnections = GetConnectionsForMap(mapConnections->prevID);
+    floorLoader->mapHeaderID = mapConnections->currID;
 
-    ov5_021D12D0(param0->fieldSystem, param1->unk_0C);
-    ov9_0224BEB4(param0, param1->unk_0C);
+    FieldMap_ChangeZoneDistortionWorld(system->fieldSystem, floorLoader->mapHeaderID);
+    PrepareLoadingActiveFloor(system, floorLoader->mapHeaderID);
 
-    if (v1->unk_10 == NULL) {
-        v1->unk_10 = MapMatrix_NewWithHeapID(4);
+    if (inactiveFloor->mapMatrix == NULL) {
+        inactiveFloor->mapMatrix = MapMatrix_NewWithHeapID(HEAP_ID_FIELD1);
     }
 
-    if (v1->unk_14 == NULL) {
-        v1->unk_14 = fieldSystem->areaDataManager;
+    if (inactiveFloor->areaDataMan == NULL) {
+        inactiveFloor->areaDataMan = fieldSystem->areaDataManager;
     }
 
-    if (v1->unk_04 == 0) {
-        NARC *v3 = LandDataManager_GetLandDataNARC(fieldSystem->landDataMan);
+    if (!inactiveFloor->valid) {
+        NARC *landDataNARC = LandDataManager_GetLandDataNARC(fieldSystem->landDataMan);
 
-        v1->unk_18 = LandDataManager_DistortionWorldNew(NULL, v1->unk_14, v3);
-        LandDataManager_DistortionWorldNewLoadedMapsWithoutAttributesAndModel(v1->unk_18);
+        inactiveFloor->landDataMan = LandDataManager_DistortionWorldNew(NULL, inactiveFloor->areaDataMan, landDataNARC);
+        LandDataManager_DistortionWorldNewLoadedMapsWithoutAttributesAndModel(inactiveFloor->landDataMan);
     }
 
-    if (v1->unk_04 == 1) {
-        LandDataManager_DistortionWorldInitLoadedMapPropManagers(v1->unk_18);
+    if (inactiveFloor->valid == TRUE) {
+        LandDataManager_DistortionWorldInitLoadedMapPropManagers(inactiveFloor->landDataMan);
     }
 
     LandDataManager_DistortionWorldInitLoadedMapPropManagers(fieldSystem->landDataMan);
-    LandDataManager_SetMapMatrix(v1->unk_18, v1->unk_10);
-    LandDataManager_DistortionWorldPreparePreviousFloor(v1->unk_18, fieldSystem->landDataMan);
+    LandDataManager_SetMapMatrix(inactiveFloor->landDataMan, inactiveFloor->mapMatrix);
+    LandDataManager_DistortionWorldPreparePreviousFloor(inactiveFloor->landDataMan, fieldSystem->landDataMan);
 
-    v1->unk_04 = 1;
-    v1->unk_08 = 1;
+    inactiveFloor->valid = TRUE;
+    inactiveFloor->ready = TRUE;
 
-    ov9_0224CBBC(v1->unk_18, 1);
-    ov9_0224CBBC(param0->fieldSystem->landDataMan, 0);
-    MapMatrix_Load(v2->currID, fieldSystem->mapMatrix);
+    SetAllLoadedMapsValid(inactiveFloor->landDataMan, TRUE);
+    SetAllLoadedMapsValid(system->fieldSystem->landDataMan, FALSE);
+    MapMatrix_Load(mapConnections->currID, fieldSystem->mapMatrix);
 
-    {
-        int v4 = 0, v5 = 0, v6 = 0;
+    int offsetTileX = 0;
+    int offsetAltitude = 0;
+    int offsetTileZ = 0;
 
-        LandDataManager_DistortionWorldInitWithoutNARC(fieldSystem->landDataMan, fieldSystem->mapMatrix, fieldSystem->areaDataManager);
-        ov9_02251094(v2->currID, &v4, &v5, &v6);
-        LandDataManager_DistortionWorldSetOffsets(fieldSystem->landDataMan, v4, v5, v6);
-        LandDataManager_SetInDistortionWorld(fieldSystem->landDataMan, 1);
-        LandDataManager_SetSkipMapProps(fieldSystem->landDataMan, 1);
+    LandDataManager_DistortionWorldInitWithoutNARC(fieldSystem->landDataMan, fieldSystem->mapMatrix, fieldSystem->areaDataManager);
+    DistWorld_LoadFloorOffsets(mapConnections->currID, &offsetTileX, &offsetAltitude, &offsetTileZ);
+    LandDataManager_DistortionWorldSetOffsets(fieldSystem->landDataMan, offsetTileX, offsetAltitude, offsetTileZ);
+    LandDataManager_SetInDistortionWorld(fieldSystem->landDataMan, TRUE);
+    LandDataManager_SetSkipMapProps(fieldSystem->landDataMan, TRUE);
 
-        param1->unk_08 = fieldSystem->location->x;
-        param1->unk_0A = fieldSystem->location->z;
+    floorLoader->playerPosX = fieldSystem->location->x;
+    floorLoader->playerPosZ = fieldSystem->location->z;
 
-        LandDataManager_DistortionWorldInvalidateLoadedMaps(fieldSystem->landDataMan, param1->unk_08, param1->unk_0A, param1->unk_10);
-    }
+    LandDataManager_DistortionWorldInvalidateLoadedMaps(fieldSystem->landDataMan, floorLoader->playerPosX, floorLoader->playerPosZ, floorLoader->mapMatrixIndexes);
 
-    param1->unk_04 = 2;
-    return 0;
+    floorLoader->state = FLOOR_LOAD_PREVIOUS_STATE_LOAD_ACTIVE;
+    return FLOOR_LOAD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224CFE0(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
+static int FloorLoadPrevious_LoadActive(DistWorldSystem *system, DistWorldFloorLoader *floorLoader)
 {
-    FieldSystem *fieldSystem = param0->fieldSystem;
+    FieldSystem *fieldSystem = system->fieldSystem;
+    LandDataManager_DistortionWorldLoadEntire(fieldSystem->landDataMan, floorLoader->loadedMapsCount, floorLoader->mapMatrixIndexes[floorLoader->loadedMapsCount]);
 
-    LandDataManager_DistortionWorldLoadEntire(fieldSystem->landDataMan, param1->unk_06, param1->unk_10[param1->unk_06]);
+    floorLoader->loadedMapsCount++;
 
-    param1->unk_06++;
-
-    if (param1->unk_06 >= 4) {
-        param1->unk_04 = 3;
+    if (floorLoader->loadedMapsCount >= QUADRANT_COUNT) {
+        floorLoader->state = FLOOR_LOAD_PREVIOUS_STATE_FINISH;
     }
 
-    return 0;
+    return FLOOR_LOAD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224D008(DistWorldSystem *param0, UnkStruct_ov9_0224CBD8 *param1)
+static int FloorLoadPrevious_Finish(DistWorldSystem *system, DistWorldFloorLoader *floorLoader)
 {
-    FieldSystem *fieldSystem = param0->fieldSystem;
+    FieldSystem *fieldSystem = system->fieldSystem;
 
-    LandDataManager_DistortionWorldUpdateTrackedTargetValues(fieldSystem->landDataMan, param1->unk_08, param1->unk_0A);
-    ov9_02249C60(param0, param1->unk_0C);
+    LandDataManager_DistortionWorldUpdateTrackedTargetValues(fieldSystem->landDataMan, floorLoader->playerPosX, floorLoader->playerPosZ);
+    FinishLoadingActiveFloor(system, floorLoader->mapHeaderID);
 
-    if (param1->unk_28 != NULL) {
-        ov9_0224E0DC(param1->unk_28, 0);
+    if (floorLoader->movingPlatformAnimator != NULL) {
+        DistWorldMovingPlatformPropAnimator_SetPreventDeletion(floorLoader->movingPlatformAnimator, FALSE);
     }
 
-    ov9_0224CBBC(param0->fieldSystem->landDataMan, 1);
-
-    return 2;
+    SetAllLoadedMapsValid(system->fieldSystem->landDataMan, TRUE);
+    return FLOOR_LOAD_HANDLER_RES_FINISH;
 }
 
-static int (*const Unk_ov9_02251428[4])(DistWorldSystem *, UnkStruct_ov9_0224CBD8 *) = {
-    ov9_0224CE80,
-    ov9_0224CEBC,
-    ov9_0224CFE0,
-    ov9_0224D008
+static const FloorLoadHandler sLoadPreviousFloorHandlers[FLOOR_LOAD_PREVIOUS_STATE_COUNT] = {
+    [FLOOR_LOAD_PREVIOUS_STATE_PREPARE_UNLOAD_INACTIVE] = FloorLoadPrevious_PrepareUnloadInactive,
+    [FLOOR_LOAD_PREVIOUS_STATE_PREPARE_LOAD_ACTIVE] = FloorLoadPrevious_PrepareLoadActive,
+    [FLOOR_LOAD_PREVIOUS_STATE_LOAD_ACTIVE] = FloorLoadPrevious_LoadActive,
+    [FLOOR_LOAD_PREVIOUS_STATE_FINISH] = FloorLoadPrevious_Finish
 };
 
-static BOOL ov9_0224D040(DistWorldSystem *param0, int param1, int param2, int param3)
+static BOOL HandleElevatorPlatformPropAnimatorAt(DistWorldSystem *system, int playerX, int playerY, int playerZ)
 {
-    UnkStruct_ov9_0224E0DC *v0 = ov9_0224E188(param0, param1, param2, param3, DistWorldSystem_GetMapHeaderID(param0));
+    DistWorldMovingPlatformPropAnimator *animator = FindMovingPlatformPropAnimatorAt(system, playerX, playerY, playerZ, DistWorldSystem_GetMapHeaderID(system));
 
-    if (v0 == NULL) {
-        return 0;
+    if (animator == NULL) {
+        return FALSE;
     }
 
-    if ((v0->unk_04.unk_0A == 1) || (v0->unk_04.unk_0A == 0)) {
-        ov9_0224D078(param0, v0);
-        return 1;
+    if (animator->template.elevatorDir == MOVING_PLATFORM_ELEVATOR_DIR_DOWN || animator->template.elevatorDir == MOVING_PLATFORM_ELEVATOR_DIR_UP) {
+        CreateElevatorPlatformHandlerTask(system, animator);
+        return TRUE;
     }
 
-    return 0;
+    return FALSE;
 }
 
-static int (*const Unk_ov9_02252224[8])(DistWorldSystem *, UnkStruct_ov9_0224D078 *);
+static const ElevatorPlatformHandler sElevatorPlatformHandlers[ELEVATOR_PLATFORM_STATE_COUNT];
 
-static void ov9_0224D078(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1)
+static void CreateElevatorPlatformHandlerTask(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator)
 {
-    UnkStruct_ov9_0224D078 *v0 = InitFieldTaskContext(param0, sizeof(UnkStruct_ov9_0224D078));
-    v0->unk_64 = param1;
+    DistWorldElevatorPlatform *elevatorPlatform = InitFieldTaskContext(system, sizeof(DistWorldElevatorPlatform));
+    elevatorPlatform->animator = animator;
 
-    FieldSystem_CreateTask(param0->fieldSystem, ov9_0224D098, param0);
+    FieldSystem_CreateTask(system->fieldSystem, CallElevatorPlatformHandler, system);
 }
 
-static BOOL ov9_0224D098(FieldTask *param0)
+static BOOL CallElevatorPlatformHandler(FieldTask *task)
 {
-    int v0;
-    DistWorldSystem *v1 = FieldTask_GetEnv(param0);
-    UnkStruct_ov9_0224D078 *v2 = GetFieldTaskContext(v1);
+    int handlerRes;
+    DistWorldSystem *system = FieldTask_GetEnv(task);
+    DistWorldElevatorPlatform *elevatorPlatform = GetFieldTaskContext(system);
 
     do {
-        v0 = Unk_ov9_02252224[v2->unk_04](v1, v2);
-    } while (v0 == 1);
+        handlerRes = sElevatorPlatformHandlers[elevatorPlatform->state](system, elevatorPlatform);
+    } while (handlerRes == ELEVATOR_PLATFORM_HANDLER_RES_LOOP);
 
-    if (v0 == 2) {
-        return 1;
-    }
-
-    return 0;
+    return handlerRes == ELEVATOR_PLATFORM_HANDLER_RES_FINISH;
 }
 
-static int ov9_0224D0C8(DistWorldSystem *param0, UnkStruct_ov9_0224D078 *param1)
+static int DistWorldElevatorPlatform_BeginMovement(DistWorldSystem *system, DistWorldElevatorPlatform *elevatorPlatform)
 {
-    u32 v0;
-    MapObject *v1;
-    const DistWorldMapConnections *v2;
-    const UnkStruct_ov9_02253830 *v3;
+    elevatorPlatform->dir = elevatorPlatform->animator->template.elevatorDir;
+    elevatorPlatform->pathIndex = elevatorPlatform->animator->template.elevatorPathIndex;
 
-    param1->unk_00 = param1->unk_64->unk_04.unk_0A;
-    param1->unk_02 = param1->unk_64->unk_04.unk_08;
+    u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(mapHeaderID);
 
-    v0 = DistWorldSystem_GetMapHeaderID(param0);
-    v2 = GetConnectionsForMap(v0);
+    if (elevatorPlatform->dir == MOVING_PLATFORM_ELEVATOR_DIR_DOWN) {
+        elevatorPlatform->destMapHeaderID = mapConnections->nextID;
 
-    if (param1->unk_00 == 1) {
-        param1->unk_06 = v2->nextID;
+        VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+        u16 distWorldProgress = SystemVars_GetDistortionWorldProgress(varsFlags);
 
-        {
-            VarsFlags *v4 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
-            u16 v5 = SystemVars_GetDistortionWorldProgress(v4);
-
-            if ((v0 == 573) && (v5 == 2)) {
-                param1->unk_68 = MapObjMan_LocalMapObjByIndex(param0->fieldSystem->mapObjMan, (0x80 + 1));
-                GF_ASSERT(param1->unk_68 != NULL);
-            } else if ((v0 == 580) && (v5 == 7)) {
-                param1->unk_68 = MapObjMan_LocalMapObjByIndex(param0->fieldSystem->mapObjMan, (0x80 + 6));
-                GF_ASSERT(param1->unk_68 != NULL);
-            }
+        if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_1F && distWorldProgress == DIST_WORLD_PROGRESS_JUMPED_ON_1F_ELEVATOR) {
+            elevatorPlatform->passengerMapObj = MapObjMan_LocalMapObjByIndex(system->fieldSystem->mapObjMan, DIST_WORLD_MAP_OBJECT_1F_CYNTHIA_ELEVATOR);
+            GF_ASSERT(elevatorPlatform->passengerMapObj != NULL);
+        } else if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_B6F && distWorldProgress == DIST_WORLD_PROGRESS_FINISHED_BOULDER_PUZZLE) {
+            elevatorPlatform->passengerMapObj = MapObjMan_LocalMapObjByIndex(system->fieldSystem->mapObjMan, DIST_WORLD_MAP_OBJECT_B6F_CYNTHIA);
+            GF_ASSERT(elevatorPlatform->passengerMapObj != NULL);
         }
     } else {
-        param1->unk_06 = v2->prevID;
+        elevatorPlatform->destMapHeaderID = mapConnections->prevID;
 
-        switch (param0, param1->unk_02) {
+        switch (elevatorPlatform->pathIndex) {
         case 13:
-            ov9_02249D70(param0, 3);
-            ov9_02249D8C(param0, 4);
+            SetPersistedMovingPlatformFlag(system, DIST_WORLD_PLATFORM_FLAG_B4F_1);
+            ClearPersistedMovingPlatformFlag(system, DIST_WORLD_PLATFORM_FLAG_B4F_2);
             break;
+
         case 10:
-            ov9_02249D8C(param0, 5);
+            ClearPersistedMovingPlatformFlag(system, DIST_WORLD_PLATFORM_FLAG_B5F_3);
             break;
+
         case 11:
-            ov9_02249D70(param0, 6);
-            ov9_02249D8C(param0, 3);
-            ov9_02249D8C(param0, 5);
+            SetPersistedMovingPlatformFlag(system, DIST_WORLD_PLATFORM_FLAG_B3F_2);
+            ClearPersistedMovingPlatformFlag(system, DIST_WORLD_PLATFORM_FLAG_B4F_1);
+            ClearPersistedMovingPlatformFlag(system, DIST_WORLD_PLATFORM_FLAG_B5F_3);
             break;
         }
     }
 
-    v3 = ov9_0224DE70(param1->unk_02);
-    v1 = Player_MapObject(param0->fieldSystem->playerAvatar);
+    const DistWorldElevatorPlatformPath *elevatorPath = GetMovingPlatformElevatorPath(elevatorPlatform->pathIndex);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
 
-    MapObject_GetPosPtr(v1, &param1->unk_14);
-    MapObject_SetHeightCalculationDisabled(v1, TRUE);
+    MapObject_GetPosPtr(playerMapObj, &elevatorPlatform->playerPos);
+    MapObject_SetHeightCalculationDisabled(playerMapObj, TRUE);
 
-    param1->unk_44.x = 0;
-    param1->unk_44.y = 0;
-    param1->unk_44.z = 0;
-    param1->unk_0A = MapObject_GetX(v1);
-    param1->unk_0A += v3->unk_04;
-    param1->unk_0C = MapObject_GetY(v1);
-    param1->unk_0C += ((v3->unk_06) * 2);
-    param1->unk_0E = MapObject_GetZ(v1);
-    param1->unk_0E += v3->unk_08;
-    param1->unk_2C.x = (((v3->unk_04) << 4) * FX32_ONE);
-    param1->unk_2C.y = (((v3->unk_06) << 4) * FX32_ONE);
-    param1->unk_2C.z = (((v3->unk_08) << 4) * FX32_ONE);
-    param1->unk_38.x = (((v3->unk_0A) << 4) * FX32_ONE);
-    param1->unk_38.y = (((v3->unk_0C) << 4) * FX32_ONE);
-    param1->unk_38.z = (((v3->unk_0E) << 4) * FX32_ONE);
-    param1->unk_20 = v3->unk_10;
-    param1->unk_08 = v3->unk_02;
+    elevatorPlatform->currPosOffset.x = 0;
+    elevatorPlatform->currPosOffset.y = 0;
+    elevatorPlatform->currPosOffset.z = 0;
+    elevatorPlatform->finalPlayerTileX = MapObject_GetX(playerMapObj);
+    elevatorPlatform->finalPlayerTileX += elevatorPath->finalTileXOffset;
+    elevatorPlatform->finalPlayerTileY = MapObject_GetY(playerMapObj);
+    elevatorPlatform->finalPlayerTileY += elevatorPath->finalTileYOffset * 2;
+    elevatorPlatform->finalPlayerTileZ = MapObject_GetZ(playerMapObj);
+    elevatorPlatform->finalPlayerTileZ += elevatorPath->finalTileZOffset;
+    elevatorPlatform->finalPosOffset.x = (elevatorPath->finalTileXOffset << 4) * FX32_ONE;
+    elevatorPlatform->finalPosOffset.y = (elevatorPath->finalTileYOffset << 4) * FX32_ONE;
+    elevatorPlatform->finalPosOffset.z = (elevatorPath->finalTileZOffset << 4) * FX32_ONE;
+    elevatorPlatform->changeMapsPosOffset.x = (elevatorPath->changeMapsTileXOffset << 4) * FX32_ONE;
+    elevatorPlatform->changeMapsPosOffset.y = (elevatorPath->changeMapsTileYOffset << 4) * FX32_ONE;
+    elevatorPlatform->changeMapsPosOffset.z = (elevatorPath->changeMapsTileZOffset << 4) * FX32_ONE;
+    elevatorPlatform->posDelta = elevatorPath->posDelta;
+    elevatorPlatform->nextPathIndex = elevatorPath->nextIndex;
 
-    if (param1->unk_01 == 0) {
-        VecFx32 v6, *v7;
+    if (!elevatorPlatform->vibrationAnimDone) {
+        VecFx32 spritePosOffset;
 
-        param1->unk_5C = (FX32_ONE * 6);
-        sub_0206309C(v1, &v6);
-        param1->unk_50 = v6.y;
+        elevatorPlatform->vibrationYDelta = ELEVATOR_PLATFORM_VIBRATION_Y_DELTA;
+        MapObject_GetSpritePosOffset(playerMapObj, &spritePosOffset);
+        elevatorPlatform->initialPlayerY = spritePosOffset.y;
 
-        if (param1->unk_68 != NULL) {
-            sub_0206309C(param1->unk_68, &v6);
-            param1->unk_54 = v6.y;
+        if (elevatorPlatform->passengerMapObj != NULL) {
+            MapObject_GetSpritePosOffset(elevatorPlatform->passengerMapObj, &spritePosOffset);
+            elevatorPlatform->initialPassengerY = spritePosOffset.y;
         }
 
-        v7 = ov9_0224E330(param1->unk_64->unk_20);
+        VecFx32 *elevatorPlatformPos = GetMovingPlatformPropPos(elevatorPlatform->animator->animMan);
+        elevatorPlatform->initialPlatformY = elevatorPlatformPos->y;
 
-        param1->unk_58 = v7->y;
-        param1->unk_01 = 1;
-        param1->unk_04 = 1;
+        elevatorPlatform->vibrationAnimDone = TRUE;
+        elevatorPlatform->state = ELEVATOR_PLATFORM_STATE_VIBRATE;
 
-        Sound_PlayEffect(SEQ_SE_PL_FW089);
+        Sound_PlayEffect(SEQ_SE_PL_FW089_sseq);
     } else {
-        param1->unk_04 = 2;
+        elevatorPlatform->state = ELEVATOR_PLATFORM_STATE_MOVE_FIRST_HALF;
     }
 
-    param1->unk_10 = v3->unk_1C;
-    param1->unk_12 = v3->unk_1E;
+    elevatorPlatform->persistedFlagToSet = elevatorPath->persistedFlagToSet;
+    elevatorPlatform->persistedFlagToClear = elevatorPath->persistedFlagToClear;
 
-    return 0;
+    return ELEVATOR_PLATFORM_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224D288(DistWorldSystem *param0, UnkStruct_ov9_0224D078 *param1)
+static int DistWorldElevatorPlatform_Vibrate(DistWorldSystem *system, DistWorldElevatorPlatform *elevatorPlatform)
 {
-    VecFx32 v0;
-    PlayerAvatar *playerAvatar = param0->fieldSystem->playerAvatar;
-    MapObject *v2 = Player_MapObject(playerAvatar);
-    VecFx32 *v3 = ov9_0224E330(param1->unk_64->unk_20);
+    PlayerAvatar *playerAvatar = system->fieldSystem->playerAvatar;
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(playerAvatar);
+    VecFx32 *elevatorPlatformPos = GetMovingPlatformPropPos(elevatorPlatform->animator->animMan);
 
-    sub_0206309C(v2, &v0);
+    VecFx32 spritePosOffset;
+    MapObject_GetSpritePosOffset(playerMapObj, &spritePosOffset);
 
-    v0.y = param1->unk_50 + param1->unk_5C;
+    spritePosOffset.y = elevatorPlatform->initialPlayerY + elevatorPlatform->vibrationYDelta;
 
-    sub_020630AC(v2, &v0);
-    ov9_022511F4(v2, &param1->unk_14);
+    MapObject_SetSpritePosOffset(playerMapObj, &spritePosOffset);
+    SetMapObjectPos(playerMapObj, &elevatorPlatform->playerPos);
 
-    if (param1->unk_68 != NULL) {
-        VecFx32 v4;
+    if (elevatorPlatform->passengerMapObj != NULL) {
+        MapObject_GetSpritePosOffset(elevatorPlatform->passengerMapObj, &spritePosOffset);
+        spritePosOffset.y = elevatorPlatform->initialPassengerY + elevatorPlatform->vibrationYDelta;
+        MapObject_SetSpritePosOffset(elevatorPlatform->passengerMapObj, &spritePosOffset);
 
-        sub_0206309C(param1->unk_68, &v0);
-        v0.y = param1->unk_54 + param1->unk_5C;
-        sub_020630AC(param1->unk_68, &v0);
+        VecFx32 passengerPos;
 
-        MapObject_GetPosPtr(param1->unk_68, &v4);
-        v4.y = param1->unk_14.y;
-        ov9_022511F4(param1->unk_68, &v4);
+        MapObject_GetPosPtr(elevatorPlatform->passengerMapObj, &passengerPos);
+        passengerPos.y = elevatorPlatform->playerPos.y;
+        SetMapObjectPos(elevatorPlatform->passengerMapObj, &passengerPos);
     }
 
-    v3->y = param1->unk_58 + param1->unk_5C;
-    param1->unk_5C = -param1->unk_5C;
+    elevatorPlatformPos->y = elevatorPlatform->initialPlatformY + elevatorPlatform->vibrationYDelta;
+    elevatorPlatform->vibrationYDelta = -elevatorPlatform->vibrationYDelta;
 
-    if (param1->unk_5C >= 0) {
-        if (param1->unk_5C >= (FX32_ONE * 4)) {
-            param1->unk_5C -= (FX32_ONE * 2);
-        } else if (param1->unk_5C > (FX32_ONE * 1)) {
-            param1->unk_5C -= (FX32_ONE * 1);
+    if (elevatorPlatform->vibrationYDelta >= 0) {
+        if (elevatorPlatform->vibrationYDelta >= FX32_ONE * 4) {
+            elevatorPlatform->vibrationYDelta -= FX32_ONE * 2;
+        } else if (elevatorPlatform->vibrationYDelta > FX32_ONE * 1) {
+            elevatorPlatform->vibrationYDelta -= FX32_ONE * 1;
         } else {
-            param1->unk_60++;
+            elevatorPlatform->vibrationAnimStep++;
 
-            if (param1->unk_60 >= 8) {
-                param1->unk_5C -= (FX32_ONE * 1);
+            if (elevatorPlatform->vibrationAnimStep >= 8) {
+                elevatorPlatform->vibrationYDelta -= FX32_ONE * 1;
             }
         }
 
-        if (param1->unk_5C <= 0) {
-            sub_0206309C(v2, &v0);
-            v0.y = param1->unk_50;
-            sub_020630AC(v2, &v0);
+        if (elevatorPlatform->vibrationYDelta <= 0) {
+            MapObject_GetSpritePosOffset(playerMapObj, &spritePosOffset);
+            spritePosOffset.y = elevatorPlatform->initialPlayerY;
+            MapObject_SetSpritePosOffset(playerMapObj, &spritePosOffset);
 
-            if (param1->unk_68 != NULL) {
-                sub_0206309C(param1->unk_68, &v0);
-                v0.y = param1->unk_54;
-                sub_020630AC(param1->unk_68, &v0);
+            if (elevatorPlatform->passengerMapObj != NULL) {
+                MapObject_GetSpritePosOffset(elevatorPlatform->passengerMapObj, &spritePosOffset);
+                spritePosOffset.y = elevatorPlatform->initialPassengerY;
+                MapObject_SetSpritePosOffset(elevatorPlatform->passengerMapObj, &spritePosOffset);
             }
 
-            v3->y = param1->unk_58;
-            param1->unk_04 = 2;
+            elevatorPlatformPos->y = elevatorPlatform->initialPlatformY;
+            elevatorPlatform->state = ELEVATOR_PLATFORM_STATE_MOVE_FIRST_HALF;
         }
     }
 
-    return 0;
+    return ELEVATOR_PLATFORM_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224D374(DistWorldSystem *param0, UnkStruct_ov9_0224D078 *param1)
+static int DistWorldElevatorPlatform_MoveFirstHalf(DistWorldSystem *system, DistWorldElevatorPlatform *elevatorPlatform)
 {
-    int v0;
-    PlayerAvatar *playerAvatar = param0->fieldSystem->playerAvatar;
-    MapObject *v2 = Player_MapObject(playerAvatar);
-    VecFx32 *v3 = ov9_0224E330(param1->unk_64->unk_20);
+    PlayerAvatar *playerAvatar = system->fieldSystem->playerAvatar;
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(playerAvatar);
+    VecFx32 *elevatorPlatformPos = GetMovingPlatformPropPos(elevatorPlatform->animator->animMan);
 
-    if (param1->unk_44.x != param1->unk_2C.x) {
-        param1->unk_44.x += param1->unk_20.x;
-        param1->unk_14.x += param1->unk_20.x;
-        v3->x += param1->unk_20.x;
+    if (elevatorPlatform->currPosOffset.x != elevatorPlatform->finalPosOffset.x) {
+        elevatorPlatform->currPosOffset.x += elevatorPlatform->posDelta.x;
+        elevatorPlatform->playerPos.x += elevatorPlatform->posDelta.x;
+        elevatorPlatformPos->x += elevatorPlatform->posDelta.x;
     }
 
-    if (param1->unk_44.y != param1->unk_2C.y) {
-        param1->unk_44.y += param1->unk_20.y;
-        param1->unk_14.y += param1->unk_20.y;
-        v3->y += param1->unk_20.y;
+    if (elevatorPlatform->currPosOffset.y != elevatorPlatform->finalPosOffset.y) {
+        elevatorPlatform->currPosOffset.y += elevatorPlatform->posDelta.y;
+        elevatorPlatform->playerPos.y += elevatorPlatform->posDelta.y;
+        elevatorPlatformPos->y += elevatorPlatform->posDelta.y;
     }
 
-    if (param1->unk_44.z != param1->unk_2C.z) {
-        param1->unk_44.z += param1->unk_20.z;
-        param1->unk_14.z += param1->unk_20.z;
-        v3->z += param1->unk_20.z;
+    if (elevatorPlatform->currPosOffset.z != elevatorPlatform->finalPosOffset.z) {
+        elevatorPlatform->currPosOffset.z += elevatorPlatform->posDelta.z;
+        elevatorPlatform->playerPos.z += elevatorPlatform->posDelta.z;
+        elevatorPlatformPos->z += elevatorPlatform->posDelta.z;
     }
 
-    ov9_022511F4(v2, &param1->unk_14);
+    SetMapObjectPos(playerMapObj, &elevatorPlatform->playerPos);
 
-    if (param1->unk_68 != NULL) {
-        VecFx32 v4;
+    if (elevatorPlatform->passengerMapObj != NULL) {
+        VecFx32 passengerPos;
 
-        MapObject_GetPosPtr(param1->unk_68, &v4);
-        v4.y = param1->unk_14.y;
-        ov9_022511F4(param1->unk_68, &v4);
+        MapObject_GetPosPtr(elevatorPlatform->passengerMapObj, &passengerPos);
+        passengerPos.y = elevatorPlatform->playerPos.y;
+        SetMapObjectPos(elevatorPlatform->passengerMapObj, &passengerPos);
     }
 
-    if ((param1->unk_44.x == param1->unk_38.x) && (param1->unk_44.y == param1->unk_38.y) && (param1->unk_44.z == param1->unk_38.z)) {
-        param1->unk_04 = 3;
-        return 1;
+    if (elevatorPlatform->currPosOffset.x == elevatorPlatform->changeMapsPosOffset.x && elevatorPlatform->currPosOffset.y == elevatorPlatform->changeMapsPosOffset.y && elevatorPlatform->currPosOffset.z == elevatorPlatform->changeMapsPosOffset.z) {
+        elevatorPlatform->state = ELEVATOR_PLATFORM_STATE_CHANGE_MAPS;
+        return ELEVATOR_PLATFORM_HANDLER_RES_LOOP;
     }
 
-    return 0;
+    return ELEVATOR_PLATFORM_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224D430(DistWorldSystem *param0, UnkStruct_ov9_0224D078 *param1)
+static int DistWorldElevatorPlatform_ChangeMaps(DistWorldSystem *system, DistWorldElevatorPlatform *elevatorPlatform)
 {
-    ov9_0224E0DC(param1->unk_64, 1);
+    DistWorldMovingPlatformPropAnimator_SetPreventDeletion(elevatorPlatform->animator, TRUE);
 
-    if (param1->unk_08 == 22) {
-        if (param1->unk_10 != 11) {
-            ov9_02249D70(param0, param1->unk_10);
+    if (elevatorPlatform->nextPathIndex == ELEVATOR_PLATFORM_PATH_INVALID) {
+        if (elevatorPlatform->persistedFlagToSet != DIST_WORLD_PLATFORM_FLAG_INVALID) {
+            SetPersistedMovingPlatformFlag(system, elevatorPlatform->persistedFlagToSet);
         }
 
-        if (param1->unk_12 != 11) {
-            ov9_02249D8C(param0, param1->unk_12);
+        if (elevatorPlatform->persistedFlagToClear != DIST_WORLD_PLATFORM_FLAG_INVALID) {
+            ClearPersistedMovingPlatformFlag(system, elevatorPlatform->persistedFlagToClear);
         }
 
-        ov9_0224E07C(param0, param1->unk_64, param1->unk_06);
+        DistWorldMovingPlatformPropAnimator_ChangeMaps(system, elevatorPlatform->animator, elevatorPlatform->destMapHeaderID);
     }
 
-    if (param1->unk_68 != NULL) {
-        if (param1->unk_06 == 574) {
-            MapObject_SetLocalID(param1->unk_68, (0x80 + 0));
+    if (elevatorPlatform->passengerMapObj != NULL) {
+        if (elevatorPlatform->destMapHeaderID == MAP_HEADER_DISTORTION_WORLD_B1F) {
+            MapObject_SetLocalID(elevatorPlatform->passengerMapObj, DIST_WORLD_MAP_OBJECT_B1F_CYNTHIA_ELEVATOR);
         } else {
-            MapObject_SetLocalID(param1->unk_68, (0x80 + 0));
-            MapObject_SetScript(param1->unk_68, 6);
+            MapObject_SetLocalID(elevatorPlatform->passengerMapObj, DIST_WORLD_MAP_OBJECT_B7F_CYNTHIA);
+            MapObject_SetScript(elevatorPlatform->passengerMapObj, 6);
         }
 
-        sub_02062914(param1->unk_68, param1->unk_06);
+        MapObject_SetMapHeaderID(elevatorPlatform->passengerMapObj, elevatorPlatform->destMapHeaderID);
     }
 
-    if (param1->unk_00 == 1) {
-        ov9_0224CC50(param0, param1->unk_64, 2);
-    } else if (param1->unk_00 == 0) {
-        ov9_0224CC50(param0, param1->unk_64, 1);
+    if (elevatorPlatform->dir == MOVING_PLATFORM_ELEVATOR_DIR_DOWN) {
+        LoadFloor(system, elevatorPlatform->animator, FLOOR_LOAD_NEXT);
+    } else if (elevatorPlatform->dir == MOVING_PLATFORM_ELEVATOR_DIR_UP) {
+        LoadFloor(system, elevatorPlatform->animator, FLOOR_LOAD_PREVIOUS);
     } else {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
     }
 
-    param1->unk_04 = 4;
-    return 0;
+    elevatorPlatform->state = ELEVATOR_PLATFORM_STATE_MOVE_SECOND_HALF;
+    return ELEVATOR_PLATFORM_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224D4C4(DistWorldSystem *param0, UnkStruct_ov9_0224D078 *param1)
+static int DistWorldElevatorPlatform_MoveSecondHalf(DistWorldSystem *system, DistWorldElevatorPlatform *elevatorPlatform)
 {
-    int v0;
-    PlayerAvatar *playerAvatar = param0->fieldSystem->playerAvatar;
-    MapObject *v2 = Player_MapObject(playerAvatar);
-    VecFx32 *v3 = ov9_0224E330(param1->unk_64->unk_20);
+    PlayerAvatar *playerAvatar = system->fieldSystem->playerAvatar;
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(playerAvatar);
+    VecFx32 *elevatorPlatformPos = GetMovingPlatformPropPos(elevatorPlatform->animator->animMan);
 
-    if (param1->unk_44.x != param1->unk_2C.x) {
-        param1->unk_44.x += param1->unk_20.x;
-        param1->unk_14.x += param1->unk_20.x;
-        v3->x += param1->unk_20.x;
+    if (elevatorPlatform->currPosOffset.x != elevatorPlatform->finalPosOffset.x) {
+        elevatorPlatform->currPosOffset.x += elevatorPlatform->posDelta.x;
+        elevatorPlatform->playerPos.x += elevatorPlatform->posDelta.x;
+        elevatorPlatformPos->x += elevatorPlatform->posDelta.x;
     }
 
-    if (param1->unk_44.y != param1->unk_2C.y) {
-        param1->unk_44.y += param1->unk_20.y;
-        param1->unk_14.y += param1->unk_20.y;
-        v3->y += param1->unk_20.y;
+    if (elevatorPlatform->currPosOffset.y != elevatorPlatform->finalPosOffset.y) {
+        elevatorPlatform->currPosOffset.y += elevatorPlatform->posDelta.y;
+        elevatorPlatform->playerPos.y += elevatorPlatform->posDelta.y;
+        elevatorPlatformPos->y += elevatorPlatform->posDelta.y;
     }
 
-    if (param1->unk_44.z != param1->unk_2C.z) {
-        param1->unk_44.z += param1->unk_20.z;
-        param1->unk_14.z += param1->unk_20.z;
-        v3->z += param1->unk_20.z;
+    if (elevatorPlatform->currPosOffset.z != elevatorPlatform->finalPosOffset.z) {
+        elevatorPlatform->currPosOffset.z += elevatorPlatform->posDelta.z;
+        elevatorPlatform->playerPos.z += elevatorPlatform->posDelta.z;
+        elevatorPlatformPos->z += elevatorPlatform->posDelta.z;
     }
 
-    ov9_022511F4(v2, &param1->unk_14);
+    SetMapObjectPos(playerMapObj, &elevatorPlatform->playerPos);
 
-    if (param1->unk_68 != NULL) {
-        VecFx32 v4;
+    if (elevatorPlatform->passengerMapObj != NULL) {
+        VecFx32 passengerPos;
 
-        MapObject_GetPosPtr(param1->unk_68, &v4);
-        v4.y = param1->unk_14.y;
-        ov9_022511F4(param1->unk_68, &v4);
+        MapObject_GetPosPtr(elevatorPlatform->passengerMapObj, &passengerPos);
+        passengerPos.y = elevatorPlatform->playerPos.y;
+        SetMapObjectPos(elevatorPlatform->passengerMapObj, &passengerPos);
     }
 
-    if ((param1->unk_44.x == param1->unk_2C.x) && (param1->unk_44.y == param1->unk_2C.y) && (param1->unk_44.z == param1->unk_2C.z)) {
-        if (param1->unk_08 == 22) {
-            Sound_StopEffect(1481, 0);
-            param1->unk_04 = 5;
+    if (elevatorPlatform->currPosOffset.x == elevatorPlatform->finalPosOffset.x && elevatorPlatform->currPosOffset.y == elevatorPlatform->finalPosOffset.y && elevatorPlatform->currPosOffset.z == elevatorPlatform->finalPosOffset.z) {
+        if (elevatorPlatform->nextPathIndex == ELEVATOR_PLATFORM_PATH_INVALID) {
+            Sound_StopEffect(SEQ_SE_PL_FW089_sseq, 0);
+            elevatorPlatform->state = ELEVATOR_PLATFORM_STATE_END;
         } else {
-            MapObject *v5 = Player_MapObject(param0->fieldSystem->playerAvatar);
+            MapObject *playerMapObj2 = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
 
-            MapObject_SetX(v5, param1->unk_0A);
-            MapObject_SetY(v5, param1->unk_0C);
-            MapObject_SetZ(v5, param1->unk_0E);
-            MapObject_UpdateCoords(v5);
+            MapObject_SetX(playerMapObj2, elevatorPlatform->finalPlayerTileX);
+            MapObject_SetY(playerMapObj2, elevatorPlatform->finalPlayerTileY);
+            MapObject_SetZ(playerMapObj2, elevatorPlatform->finalPlayerTileZ);
+            MapObject_UpdateCoords(playerMapObj2);
 
-            if (param1->unk_68 != NULL) {
-                MapObject_SetY(param1->unk_68, param1->unk_0C);
-                MapObject_UpdateCoords(param1->unk_68);
+            if (elevatorPlatform->passengerMapObj != NULL) {
+                MapObject_SetY(elevatorPlatform->passengerMapObj, elevatorPlatform->finalPlayerTileY);
+                MapObject_UpdateCoords(elevatorPlatform->passengerMapObj);
             }
 
-            {
-                UnkStruct_ov9_0224E0DC *v6 = param1->unk_64;
+            DistWorldMovingPlatformPropAnimator *animator = elevatorPlatform->animator;
+            animator->template.elevatorPathIndex = elevatorPlatform->nextPathIndex;
+            MapObject_SetDataAt(animator->mapObj, animator->template.elevatorPathIndex, MOVING_PLATFORM_MAP_OBJ_DATA_EVELATOR_PATH_INDEX);
 
-                v6->unk_04.unk_08 = param1->unk_08;
-                MapObject_SetDataAt(v6->unk_1C, v6->unk_04.unk_08, 2);
-            }
-
-            param1->unk_04 = 0;
+            elevatorPlatform->state = ELEVATOR_PLATFORM_STATE_INIT;
         }
 
-        return 1;
+        return ELEVATOR_PLATFORM_HANDLER_RES_LOOP;
     }
 
-    return 0;
+    return ELEVATOR_PLATFORM_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224D5E8(DistWorldSystem *param0, UnkStruct_ov9_0224D078 *param1)
+static int DistWorldElevatorPlatform_EndMovement(DistWorldSystem *system, DistWorldElevatorPlatform *elevatorPlatform)
 {
-    if (ov9_0224CC7C(param0) == 0) {
-        MapObject *v0 = Player_MapObject(param0->fieldSystem->playerAvatar);
+    if (!IsFloorLoaderActive(system)) {
+        MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
 
-        MapObject_SetX(v0, param1->unk_0A);
-        MapObject_SetY(v0, param1->unk_0C);
-        MapObject_SetZ(v0, param1->unk_0E);
-        MapObject_UpdateCoords(v0);
-        PlayerAvatar_SetHeightCalculationEnabledAndUpdate(param0->fieldSystem->playerAvatar, TRUE);
+        MapObject_SetX(playerMapObj, elevatorPlatform->finalPlayerTileX);
+        MapObject_SetY(playerMapObj, elevatorPlatform->finalPlayerTileY);
+        MapObject_SetZ(playerMapObj, elevatorPlatform->finalPlayerTileZ);
+        MapObject_UpdateCoords(playerMapObj);
+        PlayerAvatar_SetHeightCalculationEnabledAndUpdate(system->fieldSystem->playerAvatar, TRUE);
 
-        if (param1->unk_68 != NULL) {
-            MapObject_SetY(param1->unk_68, param1->unk_0C);
-            MapObject_UpdateCoords(param1->unk_68);
+        if (elevatorPlatform->passengerMapObj != NULL) {
+            MapObject_SetY(elevatorPlatform->passengerMapObj, elevatorPlatform->finalPlayerTileY);
+            MapObject_UpdateCoords(elevatorPlatform->passengerMapObj);
         }
 
-        if (param1->unk_00 == 1) {
-            switch (param1->unk_02) {
+        if (elevatorPlatform->dir == MOVING_PLATFORM_ELEVATOR_DIR_DOWN) {
+            switch (elevatorPlatform->pathIndex) {
             case 9:
-                ov9_02249D70(param0, 7);
-                ov9_0224DDA0(param0, 579, 0);
+                SetPersistedMovingPlatformFlag(system, DIST_WORLD_PLATFORM_FLAG_B5F_1);
+                InitSpecificMovingPlatformPropForMap(system, MAP_HEADER_DISTORTION_WORLD_B5F, 0);
                 break;
             }
         }
 
-        if ((param1->unk_06 == 577) && (param1->unk_00 == 1) && (param1->unk_64->unk_04.unk_00 == 1)) {
-            VarsFlags *v1 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
+        if (elevatorPlatform->destMapHeaderID == MAP_HEADER_DISTORTION_WORLD_B4F && elevatorPlatform->dir == MOVING_PLATFORM_ELEVATOR_DIR_DOWN && elevatorPlatform->animator->template.index == 1) {
+            VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
 
-            if (SystemVars_GetDistortionWorldCyrusApperanceState(v1) == 0) {
-                param1->unk_04 = 6;
-                return 1;
+            if (SystemVars_GetDistortionWorldCyrusApperanceState(varsFlags) == 0) {
+                elevatorPlatform->state = ELEVATOR_PLATFORM_STATE_CYRUS_B4F_START_ANIMATION;
+                return ELEVATOR_PLATFORM_HANDLER_RES_LOOP;
             }
         }
 
-        return 2;
+        return ELEVATOR_PLATFORM_HANDLER_RES_FINISH;
     }
 
-    return 0;
+    return ELEVATOR_PLATFORM_HANDLER_RES_CONTINUE;
 }
 
-static const MapObjectAnimCmd Unk_ov9_02251378[] = {
-    { 0xf, 0x2 },
-    { 0xC, 0x4 },
-    { 0xfe, 0x0 }
+static const MapObjectAnimCmd sCyrusB4FLeftmostAnimCmds[] = {
+    { .movementAction = MOVEMENT_ACTION_WALK_NORMAL_EAST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_NORMAL_NORTH, .count = 4 },
+    { .movementAction = MOVEMENT_ACTION_END, .count = 0 }
 };
 
-static const MapObjectAnimCmd Unk_ov9_0225136C[] = {
-    { 0xf, 0x1 },
-    { 0xC, 0x4 },
-    { 0xfe, 0x0 }
+static const MapObjectAnimCmd sCyrusB4FMiddleAnimCmds[] = {
+    { .movementAction = MOVEMENT_ACTION_WALK_NORMAL_EAST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_NORMAL_NORTH, .count = 4 },
+    { .movementAction = MOVEMENT_ACTION_END, .count = 0 }
 };
 
-static const MapObjectAnimCmd Unk_ov9_02251350[] = {
-    { 0xC, 0x4 },
-    { 0xfe, 0x0 }
+static const MapObjectAnimCmd sCyrusB4FRightmostAnimCmds[] = {
+    { .movementAction = MOVEMENT_ACTION_WALK_NORMAL_NORTH, .count = 4 },
+    { .movementAction = MOVEMENT_ACTION_END, .count = 0 }
 };
 
-static const MapObjectAnimCmd *const Unk_ov9_02251384[3] = {
-    Unk_ov9_02251378,
-    Unk_ov9_0225136C,
-    Unk_ov9_02251350
+static const MapObjectAnimCmd *const sCyrusB4FAnimCmds[3] = {
+    sCyrusB4FLeftmostAnimCmds,
+    sCyrusB4FMiddleAnimCmds,
+    sCyrusB4FRightmostAnimCmds
 };
 
-static int ov9_0224D69C(DistWorldSystem *param0, UnkStruct_ov9_0224D078 *param1)
+static int DistWorldElevatorPlatform_CyrusB4FStartAnimation(DistWorldSystem *system, DistWorldElevatorPlatform *elevatorPlatform)
 {
-    int v0;
-    MapObject *v1;
-    const MapObjectAnimCmd *v2;
+    int cyrusTileX;
 
-    v1 = MapObjMan_LocalMapObjByIndex(param0->fieldSystem->mapObjMan, (0x80 + 6));
-    GF_ASSERT(v1 != NULL);
+    MapObject *cyrusMapObj = MapObjMan_LocalMapObjByIndex(system->fieldSystem->mapObjMan, DIST_WORLD_MAP_OBJECT_B4F_CYRUS);
+    GF_ASSERT(cyrusMapObj != NULL);
 
-    v0 = MapObject_GetX(v1);
-    GF_ASSERT((u32)(v0 - 88) < 3);
+    cyrusTileX = MapObject_GetX(cyrusMapObj);
+    GF_ASSERT((u32)(cyrusTileX - 88) < 3);
 
-    v2 = Unk_ov9_02251384[v0 - 88];
-    param1->unk_6C = MapObject_StartAnimation(v1, v2);
-    param1->unk_04 = 7;
+    const MapObjectAnimCmd *animCmds = sCyrusB4FAnimCmds[cyrusTileX - 88];
+    elevatorPlatform->passengerAnimTask = MapObject_StartAnimation(cyrusMapObj, animCmds);
+    elevatorPlatform->state = ELEVATOR_PLATFORM_STATE_CYRUS_B4F_END_ANIMATION;
 
-    return 0;
+    return ELEVATOR_PLATFORM_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224D6E0(DistWorldSystem *param0, UnkStruct_ov9_0224D078 *param1)
+static int DistWorldElevatorPlatform_CyrusB4FEndAnimation(DistWorldSystem *system, DistWorldElevatorPlatform *elevatorPlatform)
 {
-    if (MapObject_HasAnimationEnded(param1->unk_6C) == 1) {
-        VarsFlags *v0;
-        MapObject *v1;
+    if (MapObject_HasAnimationEnded(elevatorPlatform->passengerAnimTask) == TRUE) {
+        MapObject_FinishAnimation(elevatorPlatform->passengerAnimTask);
+        MapObject *cyrusMapObj = MapObjMan_LocalMapObjByIndex(system->fieldSystem->mapObjMan, DIST_WORLD_MAP_OBJECT_B4F_CYRUS);
 
-        MapObject_FinishAnimation(param1->unk_6C);
-        v1 = MapObjMan_LocalMapObjByIndex(param0->fieldSystem->mapObjMan, (0x80 + 6));
+        DeleteMapObject(system, cyrusMapObj);
+        VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
 
-        ov9_0224EE70(param0, v1);
-        v0 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
-
-        SystemVars_SetDistortionWorldCyrusApperanceState(v0, 1);
-        return 2;
+        SystemVars_SetDistortionWorldCyrusApperanceState(varsFlags, 1);
+        return ELEVATOR_PLATFORM_HANDLER_RES_FINISH;
     }
 
-    return 0;
+    return ELEVATOR_PLATFORM_HANDLER_RES_CONTINUE;
 }
 
-static int (*const Unk_ov9_02252224[8])(DistWorldSystem *, UnkStruct_ov9_0224D078 *) = {
-    ov9_0224D0C8,
-    ov9_0224D288,
-    ov9_0224D374,
-    ov9_0224D430,
-    ov9_0224D4C4,
-    ov9_0224D5E8,
-    ov9_0224D69C,
-    ov9_0224D6E0
+static const ElevatorPlatformHandler sElevatorPlatformHandlers[ELEVATOR_PLATFORM_STATE_COUNT] = {
+    [ELEVATOR_PLATFORM_STATE_INIT] = DistWorldElevatorPlatform_BeginMovement,
+    [ELEVATOR_PLATFORM_STATE_VIBRATE] = DistWorldElevatorPlatform_Vibrate,
+    [ELEVATOR_PLATFORM_STATE_MOVE_FIRST_HALF] = DistWorldElevatorPlatform_MoveFirstHalf,
+    [ELEVATOR_PLATFORM_STATE_CHANGE_MAPS] = DistWorldElevatorPlatform_ChangeMaps,
+    [ELEVATOR_PLATFORM_STATE_MOVE_SECOND_HALF] = DistWorldElevatorPlatform_MoveSecondHalf,
+    [ELEVATOR_PLATFORM_STATE_END] = DistWorldElevatorPlatform_EndMovement,
+    [ELEVATOR_PLATFORM_STATE_CYRUS_B4F_START_ANIMATION] = DistWorldElevatorPlatform_CyrusB4FStartAnimation,
+    [ELEVATOR_PLATFORM_STATE_CYRUS_B4F_END_ANIMATION] = DistWorldElevatorPlatform_CyrusB4FEndAnimation
 };
 
 static const DistWorldMapConnections *GetConnectionsForMap(int mapHeaderID)
@@ -6844,7 +6957,7 @@ static const DistWorldMapConnections *GetConnectionsForMap(int mapHeaderID)
         iter++;
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -6869,7 +6982,7 @@ static void LoadProp3DModel(DistWorldSystem *system, u32 propKind)
 
     if (renderBuffs->models[propKind].propKind == PROP_KIND_INVALID) {
         renderBuffs->models[propKind].propKind = propKind;
-        ov5_021DFB00(system->fieldSystem->unk_40, &renderBuffs->models[propKind].model, 0, sProp3DModelNARCIndexByKind[propKind], TRUE);
+        FieldEffectManager_LoadModel(system->fieldSystem->fieldEffMan, &renderBuffs->models[propKind].model, 0, sProp3DModelNARCIndexByKind[propKind], TRUE);
     }
 }
 
@@ -6901,10 +7014,10 @@ static void LoadPropAnimSet(DistWorldSystem *system, u32 animKind)
 
     if (renderBuffs->animSets[animKind].animKind == PROP_ANIM_KIND_INVALID) {
         u32 narcIndex = sPropAnimSetNARCIndexByKind[animKind];
-        u32 animSetSize = ov5_021DF5A8(system->fieldSystem->unk_40, narcIndex);
+        u32 animSetSize = FieldEffectManager_GetNARCMemberSize(system->fieldSystem->fieldEffMan, narcIndex);
 
         renderBuffs->animSets[animKind].animSet = Heap_AllocAtEnd(HEAP_ID_FIELD1, animSetSize);
-        ov5_021DF5B4(system->fieldSystem->unk_40, narcIndex, renderBuffs->animSets[animKind].animSet);
+        FieldEffectManager_ReadNARCWholeMember(system->fieldSystem->fieldEffMan, narcIndex, renderBuffs->animSets[animKind].animSet);
         renderBuffs->animSets[animKind].animKind = animKind;
     }
 }
@@ -6943,7 +7056,7 @@ static DistWorldPropRenderer *DistWorldPropRenderer_Init(DistWorldSystem *system
         }
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -7056,22 +7169,22 @@ static BOOL DistWorldPropAnimInfo_IsStatic(int propKind)
     return animInfo->isStatic == TRUE;
 }
 
-static void ov9_0224DB1C(DistWorldSystem *system)
+static void FreeUnusedPropRenderers(DistWorldSystem *system)
 {
     for (int i = 0; i < PROP_KIND_COUNT; i++) {
-        if (!HasActivePropAnimManager(system, i) && !ov9_0224E160(system, i) && !ov9_0224E9F4(system, i) && !ov9_0224ECC0(system, i)) {
+        if (!HasActiveGhostProp(system, i) && !HasActiveMovingPlatformProp(system, i) && !IsGiratinaShadowPropRendererValid(system, i) && !HasActiveSimpleProp(system, i)) {
             InvalidateAllPropRenderersOfKind(system, i);
         }
     }
 
     for (int i = 0; i < PROP_KIND_COUNT; i++) {
-        if (!ov9_0224B7B0(system, i) && !ov9_0224E0E0(system, i) && !ov9_0224E9A4(system, i) && !ov9_0224ECE8(system, i)) {
+        if (!HasActiveGhostProp2(system, i) && !HasActiveMovingPlatformProp2(system, i) && !IsGiratinaShadowPropRendererValid2(system, i) && !HasActiveSimpleProp2(system, i)) {
             FreeProp3DModel(system, i);
         }
     }
 
     for (int i = 0; i < PROP_ANIM_KIND_COUNT; i++) {
-        if (!ov9_0224B844(system, i) && !ov9_0224E120(system, i) && !ov9_0224E9CC(system, i) && !ov9_0224ED20(system, i)) {
+        if (!HasActiveGhostPropAnim(system, i) && !HasActiveMovingPlatformPropAnim(system, i) && !IsGiratinaShadowPropRendererAnimValid(system, i) && !HasActiveSimplePropAnim(system, i)) {
             FreePropAnimSet(system, i);
         }
     }
@@ -7094,354 +7207,317 @@ static BOOL IsPropInView(DistWorldSystem *system, int propKind, VecFx32 *pos)
     return GFXBoxTest_IsModelInView(propModel->g3DModel, pos, &identityMtx, scale) ? TRUE : FALSE;
 }
 
-static void ov9_0224DC34(DistWorldSystem *param0)
+static void ResetMovingPlatformManager(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224DC34 *v0 = &param0->unk_1734;
-    memset(v0, 0, sizeof(UnkStruct_ov9_0224DC34));
+    DistWorldMovingPlatformPropManager *movingPlatformPropMan = &system->movingPlatformPropMan;
+    memset(movingPlatformPropMan, 0, sizeof(DistWorldMovingPlatformPropManager));
 }
 
-static void ov9_0224DC4C(DistWorldSystem *param0)
+static void FinishAllMovingPlatformPropAnimators(DistWorldSystem *system)
 {
-    int v0;
-    UnkStruct_ov9_0224DC34 *v1 = &param0->unk_1734;
+    DistWorldMovingPlatformPropManager *movingPlatformPropMan = &system->movingPlatformPropMan;
 
-    for (v0 = 0; v0 < 32; v0++) {
-        if (v1->unk_00[v0].unk_00) {
-            ov9_0224E044(param0, &v1->unk_00[v0]);
+    for (int i = 0; i < MOVING_PLATFORM_MANAGER_ANIMATOR_COUNT; i++) {
+        if (movingPlatformPropMan->animators[i].valid) {
+            DistWorldMovingPlatformPropAnimator_Finish(system, &movingPlatformPropMan->animators[i]);
         }
     }
 }
 
-static void ov9_0224DC74(DistWorldSystem *param0, u32 param1)
+static void FinishMovingPlatformPropAnimatorForMap(DistWorldSystem *system, u32 mapHeaderID)
 {
-    int v0;
-    UnkStruct_ov9_0224DC34 *v1 = &param0->unk_1734;
+    DistWorldMovingPlatformPropManager *movingPlatformPropMan = &system->movingPlatformPropMan;
 
-    for (v0 = 0; v0 < 32; v0++) {
-        if (v1->unk_00[v0].unk_00) {
-            if (v1->unk_00[v0].unk_02 == param1) {
-                if (v1->unk_00[v0].unk_01 == 0) {
-                    ov9_0224E060(param0, &v1->unk_00[v0]);
-                } else {
-                    (void)0;
-                }
-            }
+    for (int i = 0; i < MOVING_PLATFORM_MANAGER_ANIMATOR_COUNT; i++) {
+        if (movingPlatformPropMan->animators[i].valid && movingPlatformPropMan->animators[i].mapHeaderID == mapHeaderID && !movingPlatformPropMan->animators[i].preventDeletion) {
+            DistWorldMovingPlatformPropAnimator_FinishAndDeleteMapObject(system, &movingPlatformPropMan->animators[i]);
         }
     }
 }
 
-static void ov9_0224DCA8(DistWorldSystem *param0)
+static void InitMovingPlatformPropsForCurrentAndNextMaps(DistWorldSystem *system)
 {
-    if (IsPersistedDataValid(param0) == 1) {
-        int v0 = 0;
-        UnkStruct_ov9_0224E0DC *v1;
-        MapObject *v2;
-        MapObjectManager *v3 = param0->fieldSystem->mapObjMan;
+    if (IsPersistedDataValid(system) == TRUE) {
+        int startIdx = 0;
+        DistWorldMovingPlatformPropAnimator *animator;
+        MapObject *mapObj;
+        MapObjectManager *mapObjMan = system->fieldSystem->mapObjMan;
 
-        while (MapObjectMan_FindObjectWithStatus(v3, &v2, &v0, (1 << 0)) == 1) {
-            if (MapObject_GetLocalID(v2) == 0xfd) {
-                v1 = ov9_0224DDDC(param0);
-                ov9_0224DF10(param0, v1, v2);
+        while (MapObjectMan_FindObjectWithStatus(mapObjMan, &mapObj, &startIdx, MAP_OBJ_STATUS_0) == TRUE) {
+            if (MapObject_GetLocalID(mapObj) == 0xFD) {
+                animator = FindUnusedMovingPlatformPropAnimator(system);
+                DistWorldMovingPlatformPropAnimator_InitFromMapObject(system, animator, mapObj);
             }
         }
     } else {
-        u32 v4 = DistWorldSystem_GetMapHeaderID(param0);
-        const DistWorldMapConnections *v5 = GetConnectionsForMap(v4);
+        u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+        const DistWorldMapConnections *mapConnections = GetConnectionsForMap(mapHeaderID);
 
-        ov9_0224DD24(param0, v4);
-        ov9_0224DD24(param0, v5->nextID);
+        InitMovingPlatformPropsForMap(system, mapHeaderID);
+        InitMovingPlatformPropsForMap(system, mapConnections->nextID);
     }
 }
 
-static void ov9_0224DD24(DistWorldSystem *param0, u32 param1)
+static void InitMovingPlatformPropsForMap(DistWorldSystem *system, u32 mapHeaderID)
 {
-    const UnkStruct_ov9_02252C38 *v0 = ov9_0224DE40(param1);
+    const DistWorldMovingPlatformMapTemplates *mapTemplates = GetMovingPlatformsTemplatesForMap(mapHeaderID);
 
-    if (v0 != NULL) {
-        ov9_0224DD40(param0, v0, param1);
+    if (mapTemplates != NULL) {
+        InitMovingPlatformPropsForMapEx(system, mapTemplates, mapHeaderID);
     }
 }
 
-static void ov9_0224DD40(DistWorldSystem *param0, const UnkStruct_ov9_02252C38 *param1, u32 param2)
+static void InitMovingPlatformPropsForMapEx(DistWorldSystem *system, const DistWorldMovingPlatformMapTemplates *mapTemplates, u32 mapHeaderID)
 {
-    u32 v0;
-    int v1 = 0;
-    UnkStruct_ov9_0224E0DC *v2;
+    int i = 0;
+    GF_ASSERT(mapTemplates != NULL);
 
-    GF_ASSERT(param1 != NULL);
+    while (mapTemplates->templates[i] != NULL) {
+        u32 persistedFlag = mapTemplates->templates[i]->persistedFlag;
 
-    while (param1->unk_04[v1] != NULL) {
-        v0 = param1->unk_04[v1]->unk_14;
-
-        if ((v0 == 11) || (ov9_02249DA8(param0, v0) == 1)) {
-            if (ov9_0224DE08(param0, param1->unk_04[v1]->unk_00, param2) == NULL) {
-                v2 = ov9_0224DDDC(param0);
-                ov9_0224DFF4(param0, v2, param1->unk_04[v1], param2);
-            } else {
-                (void)0;
-            }
+        if ((persistedFlag == DIST_WORLD_PLATFORM_FLAG_INVALID || CheckPersistedMovingPlatformFlag(system, persistedFlag) == TRUE) && GetAnimatorForMovingPlatform(system, mapTemplates->templates[i]->index, mapHeaderID) == NULL) {
+            DistWorldMovingPlatformPropAnimator *animator = FindUnusedMovingPlatformPropAnimator(system);
+            DistWorldMovingPlatformPropAnimator_InitFromTemplate(system, animator, mapTemplates->templates[i], mapHeaderID);
         }
 
-        v1++;
+        i++;
     }
 }
 
-static void ov9_0224DDA0(DistWorldSystem *param0, u32 param1, int param2)
+static void InitSpecificMovingPlatformPropForMap(DistWorldSystem *system, u32 mapHeaderID, int index)
 {
-    const UnkStruct_ov9_02252C38 *v0 = ov9_0224DE40(param1);
+    const DistWorldMovingPlatformMapTemplates *mapTemplates = GetMovingPlatformsTemplatesForMap(mapHeaderID);
 
-    if (ov9_0224DE08(param0, v0->unk_04[param2]->unk_00, param1) == NULL) {
-        UnkStruct_ov9_0224E0DC *v1;
-
-        v1 = ov9_0224DDDC(param0);
-        ov9_0224DFF4(param0, v1, v0->unk_04[param2], param1);
+    if (GetAnimatorForMovingPlatform(system, mapTemplates->templates[index]->index, mapHeaderID) == NULL) {
+        DistWorldMovingPlatformPropAnimator *animator = FindUnusedMovingPlatformPropAnimator(system);
+        DistWorldMovingPlatformPropAnimator_InitFromTemplate(system, animator, mapTemplates->templates[index], mapHeaderID);
     }
 }
 
-static UnkStruct_ov9_0224E0DC *ov9_0224DDDC(DistWorldSystem *param0)
+static DistWorldMovingPlatformPropAnimator *FindUnusedMovingPlatformPropAnimator(DistWorldSystem *system)
 {
-    int v0 = 0;
-    UnkStruct_ov9_0224DC34 *v1 = &param0->unk_1734;
+    int i = 0;
+    DistWorldMovingPlatformPropManager *movingPlatformPropMan = &system->movingPlatformPropMan;
 
-    while (v0 < 32) {
-        if (v1->unk_00[v0].unk_00 == 0) {
-            return &v1->unk_00[v0];
+    while (i < MOVING_PLATFORM_MANAGER_ANIMATOR_COUNT) {
+        if (movingPlatformPropMan->animators[i].valid == FALSE) {
+            return &movingPlatformPropMan->animators[i];
         }
 
-        v0++;
+        i++;
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
-static UnkStruct_ov9_0224E0DC *ov9_0224DE08(DistWorldSystem *param0, u32 param1, u32 param2)
+static DistWorldMovingPlatformPropAnimator *GetAnimatorForMovingPlatform(DistWorldSystem *system, u32 index, u32 mapHeaderID)
 {
-    int v0 = 0;
-    UnkStruct_ov9_0224DC34 *v1 = &param0->unk_1734;
+    int i = 0;
+    DistWorldMovingPlatformPropManager *movingPlatformPropMan = &system->movingPlatformPropMan;
 
-    while (v0 < 32) {
-        if ((v1->unk_00[v0].unk_00 == 1) && (v1->unk_00[v0].unk_04.unk_00 == param1) && (v1->unk_00[v0].unk_02 == param2)) {
-            return &v1->unk_00[v0];
+    while (i < MOVING_PLATFORM_MANAGER_ANIMATOR_COUNT) {
+        if (movingPlatformPropMan->animators[i].valid == TRUE && movingPlatformPropMan->animators[i].template.index == index && movingPlatformPropMan->animators[i].mapHeaderID == mapHeaderID) {
+            return &movingPlatformPropMan->animators[i];
         }
 
-        v0++;
+        i++;
     }
 
     return NULL;
 }
 
-static const UnkStruct_ov9_02252C38 *ov9_0224DE40(u32 param0)
+static const DistWorldMovingPlatformMapTemplates *GetMovingPlatformsTemplatesForMap(u32 mapHeaderID)
 {
-    int v0 = 0;
-    const UnkStruct_ov9_02252C38 *v1 = Unk_ov9_02252C38;
+    int i = 0;
+    const DistWorldMovingPlatformMapTemplates *iter = sMovingPlatformsMapTemplates;
 
-    while (v0 < 8) {
-        if (v1->unk_00 == param0) {
-            return v1;
+    while (i < MOVING_PLATFORM_MAP_COUNT) {
+        if (iter->mapHeaderID == mapHeaderID) {
+            return iter;
         }
 
-        v0++;
-        v1++;
+        i++;
+        iter++;
     }
 
     return NULL;
 }
 
-static const UnkStruct_ov9_0224DF10 *ov9_0224DE60(u32 param0, u32 param1)
+static const DistWorldMovingPlatformTemplate *GetMovingPlatformTemplateForMap(u32 mapHeaderID, u32 index)
 {
-    const UnkStruct_ov9_02252C38 *v0 = ov9_0224DE40(param0);
-    return v0->unk_04[param1];
+    const DistWorldMovingPlatformMapTemplates *mapTemplates = GetMovingPlatformsTemplatesForMap(mapHeaderID);
+    return mapTemplates->templates[index];
 }
 
-static const UnkStruct_ov9_02253830 *ov9_0224DE70(u32 param0)
+static const DistWorldElevatorPlatformPath *GetMovingPlatformElevatorPath(u32 index)
 {
-    u32 v0 = 0;
-    const UnkStruct_ov9_02253830 *v1 = Unk_ov9_02253830;
+    u32 i = 0;
+    const DistWorldElevatorPlatformPath *iter = sElevatorPlatformPaths;
 
-    while (v0 < 22) {
-        if (v1->unk_00 == param0) {
-            return v1;
+    while (i < ELEVATOR_PLATFORM_PATH_COUNT) {
+        if (iter->index == index) {
+            return iter;
         }
 
-        v1++;
-        v0++;
+        iter++;
+        i++;
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
-static MapObject *ov9_0224DE94(DistWorldSystem *param0, int param1, int param2, int param3, int param4, int param5, u32 param6)
+static MapObject *AddMovingPlatformMapObject(DistWorldSystem *system, int tileX, int tileY, int tileZ, int index, int elevatorPathIndex, u32 mapHeaderID)
 {
-    MapObject *v0 = MapObjectMan_AddMapObject(param0->fieldSystem->mapObjMan, param1, param3, 0, 0x2000, 0x0, DistWorldSystem_GetMapHeaderID(param0));
+    MapObject *mapObj = MapObjectMan_AddMapObject(system->fieldSystem->mapObjMan, tileX, tileZ, 0, OBJ_EVENT_GFX_INVISIBLE, 0x0, DistWorldSystem_GetMapHeaderID(system));
 
-    MapObject_SetY(v0, param2);
-    MapObject_SetLocalID(v0, 0xfd);
-    MapObject_SetDataAt(v0, param4, 0);
-    MapObject_SetDataAt(v0, param6, 1);
-    MapObject_SetDataAt(v0, param5, 2);
-    MapObject_SetFlagIsPersistent(v0, 1);
-    sub_02062D80(v0, 0);
-    MapObject_SetHeightCalculationDisabled(v0, TRUE);
-    sub_02062FC4(v0, 1);
+    MapObject_SetY(mapObj, tileY);
+    MapObject_SetLocalID(mapObj, 0xFD);
+    MapObject_SetDataAt(mapObj, index, MOVING_PLATFORM_MAP_OBJ_DATA_INDEX);
+    MapObject_SetDataAt(mapObj, mapHeaderID, MOVING_PLATFORM_MAP_OBJ_DATA_MAP_HEADER_ID);
+    MapObject_SetDataAt(mapObj, elevatorPathIndex, MOVING_PLATFORM_MAP_OBJ_DATA_EVELATOR_PATH_INDEX);
+    MapObject_SetFlagIsPersistent(mapObj, TRUE);
+    sub_02062D80(mapObj, 0);
+    MapObject_SetHeightCalculationDisabled(mapObj, TRUE);
+    sub_02062FC4(mapObj, 1);
 
-    return v0;
+    return mapObj;
 }
 
-static void ov9_0224DF10(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1, MapObject *param2)
+static void DistWorldMovingPlatformPropAnimator_InitFromMapObject(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator, MapObject *mapObj)
 {
-    u32 v0, v1, v2, v3;
-    const UnkStruct_ov9_0224DF10 *v4;
+    u32 index = MapObject_GetDataAt(mapObj, MOVING_PLATFORM_MAP_OBJ_DATA_INDEX);
+    u32 mapHeaderID = MapObject_GetDataAt(mapObj, MOVING_PLATFORM_MAP_OBJ_DATA_MAP_HEADER_ID);
+    u32 elevatorPathIndex = MapObject_GetDataAt(mapObj, MOVING_PLATFORM_MAP_OBJ_DATA_EVELATOR_PATH_INDEX);
+    const DistWorldMovingPlatformTemplate *movingPlatformTemplate = GetMovingPlatformTemplateForMap(mapHeaderID, index);
 
-    v0 = MapObject_GetDataAt(param2, 0);
-    v1 = MapObject_GetDataAt(param2, 1);
-    v3 = MapObject_GetDataAt(param2, 2);
-    v4 = ov9_0224DE60(v1, v0);
+    animator->valid = TRUE;
+    animator->mapHeaderID = mapHeaderID;
+    animator->template = *movingPlatformTemplate;
+    animator->template.tileX = MapObject_GetX(mapObj);
+    animator->template.tileY = MapObject_GetY(mapObj);
+    animator->template.tileZ = MapObject_GetZ(mapObj);
+    animator->template.elevatorPathIndex = elevatorPathIndex;
+    animator->mapObj = mapObj;
+    animator->animMan = InitAnimManagerForMovingPlatform(system, animator);
 
-    param1->unk_00 = 1;
-    param1->unk_02 = v1;
-    param1->unk_04 = *v4;
-    param1->unk_04.unk_02 = MapObject_GetX(param2);
-    param1->unk_04.unk_04 = MapObject_GetY(param2);
-    param1->unk_04.unk_06 = MapObject_GetZ(param2);
-    param1->unk_04.unk_08 = v3;
-    param1->unk_1C = param2;
-    param1->unk_20 = ov9_0224DFA0(param0, param1);
-
-    MapObject_SetFlagIsPersistent(param2, 1);
-    sub_02062D80(param2, 0);
-    MapObject_SetHeightCalculationDisabled(param2, TRUE);
-    sub_02062FC4(param2, 1);
+    MapObject_SetFlagIsPersistent(mapObj, TRUE);
+    sub_02062D80(mapObj, 0);
+    MapObject_SetHeightCalculationDisabled(mapObj, TRUE);
+    sub_02062FC4(mapObj, 1);
 }
 
-static OverworldAnimManager *ov9_0224DFA0(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1)
+static OverworldAnimManager *InitAnimManagerForMovingPlatform(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator)
 {
-    OverworldAnimManager *v0;
-    UnkStruct_ov9_0224DFA0 v1;
+    DistWorldMovingPlatformPropUserData userData;
 
-    v1.unk_00 = param1->unk_04.unk_02;
-    v1.unk_02 = param1->unk_04.unk_04;
-    v1.unk_04 = param1->unk_04.unk_06;
-    v1.unk_06 = param1->unk_04.unk_10;
-    v1.unk_0C = param0;
-    v1.unk_08 = 0;
+    userData.tileX = animator->template.tileX;
+    userData.tileY = animator->template.tileY;
+    userData.tileZ = animator->template.tileZ;
+    userData.propKind = animator->template.propKind;
+    userData.system = system;
+    userData.isGiratinaRoomElevator = FALSE;
 
-    if ((param1->unk_02 == 580) && (param1->unk_04.unk_00 == 1)) {
-        v1.unk_08 = 1;
+    if (animator->mapHeaderID == MAP_HEADER_DISTORTION_WORLD_B6F && animator->template.index == 1) {
+        userData.isGiratinaRoomElevator = TRUE;
     }
 
-    v0 = ov5_021DF72C(param0->fieldSystem->unk_40, &Unk_ov9_02251468, NULL, 0, &v1, 0);
-    return v0;
+    return FieldEffectManager_InitAnimManager(system->fieldSystem->fieldEffMan, &sMovingPlatformPropAnimFuncs, NULL, 0, &userData, 0);
 }
 
-static void ov9_0224DFF4(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1, const UnkStruct_ov9_0224DF10 *param2, u32 param3)
+static void DistWorldMovingPlatformPropAnimator_InitFromTemplate(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator, const DistWorldMovingPlatformTemplate *movingPlatformTemplate, u32 mapHeaderID)
 {
-    param1->unk_00 = 1;
-    param1->unk_02 = param3;
-    param1->unk_04 = *param2;
-    param1->unk_1C = ov9_0224DE94(param0, param2->unk_02, param2->unk_04, param2->unk_06, param2->unk_00, param2->unk_08, param3);
-    param1->unk_20 = ov9_0224DFA0(param0, param1);
+    animator->valid = TRUE;
+    animator->mapHeaderID = mapHeaderID;
+    animator->template = *movingPlatformTemplate;
+    animator->mapObj = AddMovingPlatformMapObject(system, movingPlatformTemplate->tileX, movingPlatformTemplate->tileY, movingPlatformTemplate->tileZ, movingPlatformTemplate->index, movingPlatformTemplate->elevatorPathIndex, mapHeaderID);
+    animator->animMan = InitAnimManagerForMovingPlatform(system, animator);
 }
 
-static void ov9_0224E044(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1)
+static void DistWorldMovingPlatformPropAnimator_Finish(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator)
 {
-    if (param1->unk_20 != NULL) {
-        OverworldAnimManager_Finish(param1->unk_20);
+    if (animator->animMan != NULL) {
+        OverworldAnimManager_Finish(animator->animMan);
     }
 
-    memset(param1, 0, sizeof(UnkStruct_ov9_0224E0DC));
+    memset(animator, 0, sizeof(DistWorldMovingPlatformPropAnimator));
 }
 
-static void ov9_0224E060(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1)
+static void DistWorldMovingPlatformPropAnimator_FinishAndDeleteMapObject(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator)
 {
-    if (param1->unk_1C != NULL) {
-        MapObject_Delete(param1->unk_1C);
+    if (animator->mapObj != NULL) {
+        MapObject_Delete(animator->mapObj);
     }
 
-    ov9_0224E044(param0, param1);
+    DistWorldMovingPlatformPropAnimator_Finish(system, animator);
 }
 
-static void ov9_0224E07C(DistWorldSystem *param0, UnkStruct_ov9_0224E0DC *param1, u32 param2)
+static void DistWorldMovingPlatformPropAnimator_ChangeMaps(DistWorldSystem *system, DistWorldMovingPlatformPropAnimator *animator, u32 mapHeaderID)
 {
-    param1->unk_02 = param2;
+    animator->mapHeaderID = mapHeaderID;
 
-    {
-        const UnkStruct_ov9_0224DF10 *v0;
+    const DistWorldMovingPlatformTemplate *movingPlatformTemplate = GetMovingPlatformTemplateForMap(mapHeaderID, animator->template.destIndex);
+    animator->template = *movingPlatformTemplate;
 
-        v0 = ov9_0224DE60(param2, param1->unk_04.unk_0C);
-        param1->unk_04 = *v0;
-    }
-
-    {
-        MapObject *v1 = param1->unk_1C;
-
-        MapObject_SetX(v1, param1->unk_04.unk_02);
-        MapObject_SetY(v1, param1->unk_04.unk_04);
-        MapObject_SetZ(v1, param1->unk_04.unk_06);
-        MapObject_SetDataAt(v1, param1->unk_04.unk_00, 0);
-        MapObject_SetDataAt(v1, param2, 1);
-        MapObject_SetDataAt(v1, param1->unk_04.unk_08, 2);
-    }
+    MapObject *mapObj = animator->mapObj;
+    MapObject_SetX(mapObj, animator->template.tileX);
+    MapObject_SetY(mapObj, animator->template.tileY);
+    MapObject_SetZ(mapObj, animator->template.tileZ);
+    MapObject_SetDataAt(mapObj, animator->template.index, MOVING_PLATFORM_MAP_OBJ_DATA_INDEX);
+    MapObject_SetDataAt(mapObj, mapHeaderID, MOVING_PLATFORM_MAP_OBJ_DATA_MAP_HEADER_ID);
+    MapObject_SetDataAt(mapObj, animator->template.elevatorPathIndex, MOVING_PLATFORM_MAP_OBJ_DATA_EVELATOR_PATH_INDEX);
 }
 
-static void ov9_0224E0DC(UnkStruct_ov9_0224E0DC *param0, u32 param1)
+static void DistWorldMovingPlatformPropAnimator_SetPreventDeletion(DistWorldMovingPlatformPropAnimator *animator, BOOL preventDeletion)
 {
-    param0->unk_01 = param1;
+    animator->preventDeletion = preventDeletion;
 }
 
-static BOOL ov9_0224E0E0(DistWorldSystem *param0, u32 param1)
+static BOOL HasActiveMovingPlatformProp2(DistWorldSystem *system, u32 propKind)
 {
-    int v0;
-    u16 v1;
-    const DistWorldPropAnimInfo *v2;
-    UnkStruct_ov9_0224DC34 *v3 = &param0->unk_1734;
+    DistWorldMovingPlatformPropManager *movingPlatformPropMan = &system->movingPlatformPropMan;
+    GF_ASSERT(propKind != PROP_KIND_INVALID);
 
-    GF_ASSERT(param1 != 25);
+    for (int i = 0; i < MOVING_PLATFORM_MANAGER_ANIMATOR_COUNT; i++) {
+        if (movingPlatformPropMan->animators[i].valid) {
+            u16 currPropKind = movingPlatformPropMan->animators[i].template.propKind;
+            const DistWorldPropAnimInfo *animInfo = &sPropAnimInfoByKind[currPropKind];
 
-    for (v0 = 0; v0 < 32; v0++) {
-        if (v3->unk_00[v0].unk_00) {
-            v1 = v3->unk_00[v0].unk_04.unk_10;
-            v2 = &sPropAnimInfoByKind[v1];
-
-            if (param1 == v2->propKind) {
-                return 1;
+            if (propKind == animInfo->propKind) {
+                return TRUE;
             }
         }
     }
 
-    return 0;
+    return FALSE;
 }
 
-static BOOL ov9_0224E120(DistWorldSystem *param0, u32 param1)
+static BOOL HasActiveMovingPlatformPropAnim(DistWorldSystem *system, u32 animKind)
 {
-    int v0;
-    u16 v1;
-    const DistWorldPropAnimInfo *v2;
-    UnkStruct_ov9_0224DC34 *v3 = &param0->unk_1734;
+    DistWorldMovingPlatformPropManager *movingPlatformPropMan = &system->movingPlatformPropMan;
+    GF_ASSERT(animKind != PROP_ANIM_KIND_INVALID);
 
-    GF_ASSERT(param1 != 5);
+    for (int i = 0; i < MOVING_PLATFORM_MANAGER_ANIMATOR_COUNT; i++) {
+        if (movingPlatformPropMan->animators[i].valid) {
+            u16 currPropKind = movingPlatformPropMan->animators[i].template.propKind;
+            const DistWorldPropAnimInfo *animInfo = &sPropAnimInfoByKind[currPropKind];
 
-    for (v0 = 0; v0 < 32; v0++) {
-        if (v3->unk_00[v0].unk_00) {
-            v1 = v3->unk_00[v0].unk_04.unk_10;
-            v2 = &sPropAnimInfoByKind[v1];
-
-            if (param1 == v2->animKind) {
-                return 1;
+            if (animKind == animInfo->animKind) {
+                return TRUE;
             }
         }
     }
 
-    return 0;
+    return FALSE;
 }
 
-static BOOL ov9_0224E160(DistWorldSystem *system, int propKind)
+static BOOL HasActiveMovingPlatformProp(DistWorldSystem *system, int propKind)
 {
-    UnkStruct_ov9_0224DC34 *v2 = &system->unk_1734;
+    DistWorldMovingPlatformPropManager *movingPlatformPropMan = &system->movingPlatformPropMan;
 
-    for (int i = 0; i < 32; i++) {
-        if (v2->unk_00[i].unk_00 && v2->unk_00[i].unk_04.unk_10 == propKind) {
+    for (int i = 0; i < MOVING_PLATFORM_MANAGER_ANIMATOR_COUNT; i++) {
+        if (movingPlatformPropMan->animators[i].valid && movingPlatformPropMan->animators[i].template.propKind == propKind) {
             return TRUE;
         }
     }
@@ -7449,3396 +7525,3313 @@ static BOOL ov9_0224E160(DistWorldSystem *system, int propKind)
     return FALSE;
 }
 
-static UnkStruct_ov9_0224E0DC *ov9_0224E188(DistWorldSystem *param0, int param1, int param2, int param3, u32 param4)
+static DistWorldMovingPlatformPropAnimator *FindMovingPlatformPropAnimatorAt(DistWorldSystem *system, int tileX, int tileY, int tileZ, u32 mapHeaderID)
 {
-    int v0 = 32;
-    UnkStruct_ov9_0224E0DC *v1 = param0->unk_1734.unk_00;
-    const UnkStruct_ov9_0224DF10 *v2;
+    int i = MOVING_PLATFORM_MANAGER_ANIMATOR_COUNT;
+    DistWorldMovingPlatformPropAnimator *iter = system->movingPlatformPropMan.animators;
 
     do {
-        if (v1->unk_00 && (v1->unk_02 == param4)) {
-            v2 = &v1->unk_04;
+        if (iter->valid && iter->mapHeaderID == mapHeaderID) {
+            const DistWorldMovingPlatformTemplate *movingPlatformTemplate = &iter->template;
 
-            if ((v2->unk_04 == param2) && (v2->unk_06 == param3) && (v2->unk_02 == param1)) {
-                return v1;
+            if (movingPlatformTemplate->tileY == tileY && movingPlatformTemplate->tileZ == tileZ && movingPlatformTemplate->tileX == tileX) {
+                return iter;
             }
         }
 
-        v1++;
-    } while (--v0);
+        iter++;
+    } while (--i);
 
     return NULL;
 }
 
-static int ov9_0224E1CC(OverworldAnimManager *param0, void *param1)
+static int DistWorldMovingPlatformProp_AnimInit(OverworldAnimManager *animMan, void *context)
 {
-    int v0;
-    UnkStruct_ov9_0224E1CC *v1 = param1;
-    const UnkStruct_ov9_0224DFA0 *v2 = OverworldAnimManager_GetUserData(param0);
+    DistWorldMovingPlatformProp *movingPlatformProp = context;
+    const DistWorldMovingPlatformPropUserData *userData = OverworldAnimManager_GetUserData(animMan);
 
-    v1->unk_10 = *v2;
-    v1->unk_20 = DistWorldPropRenderer_Init(v2->unk_0C, v2->unk_06, &v0);
+    movingPlatformProp->userData = *userData;
 
-    if (v0 == 0) {
-        LoadRenderBuffersForProp(v2->unk_0C, v2->unk_06, &v1->unk_20->renderObj, &v1->unk_20->animation);
+    BOOL rendererAlreadyInit;
+    movingPlatformProp->renderer = DistWorldPropRenderer_Init(userData->system, userData->propKind, &rendererAlreadyInit);
+
+    if (!rendererAlreadyInit) {
+        LoadRenderBuffersForProp(userData->system, userData->propKind, &movingPlatformProp->renderer->renderObj, &movingPlatformProp->renderer->animation);
     }
 
-    VecFx32_SetPosFromMapCoords(v2->unk_00, v2->unk_04, &v1->unk_04);
-    v1->unk_04.y = (((v2->unk_02) << 4) * FX32_ONE) + ((16 * FX32_ONE) >> 1);
+    VecFx32_SetPosFromMapCoords(userData->tileX, userData->tileZ, &movingPlatformProp->pos);
+    movingPlatformProp->pos.y = MAP_OBJECT_COORD_CENTER_TO_FX32(userData->tileY);
 
-    {
-        VecFx32 v3;
-        const VecFx32 *v4 = &sPropInitialPosOffsetByKind[v2->unk_06];
+    const VecFx32 *initialPosOffset = &sPropInitialPosOffsetByKind[userData->propKind];
+    movingPlatformProp->pos.x += initialPosOffset->x;
+    movingPlatformProp->pos.y += initialPosOffset->y;
+    movingPlatformProp->pos.z += initialPosOffset->z;
 
-        v1->unk_04.x += v4->x;
-        v1->unk_04.y += v4->y;
-        v1->unk_04.z += v4->z;
-    }
+    movingPlatformProp->opacity = GHOST_PROP_OPACITY_MAX;
+    movingPlatformProp->animated = FALSE;
 
-    v1->unk_02 = 31;
-    v1->unk_00 = 0;
+    if (userData->isGiratinaRoomElevator == TRUE) {
+        VarsFlags *varsFlags = SaveData_GetVarsFlags(userData->system->fieldSystem->saveData);
 
-    if (v2->unk_08 == 1) {
-        VarsFlags *v5 = SaveData_GetVarsFlags(v2->unk_0C->fieldSystem->saveData);
-
-        if (SystemFlag_CheckDistortionWorldSteppingStones(v5) == 0) {
-            v1->unk_02 = 0;
-            v1->unk_00 = 1;
-            v1->unk_01 = 1;
+        if (SystemFlag_CheckDistortionWorldSteppingStones(varsFlags) == FALSE) {
+            movingPlatformProp->opacity = GHOST_PROP_OPACITY_MIN;
+            movingPlatformProp->animated = TRUE;
+            movingPlatformProp->hidden = TRUE;
         }
     }
 
-    return 1;
+    return TRUE;
 }
 
-static void ov9_0224E274(OverworldAnimManager *param0, void *param1)
+static void DistWorldMovingPlatformProp_AnimExit(OverworldAnimManager *animMan, void *context)
 {
-    UnkStruct_ov9_0224E1CC *v0 = param1;
+    DistWorldMovingPlatformProp *movingPlatformProp = context;
 
-    if (DistWorldPropAnimInfo_IsAnimKindValid(v0->unk_10.unk_06) == 1) {
-        Simple3D_FreeAnimation(&v0->unk_20->animation);
+    if (DistWorldPropAnimInfo_IsAnimKindValid(movingPlatformProp->userData.propKind) == TRUE) {
+        Simple3D_FreeAnimation(&movingPlatformProp->renderer->animation);
     }
 
-    DistWorldPropRenderer_InvalidateAnimated(v0->unk_10.unk_0C, v0->unk_20);
+    DistWorldPropRenderer_InvalidateAnimated(movingPlatformProp->userData.system, movingPlatformProp->renderer);
 }
 
-static void ov9_0224E294(OverworldAnimManager *param0, void *param1)
+static void DistWorldMovingPlatformProp_AnimTick(OverworldAnimManager *animMan, void *context)
 {
-    UnkStruct_ov9_0224E1CC *v0 = param1;
+    DistWorldMovingPlatformProp *movingPlatformProp = context;
 
-    if (v0->unk_00 == 1) {
-        VarsFlags *v1;
+    if (movingPlatformProp->animated == TRUE) {
+        VarsFlags *varsFlags = SaveData_GetVarsFlags(movingPlatformProp->userData.system->fieldSystem->saveData);
 
-        v1 = SaveData_GetVarsFlags(v0->unk_10.unk_0C->fieldSystem->saveData);
+        if (SystemFlag_CheckDistortionWorldSteppingStones(varsFlags) == TRUE) {
+            movingPlatformProp->hidden = FALSE;
 
-        if (SystemFlag_CheckDistortionWorldSteppingStones(v1) == 1) {
-            v0->unk_01 = 0;
-
-            if (v0->unk_02 < 31) {
-                if (v0->unk_02 == 0) {
-                    PlaySoundIfNotActive(SEQ_SE_PL_SYUWA3);
+            if (movingPlatformProp->opacity < GHOST_PROP_OPACITY_MAX) {
+                if (movingPlatformProp->opacity == GHOST_PROP_OPACITY_MIN) {
+                    PlaySoundIfNotActive(SEQ_SE_PL_SYUWA3_sseq);
                 }
 
-                v0->unk_03++;
-                v0->unk_02 = v0->unk_03 >> 1;
+                movingPlatformProp->animStep++;
+                movingPlatformProp->opacity = movingPlatformProp->animStep >> 1;
             }
 
-            if (v0->unk_02 >= 31) {
-                v0->unk_02 = 31;
-                v0->unk_00 = 0;
+            if (movingPlatformProp->opacity >= GHOST_PROP_OPACITY_MAX) {
+                movingPlatformProp->opacity = GHOST_PROP_OPACITY_MAX;
+                movingPlatformProp->animated = FALSE;
             }
         }
     }
 }
 
-static void ov9_0224E2E4(OverworldAnimManager *param0, void *param1)
+static void DistWorldMovingPlatformProp_AnimRender(OverworldAnimManager *animMan, void *context)
 {
-    UnkStruct_ov9_0224E1CC *v0 = param1;
+    DistWorldMovingPlatformProp *movingPlatformProp = context;
 
-    if (v0->unk_01 == 0) {
-        if (v0->unk_00 == 1) {
-            const UnkStruct_ov9_0224DFA0 *v1 = &v0->unk_10;
+    if (movingPlatformProp->hidden == FALSE) {
+        if (movingPlatformProp->animated == TRUE) {
+            const DistWorldMovingPlatformPropUserData *userData = &movingPlatformProp->userData;
 
-            SetPropOpacityAndPolygonID(v1->unk_0C, v1->unk_06, v0->unk_02, 1);
-            Simple3D_DrawRenderObjWithPos(&v0->unk_20->renderObj, &v0->unk_04);
+            SetPropOpacityAndPolygonID(userData->system, userData->propKind, movingPlatformProp->opacity, 1 << 0);
+            Simple3D_DrawRenderObjWithPos(&movingPlatformProp->renderer->renderObj, &movingPlatformProp->pos);
 
-            SetPropPolygonID(v1->unk_0C, v1->unk_06, 0);
-            SetPropOpacity(v1->unk_0C, v1->unk_06, 31);
+            SetPropPolygonID(userData->system, userData->propKind, 0);
+            SetPropOpacity(userData->system, userData->propKind, GHOST_PROP_OPACITY_MAX);
         } else {
-            Simple3D_DrawRenderObjWithPos(&v0->unk_20->renderObj, &v0->unk_04);
+            Simple3D_DrawRenderObjWithPos(&movingPlatformProp->renderer->renderObj, &movingPlatformProp->pos);
         }
     }
 }
 
-static const OverworldAnimManagerFuncs Unk_ov9_02251468 = {
-    sizeof(UnkStruct_ov9_0224E1CC),
-    ov9_0224E1CC,
-    ov9_0224E274,
-    ov9_0224E294,
-    ov9_0224E2E4
+static const OverworldAnimManagerFuncs sMovingPlatformPropAnimFuncs = {
+    sizeof(DistWorldMovingPlatformProp),
+    DistWorldMovingPlatformProp_AnimInit,
+    DistWorldMovingPlatformProp_AnimExit,
+    DistWorldMovingPlatformProp_AnimTick,
+    DistWorldMovingPlatformProp_AnimRender
 };
 
-static VecFx32 *ov9_0224E330(OverworldAnimManager *param0)
+static VecFx32 *GetMovingPlatformPropPos(OverworldAnimManager *animMan)
 {
-    UnkStruct_ov9_0224E1CC *v0 = OverworldAnimManager_GetFuncsContext(param0);
-    return &v0->unk_04;
+    DistWorldMovingPlatformProp *movingPlatformProp = OverworldAnimManager_GetFuncsContext(animMan);
+    return &movingPlatformProp->pos;
 }
 
-static void ov9_0224E33C(DistWorldSystem *param0)
+static void UnloadEvent(DistWorldSystem *system)
 {
-    UnkFuncPtr_ov9_0224E33C *v0 = &param0->unk_D8;
-    memset(v0, 0, sizeof(UnkFuncPtr_ov9_0224E33C));
+    DistWorldLoadedEvent *loadedEvent = &system->loadedEvent;
+    memset(loadedEvent, 0, sizeof(DistWorldLoadedEvent));
 }
 
-static void ov9_0224E34C(DistWorldSystem *param0)
+static void Dummy0224E34C(DistWorldSystem *system)
 {
     return;
 }
 
-static void ov9_0224E350(DistWorldSystem *param0, const UnkStruct_ov9_02251438 *param1)
+static void LoadEvent(DistWorldSystem *system, const DistWorldEventCmd *cmds)
 {
-    UnkFuncPtr_ov9_0224E33C *v0 = &param0->unk_D8;
+    DistWorldLoadedEvent *loadedEvent = &system->loadedEvent;
 
-    GF_ASSERT(v0->unk_00 == 0);
-    GF_ASSERT(param1 != NULL);
+    GF_ASSERT(!loadedEvent->running);
+    GF_ASSERT(cmds != NULL);
 
-    v0->unk_00 = 1;
-    v0->unk_04 = 0;
-    v0->unk_06 = 0;
-    v0->unk_08 = param1;
+    loadedEvent->running = TRUE;
+    loadedEvent->cmdIndex = 0;
+    loadedEvent->cmdState = 0;
+    loadedEvent->cmds = cmds;
 }
 
-static void *ov9_0224E37C(DistWorldSystem *param0, u32 param1)
+static void *ResetLoadedEventDataBuffer(DistWorldSystem *system, u32 size)
 {
-    GF_ASSERT(param1 < 160);
+    GF_ASSERT(size < RUNNING_EVENT_DATA_BUFFER_SIZE);
 
-    {
-        u8 *v0 = param0->unk_D8.unk_0C;
+    u8 *dataBuf = system->loadedEvent.dataBuf;
+    memset(dataBuf, 0, size);
 
-        memset(v0, 0, param1);
-        return v0;
-    }
+    return dataBuf;
 }
 
-static void *ov9_0224E39C(DistWorldSystem *param0)
+static void *GetLoadedEventDataBuffer(DistWorldSystem *system)
 {
-    u8 *v0 = param0->unk_D8.unk_0C;
-    return v0;
+    return system->loadedEvent.dataBuf;
 }
 
-static BOOL ov9_0224E3A0(DistWorldSystem *param0, FieldTask *param1)
+static BOOL CallLoadedEventHandler(DistWorldSystem *system, FieldTask *task)
 {
-    int v0;
-    int v1;
-    UnkFuncPtr_ov9_0224E33C *v2;
-    const UnkFuncPtr_ov9_02253BE4 *v3;
-    const UnkStruct_ov9_02251438 *v4;
+    DistWorldLoadedEvent *loadedEvent = &system->loadedEvent;
+    const DistWorldEventCmd *cmds = loadedEvent->cmds;
 
-    v2 = &param0->unk_D8;
-    v4 = v2->unk_08;
+    GF_ASSERT(cmds != NULL);
 
-    GF_ASSERT(v4 != NULL);
-
-    while (v4[v2->unk_04].unk_00 != 18) {
-        v1 = v4[v2->unk_04].unk_00;
-        v3 = Unk_ov9_02253BE4[v1];
+    while (cmds[loadedEvent->cmdIndex].kind != EVENT_CMD_END) {
+        int handlerRes;
+        int cmdKind = cmds[loadedEvent->cmdIndex].kind;
+        const DistWorldEventCmdHandler *cmdHandler = sEventCmdHandlers[cmdKind];
 
         do {
-            v0 = v3[v2->unk_06](param0, param1, &v2->unk_06, v4[v2->unk_04].unk_04);
-        } while (v0 == 1);
+            handlerRes = cmdHandler[loadedEvent->cmdState](system, task, &loadedEvent->cmdState, cmds[loadedEvent->cmdIndex].params);
+        } while (handlerRes == EVENT_CMD_HANDLER_RES_LOOP);
 
-        if (v0 == 0) {
-            return 0;
+        if (handlerRes == EVENT_CMD_HANDLER_RES_CONTINUE) {
+            return FALSE;
         }
 
-        v2->unk_06 = 0;
-        v2->unk_04++;
+        loadedEvent->cmdState = 0;
+        loadedEvent->cmdIndex++;
     }
 
-    v2->unk_00 = 0;
-    v2->unk_04 = 0;
+    loadedEvent->running = FALSE;
+    loadedEvent->cmdIndex = 0;
 
-    return 1;
+    return TRUE;
 }
 
-static const UnkStruct_ov9_02252044 *ov9_0224E410(u32 param0)
+static const DistWorldEvent *GetEventsForMap(u32 mapHeaderID)
 {
-    const UnkStruct_ov9_02252D38 *v0 = Unk_ov9_02252D38;
+    const DistWorldMapEvents *iter = sMapEvents;
 
-    while (v0->unk_00 != 593) {
-        if (v0->unk_00 == param0) {
-            return v0->unk_04;
+    while (iter->mapHeaderID != MAP_HEADER_INVALID) {
+        if (iter->mapHeaderID == mapHeaderID) {
+            return iter->events;
         }
 
-        v0++;
+        iter++;
     }
 
     return NULL;
 }
 
-static BOOL ov9_0224E434(DistWorldSystem *param0, int param1, int param2, int param3)
+static BOOL HandleEventAt(DistWorldSystem *system, int playerX, int playerY, int playerZ)
 {
-    VarsFlags *v0 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
-    const UnkStruct_ov9_02252044 *v1 = ov9_0224E410(DistWorldSystem_GetMapHeaderID(param0));
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+    const DistWorldEvent *iter = GetEventsForMap(DistWorldSystem_GetMapHeaderID(system));
 
-    if (v1 != NULL) {
-        u16 v2, v3;
-
-        while (v1->unk_0C != NULL) {
-            if ((param2 == v1->unk_02) && (param3 == v1->unk_04) && (param1 == v1->unk_00)) {
-                v2 = v1->unk_08;
-                v3 = v1->unk_0A;
-
-                if (ov9_02251104(param0, v2, v3) == 1) {
-                    ov9_0224E4B0(param0, v1);
-                    return 1;
-                }
+    if (iter != NULL) {
+        while (iter->cmds != NULL) {
+            if (playerY == iter->tileY && playerZ == iter->tileZ && playerX == iter->tileX && CheckFlagCondition(system, iter->flagCond, iter->flagCondVal) == TRUE) {
+                RunEvent(system, iter);
+                return TRUE;
             }
 
-            v1++;
+            iter++;
         }
     }
 
-    return 0;
+    return FALSE;
 }
 
-static void ov9_0224E498(DistWorldSystem *param0, const UnkStruct_ov9_02251438 *param1)
+static void RunEventCommands(DistWorldSystem *system, const DistWorldEventCmd *cmds)
 {
-    ov9_0224E350(param0, param1);
-    FieldSystem_CreateTask(param0->fieldSystem, ov9_0224E4BC, param0);
+    LoadEvent(system, cmds);
+    FieldSystem_CreateTask(system->fieldSystem, FieldTask_CallLoadedEventHandler, system);
 }
 
-static void ov9_0224E4B0(DistWorldSystem *param0, const UnkStruct_ov9_02252044 *param1)
+static void RunEvent(DistWorldSystem *system, const DistWorldEvent *event)
 {
-    ov9_0224E498(param0, param1->unk_0C);
+    RunEventCommands(system, event->cmds);
 }
 
-static BOOL ov9_0224E4BC(FieldTask *param0)
+static BOOL FieldTask_CallLoadedEventHandler(FieldTask *task)
 {
-    DistWorldSystem *v0 = FieldTask_GetEnv(param0);
+    DistWorldSystem *system = FieldTask_GetEnv(task);
+    return CallLoadedEventHandler(system, task) == TRUE;
+}
 
-    if (ov9_0224E3A0(v0, param0) == 1) {
-        return 1;
+static int EventCmdSetMapObjectAnimation_Init(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
+{
+    CmdRunDataSetMapObjectAnimation *runData = ResetLoadedEventDataBuffer(system, sizeof(CmdRunDataSetMapObjectAnimation));
+
+    *cmdState = EVENT_CMD_SET_MAP_OBJECT_ANIMATION_STATE_START;
+    return EVENT_CMD_HANDLER_RES_LOOP;
+}
+
+static int EventCmdSetMapObjectAnimation_Start(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
+{
+    const CmdParamsSetMapObjectAnimation *cmdParams = params;
+    CmdRunDataSetMapObjectAnimation *runData = GetLoadedEventDataBuffer(system);
+
+    MapObject *mapObj = MapObjMan_LocalMapObjByIndex(system->fieldSystem->mapObjMan, cmdParams->mapObjLocalID);
+    GF_ASSERT(mapObj != NULL);
+
+    if (LocalMapObj_IsAnimationSet(mapObj) == TRUE) {
+        LocalMapObj_SetAnimationCode(mapObj, cmdParams->movementAction);
+        *cmdState = EVENT_CMD_SET_MAP_OBJECT_ANIMATION_STATE_FINISH;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224E4D8(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdSetMapObjectAnimation_Finish(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_0224E4D8 *v0 = ov9_0224E37C(param0, sizeof(UnkStruct_ov9_0224E4D8));
+    const CmdParamsSetMapObjectAnimation *cmdParams = params;
+    CmdRunDataSetMapObjectAnimation *runData = GetLoadedEventDataBuffer(system);
 
-    *param2 = 1;
-    return 1;
-}
+    MapObject *mapObj = MapObjMan_LocalMapObjByIndex(system->fieldSystem->mapObjMan, cmdParams->mapObjLocalID);
+    GF_ASSERT(mapObj != NULL);
 
-static int ov9_0224E4E8(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
-{
-    MapObject *v0;
-    const UnkStruct_ov9_0224E4E8 *v1 = param3;
-    UnkStruct_ov9_0224E4D8 *v2 = ov9_0224E39C(param0);
-
-    v0 = MapObjMan_LocalMapObjByIndex(param0->fieldSystem->mapObjMan, v1->unk_00);
-    GF_ASSERT(v0 != NULL);
-
-    if (LocalMapObj_IsAnimationSet(v0) == 1) {
-        LocalMapObj_SetAnimationCode(v0, v1->unk_04);
-        *param2 = 2;
+    if (sub_020656AC(mapObj) == TRUE) {
+        return EVENT_CMD_HANDLER_RES_FINISH;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224E520(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
-{
-    MapObject *v0;
-    const UnkStruct_ov9_0224E4E8 *v1 = param3;
-    UnkStruct_ov9_0224E4D8 *v2 = ov9_0224E39C(param0);
-
-    v0 = MapObjMan_LocalMapObjByIndex(param0->fieldSystem->mapObjMan, v1->unk_00);
-    GF_ASSERT(v0 != NULL);
-
-    if (sub_020656AC(v0) == 1) {
-        return 2;
-    }
-
-    return 0;
-}
-
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251360[3] = {
-    ov9_0224E4D8,
-    ov9_0224E4E8,
-    ov9_0224E520
+static const DistWorldEventCmdHandler sSetMapObjectAnimationHandlers[] = {
+    [EVENT_CMD_SET_MAP_OBJECT_ANIMATION_STATE_INIT] = EventCmdSetMapObjectAnimation_Init,
+    [EVENT_CMD_SET_MAP_OBJECT_ANIMATION_STATE_START] = EventCmdSetMapObjectAnimation_Start,
+    [EVENT_CMD_SET_MAP_OBJECT_ANIMATION_STATE_FINISH] = EventCmdSetMapObjectAnimation_Finish
 };
 
-static int ov9_0224E550(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdMovePlatform_BeginMovement(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    const UnkStruct_ov9_0224E550 *v0 = param3;
-    UnkStruct_ov9_0224E5EC *v1 = ov9_0224E37C(param0, sizeof(UnkStruct_ov9_0224E5EC));
+    const CmdParamsMovePlatform *cmdParams = params;
+    CmdRunDataMovePlatform *runData = ResetLoadedEventDataBuffer(system, sizeof(CmdRunDataMovePlatform));
 
-    v1->unk_24 = ov9_0224DE08(param0, v0->unk_00, DistWorldSystem_GetMapHeaderID(param0));
-    GF_ASSERT(v1->unk_24 != NULL);
+    runData->animator = GetAnimatorForMovingPlatform(system, cmdParams->platformIndex, DistWorldSystem_GetMapHeaderID(system));
+    GF_ASSERT(runData->animator != NULL);
 
-    v1->unk_0C.x = (((v0->unk_06) << 4) * FX32_ONE);
-    v1->unk_0C.y = (((v0->unk_08) << 4) * FX32_ONE);
-    v1->unk_0C.z = (((v0->unk_0A) << 4) * FX32_ONE);
+    runData->finalPosOffset.x = (cmdParams->finalTileXOffset << 4) * FX32_ONE;
+    runData->finalPosOffset.y = (cmdParams->finalTileYOffset << 4) * FX32_ONE;
+    runData->finalPosOffset.z = (cmdParams->finalTileZOffset << 4) * FX32_ONE;
+    runData->posDelta = cmdParams->posDelta;
+    runData->vibrationYDelta = MOVING_PLATFORM_VIBRATION_Y_DELTA;
 
-    v1->unk_18 = v0->unk_0C;
-    v1->unk_30 = (FX32_ONE * 3);
+    VecFx32 *movingPlatformPos = GetMovingPlatformPropPos(runData->animator->animMan);
+    runData->initialPlatformY = movingPlatformPos->y;
 
-    {
-        VecFx32 *v2 = ov9_0224E330(v1->unk_24->unk_20);
+    if (cmdParams->movePlayer == TRUE) {
+        VecFx32 spritePosOffset;
+        MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
 
-        v1->unk_2C = v2->y;
+        MapObject_SetHeightCalculationDisabled(playerMapObj, TRUE);
+        MapObject_GetSpritePosOffset(playerMapObj, &spritePosOffset);
+
+        runData->initialPlayerY = spritePosOffset.y;
     }
 
-    if (v0->unk_02 == 1) {
-        VecFx32 v3;
-        MapObject *v4 = Player_MapObject(param0->fieldSystem->playerAvatar);
+    Sound_PlayEffect(SEQ_SE_PL_FW089B_sseq);
 
-        MapObject_SetHeightCalculationDisabled(v4, TRUE);
-        sub_0206309C(v4, &v3);
-
-        v1->unk_28 = v3.y;
-    }
-
-    Sound_PlayEffect(SEQ_SE_PL_FW089B);
-
-    *param2 = 1;
-    return 0;
+    *cmdState = EVENT_CMD_MOVE_PLATFORM_STATE_VIBRATE;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224E5EC(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdMovePlatform_Vibrate(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    MapObject *v0 = NULL;
-    const UnkStruct_ov9_0224E550 *v1 = param3;
-    UnkStruct_ov9_0224E5EC *v2 = ov9_0224E39C(param0);
-    VecFx32 *v3 = ov9_0224E330(v2->unk_24->unk_20);
+    MapObject *playerMapObj = NULL;
+    const CmdParamsMovePlatform *cmdParams = params;
+    CmdRunDataMovePlatform *runData = GetLoadedEventDataBuffer(system);
+    VecFx32 *movingPlatformPos = GetMovingPlatformPropPos(runData->animator->animMan);
 
-    if (v1->unk_02 == 1) {
-        v0 = Player_MapObject(param0->fieldSystem->playerAvatar);
+    if (cmdParams->movePlayer == TRUE) {
+        playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
     }
 
-    v3->y = v2->unk_2C + v2->unk_30;
+    movingPlatformPos->y = runData->initialPlatformY + runData->vibrationYDelta;
 
-    if (v0 != NULL) {
-        VecFx32 v4;
+    if (playerMapObj != NULL) {
+        VecFx32 spritePosOffset;
 
-        sub_0206309C(v0, &v4);
-        v4.y = v2->unk_28 + v2->unk_30;
+        MapObject_GetSpritePosOffset(playerMapObj, &spritePosOffset);
+        spritePosOffset.y = runData->initialPlayerY + runData->vibrationYDelta;
 
-        sub_020630AC(v0, &v4);
-        MapObject_GetPosPtr(v0, &v4);
-        ov9_022511F4(v0, &v4);
+        MapObject_SetSpritePosOffset(playerMapObj, &spritePosOffset);
+        MapObject_GetPosPtr(playerMapObj, &spritePosOffset);
+        SetMapObjectPos(playerMapObj, &spritePosOffset);
     }
 
-    v2->unk_30 = -v2->unk_30;
+    runData->vibrationYDelta = -runData->vibrationYDelta;
 
-    if (v2->unk_30 >= 0) {
-        if (v2->unk_30 > (FX32_ONE * 1)) {
-            v2->unk_30 -= (FX32_ONE * 1);
+    if (runData->vibrationYDelta >= 0) {
+        if (runData->vibrationYDelta > FX32_ONE) {
+            runData->vibrationYDelta -= FX32_ONE;
         } else {
-            v2->unk_34++;
+            runData->vibrationAnimStep++;
 
-            if (v2->unk_34 >= 4) {
-                v2->unk_30 = 0;
+            if (runData->vibrationAnimStep >= 4) {
+                runData->vibrationYDelta = 0;
             }
         }
 
-        if (v2->unk_30 == 0) {
-            v3->y = v2->unk_2C;
+        if (runData->vibrationYDelta == 0) {
+            movingPlatformPos->y = runData->initialPlatformY;
 
-            if (v0 != NULL) {
-                VecFx32 v5;
+            if (playerMapObj != NULL) {
+                VecFx32 spritePosOffset;
 
-                sub_0206309C(v0, &v5);
-                v5.y = v2->unk_28;
-                sub_020630AC(v0, &v5);
+                MapObject_GetSpritePosOffset(playerMapObj, &spritePosOffset);
+                spritePosOffset.y = runData->initialPlayerY;
+                MapObject_SetSpritePosOffset(playerMapObj, &spritePosOffset);
 
-                MapObject_GetPosPtr(v0, &v5);
-                ov9_022511F4(v0, &v5);
+                MapObject_GetPosPtr(playerMapObj, &spritePosOffset);
+                SetMapObjectPos(playerMapObj, &spritePosOffset);
             }
 
-            *param2 = 2;
+            *cmdState = EVENT_CMD_MOVE_PLATFORM_STATE_MOVE;
         }
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224E6B0(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdMovePlatform_Move(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    VecFx32 v0 = { 0, 0, 0 };
-    const UnkStruct_ov9_0224E550 *v1 = param3;
-    UnkStruct_ov9_0224E5EC *v2 = ov9_0224E39C(param0);
-    VecFx32 *v3 = ov9_0224E330(v2->unk_24->unk_20);
+    VecFx32 posDelta = { 0, 0, 0 };
+    const CmdParamsMovePlatform *cmdParams = params;
+    CmdRunDataMovePlatform *runData = GetLoadedEventDataBuffer(system);
+    VecFx32 *movingPlatformPos = GetMovingPlatformPropPos(runData->animator->animMan);
 
-    if (v2->unk_00.x != v2->unk_0C.x) {
-        v2->unk_00.x += v2->unk_18.x;
-        v3->x += v2->unk_18.x;
+    if (runData->currPosOffset.x != runData->finalPosOffset.x) {
+        runData->currPosOffset.x += runData->posDelta.x;
+        movingPlatformPos->x += runData->posDelta.x;
 
-        if (v1->unk_02 == 1) {
-            v0.x += v2->unk_18.x;
+        if (cmdParams->movePlayer == TRUE) {
+            posDelta.x += runData->posDelta.x;
         }
     }
 
-    if (v2->unk_00.y != v2->unk_0C.y) {
-        v2->unk_00.y += v2->unk_18.y;
-        v3->y += v2->unk_18.y;
+    if (runData->currPosOffset.y != runData->finalPosOffset.y) {
+        runData->currPosOffset.y += runData->posDelta.y;
+        movingPlatformPos->y += runData->posDelta.y;
 
-        if (v1->unk_02 == 1) {
-            v0.y += v2->unk_18.y;
+        if (cmdParams->movePlayer == TRUE) {
+            posDelta.y += runData->posDelta.y;
         }
     }
 
-    if (v2->unk_00.z != v2->unk_0C.z) {
-        v2->unk_00.z += v2->unk_18.z;
-        v3->z += v2->unk_18.z;
+    if (runData->currPosOffset.z != runData->finalPosOffset.z) {
+        runData->currPosOffset.z += runData->posDelta.z;
+        movingPlatformPos->z += runData->posDelta.z;
 
-        if (v1->unk_02 == 1) {
-            v0.z += v2->unk_18.z;
+        if (cmdParams->movePlayer == TRUE) {
+            posDelta.z += runData->posDelta.z;
         }
     }
 
-    if (v1->unk_02 == 1) {
-        VecFx32 v4;
-        MapObject *v5 = Player_MapObject(param0->fieldSystem->playerAvatar);
+    if (cmdParams->movePlayer == TRUE) {
+        VecFx32 playerPos;
+        MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
 
-        MapObject_GetPosPtr(v5, &v4);
+        MapObject_GetPosPtr(playerMapObj, &playerPos);
 
-        v4.x += v0.x;
-        v4.y += v0.y;
-        v4.z += v0.z;
+        playerPos.x += posDelta.x;
+        playerPos.y += posDelta.y;
+        playerPos.z += posDelta.z;
 
-        ov9_022511F4(v5, &v4);
+        SetMapObjectPos(playerMapObj, &playerPos);
     }
 
-    if ((v2->unk_00.x == v2->unk_0C.x) && (v2->unk_00.y == v2->unk_0C.y) && (v2->unk_00.z == v2->unk_0C.z)) {
-        *param2 = 3;
+    if (runData->currPosOffset.x == runData->finalPosOffset.x && runData->currPosOffset.y == runData->finalPosOffset.y && runData->currPosOffset.z == runData->finalPosOffset.z) {
+        *cmdState = EVENT_CMD_MOVE_PLATFORM_STATE_END;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224E798(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdMovePlatform_EndMovement(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    const UnkStruct_ov9_0224E550 *v0 = param3;
+    const CmdParamsMovePlatform *cmdParams = params;
 
-    if (v0->unk_02 == 1) {
-        MapObject *v1 = Player_MapObject(param0->fieldSystem->playerAvatar);
-        int v2 = MapObject_GetX(v1) + v0->unk_06;
-        int v3 = MapObject_GetY(v1) + ((v0->unk_08) * 2);
-        int v4 = MapObject_GetZ(v1) + v0->unk_0A;
+    if (cmdParams->movePlayer == TRUE) {
+        MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
+        int finalPlayerTileX = MapObject_GetX(playerMapObj) + cmdParams->finalTileXOffset;
+        int finalPlayerTileY = MapObject_GetY(playerMapObj) + cmdParams->finalTileYOffset * 2;
+        int finalPlayerTileZ = MapObject_GetZ(playerMapObj) + cmdParams->finalTileZOffset;
 
-        MapObject_SetX(v1, v2);
-        MapObject_SetY(v1, v3);
-        MapObject_SetZ(v1, v4);
-        MapObject_UpdateCoords(v1);
+        MapObject_SetX(playerMapObj, finalPlayerTileX);
+        MapObject_SetY(playerMapObj, finalPlayerTileY);
+        MapObject_SetZ(playerMapObj, finalPlayerTileZ);
+        MapObject_UpdateCoords(playerMapObj);
 
-        {
-            u32 v5;
-            PlayerAvatar *playerAvatar = param0->fieldSystem->playerAvatar;
+        PlayerAvatar *playerAvatar = system->fieldSystem->playerAvatar;
+        finalPlayerTileY = finalPlayerTileY / 2;
 
-            v3 = ((v3) / 2);
-            FindAndPrepareNewCurrentFloatingPlatform(param0, v2, v3, v4, 4);
-            v5 = GetCurrentFloatingPlatformKindSafely(param0, v2, v3, v4);
-            v5 = GetAvatarDistortionStateForFloatingPlatformKind(v5);
-            PlayerAvatar_SetDistortionState(playerAvatar, v5);
+        FindAndPrepareNewCurrentFloatingPlatform(system, finalPlayerTileX, finalPlayerTileY, finalPlayerTileZ, FLOATING_PLATFORM_KIND_INVALID);
+        u32 currentFloatingPlatformKind = GetCurrentFloatingPlatformKindSafely(system, finalPlayerTileX, finalPlayerTileY, finalPlayerTileZ);
+        enum AvatarDistortionState avatarDistortionState = GetAvatarDistortionStateForFloatingPlatformKind(currentFloatingPlatformKind);
+        PlayerAvatar_SetDistortionState(playerAvatar, avatarDistortionState);
 
-            if (v5 == 1) {
-                MapObject_SetHeightCalculationDisabled(v1, FALSE);
-            } else {
-                MapObject_SetHeightCalculationDisabled(v1, TRUE);
-            }
+        if (avatarDistortionState == AVATAR_DISTORTION_STATE_ACTIVE) {
+            MapObject_SetHeightCalculationDisabled(playerMapObj, FALSE);
+        } else {
+            MapObject_SetHeightCalculationDisabled(playerMapObj, TRUE);
         }
     }
 
-    Sound_StopEffect(1482, 0);
-    return 2;
+    Sound_StopEffect(SEQ_SE_PL_FW089B_sseq, 0);
+    return EVENT_CMD_HANDLER_RES_FINISH;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_022513E8[4] = {
-    ov9_0224E550,
-    ov9_0224E5EC,
-    ov9_0224E6B0,
-    ov9_0224E798
+static const DistWorldEventCmdHandler sMovePlatformHandlers[] = {
+    [EVENT_CMD_MOVE_PLATFORM_STATE_INIT] = EventCmdMovePlatform_BeginMovement,
+    [EVENT_CMD_MOVE_PLATFORM_STATE_VIBRATE] = EventCmdMovePlatform_Vibrate,
+    [EVENT_CMD_MOVE_PLATFORM_STATE_MOVE] = EventCmdMovePlatform_Move,
+    [EVENT_CMD_MOVE_PLATFORM_STATE_END] = EventCmdMovePlatform_EndMovement
 };
 
-static int ov9_0224E860(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdAddMapObjWithLocalID_Handle(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    const UnkStruct_ov9_0224E860 *v0 = param3;
+    const CmdParamsAddMapObjWithLocalID *cmdParams = params;
+    AddMapObjectWithLocalID(system, cmdParams->mapHeaderID, cmdParams->mapObjLocalID);
 
-    ov9_0224F0D4(param0, v0->unk_00, v0->unk_02);
-    return 2;
+    return EVENT_CMD_HANDLER_RES_FINISH;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251258[1] = {
-    ov9_0224E860
+static const DistWorldEventCmdHandler sAddMapObjWithLocalIDHandlers[] = {
+    EventCmdAddMapObjWithLocalID_Handle
 };
 
-static int ov9_0224E870(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdDeleteMapObjWithLocalID_Handle(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    const UnkStruct_ov9_0224E870 *v0 = param3;
+    const CmdParamsDeleteMapObjWithLocalID *cmdParams = params;
+    DistWorld_DeleteMapObjectWithLocalID(system->fieldSystem, cmdParams->mapObjLocalID);
 
-    ov9_0224F16C(param0->fieldSystem, v0->unk_00);
-    return 2;
+    return EVENT_CMD_HANDLER_RES_FINISH;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_0225126C[1] = {
-    ov9_0224E870
+static const DistWorldEventCmdHandler sDeleteMapObjWithLocalIDHandlers[] = {
+    EventCmdDeleteMapObjWithLocalID_Handle
 };
 
-static const UnkStruct_ov9_02252414 Unk_ov9_02252414[] = {
+static const DistWorldGiratinaShadowTemplate sGiratinaShadowExternal[GIRATINA_SHADOW_EXTERNAL_COUNT] = {
     {
-        0x6,
-        0x129,
-        0x2A,
-        0x3,
-        0x1,
-        { FX32_ONE, FX32_ONE, FX32_ONE },
-        { (FX32_ONE * 48), 0x0, 0x0 },
-        0x40,
-    },
-    // Arc 1 flashback, Giratina room: a high pass west to east over Cyrus (15,23)...
-    {
-        -20,
-        7,
-        25,
-        0x3,
-        0x1,
-        { FX32_ONE, FX32_ONE, FX32_ONE },
-        { (FX32_ONE * 82), 0x0, 0x0 },
-        0x13,
-    },
-    // ...then a low swoop back east to west through his tile; it throws him into a rift.
-    {
-        51,
-        2,
-        23,
-        0x2,
-        0x1,
-        { FX32_ONE, FX32_ONE, FX32_ONE },
-        { -(FX32_ONE * 82), 0x0, 0x0 },
-        0x13,
-    },
-    // Arc 1 wall-walk puzzle (ARC1_SEAMS): the shadow passes once through the void below the seam, south along z
-    // under the briefcase platform. A whoosh, no cry: nobody on screen reacts to it.
-    {
-        17,
-        -3,
-        4,
-        0x1,
-        0x2,
-        { FX32_ONE, FX32_ONE, FX32_ONE },
-        { 0x0, 0x0, (FX32_ONE * 28) },
-        0x28,
-    },
-    // Arc 2 rift-a, DW Ravaged Path (2.6, halfway): the same shadow, deeper and much slower, south along z under the
-    // briefcase platform while the player stands on top of the seam. Same whoosh; nobody reacts.
-    {
-        15,
-        -2,
-        -4,
-        0x1,
-        0x2,
-        { FX32_ONE, FX32_ONE, FX32_ONE },
-        { 0x0, 0x0, (FX32_ONE * 10) },
-        0x60,
+        .initialTileX = 6,
+        .initialTileY = 297,
+        .initialTileZ = 42,
+        .rotAnglesIndex = 3,
+        .soundKind = GIRATINA_SHADOW_PROP_SFX_KIND_CRY,
+        .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
+        .posDelta = { FX32_ONE * 48, 0, 0 },
+        .movementAnimSteps = 64,
     },
 };
 
-void ov9_0224E884(FieldSystem *fieldSystem, u16 param1)
+void DistWorld_StartGiratinaShadowEvent(FieldSystem *fieldSystem, u16 eventIndex)
 {
-    DistWorldSystem *v0;
+    GF_ASSERT(eventIndex < GIRATINA_SHADOW_EXTERNAL_COUNT);
 
-    GF_ASSERT(param1 < NELEMS(Unk_ov9_02252414));
-    v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    ov9_0224E91C(v0, &Unk_ov9_02252414[param1]);
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
+    LoadGiratinaShadowPropAnimation(dwSystem, &sGiratinaShadowExternal[eventIndex]);
 }
 
-void ov9_0224E8A8(FieldSystem *fieldSystem)
+void DistWorld_FinishGiratinaShadowEvent(FieldSystem *fieldSystem)
 {
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    ov9_0224E988(v0);
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
+    FinishGiratinaShadowPropRenderer(dwSystem);
 }
 
-static void ov9_0224E8B4(DistWorldSystem *param0)
+static void LoadGiratinaShadowPropRenderer(DistWorldSystem *system)
 {
-    int v0;
-    UnkStruct_ov9_0224E8B4 *v1 = &param0->unk_1EA4;
+    int rendererAlreadyInit;
+    DistWorldGiratinaShadowPropRenderer *giratinaRenderer = &system->giratinaShadowPropRenderer;
 
-    if (v1->unk_00 == 0) {
-        v1->unk_04 = DistWorldPropRenderer_Init(param0, 20, &v0);
+    if (giratinaRenderer->valid == FALSE) {
+        giratinaRenderer->renderer = DistWorldPropRenderer_Init(system, PROP_KIND_GIRATINA_SHADOW, &rendererAlreadyInit);
 
-        if (v0 == 0) {
-            LoadRenderBuffersForProp(param0, 20, &v1->unk_04->renderObj, &v1->unk_04->animation);
+        if (!rendererAlreadyInit) {
+            LoadRenderBuffersForProp(system, PROP_KIND_GIRATINA_SHADOW, &giratinaRenderer->renderer->renderObj, &giratinaRenderer->renderer->animation);
         }
 
-        v1->unk_00 = 1;
+        giratinaRenderer->valid = TRUE;
     }
 }
 
-static void ov9_0224E8EC(DistWorldSystem *param0)
+static void FreeGiratinaShadowPropRenderer(DistWorldSystem *system)
 {
-    int v0;
-    UnkStruct_ov9_0224E8B4 *v1 = &param0->unk_1EA4;
+    DistWorldGiratinaShadowPropRenderer *giratinaRenderer = &system->giratinaShadowPropRenderer;
 
-    if (v1->unk_00 == 1) {
-        DistWorldPropRenderer_InvalidateAnimated(param0, v1->unk_04);
-        FreePropAnimSet(param0, 0);
-        FreeProp3DModel(param0, 20);
-        v1->unk_00 = 0;
+    if (giratinaRenderer->valid == TRUE) {
+        DistWorldPropRenderer_InvalidateAnimated(system, giratinaRenderer->renderer);
+        FreePropAnimSet(system, PROP_ANIM_KIND_GIRATINA_SHADOW);
+        FreeProp3DModel(system, PROP_KIND_GIRATINA_SHADOW);
+        giratinaRenderer->valid = FALSE;
     }
 }
 
-static void ov9_0224E91C(DistWorldSystem *param0, const UnkStruct_ov9_02252414 *param1)
+static void LoadGiratinaShadowPropAnimation(DistWorldSystem *system, const DistWorldGiratinaShadowTemplate *giratinaTemplate)
 {
-    UnkStruct_ov9_0224E91C v0;
-    UnkStruct_ov9_0224E8B4 *v1 = &param0->unk_1EA4;
+    DistWorldGiratinaShadowPropUserData userData;
+    DistWorldGiratinaShadowPropRenderer *giratinaRenderer = &system->giratinaShadowPropRenderer;
 
-    ov9_0224E8B4(param0);
+    LoadGiratinaShadowPropRenderer(system);
 
-    v0.unk_00 = param0;
-    v0.unk_08 = *param1;
-    v0.unk_04 = v1->unk_04;
+    userData.system = system;
+    userData.template = *giratinaTemplate;
+    userData.renderer = giratinaRenderer->renderer;
 
-    v1->unk_08 = ov5_021DF72C(param0->fieldSystem->unk_40, &Unk_ov9_022514B8, NULL, 0, &v0, 0);
+    giratinaRenderer->animMan = FieldEffectManager_InitAnimManager(system->fieldSystem->fieldEffMan, &sGiratinaShadowPropAnimFuncs, NULL, 0, &userData, 0);
 }
 
-static BOOL ov9_0224E964(DistWorldSystem *param0)
+static BOOL IsGiratinaShadowAnimationFinished(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224E964 *v0;
-    UnkStruct_ov9_0224E8B4 *v1 = &param0->unk_1EA4;
+    DistWorldGiratinaShadowPropRenderer *giratinaRenderer = &system->giratinaShadowPropRenderer;
 
-    GF_ASSERT(v1->unk_08 != NULL);
+    GF_ASSERT(giratinaRenderer->animMan != NULL);
 
-    v0 = OverworldAnimManager_GetFuncsContext(v1->unk_08);
-    return v0->unk_34;
+    DistWorldGiratinaShadowProp *giratinaProp = OverworldAnimManager_GetFuncsContext(giratinaRenderer->animMan);
+    return giratinaProp->animFinished;
 }
 
-static void ov9_0224E984(DistWorldSystem *param0)
+static void Dummy0224E984(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224E8B4 *v0 = &param0->unk_1EA4;
 }
 
-static void ov9_0224E988(DistWorldSystem *param0)
+static void FinishGiratinaShadowPropRenderer(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224E8B4 *v0 = &param0->unk_1EA4;
+    DistWorldGiratinaShadowPropRenderer *giratinaRenderer = &system->giratinaShadowPropRenderer;
 
-    if (v0->unk_08 != NULL) {
-        OverworldAnimManager_Finish(v0->unk_08);
+    if (giratinaRenderer->animMan != NULL) {
+        OverworldAnimManager_Finish(giratinaRenderer->animMan);
     }
 
-    ov9_0224E8EC(param0);
+    FreeGiratinaShadowPropRenderer(system);
 }
 
-static BOOL ov9_0224E9A4(DistWorldSystem *param0, u32 param1)
+static BOOL IsGiratinaShadowPropRendererValid2(DistWorldSystem *system, u32 propKind)
 {
-    UnkStruct_ov9_0224E8B4 *v0 = &param0->unk_1EA4;
+    DistWorldGiratinaShadowPropRenderer *giratinaRenderer = &system->giratinaShadowPropRenderer;
+    GF_ASSERT(propKind != PROP_KIND_INVALID);
 
-    GF_ASSERT(param1 != 25);
-
-    if (v0->unk_00 == 1) {
-        if (param1 == 20) {
-            return 1;
-        }
-    }
-
-    return 0;
+    return giratinaRenderer->valid == TRUE && propKind == PROP_KIND_GIRATINA_SHADOW;
 }
 
-static BOOL ov9_0224E9CC(DistWorldSystem *param0, u32 param1)
+static BOOL IsGiratinaShadowPropRendererAnimValid(DistWorldSystem *system, u32 animKind)
 {
-    UnkStruct_ov9_0224E8B4 *v0 = &param0->unk_1EA4;
+    DistWorldGiratinaShadowPropRenderer *giratinaRenderer = &system->giratinaShadowPropRenderer;
+    GF_ASSERT(animKind != PROP_ANIM_KIND_INVALID);
 
-    GF_ASSERT(param1 != 5);
-
-    if (v0->unk_00 == 1) {
-        if (param1 == 0) {
-            return 1;
-        }
-    }
-
-    return 0;
+    return giratinaRenderer->valid == TRUE && animKind == PROP_ANIM_KIND_GIRATINA_SHADOW;
 }
 
-static BOOL ov9_0224E9F4(DistWorldSystem *param0, int param1)
+static BOOL IsGiratinaShadowPropRendererValid(DistWorldSystem *system, int propKind)
 {
-    UnkStruct_ov9_0224E8B4 *v0 = &param0->unk_1EA4;
-
-    if (v0->unk_00 == 1) {
-        if (param1 == 20) {
-            return 1;
-        }
-    }
-
-    return 0;
+    DistWorldGiratinaShadowPropRenderer *giratinaRenderer = &system->giratinaShadowPropRenderer;
+    return giratinaRenderer->valid == TRUE && propKind == PROP_KIND_GIRATINA_SHADOW;
 }
 
-static const Simple3DRotationAngles Unk_ov9_022529F8[5] = {
-    { 0x0, 0x0, 0x0 },
-    { 0x0, 0xB4, 0x0 },
-    { 0x0, 0x5A, 0x0 },
-    { 0x0, 0x10E, 0x0 },
-    { 0x5A, 0x0, 0x0 }
+static const Simple3DRotationAngles sGiratinaShadowPropRotAngles[5] = {
+    { 0, 0, 0 },
+    { 0, 180, 0 },
+    { 0, 90, 0 },
+    { 0, 270, 0 },
+    { 90, 0, 0 }
 };
 
-static int ov9_0224EA0C(OverworldAnimManager *param0, void *param1)
+static BOOL DistWorldGiratinaShadowProp_AnimInit(OverworldAnimManager *animMan, void *context)
 {
-    VecFx32 v0;
-    UnkStruct_ov9_0224E964 *v1 = param1;
-    const UnkStruct_ov9_0224E91C *v2 = OverworldAnimManager_GetUserData(param0);
-    const UnkStruct_ov9_02252414 *v3;
+    DistWorldGiratinaShadowProp *giratinaProp = context;
+    const DistWorldGiratinaShadowPropUserData *userData = OverworldAnimManager_GetUserData(animMan);
 
-    v1->unk_00 = *v2;
-    v3 = &v1->unk_00.unk_08;
+    giratinaProp->userData = *userData;
+    const DistWorldGiratinaShadowTemplate *template = &giratinaProp->userData.template;
 
-    v1->unk_2E = 1;
-    v1->unk_38 = Unk_ov9_022529F8[v3->unk_06];
+    giratinaProp->animStopped = TRUE;
+    giratinaProp->rotAngles = sGiratinaShadowPropRotAngles[template->rotAnglesIndex];
 
-    v0.x = (((v3->unk_00) << 4) * FX32_ONE);
-    v0.y = (((v3->unk_02) << 4) * FX32_ONE);
-    v0.z = (((v3->unk_04) << 4) * FX32_ONE);
+    VecFx32 pos;
+    pos.x = (template->initialTileX << 4) * FX32_ONE;
+    pos.y = (template->initialTileY << 4) * FX32_ONE;
+    pos.z = (template->initialTileZ << 4) * FX32_ONE;
 
-    if (v3->unk_06 == 4) {
-        v0.x += (FX32_ONE * 8);
+    if (template->rotAnglesIndex == 4) {
+        pos.x += FX32_ONE * 8;
     }
 
-    OverworldAnimManager_SetPosition(param0, &v0);
+    OverworldAnimManager_SetPosition(animMan, &pos);
 
-    v1->unk_2E = 0;
-    return 1;
+    giratinaProp->animStopped = FALSE;
+    return TRUE;
 }
 
-static void ov9_0224EA88(OverworldAnimManager *param0, void *param1)
+static void DistWorldGiratinaShadowProp_AnimExit(OverworldAnimManager *animMan, void *context)
 {
-    UnkStruct_ov9_0224E964 *v0 = param1;
-    Simple3D_FreeAnimObject(&v0->unk_00.unk_04->animation);
+    DistWorldGiratinaShadowProp *giratinaProp = context;
+    Simple3D_FreeAnimObject(&giratinaProp->userData.renderer->animation);
 }
 
-static void ov9_0224EA94(OverworldAnimManager *param0, void *param1)
+static void DistWorldGiratinaShadowProp_AnimTick(OverworldAnimManager *animMan, void *context)
 {
-    VecFx32 v0;
-    UnkStruct_ov9_0224E964 *v1 = param1;
-    const UnkStruct_ov9_02252414 *v2 = &v1->unk_00.unk_08;
+    DistWorldGiratinaShadowProp *giratinaProp = context;
+    const DistWorldGiratinaShadowTemplate *template = &giratinaProp->userData.template;
 
-    switch (v1->unk_2C) {
-    case 0:
-        if (v2->unk_07 == 1) {
+    switch (giratinaProp->state) {
+    case GIRATINA_SHADOW_PROP_STATE_SFX:
+        if (template->soundKind == GIRATINA_SHADOW_PROP_SFX_KIND_CRY) {
             Sound_PlayPokemonCry(SPECIES_GIRATINA, 0);
-        } else if (v2->unk_07 == 2) {
-            Sound_PlayEffect(SEQ_SE_DP_FW019);
+        } else if (template->soundKind == GIRATINA_SHADOW_PROP_SFX_KIND_FLEE) {
+            Sound_PlayEffect(SEQ_SE_DP_FW019_sseq);
         }
 
-        v1->unk_2C++;
-    case 1: {
-        VecFx32 v3;
-        const VecFx32 *v4 = &v2->unk_14;
+        giratinaProp->state++;
+        // fallthrough
 
-        OverworldAnimManager_GetPosition(param0, &v3);
+    case GIRATINA_SHADOW_PROP_STATE_MOVE: {
+        VecFx32 pos;
+        const VecFx32 *posDelta = &template->posDelta;
 
-        v3.x += v4->x;
-        v3.y += v4->y;
-        v3.z += v4->z;
+        OverworldAnimManager_GetPosition(animMan, &pos);
 
-        v1->unk_30++;
+        pos.x += posDelta->x;
+        pos.y += posDelta->y;
+        pos.z += posDelta->z;
 
-        if (v1->unk_30 >= v2->unk_20) {
-            v1->unk_2C++;
-            v1->unk_34 = 1;
-            v1->unk_2E = 1;
+        giratinaProp->movementAnimStep++;
+
+        if (giratinaProp->movementAnimStep >= template->movementAnimSteps) {
+            giratinaProp->state++;
+            giratinaProp->animFinished = TRUE;
+            giratinaProp->animStopped = TRUE;
         }
 
-        OverworldAnimManager_SetPosition(param0, &v3);
-    } break;
-    case 2:
+        OverworldAnimManager_SetPosition(animMan, &pos);
         break;
     }
 
-    if (v1->unk_2E == 0) {
-        Simple3D_UpdateAnim(&v1->unk_00.unk_04->animation, FX32_ONE, 1);
+    case GIRATINA_SHADOW_PROP_STATE_END:
+        break;
+    }
+
+    if (!giratinaProp->animStopped) {
+        Simple3D_UpdateAnim(&giratinaProp->userData.renderer->animation, FX32_ONE, TRUE);
     }
 }
 
-static void ov9_0224EB34(OverworldAnimManager *param0, void *param1)
+static void DistWorldGiratinaShadowProp_AnimRender(OverworldAnimManager *animMan, void *context)
 {
-    UnkStruct_ov9_0224E964 *v0 = param1;
+    DistWorldGiratinaShadowProp *giratinaProp = context;
 
-    if (v0->unk_2E == 0) {
-        VecFx32 v1;
-        const VecFx32 *v2;
+    if (!giratinaProp->animStopped) {
+        VecFx32 pos;
+        OverworldAnimManager_GetPosition(animMan, &pos);
 
-        OverworldAnimManager_GetPosition(param0, &v1);
-        v2 = &v0->unk_00.unk_08.unk_08;
+        const VecFx32 *scale = &giratinaProp->userData.template.scale;
 
-        SetPropPolygonID(v0->unk_00.unk_00, 20, (1 * 8));
-        Simple3D_DrawRenderObjRotationAngles(&v0->unk_00.unk_04->renderObj, &v1, v2, &v0->unk_38);
+        SetPropPolygonID(giratinaProp->userData.system, PROP_KIND_GIRATINA_SHADOW, 1 << 3);
+        Simple3D_DrawRenderObjRotationAngles(&giratinaProp->userData.renderer->renderObj, &pos, scale, &giratinaProp->rotAngles);
     }
 }
 
-static const OverworldAnimManagerFuncs Unk_ov9_022514B8 = {
-    sizeof(UnkStruct_ov9_0224E964),
-    ov9_0224EA0C,
-    ov9_0224EA88,
-    ov9_0224EA94,
-    ov9_0224EB34
+static const OverworldAnimManagerFuncs sGiratinaShadowPropAnimFuncs = {
+    sizeof(DistWorldGiratinaShadowProp),
+    DistWorldGiratinaShadowProp_AnimInit,
+    DistWorldGiratinaShadowProp_AnimExit,
+    DistWorldGiratinaShadowProp_AnimTick,
+    DistWorldGiratinaShadowProp_AnimRender
 };
 
-static void ov9_0224EB68(DistWorldSystem *param0)
+static void InitSimplePropsForCurrentAndNextMaps(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224EB68 *v0 = &param0->unk_1BB4;
-    u32 v1 = DistWorldSystem_GetMapHeaderID(param0);
-    const DistWorldMapConnections *v2 = GetConnectionsForMap(v1);
+    u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(mapHeaderID);
 
-    ov9_0224EC48(param0, v1);
+    InitSimplePropsForMap(system, mapHeaderID);
 
-    if (v2->nextID != MAP_HEADER_INVALID) {
-        ov9_0224EC48(param0, v2->nextID);
+    if (mapConnections->nextID != MAP_HEADER_INVALID) {
+        InitSimplePropsForMap(system, mapConnections->nextID);
     }
 }
 
-static void ov9_0224EB94(DistWorldSystem *param0)
+static void FinishAllSimplePropAnimators(DistWorldSystem *system)
 {
-    int v0 = 0;
-    UnkStruct_ov9_0224EB68 *v1 = &param0->unk_1BB4;
-    UnkStruct_ov9_0224EBB8 *v2 = v1->unk_00;
+    int i = 0;
+    DistWorldSimplePropManager *simplePropMan = &system->simplePropMan;
+    DistWorldSimplePropAnimator *iter = simplePropMan->animators;
 
-    while (v0 < 8) {
-        if (v2->unk_04 != NULL) {
-            ov9_0224EBB8(v2);
+    while (i < SIMPLE_PROP_MANAGER_ANIMATOR_COUNT) {
+        if (iter->animMan != NULL) {
+            DistWorldMapSimplePropAnimator_Finish(iter);
         }
 
-        v2++;
-        v0++;
+        iter++;
+        i++;
     }
 }
 
-static void ov9_0224EBB8(UnkStruct_ov9_0224EBB8 *param0)
+static void DistWorldMapSimplePropAnimator_Finish(DistWorldSimplePropAnimator *animator)
 {
-    if (param0->unk_04 != NULL) {
-        OverworldAnimManager_Finish(param0->unk_04);
+    if (animator->animMan != NULL) {
+        OverworldAnimManager_Finish(animator->animMan);
     }
 
-    param0->unk_04 = NULL;
+    animator->animMan = NULL;
 }
 
-static void ov9_0224EBCC(DistWorldSystem *param0, UnkStruct_ov9_0224EBB8 *param1, const UnkStruct_ov9_0224EC10 *param2, u32 param3)
+static void InitSimplePropAnimation(DistWorldSystem *system, DistWorldSimplePropAnimator *animator, const DistWorldSimplePropTemplate *simplePropTemplate, u32 mapHeaderID)
 {
-    param1->unk_00 = param3;
-    param1->unk_08 = *param2;
+    animator->mapHeaderID = mapHeaderID;
+    animator->template = *simplePropTemplate;
 
-    {
-        UnkStruct_ov9_0224EBCC v0;
-        const OverworldAnimManagerFuncs *v1;
+    DistWorldSimplePropUserData userData;
+    userData.system = system;
+    userData.animator = animator;
 
-        v0.unk_00 = param0;
-        v0.unk_04 = param1;
-        v1 = sPropAnimFuncsByKind[param2->unk_04];
-
-        param1->unk_04 = ov5_021DF72C(param0->fieldSystem->unk_40, v1, NULL, 0, &v0, 2);
-    }
+    const OverworldAnimManagerFuncs *animFuncs = sPropAnimFuncsByKind[simplePropTemplate->propKind];
+    animator->animMan = FieldEffectManager_InitAnimManager(system->fieldSystem->fieldEffMan, animFuncs, NULL, 0, &userData, 2);
 }
 
-static void ov9_0224EC10(DistWorldSystem *param0, const UnkStruct_ov9_02252548 *param1)
+static void InitSimplePropsFromTemplates(DistWorldSystem *system, const DistWorldSimplePropMapTemplates *mapTemplates)
 {
-    u16 v0, v1;
-    const UnkStruct_ov9_0224EC10 *v2 = param1->unk_04;
-    UnkStruct_ov9_0224EBB8 *v3;
+    const DistWorldSimplePropTemplate *iter = mapTemplates->templates;
 
-    while (v2->unk_04 != 25) {
-        v0 = v2->unk_0C;
-        v1 = v2->unk_0E;
-
-        if (ov9_02251104(param0, v0, v1) == 1) {
-            v3 = ov9_0224EC70(param0);
-            ov9_0224EBCC(param0, v3, v2, param1->unk_00);
+    while (iter->propKind != PROP_KIND_INVALID) {
+        if (CheckFlagCondition(system, iter->flagCond, iter->flagCondVal) == TRUE) {
+            DistWorldSimplePropAnimator *animator = FindUnusedSimplePropAnimator(system);
+            InitSimplePropAnimation(system, animator, iter, mapTemplates->mapHeaderID);
         }
 
-        v2++;
+        iter++;
     }
 }
 
-static void ov9_0224EC48(DistWorldSystem *param0, u32 param1)
+static void InitSimplePropsForMap(DistWorldSystem *system, u32 mapHeaderID)
 {
-    const UnkStruct_ov9_02252548 *v0 = Unk_ov9_02252548;
+    const DistWorldSimplePropMapTemplates *iter = sSimplePropsMapTemplates;
 
-    while (v0->unk_00 != 593) {
-        if (v0->unk_00 == param1) {
-            ov9_0224EC10(param0, v0);
-
+    while (iter->mapHeaderID != MAP_HEADER_INVALID) {
+        if (iter->mapHeaderID == mapHeaderID) {
+            InitSimplePropsFromTemplates(system, iter);
             return;
         }
 
-        v0++;
+        iter++;
     }
 }
 
-static UnkStruct_ov9_0224EBB8 *ov9_0224EC70(DistWorldSystem *param0)
+static DistWorldSimplePropAnimator *FindUnusedSimplePropAnimator(DistWorldSystem *system)
 {
-    int v0 = 0;
-    UnkStruct_ov9_0224EB68 *v1 = &param0->unk_1BB4;
-    UnkStruct_ov9_0224EBB8 *v2 = v1->unk_00;
+    int i = 0;
+    DistWorldSimplePropManager *simplePropMan = &system->simplePropMan;
+    DistWorldSimplePropAnimator *iter = simplePropMan->animators;
 
     do {
-        if (v2->unk_04 == NULL) {
-            return v2;
+        if (iter->animMan == NULL) {
+            return iter;
         }
 
-        v2++;
-        v0++;
-    } while (v0 < 8);
+        iter++;
+        i++;
+    } while (i < SIMPLE_PROP_MANAGER_ANIMATOR_COUNT);
 
     GF_ASSERT(FALSE);
     return NULL;
 }
 
-static void ov9_0224EC94(DistWorldSystem *param0, u32 param1)
+static void FinishSimplePropAnimatorForMap(DistWorldSystem *system, u32 mapHeaderID)
 {
-    int v0 = 0;
-    UnkStruct_ov9_0224EB68 *v1 = &param0->unk_1BB4;
-    UnkStruct_ov9_0224EBB8 *v2 = v1->unk_00;
+    int i = 0;
+    DistWorldSimplePropManager *simplePropMan = &system->simplePropMan;
+    DistWorldSimplePropAnimator *iter = simplePropMan->animators;
 
-    while (v0 < 8) {
-        if ((v2->unk_00 == param1) && (v2->unk_04 != NULL)) {
-            ov9_0224EBB8(v2);
+    while (i < SIMPLE_PROP_MANAGER_ANIMATOR_COUNT) {
+        if (iter->mapHeaderID == mapHeaderID && iter->animMan != NULL) {
+            DistWorldMapSimplePropAnimator_Finish(iter);
         }
 
-        v2++;
-        v0++;
+        iter++;
+        i++;
     }
 }
 
-static BOOL ov9_0224ECC0(DistWorldSystem *param0, int param1)
+static BOOL HasActiveSimpleProp(DistWorldSystem *system, int propKind)
 {
-    int v0 = 0;
-    UnkStruct_ov9_0224EB68 *v1 = &param0->unk_1BB4;
-    UnkStruct_ov9_0224EBB8 *v2 = v1->unk_00;
+    int i = 0;
+    DistWorldSimplePropManager *simplePropMan = &system->simplePropMan;
+    DistWorldSimplePropAnimator *iter = simplePropMan->animators;
 
-    while (v0 < 8) {
-        if (v2->unk_04 != NULL) {
-            if (v2->unk_08.unk_04 == param1) {
-                return 1;
+    while (i < SIMPLE_PROP_MANAGER_ANIMATOR_COUNT) {
+        if (iter->animMan != NULL && iter->template.propKind == propKind) {
+            return TRUE;
+        }
+
+        iter++;
+        i++;
+    }
+
+    return FALSE;
+}
+
+static BOOL HasActiveSimpleProp2(DistWorldSystem *system, u32 propKind)
+{
+    int i = 0;
+    DistWorldSimplePropManager *simplePropMan = &system->simplePropMan;
+    DistWorldSimplePropAnimator *iter = simplePropMan->animators;
+
+    while (i < SIMPLE_PROP_MANAGER_ANIMATOR_COUNT) {
+        if (iter->animMan != NULL) {
+            const DistWorldPropAnimInfo *animInfo = &sPropAnimInfoByKind[iter->template.propKind];
+
+            if (animInfo->propKind == propKind) {
+                return TRUE;
             }
         }
 
-        v2++;
-        v0++;
+        iter++;
+        i++;
     }
 
-    return 0;
+    return FALSE;
 }
 
-static BOOL ov9_0224ECE8(DistWorldSystem *param0, u32 param1)
+static BOOL HasActiveSimplePropAnim(DistWorldSystem *system, u32 animKind)
 {
-    int v0 = 0;
-    const DistWorldPropAnimInfo *v1;
-    UnkStruct_ov9_0224EB68 *v2 = &param0->unk_1BB4;
-    UnkStruct_ov9_0224EBB8 *v3 = v2->unk_00;
+    int i = 0;
+    DistWorldSimplePropManager *simplePropMan = &system->simplePropMan;
+    DistWorldSimplePropAnimator *iter = simplePropMan->animators;
 
-    while (v0 < 8) {
-        if (v3->unk_04 != NULL) {
-            v1 = &sPropAnimInfoByKind[v3->unk_08.unk_04];
+    while (i < SIMPLE_PROP_MANAGER_ANIMATOR_COUNT) {
+        if (iter->animMan != NULL) {
+            const DistWorldPropAnimInfo *animInfo = &sPropAnimInfoByKind[iter->template.propKind];
 
-            if (v1->propKind == param1) {
-                return 1;
+            if (animInfo->animKind == animKind) {
+                return TRUE;
             }
         }
 
-        v3++;
-        v0++;
+        iter++;
+        i++;
     }
 
-    return 0;
+    return FALSE;
 }
 
-static BOOL ov9_0224ED20(DistWorldSystem *param0, u32 param1)
+static BOOL DistWorldSimpleProp_AnimInit(OverworldAnimManager *animMan, void *context)
 {
-    int v0 = 0;
-    const DistWorldPropAnimInfo *v1;
-    UnkStruct_ov9_0224EB68 *v2 = &param0->unk_1BB4;
-    UnkStruct_ov9_0224EBB8 *v3 = v2->unk_00;
+    DistWorldSimpleProp *simpleProp = context;
+    const DistWorldSimplePropUserData *userData = OverworldAnimManager_GetUserData(animMan);
+    const DistWorldSimplePropTemplate *simplePropTemplate = &userData->animator->template;
 
-    while (v0 < 8) {
-        if (v3->unk_04 != NULL) {
-            v1 = &sPropAnimInfoByKind[v3->unk_08.unk_04];
+    simpleProp->userData = *userData;
 
-            if (v1->animKind == param1) {
-                return 1;
-            }
-        }
+    BOOL rendererAlreadyInit;
+    simpleProp->renderer = DistWorldPropRenderer_Init(userData->system, simplePropTemplate->propKind, &rendererAlreadyInit);
 
-        v3++;
-        v0++;
+    if (!rendererAlreadyInit) {
+        LoadRenderBuffersForProp(simpleProp->userData.system, simplePropTemplate->propKind, &simpleProp->renderer->renderObj, &simpleProp->renderer->animation);
     }
 
-    return 0;
+    VecFx32_SetPosFromMapCoords(simplePropTemplate->tileX, simplePropTemplate->tileZ, &simpleProp->pos);
+    simpleProp->pos.y = MAP_OBJECT_COORD_CENTER_TO_FX32(simplePropTemplate->tileY);
+
+    const VecFx32 *initialPosOffset = &sPropInitialPosOffsetByKind[simplePropTemplate->propKind];
+    simpleProp->pos.x += initialPosOffset->x;
+    simpleProp->pos.y += initialPosOffset->y;
+    simpleProp->pos.z += initialPosOffset->z;
+
+    return TRUE;
 }
 
-static int ov9_0224ED58(OverworldAnimManager *param0, void *param1)
+static void DistWorldSimpleProp_AnimExit(OverworldAnimManager *animMan, void *context)
 {
-    int v0;
-    UnkStruct_ov9_0224ED58 *v1 = param1;
-    const UnkStruct_ov9_0224EBCC *v2 = OverworldAnimManager_GetUserData(param0);
-    const UnkStruct_ov9_0224EC10 *v3 = &v2->unk_04->unk_08;
+    DistWorldSimpleProp *simpleProp = context;
+    const DistWorldSimplePropTemplate *template = &simpleProp->userData.animator->template;
 
-    v1->unk_1C = *v2;
-    v1->unk_24 = DistWorldPropRenderer_Init(v2->unk_00, v3->unk_04, &v0);
-
-    if (v0 == 0) {
-        LoadRenderBuffersForProp(v1->unk_1C.unk_00, v3->unk_04, &v1->unk_24->renderObj, &v1->unk_24->animation);
+    if (DistWorldPropAnimInfo_IsAnimKindValid(template->propKind) == TRUE) {
+        Simple3D_FreeAnimation(&simpleProp->renderer->animation);
     }
 
-    VecFx32_SetPosFromMapCoords(v3->unk_06, v3->unk_0A, &v1->unk_04);
-    v1->unk_04.y = (((v3->unk_08) << 4) * FX32_ONE) + ((16 * FX32_ONE) >> 1);
-
-    {
-        VecFx32 v4;
-        const VecFx32 *v5 = &sPropInitialPosOffsetByKind[v3->unk_04];
-
-        v1->unk_04.x += v5->x;
-        v1->unk_04.y += v5->y;
-        v1->unk_04.z += v5->z;
-    }
-
-    return 1;
+    DistWorldPropRenderer_InvalidateAnimated(simpleProp->userData.system, simpleProp->renderer);
 }
 
-static void ov9_0224EDD8(OverworldAnimManager *param0, void *param1)
+static void DistWorldSimpleProp_AnimTick(OverworldAnimManager *animMan, void *context)
 {
-    int v0;
-    UnkStruct_ov9_0224ED58 *v1 = param1;
-    const UnkStruct_ov9_0224EC10 *v2 = &v1->unk_1C.unk_04->unk_08;
+    DistWorldSimpleProp *simpleProp = context;
+    int propKind = simpleProp->userData.animator->template.propKind;
 
-    if (DistWorldPropAnimInfo_IsAnimKindValid(v2->unk_04) == 1) {
-        Simple3D_FreeAnimation(&v1->unk_24->animation);
+    if (DistWorldPropAnimInfo_IsAnimKindValid(propKind) == TRUE) {
+        Simple3D_UpdateAnim(&simpleProp->renderer->animation, FX32_ONE, TRUE);
     }
 
-    DistWorldPropRenderer_InvalidateAnimated(v1->unk_1C.unk_00, v1->unk_24);
+    simpleProp->inView = IsPropInView(simpleProp->userData.system, propKind, &simpleProp->pos);
 }
 
-static void ov9_0224EDFC(OverworldAnimManager *param0, void *param1)
+static void DistWorldSimpleProp_AnimRender(OverworldAnimManager *animMan, void *context)
 {
-    UnkStruct_ov9_0224ED58 *v0 = param1;
-    int v1 = v0->unk_1C.unk_04->unk_08.unk_04;
+    DistWorldSimpleProp *simpleProp = context;
 
-    if (DistWorldPropAnimInfo_IsAnimKindValid(v1) == 1) {
-        Simple3D_UpdateAnim(&v0->unk_24->animation, FX32_ONE, 1);
-    }
-
-    v0->unk_02 = IsPropInView(v0->unk_1C.unk_00, v1, &v0->unk_04);
-}
-
-static void ov9_0224EE2C(OverworldAnimManager *param0, void *param1)
-{
-    UnkStruct_ov9_0224ED58 *v0 = param1;
-
-    if (v0->unk_02 == 1) {
-        Simple3D_DrawRenderObjWithPos(&v0->unk_24->renderObj, &v0->unk_04);
+    if (simpleProp->inView == TRUE) {
+        Simple3D_DrawRenderObjWithPos(&simpleProp->renderer->renderObj, &simpleProp->pos);
     }
 }
 
-static const OverworldAnimManagerFuncs Unk_ov9_02251530 = {
-    sizeof(UnkStruct_ov9_0224ED58),
-    ov9_0224ED58,
-    ov9_0224EDD8,
-    ov9_0224EDFC,
-    ov9_0224EE2C
+static const OverworldAnimManagerFuncs sSimplePropAnimFuncs = {
+    sizeof(DistWorldSimpleProp),
+    DistWorldSimpleProp_AnimInit,
+    DistWorldSimpleProp_AnimExit,
+    DistWorldSimpleProp_AnimTick,
+    DistWorldSimpleProp_AnimRender
 };
 
-static void ov9_0224EE40(DistWorldSystem *param0)
+static void AddMapObjectsForCurrentAndNextMap(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224EE40 *v0 = &param0->unk_1C64;
-    u32 v1 = DistWorldSystem_GetMapHeaderID(param0);
-    const DistWorldMapConnections *v2 = GetConnectionsForMap(v1);
+    DistWorldMapObjectManager *dwMapObjMan = &system->mapObjMan;
+    u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+    const DistWorldMapConnections *mapConnections = GetConnectionsForMap(mapHeaderID);
 
-    ov9_0224F078(param0, v1);
+    AddMapObjectsForMap(system, mapHeaderID);
 
-    if (v2->nextID != MAP_HEADER_INVALID) {
-        ov9_0224F078(param0, v2->nextID);
+    if (mapConnections->nextID != MAP_HEADER_INVALID) {
+        AddMapObjectsForMap(system, mapConnections->nextID);
     }
 }
 
-static void ov9_0224EE6C(DistWorldSystem *param0)
+static void Dummy0224EE6C(DistWorldSystem *system)
 {
     return;
 }
 
-static void ov9_0224EE70(DistWorldSystem *param0, MapObject *param1)
+static void DeleteMapObject(DistWorldSystem *system, MapObject *mapObj)
 {
-    int v0 = 0;
-    UnkStruct_ov9_0224EE40 *v1 = &param0->unk_1C64;
-    MapObject **v2 = v1->unk_00;
+    DistWorldMapObjectManager *dwMapObjMan = &system->mapObjMan;
+    MapObject **iter = dwMapObjMan->mapObjs;
 
-    for (v0 = 0; v0 < 19; v0++, v2++) {
-        if ((*v2 != NULL) && (*v2 == param1)) {
-            MapObject_Delete(*v2);
-            *v2 = NULL;
+    for (int i = 0; i < MAP_OBJECT_MANAGER_OBJECT_COUNT; i++, iter++) {
+        if (*iter != NULL && *iter == mapObj) {
+            MapObject_Delete(*iter);
+            *iter = NULL;
             return;
         }
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
 }
 
-static MapObject **ov9_0224EEA0(DistWorldSystem *param0)
+static MapObject **FindFreeMapObjectSlot(DistWorldSystem *system)
 {
-    int v0;
-    UnkStruct_ov9_0224EE40 *v1 = &param0->unk_1C64;
+    int i;
+    DistWorldMapObjectManager *dwMapObjMan = &system->mapObjMan;
 
-    for (v0 = 0; v0 < 19; v0++) {
-        if (v1->unk_00[v0] == NULL) {
-            return &v1->unk_00[v0];
+    for (i = 0; i < MAP_OBJECT_MANAGER_OBJECT_COUNT; i++) {
+        if (dwMapObjMan->mapObjs[i] == NULL) {
+            return &dwMapObjMan->mapObjs[i];
         }
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
-static MapObject *ov9_0224EECC(DistWorldSystem *param0, const ObjectEvent *param1, u32 param2)
+static MapObject *FindExistingMapObjectByEvent(DistWorldSystem *system, const ObjectEvent *objEvent, u32 mapHeaderID)
 {
-    int v0 = 0;
-    MapObject *v1;
-    const MapObjectManager *v2 = param0->fieldSystem->mapObjMan;
+    int startIdx = 0;
+    MapObject *mapObj;
+    const MapObjectManager *mapObjMan = system->fieldSystem->mapObjMan;
 
-    while (MapObjectMan_FindObjectWithStatus(v2, &v1, &v0, (1 << 0))) {
-        if (sub_02062918(v1) == param2) {
-            if (MapObject_GetLocalID(v1) == param1->localID) {
-                GF_ASSERT(param1->graphicsID == MapObject_GetGraphicsID(v1));
-                return v1;
-            }
+    while (MapObjectMan_FindObjectWithStatus(mapObjMan, &mapObj, &startIdx, MAP_OBJ_STATUS_0)) {
+        if (MapObject_GetMapHeaderID(mapObj) == mapHeaderID && MapObject_GetLocalID(mapObj) == objEvent->localID) {
+            GF_ASSERT(objEvent->graphicsID == MapObject_GetGraphicsID(mapObj));
+            return mapObj;
         }
     }
 
     return NULL;
 }
 
-static BOOL ov9_0224EF30(DistWorldSystem *param0, const UnkStruct_ov9_0224EF30 *param1, u16 param2)
+static BOOL CheckFlagConditionForObjectEvent(DistWorldSystem *system, const DistWorldObjectEvent *objEvent, BOOL isManual)
 {
-    u16 v0 = param1->unk_00;
-    u16 v1 = param1->unk_02;
-    VarsFlags *v2 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
+    u16 flagCond = objEvent->flagCond;
+    u16 flagCondVal = objEvent->flagCondVal;
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
 
-    if (v0 == 6) {
-        if (param2 == 0) {
-            return 0;
+    if (flagCond == FLAG_COND_MANUAL_ADD_ONLY) {
+        if (!isManual) {
+            return FALSE;
         }
-    } else if (ov9_02251104(param0, v0, v1) == 0) {
-        return 0;
+    } else if (!CheckFlagCondition(system, flagCond, flagCondVal)) {
+        return FALSE;
     }
 
-    return 1;
+    return TRUE;
 }
 
-static BOOL ov9_0224EF64(DistWorldSystem *param0, MapObject **param1, const UnkStruct_ov9_0224EF30 *param2, u32 param3, u16 param4)
+static BOOL AddMapObjectFromEvent(DistWorldSystem *system, MapObject **mapObj, const DistWorldObjectEvent *objEvent, u32 mapHeaderID, u16 isManual)
 {
-    MapObject *v0 = ov9_0224EECC(param0, &param2->unk_08, param3);
+    MapObject *existingMapObj = FindExistingMapObjectByEvent(system, &objEvent->objEvent, mapHeaderID);
 
-    if (v0 != NULL) {
-        if (ov9_0224F1CC(param0, v0) == 1) {
-            return 0;
+    if (existingMapObj != NULL) {
+        if (IsMapObjectManaged(system, existingMapObj) == TRUE) {
+            return FALSE;
         }
 
-        *param1 = v0;
+        *mapObj = existingMapObj;
     } else {
-        if ((ov9_0224EF30(param0, param2, param4) == 0) || (FieldSystem_CheckFlag(param0->fieldSystem, param2->unk_08.hiddenFlag) != 0)) {
-            return 0;
+        if (!CheckFlagConditionForObjectEvent(system, objEvent, isManual) || FieldSystem_CheckFlag(system->fieldSystem, objEvent->objEvent.hiddenFlag)) {
+            return FALSE;
         }
 
-        *param1 = MapObjectMan_AddMapObjectFromHeader(param0->fieldSystem->mapObjMan, &param2->unk_08, param3);
-        GF_ASSERT((*param1) != NULL);
+        *mapObj = MapObjectMan_AddMapObjectFromHeader(system->fieldSystem->mapObjMan, &objEvent->objEvent, mapHeaderID);
+        GF_ASSERT(*mapObj != NULL);
     }
 
-    MapObject_SetHidden(*param1, 1);
+    MapObject_SetHidden(*mapObj, TRUE);
 
-    if (param2->unk_04 == 1) {
-        ov9_0224A390(param0, *param1, param2->unk_06);
+    if (objEvent->rotated == TRUE) {
+        BindMapObjectRotator(system, *mapObj, objEvent->rotationAngle);
     }
 
-    sub_02062FC4(*param1, 1);
-    MapObject_SetFlagIsPersistent(*param1, 1);
-    MapObject_SetHeightCalculationDisabled(*param1, TRUE);
-    MapObject_SetStatusFlagOn(*param1, MAP_OBJ_STATUS_13);
+    sub_02062FC4(*mapObj, TRUE);
+    MapObject_SetFlagIsPersistent(*mapObj, TRUE);
+    MapObject_SetHeightCalculationDisabled(*mapObj, TRUE);
+    MapObject_SetStatusFlagOn(*mapObj, MAP_OBJ_STATUS_13);
 
-    if (v0 == NULL) {
-        UnkStruct_020216E0 *v1;
+    if (existingMapObj == NULL) {
+        MapObject_SetPosDirFromCoords(*mapObj, objEvent->objEvent.x, (objEvent->objEvent.y >> 3) / FX32_ONE, objEvent->objEvent.z, objEvent->objEvent.dir);
+        Billboard *billboard = ov5_021EB1A0(*mapObj);
 
-        MapObject_SetPosDirFromCoords(*param1, param2->unk_08.x, (((param2->unk_08.y) >> 3) / FX32_ONE), param2->unk_08.z, param2->unk_08.dir);
-
-        v1 = ov5_021EB1A0(*param1);
-
-        if (v1 != NULL) {
-            ov5_021EDEB4(*param1, v1);
+        if (billboard != NULL) {
+            ov5_021EDEB4(*mapObj, billboard);
         }
-    } else {
-        (void)0;
     }
 
-    MapObject_SetHidden(*param1, 0);
-
-    return 1;
+    MapObject_SetHidden(*mapObj, FALSE);
+    return TRUE;
 }
 
-static BOOL ov9_0224F048(DistWorldSystem *param0, const UnkStruct_ov9_0224EF30 **param1, u32 param2)
+static BOOL AddMapObjectsFromIter(DistWorldSystem *system, const DistWorldObjectEvent **objEventsIter, u32 mapHeaderID)
 {
-    MapObject **v0;
-
-    while ((*param1) != NULL) {
-        v0 = ov9_0224EEA0(param0);
-        ov9_0224EF64(param0, v0, *param1, param2, 0);
-        param1++;
+    while (*objEventsIter != NULL) {
+        MapObject **mapObj = FindFreeMapObjectSlot(system);
+        AddMapObjectFromEvent(system, mapObj, *objEventsIter, mapHeaderID, FALSE);
+        objEventsIter++;
     }
 
-    return 0;
+    return FALSE;
 }
 
-static void ov9_0224F078(DistWorldSystem *param0, u32 param1)
+static void AddMapObjectsForMap(DistWorldSystem *system, u32 mapHeaderID)
 {
-    const UnkStruct_ov9_02252EB4 *v0 = Unk_ov9_02252EB4;
+    const DistWorldMapObjectEvents *iter = sMapObjectEvents;
 
-    while (v0->unk_00 != 593) {
-        if (v0->unk_00 == param1) {
-            ov9_0224F048(param0, v0->unk_04, param1);
+    while (iter->mapHeaderID != MAP_HEADER_INVALID) {
+        if (iter->mapHeaderID == mapHeaderID) {
+            AddMapObjectsFromIter(system, iter->objEvents, mapHeaderID);
             return;
         }
 
-        v0++;
+        iter++;
     }
 }
 
-static void ov9_0224F0A4(DistWorldSystem *param0, u32 param1)
+static void DeleteMapObjectsForMap(DistWorldSystem *system, u32 mapHeaderID)
 {
-    int v0 = 0;
-    UnkStruct_ov9_0224EE40 *v1 = &param0->unk_1C64;
-    MapObject **v2 = v1->unk_00;
+    int i;
+    DistWorldMapObjectManager *dwMapObjMan = &system->mapObjMan;
+    MapObject **iter = dwMapObjMan->mapObjs;
 
-    for (v0 = 0; v0 < 19; v0++, v2++) {
-        if ((*v2) != NULL) {
-            if (sub_02062918(*v2) == param1) {
-                MapObject_Delete(*v2);
-                *v2 = NULL;
+    for (i = 0; i < MAP_OBJECT_MANAGER_OBJECT_COUNT; i++, iter++) {
+        if (*iter != NULL) {
+            if (MapObject_GetMapHeaderID(*iter) == mapHeaderID) {
+                MapObject_Delete(*iter);
+                *iter = NULL;
             }
         }
     }
 }
 
-static MapObject *ov9_0224F0D4(DistWorldSystem *param0, u32 param1, u16 param2)
+static MapObject *AddMapObjectWithLocalID(DistWorldSystem *system, u32 mapHeaderID, u16 mapObjLocalID)
 {
-    MapObject **v0 = NULL;
-    const UnkStruct_ov9_02252EB4 *v1 = Unk_ov9_02252EB4;
+    MapObject **mapObj = NULL;
+    const DistWorldMapObjectEvents *mapObjEventsIter = sMapObjectEvents;
 
-    while (v1->unk_00 != 593) {
-        if (v1->unk_00 == param1) {
-            const UnkStruct_ov9_0224EF30 **v2 = v1->unk_04;
+    while (mapObjEventsIter->mapHeaderID != MAP_HEADER_INVALID) {
+        if (mapObjEventsIter->mapHeaderID == mapHeaderID) {
+            const DistWorldObjectEvent **objEventIter = mapObjEventsIter->objEvents;
 
-            while ((*v2) != NULL) {
-                if ((*v2)->unk_08.localID == param2) {
-                    v0 = ov9_0224EEA0(param0);
-                    ov9_0224EF64(param0, v0, *v2, param1, 1);
+            while (*objEventIter != NULL) {
+                if ((*objEventIter)->objEvent.localID == mapObjLocalID) {
+                    mapObj = FindFreeMapObjectSlot(system);
+                    AddMapObjectFromEvent(system, mapObj, *objEventIter, mapHeaderID, TRUE);
 
-                    if (param1 == 580) {
-                        if ((param2 >= (0x80 + 7)) && (param2 <= (0x80 + 15))) {
-                            sub_02062D80(
-                                *v0, 0);
-                        }
+                    if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_B6F && mapObjLocalID >= DIST_WORLD_MAP_OBJECT_B6F_MESPRIT_BOULDER_PIT_TEXT_1 && mapObjLocalID <= DIST_WORLD_MAP_OBJECT_B6F_AZELF_BOULDER_PIT_TEXT_3) {
+                        sub_02062D80(*mapObj, FALSE);
                     }
 
-                    return *v0;
+                    return *mapObj;
                 }
 
-                v2++;
+                objEventIter++;
             }
 
-            GF_ASSERT(0);
+            GF_ASSERT(FALSE);
         }
 
-        v1++;
+        mapObjEventsIter++;
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
-void ov9_0224F158(FieldSystem *fieldSystem, u16 param1)
+void DistWorld_AddMapObjectWithLocalID(FieldSystem *fieldSystem, u16 mapObjLocalID)
 {
-    u32 v0 = fieldSystem->location->mapId;
-    DistWorldSystem *v1 = fieldSystem->unk_04->dynamicMapFeaturesData;
+    u32 mapHeaderID = fieldSystem->location->mapHeaderID;
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
 
-    ov9_0224F0D4(v1, v0, param1);
+    AddMapObjectWithLocalID(dwSystem, mapHeaderID, mapObjLocalID);
 }
 
-void ov9_0224F16C(FieldSystem *fieldSystem, u16 param1)
+void DistWorld_DeleteMapObjectWithLocalID(FieldSystem *fieldSystem, u16 mapObjLocalID)
 {
-    int v0 = 0;
-    MapObject *v1;
-    u32 v2 = fieldSystem->location->mapId;
-    MapObjectManager *v3 = fieldSystem->mapObjMan;
-    DistWorldSystem *v4 = fieldSystem->unk_04->dynamicMapFeaturesData;
+    int startIdx = 0;
+    MapObject *mapObj;
+    u32 mapHeaderID = fieldSystem->location->mapHeaderID;
+    MapObjectManager *mapObjMan = fieldSystem->mapObjMan;
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
 
-    while (MapObjectMan_FindObjectWithStatus(
-               v3, &v1, &v0, (1 << 0))
-        == 1) {
-        if ((MapObject_GetLocalID(v1) == param1) && (sub_02062918(v1) == v2)) {
-            ov9_0224EE70(v4, v1);
+    while (MapObjectMan_FindObjectWithStatus(mapObjMan, &mapObj, &startIdx, MAP_OBJ_STATUS_0) == TRUE) {
+        if (MapObject_GetLocalID(mapObj) == mapObjLocalID && MapObject_GetMapHeaderID(mapObj) == mapHeaderID) {
+            DeleteMapObject(dwSystem, mapObj);
             return;
         }
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
 }
 
-static BOOL ov9_0224F1CC(DistWorldSystem *param0, MapObject *param1)
+static BOOL IsMapObjectManaged(DistWorldSystem *system, MapObject *mapObj)
 {
-    int v0 = 0;
-    UnkStruct_ov9_0224EE40 *v1 = &param0->unk_1C64;
-    MapObject **v2 = v1->unk_00;
+    int i = 0;
+    DistWorldMapObjectManager *dwMapObjMan = &system->mapObjMan;
+    MapObject **iter = dwMapObjMan->mapObjs;
 
-    GF_ASSERT(param1 != NULL);
+    GF_ASSERT(mapObj != NULL);
 
     do {
-        if ((*v2) == param1) {
-            return 1;
+        if (*iter == mapObj) {
+            return TRUE;
         }
 
-        v2++;
-        v0++;
-    } while (v0 < 19);
+        iter++;
+        i++;
+    } while (i < MAP_OBJECT_MANAGER_OBJECT_COUNT);
 
-    return 0;
+    return FALSE;
 }
 
-static const UnkStruct_ov9_0225311C Unk_ov9_0225311C[] = {
-    { 0x243, 0x4C, 0x44, 0x11 },
-    { 0x243, 0x61, 0x43, 0x11 },
-    { 0x243, 0x56, 0x39, 0x11 },
-    { 0x244, 0x44, 0x43, 0x6 },
-    { 0x244, 0x4B, 0x43, -1 },
-    { 0x244, 0x4F, 0x43, -1 },
-    { 0x244, 0x60, 0x44, 0x7 },
-    { 0x244, 0x64, 0x44, -1 },
-    { 0x244, 0x69, 0x44, -1 },
-    { 0x244, 0x55, 0x3C, 0x8 },
-    { 0x244, 0x55, 0x38, -1 },
-    { 0x244, 0x55, 0x39, -1 },
-    { 0x244, 0x55, 0x34, -1 },
-    { 0x244, 0x55, 0x35, -1 },
-    { 0x251, 0x0, 0x0, 0x0 }
+static const DistWorldBoulderFallLocation sBoulderFallLocations[] = {
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B5F,
+        .tileX = 0x4C,
+        .tileZ = 0x44,
+        .flagIndex = DIST_WORLD_PUZZLE_FLAG_INVALID,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B5F,
+        .tileX = 0x61,
+        .tileZ = 0x43,
+        .flagIndex = DIST_WORLD_PUZZLE_FLAG_INVALID,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B5F,
+        .tileX = 0x56,
+        .tileZ = 0x39,
+        .flagIndex = DIST_WORLD_PUZZLE_FLAG_INVALID,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x44,
+        .tileZ = 0x43,
+        .flagIndex = DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B6F_PIT,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x4B,
+        .tileZ = 0x43,
+        .flagIndex = -1,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x4F,
+        .tileZ = 0x43,
+        .flagIndex = -1,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x60,
+        .tileZ = 0x44,
+        .flagIndex = DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B6F_PIT,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x64,
+        .tileZ = 0x44,
+        .flagIndex = -1,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x69,
+        .tileZ = 0x44,
+        .flagIndex = -1,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x55,
+        .tileZ = 0x3C,
+        .flagIndex = DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B6F_PIT,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x55,
+        .tileZ = 0x38,
+        .flagIndex = -1,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x55,
+        .tileZ = 0x39,
+        .flagIndex = -1,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x55,
+        .tileZ = 0x34,
+        .flagIndex = -1,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B6F,
+        .tileX = 0x55,
+        .tileZ = 0x35,
+        .flagIndex = -1,
+    },
+    {
+        .mapHeaderID = MAP_HEADER_INVALID,
+        .tileX = 0x0,
+        .tileZ = 0x0,
+        .flagIndex = 0x0,
+    }
 };
 
-static BOOL ov9_0224F1F8(u32 param0, int param1, int param2, u32 *param3)
+static BOOL FindBoulderFallLocationFlag(u32 mapHeaderID, int boulderTileX, int boulderTileZ, u32 *flagIndex)
 {
-    const UnkStruct_ov9_0225311C *v0 = Unk_ov9_0225311C;
+    const DistWorldBoulderFallLocation *iter = sBoulderFallLocations;
 
-    while (v0->unk_00 != 593) {
-        if ((v0->unk_00 == param0) && (v0->unk_04 == param1) && (v0->unk_06 == param2)) {
-            *param3 = v0->unk_08;
-            return 1;
+    while (iter->mapHeaderID != MAP_HEADER_INVALID) {
+        if (iter->mapHeaderID == mapHeaderID && iter->tileX == boulderTileX && iter->tileZ == boulderTileZ) {
+            *flagIndex = iter->flagIndex;
+            return TRUE;
         }
 
-        v0++;
+        iter++;
     }
 
-    return 0;
+    return FALSE;
 }
 
-BOOL ov9_0224F240(const MapObject *param0, int param1)
+BOOL DistWorld_WillBoulderBeAtFallLocation(const MapObject *boulderMapObj, enum FaceDirection boulderDir)
 {
-    int v0, v1;
-    u32 v2, v3;
-    FieldSystem *fieldSystem = MapObject_FieldSystem(param0);
-    v3 = fieldSystem->location->mapId;
-    v0 = MapObject_GetX(param0);
-    v1 = MapObject_GetZ(param0);
-    v0 += MapObject_GetDxFromDir(param1);
-    v1 += MapObject_GetDzFromDir(param1);
+    FieldSystem *fieldSystem = MapObject_FieldSystem(boulderMapObj);
+    u32 mapHeaderID = fieldSystem->location->mapHeaderID;
 
-    return ov9_0224F1F8(v3, v0, v1, &v2);
+    int boulderTileX = MapObject_GetX(boulderMapObj);
+    int boulderTileZ = MapObject_GetZ(boulderMapObj);
+    boulderTileX += MapObject_GetDxFromDir(boulderDir);
+    boulderTileZ += MapObject_GetDzFromDir(boulderDir);
+
+    u32 flagIndex;
+    return FindBoulderFallLocationFlag(mapHeaderID, boulderTileX, boulderTileZ, &flagIndex);
 }
 
-static BOOL ov9_0224F284(const MapObject *param0, u32 *param1)
+static BOOL FindMapObjectBoulderFallLocationFlag(const MapObject *boulderMapObj, u32 *flagIndex)
 {
-    int v0, v1;
-    u32 v2;
-    FieldSystem *fieldSystem = MapObject_FieldSystem(param0);
-    v2 = fieldSystem->location->mapId;
-    v0 = MapObject_GetX(param0);
-    v1 = MapObject_GetZ(param0);
+    FieldSystem *fieldSystem = MapObject_FieldSystem(boulderMapObj);
+    u32 mapHeaderID = fieldSystem->location->mapHeaderID;
 
-    return ov9_0224F1F8(v2, v0, v1, param1);
+    int boulderTileX = MapObject_GetX(boulderMapObj);
+    int boulderTileZ = MapObject_GetZ(boulderMapObj);
+
+    return FindBoulderFallLocationFlag(mapHeaderID, boulderTileX, boulderTileZ, flagIndex);
 }
 
-BOOL ov9_0224F2B0(const MapObject *param0)
+BOOL DistWorld_IsBoulderAtFallLocation(const MapObject *boulderMapObj)
 {
-    u32 v0;
-    return ov9_0224F284(param0, &v0);
+    u32 flagIndex;
+    return FindMapObjectBoulderFallLocationFlag(boulderMapObj, &flagIndex);
 }
 
-UnkStruct_ov9_0224F6EC *ov9_0224F2BC(FieldSystem *fieldSystem, FieldTask *param1, MapObject *param2)
+DistWorldFallingBoulder *DistWorldFallingBoulder_New(FieldSystem *fieldSystem, FieldTask *boulderFieldTask, MapObject *boulderMapObj)
 {
-    UnkStruct_ov9_0224F6EC *v0 = Heap_AllocAtEnd(HEAP_ID_FIELD1, sizeof(UnkStruct_ov9_0224F6EC));
-    memset(v0, 0, sizeof(UnkStruct_ov9_0224F6EC));
+    DistWorldFallingBoulder *boulder = Heap_AllocAtEnd(HEAP_ID_FIELD1, sizeof(DistWorldFallingBoulder));
+    memset(boulder, 0, sizeof(DistWorldFallingBoulder));
 
-    v0->unk_00 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    v0->fieldSystem = fieldSystem;
-    v0->unk_08 = param1;
-    v0->unk_0C = param2;
+    boulder->system = fieldSystem->unk_04->dynamicMapFeaturesData;
+    boulder->fieldSystem = fieldSystem;
+    boulder->fieldTask = boulderFieldTask;
+    boulder->mapObj = boulderMapObj;
 
-    ov9_0224F284(param2, &v0->unk_14);
+    FindMapObjectBoulderFallLocationFlag(boulderMapObj, &boulder->flagIndex);
 
-    switch (v0->unk_14) {
-    case 17:
-        v0->unk_12 = 0;
+    switch (boulder->flagIndex) {
+    case DIST_WORLD_PUZZLE_FLAG_INVALID:
+        boulder->destination = FALLING_BOULDER_DEST_B6F;
         break;
-    case 6:
-    case 7:
-    case 8:
-        if (ov9_02249E00(v0->unk_00, v0->unk_14) == 0) {
-            v0->unk_12 = 1;
+
+    case DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B6F_PIT:
+    case DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B6F_PIT:
+    case DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B6F_PIT:
+        if (!CheckPersistedBoulderPuzzleFlag(boulder->system, boulder->flagIndex)) {
+            boulder->destination = FALLING_BOULDER_DEST_CORRECT_PIT;
             break;
         }
 
     default:
-        v0->unk_12 = 2;
+        boulder->destination = FALLING_BOULDER_DEST_WRONG_PIT;
         break;
     }
 
-    return v0;
+    return boulder;
 }
 
-static BOOL ov9_0224F324(UnkStruct_ov9_0224F6EC *param0)
+static BOOL DistWorldFallingBoulder_TickToB6F(DistWorldFallingBoulder *boulder)
 {
-    int v0;
-    VecFx32 v1;
-    MapObject *v2 = param0->unk_0C;
+    MapObject *boulderMapObj = boulder->mapObj;
 
-    MapObject_GetPosPtr(v2, &v1);
-    v1.y -= FX32_ONE * 8;
-    MapObject_SetPos(v2, &v1);
+    VecFx32 boulderPos;
+    MapObject_GetPosPtr(boulderMapObj, &boulderPos);
+    boulderPos.y -= FX32_ONE * 8;
+    MapObject_SetPos(boulderMapObj, &boulderPos);
 
-    if (v1.y > ((115 << 4) * FX32_ONE)) {
-        return 0;
+    if (boulderPos.y > MAP_OBJECT_COORD_EDGE_TO_FX32(115)) {
+        return FALSE;
     }
 
-    Sound_PlayEffect(SEQ_SE_DP_UG_008);
-    v1.y = ((115 << 4) * FX32_ONE);
-    MapObject_SetPosDirFromVec(v2, &v1, MapObject_GetFacingDir(v2));
-    sub_02062914(v2, 580);
+    Sound_PlayEffect(SEQ_SE_DP_UG_008_sseq);
+    boulderPos.y = MAP_OBJECT_COORD_EDGE_TO_FX32(115);
+    MapObject_SetPosDirFromVec(boulderMapObj, &boulderPos, MapObject_GetFacingDir(boulderMapObj));
+    MapObject_SetMapHeaderID(boulderMapObj, MAP_HEADER_DISTORTION_WORLD_B6F);
 
-    {
-        u32 v3, v4;
+    u32 flagIndexToSet;
+    u32 flagIndexToClear;
 
-        switch (MapObject_GetLocalID(v2)) {
-        case (0x80 + 0):
-            v3 = 3;
-            v4 = 0;
-            break;
-        case (0x80 + 1):
-            v3 = 4;
-            v4 = 1;
-            break;
-        case (0x80 + 2):
-            v3 = 5;
-            v4 = 2;
-            break;
-        }
+    switch (MapObject_GetLocalID(boulderMapObj)) {
+    case DIST_WORLD_MAP_OBJECT_B6F_MESPRIT_BOULDER_OUTSIDE:
+        flagIndexToSet = DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B6F_OUTSIDE;
+        flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B5F;
+        break;
 
-        ov9_02249DC8(param0->unk_00, v3);
-        ov9_02249DE4(param0->unk_00, v4);
+    case DIST_WORLD_MAP_OBJECT_B6F_AZELF_BOULDER_OUTSIDE:
+        flagIndexToSet = DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B6F_OUTSIDE;
+        flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B5F;
+        break;
+
+    case DIST_WORLD_MAP_OBJECT_B6F_UXIE_BOULDER_OUTSIDE:
+        flagIndexToSet = DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B6F_OUTSIDE;
+        flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B5F;
+        break;
     }
 
-    return 1;
+    SetPersistedBoulderPuzzleFlag(boulder->system, flagIndexToSet);
+    ClearPersistedBoulderPuzzleFlag(boulder->system, flagIndexToClear);
+
+    return TRUE;
 }
 
-static BOOL ov9_0224F3BC(UnkStruct_ov9_0224F6EC *param0)
+static BOOL DistWorldFallingBoulder_TickToCorrectPit(DistWorldFallingBoulder *boulder)
 {
-    switch (param0->unk_10) {
+    switch (boulder->state) {
     case 0: {
-        VecFx32 v0;
-        MapObject *v1 = param0->unk_0C;
+        MapObject *boulderMapObj = boulder->mapObj;
 
-        MapObject_GetPosPtr(v1, &v0);
-        v0.y -= FX32_ONE * 2;
-        MapObject_SetPos(v1, &v0);
-        MapObject_MovePosInDir(v1, MapObject_GetMovingDir(v1), (FX32_ONE * 2));
-    }
+        VecFx32 boulderPos;
+        MapObject_GetPosPtr(boulderMapObj, &boulderPos);
+        boulderPos.y -= FX32_ONE * 2;
+        MapObject_SetPos(boulderMapObj, &boulderPos);
+        MapObject_MovePosInDir(boulderMapObj, MapObject_GetMovingDir(boulderMapObj), FX32_ONE * 2);
 
-        param0->unk_18++;
+        boulder->animStep++;
 
-        if (param0->unk_18 < 8) {
-            return 0;
+        if (boulder->animStep < 8) {
+            return FALSE;
         }
 
-        param0->unk_18 = 0;
-        param0->unk_10++;
+        boulder->animStep = 0;
+        boulder->state++;
+
         break;
+    }
+
     case 1: {
-        VecFx32 v2;
-        MapObject *v3 = param0->unk_0C;
+        MapObject *boulderMapObj = boulder->mapObj;
 
-        MapObject_GetPosPtr(v3, &v2);
-        v2.y -= FX32_ONE * 4;
-        MapObject_SetPos(v3, &v2);
-    }
+        VecFx32 boulderPos;
+        MapObject_GetPosPtr(boulderMapObj, &boulderPos);
+        boulderPos.y -= FX32_ONE * 4;
+        MapObject_SetPos(boulderMapObj, &boulderPos);
 
-        param0->unk_18++;
+        boulder->animStep++;
 
-        if (param0->unk_18 < 4) {
+        if (boulder->animStep < 4) {
             return 0;
         }
 
-        param0->unk_18 = 0;
+        boulder->animStep = 0;
 
-        {
-            u32 v4 = 0, v5 = 0;
-            MapObject *v6 = param0->unk_0C;
+        u32 boulderNewLocalID = 0;
+        u32 flagIndexToClear = 0;
+        boulderMapObj = boulder->mapObj;
 
-            ov9_02249DC8(param0->unk_00, param0->unk_14);
+        SetPersistedBoulderPuzzleFlag(boulder->system, boulder->flagIndex);
 
-            switch (MapObject_GetLocalID(v6)) {
-            case (0x80 + 0):
-                v4 = (0x80 + 16);
-                v5 = 3;
-                break;
-            case (0x80 + 1):
-                v4 = (0x80 + 17);
-                v5 = 4;
-                break;
-            case (0x80 + 2):
-                v4 = (0x80 + 18);
-                v5 = 5;
-                break;
-            default:
-                GF_ASSERT(0);
-            }
-
-            ov9_02249DE4(param0->unk_00, v5);
-            MapObject_SetLocalID(v6, v4);
-
-            {
-                int v7 = MapObject_GetMovingDir(v6);
-                int v8 = MapObject_GetX(v6);
-                int v9 = MapObject_GetY(v6);
-                int v10 = MapObject_GetZ(v6);
-
-                v8 += MapObject_GetDxFromDir(v7);
-                v9 -= (2 * 2);
-                v10 += MapObject_GetDzFromDir(v7);
-
-                MapObject_SetX(v6, v8);
-                MapObject_SetY(v6, v9);
-                MapObject_SetZ(v6, v10);
-                MapObject_UpdateCoords(v6);
-            }
-        }
-
-        {
-            VecFx32 v11;
-
-            sub_0206309C(param0->unk_0C, &v11);
-
-            param0->unk_1C = v11.y;
-            param0->unk_20 = (FX32_ONE * 1);
-
-            Sound_PlayEffect(SEQ_SE_DP_UG_008);
-        }
-
-        param0->unk_10++;
-        break;
-    case 2: {
-        VecFx32 v12;
-        MapObject *v13 = param0->unk_0C;
-
-        sub_0206309C(v13, &v12);
-        v12.y = param0->unk_1C + param0->unk_20;
-
-        sub_020630AC(v13, &v12);
-        param0->unk_20 = -param0->unk_20;
-    }
-
-        param0->unk_18++;
-
-        if (param0->unk_18 == 7) {
-            param0->unk_20 = 0;
-        }
-
-        if (param0->unk_18 < 32) {
-            return 0;
-        }
-
-        {
-            u32 v14 = 0, v15 = 0;
-            MapObject *v16 = param0->unk_0C;
-
-            switch (param0->unk_14) {
-            case 6:
-                v15 = 15;
-                v14 = 5;
-                break;
-            case 7:
-                v15 = 14;
-                v14 = 7;
-                break;
-            case 8:
-                v15 = 13;
-                v14 = 6;
-                break;
-            default:
-                GF_ASSERT(0);
-            }
-
-            ov9_02249DE4(param0->unk_00, v15);
-            ScriptManager_Start(param0->unk_08, v14, NULL, NULL);
-            param0->unk_10++;
+        switch (MapObject_GetLocalID(boulderMapObj)) {
+        case DIST_WORLD_MAP_OBJECT_B6F_MESPRIT_BOULDER_OUTSIDE:
+            boulderNewLocalID = DIST_WORLD_MAP_OBJECT_B6F_MESPRIT_BOULDER_IN_PIT;
+            flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B6F_OUTSIDE;
             break;
+
+        case DIST_WORLD_MAP_OBJECT_B6F_AZELF_BOULDER_OUTSIDE:
+            boulderNewLocalID = DIST_WORLD_MAP_OBJECT_B6F_AZELF_BOULDER_IN_PIT;
+            flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B6F_OUTSIDE;
+            break;
+
+        case DIST_WORLD_MAP_OBJECT_B6F_UXIE_BOULDER_OUTSIDE:
+            boulderNewLocalID = DIST_WORLD_MAP_OBJECT_B6F_UXIE_BOULDER_IN_PIT;
+            flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B6F_OUTSIDE;
+            break;
+
+        default:
+            GF_ASSERT(FALSE);
         }
+
+        ClearPersistedBoulderPuzzleFlag(boulder->system, flagIndexToClear);
+        MapObject_SetLocalID(boulderMapObj, boulderNewLocalID);
+
+        int boulderMovingDir = MapObject_GetMovingDir(boulderMapObj);
+        int boulderTileX = MapObject_GetX(boulderMapObj);
+        int boulderTileY = MapObject_GetY(boulderMapObj);
+        int boulderTileZ = MapObject_GetZ(boulderMapObj);
+
+        boulderTileX += MapObject_GetDxFromDir(boulderMovingDir);
+        boulderTileY -= 4;
+        boulderTileZ += MapObject_GetDzFromDir(boulderMovingDir);
+
+        MapObject_SetX(boulderMapObj, boulderTileX);
+        MapObject_SetY(boulderMapObj, boulderTileY);
+        MapObject_SetZ(boulderMapObj, boulderTileZ);
+        MapObject_UpdateCoords(boulderMapObj);
+
+        VecFx32 spritePosOffset;
+        MapObject_GetSpritePosOffset(boulder->mapObj, &spritePosOffset);
+
+        boulder->finalPosY = spritePosOffset.y;
+        boulder->vibrationYDelta = FX32_ONE;
+
+        Sound_PlayEffect(SEQ_SE_DP_UG_008_sseq);
+        boulder->state++;
+
+        break;
+    }
+
+    case 2: {
+        MapObject *boulderMapObj = boulder->mapObj;
+
+        VecFx32 boulderPos;
+        MapObject_GetSpritePosOffset(boulderMapObj, &boulderPos);
+        boulderPos.y = boulder->finalPosY + boulder->vibrationYDelta;
+
+        MapObject_SetSpritePosOffset(boulderMapObj, &boulderPos);
+        boulder->vibrationYDelta = -boulder->vibrationYDelta;
+
+        boulder->animStep++;
+
+        if (boulder->animStep == 7) {
+            boulder->vibrationYDelta = 0;
+        }
+
+        if (boulder->animStep < 32) {
+            return FALSE;
+        }
+
+        u32 scriptID = 0;
+        u32 flagIndexToClear = 0;
+
+        switch (boulder->flagIndex) {
+        case DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B6F_PIT:
+            flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_MESPRIT_IN_B6F;
+            scriptID = 5;
+            break;
+
+        case DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B6F_PIT:
+            flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_AZELF_IN_B6F;
+            scriptID = 7;
+            break;
+
+        case DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B6F_PIT:
+            flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_UXIE_IN_B6F;
+            scriptID = 6;
+            break;
+
+        default:
+            GF_ASSERT(FALSE);
+        }
+
+        ClearPersistedBoulderPuzzleFlag(boulder->system, flagIndexToClear);
+        ScriptManager_Start(boulder->fieldTask, scriptID, NULL, NULL);
+        boulder->state++;
+
+        break;
+    }
+
     case 3: {
-        int v17 = 0;
+        int boulderFlagsSet = 0;
 
-        v17 += ov9_02249E00(
-            param0->unk_00, 6);
-        v17 += ov9_02249E00(
-            param0->unk_00, 7);
-        v17 += ov9_02249E00(
-            param0->unk_00, 8);
+        boulderFlagsSet += CheckPersistedBoulderPuzzleFlag(boulder->system, DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B6F_PIT);
+        boulderFlagsSet += CheckPersistedBoulderPuzzleFlag(boulder->system, DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B6F_PIT);
+        boulderFlagsSet += CheckPersistedBoulderPuzzleFlag(boulder->system, DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B6F_PIT);
 
-        if (v17 >= 3) {
-            VarsFlags *v18 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
-
-            SystemFlag_HandleDistortionWorldPuzzleFinished(v18, HANDLE_FLAG_SET);
+        if (boulderFlagsSet >= 3) {
+            VarsFlags *varsFlags = SaveData_GetVarsFlags(boulder->fieldSystem->saveData);
+            SystemFlag_HandleDistortionWorldPuzzleFinished(varsFlags, HANDLE_FLAG_SET);
         }
+
+        return TRUE;
+    }
     }
 
-        return 1;
-    }
-
-    return 0;
+    return FALSE;
 }
 
-static BOOL ov9_0224F5D8(UnkStruct_ov9_0224F6EC *param0)
+static BOOL DistWorldFallingBoulder_TickToWrongPit(DistWorldFallingBoulder *boulder)
 {
-    switch (param0->unk_10) {
+    switch (boulder->state) {
     case 0: {
-        VecFx32 v0;
-        MapObject *v1 = param0->unk_0C;
+        MapObject *boulderMapObj = boulder->mapObj;
 
-        MapObject_GetPosPtr(v1, &v0);
-        v0.y -= FX32_ONE * 2;
-        MapObject_SetPos(v1, &v0);
-        MapObject_MovePosInDir(v1, MapObject_GetMovingDir(v1), (FX32_ONE * 2));
-    }
+        VecFx32 boulderPos;
+        MapObject_GetPosPtr(boulderMapObj, &boulderPos);
+        boulderPos.y -= FX32_ONE * 2;
+        MapObject_SetPos(boulderMapObj, &boulderPos);
+        MapObject_MovePosInDir(boulderMapObj, MapObject_GetMovingDir(boulderMapObj), FX32_ONE * 2);
 
-        param0->unk_18++;
+        boulder->animStep++;
 
-        if (param0->unk_18 < 8) {
-            return 0;
+        if (boulder->animStep < 8) {
+            return FALSE;
         }
 
-        param0->unk_18 = 0;
-        param0->unk_10++;
+        boulder->animStep = 0;
+        boulder->state++;
+
         break;
+    }
+
     case 1: {
-        VecFx32 v2;
-        MapObject *v3 = param0->unk_0C;
+        MapObject *boulderMapObj = boulder->mapObj;
 
-        MapObject_GetPosPtr(v3, &v2);
-        v2.y -= FX32_ONE * 4;
-        MapObject_SetPos(v3, &v2);
-    }
+        VecFx32 boulderPos;
+        MapObject_GetPosPtr(boulderMapObj, &boulderPos);
+        boulderPos.y -= FX32_ONE * 4;
+        MapObject_SetPos(boulderMapObj, &boulderPos);
 
-        param0->unk_18++;
+        boulder->animStep++;
 
-        if (param0->unk_18 < 4) {
-            return 0;
+        if (boulder->animStep < 4) {
+            return FALSE;
         }
 
-        param0->unk_18 = 0;
-        param0->unk_10++;
+        boulder->animStep = 0;
+        boulder->state++;
+
         break;
+    }
+
     case 2: {
-        VecFx32 v4;
-        MapObject *v5 = param0->unk_0C;
+        MapObject *boulderMapObj = boulder->mapObj;
 
-        MapObject_GetPosPtr(v5, &v4);
-        v4.y -= FX32_ONE * 8;
-        MapObject_SetPos(v5, &v4);
-    }
+        VecFx32 boulderPos;
+        MapObject_GetPosPtr(boulderMapObj, &boulderPos);
+        boulderPos.y -= FX32_ONE * 8;
+        MapObject_SetPos(boulderMapObj, &boulderPos);
 
-        param0->unk_18++;
+        boulder->animStep++;
 
-        if (param0->unk_18 < 40) {
-            return 0;
+        if (boulder->animStep < 40) {
+            return FALSE;
         }
 
-        {
-            u32 v6 = 0, v7 = 0, v8 = 0, v9 = 0;
-            MapObject *v10 = param0->unk_0C;
+        u32 flagIndexToSet = 0;
+        u32 flagIndexToClear = 0;
+        boulderMapObj = boulder->mapObj;
 
-            switch (MapObject_GetLocalID(v10)) {
-            case (0x80 + 0):
-                v6 = 0;
-                v7 = 3;
-                break;
-            case (0x80 + 1):
-                v6 = 1;
-                v7 = 4;
-                break;
-            case (0x80 + 2):
-                v6 = 2;
-                v7 = 5;
-                break;
-            default:
-                GF_ASSERT(0);
-            }
+        switch (MapObject_GetLocalID(boulderMapObj)) {
+        case DIST_WORLD_MAP_OBJECT_B6F_MESPRIT_BOULDER_OUTSIDE:
+            flagIndexToSet = DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B5F;
+            flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B6F_OUTSIDE;
+            break;
 
-            ov9_02249DC8(param0->unk_00, v6);
-            ov9_02249DE4(param0->unk_00, v7);
-            ov9_0224EE70(param0->unk_00, param0->unk_0C);
+        case DIST_WORLD_MAP_OBJECT_B6F_AZELF_BOULDER_OUTSIDE:
+            flagIndexToSet = DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B5F;
+            flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B6F_OUTSIDE;
+            break;
 
-            return 1;
+        case DIST_WORLD_MAP_OBJECT_B6F_UXIE_BOULDER_OUTSIDE:
+            flagIndexToSet = DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B5F;
+            flagIndexToClear = DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B6F_OUTSIDE;
+            break;
+
+        default:
+            GF_ASSERT(FALSE);
+        }
+
+        SetPersistedBoulderPuzzleFlag(boulder->system, flagIndexToSet);
+        ClearPersistedBoulderPuzzleFlag(boulder->system, flagIndexToClear);
+        DeleteMapObject(boulder->system, boulder->mapObj);
+
+        return TRUE;
+    }
+    }
+
+    return FALSE;
+}
+
+BOOL DistWorldFallingBoulder_Tick(DistWorldFallingBoulder *boulder)
+{
+    BOOL destroyBoulder;
+
+    switch (boulder->destination) {
+    case FALLING_BOULDER_DEST_B6F:
+        destroyBoulder = DistWorldFallingBoulder_TickToB6F(boulder);
+        break;
+
+    case FALLING_BOULDER_DEST_CORRECT_PIT:
+        destroyBoulder = DistWorldFallingBoulder_TickToCorrectPit(boulder);
+        break;
+
+    case FALLING_BOULDER_DEST_WRONG_PIT:
+        destroyBoulder = DistWorldFallingBoulder_TickToWrongPit(boulder);
+        break;
+    }
+
+    if (destroyBoulder == TRUE) {
+        Heap_Free(boulder);
+    }
+
+    return destroyBoulder;
+}
+
+static void InitSkyBackgroundDarkness(DistWorldSystem *system)
+{
+    DistWorldSkyBackground *skyBg = &system->skyBg;
+    u32 mapHeaderID = DistWorldSystem_GetMapHeaderID(system);
+
+    if (mapHeaderID == MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM) {
+        VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+
+        if (SystemVars_GetDistortionWorldProgress(varsFlags) == DIST_WORLD_PROGRESS_GIRATINA_ARRIVED) {
+            skyBg->darknessCalculationDisabled = TRUE;
+            skyBg->darknessLevel = SKY_BACKGROUND_MAX_DARKNESS;
         }
     }
 
-    return 0;
+    skyBg->renderedDarknessLevel = -1;
 }
 
-BOOL ov9_0224F6EC(UnkStruct_ov9_0224F6EC *param0)
+static void Dummy0224F760(DistWorldSystem *system)
 {
-    BOOL v0;
-
-    switch (param0->unk_12) {
-    case 0:
-        v0 = ov9_0224F324(param0);
-        break;
-    case 1:
-        v0 = ov9_0224F3BC(param0);
-        break;
-    case 2:
-        v0 = ov9_0224F5D8(param0);
-        break;
-    }
-
-    if (v0 == 1) {
-        Heap_Free(param0);
-    }
-
-    return v0;
 }
 
-static void ov9_0224F724(DistWorldSystem *param0)
+static void RecalculateSkyBackgroundDarkness(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224ADC0 *v0 = &param0->unk_1D00;
-    u32 v1 = DistWorldSystem_GetMapHeaderID(param0);
+    DistWorldSkyBackground *skyBg = &system->skyBg;
+    PlayerAvatar *playerAvatar = system->fieldSystem->playerAvatar;
+    const VecFx32 *playerPos = PlayerAvatar_GetPos(playerAvatar);
 
-    if (v1 == 582) {
-        VarsFlags *v2 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
-
-        if (SystemVars_GetDistortionWorldProgress(v2) == 13) {
-            v0->unk_06 = 1;
-            v0->unk_00 = 12;
-        }
+    if (skyBg->darknessCalculationDisabled == FALSE) {
+        skyBg->darknessLevel = (playerPos->y - MAP_OBJECT_COORD_EDGE_TO_FX32(DISTORTION_WORLD_MIN_Y)) / (MAP_OBJECT_COORD_EDGE_TO_FX32(DISTORTION_WORLD_MAX_Y - DISTORTION_WORLD_MIN_Y) / SKY_BACKGROUND_MAX_DARKNESS);
     }
 
-    v0->unk_02 = -1;
-}
-
-static void ov9_0224F760(DistWorldSystem *param0)
-{
-    return;
-}
-
-static void ov9_0224F764(DistWorldSystem *param0)
-{
-    UnkStruct_ov9_0224ADC0 *v0 = &param0->unk_1D00;
-    PlayerAvatar *playerAvatar = param0->fieldSystem->playerAvatar;
-    const VecFx32 *v2 = PlayerAvatar_PosVector(playerAvatar);
-
-    if (v0->unk_06 == 0) {
-        v0->unk_00 = (v2->y - ((65 << 4) * FX32_ONE)) / ((((289 - 65) << 4) * FX32_ONE) / 12);
+    if (skyBg->darknessLevel < SKY_BACKGROUND_MIN_DARKNESS) {
+        skyBg->darknessLevel = SKY_BACKGROUND_MIN_DARKNESS;
+    } else if (skyBg->darknessLevel > SKY_BACKGROUND_MAX_DARKNESS) {
+        skyBg->darknessLevel = SKY_BACKGROUND_MAX_DARKNESS;
     }
 
-    if (v0->unk_00 < 0) {
-        v0->unk_00 = 0;
-    } else if (v0->unk_00 > 12) {
-        v0->unk_00 = 12;
-    }
-
-    if (v0->unk_00 != v0->unk_02) {
-        int v3 = 0;
+    if (skyBg->darknessLevel != skyBg->renderedDarknessLevel) {
+        int i = 0;
 
         do {
-            ov9_0224F86C(
-                v0->unk_08[v3], (4 | (4 << 5) | (8 << 10)), v0->unk_00, &v0->unk_28[v3]);
-            v3++;
-        } while (v3 < 16);
+            CalculateTintedColor(skyBg->basePalette[i], GX_RGB(4, 4, 8), skyBg->darknessLevel, &skyBg->currPalette[i]);
+            i++;
+        } while (i < PALETTE_SIZE);
 
-        v3 = 0;
+        i = 0;
 
         do {
-            ov9_0224F86C(
-                v0->unk_48[v3], (6 | (6 << 5) | (8 << 10)), v0->unk_00, &v0->unk_E8[v3]);
-            v3++;
-        } while (v3 < (16 * 5));
+            CalculateTintedColor(skyBg->baseCloudPalettes[i], GX_RGB(6, 6, 8), skyBg->darknessLevel, &skyBg->currCloudPalettes[i]);
+            i++;
+        } while (i < PALETTE_SIZE * SKY_CLOUD_PALETTE_COUNT);
 
-        v0->unk_04 = 1;
-        v0->unk_02 = v0->unk_00;
+        skyBg->dirty = TRUE;
+        skyBg->renderedDarknessLevel = skyBg->darknessLevel;
     }
 }
 
-static void ov9_0224F804(DistWorldSystem *param0)
+static void UpdateSkyPalettes(DistWorldSystem *system)
 {
-    UnkStruct_ov9_0224ADC0 *v0 = &param0->unk_1D00;
+    DistWorldSkyBackground *skyBg = &system->skyBg;
 
-    if (v0->unk_04 == 1) {
-        {
-            Bg_LoadPalette(
-                2, v0->unk_28, 32, 32 * 0);
-        }
+    if (skyBg->dirty == TRUE) {
+        Bg_LoadPalette(BG_LAYER_MAIN_2, skyBg->currPalette, PALETTE_SIZE_BYTES, 0);
 
-        {
-            u32 v1;
-            UnkStruct_ov9_0224B064 *v2;
-            SpriteResource *v3;
-            const NNSG2dImagePaletteProxy *v4;
+        DistWorldSkyClouds *clouds = &system->skyClouds;
+        SpriteResource *plttRes = clouds->plttRes;
+        const NNSG2dImagePaletteProxy *plttProxy = SpriteTransfer_GetPaletteProxy(plttRes, NULL);
+        u32 plttLocation = NNS_G2dGetImagePaletteLocation(plttProxy, NNS_G2D_VRAM_TYPE_2DMAIN);
 
-            v2 = &param0->unk_1A8;
-            v3 = v2->unk_1BC[0];
-            v4 = SpriteTransfer_GetPaletteProxy(v3, NULL);
-            v1 = NNS_G2dGetImagePaletteLocation(v4, NNS_G2D_VRAM_TYPE_2DMAIN);
+        DC_FlushRange(skyBg->currCloudPalettes, PALETTE_SIZE_BYTES * SKY_CLOUD_PALETTE_COUNT);
+        GX_LoadOBJPltt(skyBg->currCloudPalettes, plttLocation, PALETTE_SIZE_BYTES * SKY_CLOUD_PALETTE_COUNT);
 
-            DC_FlushRange((void *)v0->unk_E8, 32 * 5);
-            GX_LoadOBJPltt(v0->unk_E8, v1, 32 * 5);
-        }
-
-        v0->unk_04 = 0;
+        skyBg->dirty = FALSE;
     }
 }
 
-static void ov9_0224F854(DistWorldSystem *param0, u32 param1)
+static void SetSkyBackgroundDarknessCalculationDisabled(DistWorldSystem *system, BOOL disabled)
 {
-    UnkStruct_ov9_0224ADC0 *v0 = &param0->unk_1D00;
-    v0->unk_06 = param1;
+    DistWorldSkyBackground *skyBg = &system->skyBg;
+    skyBg->darknessCalculationDisabled = disabled;
 }
 
-static void ov9_0224F860(DistWorldSystem *param0, s16 param1)
+static void SetSkyBackgroundDarknessLevel(DistWorldSystem *system, s16 level)
 {
-    UnkStruct_ov9_0224ADC0 *v0 = &param0->unk_1D00;
-    v0->unk_00 = param1;
+    DistWorldSkyBackground *skyBg = &system->skyBg;
+    skyBg->darknessLevel = level;
 }
 
-static void ov9_0224F86C(u16 param0, u16 param1, u16 param2, u16 *param3)
+static void CalculateTintedColor(GXRgb baseRawColor, GXRgb tintRawColor, u16 tintLevel, GXRgb *outColor)
 {
-    const UnkStruct_ov9_0224F86C *v0 = (UnkStruct_ov9_0224F86C *)&param0;
-    const UnkStruct_ov9_0224F86C *v1 = (UnkStruct_ov9_0224F86C *)&param1;
+    typedef struct RGB555 {
+        u16 r : 5;
+        u16 g : 5;
+        u16 b : 5;
+    } RGB555;
 
-    if (param2 > 16) {
-        param2 = 16;
+    const RGB555 *base = (RGB555 *)&baseRawColor;
+    const RGB555 *tint = (RGB555 *)&tintRawColor;
+
+    if (tintLevel > SPRITE_PALETTE_MAX_TINT_LEVEL) {
+        tintLevel = SPRITE_PALETTE_MAX_TINT_LEVEL;
     }
 
-    (*param3) = (v0->unk_00_0 + ((v1->unk_00_0 - v0->unk_00_0) * param2 >> 4)) | ((v0->unk_00_5 + ((v1->unk_00_5 - v0->unk_00_5) * param2 >> 4)) << 5) | ((v0->unk_00_10 + ((v1->unk_00_10 - v0->unk_00_10) * param2 >> 4)) << 10);
+    *outColor = GX_RGB(
+        base->r + ((tint->r - base->r) * tintLevel >> 4),
+        base->g + ((tint->g - base->g) * tintLevel >> 4),
+        base->b + ((tint->b - base->b) * tintLevel >> 4));
 }
 
-static void ov9_0224F8C4(DistWorldSystem *param0, UnkStruct_ov9_0224F930 *param1, const UnkStruct_ov9_0224F8C4 *param2, const VecFx32 *param3)
+static void CmdRunDataCascadeBase_InitFromParams(DistWorldSystem *system, CmdRunDataCascadeBase *runData, const CmdParamsCascadeBase *params, const VecFx32 *playerPos)
 {
-    param1->unk_00_3 = param2->unk_00;
-    param1->unk_00_1 = param2->unk_04;
-    param1->unk_1C.x = (FX32_ONE * (param2->unk_0C));
-    param1->unk_1C.y = (FX32_ONE * (param2->unk_0E));
-    param1->unk_1C.z = (FX32_ONE * (param2->unk_10));
-    param1->unk_28.x = (((param2->unk_12) << 4) * FX32_ONE);
-    param1->unk_28.y = (((param2->unk_14) << 4) * FX32_ONE);
-    param1->unk_28.z = (((param2->unk_16) << 4) * FX32_ONE);
-    param1->unk_04 = param2->unk_18;
-    param1->unk_34 = *param3;
+    runData->movementAxis = params->movementAxis;
+    runData->movementDir = params->movementDir;
+    runData->finalPosOffset.x = FX32_ONE * params->finalPosOffsetTileX;
+    runData->finalPosOffset.y = FX32_ONE * params->finalPosOffsetTileY;
+    runData->finalPosOffset.z = FX32_ONE * params->finalPosOffsetTileZ;
+    runData->mapLoadPosOffset.x = (params->mapLoadPosOffsetTileX << 4) * FX32_ONE;
+    runData->mapLoadPosOffset.y = (params->mapLoadPosOffsetTileY << 4) * FX32_ONE;
+    runData->mapLoadPosOffset.z = (params->mapLoadPosOffsetTileZ << 4) * FX32_ONE;
+    runData->posDelta = params->posDelta;
+    runData->playerPos = *playerPos;
 }
 
-static void ov9_0224F930(UnkStruct_ov9_0224F930 *param0, int param1, fx32 param2, fx32 param3)
+static void CmdRunDataCascadeBase_InitBobbing(CmdRunDataCascadeBase *runData, enum Axis axis, fx32 delta, fx32 max)
 {
-    switch (param1) {
-    case 0:
-        param0->unk_4C = &param0->unk_40.x;
+    switch (axis) {
+    case AXIS_X:
+        runData->bobbingOffset = &runData->jumpOffset.x;
         break;
-    case 1:
-        param0->unk_4C = &param0->unk_40.y;
+
+    case AXIS_Y:
+        runData->bobbingOffset = &runData->jumpOffset.y;
         break;
-    case 2:
-        param0->unk_4C = &param0->unk_40.z;
+
+    case AXIS_Z:
+        runData->bobbingOffset = &runData->jumpOffset.z;
         break;
     }
 
-    *param0->unk_4C = FX32_ONE;
+    *runData->bobbingOffset = FX32_ONE;
 
-    param0->unk_50 = param2;
-    param0->unk_54 = param3;
-    param0->unk_00_2 = 1;
+    runData->bobbingOffsetDelta = delta;
+    runData->bobbingOffsetMax = max;
+    runData->spriteBobbing = TRUE;
 }
 
-static BOOL ov9_0224F970(DistWorldSystem *param0, UnkStruct_ov9_0224F930 *param1)
+static BOOL CmdRunDataCascadeBase_Update(DistWorldSystem *system, CmdRunDataCascadeBase *runData)
 {
-    if (param1->unk_10.x != param1->unk_1C.x) {
-        param1->unk_10.x += param1->unk_04.x;
-        param1->unk_34.x += param1->unk_04.x;
+    if (runData->currPosOffset.x != runData->finalPosOffset.x) {
+        runData->currPosOffset.x += runData->posDelta.x;
+        runData->playerPos.x += runData->posDelta.x;
     }
 
-    if (param1->unk_10.y != param1->unk_1C.y) {
-        param1->unk_10.y += param1->unk_04.y;
-        param1->unk_34.y += param1->unk_04.y;
+    if (runData->currPosOffset.y != runData->finalPosOffset.y) {
+        runData->currPosOffset.y += runData->posDelta.y;
+        runData->playerPos.y += runData->posDelta.y;
     }
 
-    if (param1->unk_10.z != param1->unk_1C.z) {
-        param1->unk_10.z += param1->unk_04.z;
-        param1->unk_34.z += param1->unk_04.z;
+    if (runData->currPosOffset.z != runData->finalPosOffset.z) {
+        runData->currPosOffset.z += runData->posDelta.z;
+        runData->playerPos.z += runData->posDelta.z;
     }
 
-    if (param1->unk_00_2) {
-        *param1->unk_4C += param1->unk_50;
+    if (runData->spriteBobbing) {
+        *runData->bobbingOffset += runData->bobbingOffsetDelta;
 
-        if (*param1->unk_4C >= param1->unk_54) {
-            *param1->unk_4C = param1->unk_54;
-            param1->unk_50 = -param1->unk_50;
-        } else if (*param1->unk_4C <= FX32_ONE) {
-            *param1->unk_4C = FX32_ONE;
-            param1->unk_50 = -param1->unk_50;
+        if (*runData->bobbingOffset >= runData->bobbingOffsetMax) {
+            *runData->bobbingOffset = runData->bobbingOffsetMax;
+            runData->bobbingOffsetDelta = -runData->bobbingOffsetDelta;
+        } else if (*runData->bobbingOffset <= FX32_ONE) {
+            *runData->bobbingOffset = FX32_ONE;
+            runData->bobbingOffsetDelta = -runData->bobbingOffsetDelta;
         }
     }
 
-    if (param1->unk_00_0 == 0) {
-        if ((param1->unk_10.x == param1->unk_28.x) && (param1->unk_10.y == param1->unk_28.y) && (param1->unk_10.z == param1->unk_28.z)) {
-            if (param1->unk_00_1 == 0) {
-                ov9_0224CC50(param0, NULL, 1);
+    if (!runData->targetMapLoaded) {
+        if (runData->currPosOffset.x == runData->mapLoadPosOffset.x && runData->currPosOffset.y == runData->mapLoadPosOffset.y && runData->currPosOffset.z == runData->mapLoadPosOffset.z) {
+            if (runData->movementDir == CASCADE_MOVEMENT_DIR_UP) {
+                LoadFloor(system, NULL, FLOOR_LOAD_PREVIOUS);
             } else {
-                ov9_0224CC50(param0, NULL, 2);
+                LoadFloor(system, NULL, FLOOR_LOAD_NEXT);
             }
 
-            param1->unk_00_0++;
+            runData->targetMapLoaded++;
         }
 
-        return 1;
+        return CASCADE_UPDATE_RES_MAP_LOAD_REACHED;
     }
 
-    if ((param1->unk_10.x == param1->unk_1C.x) && (param1->unk_10.y == param1->unk_1C.y) && (param1->unk_10.z == param1->unk_1C.z)) {
-        return 3;
+    if (runData->currPosOffset.x == runData->finalPosOffset.x && runData->currPosOffset.y == runData->finalPosOffset.y && runData->currPosOffset.z == runData->finalPosOffset.z) {
+        return CASCADE_UPDATE_RES_FINAL_POS_REACHED;
     }
 
-    {
-        fx32 v0;
+    fx32 distToFinal;
 
-        switch (param1->unk_00_3) {
-        case 0:
-            v0 = param1->unk_1C.x - param1->unk_10.x;
-            break;
-        case 1:
-            v0 = param1->unk_1C.y - param1->unk_10.y;
-            break;
-        case 2:
-            v0 = param1->unk_1C.z - param1->unk_10.z;
-            break;
-        }
+    switch (runData->movementAxis) {
+    case AXIS_X:
+        distToFinal = runData->finalPosOffset.x - runData->currPosOffset.x;
+        break;
 
-        if (v0 < 0) {
-            v0 = -v0;
-        }
+    case AXIS_Y:
+        distToFinal = runData->finalPosOffset.y - runData->currPosOffset.y;
+        break;
 
-        if ((v0 - (16 * FX32_ONE)) == 0) {
-            return 2;
-        }
+    case AXIS_Z:
+        distToFinal = runData->finalPosOffset.z - runData->currPosOffset.z;
+        break;
     }
 
-    return 0;
+    if (distToFinal < 0) {
+        distToFinal = -distToFinal;
+    }
+
+    return distToFinal - CASCADE_FINISHING_THRESHOLD == 0 ? CASCADE_UPDATE_RES_FINISHING_POS_REACHED : CASCADE_UPDATE_RES_NOTHING;
 }
 
-static const DistWorldCameraAngleTemplate Unk_ov9_02251E40 = {
-    { 0x0, 0x0, 0x0, 0x0 },
-    0xF5,
-    0xEF,
-    0x0,
-    0x0,
-    0x48
+static const DistWorldCameraAngleTemplate sCascadeDownFirstCameraAngle = {
+    .bounds = {
+        .startTileX = 0,
+        .startTileY = 0,
+        .startTileZ = 0,
+        .sizeX = 0,
+        .sizeY = 0,
+        .sizeZ = 0,
+    },
+    .angleX = 245,
+    .angleY = 239,
+    .angleZ = 0,
+    .playerDir = FACE_UP,
+    .transitionSteps = CASCADE_DOWN_FIRST_CAMERA_TRANSITION_STEPS
 };
 
-static const DistWorldCameraAngleTemplate Unk_ov9_02251888 = {
-    { 0x0, 0x0, 0x0, 0x0 },
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    0x20
+static const DistWorldCameraAngleTemplate sCascadeDownSecondCameraAngle = {
+    .bounds = {
+        .startTileX = 0,
+        .startTileY = 0,
+        .startTileZ = 0,
+        .sizeX = 0,
+        .sizeY = 0,
+        .sizeZ = 0,
+    },
+    .angleX = 0,
+    .angleY = 0,
+    .angleZ = 0,
+    .playerDir = FACE_UP,
+    .transitionSteps = CASCADE_DOWN_SECOND_CAMERA_TRANSITION_STEPS
 };
 
-static void ov9_0224FA94(DistWorldSystem *param0, UnkStruct_ov9_0224FA94 *param1)
+static void UpdateCascadeDownCamera(DistWorldSystem *system, CmdRunDataCascadeDown *runData)
 {
-    MapObject *v0 = Player_MapObject(param0->fieldSystem->playerAvatar);
-    int v1 = (((param1->unk_40.unk_10.y) >> 4) / FX32_ONE);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
+    int yOffset = (runData->base.currPosOffset.y >> 4) / FX32_ONE;
 
-    if ((param1->unk_04 == 0) && (v1 == -20)) {
-        DoCameraTransition(param0, &Unk_ov9_02251E40);
-        ov9_0224A4D0(param0, v0, -32, 72);
-        param1->unk_04++;
-    } else if ((param1->unk_04 == 1) && (v1 == -36)) {
-        MapObject_TryFace(v0, 2);
-        DoCameraTransition(param0, &Unk_ov9_02251888);
-        ov9_0224A4D0(param0, v0, 32, 31);
-        param1->unk_04++;
+    if (runData->cameraAngleState == 0 && yOffset == CASCADE_DOWN_FIRST_CAMERA_ANGLE_Y_OFFSET) {
+        DoCameraTransition(system, &sCascadeDownFirstCameraAngle);
+        RotateMapObject(system, playerMapObj, -32, CASCADE_DOWN_FIRST_CAMERA_TRANSITION_STEPS);
+        runData->cameraAngleState++;
+    } else if (runData->cameraAngleState == 1 && yOffset == CASCADE_DOWN_SECOND_CAMERA_ANGLE_Y_OFFSET) {
+        MapObject_TryFace(playerMapObj, FACE_LEFT);
+        DoCameraTransition(system, &sCascadeDownSecondCameraAngle);
+        RotateMapObject(system, playerMapObj, 32, CASCADE_DOWN_SECOND_CAMERA_TRANSITION_STEPS - 1);
+        runData->cameraAngleState++;
     }
 
-    if ((param1->unk_04 == 1) && (param1->unk_06 >= 0)) {
-        param1->unk_06++;
+    if (runData->cameraAngleState == 1 && runData->cameraAngleDelay >= 0) {
+        runData->cameraAngleDelay++;
 
-        if (param1->unk_06 >= 32) {
-            MapObject_TryFace(v0, 0);
-            param1->unk_06 = -1;
+        if (runData->cameraAngleDelay >= CASCADE_DOWN_FIRST_CAMERA_ANGLE_DELAY) {
+            MapObject_TryFace(playerMapObj, FACE_UP);
+            runData->cameraAngleDelay = -1;
         }
     }
 }
 
-static int ov9_0224FB3C(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdCascadeDown_Init(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    VecFx32 v0;
-    UnkStruct_ov9_0224F930 *v1;
-    MapObject *v2;
-    PlayerAvatar *playerAvatar;
-    UnkStruct_ov9_0224FA94 *v4;
-    const UnkStruct_ov9_02252384 *v5 = param3;
-    v4 = ov9_0224E37C(param0, sizeof(UnkStruct_ov9_0224FA94));
-    v1 = &v4->unk_40;
-    playerAvatar = param0->fieldSystem->playerAvatar;
-    v2 = Player_MapObject(playerAvatar);
+    CmdRunDataCascadeDown *runData = ResetLoadedEventDataBuffer(system, sizeof(CmdRunDataCascadeDown));
+    const CmdParamsCascadeDown *cmdParams = params;
+    CmdRunDataCascadeBase *baseRunData = &runData->base;
+    PlayerAvatar *playerAvatar = system->fieldSystem->playerAvatar;
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(playerAvatar);
 
-    MapObject_GetPosPtr(v2, &v0);
-    MapObject_TryFace(v2, 2);
-    ov9_0224F8C4(param0, v1, &v5->unk_00, &v0);
+    VecFx32 playerPos;
+    MapObject_GetPosPtr(playerMapObj, &playerPos);
+    MapObject_TryFace(playerMapObj, FACE_LEFT);
+    CmdRunDataCascadeBase_InitFromParams(system, baseRunData, &cmdParams->base, &playerPos);
 
-    v1->unk_04.x >>= 1;
-    v1->unk_04.y >>= 1;
-    v1->unk_04.z >>= 1;
-    v4->unk_00 = 32;
+    baseRunData->posDelta.x >>= 1;
+    baseRunData->posDelta.y >>= 1;
+    baseRunData->posDelta.z >>= 1;
+    runData->spriteRotationAnimStepsLeft = CASCADE_DOWN_INITIAL_SPRITE_ROTATION_STEPS;
 
-    ov9_0224A4D0(param0, v2, 90, v4->unk_00);
+    RotateMapObject(system, playerMapObj, 90, runData->spriteRotationAnimStepsLeft);
 
-    {
-        VecFx32 v6 = { 0, 0, 0 };
-        sub_020630AC(v2, &v6);
-    }
+    VecFx32 spritePosOffset = { 0, 0, 0 };
+    MapObject_SetSpritePosOffset(playerMapObj, &spritePosOffset);
 
-    {
-        VecFx32 *v7;
-        OverworldAnimManager *v8 = sub_0205EC04(playerAvatar);
-        Simple3DRotationAngles *v9 = ov5_021F88A8(v8);
+    OverworldAnimManager *mountAnimMan = PlayerAvatar_GetSurfMountAnimManager(playerAvatar);
+    Simple3DRotationAngles *mountRotAngles = DistWorldSurfMountRenderer_GetSurfMountRotationAngles(mountAnimMan);
 
-        ov5_021F88B4(v8, 2, 5);
-        ov5_021F88CC(v8, 1 << 2 | 1 << 4 | 1 << 6 | 1 << 5);
+    DistWorldSurfMountRenderer_SetFixedRotationAngles(mountAnimMan, FACE_LEFT, AVATAR_DISTORTION_STATE_CEILING);
 
-        v4->unk_0C.x = (FX32_ONE * (v9->alpha));
-        v4->unk_0C.y = (FX32_ONE * (v9->beta));
-        v4->unk_0C.z = (FX32_ONE * (v9->gamma));
-        v4->unk_18.x = (FX32_ONE * -90) / 32;
-        v4->unk_18.y = (FX32_ONE * 180) / 32;
-        v4->unk_18.z = 0;
-        v4->unk_30 = (FX32_ONE * 90);
-        v4->unk_34 = (FX32_ONE * -70) / 32;
+    DistWorldSurfMountRenderer_SetFlags(
+        mountAnimMan,
+        DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_NO_ROTATION_RECALCULATION
+            | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_NO_ORBIT_RECALCULATION
+            | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_USE_EXTERNAL_POS_FIX
+            | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_USE_EXTERNAL_SPRITE_POS_OFFSET);
 
-        v7 = ov5_021F88FC(v8);
-        v7->x = 0;
-        v7->y = 0;
-        v7->z = (FX32_ONE * 6);
-        v4->unk_24.x = 0;
-        v4->unk_24.y = 0;
-        v4->unk_24.z = (FX32_ONE * 4) / 32;
-    }
+    runData->mountRotAngles.x = FX32_ONE * mountRotAngles->alpha;
+    runData->mountRotAngles.y = FX32_ONE * mountRotAngles->beta;
+    runData->mountRotAngles.z = FX32_ONE * mountRotAngles->gamma;
+    runData->mountRotAnglesDelta.x = CASCADE_DOWN_MOUNT_ROTATION_ANGLE_X / CASCADE_DOWN_INITIAL_SPRITE_ROTATION_STEPS;
+    runData->mountRotAnglesDelta.y = CASCADE_DOWN_MOUNT_ROTATION_ANGLE_Y / CASCADE_DOWN_INITIAL_SPRITE_ROTATION_STEPS;
+    runData->mountRotAnglesDelta.z = CASCADE_DOWN_MOUNT_ROTATION_ANGLE_Z / CASCADE_DOWN_INITIAL_SPRITE_ROTATION_STEPS;
+    runData->orbitAngle = CASCADE_DOWN_ORBIT_ANGLE_START;
+    runData->orbitAngleDelta = CASCADE_DOWN_ORBIT_ANGLE / CASCADE_DOWN_INITIAL_SPRITE_ROTATION_STEPS;
 
-    Sound_PlayEffect(SEQ_SE_PL_FW463);
+    VecFx32 *mountPosFix = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan);
+    mountPosFix->x = CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_X_START;
+    mountPosFix->y = CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_Y_START;
+    mountPosFix->z = CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_Z_START;
+    runData->mountPosFixDelta.x = CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_X / CASCADE_DOWN_INITIAL_SPRITE_ROTATION_STEPS;
+    runData->mountPosFixDelta.y = CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_Y / CASCADE_DOWN_INITIAL_SPRITE_ROTATION_STEPS;
+    runData->mountPosFixDelta.z = CASCADE_DOWN_ROTATE_MOUNT_POSITION_FIX_Z / CASCADE_DOWN_INITIAL_SPRITE_ROTATION_STEPS;
 
-    *param2 = 1;
-    return 0;
+    Sound_PlayEffect(SEQ_SE_PL_FW463_sseq);
+
+    *cmdState = EVENT_CMD_CASCADE_DOWN_STATE_ROTATE_PLAYER;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224FC2C(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdCascadeDown_RotatePlayer(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    MapObject *v0 = Player_MapObject(param0->fieldSystem->playerAvatar);
-    UnkStruct_ov9_0224FA94 *v1 = ov9_0224E39C(param0);
-    UnkStruct_ov9_0224F930 *v2 = &v1->unk_40;
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
+    CmdRunDataCascadeDown *runData = GetLoadedEventDataBuffer(system);
+    CmdRunDataCascadeBase *baseRunData = &runData->base;
 
-    ov9_0224F970(param0, v2);
-    MapObject_SetPos(v0, &v2->unk_34);
-    ov9_0224FA94(param0, v1);
+    CmdRunDataCascadeBase_Update(system, baseRunData);
+    MapObject_SetPos(playerMapObj, &baseRunData->playerPos);
+    UpdateCascadeDownCamera(system, runData);
 
-    {
-        OverworldAnimManager *v3 = sub_0205EC04(param0->fieldSystem->playerAvatar);
+    OverworldAnimManager *mountAnimMan = PlayerAvatar_GetSurfMountAnimManager(system->fieldSystem->playerAvatar);
+    Simple3DRotationAngles *mountRotAngles = DistWorldSurfMountRenderer_GetSurfMountRotationAngles(mountAnimMan);
 
-        {
-            Simple3DRotationAngles *v4 = ov5_021F88A8(v3);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.x, runData->mountRotAnglesDelta.x);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.y, runData->mountRotAnglesDelta.y);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.z, runData->mountRotAnglesDelta.z);
 
-            ov9_02250F1C(&v1->unk_0C.x, v1->unk_18.x);
-            ov9_02250F1C(&v1->unk_0C.y, v1->unk_18.y);
-            ov9_02250F1C(&v1->unk_0C.z, v1->unk_18.z);
+    mountRotAngles->alpha = runData->mountRotAngles.x / FX32_ONE;
+    mountRotAngles->beta = runData->mountRotAngles.y / FX32_ONE;
+    mountRotAngles->gamma = runData->mountRotAngles.z / FX32_ONE;
 
-            v4->alpha = ((v1->unk_0C.x) / FX32_ONE);
-            v4->beta = ((v1->unk_0C.y) / FX32_ONE);
-            v4->gamma = ((v1->unk_0C.z) / FX32_ONE);
-        }
+    ApplyRotationToTargetFx32(&runData->orbitAngle, runData->orbitAngleDelta);
+    DistWorldSurfMountRenderer_SetOrbitAngle(mountAnimMan, runData->orbitAngle / FX32_ONE);
 
-        {
-            ov9_02250F1C(&v1->unk_30, v1->unk_34);
-            ov5_021F8908(v3, ((v1->unk_30) / FX32_ONE));
-        }
+    VecFx32 *mountPosFix = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan);
+    mountPosFix->x += runData->mountPosFixDelta.x;
+    mountPosFix->y += runData->mountPosFixDelta.y;
+    mountPosFix->z += runData->mountPosFixDelta.z;
 
-        {
-            VecFx32 *v5 = ov5_021F88FC(v3);
+    runData->spriteRotationAnimStepsLeft--;
 
-            v5->x += v1->unk_24.x;
-            v5->y += v1->unk_24.y;
-            v5->z += v1->unk_24.z;
-        }
+    if (runData->spriteRotationAnimStepsLeft == 0) {
+        baseRunData->posDelta.x <<= 1;
+        baseRunData->posDelta.y <<= 1;
+        baseRunData->posDelta.z <<= 1;
+
+        CmdRunDataCascadeBase_InitBobbing(baseRunData, AXIS_X, CASCADE_DOWN_BOBBING_DELTA, CASCADE_DOWN_BOBBING_MAX);
+
+        OverworldAnimManager *mountAnimMan2 = PlayerAvatar_GetSurfMountAnimManager(system->fieldSystem->playerAvatar);
+        VecFx32 *mountPosFix2;
+
+        mountPosFix2 = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan2);
+        mountPosFix2->x = CASCADE_DOWN_CASCADE_MOUNT_POSITION_FIX_X_START;
+        mountPosFix2->y = CASCADE_DOWN_CASCADE_MOUNT_POSITION_FIX_Y_START;
+        mountPosFix2->z = CASCADE_DOWN_CASCADE_MOUNT_POSITION_FIX_Z_START;
+
+        runData->firstCameraAnimStepsLeft = CASCADE_DOWN_FIRST_CAMERA_TRANSITION_STEPS - 2;
+        runData->secondCameraAnimStepsLeft = -1;
+        runData->mountPosFixDelta.x = CASCADE_DOWN_FIRST_CASCADE_MOUNT_POSITION_FIX_X / runData->firstCameraAnimStepsLeft;
+        runData->mountPosFixDelta.y = CASCADE_DOWN_FIRST_CASCADE_MOUNT_POSITION_FIX_Y / runData->firstCameraAnimStepsLeft;
+        runData->mountPosFixDelta.z = CASCADE_DOWN_FIRST_CASCADE_MOUNT_POSITION_FIX_Z / runData->firstCameraAnimStepsLeft;
+        runData->bobbingFixDelta = CASCADE_DOWN_FIRST_CASCADE_BOBBING_FIX / runData->firstCameraAnimStepsLeft;
+
+        *cmdState = EVENT_CMD_CASCADE_DOWN_STATE_CASCADE_DOWN;
+        return EVENT_CMD_HANDLER_RES_CONTINUE;
     }
 
-    v1->unk_00--;
-
-    if (v1->unk_00 == 0) {
-        v2->unk_04.x <<= 1;
-        v2->unk_04.y <<= 1;
-        v2->unk_04.z <<= 1;
-
-        ov9_0224F930(v2, 0, 0x400, (FX32_ONE * 4));
-
-        {
-            OverworldAnimManager *v6 = sub_0205EC04(param0->fieldSystem->playerAvatar);
-            VecFx32 *v7;
-
-            v7 = ov5_021F88FC(v6);
-            v7->x = 0;
-            v7->y = 0;
-            v7->z = (FX32_ONE * 10);
-            v1->unk_08 = 70;
-            v1->unk_0A = -1;
-            v1->unk_24.x = 0;
-            v1->unk_24.y = 0;
-            v1->unk_24.z = (FX32_ONE * -16) / v1->unk_08;
-            v1->unk_3C = (FX32_ONE * -4) / v1->unk_08;
-        }
-
-        *param2 = 2;
-        return 0;
-    }
-
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224FD74(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdCascadeDown_CascadeDown(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    int v0;
-    OverworldAnimManager *v1 = sub_0205EC04(param0->fieldSystem->playerAvatar);
-    MapObject *v2 = Player_MapObject(param0->fieldSystem->playerAvatar);
-    UnkStruct_ov9_0224FA94 *v3 = ov9_0224E39C(param0);
-    UnkStruct_ov9_0224F930 *v4 = &v3->unk_40;
+    enum CascadeUpdateResult updateRes;
+    OverworldAnimManager *mountAnimMan = PlayerAvatar_GetSurfMountAnimManager(system->fieldSystem->playerAvatar);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
+    CmdRunDataCascadeDown *runData = GetLoadedEventDataBuffer(system);
+    CmdRunDataCascadeBase *baseRunData = &runData->base;
 
-    v0 = ov9_0224F970(param0, v4);
-    MapObject_SetPos(v2, &v4->unk_34);
+    updateRes = CmdRunDataCascadeBase_Update(system, baseRunData);
+    MapObject_SetPos(playerMapObj, &baseRunData->playerPos);
 
-    {
-        VecFx32 v5 = v4->unk_40;
+    VecFx32 jumpOffset = baseRunData->jumpOffset;
 
-        v5.x += v3->unk_38;
-        MapObject_SetSpriteJumpOffset(v2, &v5);
-    }
+    jumpOffset.x += runData->bobbingFix;
+    MapObject_SetSpriteJumpOffset(playerMapObj, &jumpOffset);
 
-    ov9_0224FA94(param0, v3);
+    UpdateCascadeDownCamera(system, runData);
 
-    {
-        VecFx32 *v6 = ov5_021F88FC(v1);
-        VecFx32 *v7 = ov5_021F88F0(v1);
+    VecFx32 *mountPosFix = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan);
+    VecFx32 *mountSpritePosOffset = DistWorldSurfMountRenderer_GetExternalSpritePosOffsetPtr(mountAnimMan);
 
-        *v7 = v4->unk_40;
+    *mountSpritePosOffset = baseRunData->jumpOffset;
 
-        if (v3->unk_04 == 1) {
-            if (v3->unk_08 > 0) {
-                v3->unk_08--;
-                v6->x += v3->unk_24.x;
-                v6->y += v3->unk_24.y;
-                v6->z += v3->unk_24.z;
-                v3->unk_38 += v3->unk_3C;
-            }
-        } else if (v3->unk_04 == 2) {
-            if (v3->unk_0A < 0) {
-                v3->unk_0A = 30;
-                v3->unk_24.x = 0;
-                v3->unk_24.y = 0;
-                v3->unk_24.z = (FX32_ONE * 6) / v3->unk_0A;
-                v3->unk_3C = (FX32_ONE * 4) / v3->unk_0A;
-            }
+    if (runData->cameraAngleState == 1) {
+        if (runData->firstCameraAnimStepsLeft > 0) {
+            runData->firstCameraAnimStepsLeft--;
+            mountPosFix->x += runData->mountPosFixDelta.x;
+            mountPosFix->y += runData->mountPosFixDelta.y;
+            mountPosFix->z += runData->mountPosFixDelta.z;
+            runData->bobbingFix += runData->bobbingFixDelta;
+        }
+    } else if (runData->cameraAngleState == 2) {
+        if (runData->secondCameraAnimStepsLeft < 0) {
+            runData->secondCameraAnimStepsLeft = CASCADE_DOWN_SECOND_CAMERA_TRANSITION_STEPS - 2;
+            runData->mountPosFixDelta.x = CASCADE_DOWN_SECOND_CASCADE_MOUNT_POSITION_FIX_X / runData->secondCameraAnimStepsLeft;
+            runData->mountPosFixDelta.y = CASCADE_DOWN_SECOND_CASCADE_MOUNT_POSITION_FIX_Y / runData->secondCameraAnimStepsLeft;
+            runData->mountPosFixDelta.z = CASCADE_DOWN_SECOND_CASCADE_MOUNT_POSITION_FIX_Z / runData->secondCameraAnimStepsLeft;
+            runData->bobbingFixDelta = CASCADE_DOWN_SECOND_CASCADE_BOBBING_FIX / runData->secondCameraAnimStepsLeft;
+        }
 
-            if (v3->unk_0A > 0) {
-                v3->unk_0A--;
-                v6->x += v3->unk_24.x;
-                v6->y += v3->unk_24.y;
-                v6->z += v3->unk_24.z;
-                v3->unk_38 += v3->unk_3C;
-            }
+        if (runData->secondCameraAnimStepsLeft > 0) {
+            runData->secondCameraAnimStepsLeft--;
+            mountPosFix->x += runData->mountPosFixDelta.x;
+            mountPosFix->y += runData->mountPosFixDelta.y;
+            mountPosFix->z += runData->mountPosFixDelta.z;
+            runData->bobbingFix += runData->bobbingFixDelta;
         }
     }
 
-    if (v0 == 2) {
-        v3->unk_00 = 16;
-        ov9_0224A4D0(param0, v2, 90, v3->unk_00);
+    if (updateRes == CASCADE_UPDATE_RES_FINISHING_POS_REACHED) {
+        runData->spriteRotationAnimStepsLeft = CASCADE_DOWN_FINAL_SPRITE_ROTATION_STEPS;
+        RotateMapObject(system, playerMapObj, 90, runData->spriteRotationAnimStepsLeft);
 
-        {
-            v3->unk_18.x = (FX32_ONE * -90) / 16;
-            v3->unk_18.y = 0;
-            v3->unk_18.z = 0;
-            v3->unk_24.x = 0;
-            v3->unk_24.y = 0;
-            v3->unk_24.z = (FX32_ONE * -7) / 16;
-            v3->unk_34 = (FX32_ONE * -110) / 16;
+        runData->mountRotAnglesDelta.x = CASCADE_DOWN_FINAL_MOUNT_ROTATION_ANGLE_X / CASCADE_DOWN_FINAL_SPRITE_ROTATION_STEPS;
+        runData->mountRotAnglesDelta.y = CASCADE_DOWN_FINAL_MOUNT_ROTATION_ANGLE_Y / CASCADE_DOWN_FINAL_SPRITE_ROTATION_STEPS;
+        runData->mountRotAnglesDelta.z = CASCADE_DOWN_FINAL_MOUNT_ROTATION_ANGLE_Z / CASCADE_DOWN_FINAL_SPRITE_ROTATION_STEPS;
+        runData->mountPosFixDelta.x = CASCADE_DOWN_FINAL_MOUNT_POSITION_FIX_X / CASCADE_DOWN_FINAL_SPRITE_ROTATION_STEPS;
+        runData->mountPosFixDelta.y = CASCADE_DOWN_FINAL_MOUNT_POSITION_FIX_Y / CASCADE_DOWN_FINAL_SPRITE_ROTATION_STEPS;
+        runData->mountPosFixDelta.z = CASCADE_DOWN_FINAL_MOUNT_POSITION_FIX_Z / CASCADE_DOWN_FINAL_SPRITE_ROTATION_STEPS;
+        runData->orbitAngleDelta = CASCADE_DOWN_FINAL_ORBIT_ANGLE / CASCADE_DOWN_FINAL_SPRITE_ROTATION_STEPS;
 
-            ov5_021F88DC(v1, 1 << 5);
-        }
+        DistWorldSurfMountRenderer_ClearFlags(mountAnimMan, DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_USE_EXTERNAL_SPRITE_POS_OFFSET);
 
-        *param2 = 3;
+        *cmdState = EVENT_CMD_CASCADE_DOWN_STATE_FINISH_CASCADING;
     }
 
-    GF_ASSERT(v0 != 3);
-    return 0;
+    GF_ASSERT(updateRes != CASCADE_UPDATE_RES_FINAL_POS_REACHED);
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0224FEDC(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdCascadeDown_FinishCascading(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    int v0;
-    OverworldAnimManager *v1 = sub_0205EC04(param0->fieldSystem->playerAvatar);
-    MapObject *v2 = Player_MapObject(param0->fieldSystem->playerAvatar);
-    UnkStruct_ov9_0224FA94 *v3 = ov9_0224E39C(param0);
-    UnkStruct_ov9_0224F930 *v4 = &v3->unk_40;
+    enum CascadeUpdateResult updateRes;
+    OverworldAnimManager *mountAnimMan = PlayerAvatar_GetSurfMountAnimManager(system->fieldSystem->playerAvatar);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
+    CmdRunDataCascadeDown *runData = GetLoadedEventDataBuffer(system);
+    CmdRunDataCascadeBase *baseRunData = &runData->base;
 
-    v0 = ov9_0224F970(param0, v4);
+    updateRes = CmdRunDataCascadeBase_Update(system, baseRunData);
 
-    MapObject_SetPos(v2, &v4->unk_34);
-    MapObject_SetSpriteJumpOffset(v2, &v4->unk_40);
+    MapObject_SetPos(playerMapObj, &baseRunData->playerPos);
+    MapObject_SetSpriteJumpOffset(playerMapObj, &baseRunData->jumpOffset);
 
-    ov9_0224FA94(param0, v3);
+    UpdateCascadeDownCamera(system, runData);
 
-    {
-        VecFx32 *v5;
-        Simple3DRotationAngles *v6 = ov5_021F88A8(v1);
+    Simple3DRotationAngles *mountRotAngles = DistWorldSurfMountRenderer_GetSurfMountRotationAngles(mountAnimMan);
 
-        ov9_02250F1C(&v3->unk_0C.x, v3->unk_18.x);
-        ov9_02250F1C(&v3->unk_0C.y, v3->unk_18.y);
-        ov9_02250F1C(&v3->unk_0C.z, v3->unk_18.z);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.x, runData->mountRotAnglesDelta.x);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.y, runData->mountRotAnglesDelta.y);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.z, runData->mountRotAnglesDelta.z);
 
-        v6->alpha = ((v3->unk_0C.x) / FX32_ONE);
-        v6->beta = ((v3->unk_0C.y) / FX32_ONE);
-        v6->gamma = ((v3->unk_0C.z) / FX32_ONE);
+    mountRotAngles->alpha = runData->mountRotAngles.x / FX32_ONE;
+    mountRotAngles->beta = runData->mountRotAngles.y / FX32_ONE;
+    mountRotAngles->gamma = runData->mountRotAngles.z / FX32_ONE;
 
-        ov9_02250F1C(&v3->unk_30, v3->unk_34);
-        ov5_021F8908(v1, ((v3->unk_30) / FX32_ONE));
+    ApplyRotationToTargetFx32(&runData->orbitAngle, runData->orbitAngleDelta);
+    DistWorldSurfMountRenderer_SetOrbitAngle(mountAnimMan, runData->orbitAngle / FX32_ONE);
 
-        {
-            VecFx32 *v7 = ov5_021F88FC(v1);
+    VecFx32 *mountPosFix = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan);
+    mountPosFix->x += runData->mountPosFixDelta.x;
+    mountPosFix->y += runData->mountPosFixDelta.y;
+    mountPosFix->z += runData->mountPosFixDelta.z;
 
-            v7->x += v3->unk_24.x;
-            v7->y += v3->unk_24.y;
-            v7->z += v3->unk_24.z;
-        }
+    if (updateRes == CASCADE_UPDATE_RES_FINAL_POS_REACHED) {
+        const CmdParamsCascadeDown *cmdParams = params;
+        const CmdParamsCascadeBase *baseCmdParams = &cmdParams->base;
+        VecFx32 zeroVec = { 0, 0, 0 };
+
+        int playerTileX = MapObject_GetX(playerMapObj) + baseCmdParams->finishingPosFixTileX;
+        int playerTileY = MapObject_GetY(playerMapObj) + baseCmdParams->finishingPosFixTileY * 2;
+        int playerTileZ = MapObject_GetZ(playerMapObj) + baseCmdParams->finishingPosFixTileZ;
+
+        MapObject_SetX(playerMapObj, playerTileX);
+        MapObject_SetY(playerMapObj, playerTileY);
+        MapObject_SetZ(playerMapObj, playerTileZ);
+        MapObject_UpdateCoords(playerMapObj);
+        MapObject_TryFace(playerMapObj, FACE_LEFT);
+        MapObject_Turn(playerMapObj, FACE_LEFT);
+        MapObject_SetSpriteJumpOffset(playerMapObj, &zeroVec);
+        MapObject_SetSpritePosOffset(playerMapObj, &zeroVec);
+        FindAndPrepareNewCurrentFloatingPlatform(system, playerTileX, playerTileY / 2, playerTileZ, FLOATING_PLATFORM_KIND_INVALID);
+        PlayerAvatar_SetDistortionState(system->fieldSystem->playerAvatar, AVATAR_DISTORTION_STATE_ACTIVE);
+        MapObject_SetHeightCalculationDisabled(playerMapObj, FALSE);
+
+        VecFx32 *mountPosFix2 = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan);
+        *mountPosFix2 = zeroVec;
+
+        mountPosFix2 = DistWorldSurfMountRenderer_GetExternalSpritePosOffsetPtr(mountAnimMan);
+        *mountPosFix2 = zeroVec;
+
+        DistWorldSurfMountRenderer_SetOrbitAngle(mountAnimMan, CASCADE_DOWN_ORBIT_ANGLE_END);
+        DistWorldSurfMountRenderer_SetFixedRotationAngles(mountAnimMan, FACE_LEFT, AVATAR_DISTORTION_STATE_ACTIVE);
+
+        DistWorldSurfMountRenderer_ClearFlags(
+            mountAnimMan,
+            DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_NO_ROTATION_RECALCULATION
+                | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_NO_ORBIT_RECALCULATION
+                | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_USE_EXTERNAL_POS_FIX
+                | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_USE_EXTERNAL_SPRITE_POS_OFFSET);
+
+        Sound_StopEffect(SEQ_SE_PL_FW463_sseq, 0);
+        *cmdState = EVENT_CMD_CASCADE_DOWN_STATE_MOVE_AWAY;
+
+        SetPersistedMovingPlatformFlag(system, DIST_WORLD_PLATFORM_FLAG_B5F_1);
+        InitSpecificMovingPlatformPropForMap(system, MAP_HEADER_DISTORTION_WORLD_B5F, 0);
     }
 
-    if (v0 == 3) {
-        int v8, v9, v10;
-        const UnkStruct_ov9_02252384 *v11 = param3;
-        const UnkStruct_ov9_0224F8C4 *v12 = &v11->unk_00;
-        VecFx32 v13 = { 0, 0, 0 };
-
-        v8 = MapObject_GetX(v2) + v12->unk_06;
-        v9 = MapObject_GetY(v2) + ((v12->unk_08) * 2);
-        v10 = MapObject_GetZ(v2) + v12->unk_0A;
-
-        MapObject_SetX(v2, v8);
-        MapObject_SetY(v2, v9);
-        MapObject_SetZ(v2, v10);
-        MapObject_UpdateCoords(v2);
-        MapObject_TryFace(v2, 2);
-        MapObject_Turn(v2, 2);
-        MapObject_SetSpriteJumpOffset(v2, &v13);
-        sub_020630AC(v2, &v13);
-        FindAndPrepareNewCurrentFloatingPlatform(param0, v8, ((v9) / 2), v10, 4);
-        PlayerAvatar_SetDistortionState(param0->fieldSystem->playerAvatar, AVATAR_DISTORTION_STATE_ACTIVE);
-        MapObject_SetHeightCalculationDisabled(v2, FALSE);
-
-        {
-            {
-                VecFx32 *v14 = ov5_021F88FC(v1);
-
-                *v14 = v13;
-                v14 = ov5_021F88F0(v1);
-                *v14 = v13;
-            }
-
-            ov5_021F8908(v1, 270);
-            ov5_021F88B4(v1, 2, 1);
-            ov5_021F88DC(v1, 1 << 2 | 1 << 4 | 1 << 6 | 1 << 5);
-        }
-
-        Sound_StopEffect(1488, 0);
-        *param2 = 4;
-
-        {
-            ov9_02249D70(param0, 7);
-            ov9_0224DDA0(param0, 579, 0);
-        }
-    }
-
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_022500E0(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdCascadeDown_MoveAway(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    u32 v0[2] = { 0xa, 0x6 };
-    UnkStruct_ov9_0224FA94 *v1 = ov9_0224E39C(param0);
-    MapObject *v2 = Player_MapObject(param0->fieldSystem->playerAvatar);
+    u32 movements[2] = { MOVEMENT_ACTION_WALK_SLOW_WEST, MOVEMENT_ACTION_WALK_SLOWER_WEST };
+    CmdRunDataCascadeDown *runData = GetLoadedEventDataBuffer(system);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
 
-    if (LocalMapObj_IsAnimationSet(v2) == 0) {
-        return 0;
+    if (!LocalMapObj_IsAnimationSet(playerMapObj)) {
+        return EVENT_CMD_HANDLER_RES_CONTINUE;
     }
 
-    if (v1->unk_02 >= 2) {
-        return 2;
+    if (runData->moveAwayAnimStep >= NELEMS(movements)) {
+        return EVENT_CMD_HANDLER_RES_FINISH;
     }
 
-    LocalMapObj_SetAnimationCode(v2, v0[v1->unk_02]);
-    v1->unk_02++;
-    return 0;
+    LocalMapObj_SetAnimationCode(playerMapObj, movements[runData->moveAwayAnimStep]);
+    runData->moveAwayAnimStep++;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251544[5] = {
-    ov9_0224FB3C,
-    ov9_0224FC2C,
-    ov9_0224FD74,
-    ov9_0224FEDC,
-    ov9_022500E0
+static const DistWorldEventCmdHandler sCascadeDownHandlers[] = {
+    [EVENT_CMD_CASCADE_DOWN_STATE_INIT] = EventCmdCascadeDown_Init,
+    [EVENT_CMD_CASCADE_DOWN_STATE_ROTATE_PLAYER] = EventCmdCascadeDown_RotatePlayer,
+    [EVENT_CMD_CASCADE_DOWN_STATE_CASCADE_DOWN] = EventCmdCascadeDown_CascadeDown,
+    [EVENT_CMD_CASCADE_DOWN_STATE_FINISH_CASCADING] = EventCmdCascadeDown_FinishCascading,
+    [EVENT_CMD_CASCADE_DOWN_STATE_MOVE_AWAY] = EventCmdCascadeDown_MoveAway
 };
 
-static const DistWorldCameraAngleTemplate Unk_ov9_02251C48 = {
-    { 0x0, 0x0, 0x0, 0x0 },
-    0x37,
-    0xF0,
-    0x0,
-    0x0,
-    0x10
+static const DistWorldCameraAngleTemplate sCascadeUpCameraAngle = {
+    .bounds = {
+        .startTileX = 0,
+        .startTileY = 0,
+        .startTileZ = 0,
+        .sizeX = 0,
+        .sizeY = 0,
+        .sizeZ = 0,
+    },
+    .angleX = 55,
+    .angleY = 240,
+    .angleZ = 0,
+    .playerDir = FACE_UP,
+    .transitionSteps = 16
 };
 
-static void ov9_02250138(DistWorldSystem *param0, UnkStruct_ov9_02250138 *param1)
+static void UpdateCascadeUpCamera(DistWorldSystem *system, CmdRunDataCascadeUp *runData)
 {
-    MapObject *v0 = Player_MapObject(param0->fieldSystem->playerAvatar);
-    int v1 = (((param1->unk_34.unk_10.y) >> 4) / FX32_ONE);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
+    int yOffset = (runData->base.currPosOffset.y >> 4) / FX32_ONE;
 
-    if ((param1->unk_04 == 0) && (v1 == 20)) {
-        DoCameraTransition(param0, &Unk_ov9_02251C48);
-        param1->unk_04++;
+    if (runData->cameraAngleState == 0 && yOffset == CASCADE_UP_CAMERA_ANGLE_Y_OFFSET) {
+        DoCameraTransition(system, &sCascadeUpCameraAngle);
+        runData->cameraAngleState++;
     }
 }
 
-static int ov9_02250170(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdCascadeUp_Init(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    VecFx32 v0;
-    UnkStruct_ov9_0224F930 *v1;
-    MapObject *v2;
-    PlayerAvatar *playerAvatar;
-    UnkStruct_ov9_02250138 *v4;
-    const UnkStruct_ov9_022523F0 *v5 = param3;
-    v4 = ov9_0224E37C(param0, sizeof(UnkStruct_ov9_02250138));
-    v1 = &v4->unk_34;
-    playerAvatar = param0->fieldSystem->playerAvatar;
-    v2 = Player_MapObject(playerAvatar);
+    const CmdParamsCascadeUp *cmdParams = params;
+    CmdRunDataCascadeUp *runData = ResetLoadedEventDataBuffer(system, sizeof(CmdRunDataCascadeUp));
+    CmdRunDataCascadeBase *baseRunData = &runData->base;
+    PlayerAvatar *playerAvatar = system->fieldSystem->playerAvatar;
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(playerAvatar);
 
-    MapObject_GetPosPtr(v2, &v0);
-    MapObject_TryFace(v2, 3);
-    ov9_0224F8C4(param0, v1, &v5->unk_00, &v0);
+    VecFx32 playerPos;
+    MapObject_GetPosPtr(playerMapObj, &playerPos);
+    MapObject_TryFace(playerMapObj, FACE_RIGHT);
+    CmdRunDataCascadeBase_InitFromParams(system, baseRunData, &cmdParams->base, &playerPos);
 
-    v1->unk_04.x >>= 1;
-    v1->unk_04.y >>= 1;
-    v1->unk_04.z >>= 1;
-    v4->unk_00 = 4;
+    baseRunData->posDelta.x >>= 1;
+    baseRunData->posDelta.y >>= 1;
+    baseRunData->posDelta.z >>= 1;
+    runData->spriteRotationAnimStepsLeft = CASCADE_UP_INITIAL_SPRITE_ROTATION_STEPS;
 
-    ov9_0224A4D0(param0, v2, -90, v4->unk_00);
+    RotateMapObject(system, playerMapObj, -90, runData->spriteRotationAnimStepsLeft);
 
-    {
-        VecFx32 v6 = { 0, 0, 0 };
-        sub_020630AC(v2, &v6);
-    }
+    VecFx32 spritePosOffset = { 0, 0, 0 };
+    MapObject_SetSpritePosOffset(playerMapObj, &spritePosOffset);
 
-    {
-        VecFx32 *v7;
-        OverworldAnimManager *v8 = sub_0205EC04(playerAvatar);
-        Simple3DRotationAngles *v9 = ov5_021F88A8(v8);
+    OverworldAnimManager *mountAnimMan = PlayerAvatar_GetSurfMountAnimManager(playerAvatar);
+    Simple3DRotationAngles *mountRotAngles = DistWorldSurfMountRenderer_GetSurfMountRotationAngles(mountAnimMan);
 
-        ov5_021F88B4(v8, 3, 1);
-        ov5_021F88CC(v8, 1 << 2 | 1 << 4 | 1 << 6 | 1 << 5);
+    DistWorldSurfMountRenderer_SetFixedRotationAngles(mountAnimMan, FACE_RIGHT, AVATAR_DISTORTION_STATE_ACTIVE);
 
-        v4->unk_08.x = (FX32_ONE * (v9->alpha));
-        v4->unk_08.y = (FX32_ONE * (v9->beta));
-        v4->unk_08.z = (FX32_ONE * (v9->gamma));
-        v4->unk_14.x = (FX32_ONE * -90) / 4;
-        v4->unk_14.y = (FX32_ONE * 180) / 4;
-        v4->unk_14.z = 0;
-        v4->unk_2C = (FX32_ONE * 270);
-        v4->unk_30 = (FX32_ONE * 110) / 4;
+    DistWorldSurfMountRenderer_SetFlags(
+        mountAnimMan,
+        DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_NO_ROTATION_RECALCULATION
+            | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_NO_ORBIT_RECALCULATION
+            | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_USE_EXTERNAL_POS_FIX
+            | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_USE_EXTERNAL_SPRITE_POS_OFFSET);
 
-        v7 = ov5_021F88FC(v8);
-        v7->x = 0;
-        v7->y = 0;
-        v7->z = (FX32_ONE * -7);
-        v4->unk_20.x = 0;
-        v4->unk_20.y = 0;
-        v4->unk_20.z = (FX32_ONE * 0) / 4;
-    }
+    runData->mountRotAngles.x = FX32_ONE * mountRotAngles->alpha;
+    runData->mountRotAngles.y = FX32_ONE * mountRotAngles->beta;
+    runData->mountRotAngles.z = FX32_ONE * mountRotAngles->gamma;
+    runData->mountRotAnglesDelta.x = CASCADE_UP_MOUNT_ROTATION_ANGLE_X / CASCADE_UP_INITIAL_SPRITE_ROTATION_STEPS;
+    runData->mountRotAnglesDelta.y = CASCADE_UP_MOUNT_ROTATION_ANGLE_Y / CASCADE_UP_INITIAL_SPRITE_ROTATION_STEPS;
+    runData->mountRotAnglesDelta.z = CASCADE_UP_MOUNT_ROTATION_ANGLE_Z / CASCADE_UP_INITIAL_SPRITE_ROTATION_STEPS;
+    runData->orbitAngle = CASCADE_UP_ORBIT_ANGLE_START;
+    runData->orbitAngleDelta = CASCADE_UP_ORBIT_ANGLE / CASCADE_UP_INITIAL_SPRITE_ROTATION_STEPS;
 
-    Sound_PlayEffect(SEQ_SE_PL_FW463);
+    VecFx32 *mountPosFix = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan);
+    mountPosFix->x = CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_X_START;
+    mountPosFix->y = CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_Y_START;
+    mountPosFix->z = CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_Z_START;
+    runData->mountPosFixDelta.x = CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_X / CASCADE_UP_INITIAL_SPRITE_ROTATION_STEPS;
+    runData->mountPosFixDelta.y = CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_Y / CASCADE_UP_INITIAL_SPRITE_ROTATION_STEPS;
+    runData->mountPosFixDelta.z = CASCADE_UP_ROTATE_MOUNT_POSITION_FIX_Z / CASCADE_UP_INITIAL_SPRITE_ROTATION_STEPS;
 
-    *param2 = 1;
-    return 0;
+    Sound_PlayEffect(SEQ_SE_PL_FW463_sseq);
+
+    *cmdState = EVENT_CMD_CASCADE_UP_STATE_ROTATE_PLAYER;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250260(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdCascadeUp_RotatePlayer(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    MapObject *v0 = Player_MapObject(param0->fieldSystem->playerAvatar);
-    UnkStruct_ov9_02250138 *v1 = ov9_0224E39C(param0);
-    UnkStruct_ov9_0224F930 *v2 = &v1->unk_34;
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
+    CmdRunDataCascadeUp *runData = GetLoadedEventDataBuffer(system);
+    CmdRunDataCascadeBase *baseRunData = &runData->base;
 
-    ov9_0224F970(param0, v2);
-    MapObject_SetPos(v0, &v2->unk_34);
-    ov9_02250138(param0, v1);
+    CmdRunDataCascadeBase_Update(system, baseRunData);
+    MapObject_SetPos(playerMapObj, &baseRunData->playerPos);
+    UpdateCascadeUpCamera(system, runData);
 
-    {
-        OverworldAnimManager *v3 = sub_0205EC04(param0->fieldSystem->playerAvatar);
+    OverworldAnimManager *mountAnimMan = PlayerAvatar_GetSurfMountAnimManager(system->fieldSystem->playerAvatar);
+    Simple3DRotationAngles *mountRotAngles = DistWorldSurfMountRenderer_GetSurfMountRotationAngles(mountAnimMan);
 
-        {
-            Simple3DRotationAngles *v4 = ov5_021F88A8(v3);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.x, runData->mountRotAnglesDelta.x);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.y, runData->mountRotAnglesDelta.y);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.z, runData->mountRotAnglesDelta.z);
 
-            ov9_02250F1C(&v1->unk_08.x, v1->unk_14.x);
-            ov9_02250F1C(&v1->unk_08.y, v1->unk_14.y);
-            ov9_02250F1C(&v1->unk_08.z, v1->unk_14.z);
+    mountRotAngles->alpha = runData->mountRotAngles.x / FX32_ONE;
+    mountRotAngles->beta = runData->mountRotAngles.y / FX32_ONE;
+    mountRotAngles->gamma = runData->mountRotAngles.z / FX32_ONE;
 
-            v4->alpha = ((v1->unk_08.x) / FX32_ONE);
-            v4->beta = ((v1->unk_08.y) / FX32_ONE);
-            v4->gamma = ((v1->unk_08.z) / FX32_ONE);
-        }
+    ApplyRotationToTargetFx32(&runData->orbitAngle, runData->orbitAngleDelta);
+    DistWorldSurfMountRenderer_SetOrbitAngle(mountAnimMan, runData->orbitAngle / FX32_ONE);
 
-        {
-            ov9_02250F1C(&v1->unk_2C, v1->unk_30);
-            ov5_021F8908(v3, ((v1->unk_2C) / FX32_ONE));
-        }
+    VecFx32 *mountPosFix = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan);
+    mountPosFix->x += runData->mountPosFixDelta.x;
+    mountPosFix->y += runData->mountPosFixDelta.y;
+    mountPosFix->z += runData->mountPosFixDelta.z;
 
-        {
-            VecFx32 *v5 = ov5_021F88FC(v3);
+    runData->spriteRotationAnimStepsLeft--;
 
-            v5->x += v1->unk_20.x;
-            v5->y += v1->unk_20.y;
-            v5->z += v1->unk_20.z;
-        }
+    if (runData->spriteRotationAnimStepsLeft == 0) {
+        baseRunData->posDelta.x <<= 1;
+        baseRunData->posDelta.y <<= 1;
+        baseRunData->posDelta.z <<= 1;
+
+        CmdRunDataCascadeBase_InitBobbing(baseRunData, AXIS_X, CASCADE_UP_BOBBING_DELTA, CASCADE_UP_BOBBING_MAX);
+
+        OverworldAnimManager *mountAnimMan2 = PlayerAvatar_GetSurfMountAnimManager(system->fieldSystem->playerAvatar);
+        VecFx32 *mountPosFix2;
+
+        mountPosFix2 = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan2);
+        mountPosFix2->x = CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_X_START;
+        mountPosFix2->y = CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_Y_START;
+        mountPosFix2->z = CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_Z_START;
+
+        runData->mountPosFixDelta.x = CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_X / CASCADE_UP_CASCADE_STEPS;
+        runData->mountPosFixDelta.y = CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_Y / CASCADE_UP_CASCADE_STEPS;
+        runData->mountPosFixDelta.z = CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_Z / CASCADE_UP_CASCADE_STEPS;
+
+        *cmdState = EVENT_CMD_CASCADE_UP_STATE_CASCADE_DOWN;
+        return EVENT_CMD_HANDLER_RES_CONTINUE;
     }
 
-    v1->unk_00--;
-
-    if (v1->unk_00 == 0) {
-        v2->unk_04.x <<= 1;
-        v2->unk_04.y <<= 1;
-        v2->unk_04.z <<= 1;
-
-        ov9_0224F930(v2, 0, 0x200, (FX32_ONE * 4));
-
-        {
-            OverworldAnimManager *v6 = sub_0205EC04(param0->fieldSystem->playerAvatar);
-            VecFx32 *v7;
-
-            v7 = ov5_021F88FC(v6);
-            v7->x = 0;
-            v7->y = 0;
-            v7->z = (FX32_ONE * -7);
-            v1->unk_20.x = 0;
-            v1->unk_20.y = 0;
-            v1->unk_20.z = (FX32_ONE * 17) / 16;
-        }
-
-        *param2 = 2;
-        return 0;
-    }
-
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250388(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdCascadeUp_CascadeUp(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    int v0;
-    OverworldAnimManager *v1 = sub_0205EC04(param0->fieldSystem->playerAvatar);
-    MapObject *v2 = Player_MapObject(param0->fieldSystem->playerAvatar);
-    UnkStruct_ov9_02250138 *v3 = ov9_0224E39C(param0);
-    UnkStruct_ov9_0224F930 *v4 = &v3->unk_34;
+    enum CascadeUpdateResult updateRes;
+    OverworldAnimManager *mountAnimMan = PlayerAvatar_GetSurfMountAnimManager(system->fieldSystem->playerAvatar);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
+    CmdRunDataCascadeUp *runData = GetLoadedEventDataBuffer(system);
+    CmdRunDataCascadeBase *baseRunData = &runData->base;
 
-    v0 = ov9_0224F970(param0, v4);
+    updateRes = CmdRunDataCascadeBase_Update(system, baseRunData);
 
-    MapObject_SetPos(v2, &v4->unk_34);
-    MapObject_SetSpriteJumpOffset(v2, &v4->unk_40);
-    ov9_02250138(param0, v3);
+    MapObject_SetPos(playerMapObj, &baseRunData->playerPos);
+    MapObject_SetSpriteJumpOffset(playerMapObj, &baseRunData->jumpOffset);
+    UpdateCascadeUpCamera(system, runData);
 
-    {
-        VecFx32 *v5 = ov5_021F88F0(v1);
+    VecFx32 *mountSpritePosOffset = DistWorldSurfMountRenderer_GetExternalSpritePosOffsetPtr(mountAnimMan);
+    *mountSpritePosOffset = baseRunData->jumpOffset;
 
-        *v5 = v4->unk_40;
+    if (runData->cameraAngleState == 1) {
+        VecFx32 *mountPosFix = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan);
 
-        if (v3->unk_04 == 1) {
-            VecFx32 *v6 = ov5_021F88FC(v1);
-
-            if (v6->z < (FX32_ONE * 10)) {
-                v6->x += v3->unk_20.x;
-                v6->y += v3->unk_20.y;
-                v6->z += v3->unk_20.z;
-            }
+        if (mountPosFix->z < CASCADE_UP_CASCADE_MOUNT_POSITION_FIX_Z_THRESHOLD) {
+            mountPosFix->x += runData->mountPosFixDelta.x;
+            mountPosFix->y += runData->mountPosFixDelta.y;
+            mountPosFix->z += runData->mountPosFixDelta.z;
         }
     }
 
-    if (v0 == 2) {
-        v3->unk_00 = 2;
-        ov9_0224A4D0(param0, v2, -90, v3->unk_00);
+    if (updateRes == CASCADE_UPDATE_RES_FINISHING_POS_REACHED) {
+        runData->spriteRotationAnimStepsLeft = CASCADE_UP_FINAL_SPRITE_ROTATION_STEPS;
+        RotateMapObject(system, playerMapObj, -90, runData->spriteRotationAnimStepsLeft);
 
-        {
-            v3->unk_14.x = (FX32_ONE * 90) / 2;
-            v3->unk_14.y = 0;
-            v3->unk_14.z = 0;
-            v3->unk_20.x = 0;
-            v3->unk_20.y = 0;
-            v3->unk_20.z = (FX32_ONE * -4) / 2;
-            v3->unk_30 = (FX32_ONE * 70) / 2;
+        runData->mountRotAnglesDelta.x = CASCADE_UP_FINAL_MOUNT_ROTATION_ANGLE_X / CASCADE_UP_FINAL_SPRITE_ROTATION_STEPS;
+        runData->mountRotAnglesDelta.y = CASCADE_UP_FINAL_MOUNT_ROTATION_ANGLE_Y / CASCADE_UP_FINAL_SPRITE_ROTATION_STEPS;
+        runData->mountRotAnglesDelta.z = CASCADE_UP_FINAL_MOUNT_ROTATION_ANGLE_Z / CASCADE_UP_FINAL_SPRITE_ROTATION_STEPS;
+        runData->mountPosFixDelta.x = CASCADE_UP_FINAL_MOUNT_POSITION_FIX_X / CASCADE_UP_FINAL_SPRITE_ROTATION_STEPS;
+        runData->mountPosFixDelta.y = CASCADE_UP_FINAL_MOUNT_POSITION_FIX_Y / CASCADE_UP_FINAL_SPRITE_ROTATION_STEPS;
+        runData->mountPosFixDelta.z = CASCADE_UP_FINAL_MOUNT_POSITION_FIX_Z / CASCADE_UP_FINAL_SPRITE_ROTATION_STEPS;
+        runData->orbitAngleDelta = CASCADE_UP_FINAL_ORBIT_ANGLE / CASCADE_UP_FINAL_SPRITE_ROTATION_STEPS;
 
-            ov5_021F88DC(v1, 1 << 5);
-        }
+        DistWorldSurfMountRenderer_ClearFlags(mountAnimMan, DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_USE_EXTERNAL_SPRITE_POS_OFFSET);
 
-        *param2 = 3;
+        *cmdState = EVENT_CMD_CASCADE_UP_STATE_FINISH_CASCADING;
     }
 
-    GF_ASSERT(v0 != 3);
-    return 0;
+    GF_ASSERT(updateRes != CASCADE_UPDATE_RES_FINAL_POS_REACHED);
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250468(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdCascadeUp_FinishCascading(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    int v0;
-    OverworldAnimManager *v1 = sub_0205EC04(param0->fieldSystem->playerAvatar);
-    MapObject *v2 = Player_MapObject(param0->fieldSystem->playerAvatar);
-    UnkStruct_ov9_02250138 *v3 = ov9_0224E39C(param0);
-    UnkStruct_ov9_0224F930 *v4 = &v3->unk_34;
+    enum CascadeUpdateResult updateRes;
+    OverworldAnimManager *mountAnimMan = PlayerAvatar_GetSurfMountAnimManager(system->fieldSystem->playerAvatar);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
+    CmdRunDataCascadeUp *runData = GetLoadedEventDataBuffer(system);
+    CmdRunDataCascadeBase *baseRunData = &runData->base;
 
-    v0 = ov9_0224F970(param0, v4);
+    updateRes = CmdRunDataCascadeBase_Update(system, baseRunData);
 
-    MapObject_SetPos(v2, &v4->unk_34);
-    MapObject_SetSpriteJumpOffset(v2, &v4->unk_40);
+    MapObject_SetPos(playerMapObj, &baseRunData->playerPos);
+    MapObject_SetSpriteJumpOffset(playerMapObj, &baseRunData->jumpOffset);
 
-    ov9_02250138(param0, v3);
+    UpdateCascadeUpCamera(system, runData);
 
-    {
-        VecFx32 *v5;
-        Simple3DRotationAngles *v6 = ov5_021F88A8(v1);
+    Simple3DRotationAngles *mountRotAngles = DistWorldSurfMountRenderer_GetSurfMountRotationAngles(mountAnimMan);
 
-        ov9_02250F1C(&v3->unk_08.x, v3->unk_14.x);
-        ov9_02250F1C(&v3->unk_08.y, v3->unk_14.y);
-        ov9_02250F1C(&v3->unk_08.z, v3->unk_14.z);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.x, runData->mountRotAnglesDelta.x);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.y, runData->mountRotAnglesDelta.y);
+    ApplyRotationToTargetFx32(&runData->mountRotAngles.z, runData->mountRotAnglesDelta.z);
 
-        v6->alpha = ((v3->unk_08.x) / FX32_ONE);
-        v6->beta = ((v3->unk_08.y) / FX32_ONE);
-        v6->gamma = ((v3->unk_08.z) / FX32_ONE);
+    mountRotAngles->alpha = runData->mountRotAngles.x / FX32_ONE;
+    mountRotAngles->beta = runData->mountRotAngles.y / FX32_ONE;
+    mountRotAngles->gamma = runData->mountRotAngles.z / FX32_ONE;
 
-        ov9_02250F1C(&v3->unk_2C, v3->unk_30);
-        ov5_021F8908(v1, ((v3->unk_2C) / FX32_ONE));
+    ApplyRotationToTargetFx32(&runData->orbitAngle, runData->orbitAngleDelta);
+    DistWorldSurfMountRenderer_SetOrbitAngle(mountAnimMan, runData->orbitAngle / FX32_ONE);
 
-        {
-            VecFx32 *v7 = ov5_021F88FC(v1);
+    VecFx32 *mountPosFix = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan);
+    mountPosFix->x += runData->mountPosFixDelta.x;
+    mountPosFix->y += runData->mountPosFixDelta.y;
+    mountPosFix->z += runData->mountPosFixDelta.z;
 
-            v7->x += v3->unk_20.x;
-            v7->y += v3->unk_20.y;
-            v7->z += v3->unk_20.z;
-        }
+    if (updateRes == CASCADE_UPDATE_RES_FINAL_POS_REACHED) {
+        const CmdParamsCascadeUp *cmdParams = params;
+        const CmdParamsCascadeBase *baseCmdParams = &cmdParams->base;
+        VecFx32 zeroVec = { 0, 0, 0 };
+
+        int playerTileX = MapObject_GetX(playerMapObj) + baseCmdParams->finishingPosFixTileX;
+        int playerTileY = MapObject_GetY(playerMapObj) + baseCmdParams->finishingPosFixTileY * 2;
+        int playerTileZ = MapObject_GetZ(playerMapObj) + baseCmdParams->finishingPosFixTileZ;
+
+        MapObject_SetX(playerMapObj, playerTileX);
+        MapObject_SetY(playerMapObj, playerTileY);
+        MapObject_SetZ(playerMapObj, playerTileZ);
+        MapObject_UpdateCoords(playerMapObj);
+        MapObject_TryFace(playerMapObj, FACE_RIGHT);
+        MapObject_Turn(playerMapObj, FACE_RIGHT);
+        MapObject_SetSpriteJumpOffset(playerMapObj, &zeroVec);
+        MapObject_SetSpritePosOffset(playerMapObj, &zeroVec);
+        FindAndPrepareNewCurrentFloatingPlatform(system, playerTileX, playerTileY / 2, playerTileZ, FLOATING_PLATFORM_KIND_INVALID);
+        PlayerAvatar_SetDistortionState(system->fieldSystem->playerAvatar, AVATAR_DISTORTION_STATE_CEILING);
+        MapObject_SetHeightCalculationDisabled(playerMapObj, TRUE);
+
+        VecFx32 *mountPosFix2 = DistWorldSurfMountRenderer_GetExternalPosFixPtr(mountAnimMan);
+        *mountPosFix2 = zeroVec;
+
+        mountPosFix2 = DistWorldSurfMountRenderer_GetExternalSpritePosOffsetPtr(mountAnimMan);
+        *mountPosFix2 = zeroVec;
+
+        DistWorldSurfMountRenderer_SetOrbitAngle(mountAnimMan, CASCADE_UP_ORBIT_ANGLE_END);
+        DistWorldSurfMountRenderer_SetFixedRotationAngles(mountAnimMan, FACE_RIGHT, AVATAR_DISTORTION_STATE_CEILING);
+
+        DistWorldSurfMountRenderer_ClearFlags(
+            mountAnimMan,
+            DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_NO_ROTATION_RECALCULATION
+                | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_NO_ORBIT_RECALCULATION
+                | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_USE_EXTERNAL_POS_FIX
+                | DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_USE_EXTERNAL_SPRITE_POS_OFFSET);
+
+        Sound_StopEffect(SEQ_SE_PL_FW463_sseq, 0);
+        *cmdState = EVENT_CMD_CASCADE_UP_STATE_MOVE_AWAY;
     }
 
-    if (v0 == 3) {
-        int v8, v9, v10;
-        const UnkStruct_ov9_022523F0 *v11 = param3;
-        const UnkStruct_ov9_0224F8C4 *v12 = &v11->unk_00;
-        VecFx32 v13 = { 0, 0, 0 };
-
-        v8 = MapObject_GetX(v2) + v12->unk_06;
-        v9 = MapObject_GetY(v2) + ((v12->unk_08) * 2);
-        v10 = MapObject_GetZ(v2) + v12->unk_0A;
-
-        MapObject_SetX(v2, v8);
-        MapObject_SetY(v2, v9);
-        MapObject_SetZ(v2, v10);
-        MapObject_UpdateCoords(v2);
-        MapObject_TryFace(v2, 3);
-        MapObject_Turn(v2, 3);
-        MapObject_SetSpriteJumpOffset(v2, &v13);
-        sub_020630AC(v2, &v13);
-        FindAndPrepareNewCurrentFloatingPlatform(param0, v8, ((v9) / 2), v10, 4);
-        PlayerAvatar_SetDistortionState(param0->fieldSystem->playerAvatar, AVATAR_DISTORTION_STATE_CEILING);
-        MapObject_SetHeightCalculationDisabled(v2, TRUE);
-
-        {
-            {
-                VecFx32 *v14 = ov5_021F88FC(v1);
-
-                *v14 = v13;
-                v14 = ov5_021F88F0(v1);
-                *v14 = v13;
-            }
-
-            ov5_021F8908(v1, 90);
-            ov5_021F88B4(v1, 3, 5);
-            ov5_021F88DC(v1, 1 << 2 | 1 << 4 | 1 << 6 | 1 << 5);
-        }
-
-        Sound_StopEffect(1488, 0);
-        *param2 = 4;
-    }
-
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250650(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdCascadeUp_MoveAway(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    u32 v0[3] = { 0x97, 0x93, 0x73 };
-    UnkStruct_ov9_02250138 *v1 = ov9_0224E39C(param0);
-    MapObject *v2 = Player_MapObject(param0->fieldSystem->playerAvatar);
+    u32 movements[3] = { MOVEMENT_ACTION_151, MOVEMENT_ACTION_147, MOVEMENT_ACTION_115 };
+    CmdRunDataCascadeUp *runData = GetLoadedEventDataBuffer(system);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
 
-    if (LocalMapObj_IsAnimationSet(v2) == 0) {
-        return 0;
+    if (!LocalMapObj_IsAnimationSet(playerMapObj)) {
+        return EVENT_CMD_HANDLER_RES_CONTINUE;
     }
 
-    if (v1->unk_02 >= 3) {
-        return 2;
+    if (runData->moveAwayAnimStep >= NELEMS(movements)) {
+        return EVENT_CMD_HANDLER_RES_FINISH;
     }
 
-    LocalMapObj_SetAnimationCode(v2, v0[v1->unk_02]);
-    v1->unk_02++;
-    return 0;
+    LocalMapObj_SetAnimationCode(playerMapObj, movements[runData->moveAwayAnimStep]);
+    runData->moveAwayAnimStep++;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_0225151C[5] = {
-    ov9_02250170,
-    ov9_02250260,
-    ov9_02250388,
-    ov9_02250468,
-    ov9_02250650
+static const DistWorldEventCmdHandler sCascadeUpHandlers[] = {
+    [EVENT_CMD_CASCADE_UP_STATE_INIT] = EventCmdCascadeUp_Init,
+    [EVENT_CMD_CASCADE_UP_STATE_ROTATE_PLAYER] = EventCmdCascadeUp_RotatePlayer,
+    [EVENT_CMD_CASCADE_UP_STATE_CASCADE_DOWN] = EventCmdCascadeUp_CascadeUp,
+    [EVENT_CMD_CASCADE_UP_STATE_FINISH_CASCADING] = EventCmdCascadeUp_FinishCascading,
+    [EVENT_CMD_CASCADE_UP_STATE_MOVE_AWAY] = EventCmdCascadeUp_MoveAway
 };
 
-static int ov9_022506AC(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdStartScript_Handle(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    const UnkStruct_ov9_022506AC *v0 = param3;
+    const CmdParamsStartScript *cmdParams = params;
+    ScriptManager_Start(task, cmdParams->scriptID, NULL, NULL);
 
-    ScriptManager_Start(param1, v0->unk_00, NULL, NULL);
-    (*param2)++;
-    return 0;
+    (*cmdState)++;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_022506CC(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdStartScript_Finish(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    return 2;
+    return EVENT_CMD_HANDLER_RES_FINISH;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_022512C0[2] = {
-    ov9_022506AC,
-    ov9_022506CC
+static const DistWorldEventCmdHandler sStartScriptHandlers[] = {
+    EventCmdStartScript_Handle,
+    EventCmdStartScript_Finish
 };
 
-static int ov9_022506D0(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdSetDistortionWorldProgress_Handle(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    const UnkStruct_ov9_022506D0 *v0 = param3;
-    VarsFlags *v1 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
+    const CmdParamsSetDistortionWorldProgress *cmdParams = params;
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+    SystemVars_SetDistortionWorldProgress(varsFlags, cmdParams->progress);
 
-    SystemVars_SetDistortionWorldProgress(v1, v0->unk_00);
-    return 2;
+    return EVENT_CMD_HANDLER_RES_FINISH;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251238[1] = {
-    ov9_022506D0
+static const DistWorldEventCmdHandler sSetDistortionWorldProgressHandlers[] = {
+    EventCmdSetDistortionWorldProgress_Handle
 };
 
-static int ov9_022506EC(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdSetGiratinaAnimationFlag_Handle(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    const UnkStruct_ov9_022506EC *v0 = param3;
-    VarsFlags *v1 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
+    const CmdParamsSetGiratinaAnimationFlag *cmdParams = params;
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+    SystemFlag_HandleGiratinaAnimation(varsFlags, HANDLE_FLAG_SET, cmdParams->anim);
 
-    SystemFlag_HandleGiratinaAnimation(v1, HANDLE_FLAG_SET, v0->unk_00);
-    return 2;
+    return EVENT_CMD_HANDLER_RES_FINISH;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_0225121C[1] = {
-    ov9_022506EC
+static const DistWorldEventCmdHandler sSetGiratinaAnimationFlagHandlers[] = {
+    EventCmdSetGiratinaAnimationFlag_Handle
 };
 
-static int ov9_02250704(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdSetPuzzleFlag_Handle(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    const UnkStruct_ov9_02250704 *v0 = param3;
+    const CmdParamsPuzzleFlag *cmdParams = params;
+    SetPersistedBoulderPuzzleFlag(system, cmdParams->flagIndex);
 
-    ov9_02249DC8(param0, v0->unk_00);
-    return 2;
+    return EVENT_CMD_HANDLER_RES_FINISH;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251270[1] = {
-    ov9_02250704
+static const DistWorldEventCmdHandler sSetPuzzleFlagHandlers[] = {
+    EventCmdSetPuzzleFlag_Handle
 };
 
-static int ov9_02250710(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdClearPuzzleFlag_Handle(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    const UnkStruct_ov9_02250704 *v0 = param3;
+    const CmdParamsPuzzleFlag *cmdParams = params;
+    ClearPersistedBoulderPuzzleFlag(system, cmdParams->flagIndex);
 
-    ov9_02249DE4(param0, v0->unk_00);
-    return 2;
+    return EVENT_CMD_HANDLER_RES_FINISH;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251254[1] = {
-    ov9_02250710
+static const DistWorldEventCmdHandler sClearPuzzleFlagHandlers[] = {
+    EventCmdClearPuzzleFlag_Handle
 };
 
-static int ov9_0225071C(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowGiratinaShadow_Load(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    const UnkStruct_ov9_02252414 *v0 = param3;
+    const DistWorldGiratinaShadowTemplate *giratinaTemplate = params;
+    LoadGiratinaShadowPropAnimation(system, giratinaTemplate);
 
-    ov9_0224E91C(param0, v0);
-    *param2 = 1;
-    return 0;
+    *cmdState = EVENT_CMD_SHOW_GIRATINA_SHADOW_STATE_FINISH;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250730(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowGiratinaShadow_Finish(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    if (ov9_0224E964(param0) == 1) {
-        ov9_0224E988(param0);
-        return 2;
+    if (IsGiratinaShadowAnimationFinished(system) == TRUE) {
+        FinishGiratinaShadowPropRenderer(system);
+        return EVENT_CMD_HANDLER_RES_FINISH;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251328[2] = {
-    ov9_0225071C,
-    ov9_02250730
+static const DistWorldEventCmdHandler sEventCmdShowGiratinaShadow[] = {
+    [EVENT_CMD_SHOW_GIRATINA_SHADOW_STATE_LOAD] = EventCmdShowGiratinaShadow_Load,
+    [EVENT_CMD_SHOW_GIRATINA_SHADOW_STATE_FINISH] = EventCmdShowGiratinaShadow_Finish
 };
 
-static const u16 Unk_ov9_02252284[16] = {
-    0x32C9,
-    0x20D5,
-    0x104f,
-    0x3DAD,
-    0x4A10,
-    0x2929,
-    0x5672,
-    0x62D5,
-    0x6bff,
-    0xf5d,
-    0x92A,
-    0xA55,
-    0x215E,
-    0x18C6,
-    0x0,
-    0x7fff
+static const GXRgb sGiratinaSpriteBasePalette[PALETTE_SIZE] = {
+    GX_RGB(9, 22, 12),
+    GX_RGB(21, 6, 8),
+    GX_RGB(15, 2, 4),
+    GX_RGB(13, 13, 15),
+    GX_RGB(16, 16, 18),
+    GX_RGB(9, 9, 10),
+    GX_RGB(18, 19, 21),
+    GX_RGB(21, 22, 24),
+    GX_RGB(31, 31, 26),
+    GX_RGB(29, 26, 3),
+    GX_RGB(10, 9, 2),
+    GX_RGB(21, 18, 2),
+    GX_RGB(30, 10, 8),
+    GX_RGB(6, 6, 6),
+    GX_RGB(0, 0, 0),
+    GX_RGB(31, 31, 31)
 };
 
-static void ov9_0225074C(UnkStruct_ov9_0225074C *param0)
+static void CmdRunDataPlayGiratinaArrival_UpdateSpritePalette(CmdRunDataPlayGiratinaArrival *runData)
 {
-    u32 v0, v1 = ((param0->unk_00) / FX32_ONE);
+    u32 spriteDarkness = runData->spriteDarkness / FX32_ONE;
 
-    for (v0 = 0; v0 < 16; v0++) {
-        ov9_0224F86C(Unk_ov9_02252284[v0], 0, v1, &param0->unk_1C[v0]);
-    }
-}
-
-void ov9_02250780(FieldSystem *fieldSystem)
-{
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-
-    if (v0->unk_1EC0 == 1) {
-        UnkStruct_ov9_0225074C *v1 = ov9_0224E39C(v0);
-        UnkStruct_ov5_021ED0A4 *v2 = sub_0206285C(v0->fieldSystem->mapObjMan);
-        TextureResourceManager *v3 = ov5_021EDCB0(v2);
-        TextureResource *v4 = TextureResourceManager_FindTextureResource(v3, 0xe6);
-        NNSGfdPlttKey v5 = TextureResource_GetPaletteKey(v4);
-        u32 v6 = NNS_GfdGetPlttKeyAddr(v5);
-
-        VramTransfer_Request(NNS_GFD_DST_3D_TEX_PLTT, v6, v1->unk_1C, 32);
+    for (u32 i = 0; i < PALETTE_SIZE; i++) {
+        CalculateTintedColor(sGiratinaSpriteBasePalette[i], COLOR_BLACK, spriteDarkness, &runData->giratinaSpritePalette[i]);
     }
 }
 
-static int ov9_022507C4(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+void DistWorld_ApplyGiratinaSpritePalette(FieldSystem *fieldSystem)
 {
-    UnkStruct_ov9_0225074C *v0 = ov9_0224E37C(param0, sizeof(UnkStruct_ov9_0225074C));
-    v0->unk_18 = ov9_0224F0D4(param0, 582, (0x80 + 0));
-    v0->unk_08.y = ((10 << 4) * FX32_ONE);
+    DistWorldSystem *dwSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
 
-    sub_020630AC(v0->unk_18, &v0->unk_08);
+    if (dwSystem->playingGiratinaArrival == TRUE) {
+        CmdRunDataPlayGiratinaArrival *runData = GetLoadedEventDataBuffer(dwSystem);
+        UnkStruct_ov5_021ED0A4 *v2 = sub_0206285C(dwSystem->fieldSystem->mapObjMan);
+        TextureResourceManager *texMgr = ov5_021EDCB0(v2);
+        TextureResource *texResource = TextureResourceManager_FindTextureResource(texMgr, 0xe6);
+        NNSGfdPlttKey paletteKey = TextureResource_GetPaletteKey(texResource);
+        u32 paletteKeyAddr = NNS_GfdGetPlttKeyAddr(paletteKey);
 
-    *param2 = 1;
-    return 0;
+        VramTransfer_Request(NNS_GFD_DST_3D_TEX_PLTT, paletteKeyAddr, runData->giratinaSpritePalette, PALETTE_SIZE_BYTES);
+    }
 }
 
-static int ov9_022507FC(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdPlayGiratinaArrival_InitMapObject(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_0225074C *v1 = ov9_0224E39C(param0);
-    UnkStruct_020216E0 *v0 = ov5_021EB1A0(v1->unk_18);
+    CmdRunDataPlayGiratinaArrival *runData = ResetLoadedEventDataBuffer(system, sizeof(CmdRunDataPlayGiratinaArrival));
+    runData->giratinaMapObj = AddMapObjectWithLocalID(system, MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM, DIST_WORLD_MAP_OBJECT_GIRATINA_ROOM_GIRATINA);
+    runData->giratinaSpritePosOffset.y = GIRATINA_ROOM_PLAY_ARRIVAL_INITIAL_Y_OFFSET;
 
-    if (v0 != NULL) {
-        v1->unk_00 = (FX32_ONE * 16);
-        ov9_0225074C(v1);
-        param0->unk_1EC0 = 1;
+    MapObject_SetSpritePosOffset(runData->giratinaMapObj, &runData->giratinaSpritePosOffset);
 
-        v1->unk_04 = (FX32_ONE * 0);
-        ov9_0224F854(param0, 1);
-
-        param0->unk_1EC2 = 2;
-        Sound_PlayEffect(SEQ_SE_PL_GIRA);
-        *param2 = 2;
-        return 1;
-    }
-
-    return 0;
+    *cmdState = EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_INIT_SPRITE_AND_SKY;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250854(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdPlayGiratinaArrival_InitSpriteAndSky(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_0225074C *v0 = ov9_0224E39C(param0);
-    v0->unk_04 += (FX32_ONE * 8) / (3 * 30);
+    CmdRunDataPlayGiratinaArrival *runData = GetLoadedEventDataBuffer(system);
+    Billboard *billboard = ov5_021EB1A0(runData->giratinaMapObj);
 
-    if (v0->unk_04 >= (FX32_ONE * 12)) {
-        v0->unk_04 = (FX32_ONE * 12);
+    if (billboard != NULL) {
+        runData->spriteDarkness = GIRATINA_ROOM_PLAY_ARRIVAL_INITIAL_SPRITE_DARKNESS;
+        CmdRunDataPlayGiratinaArrival_UpdateSpritePalette(runData);
+        system->playingGiratinaArrival = TRUE;
+
+        runData->skyDarkness = SKY_BACKGROUND_MIN_DARKNESS;
+        SetSkyBackgroundDarknessCalculationDisabled(system, TRUE);
+
+        system->skyKind = SKY_GIRATINA_ROOM_DARK;
+        Sound_PlayEffect(SEQ_SE_PL_GIRA_sseq);
+
+        *cmdState = EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_DESCEND;
+        return EVENT_CMD_HANDLER_RES_LOOP;
     }
 
-    ov9_0224F860(param0, ((v0->unk_04) / FX32_ONE));
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
+}
 
-    if (v0->unk_08.y >= ((1 << 4) * FX32_ONE)) {
-        v0->unk_08.y -= 0x1000;
+static int EventCmdPlayGiratinaArrival_Descend(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
+{
+    CmdRunDataPlayGiratinaArrival *runData = GetLoadedEventDataBuffer(system);
+    runData->skyDarkness += GIRATINA_ROOM_PLAY_ARRIVAL_SKY_DARKNESS_DELTA;
+
+    if (runData->skyDarkness >= GIRATINA_ROOM_PLAY_ARRIVAL_SKY_DARKNESS_TARGET) {
+        runData->skyDarkness = GIRATINA_ROOM_PLAY_ARRIVAL_SKY_DARKNESS_TARGET;
+    }
+
+    SetSkyBackgroundDarknessLevel(system, runData->skyDarkness / FX32_ONE);
+
+    if (runData->giratinaSpritePosOffset.y >= GIRATINA_ROOM_PLAY_ARRIVAL_DESCEND_Y_SLOW_THRESHOLD) {
+        runData->giratinaSpritePosOffset.y -= GIRATINA_ROOM_PLAY_ARRIVAL_DESCEND_Y_FAST_DECREMENT;
     } else {
-        v0->unk_08.y -= 0x800;
+        runData->giratinaSpritePosOffset.y -= GIRATINA_ROOM_PLAY_ARRIVAL_DESCEND_Y_SLOW_DECREMENT;
     }
 
-    if ((v0->unk_08.y < 0) && (v0->unk_04 >= (FX32_ONE * 12))) {
-        v0->unk_08.y = 0;
-        *param2 = 3;
+    if (runData->giratinaSpritePosOffset.y < 0 && runData->skyDarkness >= GIRATINA_ROOM_PLAY_ARRIVAL_SKY_DARKNESS_TARGET) {
+        runData->giratinaSpritePosOffset.y = 0;
+        *cmdState = EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_BRIGHTEN_SPRITE;
     }
 
-    sub_020630AC(v0->unk_18, &v0->unk_08);
-    return 0;
+    MapObject_SetSpritePosOffset(runData->giratinaMapObj, &runData->giratinaSpritePosOffset);
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_022508C0(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdPlayGiratinaArrival_BrightenSprite(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_020216E0 *v0;
-    NNSG3dResMdl *v1;
-    UnkStruct_ov9_0225074C *v2 = ov9_0224E39C(param0);
-    v0 = ov5_021EB1A0(v2->unk_18);
-    v1 = sub_02021430(v0);
+    CmdRunDataPlayGiratinaArrival *runData = GetLoadedEventDataBuffer(system);
+    Billboard *billboard = ov5_021EB1A0(runData->giratinaMapObj);
+    NNSG3dResMdl *model = Billboard_GetModel2(billboard);
 
-    v2->unk_00 -= (FX32_ONE * 16) / (3 * 30);
+    runData->spriteDarkness -= GIRATINA_ROOM_PLAY_ARRIVAL_SPRITE_DARKNESS_DECREMENT;
 
-    if (v2->unk_00 < 0) {
-        v2->unk_00 = 0;
-        *param2 = 4;
+    if (runData->spriteDarkness < 0) {
+        runData->spriteDarkness = 0;
+        *cmdState = EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_WAIT;
     }
 
-    ov9_0225074C(v2);
-    return 0;
+    CmdRunDataPlayGiratinaArrival_UpdateSpritePalette(runData);
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_022508F4(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdPlayGiratinaArrival_Wait(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_0225074C *v0 = ov9_0224E39C(param0);
-    v0->unk_14++;
+    CmdRunDataPlayGiratinaArrival *runData = GetLoadedEventDataBuffer(system);
+    runData->delay++;
 
-    if (v0->unk_14 >= 30) {
-        param0->unk_1EC0 = 0;
-        return 2;
+    if (runData->delay >= GIRATINA_ROOM_PLAY_ARRIVAL_WAIT_DELAY) {
+        system->playingGiratinaArrival = FALSE;
+        return EVENT_CMD_HANDLER_RES_FINISH;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251490[5] = {
-    ov9_022507C4,
-    ov9_022507FC,
-    ov9_02250854,
-    ov9_022508C0,
-    ov9_022508F4
+static const DistWorldEventCmdHandler sPlayGiratinaArrivalHandlers[] = {
+    [EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_INIT_MAP_OBJECT] = EventCmdPlayGiratinaArrival_InitMapObject,
+    [EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_INIT_SPRITE_AND_SKY] = EventCmdPlayGiratinaArrival_InitSpriteAndSky,
+    [EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_DESCEND] = EventCmdPlayGiratinaArrival_Descend,
+    [EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_BRIGHTEN_SPRITE] = EventCmdPlayGiratinaArrival_BrightenSprite,
+    [EVENT_CMD_PLAY_GIRATINA_ARRIVAL_STATE_WAIT] = EventCmdPlayGiratinaArrival_Wait
 };
 
-static int ov9_02250918(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowUxieBoulderTuto_Init(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250918 *v0 = ov9_0224E37C(param0, sizeof(UnkStruct_ov9_02250918));
-    v0->unk_20 = ov9_0224F0D4(param0, 579, (0x80 + 3));
+    CmdRunDataShowUxieBoulderTuto *runData = ResetLoadedEventDataBuffer(system, sizeof(CmdRunDataShowUxieBoulderTuto));
+    runData->uxieMapObj = AddMapObjectWithLocalID(system, MAP_HEADER_DISTORTION_WORLD_B5F, DIST_WORLD_MAP_OBJECT_B5F_UXIE);
 
     Sound_PlayPokemonCry(SPECIES_UXIE, 0);
 
-    v0->unk_04 = 1;
-    *param2 = 1;
-    return 0;
+    runData->hoverStepDelta = 1;
+    *cmdState = EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_ASCEND;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_0225094C(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowUxieBoulderTuto_Ascend(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250918 *v0;
-    fx32 v1 = (FX32_ONE * 2);
+    CmdRunDataShowUxieBoulderTuto *runData;
+    fx32 ascendYDelta = UXIE_BOULDER_TUTO_ASCEND_Y_DELTA;
 
-    v0 = ov9_0224E39C(param0);
+    runData = GetLoadedEventDataBuffer(system);
 
-    if ((((v0->unk_14.y) >> 4) / FX32_ONE) < 16) {
-        v1 <<= 1;
+    if ((runData->uxieSpritePosOffset.y >> 4) / FX32_ONE < UXIE_BOULDER_TUTO_ASCEND_Y_TARGET - 1) {
+        ascendYDelta <<= 1;
     }
 
-    v0->unk_14.y += v1;
-    sub_020630AC(v0->unk_20, &v0->unk_14);
+    runData->uxieSpritePosOffset.y += ascendYDelta;
+    MapObject_SetSpritePosOffset(runData->uxieMapObj, &runData->uxieSpritePosOffset);
 
-    if ((((v0->unk_14.y) >> 4) / FX32_ONE) >= 17) {
-        *param2 = 2;
+    if ((runData->uxieSpritePosOffset.y >> 4) / FX32_ONE >= UXIE_BOULDER_TUTO_ASCEND_Y_TARGET) {
+        *cmdState = EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_MOVE_TO_BOULDER;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250994(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowUxieBoulderTuto_MoveToBoulder(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250918 *v0 = ov9_0224E39C(param0);
-    v0->unk_14.z -= (FX32_ONE * 1);
-    sub_020630AC(v0->unk_20, &v0->unk_14);
+    CmdRunDataShowUxieBoulderTuto *runData = GetLoadedEventDataBuffer(system);
+    runData->uxieSpritePosOffset.z -= UXIE_BOULDER_TUTO_MOVE_TO_BOULDER_Z_DELTA;
+    MapObject_SetSpritePosOffset(runData->uxieMapObj, &runData->uxieSpritePosOffset);
 
-    if ((((v0->unk_14.z) >> 4) / FX32_ONE) <= -2) {
-        v0->unk_0C = v0->unk_14.y;
-        *param2 = 3;
+    if ((runData->uxieSpritePosOffset.z >> 4) / FX32_ONE <= UXIE_BOULDER_TUTO_MOVE_TO_BOULDER_Z_TARGET) {
+        runData->finalUxieY = runData->uxieSpritePosOffset.y;
+        *cmdState = EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_HOVER;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_022509D4(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowUxieBoulderTuto_Hover(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250918 *v0;
-    fx32 v1[8] = { 0x0, 0x800, 0x1000, 0x2000, 0x4000, 0x6000, 0x7000, 0x8000 };
+    CmdRunDataShowUxieBoulderTuto *runData;
+    fx32 yOffsets[UXIE_BOULDER_TUTO_HOVER_STEP_COUNT] = { 0, 2048, 4096, 8192, 16384, 24576, 28672, 32768 };
 
-    v0 = ov9_0224E39C(param0);
-    v0->unk_14.y = v0->unk_0C + v1[v0->unk_00 >> 1];
-    sub_020630AC(v0->unk_20, &v0->unk_14);
+    runData = GetLoadedEventDataBuffer(system);
+    runData->uxieSpritePosOffset.y = runData->finalUxieY + yOffsets[runData->hoverStep >> 1];
+    MapObject_SetSpritePosOffset(runData->uxieMapObj, &runData->uxieSpritePosOffset);
 
-    v0->unk_00 += v0->unk_04;
+    runData->hoverStep += runData->hoverStepDelta;
 
-    if ((v0->unk_00 >= 15) || (v0->unk_00 <= 0)) {
-        v0->unk_04 = -v0->unk_04;
+    if (runData->hoverStep >= UXIE_BOULDER_TUTO_HOVER_STEP_COUNT * 2 - 1 || runData->hoverStep <= 0) {
+        runData->hoverStepDelta = -runData->hoverStepDelta;
 
-        if (v0->unk_00 == 0) {
-            v0->unk_08++;
+        if (runData->hoverStep == 0) {
+            runData->hoverRepeat++;
 
-            if (v0->unk_08 >= 3) {
-                v0->unk_14.y = v0->unk_0C + v1[v0->unk_00 >> 1];
-                *param2 = 4;
+            if (runData->hoverRepeat >= UXIE_BOULDER_TUTO_HOVER_REPEAT_COUNT) {
+                runData->uxieSpritePosOffset.y = runData->finalUxieY + yOffsets[runData->hoverStep >> 1];
+                *cmdState = EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_MOVE_AWAY;
             }
         }
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250A58(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowUxieBoulderTuto_MoveAway(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250918 *v0 = ov9_0224E39C(param0);
-    v0->unk_14.z += (FX32_ONE * 1);
+    CmdRunDataShowUxieBoulderTuto *runData = GetLoadedEventDataBuffer(system);
+    runData->uxieSpritePosOffset.z += UXIE_BOULDER_TUTO_MOVE_AWAY_Z_DELTA;
 
-    sub_020630AC(v0->unk_20, &v0->unk_14);
+    MapObject_SetSpritePosOffset(runData->uxieMapObj, &runData->uxieSpritePosOffset);
 
-    if ((((v0->unk_14.z) >> 4) / FX32_ONE) == 1) {
-        *param2 = 5;
+    if ((runData->uxieSpritePosOffset.z >> 4) / FX32_ONE == UXIE_BOULDER_TUTO_MOVE_AWAY_Z_TARGET) {
+        *cmdState = EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_DESCEND;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250A90(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowUxieBoulderTuto_Descend(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250918 *v0 = ov9_0224E39C(param0);
+    CmdRunDataShowUxieBoulderTuto *runData = GetLoadedEventDataBuffer(system);
 
-    if (v0->unk_10 < (FX32_ONE * 2)) {
-        v0->unk_10 += 0x200;
+    if (runData->descendYDelta < UXIE_BOULDER_TUTO_DESCEND_Y_DELTA_TARGET) {
+        runData->descendYDelta += UXIE_BOULDER_TUTO_DESCEND_Y_DELTA_INCREMENT;
     }
 
-    v0->unk_14.y -= v0->unk_10;
-    sub_020630AC(v0->unk_20, &v0->unk_14);
+    runData->uxieSpritePosOffset.y -= runData->descendYDelta;
+    MapObject_SetSpritePosOffset(runData->uxieMapObj, &runData->uxieSpritePosOffset);
 
-    if ((((v0->unk_14.y) >> 4) / FX32_ONE) <= 0) {
-        ov9_0224EE70(param0, v0->unk_20);
-        ov9_02249DC8(param0, 10);
-        ov9_02249DC8(param0, 13);
-        v0->unk_20 = ov9_0224F0D4(param0, 580, (0x80 + 4));
-        return 2;
+    if ((runData->uxieSpritePosOffset.y >> 4) / FX32_ONE <= 0) {
+        DeleteMapObject(system, runData->uxieMapObj);
+        SetPersistedBoulderPuzzleFlag(system, DIST_WORLD_PUZZLE_FLAG_UXIE_TUTO_SEEN);
+        SetPersistedBoulderPuzzleFlag(system, DIST_WORLD_PUZZLE_FLAG_UXIE_IN_B6F);
+        runData->uxieMapObj = AddMapObjectWithLocalID(system, MAP_HEADER_DISTORTION_WORLD_B6F, DIST_WORLD_MAP_OBJECT_B6F_UXIE);
+
+        return EVENT_CMD_HANDLER_RES_FINISH;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251CC0[6] = {
-    ov9_02250918,
-    ov9_0225094C,
-    ov9_02250994,
-    ov9_022509D4,
-    ov9_02250A58,
-    ov9_02250A90
+static const DistWorldEventCmdHandler sShowUxieBoulderTutoHandlers[] = {
+    [EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_INIT] = EventCmdShowUxieBoulderTuto_Init,
+    [EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_ASCEND] = EventCmdShowUxieBoulderTuto_Ascend,
+    [EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_MOVE_TO_BOULDER] = EventCmdShowUxieBoulderTuto_MoveToBoulder,
+    [EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_HOVER] = EventCmdShowUxieBoulderTuto_Hover,
+    [EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_MOVE_AWAY] = EventCmdShowUxieBoulderTuto_MoveAway,
+    [EVENT_CMD_SHOW_UXIE_BOULDER_TUTO_STATE_DESCEND] = EventCmdShowUxieBoulderTuto_Descend
 };
 
-static const MapObjectAnimCmd Unk_ov9_02251E74[] = {
-    { 0x42, 0x1 },
-    { 0x7, 0x1 },
-    { 0x7, 0x1 },
-    { 0xA, 0x1 },
-    { 0x6, 0x1 },
-    { 0x41, 0x1 },
-    { 0xfe, 0x0 }
+static const MapObjectAnimCmd sAzelfBoulderTutoAnimation[] = {
+    { .movementAction = MOVEMENT_ACTION_DELAY_32, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_SLOWER_EAST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_SLOWER_EAST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_SLOW_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_SLOWER_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_16, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_END, .count = 0 }
 };
 
-static int ov9_02250AFC(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowAzelfBoulderTuto_Init(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250AFC *v0 = ov9_0224E37C(param0, sizeof(UnkStruct_ov9_02250AFC));
-    v0->unk_14 = ov9_0224F0D4(param0, 579, (0x80 + 4));
+    CmdRunDataShowAzelfBoulderTuto *runData = ResetLoadedEventDataBuffer(system, sizeof(CmdRunDataShowAzelfBoulderTuto));
+    runData->azelfMapObj = AddMapObjectWithLocalID(system, MAP_HEADER_DISTORTION_WORLD_B5F, DIST_WORLD_MAP_OBJECT_B5F_AZELF);
 
     Sound_PlayPokemonCry(SPECIES_AZELF, 0);
 
-    *param2 = 1;
-    return 0;
+    *cmdState = EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_ASCEND;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250B30(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowAzelfBoulderTuto_Ascend(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250AFC *v0;
-    fx32 v1 = (FX32_ONE * 2);
+    CmdRunDataShowAzelfBoulderTuto *runData;
+    fx32 ascendYDelta = AZELF_BOULDER_TUTO_ASCEND_Y_DELTA;
 
-    v0 = ov9_0224E39C(param0);
+    runData = GetLoadedEventDataBuffer(system);
 
-    if ((((v0->unk_04.y) >> 4) / FX32_ONE) < 12) {
-        v1 <<= 1;
+    if ((runData->azelfSpritePosOffset.y >> 4) / FX32_ONE < AZELF_BOULDER_TUTO_ASCEND_Y_TARGET - 1) {
+        ascendYDelta <<= 1;
     }
 
-    v0->unk_04.y += v1;
-    sub_020630AC(v0->unk_14, &v0->unk_04);
+    runData->azelfSpritePosOffset.y += ascendYDelta;
+    MapObject_SetSpritePosOffset(runData->azelfMapObj, &runData->azelfSpritePosOffset);
 
-    if ((((v0->unk_04.y) >> 4) / FX32_ONE) >= 13) {
-        v0->unk_10 = MapObject_StartAnimation(
-            v0->unk_14, Unk_ov9_02251E74);
-        *param2 = 2;
+    if ((runData->azelfSpritePosOffset.y >> 4) / FX32_ONE >= AZELF_BOULDER_TUTO_ASCEND_Y_TARGET) {
+        runData->azelfAnimTask = MapObject_StartAnimation(runData->azelfMapObj, sAzelfBoulderTutoAnimation);
+        *cmdState = EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_WAIT_FOR_ANIMATION;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250B84(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowAzelfBoulderTuto_WaitForAnimation(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250AFC *v0 = ov9_0224E39C(param0);
+    CmdRunDataShowAzelfBoulderTuto *runData = GetLoadedEventDataBuffer(system);
 
-    if (MapObject_HasAnimationEnded(v0->unk_10) == 1) {
-        MapObject_FinishAnimation(v0->unk_10);
-        *param2 = 3;
-        return 1;
+    if (MapObject_HasAnimationEnded(runData->azelfAnimTask) == TRUE) {
+        MapObject_FinishAnimation(runData->azelfAnimTask);
+
+        *cmdState = EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_DESCEND;
+        return EVENT_CMD_HANDLER_RES_LOOP;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250BAC(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowAzelfBoulderTuto_Descend(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250AFC *v0 = ov9_0224E39C(param0);
+    CmdRunDataShowAzelfBoulderTuto *runData = GetLoadedEventDataBuffer(system);
 
-    if (v0->unk_00 < (FX32_ONE * 2)) {
-        v0->unk_00 += 0x200;
+    if (runData->descendYDelta < AZELF_BOULDER_TUTO_DESCEND_Y_DELTA_TARGET) {
+        runData->descendYDelta += AZELF_BOULDER_TUTO_DESCEND_Y_DELTA_INCREMENT;
     }
 
-    v0->unk_04.y -= v0->unk_00;
-    sub_020630AC(v0->unk_14, &v0->unk_04);
+    runData->azelfSpritePosOffset.y -= runData->descendYDelta;
+    MapObject_SetSpritePosOffset(runData->azelfMapObj, &runData->azelfSpritePosOffset);
 
-    if ((((v0->unk_04.y) >> 4) / FX32_ONE) <= 0) {
-        ov9_0224EE70(param0, v0->unk_14);
-        ov9_02249DC8(param0, 11);
-        ov9_02249DC8(param0, 14);
-        v0->unk_14 = ov9_0224F0D4(param0, 580, (0x80 + 5));
-        return 2;
+    if ((runData->azelfSpritePosOffset.y >> 4) / FX32_ONE <= 0) {
+        DeleteMapObject(system, runData->azelfMapObj);
+        SetPersistedBoulderPuzzleFlag(system, DIST_WORLD_PUZZLE_FLAG_AZELF_TUTO_SEEN);
+        SetPersistedBoulderPuzzleFlag(system, DIST_WORLD_PUZZLE_FLAG_AZELF_IN_B6F);
+        runData->azelfMapObj = AddMapObjectWithLocalID(system, MAP_HEADER_DISTORTION_WORLD_B6F, DIST_WORLD_MAP_OBJECT_B6F_AZELF);
+
+        return EVENT_CMD_HANDLER_RES_FINISH;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251408[4] = {
-    ov9_02250AFC,
-    ov9_02250B30,
-    ov9_02250B84,
-    ov9_02250BAC
+static const DistWorldEventCmdHandler sShowAzelfBoulderTutoHandlers[] = {
+    [EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_INIT] = EventCmdShowAzelfBoulderTuto_Init,
+    [EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_ASCEND] = EventCmdShowAzelfBoulderTuto_Ascend,
+    [EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_WAIT_FOR_ANIMATION] = EventCmdShowAzelfBoulderTuto_WaitForAnimation,
+    [EVENT_CMD_SHOW_AZELF_BOULDER_TUTO_STATE_DESCEND] = EventCmdShowAzelfBoulderTuto_Descend
 };
 
-static const MapObjectAnimCmd Unk_ov9_02252D80[] = {
-    { 0x42, 0x1 },
-    { 0xf, 0x2 },
-    { 0x10, 0x2 },
-    { 0x13, 0x2 },
-    { 0x11, 0x2 },
-    { 0x12, 0x2 },
-    { 0x10, 0x2 },
-    { 0x13, 0x2 },
-    { 0x11, 0x2 },
-    { 0x12, 0x2 },
-    { 0x12, 0x2 },
-    { 0xE, 0x1 },
-    { 0xA, 0x1 },
-    { 0x42, 0x1 },
-    { 0xB, 0x2 },
-    { 0x7, 0x1 },
-    { 0x41, 0x1 },
-    { 0xfe, 0x0 }
+static const MapObjectAnimCmd sMespritBoulderTutoAnimationPokemonTop[] = {
+    { .movementAction = MOVEMENT_ACTION_DELAY_32, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_NORMAL_EAST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_NORTH, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_EAST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_SOUTH, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_WEST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_NORTH, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_EAST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_SOUTH, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_WEST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_WEST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_NORMAL_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_SLOW_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_32, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_SLOW_EAST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_SLOWER_EAST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_16, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_END, .count = 0 }
 };
 
-static const MapObjectAnimCmd Unk_ov9_02252DC8[] = {
-    { 0x42, 0x1 },
-    { 0xf, 0x2 },
-    { 0x10, 0x1 },
-    { 0x13, 0x2 },
-    { 0x11, 0x2 },
-    { 0x12, 0x2 },
-    { 0x10, 0x2 },
-    { 0x13, 0x2 },
-    { 0x11, 0x2 },
-    { 0x12, 0x2 },
-    { 0x10, 0x1 },
-    { 0x12, 0x2 },
-    { 0xE, 0x1 },
-    { 0xA, 0x1 },
-    { 0x42, 0x1 },
-    { 0xB, 0x2 },
-    { 0x7, 0x1 },
-    { 0x41, 0x1 },
-    { 0xfe, 0x0 }
+static const MapObjectAnimCmd sMespritBoulderTutoAnimationPokemonBottom[] = {
+    { .movementAction = MOVEMENT_ACTION_DELAY_32, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_NORMAL_EAST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_NORTH, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_EAST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_SOUTH, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_WEST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_NORTH, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_EAST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_SOUTH, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_WEST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_NORTH, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_FAST_WEST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_NORMAL_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_SLOW_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_32, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_WALK_SLOW_EAST, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_WALK_SLOWER_EAST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_16, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_END, .count = 0 }
 };
 
-static const MapObjectAnimCmd Unk_ov9_02252E14[] = {
-    { 0x42, 0x1 },
-    { 0x3f, 0x2 },
-    { 0x2, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x0, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x3, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x1, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x2, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x0, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x3, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x1, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x2, 0x1 },
-    { 0xfe, 0x0 }
+static const MapObjectAnimCmd sMespritBoulderTutoAnimationPlayerTop[] = {
+    { .movementAction = MOVEMENT_ACTION_DELAY_32, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_8, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_FACE_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_NORTH, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_EAST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_SOUTH, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_NORTH, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_EAST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_SOUTH, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_END, .count = 0 }
 };
 
-static const MapObjectAnimCmd Unk_ov9_02252E64[] = {
-    { 0x42, 0x1 },
-    { 0x3f, 0x2 },
-    { 0x2, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x0, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x3, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x1, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x2, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x0, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x3, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x1, 0x1 },
-    { 0x3C, 0x3 },
-    { 0x2, 0x1 },
-    { 0xfe, 0x0 }
+static const MapObjectAnimCmd sMespritBoulderTutoAnimationPlayerBottom[] = {
+    { .movementAction = MOVEMENT_ACTION_DELAY_32, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_8, .count = 2 },
+    { .movementAction = MOVEMENT_ACTION_FACE_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_NORTH, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_EAST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_SOUTH, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_NORTH, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_EAST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_SOUTH, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_DELAY_1, .count = 3 },
+    { .movementAction = MOVEMENT_ACTION_FACE_WEST, .count = 1 },
+    { .movementAction = MOVEMENT_ACTION_END, .count = 0 }
 };
 
-static int ov9_02250C14(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowMespritBoulderTuto_Init(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250C14 *v0 = ov9_0224E37C(param0, sizeof(UnkStruct_ov9_02250AFC));
-    v0->unk_18 = ov9_0224F0D4(param0, 579, (0x80 + 5));
+    CmdRunDataShowMespritBoulderTuto *runData = ResetLoadedEventDataBuffer(system, sizeof(CmdRunDataShowAzelfBoulderTuto));
+    runData->mespritMapObj = AddMapObjectWithLocalID(system, MAP_HEADER_DISTORTION_WORLD_B5F, DIST_WORLD_MAP_OBJECT_B5F_MESPRIT);
 
     Sound_PlayPokemonCry(SPECIES_MESPRIT, 0);
-    *param2 = 1;
-    return 0;
+
+    *cmdState = EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_ASCEND;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250C48(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowMespritBoulderTuto_Ascend(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250C14 *v0;
-    fx32 v1 = (FX32_ONE * 2);
+    CmdRunDataShowMespritBoulderTuto *runData;
+    fx32 ascendYDelta = MESPRIT_BOULDER_TUTO_ASCEND_Y_DELTA;
 
-    v0 = ov9_0224E39C(param0);
+    runData = GetLoadedEventDataBuffer(system);
 
-    if ((((v0->unk_04.y) >> 4) / FX32_ONE) < 8) {
-        v1 <<= 1;
+    if ((runData->mespritSpritePosOffset.y >> 4) / FX32_ONE < MESPRIT_BOULDER_TUTO_ASCEND_Y_TARGET - 1) {
+        ascendYDelta <<= 1;
     }
 
-    v0->unk_04.y += v1;
-    sub_020630AC(v0->unk_18, &v0->unk_04);
+    runData->mespritSpritePosOffset.y += ascendYDelta;
+    MapObject_SetSpritePosOffset(runData->mespritMapObj, &runData->mespritSpritePosOffset);
 
-    if ((((v0->unk_04.y) >> 4) / FX32_ONE) >= 9) {
-        int v2, v3, v4;
-        const MapObjectAnimCmd *v5, *v6;
+    if ((runData->mespritSpritePosOffset.y >> 4) / FX32_ONE >= MESPRIT_BOULDER_TUTO_ASCEND_Y_TARGET) {
+        int playerX, playerY, playerZ;
+        const MapObjectAnimCmd *playerAnimCmds, *mespritAnimCmds;
 
-        GetPlayerPos(param0, &v2, &v3, &v4);
+        GetPlayerPos(system, &playerX, &playerY, &playerZ);
 
-        if (v4 == 67) {
-            v5 = Unk_ov9_02252E14;
-            v6 = Unk_ov9_02252D80;
+        if (playerZ == 67) {
+            playerAnimCmds = sMespritBoulderTutoAnimationPlayerTop;
+            mespritAnimCmds = sMespritBoulderTutoAnimationPokemonTop;
         } else {
-            v5 = Unk_ov9_02252E64;
-            v6 = Unk_ov9_02252DC8;
+            playerAnimCmds = sMespritBoulderTutoAnimationPlayerBottom;
+            mespritAnimCmds = sMespritBoulderTutoAnimationPokemonBottom;
         }
 
-        v0->unk_10 = MapObject_StartAnimation(v0->unk_18, v6);
-        v0->unk_14 = MapObject_StartAnimation(Player_MapObject(param0->fieldSystem->playerAvatar), v5);
-        *param2 = 2;
+        runData->mespritAnimTask = MapObject_StartAnimation(runData->mespritMapObj, mespritAnimCmds);
+        runData->playerAnimTask = MapObject_StartAnimation(PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar), playerAnimCmds);
+
+        *cmdState = EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_WAIT_FOR_ANIMATION;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250CD8(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowMespritBoulderTuto_WaitForAnimation(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250C14 *v0 = ov9_0224E39C(param0);
+    CmdRunDataShowMespritBoulderTuto *runData = GetLoadedEventDataBuffer(system);
 
-    if ((MapObject_HasAnimationEnded(v0->unk_10) == 1) && (MapObject_HasAnimationEnded(v0->unk_14) == 1)) {
-        MapObject_FinishAnimation(v0->unk_10);
-        MapObject_FinishAnimation(v0->unk_14);
-        *param2 = 3;
-        return 1;
+    if (MapObject_HasAnimationEnded(runData->mespritAnimTask) == TRUE && MapObject_HasAnimationEnded(runData->playerAnimTask) == TRUE) {
+        MapObject_FinishAnimation(runData->mespritAnimTask);
+        MapObject_FinishAnimation(runData->playerAnimTask);
+
+        *cmdState = EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_DESCEND;
+        return EVENT_CMD_HANDLER_RES_LOOP;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250D10(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowMespritBoulderTuto_Descend(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250C14 *v0 = ov9_0224E39C(param0);
+    CmdRunDataShowMespritBoulderTuto *runData = GetLoadedEventDataBuffer(system);
 
-    if (v0->unk_00 < (FX32_ONE * 2)) {
-        v0->unk_00 += 0x200;
+    if (runData->descendYDelta < MESPRIT_BOULDER_TUTO_DESCEND_Y_DELTA_TARGET) {
+        runData->descendYDelta += MESPRIT_BOULDER_TUTO_DESCEND_Y_DELTA_INCREMENT;
     }
 
-    v0->unk_04.y -= v0->unk_00;
-    sub_020630AC(v0->unk_18, &v0->unk_04);
+    runData->mespritSpritePosOffset.y -= runData->descendYDelta;
+    MapObject_SetSpritePosOffset(runData->mespritMapObj, &runData->mespritSpritePosOffset);
 
-    if ((((v0->unk_04.y) >> 4) / FX32_ONE) <= 0) {
-        ov9_0224EE70(param0, v0->unk_18);
-        ov9_02249DC8(param0, 12);
-        ov9_02249DC8(param0, 15);
-        v0->unk_18 = ov9_0224F0D4(
-            param0, 580, (0x80 + 3));
-        return 2;
+    if ((runData->mespritSpritePosOffset.y >> 4) / FX32_ONE <= 0) {
+        DeleteMapObject(system, runData->mespritMapObj);
+        SetPersistedBoulderPuzzleFlag(system, DIST_WORLD_PUZZLE_FLAG_MESPRIT_TUTO_SEEN);
+        SetPersistedBoulderPuzzleFlag(system, DIST_WORLD_PUZZLE_FLAG_MESPRIT_IN_B6F);
+        runData->mespritMapObj = AddMapObjectWithLocalID(system, MAP_HEADER_DISTORTION_WORLD_B6F, DIST_WORLD_MAP_OBJECT_B6F_MESPRIT);
+
+        return EVENT_CMD_HANDLER_RES_FINISH;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251448[4] = {
-    ov9_02250C14,
-    ov9_02250C48,
-    ov9_02250CD8,
-    ov9_02250D10
+static const DistWorldEventCmdHandler sShowMespritBoulderTutoHandlers[] = {
+    [EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_INIT] = EventCmdShowMespritBoulderTuto_Init,
+    [EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_ASCEND] = EventCmdShowMespritBoulderTuto_Ascend,
+    [EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_WAIT_FOR_ANIMATION] = EventCmdShowMespritBoulderTuto_WaitForAnimation,
+    [EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO_STATE_DESCEND] = EventCmdShowMespritBoulderTuto_Descend
 };
 
-const DistWorldCameraAngleTemplate Unk_ov9_02251D68 = {
-    { 0x0, 0x0, 0x0, 0x0 },
-    0x10,
-    0x0,
-    0x0,
-    0x0,
-    0x14
+const DistWorldCameraAngleTemplate sGiratinaRoomPlatformsShownCameraAngle = {
+    .bounds = {
+        .startTileX = 0x0,
+        .startTileY = 0x0,
+        .startTileZ = 0x0,
+        .sizeX = 0x0,
+        .sizeY = 0x0,
+        .sizeZ = 0x0,
+    },
+    .angleX = 0x10,
+    .angleY = 0x0,
+    .angleZ = 0x0,
+    .playerDir = FACE_UP,
+    .transitionSteps = 0x14
 };
 
-static int ov9_02250D78(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowGiratinaRoomPlatforms_DoCameraTransition(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250D78 *v0 = ov9_0224E37C(param0, sizeof(UnkStruct_ov9_02250D78));
+    CmdRunDataGiratinaRoomPlatforms *runData = ResetLoadedEventDataBuffer(system, sizeof(CmdRunDataGiratinaRoomPlatforms));
 
-    DoCameraTransition(param0, &Unk_ov9_02251D68);
+    DoCameraTransition(system, &sGiratinaRoomPlatformsShownCameraAngle);
 
-    v0->unk_02 = 20 + 16;
-    v0->unk_00 = 1;
-    *param2 = 1;
+    runData->delay = GIRATINA_ROOM_SHOW_PLATFORMS_INITIAL_DELAY;
+    runData->ghostPropGroup = GIRATINA_ROOM_PLATFORMS_FIRST_GHOST_PROP_GROUP;
+    *cmdState = EVENT_CMD_SHOW_GIRATINA_ROOM_PLATFORMS_STATE_SHOW_PLATFORMS;
 
-    return 1;
+    return EVENT_CMD_HANDLER_RES_LOOP;
 }
 
-static int ov9_02250DA0(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdShowGiratinaRoomPlatforms_ShowPlatforms(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250D78 *v0 = ov9_0224E39C(param0);
+    CmdRunDataGiratinaRoomPlatforms *runData = GetLoadedEventDataBuffer(system);
 
-    v0->unk_02--;
+    runData->delay--;
 
-    if (v0->unk_02 <= 0) {
-        v0->unk_02 = 48;
-        Sound_StopEffect(1484, 0);
-        ShowGhostPropGroup(param0, v0->unk_00);
-        v0->unk_00++;
+    if (runData->delay <= 0) {
+        runData->delay = GIRATINA_ROOM_SHOW_PLATFORMS_DELAY;
+        Sound_StopEffect(SEQ_SE_PL_SYUWA3_sseq, 0);
+        ShowGhostPropGroup(system, runData->ghostPropGroup);
+        runData->ghostPropGroup++;
 
-        if (v0->unk_00 >= 4) {
-            return 2;
+        if (runData->ghostPropGroup >= GIRATINA_ROOM_PLATFORMS_LAST_GHOST_PROP_GROUP + 1) {
+            return EVENT_CMD_HANDLER_RES_FINISH;
         }
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_02251340[2] = {
-    ov9_02250D78,
-    ov9_02250DA0
+static const DistWorldEventCmdHandler sShowGiratinaRoomPlatformsHandlers[] = {
+    [EVENT_CMD_SHOW_GIRATINA_ROOM_PLATFORMS_STATE_DO_CAMERA_TRANSITION] = EventCmdShowGiratinaRoomPlatforms_DoCameraTransition,
+    [EVENT_CMD_SHOW_GIRATINA_ROOM_PLATFORMS_STATE_SHOW_PLATFORMS] = EventCmdShowGiratinaRoomPlatforms_ShowPlatforms
 };
 
-static int ov9_02250DE8(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdHideGiratinaRoomPlatforms_Init(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250DE8 *v0 = ov9_0224E37C(param0, sizeof(UnkStruct_ov9_02250DE8));
-    v0->unk_02 = 16;
-    v0->unk_00 = 3;
+    CmdRunDataGiratinaRoomPlatforms *runData = ResetLoadedEventDataBuffer(system, sizeof(CmdRunDataGiratinaRoomPlatforms));
+    runData->delay = GIRATINA_ROOM_HIDE_PLATFORMS_INITIAL_DELAY;
+    runData->ghostPropGroup = GIRATINA_ROOM_PLATFORMS_LAST_GHOST_PROP_GROUP;
 
-    *param2 = 1;
-    return 1;
+    *cmdState = EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS_STATE_HIDE_PLATFORMS;
+    return EVENT_CMD_HANDLER_RES_LOOP;
 }
 
-static int ov9_02250E00(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdHideGiratinaRoomPlatforms_HidePlatforms(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250DE8 *v0 = ov9_0224E39C(param0);
+    CmdRunDataGiratinaRoomPlatforms *runData = GetLoadedEventDataBuffer(system);
 
-    v0->unk_02--;
+    runData->delay--;
 
-    if (v0->unk_02 <= 0) {
-        if (v0->unk_00 >= 1) {
-            v0->unk_02 = 48;
-            Sound_StopEffect(1484, 0);
-            HideGhostPropGroup(param0, v0->unk_00);
-            v0->unk_00--;
+    if (runData->delay <= 0) {
+        if (runData->ghostPropGroup >= GIRATINA_ROOM_PLATFORMS_FIRST_GHOST_PROP_GROUP) {
+            runData->delay = GIRATINA_ROOM_HIDE_PLATFORMS_DELAY;
+            Sound_StopEffect(SEQ_SE_PL_SYUWA3_sseq, 0);
+            HideGhostPropGroup(system, runData->ghostPropGroup);
+            runData->ghostPropGroup--;
         } else {
-            v0->unk_02 = 8;
-            *param2 = 2;
+            runData->delay = GIRATINA_ROOM_HIDE_PLATFORMS_WAIT_DELAY;
+            *cmdState = EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS_STATE_WAIT;
         }
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static int ov9_02250E50(DistWorldSystem *param0, FieldTask *param1, u16 *param2, const void *param3)
+static int EventCmdHideGiratinaRoomPlatforms_Wait(DistWorldSystem *system, FieldTask *task, u16 *cmdState, const void *params)
 {
-    UnkStruct_ov9_02250DE8 *v0 = ov9_0224E39C(param0);
+    CmdRunDataGiratinaRoomPlatforms *runData = GetLoadedEventDataBuffer(system);
 
-    v0->unk_02--;
+    runData->delay--;
 
-    if (v0->unk_02 <= 0) {
-        return 2;
+    if (runData->delay <= 0) {
+        return EVENT_CMD_HANDLER_RES_FINISH;
     }
 
-    return 0;
+    return EVENT_CMD_HANDLER_RES_CONTINUE;
 }
 
-static const UnkFuncPtr_ov9_02253BE4 Unk_ov9_0225139C[3] = {
-    ov9_02250DE8,
-    ov9_02250E00,
-    ov9_02250E50
+static const DistWorldEventCmdHandler sHideGiratinaRoomPlatformsHandlers[] = {
+    [EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS_STATE_INIT] = EventCmdHideGiratinaRoomPlatforms_Init,
+    [EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS_STATE_HIDE_PLATFORMS] = EventCmdHideGiratinaRoomPlatforms_HidePlatforms,
+    [EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS_STATE_WAIT] = EventCmdHideGiratinaRoomPlatforms_Wait
 };
 
 static BOOL DistWorldBounds_AreCoordinatesInBounds(int tileX, int tileY, int tileZ, const DistWorldBounds *bounds)
@@ -10878,79 +10871,50 @@ static int CalculateCameraAngleDelta(u16 currentAngleComponent, u16 targetAngleC
     return angleComponentDelta;
 }
 
-static void ov9_02250EE8(s16 *param0, s16 param1)
+static void ApplyRotationToTarget(s16 *target, s16 angle)
 {
-    (*param0) += param1;
+    *target += angle;
 
-    if ((*param0) < 0) {
+    if (*target < 0) {
         do {
-            (*param0) += 360;
-        } while ((*param0) < 0);
+            *target += 360;
+        } while (*target < 0);
     } else {
-        (*param0) %= 360;
+        *target %= 360;
     }
 }
 
-static void ov9_02250F1C(fx32 *param0, fx32 param1)
+static void ApplyRotationToTargetFx32(fx32 *target, fx32 angle)
 {
-    (*param0) += param1;
+    *target += angle;
 
-    if ((*param0) < 0) {
+    if (*target < 0) {
         do {
-            (*param0) += (FX32_ONE * 360);
-        } while ((*param0) < 0);
+            *target += FX32_ONE * 360;
+        } while (*target < 0);
     } else {
-        (*param0) %= (FX32_ONE * 360);
+        *target %= FX32_ONE * 360;
     }
 }
 
 static void GetPlayerPos(DistWorldSystem *system, int *playerX, int *playerY, int *playerZ)
 {
-    MapObject *playerMapObj = Player_MapObject(system->fieldSystem->playerAvatar);
+    MapObject *playerMapObj = PlayerAvatar_GetMapObject(system->fieldSystem->playerAvatar);
 
     *playerX = MapObject_GetX(playerMapObj);
     *playerY = MapObject_GetY(playerMapObj) / 2;
     *playerZ = MapObject_GetZ(playerMapObj);
 }
 
-BOOL ov9_02250F74(FieldSystem *fieldSystem)
+BOOL DistWorld_ArePersistedFeaturesInit(FieldSystem *fieldSystem)
 {
-    PersistedMapFeatures *v0 = MiscSaveBlock_GetPersistedMapFeatures(FieldSystem_GetSaveData(fieldSystem));
-
-    if (PersistedMapFeatures_GetID(v0) != DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) {
-        return 0;
-    }
-
-    return 1;
+    PersistedMapFeatures *persistedMapFeatures = MiscSaveBlock_GetPersistedMapFeatures(FieldSystem_GetSaveData(fieldSystem));
+    return PersistedMapFeatures_GetID(persistedMapFeatures) == DYNAMIC_MAP_FEATURES_DISTORTION_WORLD;
 }
 
 BOOL DistWorld_CheckCollisionOnCurrentFloatingPlatform(FieldSystem *fieldSystem, int tileX, int tileY, int tileZ)
 {
     DistWorldSystem *distWorldSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
-    // dwp:engine-a: puzzle tile overrides on the current platform. VOID
-    // stays walkable here; the step hook starts the fall.
-    {
-        u32 platformKind = GetCurrentFloatingPlatformKind(distWorldSystem);
-
-        if (platformKind != FLOATING_PLATFORM_KIND_INVALID) {
-            DwPuzzleTileState tileState = DwPuzzle_QueryTile(fieldSystem, tileX, tileY, tileZ, (int)platformKind);
-            int playerX, playerY, playerZ;
-
-            if (tileState == DW_PUZZLE_TILE_BLOCKED) {
-                // dwp:engine-b: TryPush (see the floor path above).
-                GetPlayerPos(distWorldSystem, &playerX, &playerY, &playerZ);
-                tileState = DwPuzzle_Ov9TryPushTile(fieldSystem, tileX, tileY, tileZ,
-                    (int)platformKind, playerX, playerY, playerZ);
-            }
-            if (tileState == DW_PUZZLE_TILE_BLOCKED) {
-                return TRUE;
-            } else if (tileState == DW_PUZZLE_TILE_SOLID || tileState == DW_PUZZLE_TILE_VOID) {
-                // VOID overrides the stock collision bit, as on the ground
-                // path: the step hook starts the fall.
-                return FALSE;
-            }
-        }
-    }
     u16 tileAttributes = GetCurrentFloatingPlatformTileAttributes(distWorldSystem, tileX, tileY, tileZ);
 
     if (tileAttributes == (u16)INVALID_TERRAIN_ATTRIBUTES || tileAttributes == (u16)OUT_OF_BOUNDS_TERRAIN_ATTRIBUTES) {
@@ -10973,25 +10937,25 @@ BOOL DistWorld_IsValidTileOnCurrentFloatingPlatform(FieldSystem *fieldSystem, in
     return TRUE;
 }
 
-BOOL ov9_02250FD8(FieldSystem *fieldSystem, int param1, int param2, int param3)
+BOOL DistWorld_AreCoordsValidOnCurrentFloatingPlatformKind(FieldSystem *fieldSystem, int tileX, int tileY, int tileZ)
 {
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    s16 v1 = GetCurrentFloatingPlatformKind(v0);
+    DistWorldSystem *system = fieldSystem->unk_04->dynamicMapFeaturesData;
+    s16 floatingPlatformKind = GetCurrentFloatingPlatformKind(system);
 
-    return HasFloatingPlatformAtCoords(v0, param1, param2, param3, v1);
+    return HasFloatingPlatformAtCoords(system, tileX, tileY, tileZ, floatingPlatformKind);
 }
 
-void ov9_02251000(FieldSystem *fieldSystem, int param1, int param2, int param3)
+void DistWorld_FindAndPrepareNewCurrentFloatingPlatform(FieldSystem *fieldSystem, int tileX, int tileY, int tileZ)
 {
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
-    s16 v1 = GetCurrentFloatingPlatformKind(v0);
+    DistWorldSystem *system = fieldSystem->unk_04->dynamicMapFeaturesData;
+    s16 floatingPlatformKind = GetCurrentFloatingPlatformKind(system);
 
-    if (HasFloatingPlatformAtCoords(v0, param1, param2, param3, v1) == TRUE) {
-        FindAndPrepareNewCurrentFloatingPlatform(v0, param1, param2, param3, v1);
+    if (HasFloatingPlatformAtCoords(system, tileX, tileY, tileZ, floatingPlatformKind) == TRUE) {
+        FindAndPrepareNewCurrentFloatingPlatform(system, tileX, tileY, tileZ, floatingPlatformKind);
         return;
     }
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
 }
 
 BOOL DistWorld_GetTileBehaviorOnCurrentFloatingPlatform(FieldSystem *fieldSystem, int tileX, int tileY, int tileZ, u32 *tileBehavior)
@@ -10999,7 +10963,7 @@ BOOL DistWorld_GetTileBehaviorOnCurrentFloatingPlatform(FieldSystem *fieldSystem
     PersistedMapFeatures *persistedMapFeatures = MiscSaveBlock_GetPersistedMapFeatures(FieldSystem_GetSaveData(fieldSystem));
 
     if (PersistedMapFeatures_GetID(persistedMapFeatures) != DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) {
-        GF_ASSERT(0);
+        GF_ASSERT(FALSE);
         return FALSE;
     }
 
@@ -11015,20 +10979,20 @@ BOOL DistWorld_GetTileBehaviorOnCurrentFloatingPlatform(FieldSystem *fieldSystem
     return TRUE;
 }
 
-void ov9_02251094(int param0, int *param1, int *param2, int *param3)
+void DistWorld_LoadFloorOffsets(int mapHeaderID, int *offsetTileX, int *offsetAltitude, int *offsetTileZ)
 {
-    UnkStruct_ov9_0224BFE0 v0;
-    NARC *v1 = NARC_ctor(NARC_INDEX_FIELDDATA__TORNWORLD__TW_ARC, HEAP_ID_FIELD1);
+    DistWorldMapInfoFile file;
+    NARC *narc = NARC_ctor(NARC_INDEX_FIELDDATA__TORNWORLD__TW_ARC, HEAP_ID_FIELD1);
 
-    ov9_0224BF8C(v1, &v0);
-    ov9_0224C050(&v0, param0, param1, param2, param3);
-    ov9_0224BFE0(&v0);
-    NARC_dtor(v1);
+    DistWorldMapInfoFile_Load(narc, &file);
+    DistWorldMapInfoFile_FindMapOffsets(&file, mapHeaderID, offsetTileX, offsetAltitude, offsetTileZ);
+    DistWorldMapInfoFile_Free(&file);
+    NARC_dtor(narc);
 }
 
 static u32 DistWorldSystem_GetMapHeaderID(DistWorldSystem *system)
 {
-    return (u32)system->mapHeaderID;
+    return system->fieldSystem->location->mapHeaderID;
 }
 
 static enum AvatarDistortionState GetAvatarDistortionStateForFloatingPlatformKind(u32 platformKind)
@@ -11050,106 +11014,83 @@ static enum AvatarDistortionState GetAvatarDistortionStateForFloatingPlatformKin
     return AVATAR_DISTORTION_STATE_ACTIVE;
 }
 
-static BOOL ov9_02251104(DistWorldSystem *param0, u32 param1, u32 param2)
+static BOOL CheckFlagCondition(DistWorldSystem *system, enum FlagCondition flagCond, u32 val)
 {
-    VarsFlags *v0 = SaveData_GetVarsFlags(param0->fieldSystem->saveData);
+    VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
 
-    switch (param1) {
-    case 0:
-        return 1;
-    case 1:
-        if (ov9_02249E00(param0, param2) != 1) {
-            return 1;
+    switch (flagCond) {
+    case FLAG_COND_NONE:
+        return TRUE;
+
+    case FLAG_COND_BOULDER_PUZZLE_FALSE:
+        if (CheckPersistedBoulderPuzzleFlag(system, val) != TRUE) {
+            return TRUE;
         }
+
         break;
-    case 2:
-        if (ov9_02249E00(param0, param2) == 1) {
-            return 1;
+
+    case FLAG_COND_BOULDER_PUZZLE_TRUE:
+        if (CheckPersistedBoulderPuzzleFlag(system, val) == TRUE) {
+            return TRUE;
         }
+
         break;
-    case 3:
-        if (SystemVars_GetDistortionWorldProgress(v0) == param2) {
-            return 1;
+
+    case FLAG_COND_WORLD_PROGRESS_EQ:
+        if (SystemVars_GetDistortionWorldProgress(varsFlags) == val) {
+            return TRUE;
         }
+
         break;
-    case 4:
-        if (SystemVars_GetDistortionWorldProgress(v0) <= param2) {
-            return 1;
+
+    case FLAG_COND_WORLD_PROGRESS_LEQ:
+        if (SystemVars_GetDistortionWorldProgress(varsFlags) <= val) {
+            return TRUE;
         }
+
         break;
-    case 5:
-        if (SystemVars_GetDistortionWorldProgress(v0) >= param2) {
-            return 1;
+
+    case FLAG_COND_WORLD_PROGRESS_GEQ:
+        if (SystemVars_GetDistortionWorldProgress(varsFlags) >= val) {
+            return TRUE;
         }
+
         break;
-    case 7:
-        if (!SystemFlag_HandleGiratinaAnimation(v0, HANDLE_FLAG_CHECK, param2)) {
-            return 1;
+
+    case FLAG_COND_GIRATINA_SHADOW:
+        if (!SystemFlag_HandleGiratinaAnimation(varsFlags, HANDLE_FLAG_CHECK, val)) {
+            return TRUE;
         }
+
         break;
-    case 8:
-        if (SystemVars_GetDistortionWorldCyrusApperanceState(v0) == param2) {
-            return 1;
+
+    case FLAG_COND_CYRUS_APPEARANCE:
+        if (SystemVars_GetDistortionWorldCyrusApperanceState(varsFlags) == val) {
+            return TRUE;
         }
-        break;
-    // Arc 1 wall-walk puzzle: VAR_ARC1_DW_HINTS below / at least / equal to param2
-    case 10:
-        if (*VarsFlags_GetVarAddress(v0, VAR_ARC1_DW_HINTS) < param2) {
-            return 1;
-        }
-        break;
-    case 11:
-        if (*VarsFlags_GetVarAddress(v0, VAR_ARC1_DW_HINTS) >= param2) {
-            return 1;
-        }
-        break;
-    case 12:
-        if (*VarsFlags_GetVarAddress(v0, VAR_ARC1_DW_HINTS) == param2) {
-            return 1;
-        }
-        break;
-    // Arc 2 rifts (rift-b): flag param2 set / clear, VAR_ARC2_PROGRESS at least / below param2
-    case 20:
-        if (VarsFlags_CheckFlag(v0, param2)) {
-            return 1;
-        }
-        break;
-    case 21:
-        if (!VarsFlags_CheckFlag(v0, param2)) {
-            return 1;
-        }
-        break;
-    case 22:
-        if (*VarsFlags_GetVarAddress(v0, VAR_ARC2_PROGRESS) >= param2) {
-            return 1;
-        }
-        break;
-    case 23:
-        if (*VarsFlags_GetVarAddress(v0, VAR_ARC2_PROGRESS) < param2) {
-            return 1;
-        }
+
         break;
     }
 
-    return 0;
+    return FALSE;
 }
 
-BOOL ov9_022511A0(FieldSystem *fieldSystem, int param1, int param2, int param3)
+BOOL DistWorld_IsBlockedByCynthia(FieldSystem *fieldSystem, int tileX, int tileZ, int tileY)
 {
-    DistWorldSystem *v0 = fieldSystem->unk_04->dynamicMapFeaturesData;
+    DistWorldSystem *system = fieldSystem->unk_04->dynamicMapFeaturesData;
 
-    if (DistWorldSystem_GetMapHeaderID(v0) == 582) {
-        if ((param2 == 15) && (param1 == 15) && (param3 == 1)) {
-            VarsFlags *v1 = SaveData_GetVarsFlags(v0->fieldSystem->saveData);
-            u32 v2 = SystemVars_GetDistortionWorldProgress(v1);
+    if (DistWorldSystem_GetMapHeaderID(system) == MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM) {
+        if (tileZ == GIRATINA_ROOM_POST_BATTLE_CYNTHIA_TILE_X && tileX == GIRATINA_ROOM_POST_BATTLE_CYNTHIA_TILE_Z && tileY == GIRATINA_ROOM_POST_BATTLE_CYNTHIA_TILE_Y) {
+            VarsFlags *varsFlags = SaveData_GetVarsFlags(system->fieldSystem->saveData);
+            u32 distWorldProgress = SystemVars_GetDistortionWorldProgress(varsFlags);
 
-            if (v2 == 14) {
-                return 1;
+            if (distWorldProgress == DIST_WORLD_PROGRESS_BATTLED_GIRATINA) {
+                return TRUE;
             }
         }
     }
 
-    return 0;
+    return FALSE;
 }
 
 static void PlaySoundIfNotActive(u16 seqID)
@@ -11159,19 +11100,17 @@ static void PlaySoundIfNotActive(u16 seqID)
     }
 }
 
-static void ov9_022511F4(MapObject *param0, const VecFx32 *param1)
+static void SetMapObjectPos(MapObject *mapObj, const VecFx32 *pos)
 {
-    UnkStruct_020216E0 *v0;
+    MapObject_SetPos(mapObj, pos);
+    Billboard *billboard = ov5_021EB1A0(mapObj);
 
-    MapObject_SetPos(param0, param1);
-    v0 = ov5_021EB1A0(param0);
-
-    if (v0 != NULL) {
-        ov5_021EDEB4(param0, v0);
+    if (billboard != NULL) {
+        ov5_021EDEB4(mapObj, billboard);
     }
 }
 
-static const fx32 Unk_ov9_02252CF8[16] = {
+static const fx32 sFloatingPlatformJumpOffsets[MAP_OBJECT_TILE_SIZE / FX32_ONE] = {
     4 * FX32_ONE,
     6 * FX32_ONE,
     8 * FX32_ONE,
@@ -11194,7 +11133,7 @@ static const FloatingPlatformJumpPointHandler sFloatingPlatformJumpPointHandlers
     CreateJumpOnFloatingPlatformTask
 };
 
-static const int Unk_ov9_02251E58[7] = {
+static const int sSkyCloudsCharNARCIndexes[SKY_CLOUD_RESOURCE_COUNT] = {
     0x4,
     0x7,
     0xA,
@@ -11204,7 +11143,7 @@ static const int Unk_ov9_02251E58[7] = {
     0x16
 };
 
-static const int Unk_ov9_02251E90[7] = {
+static const int sSkyCloudsCellNARCIndexes[SKY_CLOUD_RESOURCE_COUNT] = {
     0x3,
     0x6,
     0x9,
@@ -11214,7 +11153,7 @@ static const int Unk_ov9_02251E90[7] = {
     0x15
 };
 
-static const int Unk_ov9_02251EAC[7] = {
+static const int sSkyCloudsAnimNARCIndexes[SKY_CLOUD_RESOURCE_COUNT] = {
     0x5,
     0x8,
     0xB,
@@ -11224,153 +11163,153 @@ static const int Unk_ov9_02251EAC[7] = {
     0x17
 };
 
-static const int Unk_ov9_02251210[1] = {
+static const int sSkyCloudsPlttNARCIndexes[1] = {
     0x18
 };
 
-static const UnkStruct_ov9_02251EC8 Unk_ov9_02251EC8[7] = {
-    { 0x0, 0x0, 0x0, 0x0 },
-    { 0x1, 0x0, 0x1, 0x1 },
-    { 0x2, 0x0, 0x2, 0x2 },
-    { 0x3, 0x0, 0x3, 0x3 },
-    { 0x4, 0x0, 0x4, 0x4 },
-    { 0x5, 0x0, 0x5, 0x5 },
-    { 0x6, 0x0, 0x6, 0x6 }
+static const DistWorldSkyCloudResourceIDs sSkyCloudsResIDs[SKY_CLOUD_RESOURCE_COUNT] = {
+    { .charResID = 0x0, .plttResID = 0x0, .cellResID = 0x0, .animResID = 0x0 },
+    { .charResID = 0x1, .plttResID = 0x0, .cellResID = 0x1, .animResID = 0x1 },
+    { .charResID = 0x2, .plttResID = 0x0, .cellResID = 0x2, .animResID = 0x2 },
+    { .charResID = 0x3, .plttResID = 0x0, .cellResID = 0x3, .animResID = 0x3 },
+    { .charResID = 0x4, .plttResID = 0x0, .cellResID = 0x4, .animResID = 0x4 },
+    { .charResID = 0x5, .plttResID = 0x0, .cellResID = 0x5, .animResID = 0x5 },
+    { .charResID = 0x6, .plttResID = 0x0, .cellResID = 0x6, .animResID = 0x6 }
 };
 
-static const UnkStruct_ov9_02253680 Unk_ov9_02253680[9] = {
+static const DistWorldSkyCloudTemplate sSkyCloudsTemplates[SKY_CLOUD_COUNT] = {
     {
-        0x6,
-        0x3,
-        (FX32_ONE * 0),
-        (FX32_ONE * 135),
-        0x68,
-        0x1400,
-        { (FX32_ONE * 128), (FX32_ONE * (96 + 12)), 0x0 },
-        { FX32_ONE * 2, FX32_ONE * 2, FX32_ONE * 2 },
+        .resIDsIndex = 0x6,
+        .group = 0x3,
+        .initialRotAngle = FX32_ONE * 0,
+        .rotAngleOffset = FX32_ONE * 135,
+        .distToCenter = 0x68,
+        .baseRotAngleDelta = FX32_CONST(1.25),
+        .basePos = { FX32_ONE * 128, FX32_ONE * 108, 0x0 },
+        .scale = { FX32_ONE * 2, FX32_ONE * 2, FX32_ONE * 2 },
     },
     {
-        0x6,
-        0x3,
-        (FX32_ONE * 180),
-        (FX32_ONE * 135),
-        0x68,
-        0x1400,
-        { (FX32_ONE * 128), (FX32_ONE * (96 + 12)), 0x0 },
-        { FX32_ONE * 2, FX32_ONE * 2, FX32_ONE * 2 },
+        .resIDsIndex = 0x6,
+        .group = 0x3,
+        .initialRotAngle = FX32_ONE * 180,
+        .rotAngleOffset = FX32_ONE * 135,
+        .distToCenter = 0x68,
+        .baseRotAngleDelta = FX32_CONST(1.25),
+        .basePos = { FX32_ONE * 128, FX32_ONE * 108, 0x0 },
+        .scale = { FX32_ONE * 2, FX32_ONE * 2, FX32_ONE * 2 },
     },
     {
-        0x6,
-        0x3,
-        (FX32_ONE * 90),
-        (FX32_ONE * 135),
-        0x68,
-        0x1400,
-        { (FX32_ONE * 128), (FX32_ONE * (96 + 12)), 0x0 },
-        { FX32_ONE * 2, FX32_ONE * 2, FX32_ONE * 2 },
+        .resIDsIndex = 0x6,
+        .group = 0x3,
+        .initialRotAngle = FX32_ONE * 90,
+        .rotAngleOffset = FX32_ONE * 135,
+        .distToCenter = 0x68,
+        .baseRotAngleDelta = FX32_CONST(1.25),
+        .basePos = { FX32_ONE * 128, FX32_ONE * 108, 0x0 },
+        .scale = { FX32_ONE * 2, FX32_ONE * 2, FX32_ONE * 2 },
     },
     {
-        0x6,
-        0x3,
-        (FX32_ONE * 270),
-        (FX32_ONE * 135),
-        0x68,
-        0x1400,
-        { (FX32_ONE * 128), (FX32_ONE * (96 + 12)), 0x0 },
-        { FX32_ONE * 2, FX32_ONE * 2, FX32_ONE * 2 },
+        .resIDsIndex = 0x6,
+        .group = 0x3,
+        .initialRotAngle = FX32_ONE * 270,
+        .rotAngleOffset = FX32_ONE * 135,
+        .distToCenter = 0x68,
+        .baseRotAngleDelta = FX32_CONST(1.25),
+        .basePos = { FX32_ONE * 128, FX32_ONE * 108, 0x0 },
+        .scale = { FX32_ONE * 2, FX32_ONE * 2, FX32_ONE * 2 },
     },
     {
-        0x1,
-        0x2,
-        (FX32_ONE * 0),
-        (FX32_ONE * 90),
-        0x3C,
-        0x1000,
-        { (FX32_ONE * 128), (FX32_ONE * (96 + 32)), 0x0 },
-        { FX32_ONE, FX32_ONE, FX32_ONE },
+        .resIDsIndex = 0x1,
+        .group = 0x2,
+        .initialRotAngle = FX32_ONE * 0,
+        .rotAngleOffset = FX32_ONE * 90,
+        .distToCenter = 0x3C,
+        .baseRotAngleDelta = FX32_CONST(1),
+        .basePos = { FX32_ONE * 128, FX32_ONE * 128, 0x0 },
+        .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
     },
     {
-        0x2,
-        0x2,
-        (FX32_ONE * 180),
-        (FX32_ONE * 90),
-        0x3C,
-        0x1000,
-        { (FX32_ONE * 128), (FX32_ONE * (96 + 32)), 0x0 },
-        { FX32_ONE, FX32_ONE, FX32_ONE },
+        .resIDsIndex = 0x2,
+        .group = 0x2,
+        .initialRotAngle = FX32_ONE * 180,
+        .rotAngleOffset = FX32_ONE * 90,
+        .distToCenter = 0x3C,
+        .baseRotAngleDelta = FX32_CONST(1),
+        .basePos = { FX32_ONE * 128, FX32_ONE * 128, 0x0 },
+        .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
     },
     {
-        0x3,
-        0x1,
-        (FX32_ONE * 315),
-        (FX32_ONE * 90),
-        0x2A,
-        0xC00,
-        { (FX32_ONE * 128), (FX32_ONE * (96 + 32)), 0x0 },
-        { FX32_ONE, FX32_ONE, FX32_ONE },
+        .resIDsIndex = 0x3,
+        .group = 0x1,
+        .initialRotAngle = FX32_ONE * 315,
+        .rotAngleOffset = FX32_ONE * 90,
+        .distToCenter = 0x2A,
+        .baseRotAngleDelta = FX32_CONST(0.75),
+        .basePos = { FX32_ONE * 128, FX32_ONE * 128, 0x0 },
+        .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
     },
     {
-        0x4,
-        0x1,
-        (FX32_ONE * 135),
-        (FX32_ONE * 90),
-        0x2A,
-        0xC00,
-        { (FX32_ONE * 128), (FX32_ONE * (96 + 32)), 0x0 },
-        { FX32_ONE, FX32_ONE, FX32_ONE },
+        .resIDsIndex = 0x4,
+        .group = 0x1,
+        .initialRotAngle = FX32_ONE * 135,
+        .rotAngleOffset = FX32_ONE * 90,
+        .distToCenter = 0x2A,
+        .baseRotAngleDelta = FX32_CONST(0.75),
+        .basePos = { FX32_ONE * 128, FX32_ONE * 128, 0x0 },
+        .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
     },
     {
-        0x5,
-        0x0,
-        (FX32_ONE * 0),
-        (FX32_ONE * 90),
-        0x0,
-        0x800,
-        { (FX32_ONE * 128), (FX32_ONE * (96 + 32)), 0x0 },
-        { FX32_ONE, FX32_ONE, FX32_ONE },
+        .resIDsIndex = 0x5,
+        .group = 0x0,
+        .initialRotAngle = FX32_ONE * 0,
+        .rotAngleOffset = FX32_ONE * 90,
+        .distToCenter = 0x0,
+        .baseRotAngleDelta = FX32_CONST(0.5),
+        .basePos = { FX32_ONE * 128, FX32_ONE * 128, 0x0 },
+        .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
     }
 };
 
-static const fx32 Unk_ov9_02252C08[3][4] = {
-    { 0x0, 0x0, 0x0, 0x0 },
-    { 0x800, 0x1800, 0x3000, 0x5000 },
-    { -0x800 * 4, -0xc00 * 6, -0x1000 * 7, -0x1400 * 10 },
+static const fx32 sSkyCloudsRotAngleDeltas[SKY_KIND_COUNT][SKY_CLOUD_GROUP_COUNT] = {
+    { FX32_CONST(0), FX32_CONST(0), FX32_CONST(0), FX32_CONST(0) },
+    { FX32_CONST(0.5), FX32_CONST(1.5), FX32_CONST(3), FX32_CONST(5) },
+    { FX32_CONST(-2), FX32_CONST(-4.5), FX32_CONST(-7), FX32_CONST(-12.5) },
 };
 
 static const u32 sProp3DModelNARCIndexByKind[PROP_KIND_COUNT] = {
-    [PROP_KIND_SMALL_PLATFORM] = 0x7C,
-    [PROP_KIND_FLOATING_BLUE_ROCK] = 0x7D,
-    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_1] = 0x7E,
-    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_2] = 0x7F,
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_SW] = 0x80,
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_1] = 0x81,
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_2] = 0x82,
-    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_3] = 0x83,
-    [PROP_KIND_LARGE_ELEVATOR_PLATFORM_1] = 0x84,
-    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_4] = 0x85,
-    [PROP_KIND_HORIZONTAL_PLATFORM_1] = 0x86,
-    [PROP_KIND_VERTICAL_PLATFORM_1] = 0x87,
-    [PROP_KIND_VERTICAL_PLATFORM_2] = 0x88,
-    [PROP_KIND_HORIZONTAL_PLATFORM_2] = 0x89,
-    [PROP_KIND_ROTATED_PLATFORM_EAST] = 0x8A,
-    [PROP_KIND_ROTATED_PLATFORM_WEST] = 0x8B,
-    [PROP_KIND_LARGE_ELEVATOR_PLATFORM_2] = 0x8C,
-    [PROP_KIND_LARGE_ELEVATOR_PLATFORM_3] = 0x8D,
-    [PROP_KIND_LARGE_ELEVATOR_PLATFORM_4] = 0x8E,
-    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_5] = 0x8F,
-    [PROP_KIND_DUMMY20] = 0x90,
-    [PROP_KIND_DUMMY21] = 0x91,
-    [PROP_KIND_LAND_VINE_FLOWER] = 0x92,
-    [PROP_KIND_LAND_ROCK] = 0x93,
-    [PROP_KIND_DUMMY24] = 0x94
+    [PROP_KIND_SMALL_PLATFORM] = distortion_world_small_platform_nsbmd,
+    [PROP_KIND_FLOATING_BLUE_ROCK] = distortion_world_floating_blue_rock_nsbmd,
+    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_1] = distortion_world_medium_elevator_platform_1_nsbmd,
+    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_2] = distortion_world_medium_elevator_platform_2_nsbmd,
+    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_SW] = distortion_world_medium_elevator_platform_sw_nsbmd,
+    [PROP_KIND_MEDIUM_MOVING_PLATFORM_1] = distortion_world_medium_moving_platform_1_nsbmd,
+    [PROP_KIND_MEDIUM_MOVING_PLATFORM_2] = distortion_world_medium_moving_platform_2_nsbmd,
+    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_3] = distortion_world_medium_elevator_platform_3_nsbmd,
+    [PROP_KIND_LARGE_ELEVATOR_PLATFORM_1] = distortion_world_large_elevator_platform_1_nsbmd,
+    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_4] = distortion_world_medium_elevator_platform_4_nsbmd,
+    [PROP_KIND_HORIZONTAL_PLATFORM_1] = distortion_world_horizontal_platform_1_nsbmd,
+    [PROP_KIND_VERTICAL_PLATFORM_1] = distortion_world_vertical_platform_1_nsbmd,
+    [PROP_KIND_VERTICAL_PLATFORM_2] = distortion_world_vertical_platform_2_nsbmd,
+    [PROP_KIND_HORIZONTAL_PLATFORM_2] = distortion_world_horizontal_platform_2_nsbmd,
+    [PROP_KIND_ROTATED_PLATFORM_EAST] = distortion_world_rotated_platform_east_nsbmd,
+    [PROP_KIND_ROTATED_PLATFORM_WEST] = distortion_world_rotated_platform_west_nsbmd,
+    [PROP_KIND_LARGE_ELEVATOR_PLATFORM_2] = distortion_world_large_elevator_platform_2_nsbmd,
+    [PROP_KIND_LARGE_ELEVATOR_PLATFORM_3] = distortion_world_large_elevator_platform_3_nsbmd,
+    [PROP_KIND_LARGE_ELEVATOR_PLATFORM_4] = distortion_world_large_elevator_platform_4_nsbmd,
+    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_5] = distortion_world_medium_elevator_platform_5_nsbmd,
+    [PROP_KIND_GIRATINA_SHADOW] = distortion_world_giratina_shadow_nsbmd,
+    [PROP_KIND_WATERFALL] = distortion_world_waterfall_nsbmd,
+    [PROP_KIND_LAND_VINE_FLOWER] = distortion_world_land_vine_flower_nsbmd,
+    [PROP_KIND_LAND_ROCK] = distortion_world_land_rock_nsbmd,
+    [PROP_KIND_PORTAL] = distortion_world_portal_nsbmd
 };
 
 static const u32 sPropAnimSetNARCIndexByKind[PROP_ANIM_KIND_COUNT] = {
-    [PROP_ANIM_KIND_DUMMY20] = 0xC6,
-    [PROP_ANIM_KIND_LAND_VINE_FLOWER] = 0xBF,
-    [PROP_ANIM_KIND_LAND_ROCK] = 0xC0,
-    [PROP_ANIM_KIND_DUMMY21] = 0xC8,
-    [PROP_ANIM_KIND_DUMMY24] = 0xC1
+    [PROP_ANIM_KIND_GIRATINA_SHADOW] = distortion_world_giratina_shadow_nsbta,
+    [PROP_ANIM_KIND_LAND_VINE_FLOWER] = distortion_world_land_vine_flower_nsbca,
+    [PROP_ANIM_KIND_LAND_ROCK] = distortion_world_land_rock_nsbca,
+    [PROP_ANIM_KIND_WATERFALL] = distortion_world_waterfall_nsbta,
+    [PROP_ANIM_KIND_PORTAL] = distortion_world_portal_nsbca
 };
 
 // clang-format off
@@ -11395,18 +11334,18 @@ static const DistWorldPropAnimInfo sPropAnimInfoByKind[PROP_KIND_COUNT] = {
         .animKind = PROP_ANIM_KIND_INVALID,
         .isStatic = TRUE
     },
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_SW] = {
-        .propKind = PROP_KIND_MEDIUM_FLOATING_PLATFORM_SW,
+    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_SW] = {
+        .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_SW,
         .animKind = PROP_ANIM_KIND_INVALID,
         .isStatic = TRUE
     },
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_1] = {
-        .propKind = PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_1,
+    [PROP_KIND_MEDIUM_MOVING_PLATFORM_1] = {
+        .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_1,
         .animKind = PROP_ANIM_KIND_INVALID,
         .isStatic = TRUE
     },
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_2] = {
-        .propKind = PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_2,
+    [PROP_KIND_MEDIUM_MOVING_PLATFORM_2] = {
+        .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
         .animKind = PROP_ANIM_KIND_INVALID,
         .isStatic = TRUE
     },
@@ -11475,14 +11414,14 @@ static const DistWorldPropAnimInfo sPropAnimInfoByKind[PROP_KIND_COUNT] = {
         .animKind = PROP_ANIM_KIND_INVALID,
         .isStatic = TRUE
     },
-    [PROP_KIND_DUMMY20] = {
-        .propKind = PROP_KIND_DUMMY20,
-        .animKind = PROP_ANIM_KIND_DUMMY20,
+    [PROP_KIND_GIRATINA_SHADOW] = {
+        .propKind = PROP_KIND_GIRATINA_SHADOW,
+        .animKind = PROP_ANIM_KIND_GIRATINA_SHADOW,
         .isStatic = FALSE
     },
-    [PROP_KIND_DUMMY21] = {
-        .propKind = PROP_KIND_DUMMY21,
-        .animKind = PROP_ANIM_KIND_DUMMY21,
+    [PROP_KIND_WATERFALL] = {
+        .propKind = PROP_KIND_WATERFALL,
+        .animKind = PROP_ANIM_KIND_WATERFALL,
         .isStatic = FALSE
     },
     [PROP_KIND_LAND_VINE_FLOWER] = {
@@ -11495,9 +11434,9 @@ static const DistWorldPropAnimInfo sPropAnimInfoByKind[PROP_KIND_COUNT] = {
         .animKind = PROP_ANIM_KIND_LAND_ROCK,
         .isStatic = FALSE
     },
-    [PROP_KIND_DUMMY24] = {
-        .propKind = PROP_KIND_DUMMY24,
-        .animKind = PROP_ANIM_KIND_DUMMY24,
+    [PROP_KIND_PORTAL] = {
+        .propKind = PROP_KIND_PORTAL,
+        .animKind = PROP_ANIM_KIND_PORTAL,
         .isStatic = FALSE
     }
 };
@@ -11508,9 +11447,9 @@ static const VecFx32 sPropInitialPosOffsetByKind[PROP_KIND_COUNT] = {
     [PROP_KIND_FLOATING_BLUE_ROCK] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_1] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_2] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_SW] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_1] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_2] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
+    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_SW] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
+    [PROP_KIND_MEDIUM_MOVING_PLATFORM_1] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
+    [PROP_KIND_MEDIUM_MOVING_PLATFORM_2] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_3] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
     [PROP_KIND_LARGE_ELEVATOR_PLATFORM_1] = { 0 + -FX32_ONE * 8, -FX32_ONE * 25, -FX32_ONE * 6 + FX32_ONE * 8 },
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_4] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
@@ -11524,11 +11463,11 @@ static const VecFx32 sPropInitialPosOffsetByKind[PROP_KIND_COUNT] = {
     [PROP_KIND_LARGE_ELEVATOR_PLATFORM_3] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
     [PROP_KIND_LARGE_ELEVATOR_PLATFORM_4] = { 0 + -FX32_ONE * 8, -FX32_ONE * 25, -FX32_ONE * 6 + FX32_ONE * 16 },
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_5] = { 0x0, -FX32_ONE * 25, -FX32_ONE * 6 },
-    [PROP_KIND_DUMMY20] = { 0x0, -FX32_ONE * 32, -FX32_ONE * 6 },
-    [PROP_KIND_DUMMY21] = { 0x0, -FX32_ONE * 32, -FX32_ONE * 6 },
+    [PROP_KIND_GIRATINA_SHADOW] = { 0x0, -FX32_ONE * 32, -FX32_ONE * 6 },
+    [PROP_KIND_WATERFALL] = { 0x0, -FX32_ONE * 32, -FX32_ONE * 6 },
     [PROP_KIND_LAND_VINE_FLOWER] = { 0x0, -FX32_ONE * 32, -FX32_ONE * 6 },
     [PROP_KIND_LAND_ROCK] = { 0x0, -FX32_ONE * 32, -FX32_ONE * 6 },
-    [PROP_KIND_DUMMY24] = { 0x0, -FX32_ONE * 14, FX32_ONE * 8 }
+    [PROP_KIND_PORTAL] = { 0x0, -FX32_ONE * 14, FX32_ONE * 8 }
 };
 
 static const VecFx32 sPropScaleByKind[PROP_KIND_COUNT] = {
@@ -11536,9 +11475,9 @@ static const VecFx32 sPropScaleByKind[PROP_KIND_COUNT] = {
     [PROP_KIND_FLOATING_BLUE_ROCK] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_1] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_2] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_SW] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_1] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_2] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
+    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_SW] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
+    [PROP_KIND_MEDIUM_MOVING_PLATFORM_1] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
+    [PROP_KIND_MEDIUM_MOVING_PLATFORM_2] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_3] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
     [PROP_KIND_LARGE_ELEVATOR_PLATFORM_1] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_4] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
@@ -11552,11 +11491,11 @@ static const VecFx32 sPropScaleByKind[PROP_KIND_COUNT] = {
     [PROP_KIND_LARGE_ELEVATOR_PLATFORM_3] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
     [PROP_KIND_LARGE_ELEVATOR_PLATFORM_4] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_5] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
-    [PROP_KIND_DUMMY20] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
-    [PROP_KIND_DUMMY21] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
+    [PROP_KIND_GIRATINA_SHADOW] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
+    [PROP_KIND_WATERFALL] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4 },
     [PROP_KIND_LAND_VINE_FLOWER] = { FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 4, FX32_ONE + 0x100 * 8 },
     [PROP_KIND_LAND_ROCK] = { 0x0, 0x0, 0x0 },
-    [PROP_KIND_DUMMY24] = { 0x0, 0x0, 0x0 }
+    [PROP_KIND_PORTAL] = { 0x0, 0x0, 0x0 }
 };
 
 static const OverworldAnimManagerFuncs sPlatformPropAnimFuncs = {
@@ -11580,9 +11519,9 @@ static const OverworldAnimManagerFuncs *const sPropAnimFuncsByKind[PROP_KIND_COU
     [PROP_KIND_FLOATING_BLUE_ROCK] = &sPlatformPropAnimFuncs,
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_1] = &sPlatformPropAnimFuncs,
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_2] = &sPlatformPropAnimFuncs,
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_SW] = &sPlatformPropAnimFuncs,
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_1] = &sPlatformPropAnimFuncs,
-    [PROP_KIND_MEDIUM_FLOATING_PLATFORM_NESW_2] = &sPlatformPropAnimFuncs,
+    [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_SW] = &sPlatformPropAnimFuncs,
+    [PROP_KIND_MEDIUM_MOVING_PLATFORM_1] = &sPlatformPropAnimFuncs,
+    [PROP_KIND_MEDIUM_MOVING_PLATFORM_2] = &sPlatformPropAnimFuncs,
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_3] = &sPlatformPropAnimFuncs,
     [PROP_KIND_LARGE_ELEVATOR_PLATFORM_1] = &sPlatformPropAnimFuncs,
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_4] = &sPlatformPropAnimFuncs,
@@ -11596,11 +11535,11 @@ static const OverworldAnimManagerFuncs *const sPropAnimFuncsByKind[PROP_KIND_COU
     [PROP_KIND_LARGE_ELEVATOR_PLATFORM_3] = &sPlatformPropAnimFuncs,
     [PROP_KIND_LARGE_ELEVATOR_PLATFORM_4] = &sPlatformPropAnimFuncs,
     [PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_5] = &sPlatformPropAnimFuncs,
-    [PROP_KIND_DUMMY20] = &Unk_ov9_022514B8,
-    [PROP_KIND_DUMMY21] = &Unk_ov9_02251530,
+    [PROP_KIND_GIRATINA_SHADOW] = &sGiratinaShadowPropAnimFuncs,
+    [PROP_KIND_WATERFALL] = &sSimplePropAnimFuncs,
     [PROP_KIND_LAND_VINE_FLOWER] = &sObstaclePropAnimFuncs,
     [PROP_KIND_LAND_ROCK] = &sObstaclePropAnimFuncs,
-    [PROP_KIND_DUMMY24] = &Unk_ov9_02251530
+    [PROP_KIND_PORTAL] = &sSimplePropAnimFuncs
 };
 
 // clang-format off
@@ -11654,7 +11593,7 @@ static const DistWorldMapConnections sDistWorldMapConnectionList[DISTORTION_WORL
         .prevID = MAP_HEADER_INVALID,
         .currID = MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM,
         .nextID = MAP_HEADER_INVALID
-    },
+     },
     {
         .prevID = MAP_HEADER_INVALID,
         .currID = MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS,
@@ -11688,3306 +11627,4623 @@ static const DistWorldMapConnections sDistWorldMapConnectionList[DISTORTION_WORL
 };
 // clang-format on
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251558 = {
-    0x0,
-    0x28,
-    0x121,
-    0x36,
-    0x0,
-    0x1,
-    0x0,
-    0x2,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplate1F_1 = {
+    .index = 0x0,
+    .tileX = 0x28,
+    .tileY = 0x121,
+    .tileZ = 0x36,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_DOWN,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 *Unk_ov9_02253B10[] = {
-    &Unk_ov9_02251558,
+static const DistWorldMovingPlatformTemplate *sMovingPlatformsMapTemplates1F[] = {
+    &sMovingPlatformMapTemplate1F_1,
     NULL
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251600 = {
-    0x0,
-    0x28,
-    0x101,
-    0x36,
-    0x1,
-    0x0,
-    0x0,
-    0x2,
-    0x0
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB1F_1 = {
+    .index = 0x0,
+    .tileX = 0x28,
+    .tileY = 0x101,
+    .tileZ = 0x36,
+    .elevatorPathIndex = 0x1,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_UP,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B1F_1
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251570 = {
-    0x1,
-    0x21,
-    0x101,
-    0x2D,
-    0x2,
-    0x1,
-    0x0,
-    0x3,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB1F_2 = {
+    .index = 0x1,
+    .tileX = 0x21,
+    .tileY = 0x101,
+    .tileZ = 0x2D,
+    .elevatorPathIndex = 0x2,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_DOWN,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 *Unk_ov9_02253B4C[] = {
-    &Unk_ov9_02251600,
-    &Unk_ov9_02251570,
+static const DistWorldMovingPlatformTemplate *sMovingPlatformsMapTemplatesB1F[] = {
+    &sMovingPlatformMapTemplateB1F_1,
+    &sMovingPlatformMapTemplateB1F_2,
     NULL
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251E10 = {
-    0x0,
-    0x21,
-    0xE1,
-    0x2D,
-    0x3,
-    0x0,
-    0x1,
-    0x3,
-    0x1
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_1 = {
+    .index = 0x0,
+    .tileX = 0x21,
+    .tileY = 0xE1,
+    .tileZ = 0x2D,
+    .elevatorPathIndex = 0x3,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_UP,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B2F_1
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251978 = {
-    0x1,
-    0x21,
-    0xE1,
-    0x26,
-    0x0,
-    0x2,
-    0x0,
-    0x5,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_2 = {
+    .index = 0x1,
+    .tileX = 0x21,
+    .tileY = 0xE1,
+    .tileZ = 0x26,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_022515A0 = {
-    0x2,
-    0x21,
-    0xE1,
-    0x17,
-    0x0,
-    0x2,
-    0x0,
-    0x5,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_3 = {
+    .index = 0x2,
+    .tileX = 0x21,
+    .tileY = 0xE1,
+    .tileZ = 0x17,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251B10 = {
-    0x3,
-    0x21,
-    0xE1,
-    0x8,
-    0x0,
-    0x2,
-    0x0,
-    0x5,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_4 = {
+    .index = 0x3,
+    .tileX = 0x21,
+    .tileY = 0xE1,
+    .tileZ = 0x8,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251DC8 = {
-    0x4,
-    0x31,
-    0xE1,
-    0x8,
-    0x0,
-    0x2,
-    0x0,
-    0x5,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_5 = {
+    .index = 0x4,
+    .tileX = 0x31,
+    .tileY = 0xE1,
+    .tileZ = 0x8,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_022515D0 = {
-    0x5,
-    0x38,
-    0xE1,
-    0x8,
-    0x0,
-    0x2,
-    0x0,
-    0x5,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_6 = {
+    .index = 0x5,
+    .tileX = 0x38,
+    .tileY = 0xE1,
+    .tileZ = 0x8,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_022515E8 = {
-    0x6,
-    0x31,
-    0xE1,
-    0x1F,
-    0x0,
-    0x2,
-    0x0,
-    0x5,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_7 = {
+    .index = 0x6,
+    .tileX = 0x31,
+    .tileY = 0xE1,
+    .tileZ = 0x1F,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251CA8 = {
-    0x7,
-    0x41,
-    0xE1,
-    0x1F,
-    0x4,
-    0x1,
-    0x0,
-    0x4,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_8 = {
+    .index = 0x7,
+    .tileX = 0x41,
+    .tileY = 0xE1,
+    .tileZ = 0x1F,
+    .elevatorPathIndex = 0x4,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_DOWN,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_SW,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251CD8 = {
-    0x8,
-    0x38,
-    0xE1,
-    0x34,
-    0x0,
-    0x2,
-    0x0,
-    0x5,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_9 = {
+    .index = 0x8,
+    .tileX = 0x38,
+    .tileY = 0xE1,
+    .tileZ = 0x34,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251C90 = {
-    0x9,
-    0x21,
-    0xE9,
-    0xF,
-    0x0,
-    0x2,
-    0x1,
-    0x6,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_10 = {
+    .index = 0x9,
+    .tileX = 0x21,
+    .tileY = 0xE9,
+    .tileZ = 0xF,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251CF0 = {
-    0xA,
-    0x31,
-    0xE9,
-    0xF,
-    0x0,
-    0x2,
-    0x1,
-    0x6,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_11 = {
+    .index = 0xA,
+    .tileX = 0x31,
+    .tileY = 0xE9,
+    .tileZ = 0xF,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251D80 = {
-    0xB,
-    0x41,
-    0xE9,
-    0xF,
-    0x0,
-    0x2,
-    0x1,
-    0x6,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_12 = {
+    .index = 0xB,
+    .tileX = 0x41,
+    .tileY = 0xE9,
+    .tileZ = 0xF,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251DE0 = {
-    0xC,
-    0x41,
-    0xE9,
-    0x2D,
-    0x0,
-    0x2,
-    0x1,
-    0x6,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_13 = {
+    .index = 0xC,
+    .tileX = 0x41,
+    .tileY = 0xE9,
+    .tileZ = 0x2D,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251618 = {
-    0xD,
-    0x41,
-    0xE9,
-    0x34,
-    0x0,
-    0x2,
-    0x1,
-    0x6,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_14 = {
+    .index = 0xD,
+    .tileX = 0x41,
+    .tileY = 0xE9,
+    .tileZ = 0x34,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251630 = {
-    0xE,
-    0x29,
-    0xE9,
-    0x34,
-    0x0,
-    0x2,
-    0x1,
-    0x6,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_15 = {
+    .index = 0xE,
+    .tileX = 0x29,
+    .tileY = 0xE9,
+    .tileZ = 0x34,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251B70 = {
-    0xF,
-    0x31,
-    0xE9,
-    0x2D,
-    0x0,
-    0x2,
-    0x1,
-    0x6,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_16 = {
+    .index = 0xF,
+    .tileX = 0x31,
+    .tileY = 0xE9,
+    .tileZ = 0x2D,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251BB8 = {
-    0x10,
-    0x1A,
-    0xE9,
-    0x26,
-    0x0,
-    0x2,
-    0x1,
-    0x6,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_17 = {
+    .index = 0x10,
+    .tileX = 0x1A,
+    .tileY = 0xE9,
+    .tileZ = 0x26,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251648 = {
-    0x11,
-    0x31,
-    0xE9,
-    0x26,
-    0x0,
-    0x2,
-    0x1,
-    0x6,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB2F_18 = {
+    .index = 0x11,
+    .tileX = 0x31,
+    .tileY = 0xE9,
+    .tileZ = 0x26,
+    .elevatorPathIndex = 0x0,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_NONE,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_MOVING_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 *Unk_ov9_02253C2C[] = {
-    &Unk_ov9_02251E10,
-    &Unk_ov9_02251978,
-    &Unk_ov9_022515A0,
-    &Unk_ov9_02251B10,
-    &Unk_ov9_02251DC8,
-    &Unk_ov9_022515D0,
-    &Unk_ov9_022515E8,
-    &Unk_ov9_02251CA8,
-    &Unk_ov9_02251CD8,
-    &Unk_ov9_02251C90,
-    &Unk_ov9_02251CF0,
-    &Unk_ov9_02251D80,
-    &Unk_ov9_02251DE0,
-    &Unk_ov9_02251618,
-    &Unk_ov9_02251630,
-    &Unk_ov9_02251B70,
-    &Unk_ov9_02251BB8,
-    &Unk_ov9_02251648,
+static const DistWorldMovingPlatformTemplate *sMovingPlatformsMapTemplatesB2F[] = {
+    &sMovingPlatformMapTemplateB2F_1,
+    &sMovingPlatformMapTemplateB2F_2,
+    &sMovingPlatformMapTemplateB2F_3,
+    &sMovingPlatformMapTemplateB2F_4,
+    &sMovingPlatformMapTemplateB2F_5,
+    &sMovingPlatformMapTemplateB2F_6,
+    &sMovingPlatformMapTemplateB2F_7,
+    &sMovingPlatformMapTemplateB2F_8,
+    &sMovingPlatformMapTemplateB2F_9,
+    &sMovingPlatformMapTemplateB2F_10,
+    &sMovingPlatformMapTemplateB2F_11,
+    &sMovingPlatformMapTemplateB2F_12,
+    &sMovingPlatformMapTemplateB2F_13,
+    &sMovingPlatformMapTemplateB2F_14,
+    &sMovingPlatformMapTemplateB2F_15,
+    &sMovingPlatformMapTemplateB2F_16,
+    &sMovingPlatformMapTemplateB2F_17,
+    &sMovingPlatformMapTemplateB2F_18,
     NULL
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251A50 = {
-    0x0,
-    0x41,
-    0xC1,
-    0x1F,
-    0x5,
-    0x0,
-    0x7,
-    0x4,
-    0x2
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB3F_1 = {
+    .index = 0x0,
+    .tileX = 0x41,
+    .tileY = 0xC1,
+    .tileZ = 0x1F,
+    .elevatorPathIndex = 0x5,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_UP,
+    .destIndex = 0x7,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_SW,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B3F_1
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251A98 = {
-    0x1,
-    0x4F,
-    0xC1,
-    0x3E,
-    0x6,
-    0x1,
-    0x0,
-    0x9,
-    0x6
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB3F_2 = {
+    .index = 0x1,
+    .tileX = 0x4F,
+    .tileY = 0xC1,
+    .tileZ = 0x3E,
+    .elevatorPathIndex = 0x6,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_DOWN,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_4,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B3F_2
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251678 = {
-    0x2,
-    0x5F,
-    0xC1,
-    0x46,
-    0x7,
-    0x1,
-    0x1,
-    0x9,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB3F_3 = {
+    .index = 0x2,
+    .tileX = 0x5F,
+    .tileY = 0xC1,
+    .tileZ = 0x46,
+    .elevatorPathIndex = 0x7,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_DOWN,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_4,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251690 = {
-    0x3,
-    0x60,
-    0xC1,
-    0x2B,
-    0x8,
-    0x1,
-    0x2,
-    0x8,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB3F_4 = {
+    .index = 0x3,
+    .tileX = 0x60,
+    .tileY = 0xC1,
+    .tileZ = 0x2B,
+    .elevatorPathIndex = 0x8,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_DOWN,
+    .destIndex = 0x2,
+    .propKind = PROP_KIND_LARGE_ELEVATOR_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 *Unk_ov9_02253B84[] = {
-    &Unk_ov9_02251A50,
-    &Unk_ov9_02251A98,
-    &Unk_ov9_02251678,
-    &Unk_ov9_02251690,
+static const DistWorldMovingPlatformTemplate *sMovingPlatformsMapTemplatesB3F[] = {
+    &sMovingPlatformMapTemplateB3F_1,
+    &sMovingPlatformMapTemplateB3F_2,
+    &sMovingPlatformMapTemplateB3F_3,
+    &sMovingPlatformMapTemplateB3F_4,
     NULL
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251990 = {
-    0x0,
-    0x4F,
-    0xA1,
-    0x3E,
-    0xA,
-    0x0,
-    0x1,
-    0x9,
-    0x3
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB4F_1 = {
+    .index = 0x0,
+    .tileX = 0x4F,
+    .tileY = 0xA1,
+    .tileZ = 0x3E,
+    .elevatorPathIndex = 0xA,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_UP,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_4,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B4F_1
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_022516D8 = {
-    0x1,
-    0x5F,
-    0xA1,
-    0x46,
-    0xB,
-    0x0,
-    0x2,
-    0x9,
-    0x4
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB4F_2 = {
+    .index = 0x1,
+    .tileX = 0x5F,
+    .tileY = 0xA1,
+    .tileZ = 0x46,
+    .elevatorPathIndex = 0xB,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_UP,
+    .destIndex = 0x2,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_4,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B4F_2
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251708 = {
-    0x2,
-    0x4E,
-    0xA1,
-    0x4D,
-    0xC,
-    0x1,
-    0x0,
-    0x10,
-    0x8
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB4F_3 = {
+    .index = 0x2,
+    .tileX = 0x4E,
+    .tileY = 0xA1,
+    .tileZ = 0x4D,
+    .elevatorPathIndex = 0xC,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_DOWN,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_LARGE_ELEVATOR_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B4F_3
 };
 
-static const UnkStruct_ov9_0224DF10 *Unk_ov9_02253B74[] = {
-    &Unk_ov9_02251990,
-    &Unk_ov9_022516D8,
-    &Unk_ov9_02251708,
+static const DistWorldMovingPlatformTemplate *sMovingPlatformsMapTemplatesB4F[] = {
+    &sMovingPlatformMapTemplateB4F_1,
+    &sMovingPlatformMapTemplateB4F_2,
+    &sMovingPlatformMapTemplateB4F_3,
     NULL
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251870 = {
-    0x0,
-    0x4E,
-    0x81,
-    0x4D,
-    0xD,
-    0x0,
-    0x2,
-    0x10,
-    0x7
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB5F_1 = {
+    .index = 0x0,
+    .tileX = 0x4E,
+    .tileY = 0x81,
+    .tileZ = 0x4D,
+    .elevatorPathIndex = 0xD,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_UP,
+    .destIndex = 0x2,
+    .propKind = PROP_KIND_LARGE_ELEVATOR_PLATFORM_2,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B5F_1
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251750 = {
-    0x1,
-    0x57,
-    0x81,
-    0x43,
-    0xE,
-    0x1,
-    0x0,
-    0x12,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB5F_2 = {
+    .index = 0x1,
+    .tileX = 0x57,
+    .tileY = 0x81,
+    .tileZ = 0x43,
+    .elevatorPathIndex = 0xE,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_DOWN,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_LARGE_ELEVATOR_PLATFORM_4,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251768 = {
-    0x2,
-    0x60,
-    0x81,
-    0x2B,
-    0xF,
-    0x0,
-    0x3,
-    0x8,
-    0x5
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB5F_3 = {
+    .index = 0x2,
+    .tileX = 0x60,
+    .tileY = 0x81,
+    .tileZ = 0x2B,
+    .elevatorPathIndex = 0xF,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_UP,
+    .destIndex = 0x3,
+    .propKind = PROP_KIND_LARGE_ELEVATOR_PLATFORM_1,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B5F_3
 };
 
-static const UnkStruct_ov9_0224DF10 *Unk_ov9_02253B64[] = {
-    &Unk_ov9_02251870,
-    &Unk_ov9_02251750,
-    &Unk_ov9_02251768,
+static const DistWorldMovingPlatformTemplate *sMovingPlatformsMapTemplatesB5F[] = {
+    &sMovingPlatformMapTemplateB5F_1,
+    &sMovingPlatformMapTemplateB5F_2,
+    &sMovingPlatformMapTemplateB5F_3,
     NULL
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_02251828 = {
-    0x0,
-    0x57,
-    0x73,
-    0x43,
-    0x11,
-    0x0,
-    0x1,
-    0x12,
-    0x9
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB6F_1 = {
+    .index = 0x0,
+    .tileX = 0x57,
+    .tileY = 0x73,
+    .tileZ = 0x43,
+    .elevatorPathIndex = 0x11,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_UP,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_LARGE_ELEVATOR_PLATFORM_4,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B6F_1
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_022517C8 = {
-    0x1,
-    0x55,
-    0x73,
-    0x56,
-    0x12,
-    0x1,
-    0x0,
-    0x13,
-    0xB
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB6F_2 = {
+    .index = 0x1,
+    .tileX = 0x55,
+    .tileY = 0x73,
+    .tileZ = 0x56,
+    .elevatorPathIndex = 0x12,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_DOWN,
+    .destIndex = 0x0,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_5,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_INVALID
 };
 
-static const UnkStruct_ov9_0224DF10 *Unk_ov9_02253B28[] = {
-    &Unk_ov9_02251828,
-    &Unk_ov9_022517C8,
+static const DistWorldMovingPlatformTemplate *sMovingPlatformsMapTemplatesB6F[] = {
+    &sMovingPlatformMapTemplateB6F_1,
+    &sMovingPlatformMapTemplateB6F_2,
     NULL
 };
 
-static const UnkStruct_ov9_0224DF10 Unk_ov9_022517F8 = {
-    0x0,
-    0x55,
-    0x41,
-    0x56,
-    0x13,
-    0x0,
-    0x1,
-    0x13,
-    0xA
+static const DistWorldMovingPlatformTemplate sMovingPlatformMapTemplateB7F_1 = {
+    .index = 0x0,
+    .tileX = 0x55,
+    .tileY = 0x41,
+    .tileZ = 0x56,
+    .elevatorPathIndex = 0x13,
+    .elevatorDir = MOVING_PLATFORM_ELEVATOR_DIR_UP,
+    .destIndex = 0x1,
+    .propKind = PROP_KIND_MEDIUM_ELEVATOR_PLATFORM_5,
+    .persistedFlag = DIST_WORLD_PLATFORM_FLAG_B7F_1
 };
 
-static const UnkStruct_ov9_0224DF10 *Unk_ov9_02253B00[] = {
-    &Unk_ov9_022517F8,
+static const DistWorldMovingPlatformTemplate *sMovingPlatformsMapTemplatesB7F[] = {
+    &sMovingPlatformMapTemplateB7F_1,
     NULL
 };
 
-static const UnkStruct_ov9_02252C38 Unk_ov9_02252C38[8] = {
-    { 0x23D, Unk_ov9_02253B10 },
-    { 0x23E, Unk_ov9_02253B4C },
-    { 0x23F, Unk_ov9_02253C2C },
-    { 0x240, Unk_ov9_02253B84 },
-    { 0x241, Unk_ov9_02253B74 },
-    { 0x243, Unk_ov9_02253B64 },
-    { 0x244, Unk_ov9_02253B28 },
-    { 0x245, Unk_ov9_02253B00 }
+static const DistWorldMovingPlatformMapTemplates sMovingPlatformsMapTemplates[MOVING_PLATFORM_MAP_COUNT] = {
+    { MAP_HEADER_DISTORTION_WORLD_1F, sMovingPlatformsMapTemplates1F },
+    { MAP_HEADER_DISTORTION_WORLD_B1F, sMovingPlatformsMapTemplatesB1F },
+    { MAP_HEADER_DISTORTION_WORLD_B2F, sMovingPlatformsMapTemplatesB2F },
+    { MAP_HEADER_DISTORTION_WORLD_B3F, sMovingPlatformsMapTemplatesB3F },
+    { MAP_HEADER_DISTORTION_WORLD_B4F, sMovingPlatformsMapTemplatesB4F },
+    { MAP_HEADER_DISTORTION_WORLD_B5F, sMovingPlatformsMapTemplatesB5F },
+    { MAP_HEADER_DISTORTION_WORLD_B6F, sMovingPlatformsMapTemplatesB6F },
+    { MAP_HEADER_DISTORTION_WORLD_B7F, sMovingPlatformsMapTemplatesB7F }
 };
 
-static const UnkStruct_ov9_02253830 Unk_ov9_02253830[22] = {
+static const DistWorldElevatorPlatformPath sElevatorPlatformPaths[ELEVATOR_PLATFORM_PATH_COUNT] = {
     {
-        0x0,
-        0x16,
-        0x0,
-        -32,
-        0x0,
-        0x0,
-        -16,
-        0x0,
-        { 0x0, (FX32_ONE * -4), 0x0 },
-        0x0,
-        0xB,
+        .index = 0x0,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0x10,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B1F_1,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
     {
-        0x1,
-        0x16,
-        0x0,
-        0x20,
-        0x0,
-        0x0,
-        0x12,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0xB,
-        0x0,
+        .index = 0x1,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B1F_1,
     },
     {
-        0x2,
-        0x16,
-        0x0,
-        -32,
-        0x0,
-        0x0,
-        -28,
-        0x0,
-        { 0x0, (FX32_ONE * -4), 0x0 },
-        0x1,
-        0xB,
+        .index = 0x2,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0x1C,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B2F_1,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
     {
-        0x3,
-        0x16,
-        0x0,
-        0x20,
-        0x0,
-        0x0,
-        0x12,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0xB,
-        0x1,
+        .index = 0x3,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B2F_1,
     },
     {
-        0x4,
-        0x16,
-        0x0,
-        -32,
-        0x0,
-        0x0,
-        -14,
-        0x0,
-        { 0x0, (FX32_ONE * -4), 0x0 },
-        0x2,
-        0xB,
+        .index = 0x4,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0xE,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B3F_1,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
     {
-        0x5,
-        0x16,
-        0x0,
-        0x20,
-        0x0,
-        0x0,
-        0x12,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0xB,
-        0x2,
+        .index = 0x5,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B3F_1,
     },
     {
-        0x6,
-        0x16,
-        0x0,
-        -32,
-        0x0,
-        0x0,
-        -18,
-        0x0,
-        { 0x0, (FX32_ONE * -4), 0x0 },
-        0x3,
-        0x6,
+        .index = 0x6,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B4F_1,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B3F_2,
     },
     {
-        0x7,
-        0x16,
-        0x0,
-        -32,
-        0x0,
-        0x0,
-        -14,
-        0x0,
-        { 0x0, (FX32_ONE * -4), 0x0 },
-        0x4,
-        0xB,
+        .index = 0x7,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0xE,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B4F_2,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
     {
-        0x8,
-        0x9,
-        0x0,
-        -32,
-        0x0,
-        0x0,
-        -18,
-        0x0,
-        { 0x0, (FX32_ONE * -4), 0x0 },
-        0x5,
-        0xB,
+        .index = 0x8,
+        .nextIndex = 0x9,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B5F_3,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
     {
-        0x9,
-        0x16,
-        0x0,
-        -32,
-        0x0,
-        0x0,
-        -14,
-        0x0,
-        { 0x0, (FX32_ONE * -4), 0x0 },
-        0xB,
-        0xB,
+        .index = 0x9,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0xE,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
     {
-        0xA,
-        0x16,
-        0x0,
-        0x20,
-        0x0,
-        0x0,
-        0x12,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0x6,
-        0x3,
+        .index = 0xA,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B3F_2,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B4F_1,
     },
     {
-        0xB,
-        0x16,
-        0x0,
-        0x20,
-        0x0,
-        0x0,
-        0x12,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0xB,
-        0x4,
+        .index = 0xB,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B4F_2,
     },
     {
-        0xC,
-        0x16,
-        0x0,
-        -32,
-        0x0,
-        0x0,
-        -14,
-        0x0,
-        { 0x0, (FX32_ONE * -4), 0x0 },
-        0x7,
-        0x8,
+        .index = 0xC,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0xE,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B5F_1,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B4F_3,
     },
     {
-        0xD,
-        0x16,
-        0x0,
-        0x20,
-        0x0,
-        0x0,
-        0x12,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0x8,
-        0x7,
+        .index = 0xD,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B4F_3,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B5F_1,
     },
     {
-        0xE,
-        0x16,
-        0x0,
-        -14,
-        0x0,
-        0x0,
-        -12,
-        0x0,
-        { 0x0, (FX32_ONE * -4), 0x0 },
-        0x9,
-        0xB,
+        .index = 0xE,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0xE,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0xC,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B6F_1,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
     {
-        0xF,
-        0x10,
-        0x0,
-        0x20,
-        0x0,
-        0x0,
-        0x12,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0xB,
-        0x5,
+        .index = 0xF,
+        .nextIndex = 0x10,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B5F_3,
     },
     {
-        0x10,
-        0x16,
-        0x0,
-        0x20,
-        0x0,
-        0x0,
-        0xA,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0xB,
-        0xB,
+        .index = 0x10,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0xA,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
     {
-        0x11,
-        0x16,
-        0x0,
-        0xE,
-        0x0,
-        0x0,
-        0x1,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0xB,
-        0x9,
+        .index = 0x11,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0xE,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0x1,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B6F_1,
     },
     {
-        0x12,
-        0x16,
-        0x0,
-        -50,
-        0x0,
-        0x0,
-        -17,
-        0x0,
-        { 0x0, (FX32_ONE * -4), 0x0 },
-        0xA,
-        0xB,
+        .index = 0x12,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0x32,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0x11,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_B7F_1,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
     {
-        0x13,
-        0x16,
-        0x0,
-        0x32,
-        0x0,
-        0x0,
-        0x12,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0xB,
-        0xA,
+        .index = 0x13,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0x32,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_B7F_1,
     },
     {
-        0x14,
-        0x16,
-        0x0,
-        0x20,
-        0x0,
-        0x0,
-        0x12,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0xB,
-        0xB,
+        .index = 0x14,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = 0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = 0x12,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
     {
-        0x15,
-        0x16,
-        0x0,
-        -32,
-        0x0,
-        0x0,
-        -14,
-        0x0,
-        { 0x0, (FX32_ONE * 4), 0x0 },
-        0xB,
-        0xB,
-    },
-};
-
-static const UnkFuncPtr_ov9_02253BE4 *Unk_ov9_02253BE4[18] = {
-    Unk_ov9_02251360,
-    Unk_ov9_022513E8,
-    Unk_ov9_02251258,
-    Unk_ov9_0225126C,
-    Unk_ov9_0225151C,
-    Unk_ov9_022512C0,
-    Unk_ov9_02251238,
-    Unk_ov9_02251328,
-    Unk_ov9_0225121C,
-    Unk_ov9_02251270,
-    Unk_ov9_02251544,
-    Unk_ov9_02251490,
-    Unk_ov9_02251CC0,
-    Unk_ov9_02251408,
-    Unk_ov9_02251448,
-    Unk_ov9_02251340,
-    Unk_ov9_0225139C,
-    Unk_ov9_02251254
-};
-
-static const UnkStruct_ov9_022506AC Unk_ov9_02251220 = {
-    0x4
-};
-
-static const UnkStruct_ov9_022506D0 Unk_ov9_0225123C = {
-    0x2
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02251858[] = {
-    { 0x5, &Unk_ov9_02251220 },
-    { 0x6, &Unk_ov9_0225123C },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02252044 Unk_ov9_02252044[] = {
-    { 0x28, 0x121, 0x34, 0x3, 0x1, Unk_ov9_02251858 },
-    { 0x0, 0x0, 0x0, 0x0, NULL }
-};
-
-static const UnkStruct_ov9_022506AC Unk_ov9_02251214 = {
-    0x3
-};
-
-static const UnkStruct_ov9_022506D0 Unk_ov9_0225124C = {
-    0x4
-};
-
-static const UnkStruct_ov9_0224E860 Unk_ov9_02251248 = {
-    0x23F,
-    0x80
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252064[] = {
-    { 0x5, &Unk_ov9_02251214 },
-    { 0x6, &Unk_ov9_0225124C },
-    { 0x2, &Unk_ov9_02251248 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02252044 Unk_ov9_02252084[] = {
-    { 0xF, 0x101, 0x3A, 0x3, 0x3, Unk_ov9_02252064 },
-    { 0x0, 0x0, 0x0, 0x0, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022518B8 = {
-    0x1,
-    0x1,
-    0x1,
-    0x0,
-    0x0,
-    -8,
-    { 0x0, 0x0, (FX32_ONE * -4) }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251308 = {
-    0xff,
-    0x75
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022518E8 = {
-    0x1,
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    0x8,
-    { 0x0, 0x0, (FX32_ONE * 4) }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022520A4[] = {
-    { 0x1, &Unk_ov9_022518B8 },
-    { 0x0, &Unk_ov9_02251308 },
-    { 0x1, &Unk_ov9_022518E8 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251900 = {
-    0x1,
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    -8,
-    { 0x0, 0x0, (FX32_ONE * -4) }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_022512B0 = {
-    0xff,
-    0x76
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251918 = {
-    0x1,
-    0x1,
-    0x1,
-    0x0,
-    0x0,
-    0x8,
-    { 0x0, 0x0, (FX32_ONE * 4) }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022520C4[] = {
-    { 0x1, &Unk_ov9_02251900 },
-    { 0x0, &Unk_ov9_022512B0 },
-    { 0x1, &Unk_ov9_02251918 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251930 = {
-    0x2,
-    0x1,
-    0x1,
-    0x0,
-    0x0,
-    -8,
-    { 0x0, 0x0, (FX32_ONE * -4) }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251338 = {
-    0xff,
-    0x75
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251948 = {
-    0x2,
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    0x8,
-    { 0x0, 0x0, (FX32_ONE * 4) }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022520E4[] = {
-    { 0x1, &Unk_ov9_02251930 },
-    { 0x0, &Unk_ov9_02251338 },
-    { 0x1, &Unk_ov9_02251948 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251D20 = {
-    0x2,
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    -8,
-    { 0x0, 0x0, (FX32_ONE * -4) }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_022512F8 = {
-    0xff,
-    0x76
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022519A8 = {
-    0x2,
-    0x1,
-    0x1,
-    0x0,
-    0x0,
-    0x8,
-    { 0x0, 0x0, (FX32_ONE * 4) }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252104[] = {
-    { 0x1, &Unk_ov9_02251D20 },
-    { 0x0, &Unk_ov9_022512F8 },
-    { 0x1, &Unk_ov9_022519A8 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022519C0 = {
-    0x3,
-    0x1,
-    0x1,
-    0x9,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251280 = {
-    0xff,
-    0x78
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022519D8 = {
-    0x3,
-    0x0,
-    0x0,
-    -9,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252124[] = {
-    { 0x1, &Unk_ov9_022519C0 },
-    { 0x0, &Unk_ov9_02251280 },
-    { 0x1, &Unk_ov9_022519D8 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251A08 = {
-    0x3,
-    0x0,
-    0x0,
-    0x9,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251320 = {
-    0xff,
-    0x77
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251A20 = {
-    0x3,
-    0x1,
-    0x1,
-    -9,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252144[] = {
-    { 0x1, &Unk_ov9_02251A08 },
-    { 0x0, &Unk_ov9_02251320 },
-    { 0x1, &Unk_ov9_02251A20 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251A38 = {
-    0x5,
-    0x1,
-    0x1,
-    0x0,
-    0x0,
-    0x25,
-    { 0x0, 0x0, (FX32_ONE * 4) }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_022512C8 = {
-    0xff,
-    0x76
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251A68 = {
-    0x5,
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    -37,
-    { 0x0, 0x0, (FX32_ONE * -4) }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252164[] = {
-    { 0x1, &Unk_ov9_02251A38 },
-    { 0x0, &Unk_ov9_022512C8 },
-    { 0x1, &Unk_ov9_02251A68 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251A80 = {
-    0x5,
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    0x25,
-    { 0x0, 0x0, (FX32_ONE * 4) }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_022512D8 = {
-    0xff,
-    0x75
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251AB0 = {
-    0x5,
-    0x1,
-    0x1,
-    0x0,
-    0x0,
-    -37,
-    { 0x0, 0x0, (FX32_ONE * -4) }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252184[] = {
-    { 0x1, &Unk_ov9_02251A80 },
-    { 0x0, &Unk_ov9_022512D8 },
-    { 0x1, &Unk_ov9_02251AB0 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251AC8 = {
-    0x6,
-    0x1,
-    0x1,
-    0x9,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_022512F0 = {
-    0xff,
-    0x78
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251AE0 = {
-    0x6,
-    0x0,
-    0x0,
-    -9,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022521A4[] = {
-    { 0x1, &Unk_ov9_02251AC8 },
-    { 0x0, &Unk_ov9_022512F0 },
-    { 0x1, &Unk_ov9_02251AE0 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251AF8 = {
-    0x6,
-    0x0,
-    0x0,
-    0x9,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251348 = {
-    0xff,
-    0x77
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251B28 = {
-    0x6,
-    0x1,
-    0x1,
-    -9,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022521C4[] = {
-    { 0x1, &Unk_ov9_02251AF8 },
-    { 0x0, &Unk_ov9_02251348 },
-    { 0x1, &Unk_ov9_02251B28 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251B58 = {
-    0x9,
-    0x1,
-    0x2,
-    0x9,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251318 = {
-    0xff,
-    0x78
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251B88 = {
-    0x9,
-    0x0,
-    0x2,
-    -9,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252204[] = {
-    { 0x1, &Unk_ov9_02251B58 },
-    { 0x0, &Unk_ov9_02251318 },
-    { 0x1, &Unk_ov9_02251B88 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251D38 = {
-    0x9,
-    0x0,
-    0x2,
-    0x9,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_022512B8 = {
-    0xff,
-    0x77
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251BD0 = {
-    0x9,
-    0x1,
-    0x2,
-    -9,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252364[] = {
-    { 0x1, &Unk_ov9_02251D38 },
-    { 0x0, &Unk_ov9_022512B8 },
-    { 0x1, &Unk_ov9_02251BD0 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251BE8 = {
-    0xA,
-    0x1,
-    0x2,
-    0x9,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251300 = {
-    0xff,
-    0x78
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251C30 = {
-    0xA,
-    0x0,
-    0x2,
-    -9,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252244[] = {
-    { 0x1, &Unk_ov9_02251BE8 },
-    { 0x0, &Unk_ov9_02251300 },
-    { 0x1, &Unk_ov9_02251C30 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251C60 = {
-    0xA,
-    0x0,
-    0x2,
-    0x9,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_022512E0 = {
-    0xff,
-    0x77
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251C78 = {
-    0xA,
-    0x1,
-    0x2,
-    -9,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252264[] = {
-    { 0x1, &Unk_ov9_02251C60 },
-    { 0x0, &Unk_ov9_022512E0 },
-    { 0x1, &Unk_ov9_02251C78 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251C18 = {
-    0xB,
-    0x1,
-    0x2,
-    0x0,
-    0x0,
-    0x17,
-    { 0x0, 0x0, (FX32_ONE * 4) }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251310 = {
-    0xff,
-    0x76
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251D08 = {
-    0xB,
-    0x0,
-    0x2,
-    0x0,
-    0x0,
-    -23,
-    { 0x0, 0x0, (FX32_ONE * -4) }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022522E4[] = {
-    { 0x1, &Unk_ov9_02251C18 },
-    { 0x0, &Unk_ov9_02251310 },
-    { 0x1, &Unk_ov9_02251D08 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251D50 = {
-    0xB,
-    0x0,
-    0x2,
-    0x0,
-    0x0,
-    0x17,
-    { 0x0, 0x0, (FX32_ONE * 4) }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_022512D0 = {
-    0xff,
-    0x75
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251D98 = {
-    0xB,
-    0x1,
-    0x2,
-    0x0,
-    0x0,
-    -23,
-    { 0x0, 0x0, (FX32_ONE * -4) }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252304[] = {
-    { 0x1, &Unk_ov9_02251D50 },
-    { 0x0, &Unk_ov9_022512D0 },
-    { 0x1, &Unk_ov9_02251D98 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022518A0 = {
-    0xC,
-    0x1,
-    0x2,
-    -9,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251288 = {
-    0xff,
-    0x77
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251DF8 = {
-    0xC,
-    0x0,
-    0x2,
-    0x9,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252324[] = {
-    { 0x1, &Unk_ov9_022518A0 },
-    { 0x0, &Unk_ov9_02251288 },
-    { 0x1, &Unk_ov9_02251DF8 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251E28 = {
-    0xC,
-    0x0,
-    0x2,
-    -9,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251290 = {
-    0xff,
-    0x78
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022517E0 = {
-    0xC,
-    0x1,
-    0x2,
-    0x9,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02251EE4[] = {
-    { 0x1, &Unk_ov9_02251E28 },
-    { 0x0, &Unk_ov9_02251290 },
-    { 0x1, &Unk_ov9_022517E0 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022517B0 = {
-    0xD,
-    0x1,
-    0x2,
-    -17,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251358 = {
-    0xff,
-    0x77
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251780 = {
-    0xD,
-    0x0,
-    0x2,
-    0x11,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02251F04[] = {
-    { 0x1, &Unk_ov9_022517B0 },
-    { 0x0, &Unk_ov9_02251358 },
-    { 0x1, &Unk_ov9_02251780 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022515B8 = {
-    0xD,
-    0x0,
-    0x2,
-    -17,
-    0x0,
-    0x0,
-    { (FX32_ONE * -4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251298 = {
-    0xff,
-    0x78
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251720 = {
-    0xD,
-    0x1,
-    0x2,
-    0x11,
-    0x0,
-    0x0,
-    { (FX32_ONE * 4), 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02251F64[] = {
-    { 0x1, &Unk_ov9_022515B8 },
-    { 0x0, &Unk_ov9_02251298 },
-    { 0x1, &Unk_ov9_02251720 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022516F0 = {
-    0x11,
-    0x1,
-    0x1,
-    0x0,
-    -8,
-    0x0,
-    { 0x0, (FX32_ONE * -2), 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251330 = {
-    0xff,
-    0x75
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022516C0 = {
-    0x11,
-    0x0,
-    0x1,
-    0x0,
-    0x8,
-    0x0,
-    { 0x0, (FX32_ONE * 2), 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02251FC4[] = {
-    { 0x1, &Unk_ov9_022516F0 },
-    { 0x0, &Unk_ov9_02251330 },
-    { 0x1, &Unk_ov9_022516C0 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251660 = {
-    0x11,
-    0x0,
-    0x1,
-    0x0,
-    -8,
-    0x0,
-    { 0x0, (FX32_ONE * -2), 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_022512E8 = {
-    0xff,
-    0x76
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_022516A8 = {
-    0x11,
-    0x1,
-    0x1,
-    0x0,
-    0x8,
-    0x0,
-    { 0x0, (FX32_ONE * 2), 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02251FE4[] = {
-    { 0x1, &Unk_ov9_02251660 },
-    { 0x0, &Unk_ov9_022512E8 },
-    { 0x1, &Unk_ov9_022516A8 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251738 = {
-    0x10,
-    0x1,
-    0x1,
-    0x0,
-    -8,
-    0x0,
-    { 0x0, (FX32_ONE * -2), 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_022512A8 = {
-    0xff,
-    0x78
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251798 = {
-    0x10,
-    0x0,
-    0x1,
-    0x0,
-    0x8,
-    0x0,
-    { 0x0, (FX32_ONE * 2), 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252004[] = {
-    { 0x1, &Unk_ov9_02251738 },
-    { 0x0, &Unk_ov9_022512A8 },
-    { 0x1, &Unk_ov9_02251798 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251810 = {
-    0x10,
-    0x0,
-    0x1,
-    0x0,
-    -8,
-    0x0,
-    { 0x0, (FX32_ONE * -2), 0x0 }
-};
-
-static const UnkStruct_ov9_0224E4E8 Unk_ov9_02251278 = {
-    0xff,
-    0x77
-};
-
-static const UnkStruct_ov9_0224E550 Unk_ov9_02251840 = {
-    0x10,
-    0x1,
-    0x1,
-    0x0,
-    0x8,
-    0x0,
-    { 0x0, (FX32_ONE * 2), 0x0 }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252024[] = {
-    { 0x1, &Unk_ov9_02251810 },
-    { 0x0, &Unk_ov9_02251278 },
-    { 0x1, &Unk_ov9_02251840 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02252044 Unk_ov9_022534F0[] = {
-    { 0x21, 0xE1, 0x24, 0x0, 0x0, Unk_ov9_022520A4 },
-    { 0x21, 0xE1, 0x19, 0x0, 0x0, Unk_ov9_022520C4 },
-    { 0x21, 0xE1, 0x15, 0x0, 0x0, Unk_ov9_022520E4 },
-    { 0x21, 0xE1, 0xA, 0x0, 0x0, Unk_ov9_02252104 },
-    { 0x23, 0xE1, 0x8, 0x0, 0x0, Unk_ov9_02252124 },
-    { 0x2F, 0xE1, 0x8, 0x0, 0x0, Unk_ov9_02252144 },
-    { 0x38, 0xE1, 0xA, 0x0, 0x0, Unk_ov9_02252164 },
-    { 0x38, 0xE1, 0x32, 0x0, 0x0, Unk_ov9_02252184 },
-    { 0x33, 0xE1, 0x1F, 0x0, 0x0, Unk_ov9_022521A4 },
-    { 0x3F, 0xE1, 0x1F, 0x0, 0x0, Unk_ov9_022521C4 },
-    { 0x23, 0xE9, 0xF, 0x0, 0x0, Unk_ov9_02252204 },
-    { 0x2F, 0xE9, 0xF, 0x0, 0x0, Unk_ov9_02252364 },
-    { 0x33, 0xE9, 0xF, 0x0, 0x0, Unk_ov9_02252244 },
-    { 0x3F, 0xE9, 0xF, 0x0, 0x0, Unk_ov9_02252264 },
-    { 0x41, 0xE9, 0x11, 0x0, 0x0, Unk_ov9_022522E4 },
-    { 0x41, 0xE9, 0x2B, 0x0, 0x0, Unk_ov9_02252304 },
-    { 0x3F, 0xE9, 0x2D, 0x0, 0x0, Unk_ov9_02252324 },
-    { 0x33, 0xE9, 0x2D, 0x0, 0x0, Unk_ov9_02251EE4 },
-    { 0x3F, 0xE9, 0x34, 0x0, 0x0, Unk_ov9_02251F04 },
-    { 0x2B, 0xE9, 0x34, 0x0, 0x0, Unk_ov9_02251F64 },
-    { 0x31, 0xE9, 0x24, 0x0, 0x0, Unk_ov9_02251FC4 },
-    { 0x31, 0xE1, 0x21, 0x0, 0x0, Unk_ov9_02251FE4 },
-    { 0x1C, 0xE9, 0x26, 0x0, 0x0, Unk_ov9_02252004 },
-    { 0x1F, 0xE1, 0x26, 0x0, 0x0, Unk_ov9_02252024 },
-    { 0x0, 0x0, 0x0, 0x0, NULL }
-};
-
-static const UnkStruct_ov9_022506AC Unk_ov9_02251250 = {
-    0x2
-};
-
-static const UnkStruct_ov9_022506D0 Unk_ov9_02251244 = {
-    0x6
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022518D0[] = {
-    { 0x5, &Unk_ov9_02251250 },
-    { 0x6, &Unk_ov9_02251244 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02252044 Unk_ov9_02252BD8[] = {
-    { 0x41, 0xC1, 0x29, 0x3, 0x4, Unk_ov9_022518D0 },
-    { 0x41, 0xC1, 0x29, 0x3, 0x5, Unk_ov9_022518D0 },
-    { 0x0, 0x0, 0x0, 0x0, NULL }
-};
-
-static const UnkStruct_ov9_02252384 Unk_ov9_02252384 = {
-    {
-        0x1,
-        0x1,
-        0x0,
-        -42,
-        0x0,
-        0x0,
-        -664,
-        0x0,
-        0x0,
-        -21,
-        0x0,
-        { 0x0, (FX32_ONE * -1), 0x0 },
+        .index = 0x15,
+        .nextIndex = ELEVATOR_PLATFORM_PATH_INVALID,
+        .finalTileXOffset = 0x0,
+        .finalTileYOffset = -0x20,
+        .finalTileZOffset = 0x0,
+        .changeMapsTileXOffset = 0x0,
+        .changeMapsTileYOffset = -0xE,
+        .changeMapsTileZOffset = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 4, 0x0 },
+        .persistedFlagToSet = DIST_WORLD_PLATFORM_FLAG_INVALID,
+        .persistedFlagToClear = DIST_WORLD_PLATFORM_FLAG_INVALID,
     },
 };
 
-static const UnkStruct_ov9_02251438 Unk_ov9_02251438[] = {
-    { 0xA, &Unk_ov9_02252384 },
-    { 0x12, NULL },
+static const DistWorldEventCmdHandler *sEventCmdHandlers[EVENT_CMD_KIND_COUNT] = {
+    [EVENT_CMD_SET_MAP_OBJECT_ANIMATION] = sSetMapObjectAnimationHandlers,
+    [EVENT_CMD_MOVE_PLATFORM] = sMovePlatformHandlers,
+    [EVENT_CMD_ADD_MAP_OBJECT_WITH_LOCAL_ID] = sAddMapObjWithLocalIDHandlers,
+    [EVENT_CMD_DELETE_MAP_OBJECT_WITH_LOCAL_ID] = sDeleteMapObjWithLocalIDHandlers,
+    [EVENT_CMD_CASCADE_UP] = sCascadeUpHandlers,
+    [EVENT_CMD_START_SCRIPT] = sStartScriptHandlers,
+    [EVENT_CMD_SET_DISTORTION_WORLD_PROGRESS] = sSetDistortionWorldProgressHandlers,
+    [EVENT_CMD_SHOW_GIRATINA_SHADOW] = sEventCmdShowGiratinaShadow,
+    [EVENT_CMD_SET_GIRATINA_ANIMATION_FLAG] = sSetGiratinaAnimationFlagHandlers,
+    [EVENT_CMD_SET_PUZZLE_FLAG] = sSetPuzzleFlagHandlers,
+    [EVENT_CMD_CASCADE_DOWN] = sCascadeDownHandlers,
+    [EVENT_CMD_PLAY_GIRATINA_ARRIVAL] = sPlayGiratinaArrivalHandlers,
+    [EVENT_CMD_SHOW_UXIE_BOULDER_TUTO] = sShowUxieBoulderTutoHandlers,
+    [EVENT_CMD_SHOW_AZELF_BOULDER_TUTO] = sShowAzelfBoulderTutoHandlers,
+    [EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO] = sShowMespritBoulderTutoHandlers,
+    [EVENT_CMD_SHOW_GIRATINA_ROOM_PLATFORMS] = sShowGiratinaRoomPlatformsHandlers,
+    [EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS] = sHideGiratinaRoomPlatformsHandlers,
+    [EVENT_CMD_CLEAR_PUZZLE_FLAG] = sClearPuzzleFlagHandlers
 };
 
-static const UnkStruct_ov9_02252414 Unk_ov9_022523A8 = {
-    0x3F,
-    0xA9,
-    0x9,
-    0x1,
-    0x1,
-    { FX32_ONE, FX32_ONE, FX32_ONE },
-    { 0x0, 0x0, (FX32_ONE * 48) },
-    0x40,
+static const CmdParamsStartScript sMapEventCmdParams1F_CynthiaElevatorText_1 = {
+    .scriptID = 0x4
 };
 
-static const UnkStruct_ov9_022506EC Unk_ov9_02251274 = {
-    0x0
+static const CmdParamsSetDistortionWorldProgress sMapEventCmdParams1F_CynthiaElevatorText_2 = {
+    .progress = DIST_WORLD_PROGRESS_JUMPED_ON_1F_ELEVATOR
 };
 
-static const UnkStruct_ov9_02251438 Unk_ov9_02251960[] = {
-    { 0x7, &Unk_ov9_022523A8 },
-    { 0x8, &Unk_ov9_02251274 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02252414 Unk_ov9_022523CC = {
-    0x2A,
-    0x89,
-    0x20,
-    0x3,
-    0x1,
-    { FX32_ONE, FX32_ONE, FX32_ONE },
-    { (FX32_ONE * 48), 0x0, 0x0 },
-    0x48
-};
-
-static const UnkStruct_ov9_022506EC Unk_ov9_02251228 = {
-    0x1
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022519F0[] = {
-    { 0x7, &Unk_ov9_022523CC },
-    { 0x8, &Unk_ov9_02251228 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02252044 Unk_ov9_02252C78[] = {
-    { 0x41, 0xA1, 0x39, 0x7, 0x0, Unk_ov9_02251960 },
-    { 0x62, 0xA1, 0x38, 0x7, 0x1, Unk_ov9_022519F0 },
-    { 0x62, 0xA1, 0x39, 0x7, 0x1, Unk_ov9_022519F0 },
-    { 0x0, 0x0, 0x0, 0x0, NULL }
-};
-
-static const UnkStruct_ov9_022523F0 Unk_ov9_022523F0 = {
+static const DistWorldEventCmd sMapEvent1F_CynthiaElevatorText[] = {
     {
-        0x1,
-        0x0,
-        0x0,
-        0x2A,
-        0x0,
-        0x0,
-        0x298,
-        0x0,
-        0x0,
-        0x14,
-        0x0,
-        { 0x0, (FX32_ONE * 8), 0x0 },
+        .kind = EVENT_CMD_START_SCRIPT,
+        .params = &sMapEventCmdParams1F_CynthiaElevatorText_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_DISTORTION_WORLD_PROGRESS,
+        .params = &sMapEventCmdParams1F_CynthiaElevatorText_2,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldEvent sMapEvents1F[] = {
+    {
+        .tileX = 0x28,
+        .tileY = 0x121,
+        .tileZ = 0x34,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_ENTERED_1F,
+        .cmds = sMapEvent1F_CynthiaElevatorText,
+    },
+    { 0x0, 0x0, 0x0, FLAG_COND_NONE, 0x0, NULL }
+};
+
+static const CmdParamsStartScript sMapEventCmdParamsB1F_Mesprit_1 = {
+    .scriptID = 0x3
+};
+
+static const CmdParamsSetDistortionWorldProgress sMapEventCmdParamsB1F_Mesprit_2 = {
+    .progress = DIST_WORLD_PROGRESS_SAW_B1F_MESPRIT
+};
+
+static const CmdParamsAddMapObjWithLocalID sMapEventCmdParamsB1F_Mesprit_3 = {
+    .mapHeaderID = MAP_HEADER_DISTORTION_WORLD_B2F,
+    .mapObjLocalID = DIST_WORLD_MAP_OBJECT_B2F_CYNTHIA
+};
+
+static const DistWorldEventCmd sMapEventB1F_Mesprit[] = {
+    {
+        .kind = EVENT_CMD_START_SCRIPT,
+        .params = &sMapEventCmdParamsB1F_Mesprit_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_DISTORTION_WORLD_PROGRESS,
+        .params = &sMapEventCmdParamsB1F_Mesprit_2,
+    },
+    {
+        .kind = EVENT_CMD_ADD_MAP_OBJECT_WITH_LOCAL_ID,
+        .params = &sMapEventCmdParamsB1F_Mesprit_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldEvent sMapEventsB1F[] = {
+    {
+        .tileX = 0xF,
+        .tileY = 0x101,
+        .tileZ = 0x3A,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_ENTERED_B1F,
+        .cmds = sMapEventB1F_Mesprit,
+    },
+    { 0x0, 0x0, 0x0, FLAG_COND_NONE, 0x0, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P2N_1 = {
+    .platformIndex = 0x1,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = -0x8,
+    .posDelta = { 0x0, 0x0, FX32_ONE * -4 },
+    .dummy04 = 0x1,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P2N_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_NORTH
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P2N_3 = {
+    .platformIndex = 0x1,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x8,
+    .posDelta = { 0x0, 0x0, FX32_ONE * 4 },
+    .dummy04 = 0x0,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P2N[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P2N_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P2N_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P2N_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P3S_1 = {
+    .platformIndex = 0x1,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = -0x8,
+    .posDelta = { 0x0, 0x0, FX32_ONE * -4 },
+    .dummy04 = 0x0,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P3S_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_SOUTH
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P3S_3 = {
+    .platformIndex = 0x1,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x8,
+    .posDelta = { 0x0, 0x0, FX32_ONE * 4 },
+    .dummy04 = 0x1,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P3S[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P3S_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P3S_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P3S_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P3N_1 = {
+    .platformIndex = 0x2,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = -0x8,
+    .posDelta = { 0x0, 0x0, FX32_ONE * -4 },
+    .dummy04 = 0x1,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P3N_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_NORTH
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P3N_3 = {
+    .platformIndex = 0x2,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x8,
+    .posDelta = { 0x0, 0x0, FX32_ONE * 4 },
+    .dummy04 = 0x0,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P3N[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P3N_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P3N_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P3N_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P4S_1 = {
+    .platformIndex = 0x2,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = -0x8,
+    .posDelta = { 0x0, 0x0, FX32_ONE * -4 },
+    .dummy04 = 0x0,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P4S_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_SOUTH
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P4S_3 = {
+    .platformIndex = 0x2,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x8,
+    .posDelta = { 0x0, 0x0, FX32_ONE * 4 },
+    .dummy04 = 0x1,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P4S[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P4S_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P4S_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P4S_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P4E_1 = {
+    .platformIndex = 0x3,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P4E_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_EAST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P4E_3 = {
+    .platformIndex = 0x3,
+    .movePlayer = FALSE,
+    .finalTileXOffset = -0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x0,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P4E[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P4E_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P4E_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P4E_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P5W_1 = {
+    .platformIndex = 0x3,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x0,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P5W_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_WEST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P5W_3 = {
+    .platformIndex = 0x3,
+    .movePlayer = TRUE,
+    .finalTileXOffset = -0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P5W[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P5W_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P5W_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P5W_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P6S_1 = {
+    .platformIndex = 0x5,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x25,
+    .posDelta = { 0x0, 0x0, FX32_ONE * 4 },
+    .dummy04 = 0x1,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P6S_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_SOUTH
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P6S_3 = {
+    .platformIndex = 0x5,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = -0x25,
+    .posDelta = { 0x0, 0x0, FX32_ONE * -4 },
+    .dummy04 = 0x0,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P6S[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P6S_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P6S_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P6S_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P9N_1 = {
+    .platformIndex = 0x5,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x25,
+    .posDelta = { 0x0, 0x0, FX32_ONE * 4 },
+    .dummy04 = 0x0,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P9N_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_NORTH
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P9N_3 = {
+    .platformIndex = 0x5,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = -0x25,
+    .posDelta = { 0x0, 0x0, FX32_ONE * -4 },
+    .dummy04 = 0x1,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P9N[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P9N_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P9N_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P9N_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P7E_1 = {
+    .platformIndex = 0x6,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P7E_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_EAST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P7E_3 = {
+    .platformIndex = 0x6,
+    .movePlayer = FALSE,
+    .finalTileXOffset = -0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x0,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P7E[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P7E_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P7E_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P7E_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P8W_1 = {
+    .platformIndex = 0x6,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x0,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P8W_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_WEST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P8W_3 = {
+    .platformIndex = 0x6,
+    .movePlayer = TRUE,
+    .finalTileXOffset = -0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P8W[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P8W_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P8W_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P8W_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P10E_1 = {
+    .platformIndex = 0x9,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P10E_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_EAST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P10E_3 = {
+    .platformIndex = 0x9,
+    .movePlayer = FALSE,
+    .finalTileXOffset = -0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P10E[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P10E_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P10E_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P10E_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P11W_1 = {
+    .platformIndex = 0x9,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P11W_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_WEST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P11W_3 = {
+    .platformIndex = 0x9,
+    .movePlayer = TRUE,
+    .finalTileXOffset = -0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P11W[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P11W_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P11W_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P11W_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P11E_1 = {
+    .platformIndex = 0xA,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P11E_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_EAST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P11E_3 = {
+    .platformIndex = 0xA,
+    .movePlayer = FALSE,
+    .finalTileXOffset = -0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P11E[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P11E_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P11E_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P11E_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P12W_1 = {
+    .platformIndex = 0xA,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P12W_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_WEST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P12W_3 = {
+    .platformIndex = 0xA,
+    .movePlayer = TRUE,
+    .finalTileXOffset = -0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P12W[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P12W_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P12W_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P12W_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P12S_1 = {
+    .platformIndex = 0xB,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x17,
+    .posDelta = { 0x0, 0x0, FX32_ONE * 4 },
+    .dummy04 = 0x2,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P12S_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_SOUTH
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P12S_3 = {
+    .platformIndex = 0xB,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = -0x17,
+    .posDelta = { 0x0, 0x0, FX32_ONE * -4 },
+    .dummy04 = 0x2,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P12S[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P12S_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P12S_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P12S_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P13N_1 = {
+    .platformIndex = 0xB,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x17,
+    .posDelta = { 0x0, 0x0, FX32_ONE * 4 },
+    .dummy04 = 0x2,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P13N_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_NORTH
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P13N_3 = {
+    .platformIndex = 0xB,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = -0x17,
+    .posDelta = { 0x0, 0x0, FX32_ONE * -4 },
+    .dummy04 = 0x2,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P13N[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P13N_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P13N_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P13N_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P13W_1 = {
+    .platformIndex = 0xC,
+    .movePlayer = TRUE,
+    .finalTileXOffset = -0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P13W_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_WEST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P13W_3 = {
+    .platformIndex = 0xC,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P13W[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P13W_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P13W_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P13W_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P16E_1 = {
+    .platformIndex = 0xC,
+    .movePlayer = FALSE,
+    .finalTileXOffset = -0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P16E_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_EAST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P16E_3 = {
+    .platformIndex = 0xC,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x9,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P16E[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P16E_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P16E_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P16E_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P14W_1 = {
+    .platformIndex = 0xD,
+    .movePlayer = TRUE,
+    .finalTileXOffset = -0x11,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P14W_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_WEST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P14W_3 = {
+    .platformIndex = 0xD,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x11,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P14W[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P14W_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P14W_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P14W_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P15E_1 = {
+    .platformIndex = 0xD,
+    .movePlayer = FALSE,
+    .finalTileXOffset = -0x11,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * -4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P15E_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_EAST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P15E_3 = {
+    .platformIndex = 0xD,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x11,
+    .finalTileYOffset = 0x0,
+    .finalTileZOffset = 0x0,
+    .posDelta = { FX32_ONE * 4, 0x0, 0x0 },
+    .dummy04 = 0x2,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P15E[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P15E_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P15E_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P15E_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P18N_1 = {
+    .platformIndex = 0x11,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = -0x8,
+    .finalTileZOffset = 0x0,
+    .posDelta = { 0x0, FX32_ONE * -2, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P18N_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_NORTH
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P18N_3 = {
+    .platformIndex = 0x11,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x8,
+    .finalTileZOffset = 0x0,
+    .posDelta = { 0x0, FX32_ONE * 2, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P18N[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P18N_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P18N_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P18N_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P7S_1 = {
+    .platformIndex = 0x11,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = -0x8,
+    .finalTileZOffset = 0x0,
+    .posDelta = { 0x0, FX32_ONE * -2, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P7S_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_SOUTH
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P7S_3 = {
+    .platformIndex = 0x11,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x8,
+    .finalTileZOffset = 0x0,
+    .posDelta = { 0x0, FX32_ONE * 2, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P7S[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P7S_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P7S_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P7S_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P17E_1 = {
+    .platformIndex = 0x10,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = -0x8,
+    .finalTileZOffset = 0x0,
+    .posDelta = { 0x0, FX32_ONE * -2, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P17E_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_EAST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P17E_3 = {
+    .platformIndex = 0x10,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x8,
+    .finalTileZOffset = 0x0,
+    .posDelta = { 0x0, FX32_ONE * 2, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P17E[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P17E_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P17E_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P17E_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P2W_1 = {
+    .platformIndex = 0x10,
+    .movePlayer = FALSE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = -0x8,
+    .finalTileZOffset = 0x0,
+    .posDelta = { 0x0, FX32_ONE * -2, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const CmdParamsSetMapObjectAnimation sMapEventCmdParamsB2F_P2W_2 = {
+    .mapObjLocalID = LOCALID_PLAYER,
+    .movementAction = MOVEMENT_ACTION_JUMP_DISTORTION_WORLD_WEST
+};
+
+static const CmdParamsMovePlatform sMapEventCmdParamsB2F_P2W_3 = {
+    .platformIndex = 0x10,
+    .movePlayer = TRUE,
+    .finalTileXOffset = 0x0,
+    .finalTileYOffset = 0x8,
+    .finalTileZOffset = 0x0,
+    .posDelta = { 0x0, FX32_ONE * 2, 0x0 },
+    .dummy04 = 0x1,
+};
+
+static const DistWorldEventCmd sMapEventB2F_P2W[] = {
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P2W_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_MAP_OBJECT_ANIMATION,
+        .params = &sMapEventCmdParamsB2F_P2W_2,
+    },
+    {
+        .kind = EVENT_CMD_MOVE_PLATFORM,
+        .params = &sMapEventCmdParamsB2F_P2W_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+// All the events in B2F are triggers for the moving platforms.
+// As such, the following naming scheme has been adopted to name the event
+// structs and related command parameter structs:
+//
+// - Event structs: `sMapEventB2F_P<Platform><Cardinal>`
+// - Command parameter structs: `sMapEventCmdParamsB2F_P<Platform><Cardinal>_<Event command #>`
+//
+// Using the following variables:
+//
+// - `<Platform>`: the platform number on which the event trigger is located
+// - `<Cardinal>`: the first letter of the cardinal direction where the event
+//                 trigger is located on the platform
+static const DistWorldEvent sMapEventsB2F[] = {
+    {
+        .tileX = 0x21,
+        .tileY = 0xE1,
+        .tileZ = 0x24,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P2N,
+    },
+    {
+        .tileX = 0x21,
+        .tileY = 0xE1,
+        .tileZ = 0x19,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P3S,
+    },
+    {
+        .tileX = 0x21,
+        .tileY = 0xE1,
+        .tileZ = 0x15,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P3N,
+    },
+    {
+        .tileX = 0x21,
+        .tileY = 0xE1,
+        .tileZ = 0xA,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P4S,
+    },
+    {
+        .tileX = 0x23,
+        .tileY = 0xE1,
+        .tileZ = 0x8,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P4E,
+    },
+    {
+        .tileX = 0x2F,
+        .tileY = 0xE1,
+        .tileZ = 0x8,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P5W,
+    },
+    {
+        .tileX = 0x38,
+        .tileY = 0xE1,
+        .tileZ = 0xA,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P6S,
+    },
+    {
+        .tileX = 0x38,
+        .tileY = 0xE1,
+        .tileZ = 0x32,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P9N,
+    },
+    {
+        .tileX = 0x33,
+        .tileY = 0xE1,
+        .tileZ = 0x1F,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P7E,
+    },
+    {
+        .tileX = 0x3F,
+        .tileY = 0xE1,
+        .tileZ = 0x1F,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P8W,
+    },
+    {
+        .tileX = 0x23,
+        .tileY = 0xE9,
+        .tileZ = 0xF,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P10E,
+    },
+    {
+        .tileX = 0x2F,
+        .tileY = 0xE9,
+        .tileZ = 0xF,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P11W,
+    },
+    {
+        .tileX = 0x33,
+        .tileY = 0xE9,
+        .tileZ = 0xF,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P11E,
+    },
+    {
+        .tileX = 0x3F,
+        .tileY = 0xE9,
+        .tileZ = 0xF,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P12W,
+    },
+    {
+        .tileX = 0x41,
+        .tileY = 0xE9,
+        .tileZ = 0x11,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P12S,
+    },
+    {
+        .tileX = 0x41,
+        .tileY = 0xE9,
+        .tileZ = 0x2B,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P13N,
+    },
+    {
+        .tileX = 0x3F,
+        .tileY = 0xE9,
+        .tileZ = 0x2D,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P13W,
+    },
+    {
+        .tileX = 0x33,
+        .tileY = 0xE9,
+        .tileZ = 0x2D,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P16E,
+    },
+    {
+        .tileX = 0x3F,
+        .tileY = 0xE9,
+        .tileZ = 0x34,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P14W,
+    },
+    {
+        .tileX = 0x2B,
+        .tileY = 0xE9,
+        .tileZ = 0x34,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P15E,
+    },
+    {
+        .tileX = 0x31,
+        .tileY = 0xE9,
+        .tileZ = 0x24,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P18N,
+    },
+    {
+        .tileX = 0x31,
+        .tileY = 0xE1,
+        .tileZ = 0x21,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P7S,
+    },
+    {
+        .tileX = 0x1C,
+        .tileY = 0xE9,
+        .tileZ = 0x26,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P17E,
+    },
+    {
+        .tileX = 0x1F,
+        .tileY = 0xE1,
+        .tileZ = 0x26,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0x0,
+        .cmds = sMapEventB2F_P2W,
+    },
+    { 0x0, 0x0, 0x0, FLAG_COND_NONE, 0x0, NULL }
+};
+
+static const CmdParamsStartScript sMapEventCmdParamsB3F_Cyrus_1 = {
+    .scriptID = 0x2
+};
+
+static const CmdParamsSetDistortionWorldProgress sMapEventCmdParamsB3F_Cyrus_2 = {
+    .progress = DIST_WORLD_PROGRESS_TALKED_TO_B3F_CYRUS
+};
+
+static const DistWorldEventCmd sMapEventB3F_Cyrus[] = {
+    {
+        .kind = EVENT_CMD_START_SCRIPT,
+        .params = &sMapEventCmdParamsB3F_Cyrus_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_DISTORTION_WORLD_PROGRESS,
+        .params = &sMapEventCmdParamsB3F_Cyrus_2,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldEvent sMapEventsB3F[] = {
+    {
+        .tileX = 0x41,
+        .tileY = 0xC1,
+        .tileZ = 0x29,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_SAW_B1F_MESPRIT,
+        .cmds = sMapEventB3F_Cyrus,
+    },
+    {
+        .tileX = 0x41,
+        .tileY = 0xC1,
+        .tileZ = 0x29,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_TALKED_TO_B2F_CYNTHIA,
+        .cmds = sMapEventB3F_Cyrus,
+    },
+    { 0x0, 0x0, 0x0, FLAG_COND_NONE, 0x0, NULL }
+};
+
+static const CmdParamsCascadeDown sMapEventCmdParamsB4F_Waterfall = {
+    {
+        .movementAxis = AXIS_Y,
+        .movementDir = CASCADE_MOVEMENT_DIR_DOWN,
+        .finishingPosFixTileX = 0x0,
+        .finishingPosFixTileY = -0x2A,
+        .finishingPosFixTileZ = 0x0,
+        .finalPosOffsetTileX = 0x0,
+        .finalPosOffsetTileY = -0x298,
+        .finalPosOffsetTileZ = 0x0,
+        .mapLoadPosOffsetTileX = 0x0,
+        .mapLoadPosOffsetTileY = -0x15,
+        .mapLoadPosOffsetTileZ = 0x0,
+        .posDelta = { 0x0, FX32_ONE * -1, 0x0 },
     },
 };
 
-static const UnkStruct_ov9_02251438 Unk_ov9_022513D8[] = {
-    { 0x4, &Unk_ov9_022523F0 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022513C8[] = {
-    { 0xC, NULL },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022513B8[] = {
-    { 0xD, NULL },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022513F8[] = {
-    { 0xE, NULL },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02252044 Unk_ov9_02253034[] = {
-    { 0x56, 0x81, 0x35, 0x1, 0xA, Unk_ov9_022513C8 },
-    { 0x57, 0x81, 0x35, 0x1, 0xA, Unk_ov9_022513C8 },
-    { 0x64, 0x81, 0x43, 0x1, 0xB, Unk_ov9_022513B8 },
-    { 0x64, 0x81, 0x44, 0x1, 0xB, Unk_ov9_022513B8 },
-    { 0x50, 0x81, 0x43, 0x1, 0xC, Unk_ov9_022513F8 },
-    { 0x50, 0x81, 0x44, 0x1, 0xC, Unk_ov9_022513F8 },
-    { 0x0, 0x0, 0x0, 0x0, NULL }
-};
-
-static const UnkStruct_ov9_022506AC Unk_ov9_0225125C = {
-    0x4
-};
-
-static const UnkStruct_ov9_022506D0 Unk_ov9_02251234 = {
-    0x9
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02251B40[] = {
-    { 0x5, &Unk_ov9_0225125C },
-    { 0x6, &Unk_ov9_02251234 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02252044 Unk_ov9_02252CB8[] = {
-    { 0x54, 0x41, 0x4C, 0x3, 0x8, Unk_ov9_02251B40 },
-    { 0x55, 0x41, 0x4C, 0x3, 0x8, Unk_ov9_02251B40 },
-    { 0x56, 0x41, 0x4C, 0x3, 0x8, Unk_ov9_02251B40 },
-    { 0x0, 0x0, 0x0, 0x0, NULL }
-};
-
-static const UnkStruct_ov9_02250704 Unk_ov9_02251260 = {
-    0x10
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02251BA0[] = {
-    { 0xF, NULL },
-    { 0x9, &Unk_ov9_02251260 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02250704 Unk_ov9_02251268 = {
-    0x10
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02251C00[] = {
-    { 0x10, NULL },
-    { 0x11, &Unk_ov9_02251268 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_022506AC Unk_ov9_02251240 = {
-    0x7
-};
-
-static const UnkStruct_ov9_02252414 Unk_ov9_02252438 = {
-    0xFFFFFFFFFFFFFFF7,
-    -4,
-    0x16,
-    0x3,
-    0x0,
-    { FX32_ONE / 4, FX32_ONE / 4, FX32_ONE / 4 },
-    { (FX32_ONE * 16), 0x0, 0x0 },
-    0x30
-};
-
-static const UnkStruct_ov9_022506D0 Unk_ov9_02251264 = {
-    0xB
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_022522C4[] = {
-    { 0x5, &Unk_ov9_02251240 },
-    { 0x7, &Unk_ov9_02252438 },
-    { 0x6, &Unk_ov9_02251264 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02252414 Unk_ov9_0225245C = {
-    0xF,
-    -34,
-    0x8,
-    0x4,
-    0x2,
-    { FX32_ONE / 2, FX32_ONE / 2, FX32_ONE / 2 },
-    { 0x0, (FX32_ONE * 32), (FX32_ONE * 2) },
-    0x20
-};
-
-static const UnkStruct_ov9_022506D0 Unk_ov9_02251230 = {
-    0xC
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02251DB0[] = {
-    { 0x7, &Unk_ov9_0225245C },
-    { 0x6, &Unk_ov9_02251230 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_022506D0 Unk_ov9_0225122C = {
-    0xD
-};
-
-static const UnkStruct_ov9_022506AC Unk_ov9_02251218 = {
-    0x8
-};
-
-static const UnkStruct_ov9_02251438 Unk_ov9_02252344[] = {
-    { 0x6, &Unk_ov9_0225122C },
-    { 0xB, NULL },
-    { 0x5, &Unk_ov9_02251218 },
-    { 0x12, NULL }
-};
-
-static const UnkStruct_ov9_02252044 Unk_ov9_02252F0C[] = {
-    { 0xF, 0x1, 0x17, 0x1, 0x10, Unk_ov9_02251BA0 },
-    { 0xF, 0x1, 0x18, 0x2, 0x10, Unk_ov9_02251C00 },
-    { 0xF, 0x1, 0x18, 0x3, 0xA, Unk_ov9_022522C4 },
-    { 0xF, 0x1, 0x11, 0x3, 0xB, Unk_ov9_02251DB0 },
-    { 0xF, 0x1, 0xE, 0x3, 0xC, Unk_ov9_02252344 },
-    { 0x0, 0x0, 0x0, 0x0, NULL }
-};
-
-static const UnkStruct_ov9_02252D38 Unk_ov9_02252D38[] = {
-    { 0x23D, Unk_ov9_02252044 },
-    { 0x23E, Unk_ov9_02252084 },
-    { 0x23F, Unk_ov9_022534F0 },
-    { 0x240, Unk_ov9_02252BD8 },
-    { 0x241, Unk_ov9_02252C78 },
-    { 0x243, Unk_ov9_02253034 },
-    { 0x245, Unk_ov9_02252CB8 },
-    { 0x246, Unk_ov9_02252F0C },
-    { 0x251, NULL }
-};
-
-static const UnkStruct_ov9_0224EC10 Unk_ov9_02251F24[] = {
-    { 0x0, 0x18, 0x37, 0x121, 0x27, 0x0, 0x0 },
-    { 0x0, 0x19, 0x0, 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224EC10 Unk_ov9_02251F44[] = {
-    { 0x0, 0x15, 0x6A, 0x99, 0x4E, 0x0, 0x0 },
-    { 0x0, 0x19, 0x0, 0x0, 0x0, 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224EC10 Unk_ov9_02251F84[] = {
-    { 0x0, 0x18, 0xF, 0x1, 0xC, 0x5, 0xE },
-    { 0x0, 0x19, 0x0, 0x0, 0x0, 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_0224EC10 Unk_ov9_02251FA4[] = {
-    { 0x0, 0x18, 0x74, 0x41, 0x4A, 0x0, 0x0 },
-    { 0x0, 0x19, 0x0, 0x0, 0x0 }
-};
-
-static const UnkStruct_ov9_02252548 Unk_ov9_02252548[] = {
-    { 0x23D, Unk_ov9_02251F24 },
-    { 0x243, Unk_ov9_02251F44 },
-    { 0x246, Unk_ov9_02251F84 },
-    { 0x247, Unk_ov9_02251FA4 },
-    { 0x251, NULL }
-};
-
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252598 = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
+static const DistWorldEventCmd sMapEventB4F_Waterfall[] = {
     {
-        0x80,
-        0x8A,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x1,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x37,
-        0x28,
-        ((289 << 4) * FX32_ONE),
+        .kind = EVENT_CMD_CASCADE_DOWN,
+        .params = &sMapEventCmdParamsB4F_Waterfall,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldGiratinaShadowTemplate sMapEventCmdParamsB4F_Giratina1_1 = {
+    .initialTileX = 63,
+    .initialTileY = 169,
+    .initialTileZ = 9,
+    .rotAnglesIndex = 1,
+    .soundKind = GIRATINA_SHADOW_PROP_SFX_KIND_CRY,
+    .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
+    .posDelta = { 0, 0, FX32_ONE * 48 },
+    .movementAnimSteps = 64,
+};
+
+static const CmdParamsSetGiratinaAnimationFlag sMapEventCmdParamsB4F_Giratina1_2 = {
+    .anim = GIRATINA_SHADOW_ANIM_B4F_1
+};
+
+static const DistWorldEventCmd sMapEventB4F_Giratina1[] = {
+    {
+        .kind = EVENT_CMD_SHOW_GIRATINA_SHADOW,
+        .params = &sMapEventCmdParamsB4F_Giratina1_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_GIRATINA_ANIMATION_FLAG,
+        .params = &sMapEventCmdParamsB4F_Giratina1_2,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldGiratinaShadowTemplate sMapEventCmdParamsB4F_Giratina2_1 = {
+    .initialTileX = 42,
+    .initialTileY = 137,
+    .initialTileZ = 32,
+    .rotAnglesIndex = 3,
+    .soundKind = GIRATINA_SHADOW_PROP_SFX_KIND_CRY,
+    .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
+    .posDelta = { FX32_ONE * 48, 0, 0 },
+    .movementAnimSteps = 72
+};
+
+static const CmdParamsSetGiratinaAnimationFlag sMapEventCmdParamsB4F_Giratina2_2 = {
+    .anim = GIRATINA_SHADOW_ANIM_B4F_2
+};
+
+static const DistWorldEventCmd sMapEventB4F_Giratina2[] = {
+    {
+        .kind = EVENT_CMD_SHOW_GIRATINA_SHADOW,
+        .params = &sMapEventCmdParamsB4F_Giratina2_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_GIRATINA_ANIMATION_FLAG,
+        .params = &sMapEventCmdParamsB4F_Giratina2_2,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldEvent sMapEventsB4F[] = {
+    {
+        .tileX = 0x41,
+        .tileY = 0xA1,
+        .tileZ = 0x39,
+        .flagCond = FLAG_COND_GIRATINA_SHADOW,
+        .flagCondVal = GIRATINA_SHADOW_ANIM_B4F_1,
+        .cmds = sMapEventB4F_Giratina1,
+    },
+    {
+        .tileX = 0x62,
+        .tileY = 0xA1,
+        .tileZ = 0x38,
+        .flagCond = FLAG_COND_GIRATINA_SHADOW,
+        .flagCondVal = GIRATINA_SHADOW_ANIM_B4F_2,
+        .cmds = sMapEventB4F_Giratina2,
+    },
+    {
+        .tileX = 0x62,
+        .tileY = 0xA1,
+        .tileZ = 0x39,
+        .flagCond = FLAG_COND_GIRATINA_SHADOW,
+        .flagCondVal = GIRATINA_SHADOW_ANIM_B4F_2,
+        .cmds = sMapEventB4F_Giratina2,
+    },
+    { 0x0, 0x0, 0x0, FLAG_COND_NONE, 0x0, NULL }
+};
+
+static const CmdParamsCascadeUp sMapEventCmdParamsB5F_Waterfall = {
+    {
+        .movementAxis = AXIS_Y,
+        .movementDir = CASCADE_MOVEMENT_DIR_UP,
+        .finishingPosFixTileX = 0x0,
+        .finishingPosFixTileY = 0x2A,
+        .finishingPosFixTileZ = 0x0,
+        .finalPosOffsetTileX = 0x0,
+        .finalPosOffsetTileY = 0x298,
+        .finalPosOffsetTileZ = 0x0,
+        .mapLoadPosOffsetTileX = 0x0,
+        .mapLoadPosOffsetTileY = 0x14,
+        .mapLoadPosOffsetTileZ = 0x0,
+        .posDelta = { 0x0, FX32_ONE * 8, 0x0 },
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022525E8 = {
-    0x4,
-    0x2,
-    0x0,
-    0x0,
+static const DistWorldEventCmd sMapEventB5F_Waterfall[] = {
     {
-        0x81,
-        0x8A,
-        0x0,
-        0x0,
-        0x0,
-        0x5,
-        0x3,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x27,
-        0x34,
-        ((289 << 4) * FX32_ONE),
+        .kind = EVENT_CMD_CASCADE_UP,
+        .params = &sMapEventCmdParamsB5F_Waterfall,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldEventCmd sMapEventB5F_UxieTuto[] = {
+    {
+        .kind = EVENT_CMD_SHOW_UXIE_BOULDER_TUTO,
+        .params = NULL,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldEventCmd sMapEventB5F_AzelfTuto[] = {
+    {
+        .kind = EVENT_CMD_SHOW_AZELF_BOULDER_TUTO,
+        .params = NULL,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldEventCmd sMapEventB5F_MespritTuto[] = {
+    {
+        .kind = EVENT_CMD_SHOW_MESPRIT_BOULDER_TUTO,
+        .params = NULL,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldEvent sMapEventsB5F[] = {
+    {
+        .tileX = 0x56,
+        .tileY = 0x81,
+        .tileZ = 0x35,
+        .flagCond = FLAG_COND_BOULDER_PUZZLE_FALSE,
+        .flagCondVal = DIST_WORLD_PUZZLE_FLAG_UXIE_TUTO_SEEN,
+        .cmds = sMapEventB5F_UxieTuto,
+    },
+    {
+        .tileX = 0x57,
+        .tileY = 0x81,
+        .tileZ = 0x35,
+        .flagCond = FLAG_COND_BOULDER_PUZZLE_FALSE,
+        .flagCondVal = DIST_WORLD_PUZZLE_FLAG_UXIE_TUTO_SEEN,
+        .cmds = sMapEventB5F_UxieTuto,
+    },
+    {
+        .tileX = 0x64,
+        .tileY = 0x81,
+        .tileZ = 0x43,
+        .flagCond = FLAG_COND_BOULDER_PUZZLE_FALSE,
+        .flagCondVal = DIST_WORLD_PUZZLE_FLAG_AZELF_TUTO_SEEN,
+        .cmds = sMapEventB5F_AzelfTuto,
+    },
+    {
+        .tileX = 0x64,
+        .tileY = 0x81,
+        .tileZ = 0x44,
+        .flagCond = FLAG_COND_BOULDER_PUZZLE_FALSE,
+        .flagCondVal = DIST_WORLD_PUZZLE_FLAG_AZELF_TUTO_SEEN,
+        .cmds = sMapEventB5F_AzelfTuto,
+    },
+    {
+        .tileX = 0x50,
+        .tileY = 0x81,
+        .tileZ = 0x43,
+        .flagCond = FLAG_COND_BOULDER_PUZZLE_FALSE,
+        .flagCondVal = DIST_WORLD_PUZZLE_FLAG_MESPRIT_TUTO_SEEN,
+        .cmds = sMapEventB5F_MespritTuto,
+    },
+    {
+        .tileX = 0x50,
+        .tileY = 0x81,
+        .tileZ = 0x44,
+        .flagCond = FLAG_COND_BOULDER_PUZZLE_FALSE,
+        .flagCondVal = DIST_WORLD_PUZZLE_FLAG_MESPRIT_TUTO_SEEN,
+        .cmds = sMapEventB5F_MespritTuto,
+    },
+    { 0x0, 0x0, 0x0, FLAG_COND_NONE, 0x0, NULL }
+};
+
+static const CmdParamsStartScript sMapEventCmdParamsB7F_CynthiaCyrus_1 = {
+    .scriptID = 0x4
+};
+
+static const CmdParamsSetDistortionWorldProgress sMapEventCmdParamsB7F_CynthiaCyrus_2 = {
+    .progress = DIST_WORLD_PROGRESS_LISTENED_TO_CYNTHIA_CYRUS
+};
+
+static const DistWorldEventCmd sMapEventB7F_CynthiaCyrus[] = {
+    {
+        .kind = EVENT_CMD_START_SCRIPT,
+        .params = &sMapEventCmdParamsB7F_CynthiaCyrus_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_DISTORTION_WORLD_PROGRESS,
+        .params = &sMapEventCmdParamsB7F_CynthiaCyrus_2,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldEvent sMapEventsB7F[] = {
+    {
+        .tileX = 0x54,
+        .tileY = 0x41,
+        .tileZ = 0x4C,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_ENTERED_B7F,
+        .cmds = sMapEventB7F_CynthiaCyrus,
+    },
+    {
+        .tileX = 0x55,
+        .tileY = 0x41,
+        .tileZ = 0x4C,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_ENTERED_B7F,
+        .cmds = sMapEventB7F_CynthiaCyrus,
+    },
+    {
+        .tileX = 0x56,
+        .tileY = 0x41,
+        .tileZ = 0x4C,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_ENTERED_B7F,
+        .cmds = sMapEventB7F_CynthiaCyrus,
+    },
+    { 0x0, 0x0, 0x0, FLAG_COND_NONE, 0x0, NULL }
+};
+
+static const CmdParamsPuzzleFlag sMapEventCmdParamsGiratinaRoom_ShowPlatforms_2 = {
+    .flagIndex = DIST_WORLD_PUZZLE_FLAG_GIRATINA_ROOM_PLATFORMS_VISIBLE
+};
+
+static const DistWorldEventCmd sMapEventGiratinaRoom_ShowPlatforms[] = {
+    {
+        .kind = EVENT_CMD_SHOW_GIRATINA_ROOM_PLATFORMS,
+        .params = NULL,
+    },
+    {
+        .kind = EVENT_CMD_SET_PUZZLE_FLAG,
+        .params = &sMapEventCmdParamsGiratinaRoom_ShowPlatforms_2,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsPuzzleFlag sMapEventCmdParamsGiratinaRoom_HidePlatforms_2 = {
+    .flagIndex = DIST_WORLD_PUZZLE_FLAG_GIRATINA_ROOM_PLATFORMS_VISIBLE
+};
+
+static const DistWorldEventCmd sMapEventGiratinaRoom_HidePlatforms[] = {
+    {
+        .kind = EVENT_CMD_HIDE_GIRATINA_ROOM_PLATFORMS,
+        .params = NULL,
+    },
+    {
+        .kind = EVENT_CMD_CLEAR_PUZZLE_FLAG,
+        .params = &sMapEventCmdParamsGiratinaRoom_HidePlatforms_2,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsStartScript sMapEventCmdParamsGiratinaRoom_FirstShadow_1 = {
+    .scriptID = 0x7
+};
+
+static const DistWorldGiratinaShadowTemplate sMapEventCmdParamsGiratinaRoom_FirstShadow_2 = {
+    .initialTileX = -9,
+    .initialTileY = -4,
+    .initialTileZ = 22,
+    .rotAnglesIndex = 3,
+    .soundKind = GIRATINA_SHADOW_PROP_SFX_KIND_NONE,
+    .scale = { FX32_ONE / 4, FX32_ONE / 4, FX32_ONE / 4 },
+    .posDelta = { FX32_ONE * 16, 0, 0 },
+    .movementAnimSteps = 48
+};
+
+static const CmdParamsSetDistortionWorldProgress sMapEventCmdParamsGiratinaRoom_FirstShadow_3 = {
+    .progress = DIST_WORLD_PROGRESS_GIRATINA_ROOM_FIRST_SHADOW
+};
+
+static const DistWorldEventCmd sMapEventGiratinaRoom_FirstShadow[] = {
+    {
+        .kind = EVENT_CMD_START_SCRIPT,
+        .params = &sMapEventCmdParamsGiratinaRoom_FirstShadow_1,
+    },
+    {
+        .kind = EVENT_CMD_SHOW_GIRATINA_SHADOW,
+        .params = &sMapEventCmdParamsGiratinaRoom_FirstShadow_2,
+    },
+    {
+        .kind = EVENT_CMD_SET_DISTORTION_WORLD_PROGRESS,
+        .params = &sMapEventCmdParamsGiratinaRoom_FirstShadow_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldGiratinaShadowTemplate sMapEventCmdParamsGiratinaRoom_SecondShadow_1 = {
+    .initialTileX = 15,
+    .initialTileY = -34,
+    .initialTileZ = 8,
+    .rotAnglesIndex = 4,
+    .soundKind = GIRATINA_SHADOW_PROP_SFX_KIND_FLEE,
+    .scale = { FX32_ONE / 2, FX32_ONE / 2, FX32_ONE / 2 },
+    .posDelta = { 0, FX32_ONE * 32, FX32_ONE * 2 },
+    .movementAnimSteps = 32
+};
+
+static const CmdParamsSetDistortionWorldProgress sMapEventCmdParamsGiratinaRoom_SecondShadow_2 = {
+    .progress = DIST_WORLD_PROGRESS_GIRATINA_ROOM_SECOND_SHADOW
+};
+
+static const DistWorldEventCmd sMapEventGiratinaRoom_SecondShadow[] = {
+    {
+        .kind = EVENT_CMD_SHOW_GIRATINA_SHADOW,
+        .params = &sMapEventCmdParamsGiratinaRoom_SecondShadow_1,
+    },
+    {
+        .kind = EVENT_CMD_SET_DISTORTION_WORLD_PROGRESS,
+        .params = &sMapEventCmdParamsGiratinaRoom_SecondShadow_2,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const CmdParamsSetDistortionWorldProgress sMapEventCmdParamsGiratinaRoom_Arrival_1 = {
+    .progress = DIST_WORLD_PROGRESS_GIRATINA_ARRIVED
+};
+
+static const CmdParamsStartScript sMapEventCmdParamsGiratinaRoom_Arrival_3 = {
+    .scriptID = 0x8
+};
+
+static const DistWorldEventCmd sMapEventGiratinaRoom_Arrival[] = {
+    {
+        .kind = EVENT_CMD_SET_DISTORTION_WORLD_PROGRESS,
+        .params = &sMapEventCmdParamsGiratinaRoom_Arrival_1,
+    },
+    {
+        .kind = EVENT_CMD_PLAY_GIRATINA_ARRIVAL,
+        .params = NULL,
+    },
+    {
+        .kind = EVENT_CMD_START_SCRIPT,
+        .params = &sMapEventCmdParamsGiratinaRoom_Arrival_3,
+    },
+    { EVENT_CMD_END, NULL }
+};
+
+static const DistWorldEvent sMapEventsGiratinaRoom[] = {
+    {
+        .tileX = 0xF,
+        .tileY = 0x1,
+        .tileZ = 0x17,
+        .flagCond = FLAG_COND_BOULDER_PUZZLE_FALSE,
+        .flagCondVal = DIST_WORLD_PUZZLE_FLAG_GIRATINA_ROOM_PLATFORMS_VISIBLE,
+        .cmds = sMapEventGiratinaRoom_ShowPlatforms,
+    },
+    {
+        .tileX = 0xF,
+        .tileY = 0x1,
+        .tileZ = 0x18,
+        .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+        .flagCondVal = DIST_WORLD_PUZZLE_FLAG_GIRATINA_ROOM_PLATFORMS_VISIBLE,
+        .cmds = sMapEventGiratinaRoom_HidePlatforms,
+    },
+    {
+        .tileX = 0xF,
+        .tileY = 0x1,
+        .tileZ = 0x18,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_WON_CYRUS_BATTLE,
+        .cmds = sMapEventGiratinaRoom_FirstShadow,
+    },
+    {
+        .tileX = 0xF,
+        .tileY = 0x1,
+        .tileZ = 0x11,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_GIRATINA_ROOM_FIRST_SHADOW,
+        .cmds = sMapEventGiratinaRoom_SecondShadow,
+    },
+    {
+        .tileX = 0xF,
+        .tileY = 0x1,
+        .tileZ = 0xE,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_GIRATINA_ROOM_SECOND_SHADOW,
+        .cmds = sMapEventGiratinaRoom_Arrival,
+    },
+    { 0x0, 0x0, 0x0, FLAG_COND_NONE, 0x0, NULL }
+};
+
+static const DistWorldMapEvents sMapEvents[] = {
+    { MAP_HEADER_DISTORTION_WORLD_1F, sMapEvents1F },
+    { MAP_HEADER_DISTORTION_WORLD_B1F, sMapEventsB1F },
+    { MAP_HEADER_DISTORTION_WORLD_B2F, sMapEventsB2F },
+    { MAP_HEADER_DISTORTION_WORLD_B3F, sMapEventsB3F },
+    { MAP_HEADER_DISTORTION_WORLD_B4F, sMapEventsB4F },
+    { MAP_HEADER_DISTORTION_WORLD_B5F, sMapEventsB5F },
+    { MAP_HEADER_DISTORTION_WORLD_B7F, sMapEventsB7F },
+    { MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM, sMapEventsGiratinaRoom },
+    { MAP_HEADER_INVALID, NULL }
+};
+
+static const DistWorldSimplePropTemplate sSimpleProps1F[] = {
+    {
+        .propKind = PROP_KIND_PORTAL,
+        .tileX = 55,
+        .tileY = 289,
+        .tileZ = 39,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0,
+    },
+    { 0, PROP_KIND_INVALID, 0, 0, 0, FLAG_COND_NONE, 0 }
+};
+
+static const DistWorldSimplePropTemplate sSimplePropsB5F[] = {
+    {
+        .propKind = PROP_KIND_WATERFALL,
+        .tileX = 106,
+        .tileY = 153,
+        .tileZ = 78,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0,
+    },
+    { 0, PROP_KIND_INVALID, 0, 0, 0, FLAG_COND_NONE, 0 }
+};
+
+static const DistWorldSimplePropTemplate sSimplePropsGiratinaRoom[] = {
+    {
+        .propKind = PROP_KIND_PORTAL,
+        .tileX = 15,
+        .tileY = 1,
+        .tileZ = 12,
+        .flagCond = FLAG_COND_WORLD_PROGRESS_GEQ,
+        .flagCondVal = DIST_WORLD_PROGRESS_BATTLED_GIRATINA,
+    },
+    { 0, PROP_KIND_INVALID, 0, 0, 0, FLAG_COND_NONE, 0 }
+};
+
+static const DistWorldSimplePropTemplate sSimplePropsTurnbackCaveRoom[] = {
+    {
+        .propKind = PROP_KIND_PORTAL,
+        .tileX = 116,
+        .tileY = 65,
+        .tileZ = 74,
+        .flagCond = FLAG_COND_NONE,
+        .flagCondVal = 0,
+    },
+    { 0, PROP_KIND_INVALID, 0, 0, 0, FLAG_COND_NONE, 0 }
+};
+
+static const DistWorldSimplePropMapTemplates sSimplePropsMapTemplates[] = {
+    { MAP_HEADER_DISTORTION_WORLD_1F, sSimpleProps1F },
+    { MAP_HEADER_DISTORTION_WORLD_B5F, sSimplePropsB5F },
+    { MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM, sSimplePropsGiratinaRoom },
+    { MAP_HEADER_DISTORTION_WORLD_TURNBACK_CAVE_ROOM, sSimplePropsTurnbackCaveRoom },
+    { MAP_HEADER_INVALID, NULL }
+};
+
+static const DistWorldObjectEvent sMapObjectEvent1F_CynthiaPortal = {
+    .flagCond = FLAG_COND_MANUAL_ADD_ONLY,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_1F_CYNTHIA_PORTAL,
+        .graphicsID = OBJ_EVENT_GFX_CYNTHIA,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_DOWN,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x37,
+        .z = 0x28,
+        .y = (289 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253B34[] = {
-    &Unk_ov9_02252598,
-    &Unk_ov9_022525E8,
+static const DistWorldObjectEvent sMapObjectEvent1F_CynthiaElevator = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_LEQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_JUMPED_ON_1F_ELEVATOR,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_1F_CYNTHIA_ELEVATOR,
+        .graphicsID = OBJ_EVENT_GFX_CYNTHIA,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x5,
+        .dir = FACE_RIGHT,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x27,
+        .z = 0x34,
+        .y = (289 << 4) * FX32_ONE,
+    },
+};
+
+static const DistWorldObjectEvent *sMapObjectEvents1F[] = {
+    &sMapObjectEvent1F_CynthiaPortal,
+    &sMapObjectEvent1F_CynthiaElevator,
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252638 = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x81,
-        0x108,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0xC,
-        0x39,
-        ((257 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB1F_Mesprit = {
+    .flagCond = FLAG_COND_MANUAL_ADD_ONLY,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B1F_MESPRIT,
+        .graphicsID = OBJ_EVENT_GFX_DIST_WORLD_B1F_MESPRIT,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0xC,
+        .z = 0x39,
+        .y = (257 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253B08[] = {
-    &Unk_ov9_02252638,
+static const DistWorldObjectEvent *sMapObjectEventsB1F[] = {
+    &sMapObjectEventB1F_Mesprit,
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022526D8 = {
-    0x3,
-    0x4,
-    0x1,
-    0x5A,
-    {
-        0x80,
-        0x8A,
-        0x0,
-        0x0,
-        0x0,
-        0x2,
-        0x1,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x1E,
-        0x14,
-        ((233 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB2F_Cynthia1 = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_SAW_B1F_MESPRIT,
+    .rotated = TRUE,
+    .rotationAngle = 0x5A,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B2F_CYNTHIA,
+        .graphicsID = OBJ_EVENT_GFX_CYNTHIA,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2,
+        .dir = FACE_DOWN,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x1E,
+        .z = 0x14,
+        .y = (233 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252728 = {
-    0x3,
-    0x5,
-    0x1,
-    0x5A,
-    {
-        0x80,
-        0x8A,
-        0x0,
-        0x0,
-        0x0,
-        0x2,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x1E,
-        0x14,
-        ((232 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB2F_Cynthia2 = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_TALKED_TO_B2F_CYNTHIA,
+    .rotated = TRUE,
+    .rotationAngle = 0x5A,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B2F_CYNTHIA,
+        .graphicsID = OBJ_EVENT_GFX_CYNTHIA,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x1E,
+        .z = 0x14,
+        .y = (232 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253B58[] = {
-    &Unk_ov9_022526D8,
-    &Unk_ov9_02252728,
+static const DistWorldObjectEvent *sMapObjectEventsB2F[] = {
+    &sMapObjectEventB2F_Cynthia1,
+    &sMapObjectEventB2F_Cynthia2,
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022527A0 = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x80,
-        0x78,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x41,
-        0x31,
-        ((193 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB3F_Cyrus = {
+    .flagCond = FLAG_COND_MANUAL_ADD_ONLY,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B3F_CYRUS,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x41,
+        .z = 0x31,
+        .y = (193 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253B20[] = {
-    &Unk_ov9_022527A0,
+static const DistWorldObjectEvent *sMapObjectEventsB3F[] = {
+    &sMapObjectEventB3F_Cyrus,
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022527F0 = {
-    0x8,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x86,
-        0x78,
-        0x43,
-        0x0,
-        0x0,
-        0x0,
-        0x2,
-        0x0,
-        0x0,
-        0x0,
-        0x1,
-        0x0,
-        0x59,
-        0x40,
-        ((161 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB4F_Cyrus = {
+    .flagCond = FLAG_COND_CYRUS_APPEARANCE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B4F_CYRUS,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = MOVEMENT_TYPE_067,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_LEFT,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x1,
+        .movementRangeZ = 0x0,
+        .x = 0x59,
+        .z = 0x40,
+        .y = (161 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253B18[] = {
-    &Unk_ov9_022527F0,
+static const DistWorldObjectEvent *sMapObjectEventsB4F[] = {
+    &sMapObjectEventB4F_Cyrus,
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252840 = {
-    0x2,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x80,
-        0x54,
-        0x0,
-        0x0,
-        0x0,
-        0x2712,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x4B,
-        0x44,
-        ((129 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB5F_MespritBoulder = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B5F,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B5F_MESPRIT_BOULDER,
+        .graphicsID = OBJ_EVENT_GFX_STRENGTH_BOULDER,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2712,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x4B,
+        .z = 0x44,
+        .y = (129 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252890 = {
-    0x2,
-    0x1,
-    0x0,
-    0x0,
-    {
-        0x81,
-        0x54,
-        0x0,
-        0x0,
-        0x0,
-        0x2712,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x62,
-        0x43,
-        ((129 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB5F_AzelfBoulder = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B5F,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B5F_AZELF_BOULDER,
+        .graphicsID = OBJ_EVENT_GFX_STRENGTH_BOULDER,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2712,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x62,
+        .z = 0x43,
+        .y = (129 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022528B8 = {
-    0x2,
-    0x2,
-    0x0,
-    0x0,
-    {
-        0x82,
-        0x54,
-        0x0,
-        0x0,
-        0x0,
-        0x2712,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x56,
-        0x38,
-        ((129 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB5F_UxieBoulder = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B5F,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B5F_UXIE_BOULDER,
+        .graphicsID = OBJ_EVENT_GFX_STRENGTH_BOULDER,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2712,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x56,
+        .z = 0x38,
+        .y = (129 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252908 = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x83,
-        0x97,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x56,
-        0x3A,
-        (((129 - 16) << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB5F_Uxie = {
+    .flagCond = FLAG_COND_MANUAL_ADD_ONLY,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B5F_UXIE,
+        .graphicsID = OBJ_EVENT_GFX_UXIE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x56,
+        .z = 0x3A,
+        .y = (113 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252958 = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x84,
-        0x99,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x60,
-        0x43,
-        (((129 - 12) << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB5F_Azelf = {
+    .flagCond = FLAG_COND_MANUAL_ADD_ONLY,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B5F_AZELF,
+        .graphicsID = OBJ_EVENT_GFX_AZELF,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x60,
+        .z = 0x43,
+        .y = (117 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022529A8 = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x85,
-        0x98,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x4D,
-        0x44,
-        (((129 - 8) << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB5F_Mesprit = {
+    .flagCond = FLAG_COND_MANUAL_ADD_ONLY,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B5F_MESPRIT,
+        .graphicsID = OBJ_EVENT_GFX_MESPRIT,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x4D,
+        .z = 0x44,
+        .y = (121 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253BC8[] = {
-    &Unk_ov9_02252840,
-    &Unk_ov9_02252890,
-    &Unk_ov9_022528B8,
-    &Unk_ov9_02252908,
-    &Unk_ov9_02252958,
-    &Unk_ov9_022529A8,
+static const DistWorldObjectEvent *sMapObjectEventsB5F[] = {
+    &sMapObjectEventB5F_MespritBoulder,
+    &sMapObjectEventB5F_AzelfBoulder,
+    &sMapObjectEventB5F_UxieBoulder,
+    &sMapObjectEventB5F_Uxie,
+    &sMapObjectEventB5F_Azelf,
+    &sMapObjectEventB5F_Mesprit,
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252A20 = {
-    0x2,
-    0x3,
-    0x0,
-    0x0,
-    {
-        0x80,
-        0x54,
-        0x0,
-        0x0,
-        0x0,
-        0x2712,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x4B,
-        0x44,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_MespritBoulderOutside = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B6F_OUTSIDE,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_MESPRIT_BOULDER_OUTSIDE,
+        .graphicsID = OBJ_EVENT_GFX_STRENGTH_BOULDER,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2712,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x4B,
+        .z = 0x44,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252A70 = {
-    0x2,
-    0x4,
-    0x0,
-    0x0,
-    {
-        0x81,
-        0x54,
-        0x0,
-        0x0,
-        0x0,
-        0x2712,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x62,
-        0x43,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_AzelfBoulderOutside = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B6F_OUTSIDE,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_AZELF_BOULDER_OUTSIDE,
+        .graphicsID = OBJ_EVENT_GFX_STRENGTH_BOULDER,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2712,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x62,
+        .z = 0x43,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252AC0 = {
-    0x2,
-    0x5,
-    0x0,
-    0x0,
-    {
-        0x82,
-        0x54,
-        0x0,
-        0x0,
-        0x0,
-        0x2712,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x56,
-        0x38,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_UxieBoulderOutside = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B6F_OUTSIDE,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_UXIE_BOULDER_OUTSIDE,
+        .graphicsID = OBJ_EVENT_GFX_STRENGTH_BOULDER,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2712,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x56,
+        .z = 0x38,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252AE8 = {
-    0x2,
-    0xF,
-    0x0,
-    0x0,
-    {
-        0x83,
-        0x10A,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x44,
-        0x40,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_Mesprit = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_MESPRIT_IN_B6F,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_MESPRIT,
+        .graphicsID = OBJ_EVENT_GFX_DIST_WORLD_B6F_MESPRIT,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x44,
+        .z = 0x40,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252B10 = {
-    0x2,
-    0xD,
-    0x0,
-    0x0,
-    {
-        0x84,
-        0x109,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x52,
-        0x3C,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_Uxie = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_UXIE_IN_B6F,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_UXIE,
+        .graphicsID = OBJ_EVENT_GFX_DIST_WORLD_B6F_UXIE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x52,
+        .z = 0x3C,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252B38 = {
-    0x2,
-    0xE,
-    0x0,
-    0x0,
-    {
-        0x85,
-        0x10B,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x60,
-        0x47,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_Azelf = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_AZELF_IN_B6F,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_AZELF,
+        .graphicsID = OBJ_EVENT_GFX_DIST_WORLD_B6F_AZELF,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x60,
+        .z = 0x47,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252480 = {
-    0x3,
-    0x6,
-    0x0,
-    0x0,
-    {
-        0x86,
-        0x8A,
-        0x0,
-        0x0,
-        0x0,
-        0x2,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x55,
-        0x50,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_Cynthia = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_TALKED_TO_B3F_CYRUS,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_CYNTHIA,
+        .graphicsID = OBJ_EVENT_GFX_CYNTHIA,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x55,
+        .z = 0x50,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022524F8 = {
-    0x3,
-    0x7,
-    0x0,
-    0x0,
-    {
-        0x86,
-        0x8A,
-        0x0,
-        0x0,
-        0x0,
-        0x2,
-        0x3,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x54,
-        0x54,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_CynthiaElevator = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_FINISHED_BOULDER_PUZZLE,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_CYNTHIA,
+        .graphicsID = OBJ_EVENT_GFX_CYNTHIA,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2,
+        .dir = FACE_RIGHT,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x54,
+        .z = 0x54,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252520 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x87,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x8,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x44,
-        0x43,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_MespritBoulderPitText1 = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_MESPRIT_BOULDER_PIT_TEXT_1,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x8,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x44,
+        .z = 0x43,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252570 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x88,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x8,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x4B,
-        0x43,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_MespritBoulderPitText2 = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_MESPRIT_BOULDER_PIT_TEXT_2,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x8,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x4B,
+        .z = 0x43,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252610 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x89,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x8,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x4F,
-        0x43,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_MespritBoulderPitText3 = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_MESPRIT_BOULDER_PIT_TEXT_3,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x8,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x4F,
+        .z = 0x43,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252660 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x8A,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x8,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x55,
-        0x34,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_UxieBoulderPitText1 = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_UXIE_BOULDER_PIT_TEXT_1,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x8,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x55,
+        .z = 0x34,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252750 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x8B,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x8,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x55,
-        0x38,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_UxieBoulderPitText2 = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_UXIE_BOULDER_PIT_TEXT_2,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x8,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x55,
+        .z = 0x38,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022527C8 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x8C,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x8,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x55,
-        0x3C,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_UxieBoulderPitText3 = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_UXIE_BOULDER_PIT_TEXT_3,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x8,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x55,
+        .z = 0x3C,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252818 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x8D,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x8,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x60,
-        0x44,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_AzelfBoulderPitText1 = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_AZELF_BOULDER_PIT_TEXT_1,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x8,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x60,
+        .z = 0x44,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252868 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x8E,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x8,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x64,
-        0x44,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_AzelfBoulderPitText2 = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_AZELF_BOULDER_PIT_TEXT_2,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x8,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x64,
+        .z = 0x44,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022528E0 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x8F,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x8,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x69,
-        0x44,
-        ((115 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_AzelfBoulderPitText3 = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_AZELF_BOULDER_PIT_TEXT_3,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x8,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x69,
+        .z = 0x44,
+        .y = (115 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252930 = {
-    0x2,
-    0x6,
-    0x0,
-    0x0,
-    {
-        0x90,
-        0x54,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x44,
-        0x42,
-        ((113 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_MespritBoulderInPit = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_MESPRIT_BOULDER_IN_B6F_PIT,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_MESPRIT_BOULDER_IN_PIT,
+        .graphicsID = OBJ_EVENT_GFX_STRENGTH_BOULDER,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x44,
+        .z = 0x42,
+        .y = (113 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022529D0 = {
-    0x2,
-    0x7,
-    0x0,
-    0x0,
-    {
-        0x91,
-        0x54,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x60,
-        0x45,
-        ((113 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_AzelfBoulderInPit = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_AZELF_BOULDER_IN_B6F_PIT,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_AZELF_BOULDER_IN_PIT,
+        .graphicsID = OBJ_EVENT_GFX_STRENGTH_BOULDER,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x60,
+        .z = 0x45,
+        .y = (113 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252A48 = {
-    0x2,
-    0x8,
-    0x0,
-    0x0,
-    {
-        0x92,
-        0x54,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x54,
-        0x3C,
-        ((113 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB6F_UxieBoulderInPit = {
+    .flagCond = FLAG_COND_BOULDER_PUZZLE_TRUE,
+    .flagCondVal = DIST_WORLD_PUZZLE_FLAG_UXIE_BOULDER_IN_B6F_PIT,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B6F_UXIE_BOULDER_IN_PIT,
+        .graphicsID = OBJ_EVENT_GFX_STRENGTH_BOULDER,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x54,
+        .z = 0x3C,
+        .y = (113 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253C78[] = {
-    &Unk_ov9_02252A20,
-    &Unk_ov9_02252A70,
-    &Unk_ov9_02252AC0,
-    &Unk_ov9_02252AE8,
-    &Unk_ov9_02252B10,
-    &Unk_ov9_02252B38,
-    &Unk_ov9_02252480,
-    &Unk_ov9_022524F8,
-    &Unk_ov9_02252520,
-    &Unk_ov9_02252570,
-    &Unk_ov9_02252610,
-    &Unk_ov9_02252660,
-    &Unk_ov9_02252750,
-    &Unk_ov9_022527C8,
-    &Unk_ov9_02252818,
-    &Unk_ov9_02252868,
-    &Unk_ov9_022528E0,
-    &Unk_ov9_02252930,
-    &Unk_ov9_022529D0,
-    &Unk_ov9_02252A48,
+static const DistWorldObjectEvent *sMapObjectEventsB6F[] = {
+    &sMapObjectEventB6F_MespritBoulderOutside,
+    &sMapObjectEventB6F_AzelfBoulderOutside,
+    &sMapObjectEventB6F_UxieBoulderOutside,
+    &sMapObjectEventB6F_Mesprit,
+    &sMapObjectEventB6F_Uxie,
+    &sMapObjectEventB6F_Azelf,
+    &sMapObjectEventB6F_Cynthia,
+    &sMapObjectEventB6F_CynthiaElevator,
+    &sMapObjectEventB6F_MespritBoulderPitText1,
+    &sMapObjectEventB6F_MespritBoulderPitText2,
+    &sMapObjectEventB6F_MespritBoulderPitText3,
+    &sMapObjectEventB6F_UxieBoulderPitText1,
+    &sMapObjectEventB6F_UxieBoulderPitText2,
+    &sMapObjectEventB6F_UxieBoulderPitText3,
+    &sMapObjectEventB6F_AzelfBoulderPitText1,
+    &sMapObjectEventB6F_AzelfBoulderPitText2,
+    &sMapObjectEventB6F_AzelfBoulderPitText3,
+    &sMapObjectEventB6F_MespritBoulderInPit,
+    &sMapObjectEventB6F_AzelfBoulderInPit,
+    &sMapObjectEventB6F_UxieBoulderInPit,
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252B88 = {
-    0x3,
-    0x8,
-    0x0,
-    0x0,
-    {
-        0x80,
-        0x8A,
-        0x0,
-        0x0,
-        0x0,
-        0x6,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x55,
-        0x4A,
-        ((65 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB7F_CynthiaInitial = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_ENTERED_B7F,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B7F_CYNTHIA,
+        .graphicsID = OBJ_EVENT_GFX_CYNTHIA,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x6,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x55,
+        .z = 0x4A,
+        .y = (65 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022524A8 = {
-    0x3,
-    0x9,
-    0x0,
-    0x0,
-    {
-        0x80,
-        0x8A,
-        0x0,
-        0x0,
-        0x0,
-        0x6,
-        0x3,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x54,
-        0x4A,
-        ((65 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB7F_CynthiaTalking = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_LISTENED_TO_CYNTHIA_CYRUS,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B7F_CYNTHIA,
+        .graphicsID = OBJ_EVENT_GFX_CYNTHIA,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x6,
+        .dir = FACE_RIGHT,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x54,
+        .z = 0x4A,
+        .y = (65 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022525C0 = {
-    0x5,
-    0xA,
-    0x0,
-    0x0,
-    {
-        0x80,
-        0x8A,
-        0x0,
-        0x0,
-        0x0,
-        0x6,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x59,
-        0x45,
-        ((65 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB7F_CynthiaPostBattle = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_GEQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_WON_CYRUS_BATTLE,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B7F_CYNTHIA,
+        .graphicsID = OBJ_EVENT_GFX_CYNTHIA,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x6,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x59,
+        .z = 0x45,
+        .y = (65 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252688 = {
-    0x4,
-    0x8,
-    0x0,
-    0x0,
-    {
-        0x81,
-        0x78,
-        0x0,
-        0x0,
-        0x0,
-        0x5,
-        0x1,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x55,
-        0x46,
-        ((65 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB7F_CyrusInitial = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_LEQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_ENTERED_B7F,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B7F_CYRUS,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x5,
+        .dir = FACE_DOWN,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x55,
+        .z = 0x46,
+        .y = (65 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252700 = {
-    0x3,
-    0x9,
-    0x0,
-    0x0,
-    {
-        0x81,
-        0x78,
-        0x0,
-        0x0,
-        0x0,
-        0x5,
-        0x2,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x55,
-        0x4A,
-        ((65 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventB7F_CyrusTalking = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_LISTENED_TO_CYNTHIA_CYRUS,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_B7F_CYRUS,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x5,
+        .dir = FACE_LEFT,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x55,
+        .z = 0x4A,
+        .y = (65 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253B98[] = {
-    &Unk_ov9_02252B88,
-    &Unk_ov9_022524A8,
-    &Unk_ov9_022525C0,
-    &Unk_ov9_02252688,
-    &Unk_ov9_02252700,
+static const DistWorldObjectEvent *sMapObjectEventsB7F[] = {
+    &sMapObjectEventB7F_CynthiaInitial,
+    &sMapObjectEventB7F_CynthiaTalking,
+    &sMapObjectEventB7F_CynthiaPostBattle,
+    &sMapObjectEventB7F_CyrusInitial,
+    &sMapObjectEventB7F_CyrusTalking,
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252980 = {
-    0x3,
-    0xD,
-    0x0,
-    0x0,
-    {
-        0x80,
-        0xE6,
-        0x0,
-        0x0,
-        0x0,
-        0x5,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0xF,
-        0xD,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventGiratinaRoom_Giratina = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_GIRATINA_ARRIVED,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_GIRATINA_ROOM_GIRATINA,
+        .graphicsID = OBJ_EVENT_GFX_GIRATINA_ORIGIN,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x5,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0xF,
+        .z = 0xD,
+        .y = (1 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252A98 = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x81,
-        0x8A,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0xF,
-        0x17,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventGiratinaRoom_Cynthia = {
+    .flagCond = FLAG_COND_MANUAL_ADD_ONLY,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_GIRATINA_ROOM_CYNTHIA,
+        .graphicsID = OBJ_EVENT_GFX_CYNTHIA,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0xF,
+        .z = 0x17,
+        .y = (1 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252B60 = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x82,
-        0x78,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0xF,
-        0x17,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventGiratinaRoom_Cyrus = {
+    .flagCond = FLAG_COND_MANUAL_ADD_ONLY,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_GIRATINA_ROOM_CYRUS,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0xF,
+        .z = 0x17,
+        .y = (1 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022524D0 = {
-    0x3,
-    0xE,
-    0x0,
-    0x0,
-    {
-        0x83,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x3,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0xF,
-        0xD,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventGiratinaRoom_Portal = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_BATTLED_GIRATINA,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_GIRATINA_ROOM_PORTAL,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x3,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0xF,
+        .z = 0xD,
+        .y = (1 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_022526B0 = {
-    0x3,
-    0xE,
-    0x0,
-    0x0,
-    {
-        0x84,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x6,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0xF,
-        0xF,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventGiratinaRoom_CynthiaText = {
+    .flagCond = FLAG_COND_WORLD_PROGRESS_EQ,
+    .flagCondVal = DIST_WORLD_PROGRESS_BATTLED_GIRATINA,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_GIRATINA_ROOM_CYNTHIA_TEXT,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x6,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = GIRATINA_ROOM_POST_BATTLE_CYNTHIA_TILE_X,
+        .z = GIRATINA_ROOM_POST_BATTLE_CYNTHIA_TILE_Z,
+        .y = (GIRATINA_ROOM_POST_BATTLE_CYNTHIA_TILE_Y << 4) * FX32_ONE,
     },
 };
 
 // Arc 1 flashback: Lucas, the hero, at the player's new-game start tile (15,14) facing north.
-// Condition 6 = spawned only by script (ScrCmd_311 133), like Cynthia/Cyrus.
-static const UnkStruct_ov9_0224EF30 Unk_ov9_Arc1FlashbackLucas = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x85,
-        0x0, // OBJ_EVENT_GFX_PLAYER_M
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0xF,
-        0xE,
-        ((1 << 4) * FX32_ONE),
+// Spawned only by script (AddDistortionWorldMapObject 133), like Cynthia/Cyrus.
+static const DistWorldObjectEvent sMapObjectEventGiratinaRoom_Player = {
+    .flagCond = FLAG_COND_MANUAL_ADD_ONLY,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_GIRATINA_ROOM_PLAYER,
+        .graphicsID = OBJ_EVENT_GFX_PLAYER_M,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = 0x0,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0xF,
+        .z = 0xE,
+        .y = (1 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253BB0[] = {
-    &Unk_ov9_02252980,
-    &Unk_ov9_02252A98,
-    &Unk_ov9_02252B60,
-    &Unk_ov9_022524D0,
-    &Unk_ov9_022526B0,
-    &Unk_ov9_Arc1FlashbackLucas,
+static const DistWorldObjectEvent *sMapObjectEventsGiratinaRoom[] = {
+    &sMapObjectEventGiratinaRoom_Giratina,
+    &sMapObjectEventGiratinaRoom_Cynthia,
+    &sMapObjectEventGiratinaRoom_Cyrus,
+    &sMapObjectEventGiratinaRoom_Portal,
+    &sMapObjectEventGiratinaRoom_CynthiaText,
+    &sMapObjectEventGiratinaRoom_Player,
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252BB0 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x80,
-        0x2000,
-        0x0,
-        0x0,
-        0x0,
-        0x2,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x74,
-        0x4A,
-        ((65 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventTurnbackCaveRoom_Portal = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_TURNBACK_CAVE_PORTAL,
+        .graphicsID = OBJ_EVENT_GFX_INVISIBLE,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = 0x0,
+        .script = 0x2,
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x74,
+        .z = 0x4A,
+        .y = (65 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 Unk_ov9_02252778 = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x81,
-        0x57,
-        0x0,
-        0x0,
-        0x538,
-        0x1C99,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x59,
-        0x37,
-        ((65 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sMapObjectEventTurnbackCaveRoom_GriseousOrbItem = {
+    .flagCond = FLAG_COND_NONE,
+    .flagCondVal = 0x0,
+    .rotated = FALSE,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = DIST_WORLD_MAP_OBJECT_TURNBACK_CAVE_GRISEOUS_ORB_ITEM,
+        .graphicsID = OBJ_EVENT_GFX_POKEBALL,
+        .movementType = MOVEMENT_TYPE_NONE,
+        .trainerType = TRAINER_TYPE_NONE,
+        .hiddenFlag = FLAG_OBTAINED_DISTORTION_WORLD_TURNBACK_CAVE_ROOM_GRISEOUS_ORB,
+        .script = SCRIPT_ID(VISIBLE_ITEMS, 321),
+        .dir = FACE_UP,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 0x59,
+        .z = 0x37,
+        .y = (65 << 4) * FX32_ONE,
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *Unk_ov9_02253B40[] = {
-    &Unk_ov9_02252BB0,
-    &Unk_ov9_02252778,
+static const DistWorldObjectEvent *sMapObjectEventsTurnbackCaveRoom[] = {
+    &sMapObjectEventTurnbackCaveRoom_Portal,
+    &sMapObjectEventTurnbackCaveRoom_GriseousOrbItem,
     NULL
 };
 
-// Arc 1 wall-walk puzzle map (MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS). Local IDs 0x80-0x86; the conditions 10-12 test
-// VAR_ARC1_DW_HINTS (see ov9_02251104).
-// Cyrus waits at the entry until the player reaches the briefcase.
-static const UnkStruct_ov9_0224EF30 sArc1SeamsCyrusAtEntry = {
-    10,
-    ARC1_SEAMS_HINTS_BRIEFCASE,
-    0x0,
-    0x0,
-    {
-        0x80,
-        OBJ_EVENT_GFX_CYRUS,
-        0x0,
-        0x0,
-        0x0,
-        ARC1_SEAMS_SCRIPT_TALK_CYRUS,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        22,
-        11,
-        ((1 << 4) * FX32_ONE),
+// --- sArc1SeamsObjects: 7 objects ---
+static const DistWorldObjectEvent sArc1SeamsCyrusAtEntry = {
+    .flagCond = 10,
+    .flagCondVal = ARC1_SEAMS_HINTS_BRIEFCASE,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x80,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = ARC1_SEAMS_SCRIPT_TALK_CYRUS,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 22,
+        .z = 11,
+        .y = ((1 << 4) * FX32_ONE),
     },
 };
 
-// Barry waits behind the entry tile (20,12).
-static const UnkStruct_ov9_0224EF30 sArc1SeamsBarryAtEntry = {
-    10,
-    ARC1_SEAMS_HINTS_BRIEFCASE,
-    0x0,
-    0x0,
-    {
-        0x81,
-        OBJ_EVENT_GFX_BARRY,
-        0x0,
-        0x0,
-        0x0,
-        ARC1_SEAMS_SCRIPT_TALK_BARRY,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        21,
-        12,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sArc1SeamsBarryAtEntry = {
+    .flagCond = 10,
+    .flagCondVal = ARC1_SEAMS_HINTS_BRIEFCASE,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x81,
+        .graphicsID = OBJ_EVENT_GFX_BARRY,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = ARC1_SEAMS_SCRIPT_TALK_BARRY,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 21,
+        .z = 12,
+        .y = ((1 << 4) * FX32_ONE),
     },
 };
 
-// Script-only (ScrCmd_311 130): the Mawile glimpsed on the briefcase platform from the fork.
-static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileGlimpse = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x82,
-        OBJ_EVENT_GFX_MAWILE,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        DIR_NORTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        16,
-        21,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sArc1SeamsMawileGlimpse = {
+    .flagCond = 0x6,
+    .flagCondVal = 0x0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x82,
+        .graphicsID = OBJ_EVENT_GFX_MAWILE,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = DIR_NORTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 16,
+        .z = 21,
+        .y = ((1 << 4) * FX32_ONE),
     },
 };
 
-// The Mawile that charges the player at the briefcase, spawning at (18,23) on the player's row, east of
-// the briefcase, out of the dark past the platform's walkable edge. Script-only (condition 6: it spawns on
-// no map load, so it stays hidden until ScrCmd_311 in the briefcase scene, at any HINTS value). Never gate
-// it on HINTS == 4: that auto-spawns it on a HINTS 4 map load, visible before the lunge. Post-battle, the
-// scene re-shows it (ScrCmd_311, a no-op if it was retained through the battle) before ScrCmd_312 hides
-// it, so the hide works whether or not the battle reloaded the map.
-static const UnkStruct_ov9_0224EF30 sArc1SeamsMawileLunge = {
-    6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x83,
-        OBJ_EVENT_GFX_MAWILE,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        18,
-        23,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sArc1SeamsMawileLunge = {
+    .flagCond = 6,
+    .flagCondVal = 0x0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x83,
+        .graphicsID = OBJ_EVENT_GFX_MAWILE,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 18,
+        .z = 23,
+        .y = ((1 << 4) * FX32_ONE),
     },
 };
 
-// Rowan's briefcase, until the starter is chosen.
-static const UnkStruct_ov9_0224EF30 sArc1SeamsBriefcase = {
-    10,
-    ARC1_SEAMS_HINTS_STARTER,
-    0x0,
-    0x0,
-    {
-        0x84,
-        OBJ_EVENT_GFX_BRIEFCASE,
-        0x0,
-        0x0,
-        0x0,
-        ARC1_SEAMS_SCRIPT_BRIEFCASE,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        16,
-        23,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sArc1SeamsBriefcase = {
+    .flagCond = 10,
+    .flagCondVal = ARC1_SEAMS_HINTS_STARTER,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x84,
+        .graphicsID = OBJ_EVENT_GFX_BRIEFCASE,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = ARC1_SEAMS_SCRIPT_BRIEFCASE,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 16,
+        .z = 23,
+        .y = ((1 << 4) * FX32_ONE),
     },
 };
 
-// Cyrus, stepped out of a rift beside the player at the briefcase.
-static const UnkStruct_ov9_0224EF30 sArc1SeamsCyrusAtBriefcase = {
-    11,
-    ARC1_SEAMS_HINTS_BRIEFCASE,
-    0x0,
-    0x0,
-    {
-        0x85,
-        OBJ_EVENT_GFX_CYRUS,
-        0x0,
-        0x0,
-        0x0,
-        ARC1_SEAMS_SCRIPT_TALK_CYRUS,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        15,
-        22,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sArc1SeamsCyrusAtBriefcase = {
+    .flagCond = 11,
+    .flagCondVal = ARC1_SEAMS_HINTS_BRIEFCASE,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x85,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = ARC1_SEAMS_SCRIPT_TALK_CYRUS,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 15,
+        .z = 22,
+        .y = ((1 << 4) * FX32_ONE),
     },
 };
 
-// Barry, pulled through the rift after Cyrus, beside the player at the briefcase.
-static const UnkStruct_ov9_0224EF30 sArc1SeamsBarryAtBriefcase = {
-    11,
-    ARC1_SEAMS_HINTS_BRIEFCASE,
-    0x0,
-    0x0,
-    {
-        0x86,
-        OBJ_EVENT_GFX_BARRY,
-        0x0,
-        0x0,
-        0x0,
-        ARC1_SEAMS_SCRIPT_TALK_BARRY,
-        DIR_NORTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        15,
-        24,
-        ((1 << 4) * FX32_ONE),
+static const DistWorldObjectEvent sArc1SeamsBarryAtBriefcase = {
+    .flagCond = 11,
+    .flagCondVal = ARC1_SEAMS_HINTS_BRIEFCASE,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x86,
+        .graphicsID = OBJ_EVENT_GFX_BARRY,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = ARC1_SEAMS_SCRIPT_TALK_BARRY,
+        .dir = DIR_NORTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 15,
+        .z = 24,
+        .y = ((1 << 4) * FX32_ONE),
     },
 };
 
-static const UnkStruct_ov9_0224EF30 *sArc1SeamsObjects[] = {
+// --- sArc2DwRavagedPathObjects: 4 objects ---
+static const DistWorldObjectEvent sArc2DwRavagedPathCyrusAtEntry = {
+    .flagCond = 0x0,
+    .flagCondVal = 0x0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x80,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = FLAG_MAP_LOCAL_HIDE_OBSTACLE_16,
+        .script = RAVAGED_PATH_SCRIPT_TALK,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 22,
+        .z = 11,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwRavagedPathCyrusAtTotem = {
+    .flagCond = 0x6,
+    .flagCondVal = 0x0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x81,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = RAVAGED_PATH_SCRIPT_TALK,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 15,
+        .z = 22,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwRavagedPathTotem = {
+    .flagCond = 0x0,
+    .flagCondVal = 0x0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x82,
+        .graphicsID = OBJ_EVENT_GFX_TOTEM_HITMONLEE_VIOLET,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = FLAG_MAP_LOCAL_HIDE_OBSTACLE_17,
+        .script = 0x0,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 19,
+        .z = 22,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwRavagedPathTotemCalm = {
+    .flagCond = 0x6,
+    .flagCondVal = 0x0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x83,
+        .graphicsID = OBJ_EVENT_GFX_TOTEM_HITMONLEE,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 19,
+        .z = 22,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+// --- sArc2DwEternaForestObjects: 3 objects ---
+static const DistWorldObjectEvent sArc2DwEternaForestCyrusAtEntry = {
+    .flagCond = 0x0,
+    .flagCondVal = 0x0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x80,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = ETERNA_FOREST_SCRIPT_TALK,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 22,
+        .z = 11,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwEternaForestCyrusInHive = {
+    .flagCond = 0x0,
+    .flagCondVal = 0x0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x81,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = ETERNA_FOREST_SCRIPT_TALK,
+        .dir = DIR_EAST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 40,
+        .z = 23,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwEternaForestTotem = {
+    .flagCond = 0x0,
+    .flagCondVal = 0x0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x82,
+        .graphicsID = OBJ_EVENT_GFX_TOTEM_VESPIQUEN,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0x0,
+        .dir = DIR_NORTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 45,
+        .z = 45,
+        .y = ((10 << 4) * FX32_ONE),
+    },
+};
+
+// --- sArc2DwRoute214Objects: 3 objects ---
+static const DistWorldObjectEvent sArc2DwRoute214CyrusEntry = {
+    .flagCond = 21,
+    .flagCondVal = FLAG_ARC2_RIFTB_A,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x80,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 5,
+        .dir = DIR_EAST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 16,
+        .z = 12,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwRoute214CyrusFrame = {
+    .flagCond = 20,
+    .flagCondVal = FLAG_ARC2_RIFTB_A,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x81,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 5,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 46,
+        .z = 23,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwRoute214Frame = {
+    .flagCond = 21,
+    .flagCondVal = FLAG_ARC2_RIFTB_B,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x82,
+        .graphicsID = OBJ_EVENT_GFX_SHARD_FRAME,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 47,
+        .z = 23,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+// --- sArc2DwRoute213Objects: 5 objects ---
+static const DistWorldObjectEvent sArc2DwRoute213Cyrus = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x80,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 5,
+        .dir = DIR_EAST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 16,
+        .z = 12,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwRoute213RustedFrame = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x81,
+        .graphicsID = OBJ_EVENT_GFX_SHARD_FRAME,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 7,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 31,
+        .z = 20,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwRoute213Card = {
+    .flagCond = 21,
+    .flagCondVal = FLAG_ARC2_ELIAS_CARD,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x82,
+        .graphicsID = OBJ_EVENT_GFX_POKEBALL,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 3,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 32,
+        .z = 20,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwRoute213Lapras = {
+    .flagCond = 21,
+    .flagCondVal = FLAG_TOTEM_LAPRAS_DEFEATED,
+    .rotated = 0x1,
+    .rotationAngle = 180,
+    .objEvent = {
+        .localID = 0x83,
+        .graphicsID = OBJ_EVENT_GFX_TOTEM_LAPRAS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 46,
+        .z = 46,
+        .y = ((10 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwRoute213LakeSign = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x84,
+        .graphicsID = OBJ_EVENT_GFX_SIGNBOARD,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 6,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 24,
+        .z = 22,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+// --- sArc2DwLostTowerObjects: 20 objects ---
+static const DistWorldObjectEvent sArc2DwLostTowerShard1 = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x80,
+        .graphicsID = OBJ_EVENT_GFX_VIOLET_CRYSTAL,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 13,
+        .z = 22,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerShard2 = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x81,
+        .graphicsID = OBJ_EVENT_GFX_VIOLET_CRYSTAL,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 15,
+        .z = 22,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerShard3 = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x82,
+        .graphicsID = OBJ_EVENT_GFX_VIOLET_CRYSTAL,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 12,
+        .z = 24,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerShard4 = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x83,
+        .graphicsID = OBJ_EVENT_GFX_VIOLET_CRYSTAL,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 14,
+        .z = 24,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerShadow = {
+    .flagCond = 21,
+    .flagCondVal = FLAG_ARC2_RIFTB_D,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x84,
+        .graphicsID = OBJ_EVENT_GFX_RIFT_ARC2,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 5,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 16,
+        .z = 23,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerCyrus = {
+    .flagCond = 22,
+    .flagCondVal = 94,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x85,
+        .graphicsID = OBJ_EVENT_GFX_CYRUS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 6,
+        .dir = DIR_EAST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 39,
+        .z = 22,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerSpiritomb = {
+    .flagCond = 22,
+    .flagCondVal = 94,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x86,
+        .graphicsID = OBJ_EVENT_GFX_TOTEM_SPIRITOMB,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 41,
+        .z = 22,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerEmpoleon = {
+    .flagCond = 6,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x87,
+        .graphicsID = OBJ_EVENT_GFX_EMPOLEON,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 38,
+        .z = 21,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerTorterra = {
+    .flagCond = 6,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x88,
+        .graphicsID = OBJ_EVENT_GFX_TORTERRA,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 38,
+        .z = 21,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerInfernape = {
+    .flagCond = 6,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x89,
+        .graphicsID = OBJ_EVENT_GFX_INFERNAPE,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 38,
+        .z = 21,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerGhostHitmonlee = {
+    .flagCond = 6,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x8A,
+        .graphicsID = OBJ_EVENT_GFX_TOTEM_HITMONLEE,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 12,
+        .z = 14,
+        .y = ((3 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerGhostVespiquen = {
+    .flagCond = 6,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x8B,
+        .graphicsID = OBJ_EVENT_GFX_TOTEM_VESPIQUEN,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_NORTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 12,
+        .z = 20,
+        .y = ((3 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerGhostSkarmory = {
+    .flagCond = 6,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x8C,
+        .graphicsID = OBJ_EVENT_GFX_TOTEM_SKARMORY,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 33,
+        .z = 21,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerGhostLapras = {
+    .flagCond = 6,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x8D,
+        .graphicsID = OBJ_EVENT_GFX_TOTEM_LAPRAS,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = 0,
+        .dir = DIR_WEST,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 22,
+        .z = 21,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerCandle1 = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x8E,
+        .graphicsID = OBJ_EVENT_GFX_ARC1_RIFT,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = LOST_TOWER_SCRIPT_TALK_LITWICK,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 13,
+        .z = 15,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerCandle2 = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x8F,
+        .graphicsID = OBJ_EVENT_GFX_ARC1_RIFT,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = LOST_TOWER_SCRIPT_TALK_LITWICK,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 15,
+        .z = 15,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerCandle3 = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x90,
+        .graphicsID = OBJ_EVENT_GFX_ARC1_RIFT,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = LOST_TOWER_SCRIPT_TALK_LITWICK,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 12,
+        .z = 19,
+        .y = ((4 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerCandle4 = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x91,
+        .graphicsID = OBJ_EVENT_GFX_ARC1_RIFT,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = LOST_TOWER_SCRIPT_TALK_LITWICK,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 16,
+        .z = 21,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerCandle5 = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x92,
+        .graphicsID = OBJ_EVENT_GFX_ARC1_RIFT,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = LOST_TOWER_SCRIPT_TALK_LITWICK,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 37,
+        .z = 21,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent sArc2DwLostTowerCandle6 = {
+    .flagCond = 0,
+    .flagCondVal = 0,
+    .rotated = 0x0,
+    .rotationAngle = 0x0,
+    .objEvent = {
+        .localID = 0x93,
+        .graphicsID = OBJ_EVENT_GFX_ARC1_RIFT,
+        .movementType = 0x0,
+        .trainerType = 0x0,
+        .hiddenFlag = 0x0,
+        .script = LOST_TOWER_SCRIPT_TALK_LITWICK,
+        .dir = DIR_SOUTH,
+        .data = { 0x0, 0x0, 0x0 },
+        .movementRangeX = 0x0,
+        .movementRangeZ = 0x0,
+        .x = 41,
+        .z = 23,
+        .y = ((1 << 4) * FX32_ONE),
+    },
+};
+
+static const DistWorldObjectEvent *sMapObjectEventsArc1Seams[] = {
     &sArc1SeamsCyrusAtEntry,
     &sArc1SeamsBarryAtEntry,
     &sArc1SeamsMawileGlimpse,
@@ -14998,111 +16254,7 @@ static const UnkStruct_ov9_0224EF30 *sArc1SeamsObjects[] = {
     NULL
 };
 
-// Arc 2 rifts (R0 stubs): DW overlay objects per map (local IDs 0x80+), each owned by that map's rift workstream.
-
-// Arc 2 rift-a, DW Ravaged Path. Cyrus waits at the entry (as in Arc 1) and folds across to the totem platform; the
-// map-local FLAG_UNK_0x0030 (set by the totem scene, kept through the battle reload, cleared by any warp) keeps him
-// off the entry once he has crossed. The rest are script-only (condition 6, ScrCmd_311/312).
-static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathCyrusAtEntry = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x80,
-        OBJ_EVENT_GFX_CYRUS,
-        0x0,
-        0x0,
-        FLAG_UNK_0x0030,
-        RAVAGED_PATH_SCRIPT_TALK,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        22,
-        11,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathCyrusAtTotem = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x81,
-        OBJ_EVENT_GFX_CYRUS,
-        0x0,
-        0x0,
-        0x0,
-        RAVAGED_PATH_SCRIPT_TALK,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        15,
-        22,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// The totem, violet aura and all, at the far (east) end of the briefcase platform. Visible from the start. Its big
-// sprite draws west of its tile, so it stands well clear of Cyrus at (15,22).
-static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathTotem = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x82,
-        OBJ_EVENT_GFX_TOTEM_HITMONLEE_VIOLET,
-        0x0,
-        0x0,
-        FLAG_UNK_0x0031,
-        0x0,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        19,
-        22,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// The same Hitmonlee once calm (no aura), shown by the script after the battle.
-static const UnkStruct_ov9_0224EF30 sArc2DwRavagedPathTotemCalm = {
-    0x6,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x83,
-        OBJ_EVENT_GFX_TOTEM_HITMONLEE,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        19,
-        22,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-static const UnkStruct_ov9_0224EF30 *sArc2DwRavagedPathObjects[] = {
+static const DistWorldObjectEvent *sMapObjectEventsDwRavagedPath[] = {
     &sArc2DwRavagedPathCyrusAtEntry,
     &sArc2DwRavagedPathCyrusAtTotem,
     &sArc2DwRavagedPathTotem,
@@ -15110,803 +16262,21 @@ static const UnkStruct_ov9_0224EF30 *sArc2DwRavagedPathObjects[] = {
     NULL
 };
 
-// Arc 2 rift-a, DW Eterna Forest. Cyrus waits on the entry walkway and, folded through with the player, at the hive
-// start on B4F's floor strip; the Vespiquen totem hangs at the far end of the ceiling (y10).
-static const UnkStruct_ov9_0224EF30 sArc2DwEternaForestCyrusAtEntry = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x80,
-        OBJ_EVENT_GFX_CYRUS,
-        0x0,
-        0x0,
-        0x0,
-        ETERNA_FOREST_SCRIPT_TALK,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        22,
-        11,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-static const UnkStruct_ov9_0224EF30 sArc2DwEternaForestCyrusInHive = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x81,
-        OBJ_EVENT_GFX_CYRUS,
-        0x0,
-        0x0,
-        0x0,
-        ETERNA_FOREST_SCRIPT_TALK,
-        DIR_EAST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        40,
-        23,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-static const UnkStruct_ov9_0224EF30 sArc2DwEternaForestTotem = {
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    {
-        0x82,
-        OBJ_EVENT_GFX_TOTEM_VESPIQUEN,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        DIR_NORTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        45,
-        45,
-        ((10 << 4) * FX32_ONE),
-    },
-};
-
-static const UnkStruct_ov9_0224EF30 *sArc2DwEternaForestObjects[] = {
+static const DistWorldObjectEvent *sMapObjectEventsDwEternaForest[] = {
     &sArc2DwEternaForestCyrusAtEntry,
     &sArc2DwEternaForestCyrusInHive,
     &sArc2DwEternaForestTotem,
     NULL
 };
 
-// rift-b object conditions (ov9_02251104): 20 flag set, 21 flag clear, 22 VAR_ARC2_PROGRESS >= param, 23 < param,
-// 6 script-only (ScrCmd_311). Talk scripts are the map's script entries (1-based).
-// Route 214: Cyrus at the edge of the entry trees (the player steps out to (17,12)), until the boost choice (FLAG_ARC2_RIFTB_A).
-static const UnkStruct_ov9_0224EF30 sArc2DwRoute214CyrusEntry = {
-    21,
-    FLAG_ARC2_RIFTB_A,
-    0x0,
-    0x0,
-    {
-        0x80,
-        OBJ_EVENT_GFX_CYRUS,
-        0x0,
-        0x0,
-        0x0,
-        5,
-        DIR_EAST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        16,
-        12,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Route 214: Cyrus beside the shard frame, folded there for the choice.
-static const UnkStruct_ov9_0224EF30 sArc2DwRoute214CyrusFrame = {
-    20,
-    FLAG_ARC2_RIFTB_A,
-    0x0,
-    0x0,
-    {
-        0x81,
-        OBJ_EVENT_GFX_CYRUS,
-        0x0,
-        0x0,
-        0x0,
-        5,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        46,
-        23,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Route 214: the frame with the grunts' violet shard, wired toward the wall; gone once Cyrus pulls it.
-static const UnkStruct_ov9_0224EF30 sArc2DwRoute214Frame = {
-    21,
-    FLAG_ARC2_RIFTB_B,
-    0x0,
-    0x0,
-    {
-        0x82,
-        OBJ_EVENT_GFX_SHARD_FRAME,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        47,
-        23,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Route 213: Cyrus at the edge of the entry trees (he stays there; the card is out of his earshot).
-static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Cyrus = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x80,
-        OBJ_EVENT_GFX_CYRUS,
-        0x0,
-        0x0,
-        0x0,
-        5,
-        DIR_EAST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        16,
-        12,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Route 213: a rusted first-generation frame on the old lakebed (the ledge beside the pool, past the first hop). Examine: script 7.
-static const UnkStruct_ov9_0224EF30 sArc2DwRoute213RustedFrame = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x81,
-        OBJ_EVENT_GFX_SHARD_FRAME,
-        0x0,
-        0x0,
-        0x0,
-        7,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        31,
-        20,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Route 213: the worn Trainer Card beside it (FLAG_ARC2_ELIAS_CARD once picked up).
-static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Card = {
-    21,
-    FLAG_ARC2_ELIAS_CARD,
-    0x0,
-    0x0,
-    {
-        0x82,
-        OBJ_EVENT_GFX_POKEBALL,
-        0x0,
-        0x0,
-        0x0,
-        3,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        32,
-        20,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Route 213 (set-lake): the Lapras waits on the hanging lake's one island (ceiling x 45-48, z 44-47; rotated 180 like
-// the player on the ceiling), until it is calmed.
-static const UnkStruct_ov9_0224EF30 sArc2DwRoute213Lapras = {
-    21,
-    FLAG_TOTEM_LAPRAS_DEFEATED,
-    0x1,
-    180,
-    {
-        0x83,
-        OBJ_EVENT_GFX_TOTEM_LAPRAS,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        46,
-        46,
-        ((10 << 4) * FX32_ONE),
-    },
-};
-
-// Route 213 (set-lake): the Lake Valor lakefront sign, swallowed with the lake, at the lip of the first hop. Script 6.
-static const UnkStruct_ov9_0224EF30 sArc2DwRoute213LakeSign = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x84,
-        OBJ_EVENT_GFX_SIGNBOARD,
-        0x0,
-        0x0,
-        0x0,
-        6,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        24,
-        22,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower: Eclipse Shards growing out of the rock around the vein room (OBJ_EVENT_GFX_VIOLET_CRYSTAL, art-final).
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard1 = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x80,
-        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        13,
-        22,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower: vein shard.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard2 = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x81,
-        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        15,
-        22,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower: vein shard.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard3 = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x82,
-        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        12,
-        24,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower: vein shard.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShard4 = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x83,
-        OBJ_EVENT_GFX_VIOLET_CRYSTAL,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        14,
-        24,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower: the wall of shadow across the way deeper, until it parts on the second visit (FLAG_ARC2_RIFTB_D).
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerShadow = {
-    21,
-    FLAG_ARC2_RIFTB_D,
-    0x0,
-    0x0,
-    {
-        0x84,
-        OBJ_EVENT_GFX_RIFT_ARC2,
-        0x0,
-        0x0,
-        0x0,
-        5,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        16,
-        23,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower: Cyrus on his knees beside the Spiritomb, from the grunts' raid on (state 94). set-tower: on the island past
-// the risen stones and the gap (Skarmory carries the player there; scripts_dw_lost_tower.s).
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCyrus = {
-    22,
-    94,
-    0x0,
-    0x0,
-    {
-        0x85,
-        OBJ_EVENT_GFX_CYRUS,
-        0x0,
-        0x0,
-        0x0,
-        6,
-        DIR_EAST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        39,
-        22,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower: the Spiritomb totem.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerSpiritomb = {
-    22,
-    94,
-    0x0,
-    0x0,
-    {
-        0x86,
-        OBJ_EVENT_GFX_TOTEM_SPIRITOMB,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        41,
-        22,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower: Cyrus's starter, fainted at his side (script-only: the one weak to the player's starter).
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerEmpoleon = {
-    6,
-    0,
-    0x0,
-    0x0,
-    {
-        0x87,
-        OBJ_EVENT_GFX_EMPOLEON,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        38,
-        21,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower: Cyrus's starter (the player chose Chimchar).
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerTorterra = {
-    6,
-    0,
-    0x0,
-    0x0,
-    {
-        0x88,
-        OBJ_EVENT_GFX_TORTERRA,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        38,
-        21,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower: Cyrus's starter (the player chose Piplup).
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerInfernape = {
-    6,
-    0,
-    0x0,
-    0x0,
-    {
-        0x89,
-        OBJ_EVENT_GFX_INFERNAPE,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        38,
-        21,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lost Tower ghost acts (set-tower, S7; Arc2DwLostTower_* above): the ghost totems, script-only (ScrCmd_311), drawn
-// translucent and violet by Arc2DwLostTower_HandleFrame. Hitmonlee appears in front of the wall, just above its scar.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerGhostHitmonlee = {
-    6,
-    0,
-    0x0,
-    0x0,
-    {
-        0x8A,
-        OBJ_EVENT_GFX_TOTEM_HITMONLEE,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        12,
-        14,
-        ((3 << 4) * FX32_ONE),
-    },
-};
-
-// Vespiquen hovers over the fork, in front of the true seam.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerGhostVespiquen = {
-    6,
-    0,
-    0x0,
-    0x0,
-    {
-        0x8B,
-        OBJ_EVENT_GFX_TOTEM_VESPIQUEN,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_NORTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        12,
-        20,
-        ((3 << 4) * FX32_ONE),
-    },
-};
-
-// Skarmory drops in beside the last stone.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerGhostSkarmory = {
-    6,
-    0,
-    0x0,
-    0x0,
-    {
-        0x8C,
-        OBJ_EVENT_GFX_TOTEM_SKARMORY,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        33,
-        21,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Lapras rises out of the mist where the stones lie sunk.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerGhostLapras = {
-    6,
-    0,
-    0x0,
-    0x0,
-    {
-        0x8D,
-        OBJ_EVENT_GFX_TOTEM_LAPRAS,
-        0x0,
-        0x0,
-        0x0,
-        0,
-        DIR_WEST,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        22,
-        21,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Litwick candles at the seams (decor; a stand-in sprite at half size, tinted to a pale flame by
-// Arc2DwLostTower_HandleFrame until a Litwick overworld sprite exists). The first seam: the ledge's edge.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle1 = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x8E,
-        OBJ_EVENT_GFX_ARC1_RIFT,
-        0x0,
-        0x0,
-        0x0,
-        LOST_TOWER_SCRIPT_TALK_LITWICK,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        13,
-        15,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// The first seam: the far end of the ledge.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle2 = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x8F,
-        OBJ_EVENT_GFX_ARC1_RIFT,
-        0x0,
-        0x0,
-        0x0,
-        LOST_TOWER_SCRIPT_TALK_LITWICK,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        15,
-        15,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// The fork: a flame hanging in front of the wall above the true seam. Wall objects here stand at x=12, in front of the
-// wall face, and never use the wall-rotation animation (unk_04 = 1): objects block by x/z only, so at x=11 they would
-// stop the climb, and a wall-animated object still loaded when the exit's warp animation runs hangs the game.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle3 = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x90,
-        OBJ_EVENT_GFX_ARC1_RIFT,
-        0x0,
-        0x0,
-        0x0,
-        LOST_TOWER_SCRIPT_TALK_LITWICK,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        12,
-        19,
-        ((4 << 4) * FX32_ONE),
-    },
-};
-
-// The wall of shadow: the deeper ledge's north arm.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle4 = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x91,
-        OBJ_EVENT_GFX_ARC1_RIFT,
-        0x0,
-        0x0,
-        0x0,
-        LOST_TOWER_SCRIPT_TALK_LITWICK,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        16,
-        21,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// The gap: Cyrus's island, west edge.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle5 = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x92,
-        OBJ_EVENT_GFX_ARC1_RIFT,
-        0x0,
-        0x0,
-        0x0,
-        LOST_TOWER_SCRIPT_TALK_LITWICK,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        37,
-        21,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-// Cyrus's island, east edge, behind the Spiritomb.
-static const UnkStruct_ov9_0224EF30 sArc2DwLostTowerCandle6 = {
-    0,
-    0,
-    0x0,
-    0x0,
-    {
-        0x93,
-        OBJ_EVENT_GFX_ARC1_RIFT,
-        0x0,
-        0x0,
-        0x0,
-        LOST_TOWER_SCRIPT_TALK_LITWICK,
-        DIR_SOUTH,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        41,
-        23,
-        ((1 << 4) * FX32_ONE),
-    },
-};
-
-static const UnkStruct_ov9_0224EF30 *sArc2DwRoute214Objects[] = {
+static const DistWorldObjectEvent *sMapObjectEventsDwRoute214[] = {
     &sArc2DwRoute214CyrusEntry,
     &sArc2DwRoute214CyrusFrame,
     &sArc2DwRoute214Frame,
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 *sArc2DwRoute213Objects[] = {
+static const DistWorldObjectEvent *sMapObjectEventsDwRoute213[] = {
     &sArc2DwRoute213Cyrus,
     &sArc2DwRoute213RustedFrame,
     &sArc2DwRoute213Card,
@@ -15915,7 +16285,7 @@ static const UnkStruct_ov9_0224EF30 *sArc2DwRoute213Objects[] = {
     NULL
 };
 
-static const UnkStruct_ov9_0224EF30 *sArc2DwLostTowerObjects[] = {
+static const DistWorldObjectEvent *sMapObjectEventsDwLostTower[] = {
     &sArc2DwLostTowerShard1,
     &sArc2DwLostTowerShard2,
     &sArc2DwLostTowerShard3,
@@ -15939,22 +16309,22 @@ static const UnkStruct_ov9_0224EF30 *sArc2DwLostTowerObjects[] = {
     NULL
 };
 
-static const UnkStruct_ov9_02252EB4 Unk_ov9_02252EB4[] = {
-    { 0x23D, Unk_ov9_02253B34 },
-    { 0x23E, Unk_ov9_02253B08 },
-    { 0x23F, Unk_ov9_02253B58 },
-    { 0x240, Unk_ov9_02253B20 },
-    { 0x241, Unk_ov9_02253B18 },
-    { 0x243, Unk_ov9_02253BC8 },
-    { 0x244, Unk_ov9_02253C78 },
-    { 0x245, Unk_ov9_02253B98 },
-    { 0x246, Unk_ov9_02253BB0 },
-    { 0x247, Unk_ov9_02253B40 },
-    { MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS, sArc1SeamsObjects },
-    { MAP_HEADER_DW_RAVAGED_PATH, sArc2DwRavagedPathObjects },
-    { MAP_HEADER_DW_ETERNA_FOREST, sArc2DwEternaForestObjects },
-    { MAP_HEADER_DW_ROUTE_214, sArc2DwRoute214Objects },
-    { MAP_HEADER_DW_ROUTE_213, sArc2DwRoute213Objects },
-    { MAP_HEADER_DW_LOST_TOWER, sArc2DwLostTowerObjects },
-    { 0x251, NULL }
+static const DistWorldMapObjectEvents sMapObjectEvents[] = {
+    { MAP_HEADER_DISTORTION_WORLD_1F, sMapObjectEvents1F },
+    { MAP_HEADER_DISTORTION_WORLD_B1F, sMapObjectEventsB1F },
+    { MAP_HEADER_DISTORTION_WORLD_B2F, sMapObjectEventsB2F },
+    { MAP_HEADER_DISTORTION_WORLD_B3F, sMapObjectEventsB3F },
+    { MAP_HEADER_DISTORTION_WORLD_B4F, sMapObjectEventsB4F },
+    { MAP_HEADER_DISTORTION_WORLD_B5F, sMapObjectEventsB5F },
+    { MAP_HEADER_DISTORTION_WORLD_B6F, sMapObjectEventsB6F },
+    { MAP_HEADER_DISTORTION_WORLD_B7F, sMapObjectEventsB7F },
+    { MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM, sMapObjectEventsGiratinaRoom },
+    { MAP_HEADER_DISTORTION_WORLD_TURNBACK_CAVE_ROOM, sMapObjectEventsTurnbackCaveRoom },
+    { MAP_HEADER_DISTORTION_WORLD_ARC1_SEAMS, sMapObjectEventsArc1Seams },
+    { MAP_HEADER_DW_RAVAGED_PATH, sMapObjectEventsDwRavagedPath },
+    { MAP_HEADER_DW_ETERNA_FOREST, sMapObjectEventsDwEternaForest },
+    { MAP_HEADER_DW_ROUTE_214, sMapObjectEventsDwRoute214 },
+    { MAP_HEADER_DW_ROUTE_213, sMapObjectEventsDwRoute213 },
+    { MAP_HEADER_DW_LOST_TOWER, sMapObjectEventsDwLostTower },
+    { MAP_HEADER_INVALID, NULL }
 };

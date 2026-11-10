@@ -5,7 +5,7 @@ _000:
     CompareVarToValue OPCODE_EQU, BTLVAR_SCRIPT_TEMP, 1, _034
     CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_TYPE, BATTLE_TYPE_TRAINER, _018
     // Use next Pokémon?{YESNO 0}
-    PrintMessage pl_msg_00000368_00011, TAG_NONE
+    PrintMessage BattleStrings_Text_UseNextPokemonYesNo, TAG_NONE
     Wait 
     YesNoMenu YES_NO_NEXT_MON
     WaitYesNoResult _018, _024
@@ -32,7 +32,7 @@ _034:
 _036:
     SwitchAndUpdateMon BTLSCR_SWITCHED_MON
     // {0} {1} is about to send in {2}. Will you switch your Pokémon?{YESNO 0}
-    PrintMessage pl_msg_00000368_00835, TAG_TRCLASS_TRNAME_NICKNAME_TRNAME, BTLSCR_SWITCHED_MON, BTLSCR_SWITCHED_MON, BTLSCR_SWITCHED_MON, BTLSCR_PLAYER
+    PrintMessage BattleStrings_Text_WillYouSwitchYourPokemon, TAG_TRCLASS_TRNAME_NICKNAME_TRNAME, BTLSCR_SWITCHED_MON, BTLSCR_SWITCHED_MON, BTLSCR_SWITCHED_MON, BTLSCR_PLAYER
     Wait 
     YesNoMenu YES_NO_CHANGE_MON
     WaitYesNoResult _051, _064
@@ -57,7 +57,7 @@ _064:
     FreePartyGaugeGraphics 
     PokemonSendOut BTLSCR_SWITCHED_MON
     WaitTime 72
-    HealthbarSlideIn BTLSCR_SWITCHED_MON
+    HealthBoxSlideIn BTLSCR_SWITCHED_MON
     Wait 
     Call BATTLE_SUBSCRIPT_HAZARDS_CHECK
     CompareVarToValue OPCODE_FLAG_NOT, BTLVAR_BATTLE_CTX_STATUS, SYSCTL_MON_FAINTED, _091

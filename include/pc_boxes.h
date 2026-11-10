@@ -1,8 +1,6 @@
 #ifndef POKEPLATINUM_PC_BOXES_H
 #define POKEPLATINUM_PC_BOXES_H
 
-#include "struct_decls/pc_boxes_decl.h"
-
 #include "pokemon.h"
 #include "string_gf.h"
 
@@ -10,12 +8,22 @@
 #define MAX_PC_ROWS               5
 #define MAX_PC_COLS               6
 #define MAX_MONS_PER_BOX          (MAX_PC_ROWS * MAX_PC_COLS)
-#define MAX_DEFAULT_WALLPAPERS    16
+#define NUM_WALLPAPER_THEMES      4
+#define NUM_WALLPAPERS_PER_THEME  4
+#define MAX_DEFAULT_WALLPAPERS    (NUM_WALLPAPER_THEMES * NUM_WALLPAPERS_PER_THEME)
 #define MAX_UNLOCKABLE_WALLPAPERS 8
 #define MAX_WALLPAPERS            (MAX_DEFAULT_WALLPAPERS + MAX_UNLOCKABLE_WALLPAPERS)
 #define PC_BOX_NAME_BUFFER_LEN    20
 
 #define USE_CURRENT_BOX -1
+
+typedef struct PCBoxes {
+    u32 currentBoxID;
+    BoxPokemon boxMons[MAX_PC_BOXES][MAX_MONS_PER_BOX];
+    u16 names[MAX_PC_BOXES][PC_BOX_NAME_BUFFER_LEN];
+    u8 wallpapers[MAX_PC_BOXES];
+    u8 unlockedWallpapers;
+} PCBoxes;
 
 void PCBoxes_Init(PCBoxes *pcBoxes);
 u32 PCBoxes_SaveSize(void);

@@ -5,31 +5,31 @@
 
 #include "constants/field/dynamic_map_features.h"
 #include "constants/map_object.h"
+#include "constants/player_avatar.h"
 #include "generated/game_records.h"
 #include "generated/movement_actions.h"
 
-#include "struct_decls/struct_020216E0_decl.h"
-#include "struct_decls/struct_0205E884_decl.h"
-#include "struct_decls/struct_02061830_decl.h"
-#include "struct_decls/struct_02061AB4_decl.h"
+#include "struct_decls/map_object.h"
+#include "struct_decls/map_object_manager.h"
 
 #include "field/field_system.h"
+#include "overlay005/dist_world_surf_mount_renderer.h"
+#include "overlay005/field_effect_manager.h"
 #include "overlay005/map_object_anim_cmd.h"
-#include "overlay005/ov5_021DF440.h"
 #include "overlay005/ov5_021EB1A0.h"
 #include "overlay005/ov5_021ECE40.h"
-#include "overlay005/ov5_021F25C0.h"
 #include "overlay005/ov5_021F2850.h"
-#include "overlay005/ov5_021F8560.h"
 #include "overlay005/struct_ov5_021D1BEC_decl.h"
+#include "overlay005/surf_mount_renderer.h"
 #include "overlay006/hm_cut_in.h"
 #include "overlay006/ov6_02248050.h"
 #include "overlay006/wild_encounters.h"
 #include "overlay009/ov9_02249960.h"
-#include "overlay009/struct_ov9_0224F6EC_decl.h"
 
+#include "billboard.h"
 #include "encounter.h"
 #include "field_battle_data_transfer.h"
+#include "field_bgm.h"
 #include "field_move_tasks.h"
 #include "field_task.h"
 #include "game_records.h"
@@ -41,13 +41,13 @@
 #include "party.h"
 #include "persisted_map_features_init.h"
 #include "player_avatar.h"
+#include "player_move.h"
 #include "pokemon.h"
+#include "sound.h"
 #include "sound_playback.h"
 #include "sys_task.h"
 #include "sys_task_manager.h"
 #include "system.h"
-#include "unk_020553DC.h"
-#include "unk_0205F180.h"
 #include "unk_020655F4.h"
 
 typedef struct MonRideTask {
@@ -64,7 +64,7 @@ typedef struct SurfTaskEnv {
     MonRideTask monRideTask;
     FieldSystem *fieldSystem;
     PlayerAvatar *playerAvatar;
-    MapObject *surfBlob;
+    MapObject *playerObject;
     OverworldAnimManager *unk_28;
 } SurfTaskEnv;
 
@@ -74,7 +74,7 @@ typedef struct RockClimbTaskEnv {
     int dummy;
     FieldSystem *fieldSystem;
     PlayerAvatar *playerAvatar;
-    MapObject *surfBlob;
+    MapObject *playerObject;
     OverworldAnimManager *unk_18;
     MonRideTask monRideTask;
     UnkStruct_ov5_021D1BEC *unk_2C;
@@ -92,7 +92,7 @@ typedef struct WaterfallTaskEnv {
     VecFx32 targetPosition;
     FieldSystem *fieldSystem;
     PlayerAvatar *playerAvatar;
-    MapObject *surfBlob;
+    MapObject *playerObject;
     MonRideTask monRideTask;
     UnkStruct_ov5_021D1BEC *unk_50;
 } WaterfallTaskEnv;
@@ -103,7 +103,7 @@ typedef struct {
     FieldSystem *fieldSystem;
     PlayerAvatar *playerAvatar;
     MapObject *unk_10;
-    UnkStruct_ov9_0224F6EC *unk_14;
+    DistWorldFallingBoulder *unk_14;
 } UnkStruct_ov5_021DFF88;
 
 typedef struct {
@@ -125,9 +125,9 @@ typedef struct StuckInDeepMudTaskEnv {
 typedef struct {
     FieldSystem *fieldSystem;
     PlayerAvatar *playerAvatar;
-    MapObject *unk_08;
+    MapObject *playerObject;
     int unk_0C;
-    int unk_10;
+    int playerGender;
     SysTask *unk_14;
 } UnkStruct_ov5_021E0DE0;
 
@@ -165,7 +165,7 @@ static void MonRideTask_Init(FieldSystem *fieldSystem, Pokemon *partyMon, MonRid
 static void NewMonRideCutIn(FieldSystem *fieldSystem, MonRideTask *monRideTask);
 static BOOL CheckMonRideCutInFinished(MonRideTask *monRideTask);
 static void PlayerAvatar_Redraw(PlayerAvatar *playerAvatar, int param1);
-static void ov5_021E10C0(void *param0, const UnkStruct_020216E0 *param1);
+static void ov5_021E10C0(void *param0, const Billboard *param1);
 static MapObject *ov5_021E10D4(PlayerAvatar *playerAvatar, int param1);
 static void *MonRideTaskEnv_New(int size);
 static void MonRideTaskEnv_Free(void *taskEnv);
@@ -174,7 +174,7 @@ static void ov5_021E0DE0(FieldSystem *fieldSystem);
 static BOOL ov5_021E0E10(FieldTask *param0);
 static int SubTask_RockClimb_PlayCutIn(RockClimbTaskEnv *taskEnv);
 static int SubTask_RockClimb_WaitCutIn(RockClimbTaskEnv *taskEnv);
-static int SubTask_RockClimb_CreateBlob(RockClimbTaskEnv *taskEnv);
+static int SubTask_RockClimb_CreateMount(RockClimbTaskEnv *taskEnv);
 static int SubTask_RockClimb_HopOn(RockClimbTaskEnv *taskEnv);
 static int SubTask_RockClimb_WaitHop(RockClimbTaskEnv *taskEnv);
 static int SubTask_RockClimb_Move(RockClimbTaskEnv *taskEnv);
@@ -199,7 +199,7 @@ typedef int (*WaterfallTaskFunc)(WaterfallTaskEnv *);
 static const RockClimbTaskFunc sRockClimbTasks[] = {
     SubTask_RockClimb_PlayCutIn,
     SubTask_RockClimb_WaitCutIn,
-    SubTask_RockClimb_CreateBlob,
+    SubTask_RockClimb_CreateMount,
     SubTask_RockClimb_HopOn,
     SubTask_RockClimb_WaitHop,
     SubTask_RockClimb_Move,
@@ -231,7 +231,7 @@ void PlayerAvatar_SetTransitionState(PlayerAvatar *playerAvatar, u32 bit)
 void PlayerAvatar_RequestChangeState(PlayerAvatar *playerAvatar)
 {
     u32 state = 0;
-    u32 flag = PlayerAvatar_RequestStateFlag(playerAvatar);
+    u32 flag = PlayerAvatar_GetRequestStateFlag(playerAvatar);
 
     do {
         if (flag & 0x1) {
@@ -247,160 +247,160 @@ void PlayerAvatar_RequestChangeState(PlayerAvatar *playerAvatar)
 static void PlayerAvatar_RequestStateWalking(PlayerAvatar *playerAvatar)
 {
     int v0;
-    int v1 = 0x0;
+    int v1 = PLAYER_AVATAR_WALKING;
 
     if (PlayerAvatar_MapDistortionState(playerAvatar) != AVATAR_DISTORTION_STATE_NONE) {
-        v1 = 0x18;
+        v1 = PLAYER_AVATAR_DISTORTION_WORLD;
     } else {
-        MapObject *mapObj = Player_MapObject(playerAvatar);
+        MapObject *mapObj = PlayerAvatar_GetMapObject(playerAvatar);
         FieldSystem *fieldSystem = MapObject_FieldSystem(mapObj);
 
         if (PersistedMapFeatures_IsCurrentDynamicMap(fieldSystem, DYNAMIC_MAP_FEATURES_HEARTHOME_GYM) == 1) {
-            v1 = 0x1c;
+            v1 = PLAYER_AVATAR_HEARTHOME_GYM;
         }
     }
 
-    v0 = Player_MoveStateFromGender(v1, PlayerAvatar_Gender(playerAvatar));
+    v0 = Player_GetSpriteFromStateAndGender(v1, PlayerAvatar_GetGender(playerAvatar));
 
     PlayerAvatar_Redraw(playerAvatar, v0);
     PlayerAvatar_SetPlayerState(playerAvatar, 0x0);
     PlayerAvatar_ClearSpeed(playerAvatar);
 
     {
-        OverworldAnimManager *v4 = sub_0205EC04(playerAvatar);
+        OverworldAnimManager *v4 = PlayerAvatar_GetSurfMountAnimManager(playerAvatar);
 
         if (v4 != NULL) {
-            ov5_021DF74C(v4);
+            FieldEffectManager_FinishAnimManager(v4);
         }
 
-        sub_0205EC00(playerAvatar, NULL);
+        PlayerAvatar_SetSurfMountAnimManager(playerAvatar, NULL);
     }
 }
 
 static void PlayerAvatar_RequestStateCycle(PlayerAvatar *playerAvatar)
 {
-    int v0 = Player_MoveStateFromGender(PLAYER_STATE_CYCLING, PlayerAvatar_Gender(playerAvatar));
+    int v0 = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_CYCLING, PlayerAvatar_GetGender(playerAvatar));
     PlayerAvatar_Redraw(playerAvatar, v0);
 
-    PlayerAvatar_SetPlayerState(playerAvatar, PLAYER_STATE_CYCLING);
+    PlayerAvatar_SetPlayerState(playerAvatar, PLAYER_AVATAR_CYCLING);
     PlayerAvatar_ClearSpeed(playerAvatar);
 
     {
-        OverworldAnimManager *v1 = sub_0205EC04(playerAvatar);
+        OverworldAnimManager *v1 = PlayerAvatar_GetSurfMountAnimManager(playerAvatar);
 
         if (v1 != NULL) {
-            ov5_021DF74C(v1);
+            FieldEffectManager_FinishAnimManager(v1);
         }
 
-        sub_0205EC00(playerAvatar, NULL);
+        PlayerAvatar_SetSurfMountAnimManager(playerAvatar, NULL);
     }
 
-    Sound_PlayEffect(SEQ_SE_DP_JITENSYA);
+    Sound_PlayEffect(SEQ_SE_DP_JITENSYA_sseq);
 }
 
 static void PlayerAvatar_RequestStateSurf(PlayerAvatar *playerAvatar)
 {
     int v0, v1;
-    MapObject *mapObj = Player_MapObject(playerAvatar);
+    MapObject *mapObj = PlayerAvatar_GetMapObject(playerAvatar);
     FieldSystem *fieldSystem = MapObject_FieldSystem(mapObj);
     enum AvatarDistortionState distortionState = PlayerAvatar_MapDistortionState(playerAvatar);
-    OverworldAnimManager *v5 = sub_0205EC04(playerAvatar);
+    OverworldAnimManager *v5 = PlayerAvatar_GetSurfMountAnimManager(playerAvatar);
 
     if (v5 != NULL) {
-        ov5_021DF74C(v5);
+        FieldEffectManager_FinishAnimManager(v5);
     }
 
-    sub_0205EC00(playerAvatar, NULL);
+    PlayerAvatar_SetSurfMountAnimManager(playerAvatar, NULL);
 
     if (PlayerAvatar_DistortionStateOnFloor(playerAvatar) == TRUE) {
-        v1 = PlayerAvatar_GetDir(playerAvatar);
+        v1 = PlayerAvatar_GetFacingDir(playerAvatar);
     } else {
-        v1 = PlayerAvatar_GetMoveDir(playerAvatar);
+        v1 = PlayerAvatar_GetMovingDir(playerAvatar);
     }
 
     if (distortionState == AVATAR_DISTORTION_STATE_NONE) {
-        v5 = ov5_021F261C(mapObj, 0, 0, v1, 1);
-        v0 = PLAYER_STATE_SURFING;
+        v5 = SurfMountRenderer_HandleSurfBegin(mapObj, 0, 0, v1, TRUE);
+        v0 = PLAYER_AVATAR_SURFING;
     } else {
-        v5 = ov5_021F85BC(playerAvatar, 0, 0, 0, v1, 1, distortionState);
-        v0 = 0x19;
+        v5 = DistWorldSurfMountRenderer_HandleSurfBegin(playerAvatar, 0, 0, 0, v1, 1, distortionState);
+        v0 = PLAYER_AVATAR_DISTORTION_WORLD_SURF;
     }
 
-    sub_0205EC00(playerAvatar, v5);
+    PlayerAvatar_SetSurfMountAnimManager(playerAvatar, v5);
 
-    v0 = Player_MoveStateFromGender(v0, PlayerAvatar_Gender(playerAvatar));
+    v0 = Player_GetSpriteFromStateAndGender(v0, PlayerAvatar_GetGender(playerAvatar));
     PlayerAvatar_Redraw(playerAvatar, v0);
 
-    PlayerAvatar_SetPlayerState(playerAvatar, PLAYER_STATE_SURFING);
+    PlayerAvatar_SetPlayerState(playerAvatar, PLAYER_AVATAR_SURFING);
     PlayerAvatar_ClearSpeed(playerAvatar);
 }
 
 static void ov5_021DFCE4(PlayerAvatar *playerAvatar)
 {
-    sub_0205EF6C(playerAvatar, 1);
+    PlayerAvatar_SetIgnoreTileBehavior(playerAvatar, 1);
 }
 
 static void ov5_021DFCF0(PlayerAvatar *playerAvatar)
 {
-    int v0 = Player_MoveStateFromGender(0x11, PlayerAvatar_Gender(playerAvatar));
+    int v0 = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_SPRAYDUCK, PlayerAvatar_GetGender(playerAvatar));
     PlayerAvatar_Redraw(playerAvatar, v0);
 }
 
 static void ov5_021DFD0C(PlayerAvatar *playerAvatar)
 {
-    int v0 = Player_MoveStateFromGender(0x13, PlayerAvatar_Gender(playerAvatar));
+    int v0 = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_FISHING, PlayerAvatar_GetGender(playerAvatar));
     PlayerAvatar_Redraw(playerAvatar, v0);
 }
 
 static void PlayerAvatar_RequestStatePoketch(PlayerAvatar *playerAvatar)
 {
     int v0;
-    int v1 = 0x14;
+    int v1 = PLAYER_AVATAR_POKETCH;
 
     if (PlayerAvatar_MapDistortionState(playerAvatar) != AVATAR_DISTORTION_STATE_NONE) {
-        v1 = 0x1b;
+        v1 = PLAYER_AVATAR_27;
     } else {
-        MapObject *mapObj = Player_MapObject(playerAvatar);
+        MapObject *mapObj = PlayerAvatar_GetMapObject(playerAvatar);
         FieldSystem *fieldSystem = MapObject_FieldSystem(mapObj);
 
         if (PersistedMapFeatures_IsCurrentDynamicMap(fieldSystem, DYNAMIC_MAP_FEATURES_HEARTHOME_GYM) == 1) {
-            v1 = 0x1e;
+            v1 = PLAYER_AVATAR_30;
         }
     }
 
-    v0 = Player_MoveStateFromGender(v1, PlayerAvatar_Gender(playerAvatar));
+    v0 = Player_GetSpriteFromStateAndGender(v1, PlayerAvatar_GetGender(playerAvatar));
     PlayerAvatar_Redraw(playerAvatar, v0);
 }
 
 static void PlayerAvatar_RequestStateSave(PlayerAvatar *playerAvatar)
 {
     int v0;
-    int v1 = 0x15;
+    int v1 = PLAYER_AVATAR_SAVE;
 
     if (PlayerAvatar_MapDistortionState(playerAvatar) != AVATAR_DISTORTION_STATE_NONE) {
-        v1 = 0x1a;
+        v1 = PLAYER_AVATAR_26;
     } else {
-        MapObject *mapObj = Player_MapObject(playerAvatar);
+        MapObject *mapObj = PlayerAvatar_GetMapObject(playerAvatar);
         FieldSystem *fieldSystem = MapObject_FieldSystem(mapObj);
 
         if (PersistedMapFeatures_IsCurrentDynamicMap(fieldSystem, DYNAMIC_MAP_FEATURES_HEARTHOME_GYM) == 1) {
-            v1 = 0x1d;
+            v1 = PLAYER_AVATAR_29;
         }
     }
 
-    v0 = Player_MoveStateFromGender(v1, PlayerAvatar_Gender(playerAvatar));
+    v0 = Player_GetSpriteFromStateAndGender(v1, PlayerAvatar_GetGender(playerAvatar));
     PlayerAvatar_Redraw(playerAvatar, v0);
 }
 
 static void PlayerAvatar_RequestStateHeal(PlayerAvatar *playerAvatar)
 {
-    int v0 = Player_MoveStateFromGender(0x16, PlayerAvatar_Gender(playerAvatar));
+    int v0 = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_HEAL, PlayerAvatar_GetGender(playerAvatar));
     PlayerAvatar_Redraw(playerAvatar, v0);
 }
 
 static void ov5_021DFDC4(PlayerAvatar *playerAvatar)
 {
-    int v0 = Player_MoveStateFromGender(0x17, PlayerAvatar_Gender(playerAvatar));
+    int v0 = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_VS_SEEKER, PlayerAvatar_GetGender(playerAvatar));
     PlayerAvatar_Redraw(playerAvatar, v0);
 }
 
@@ -423,11 +423,11 @@ int ov5_021DFDE0(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar, enum Face
         MapObject *v0;
 
         GF_ASSERT(playerAvatar != NULL);
-        v0 = Player_MapObject(playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(playerAvatar);
         GF_ASSERT(v0 != NULL);
     }
 
-    if (sub_0205EF58(playerAvatar) == 1) {
+    if (PlayerAvatar_CheckForcedMovement(playerAvatar) == 1) {
         if (ov5_021E067C(fieldSystem, playerAvatar, param3) == 1) {
             return 1;
         }
@@ -456,10 +456,10 @@ int ov5_021DFDE0(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar, enum Face
 
 static int ov5_021DFE68(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar, int param2, int param3)
 {
-    int v0 = sub_02061434(playerAvatar, param2);
+    int v0 = PlayerAvatar_GetMoveStateFromPlayerAvatarState(playerAvatar, param2);
 
     if (param3 & 1 << 2) {
-        if (ov9_0224A59C(fieldSystem, param2) == 1) {
+        if (DistWorld_HandlePlayerMoved(fieldSystem, param2) == 1) {
             return 1;
         }
     }
@@ -489,7 +489,7 @@ static int ov5_021DFE68(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar, in
 
 static int ov5_021DFEF4(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar, int param2, int param3)
 {
-    int v0 = sub_02061434(playerAvatar, param2);
+    int v0 = PlayerAvatar_GetMoveStateFromPlayerAvatarState(playerAvatar, param2);
 
     if (FieldSystem_TryGetStuckInDeepMud(fieldSystem, playerAvatar, param2, v0) == TRUE) {
         return 1;
@@ -526,7 +526,7 @@ static int ov5_021DFF1C(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar, in
 
             if (v2 != 0) {
                 if (PersistedMapFeatures_IsCurrentDynamicMap(fieldSystem, DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) == 1) {
-                    if (ov9_0224F240(mapObj, param2) == 0) {
+                    if (DistWorld_WillBoulderBeAtFallLocation(mapObj, param2) == 0) {
                         return 0;
                     }
                 } else {
@@ -556,7 +556,7 @@ static void ov5_021DFF88(int param0, FieldSystem *fieldSystem, PlayerAvatar *pla
 static BOOL ov5_021DFFBC(FieldTask *param0)
 {
     UnkStruct_ov5_021DFF88 *v0 = FieldTask_GetEnv(param0);
-    MapObject *v1 = Player_MapObject(v0->playerAvatar);
+    MapObject *v1 = PlayerAvatar_GetMapObject(v0->playerAvatar);
     MapObject *v2 = v0->unk_10;
 
     switch (v0->unk_00) {
@@ -577,7 +577,7 @@ static BOOL ov5_021DFFBC(FieldTask *param0)
 
         v3 = MovementAction_TurnActionTowardsDir(v0->unk_04, MOVEMENT_ACTION_WALK_ON_SPOT_NORMAL_NORTH);
         LocalMapObj_SetAnimationCode(v1, v3);
-        Sound_PlayEffect(SEQ_SE_DP_UG_023);
+        Sound_PlayEffect(SEQ_SE_DP_UG_023_sseq);
 
         v0->unk_00++;
         break;
@@ -591,8 +591,8 @@ static BOOL ov5_021DFFBC(FieldTask *param0)
         }
 
         if (PersistedMapFeatures_IsCurrentDynamicMap(v0->fieldSystem, DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) == 1) {
-            if (ov9_0224F2B0(v2) == 1) {
-                v0->unk_14 = ov9_0224F2BC(v0->fieldSystem, param0, v2);
+            if (DistWorld_IsBoulderAtFallLocation(v2) == 1) {
+                v0->unk_14 = DistWorldFallingBoulder_New(v0->fieldSystem, param0, v2);
                 v0->unk_00 = 3;
                 break;
             }
@@ -605,7 +605,7 @@ static BOOL ov5_021DFFBC(FieldTask *param0)
         MonRideTaskEnv_Free(v0);
         return 1;
     case 3:
-        if (ov9_0224F6EC(v0->unk_14) == 1) {
+        if (DistWorldFallingBoulder_Tick(v0->unk_14) == 1) {
             sub_020656AC(v2);
             sub_020656AC(v1);
             v0->unk_00 = 2;
@@ -623,7 +623,7 @@ static void SurfTask_Start(FieldSystem *fieldSystem, int direction, const MonRid
     taskEnv->direction = direction;
     taskEnv->fieldSystem = fieldSystem;
     taskEnv->playerAvatar = fieldSystem->playerAvatar;
-    taskEnv->surfBlob = Player_MapObject(taskEnv->playerAvatar);
+    taskEnv->playerObject = PlayerAvatar_GetMapObject(taskEnv->playerAvatar);
     taskEnv->monRideTask = *monRideTask;
 
     FieldTask_InitCall(fieldSystem->task, FieldTask_UseSurf, taskEnv);
@@ -639,21 +639,21 @@ void FieldTask_StartUseSurf(FieldTask *task, int direction, int partySlot)
     SurfTask_Start(fieldSystem, direction, &monRideTask);
 }
 
-int PlayerAvatar_CanUseSurf(PlayerAvatar *playerAvatar, u32 currTileBehavior, u32 nextTileBehavior)
+BOOL PlayerAvatar_CanUseSurf(PlayerAvatar *playerAvatar, u32 currTileBehavior, u32 nextTileBehavior)
 {
-    MapObject *v0 = Player_MapObject(playerAvatar);
+    MapObject *playerObj = PlayerAvatar_GetMapObject(playerAvatar);
 
     if (TileBehavior_IsSurfable(nextTileBehavior) == TRUE) {
         if ((TileBehavior_IsBridge(currTileBehavior) == TRUE) || (TileBehavior_IsBridgeStart(currTileBehavior) == TRUE)) {
-            if (sub_02062F30(v0) == 1) {
-                return 0;
+            if (MapObject_IsStatusOnElevatedBridge(playerObj) == TRUE) {
+                return FALSE;
             }
         }
 
-        return 1;
+        return TRUE;
     }
 
-    return 0;
+    return FALSE;
 }
 
 static BOOL FieldTask_UseSurf(FieldTask *task)
@@ -663,8 +663,8 @@ static BOOL FieldTask_UseSurf(FieldTask *task)
     switch (taskEnv->state) {
     case 0:
         if (PlayerAvatar_MapDistortionState(taskEnv->playerAvatar) == AVATAR_DISTORTION_STATE_NONE) {
-            Sound_SetSpecialBGM(taskEnv->fieldSystem, SEQ_NONE);
-            Sound_TryFadeOutToBGM(taskEnv->fieldSystem, SEQ_NAMINORI, 1);
+            FieldBGM_SetOverride(taskEnv->fieldSystem, SEQ_NONE);
+            FieldBGM_TryFadeOut(taskEnv->fieldSystem, SEQ_NAMINORI_sseq, 1);
         }
 
         if (taskEnv->monRideTask.playCutIn == TRUE) {
@@ -681,20 +681,20 @@ static BOOL FieldTask_UseSurf(FieldTask *task)
         break;
     case 2: {
         if (PlayerAvatar_MapDistortionState(taskEnv->playerAvatar) == AVATAR_DISTORTION_STATE_NONE) {
-            int playerXPos = Player_GetXPos(taskEnv->playerAvatar) + MapObject_GetDxFromDir(taskEnv->direction);
-            int playerZPos = Player_GetZPos(taskEnv->playerAvatar) + MapObject_GetDzFromDir(taskEnv->direction);
-            taskEnv->unk_28 = ov5_021F261C(taskEnv->surfBlob, playerXPos, playerZPos, taskEnv->direction, 0);
+            int playerXPos = PlayerAvatar_GetXPos(taskEnv->playerAvatar) + MapObject_GetDxFromDir(taskEnv->direction);
+            int playerZPos = PlayerAvatar_GetZPos(taskEnv->playerAvatar) + MapObject_GetDzFromDir(taskEnv->direction);
+            taskEnv->unk_28 = SurfMountRenderer_HandleSurfBegin(taskEnv->playerObject, playerXPos, playerZPos, taskEnv->direction, FALSE);
         } else {
-            int blobXPos = MapObject_GetX(taskEnv->surfBlob);
-            int blobYPos = (MapObject_GetY(taskEnv->surfBlob) / 2);
-            int blobZPos = MapObject_GetZ(taskEnv->surfBlob);
+            int mountXPos = MapObject_GetX(taskEnv->playerObject);
+            int mountYPos = (MapObject_GetY(taskEnv->playerObject) / 2);
+            int mountZPos = MapObject_GetZ(taskEnv->playerObject);
             enum AvatarDistortionState distortionState = PlayerAvatar_MapDistortionState(taskEnv->playerAvatar);
 
-            sub_02061674(taskEnv->playerAvatar, taskEnv->direction, &blobXPos, &blobYPos, &blobZPos);
-            taskEnv->unk_28 = ov5_021F85BC(taskEnv->playerAvatar, blobXPos, blobYPos, blobZPos, taskEnv->direction, 0, distortionState);
+            PlayerAvatar_GetStepDistortionWorldPos(taskEnv->playerAvatar, taskEnv->direction, &mountXPos, &mountYPos, &mountZPos);
+            taskEnv->unk_28 = DistWorldSurfMountRenderer_HandleSurfBegin(taskEnv->playerAvatar, mountXPos, mountYPos, mountZPos, taskEnv->direction, 0, distortionState);
         }
 
-        sub_0205EC00(taskEnv->playerAvatar, taskEnv->unk_28);
+        PlayerAvatar_SetSurfMountAnimManager(taskEnv->playerAvatar, taskEnv->unk_28);
         PlayerAvatar_SetPlayerState(taskEnv->playerAvatar, 0x2);
     }
 
@@ -703,7 +703,7 @@ static BOOL FieldTask_UseSurf(FieldTask *task)
     case 3:
         taskEnv->state++;
     case 4:
-        if (LocalMapObj_IsAnimationSet(taskEnv->surfBlob) == TRUE) {
+        if (LocalMapObj_IsAnimationSet(taskEnv->playerObject) == TRUE) {
             int movementAction;
             int movementActions[6] = {
                 MOVEMENT_ACTION_JUMP_NEAR_FAST_NORTH,
@@ -716,28 +716,28 @@ static BOOL FieldTask_UseSurf(FieldTask *task)
             enum AvatarDistortionState distortionState = PlayerAvatar_MapDistortionState(taskEnv->playerAvatar);
 
             movementAction = MovementAction_TurnActionTowardsDir(taskEnv->direction, movementActions[distortionState]);
-            LocalMapObj_SetAnimationCode(taskEnv->surfBlob, movementAction);
+            LocalMapObj_SetAnimationCode(taskEnv->playerObject, movementAction);
             taskEnv->state++;
         }
         break;
     case 5:
-        if (LocalMapObj_CheckAnimationFinished(taskEnv->surfBlob) == FALSE) {
+        if (LocalMapObj_CheckAnimationFinished(taskEnv->playerObject) == FALSE) {
             break;
         }
 
-        sub_020656AC(taskEnv->surfBlob);
+        sub_020656AC(taskEnv->playerObject);
 
         if (PlayerAvatar_MapDistortionState(taskEnv->playerAvatar) == AVATAR_DISTORTION_STATE_NONE) {
             int moveState;
 
-            ov5_021F2838(taskEnv->unk_28, 1);
-            moveState = Player_MoveStateFromGender(0x2, PlayerAvatar_Gender(taskEnv->playerAvatar));
+            SurfMountRenderer_SetSyncPos(taskEnv->unk_28, TRUE);
+            moveState = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_SURFING, PlayerAvatar_GetGender(taskEnv->playerAvatar));
             PlayerAvatar_Redraw(taskEnv->playerAvatar, moveState);
         } else {
             int moveState;
 
-            ov5_021F88CC(taskEnv->unk_28, 1 << 1);
-            moveState = Player_MoveStateFromGender(0x19, PlayerAvatar_Gender(taskEnv->playerAvatar));
+            DistWorldSurfMountRenderer_SetFlags(taskEnv->unk_28, DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_TICK);
+            moveState = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_DISTORTION_WORLD_SURF, PlayerAvatar_GetGender(taskEnv->playerAvatar));
             PlayerAvatar_Redraw(taskEnv->playerAvatar, moveState);
         }
 
@@ -750,27 +750,27 @@ static BOOL FieldTask_UseSurf(FieldTask *task)
 
 static int ov5_021E032C(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar, int param2, int param3)
 {
-    if ((param3 != 1) || (PlayerAvatar_GetPlayerState(playerAvatar) != 0x2)) {
+    if ((param3 != 1) || (PlayerAvatar_GetPlayerState(playerAvatar) != PLAYER_AVATAR_SURFING)) {
         return 0;
     }
 
     {
-        u32 v0;
-        MapObject *v1 = Player_MapObject(playerAvatar);
+        u32 collision;
+        MapObject *v1 = PlayerAvatar_GetMapObject(playerAvatar);
 
         if (PlayerAvatar_DistortionGravityChanged(playerAvatar) == FALSE) {
-            v0 = sub_02060B7C(playerAvatar, v1, param2);
+            collision = PlayerAvatar_CheckCollision(playerAvatar, v1, param2);
         } else {
-            v0 = sub_020611FC(playerAvatar, v1, param2);
+            collision = PlayerAvatar_CheckDistortionCollision(playerAvatar, v1, param2);
         }
 
-        if (v0 == (1 << 5)) {
+        if (collision == PLAYER_COLLISION_WATER) {
             return 0;
         }
 
-        v0 &= ~(1 << 5);
+        collision &= ~PLAYER_COLLISION_WATER;
 
-        if (v0 != 0) {
+        if (collision != PLAYER_COLLISION_NONE) {
             return 0;
         }
     }
@@ -786,8 +786,8 @@ static void ov5_021E0390(int param0, FieldSystem *fieldSystem, PlayerAvatar *par
     v0->unk_04 = param0;
     v0->fieldSystem = fieldSystem;
     v0->playerAvatar = param2;
-    v0->unk_10 = Player_MapObject(param2);
-    v0->unk_14 = sub_0205EC04(param2);
+    v0->unk_10 = PlayerAvatar_GetMapObject(param2);
+    v0->unk_14 = PlayerAvatar_GetSurfMountAnimManager(param2);
 
     FieldSystem_CreateTask(fieldSystem, ov5_021E03C8, v0);
 }
@@ -807,11 +807,11 @@ static BOOL ov5_021E03C8(FieldTask *param0)
             enum AvatarDistortionState distortionState = PlayerAvatar_MapDistortionState(v0->playerAvatar);
 
             if (distortionState == AVATAR_DISTORTION_STATE_NONE) {
-                ov5_021F2838(v0->unk_14, 0);
-                v1 = Player_MoveStateFromGender(0x0, PlayerAvatar_Gender(v0->playerAvatar));
+                SurfMountRenderer_SetSyncPos(v0->unk_14, FALSE);
+                v1 = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_WALKING, PlayerAvatar_GetGender(v0->playerAvatar));
             } else {
-                ov5_021F88DC(v0->unk_14, 1 << 1);
-                v1 = Player_MoveStateFromGender(0x18, PlayerAvatar_Gender(v0->playerAvatar));
+                DistWorldSurfMountRenderer_ClearFlags(v0->unk_14, DIST_WORLD_SURF_MOUNT_RENDERER_FLAG_MASK_TICK);
+                v1 = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_DISTORTION_WORLD, PlayerAvatar_GetGender(v0->playerAvatar));
             }
 
             PlayerAvatar_Redraw(v0->playerAvatar, v1);
@@ -829,12 +829,12 @@ static BOOL ov5_021E03C8(FieldTask *param0)
         sub_020656AC(v0->unk_10);
 
         if (v0->unk_14 != NULL) {
-            ov5_021DF74C(v0->unk_14);
+            FieldEffectManager_FinishAnimManager(v0->unk_14);
         }
 
-        sub_0205EC00(v0->playerAvatar, NULL);
+        PlayerAvatar_SetSurfMountAnimManager(v0->playerAvatar, NULL);
         PlayerAvatar_SetPlayerState(v0->playerAvatar, 0x0);
-        Sound_TryFadeOutToBGM(v0->fieldSystem, Sound_GetBGMByMapID(v0->fieldSystem, v0->fieldSystem->location->mapId), 1);
+        FieldBGM_TryFadeOut(v0->fieldSystem, FieldBGM_GetForMapHeader(v0->fieldSystem, v0->fieldSystem->location->mapHeaderID), 1);
         MonRideTaskEnv_Free(v0);
         return 1;
     }
@@ -844,12 +844,12 @@ static BOOL ov5_021E03C8(FieldTask *param0)
 
 static int ov5_021E04A8(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar, int param2, int param3)
 {
-    if ((param2 != 1) || (param3 != 1) || (PlayerAvatar_GetPlayerState(playerAvatar) != 0x2)) {
+    if ((param2 != 1) || (param3 != 1) || (PlayerAvatar_GetPlayerState(playerAvatar) != PLAYER_AVATAR_SURFING)) {
         return 0;
     }
 
     {
-        u8 v0 = sub_0206156C(playerAvatar, param2);
+        u8 v0 = PlayerAvatar_GetTileBehaviorFromDir(playerAvatar, param2);
 
         if (TileBehavior_IsWaterfall(v0) == 0) {
             return 0;
@@ -866,7 +866,7 @@ static BOOL FieldSystem_TryGetStuckInDeepMud(FieldSystem *fieldSystem, PlayerAva
         return FALSE;
     }
 
-    MapObject *playerMapObject = Player_MapObject(playerAvatar);
+    MapObject *playerMapObject = PlayerAvatar_GetMapObject(playerAvatar);
     u8 tileBehavior = MapObject_GetCurrTileBehavior(playerMapObject);
 
     if (TileBehavior_IsDeepMud(tileBehavior) != TRUE && TileBehavior_IsDeepMudWithGrass(tileBehavior) != TRUE) {
@@ -891,11 +891,11 @@ static void FieldSystem_CreateTaskStuckInDeepMud(FieldSystem *fieldSystem, Playe
 static BOOL FieldTask_StuckInDeepMud(FieldTask *fieldTaskEnv)
 {
     StuckInDeepMudTaskEnv *stuckInDeepMudTaskEnv = FieldTask_GetEnv(fieldTaskEnv);
-    MapObject *playerMapObject = Player_MapObject(stuckInDeepMudTaskEnv->playerAvatar);
+    MapObject *playerMapObject = PlayerAvatar_GetMapObject(stuckInDeepMudTaskEnv->playerAvatar);
 
     switch (stuckInDeepMudTaskEnv->state) {
     case 0:
-        Sound_PlayEffect(SEQ_SE_DP_ZUPO);
+        Sound_PlayEffect(SEQ_SE_DP_ZUPO_sseq);
         stuckInDeepMudTaskEnv->state++;
     case 1:
         if (!LocalMapObj_IsAnimationSet(playerMapObject)) {
@@ -905,7 +905,7 @@ static BOOL FieldTask_StuckInDeepMud(FieldTask *fieldTaskEnv)
         }
 
         if (stuckInDeepMudTaskEnv->stepCounter >= 5) {
-            Sound_PlayEffect(SEQ_SE_DP_ZUPO2);
+            Sound_PlayEffect(SEQ_SE_DP_ZUPO2_sseq);
             PlayerAvatar_SetEscapedFromDeepMud(stuckInDeepMudTaskEnv->playerAvatar, TRUE);
             MonRideTaskEnv_Free(stuckInDeepMudTaskEnv);
             return TRUE;
@@ -913,7 +913,7 @@ static BOOL FieldTask_StuckInDeepMud(FieldTask *fieldTaskEnv)
 
         stuckInDeepMudTaskEnv->state++;
     case 2: {
-        enum FaceDirection playerInitialDirection = PlayerAvatar_GetDir(stuckInDeepMudTaskEnv->playerAvatar);
+        enum FaceDirection playerInitialDirection = PlayerAvatar_GetFacingDir(stuckInDeepMudTaskEnv->playerAvatar);
         u32 movementAction;
         u32 pressedKeys = gSystem.pressedKeys;
         u32 heldKeys = gSystem.heldKeys;
@@ -948,7 +948,7 @@ static BOOL FieldTask_StuckInDeepMud(FieldTask *fieldTaskEnv)
         }
 
         movementAction = MovementAction_TurnActionTowardsDir(playerNewDirection, movementAction);
-        PlayerAvatar_SetAnimationCode(stuckInDeepMudTaskEnv->playerAvatar, movementAction, 1);
+        PlayerAvatar_SetMapObjMovement(stuckInDeepMudTaskEnv->playerAvatar, movementAction, 1);
     } break;
     }
 
@@ -957,7 +957,7 @@ static BOOL FieldTask_StuckInDeepMud(FieldTask *fieldTaskEnv)
 
 static int ov5_021E067C(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar, int param2)
 {
-    MapObject *v0 = Player_MapObject(playerAvatar);
+    MapObject *v0 = PlayerAvatar_GetMapObject(playerAvatar);
 
     if (LocalMapObj_IsAnimationSet(v0) == 0) {
         return 0;
@@ -972,12 +972,12 @@ static int ov5_021E067C(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar, in
 
 static int ov5_021E06A8(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar)
 {
-    if (PlayerAvatar_Speed(playerAvatar) < 1) {
+    if (PlayerAvatar_GetSpeed(playerAvatar) < 1) {
         return 0;
     }
 
     {
-        int v0 = PlayerAvatar_GetMoveDir(playerAvatar);
+        int v0 = PlayerAvatar_GetMovingDir(playerAvatar);
         MapObject *v1 = ov5_021E10D4(playerAvatar, v0);
 
         if (v1 == NULL) {
@@ -994,7 +994,7 @@ static int ov5_021E06A8(FieldSystem *fieldSystem, PlayerAvatar *playerAvatar)
 
         ov5_021EC7F0(v1);
         MapObject_Delete(v1);
-        Sound_PlayEffect(SEQ_SE_DP_FW291);
+        Sound_PlayEffect(SEQ_SE_DP_FW291_sseq);
     }
 
     return 0;
@@ -1007,7 +1007,7 @@ static void RockClimbTask_Start(FieldSystem *fieldSystem, int direction, const M
     taskEnv->direction = direction;
     taskEnv->fieldSystem = fieldSystem;
     taskEnv->playerAvatar = fieldSystem->playerAvatar;
-    taskEnv->surfBlob = Player_MapObject(taskEnv->playerAvatar);
+    taskEnv->playerObject = PlayerAvatar_GetMapObject(taskEnv->playerAvatar);
     taskEnv->monRideTask = *monRideTask;
 
     FieldTask_InitCall(fieldSystem->task, FieldTask_UseRockClimb, taskEnv);
@@ -1076,15 +1076,15 @@ static int SubTask_RockClimb_WaitCutIn(RockClimbTaskEnv *taskEnv)
     return 0;
 }
 
-static int SubTask_RockClimb_CreateBlob(RockClimbTaskEnv *taskEnv)
+static int SubTask_RockClimb_CreateMount(RockClimbTaskEnv *taskEnv)
 {
-    int xPos = Player_GetXPos(taskEnv->playerAvatar) + MapObject_GetDxFromDir(taskEnv->direction);
-    int zPos = Player_GetZPos(taskEnv->playerAvatar) + MapObject_GetDzFromDir(taskEnv->direction);
+    int xPos = PlayerAvatar_GetXPos(taskEnv->playerAvatar) + MapObject_GetDxFromDir(taskEnv->direction);
+    int zPos = PlayerAvatar_GetZPos(taskEnv->playerAvatar) + MapObject_GetDzFromDir(taskEnv->direction);
 
-    taskEnv->unk_18 = ov5_021F28F4(taskEnv->surfBlob, xPos, zPos, taskEnv->direction, 0);
+    taskEnv->unk_18 = ov5_021F28F4(taskEnv->playerObject, xPos, zPos, taskEnv->direction, 0);
     taskEnv->unk_2C = ov6_0224892C(taskEnv->fieldSystem);
 
-    Sound_PlayEffect(SEQ_SE_DP_UG_023);
+    Sound_PlayEffect(SEQ_SE_DP_UG_023_sseq);
     taskEnv->state++;
 
     return 0;
@@ -1092,10 +1092,10 @@ static int SubTask_RockClimb_CreateBlob(RockClimbTaskEnv *taskEnv)
 
 static int SubTask_RockClimb_HopOn(RockClimbTaskEnv *taskEnv)
 {
-    if (LocalMapObj_IsAnimationSet(taskEnv->surfBlob) == TRUE) {
+    if (LocalMapObj_IsAnimationSet(taskEnv->playerObject) == TRUE) {
         int movementAction = MovementAction_TurnActionTowardsDir(taskEnv->direction, MOVEMENT_ACTION_JUMP_NEAR_FAST_NORTH);
 
-        LocalMapObj_SetAnimationCode(taskEnv->surfBlob, movementAction);
+        LocalMapObj_SetAnimationCode(taskEnv->playerObject, movementAction);
         taskEnv->state++;
     }
 
@@ -1104,7 +1104,7 @@ static int SubTask_RockClimb_HopOn(RockClimbTaskEnv *taskEnv)
 
 static int SubTask_RockClimb_WaitHop(RockClimbTaskEnv *taskEnv)
 {
-    if (LocalMapObj_CheckAnimationFinished(taskEnv->surfBlob) == TRUE) {
+    if (LocalMapObj_CheckAnimationFinished(taskEnv->playerObject) == TRUE) {
         taskEnv->state++;
         ov5_021F2974(taskEnv->unk_18, 1);
     }
@@ -1114,10 +1114,10 @@ static int SubTask_RockClimb_WaitHop(RockClimbTaskEnv *taskEnv)
 
 static int SubTask_RockClimb_Move(RockClimbTaskEnv *taskEnv)
 {
-    if (LocalMapObj_IsAnimationSet(taskEnv->surfBlob) == TRUE) {
+    if (LocalMapObj_IsAnimationSet(taskEnv->playerObject) == TRUE) {
         int movementAction = MovementAction_TurnActionTowardsDir(taskEnv->direction, MOVEMENT_ACTION_WALK_FAST_NORTH);
 
-        LocalMapObj_SetAnimationCode(taskEnv->surfBlob, movementAction);
+        LocalMapObj_SetAnimationCode(taskEnv->playerObject, movementAction);
         taskEnv->state++;
     }
 
@@ -1126,12 +1126,12 @@ static int SubTask_RockClimb_Move(RockClimbTaskEnv *taskEnv)
 
 static int SubTask_RockClimb_LoopOrHopOff(RockClimbTaskEnv *taskEnv)
 {
-    if (LocalMapObj_CheckAnimationFinished(taskEnv->surfBlob) == FALSE) {
+    if (LocalMapObj_CheckAnimationFinished(taskEnv->playerObject) == FALSE) {
         return 0;
     }
 
-    int facingDir = MapObject_GetMovingDir(taskEnv->surfBlob);
-    u8 metatileBehaviour = MapObject_GetTileBehaviorFromDir(taskEnv->surfBlob, facingDir);
+    int facingDir = MapObject_GetMovingDir(taskEnv->playerObject);
+    u8 metatileBehaviour = MapObject_GetTileBehaviorFromDir(taskEnv->playerObject, facingDir);
 
     if (PlayerAvatar_CanUseRockClimb(metatileBehaviour, facingDir) == TRUE) {
         taskEnv->state = 5;
@@ -1140,7 +1140,7 @@ static int SubTask_RockClimb_LoopOrHopOff(RockClimbTaskEnv *taskEnv)
 
     int movementAction = MovementAction_TurnActionTowardsDir(taskEnv->direction, MOVEMENT_ACTION_JUMP_NEAR_FAST_NORTH);
 
-    LocalMapObj_SetAnimationCode(taskEnv->surfBlob, movementAction);
+    LocalMapObj_SetAnimationCode(taskEnv->playerObject, movementAction);
     taskEnv->dummy = 0;
     taskEnv->state++;
     ov5_021F2974(taskEnv->unk_18, 0);
@@ -1153,12 +1153,12 @@ static int SubTask_RockClimb_LoopOrHopOff(RockClimbTaskEnv *taskEnv)
 
 static int SubTask_RockClimb_WaitFinished(RockClimbTaskEnv *taskEnv)
 {
-    if (LocalMapObj_CheckAnimationFinished(taskEnv->surfBlob) == FALSE) {
+    if (LocalMapObj_CheckAnimationFinished(taskEnv->playerObject) == FALSE) {
         return 0;
     }
 
-    sub_020656AC(taskEnv->surfBlob);
-    ov5_021DF74C(taskEnv->unk_18);
+    sub_020656AC(taskEnv->playerObject);
+    FieldEffectManager_FinishAnimManager(taskEnv->unk_18);
     return 1;
 }
 
@@ -1169,7 +1169,7 @@ static WaterfallTaskEnv *WaterfallTaskEnv_New(FieldSystem *fieldSystem, int dire
     taskEnv->direction = direction;
     taskEnv->fieldSystem = fieldSystem;
     taskEnv->playerAvatar = fieldSystem->playerAvatar;
-    taskEnv->surfBlob = Player_MapObject(fieldSystem->playerAvatar);
+    taskEnv->playerObject = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
     if (monRideTask != NULL) {
         taskEnv->monRideTask = *monRideTask;
@@ -1234,7 +1234,7 @@ static int SubTask_Waterfall_PlayAscentCutIn(WaterfallTaskEnv *taskEnv)
 static int SubTask_Waterfall_WaitForAscentCutIn(WaterfallTaskEnv *taskEnv)
 {
     if (CheckMonRideCutInFinished(&taskEnv->monRideTask) == TRUE) {
-        Sound_PlayEffect(SEQ_SE_DP_FW463);
+        Sound_PlayEffect(SEQ_SE_DP_FW463_sseq);
         taskEnv->state++;
     }
 
@@ -1244,26 +1244,26 @@ static int SubTask_Waterfall_WaitForAscentCutIn(WaterfallTaskEnv *taskEnv)
 static int SubTask_Waterfall_InitAscent(WaterfallTaskEnv *taskEnv)
 {
     int targetX, targetZ;
-    VecFx32 surfBlobPos, deltaPos;
+    VecFx32 playerPos, deltaPos;
 
-    targetX = MapObject_GetX(taskEnv->surfBlob) + (MapObject_GetDxFromDir(DIR_NORTH) << 1);
-    targetZ = MapObject_GetZ(taskEnv->surfBlob) + (MapObject_GetDzFromDir(DIR_NORTH) << 1);
+    targetX = MapObject_GetX(taskEnv->playerObject) + (MapObject_GetDxFromDir(DIR_NORTH) << 1);
+    targetZ = MapObject_GetZ(taskEnv->playerObject) + (MapObject_GetDzFromDir(DIR_NORTH) << 1);
 
     VecFx32_SetPosFromMapCoords(targetX, targetZ, &taskEnv->targetPosition);
-    sub_020644A4(taskEnv->fieldSystem, &taskEnv->targetPosition);
+    MapObject_RecalculatePositionHeight(taskEnv->fieldSystem, &taskEnv->targetPosition);
 
     taskEnv->targetX = targetX;
     taskEnv->targetY = (((taskEnv->targetPosition.y) >> 3) / FX32_ONE);
     taskEnv->targetZ = targetZ;
 
-    MapObject_GetPosPtr(taskEnv->surfBlob, &surfBlobPos);
+    MapObject_GetPosPtr(taskEnv->playerObject, &playerPos);
 
-    GF_ASSERT(surfBlobPos.z > taskEnv->targetPosition.z);
-    GF_ASSERT(surfBlobPos.y < taskEnv->targetPosition.y);
+    GF_ASSERT(playerPos.z > taskEnv->targetPosition.z);
+    GF_ASSERT(playerPos.y < taskEnv->targetPosition.y);
 
     deltaPos.x = 0;
-    deltaPos.y = taskEnv->targetPosition.y - surfBlobPos.y;
-    deltaPos.z = taskEnv->targetPosition.z - surfBlobPos.z;
+    deltaPos.y = taskEnv->targetPosition.y - playerPos.y;
+    deltaPos.z = taskEnv->targetPosition.z - playerPos.z;
     deltaPos.y /= 64;
     deltaPos.z /= 64;
 
@@ -1278,7 +1278,7 @@ static int SubTask_Waterfall_Ascend(WaterfallTaskEnv *taskEnv)
 {
     VecFx32 newPos;
 
-    MapObject_GetPosPtr(taskEnv->surfBlob, &newPos);
+    MapObject_GetPosPtr(taskEnv->playerObject, &newPos);
 
     newPos.y += taskEnv->deltaPos.y;
 
@@ -1286,7 +1286,7 @@ static int SubTask_Waterfall_Ascend(WaterfallTaskEnv *taskEnv)
         newPos.y = taskEnv->targetPosition.y;
     }
 
-    MapObject_SetPos(taskEnv->surfBlob, &newPos);
+    MapObject_SetPos(taskEnv->playerObject, &newPos);
 
     taskEnv->movementCounter++;
 
@@ -1302,7 +1302,7 @@ static int SubTask_Waterfall_FinishAscent(WaterfallTaskEnv *taskEnv)
 {
     VecFx32 newPos;
 
-    MapObject_GetPosPtr(taskEnv->surfBlob, &newPos);
+    MapObject_GetPosPtr(taskEnv->playerObject, &newPos);
 
     newPos.y += taskEnv->deltaPos.y;
 
@@ -1316,7 +1316,7 @@ static int SubTask_Waterfall_FinishAscent(WaterfallTaskEnv *taskEnv)
         newPos.z = taskEnv->targetPosition.z;
     }
 
-    MapObject_SetPos(taskEnv->surfBlob, &newPos);
+    MapObject_SetPos(taskEnv->playerObject, &newPos);
 
     taskEnv->movementCounter++;
 
@@ -1327,10 +1327,10 @@ static int SubTask_Waterfall_FinishAscent(WaterfallTaskEnv *taskEnv)
     GF_ASSERT(newPos.z == taskEnv->targetPosition.z);
     GF_ASSERT(newPos.y == taskEnv->targetPosition.y);
 
-    MapObject_SetX(taskEnv->surfBlob, taskEnv->targetX);
-    MapObject_SetY(taskEnv->surfBlob, taskEnv->targetY);
-    MapObject_SetZ(taskEnv->surfBlob, taskEnv->targetZ);
-    MapObject_UpdateCoords(taskEnv->surfBlob);
+    MapObject_SetX(taskEnv->playerObject, taskEnv->targetX);
+    MapObject_SetY(taskEnv->playerObject, taskEnv->targetY);
+    MapObject_SetZ(taskEnv->playerObject, taskEnv->targetZ);
+    MapObject_UpdateCoords(taskEnv->playerObject);
 
     ov6_02248608(taskEnv->unk_50);
     return 1;
@@ -1351,7 +1351,7 @@ static int SubTask_Waterfall_PlayDescentCutIn(WaterfallTaskEnv *taskEnv)
 static int SubTask_Waterfall_WaitForDescentCutIn(WaterfallTaskEnv *taskEnv)
 {
     if (CheckMonRideCutInFinished(&taskEnv->monRideTask) == TRUE) {
-        Sound_PlayEffect(SEQ_SE_DP_FW463);
+        Sound_PlayEffect(SEQ_SE_DP_FW463_sseq);
         taskEnv->state++;
     }
 
@@ -1361,27 +1361,27 @@ static int SubTask_Waterfall_WaitForDescentCutIn(WaterfallTaskEnv *taskEnv)
 static int SubTask_Waterfall_InitDescent(WaterfallTaskEnv *taskEnv)
 {
     int targetX, targetZ;
-    VecFx32 surfBlobPos, deltaPos;
+    VecFx32 playerPos, deltaPos;
 
-    targetX = MapObject_GetX(taskEnv->surfBlob) + (MapObject_GetDxFromDir(DIR_SOUTH) << 1);
-    targetZ = MapObject_GetZ(taskEnv->surfBlob) + (MapObject_GetDzFromDir(DIR_SOUTH) << 1);
+    targetX = MapObject_GetX(taskEnv->playerObject) + (MapObject_GetDxFromDir(DIR_SOUTH) << 1);
+    targetZ = MapObject_GetZ(taskEnv->playerObject) + (MapObject_GetDzFromDir(DIR_SOUTH) << 1);
 
     VecFx32_SetPosFromMapCoords(targetX, targetZ, &taskEnv->targetPosition);
-    sub_020644A4(taskEnv->fieldSystem, &taskEnv->targetPosition);
+    MapObject_RecalculatePositionHeight(taskEnv->fieldSystem, &taskEnv->targetPosition);
 
     taskEnv->distanceMoved = 0;
     taskEnv->targetX = targetX;
     taskEnv->targetY = (((taskEnv->targetPosition.y) >> 3) / FX32_ONE);
     taskEnv->targetZ = targetZ;
 
-    MapObject_GetPosPtr(taskEnv->surfBlob, &surfBlobPos);
+    MapObject_GetPosPtr(taskEnv->playerObject, &playerPos);
 
-    GF_ASSERT(surfBlobPos.z < taskEnv->targetPosition.z);
-    GF_ASSERT(surfBlobPos.y > taskEnv->targetPosition.y);
+    GF_ASSERT(playerPos.z < taskEnv->targetPosition.z);
+    GF_ASSERT(playerPos.y > taskEnv->targetPosition.y);
 
     deltaPos.x = 0;
-    deltaPos.y = taskEnv->targetPosition.y - surfBlobPos.y;
-    deltaPos.z = taskEnv->targetPosition.z - surfBlobPos.z;
+    deltaPos.y = taskEnv->targetPosition.y - playerPos.y;
+    deltaPos.z = taskEnv->targetPosition.z - playerPos.z;
     deltaPos.y /= 64;
     deltaPos.z /= 64;
 
@@ -1396,7 +1396,7 @@ static int SubTask_Waterfall_Descend(WaterfallTaskEnv *taskEnv)
 {
     VecFx32 newPos;
 
-    MapObject_GetPosPtr(taskEnv->surfBlob, &newPos);
+    MapObject_GetPosPtr(taskEnv->playerObject, &newPos);
 
     newPos.z += taskEnv->deltaPos.z;
 
@@ -1406,7 +1406,7 @@ static int SubTask_Waterfall_Descend(WaterfallTaskEnv *taskEnv)
         taskEnv->distanceMoved += taskEnv->deltaPos.z;
     }
 
-    MapObject_SetPos(taskEnv->surfBlob, &newPos);
+    MapObject_SetPos(taskEnv->playerObject, &newPos);
 
     taskEnv->movementCounter++;
 
@@ -1422,7 +1422,7 @@ static int SubTask_Waterfall_FinishDescent(WaterfallTaskEnv *taskEnv)
 {
     VecFx32 newPos;
 
-    MapObject_GetPosPtr(taskEnv->surfBlob, &newPos);
+    MapObject_GetPosPtr(taskEnv->playerObject, &newPos);
 
     newPos.y += taskEnv->deltaPos.y;
 
@@ -1438,7 +1438,7 @@ static int SubTask_Waterfall_FinishDescent(WaterfallTaskEnv *taskEnv)
         taskEnv->distanceMoved += taskEnv->deltaPos.z;
     }
 
-    MapObject_SetPos(taskEnv->surfBlob, &newPos);
+    MapObject_SetPos(taskEnv->playerObject, &newPos);
 
     taskEnv->movementCounter++;
 
@@ -1449,10 +1449,10 @@ static int SubTask_Waterfall_FinishDescent(WaterfallTaskEnv *taskEnv)
     GF_ASSERT(newPos.z == taskEnv->targetPosition.z);
     GF_ASSERT(newPos.y == taskEnv->targetPosition.y);
 
-    MapObject_SetX(taskEnv->surfBlob, taskEnv->targetX);
-    MapObject_SetY(taskEnv->surfBlob, taskEnv->targetY);
-    MapObject_SetZ(taskEnv->surfBlob, taskEnv->targetZ);
-    MapObject_UpdateCoords(taskEnv->surfBlob);
+    MapObject_SetX(taskEnv->playerObject, taskEnv->targetX);
+    MapObject_SetY(taskEnv->playerObject, taskEnv->targetY);
+    MapObject_SetZ(taskEnv->playerObject, taskEnv->targetZ);
+    MapObject_UpdateCoords(taskEnv->playerObject);
 
     ov6_02248608(taskEnv->unk_50);
 
@@ -1528,8 +1528,8 @@ static void ov5_021E0DE0(FieldSystem *fieldSystem)
 
     v0->fieldSystem = fieldSystem;
     v0->playerAvatar = fieldSystem->playerAvatar;
-    v0->unk_08 = Player_MapObject(v0->playerAvatar);
-    v0->unk_10 = PlayerAvatar_Gender(v0->playerAvatar);
+    v0->playerObject = PlayerAvatar_GetMapObject(v0->playerAvatar);
+    v0->playerGender = PlayerAvatar_GetGender(v0->playerAvatar);
 
     FieldTask_InitCall(fieldSystem->task, ov5_021E0E10, v0);
 }
@@ -1540,17 +1540,17 @@ static BOOL ov5_021E0E10(FieldTask *param0)
 
     switch (v0->unk_0C) {
     case 0:
-        v0->unk_14 = MapObject_StartAnimation(v0->unk_08, Unk_ov5_021F9B9C);
+        v0->unk_14 = MapObject_StartAnimation(v0->playerObject, Unk_ov5_021F9B9C);
         v0->unk_0C++;
         break;
     case 1:
         if (MapObject_HasAnimationEnded(v0->unk_14) == 1) {
-            int v1 = Player_MoveStateFromGender(0x12, v0->unk_10);
+            int v1 = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_CONTEST, v0->playerGender);
 
             PlayerAvatar_Redraw(v0->playerAvatar, v1);
             MapObject_FinishAnimation(v0->unk_14);
 
-            v0->unk_14 = MapObject_StartAnimation(v0->unk_08, Unk_ov5_021F9C00);
+            v0->unk_14 = MapObject_StartAnimation(v0->playerObject, Unk_ov5_021F9C00);
             v0->unk_0C++;
         }
         break;
@@ -1568,7 +1568,7 @@ static BOOL ov5_021E0E10(FieldTask *param0)
 
 void ov5_021E0E94(PlayerAvatar *playerAvatar)
 {
-    MapObject *v0 = Player_MapObject(playerAvatar);
+    MapObject *v0 = PlayerAvatar_GetMapObject(playerAvatar);
 
     if (sub_02062DFC(v0) == 0) {
         return;
@@ -1577,7 +1577,7 @@ void ov5_021E0E94(PlayerAvatar *playerAvatar)
     {
         int v1 = PlayerAvatar_GetPlayerState(playerAvatar);
 
-        if (v1 != 0x0) {
+        if (v1 != PLAYER_AVATAR_WALKING) {
             return;
         }
     }
@@ -1591,7 +1591,7 @@ void ov5_021E0E94(PlayerAvatar *playerAvatar)
     }
 
     {
-        u32 v3 = PlayerAvatar_RequestStateFlag(playerAvatar);
+        u32 v3 = PlayerAvatar_GetRequestStateFlag(playerAvatar);
 
         PlayerAvatar_SetTransitionState(playerAvatar, PLAYER_TRANSITION_POKETCH);
         PlayerAvatar_RequestChangeState(playerAvatar);
@@ -1601,7 +1601,7 @@ void ov5_021E0E94(PlayerAvatar *playerAvatar)
 
 void ov5_021E0EEC(PlayerAvatar *playerAvatar)
 {
-    MapObject *v0 = Player_MapObject(playerAvatar);
+    MapObject *v0 = PlayerAvatar_GetMapObject(playerAvatar);
 
     if (sub_02062DFC(v0) == 0) {
         return;
@@ -1610,7 +1610,7 @@ void ov5_021E0EEC(PlayerAvatar *playerAvatar)
     {
         int v1 = PlayerAvatar_GetPlayerState(playerAvatar);
 
-        if (v1 != 0x0) {
+        if (v1 != PLAYER_AVATAR_WALKING) {
             return;
         }
     }
@@ -1624,7 +1624,7 @@ void ov5_021E0EEC(PlayerAvatar *playerAvatar)
     }
 
     {
-        u32 v3 = PlayerAvatar_RequestStateFlag(playerAvatar);
+        u32 v3 = PlayerAvatar_GetRequestStateFlag(playerAvatar);
 
         PlayerAvatar_SetTransitionState(playerAvatar, PLAYER_TRANSITION_WALKING);
         PlayerAvatar_RequestChangeState(playerAvatar);
@@ -1637,13 +1637,13 @@ static SysTask *ov5_021E0F54(FieldSystem *fieldSystem, u32 param1)
     PlayerAvatar *playerAvatar = fieldSystem->playerAvatar;
     int v1 = PlayerAvatar_GetPlayerState(playerAvatar);
 
-    if (v1 != 0x0) {
+    if (v1 != PLAYER_AVATAR_WALKING) {
         return NULL;
     }
 
     {
         SysTask *v2;
-        MapObject *v3 = Player_MapObject(playerAvatar);
+        MapObject *v3 = PlayerAvatar_GetMapObject(playerAvatar);
         UnkStruct_ov5_021E0FF0 *v4 = Heap_AllocAtEnd(HEAP_ID_FIELD1, sizeof(UnkStruct_ov5_021E0FF0));
 
         v4->unk_00 = 0;
@@ -1671,7 +1671,7 @@ static void ov5_021E0FC0(SysTask *param0)
     {
         UnkStruct_ov5_021E0FF0 *v0 = SysTask_GetParam(param0);
         PlayerAvatar *playerAvatar = v0->playerAvatar;
-        int v2 = Player_MoveStateFromGender(0x0, PlayerAvatar_Gender(playerAvatar));
+        int v2 = Player_GetSpriteFromStateAndGender(PLAYER_AVATAR_WALKING, PlayerAvatar_GetGender(playerAvatar));
 
         PlayerAvatar_RequestStateWalking(playerAvatar);
         Heap_Free(v0);
@@ -1682,7 +1682,7 @@ static void ov5_021E0FC0(SysTask *param0)
 static void ov5_021E0FF0(SysTask *param0, void *param1)
 {
     UnkStruct_ov5_021E0FF0 *v0 = param1;
-    MapObject *v1 = Player_MapObject(v0->playerAvatar);
+    MapObject *v1 = PlayerAvatar_GetMapObject(v0->playerAvatar);
 
     sub_02062B68(v1);
 }
@@ -1711,18 +1711,18 @@ static void MonRideTask_Init(FieldSystem *fieldSystem, Pokemon *partyMon, MonRid
 {
     monRideTask->playCutIn = TRUE;
     monRideTask->partyMon = partyMon;
-    monRideTask->playerGender = PlayerAvatar_Gender(fieldSystem->playerAvatar);
+    monRideTask->playerGender = PlayerAvatar_GetGender(fieldSystem->playerAvatar);
 }
 
 static void NewMonRideCutIn(FieldSystem *fieldSystem, MonRideTask *monRideTask)
 {
-    monRideTask->HMCutInTask = SysTask_HMCutIn_New(fieldSystem, 0, monRideTask->partyMon, monRideTask->playerGender);
+    monRideTask->HMCutInTask = HMCutIn_StartTask(fieldSystem, 0, monRideTask->partyMon, monRideTask->playerGender);
 }
 
 static BOOL CheckMonRideCutInFinished(MonRideTask *monRideTask)
 {
-    if (CheckHMCutInFinished(monRideTask->HMCutInTask) == TRUE) {
-        SysTask_HMCutIn_SetTaskDone(monRideTask->HMCutInTask);
+    if (HMCutIn_IsFinished(monRideTask->HMCutInTask) == TRUE) {
+        HMCutIn_EndTask(monRideTask->HMCutInTask);
         return TRUE;
     }
 
@@ -1731,38 +1731,38 @@ static BOOL CheckMonRideCutInFinished(MonRideTask *monRideTask)
 
 static void PlayerAvatar_Redraw(PlayerAvatar *playerAvatar, int param1)
 {
-    MapObject *v0 = Player_MapObject(playerAvatar);
+    MapObject *v0 = PlayerAvatar_GetMapObject(playerAvatar);
     if (PlayerAvatar_MapDistortionState(playerAvatar) == AVATAR_DISTORTION_STATE_NONE) {
         ov5_021EE3FC(v0, param1, NULL, NULL);
     } else {
         int v1;
         FieldSystem *fieldSystem;
-        UnkStruct_020216E0 *v3;
+        Billboard *v3;
 
         fieldSystem = MapObject_FieldSystem(v0);
-        v1 = ov9_0224A520(fieldSystem, v0);
+        v1 = DistWorld_GetMapObjectRotatorAnimFrame(fieldSystem, v0);
         v3 = ov5_021EE3FC(v0, param1, ov5_021E10C0, playerAvatar);
 
         if (v3 != NULL) {
-            ov9_0224A558(fieldSystem, v3, v1);
+            DistWorld_BindMapObjectRotator(fieldSystem, v3, v1);
         }
     }
 }
 
-static void ov5_021E10C0(void *param0, const UnkStruct_020216E0 *param1)
+static void ov5_021E10C0(void *param0, const Billboard *param1)
 {
     PlayerAvatar *playerAvatar = param0;
-    MapObject *v1 = Player_MapObject(playerAvatar);
+    MapObject *v1 = PlayerAvatar_GetMapObject(playerAvatar);
     FieldSystem *fieldSystem = MapObject_FieldSystem(v1);
 
-    ov9_0224A564(fieldSystem, param1);
+    DistWorld_UnbindMapObjectRotator(fieldSystem, param1);
 }
 
 static MapObject *ov5_021E10D4(PlayerAvatar *playerAvatar, int param1)
 {
-    int v0 = Player_GetXPos(playerAvatar) + MapObject_GetDxFromDir(param1);
-    int v1 = Player_GetZPos(playerAvatar) + MapObject_GetDzFromDir(param1);
-    const MapObjectManager *v2 = MapObject_MapObjectManager(Player_MapObject(playerAvatar));
+    int v0 = PlayerAvatar_GetXPos(playerAvatar) + MapObject_GetDxFromDir(param1);
+    int v1 = PlayerAvatar_GetZPos(playerAvatar) + MapObject_GetDzFromDir(param1);
+    const MapObjectManager *v2 = MapObject_MapObjectManager(PlayerAvatar_GetMapObject(playerAvatar));
     MapObject *v3 = sub_0206326C(v2, v0, v1, 0);
 
     return v3;

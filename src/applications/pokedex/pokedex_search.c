@@ -29,7 +29,7 @@
 #include "string_gf.h"
 #include "text.h"
 
-#include "res/graphics/pokedex/zukan.naix.h"
+#include "res/graphics/pokedex/zukan.naix"
 #include "res/text/bank/pokedex.h"
 
 #define EXITSEARCH (1 << 1)
@@ -374,7 +374,7 @@ static int UpdateScreenState(PokedexDataManager *dataMan, void *data)
             searchSettings->screenState = SS_LOADING;
             searchSettings->screenTimer = 32;
 
-            Sound_PlayEffect(SEQ_SE_DP_Z_SEARCH);
+            Sound_PlayEffect(SEQ_SE_DP_Z_SEARCH_sseq);
         }
         break;
     case 2:

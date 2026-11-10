@@ -3,10 +3,9 @@
 #include <nitro.h>
 #include <string.h>
 
-#include "constants/field/map_prop.h"
 #include "generated/movement_actions.h"
 
-#include "struct_decls/struct_02061AB4_decl.h"
+#include "struct_decls/map_object.h"
 
 #include "field/field_system.h"
 #include "overlay005/area_data.h"
@@ -24,6 +23,8 @@
 #include "terrain_collision_manager.h"
 #include "unk_02056B30.h"
 #include "unk_020655F4.h"
+
+#include "res/field/props/models/prop_models.naix"
 
 typedef struct UnkStruct_ov5_021D432C_t {
     int unk_00;
@@ -78,26 +79,26 @@ BOOL ov5_021D433C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
         TerrainCollisionHitbox v3;
         int v4;
         int v5[] = {
-            MAP_PROP_MODEL_DOOR01,
-            MAP_PROP_MODEL_BROWN_WOODEN_DOOR,
-            MAP_PROP_MODEL_GREEN_WOODEN_DOOR,
-            MAP_PROP_MODEL_IRON_DOOR,
-            MAP_PROP_MODEL_JUBILIFE_CITY_BUILDING_DOOR,
-            MAP_PROP_MODEL_POKECENTER_DOOR,
-            MAP_PROP_MODEL_POKECENTER_INSIDE_DOOR,
-            MAP_PROP_MODEL_GTS_INSIDE_DOOR,
-            MAP_PROP_MODEL_HEARTHOME_GYM_INSIDE_DOOR,
-            MAP_PROP_MODEL_BLUE_DOOR,
-            MAP_PROP_MODEL_IRON_DOOR_2,
-            MAP_PROP_MODEL_YELLOW_WOODEN_DOOR,
-            MAP_PROP_MODEL_BLUE_WOODEN_DOOR,
-            MAP_PROP_MODEL_MANSION_DOOR,
-            MAP_PROP_MODEL_VEILSTONE_DPT_STORE_DOOR,
-            MAP_PROP_MODEL_GYM_DOOR,
-            MAP_PROP_MODEL_CARD_DOOR,
-            MAP_PROP_MODEL_POKECENTER_INSIDE_COUNTER_DOOR,
-            MAP_PROP_MODEL_HOTEL_GRAND_LAKE_DOOR,
-            MAP_PROP_MODEL_ELEVATOR_DOOR
+            door01_nsbmd,
+            brown_wooden_door_nsbmd,
+            green_wooden_door_nsbmd,
+            iron_door_nsbmd,
+            jubilife_city_building_door_nsbmd,
+            pokecenter_door_nsbmd,
+            pokecenter_inside_door_nsbmd,
+            gts_inside_door_nsbmd,
+            hearthome_gym_inside_door_nsbmd,
+            blue_door_nsbmd,
+            iron_door_2_nsbmd,
+            yellow_wooden_door_nsbmd,
+            blue_wooden_door_nsbmd,
+            mansion_door_nsbmd,
+            veilstone_dpt_store_door_nsbmd,
+            gym_door_nsbmd,
+            card_door_nsbmd,
+            pokecenter_inside_counter_door_nsbmd,
+            hotel_grand_lake_door_nsbmd,
+            elevator_door_nsbmd
         };
 
         param1->unk_20 = 0;
@@ -138,11 +139,11 @@ BOOL ov5_021D433C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
         }
 
         if (DoorAnimation_GetSoundEffectType(v9) == DOOR_SOUND_EFFECT_TYPE_SLIDING) {
-            v10 = SEQ_SE_DP_DOOR10;
+            v10 = SEQ_SE_DP_DOOR10_sseq;
         } else if (DoorAnimation_GetSoundEffectType(v9) == DOOR_SOUND_EFFECT_TYPE_VEILSTONE_DPT_STORE_CHIME) {
-            v10 = SEQ_SE_PL_DOOR_OPEN5;
+            v10 = SEQ_SE_PL_DOOR_OPEN5_sseq;
         } else {
-            v10 = SEQ_SE_DP_DOOR_OPEN;
+            v10 = SEQ_SE_DP_DOOR_OPEN_sseq;
         }
 
         if (param1->unk_1E == 2) {
@@ -150,7 +151,7 @@ BOOL ov5_021D433C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
         } else if (param1->unk_1E == 4) {
             v11 = 0;
         } else {
-            GF_ASSERT(0);
+            GF_ASSERT(FALSE);
             v11 = 0;
         }
 
@@ -168,12 +169,12 @@ BOOL ov5_021D433C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
         }
     } break;
     case 3:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
         LocalMapObj_SetAnimationCode(v0, MOVEMENT_ACTION_WALK_NORMAL_NORTH);
         (param1->unk_00)++;
         break;
     case 4:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_CheckAnimationFinished(v0) == 1) {
             sub_020656AC(v0);
@@ -190,7 +191,7 @@ BOOL ov5_021D433C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
                 } else if (DoorAnimation_GetSoundEffectType(v13) == DOOR_SOUND_EFFECT_TYPE_VEILSTONE_DPT_STORE_CHIME) {
                     v14 = 0;
                 } else {
-                    v14 = SEQ_SE_DP_DOOR_CLOSE2;
+                    v14 = SEQ_SE_DP_DOOR_CLOSE2_sseq;
                 }
 
                 if (param1->unk_1E == 2) {
@@ -198,7 +199,7 @@ BOOL ov5_021D433C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
                 } else if (param1->unk_1E == 4) {
                     v15 = 1;
                 } else {
-                    GF_ASSERT(0);
+                    GF_ASSERT(FALSE);
                     v15 = 1;
                 }
 
@@ -237,26 +238,26 @@ BOOL ov5_021D453C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
         TerrainCollisionHitbox v3;
         int v4;
         int v5[] = {
-            MAP_PROP_MODEL_DOOR01,
-            MAP_PROP_MODEL_BROWN_WOODEN_DOOR,
-            MAP_PROP_MODEL_GREEN_WOODEN_DOOR,
-            MAP_PROP_MODEL_IRON_DOOR,
-            MAP_PROP_MODEL_JUBILIFE_CITY_BUILDING_DOOR,
-            MAP_PROP_MODEL_POKECENTER_DOOR,
-            MAP_PROP_MODEL_POKECENTER_INSIDE_DOOR,
-            MAP_PROP_MODEL_GTS_INSIDE_DOOR,
-            MAP_PROP_MODEL_HEARTHOME_GYM_INSIDE_DOOR,
-            MAP_PROP_MODEL_BLUE_DOOR,
-            MAP_PROP_MODEL_IRON_DOOR_2,
-            MAP_PROP_MODEL_YELLOW_WOODEN_DOOR,
-            MAP_PROP_MODEL_BLUE_WOODEN_DOOR,
-            MAP_PROP_MODEL_MANSION_DOOR,
-            MAP_PROP_MODEL_VEILSTONE_DPT_STORE_DOOR,
-            MAP_PROP_MODEL_GYM_DOOR,
-            MAP_PROP_MODEL_CARD_DOOR,
-            MAP_PROP_MODEL_POKECENTER_INSIDE_COUNTER_DOOR,
-            MAP_PROP_MODEL_HOTEL_GRAND_LAKE_DOOR,
-            MAP_PROP_MODEL_ELEVATOR_DOOR
+            door01_nsbmd,
+            brown_wooden_door_nsbmd,
+            green_wooden_door_nsbmd,
+            iron_door_nsbmd,
+            jubilife_city_building_door_nsbmd,
+            pokecenter_door_nsbmd,
+            pokecenter_inside_door_nsbmd,
+            gts_inside_door_nsbmd,
+            hearthome_gym_inside_door_nsbmd,
+            blue_door_nsbmd,
+            iron_door_2_nsbmd,
+            yellow_wooden_door_nsbmd,
+            blue_wooden_door_nsbmd,
+            mansion_door_nsbmd,
+            veilstone_dpt_store_door_nsbmd,
+            gym_door_nsbmd,
+            card_door_nsbmd,
+            pokecenter_inside_counter_door_nsbmd,
+            hotel_grand_lake_door_nsbmd,
+            elevator_door_nsbmd
         };
 
         param1->unk_20 = 0;
@@ -306,11 +307,11 @@ BOOL ov5_021D453C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
             }
 
             if (DoorAnimation_GetSoundEffectType(v9) == DOOR_SOUND_EFFECT_TYPE_SLIDING) {
-                v10 = SEQ_SE_DP_DOOR10;
+                v10 = SEQ_SE_DP_DOOR10_sseq;
             } else if (DoorAnimation_GetSoundEffectType(v9) == DOOR_SOUND_EFFECT_TYPE_VEILSTONE_DPT_STORE_CHIME) {
-                v10 = SEQ_SE_PL_DOOR_OPEN5;
+                v10 = SEQ_SE_PL_DOOR_OPEN5_sseq;
             } else {
-                v10 = SEQ_SE_DP_DOOR_OPEN;
+                v10 = SEQ_SE_DP_DOOR_OPEN_sseq;
             }
 
             if (param1->unk_1E == 2) {
@@ -318,7 +319,7 @@ BOOL ov5_021D453C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
             } else if (param1->unk_1E == 4) {
                 v11 = 2;
             } else {
-                GF_ASSERT(0);
+                GF_ASSERT(FALSE);
                 v11 = 0;
             }
 
@@ -333,18 +334,18 @@ BOOL ov5_021D453C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
         v12 = MapPropOneShotAnimationManager_IsAnimationLoopFinished(fieldSystem->mapPropOneShotAnimMan, 1);
 
         if (v12) {
-            v0 = Player_MapObject(fieldSystem->playerAvatar);
+            v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
             MapObject_SetHidden(v0, 0);
             (param1->unk_00)++;
         }
     } break;
     case 3:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
         LocalMapObj_SetAnimationCode(v0, MOVEMENT_ACTION_WALK_NORMAL_SOUTH);
         (param1->unk_00)++;
         break;
     case 4:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_CheckAnimationFinished(v0) == 1) {
             sub_020656AC(v0);
@@ -369,7 +370,7 @@ BOOL ov5_021D453C(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1)
                 } else if (param1->unk_1E == 4) {
                     v15 = 3;
                 } else {
-                    GF_ASSERT(0);
+                    GF_ASSERT(FALSE);
                     v15 = 1;
                 }
 
@@ -464,11 +465,11 @@ static void ov5_021D47DC(Camera *camera, u8 *param1)
 
 static u8 DoorAnimation_GetSoundEffectType(const int doorModelID)
 {
-    if (doorModelID == MAP_PROP_MODEL_VEILSTONE_DPT_STORE_DOOR) {
+    if (doorModelID == veilstone_dpt_store_door_nsbmd) {
         return DOOR_SOUND_EFFECT_TYPE_VEILSTONE_DPT_STORE_CHIME;
     }
 
-    if ((doorModelID == MAP_PROP_MODEL_POKECENTER_DOOR) || (doorModelID == MAP_PROP_MODEL_GYM_DOOR) || (doorModelID == MAP_PROP_MODEL_GTS_INSIDE_DOOR) || (doorModelID == MAP_PROP_MODEL_POKECENTER_INSIDE_DOOR) || (doorModelID == MAP_PROP_MODEL_CARD_DOOR) || (doorModelID == MAP_PROP_MODEL_ELEVATOR_DOOR)) {
+    if ((doorModelID == pokecenter_door_nsbmd) || (doorModelID == gym_door_nsbmd) || (doorModelID == gts_inside_door_nsbmd) || (doorModelID == pokecenter_inside_door_nsbmd) || (doorModelID == card_door_nsbmd) || (doorModelID == elevator_door_nsbmd)) {
         return DOOR_SOUND_EFFECT_TYPE_SLIDING;
     }
 
@@ -486,10 +487,10 @@ BOOL ov5_021D4858(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
         TerrainCollisionHitbox v3;
         int v4;
         int v5[] = {
-            MAP_PROP_MODEL_POKECENTER_STAIR_UP_LEFT,
-            MAP_PROP_MODEL_POKECENTER_STAIR_DOWN_LEFT,
-            MAP_PROP_MODEL_POKECENTER_STAIR_UP_RIGHT,
-            MAP_PROP_MODEL_POKECENTER_STAIR_DOWN_RIGHT
+            pokecenter_stair_up_left_nsbmd,
+            pokecenter_stair_down_left_nsbmd,
+            pokecenter_stair_up_right_nsbmd,
+            pokecenter_stair_down_right_nsbmd
         };
 
         if (param2 == 2) {
@@ -512,7 +513,7 @@ BOOL ov5_021D4858(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
             return 1;
         }
 
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_IsAnimationSet(v0) == 1) {
             LocalMapObj_SetAnimationCode(v0, MOVEMENT_ACTION_PAUSE_ANIMATION);
@@ -526,7 +527,7 @@ BOOL ov5_021D4858(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
         FieldMap_FadeScreen(FADE_TYPE_BRIGHTNESS_IN);
         MapPropOneShotAnimationManager_PlayAnimationWithSoundEffect(fieldSystem->mapPropOneShotAnimMan, 2, 0, 1557);
 
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_IsAnimationSet(v0) == 1) {
             int v8;
@@ -545,7 +546,7 @@ BOOL ov5_021D4858(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
         (param1->unk_00)++;
         break;
     case 2:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_IsAnimationSet(v0) == 1) {
             LocalMapObj_SetAnimationCode(v0, MOVEMENT_ACTION_RESUME_ANIMATION);
@@ -553,7 +554,7 @@ BOOL ov5_021D4858(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
         }
         break;
     case 3:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_IsAnimationSet(v0) == 1) {
             int v9;
@@ -569,7 +570,7 @@ BOOL ov5_021D4858(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
         }
         break;
     case 4:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_CheckAnimationFinished(v0) == 1) {
             sub_020656AC(v0);
@@ -603,10 +604,10 @@ BOOL ov5_021D4A24(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
         TerrainCollisionHitbox v3;
         int v4;
         int v5[] = {
-            MAP_PROP_MODEL_POKECENTER_STAIR_UP_LEFT,
-            MAP_PROP_MODEL_POKECENTER_STAIR_DOWN_LEFT,
-            MAP_PROP_MODEL_POKECENTER_STAIR_UP_RIGHT,
-            MAP_PROP_MODEL_POKECENTER_STAIR_DOWN_RIGHT
+            pokecenter_stair_up_left_nsbmd,
+            pokecenter_stair_down_left_nsbmd,
+            pokecenter_stair_up_right_nsbmd,
+            pokecenter_stair_down_right_nsbmd
         };
 
         if (param2 == 2) {
@@ -629,7 +630,7 @@ BOOL ov5_021D4A24(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
             return 1;
         }
 
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_IsAnimationSet(v0) == 1) {
             LocalMapObj_SetAnimationCode(v0, MOVEMENT_ACTION_PAUSE_ANIMATION);
@@ -641,7 +642,7 @@ BOOL ov5_021D4A24(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
     } break;
     case 1:
         MapPropOneShotAnimationManager_PlayAnimationWithSoundEffect(fieldSystem->mapPropOneShotAnimMan, 2, 0, 1557);
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_IsAnimationSet(v0) == 1) {
             int v8;
@@ -660,7 +661,7 @@ BOOL ov5_021D4A24(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
         (param1->unk_00)++;
         break;
     case 2:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_IsAnimationSet(v0) == 1) {
             LocalMapObj_SetAnimationCode(v0, MOVEMENT_ACTION_RESUME_ANIMATION);
@@ -670,7 +671,7 @@ BOOL ov5_021D4A24(FieldSystem *fieldSystem, UnkStruct_ov5_021D432C *param1, cons
         }
         break;
     case 3:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_CheckAnimationFinished(v0) == 1) {
             sub_020656AC(v0);
@@ -717,26 +718,26 @@ void DoorAnimation_FindDoorAndLoad(FieldSystem *fieldSystem, const int x, const 
     TerrainCollisionHitbox hitbox;
     int doorModelID;
     int doorModelIDs[] = {
-        MAP_PROP_MODEL_DOOR01,
-        MAP_PROP_MODEL_BROWN_WOODEN_DOOR,
-        MAP_PROP_MODEL_GREEN_WOODEN_DOOR,
-        MAP_PROP_MODEL_IRON_DOOR,
-        MAP_PROP_MODEL_JUBILIFE_CITY_BUILDING_DOOR,
-        MAP_PROP_MODEL_POKECENTER_DOOR,
-        MAP_PROP_MODEL_POKECENTER_INSIDE_DOOR,
-        MAP_PROP_MODEL_GTS_INSIDE_DOOR,
-        MAP_PROP_MODEL_HEARTHOME_GYM_INSIDE_DOOR,
-        MAP_PROP_MODEL_BLUE_DOOR,
-        MAP_PROP_MODEL_IRON_DOOR_2,
-        MAP_PROP_MODEL_YELLOW_WOODEN_DOOR,
-        MAP_PROP_MODEL_BLUE_WOODEN_DOOR,
-        MAP_PROP_MODEL_MANSION_DOOR,
-        MAP_PROP_MODEL_VEILSTONE_DPT_STORE_DOOR,
-        MAP_PROP_MODEL_GYM_DOOR,
-        MAP_PROP_MODEL_CARD_DOOR,
-        MAP_PROP_MODEL_POKECENTER_INSIDE_COUNTER_DOOR,
-        MAP_PROP_MODEL_HOTEL_GRAND_LAKE_DOOR,
-        MAP_PROP_MODEL_ELEVATOR_DOOR
+        door01_nsbmd,
+        brown_wooden_door_nsbmd,
+        green_wooden_door_nsbmd,
+        iron_door_nsbmd,
+        jubilife_city_building_door_nsbmd,
+        pokecenter_door_nsbmd,
+        pokecenter_inside_door_nsbmd,
+        gts_inside_door_nsbmd,
+        hearthome_gym_inside_door_nsbmd,
+        blue_door_nsbmd,
+        iron_door_2_nsbmd,
+        yellow_wooden_door_nsbmd,
+        blue_wooden_door_nsbmd,
+        mansion_door_nsbmd,
+        veilstone_dpt_store_door_nsbmd,
+        gym_door_nsbmd,
+        card_door_nsbmd,
+        pokecenter_inside_counter_door_nsbmd,
+        hotel_grand_lake_door_nsbmd,
+        elevator_door_nsbmd
     };
 
     TerrainCollisionHitbox_Init(x, z, -1, 0, 3, 1, &hitbox);
@@ -767,11 +768,11 @@ void DoorAnimation_PlayOpenAnimation(FieldSystem *fieldSystem, const u8 tag)
     animationCount = MapPropAnimationManager_GetPropAnimationCount(fieldSystem->mapPropAnimMan, doorModelID);
 
     if (DoorAnimation_GetSoundEffectType(doorModelID) == DOOR_SOUND_EFFECT_TYPE_SLIDING) {
-        soundEffectID = SEQ_SE_DP_DOOR10;
+        soundEffectID = SEQ_SE_DP_DOOR10_sseq;
     } else if (DoorAnimation_GetSoundEffectType(doorModelID) == DOOR_SOUND_EFFECT_TYPE_VEILSTONE_DPT_STORE_CHIME) {
-        soundEffectID = SEQ_SE_PL_DOOR_OPEN5;
+        soundEffectID = SEQ_SE_PL_DOOR_OPEN5_sseq;
     } else {
-        soundEffectID = SEQ_SE_DP_DOOR_OPEN;
+        soundEffectID = SEQ_SE_DP_DOOR_OPEN_sseq;
     }
 
     if (animationCount == 2) {
@@ -801,7 +802,7 @@ void DoorAnimation_PlayCloseAnimation(FieldSystem *fieldSystem, const u8 tag)
     } else if (DoorAnimation_GetSoundEffectType(doorModelID) == DOOR_SOUND_EFFECT_TYPE_VEILSTONE_DPT_STORE_CHIME) {
         soundEffectID = 0;
     } else {
-        soundEffectID = SEQ_SE_DP_DOOR_CLOSE2;
+        soundEffectID = SEQ_SE_DP_DOOR_CLOSE2_sseq;
     }
 
     if (animationCount == 2) {
@@ -836,8 +837,8 @@ void ov5_021D4D78(const int param0, const int param1, const int param2, FieldSys
     TerrainCollisionHitbox v2;
     int v3;
     int v4[] = {
-        MAP_PROP_MODEL_BIKE_MUDDY_SLOPE,
-        MAP_PROP_MODEL_BIKE_DUNGEON_MUDDY_SLOPE
+        bike_muddy_slope_nsbmd,
+        bike_dungeon_muddy_slope_nsbmd
     };
 
     TerrainCollisionHitbox_Init(param0, param1, 0, -1, 1, 3, &v2);
@@ -879,9 +880,9 @@ BOOL ov5_021D4E10(FieldTask *param0)
 
     switch (v2->unk_00) {
     case 0:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
-        if (PlayerAvatar_GetDir(fieldSystem->playerAvatar) == 1) {
+        if (PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar) == 1) {
             MapObject_SetHidden(v0, 1);
             (v2->unk_00) = 1;
         } else {
@@ -901,13 +902,13 @@ BOOL ov5_021D4E10(FieldTask *param0)
         v2->unk_08 = 1;
         break;
     case 1:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
         MapObject_SetHidden(v0, 0);
         LocalMapObj_SetAnimationCode(v0, MOVEMENT_ACTION_WALK_NORMAL_SOUTH);
         (v2->unk_00)++;
         break;
     case 2:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_CheckAnimationFinished(v0) == 1) {
             sub_020656AC(v0);
@@ -938,14 +939,14 @@ BOOL ov5_021D4F14(FieldTask *param0)
     case 0: {
         MapObject *v2;
 
-        v2 = Player_MapObject(fieldSystem->playerAvatar);
+        v2 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         MapObject_SetHidden(v2, 1);
 
         v1->unk_08 = 0;
         v1->unk_04 = 0;
 
-        Sound_PlayEffect(SEQ_SE_DP_KAIDAN2);
+        Sound_PlayEffect(SEQ_SE_DP_KAIDAN2_sseq);
         StartScreenFade(FADE_BOTH_SCREENS, FADE_TYPE_BRIGHTNESS_OUT, FADE_TYPE_BRIGHTNESS_OUT, COLOR_WHITE, 6, 1, HEAP_ID_FIELD2);
 
         v1->unk_08 = 1;
@@ -976,7 +977,7 @@ BOOL ov5_021D4FA0(FieldTask *param0)
         v1->unk_08 = 0;
         v1->unk_04 = 0;
 
-        Sound_PlayEffect(SEQ_SE_DP_KAIDAN2);
+        Sound_PlayEffect(SEQ_SE_DP_KAIDAN2_sseq);
         sub_02056B30(param0, 0, 16, 0, 0x0, 6, 1, HEAP_ID_FIELD2);
 
         v1->unk_08 = 1;
@@ -1008,8 +1009,8 @@ BOOL ov5_021D5020(FieldTask *param0)
         u8 v3;
         u8 v4;
 
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
-        v3 = PlayerAvatar_GetDir(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
+        v3 = PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar);
 
         if (v3 == 1) {
             MapObject_SetHidden(v0, 1);
@@ -1041,20 +1042,20 @@ BOOL ov5_021D5020(FieldTask *param0)
             v4 = 39;
             break;
         default:
-            GF_ASSERT(0);
+            GF_ASSERT(FALSE);
         }
 
         sub_02056B30(param0, 0, v4, 1, 0x0, 6, 1, HEAP_ID_FIELD2);
         v2->unk_08 = 1;
     } break;
     case 1:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
         MapObject_SetHidden(v0, 0);
         LocalMapObj_SetAnimationCode(v0, MOVEMENT_ACTION_WALK_NORMAL_SOUTH);
         (v2->unk_00)++;
         break;
     case 2:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_CheckAnimationFinished(v0) == 1) {
             sub_020656AC(v0);
@@ -1087,8 +1088,8 @@ BOOL ov5_021D5150(FieldTask *param0)
         u8 v3;
         u8 v4;
 
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
-        v3 = PlayerAvatar_GetDir(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
+        v3 = PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar);
 
         if (v3 == 1) {
             MapObject_SetHidden(v0, 1);
@@ -1101,13 +1102,13 @@ BOOL ov5_021D5150(FieldTask *param0)
         sub_02056B30(param0, 0, 1, 1, 0x0, 6, 1, HEAP_ID_FIELD2);
     } break;
     case 1:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
         MapObject_SetHidden(v0, 0);
         LocalMapObj_SetAnimationCode(v0, MOVEMENT_ACTION_WALK_NORMAL_SOUTH);
         (v2->unk_00)++;
         break;
     case 2:
-        v0 = Player_MapObject(fieldSystem->playerAvatar);
+        v0 = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
 
         if (LocalMapObj_CheckAnimationFinished(v0) == 1) {
             sub_020656AC(v0);

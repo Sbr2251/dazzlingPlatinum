@@ -15,7 +15,7 @@ _007:
 _020:
     RecallPokemon BTLSCR_SWITCHED_MON
     Wait 
-    HealthbarSlideOut BTLSCR_SWITCHED_MON
+    HealthBoxSlideOut BTLSCR_SWITCHED_MON
     Wait 
 
 _026:
@@ -29,7 +29,7 @@ _026:
 
 _041:
     // Go! {0}!
-    PrintMessage pl_msg_00000368_00979, TAG_NICKNAME, BTLSCR_SWITCHED_MON
+    PrintMessage BattleStrings_Text_GoPokemon, TAG_NICKNAME, BTLSCR_SWITCHED_MON
 
 _045:
     Wait 
@@ -38,7 +38,7 @@ _045:
     FreePartyGaugeGraphics 
     PokemonSendOut BTLSCR_SWITCHED_MON
     WaitTime 72
-    HealthbarSlideIn BTLSCR_SWITCHED_MON
+    HealthBoxSlideIn BTLSCR_SWITCHED_MON
     Wait 
     Call BATTLE_SUBSCRIPT_HAZARDS_CHECK
     CompareVarToValue OPCODE_GT, BTLVAR_FAINTED_MON, BATTLER_ENEMY_2, _079

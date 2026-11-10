@@ -5,9 +5,8 @@
 
 #include "constants/field/dynamic_map_features.h"
 #include "constants/field/map.h"
-#include "constants/field/map_prop.h"
+#include "constants/fieldmap.h"
 #include "constants/heap.h"
-#include "generated/map_headers.h"
 
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
@@ -22,6 +21,8 @@
 #include "savedata_misc.h"
 #include "sound_playback.h"
 #include "terrain_collision_manager.h"
+
+#include "res/field/props/models/prop_models.naix"
 
 #define PLATFORM_LIFT_SIZE_X 3
 #define PLATFORM_LIFT_SIZE_Y 2
@@ -179,12 +180,12 @@ void PlatformLift_DynamicMapFeaturesInit(FieldSystem *fieldSystem)
         };
 
         platformLiftInitialPosition.y = currentHeight;
-        MapPropManager_LoadOne(fieldSystem->mapPropManager, fieldSystem->areaDataManager, MAP_PROP_MODEL_IRON_ISLAND_PLATFORM_LIFT, &platformLiftInitialPosition, NULL, fieldSystem->mapPropAnimMan);
-        platformLiftMapProp = MapPropManager_FindLoadedPropByModelID(fieldSystem->mapPropManager, MAP_PROP_MODEL_IRON_ISLAND_PLATFORM_LIFT);
+        MapPropManager_LoadOne(fieldSystem->mapPropManager, fieldSystem->areaDataManager, iron_island_platform_lift_nsbmd, &platformLiftInitialPosition, NULL, fieldSystem->mapPropAnimMan);
+        platformLiftMapProp = MapPropManager_FindLoadedPropByModelID(fieldSystem->mapPropManager, iron_island_platform_lift_nsbmd);
     } else {
         const int platformLiftModels[2] = {
-            MAP_PROP_MODEL_IRON_ISLAND_PLATFORM_LIFT,
-            MAP_PROP_MODEL_POKEMON_LEAGUE_PLATFORM_LIFT
+            iron_island_platform_lift_nsbmd,
+            pokemon_league_platform_lift_nsbmd
         };
 
         BOOL platformLiftFound = FieldSystem_FindLoadedMapPropByModelIDs(fieldSystem, platformLiftModels, NELEMS(platformLiftModels), &platformLiftMapProp, NULL);
@@ -208,7 +209,7 @@ void PersistedMapFeatures_InitForPlatformLift(FieldSystem *fieldSystem)
     data->notUsedWhenEnteredMap = TRUE;
     data->kind = PLATFORM_LIFT_KIND_IRON_ISLAND;
 
-    switch (fieldSystem->location->mapId) {
+    switch (fieldSystem->location->mapHeaderID) {
     case MAP_HEADER_IRON_ISLAND_B1F_RIGHT_ROOM:
         if (fieldSystem->location->z == IRON_ISLAND_B1F_RIGHT_ROOM_BOTTOM_FLOOR_WARP_Z) {
             data->floorID = PLATFORM_LIFT_BOTTOM_FLOOR;
@@ -366,11 +367,11 @@ static BOOL FieldTask_PlatformLiftGoUp(FieldTask *taskMan)
         MapProp *platformLiftMapProp;
 
         if (taskEnv->isIronIslandB2FLeftRoom) {
-            platformLiftMapProp = MapPropManager_FindLoadedPropByModelID(fieldSystem->mapPropManager, MAP_PROP_MODEL_IRON_ISLAND_PLATFORM_LIFT);
+            platformLiftMapProp = MapPropManager_FindLoadedPropByModelID(fieldSystem->mapPropManager, iron_island_platform_lift_nsbmd);
         } else {
             const int platformLiftModels[2] = {
-                MAP_PROP_MODEL_IRON_ISLAND_PLATFORM_LIFT,
-                MAP_PROP_MODEL_POKEMON_LEAGUE_PLATFORM_LIFT
+                iron_island_platform_lift_nsbmd,
+                pokemon_league_platform_lift_nsbmd
             };
 
             BOOL platformLiftFound = FieldSystem_FindLoadedMapPropByModelIDs(fieldSystem, platformLiftModels, NELEMS(platformLiftModels), &platformLiftMapProp, NULL);
@@ -405,7 +406,7 @@ static BOOL FieldTask_PlatformLiftGoUp(FieldTask *taskMan)
     case PLATFORM_LIFT_STATE_FINISH_MOVING:
         DynamicTerrainHeightManager_SetHeight(PLATFORM_LIFT_DYNAMIC_HEIGHT_PLATE_ID, taskEnv->targetHeight, fieldSystem->dynamicTerrainHeightMan);
         PlayerAvatar_SetHeightCalculationEnabledAndUpdate(fieldSystem->playerAvatar, TRUE);
-        Sound_PlayEffect(SEQ_SE_DP_KI_GASYAN);
+        Sound_PlayEffect(SEQ_SE_DP_KI_GASYAN_sseq);
 
         taskEnv->state++;
         break;
@@ -435,11 +436,11 @@ static BOOL FieldTask_PlatformLiftGoDown(FieldTask *taskMan)
         MapProp *platformLiftMapProp;
 
         if (taskEnv->isIronIslandB2FLeftRoom) {
-            platformLiftMapProp = MapPropManager_FindLoadedPropByModelID(fieldSystem->mapPropManager, MAP_PROP_MODEL_IRON_ISLAND_PLATFORM_LIFT);
+            platformLiftMapProp = MapPropManager_FindLoadedPropByModelID(fieldSystem->mapPropManager, iron_island_platform_lift_nsbmd);
         } else {
             const int platformLiftModels[2] = {
-                MAP_PROP_MODEL_IRON_ISLAND_PLATFORM_LIFT,
-                MAP_PROP_MODEL_POKEMON_LEAGUE_PLATFORM_LIFT
+                iron_island_platform_lift_nsbmd,
+                pokemon_league_platform_lift_nsbmd
             };
 
             BOOL platformLiftFound = FieldSystem_FindLoadedMapPropByModelIDs(fieldSystem, platformLiftModels, NELEMS(platformLiftModels), &platformLiftMapProp, NULL);
@@ -467,7 +468,7 @@ static BOOL FieldTask_PlatformLiftGoDown(FieldTask *taskMan)
     case PLATFORM_LIFT_STATE_FINISH_MOVING:
         DynamicTerrainHeightManager_SetHeight(PLATFORM_LIFT_DYNAMIC_HEIGHT_PLATE_ID, taskEnv->targetHeight, fieldSystem->dynamicTerrainHeightMan);
         PlayerAvatar_SetHeightCalculationEnabledAndUpdate(fieldSystem->playerAvatar, TRUE);
-        Sound_PlayEffect(SEQ_SE_DP_KI_GASYAN);
+        Sound_PlayEffect(SEQ_SE_DP_KI_GASYAN_sseq);
 
         taskEnv->state++;
         break;
@@ -483,17 +484,17 @@ static BOOL FieldTask_PlatformLiftGoDown(FieldTask *taskMan)
 static void PlatformLift_PlaySoundEffect(const int platformLiftKind)
 {
     if (platformLiftKind == PLATFORM_LIFT_KIND_IRON_ISLAND) {
-        Sound_PlayEffect(SEQ_SE_DP_ELEBETA);
+        Sound_PlayEffect(SEQ_SE_DP_ELEBETA_sseq);
     } else {
-        Sound_PlayEffect(SEQ_SE_DP_ELEBETA4);
+        Sound_PlayEffect(SEQ_SE_DP_ELEBETA4_sseq);
     }
 }
 
 static void PlatformLift_StopSoundEffect(const int platformLiftKind)
 {
     if (platformLiftKind == PLATFORM_LIFT_KIND_IRON_ISLAND) {
-        Sound_StopEffect(SEQ_SE_DP_ELEBETA, 0);
+        Sound_StopEffect(SEQ_SE_DP_ELEBETA_sseq, 0);
     } else {
-        Sound_StopEffect(SEQ_SE_DP_ELEBETA4, 0);
+        Sound_StopEffect(SEQ_SE_DP_ELEBETA4_sseq, 0);
     }
 }

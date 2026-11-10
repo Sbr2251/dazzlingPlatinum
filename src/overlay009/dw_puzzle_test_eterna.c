@@ -44,11 +44,10 @@
 //   (46,10,28) is VOID: a fall, and the engine respawns the player at
 //     the last checkpoint with the checkpoint snapshot restored.
 //     Step falls use the HoneyFall script (entry 5), which clears
-//     VAR_MAP_LOCAL_2 and warps to the hive; the engine respawn then
+//     VAR_MAP_LOCAL_0x02 and warps to the hive; the engine respawn then
 //     moves the player to the checkpoint. The table's frame-fall
 //     script is the same 5.
 
-#include "generated/map_headers.h"
 #include "generated/vars_flags.h"
 
 #include "location.h"
@@ -113,7 +112,7 @@ static const DwPuzzleTile sTestTiles[] = {
 const DwPuzzleTable gDwPuzzleTestEternaTable = {
     MAP_HEADER_DW_ETERNA_FOREST,
     0, 0,                       // any VAR_ARC2_PROGRESS
-    5, VAR_MAP_LOCAL_2,         // frame-fall script (HoneyFall), fallVar
+    5, VAR_MAP_LOCAL_0x02,         // frame-fall script (HoneyFall), fallVar
     2, 5, 1, 4, 4, 2,           // group/sigil/rune/current/checkpoint/tile counts
     1, 0,                       // testOnly, padding
     sTestGroups, sTestSigils, sTestRunes, sTestCurrents, sTestCheckpoints, sTestTiles,

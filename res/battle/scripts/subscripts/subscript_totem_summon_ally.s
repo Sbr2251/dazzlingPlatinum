@@ -8,7 +8,7 @@ _000:
     SwitchAndUpdateMon BTLSCR_SWITCHED_MON
     PokemonSendOut BTLSCR_SWITCHED_MON
     WaitTime 72
-    HealthbarSlideIn BTLSCR_SWITCHED_MON
+    HealthBoxSlideIn BTLSCR_SWITCHED_MON
     Wait
     Call BATTLE_SUBSCRIPT_HAZARDS_CHECK
     CompareVarToValue OPCODE_GT, BTLVAR_FAINTED_MON, BATTLER_ENEMY_2, _End

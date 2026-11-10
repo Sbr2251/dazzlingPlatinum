@@ -17,7 +17,7 @@
                 "MOVE_GROWL",
                 "MOVE_ASSIST"
             ],
-            "power": 20,
+            "iv_scale": 20,
             "ball_seal": 0
         },
         {
@@ -29,7 +29,7 @@
                 "MOVE_TACKLE",
                 "MOVE_HOWL"
             ],
-            "power": 20,
+            "iv_scale": 20,
             "ball_seal": 0
         }
     ],
@@ -38,14 +38,14 @@
             "type": "TRMSG_PRE_BATTLE",
             "en_US": [
                 "I get my get-up-and-go from my\n",
-                "Pokémon!\r",
+                "Pok\u00e9mon!\r",
                 "Here we go!\n",
                 "KRICKETOT! ZUBAT!\r"
             ]
         },
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "Ack! My Pokémon..."
+            "en_US": "Ack! My Pok\u00e9mon..."
         },
         {
             "type": "TRMSG_POST_BATTLE",
@@ -59,7 +59,7 @@
             "type": "TRMSG_REMATCH",
             "en_US": [
                 "Hey, I remember your face, Trainer.\n",
-                "You’ll battle me again, won’t you?\r"
+                "You\u2019ll battle me again, won\u2019t you?\r"
             ]
         }
     ]

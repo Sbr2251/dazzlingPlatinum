@@ -17,7 +17,7 @@
                 "MOVE_ABSORB",
                 "MOVE_GROWTH"
             ],
-            "power": 20,
+            "iv_scale": 20,
             "ball_seal": 0
         },
         {
@@ -29,7 +29,7 @@
                 "MOVE_TACKLE",
                 "MOVE_STRING_SHOT"
             ],
-            "power": 20,
+            "iv_scale": 20,
             "ball_seal": 0
         },
         {
@@ -41,7 +41,7 @@
                 "MOVE_GROWL",
                 "MOVE_CONFUSION"
             ],
-            "power": 20,
+            "iv_scale": 20,
             "ball_seal": 0
         }
     ],
@@ -50,18 +50,18 @@
             "type": "TRMSG_PRE_BATTLE",
             "en_US": [
                 "I found a Trainer while looking for\n",
-                "some Pokémon!\r"
+                "some Pok\u00e9mon!\r"
             ]
         },
         {
             "type": "TRMSG_DEFEAT",
-            "en_US": "Hunh? You’re finished so soon?\n"
+            "en_US": "Hunh? You\u2019re finished so soon?\n"
         },
         {
             "type": "TRMSG_POST_BATTLE",
             "en_US": [
                 "I walk through tall grass until I\n",
-                "find the Pokémon I want.\n"
+                "find the Pok\u00e9mon I want.\n"
             ]
         },
         {

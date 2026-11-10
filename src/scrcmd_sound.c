@@ -3,15 +3,14 @@
 
 #include "field/field_system.h"
 
+#include "chatot_cry.h"
+#include "field_bgm.h"
 #include "field_script_context.h"
 #include "inlines.h"
 #include "sound.h"
 #include "sound_chatot.h"
-#include "sound_layers.h"
 #include "sound_playback.h"
 #include "system.h"
-#include "unk_0202CC64.h"
-#include "unk_020553DC.h"
 
 static BOOL ScriptContext_IsSoundFadeFinished(ScriptContext *ctx);
 static BOOL ScriptContext_IsFanfareFinished(ScriptContext *ctx);
@@ -38,13 +37,12 @@ BOOL ScrCmd_PlayMusic(ScriptContext *ctx)
 BOOL ScrCmd_PlayBattleMusic(ScriptContext *ctx)
 {
     Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, ScriptContext_ReadHalfWord(ctx), 1);
-    SoundLayers_Reset();
     return FALSE;
 }
 
 BOOL ScrCmd_StopMusic(ScriptContext *ctx)
 {
-    u16 dummy = ScriptContext_ReadHalfWord(ctx);
+    u16 unused = ScriptContext_ReadHalfWord(ctx);
 
     Sound_StopBGM(Sound_GetCurrentBGM(), 0);
     return FALSE;
@@ -52,13 +50,13 @@ BOOL ScrCmd_StopMusic(ScriptContext *ctx)
 
 BOOL ScrCmd_PlayDefaultMusic(ScriptContext *ctx)
 {
-    Sound_PlayBGM(Sound_GetBGMByMapID(ctx->fieldSystem, ctx->fieldSystem->location->mapId));
+    Sound_PlayBGM(FieldBGM_GetForMapHeader(ctx->fieldSystem, ctx->fieldSystem->location->mapHeaderID));
     return FALSE;
 }
 
 BOOL ScrCmd_SetSpecialBGM(ScriptContext *ctx)
 {
-    Sound_SetSpecialBGM(ctx->fieldSystem, ScriptContext_ReadHalfWord(ctx));
+    FieldBGM_SetOverride(ctx->fieldSystem, ScriptContext_ReadHalfWord(ctx));
     return FALSE;
 }
 
@@ -108,19 +106,19 @@ BOOL ScrCmd_SetBGMFixed(ScriptContext *ctx)
     return FALSE;
 }
 
-BOOL ScrCmd_PlayFanfare(ScriptContext *ctx)
+BOOL ScrCmd_PlaySE(ScriptContext *ctx)
 {
     Sound_PlayEffect(ScriptContext_GetVar(ctx));
     return FALSE;
 }
 
-BOOL ScrCmd_StopFanfare(ScriptContext *ctx)
+BOOL ScrCmd_StopSE(ScriptContext *ctx)
 {
     Sound_StopEffect(ScriptContext_GetVar(ctx), 0);
     return FALSE;
 }
 
-BOOL ScrCmd_WaitFanfare(ScriptContext *ctx)
+BOOL ScrCmd_WaitSE(ScriptContext *ctx)
 {
     ctx->data[0] = ScriptContext_GetVar(ctx);
 
@@ -154,13 +152,13 @@ static BOOL ScrCmd_IsPokemonCryPlaying(ScriptContext *ctx)
     return Sound_IsPokemonCryPlaying() == FALSE;
 }
 
-BOOL ScrCmd_PlaySound(ScriptContext *ctx)
+BOOL ScrCmd_PlayFanfare(ScriptContext *ctx)
 {
     Sound_PlayFanfare(ScriptContext_ReadHalfWord(ctx));
     return FALSE;
 }
 
-BOOL ScrCmd_WaitSound(ScriptContext *ctx)
+BOOL ScrCmd_WaitFanfare(ScriptContext *ctx)
 {
     ScriptContext_Pause(ctx, ScriptContext_IsSoundFinished);
     return TRUE;
@@ -224,14 +222,9 @@ BOOL ScrCmd_SetInitialVolumeForSequence(ScriptContext *ctx)
     return FALSE;
 }
 
-BOOL ScrCmd_SetScene22(ScriptContext *ctx)
+BOOL ScrCmd_SetScenePlayBGMMusicBox(ScriptContext *ctx)
 {
-    if (gSystem.heldKeys & PAD_KEY_UP) {
-        Sound_SetSceneAndPlayBGM(SOUND_SCENE_22, SEQ_PL_TOWN02, 1);
-    } else {
-        Sound_SetSceneAndPlayBGM(SOUND_SCENE_22, SEQ_PL_TOWN02, 1);
-    }
-
+    Sound_SetSceneAndPlayBGM(SOUND_SCENE_VILLA_MUSIC_BOX, SEQ_PL_TOWN02_sseq, 1);
     return TRUE;
 }
 

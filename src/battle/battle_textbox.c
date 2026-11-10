@@ -4,7 +4,7 @@
 
 #include "constants/graphics.h"
 
-#include "battle/ov16_0223DF00.h"
+#include "battle/battle_system.h"
 
 #include "bg_window.h"
 #include "palette.h"
@@ -207,7 +207,7 @@ void BattleTextbox_Update(void)
 
     // The window is removed while the Pokedex, the naming screen or battle
     // teardown owns BG1: the box is not up, so its blend is not written.
-    window = BattleSystem_Window(sTextboxBattleSys, 0);
+    window = BattleSystem_GetWindow(sTextboxBattleSys, 0);
 
     if (window == NULL || window->bgConfig == NULL) {
         return;

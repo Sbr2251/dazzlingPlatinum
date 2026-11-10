@@ -23,7 +23,7 @@
                 "MOVE_BRICK_BREAK",
                 "MOVE_QUICK_ATTACK"
             ],
-            "power": 180,
+            "iv_scale": 180,
             "ball_seal": 0,
             "ability": "ABILITY_PRESSURE"
         },
@@ -38,7 +38,7 @@
                 "MOVE_CONFUSE_RAY",
                 "MOVE_BITE"
             ],
-            "power": 180,
+            "iv_scale": 180,
             "ball_seal": 0,
             "ability": "ABILITY_INNER_FOCUS"
         },
@@ -53,7 +53,7 @@
                 "MOVE_HYPNOSIS",
                 "MOVE_CONFUSE_RAY"
             ],
-            "power": 180,
+            "iv_scale": 180,
             "ball_seal": 0,
             "ability": "ABILITY_LEVITATE"
         },
@@ -68,7 +68,7 @@
                 "MOVE_SHADOW_CLAW",
                 "MOVE_QUICK_ATTACK"
             ],
-            "power": 180,
+            "iv_scale": 180,
             "ball_seal": 0,
             "ability": "ABILITY_SUPER_LUCK"
         },
@@ -83,7 +83,7 @@
                 "MOVE_BITE",
                 "MOVE_SYNTHESIS"
             ],
-            "power": 180,
+            "iv_scale": 180,
             "ball_seal": 0,
             "ability": "ABILITY_OVERGROW"
         }

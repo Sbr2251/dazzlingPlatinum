@@ -20,7 +20,7 @@
                 "MOVE_ENDEAVOR",
                 "MOVE_DOUBLE_TEAM"
             ],
-            "power": 130,
+            "iv_scale": 130,
             "ball_seal": 0,
             "ability": "ABILITY_INTIMIDATE"
         },
@@ -35,7 +35,7 @@
                 "MOVE_PURSUIT",
                 "MOVE_QUICK_ATTACK"
             ],
-            "power": 130,
+            "iv_scale": 130,
             "ball_seal": 0,
             "ability": "ABILITY_SWIFT_SWIM"
         },
@@ -50,7 +50,7 @@
                 "MOVE_STUN_SPORE",
                 "MOVE_LEECH_SEED"
             ],
-            "power": 130,
+            "iv_scale": 130,
             "ball_seal": 0,
             "ability": "ABILITY_POISON_POINT"
         },
@@ -65,7 +65,7 @@
                 "MOVE_FURY_SWIPES",
                 "MOVE_TAUNT"
             ],
-            "power": 130,
+            "iv_scale": 130,
             "ball_seal": 0,
             "ability": "ABILITY_BLAZE"
         }

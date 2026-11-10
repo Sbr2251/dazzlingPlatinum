@@ -5,7 +5,7 @@
 #include "generated/species.h"
 
 #include "battle/battle_context.h"
-#include "battle/ov16_0223DF00.h"
+#include "battle/battle_system.h"
 
 // The lone Totem's x offset from its doubles home: 192 (the wild single spot) against 216
 #define TOTEM_ALONE_OFFSET_X (192 - 216)
@@ -92,7 +92,7 @@ const TotemEncounterConfig *TotemBattle_GetEncounterConfig(u8 encounterID)
 
 BOOL TotemBattle_IsActive(BattleSystem *battleSys)
 {
-    return (BattleSystem_BattleStatus(battleSys) & BATTLE_STATUS_TOTEM) != 0;
+    return (BattleSystem_GetBattleStatusMask(battleSys) & BATTLE_STATUS_TOTEM) != 0;
 }
 
 BOOL TotemBattle_IsPermanentlyInactiveBattler(BattleSystem *battleSys, int battler)
@@ -138,7 +138,7 @@ void TotemBattle_AdjustAnimTypes(u8 *types)
 void TotemBattle_HideHealthbars(BattleSystem *battleSys)
 {
     sHealthbarsHidden = TRUE;
-    ov16_0223F3EC(battleSys);
+    BattleSystem_HideHealthboxes(battleSys);
 }
 
 void TotemBattle_ShowHealthbars(BattleSystem *battleSys)
@@ -148,7 +148,7 @@ void TotemBattle_ShowHealthbars(BattleSystem *battleSys)
     }
 
     sHealthbarsHidden = FALSE;
-    ov16_0223F3BC(battleSys);
+    BattleSystem_ShowHealthboxes(battleSys);
 }
 
 BOOL TotemBattle_AreHealthbarsHidden(void)

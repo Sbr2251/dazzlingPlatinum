@@ -3,12 +3,11 @@
 #include <nitro.h>
 #include <string.h>
 
-#include "struct_decls/struct_02061830_decl.h"
-#include "struct_decls/struct_02061AB4_decl.h"
+#include "struct_decls/map_object.h"
+#include "struct_decls/map_object_manager.h"
 
-#include "overlay005/const_ov5_021FC194.h"
+#include "overlay005/object_event_gfx_data.h"
 #include "overlay005/ov5_021ECE40.h"
-#include "overlay005/struct_ov5_021ECD10.h"
 #include "overlay005/struct_ov5_021ED0A4.h"
 
 #include "heap.h"
@@ -17,7 +16,7 @@
 
 static void ov5_021ECCA4(MapObjectManager *param0);
 static void ov5_021ECCBC(MapObjectManager *param0);
-static const UnkStruct_ov5_021ECD10 *ov5_021ECD10(int param0);
+static const ObjectEventGfxRenderDetailsEntry *ov5_021ECD10(int param0);
 
 void ov5_021ECC20(MapObjectManager *param0, int param1, int param2, const int *param3, int param4)
 {
@@ -29,7 +28,7 @@ void ov5_021ECC20(MapObjectManager *param0, int param1, int param2, const int *p
     ov5_021ECCA4(param0);
 
     v0 = MapObjectMan_GetMaxObjects(param0);
-    v1 = sub_02062858(param0) - 1;
+    v1 = MapObjectMan_GetTaskBasePriority(param0) - 1;
     v2 = sub_0206285C(param0);
 
     ov5_021ECE40(v2, param0, v0, v1, param1, param2, param3, param4);
@@ -76,27 +75,27 @@ void MapObject_Draw(MapObject *param0)
     }
 }
 
-const UnkStruct_ov5_021ECD10 *ov5_021ECD04(const MapObject *param0)
+const ObjectEventGfxRenderDetailsEntry *ov5_021ECD04(const MapObject *param0)
 {
     int v0 = MapObject_GetGraphicsID(param0);
-    const UnkStruct_ov5_021ECD10 *v1 = ov5_021ECD10(v0);
+    const ObjectEventGfxRenderDetailsEntry *v1 = ov5_021ECD10(v0);
 
     return v1;
 }
 
-static const UnkStruct_ov5_021ECD10 *ov5_021ECD10(int param0)
+static const ObjectEventGfxRenderDetailsEntry *ov5_021ECD10(int param0)
 {
-    const UnkStruct_ov5_021ECD10 *v0 = Unk_ov5_021FC194;
+    const ObjectEventGfxRenderDetailsEntry *v0 = gObjectEventGfxRenderDetailsTable;
 
     do {
-        if (v0->unk_00 == param0) {
+        if (v0->graphicsID == param0) {
             return v0;
         }
 
         v0++;
-    } while (v0->unk_00 != 0xffff);
+    } while (v0->graphicsID != 0xffff);
 
-    GF_ASSERT(0);
+    GF_ASSERT(FALSE);
     return NULL;
 }
 
@@ -134,24 +133,24 @@ void *ov5_021ECD68(const MapObjectManager *param0, u32 param1, int param2)
 
 void ov5_021ECDA0(const MapObject *param0, VecFx32 *adjustedObjectPos)
 {
-    VecFx32 objectPosition, jumpOffset, v2, terrainSpriteOffset;
+    VecFx32 objectPosition, jumpOffset, posOffset, terrainSpriteOffset;
 
     MapObject_GetPosPtr(param0, &objectPosition);
     MapObject_GetSpriteJumpOffset(param0, &jumpOffset);
-    sub_0206309C(param0, &v2);
+    MapObject_GetSpritePosOffset(param0, &posOffset);
     MapObject_GetSpriteTerrainOffset(param0, &terrainSpriteOffset);
 
-    adjustedObjectPos->x = objectPosition.x + jumpOffset.x + v2.x + terrainSpriteOffset.x;
-    adjustedObjectPos->y = objectPosition.y + jumpOffset.y + v2.y + terrainSpriteOffset.y;
-    adjustedObjectPos->z = objectPosition.z + jumpOffset.z + v2.z + terrainSpriteOffset.z;
+    adjustedObjectPos->x = objectPosition.x + jumpOffset.x + posOffset.x + terrainSpriteOffset.x;
+    adjustedObjectPos->y = objectPosition.y + jumpOffset.y + posOffset.y + terrainSpriteOffset.y;
+    adjustedObjectPos->z = objectPosition.z + jumpOffset.z + posOffset.z + terrainSpriteOffset.z;
 }
 
-void ov5_021ECDFC(MapObject *param0, int param1)
+void ov5_021ECDFC(MapObject *mapObj, int dir)
 {
-    MapObject_TryFace(param0, param1);
+    MapObject_TryFace(mapObj, dir);
 
-    if (sub_02062D4C(param0) == 1) {
-        sub_02062B68(param0);
+    if (sub_02062D4C(mapObj) == 1) {
+        sub_02062B68(mapObj);
     }
 }
 

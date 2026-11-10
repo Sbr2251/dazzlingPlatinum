@@ -13,7 +13,6 @@
 // Tile budget: 32/32 (8 ceiling + 20 ground shelves + 4 VOID).
 // Stones: 4/4 (engine-b max). Protected tiles: 7/8 (engine-b max).
 
-#include "generated/map_headers.h"
 #include "generated/vars_flags.h"
 
 #include "location.h"
@@ -21,7 +20,7 @@
 #include "overlay009/dw_puzzle_actors.h"
 
 // Fall script: entry 10 in res/field/scripts/scripts_dw_route_213.s
-// (DWRoute213_Fall); frame-fall var VAR_MAP_LOCAL_3, cleared there.
+// (DWRoute213_Fall); frame-fall var VAR_MAP_LOCAL_0x03, cleared there.
 #define ROUTE_213_FALL_SCRIPT 10
 
 // ------------------------------------------------------------------
@@ -131,7 +130,7 @@ static const DwPuzzleCheckpoint sRoute213Checkpoints[] = {
 const DwPuzzleTable gDwPuzzleRoute213Table = {
     MAP_HEADER_DW_ROUTE_213,
     83, 83,                                     // VAR_ARC2_PROGRESS gate: entry state only
-    ROUTE_213_FALL_SCRIPT, VAR_MAP_LOCAL_3,     // frame-fall script, fallVar
+    ROUTE_213_FALL_SCRIPT, VAR_MAP_LOCAL_0x03,     // frame-fall script, fallVar
     0, 2, 6, 4, 5, 32,                         // group/sigil/rune/current/checkpoint/tile counts
     0, 0,                                      // testOnly, padding
     NULL, sRoute213Sigils, sRoute213Runes, sRoute213Currents, sRoute213Checkpoints, sRoute213Tiles,

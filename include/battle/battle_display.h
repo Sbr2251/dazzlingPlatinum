@@ -1,51 +1,64 @@
-#ifndef POKEPLATINUM_OV16_0225CBB8_H
-#define POKEPLATINUM_OV16_0225CBB8_H
+#ifndef POKEPLATINUM_BATTLE_BATTLE_DISPLAY_H
+#define POKEPLATINUM_BATTLE_BATTLE_DISPLAY_H
 
 #include "struct_decls/battle_system.h"
+#include "struct_defs/battler_data.h"
+#include "struct_defs/move_animation.h"
 
-#include "battle/battle_message.h"
+#include "battle/healthbox.h"
 #include "battle/message_defs.h"
-#include "battle/struct_ov16_0225BFFC_decl.h"
-#include "battle/struct_ov16_02265BBC.h"
-#include "battle/struct_ov16_022674C4.h"
-#include "battle/struct_ov16_0226C378.h"
 
 #include "pokemon_sprite.h"
 
-void ov16_0225CBB8(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225CBDC(BattleSystem *battleSys, BattlerData *param1, MonEncounterMessage *message);
-void ov16_0225CE1C(BattleSystem *battleSys, BattlerData *param1, MonShowMessage *message);
-void ov16_0225CF70(BattleSystem *battleSys, BattlerData *param1, MonShowMessage *message);
-void ov16_0225D118(BattleSystem *battleSys, BattlerData *param1, MonReturnMessage *message);
-void ov16_0225D1C4(BattleSystem *battleSys, BattlerData *param1, CaptureOpenBallMessage *message);
-void ov16_0225D228(BattleSystem *battleSys, BattlerData *param1, TrainerEncounterMessage *message);
-void ov16_0225D360(BattleSystem *battleSys, BattlerData *param1, TrainerThrowBallMessage *message);
-void ov16_0225D3CC(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225D414(BattleSystem *battleSys, BattlerData *param1, TrainerSlideInMessage *message);
+typedef struct UISetupTaskData {
+    BattleSystem *battleSys;
+    UnkStruct_ov12_02237F98 *animContext;
+    UnkStruct_ov12_02238004 *animObjects[3];
+    u8 step;
+    u8 frameCount;
+    u8 fadeStep;
+    u8 unused;
+} UISetupTaskData;
+
+typedef struct BallThrowFlashData {
+    int state;
+    int unread_04;
+} BallThrowFlashData;
+
+void BattleDisplay_InitTaskSetupUI(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_InitTaskSetEncounter(BattleSystem *battleSys, BattlerData *battlerData, MonEncounterMessage *message);
+void BattleDisplay_InitTaskShowEncounter(BattleSystem *battleSys, BattlerData *battlerData, MonShowMessage *message);
+void BattleDisplay_InitTaskShowPokemon(BattleSystem *battleSys, BattlerData *battlerData, MonShowMessage *message);
+void BattleDisplay_InitTaskReturnPokemon(BattleSystem *battleSys, BattlerData *battlerData, MonReturnMessage *message);
+void BattleDisplay_InitTaskOpenCaptureBall(BattleSystem *battleSys, BattlerData *battlerData, OpenCaptureBallMessage *message);
+void BattleDisplay_InitTaskSetTrainerEncounter(BattleSystem *battleSys, BattlerData *battlerData, TrainerEncounterMessage *message);
+void BattleDisplay_InitTaskThrowTrainerBall(BattleSystem *battleSys, BattlerData *battlerData, TrainerThrowBallMessage *message);
+void BattleDisplay_InitTaskSlideTrainerOut(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_InitTaskSlideTrainerIn(BattleSystem *battleSys, BattlerData *battlerData, TrainerSlideInMessage *message);
 
 /**
- * @brief Slide the healthbar into the screen.
+ * @brief Slide the healthbox into the screen.
  *
  * @param battleSys
  * @param battlerData
- * @param healthbarData
+ * @param healthboxData
  */
-void BattleDisplay_SlideHealthbarIn(BattleSystem *battleSys, BattlerData *battlerData, HealthbarData *healthbarData);
+void BattleDisplay_InitTaskSlideHealthBoxIn(BattleSystem *battleSys, BattlerData *battlerData, HealthBoxData *healthboxData);
 
 /**
- * @brief Slide the healthbar out of the screen.
+ * @brief Slide the healthbox out of the screen.
  *
  * @param battleSys
  * @param battlerData
  */
-void BattleDisplay_SlideHealthbarOut(BattleSystem *battleSys, BattlerData *battlerData);
-void ov16_0225D5B8(BattleSystem *battleSys, BattlerData *param1, CommandSetMessage *message);
-void ov16_0225D698(BattleSystem *battleSys, BattlerData *param1, MoveSelectMenuMessage *message);
-void ov16_0225D708(BattleSystem *battleSys, BattlerData *param1, TargetSelectMenuMessage *message);
-void ov16_0225D794(BattleSystem *battleSys, BattlerData *param1, BagMenuMessage *message);
-void ov16_0225D840(BattleSystem *battleSys, BattlerData *param1, PartyMenuMessage *message);
-void ov16_0225D8AC(BattleSystem *battleSys, BattlerData *param1, YesNoMenuMessage *message);
-void ov16_0225D8F0(BattleSystem *battleSys, BattlerData *param1, AttackMsgMessage *message);
+void BattleDisplay_InitTaskSlideHealthBoxOut(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_InitTaskSetCommandSelection(BattleSystem *battleSys, BattlerData *battlerData, CommandSetMessage *message);
+void BattleDisplay_InitTaskShowMoveSelectMenu(BattleSystem *battleSys, BattlerData *battlerData, MoveSelectMenuMessage *message);
+void BattleDisplay_InitTaskShowTargetSelectMenu(BattleSystem *battleSys, BattlerData *battlerData, TargetSelectMenuMessage *message);
+void BattleDisplay_InitTaskShowBagMenu(BattleSystem *battleSys, BattlerData *battlerData, BagMenuMessage *message);
+void BattleDisplay_InitTaskShowPartyMenu(BattleSystem *battleSys, BattlerData *battlerData, PartyMenuMessage *message);
+void BattleDisplay_InitTaskShowYesNoMenu(BattleSystem *battleSys, BattlerData *battlerData, YesNoMenuMessage *message);
+void BattleDisplay_PrintAttackMessage(BattleSystem *battleSys, BattlerData *battlerData, AttackMsgMessage *message);
 
 /**
  * @brief Print a message to the screen.
@@ -55,28 +68,28 @@ void ov16_0225D8F0(BattleSystem *battleSys, BattlerData *param1, AttackMsgMessag
  * @param battleMsg
  */
 void BattleDisplay_PrintMessage(BattleSystem *battleSys, BattlerData *battlerData, BattleMessage *battleMsg);
-void ov16_0225D9A8(BattleSystem *battleSys, BattlerData *param1, MoveAnimation *moveAnimation);
-void ov16_0225DA44(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225DA74(BattleSystem *battleSys, BattlerData *param1, HPGaugeUpdateMessage *message);
-void ov16_0225DB00(BattleSystem *battleSys, BattlerData *param1, ExpGaugeUpdateMessage *message);
-void ov16_0225DB74(BattleSystem *battleSys, BattlerData *param1, FaintingSequenceMessage *message);
-void ov16_0225DC4C(BattleSystem *battleSys, BattlerData *param1, PlaySoundMessage *message);
-void ov16_0225DC7C(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225DCB0(BattleSystem *battleSys, BattlerData *param1, ToggleVanishMessage *message);
-void ov16_0225DD44(BattleSystem *battleSys, BattlerData *param1, SetStatusIconMessage *message);
-void ov16_0225DD7C(BattleSystem *battleSys, BattlerData *param1, TrainerMsgMessage *message);
-void ov16_0225DDD8(BattleSystem *battleSys, BattlerData *param1, RecallMsgMessage *message);
-void ov16_0225DE30(BattleSystem *battleSys, BattlerData *param1, SendOutMsgMessage *message);
-void ov16_0225DE88(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225DEDC(BattleSystem *battleSys, BattlerData *param1, LeadMonMsgMessage *message);
-void ov16_0225DF34(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225DF6C(BattleSystem *battleSys, BattlerData *param1, AlertMsgMessage *message);
-void ov16_0225E008(BattleSystem *battleSys, BattlerData *param1, RefreshHPGaugeMessage *message);
-void ov16_0225E0BC(BattleSystem *battleSys, BattlerData *param1, ForgetMoveMessage *message);
-void ov16_0225E0F4(BattleSystem *battleSys, BattlerData *param1, MosaicSetMessage *message);
+void BattleDisplay_InitTaskSetMoveAnimation(BattleSystem *battleSys, BattlerData *battlerData, MoveAnimation *moveAnim);
+void BattleDisplay_InitTaskFlickerBattler(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_InitTaskUpdateHPGauge(BattleSystem *battleSys, BattlerData *battlerData, HPGaugeUpdateMessage *message);
+void BattleDisplay_InitTaskUpdateExpGauge(BattleSystem *battleSys, BattlerData *battlerData, ExpGaugeUpdateMessage *message);
+void BattleDisplay_InitTaskPlayFaintingSequence(BattleSystem *battleSys, BattlerData *battlerData, FaintingSequenceMessage *message);
+void BattleDisplay_PlaySound(BattleSystem *battleSys, BattlerData *battlerData, PlaySoundMessage *message);
 void BattleDisplay_StartAffinePulse(BattleSystem *battleSys, BattlerData *battlerData, AffinePulseMessage *message);
 void BattleDisplay_SetMegaEvolutionCue(int cue);
 void BattleDisplay_ReloadFormSprite(BattleSystem *battleSys, BattlerData *battlerData, int species, int gender, int isShiny, int form, u32 personality);
+void BattleDisplay_InitTaskFadeOut(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_InitTaskToggleVanish(BattleSystem *battleSys, BattlerData *battlerData, ToggleVanishMessage *message);
+void BattleDisplay_SetStatusIcon(BattleSystem *battleSys, BattlerData *battlerData, SetStatusIconMessage *message);
+void BattleDisplay_PrintTrainerMessage(BattleSystem *battleSys, BattlerData *battlerData, TrainerMsgMessage *message);
+void BattleDisplay_PrintRecallMessage(BattleSystem *battleSys, BattlerData *battlerData, RecallMsgMessage *message);
+void BattleDisplay_PrintSendOutMessage(BattleSystem *battleSys, BattlerData *battlerData, SendOutMsgMessage *message);
+void BattleDisplay_PrintBattleStartMessage(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_PrintLeadMonMessage(BattleSystem *battleSys, BattlerData *battlerData, LeadMonMsgMessage *message);
+void BattleDisplay_InitTaskPlayLevelUpAnimation(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_SetAlertMessage(BattleSystem *battleSys, BattlerData *battlerData, AlertMsgMessage *message);
+void BattleDisplay_RefreshHPGauge(BattleSystem *battleSys, BattlerData *battlerData, RefreshHPGaugeMessage *message);
+void BattleDisplay_InitTaskForgetMove(BattleSystem *battleSys, BattlerData *battlerData, ForgetMoveMessage *message);
+void BattleDisplay_InitTaskSetMosaic(BattleSystem *battleSys, BattlerData *battlerData, MosaicSetMessage *message);
 
 /**
  * @brief Show the start-of-battle party gauge.
@@ -85,7 +98,7 @@ void BattleDisplay_ReloadFormSprite(BattleSystem *battleSys, BattlerData *battle
  * @param battlerData
  * @param partyGauge
  */
-void BattleDisplay_ShowBattleStartPartyGauge(BattleSystem *battleSys, BattlerData *battlerData, PartyGaugeData *partyGauge);
+void BattleDisplay_InitTaskShowBattleStartPartyGauge(BattleSystem *battleSys, BattlerData *battlerData, PartyGaugeData *partyGauge);
 
 /**
  * @brief Hide the start-of-battle party gauge.
@@ -94,7 +107,7 @@ void BattleDisplay_ShowBattleStartPartyGauge(BattleSystem *battleSys, BattlerDat
  * @param battlerData
  * @param partyGauge
  */
-void BattleDisplay_HideBattleStartPartyGauge(BattleSystem *battleSys, BattlerData *battlerData, PartyGaugeData *partyGauge);
+void BattleDisplay_InitTaskHideBattleStartPartyGauge(BattleSystem *battleSys, BattlerData *battlerData, PartyGaugeData *partyGauge);
 
 /**
  * @brief Show the mid-battle party gauge.
@@ -103,7 +116,7 @@ void BattleDisplay_HideBattleStartPartyGauge(BattleSystem *battleSys, BattlerDat
  * @param battlerData
  * @param partyGauge
  */
-void BattleDisplay_ShowPartyGauge(BattleSystem *battleSys, BattlerData *battlerData, PartyGaugeData *partyGauge);
+void BattleDisplay_InitTaskShowPartyGauge(BattleSystem *battleSys, BattlerData *battlerData, PartyGaugeData *partyGauge);
 
 /**
  * @brief Hide the mid-battle party gauge.
@@ -112,28 +125,28 @@ void BattleDisplay_ShowPartyGauge(BattleSystem *battleSys, BattlerData *battlerD
  * @param battlerData
  * @param partyGauge
  */
-void BattleDisplay_HidePartyGauge(BattleSystem *battleSys, BattlerData *battlerData, PartyGaugeData *partyGauge);
-void ov16_0225E23C(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225E294(BattleSystem *battleSys, BattlerData *param1, MoveAnimation *moveAnimation);
-void ov16_0225E2C8(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225E300(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225E338(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225E38C(BattleSystem *battleSys, BattlerData *param1, EscapeMsgMessage *message);
-void ov16_0225E3E0(BattleSystem *battleSys, BattlerData *param1);
-void ov16_0225E434(BattleSystem *battleSys, BattlerData *param1, MoveAnimation *moveAnimation);
-void ov16_0225E468(BattleSystem *battleSys, BattlerData *param1, MoveHitSoundMessage *message);
-void ov16_0225E4C8(BattleSystem *battleSys, BattlerData *param1, MusicPlayMessage *message);
-void ov16_02263730(BattleSystem *battleSys, BattlerData *param1);
-u8 Battler_Type(BattlerData *param0);
-u8 Battler_BootState(BattlerData *param0);
-PokemonSprite *ov16_02263AFC(BattlerData *param0);
-Healthbar *ov16_02263B08(BattlerData *param0);
-UnkStruct_ov16_0226C378 *ov16_02263B0C(BattlerData *param0);
-void ov16_02263B10(BattlerData *param0);
-void ov16_02263B20(BattlerData *param0, int param1);
-
+void BattleDisplay_InitTaskHidePartyGauge(BattleSystem *battleSys, BattlerData *battlerData, PartyGaugeData *partyGauge);
+void BattleDisplay_PrintLinkWaitMessage(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_RestoreSprite(BattleSystem *battleSys, BattlerData *battlerData, MoveAnimation *moveAnim);
+void BattleDisplay_InitTaskSpriteToOAM(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_InitTaskOAMToSprite(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_PrintResultMessage(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_PrintEscapeMessage(BattleSystem *battleSys, BattlerData *battlerData, EscapeMsgMessage *message);
 // Debug move tester: start a move animation from the given MoveAnimation, like the move-animation
 // battle command does. The caller runs BattleAnimSystem_ExecuteScript until the move is done.
 void BattleDisplay_StartMoveAnimation(BattleSystem *battleSys, int attacker, MoveAnimation *animation);
 
-#endif // POKEPLATINUM_OV16_0225CBB8_H
+void BattleDisplay_PrintForfeitMessage(BattleSystem *battleSys, BattlerData *battlerData);
+void BattleDisplay_RefreshSprite(BattleSystem *battleSys, BattlerData *battlerData, MoveAnimation *moveAnim);
+void BattleDisplay_FlyMoveHitSoundEffect(BattleSystem *battleSys, BattlerData *battlerData, MoveHitSoundMessage *message);
+void BattleDisplay_PlayMusic(BattleSystem *battleSys, BattlerData *battlerData, MusicPlayMessage *message);
+void BattlerData_SetTaskFuncs(BattleSystem *battleSys, BattlerData *battlerData);
+u8 BattlerData_GetBattlerType(BattlerData *battlerData);
+u8 BattlerData_GetBootState(BattlerData *battlerData);
+PokemonSprite *BattlerData_GetPokemonSprite(BattlerData *battlerData);
+HealthBox *BattlerData_GetHealthBox(BattlerData *battlerData);
+SavedCursorPosition *BattlerData_GetSavedCursorPosition(BattlerData *battlerData);
+void BattlerData_ClearSavedCursorPosition(BattlerData *battlerData);
+void BattlerData_SetTrainerVisibility(BattlerData *battlerData, BOOL drawFlag);
+
+#endif // POKEPLATINUM_BATTLE_BATTLE_DISPLAY_H

@@ -20,7 +20,7 @@
                 "MOVE_SCREECH",
                 "MOVE_FURY_SWIPES"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0,
             "ability": "ABILITY_INNER_FOCUS"
         },
@@ -35,7 +35,7 @@
                 "MOVE_CONFUSE_RAY",
                 "MOVE_TACKLE"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0,
             "ability": "ABILITY_LEVITATE"
         },
@@ -50,7 +50,7 @@
                 "MOVE_PECK",
                 "MOVE_GROWL"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0,
             "ability": "ABILITY_TORRENT"
         }

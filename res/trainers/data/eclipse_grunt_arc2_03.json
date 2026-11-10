@@ -19,7 +19,7 @@
                 "MOVE_ODOR_SLEUTH",
                 "MOVE_HOWL"
             ],
-            "power": 60,
+            "iv_scale": 60,
             "ball_seal": 0,
             "ability": "ABILITY_INTIMIDATE"
         },
@@ -34,7 +34,7 @@
                 "MOVE_FAINT_ATTACK",
                 "MOVE_SWAGGER"
             ],
-            "power": 60,
+            "iv_scale": 60,
             "ball_seal": 0,
             "ability": "ABILITY_DRY_SKIN"
         }
@@ -43,7 +43,7 @@
         {
             "type": "TRMSG_DEFEAT",
             "en_US": [
-                "These are OUR Pokémon now!\n",
+                "These are OUR Pok\u00e9mon now!\n",
                 "We... we take good care of them!\n"
             ]
         }

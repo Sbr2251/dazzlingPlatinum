@@ -154,8 +154,8 @@
         "type": "FOOTPRINT_TYPE_SCARY"
     },
     "pokedex_data": {
-        "height": 8,
-        "weight": 173,
+        "height_meters": 0.8,
+        "weight_kilograms": 17.3,
         "body_shape": "SHAPE_QUADRUPED",
         "trainer_scale_f": 272,
         "pokemon_scale_f": 300,
@@ -167,20 +167,20 @@
         "pokemon_pos_m": 14,
         "en": {
             "name": "DEINO",
-            "category": "Irate Pok\u00e9mon",
+            "category": "Irate Pokémon",
             "entry_text": [
-                "Lacking sight, it\u2019s unaware of\n",
+                "Lacking sight, it’s unaware of\n",
                 "its surroundings, so it bumps into\n",
                 "things and eats anything that moves."
             ]
         },
         "fr": {
             "name": "SOLOCHI",
-            "category": "Pok\u00e9mon Hargneux",
+            "category": "Pokémon Hargneux",
             "entry_text": [
-                "Priv\u00e9 de la vue, il explore son\n",
+                "Privé de la vue, il explore son\n",
                 "environnement en mordant tout\n",
-                "ce qui se trouve \u00e0 sa port\u00e9e."
+                "ce qui se trouve à sa portée."
             ]
         },
         "de": {
@@ -189,21 +189,21 @@
             "entry_text": [
                 "Da es nichts sehen kann, nimmt\n",
                 "es seine Umgebung wahr, indem\n",
-                "es in alles hineinbei\u00dft."
+                "es in alles hineinbeißt."
             ]
         },
         "it": {
             "name": "DEINO",
-            "category": "Pok\u00e9mon Irascibile",
+            "category": "Pokémon Irascibile",
             "entry_text": [
                 "Non potendo vedere, esplora\n",
-                "l\u2019ambiente circostante mordendo\n",
-                "tutto ci\u00f2 che gli capita a tiro."
+                "l’ambiente circostante mordendo\n",
+                "tutto ciò che gli capita a tiro."
             ]
         },
         "es": {
             "name": "DEINO",
-            "category": "Pok\u00e9mon Iracundo",
+            "category": "Pokémon Iracundo",
             "entry_text": [
                 "Al no poder ver, explora su\n",
                 "entorno mordiendo todo lo que\n",
@@ -211,12 +211,12 @@
             ]
         },
         "jp": {
-            "name": "\u30e2\u30ce\u30ba",
-            "category": "\u304b\u307f\u3064\u304d\u30dd\u30b1\u30e2\u30f3",
+            "name": "モノズ",
+            "category": "かみつきポケモン",
             "entry_text": [
-                "\u3081\u304c\u3000\u307f\u3048\u306a\u3044\u306e\u3067\u3000\u307e\u308f\u308a\u306e\n",
-                "\u3082\u306e\u306b\u3000\u304b\u307f\u3064\u3044\u3066\u3000\u305d\u306e\u3000\u3059\u304c\u305f\u3092\n",
-                "\u305f\u3057\u304b\u3081\u3066\u3044\u308b\u3002"
+                "めが　みえないので　まわりの\n",
+                "ものに　かみついて　その　すがたを\n",
+                "たしかめている。"
             ]
         }
     },

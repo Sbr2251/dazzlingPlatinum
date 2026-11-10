@@ -19,7 +19,7 @@
                 "MOVE_SAND_ATTACK",
                 "MOVE_TACKLE"
             ],
-            "power": 50,
+            "iv_scale": 50,
             "ball_seal": 0
         },
         {
@@ -31,7 +31,7 @@
                 "MOVE_TACKLE",
                 "MOVE_HARDEN"
             ],
-            "power": 50,
+            "iv_scale": 50,
             "ball_seal": 0
         }
     ],
@@ -40,7 +40,7 @@
             "type": "TRMSG_PRE_BATTLE",
             "en_US": [
                 "You avoided the long way around?\n",
-                "Let’s see why you’d do that!\r"
+                "Let\u2019s see why you\u2019d do that!\r"
             ]
         },
         {

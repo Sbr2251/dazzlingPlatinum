@@ -1,11 +1,13 @@
-#ifndef POKEPLATINUM_BATTLE_CONTROLLER_H
-#define POKEPLATINUM_BATTLE_CONTROLLER_H
+#ifndef POKEPLATINUM_BATTLE_BATTLE_CONTROLLER_PLAYER_H
+#define POKEPLATINUM_BATTLE_BATTLE_CONTROLLER_PLAYER_H
 
 #include "struct_decls/battle_system.h"
 
 #include "config/battle_stage.h"
 
 #include "battle/battle_context.h"
+
+#define SAFARI_STAGE_MAX 12
 
 enum BattleControlSequence {
     BATTLE_CONTROL_GET_BATTLE_MON = 0,
@@ -94,6 +96,12 @@ enum BattleControllerPlayerInput {
     PLAYER_INPUT_CANCEL = 0xFF,
 };
 
+enum RecordCommandFlags {
+    RECORDED_CMD_FLAG_ACTION = 1,
+    RECORDED_CMD_FLAG_TARGET = 2,
+    RECORDED_CMD_FLAG_MOVE_SLOT = 4,
+};
+
 /**
  * @brief Create a new BattleContext struct from the given BattleSystem.
  *
@@ -159,4 +167,4 @@ void BattleControllerPlayer_CheckMoveHit(BattleSystem *battleSys, BattleContext 
 BOOL BattleControllerPlayer_AIDoneSelecting(BattleSystem *battleSys, BattleContext *battleCtx);
 #endif
 
-#endif // POKEPLATINUM_BATTLE_CONTROLLER_H
+#endif // POKEPLATINUM_BATTLE_BATTLE_CONTROLLER_PLAYER_H

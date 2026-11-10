@@ -5,29 +5,22 @@
 
 #include "constants/field/dynamic_map_features.h"
 #include "constants/field/map_load.h"
-#include "constants/overworld_weather.h"
-#include "constants/species.h"
+#include "constants/field/script_ranges.h"
 #include "generated/badges.h"
-#include "generated/items.h"
 #include "generated/journal_location_events.h"
-#include "generated/moves.h"
 #include "generated/object_events_gfx.h"
 
-#include "struct_decls/struct_020216E0_decl.h"
-#include "struct_decls/struct_02061AB4_decl.h"
-#include "struct_defs/pokemon.h"
-#include "struct_defs/struct_020708E0.h"
+#include "struct_decls/map_object.h"
 #include "struct_defs/struct_020711C8.h"
 
 #include "applications/town_map/main.h"
 #include "field/field_system.h"
 #include "overlay005/ov5_021DFB54.h"
-#include "overlay005/ov5_021EB1A0.h"
-#include "overlay005/ov5_021ECA70.h"
 #include "overlay005/ov5_021F101C.h"
-#include "overlay006/ov6_02247100.h"
+#include "overlay006/field_warp.h"
+#include "overlay006/hm_cut_in.h"
 
-#include "bag.h"
+#include "field_map_change.h"
 #include "field_overworld_state.h"
 #include "field_task.h"
 #include "heap.h"
@@ -39,24 +32,30 @@
 #include "party.h"
 #include "persisted_map_features_init.h"
 #include "player_avatar.h"
+#include "player_move.h"
 #include "save_player.h"
 #include "script_manager.h"
+#include "spawn_locations.h"
 #include "start_menu.h"
 #include "system_flags.h"
 #include "terrain_collision_manager.h"
 #include "trainer_info.h"
 #include "unk_0203C954.h"
 #include "unk_0203D1B8.h"
-#include "unk_0205F180.h"
-#include "unk_02020AEC.h"
+#include "billboard.h"
 #include "unk_020711C8.h"
 #include "vars_flags.h"
 #include "vram_transfer.h"
 
 #define FIELD_MOVE_FLAG(move) (1 << (move))
 
+enum FlyState {
+    FLY_STATE_START_CUT_IN = 0,
+    FLY_STATE_MAIN,
+};
+
 typedef struct {
-    FieldMoveTaskContext task;
+    FieldMoveTask task;
     FieldMoveErrContext error;
 } FieldMoveTaskOrError;
 
@@ -70,7 +69,7 @@ static void FieldMoves_CanUseSurfDistortionWorld(FieldSystem *fieldSystem, Field
 static enum FieldMoveError FieldMoves_CheckResonatorObstacle(const FieldMoveContext *fieldMoveContext);
 
 static enum FieldMoveError FieldMoves_CheckFly(const FieldMoveContext *fieldMoveContext);
-static void FieldMoves_SetFlyTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
+static void FieldMoves_SetSelectFlyDestinationTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
 
 static enum FieldMoveError FieldMoves_CheckTeleport(const FieldMoveContext *fieldMoveContext);
 static void FieldMoves_SetTeleportTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext);
@@ -114,7 +113,7 @@ static BOOL FieldMoves_CutTask(FieldTask *taskMan);
 
 static const FieldMoveTaskOrError fieldMoveTaskOrError[] = {
     { FieldMoves_SetCutTask, FieldMoves_CheckResonatorObstacle },
-    { FieldMoves_SetFlyTask, FieldMoves_CheckFly },
+    { FieldMoves_SetSelectFlyDestinationTask, FieldMoves_CheckFly },
     { FieldMoves_SetSurfTask, FieldMoves_CheckResonatorObstacle },
     { FieldMoves_SetStrengthTask, FieldMoves_CheckResonatorObstacle },
     { FieldMoves_SetDefogTask, FieldMoves_CheckResonatorObstacle },
@@ -293,7 +292,7 @@ void FieldMoves_ApplyResonatorGhostPalette(const Pokemon *mon, u16 *palette, int
 // Arc 2 Resonator echoes (S8 Echo stage, workstream echo; scripts in ravaged_path, valley_windworks_building and
 // route_214). From the second calmed totem on, the Resonator replays a few seconds of what happened at a torture site.
 // The replay is a plain scripted cutscene: its actors are ordinary object events with local IDs ECHO_LOCALID_FIRST to
-// ECHO_LOCALID_LAST, and the script sets their opacity in VAR_MAP_LOCAL_5 (0 = off, 1-31). This hook, run after
+// ECHO_LOCALID_LAST, and the script sets their opacity in VAR_MAP_LOCAL_0x05 (0 = off, 1-31). This hook, run after
 // every map object draws (MapObjectTask_Draw), turns those actors into ghosts the way the Resonator cut-in shows a
 // totem: the sprite's palette washed pale violet (FieldMoves_ApplyResonatorGhostPalette's wash, precomputed per
 // sprite by tools/arc2_echo/echo_palettes.py) and the billboard drawn translucent with no shadow (the Lost Tower ghost
@@ -304,7 +303,7 @@ void FieldMoves_ApplyResonatorGhostPalette(const Pokemon *mon, u16 *palette, int
 // release the player, so the block never outlives the field.
 #define ECHO_LOCALID_FIRST 0xC0
 #define ECHO_LOCALID_LAST  0xC7
-#define ECHO_OPACITY_VAR   VAR_MAP_LOCAL_5
+#define ECHO_OPACITY_VAR   VAR_MAP_LOCAL_0x05
 #define ECHO_OPACITY_MAX   31
 #define ECHO_POLYGON_ID    0x31 // + the palette index: overlapping ghosts of different sprites still blend
 
@@ -416,7 +415,7 @@ void FieldMoves_EchoGhostDraw(MapObject *mapObj)
     FieldSystem *fieldSystem = MapObjectMan_FieldSystem(mapObjMan);
     u32 localID = MapObject_GetLocalID(mapObj);
     u16 opacity;
-    UnkStruct_020216E0 *billboard;
+    Billboard *billboard;
     NNSG3dRenderObj *renderObj;
     u32 graphicsID;
     int palette;
@@ -480,7 +479,7 @@ void FieldMoves_EchoGhostDraw(MapObject *mapObj)
     FieldMoves_EchoLoadPalettes(mapObjMan);
 
     sEchoGhostTags[palette] = palette;
-    renderObj = sub_02021440(billboard);
+    renderObj = Billboard_GetRenderObj((Billboard *)billboard);
     renderObj->ptrUser = &sEchoGhostTags[palette];
     NNS_G3dRenderObjSetCallBack(renderObj, FieldMoves_EchoGhostMaterialCallback, NULL, NNS_G3D_SBC_MAT, NNS_G3D_SBC_CALLBACK_TIMING_B);
 }
@@ -529,6 +528,51 @@ static inline BOOL PlayerOutsideLinkRoom(const FieldMoveContext *fieldMoveContex
     return TRUE;
 }
 
+FlyContext *FlyContext_New(enum HeapID heapID, FieldSystem *fieldSystem, Pokemon *mon, u16 mapID, s16 x, s16 z)
+{
+    FlyContext *ctx = Heap_AllocAtEnd(heapID, sizeof(FlyContext));
+
+    memset(ctx, 0, sizeof(FlyContext));
+
+    ctx->fieldSystem = fieldSystem;
+    ctx->mon = mon;
+    ctx->mapID = mapID;
+    ctx->x = x;
+    ctx->z = z;
+
+    return ctx;
+}
+
+BOOL FieldMoves_FlyTask(FieldTask *task)
+{
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+    FlyContext *ctx = FieldTask_GetEnv(task);
+
+    switch (ctx->state) {
+    case FLY_STATE_START_CUT_IN:
+        ctx->cutInTask = HMCutIn_StartTask(ctx->fieldSystem, TRUE, ctx->mon, PlayerAvatar_GetGender(ctx->fieldSystem->playerAvatar));
+        ctx->state++;
+        break;
+    case FLY_STATE_MAIN:
+        if (!HMCutIn_IsFinished(ctx->cutInTask)) {
+            break;
+        }
+
+        HMCutIn_EndTask(ctx->cutInTask);
+
+        u16 destination = GetSpawnIdByMapAndCoords(ctx->mapID, ctx->x, ctx->z);
+        GF_ASSERT(destination != MAP_HEADER_EVERYWHERE);
+
+        Location location;
+        Location_InitFly(destination, &location);
+        FieldTask_ChangeMapChangeFly(task, location.mapHeaderID, WARP_ID_NONE, location.x, location.z, DIR_SOUTH);
+
+        Heap_Free(ctx);
+    }
+
+    return FALSE;
+}
+
 void *FieldMove_GetTaskOrError(u16 taskOrError, u16 fieldMove)
 {
     if (taskOrError == FIELD_MOVE_TASK) {
@@ -546,7 +590,7 @@ void FieldMoves_SetUsableMoves(FieldSystem *fieldSystem, FieldMoveContext *field
     int currTileBehavior;
 
     fieldMoveContext->fieldSystem = fieldSystem;
-    fieldMoveContext->mapId = fieldSystem->location->mapId;
+    fieldMoveContext->mapHeaderID = fieldSystem->location->mapHeaderID;
     fieldMoveContext->usableMoves = 0;
 
     if (PlayerAvatar_DistortionGravityChanged(fieldSystem->playerAvatar) == TRUE) {
@@ -571,8 +615,8 @@ void FieldMoves_SetUsableMoves(FieldSystem *fieldSystem, FieldMoveContext *field
         }
     }
 
-    playerX = Player_GetXPos(fieldSystem->playerAvatar);
-    playerY = Player_GetZPos(fieldSystem->playerAvatar);
+    playerX = PlayerAvatar_GetXPos(fieldSystem->playerAvatar);
+    playerY = PlayerAvatar_GetZPos(fieldSystem->playerAvatar);
     currTileBehavior = TerrainCollisionManager_GetTileBehavior(fieldSystem, playerX, playerY);
 
     PlayerAvatar_GetFacingTileCoords(fieldSystem->playerAvatar, &playerX, &playerY);
@@ -582,7 +626,7 @@ void FieldMoves_SetUsableMoves(FieldSystem *fieldSystem, FieldMoveContext *field
         fieldMoveContext->usableMoves |= FIELD_MOVE_FLAG(FIELD_MOVE_SURF);
     }
 
-    if (PlayerAvatar_CanUseRockClimb(nextTileBehavior, PlayerAvatar_GetDir(fieldSystem->playerAvatar))) {
+    if (PlayerAvatar_CanUseRockClimb(nextTileBehavior, PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar))) {
         fieldMoveContext->usableMoves |= FIELD_MOVE_FLAG(FIELD_MOVE_ROCK_CLIMB);
     }
 
@@ -606,7 +650,7 @@ static void FieldMoves_CanUseSurfDistortionWorld(FieldSystem *fieldSystem, Field
     u32 currTileBehavior, nextTileBehavior;
 
     distortionDir = PlayerAvatar_GetDistortionDir(fieldSystem->playerAvatar);
-    nextTileBehavior = PlayerAvatar_GetDistortionTileBehaviour(fieldSystem->playerAvatar, distortionDir);
+    nextTileBehavior = PlayerAvatar_GetDistortionFacingTileBehaviour(fieldSystem->playerAvatar, distortionDir);
     currTileBehavior = PlayerAvatar_GetDistortionCurrTileBehaviour(fieldSystem->playerAvatar);
 
     if (PlayerAvatar_CanUseSurf(fieldSystem->playerAvatar, currTileBehavior, nextTileBehavior) == TRUE) {
@@ -647,7 +691,7 @@ static void FieldMoves_SetCutTask(FieldMovePokemon *fieldMoveMon, const FieldMov
 
     menu->callback = FieldMoves_CutTask;
     menu->taskData = taskData;
-    menu->state = START_MENU_STATE_10;
+    menu->state = START_MENU_STATE_NEW_TASK;
 }
 
 static BOOL FieldMoves_CutTask(FieldTask *taskMan)
@@ -655,7 +699,7 @@ static BOOL FieldMoves_CutTask(FieldTask *taskMan)
     FieldMoveTaskData *taskData = FieldTask_GetEnv(taskMan);
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(taskMan);
 
-    ScriptManager_Change(taskMan, 10008, taskData->mapObj);
+    ScriptManager_Change(taskMan, SCRIPT_ID(FIELD_MOVES, 8), taskData->mapObj);
     FieldSystem_SetScriptParameters(fieldSystem, taskData->fieldMoveMon.fieldMonId, 0, 0, 0);
     FieldMoves_FreeTaskData(taskData);
 
@@ -680,7 +724,7 @@ static enum FieldMoveError FieldMoves_CheckFly(const FieldMoveContext *fieldMove
         return progressionError;
     }
 
-    if (MapHeader_IsFlyAllowed(fieldMoveContext->mapId) == FALSE) {
+    if (MapHeader_IsFlyAllowed(fieldMoveContext->mapHeaderID) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
@@ -695,20 +739,20 @@ static enum FieldMoveError FieldMoves_CheckFly(const FieldMoveContext *fieldMove
     return FIELD_MOVE_ERROR_NONE;
 }
 
-static void FieldMoves_SetFlyTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)
+static void FieldMoves_SetSelectFlyDestinationTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)
 {
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(fieldMoveMon->fieldTask);
     StartMenu *menu = FieldTask_GetEnv(fieldMoveMon->fieldTask);
 
     u32 *fieldMonID = Heap_Alloc(HEAP_ID_FIELD2, sizeof(u32));
     *fieldMonID = fieldMoveMon->fieldMonId;
-    menu->unk_260 = fieldMonID;
 
+    menu->additionalTaskContext = fieldMonID;
     menu->taskData = Heap_Alloc(HEAP_ID_FIELD2, sizeof(TownMapContext));
 
     TownMapContext_Init(fieldSystem, menu->taskData, TOWN_MAP_MODE_FLY);
     FieldSystem_OpenTownMap(fieldSystem, menu->taskData);
-    sub_0203B674(menu, sub_0203C434);
+    StartMenu_SetCallback(menu, StartMenu_FlyDestinationSelected);
 }
 
 static void FieldMoves_SetSurfTask(FieldMovePokemon *fieldMoveMon, const FieldMoveContext *fieldMoveContext)
@@ -720,7 +764,7 @@ static void FieldMoves_SetSurfTask(FieldMovePokemon *fieldMoveMon, const FieldMo
 
     menu->callback = FieldMoves_SurfTask;
     menu->taskData = taskData;
-    menu->state = START_MENU_STATE_10;
+    menu->state = START_MENU_STATE_NEW_TASK;
 }
 
 static BOOL FieldMoves_SurfTask(FieldTask *taskMan)
@@ -728,7 +772,7 @@ static BOOL FieldMoves_SurfTask(FieldTask *taskMan)
     FieldMoveTaskData *taskData = FieldTask_GetEnv(taskMan);
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(taskMan);
 
-    ScriptManager_Change(taskMan, 10012, NULL);
+    ScriptManager_Change(taskMan, SCRIPT_ID(FIELD_MOVES, 12), NULL);
     FieldSystem_SetScriptParameters(fieldSystem, taskData->fieldMoveMon.fieldMonId, 0, 0, 0);
     FieldMoves_FreeTaskData(taskData);
 
@@ -744,7 +788,7 @@ static void FieldMoves_SetStrengthTask(FieldMovePokemon *fieldMoveMon, const Fie
 
     menu->callback = FieldMoves_StrengthTask;
     menu->taskData = taskData;
-    menu->state = START_MENU_STATE_10;
+    menu->state = START_MENU_STATE_NEW_TASK;
 }
 
 static BOOL FieldMoves_StrengthTask(FieldTask *param0)
@@ -752,7 +796,7 @@ static BOOL FieldMoves_StrengthTask(FieldTask *param0)
     FieldMoveTaskData *taskData = FieldTask_GetEnv(param0);
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(param0);
 
-    ScriptManager_Change(param0, 10010, taskData->mapObj);
+    ScriptManager_Change(param0, SCRIPT_ID(FIELD_MOVES, 10), taskData->mapObj);
     FieldSystem_SetScriptParameters(fieldSystem, taskData->fieldMoveMon.fieldMonId, 0, 0, 0);
     FieldMoves_FreeTaskData(taskData);
 
@@ -768,7 +812,7 @@ static void FieldMoves_SetDefogTask(FieldMovePokemon *fieldMoveMon, const FieldM
 
     menu->callback = FieldMoves_DefogTask;
     menu->taskData = taskData;
-    menu->state = START_MENU_STATE_10;
+    menu->state = START_MENU_STATE_NEW_TASK;
 }
 
 static BOOL FieldMoves_DefogTask(FieldTask *taskMan)
@@ -776,7 +820,7 @@ static BOOL FieldMoves_DefogTask(FieldTask *taskMan)
     FieldMoveTaskData *taskData = FieldTask_GetEnv(taskMan);
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(taskMan);
 
-    ScriptManager_Change(taskMan, 10014, NULL);
+    ScriptManager_Change(taskMan, SCRIPT_ID(FIELD_MOVES, 14), NULL);
     FieldSystem_SetScriptParameters(fieldSystem, taskData->fieldMoveMon.fieldMonId, 0, 0, 0);
     FieldMoves_FreeTaskData(taskData);
 
@@ -792,7 +836,7 @@ static void FieldMoves_SetRockSmashTask(FieldMovePokemon *fieldMoveMon, const Fi
 
     menu->callback = FieldMoves_RockSmashTask;
     menu->taskData = taskData;
-    menu->state = START_MENU_STATE_10;
+    menu->state = START_MENU_STATE_NEW_TASK;
 }
 
 static BOOL FieldMoves_RockSmashTask(FieldTask *taskMan)
@@ -800,7 +844,7 @@ static BOOL FieldMoves_RockSmashTask(FieldTask *taskMan)
     FieldMoveTaskData *taskData = FieldTask_GetEnv(taskMan);
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(taskMan);
 
-    ScriptManager_Change(taskMan, 10009, taskData->mapObj);
+    ScriptManager_Change(taskMan, SCRIPT_ID(FIELD_MOVES, 9), taskData->mapObj);
     FieldSystem_SetScriptParameters(fieldSystem, taskData->fieldMoveMon.fieldMonId, 0, 0, 0);
     FieldMoves_FreeTaskData(taskData);
 
@@ -816,7 +860,7 @@ static void FieldMoves_SetWaterfallTask(FieldMovePokemon *fieldMoveMon, const Fi
 
     menu->callback = FieldMoves_WaterfallTask;
     menu->taskData = taskData;
-    menu->state = START_MENU_STATE_10;
+    menu->state = START_MENU_STATE_NEW_TASK;
 }
 
 static BOOL FieldMoves_WaterfallTask(FieldTask *param0)
@@ -824,7 +868,7 @@ static BOOL FieldMoves_WaterfallTask(FieldTask *param0)
     FieldMoveTaskData *taskData = FieldTask_GetEnv(param0);
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(param0);
 
-    ScriptManager_Change(param0, 10013, NULL);
+    ScriptManager_Change(param0, SCRIPT_ID(FIELD_MOVES, 13), NULL);
     FieldSystem_SetScriptParameters(fieldSystem, taskData->fieldMoveMon.fieldMonId, 0, 0, 0);
     FieldMoves_FreeTaskData(taskData);
 
@@ -840,7 +884,7 @@ static void FieldMoves_SetRockClimbTask(FieldMovePokemon *fieldMoveMon, const Fi
 
     menu->callback = FieldMoves_RockClimbTask;
     menu->taskData = taskData;
-    menu->state = START_MENU_STATE_10;
+    menu->state = START_MENU_STATE_NEW_TASK;
 }
 
 static BOOL FieldMoves_RockClimbTask(FieldTask *taskMan)
@@ -848,7 +892,7 @@ static BOOL FieldMoves_RockClimbTask(FieldTask *taskMan)
     FieldMoveTaskData *taskData = FieldTask_GetEnv(taskMan);
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(taskMan);
 
-    ScriptManager_Change(taskMan, 10011, NULL);
+    ScriptManager_Change(taskMan, SCRIPT_ID(FIELD_MOVES, 11), NULL);
     FieldSystem_SetScriptParameters(fieldSystem, taskData->fieldMoveMon.fieldMonId, 0, 0, 0);
     FieldMoves_FreeTaskData(taskData);
 
@@ -877,7 +921,7 @@ static void FieldMoves_SetFlashTask(FieldMovePokemon *fieldMoveMon, const FieldM
 
     menu->callback = FieldMoves_FlashTask;
     menu->taskData = taskData;
-    menu->state = START_MENU_STATE_10;
+    menu->state = START_MENU_STATE_NEW_TASK;
 }
 
 static BOOL FieldMoves_FlashTask(FieldTask *taskMan)
@@ -885,7 +929,7 @@ static BOOL FieldMoves_FlashTask(FieldTask *taskMan)
     FieldMoveTaskData *taskData = FieldTask_GetEnv(taskMan);
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(taskMan);
 
-    ScriptManager_Change(taskMan, 10015, NULL);
+    ScriptManager_Change(taskMan, SCRIPT_ID(FIELD_MOVES, 15), NULL);
     FieldSystem_SetScriptParameters(fieldSystem, taskData->fieldMoveMon.fieldMonId, 0, 0, 0);
     FieldMoves_FreeTaskData(taskData);
 
@@ -898,7 +942,7 @@ static enum FieldMoveError FieldMoves_CheckTeleport(const FieldMoveContext *fiel
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
-    if (MapHeader_IsTeleportAllowed(fieldMoveContext->mapId) == FALSE) {
+    if (MapHeader_IsTeleportAllowed(fieldMoveContext->mapHeaderID) == FALSE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
@@ -924,19 +968,19 @@ static void FieldMoves_SetTeleportTask(FieldMovePokemon *fieldMoveMon, const Fie
 
     menu->callback = FieldMoves_TeleportTask;
     menu->taskData = v2;
-    menu->state = START_MENU_STATE_10;
+    menu->state = START_MENU_STATE_NEW_TASK;
 }
 
-static BOOL FieldMoves_TeleportTask(FieldTask *param0)
+static BOOL FieldMoves_TeleportTask(FieldTask *task)
 {
-    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(param0);
-    UnkStruct_020711C8 *v1 = FieldTask_GetEnv(param0);
-    void *v2 = ov6_02247530(fieldSystem, v1->unk_00, HEAP_ID_FIELD1);
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+    UnkStruct_020711C8 *v1 = FieldTask_GetEnv(task);
+    FieldWarp *fieldWarp = FieldWarp_InitTeleport(fieldSystem, v1->unk_00, HEAP_ID_FIELD1);
 
     Heap_Free(v1);
-    FieldTask_InitJump(param0, ov6_02247554, v2);
+    FieldTask_InitJump(task, FieldWarp_TeleportFadeOut, fieldWarp);
 
-    return 0;
+    return FALSE;
 }
 
 static enum FieldMoveError FieldMoves_CheckDig(const FieldMoveContext *fieldMoveContext)
@@ -945,7 +989,7 @@ static enum FieldMoveError FieldMoves_CheckDig(const FieldMoveContext *fieldMove
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
-    if (!((MapHeader_IsCave(fieldMoveContext->mapId) == TRUE) && (MapHeader_IsEscapeRopeAllowed(fieldMoveContext->mapId) == TRUE))) {
+    if (!((MapHeader_IsCave(fieldMoveContext->mapHeaderID) == TRUE) && (MapHeader_IsEscapeRopeAllowed(fieldMoveContext->mapHeaderID) == TRUE))) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
@@ -967,20 +1011,20 @@ static void FieldMoves_SetDigTask(FieldMovePokemon *fieldMoveMon, const FieldMov
 
     v1->callback = FieldMoves_DigTask;
     v1->taskData = v2;
-    v1->state = START_MENU_STATE_10;
+    v1->state = START_MENU_STATE_NEW_TASK;
 }
 
-static BOOL FieldMoves_DigTask(FieldTask *param0)
+static BOOL FieldMoves_DigTask(FieldTask *task)
 {
-    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(param0);
-    UnkStruct_020711C8 *v1 = FieldTask_GetEnv(param0);
-    void *v2 = ov6_02247488(fieldSystem, v1->unk_00, HEAP_ID_FIELD2);
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+    UnkStruct_020711C8 *v1 = FieldTask_GetEnv(task);
+    FieldWarp *fieldWarp = FieldWarp_InitDig(fieldSystem, v1->unk_00, HEAP_ID_FIELD2);
 
-    void *journalEntryLocationEvent = JournalEntry_CreateEventUsedMove(LOCATION_EVENT_USED_DIG - LOCATION_EVENT_USED_CUT, fieldSystem->location->mapId, HEAP_ID_FIELD1);
+    void *journalEntryLocationEvent = JournalEntry_CreateEventUsedMove(FIELD_MOVE_DIG, fieldSystem->location->mapHeaderID, HEAP_ID_FIELD1);
     JournalEntry_SaveData(fieldSystem->journalEntry, journalEntryLocationEvent, JOURNAL_LOCATION);
 
     Heap_Free(v1);
-    FieldTask_InitJump(param0, ov6_022474AC, v2);
+    FieldTask_InitJump(task, FieldWarp_DigFadeOut, fieldWarp);
 
     return FALSE;
 }
@@ -1010,15 +1054,15 @@ static void FieldMoves_SetSweetScentTask(FieldMovePokemon *fieldMoveMon, const F
 
     startMenu->callback = ov5_021F101C;
     startMenu->taskData = v2;
-    startMenu->state = START_MENU_STATE_10;
+    startMenu->state = START_MENU_STATE_NEW_TASK;
 
-    v4 = JournalEntry_CreateEventUsedMove(LOCATION_EVENT_LURED_POKEMON - LOCATION_EVENT_USED_CUT, fieldSystem->location->mapId, HEAP_ID_FIELD2);
+    v4 = JournalEntry_CreateEventUsedMove(FIELD_MOVE_SWEET_SCENT, fieldSystem->location->mapHeaderID, HEAP_ID_FIELD2);
     JournalEntry_SaveData(fieldSystem->journalEntry, v4, JOURNAL_LOCATION);
 }
 
 static enum FieldMoveError FieldMoves_CheckChatter(const FieldMoveContext *fieldMoveContext)
 {
-    if ((PlayerOutsideLinkRoom(fieldMoveContext) == FALSE) || (PersistedMapFeatures_IsCurrentDynamicMap(fieldMoveContext->fieldSystem, 9) == TRUE)) {
+    if (PlayerOutsideLinkRoom(fieldMoveContext) == FALSE || PersistedMapFeatures_IsCurrentDynamicMap(fieldMoveContext->fieldSystem, DYNAMIC_MAP_FEATURES_DISTORTION_WORLD) == TRUE) {
         return FIELD_MOVE_ERROR_LOCATION;
     }
 
@@ -1035,7 +1079,7 @@ static void FieldMoves_SetChatterTask(FieldMovePokemon *fieldMoveMon, const Fiel
 
     menu->callback = FieldMoves_ChatterTask;
     menu->taskData = taskData;
-    menu->state = START_MENU_STATE_10;
+    menu->state = START_MENU_STATE_NEW_TASK;
 }
 
 static BOOL FieldMoves_ChatterTask(FieldTask *taskMan)
@@ -1043,9 +1087,9 @@ static BOOL FieldMoves_ChatterTask(FieldTask *taskMan)
     FieldMoveTaskData *taskData = FieldTask_GetEnv(taskMan);
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(taskMan);
 
-    ScriptManager_Change(taskMan, 8900, NULL);
+    ScriptManager_Change(taskMan, SCRIPT_ID(RECORD_CHATOT_CRY, 0), NULL);
     FieldSystem_SetScriptParameters(fieldSystem, taskData->fieldMoveMon.fieldMonId, 0, 0, 0);
     FieldMoves_FreeTaskData(taskData);
 
-    return 0;
+    return FALSE;
 }

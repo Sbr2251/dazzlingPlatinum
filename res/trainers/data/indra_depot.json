@@ -23,7 +23,7 @@
                 "MOVE_SWAGGER",
                 "MOVE_ROAR"
             ],
-            "power": 170,
+            "iv_scale": 170,
             "ball_seal": 0,
             "ability": "ABILITY_INTIMIDATE"
         },
@@ -38,7 +38,7 @@
                 "MOVE_WILL_O_WISP",
                 "MOVE_RECOVER"
             ],
-            "power": 170,
+            "iv_scale": 170,
             "ball_seal": 0,
             "ability": "ABILITY_KEEN_EYE"
         },
@@ -53,7 +53,7 @@
                 "MOVE_TAUNT",
                 "MOVE_ROOST"
             ],
-            "power": 170,
+            "iv_scale": 170,
             "ball_seal": 0,
             "ability": "ABILITY_SUPER_LUCK"
         }

@@ -22,7 +22,7 @@
                 "MOVE_DRAIN_PUNCH",
                 "MOVE_BULLET_PUNCH"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0
         }
     ],

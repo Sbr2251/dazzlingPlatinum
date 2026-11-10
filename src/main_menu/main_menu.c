@@ -4,13 +4,11 @@
 #include "constants/graphics.h"
 #include "constants/narc.h"
 #include "generated/genders.h"
-#include "generated/string_padding_mode.h"
 #include "generated/text_banks.h"
 
-#include "struct_decls/pokedexdata_decl.h"
 
-#include "game_opening/const_ov77_021D742C.h"
 #include "main_menu/main_menu_util.h"
+#include "applications/title_screen.h"
 
 #include "bg_window.h"
 #include "field_overworld_state.h"
@@ -42,7 +40,7 @@
 #include "trainer_info.h"
 #include "vram_transfer.h"
 
-#include "res/graphics/main_menu/main_menu_graphics.naix.h"
+#include "res/graphics/main_menu/main_menu_graphics.naix"
 #include "res/text/bank/main_menu_options.h"
 
 FS_EXTERN_OVERLAY(game_start);
@@ -270,7 +268,7 @@ static void RenderTrainerStats(MainMenuAppData *appData, MessageLoader *msgLoade
 {
     Window *window = &appData->statsWindow;
 
-    Window_Add(appData->bgConfig, window, LAYER_TOP_TEXT, 17, 8, 10, 7, PLTT_0, STATS_WINDOW_BASE_TILE);
+    Window_Add(appData->bgConfig, window, LAYER_TOP_TEXT, 17, 8, 10, 7, 0, STATS_WINDOW_BASE_TILE);
     Window_FillTilemap(window, 0);
 
     StringTemplate_SetPlayerName(strTemplate, 0, appData->trainerInfo);
@@ -334,7 +332,7 @@ static void RenderParty(MainMenuAppData *appData, MessageLoader *msgLoader, Stri
 
         Window *window = &appData->levelWindows[i];
 
-        Window_Add(appData->bgConfig, window, LAYER_BOTTOM_TEXT, sPartySlotX[i] / TILE_WIDTH_PIXELS + 4, sPartySlotY[i] / TILE_HEIGHT_PIXELS + 1, 4, 2, PLTT_0, LEVEL_WINDOWS_BASE_TILE + i * LEVEL_WINDOW_TILES);
+        Window_Add(appData->bgConfig, window, LAYER_BOTTOM_TEXT, sPartySlotX[i] / TILE_WIDTH_PIXELS + 4, sPartySlotY[i] / TILE_HEIGHT_PIXELS + 1, 4, 2, 0, LEVEL_WINDOWS_BASE_TILE + i * LEVEL_WINDOW_TILES);
         Window_FillTilemap(window, 0);
 
         if (!appData->iconIsEgg[i]) {
@@ -354,9 +352,9 @@ static void RenderLocation(MainMenuAppData *appData)
     Location *location = FieldOverworldState_GetPlayerLocation(SaveData_GetFieldOverworldState(appData->saveData));
     String *string = String_Init(64, HEAP_ID_MAIN_MENU);
 
-    MapHeader_LoadName(location->mapId, HEAP_ID_MAIN_MENU, string);
+    MapHeader_LoadName(location->mapHeaderID, HEAP_ID_MAIN_MENU, string);
 
-    Window_Add(appData->bgConfig, window, LAYER_BOTTOM_TEXT, 14, 15, 16, 2, PLTT_0, LOCATION_WINDOW_BASE_TILE);
+    Window_Add(appData->bgConfig, window, LAYER_BOTTOM_TEXT, 14, 15, 16, 2, 0, LOCATION_WINDOW_BASE_TILE);
     Window_FillTilemap(window, 0);
 
     int x = LOCATION_VALUE_RIGHT - (int)Font_CalcStringWidth(FONT_SYSTEM, string, Font_GetAttribute(FONT_SYSTEM, FONTATTR_LETTER_SPACING));
@@ -510,14 +508,14 @@ static BOOL MainMenu_Main(ApplicationManager *appMan, int *state)
         break;
     case MAIN_MENU_STATE_SELECT_CARD:
         if (JOY_NEW(PAD_BUTTON_A)) {
-            Sound_PlayEffect(SEQ_SE_CONFIRM);
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
             appData->nextApplication = appData->card == MAIN_MENU_CARD_CONTINUE ? NEXT_APP_LOAD_SAVE : NEXT_APP_GAME_INTRO;
             MainMenuUtil_StartScreenFadeToState(FADE_TYPE_BRIGHTNESS_OUT, MAIN_MENU_STATE_EXIT, state, MAIN_MENU_STATE_WAIT_SCREEN_TRANSITION);
             break;
         }
 
         if (JOY_NEW(PAD_BUTTON_B)) {
-            Sound_PlayEffect(SEQ_SE_CONFIRM);
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
             appData->nextApplication = NEXT_APP_TITLE_SCREEN;
             MainMenuUtil_SetFadeToWhite(TRUE);
             MainMenuUtil_StartScreenFadeToState(FADE_TYPE_BRIGHTNESS_OUT, MAIN_MENU_STATE_EXIT, state, MAIN_MENU_STATE_WAIT_SCREEN_TRANSITION);
@@ -525,7 +523,7 @@ static BOOL MainMenu_Main(ApplicationManager *appMan, int *state)
         }
 
         if (JOY_NEW(PAD_KEY_LEFT | PAD_KEY_RIGHT)) {
-            Sound_PlayEffect(SEQ_SE_CONFIRM);
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
             appData->card = appData->card == MAIN_MENU_CARD_CONTINUE ? MAIN_MENU_CARD_NEW_GAME : MAIN_MENU_CARD_CONTINUE;
         }
         break;

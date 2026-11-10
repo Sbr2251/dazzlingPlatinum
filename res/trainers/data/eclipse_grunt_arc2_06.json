@@ -19,7 +19,7 @@
                 "MOVE_ROAR",
                 "MOVE_ODOR_SLEUTH"
             ],
-            "power": 80,
+            "iv_scale": 80,
             "ball_seal": 0,
             "ability": "ABILITY_INTIMIDATE"
         },
@@ -34,7 +34,7 @@
                 "MOVE_YAWN",
                 "MOVE_AMNESIA"
             ],
-            "power": 80,
+            "iv_scale": 80,
             "ball_seal": 0,
             "ability": "ABILITY_STICKY_HOLD"
         }

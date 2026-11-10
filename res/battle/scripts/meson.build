@@ -1,6 +1,5 @@
 subdir('common_anims')
 subdir('effects')
-subdir('moves')
 subdir('subscripts')
 
 relative_build_dir = fs.relative_to(meson.current_build_dir(), meson.project_build_root())
@@ -10,7 +9,7 @@ waza_seq_target_name = 'waza_seq.narc'
 
 sub_seq_basename = 'sub_seq'
 sub_seq_narc_name = sub_seq_basename + '.narc'
-sub_seq_naix_name = sub_seq_basename + '.naix.h'
+sub_seq_naix_name = sub_seq_basename + '.naix'
 
 be_seq_private_dir = relative_build_dir / be_seq_target_name + '.p'
 sub_seq_private_dir = relative_build_dir / sub_seq_narc_name + '.p'
@@ -20,13 +19,15 @@ be_seq_narc = custom_target(be_seq_target_name,
     output: be_seq_target_name,
     input: script_bin_gen.process(
         effect_script_files,
-        extra_args: ['--out-dir', be_seq_private_dir]
+        extra_args: ['--out-dir', be_seq_private_dir],
+        depends: [text_banks],
     ),
     command: [
-        narc_exe, 'create',
-        '--output', '@OUTPUT@',
+        nitroarc_exe,
+        '--create',
+        '--file', '@OUTPUT0@',
         '@PRIVATE_DIR@',
-    ]
+    ],
 )
 
 sub_seq_narc = custom_target(sub_seq_narc_name,
@@ -36,28 +37,40 @@ sub_seq_narc = custom_target(sub_seq_narc_name,
     ],
     input: script_bin_gen.process(
         subscript_files,
-        extra_args: ['--out-dir', sub_seq_private_dir]
+        extra_args: ['--out-dir', sub_seq_private_dir],
+        depends: [
+            text_banks,
+            pl_sound_data_sdat,
+        ],
     ),
     command: [
-        narc_exe, 'create',
-        '--naix',
-        '--order', sub_seq_narc_order,
-        '--output', '@OUTPUT0@',
+        nitroarc_exe,
+        '--create',
+        '--index',
+        '--files-from', sub_seq_narc_order,
+        '--file', '@OUTPUT0@',
         '@PRIVATE_DIR@',
-    ]
+    ],
 )
 
 waza_seq_narc = custom_target(waza_seq_target_name,
     output: waza_seq_target_name,
     input: script_bin_gen.process(
-        move_script_files,
-        extra_args: ['--out-dir', waza_seq_private_dir]
+        move_script_srcs, # comes from `res/moves`
+        extra_args: [
+            '--out-dir', waza_seq_private_dir,
+            '--parent-dir',
+        ],
+        depends: [text_banks],
+        preserve_path_from: move_script_srcdir,
     ),
     command: [
-        narc_exe, 'create',
-        '--output', '@OUTPUT@',
+        nitroarc_exe,
+        '--create',
+        '--files-from', move_scripts_order,
+        '--file', '@OUTPUT0@',
         '@PRIVATE_DIR@',
-    ]
+    ],
 )
 
 nitrofs_files += be_seq_narc

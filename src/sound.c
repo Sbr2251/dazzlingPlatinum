@@ -9,9 +9,7 @@
 
 #include "communication_system.h"
 #include "heap.h"
-#include "sound_area_fx.h"
 #include "sound_playback.h"
-#include "sound_stream.h"
 #include "sound_system.h"
 
 #define BGM_PLAYER_NORMAL_CHANNELS 0x7FF
@@ -119,27 +117,27 @@ int Sound_LoadSoundEffectsForScene(u8 scene)
     case 19:
         result = SoundSystem_LoadSoundGroup(GROUP_SE_FIELD);
 
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON02, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON03_2, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON05, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON02_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON03_2_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON05_sseq, NNS_SND_ARC_LOAD_SEQ);
 
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON01, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON07, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_ALERT4, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON01_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON07_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_ALERT4_sseq, NNS_SND_ARC_LOAD_SEQ);
 
-        SoundSystem_LoadSequenceEx(SEQ_SE_DP_FW104, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_NOMI02, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_DP_023, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_DP_FW104_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_NOMI02_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_DP_023_sseq, NNS_SND_ARC_LOAD_SEQ);
 
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_POINT1, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_POINT2, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_POINT3, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON05_2, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_POINT1_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_POINT2_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_POINT3_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_BALLOON05_2_sseq, NNS_SND_ARC_LOAD_SEQ);
 
-        SoundSystem_LoadSequenceEx(SEQ_SE_DP_HAMARU, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_DP_CON_016, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_KIRAKIRA, NNS_SND_ARC_LOAD_SEQ);
-        SoundSystem_LoadSequenceEx(SEQ_SE_PL_FCALL, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_DP_HAMARU_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_DP_CON_016_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_KIRAKIRA_sseq, NNS_SND_ARC_LOAD_SEQ);
+        SoundSystem_LoadSequenceEx(SEQ_SE_PL_FCALL_sseq, NNS_SND_ARC_LOAD_SEQ);
         break;
     case 14:
         result = SoundSystem_LoadSoundGroup(GROUP_SE_NUTMIXER);
@@ -152,8 +150,8 @@ int Sound_LoadSoundEffectsForScene(u8 scene)
         result = SoundSystem_LoadSoundGroup(GROUP_SE_BATTLE);
         break;
     case 21:
-        result = SoundSystem_LoadBank(BANK_SE_HIROBA);
-        result = SoundSystem_LoadWaveArc(WAVE_ARC_SE_HIROBA);
+        result = SoundSystem_LoadBank(BANK_SE_HIROBA_sbnk);
+        result = SoundSystem_LoadWaveArc(WAVE_ARC_SE_HIROBA_swar);
         break;
     case 3:
         result = SoundSystem_LoadSoundGroup(GROUP_SE_TRADE);
@@ -202,8 +200,8 @@ int Sound_LoadSoundEffectsForScene(u8 scene)
         break;
     case 55:
     case 67:
-        result = SoundSystem_LoadBank(BANK_SE_TOWNMAP);
-        result = SoundSystem_LoadWaveArc(WAVE_ARC_SE_TOWNMAP);
+        result = SoundSystem_LoadBank(BANK_SE_TOWNMAP_sbnk);
+        result = SoundSystem_LoadWaveArc(WAVE_ARC_SE_TOWNMAP_swar);
         break;
     case 56:
         result = SoundSystem_LoadSoundGroup(GROUP_SE_TRCARD);
@@ -230,16 +228,16 @@ int Sound_LoadSoundEffectsForScene(u8 scene)
         result = SoundSystem_LoadSoundGroup(GROUP_SE_CLIMAX);
         break;
     case 64:
-        result = SoundSystem_LoadBank(BANK_SE_SHIP);
-        result = SoundSystem_LoadWaveArc(WAVE_ARC_SE_SHIP);
+        result = SoundSystem_LoadBank(BANK_SE_SHIP_sbnk);
+        result = SoundSystem_LoadWaveArc(WAVE_ARC_SE_SHIP_swar);
         break;
     case 65:
-        result = SoundSystem_LoadBank(BANK_SE_TRAIN);
-        result = SoundSystem_LoadWaveArc(WAVE_ARC_SE_TRAIN);
+        result = SoundSystem_LoadBank(BANK_SE_TRAIN_sbnk);
+        result = SoundSystem_LoadWaveArc(WAVE_ARC_SE_TRAIN_swar);
         break;
     case 68:
-        result = SoundSystem_LoadBank(BANK_SE_SCRATCH);
-        result = SoundSystem_LoadWaveArc(WAVE_ARC_SE_SCRATCH);
+        result = SoundSystem_LoadBank(BANK_SE_SCRATCH_sbnk);
+        result = SoundSystem_LoadWaveArc(WAVE_ARC_SE_SCRATCH_swar);
         break;
     }
 
@@ -330,7 +328,7 @@ BOOL Sound_SetSceneAndPlayBGM(u8 scene, u16 bgmID, int unused)
     case SOUND_SCENE_23:
         Sound_Impl_PlayCutsceneBGM(scene, bgmID, unused);
         break;
-    case SOUND_SCENE_22:
+    case SOUND_SCENE_VILLA_MUSIC_BOX:
         Sound_Impl_PlayCutsceneBGM(scene, bgmID, unused);
         break;
     }
@@ -358,7 +356,7 @@ static void Sound_Impl_PlayFieldBGM(u16 bgmID, int unused)
 
     if (*fieldBGMPaused == FALSE) {
         if (currentFieldBGM == bgmID) {
-            if (Sound_GetNextBGM() != SEQ_BICYCLE) {
+            if (Sound_GetNextBGM() != SEQ_BICYCLE_sseq) {
                 return;
             }
         }
@@ -393,7 +391,7 @@ static void Sound_Impl_ResumeAndSwitchFieldBGM(u16 bgmID, u16 unused)
     u16 *currentBGM = SoundSystem_GetParam(SOUND_SYSTEM_PARAM_FIELD_BGM);
     u16 currentBankID = Sound_GetBankIDFromSequenceID(*currentBGM);
 
-    if (currentBankID != BANK_BGM_FIELD && currentBankID != BANK_BGM_DUNGEON) {
+    if (currentBankID != BANK_BGM_FIELD_sbnk && currentBankID != BANK_BGM_DUNGEON_sbnk) {
         SoundSystem_LoadSequenceEx(bgmID, NNS_SND_ARC_LOAD_WAVE);
         GF_ASSERT(FALSE);
     } else {
@@ -420,7 +418,7 @@ void Sound_LoadSoundDataForFieldBGM(u16 seqID, u16 currentBankID)
         SoundSystem_SaveHeapState(SoundSystem_GetParam(SOUND_SYSTEM_PARAM_HEAP_STATE_SFX));
 
         u16 newBankID = Sound_GetBankIDFromSequenceID(*newFieldBGM);
-        if (newBankID != BANK_BGM_FIELD && newBankID != BANK_BGM_DUNGEON) {
+        if (newBankID != BANK_BGM_FIELD_sbnk && newBankID != BANK_BGM_DUNGEON_sbnk) {
             SoundSystem_LoadSequenceEx(seqID, NNS_SND_ARC_LOAD_WAVE);
             GF_ASSERT(FALSE);
         } else {
@@ -564,7 +562,6 @@ void Sound_SetBGMPlayerPaused(u8 playerID, BOOL paused)
 
     NNS_SndPlayerPause(SoundSystem_GetSoundHandle(handleType), paused);
     *playerPaused = paused;
-    SoundStream_OnHandlePaused(handleType, paused);
 }
 
 void Sound_ClearBGMPauseFlags(void)
@@ -579,7 +576,6 @@ void Sound_ClearBGMPauseFlags(void)
 void Sound_FadeVolumeForHandle(enum SoundHandleType handleType, int targetVolume, int frames)
 {
     NNS_SndPlayerMoveVolume(SoundSystem_GetSoundHandle(handleType), targetVolume, frames);
-    SoundStream_OnHandleVolumeFade(handleType, targetVolume, frames);
 }
 
 void Sound_SetInitialVolumeForHandle(enum SoundHandleType handleType, int volume)
@@ -593,7 +589,6 @@ void Sound_SetInitialVolumeForHandle(enum SoundHandleType handleType, int volume
     }
 
     NNS_SndPlayerSetInitialVolume(SoundSystem_GetSoundHandle(handleType), volume);
-    SoundStream_OnHandleInitialVolume(handleType, volume);
 }
 
 void Sound_AdjustVolumeForVoiceChat(int seqID)
@@ -951,18 +946,12 @@ BOOL Sound_StartReverb(int volume)
 {
     UNUSED(SoundSystem_Get());
     void *buffer = SoundSystem_GetParam(SOUND_SYSTEM_PARAM_CAPTURE_BUFFER);
-
-    // Reverb takes precedence over area FX (title, ending, Pokedex cry page)
-    SoundAreaFx_SuspendFor(SOUND_AREA_FX_SUSPEND_REVERB);
     return NNS_SndCaptureStartReverb(buffer, 0x1000, (NNS_SND_CAPTURE_FORMAT_PCM16), 16000, volume);
 }
 
 void Sound_StopReverb(int frames)
 {
     NNS_SndCaptureStopReverb(frames);
-
-    // Area FX restarts once the capture unit is free (after the fade-out)
-    SoundAreaFx_ResumeFor(SOUND_AREA_FX_SUSPEND_REVERB);
 }
 
 void Sound_SetReverbVolume(int targetVolume, int frames)
@@ -974,8 +963,6 @@ BOOL Sound_StartFilter(void)
 {
     UNUSED(SoundSystem_Get());
 
-    // The Pokedex cry filter takes precedence over area FX
-    SoundAreaFx_SuspendFor(SOUND_AREA_FX_SUSPEND_FILTER);
     MI_CpuClear8(SoundSystem_GetParam(SOUND_SYSTEM_PARAM_FILTER_CALLBACK_PARAM), sizeof(SoundFilterCallbackParam));
     return NNS_SndCaptureStartEffect(
         SoundSystem_GetParam(SOUND_SYSTEM_PARAM_CAPTURE_BUFFER),
@@ -989,12 +976,7 @@ BOOL Sound_StartFilter(void)
 
 void Sound_StopFilter(void)
 {
-    // Never stop an area FX effect by accident
-    if (SoundAreaFx_OwnsCapture() == FALSE) {
-        NNS_SndCaptureStopEffect();
-    }
-
-    SoundAreaFx_ResumeFor(SOUND_AREA_FX_SUSPEND_FILTER);
+    NNS_SndCaptureStopEffect();
 }
 
 void Sound_SetFilterSize(int size)
@@ -1141,9 +1123,9 @@ const SNDWaveData *Sound_LoadPokedexDataForSpecies(int species)
 
     u16 waveArcID = species;
 
-    if (waveArcID != SPECIES_CHATOT) {
+    if (waveArcID != chatot_cry_swar) {
         if (species > MAX_SPECIES || species == SPECIES_NONE) {
-            waveArcID = SPECIES_BULBASAUR;
+            waveArcID = bulbasaur_cry_swar;
         }
     }
 
@@ -1157,9 +1139,9 @@ static const SNDWaveData *Sound_Impl_GetWaveDataForSpecies(int species)
     const SNDWaveData **waveData = SoundSystem_GetParam(SOUND_SYSTEM_PARAM_CURRENT_WAVE_DATA);
 
     u16 waveArcID = species;
-    if (waveArcID != SPECIES_CHATOT) {
+    if (waveArcID != chatot_cry_swar) {
         if (species > MAX_SPECIES || species == SPECIES_NONE) {
-            waveArcID = SPECIES_BULBASAUR;
+            waveArcID = bulbasaur_cry_swar;
         }
     }
 
@@ -1347,7 +1329,7 @@ static void Sound_Impl_FilterCallback(void *bufferL, void *bufferR, u32 length, 
 
 static void Sound_SetBGMAllocatableChannels(u16 channels)
 {
-    SoundStream_SetBGMPlayerChannels(channels); // Keeps stream channels masked out
+    NNS_SndPlayerSetAllocatableChannel(PLAYER_BGM, channels);
 }
 
 void Sound_ConfigureBGMChannelsAndReverb(enum SoundChannelConfig config)
@@ -1368,7 +1350,7 @@ void Sound_ConfigureBGMChannelsAndReverb(enum SoundChannelConfig config)
 
 static void Sound_Impl_PauseOrStopFieldBGM(void)
 {
-    if ((Sound_IsFadeActive() == FALSE) && (Sound_GetSequenceIDFromSoundHandle(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_FIELD_BGM)) != -1) && (Sound_GetCurrentBGM() != SEQ_POKERADAR)) {
+    if ((Sound_IsFadeActive() == FALSE) && (Sound_GetSequenceIDFromSoundHandle(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_FIELD_BGM)) != -1) && (Sound_GetCurrentBGM() != SEQ_KUSAGASA_sseq)) {
         Sound_StopAll();
         Sound_SetBGMPlayerPaused(PLAYER_FIELD, TRUE);
     } else {
@@ -1379,7 +1361,6 @@ static void Sound_Impl_PauseOrStopFieldBGM(void)
 void Sound_SetPlayerVolume(int playerID, int volume)
 {
     NNS_SndPlayerSetPlayerVolume(playerID, volume);
-    SoundStream_OnPlayerVolume(playerID, volume);
 }
 
 void Sound_Set2PokemonCriesAllowed(BOOL allowed)

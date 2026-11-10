@@ -7,7 +7,6 @@ prebuilt_files = [
     'mon_stream.narc',
     'pl_b_plist_gra.narc',
     'pl_batt_bg.narc',
-    'pl_batt_obj.narc',
     'vs_demo_gra.narc'
 ]
 

@@ -33,9 +33,8 @@
 // The Ravaged scar logic still runs underneath (its hook runs after the
 // engine in the per-map step hook): the route avoids re-stepping a scar.
 // The fall script is the map's existing DWRavagedPath_Fall (entry 2),
-// which clears VAR_MAP_LOCAL_3 (the frame-fall var).
+// which clears VAR_MAP_LOCAL_0x03 (the frame-fall var).
 
-#include "generated/map_headers.h"
 #include "generated/vars_flags.h"
 
 #include "location.h"
@@ -88,7 +87,7 @@ static const DwPuzzleTile sTestTiles[] = {
 const DwPuzzleTable gDwPuzzleTestTable = {
     MAP_HEADER_DW_RAVAGED_PATH,
     0, 0,               // any VAR_ARC2_PROGRESS
-    2, VAR_MAP_LOCAL_3, // fallScriptId (DWRavagedPath_Fall), fallVar
+    2, VAR_MAP_LOCAL_0x03, // fallScriptId (DWRavagedPath_Fall), fallVar
     2, 3, 1, 2, 3, 1,   // group/sigil/rune/current/checkpoint/tile counts
     1, 0,               // testOnly, padding
     sTestGroups, sTestSigils, sTestRunes, sTestCurrents, sTestCheckpoints, sTestTiles,

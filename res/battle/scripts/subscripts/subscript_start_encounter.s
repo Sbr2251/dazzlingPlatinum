@@ -10,7 +10,7 @@ _000:
     SetTrainerEncounter BTLSCR_PLAYER
     PlayEncounterAnimation 
     WaitTime 122
-    HealthbarSlideInDelay BTLSCR_ENEMY
+    HealthBoxSlideInDelay BTLSCR_ENEMY
     Wait 
     CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_SYS_STATUS, BATTLE_STATUS_DISTORTION, _073
     CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_SYS_STATUS, BATTLE_STATUS_LEGENDARY, _067
@@ -18,39 +18,39 @@ _000:
     CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_SYS_STATUS, BATTLE_STATUS_HONEY_TREE, _061
     CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_TYPE, BATTLE_TYPE_DOUBLES, _079
     // A wild {0} appeared!
-    PrintGlobalMessage pl_msg_00000368_00965, TAG_NICKNAME, BTLSCR_ENEMY
+    PrintGlobalMessage BattleStrings_Text_AWildPokemonAppeared, TAG_NICKNAME, BTLSCR_ENEMY
     GoTo _084
 
 _055:
     // Whoa! A wild {0} came charging!
-    PrintGlobalMessage pl_msg_00000368_01167, TAG_NICKNAME, BTLSCR_ENEMY
+    PrintGlobalMessage BattleStrings_Text_WhoaAWildPokemonCameCharging, TAG_NICKNAME, BTLSCR_ENEMY
     GoTo _084
 
 _061:
     // A wild {0} appeared from the tree you slathered with Honey!
-    PrintGlobalMessage pl_msg_00000368_00968, TAG_NICKNAME, BTLSCR_ENEMY
+    PrintGlobalMessage BattleStrings_Text_AWildPokemonAppearedFromTheTreeYouSlatheredWithHoney, TAG_NICKNAME, BTLSCR_ENEMY
     GoTo _084
 
 _067:
     // A wild {0} appeared!
-    PrintGlobalMessage pl_msg_00000368_01246, TAG_NICKNAME, BTLSCR_ENEMY
+    PrintGlobalMessage BattleStrings_Text_AWildPokemonAppeared3, TAG_NICKNAME, BTLSCR_ENEMY
     GoTo _084
 
 _073:
     // The Distortion World’s {0} appeared!
-    PrintGlobalMessage pl_msg_00000368_01268, TAG_NICKNAME, BTLSCR_ENEMY
+    PrintGlobalMessage BattleStrings_Text_TheDistortionWorldsPokemonAppeared, TAG_NICKNAME, BTLSCR_ENEMY
     GoTo _084
 
 _079:
     // A wild {0} and {1} appeared!
-    PrintGlobalMessage pl_msg_00000368_00967, TAG_NICKNAME_NICKNAME, BTLSCR_ENEMY_SLOT_1, BTLSCR_ENEMY_SLOT_2
+    PrintGlobalMessage BattleStrings_Text_AWildPokemonAndPokemonAppeared, TAG_NICKNAME_NICKNAME, BTLSCR_ENEMY_SLOT_1, BTLSCR_ENEMY_SLOT_2
 
 _084:
     Wait 
     WaitButtonABTime 30
     CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_TYPE, BATTLE_TYPE_2vs2, _098
     // Go! {0}!
-    PrintMessage pl_msg_00000368_00979, TAG_NICKNAME, BTLSCR_PLAYER
+    PrintMessage BattleStrings_Text_GoPokemon, TAG_NICKNAME, BTLSCR_PLAYER
     GoTo _100
 
 _098:
@@ -62,7 +62,7 @@ _100:
     ThrowPokeball BTLSCR_PLAYER, BTLSCR_THROW_POKE_BALL
     PokemonSlideIn BTLSCR_PLAYER
     WaitTime 96
-    HealthbarSlideInDelay BTLSCR_PLAYER
+    HealthBoxSlideInDelay BTLSCR_PLAYER
     Wait 
     OAMToSprite BTLSCR_ENEMY
     Wait 
@@ -73,20 +73,20 @@ TotemEncounter:
     SetTrainerEncounter BTLSCR_PLAYER_SLOT_1
     PlayEncounterAnimation
     WaitTime 122
-    HealthbarSlideInDelay BTLSCR_ENEMY_SLOT_1
+    HealthBoxSlideInDelay BTLSCR_ENEMY_SLOT_1
     Wait
     // Totem {0} appeared! (not "A wild {0} appeared!": a Totem is never just a wild Pokemon)
     PrintGlobalMessage BattleStrings_Text_TotemAppeared, TAG_NICKNAME, BTLSCR_ENEMY_SLOT_1
     Wait
     WaitButtonABTime 30
     // Go! {0}!
-    PrintMessage pl_msg_00000368_00979, TAG_NICKNAME, BTLSCR_PLAYER_SLOT_1
+    PrintMessage BattleStrings_Text_GoPokemon, TAG_NICKNAME, BTLSCR_PLAYER_SLOT_1
     SpriteToOAM BTLSCR_ENEMY_SLOT_1
     Wait
     ThrowPokeball BTLSCR_PLAYER_SLOT_1, BTLSCR_THROW_POKE_BALL
     PokemonSlideIn BTLSCR_PLAYER_SLOT_1
     WaitTime 96
-    HealthbarSlideInDelay BTLSCR_PLAYER_SLOT_1
+    HealthBoxSlideInDelay BTLSCR_PLAYER_SLOT_1
     Wait
     OAMToSprite BTLSCR_ENEMY_SLOT_1
     Wait
@@ -109,14 +109,14 @@ _118:
     ThrowPokeball BTLSCR_ENEMY, BTLSCR_THROW_POKE_BALL
     PokemonSlideIn BTLSCR_ENEMY
     WaitTime 112
-    HealthbarSlideInDelay BTLSCR_ENEMY
+    HealthBoxSlideInDelay BTLSCR_ENEMY
     Wait 
     PrintFirstSendOutMessage BTLSCR_PLAYER
     HideBattleStartPartyGauge BTLSCR_PLAYER
     ThrowPokeball BTLSCR_PLAYER, BTLSCR_THROW_POKE_BALL
     PokemonSlideIn BTLSCR_PLAYER
     WaitTime 96
-    HealthbarSlideInDelay BTLSCR_PLAYER
+    HealthBoxSlideInDelay BTLSCR_PLAYER
     Wait 
     FreePartyGaugeGraphics 
     GoTo _258
@@ -136,14 +136,14 @@ _169:
     ThrowPokeball BTLSCR_PLAYER, BTLSCR_THROW_POKE_BALL
     PokemonSlideIn BTLSCR_PLAYER
     WaitTime 96
-    HealthbarSlideInDelay BTLSCR_PLAYER
+    HealthBoxSlideInDelay BTLSCR_PLAYER
     Wait 
     PrintFirstSendOutMessage BTLSCR_ENEMY
     HideBattleStartPartyGauge BTLSCR_ENEMY
     ThrowPokeball BTLSCR_ENEMY, BTLSCR_THROW_POKE_BALL
     PokemonSlideIn BTLSCR_ENEMY
     WaitTime 112
-    HealthbarSlideInDelay BTLSCR_ENEMY
+    HealthBoxSlideInDelay BTLSCR_ENEMY
     Wait 
     FreePartyGaugeGraphics 
     GoTo _258
@@ -153,12 +153,12 @@ _215:
     SetTrainerEncounter BTLSCR_PLAYER
     PlayEncounterAnimation 
     WaitTime 122
-    HealthbarSlideInDelay BTLSCR_ENEMY
+    HealthBoxSlideInDelay BTLSCR_ENEMY
     Wait 
     // A wild {0} appeared!
-    PrintGlobalMessage pl_msg_00000368_00965, TAG_NICKNAME, BTLSCR_ENEMY
+    PrintGlobalMessage BattleStrings_Text_AWildPokemonAppeared, TAG_NICKNAME, BTLSCR_ENEMY
     Wait 
-    HealthbarSlideIn BTLSCR_PLAYER
+    HealthBoxSlideIn BTLSCR_PLAYER
     WaitButtonABTime 7
     Wait 
     GoTo _258
@@ -168,12 +168,12 @@ _237:
     SetTrainerEncounter BTLSCR_PLAYER
     PlayEncounterAnimation 
     WaitTime 122
-    HealthbarSlideInDelay BTLSCR_ENEMY
+    HealthBoxSlideInDelay BTLSCR_ENEMY
     Wait 
     // Wow! {0}’s {1} is drawing close!
-    PrintGlobalMessage pl_msg_00000368_01219, TAG_TRNAME_NICKNAME, BTLSCR_ENEMY, BTLSCR_ENEMY
+    PrintGlobalMessage BattleStrings_Text_01219, TAG_TRNAME_NICKNAME, BTLSCR_ENEMY, BTLSCR_ENEMY
     Wait 
-    HealthbarSlideIn BTLSCR_PLAYER
+    HealthBoxSlideIn BTLSCR_PLAYER
     WaitButtonABTime 7
     Wait 
 

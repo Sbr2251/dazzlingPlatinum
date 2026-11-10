@@ -2,14 +2,14 @@
   "key": 5139,
   "messages": [
     {
-      "id": "Haven3F_Text_LookerCrates",
+      "id": "TeamGalacticEternaBuilding3F_Text_OrdinaryPeopleCantUnderstand",
       "en_US": [
         "Looker: Crates. Every week. Labeled\n",
         "'supplies.' Look where they go."
       ]
     },
     {
-      "id": "Haven3F_Text_Manifests",
+      "id": "TeamGalacticEternaBuilding3F_Text_FollowThisPath",
       "en_US": [
         "Shipping manifests. Destinations:\r",
         "RAVAGED PATH. VALLEY WINDWORKS.\n",
@@ -58,6 +58,21 @@
     {
       "id": "Haven3F_Text_FilingCabinet",
       "en_US": "The drawers have been emptied."
+    },
+    {
+      "id": "Haven3F_Text_LookerCrates",
+      "en_US": [
+        "Looker: Crates. Every week. Labeled\n",
+        "'supplies.' Look where they go."
+      ]
+    },
+    {
+      "id": "Haven3F_Text_Manifests",
+      "en_US": [
+        "Shipping manifests. Destinations:\r",
+        "RAVAGED PATH. VALLEY WINDWORKS.\n",
+        "ETERNA FOREST. ROUTE 214."
+      ]
     }
   ]
 }

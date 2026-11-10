@@ -2,6 +2,69 @@
   "key": 5135,
   "messages": [
     {
+      "id": "TeamGalacticEternaBuilding4F_Text_IWillDealWithYou",
+      "en_US": "Gardenia: Pip! Oh, Pip..."
+    },
+    {
+      "id": "TeamGalacticEternaBuilding4F_Text_WellArentYouTough",
+      "en_US": "Budew: Bu-dew!"
+    },
+    {
+      "id": "TeamGalacticEternaBuilding4F_Text_ClefairyCry",
+      "en_US": [
+        "Gardenia: ...Bramble and Clover\n",
+        "aren't here.\r",
+        "They already sent them."
+      ]
+    },
+    {
+      "id": "TeamGalacticEternaBuilding4F_Text_WhatsWithTeamGalactic",
+      "en_US": [
+        "Looker: This is bigger than one\n",
+        "building.\r",
+        "Whatever they do at those sites,\n",
+        "I intend to see it with my own eyes."
+      ]
+    },
+    {
+      "id": "TeamGalacticEternaBuilding4F_Text_ThankYouCruiseByCycleShop",
+      "en_US": [
+        "Looker: One more thing. The man who\n",
+        "travels with you.\r",
+        "In the... unusual suit.\n",
+        "What is his name?"
+      ]
+    },
+    {
+      "id": "TeamGalacticEternaBuilding4F_Text_BunearyCry",
+      "en_US": "Ruth: Cyrus."
+    },
+    {
+      "id": "TeamGalacticEternaBuilding4F_Text_WorkingForWorldPeace",
+      "en_US": "Looker: Cyrus. Hm."
+    },
+    {
+      "id": "Haven4F_Text_LookerYouHaveNotSeenMe",
+      "en_US": [
+        "Looker: If you see me again,\n",
+        "you have not seen me."
+      ]
+    },
+    {
+      "id": "Haven4F_Text_Crate",
+      "en_US": [
+        "An empty crate. The label says\n",
+        "SUPPLIES."
+      ]
+    },
+    {
+      "id": "Haven4F_Text_Sign",
+      "en_US": [
+        "Going somewhere better.\n",
+        "Eclipse Haven"
+      ]
+    },
+    {
       "id": "Haven4F_Text_GardeniaPip",
       "en_US": "Gardenia: Pip! Oh, Pip..."
     },
@@ -42,27 +105,6 @@
     {
       "id": "Haven4F_Text_LookerCyrusHm",
       "en_US": "Looker: Cyrus. Hm."
-    },
-    {
-      "id": "Haven4F_Text_LookerYouHaveNotSeenMe",
-      "en_US": [
-        "Looker: If you see me again,\n",
-        "you have not seen me."
-      ]
-    },
-    {
-      "id": "Haven4F_Text_Crate",
-      "en_US": [
-        "An empty crate. The label says\n",
-        "SUPPLIES."
-      ]
-    },
-    {
-      "id": "Haven4F_Text_Sign",
-      "en_US": [
-        "Going somewhere better.\n",
-        "Eclipse Haven"
-      ]
     }
   ]
 }

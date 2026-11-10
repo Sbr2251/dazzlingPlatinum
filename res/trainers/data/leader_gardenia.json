@@ -25,7 +25,7 @@
                 "MOVE_LEECH_SEED",
                 "MOVE_GROWTH"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0,
             "ability": "ABILITY_FLOWER_GIFT"
         },
@@ -40,7 +40,7 @@
                 "MOVE_CONFUSION",
                 "MOVE_LEECH_SEED"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0,
             "ability": "ABILITY_CHLOROPHYLL"
         },
@@ -55,7 +55,7 @@
                 "MOVE_ANCIENT_POWER",
                 "MOVE_MEGA_DRAIN"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0,
             "ability": "ABILITY_CHLOROPHYLL"
         },
@@ -70,7 +70,7 @@
                 "MOVE_POISON_JAB",
                 "MOVE_TOXIC_SPIKES"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0
         }
     ],

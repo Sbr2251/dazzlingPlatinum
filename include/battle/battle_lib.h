@@ -7,7 +7,6 @@
 #include "struct_decls/battle_system.h"
 
 #include "battle/battle_context.h"
-#include "battle/battle_message.h"
 #include "battle/battle_mon.h"
 #include "battle/btlcmd.h"
 
@@ -1463,7 +1462,7 @@ void BattleSystem_DecPPForPressure(BattleContext *battleCtx, int attacker, int d
  * @param battleCtx
  * @return TRUE if the recording has stopped, FALSE otherwise.
  */
-BOOL Battle_RecordingStopped(BattleSystem *battleSys, BattleContext *battleCtx);
+BOOL BattleSystem_IsRecordingStopped(BattleSystem *battleSys, BattleContext *battleCtx);
 
 /**
  * @brief Get an accessible field from the BattleContext struct.

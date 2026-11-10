@@ -18,7 +18,7 @@
                 "MOVE_SAND_ATTACK",
                 "MOVE_HEADBUTT"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         },
         {
@@ -32,7 +32,7 @@
                 "MOVE_FOCUS_ENERGY",
                 "MOVE_SAND_ATTACK"
             ],
-            "power": 30,
+            "iv_scale": 30,
             "ball_seal": 0
         }
     ],
@@ -54,9 +54,9 @@
         {
             "type": "TRMSG_POST_BATTLE",
             "en_US": [
-                "I’d better get on back to work...\r",
-                "You know, I’d rather be traveling\n",
-                "around with Pokémon the way you do.\n"
+                "I\u2019d better get on back to work...\r",
+                "You know, I\u2019d rather be traveling\n",
+                "around with Pok\u00e9mon the way you do.\n"
             ]
         }
     ]

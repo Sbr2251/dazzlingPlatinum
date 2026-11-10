@@ -1,0 +1,77 @@
+{
+    "bg_events": [],
+    "object_events": [],
+    "warp_events": [],
+    "coord_events": [
+        {
+            "script": "DWLostTower_Fall",
+            "x": 20,
+            "z": 13,
+            "y": 0,
+            "width": 2,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0x03",
+            "value": 0
+        },
+        {
+            "script": "DWLostTower_Fall",
+            "x": 15,
+            "z": 11,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0x03",
+            "value": 0
+        },
+        {
+            "script": "DWLostTower_Fall",
+            "x": 19,
+            "z": 11,
+            "y": 0,
+            "width": 3,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0x03",
+            "value": 0
+        },
+        {
+            "script": "DWLostTower_Fall",
+            "x": 12,
+            "z": 15,
+            "y": 0,
+            "width": 4,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0x03",
+            "value": 0
+        },
+        {
+            "script": "DWLostTower_Memory",
+            "x": 12,
+            "z": 14,
+            "y": 0,
+            "width": 4,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0x02",
+            "value": 0
+        },
+        {
+            "script": "DWLostTower_Vein",
+            "x": 13,
+            "z": 23,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0x04",
+            "value": 0
+        },
+        {
+            "script": "DWLostTower_ShadowWall",
+            "x": 15,
+            "z": 23,
+            "y": 0,
+            "width": 1,
+            "length": 1,
+            "var": "VAR_MAP_LOCAL_0x05",
+            "value": 0
+        }
+    ]
+}

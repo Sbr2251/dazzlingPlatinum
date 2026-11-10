@@ -13,8 +13,8 @@
 #include "battle/battle_stage_camera.h"
 #include "battle/battle_stage_format.h"
 #include "battle/battle_stage_sprites.h"
-#include "battle/ov16_0223DF00.h"
-#include "battle/ov16_02268520.h"
+#include "battle/battle_system.h"
+#include "battle/terrain.h"
 
 #include "bg_window.h"
 #include "heap.h"
@@ -1091,8 +1091,8 @@ static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes)
 
 static StageArena *LoadArena(BattleSystem *battleSys)
 {
-    enum BattleBackground background = BattleSystem_Background(battleSys);
-    enum BattleTerrain terrain = BattleSystem_Terrain(battleSys);
+    enum BattleBackground background = BattleSystem_GetBackground(battleSys);
+    enum BattleTerrain terrain = BattleSystem_GetTerrain(battleSys);
     BattleStageFileHeader *pieces[2];
     u32 sizes[2];
     StageArena *arena = NULL;
@@ -1138,7 +1138,7 @@ static void UpdatePlatforms(BOOL visible)
     // and some battle scripts toggle them; shown once when the arena goes away
     if (visible || sBattleStage.platformsHidden) {
         for (side = 0; side < 2; side++) {
-            ov16_022686BC(ov16_0223E020(sBattleStage.battleSys, side), !visible);
+            Terrain_SetVisibility(BattleSystem_GetTerrainForSide(sBattleStage.battleSys, side), !visible);
         }
     }
 
@@ -1165,7 +1165,7 @@ static void SyncPalette(StageArena *arena, StagePalette *slot, const u16 *source
 
 static const u16 *PlatformPalette(PaletteData *paletteSys, int side)
 {
-    int row = BattlePlatform_GetPaletteRow(ov16_0223E020(sBattleStage.battleSys, side));
+    int row = BattlePlatform_GetPaletteRow(BattleSystem_GetTerrainForSide(sBattleStage.battleSys, side));
     u16 *colors;
 
     if (row >= 0 && row < 16) {
@@ -1182,7 +1182,7 @@ static const u16 *PlatformPalette(PaletteData *paletteSys, int side)
 
 static void SyncPalettes(StageArena *arena)
 {
-    PaletteData *paletteSys = BattleSystem_PaletteSys(sBattleStage.battleSys);
+    PaletteData *paletteSys = BattleSystem_GetPaletteData(sBattleStage.battleSys);
     int i;
 
     // Another screen may have used the palette VRAM while the arena was hidden
@@ -1220,7 +1220,7 @@ static void SendDL(const u32 *dl, u32 size)
 // Time-of-day column of the atmosphere: 0 day, 1 twilight, 2 night
 static int LightingColumn(void)
 {
-    int column = ov16_0223EC04(sBattleStage.battleSys);
+    int column = BattleSystem_GetBackgroundTimeOffset(sBattleStage.battleSys);
 
     if (column < 0) {
         column = 0;
@@ -1293,7 +1293,7 @@ static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *pro
     int side, i;
 
     for (side = 0; side < 2; side++) {
-        platformOffset[side] = BattlePlatform_GetOffsetX(ov16_0223E020(sBattleStage.battleSys, side));
+        platformOffset[side] = BattlePlatform_GetOffsetX(BattleSystem_GetTerrainForSide(sBattleStage.battleSys, side));
     }
 
     NNS_G3dGeFlushBuffer();
@@ -1303,7 +1303,7 @@ static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *pro
     G3_LoadMtx44(projection);
 
     if (arena->hasTexMtxMesh) {
-        BgConfig *bgConfig = BattleSystem_BGL(sBattleStage.battleSys);
+        BgConfig *bgConfig = BattleSystem_GetBgConfig(sBattleStage.battleSys);
 
         bg3X = WrapScroll(Bg_GetXOffset(bgConfig, BG_LAYER_MAIN_3), 512);
         bg3Y = WrapScroll(Bg_GetYOffset(bgConfig, BG_LAYER_MAIN_3), 256);

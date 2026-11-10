@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "constants/field/map.h"
-#include "generated/map_headers.h"
 
 #include "field/field_system.h"
 
@@ -135,14 +134,14 @@ static void ComputeTarget(FieldSystem *fieldSystem, s32 *outPitch, fx32 *outDist
         return;
     }
 
-    pos = PlayerAvatar_PosVector(fieldSystem->playerAvatar);
+    pos = PlayerAvatar_GetPos(fieldSystem->playerAvatar);
     tileX = WorldPosToTileCoord(pos->x);
     tileZ = WorldPosToTileCoord(pos->z);
 
     for (i = 0; i < NELEMS(sCameraZones); i++) {
         const CameraZone *zone = &sCameraZones[i];
 
-        if (zone->mapHeaderID != fieldSystem->location->mapId) {
+        if (zone->mapHeaderID != fieldSystem->location->mapHeaderID) {
             continue;
         }
 

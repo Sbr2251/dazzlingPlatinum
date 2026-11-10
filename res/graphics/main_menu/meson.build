@@ -167,7 +167,7 @@ main_menu_graphics_order = files('main_menu_graphics.order')
 main_menu_graphics_narc = custom_target('main_menu_graphics.narc',
     output: [
         'main_menu_graphics.narc',
-        'main_menu_graphics.naix.h',
+        'main_menu_graphics.naix',
     ],
     input: [
         main_menu_palettes_nclr,
@@ -187,11 +187,12 @@ main_menu_graphics_narc = custom_target('main_menu_graphics.narc',
         main_menu_graphics_order,
     ],
     command: [
-        narc_exe, 'create',
-        '--naix',
-        '--order', main_menu_graphics_order,
-        '--output', '@OUTPUT0@',
-        '@PRIVATE_DIR@'
+        nitroarc_exe,
+        '--create',
+        '--index',
+        '--files-from', files('main_menu_graphics.order'),
+        '--file', '@OUTPUT0@',
+        '@PRIVATE_DIR@',
     ],
 )
 

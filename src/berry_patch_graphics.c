@@ -3,10 +3,8 @@
 #include <nitro.h>
 #include <string.h>
 
-#include "struct_decls/struct_020216E0_decl.h"
-#include "struct_decls/struct_02061AB4_decl.h"
+#include "struct_decls/map_object.h"
 
-#include "overlay005/berry_graphics_data.h"
 #include "overlay005/berry_graphics_table.h"
 #include "overlay005/berry_patch_effects.h"
 #include "overlay005/ov5_021ECC20.h"
@@ -14,10 +12,9 @@
 #include "overlay005/struct_ov5_021ED01C.h"
 
 #include "berry_patch_manager.h"
-#include "berry_patches.h"
-#include "map_header_data.h"
+#include "billboard.h"
 #include "map_object.h"
-#include "unk_02020AEC.h"
+#include "object_events_gfx.h"
 
 typedef struct BerryPatchData {
     u16 growthStage;
@@ -27,7 +24,7 @@ typedef struct BerryPatchData {
 typedef struct BerryPatchGraphics {
     int graphicsResourceID;
     enum BerryGrowthStage lastGrowthStage;
-    UnkStruct_020216E0 *graphicsObject;
+    Billboard *graphicsObject;
     UnkStruct_ov5_021ED01C graphicsState;
 } BerryPatchGraphics;
 
@@ -135,7 +132,7 @@ void BerryPatchGraphics_UpdateGraphics(MapObject *mapObject)
         ov5_021EDEB4(mapObject, graphicsData->graphicsObject);
 
         if (ov5_021ECD38(mapObject) == 0) {
-            sub_02021368(graphicsData->graphicsObject, FX32_ONE );
+            Billboard_AdvanceAnim(graphicsData->graphicsObject, FX32_ONE );
         }
 
         ov5_021EDED8(mapObject, graphicsData->graphicsObject);
@@ -213,9 +210,9 @@ static int BerryPatchGraphics_GetGraphicsResourceID(int berryID, enum BerryGrowt
     return 0xffff;
 }
 
-UnkStruct_020216E0 *BerryPatchGraphics_GetGraphicsObject(MapObject *mapObject)
+Billboard *BerryPatchGraphics_GetGraphicsObject(MapObject *mapObject)
 {
-    UnkStruct_020216E0 *graphicsObject = NULL;
+    Billboard *graphicsObject = NULL;
 
     GF_ASSERT(BerryPatchGraphics_IsBerryPatch(MapObject_GetGraphicsID(mapObject)));
 

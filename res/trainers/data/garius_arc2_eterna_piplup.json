@@ -20,7 +20,7 @@
                 "MOVE_ENDEAVOR",
                 "MOVE_DOUBLE_TEAM"
             ],
-            "power": 130,
+            "iv_scale": 130,
             "ball_seal": 0,
             "ability": "ABILITY_INTIMIDATE"
         },
@@ -35,7 +35,7 @@
                 "MOVE_PURSUIT",
                 "MOVE_QUICK_ATTACK"
             ],
-            "power": 130,
+            "iv_scale": 130,
             "ball_seal": 0,
             "ability": "ABILITY_SWIFT_SWIM"
         },
@@ -50,7 +50,7 @@
                 "MOVE_TAIL_WHIP",
                 "MOVE_TACKLE"
             ],
-            "power": 130,
+            "iv_scale": 130,
             "ball_seal": 0,
             "ability": "ABILITY_FLASH_FIRE"
         },
@@ -65,7 +65,7 @@
                 "MOVE_CURSE",
                 "MOVE_WITHDRAW"
             ],
-            "power": 130,
+            "iv_scale": 130,
             "ball_seal": 0,
             "ability": "ABILITY_OVERGROW"
         }

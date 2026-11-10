@@ -19,7 +19,7 @@
                 "MOVE_WILL_O_WISP",
                 "MOVE_CURSE"
             ],
-            "power": 120,
+            "iv_scale": 120,
             "ball_seal": 0,
             "ability": "ABILITY_INSOMNIA"
         },
@@ -34,7 +34,7 @@
                 "MOVE_TOXIC",
                 "MOVE_SCREECH"
             ],
-            "power": 120,
+            "iv_scale": 120,
             "ball_seal": 0,
             "ability": "ABILITY_AFTERMATH"
         }

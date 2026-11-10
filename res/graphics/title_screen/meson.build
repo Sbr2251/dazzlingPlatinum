@@ -85,7 +85,7 @@ titledemo_order = files('titledemo.order')
 titledemo_narc = custom_target('titledemo.narc',
     output: [
         'titledemo.narc',
-        'titledemo.naix.h',
+        'titledemo.naix',
     ],
     input: [
         ncgrs_4bpp,
@@ -95,7 +95,6 @@ titledemo_narc = custom_target('titledemo.narc',
         nclrs_explicit,
         ncgrs_explicit,
         tilemaps,
-        titledemo_order,
         models,
         anims,
         tex_anims,
@@ -103,12 +102,13 @@ titledemo_narc = custom_target('titledemo.narc',
         prerender,
     ],
     command: [
-        narc_exe, 'create',
-        '--naix',
-        '--order', titledemo_order,
-        '--output', '@OUTPUT0@',
+        nitroarc_exe,
+        '--create',
+        '--index',
+        '--files-from', files('titledemo.order'),
+        '--file', '@OUTPUT0@',
         '@PRIVATE_DIR@',
-    ]
+    ],
 )
 
 nitrofs_files += titledemo_narc

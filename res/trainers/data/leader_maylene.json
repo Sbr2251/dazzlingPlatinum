@@ -22,7 +22,7 @@
                 "MOVE_MACH_PUNCH",
                 "MOVE_ROCK_SLIDE"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0,
             "ability": "ABILITY_INTIMIDATE"
         },
@@ -37,7 +37,7 @@
                 "MOVE_DETECT",
                 "MOVE_CONFUSION"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0,
             "ability": "ABILITY_PURE_POWER"
         },
@@ -52,7 +52,7 @@
                 "MOVE_REVENGE",
                 "MOVE_ROCK_SLIDE"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0,
             "ability": "ABILITY_GUTS"
         },
@@ -67,7 +67,7 @@
                 "MOVE_DRAIN_PUNCH",
                 "MOVE_BULLET_PUNCH"
             ],
-            "power": 150,
+            "iv_scale": 150,
             "ball_seal": 0
         }
     ],

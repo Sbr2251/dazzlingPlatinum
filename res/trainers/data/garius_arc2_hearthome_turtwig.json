@@ -23,7 +23,7 @@
                 "MOVE_QUICK_ATTACK",
                 "MOVE_TAKE_DOWN"
             ],
-            "power": 170,
+            "iv_scale": 170,
             "ball_seal": 0,
             "ability": "ABILITY_INTIMIDATE"
         },
@@ -38,7 +38,7 @@
                 "MOVE_ICE_FANG",
                 "MOVE_SWIFT"
             ],
-            "power": 170,
+            "iv_scale": 170,
             "ball_seal": 0,
             "ability": "ABILITY_SWIFT_SWIM"
         },
@@ -53,7 +53,7 @@
                 "MOVE_STUN_SPORE",
                 "MOVE_TOXIC_SPIKES"
             ],
-            "power": 170,
+            "iv_scale": 170,
             "ball_seal": 0,
             "ability": "ABILITY_POISON_POINT"
         },
@@ -68,7 +68,7 @@
                 "MOVE_AERIAL_ACE",
                 "MOVE_HORN_ATTACK"
             ],
-            "power": 170,
+            "iv_scale": 170,
             "ball_seal": 0,
             "ability": "ABILITY_GUTS"
         },
@@ -83,7 +83,7 @@
                 "MOVE_MACH_PUNCH",
                 "MOVE_NASTY_PLOT"
             ],
-            "power": 170,
+            "iv_scale": 170,
             "ball_seal": 0,
             "ability": "ABILITY_BLAZE"
         }

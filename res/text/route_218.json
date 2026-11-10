@@ -2,50 +2,50 @@
   "key": 39608,
   "messages": [
     {
-      "id": "pl_msg_00000510_00000",
+      "id": "Route218_Text_ClefairyCuterNow",
       "en_US": [
-        "This shrine... It isn’t natural.\r",
+        "This shrine... It isn't natural.\r",
         "It looks just like the energy\n",
-        "conduits my father’s people built."
+        "conduits my father's people built."
       ]
     },
     {
-      "id": "pl_msg_00000510_00001",
+      "id": "Route218_Text_ClefairyCryPippiih",
       "en_US": [
-        "But that’s impossible.\n",
+        "But that's impossible.\n",
         "They were disbanded years ago."
       ]
     },
     {
-      "id": "pl_msg_00000510_00002",
+      "id": "Route218_Text_ClefairyCryPippippiih",
       "en_US": [
-        "Wait... You’ve been talking to\n",
-        "that Cyrus guy again, haven’t you?\r",
-        "He’s the one sending you after\n",
+        "Wait... You've been talking to\n",
+        "that Cyrus guy again, haven't you?\r",
+        "He's the one sending you after\n",
         "the Totems."
       ]
     },
     {
-      "id": "pl_msg_00000510_00003",
+      "id": "Route218_Text_PikachuCry",
       "en_US": [
-        "Don’t trust him. He knows too much\n",
+        "Don't trust him. He knows too much\n",
         "about these rifts to be a scholar.\r",
-        "Maybe he’s the reason they’re\n",
+        "Maybe he's the reason they're\n",
         "opening."
       ]
     },
     {
-      "id": "pl_msg_00000510_00004",
+      "id": "Route218_Text_PikachuDazzle",
       "en_US": [
         "Still... If the Totems are holding\n",
         "the rifts open, maybe their energy\r",
         "could be used instead of sealed.\r",
-        "Forget I said that. I’ll find my\n",
+        "Forget I said that. I'll find my\n",
         "own answers."
       ]
     },
     {
-      "id": "pl_msg_00000510_00005",
+      "id": "Route218_Text_SignCanalaveCity",
       "en_US": [
         "The flowers react whenever the\n",
         "rift pulses. Their glow forms the\r",
@@ -54,7 +54,7 @@
       ]
     },
     {
-      "id": "pl_msg_00000510_00006",
+      "id": "Route218_Text_SignJubilifeCity",
       "en_US": [
         "EVERSRING SANCTUARY\n",
         "West: Canalave  East: Jubilife"
@@ -67,7 +67,7 @@
     {
       "id": "pl_msg_00000510_00008",
       "en_US": [
-        "The shrine’s crystal is warm.\n",
+        "The shrine's crystal is warm.\n",
         "A faint vibration answers from\r",
         "deep below."
       ]

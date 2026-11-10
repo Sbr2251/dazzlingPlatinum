@@ -151,7 +151,7 @@ typedef struct BattlePartyPokemon {
     u8 type_1;
     u8 type_2;
     u8 level : 7;
-    u8 displayNidoranGender : 1;
+    u8 hideGenderMarker : 1;
     u8 gender : 3;
     u8 summaryStatus : 4;
     u8 isEgg : 1;
@@ -173,7 +173,7 @@ typedef struct BattlePartyPokemon {
 typedef struct BattlePartyContext {
     Party *party;
     void *unused1;
-    BattleSystem *battleSystem;
+    BattleSystem *battleSys;
     enum HeapID heapID;
     u8 unused2;
     u8 selectedPartyIndex;

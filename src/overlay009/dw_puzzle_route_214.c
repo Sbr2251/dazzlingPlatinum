@@ -32,7 +32,7 @@
 // landings, which DO fire (a slide is a movement), so they are fine.
 //
 // Fall script: DWRoute214_Fall, script entry 6 (see
-// res/field/scripts/scripts_dw_route_214.s). It clears VAR_MAP_LOCAL_3
+// res/field/scripts/scripts_dw_route_214.s). It clears VAR_MAP_LOCAL_0x03
 // (the frame-fall var), plays the fall, warps to the map entry, and
 // shows Cyrus's hint on the second fall.
 //
@@ -53,7 +53,6 @@
 // Progress gate: 62/62 (the whole visit runs at progress 62; the calm
 // at 63 ends the visit, so the table need not be active at 63).
 
-#include "generated/map_headers.h"
 #include "generated/vars_flags.h"
 
 #include "location.h"
@@ -153,7 +152,7 @@ static const DwPuzzleTile sTiles[] = {
 const DwPuzzleTable gDwPuzzleRoute214Table = {
     MAP_HEADER_DW_ROUTE_214,
     62, 62,                     // VAR_ARC2_PROGRESS gate
-    6, VAR_MAP_LOCAL_3,         // fall script (DWRoute214_Fall), fallVar
+    6, VAR_MAP_LOCAL_0x03,         // fall script (DWRoute214_Fall), fallVar
     3, 2, 0, 15, 6, 2,          // group/sigil/rune/current/checkpoint/tile counts
     0, 0,                       // testOnly, padding
     sGroups, sSigils, NULL, sCurrents, sCheckpoints, sTiles,

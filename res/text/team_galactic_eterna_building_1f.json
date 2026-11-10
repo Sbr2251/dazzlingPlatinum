@@ -2,6 +2,85 @@
   "key": 5147,
   "messages": [
     {
+      "id": "TeamGalacticEternaBuilding1F_Text_HelloItIsMe",
+      "en_US": [
+        "Haven Receptionist: No visitors\n",
+        "today, I'm afraid.\r",
+        "The Pokémon are resting."
+      ]
+    },
+    {
+      "id": "TeamGalacticEternaBuilding1F_Text_FirstRateTrainer",
+      "en_US": "Gardenia: They're always resting."
+    },
+    {
+      "id": "TeamGalacticEternaBuilding1F_Text_InvestigationIntoTeamGalactic",
+      "en_US": [
+        "Janitor: Psst. You. The child from\n",
+        "the crates in Jubilife.\r",
+        "I said I would remember you.\r",
+        "Do not look at me. Look at the\n",
+        "floor."
+      ]
+    },
+    {
+      "id": "TeamGalacticEternaBuilding1F_Text_WelcomeToTeamGalactic",
+      "en_US": [
+        "Janitor: Psst. You. With the\n",
+        "Pokédex.\r",
+        "Do not look at me. Look at the\n",
+        "floor. It is very clean."
+      ]
+    },
+    {
+      "id": "TeamGalacticEternaBuilding1F_Text_SightsSetOnTheStars",
+      "en_US": [
+        "Janitor: I am Looker. International\n",
+        "Police. ...You did not hear that."
+      ]
+    },
+    {
+      "id": "TeamGalacticEternaBuilding1F_Text_PathLeadsToGlory",
+      "en_US": [
+        "Looker: There is a service door at\n",
+        "the back. In five minutes, it will\r",
+        "be unlocked. I will be... mopping\n",
+        "elsewhere."
+      ]
+    },
+    {
+      "id": "TeamGalacticEternaBuilding1F_Text_PlayerUsedTheSecretKey",
+      "en_US": [
+        "Haven Receptionist: No visitors\n",
+        "today, I'm afraid."
+      ]
+    },
+    {
+      "id": "TeamGalacticEternaBuilding1F_Text_EntranceToASecretRoom",
+      "en_US": [
+        "The lobby is empty. Somebody left\n",
+        "the lights on."
+      ]
+    },
+    {
+      "id": "Haven1F_Text_Sign",
+      "en_US": [
+        "A HOME FOR THE ONES LEFT BEHIND\n",
+        "Eclipse Haven"
+      ]
+    },
+    {
+      "id": "Haven1F_Text_UsedSecretKey",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} used the\n",
+        "{STRVAR_1 8, 1, 0}!"
+      ]
+    },
+    {
+      "id": "Haven1F_Text_SecretRoom",
+      "en_US": "It's the entrance to a secret room!"
+    },
+    {
       "id": "Haven1F_Text_ReceptionistNoVisitors",
       "en_US": [
         "Haven Receptionist: No visitors\n",
@@ -61,24 +140,6 @@
         "The lobby is empty. Somebody left\n",
         "the lights on."
       ]
-    },
-    {
-      "id": "Haven1F_Text_Sign",
-      "en_US": [
-        "A HOME FOR THE ONES LEFT BEHIND\n",
-        "Eclipse Haven"
-      ]
-    },
-    {
-      "id": "Haven1F_Text_UsedSecretKey",
-      "en_US": [
-        "{STRVAR_1 3, 0, 0} used the\n",
-        "{STRVAR_1 8, 1, 0}!"
-      ]
-    },
-    {
-      "id": "Haven1F_Text_SecretRoom",
-      "en_US": "It's the entrance to a secret room!"
     }
   ]
 }

@@ -11,47 +11,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout the repository and submodules
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive # Crucial: Pulls in necessary sub-tools
-
-      # 2. Install dependencies specific to PokePlatinum
-      # The project uses Meson + Ninja build system with ARM cross-compilation
-      - name: Install System Dependencies
+      - name: Install Software
         run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y \
-            bison \
-            flex \
-            g++ \
-            gcc-arm-none-eabi \
-            git \
-            make \
-            ninja-build \
-            pkg-config \
-            wget \
-            python3 \
-            xz-utils \
-            nasm \
-            libc6:i386 \
-            p7zip-full
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends bison flex g++ gcc-arm-none-eabi git make ninja-build pkg-config python3 wget xz-utils libpng-dev
 
-      # 3. Build the ROM
-      # The Makefile handles downloading metroskrew (MetroWerks compiler) automatically
-      # -j$(nproc) tells make to use all available CPU cores on the GitHub runner
-      - name: Compile ROM
-        run: make -j$(nproc)
+      - name: Checkout Repo
+        uses: actions/checkout@v6
 
-      # 4. Upload the built artifacts
-      # This saves the .nds file so you can download it from the GitHub Actions page
+      - name: Install Metroskrew
+        run: sudo make skrew
+
+      - name: Configure Repo
+        run: make configure
+
+      # `make check` compares against the vanilla SHA1 and always fails for this
+      # hack; `make release` just builds the ROM (see CLAUDE.md).
+      - name: Build ROM
+        run: make -j$(nproc) release
+
       - name: Upload ROM Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: platinum-rom
-          path: |
-            build/pokeplatinum.us.nds
-            build/pokeplatinum.us.xmap
-            build/platinum.us/main.elf
+          name: dazzlingPlatinum-rom
+          path: out/dazzlingPlatinum.nds

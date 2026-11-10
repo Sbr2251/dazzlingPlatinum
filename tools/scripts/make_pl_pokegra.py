@@ -89,7 +89,12 @@ for i, subdir in enumerate(SPECIES_DIRS):
         '-comp', '10'
     ])
 
-subprocess.run([args.narc, 'create', '--output', output_dir / 'pl_pokegra.narc', private_dir])
+subprocess.run([
+    args.narc,
+    '--create',
+    '--file', output_dir / 'pl_pokegra.narc',
+    private_dir
+])
 
 # Most species' female sprites are copies of the male ones; store each distinct member once
 narc_path = output_dir / 'pl_pokegra.narc'

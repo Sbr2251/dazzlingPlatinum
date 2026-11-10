@@ -3,17 +3,15 @@
 #include <nitro.h>
 #include <string.h>
 
-#include "generated/sdat.h"
-
 #include "struct_defs/chatot_cry.h"
 
 #include "game_options.h"
 #include "sound.h"
-#include "sound_area_fx.h"
 #include "sound_chatot.h"
 #include "sound_playback.h"
-#include "sound_stream.h"
 #include "sys_task_manager.h"
+
+#include "res/sound/pl_sound_data.naix"
 
 static void SoundSystem_InitHeapStates(SoundSystem *soundSys);
 static void SoundSystem_InitSoundHandles(SoundSystem *soundSys);
@@ -40,7 +38,6 @@ void SoundSystem_Init(ChatotCry *chatotCry, Options *options)
 
     NNS_SndArcInit(&soundSys->arc, "data/sound/pl_sound_data.sdat", soundSys->heap, 0);
     NNS_SndArcPlayerSetup(soundSys->heap);
-    SoundStream_Init(soundSys->heap); // Before any heap state is saved, so the stream buffers are never rolled back
 
     SoundSystem_InitSoundHandles(soundSys);
     SoundSystem_LoadPersistentGroup(soundSys);
@@ -81,7 +78,6 @@ void SoundSystem_Tick()
         }
     }
 
-    SoundAreaFx_Update();
     NNS_SndMain();
 }
 
@@ -403,6 +399,5 @@ static void SoundSystem_InitMic()
 static void SoundSystem_StopBGM()
 {
     NNS_SndPlayerStopSeqByPlayerNo(PLAYER_BGM, 0);
-    SoundStream_OnHandleStopped(SOUND_HANDLE_TYPE_BGM, 0);
     NNS_SndHandleReleaseSeq(SoundSystem_GetSoundHandle(SOUND_HANDLE_TYPE_BGM));
 }

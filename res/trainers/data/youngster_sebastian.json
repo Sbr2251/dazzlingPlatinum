@@ -17,7 +17,7 @@
                 "MOVE_LEER",
                 "MOVE_FOCUS_ENERGY"
             ],
-            "power": 20,
+            "iv_scale": 20,
             "ball_seal": 0
         },
         {
@@ -30,7 +30,7 @@
                 "MOVE_SAND_ATTACK",
                 "MOVE_ARM_THRUST"
             ],
-            "power": 20,
+            "iv_scale": 20,
             "ball_seal": 0
         }
     ],
@@ -38,29 +38,29 @@
         {
             "type": "TRMSG_PRE_BATTLE",
             "en_US": [
-                "Before I challenge the Pokémon Gym\n",
-                "Leader, I’ll test my strength on you!\r"
+                "Before I challenge the Pok\u00e9mon Gym\n",
+                "Leader, I\u2019ll test my strength on you!\r"
             ]
         },
         {
             "type": "TRMSG_DEFEAT",
             "en_US": [
-                "I guess it means I’m not ready for\n",
+                "I guess it means I\u2019m not ready for\n",
                 "the Gym challenge yet...\n"
             ]
         },
         {
             "type": "TRMSG_POST_BATTLE",
             "en_US": [
-                "I guess if you don’t have a single\n",
-                "Gym Badge, you’re a total nobody...\n"
+                "I guess if you don\u2019t have a single\n",
+                "Gym Badge, you\u2019re a total nobody...\n"
             ]
         },
         {
             "type": "TRMSG_REMATCH",
             "en_US": [
-                "I’m about ready to challenge the\n",
-                "Pokémon Gym Leader.\r",
+                "I\u2019m about ready to challenge the\n",
+                "Pok\u00e9mon Gym Leader.\r",
                 "But before I do, let me test my\n",
                 "strength on you again!\r"
             ]

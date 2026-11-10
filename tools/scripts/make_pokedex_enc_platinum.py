@@ -18,10 +18,7 @@ argparser = argparse.ArgumentParser(
 )
 argparser.add_argument('-n', '--narc',
                        required=True,
-                       help='Path to narc executable')
-argparser.add_argument('-s', '--source-dir',
-                       required=True,
-                       help='Path to the source directory (res/field/encounters)')
+                       help='Path to narc compiler tool')
 argparser.add_argument('-p', '--private-dir',
                        required=True,
                        help='Path to the private directory (where binaries will be made)')
@@ -45,7 +42,6 @@ argparser.add_argument('src_files',
                        help='List of files to process in-order')
 args = argparser.parse_args()
 
-source_dir = pathlib.Path(args.source_dir)
 private_dir = pathlib.Path(args.private_dir)
 output_dir = pathlib.Path(args.output_dir)
 
@@ -459,4 +455,9 @@ for species in range(NUM_POKEMON):
         with open(target_fname, 'wb+') as target_file:
             target_file.write(bin_data)
 
-subprocess.run([args.narc, 'create', '--output', str(output_dir / output_name) + '.narc', private_dir], check=True)
+subprocess.run([
+    args.narc,
+    '--create',
+    '--file', f'{output_dir / output_name}.narc',
+    private_dir,
+], check=True)
