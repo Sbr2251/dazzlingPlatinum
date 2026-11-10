@@ -186,6 +186,14 @@ link_args = [
 ]
 endif
 
+if host_machine.system() == 'darwin'
+    # keep libntr's simulated registers and memory in definition order (see tools/macos/gen_order.py)
+    sim_vars_order = meson.global_build_root() / 'sim_vars.order'
+    run_command(find_program('python3'), files('tools/macos/gen_order.py'),
+        meson.global_source_root() / 'subprojects' / 'libntr' / 'libraries' / 'sim' / 'src' / 'sim_vars.c', sim_vars_order, check: true)
+    link_args += ['-Wl,-order_file,' + sim_vars_order, '-lobjc', '-framework', 'Foundation']
+endif
+
 ############################################################
 ###                     DEPENDENCIES                     ###
 ############################################################

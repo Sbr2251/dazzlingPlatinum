@@ -27,7 +27,8 @@ The DS ROM still builds from the same tree with `make release` as before.
 | L / R | Q / E |
 | Start / Select | Return / Right Shift |
 | Touch screen | Mouse on the bottom screen |
-| Fast-forward (hold / toggle) | Space / Tab |
+| Fast-forward: hold for up to 4x (`SIM_FAST_FORWARD_SPEED=<1.5–16>` changes it) | Space |
+| Frame cap on/off (uncapped) | Tab |
 | Settings and debug menu | ` (grave accent) |
 
 A game controller is supported by the port (not tested on macOS yet).
@@ -41,16 +42,28 @@ A game controller is supported by the port (not tested on macOS yet).
 - `lib/ppwlobby`: libc++ needs `const` map keys in allocators and allocator equality; pointer-to-`u32` casts go through `uintptr_t`;
   C++14 on macOS.
 - `tools/nitroarc`, `tools/scripts/copy_pc_files.sh`: clang warning order; macOS `cp` has no `-u`.
+- `tools/macos/gen_order.py` + `-order_file` link flag (meson.build): the simulator's hardware registers and memory
+  (libntr `sim_vars.c`) are laid out in definition order, as GNU ld does. Apple's ld sorted them by name, which broke every
+  32-bit store the SDK makes across two 16-bit registers: `G2_SetBlendAlpha` writes BLDCNT and BLDALPHA together, so the alpha
+  blend coefficients were lost and blended graphics drew black (the ESRB/copyright text, the Game Freak logo, the intro's
+  forest fade). The fog density table read and other multi-register accesses depend on it too.
 - `tools/macos/patches/*.patch` (applied by `build.sh` to the subprojects, pinned in `REVISIONS`):
   - libntr: OpenGL 4.1 core (macOS's maximum): context version, `#version 410` shaders, no KHR_debug; the four palette RAM
     arrays in one struct (HW_PLTT spans BG+OBJ palettes and relied on GNU ld keeping them adjacent; with Apple's ld a palette clear
     wiped the heap table); `HW_DB_BG_VRAM_SIZE` / `HW_DB_OBJ_VRAM_END` sized to their arrays; X/Y/debug buttons set released after
     `HW_MAIN_MEM_SYSTEM` is cleared (they read as held, so the first X press did nothing); no empty placeholder archives.
+    Renderer fixes (not macOS-specific): translucent 3D draw calls, deferred to the end of the frame, now apply their own
+    cull mode and depth test (they inherited the frame's last state, usually cull-all, so particles such as the title glows,
+    Chimchar's flames and Turtwig's leaves were never drawn) and leave the depth buffer alone like the DS; translucent 3D pixels
+    blend with a 2nd-target layer below whatever BLDCNT's mode is (the DS's 3D special case); the backdrop colour uniform is set
+    with `glUniform4fv`; frame pacing sleeps in ≤2 ms slices against a running deadline (macOS timer coalescing held a
+    background window at ~26 fps) and Space fast-forwards at up to 4x instead of uncapped.
   - libntrwifi: no `SOCK_NONBLOCK` on macOS (`fcntl(O_NONBLOCK)`).
   - libntrdwc: no `wctype_t` typedef on macOS.
 - Debug automation (any PC build, off unless set): `SIM_DEBUG_KEYS="<frame>:<keys>[/<hold>],…"` (keys `A B X Y L R START SELECT UP
   DOWN LEFT RIGHT`, `T<x>;<y>` touches the bottom screen), `SIM_DEBUG_SHOT_DIR` + `SIM_DEBUG_SHOT_EVERY` (BMP screenshots),
-  `SIM_DEBUG_EXIT_FRAME`, `SIM_DEBUG_FAST=1` (no frame cap).
+  `SIM_DEBUG_EXIT_FRAME` (also prints the fps since frame 100), `SIM_DEBUG_FAST=1` (no frame cap), `SIM_DEBUG_FF_HOLD=1` (as if
+  Space were held), `SIM_DEBUG_DUMP_FRAME=<n>` (2D display/blend registers and BG palette).
 
 ## Tested (M-series Mac, macOS 27)
 

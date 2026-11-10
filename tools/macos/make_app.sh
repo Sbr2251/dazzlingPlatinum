@@ -79,6 +79,7 @@ cat > "$C/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSAppSleepDisabled</key><true/>
   <key>LSApplicationCategoryType</key><string>public.app-category.games</string>
 </dict>
 </plist>

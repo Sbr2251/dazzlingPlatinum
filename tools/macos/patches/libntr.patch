@@ -127,6 +127,146 @@ index e638798..550c270 100644
      s_primType = type;
      s_G3numInPoly = 0;
      s_G3drawPoly = 0;
+diff --git a/libraries/sim/src/shaders/g2_fragment.glsl b/libraries/sim/src/shaders/g2_fragment.glsl
+index b652bd5..f816f23 100644
+--- a/libraries/sim/src/shaders/g2_fragment.glsl
++++ b/libraries/sim/src/shaders/g2_fragment.glsl
+@@ -21,6 +21,22 @@ smooth in vec2 fragTexCoord;
+ uniform float inMasterBrightFactor;
+ uniform int inMasterBrightMode;
+ out vec4 color;
++
++// Sampler arrays may only be indexed with dynamically uniform expressions; currentBgDrawn differs per fragment, and macOS's
++// OpenGL (on Metal) returns black for such a lookup, so blended text and logos came out black there. Index with constants instead.
++vec4 sampleBg(int n, vec2 uv) {
++    if (n == 0) return texture(bgTexture[0], uv);
++    if (n == 1) return texture(bgTexture[1], uv);
++    if (n == 2) return texture(bgTexture[2], uv);
++    return texture(bgTexture[3], uv);
++}
++vec4 sampleObj(int n, vec2 uv) {
++    if (n == 0) return texture(objTexture[0], uv);
++    if (n == 1) return texture(objTexture[1], uv);
++    if (n == 2) return texture(objTexture[2], uv);
++    if (n == 3) return texture(objTexture[3], uv);
++    return texture(objTexture[4], uv);
++}
+ void main()
+ {
+     int oamsDrawn = 0;
+@@ -40,8 +56,8 @@ void main()
+         int curPrio = bgPriorities[bgNum];
+         // Draw the OBJs that are at or below the current BG priority
+         for(int j=3-oamsDrawn; j>curPrio; j--) {
+-            if(texture(objTexture[j], fragTexCoord).a > 0.1) {
+-                color = texture(objTexture[j], fragTexCoord);
++            if(sampleObj(j, fragTexCoord).a > 0.1) {
++                color = sampleObj(j, fragTexCoord);
+                 currentBgDrawn = 4;
+             }
+             oamsDrawn++;
+@@ -61,59 +77,68 @@ void main()
+             }
+         }
+         // Draw the current bg
+-        if(texture(bgTexture[bgNum], fragTexCoord).a > 0.1) {
++        vec4 bg3d = sampleBg(0, fragTexCoord);
++        if(bgNum == 0 && bg0as3d != 0 && bg3d.a > 0.004 && bg3d.a < 0.99 && (((bldcnt >> (8+currentBgDrawn)) & 1) == 1)) {
++            // DS special case: translucent 3D pixels are alpha blended with the layer below whenever that layer is a 2nd
++            // target, whatever the blend mode and 1st targets are (particles, glows). The 3D buffer holds colour already
++            // weighted by its alpha (it is drawn over a transparent clear with SRC_ALPHA blending).
++            vec3 below = (currentBgDrawn == 5) ? backdropColor.rgb : color.rgb;
++            color.rgb = min(vec3(1.0), bg3d.rgb + below * (1.0 - bg3d.a));
++            color.a = 1.0;
++            currentBgDrawn = bgNum;
++        } else if(sampleBg(bgNum, fragTexCoord).a > 0.1) {
+             //Handle blending
+             if( (((bldcnt >> 6) & 0x3) == 1) && ((bldcnt >> bgNum & 1) == 1) ){
+                 // Alpha Blending Mode. bgNum is Target 1.
+                 float alphaA = min(16.0, float(bldalpha & 31)) / 16.0;
+                 float alphaB = min(16.0, float((bldalpha >> 8) & 31)) / 16.0;
+                 if(bgNum == 0 && bg0as3d != 0) {
+-                    alphaA = texture(bgTexture[0], fragTexCoord).a;
++                    alphaA = sampleBg(0, fragTexCoord).a;
+                     alphaB = 1.0 - alphaA;
+                 }
+                 if((currentBgDrawn < 4) && (((bldcnt >> (8+currentBgDrawn)) & 1) == 1) ) {
+-                    color.r = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).r *alphaA) + (texture(bgTexture[currentBgDrawn], fragTexCoord).r * alphaB)));
+-                    color.g = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).g *alphaA) + (texture(bgTexture[currentBgDrawn], fragTexCoord).g * alphaB)));
+-                    color.b = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).b *alphaA) + (texture(bgTexture[currentBgDrawn], fragTexCoord).b * alphaB)));
++                    color.r = min(1.0, ((sampleBg(bgNum, fragTexCoord).r *alphaA) + (sampleBg(currentBgDrawn, fragTexCoord).r * alphaB)));
++                    color.g = min(1.0, ((sampleBg(bgNum, fragTexCoord).g *alphaA) + (sampleBg(currentBgDrawn, fragTexCoord).g * alphaB)));
++                    color.b = min(1.0, ((sampleBg(bgNum, fragTexCoord).b *alphaA) + (sampleBg(currentBgDrawn, fragTexCoord).b * alphaB)));
+                     color.a = 1.0;
+                     currentBgDrawn = bgNum;
+                 } else if( (currentBgDrawn == 4) && ( ( (bldcnt >> (8+currentBgDrawn)) & 1) == 1) ){
+                     // Alpha blending where the highest OBJ pixel is the target
+-                    color.r = min(1.0, ( (texture(bgTexture[bgNum], fragTexCoord).r *alphaA) + color.r * alphaB) );
+-                    color.g = min(1.0, ( (texture(bgTexture[bgNum], fragTexCoord).g *alphaA) + color.g * alphaB) );
+-                    color.b = min(1.0, ( (texture(bgTexture[bgNum], fragTexCoord).b *alphaA) + color.b * alphaB) );
++                    color.r = min(1.0, ( (sampleBg(bgNum, fragTexCoord).r *alphaA) + color.r * alphaB) );
++                    color.g = min(1.0, ( (sampleBg(bgNum, fragTexCoord).g *alphaA) + color.g * alphaB) );
++                    color.b = min(1.0, ( (sampleBg(bgNum, fragTexCoord).b *alphaA) + color.b * alphaB) );
+                     color.a = 1.0;
+                 } else if((currentBgDrawn == 5) && (((bldcnt >> (8+currentBgDrawn)) & 1) == 1)) {
+                     // Alpha blending where the backdrop is the target
+-                    color.r = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).r *alphaA) + backdropColor.r * alphaB));
+-                    color.g = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).g *alphaA) + backdropColor.g * alphaB));
+-                    color.b = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).b *alphaA) + backdropColor.b * alphaB));
++                    color.r = min(1.0, ((sampleBg(bgNum, fragTexCoord).r *alphaA) + backdropColor.r * alphaB));
++                    color.g = min(1.0, ((sampleBg(bgNum, fragTexCoord).g *alphaA) + backdropColor.g * alphaB));
++                    color.b = min(1.0, ((sampleBg(bgNum, fragTexCoord).b *alphaA) + backdropColor.b * alphaB));
+                     color.a = 1.0;
+                 } else {
+-                    color = texture(bgTexture[bgNum], fragTexCoord);
++                    color = sampleBg(bgNum, fragTexCoord);
+                     currentBgDrawn = bgNum;
+                 }
+             } else if((((bldcnt >> 6) & 0x3) == 2) && ((bldcnt >> bgNum & 1) == 1)) {
+                 // Brightness Increase Mode. bgNum is Target 1.
+                 float brightFactor = min(16.0, float(bldy & 31)) / 16.0;
+-                //color.r = min(1.0, ( texture(bgTexture[bgNum], fragTexCoord).r + ((1.0 - texture(bgTexture[bgNum], fragTexCoord).r)*brightFactor)) );
+-                //color.g = min(1.0, ( texture(bgTexture[bgNum], fragTexCoord).g + ((1.0 - texture(bgTexture[bgNum], fragTexCoord).g)*brightFactor)) );
+-                //color.b = min(1.0, ( texture(bgTexture[bgNum], fragTexCoord).b + ((1.0 - texture(bgTexture[bgNum], fragTexCoord).b)*brightFactor)) );
+-                color.r = texture(bgTexture[bgNum], fragTexCoord).r + (1.0 - texture(bgTexture[bgNum], fragTexCoord).r)*brightFactor;
+-                color.g = texture(bgTexture[bgNum], fragTexCoord).g + (1.0 - texture(bgTexture[bgNum], fragTexCoord).g)*brightFactor;
+-                color.b = texture(bgTexture[bgNum], fragTexCoord).b + (1.0 - texture(bgTexture[bgNum], fragTexCoord).b)*brightFactor;
++                //color.r = min(1.0, ( sampleBg(bgNum, fragTexCoord).r + ((1.0 - sampleBg(bgNum, fragTexCoord).r)*brightFactor)) );
++                //color.g = min(1.0, ( sampleBg(bgNum, fragTexCoord).g + ((1.0 - sampleBg(bgNum, fragTexCoord).g)*brightFactor)) );
++                //color.b = min(1.0, ( sampleBg(bgNum, fragTexCoord).b + ((1.0 - sampleBg(bgNum, fragTexCoord).b)*brightFactor)) );
++                color.r = sampleBg(bgNum, fragTexCoord).r + (1.0 - sampleBg(bgNum, fragTexCoord).r)*brightFactor;
++                color.g = sampleBg(bgNum, fragTexCoord).g + (1.0 - sampleBg(bgNum, fragTexCoord).g)*brightFactor;
++                color.b = sampleBg(bgNum, fragTexCoord).b + (1.0 - sampleBg(bgNum, fragTexCoord).b)*brightFactor;
+                 color.a = 1.0;
+                 currentBgDrawn = bgNum;
+             } else if((((bldcnt >> 6) & 0x3) == 3) && ((bldcnt >> bgNum & 1) == 1)) {
+                 // Brightness Decrease Mode. bgNum is Target 1.
+                 float brightFactor = min(16.0, float(bldy & 31)) / 16.0;
+-                color.r = max(0.0, ( texture(bgTexture[bgNum], fragTexCoord).r - ((texture(bgTexture[bgNum], fragTexCoord).r)*brightFactor)) );
+-                color.g = max(0.0, ( texture(bgTexture[bgNum], fragTexCoord).g - ((texture(bgTexture[bgNum], fragTexCoord).g)*brightFactor)) );
+-                color.b = max(0.0, ( texture(bgTexture[bgNum], fragTexCoord).b - ((texture(bgTexture[bgNum], fragTexCoord).b)*brightFactor)) );
++                color.r = max(0.0, ( sampleBg(bgNum, fragTexCoord).r - ((sampleBg(bgNum, fragTexCoord).r)*brightFactor)) );
++                color.g = max(0.0, ( sampleBg(bgNum, fragTexCoord).g - ((sampleBg(bgNum, fragTexCoord).g)*brightFactor)) );
++                color.b = max(0.0, ( sampleBg(bgNum, fragTexCoord).b - ((sampleBg(bgNum, fragTexCoord).b)*brightFactor)) );
+                 color.a = 1.0;
+                 currentBgDrawn = bgNum;
+             } else {
+-                color.rgb = texture(bgTexture[bgNum], fragTexCoord).rgb;
++                color.rgb = sampleBg(bgNum, fragTexCoord).rgb;
+                 color.a = 1.0;
+                 currentBgDrawn = bgNum;
+             }
+@@ -121,8 +146,8 @@ void main()
+     }
+     //Draw the remaining objs
+     for(int i=3-oamsDrawn; i>=0; i--) {
+-        if(texture(objTexture[i], fragTexCoord).a > 0.1) {
+-            color = texture(objTexture[i], fragTexCoord);
++        if(sampleObj(i, fragTexCoord).a > 0.1) {
++            color = sampleObj(i, fragTexCoord);
+             currentBgDrawn = 4;
+         }
+     }
 diff --git a/libraries/sim/src/sim_NitroMainThread.cpp b/libraries/sim/src/sim_NitroMainThread.cpp
 index 0766447..2261dcc 100644
 --- a/libraries/sim/src/sim_NitroMainThread.cpp
@@ -156,6 +296,35 @@ index 18dbafe..f452e57 100644
  
      g3State.SetPrimitiveType(type);
      g3State.SetCurrentIndexInPolygon(0);
+diff --git a/libraries/sim/src/sim_g3_GlRenderer.cpp b/libraries/sim/src/sim_g3_GlRenderer.cpp
+index 77300c2..ecf6990 100644
+--- a/libraries/sim/src/sim_g3_GlRenderer.cpp
++++ b/libraries/sim/src/sim_g3_GlRenderer.cpp
+@@ -121,7 +121,24 @@ void GlRenderer::Draw(std::shared_ptr<DrawCall> drawCall) {
+             glProgramUniform1fv(mShaderProgramId, fogDensityLoc, 32, drawCall->GetFogDensityTable());
+         }
+ 
++        // Apply this draw call's own cull mode and depth test. PolygonAttrCommand also sets them on the GL state when the command
++        // arrives, but translucent draw calls are deferred to the end of the frame (DrawTransparentItems), so they would otherwise
++        // be drawn with whatever state the frame's last polygon attribute left behind (often GX_CULL_ALL: nothing drawn).
++        const PolygonAttr attr = drawCall->GetPolygonAttr();
++        switch(attr.cullMode) {
++            case GX_CULL_ALL:   glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); break;
++            case GX_CULL_FRONT: glEnable(GL_CULL_FACE); glCullFace(GL_BACK); break;
++            case GX_CULL_BACK:  glEnable(GL_CULL_FACE); glCullFace(GL_FRONT); break;
++            default:            glDisable(GL_CULL_FACE); break;
++        }
++        glDepthFunc(attr.depthTest ? GL_LEQUAL : GL_LESS);
++        // As on the DS, translucent polygons only update the depth buffer when their attribute asks for it.
++        const bool depthWrite = !drawCall->IsTransparent() || attr.translucentDepth;
++        if(!depthWrite) glDepthMask(GL_FALSE);
++
+         glDrawArrays(GL_TRIANGLES, 0, vertsCount);
++
++        if(!depthWrite) glDepthMask(GL_TRUE);
+     }
+ }
+ 
 diff --git a/libraries/sim/src/sim_gui.cpp b/libraries/sim/src/sim_gui.cpp
 index 2c40e59..c89cdcd 100644
 --- a/libraries/sim/src/sim_gui.cpp
@@ -173,7 +342,7 @@ index 2c40e59..c89cdcd 100644
  
      ImGui::StyleColorsDark(NULL);
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..598fe10 100644
+index 910d7da..71ea525 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -181,7 +350,32 @@ index 910d7da..598fe10 100644
  extern "C" void NitroMain();
  extern "C" int NitroSpMain(void *arg);
  #define SDL_MAIN_HANDLED
-@@ -298,6 +299,16 @@ void SIM_SetInternalResolution(int internalRes) {
+@@ -38,6 +39,13 @@ extern "C" int NitroSpMain(void *arg);
+ 
+ #include <math.h>
+ #include <time.h>
++#include <errno.h>
++#ifdef __APPLE__
++// Objective-C runtime entry points, declared by hand: <objc/objc.h> clashes with the SDK's BOOL
++extern "C" { void *objc_getClass(const char *name); void *sel_registerName(const char *name); void objc_msgSend(void); }
++typedef void *id;
++typedef void *SEL;
++#endif
+ 
+ #include "nds-extract.hpp"
+ 
+@@ -178,6 +186,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+ SNDSharedWork *win_SNDi_SharedWork;
+ 
+ static bool sFastForward = false;
++// Holding the fast-forward key (Space) runs the game at up to this many times normal speed (SIM_FAST_FORWARD_SPEED, 1.5-16,
++// default 4). SIM_DEBUG_FAST (automation) stays uncapped.
++static double sFastForwardSpeed = 4.0;
++static bool sFastForwardUncapped = false;
+ 
+ OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
+     OS_IrqDummy, // VBlank (for ARM9)
+@@ -298,6 +310,16 @@ void SIM_SetInternalResolution(int internalRes) {
        SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
  }
  
@@ -198,7 +392,7 @@ index 910d7da..598fe10 100644
  static bool sChangeInternalResAfterRender = false;
  static int sPendingInternalRes = 1;
  
-@@ -315,7 +326,13 @@ void *SIM_RenderInit(void *arg) {
+@@ -315,7 +337,13 @@ void *SIM_RenderInit(void *arg) {
    SIM_Audio_Init(44100);
  
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -212,7 +406,7 @@ index 910d7da..598fe10 100644
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-@@ -401,8 +418,10 @@ void *SIM_RenderInit(void *arg) {
+@@ -401,8 +429,10 @@ void *SIM_RenderInit(void *arg) {
    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -223,7 +417,7 @@ index 910d7da..598fe10 100644
  
    GLenum glErrCode;
    GLint status;
-@@ -453,8 +472,14 @@ void *SIM_RenderInit(void *arg) {
+@@ -453,8 +483,14 @@ void *SIM_RenderInit(void *arg) {
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
                 GL_UNSIGNED_BYTE, NULL);
  
@@ -239,7 +433,17 @@ index 910d7da..598fe10 100644
    glCompileShader(_id);                                                        \
    glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
    if (status != GL_TRUE) {                                                     \
-@@ -950,6 +975,96 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -610,7 +646,8 @@ static void DrawEngine(BOOL isSub) {
+   backdropVec[2] = (float)backdropB / 255.0f;
+   backdropVec[3] = 1.0f;
+ 
+-  glUniform1fv(glGetUniformLocation(g2shaderProgramID, "backdropColor"), 4,
++  // backdropColor is a vec4: glUniform1fv with a count of 4 is GL_INVALID_OPERATION and left it unset
++  glUniform4fv(glGetUniformLocation(g2shaderProgramID, "backdropColor"), 1,
+                backdropVec);
+ 
+   glProgramUniform4f(g2shaderProgramID,
+@@ -950,6 +987,125 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -251,6 +455,8 @@ index 910d7da..598fe10 100644
 +//   SIM_DEBUG_EXIT_FRAME=<frame>                            exits after that frame
 +//   (a key T<x>;<y> touches the bottom screen at DS coordinates, e.g. "6000:T120;82/4")
 +//   SIM_DEBUG_FAST=1                                        no frame cap, no vsync
++//   SIM_DEBUG_FF_HOLD=1                                     as if the fast-forward key were held (SIM_FAST_FORWARD_SPEED x 60 fps)
++//   SIM_DEBUG_DUMP_FRAME=<frame>                            prints the 2D display/blend registers and BG palette at that frame
 +static int sDebugTouch = 0;   // SIM_DEBUG_KEYS holds the touch screen: the mouse does not override it
 +static u32 SIM_DebugKeyMask(const char *s, u32 *xy) {
 +  static const struct { const char *n; u32 bit; int isXY; } names[] = {
@@ -273,7 +479,21 @@ index 910d7da..598fe10 100644
 +  static std::vector<Step> steps; static u32 heldMask, heldXY;
 +  if (!init) {
 +    init = 1;
-+    if (getenv("SIM_DEBUG_FAST")) { sFastForward = true; SDL_GL_SetSwapInterval(0); printf("SIM_DEBUG_FAST: uncapped\n"); }   // automation runs as fast as it renders
++    if (const char *ffs = getenv("SIM_FAST_FORWARD_SPEED")) { double v = atof(ffs); if (v >= 1.5 && v <= 16.0) sFastForwardSpeed = v; }
++#ifdef __APPLE__
++    {
++      // Opt out of App Nap: it coalesces the timers the frame pacing sleeps on (the game slows down whenever the window is not
++      // frontmost) - NSProcessInfo beginActivityWithOptions:(UserInitiatedAllowingIdleSystemSleep | LatencyCritical)
++      id info = ((id (*)(id, SEL))objc_msgSend)((id)objc_getClass("NSProcessInfo"), sel_registerName("processInfo"));
++      id reason = ((id (*)(id, SEL, const char *))objc_msgSend)((id)objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), "game frame pacing");
++      unsigned long long options = (0x00FFFFFFULL & ~(1ULL << 20)) | 0xFF00000000ULL;
++      static id activity;
++      activity = ((id (*)(id, SEL, unsigned long long, id))objc_msgSend)(info, sel_registerName("beginActivityWithOptions:reason:"), options, reason);
++      ((id (*)(id, SEL))objc_msgSend)(activity, sel_registerName("retain"));
++    }
++#endif
++    if (getenv("SIM_DEBUG_FF_HOLD")) { sFastForward = true; SDL_GL_SetSwapInterval(0); }   // automation: behave as if Space is held
++    if (getenv("SIM_DEBUG_FAST")) { sFastForward = true; sFastForwardUncapped = true; SDL_GL_SetSwapInterval(0); printf("SIM_DEBUG_FAST: uncapped\n"); }   // automation runs as fast as it renders
 +    shotDir = getenv("SIM_DEBUG_SHOT_DIR");
 +    const char *e = getenv("SIM_DEBUG_SHOT_EVERY"); shotEvery = e ? (u32)atoi(e) : 0;
 +    e = getenv("SIM_DEBUG_EXIT_FRAME"); exitFrame = e ? (u32)atoi(e) : 0;
@@ -330,13 +550,26 @@ index 910d7da..598fe10 100644
 +      SDL_SaveBMP(surf, path); SDL_FreeSurface(surf);
 +    }
 +  }
-+  if (exitFrame && frame >= exitFrame) { printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); fflush(stdout); _exit(0); }
++  { static int dumpAt = -2; if (dumpAt == -2) { const char *e = getenv("SIM_DEBUG_DUMP_FRAME"); dumpAt = e ? atoi(e) : -1; }
++    if (dumpAt >= 0 && frame == (u32)dumpAt) {
++      printf("DUMP frame %u DISPCNT %08x BG0-3CNT %04x %04x %04x %04x BLDCNT %04x BLDALPHA %04x BLDY %04x MASTER %04x POWCNT %04x | SUB DISPCNT %08x BLDCNT %04x BLDALPHA %04x\n", frame,
++        (unsigned)s_reg_GX_DISPCNT, s_reg_G2_BG0CNT, s_reg_G2_BG1CNT, s_reg_G2_BG2CNT, s_reg_G2_BG3CNT, s_reg_G2_BLDCNT, s_reg_G2_BLDALPHA, s_reg_G2_BLDY, s_reg_GX_MASTER_BRIGHT, s_reg_GX_POWCNT,
++        (unsigned)s_reg_GXS_DB_DISPCNT, s_reg_G2S_DB_BLDCNT, s_reg_G2S_DB_BLDALPHA);
++      const u16 *pl = (const u16 *)HW_BG_PLTT;
++      for (int r = 0; r < 16; r++) { printf("PLTT %2d:", r); for (int c = 0; c < 16; c++) printf(" %04x", pl[r * 16 + c]); printf("\n"); }
++      fflush(stdout);
++    } }
++  static struct timespec t100;
++  if (frame == 100) clock_gettime(CLOCK_MONOTONIC, &t100);
++  if (exitFrame && frame >= exitFrame) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
++    if (frame > 100) printf("SIM_DEBUG_EXIT_FRAME: %.1f fps since frame 100\n", (frame - 100) / ((t.tv_sec - t100.tv_sec) + (t.tv_nsec - t100.tv_nsec) / 1e9));
++    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); fflush(stdout); _exit(0); }
 +}
 +
  void *SIM_Render(void *arg) {
  
    SDL_Event Event;
-@@ -1261,7 +1376,9 @@ void *SIM_Render(void *arg) {
+@@ -1261,7 +1417,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -347,7 +580,38 @@ index 910d7da..598fe10 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1340,6 +1457,7 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +1486,29 @@ void *SIM_Render(void *arg) {
+     TracyCZoneEnd(SimRenderZone);
+ #endif
+     // Limit framerate to 60 fps
+-    if (s_SIM_config.capFrameRate && !sFastForward) {
+-
+-      // 60 Fps
+-      if (frameNs < 16600000) {
+-        u64 frameTimeRemaining = 16600000 - frameNs;
+-        u64 frameTimeRemainingMs = frameTimeRemaining / 1000000;
+-        if (frameTimeRemainingMs > 1) {
+-          SDL_Delay(frameTimeRemainingMs - 1);
+-        }
++    // Frame pacing: 60 fps, or sFastForwardSpeed x 60 fps while the fast-forward key (Space) is held. Paced against a running
++    // deadline with sub-millisecond sleeps, so a sleep that overshoots is made up on the next frames.
++    if (s_SIM_config.capFrameRate && !(sFastForward && sFastForwardUncapped)) {
++      static struct timespec paceDeadline;
++      u64 target = (u64)(16600000.0 / (sFastForward ? sFastForwardSpeed : 1.0));
++      struct timespec now;
++      clock_gettime(CLOCK_MONOTONIC, &now);
++      s64 behind = (s64)(now.tv_sec - paceDeadline.tv_sec) * 1000000000 + (now.tv_nsec - paceDeadline.tv_nsec);
++      if (behind > 50000000 || behind < -(s64)target) paceDeadline = now;   // first frame, speed change, or > 50 ms behind
++      paceDeadline.tv_nsec += (long)target;
++      while (paceDeadline.tv_nsec >= 1000000000) { paceDeadline.tv_nsec -= 1000000000; paceDeadline.tv_sec++; }
++      // Sleep in slices of at most 2 ms: macOS stretches longer sleeps of a background process (timer coalescing) by up to
++      // ~20 ms, which held the game at ~26 fps whenever its window was not frontmost.
++      for (;;) {
++        clock_gettime(CLOCK_MONOTONIC, &now);
++        s64 wait = (s64)(paceDeadline.tv_sec - now.tv_sec) * 1000000000 + (paceDeadline.tv_nsec - now.tv_nsec);
++        if (wait <= 0) break;
++        struct timespec ts = {0, (long)(wait < 2000000 ? wait : 2000000)};
++        nanosleep(&ts, NULL);
        }
      }
  
