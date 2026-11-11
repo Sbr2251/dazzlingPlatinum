@@ -53,6 +53,8 @@
 #include "battle_sub_menus/battle_party.h"
 
 #include "assert.h"
+#include "port/postfx.h"
+#include "port/sim_config_prj.h"
 #include "bg_window.h"
 #include "brightness_controller.h"
 #include "character_sprite.h"
@@ -1527,6 +1529,9 @@ typedef struct AffinePulseTaskData {
     u8 state;
     u8 frame;
     u8 isEnemy;
+    u8 cineShort; // MegaCinematicShort in sim_config_prj.ini: half-length beats
+    u8 formSwapped;
+    u16 cineFrame; // Frames since the charge started (the cinematic clock)
     s16 baseYOffset;
     u32 personality;
 } AffinePulseTaskData;
@@ -1548,6 +1553,7 @@ void BattleDisplay_StartAffinePulse(BattleSystem *battleSys, BattlerData *battle
     data->personality = message->personality;
     data->baseYOffset = PokemonSprite_GetAttribute(data->sprite, MON_SPRITE_Y_OFFSET);
     data->isEnemy = BattleSystem_GetBattlerSide(battleSys, battlerData->battler) != 0;
+    data->cineShort = SIM_Config_prj_GetConfig()->megaCinematicShort ? 1 : 0;
 
     SysTask_Start(AffinePulseTask, data, 0);
 }
@@ -5975,6 +5981,82 @@ void BattleDisplay_SetMegaEvolutionCue(int cue)
     sMegaEvolutionCue = cue;
 }
 
+// --- Mega Evolution cinematic (mega-cine) ---
+// The AffinePulse task is the cinematic's clock: it already owns the sprite
+// (white silhouette, form swap, reveal scale, cry). The beats below layer the
+// PostFX API (docs/postfx.md) on top, timed to the charge/reveal states.
+// Beats: trigger (letterbox + violet vignette, camera is in mega_evolution.s),
+// resonance (chroma + glow as the stone answers), burst (shockwave + shake),
+// reveal (glow as the emblem particles blaze), title (bars retract while the
+// "Mega Evolved!" message and the healthbox Mega icon land). A/B after the
+// first beat skips to the burst. MegaCinematicShort halves the charge.
+static int MegaCine_Scale(AffinePulseTaskData *data)
+{
+    return data->cineShort ? 1 : 2;
+}
+
+static void MegaCine_Center(AffinePulseTaskData *data, int *x, int *y)
+{
+    // Combined-display pixels (top screen): measured from captured frames.
+    *x = data->isEnemy ? 178 : 74;
+    *y = data->isEnemy ? 64 : 112;
+}
+
+static void MegaCine_ChargeStart(AffinePulseTaskData *data)
+{
+    int cx, cy;
+    MegaCine_Center(data, &cx, &cy);
+    PostFX_Vignette(0.07f, 0.01f, 0.19f, 0.62f, data->cineShort ? 110 : 240);
+    PostFX_ZoomBlur(cx, cy, 0.16f, 40 * MegaCine_Scale(data));
+    PostFX_Glow(0.28f, 50 * MegaCine_Scale(data));
+}
+
+static void MegaCine_Resonance(AffinePulseTaskData *data)
+{
+    int cx, cy;
+    MegaCine_Center(data, &cx, &cy);
+    PostFX_ChromaticAberration(0.30f, 36);
+    PostFX_Glow(0.50f, 44);
+    PostFX_ZoomBlur(cx, cy, 0.22f, 30);
+}
+
+static void MegaCine_Burst(AffinePulseTaskData *data)
+{
+    int cx, cy;
+    MegaCine_Center(data, &cx, &cy);
+    PostFX_Shockwave(cx, cy, 0.90f, 26);
+    PostFX_Shake(0.85f, 16);
+    PostFX_ChromaticAberration(0.80f, 20);
+    PostFX_Glow(0.75f, 28);
+    PostFX_ZoomBlur(cx, cy, 0.32f, 18);
+}
+
+// Letterbox, driven every task tick: slides in over the trigger, holds
+// through the burst, retracts over the title beat.
+static void MegaCine_Letterbox(AffinePulseTaskData *data)
+{
+    float amount = 0.0f;
+
+    if (data->state == AFFINE_PULSE_STATE_CHARGE) {
+        int in = data->cineFrame < 18 ? data->cineFrame : 18;
+        amount = 0.14f * (float)in / 18.0f;
+    } else if (data->state == AFFINE_PULSE_STATE_REVEAL) {
+        if (data->frame < 26) {
+            amount = 0.14f;
+        } else if (data->frame < 44) {
+            amount = 0.14f * (1.0f - (float)(data->frame - 26) / 18.0f);
+        }
+    }
+
+    PostFX_Letterbox(amount, 2);
+}
+
+static BOOL MegaCine_SkipPressed(AffinePulseTaskData *data)
+{
+    // Skippable with A/B after the first beat (the letterbox slide-in).
+    return data->cineFrame > 20 && (gSystem.pressedKeys & (PAD_BUTTON_A | PAD_BUTTON_B));
+}
+
 static void AffinePulse_SetBrightness(int brightness)
 {
     G2_SetBlendBrightnessExt(AFFINE_PULSE_BRIGHTNESS_PLANES, AFFINE_PULSE_BLEND_2ND_PLANES, 8, 8, brightness);
@@ -6061,7 +6143,15 @@ static void AffinePulse_ClearOthers(AffinePulseTaskData *data)
 static BOOL AffinePulse_Charge(AffinePulseTaskData *data)
 {
     PokemonSprite *sprite = data->sprite;
+    int scale = MegaCine_Scale(data);
     int t = data->frame;
+    int squeezeStart = AFFINE_PULSE_CHARGE_SQUEEZE * scale;
+    int squeezeEnd = AFFINE_PULSE_CHARGE_SQUEEZE_END * scale;
+    int whitenT = AFFINE_PULSE_CHARGE_WHITEN * scale;
+    int hideT = AFFINE_PULSE_CHARGE_HIDE * scale;
+    int swapT = AFFINE_PULSE_CHARGE_SWAP * scale;
+
+    data->cineFrame++;
 
     if (t == 0) {
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
@@ -6069,14 +6159,26 @@ static BOOL AffinePulse_Charge(AffinePulseTaskData *data)
         PokemonSprite_StartFade(sprite, 0, 12, 1, RGB(31, 31, 31));
         AffinePulse_FadeOthers(data, 0, AFFINE_PULSE_DIM, RGB(0, 0, 0));
         AffinePulse_PlaySound(data, SEQ_SE_DP_DENSI06_sseq); // vanilla electronic charge SE (dazzling's SEQ_SE_MEGA_CHARGE dropped)
+        MegaCine_ChargeStart(data);
+    }
+
+    // Skip (A/B after the first beat): swap under the orb and burst now.
+    if (MegaCine_SkipPressed(data)) {
+        if (!data->formSwapped) {
+            BattleDisplay_ReloadFormSprite(data->battleSys, data->battlerData, data->species, data->gender, data->isShiny, data->form, data->personality);
+            data->baseYOffset = PokemonSprite_GetAttribute(sprite, MON_SPRITE_Y_OFFSET);
+            data->formSwapped = TRUE;
+        }
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, TRUE);
+        return TRUE;
     }
 
     AffinePulse_SetBrightness(-(t + 1 < AFFINE_PULSE_DIM ? t + 1 : AFFINE_PULSE_DIM));
 
-    if (t >= AFFINE_PULSE_CHARGE_SQUEEZE && t <= AFFINE_PULSE_CHARGE_SQUEEZE_END) {
+    if (t >= squeezeStart && t <= squeezeEnd) {
         // Ease out: shrink steadily, slowing as it reaches 7/8 size.
-        int p = AFFINE_PULSE_CHARGE_SQUEEZE_END - t;
-        int n = AFFINE_PULSE_CHARGE_SQUEEZE_END - AFFINE_PULSE_CHARGE_SQUEEZE;
+        int p = squeezeEnd - t;
+        int n = squeezeEnd - squeezeStart;
         int squeeze = 0xE0 + (0x20 * p * p) / (n * n);
 
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_SCALE_X, squeeze);
@@ -6084,22 +6186,24 @@ static BOOL AffinePulse_Charge(AffinePulseTaskData *data)
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_Y_OFFSET, data->baseYOffset + ((0x100 - squeeze) * 6 >> 8));
     }
 
-    if (t == AFFINE_PULSE_CHARGE_WHITEN) {
+    if (t == whitenT) {
         PokemonSprite_StartFade(sprite, 12, 16, 0, RGB(31, 31, 31));
-    } else if (t == AFFINE_PULSE_CHARGE_HIDE) {
+        MegaCine_Resonance(data);
+    } else if (t == hideT) {
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, TRUE);
-    } else if (t == AFFINE_PULSE_CHARGE_SWAP) {
+    } else if (t == swapT) {
         BattleDisplay_ReloadFormSprite(data->battleSys, data->battlerData, data->species, data->gender, data->isShiny, data->form, data->personality);
         // The new form can sit at a different height; the reveal scales around its own resting position.
         data->baseYOffset = PokemonSprite_GetAttribute(sprite, MON_SPRITE_Y_OFFSET);
+        data->formSwapped = TRUE;
     }
 
-    if (t > AFFINE_PULSE_CHARGE_SWAP) {
+    if (t > swapT) {
         if (BattleSystem_AreAnimationsOn(data->battleSys) == FALSE) {
-            return t >= AFFINE_PULSE_CHARGE_LENGTH;
+            return t >= AFFINE_PULSE_CHARGE_LENGTH * scale;
         }
 
-        if (sMegaEvolutionCue == MEGA_EVOLUTION_CUE_BURST || t >= AFFINE_PULSE_BURST_CUE_TIMEOUT) {
+        if (sMegaEvolutionCue == MEGA_EVOLUTION_CUE_BURST || t >= (AFFINE_PULSE_CHARGE_LENGTH + 30) * scale) {
             return TRUE;
         }
     }
@@ -6119,13 +6223,29 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
     int t = data->frame;
     int last = NELEMS(sAffinePulseRevealScale) - 1;
 
+    data->cineFrame++;
+
     if (t == 0) {
         PokemonSprite_StartFade(sprite, 16, 16, 0, RGB(31, 31, 31));
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
         AffinePulse_FadeOthers(data, 12, 0, RGB(31, 31, 31));
         AffinePulse_PlaySound(data, SEQ_SE_DP_KIRAKIRA2_sseq); // vanilla sparkle SE (dazzling's SEQ_SE_MEGA_BURST dropped)
+        MegaCine_Burst(data);
         // The name is redrawn with the Mega symbol in front of it.
         HealthBox_DrawInfo(&data->battlerData->healthbox, data->battlerData->healthbox.curHP, HEALTHBOX_INFO_NAME);
+    } else if (t == last + 6) {
+        // Title beat: the emblem particles (mega_evolution.s emitters 14-16)
+        // blaze behind the new form while the bars retract.
+        PostFX_Glow(0.35f, 30);
+    } else if (MegaCine_SkipPressed(data) && t > 6) {
+        AffinePulse_SetScale(data, 0x100);
+        PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
+        PokemonSprite_ClearFade(sprite);
+        AffinePulse_ClearOthers(data);
+        G2_BlendNone();
+        BattleStage_SetBrightness(0);
+        PostFX_Clear();
+        return TRUE;
     } else if (t == AFFINE_PULSE_REVEAL_CRY) {
         Sound_PlayPokemonCry(data->species, data->form);
     } else if (t == AFFINE_PULSE_REVEAL_UNFADE) {
@@ -6142,6 +6262,7 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
         AffinePulse_ClearOthers(data);
         G2_BlendNone();
         BattleStage_SetBrightness(0);
+        PostFX_Clear();
         return TRUE;
     }
 
@@ -6181,9 +6302,15 @@ static void AffinePulseTask(SysTask *task, void *taskData)
         break;
     }
 
+    // The letterbox is driven from here so it also runs while waiting for the cue.
+    if (data->state != AFFINE_PULSE_STATE_WAIT_CHARGE) {
+        MegaCine_Letterbox(data);
+    }
+
     if (done) {
         // The reveal has already reset it; make sure the stage never stays dimmed after the task
         BattleStage_SetBrightness(0);
+        PostFX_Clear();
         sMegaEvolutionCue = MEGA_EVOLUTION_CUE_NONE;
         BattleController_EmitClearCommand(data->battleSys, data->battler, data->command);
         Heap_Free(data);
