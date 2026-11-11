@@ -10,6 +10,7 @@
 #include "battle/battle_system.h"
 #include "battle/battle_lib.h"
 #include "constants/battle.h"
+#include "constants/battle/moves.h"
 
 #define MAX_EV 4096
 #define EV_LEN 512
@@ -105,7 +106,7 @@ void BattleEvents_Poll(BattleSystem *sys) {
         else if (!sPrevSpecies[i] && m->species) Emit(ctx, "\"type\":\"send_out\",\"battler\":%d,\"species_id\":%d", i, m->species);
         int speciesChanged = (m->species && sPrevSpecies[i] && m->species != sPrevSpecies[i]) || (!sPrevSpecies[i] && m->species);
         if (!speciesChanged && m->species && sPrevHP[i] >= 0 && m->curHP != sPrevHP[i]) {
-            if (m->curHP < sPrevHP[i]) Emit(ctx, "\"type\":\"damage\",\"battler\":%d,\"attacker\":%d,\"amount\":%d,\"hp_after\":%d,\"max_hp\":%d,\"critical\":%s,\"effectiveness\":\"normal\"", i, ctx->attacker, sPrevHP[i] - m->curHP, m->curHP, (int)m->maxHP, ctx->criticalMul > 1 ? "true" : "false");
+            if (m->curHP < sPrevHP[i]) { const char *eff = (ctx->moveStatusFlags & MOVE_STATUS_SUPER_EFFECTIVE) ? "super" : (ctx->moveStatusFlags & MOVE_STATUS_NOT_VERY_EFFECTIVE) ? "not_very" : (ctx->moveStatusFlags & MOVE_STATUS_INEFFECTIVE) ? "immune" : "normal"; Emit(ctx, "\"type\":\"damage\",\"battler\":%d,\"attacker\":%d,\"amount\":%d,\"hp_after\":%d,\"max_hp\":%d,\"critical\":%s,\"effectiveness\":\"%s\"", i, ctx->attacker, sPrevHP[i] - m->curHP, m->curHP, (int)m->maxHP, (ctx->moveStatusFlags & MOVE_STATUS_CRITICAL_HIT) || ctx->criticalMul > 1 ? "true" : "false", eff); }
             else Emit(ctx, "\"type\":\"heal\",\"battler\":%d,\"amount\":%d,\"hp_after\":%d,\"max_hp\":%d", i, m->curHP - sPrevHP[i], m->curHP, (int)m->maxHP);
         }
         if (m->species && !sPrevFainted[i] && m->curHP <= 0) Emit(ctx, "\"type\":\"faint\",\"battler\":%d", i);
