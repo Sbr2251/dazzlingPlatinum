@@ -392,7 +392,7 @@ index b67717b..cca40ac 100644
            curpal = pal;
          }
 diff --git a/libraries/sim/src/sim_g3_CommandHandler.cpp b/libraries/sim/src/sim_g3_CommandHandler.cpp
-index 18dbafe..f452e57 100644
+index 18dbafe..5b3aa0c 100644
 --- a/libraries/sim/src/sim_g3_CommandHandler.cpp
 +++ b/libraries/sim/src/sim_g3_CommandHandler.cpp
 @@ -186,7 +186,9 @@ void Begin(GXBegin type)
@@ -405,6 +405,36 @@ index 18dbafe..f452e57 100644
  
      g3State.SetPrimitiveType(type);
      g3State.SetCurrentIndexInPolygon(0);
+@@ -816,6 +818,17 @@ void TexImageParamCommand(u32 data)
+     param.color0 = (data & 0b100000000000000000000000000000) >> 29;
+     param.texCordTransform = (data & 0b11000000000000000000000000000000) >> 30;
+     auto& g3State = SIM::G3::GetGlobalState();
++    // Polygons already batched keep the texture they were sent with: draw them before switching (the DS latches the
++    // texture per polygon; the batch is drawn with one texture, so without this a quad sent between a texture change
++    // and a change back drew with the wrong texture - e.g. the streamed battle back sprites)
++    const auto cur = g3State.GetCurrentDrawCall()->GetTexImageParam();
++    if (g3State.GetCurrentDrawCall()->GetRenderVertsCount() != 0
++        && (cur.textureOffset != param.textureOffset || cur.textureFormat != param.textureFormat
++            || cur.textureSSize != param.textureSSize || cur.textureTSize != param.textureTSize
++            || cur.repeatS != param.repeatS || cur.repeatT != param.repeatT || cur.flipS != param.flipS
++            || cur.flipT != param.flipT || cur.color0 != param.color0)) {
++        g3State.FlushDrawCall();
++    }
+     g3State.GetCurrentDrawCall()->SetTexImageParam(param);
+     return;
+ }
+@@ -825,6 +838,11 @@ void TexPlttBase(u32 data)
+ {
+     auto& g3State = GetGlobalState();
+     const auto texParam = g3State.GetCurrentDrawCall()->GetTexImageParam();
++    const u32 base = (texParam.textureFormat == 2) ? (data << 3) : (data << 4);
++
++    if (g3State.GetCurrentDrawCall()->GetRenderVertsCount() != 0 && g3State.GetCurrentDrawCall()->GetTexPaletteBase() != base) {
++        g3State.FlushDrawCall();   // as for TexImageParam: batched polygons keep their palette
++    }
+ 
+     if( texParam.textureFormat == 2 )
+     {
 diff --git a/libraries/sim/src/sim_g3_GlRenderer.cpp b/libraries/sim/src/sim_g3_GlRenderer.cpp
 index 77300c2..ecf6990 100644
 --- a/libraries/sim/src/sim_g3_GlRenderer.cpp

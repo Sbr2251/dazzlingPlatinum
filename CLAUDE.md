@@ -2,19 +2,11 @@
 
 ## Build & Test Workflow
 
-- **Build on the devserver or on a Mac.** Both are supported; the commands are the same.
-  - **Devserver:** `/data/repos/dazzlingPlatinum`. `make release` fetches the toolchain itself (MetroSkrew/mwccarm into `tools/metroskrew`, meson and the subprojects into `subprojects/`); the system needs `libpng-devel`.
-  - **Mac (Apple silicon):** any clone of the repo. Install the dependencies listed in INSTALL.md's MacOS section: Xcode Command Line Tools; `brew install gcc@14 ninja libpng pkg-config arm-none-eabi-gcc xz`; `brew install --cask wine-stable`. The first `make release` downloads the rest of the toolchain (`tools/metroskrew`, `subprojects/`).
-    - mwccarm runs through Wine. Authorize Wine once: in Applications, Control-click Wine Stable, then Open.
-    - Run the build from a logged-in Terminal session. Wine fails with `wineserver: Can't check in server_mach_port` when started from a background or daemon process, for example a remote agent node; that is the environment, not the repo.
-  - There is no separate VM.
-- Build with `make release`. The ROM is hardlinked to `out/dazzlingPlatinum.nds`, outside `build/`. Meson's own output, `build/pokeplatinum.us.nds`, is still there; set `OUT=<dir>` to put it somewhere else.
-  - Don't use plain `make` (`make all`). It also runs `check`, which compares the ROM against the vanilla SHA1 and always fails for this hack.
-  - Only one build can use `build/` at a time. "Some other Meson process is already using this build directory" means another build is running; wait for it rather than deleting the lock.
-- Smoke-test the ROM headlessly with py-desmume, using `SDL_VIDEODRIVER=dummy` with the right venv for the machine:
-  - **Devserver:** `~/.venvs/desmume39/bin/python` (system Python 3.9). The Python 3.12 venv `~/.venvs/desmume` is built on fbcode's Python, which cannot find the system `libglib-2.0.so.0`, so it fails on devservers.
-  - **Mac:** `~/.venvs/desmume/bin/python` (Python 3.12).
-- When the ROM builds, commit and push the branch so the user can test on hardware or their own emulator.
+- **Target: the Mac app** (owner decision 2026-11-10). NDS ROM builds are no longer supported or tested. From now on the code is free to use more memory, bigger assets and PC-only features than the DS allows. iOS/Android ports come later.
+- Build with `tools/macos/build.sh`, or after edits with `ninja -C build_macos` (details in the next section). The result is `build_macos/Dazzling Platinum.app`.
+- The `make release` / mwccarm / Wine / py-desmume tooling still in the tree is legacy. Don't keep it working or use it to validate changes.
+- Test saves: `tools/dazzling/save_tool.py info|edit` inspects and edits raw `.sav`/`.dsv` saves (party order, held items, bag items) and re-signs them.
+- When a change builds, commit and push the branch so the owner can test it.
 
 ## Mac app (PC port, branch `port/macos`)
 
