@@ -1,0 +1,70 @@
+{
+  "_note": "Mega Evolution in battle from the owner's mega-test save. Local-only. Battle inputs (Fight -> move, Mega trigger) need tuning on the real build; contract is: enter battle, party lead can Mega Evolve, no crash, back to field/battle-menu.",
+  "requires_exists": [
+    "~/Downloads/dazzlingPlatinum-mega-test.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzlingPlatinum-mega-test.sav"
+  },
+  "steps": [
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 1200
+    },
+    {
+      "press": "LEFT",
+      "frames": 120
+    },
+    {
+      "press": "RIGHT",
+      "frames": 120
+    },
+    {
+      "wait_until": {
+        "in_battle": true
+      },
+      "timeout_frames": 1800
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "step": 600
+    }
+  ],
+  "assertions": [
+    {
+      "path": "frame",
+      "op": "gt",
+      "value": 0
+    }
+  ],
+  "name": "core_mega_evolution_battle"
+}

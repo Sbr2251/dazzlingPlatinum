@@ -1,0 +1,45 @@
+{
+  "_note": "Warp to Route 201 grass, walk until a wild battle starts, then flee (B / menu input may need tuning on the real build).",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+  },
+  "steps": [
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 1200
+    },
+    {
+      "press": "LEFT",
+      "frames": 120
+    },
+    {
+      "press": "RIGHT",
+      "frames": 120
+    },
+    {
+      "wait_until": {
+        "in_battle": true
+      },
+      "timeout_frames": 1800
+    },
+    {
+      "press": "B",
+      "frames": 10
+    },
+    {
+      "step": 300
+    },
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 1800
+    }
+  ],
+  "name": "core_wild_battle_start_flee"
+}

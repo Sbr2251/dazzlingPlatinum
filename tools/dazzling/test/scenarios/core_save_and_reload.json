@@ -1,0 +1,36 @@
+{
+  "_note": "Load a save, move, re-import the same save (soft reset via import_save) and require the same map. In-game Start->Save input sequence can replace the re-import once menu state is reported precisely.",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
+  },
+  "steps": [
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 1200
+    },
+    {
+      "press": "DOWN",
+      "frames": 10
+    },
+    {
+      "import_save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
+    },
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 1200
+    }
+  ],
+  "assertions": [
+    {
+      "player.map": "MAP_HEADER_TWINLEAF_TOWN"
+    }
+  ],
+  "name": "core_save_and_reload"
+}

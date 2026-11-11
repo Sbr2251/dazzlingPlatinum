@@ -1,0 +1,28 @@
+{
+  "_note": "Boot to title, let the animation run, screenshot for reference comparison. Reference is optional until recorded once against the real headless build (--record).",
+  "steps": [
+    {
+      "wait_until": {
+        "app": "title"
+      },
+      "timeout_frames": 600
+    },
+    {
+      "step": 180
+    },
+    {
+      "screenshot": "title",
+      "reference": "../references/core_title_screen_animation.bmp",
+      "tolerance": 0.02,
+      "optional_reference": true
+    },
+    {
+      "assert": {
+        "path": "frame",
+        "op": "ge",
+        "value": 180
+      }
+    }
+  ],
+  "name": "core_title_screen_animation"
+}

@@ -165,6 +165,16 @@ class GameClient:
             req.update(extra)
         reply = self.cmd(req)
         st = reply.get("state", reply) if isinstance(reply, dict) else {}
+        if isinstance(st, dict) and "player" not in st:
+            player = {}
+            for src, dst in (("map", "map"), ("map_header", "map"), ("map_name", "map"),
+                             ("x", "x"), ("z", "z"), ("dir", "dir")):
+                if src in st:
+                    player[dst] = st[src]
+            if player:
+                st = dict(st, player=player)
+        if isinstance(st, dict) and "app" not in st and "application" in st:
+            st = dict(st, app=st["application"])
         self.last_state = st
         return st
 
@@ -200,10 +210,17 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
         sc = json.load(f)
     name = sc.get("name") or os.path.splitext(os.path.basename(path))[0]
     scen_dir = os.path.dirname(os.path.abspath(path))
+    for req in sc.get("requires_exists") or []:
+        rp = os.path.expanduser(req)
+        if not os.path.isabs(rp):
+            rp = os.path.join(scen_dir, rp)
+        if not os.path.exists(rp):
+            return name, True, f"SKIP (missing {req}; local-only scenario)", None
     client = GameClient(game_path, work_root, name)
     started = time.time()
     try:
         def resolve(p):
+            p = os.path.expanduser(p)
             return p if os.path.isabs(p) else os.path.join(scen_dir, p)
         # ---- start
         start = sc.get("start") or {}
@@ -263,6 +280,8 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                             shutil.copyfile(out, ref_path)
                         else:
                             if not os.path.exists(ref_path):
+                                if step.get("optional_reference"):
+                                    continue
                                 raise ScenarioFailure(idx, step, f"reference screenshot missing: {ref_path} (run with --record)",
                                                       client.last_state, out)
                             ok, _frac, msg = compare_images(out, ref_path, step.get("tolerance", 0.01))
@@ -335,7 +354,8 @@ def main(argv=None):
             print(f"[{ 'PASS' if ok else 'FAIL'}] {name}: {msg}" if ok else f"[FAIL] {name}\n{msg}")
             failures += 0 if ok else 1
     for c in clients:
-        c.close()
+        if c is not None:
+            c.close()
     print(f"run.py: {len(paths) - failures}/{len(paths)} passed")
     return 1 if failures else 0
 

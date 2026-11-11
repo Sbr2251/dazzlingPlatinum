@@ -1,0 +1,110 @@
+{
+  "_note": "New Game -> prologue. Exact touch/name inputs need tuning against the real headless build (debug-headless); structure + end state are the contract: field in/after the Distortion World intro stretch. Presses advance dialogue generically.",
+  "steps": [
+    {
+      "wait_until": {
+        "app": "title"
+      },
+      "timeout_frames": 600
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 3600
+    },
+    {
+      "step": 120
+    }
+  ],
+  "assertions": [
+    {
+      "app": "field"
+    }
+  ],
+  "name": "core_new_game_distortion_world_prologue"
+}

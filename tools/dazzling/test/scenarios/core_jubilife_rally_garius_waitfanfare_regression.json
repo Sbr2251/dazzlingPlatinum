@@ -1,0 +1,179 @@
+{
+  "_note": "Regression for 02a21151a8: after Saros's rally lines a GoTo into movement data (damaged WaitFanfare follower) crashed. Talk to Garius / trigger the rally, advance all dialogue, and require we return to free field control with no crash. Talk target may need the rally coord-event instead once real state reporting lands; keep the no-crash + back-to-field assertion.",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+  },
+  "steps": [
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 1200
+    },
+    {
+      "press": "UP",
+      "frames": 30
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 1800
+    },
+    {
+      "step": 60
+    }
+  ],
+  "assertions": [
+    {
+      "player.map": "MAP_HEADER_JUBILIFE_CITY"
+    }
+  ],
+  "name": "core_jubilife_rally_garius_waitfanfare_regression"
+}

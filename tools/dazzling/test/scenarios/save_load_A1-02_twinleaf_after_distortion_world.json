@@ -1,0 +1,26 @@
+{
+  "name": "save_load_A1-02_twinleaf_after_distortion_world",
+  "_note": "Loads to the field at the expected map. Local-only: test saves are not in the repo (see BRIEF). Skipped when the save is absent.",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
+  },
+  "steps": [
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 1200
+    },
+    {
+      "step": 30
+    }
+  ],
+  "assertions": [
+    {
+      "player.map": "MAP_HEADER_TWINLEAF_TOWN"
+    }
+  ]
+}

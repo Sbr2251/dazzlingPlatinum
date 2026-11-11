@@ -1,0 +1,26 @@
+{
+  "name": "save_load_A2-39_eterna_after_haven",
+  "_note": "Loads to the field at the expected map. Local-only: test saves are not in the repo (see BRIEF). Skipped when the save is absent.",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-39_eterna_after_haven.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-39_eterna_after_haven.sav"
+  },
+  "steps": [
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 1200
+    },
+    {
+      "step": 30
+    }
+  ],
+  "assertions": [
+    {
+      "player.map": "MAP_HEADER_ETERNA_CITY"
+    }
+  ]
+}

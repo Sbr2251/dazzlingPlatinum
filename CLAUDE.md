@@ -23,6 +23,15 @@ This branch adds the cybervisi0n PC port (`pc_port`) and a native macOS target o
 - After editing field scripts, run `tools/dazzling/check_script_targets.py`. It catches a GoTo/Call or movement command whose target isn't a label in the file; such scripts assemble but crash the Mac app and misbehave on the DS.
 - Headless testing works with the debug automation variables listed in `README_macOS.md`, e.g. `SIM_DEBUG_FAST=1 SIM_DEBUG_IMPORT_SAVE=20:<save> SIM_DEBUG_KEYS=... SIM_DEBUG_SHOT_DIR=... SIM_DEBUG_EXIT_FRAME=...`.
 
+## Test suite (tools/dazzling/test/)
+
+- Static checks (no game build): `python3 tools/dazzling/test/static_checks.py`
+- Scenario suite (headless lockstep, needs the debug-headless `SIM_HEADLESS`/`SIM_CONTROL` build): `python3 tools/dazzling/test/run.py -j 4`
+- Record reference screenshots: `python3 tools/dazzling/test/run.py --record --filter title`
+- Runner unit tests against the mock game: `python3 tools/dazzling/test/test_runner.py`
+- Script coverage report: `python3 tools/dazzling/test/coverage.py <coverage.txt>` (game side: `SIM_SCRIPT_COVERAGE=<file>`)
+- Scenario format, state paths and coverage details: `tools/dazzling/test/README.md`.
+
 ## Important: Text Encoding
 
 - **Always use straight/ASCII apostrophes** (`'` U+0027) in all text files, never curly/smart apostrophes (`'` `'` U+2018/U+2019)

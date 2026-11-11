@@ -1,0 +1,75 @@
+{
+  "_note": "Talk to a trainer on Route 201/203 from the Sandgem save and play one turn, then require battle exit or action-menu state. Trainer localid/coords need confirmation on the real build.",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+  },
+  "steps": [
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 1200
+    },
+    {
+      "press": "RIGHT",
+      "frames": 180
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "A",
+      "frames": 2
+    },
+    {
+      "step": 60
+    },
+    {
+      "step": 300
+    }
+  ],
+  "assertions": [
+    {
+      "app": "field"
+    }
+  ],
+  "name": "core_trainer_battle"
+}
