@@ -2603,7 +2603,7 @@ index 0000000..86e5cea
 +  return TRUE;
 +}
 diff --git a/libraries/sim/src/sim_g3_CommandHandler.cpp b/libraries/sim/src/sim_g3_CommandHandler.cpp
-index 18dbafe..5b3aa0c 100644
+index 18dbafe..abc34e0 100644
 --- a/libraries/sim/src/sim_g3_CommandHandler.cpp
 +++ b/libraries/sim/src/sim_g3_CommandHandler.cpp
 @@ -186,7 +186,9 @@ void Begin(GXBegin type)
@@ -2616,6 +2616,15 @@ index 18dbafe..5b3aa0c 100644
  
      g3State.SetPrimitiveType(type);
      g3State.SetCurrentIndexInPolygon(0);
+@@ -689,7 +691,7 @@ void PolygonAttrCommand(u32 data)
+     if(depthTest != g3State.GetCurrentDrawCall()->GetPolygonAttr().depthTest)
+     {
+         if(depthTest){
+-            glDepthFunc(GL_LEQUAL);
++            glDepthFunc(GL_EQUAL); // DS "equal" depth test (decal), see sim_g3_GlRenderer.cpp
+         } else {
+             glDepthFunc(GL_LESS);
+         }
 @@ -816,6 +818,17 @@ void TexImageParamCommand(u32 data)
      param.color0 = (data & 0b100000000000000000000000000000) >> 29;
      param.texCordTransform = (data & 0b11000000000000000000000000000000) >> 30;
@@ -2659,7 +2668,7 @@ index 4a8a30b..a8e9b67 100644
    switch (msg->type) {
    case DRAW_CMD_G3_NOP:
 diff --git a/libraries/sim/src/sim_g3_GlRenderer.cpp b/libraries/sim/src/sim_g3_GlRenderer.cpp
-index 77300c2..8a24a5c 100644
+index 77300c2..b2b2704 100644
 --- a/libraries/sim/src/sim_g3_GlRenderer.cpp
 +++ b/libraries/sim/src/sim_g3_GlRenderer.cpp
 @@ -1,6 +1,7 @@
@@ -2714,7 +2723,7 @@ index 77300c2..8a24a5c 100644
              if(texImageParam.repeatS) {
                  if(texImageParam.flipS)
                  {
-@@ -95,34 +117,55 @@ void GlRenderer::Draw(std::shared_ptr<DrawCall> drawCall) {
+@@ -95,34 +117,58 @@ void GlRenderer::Draw(std::shared_ptr<DrawCall> drawCall) {
              } else {
                  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
              }
@@ -2777,7 +2786,10 @@ index 77300c2..8a24a5c 100644
 +            case GX_CULL_BACK:  glEnable(GL_CULL_FACE); glCullFace(GL_FRONT); break;
 +            default:            glDisable(GL_CULL_FACE); break;
          }
-+        glDepthFunc(attr.depthTest ? GL_LEQUAL : GL_LESS);
++        // DS depth test bit (POLYGON_ATTR bit 14): 0 = less, 1 = equal ("decal": only where a
++        // polygon already wrote this exact depth, e.g. an overlay drawn on a sprite's own pixels).
++        // LEQUAL let decal polygons cover everything behind them.
++        glDepthFunc(attr.depthTest ? GL_EQUAL : GL_LESS);
 +        // As on the DS, translucent polygons only update the depth buffer when their attribute asks for it.
 +        const bool depthWrite = !drawCall->IsTransparent() || attr.translucentDepth;
 +        if(!depthWrite) glDepthMask(GL_FALSE);
