@@ -1068,6 +1068,16 @@ void BattleDisplay_InitTaskSetMoveAnimation(BattleSystem *battleSys, BattlerData
     }
 
     BattleDisplay_GetAnimHideFlags(&setMoveAnimationData->hideHealthboxes, &setMoveAnimationData->hideShadows, animation->animMode, animation->secondaryAnimID, animation->move);
+
+    // Totem aura flare: the real battle path (the debug move tester reaches the same beat
+    // through BattleDisplay_StartMoveAnimation; TotemAura_Start ignores a second call).
+    if (animation->animMode != 0 && animation->secondaryAnimID == BATTLE_ANIMATION_TOTEM_AURA) {
+        BattleStage_SetCameraScriptCinematic(BATTLE_STAGE_CINEMATIC_TOTEM);
+        BattleStage_HoldCameraAfterScript();
+        TotemBattle_HideHealthbars(battleSys);
+        TotemAura_Start(battleSys);
+    }
+
     SysTask_Start(Task_SetMoveAnimation, setMoveAnimationData, 0);
 }
 

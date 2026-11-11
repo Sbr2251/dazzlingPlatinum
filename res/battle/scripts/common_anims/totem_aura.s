@@ -36,10 +36,10 @@ L_0:
     Func_FadeBattlerSprite BATTLE_ANIM_ATTACKER, 1, 1, BATTLE_COLOR_WHITE, 14, 6
     Func_Shake 2, 1, 1, 8, BATTLE_ANIM_BATTLER_SPRITE_ATTACKER
     Delay 20
-    // Settle: flames fall back to the persistent aura's level while the banner shows
+    // Settle: flames fall back to the persistent aura's level while the banner shows.
+    // No WaitForAllEmitters: emitters 0-2 never expire, so unloading ends them.
     WaitForAnimTasks
     Delay 40
-    WaitForAllEmitters
     UnloadParticleSystem 0
     StageCameraWait
     End
