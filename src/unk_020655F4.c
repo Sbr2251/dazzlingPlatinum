@@ -439,8 +439,7 @@ static BOOL MovementAction_FaceEast_Step0(MapObject *mapObj)
 static void MovementAction_InitWalk(MapObject *mapObj, int dir, fx32 distance, s16 duration, u16 param4)
 {
     #ifdef SDK_PORT
-    SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
-    if(myConfig->enable60fps && myConfig->enable60fpsSpeedFix) {
+    if (SIM_Config_prj_DoubleStep()) {
         duration = duration << 1;
         distance = distance >> 1;
     }
@@ -653,7 +652,17 @@ static void MovementAction_InitWalkOnSpot(MapObject *mapObj, int dir, s16 durati
     WalkOnSpotMovementData *data = MapObject_InitMovementData(mapObj, sizeof(WalkOnSpotMovementData) + 8);
 
     data->unused = param3;
+    #ifdef SDK_PORT
+    if (SIM_Config_prj_DoubleStep()) {
+        // 60 Hz logic: twice as many logic frames per real second, so the
+        // in-place walk lasts twice as many frames (same real time).
+        data->duration = (duration + 1) << 1;
+    } else {
+        data->duration = duration + 1;
+    }
+    #else
     data->duration = duration + 1;
+    #endif
 
     MapObject_TryFace(mapObj, dir);
     sub_02062A0C(mapObj, param3);
@@ -798,6 +807,15 @@ static BOOL MovementAction_WalkOnSpotFasterEast_Step0(MapObject *mapObj)
 
 static void MovementAction_InitJumpCustomSound(MapObject *mapObj, int dir, fx32 distance, s16 duration, u16 param4, s16 param5, u16 param6, u32 seqID)
 {
+    #ifdef SDK_PORT
+    if (SIM_Config_prj_DoubleStep()) {
+        // 60 Hz logic: double the duration, halve the per-frame horizontal
+        // distance and the per-frame height-table rate, same real time.
+        duration = duration << 1;
+        distance = distance >> 1;
+        param6 = param6 >> 1;
+    }
+    #endif
     JumpMovementData *data = MapObject_InitMovementData(mapObj, sizeof(JumpMovementData));
 
     data->dir = dir;
@@ -1038,6 +1056,11 @@ static BOOL MovementAction_JumpDistortionWorldEast_Step0(MapObject *mapObj)
 static void MovementAction_InitDelay(MapObject *mapObj, int delay)
 {
     DelayMovementData *data = MapObject_InitMovementData(mapObj, sizeof(DelayMovementData));
+    #ifdef SDK_PORT
+    if (SIM_Config_prj_DoubleStep()) {
+        delay = delay << 1;
+    }
+    #endif
     data->delay = delay;
 
     MapObject_AdvanceMovementStep(mapObj);
@@ -1101,7 +1124,11 @@ static BOOL MovementAction_Delay32_Step0(MapObject *mapObj)
 static BOOL MovementAction_WarpOut_Step0(MapObject *mapObj)
 {
     WarpMovementData *data = MapObject_InitMovementData(mapObj, sizeof(WarpMovementData));
+    #ifdef SDK_PORT
+    data->dy = SIM_Config_prj_DoubleStep() ? FX32_CONST(8) : FX32_CONST(16);
+    #else
     data->dy = FX32_CONST(16);
+    #endif
 
     sub_02062A0C(mapObj, MAP_OBJ_UNK_A0_00);
     MapObject_AdvanceMovementStep(mapObj);
@@ -1132,7 +1159,11 @@ static BOOL MovementAction_WarpIn_Step0(MapObject *mapObj)
     WarpMovementData *data = MapObject_InitMovementData(mapObj, sizeof(WarpMovementData));
 
     data->y = FX32_CONST(8) * 40;
+    #ifdef SDK_PORT
+    data->dy = SIM_Config_prj_DoubleStep() ? -FX32_CONST(8) : -FX32_CONST(16);
+    #else
     data->dy = -FX32_CONST(16);
+    #endif
 
     sub_02062A0C(mapObj, MAP_OBJ_UNK_A0_00);
     MapObject_AdvanceMovementStep(mapObj);
@@ -1257,6 +1288,11 @@ static void MovementAction_InitWalkUneven(MapObject *mapObj, int dir, s16 durati
 
     data->dir = dir;
     data->unused = param3;
+    #ifdef SDK_PORT
+    if (SIM_Config_prj_DoubleStep()) {
+        duration = duration << 1;
+    }
+    #endif
     data->duration = duration;
 
     MapObject_StepDir(mapObj, dir);
@@ -1270,7 +1306,17 @@ static BOOL MovementAction_WalkUneven(MapObject *mapObj, const fx32 *stepSizes)
 {
     WalkUnevenMovementData *data = MapObject_GetMovementData(mapObj);
 
+    #ifdef SDK_PORT
+    if (SIM_Config_prj_DoubleStep()) {
+        // Table entry used twice, at half size: same total distance, same
+        // real time, and the position advances every rendered frame.
+        MapObject_MovePosInDir(mapObj, data->dir, stepSizes[data->timer >> 1] >> 1);
+    } else {
+        MapObject_MovePosInDir(mapObj, data->dir, stepSizes[data->timer]);
+    }
+    #else
     MapObject_MovePosInDir(mapObj, data->dir, stepSizes[data->timer]);
+    #endif
     MapObject_RecalculateObjectHeight(mapObj);
 
     if (++(data->timer) < data->duration) {
@@ -1387,7 +1433,11 @@ static BOOL MovementAction_PokecenterNurseBow_Step1(MapObject *mapObj)
 {
     PokecenterNurseBowMovementData *data = MapObject_GetMovementData(mapObj);
 
+    #ifdef SDK_PORT
+    if (++(data->timer) >= (SIM_Config_prj_DoubleStep() ? 16 : 8)) {
+    #else
     if (++(data->timer) >= 8) {
+    #endif
         MapObject_TryFace(mapObj, DIR_SOUTH);
         sub_02062A0C(mapObj, MAP_OBJ_UNK_A0_00);
         MapObject_AdvanceMovementStep(mapObj);
@@ -1427,7 +1477,11 @@ static BOOL MovementAction_RevealTrainer_Step1(MapObject *mapObj)
     v2.y = jumpHeightsTable[data->jumpHeightIndex];
     MapObject_SetSpriteJumpOffset(mapObj, &v2);
 
+    #ifdef SDK_PORT
+    data->jumpHeightIndex += SIM_Config_prj_DoubleStep() ? 1 : 2;
+    #else
     data->jumpHeightIndex += 2;
+    #endif
 
     if (data->jumpHeightIndex < 16) {
         return FALSE;
@@ -1467,7 +1521,11 @@ static BOOL MovementAction_PlayerGiveReceive_Step1(MapObject *mapObj)
 {
     PlayerGiveReceiveMovementData *data = MapObject_GetMovementData(mapObj);
 
+    #ifdef SDK_PORT
+    if (++(data->timer) < (SIM_Config_prj_DoubleStep() ? 42 : 21)) {
+    #else
     if (++(data->timer) < 21) {
+    #endif
         return FALSE;
     }
 
@@ -1478,8 +1536,22 @@ static BOOL MovementAction_PlayerGiveReceive_Step1(MapObject *mapObj)
 static void sub_02066824(MapObject *mapObj, const VecFx32 *param1, int param2, int param3, int param4, u8 param5)
 {
     UnkStruct_02066824 *data = MapObject_InitMovementData(mapObj, sizeof(UnkStruct_02066824));
+    #ifdef SDK_PORT
+    if (SIM_Config_prj_DoubleStep()) {
+        param4 = param4 << 1;
+    }
+    #endif
     data->duration = param4;
     data->unk_04 = *param1;
+    #ifdef SDK_PORT
+    if (SIM_Config_prj_DoubleStep()) {
+        // Per-frame slide vector halved; the doubled duration restores the
+        // total displacement and real time.
+        data->unk_04.x = data->unk_04.x >> 1;
+        data->unk_04.y = data->unk_04.y >> 1;
+        data->unk_04.z = data->unk_04.z >> 1;
+    }
+    #endif
 
     MapObject_TryFace(mapObj, param2);
     MapObject_Turn(mapObj, param3);
@@ -1791,6 +1863,15 @@ static void sub_02066F88(MapObject *mapObj, fx32 distance, int facingDir, int mo
     int v0 = 1;
     UnkStruct_02066F88 *v1 = MapObject_InitMovementData(mapObj, sizeof(UnkStruct_02066F88));
 
+    #ifdef SDK_PORT
+    if (SIM_Config_prj_DoubleStep()) {
+        // Double the duration, halve the per-frame distance; unk_0E below
+        // is recomputed from the doubled duration, so the height phase
+        // advances at half rate too.
+        duration = duration << 1;
+        distance = distance >> 1;
+    }
+    #endif
     v1->unk_00 = duration;
     v1->unk_04 = distance;
     v1->unk_02 = param6;
