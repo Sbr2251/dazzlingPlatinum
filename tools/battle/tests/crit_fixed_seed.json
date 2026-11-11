@@ -9,14 +9,16 @@
     "level": 50,
     "moves": [
      "MOVE_KARATE_CHOP",
-     "MOVE_STRENGTH"
+     "MOVE_STONE_EDGE",
+     "MOVE_STRENGTH",
+     "MOVE_BULK_UP"
     ]
    }
   ],
   "opponent": [
    {
     "species": "SPECIES_BIDOOF",
-    "level": 30,
+    "level": 100,
     "moves": [
      "MOVE_TACKLE"
     ]

@@ -225,6 +225,7 @@ class BattleRunner:
 
     def run_battle(self, spec, policy="first", max_steps=1200):
         self.to_field()
+        self.is_double = bool(spec.get("double") or spec.get("battle_type") in ("double", "totem"))
         spec_path = os.path.join(self.work, "spec.json")
         with open(spec_path, "w") as f:
             json.dump(spec, f)
@@ -237,16 +238,15 @@ class BattleRunner:
             for battler in (0, 2):
                 for i in range(40):
                     try:
-                        self.game.cmd({"cmd": "battle_decide", "battler": battler, "action": "move", "move_index": i % max(1, len((spec.get("player") or [{}])[min(battler // 2, len(spec.get("player") or [1]) - 1)].get("moves", [1])))})
+                        self.game.cmd({"cmd": "battle_decide", "battler": battler, "action": "move", "target": 1 if battler == 0 else 3, "move_index": i % max(1, len((spec.get("player") or [{}])[min(battler // 2, len(spec.get("player") or [1]) - 1)].get("moves", [1])))})
                     except Exception:
                         break
-        self.is_double = bool(spec.get("double") or spec.get("battle_type") in ("double", "totem"))
         decisions = list(spec.get("decisions", []))
         rng = random.Random(spec.get("seed", 0) + 999)
         moves_count = max(1, len((spec.get("player") or [{}])[0].get("moves", ["MOVE_TACKLE"])))
         prev = None
         saw_battle = False
-        for _ in range(max_steps):
+        for step_i in range(max_steps):
             self.game.cmd({"cmd": "step", "frames": 45})
             st = self.state()
             self.poll_events()
@@ -257,6 +257,11 @@ class BattleRunner:
                 prev = cur
                 self.last_battle = cur
                 if cur.get("waiting"):
+                    if self.is_double:
+                        # Decisions are pre-queued; A only confirms target /
+                        # forced-switch prompts and advances text.
+                        press(self.game, "A", 40)
+                        continue
                     if decisions:
                         dec = decisions.pop(0)
                     elif policy == "random":
@@ -270,6 +275,12 @@ class BattleRunner:
                     self.do_decision(dec)
             elif saw_battle and st.get("app") == "field":
                 break
+            if saw_battle and st.get("app") == "battle" and step_i % 8 == 7:
+                # Party/target/text prompts are not always `waiting`.
+                # Doubles also has a SHIFT-position prompt (touch menu).
+                if self.is_double:
+                    touch(self.game, 128, 100, 20)
+                press(self.game, "A", 20)
             elif saw_battle:
                 # messages / transitions between battle and field: advance text
                 press(self.game, "A", 30)

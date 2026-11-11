@@ -18,22 +18,32 @@
     "species": "SPECIES_GARCHOMP",
     "level": 50,
     "moves": [
-     "MOVE_EARTHQUAKE",
-     "MOVE_DRAGON_CLAW"
+     "MOVE_DRAGON_CLAW",
+     "MOVE_STONE_EDGE",
+     "MOVE_EARTHQUAKE"
+    ]
+   },
+   {
+    "species": "SPECIES_STARAPTOR",
+    "level": 50,
+    "moves": [
+     "MOVE_BRAVE_BIRD",
+     "MOVE_CLOSE_COMBAT",
+     "MOVE_QUICK_ATTACK"
     ]
    }
   ],
   "opponent": [
    {
     "species": "SPECIES_BIDOOF",
-    "level": 20,
+    "level": 10,
     "moves": [
      "MOVE_TACKLE"
     ]
    },
    {
     "species": "SPECIES_STARLY",
-    "level": 20,
+    "level": 10,
     "moves": [
      "MOVE_QUICK_ATTACK"
     ]
