@@ -17,6 +17,18 @@
 
 #ifdef SDK_PORT
 #include "port/savedata_upgrade.h"
+#include <simulator/sim_headless.h>
+// Instant save: bracket a whole top-level save in one flash transaction, so
+// the many chunk writes below are serialized in memory and flushed once,
+// atomically (see sim_save_flash.cpp). Nested brackets coalesce to the
+// outermost commit. Default (and only) PC behaviour; DS builds unchanged.
+#define SAVE_TXN_BEGIN()    SIM_SaveFlash_Begin()
+#define SAVE_TXN_COMMIT()   ((void)SIM_SaveFlash_Commit())
+#define SAVE_TXN_ROLLBACK() SIM_SaveFlash_Rollback()
+#else
+#define SAVE_TXN_BEGIN()    ((void)0)
+#define SAVE_TXN_COMMIT()   ((void)0)
+#define SAVE_TXN_ROLLBACK() ((void)0)
 #endif
 
 static void SaveTable_Clear(SaveDataBody *body, const SavePageInfo *pageInfo);
@@ -129,6 +141,7 @@ const void *SaveData_SaveTableConst(const SaveData *saveData, int saveTableID)
 
 BOOL SaveData_Erase(SaveData *saveData)
 {
+    SAVE_TXN_BEGIN();
     u8 *saveBuffer = Heap_AllocAtEnd(HEAP_ID_APPLICATION, SAVE_SECTOR_SIZE);
 
     SleepLock(SLEEP_TYPE_SAVE_DATA);
@@ -150,6 +163,7 @@ BOOL SaveData_Erase(SaveData *saveData)
 
     saveData->dataExists = FALSE;
     SleepUnlock(SLEEP_TYPE_SAVE_DATA);
+    SAVE_TXN_COMMIT();
 
     return TRUE;
 }
@@ -180,6 +194,7 @@ int SaveData_Save(SaveData *saveData)
         return SAVE_RESULT_CORRUPT;
     }
 
+    SAVE_TXN_BEGIN();
     if (saveData->isNewGameData) {
         SleepLock(SLEEP_TYPE_SAVE_DATA);
 
@@ -196,6 +211,9 @@ int SaveData_Save(SaveData *saveData)
     if (saveResult == SAVE_RESULT_OK) {
         saveData->dataExists = TRUE;
         saveData->isNewGameData = FALSE;
+        SAVE_TXN_COMMIT();
+    } else {
+        SAVE_TXN_ROLLBACK();
     }
 
     return saveResult;
@@ -207,6 +225,7 @@ int SaveData_SaveBlock(SaveData *saveData, int saveBlockID)
     GF_ASSERT(saveData->isNewGameData == FALSE);
     GF_ASSERT(saveData->dataExists == TRUE);
 
+    SAVE_TXN_BEGIN();
     SaveData_SaveStateInit(saveData, saveBlockID);
 
     int saveResult;
@@ -214,6 +233,11 @@ int SaveData_SaveBlock(SaveData *saveData, int saveBlockID)
         saveResult = SaveData_SaveStateMain(saveData);
     } while (saveResult == SAVE_RESULT_PROCEED || saveResult == SAVE_RESULT_PROCEED_FINAL);
 
+    if (saveResult == SAVE_RESULT_OK) {
+        SAVE_TXN_COMMIT();
+    } else {
+        SAVE_TXN_ROLLBACK();
+    }
     return saveResult;
 }
 
@@ -693,6 +717,7 @@ static s32 SaveDataState_InitFooter_Secondary(SaveData *saveData, int blockID, u
 
 static void SaveDataState_Init(SaveData *saveData, SaveDataState *state, int blockID)
 {
+    SAVE_TXN_BEGIN();
     for (int i = 0; i < SAVE_BLOCK_ID_MAX; i++) {
         state->blockCounterBackup[i] = saveData->blockCounters[i];
         saveData->blockCounters[i]++;
@@ -799,6 +824,12 @@ static void SaveDataState_End(SaveData *saveData, SaveDataState *state, int save
     int i;
 
     if (saveResult == SAVE_RESULT_CORRUPT) {
+        SAVE_TXN_ROLLBACK();
+    } else {
+        SAVE_TXN_COMMIT();
+    }
+
+    if (saveResult == SAVE_RESULT_CORRUPT) {
         if (state->fullSaveMode) {
             saveData->globalCounter = state->globalCounterBackup;
         }
@@ -841,6 +872,7 @@ static void SaveDataState_Cancel(SaveData *saveData, SaveDataState *state)
         state->locked = FALSE;
     }
 
+    SAVE_TXN_ROLLBACK();
     SleepUnlock(SLEEP_TYPE_SAVE_DATA);
 }
 
@@ -1024,6 +1056,7 @@ static u32 SaveCheckFooter_SaveCounter(void *saveBody, u32 size)
 
 int SaveDataExtra_Save(const SaveData *saveData, int extraSaveID, void *data)
 {
+    SAVE_TXN_BEGIN();
     SleepLock(SLEEP_TYPE_SAVE_DATA);
     GF_ASSERT(extraSaveID < gExtraSaveTableSize);
 
@@ -1055,15 +1088,18 @@ int SaveDataExtra_Save(const SaveData *saveData, int extraSaveID, void *data)
 
     if (saveResult == TRUE) {
         SleepUnlock(SLEEP_TYPE_SAVE_DATA);
+        SAVE_TXN_COMMIT();
         return SAVE_RESULT_OK;
     } else {
         SleepUnlock(SLEEP_TYPE_SAVE_DATA);
+        SAVE_TXN_ROLLBACK();
         return SAVE_RESULT_CORRUPT;
     }
 }
 
 int SaveDataExtra_SaveMirror(SaveData *saveData, int extraSaveID, void *data)
 {
+    SAVE_TXN_BEGIN();
     SleepLock(SLEEP_TYPE_SAVE_DATA);
     GF_ASSERT(extraSaveID < gExtraSaveTableSize);
 
@@ -1098,9 +1134,11 @@ int SaveDataExtra_SaveMirror(SaveData *saveData, int extraSaveID, void *data)
 
     if (saveResult == TRUE) {
         SleepUnlock(SLEEP_TYPE_SAVE_DATA);
+        SAVE_TXN_COMMIT();
         return SAVE_RESULT_OK;
     } else {
         SleepUnlock(SLEEP_TYPE_SAVE_DATA);
+        SAVE_TXN_ROLLBACK();
         return SAVE_RESULT_CORRUPT;
     }
 }
