@@ -1522,6 +1522,7 @@ typedef struct AffinePulseTaskData {
     u8 isEnemy;
     u8 cineShort; // MegaCinematicShort in sim_config_prj.ini: half-length beats
     u8 formSwapped;
+    u8 stageCleared; // Healthboxes scrolled away for the cinematic
     u16 cineFrame; // Frames since the charge started (the cinematic clock)
     s16 baseYOffset;
     u32 personality;
@@ -6000,13 +6001,83 @@ static void MegaCine_Center(AffinePulseTaskData *data, int *x, int *y)
     *y = data->isEnemy ? 64 : 112;
 }
 
+// Slide every healthbox off-stage for the cinematic, and back at the title.
+static void MegaCine_ScrollHealthboxes(AffinePulseTaskData *data, BOOL out)
+{
+    // Scroll IN teleports the box out first if it is already home: only
+    // scroll in when the stage was actually cleared, and out only once.
+    if ((out && data->stageCleared) || (!out && !data->stageCleared)) {
+        return;
+    }
+
+    for (int i = 0; i < BattleSystem_GetMaxBattlers(data->battleSys); i++) {
+        BattlerData *battlerData = BattleSystem_GetBattlerData(data->battleSys, i);
+
+        if (battlerData != NULL && battlerData->healthbox.mainSprite != NULL) {
+            HealthBox_Scroll(&battlerData->healthbox, out ? HEALTHBOX_SCROLL_OUT : HEALTHBOX_SCROLL_IN);
+        }
+    }
+
+    data->stageCleared = out ? TRUE : FALSE;
+}
+
 static void MegaCine_ChargeStart(AffinePulseTaskData *data)
 {
     int cx, cy;
     MegaCine_Center(data, &cx, &cy);
+    PostFX_SetRegion(1); // battle (top) screen only; the touch screen stays clean
     PostFX_Vignette(0.07f, 0.01f, 0.19f, 0.62f, data->cineShort ? 110 : 240);
     PostFX_ZoomBlur(cx, cy, 0.16f, 40 * MegaCine_Scale(data));
     PostFX_Glow(0.28f, 50 * MegaCine_Scale(data));
+    MegaCine_ScrollHealthboxes(data, TRUE);
+}
+
+// Key Stone cut-in, driven per task tick: the strip sweeps in over the
+// first part of the charge, holds its beam on the battler, then leaves.
+static void MegaCine_CutIn(AffinePulseTaskData *data)
+{
+    int cx, cy;
+    int start = 4;
+    int end = data->cineShort ? 30 : 52;
+    float progress, alpha;
+
+    if (data->state != AFFINE_PULSE_STATE_CHARGE || data->cineFrame < start || data->cineFrame > end + 8) {
+        return;
+    }
+
+    MegaCine_Center(data, &cx, &cy);
+    progress = (float)(data->cineFrame - start) / (float)(end - start);
+    if (progress > 1.0f) {
+        progress = 1.0f;
+    }
+    alpha = 1.0f;
+    if (data->cineFrame < start + 6) {
+        alpha = (float)(data->cineFrame - start) / 6.0f;
+    } else if (data->cineFrame > end) {
+        alpha = 1.0f - (float)(data->cineFrame - end) / 8.0f;
+    }
+    PostFX_CutIn(progress, alpha, cx, cy);
+}
+
+// Title card band, driven per task tick during the reveal's title beat.
+static void MegaCine_TitleCard(AffinePulseTaskData *data)
+{
+    int start = 21; // == NELEMS(sAffinePulseRevealScale) + 2, kept in step below
+    int end = start + 38;
+    float progress, alpha;
+
+    if (data->state != AFFINE_PULSE_STATE_REVEAL || data->frame < start || data->frame > end) {
+        return;
+    }
+
+    progress = (float)(data->frame - start) / (float)(end - start);
+    alpha = 1.0f;
+    if (data->frame < start + 6) {
+        alpha = (float)(data->frame - start) / 6.0f;
+    } else if (data->frame > end - 8) {
+        alpha = (float)(end - data->frame) / 8.0f;
+    }
+    PostFX_TitleCard(progress, alpha);
 }
 
 static void MegaCine_Resonance(AffinePulseTaskData *data)
@@ -6039,10 +6110,10 @@ static void MegaCine_Letterbox(AffinePulseTaskData *data)
         int in = data->cineFrame < 18 ? data->cineFrame : 18;
         amount = 0.14f * (float)in / 18.0f;
     } else if (data->state == AFFINE_PULSE_STATE_REVEAL) {
-        if (data->frame < 26) {
+        if (data->frame < 30) {
             amount = 0.14f;
-        } else if (data->frame < 44) {
-            amount = 0.14f * (1.0f - (float)(data->frame - 26) / 18.0f);
+        } else if (data->frame < 56) {
+            amount = 0.14f * (1.0f - (float)(data->frame - 30) / 26.0f);
         }
     }
 
@@ -6231,6 +6302,9 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
         MegaCine_Burst(data);
         // The name is redrawn with the Mega symbol in front of it.
         HealthBox_DrawInfo(&data->battlerData->healthbox, data->battlerData->healthbox.curHP, HEALTHBOX_INFO_NAME);
+    } else if (t == last + 2) {
+        // Title beat: healthboxes slide back as the title band sweeps.
+        MegaCine_ScrollHealthboxes(data, FALSE);
     } else if (t == last + 6) {
         // Title beat: the emblem particles (mega_evolution.s emitters 14-16)
         // blaze behind the new form while the bars retract.
@@ -6240,6 +6314,7 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
         PokemonSprite_ClearFade(sprite);
         AffinePulse_ClearOthers(data);
+        MegaCine_ScrollHealthboxes(data, FALSE);
         G2_BlendNone();
         BattleStage_SetBrightness(0);
         PostFX_Clear();
@@ -6253,11 +6328,13 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
     if (t <= last) {
         AffinePulse_SetBrightness(t < NELEMS(sAffinePulseRevealFlash) ? sAffinePulseRevealFlash[t] : 0);
         AffinePulse_SetScale(data, sAffinePulseRevealScale[t]);
-    } else if (PokemonSprite_IsFadeActive(sprite) == FALSE && AffinePulse_OthersFading(data) == FALSE) {
+    } else if (t > last + 36 && PokemonSprite_IsFadeActive(sprite) == FALSE && AffinePulse_OthersFading(data) == FALSE) {
+        // Hold the title beat (band + healthbox return) before finishing.
         AffinePulse_SetScale(data, 0x100);
         PokemonSprite_SetAttribute(sprite, MON_SPRITE_HIDE, FALSE);
         PokemonSprite_ClearFade(sprite);
         AffinePulse_ClearOthers(data);
+        MegaCine_ScrollHealthboxes(data, FALSE);
         G2_BlendNone();
         BattleStage_SetBrightness(0);
         PostFX_Clear();
@@ -6303,11 +6380,14 @@ static void AffinePulseTask(SysTask *task, void *taskData)
     // The letterbox is driven from here so it also runs while waiting for the cue.
     if (data->state != AFFINE_PULSE_STATE_WAIT_CHARGE) {
         MegaCine_Letterbox(data);
+        MegaCine_CutIn(data);
+        MegaCine_TitleCard(data);
     }
 
     if (done) {
         // The reveal has already reset it; make sure the stage never stays dimmed after the task
         BattleStage_SetBrightness(0);
+        MegaCine_ScrollHealthboxes(data, FALSE);
         PostFX_Clear();
         sMegaEvolutionCue = MEGA_EVOLUTION_CUE_NONE;
         BattleController_EmitClearCommand(data->battleSys, data->battler, data->command);
