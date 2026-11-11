@@ -2104,10 +2104,10 @@ index b67717b..cca40ac 100644
          }
 diff --git a/libraries/sim/src/sim_g2_gpu.cpp b/libraries/sim/src/sim_g2_gpu.cpp
 new file mode 100644
-index 0000000..b621b4f
+index 0000000..86e5cea
 --- /dev/null
 +++ b/libraries/sim/src/sim_g2_gpu.cpp
-@@ -0,0 +1,308 @@
+@@ -0,0 +1,311 @@
 +// GPU 2D layer renderer (perf-g2gpu).
 +//
 +// Renders each BG layer, each OBJ priority layer and the OBJ window mask
@@ -2338,6 +2338,9 @@ index 0000000..b621b4f
 +  glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
 +  GLint prevViewport[4] = {0};
 +  glGetIntegerv(GL_VIEWPORT, prevViewport);
++  // Restore whatever framebuffer was bound (the PostFX offscreen frame, not always the window)
++  GLint prevFbo = 0;
++  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
 +  glUseProgram(sProg);
 +  glBindVertexArray(sVao);
 +  glBindFramebuffer(GL_FRAMEBUFFER, sFbo);
@@ -2405,7 +2408,7 @@ index 0000000..b621b4f
 +  for (int p = 0; p < 4; p++) drawObjPass(objTexIds[p], 1, p, p);
 +  drawObjPass(objWindowTexId, 2, 0, 4);
 +
-+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
++  glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
 +  glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
 +  for (int i = 0; i < 5; i++) {
 +    glActiveTexture(GL_TEXTURE10 + i);
