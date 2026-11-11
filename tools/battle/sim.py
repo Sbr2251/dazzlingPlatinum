@@ -168,6 +168,13 @@ class BattleRunner:
         elif ty in ("run", "flee"):
             cmd = {"cmd": "battle_decide", "battler": 0, "action": "run"}
             self.fled = True
+        elif ty == "switch":
+            # party_slot is 0-based in the decision queue (round-4 hook).
+            cmd = {"cmd": "battle_decide", "battler": 0, "action": "switch",
+                   "party_slot": max(0, int(dec.get("slot", 2)) - 1)}
+        elif ty == "item":
+            cmd = {"cmd": "battle_decide", "battler": 0, "action": "item",
+                   "item": dec.get("item", "ITEM_POTION"), "party_slot": int(dec.get("party_slot", 0))}
         else:
             return False
         try:
@@ -262,7 +269,12 @@ class BattleRunner:
                         # forced-switch prompts and advances text.
                         press(self.game, "A", 40)
                         continue
-                    if decisions:
+                    if cur.get("battlers") and cur["battlers"][0].get("hp", 1) == 0:
+                        # Forced switch after a faint: send the next alive party mon.
+                        party = st.get("party") or []
+                        slot = next((i + 1 for i, m in enumerate(party) if m.get("hp", 0) > 0), 2)
+                        dec = {"type": "switch", "slot": slot}
+                    elif decisions:
                         dec = decisions.pop(0)
                     elif policy == "random":
                         dec = {"type": "move", "index": rng.randrange(moves_count)}

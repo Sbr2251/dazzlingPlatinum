@@ -12,7 +12,8 @@
      "MOVE_STONE_EDGE",
      "MOVE_STRENGTH",
      "MOVE_BULK_UP"
-    ]
+    ],
+    "held_item": "ITEM_SCOPE_LENS"
    }
   ],
   "opponent": [
