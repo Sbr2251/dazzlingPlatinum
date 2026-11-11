@@ -110,7 +110,7 @@ class TestRunnerEndToEnd(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             a, b = os.path.join(d, "a.bmp"), os.path.join(d, "b.bmp")
             write_bmp(a, 16, 16, 7); write_bmp(b, 16, 16, 100)
-            self.assertTrue(runner.compare_images(a, a, crop=[0, 0, 8, 8])[0])
+            self.assertTrue(runner.compare_images(a, a)[0])
             ep, ap, dp = runner.write_diff_images(a, b, d, "shot", crop=[0, 0, 8, 8])
             for pth in (ep, ap, dp):
                 self.assertTrue(os.path.exists(pth), pth)
@@ -125,6 +125,16 @@ class TestRunnerEndToEnd(unittest.TestCase):
             self.assertEqual(runner.load_image(os.path.join(d, "ref.bmp"))[:2], (8, 8))
             ok, msg = self.run_one(d, sc, record=False)
             self.assertTrue(ok, msg)
+
+    def test_compare_cropped_actual_vs_stored_cropped_ref(self):
+        sys.path.insert(0, HERE)
+        from fake_game import write_bmp
+        with tempfile.TemporaryDirectory() as d:
+            a, b = os.path.join(d, "a.bmp"), os.path.join(d, "b.bmp")
+            write_bmp(a, 16, 16, 7)
+            img = runner.crop_image(runner.load_image(a), [0, 0, 8, 8])
+            runner.save_bmp(b, img[0], img[1], img[2])
+            self.assertTrue(runner.compare_images(a, b, crop=[0, 0, 8, 8])[0])
 
     def test_start_battle_and_decide_steps(self):
         with tempfile.TemporaryDirectory() as d:

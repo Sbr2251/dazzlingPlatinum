@@ -86,7 +86,7 @@ def write_diff_images(actual_path, ref_path, workdir, shot_name, crop=None):
     Diff pixels: differing pixels bright red, matching pixels darkened actual."""
     a, b = load_image(actual_path), load_image(ref_path)
     if crop:
-        a, b = crop_image(a, crop), crop_image(b, crop)
+        a = crop_image(a, crop)  # references are stored already cropped
     os.makedirs(workdir, exist_ok=True)
     ep, ap, dp = (os.path.join(workdir, f"{shot_name}.{k}.bmp") for k in ("expected", "actual", "diff"))
     save_bmp(ep, b[0], b[1], b[2]); save_bmp(ap, a[0], a[1], a[2])
@@ -106,7 +106,7 @@ def compare_images(actual_path, ref_path, tolerance=0.01, channel_eps=8, crop=No
     """Return (ok, differing_fraction, message)."""
     a, b = load_image(actual_path), load_image(ref_path)
     if crop:
-        a, b = crop_image(a, crop), crop_image(b, crop)
+        a = crop_image(a, crop)  # references are stored already cropped
     if a[:2] != b[:2]:
         return False, 1.0, f"size differs: actual {a[0]}x{a[1]} vs reference {b[0]}x{b[1]}"
     diff = total = 0
