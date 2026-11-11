@@ -54,6 +54,7 @@
 #include "battle_sub_menus/battle_party.h"
 
 #include "assert.h"
+#include "gx_layers.h"
 #include "port/postfx.h"
 #include "port/sim_config_prj.h"
 #include "bg_window.h"
@@ -1523,6 +1524,7 @@ typedef struct AffinePulseTaskData {
     u8 cineShort; // MegaCinematicShort in sim_config_prj.ini: half-length beats
     u8 formSwapped;
     u8 stageCleared; // Healthboxes scrolled away for the cinematic
+    u8 textboxHidden; // Message window BG plane hidden for the cinematic
     u16 cineFrame; // Frames since the charge started (the cinematic clock)
     s16 baseYOffset;
     u32 personality;
@@ -6002,8 +6004,15 @@ static void MegaCine_Center(AffinePulseTaskData *data, int *x, int *y)
 }
 
 // Slide every healthbox off-stage for the cinematic, and back at the title.
+// The message textbox rides BG1: hide that plane with the stage and restore
+// it on return, so no empty window shows inside the letterbox.
 static void MegaCine_ScrollHealthboxes(AffinePulseTaskData *data, BOOL out)
 {
+    if (!out && data->textboxHidden) {
+        GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, TRUE);
+        data->textboxHidden = FALSE;
+    }
+
     // Scroll IN teleports the box out first if it is already home: only
     // scroll in when the stage was actually cleared, and out only once.
     if ((out && data->stageCleared) || (!out && !data->stageCleared)) {
@@ -6030,6 +6039,8 @@ static void MegaCine_ChargeStart(AffinePulseTaskData *data)
     PostFX_ZoomBlur(cx, cy, 0.16f, 40 * MegaCine_Scale(data));
     PostFX_Glow(0.28f, 50 * MegaCine_Scale(data));
     MegaCine_ScrollHealthboxes(data, TRUE);
+    GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, FALSE);
+    data->textboxHidden = TRUE;
 }
 
 // Key Stone cut-in, driven per task tick: the strip sweeps in over the
