@@ -19,6 +19,7 @@
 
 #include "camera.h"
 #include "heap.h"
+#include "totem_battle.h"
 #include "narc.h"
 #include "particle_system.h"
 #include "pokemon_sprite.h"
@@ -305,6 +306,7 @@ static void TotemAura_DriveFlare(TotemAura *aura)
         && (gSystem.pressedKeys & (PAD_BUTTON_A | PAD_BUTTON_B)) != 0) {
         aura->flareFrame = aura->flareDuration;
         TotemFX_Clear(aura);
+        TotemBattle_ShowHealthbars(aura->battleSys);
         return;
     }
 
@@ -349,6 +351,9 @@ static void TotemAura_DriveFlare(TotemAura *aura)
     if (aura->flareFrame >= aura->flareDuration) {
         TotemFX_Clear(aura);
         BattleStage_SetBackdropShake(0, 0);
+        // The flare hid the healthboxes for its close-up; bring them back as
+        // the stat-boost message plays (the first-menu show beat runs earlier).
+        TotemBattle_ShowHealthbars(aura->battleSys);
     }
 }
 
