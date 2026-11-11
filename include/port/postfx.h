@@ -34,6 +34,19 @@ void PostFX_Shake(float amount, int frames);
 // screen, each amount * main-screen-height tall (amount 0.14 is a strong
 // cinema bar). Drive it per frame with frames=2 to animate the slide.
 void PostFX_Letterbox(float amount, int frames);
+// Which screens effects apply to: 0 = both, 1 = main/top only (the
+// default: the bottom touch screen stays clean during cinematics),
+// 2 = sub/bottom only. The letterbox is always on the main screen.
+void PostFX_SetRegion(int screen);
+// Key Stone cut-in, driven per frame with frames=2 like the letterbox:
+// a diagonal rainbow strip sweeps across the main screen carrying a
+// glowing Key Stone, with a rainbow beam from the stone to (x, y).
+// progress 0-1 is the sweep position; alpha 0-1 fades it in/out.
+void PostFX_CutIn(float progress, float alpha, int x, int y);
+// Title card, driven per frame: a dark violet gradient band with
+// rainbow edges slides across the middle of the main screen. Pair it
+// with a printed "MEGA <NAME>!" line (the shader draws no text).
+void PostFX_TitleCard(float progress, float alpha);
 // Cancel every active effect on the next rendered frame.
 void PostFX_Clear(void);
 
