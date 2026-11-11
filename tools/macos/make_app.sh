@@ -21,6 +21,8 @@ grep -v '^#' "$CSV" | grep -v '^Source File' | grep -v '^[[:space:]]*$' | cut -d
   cp "$BUILDDIR$dest" "$C/Resources/game$dest"
 done
 for f in header.bin firmware.bin language.csv; do cp "$BUILDDIR/$f" "$C/Resources/game/$f"; done
+# Battle Lab specs (debug GUI): copied next to the game files at build time
+[ -d "$BUILDDIR/battle_specs" ] && cp -R "$BUILDDIR/battle_specs" "$C/Resources/game/battle_specs"
 
 # The executable and the SDL it links (sdl2-compat over SDL3 from Homebrew), relinked to the bundle's copies
 cp "$BUILDDIR/main" "$C/MacOS/pokeplatinum"
