@@ -141,10 +141,16 @@ Queue: `BattleDecisions_Push/P peek/Complete` in `battle_events.h`.
 Consumption is client-side: the player command/move/target menu tasks in
 `battle_display.c` read the queue when they would poll input, set their
 input (and `megaEvolutionTriggered` for mega), then emit and clean up
-normally - so no menu task is orphaned. Bag/party sub-menu tasks are not
-yet hooked: switch/item decisions are accepted, recorded and replayed in
-format, but their in-battle consumption still goes through the normal
-menus (engine-sim: drive those with press/touch until the hook lands).
+normally - so no menu task is orphaned. Bag/party sub-menus are hooked inside their own tasks (round 4):
+BattlePartyTask_PartyPokemonScreen selects the queued party slot and exits
+through its own cleanup (also serves the forced-switch party menu and the
+party USE_ITEM target for bag items), and BattleBagTask MenuScreen /
+UseItemScreen locate and confirm the queued item (pressing the pocket button
+so the screen transition completes). Decisions complete per action via
+BattleDecisions_MarkDone (forced switches never reach the command WAIT
+state). Move decisions are recorded with their final target. Verified with
+start_battle specs: switch, Potion, faint->forced switch and doubles all
+record and replay with BATTLE_REPLAY_OK.
 Lockstep: `{"cmd":"battle_decide","battler":0,"action":"move","move":"MOVE_X"|"move_index":0,"target":1,"mega":true}`
 (also `switch`+`party_slot`, `item`+`item`, `run`). Move/item names resolve
 via generated tables (`kHeadlessMoves`/`kHeadlessItems`; gen_headless_names.py
