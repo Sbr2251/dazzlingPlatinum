@@ -73,122 +73,13 @@
       "talk": "LOCALID_VEILSTONE_NURSE"
     },
     {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "wait_until": {
+      "press_until": {
         "script": null
       },
-      "timeout_frames": 3600
+      "keys": "A",
+      "press_frames": 10,
+      "interval_frames": 300,
+      "timeout_frames": 14400
     }
   ],
   "assertions": [

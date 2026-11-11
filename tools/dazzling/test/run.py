@@ -301,6 +301,21 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                                                   st, client.last_screenshot)
                         client.cmd({"cmd": "step", "frames": 10})
                         waited += 10
+                elif "press_until" in step:
+                    cond = step["press_until"]
+                    budget = step.get("timeout_frames", 7200)
+                    waited = 0
+                    while True:
+                        st = client.state()
+                        if condition_met(st, cond):
+                            break
+                        if waited >= budget:
+                            raise ScenarioFailure(idx, step, f"press_until {cond} not met within {budget} frames",
+                                                  st, client.last_screenshot)
+                        client.cmd({"cmd": "press", "keys": as_keys(step.get("keys", "A")),
+                                    "frames": step.get("press_frames", 10)})
+                        client.cmd({"cmd": "step", "frames": step.get("interval_frames", 300)})
+                        waited += step.get("press_frames", 10) + step.get("interval_frames", 300)
                 elif "screenshot" in step:
                     shot_name = step["screenshot"] if isinstance(step["screenshot"], str) else step["screenshot"].get("name", f"step{idx}")
                     out = os.path.join(client.dir, shot_name + ".bmp")
