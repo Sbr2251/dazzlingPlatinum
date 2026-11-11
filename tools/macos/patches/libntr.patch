@@ -1165,6 +1165,30 @@ index 876f6c4..36edb27 100644
  }
  
  void MI_CpuFill(void *dest, u8 data, u32 size) {
+diff --git a/libraries/sim/include/sim_g2_gpu.h b/libraries/sim/include/sim_g2_gpu.h
+new file mode 100644
+index 0000000..cef4eb5
+--- /dev/null
++++ b/libraries/sim/include/sim_g2_gpu.h
+@@ -0,0 +1,18 @@
++#ifndef SIM_G2_GPU_H
++#define SIM_G2_GPU_H
++#include <nitro/types.h>
++#include <simulator/sim_opengl.h>
++
++// GPU 2D layer renderer (perf-g2gpu). Renders BG and OBJ layers directly
++// from VRAM/palette/OAM data textures into the existing layer textures
++// (s_bgTextureId / s_objTextureId / objWindowTextureId), after which the
++// existing g2_fragment.glsl compositing runs unchanged.
++//
++// Enabled with SIM_G2_GPU=1 (unset or 0 = CPU reference path in sim_g2.cpp).
++// Returns FALSE when the GPU path is disabled or the engine uses a feature
++// the GPU path does not replicate (extended direct-color bitmap, mode 6);
++// the caller then runs the CPU path for that engine.
++BOOL G2GPU_RenderLayers(BOOL isSub, GLuint *bgTexIds, GLuint *objTexIds,
++                        GLuint objWindowTexId);
++
++#endif
 diff --git a/libraries/sim/meson.build b/libraries/sim/meson.build
 index d7a921e..240b2ac 100644
 --- a/libraries/sim/meson.build
@@ -1209,10 +1233,18 @@ index e638798..550c270 100644
      s_G3numInPoly = 0;
      s_G3drawPoly = 0;
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..4142f05 100644
+index 2d852bf..6b39032 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
-@@ -31,6 +31,7 @@ libsim_srcs = files(
+@@ -18,6 +18,7 @@ libsim_srcs = files(
+     'sim_debug.cpp',
+     'sim_NitroMainThread.cpp',
+     'sim_g2.cpp',
++    'sim_g2_gpu.cpp',
+     'sim_g3_c_bridge.cpp',
+     'sim_g3_CommandHandler.cpp',
+     'sim_g3_CommandProcessor.cpp',
+@@ -31,6 +32,7 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
@@ -1360,6 +1392,300 @@ index b652bd5..f816f23 100644
              currentBgDrawn = 4;
          }
      }
+diff --git a/libraries/sim/src/shaders/g2gpu_fragment.glsl b/libraries/sim/src/shaders/g2gpu_fragment.glsl
+new file mode 100644
+index 0000000..999904e
+--- /dev/null
++++ b/libraries/sim/src/shaders/g2gpu_fragment.glsl
+@@ -0,0 +1,275 @@
++R""(
++#version 420 core
++// GPU 2D layer renderer (perf-g2gpu). One pass renders one layer (a BG, an
++// OBJ priority layer, or the OBJ window mask) into that layer's existing
++// 256x384 texture; g2_fragment.glsl compositing is unchanged afterwards.
++// All inputs are plain data textures / int uniforms so a Metal port only
++// has to translate the fetch helpers. This replicates sim_g2.cpp/sim_main
++// CPU behaviour exactly, including its quirks (see sim_g2_gpu.cpp header).
++uniform usampler2D bgVramTex;   // R8UI, 2048 wide
++uniform usampler2D objVramTex;  // R8UI, 1024 wide
++uniform usampler2D lcdcTex;     // R8UI, 2048 wide (extended palettes)
++uniform usampler2D oamTex;      // R16UI, 512 x 2 (main, sub)
++uniform usampler2D palTex;      // R16UI, 256 x 4 (BG main, OBJ main, BG sub, OBJ sub)
++uniform int passMode;           // 0 = BG, 1 = OBJ layer, 2 = OBJ window
++uniform int isSub;
++uniform int layer;              // BG number, or OBJ priority 0..3
++uniform int topScreen;          // 1 if this engine is on the top half
++uniform int dispcnt;
++uniform int bgcnt[4];
++uniform int bgofs[4];           // packed HOFS | VOFS<<16 (text BGs)
++uniform int affA[4]; uniform int affB[4]; uniform int affC[4]; uniform int affD[4];
++uniform int affX[4]; uniform int affY[4];
++uniform int bgMode;
++uniform int extPlttBase;        // byte offset into lcdcTex for BG ext palettes
++uniform int win0h; uniform int win0v; uniform int winin; uniform int winout;
++uniform int dbgEnable;          // GUI debug enable for this layer
++uniform int objList[128];       // candidate sprite indices for this pass (ascending)
++uniform int objCount;
++out vec4 outColor;
++
++uint bgByte(int a) { a &= isSub == 1 ? 0x1FFFF : 0x7FFFF; return texelFetch(bgVramTex, ivec2(a & 2047, a >> 11), 0).r; }
++uint objByte(int a) { a &= isSub == 1 ? 0x1FFFF : 0x3FFFF; return texelFetch(objVramTex, ivec2(a & 1023, a >> 10), 0).r; }
++uint lcdcByte(int a) { return texelFetch(lcdcTex, ivec2(a & 2047, a >> 11), 0).r; }
++uint bgWord(int a) { return bgByte(a) | (bgByte(a + 1) << 8u); }
++uint objWord(int a) { return objByte(a) | (objByte(a + 1) << 8u); }
++uint lcdcWord(int a) { return lcdcByte(a) | (lcdcByte(a + 1) << 8u); }
++uint oamWord(int i) { return texelFetch(oamTex, ivec2(i, isSub), 0).r; }
++vec3 palColor(int row, int idx) {
++    uint c = texelFetch(palTex, ivec2(idx & 255, row), 0).r;
++    uint r = ((c & 31u) * 527u + 23u) >> 6;
++    uint g = (((c >> 5) & 31u) * 527u + 23u) >> 6;
++    uint b = (((c >> 10) & 31u) * 527u + 23u) >> 6;
++    return vec3(float(r), float(g), float(b)) / 255.0;
++}
++vec3 extPalColor(int slot, int palNum, int idx) {
++    int a = extPlttBase + slot * 8192 + palNum * 512 + idx * 2;
++    uint c = lcdcWord(a);
++    uint r = ((c & 31u) * 527u + 23u) >> 6;
++    uint g = (((c >> 5) & 31u) * 527u + 23u) >> 6;
++    uint b = (((c >> 10) & 31u) * 527u + 23u) >> 6;
++    return vec3(float(r), float(g), float(b)) / 255.0;
++}
++int bgKind() { // 0 text, 1 affine, 2 extended, -1 none ( mirrors G2SIM_DrawBG dispatch )
++    if (layer == 0 || layer == 1) return 0;
++    if (layer == 2) {
++        if (bgMode == 0 || bgMode == 1 || bgMode == 3) return 0;
++        if (bgMode == 2 || bgMode == 4) return 1;
++        if (bgMode == 5) return 2;
++        return -1;
++    }
++    if (bgMode == 0) return 0;
++    if (bgMode == 1 || bgMode == 2) return 1;
++    if (bgMode >= 3 && bgMode <= 5) return 2;
++    return -1;
++}
++bool textWindowPass(int x, int y) { // CPU text BG: only WIN0 is consulted
++    if (((dispcnt >> 13) & 1) == 0) return true;
++    int left = (win0h >> 8) & 255; int right = win0h & 255;
++    int top = (win0v >> 8) & 255; int bottom = win0v & 255;
++    if (x >= left && x < right && y >= top && y < bottom) return ((winin >> layer) & 1) == 1;
++    return ((winout >> layer) & 1) == 1;
++}
++vec4 renderTextBG(int px, int py) {
++    int cnt = bgcnt[layer];
++    int xoff = (bgofs[layer] & 0x1FF) + px;
++    int yoff = ((bgofs[layer] >> 16) & 0x1FF) + py;
++    int tileset = isSub == 1 ? ((cnt & 0x3C) << 12)
++                             : (((dispcnt >> 24) & 7) << 16) + ((cnt & 0x3C) << 12);
++    int tilemap = isSub == 1 ? ((cnt & 0x1F00) << 3)
++                             : (((dispcnt >> 27) & 7) << 16) + ((cnt & 0x1F00) << 3);
++    if ((cnt & 0x8000) != 0) {
++        tilemap += (yoff & 0x1F8) << 3;
++        if ((cnt & 0x4000) != 0) tilemap += (yoff & 0x100) << 3;
++    } else tilemap += (yoff & 0xF8) << 3;
++    int wideMask = (cnt & 0x4000) != 0 ? 0x100 : 0;
++    int entryAddr = tilemap + ((xoff & 0xF8) >> 2) + ((xoff & wideMask) << 3);
++    uint tile = bgWord(entryAddr);
++    int tileNum = int(tile & 0x3FFu);
++    int tx = (tile & 0x400u) != 0u ? 7 - (xoff & 7) : (xoff & 7);
++    int ty = (tile & 0x800u) != 0u ? 7 - (yoff & 7) : (yoff & 7);
++    if ((cnt & 0x80) != 0) { // 256 colour
++        uint idx = bgByte(tileset + (tileNum << 6) + (ty << 3) + tx);
++        if (idx == 0u || !textWindowPass(px, py)) return vec4(0.0);
++        if ((dispcnt & 0x40000000) != 0) {
++            int slot = (layer < 2 && (cnt & 0x2000) != 0) ? 2 + layer : layer;
++            return vec4(extPalColor(slot, int(tile >> 12), int(idx)), 1.0);
++        }
++        return vec4(palColor(isSub == 1 ? 2 : 0, int(idx)), 1.0);
++    }
++    int addr = tileset + (tileNum << 5) + (ty << 2) + (tx >> 1);
++    uint packed = bgByte(addr);
++    uint idx = (tx & 1) != 0 ? (packed >> 4) : (packed & 15u);
++    if (idx == 0u || !textWindowPass(px, py)) return vec4(0.0);
++    return vec4(palColor(isSub == 1 ? 2 : 0, int(((tile & 0xF000u) >> 8) | idx)), 1.0);
++}
++vec4 renderAffineBG(int px, int py, bool extended) {
++    int cnt = bgcnt[layer];
++    int fx = affX[layer] + py * affB[layer] + px * affA[layer];
++    int fy = affY[layer] + py * affD[layer] + px * affC[layer];
++    int tileset = isSub == 1 ? ((cnt & 0x3C) << 12)
++                             : (((dispcnt >> 24) & 7) << 16) + ((cnt & 0x3C) << 12);
++    int tilemap = isSub == 1 ? ((cnt & 0x1F00) << 3)
++                             : (((dispcnt >> 27) & 7) << 16) + ((cnt & 0x1F00) << 3);
++    int palRow = isSub == 1 ? 2 : 0;
++    if (extended && (cnt & 0x80) != 0) { // bitmap modes (direct colour falls back to CPU)
++        int xmask; int ymask; int yshift;
++        int sizeBits = cnt & 0xC000;
++        if (sizeBits == 0) { xmask = 0x7FFF; ymask = 0x7FFF; yshift = 7; }
++        else if (sizeBits == 0x4000) { xmask = 0xFFFF; ymask = 0xFFFF; yshift = 8; }
++        else if (sizeBits == 0x8000) { xmask = 0x1FFFF; ymask = 0xFFFF; yshift = 9; }
++        else { xmask = 0x1FFFF; ymask = 0x1FFFF; yshift = 9; }
++        int base = (cnt & 0x1F00) << 6;
++        if ((cnt & 0x2000) == 0 && ((fx & ~xmask) != 0 || (fy & ~ymask) != 0)) return vec4(0.0);
++        uint idx = bgByte(base + ((((fy & ymask) >> 8) << yshift) + ((fx & xmask) >> 8)));
++        if (idx == 0u) return vec4(0.0);
++        return vec4(palColor(palRow, int(idx)), 1.0);
++    }
++    int coordmask; int yshift;
++    int sizeBits = cnt & 0xC000;
++    if (sizeBits == 0) { coordmask = 0x7800; yshift = 4; }
++    else if (sizeBits == 0x4000) { coordmask = 0xF800; yshift = 5; }
++    else if (sizeBits == 0x8000) { coordmask = 0x1F800; yshift = 6; }
++    else { coordmask = 0x3F800; yshift = 7; }
++    if ((cnt & 0x2000) == 0 && ((fx | fy) & ~(coordmask | 0x7FF)) != 0) return vec4(0.0);
++    int tx = (fx >> 8) & 7; int ty = (fy >> 8) & 7;
++    if (!extended) {
++        uint tile = bgByte(tilemap + ((((fy & coordmask) >> 11) << yshift) + ((fx & coordmask) >> 11)));
++        uint idx = bgByte(tileset + (int(tile) << 6) + (ty << 3) + tx);
++        if (idx == 0u) return vec4(0.0);
++        return vec4(palColor(palRow, int(idx)), 1.0);
++    }
++    uint tile = bgWord(tilemap + (((((fy & coordmask) >> 11) << yshift) + ((fx & coordmask) >> 11)) << 1));
++    if ((tile & 0x400u) != 0u) tx = 7 - tx;
++    if ((tile & 0x800u) != 0u) ty = 7 - ty;
++    uint idx = bgByte(tileset + ((int(tile & 0x3FFu)) << 6) + (ty << 3) + tx);
++    if (idx == 0u) return vec4(0.0);
++    if ((dispcnt & 0x40000000) != 0) return vec4(extPalColor(layer, int(tile >> 12), int(idx)), 1.0);
++    return vec4(palColor(palRow, int(idx)), 1.0);
++}
++const int sprW[16] = int[16](8,16,8,8,16,32,8,8,32,32,16,8,64,64,32,8);
++const int sprH[16] = int[16](8,8,16,8,16,8,32,8,32,16,32,8,64,32,64,8);
++// Returns: rgb in .rgb, .a = 1 plotted; hitButTransparent handled via alpha 2 marker.
++vec4 sampleSprite(int num, int px, int py, bool wantWindow) {
++    uint a0 = oamWord(num * 4); uint a1 = oamWord(num * 4 + 1); uint a2 = oamWord(num * 4 + 2);
++    bool isWin = ((a0 >> 10) & 3u) == 2u;
++    if (isWin != wantWindow) return vec4(0.0);
++    int mode = wantWindow ? 0 : int((a0 >> 10) & 3u);
++    int sizeParam = int(a0 >> 14) | (int(a1 & 0xC000u) >> 12);
++    int w = sprW[sizeParam]; int h = sprH[sizeParam];
++    int tileNum = int(a2 & 0x3FFu);
++    int palRow = isSub == 1 ? 3 : 1;
++    bool rot = (a0 & 0x100u) != 0u;
++    int palByte = -1; bool hit = false;
++    if (rot) {
++        int bw = w; int bh = h;
++        if ((a0 & 0x200u) != 0u) { bw <<= 1; bh <<= 1; }
++        int syB = (py - int(a0 & 0xFFu)) & 0xFF;
++        if (syB >= bh) return vec4(0.0);
++        int sxB = px - ((int(a1 << 23)) >> 23);
++        if (sxB < 0 || sxB >= bw) return vec4(0.0);
++        int grp = int((a1 >> 9) & 0x1Fu) * 16 + 3;
++        int rA = (int(oamWord(grp)) << 16) >> 16; int rB = (int(oamWord(grp + 4)) << 16) >> 16;
++        int rC = (int(oamWord(grp + 8)) << 16) >> 16; int rD = (int(oamWord(grp + 12)) << 16) >> 16;
++        int rotX = (sxB - (bw >> 1)) * rA + (syB - (bh >> 1)) * rB + (w << 7);
++        int rotY = (sxB - (bw >> 1)) * rC + (syB - (bh >> 1)) * rD + (h << 7);
++        if (uint(rotX) >= uint(w << 8) || uint(rotY) >= uint(h << 8)) return vec4(0.0);
++        if (mode == 3) {
++            if ((a2 >> 12) == 0u) return vec4(0.0);
++            int addr;
++            if ((dispcnt & 0x40) != 0) {
++                if ((dispcnt & 0x20) != 0) return vec4(0.0);
++                addr = tileNum << (7 + ((dispcnt >> 22) & 1));
++                int ytf = w * 2;
++                uint c = objWord(addr + ((rotY >> 8) * ytf) + ((rotX >> 8) << 1));
++                if ((c & 0x8000u) != 0u) { hit = true; palByte = int(c & 0xFFu); }
++            } else {
++                int ytf = (dispcnt & 0x20) != 0 ? 512 : 256;
++                int base = (dispcnt & 0x20) != 0 ? ((tileNum & 0x1F) << 4) + ((tileNum & 0x3E0) << 7)
++                                                 : ((tileNum & 0xF) << 4) + ((tileNum & 0x3F0) << 7);
++                uint c = objWord(base + ((rotY >> 8) * ytf) + ((rotX >> 8) << 1));
++                if ((c & 0x8000u) != 0u) { hit = true; palByte = int(c & 0xFFu); }
++            }
++        } else if ((a0 & 0x2000u) != 0u) { // 8bpp
++            int ytf;
++            int base = tileNum;
++            if ((dispcnt & 0x10) != 0) { base <<= ((dispcnt >> 20) & 3); ytf = ((w >> 3) << 1) << 5; }
++            else ytf = 0x20 << 5;
++            base <<= 5;
++            uint idx = objByte(base + ((rotY >> 11) * ytf) + ((rotY & 0x700) >> 5) + ((rotX >> 11) * 64) + ((rotX & 0x700) >> 8));
++            if (idx != 0u) { hit = true; palByte = int(idx); }
++        } else {
++            int ytf;
++            int base = tileNum;
++            if ((dispcnt & 0x10) != 0) { base <<= ((dispcnt >> 20) & 3); ytf = (w >> 3) << 5; }
++            else ytf = 0x20 << 5;
++            base <<= 5;
++            uint packed = objByte(base + ((rotY >> 11) * ytf) + ((rotY & 0x700) >> 6) + ((rotX >> 11) * 32) + ((rotX & 0x700) >> 9));
++            uint idx = (rotX & 0x100) != 0 ? (packed >> 4) : (packed & 15u);
++            if (idx != 0u) { hit = true; palByte = int(((a2 & 0xF000u) >> 8) | idx); }
++        }
++    } else {
++        if ((a0 & 0x200u) != 0u) return vec4(0.0); // disabled
++        int sy = (py - int(a0 & 0xFFu)) & 0xFF;
++        if (sy >= h) return vec4(0.0);
++        int sx = px - ((int(a1 << 23)) >> 23);
++        if (sx < 0 || sx >= w) return vec4(0.0);
++        int sxF = (a1 & 0x1000u) != 0u ? w - 1 - sx : sx;
++        int syF = (a1 & 0x2000u) != 0u ? h - 1 - sy : sy;
++        if (mode == 3) {
++            if ((a2 >> 12) == 0u) return vec4(0.0);
++            int addr;
++            if ((dispcnt & 0x40) != 0) {
++                if ((dispcnt & 0x20) != 0) return vec4(0.0);
++                addr = (tileNum << (7 + ((dispcnt >> 22) & 1))) + syF * w * 2 + sxF * 2;
++            } else if ((dispcnt & 0x20) != 0) {
++                addr = ((tileNum & 0x1F) << 4) + ((tileNum & 0x3E0) << 7) + syF * 512 + sxF * 2;
++            } else {
++                addr = ((tileNum & 0xF) << 4) + ((tileNum & 0x3F0) << 7) + syF * 256 + sxF * 2;
++            }
++            uint c = objWord(addr);
++            if ((c & 0x8000u) != 0u) { hit = true; palByte = int(c & 0xFFu); }
++        } else if ((a0 & 0x2000u) != 0u) { // 8bpp
++            int t = tileNum;
++            if ((dispcnt & 0x10) != 0) { t <<= ((dispcnt >> 20) & 3); t += ((syF >> 3) * (w >> 3)) << 1; }
++            else t += (syF >> 3) * 0x20;
++            uint idx = objByte((t << 5) + ((syF & 7) << 3) + ((sxF >> 3) << 6) + (sxF & 7));
++            if (idx != 0u) { hit = true; palByte = int(idx); }
++        } else {
++            int t = tileNum;
++            if ((dispcnt & 0x10) != 0) { t <<= ((dispcnt >> 20) & 3); t += (syF >> 3) * (w >> 3); }
++            else t += (syF >> 3) * 0x20;
++            uint packed = objByte((t << 5) + ((syF & 7) << 2) + ((sxF >> 3) << 5) + ((sxF & 7) >> 1));
++            uint idx = (sxF & 1) != 0 ? (packed >> 4) : (packed & 15u);
++            if (idx != 0u) { hit = true; palByte = int(((a2 & 0xF000u) >> 8) | idx); }
++        }
++    }
++    if (!hit) return vec4(0.0);
++    if (wantWindow) return vec4(1.0);
++    if (palByte == 0) return vec4(0.0, 0.0, 0.0, 2.0); // CPU: blocks lower sprites, plots nothing
++    return vec4(palColor(palRow, palByte), 1.0);
++}
++vec4 renderOBJ(int px, int py, bool wantWindow) {
++    for (int i = 0; i < objCount; i++) {
++        vec4 s = sampleSprite(objList[i], px, py, wantWindow);
++        if (s.a > 0.5) return s.a > 1.5 ? vec4(0.0) : s;
++    }
++    return vec4(0.0);
++}
++void main() {
++    if (dbgEnable == 0) { outColor = vec4(0.0); return; }
++    int rb = int(gl_FragCoord.y);
++    int px = int(gl_FragCoord.x);
++    int py;
++    if (topScreen == 1) { if (rb < 192) discard; py = 383 - rb; }
++    else { if (rb >= 192) discard; py = 191 - rb; }
++    if (passMode == 0) {
++        int kind = bgKind();
++        if (kind == 0) outColor = renderTextBG(px, py);
++        else if (kind == 1) outColor = renderAffineBG(px, py, false);
++        else if (kind == 2) outColor = renderAffineBG(px, py, true);
++        else outColor = vec4(0.0);
++    } else if (passMode == 1) outColor = renderOBJ(px, py, false);
++    else outColor = renderOBJ(px, py, true); // window sprites, any priority (objList = window list)
++}
++)""
+diff --git a/libraries/sim/src/shaders/g2gpu_vertex.glsl b/libraries/sim/src/shaders/g2gpu_vertex.glsl
+new file mode 100644
+index 0000000..5aebeb1
+--- /dev/null
++++ b/libraries/sim/src/shaders/g2gpu_vertex.glsl
+@@ -0,0 +1,7 @@
++R""(
++#version 420 core
++void main() {
++    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
++    gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
++}
++)""
 diff --git a/libraries/sim/src/sim_NitroMainThread.cpp b/libraries/sim/src/sim_NitroMainThread.cpp
 index 0766447..2261dcc 100644
 --- a/libraries/sim/src/sim_NitroMainThread.cpp
@@ -1415,6 +1741,300 @@ index b67717b..cca40ac 100644
          } else {
            curpal = pal;
          }
+diff --git a/libraries/sim/src/sim_g2_gpu.cpp b/libraries/sim/src/sim_g2_gpu.cpp
+new file mode 100644
+index 0000000..6244a9f
+--- /dev/null
++++ b/libraries/sim/src/sim_g2_gpu.cpp
+@@ -0,0 +1,288 @@
++// GPU 2D layer renderer (perf-g2gpu).
++//
++// Renders each BG layer, each OBJ priority layer and the OBJ window mask
++// directly from VRAM / palette / OAM data textures into the layer textures
++// the existing g2_fragment.glsl compositing already samples. The CPU path
++// in sim_g2.cpp stays as the reference and fallback (SIM_G2_GPU unset/0).
++//
++// Replicated CPU quirks (for pixel-exactness against the reference):
++// mosaic has no effect, text BG windows consult only WIN0, affine/extended
++// BGs ignore windows, OBJ extended palettes are ignored, bitmap OBJ pixels
++// are palette-looked-up by low byte, OBJ translucency is dropped.
++// Fallbacks (whole engine, logged once): extended direct-color bitmap
++// (CPU reads through an uninitialized palette pointer), BG mode 6.
++//
++// Shader inputs are plain data textures (R8UI/R16UI) and int uniforms so a
++// Metal port is mechanical. GL 4.1 core only.
++#include <nitro.h>
++#include <simulator/sim.h>
++#include <simulator/sim_opengl.h>
++#include <simulator/simvariables.h>
++#include <nitro/gx/gx_vramcnt.h>
++#include <stdio.h>
++#include <string.h>
++#include "sim_g2_gpu.h"
++
++extern u8 s_SIM_DBG_BGenable[4];
++extern u8 s_SIM_DBG_OAMenable;
++extern u8 s_SIM_DBG_BGSenable[4];
++extern u8 s_SIM_DBG_OAMSenable;
++extern GXVRamBGExtPltt s_SIM_GXBgExtPltt;
++extern GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
++
++static const char *kVertSrc =
++#include "shaders/g2gpu_vertex.glsl"
++;
++static const char *kFragSrc =
++#include "shaders/g2gpu_fragment.glsl"
++;
++
++static GLuint sProg = 0, sFbo = 0, sVao = 0;
++static GLuint sBgVramTex[2] = {0, 0}, sObjVramTex[2] = {0, 0}, sLcdcTex = 0, sOamTex = 0, sPalTex = 0;
++static int sInitFailed = 0;
++static int sLoggedFallback = 0;
++
++static GLuint Compile(GLenum type, const char *src) {
++  // macOS: rewrite the leading "#version 420" to "#version 410" (GL 4.1).
++  char *tmp = nullptr;
++  const char *use = src;
++#ifdef SDK_BUILD_MACOS
++  if (strncmp(src, "\n#version 420", 13) == 0 || strncmp(src, "#version 420", 12) == 0) {
++    tmp = strdup(src);
++    char *p = strstr(tmp, "#version 420");
++    if (p) memcpy(p, "#version 410", 12);
++    use = tmp;
++  }
++#endif
++  GLuint s = glCreateShader(type);
++  glShaderSource(s, 1, &use, nullptr);
++  glCompileShader(s);
++  GLint ok = 0;
++  glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
++  if (!ok) {
++    GLint len = 0;
++    glGetShaderiv(s, GL_INFO_LOG_LENGTH, &len);
++    char *log = new char[len + 1]();
++    glGetShaderInfoLog(s, len, nullptr, log);
++    printf("SIM_G2_GPU: shader compile failed: %s\n", log);
++    delete[] log;
++  }
++  if (tmp) free(tmp);
++  return ok ? s : 0;
++}
++
++static bool Init() {
++  if (sProg || sInitFailed) return sProg != 0;
++  GLuint vs = Compile(GL_VERTEX_SHADER, kVertSrc);
++  GLuint fs = Compile(GL_FRAGMENT_SHADER, kFragSrc);
++  if (!vs || !fs) { sInitFailed = 1; return false; }
++  sProg = glCreateProgram();
++  glAttachShader(sProg, vs);
++  glAttachShader(sProg, fs);
++  glLinkProgram(sProg);
++  GLint ok = 0;
++  glGetProgramiv(sProg, GL_LINK_STATUS, &ok);
++  if (!ok) {
++    GLint len = 0;
++    glGetProgramiv(sProg, GL_INFO_LOG_LENGTH, &len);
++    char *log = new char[len + 1]();
++    glGetProgramInfoLog(sProg, len, nullptr, log);
++    printf("SIM_G2_GPU: link failed: %s\n", log);
++    delete[] log;
++    sInitFailed = 1;
++    return false;
++  }
++  glGenFramebuffers(1, &sFbo);
++  glGenVertexArrays(1, &sVao);
++  auto mkTex = [](GLuint &t, GLenum internal, int w, int h, GLenum fmt) {
++    glGenTextures(1, &t);
++    glBindTexture(GL_TEXTURE_2D, t);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++    glTexImage2D(GL_TEXTURE_2D, 0, internal, w, h, 0, fmt, GL_UNSIGNED_BYTE, nullptr);
++  };
++  mkTex(sBgVramTex[0], GL_R8UI, 2048, 256, GL_RED_INTEGER);
++  mkTex(sBgVramTex[1], GL_R8UI, 2048, 256, GL_RED_INTEGER);
++  mkTex(sObjVramTex[0], GL_R8UI, 1024, 256, GL_RED_INTEGER);
++  mkTex(sObjVramTex[1], GL_R8UI, 1024, 256, GL_RED_INTEGER);
++  mkTex(sLcdcTex, GL_R8UI, 2048, 328, GL_RED_INTEGER);
++  glGenTextures(1, &sOamTex);
++  glBindTexture(GL_TEXTURE_2D, sOamTex);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, 512, 2, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, nullptr);
++  glGenTextures(1, &sPalTex);
++  glBindTexture(GL_TEXTURE_2D, sPalTex);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, 256, 4, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, nullptr);
++  glUseProgram(sProg);
++  glUniform1i(glGetUniformLocation(sProg, "bgVramTex"), 10);
++  glUniform1i(glGetUniformLocation(sProg, "objVramTex"), 11);
++  glUniform1i(glGetUniformLocation(sProg, "lcdcTex"), 12);
++  glUniform1i(glGetUniformLocation(sProg, "oamTex"), 13);
++  glUniform1i(glGetUniformLocation(sProg, "palTex"), 14);
++  printf("SIM_G2_GPU: GPU 2D layer renderer enabled\n");
++  return true;
++}
++
++static bool EngineFallback(int isSub, int bgMode, const u16 cnt[4], const u8 enabled[4], int bg0as3d) {
++  for (int i = 0; i < 4; i++) {
++    if (!enabled[i]) continue;
++    if (i == 0 && bg0as3d && !isSub) continue;
++    // Mode 6 large BG on BG2 (main): CPU uploads a stale buffer.
++    if (i == 2 && bgMode == 6 && !isSub) return true;
++    bool extended = (i == 2 && bgMode == 5) || (i == 3 && bgMode >= 3 && bgMode <= 5);
++    // Extended direct-color bitmap: CPU dereferences an uninitialized palette pointer.
++    if (extended && (cnt[i] & 0x84) == 0x84) return true;
++  }
++  return false;
++}
++
++BOOL G2GPU_RenderLayers(BOOL isSub, GLuint *bgTexIds, GLuint *objTexIds, GLuint objWindowTexId) {
++  static int enabled = -1;
++  if (enabled < 0) enabled = (getenv("SIM_G2_GPU") && atoi(getenv("SIM_G2_GPU"))) ? 1 : 0;
++  if (!enabled) return FALSE;
++  if (!Init()) return FALSE;
++
++  u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
++  int bgMode = dispcnt & 7;
++  int bg0as3d = (dispcnt >> 3) & 1;
++  u16 cnt[4] = {isSub ? s_reg_G2S_DB_BG0CNT : s_reg_G2_BG0CNT, isSub ? s_reg_G2S_DB_BG1CNT : s_reg_G2_BG1CNT,
++                isSub ? s_reg_G2S_DB_BG2CNT : s_reg_G2_BG2CNT, isSub ? s_reg_G2S_DB_BG3CNT : s_reg_G2_BG3CNT};
++  u8 bgEnabled[4] = {(u8)((dispcnt >> 8) & 1), (u8)((dispcnt >> 9) & 1), (u8)((dispcnt >> 10) & 1), (u8)((dispcnt >> 11) & 1)};
++  if (EngineFallback(isSub, bgMode, cnt, bgEnabled, bg0as3d)) {
++    if (!sLoggedFallback) { sLoggedFallback = 1; printf("SIM_G2_GPU: unsupported feature this engine, CPU fallback\n"); }
++    return FALSE;
++  }
++
++  // Upload data textures for this engine. A shadow copy is kept per
++  // buffer and the upload is skipped when nothing changed (most screens
++  // reuse VRAM for many frames); the LCDC extended palettes are only
++  // uploaded when this engine has extended palettes enabled.
++  static u8 sShadowBg[2][0x80000], sShadowObj[2][0x40000], sShadowLcdc[0xA4000];
++  static bool sShadowBgValid[2] = {false, false}, sShadowObjValid[2] = {false, false}, sShadowLcdcValid = false;
++  auto uploadIfChanged = [](GLuint tex, int unit, int w, int h, const void *data, size_t size, u8 *shadow, bool *valid) {
++    glActiveTexture(GL_TEXTURE0 + unit);
++    glBindTexture(GL_TEXTURE_2D, tex);
++    if (*valid && memcmp(shadow, data, size) == 0) return;
++    memcpy(shadow, data, size);
++    *valid = true;
++    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RED_INTEGER, GL_UNSIGNED_BYTE, data);
++  };
++  uploadIfChanged(sBgVramTex[isSub], 10, 2048, isSub ? 64 : 256, isSub ? (void *)s_HW_DB_BG_VRAM : (void *)s_HW_BG_VRAM,
++                  isSub ? 0x20000 : 0x80000, sShadowBg[isSub], &sShadowBgValid[isSub]);
++  uploadIfChanged(sObjVramTex[isSub], 11, 1024, isSub ? 128 : 256, isSub ? (void *)s_HW_DB_OBJ_VRAM : (void *)s_HW_OBJ_VRAM,
++                  isSub ? 0x20000 : 0x40000, sShadowObj[isSub], &sShadowObjValid[isSub]);
++  if (dispcnt & 0x40000000)
++    uploadIfChanged(sLcdcTex, 12, 2048, 328, (void *)s_HW_LCDC_VRAM, 0xA4000, sShadowLcdc, &sShadowLcdcValid);
++  glActiveTexture(GL_TEXTURE13);
++  glBindTexture(GL_TEXTURE_2D, sOamTex);
++  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, isSub ? 1 : 0, 512, 1, GL_RED_INTEGER, GL_UNSIGNED_SHORT,
++                  isSub ? (void *)s_HW_DB_OAM : (void *)s_HW_OAM);
++  glActiveTexture(GL_TEXTURE14);
++  glBindTexture(GL_TEXTURE_2D, sPalTex);
++  const u16 *pals[4] = {(u16 *)s_HW_BG_PLTT, (u16 *)s_HW_OBJ_PLTT, (u16 *)s_HW_DB_BG_PLTT, (u16 *)s_HW_DB_OBJ_PLTT};
++  for (int r = 0; r < 4; r++)
++    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, r, 256, 1, GL_RED_INTEGER, GL_UNSIGNED_SHORT, (void *)pals[r]);
++
++  int extBase;
++  if (isSub) extBase = 0x98000; // LCDC bank H
++  else if (s_SIM_GXBgExtPltt == GX_VRAM_BGEXTPLTT_23_G) extBase = 0x94000;
++  else if (s_SIM_GXBgExtPltt == GX_VRAM_BGEXTPLTT_01_F || s_SIM_GXBgExtPltt == GX_VRAM_BGEXTPLTT_0123_FG) extBase = 0x90000;
++  else extBase = 0x80000; // E (also NONE: matches the CPU helper)
++
++  u32 ofs[4], aX[4] = {0}, aY[4] = {0};
++  s16 pA[4] = {0}, pB[4] = {0}, pC[4] = {0}, pD[4] = {0};
++  if (isSub) {
++    ofs[0] = s_reg_G2S_DB_BG0OFS; ofs[1] = s_reg_G2S_DB_BG1OFS; ofs[2] = s_reg_G2S_DB_BG2OFS; ofs[3] = s_reg_G2S_DB_BG3OFS;
++    pA[2] = (s16)s_reg_G2S_DB_BG2PA; pB[2] = (s16)s_reg_G2S_DB_BG2PB; pC[2] = (s16)s_reg_G2S_DB_BG2PC; pD[2] = (s16)s_reg_G2S_DB_BG2PD;
++    pA[3] = (s16)s_reg_G2S_DB_BG3PA; pB[3] = (s16)s_reg_G2S_DB_BG3PB; pC[3] = (s16)s_reg_G2S_DB_BG3PC; pD[3] = (s16)s_reg_G2S_DB_BG3PD;
++    aX[2] = s_reg_G2S_DB_BG2X; aY[2] = s_reg_G2S_DB_BG2Y; aX[3] = s_reg_G2S_DB_BG3X; aY[3] = s_reg_G2S_DB_BG3Y;
++  } else {
++    ofs[0] = s_reg_G2_BG0OFS; ofs[1] = s_reg_G2_BG1OFS; ofs[2] = s_reg_G2_BG2OFS; ofs[3] = s_reg_G2_BG3OFS;
++    pA[2] = (s16)s_reg_G2_BG2PA; pB[2] = (s16)s_reg_G2_BG2PB; pC[2] = (s16)s_reg_G2_BG2PC; pD[2] = (s16)s_reg_G2_BG2PD;
++    pA[3] = (s16)s_reg_G2_BG3PA; pB[3] = (s16)s_reg_G2_BG3PB; pC[3] = (s16)s_reg_G2_BG3PC; pD[3] = (s16)s_reg_G2_BG3PD;
++    aX[2] = s_reg_G2_BG2X; aY[2] = s_reg_G2_BG2Y; aX[3] = s_reg_G2_BG3X; aY[3] = s_reg_G2_BG3Y;
++  }
++  int topScreen = (s_reg_GX_POWCNT >> 15) ? !isSub : isSub;
++
++  GLint prevProg = 0;
++  glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
++  GLint prevViewport[4] = {0};
++  glGetIntegerv(GL_VIEWPORT, prevViewport);
++  glUseProgram(sProg);
++  glBindVertexArray(sVao);
++  glBindFramebuffer(GL_FRAMEBUFFER, sFbo);
++  glViewport(0, 0, SIM_NDS_SCREEN_WIDTH, SIM_NDS_SCREEN_HEIGHT * 2);
++  glDisable(GL_BLEND);
++  glDisable(GL_DEPTH_TEST);
++  glUniform1i(glGetUniformLocation(sProg, "isSub"), isSub);
++  glUniform1i(glGetUniformLocation(sProg, "topScreen"), topScreen);
++  glUniform1i(glGetUniformLocation(sProg, "dispcnt"), (int)dispcnt);
++  glUniform1i(glGetUniformLocation(sProg, "bgMode"), bgMode);
++  glUniform1i(glGetUniformLocation(sProg, "extPlttBase"), extBase);
++  GLint cntI[4] = {cnt[0], cnt[1], cnt[2], cnt[3]};
++  glUniform1iv(glGetUniformLocation(sProg, "bgcnt"), 4, cntI);
++  GLint ofsI[4] = {(GLint)ofs[0], (GLint)ofs[1], (GLint)ofs[2], (GLint)ofs[3]};
++  glUniform1iv(glGetUniformLocation(sProg, "bgofs"), 4, ofsI);
++  GLint vA[4] = {0, 0, pA[2], pA[3]}, vB[4] = {0, 0, pB[2], pB[3]}, vC[4] = {0, 0, pC[2], pC[3]}, vD[4] = {0, 0, pD[2], pD[3]};
++  glUniform1iv(glGetUniformLocation(sProg, "affA"), 4, vA);
++  glUniform1iv(glGetUniformLocation(sProg, "affB"), 4, vB);
++  glUniform1iv(glGetUniformLocation(sProg, "affC"), 4, vC);
++  glUniform1iv(glGetUniformLocation(sProg, "affD"), 4, vD);
++  GLint vX[4] = {0, 0, (GLint)aX[2], (GLint)aX[3]}, vY[4] = {0, 0, (GLint)aY[2], (GLint)aY[3]};
++  glUniform1iv(glGetUniformLocation(sProg, "affX"), 4, vX);
++  glUniform1iv(glGetUniformLocation(sProg, "affY"), 4, vY);
++  glUniform1i(glGetUniformLocation(sProg, "win0h"), isSub ? s_reg_G2S_DB_WIN0H : s_reg_G2_WIN0H);
++  glUniform1i(glGetUniformLocation(sProg, "win0v"), isSub ? s_reg_G2S_DB_WIN0V : s_reg_G2_WIN0V);
++  glUniform1i(glGetUniformLocation(sProg, "winin"), isSub ? s_reg_G2S_DB_WININ : s_reg_G2_WININ);
++  glUniform1i(glGetUniformLocation(sProg, "winout"), isSub ? s_reg_G2S_DB_WINOUT : s_reg_G2_WINOUT);
++
++  int halfY = topScreen ? SIM_NDS_SCREEN_HEIGHT : 0;
++  auto drawPass = [&](GLuint target, int mode, int layer, int dbg) {
++    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
++    glEnable(GL_SCISSOR_TEST);
++    glScissor(0, halfY, SIM_NDS_SCREEN_WIDTH, SIM_NDS_SCREEN_HEIGHT);
++    glClearColor(0, 0, 0, 0);
++    glClear(GL_COLOR_BUFFER_BIT);
++    glDisable(GL_SCISSOR_TEST);
++    glUniform1i(glGetUniformLocation(sProg, "passMode"), mode);
++    glUniform1i(glGetUniformLocation(sProg, "layer"), layer);
++    glUniform1i(glGetUniformLocation(sProg, "dbgEnable"), dbg);
++    glDrawArrays(GL_TRIANGLES, 0, 3);
++  };
++  const u8 *dbgBg = isSub ? s_SIM_DBG_BGSenable : s_SIM_DBG_BGenable;
++  for (int i = 0; i < 4; i++) {
++    int render = bgEnabled[i] && dbgBg[i] && !(i == 0 && bg0as3d && !isSub);
++    // Render (or clear) every layer; compositing binds dummy for disabled BGs anyway.
++    drawPass(bgTexIds[i], 0, i, render ? 1 : 0);
++  }
++  int objEnabled = (dispcnt & 0x1000) && (isSub ? s_SIM_DBG_OAMSenable : s_SIM_DBG_OAMenable);
++  // Candidate sprite lists per priority (ascending OAM index, matching
++  // the CPU's lowest-index-wins result), plus the OBJ window list.
++  const u16 *oam = (const u16 *)(isSub ? s_HW_DB_OAM : s_HW_OAM);
++  GLint lists[5][128];
++  int counts[5] = {0, 0, 0, 0, 0};
++  for (int i = 0; i < 128; i++) {
++    u16 a0 = oam[i * 4], a2 = oam[i * 4 + 2];
++    if (((a0 >> 10) & 3) == 2) { lists[4][counts[4]++] = i; continue; }
++    lists[(a2 >> 10) & 3][counts[(a2 >> 10) & 3]++] = i;
++  }
++  auto drawObjPass = [&](GLuint target, int mode, int layer, int listIdx) {
++    if (!objEnabled || counts[listIdx] == 0) { drawPass(target, mode, layer, 0); return; } // clear only
++    glUniform1iv(glGetUniformLocation(sProg, "objList"), counts[listIdx], lists[listIdx]);
++    glUniform1i(glGetUniformLocation(sProg, "objCount"), counts[listIdx]);
++    drawPass(target, mode, layer, 1);
++  };
++  for (int p = 0; p < 4; p++) drawObjPass(objTexIds[p], 1, p, p);
++  drawObjPass(objWindowTexId, 2, 0, 4);
++
++  glBindFramebuffer(GL_FRAMEBUFFER, 0);
++  glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
++  glEnable(GL_BLEND);
++  glUseProgram(prevProg);
++  return TRUE;
++}
 diff --git a/libraries/sim/src/sim_g3_CommandHandler.cpp b/libraries/sim/src/sim_g3_CommandHandler.cpp
 index 18dbafe..5b3aa0c 100644
 --- a/libraries/sim/src/sim_g3_CommandHandler.cpp
@@ -2271,7 +2891,7 @@ index 0000000..74d53a8
 +
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..72a4d65 100644
+index 910d7da..7317407 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -2299,7 +2919,36 @@ index 910d7da..72a4d65 100644
  
  #include "nds-extract.hpp"
  
-@@ -178,6 +187,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -65,6 +74,7 @@ extern "C" int NitroSpMain(void *arg);
+ #endif
+ 
+ #include "sim_g2.h"
++#include "sim_g2_gpu.h"
+ #include "git_info.h"
+ 
+ // Simulator configuration
+@@ -96,6 +106,20 @@ static struct timespec s_SIM_lastFrameEnd;
+ static u64 sRenderFrameTime;
+ static u64 sFullFrameTime;
+ 
++// SIM_PROFILE=1: in-process section timing (off by default), printed at exit.
++static int sProfile = -1;
++static u64 sProfG2DrawNs, sProfCompNs, sProfG3Ns, sProfRenderNs;
++static u32 sProfEngines;
++static u64 ProfNowNs() { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (u64)t.tv_sec * 1000000000ull + (u64)t.tv_nsec; }
++static bool ProfOn() { if (sProfile < 0) sProfile = getenv("SIM_PROFILE") ? 1 : 0; return sProfile == 1; }
++static void ProfPrint() {
++  if (!ProfOn() || !sProfEngines) return;
++  double n = (double)sProfEngines;
++  printf("SIM_PROFILE: engines=%u g2draw=%.3fms composite=%.3fms (per engine) g3flush+render=%.3fms per frame\n",
++         sProfEngines, sProfG2DrawNs / n / 1e6, sProfCompNs / n / 1e6, sProfRenderNs / (n / 2.0) / 1e6);
++  fflush(stdout);
++}
++
+ static constexpr auto SteamDeckWidth = 1280;
+ static constexpr auto SteamDeckHeight = 800;
+ 
+@@ -178,6 +202,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -2310,7 +2959,7 @@ index 910d7da..72a4d65 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -298,6 +311,16 @@ void SIM_SetInternalResolution(int internalRes) {
+@@ -298,6 +326,16 @@ void SIM_SetInternalResolution(int internalRes) {
        SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
  }
  
@@ -2327,7 +2976,7 @@ index 910d7da..72a4d65 100644
  static bool sChangeInternalResAfterRender = false;
  static int sPendingInternalRes = 1;
  
-@@ -315,7 +338,13 @@ void *SIM_RenderInit(void *arg) {
+@@ -315,7 +353,13 @@ void *SIM_RenderInit(void *arg) {
    SIM_Audio_Init(44100);
  
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -2341,7 +2990,7 @@ index 910d7da..72a4d65 100644
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-@@ -401,8 +430,10 @@ void *SIM_RenderInit(void *arg) {
+@@ -401,8 +445,10 @@ void *SIM_RenderInit(void *arg) {
    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -2352,7 +3001,7 @@ index 910d7da..72a4d65 100644
  
    GLenum glErrCode;
    GLint status;
-@@ -453,8 +484,14 @@ void *SIM_RenderInit(void *arg) {
+@@ -453,8 +499,14 @@ void *SIM_RenderInit(void *arg) {
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
                 GL_UNSIGNED_BYTE, NULL);
  
@@ -2368,7 +3017,15 @@ index 910d7da..72a4d65 100644
    glCompileShader(_id);                                                        \
    glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
    if (status != GL_TRUE) {                                                     \
-@@ -610,7 +647,8 @@ static void DrawEngine(BOOL isSub) {
+@@ -567,6 +619,7 @@ void *SIM_RenderInit(void *arg) {
+ }
+ 
+ static void DrawEngine(BOOL isSub) {
++  u64 profT0 = ProfOn() ? ProfNowNs() : 0;
+   const char *zoneName;
+   zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
+ #ifdef SDK_TRACY_ENABLE
+@@ -610,7 +663,8 @@ static void DrawEngine(BOOL isSub) {
    backdropVec[2] = (float)backdropB / 255.0f;
    backdropVec[3] = 1.0f;
  
@@ -2378,7 +3035,62 @@ index 910d7da..72a4d65 100644
                 backdropVec);
  
    glProgramUniform4f(g2shaderProgramID,
-@@ -950,6 +988,142 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -669,7 +723,12 @@ static void DrawEngine(BOOL isSub) {
+     glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
+   }
+ 
++  // GPU 2D layers (SIM_G2_GPU=1): renders BG/OBJ/window layers into the
++  // same layer textures; the compositing below is shared. FALSE = CPU path.
++  BOOL gpuLayers = G2GPU_RenderLayers(isSub, s_bgTextureId, s_objTextureId, objWindowTextureId);
++
+   // Draw the Sprites
++  if (!gpuLayers) {
+   if (isSub) {
+     memset(oam0sTex, 0, sizeof(oam0sTex));
+     memset(oam1sTex, 0, sizeof(oam1sTex));
+@@ -772,6 +831,19 @@ static void DrawEngine(BOOL isSub) {
+                     SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
+                     (void *)oamPixelBuf);
+   }
++  } // !gpuLayers
++  u64 profT1 = ProfOn() ? ProfNowNs() : 0;
++
++  if (gpuLayers) {
++    for (int i = 0; i < 4; i++) {
++      glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[i]);
++      glBindTexture(GL_TEXTURE_2D, bgEnabled[i] ? s_bgTextureId[i] : dummyScreenTextureId);
++    }
++    for (int i = 0; i < 4; i++) {
++      glActiveTexture(GL_TEXTURE0 + s_objTexUnits[i]);
++      glBindTexture(GL_TEXTURE_2D, s_objTextureId[i]);
++    }
++  }
+ 
+   glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
+ 
+@@ -789,9 +861,10 @@ static void DrawEngine(BOOL isSub) {
+   glActiveTexture(GL_TEXTURE0 + s_objWindowTexUnit);
+   glBindTexture(GL_TEXTURE_2D, objWindowTextureId);
+   u8 *objWindowBuf = isSub ? objWindowsTex : objWindowTex;
+-  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SIM_NDS_SCREEN_WIDTH,
+-                  SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
+-                  (void *)objWindowBuf);
++  if (!gpuLayers)
++    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SIM_NDS_SCREEN_WIDTH,
++                    SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
++                    (void *)objWindowBuf);
+   glProgramUniform1i(
+       g2shaderProgramID,
+       glGetUniformLocation(g2shaderProgramID, "objWindowTexture"),
+@@ -859,6 +932,7 @@ static void DrawEngine(BOOL isSub) {
+     glActiveTexture(GL_TEXTURE0 + s_objTexUnits[0]);
+     glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
+   }
++  if (profT0) { u64 t2 = ProfNowNs(); sProfG2DrawNs += profT1 - profT0; sProfCompNs += t2 - profT1; sProfEngines++; }
+ #ifdef SDK_TRACY_ENABLE
+   TracyCZoneEnd(ctx);
+ #endif
+@@ -950,7 +1024,146 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -2515,13 +3227,17 @@ index 910d7da..72a4d65 100644
 +  }
 +  if (exitFrame && frame >= exitFrame) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
 +    if (frame > 100) printf("SIM_DEBUG_EXIT_FRAME: %.1f fps since frame 100\n", (frame - 100) / ((t.tv_sec - t100.tv_sec) + (t.tv_nsec - t100.tv_nsec) / 1e9));
-+    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); fflush(stdout); SIM::G3::G3StatsDump("exit"); _exit(0); }
++    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u
++", frame); ProfPrint(); fflush(stdout); SIM::G3::G3StatsDump("exit"); _exit(0); }
 +}
 +
  void *SIM_Render(void *arg) {
++  u64 profRenderT0 = ProfOn() ? ProfNowNs() : 0;
++  (void)profRenderT0;
  
    SDL_Event Event;
-@@ -1073,9 +1247,14 @@ void *SIM_Render(void *arg) {
+   char c;
+@@ -1073,9 +1286,14 @@ void *SIM_Render(void *arg) {
        s_SIM_SDLJoystick = SDL_JoystickOpen(0);
      }
  
@@ -2536,7 +3252,7 @@ index 910d7da..72a4d65 100644
        if (Event.type == SDL_WINDOWEVENT) {
          switch (Event.window.event) {
          case SDL_WINDOWEVENT_CLOSE:
-@@ -1083,6 +1262,18 @@ void *SIM_Render(void *arg) {
+@@ -1083,6 +1301,18 @@ void *SIM_Render(void *arg) {
            break;
          }
        }
@@ -2555,7 +3271,7 @@ index 910d7da..72a4d65 100644
        if (Event.type == SDL_KEYDOWN) {
          int keyRead = Event.key.keysym.sym;
          if (keyRead == s_SIM_config.padSettings.aKey) {
-@@ -1261,7 +1452,9 @@ void *SIM_Render(void *arg) {
+@@ -1261,7 +1491,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -2566,7 +3282,7 @@ index 910d7da..72a4d65 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1328,18 +1521,29 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +1560,29 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -2605,7 +3321,7 @@ index 910d7da..72a4d65 100644
      SDL_GL_SwapWindow(window);
  
      if(sChangeInternalResAfterRender) {
-@@ -1369,6 +1573,12 @@ void *SIM_Render(void *arg) {
+@@ -1369,6 +1612,12 @@ void *SIM_Render(void *arg) {
      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
      glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -2618,7 +3334,12 @@ index 910d7da..72a4d65 100644
    } while (SIM::GUI::IsGameLogicPaused());
    // Bind 3D Framebuffer & Renderbuffer
    glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
-@@ -1398,6 +1608,12 @@ void *SIM_Render(void *arg) {
+@@ -1394,10 +1643,17 @@ void *SIM_Render(void *arg) {
+   glCullFace(GL_FRONT);
+   glFrontFace(GL_CW);
+ 
++  if (profRenderT0) sProfRenderNs += ProfNowNs() - profRenderT0;
+   return nullptr;
  }
  
  // Get the rendering time in nanoseconds
