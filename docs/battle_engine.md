@@ -102,7 +102,15 @@ the headless protocol and diffs the JSONL).
 
 Seed override: `BattleEvents_SetSeedOverride(u32)` (header `battle/battle_events.h`), or env `SIM_BATTLE_SEED=<n>`, replaces the field-supplied `dto->seed` for the battle LCRNG (`seedRandNext`/`seedDTO` in BattleMain init). engine-sim's `start_battle` should call it with the spec seed at battle setup, making battle outcomes independent of field frames. 0 = no override.
 
-Fast-mode whitelist (acked at client-message receipt, end state is presentation-only and rules state is already final): all PRINT_* messages, PLAY_SOUND/PLAY_MUSIC, CLEAR_MESSAGE_BOX, UPDATE/REFRESH_HP_GAUGE, UPDATE_EXP_GAUGE, SET_STATUS_ICON. Sprite-creating, menu/input, move-animation and faint commands still run their tasks (acking those segfaults or corrupts teardown - verified). This already removes text/gauge waits; further speedup is per-command end-state jumps in the display tasks.
+Fast-mode whitelist (acked at client-message receipt, end state is presentation-only and rules state is already final): all PRINT_* messages, PLAY_SOUND/PLAY_MUSIC, CLEAR_MESSAGE_BOX, UPDATE/REFRESH_HP_GAUGE, UPDATE_EXP_GAUGE, SET_STATUS_ICON. Sprite-creating, menu/input, move-animation and faint commands still run their tasks (acking those segfaults or corrupts teardown - verified). UPDATE (round 2): SET_MOVE_ANIMATION is also acked - a move animation's end
+state is the battlers back at rest (the rules have already applied damage),
+so skipping it is end-state-safe and is the single biggest wait. Measured on
+the seed-777 Tristan battle (same drive script): total frames 5771 normal /
+4451 fast-v1 (text+gauges) / 3371 fast+anim-ack; battle portion ~2.2x fewer
+frames, DETERMINISM_OK still holds. PLAY_FAINTING_SEQUENCE must NOT be acked:
+its task frees the sprite slot and the next ShowPokemon asserts
+(monSpriteMan sprites[index].active) - verified. SHOW_POKEMON/SET_ENCOUNTER
+(sprite creation) likewise stay.
 
 Caveat: player-menu input still comes through the normal player controller
 (headless clients drive it with press/touch or, for engine-sim, scripted
