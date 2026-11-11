@@ -139,6 +139,12 @@ def make_run_dir(game_path, work_root, name):
     return run_dir, ["./main"]
 
 class GameClient:
+    _live = set()  # Popen objects not yet closed (self-test / leak guard)
+
+    @classmethod
+    def live_count(cls):
+        return len([p for p in cls._live if p.poll() is None])
+
     def __init__(self, game_path, work_root, name, record_env_extra=None):
         self.name = name
         self.dir, argv = make_run_dir(game_path, work_root, name)
@@ -158,6 +164,7 @@ class GameClient:
         self.proc = subprocess.Popen(argv, cwd=self.dir,
                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=self._stderr, env=env, text=True, bufsize=1)
+        GameClient._live.add(self.proc)
         self.last_state = None
         self.last_screenshot = None
 
@@ -209,16 +216,37 @@ class GameClient:
         return st
 
     def close(self):
+        """End the game no matter what: quit, wait briefly, terminate, kill, reap."""
         try:
             if self.proc.poll() is None:
-                self.cmd({"cmd": "quit"}, timeout=5)
-                self.proc.wait(timeout=5)
-        except Exception:
+                try:
+                    self.cmd({"cmd": "quit"}, timeout=2)
+                except Exception:
+                    pass
             try:
-                self.proc.kill()
+                self.proc.wait(timeout=2)
             except Exception:
                 pass
+            if self.proc.poll() is None:
+                try:
+                    self.proc.terminate()
+                except Exception:
+                    pass
+                try:
+                    self.proc.wait(timeout=2)
+                except Exception:
+                    pass
+            if self.proc.poll() is None:
+                try:
+                    self.proc.kill()
+                except Exception:
+                    pass
+                try:
+                    self.proc.wait(timeout=5)
+                except Exception:
+                    pass
         finally:
+            GameClient._live.discard(self.proc)
             self._stderr.close()
 
 # ---------------------------------------------------------------- runner
@@ -398,7 +426,7 @@ def main(argv=None):
     ap.add_argument("--mock", action="store_true", help="use tools/dazzling/test/fake_game.py")
     ap.add_argument("--scenarios-dir", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "scenarios"))
     ap.add_argument("--filter", default="")
-    ap.add_argument("-j", "--jobs", type=int, default=4)
+    ap.add_argument("-j", "--jobs", type=int, default=2, help="max live game processes (default 2 on this shared Mac)")
     ap.add_argument("--record", action="store_true", help="write reference screenshots")
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--work-root", default=None)
@@ -414,17 +442,21 @@ def main(argv=None):
     os.makedirs(work_root, exist_ok=True)
     print(f"run.py: {len(paths)} scenario(s), game={game}, jobs={args.jobs}, record={args.record}, work={work_root}")
     failures = 0
-    clients = []
     def one(p):
-        return run_scenario(p, game, record=args.record, timeout=args.timeout, work_root=work_root, mock=args.mock)
+        client = None
+        try:
+            name, ok, msg, client = run_scenario(p, game, record=args.record,
+                                                 timeout=args.timeout, work_root=work_root, mock=args.mock)
+            return name, ok, msg
+        finally:
+            if client is not None:
+                client.close()   # every scenario ends its game, on any outcome
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as ex:
-        for name, ok, msg, client in ex.map(one, paths):
-            clients.append(client)
+        futures = [ex.submit(one, p) for p in paths]
+        for fut in concurrent.futures.as_completed(futures):
+            name, ok, msg = fut.result()
             print(f"[{ 'PASS' if ok else 'FAIL'}] {name}: {msg}" if ok else f"[FAIL] {name}\n{msg}")
             failures += 0 if ok else 1
-    for c in clients:
-        if c is not None:
-            c.close()
     print(f"run.py: {len(paths) - failures}/{len(paths)} passed")
     return 1 if failures else 0
 

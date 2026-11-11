@@ -76,6 +76,22 @@ class TestRunnerEndToEnd(unittest.TestCase):
             ok, msg = self.run_one(d, sc, record=False)
             self.assertTrue(ok, msg)
 
+    def test_no_child_alive_after_scenario(self):
+        # Leak guard: run a scenario the way run.py's worker does and check
+        # no game process survives it, pass or fail.
+        with tempfile.TemporaryDirectory() as d:
+            for data in ({"name": "case", "steps": [{"step": 40}]},
+                         {"name": "case", "steps": [{"assert": {"app": "battle"}}]}):
+                path = write_scenario(d, "case", data)
+                client = None
+                try:
+                    _name, _ok, _msg, client = runner.run_scenario(path, FAKE, timeout=30, work_root=d)
+                finally:
+                    if client is not None:
+                        client.close()
+                self.assertIsNotNone(client.proc.poll())
+            self.assertEqual(runner.GameClient.live_count(), 0)
+
     def test_talk_and_battle_stub(self):
         with tempfile.TemporaryDirectory() as d:
             ok, msg = self.run_one(d, {
