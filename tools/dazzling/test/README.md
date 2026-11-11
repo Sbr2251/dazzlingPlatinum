@@ -56,7 +56,11 @@ runner, the fake game and the protocol all already speak JSON.
   optional `warp`/`vars`/`flags`/`items` applied after loading.
 - Steps: `press`/`hold` (key or list, held `frames`), `step` (frames),
   `touch`, `talk` (localid or `{"object": N}`), `warp`, `set_var`,
-  `set_flag`, `give_item`, `import_save`, `wait_until`, `screenshot`, `assert`.
+  `set_flag`, `give_item`, `import_save`, `wait_until`, `screenshot`, `assert`,
+  and `press_until` (press periodically while polling a state condition -
+  use this to finish dialogue instead of fixed press counts, which race
+  message timing). A scenario with `"known_issue": "..."` or
+  `"pending_step3": "..."` is reported as a SKIP with that text.
 - Assertions map dotted state paths (`player.map`, `party.0.level`) to
   expected values, or use `{"path": ..., "op": eq|ne|gt|ge|lt|le|contains|in,
   "value": ...}`. `wait_until` takes the same shape and steps 10 frames at a
@@ -76,12 +80,11 @@ runner, the fake game and the protocol all already speak JSON.
   the last state (truncated), the last screenshot path, and the per-scenario
   workdir (game stderr log + coverage log are kept there).
 
-State paths assume the protocol's state reply nests field position under
-`player` (`player.map`, `player.x`, `player.z`, `player.dir`) plus `app`,
-`frame`, `message_waiting`, `in_battle`, `vars`/`flags`/`party` on request.
-`run.py` also normalizes flat `map`/`x`/`z`/`application` replies. Field
-names may need one adjustment pass when debug-headless documents its exact
-reply in `docs/headless_protocol.md`.
+State paths (step 3, `docs/headless_protocol.md`): top-level `map` plus
+`player.x/z/dir` are normalized to `player.map/x/z/dir`; `battle.waiting` /
+`battle.battlers[]` and `party[]` are as the engine sends them; `run.py`
+adds `in_battle`. Short presses (1-2 frames) don't register in menus:
+use ~10-frame presses.
 
 ## Script coverage
 
