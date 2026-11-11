@@ -153,15 +153,16 @@ Implemented (step 4).
 
 ## Sanitizer build
 
-Implemented (step 5): `-Dbuild_variant=asan (tools/macos/build.sh asan)` (meson option `asan`, added as a minimal
-option by debug-headless; perf-game will fold it into `build_variant=asan`).
+Implemented (step 5): the `asan` build variant (`tools/macos/build.sh asan`, meson `-Dbuild_variant=asan`)
+instruments the whole PC build (game, simulator and host tools) with ASan + UBSan.
 It adds `-fsanitize=address,undefined -fno-omit-frame-pointer` to compile and
-link for the whole PC build (game + simulator), with static sanitizer
-runtimes and `--allow-shlib-undefined` so shared subproject libraries link.
+link. (On the Linux devserver the build also needed static sanitizer runtimes
+and `-Wl,--allow-shlib-undefined`; those GNU-ld flags are not in meson.build,
+because Apple ld rejects them.)
 
 Build (Linux):
 ```sh
-python3 subprojects/meson-1.12.0/meson.py setup -Dbuild_target=linux -Dbuild_variant=asan (tools/macos/build.sh asan) \
+python3 subprojects/meson-1.12.0/meson.py setup -Dbuild_target=linux -Dbuild_variant=asan \
   -Ddefault_library=static --native-file=... --cross-file=meson/cross_pcport_linux.ini build_asan
 ninja -C build_asan
 ASAN_OPTIONS=detect_leaks=0 ./main   # plus SIM_* as usual
