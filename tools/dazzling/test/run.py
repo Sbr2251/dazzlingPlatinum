@@ -54,9 +54,59 @@ def load_image(path):
             return img
     raise ValueError(f"unsupported screenshot format (need BMP, or PNG on macOS): {path}")
 
-def compare_images(actual_path, ref_path, tolerance=0.01, channel_eps=8):
+def save_bmp(path, w, h, rgb):
+    """Write RGB rows (top-down) as a 24-bit BMP (bottom-up on disk)."""
+    stride = (w * 3 + 3) & ~3
+    body = bytearray()
+    for y in range(h - 1, -1, -1):
+        for x in range(w):
+            i = (y * w + x) * 3
+            body += bytes((rgb[i + 2], rgb[i + 1], rgb[i]))
+        body += b"\x00" * (stride - w * 3)
+    with open(path, "wb") as f:
+        f.write(b"BM" + struct.pack("<IHHI", 54 + len(body), 0, 0, 54))
+        f.write(struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(body), 2835, 2835, 0, 0))
+        f.write(bytes(body))
+
+def crop_image(img, crop):
+    """crop=[x,y,w,h] in pixels; returns cropped (w,h,rgb)."""
+    if not crop:
+        return img
+    w, h, rgb = img
+    x, y, cw, ch = (int(v) for v in crop)
+    if x < 0 or y < 0 or cw <= 0 or ch <= 0 or x + cw > w or y + ch > h:
+        raise ValueError(f"crop {crop} outside image {w}x{h}")
+    out = bytearray()
+    for yy in range(y, y + ch):
+        out += rgb[(yy * w + x) * 3:(yy * w + x + cw) * 3]
+    return cw, ch, bytes(out)
+
+def write_diff_images(actual_path, ref_path, workdir, shot_name, crop=None):
+    """Write <shot>.expected/.actual/.diff.bmp into workdir; return paths.
+    Diff pixels: differing pixels bright red, matching pixels darkened actual."""
+    a, b = load_image(actual_path), load_image(ref_path)
+    if crop:
+        a, b = crop_image(a, crop), crop_image(b, crop)
+    os.makedirs(workdir, exist_ok=True)
+    ep, ap, dp = (os.path.join(workdir, f"{shot_name}.{k}.bmp") for k in ("expected", "actual", "diff"))
+    save_bmp(ep, b[0], b[1], b[2]); save_bmp(ap, a[0], a[1], a[2])
+    if a[:2] == b[:2]:
+        diff = bytearray()
+        for i in range(0, len(a[2]), 3):
+            if any(abs(a[2][i + c] - b[2][i + c]) > 8 for c in range(3)):
+                diff += bytes((255, 0, 0))
+            else:
+                diff += bytes((a[2][i] // 3, a[2][i + 1] // 3, a[2][i + 2] // 3))
+        save_bmp(dp, a[0], a[1], bytes(diff))
+    else:
+        dp = None
+    return ep, ap, dp
+
+def compare_images(actual_path, ref_path, tolerance=0.01, channel_eps=8, crop=None):
     """Return (ok, differing_fraction, message)."""
     a, b = load_image(actual_path), load_image(ref_path)
+    if crop:
+        a, b = crop_image(a, crop), crop_image(b, crop)
     if a[:2] != b[:2]:
         return False, 1.0, f"size differs: actual {a[0]}x{a[1]} vs reference {b[0]}x{b[1]}"
     diff = total = 0
@@ -145,7 +195,7 @@ class GameClient:
     def live_count(cls):
         return len([p for p in cls._live if p.poll() is None])
 
-    def __init__(self, game_path, work_root, name, record_env_extra=None):
+    def __init__(self, game_path, work_root, name, record_env_extra=None, env_extra=None):
         self.name = name
         self.dir, argv = make_run_dir(game_path, work_root, name)
         self.save_path = os.path.join(self.dir, "save.bin")
@@ -162,6 +212,8 @@ class GameClient:
         })
         if record_env_extra:
             env.update(record_env_extra)
+        if env_extra:
+            env.update(env_extra)
         self._stderr = open(self.stderr_path, "wb")
         self.proc = subprocess.Popen(argv, cwd=self.dir,
                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -265,7 +317,7 @@ def as_keys(value):
         return [value]
     return list(value)
 
-def run_scenario(path, game_path, record=False, timeout=600, work_root=None, mock=False):
+def run_scenario(path, game_path, record=False, timeout=600, work_root=None, mock=False, env_extra=None, update=False):
     with open(path, encoding="utf-8") as f:
         sc = json.load(f)
     name = sc.get("name") or os.path.splitext(os.path.basename(path))[0]
@@ -280,7 +332,7 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
             rp = os.path.join(scen_dir, rp)
         if not os.path.exists(rp):
             return name, True, f"SKIP (missing {req}; local-only scenario)", None
-    client = GameClient(game_path, work_root, name)
+    client = GameClient(game_path, work_root, name, env_extra=env_extra)
     started = time.time()
     try:
         def resolve(p):
@@ -300,6 +352,16 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
             client.cmd({"cmd": "set_flag", "name": k, "value": bool(v)})
         for item in (start.get("items") or []):
             client.cmd({"cmd": "give_item", "item": item["item"], "qty": item.get("qty", 1)})
+        if start.get("start_battle"):
+            sb = start["start_battle"] if isinstance(start["start_battle"], dict) else {}
+            req = {"cmd": "start_battle"}
+            if sb.get("spec"):
+                req["spec_path"] = os.path.abspath(resolve(sb["spec"]))
+            elif sb.get("spec_path"):
+                req["spec_path"] = os.path.abspath(resolve(sb["spec_path"]))
+            else:
+                req.update({k: v for k, v in sb.items() if k not in ("spec", "spec_path")})
+            client.cmd(req)
         state = client.state()
         # ---- steps
         for idx, step in enumerate(sc.get("steps") or []):
@@ -354,24 +416,54 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                     ref = step.get("reference") or (step["screenshot"].get("reference") if isinstance(step["screenshot"], dict) else None)
                     if ref:
                         ref_path = resolve(ref)
-                        if record:
+                        if record or update:
                             os.makedirs(os.path.dirname(ref_path), exist_ok=True)
-                            shutil.copyfile(out, ref_path)
+                            crop = step.get("crop") or (step["screenshot"].get("crop") if isinstance(step["screenshot"], dict) else None)
+                            if crop:
+                                cw, ch, rgb = crop_image(load_image(out), crop)
+                                save_bmp(ref_path, cw, ch, rgb)
+                            else:
+                                shutil.copyfile(out, ref_path)
                         else:
                             if not os.path.exists(ref_path):
                                 if step.get("optional_reference"):
                                     continue
                                 raise ScenarioFailure(idx, step, f"reference screenshot missing: {ref_path} (run with --record)",
                                                       client.last_state, out)
-                            ok, _frac, msg = compare_images(out, ref_path, step.get("tolerance", 0.01))
+                            crop = step.get("crop") or (step["screenshot"].get("crop") if isinstance(step["screenshot"], dict) else None)
+                            ok, _frac, msg = compare_images(out, ref_path, step.get("tolerance", 0.01), crop=crop)
                             if not ok:
-                                raise ScenarioFailure(idx, step, f"screenshot differs from {ref}: {msg}",
+                                ep, ap, dp = write_diff_images(out, ref_path, client.dir, shot_name, crop=crop)
+                                raise ScenarioFailure(idx, step,
+                                                      f"screenshot differs from {ref}: {msg}\n  expected: {ep}\n  actual:   {ap}\n  diff:     {dp}",
                                                       client.last_state, out)
                 elif "assert" in step:
                     st = client.state(step.get("state_request"))
                     err = check_assertion(st, step["assert"])
                     if err:
                         raise ScenarioFailure(idx, step, err, st, client.last_screenshot)
+                elif "start_battle" in step:
+                    sb = step["start_battle"] if isinstance(step["start_battle"], dict) else {}
+                    req = {"cmd": "start_battle"}
+                    if sb.get("spec"):
+                        req["spec_path"] = os.path.abspath(resolve(sb["spec"]))
+                    elif sb.get("spec_path"):
+                        req["spec_path"] = os.path.abspath(resolve(sb["spec_path"]))
+                    else:
+                        req.update({k: v for k, v in sb.items() if k not in ("spec", "spec_path")})
+                    client.cmd(req)
+                elif "battle_decide" in step:
+                    req = {"cmd": "battle_decide"}
+                    req.update(step["battle_decide"] if isinstance(step["battle_decide"], dict) else {})
+                    client.cmd(req)
+                elif "battle_event" in step:
+                    # Drain engine events and require one matching {type:..., ...}
+                    reply = client.cmd({"cmd": "battle_events"})
+                    events = reply.get("events") or []
+                    want = step["battle_event"]
+                    if not any(all(ev.get(k) == v for k, v in want.items()) for ev in events if isinstance(ev, dict)):
+                        raise ScenarioFailure(idx, step, f"no battle event matching {want} in {events[-8:]}",
+                                              client.last_state, client.last_screenshot)
                 elif "warp" in step:
                     w = step["warp"]
                     client.cmd({"cmd": "warp", "map": w["map"], "x": w.get("x", 0), "z": w.get("z", 0), "dir": w.get("dir", "DIR_SOUTH")})
@@ -430,6 +522,9 @@ def main(argv=None):
     ap.add_argument("--filter", default="")
     ap.add_argument("-j", "--jobs", type=int, default=2, help="max live game processes (default 2 on this shared Mac)")
     ap.add_argument("--record", action="store_true", help="write reference screenshots")
+    ap.add_argument("--update", action="store_true", help="accept current output as new references (same writes as --record; use after reviewing diffs)")
+    ap.add_argument("--compare-renderers", action="store_true",
+                    help="run each scenario twice, SIM_G2_GPU=0 (CPU 2D) and =1 (GPU 2D), both against the same references")
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--work-root", default=None)
     args = ap.parse_args(argv)
@@ -447,8 +542,20 @@ def main(argv=None):
     def one(p):
         client = None
         try:
+            if args.compare_renderers and not (args.record or args.update):
+                msgs, ok_all = [], True
+                for gpu in ("0", "1"):
+                    name, ok, msg, client = run_scenario(p, game, record=False,
+                                                         timeout=args.timeout, work_root=work_root, mock=args.mock,
+                                                         env_extra={"SIM_G2_GPU": gpu})
+                    msgs.append(f"SIM_G2_GPU={gpu}: {'ok' if ok else msg}")
+                    ok_all = ok_all and ok
+                    if client is not None:
+                        client.close(); client = None
+                return name, ok_all, "; ".join(msgs)
             name, ok, msg, client = run_scenario(p, game, record=args.record,
-                                                 timeout=args.timeout, work_root=work_root, mock=args.mock)
+                                                 timeout=args.timeout, work_root=work_root, mock=args.mock,
+                                                 update=args.update)
             return name, ok, msg
         finally:
             if client is not None:

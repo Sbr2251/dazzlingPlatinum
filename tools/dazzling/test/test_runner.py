@@ -104,5 +104,37 @@ class TestRunnerEndToEnd(unittest.TestCase):
                           {"assert": {"in_battle": False}}]})
             self.assertTrue(ok, msg)
 
+    def test_crop_and_diff_artifacts(self):
+        sys.path.insert(0, HERE)
+        from fake_game import write_bmp
+        with tempfile.TemporaryDirectory() as d:
+            a, b = os.path.join(d, "a.bmp"), os.path.join(d, "b.bmp")
+            write_bmp(a, 16, 16, 7); write_bmp(b, 16, 16, 100)
+            self.assertTrue(runner.compare_images(a, a, crop=[0, 0, 8, 8])[0])
+            ep, ap, dp = runner.write_diff_images(a, b, d, "shot", crop=[0, 0, 8, 8])
+            for pth in (ep, ap, dp):
+                self.assertTrue(os.path.exists(pth), pth)
+            self.assertEqual(runner.load_image(ep)[:2], (8, 8))
+
+    def test_record_stores_cropped_reference(self):
+        with tempfile.TemporaryDirectory() as d:
+            sc = {"name": "case", "steps": [{"step": 40},
+                  {"screenshot": "shot", "reference": "ref.bmp", "crop": [0, 0, 8, 8]}]}
+            ok, msg = self.run_one(d, sc, record=True)
+            self.assertTrue(ok, msg)
+            self.assertEqual(runner.load_image(os.path.join(d, "ref.bmp"))[:2], (8, 8))
+            ok, msg = self.run_one(d, sc, record=False)
+            self.assertTrue(ok, msg)
+
+    def test_start_battle_and_decide_steps(self):
+        with tempfile.TemporaryDirectory() as d:
+            ok, msg = self.run_one(d, {
+                "name": "case",
+                "steps": [{"start_battle": {"spec": "nope.json"}},
+                          {"battle_decide": {"battler": 0, "action": "move", "move_index": 0, "mega": True}},
+                          {"battle_event": {"type": "battle_start"}},
+                          {"assert": {"app": "battle", "battle.battlers.0.mega": True}}]})
+            self.assertTrue(ok, msg)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

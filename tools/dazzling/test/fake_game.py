@@ -105,6 +105,19 @@ class Fake:
             self.flags[req["name"]] = bool(req["value"]); return {"ok": True}, False
         if cmd == "give_item":
             return {"ok": True}, False
+        if cmd == "start_battle":
+            self.app = "battle"
+            self.battle = {"waiting": True, "turn": 1, "battlers": [
+                {"battler": 0, "species": "SPECIES_INFERNAPE", "level": 50, "hp": 100, "max_hp": 100, "mega": False, "form": 0},
+                {"battler": 1, "species": "SPECIES_GARCHOMP", "level": 50, "hp": 100, "max_hp": 100, "mega": False, "form": 0}]}
+            return {"ok": True}, False
+        if cmd == "battle_decide":
+            if self.battle and req.get("mega"):
+                self.battle["battlers"][0]["mega"] = True
+                self.battle["battlers"][0]["form"] = 1
+            return {"ok": True}, False
+        if cmd == "battle_events":
+            return {"ok": True, "events": [{"type": "battle_start"}, {"type": "move_used", "move": "MOVE_TACKLE"}]}, False
         if cmd == "talk":
             self.message_waiting, self.script = True, {"archive": 1, "offset": 64}
             return {"ok": True}, False
