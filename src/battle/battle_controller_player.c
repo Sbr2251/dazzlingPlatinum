@@ -672,7 +672,7 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
             break;
 
         case COMMAND_SELECTION_RUN_SELECT_INIT:
-            BattleDecisions_Complete(i);
+            BattleDecisions_MarkDone(i, BATTLE_DECISION_RUN);
             if (battleType & BATTLE_TYPE_FRONTIER) {
                 // "Would you like to forfeit the match and quit now?"
                 BattleController_EmitShowYesNoMenu(battleSys, battleCtx, i, 955, 0, 0, 0);
@@ -742,7 +742,11 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
             break;
 
         case COMMAND_SELECTION_WAIT:
-            BattleDecisions_Complete(i);
+            { int pick = battleCtx->battlerActions[i][BATTLE_ACTION_PICK_COMMAND];
+              if (pick == BATTLE_CONTROL_FIGHT) BattleDecisions_MarkDone(i, BATTLE_DECISION_MOVE);
+              else if (pick == BATTLE_CONTROL_RUN) BattleDecisions_MarkDone(i, BATTLE_DECISION_RUN);
+              else if (pick == BATTLE_CONTROL_PARTY) BattleDecisions_MarkDone(i, BATTLE_DECISION_SWITCH);
+              else if (pick == BATTLE_CONTROL_ITEM) BattleDecisions_MarkDone(i, BATTLE_DECISION_ITEM); }
             // Only battlers using a move can mega evolve
             if (battleCtx->battlerActions[i][BATTLE_ACTION_PICK_COMMAND] != BATTLE_CONTROL_FIGHT) {
                 battleCtx->megaEvolutionTriggered[i] = FALSE;

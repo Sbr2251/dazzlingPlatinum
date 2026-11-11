@@ -6,6 +6,7 @@
 
 #include "battle/battle_lib.h"
 #include "battle/battle_system.h"
+#include "battle/battle_events.h"
 #include "battle/indicator.h"
 #include "battle_sub_menus/battle_bag_buttons.h"
 #include "battle_sub_menus/battle_bag_sprites.h"
@@ -250,6 +251,21 @@ static u8 BattleBagTask_MenuScreen(BattleBag *battleBag)
         return TASK_STATE_MENU_SCREEN;
     }
 
+    // Decision queue: locate the queued item in the bag pockets and jump to
+    // its Use screen (the same transition a pocket+item selection makes).
+    { BattleDecision dec; if (BattleDecisions_Peek(battleBag->context->battler, &dec) && dec.action == BATTLE_DECISION_ITEM && dec.itemId > 0) {
+        for (int pk = 0; pk < BATTLE_POCKET_MAX; pk++) for (int ii = 0; ii < BATTLE_POCKET_SIZE; ii++) {
+            if (battleBag->items[pk][ii].item == dec.itemId && battleBag->items[pk][ii].quantity != 0) {
+                battleBag->currentBattlePocket = (u8)pk;
+                battleBag->context->pocketCurrentPages[pk] = (u8)(ii / BATTLE_POCKET_ITEMS_PER_PAGE);
+                battleBag->context->pocketCurrentPagePositions[pk] = (u8)(ii % BATTLE_POCKET_ITEMS_PER_PAGE);
+                battleBag->queuedState = TASK_STATE_SETUP_USE_ITEM_SCREEN;
+                BattleBagButtons_PressButton(battleBag, (u8)pk, 0);
+                return TASK_STATE_SCREEN_TRANSITION;
+            }
+        }
+    } }
+
     enum BattleBagMenuScreenButton menuButtonPressed = CheckTouchRectIsPressed(battleBag, sMenuTouchRects);
 
     if (menuButtonPressed == TOUCHSCREEN_INPUT_NONE) {
@@ -375,6 +391,13 @@ static u8 BattleBagTask_ChangePocketPage(BattleBag *battleBag)
 
 static u8 BattleBagTask_UseItemScreen(BattleBag *battleBag)
 {
+    // Decision queue: confirm Use for the queued item.
+    { BattleDecision dec; if (BattleDecisions_Peek(battleBag->context->battler, &dec) && dec.action == BATTLE_DECISION_ITEM && BattleBag_GetItem(battleBag, battleBag->context->pocketCurrentPagePositions[battleBag->currentBattlePocket]) == dec.itemId) {
+        battleBag->context->selectedBattleBagItem = (u16)dec.itemId;
+        battleBag->context->selectedBattleBagPocket = battleBag->currentBattlePocket;
+        return TryUseItem(battleBag);
+    } }
+
     enum BattleBagUseItemScreenButton useItemScreenButtonPressed = CheckTouchRectIsPressed(battleBag, sUseItemMenuTouchRects);
 
     if (useItemScreenButtonPressed == TOUCHSCREEN_INPUT_NONE) {

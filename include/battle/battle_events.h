@@ -25,11 +25,12 @@ void BattleEvents_SetSeedOverride(unsigned int seed);
 unsigned int BattleEvents_GetSeedOverride(void);
 enum BattleDecisionAction { BATTLE_DECISION_MOVE = 0, BATTLE_DECISION_SWITCH = 1, BATTLE_DECISION_ITEM = 2, BATTLE_DECISION_RUN = 3 };
 typedef struct BattleDecision {
-    int battler; int action; int moveId; int moveSlot; int target; int partySlot; int itemId; int itemTarget; int mega;
+    int battler; int action; int moveId; int moveSlot; int target; int partySlot; int itemId; int itemTarget; int mega; int done;
 } BattleDecision;
 void BattleDecisions_Push(const BattleDecision *d);
 int BattleDecisions_Peek(int battler, BattleDecision *out);
 void BattleDecisions_Complete(int battler);
+void BattleDecisions_MarkDone(int battler, int action); // mark first pending decision of this action done
 int BattleDecisions_Count(int battler);
 #ifdef __cplusplus
 }

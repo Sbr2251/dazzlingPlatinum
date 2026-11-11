@@ -937,6 +937,7 @@ void BattleController_EmitShowBagMenu(BattleSystem *battleSys, BattleContext *ba
 
 void BattleController_EmitSelectedBagItem(BattleSystem *battleSys, int battler, BattleItemUse message)
 {
+    BattleEvents_OnBagItem(battleSys, battler, message.item);
     SendMessage(battleSys, COMM_RECIPIENT_SERVER, battler, &message, sizeof(BattleItemUse));
 }
 

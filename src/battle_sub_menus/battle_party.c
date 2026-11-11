@@ -9,6 +9,7 @@
 
 #include "applications/pokemon_summary_screen/main.h"
 #include "battle/battle_system.h"
+#include "battle/battle_events.h"
 #include "battle_sub_menus/battle_party.h"
 #include "battle_sub_menus/battle_party_buttons.h"
 #include "battle_sub_menus/battle_party_sprites.h"
@@ -394,6 +395,20 @@ static u8 BattlePartyTask_PartyPokemonScreen(BattleParty *battleParty)
     if (PaletteData_GetSelectedBuffersMask(battleParty->palette) != 0) {
         return TASK_STATE_PARTY_POKEMON_SCREEN;
     }
+
+    // Decision queue (docs/battle_engine.md): select the queued slot and exit
+    // through the task's own cleanup path, exactly as a Shift confirm does.
+    { BattleDecision dec; if (BattleDecisions_Peek(battleParty->context->battler, &dec) && dec.action == BATTLE_DECISION_ITEM && battleParty->context->battlePartyMode == BATTLE_PARTY_MODE_USE_ITEM) {
+        int want = dec.partySlot;
+        for (int pi = 0; pi < MAX_PARTY_SIZE; pi++) if (battleParty->context->pokemonPartySlots[pi] == want) { battleParty->context->selectedPartyIndex = (u8)pi; return PartyUseItemScreen(battleParty); }
+    } }
+    { BattleDecision dec; if (BattleDecisions_Peek(battleParty->context->battler, &dec) && dec.action == BATTLE_DECISION_SWITCH) {
+        for (int pi = 0; pi < MAX_PARTY_SIZE; pi++) if (battleParty->context->pokemonPartySlots[pi] == dec.partySlot) {
+            battleParty->context->selectedPartyIndex = (u8)pi;
+            if (CheckCanSwitchPokemon(battleParty) == TRUE) return TASK_STATE_EXIT;
+            break;
+        }
+    } }
 
     if (CheckPartyPokemonScreenButtonPressed(battleParty) == TRUE) {
         if (battleParty->context->selectedPartyIndex == NO_SELECTION_PARTY_SLOT) {
