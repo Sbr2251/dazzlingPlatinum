@@ -707,6 +707,7 @@ Overlay battle
 	Object src/battle/battle_lib.c
 	Object src/battle/battle_io_command.c
 	Object src/battle/battle_display.c
+	Object src/battle/battle_events.c
 	Object src/battle/idle_bounce_anim.c
 	Object src/battle/battle_controller.c
 	Object src/battle/healthbox.c
