@@ -139,7 +139,7 @@
 #define PLATFORM_PROP_ANIM_TIMING_COUNT 8
 #define PLATFORM_PROP_ANIM_DELTA        0x800
 
-#define GIRATINA_SHADOW_EXTERNAL_COUNT 1
+#define GIRATINA_SHADOW_EXTERNAL_COUNT 5
 
 #define OBSTACLE_PROP_ANIM_DELTA 2
 
@@ -391,6 +391,15 @@ enum FlagCondition {
     FLAG_COND_MANUAL_ADD_ONLY,
     FLAG_COND_GIRATINA_SHADOW,
     FLAG_COND_CYRUS_APPEARANCE,
+    // Dazzling: Arc 1 wall-walk puzzle, VAR_ARC1_DW_HINTS below / at least / equal to the value
+    FLAG_COND_ARC1_DW_HINTS_LT = 10,
+    FLAG_COND_ARC1_DW_HINTS_GEQ = 11,
+    FLAG_COND_ARC1_DW_HINTS_EQ = 12,
+    // Dazzling: Arc 2 rifts (rift-b), flag set / clear, VAR_ARC2_PROGRESS at least / below the value
+    FLAG_COND_FLAG_SET = 20,
+    FLAG_COND_FLAG_CLEAR = 21,
+    FLAG_COND_ARC2_PROGRESS_GEQ = 22,
+    FLAG_COND_ARC2_PROGRESS_LT = 23,
 };
 
 enum MovingPlatformElevatorDirection {
@@ -8040,6 +8049,52 @@ static const DistWorldGiratinaShadowTemplate sGiratinaShadowExternal[GIRATINA_SH
         .posDelta = { FX32_ONE * 48, 0, 0 },
         .movementAnimSteps = 64,
     },
+    // Arc 1 flashback, Giratina room: a high pass west to east over Cyrus (15,23)...
+    {
+        .initialTileX = -20,
+        .initialTileY = 7,
+        .initialTileZ = 25,
+        .rotAnglesIndex = 3,
+        .soundKind = GIRATINA_SHADOW_PROP_SFX_KIND_CRY,
+        .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
+        .posDelta = { FX32_ONE * 82, 0, 0 },
+        .movementAnimSteps = 19,
+    },
+    // ...then a low swoop back east to west through his tile; it throws him into a rift.
+    {
+        .initialTileX = 51,
+        .initialTileY = 2,
+        .initialTileZ = 23,
+        .rotAnglesIndex = 2,
+        .soundKind = GIRATINA_SHADOW_PROP_SFX_KIND_CRY,
+        .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
+        .posDelta = { -(FX32_ONE * 82), 0, 0 },
+        .movementAnimSteps = 19,
+    },
+    // Arc 1 wall-walk puzzle (ARC1_SEAMS): one pass through the void below the seam, south along z under the briefcase
+    // platform. A whoosh, no cry: nobody on screen reacts to it.
+    {
+        .initialTileX = 17,
+        .initialTileY = -3,
+        .initialTileZ = 4,
+        .rotAnglesIndex = 1,
+        .soundKind = GIRATINA_SHADOW_PROP_SFX_KIND_FLEE,
+        .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
+        .posDelta = { 0, 0, FX32_ONE * 28 },
+        .movementAnimSteps = 40,
+    },
+    // Arc 2 rift-a, DW Ravaged Path (2.6, halfway): the same shadow, deeper and much slower, south along z under the
+    // briefcase platform while the player stands on top of the seam. Same whoosh; nobody reacts.
+    {
+        .initialTileX = 15,
+        .initialTileY = -2,
+        .initialTileZ = -4,
+        .rotAnglesIndex = 1,
+        .soundKind = GIRATINA_SHADOW_PROP_SFX_KIND_FLEE,
+        .scale = { FX32_ONE, FX32_ONE, FX32_ONE },
+        .posDelta = { 0, 0, FX32_ONE * 10 },
+        .movementAnimSteps = 96,
+    },
 };
 
 void DistWorld_StartGiratinaShadowEvent(FieldSystem *fieldSystem, u16 eventIndex)
@@ -11066,6 +11121,55 @@ static BOOL CheckFlagCondition(DistWorldSystem *system, enum FlagCondition flagC
 
     case FLAG_COND_CYRUS_APPEARANCE:
         if (SystemVars_GetDistortionWorldCyrusApperanceState(varsFlags) == val) {
+            return TRUE;
+        }
+
+        break;
+
+    case FLAG_COND_ARC1_DW_HINTS_LT:
+        if (*VarsFlags_GetVarAddress(varsFlags, VAR_ARC1_DW_HINTS) < val) {
+            return TRUE;
+        }
+
+        break;
+
+    case FLAG_COND_ARC1_DW_HINTS_GEQ:
+        if (*VarsFlags_GetVarAddress(varsFlags, VAR_ARC1_DW_HINTS) >= val) {
+            return TRUE;
+        }
+
+        break;
+
+    case FLAG_COND_ARC1_DW_HINTS_EQ:
+        if (*VarsFlags_GetVarAddress(varsFlags, VAR_ARC1_DW_HINTS) == val) {
+            return TRUE;
+        }
+
+        break;
+
+    case FLAG_COND_FLAG_SET:
+        if (VarsFlags_CheckFlag(varsFlags, val)) {
+            return TRUE;
+        }
+
+        break;
+
+    case FLAG_COND_FLAG_CLEAR:
+        if (!VarsFlags_CheckFlag(varsFlags, val)) {
+            return TRUE;
+        }
+
+        break;
+
+    case FLAG_COND_ARC2_PROGRESS_GEQ:
+        if (*VarsFlags_GetVarAddress(varsFlags, VAR_ARC2_PROGRESS) >= val) {
+            return TRUE;
+        }
+
+        break;
+
+    case FLAG_COND_ARC2_PROGRESS_LT:
+        if (*VarsFlags_GetVarAddress(varsFlags, VAR_ARC2_PROGRESS) < val) {
             return TRUE;
         }
 
@@ -15315,7 +15419,7 @@ static const DistWorldObjectEvent *sMapObjectEventsTurnbackCaveRoom[] = {
 
 // --- sArc1SeamsObjects: 7 objects ---
 static const DistWorldObjectEvent sArc1SeamsCyrusAtEntry = {
-    .flagCond = 10,
+    .flagCond = FLAG_COND_ARC1_DW_HINTS_LT,
     .flagCondVal = ARC1_SEAMS_HINTS_BRIEFCASE,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15337,7 +15441,7 @@ static const DistWorldObjectEvent sArc1SeamsCyrusAtEntry = {
 };
 
 static const DistWorldObjectEvent sArc1SeamsBarryAtEntry = {
-    .flagCond = 10,
+    .flagCond = FLAG_COND_ARC1_DW_HINTS_LT,
     .flagCondVal = ARC1_SEAMS_HINTS_BRIEFCASE,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15403,7 +15507,7 @@ static const DistWorldObjectEvent sArc1SeamsMawileLunge = {
 };
 
 static const DistWorldObjectEvent sArc1SeamsBriefcase = {
-    .flagCond = 10,
+    .flagCond = FLAG_COND_ARC1_DW_HINTS_LT,
     .flagCondVal = ARC1_SEAMS_HINTS_STARTER,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15425,7 +15529,7 @@ static const DistWorldObjectEvent sArc1SeamsBriefcase = {
 };
 
 static const DistWorldObjectEvent sArc1SeamsCyrusAtBriefcase = {
-    .flagCond = 11,
+    .flagCond = FLAG_COND_ARC1_DW_HINTS_GEQ,
     .flagCondVal = ARC1_SEAMS_HINTS_BRIEFCASE,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15447,7 +15551,7 @@ static const DistWorldObjectEvent sArc1SeamsCyrusAtBriefcase = {
 };
 
 static const DistWorldObjectEvent sArc1SeamsBarryAtBriefcase = {
-    .flagCond = 11,
+    .flagCond = FLAG_COND_ARC1_DW_HINTS_GEQ,
     .flagCondVal = ARC1_SEAMS_HINTS_BRIEFCASE,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15626,7 +15730,7 @@ static const DistWorldObjectEvent sArc2DwEternaForestTotem = {
 
 // --- sArc2DwRoute214Objects: 3 objects ---
 static const DistWorldObjectEvent sArc2DwRoute214CyrusEntry = {
-    .flagCond = 21,
+    .flagCond = FLAG_COND_FLAG_CLEAR,
     .flagCondVal = FLAG_ARC2_RIFTB_A,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15648,7 +15752,7 @@ static const DistWorldObjectEvent sArc2DwRoute214CyrusEntry = {
 };
 
 static const DistWorldObjectEvent sArc2DwRoute214CyrusFrame = {
-    .flagCond = 20,
+    .flagCond = FLAG_COND_FLAG_SET,
     .flagCondVal = FLAG_ARC2_RIFTB_A,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15670,7 +15774,7 @@ static const DistWorldObjectEvent sArc2DwRoute214CyrusFrame = {
 };
 
 static const DistWorldObjectEvent sArc2DwRoute214Frame = {
-    .flagCond = 21,
+    .flagCond = FLAG_COND_FLAG_CLEAR,
     .flagCondVal = FLAG_ARC2_RIFTB_B,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15737,7 +15841,7 @@ static const DistWorldObjectEvent sArc2DwRoute213RustedFrame = {
 };
 
 static const DistWorldObjectEvent sArc2DwRoute213Card = {
-    .flagCond = 21,
+    .flagCond = FLAG_COND_FLAG_CLEAR,
     .flagCondVal = FLAG_ARC2_ELIAS_CARD,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15759,7 +15863,7 @@ static const DistWorldObjectEvent sArc2DwRoute213Card = {
 };
 
 static const DistWorldObjectEvent sArc2DwRoute213Lapras = {
-    .flagCond = 21,
+    .flagCond = FLAG_COND_FLAG_CLEAR,
     .flagCondVal = FLAG_TOTEM_LAPRAS_DEFEATED,
     .rotated = 0x1,
     .rotationAngle = 180,
@@ -15892,7 +15996,7 @@ static const DistWorldObjectEvent sArc2DwLostTowerShard4 = {
 };
 
 static const DistWorldObjectEvent sArc2DwLostTowerShadow = {
-    .flagCond = 21,
+    .flagCond = FLAG_COND_FLAG_CLEAR,
     .flagCondVal = FLAG_ARC2_RIFTB_D,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15914,7 +16018,7 @@ static const DistWorldObjectEvent sArc2DwLostTowerShadow = {
 };
 
 static const DistWorldObjectEvent sArc2DwLostTowerCyrus = {
-    .flagCond = 22,
+    .flagCond = FLAG_COND_ARC2_PROGRESS_GEQ,
     .flagCondVal = 94,
     .rotated = 0x0,
     .rotationAngle = 0x0,
@@ -15936,7 +16040,7 @@ static const DistWorldObjectEvent sArc2DwLostTowerCyrus = {
 };
 
 static const DistWorldObjectEvent sArc2DwLostTowerSpiritomb = {
-    .flagCond = 22,
+    .flagCond = FLAG_COND_ARC2_PROGRESS_GEQ,
     .flagCondVal = 94,
     .rotated = 0x0,
     .rotationAngle = 0x0,
