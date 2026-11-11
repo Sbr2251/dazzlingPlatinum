@@ -5,8 +5,10 @@
  * Assert statements. If the expression evaluates false,
  * the software will terminate.
  *
- * PM_KEEP_ASSERTS is defined in dev/asan builds and absent in release,
- * where GF_ASSERT compiles to nothing. On PC builds a failure prints
+ * PM_KEEP_ASSERTS is defined in dev/asan builds and absent in release.
+ * In release the expression is still evaluated but not checked: game code
+ * relies on side effects inside GF_ASSERT (the retail ROM kept the calls),
+ * so dropping the expression breaks the game (release booted in a loop). On PC builds a failure prints
  * file:line, the expression and a symbolized backtrace, then exits 134
  * (in interactive runs it also writes log.txt and shows a message box).
  * See docs/headless_protocol.md.
@@ -14,7 +16,7 @@
 #ifdef PM_KEEP_ASSERTS
 #define GF_ASSERT(expr) ((expr) ? (void)0 : ErrorHandling_AssertFail(__FILE__, __LINE__, #expr))
 #else
-#define GF_ASSERT(...) ((void)0)
+#define GF_ASSERT(...) ((void)(__VA_ARGS__))
 #endif // PM_KEEP_ASSERTS
 
 /*
