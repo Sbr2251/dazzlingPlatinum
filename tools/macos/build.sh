@@ -1,13 +1,19 @@
 #!/bin/bash
 # Build the macOS (Apple silicon) PC port from a fresh clone: fetch the subprojects, pin them to the revisions the macOS patches
 # were made against, apply the patches, build enet, configure, compile, and wrap the result in "Dazzling Platinum.app".
-#   tools/macos/build.sh            # → build_macos/Dazzling Platinum.app
+#   tools/macos/build.sh [dev|release|asan]   # dev (default) → build_macos, release → build_macos_release, asan → build_macos_asan
 # Needs: Xcode command line tools; Homebrew sdl2-compat (brings SDL3), nasm, ninja, arm-none-eabi-gcc, gcc@14, libpng, pkg-config, python3.
 # The game's own files are built from this source tree (no ROM needed).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 ROOT=$PWD
-BUILD=${BUILD:-build_macos}
+VARIANT=${1:-dev}
+case "$VARIANT" in
+  dev)     BUILD=${BUILD:-build_macos} ;;
+  release) BUILD=${BUILD:-build_macos_release} ;;
+  asan)    BUILD=${BUILD:-build_macos_asan} ;;
+  *) echo "usage: $0 [dev|release|asan]" >&2; exit 2 ;;
+esac
 DEPS=${DEPS:-$ROOT/../pokeplatinum-macos-deps}
 MESON="python3 $ROOT/subprojects/meson-1.12.0/meson.py"
 
@@ -28,7 +34,9 @@ $MESON subprojects download >/dev/null
 while read -r name rev; do
   [ -n "$name" ] || continue
   d=subprojects/$name
-  if [ "$(git -C "$d" rev-parse HEAD)" != "$rev" ]; then
+  # Skip the checkout when HEAD already contains the pinned rev (e.g. a team/<agent>
+  # branch whose baseline commit includes the patch): resetting it would detach the branch
+  if [ "$(git -C "$d" rev-parse HEAD)" != "$rev" ] && ! git -C "$d" merge-base --is-ancestor "$rev" HEAD 2>/dev/null; then
     git -C "$d" fetch -q --depth 1 origin "$rev" && git -C "$d" checkout -q "$rev"
   fi
   if git -C "$d" apply --check "$ROOT/tools/macos/patches/$name.patch" 2>/dev/null; then
@@ -45,9 +53,12 @@ if [ ! -f "$BUILD/build.ninja" ]; then
   mkdir -p "$BUILD"
   printf "[constants]\nroot = '%s'\n" "$ROOT" > "$BUILD/root.ini"
   python3 tools/scripts/lsfgen.py platinum.us/main.lsf.in --prefix-dir main.nef.p/ --dest-lsf platinum.us/main.lsf --dest-c src/meson.build
-  $MESON setup -Dbuild_target=linux \
+  $MESON setup -Dbuild_target=linux -Dbuild_variant="$VARIANT" \
     --native-file=meson/native_macos_port.ini --native-file="$BUILD/root.ini" \
     --cross-file=meson/cross_pcport_macos.ini --cross-file="$BUILD/root.ini" -- "$BUILD"
+else
+  # Keep an existing build dir on the requested variant
+  $MESON configure "$BUILD" -Dbuild_variant="$VARIANT"
 fi
-ninja -C "$BUILD"
+ninja -j8 -C "$BUILD"
 ls -d "$BUILD/Dazzling Platinum.app"

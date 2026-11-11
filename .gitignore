@@ -150,3 +150,6 @@ compile_commands.json
 /platinum.us/main.lsf
 /src/meson.build
 build_macos/
+build_macos_release/
+build_macos_asan/
+build_macos_after/

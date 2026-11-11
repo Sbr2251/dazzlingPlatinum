@@ -4,3 +4,9 @@ option('logging_enabled', type: 'boolean', value: false)
 option('build_target', type: 'combo', choices: ['arm', 'win64', 'linux', 'nx', 'prospero'], value: 'arm', description: 'Target build platform', yield: true)
 option('tracy_enable' , type : 'boolean' , value : false, description : 'Enable profiling')
 option('skip_anim_scripts', type : 'boolean', value : false, description : 'True to skip building anim scripts' )
+# Mac build flavour (tools/macos/build.sh [dev|release|asan], one build dir each):
+#   dev     - the everyday build: GF_ASSERT live (PM_KEEP_ASSERTS defined), no optimisation
+#   release - -O3 + LTO on the game code, PM_KEEP_ASSERTS undefined so GF_ASSERT compiles
+#             out, no debug info. The switch debug-headless keys off is PM_KEEP_ASSERTS.
+#   asan    - AddressSanitizer + UBSan on the game code, GF_ASSERT live
+option('build_variant', type : 'combo', choices: ['dev', 'release', 'asan'], value : 'dev', description : 'Mac build variant: dev, release or asan')

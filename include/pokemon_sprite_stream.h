@@ -69,14 +69,14 @@ typedef struct MonSpriteStreamStats {
     u32 loadTicksMax; // the longest stream load, card read included
     u32 heapFree; // the manager's heap after the last load
     u16 frame[MAX_MON_SPRITES]; // stream frame per sprite, 0xFFFF if none
-    u32 pagedMask; // loaded sprites that read each frame from the card (the whole member didn't fit)
-    u32 cardReads; // frames read from the card
-    u32 readTicksMax; // the longest frame read
-    u32 badFrames; // frames that failed to read or decode (the sprite went back to classic)
+    u32 pagedMask; // kept for the stats layout; always 0 (members are held whole in memory)
+    u32 cardReads; // kept for the stats layout; always 0 (no per-frame filesystem reads)
+    u32 readTicksMax; // kept for the stats layout; always 0
+    u32 badFrames; // frames that failed to decode (the sprite went back to classic)
 } MonSpriteStreamStats;
 
-// The format, shared with battle_stage_stream.c, which keeps the index in RAM and reads its
-// frames in the background.
+// The format, shared with battle_stage_stream.c, which keeps the index and each battler's
+// whole member in RAM and decodes frames from memory.
 //
 // The u16 entries of member 0 that may hold a template's member, in order: the first that
 // isn't 0 is it. Returns how many (0 to 2). A female PL_POKEGRA file with no stream takes the
@@ -107,15 +107,9 @@ BOOL MonStream_IsValid(const MonStreamHeader *data, u32 memberSize);
 u32 MonStream_FrameEnd(const MonStreamHeader *data, u32 memberSize, u16 frame);
 // The LZ77 header of a packed frame: MI_UncompressLZ8 writes exactly the box, no more
 BOOL MonStream_IsFrameValid(const MonStreamHeader *data, const u8 *packed);
-// Stream reads must not go by DMA. The card DMA is an auto DMA: an HBlank DMA started while
-// it runs (the battle's wavy scrolls, Extrasensory's for one, restart theirs every VBlank), or
-// a card DMA started while an HBlank DMA runs, stops the game (MIi_CheckAnotherAutoDMA).
-// CARDi_TryReadCardDma uses DMA only for whole 512-byte pages into a destination on a 32-byte
-// boundary; anything else the card thread copies with the CPU.
-// FS_ReadFile that never takes the DMA path; TRUE when all size bytes came in
+// Reads a whole stream member at load time; TRUE when all size bytes came in. Frames are
+// never read individually: on the Mac the member stays resident and frames decode in place.
 BOOL MonStream_ReadFile(FSFile *file, void *dst, u32 size);
-// Background reads (FS_ReadFileAsync) go to this offset from a 32-byte boundary instead
-#define MON_STREAM_READ_MISALIGN 4
 
 // The stream member for a sprite template, 0 when it has none (MonStream_IndexEntries)
 u16 MonStream_FindMember(const PokemonSpriteTemplate *template);
@@ -124,9 +118,8 @@ u16 MonStream_FindMember(const PokemonSpriteTemplate *template);
 // classic frames back and frees all the streams hold. The first opt-in allocates on the
 // manager's heap.
 void PokemonSpriteManager_SetStreamMask(PokemonSpriteManager *monSpriteMan, u32 mask);
-// Heap a stream load must leave free (default MON_STREAM_DEFAULT_HEAP_SPARE). A small stream
-// (24 KB at most) is held whole when that leaves twice the spare; otherwise only its header is,
-// and each frame is read from the card when it is drawn (2 KB at most, about 1 ms).
+// Heap a stream load must leave free (default MON_STREAM_DEFAULT_HEAP_SPARE). The whole
+// member is held in memory; when that does not fit, the sprite keeps its classic frames.
 void PokemonSpriteManager_SetStreamHeapSpare(PokemonSpriteManager *monSpriteMan, u32 bytes);
 // Frozen sprites hold the first step of their animation, the classic frame A
 void PokemonSpriteManager_SetStreamFrozenMask(PokemonSpriteManager *monSpriteMan, u32 mask);
