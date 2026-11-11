@@ -116,10 +116,10 @@ index 285ed8d..d5a2519 100644
  
 diff --git a/include/simulator/sim_headless.h b/include/simulator/sim_headless.h
 new file mode 100644
-index 0000000..0190294
+index 0000000..acc42a5
 --- /dev/null
 +++ b/include/simulator/sim_headless.h
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,49 @@
 +#pragma once
 +// Headless / lockstep test support for PC builds. See docs/headless_protocol.md in the game repo.
 +// All of it is off unless the SIM_* environment variables are set; the interactive app is unchanged.
@@ -159,6 +159,9 @@ index 0000000..0190294
 +// Print file:line, message and a symbolized backtrace to stderr, then _exit(134).
 +// Used by GF_ASSERT (game side) and the signal handlers.
 +void SIM_Headless_AssertFail(const char *file, int line, const char *msg);
++
++// Install best-effort SIGSEGV/SIGBUS/SIGABRT handlers (headless/control only).
++void SIM_Headless_InstallCrashHandlers(void);
 +
 +// Best-effort state dump for the watchdog / crashes: writes JSON-ish state to stderr.
 +void SIM_Headless_DumpState(const char *reason);
@@ -469,6 +472,48 @@ index 0766447..2261dcc 100644
    // Zero out some registers
    s_reg_G2_BG0CNT = 0;
    s_reg_G2_BG1CNT = 0;
+diff --git a/libraries/sim/src/sim_assert.c b/libraries/sim/src/sim_assert.c
+index 4b2cbc7..8407945 100644
+--- a/libraries/sim/src/sim_assert.c
++++ b/libraries/sim/src/sim_assert.c
+@@ -1,6 +1,7 @@
+ #include <stdarg.h>
+ #include <stdio.h>
+ #include "simulator/assert.h"
++#include "simulator/sim_headless.h"
+ 
+ #ifdef SDK_BUILD_LINUX
+ #include <signal.h>
+@@ -11,6 +12,9 @@
+ #endif
+ 
+ void SIM_handleAssertionFailure(const char* filename, unsigned int lineno, const char* exp) {
++	if (SIM_Headless_Enabled() || SIM_Control_Enabled()) {
++		SIM_Headless_AssertFail(filename, (int)lineno, exp);   // backtrace + exit 134
++	}
+ 	printf("[SIM ASSERTION FAILED] %s:%d\n", filename, lineno);
+ 	if(exp[0] != 0) {
+ 		printf("%s\n", exp);
+@@ -19,12 +23,16 @@ void SIM_handleAssertionFailure(const char* filename, unsigned int lineno, const
+ }
+ 
+ void SIM_handleAssertionFailureMsg(const char* filename, unsigned int lineno, const char* fmt, ...) {
+-	printf("[SIM ASSERTION FAILED] %s:%d\n", filename, lineno);
++	char buf[1024];
+ 	va_list vlist;
+ 	va_start(vlist, fmt);
+-	vprintf(fmt, vlist);
++	vsnprintf(buf, sizeof buf, fmt, vlist);
+ 	va_end(vlist);
+-	printf("\n");
++	if (SIM_Headless_Enabled() || SIM_Control_Enabled()) {
++		SIM_Headless_AssertFail(filename, (int)lineno, buf);
++	}
++	printf("[SIM ASSERTION FAILED] %s:%d\n", filename, lineno);
++	printf("%s\n", buf);
+ 	SIM_debugBreak();
+ }
+ 
 diff --git a/libraries/sim/src/sim_g2.cpp b/libraries/sim/src/sim_g2.cpp
 index b67717b..cca40ac 100644
 --- a/libraries/sim/src/sim_g2.cpp
@@ -638,10 +683,10 @@ index 2c40e59..d13175a 100644
      if(ImGui::Button(label, sButtonSize)) {
 diff --git a/libraries/sim/src/sim_headless.cpp b/libraries/sim/src/sim_headless.cpp
 new file mode 100644
-index 0000000..d4c8ecb
+index 0000000..b2a430d
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless.cpp
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,166 @@
 +// Headless / deterministic mode for PC builds (docs/headless_protocol.md).
 +// Off unless SIM_HEADLESS / SIM_CONTROL / SIM_FIXED_RTC / SIM_SEED / SIM_SAVE_PATH is set.
 +#include "simulator/sim_headless.h"
@@ -741,6 +786,7 @@ index 0000000..d4c8ecb
 +    if (s_headless || s_fixedSet || s_seed >= 0)
 +        fprintf(stderr, "SIM headless=%d control=%d seed=%ld fixed_rtc=%d save_path=%s\n",
 +                s_headless, s_control, s_seed, s_fixedSet, s_savePath.empty() ? "save.bin" : s_savePath.c_str());
++    SIM_Headless_InstallCrashHandlers();
 +}
 +
 +extern "C" int SIM_Headless_Enabled(void) { return s_headless; }
@@ -809,10 +855,10 @@ index 0000000..d4c8ecb
 +}
 diff --git a/libraries/sim/src/sim_headless_control.cpp b/libraries/sim/src/sim_headless_control.cpp
 new file mode 100644
-index 0000000..681d2ea
+index 0000000..023f682
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_control.cpp
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,229 @@
 +// SIM_CONTROL=stdio lockstep protocol (docs/headless_protocol.md).
 +// The game does not advance until told to: this runs at the end of each rendered frame
 +// (from SIM_DebugFrame, before the swap) and blocks reading commands whenever no
@@ -844,6 +890,10 @@ index 0000000..681d2ea
 +}
 +extern "C" __attribute__((weak)) int HeadlessGame_State(const char *line, char *reply, size_t cap) {
 +    (void)line; (void)reply; (void)cap; return 0;
++}
++// `talk` asks for an A press over the next frames after its reply.
++extern "C" __attribute__((weak)) int HeadlessGame_TakeInjectedPress(unsigned *mask, unsigned *xy, int *frames) {
++    (void)mask; (void)xy; (void)frames; return 0;
 +}
 +
 +static long long s_budget = 0;       // frames still allowed to run
@@ -1006,6 +1056,14 @@ index 0000000..681d2ea
 +        char reply[4096];
 +        if (HeadlessGame_Command && HeadlessGame_Command(line.c_str(), reply, sizeof reply)) {
 +            SIM_Headless_Reply(reply);
++            unsigned mask = 0, xy = 0; int frames = 0;
++            if (HeadlessGame_TakeInjectedPress(&mask, &xy, &frames) && frames > 0) {
++                ClearHeld();
++                s_heldMask = mask; s_heldXY = xy;
++                s_budget = frames;
++                ApplyHeld();
++                return true;   // run the injected press frames (no second reply)
++            }
 +            return false;
 +        }
 +    }
@@ -1032,28 +1090,155 @@ index 0000000..681d2ea
 +}
 diff --git a/libraries/sim/src/sim_headless_watchdog.cpp b/libraries/sim/src/sim_headless_watchdog.cpp
 new file mode 100644
-index 0000000..d199ca9
+index 0000000..25f9ce1
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_watchdog.cpp
-@@ -0,0 +1,19 @@
-+// Watchdog + assert/crash reporting. Implemented in step 4; see docs/headless_protocol.md.
+@@ -0,0 +1,146 @@
++// Assert / crash reporting and the watchdog (docs/headless_protocol.md, step 4).
++// Headless: GF_ASSERT and fatal signals print file:line, message and a symbolized
++// backtrace to stderr, then exit 134. The watchdog exits 124 with a state dump when
++// no frame completes for SIM_WATCHDOG_SEC seconds (default 30 in headless mode).
++// Interactive (non-headless): assert info is appended to log.txt and shown in a
++// message box, then the process exits 134 instead of hanging silently.
 +#include "simulator/sim_headless.h"
++
++#include <SDL2/SDL.h>
++
++#include <atomic>
++#include <chrono>
 +#include <cstdio>
 +#include <cstdlib>
++#include <cstring>
++#include <thread>
++
++#include <csignal>
 +#include <unistd.h>
++#if defined(__linux__) || defined(__APPLE__)
++#include <execinfo.h>
++#endif
 +
-+extern "C" void SIM_Headless_WatchdogFrame(void) {}
-+extern "C" void SIM_Headless_WatchdogTick(void) {}
++// Weak definition lives in sim_headless_control.cpp; overridden by the game.
++extern "C" int HeadlessGame_State(const char *line, char *reply, size_t cap);
 +
++static std::atomic<long long> s_lastFrameMs{0};
++static std::atomic<bool> s_waitingForInput{false};
++static std::atomic<bool> s_armed{false};
++static long long s_timeoutMs = 30000;
++static bool s_started = false;
++
++static long long NowMs() {
++    using namespace std::chrono;
++    return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
++}
++
++static void PrintBacktrace() {
++#if defined(__linux__) || defined(__APPLE__)
++    void *frames[64];
++    int n = backtrace(frames, 64);
++    if (n > 0) backtrace_symbols_fd(frames, n, STDERR_FILENO);
++#endif
++}
 +extern "C" void SIM_Headless_DumpState(const char *reason) {
-+    fprintf(stderr, "SIM state dump (%s): frame=%llu\n", reason ? reason : "?",
-+            SIM_Headless_FrameCount());
++    char buf[16384];
++    buf[0] = 0;
++    if (HeadlessGame_State) HeadlessGame_State("{\"cmd\":\"state\"}", buf, sizeof buf);
++    fprintf(stderr, "SIM state dump (%s): frame=%llu state=%s\n",
++            reason ? reason : "?", SIM_Headless_FrameCount(), buf[0] ? buf : "{}");
++    fflush(stderr);
 +}
 +
 +extern "C" void SIM_Headless_AssertFail(const char *file, int line, const char *msg) {
-+    fprintf(stderr, "GF_ASSERT %s:%d: %s\n", file ? file : "?", line, msg ? msg : "");
-+    fflush(stderr);
++    if (SIM_Headless_Enabled() || SIM_Control_Enabled()) {
++        fprintf(stderr, "GF_ASSERT %s:%d: %s\n", file ? file : "?", line, msg ? msg : "");
++        SIM_Headless_DumpState("assert");
++        PrintBacktrace();
++        fflush(stderr);
++        _exit(134);
++    }
++    // Interactive: log.txt + message box instead of a silent hang.
++    char text[2048];
++    snprintf(text, sizeof text, "Assertion failed: %s:%d: %s", file ? file : "?", line, msg ? msg : "");
++    if (FILE *f = fopen("log.txt", "a")) { fprintf(f, "%s\n", text); fclose(f); }
++    fprintf(stderr, "%s\n", text);
++    PrintBacktrace();
++    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Dazzling Platinum", text, nullptr);
++    fflush(nullptr);
 +    _exit(134);
++}
++
++// ---- watchdog ----
++
++static void WatchdogThread() {
++    for (;;) {
++        std::this_thread::sleep_for(std::chrono::milliseconds(200));
++        if (!s_armed.load()) continue;
++        if (s_waitingForInput.load()) continue;   // lockstep idle: legitimately blocked on stdin
++        long long last = s_lastFrameMs.load();
++        if (last == 0) continue;
++        if (NowMs() - last > s_timeoutMs) {
++            fprintf(stderr, "SIM watchdog: no frame completed for %lld ms (limit %lld ms)\n",
++                    NowMs() - last, s_timeoutMs);
++            SIM_Headless_DumpState("watchdog");
++            PrintBacktrace();
++            fflush(stderr);
++            _exit(124);
++        }
++    }
++}
++
++static void StartWatchdogOnce() {
++    if (s_started) return;
++    s_started = true;
++    const char *e = getenv("SIM_WATCHDOG_SEC");
++    if (e) s_timeoutMs = atoll(e) * 1000;
++    if (s_timeoutMs < 0) s_timeoutMs = 0;
++    bool on = (SIM_Headless_Enabled() || SIM_Control_Enabled()) && s_timeoutMs > 0;
++    if (e && atoll(e) == 0) on = false;   // SIM_WATCHDOG_SEC=0 disables
++    s_armed.store(on);
++    s_lastFrameMs.store(NowMs());
++    if (on) {
++        std::thread(WatchdogThread).detach();
++        fprintf(stderr, "SIM watchdog: armed, %lld ms\n", s_timeoutMs);
++    }
++}
++
++extern "C" void SIM_Headless_WatchdogFrame(void) {
++    StartWatchdogOnce();
++    s_waitingForInput.store(false);
++    s_lastFrameMs.store(NowMs());
++}
++
++extern "C" void SIM_Headless_WatchdogTick(void) {
++    StartWatchdogOnce();
++    // Blocked reading commands: the game is idle by design, not frozen.
++    s_waitingForInput.store(true);
++}
++
++// ---- signal handlers (best effort) ----
++
++static void CrashHandler(int sig) {
++    const char *name = sig == SIGSEGV ? "SIGSEGV" : sig == SIGBUS ? "SIGBUS" : sig == SIGABRT ? "SIGABRT" : "signal";
++    char buf[128];
++    int n = snprintf(buf, sizeof buf, "SIM crash: %s (%d) at frame=%llu\n", name, sig, SIM_Headless_FrameCount());
++    if (n > 0) { ssize_t ignored = write(STDERR_FILENO, buf, (size_t)n); (void)ignored; }
++#if defined(__linux__) || defined(__APPLE__)
++    void *frames[48];
++    int count = backtrace(frames, 48);
++    if (count > 0) backtrace_symbols_fd(frames, count, STDERR_FILENO);
++#endif
++    _exit(134);
++}
++
++extern "C" void SIM_Headless_InstallCrashHandlers(void) {
++    if (!SIM_Headless_Enabled() && !SIM_Control_Enabled()) return;
++    struct sigaction sa;
++    memset(&sa, 0, sizeof sa);
++    sa.sa_handler = CrashHandler;
++    sigemptyset(&sa.sa_mask);
++    sa.sa_flags = 0;
++    sigaction(SIGSEGV, &sa, nullptr);
++    sigaction(SIGBUS, &sa, nullptr);
++    sigaction(SIGABRT, &sa, nullptr);
 +}
 diff --git a/libraries/sim/src/sim_helpers.cpp b/libraries/sim/src/sim_helpers.cpp
 new file mode 100644

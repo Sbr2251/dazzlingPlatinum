@@ -222,7 +222,8 @@ static BOOL GetOverlayRamBounds(const FSOverlayID overlayID, u32 *start, u32 *en
     FSOverlayInfo info;
 
     if (!FS_LoadOverlayInfo(&info, MI_PROCESSOR_ARM9, overlayID)) {
-        GF_ASSERT(FALSE);
+        // No assert: the sibling loaders return FALSE for the same failure, the caller
+        // handles FALSE, and on PC builds some overlays (e.g. WFC at boot) have no info.
         return FALSE;
     }
 
