@@ -2891,7 +2891,7 @@ index 0000000..74d53a8
 +
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..7317407 100644
+index 910d7da..263cfc4 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -3090,7 +3090,7 @@ index 910d7da..7317407 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +1024,146 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1024,145 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -3227,8 +3227,7 @@ index 910d7da..7317407 100644
 +  }
 +  if (exitFrame && frame >= exitFrame) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
 +    if (frame > 100) printf("SIM_DEBUG_EXIT_FRAME: %.1f fps since frame 100\n", (frame - 100) / ((t.tv_sec - t100.tv_sec) + (t.tv_nsec - t100.tv_nsec) / 1e9));
-+    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u
-+", frame); ProfPrint(); fflush(stdout); SIM::G3::G3StatsDump("exit"); _exit(0); }
++    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); ProfPrint(); fflush(stdout); SIM::G3::G3StatsDump("exit"); _exit(0); }
 +}
 +
  void *SIM_Render(void *arg) {
@@ -3237,7 +3236,7 @@ index 910d7da..7317407 100644
  
    SDL_Event Event;
    char c;
-@@ -1073,9 +1286,14 @@ void *SIM_Render(void *arg) {
+@@ -1073,9 +1285,14 @@ void *SIM_Render(void *arg) {
        s_SIM_SDLJoystick = SDL_JoystickOpen(0);
      }
  
@@ -3252,7 +3251,7 @@ index 910d7da..7317407 100644
        if (Event.type == SDL_WINDOWEVENT) {
          switch (Event.window.event) {
          case SDL_WINDOWEVENT_CLOSE:
-@@ -1083,6 +1301,18 @@ void *SIM_Render(void *arg) {
+@@ -1083,6 +1300,18 @@ void *SIM_Render(void *arg) {
            break;
          }
        }
@@ -3271,7 +3270,7 @@ index 910d7da..7317407 100644
        if (Event.type == SDL_KEYDOWN) {
          int keyRead = Event.key.keysym.sym;
          if (keyRead == s_SIM_config.padSettings.aKey) {
-@@ -1261,7 +1491,9 @@ void *SIM_Render(void *arg) {
+@@ -1261,7 +1490,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -3282,7 +3281,7 @@ index 910d7da..7317407 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1328,18 +1560,29 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +1559,29 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -3321,7 +3320,7 @@ index 910d7da..7317407 100644
      SDL_GL_SwapWindow(window);
  
      if(sChangeInternalResAfterRender) {
-@@ -1369,6 +1612,12 @@ void *SIM_Render(void *arg) {
+@@ -1369,6 +1611,12 @@ void *SIM_Render(void *arg) {
      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
      glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -3334,7 +3333,7 @@ index 910d7da..7317407 100644
    } while (SIM::GUI::IsGameLogicPaused());
    // Bind 3D Framebuffer & Renderbuffer
    glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
-@@ -1394,10 +1643,17 @@ void *SIM_Render(void *arg) {
+@@ -1394,10 +1642,17 @@ void *SIM_Render(void *arg) {
    glCullFace(GL_FRONT);
    glFrontFace(GL_CW);
  
