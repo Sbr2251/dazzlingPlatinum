@@ -87,6 +87,8 @@ def write_diff_images(actual_path, ref_path, workdir, shot_name, crop=None):
     a, b = load_image(actual_path), load_image(ref_path)
     if crop:
         a = crop_image(a, crop)  # references are stored already cropped
+        if a[:2] != b[:2]:
+            b = crop_image(b, crop)  # legacy full-size reference
     os.makedirs(workdir, exist_ok=True)
     ep, ap, dp = (os.path.join(workdir, f"{shot_name}.{k}.bmp") for k in ("expected", "actual", "diff"))
     save_bmp(ep, b[0], b[1], b[2]); save_bmp(ap, a[0], a[1], a[2])
@@ -107,6 +109,8 @@ def compare_images(actual_path, ref_path, tolerance=0.01, channel_eps=8, crop=No
     a, b = load_image(actual_path), load_image(ref_path)
     if crop:
         a = crop_image(a, crop)  # references are stored already cropped
+        if a[:2] != b[:2]:
+            b = crop_image(b, crop)  # legacy full-size reference
     if a[:2] != b[:2]:
         return False, 1.0, f"size differs: actual {a[0]}x{a[1]} vs reference {b[0]}x{b[1]}"
     diff = total = 0
