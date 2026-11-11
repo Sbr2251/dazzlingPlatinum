@@ -175,10 +175,13 @@ void BattleController_TryRecvLocalMessage(BattleSystem *battleSys, int recipient
 
     if (BattleController_RecvLocalMessage(battleSys, (void *)&src[readIndex[0]]) == 1) {
         size = sizeof(BattleMessageInfo) + (src[readIndex[0] + 2] | (src[readIndex[0] + 3] << 8));
-        if (recipient == COMM_RECIPIENT_CLIENT && BattleEvents_FastEnabled() && !(battleSys->battleType & BATTLE_TYPE_LINK)) {
+        if (recipient == COMM_RECIPIENT_CLIENT && battleSys->battleCtx && BattleEvents_FastEnabled() && !(battleSys->battleType & BATTLE_TYPE_LINK)) {
             int battler = src[readIndex[0] + 1];
             int cmd = src[readIndex[0] + sizeof(BattleMessageInfo)];
-            if (cmd != BATTLE_COMMAND_SET_COMMAND_SELECTION && cmd != BATTLE_COMMAND_SHOW_MOVE_SELECT_MENU && cmd != BATTLE_COMMAND_SHOW_TARGET_SELECT_MENU && cmd != BATTLE_COMMAND_SHOW_BAG_MENU && cmd != BATTLE_COMMAND_SHOW_PARTY_MENU && cmd != BATTLE_COMMAND_SHOW_YES_NO_MENU) {
+            // Null presentation only for commands that create no sprite/healthbox
+            // objects and need no input: messages and sound. Sprite, gauge, menu
+            // and animation commands still run (they own objects later code uses).
+            if (cmd == BATTLE_COMMAND_UPDATE_HP_GAUGE || cmd == BATTLE_COMMAND_UPDATE_EXP_GAUGE || cmd == BATTLE_COMMAND_REFRESH_HP_GAUGE || cmd == BATTLE_COMMAND_SET_STATUS_ICON || cmd == BATTLE_COMMAND_PRINT_MESSAGE || cmd == BATTLE_COMMAND_PRINT_ATTACK_MESSAGE || cmd == BATTLE_COMMAND_PRINT_TRAINER_MESSAGE || cmd == BATTLE_COMMAND_PRINT_RECALL_MESSAGE || cmd == BATTLE_COMMAND_PRINT_SEND_OUT_MESSAGE || cmd == BATTLE_COMMAND_PRINT_BATTLE_START_MESSAGE || cmd == BATTLE_COMMAND_PRINT_LEAD_MON_MESSAGE || cmd == BATTLE_COMMAND_PRINT_RESULT_MESSAGE || cmd == BATTLE_COMMAND_PRINT_ESCAPE_MESSAGE || cmd == BATTLE_COMMAND_PRINT_FORFEIT_MESSAGE || cmd == BATTLE_COMMAND_PLAY_SOUND || cmd == BATTLE_COMMAND_PLAY_MUSIC || cmd == BATTLE_COMMAND_CLEAR_MESSAGE_BOX || cmd == BATTLE_COMMAND_PRINT_LINK_WAIT_MESSAGE) {
                 if (cmd != 0 && battler >= 0 && battler < MAX_BATTLERS) BattleIO_DequeueVal(battleSys->battleCtx, 0, battler, cmd);
                 if (battler >= 0 && battler < MAX_BATTLERS && battleSys->battlers[battler]) battleSys->battlers[battler]->data[0] = 0;
             }
