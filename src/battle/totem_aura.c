@@ -15,6 +15,8 @@
 #include "battle_anim/battle_anim_util.h"
 #include "overlay011/particle_helper.h"
 
+#include "port/postfx.h"
+
 #include "camera.h"
 #include "heap.h"
 #include "narc.h"
@@ -78,36 +80,40 @@ static SysTask *sTotemAuraTasks[MAX_BATTLERS];
 static TotemAura *sTotemAuras[MAX_BATTLERS];
 
 // ---------------------------------------------------------------------------
-// PostFX slot-in points.
-//
-// mega-cine owns the real PostFX API (include/port/postfx.h: PostFX_Shockwave,
-// PostFX_Vignette, ... with per-frame decay, implemented in the compositing
-// shader). Until the lead forwards that commit, these helpers provide the
-// same beats through the BattleStage fallback (brightness / backdrop fade /
-// backdrop shake), so swapping in the PostFX calls later is a one-line change
-// in each helper and nothing else in this file moves.
+// Screen FX, through mega-cine's PostFX API (include/port/postfx.h, game commit
+// 81e63c60be + libntr fe200d0, cherry-picked). PostFX coordinates cover the
+// combined display (top screen y 0-191); the Totem sits near (185, 55) there.
+// PostFX has no plain brightness, so the dim beat keeps the BattleStage
+// brightness fallback alongside the PostFX vignette tint.
 // ---------------------------------------------------------------------------
 
-// Radial shockwave + heat haze at the Totem on the burst beat.
+// Radial shockwave + heat haze + shake at the Totem on the burst beat.
 static void TotemFX_Shockwave(TotemAura *aura, int strength, int frames)
 {
     (void)aura;
-    // TODO(PostFX): PostFX_Shockwave(x, y, strength, frames); PostFX_HeatHaze(strength, frames);
+    PostFX_Shockwave(185, 55, strength * 0.12f, frames);
+    PostFX_ZoomBlur(185, 55, 0.22f, frames); // heat haze
+    PostFX_Glow(0.45f, frames);
+    PostFX_Shake(strength * 0.15f, frames > 12 ? 12 : frames);
     BattleStage_CameraShake(strength, frames);
-    BattleStage_SetBackdropShake(strength, 0);
 }
 
 static void TotemFX_Vignette(TotemAura *aura, u16 color, int amount)
 {
+    float r = (float)((color >> 10) & 0x1F) / 31.0f;
+    float g = (float)((color >> 5) & 0x1F) / 31.0f;
+    float b = (float)(color & 0x1F) / 31.0f;
+
     (void)aura;
-    // TODO(PostFX): PostFX_Vignette(color, amount);
+    // Refreshed every flare frame with a short tail, so the tint holds while
+    // the driver calls this and decays on its own once it stops.
+    PostFX_Vignette(r, g, b, amount / 16.0f * 0.85f, 4);
     BattleStage_SetBackdropFade(color, amount);
 }
 
 static void TotemFX_Dim(TotemAura *aura, int brightness)
 {
     (void)aura;
-    // TODO(PostFX): part of PostFX_Vignette's dimming; BattleStage brightness is the fallback.
     BattleStage_SetBrightness(brightness);
 }
 
@@ -118,6 +124,7 @@ static void TotemFX_Clear(TotemAura *aura)
     }
 
     aura->fxActive = FALSE;
+    PostFX_Clear();
     BattleStage_SetBrightness(0);
     BattleStage_SetBackdropFade(0, 0);
     BattleStage_SetBackdropShake(0, 0);
