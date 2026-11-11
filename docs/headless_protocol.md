@@ -27,6 +27,37 @@ With `SIM_HEADLESS=1 SIM_FIXED_RTC=... SIM_SEED=...`, the same save and the same
 identical screenshots across runs. Verified on Linux: two runs importing the same test save
 with the same `SIM_DEBUG_KEYS` script produced byte-identical BMP screenshots (md5 match).
 
+### Lockstep guarantee (`SIM_CONTROL=stdio`)
+
+In control mode, game state is a pure function of the save, `SIM_SEED`, `SIM_FIXED_RTC`,
+and the command sequence: identical commands give byte-identical `state` replies and
+screenshots regardless of the 2D renderer (`SIM_G2_GPU=0` or `1`), render speed, or
+machine load (including a second headless game running alongside). Nothing that game
+logic can observe advances at wall-clock rate in this mode:
+
+- Sound: the SDL audio callback emits silence and advances nothing. The sequencer
+  (`SND_SeqMain`/`SND_ExChannelMain`), envelopes, fades, cries, and channel sample
+  progression advance in `SIM_Audio_LockstepFrame`, once per rendered frame at the
+  interactive rate (44100 samples/s of simulated time, fractional accumulators), on
+  the game thread. Before this, they advanced only in the SDL audio callback, so
+  e.g. the title screen waited a render-speed-dependent number of frames for the
+  Giratina cry and every later input landed at a different phase.
+- `OS_GetTick` is derived from the rendered frame count
+  (`frame * (OS_SYSTEM_CLOCK/64) / 60`), not `SDL_GetTicks64`.
+- OS alarms fire from the frame hook when the deterministic tick reaches them;
+  no `SDL_AddTimer` is created in control mode.
+- `import_save` is synchronous on the game thread, so the `execv` restart always
+  happens at the next rendered frame instead of after a wall-clock-dependent
+  number of the 30 post-import frames.
+
+Outside control mode none of this changes: the audio callback, tick, alarms, and
+the threaded save import behave exactly as in interactive play.
+
+Verified on macOS (2026-11-11): `core_wild_battle_start_flee` state checkpoints
+(225 state/screenshot samples through the battle) and boot screenshots are
+byte-identical between `SIM_G2_GPU=0` and `SIM_G2_GPU=1`; both wild scenarios
+pass 3x per renderer and once with another headless game running alongside.
+
 Note on frame numbering: protocol and `SIM_HEADLESS_SHOT_AT` frames count rendered frames (`SIM_Headless_FrameCount`). The older `SIM_DEBUG_*` frame numbers use the DS vblank counter, which can run ahead of rendered frames at uncapped rates, so two runs shot at the same vblank number are not necessarily the same rendered frame.
 
 Caveats:
