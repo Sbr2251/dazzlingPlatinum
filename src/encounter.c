@@ -844,6 +844,14 @@ void Encounter_NewCatchingTutorial(FieldTask *task)
     FieldTask_InitCall(task, FieldTask_CatchingTutorialEncounter, encounter);
 }
 
+void Encounter_NewHeadlessBattle(FieldTask *task, FieldBattleDTO *dto, int *resultMaskPtr)
+{
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+    RadarChain_Clear(fieldSystem->chain);
+    GameRecords_IncrementRecordValue(SaveData_GetGameRecords(fieldSystem->saveData), RECORD_WILD_BATTLES_FOUGHT);
+    StartEncounter(task, dto, EncEffects_CutInEffect(dto), EncEffects_BGM(dto), resultMaskPtr);
+}
+
 void Encounter_NewVsTrainer(FieldTask *taskMan, int enemyTrainer1ID, int enemyTrainer2ID, int partnerTrainerID, enum HeapID heapID, int *resultMaskPtr)
 {
     u32 battleType;

@@ -13,6 +13,7 @@
 
 #include "port/debug_field.h"
 #include "port/headless_game.h"
+#include "port/headless_battle.h"
 
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
@@ -300,6 +301,7 @@ int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
         BattleDecisions_Push(&d); snprintf(reply, cap, "{\"ok\":true,\"queued\":%d}", BattleDecisions_Count(d.battler));
     }
     else if (strcmp(cmd, "battle_events") == 0) { char ev[8192]; BattleEvents_TakePending(ev, sizeof(ev)); snprintf(reply, cap, "{\"ok\":true,\"events\":%s}", ev); }
+    else if (strcmp(cmd, "start_battle") == 0) return HeadlessBattle_Start(line, reply, cap);
     else return 0;
     return 1;
 }
