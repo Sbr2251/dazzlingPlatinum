@@ -16,6 +16,7 @@
 #include "battle/battle_controller.h"
 #include "battle/battle_controller_player.h"
 #include "battle/battle_lib.h"
+#include "battle/battle_events.h"
 #include "battle/battle_system.h"
 #include "battle/common.h"
 #include "battle/message_defs.h"
@@ -174,6 +175,14 @@ void BattleController_TryRecvLocalMessage(BattleSystem *battleSys, int recipient
 
     if (BattleController_RecvLocalMessage(battleSys, (void *)&src[readIndex[0]]) == 1) {
         size = sizeof(BattleMessageInfo) + (src[readIndex[0] + 2] | (src[readIndex[0] + 3] << 8));
+        if (recipient == COMM_RECIPIENT_CLIENT && BattleEvents_FastEnabled() && !(battleSys->battleType & BATTLE_TYPE_LINK)) {
+            int battler = src[readIndex[0] + 1];
+            int cmd = src[readIndex[0] + sizeof(BattleMessageInfo)];
+            if (cmd != BATTLE_COMMAND_SET_COMMAND_SELECTION && cmd != BATTLE_COMMAND_SHOW_MOVE_SELECT_MENU && cmd != BATTLE_COMMAND_SHOW_TARGET_SELECT_MENU && cmd != BATTLE_COMMAND_SHOW_BAG_MENU && cmd != BATTLE_COMMAND_SHOW_PARTY_MENU && cmd != BATTLE_COMMAND_SHOW_YES_NO_MENU) {
+                if (cmd != 0 && battler >= 0 && battler < MAX_BATTLERS) BattleIO_DequeueVal(battleSys->battleCtx, 0, battler, cmd);
+                if (battler >= 0 && battler < MAX_BATTLERS && battleSys->battlers[battler]) battleSys->battlers[battler]->data[0] = 0;
+            }
+        }
         readIndex[0] += size;
     }
 }
@@ -746,6 +755,7 @@ void BattleController_EmitSetCommandSelection(BattleSystem *battleSys, BattleCon
 
 void BattleController_EmitSelectedCommand(BattleSystem *battleSys, int battler, int command)
 {
+    BattleEvents_OnSelectedCommand(battleSys, battler, command);
     SendMessage(battleSys, COMM_RECIPIENT_SERVER, battler, &command, sizeof(int));
 }
 
@@ -777,6 +787,7 @@ void BattleController_EmitShowMoveSelectMenu(BattleSystem *battleSys, BattleCont
 
 void BattleController_EmitSelectedMove(BattleSystem *battleSys, int battler, int command)
 {
+    BattleEvents_OnSelectedMove(battleSys, battler, command);
     SendMessage(battleSys, COMM_RECIPIENT_SERVER, battler, &command, sizeof(int));
 }
 
@@ -963,6 +974,7 @@ void BattleController_EmitShowPartyMenu(BattleSystem *battleSys, BattleContext *
 
 void BattleController_EmitPartyMenuResult(BattleSystem *battleSys, int battler, int command)
 {
+    BattleEvents_OnPartyResult(battleSys, battler, command);
     SendMessage(battleSys, COMM_RECIPIENT_SERVER, battler, &command, sizeof(int));
 }
 
@@ -1005,7 +1017,7 @@ void BattleController_EmitPrintAttackMessage(BattleSystem *battleSys, BattleCont
     message.command = BATTLE_COMMAND_PRINT_ATTACK_MESSAGE;
     message.partySlot = battleCtx->selectedPartySlot[battleCtx->attacker];
     message.move = battleCtx->moveCur;
-
+    BattleEvents_OnMoveUsed(battleSys, battleCtx);
     SendMessage(battleSys, COMM_RECIPIENT_CLIENT, battleCtx->attacker, &message, sizeof(AttackMsgMessage));
 }
 
