@@ -11,6 +11,7 @@ void CreateMonInit();
 void CreateMonMain(bool * openState);
 void MapJumpInit();
 void MapJumpMain(bool * openState);
+void BattleLabMain(bool * openState);
 
 }
 

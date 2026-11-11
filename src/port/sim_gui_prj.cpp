@@ -12,6 +12,7 @@ static bool sCreateItemOpen = false;
 static bool sConfigPrjOpen = false;
 static bool sCheatsOpen = false;
 static bool sMapJumpOpen = false;
+static bool sBattleLabOpen = false;
 
 void PrjMain(bool * openState) {
     ImGui::Begin("pokeplatinum", openState);
@@ -25,6 +26,7 @@ void PrjMain(bool * openState) {
 
     if(DEBUG_GetFieldSystem() != nullptr) {
         AppButton("Jump to Map", &sMapJumpOpen, MapJumpInit, MapJumpMain);
+        AppButton("Battle Lab", &sBattleLabOpen, nullptr, BattleLabMain);
     }
 
     ImGui::End();

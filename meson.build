@@ -448,6 +448,7 @@ pokeplatinum_port_c = files(
     'src/port/sim_config_prj.c',
     'src/port/sim_gui_prj.cpp',
     'src/port/gui_cheats.cpp',
+    'src/port/gui_battlelab.cpp',
     'src/port/gui_configPrj.cpp',
     'src/port/gui_createitem.cpp',
     'src/port/gui_createitem_utils.c',
@@ -918,3 +919,10 @@ test('ROM Checksum',
 ###                       POSTCONF                       ###
 ############################################################
 meson.add_postconf_script(postconf_py)
+
+# Battle Lab specs: copied next to the game so the debug GUI can list them.
+custom_target('battle_specs_copy',
+    output: 'battle_specs.stamp',
+    command: ['sh', '-c', 'mkdir -p "@OUTDIR@/battle_specs" && cp "@SOURCE_ROOT@/tools/battle/specs/"*.json "@OUTDIR@/battle_specs/" && touch "@OUTPUT@"'],
+    build_by_default: true,
+)
