@@ -2699,10 +2699,10 @@ index 2c40e59..d13175a 100644
      if(ImGui::Button(label, sButtonSize)) {
 diff --git a/libraries/sim/src/sim_headless.cpp b/libraries/sim/src/sim_headless.cpp
 new file mode 100644
-index 0000000..b2a430d
+index 0000000..fc076df
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless.cpp
-@@ -0,0 +1,166 @@
+@@ -0,0 +1,170 @@
 +// Headless / deterministic mode for PC builds (docs/headless_protocol.md).
 +// Off unless SIM_HEADLESS / SIM_CONTROL / SIM_FIXED_RTC / SIM_SEED / SIM_SAVE_PATH is set.
 +#include "simulator/sim_headless.h"
@@ -2781,6 +2781,10 @@ index 0000000..b2a430d
 +    if (s_headless) {
 +        // No audio device and no visible window; rendering still happens (offscreen/hidden).
 +        setenv("SDL_AUDIODRIVER", "dummy", 0);
++#ifdef __APPLE__
++        // Never appear in the Dock / app switcher for headless test instances.
++        SDL_SetHint(SDL_HINT_MAC_BACKGROUND_APP, "1");
++#endif
 +#if defined(__linux__)
 +        if (!getenv("DISPLAY")) setenv("SDL_VIDEODRIVER", "offscreen", 0);
 +#endif

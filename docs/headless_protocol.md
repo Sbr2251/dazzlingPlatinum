@@ -153,4 +153,26 @@ Implemented (step 4).
 
 ## Sanitizer build
 
-Step 5. To be filled in.
+Implemented (step 5): `-Dbuild_variant=asan (tools/macos/build.sh asan)` (meson option `asan`, added as a minimal
+option by debug-headless; perf-game will fold it into `build_variant=asan`).
+It adds `-fsanitize=address,undefined -fno-omit-frame-pointer` to compile and
+link for the whole PC build (game + simulator), with static sanitizer
+runtimes and `--allow-shlib-undefined` so shared subproject libraries link.
+
+Build (Linux):
+```sh
+python3 subprojects/meson-1.12.0/meson.py setup -Dbuild_target=linux -Dbuild_variant=asan (tools/macos/build.sh asan) \
+  -Ddefault_library=static --native-file=... --cross-file=meson/cross_pcport_linux.ini build_asan
+ninja -C build_asan
+ASAN_OPTIONS=detect_leaks=0 ./main   # plus SIM_* as usual
+```
+On this devserver the GCC 15 toolset lacks the 64-bit sanitizer runtime;
+the build was linked against clang compiler-rt archives via `LIBRARY_PATH`
+(scratch only, not part of the repo build). On macOS / perf-game's toolchain
+the option works as-is.
+
+Findings from running one test save (boot -> field -> warp -> talk) through
+the ASan build are listed in the step-5 section of the status report; the
+headline items are a simulator DMA register-block over-read at boot
+(`mi_dma.c`, not fixed - needs the register layout work) and several build
+tool over-reads (fixed).
