@@ -6,10 +6,6 @@
 #include "heap.h"
 #include "system.h"
 
-#ifdef SDK_PORT
-#include "port/sim_config_prj.h"
-#endif
-
 typedef void (*SpriteDrawFunc)(const SpriteList *, Sprite *);
 typedef void (*SpriteAnimUpdateFunc)(Sprite *);
 
@@ -847,17 +843,14 @@ static void SpriteList_DrawSprite_Stub(const SpriteList *list, Sprite *sprite)
 
 static void Sprite_UpdateAnimInternal(Sprite *sprite)
 {
-#ifdef SDK_PORT
-    // fps60: auto-animated sprites advance once per list draw (once per
-    // logic frame). Halve the per-frame advance so the anim plays at the
-    // same real-time speed at 60 Hz logic, advancing every rendered frame.
-    // (One-shot frame seeks go through Sprite_UpdateAnim directly and are
-    // deliberately NOT halved here.)
-    if (SIM_Config_prj_DoubleStep()) {
-        Sprite_UpdateAnim(sprite, sprite->animSpeed / 2);
-        return;
-    }
-#endif
+    // fps60: auto-animated sprites stay at LOGIC rate, deliberately NOT
+    // halved or parity-gated. Battle intro state machines (ball throw /
+    // send-out) await these anims completing within fixed logic-frame
+    // counts; slowing the anim deadlocks the intro (verified by bisect:
+    // halving or parity-gating here stalls Task_ShowEncounter forever,
+    // while ungated it completes). Like screen fades, these anims run
+    // faster in real time at 60 Hz, in step with the logic that waits
+    // on them. (One-shot seeks go through Sprite_UpdateAnim directly.)
     Sprite_UpdateAnim(sprite, sprite->animSpeed);
 }
 
