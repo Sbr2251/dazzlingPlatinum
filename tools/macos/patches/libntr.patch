@@ -523,6 +523,23 @@ index ad57dfa..312dae0 100644
  const char * SIM_GetLibntrGitHash();
  const char * SIM_GetProjectGitHash();
  SDL_Window * SIM_GetSDLWindow();
+diff --git a/include/simulator/sim_audio.h b/include/simulator/sim_audio.h
+index 4c50209..80b5956 100644
+--- a/include/simulator/sim_audio.h
++++ b/include/simulator/sim_audio.h
+@@ -19,6 +19,12 @@ extern u32 s_SIM_sndlen[16];
+ void SIM_Audio_Init(int aAudioFrequency);
+ void SIM_Audio_Callback(void *userdata, Uint8 *stream, int len);
+ 
++// Lockstep (SIM_CONTROL=stdio) only: advance the sound driver by exactly one
++// rendered frame of simulated audio time. Called once per rendered frame from
++// SIM_Headless_FrameHook on the game thread; the SDL audio callback is inert
++// in control mode so sound state never advances at wall-clock rate.
++void SIM_Audio_LockstepFrame(void);
++
+ void SIM_Audio_StartChannel(int chNo);
+ 
+ s32 SIM_Audio_RunChannel(u32 cycles, int chNo);
 diff --git a/include/simulator/sim_g3_GlRenderer.hpp b/include/simulator/sim_g3_GlRenderer.hpp
 index 054fea8..3f84b26 100644
 --- a/include/simulator/sim_g3_GlRenderer.hpp
@@ -1256,6 +1273,93 @@ index 876f6c4..36edb27 100644
  }
  
  void MI_CpuFill(void *dest, u8 data, u32 size) {
+diff --git a/libraries/os/src/os_alarm.c b/libraries/os/src/os_alarm.c
+index 1472f43..54a582c 100644
+--- a/libraries/os/src/os_alarm.c
++++ b/libraries/os/src/os_alarm.c
+@@ -16,6 +16,25 @@ static void OSi_InsertAlarm(OSAlarm * alarm, OSTick fire);
+ static void OSi_AlarmHandler(void * arg);
+ static void OSi_ArrangeTimer(void);
+ 
++#ifdef SDK_PORT
++// Weak: absent in tools that link libos without the simulator (lockstep alarms).
++__attribute__((weak)) extern int SIM_Control_Enabled(void);
++static int LockstepAlarms(void) { return SIM_Control_Enabled && SIM_Control_Enabled(); }
++
++// Lockstep: fire due alarms on the game thread, once per rendered frame
++// (called from SIM_Headless_FrameHook). SDL_AddTimer is not used in control
++// mode, so no alarm handler ever runs at wall-clock rate on a timer thread.
++void SIM_OS_LockstepAlarmFrame(void)
++{
++    if (!LockstepAlarms() || !OSi_UseAlarm) return;
++    for (int i = 0; i < 128; i++) {
++        OSAlarm *head = OSi_AlarmQueue.head;
++        if (!head || (s64)(OS_GetTick() - head->fire) < 0) return;
++        OSi_ArrangeTimer();
++    }
++}
++#endif
++
+ #ifdef SDK_PORT
+ #if defined(SDK_BUILD_WIN64) || defined(SDK_BUILD_PROSPERO)
+ static unsigned int OS_SDLTimerCallback(unsigned int interval, void * param)
+@@ -193,8 +212,10 @@ void OS_SetAlarm (OSAlarm * alarm, OSTick tick, OSAlarmHandler handler, void * a
+     (void)OS_RestoreInterrupts(enabled);
+ 
+ #ifdef SDK_PORT
+-    u32 milliseconds = OS_TicksToMilliSeconds(tick);
+-    alarm->sdlTimer = SDL_AddTimer(milliseconds, OS_SDLTimerCallback, (void*)alarm);
++    if (!LockstepAlarms()) {
++        u32 milliseconds = OS_TicksToMilliSeconds(tick);
++        alarm->sdlTimer = SDL_AddTimer(milliseconds, OS_SDLTimerCallback, (void*)alarm);
++    }
+ #endif
+ }
+ 
+@@ -226,7 +247,8 @@ void OS_SetPeriodicAlarm (OSAlarm * alarm, OSTick start, OSTick period, OSAlarmH
+     (void)OS_RestoreInterrupts(enabled);
+ 
+ #ifdef SDK_PORT
+-    alarm->sdlTimer = SDL_AddTimer(OS_TicksToMilliSeconds(period), OS_SDLTimerCallback, (void*)alarm);
++    if (!LockstepAlarms())
++        alarm->sdlTimer = SDL_AddTimer(OS_TicksToMilliSeconds(period), OS_SDLTimerCallback, (void*)alarm);
+ #endif
+ }
+ 
+diff --git a/libraries/os/src/os_tick.c b/libraries/os/src/os_tick.c
+index f8d7968..06bb0a4 100644
+--- a/libraries/os/src/os_tick.c
++++ b/libraries/os/src/os_tick.c
+@@ -8,6 +8,12 @@ static u16 OSi_UseTick = FALSE;
+ vu64 OSi_TickCounter;
+ BOOL OSi_NeedResetTimer = FALSE;
+ 
++#ifdef SDK_PORT
++// Weak: absent in tools that link libos without the simulator (lockstep tick).
++__attribute__((weak)) extern int SIM_Control_Enabled(void);
++__attribute__((weak)) extern unsigned long long SIM_Headless_FrameCount(void);
++#endif
++
+ extern u16 OSi_IsTimerReserved(int timerNum);
+ extern void OSi_SetTimerReserved(int timerNum);
+ static void OSi_CountUpTick(void);
+@@ -71,6 +77,16 @@ OSTick OS_GetTick (void)
+     SDK_ASSERT(OSi_UseTick);
+ 
+     #ifdef SDK_PORT
++    // Lockstep (SIM_CONTROL=stdio): the tick must advance per rendered frame,
++    // not per wall clock (SDL_GetTicks64), or every tick consumer (play time,
++    // timers, timestamps) makes game state depend on render speed and load.
++    // Weak symbols: absent in tools that link libos without the simulator.
++    {
++        if (SIM_Control_Enabled && SIM_Headless_FrameCount && SIM_Control_Enabled()) {
++            u64 frame = (u64)SIM_Headless_FrameCount();
++            return (OSTick)((frame * (u64)(OS_SYSTEM_CLOCK / 64)) / 60);
++        }
++    }
+     u64 milliseconds = SDL_GetTicks64();
+     return ((OSTick)( ((OS_SYSTEM_CLOCK/1000) * (u64)(milliseconds)) / 64 ));
+     #else
 diff --git a/libraries/rtc/src/external.c b/libraries/rtc/src/external.c
 index 4282214..3a340d6 100644
 --- a/libraries/rtc/src/external.c
@@ -2062,6 +2166,85 @@ index 4b2cbc7..8407945 100644
  	SIM_debugBreak();
  }
  
+diff --git a/libraries/sim/src/sim_audio.cpp b/libraries/sim/src/sim_audio.cpp
+index 44b9acf..1cded7d 100644
+--- a/libraries/sim/src/sim_audio.cpp
++++ b/libraries/sim/src/sim_audio.cpp
+@@ -1,6 +1,7 @@
+ #include <nitro.h>
+ #include <simulator/sim_audio.h>
+ #include <simulator/sim.h>
++#include <simulator/sim_headless.h>
+ #include <simulator/config/sim_config.h>
+ #include <SDL2/SDL.h>
+ 
+@@ -12,6 +13,8 @@
+ 
+ static SDL_AudioSpec s_requestedAudioSpec, s_actualAudioSpec;
+ static SDL_AudioDeviceID s_audioDevice;
++static int s_lockstepAudioFreq = 44100;     // set in SIM_Audio_Init
++static int s_lockstepAudioSamples = 230;    // samples per SDL audio callback
+ 
+ u32 s_SIM_sndcnt[16] = {0};
+ u8 * s_SIM_sndsad[16] = {0};
+@@ -94,6 +97,8 @@ void SIM_Audio_Init(int aAudioFrequency)
+     if(s_requestedAudioSpec.samples & 1) {
+         s_requestedAudioSpec.samples += 1;
+     }
++    s_lockstepAudioFreq = s_requestedAudioSpec.freq;
++    s_lockstepAudioSamples = s_requestedAudioSpec.samples;
+     s_requestedAudioSpec.callback = SIM_Audio_Callback;
+     if(SDL_OpenAudio(&s_requestedAudioSpec, NULL) < 0) {
+         printf("SDL Error %s\n", SDL_GetError());
+@@ -109,6 +114,14 @@ static int maxOutput = 0;
+ 
+ void SIM_Audio_Callback(void *userdata, Uint8 *stream, int len)
+ {
++    // Lockstep: the SDL audio thread must not advance sound state at wall-clock
++    // rate (game logic waits on cries/fades finishing, e.g. the title screen
++    // waits for the Giratina cry). SIM_Audio_LockstepFrame does this work on
++    // the game thread, once per rendered frame. Emit silence here.
++    if (SIM_Control_Enabled()) {
++        memset(stream, 0, (size_t)len);
++        return;
++    }
+     #ifdef SDK_TRACY_ENABLE
+     TracyCZone(ctx, 1);
+     #endif
+@@ -187,6 +200,33 @@ void SIM_Audio_Callback(void *userdata, Uint8 *stream, int len)
+     #endif
+ }
+ 
++// Advance sound by exactly 1/60 s of simulated time (one rendered frame).
++// Sequencer ticks happen at the SDL callback rate (samples/freq seconds per
++// tick) and channel sample progression at the internal sample rate, both with
++// fractional accumulators so the long-run rate matches interactive play.
++void SIM_Audio_LockstepFrame(void)
++{
++    if (!SIM_Control_Enabled()) return;
++    static long long s_tickAcc = 0;    // audio samples owed, scaled by 60
++    static long long s_cycleAcc = 0;   // sound cycles owed, scaled by 60
++    int freq = s_lockstepAudioFreq > 0 ? s_lockstepAudioFreq : 44100;
++    int perTick = s_lockstepAudioSamples > 0 ? s_lockstepAudioSamples : 230;
++
++    s_tickAcc += freq;
++    while (s_tickAcc >= (long long)perTick * 60) {
++        s_tickAcc -= (long long)perTick * 60;
++        SND_UpdateExChannel();
++        SND_SeqMain(TRUE);
++        SND_ExChannelMain(TRUE);
++    }
++
++    s_cycleAcc += 16756991LL;   // INTERNAL_SAMPLE_RATE cycles per second
++    while (s_cycleAcc >= 512LL * 60) {
++        s_cycleAcc -= 512LL * 60;
++        for (int chNo = 0; chNo < 16; chNo++) (void)SIM_Audio_RunChannel(512, chNo);
++    }
++}
++
+ void SIM_Audio_StartChannel(int chNo)
+ {
+     if((s_SIM_sndcnt[chNo]>>29)&0x3 == 3) {
 diff --git a/libraries/sim/src/sim_g2.cpp b/libraries/sim/src/sim_g2.cpp
 index b67717b..cca40ac 100644
 --- a/libraries/sim/src/sim_g2.cpp
@@ -2917,10 +3100,10 @@ index 2c40e59..d13175a 100644
      if(ImGui::Button(label, sButtonSize)) {
 diff --git a/libraries/sim/src/sim_headless.cpp b/libraries/sim/src/sim_headless.cpp
 new file mode 100644
-index 0000000..fc076df
+index 0000000..5d04f98
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless.cpp
-@@ -0,0 +1,170 @@
+@@ -0,0 +1,177 @@
 +// Headless / deterministic mode for PC builds (docs/headless_protocol.md).
 +// Off unless SIM_HEADLESS / SIM_CONTROL / SIM_FIXED_RTC / SIM_SEED / SIM_SAVE_PATH is set.
 +#include "simulator/sim_headless.h"
@@ -2939,6 +3122,8 @@ index 0000000..fc076df
 +
 +extern "C" void SIM_Headless_ControlFrame(void);   // sim_headless_control.cpp
 +extern "C" void SIM_Headless_WatchdogFrame(void);  // sim_headless_watchdog.cpp
++extern "C" void SIM_Audio_LockstepFrame(void);     // sim_audio.cpp
++extern "C" void SIM_OS_LockstepAlarmFrame(void);   // os_alarm.c
 +
 +static int s_headless = 0;
 +static int s_control = 0;
@@ -3082,6 +3267,11 @@ index 0000000..fc076df
 +
 +extern "C" void SIM_Headless_FrameHook(void) {
 +    s_frame++;
++    // Lockstep determinism: sound and OS alarms advance per rendered frame,
++    // never per wall clock (the SDL audio/timer threads are inert in control
++    // mode). No-ops unless SIM_CONTROL=stdio.
++    SIM_Audio_LockstepFrame();
++    SIM_OS_LockstepAlarmFrame();
 +    // SIM_HEADLESS_SHOT_AT=<render frame>:<path> - one screenshot at an exact render frame
 +    // (the SIM_DEBUG_* shot counter can skip frames; this one cannot).
 +    { static long long shotAt = -2; static const char *shotPath = nullptr;
@@ -3538,10 +3728,10 @@ index 0000000..7bfcd2e
 +}
 diff --git a/libraries/sim/src/sim_helpers.cpp b/libraries/sim/src/sim_helpers.cpp
 new file mode 100644
-index 0000000..ad4cb80
+index 0000000..f464d50
 --- /dev/null
 +++ b/libraries/sim/src/sim_helpers.cpp
-@@ -0,0 +1,360 @@
+@@ -0,0 +1,366 @@
 +// Player helpers for PC builds: a fast-forward badge and short messages drawn over the game, and save import/export.
 +//
 +// Saves: the game reads and writes save.bin in its working directory, a raw image of the DS cartridge's 512 KB flash, so it is
@@ -3871,6 +4061,12 @@ index 0000000..ad4cb80
 +
 +void ImportSave(const std::string & path) {
 +    if (sBusy.exchange(true)) return;
++    // Lockstep: import synchronously on the game thread. A detached thread set
++    // sRestart whenever its file I/O happened to finish, so the execv restart
++    // consumed a wall-clock-dependent number of the 30 granted frames and, if
++    // it lost the race, later commands were consumed by the pre-restart
++    // process. Synchronous import restarts at the very next rendered frame.
++    if (SIM_Control_Enabled()) { DoImport(path); sBusy = false; return; }
 +    std::thread([path] { DoImport(path); sBusy = false; }).detach();
 +}
 +
