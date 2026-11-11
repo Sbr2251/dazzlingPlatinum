@@ -17,6 +17,7 @@ L_0:
     // easing home at the first command menu (BattleStage_HoldCameraAfterScript).
     StageCameraMove STAGE_CAMERA_FOCUS_ATTACKER, 72, 0, -4, 16
     Func_FadeBattlerSprite BATTLE_ANIM_ATTACKER, 1, 2, BATTLE_COLOR_BLACK, 12, 4
+    Func_ScaleBattlerSprite BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 100, 118, 100, 118, 100, 1, 327685
     Delay 20
     // Ground-glow ring ignites
     CreateEmitter 0, 0, EMITTER_CB_SET_POS_TO_ATTACKER
@@ -36,8 +37,10 @@ L_0:
     Func_FadeBattlerSprite BATTLE_ANIM_ATTACKER, 1, 1, BATTLE_COLOR_WHITE, 14, 6
     Func_Shake 2, 1, 1, 8, BATTLE_ANIM_BATTLER_SPRITE_ATTACKER
     Delay 20
-    // Settle: flames fall back to the persistent aura's level while the banner shows.
+    // Settle: sprite eases back, flames fall to the persistent aura's level
+    // while the banner shows.
     // No WaitForAllEmitters: emitters 0-2 never expire, so unloading ends them.
+    Func_ScaleBattlerSprite BATTLE_ANIM_BATTLER_SPRITE_ATTACKER, 118, 100, 118, 100, 100, 1, 327685
     WaitForAnimTasks
     Delay 40
     UnloadParticleSystem 0

@@ -118,6 +118,14 @@ static void TotemFX_Dim(TotemAura *aura, int brightness)
     BattleStage_SetBrightness(brightness);
 }
 
+// Cinematic letterbox on the main (top) screen only (PostFX_Letterbox is a
+// top-screen effect; the bottom screen keeps the cleared textbox/menu area).
+static void TotemFX_Letterbox(TotemAura *aura, float amount)
+{
+    (void)aura;
+    PostFX_Letterbox(amount, 2);
+}
+
 static void TotemFX_Clear(TotemAura *aura)
 {
     if (!aura->fxActive) {
@@ -283,10 +291,18 @@ static void TotemAura_Modulate(TotemAura *aura)
 
         // Only the inner glow breathes in scale; the ally's whole wreath is smaller.
         if (i == 1) {
+
             emitter->baseScale = aura->baseScale[i] * (230 + breath / 4) / 256 * allyScale / 256;
         } else if (aura->isAlly) {
             emitter->baseScale = aura->baseScale[i] * allyScale / 256;
         }
+    }
+
+    // A slow, cheap glow pulse centred on the Totem (the post pass is running
+    // anyway, so this costs one uniform write every two seconds) carries some
+    // of the aura's presence that the reduced ember density used to.
+    if (!aura->isAlly && aura->fadeTimer == 0 && (aura->frame % 120) == 0) {
+        PostFX_Glow(0.16f, 120);
     }
 }
 
@@ -321,13 +337,16 @@ static void TotemAura_DriveFlare(TotemAura *aura)
     int strength = aura->isAlly ? 2 : 4;
 
     if (t < dimEnd) {
-        // Battle opens dim: brightness sinks, a whisper of the aura colour in the vignette.
+        // Battle opens dim: brightness sinks, letterbox slides in, a whisper of
+        // the aura colour in the vignette.
         TotemFX_Dim(aura, -10 * t / (dimEnd > 0 ? dimEnd : 1));
         TotemFX_Vignette(aura, aura->auraColor, 6 * t / (dimEnd > 0 ? dimEnd : 1));
+        TotemFX_Letterbox(aura, 0.13f * t / (dimEnd > 0 ? dimEnd : 1));
     } else if (t < burstAt) {
-        // Ignite + spiral: hold the dim with a low vignette while the flames climb.
+        // Ignite + spiral: hold the dim and bars while the flames climb.
         TotemFX_Dim(aura, aura->isAlly ? -5 : -8);
         TotemFX_Vignette(aura, aura->auraColor, 5);
+        TotemFX_Letterbox(aura, aura->isAlly ? 0.08f : 0.13f);
     } else if (t < burstEnd) {
         // Burst beat: one shockwave/shake on the first burst frame, white-hot flash decaying.
         if (t == burstAt) {
@@ -339,11 +358,13 @@ static void TotemAura_DriveFlare(TotemAura *aura)
         TotemFX_Dim(aura, 12 * left / span);
         TotemFX_Vignette(aura, aura->auraColor, 8 * left / span);
     } else {
-        // Settle: ease the dim/vignette home; the stat-boost message plays over this beat.
+        // Settle: ease the dim/vignette home and retract the bars; the
+        // stat-boost banner message plays over this beat.
         int span = dur - burstEnd > 0 ? dur - burstEnd : 1;
         int left = dur - t;
         TotemFX_Dim(aura, -4 * left / span);
         TotemFX_Vignette(aura, aura->auraColor, 3 * left / span);
+        TotemFX_Letterbox(aura, (aura->isAlly ? 0.08f : 0.13f) * left / span);
     }
 
     aura->flareFrame++;
@@ -435,7 +456,12 @@ static void TotemAura_Task(SysTask *task, void *data)
     TotemAura_KeepTranslucent(aura);
     TotemAura_FollowSprite(aura);
     TotemAura_DriveFlare(aura);
-    TotemAura_Modulate(aura);
+    // Modulation writes emitter parameters that persist between frames; running
+    // it every frame is wasted work, so refresh on a 4-frame cadence (the breath
+    // and flare envelopes are slow compared to that).
+    if ((aura->frame & 3) == 0) {
+        TotemAura_Modulate(aura);
+    }
 
     if (aura->fadeTimer > 0) {
         aura->fadeTimer++;
@@ -496,7 +522,11 @@ void TotemAura_StartForBattler(BattleSystem *battleSys, int battler)
 
     for (int i = 0; i < TOTEM_AURA_EMITTERS; i++) {
         aura->emitters[i] = ParticleSystem_CreateEmitter(aura->particleSystem, i, &aura->basePos);
-        aura->baseEmission[i] = aura->emitters[i] != NULL ? aura->emitters[i]->emissionCount : FX32_ONE;
+        // The authored SPA density is richer than the persistent aura needs (it
+        // was tuned for the one-shot flare); ~60% keeps the wreath lush at a
+        // materially lower particle count. Enrage/flare multipliers are
+        // relative to this, so the dynamic range is unchanged.
+        aura->baseEmission[i] = (aura->emitters[i] != NULL ? aura->emitters[i]->emissionCount : FX32_ONE) * 3 / 5;
         aura->baseScale[i] = aura->emitters[i] != NULL ? aura->emitters[i]->baseScale : FX32_ONE;
 
         if (aura->baseEmission[i] == 0) {
