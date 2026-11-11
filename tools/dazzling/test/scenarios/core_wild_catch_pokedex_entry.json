@@ -1,6 +1,6 @@
 {
   "name": "core_wild_catch_pokedex_entry",
-  "_note": "Wild catch: weaken a Route 201 Starly with one move (Ember; it ends burned at ~1/3 HP), then Bag -> Poke Balls -> tap the ball slot -> tap USE (bag screens are touch-driven; A does nothing until a direction activates the key cursor). Pokedex entry screen is reference-compared: survival-audit restorations mean the category plate is Starly's real category icon (not Fairy) and the battle stage stayed suppressed - the recorded entry shows '010 STARLY, Starling Pokemon, NORMAL/FLYING'. Assert caught Starly is party slot 1 back on the field.",
+  "_note": "Wild catch: weaken a Route 201 Starly with one move (Ember; it ends burned at ~1/3 HP), then Bag -> Poke Balls -> tap the ball slot -> tap USE (bag screens are touch-driven; A does nothing until a direction activates the key cursor). Pokedex entry screen is reference-compared: survival-audit restorations mean the category plate is Starly's real category icon (not Fairy) and the battle stage stayed suppressed - the recorded entry shows '010 STARLY, Starling Pokemon, NORMAL/FLYING'. Assert caught Starly is party slot 1 back on the field. The entry screen's category plate animates (restored in 1cd2449d23), so the reference tolerance is 6%: plate/sprite phase differs by run, the screen content does not (a wrong screen differs by far more).",
   "requires_exists": [
     "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
   ],
@@ -346,7 +346,7 @@
     {
       "screenshot": "dex_entry",
       "reference": "../references/core_wild_catch_pokedex_entry.bmp",
-      "tolerance": 0.02,
+      "tolerance": 0.06,
       "optional_reference": true
     },
     {
