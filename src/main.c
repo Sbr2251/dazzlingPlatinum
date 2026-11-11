@@ -14,6 +14,7 @@
 #include "font.h"
 #include "game_overlay.h"
 #include "game_start.h"
+#include "heap.h"
 #include "main.h"
 #include "math_util.h"
 #include "overlay_manager.h"
@@ -141,6 +142,7 @@ void NitroMain(void)
 
     while (TRUE) {
         CheckHeapCanary();
+        Heap_UpdatePeaks(); // lane heap: sample per-heap high-water once per frame
         HandleConsoleFold();
         ReadKeypadAndTouchpad();
 
