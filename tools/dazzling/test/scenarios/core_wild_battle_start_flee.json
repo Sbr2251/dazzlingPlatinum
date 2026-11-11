@@ -451,6 +451,5 @@
     {
       "in_battle": false
     }
-  ],
-  "known_issue": "presumed same battle particle crash as core_trainer_battle (GF_ASSERT src/particle_system.c:235 at battle intro); verify after that is fixed."
+  ]
 }
