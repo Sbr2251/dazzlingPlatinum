@@ -97,6 +97,7 @@ Implemented (step 2). `SIM_CONTROL=stdio` implies `SIM_HEADLESS=1`.
 | `{"cmd":"screenshot","path":"..."}` | Write the last rendered frame to a BMP at `path`. |
 | `{"cmd":"state", ...}` | Game state (below; step 3 for the full fields). |
 | `{"cmd":"import_save","path":"..."}` | Import a raw `.sav`/`.dsv`, reply, then restart the process (stdin/stdout survive `execv`, so the same client keeps working; the reply carries `"restarting":true`). |
+| `{"cmd":"memory"}` | Heap peaks + VRAM usage (below). |
 | `{"cmd":"quit"}` | Reply, then exit 0. |
 
 Example client: `tools/dazzling/headless_client.py`.
@@ -146,6 +147,18 @@ hand-maintained. `LOCALID_*` ids are scoped to the current map.
 - `vars`, `flags`, `bag` appear only when requested:
   `{"cmd":"state","vars":["VAR_X"],"flags":["FLAG_X"],"bag":["ITEM_X"]}`.
   Unknown names report -1/false rather than failing the whole reply.
+- `memory` appears in `state` when requested (`{"cmd":"state","memory":true}`),
+  same shape as the standalone `memory` command:
+  ```json
+  {"memory":{"heaps":[{"id":5,"name":"BATTLE","size":2949120,"used":123456,"peak":234567,"peak_size":2949120,"blocks":42}],
+             "vram":{"tex_kind":"lnk","tex_total":524288,"tex_free":400000,
+                     "pltt_kind":"lnk","pltt_total":98304,"pltt_free":90000}}}
+  ```
+  `size` is the port-scaled (4x DS) heap size; `peak` is peak-ever used
+  bytes since boot; `used` counts direct NNS-allocator allocations too.
+  Only heaps with a live size or a recorded peak are listed. VRAM
+  totals/free are -1 when unknown (frame managers, or before any manager
+  is initialised). VRAM is not enlarged: sizes are DS hardware limits.
 - `overlay` is the numeric FS overlay id (the application templates have no
   string names in the binary); `app` is the semantic classification.
 - `talk`'s A press and `warp`'s map change take effect over the following

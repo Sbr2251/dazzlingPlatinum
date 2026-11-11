@@ -13,6 +13,7 @@ void MapJumpInit();
 void MapJumpMain(bool * openState);
 void BattleEngineMain(bool * openState);
 void BattleLabMain(bool * openState);
+void MemoryMain(bool * openState);
 
 }
 

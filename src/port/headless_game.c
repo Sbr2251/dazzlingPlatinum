@@ -27,7 +27,9 @@
 #include "terrain_collision_manager.h"
 
 #include "bag.h"
+#include "heap.h"
 #include "party.h"
+#include "vram_stats.h"
 #include "pokemon.h"
 #include "savedata.h"
 #include "vars_flags.h"
@@ -135,6 +137,34 @@ static void OutFmt(Out *o, const char *fmt, ...) {
 }
 static void ErrOut(char *reply, size_t cap, const char *msg) {
     snprintf(reply, cap, "{\"ok\":false,\"error\":\"%s\"}", msg);
+}
+
+// "memory": live + peak-ever heaps (lane heap) and VRAM manager usage.
+// Only heaps with a live size or a recorded peak are emitted, so the reply
+// stays small. VRAM totals/free are -1 when unknown (frame managers).
+static void OutMemory(Out *o) {
+    VramStats vram;
+    VramStats_Get(&vram);
+    OutFmt(o, "\"memory\":{\"heaps\":[");
+    int first = 1;
+    u32 n = Heap_GetNumHeaps();
+    for (u32 i = 0; i < n; i++) {
+        HeapStats st;
+        if (!Heap_GetStats(i, &st) || (st.size == 0 && st.peak == 0)) continue;
+        OutFmt(o, "%s{\"id\":%u,\"name\":", first ? "" : ",", st.id);
+        if (st.name) OutFmt(o, "\"%s\"", st.name); else OutFmt(o, "null");
+        OutFmt(o, ",\"size\":%u,\"used\":%u,\"peak\":%u,\"peak_size\":%u,\"blocks\":%u}",
+            st.size, st.used, st.peak, st.peakSize, st.blocks);
+        first = 0;
+    }
+    OutFmt(o, "],\"vram\":{\"tex_kind\":\"%s\",\"tex_total\":%ld,\"tex_free\":%ld,"
+              "\"pltt_kind\":\"%s\",\"pltt_total\":%ld,\"pltt_free\":%ld}}",
+        vram.texKind,
+        (long)(vram.texTotal == 0xFFFFFFFFu ? -1 : (long)vram.texTotal),
+        (long)(vram.texFree == 0xFFFFFFFFu ? -1 : (long)vram.texFree),
+        vram.plttKind,
+        (long)(vram.plttTotal == 0xFFFFFFFFu ? -1 : (long)vram.plttTotal),
+        (long)(vram.plttFree == 0xFFFFFFFFu ? -1 : (long)vram.plttFree));
 }
 
 // ---------------------------------------------------------------- helpers
@@ -301,6 +331,12 @@ int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
         BattleDecisions_Push(&d); snprintf(reply, cap, "{\"ok\":true,\"queued\":%d}", BattleDecisions_Count(d.battler));
     }
     else if (strcmp(cmd, "battle_events") == 0) { char ev[8192]; BattleEvents_TakePending(ev, sizeof(ev)); snprintf(reply, cap, "{\"ok\":true,\"events\":%s}", ev); }
+    else if (strcmp(cmd, "memory") == 0) {
+        Out o = { reply, cap, 0 };
+        OutFmt(&o, "{\"ok\":true,\"frame\":%llu,", SIM_Headless_FrameCount());
+        OutMemory(&o);
+        OutFmt(&o, "}");
+    }
     else if (strcmp(cmd, "start_battle") == 0) return HeadlessBattle_Start(line, reply, cap);
     else return 0;
     return 1;
@@ -407,6 +443,11 @@ int HeadlessGame_State(const char *line, char *reply, size_t cap) {
             first = 0;
         }
         OutFmt(&o, "}");
+    }
+    // Requested memory: {"memory":true} -> heaps (size/used/peak) + VRAM.
+    if (strstr(line, "\"memory\"")) {
+        OutFmt(&o, ",");
+        OutMemory(&o);
     }
     // Requested bag counts: {"bag":["ITEM_X",...]}
     if (strstr(line, "\"bag\"")) {

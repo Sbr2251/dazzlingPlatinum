@@ -447,6 +447,8 @@ pokeplatinum_port_c = files(
     'src/port/savedata_upgrade.c',
     'src/port/sim_config_prj.c',
     'src/port/sim_gui_prj.cpp',
+    'src/port/vram_stats.c',
+    'src/port/gui_memory.cpp',
     'src/port/gui_cheats.cpp',
     'src/port/gui_battle_engine.cpp',
     'src/port/gui_battlelab.cpp',
