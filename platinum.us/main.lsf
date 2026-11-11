@@ -707,6 +707,7 @@ Overlay battle
 	Object main.nef.p/src_battle_battle_lib.c.o
 	Object main.nef.p/src_battle_battle_io_command.c.o
 	Object main.nef.p/src_battle_battle_display.c.o
+	Object main.nef.p/src_battle_battle_events.c.o
 	Object main.nef.p/src_battle_idle_bounce_anim.c.o
 	Object main.nef.p/src_battle_battle_controller.c.o
 	Object main.nef.p/src_battle_healthbox.c.o
