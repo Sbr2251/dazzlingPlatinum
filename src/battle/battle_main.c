@@ -1071,8 +1071,8 @@ static void BattleSys_New(BattleSystem *battleSys, FieldBattleDTO *dto)
     }
 
     battleSys->seedLCRNG = LCRNG_GetSeed();
-    battleSys->seedRandNext = dto->seed;
-    battleSys->seedDTO = dto->seed;
+    battleSys->seedRandNext = BattleEvents_GetSeedOverride() ? BattleEvents_GetSeedOverride() : dto->seed;
+    battleSys->seedDTO = battleSys->seedRandNext;
     battleSys->battleStatusMask = dto->battleStatusMask;
     battleSys->bag = Bag_New(HEAP_ID_BATTLE);
 

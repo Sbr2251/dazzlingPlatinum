@@ -24,6 +24,9 @@ static char sReplayPath[512];
 static char sExpected[256][EV_LEN]; static int sExpectedCount, sActualCount;
 static char sActualTypes[256][64];
 static int sFast = -1;
+static unsigned sSeedOverride = 0;
+void BattleEvents_SetSeedOverride(unsigned int s) { sSeedOverride = s; }
+unsigned int BattleEvents_GetSeedOverride(void) { if (!sSeedOverride) { const char *e = getenv("SIM_BATTLE_SEED"); if (e && e[0]) sSeedOverride = (unsigned)strtoul(e, NULL, 0); } return sSeedOverride; }
 
 int BattleEvents_FastEnabled(void) {
     if (sFast < 0) { const char *e = getenv("SIM_BATTLE_FAST"); sFast = (e && e[0] == '1') ? 1 : 0; }

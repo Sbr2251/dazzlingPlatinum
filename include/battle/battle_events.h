@@ -11,4 +11,9 @@ void BattleEvents_OnPartyResult(BattleSystem *battleSys, int battler, int comman
 int BattleEvents_FastEnabled(void);
 int BattleEvents_TakePending(char *out, unsigned long cap);
 void BattleEvents_Reset(void);
+// Seed override for deterministic battles (engine-sim start_battle spec seed):
+// when set, BattleMain seeds the battle LCRNG (seedRandNext/seedDTO) from it
+// instead of the field-supplied dto->seed. 0 = no override (use SIM_BATTLE_SEED env or 0).
+void BattleEvents_SetSeedOverride(unsigned int seed);
+unsigned int BattleEvents_GetSeedOverride(void);
 #endif
