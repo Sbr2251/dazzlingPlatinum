@@ -2229,8 +2229,6 @@ static void CameraFree(DistWorldSystem *system)
     if (cameraMan->transitionTask != NULL) {
         SysTask_Done(cameraMan->transitionTask);
     }
-
-    Arc2Dw_HandleFrame(system);
 }
 
 static void CameraTransitionTask(SysTask *sysTask, void *sysTaskParam)
