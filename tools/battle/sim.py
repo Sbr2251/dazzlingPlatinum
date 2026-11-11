@@ -68,6 +68,12 @@ def press(game, keys, step=70):
     game.cmd({"cmd": "step", "frames": step})
 
 
+def touch(game, x, y, step=70):
+    # Battle menus are touch-first (battle_subscreen.c rects, 256x192).
+    game.cmd({"cmd": "touch", "x": x, "y": y, "frames": 10})
+    game.cmd({"cmd": "step", "frames": step})
+
+
 class BattleRunner:
     def __init__(self, build_dir, save, seed=42, fast=False, work=None, quiet=True):
         self.work = work or tempfile.mkdtemp(prefix="battlesim-")
@@ -147,12 +153,16 @@ class BattleRunner:
                 self.log({"type": "faint", "battler": b["battler"], "species": b["species"]})
 
     def do_decision(self, dec):
+        # Battle menus are touch-first: the D-pad cursor starts inactive and
+        # the first key press only activates it (BattleSystem_MenuKeys).
         t = dec.get("type", "move")
+        press(self.game, "A", 30)  # activate cursor
         if t == "move":
             idx = int(dec.get("index", 0))
             press(self.game, "A", 50)                      # FIGHT
+            press(self.game, "A", 30)                      # activate move-menu cursor
             if dec.get("mega"):
-                press(self.game, "L", 30)                  # Mega toggle on the move menu
+                press(self.game, "L", 30)                  # Mega toggle (move menu)
             if idx % 2:
                 press(self.game, "RIGHT", 30)
             if idx >= 2:
@@ -160,15 +170,20 @@ class BattleRunner:
             press(self.game, "A", 50)                      # pick the move
         elif t in ("run", "flee"):
             self.fled = True
-            press(self.game, "DOWN", 30); press(self.game, "RIGHT", 30); press(self.game, "A", 50)
+            press(self.game, "DOWN", 30)                   # BAG row
+            press(self.game, "RIGHT", 30)                  # RUN
+            press(self.game, "A", 50)
         elif t == "switch":
             slot = int(dec.get("slot", 1))
-            press(self.game, "DOWN", 30); press(self.game, "A", 50)   # POKEMON
+            press(self.game, "DOWN", 30); press(self.game, "RIGHT", 30); press(self.game, "RIGHT", 30)
+            press(self.game, "A", 50)                      # POKEMON
+            press(self.game, "A", 30)
             for _ in range(max(0, slot - 1)):
                 press(self.game, "DOWN", 30)
             press(self.game, "A", 50); press(self.game, "A", 50)
         elif t == "item":
-            press(self.game, "RIGHT", 30); press(self.game, "A", 50)  # BAG (best effort)
+            press(self.game, "DOWN", 30)                   # BAG
+            press(self.game, "A", 50)
             press(self.game, "A", 50)
         else:
             press(self.game, "A", 50)
@@ -230,6 +245,9 @@ class BattleRunner:
             winner = "opponent"
         else:
             winner = "unknown"
+        ends = [e for e in self.events if e.get("type") == "battle_end"]
+        if ends and isinstance(ends[-1].get("turns"), int):
+            self.turns = max(self.turns, ends[-1]["turns"])
         result = {"winner": winner, "turns": self.turns, "events_count": len(self.events),
                   "final_battle": self.last_battle, "party_after": (st.get("party") if 'st' in dir() else None)}
         self.log({"type": "battle_end", "winner": winner, "turns": self.turns})

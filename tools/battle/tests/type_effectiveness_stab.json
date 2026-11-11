@@ -33,6 +33,7 @@
  },
  "expect": {
   "winner": "player",
-  "damage_to_battler": 1
+  "damage_to_battler": 1,
+  "events_contain": "damage"
  }
 }

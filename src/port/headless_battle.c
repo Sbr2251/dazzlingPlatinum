@@ -206,6 +206,9 @@ static BOOL FieldTask_HeadlessBattle(FieldTask *task) {
         if (isDouble) battleType |= BATTLE_TYPE_DOUBLES;
         FieldBattleDTO *dto = FieldBattleDTO_New(HEAP_ID_FIELD2, battleType);
         FieldBattleDTO_Init(dto, fsys);
+        // Seed the battle RNG from the spec, not from elapsed field frames:
+        // the same spec+seed+decisions must be deterministic (see docs).
+        { long seed = 0; if (JsonLong(s, e, "seed", &seed)) dto->seed = (u32)seed; }
         long trainerId = 0; JsonLong(s, e, "trainer_id", &trainerId);
         if (isTrainer) {
             dto->trainerIDs[BATTLER_ENEMY_1] = (int)(trainerId ? trainerId : 1);
