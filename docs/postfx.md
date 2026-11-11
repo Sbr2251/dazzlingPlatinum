@@ -50,5 +50,6 @@ PostFX_Clear();                                    // cancel everything now
 | `PostFX_ChromaticAberration(amount, frames)` | Red/blue fringing towards the corners |
 | `PostFX_Glow(amount, frames)` | Bloom-ish bleed of bright areas |
 | `PostFX_Shake(amount, frames)` | Random offset up to amount * 8 display pixels |
+| `PostFX_Letterbox(amount, frames)` | Black bars top/bottom of the main screen (cinema framing) |
 
 AI-assisted (Metamate)
