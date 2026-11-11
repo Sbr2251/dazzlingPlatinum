@@ -1826,10 +1826,10 @@ index 0000000..5aebeb1
 +)""
 diff --git a/libraries/sim/src/shaders/post_fragment.glsl b/libraries/sim/src/shaders/post_fragment.glsl
 new file mode 100644
-index 0000000..22ec5ad
+index 0000000..1257e65
 --- /dev/null
 +++ b/libraries/sim/src/shaders/post_fragment.glsl
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,148 @@
 +R""(
 +#version 420 core
 +
@@ -1850,12 +1850,28 @@ index 0000000..22ec5ad
 +uniform float chromaAmount;    // chromatic aberration, in texels at the corners
 +uniform float glowAmount;      // bloom-ish glow
 +uniform float letterbox;       // bar height as a fraction of the main screen
++uniform int fxRegion;          // 0 both screens, 1 main/top only, 2 sub only
++uniform float cutinProgress;   // Key Stone cut-in sweep position 0-1
++uniform float cutinAlpha;
++uniform vec2 beamTarget;       // UV in the combined display
++uniform float titleProgress;   // title-card band sweep 0-1
++uniform float titleAlpha;
 +
 +smooth in vec2 fragTexCoord;
 +out vec4 color;
 +
++vec3 FxRainbow(float t)
++{
++    return 0.55 + 0.45 * cos(6.28318 * (t + vec3(0.0, 0.33, 0.67)));
++}
++
 +void main()
 +{
++    // Screen mask: effects default to the main (top/battle) screen only, so
++    // the bottom touch screen stays clean during cinematics.
++    if (fxRegion == 1 && fragTexCoord.y < 0.5) { color = texture(sceneTex, fragTexCoord); return; }
++    if (fxRegion == 2 && fragTexCoord.y >= 0.5) { color = texture(sceneTex, fragTexCoord); return; }
++
 +    vec2 uv = fragTexCoord + shakeOffset;
 +
 +    // Shockwave: push UVs away from the centre as the ring passes.
@@ -1903,6 +1919,52 @@ index 0000000..22ec5ad
 +        vec2 d = (uv - vec2(0.5)) * vec2(1.15, 1.0);
 +        float v = smoothstep(0.35, 0.95, length(d));
 +        c = mix(c, vignetteColor, v * vignetteAmount);
++    }
++
++    // Key Stone cut-in + title card: main screen only.
++    if (fragTexCoord.y >= 0.5 && (cutinAlpha > 0.001 || titleAlpha > 0.001)) {
++        vec2 p = vec2(fragTexCoord.x, (fragTexCoord.y - 0.5) * 2.0); // 0-1, bottom-to-top of main screen
++        vec2 pa = vec2(p.x * 1.3333, p.y); // aspect-corrected (256x192)
++
++        if (titleAlpha > 0.001) {
++            float bandY = abs(p.y - 0.5);
++            float band = smoothstep(0.16, 0.14, bandY);
++            float slide = (p.x - (titleProgress * 1.4 - 0.2));
++            vec3 bandCol = mix(vec3(0.10, 0.02, 0.22), vec3(0.23, 0.05, 0.38), p.y);
++            float edge = smoothstep(0.035, 0.0, abs(bandY - 0.15));
++            bandCol += FxRainbow(p.x * 0.5 + titleProgress) * edge * 1.4;
++            bandCol += vec3(1.0) * smoothstep(0.10, 0.0, abs(slide)) * 0.35; // sweep highlight
++            c = mix(c, bandCol, band * titleAlpha);
++        }
++
++        if (cutinAlpha > 0.001) {
++            float diag = p.x * 0.75 + p.y * 0.45;
++            float centre = mix(-0.25, 1.35, cutinProgress);
++            float d = abs(diag - centre);
++            float band = smoothstep(0.17, 0.13, d);
++            vec3 strip = FxRainbow(diag * 1.5 - cutinProgress * 0.7) * 0.85 + vec3(0.12);
++            strip += vec3(1.0) * smoothstep(0.03, 0.0, d) * 0.8; // hot core line
++            c = mix(c, strip, band * cutinAlpha * 0.88);
++
++            // The Key Stone rides the strip; a rainbow beam links it to the battler.
++            vec2 stone = vec2(mix(0.18, 0.82, cutinProgress), 0.58);
++            vec2 stoneA = vec2(stone.x * 1.3333, stone.y);
++            vec2 tgt = vec2(beamTarget.x, (beamTarget.y - 0.5) * 2.0);
++            vec2 tgtA = vec2(tgt.x * 1.3333, tgt.y);
++            vec2 pa2 = pa - stoneA;
++            vec2 ba = tgtA - stoneA;
++            float h = clamp(dot(pa2, ba) / max(dot(ba, ba), 0.0001), 0.0, 1.0);
++            float beamD = length(pa2 - ba * h);
++            float beam = smoothstep(0.018, 0.004, beamD) * sin(cutinProgress * 3.14159);
++            c += FxRainbow(h * 1.5 - cutinProgress) * beam * cutinAlpha * 0.9;
++
++            float sd = length(pa2);
++            float ang = atan(pa2.y, pa2.x) / 6.28318 + 0.5;
++            float ring = smoothstep(0.012, 0.004, abs(sd - 0.055));
++            float core = smoothstep(0.045, 0.01, sd);
++            float halo = smoothstep(0.16, 0.0, sd) * 0.35;
++            c += (FxRainbow(ang + cutinProgress * 0.5) * ring * 1.6 + vec3(1.0) * core * 1.2 + FxRainbow(ang) * halo) * cutinAlpha;
++        }
 +    }
 +
 +    if (letterbox > 0.001) {
@@ -3810,7 +3872,7 @@ index 0000000..ad4cb80
 +
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..9b3b889 100644
+index 910d7da..fbe2e7c 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -3868,7 +3930,7 @@ index 910d7da..9b3b889 100644
  static constexpr auto SteamDeckWidth = 1280;
  static constexpr auto SteamDeckHeight = 800;
  
-@@ -147,6 +172,108 @@ static GLint s_objWindowTexUnit = 9;
+@@ -147,6 +172,129 @@ static GLint s_objWindowTexUnit = 9;
  static GLuint g3shaderProgramID;
  static GLuint g2shaderProgramID;
  
@@ -3892,10 +3954,13 @@ index 910d7da..9b3b889 100644
 +  float x = 0, y = 0;         // centre, combined-display pixels
 +  float r = 0, g = 0, b = 0;  // vignette colour
 +  float strength = 0;
++  float progress = 0;         // cut-in/title sweep position
 +  int framesLeft = 0;
 +  int framesTotal = 0;
 +};
 +PostFXEffect sFxShock, sFxVignette, sFxZoom, sFxChroma, sFxGlow, sFxShake, sFxLetterbox;
++PostFXEffect sFxCutin, sFxTitle;
++int sFxRegion = 1; // top screen only by default
 +unsigned sFxFrame = 0;
 +
 +float FxFactor(const PostFXEffect &e) {
@@ -3923,9 +3988,17 @@ index 910d7da..9b3b889 100644
 +extern "C" void PostFX_Glow(float amount, int frames) { FxSet(sFxGlow, 0, 0, amount, frames); }
 +extern "C" void PostFX_Shake(float amount, int frames) { FxSet(sFxShake, 0, 0, amount, frames); }
 +extern "C" void PostFX_Letterbox(float amount, int frames) { FxSet(sFxLetterbox, 0, 0, amount, frames); }
++extern "C" void PostFX_SetRegion(int screen) { sFxRegion = screen; }
++extern "C" void PostFX_CutIn(float progress, float alpha, int x, int y) {
++  FxSet(sFxCutin, x, y, alpha, 2); sFxCutin.progress = progress;
++}
++extern "C" void PostFX_TitleCard(float progress, float alpha) {
++  FxSet(sFxTitle, 0, 0, alpha, 2); sFxTitle.progress = progress;
++}
 +extern "C" void PostFX_Clear(void) {
 +  sFxShock.framesLeft = sFxVignette.framesLeft = sFxZoom.framesLeft = 0;
 +  sFxChroma.framesLeft = sFxGlow.framesLeft = sFxShake.framesLeft = sFxLetterbox.framesLeft = 0;
++  sFxCutin.framesLeft = sFxTitle.framesLeft = 0;
 +}
 +
 +// Draw sPostTex to the default framebuffer with the active effects, then decay them.
@@ -3967,17 +4040,27 @@ index 910d7da..9b3b889 100644
 +                     sFxGlow.framesLeft > 0 ? sFxGlow.strength * FxFactor(sFxGlow) : 0.0f);
 +  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "letterbox"),
 +                     sFxLetterbox.framesLeft > 0 ? sFxLetterbox.strength * FxFactor(sFxLetterbox) : 0.0f);
++  glProgramUniform1i(sPostProgramID, glGetUniformLocation(sPostProgramID, "fxRegion"), sFxRegion);
++  float bu = 0.5f, bv = 0.5f; FxUV(sFxCutin, &bu, &bv);
++  glProgramUniform2f(sPostProgramID, glGetUniformLocation(sPostProgramID, "beamTarget"), bu, bv);
++  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "cutinProgress"), sFxCutin.progress);
++  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "cutinAlpha"),
++                     sFxCutin.framesLeft > 0 ? sFxCutin.strength : 0.0f);
++  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "titleProgress"), sFxTitle.progress);
++  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "titleAlpha"),
++                     sFxTitle.framesLeft > 0 ? sFxTitle.strength : 0.0f);
 +  glBindVertexArray(sPostVAO);
 +  glDrawArrays(GL_TRIANGLES, 0, 6);
 +  FxTick(sFxShock); FxTick(sFxVignette); FxTick(sFxZoom);
 +  FxTick(sFxChroma); FxTick(sFxGlow); FxTick(sFxShake); FxTick(sFxLetterbox);
++  FxTick(sFxCutin); FxTick(sFxTitle);
 +  sFxFrame++;
 +}
 +
  // VAOs
  static GLuint g2vertexArray;
  
-@@ -178,6 +305,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +326,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -3988,7 +4071,7 @@ index 910d7da..9b3b889 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -298,6 +429,16 @@ void SIM_SetInternalResolution(int internalRes) {
+@@ -298,6 +450,16 @@ void SIM_SetInternalResolution(int internalRes) {
        SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
  }
  
@@ -4005,7 +4088,7 @@ index 910d7da..9b3b889 100644
  static bool sChangeInternalResAfterRender = false;
  static int sPendingInternalRes = 1;
  
-@@ -315,7 +456,13 @@ void *SIM_RenderInit(void *arg) {
+@@ -315,7 +477,13 @@ void *SIM_RenderInit(void *arg) {
    SIM_Audio_Init(44100);
  
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -4019,7 +4102,7 @@ index 910d7da..9b3b889 100644
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-@@ -378,7 +525,7 @@ void *SIM_RenderInit(void *arg) {
+@@ -378,7 +546,7 @@ void *SIM_RenderInit(void *arg) {
  
    window = SDL_CreateWindow(
        windowTitle.c_str(), 100, 100, windowWidth, windowHeight,
@@ -4028,7 +4111,7 @@ index 910d7da..9b3b889 100644
        #if defined(SDK_BUILD_WIN64) || defined(SDK_BUILD_LINUX)
        | SDL_WINDOW_RESIZABLE
        #endif
-@@ -401,8 +548,10 @@ void *SIM_RenderInit(void *arg) {
+@@ -401,8 +569,10 @@ void *SIM_RenderInit(void *arg) {
    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -4039,7 +4122,7 @@ index 910d7da..9b3b889 100644
  
    GLenum glErrCode;
    GLint status;
-@@ -453,8 +602,14 @@ void *SIM_RenderInit(void *arg) {
+@@ -453,8 +623,14 @@ void *SIM_RenderInit(void *arg) {
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
                 GL_UNSIGNED_BYTE, NULL);
  
@@ -4055,7 +4138,7 @@ index 910d7da..9b3b889 100644
    glCompileShader(_id);                                                        \
    glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
    if (status != GL_TRUE) {                                                     \
-@@ -549,6 +704,31 @@ void *SIM_RenderInit(void *arg) {
+@@ -549,6 +725,31 @@ void *SIM_RenderInit(void *arg) {
    glUniform1iv(glGetUniformLocation(g2shaderProgramID, "objTexture"), 5,
                 s_objTexUnits);
  
@@ -4087,7 +4170,7 @@ index 910d7da..9b3b889 100644
    glGenVertexArrays(1, &g2vertexArray);
    glBindVertexArray(g2vertexArray);
    glGenBuffers(1, &g2vertexBuffer);
-@@ -567,6 +747,7 @@ void *SIM_RenderInit(void *arg) {
+@@ -567,6 +768,7 @@ void *SIM_RenderInit(void *arg) {
  }
  
  static void DrawEngine(BOOL isSub) {
@@ -4095,7 +4178,7 @@ index 910d7da..9b3b889 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -610,7 +791,8 @@ static void DrawEngine(BOOL isSub) {
+@@ -610,7 +812,8 @@ static void DrawEngine(BOOL isSub) {
    backdropVec[2] = (float)backdropB / 255.0f;
    backdropVec[3] = 1.0f;
  
@@ -4105,7 +4188,7 @@ index 910d7da..9b3b889 100644
                 backdropVec);
  
    glProgramUniform4f(g2shaderProgramID,
-@@ -669,7 +851,12 @@ static void DrawEngine(BOOL isSub) {
+@@ -669,7 +872,12 @@ static void DrawEngine(BOOL isSub) {
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
  
@@ -4118,7 +4201,7 @@ index 910d7da..9b3b889 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -772,6 +959,19 @@ static void DrawEngine(BOOL isSub) {
+@@ -772,6 +980,19 @@ static void DrawEngine(BOOL isSub) {
                      SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
                      (void *)oamPixelBuf);
    }
@@ -4138,7 +4221,7 @@ index 910d7da..9b3b889 100644
  
    glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
  
-@@ -789,9 +989,10 @@ static void DrawEngine(BOOL isSub) {
+@@ -789,9 +1010,10 @@ static void DrawEngine(BOOL isSub) {
    glActiveTexture(GL_TEXTURE0 + s_objWindowTexUnit);
    glBindTexture(GL_TEXTURE_2D, objWindowTextureId);
    u8 *objWindowBuf = isSub ? objWindowsTex : objWindowTex;
@@ -4152,7 +4235,7 @@ index 910d7da..9b3b889 100644
    glProgramUniform1i(
        g2shaderProgramID,
        glGetUniformLocation(g2shaderProgramID, "objWindowTexture"),
-@@ -859,6 +1060,7 @@ static void DrawEngine(BOOL isSub) {
+@@ -859,6 +1081,7 @@ static void DrawEngine(BOOL isSub) {
      glActiveTexture(GL_TEXTURE0 + s_objTexUnits[0]);
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
@@ -4160,7 +4243,7 @@ index 910d7da..9b3b889 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +1152,147 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1173,147 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -4308,7 +4391,7 @@ index 910d7da..9b3b889 100644
  
    SDL_Event Event;
    char c;
-@@ -1021,6 +1363,38 @@ void *SIM_Render(void *arg) {
+@@ -1021,6 +1384,38 @@ void *SIM_Render(void *arg) {
  
      glViewport(viewX, viewY, viewWidth, viewHeight);
  
@@ -4347,7 +4430,7 @@ index 910d7da..9b3b889 100644
      // Set up the bounding box of the touch panel
      if (s_SIM_config.swapScreens) {
        switch (s_SIM_config.screenLayout) {
-@@ -1073,9 +1447,14 @@ void *SIM_Render(void *arg) {
+@@ -1073,9 +1468,14 @@ void *SIM_Render(void *arg) {
        s_SIM_SDLJoystick = SDL_JoystickOpen(0);
      }
  
@@ -4362,7 +4445,7 @@ index 910d7da..9b3b889 100644
        if (Event.type == SDL_WINDOWEVENT) {
          switch (Event.window.event) {
          case SDL_WINDOWEVENT_CLOSE:
-@@ -1083,6 +1462,18 @@ void *SIM_Render(void *arg) {
+@@ -1083,6 +1483,18 @@ void *SIM_Render(void *arg) {
            break;
          }
        }
@@ -4381,7 +4464,7 @@ index 910d7da..9b3b889 100644
        if (Event.type == SDL_KEYDOWN) {
          int keyRead = Event.key.keysym.sym;
          if (keyRead == s_SIM_config.padSettings.aKey) {
-@@ -1261,7 +1652,9 @@ void *SIM_Render(void *arg) {
+@@ -1261,7 +1673,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -4392,7 +4475,7 @@ index 910d7da..9b3b889 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1303,6 +1696,9 @@ void *SIM_Render(void *arg) {
+@@ -1303,6 +1717,9 @@ void *SIM_Render(void *arg) {
      // SUB engine
      DrawEngine(TRUE);
  
@@ -4402,7 +4485,7 @@ index 910d7da..9b3b889 100644
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1328,18 +1724,29 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +1745,29 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -4441,7 +4524,7 @@ index 910d7da..9b3b889 100644
      SDL_GL_SwapWindow(window);
  
      if(sChangeInternalResAfterRender) {
-@@ -1369,6 +1776,12 @@ void *SIM_Render(void *arg) {
+@@ -1369,6 +1797,12 @@ void *SIM_Render(void *arg) {
      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
      glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -4454,7 +4537,7 @@ index 910d7da..9b3b889 100644
    } while (SIM::GUI::IsGameLogicPaused());
    // Bind 3D Framebuffer & Renderbuffer
    glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
-@@ -1394,10 +1807,17 @@ void *SIM_Render(void *arg) {
+@@ -1394,10 +1828,17 @@ void *SIM_Render(void *arg) {
    glCullFace(GL_FRONT);
    glFrontFace(GL_CW);
  
@@ -4472,7 +4555,7 @@ index 910d7da..9b3b889 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1465,6 +1885,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +1906,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  

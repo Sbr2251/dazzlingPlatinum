@@ -50,5 +50,9 @@ PostFX_Clear();                                    // cancel everything now
 | `PostFX_ChromaticAberration(amount, frames)` | Red/blue fringing towards the corners |
 | `PostFX_Glow(amount, frames)` | Bloom-ish bleed of bright areas |
 | `PostFX_Shake(amount, frames)` | Random offset up to amount * 8 display pixels |
+| `PostFX_Letterbox(amount, frames)` | Black bars top/bottom of the main screen (cinema framing) |
+| `PostFX_SetRegion(screen)` | 0 = both screens, 1 = main/top only (default), 2 = sub only |
+| `PostFX_CutIn(progress, alpha, x, y)` | Diagonal rainbow strip + glowing Key Stone + beam to (x, y); drive per frame |
+| `PostFX_TitleCard(progress, alpha)` | Dark violet band with rainbow edges across the main screen; drive per frame, pair with a printed title line (the shader draws no text) |
 
 AI-assisted (Metamate)
