@@ -23,8 +23,13 @@
     MegaEmitter 6, \x, \y
     MegaEmitter 3, \x, \y
     MegaEmitter 4, \x, \y
-    // The charge's length; AffinePulse's timings (and SEQ_SE_MEGA_CHARGE) are built round it
-    Delay 36
+    // The charge's length; AffinePulse's timings (and SEQ_SE_MEGA_CHARGE) are built round it.
+    // Stretched for the Mega cinematic: a second cocoon layer forms halfway through.
+    Delay 33
+    MegaEmitter 0, \x, \y
+    MegaEmitter 2, \x, \y
+    MegaEmitter 5, \x, \y
+    Delay 33
     // The orb bursts and the new form springs out, then the Mega symbol appears above it
     Func_MegaEvolutionCue MEGA_EVOLUTION_CUE_BURST
     // The burst shakes the stage camera, which then eases home while the particles play

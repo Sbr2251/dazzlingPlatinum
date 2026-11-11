@@ -30,6 +30,10 @@ void PostFX_ChromaticAberration(float amount, int frames);
 void PostFX_Glow(float amount, int frames);
 // Screen shake: random per-frame offset of up to amount * 8 display pixels.
 void PostFX_Shake(float amount, int frames);
+// Cinematic letterbox: black bars at the top and bottom of the main (top)
+// screen, each amount * main-screen-height tall (amount 0.14 is a strong
+// cinema bar). Drive it per frame with frames=2 to animate the slide.
+void PostFX_Letterbox(float amount, int frames);
 // Cancel every active effect on the next rendered frame.
 void PostFX_Clear(void);
 
