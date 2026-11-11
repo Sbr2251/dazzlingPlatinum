@@ -149,7 +149,7 @@ static void ConvertFromTiles4Bpp(unsigned char *src, unsigned char *dest, int nu
     }
 }
 
-static void ConvertFromTiles4BppCell(unsigned char *src, unsigned char *dest, int oamWidth, int oamHeight, int imageWidth, int startX, int startY, bool hFlip, bool vFlip, bool toPNG)
+static void ConvertFromTiles4BppCell(unsigned char *src, unsigned char *dest, int oamWidth, int oamHeight, int imageWidth, int imageHeight, int startX, int startY, bool hFlip, bool vFlip, bool toPNG)
 {
     int tilesSoFar = 0;
     int rowsSoFar = 0;
@@ -186,10 +186,12 @@ static void ConvertFromTiles4BppCell(unsigned char *src, unsigned char *dest, in
                     }
                     else
                     {
-                        srcPixelPair = src[idxComponentY * pitch + idxComponentX];
+                        // Cells can extend past the image: read those pixels as 0.
+                        srcPixelPair = (idxComponentY >= 0 && idxComponentY < imageHeight && idxComponentX >= 0 && idxComponentX < pitch)
+                            ? src[idxComponentY * pitch + idxComponentX] : 0;
                         leftPixel = srcPixelPair & 0xF;
                         rightPixel = srcPixelPair >> 4;
-                        
+
                         *dest++ = (leftPixel << 4) | rightPixel;
                     }
                 }
@@ -201,7 +203,8 @@ static void ConvertFromTiles4BppCell(unsigned char *src, unsigned char *dest, in
                     }
                     else
                     {
-                        *dest++ = src[idxComponentY * pitch + idxComponentX];
+                        *dest++ = (idxComponentY >= 0 && idxComponentY < imageHeight && idxComponentX >= 0 && idxComponentX < pitch)
+                            ? src[idxComponentY * pitch + idxComponentX] : 0;
                     }
                 }
             }
@@ -972,11 +975,11 @@ void ApplyCellsToImage(char *cellFilePath, struct Image *image, bool toPNG, bool
                 case 4:
                     if (toPNG)
                     {
-                        ConvertFromTiles4BppCell(image->pixels + pixelOffset, newPixels, oamdim.width, oamdim.height, outputWidth, x, y + scanHeight, hFlip, vFlip, true);
+                        ConvertFromTiles4BppCell(image->pixels + pixelOffset, newPixels, oamdim.width, oamdim.height, outputWidth, outputHeight, x, y + scanHeight, hFlip, vFlip, true);
                     }
                     else
                     {
-                        ConvertFromTiles4BppCell(image->pixels, newPixels + pixelOffset, oamdim.width, oamdim.height, outputWidth, x, y + scanHeight, hFlip, vFlip, false);
+                        ConvertFromTiles4BppCell(image->pixels, newPixels + pixelOffset, oamdim.width, oamdim.height, image->width, image->height, x, y + scanHeight, hFlip, vFlip, false);
                     }
                     break;
                 case 8:
