@@ -348,6 +348,7 @@ trainer_ai_o = custom_target(
     command: [
         meson.global_source_root() / 'tools' / 'macos' / 'trainer_ai_macho.sh',
         '@INPUT@', '@OUTPUT@',
+        enumproc_exe,
         meson.global_source_root() / 'asm',
         meson.global_build_root(),
     ],

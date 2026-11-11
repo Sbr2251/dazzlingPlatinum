@@ -1,13 +1,13 @@
 #!/bin/bash
-# macOS: wrap the built game in "Pokemon Platinum.app" (called by tools/scripts/copy_pc_files.sh after it has laid the game files out next to main).
+# macOS: wrap the built game in "Dazzling Platinum.app" (called by tools/scripts/copy_pc_files.sh after it has laid the game files out next to main).
 # The app holds main, its SDL libraries (Frameworks) and the game files (Resources/game). At launch it runs from
-# ~/Library/Application Support/Pokemon Platinum (macOS), where the game files are linked in and its own files go:
+# ~/Library/Application Support/Dazzling Platinum (macOS), where the game files are linked in and its own files go:
 # save.bin, sim_config.ini, sim_config_prj.ini, imgui.ini.
 # usage: make_app.sh <build dir> <filesys.csv>
 set -e
 BUILDDIR=$(cd "$1" && pwd)
 CSV=$2
-APP="$BUILDDIR/Pokemon Platinum.app"
+APP="$BUILDDIR/Dazzling Platinum.app"
 ROOT=$(cd "$BUILDDIR/.." && pwd)
 
 rm -rf "$APP.tmp"
@@ -40,7 +40,7 @@ cat > "$C/MacOS/launch" <<'LAUNCH'
 #!/bin/bash
 here=$(cd "$(dirname "$0")" && pwd)
 game="$here/../Resources/game"
-data="$HOME/Library/Application Support/Pokemon Platinum"
+data="$HOME/Library/Application Support/Dazzling Platinum"
 mkdir -p "$data"
 for f in "$game"/*; do
   n=$(basename "$f")
@@ -69,9 +69,9 @@ cat > "$C/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Pokemon Platinum</string>
-  <key>CFBundleDisplayName</key><string>Pokémon Platinum</string>
-  <key>CFBundleIdentifier</key><string>local.pokeplatinum.macos</string>
+  <key>CFBundleName</key><string>Dazzling Platinum</string>
+  <key>CFBundleDisplayName</key><string>Pokémon Dazzling Platinum</string>
+  <key>CFBundleIdentifier</key><string>local.dazzlingplatinum.macos</string>
   <key>CFBundleExecutable</key><string>launch</string>
   <key>CFBundleIconFile</key><string>app.icns</string>
   <key>CFBundlePackageType</key><string>APPL</string>

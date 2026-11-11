@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build the macOS (Apple silicon) PC port from a fresh clone: fetch the subprojects, pin them to the revisions the macOS patches
-# were made against, apply the patches, build enet, configure, compile, and wrap the result in "Pokemon Platinum.app".
-#   tools/macos/build.sh            # → build_macos/Pokemon Platinum.app
+# were made against, apply the patches, build enet, configure, compile, and wrap the result in "Dazzling Platinum.app".
+#   tools/macos/build.sh            # → build_macos/Dazzling Platinum.app
 # Needs: Xcode command line tools; Homebrew sdl2-compat (brings SDL3), nasm, ninja, arm-none-eabi-gcc, gcc@14, libpng, pkg-config, python3.
 # The game's own files are built from this source tree (no ROM needed).
 set -euo pipefail
@@ -50,4 +50,4 @@ if [ ! -f "$BUILD/build.ninja" ]; then
     --cross-file=meson/cross_pcport_macos.ini --cross-file="$BUILD/root.ini" -- "$BUILD"
 fi
 ninja -C "$BUILD"
-ls -d "$BUILD/Pokemon Platinum.app"
+ls -d "$BUILD/Dazzling Platinum.app"

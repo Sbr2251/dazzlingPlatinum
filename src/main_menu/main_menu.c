@@ -42,6 +42,7 @@
 
 #include "res/graphics/main_menu/main_menu_graphics.naix"
 #include "res/text/bank/main_menu_options.h"
+#include "save_player.h"
 
 FS_EXTERN_OVERLAY(game_start);
 FS_EXTERN_OVERLAY(game_opening);

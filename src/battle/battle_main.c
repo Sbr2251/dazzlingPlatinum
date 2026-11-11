@@ -95,6 +95,7 @@
 #include "vram_transfer.h"
 
 #include "res/text/bank/battle_strings.h"
+#include "battle_anim/ov12_02235E94.h"
 
 FS_EXTERN_OVERLAY(overlay10);
 FS_EXTERN_OVERLAY(overlay11);

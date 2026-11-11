@@ -1,3 +1,4 @@
+#include "battle/battle_debug.h"
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
 
@@ -2402,7 +2403,7 @@ static void BattleDisplay_SummonTotemAlly(MonShowData *monShowData)
     PokemonSprite_InitAnim(monShowData->battlerData->monSprite, 1);
     PokemonSprite_SetAttribute(monShowData->battlerData->monSprite, MON_SPRITE_SHADOW_IS_AFFINE, 0);
     PokemonSprite_LoadCryDelay(monShowData->battlerData->narc, &cryDelay, monShowData->species, monShowData->battlerType);
-    Species_PlayDelayedCry(BattleSystem_GetChatotCry(monShowData->battleSys, monShowData->battler), monShowData->cryMod, monShowData->species, monShowData->formNum, BATTLE_SOUND_PAN_RIGHT, SOUND_VOLUME_MAX, NULL, HEAP_ID_BATTLE, cryDelay);
+    Species_PlayDelayedCry(BattleSystem_GetChatotCry(monShowData->battleSys, monShowData->battler), monShowData->cryMod, monShowData->species, monShowData->formNum, BATTLE_SOUND_PAN_RIGHT, SOUND_VOLUME_MAX, FALSE, HEAP_ID_BATTLE, cryDelay);
     PokemonSprite_LoadAnim(monShowData->battlerData->narc, BattleSystem_GetPokemonAnimManager(monShowData->battleSys), monShowData->battlerData->monSprite, monShowData->species, monShowData->face, 0, monShowData->battler);
     PokemonSprite_StartFade(monShowData->battlerData->monSprite, 16, 0, 1, 0x7FFF);
     BattleDisplay_StartTotemStepAside(monShowData->battleSys);

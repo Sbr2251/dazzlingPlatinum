@@ -16,6 +16,20 @@
   - **Mac:** `~/.venvs/desmume/bin/python` (Python 3.12).
 - When the ROM builds, commit and push the branch so the user can test on hardware or their own emulator.
 
+## Mac app (PC port, branch `port/macos`)
+
+This branch adds the cybervisi0n PC port (`pc_port`) and a native macOS target on top of the pret-synced hack.
+- Build: `tools/macos/build.sh` gives `build_macos/Dazzling Platinum.app`. Prerequisites are in `README_macOS.md`.
+  - Rebuild after edits with `ninja -C build_macos`, with `LIBRARY_PATH`/`CPATH` set to /opt/homebrew plus `../pokeplatinum-macos-deps/prefix`.
+  - The ROM build (`make release`) is unchanged.
+- Saves and game files live in `~/Library/Application Support/Dazzling Platinum`. `save.bin` is a raw DS save; Cmd+E/Cmd+I export and import `.sav`/`.dsv`.
+- The same C code compiles for the DS (32-bit, mwcc) and for the Mac (64-bit, clang). New code must:
+  - include the header for every function it calls (clang rejects implicit declarations);
+  - never store a pointer in a `u32`: use `uPtr` for pointer arithmetic and alignment;
+  - never pass `NULL` for an integer parameter.
+- Fixes to the simulator (libntr) go in `subprojects/libntr` and are saved as `tools/macos/patches/libntr.patch`. Regenerate it with `git -C subprojects/libntr diff`, after `git add -N` on any new file.
+- Headless testing works with the debug automation variables listed in `README_macOS.md`, e.g. `SIM_DEBUG_FAST=1 SIM_DEBUG_IMPORT_SAVE=20:<save> SIM_DEBUG_KEYS=... SIM_DEBUG_SHOT_DIR=... SIM_DEBUG_EXIT_FRAME=...`.
+
 ## Important: Text Encoding
 
 - **Always use straight/ASCII apostrophes** (`'` U+0027) in all text files, never curly/smart apostrophes (`'` `'` U+2018/U+2019)

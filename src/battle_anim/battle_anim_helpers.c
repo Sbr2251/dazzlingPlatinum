@@ -835,9 +835,9 @@ static void VBlankDMAController_DisableDMA(VBlankDMAController *dmaController)
 
 static const void *sBg3LineScrolls[MAX_BG3_LINE_SCROLLS];
 
-static BOOL IsBg3OffsetRegister(u32 offsetReg)
+static BOOL IsBg3OffsetRegister(uPtr offsetReg)
 {
-    return offsetReg == REG_BG3HOFS_ADDR || offsetReg == REG_BG3VOFS_ADDR;
+    return offsetReg == (uPtr)REG_BG3HOFS_ADDR || offsetReg == (uPtr)REG_BG3VOFS_ADDR;
 }
 
 static void AddBg3LineScroll(const void *ctx)

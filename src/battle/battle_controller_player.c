@@ -50,6 +50,8 @@
 #include "trainer_info.h"
 
 #include "res/battle/scripts/sub_seq.naix"
+#include "totem_battle.h"
+#include "trainer_data.h"
 
 #ifdef SDK_PORT
 #include "port/sim_config_prj.h"

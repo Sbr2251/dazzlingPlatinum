@@ -147,7 +147,7 @@ u16 MonStream_FindMember(const PokemonSpriteTemplate *template)
 BOOL MonStream_ReadFile(FSFile *file, void *dst, u32 size)
 {
     // A first word read alone puts the rest off the 32-byte boundary
-    if (((u32)dst & 31) == 0 && size > 4) {
+    if (((uPtr)dst & 31) == 0 && size > 4) {
         if (FS_ReadFile(file, dst, 4) != 4) {
             return FALSE;
         }

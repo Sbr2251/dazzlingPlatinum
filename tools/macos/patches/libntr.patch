@@ -351,6 +351,46 @@ index 0766447..2261dcc 100644
    // Zero out some registers
    s_reg_G2_BG0CNT = 0;
    s_reg_G2_BG1CNT = 0;
+diff --git a/libraries/sim/src/sim_g2.cpp b/libraries/sim/src/sim_g2.cpp
+index b67717b..cca40ac 100644
+--- a/libraries/sim/src/sim_g2.cpp
++++ b/libraries/sim/src/sim_g2.cpp
+@@ -520,13 +520,11 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+         const u32 PaletteSize = 256 * 2;
+         const u32 SlotSize = PaletteSize * 16;
+ 
+-        if (isSub) {
+-          curpal =
+-              (u16 *)((uPtr)getBgExtPlttVramBank(isSub) + (extpalslot * SlotSize) +
+-                      ((curtile >> 12) * PaletteSize));
+-        } else {
+-          curpal = (u16 *)getBgExtPlttVramBank(isSub);
+-        }
++        // The slot (BG number, or 2/3 for BG0/BG1 with BGxCNT bit 13) and the tile's palette number select the palette, on
++        // both engines (the main engine used to always read slot 0, palette 0)
++        curpal =
++            (u16 *)((uPtr)getBgExtPlttVramBank(isSub) + (extpalslot * SlotSize) +
++                    ((curtile >> 12) * PaletteSize));
+       } else {
+         curpal = pal;
+       }
+@@ -557,13 +555,9 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+           const u32 PaletteSize = 256 * 2;
+           const u32 SlotSize = PaletteSize * 16;
+ 
+-          if (isSub) {
+-            curpal =
+-                (u16 *)((uPtr)getBgExtPlttVramBank(isSub) + (extpalslot * SlotSize) +
+-                        ((curtile >> 12) * PaletteSize));
+-          } else {
+-            curpal = (u16 *)getBgExtPlttVramBank(isSub);
+-          }
++          curpal =
++              (u16 *)((uPtr)getBgExtPlttVramBank(isSub) + (extpalslot * SlotSize) +
++                      ((curtile >> 12) * PaletteSize));
+         } else {
+           curpal = pal;
+         }
 diff --git a/libraries/sim/src/sim_g3_CommandHandler.cpp b/libraries/sim/src/sim_g3_CommandHandler.cpp
 index 18dbafe..f452e57 100644
 --- a/libraries/sim/src/sim_g3_CommandHandler.cpp

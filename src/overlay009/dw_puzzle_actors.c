@@ -35,6 +35,7 @@
 #include "sound_playback.h"
 #include "system.h" // dwp:rift-lt: JOY_NEW(PAD_KEY) for the post-respawn release gate
 #include "vars_flags.h"
+#include "map_object_move.h"
 #endif
 
 // ---------------------------------------------------------------------------

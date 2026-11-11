@@ -2085,12 +2085,12 @@ static void FinishCalculateTask(DistWorldSystem *system)
     }
 }
 
+static void Arc2Dw_HandleFrame(DistWorldSystem *system);
+static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system);
+
 static void Task_Calculate(SysTask *sysTask, void *sysTaskParam)
 {
     DistWorldSystem *system = sysTaskParam;
-
-static void Arc2Dw_HandleFrame(DistWorldSystem *system);
-static void Arc2DwLostTower_HandleFrame(DistWorldSystem *system);
 
     TickAllMapObjectRotators(system);
     RecalculateSkyBackgroundDarkness(system);

@@ -51,6 +51,8 @@
 #include "overlay006/hm_cut_in.h"
 #include "field_map_change.h"
 #include "spawn_locations.h"
+#include "overlay005/ov5_021ECA70.h"
+#include "overlay005/ov5_021EB1A0.h"
 #endif
 
 #define FIELD_MOVE_FLAG(move) (1 << (move))

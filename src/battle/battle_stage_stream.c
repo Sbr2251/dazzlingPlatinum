@@ -354,7 +354,7 @@ static void Load(int index, const PokemonSpriteTemplate *template)
         return;
     }
 
-    stream->buf = (u8 *)((((u32)stream->bufAlloc + READ_BUF_ALIGN - 1) & ~(READ_BUF_ALIGN - 1)) + MON_STREAM_READ_MISALIGN);
+    stream->buf = (u8 *)((((uPtr)stream->bufAlloc + READ_BUF_ALIGN - 1) & ~(READ_BUF_ALIGN - 1)) + MON_STREAM_READ_MISALIGN);
     memset(stream->texture, 0, STREAM_TEX_BYTES);
     stream->size = headerSize + STREAM_TEX_BYTES + size;
     stream->step = 0;
