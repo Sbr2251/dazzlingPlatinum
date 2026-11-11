@@ -193,8 +193,11 @@ static BOOL FieldTask_HeadlessBattle(FieldTask *task) {
         // restored when the battle ends (Battle Lab runs on the owner's own save).
         Party *party = SaveData_GetParty(fsys->saveData);
         Bag *realBag = SaveData_GetBag(fsys->saveData);
-        env->savedParty = malloc((size_t)Party_SaveSize());
-        env->savedBag = malloc((size_t)Bag_SaveSize());
+        // "restore_party": false keeps the spec party afterwards (tests that check
+        // the post-battle party, e.g. the Mega form reverting).
+        int restore = 1; if (JsonBool(s, e, "restore_party", &b) && !b) restore = 0;
+        env->savedParty = restore ? malloc((size_t)Party_SaveSize()) : NULL;
+        env->savedBag = restore ? malloc((size_t)Bag_SaveSize()) : NULL;
         if (env->savedParty) Party_Copy(party, env->savedParty);
         if (env->savedBag) Bag_Copy(realBag, env->savedBag);
         Party_Init(party);

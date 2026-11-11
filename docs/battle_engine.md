@@ -201,8 +201,13 @@ A battle spec is one JSON object:
   (`Key Stone: use {"item":"ITEM_KEY_STONE"} or "key_stone": true`).
 - `trainer_id`: existing trainer whose data (class/intro) is used for a
   `trainer` battle; the opponent party still comes from the spec.
-- `seed`: declarative; the actual RNG seed is the process seed
-  (`SIM_SEED` / sim.py `--seed`), which the spec value should match.
+- `seed`: seeds the battle RNG (`BattleEvents_SetSeedOverride`), so the
+  same spec + seed + decisions replays identically.
+- `restore_party` (default `true`): the player's real party and bag are
+  backed up before the spec party is installed and restored when the battle
+  ends (no blackout on a loss), so Battle Lab is safe on a real save. Set
+  `false` to keep the spec party afterwards (e.g. to check that a Mega
+  form reverted).
 - `field`/`weather`: reserved; battles use the current map background,
   terrain and field weather in v1.
 

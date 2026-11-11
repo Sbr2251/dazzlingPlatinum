@@ -32,7 +32,8 @@
     "index": 0,
     "mega": true
    }
-  ]
+  ],
+  "restore_party": false
  },
  "expect": {
   "winner": "player",
