@@ -28,6 +28,7 @@ This branch adds the cybervisi0n PC port (`pc_port`) and a native macOS target o
   - never store a pointer in a `u32`: use `uPtr` for pointer arithmetic and alignment;
   - never pass `NULL` for an integer parameter.
 - Fixes to the simulator (libntr) go in `subprojects/libntr` and are saved as `tools/macos/patches/libntr.patch`. Regenerate it with `git -C subprojects/libntr diff`, after `git add -N` on any new file.
+- After editing field scripts, run `tools/dazzling/check_script_targets.py`. It catches a GoTo/Call or movement command whose target isn't a label in the file; such scripts assemble but crash the Mac app and misbehave on the DS.
 - Headless testing works with the debug automation variables listed in `README_macOS.md`, e.g. `SIM_DEBUG_FAST=1 SIM_DEBUG_IMPORT_SAVE=20:<save> SIM_DEBUG_KEYS=... SIM_DEBUG_SHOT_DIR=... SIM_DEBUG_EXIT_FRAME=...`.
 
 ## Important: Text Encoding

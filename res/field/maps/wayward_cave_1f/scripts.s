@@ -31,7 +31,7 @@ WaywardCave1F_Mira:
     PlayFanfare SEQ_GONIN_sseq
     Message WaywardCave1F_Text_PlayerDecidedToGoWithMira
     WaitFanfare
-    GoTo FLAG_TALKED_TO_WAYWARD_CAVE_1F_MIRA
+    SetFlag FLAG_TALKED_TO_WAYWARD_CAVE_1F_MIRA
     SetVar VAR_WAYWARD_CAVE_1F_FOLLOWER_MIRA_STATE, 1
     Message WaywardCave1F_Text_IllKeepYourPokemonHealthy
     WaitButton

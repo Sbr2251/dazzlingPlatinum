@@ -1958,7 +1958,7 @@ JubilifeCity_Arc1Rally:
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     WaitFanfare
-    GoTo JubilifeCity_Arc1Movement_CameraDownToCrowd
+    ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraDownToCrowd
     WaitMovement
     // The crowd murmurs
     ApplyMovement LOCALID_ARC1_CROWD_0, JubilifeCity_Arc1Movement_TurnEast
@@ -2803,6 +2803,7 @@ JubilifeCity_Arc1CrateHandoff:
     Message JubilifeCity_Text_Arc1CrateGotCase
     PlayFanfare SEQ_FANFA4_sseq
     WaitFanfare
+    WaitButton
     Message JubilifeCity_Text_Arc1CrateWellDone
     WaitButton
     Message JubilifeCity_Text_Arc1CrateNeverSawMe

@@ -263,6 +263,7 @@ EternaGym_Arc2AfterBadge:
     PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
     Message EternaGym_Text_Arc2ResonatorHums
     WaitFanfare
+    WaitButton
     CloseMessage
 EternaGym_Arc2SetProgress:
     SetVar VAR_ARC2_PROGRESS, 31

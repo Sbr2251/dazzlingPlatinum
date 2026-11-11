@@ -167,6 +167,7 @@ DWEternaForest_Totem:
     PlayFanfare SEQ_SE_PL_KIRAKIRA_sseq
     Message DWEternaForest_Text_GotCalmShard
     WaitFanfare
+    WaitButton
     CloseMessage
     PlayFanfare SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_TOTEM

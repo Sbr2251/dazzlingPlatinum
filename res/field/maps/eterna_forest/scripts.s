@@ -58,7 +58,7 @@ EternaForest_CherylStartFollowing:
     PlayFanfare SEQ_GONIN_sseq
     Message EternaForest_Text_PlayerDecidedToGoWithCheryl
     WaitFanfare
-    GoTo FLAG_TALKED_TO_ETERNA_FOREST_CHERYL
+    SetFlag FLAG_TALKED_TO_ETERNA_FOREST_CHERYL
     SetVar VAR_ETERNA_FOREST_FOLLOWER_CHERYL_STATE, 1
     Message EternaForest_Text_IllKeepPokemonHealthy
     WaitButton

@@ -69,7 +69,7 @@ VictoryRoad1FRoom2_MarleyStartFollowing:
     PlayFanfare SEQ_GONIN_sseq
     Message VictoryRoad1FRoom2_Text_DecidedToGoWithMarley
     WaitFanfare
-    GoTo FLAG_TALKED_TO_VICTORY_ROAD_1F_ROOM_2_MARLEY
+    SetFlag FLAG_TALKED_TO_VICTORY_ROAD_1F_ROOM_2_MARLEY
     SetVar VAR_VICTORY_ROAD_1F_ROOM_2_FOLLOWER_MARLEY_STATE, 1
     Message VictoryRoad1FRoom2_Text_IllHealPokemon
     WaitButton

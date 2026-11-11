@@ -144,6 +144,7 @@ DWRoute214_TotemBattle:
     PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
     Message DWRoute214_Text_GotCalmShard
     WaitFanfare
+    WaitButton
     Message DWRoute214_Text_CyrusItsFree
     WaitButton
     CloseMessage

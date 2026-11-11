@@ -2,7 +2,6 @@
 
 
     InitScriptEntry_OnLoad 1
-    InitScriptEntry_OnTransition 6
     InitScriptEntryEnd
 
     InitScriptEnd

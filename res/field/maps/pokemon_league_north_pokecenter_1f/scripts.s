@@ -43,7 +43,7 @@ PokemonLeagueNorthPokecenter1F_DoorGuard:
     CloseMessage
     PlayFanfare SEQ_BADGE_sseq
     WaitFanfare
-    GoTo VAR_RESULT
+    GetPlayerDir VAR_RESULT
     GoToIfEq VAR_RESULT, DIR_NORTH, PokemonLeagueNorthPokecenter1F_DoorGuardMoveAwayEastSouth
     GoToIfEq VAR_RESULT, DIR_WEST, PokemonLeagueNorthPokecenter1F_DoorGuardMoveAwayWest
     GoToIfEq VAR_RESULT, DIR_EAST, PokemonLeagueNorthPokecenter1F_DoorGuardMoveAwayEastWest

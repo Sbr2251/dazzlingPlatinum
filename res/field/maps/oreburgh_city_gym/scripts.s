@@ -36,7 +36,7 @@ OreburghGym_Roark:
     Message OreburghGym_Text_RoarkReceiveCoalBadge
     PlayFanfare SEQ_BADGE_sseq
     WaitFanfare
-    GoTo TRAINER_YOUNGSTER_JONATHON
+    SetTrainerFlag TRAINER_YOUNGSTER_JONATHON
     SetTrainerFlag TRAINER_YOUNGSTER_DARIUS
     GiveBadge BADGE_ID_COAL
     IncrementTrainerScore2 TRAINER_SCORE_EVENT_BADGE_EARNED
@@ -293,6 +293,7 @@ OreburghGym_WinchHeave:
     WaitCry
     PlayFanfare SEQ_SE_DP_KI_GASYAN_sseq
     WaitFanfare
+    Return
 
 OreburghGym_RockfallFx:
     PlayFanfare SEQ_SE_DP_WALL_HIT2_sseq

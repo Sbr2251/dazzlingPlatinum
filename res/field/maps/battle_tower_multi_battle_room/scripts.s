@@ -53,6 +53,7 @@ BattleTowerMultiBattleRoom_RestorePokemon:
     Message BattleTowerMultiBattleRoom_Text_YourPokemonWillBeRestored
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     Return
 
 BattleTowerMultiBattleRoom_WarpToLobby:

@@ -240,6 +240,7 @@ DWLostTower_Vein:
     PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
     Message DWLostTower_Text_VioletCrystals
     WaitFanfare
+    WaitButton
     CloseMessage
     SetFlag FLAG_ARC2_RIFTB_E
     ReleaseAll
@@ -428,6 +429,7 @@ DWLostTower_FindCyrusBattle:
     PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
     Message DWLostTower_Text_GotCalmShard
     WaitFanfare
+    WaitButton
     CloseMessage
     // Polish #6: Cyrus pays off 'I'll find it' (route_213 beach)
     Message DWLostTower_Text_CyrusProof

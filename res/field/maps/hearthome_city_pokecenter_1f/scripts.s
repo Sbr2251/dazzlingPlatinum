@@ -55,6 +55,7 @@ HearthomeCenter_VeinCall:
     HealParty
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    FadeScreenIn
     WaitFadeScreen
     Message HearthomeCenter_Text_NextMorning
     WaitButton

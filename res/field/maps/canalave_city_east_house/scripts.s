@@ -62,6 +62,7 @@ CanalaveCityEastHouse_ForgotMoveCompletely:
     Message CanalaveCityEastHouse_Text_ForgotMoveCompletely
     PlayFanfare SEQ_WASURE_sseq
     WaitFanfare
+    WaitButton
     CloseMessage
     End
 

@@ -387,7 +387,7 @@ RavagedPath_EchoCheck:
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     WaitFanfare
-    GoTo RavagedPath_EchoFadeIn
+    Call RavagedPath_EchoFadeIn
     WaitTime 20, VAR_RESULT
     // The crate is pried open
     ApplyMovement RAVAGED_PATH_ECHO_GRUNT_M, RavagedPath_Movement_EchoFaceEast

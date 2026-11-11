@@ -910,6 +910,7 @@ BattleTower_RibbonsFor50WinStreak:
     Message BattleTower_Text_WonRibbonsFor50WinStreak
     PlayFanfare SEQ_FANFA1_sseq
     WaitFanfare
+    Return
 
 _0F7E:
     CallBattleTowerFunction BT_FUNC_GET_CHALLENGE_MODE, 0, VAR_RESULT

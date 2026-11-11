@@ -102,6 +102,7 @@ CanalaveCityHarborInn_OnFrame_Awaken:
     ScrCmd_2B5 MAP_HEADER_CANALAVE_CITY, 58, 714
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    BufferPlayerName 0
     Message CanalaveCityHarborInn_Text_PlayerAwakened
     WaitButton
     CloseMessage
