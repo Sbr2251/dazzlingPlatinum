@@ -1,4 +1,5 @@
 #include "applications/pokedex/pokedex_main.h"
+#include "vram_stats.h"
 
 #include <nitro.h>
 #include <nnsys.h>
@@ -1013,6 +1014,7 @@ static void InitG3(void)
 
     NNS_GfdInitFrmTexVramManager(1, 1);
     NNS_GfdInitFrmPlttVramManager(0x4000, 1);
+    VramStats_NoteFrm();
 }
 
 static void ResetFrm(void)

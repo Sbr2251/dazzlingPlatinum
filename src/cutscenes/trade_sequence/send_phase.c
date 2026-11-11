@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "struct_defs/sprite_animation_frame.h"
+#include "vram_stats.h"
 
 #include "cutscenes/trade_sequence/3d_scene.h"
 #include "cutscenes/trade_sequence/main.h"
@@ -425,6 +426,7 @@ static void TradeSendPhase_Init3DScene(TradeSendPhase *tsPhase)
 
     NNS_GfdInitFrmTexVramManager(1, 1);
     NNS_GfdInitFrmPlttVramManager(0x4000, 1);
+    VramStats_NoteFrm();
 
     texKey = NNS_GfdAllocTexVram(0x4000, 0, 0);
     plttKey = NNS_GfdAllocPlttVram(0x80, 0, NNS_GFD_ALLOC_FROM_LOW);

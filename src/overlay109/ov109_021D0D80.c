@@ -1,4 +1,5 @@
 #include "overlay109/ov109_021D0D80.h"
+#include "vram_stats.h"
 
 #include <nitro.h>
 #include <string.h>
@@ -1662,6 +1663,7 @@ static void ov109_021D1E1C(UnkStruct_ov109_021D0F70 *param0)
 
     NNS_GfdInitFrmTexVramManager(1, 1);
     NNS_GfdInitFrmPlttVramManager(0x4000, 1);
+    VramStats_NoteFrm();
 }
 
 static void ov109_021D1EC8(UnkStruct_ov109_021D0F70 *param0)

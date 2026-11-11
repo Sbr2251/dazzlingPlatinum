@@ -1,4 +1,5 @@
 #include "overlay083/ov83_0223C958.h"
+#include "vram_stats.h"
 
 #include <nitro.h>
 #include <string.h>
@@ -364,6 +365,7 @@ static void ov83_0223CE9C(UnkStruct_ov83_0223B784 *param0)
 
     NNS_GfdInitFrmTexVramManager(2, 1);
     NNS_GfdInitFrmPlttVramManager(0x8000, 1);
+    VramStats_NoteFrm();
 }
 
 static void ov83_0223CF20(UnkStruct_ov83_0223B784 *param0)

@@ -1,4 +1,5 @@
 #include "cutscenes/hall_of_fame.h"
+#include "vram_stats.h"
 
 #include <nitro.h>
 
@@ -730,6 +731,7 @@ static void ov86_0223B900(HallOfFameMan *hallOfFameMan)
 
     NNS_GfdInitFrmTexVramManager(1, 1);
     NNS_GfdInitFrmPlttVramManager(0x4000, 1);
+    VramStats_NoteFrm();
 
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG0, 1);
 

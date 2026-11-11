@@ -1,4 +1,5 @@
 #include "choose_starter/choose_starter_app.h"
+#include "vram_stats.h"
 
 #include <nitro.h>
 #include <nnsys.h>
@@ -577,6 +578,7 @@ static void Setup3D(ChooseStarterApp *app)
 
     NNS_GfdInitFrmTexVramManager(1, TRUE);
     NNS_GfdInitFrmPlttVramManager(0x4000, TRUE);
+    VramStats_NoteFrm();
 }
 
 static void ResetFrameVRAMStates(void)

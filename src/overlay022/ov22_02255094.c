@@ -1,4 +1,5 @@
 #include "overlay022/ov22_02255094.h"
+#include "vram_stats.h"
 
 #include <nitro.h>
 #include <string.h>
@@ -439,6 +440,7 @@ static void ov22_02255654(void)
 
     NNS_GfdInitFrmTexVramManager(2, 1);
     NNS_GfdInitFrmPlttVramManager(0x4000, 1);
+    VramStats_NoteFrm();
 }
 
 static void ov22_022556DC(void)

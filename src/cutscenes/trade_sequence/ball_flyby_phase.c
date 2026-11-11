@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "cutscenes/trade_sequence/3d_scene.h"
+#include "vram_stats.h"
 #include "cutscenes/trade_sequence/main.h"
 
 #include "bg_window.h"
@@ -338,6 +339,7 @@ static void TradeBallFlybyPhase_Init3DScene(TradeBallFlybyPhase *tbfPhase)
 
     NNS_GfdInitFrmTexVramManager(1, 1);
     NNS_GfdInitFrmPlttVramManager(0x4000, 1);
+    VramStats_NoteFrm();
 
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG0, 1);
 
