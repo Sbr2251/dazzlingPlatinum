@@ -38,7 +38,18 @@ static void LoadReplay(void) {
     FILE *f = fopen(p, "r"); if (!f) return;
     char line[EV_LEN];
     while (fgets(line, sizeof(line), f) && sExpectedCount < 256) {
-        if (strstr(line, "\"kind\":\"decision\"") || strstr(line, "\"kind\":\"record_header\"")) continue;
+        if (strstr(line, "\"kind\":\"decision\"")) { BattleDecision d; memset(&d, 0, sizeof(d)); d.target = -1; d.moveSlot = -1;
+            const char *q; long v;
+            q=strstr(line,"\"battler\":"); if(q) d.battler=atoi(q+10);
+            q=strstr(line,"\"action\":\""); if(q){ if(strncmp(q+10,"switch",6)==0)d.action=1; else if(strncmp(q+10,"item",4)==0)d.action=2; else if(strncmp(q+10,"run",3)==0)d.action=3; }
+            q=strstr(line,"\"move_id\":"); if(q) d.moveId=atoi(q+10);
+            q=strstr(line,"\"move_slot\":"); if(q) d.moveSlot=atoi(q+12);
+            q=strstr(line,"\"target\":"); if(q) d.target=atoi(q+9);
+            q=strstr(line,"\"party_slot\":"); if(q) d.partySlot=atoi(q+13);
+            q=strstr(line,"\"item_id\":"); if(q) d.itemId=atoi(q+10);
+            if(strstr(line,"\"mega\":true")) d.mega=1;
+            BattleDecisions_Push(&d); continue; }
+        if (strstr(line, "\"kind\":\"record_header\"")) continue;
         // keep only the type for verdict comparison
         const char *t = strstr(line, "\"type\":\""); if (!t) continue;
         snprintf(sExpected[sExpectedCount], EV_LEN, "%s", line); sExpectedCount++;
@@ -113,7 +124,8 @@ void BattleEvents_Poll(BattleSystem *sys) {
         if (sFile) { fclose(sFile); sFile = NULL; } if (sRecord) { fclose(sRecord); sRecord = NULL; } }
 }
 void BattleEvents_OnMoveUsed(BattleSystem *sys, BattleContext *ctx) { (void)sys; if (!ctx || !sStarted) return; Emit(ctx, "\"type\":\"move_used\",\"battler\":%d,\"move_id\":%d,\"target\":%d", ctx->attacker, (int)ctx->moveCur, ctx->defender); if (ctx->moveStatusFlags) Emit(ctx, "\"type\":\"hit\",\"battler\":%d,\"target\":%d,\"move_id\":%d", ctx->attacker, ctx->defender, (int)ctx->moveCur); }
-void BattleEvents_OnSelectedMove(BattleSystem *sys, int battler, int command) { (void)sys; BattleContext *ctx = sys ? BattleSystem_GetBattleContext(sys) : NULL; if (!ctx || !sStarted) return; Emit(ctx, "\"type\":\"move_chosen\",\"battler\":%d,\"move_id\":%d,\"target\":%d,\"mega\":%s", battler, command, ctx->defender, ctx->megaEvolutionTriggered[battler] ? "true" : "false"); if (sRecord) { /* decisions also in stream via EmitRaw record mirror */ } }
+static void RecordDecision(BattleContext *ctx, int battler, const char *action, int moveId, int partySlot, int itemId) { if (sRecord) { fprintf(sRecord, "{\"v\":1,\"kind\":\"decision\",\"battler\":%d,\"action\":\"%s\",\"move_id\":%d,\"move_slot\":%d,\"party_slot\":%d,\"item_id\":%d,\"target\":%d,\"mega\":%s}\n", battler, action, moveId, moveId-1, partySlot, itemId, ctx ? ctx->defender : -1, (ctx && ctx->megaEvolutionTriggered[battler]) ? "true" : "false"); fflush(sRecord); } }
+void BattleEvents_OnSelectedMove(BattleSystem *sys, int battler, int command) { (void)sys; BattleContext *ctx = sys ? BattleSystem_GetBattleContext(sys) : NULL; if (!ctx || !sStarted) return; RecordDecision(ctx, battler, "move", command, 0, 0); Emit(ctx, "\"type\":\"move_chosen\",\"battler\":%d,\"move_id\":%d,\"target\":%d,\"mega\":%s", battler, command, ctx->defender, ctx->megaEvolutionTriggered[battler] ? "true" : "false"); if (sRecord) { /* decisions also in stream via EmitRaw record mirror */ } }
 void BattleEvents_OnSelectedCommand(BattleSystem *sys, int battler, int command) { (void)sys; BattleContext *ctx = sys ? BattleSystem_GetBattleContext(sys) : NULL; if (!ctx || !sStarted) return; Emit(ctx, "\"type\":\"move_chosen\",\"battler\":%d,\"move_id\":0,\"command\":%d,\"target\":%d,\"mega\":false", battler, command, ctx->defender); }
 void BattleEvents_OnBagItem(BattleSystem *sys, int battler, int itemId) { BattleContext *ctx = sys ? BattleSystem_GetBattleContext(sys) : NULL; if (!ctx || !sStarted) return; Emit(ctx, "\"type\":\"item\",\"battler\":%d,\"item_id\":%d", battler, itemId); }
 void BattleEvents_OnPartyResult(BattleSystem *sys, int battler, int command) { BattleContext *ctx = sys ? BattleSystem_GetBattleContext(sys) : NULL; if (!ctx || !sStarted) return; Emit(ctx, "\"type\":\"switch\",\"battler\":%d,\"species_id\":%d,\"party_slot\":%d", battler, ctx->battleMons[battler].species, command); }
@@ -129,3 +141,11 @@ int BattleEvents_TakePending(char *out, unsigned long cap) {
     snprintf(out + len, cap - len, "]");
     sHead = (sHead + emitted) % MAX_EV; sCount -= emitted; return 1;
 }
+
+// --- Decision queue ---
+#define MAX_DEC 64
+static BattleDecision sDec[MAX_DEC]; static int sDecHead, sDecCount;
+void BattleDecisions_Push(const BattleDecision *d) { if (sDecCount < MAX_DEC) { sDec[(sDecHead + sDecCount) % MAX_DEC] = *d; sDecCount++; } }
+int BattleDecisions_Peek(int battler, BattleDecision *out) { for (int k = 0; k < sDecCount; k++) { BattleDecision *d = &sDec[(sDecHead + k) % MAX_DEC]; if (d->battler == battler) { *out = *d; return 1; } } return 0; }
+void BattleDecisions_Complete(int battler) { for (int k = 0; k < sDecCount; k++) if (sDec[(sDecHead + k) % MAX_DEC].battler == battler) { for (int j = k; j + 1 < sDecCount; j++) sDec[(sDecHead + j) % MAX_DEC] = sDec[(sDecHead + j + 1) % MAX_DEC]; sDecCount--; return; } }
+int BattleDecisions_Count(int battler) { int n = 0; for (int k = 0; k < sDecCount; k++) if (sDec[(sDecHead + k) % MAX_DEC].battler == battler) n++; return n; }

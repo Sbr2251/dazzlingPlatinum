@@ -126,49 +126,45 @@ decisions). Fast mode only removes presentation waits.
 Replay is a checker, not a save-state rewind: it requires the same build
 and the same starting save/spec as the recording (engine-sim supplies it).
 
+## 4b. Decision queue (scripted battles and replay)
+
+Queue: `BattleDecisions_Push/P peek/Complete` in `battle_events.h`.
+`BattleDecision{battler, action(move|switch|item|run), moveId, moveSlot(-1=by id), target(-1=auto), partySlot, itemId, mega}`.
+Consumption is client-side: the player command/move/target menu tasks in
+`battle_display.c` read the queue when they would poll input, set their
+input (and `megaEvolutionTriggered` for mega), then emit and clean up
+normally - so no menu task is orphaned. Bag/party sub-menu tasks are not
+yet hooked: switch/item decisions are accepted, recorded and replayed in
+format, but their in-battle consumption still goes through the normal
+menus (engine-sim: drive those with press/touch until the hook lands).
+Lockstep: `{"cmd":"battle_decide","battler":0,"action":"move","move":"MOVE_X"|"move_index":0,"target":1,"mega":true}`
+(also `switch`+`party_slot`, `item`+`item`, `run`). Move/item names resolve
+via generated tables (`kHeadlessMoves`/`kHeadlessItems`; gen_headless_names.py
+now also emits Moves/Abilities). Recording writes every selected move (both
+sides, AI included) as `{"kind":"decision",...,"move_slot":N}` lines;
+`SIM_BATTLE_REPLAY` pushes them back at battle start, so a replay file
+alone reproduces the battle with no input script (text still advances via
+press/step in lockstep) and verifies events as before.
+
 ## 5. Battle spec (engine-sim, implemented)
 
-A battle spec is one JSON object:
+Spec JSON: `battle_type` (wild|trainer|double|totem), `seed`, parties
+`player`/`opponent` (1-6 mons: species, level, moves, held_item, ability,
+nature, ivs/evs [hp,atk,def,speed,spatk,spdef], form, shiny), `bag`
+items, `key_stone`, `double`/`totem`/`totem_boosted`, `trainer_id`.
+Full schema: git history of this section / tools/battle/tests/*.json are
+canonical examples. `start_battle` (spec inline or `spec_path`) sets the
+player party/bag from the spec, seeds the battle RNG with
+`BattleEvents_SetSeedOverride(spec.seed)`, and runs a custom DTO through
+the normal encounter path.
 
-```json
-{
-  "battle_type": "wild", "seed": 42,
-  "player": [{"species": "SPECIES_INFERNAPE", "level": 50,
-    "moves": ["MOVE_FLARE_BLITZ", "MOVE_CLOSE_COMBAT"],
-    "held_item": "ITEM_INFERNAPITE", "ability": "ABILITY_BLAZE",
-    "nature": "NATURE_JOLLY", "ivs": [31,31,31,31,31,31],
-    "evs": [0,252,0,252,0,4], "form": 0, "shiny": false}],
-  "opponent": [{"species": "SPECIES_BIDOOF", "level": 5, "moves": ["MOVE_TACKLE"]}],
-  "bag": [{"item": "ITEM_POTION", "qty": 5}], "key_stone": true,
-  "double": false, "totem": false, "totem_boosted": false, "trainer_id": 1
-}
-```
-
-- `battle_type`: `wild` (default), `trainer`, `double`, or `totem`
-  (totem implies double + Totem aura). `double`/`totem` booleans also work.
-- Parties `player`/`opponent` (aliases `player_party`/`opponent_party`),
-  1-6 mons: `species` (required, prefix optional), `level` (default 50),
-  `moves` (up to 4), `held_item`, `ability`, `nature`, `ivs`/`evs` as
-  [hp,atk,def,speed,spatk,spdef], `form`, `shiny` (accepted, not forced).
-- `bag` items are added before the battle; Key Stone via
-  `{"item":"ITEM_KEY_STONE"}` or `"key_stone": true`.
-- `trainer_id`: existing trainer data for a `trainer` battle; the
-  opponent party still comes from the spec.
-- `seed`: seeds the battle RNG at `start_battle` time (see below), so the
-  same spec+seed+decisions are deterministic regardless of field frames.
-- `field`/`weather`: reserved; current map background/terrain/weather used.
-
-Names resolve from the build's generated tables (`headless_names`,
-extended with moves/abilities/natures) - nothing is hand-maintained.
-
-### start_battle headless command
-
-From any field state: `{"cmd":"start_battle","spec_path":"/abs/spec.json"}`
-or the spec inline in the command. The player's save party/bag are set
-from the spec (use a throwaway save via SIM_SAVE_PATH), the battle RNG is
-seeded from `seed`, then a custom FieldBattleDTO runs through the normal
-encounter path (`Encounter_NewHeadlessBattle`). Reply `{"ok":true}` once
-queued; step and read `state` / `battle_events` to observe.
+Agreed decision JSON (engine-sim <-> engine-core, section 4b):
+`{"battler":0,"action":"move","move":"MOVE_X"}` or `"move_index":0`,
+plus `"target":<battler|-1>`, `"mega":bool`; `action":"switch"` +
+`"party_slot":N`; `action":"item"` + `"item":"ITEM_X"`;
+`action":"run"`. sim.py sends exactly this via `battle_decide` when the
+command is available and falls back to press/touch driving otherwise
+(switch/item still use presses: their sub-menus are not hooked yet).
 
 ## 6. How engine-sim should consume this
 

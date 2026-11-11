@@ -27,6 +27,7 @@
 #include "battle/battle_context.h"
 #include "battle/battle_controller.h"
 #include "battle/battle_lib.h"
+#include "battle/battle_events.h"
 #include "battle/battle_main.h"
 #include "battle/battle_subscreen.h"
 #include "battle/battle_system.h"
@@ -3585,6 +3586,7 @@ static void Task_PlayerSetCommandSelection(SysTask *task, void *data)
         }
 
         commandSetData->input = BattleSystem_MenuInput(btlSubscreen);
+        { BattleDecision dec; if (commandSetData->input == 0xFFFFFFFF && BattleDecisions_Peek(commandSetData->battler, &dec)) commandSetData->input = dec.action == BATTLE_DECISION_MOVE ? 1 : dec.action == BATTLE_DECISION_ITEM ? 2 : dec.action == BATTLE_DECISION_SWITCH ? 3 : 4; }
 
         if (commandSetData->input != 0xFFFFFFFF) {
             commandSetData->unused_0B = 10; // set but never used
@@ -3816,6 +3818,11 @@ static void Task_PlayerShowMoveSelectMenu(SysTask *task, void *data)
         break;
     case 1:
         moveSelectMenuData->input = BattleSystem_MenuInput(btlSubscreen);
+        { BattleDecision dec; if (moveSelectMenuData->input == 0xFFFFFFFF && BattleDecisions_Peek(moveSelectMenuData->battler, &dec) && dec.action == BATTLE_DECISION_MOVE) {
+            int slot = dec.moveSlot;
+            if (slot < 0 && dec.moveId > 0) { slot = -1; for (int s2 = 0; s2 < LEARNED_MOVES_MAX; s2++) if (moveSelectMenuData->moves[s2] == dec.moveId) slot = s2; }
+            if (slot >= 0) { moveSelectMenuData->input = slot + 1; if (dec.mega) BattleSystem_GetBattleContext(moveSelectMenuData->battleSys)->megaEvolutionTriggered[moveSelectMenuData->battler] = TRUE; }
+        } }
 
         if (moveSelectMenuData->input != 0xFFFFFFFF) {
             Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
@@ -3966,6 +3973,7 @@ static void Task_PlayerShowTargetSelectMenu(SysTask *task, void *data)
         break;
     case 1:
         targetSelectMenuData->input = BattleSystem_MenuInput(btlSubscreen);
+        { BattleDecision dec; if (targetSelectMenuData->input == 0xFFFFFFFF && BattleDecisions_Peek(targetSelectMenuData->battler, &dec) && dec.target >= 0) targetSelectMenuData->input = dec.target + 1; }
 
         if (targetSelectMenuData->input != 0xFFFFFFFF) {
             Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
