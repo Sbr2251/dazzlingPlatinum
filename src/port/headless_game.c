@@ -13,6 +13,7 @@
 
 #include "port/debug_field.h"
 #include "port/headless_game.h"
+#include "port/headless_battle.h"
 
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
@@ -283,6 +284,7 @@ int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
     else if (strcmp(cmd, "set_flag") == 0) CmdSetFlag(line, reply, cap);
     else if (strcmp(cmd, "give_item") == 0) CmdGiveItem(line, reply, cap);
     else if (strcmp(cmd, "talk") == 0) CmdTalk(line, reply, cap);
+    else if (strcmp(cmd, "start_battle") == 0) return HeadlessBattle_Start(line, reply, cap);
     else return 0;
     return 1;
 }
