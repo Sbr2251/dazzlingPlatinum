@@ -50,6 +50,8 @@ def main():
         "MapHeaders": parse_enum_txt(os.path.join(root, "generated/map_headers.txt")),
         "Items": parse_enum_txt(os.path.join(root, "generated/items.txt")),
         "Species": parse_enum_txt(os.path.join(root, "generated/species.txt")),
+        "Moves": parse_enum_txt(os.path.join(root, "generated/moves.txt")),
+        "Abilities": parse_enum_txt(os.path.join(root, "generated/abilities.txt")) if __import__("os").path.exists(os.path.join(root, "generated/abilities.txt")) else [],
     }
     varflag = parse_enum_txt(os.path.join(root, "generated/vars_flags.txt"))
     tables["Vars"] = [(n, v) for n, v in varflag if n.startswith("VAR_")]

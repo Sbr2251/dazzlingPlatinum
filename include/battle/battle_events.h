@@ -16,4 +16,13 @@ void BattleEvents_Reset(void);
 // instead of the field-supplied dto->seed. 0 = no override (use SIM_BATTLE_SEED env or 0).
 void BattleEvents_SetSeedOverride(unsigned int seed);
 unsigned int BattleEvents_GetSeedOverride(void);
+// --- Decision queue (scripted/replay decisions for player battlers) ---
+enum BattleDecisionAction { BATTLE_DECISION_MOVE = 0, BATTLE_DECISION_SWITCH = 1, BATTLE_DECISION_ITEM = 2, BATTLE_DECISION_RUN = 3 };
+typedef struct BattleDecision {
+    int battler; int action; int moveId; int moveSlot; int target; int partySlot; int itemId; int itemTarget; int mega;
+} BattleDecision;
+void BattleDecisions_Push(const BattleDecision *d);
+int BattleDecisions_Peek(int battler, BattleDecision *out); // 1 if a decision is queued
+void BattleDecisions_Complete(int battler); // pop after the action is fully entered
+int BattleDecisions_Count(int battler);
 #endif

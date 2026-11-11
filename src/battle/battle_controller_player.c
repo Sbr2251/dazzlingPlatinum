@@ -26,6 +26,7 @@
 #include "battle/battle_controller.h"
 #include "battle/battle_display.h"
 #include "battle/battle_lib.h"
+#include "battle/battle_events.h"
 #include "battle/battle_main.h"
 #include "battle/battle_stage.h"
 #include "battle/mega_evolution.h"
@@ -671,6 +672,7 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
             break;
 
         case COMMAND_SELECTION_RUN_SELECT_INIT:
+            BattleDecisions_Complete(i);
             if (battleType & BATTLE_TYPE_FRONTIER) {
                 // "Would you like to forfeit the match and quit now?"
                 BattleController_EmitShowYesNoMenu(battleSys, battleCtx, i, 955, 0, 0, 0);
@@ -740,6 +742,7 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
             break;
 
         case COMMAND_SELECTION_WAIT:
+            BattleDecisions_Complete(i);
             // Only battlers using a move can mega evolve
             if (battleCtx->battlerActions[i][BATTLE_ACTION_PICK_COMMAND] != BATTLE_CONTROL_FIGHT) {
                 battleCtx->megaEvolutionTriggered[i] = FALSE;

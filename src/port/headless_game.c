@@ -285,6 +285,20 @@ int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
     else if (strcmp(cmd, "set_flag") == 0) CmdSetFlag(line, reply, cap);
     else if (strcmp(cmd, "give_item") == 0) CmdGiveItem(line, reply, cap);
     else if (strcmp(cmd, "talk") == 0) CmdTalk(line, reply, cap);
+    else if (strcmp(cmd, "battle_decide") == 0) {
+        BattleDecision d; memset(&d, 0, sizeof(d)); d.target = -1; d.moveSlot = -1; long v;
+        if (JsonLong(line, "battler", &v)) d.battler = (int)v;
+        char act[32] = "move"; JsonStr(line, "action", act, sizeof(act));
+        if (strcmp(act, "switch") == 0) d.action = BATTLE_DECISION_SWITCH; else if (strcmp(act, "item") == 0) d.action = BATTLE_DECISION_ITEM; else if (strcmp(act, "run") == 0) d.action = BATTLE_DECISION_RUN; else d.action = BATTLE_DECISION_MOVE;
+        char mv[128]; if (JsonStr(line, "move", mv, sizeof(mv))) { const HeadlessName *mn = Headless_Lookup(kHeadlessMoves, kHeadlessMovesCount, mv); if (mn) d.moveId = mn->id; else if (mv[0] >= '0' && mv[0] <= '9') d.moveSlot = atoi(mv); }
+        if (JsonLong(line, "move_index", &v)) d.moveSlot = (int)v;
+        if (JsonLong(line, "target", &v)) d.target = (int)v;
+        if (JsonLong(line, "party_slot", &v)) d.partySlot = (int)v;
+        char it[128]; if (JsonStr(line, "item", it, sizeof(it))) { const HeadlessName *inm = Headless_Lookup(kHeadlessItems, kHeadlessItemsCount, it); if (inm) d.itemId = inm->id; }
+        if (JsonLong(line, "item_id", &v)) d.itemId = (int)v;
+        BOOL mega = FALSE; if (JsonBoolVal(line, "mega", &mega)) d.mega = mega;
+        BattleDecisions_Push(&d); snprintf(reply, cap, "{\"ok\":true,\"queued\":%d}", BattleDecisions_Count(d.battler));
+    }
     else if (strcmp(cmd, "battle_events") == 0) { char ev[8192]; BattleEvents_TakePending(ev, sizeof(ev)); snprintf(reply, cap, "{\"ok\":true,\"events\":%s}", ev); }
     else return 0;
     return 1;
