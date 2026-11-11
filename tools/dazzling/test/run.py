@@ -206,6 +206,9 @@ class GameClient:
         self.coverage_path = os.path.join(self.dir, "coverage.txt")
         self.stderr_path = os.path.join(self.dir, "game.stderr.log")
         env = dict(os.environ)
+        # llvmpipe spawns a thread per core per game; cap it (team rule,
+        # shared devserver load). Does not affect pixels (lockstep).
+        env.setdefault("LP_NUM_THREADS", "2")
         env.update({
             # Never register in the owner's Dock/app switcher (team rule).
             "SDL_MAC_BACKGROUND_APP": "1",

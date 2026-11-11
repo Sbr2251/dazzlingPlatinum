@@ -107,3 +107,56 @@ use U+2019 as the in-game apostrophe glyph, so pre-existing files are
 grandfathered by count and any new file or increased count fails. Only
 regenerate the baseline after reviewing the diff:
 `python3 tools/dazzling/test/static_checks.py --write-curly-baseline`.
+
+## Golden-image (visual) regression tests
+
+Scenarios named `visual_*` in `scenarios/` are exact-pixel golden tests:
+every screenshot uses `tolerance: 0.0`, `crop` (top screen `[0,0,512,384]`,
+bottom screen `[0,384,512,384]`) so references in `references/visual/` are
+one 512x384 BMP (~577 KB) instead of the full 512x768 frame. Recording a
+crop stores the cropped image; comparison crops only the actual frame
+(legacy full-size references are cropped on the fly as a fallback). Battle
+scenarios start from `tools/battle/specs/visual_*.json` (plus the shared
+`mega_infernape_vs_garchomp.json` / `totem_battle.json`) via the new
+`start_battle` / `battle_decide` / `battle_event` step types, and screenshot
+at a fixed rendered-frame offset after a decision, so the frame is a pure
+function of save + seed + spec + decisions (`docs/headless_protocol.md`).
+
+Coverage: Intimidate stat drop, Swords Dance stat raise, Growl enemy stat
+drop, Thunder Wave status, super-effective Flamethrower hit, Mega Evolution
+('reacting' text + cinematic close-up), Totem aura flare-up + persistent
+aura, double-battle target select (bottom-screen battler buttons), wild
+encounter transition, and overworld frames on 6 story-save maps (Lake
+Verity, Twinleaf, Jubilife, Oreburgh City, Eterna Forest, Solaceon).
+
+```sh
+python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --filter visual   # check
+python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --record --filter visual  # re-record all
+python3 tools/dazzling/test/run.py --game build_linux/main --update --filter visual_intimidate  # accept new reference(s) after reviewing a diff
+python3 tools/dazzling/test/run.py --game build_linux/main --compare-renderers --filter visual_intimidate  # CPU vs GPU 2D
+```
+
+- On mismatch the failure prints `expected:` / `actual:` / `diff:` BMP
+  paths inside the scenario workdir (diff = differing pixels in red over a
+  darkened actual). Review those three, then accept deliberately with
+  `--update --filter <name>` (never blanket-`--record` a red suite).
+- `--compare-renderers` runs each selected scenario twice,
+  `SIM_G2_GPU=0` and `=1`, against the same references: real game scenes
+  covering text/affine BGs, OBJ + windows, blending/translucency and the
+  3D battle stage (depth-equal/decal stat-effect quads, toon sprites).
+  Caveat on this devserver: Mesa llvmpipe rejects `g2gpu_fragment.glsl`
+  (`uint packed` - `packed` is reserved), so the GPU path fails to compile
+  and falls back; a true GPU-vs-CPU pixel proof needs the g2gaps shader
+  fix or the owner's Mac (Apple GL 4.1). The mode is ready for the scenes
+  lane g2gaps names in its status file.
+- Re-record responsibility when visuals change intentionally:
+  **capture** (battle animation/particle changes) - battle `visual_*`;
+  **g2gaps** (2D renderer features: mosaic, WIN1, affine windows, OBJ
+  extended palettes) - all `visual_*`, via `--compare-renderers`;
+  **hiresui** (UI/textbox/menu art) - double target-select, Mega and
+  menu-adjacent frames; **fps60** (frame pacing/animation timing) - any
+  frame-offset screenshot may land on a different animation phase.
+- Timing notes: stat/status animation frames are fixed offsets measured
+  on the current build (e.g. Intimidate at 660 rendered frames after
+  `start_battle`). The Mega scenario ends on the cinematic frame and reads
+  no state afterwards.
