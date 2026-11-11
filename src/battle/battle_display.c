@@ -2418,6 +2418,13 @@ static void BattleDisplay_SummonTotemAlly(MonShowData *monShowData)
     monShowData->ballCapsuleSealEffect = NULL;
     monShowData->btlMonObjData = NULL;
 
+    // The encounter coords are the off-screen start of the send-out slide, which a
+    // summoned ally never runs: left there, its sprite stays off-screen at
+    // xCenter=-100. Put it straight on its doubles home (the Totem steps aside
+    // to its own doubles spot in BattleDisplay_StartTotemStepAside below), so
+    // both enemy sprites stand clearly apart and move animations, which aim
+    // by battler type, land on the sprite that is actually there.
+    PokemonSprite_SetAttribute(monShowData->battlerData->monSprite, MON_SPRITE_X_CENTER, gBattlerEncounterX[BATTLER_TYPE_ENEMY_SIDE_SLOT_2][0]);
     PokemonSprite_InitAnim(monShowData->battlerData->monSprite, 1);
     PokemonSprite_SetAttribute(monShowData->battlerData->monSprite, MON_SPRITE_SHADOW_IS_AFFINE, 0);
     PokemonSprite_LoadCryDelay(monShowData->battlerData->narc, &cryDelay, monShowData->species, monShowData->battlerType);
