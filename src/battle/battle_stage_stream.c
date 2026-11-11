@@ -20,18 +20,10 @@
 #define STREAM_HEAP_SPARE 0x20000 // battle heap left free after a load
 #define STREAM_MAX_SKIP   60 // vblanks one frame may advance, after a pause
 #define STREAM_NO_FRAME   0xFFFF
-// Per frame, for all battlers together. Past the budget the remaining battlers wait a frame
-// (the first one in the frame's order always goes, and the order turns every frame): four
-// battlers changing frame at once, or four whole textures after a menu, would otherwise take
-// 8 ms of decoding or 24 KB of the VBlank's texture window
-#define STREAM_DECODE_BUDGET 1600 // OS ticks, 3 ms
-#define STREAM_UPLOAD_BUDGET (2 * STREAM_TEX_BYTES)
-
-// Frames are read with FS_ReadFileAsync into a buffer MON_STREAM_READ_MISALIGN past a 32-byte
-// boundary, so the card thread copies them with the CPU and never by DMA (pokemon_sprite_stream.h).
-// The card thread outranks the game's, so a frame (2 KB at most, five pages) is in before
-// FS_ReadFileAsync returns: 1.2 ms at worst in the emulator (readTicksMax)
-#define READ_BUF_ALIGN 32
+// Each battler's whole stream member is loaded into memory when the battle loads it, and
+// frames decode straight from there. The DS-era machinery this replaces - one frame at a
+// time through FS_ReadFileAsync, read/decode/upload budgets, stalls waiting on the card -
+// only existed to fit 4 MB of RAM and a slow cartridge, neither of which the Mac has.
 
 // A scaled member (a back) taller than BACK_ROOM frame pixels sinks by the rest, at most
 // BACK_MAX_SINK, so its top clears the opponent's healthbar (OBJs, drawn over the 3D layer) and
@@ -43,9 +35,8 @@
 typedef struct BattlerStream {
     u16 narcID; // the sprite template looked up last
     u16 character;
-    MonStreamHeader *data; // header, frame offsets and steps; NULL: the template has no stream
+    MonStreamHeader *data; // the whole member; NULL: the template has no stream
     u32 size; // heap this battler holds
-    u32 romStart; // the member's first byte, from the start of the card
     u32 memberSize;
     const u8 *steps; // {frame, duration}
     u16 step;
@@ -54,13 +45,7 @@ typedef struct BattlerStream {
     u16 texFrame; // frame in the texture copy, STREAM_NO_FRAME before the first
     u16 shown; // frame in VRAM, STREAM_NO_FRAME when it has to be sent whole
     u16 queued; // frame queued for the next VBlank, STREAM_NO_FRAME if none
-    u16 bufFrame; // compressed frame waiting in the read buffer
-    u16 reading; // frame the card is reading into it
-    u32 readVBlank; // when the read was asked for
     u8 *texture; // STREAM_TEX_BYTES, what the VRAM block holds; zero outside the box
-    void *bufAlloc;
-    u8 *buf; // bufAlloc, MON_STREAM_READ_MISALIGN past a 32-byte boundary
-    FSFile file; // the NARC, for this battler's background reads
 } BattlerStream;
 
 typedef struct StageStream {
@@ -68,7 +53,6 @@ typedef struct StageStream {
     NNSGfdTexKey texKey;
     u32 texAddr;
     BOOL hasVram;
-    BOOL hasFiles;
     u32 lastVBlank;
     u8 firstBattler; // updated first this frame
     u16 rate[MAX_MON_SPRITES]; // BattleStageStream_SetRate
@@ -84,33 +68,12 @@ static u8 sFrameBuffer[STREAM_CANVAS_WIDTH * STREAM_CANVAS_HEIGHT / 2]; // one d
 
 static void OpenFiles(void)
 {
-    u32 top, bottom;
-    int i;
-
     sStageStream.narc = NARC_ctor(NARC_INDEX_BATTLE__GRAPHIC__MON_STREAM, HEAP_ID_BATTLE);
 
     if (sStageStream.narc == NULL) {
         return;
     }
 
-    top = FS_GetFileImageTop(&sStageStream.narc->file);
-    bottom = FS_GetFileImageBottom(&sStageStream.narc->file);
-
-    for (i = 0; i < MAX_MON_SPRITES; i++) {
-        FS_InitFile(&sStageStream.battlers[i].file);
-
-        if (!FS_CreateFileFromRom(&sStageStream.battlers[i].file, top, bottom - top)) {
-            while (--i >= 0) {
-                FS_CloseFile(&sStageStream.battlers[i].file);
-            }
-
-            NARC_dtor(sStageStream.narc);
-            sStageStream.narc = NULL;
-            return;
-        }
-    }
-
-    sStageStream.hasFiles = TRUE;
     sStageStream.index = NARC_AllocAndReadWholeMember(sStageStream.narc, 0, HEAP_ID_BATTLE);
 
     if (sStageStream.index != NULL) {
@@ -122,21 +85,10 @@ static void OpenFiles(void)
 
 static void CloseFiles(void)
 {
-    int i;
-
     if (sStageStream.index != NULL) {
         Heap_Free(sStageStream.index);
         sStageStream.index = NULL;
         sSpriteStreamStats.streamBytes -= sStageStream.indexEntries * sizeof(u16) + sizeof(NARC);
-    }
-
-    if (sStageStream.hasFiles) {
-        for (i = 0; i < MAX_MON_SPRITES; i++) {
-            FS_WaitAsync(&sStageStream.battlers[i].file);
-            FS_CloseFile(&sStageStream.battlers[i].file);
-        }
-
-        sStageStream.hasFiles = FALSE;
     }
 
     if (sStageStream.narc != NULL) {
@@ -159,8 +111,6 @@ void BattleStageStream_Init(PokemonSpriteManager *monSpriteMan)
         sStageStream.battlers[i].texFrame = STREAM_NO_FRAME;
         sStageStream.battlers[i].shown = STREAM_NO_FRAME;
         sStageStream.battlers[i].queued = STREAM_NO_FRAME;
-        sStageStream.battlers[i].bufFrame = STREAM_NO_FRAME;
-        sStageStream.battlers[i].reading = STREAM_NO_FRAME;
         sStageStream.rate[i] = STREAM_RATE_ONE;
         sSpriteStreamStats.frame[i] = STREAM_NO_FRAME;
     }
@@ -196,13 +146,6 @@ static void Unload(int index)
 {
     BattlerStream *stream = &sStageStream.battlers[index];
 
-    // The card may still be writing the buffer
-    if (stream->reading != STREAM_NO_FRAME) {
-        FS_CancelFile(&stream->file);
-        FS_WaitAsync(&stream->file);
-        stream->reading = STREAM_NO_FRAME;
-    }
-
     if (stream->data != NULL) {
         Heap_Free(stream->data);
         stream->data = NULL;
@@ -213,18 +156,11 @@ static void Unload(int index)
         stream->texture = NULL;
     }
 
-    if (stream->bufAlloc != NULL) {
-        Heap_Free(stream->bufAlloc);
-        stream->bufAlloc = NULL;
-        stream->buf = NULL;
-    }
-
     sSpriteStreamStats.streamBytes -= stream->size;
     stream->size = 0;
     stream->texFrame = STREAM_NO_FRAME;
     stream->shown = STREAM_NO_FRAME;
     stream->queued = STREAM_NO_FRAME;
-    stream->bufFrame = STREAM_NO_FRAME;
     sSpriteStreamStats.loadedMask &= ~(1 << index);
     sSpriteStreamStats.frame[index] = STREAM_NO_FRAME;
     sSpriteStreamStats.member[index] = 0;
@@ -267,17 +203,16 @@ static u16 FindMember(const PokemonSpriteTemplate *template)
     return member;
 }
 
-// Reads the stream's tables (a few hundred bytes, from the card right away) and sets up the
-// background reads of its frames. The classic frame shows until the first one is in.
+// Loads the battler's whole stream member into memory. The classic frame shows until the
+// first frame decodes, which now happens on the next BeginFrame, not after a card read.
 static void Load(int index, const PokemonSpriteTemplate *template)
 {
     BattlerStream *stream = &sStageStream.battlers[index];
     NARC *narc = sStageStream.narc;
     MonStreamHeader head;
-    u32 fat[2], headerSize, maxFrame, size;
+    u32 fat[2], headerSize;
     u16 member;
     OSTick start;
-    int i;
 
     Unload(index);
     stream->narcID = template->narcID;
@@ -304,59 +239,33 @@ static void Load(int index, const PokemonSpriteTemplate *template)
         return;
     }
 
-    // The heap check needs the largest frame, so the tables come first; then the frames go
-    // into a buffer for one frame
-    if (HeapExp_FndGetTotalFreeSize(HEAP_ID_BATTLE) < headerSize + STREAM_TEX_BYTES + STREAM_HEAP_SPARE) {
+    if (HeapExp_FndGetTotalFreeSize(HEAP_ID_BATTLE) < stream->memberSize + STREAM_TEX_BYTES + STREAM_HEAP_SPARE) {
         sSpriteStreamStats.loadFailures++;
         return;
     }
 
-    stream->data = Heap_Alloc(HEAP_ID_BATTLE, headerSize);
+    stream->data = Heap_Alloc(HEAP_ID_BATTLE, stream->memberSize);
+    stream->texture = Heap_Alloc(HEAP_ID_BATTLE, STREAM_TEX_BYTES);
 
-    if (stream->data == NULL) {
+    if (stream->data == NULL || stream->texture == NULL) {
         sSpriteStreamStats.loadFailures++;
+        Unload(index);
         return;
     }
 
+    // The header was already read above; read the rest of the member in right behind it
     *stream->data = head;
 
-    if (!MonStream_ReadFile(&narc->file, stream->data->frameOffsets, headerSize - sizeof(head))
+    if (!MonStream_ReadFile(&narc->file, stream->data->frameOffsets, stream->memberSize - sizeof(head))
         || !MonStream_IsValid(stream->data, stream->memberSize)) {
         sSpriteStreamStats.loadFailures++;
         Unload(index);
         return;
     }
 
-    stream->romStart = FS_GetFileImageTop(&narc->file) + narc->fimgStart + 8 + fat[0];
     stream->steps = (const u8 *)&stream->data->frameOffsets[head.numFrames];
-    maxFrame = 0;
-
-    for (i = 0; i < head.numFrames; i++) {
-        if (MonStream_FrameEnd(stream->data, stream->memberSize, i) - stream->data->frameOffsets[i] > maxFrame) {
-            maxFrame = MonStream_FrameEnd(stream->data, stream->memberSize, i) - stream->data->frameOffsets[i];
-        }
-    }
-
-    size = maxFrame + READ_BUF_ALIGN + MON_STREAM_READ_MISALIGN;
-
-    if (HeapExp_FndGetTotalFreeSize(HEAP_ID_BATTLE) < size + STREAM_TEX_BYTES + STREAM_HEAP_SPARE) {
-        sSpriteStreamStats.loadFailures++;
-        Unload(index);
-        return;
-    }
-
-    stream->texture = Heap_Alloc(HEAP_ID_BATTLE, STREAM_TEX_BYTES);
-    stream->bufAlloc = Heap_Alloc(HEAP_ID_BATTLE, size);
-
-    if (stream->texture == NULL || stream->bufAlloc == NULL) {
-        sSpriteStreamStats.loadFailures++;
-        Unload(index);
-        return;
-    }
-
-    stream->buf = (u8 *)((((uPtr)stream->bufAlloc + READ_BUF_ALIGN - 1) & ~(READ_BUF_ALIGN - 1)) + MON_STREAM_READ_MISALIGN);
     memset(stream->texture, 0, STREAM_TEX_BYTES);
-    stream->size = headerSize + STREAM_TEX_BYTES + size;
+    stream->size = stream->memberSize + STREAM_TEX_BYTES;
     stream->step = 0;
     stream->left = stream->steps[1];
     stream->rateLeft = 0;
@@ -376,85 +285,12 @@ static void Load(int index, const PokemonSpriteTemplate *template)
     }
 }
 
-// Starts the read of a frame
-static void RequestFrame(int index, u16 frame)
-{
-    BattlerStream *stream = &sStageStream.battlers[index];
-    u32 offset = stream->data->frameOffsets[frame];
-    u32 size = MonStream_FrameEnd(stream->data, stream->memberSize, frame) - offset;
-    OSTick start = OS_GetTick();
-
-    if (!FS_SeekFile(&stream->file, stream->romStart + offset - FS_GetFileImageTop(&stream->file), FS_SEEK_SET)
-        || FS_ReadFileAsync(&stream->file, stream->buf, size) < 0) {
-        return;
-    }
-
-    if (OS_GetTick() - start > sSpriteStreamStats.readTicksMax) {
-        sSpriteStreamStats.readTicksMax = OS_GetTick() - start;
-    }
-
-    stream->reading = frame;
-    stream->readVBlank = OS_GetVBlankCount();
-    sSpriteStreamStats.cardReads++;
-    sSpriteStreamStats.cardBytes += size;
-}
-
-// A finished read leaves its frame in the buffer; a failed one drops the stream for good
-static BOOL PollRead(int index)
-{
-    BattlerStream *stream = &sStageStream.battlers[index];
-    u32 vblanks;
-
-    if (stream->reading == STREAM_NO_FRAME || FS_IsBusy(&stream->file)) {
-        return TRUE;
-    }
-
-    if (!FS_IsSucceeded(&stream->file)) {
-        stream->reading = STREAM_NO_FRAME;
-        sSpriteStreamStats.readFailures++;
-        Unload(index);
-        return FALSE;
-    }
-
-    vblanks = OS_GetVBlankCount() - stream->readVBlank;
-
-    if (vblanks > sSpriteStreamStats.readVBlanksMax) {
-        sSpriteStreamStats.readVBlanksMax = vblanks;
-    }
-
-    stream->bufFrame = stream->reading;
-    stream->reading = STREAM_NO_FRAME;
-    return TRUE;
-}
-
-static BOOL HasFrame(const BattlerStream *stream, u16 frame)
-{
-    return frame == stream->texFrame || frame == stream->bufFrame;
-}
-
 static u16 StepFrame(const BattlerStream *stream, int step)
 {
     return stream->steps[step * 2];
 }
 
-// The first frame after the texture's that the steps from the current one show
-static u16 NextFrame(const BattlerStream *stream)
-{
-    int i, step = stream->step;
-
-    for (i = 0; i < stream->data->numSteps; i++) {
-        step = step + 1 < stream->data->numSteps ? step + 1 : 0;
-
-        if (StepFrame(stream, step) != stream->texFrame) {
-            return StepFrame(stream, step);
-        }
-    }
-
-    return stream->texFrame;
-}
-
-// Moves on by the vblanks gone, but never onto a step whose frame isn't in yet: the step
-// before it waits for the card
+// Moves on by the vblanks gone. Every frame is already in memory, so a step never waits.
 static void Advance(BattlerStream *stream, u32 elapsed, BOOL frozen, u32 rate)
 {
     int next;
@@ -476,48 +312,36 @@ static void Advance(BattlerStream *stream, u32 elapsed, BOOL frozen, u32 rate)
 
     while (stream->left <= 0) {
         next = stream->step + 1 < stream->data->numSteps ? stream->step + 1 : 0;
-
-        if (!HasFrame(stream, StepFrame(stream, next))) {
-            stream->left = 0;
-            sSpriteStreamStats.stallFrames++;
-            break;
-        }
-
         stream->step = next;
         stream->left += stream->steps[next * 2 + 1];
     }
 }
 
-// Decompresses the buffered frame into the battler's texture copy; a bad frame drops the stream
-static BOOL DecodeFrame(int index)
+// Decompresses a frame from the resident member into the battler's texture copy; a bad
+// frame drops the stream
+static BOOL DecodeFrame(int index, u16 frame)
 {
     BattlerStream *stream = &sStageStream.battlers[index];
     const MonStreamHeader *data = stream->data;
+    const u8 *packed = (const u8 *)data + data->frameOffsets[frame];
     OSTick start = OS_GetTick();
     int row;
 
-    if (!MonStream_IsFrameValid(data, stream->buf)) {
+    if (!MonStream_IsFrameValid(data, packed)) {
         sSpriteStreamStats.readFailures++;
         Unload(index);
         return FALSE;
     }
 
-    MI_UncompressLZ8(stream->buf, sFrameBuffer);
+    MI_UncompressLZ8(packed, sFrameBuffer);
 
     for (row = 0; row < data->height; row++) {
         memcpy(stream->texture + (data->top + row) * STREAM_ROW_BYTES + data->left, sFrameBuffer + row * data->width, data->width);
     }
 
-    stream->texFrame = stream->bufFrame;
-    stream->bufFrame = STREAM_NO_FRAME;
+    stream->texFrame = frame;
     sSpriteStreamStats.decodeTicksThisFrame += OS_GetTick() - start;
     return TRUE;
-}
-
-// TRUE when a battler already used the frame's budget and adding size would pass it
-static BOOL OverBudget(u32 used, u32 size, u32 budget)
-{
-    return used != 0 && used + size > budget;
 }
 
 // Queues the texture copy: the box rows, or the whole texture when VRAM may hold something else
@@ -536,11 +360,6 @@ static void SendFrame(int index)
         size = data->height * STREAM_ROW_BYTES;
     }
 
-    if (OverBudget(sSpriteStreamStats.bytesThisFrame, size, STREAM_UPLOAD_BUDGET)) {
-        sSpriteStreamStats.deferredUploads++;
-        return;
-    }
-
     DC_FlushRange(stream->texture + offset, size);
 
     if (VramTransfer_Request(NNS_GFD_DST_3D_TEX_VRAM, addr + offset, stream->texture + offset, size)) {
@@ -553,11 +372,7 @@ static void SendFrame(int index)
 static void UpdateBattler(int index, u32 elapsed, BOOL visible, BOOL frozen)
 {
     BattlerStream *stream = &sStageStream.battlers[index];
-    u16 want, next;
-
-    if (!PollRead(index)) {
-        return;
-    }
+    u16 want;
 
     // Another screen may have used the texture VRAM while the arena was hidden; the texture
     // copy is still good
@@ -572,30 +387,18 @@ static void UpdateBattler(int index, u32 elapsed, BOOL visible, BOOL frozen)
 
     want = StepFrame(stream, stream->step);
 
-    if (want != stream->texFrame && want == stream->bufFrame && !OverBudget(sSpriteStreamStats.decodeTicksThisFrame, 0, STREAM_DECODE_BUDGET)) {
+    if (want != stream->texFrame) {
         if (stream->texFrame == STREAM_NO_FRAME) {
             stream->left = stream->steps[stream->step * 2 + 1];
         }
 
-        if (!DecodeFrame(index)) {
+        if (!DecodeFrame(index, want)) {
             return;
         }
     }
 
-    if (stream->texFrame != STREAM_NO_FRAME && stream->texFrame != stream->shown) {
+    if (stream->texFrame != stream->shown) {
         SendFrame(index);
-    }
-
-    // One frame ahead: the step's own if it is still missing, else the next one the steps
-    // change to
-    next = want != stream->texFrame ? want : NextFrame(stream);
-
-    if (stream->bufFrame != STREAM_NO_FRAME && stream->bufFrame != next) {
-        stream->bufFrame = STREAM_NO_FRAME; // after a freeze or a stall: not the one needed
-    }
-
-    if (stream->reading == STREAM_NO_FRAME && stream->bufFrame == STREAM_NO_FRAME && next != stream->texFrame) {
-        RequestFrame(index, next);
     }
 }
 

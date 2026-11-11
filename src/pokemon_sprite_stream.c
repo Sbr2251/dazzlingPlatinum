@@ -19,7 +19,6 @@
 #define MAX_SKIP          60 // vblanks one frame may advance, after a pause
 #define NO_FRAME          0xFFFF
 #define LZ77_TYPE         0x10
-#define RESIDENT_MAX      0x6000 // larger members are paged: reading them whole stalls a frame or two
 
 // Pokegra files: species * 6 + (back 0, front 2) + male, palettes species * 6 + 4 + shiny
 #define POKEGRA_FILES_PER_SPECIES 6
@@ -32,11 +31,10 @@ typedef struct SpriteStream {
     u8 owned; // the char data holds a stream frame, so the classic frames must be reloaded
     u16 written; // frame written over the slot; NO_FRAME when the whole slot must be written
     u32 slotOffset; // of the slot written last, in the char data
-    MonStreamHeader *data; // NULL: the template has no stream. The whole member, or (paged) its header only
+    MonStreamHeader *data; // NULL: the template has no stream. Otherwise the whole member, held in memory
     const u8 *steps; // {frame, duration}
-    u8 paged; // frames are read from the card when they are drawn
     u32 memberSize;
-    u32 fileOffset; // paged: the member's start in the open NARC
+    u32 fileOffset; // the member's start in the open NARC
     u16 step;
     s16 left; // vblanks the step has left
 } SpriteStream;
@@ -48,9 +46,7 @@ struct PokemonSpriteStreamState {
     u32 lastVBlank;
     u32 elapsed; // vblanks since the last drawn frame
     u8 *frameBuffer; // one decompressed box, allocated with the first stream
-    u8 *packed; // paged: one frame as read from the card
-    u32 packedSize;
-    NARC *narc; // paged: kept open while the manager lives
+    NARC *narc; // kept open while the manager lives, for member loads
     u16 dirtyTop; // char data rows [top, bottom) and bytes [left, right) to send at the next VBlank
     u16 dirtyBottom;
     u16 dirtyLeft;
@@ -146,16 +142,6 @@ u16 MonStream_FindMember(const PokemonSpriteTemplate *template)
 
 BOOL MonStream_ReadFile(FSFile *file, void *dst, u32 size)
 {
-    // A first word read alone puts the rest off the 32-byte boundary
-    if (((uPtr)dst & 31) == 0 && size > 4) {
-        if (FS_ReadFile(file, dst, 4) != 4) {
-            return FALSE;
-        }
-
-        dst = (u8 *)dst + 4;
-        size -= 4;
-    }
-
     return FS_ReadFile(file, dst, size) == (s32)size;
 }
 
@@ -260,7 +246,6 @@ static void Unload(PokemonSpriteManager *monSpriteMan, int index)
     }
 
     stream->lookedUp = FALSE;
-    stream->paged = FALSE;
     stream->written = NO_FRAME;
     sMonSpriteStreamStats.loadedMask &= ~(1 << index);
     sMonSpriteStreamStats.pagedMask &= ~(1 << index);
@@ -327,10 +312,6 @@ void PokemonSpriteStream_Free(PokemonSpriteManager *monSpriteMan)
         Heap_Free(monSpriteMan->stream->frameBuffer);
     }
 
-    if (monSpriteMan->stream->packed != NULL) {
-        Heap_Free(monSpriteMan->stream->packed);
-    }
-
     if (monSpriteMan->stream->narc != NULL) {
         NARC_dtor(monSpriteMan->stream->narc);
     }
@@ -341,56 +322,26 @@ void PokemonSpriteStream_Free(PokemonSpriteManager *monSpriteMan)
     sMonSpriteStreamStats.drawnMask = 0;
 }
 
-// The largest packed frame of a valid member
-static u32 MaxPackedSize(const MonStreamHeader *data, u32 size)
-{
-    u32 i, max = 0;
-
-    for (i = 0; i < data->numFrames; i++) {
-        if (MonStream_FrameEnd(data, size, i) - data->frameOffsets[i] > max) {
-            max = MonStream_FrameEnd(data, size, i) - data->frameOffsets[i];
-        }
-    }
-
-    return max;
-}
-
-static BOOL AllocBuffers(PokemonSpriteManager *monSpriteMan, u32 packedSize)
+static BOOL AllocFrameBuffer(PokemonSpriteManager *monSpriteMan)
 {
     struct PokemonSpriteStreamState *state = monSpriteMan->stream;
 
     if (state->frameBuffer == NULL) {
         state->frameBuffer = Heap_AllocAtEnd(monSpriteMan->heapID, FRAME_BUFFER_SIZE);
-
-        if (state->frameBuffer == NULL) {
-            return FALSE;
-        }
     }
 
-    if (packedSize > state->packedSize) {
-        if (state->packed != NULL) {
-            Heap_Free(state->packed);
-        }
-
-        state->packed = Heap_AllocAtEnd(monSpriteMan->heapID, packedSize);
-        state->packedSize = state->packed != NULL ? packedSize : 0;
-
-        if (state->packed == NULL) {
-            return FALSE;
-        }
-    }
-
-    return TRUE;
+    return state->frameBuffer != NULL;
 }
 
-// The first size bytes of the member into stream->data
+// The whole member into stream->data
 static BOOL ReadMember(struct PokemonSpriteStreamState *state, SpriteStream *stream, u32 size)
 {
     return FS_SeekFile(&state->narc->file, stream->fileOffset, FS_SEEK_SET) && MonStream_ReadFile(&state->narc->file, stream->data, size);
 }
 
-// Reads the stream of sprite index: the whole member when the heap has room for it, else its
-// header only, and each frame is then read from the card when it is drawn (paged)
+// Reads the stream of sprite index: the whole member into memory. The Mac has RAM to
+// spare, so no frame is ever paged in from the filesystem while it is drawn; when the
+// heap cannot hold the member the sprite keeps its classic frames.
 static void Load(PokemonSpriteManager *monSpriteMan, int index)
 {
     struct PokemonSpriteStreamState *state = monSpriteMan->stream;
@@ -398,7 +349,7 @@ static void Load(PokemonSpriteManager *monSpriteMan, int index)
     const PokemonSpriteTemplate *template = &monSpriteMan->sprites[index].template;
     MonStreamHeader header;
     u16 member;
-    u32 size, headerSize, packedSize, frameNeed, fatStart;
+    u32 size, headerSize, frameNeed, fatStart;
     OSTick start;
 
     Unload(monSpriteMan, index);
@@ -455,22 +406,13 @@ static void Load(PokemonSpriteManager *monSpriteMan, int index)
         return;
     }
 
-    // Whole members only when that leaves twice the spare: the screen may allocate later
-    if (size <= RESIDENT_MAX && HeapExp_FndGetTotalFreeSize(monSpriteMan->heapID) >= size + frameNeed + state->heapSpare * 2) {
+    // The whole member, leaving the spare free: the screen may allocate later
+    if (HeapExp_FndGetTotalFreeSize(monSpriteMan->heapID) >= size + frameNeed + state->heapSpare) {
         stream->data = Heap_AllocAtEnd(monSpriteMan->heapID, size);
 
         if (stream->data != NULL && !ReadMember(state, stream, size)) {
             Heap_Free(stream->data);
             stream->data = NULL;
-        }
-    } else if (HeapExp_FndGetTotalFreeSize(monSpriteMan->heapID) >= headerSize + frameNeed + state->heapSpare) {
-        stream->data = Heap_AllocAtEnd(monSpriteMan->heapID, headerSize);
-
-        if (stream->data != NULL && !ReadMember(state, stream, headerSize)) {
-            Heap_Free(stream->data);
-            stream->data = NULL;
-        } else if (stream->data != NULL) {
-            stream->paged = TRUE;
         }
     }
 
@@ -481,22 +423,7 @@ static void Load(PokemonSpriteManager *monSpriteMan, int index)
         return;
     }
 
-    packedSize = 0;
-
-    if (stream->paged) {
-        packedSize = MaxPackedSize(stream->data, size);
-
-        if (packedSize > state->packedSize
-            && HeapExp_FndGetTotalFreeSize(monSpriteMan->heapID) < packedSize + frameNeed + state->heapSpare) {
-            sMonSpriteStreamStats.loadFailures++;
-            Unload(monSpriteMan, index);
-            stream->lookedUp = TRUE;
-            return;
-        }
-
-    }
-
-    if (!AllocBuffers(monSpriteMan, packedSize)) {
+    if (!AllocFrameBuffer(monSpriteMan)) {
         sMonSpriteStreamStats.loadFailures++;
         Unload(monSpriteMan, index);
         stream->lookedUp = TRUE;
@@ -511,10 +438,6 @@ static void Load(PokemonSpriteManager *monSpriteMan, int index)
     sMonSpriteStreamStats.loads++;
     sMonSpriteStreamStats.loadedMask |= 1 << index;
     sMonSpriteStreamStats.heapFree = HeapExp_FndGetTotalFreeSize(monSpriteMan->heapID);
-
-    if (stream->paged) {
-        sMonSpriteStreamStats.pagedMask |= 1 << index;
-    }
 
     if (OS_GetTick() - start > sMonSpriteStreamStats.loadTicksMax) {
         sMonSpriteStreamStats.loadTicksMax = OS_GetTick() - start;
@@ -586,39 +509,11 @@ static inline u8 SwapNybbles(u8 value)
     return (value >> 4) | (value << 4);
 }
 
-// The packed frame, read from the card when the stream is paged; NULL when it can't be decoded
-static const u8 *GetPackedFrame(struct PokemonSpriteStreamState *state, SpriteStream *stream, u16 frame)
+// The packed frame, straight out of the resident member; NULL when it can't be decoded
+static const u8 *GetPackedFrame(SpriteStream *stream, u16 frame)
 {
     const MonStreamHeader *data = stream->data;
-    u32 offset = data->frameOffsets[frame];
-    u32 size;
-    const u8 *packed;
-    OSTick start;
-
-    if (stream->paged) {
-        size = MonStream_FrameEnd(data, stream->memberSize, frame) - offset;
-
-        if (size > state->packedSize) {
-            return NULL;
-        }
-
-        start = OS_GetTick();
-
-        if (!FS_SeekFile(&state->narc->file, stream->fileOffset + offset, FS_SEEK_SET)
-            || !MonStream_ReadFile(&state->narc->file, state->packed, size)) {
-            return NULL;
-        }
-
-        sMonSpriteStreamStats.cardReads++;
-
-        if (OS_GetTick() - start > sMonSpriteStreamStats.readTicksMax) {
-            sMonSpriteStreamStats.readTicksMax = OS_GetTick() - start;
-        }
-
-        packed = state->packed;
-    } else {
-        packed = (const u8 *)data + offset;
-    }
+    const u8 *packed = (const u8 *)data + data->frameOffsets[frame];
 
     return MonStream_IsFrameValid(data, packed) ? packed : NULL;
 }
@@ -640,7 +535,7 @@ static BOOL WriteFrame(PokemonSpriteManager *monSpriteMan, int index, u16 frame,
     OSIntrMode intrMode;
     OSTick start = OS_GetTick();
 
-    packed = GetPackedFrame(state, &state->sprites[index], frame);
+    packed = GetPackedFrame(&state->sprites[index], frame);
 
     if (packed == NULL) {
         sMonSpriteStreamStats.badFrames++;

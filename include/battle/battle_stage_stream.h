@@ -6,8 +6,9 @@
 #include "pokemon_sprite.h"
 #include "pokemon_sprite_stream.h"
 
-// Gen 5 animated battle sprites, streamed one 128x96 frame at a time into a texture per
-// battler (docs/living_battle_stage/sprite_stream.md). Internal to the battle stage:
+// Gen 5 animated battle sprites: each battler's whole stream member is loaded into memory
+// at battle load and its 128x96 frames decode from there into a texture per battler
+// (docs/living_battle_stage/sprite_stream.md). Internal to the battle stage:
 // battle_stage_sprites.c drives it and draws its frames on the sprite mesh. The member format
 // and its checks are pokemon_sprite_stream.h's.
 
@@ -29,22 +30,22 @@ typedef struct BattleStageStreamStats {
     u32 maxBytesPerFrame;
     u32 decodeTicksThisFrame; // OS ticks (64 cycles of the 33.5 MHz bus) to decompress and copy
     u32 maxDecodeTicks;
-    u32 loadTicksMax; // the longest stream load: its tables only, the frames come in the background
+    u32 loadTicksMax; // the longest stream load: the whole member, read at load time
     u32 streamBytes; // heap the streams hold, the index included; 0 again after the battle
     u32 heapFree; // HEAP_ID_BATTLE free after the last load
     u16 frame[MAX_MON_SPRITES]; // frame on screen per battler
     // Added in step 2, after frame[] so the fields above keep their offsets
     u32 drawnEver; // battlers drawn from their stream at least once this battle
-    u32 cardReads; // background frame reads
-    u32 cardBytes;
-    u32 readFailures; // reads the card failed; the battler draws classic
-    u32 stallFrames; // frames a step was held because its frame wasn't in from the card yet
-    u32 readVBlanksMax; // the slowest frame read, in vblanks from asking to polling it done
+    u32 cardReads; // kept for the stats layout; always 0 (no per-frame filesystem reads)
+    u32 cardBytes; // kept for the stats layout; always 0
+    u32 readFailures; // frames that failed to decode; the battler draws classic
+    u32 stallFrames; // kept for the stats layout; always 0 (frames are resident, never waited on)
+    u32 readVBlanksMax; // kept for the stats layout; always 0
     u32 heapFreeMin; // the least HEAP_ID_BATTLE left free after a load
     u32 indexVersion; // of mon_stream.narc's member 0: 1 or 2; 0 when there is no index
-    u32 deferredUploads; // frames sent a frame late, the upload budget being spent
+    u32 deferredUploads; // kept for the stats layout; always 0 (no upload budget)
     u16 member[MAX_MON_SPRITES]; // the NARC member each battler streams, 0 for none
-    u32 readTicksMax; // the longest frame read: the card thread copies it with the CPU
+    u32 readTicksMax; // kept for the stats layout; always 0
 } BattleStageStreamStats;
 
 void BattleStageStream_Init(PokemonSpriteManager *monSpriteMan);
