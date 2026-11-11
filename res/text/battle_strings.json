@@ -8533,9 +8533,24 @@
       ]
     },
     {
-      "id": "BattleStrings_Text_MegaCinematicTitle",
+      "id": "BattleStrings_Text_MegaEvolvedInto_AllyAlly",
       "en_US": [
-        "MEGA {STRVAR_1 1, 0, 0}!"
+        "{STRVAR_1 1, 0, 0} has Mega Evolved\n",
+        "into Mega {STRVAR_1 0, 1, 0}!"
+      ]
+    },
+    {
+      "id": "BattleStrings_Text_MegaEvolvedInto_WildAlly",
+      "en_US": [
+        "The wild {STRVAR_1 1, 0, 0} has Mega Evolved\n",
+        "into Mega {STRVAR_1 0, 1, 0}!"
+      ]
+    },
+    {
+      "id": "BattleStrings_Text_MegaEvolvedInto_FoeAlly",
+      "en_US": [
+        "The foe's {STRVAR_1 1, 0, 0} has Mega Evolved\n",
+        "into Mega {STRVAR_1 0, 1, 0}!"
       ]
     },
     {
