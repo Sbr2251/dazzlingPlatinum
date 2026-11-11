@@ -1,6 +1,6 @@
 {
  "name": "visual_double_battle_target_select",
- "_note": "Double battle: FIGHT -> first move -> target-select (bottom screen crop).",
+ "_note": "Double battle target-select (bottom screen): FIGHT -> first move via presses, screenshot 60f after move selection; buttons are the four battlers with the cursor on Starly.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -84,24 +84,32 @@
    "timeout_frames": 7200
   },
   {
-   "touch": [
-    128,
-    110
-   ],
+   "press": "A",
    "frames": 10
   },
   {
    "step": 90
   },
   {
-   "touch": [
-    64,
-    90
-   ],
+   "press": "A",
    "frames": 10
   },
   {
    "step": 90
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 90
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 60
   },
   {
    "screenshot": "visual_double_target_select",
