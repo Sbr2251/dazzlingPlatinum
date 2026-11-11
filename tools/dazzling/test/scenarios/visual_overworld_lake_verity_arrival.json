@@ -1,0 +1,46 @@
+{
+ "name": "visual_overworld_lake_verity_arrival",
+ "_note": "Overworld golden frame on MAP_HEADER_VERITY_LAKEFRONT from story save A1-01_lake_verity_arrival; top-screen crop, exact compare.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-01_lake_verity_arrival.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-01_lake_verity_arrival.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_overworld_lake_verity_arrival",
+   "reference": "../references/visual/visual_overworld_lake_verity_arrival.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  }
+ ],
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_VERITY_LAKEFRONT"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}

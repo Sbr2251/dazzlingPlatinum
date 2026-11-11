@@ -1,0 +1,25 @@
+{
+ "battle_type": "wild",
+ "seed": 42,
+ "player": [
+  {
+   "species": "SPECIES_PIKACHU",
+   "level": 50,
+   "moves": [
+    "MOVE_THUNDER_WAVE",
+    "MOVE_THUNDERBOLT",
+    "MOVE_QUICK_ATTACK",
+    "MOVE_SLAM"
+   ]
+  }
+ ],
+ "opponent": [
+  {
+   "species": "SPECIES_BIDOOF",
+   "level": 5,
+   "moves": [
+    "MOVE_TACKLE"
+   ]
+  }
+ ]
+}

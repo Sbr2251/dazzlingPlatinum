@@ -1,0 +1,118 @@
+{
+ "name": "visual_double_battle_target_select",
+ "_note": "Double battle: FIGHT -> first move -> target-select (bottom screen crop).",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/visual_double.json"
+   }
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "touch": [
+    128,
+    110
+   ],
+   "frames": 10
+  },
+  {
+   "step": 90
+  },
+  {
+   "touch": [
+    64,
+    90
+   ],
+   "frames": 10
+  },
+  {
+   "step": 90
+  },
+  {
+   "screenshot": "visual_double_target_select",
+   "reference": "../references/visual/visual_double_target_select.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    384,
+    512,
+    384
+   ]
+  }
+ ]
+}

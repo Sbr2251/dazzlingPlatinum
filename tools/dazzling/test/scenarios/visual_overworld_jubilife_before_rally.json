@@ -1,0 +1,46 @@
+{
+ "name": "visual_overworld_jubilife_before_rally",
+ "_note": "Overworld golden frame on MAP_HEADER_JUBILIFE_CITY from story save A1-04_jubilife_before_rally; top-screen crop, exact compare.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_overworld_jubilife_before_rally",
+   "reference": "../references/visual/visual_overworld_jubilife_before_rally.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  }
+ ],
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_JUBILIFE_CITY"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}

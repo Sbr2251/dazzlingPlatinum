@@ -1,0 +1,46 @@
+{
+ "name": "visual_overworld_end_of_arc1",
+ "_note": "Overworld golden frame on MAP_HEADER_OREBURGH_CITY from story save A1-08_end_of_arc1; top-screen crop, exact compare.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-08_end_of_arc1.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-08_end_of_arc1.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_overworld_end_of_arc1",
+   "reference": "../references/visual/visual_overworld_end_of_arc1.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  }
+ ],
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_OREBURGH_CITY"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}

@@ -1,0 +1,46 @@
+{
+ "name": "visual_overworld_eterna_forest_after_vespiquen",
+ "_note": "Overworld golden frame on MAP_HEADER_ETERNA_FOREST from story save A2-29_eterna_forest_after_vespiquen; top-screen crop, exact compare.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-29_eterna_forest_after_vespiquen.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-29_eterna_forest_after_vespiquen.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_overworld_eterna_forest_after_vespiquen",
+   "reference": "../references/visual/visual_overworld_eterna_forest_after_vespiquen.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  }
+ ],
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_ETERNA_FOREST"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}

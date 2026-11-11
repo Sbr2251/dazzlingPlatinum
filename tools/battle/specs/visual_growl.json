@@ -1,0 +1,25 @@
+{
+ "battle_type": "wild",
+ "seed": 42,
+ "player": [
+  {
+   "species": "SPECIES_STARAPTOR",
+   "level": 50,
+   "moves": [
+    "MOVE_GROWL",
+    "MOVE_QUICK_ATTACK",
+    "MOVE_WING_ATTACK",
+    "MOVE_CLOSE_COMBAT"
+   ]
+  }
+ ],
+ "opponent": [
+  {
+   "species": "SPECIES_BIDOOF",
+   "level": 5,
+   "moves": [
+    "MOVE_TACKLE"
+   ]
+  }
+ ]
+}

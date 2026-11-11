@@ -1,0 +1,26 @@
+{
+ "battle_type": "wild",
+ "seed": 42,
+ "player": [
+  {
+   "species": "SPECIES_INFERNAPE",
+   "level": 50,
+   "moves": [
+    "MOVE_FLARE_BLITZ",
+    "MOVE_CLOSE_COMBAT",
+    "MOVE_MACH_PUNCH",
+    "MOVE_U_TURN"
+   ]
+  }
+ ],
+ "opponent": [
+  {
+   "species": "SPECIES_GYARADOS",
+   "level": 50,
+   "moves": [
+    "MOVE_WATERFALL",
+    "MOVE_BITE"
+   ]
+  }
+ ]
+}
