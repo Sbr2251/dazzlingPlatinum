@@ -6314,8 +6314,10 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
         // The name is redrawn with the Mega symbol in front of it.
         HealthBox_DrawInfo(&data->battlerData->healthbox, data->battlerData->healthbox.curHP, HEALTHBOX_INFO_NAME);
     } else if (t == last + 2) {
-        // Title beat: healthboxes slide back as the title band sweeps.
+        // Title beat: healthboxes slide back as the title band sweeps, and
+        // the Mega icon in the name gets a short rainbow glow.
         MegaCine_ScrollHealthboxes(data, FALSE);
+        PostFX_GlowAt(data->isEnemy ? 12 : 172, data->isEnemy ? 27 : 136, 0.8f, 70);
     } else if (t == last + 6) {
         // Title beat: the emblem particles (mega_evolution.s emitters 14-16)
         // blaze behind the new form while the bars retract.
