@@ -146,8 +146,9 @@ endif
 variant_link_args = []
 if build_target != 'arm'
     if build_variant == 'release'
-        pokeplatinum_args += ['-O3', '-flto', '-g0']
-        variant_link_args += ['-flto']
+        # No LTO: with -flto the game soft-reset in a loop at boot (game code relies on
+        # DS-style global layout/initialisation that LTO reorders); -O3 alone is fine.
+        pokeplatinum_args += ['-O3', '-g0']
     elif build_variant == 'asan'
         # The sanitizer flags themselves are global (see above).
         pokeplatinum_args += ['-O1']
