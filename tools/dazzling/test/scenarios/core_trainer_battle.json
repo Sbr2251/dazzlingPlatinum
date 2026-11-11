@@ -145,5 +145,6 @@
       "in_battle": true
     }
   ],
-  "name": "core_trainer_battle"
+  "name": "core_trainer_battle",
+  "known_issue": "battle start crashes: GF_ASSERT(FALSE) at src/particle_system.c:235 (particle heap exhausted) during the first trainer battle intro, frame ~4565, exit 134. Trainer (Youngster Tristan, Patrat) engages correctly and battle state reports battlers before the crash. Needs game/assert triage - likely blocks all battle scenarios."
 }
