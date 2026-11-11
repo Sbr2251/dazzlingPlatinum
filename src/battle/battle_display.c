@@ -1075,6 +1075,7 @@ void BattleDisplay_InitTaskSetMoveAnimation(BattleSystem *battleSys, BattlerData
         BattleStage_SetCameraScriptCinematic(BATTLE_STAGE_CINEMATIC_TOTEM);
         BattleStage_HoldCameraAfterScript();
         TotemBattle_HideHealthbars(battleSys);
+        GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, FALSE);
         TotemAura_Start(battleSys);
     }
 
@@ -7354,6 +7355,7 @@ void BattleDisplay_StartMoveAnimation(BattleSystem *battleSys, int attacker, Mov
         // The camera stays on the Totem through the aura message, home at the first menu
         BattleStage_HoldCameraAfterScript();
         TotemBattle_HideHealthbars(battleSys);
+        GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, FALSE);
         TotemAura_Start(battleSys);
     }
     BattleDisplay_PlayMoveAnimation(battleSys, BattleSystem_GetBattlerData(battleSys, attacker), BattleSystem_GetBattleAnimSystem(battleSys), animation);
