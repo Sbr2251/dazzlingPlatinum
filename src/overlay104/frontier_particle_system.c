@@ -37,12 +37,14 @@ ParticleSystem *FrontierParticleSystem_NewParticleSystem(FrontierParticleSystem 
 {
     GF_ASSERT(fps->particleSys[index] == NULL);
 
+    // The size passed to ParticleSystem_New must match the (doubled on 64-bit) allocation.
     #ifdef SDK_64BIT
-    void *heap = Heap_Alloc(fps->heapID, 0x4800*2);
+    const int heapSize = 0x4800 * 2;
     #else
-    void *heap = Heap_Alloc(fps->heapID, 0x4800);
+    const int heapSize = 0x4800;
     #endif
-    ParticleSystem *ps = ParticleSystem_New(AllocTexVram, AllocPaletteVram, heap, 0x4800, TRUE, fps->heapID);
+    void *heap = Heap_Alloc(fps->heapID, heapSize);
+    ParticleSystem *ps = ParticleSystem_New(AllocTexVram, AllocPaletteVram, heap, heapSize, TRUE, fps->heapID);
     Camera *camera = ParticleSystem_GetCamera(ps);
 
     Camera_SetClipping(FX32_ONE, FX32_CONST(900), camera);
