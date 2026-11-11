@@ -1,5 +1,5 @@
 {
-  "_note": "Warp just south of Youngster Tristan (Route 202, x166 z817, in his south-facing sight line): he engages on sight. Advance his lines, require the battle action menu. (talk is avoided: its teleport tripped the land_data GF_ASSERT.)",
+  "_note": "Warp onto Route 202, talk to Youngster Tristan (talk resyncs the LandData lazy loader since 8be74187f5), advance his lines, require the battle action menu. Blocked after battle start by the particle heap assert (known_issue).",
   "requires_exists": [
     "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
   ],
@@ -72,13 +72,16 @@
     {
       "warp": {
         "map": "MAP_HEADER_ROUTE_202",
-        "x": 166,
-        "z": 817,
-        "dir": "DIR_NORTH"
+        "x": 160,
+        "z": 810,
+        "dir": "DIR_EAST"
       }
     },
     {
-      "step": 600
+      "step": 300
+    },
+    {
+      "talk": "LOCALID_YOUNGSTER_TRISTAN"
     },
     {
       "press": "A",
