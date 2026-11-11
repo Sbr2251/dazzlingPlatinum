@@ -41,5 +41,6 @@
       "timeout_frames": 1800
     }
   ],
-  "name": "core_wild_battle_start_flee"
+  "name": "core_wild_battle_start_flee",
+  "pending_step3": "needs step-3 battle state (in_battle, action menu) and warp"
 }

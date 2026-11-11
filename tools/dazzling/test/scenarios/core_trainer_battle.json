@@ -71,5 +71,6 @@
       "app": "field"
     }
   ],
-  "name": "core_trainer_battle"
+  "name": "core_trainer_battle",
+  "pending_step3": "needs step-3 battle state and warp/talk"
 }

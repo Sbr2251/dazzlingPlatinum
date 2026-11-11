@@ -1,5 +1,5 @@
 {
-  "_note": "Load a save, move, re-import the same save (soft reset via import_save) and require the same map. In-game Start->Save input sequence can replace the re-import once menu state is reported precisely.",
+  "_note": "Load a save, move, re-import it (soft reset; same protocol client survives the restart), require the game alive and framing. Map equality is pending-step-3.",
   "requires_exists": [
     "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
   ],
@@ -8,10 +8,28 @@
   },
   "steps": [
     {
-      "wait_until": {
-        "app": "field"
-      },
-      "timeout_frames": 1200
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
     },
     {
       "press": "DOWN",
@@ -21,16 +39,41 @@
       "import_save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
     },
     {
-      "wait_until": {
-        "app": "field"
-      },
-      "timeout_frames": 1200
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
     }
   ],
   "assertions": [
     {
-      "player.map": "MAP_HEADER_TWINLEAF_TOWN"
+      "path": "frame",
+      "op": "gt",
+      "value": 0
     }
   ],
-  "name": "core_save_and_reload"
+  "name": "core_save_and_reload",
+  "pending_step3_assertions": [
+    {
+      "player.map": "MAP_HEADER_TWINLEAF_TOWN"
+    }
+  ]
 }

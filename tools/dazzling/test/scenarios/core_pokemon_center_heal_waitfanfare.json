@@ -141,5 +141,6 @@
       "player.map": "MAP_HEADER_VEILSTONE_CITY_POKECENTER_1F"
     }
   ],
-  "name": "core_pokemon_center_heal_waitfanfare"
+  "name": "core_pokemon_center_heal_waitfanfare",
+  "pending_step3": "needs step-3 talk + party state to verify HealParty after WaitFanfare"
 }

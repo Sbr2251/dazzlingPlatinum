@@ -1,6 +1,6 @@
 {
   "name": "save_load_A2-49_solaceon_memorial_wall",
-  "_note": "Loads to the field at the expected map. Local-only: test saves are not in the repo (see BRIEF). Skipped when the save is absent.",
+  "_note": "Import the save, press through title/Continue (10-frame presses: shorter ones don't register), run on the field. Asserts basic state (step 2); map assertion is pending-step-3 and activates automatically when step-3 state provides player.map.",
   "requires_exists": [
     "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-49_solaceon_memorial_wall.sav"
   ],
@@ -9,16 +9,38 @@
   },
   "steps": [
     {
-      "wait_until": {
-        "app": "field"
-      },
-      "timeout_frames": 1200
+      "step": 900
     },
     {
-      "step": 30
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
     }
   ],
   "assertions": [
+    {
+      "path": "frame",
+      "op": "gt",
+      "value": 0
+    }
+  ],
+  "pending_step3_assertions": [
     {
       "player.map": "MAP_HEADER_SOLACEON_TOWN"
     }

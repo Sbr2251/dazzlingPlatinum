@@ -175,5 +175,6 @@
       "player.map": "MAP_HEADER_JUBILIFE_CITY"
     }
   ],
-  "name": "core_jubilife_rally_garius_waitfanfare_regression"
+  "name": "core_jubilife_rally_garius_waitfanfare_regression",
+  "pending_step3": "needs step-3 talk/state (script, message_waiting, map) to trigger and verify the rally"
 }

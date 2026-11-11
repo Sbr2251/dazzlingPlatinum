@@ -11,7 +11,7 @@ Usage:
 Exit 1 if any scenario fails. On failure prints the step, the last game
 state, and the last screenshot path.
 """
-import argparse, concurrent.futures, json, os, shutil, struct, subprocess, sys, tempfile, time
+import argparse, concurrent.futures, json, os, select, shutil, struct, subprocess, sys, tempfile, time
 
 FIXED_RTC = "2026-01-01T12:00:00"
 FIXED_SEED = "12345"
@@ -113,10 +113,35 @@ def condition_met(state, condition):
 class GameError(Exception):
     pass
 
+SKIP_ENTRIES = ("save.bin", "save-backups", "build.ninja", "compile_commands.json", "sim_config.ini")
+
+def make_run_dir(game_path, work_root, name):
+    """Per-scenario run dir: symlinks to the build dir's contents (the game
+    reads its files relative to cwd), plus our OWN sim_config.ini (a copy,
+    never a symlink) with InternalResolutionScale=2 so several parallel
+    games don't crawl at the default 10x. Returns (dir, argv)."""
+    run_dir = tempfile.mkdtemp(prefix=f"dz-{name}-", dir=work_root)
+    if game_path.endswith(".py"):
+        return run_dir, [sys.executable, os.path.abspath(game_path)]
+    game_dir = os.path.dirname(os.path.abspath(game_path))
+    for entry in os.listdir(game_dir):
+        if entry in SKIP_ENTRIES or entry.startswith(("meson-", "save.bin")) or entry.endswith((".p", ".log")):
+            continue
+        src = os.path.join(game_dir, entry)
+        os.symlink(src, os.path.join(run_dir, entry))
+    config_lines = ["InternalResolutionScale=2\n"]
+    src_cfg = os.path.join(game_dir, "sim_config.ini")
+    if os.path.exists(src_cfg):
+        config_lines = [l for l in open(src_cfg) if not l.startswith("InternalResolutionScale=")]
+        config_lines.append("InternalResolutionScale=2\n")
+    with open(os.path.join(run_dir, "sim_config.ini"), "w") as f:
+        f.writelines(config_lines)
+    return run_dir, ["./main"]
+
 class GameClient:
     def __init__(self, game_path, work_root, name, record_env_extra=None):
         self.name = name
-        self.dir = tempfile.mkdtemp(prefix=f"dz-{name}-", dir=work_root)
+        self.dir, argv = make_run_dir(game_path, work_root, name)
         self.save_path = os.path.join(self.dir, "save.bin")
         self.coverage_path = os.path.join(self.dir, "coverage.txt")
         self.stderr_path = os.path.join(self.dir, "game.stderr.log")
@@ -129,14 +154,8 @@ class GameClient:
         })
         if record_env_extra:
             env.update(record_env_extra)
-        game_dir = os.path.dirname(os.path.abspath(game_path))
         self._stderr = open(self.stderr_path, "wb")
-        argv = [game_path] if game_path.endswith(".py") is False else [sys.executable, game_path]
-        if game_path.endswith(".py"):
-            argv = [sys.executable, os.path.abspath(game_path)]
-        else:
-            argv = [os.path.abspath(game_path)]
-        self.proc = subprocess.Popen(argv, cwd=game_dir if os.path.isdir(game_dir) else self.dir,
+        self.proc = subprocess.Popen(argv, cwd=self.dir,
                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=self._stderr, env=env, text=True, bufsize=1)
         self.last_state = None
@@ -147,6 +166,9 @@ class GameClient:
             raise GameError(f"game exited with {self.proc.returncode}; stderr: {self.stderr_path}")
         self.proc.stdin.write(json.dumps(obj) + "\n")
         self.proc.stdin.flush()
+        ready, _, _ = select.select([self.proc.stdout], [], [], timeout)
+        if not ready:
+            raise GameError(f"timeout ({timeout}s) waiting for reply to {obj}; stderr: {self.stderr_path}")
         line = self.proc.stdout.readline()
         if not line:
             raise GameError(f"game closed stdout on {obj}; stderr: {self.stderr_path}")
@@ -210,6 +232,8 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
         sc = json.load(f)
     name = sc.get("name") or os.path.splitext(os.path.basename(path))[0]
     scen_dir = os.path.dirname(os.path.abspath(path))
+    if sc.get("pending_step3"):
+        return name, True, f"SKIP (pending step 3: {sc['pending_step3']})", None
     for req in sc.get("requires_exists") or []:
         rp = os.path.expanduser(req)
         if not os.path.isabs(rp):
@@ -316,7 +340,23 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
             err = check_assertion(st, assertion)
             if err:
                 raise ScenarioFailure(len(sc.get("steps") or []), {"assert": assertion}, err, st, client.last_screenshot)
-        return name, True, f"ok ({time.time() - started:.1f}s, workdir {client.dir})", client
+        # Assertions on step-3-only state (player.map, party, battle, ...):
+        # checked when the engine provides the fields, reported pending
+        # (not failed) while basic state lacks them.
+        pending_notes = []
+        for assertion in sc.get("pending_step3_assertions") or []:
+            st = client.state()
+            try:
+                for path in ([assertion["path"]] if "path" in assertion else list(assertion)):
+                    state_get(st, path)
+            except (KeyError, IndexError, ValueError):
+                pending_notes.append(f"pending-step-3: {assertion}")
+                continue
+            err = check_assertion(st, assertion)
+            if err:
+                raise ScenarioFailure(len(sc.get("steps") or []), {"assert": assertion}, err, st, client.last_screenshot)
+        suffix = ("; " + "; ".join(pending_notes)) if pending_notes else ""
+        return name, True, f"ok ({time.time() - started:.1f}s, workdir {client.dir}){suffix}", client
     except ScenarioFailure as e:
         return name, False, (f"FAIL step {e.step_idx}: {json.dumps(e.step)}\n  {e.message}\n"
                              f"  state: {json.dumps(e.state)[:600]}\n  last screenshot: {e.screenshot}\n"

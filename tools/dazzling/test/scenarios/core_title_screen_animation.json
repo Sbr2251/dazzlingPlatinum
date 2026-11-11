@@ -1,26 +1,19 @@
 {
-  "_note": "Boot to title, let the animation run, screenshot for reference comparison. Reference is optional until recorded once against the real headless build (--record).",
+  "_note": "Boot, run 3000 rendered frames (boot logos/intro play through; title logo is fully in by then), screenshot vs reference (record with --record). Basic state (step 2) has no app name yet, so this asserts frame progress + pixels, not app=='title'.",
   "steps": [
     {
-      "wait_until": {
-        "app": "title"
-      },
-      "timeout_frames": 600
-    },
-    {
-      "step": 180
+      "step": 3000
     },
     {
       "screenshot": "title",
       "reference": "../references/core_title_screen_animation.bmp",
-      "tolerance": 0.02,
-      "optional_reference": true
+      "tolerance": 0.02
     },
     {
       "assert": {
         "path": "frame",
         "op": "ge",
-        "value": 180
+        "value": 3000
       }
     }
   ],

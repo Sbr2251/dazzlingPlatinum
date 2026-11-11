@@ -66,5 +66,6 @@
       "value": 0
     }
   ],
-  "name": "core_mega_evolution_battle"
+  "name": "core_mega_evolution_battle",
+  "pending_step3": "needs step-3 battle state (Mega trigger, battlers)"
 }

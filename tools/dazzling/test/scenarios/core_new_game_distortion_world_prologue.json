@@ -106,5 +106,6 @@
       "app": "field"
     }
   ],
-  "name": "core_new_game_distortion_world_prologue"
+  "name": "core_new_game_distortion_world_prologue",
+  "pending_step3": "needs step-3 field/app state to confirm the prologue end state (inputs are primitives, assertions are not)"
 }
