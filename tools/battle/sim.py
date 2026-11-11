@@ -152,7 +152,39 @@ class BattleRunner:
             if b["hp"] == 0 and o["hp"] > 0:
                 self.log({"type": "faint", "battler": b["battler"], "species": b["species"]})
 
+    def try_decide(self, dec):
+        # battle_decide adapter (engine-core decision queue): move/run only,
+        # singles only; switch/item sub-menus are not hooked yet. Returns
+        # True when the decision was queued. One-line switch: set
+        # self.use_decide False to force press driving.
+        if getattr(self, "use_decide", None) is False or getattr(self, "is_double", False):
+            return False
+        ty = dec.get("type", "move")
+        if ty == "move":
+            cmd = {"cmd": "battle_decide", "battler": 0, "action": "move",
+                   "move_index": int(dec.get("index", 0)), "mega": bool(dec.get("mega"))}
+            if dec.get("move"):
+                cmd["move"] = dec["move"]
+        elif ty in ("run", "flee"):
+            cmd = {"cmd": "battle_decide", "battler": 0, "action": "run"}
+            self.fled = True
+        else:
+            return False
+        try:
+            r = self.game.cmd(cmd)
+        except Exception:
+            self.use_decide = False
+            return False
+        if r.get("ok"):
+            self.use_decide = True
+            return True
+        self.use_decide = False
+        return False
+
     def do_decision(self, dec):
+        if self.try_decide(dec):
+            self.game.cmd({"cmd": "step", "frames": 30})
+            return
         # Battle menus are touch-first: the D-pad cursor starts inactive and
         # the first key press only activates it (BattleSystem_MenuKeys).
         # `waiting` fires before the menu finishes opening; let it settle or
@@ -191,7 +223,7 @@ class BattleRunner:
         else:
             press(self.game, "A", 50)
 
-    def run_battle(self, spec, policy="first", max_steps=3000):
+    def run_battle(self, spec, policy="first", max_steps=1200):
         self.to_field()
         spec_path = os.path.join(self.work, "spec.json")
         with open(spec_path, "w") as f:
@@ -199,6 +231,16 @@ class BattleRunner:
         r = self.game.cmd({"cmd": "start_battle", "spec_path": os.path.abspath(spec_path)})
         if not r.get("ok"):
             raise RuntimeError("start_battle failed: %s" % r)
+        if self.is_double:
+            # Doubles: pre-queue move decisions for both player battlers
+            # (0 and 2); their menu tasks consume them in turn order.
+            for battler in (0, 2):
+                for i in range(40):
+                    try:
+                        self.game.cmd({"cmd": "battle_decide", "battler": battler, "action": "move", "move_index": i % max(1, len((spec.get("player") or [{}])[min(battler // 2, len(spec.get("player") or [1]) - 1)].get("moves", [1])))})
+                    except Exception:
+                        break
+        self.is_double = bool(spec.get("double") or spec.get("battle_type") in ("double", "totem"))
         decisions = list(spec.get("decisions", []))
         rng = random.Random(spec.get("seed", 0) + 999)
         moves_count = max(1, len((spec.get("player") or [{}])[0].get("moves", ["MOVE_TACKLE"])))

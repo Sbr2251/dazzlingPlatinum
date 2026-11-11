@@ -1,0 +1,41 @@
+{
+ "name": "effectiveness_not_very",
+ "spec": {
+  "battle_type": "wild",
+  "seed": 42,
+  "player": [
+   {
+    "species": "SPECIES_CHARMANDER",
+    "level": 50,
+    "moves": [
+     "MOVE_EMBER",
+     "MOVE_SCRATCH"
+    ]
+   }
+  ],
+  "opponent": [
+   {
+    "species": "SPECIES_SQUIRTLE",
+    "level": 50,
+    "moves": [
+     "MOVE_WATER_GUN",
+     "MOVE_TACKLE"
+    ]
+   }
+  ],
+  "decisions": [
+   {
+    "type": "move",
+    "index": 0
+   },
+   {
+    "type": "move",
+    "index": 1
+   }
+  ]
+ },
+ "expect": {
+  "battle_ended": true,
+  "effectiveness": "not_very"
+ }
+}
