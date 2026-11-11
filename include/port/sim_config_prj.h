@@ -23,6 +23,11 @@ typedef struct {
     BOOL fieldFastRebuild; // fieldkeep: collapse already-ready FieldMap Init/Exit states into one frame (same teardown/rebuild, fewer idle frames)
 } SIM_Config_prj_type;
 
+// True when the game runs logic at 60 Hz AND time-based quantities must be
+// halved to keep real-time speed identical to 30 Hz logic (fps60 lane).
+// This is the single predicate every 60 fps speed fix uses, so the two
+// config flags are never re-checked ad-hoc at call sites.
+BOOL SIM_Config_prj_DoubleStep(void);
 void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig);
 BOOL SIM_Config_prj_LoadConfigFile(SIM_Config_prj_type * aConfig);
 void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig);

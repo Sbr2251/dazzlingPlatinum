@@ -143,3 +143,8 @@ SIM_Config_prj_type * SIM_Config_prj_GetConfig()
 {
   return &s_SIM_config_prj;
 }
+
+BOOL SIM_Config_prj_DoubleStep(void)
+{
+  return s_SIM_config_prj.enable60fps && s_SIM_config_prj.enable60fpsSpeedFix;
+}

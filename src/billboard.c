@@ -813,8 +813,7 @@ static fx32 GetAnimStartFrame(const Billboard *billboard, int animNum)
 static int GetAndAdvanceAnim(Billboard *billboard, fx32 numFrames)
 {
 #ifdef SDK_PORT
-    SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
-    if(myConfig->enable60fps && myConfig->enable60fpsSpeedFix) {
+    if (SIM_Config_prj_DoubleStep()) {
         numFrames = numFrames >> 1;
     }
 #endif

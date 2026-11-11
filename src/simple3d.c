@@ -222,8 +222,7 @@ BOOL Simple3D_UpdateAnim(Simple3DAnimation *anim, fx32 frameDelta, BOOL loop)
     fx32 animLength = NNS_G3dAnmObjGetNumFrame(anim->animObj);
 
     #ifdef SDK_PORT
-    SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
-    if(myConfig->enable60fps && myConfig->enable60fpsSpeedFix) {
+    if (SIM_Config_prj_DoubleStep()) {
         anim->currFrame += (frameDelta >> 1);
     } else {
         anim->currFrame += frameDelta;

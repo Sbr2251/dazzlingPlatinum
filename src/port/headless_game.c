@@ -384,9 +384,11 @@ int HeadlessGame_State(const char *line, char *reply, size_t cap) {
         const char *mapName = Headless_NameOf(kHeadlessMapHeaders, kHeadlessMapHeadersCount, header);
         OutFmt(&o, ",\"app\":\"field\",\"map\":\"%s\",\"map_id\":%d", mapName ? mapName : "MAP_HEADER_?", header);
         if (fsys->playerAvatar) {
-            OutFmt(&o, ",\"player\":{\"x\":%d,\"z\":%d,\"dir\":\"%s\"}",
+            const VecFx32 *pos = PlayerAvatar_GetPos(fsys->playerAvatar);
+            OutFmt(&o, ",\"player\":{\"x\":%d,\"z\":%d,\"dir\":\"%s\",\"pos_fx\":[%d,%d,%d]}",
               PlayerAvatar_GetXPos(fsys->playerAvatar), PlayerAvatar_GetZPos(fsys->playerAvatar),
-              DirName(PlayerAvatar_GetFacingDir(fsys->playerAvatar)));
+              DirName(PlayerAvatar_GetFacingDir(fsys->playerAvatar)),
+              pos ? pos->x : 0, pos ? pos->y : 0, pos ? pos->z : 0);
         }
         // Running script + message box, via the script manager if a script task is active.
         ScriptManager *sm = NULL;
