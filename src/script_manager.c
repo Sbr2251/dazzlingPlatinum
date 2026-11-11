@@ -190,6 +190,7 @@ static void ScriptContext_LoadAndStart(FieldSystem *fieldSystem, ScriptContext *
 
     ScriptContext_Start(ctx, ctx->scripts);
     ScriptContext_JumpToOffsetID(ctx, offsetID);
+    ScriptContext_LogCoverage(ctx);
     ScriptContext_SetTask(ctx, fieldSystem->task);
 }
 

@@ -69,7 +69,7 @@ runner, the fake game and the protocol all already speak JSON.
   not a failure. The 18 test saves and the Mega save live in
   `~/Downloads` (BRIEF.md), not the repo, so those scenarios are local-only
   and skip in CI.
-- The runner sets `SIM_HEADLESS=1 SIM_CONTROL=stdio SIM_FIXED_RTC=
+- Frame counts are rendered frames (per debug-headless's docs/headless_protocol.md), not the DS vblank counter used by the old SIM_DEBUG_* numbers. The runner sets `SIM_HEADLESS=1 SIM_CONTROL=stdio SIM_FIXED_RTC=
   2026-01-01T12:00:00 SIM_SEED=12345`, a private `SIM_SAVE_PATH` per
   scenario (parallel-safe), and `SIM_SCRIPT_COVERAGE=<workdir>/coverage.txt`.
 - On failure it prints the step index and step, the assertion/wait failure,

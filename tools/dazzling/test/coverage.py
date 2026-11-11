@@ -8,10 +8,11 @@ lines, one per field script start (see src/field_script_context.c).
 Archive ids index res/field/scripts.order (the scr_seq.narc member order;
 if build_macos has a scr_seq.naix it is preferred when found).
 Offset -> label: the reached file is assembled once (cached under
-/tmp/dz-coverage) with tools/scripts/make_script_bin.sh -c and its symbol
-table read with arm-none-eabi-objdump; the label is the greatest symbol
-at or before the offset. Without the ARM toolchain, falls back to naming
-the file and the nearest preceding ScriptEntry, and says so.
+/tmp/dz-coverage) with tools/scripts/make_script_bin.sh -c (meson's include
+paths + the build dir's enumproc/generated headers) and its symbol table
+read with arm-none-eabi-objdump; the label is the greatest symbol at or
+before the offset. Without a build dir / ARM toolchain, falls back to
+naming the file and saying the label is unresolved.
 """
 import argparse, glob, json, os, re, subprocess, sys, tempfile
 
@@ -39,8 +40,9 @@ def labels_in(path):
             (re.match(r'^([A-Za-z_]\w*):', l) for l in open(path, encoding="utf-8", errors="replace")) if m]
 
 class LabelMapper:
-    def __init__(self, root):
+    def __init__(self, root, build="build_macos"):
         self.root, self.cache, self.failed = root, {}, set()
+        self.build = build if os.path.isabs(build) else os.path.join(root, build)
         self.cache_dir = tempfile.mkdtemp(prefix="dz-coverage-")
 
     def symbols(self, path):
@@ -50,15 +52,22 @@ class LabelMapper:
         obj = os.path.join(self.cache_dir, os.path.basename(path) + ".o")
         script_bin = os.path.join(self.root, "tools/scripts/make_script_bin.sh")
         try:
-            r = subprocess.run(["bash", script_bin, "-c", "-O", obj, path],
-                               cwd=self.root, capture_output=True, text=True, timeout=120)
+            cmd = ["bash", script_bin, "-c", "-O", obj,
+                   "-i", os.path.join(self.root, "include"),
+                   "-i", os.path.join(self.root, "asm"),
+                   "-i", self.root, "-i", self.build]
+            enumproc = os.path.join(self.build, "tools/enumproc/enumproc")
+            if os.path.exists(enumproc):
+                cmd += ["--enumproc", enumproc]
+            cmd.append(path)
+            r = subprocess.run(cmd, cwd=self.root, capture_output=True, text=True, timeout=120)
             if r.returncode == 0 and os.path.exists(obj):
                 dump = subprocess.run(["arm-none-eabi-objdump", "-t", obj],
                                       capture_output=True, text=True, timeout=60)
                 syms = []
                 for line in dump.stdout.splitlines():
                     parts = line.split()
-                    if len(parts) >= 6 and parts[-2] in (".text", "*ABS*"):
+                    if len(parts) >= 4 and ".text" in parts:
                         try:
                             syms.append((int(parts[0], 16), parts[-1]))
                         except ValueError:
@@ -86,6 +95,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("logs", nargs="+")
     ap.add_argument("--root", default=".")
+    ap.add_argument("--build", default="build_macos", help="build dir for generated includes/enumproc")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
     root = os.path.abspath(args.root)
@@ -104,7 +114,7 @@ def main(argv=None):
                 continue
             hits.setdefault((archive, offset), 0)
             hits[(archive, offset)] += 1
-    mapper = LabelMapper(root)
+    mapper = LabelMapper(root, args.build)
     by_file, reached_labels = {}, set()
     unresolved = 0
     total_entries, reached_entries = 0, set()
