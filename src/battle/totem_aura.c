@@ -18,6 +18,7 @@
 #include "port/postfx.h"
 
 #include "camera.h"
+#include "gx_layers.h"
 #include "heap.h"
 #include "totem_battle.h"
 #include "narc.h"
@@ -92,10 +93,11 @@ static TotemAura *sTotemAuras[MAX_BATTLERS];
 static void TotemFX_Shockwave(TotemAura *aura, int strength, int frames)
 {
     (void)aura;
-    PostFX_Shockwave(185, 55, strength * 0.12f, frames);
-    PostFX_ZoomBlur(185, 55, 0.22f, frames); // heat haze
-    PostFX_Glow(0.45f, frames);
-    PostFX_Shake(strength * 0.15f, frames > 12 ? 12 : frames);
+    PostFX_SetRegion(1); // top screen only
+    PostFX_Shockwave(185, 55, strength * 0.10f, frames);
+    PostFX_ZoomBlur(185, 55, 0.16f, frames); // heat haze
+    PostFX_GlowAt(185, 55, 0.55f, frames);
+    PostFX_Shake(strength * 0.12f, frames > 12 ? 12 : frames);
     BattleStage_CameraShake(strength, frames);
 }
 
@@ -107,8 +109,9 @@ static void TotemFX_Vignette(TotemAura *aura, u16 color, int amount)
 
     (void)aura;
     // Refreshed every flare frame with a short tail, so the tint holds while
-    // the driver calls this and decays on its own once it stops.
-    PostFX_Vignette(r, g, b, amount / 16.0f * 0.85f, 4);
+    // the driver calls this and decays on its own once it stops. Region 1
+    // (PostFX_SetRegion, set on the burst) keeps it on the top screen.
+    PostFX_Vignette(r, g, b, amount / 16.0f * 0.7f, 4);
     BattleStage_SetBackdropFade(color, amount);
 }
 
@@ -134,6 +137,7 @@ static void TotemFX_Clear(TotemAura *aura)
 
     aura->fxActive = FALSE;
     PostFX_Clear();
+    GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, TRUE);
     BattleStage_SetBrightness(0);
     BattleStage_SetBackdropFade(0, 0);
     BattleStage_SetBackdropShake(0, 0);
@@ -298,11 +302,12 @@ static void TotemAura_Modulate(TotemAura *aura)
         }
     }
 
-    // A slow, cheap glow pulse centred on the Totem (the post pass is running
-    // anyway, so this costs one uniform write every two seconds) carries some
-    // of the aura's presence that the reduced ember density used to.
+    // A slow, cheap localised glow pulse on the Totem (one uniform write
+    // every two seconds; the post pass is running anyway) gives the sprite
+    // a soft rim instead of a dense additive particle core.
     if (!aura->isAlly && aura->fadeTimer == 0 && (aura->frame % 120) == 0) {
-        PostFX_Glow(0.16f, 120);
+        PostFX_SetRegion(1);
+        PostFX_GlowAt(185, 55, 0.32f, 120);
     }
 }
 
@@ -322,11 +327,16 @@ static void TotemAura_DriveFlare(TotemAura *aura)
         && (gSystem.pressedKeys & (PAD_BUTTON_A | PAD_BUTTON_B)) != 0) {
         aura->flareFrame = aura->flareDuration;
         TotemFX_Clear(aura);
+        GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, TRUE);
         TotemBattle_ShowHealthbars(aura->battleSys);
         return;
     }
 
     aura->fxActive = TRUE;
+
+    if (aura->flareFrame == 0) {
+        PostFX_SetRegion(1); // cinematics stay on the top screen
+    }
 
     int t = aura->flareFrame;
     int dur = aura->flareDuration;
@@ -355,7 +365,7 @@ static void TotemAura_DriveFlare(TotemAura *aura)
 
         int left = burstEnd - t;
         int span = burstEnd - burstAt > 0 ? burstEnd - burstAt : 1;
-        TotemFX_Dim(aura, 12 * left / span);
+        TotemFX_Dim(aura, 7 * left / span);
         TotemFX_Vignette(aura, aura->auraColor, 8 * left / span);
     } else {
         // Settle: ease the dim/vignette home and retract the bars; the
@@ -372,8 +382,9 @@ static void TotemAura_DriveFlare(TotemAura *aura)
     if (aura->flareFrame >= aura->flareDuration) {
         TotemFX_Clear(aura);
         BattleStage_SetBackdropShake(0, 0);
-        // The flare hid the healthboxes for its close-up; bring them back as
-        // the stat-boost message plays (the first-menu show beat runs earlier).
+        // The flare hid the healthboxes and textbox for its close-up; bring
+        // both back as the stat-boost banner prints.
+        GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, TRUE);
         TotemBattle_ShowHealthbars(aura->battleSys);
     }
 }
@@ -528,6 +539,18 @@ void TotemAura_StartForBattler(BattleSystem *battleSys, int battler)
         // this, so the dynamic range is unchanged.
         aura->baseEmission[i] = (aura->emitters[i] != NULL ? aura->emitters[i]->emissionCount : FX32_ONE) * 3 / 4;
         aura->baseScale[i] = aura->emitters[i] != NULL ? aura->emitters[i]->baseScale : FX32_ONE;
+
+        if (aura->emitters[i] != NULL) {
+            // Draw the wreath behind the sprite and keep its interior clear:
+            // push the emitter plane back and spawn low at the feet, so the
+            // flames frame the outline as they rise instead of washing over
+            // the body. The inner glow (emitter 1) drops to a third alpha -
+            // a soft core, with PostFX_GlowAt providing the rim instead.
+            aura->emitters[i]->position.z = aura->basePos.z - FX32_ONE;
+            if (i == 1) {
+                aura->emitters[i]->misc.baseAlpha = aura->emitters[i]->misc.baseAlpha / 3;
+            }
+        }
 
         if (aura->baseEmission[i] == 0) {
             aura->baseEmission[i] = FX32_ONE;
