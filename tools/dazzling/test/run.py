@@ -1,0 +1,343 @@
+#!/usr/bin/env python3
+"""Scenario runner for the Dazzling Platinum Mac app (headless lockstep).
+
+Scenario format: JSON (chosen over YAML: stdlib-only, no PyYAML dependency
+on CI runners). See README.md in this directory for the full schema.
+
+Usage:
+  python3 tools/dazzling/test/run.py [--game build_macos/main] [-j 4]
+          [--record] [--filter SUBSTR] [--scenarios DIR] [--timeout SEC]
+          [--mock] [scenario.json ...]
+Exit 1 if any scenario fails. On failure prints the step, the last game
+state, and the last screenshot path.
+"""
+import argparse, concurrent.futures, json, os, shutil, struct, subprocess, sys, tempfile, time
+
+FIXED_RTC = "2026-01-01T12:00:00"
+FIXED_SEED = "12345"
+
+# ---------------------------------------------------------------- images
+def load_bmp(path):
+    """Return (w, h, bytes RGB rows) for an uncompressed BMP, else None."""
+    with open(path, "rb") as f:
+        data = f.read()
+    if data[:2] != b"BM" or len(data) < 54:
+        return None
+    off = struct.unpack_from("<I", data, 10)[0]
+    w = struct.unpack_from("<i", data, 18)[0]
+    h = struct.unpack_from("<i", data, 22)[0]
+    bpp = struct.unpack_from("<H", data, 28)[0]
+    if bpp not in (24, 32) or w <= 0 or h == 0:
+        return None
+    h_abs, step = abs(h), w * (bpp // 8)
+    rows = []
+    for y in range(h_abs):
+        src = off + (y if h < 0 else h_abs - 1 - y) * ((step + 3) & ~3)
+        row = bytearray()
+        for x in range(w):
+            p = src + x * (bpp // 8)
+            row += data[p:p + 3][::-1]  # BGR -> RGB
+        rows.append(bytes(row))
+    return w, h_abs, b"".join(rows)
+
+def load_image(path):
+    img = load_bmp(path)
+    if img:
+        return img
+    if sys.platform == "darwin" and shutil.which("sips"):
+        tmp = path + ".conv.bmp"
+        r = subprocess.run(["sips", "-s", "format", "bmp", path, "--out", tmp],
+                           capture_output=True)
+        if r.returncode == 0 and os.path.exists(tmp):
+            img = load_bmp(tmp)
+            os.unlink(tmp)
+            return img
+    raise ValueError(f"unsupported screenshot format (need BMP, or PNG on macOS): {path}")
+
+def compare_images(actual_path, ref_path, tolerance=0.01, channel_eps=8):
+    """Return (ok, differing_fraction, message)."""
+    a, b = load_image(actual_path), load_image(ref_path)
+    if a[:2] != b[:2]:
+        return False, 1.0, f"size differs: actual {a[0]}x{a[1]} vs reference {b[0]}x{b[1]}"
+    diff = total = 0
+    for i in range(0, len(a[2]), 3):
+        total += 1
+        if any(abs(a[2][i + c] - b[2][i + c]) > channel_eps for c in range(3)):
+            diff += 1
+    frac = diff / total if total else 0.0
+    return frac <= tolerance, frac, f"{diff}/{total} pixels differ ({frac:.4%}), tolerance {tolerance:.4%}"
+
+# ---------------------------------------------------------------- state
+def state_get(state, path):
+    cur = state
+    for part in path.split("."):
+        if isinstance(cur, dict):
+            if part not in cur:
+                raise KeyError(path)
+            cur = cur[part]
+        elif isinstance(cur, list):
+            cur = cur[int(part)]
+        else:
+            raise KeyError(path)
+    return cur
+
+OPS = {
+    "eq": lambda a, b: a == b, "ne": lambda a, b: a != b,
+    "gt": lambda a, b: a > b, "ge": lambda a, b: a >= b,
+    "lt": lambda a, b: a < b, "le": lambda a, b: a <= b,
+    "contains": lambda a, b: b in a, "in": lambda a, b: a in b,
+}
+
+def check_assertion(state, assertion):
+    """Assertion: {"path": "player.map", "op": "eq", "value": ...}
+    or shorthand {path: expected, ...}. Returns failure string or None."""
+    if "path" in assertion:
+        items = [(assertion["path"], assertion.get("op", "eq"), assertion.get("value"))]
+    else:
+        items = [(p, "eq", v) for p, v in assertion.items()]
+    for path, op, expected in items:
+        try:
+            actual = state_get(state, path)
+        except (KeyError, IndexError, ValueError):
+            return f"state has no '{path}' (state: {json.dumps(state)[:400]})"
+        if op not in OPS:
+            return f"unknown assertion op '{op}'"
+        if not OPS[op](actual, expected):
+            return f"expected state {path} {op} {expected!r}, got {actual!r}"
+    return None
+
+def condition_met(state, condition):
+    return check_assertion(state, condition) is None
+
+# ---------------------------------------------------------------- client
+class GameError(Exception):
+    pass
+
+class GameClient:
+    def __init__(self, game_path, work_root, name, record_env_extra=None):
+        self.name = name
+        self.dir = tempfile.mkdtemp(prefix=f"dz-{name}-", dir=work_root)
+        self.save_path = os.path.join(self.dir, "save.bin")
+        self.coverage_path = os.path.join(self.dir, "coverage.txt")
+        self.stderr_path = os.path.join(self.dir, "game.stderr.log")
+        env = dict(os.environ)
+        env.update({
+            "SIM_HEADLESS": "1", "SIM_CONTROL": "stdio",
+            "SIM_FIXED_RTC": FIXED_RTC, "SIM_SEED": FIXED_SEED,
+            "SIM_SAVE_PATH": self.save_path,
+            "SIM_SCRIPT_COVERAGE": self.coverage_path,
+        })
+        if record_env_extra:
+            env.update(record_env_extra)
+        game_dir = os.path.dirname(os.path.abspath(game_path))
+        self._stderr = open(self.stderr_path, "wb")
+        argv = [game_path] if game_path.endswith(".py") is False else [sys.executable, game_path]
+        if game_path.endswith(".py"):
+            argv = [sys.executable, os.path.abspath(game_path)]
+        else:
+            argv = [os.path.abspath(game_path)]
+        self.proc = subprocess.Popen(argv, cwd=game_dir if os.path.isdir(game_dir) else self.dir,
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     stderr=self._stderr, env=env, text=True, bufsize=1)
+        self.last_state = None
+        self.last_screenshot = None
+
+    def cmd(self, obj, timeout=120):
+        if self.proc.poll() is not None:
+            raise GameError(f"game exited with {self.proc.returncode}; stderr: {self.stderr_path}")
+        self.proc.stdin.write(json.dumps(obj) + "\n")
+        self.proc.stdin.flush()
+        line = self.proc.stdout.readline()
+        if not line:
+            raise GameError(f"game closed stdout on {obj}; stderr: {self.stderr_path}")
+        reply = json.loads(line)
+        if isinstance(reply, dict) and reply.get("ok") is False:
+            raise GameError(f"command {obj} failed: {reply.get('error')}")
+        if isinstance(reply, dict) and "state" in reply:
+            self.last_state = reply["state"]
+        elif obj.get("cmd") == "state" and isinstance(reply, dict):
+            self.last_state = reply
+        return reply
+
+    def state(self, extra=None):
+        req = {"cmd": "state"}
+        if extra:
+            req.update(extra)
+        reply = self.cmd(req)
+        st = reply.get("state", reply) if isinstance(reply, dict) else {}
+        self.last_state = st
+        return st
+
+    def close(self):
+        try:
+            if self.proc.poll() is None:
+                self.cmd({"cmd": "quit"}, timeout=5)
+                self.proc.wait(timeout=5)
+        except Exception:
+            try:
+                self.proc.kill()
+            except Exception:
+                pass
+        finally:
+            self._stderr.close()
+
+# ---------------------------------------------------------------- runner
+class ScenarioFailure(Exception):
+    def __init__(self, step_idx, step, message, state=None, screenshot=None):
+        super().__init__(message)
+        self.step_idx, self.step, self.message = step_idx, step, message
+        self.state, self.screenshot = state, screenshot
+
+def as_keys(value):
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    return list(value)
+
+def run_scenario(path, game_path, record=False, timeout=600, work_root=None, mock=False):
+    with open(path, encoding="utf-8") as f:
+        sc = json.load(f)
+    name = sc.get("name") or os.path.splitext(os.path.basename(path))[0]
+    scen_dir = os.path.dirname(os.path.abspath(path))
+    client = GameClient(game_path, work_root, name)
+    started = time.time()
+    try:
+        def resolve(p):
+            return p if os.path.isabs(p) else os.path.join(scen_dir, p)
+        # ---- start
+        start = sc.get("start") or {}
+        if start.get("save"):
+            client.cmd({"cmd": "import_save", "path": os.path.abspath(resolve(start["save"]))})
+        if start.get("warp"):
+            w = start["warp"]
+            client.cmd({"cmd": "warp", "map": w["map"], "x": w.get("x", 0), "z": w.get("z", 0),
+                        "dir": w.get("dir", "DIR_SOUTH")})
+        for k, v in (start.get("vars") or {}).items():
+            client.cmd({"cmd": "set_var", "name": k, "value": v})
+        for k, v in (start.get("flags") or {}).items():
+            client.cmd({"cmd": "set_flag", "name": k, "value": bool(v)})
+        for item in (start.get("items") or []):
+            client.cmd({"cmd": "give_item", "item": item["item"], "qty": item.get("qty", 1)})
+        state = client.state()
+        # ---- steps
+        for idx, step in enumerate(sc.get("steps") or []):
+            if time.time() - started > timeout:
+                raise ScenarioFailure(idx, step, f"scenario timeout ({timeout}s)", client.last_state, client.last_screenshot)
+            try:
+                if "press" in step or "hold" in step:
+                    keys = as_keys(step.get("press", step.get("hold")))
+                    client.cmd({"cmd": "press", "keys": keys, "frames": step.get("frames", 1)})
+                elif "step" in step:
+                    client.cmd({"cmd": "step", "frames": step["step"]})
+                elif "touch" in step:
+                    x, y = step["touch"]
+                    client.cmd({"cmd": "touch", "x": x, "y": y, "frames": step.get("frames", 1)})
+                elif "talk" in step:
+                    req = {"cmd": "talk"}
+                    req.update(step["talk"] if isinstance(step["talk"], dict) else {"localid": step["talk"]})
+                    client.cmd(req)
+                elif "wait_until" in step:
+                    cond = step["wait_until"]
+                    budget = step.get("timeout_frames", 600)
+                    waited = 0
+                    while True:
+                        st = client.state()
+                        if condition_met(st, cond):
+                            break
+                        if waited >= budget:
+                            raise ScenarioFailure(idx, step, f"wait_until {cond} not met within {budget} frames",
+                                                  st, client.last_screenshot)
+                        client.cmd({"cmd": "step", "frames": 10})
+                        waited += 10
+                elif "screenshot" in step:
+                    shot_name = step["screenshot"] if isinstance(step["screenshot"], str) else step["screenshot"].get("name", f"step{idx}")
+                    out = os.path.join(client.dir, shot_name + ".bmp")
+                    client.cmd({"cmd": "screenshot", "path": out})
+                    client.last_screenshot = out
+                    ref = step.get("reference") or (step["screenshot"].get("reference") if isinstance(step["screenshot"], dict) else None)
+                    if ref:
+                        ref_path = resolve(ref)
+                        if record:
+                            os.makedirs(os.path.dirname(ref_path), exist_ok=True)
+                            shutil.copyfile(out, ref_path)
+                        else:
+                            if not os.path.exists(ref_path):
+                                raise ScenarioFailure(idx, step, f"reference screenshot missing: {ref_path} (run with --record)",
+                                                      client.last_state, out)
+                            ok, _frac, msg = compare_images(out, ref_path, step.get("tolerance", 0.01))
+                            if not ok:
+                                raise ScenarioFailure(idx, step, f"screenshot differs from {ref}: {msg}",
+                                                      client.last_state, out)
+                elif "assert" in step:
+                    st = client.state(step.get("state_request"))
+                    err = check_assertion(st, step["assert"])
+                    if err:
+                        raise ScenarioFailure(idx, step, err, st, client.last_screenshot)
+                elif "warp" in step:
+                    w = step["warp"]
+                    client.cmd({"cmd": "warp", "map": w["map"], "x": w.get("x", 0), "z": w.get("z", 0), "dir": w.get("dir", "DIR_SOUTH")})
+                elif "set_var" in step:
+                    client.cmd({"cmd": "set_var", "name": step["set_var"], "value": step.get("value", 0)})
+                elif "set_flag" in step:
+                    client.cmd({"cmd": "set_flag", "name": step["set_flag"], "value": bool(step.get("value", True))})
+                elif "give_item" in step:
+                    client.cmd({"cmd": "give_item", "item": step["give_item"], "qty": step.get("qty", 1)})
+                elif "import_save" in step:
+                    client.cmd({"cmd": "import_save", "path": os.path.abspath(resolve(step["import_save"]))})
+                else:
+                    raise ScenarioFailure(idx, step, f"unknown step: {step}", client.last_state, client.last_screenshot)
+            except ScenarioFailure:
+                raise
+            except Exception as e:
+                raise ScenarioFailure(idx, step, str(e), client.last_state, client.last_screenshot)
+        # ---- final assertions
+        for assertion in sc.get("assertions") or []:
+            st = client.state()
+            err = check_assertion(st, assertion)
+            if err:
+                raise ScenarioFailure(len(sc.get("steps") or []), {"assert": assertion}, err, st, client.last_screenshot)
+        return name, True, f"ok ({time.time() - started:.1f}s, workdir {client.dir})", client
+    except ScenarioFailure as e:
+        return name, False, (f"FAIL step {e.step_idx}: {json.dumps(e.step)}\n  {e.message}\n"
+                             f"  state: {json.dumps(e.state)[:600]}\n  last screenshot: {e.screenshot}\n"
+                             f"  workdir: {client.dir} (stderr + coverage there)"), client
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("scenarios", nargs="*")
+    ap.add_argument("--game", default="build_macos/main")
+    ap.add_argument("--mock", action="store_true", help="use tools/dazzling/test/fake_game.py")
+    ap.add_argument("--scenarios-dir", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "scenarios"))
+    ap.add_argument("--filter", default="")
+    ap.add_argument("-j", "--jobs", type=int, default=4)
+    ap.add_argument("--record", action="store_true", help="write reference screenshots")
+    ap.add_argument("--timeout", type=int, default=600)
+    ap.add_argument("--work-root", default=None)
+    args = ap.parse_args(argv)
+    game = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fake_game.py") if args.mock else args.game
+    paths = args.scenarios or sorted(
+        os.path.join(args.scenarios_dir, f) for f in os.listdir(args.scenarios_dir) if f.endswith(".json"))
+    if args.filter:
+        paths = [p for p in paths if args.filter in os.path.basename(p)]
+    if not paths:
+        print("run.py: no scenarios selected"); return 2
+    work_root = args.work_root or tempfile.mkdtemp(prefix="dz-run-")
+    os.makedirs(work_root, exist_ok=True)
+    print(f"run.py: {len(paths)} scenario(s), game={game}, jobs={args.jobs}, record={args.record}, work={work_root}")
+    failures = 0
+    clients = []
+    def one(p):
+        return run_scenario(p, game, record=args.record, timeout=args.timeout, work_root=work_root, mock=args.mock)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as ex:
+        for name, ok, msg, client in ex.map(one, paths):
+            clients.append(client)
+            print(f"[{ 'PASS' if ok else 'FAIL'}] {name}: {msg}" if ok else f"[FAIL] {name}\n{msg}")
+            failures += 0 if ok else 1
+    for c in clients:
+        c.close()
+    print(f"run.py: {len(paths) - failures}/{len(paths)} passed")
+    return 1 if failures else 0
+
+if __name__ == "__main__":
+    sys.exit(main())
