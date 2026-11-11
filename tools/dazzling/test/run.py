@@ -457,7 +457,7 @@ def main(argv=None):
         futures = [ex.submit(one, p) for p in paths]
         for fut in concurrent.futures.as_completed(futures):
             name, ok, msg = fut.result()
-            print(f"[{ 'PASS' if ok else 'FAIL'}] {name}: {msg}" if ok else f"[FAIL] {name}\n{msg}")
+            print(f"[{ 'PASS' if ok else 'FAIL'}] {name}: {msg}" if ok else f"[FAIL] {name}\n{msg}", flush=True)
             failures += 0 if ok else 1
     print(f"run.py: {len(paths) - failures}/{len(paths)} passed")
     return 1 if failures else 0
