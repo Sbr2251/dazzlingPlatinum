@@ -116,10 +116,29 @@ add_global_arguments(cpp_args,
 )
 
 pokeplatinum_args = [
-    '-DPM_KEEP_ASSERTS',
     '-DGAME_VERSION=VERSION_PLATINUM',
     '-DGAME_LANGUAGE=LANGUAGE_ENGLISH'
 ]
+
+# Build variant (Mac target): see meson.options. PM_KEEP_ASSERTS is the assert switch:
+# defined in dev and asan, absent in release, so GF_ASSERT (include/global/assert.h)
+# compiles out there. Optimisation/LTO/sanitisers apply to the game code only (these
+# args and the main executable's link line), not to the simulator subprojects.
+build_variant = get_option('build_variant')
+if build_variant != 'release'
+    pokeplatinum_args += '-DPM_KEEP_ASSERTS'
+endif
+
+variant_link_args = []
+if build_target != 'arm'
+    if build_variant == 'release'
+        pokeplatinum_args += ['-O3', '-flto', '-g0']
+        variant_link_args += ['-flto']
+    elif build_variant == 'asan'
+        pokeplatinum_args += ['-O1', '-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+        variant_link_args += ['-fsanitize=address,undefined']
+    endif
+endif
 
 if(build_target != 'arm')
     pokeplatinum_args += [
@@ -486,6 +505,7 @@ main = executable('main',
     ],
     link_args: [
         link_args,
+        variant_link_args,
     ],
     native: true
 )
