@@ -155,6 +155,9 @@ class BattleRunner:
     def do_decision(self, dec):
         # Battle menus are touch-first: the D-pad cursor starts inactive and
         # the first key press only activates it (BattleSystem_MenuKeys).
+        # `waiting` fires before the menu finishes opening; let it settle or
+        # the activation press is swallowed and the cursor path shifts.
+        self.game.cmd({"cmd": "step", "frames": 90})
         t = dec.get("type", "move")
         press(self.game, "A", 30)  # activate cursor
         if t == "move":
