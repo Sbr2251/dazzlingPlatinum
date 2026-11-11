@@ -35,6 +35,7 @@
 
 #ifdef SDK_PORT
 #include <stdlib.h>
+#include "port/headless_game.h"
 #include "port/sim_config_prj.h"
 #include "char_transfer.h"
 #include "pltt_transfer.h"
@@ -205,6 +206,9 @@ static void RunApplication(void)
         }
 
         sApplication.currOverlayID = sApplication.nextOverlayID;
+#ifdef SDK_PORT
+        Headless_SetOverlay((int)sApplication.currOverlayID);   // headless protocol state
+#endif
         sApplication.currApplication = ApplicationManager_New(sApplication.nextApplication, &sApplication.args, HEAP_ID_SYSTEM);
         sApplication.nextOverlayID = FS_OVERLAY_ID_NONE;
         sApplication.nextApplication = NULL;

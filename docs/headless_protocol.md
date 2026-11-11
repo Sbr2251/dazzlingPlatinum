@@ -75,11 +75,81 @@ State (basic, step 2): without the game-side handler (step 3) `state` replies
 
 ## Game-side commands and state
 
-Step 3. To be filled in.
+Implemented (step 3) in `src/port/headless_game.c`. All return
+`{"ok":true}` or `{"ok":false,"error":"..."}`.
+
+| Command | Effect |
+|---|---|
+| `{"cmd":"warp","map":"MAP_HEADER_X","x":X,"z":Z,"dir":"DIR_NORTH"}` | Fly-style map change to that tile (`dir` optional, default `DIR_SOUTH`). Needs the field. |
+| `{"cmd":"set_var","name":"VAR_X","value":V}` | Set a story var (field var pointer in the field, save vars otherwise). |
+| `{"cmd":"set_flag","name":"FLAG_X","value":true}` | Set/clear a flag (same storage choice as `set_var`). |
+| `{"cmd":"give_item","item":"ITEM_X","qty":N}` | Add items to the bag (`qty` defaults to 1). |
+| `{"cmd":"talk","localid":"LOCALID_X"}` or `{"cmd":"talk","object":N}` | Move the player to a free adjacent tile facing the object, then press A for 2 frames (the press runs after the reply, like a short `press`). Errors when no adjacent tile is free. |
+
+Names (`MAP_HEADER_*`, `VAR_*`, `FLAG_*`, `ITEM_*`, `SPECIES_*`, `DIR_*`,
+`LOCALID_*`) are resolved from the build's generated data
+(`generated/*.txt` enum sources, `res/field/maps/*/events.json`,
+`include/constants/map_object.h`) by `tools/dazzling/gen_headless_names.py`,
+which runs at build time and emits `headless_names.{h,c}`. Nothing is
+hand-maintained. `LOCALID_*` ids are scoped to the current map.
+
+`state` replies (step 3, full form):
+
+```json
+{"ok":true,"frame":N,"overlay":<FS overlay id>,
+ "app":"field"|"battle"|"other",
+ "map":"MAP_HEADER_X","map_id":N,
+ "player":{"x":X,"z":Z,"dir":"DIR_NORTH"},
+ "script":{"id":N,"offset":N} | null,
+ "message_waiting":true|false,
+ "party":[{"species":"SPECIES_X","species_id":N,"level":N,"hp":N,"max_hp":N,"held_item":"ITEM_X"}],
+ "battle":{"turn":N,"waiting":true|false,
+           "battlers":[{"battler":N,"species":"SPECIES_X","species_id":N,"level":N,"hp":N,"max_hp":N,"held_item":"ITEM_X"}]},
+ "vars":{"VAR_X":N},"flags":{"FLAG_X":true},"bag":{"ITEM_X":N}}
+```
+
+- `map`/`player`/`script` appear in the field; `battle` appears in battle
+  (`waiting` = the action menu is waiting for input); `party` is always present
+  once a save is loaded. `script.offset` is the byte offset of the running
+  script's program counter in its script data, or -1.
+- `vars`, `flags`, `bag` appear only when requested:
+  `{"cmd":"state","vars":["VAR_X"],"flags":["FLAG_X"],"bag":["ITEM_X"]}`.
+  Unknown names report -1/false rather than failing the whole reply.
+- `overlay` is the numeric FS overlay id (the application templates have no
+  string names in the binary); `app` is the semantic classification.
+- `talk`'s A press and `warp`'s map change take effect over the following
+  frames; step and re-read `state` to observe the result.
 
 ## Asserts, crashes, watchdog
 
-Step 4. To be filled in.
+Implemented (step 4).
+
+- `GF_ASSERT` carries file, line and the stringified expression
+  (`include/global/assert.h`). It is keyed off `PM_KEEP_ASSERTS`: defined in
+  dev/asan builds, absent in release, where `GF_ASSERT` compiles to nothing
+  (the `build_variant` option from perf-game controls this; currently the
+  port build defines it unconditionally).
+- On PC builds, a failure (`src/error_handling.c`) behaves as follows:
+  - Headless/control: always fails loudly - `GF_ASSERT <file>:<line>: <expr>`,
+    a state dump and a symbolized backtrace (`backtrace()`/
+    `backtrace_symbols_fd`; `-rdynamic` on Linux) to stderr, then exit 134.
+    The interactive `EnableAsserts` config does not gate this.
+  - Interactive with asserts enabled in the config: the same info is appended
+    to `log.txt`, shown in an SDL message box, and the process exits 134
+    instead of hanging silently. With asserts disabled in the config, the
+    old behaviour (return and continue) is kept.
+  - The simulator's own `SDK_ASSERT` (`SIM_handleAssertionFailure`) routes
+    through the same reporter in headless mode.
+- Best-effort signal handlers for SIGSEGV/SIGBUS/SIGABRT are installed in
+  headless/control mode: they print the signal, the frame count and a
+  backtrace to stderr, then exit 134. (Not installed interactively, so macOS
+  crash reports in `~/Library/Logs/DiagnosticReports` keep working there.)
+- Watchdog: `SIM_WATCHDOG_SEC=<n>`; on by default in headless/control mode
+  with n=30 (`SIM_WATCHDOG_SEC=0` disables). If no frame completes for n
+  seconds it dumps state (via the `state` handler) plus a backtrace to
+  stderr and exits 124. It never fires while lockstep control is blocked
+  waiting for a command, so an idle client is not a freeze; if inputs are
+  being sent (frames granted) and frames stop completing, it fires.
 
 ## Sanitizer build
 

@@ -110,6 +110,19 @@ add_global_arguments(c_args,
     native: (build_target == 'linux' or build_target == 'win64')
 )
 
+if (build_target == 'linux' and host_machine.system() == 'linux')
+# Symbolized backtraces (backtrace_symbols) for the headless assert/crash reporter.
+add_global_link_arguments(['-rdynamic'], language: ['c', 'cpp'], native: true)
+endif
+
+if get_option('asan') and build_target != 'arm'
+# ASan + UBSan for the whole PC build (game + simulator). See docs/headless_protocol.md.
+add_global_arguments(['-fsanitize=address,undefined', '-fno-omit-frame-pointer'],
+    language: ['c', 'cpp'], native: (build_target == 'linux' or build_target == 'win64'))
+add_global_link_arguments(['-fsanitize=address,undefined'],
+    language: ['c', 'cpp'], native: (build_target == 'linux' or build_target == 'win64'))
+endif
+
 add_global_arguments(cpp_args,
     language: 'cpp',
     native: (build_target == 'linux' or build_target == 'win64')
@@ -385,9 +398,27 @@ endif
 endif
 
 if(build_target != 'arm')
+# Symbolic name tables for the headless protocol, generated from the build's own data.
+headless_names = custom_target('headless_names',
+    output: ['headless_names.h', 'headless_names.c'],
+    input: [
+        'generated/map_headers.txt',
+        'generated/vars_flags.txt',
+        'generated/items.txt',
+        'generated/species.txt',
+    ],
+    command: [
+        find_program('python3'),
+        files('tools/dazzling/gen_headless_names.py'),
+        meson.global_source_root(),
+        '@OUTDIR@',
+    ],
+)
+
 pokeplatinum_port_c = files(
     'src/port/charcode_convert.c',
     'src/port/debug_field.c',
+    'src/port/headless_game.c',
     'src/port/savedata_upgrade.c',
     'src/port/sim_config_prj.c',
     'src/port/sim_gui_prj.cpp',
@@ -400,6 +431,8 @@ pokeplatinum_port_c = files(
     'src/port/gui_mapjump.cpp',
     'src/port/gui_mapjump_utils.c'
 )
+
+pokeplatinum_port_c += headless_names[1]
 
 if(build_target == 'linux')
 pokeplatinum_port_c += files(
