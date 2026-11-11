@@ -101,7 +101,12 @@ int Overlay_GetLoadDestination(const FSOverlayID overlayID)
     FSOverlayInfo info;
     u32 v2;
 
-    GF_ASSERT(FS_LoadOverlayInfo(&info, MI_PROCESSOR_ARM9, overlayID) == TRUE);
+    // PC builds: some overlays (e.g. WFC at boot) have no loadable info;
+    // Overlay_UnloadByID then simply finds nothing in the main region.
+    // (Step-4 follow-up: GF_ASSERT here killed headless boot at frame 0.)
+    if (FS_LoadOverlayInfo(&info, MI_PROCESSOR_ARM9, overlayID) == FALSE) {
+        return OVERLAY_REGION_MAIN;
+    }
     v2 = (u32)FS_GetOverlayAddress(&info);
 
     if ((v2 <= HW_ITCM_END) && (v2 >= HW_ITCM_IMAGE)) {
