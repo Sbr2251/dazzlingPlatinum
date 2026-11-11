@@ -1,0 +1,10 @@
+{
+  "battle_type": "wild",
+  "seed": 7,
+  "player": [
+    {"species": "SPECIES_CHARMANDER", "level": 50, "moves": ["MOVE_EMBER", "MOVE_SCRATCH", "MOVE_FLAMETHROWER", "MOVE_SLASH"]}
+  ],
+  "opponent": [
+    {"species": "SPECIES_BUDEW", "level": 30, "moves": ["MOVE_ABSORB", "MOVE_GROWTH"]}
+  ]
+}

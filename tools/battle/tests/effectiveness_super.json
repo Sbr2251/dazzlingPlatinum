@@ -1,0 +1,36 @@
+{
+ "name": "effectiveness_super",
+ "spec": {
+  "battle_type": "wild",
+  "seed": 42,
+  "player": [
+   {
+    "species": "SPECIES_CHARMANDER",
+    "level": 50,
+    "moves": [
+     "MOVE_EMBER",
+     "MOVE_SCRATCH"
+    ]
+   }
+  ],
+  "opponent": [
+   {
+    "species": "SPECIES_BUDEW",
+    "level": 30,
+    "moves": [
+     "MOVE_ABSORB"
+    ]
+   }
+  ],
+  "decisions": [
+   {
+    "type": "move",
+    "index": 0
+   }
+  ]
+ },
+ "expect": {
+  "winner": "player",
+  "effectiveness": "super"
+ }
+}

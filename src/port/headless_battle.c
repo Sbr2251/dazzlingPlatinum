@@ -31,6 +31,7 @@
 #include "savedata.h"
 #include "trainer_data.h"
 #include "trainer_info.h"
+#include "battle/battle_events.h"
 #include "save_player.h"
 #include "unk_020528D0.h"
 
@@ -208,7 +209,7 @@ static BOOL FieldTask_HeadlessBattle(FieldTask *task) {
         FieldBattleDTO_Init(dto, fsys);
         // Seed the battle RNG from the spec, not from elapsed field frames:
         // the same spec+seed+decisions must be deterministic (see docs).
-        { long seed = 0; if (JsonLong(s, e, "seed", &seed)) dto->seed = (u32)seed; }
+        { long seed = 0; if (JsonLong(s, e, "seed", &seed)) { dto->seed = (u32)seed; BattleEvents_SetSeedOverride((u32)seed); } }
         long trainerId = 0; JsonLong(s, e, "trainer_id", &trainerId);
         if (isTrainer) {
             dto->trainerIDs[BATTLER_ENEMY_1] = (int)(trainerId ? trainerId : 1);
