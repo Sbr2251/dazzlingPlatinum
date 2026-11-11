@@ -1,5 +1,6 @@
 {
-  "_note": "Warp onto Route 202, talk to Youngster Tristan (talk resyncs the LandData lazy loader since 8be74187f5), advance his lines, require the battle action menu. Blocked after battle start by the particle heap assert (known_issue).",
+  "name": "core_trainer_battle",
+  "_note": "Warp into Youngster Tristan's sight line on Route 202 (he faces south, sight 5): he engages. Touch FIGHT then the first move (bottom screen is touch-first; A presses during the send-out are lost). Prove a played turn: opponent is his Patrat, turn advanced, Patrat HP below its 17 max.",
   "requires_exists": [
     "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
   ],
@@ -72,64 +73,22 @@
     {
       "warp": {
         "map": "MAP_HEADER_ROUTE_202",
-        "x": 160,
-        "z": 810,
-        "dir": "DIR_EAST"
+        "x": 166,
+        "z": 817,
+        "dir": "DIR_NORTH"
       }
     },
     {
-      "step": 300
-    },
-    {
-      "talk": "LOCALID_YOUNGSTER_TRISTAN"
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
       "step": 600
     },
     {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "press": "A",
-      "frames": 10
-    },
-    {
-      "step": 600
-    },
-    {
-      "wait_until": {
+      "press_until": {
         "app": "battle"
       },
-      "timeout_frames": 3600
+      "keys": "A",
+      "press_frames": 10,
+      "interval_frames": 300,
+      "timeout_frames": 7200
     },
     {
       "wait_until": {
@@ -138,6 +97,29 @@
         "value": true
       },
       "timeout_frames": 3600
+    },
+    {
+      "step": 900
+    },
+    {
+      "touch": [
+        128,
+        110
+      ],
+      "frames": 10
+    },
+    {
+      "step": 900
+    },
+    {
+      "touch": [
+        64,
+        90
+      ],
+      "frames": 10
+    },
+    {
+      "step": 3000
     }
   ],
   "assertions": [
@@ -145,8 +127,17 @@
       "app": "battle"
     },
     {
-      "in_battle": true
+      "battle.battlers.1.species": "SPECIES_PATRAT"
+    },
+    {
+      "path": "battle.turn",
+      "op": "ge",
+      "value": 1
+    },
+    {
+      "path": "battle.battlers.1.hp",
+      "op": "lt",
+      "value": 17
     }
-  ],
-  "name": "core_trainer_battle"
+  ]
 }

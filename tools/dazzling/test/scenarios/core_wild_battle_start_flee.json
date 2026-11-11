@@ -1,5 +1,6 @@
 {
-  "_note": "Warp to Route 201 grass, walk until a wild battle starts, then flee (B / menu input may need tuning on the real build).",
+  "name": "core_wild_battle_start_flee",
+  "_note": "Warp to Route 201 tall grass, walk until a wild battle, then flee with the menu cursor: DOWN (to Pokemon row) LEFT (to Run) A - the first directional press also activates the cursor, and touch on Run mis-hits (see STATUS). Assert back on the field on the same map.",
   "requires_exists": [
     "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
   ],
@@ -248,166 +249,6 @@
       "frames": 20
     },
     {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
       "wait_until": {
         "app": "battle"
       },
@@ -422,19 +263,28 @@
       "timeout_frames": 3600
     },
     {
+      "step": 900
+    },
+    {
       "press": "DOWN",
       "frames": 10
     },
     {
-      "press": "RIGHT",
+      "step": 300
+    },
+    {
+      "press": "LEFT",
       "frames": 10
+    },
+    {
+      "step": 300
     },
     {
       "press": "A",
       "frames": 10
     },
     {
-      "step": 600
+      "step": 1800
     },
     {
       "wait_until": {
@@ -443,13 +293,15 @@
       "timeout_frames": 3600
     }
   ],
-  "name": "core_wild_battle_start_flee",
   "assertions": [
     {
       "app": "field"
     },
     {
       "in_battle": false
+    },
+    {
+      "player.map": "MAP_HEADER_ROUTE_201"
     }
   ]
 }

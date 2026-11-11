@@ -1,0 +1,373 @@
+{
+  "name": "core_wild_catch_pokedex_entry",
+  "_note": "Wild catch: weaken a Route 201 Starly with one move (Ember; it ends burned at ~1/3 HP), then Bag -> Poke Balls -> tap the ball slot -> tap USE (bag screens are touch-driven; A does nothing until a direction activates the key cursor). Pokedex entry screen is reference-compared: survival-audit restorations mean the category plate is Starly's real category icon (not Fairy) and the battle stage stayed suppressed - the recorded entry shows '010 STARLY, Starling Pokemon, NORMAL/FLYING'. Assert caught Starly is party slot 1 back on the field. The entry screen's category plate animates (restored in 1cd2449d23), so the reference tolerance is 6%: plate/sprite phase differs by run, the screen content does not (a wrong screen differs by far more).",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+  },
+  "steps": [
+    {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "give_item": "ITEM_POKE_BALL",
+      "qty": 5
+    },
+    {
+      "step": 120
+    },
+    {
+      "warp": {
+        "map": "MAP_HEADER_ROUTE_201",
+        "x": 125,
+        "z": 850,
+        "dir": "DIR_EAST"
+      }
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "DOWN",
+      "frames": 30
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "wait_until": {
+        "app": "battle"
+      },
+      "timeout_frames": 1200
+    },
+    {
+      "wait_until": {
+        "path": "battle.waiting",
+        "op": "eq",
+        "value": true
+      },
+      "timeout_frames": 3600
+    },
+    {
+      "step": 900
+    },
+    {
+      "touch": [
+        128,
+        110
+      ],
+      "frames": 10
+    },
+    {
+      "step": 900
+    },
+    {
+      "touch": [
+        64,
+        90
+      ],
+      "frames": 10
+    },
+    {
+      "step": 3000
+    },
+    {
+      "wait_until": {
+        "path": "battle.waiting",
+        "op": "eq",
+        "value": true
+      },
+      "timeout_frames": 7200
+    },
+    {
+      "step": 900
+    },
+    {
+      "touch": [
+        40,
+        163
+      ],
+      "frames": 10
+    },
+    {
+      "step": 900
+    },
+    {
+      "touch": [
+        192,
+        43
+      ],
+      "frames": 10
+    },
+    {
+      "step": 900
+    },
+    {
+      "touch": [
+        64,
+        32
+      ],
+      "frames": 20
+    },
+    {
+      "step": 1200
+    },
+    {
+      "touch": [
+        109,
+        180
+      ],
+      "frames": 20
+    },
+    {
+      "step": 3600
+    },
+    {
+      "screenshot": "dex_entry",
+      "reference": "../references/core_wild_catch_pokedex_entry.bmp",
+      "tolerance": 0.06,
+      "optional_reference": true
+    },
+    {
+      "press_until": {
+        "app": "field"
+      },
+      "keys": "A",
+      "press_frames": 10,
+      "interval_frames": 600,
+      "timeout_frames": 14400
+    }
+  ],
+  "assertions": [
+    {
+      "app": "field"
+    },
+    {
+      "player.map": "MAP_HEADER_ROUTE_201"
+    },
+    {
+      "party.1.species": "SPECIES_STARLY"
+    }
+  ]
+}
