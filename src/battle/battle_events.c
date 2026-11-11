@@ -71,7 +71,7 @@ static void StartIfNeeded(BattleSystem *sys, BattleContext *ctx) {
     const char *ef = getenv("SIM_BATTLE_EVENTS");
     if (ef && ef[0] && !sFile) sFile = fopen(ef, "a");
     const char *rf = getenv("SIM_BATTLE_RECORD");
-    if (rf && rf[0] && !sRecord) { sRecord = fopen(rf, "w"); if (sRecord) { fprintf(sRecord, "{\"v\":1,\"kind\":\"record_header\",\"seed\":\"%s\",\"battle_type\":%u}\n", getenv("SIM_SEED") ? getenv("SIM_SEED") : "", (unsigned)BattleSystem_GetBattleType(sys)); fflush(sRecord); } }
+    if (rf && rf[0] && !sRecord) { sRecord = fopen(rf, "w"); if (sRecord) { fprintf(sRecord, "{\"v\":1,\"kind\":\"record_header\",\"seed\":\"%s\",\"battle_seed\":%u,\"battle_type\":%u}\n", getenv("SIM_SEED") ? getenv("SIM_SEED") : "", BattleEvents_GetSeedOverride(), (unsigned)BattleSystem_GetBattleType(sys)); fflush(sRecord); } }
     char b[EV_LEN] = ""; int off = 0;
     off += snprintf(b + off, sizeof(b) - off, "\"type\":\"battle_start\",\"battle_type\":%u,\"max_battlers\":%d,\"battlers\":[", (unsigned)BattleSystem_GetBattleType(sys), BattleSystem_GetMaxBattlers(sys));
     int first = 1;
