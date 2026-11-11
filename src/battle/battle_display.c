@@ -6006,13 +6006,19 @@ static void MegaCine_Center(AffinePulseTaskData *data, int *x, int *y)
 // Slide every healthbox off-stage for the cinematic, and back at the title.
 // The message textbox rides BG1: hide that plane with the stage and restore
 // it on return, so no empty window shows inside the letterbox.
-static void MegaCine_ScrollHealthboxes(AffinePulseTaskData *data, BOOL out)
+static void MegaCine_RestoreTextbox(AffinePulseTaskData *data)
 {
-    if (!out && data->textboxHidden) {
+    // BG1 comes back only when the task ends (the title line is about to
+    // print); restoring it at the title beat would reshow the setup line
+    // that is still sitting in the box.
+    if (data->textboxHidden) {
         GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, TRUE);
         data->textboxHidden = FALSE;
     }
+}
 
+static void MegaCine_ScrollHealthboxes(AffinePulseTaskData *data, BOOL out)
+{
     // Scroll IN teleports the box out first if it is already home: only
     // scroll in when the stage was actually cleared, and out only once.
     if ((out && data->stageCleared) || (!out && !data->stageCleared)) {
@@ -6041,6 +6047,16 @@ static void MegaCine_ChargeStart(AffinePulseTaskData *data)
     MegaCine_ScrollHealthboxes(data, TRUE);
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, FALSE);
     data->textboxHidden = TRUE;
+    // Wipe the setup line from the box while the plane is hidden, so the
+    // restored box is blank until the title line prints into it.
+    {
+        Window *msgWindow = BattleSystem_GetWindow(data->battleSys, 0);
+
+        if (msgWindow != NULL) {
+            Window_FillTilemap(msgWindow, 0xFF);
+            Window_ScheduleCopyToVRAM(msgWindow);
+        }
+    }
 }
 
 // Key Stone cut-in, driven per task tick: the strip sweeps in over the
@@ -6328,6 +6344,7 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
         PokemonSprite_ClearFade(sprite);
         AffinePulse_ClearOthers(data);
         MegaCine_ScrollHealthboxes(data, FALSE);
+        MegaCine_RestoreTextbox(data);
         G2_BlendNone();
         BattleStage_SetBrightness(0);
         PostFX_Clear();
@@ -6348,6 +6365,7 @@ static BOOL AffinePulse_Reveal(AffinePulseTaskData *data)
         PokemonSprite_ClearFade(sprite);
         AffinePulse_ClearOthers(data);
         MegaCine_ScrollHealthboxes(data, FALSE);
+        MegaCine_RestoreTextbox(data);
         G2_BlendNone();
         BattleStage_SetBrightness(0);
         PostFX_Clear();
@@ -6401,6 +6419,7 @@ static void AffinePulseTask(SysTask *task, void *taskData)
         // The reveal has already reset it; make sure the stage never stays dimmed after the task
         BattleStage_SetBrightness(0);
         MegaCine_ScrollHealthboxes(data, FALSE);
+        MegaCine_RestoreTextbox(data);
         PostFX_Clear();
         sMegaEvolutionCue = MEGA_EVOLUTION_CUE_NONE;
         BattleController_EmitClearCommand(data->battleSys, data->battler, data->command);
