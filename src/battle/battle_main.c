@@ -35,6 +35,7 @@
 #endif
 #include "battle/battle_subscreen.h"
 #include "battle/battle_system.h"
+#include "battle/battle_events.h"
 #include "battle/common.h"
 #include "battle/healthbox.h"
 #include "battle/stop_recording_task_data.h"
@@ -664,6 +665,7 @@ static int BattleMain_ExecuteBattlerCommands(ApplicationManager *appMan)
 {
     BattleSystem *battleSys = ApplicationManager_Data(appMan);
     int battler;
+    BattleEvents_Poll(battleSys);
 
     if (battleSys->battleType & BATTLE_TYPE_LINK && (battleSys->battleStatusMask & BATTLE_STATUS_RECORDING) == FALSE) {
         if (battleSys->battleInitialized) {

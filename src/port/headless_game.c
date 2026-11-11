@@ -34,6 +34,7 @@
 
 #include "battle/battle_controller_player.h"
 #include "battle/battle_system.h"
+#include "battle/battle_events.h"
 
 #include "gui_createitem_utils.h"
 #include "gui_mapjump_utils.h"
@@ -285,6 +286,7 @@ int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
     else if (strcmp(cmd, "give_item") == 0) CmdGiveItem(line, reply, cap);
     else if (strcmp(cmd, "talk") == 0) CmdTalk(line, reply, cap);
     else if (strcmp(cmd, "start_battle") == 0) return HeadlessBattle_Start(line, reply, cap);
+    else if (strcmp(cmd, "battle_events") == 0) { char ev[8192]; BattleEvents_TakePending(ev, sizeof(ev)); snprintf(reply, cap, "{\"ok\":true,\"events\":%s}", ev); }
     else return 0;
     return 1;
 }
