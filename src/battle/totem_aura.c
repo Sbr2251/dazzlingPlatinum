@@ -527,6 +527,12 @@ void TotemAura_StartForBattler(BattleSystem *battleSys, int battler)
         // materially lower particle count. Enrage/flare multipliers are
         // relative to this, so the dynamic range is unchanged.
         aura->baseEmission[i] = (aura->emitters[i] != NULL ? aura->emitters[i]->emissionCount : FX32_ONE) * 3 / 5;
+
+        // Live particle count is emission x lifetime; trimming lifetime too
+        // brings the wreath to roughly a third of its authored population.
+        if (aura->emitters[i] != NULL) {
+            aura->emitters[i]->particleLifeTime = aura->emitters[i]->particleLifeTime * 3 / 5;
+        }
         aura->baseScale[i] = aura->emitters[i] != NULL ? aura->emitters[i]->baseScale : FX32_ONE;
 
         if (aura->baseEmission[i] == 0) {
