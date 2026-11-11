@@ -697,7 +697,7 @@ OreburghCity_HumMiner:
     SetVar VAR_MAP_LOCAL_0x00, 1
     SetVar VAR_MAP_LOCAL_0x01, 1
     WaitTime 10, VAR_RESULT
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
     Message OreburghCity_Text_HumReaderFirstBuzz
     WaitButton
@@ -863,22 +863,25 @@ OreburghCity_HumBuzzEnd:
     End
 
 OreburghCity_HumBeep1:
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
+    Return
 
 OreburghCity_HumBeep2:
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
+    Return
 
 OreburghCity_HumBeep3:
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
+    Return
 
     .balign 4, 0
 OreburghCity_Movement_HumFaceSouth:

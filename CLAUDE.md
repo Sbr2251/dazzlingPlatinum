@@ -32,6 +32,7 @@ The hack was merged onto current pret (branch `sync/pret-2026-11`). pret's layou
 - Sound constants take the `_sseq` suffix (`SEQ_SE_DP_BEEP_sseq`).
 - Trainer parties use `iv_scale`, not `power`. An optional per-member `ability` override is supported by `tools/dataproc/src/trainerproc.c`.
 - The build needs the system libpng headers (`libpng-devel` on the devserver).
+- After editing field scripts, run `tools/dazzling/check_script_targets.py`. It catches a GoTo/Call or movement command whose target isn't a label in the file; such scripts assemble but misbehave at runtime.
 
 ## Adding a New Move
 

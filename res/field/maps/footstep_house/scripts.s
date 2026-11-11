@@ -409,7 +409,7 @@ FootstepHouse_ThatsWhatPokemonThinks_GiveRibbon:
     PlayFanfare SEQ_FANFA1_sseq
     Message FootstepHouse_Text_PlayerReceivedFootprintRibbon
     WaitFanfare
-    SetVar LOCAL_VAR_PARTY_SLOT, RIBBON_FOOTPRINT
+    SetPartyMonRibbon LOCAL_VAR_PARTY_SLOT, RIBBON_FOOTPRINT
     Message FootstepHouse_Text_PutRibbonOnPokemon
     WaitButton
     CloseMessage
@@ -425,7 +425,7 @@ FootstepHouse_NoFootprints_GiveRibbon:
     PlayFanfare SEQ_FANFA1_sseq
     Message FootstepHouse_Text_PlayerReceivedFootprintRibbon
     WaitFanfare
-    SetVar LOCAL_VAR_PARTY_SLOT, RIBBON_FOOTPRINT
+    SetPartyMonRibbon LOCAL_VAR_PARTY_SLOT, RIBBON_FOOTPRINT
     Message FootstepHouse_Text_PutRibbonOnPokemon
     WaitButton
     CloseMessage
@@ -441,7 +441,7 @@ FootstepHouse_PokemonSilentType_GiveRibbon:
     PlayFanfare SEQ_FANFA1_sseq
     Message FootstepHouse_Text_PlayerReceivedFootprintRibbon
     WaitFanfare
-    SetVar LOCAL_VAR_PARTY_SLOT, RIBBON_FOOTPRINT
+    SetPartyMonRibbon LOCAL_VAR_PARTY_SLOT, RIBBON_FOOTPRINT
     Message FootstepHouse_Text_PutRibbonOnPokemon
     WaitButton
     CloseMessage

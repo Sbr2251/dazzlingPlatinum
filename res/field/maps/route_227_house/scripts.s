@@ -22,6 +22,7 @@ Route227House_RestUp:
     WaitFadeScreen
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     FadeScreenIn
     WaitFadeScreen
     Message Route227House_Text_RestUpAgain

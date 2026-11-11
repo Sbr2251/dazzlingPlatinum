@@ -43,6 +43,7 @@ BattleTowerBattleRoom_HealPokemon:
     Message BattleTowerBattleRoom_Text_HealPokemon
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     Return
 
 BattleTowerBattleRoom_WarpToLobbby:

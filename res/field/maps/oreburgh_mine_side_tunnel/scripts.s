@@ -26,9 +26,9 @@ OreburghMineSideTunnel_OnTransitionEnd:
 OreburghMineSideTunnel_BuzzLouder:
     LockAll
     SetVar VAR_MAP_LOCAL_0x00, 2
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
     Message OreburghMineSideTunnel_Text_BuzzLouder
     WaitButton
@@ -47,12 +47,13 @@ OreburghMineSideTunnel_BuzzWild:
     End
 
 OreburghMineSideTunnel_BuzzThrice:
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
+    Return
 
 // Coord x8 (rows 6-8) or talking to the Machop. Scripted calming beat (no battle, so the miner's Machop can't
 // be caught): the Machop lunges, the player stands their ground or backs off, it calms, the sliver crumbles.

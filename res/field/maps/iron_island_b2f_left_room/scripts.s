@@ -48,7 +48,7 @@ IronIslandB2FLeftRoom_CoordEvent_RileyStartFollowing:
     PlayFanfare SEQ_GONIN_sseq
     Message IronIslandB2FLeftRoom_Text_DecidedToGoWithRiley
     WaitFanfare
-    GoTo FLAG_TALKED_TO_IRON_ISLAND_B2F_LEFT_ROOM_RILEY
+    SetFlag FLAG_TALKED_TO_IRON_ISLAND_B2F_LEFT_ROOM_RILEY
     SetVar VAR_IRON_ISLAND_B2F_LEFT_ROOM_FOLLOWER_RILEY_STATE, 1
     Message IronIslandB2FLeftRoom_Text_IllHealYourPokemon
     WaitButton

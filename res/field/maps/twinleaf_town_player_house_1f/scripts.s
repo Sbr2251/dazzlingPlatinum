@@ -471,6 +471,7 @@ TwinleafTownPlayerHouse1F_TakeAQuickRest:
     WaitFadeScreen
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     FadeScreenIn
     WaitFadeScreen
     SetFlag FLAG_MAP_LOCAL_0x02
@@ -915,6 +916,7 @@ TwinleafTownPlayerHouse1F_Arc1MomLines:
     WaitFadeScreen
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     FadeScreenIn
     WaitFadeScreen
 TwinleafTownPlayerHouse1F_Arc1MomFinish:

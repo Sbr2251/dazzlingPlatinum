@@ -130,6 +130,7 @@ DWRoute213_Totem:
     PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
     Message DWRoute213_Text_GotCalmShard
     WaitFanfare
+    WaitButton
     Message DWRoute213_Text_CyrusYouFixedItAnyway
     WaitButton
     CloseMessage

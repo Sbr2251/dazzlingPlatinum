@@ -22,6 +22,7 @@ Route205House_Rest:
     WaitFadeScreen
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     FadeScreenIn
     WaitFadeScreen
     Message Route205House_Text_PokemonLookRefreshed

@@ -22,6 +22,7 @@ GrandLakeRoute213Lobby_Policeman:
     WaitFadeScreen
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     FadeScreenIn
     WaitFadeScreen
     Message GrandLakeRoute213Lobby_Text_RestoredYourPokemon

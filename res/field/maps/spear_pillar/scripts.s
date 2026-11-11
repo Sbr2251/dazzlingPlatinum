@@ -182,6 +182,7 @@ SpearPillar_CoordEvent_MarsJupiter:
     Message SpearPillar_Text_IllHelpYou
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     Message SpearPillar_Text_FullyHealedPokemon
     Message SpearPillar_Text_ItsYourShowNow
     CloseMessage

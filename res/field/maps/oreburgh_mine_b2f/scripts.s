@@ -313,9 +313,9 @@ OreburghMineB2F_Arc1SealedTunnel:
     // Arc 1 r3 (hum): Ruth's reader (from the lab) is louder here than anywhere in town
     CheckItem ITEM_PORTAL_READER, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, OreburghMineB2F_Arc1SealedTunnelEnd
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
     Message OreburghMineB2F_Text_HumSealReaderBuzz
     WaitButton
@@ -360,9 +360,9 @@ OreburghMineB2F_HumCratesAsk:
     End
 
 OreburghMineB2F_HumCratesBuzz:
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
     Message OreburghMineB2F_Text_HumCratesBuzz
     GoTo OreburghMineB2F_HumCratesAsk
@@ -375,7 +375,7 @@ OreburghMineB2F_HumCratesNo:
 OreburghMineB2F_HumBuzzFaint:
     LockAll
     SetVar VAR_MAP_LOCAL_0x00, 2
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
     Message OreburghMineB2F_Text_HumBuzzFaint
     WaitButton
@@ -386,9 +386,9 @@ OreburghMineB2F_HumBuzzFaint:
 OreburghMineB2F_HumBuzzLoud:
     LockAll
     SetVar VAR_MAP_LOCAL_0x00, 3
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
     Message OreburghMineB2F_Text_HumBuzzLoud
     WaitButton
@@ -399,11 +399,11 @@ OreburghMineB2F_HumBuzzLoud:
 OreburghMineB2F_HumBuzzCrack:
     LockAll
     SetVar VAR_MAP_LOCAL_0x00, 4
-    PlaySE SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
-    GoTo SEQ_SE_DP_BEEP_sseq
+    PlayFanfare SEQ_SE_DP_BEEP_sseq
     WaitFanfare
     Message OreburghMineB2F_Text_HumBuzzCrack
     WaitButton

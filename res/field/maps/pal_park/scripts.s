@@ -57,6 +57,7 @@ PalPark_CoordEvent_CaughtAllPokemon:
     PlayMusic SEQ_SILENCE_FIELD_sseq_1
     PlayFanfare SEQ_FANFA4_sseq
     WaitFanfare
+    CloseMessage
     ReleaseAll
     SetVar VAR_PAL_PARK_STATE, 1
     Call PalPark_ClearFlagAndWarpOut

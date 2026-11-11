@@ -27,6 +27,7 @@ GalacticHQ2F_TakeARest:
     WaitFadeScreen
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     FadeScreenIn
     WaitFadeScreen
     BufferPlayerName 0

@@ -31,6 +31,7 @@ GrandLakeValorLakefrontWestHouse_ShowLocalDexDiploma:
     Message GrandLakeValorLakefrontWestHouse_Text_SeenEverySinnohPokemon
     PlayFanfare SEQ_FANFA4_sseq
     WaitFanfare
+    CloseMessage
     FadeScreenOut
     WaitFadeScreen
     ShowDiplomaSinnoh
@@ -47,6 +48,7 @@ GrandLakeValorLakefrontWestHouse_ShowNationalDexDiploma:
     Message GrandLakeValorLakefrontWestHouse_Text_ObtainedEveryPokemon
     PlayFanfare SEQ_FANFA4_sseq
     WaitFanfare
+    CloseMessage
     FadeScreenOut
     WaitFadeScreen
     ShowDiplomaNationalDex

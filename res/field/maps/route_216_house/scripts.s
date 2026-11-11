@@ -23,6 +23,7 @@ Route216House_HikerRest:
     WaitFadeScreen
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     FadeScreenIn
     WaitFadeScreen
     Message Route216House_Text_YourPokemonAreHealthy
@@ -59,6 +60,7 @@ Route216House_RestInBed:
     WaitFadeScreen
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     FadeScreenIn
     WaitFadeScreen
     BufferPlayerName 0

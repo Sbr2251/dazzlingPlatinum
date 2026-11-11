@@ -186,6 +186,7 @@ DWRavagedPath_Totem:
     PlayFanfare SEQ_SE_PL_KIRAKIRA_sseq
     Message DWRavagedPath_Text_GotCalmShard
     WaitFanfare
+    WaitButton
     CloseMessage
     // It bows and bounds off into the dark
     ApplyMovement LOCALID_TOTEM_CALM, DWRavagedPath_Movement_TotemBowAndGo

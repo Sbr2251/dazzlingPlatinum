@@ -98,6 +98,7 @@ DistortionWorldB7F_MeetGiratina:
     Message DistortionWorldB7F_Text_CynthiaFullyHealedPokemon
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    HealParty
     WaitMovement
     Message DistortionWorldB7F_Text_LetsGoMeetGiratina
     CloseMessage

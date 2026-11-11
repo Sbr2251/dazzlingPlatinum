@@ -83,6 +83,7 @@ CanalaveCitySailorEldritchHouse_BoyThrashingInSleep:
     Message CanalaveCitySailorEldritchHouse_Text_LittleBoyWokeUp
     PlayFanfare SEQ_ASA_sseq
     WaitFanfare
+    CloseMessage
     WaitTime 15, VAR_RESULT
     Call CanalaveCitySailorEldritchHouse_SailorEldritchEnter
     Message CanalaveCitySailorEldritchHouse_Text_YoureAwake

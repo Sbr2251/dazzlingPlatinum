@@ -28,7 +28,7 @@ StarkMountainRoom2_CoordEvent_BuckStartFollowing:
     PlayFanfare SEQ_GONIN_sseq
     Message StarkMountainRoom2_Text_DecidedToGoWithBuck
     WaitFanfare
-    GoTo FLAG_TALKED_TO_STARK_MOUNTAIN_ROOM_2_BUCK
+    SetFlag FLAG_TALKED_TO_STARK_MOUNTAIN_ROOM_2_BUCK
     SetVar VAR_STARK_MOUNTAIN_ROOM_2_FOLLOWER_BUCK_STATE, 1
     Message StarkMountainRoom2_Text_IllKeepPokemonHealthy
     WaitButton

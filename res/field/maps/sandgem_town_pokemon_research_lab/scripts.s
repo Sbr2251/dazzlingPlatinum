@@ -387,6 +387,7 @@ SandgemTownLab_ObtainPokedex:
     Message SandgemTownLab_Text_PlayerObtainedThePokedex
     PlayFanfare SEQ_FANFA4_sseq
     WaitFanfare
+    BufferPlayerName 0
     Message SandgemTownLab_Text_MeetEveryKindOfPokemon
     CloseMessage
     ApplyMovement LOCALID_COUNTERPART, SandgemTownLab_Movement_CounterpartWalkOnSpotWest3
