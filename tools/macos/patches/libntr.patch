@@ -116,10 +116,10 @@ index 285ed8d..d5a2519 100644
  
 diff --git a/include/simulator/sim_headless.h b/include/simulator/sim_headless.h
 new file mode 100644
-index 0000000..acc42a5
+index 0000000..0c83729
 --- /dev/null
 +++ b/include/simulator/sim_headless.h
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,56 @@
 +#pragma once
 +// Headless / lockstep test support for PC builds. See docs/headless_protocol.md in the game repo.
 +// All of it is off unless the SIM_* environment variables are set; the interactive app is unchanged.
@@ -162,6 +162,13 @@ index 0000000..acc42a5
 +
 +// Install best-effort SIGSEGV/SIGBUS/SIGABRT handlers (headless/control only).
 +void SIM_Headless_InstallCrashHandlers(void);
++
++// Watchdog soft-freeze check: the control layer calls WatchdogInput() when a
++// step/press/touch command arrives, and WatchdogSample(hash) about once a second
++// with a combined framebuffer+state hash. If inputs keep arriving but the hash
++// does not change for SIM_WATCHDOG_SEC, the watchdog dumps state and exits 124.
++void SIM_Headless_WatchdogInput(void);
++void SIM_Headless_WatchdogSample(unsigned long long hash);
 +
 +// Best-effort state dump for the watchdog / crashes: writes JSON-ish state to stderr.
 +void SIM_Headless_DumpState(const char *reason);
@@ -855,10 +862,10 @@ index 0000000..b2a430d
 +}
 diff --git a/libraries/sim/src/sim_headless_control.cpp b/libraries/sim/src/sim_headless_control.cpp
 new file mode 100644
-index 0000000..023f682
+index 0000000..085796b
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_control.cpp
-@@ -0,0 +1,229 @@
+@@ -0,0 +1,255 @@
 +// SIM_CONTROL=stdio lockstep protocol (docs/headless_protocol.md).
 +// The game does not advance until told to: this runs at the end of each rendered frame
 +// (from SIM_DebugFrame, before the swap) and blocks reading commands whenever no
@@ -866,9 +873,12 @@ index 0000000..023f682
 +// line of JSON on the real stdout (fd 1 is redirected to stderr in control mode).
 +#include "simulator/sim_headless.h"
 +#include "simulator/sim_helpers.hpp"
++#include <simulator/sim_opengl.h>
 +
 +#include <nitro/hw/X86/mmap_shared.h>
 +#include "simulator/simvariables.h"
++
++#include <chrono>
 +
 +#include <cstdio>
 +#include <cstdlib>
@@ -1004,6 +1014,7 @@ index 0000000..023f682
 +    if (!JsonString(line, "cmd", &cmd)) { ReplyError("missing cmd"); return false; }
 +
 +    if (cmd == "step" || cmd == "press" || cmd == "touch") {
++        SIM_Headless_WatchdogInput();
 +        long long frames = 1;
 +        JsonInt(line, "frames", &frames);
 +        if (frames < 0) frames = 0;
@@ -1071,8 +1082,30 @@ index 0000000..023f682
 +    return false;
 +}
 +
++// Once a second: hash a downsampled centre patch of the frame plus the state reply,
++// for the watchdog's soft-freeze check. Cheap: 48x32 readback, once a second.
++static void SampleForWatchdog(void) {
++    using namespace std::chrono;
++    static long long lastMs = 0;
++    long long now = duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
++    if (now - lastMs < 1000) return;
++    lastMs = now;
++    unsigned char px[48 * 32 * 4];
++    glReadBuffer(GL_BACK);
++    glPixelStorei(GL_PACK_ALIGNMENT, 1);
++    glReadPixels(112, 176, 48, 32, GL_RGBA, GL_UNSIGNED_BYTE, px);   // centre of the 512x768 frame
++    unsigned long long hash = 1469598103934665603ULL;
++    for (size_t i = 0; i < sizeof px; i += 16) { hash ^= px[i]; hash *= 1099511628211ULL; }
++    char state[4096];
++    state[0] = 0;
++    if (HeadlessGame_State) HeadlessGame_State("{\"cmd\":\"state\"}", state, sizeof state);
++    for (const char *p = state; *p; p++) { hash ^= (unsigned char)*p; hash *= 1099511628211ULL; }
++    SIM_Headless_WatchdogSample(hash);
++}
++
 +extern "C" void SIM_Headless_ControlFrame(void) {
 +    if (!SIM_Control_Enabled()) return;
++    SampleForWatchdog();
 +    if (s_budget > 0) {
 +        s_budget--;
 +        ApplyHeld();
@@ -1090,10 +1123,10 @@ index 0000000..023f682
 +}
 diff --git a/libraries/sim/src/sim_headless_watchdog.cpp b/libraries/sim/src/sim_headless_watchdog.cpp
 new file mode 100644
-index 0000000..25f9ce1
+index 0000000..7bfcd2e
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_watchdog.cpp
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,178 @@
 +// Assert / crash reporting and the watchdog (docs/headless_protocol.md, step 4).
 +// Headless: GF_ASSERT and fatal signals print file:line, message and a symbolized
 +// backtrace to stderr, then exit 134. The watchdog exits 124 with a state dump when
@@ -1125,6 +1158,26 @@ index 0000000..25f9ce1
 +static std::atomic<bool> s_armed{false};
 +static long long s_timeoutMs = 30000;
 +static bool s_started = false;
++
++static long long NowMs();
++
++// Soft-freeze check: combined framebuffer+state hash, sampled by the control layer.
++static std::atomic<unsigned long long> s_lastHash{0};
++static std::atomic<long long> s_lastHashChangeMs{0};
++static std::atomic<long long> s_lastInputMs{0};
++
++extern "C" void SIM_Headless_WatchdogInput(void) {
++    s_lastInputMs.store(NowMs());
++}
++
++extern "C" void SIM_Headless_WatchdogSample(unsigned long long hash) {
++    if (hash != s_lastHash.load()) {
++        s_lastHash.store(hash);
++        s_lastHashChangeMs.store(NowMs());
++    } else if (s_lastHashChangeMs.load() == 0) {
++        s_lastHashChangeMs.store(NowMs());
++    }
++}
 +
 +static long long NowMs() {
 +    using namespace std::chrono;
@@ -1179,6 +1232,18 @@ index 0000000..25f9ce1
 +            fprintf(stderr, "SIM watchdog: no frame completed for %lld ms (limit %lld ms)\n",
 +                    NowMs() - last, s_timeoutMs);
 +            SIM_Headless_DumpState("watchdog");
++            PrintBacktrace();
++            fflush(stderr);
++            _exit(124);
++        }
++        // Soft freeze: inputs are being sent, frames render, but screen+state never change.
++        long long lastInput = s_lastInputMs.load();
++        long long lastChange = s_lastHashChangeMs.load();
++        if (SIM_Control_Enabled() && lastInput > 0 && lastChange > 0 &&
++            lastInput > lastChange && NowMs() - lastChange > s_timeoutMs) {
++            fprintf(stderr, "SIM watchdog: screen and state frozen for %lld ms while inputs are being sent (limit %lld ms)\n",
++                    NowMs() - lastChange, s_timeoutMs);
++            SIM_Headless_DumpState("watchdog-soft-freeze");
 +            PrintBacktrace();
 +            fflush(stderr);
 +            _exit(124);

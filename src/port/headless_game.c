@@ -15,6 +15,9 @@
 #include "port/headless_game.h"
 
 #include "field/field_system.h"
+#include "field/field_system_sub2_t.h"
+#include "overlay005/land_data.h"
+#include "overlay005/map_name_popup.h"
 #include "field_map_change.h"
 #include "map_header_data.h"
 #include "map_object.h"
@@ -161,6 +164,10 @@ static void CmdWarp(const char *line, char *reply, size_t cap) {
     JsonLong(line, "x", &x); JsonLong(line, "z", &z);
     JsonStr(line, "dir", dirName, sizeof(dirName));
     const HeadlessName *d = Headless_Lookup(kHeadlessDirs, kHeadlessDirsCount, dirName);
+    // Hide the map-name popup first: its task outlives the field BgConfig during map
+    // teardown and would clear a window into freed memory (pre-existing race, hit when
+    // warping while the popup is up - exactly what a test runner does after loading).
+    if (fsys->unk_04 && fsys->unk_04->mapPopup) MapNamePopUp_Hide(fsys->unk_04->mapPopup);
     FieldTask_StartMapChangeFly(fsys, (enum MapHeaderID)m->id, -1, (int)x, (int)z, d ? d->id : DIR_SOUTH);
     snprintf(reply, cap, "{\"ok\":true}");
 }
@@ -239,6 +246,9 @@ static void CmdTalk(const char *line, char *reply, size_t cap) {
         if (TerrainCollisionManager_CheckCollision(fsys, px, pz)) continue;
         if (!MapHeaderData_IsPosFreeOfObjectEvents(fsys, (u16)px, (u16)pz)) continue;
         PlayerAvatar_SetPosDirFromCoords(fsys->playerAvatar, px, pz, face[d]);
+        // Resync the map lazy loader's tracked position with the teleported player,
+        // or its next tick asserts on a diagonal "move" (land_data.c).
+        if (fsys->landDataMan) LandDataManager_TrackTarget(PlayerAvatar_GetPos(fsys->playerAvatar), fsys->landDataMan);
         sInjectMask = 1u << 0;   // A
         sInjectFrames = 2;
         snprintf(reply, cap, "{\"ok\":true}");
