@@ -370,10 +370,10 @@ index b652bd5..f816f23 100644
      }
 diff --git a/libraries/sim/src/shaders/g2gpu_fragment.glsl b/libraries/sim/src/shaders/g2gpu_fragment.glsl
 new file mode 100644
-index 0000000..1203f83
+index 0000000..999904e
 --- /dev/null
 +++ b/libraries/sim/src/shaders/g2gpu_fragment.glsl
-@@ -0,0 +1,289 @@
+@@ -0,0 +1,275 @@
 +R""(
 +#version 420 core
 +// GPU 2D layer renderer (perf-g2gpu). One pass renders one layer (a BG, an
@@ -400,6 +400,8 @@ index 0000000..1203f83
 +uniform int extPlttBase;        // byte offset into lcdcTex for BG ext palettes
 +uniform int win0h; uniform int win0v; uniform int winin; uniform int winout;
 +uniform int dbgEnable;          // GUI debug enable for this layer
++uniform int objList[128];       // candidate sprite indices for this pass (ascending)
++uniform int objCount;
 +out vec4 outColor;
 +
 +uint bgByte(int a) { a &= isSub == 1 ? 0x1FFFF : 0x7FFFF; return texelFetch(bgVramTex, ivec2(a & 2047, a >> 11), 0).r; }
@@ -624,15 +626,8 @@ index 0000000..1203f83
 +    return vec4(palColor(palRow, palByte), 1.0);
 +}
 +vec4 renderOBJ(int px, int py, bool wantWindow) {
-+    for (int i = 0; i < 128; i++) {
-+        uint a2 = oamWord(i * 4 + 2);
-+        if (int((a2 >> 10) & 3u) != layer && !wantWindow) continue;
-+        if (wantWindow) {
-+            uint a0 = oamWord(i * 4);
-+            if (((a0 >> 10) & 3u) != 2u) continue;
-+            if (int((a2 >> 10) & 3u) != layer) continue;
-+        }
-+        vec4 s = sampleSprite(i, px, py, wantWindow);
++    for (int i = 0; i < objCount; i++) {
++        vec4 s = sampleSprite(objList[i], px, py, wantWindow);
 +        if (s.a > 0.5) return s.a > 1.5 ? vec4(0.0) : s;
 +    }
 +    return vec4(0.0);
@@ -651,16 +646,7 @@ index 0000000..1203f83
 +        else if (kind == 2) outColor = renderAffineBG(px, py, true);
 +        else outColor = vec4(0.0);
 +    } else if (passMode == 1) outColor = renderOBJ(px, py, false);
-+    else {
-+        vec4 w = vec4(0.0);
-+        for (int p = 0; p < 4; p++) { /* window mask spans all priorities: emulate per-prio calls */ }
-+        // OBJ window: any window sprite at any priority (CPU accumulates across the 4 prio passes)
-+        outColor = vec4(0.0);
-+        for (int i = 0; i < 128; i++) {
-+            vec4 s = sampleSprite(i, px, py, true);
-+            if (s.a > 0.5) { outColor = vec4(1.0); break; }
-+        }
-+    }
++    else outColor = renderOBJ(px, py, true); // window sprites, any priority (objList = window list)
 +}
 +)""
 diff --git a/libraries/sim/src/shaders/g2gpu_vertex.glsl b/libraries/sim/src/shaders/g2gpu_vertex.glsl
@@ -733,10 +719,10 @@ index b67717b..cca40ac 100644
          }
 diff --git a/libraries/sim/src/sim_g2_gpu.cpp b/libraries/sim/src/sim_g2_gpu.cpp
 new file mode 100644
-index 0000000..0c9e965
+index 0000000..6244a9f
 --- /dev/null
 +++ b/libraries/sim/src/sim_g2_gpu.cpp
-@@ -0,0 +1,261 @@
+@@ -0,0 +1,288 @@
 +// GPU 2D layer renderer (perf-g2gpu).
 +//
 +// Renders each BG layer, each OBJ priority layer and the OBJ window mask
@@ -777,7 +763,7 @@ index 0000000..0c9e965
 +;
 +
 +static GLuint sProg = 0, sFbo = 0, sVao = 0;
-+static GLuint sBgVramTex = 0, sObjVramTex = 0, sLcdcTex = 0, sOamTex = 0, sPalTex = 0;
++static GLuint sBgVramTex[2] = {0, 0}, sObjVramTex[2] = {0, 0}, sLcdcTex = 0, sOamTex = 0, sPalTex = 0;
 +static int sInitFailed = 0;
 +static int sLoggedFallback = 0;
 +
@@ -842,8 +828,10 @@ index 0000000..0c9e965
 +    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 +    glTexImage2D(GL_TEXTURE_2D, 0, internal, w, h, 0, fmt, GL_UNSIGNED_BYTE, nullptr);
 +  };
-+  mkTex(sBgVramTex, GL_R8UI, 2048, 256, GL_RED_INTEGER);
-+  mkTex(sObjVramTex, GL_R8UI, 1024, 256, GL_RED_INTEGER);
++  mkTex(sBgVramTex[0], GL_R8UI, 2048, 256, GL_RED_INTEGER);
++  mkTex(sBgVramTex[1], GL_R8UI, 2048, 256, GL_RED_INTEGER);
++  mkTex(sObjVramTex[0], GL_R8UI, 1024, 256, GL_RED_INTEGER);
++  mkTex(sObjVramTex[1], GL_R8UI, 1024, 256, GL_RED_INTEGER);
 +  mkTex(sLcdcTex, GL_R8UI, 2048, 328, GL_RED_INTEGER);
 +  glGenTextures(1, &sOamTex);
 +  glBindTexture(GL_TEXTURE_2D, sOamTex);
@@ -895,20 +883,26 @@ index 0000000..0c9e965
 +    return FALSE;
 +  }
 +
-+  // Upload data textures for this engine (full upload each frame; the
-+  // buffers are at most 512 KB and this keeps the logic simple. Changed-
-+  // range tracking is a follow-up optimisation.)
-+  glActiveTexture(GL_TEXTURE10);
-+  glBindTexture(GL_TEXTURE_2D, sBgVramTex);
-+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 2048, isSub ? 64 : 256, GL_RED_INTEGER, GL_UNSIGNED_BYTE,
-+                  isSub ? (void *)s_HW_DB_BG_VRAM : (void *)s_HW_BG_VRAM);
-+  glActiveTexture(GL_TEXTURE11);
-+  glBindTexture(GL_TEXTURE_2D, sObjVramTex);
-+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, isSub ? 128 : 256, GL_RED_INTEGER, GL_UNSIGNED_BYTE,
-+                  isSub ? (void *)s_HW_DB_OBJ_VRAM : (void *)s_HW_OBJ_VRAM);
-+  glActiveTexture(GL_TEXTURE12);
-+  glBindTexture(GL_TEXTURE_2D, sLcdcTex);
-+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 2048, 328, GL_RED_INTEGER, GL_UNSIGNED_BYTE, (void *)s_HW_LCDC_VRAM);
++  // Upload data textures for this engine. A shadow copy is kept per
++  // buffer and the upload is skipped when nothing changed (most screens
++  // reuse VRAM for many frames); the LCDC extended palettes are only
++  // uploaded when this engine has extended palettes enabled.
++  static u8 sShadowBg[2][0x80000], sShadowObj[2][0x40000], sShadowLcdc[0xA4000];
++  static bool sShadowBgValid[2] = {false, false}, sShadowObjValid[2] = {false, false}, sShadowLcdcValid = false;
++  auto uploadIfChanged = [](GLuint tex, int unit, int w, int h, const void *data, size_t size, u8 *shadow, bool *valid) {
++    glActiveTexture(GL_TEXTURE0 + unit);
++    glBindTexture(GL_TEXTURE_2D, tex);
++    if (*valid && memcmp(shadow, data, size) == 0) return;
++    memcpy(shadow, data, size);
++    *valid = true;
++    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RED_INTEGER, GL_UNSIGNED_BYTE, data);
++  };
++  uploadIfChanged(sBgVramTex[isSub], 10, 2048, isSub ? 64 : 256, isSub ? (void *)s_HW_DB_BG_VRAM : (void *)s_HW_BG_VRAM,
++                  isSub ? 0x20000 : 0x80000, sShadowBg[isSub], &sShadowBgValid[isSub]);
++  uploadIfChanged(sObjVramTex[isSub], 11, 1024, isSub ? 128 : 256, isSub ? (void *)s_HW_DB_OBJ_VRAM : (void *)s_HW_OBJ_VRAM,
++                  isSub ? 0x20000 : 0x40000, sShadowObj[isSub], &sShadowObjValid[isSub]);
++  if (dispcnt & 0x40000000)
++    uploadIfChanged(sLcdcTex, 12, 2048, 328, (void *)s_HW_LCDC_VRAM, 0xA4000, sShadowLcdc, &sShadowLcdcValid);
 +  glActiveTexture(GL_TEXTURE13);
 +  glBindTexture(GL_TEXTURE_2D, sOamTex);
 +  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, isSub ? 1 : 0, 512, 1, GL_RED_INTEGER, GL_UNSIGNED_SHORT,
@@ -942,6 +936,8 @@ index 0000000..0c9e965
 +
 +  GLint prevProg = 0;
 +  glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
++  GLint prevViewport[4] = {0};
++  glGetIntegerv(GL_VIEWPORT, prevViewport);
 +  glUseProgram(sProg);
 +  glBindVertexArray(sVao);
 +  glBindFramebuffer(GL_FRAMEBUFFER, sFbo);
@@ -990,10 +986,27 @@ index 0000000..0c9e965
 +    drawPass(bgTexIds[i], 0, i, render ? 1 : 0);
 +  }
 +  int objEnabled = (dispcnt & 0x1000) && (isSub ? s_SIM_DBG_OAMSenable : s_SIM_DBG_OAMenable);
-+  for (int p = 0; p < 4; p++) drawPass(objTexIds[p], 1, p, objEnabled ? 1 : 0);
-+  drawPass(objWindowTexId, 2, 0, objEnabled ? 1 : 0);
++  // Candidate sprite lists per priority (ascending OAM index, matching
++  // the CPU's lowest-index-wins result), plus the OBJ window list.
++  const u16 *oam = (const u16 *)(isSub ? s_HW_DB_OAM : s_HW_OAM);
++  GLint lists[5][128];
++  int counts[5] = {0, 0, 0, 0, 0};
++  for (int i = 0; i < 128; i++) {
++    u16 a0 = oam[i * 4], a2 = oam[i * 4 + 2];
++    if (((a0 >> 10) & 3) == 2) { lists[4][counts[4]++] = i; continue; }
++    lists[(a2 >> 10) & 3][counts[(a2 >> 10) & 3]++] = i;
++  }
++  auto drawObjPass = [&](GLuint target, int mode, int layer, int listIdx) {
++    if (!objEnabled || counts[listIdx] == 0) { drawPass(target, mode, layer, 0); return; } // clear only
++    glUniform1iv(glGetUniformLocation(sProg, "objList"), counts[listIdx], lists[listIdx]);
++    glUniform1i(glGetUniformLocation(sProg, "objCount"), counts[listIdx]);
++    drawPass(target, mode, layer, 1);
++  };
++  for (int p = 0; p < 4; p++) drawObjPass(objTexIds[p], 1, p, p);
++  drawObjPass(objWindowTexId, 2, 0, 4);
 +
 +  glBindFramebuffer(GL_FRAMEBUFFER, 0);
++  glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
 +  glEnable(GL_BLEND);
 +  glUseProgram(prevProg);
 +  return TRUE;
@@ -1485,7 +1498,7 @@ index 0000000..74d53a8
 +
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..a5ad464 100644
+index 910d7da..5f161b1 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -1521,7 +1534,28 @@ index 910d7da..a5ad464 100644
  #include "git_info.h"
  
  // Simulator configuration
-@@ -178,6 +188,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -96,6 +106,20 @@ static struct timespec s_SIM_lastFrameEnd;
+ static u64 sRenderFrameTime;
+ static u64 sFullFrameTime;
+ 
++// SIM_PROFILE=1: in-process section timing (off by default), printed at exit.
++static int sProfile = -1;
++static u64 sProfG2DrawNs, sProfCompNs, sProfG3Ns, sProfRenderNs;
++static u32 sProfEngines;
++static u64 ProfNowNs() { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (u64)t.tv_sec * 1000000000ull + (u64)t.tv_nsec; }
++static bool ProfOn() { if (sProfile < 0) sProfile = getenv("SIM_PROFILE") ? 1 : 0; return sProfile == 1; }
++static void ProfPrint() {
++  if (!ProfOn() || !sProfEngines) return;
++  double n = (double)sProfEngines;
++  printf("SIM_PROFILE: engines=%u g2draw=%.3fms composite=%.3fms (per engine) g3flush+render=%.3fms per frame\n",
++         sProfEngines, sProfG2DrawNs / n / 1e6, sProfCompNs / n / 1e6, sProfRenderNs / (n / 2.0) / 1e6);
++  fflush(stdout);
++}
++
+ static constexpr auto SteamDeckWidth = 1280;
+ static constexpr auto SteamDeckHeight = 800;
+ 
+@@ -178,6 +202,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -1532,7 +1566,7 @@ index 910d7da..a5ad464 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -298,6 +312,16 @@ void SIM_SetInternalResolution(int internalRes) {
+@@ -298,6 +326,16 @@ void SIM_SetInternalResolution(int internalRes) {
        SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
  }
  
@@ -1549,7 +1583,7 @@ index 910d7da..a5ad464 100644
  static bool sChangeInternalResAfterRender = false;
  static int sPendingInternalRes = 1;
  
-@@ -315,7 +339,13 @@ void *SIM_RenderInit(void *arg) {
+@@ -315,7 +353,13 @@ void *SIM_RenderInit(void *arg) {
    SIM_Audio_Init(44100);
  
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -1563,7 +1597,7 @@ index 910d7da..a5ad464 100644
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-@@ -401,8 +431,10 @@ void *SIM_RenderInit(void *arg) {
+@@ -401,8 +445,10 @@ void *SIM_RenderInit(void *arg) {
    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -1574,7 +1608,7 @@ index 910d7da..a5ad464 100644
  
    GLenum glErrCode;
    GLint status;
-@@ -453,8 +485,14 @@ void *SIM_RenderInit(void *arg) {
+@@ -453,8 +499,14 @@ void *SIM_RenderInit(void *arg) {
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
                 GL_UNSIGNED_BYTE, NULL);
  
@@ -1590,7 +1624,15 @@ index 910d7da..a5ad464 100644
    glCompileShader(_id);                                                        \
    glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
    if (status != GL_TRUE) {                                                     \
-@@ -610,7 +648,8 @@ static void DrawEngine(BOOL isSub) {
+@@ -567,6 +619,7 @@ void *SIM_RenderInit(void *arg) {
+ }
+ 
+ static void DrawEngine(BOOL isSub) {
++  u64 profT0 = ProfOn() ? ProfNowNs() : 0;
+   const char *zoneName;
+   zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
+ #ifdef SDK_TRACY_ENABLE
+@@ -610,7 +663,8 @@ static void DrawEngine(BOOL isSub) {
    backdropVec[2] = (float)backdropB / 255.0f;
    backdropVec[3] = 1.0f;
  
@@ -1600,7 +1642,7 @@ index 910d7da..a5ad464 100644
                 backdropVec);
  
    glProgramUniform4f(g2shaderProgramID,
-@@ -669,7 +708,12 @@ static void DrawEngine(BOOL isSub) {
+@@ -669,7 +723,12 @@ static void DrawEngine(BOOL isSub) {
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
  
@@ -1613,11 +1655,12 @@ index 910d7da..a5ad464 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -772,6 +816,18 @@ static void DrawEngine(BOOL isSub) {
+@@ -772,6 +831,19 @@ static void DrawEngine(BOOL isSub) {
                      SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
                      (void *)oamPixelBuf);
    }
 +  } // !gpuLayers
++  u64 profT1 = ProfOn() ? ProfNowNs() : 0;
 +
 +  if (gpuLayers) {
 +    for (int i = 0; i < 4; i++) {
@@ -1632,7 +1675,7 @@ index 910d7da..a5ad464 100644
  
    glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
  
-@@ -789,9 +845,10 @@ static void DrawEngine(BOOL isSub) {
+@@ -789,9 +861,10 @@ static void DrawEngine(BOOL isSub) {
    glActiveTexture(GL_TEXTURE0 + s_objWindowTexUnit);
    glBindTexture(GL_TEXTURE_2D, objWindowTextureId);
    u8 *objWindowBuf = isSub ? objWindowsTex : objWindowTex;
@@ -1646,7 +1689,15 @@ index 910d7da..a5ad464 100644
    glProgramUniform1i(
        g2shaderProgramID,
        glGetUniformLocation(g2shaderProgramID, "objWindowTexture"),
-@@ -950,6 +1007,142 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -859,6 +932,7 @@ static void DrawEngine(BOOL isSub) {
+     glActiveTexture(GL_TEXTURE0 + s_objTexUnits[0]);
+     glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
+   }
++  if (profT0) { u64 t2 = ProfNowNs(); sProfG2DrawNs += profT1 - profT0; sProfCompNs += t2 - profT1; sProfEngines++; }
+ #ifdef SDK_TRACY_ENABLE
+   TracyCZoneEnd(ctx);
+ #endif
+@@ -950,7 +1024,145 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -1783,13 +1834,16 @@ index 910d7da..a5ad464 100644
 +  }
 +  if (exitFrame && frame >= exitFrame) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
 +    if (frame > 100) printf("SIM_DEBUG_EXIT_FRAME: %.1f fps since frame 100\n", (frame - 100) / ((t.tv_sec - t100.tv_sec) + (t.tv_nsec - t100.tv_nsec) / 1e9));
-+    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); fflush(stdout); _exit(0); }
++    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); ProfPrint(); fflush(stdout); _exit(0); }
 +}
 +
  void *SIM_Render(void *arg) {
++  u64 profRenderT0 = ProfOn() ? ProfNowNs() : 0;
++  (void)profRenderT0;
  
    SDL_Event Event;
-@@ -1073,9 +1266,14 @@ void *SIM_Render(void *arg) {
+   char c;
+@@ -1073,9 +1285,14 @@ void *SIM_Render(void *arg) {
        s_SIM_SDLJoystick = SDL_JoystickOpen(0);
      }
  
@@ -1804,7 +1858,7 @@ index 910d7da..a5ad464 100644
        if (Event.type == SDL_WINDOWEVENT) {
          switch (Event.window.event) {
          case SDL_WINDOWEVENT_CLOSE:
-@@ -1083,6 +1281,18 @@ void *SIM_Render(void *arg) {
+@@ -1083,6 +1300,18 @@ void *SIM_Render(void *arg) {
            break;
          }
        }
@@ -1823,7 +1877,7 @@ index 910d7da..a5ad464 100644
        if (Event.type == SDL_KEYDOWN) {
          int keyRead = Event.key.keysym.sym;
          if (keyRead == s_SIM_config.padSettings.aKey) {
-@@ -1261,7 +1471,9 @@ void *SIM_Render(void *arg) {
+@@ -1261,7 +1490,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -1834,7 +1888,7 @@ index 910d7da..a5ad464 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1328,18 +1540,29 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +1559,29 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -1873,7 +1927,7 @@ index 910d7da..a5ad464 100644
      SDL_GL_SwapWindow(window);
  
      if(sChangeInternalResAfterRender) {
-@@ -1369,6 +1592,12 @@ void *SIM_Render(void *arg) {
+@@ -1369,6 +1611,12 @@ void *SIM_Render(void *arg) {
      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
      glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -1886,7 +1940,12 @@ index 910d7da..a5ad464 100644
    } while (SIM::GUI::IsGameLogicPaused());
    // Bind 3D Framebuffer & Renderbuffer
    glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
-@@ -1398,6 +1627,12 @@ void *SIM_Render(void *arg) {
+@@ -1394,10 +1642,17 @@ void *SIM_Render(void *arg) {
+   glCullFace(GL_FRONT);
+   glFrontFace(GL_CW);
+ 
++  if (profRenderT0) sProfRenderNs += ProfNowNs() - profRenderT0;
+   return nullptr;
  }
  
  // Get the rendering time in nanoseconds
