@@ -8,39 +8,448 @@
   },
   "steps": [
     {
-      "wait_until": {
-        "app": "field"
-      },
-      "timeout_frames": 1200
+      "step": 900
     },
     {
-      "press": "LEFT",
-      "frames": 120
-    },
-    {
-      "press": "RIGHT",
-      "frames": 120
-    },
-    {
-      "wait_until": {
-        "in_battle": true
-      },
-      "timeout_frames": 1800
-    },
-    {
-      "press": "B",
+      "press": "A",
       "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "warp": {
+        "map": "MAP_HEADER_ROUTE_201",
+        "x": 125,
+        "z": 850,
+        "dir": "DIR_EAST"
+      }
     },
     {
       "step": 300
     },
     {
+      "press": "DOWN",
+      "frames": 30
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "wait_until": {
+        "app": "battle"
+      },
+      "timeout_frames": 1200
+    },
+    {
+      "wait_until": {
+        "path": "battle.waiting",
+        "op": "eq",
+        "value": true
+      },
+      "timeout_frames": 3600
+    },
+    {
+      "press": "DOWN",
+      "frames": 10
+    },
+    {
+      "press": "RIGHT",
+      "frames": 10
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
       "wait_until": {
         "app": "field"
       },
-      "timeout_frames": 1800
+      "timeout_frames": 3600
     }
   ],
   "name": "core_wild_battle_start_flee",
-  "pending_step3": "needs step-3 battle state (in_battle, action menu) and warp"
+  "assertions": [
+    {
+      "app": "field"
+    },
+    {
+      "in_battle": false
+    }
+  ]
 }

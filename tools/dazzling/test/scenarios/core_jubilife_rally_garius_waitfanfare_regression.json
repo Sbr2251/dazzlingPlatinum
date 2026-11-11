@@ -8,173 +8,255 @@
   },
   "steps": [
     {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "talk": "LOCALID_ARC1_GARIUS"
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
       "wait_until": {
-        "app": "field"
+        "script": null
       },
-      "timeout_frames": 1200
-    },
-    {
-      "press": "UP",
-      "frames": 30
-    },
-    {
-      "step": 300
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "wait_until": {
-        "app": "field"
-      },
-      "timeout_frames": 1800
-    },
-    {
-      "step": 60
+      "timeout_frames": 3600
     }
   ],
   "assertions": [
     {
       "player.map": "MAP_HEADER_JUBILIFE_CITY"
+    },
+    {
+      "app": "field"
+    },
+    {
+      "script": null
     }
   ],
-  "name": "core_jubilife_rally_garius_waitfanfare_regression",
-  "pending_step3": "needs step-3 talk/state (script, message_waiting, map) to trigger and verify the rally"
+  "name": "core_jubilife_rally_garius_waitfanfare_regression"
 }

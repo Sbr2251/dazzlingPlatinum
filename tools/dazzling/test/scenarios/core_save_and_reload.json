@@ -15,18 +15,56 @@
       "frames": 10
     },
     {
-      "step": 300
+      "step": 290
     },
     {
       "press": "A",
       "frames": 10
     },
     {
-      "step": 300
+      "step": 290
     },
     {
       "press": "A",
       "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
     },
     {
       "step": 600
@@ -46,18 +84,56 @@
       "frames": 10
     },
     {
-      "step": 300
+      "step": 290
     },
     {
       "press": "A",
       "frames": 10
     },
     {
-      "step": 300
+      "step": 290
     },
     {
       "press": "A",
       "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
     },
     {
       "step": 600
@@ -65,15 +141,8 @@
   ],
   "assertions": [
     {
-      "path": "frame",
-      "op": "gt",
-      "value": 0
-    }
-  ],
-  "name": "core_save_and_reload",
-  "pending_step3_assertions": [
-    {
       "player.map": "MAP_HEADER_TWINLEAF_TOWN"
     }
-  ]
+  ],
+  "name": "core_save_and_reload"
 }

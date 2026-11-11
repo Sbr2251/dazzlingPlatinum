@@ -8,139 +8,204 @@
   },
   "steps": [
     {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "talk": "LOCALID_VEILSTONE_NURSE"
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
       "wait_until": {
-        "app": "field"
+        "script": null
       },
-      "timeout_frames": 1200
-    },
-    {
-      "press": "UP",
-      "frames": 20
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
-    },
-    {
-      "wait_until": {
-        "app": "field"
-      },
-      "timeout_frames": 1800
+      "timeout_frames": 3600
     }
   ],
   "assertions": [
     {
       "player.map": "MAP_HEADER_VEILSTONE_CITY_POKECENTER_1F"
+    },
+    {
+      "app": "field"
+    },
+    {
+      "script": null
+    },
+    {
+      "path": "party.0.hp",
+      "op": "ge",
+      "value": 1
     }
   ],
-  "name": "core_pokemon_center_heal_waitfanfare",
-  "pending_step3": "needs step-3 talk + party state to verify HealParty after WaitFanfare"
+  "name": "core_pokemon_center_heal_waitfanfare"
 }

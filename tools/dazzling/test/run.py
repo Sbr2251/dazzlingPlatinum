@@ -187,16 +187,24 @@ class GameClient:
             req.update(extra)
         reply = self.cmd(req)
         st = reply.get("state", reply) if isinstance(reply, dict) else {}
-        if isinstance(st, dict) and "player" not in st:
-            player = {}
-            for src, dst in (("map", "map"), ("map_header", "map"), ("map_name", "map"),
-                             ("x", "x"), ("z", "z"), ("dir", "dir")):
-                if src in st:
-                    player[dst] = st[src]
+        if isinstance(st, dict):
+            st = dict(st)
+            if "app" not in st and "application" in st:
+                st["app"] = st["application"]
+            # Step-3 state: map is top level, player has x/z/dir, battle is
+            # {"waiting":..., "battlers":[...]}. Normalize to the scenario
+            # paths (player.map, in_battle) documented in README.md.
+            player = dict(st.get("player") or {})
+            for key in ("map", "map_header", "map_name"):
+                if key in st:
+                    player.setdefault("map", st[key])
+            for key in ("x", "z", "dir"):
+                if key in st and key not in player:
+                    player[key] = st[key]
             if player:
-                st = dict(st, player=player)
-        if isinstance(st, dict) and "app" not in st and "application" in st:
-            st = dict(st, app=st["application"])
+                st["player"] = player
+            if "in_battle" not in st:
+                st["in_battle"] = st.get("app") == "battle" or "battle" in st
         self.last_state = st
         return st
 
@@ -234,6 +242,8 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
     scen_dir = os.path.dirname(os.path.abspath(path))
     if sc.get("pending_step3"):
         return name, True, f"SKIP (pending step 3: {sc['pending_step3']})", None
+    if sc.get("known_issue"):
+        return name, True, f"SKIP (known issue: {sc['known_issue']})", None
     for req in sc.get("requires_exists") or []:
         rp = os.path.expanduser(req)
         if not os.path.isabs(rp):
@@ -360,6 +370,10 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
     except ScenarioFailure as e:
         return name, False, (f"FAIL step {e.step_idx}: {json.dumps(e.step)}\n  {e.message}\n"
                              f"  state: {json.dumps(e.state)[:600]}\n  last screenshot: {e.screenshot}\n"
+                             f"  workdir: {client.dir} (stderr + coverage there)"), client
+    except Exception as e:
+        return name, False, (f"FAIL (runner/start): {e}\n  state: {json.dumps(client.last_state)[:600]}\n"
+                             f"  last screenshot: {client.last_screenshot}\n"
                              f"  workdir: {client.dir} (stderr + coverage there)"), client
 
 def main(argv=None):

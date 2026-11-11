@@ -2,103 +2,572 @@
   "_note": "New Game -> prologue. Exact touch/name inputs need tuning against the real headless build (debug-headless); structure + end state are the contract: field in/after the Distortion World intro stretch. Presses advance dialogue generically.",
   "steps": [
     {
-      "wait_until": {
-        "app": "title"
-      },
-      "timeout_frames": 600
+      "step": 900
     },
     {
       "press": "A",
-      "frames": 2
+      "frames": 10
     },
     {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
+      "step": 290
     },
     {
       "press": "A",
-      "frames": 2
+      "frames": 10
     },
     {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
+      "step": 290
     },
     {
       "press": "A",
-      "frames": 2
+      "frames": 10
     },
     {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
+      "step": 290
     },
     {
       "press": "A",
-      "frames": 2
+      "frames": 10
     },
     {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
+      "step": 290
     },
     {
       "press": "A",
-      "frames": 2
+      "frames": 10
     },
     {
-      "step": 60
-    },
-    {
-      "press": "A",
-      "frames": 2
-    },
-    {
-      "step": 60
+      "step": 290
     },
     {
       "press": "A",
-      "frames": 2
+      "frames": 10
     },
     {
-      "step": 60
+      "step": 290
     },
     {
       "press": "A",
-      "frames": 2
+      "frames": 10
     },
     {
-      "step": 60
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 240
     },
     {
       "wait_until": {
         "app": "field"
       },
-      "timeout_frames": 3600
-    },
-    {
-      "step": 120
+      "timeout_frames": 7200
     }
   ],
   "assertions": [
@@ -107,5 +576,5 @@
     }
   ],
   "name": "core_new_game_distortion_world_prologue",
-  "pending_step3": "needs step-3 field/app state to confirm the prologue end state (inputs are primitives, assertions are not)"
+  "known_issue": "game crash in the Distortion World prologue: distortion_world_giratina_room/scripts.s calls StartDistortionWorldGiratinaShadowEvent 1 and 2 (arc1_seams/dw_lost_tower use 3), but src/overlay009/ov9_02249960.c sGiratinaShadowExternal has GIRATINA_SHADOW_EXTERNAL_COUNT 1 (index 0 only, for vanilla DW 1F). GF_ASSERT eventIndex < COUNT fires at frame ~11069 in MAP_HEADER_DISTORTION_WORLD_GIRATINA_ROOM, script id 9 offset 800, exit 134. Needs template data / index mapping from the game team; scenario steps below reach that point."
 }
