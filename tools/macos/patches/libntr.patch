@@ -1278,7 +1278,7 @@ index 4282214..3a340d6 100644
      timeinfo = localtime( &currentTime );
 diff --git a/libraries/sim/include/sim_g2_gpu.h b/libraries/sim/include/sim_g2_gpu.h
 new file mode 100644
-index 0000000..cef4eb5
+index 0000000..542109f
 --- /dev/null
 +++ b/libraries/sim/include/sim_g2_gpu.h
 @@ -0,0 +1,18 @@
@@ -1292,7 +1292,7 @@ index 0000000..cef4eb5
 +// (s_bgTextureId / s_objTextureId / objWindowTextureId), after which the
 +// existing g2_fragment.glsl compositing runs unchanged.
 +//
-+// Enabled with SIM_G2_GPU=1 (unset or 0 = CPU reference path in sim_g2.cpp).
++// GPU path is the default; SIM_G2_GPU=0 forces the CPU reference path in sim_g2.cpp.
 +// Returns FALSE when the GPU path is disabled or the engine uses a feature
 +// the GPU path does not replicate (extended direct-color bitmap, mode 6);
 +// the caller then runs the CPU path for that engine.
@@ -1909,16 +1909,16 @@ index b67717b..cca40ac 100644
          }
 diff --git a/libraries/sim/src/sim_g2_gpu.cpp b/libraries/sim/src/sim_g2_gpu.cpp
 new file mode 100644
-index 0000000..6244a9f
+index 0000000..b621b4f
 --- /dev/null
 +++ b/libraries/sim/src/sim_g2_gpu.cpp
-@@ -0,0 +1,288 @@
+@@ -0,0 +1,308 @@
 +// GPU 2D layer renderer (perf-g2gpu).
 +//
 +// Renders each BG layer, each OBJ priority layer and the OBJ window mask
 +// directly from VRAM / palette / OAM data textures into the layer textures
 +// the existing g2_fragment.glsl compositing already samples. The CPU path
-+// in sim_g2.cpp stays as the reference and fallback (SIM_G2_GPU unset/0).
++// in sim_g2.cpp stays as the reference and fallback (SIM_G2_GPU=0).
 +//
 +// Replicated CPU quirks (for pixel-exactness against the reference):
 +// mosaic has no effect, text BG windows consult only WIN0, affine/extended
@@ -2058,7 +2058,10 @@ index 0000000..6244a9f
 +
 +BOOL G2GPU_RenderLayers(BOOL isSub, GLuint *bgTexIds, GLuint *objTexIds, GLuint objWindowTexId) {
 +  static int enabled = -1;
-+  if (enabled < 0) enabled = (getenv("SIM_G2_GPU") && atoi(getenv("SIM_G2_GPU"))) ? 1 : 0;
++  if (enabled < 0) {
++    const char *e = getenv("SIM_G2_GPU");
++    enabled = (!e || atoi(e)) ? 1 : 0; // GPU is the default; SIM_G2_GPU=0 forces the CPU path
++  }
 +  if (!enabled) return FALSE;
 +  if (!Init()) return FALSE;
 +
@@ -2071,6 +2074,18 @@ index 0000000..6244a9f
 +  if (EngineFallback(isSub, bgMode, cnt, bgEnabled, bg0as3d)) {
 +    if (!sLoggedFallback) { sLoggedFallback = 1; printf("SIM_G2_GPU: unsupported feature this engine, CPU fallback\n"); }
 +    return FALSE;
++  }
++
++  // Save texture bindings on the data units (10-14) and the active unit:
++  // the 3D renderer's state cache tracks bindings, so leave them as found.
++  GLint prevActiveTex = 0;
++  glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTex);
++  GLuint savedBind[5] = {0, 0, 0, 0, 0};
++  for (int i = 0; i < 5; i++) {
++    glActiveTexture(GL_TEXTURE10 + i);
++    GLint b = 0;
++    glGetIntegerv(GL_TEXTURE_BINDING_2D, &b);
++    savedBind[i] = (GLuint)b;
 +  }
 +
 +  // Upload data textures for this engine. A shadow copy is kept per
@@ -2197,6 +2212,11 @@ index 0000000..6244a9f
 +
 +  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 +  glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
++  for (int i = 0; i < 5; i++) {
++    glActiveTexture(GL_TEXTURE10 + i);
++    glBindTexture(GL_TEXTURE_2D, savedBind[i]);
++  }
++  glActiveTexture(prevActiveTex);
 +  glEnable(GL_BLEND);
 +  glUseProgram(prevProg);
 +  return TRUE;
