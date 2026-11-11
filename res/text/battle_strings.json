@@ -8528,8 +8528,15 @@
     {
       "id": "BattleStrings_Text_TotemAuraFlared",
       "en_US": [
-        "Totem {STRVAR_1 1, 0, 0}'s aura\n",
-        "flared to life! Its stats rose!"
+        "Totem {STRVAR_1 1, 0, 0}'s aura flared to life!\n",
+        "ATTACK DEFENSE SPEED SP.ATK SP.DEF rose!"
+      ]
+    },
+    {
+      "id": "BattleStrings_Text_TotemAuraFlaredBoosted",
+      "en_US": [
+        "Totem {STRVAR_1 1, 0, 0}'s aura flared to life!\n",
+        "ATTACK and DEFENSE rose sharply! SPEED SP.ATK SP.DEF rose!"
       ]
     },
     {

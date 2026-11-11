@@ -27,8 +27,16 @@ _SpDefense:
 _Aura:
     PlayBattleAnimation BTLSCR_ENEMY_SLOT_1, BATTLE_ANIMATION_TOTEM_AURA
     Wait
-    // Totem {0}'s aura flared to life! Its stats rose!
+    CompareVarToValue OPCODE_FLAG_SET, BTLVAR_BATTLE_SYS_STATUS, BATTLE_STATUS_TOTEM_BOOSTED, _AuraBoosted
+    // Stat-boost banner: names every boosted stat (the per-stat arrows play
+    // with each ChangeStatStage above).
     PrintGlobalMessage BattleStrings_Text_TotemAuraFlared, TAG_NICKNAME, BTLSCR_ENEMY_SLOT_1
+    Wait
+    WaitButtonABTime 30
+    End
+
+_AuraBoosted:
+    PrintGlobalMessage BattleStrings_Text_TotemAuraFlaredBoosted, TAG_NICKNAME, BTLSCR_ENEMY_SLOT_1
     Wait
     WaitButtonABTime 30
     End
