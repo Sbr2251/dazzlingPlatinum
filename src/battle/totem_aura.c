@@ -523,10 +523,10 @@ void TotemAura_StartForBattler(BattleSystem *battleSys, int battler)
     for (int i = 0; i < TOTEM_AURA_EMITTERS; i++) {
         aura->emitters[i] = ParticleSystem_CreateEmitter(aura->particleSystem, i, &aura->basePos);
         // The authored SPA density is richer than the persistent aura needs (it
-        // was tuned for the one-shot flare); ~60% keeps the wreath lush at a
-        // materially lower particle count. Enrage/flare multipliers are
-        // relative to this, so the dynamic range is unchanged.
-        aura->baseEmission[i] = (aura->emitters[i] != NULL ? aura->emitters[i]->emissionCount : FX32_ONE) * 3 / 5;
+        // was tuned for the one-shot flare); 75% keeps the wreath lush at a
+        // lower particle count. Enrage/flare multipliers are relative to
+        // this, so the dynamic range is unchanged.
+        aura->baseEmission[i] = (aura->emitters[i] != NULL ? aura->emitters[i]->emissionCount : FX32_ONE) * 3 / 4;
         aura->baseScale[i] = aura->emitters[i] != NULL ? aura->emitters[i]->baseScale : FX32_ONE;
 
         if (aura->baseEmission[i] == 0) {
