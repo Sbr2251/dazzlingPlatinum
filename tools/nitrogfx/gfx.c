@@ -263,7 +263,7 @@ static void ConvertFromTiles8Bpp(unsigned char *src, unsigned char *dest, int nu
     }
 }
 
-static void ConvertFromTiles8BppCell(unsigned char *src, unsigned char *dest, int oamWidth, int oamHeight, int imageWidth, int startX, int startY, bool hFlip, bool vFlip, int palette, bool toPNG)
+static void ConvertFromTiles8BppCell(unsigned char *src, unsigned char *dest, int oamWidth, int oamHeight, int imageWidth, int imageHeight, int startX, int startY, bool hFlip, bool vFlip, int palette, bool toPNG)
 {
     int tilesSoFar = 0;
     int rowsSoFar = 0;
@@ -296,7 +296,10 @@ static void ConvertFromTiles8BppCell(unsigned char *src, unsigned char *dest, in
                 }
                 else
                 {
-                    *dest++ = src[idxComponentY * pitch + idxComponentX];
+                    // Cells can extend past the image (e.g. footprint cell layouts larger
+                    // than the PNG): read those pixels as 0, not past the buffer.
+                    *dest++ = (idxComponentY >= 0 && idxComponentY < imageHeight && idxComponentX >= 0 && idxComponentX < pitch)
+                        ? src[idxComponentY * pitch + idxComponentX] : 0;
                 }
             }
         }
@@ -980,11 +983,11 @@ void ApplyCellsToImage(char *cellFilePath, struct Image *image, bool toPNG, bool
                     pixelOffset *= 2;
                     if (toPNG)
                     {
-                        ConvertFromTiles8BppCell(image->pixels + pixelOffset, newPixels, oamdim.width, oamdim.height, outputWidth, x, y + scanHeight, hFlip, vFlip, paletteChange, true);
+                        ConvertFromTiles8BppCell(image->pixels + pixelOffset, newPixels, oamdim.width, oamdim.height, outputWidth, outputHeight, x, y + scanHeight, hFlip, vFlip, paletteChange, true);
                     }
                     else
                     {
-                        ConvertFromTiles8BppCell(image->pixels, newPixels + pixelOffset, oamdim.width, oamdim.height, outputWidth, x, y + scanHeight, hFlip, vFlip, paletteChange, false);
+                        ConvertFromTiles8BppCell(image->pixels, newPixels + pixelOffset, oamdim.width, oamdim.height, image->width, image->height, x, y + scanHeight, hFlip, vFlip, paletteChange, false);
                     }
                     break;
             }
