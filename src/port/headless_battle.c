@@ -1,7 +1,7 @@
 // start_battle for the headless protocol: builds a battle directly from a
 // JSON battle spec (docs/battle_engine.md), from any field state.
-// The player's save party/bag are set from the spec (this is a test tool:
-// use a throwaway save via SIM_SAVE_PATH), then a custom FieldBattleDTO is
+// The player's party/bag are set from the spec for the battle, then the real ones are
+// restored when it ends (no blackout on a loss), then a custom FieldBattleDTO is
 // handed to Encounter_NewHeadlessBattle, i.e. the normal encounter/battle
 // code path used by wild/trainer battles.
 #include <nitro.h>
@@ -21,6 +21,8 @@
 #include "generated/items.h"
 
 #include "field/field_system.h"
+#include "field/field_system_sub2_t.h"
+#include "overlay005/map_name_popup.h"
 
 #include "bag.h"
 #include "encounter.h"
@@ -166,6 +168,8 @@ typedef struct {
     int result;
     FieldBattleDTO *dto;
     char *spec;
+    Party *savedParty; // the player's real party/bag, restored after the lab battle
+    Bag *savedBag;
 } HeadlessBattleTask;
 
 static BOOL FieldTask_HeadlessBattle(FieldTask *task) {
@@ -180,8 +184,14 @@ static BOOL FieldTask_HeadlessBattle(FieldTask *task) {
         if (JsonBool(s, e, "totem", &b) && b) isTotem = 1;
         int isDouble = (strcmp(typeStr, "double") == 0) || isTotem;
         if (JsonBool(s, e, "double", &b) && b) isDouble = 1;
-        // Player party + bag from spec.
+        // Player party + bag from spec. The real ones are backed up first and
+        // restored when the battle ends (Battle Lab runs on the owner's own save).
         Party *party = SaveData_GetParty(fsys->saveData);
+        Bag *realBag = SaveData_GetBag(fsys->saveData);
+        env->savedParty = malloc((size_t)Party_SaveSize());
+        env->savedBag = malloc((size_t)Bag_SaveSize());
+        if (env->savedParty) Party_Copy(party, env->savedParty);
+        if (env->savedBag) Bag_Copy(realBag, env->savedBag);
         Party_Init(party);
         if (ForEachMon(s, e, "player", fsys, party) == 0) ForEachMon(s, e, "player_party", fsys, party);
         Bag *bag = SaveData_GetBag(fsys->saveData);
@@ -218,7 +228,12 @@ static BOOL FieldTask_HeadlessBattle(FieldTask *task) {
         Party_Init(dto->parties[BATTLER_ENEMY_1]);
         int opp = ForEachMon(s, e, "opponent", fsys, dto->parties[BATTLER_ENEMY_1]);
         if (opp == 0) opp = ForEachMon(s, e, "opponent_party", fsys, dto->parties[BATTLER_ENEMY_1]);
-        if (opp == 0) { fprintf(stderr, "start_battle: no opponent mons\n"); FieldBattleDTO_Free(dto); free(env->spec); Heap_Free(env); return TRUE; }
+        if (opp == 0) {
+            fprintf(stderr, "start_battle: no opponent mons\n"); FieldBattleDTO_Free(dto);
+            if (env->savedParty) { Party_Copy(env->savedParty, party); free(env->savedParty); }
+            if (env->savedBag) { Bag_Copy(env->savedBag, bag); free(env->savedBag); }
+            free(env->spec); Heap_Free(env); return TRUE;
+        }
         if (isTotem) {
             dto->battleStatusMask |= BATTLE_STATUS_LEGENDARY | BATTLE_STATUS_TOTEM | BATTLE_STATUS_NO_RUNNING;
             if (JsonBool(s, e, "totem_boosted", &b) && b) dto->battleStatusMask |= BATTLE_STATUS_TOTEM_BOOSTED;
@@ -230,7 +245,10 @@ static BOOL FieldTask_HeadlessBattle(FieldTask *task) {
     }
     case 1:
         env->state = 2;
-        if (CheckPlayerWonBattle((u32)env->result) == FALSE) FieldTask_StartBlackOutFromBattle(task);
+        // Lab battle over: give back the player's real party and bag. No blackout on a
+        // loss (the spec party was a loaner; the real one is untouched).
+        if (env->savedParty) { Party_Copy(env->savedParty, SaveData_GetParty(fsys->saveData)); free(env->savedParty); env->savedParty = NULL; }
+        if (env->savedBag) { Bag_Copy(env->savedBag, SaveData_GetBag(fsys->saveData)); free(env->savedBag); env->savedBag = NULL; }
         return FALSE;
     default:
         free(env->spec); Heap_Free(env); return TRUE;
@@ -255,6 +273,10 @@ int HeadlessBattle_Start(const char *line, char *reply, size_t cap) {
         // Inline: the whole command line carries the spec fields.
         spec = malloc(strlen(line) + 1); strcpy(spec, line);
     }
+    // Like the field's own event start (FieldInput_Process): close the map-name
+    // popup first, or its task keeps running while the field tears down and
+    // crashes (MapNamePopUp_Hide on freed state).
+    if (fsys->unk_04 != NULL && fsys->unk_04->mapPopup != NULL) MapNamePopUp_Hide(fsys->unk_04->mapPopup);
     HeadlessBattleTask *env = Heap_AllocAtEnd(HEAP_ID_FIELD3, sizeof(HeadlessBattleTask));
     memset(env, 0, sizeof(*env)); env->spec = spec; env->result = 0;
     FieldSystem_CreateTask(fsys, FieldTask_HeadlessBattle, env);
