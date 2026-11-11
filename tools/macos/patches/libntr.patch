@@ -1,3 +1,404 @@
+diff --git a/include/nitro/gx/g3imm.h b/include/nitro/gx/g3imm.h
+index 0f07fc3..fd7b1af 100644
+--- a/include/nitro/gx/g3imm.h
++++ b/include/nitro/gx/g3imm.h
+@@ -74,13 +74,11 @@ static void G3_VectorTest(fx16 x, fx16 y, fx16 z);
+ static inline void G3_Direct0 (int op)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_DIRECT0;
+     msg->data.numU32 = op;
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	*(REGType32v *)(REG_MTX_MODE_ADDR + ((op - G3OP_MTX_MODE) * 4)) = 0;
+     #endif
+@@ -89,14 +87,12 @@ static inline void G3_Direct0 (int op)
+ static inline void G3_Direct1 (int op, u32 param0)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_DIRECT1;
+     msg->data.numsU64[0] = op;
+     msg->data.numsU64[1] = param0;
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	*(REGType32v *)(REG_MTX_MODE_ADDR + ((op - G3OP_MTX_MODE) * 4)) = param0;
+     #endif
+@@ -119,13 +115,11 @@ static inline void G3_MtxMode (GXMtxMode mode)
+ {
+ 	GX_MTXMODE_ASSERT(mode);
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_MTXMODE;
+     msg->data.numU8 = mode;
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_MTX_MODE = GX_PACK_MTXMODE_PARAM(mode);
+     #endif
+@@ -134,12 +128,10 @@ static inline void G3_MtxMode (GXMtxMode mode)
+ static inline void G3_PushMtx ()
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_PUSHMTX;
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_MTX_PUSH = 0;
+     #endif
+@@ -149,13 +141,11 @@ static inline void G3_PopMtx (int num)
+ {
+ 	GX_MTX_POP_NUM_ASSERT(num);
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_POPMTX;
+     msg->data.numU8 = num;
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_MTX_POP = GX_PACK_POPMTX_PARAM(num);
+     #endif
+@@ -165,13 +155,11 @@ static inline void G3_StoreMtx (int num)
+ {
+ 	GX_MTX_STORE_NUM_ASSERT(num);
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_STOREMTX;
+     msg->data.numU8 = num;
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_MTX_STORE = GX_PACK_STOREMTX_PARAM(num);
+     #endif
+@@ -181,13 +169,11 @@ static inline void G3_RestoreMtx (int num)
+ {
+ 	GX_MTX_RESTORE_NUM_ASSERT(num);
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_RESTOREMTX;
+     msg->data.numU8 = num;
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_MTX_RESTORE = GX_PACK_RESTOREMTX_PARAM(num);
+     #endif
+@@ -196,12 +182,10 @@ static inline void G3_RestoreMtx (int num)
+ static inline void G3_Identity ()
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_IDENTITY;
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_MTX_IDENTITY = 0;
+     #endif
+@@ -210,15 +194,13 @@ static inline void G3_Identity ()
+ static inline void G3_Scale (fx32 x, fx32 y, fx32 z)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_SCALE;
+     msg->data.scale[0] = x;
+     msg->data.scale[1] = y;
+     msg->data.scale[2] = z;
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_MTX_SCALE = (u32)x;
+ 	reg_G3_MTX_SCALE = (u32)y;
+@@ -229,15 +211,13 @@ static inline void G3_Scale (fx32 x, fx32 y, fx32 z)
+ static inline void G3_Translate (fx32 x, fx32 y, fx32 z)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_TRANSLATE;
+     msg->data.scale[0] = x;
+     msg->data.scale[1] = y;
+     msg->data.scale[2] = z;
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_MTX_TRANS = (u32)x;
+ 	reg_G3_MTX_TRANS = (u32)y;
+@@ -249,14 +229,12 @@ static inline void G3_Color (GXRgb rgb)
+ {
+ 	GXRGB_ASSERT(rgb);
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_COLOR;
+     msg->data.numU16 = rgb;
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_COLOR = GX_PACK_COLOR_PARAM(rgb);
+     #endif
+@@ -277,14 +255,12 @@ static inline void G3_TexCoord (fx32 s, fx32 t)
+ 	SDK_MINMAX_ASSERT(t, -2048 * FX32_ONE, 2048 * FX32_ONE - 1);
+ 
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_TEXCOORD;
+     msg->data.numU32 = GX_PACK_TEXCOORD_PARAM(s, t);
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_TEXCOORD = GX_PACK_TEXCOORD_PARAM(s, t);
+     #endif
+@@ -293,8 +269,7 @@ static inline void G3_TexCoord (fx32 s, fx32 t)
+ static inline void G3_Vtx (fx16 x, fx16 y, fx16 z)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_VTX16;
+     msg->data.xyz.x = x;
+@@ -302,7 +277,6 @@ static inline void G3_Vtx (fx16 x, fx16 y, fx16 z)
+     msg->data.xyz.z = z;
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_VTX_16 = GX_FX16PAIR(x, y);
+ 	reg_G3_VTX_16 = (u32)(u16)z;
+@@ -312,14 +286,12 @@ static inline void G3_Vtx (fx16 x, fx16 y, fx16 z)
+ static inline void G3_Vtx10 (fx16 x, fx16 y, fx16 z)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+     msg->type = DRAW_CMD_G3_VTX16;
+ 	msg->data.xyz.x = x;
+ 	msg->data.xyz.y = y;
+ 	msg->data.xyz.z = z;
+ 	SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_VTX_10 = GX_PACK_VTX10_PARAM(x, y, z);
+     #endif
+@@ -328,14 +300,12 @@ static inline void G3_Vtx10 (fx16 x, fx16 y, fx16 z)
+ static inline void G3_VtxXY (fx16 x, fx16 y)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_VTXXY;
+ 
+     msg->data.numU32 = GX_PACK_VTXXY_PARAM(x, y);
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #endif
+ 	reg_G3_VTX_XY = GX_PACK_VTXXY_PARAM(x, y);
+ }
+@@ -343,14 +313,12 @@ static inline void G3_VtxXY (fx16 x, fx16 y)
+ static inline void G3_VtxXZ (fx16 x, fx16 z)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_VTXXZ;
+ 
+     msg->data.numU32 = GX_PACK_VTXXZ_PARAM(x, z);
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #endif
+ 	reg_G3_VTX_XZ = GX_PACK_VTXXZ_PARAM(x, z);
+ }
+@@ -358,14 +326,12 @@ static inline void G3_VtxXZ (fx16 x, fx16 z)
+ static inline void G3_VtxYZ (fx16 y, fx16 z)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_VTXYZ;
+ 
+     msg->data.numU32 = GX_PACK_VTXYZ_PARAM(y, z);
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #endif
+ 	reg_G3_VTX_YZ = GX_PACK_VTXYZ_PARAM(y, z);
+ }
+@@ -377,14 +343,12 @@ static inline void G3_VtxDiff (fx16 x, fx16 y, fx16 z)
+ 	SDK_MINMAX_ASSERT(z, (fx16)0xfe00, (fx16)0x1ff);
+ 
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_VTXDIFF;
+ 
+     msg->data.numU32 = GX_PACK_VTXDIFF_PARAM(x, y, z);
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #endif
+ 	reg_G3_VTX_DIFF = GX_PACK_VTXDIFF_PARAM(x, y, z);
+ }
+@@ -399,8 +363,7 @@ static inline void G3_PolygonAttr (int light, GXPolygonMode polyMode, GXCull cul
+ 	GX_POLYGON_ATTR_ALPHA_ASSERT(alpha);
+ 
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_POLYGONATTR;
+ 
+@@ -409,7 +372,6 @@ static inline void G3_PolygonAttr (int light, GXPolygonMode polyMode, GXCull cul
+ 
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_POLYGON_ATTR = GX_PACK_POLYGONATTR_PARAM(light,
+ 	                                                polyMode, cullMode, polygonID, alpha, misc);
+@@ -433,14 +395,12 @@ static inline void G3_TexImageParam (GXTexFmt texFmt,
+ 	GX_TEXIMAGE_PARAM_ADDR_ASSERT(addr);
+ 
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_TEXIMAGEPARAM;
+     msg->data.numU32 = GX_PACK_TEXIMAGE_PARAM(texFmt, texGen, s, t, repeat, flip, pltt0, addr);
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_TEXIMAGE_PARAM = GX_PACK_TEXIMAGE_PARAM(texFmt, texGen, s, t, repeat, flip, pltt0, addr);
+     #endif
+@@ -452,14 +412,12 @@ static inline void G3_TexPlttBase (u32 addr, GXTexFmt texfmt)
+ 	GX_TEXPLTTBASEPARAM_ASSERT(param);
+ 
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_TEXPLTTBASE;
+     msg->data.numU32 = param;
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_TEXPLTT_BASE = param;
+     #endif
+@@ -471,14 +429,12 @@ static inline void G3_MaterialColorDiffAmb (GXRgb diffuse, GXRgb ambient, BOOL I
+ 	GXRGB_ASSERT(ambient);
+ 
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_DIFF_AMB;
+     msg->data.numU32 = GX_PACK_DIFFAMB_PARAM(diffuse, ambient, IsSetVtxColor);
+ 
+     SIM_HandleG3Command( msg ); 
+-    free( msg );  
+     #else
+ 	reg_G3_DIF_AMB = GX_PACK_DIFFAMB_PARAM(diffuse, ambient, IsSetVtxColor);
+     #endif
+@@ -490,14 +446,12 @@ static inline void G3_MaterialColorSpecEmi (GXRgb specular, GXRgb emission, BOOL
+ 	GXRGB_ASSERT(emission);
+ 
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_SPEC_EMI;
+     msg->data.numU32 = GX_PACK_SPECEMI_PARAM(specular, emission, IsShininess);
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	reg_G3_SPE_EMI = GX_PACK_SPECEMI_PARAM(specular, emission, IsShininess);
+     #endif
+@@ -525,14 +479,12 @@ static inline void G3_Begin (GXBegin primitive)
+ {
+ 	GX_BEGIN_ASSERT(primitive);
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_BEGIN;
+     msg->data.numU16 = primitive;
+ 
+     SIM_HandleG3Command( msg );   
+-    free( msg );
+     #else
+ 	reg_G3_BEGIN_VTXS = GX_PACK_BEGIN_PARAM(primitive);
+     #endif
+@@ -549,14 +501,12 @@ static inline void G3_SwapBuffers (GXSortMode am, GXBufferMode zw)
+ 	GX_BUFFERMODE_ASSERT(zw);
+ 
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = (draw_msg_t*)malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_SWAPBUFFERS;
+     msg->data.numU32 = GX_PACK_SWAPBUFFERS_PARAM(am, zw);
+ 
+     SIM_HandleG3Command( msg );   
+-    free( msg );
+     #else
+ 	reg_G3_SWAP_BUFFERS = GX_PACK_SWAPBUFFERS_PARAM(am, zw);
+     #endif
 diff --git a/include/nitro/hw/X86/mmap_global.h b/include/nitro/hw/X86/mmap_global.h
 index 3be08a2..89915a2 100644
 --- a/include/nitro/hw/X86/mmap_global.h
@@ -74,6 +475,26 @@ index 3be08a2..89915a2 100644
  #define HW_DB_OBJ_VRAM_SIZE     (HW_DB_OBJ_VRAM_END-HW_DB_OBJ_VRAM)
  //#define HW_LCDC_VRAM            0x06800000
  //#ifdef SDK_TS
+diff --git a/include/nitro/mi/memory.h b/include/nitro/mi/memory.h
+index b196b55..90df0dc 100644
+--- a/include/nitro/mi/memory.h
++++ b/include/nitro/mi/memory.h
+@@ -10,6 +10,7 @@ extern "C" {
+ 
+ #ifdef SDK_PORT
+ #include <string.h>
++#include <simulator/sim_g3_texnotify.h>
+ #endif
+ 
+ void MIi_CpuClear16(u16 data, void * destp, u32 size);
+@@ -92,6 +93,7 @@ static inline void MI_CpuFillFast (void * dest, u32 data, u32 size)
+ 
+   #ifdef SDK_PORT
+   memset( dest, data, size );
++  SIM_G3_NotifyTexVramWrite(dest, size);
+   #else
+ 	MIi_CpuClearFast(data, dest, size);
+   #endif
 diff --git a/include/simulator/sim.h b/include/simulator/sim.h
 index ad57dfa..312dae0 100644
 --- a/include/simulator/sim.h
@@ -87,6 +508,180 @@ index ad57dfa..312dae0 100644
  const char * SIM_GetLibntrGitHash();
  const char * SIM_GetProjectGitHash();
  SDL_Window * SIM_GetSDLWindow();
+diff --git a/include/simulator/sim_g3_GlRenderer.hpp b/include/simulator/sim_g3_GlRenderer.hpp
+index 054fea8..3f84b26 100644
+--- a/include/simulator/sim_g3_GlRenderer.hpp
++++ b/include/simulator/sim_g3_GlRenderer.hpp
+@@ -14,15 +14,28 @@ class GlRenderer {
+ 
+   void Init();
+ 
+-  inline void SetShaderProgramId(unsigned int id) { mShaderProgramId = id; }
++  inline void SetShaderProgramId(unsigned int id) { mShaderProgramId = id; mUniformsCached = false; }
+ 
+   void Draw(std::shared_ptr<DrawCall> drawCall);
+ 
+  private:
++  void CacheUniformLocations();
+   unsigned int mVertexArray;
+   unsigned int mVertexBuffer;
+   unsigned int mShaderProgramId;
+   int mVertexBufferCount = 0;
++  // Cached uniform locations (valid once per shader program) and the last
++  // values uploaded, so unchanged uniforms are not re-sent every draw.
++  bool mUniformsCached = false;
++  int mLocUseTexture = -1, mLocMyTexture = -1, mLocPolygonMode = -1;
++  int mLocUseFog = -1, mLocFogColor = -1, mLocFogDepthBoundary = -1, mLocFogDensity = -1;
++  int mLastUseTexture = -1, mLastPolygonMode = -1, mLastUseFog = -1;
++  unsigned int mLastWrapTexture = 0;
++  int mLastWrapS = -1, mLastWrapT = -1;
++  bool mFogUploaded = false;
++  float mLastFogColor[4] = {};
++  float mLastFogDepth[32] = {};
++  float mLastFogDensity[32] = {};
+ };
+ 
+ }
+diff --git a/include/simulator/sim_g3_GlobalState.hpp b/include/simulator/sim_g3_GlobalState.hpp
+index 85a53c6..17e1bf4 100644
+--- a/include/simulator/sim_g3_GlobalState.hpp
++++ b/include/simulator/sim_g3_GlobalState.hpp
+@@ -184,6 +184,27 @@ class GlobalState {
+ 
+ GlobalState& GetGlobalState();
+ 
++// Perf counters, populated only when SIM_G3_STATS=1 (checked once at startup).
++struct G3Stats {
++    bool enabled = false;
++    bool initialized = false;
++    unsigned long long flushes = 0;
++    unsigned long long crcTexBytes = 0;
++    unsigned long long crcPlttBytes = 0;
++    unsigned long long crcNs = 0;
++    unsigned long long decodes = 0;
++    unsigned long long cacheHits = 0;
++    unsigned long long draws = 0;
++    unsigned long long verts = 0;
++    unsigned long long uniformLocCalls = 0;
++    unsigned long long texWrites = 0;
++    unsigned long long commands = 0;
++    unsigned long long texCheckMismatches = 0;
++};
++extern G3Stats gG3Stats;
++void G3StatsInit();
++void G3StatsDump(const char * tag);
++
+ }
+ 
+ 
+diff --git a/include/simulator/sim_g3_TextureCache.hpp b/include/simulator/sim_g3_TextureCache.hpp
+index ecf46ab..fb0d421 100644
+--- a/include/simulator/sim_g3_TextureCache.hpp
++++ b/include/simulator/sim_g3_TextureCache.hpp
+@@ -2,27 +2,70 @@
+ #define LIBNTR_SIM_G3_TEXTURE_ACHEHPP
+ 
+ #include <nitro/types.h>
++#include <cstddef>
++#include <cstdint>
+ #include <unordered_map>
+ #include <memory>
+ 
+ #include "simulator/sim_g3_Texture.hpp"
++#include "simulator/sim_g3_texnotify.h"
+ 
+ namespace SIM::G3 {
+ 
++// Identifies one decoded texture without hashing its pixels: the VRAM
++// range it was decoded from plus everything that changes the decode.
++struct TextureKey {
++  std::uintptr_t texAddr = 0;
++  u32 texSize = 0;
++  std::uintptr_t plttAddr = 0;
++  u32 format = 0;
++  u32 sizeS = 0;
++  u32 sizeT = 0;
++  u32 color0 = 0;
++  bool usePalette = false;
++  bool operator==(const TextureKey& o) const {
++    return texAddr == o.texAddr && texSize == o.texSize && plttAddr == o.plttAddr &&
++           format == o.format && sizeS == o.sizeS && sizeT == o.sizeT &&
++           color0 == o.color0 && usePalette == o.usePalette;
++  }
++};
++struct TextureKeyHash {
++  std::size_t operator()(const TextureKey& k) const {
++    std::size_t h = std::hash<std::uintptr_t>{}(k.texAddr);
++    h = h * 1315423911u + std::hash<std::uintptr_t>{}(k.plttAddr);
++    h = h * 1315423911u + (k.texSize * 2654435761u + k.format * 97u + k.sizeS * 13u + k.sizeT * 7u + k.color0);
++    return h;
++  }
++};
++
+ class TextureCache {
+  public:
+   TextureCache();
+   ~TextureCache();
+ 
+-  void AddTexture(u32 textureCRC, u32 paletteCRC, std::shared_ptr<Texture> texture);
+-  std::shared_ptr<Texture> GetTexture(u32 textureCRC, u32 paletteCRC);
+-  
++  void AddTexture(const TextureKey& key, u32 textureCRC, u32 paletteCRC, std::shared_ptr<Texture> texture);
++  // Returns the cached texture only if no recorded VRAM write has touched
++  // its texture (or, when used, palette) range since it was decoded.
++  std::shared_ptr<Texture> GetTexture(const TextureKey& key);
++  bool GetStoredCRCs(const TextureKey& key, u32 * textureCRC, u32 * paletteCRC);
++  // The cached texture regardless of recorded writes (for CRC revalidation).
++  std::shared_ptr<Texture> PeekTexture(const TextureKey& key);
++
++  // Record a write to texture/palette VRAM (see sim_g3_texnotify.h).
++  static void NotifyWrite(const void * dest, std::size_t size);
++
+  private:
+-  u64 GetCombinedCRC(u32 textureCRC, u32 paletteCRC);
+-  std::unordered_map<u64, std::shared_ptr<Texture>> mTextureMap = {};
++  struct Entry {
++    std::shared_ptr<Texture> texture;
++    u32 textureCRC = 0;
++    u32 paletteCRC = 0;
++    unsigned long long epoch = 0;
++    unsigned long long checkedSeq = 0;
++    std::size_t checkedIdx = 0;
++  };
++  std::unordered_map<TextureKey, Entry, TextureKeyHash> mTextureMap = {};
+ };
+ 
+ }
+ 
+-
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/include/simulator/sim_g3_texnotify.h b/include/simulator/sim_g3_texnotify.h
+new file mode 100644
+index 0000000..0589e5f
+--- /dev/null
++++ b/include/simulator/sim_g3_texnotify.h
+@@ -0,0 +1,19 @@
++#ifndef LIBNTR_SIM_G3_TEXNOTIFY_H
++#define LIBNTR_SIM_G3_TEXNOTIFY_H
++
++#include <stddef.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++// Called (SDK_PORT only) after any DMA/CpuCopy/fill that may have written
++// texture or palette VRAM. The implementation ignores writes outside the
++// LCDC VRAM banks A-G, so callers may pass any destination.
++void SIM_G3_NotifyTexVramWrite(const void * dest, size_t size);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
 diff --git a/include/simulator/sim_gui.hpp b/include/simulator/sim_gui.hpp
 index 285ed8d..d5a2519 100644
 --- a/include/simulator/sim_gui.hpp
@@ -154,6 +749,422 @@ index 6e41f75..01e76a9 100644
  extern u8 s_HW_BG_VRAM[0x80000];
  extern u8 s_HW_DB_BG_VRAM[0x20000];
  extern u8 s_HW_OBJ_VRAM[0x40000];
+diff --git a/libraries/gx/src/g3_util.c b/libraries/gx/src/g3_util.c
+index 5cf84ea..35b85e4 100644
+--- a/libraries/gx/src/g3_util.c
++++ b/libraries/gx/src/g3_util.c
+@@ -80,8 +80,7 @@ void G3i_LookAt_ (const VecFx32 *camPos, const VecFx32 *camUp, const VecFx32 *ta
+ void G3_RotX (fx32 s, fx32 c)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_MTXMULT33;
+     msg->data.mtx33._00 = FX32_ONE;
+@@ -95,7 +94,6 @@ void G3_RotX (fx32 s, fx32 c)
+     msg->data.mtx33._22 = c;
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	vs32 *p = (vs32 *)&reg_G3_MTX_MULT_3x3;
+ 
+@@ -117,8 +115,7 @@ void G3_RotX (fx32 s, fx32 c)
+ void G3_RotY (fx32 s, fx32 c)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_MTXMULT33;
+     msg->data.mtx33._00 = c;
+@@ -132,7 +129,6 @@ void G3_RotY (fx32 s, fx32 c)
+     msg->data.mtx33._22 = c;
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	vs32 *p = (vs32 *)&reg_G3_MTX_MULT_3x3;
+ 
+@@ -154,8 +150,7 @@ void G3_RotY (fx32 s, fx32 c)
+ void G3_RotZ (fx32 s, fx32 c)
+ {
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_MTXMULT33;
+     msg->data.mtx33._00 = c;
+@@ -169,7 +164,6 @@ void G3_RotZ (fx32 s, fx32 c)
+     msg->data.mtx33._22 = FX32_ONE;
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 	vs32 *p = (vs32 *)&reg_G3_MTX_MULT_3x3;
+ 
+diff --git a/libraries/gx/src/g3imm.c b/libraries/gx/src/g3imm.c
+index b8cf1f4..813a18c 100644
+--- a/libraries/gx/src/g3imm.c
++++ b/libraries/gx/src/g3imm.c
+@@ -6,14 +6,12 @@ void G3_LoadMtx44 (const MtxFx44 *m)
+ {
+ 	SDK_NULL_ASSERT(m);
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_LOADMTX44;
+     memcpy( &msg->data.mtx44, m, sizeof( MtxFx44 ) );
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 
+ 	reg_G3X_GXFIFO = G3OP_MTX_LOAD_4x4;
+@@ -25,14 +23,12 @@ void G3_LoadMtx43 (const MtxFx43 *m)
+ {
+ 	SDK_NULL_ASSERT(m);
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_LOADMTX43;
+     memcpy( &msg->data.mtx43, m, sizeof( MtxFx43 ) );
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 
+ 	reg_G3X_GXFIFO = G3OP_MTX_LOAD_4x3;
+@@ -52,14 +48,12 @@ void G3_MultMtx43 (const MtxFx43 *m)
+ {
+ 	SDK_NULL_ASSERT(m);
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = malloc( sizeof( draw_msg_t ) );
++    draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+ 
+     msg->type = DRAW_CMD_G3_MTXMULT43;
+     memcpy( &msg->data.mtx43, m, sizeof( MtxFx43 ) );
+ 
+     SIM_HandleG3Command( msg );
+-    free( msg );
+     #else
+ 
+ 	reg_G3X_GXFIFO = G3OP_MTX_MULT_4x3;
+diff --git a/libraries/gx/src/gx_load3d.c b/libraries/gx/src/gx_load3d.c
+index c866e53..23f783c 100644
+--- a/libraries/gx/src/gx_load3d.c
++++ b/libraries/gx/src/gx_load3d.c
+@@ -28,6 +28,9 @@
+ #error Unsupported SDK version
+ #endif /* SDK_VERSION_MAJOR */
+ #include <nitro/mi/dma.h>
++#ifdef SDK_PORT
++#include <simulator/sim_g3_texnotify.h>
++#endif
+ 
+ #include "../include/gxstate.h"
+ #include "../include/gxdma.h"
+@@ -214,12 +217,14 @@ void GX_LoadTexEx (GXVRamTex tex, const void *pSrc, u32 destSlotAddr, u32 szByte
+ 			pLCDC = (void *)(base1 + destSlotAddr);
+ 
+ 			GXi_DmaCopy32(GXi_DmaId, pSrc, pLCDC, sz);
++			SIM_G3_NotifyTexVramWrite(pLCDC, sz);
+ 			GXi_DmaCopy32Async(GXi_DmaId, (void *)((u8 *)pSrc + sz), pLCDC2, szByte - sz, NULL, NULL);
+ 			return;
+ 		}
+ 	}
+ 
+ 	GXi_DmaCopy32Async(GXi_DmaId, pSrc, pLCDC, szByte, NULL, NULL);
++	SIM_G3_NotifyTexVramWrite(pLCDC, szByte);
+ }
+ 
+ void GX_BeginLoadTex (void)
+@@ -266,12 +271,14 @@ void GX_LoadTex (const void *pSrc, u32 destSlotAddr, u32 szByte)
+ 			pLCDC = (void *)(sTexLCDCBlk1 + destSlotAddr);
+ 
+ 			GXi_DmaCopy32(GXi_DmaId, pSrc, pLCDC, sz);
++			SIM_G3_NotifyTexVramWrite(pLCDC, sz);
+ 			GXi_DmaCopy32Async(GXi_DmaId, (void *)((u8 *)pSrc + sz), pLCDC2, szByte - sz, NULL, NULL);
+ 			return;
+ 		}
+ 	}
+ 
+ 	GXi_DmaCopy32Async(GXi_DmaId, pSrc, pLCDC, szByte, NULL, NULL);
++	SIM_G3_NotifyTexVramWrite(pLCDC, szByte);
+ }
+ 
+ void GX_EndLoadTex (void)
+@@ -341,6 +348,7 @@ void GX_LoadTexPlttEx (GXVRamTexPltt texPltt, const void *pSrc, u32 destSlotAddr
+ 
+ 	GX_RegionCheck_TexPltt(texPltt, destSlotAddr, destSlotAddr + szByte);
+ 	GXi_DmaCopy32Async(GXi_DmaId, pSrc, (void *)(base + destSlotAddr), szByte, NULL, NULL);
++	SIM_G3_NotifyTexVramWrite((void *)(base + destSlotAddr), szByte);
+ }
+ 
+ void GX_BeginLoadTexPltt (void)
+@@ -368,6 +376,7 @@ void GX_LoadTexPltt (const void *pSrc, u32 destSlotAddr, u32 szByte)
+ 
+ 	GX_RegionCheck_TexPltt(sTexPltt, destSlotAddr, destSlotAddr + szByte);
+ 	GXi_DmaCopy32Async(GXi_DmaId, pSrc, (void *)(sTexPlttLCDCBlk + destSlotAddr), szByte, NULL, NULL);
++	SIM_G3_NotifyTexVramWrite((void *)(sTexPlttLCDCBlk + destSlotAddr), szByte);
+ }
+ 
+ void GX_EndLoadTexPltt (void)
+@@ -445,4 +454,4 @@ void GX_EndLoadClearImage (void)
+ 
+ 	sClrImg = (GXVRamClearImage)0;
+ 	sClrImgLCDCBlk = 0;
+-}
+\ No newline at end of file
++}
+diff --git a/libraries/mi/src/mi_dma.c b/libraries/mi/src/mi_dma.c
+index 165e004..3114382 100644
+--- a/libraries/mi/src/mi_dma.c
++++ b/libraries/mi/src/mi_dma.c
+@@ -6,6 +6,7 @@
+ #include <string.h>
+ #include <nitro/hw/X86/mmap_main.h>
+ #include <simulator/assert.h>
++#include <simulator/sim_g3_texnotify.h>
+ #endif
+ 
+ #if SDK_VERSION_MAJOR == 5
+@@ -228,6 +229,7 @@ void MIi_DmaFill32(u32 dmaNo, void *dest, u32 data, u32 size, BOOL dmaEnable)
+     #ifdef SDK_PORT
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaFill32 with a size of %d bytes, which is larger than the DS memory.", size);
+     memset(dest, data, size);
++    SIM_G3_NotifyTexVramWrite(dest, size);
+     #else
+     MIi_Wait_BeforeDMA(dmaCntp, dmaNo);
+     #if SDK_VERSION_MAJOR == 4
+@@ -272,6 +274,7 @@ void MIi_DmaCopy32(u32 dmaNo, const void *src, void *dest, u32 size, BOOL dmaEna
+     #ifdef SDK_PORT
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaCopy32 with a size of %d bytes, which is larger than the DS memory.", size);
+     memcpy( dest, src, size );
++    SIM_G3_NotifyTexVramWrite(dest, size);
+     #else
+     MIi_Wait_BeforeDMA(dmaCntp, dmaNo);
+     #if SDK_VERSION_MAJOR == 4
+@@ -315,6 +318,7 @@ void MIi_DmaSend32(u32 dmaNo, const void *src, volatile void *dest, u32 size, BO
+     #ifdef SDK_PORT
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaSend32 with a size of %d bytes, which is larger than the DS memory.", size);
+     memcpy(dest, src, size);
++    SIM_G3_NotifyTexVramWrite(dest, size);
+     #else
+     MIi_Wait_BeforeDMA(dmaCntp, dmaNo);
+     #if SDK_VERSION_MAJOR == 4
+@@ -402,6 +406,7 @@ void MIi_DmaCopy16(u32 dmaNo, const void *src, void *dest, u32 size, BOOL dmaEna
+     #ifdef SDK_PORT
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaCopy16 with a size of %d bytes, which is larger than the DS memory.", size);
+     memcpy( dest, src, size );
++    SIM_G3_NotifyTexVramWrite(dest, size);
+     #else
+     MIi_Wait_BeforeDMA(dmaCntp, dmaNo);
+     #if SDK_VERSION_MAJOR == 4
+@@ -445,6 +450,7 @@ void MIi_DmaSend16(u32 dmaNo, const void *src, volatile void *dest, u32 size, BO
+     #ifdef SDK_PORT
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaSend16 with a size of %d bytes, which is larger than the DS memory.", size);
+     memcpy( dest, src, size );
++    SIM_G3_NotifyTexVramWrite(dest, size);
+     #else
+     MIi_Wait_BeforeDMA(dmaCntp, dmaNo);
+     MIi_DmaSetParams_wait(dmaNo, (u32)src, (u32)dest, MI_CNT_SEND16(size));
+@@ -514,6 +520,7 @@ void MIi_DmaCopy32Async(u32 dmaNo, const void *src, void *dest, u32 size, MIDmaC
+         #ifdef SDK_PORT
+         SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaCopy32Async with a size of %d bytes, which is larger than the DS memory.", size);
+         memcpy(dest, src, size);
++        SIM_G3_NotifyTexVramWrite(dest, size);
+         if( callback )
+         {
+             OSi_EnterDmaCallback(dmaNo, callback, arg);
+@@ -633,6 +640,7 @@ void MIi_DmaCopy16Async(u32 dmaNo, const void *src, void *dest, u32 size, MIDmaC
+         #ifdef SDK_PORT
+         SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaCopy16Async with a size of %d bytes, which is larger than the DS memory.", size);
+         memcpy(dest, src, size);
++        SIM_G3_NotifyTexVramWrite(dest, size);
+         if( callback )
+         {
+             OSi_EnterDmaCallback(dmaNo, callback, arg);
+@@ -673,6 +681,7 @@ void MIi_DmaSend16Async(u32 dmaNo, const void * src, volatile void * dest, u32 s
+         #ifdef SDK_PORT
+         SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaSend16Async with a size of %d bytes, which is larger than the DS memory.", size);
+         memcpy( dest, src, size );
++        SIM_G3_NotifyTexVramWrite(dest, size);
+         if( callback )
+         {
+             OSi_EnterDmaCallback(dmaNo, callback, arg);
+@@ -1013,4 +1022,4 @@ void MIi_SetDmaSize32(u32 dmaNo, u32 size) {
+   p = (vu32 *)MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET);
+   *p = (*p & ~REG_MI_DMA0CNT_WORDCNT_MASK) | (size / 4);
+ }
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/libraries/mi/src/mi_dma_gxcommand.c b/libraries/mi/src/mi_dma_gxcommand.c
+index 4aa90f9..91e2325 100644
+--- a/libraries/mi/src/mi_dma_gxcommand.c
++++ b/libraries/mi/src/mi_dma_gxcommand.c
+@@ -52,15 +52,13 @@ void MI_SendGXCommand (u32 dmaNo, const void * src, u32 commandLength)
+ 	while (leftLength > 0) {
+ 		u32 length = (leftLength > MIi_GX_LENGTH_ONCE) ? MIi_GX_LENGTH_ONCE : leftLength;
+         #ifdef SDK_PORT
+-        draw_msg_t * msg;
+-        msg = malloc( sizeof( draw_msg_t ) );
++        draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+         msg->type = DRAW_CMD_G3_CMD_LIST;
+         u8 * cmdBuf = malloc( sizeof(u8) * commandLength );
+         memcpy(cmdBuf, src, commandLength);
+         msg->data.ptr = cmdBuf;
+         msg->size = commandLength;
+         SIM_HandleG3Command( msg );
+-        free( msg );
+         leftLength = 0;
+         #else
+ 		MIi_DmaSetParams(dmaNo, currentSrc, (u32)REG_GXFIFO_ADDR, MI_CNT_SEND32(length));
+@@ -117,15 +115,13 @@ void MI_SendGXCommandAsync (u32 dmaNo, const void * src, u32 commandLength, MIDm
+ 		(void)OS_EnableIrqMask(OS_IE_GXFIFO);
+ 
+         #ifdef SDK_PORT
+-        draw_msg_t * msg;
+-        msg = malloc( sizeof( draw_msg_t ) );
++        draw_msg_t msgStorage; draw_msg_t * msg = &msgStorage;
+         msg->type = DRAW_CMD_G3_CMD_LIST;
+         u8 * cmdBuf = malloc( sizeof(u8) * commandLength );
+         memcpy(cmdBuf, src, commandLength);
+         msg->data.ptr = cmdBuf;
+         msg->size = commandLength;
+         SIM_HandleG3Command( msg );
+-        free( msg );
+         #endif
+ 
+ 		MIi_FIFOCallback();
+diff --git a/libraries/mi/src/mi_memory.c b/libraries/mi/src/mi_memory.c
+index 876f6c4..36edb27 100644
+--- a/libraries/mi/src/mi_memory.c
++++ b/libraries/mi/src/mi_memory.c
+@@ -56,11 +56,13 @@
+ #ifdef SDK_PORT
+ #include <string.h>
+ #include <nitro/fx/fx.h>
++#include <simulator/sim_g3_texnotify.h>
+ 
+ void    MI_CpuCopy8(const void *src, void *dest, u32 size)
+ {
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_CpuCopy8 with a size of %d bytes, which is larger than the DS memory.", size);
+     memcpy( dest, src, size );
++    SIM_G3_NotifyTexVramWrite(dest, size);
+ }
+ 
+ void MI_CpuFill8( void *dstp, u8 data, u32 size )
+@@ -69,6 +71,7 @@ void MI_CpuFill8( void *dstp, u8 data, u32 size )
+     u32 myData;
+     myData = data | (data << 8) | (data << 16) | (data << 24);
+     memset( dstp, myData, size );
++    SIM_G3_NotifyTexVramWrite(dstp, size);
+ }
+ 
+ void MIi_CpuClear16( u16 data, void* destp, u32 size )
+@@ -82,77 +85,91 @@ void MIi_CpuClear16( u16 data, void* destp, u32 size )
+         *destp16 = data;
+         destp16++;
+     }
++    SIM_G3_NotifyTexVramWrite(destp, size);
+ }
+ 
+ void MIi_CpuCopy16( const void *srcp, void *destp, u32 size )
+ {
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MIi_CpuCopy16 with a size of %d bytes, which is larger than the DS memory.", size);
+     memcpy( destp, srcp, size );
++    SIM_G3_NotifyTexVramWrite(destp, size);
+ }
+ 
+ void MI_Copy16B(const void* pSrc, void* pDest)
+ {
+     memcpy( pDest, pSrc, 16);
++    SIM_G3_NotifyTexVramWrite(pDest, 16);
+ }
+ 
+ void MIi_CpuClear32( u32 data, void *destp, u32 size )
+ {
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MIi_CpuClear32 with a size of %d bytes, which is larger than the DS memory.", size);
+     memset( destp, data, size );
++    SIM_G3_NotifyTexVramWrite(destp, size);
+ }
+ 
+ void MIi_CpuCopy32( const void *srcp, void *destp, u32 size )
+ {
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MIi_CpuCopy32 with a size of %d bytes, which is larger than the DS memory.", size);
+     memcpy( destp, srcp, size );
++    SIM_G3_NotifyTexVramWrite(destp, size);
+ }
+ 
+ void MI_Copy32B(const void* pSrc, void* pDest)
+ {
+     memcpy( pDest, pSrc, 32);
++    SIM_G3_NotifyTexVramWrite(pDest, 32);
+ }
+ 
+ void MI_Copy36B(const void* pSrc, void* pDest)
+ {
+     memcpy( pDest, pSrc, 36);
++    SIM_G3_NotifyTexVramWrite(pDest, 36);
+ }
+ 
+ void MIi_CpuSend32( const void *srcp, volatile void *destp, u32 size )
+ {
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MIi_CpuSend32 with a size of %d bytes, which is larger than the DS memory.", size);
+     memcpy( destp, srcp, size );
++    SIM_G3_NotifyTexVramWrite(destp, size);
+ }
+ 
+ void MIi_CpuCopyFast( const void *srcp, void *destp, u32 size )
+ {
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MIi_CpuCopyFast with a size of %d bytes, which is larger than the DS memory.", size);
+     memcpy( destp, srcp, size );
++    SIM_G3_NotifyTexVramWrite(destp, size);
+ }
+ 
+ void MI_Copy48B(const void* pSrc, void* pDest)
+ {
+     memcpy( pDest, pSrc, 48 );
++    SIM_G3_NotifyTexVramWrite(pDest, 48);
+ }
+ 
+ void MI_Copy64B(const void* pSrc, void* pDest)
+ {
+     memcpy( pDest, pSrc, 64 );
++    SIM_G3_NotifyTexVramWrite(pDest, 64);
+ }
+ 
+ void MI_Zero36B(void* pDest)
+ {
+     memset(pDest, 0, 36);
++    SIM_G3_NotifyTexVramWrite(pDest, 36);
+ }
+ 
+ void MI_Copy128B(const void* pSrc, void* pDest)
+ {
+     memcpy( pDest, pSrc, 128 );
++    SIM_G3_NotifyTexVramWrite(pDest, 128);
+ }
+ 
+ #if SDK_VERSION_MAJOR == 5
+ void MI_CpuMove(register const void *srcp, register void *destp,
+                     register u32 size) {
+     memmove(destp, srcp, size);
++    SIM_G3_NotifyTexVramWrite(destp, size);
+ }
+ 
+ void MI_CpuFill(void *dest, u8 data, u32 size) {
 diff --git a/libraries/sim/meson.build b/libraries/sim/meson.build
 index d7a921e..240b2ac 100644
 --- a/libraries/sim/meson.build
@@ -170,6 +1181,19 @@ index d7a921e..240b2ac 100644
  
  if(build_target == 'linux' or build_target == 'win64')
  sdl2_lib = meson.get_compiler('c').find_library('SDL2')
+diff --git a/libraries/sim/src/config/sim_config.c b/libraries/sim/src/config/sim_config.c
+index 096e7fb..3178c6c 100644
+--- a/libraries/sim/src/config/sim_config.c
++++ b/libraries/sim/src/config/sim_config.c
+@@ -348,7 +348,7 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+     aConfig->windowWidth = 1920;
+     aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_LARGE;
+ #else
+-    aConfig->internalResolutionScale = 10;
++    aConfig->internalResolutionScale = 4;
+     aConfig->windowHeight = 0;
+     aConfig->windowWidth = 0;
+     aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_VERTICAL;
 diff --git a/libraries/sim/src/g3_handler.cpp b/libraries/sim/src/g3_handler.cpp
 index e638798..550c270 100644
 --- a/libraries/sim/src/g3_handler.cpp
@@ -435,14 +1459,127 @@ index 18dbafe..5b3aa0c 100644
  
      if( texParam.textureFormat == 2 )
      {
+diff --git a/libraries/sim/src/sim_g3_CommandProcessor.cpp b/libraries/sim/src/sim_g3_CommandProcessor.cpp
+index 4a8a30b..a8e9b67 100644
+--- a/libraries/sim/src/sim_g3_CommandProcessor.cpp
++++ b/libraries/sim/src/sim_g3_CommandProcessor.cpp
+@@ -361,6 +361,7 @@ static u8 isParamSigned(draw_command_type_t type) {
+ namespace SIM::G3 {
+ 
+ void HandleCommandMessage(draw_msg_t *msg) {
++  G3StatsInit(); if(gG3Stats.enabled) gG3Stats.commands++;
+   u32 temp;
+   switch (msg->type) {
+   case DRAW_CMD_G3_NOP:
 diff --git a/libraries/sim/src/sim_g3_GlRenderer.cpp b/libraries/sim/src/sim_g3_GlRenderer.cpp
-index 77300c2..ecf6990 100644
+index 77300c2..8a24a5c 100644
 --- a/libraries/sim/src/sim_g3_GlRenderer.cpp
 +++ b/libraries/sim/src/sim_g3_GlRenderer.cpp
-@@ -121,7 +121,24 @@ void GlRenderer::Draw(std::shared_ptr<DrawCall> drawCall) {
-             glProgramUniform1fv(mShaderProgramId, fogDensityLoc, 32, drawCall->GetFogDensityTable());
+@@ -1,6 +1,7 @@
+ #include <simulator/sim_g3_GlRenderer.hpp>
+ 
+ #include <simulator/sim_g3_CommandHandler.hpp>
++#include <simulator/sim_g3_GlobalState.hpp>
+ #include <simulator/assert.h>
+ #include <string.h>
+ #include <stddef.h>
+@@ -52,7 +53,24 @@ void GlRenderer::Init() {
+     glDisableVertexAttribArray(2);
+ }
+ 
++void GlRenderer::CacheUniformLocations() {
++    if(mUniformsCached) return;
++    mLocUseTexture = glGetUniformLocation(mShaderProgramId, "useTexture");
++    mLocMyTexture = glGetUniformLocation(mShaderProgramId, "myTexture");
++    mLocPolygonMode = glGetUniformLocation(mShaderProgramId, "polygonMode");
++    mLocUseFog = glGetUniformLocation(mShaderProgramId, "useFog");
++    mLocFogColor = glGetUniformLocation(mShaderProgramId, "fogColor");
++    mLocFogDepthBoundary = glGetUniformLocation(mShaderProgramId, "fogDepthBoundary");
++    mLocFogDensity = glGetUniformLocation(mShaderProgramId, "fogDensity");
++    if(mLocMyTexture >= 0) glProgramUniform1i(mShaderProgramId, mLocMyTexture, 0);
++    mLastUseTexture = -1; mLastPolygonMode = -1; mLastUseFog = -1;
++    mUniformsCached = true;
++    if(gG3Stats.enabled) gG3Stats.uniformLocCalls += 7;
++}
++
+ void GlRenderer::Draw(std::shared_ptr<DrawCall> drawCall) {
++    CacheUniformLocations();
++    if(gG3Stats.enabled) { gG3Stats.draws++; gG3Stats.verts += drawCall->GetRenderVertsCount(); }
+     size_t vertsCount = drawCall->GetRenderVertsCount();
+     if( vertsCount != 0 )
+     {
+@@ -68,12 +86,16 @@ void GlRenderer::Draw(std::shared_ptr<DrawCall> drawCall) {
+ 
+         // Handle texture
+         if(drawCall->GetTexture() == nullptr) {
+-            glProgramUniform1i(mShaderProgramId, glGetUniformLocation(mShaderProgramId, "useTexture") , 0);	
++            if(mLastUseTexture != 0) { glProgramUniform1i(mShaderProgramId, mLocUseTexture, 0); mLastUseTexture = 0; }
+         } else {
+             drawCall->GetTexture()->Activate();
+ 
+             auto texImageParam = drawCall->GetTexImageParam();
+-
++            const int wrapS = texImageParam.repeatS ? (texImageParam.flipS ? GL_MIRRORED_REPEAT : GL_REPEAT) : GL_CLAMP_TO_BORDER;
++            const int wrapT = texImageParam.repeatT ? (texImageParam.flipT ? GL_MIRRORED_REPEAT : GL_REPEAT) : GL_CLAMP_TO_BORDER;
++            const unsigned int texId = drawCall->GetTexture()->GetTextureID();
++            const bool wrapChanged = (texId != mLastWrapTexture || wrapS != mLastWrapS || wrapT != mLastWrapT);
++            if(wrapChanged) {
+             if(texImageParam.repeatS) {
+                 if(texImageParam.flipS)
+                 {
+@@ -95,34 +117,55 @@ void GlRenderer::Draw(std::shared_ptr<DrawCall> drawCall) {
+             } else {
+                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+             }
+-            
+-            GLint texUnitLoc = glGetUniformLocation(mShaderProgramId, "myTexture");
+-            //set texture 0 in the shader
+-            glProgramUniform1i(mShaderProgramId, texUnitLoc , 0);
+-
+-            //Enable texture in the shader
+-            glProgramUniform1i(mShaderProgramId, glGetUniformLocation(mShaderProgramId, "useTexture") , 1);
++            mLastWrapTexture = texId; mLastWrapS = wrapS; mLastWrapT = wrapT;
++            }
++            if(mLastUseTexture != 1) { glProgramUniform1i(mShaderProgramId, mLocUseTexture, 1); mLastUseTexture = 1; }
          }
  
+-        GLint polygonModeLoc = glGetUniformLocation(mShaderProgramId, "polygonMode");
+-        glProgramUniform1i(mShaderProgramId, polygonModeLoc , drawCall->GetPolygonAttr().polygonMode);
+-
+-        // Fog uniforms
+-        GLint useFogLoc = glGetUniformLocation(mShaderProgramId, "useFog");
+-        glProgramUniform1i(mShaderProgramId, useFogLoc , drawCall->GetFogEnabled());
++        if(mLastPolygonMode != (int)drawCall->GetPolygonAttr().polygonMode) {
++            glProgramUniform1i(mShaderProgramId, mLocPolygonMode, drawCall->GetPolygonAttr().polygonMode);
++            mLastPolygonMode = (int)drawCall->GetPolygonAttr().polygonMode;
++        }
++        // Fog uniforms: re-upload only when a value actually changed
++        // (the two 32-float tables repeat unchanged on most draws).
++        if(mLastUseFog != (int)drawCall->GetFogEnabled()) {
++            glProgramUniform1i(mShaderProgramId, mLocUseFog, drawCall->GetFogEnabled());
++            mLastUseFog = (int)drawCall->GetFogEnabled();
++        }
+         if(drawCall->GetFogEnabled()) {
+-            GLint fogColorLoc = glGetUniformLocation(mShaderProgramId, "fogColor");
+             float * fogColor = drawCall->GetFogColor();
+-            glProgramUniform4f(mShaderProgramId, fogColorLoc, fogColor[0], fogColor[1], fogColor[2], fogColor[3]);
+-            GLint fogDepthBoundaryLoc = glGetUniformLocation(mShaderProgramId, "fogDepthBoundary");
+-            glProgramUniform1fv(mShaderProgramId, fogDepthBoundaryLoc, 32, drawCall->GetFogDepthTable());
++            if(!mFogUploaded || memcmp(mLastFogColor, fogColor, sizeof(mLastFogColor)) != 0 ||
++               memcmp(mLastFogDepth, drawCall->GetFogDepthTable(), sizeof(mLastFogDepth)) != 0 ||
++               memcmp(mLastFogDensity, drawCall->GetFogDensityTable(), sizeof(mLastFogDensity)) != 0) {
++                glProgramUniform4f(mShaderProgramId, mLocFogColor, fogColor[0], fogColor[1], fogColor[2], fogColor[3]);
++                glProgramUniform1fv(mShaderProgramId, mLocFogDepthBoundary, 32, drawCall->GetFogDepthTable());
++                glProgramUniform1fv(mShaderProgramId, mLocFogDensity, 32, drawCall->GetFogDensityTable());
++                memcpy(mLastFogColor, fogColor, sizeof(mLastFogColor));
++                memcpy(mLastFogDepth, drawCall->GetFogDepthTable(), sizeof(mLastFogDepth));
++                memcpy(mLastFogDensity, drawCall->GetFogDensityTable(), sizeof(mLastFogDensity));
++                mFogUploaded = true;
++            }
++        }
+ 
+-            GLint fogDensityLoc = glGetUniformLocation(mShaderProgramId, "fogDensity");
+-            glProgramUniform1fv(mShaderProgramId, fogDensityLoc, 32, drawCall->GetFogDensityTable());
 +        // Apply this draw call's own cull mode and depth test. PolygonAttrCommand also sets them on the GL state when the command
 +        // arrives, but translucent draw calls are deferred to the end of the frame (DrawTransparentItems), so they would otherwise
 +        // be drawn with whatever state the frame's last polygon attribute left behind (often GX_CULL_ALL: nothing drawn).
@@ -452,18 +1589,274 @@ index 77300c2..ecf6990 100644
 +            case GX_CULL_FRONT: glEnable(GL_CULL_FACE); glCullFace(GL_BACK); break;
 +            case GX_CULL_BACK:  glEnable(GL_CULL_FACE); glCullFace(GL_FRONT); break;
 +            default:            glDisable(GL_CULL_FACE); break;
-+        }
+         }
 +        glDepthFunc(attr.depthTest ? GL_LEQUAL : GL_LESS);
 +        // As on the DS, translucent polygons only update the depth buffer when their attribute asks for it.
 +        const bool depthWrite = !drawCall->IsTransparent() || attr.translucentDepth;
 +        if(!depthWrite) glDepthMask(GL_FALSE);
-+
+ 
          glDrawArrays(GL_TRIANGLES, 0, vertsCount);
 +
 +        if(!depthWrite) glDepthMask(GL_TRUE);
      }
  }
  
+-}
+\ No newline at end of file
++}
+diff --git a/libraries/sim/src/sim_g3_GlobalState.cpp b/libraries/sim/src/sim_g3_GlobalState.cpp
+index c6d82f5..efa4ec5 100644
+--- a/libraries/sim/src/sim_g3_GlobalState.cpp
++++ b/libraries/sim/src/sim_g3_GlobalState.cpp
+@@ -4,6 +4,9 @@
+ 
+ #include "simulator/sim_g3_Utilities.hpp"
+ #include "simulator/sim_crc32.h"
++#include <chrono>
++#include <cstdio>
++#include <cstdlib>
+ 
+ #include <nitro/fx/fx.h>
+ #include <nitro/fx/fx_const.h>
+@@ -14,6 +17,23 @@ static SIM::G3::GlobalState sG3GlobalState;
+ 
+ namespace SIM::G3 {
+ 
++G3Stats gG3Stats;
++void G3StatsInit() {
++    if(gG3Stats.initialized) return;
++    gG3Stats.initialized = true;
++    gG3Stats.enabled = getenv("SIM_G3_STATS") != nullptr;
++}
++void G3StatsDump(const char * tag) {
++    G3StatsInit();
++    if(!gG3Stats.enabled) return;
++    fprintf(stderr, "G3STATS %s flushes=%llu crcTexBytes=%llu crcPlttBytes=%llu crcMs=%.1f decodes=%llu hits=%llu draws=%llu verts=%llu uniformLoc=%llu texWrites=%llu texCheckMismatch=%llu commands=%llu\n",
++        tag, gG3Stats.flushes, gG3Stats.crcTexBytes, gG3Stats.crcPlttBytes,
++        (double)gG3Stats.crcNs / 1e6, gG3Stats.decodes, gG3Stats.cacheHits,
++        gG3Stats.draws, gG3Stats.verts, gG3Stats.uniformLocCalls, gG3Stats.texWrites,
++        gG3Stats.texCheckMismatches, gG3Stats.commands);
++    fflush(stderr);
++}
++
+ static constexpr MtxFx44 Identity44 = {
+ {
+     FX32_ONE, 0, 0, 0,
+@@ -189,6 +209,12 @@ void GlobalState::SubmitPolygon(int numVerts) {
+ }
+ 
+ void GlobalState::FlushDrawCall() {
++    G3StatsInit();
++    if(gG3Stats.enabled) gG3Stats.flushes++;
++    // Nothing to draw: the texture/fog state is recomputed from the draw
++    // call's stored TexImageParam and the fog registers at the next
++    // non-empty flush, so skipping here changes nothing drawn.
++    if(mCurrentDrawCall->GetRenderVertsCount() == 0) return;
+     // Handle texture info from current drawCall
+     u8 * texBuf = nullptr;
+ 	std::shared_ptr<Texture> texture = nullptr;
+@@ -201,10 +227,7 @@ void GlobalState::FlushDrawCall() {
+ 		GLuint g3TextureId;
+ 		u16 * colorAddr = (u16*)vramPltt;
+ 
+-		//Calculate the texture + palette CRC
+-		u32 paletteCRC = SIM_crc32buf(vramPltt, 512);
+ 		u32 vramTexBufSize = 0;
+-
+ 		if(texImageParam.textureFormat == GX_TEXFMT_PLTT4) {
+ 			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize) >> 2;
+ 		} else if(texImageParam.textureFormat == GX_TEXFMT_PLTT16) {
+@@ -213,9 +236,65 @@ void GlobalState::FlushDrawCall() {
+ 			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize);
+ 		}
+ 
+-		u32 textureCRC = SIM_crc32buf(vramTex, vramTexBufSize);
+-		texture = mTextureCache.GetTexture(textureCRC, paletteCRC);
++		// Cache key: VRAM ranges + decode parameters. The texture is reused
++		// until a recorded VRAM write touches its range (SIM_G3_NotifyTexVramWrite,
++		// hooked into GX_LoadTex*/DMA/CpuCopy paths); no per-flush CRC.
++		// SIM_G3_TEXCACHE_CHECK_CRC=1 also CRCs every flush and cross-checks
++		// the stored CRCs, falling back to a re-decode on any mismatch.
++		static const bool checkCRC = getenv("SIM_G3_TEXCACHE_CHECK_CRC") != nullptr;
++		TextureKey texKey;
++		texKey.texAddr = (std::uintptr_t)vramTex;
++		texKey.texSize = vramTexBufSize;
++		texKey.plttAddr = (std::uintptr_t)vramPltt;
++		texKey.format = texImageParam.textureFormat;
++		texKey.sizeS = texImageParam.textureSSize;
++		texKey.sizeT = texImageParam.textureTSize;
++		texKey.color0 = texImageParam.color0;
++		texKey.usePalette = texImageParam.textureFormat != GX_TEXFMT_DIRECT;
++
++		u32 textureCRC = 0, paletteCRC = 0;
++		if(checkCRC) {
++			auto crcT0 = std::chrono::steady_clock::now();
++			paletteCRC = SIM_crc32buf(vramPltt, 512);
++			textureCRC = SIM_crc32buf(vramTex, vramTexBufSize);
++			if(gG3Stats.enabled) {
++				gG3Stats.crcTexBytes += vramTexBufSize; gG3Stats.crcPlttBytes += 512;
++				gG3Stats.crcNs += (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - crcT0).count();
++			}
++		}
++
++		std::shared_ptr<Texture> staleTexture = mTextureCache.PeekTexture(texKey);
++		u32 staleTexCRC = 0, stalePlttCRC = 0;
++		const bool hadStored = staleTexture && mTextureCache.GetStoredCRCs(texKey, &staleTexCRC, &stalePlttCRC);
++		texture = mTextureCache.GetTexture(texKey);
++		if(!texture && hadStored) {
++			// A recorded write touched the range; it may have rewritten the
++			// same bytes (palette animation does this constantly). One CRC
++			// here - only after a write, never per flush - keeps the texture.
++			u32 nowTexCRC = SIM_crc32buf(vramTex, vramTexBufSize);
++			u32 nowPlttCRC = texKey.usePalette ? SIM_crc32buf(vramPltt, 512) : stalePlttCRC;
++			if(nowTexCRC == staleTexCRC && nowPlttCRC == stalePlttCRC) {
++				mTextureCache.AddTexture(texKey, staleTexCRC, stalePlttCRC, staleTexture);
++				texture = staleTexture;
++			}
++		}
++		if(texture && checkCRC) {
++			u32 storedTexCRC = 0, storedPlttCRC = 0;
++			if(mTextureCache.GetStoredCRCs(texKey, &storedTexCRC, &storedPlttCRC) &&
++			   (storedTexCRC != textureCRC || (texKey.usePalette && storedPlttCRC != paletteCRC))) {
++				gG3Stats.texCheckMismatches++;
++				fprintf(stderr, "G3TEXCHECK mismatch tex=%08x/%08x pltt=%08x/%08x (re-decoding)\n",
++				        textureCRC, storedTexCRC, paletteCRC, storedPlttCRC);
++				texture = nullptr;
++			}
++		}
++		if(gG3Stats.enabled && texture) gG3Stats.cacheHits++;
+ 		if(texture == nullptr) {
++			if(gG3Stats.enabled) gG3Stats.decodes++;
++			if(!checkCRC) { // CRCs are only stored for the debug cross-check
++				textureCRC = SIM_crc32buf(vramTex, vramTexBufSize);
++				paletteCRC = SIM_crc32buf(vramPltt, 512);
++			}
+ 			// decode texture and create it in the cache
+ 			//Convert the DS texture data into a format opengl can understand
+ 			u8 * outTexBuf = new u8[4*texImageParam.textureSSize * texImageParam.textureTSize];
+@@ -250,7 +329,7 @@ void GlobalState::FlushDrawCall() {
+ 			// This creates a GL texture and uploads it to the GPU with glTexImage2D
+ 			texture = std::make_shared<SIM::G3::Texture>(texImageParam.textureTSize, texImageParam.textureSSize, outTexBuf);
+ 
+-			mTextureCache.AddTexture(textureCRC, paletteCRC, texture);
++			mTextureCache.AddTexture(texKey, textureCRC, paletteCRC, texture);
+ 
+ 			// Texture buffer can be freed now, it has been sent to the GPU
+ 			delete[] outTexBuf;
+diff --git a/libraries/sim/src/sim_g3_TextureCache.cpp b/libraries/sim/src/sim_g3_TextureCache.cpp
+index de145a7..6a2b5da 100644
+--- a/libraries/sim/src/sim_g3_TextureCache.cpp
++++ b/libraries/sim/src/sim_g3_TextureCache.cpp
+@@ -1,31 +1,94 @@
+ #include "simulator/sim_g3_TextureCache.hpp"
++#include "simulator/sim_g3_GlobalState.hpp"
++
++#ifdef SDK_PORT
++#include <nitro/hw/X86/mmap_global.h>
++#include <nitro/hw/X86/mmap_vram.h>
++#endif
++
++#include <vector>
+ 
+ namespace SIM::G3 {
+ 
+-TextureCache::TextureCache() {
++namespace {
++struct WriteRange { std::uintptr_t lo; std::uintptr_t hi; unsigned long long seq; };
++std::vector<WriteRange> sWrites;
++unsigned long long sWriteSeq = 0;
++unsigned long long sEpoch = 1;
+ 
++bool Intersects(std::uintptr_t lo, std::uintptr_t hi, const WriteRange& w) {
++    return lo < w.hi && w.lo < hi;
+ }
++} // namespace
+ 
+-TextureCache::~TextureCache() {
+-    
++TextureCache::TextureCache() {}
++TextureCache::~TextureCache() {}
++
++void TextureCache::NotifyWrite(const void * dest, std::size_t size) {
++    if(dest == nullptr || size == 0) return;
++#ifdef SDK_PORT
++    // Only LCDC banks A-G can hold 3D textures (A-D) or texture palettes (E-G).
++    const std::uintptr_t lo = (std::uintptr_t)dest;
++    const std::uintptr_t vramLo = (std::uintptr_t)HW_LCDC_VRAM_A;
++    const std::uintptr_t vramHi = (std::uintptr_t)HW_LCDC_VRAM_G + HW_VRAM_G_SIZE;
++    if(lo + size <= vramLo || lo >= vramHi) return;
++#else
++    (void)dest;
++#endif
++    if(gG3Stats.enabled) gG3Stats.texWrites++;
++    if(sWrites.size() > 8192) { // log too long: conservatively stale everything
++        sWrites.clear();
++        sEpoch++;
++    }
++    sWrites.push_back({(std::uintptr_t)dest, (std::uintptr_t)dest + size, ++sWriteSeq});
+ }
+ 
+-void TextureCache::AddTexture(u32 textureCRC, u32 paletteCRC, std::shared_ptr<Texture> texture) {
+-    u64 combinedCRC = GetCombinedCRC(textureCRC, paletteCRC);
+-    mTextureMap[combinedCRC] = texture;
++void TextureCache::AddTexture(const TextureKey& key, u32 textureCRC, u32 paletteCRC, std::shared_ptr<Texture> texture) {
++    Entry e;
++    e.texture = texture;
++    e.textureCRC = textureCRC;
++    e.paletteCRC = paletteCRC;
++    e.epoch = sEpoch;
++    e.checkedSeq = sWriteSeq;
++    e.checkedIdx = sWrites.size();
++    mTextureMap[key] = e;
+ }
+ 
+-std::shared_ptr<Texture> TextureCache::GetTexture(u32 textureCRC, u32 paletteCRC) {
+-    u64 combinedCRC = GetCombinedCRC(textureCRC, paletteCRC);
+-    if(mTextureMap.count(combinedCRC)) {
+-        return mTextureMap[combinedCRC];
++std::shared_ptr<Texture> TextureCache::GetTexture(const TextureKey& key) {
++    auto it = mTextureMap.find(key);
++    if(it == mTextureMap.end()) return nullptr;
++    Entry& e = it->second;
++    if(e.epoch != sEpoch) { mTextureMap.erase(it); return nullptr; }
++    const std::uintptr_t texLo = key.texAddr, texHi = key.texAddr + key.texSize;
++    const std::uintptr_t plttLo = key.plttAddr, plttHi = key.plttAddr + 512;
++    for(std::size_t i = e.checkedIdx; i < sWrites.size(); i++) {
++        const auto& w = sWrites[i];
++        if(w.seq <= e.checkedSeq) continue;
++        if(Intersects(texLo, texHi, w) || (key.usePalette && Intersects(plttLo, plttHi, w))) {
++            mTextureMap.erase(it);
++            return nullptr;
++        }
+     }
++    e.checkedSeq = sWriteSeq;
++    e.checkedIdx = sWrites.size();
++    return e.texture;
++}
+ 
+-    return nullptr;
++std::shared_ptr<Texture> TextureCache::PeekTexture(const TextureKey& key) {
++    auto it = mTextureMap.find(key);
++    return it == mTextureMap.end() ? nullptr : it->second.texture;
+ }
+ 
+-u64 TextureCache::GetCombinedCRC(u32 textureCRC, u32 paletteCRC) {
+-    return (((u64)(textureCRC)) | (((u64)paletteCRC)) << 32);
++bool TextureCache::GetStoredCRCs(const TextureKey& key, u32 * textureCRC, u32 * paletteCRC) {
++    auto it = mTextureMap.find(key);
++    if(it == mTextureMap.end()) return false;
++    *textureCRC = it->second.textureCRC;
++    *paletteCRC = it->second.paletteCRC;
++    return true;
+ }
+ 
+-}
+\ No newline at end of file
++} // namespace SIM::G3
++
++extern "C" void SIM_G3_NotifyTexVramWrite(const void * dest, size_t size) {
++    SIM::G3::TextureCache::NotifyWrite(dest, size);
++}
 diff --git a/libraries/sim/src/sim_gui.cpp b/libraries/sim/src/sim_gui.cpp
 index 2c40e59..d13175a 100644
 --- a/libraries/sim/src/sim_gui.cpp
@@ -878,7 +2271,7 @@ index 0000000..74d53a8
 +
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..6c3f118 100644
+index 910d7da..72a4d65 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -1122,7 +2515,7 @@ index 910d7da..6c3f118 100644
 +  }
 +  if (exitFrame && frame >= exitFrame) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
 +    if (frame > 100) printf("SIM_DEBUG_EXIT_FRAME: %.1f fps since frame 100\n", (frame - 100) / ((t.tv_sec - t100.tv_sec) + (t.tv_nsec - t100.tv_nsec) / 1e9));
-+    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); fflush(stdout); _exit(0); }
++    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); fflush(stdout); SIM::G3::G3StatsDump("exit"); _exit(0); }
 +}
 +
  void *SIM_Render(void *arg) {
