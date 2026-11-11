@@ -11,11 +11,9 @@ _000:
     WaitButtonABTime 30
 
 _key_stone:
-    // {0}'s {1} is reacting to {2}'s Key Stone!
-    // This message stays up during the animation, so only a short pause is needed before it starts.
-    PrintMessage BattleStrings_Text_MegaEvolutionReacting, TAG_NICKNAME_ITEM_TRNAME, BTLSCR_MSG_TEMP, BTLSCR_MSG_BATTLER_TEMP, BTLSCR_MSG_TEMP
-    Wait
-    WaitButtonABTime 15
+    // The cinematic plays with a clear stage (healthboxes scrolled away, no
+    // textbox in the letterboxed shot). The Key Stone line is shown after
+    // the reveal instead of sitting under the animation (see _title).
 
     // Handle substitute: remove it temporarily before animation
     CompareMonDataToValue OPCODE_FLAG_NOT, BTLSCR_MSG_TEMP, BATTLEMON_VOLATILE_STATUS, VOLATILE_CONDITION_SUBSTITUTE, _016
@@ -33,6 +31,16 @@ _016:
     PlayBattleAnimation BTLSCR_MSG_TEMP, BATTLE_ANIMATION_MEGA_EVOLUTION
     AffinePulse BTLSCR_MSG_TEMP
     Wait
+
+_title:
+    // {0}'s {1} is reacting to {2}'s Key Stone! (after the reveal)
+    PrintMessage BattleStrings_Text_MegaEvolutionReacting, TAG_NICKNAME_ITEM_TRNAME, BTLSCR_MSG_TEMP, BTLSCR_MSG_BATTLER_TEMP, BTLSCR_MSG_TEMP
+    Wait
+    WaitButtonABTime 15
+    // Title card line, paired with the PostFX title band in the reveal.
+    PrintMessage BattleStrings_Text_MegaCinematicTitle, TAG_NICKNAME, BTLSCR_MSG_TEMP
+    Wait
+    WaitButtonABTime 24
     // {0} Mega Evolved!
     PrintMessage pl_msg_00000368_01269, TAG_NICKNAME, BTLSCR_MSG_TEMP
     Wait

@@ -8533,6 +8533,12 @@
       ]
     },
     {
+      "id": "BattleStrings_Text_MegaCinematicTitle",
+      "en_US": [
+        "MEGA {STRVAR_1 1, 0, 0}!"
+      ]
+    },
+    {
       "id": "BattleStrings_Text_MegaEvolutionReacting",
       "en_US": [
         "{STRVAR_1 1, 0, 0}'s {STRVAR_1 8, 1, 0}\n",
