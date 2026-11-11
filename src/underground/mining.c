@@ -1125,7 +1125,11 @@ static void Mining_ConfirmStartMiningTask(SysTask *sysTask, void *unused)
             sMiningEnv->printerID = -1;
         }
     } else {
+        #ifdef SDK_BUILD_ARM
         int input = Menu_ProcessInputAndHandleExit(sMiningEnv->confirmStartMiningMenu, HEAP_ID_FIELD1);
+        #else
+        u64 input = Menu_ProcessInputAndHandleExit(sMiningEnv->confirmStartMiningMenu, HEAP_ID_FIELD1);
+        #endif
 
         u8 confirmResult;
         if (input == MENU_NOTHING_CHOSEN) {
@@ -2095,8 +2099,13 @@ static void Mining_DrawBuriedObjects(int buriedObjectCount, BgConfig *bgConfig, 
 
 static void Mining_RandomizeDirtLayers(BgConfig *bgConfig)
 {
+    #ifdef SDK_BUILD_ARM
     static const u8 dirtLayer4MapLength = 8;
     static const u8 dirtLayer6MapLength = 5;
+    #else
+    #define dirtLayer4MapLength (8)
+    #define dirtLayer6MapLength (5)
+    #endif
     static u8 dirtLayer4Map[dirtLayer4MapLength][dirtLayer4MapLength] = {
         { 0, 0, 4, 4, 4, 4, 0, 0 },
         { 0, 4, 4, 4, 4, 4, 4, 0 },

@@ -80,6 +80,11 @@ static BOOL ov76_0223E950(CapsuleAppManager *appMan);
 static BOOL CapsuleManager_HandleSpritesAndInputs(CapsuleAppManager *appMan);
 static BOOL CapsuleManager_Dummy(CapsuleAppManager *appMan);
 
+#ifdef SDK_PORT
+void CapsuleGraphics_LoadBgLayer2Tilemap(CapsuleAppManager *appMan, NARC *narc);
+void CapsuleGraphics_Dummy(CapsuleAppManager *appMan);
+#endif
+
 void CapsuleManager_CopyToActiveCapsule(CapsuleAppManager *appMan)
 {
     BallCapsule_Copy(appMan->capsules[*appMan->capsuleIndex].capsule, &appMan->activeCapsule);

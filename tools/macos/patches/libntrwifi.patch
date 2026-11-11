@@ -1,0 +1,50 @@
+diff --git a/libraries/cps/src/network.c b/libraries/cps/src/network.c
+index a2d17e8..1704dc8 100644
+--- a/libraries/cps/src/network.c
++++ b/libraries/cps/src/network.c
+@@ -29,6 +29,18 @@ static SDL_mutex * s_SocketSharedMutex = NULL;
+ static SDL_mutex * s_SocketThreadStartupMutex = NULL;
+ #endif
+ 
++#ifdef SDK_BUILD_MACOS
++// macOS has no SOCK_NONBLOCK: set O_NONBLOCK after creating the socket
++#include <fcntl.h>
++static int CPS_SOCKET_NONBLOCK(int domain, int type, int protocol) {
++  int s = socket(domain, type, protocol);
++  if (s >= 0) fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK);
++  return s;
++}
++#elif defined(SDK_BUILD_LINUX)
++#define CPS_SOCKET_NONBLOCK(domain, type, protocol) socket(domain, (type) | SOCK_NONBLOCK, protocol)
++#endif
++
+ static char * analyze_format(char *param_1,char *param_2,undefined4 param_3,char *param_4);
+ static int arprequest(undefined4 param_1);
+ static char * byte2a(char *param_1,uint param_2);
+@@ -3390,7 +3402,7 @@ void CPS_SocBind(u16 local_port, u16 remote_port, CPSInAddr remote_ip)
+       setsockopt(mySoc->WIN_socket, SOL_SOCKET, SO_REUSEADDR, &setting, sizeof(int));
+       #endif
+       #ifdef SDK_BUILD_LINUX
+-      mySoc->WIN_socket = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
++      mySoc->WIN_socket = CPS_SOCKET_NONBLOCK(AF_INET, SOCK_DGRAM, 0);
+       setsockopt(mySoc->WIN_socket, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
+       #endif
+     } else {
+@@ -3399,7 +3411,7 @@ void CPS_SocBind(u16 local_port, u16 remote_port, CPSInAddr remote_ip)
+       mySoc->WIN_socket = socket(AF_INET, SOCK_STREAM, 0);
+       #endif
+       #ifdef SDK_BUILD_LINUX
+-      mySoc->WIN_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
++      mySoc->WIN_socket = CPS_SOCKET_NONBLOCK(AF_INET, SOCK_STREAM, 0);
+       #endif
+     }
+ 
+@@ -3476,7 +3488,7 @@ void CPS_SocDatagramMode(void)
+     //mySoc->WIN_socket = socket(AF_INET, SOCK_DGRAM, 0);
+     //#endif
+     //#ifdef SDK_BUILD_LINUX
+-    //mySoc->WIN_socket = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
++    //mySoc->WIN_socket = CPS_SOCKET_NONBLOCK(AF_INET, SOCK_DGRAM, 0);
+     //#endif
+   }
+   return;

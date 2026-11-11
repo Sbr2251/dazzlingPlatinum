@@ -8,6 +8,7 @@ project('pokeplatinum', ['c', 'cpp', 'nasm'],
 )
 
 fs = import('fs')
+build_target = get_option('build_target')
 
 ############################################################
 ###                    INCLUDE PATHS                     ###
@@ -19,6 +20,7 @@ toplevel_includes = include_directories('.')
 ############################################################
 ###                    COMPILER FLAGS                    ###
 ############################################################
+if (build_target == 'arm')
 shared_args = [
     '-proc', 'arm946e',
     '-enum', 'int',
@@ -35,6 +37,9 @@ shared_args = [
     '-DPOKEPLATINUM_GENERATED_ENUM',
     '-D_MSL_RESTRICT=',
 ]
+else
+shared_args = ['-DPOKEPLATINUM_GENERATED_ENUM', '-g']
+endif
 
 if get_option('revision') == '0'
     shared_args += [
@@ -46,6 +51,13 @@ else
     ]
 endif
 
+if (build_target == 'win64')
+	shared_args += [
+		'-w'
+	]
+endif
+
+if (build_target == 'arm')
 if get_option('gdb_debugging')
     shared_args += [
         '-O1,p',
@@ -54,18 +66,53 @@ if get_option('gdb_debugging')
 else
     shared_args += '-O4,p'
 endif
+endif
 
-c_args = shared_args + ['-lang', 'c99']
-cpp_args = shared_args + ['-RTTI', 'off']
+if get_option('tracy_enable')
+    shared_args += '-DTRACY_ENABLE'
+endif
+
+if (build_target == 'nx')
+    shared_args += [ '-D__SWITCH__' ]
+
+    if(get_option('tracy_enable'))
+    add_global_arguments(['-D__SWITCH__', 
+                          '-DTRACY_ENABLE',        
+                          '-I/opt/devkitpro/portlibs/switch/include',
+                          '-I/opt/devkitpro/libnx/include'],
+        language: 'cpp',
+        native: false
+    )
+    else
+    add_global_arguments(['-D__SWITCH__',         
+                          '-I/opt/devkitpro/portlibs/switch/include',
+                          '-I/opt/devkitpro/libnx/include'],
+        language: 'cpp',
+        native: false
+    )
+    endif
+
+endif
+
+
+c_args = []
+cpp_args = []
+if (build_target == 'arm')
+    c_args = shared_args + ['-lang', 'c99']
+    cpp_args = shared_args + ['-RTTI', 'off']
+else
+    c_args = shared_args
+    cpp_args = shared_args
+endif
 
 add_global_arguments(c_args,
     language: 'c',
-    native: false
+    native: (build_target == 'linux' or build_target == 'win64')
 )
 
 add_global_arguments(cpp_args,
     language: 'cpp',
-    native: false
+    native: (build_target == 'linux' or build_target == 'win64')
 )
 
 pokeplatinum_args = [
@@ -73,6 +120,16 @@ pokeplatinum_args = [
     '-DGAME_VERSION=VERSION_PLATINUM',
     '-DGAME_LANGUAGE=LANGUAGE_ENGLISH'
 ]
+
+if(build_target != 'arm')
+    pokeplatinum_args += [
+        '-std=c99'
+    ]
+endif
+
+if(build_target == 'nx')
+    pokeplatinum_args += '-fPIC'
+endif
 
 if get_option('gdb_debugging')
     pokeplatinum_args += '-DGDB_DEBUGGING'
@@ -90,6 +147,7 @@ asm_args = [
     '-gccinc'
 ]
 
+if (build_target == 'arm')
 link_args = [
     '-w', 'off',
     '-proc', 'arm946e',
@@ -103,14 +161,52 @@ link_args = [
     '-force_active', 'DGTi_hash2_arm4_small',
     '-sym', 'on'
 ]
+elif (build_target == 'nx')
+link_args = [
+    '-specs=/opt/devkitpro/libnx/switch.specs',
+    '-g',
+    '-march=armv8-a+crc+crypto',
+    '-mtune=cortex-a56',
+    '-mtp=soft',
+    '-fPIE',
+    '--verbose',
+    '-Wl,-Map=main.map'
+]
+elif (build_target == 'prospero')
+link_args = [
+    '-nostartfiles',
+    '-T' + meson.global_source_root() + '/' + 'prospero/ps5-elf.ld',
+    '-e',
+    '_start',
+    '-Wl,--version-script=' + meson.global_source_root() + '/' + 'prospero/ps5-app-symbols.map',
+    '-pthread'
+]
+else
+link_args = [
+]
+endif
+
+if host_machine.system() == 'darwin'
+    # keep libntr's simulated registers and memory in definition order (see tools/macos/gen_order.py)
+    sim_vars_order = meson.global_build_root() / 'sim_vars.order'
+    run_command(find_program('python3'), files('tools/macos/gen_order.py'),
+        meson.global_source_root() / 'subprojects' / 'libntr' / 'libraries' / 'sim' / 'src' / 'sim_vars.c', sim_vars_order, check: true)
+    link_args += ['-Wl,-order_file,' + sim_vars_order, '-lobjc', '-framework', 'Foundation']
+endif
 
 ############################################################
 ###                     DEPENDENCIES                     ###
 ############################################################
+libntr_prj = subproject('libntr',
+    default_options: [
+        'card_game_code=CPUE',
+        'card_maker_code=01'
+    ])
+
 nitrosdk_dep = dependency('NitroSDK',
     default_options: {
         'mwrap_sdk': '2.0/sp1p2',
-        'sp1p3_conditionals': true
+        'sp1p3_conditionals': true,
     }
 )
 
@@ -123,19 +219,21 @@ nitrosystem_dep = dependency('NitroSystem',
 nitrowifi_dep = dependency('NitroWiFi',
     default_options: {
         'mwrap_sdk': '2.0/sp1p2',
-        'sp1p3_conditionals': true
+        'sp1p3_conditionals': true,
     }
 )
 
 nitrodwc_dep = dependency('NitroDWC',
     default_options: {
         'mwrap_sdk': '2.0/sp2p2',
-        'link_ppwlobby': true
+        'link_ppwlobby': true,
     }
 )
 
 libvct_dep = dependency('libvct')
+if (build_target == 'arm')
 libsyscall_dep = dependency('libsyscall')
+endif
 
 ############################################################
 ###                       CONSTS                         ###
@@ -171,6 +269,7 @@ subdir('res')
 ############################################################
 subdir('src')
 
+if (build_target == 'arm')
 trainer_ai_o = custom_target(
     'trainer_ai_script.o',
     output: 'trainer_ai_script.o',
@@ -189,7 +288,112 @@ trainer_ai_o = custom_target(
     ],
     depfile: '@BASENAME@.d',
 )
+elif(build_target == 'nx')
+trainer_ai_ss = custom_target(
+    'trainer_ai_script.ss',
+    output: 'trainer_ai_script.ss',
+    input: files('src/battle/trainer_ai/script.s'),
+    command: [
+        'gcc',
+        '-D__ASSEMBLER__',
+        '-I', meson.global_source_root() / 'asm',
+        '-I', meson.global_build_root(),
+        '-I', meson.global_source_root() / 'include',
+        '-MD', '-MF', '@DEPFILE@',
+        '-E', '-nostdinc', '-'
+    ],
+    depfile: '@BASENAME@.d',
+    capture: true,
+    feed: true
+)
 
+trainer_ai_o = custom_target(
+    'trainer_ai_script.o',
+    output: 'trainer_ai_script.o',
+    input: trainer_ai_ss,
+    command: [
+        '/opt/devkitpro/devkitA64/bin/aarch64-none-elf-as',
+        '-I', meson.global_source_root() / 'asm',
+        '-I', meson.global_build_root(),
+        '-o', '@OUTPUT@',
+        '@INPUT@',
+    ],
+    depfile: '@BASENAME@.d'
+)
+else
+trainer_ai_ss = custom_target(
+    'trainer_ai_script.ss',
+    output: 'trainer_ai_script.ss',
+    input: files('src/battle/trainer_ai/script.s'),
+    command: [
+        'gcc',
+        '-D__ASSEMBLER__',
+        '-I', meson.global_source_root() / 'asm',
+        '-I', meson.global_build_root(),
+        '-I', meson.global_source_root() / 'include',
+        '-MD', '-MF', '@DEPFILE@',
+        '-E', '-nostdinc', '-'
+    ],
+    depfile: '@BASENAME@.d',
+    capture: true,
+    feed: true
+)
+
+if (host_machine.system() == 'darwin')
+# macOS: Apple's assembler cannot fold the script's label arithmetic; see tools/macos/trainer_ai_macho.sh
+trainer_ai_o = custom_target(
+    'trainer_ai_script.o',
+    output: 'trainer_ai_script.o',
+    input: trainer_ai_ss,
+    command: [
+        meson.global_source_root() / 'tools' / 'macos' / 'trainer_ai_macho.sh',
+        '@INPUT@', '@OUTPUT@',
+        meson.global_source_root() / 'asm',
+        meson.global_build_root(),
+    ],
+)
+else
+trainer_ai_o = custom_target(
+    'trainer_ai_script.o',
+    output: 'trainer_ai_script.o',
+    input: trainer_ai_ss,
+    command: [
+        'as',
+        '-I', meson.global_source_root() / 'asm',
+        '-I', meson.global_build_root(),
+        '-o', '@OUTPUT@',
+        '@INPUT@',
+    ],
+    depfile: '@BASENAME@.d'
+)
+endif
+endif
+
+if(build_target != 'arm')
+pokeplatinum_port_c = files(
+    'src/port/charcode_convert.c',
+    'src/port/debug_field.c',
+    'src/port/savedata_upgrade.c',
+    'src/port/sim_config_prj.c',
+    'src/port/sim_gui_prj.cpp',
+    'src/port/gui_cheats.cpp',
+    'src/port/gui_configPrj.cpp',
+    'src/port/gui_createitem.cpp',
+    'src/port/gui_createitem_utils.c',
+    'src/port/gui_createmon.cpp',
+    'src/port/gui_createmon_utils.c',
+    'src/port/gui_mapjump.cpp',
+    'src/port/gui_mapjump_utils.c'
+)
+
+if(build_target == 'linux')
+pokeplatinum_port_c += files(
+    'src/port/sim_icon.cpp'
+)
+endif
+endif
+
+if (build_target == 'arm')
 libmslc = fs.copyfile('tools/metroskrew/lib/metroskrew/sdk/ds/2.0/sp2/msl/MSL_C/MSL_ARM/Lib/MSL_C_NITRO_Ai_LE.a')
 libmslcpp = fs.copyfile('tools/metroskrew/lib/metroskrew/sdk/ds/2.0/sp2/msl/MSL_C++/MSL_ARM/Lib/MSL_CPP_NITRO_Ai_LE.a')
 
@@ -240,18 +444,198 @@ main = executable('main',
     link_depends: main_lcf,
     native: false
 )
+endif
+if (build_target == 'linux')
+main = executable('main',
+    sources: [
+        pokeplatinum_c,
+        pokeplatinum_port_c,
+        c_consts_generators,
+        naix_headers,
+        h_headers,
+        embed_headers,
+    ],
+    objects: trainer_ai_o,
+    c_args: [
+        pokeplatinum_args,
+    ],
+    c_pch: 'include/pch/global_pch.h',
+    include_directories: [
+        public_includes,
+        libcrypto_public_includes,
+        libgds_public_includes,
+        libspl_public_includes,
+        ppwlobby_public_includes,
+    ],
+    dependencies: [
+        nitrosdk_dep,
+        nitrosystem_dep,
+        nitrowifi_dep,
+        nitrodwc_dep,
+        libvct_dep,
+    ],
+    link_with: [
+        libspl,
+        libcrypto_ov97,
+        libcrypto_static,
+        libgds,
+        libdwcenc,
+        libdwcppwlobby,
+        libdwcilobby,
+    ],
+    link_args: [
+        link_args,
+    ],
+    native: true
+)
+endif
+if (build_target == 'win64')
+ws2_32_lib = meson.get_compiler('c').find_library('ws2_32')
 
+ws2_32_dep = declare_dependency(dependencies: [ws2_32_lib])
+
+main = executable('main',
+    sources: [
+        pokeplatinum_c,
+        pokeplatinum_port_c,
+        c_consts_generators,
+        naix_headers,
+        h_headers,
+        embed_headers,
+        win64_icon_o
+    ],
+    objects: trainer_ai_o,
+    c_args: [
+        pokeplatinum_args,
+    ],
+    c_pch: 'include/pch/global_pch.h',
+    include_directories: [
+        public_includes,
+        libcrypto_public_includes,
+        libgds_public_includes,
+        libspl_public_includes,
+        ppwlobby_public_includes,
+    ],
+    dependencies: [
+        nitrosdk_dep,
+        nitrosystem_dep,
+        nitrowifi_dep,
+        nitrodwc_dep,
+        libvct_dep,
+        ws2_32_dep,
+    ],
+    link_with: [
+        libspl,
+        libcrypto_ov97,
+        libcrypto_static,
+        libgds,
+        libdwcenc,
+        libdwcppwlobby,
+        libdwcilobby,
+    ],
+    link_args: [
+        link_args,
+    ],
+    native: true
+)
+endif
+if (build_target == 'nx')
+main = executable('main',
+    sources: [
+        pokeplatinum_c,
+        pokeplatinum_port_c,
+        c_consts_generators,
+        naix_headers,
+        h_headers,
+        embed_headers,
+    ],
+    objects: trainer_ai_o,
+    c_args: [
+        pokeplatinum_args,
+    ],
+    c_pch: 'include/pch/global_pch.h',
+    include_directories: [
+        public_includes,
+        libcrypto_public_includes,
+        libgds_public_includes,
+        libspl_public_includes,
+        ppwlobby_public_includes,
+    ],
+    dependencies: [
+        nitrosdk_dep,
+        nitrosystem_dep,
+        nitrowifi_dep,
+        nitrodwc_dep,
+        libvct_dep,
+    ],
+    link_with: [
+        libspl,
+        libcrypto_ov97,
+        libcrypto_static,
+        libgds,
+    ],
+    link_args: [
+        link_args,
+    ],
+    native: false
+)
+endif
+if (build_target == 'prospero')
+subdir('prospero')
+
+main = executable('main',
+    sources: [
+        pokeplatinum_c,
+        pokeplatinum_port_c,
+        c_consts_generators,
+        naix_headers,
+        h_headers,
+        embed_headers,
+    ],
+    objects: trainer_ai_o,
+    c_args: [
+        pokeplatinum_args,
+    ],
+    c_pch: 'include/pch/global_pch.h',
+    include_directories: [
+        public_includes,
+        libcrypto_public_includes,
+        libgds_public_includes,
+        libspl_public_includes,
+        ppwlobby_public_includes,
+    ],
+    dependencies: [
+        nitrosdk_dep,
+        nitrosystem_dep,
+        nitrowifi_dep,
+        nitrodwc_dep,
+        libvct_dep,
+    ],
+    link_with: [
+        libspl,
+        libcrypto_ov97,
+        libcrypto_static,
+        libgds,
+        prospero_crt_lib
+    ],
+    link_args: [
+        link_args,
+    ],
+    native: false
+)
+endif
 
 ############################################################
 ###                    ARM7 BINARIES                     ###
 ############################################################
-ichneumon_sub = subproject('NitroSDK'
-    ).get_variable('ichneumon_sub')
+ichneumon_sub = libntr_prj.get_variable('ichneumon_sub')
+ichneumon_sub_defs = []
 
 
 ############################################################
 ###                        DS ROM                        ###
 ############################################################
+if(build_target == 'arm')
 pokeplatinum_nds = custom_target('pokeplatinum.us.nds',
     output: 'pokeplatinum.us.nds',
     input: [
@@ -274,6 +658,128 @@ pokeplatinum_nds = custom_target('pokeplatinum.us.nds',
     depends: map_data_stamp,
     build_by_default: true
 )
+elif (build_target == 'nx')
+copy_files_script = files('tools/scripts/copy_pc_files.sh')
+
+pokeplatinum_nds = custom_target('pokeplatinum.us',
+    output: 'pokeplatinum.us',
+    input: [
+        main,
+        rom_header_template,
+        icon_png,
+        ichneumon_sub,
+        ichneumon_sub_defs,
+        nitrofs_files,
+    ],
+    command : [
+        copy_files_script,
+        meson.global_build_root(),
+        filesys_csv,
+        'pokeplatinum',
+        '-nx'
+    ],
+    build_by_default: true
+)
+elif(build_target == 'prospero')
+# Create eboot and PPSA app folder
+eboot_elf = custom_target(
+    'eboot.elf',
+    output: 'eboot.elf',
+    depends: [
+        main, 
+        sce_agc_lib, 
+        sce_agc_driver_lib
+    ],
+    command: [
+        ps5_native_tool_exe,
+        'link',
+        '--in',
+        main,
+        '--out',
+        '@OUTPUT@',
+        '--stub-dir',
+        meson.global_source_root() + '/prospero-deps/ps5-payload-sdk/target/lib',
+        '--stub',
+        sce_agc_lib,
+        '--stub',
+        sce_agc_driver_lib,
+        '--module-sdk',
+        '0x02000009',
+        '--companion_sdk',
+        '0x08050001',
+        '--file-name',
+        'eboot.elf'
+    ]
+)
+
+# Sign eboot.elf to eboot.bin
+eboot_bin = custom_target(
+    'eboot.bin',
+    output: 'eboot.bin',
+    depends: [eboot_elf],
+    command: [ ps5_native_tool_exe, 
+               'self',
+               '--sign',
+               '--in',
+               eboot_elf,
+               '--out',
+               '@OUTPUT@' ]
+)
+
+# Generate libc.prx stub (required by PS5 loader)
+libc_prx = custom_target(
+    'libc.prx',
+    output: 'libc.prx',
+    depends: [libc_elf],
+    command: [ ps5_native_tool_exe, 
+               'self',
+               '--sign',
+               '--in',
+               libc_elf,
+               '--out',
+               '@OUTPUT@' ]
+)
+
+build_app_folder_sh = files('tools/scripts/build_ps5_folder.sh')
+sce_sys_source = meson.project_source_root() + '/prospero/sce_sys'
+app_folder = custom_target(
+    'PPSA92008',
+    output: 'PPSA92008',
+    build_by_default: true,
+    depends: [libc_prx, eboot_bin],
+    command: [
+        build_app_folder_sh,
+        meson.project_source_root(),
+        eboot_bin,
+        libc_prx,
+        sce_sys_source,
+        '@OUTPUT@'
+    ],
+)
+
+else
+# Copy files into 'pc' folder
+copy_files_script = files('tools/scripts/copy_pc_files.sh')
+
+pokeplatinum_nds = custom_target('pokeplatinum.us',
+    output: 'pokeplatinum.us',
+    input: [
+        main,
+        rom_header_template,
+        icon_png,
+        ichneumon_sub,
+        ichneumon_sub_defs,
+        nitrofs_files,
+    ],
+    command : [
+        copy_files_script,
+        meson.global_build_root(),
+        filesys_csv,
+        'pokeplatinum'
+    ],
+    build_by_default: true
+)
+endif
 
 ############################################################
 ###                   GDB HELPERS                        ###

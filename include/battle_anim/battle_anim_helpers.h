@@ -126,7 +126,7 @@ struct CustomBgScrollContext {
     BufferManager *bufferManager;
     u32 buffer1[HW_LCD_HEIGHT];
     u32 buffer2[HW_LCD_HEIGHT];
-    u32 offsetReg;
+    uPtr offsetReg;
 };
 
 typedef struct BgScrollContext {
@@ -209,7 +209,7 @@ BOOL Afterimage_Update(AfterimageContext *ctx);
 void RevolutionContext_InitOvalRevolutions(XYTransformContext *ctx, int revs, int stepsPerRev);
 void AlphaFadeContext_Init(AlphaFadeContext *ctx, s16 startEv1, s16 endEv1, s16 startEv2, s16 endEv2, int steps);
 BOOL AlphaFadeContext_IsDone(const AlphaFadeContext *ctx);
-CustomBgScrollContext *CustomBgScrollContext_New(u32 offsetReg, u32 initValue, enum HeapID heapID);
+CustomBgScrollContext *CustomBgScrollContext_New(uPtr offsetReg, u32 initValue, enum HeapID heapID);
 void CustomBgScrollContext_Free(CustomBgScrollContext *ctx);
 void *CustomBgScrollContext_GetWriteBuffer(const CustomBgScrollContext *ctx);
 void CustomBgScrollContext_Stop(CustomBgScrollContext *ctx);
@@ -218,7 +218,11 @@ void BgScrollContext_Free(BgScrollContext *ctx);
 void *BgScrollContext_GetWriteBuffer(const BgScrollContext *ctx);
 void BgScrollContext_Stop(BgScrollContext *ctx);
 u32 BattleAnimUtil_MakeBgOffsetValue(u16 x, u16 y);
+#ifdef SDK_BUILD_ARM
 u32 BattleAnimUtil_GetHOffsetRegisterForBg(int bgID);
+#else
+u64 BattleAnimUtil_GetHOffsetRegisterForBg(int bgID);
+#endif
 // F5 (compat.md): TRUE while a per-line scroll context targets BG3 (the effect BG)
 BOOL BattleAnimUtil_IsBg3LineScrollActive(void);
 // Forgets the BG3 scroll contexts; each move starts without one

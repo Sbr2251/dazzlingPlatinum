@@ -1650,7 +1650,7 @@ void BattleDisplay_PrintLinkWaitMessage(BattleSystem *battleSys, BattlerData *ba
         battleMsg.id = BattleStrings_Text_CommunicatingPleaseStandBy;
         battleMsg.tags = TAG_NONE;
 
-        BattleMessage_Print(battleSys, msgLoader, &battleMsg, NULL);
+        BattleMessage_Print(battleSys, msgLoader, &battleMsg, 0);
         BattleSystem_SetWaitDial(battleSys, Window_AddWaitDial(BattleSystem_GetWindow(battleSys, 0), 1));
     }
 
@@ -1870,7 +1870,7 @@ static void Task_SetEncounter(SysTask *task, void *data)
                     monEncounterData->formNum,
                     BATTLE_SOUND_PAN_RIGHT,
                     SOUND_VOLUME_MAX,
-                    NULL,
+                    0,
                     HEAP_ID_BATTLE,
                     cryDelay);
 
@@ -1925,7 +1925,7 @@ static void Task_SetEncounter(SysTask *task, void *data)
                     monEncounterData->formNum,
                     BATTLE_SOUND_PAN_LEFT,
                     SOUND_VOLUME_MAX,
-                    NULL,
+                    0,
                     HEAP_ID_BATTLE,
                     cryDelay);
 
@@ -1943,7 +1943,11 @@ static void Task_SetEncounter(SysTask *task, void *data)
             if (monEncounterData->isShiny) {
                 MoveAnimation moveAnim;
 
+                #ifdef SDK_BUILD_ARM
                 BattleController_SetMoveAnimation(monEncounterData->battleSys, NULL, &moveAnim, 1, 11, monEncounterData->battler, monEncounterData->battler, NULL);
+                #else
+                BattleController_SetMoveAnimation(monEncounterData->battleSys, NULL, &moveAnim, 1, 11, monEncounterData->battler, monEncounterData->battler, 0);
+                #endif
                 BattleDisplay_PlayMoveAnimation(monEncounterData->battleSys, monEncounterData->battlerData, battleAnimSys, &moveAnim);
                 monEncounterData->state = 4;
             } else {
@@ -2020,7 +2024,7 @@ static void Task_SetGiratinaEncounter(SysTask *task, void *data)
                 monEncounterData->formNum,
                 BATTLE_SOUND_PAN_RIGHT,
                 SOUND_VOLUME_MAX,
-                NULL,
+                0,
                 HEAP_ID_BATTLE,
                 cryDelay);
 
@@ -2036,7 +2040,11 @@ static void Task_SetGiratinaEncounter(SysTask *task, void *data)
             if (monEncounterData->isShiny) {
                 MoveAnimation moveAnim;
 
+                #ifdef SDK_BUILD_ARM
                 BattleController_SetMoveAnimation(monEncounterData->battleSys, NULL, &moveAnim, 1, 11, monEncounterData->battler, monEncounterData->battler, NULL);
+                #else
+                BattleController_SetMoveAnimation(monEncounterData->battleSys, NULL, &moveAnim, 1, 11, monEncounterData->battler, monEncounterData->battler, 0);
+                #endif
                 BattleDisplay_PlayMoveAnimation(monEncounterData->battleSys, monEncounterData->battlerData, battleAnimSys, &moveAnim);
                 monEncounterData->state = 4;
             } else {
@@ -2176,7 +2184,7 @@ static void Task_ShowEncounter(SysTask *task, void *data)
                     monShowData->formNum,
                     BATTLE_SOUND_PAN_RIGHT,
                     SOUND_VOLUME_MAX,
-                    NULL,
+                    0,
                     HEAP_ID_BATTLE,
                     cryDelay);
             } else {
@@ -2191,7 +2199,7 @@ static void Task_ShowEncounter(SysTask *task, void *data)
                     monShowData->formNum,
                     BATTLE_SOUND_PAN_LEFT,
                     SOUND_VOLUME_MAX,
-                    NULL,
+                    0,
                     HEAP_ID_BATTLE,
                     cryDelay);
             }
@@ -2223,7 +2231,7 @@ static void Task_ShowEncounter(SysTask *task, void *data)
                     monShowData->formNum,
                     BATTLE_SOUND_PAN_RIGHT,
                     SOUND_VOLUME_MAX,
-                    NULL,
+                    0,
                     HEAP_ID_BATTLE,
                     cryDelay);
             } else {
@@ -2238,7 +2246,7 @@ static void Task_ShowEncounter(SysTask *task, void *data)
                     monShowData->formNum,
                     BATTLE_SOUND_PAN_LEFT,
                     SOUND_VOLUME_MAX,
-                    NULL,
+                    0,
                     HEAP_ID_BATTLE,
                     cryDelay);
             }
@@ -2275,7 +2283,11 @@ static void Task_ShowEncounter(SysTask *task, void *data)
                 MoveAnimation moveAnim;
 
                 monShowData->battleAnimSys = BattleAnimSystem_New(HEAP_ID_BATTLE);
+                #ifdef SDK_BUILD_ARM
                 BattleController_SetMoveAnimation(monShowData->battleSys, NULL, &moveAnim, 1, 11, monShowData->battler, monShowData->battler, NULL);
+                #else
+                BattleController_SetMoveAnimation(monShowData->battleSys, NULL, &moveAnim, 1, 11, monShowData->battler, monShowData->battler, 0);
+                #endif
                 BattleDisplay_PlayMoveAnimation(monShowData->battleSys, monShowData->battlerData, monShowData->battleAnimSys, &moveAnim);
                 monShowData->state = 7;
             } else {
@@ -2512,7 +2524,7 @@ static void Task_ShowPokemon(SysTask *task, void *data)
                     monShowData->formNum,
                     BATTLE_SOUND_PAN_RIGHT,
                     SOUND_VOLUME_MAX,
-                    NULL,
+                    0,
                     HEAP_ID_BATTLE,
                     cryDelay);
             } else {
@@ -2527,7 +2539,7 @@ static void Task_ShowPokemon(SysTask *task, void *data)
                     monShowData->formNum,
                     BATTLE_SOUND_PAN_LEFT,
                     SOUND_VOLUME_MAX,
-                    NULL,
+                    0,
                     HEAP_ID_BATTLE,
                     cryDelay);
             }
@@ -2558,7 +2570,7 @@ static void Task_ShowPokemon(SysTask *task, void *data)
                     monShowData->formNum,
                     BATTLE_SOUND_PAN_RIGHT,
                     SOUND_VOLUME_MAX,
-                    NULL,
+                    0,
                     HEAP_ID_BATTLE,
                     cryDelay);
             } else {
@@ -2573,7 +2585,7 @@ static void Task_ShowPokemon(SysTask *task, void *data)
                     monShowData->formNum,
                     BATTLE_SOUND_PAN_LEFT,
                     SOUND_VOLUME_MAX,
-                    NULL,
+                    0,
                     HEAP_ID_BATTLE,
                     cryDelay);
             }
@@ -2609,7 +2621,11 @@ static void Task_ShowPokemon(SysTask *task, void *data)
             if (monShowData->isShiny) {
                 MoveAnimation moveAnim;
 
+                #ifdef SDK_BUILD_ARM
                 BattleController_SetMoveAnimation(monShowData->battleSys, NULL, &moveAnim, 1, 11, monShowData->battler, monShowData->battler, NULL);
+                #else
+                BattleController_SetMoveAnimation(monShowData->battleSys, NULL, &moveAnim, 1, 11, monShowData->battler, monShowData->battler, 0);
+                #endif
                 BattleDisplay_PlayMoveAnimation(monShowData->battleSys, monShowData->battlerData, battleAnimSys, &moveAnim);
                 monShowData->state = 7;
             } else {
@@ -2631,7 +2647,11 @@ static void Task_ShowPokemon(SysTask *task, void *data)
         if (monShowData->isSubstitute) {
             MoveAnimation moveAnim;
 
+            #ifdef SDK_BUILD_ARM
             BattleController_SetMoveAnimation(monShowData->battleSys, NULL, &moveAnim, 1, 15, monShowData->battler, monShowData->battler, NULL);
+            #else
+            BattleController_SetMoveAnimation(monShowData->battleSys, NULL, &moveAnim, 1, 15, monShowData->battler, monShowData->battler, 0);
+            #endif
             BattleDisplay_PlayMoveAnimation(monShowData->battleSys, monShowData->battlerData, battleAnimSys, &moveAnim);
             monShowData->state++;
         } else {
@@ -2644,7 +2664,11 @@ static void Task_ShowPokemon(SysTask *task, void *data)
 
         BattleDisplay_PopulateBattlerContext(monShowData->battleSys, &monShowData->moveAnim, &battlerSpriteCtx, monShowData->battler);
         ov12_02238390(&battlerSpriteCtx, HEAP_ID_BATTLE);
+        #ifdef SDK_BUILD_ARM
         BattleController_SetMoveAnimation(monShowData->battleSys, NULL, &moveAnim, 1, 16, monShowData->battler, monShowData->battler, NULL);
+        #else
+        BattleController_SetMoveAnimation(monShowData->battleSys, NULL, &moveAnim, 1, 16, monShowData->battler, monShowData->battler, 0);
+        #endif
         BattleDisplay_PlayMoveAnimation(monShowData->battleSys, monShowData->battlerData, battleAnimSys, &moveAnim);
 
         monShowData->battlerData->isAlternateSprite = 1;
@@ -2668,7 +2692,11 @@ static void Task_ReturnPokemon(SysTask *task, void *data)
         if (monReturnData->isSubstitute) {
             MoveAnimation moveAnim;
 
+            #ifdef SDK_BUILD_ARM
             BattleController_SetMoveAnimation(monReturnData->battleSys, NULL, &moveAnim, 1, 15, monReturnData->battler, monReturnData->battler, NULL);
+            #else
+            BattleController_SetMoveAnimation(monReturnData->battleSys, NULL, &moveAnim, 1, 15, monReturnData->battler, monReturnData->battler, 0);
+            #endif
             BattleDisplay_PlayMoveAnimation(monReturnData->battleSys, monReturnData->battlerData, battleAnimSys, &moveAnim);
             monReturnData->state++;
         } else {
@@ -2681,7 +2709,11 @@ static void Task_ReturnPokemon(SysTask *task, void *data)
 
         BattleDisplay_PopulateBattlerContext(monReturnData->battleSys, &monReturnData->moveAnim, &battlerSpriteCtx, monReturnData->battler);
         ov12_022382BC(&battlerSpriteCtx, HEAP_ID_BATTLE);
+        #ifdef SDK_BUILD_ARM
         BattleController_SetMoveAnimation(monReturnData->battleSys, NULL, &moveAnim, 1, 16, monReturnData->battler, monReturnData->battler, NULL);
+        #else
+        BattleController_SetMoveAnimation(monReturnData->battleSys, NULL, &moveAnim, 1, 16, monReturnData->battler, monReturnData->battler, 0);
+        #endif
         BattleDisplay_PlayMoveAnimation(monReturnData->battleSys, monReturnData->battlerData, battleAnimSys, &moveAnim);
         monReturnData->battlerData->isAlternateSprite = 0;
         monReturnData->state++;
@@ -3841,7 +3873,7 @@ static void Task_TrainerShowMoveSelectMenu(SysTask *task, void *data)
 
         action = validMoves[BattleSystem_RandNext(moveSelectMenuData->battleSys) % validMovesCount];
 
-        BattleContext_Set(moveSelectMenuData->battleSys, battleCtx, 11, moveSelectMenuData->battler, BattleSystem_Defender(moveSelectMenuData->battleSys, battleCtx, moveSelectMenuData->battler, moveSelectMenuData->moves[action - 1], 1, NULL));
+        BattleContext_Set(moveSelectMenuData->battleSys, battleCtx, 11, moveSelectMenuData->battler, BattleSystem_Defender(moveSelectMenuData->battleSys, battleCtx, moveSelectMenuData->battler, moveSelectMenuData->moves[action - 1], 1, 0));
     }
 
     BattleController_EmitSelectedMove(moveSelectMenuData->battleSys, moveSelectMenuData->battler, action);
@@ -4295,7 +4327,11 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
     case 11: {
         MoveAnimation moveAnim;
 
+        #ifdef SDK_BUILD_ARM
         BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 1, 9, bagMenuData->battler, bagMenuData->battler, NULL);
+        #else
+        BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 1, 9, bagMenuData->battler, bagMenuData->battler, 0);
+        #endif
         BattleDisplay_PlayMoveAnimation(bagMenuData->battleSys, BattleSystem_GetBattlerData(bagMenuData->battleSys, bagMenuData->battler), BattleSystem_GetBattleAnimSystem(bagMenuData->battleSys), &moveAnim);
     }
         bagMenuData->state++;
@@ -4304,7 +4340,11 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
     case 25: {
         MoveAnimation moveAnim;
         int battler = bagMenuData->partyMenuData->battlePartyCtx->selectedPartyIndex * 2;
+        #ifdef SDK_BUILD_ARM
         BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 1, 9, battler, battler, NULL);
+        #else
+        BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 1, 9, battler, battler, 0);
+        #endif
         BattleDisplay_PlayMoveAnimation(bagMenuData->battleSys, BattleSystem_GetBattlerData(bagMenuData->battleSys, battler), BattleSystem_GetBattleAnimSystem(bagMenuData->battleSys), &moveAnim);
     }
         bagMenuData->state++;
@@ -4313,13 +4353,25 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
         MoveAnimation moveAnim;
 
         if (bagMenuData->battleBagCtx->selectedBattleBagItem == ITEM_GUARD_SPEC) {
+            #ifdef SDK_BUILD_ARM
             BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 0, NULL, bagMenuData->battler, bagMenuData->battler, 54);
+            #else
+            BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 0, 0, bagMenuData->battler, bagMenuData->battler, 54);
+            #endif
             BattleDisplay_PlayMoveAnimation(bagMenuData->battleSys, BattleSystem_GetBattlerData(bagMenuData->battleSys, bagMenuData->battler), BattleSystem_GetBattleAnimSystem(bagMenuData->battleSys), &moveAnim);
         } else if (bagMenuData->battleBagCtx->selectedBattleBagItem == ITEM_DIRE_HIT) {
+            #ifdef SDK_BUILD_ARM
             BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 0, NULL, bagMenuData->battler, bagMenuData->battler, 116);
+            #else
+            BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 0, 0, bagMenuData->battler, bagMenuData->battler, 116);
+            #endif
             BattleDisplay_PlayMoveAnimation(bagMenuData->battleSys, BattleSystem_GetBattlerData(bagMenuData->battleSys, bagMenuData->battler), BattleSystem_GetBattleAnimSystem(bagMenuData->battleSys), &moveAnim);
         } else {
+            #ifdef SDK_BUILD_ARM
             BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 1, 12, bagMenuData->battler, bagMenuData->battler, NULL);
+            #else
+            BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 1, 12, bagMenuData->battler, bagMenuData->battler, 0);
+            #endif
             BattleDisplay_PlayMoveAnimation(bagMenuData->battleSys, BattleSystem_GetBattlerData(bagMenuData->battleSys, bagMenuData->battler), BattleSystem_GetBattleAnimSystem(bagMenuData->battleSys), &moveAnim);
         }
 
@@ -4371,7 +4423,11 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
     case 27: {
         MoveAnimation moveAnim;
         int battler = bagMenuData->partyMenuData->battlePartyCtx->selectedPartyIndex * 2;
+        #ifdef SDK_BUILD_ARM
         BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 1, 14, battler, battler, NULL);
+        #else
+        BattleController_SetMoveAnimation(bagMenuData->battleSys, NULL, &moveAnim, 1, 14, battler, battler, 0);
+        #endif
         BattleDisplay_PlayMoveAnimation(bagMenuData->battleSys, BattleSystem_GetBattlerData(bagMenuData->battleSys, battler), BattleSystem_GetBattleAnimSystem(bagMenuData->battleSys), &moveAnim);
     }
         bagMenuData->state++;
@@ -4403,7 +4459,7 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
         HealthBox *healthbox = BattleSystem_GetHealthBox(bagMenuData->battleSys, battler);
 
         if (Healthbox_DrawHPBar(healthbox) == -1) {
-            HealthBox_DrawInfo(healthbox, NULL, HEALTHBOX_INFO_STATUS);
+            HealthBox_DrawInfo(healthbox, 0, HEALTHBOX_INFO_STATUS);
             bagMenuData->state++;
         }
     } break;
@@ -5013,7 +5069,11 @@ static void Task_SetMoveAnimation(SysTask *task, void *data)
         if (setMoveAnimationData->moveAnim.isSubstitute && setMoveAnimationData->moveAnim.animMode == 0 && PokemonSprite_GetAttribute(setMoveAnimationData->monSprite, MON_SPRITE_HIDE) == FALSE) {
             MoveAnimation moveAnim;
 
+            #ifdef SDK_BUILD_ARM
             BattleController_SetMoveAnimation(setMoveAnimationData->battleSys, NULL, &moveAnim, 1, 15, setMoveAnimationData->battler, setMoveAnimationData->battler, NULL);
+            #else
+            BattleController_SetMoveAnimation(setMoveAnimationData->battleSys, NULL, &moveAnim, 1, 15, setMoveAnimationData->battler, setMoveAnimationData->battler, 0);
+            #endif
             BattleDisplay_PlayMoveAnimation(setMoveAnimationData->battleSys, setMoveAnimationData->battlerData, setMoveAnimationData->battleAnimSys, &moveAnim);
             setMoveAnimationData->state = 1;
         } else {
@@ -5027,7 +5087,11 @@ static void Task_SetMoveAnimation(SysTask *task, void *data)
         BattleDisplay_PopulateBattlerContext(setMoveAnimationData->battleSys, &setMoveAnimationData->moveAnim, &battlerSpriteCtx, setMoveAnimationData->battler);
         ov12_022382BC(&battlerSpriteCtx, HEAP_ID_BATTLE);
 
+        #ifdef SDK_BUILD_ARM
         BattleController_SetMoveAnimation(setMoveAnimationData->battleSys, NULL, &moveAnim, 1, 16, setMoveAnimationData->battler, setMoveAnimationData->battler, NULL);
+        #else
+        BattleController_SetMoveAnimation(setMoveAnimationData->battleSys, NULL, &moveAnim, 1, 16, setMoveAnimationData->battler, setMoveAnimationData->battler, 0);
+        #endif
         BattleDisplay_PlayMoveAnimation(setMoveAnimationData->battleSys, setMoveAnimationData->battlerData, setMoveAnimationData->battleAnimSys, &moveAnim);
         setMoveAnimationData->battlerData->isAlternateSprite = 0;
         setMoveAnimationData->state++;
@@ -5060,7 +5124,11 @@ static void Task_SetMoveAnimation(SysTask *task, void *data)
         if (setMoveAnimationData->moveAnim.isSubstitute && setMoveAnimationData->moveAnim.animMode == 0 && PokemonSprite_GetAttribute(setMoveAnimationData->monSprite, MON_SPRITE_HIDE) == FALSE) {
             MoveAnimation moveAnim;
 
+            #ifdef SDK_BUILD_ARM
             BattleController_SetMoveAnimation(setMoveAnimationData->battleSys, NULL, &moveAnim, 1, 15, setMoveAnimationData->battler, setMoveAnimationData->battler, NULL);
+            #else
+            BattleController_SetMoveAnimation(setMoveAnimationData->battleSys, NULL, &moveAnim, 1, 15, setMoveAnimationData->battler, setMoveAnimationData->battler, 0);
+            #endif
             BattleDisplay_PlayMoveAnimation(setMoveAnimationData->battleSys, setMoveAnimationData->battlerData, setMoveAnimationData->battleAnimSys, &moveAnim);
             setMoveAnimationData->state = 7;
         } else {
@@ -5074,7 +5142,11 @@ static void Task_SetMoveAnimation(SysTask *task, void *data)
         BattleDisplay_PopulateBattlerContext(setMoveAnimationData->battleSys, &setMoveAnimationData->moveAnim, &battlerSpriteCtx, setMoveAnimationData->battler);
         ov12_02238390(&battlerSpriteCtx, HEAP_ID_BATTLE);
 
+        #ifdef SDK_BUILD_ARM
         BattleController_SetMoveAnimation(setMoveAnimationData->battleSys, NULL, &moveAnim, 1, 16, setMoveAnimationData->battler, setMoveAnimationData->battler, NULL);
+        #else
+        BattleController_SetMoveAnimation(setMoveAnimationData->battleSys, NULL, &moveAnim, 1, 16, setMoveAnimationData->battler, setMoveAnimationData->battler, 0);
+        #endif
         BattleDisplay_PlayMoveAnimation(setMoveAnimationData->battleSys, setMoveAnimationData->battlerData, setMoveAnimationData->battleAnimSys, &moveAnim);
         setMoveAnimationData->battlerData->isAlternateSprite = 1;
     }
@@ -5203,7 +5275,11 @@ static void Task_PlayFaintingSequence(SysTask *task, void *data)
         if (faintingSequenceData->isSubstitute) {
             MoveAnimation moveAnim;
 
+            #ifdef SDK_BUILD_ARM
             BattleController_SetMoveAnimation(faintingSequenceData->battleSys, NULL, &moveAnim, 1, 15, faintingSequenceData->battler, faintingSequenceData->battler, NULL);
+            #else
+            BattleController_SetMoveAnimation(faintingSequenceData->battleSys, NULL, &moveAnim, 1, 15, faintingSequenceData->battler, faintingSequenceData->battler, 0);
+            #endif
             BattleDisplay_PlayMoveAnimation(faintingSequenceData->battleSys, faintingSequenceData->battlerData, battleAnimSys, &moveAnim);
             faintingSequenceData->state++;
         } else {
@@ -5217,7 +5293,11 @@ static void Task_PlayFaintingSequence(SysTask *task, void *data)
         BattleDisplay_PopulateBattlerContext(faintingSequenceData->battleSys, &faintingSequenceData->moveAnim, &battlerSpriteCtx, faintingSequenceData->battler);
         ov12_022382BC(&battlerSpriteCtx, HEAP_ID_BATTLE);
 
+        #ifdef SDK_BUILD_ARM
         BattleController_SetMoveAnimation(faintingSequenceData->battleSys, NULL, &moveAnim, 1, 16, faintingSequenceData->battler, faintingSequenceData->battler, NULL);
+        #else
+        BattleController_SetMoveAnimation(faintingSequenceData->battleSys, NULL, &moveAnim, 1, 16, faintingSequenceData->battler, faintingSequenceData->battler, 0);
+        #endif
         BattleDisplay_PlayMoveAnimation(faintingSequenceData->battleSys, faintingSequenceData->battlerData, battleAnimSys, &moveAnim);
         faintingSequenceData->battlerData->isAlternateSprite = 0;
         faintingSequenceData->state++;
@@ -5365,7 +5445,11 @@ static void Task_ToggleVanish(SysTask *task, void *data)
         if (toggleVanishData->isSubstitute && toggleVanishData->battlerData->isAlternateSprite == 0) {
             MoveAnimation moveAnim;
 
+            #ifdef SDK_BUILD_ARM
             BattleController_SetMoveAnimation(toggleVanishData->battleSys, NULL, &moveAnim, 1, 15, toggleVanishData->battler, toggleVanishData->battler, NULL);
+            #else
+            BattleController_SetMoveAnimation(toggleVanishData->battleSys, NULL, &moveAnim, 1, 15, toggleVanishData->battler, toggleVanishData->battler, 0);
+            #endif
             BattleDisplay_PlayMoveAnimation(toggleVanishData->battleSys, toggleVanishData->battlerData, battleAnimSys, &moveAnim);
             toggleVanishData->state++;
         } else {
@@ -5379,7 +5463,11 @@ static void Task_ToggleVanish(SysTask *task, void *data)
         BattleDisplay_PopulateBattlerContext(toggleVanishData->battleSys, &toggleVanishData->moveAnim, &battlerSpriteCtx, toggleVanishData->battler);
         ov12_02238390(&battlerSpriteCtx, HEAP_ID_BATTLE);
 
+        #ifdef SDK_BUILD_ARM
         BattleController_SetMoveAnimation(toggleVanishData->battleSys, NULL, &moveAnim, 1, 16, toggleVanishData->battler, toggleVanishData->battler, NULL);
+        #else
+        BattleController_SetMoveAnimation(toggleVanishData->battleSys, NULL, &moveAnim, 1, 16, toggleVanishData->battler, toggleVanishData->battler, 0);
+        #endif
         BattleDisplay_PlayMoveAnimation(toggleVanishData->battleSys, toggleVanishData->battlerData, battleAnimSys, &moveAnim);
         toggleVanishData->battlerData->isAlternateSprite = 1;
         toggleVanishData->state++;

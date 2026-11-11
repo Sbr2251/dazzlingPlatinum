@@ -1033,7 +1033,12 @@ void BattleController_EmitPlayMoveAnimation(BattleSystem *battleSys, BattleConte
 {
     MoveAnimation animation;
 
+    #ifdef SDK_BUILD_ARM
     BattleController_SetMoveAnimation(battleSys, battleCtx, &animation, 0, NULL, battleCtx->attacker, battleCtx->defender, move);
+    #else
+    BattleController_SetMoveAnimation(battleSys, battleCtx, &animation, 0, 0, battleCtx->attacker, battleCtx->defender, move);
+    #endif
+
     SendMessage(battleSys, COMM_RECIPIENT_CLIENT, battleCtx->attacker, &animation, sizeof(MoveAnimation));
 }
 
@@ -1050,7 +1055,12 @@ void BattleController_EmitPlayMoveAnimationA2D(BattleSystem *battleSys, BattleCo
 {
     MoveAnimation animation;
 
+    #ifdef SDK_BUILD_ARM
     BattleController_SetMoveAnimation(battleSys, battleCtx, &animation, 0, NULL, attacker, defender, move);
+    #else
+    BattleController_SetMoveAnimation(battleSys, battleCtx, &animation, 0, 0, attacker, defender, move);
+    #endif
+
     SendMessage(battleSys, COMM_RECIPIENT_CLIENT, attacker, &animation, sizeof(MoveAnimation));
 }
 
@@ -1276,7 +1286,12 @@ void BattleController_EmitPlayStatusEffect(BattleSystem *battleSys, BattleContex
 {
     MoveAnimation animation;
 
+    #ifdef SDK_BUILD_ARM
     BattleController_SetMoveAnimation(battleSys, battleCtx, &animation, 1, secondaryAnimID, battler, battler, NULL);
+    #else
+    BattleController_SetMoveAnimation(battleSys, battleCtx, &animation, 1, secondaryAnimID, battler, battler, 0);
+    #endif
+
     SendMessage(battleSys, COMM_RECIPIENT_CLIENT, battler, &animation, sizeof(MoveAnimation));
 }
 
@@ -1293,7 +1308,12 @@ void BattleController_EmitPlayStatusEffectAToD(BattleSystem *battleSys, BattleCo
 {
     MoveAnimation animation;
 
+    #ifdef SDK_BUILD_ARM
     BattleController_SetMoveAnimation(battleSys, battleCtx, &animation, 1, secondaryAnimID, attacker, defender, NULL);
+    #else
+    BattleController_SetMoveAnimation(battleSys, battleCtx, &animation, 1, secondaryAnimID, attacker, defender, 0);
+    #endif
+
     SendMessage(battleSys, COMM_RECIPIENT_CLIENT, attacker, &animation, sizeof(MoveAnimation));
 }
 
@@ -1720,7 +1740,7 @@ void BattleController_EmitHidePartyGauge(BattleSystem *battleSys, int battler)
 void BattleController_EmitLoadPartyGaugeGraphics(BattleSystem *battleSys)
 {
     int command = BATTLE_COMMAND_LOAD_PARTY_GAUGE_GRAPHICS;
-    SendMessage(battleSys, COMM_RECIPIENT_CLIENT, NULL, &command, sizeof(int));
+    SendMessage(battleSys, COMM_RECIPIENT_CLIENT, 0, &command, sizeof(int));
 }
 
 /**
@@ -1731,7 +1751,7 @@ void BattleController_EmitLoadPartyGaugeGraphics(BattleSystem *battleSys)
 void BattleController_EmitFreePartyGaugeGraphics(BattleSystem *battleSys)
 {
     int command = BATTLE_COMMAND_FREE_PARTY_GAUGE_GRAPHICS;
-    SendMessage(battleSys, COMM_RECIPIENT_CLIENT, NULL, &command, sizeof(int));
+    SendMessage(battleSys, COMM_RECIPIENT_CLIENT, 0, &command, sizeof(int));
 }
 
 /**

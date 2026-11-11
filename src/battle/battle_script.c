@@ -577,7 +577,7 @@ static BOOL BtlCmd_PokemonSendOut(BattleSystem *battleSys, BattleContext *battle
     default:
     case BTLSCR_ALL_BATTLERS:
         for (i = 0; i < maxBattlers; i++) {
-            BattleController_EmitShowPokemon(battleSys, i, NULL, 0);
+            BattleController_EmitShowPokemon(battleSys, i, 0, 0);
             BattleSystem_DexFlagSeen(battleSys, i);
         }
         break;
@@ -587,7 +587,7 @@ static BOOL BtlCmd_PokemonSendOut(BattleSystem *battleSys, BattleContext *battle
             battlerData = BattleSystem_GetBattlerData(battleSys, i);
 
             if ((battlerData->battlerType & BATTLER_TYPE_SOLO_ENEMY) == FALSE) {
-                BattleController_EmitShowPokemon(battleSys, i, NULL, 0);
+                BattleController_EmitShowPokemon(battleSys, i, 0, 0);
                 BattleSystem_DexFlagSeen(battleSys, i);
             }
         }
@@ -603,7 +603,7 @@ static BOOL BtlCmd_PokemonSendOut(BattleSystem *battleSys, BattleContext *battle
             if (battlerData->battlerType & BATTLER_TYPE_SOLO_ENEMY) {
                 BattleSystem_ClearSideExpGain(battleCtx, i);
                 BattleSystem_FlagBattlerExpGain(battleSys, battleCtx, i);
-                BattleController_EmitShowPokemon(battleSys, i, NULL, 0);
+                BattleController_EmitShowPokemon(battleSys, i, 0, 0);
                 BattleSystem_DexFlagSeen(battleSys, i);
             }
         }
@@ -621,7 +621,7 @@ static BOOL BtlCmd_PokemonSendOut(BattleSystem *battleSys, BattleContext *battle
         }
 
         BattleSystem_DexFlagSeen(battleSys, battleCtx->attacker);
-        BattleController_EmitShowPokemon(battleSys, battleCtx->attacker, NULL, 0);
+        BattleController_EmitShowPokemon(battleSys, battleCtx->attacker, 0, 0);
         break;
 
     case BTLSCR_DEFENDER:
@@ -636,7 +636,7 @@ static BOOL BtlCmd_PokemonSendOut(BattleSystem *battleSys, BattleContext *battle
         }
 
         BattleSystem_DexFlagSeen(battleSys, battleCtx->defender);
-        BattleController_EmitShowPokemon(battleSys, battleCtx->defender, NULL, 0);
+        BattleController_EmitShowPokemon(battleSys, battleCtx->defender, 0, 0);
         break;
 
     case BTLSCR_SWITCHED_MON:
@@ -651,7 +651,7 @@ static BOOL BtlCmd_PokemonSendOut(BattleSystem *battleSys, BattleContext *battle
         }
 
         BattleSystem_DexFlagSeen(battleSys, battleCtx->switchedMon);
-        BattleController_EmitShowPokemon(battleSys, battleCtx->switchedMon, NULL, 0);
+        BattleController_EmitShowPokemon(battleSys, battleCtx->switchedMon, 0, 0);
         break;
     }
 
@@ -2254,6 +2254,13 @@ static BOOL BtlCmd_CalcExpGain(BattleSystem *battleSys, BattleContext *battleCtx
         u16 exp = SpeciesData_GetSpeciesValue(battleCtx->battleMons[battleCtx->faintedMon].species, SPECIES_DATA_BASE_EXP_REWARD);
         exp = (exp * battleCtx->battleMons[battleCtx->faintedMon].level) / 7;
 
+        #ifdef SDK_PORT
+        if(totalMonsGainingExp == 0) {
+            // Fix divide by 0 error
+            return FALSE;
+        }
+        #endif
+
         if (totalMonsWithExpShare) {
             battleCtx->gainedExp = (exp / 2) / totalMonsGainingExp;
 
@@ -2360,7 +2367,7 @@ static BOOL BtlCmd_StartGetExpTask(BattleSystem *battleSys, BattleContext *battl
     battleCtx->taskData->seqNum = SEQ_GET_EXP_START;
     battleCtx->taskData->tmpData[GET_EXP_PARTY_SLOT] = 0;
 
-    SysTask_Start(BattleScript_GetExpTask, battleCtx->taskData, NULL);
+    SysTask_Start(BattleScript_GetExpTask, battleCtx->taskData, 0);
 
     return FALSE;
 }
@@ -2618,7 +2625,7 @@ static BOOL BtlCmd_StartCatchMonTask(BattleSystem *battleSys, BattleContext *bat
     battleCtx->taskData->flag = safariCapture;
     battleCtx->taskData->ball = battleCtx->msgItemTemp;
 
-    SysTask_Start(BattleScript_CatchMonTask, battleCtx->taskData, NULL);
+    SysTask_Start(BattleScript_CatchMonTask, battleCtx->taskData, 0);
 
     return FALSE;
 }
@@ -8227,7 +8234,7 @@ static BOOL BtlCmd_YesNoMenu(BattleSystem *battleSys, BattleContext *battleCtx)
     BattleScript_Iter(battleCtx, 1);
     int type = BattleScript_Read(battleCtx);
 
-    BattleController_EmitShowYesNoMenu(battleSys, battleCtx, BATTLER_US, NULL, type, NULL, NULL);
+    BattleController_EmitShowYesNoMenu(battleSys, battleCtx, BATTLER_US, 0, type, 0, 0);
 
     return FALSE;
 }
@@ -8622,7 +8629,7 @@ static BOOL BtlCmd_UseBagItem(BattleSystem *battleSys, BattleContext *battleCtx)
     int inBattler = BattleScript_Read(battleCtx);
 
     int battler = BattleScript_Battler(battleSys, battleCtx, inBattler);
-    BattleSystem_UseBagItem(battleSys, battler, battleCtx->selectedPartySlot[battler], NULL, battleCtx->msgItemTemp);
+    BattleSystem_UseBagItem(battleSys, battler, battleCtx->selectedPartySlot[battler], 0, battleCtx->msgItemTemp);
 
     return FALSE;
 }
@@ -10159,7 +10166,7 @@ static void BattleScript_GetExpTask(SysTask *task, void *inData)
 
     case SEQ_GET_EXP_MAKE_IT_FORGET_PROMPT:
         // "Make it forget another move?"
-        BattleController_EmitShowYesNoMenu(data->battleSys, data->battleCtx, expBattler, BattleStrings_Text_MakeItForgetAnotherMoveYesNo, 1, NULL, NULL);
+        BattleController_EmitShowYesNoMenu(data->battleSys, data->battleCtx, expBattler, BattleStrings_Text_MakeItForgetAnotherMoveYesNo, 1, 0, 0);
         data->seqNum++;
         break;
 
@@ -10201,7 +10208,7 @@ static void BattleScript_GetExpTask(SysTask *task, void *inData)
 
     case SEQ_GET_EXP_GIVE_UP_LEARNING_PROMPT:
         // "Should this Pokémon give up on learning this new move?"
-        BattleController_EmitShowYesNoMenu(data->battleSys, data->battleCtx, expBattler, BattleStrings_Text_ShouldPokemonGiveUpOnLearningMove, 2, data->tmpData[GET_EXP_MOVE], NULL);
+        BattleController_EmitShowYesNoMenu(data->battleSys, data->battleCtx, expBattler, BattleStrings_Text_ShouldPokemonGiveUpOnLearningMove, 2, data->tmpData[GET_EXP_MOVE], 0);
         data->seqNum++;
         break;
 
@@ -10719,7 +10726,7 @@ static void BattleScript_CatchMonTask(SysTask *task, void *inData)
         break;
     case SEQ_CATCH_MON_PRINT_YES_NO_GIVE_NICKNAME:
         int v15 = battler | (data->battleCtx->selectedPartySlot[battler]);
-        BattleController_EmitShowYesNoMenu(data->battleSys, data->battleCtx, 0, BattleStrings_Text_GiveANicknameToTheCaughtPokemonYesNo, 5, NULL, v15);
+        BattleController_EmitShowYesNoMenu(data->battleSys, data->battleCtx, 0, BattleStrings_Text_GiveANicknameToTheCaughtPokemonYesNo, 5, 0, v15);
         data->seqNum++;
         break;
     case SEQ_CATCH_MON_PROCESS_INPUT_GIVE_NICKNAME:

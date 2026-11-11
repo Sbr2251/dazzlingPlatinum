@@ -65,6 +65,11 @@ void BattleController_EmitChangeWeatherForm(BattleSystem *battleSys, int battler
 void BattleController_EmitAffinePulse(BattleSystem *battleSys, int battlerId);
 void BattleController_EmitUpdateBG(BattleSystem *battleSys, int battler);
 void BattleController_EmitClearTouchScreen(BattleSystem *battleSys, int battler);
+#ifdef SDK_PORT
+void BattleController_EmitSelectedCommand(BattleSystem *battleSys, int battler, int command);
+void BattleController_EmitSelectedMove(BattleSystem *battleSys, int battler, int command);
+void BattleController_EmitSelectedTarget(BattleSystem *battleSys, int battler, int command);
+#endif
 
 /**
  * @brief Push a command to the I/O queue to show the party gauge at the start of a battle for a

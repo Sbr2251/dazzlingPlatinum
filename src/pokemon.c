@@ -649,6 +649,12 @@ void Pokemon_CalcStats(Pokemon *mon)
 
 u32 Pokemon_GetValue(Pokemon *mon, enum PokemonDataParam param, void *dest)
 {
+    #ifdef SDK_PORT
+    if(!mon) {
+        GF_ASSERT(FALSE);
+        return 0;
+    }
+    #endif
     if (mon->box.partyDecrypted == FALSE) {
         Pokemon_DecryptData(&mon->party, sizeof(PartyPokemon), mon->box.personality);
         Pokemon_DecryptData(&mon->box.dataBlocks, sizeof(PokemonDataBlock) * 4, mon->box.checksum);
@@ -4406,7 +4412,7 @@ void PlayCryWithParams(ChatotCry *chatotCry, enum PokemonCryMod cryMod, u16 spec
                 Sound_SetUsingDefaultChatotCry(TRUE);
             }
 
-            Sound_PlayChatotCry(chatotCry, NULL, volume, pan);
+            Sound_PlayChatotCry(chatotCry, 0, volume, pan);
         }
 
         return;
@@ -4426,7 +4432,7 @@ void Species_PlayDelayedCry(ChatotCry *chatotCry, enum PokemonCryMod cryMod, u16
                 Sound_SetUsingDefaultChatotCry(TRUE);
             }
 
-            Sound_PlayDelayedChatotCry(chatotCry, NULL, volume, pan, delay);
+            Sound_PlayDelayedChatotCry(chatotCry, 0, volume, pan, delay);
         }
 
         return;

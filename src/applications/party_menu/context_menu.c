@@ -80,7 +80,11 @@ static void SwapSwitchedSlots(PartyMenuApplication *application);
 
 union PartyMenuActionFunc {
     PartyMenuAction func;
+    #ifdef SDK_BUILD_ARM
     u32 raw;
+    #else
+    u64 raw;
+    #endif
 };
 
 enum {
@@ -157,7 +161,11 @@ static const union PartyMenuActionFunc sPartyMenuActions[ACTION_MAX] = {
 };
 // clang-format on
 
+#ifdef SDK_BUILD_ARM
 u32 PartyMenu_GetAction(u8 action)
+#else
+u64 PartyMenu_GetAction(u8 action)
+#endif
 {
     return sPartyMenuActions[action].raw;
 }

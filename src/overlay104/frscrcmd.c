@@ -195,7 +195,11 @@ static String *GetSpeciesNameString(u16 species, u32 heapID);
 static BOOL FrontierScrCmd_GetNumBattlePoints(FrontierScriptContext *ctx);
 static BOOL FrontierScrCmd_GiveBattlePoints(FrontierScriptContext *ctx);
 static BOOL FrontierScrCmd_RemoteBattlePoints(FrontierScriptContext *ctx);
+#ifdef SDK_BUILD_ARM
 static u16 GetNumberDigitCount(u32 number);
+#else
+static u16 frscrcmd_GetNumberDigitCount(u32 number);
+#endif
 u16 *FrontierScriptContext_TryGetVarPointer(FrontierScriptContext *ctx);
 u16 FrontierScriptContext_GetVar(FrontierScriptContext *ctx);
 static BOOL FrontierScrCmd_Call(FrontierScriptContext *ctx);
@@ -740,7 +744,11 @@ static BOOL WaitForYesNoResult(FrontierScriptContext *ctx)
 {
     FrontierScriptManager *scriptMan = ctx->scriptMan;
     u16 *destVar = FrontierScriptContext_GetVarPointer(ctx, ctx->data[0]);
+    #ifdef SDK_BUILD_ARM
     u32 result = Menu_ProcessInputAndHandleExit(scriptMan->menu, scriptMan->heapID);
+    #else
+    u64 result = Menu_ProcessInputAndHandleExit(scriptMan->menu, scriptMan->heapID);
+    #endif
     if (result == MENU_NOTHING_CHOSEN) {
         return FALSE;
     }
@@ -900,7 +908,11 @@ static BOOL FrontierScrCmd_ApplyMovement(FrontierScriptContext *ctx)
     FrontierScriptManager *scriptMan = ctx->scriptMan;
     FrontierGraphics *graphics = BattleFrontier_GetGraphics(scriptMan->frontier);
     u16 localID = FrontierScriptContext_GetVar(ctx);
+    #ifdef SDK_BUILD_ARM
     u32 offset = FrontierScriptContext_ReadWord(ctx);
+    #else
+    s32 offset = FrontierScriptContext_ReadWord(ctx);
+    #endif
     UnkStruct_ov104_0223C634 *object = ov104_0223D5A8(scriptMan->frontier, localID);
 
     if (object == NULL) {
@@ -1462,11 +1474,19 @@ static BOOL FrontierScrCmd_BufferNumber(FrontierScriptContext *ctx)
     u8 templateArg = FrontierScriptContext_ReadByte(ctx);
     u16 number = FrontierScriptContext_GetVar(ctx);
 
+    #ifdef SDK_BUILD_ARM
     StringTemplate_SetNumber(ctx->scriptMan->strTemplate, templateArg, number, GetNumberDigitCount(number), PADDING_MODE_SPACES, CHARSET_MODE_EN);
+    #else
+    StringTemplate_SetNumber(ctx->scriptMan->strTemplate, templateArg, number, frscrcmd_GetNumberDigitCount(number), PADDING_MODE_SPACES, CHARSET_MODE_EN);
+    #endif
     return FALSE;
 }
 
+#ifdef SDK_BUILD_ARM
 static u16 GetNumberDigitCount(u32 number)
+#else
+static u16 frscrcmd_GetNumberDigitCount(u32 number)
+#endif
 {
     if (number / 10 == 0) {
         return 1;
@@ -1911,7 +1931,11 @@ static void ov104_022313FC(SysTask *param0, void *param1)
                     v12 %= 256;
                 }
 
+                #ifdef SDK_BUILD_ARM
                 G2x_SetBGyAffine_((u32)&v2[v1].unk_00, &v5, 0, 0, v12, v13);
+                #else
+                G2x_SetBGyAffine_((u64)&v2[v1].unk_00, &v5, 0, 0, v12, v13);
+                #endif
 
                 v12 = v8 + v4->unk_00[v0].unk_08;
                 v13 = v9 + v4->unk_00[v0].unk_0A;
@@ -1931,7 +1955,11 @@ static void ov104_022313FC(SysTask *param0, void *param1)
                     v12 %= 256;
                 }
 
+                #ifdef SDK_BUILD_ARM
                 G2x_SetBGyAffine_((u32)&v2[v1].unk_10, &v5, 0, 0, v12, v13);
+                #else
+                G2x_SetBGyAffine_((u64)&v2[v1].unk_10, &v5, 0, 0, v12, v13);
+                #endif
             }
         }
 
@@ -1976,7 +2004,11 @@ static void ov104_022313FC(SysTask *param0, void *param1)
                 v16 %= 256;
             }
 
+            #ifdef SDK_BUILD_ARM
             G2x_SetBGyAffine_((u32)&v2[v1].unk_00, &v5, 0, 0, v16, v17);
+            #else
+            G2x_SetBGyAffine_((u64)&v2[v1].unk_00, &v5, 0, 0, v16, v17);
+            #endif
 
             v16 = v8 + v4->unk_00[v0].unk_08;
             v17 = v9 + v4->unk_00[v0].unk_0A;
@@ -1996,7 +2028,11 @@ static void ov104_022313FC(SysTask *param0, void *param1)
                 v16 %= 256;
             }
 
+            #ifdef SDK_BUILD_ARM
             G2x_SetBGyAffine_((u32)&v2[v1].unk_10, &v5, 0, 0, v16, v17);
+            #else
+            G2x_SetBGyAffine_((u64)&v2[v1].unk_10, &v5, 0, 0, v16, v17);
+            #endif
         }
     }
 }
@@ -2020,7 +2056,11 @@ static BOOL ov104_02231720(UnkStruct_ov104_02231148 *param0)
         param0->unk_10 = 0;
         param0->unk_24 = Heap_Alloc(HEAP_ID_94, sizeof(UnkStruct_ov104_022313FC));
         param0->unk_24->unk_604 = 1;
+        #ifdef SDK_BUILD_ARM
         param0->unk_24->unk_600 = ov104_0223F1B4((u32)&reg_G2_BG2PA, &v0, HEAP_ID_94);
+        #else
+        param0->unk_24->unk_600 = ov104_0223F1B4((u64)&reg_G2_BG2PA, &v0, HEAP_ID_94);
+        #endif
 
         int v1;
 
@@ -2078,7 +2118,11 @@ static BOOL ov104_02231864(UnkStruct_ov104_02231148 *param0)
         param0->unk_10 = 0;
         param0->unk_24 = Heap_Alloc(HEAP_ID_94, sizeof(UnkStruct_ov104_022313FC));
         param0->unk_24->unk_604 = 2;
+        #ifdef SDK_BUILD_ARM
         param0->unk_24->unk_600 = ov104_0223F1B4((u32)&reg_G2_BG2PA, &v0, HEAP_ID_94);
+        #else
+        param0->unk_24->unk_600 = ov104_0223F1B4((u64)&reg_G2_BG2PA, &v0, HEAP_ID_94);
+        #endif
 
         int v1;
 
@@ -2135,7 +2179,11 @@ static BOOL ov104_022319CC(UnkStruct_ov104_02231148 *param0)
         param0->unk_04++;
         break;
     case 1:
-        ov104_0223F0B0(&param0->unk_18, 0, 191, (0xFFFF / 192) * 2, FX32_CONST(18), 4 * 100, REG_BG3HOFS_ADDR, 0, 5 - 1);
+        #ifdef SDK_BUILD_ARM
+        ov104_0223F0B0(&param0->unk_18, 0, 191, (0xFFFF / 192) * 2, FX32_CONST(18), 4 * 100, (u32)REG_BG3HOFS_ADDR, 0, 5 - 1);
+        #else
+        ov104_0223F0B0(&param0->unk_18, 0, 191, (0xFFFF / 192) * 2, FX32_CONST(18), 4 * 100, (u64)REG_BG3HOFS_ADDR, 0, 5 - 1);
+        #endif
         param0->unk_04++;
         break;
     default:

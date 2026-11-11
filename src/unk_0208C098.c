@@ -33,14 +33,24 @@ int sub_0208C098(int param0)
 u32 sub_0208C0A4(u32 param0, u32 param1)
 {
     u32 v0 = (param0 * param0) + (param1 * param1);
+    #ifdef SDK_BUILD_ARM
     v0 = SVC_Sqrt(v0 << 4);
+    #endif
 
     return v0 >> 2;
 }
 
 u8 App_PixelCount(u32 cur, u32 max, u8 maxPixels)
 {
+    #ifdef SDK_BUILD_ARM
     u8 pixels = cur * maxPixels / max;
+    #else
+    // Fix possible integer divide by zero
+    u8 pixels = 0;
+    if(max != 0) {
+        pixels = cur * maxPixels / max;
+    }
+    #endif
     if (pixels == 0 && cur > 0) {
         pixels = 1;
     }

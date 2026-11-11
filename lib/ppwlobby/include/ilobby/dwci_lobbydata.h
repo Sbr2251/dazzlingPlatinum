@@ -37,7 +37,7 @@ class UnkClass_ov66_02243B64 : public UnkClass_ov66_0225B6E4 {
     BOOL unk_60;
     const DWCi_LobbyGlobalCallbacks unk_64;
 
-    typedef std::map<s32, PPWString, std::less<s32>, PPW_Allocator<std::pair<s32, PPWString> > > UnkClass_ov66_02243B64_UnkMap0;
+    typedef std::map<s32, PPWString, std::less<s32>, PPW_Allocator<std::pair<const s32, PPWString> > > UnkClass_ov66_02243B64_UnkMap0;
     UnkClass_ov66_02243B64_UnkMap0 unk_70;
 
     typedef std::set<s32, std::less<s32>, PPW_Allocator<s32> > UnkClass_ov66_02243B64_UnkSet;
@@ -61,7 +61,7 @@ class UnkClass_ov66_02243B64 : public UnkClass_ov66_0225B6E4 {
         {
         }
     };
-    typedef std::map<PPWString, UnkClass_ov66_02243B64_SubStruct0, std::less<PPWString>, PPW_Allocator<std::pair<PPWString, UnkClass_ov66_02243B64_SubStruct0> > > UnkClass_ov66_02243B64_UnkMap1;
+    typedef std::map<PPWString, UnkClass_ov66_02243B64_SubStruct0, std::less<PPWString>, PPW_Allocator<std::pair<const PPWString, UnkClass_ov66_02243B64_SubStruct0> > > UnkClass_ov66_02243B64_UnkMap1;
     UnkClass_ov66_02243B64_UnkMap1 unk_80;
 
     UnkClass_ov66_0224640C unk_90;

@@ -233,7 +233,11 @@ void CommManager_StartUnderground(SaveData *saveData)
         return;
     }
 
+    #ifdef SDK_BUILD_ARM
     Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0xF000);
+    #else
+    Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0xF000*2);
+    #endif
     CommManager_Initialize(saveData, COMM_TYPE_UNDERGROUND);
 
     sCommMan->contestRegulation = 0;
@@ -290,10 +294,17 @@ void CommManager_ResetUndergroundServer(void)
 BOOL CommManager_IsConnectingUnderground(void)
 {
     int i;
+    #ifdef SDK_BUILD_ARM
     u32 connectFunctions[] = {
         (u32)CommTask_ConnectUndergroundClient, (u32)CommTask_ConnectUndergroundServer, 0
     };
     u32 task = (u32)sCommMan->task;
+    #else
+    u64 connectFunctions[] = {
+        (u64)CommTask_ConnectUndergroundClient, (u64)CommTask_ConnectUndergroundServer, 0
+    };
+    u64 task = (u64)sCommMan->task;
+    #endif
 
     if (sCommMan == NULL) {
         return FALSE;
@@ -348,7 +359,11 @@ void CommManager_StartBattleServer(SaveData *saveData, int commType, int contest
         return;
     }
 
+    #ifdef SDK_BUILD_ARM
     Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080);
+    #else
+    Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080*2);
+    #endif
     CommManager_Initialize(saveData, commType);
 
     sCommMan->contestRegulation = contestRegulation;
@@ -372,7 +387,11 @@ void CommManager_StartBattleClient(SaveData *saveData, int commType, int contest
         return;
     }
 
+    #ifdef SDK_BUILD_ARM
     Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080);
+    #else
+    Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080*2);
+    #endif
     CommManager_Initialize(saveData, commType);
 
     sCommMan->contestRegulation = contestRegulation;
@@ -462,7 +481,13 @@ void CommManager_StartUnion(SaveData *saveData)
         return;
     }
 
-    if (Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080) == 0) {
+    if (
+        #ifdef SDK_BUILD_ARM
+        Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080)
+        #else
+        Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080*2)
+        #endif
+         == 0) {
         NetworkError_DisplayGTSCriticalError();
     }
 
@@ -653,7 +678,11 @@ void CommManager_StartRandomBattleServer(SaveData *saveData, int commType)
         return;
     }
 
+    #ifdef SDK_BUILD_ARM
     Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080);
+    #else
+    Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080*2);
+    #endif
     CommManager_Initialize(saveData, commType);
     CommManager_SetTask(CommTask_StartRandomBattleServer, 0);
 }
@@ -670,7 +699,11 @@ void CommManager_StartRandomBattleClient(SaveData *saveData, int commType)
         return;
     }
 
+    #ifdef SDK_BUILD_ARM
     Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080);
+    #else
+    Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080*2);
+    #endif
     CommManager_Initialize(saveData, commType);
     CommManager_SetTask(CommTask_StartRandomBattleClient, 0);
 }
@@ -1997,7 +2030,11 @@ void CommManager_InitializeSearchParty(SaveData *saveData)
         return;
     }
 
+    #ifdef SDK_BUILD_ARM
     Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7000);
+    #else
+    Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7000 << 1);
+    #endif
     CommManager_Initialize(saveData, COMM_TYPE_PARTY);
     sCommMan->contestRegulation = 0;
     CommManager_SetTask(CommTask_InitSearchPartyClient, 0);
@@ -2585,7 +2622,11 @@ void CommManager_EndGlobalWifi(void)
 void CommManager_StartMysteryGiftWifi(SaveData *saveData)
 {
     if (!sCommMan) {
+        #ifdef SDK_BUILD_ARM
         Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x100);
+        #else
+        Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x100 << 1);
+        #endif
         sCommMan = (CommunicationManager *)Heap_Alloc(HEAP_ID_COMMUNICATION, sizeof(CommunicationManager));
         MI_CpuFill8(sCommMan, 0, sizeof(CommunicationManager));
         sCommMan->commType = COMM_TYPE_25;
@@ -2720,7 +2761,13 @@ static void CommTask_StartWifiBattleServer(void)
         return;
     }
 
-    Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_NINTENDO_WFC, 0x2A000 + 0xA000 + 0x1400);
+    Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_NINTENDO_WFC, 
+        #ifdef SDK_BUILD_ARM
+        (0x2A000 + 0xA000 + 0x1400)
+        #else
+        (0x2A000 + 0xA000 + 0x1400)*2
+        #endif
+    );
 
     if (CommSys_InitServer(1, 1, 512, 1)) {
         NintendoWFC_Init(sCommMan->saveData, HEAP_ID_NINTENDO_WFC, 0x2B000 + 0x1400, CommLocal_MaxMachines(sCommMan->commType) + 1);
@@ -2747,7 +2794,11 @@ void *CommManager_LoginWifiBattleServer(SaveData *saveData, int size)
     }
 
     ResetLock(RESET_LOCK_0x1);
+    #ifdef SDK_BUILD_ARM
     Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080);
+    #else
+    Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080*2);
+    #endif
     CommManager_Initialize(saveData, COMM_TYPE_LOGIN_WIFI);
     sCommMan->unk_00 = Heap_Alloc(HEAP_ID_COMMUNICATION, size);
     MI_CpuFill8(sCommMan->unk_00, 0, size);
@@ -2775,7 +2826,11 @@ void CommManager_LoginWifiPlaza(SaveData *saveData, const void *param1)
     }
 
     ResetLock(RESET_LOCK_0x1);
+    #ifdef SDK_BUILD_ARM
     Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080);
+    #else
+    Heap_CreateAtEnd(HEAP_ID_APPLICATION, HEAP_ID_COMMUNICATION, 0x7080*2);
+    #endif
     CommManager_Initialize(saveData, COMM_TYPE_WIFI_PLAZA);
 
     sCommMan->unk_00 = NULL;

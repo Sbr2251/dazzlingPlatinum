@@ -439,7 +439,7 @@ BOOL WiFiEarth_Main(ApplicationManager *appMan, int *state)
         }
         break;
     case WIFI_EARTH_STATE_MENU_INPUT: {
-        int choice = ListMenu_ProcessInput(wifiEarth->listMenu);
+        uPtr choice = ListMenu_ProcessInput(wifiEarth->listMenu);
 
         if (choice == MENU_NOTHING_CHOSEN) {
             break;
@@ -496,7 +496,7 @@ BOOL WiFiEarth_Main(ApplicationManager *appMan, int *state)
         }
         break;
     case WIFI_EARTH_STATE_COUNTRY_INPUT: {
-        int country = ListMenu_ProcessInput(wifiEarth->listMenu);
+        uPtr country = ListMenu_ProcessInput(wifiEarth->listMenu);
 
         if (country == MENU_NOTHING_CHOSEN) {
             break;
@@ -540,7 +540,7 @@ BOOL WiFiEarth_Main(ApplicationManager *appMan, int *state)
         }
         break;
     case WIFI_EARTH_STATE_REGION_INPUT: {
-        int region = ListMenu_ProcessInput(wifiEarth->listMenu);
+        uPtr region = ListMenu_ProcessInput(wifiEarth->listMenu);
 
         if (region == MENU_NOTHING_CHOSEN) {
             break;
@@ -1036,7 +1036,7 @@ static BOOL WiFiEarth_ShowMessage(WiFiEarthData *wifiEarth, u32 entryId, BOOL au
     return done;
 }
 
-static void WiFiEarth_SetCursorPos(ListMenu *listMenu, u32 unused, u8 mute)
+static void WiFiEarth_SetCursorPos(ListMenu *listMenu, uPtr unused, u8 mute)
 {
     if (mute == 0) {
         Sound_PlayEffect(SE_CONFIRM_sseq_3);

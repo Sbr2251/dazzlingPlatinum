@@ -45,7 +45,13 @@ void *LakeGuardiansArrival_Init(SpearPillarCutsceneData *cutscene)
     LakeGuardiansArrival_InitLights(context);
 
     ScreenScrollTask_Init(&context->lights.scroll, HEAP_ID_SPEAR_PILLAR_CUTSCENE);
-    ScreenScrollTask_Scroll(&context->lights.scroll, 0, 191, (0xffff / 192) * 2, FX32_CONST(2), 1 * 100, REG_DB_BG1HOFS_ADDR, 0, 0x1000, 1);
+    ScreenScrollTask_Scroll(&context->lights.scroll, 0, 191, (0xffff / 192) * 2, FX32_CONST(2), 1 * 100, 
+    #ifdef SDK_BUILD_ARM
+    REG_DB_BG1HOFS_ADDR,
+    #else
+    (uPtr)REG_DB_BG1HOFS_ADDR,
+    #endif
+    0, 0x1000, 1);
 
     ScreenCaptureTemplate unused = { // not used, but removing it causes checksum error.
         .displayMode = GX_DISPMODE_VRAM_C,

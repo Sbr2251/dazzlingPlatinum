@@ -19,6 +19,10 @@
 
 #include "res/graphics/field_effects/field_effects.naix"
 
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#endif
+
 typedef struct {
     FieldEffectManager *unk_00;
 } UnkStruct_ov5_021F17E4;
@@ -133,7 +137,16 @@ static int ov5_021F184C(OverworldAnimManager *param0, void *param1)
     v1->unk_28.x = FX32_ONE;
     v1->unk_28.y = FX32_ONE;
     v1->unk_28.z = FX32_ONE;
+    #ifdef SDK_PORT
+    SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
+    if(myConfig->enable60fps && myConfig->enable60fpsSpeedFix) {
+        v1->unk_34 = (FX32_ONE / 64) >> 1;
+    } else {
+        v1->unk_34 = (FX32_ONE / 64);
+    }
+    #else
     v1->unk_34 = (FX32_ONE / 64);
+    #endif
 
     if (v1->unk_10 == 2) {
         v1->unk_34 = 0;
@@ -380,7 +393,16 @@ static int ov5_021F1BEC(OverworldAnimManager *param0, void *param1)
     v1->unk_40.x = FX32_ONE;
     v1->unk_40.y = FX32_ONE;
     v1->unk_40.z = FX32_ONE;
+    #ifdef SDK_PORT
+    SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
+    if(myConfig->enable60fps && myConfig->enable60fpsSpeedFix) {
+        v1->unk_4C = (FX32_ONE / 64) >> 1;
+    } else {
+        v1->unk_4C = (FX32_ONE / 64);
+    }
+    #else
     v1->unk_4C = (FX32_ONE / 64);
+    #endif
 
     if (v1->unk_00 == 2) {
         v1->unk_4C = 0;

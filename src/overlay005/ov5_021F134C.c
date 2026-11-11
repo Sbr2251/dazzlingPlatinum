@@ -371,7 +371,10 @@ static const OverworldAnimManagerFuncs Unk_ov5_02200298 = {
     ov5_021F176C
 };
 
-static const VecFx32 Unk_ov5_022002E4[] = {
+#ifdef SDK_BUILD_ARM
+static
+#endif
+const VecFx32 Unk_ov5_022002E4[] = {
     { FX32_ONE, FX32_ONE, FX32_ONE },
     { FX32_ONE + (FX32_ONE / 4), FX32_ONE, FX32_ONE + (FX32_ONE / 4) },
     { FX32_ONE + (FX32_ONE / 4), FX32_ONE, FX32_ONE },
@@ -379,7 +382,10 @@ static const VecFx32 Unk_ov5_022002E4[] = {
     { FX32_ONE - (FX32_ONE / 8), FX32_ONE, FX32_ONE - (FX32_ONE / 8) }
 };
 
-static const fx32 Unk_ov5_02200284[] = {
+#ifdef SDK_BUILD_ARM
+static
+#endif
+const fx32 Unk_ov5_02200284[] = {
     FX32_ONE * 14,
     FX32_ONE * 18,
     FX32_ONE * 18,

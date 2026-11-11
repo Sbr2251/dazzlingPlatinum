@@ -326,7 +326,11 @@ static int GTSWFCInit_AskToSetupConnection(GTSApplicationState *appState)
 
 static int GTSWFCInit_ProcessSetupConfirmation(GTSApplicationState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int menuInput = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #else
+    u64 menuInput = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #endif
 
     if (menuInput != MENU_NOTHING_CHOSEN) {
         if (menuInput == MENU_CANCEL) {
@@ -353,7 +357,11 @@ static int GTSWFCInit_AskToDisconnect(GTSApplicationState *appState)
 
 static int GTSWFCInit_RestartOrExit(GTSApplicationState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int menuInput = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #else
+    u64 menuInput = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #endif
 
     if (menuInput != MENU_NOTHING_CHOSEN) {
         if (menuInput == MENU_CANCEL) {
@@ -750,7 +758,11 @@ static int GTSWFCInit_ExitScreen(GTSApplicationState *appState)
 
 static int GTSWFCInit_HandleRetryMenuInput(GTSApplicationState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int result = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #else
+    u64 result = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #endif
 
     if (result != MENU_NOTHING_CHOSEN) {
         if (result == MENU_CANCEL) {

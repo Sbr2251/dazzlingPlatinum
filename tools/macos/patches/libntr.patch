@@ -1,0 +1,1198 @@
+diff --git a/include/nitro/hw/X86/mmap_global.h b/include/nitro/hw/X86/mmap_global.h
+index 3be08a2..89915a2 100644
+--- a/include/nitro/hw/X86/mmap_global.h
++++ b/include/nitro/hw/X86/mmap_global.h
+@@ -46,17 +46,34 @@ extern u8 s_HW_MAIN_MEM_EX[0x800000];
+ #define HW_IOREG_END            0x05000000
+ #define HW_REG_BASE             HW_IOREG        // alias
+ //----------------------------- VRAMs
++
++// The DS's palette RAM is one block: BG then OBJ palettes for the main screen, then the sub screen's. HW_PLTT and HW_DB_PLTT span two
++// of them (HW_PLTT_END is HW_OBJ_PLTT_END), so they must be adjacent. Separate arrays were adjacent only by the linker's choice
++// (GNU ld keeps definition order; Apple's ld does not), so on macOS they are fields of one struct.
++#ifdef SDK_BUILD_MACOS
++#define SDK_HW_PLTT_BLOCK 1
++typedef struct SIM_HWPlttBlock { u8 bg[0x200]; u8 obj[0x200]; u8 db_bg[0x200]; u8 db_obj[0x200]; } SIM_HWPlttBlock;
++extern SIM_HWPlttBlock s_HW_PLTT_BLOCK;
++#define s_HW_BG_PLTT     (s_HW_PLTT_BLOCK.bg)
++#define s_HW_OBJ_PLTT    (s_HW_PLTT_BLOCK.obj)
++#define s_HW_DB_BG_PLTT  (s_HW_PLTT_BLOCK.db_bg)
++#define s_HW_DB_OBJ_PLTT (s_HW_PLTT_BLOCK.db_obj)
++#endif
+ //#define HW_BG_PLTT              0x05000000
+ //#define HW_BG_PLTT_END          0x05000200
+ //#define HW_BG_PLTT_SIZE         (HW_BG_PLTT_END-HW_BG_PLTT)
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_BG_PLTT[0x200];
++#endif
+ #define HW_BG_PLTT              ((u64)s_HW_BG_PLTT)
+ #define HW_BG_PLTT_END          ((u64)s_HW_BG_PLTT + 0x200)
+ #define HW_BG_PLTT_SIZE         (HW_BG_PLTT_END-HW_BG_PLTT)
+ //#define HW_OBJ_PLTT             0x05000200
+ //#define HW_OBJ_PLTT_END         0x05000400
+ //#define HW_OBJ_PLTT_SIZE        (HW_OBJ_PLTT_END-HW_OBJ_PLTT)
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_OBJ_PLTT[0x200];
++#endif
+ #define HW_OBJ_PLTT             ((u64)s_HW_OBJ_PLTT)
+ #define HW_OBJ_PLTT_END         ((u64)s_HW_OBJ_PLTT + 0x200)
+ #define HW_OBJ_PLTT_SIZE        (HW_OBJ_PLTT_END-HW_OBJ_PLTT)
+@@ -67,14 +84,18 @@ extern u8 s_HW_OBJ_PLTT[0x200];
+ //#define HW_DB_BG_PLTT           0x05000400
+ //#define HW_DB_BG_PLTT_END       0x05000600
+ //#define HW_DB_BG_PLTT_SIZE      (HW_DB_BG_PLTT_END-HW_DB_BG_PLTT)
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_DB_BG_PLTT[0x200];
++#endif
+ #define HW_DB_BG_PLTT             ((u64)s_HW_DB_BG_PLTT)
+ #define HW_DB_BG_PLTT_END         ((u64)s_HW_DB_BG_PLTT + 0x200)
+ #define HW_DB_BG_PLTT_SIZE      (HW_DB_BG_PLTT_END-HW_DB_BG_PLTT)
+ //#define HW_DB_OBJ_PLTT          0x05000600
+ //#define HW_DB_OBJ_PLTT_END      0x05000800
+ //#define HW_DB_OBJ_PLTT_SIZE     (HW_DB_OBJ_PLTT_END-HW_DB_OBJ_PLTT)
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_DB_OBJ_PLTT[0x200];
++#endif
+ #define HW_DB_OBJ_PLTT            ((u64)s_HW_DB_OBJ_PLTT)
+ #define HW_DB_OBJ_PLTT_END        ((u64)s_HW_DB_OBJ_PLTT + 0x200)
+ #define HW_DB_OBJ_PLTT_SIZE     (HW_DB_OBJ_PLTT_END-HW_DB_OBJ_PLTT)
+@@ -94,7 +115,7 @@ extern u8 s_HW_BG_VRAM[0x80000];
+ extern u8 s_HW_DB_BG_VRAM[0x20000];
+ #define HW_DB_BG_VRAM              ((u64)s_HW_DB_BG_VRAM)
+ #define HW_DB_BG_VRAM_END          ((u64)s_HW_DB_BG_VRAM + 0x20000)
+-#define HW_DB_BG_VRAM_SIZE         (HW_BG_VRAM_END-HW_BG_VRAM)
++#define HW_DB_BG_VRAM_SIZE         (HW_DB_BG_VRAM_END-HW_DB_BG_VRAM)   /* was the main BG VRAM's 0x80000: a clear ran 0x60000 past this 0x20000 array */
+ 
+ //#define HW_OBJ_VRAM             0x06400000
+ //#define HW_OBJ_VRAM_END         0x06440000
+@@ -109,7 +130,7 @@ extern u8 s_HW_DB_OBJ_VRAM[0x20000];
+ //#define HW_DB_OBJ_VRAM          0x06600000
+ //#define HW_DB_OBJ_VRAM_END      0x06620000
+ #define HW_DB_OBJ_VRAM             ((u64)s_HW_DB_OBJ_VRAM)
+-#define HW_DB_OBJ_VRAM_END         ((u64)s_HW_DB_OBJ_VRAM + 0x40000)
++#define HW_DB_OBJ_VRAM_END         ((u64)s_HW_DB_OBJ_VRAM + 0x20000)   /* the array is 0x20000 */
+ #define HW_DB_OBJ_VRAM_SIZE     (HW_DB_OBJ_VRAM_END-HW_DB_OBJ_VRAM)
+ //#define HW_LCDC_VRAM            0x06800000
+ //#ifdef SDK_TS
+diff --git a/include/simulator/sim.h b/include/simulator/sim.h
+index ad57dfa..312dae0 100644
+--- a/include/simulator/sim.h
++++ b/include/simulator/sim.h
+@@ -74,6 +74,8 @@ void SIM_u16ToRGB( u16 in, u8 * r, u8 *g, u8 * b );
+ SIM_config_type * SIM_GetConfigPtr();
+ u64 SIM_GetRenderFrameTime();
+ u64 SIM_GetFullFrameTime();
++// Fast-forward state: 0 off, 1 capped at *speed x normal speed, 2 uncapped
++int SIM_GetFastForward(double * speed);
+ const char * SIM_GetLibntrGitHash();
+ const char * SIM_GetProjectGitHash();
+ SDL_Window * SIM_GetSDLWindow();
+diff --git a/include/simulator/sim_gui.hpp b/include/simulator/sim_gui.hpp
+index 285ed8d..d5a2519 100644
+--- a/include/simulator/sim_gui.hpp
++++ b/include/simulator/sim_gui.hpp
+@@ -17,6 +17,7 @@ void Toggle();
+ void Enable();
+ void OpenFileDialog(std::function<void(std::string)> callback);
+ bool IsGameLogicPaused();
++void SetGameLogicPaused(bool paused);
+ void AppButton(const char * label, bool * state, void (*aInitFunc)(void), void (*aAppFunc)(bool *));
+ 
+ 
+diff --git a/include/simulator/sim_helpers.hpp b/include/simulator/sim_helpers.hpp
+new file mode 100644
+index 0000000..c2b0286
+--- /dev/null
++++ b/include/simulator/sim_helpers.hpp
+@@ -0,0 +1,26 @@
++#pragma once
++
++// Player helpers for PC builds: a fast-forward badge and short messages drawn over the game, and save import/export
++// (a raw 512 KB .sav, as DeSmuME's "Export Backup Memory" writes, or a DeSmuME .dsv on import).
++
++#include <string>
++
++namespace SIM::Helpers {
++
++// Draws the overlay (fast-forward badge, message). Called once per frame inside the ImGui frame.
++void DrawOverlay();
++
++// Shows a short message at the top of the window.
++void Toast(const std::string & message, double seconds = 3.0);
++
++// Export the current save. With an empty path a save dialog asks where (macOS).
++void ExportSave(const std::string & path = "");
++
++// Import a save (.sav raw or DeSmuME .dsv), keeping a backup of the current one, then restart the game so it loads.
++// With an empty path a file dialog asks which, and the player confirms (macOS). A given path is imported without asking.
++void ImportSave(const std::string & path = "");
++
++// Called by the main loop each frame: restarts the game after an import.
++void Poll();
++
++}  // namespace SIM::Helpers
+diff --git a/include/simulator/simvariables.h b/include/simulator/simvariables.h
+index 6e41f75..01e76a9 100644
+--- a/include/simulator/simvariables.h
++++ b/include/simulator/simvariables.h
+@@ -390,10 +390,18 @@ extern u8 s_HW_MAIN_MEM_SUB[0x400000];
+ //mmap_global
+ extern u8 s_HW_MAIN_MEM[0x800000];
+ extern u8 s_HW_MAIN_MEM_EX[0x800000];
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_BG_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_OBJ_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_DB_BG_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ extern u8 s_HW_DB_OBJ_PLTT[0x200];
++#endif
+ extern u8 s_HW_BG_VRAM[0x80000];
+ extern u8 s_HW_DB_BG_VRAM[0x20000];
+ extern u8 s_HW_OBJ_VRAM[0x40000];
+diff --git a/libraries/sim/meson.build b/libraries/sim/meson.build
+index d7a921e..240b2ac 100644
+--- a/libraries/sim/meson.build
++++ b/libraries/sim/meson.build
+@@ -2,8 +2,11 @@ subdir('src')
+ 
+ libsim_includes = include_directories('include')
+ 
++# placeholders for targets that set neither below; macOS's ar refuses an archive with no members, so not on the PC targets
++if(build_target != 'linux' and build_target != 'win64')
+ sdl2_lib = library('SDL2')
+ enet_lib = library('enet')
++endif
+ 
+ if(build_target == 'linux' or build_target == 'win64')
+ sdl2_lib = meson.get_compiler('c').find_library('SDL2')
+diff --git a/libraries/sim/src/g3_handler.cpp b/libraries/sim/src/g3_handler.cpp
+index e638798..550c270 100644
+--- a/libraries/sim/src/g3_handler.cpp
++++ b/libraries/sim/src/g3_handler.cpp
+@@ -410,7 +410,9 @@ void G3SIM_Begin(GXBegin type)
+     }
+     snprintf(debugMessage, 50, "GX_Begin %s", typeString);
+ 
++    #ifndef SDK_BUILD_MACOS
+     glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 1337, GL_DEBUG_SEVERITY_NOTIFICATION, 50, debugMessage);
++    #endif
+     s_primType = type;
+     s_G3numInPoly = 0;
+     s_G3drawPoly = 0;
+diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
+index 2d852bf..4142f05 100644
+--- a/libraries/sim/src/meson.build
++++ b/libraries/sim/src/meson.build
+@@ -31,6 +31,7 @@ libsim_srcs = files(
+     'sim_gui_config.cpp',
+     'sim_gui_net.cpp',
+     'sim_gui_pad.cpp',
++    'sim_helpers.cpp',
+     'sim_main.cpp',
+     'sim_net.cpp',
+     'sim_RenderContextManager.cpp',
+diff --git a/libraries/sim/src/shaders/g2_fragment.glsl b/libraries/sim/src/shaders/g2_fragment.glsl
+index b652bd5..f816f23 100644
+--- a/libraries/sim/src/shaders/g2_fragment.glsl
++++ b/libraries/sim/src/shaders/g2_fragment.glsl
+@@ -21,6 +21,22 @@ smooth in vec2 fragTexCoord;
+ uniform float inMasterBrightFactor;
+ uniform int inMasterBrightMode;
+ out vec4 color;
++
++// Sampler arrays may only be indexed with dynamically uniform expressions; currentBgDrawn differs per fragment, and macOS's
++// OpenGL (on Metal) returns black for such a lookup, so blended text and logos came out black there. Index with constants instead.
++vec4 sampleBg(int n, vec2 uv) {
++    if (n == 0) return texture(bgTexture[0], uv);
++    if (n == 1) return texture(bgTexture[1], uv);
++    if (n == 2) return texture(bgTexture[2], uv);
++    return texture(bgTexture[3], uv);
++}
++vec4 sampleObj(int n, vec2 uv) {
++    if (n == 0) return texture(objTexture[0], uv);
++    if (n == 1) return texture(objTexture[1], uv);
++    if (n == 2) return texture(objTexture[2], uv);
++    if (n == 3) return texture(objTexture[3], uv);
++    return texture(objTexture[4], uv);
++}
+ void main()
+ {
+     int oamsDrawn = 0;
+@@ -40,8 +56,8 @@ void main()
+         int curPrio = bgPriorities[bgNum];
+         // Draw the OBJs that are at or below the current BG priority
+         for(int j=3-oamsDrawn; j>curPrio; j--) {
+-            if(texture(objTexture[j], fragTexCoord).a > 0.1) {
+-                color = texture(objTexture[j], fragTexCoord);
++            if(sampleObj(j, fragTexCoord).a > 0.1) {
++                color = sampleObj(j, fragTexCoord);
+                 currentBgDrawn = 4;
+             }
+             oamsDrawn++;
+@@ -61,59 +77,68 @@ void main()
+             }
+         }
+         // Draw the current bg
+-        if(texture(bgTexture[bgNum], fragTexCoord).a > 0.1) {
++        vec4 bg3d = sampleBg(0, fragTexCoord);
++        if(bgNum == 0 && bg0as3d != 0 && bg3d.a > 0.004 && bg3d.a < 0.99 && (((bldcnt >> (8+currentBgDrawn)) & 1) == 1)) {
++            // DS special case: translucent 3D pixels are alpha blended with the layer below whenever that layer is a 2nd
++            // target, whatever the blend mode and 1st targets are (particles, glows). The 3D buffer holds colour already
++            // weighted by its alpha (it is drawn over a transparent clear with SRC_ALPHA blending).
++            vec3 below = (currentBgDrawn == 5) ? backdropColor.rgb : color.rgb;
++            color.rgb = min(vec3(1.0), bg3d.rgb + below * (1.0 - bg3d.a));
++            color.a = 1.0;
++            currentBgDrawn = bgNum;
++        } else if(sampleBg(bgNum, fragTexCoord).a > 0.1) {
+             //Handle blending
+             if( (((bldcnt >> 6) & 0x3) == 1) && ((bldcnt >> bgNum & 1) == 1) ){
+                 // Alpha Blending Mode. bgNum is Target 1.
+                 float alphaA = min(16.0, float(bldalpha & 31)) / 16.0;
+                 float alphaB = min(16.0, float((bldalpha >> 8) & 31)) / 16.0;
+                 if(bgNum == 0 && bg0as3d != 0) {
+-                    alphaA = texture(bgTexture[0], fragTexCoord).a;
++                    alphaA = sampleBg(0, fragTexCoord).a;
+                     alphaB = 1.0 - alphaA;
+                 }
+                 if((currentBgDrawn < 4) && (((bldcnt >> (8+currentBgDrawn)) & 1) == 1) ) {
+-                    color.r = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).r *alphaA) + (texture(bgTexture[currentBgDrawn], fragTexCoord).r * alphaB)));
+-                    color.g = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).g *alphaA) + (texture(bgTexture[currentBgDrawn], fragTexCoord).g * alphaB)));
+-                    color.b = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).b *alphaA) + (texture(bgTexture[currentBgDrawn], fragTexCoord).b * alphaB)));
++                    color.r = min(1.0, ((sampleBg(bgNum, fragTexCoord).r *alphaA) + (sampleBg(currentBgDrawn, fragTexCoord).r * alphaB)));
++                    color.g = min(1.0, ((sampleBg(bgNum, fragTexCoord).g *alphaA) + (sampleBg(currentBgDrawn, fragTexCoord).g * alphaB)));
++                    color.b = min(1.0, ((sampleBg(bgNum, fragTexCoord).b *alphaA) + (sampleBg(currentBgDrawn, fragTexCoord).b * alphaB)));
+                     color.a = 1.0;
+                     currentBgDrawn = bgNum;
+                 } else if( (currentBgDrawn == 4) && ( ( (bldcnt >> (8+currentBgDrawn)) & 1) == 1) ){
+                     // Alpha blending where the highest OBJ pixel is the target
+-                    color.r = min(1.0, ( (texture(bgTexture[bgNum], fragTexCoord).r *alphaA) + color.r * alphaB) );
+-                    color.g = min(1.0, ( (texture(bgTexture[bgNum], fragTexCoord).g *alphaA) + color.g * alphaB) );
+-                    color.b = min(1.0, ( (texture(bgTexture[bgNum], fragTexCoord).b *alphaA) + color.b * alphaB) );
++                    color.r = min(1.0, ( (sampleBg(bgNum, fragTexCoord).r *alphaA) + color.r * alphaB) );
++                    color.g = min(1.0, ( (sampleBg(bgNum, fragTexCoord).g *alphaA) + color.g * alphaB) );
++                    color.b = min(1.0, ( (sampleBg(bgNum, fragTexCoord).b *alphaA) + color.b * alphaB) );
+                     color.a = 1.0;
+                 } else if((currentBgDrawn == 5) && (((bldcnt >> (8+currentBgDrawn)) & 1) == 1)) {
+                     // Alpha blending where the backdrop is the target
+-                    color.r = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).r *alphaA) + backdropColor.r * alphaB));
+-                    color.g = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).g *alphaA) + backdropColor.g * alphaB));
+-                    color.b = min(1.0, ((texture(bgTexture[bgNum], fragTexCoord).b *alphaA) + backdropColor.b * alphaB));
++                    color.r = min(1.0, ((sampleBg(bgNum, fragTexCoord).r *alphaA) + backdropColor.r * alphaB));
++                    color.g = min(1.0, ((sampleBg(bgNum, fragTexCoord).g *alphaA) + backdropColor.g * alphaB));
++                    color.b = min(1.0, ((sampleBg(bgNum, fragTexCoord).b *alphaA) + backdropColor.b * alphaB));
+                     color.a = 1.0;
+                 } else {
+-                    color = texture(bgTexture[bgNum], fragTexCoord);
++                    color = sampleBg(bgNum, fragTexCoord);
+                     currentBgDrawn = bgNum;
+                 }
+             } else if((((bldcnt >> 6) & 0x3) == 2) && ((bldcnt >> bgNum & 1) == 1)) {
+                 // Brightness Increase Mode. bgNum is Target 1.
+                 float brightFactor = min(16.0, float(bldy & 31)) / 16.0;
+-                //color.r = min(1.0, ( texture(bgTexture[bgNum], fragTexCoord).r + ((1.0 - texture(bgTexture[bgNum], fragTexCoord).r)*brightFactor)) );
+-                //color.g = min(1.0, ( texture(bgTexture[bgNum], fragTexCoord).g + ((1.0 - texture(bgTexture[bgNum], fragTexCoord).g)*brightFactor)) );
+-                //color.b = min(1.0, ( texture(bgTexture[bgNum], fragTexCoord).b + ((1.0 - texture(bgTexture[bgNum], fragTexCoord).b)*brightFactor)) );
+-                color.r = texture(bgTexture[bgNum], fragTexCoord).r + (1.0 - texture(bgTexture[bgNum], fragTexCoord).r)*brightFactor;
+-                color.g = texture(bgTexture[bgNum], fragTexCoord).g + (1.0 - texture(bgTexture[bgNum], fragTexCoord).g)*brightFactor;
+-                color.b = texture(bgTexture[bgNum], fragTexCoord).b + (1.0 - texture(bgTexture[bgNum], fragTexCoord).b)*brightFactor;
++                //color.r = min(1.0, ( sampleBg(bgNum, fragTexCoord).r + ((1.0 - sampleBg(bgNum, fragTexCoord).r)*brightFactor)) );
++                //color.g = min(1.0, ( sampleBg(bgNum, fragTexCoord).g + ((1.0 - sampleBg(bgNum, fragTexCoord).g)*brightFactor)) );
++                //color.b = min(1.0, ( sampleBg(bgNum, fragTexCoord).b + ((1.0 - sampleBg(bgNum, fragTexCoord).b)*brightFactor)) );
++                color.r = sampleBg(bgNum, fragTexCoord).r + (1.0 - sampleBg(bgNum, fragTexCoord).r)*brightFactor;
++                color.g = sampleBg(bgNum, fragTexCoord).g + (1.0 - sampleBg(bgNum, fragTexCoord).g)*brightFactor;
++                color.b = sampleBg(bgNum, fragTexCoord).b + (1.0 - sampleBg(bgNum, fragTexCoord).b)*brightFactor;
+                 color.a = 1.0;
+                 currentBgDrawn = bgNum;
+             } else if((((bldcnt >> 6) & 0x3) == 3) && ((bldcnt >> bgNum & 1) == 1)) {
+                 // Brightness Decrease Mode. bgNum is Target 1.
+                 float brightFactor = min(16.0, float(bldy & 31)) / 16.0;
+-                color.r = max(0.0, ( texture(bgTexture[bgNum], fragTexCoord).r - ((texture(bgTexture[bgNum], fragTexCoord).r)*brightFactor)) );
+-                color.g = max(0.0, ( texture(bgTexture[bgNum], fragTexCoord).g - ((texture(bgTexture[bgNum], fragTexCoord).g)*brightFactor)) );
+-                color.b = max(0.0, ( texture(bgTexture[bgNum], fragTexCoord).b - ((texture(bgTexture[bgNum], fragTexCoord).b)*brightFactor)) );
++                color.r = max(0.0, ( sampleBg(bgNum, fragTexCoord).r - ((sampleBg(bgNum, fragTexCoord).r)*brightFactor)) );
++                color.g = max(0.0, ( sampleBg(bgNum, fragTexCoord).g - ((sampleBg(bgNum, fragTexCoord).g)*brightFactor)) );
++                color.b = max(0.0, ( sampleBg(bgNum, fragTexCoord).b - ((sampleBg(bgNum, fragTexCoord).b)*brightFactor)) );
+                 color.a = 1.0;
+                 currentBgDrawn = bgNum;
+             } else {
+-                color.rgb = texture(bgTexture[bgNum], fragTexCoord).rgb;
++                color.rgb = sampleBg(bgNum, fragTexCoord).rgb;
+                 color.a = 1.0;
+                 currentBgDrawn = bgNum;
+             }
+@@ -121,8 +146,8 @@ void main()
+     }
+     //Draw the remaining objs
+     for(int i=3-oamsDrawn; i>=0; i--) {
+-        if(texture(objTexture[i], fragTexCoord).a > 0.1) {
+-            color = texture(objTexture[i], fragTexCoord);
++        if(sampleObj(i, fragTexCoord).a > 0.1) {
++            color = sampleObj(i, fragTexCoord);
+             currentBgDrawn = 4;
+         }
+     }
+diff --git a/libraries/sim/src/sim_NitroMainThread.cpp b/libraries/sim/src/sim_NitroMainThread.cpp
+index 0766447..2261dcc 100644
+--- a/libraries/sim/src/sim_NitroMainThread.cpp
++++ b/libraries/sim/src/sim_NitroMainThread.cpp
+@@ -54,6 +54,10 @@ int RunNitroMain(void * arg) {
+   memset(s_HW_OBJ_VRAM, 0, sizeof(s_HW_OBJ_VRAM));
+   memset(s_HW_DB_OBJ_VRAM, 0, sizeof(s_HW_DB_OBJ_VRAM));
+ 
++  // X, Y, debug and hinge state live in HW_MAIN_MEM_SYSTEM, which was just cleared: set them released (active low) again. Set only before
++  // the clear, they read as held from the start, so the first press of X or Y did nothing (its release set the bit)
++  *(vu16 *)HW_BUTTON_XY_BUF = 0b0111110000000000;
++
+   // Zero out some registers
+   s_reg_G2_BG0CNT = 0;
+   s_reg_G2_BG1CNT = 0;
+diff --git a/libraries/sim/src/sim_g3_CommandHandler.cpp b/libraries/sim/src/sim_g3_CommandHandler.cpp
+index 18dbafe..f452e57 100644
+--- a/libraries/sim/src/sim_g3_CommandHandler.cpp
++++ b/libraries/sim/src/sim_g3_CommandHandler.cpp
+@@ -186,7 +186,9 @@ void Begin(GXBegin type)
+     }
+     snprintf(debugMessage, 50, "GX_Begin %s", typeString);
+ 
++    #ifndef SDK_BUILD_MACOS
+     glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 1337, GL_DEBUG_SEVERITY_NOTIFICATION, 50, debugMessage);
++    #endif
+ 
+     g3State.SetPrimitiveType(type);
+     g3State.SetCurrentIndexInPolygon(0);
+diff --git a/libraries/sim/src/sim_g3_GlRenderer.cpp b/libraries/sim/src/sim_g3_GlRenderer.cpp
+index 77300c2..ecf6990 100644
+--- a/libraries/sim/src/sim_g3_GlRenderer.cpp
++++ b/libraries/sim/src/sim_g3_GlRenderer.cpp
+@@ -121,7 +121,24 @@ void GlRenderer::Draw(std::shared_ptr<DrawCall> drawCall) {
+             glProgramUniform1fv(mShaderProgramId, fogDensityLoc, 32, drawCall->GetFogDensityTable());
+         }
+ 
++        // Apply this draw call's own cull mode and depth test. PolygonAttrCommand also sets them on the GL state when the command
++        // arrives, but translucent draw calls are deferred to the end of the frame (DrawTransparentItems), so they would otherwise
++        // be drawn with whatever state the frame's last polygon attribute left behind (often GX_CULL_ALL: nothing drawn).
++        const PolygonAttr attr = drawCall->GetPolygonAttr();
++        switch(attr.cullMode) {
++            case GX_CULL_ALL:   glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); break;
++            case GX_CULL_FRONT: glEnable(GL_CULL_FACE); glCullFace(GL_BACK); break;
++            case GX_CULL_BACK:  glEnable(GL_CULL_FACE); glCullFace(GL_FRONT); break;
++            default:            glDisable(GL_CULL_FACE); break;
++        }
++        glDepthFunc(attr.depthTest ? GL_LEQUAL : GL_LESS);
++        // As on the DS, translucent polygons only update the depth buffer when their attribute asks for it.
++        const bool depthWrite = !drawCall->IsTransparent() || attr.translucentDepth;
++        if(!depthWrite) glDepthMask(GL_FALSE);
++
+         glDrawArrays(GL_TRIANGLES, 0, vertsCount);
++
++        if(!depthWrite) glDepthMask(GL_TRUE);
+     }
+ }
+ 
+diff --git a/libraries/sim/src/sim_gui.cpp b/libraries/sim/src/sim_gui.cpp
+index 2c40e59..d13175a 100644
+--- a/libraries/sim/src/sim_gui.cpp
++++ b/libraries/sim/src/sim_gui.cpp
+@@ -1,5 +1,6 @@
+ #include "simulator/sim.h"
+ #include "simulator/sim_gui.hpp"
++#include "simulator/sim_helpers.hpp"
+ 
+ #include "simulator/imgui/imgui.hpp"
+ 
+@@ -51,7 +52,11 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+ 
+ 
+ 	ImGui_ImplSDL2_InitForOpenGL(sWindow, sContext);
++#ifdef SDK_BUILD_MACOS
++	const char * glsl_version = "#version 410";   // macOS: OpenGL 4.1
++#else
+ 	const char * glsl_version = "#version 420";
++#endif
+   	ImGui_ImplOpenGL3_Init(glsl_version);
+ 
+     ImGui::StyleColorsDark(NULL);
+@@ -61,6 +66,8 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+ }
+ 
+ void Main() {
++    SIM::Helpers::DrawOverlay();
++
+     if(sEnabled) {
+         ImGui::Begin("libntr", &sEnabled);
+ 
+@@ -96,6 +103,10 @@ void Main() {
+         }
+         #endif
+ 
++        if (ImGui::Button("Export save...", ImVec2(110, 20))) SIM::Helpers::ExportSave();
++        ImGui::SameLine();
++        if (ImGui::Button("Import save...", ImVec2(110, 20))) SIM::Helpers::ImportSave();
++
+         ImGui::Checkbox("Pause Game Logic", &sPauseGameLogic);
+ 
+         ImGui::End();
+@@ -147,6 +158,10 @@ bool IsGameLogicPaused() {
+     return sPauseGameLogic;
+ }
+ 
++void SetGameLogicPaused(bool paused) {
++    sPauseGameLogic = paused;
++}
++
+ // Generic button to open another GUI applet
+ void AppButton(const char * label, bool * state, void (*initFunc)(void), void (*appFunc)(bool *)) {
+     if(ImGui::Button(label, sButtonSize)) {
+diff --git a/libraries/sim/src/sim_helpers.cpp b/libraries/sim/src/sim_helpers.cpp
+new file mode 100644
+index 0000000..74d53a8
+--- /dev/null
++++ b/libraries/sim/src/sim_helpers.cpp
+@@ -0,0 +1,353 @@
++// Player helpers for PC builds: a fast-forward badge and short messages drawn over the game, and save import/export.
++//
++// Saves: the game reads and writes save.bin in its working directory, a raw image of the DS cartridge's 512 KB flash, so it is
++// the same format as the .sav DeSmuME (File > Export Backup Memory), melonDS and real-cartridge dumpers use. Import also takes a
++// DeSmuME .dsv (a raw image followed by a 122-byte footer). Before an import the current save is copied to save-backups/.
++
++#include "simulator/sim.h"
++#include "simulator/sim_helpers.hpp"
++#include "simulator/sim_gui.hpp"
++
++#include "simulator/imgui/imgui.hpp"
++
++#include <atomic>
++#include <cerrno>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <ctime>
++#include <mutex>
++#include <string>
++#include <thread>
++#include <vector>
++
++#include <limits.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++#ifdef __APPLE__
++#include <crt_externs.h>
++#include <mach-o/dyld.h>
++#endif
++
++namespace SIM::Helpers {
++
++static const char * kSaveFile = "save.bin";
++static const char * kBackupDir = "save-backups";
++static const size_t kFlashSize = 512 * 1024;
++static const unsigned kSectorSignature = 0x20060623;   // Gen 4 save block footer signature
++static const char kDsvCookie[] = "|-DESMUME SAVE-|";
++static const size_t kDsvFooterSize = 122;
++
++static std::mutex sToastLock;
++static std::string sToastText;
++static double sToastUntil = 0;
++static std::atomic<bool> sBusy{false};      // a dialog or file operation is running
++static std::atomic<bool> sRestart{false};   // restart after an import
++
++static double Now() {
++    struct timespec t;
++    clock_gettime(CLOCK_MONOTONIC, &t);
++    return (double)t.tv_sec + (double)t.tv_nsec / 1e9;
++}
++
++void Toast(const std::string & message, double seconds) {
++    std::lock_guard<std::mutex> lock(sToastLock);
++    sToastText = message;
++    sToastUntil = Now() + seconds;
++    printf("SIM helpers: %s\n", message.c_str());
++    fflush(stdout);
++}
++
++// ---------------------------------------------------------------------------------------------------------------- overlay
++
++void DrawOverlay() {
++    ImDrawList * dl = ImGui::GetForegroundDrawList();
++    ImVec2 display = ImGui::GetIO().DisplaySize;
++    float scale = display.x / 512.0f;
++    if (scale < 1.0f) scale = 1.0f;
++    ImFont * font = ImGui::GetFont();
++    float fontSize = 13.0f * scale;
++
++    double speed = 0;
++    int ff = SIM_GetFastForward(&speed);
++    if (SIM::GUI::IsGameLogicPaused()) {
++        // Pause badge in the top-right corner: two bars and PAUSED
++        const char * label = "PAUSED";
++        ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
++        float h = 20.0f * scale, pad = 6.0f * scale, bar = 3.0f * scale, barH = 10.0f * scale;
++        float w = pad + bar * 3 + 4.0f * scale + textSize.x + pad;
++        ImVec2 p1(display.x - w - 6.0f * scale, 6.0f * scale);
++        ImVec2 p2(p1.x + w, p1.y + h);
++        dl->AddRectFilled(p1, p2, IM_COL32(0, 0, 0, 150), h / 2);
++        float cy = p1.y + h / 2, x = p1.x + pad;
++        ImU32 white = IM_COL32(255, 255, 255, 235);
++        dl->AddRectFilled(ImVec2(x, cy - barH / 2), ImVec2(x + bar, cy + barH / 2), white);
++        dl->AddRectFilled(ImVec2(x + bar * 2, cy - barH / 2), ImVec2(x + bar * 3, cy + barH / 2), white);
++        dl->AddText(font, fontSize, ImVec2(x + bar * 3 + 4.0f * scale, cy - textSize.y / 2), white, label);
++    } else if (ff != 0) {
++        // Badge in the top-right corner: two triangles and the speed
++        char label[16];
++        if (ff == 2) snprintf(label, sizeof label, "MAX");
++        else if (speed == (int)speed) snprintf(label, sizeof label, "%dx", (int)speed);
++        else snprintf(label, sizeof label, "%.1fx", speed);
++        ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
++        float h = 20.0f * scale, pad = 6.0f * scale, tri = 7.0f * scale;
++        float w = pad + tri * 2 + 4.0f * scale + textSize.x + pad;
++        ImVec2 p1(display.x - w - 6.0f * scale, 6.0f * scale);
++        ImVec2 p2(p1.x + w, p1.y + h);
++        dl->AddRectFilled(p1, p2, IM_COL32(0, 0, 0, 150), h / 2);
++        float cy = p1.y + h / 2, x = p1.x + pad;
++        ImU32 white = IM_COL32(255, 255, 255, 235);
++        dl->AddTriangleFilled(ImVec2(x, cy - tri * 0.75f), ImVec2(x + tri, cy), ImVec2(x, cy + tri * 0.75f), white);
++        dl->AddTriangleFilled(ImVec2(x + tri, cy - tri * 0.75f), ImVec2(x + tri * 2, cy), ImVec2(x + tri, cy + tri * 0.75f), white);
++        dl->AddText(font, fontSize, ImVec2(x + tri * 2 + 4.0f * scale, cy - textSize.y / 2), white, label);
++    }
++
++    std::string toast;
++    {
++        std::lock_guard<std::mutex> lock(sToastLock);
++        if (Now() < sToastUntil) toast = sToastText;
++    }
++    if (!toast.empty()) {
++        float maxWidth = display.x - 40.0f * scale;
++        ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, maxWidth, toast.c_str());
++        float pad = 8.0f * scale;
++        ImVec2 p1((display.x - textSize.x) / 2 - pad, 32.0f * scale);
++        ImVec2 p2(p1.x + textSize.x + pad * 2, p1.y + textSize.y + pad * 2);
++        dl->AddRectFilled(p1, p2, IM_COL32(0, 0, 0, 190), 6.0f * scale);
++        dl->AddText(font, fontSize, ImVec2(p1.x + pad, p1.y + pad), IM_COL32(255, 255, 255, 255), toast.c_str(), nullptr, maxWidth);
++    }
++}
++
++// ---------------------------------------------------------------------------------------------------------------- files
++
++static bool ReadFile(const std::string & path, std::vector<unsigned char> & out, size_t maxSize) {
++    FILE * f = fopen(path.c_str(), "rb");
++    if (!f) return false;
++    out.clear();
++    unsigned char buf[65536];
++    size_t n;
++    while ((n = fread(buf, 1, sizeof buf, f)) > 0) {
++        out.insert(out.end(), buf, buf + n);
++        if (out.size() > maxSize) { fclose(f); return false; }
++    }
++    fclose(f);
++    return true;
++}
++
++// Write via a temporary file and rename, so a failed write never leaves half a file
++static bool WriteFile(const std::string & path, const std::vector<unsigned char> & data) {
++    std::string tmp = path + ".tmp";
++    FILE * f = fopen(tmp.c_str(), "wb");
++    if (!f) return false;
++    bool ok = fwrite(data.data(), 1, data.size(), f) == data.size();
++    ok = (fclose(f) == 0) && ok;
++    if (!ok || rename(tmp.c_str(), path.c_str()) != 0) { unlink(tmp.c_str()); return false; }
++    return true;
++}
++
++static std::string BaseName(const std::string & path) {
++    size_t slash = path.find_last_of('/');
++    return slash == std::string::npos ? path : path.substr(slash + 1);
++}
++
++static std::string Timestamp() {
++    time_t t = time(nullptr);
++    struct tm tmv;
++    localtime_r(&t, &tmv);
++    char buf[32];
++    strftime(buf, sizeof buf, "%Y%m%d-%H%M%S", &tmv);
++    return buf;
++}
++
++static unsigned Read32(const unsigned char * p) { return p[0] | (p[1] << 8) | (p[2] << 16) | ((unsigned)p[3] << 24); }
++
++// A Platinum save has a block footer signature at 0xCF24 in its primary (0x00000) or backup (0x40000) half. 0xCF38 is the
++// layout of saves from older versions of this port, which the game upgrades when it loads them.
++static bool LooksLikePlatinumSave(const std::vector<unsigned char> & d) {
++    const size_t offsets[] = {0xCF24, 0x40000 + 0xCF24, 0xCF38, 0x40000 + 0xCF38};
++    for (size_t off : offsets)
++        if (off + 4 <= d.size() && Read32(&d[off]) == kSectorSignature) return true;
++    return false;
++}
++
++// ---------------------------------------------------------------------------------------------------------------- dialogs
++
++#ifdef __APPLE__
++static std::string AppleScriptString(const std::string & s) {
++    std::string out = "\"";
++    for (char c : s) {
++        if (c == '"' || c == '\\') out += '\\';
++        out += c;
++    }
++    return out + "\"";
++}
++
++// Runs an AppleScript with osascript; false when it fails or the player cancels
++static bool RunAppleScript(const std::string & script, std::string * result) {
++    char tmpl[] = "/tmp/pokeplatinum-dialog-XXXXXX";
++    int fd = mkstemp(tmpl);
++    if (fd < 0) return false;
++    bool wrote = write(fd, script.data(), script.size()) == (ssize_t)script.size();
++    close(fd);
++    if (!wrote) { unlink(tmpl); return false; }
++    std::string cmd = std::string("/usr/bin/osascript ") + tmpl + " 2>/dev/null";
++    FILE * p = popen(cmd.c_str(), "r");
++    std::string out;
++    if (p) {
++        char buf[1024];
++        size_t n;
++        while ((n = fread(buf, 1, sizeof buf, p)) > 0) out.append(buf, n);
++    }
++    int status = p ? pclose(p) : -1;
++    unlink(tmpl);
++    while (!out.empty() && (out.back() == '\n' || out.back() == '\r')) out.pop_back();
++    if (result) *result = out;
++    return status == 0;
++}
++
++static std::string DefaultFolder(bool forImport) {
++    const char * home = getenv("HOME");
++    if (!home) return "/";
++    struct stat st;
++    if (forImport) {
++        // OpenEmu keeps DeSmuME saves here
++        std::string openEmu = std::string(home) + "/Library/Application Support/OpenEmu/DeSmuME/Battery Saves";
++        if (stat(openEmu.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) return openEmu;
++    }
++    std::string docs = std::string(home) + "/Documents";
++    return (stat(docs.c_str(), &st) == 0) ? docs : home;
++}
++#endif
++
++// ---------------------------------------------------------------------------------------------------------------- export
++
++static void DoExport(std::string path) {
++    std::vector<unsigned char> data;
++    if (!ReadFile(kSaveFile, data, 4 * kFlashSize) || data.empty()) {
++        Toast("No save yet: save in the game first");
++        return;
++    }
++    if (data.size() < kFlashSize) data.resize(kFlashSize, 0xFF);   // erased flash reads as 0xFF
++
++    if (path.empty()) {
++#ifdef __APPLE__
++        std::string script = "activate\nPOSIX path of (choose file name with prompt " + AppleScriptString("Export the save (.sav)") +
++                             " default name " + AppleScriptString("Pokemon Platinum " + Timestamp() + ".sav") +
++                             " default location (POSIX file " + AppleScriptString(DefaultFolder(false)) + "))";
++        if (!RunAppleScript(script, &path) || path.empty()) return;   // cancelled
++#else
++        Toast("Save export needs a path on this platform");
++        return;
++#endif
++    }
++    if (WriteFile(path, data)) Toast("Save exported to " + BaseName(path));
++    else Toast("Could not write " + path + ": " + strerror(errno));
++}
++
++void ExportSave(const std::string & path) {
++    if (sBusy.exchange(true)) return;
++    std::thread([path] { DoExport(path); sBusy = false; }).detach();
++}
++
++// ---------------------------------------------------------------------------------------------------------------- import
++
++static void DoImport(std::string path) {
++    bool interactive = path.empty();
++#ifdef __APPLE__
++    if (interactive) {
++        std::string script = "activate\nPOSIX path of (choose file with prompt " +
++                             AppleScriptString("Import a save (.sav, or a DeSmuME .dsv)") +
++                             " default location (POSIX file " + AppleScriptString(DefaultFolder(true)) + "))";
++        if (!RunAppleScript(script, &path) || path.empty()) return;   // cancelled
++    }
++#else
++    if (interactive) { Toast("Save import needs a path on this platform"); return; }
++#endif
++
++    std::vector<unsigned char> data;
++    if (!ReadFile(path, data, 4 * kFlashSize)) {
++        Toast("Could not read " + BaseName(path) + " (missing, or larger than a DS save)");
++        return;
++    }
++    // DeSmuME .dsv: the raw image, then a footer ending in its cookie
++    if (data.size() >= kDsvFooterSize && memcmp(&data[data.size() - 16], kDsvCookie, 16) == 0) {
++        size_t raw = data.size() - kDsvFooterSize;
++        size_t used = Read32(&data[raw + 82]);   // the footer's "actual size"
++        data.resize(used > 0 && used <= raw ? used : raw);
++    }
++    if (data.size() > kFlashSize) data.resize(kFlashSize);
++    if (data.size() < kFlashSize) data.resize(kFlashSize, 0xFF);
++    if (!LooksLikePlatinumSave(data)) {
++        bool empty = true;
++        for (unsigned char b : data) if (b != 0 && b != 0xFF) { empty = false; break; }
++        Toast(BaseName(path) + (empty ? " is empty (no game saved in it)" : " is not a Pokemon Platinum save"), 5.0);
++        return;
++    }
++
++#ifdef __APPLE__
++    if (interactive) {
++        std::string script = "activate\ndisplay dialog " +
++                             AppleScriptString("Replace the current save with " + BaseName(path) +
++                                               "?\n\nThe current save is kept in save-backups. The game restarts to load the imported save; "
++                                               "progress since your last in-game save is lost.") +
++                             " buttons {\"Cancel\", \"Import and Restart\"} default button 2 with icon caution";
++        if (!RunAppleScript(script, nullptr)) return;   // cancelled
++    }
++#endif
++
++    // Keep the current save
++    std::vector<unsigned char> current;
++    bool blank = true;   // the game creates an all-zero save.bin before anything is saved
++    if (ReadFile(kSaveFile, current, 4 * kFlashSize))
++        for (unsigned char b : current) if (b != 0 && b != 0xFF) { blank = false; break; }
++    if (!blank) {
++        mkdir(kBackupDir, 0755);
++        std::string backup = std::string(kBackupDir) + "/save-" + Timestamp() + ".sav";
++        if (!WriteFile(backup, current)) {
++            Toast("Could not back up the current save; nothing imported");
++            return;
++        }
++    }
++    if (!WriteFile(kSaveFile, data)) {
++        Toast(std::string("Could not write the save: ") + strerror(errno));
++        return;
++    }
++    Toast("Imported " + BaseName(path) + ", restarting");
++    sRestart = true;
++}
++
++void ImportSave(const std::string & path) {
++    if (sBusy.exchange(true)) return;
++    std::thread([path] { DoImport(path); sBusy = false; }).detach();
++}
++
++// ---------------------------------------------------------------------------------------------------------------- restart
++
++void Poll() {
++    if (!sRestart) return;
++    sRestart = false;
++#ifdef __APPLE__
++    // Run this executable again with the same arguments, working directory and output
++    char exe[PATH_MAX];
++    uint32_t size = sizeof exe;
++    if (_NSGetExecutablePath(exe, &size) == 0) {
++        char ** argv = *_NSGetArgv();
++        fflush(stdout);
++        execv(exe, argv);
++    }
++#else
++    char exe[PATH_MAX];
++    ssize_t n = readlink("/proc/self/exe", exe, sizeof exe - 1);
++    if (n > 0) {
++        exe[n] = 0;
++        char * argv[] = {exe, nullptr};
++        fflush(stdout);
++        execv(exe, argv);
++    }
++#endif
++    Toast("Imported; quit and reopen the game to load it", 8.0);
++}
++
++}  // namespace SIM::Helpers
+diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
+index 910d7da..6c3f118 100644
+--- a/libraries/sim/src/sim_main.cpp
++++ b/libraries/sim/src/sim_main.cpp
+@@ -1,3 +1,4 @@
++#include <vector>
+ extern "C" void NitroMain();
+ extern "C" int NitroSpMain(void *arg);
+ #define SDL_MAIN_HANDLED
+@@ -33,11 +34,19 @@ extern "C" int NitroSpMain(void *arg);
+ #include <simulator/simvariables.h>
+ #include <simulator/sim_g3_CommandHandler.hpp>
+ #include <simulator/sim_gui.hpp>
++#include <simulator/sim_helpers.hpp>
+ #include <simulator/sim_RenderContextManager.hpp>
+ #include <simulator/sim_NitroMainThread.hpp>
+ 
+ #include <math.h>
+ #include <time.h>
++#include <errno.h>
++#ifdef __APPLE__
++// Objective-C runtime entry points, declared by hand: <objc/objc.h> clashes with the SDK's BOOL
++extern "C" { void *objc_getClass(const char *name); void *sel_registerName(const char *name); void objc_msgSend(void); }
++typedef void *id;
++typedef void *SEL;
++#endif
+ 
+ #include "nds-extract.hpp"
+ 
+@@ -178,6 +187,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+ SNDSharedWork *win_SNDi_SharedWork;
+ 
+ static bool sFastForward = false;
++// Holding the fast-forward key (Space) runs the game at up to this many times normal speed (SIM_FAST_FORWARD_SPEED, 1.5-16,
++// default 4). SIM_DEBUG_FAST (automation) stays uncapped.
++static double sFastForwardSpeed = 4.0;
++static bool sFastForwardUncapped = false;
+ 
+ OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
+     OS_IrqDummy, // VBlank (for ARM9)
+@@ -298,6 +311,16 @@ void SIM_SetInternalResolution(int internalRes) {
+       SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
+ }
+ 
++#ifdef SDK_BUILD_MACOS
++// The shaders say #version 420 core; macOS's OpenGL 4.1 compiles them as 410 (they use nothing past 4.1)
++static const char *SIM_MacShaderSource(const char *src) {
++  std::string *s = new std::string(src);
++  size_t at = s->find("#version 420");
++  if (at != std::string::npos) s->replace(at, 12, "#version 410");
++  return s->c_str();
++}
++#endif
++
+ static bool sChangeInternalResAfterRender = false;
+ static int sPendingInternalRes = 1;
+ 
+@@ -315,7 +338,13 @@ void *SIM_RenderInit(void *arg) {
+   SIM_Audio_Init(44100);
+ 
+   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
++#ifdef SDK_BUILD_MACOS
++  // macOS stops at OpenGL 4.1 core, and only gives a core context that is forward compatible
++  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
++  SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
++#else
+   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
++#endif
+   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+@@ -401,8 +430,10 @@ void *SIM_RenderInit(void *arg) {
+   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+   glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+ 
++#ifndef SDK_BUILD_MACOS
+   glEnable(GL_DEBUG_OUTPUT);
+   glDebugMessageCallback(MessageCallback, 0);
++#endif   // GL 4.3 / KHR_debug: not on macOS
+ 
+   GLenum glErrCode;
+   GLint status;
+@@ -453,8 +484,14 @@ void *SIM_RenderInit(void *arg) {
+   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
+                GL_UNSIGNED_BYTE, NULL);
+ 
++#ifdef SDK_BUILD_MACOS
++#define SIM_SHADER_SOURCE(_source) SIM_MacShaderSource(_source)
++#else
++#define SIM_SHADER_SOURCE(_source) (_source)
++#endif
+ #define CompileShaderCommon(_id, _source)                                      \
+-  glShaderSource(_id, 1, &_source, NULL);                                      \
++  { const char *_src = SIM_SHADER_SOURCE(_source);                             \
++  glShaderSource(_id, 1, &_src, NULL); }                                       \
+   glCompileShader(_id);                                                        \
+   glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
+   if (status != GL_TRUE) {                                                     \
+@@ -610,7 +647,8 @@ static void DrawEngine(BOOL isSub) {
+   backdropVec[2] = (float)backdropB / 255.0f;
+   backdropVec[3] = 1.0f;
+ 
+-  glUniform1fv(glGetUniformLocation(g2shaderProgramID, "backdropColor"), 4,
++  // backdropColor is a vec4: glUniform1fv with a count of 4 is GL_INVALID_OPERATION and left it unset
++  glUniform4fv(glGetUniformLocation(g2shaderProgramID, "backdropColor"), 1,
+                backdropVec);
+ 
+   glProgramUniform4f(g2shaderProgramID,
+@@ -950,6 +988,142 @@ static void HandleJoystickKeyUp(int aKey) {
+   }
+ }
+ 
++
++// Debug automation (any PC build; off unless the variables are set), for checking a build without a person at the keyboard:
++//   SIM_DEBUG_SHOT_DIR=<dir> SIM_DEBUG_SHOT_EVERY=<frames>  saves the window every N frames as <dir>/frame_<n>.bmp
++//   SIM_DEBUG_KEYS="<frame>:<keys>[/<hold frames>],..."     presses DS buttons at those frames (keys joined by +: A B X Y L R START SELECT UP DOWN LEFT RIGHT;
++//                                                            hold 6 frames unless given), e.g. "300:START,420:A/2,600:A+B"
++//   SIM_DEBUG_EXIT_FRAME=<frame>                            exits after that frame
++//   (a key T<x>;<y> touches the bottom screen at DS coordinates, e.g. "6000:T120;82/4")
++//   SIM_DEBUG_FAST=1                                        no frame cap, no vsync
++//   SIM_DEBUG_EXPORT_SAVE=<frame>:<path>, SIM_DEBUG_IMPORT_SAVE=<frame>:<path>  export / import the save (no dialogs; import restarts)
++//   SIM_DEBUG_PAUSE=<from>-<to>                             paused for those frames (as with F8)
++//   SIM_DEBUG_FF_HOLD=1                                     as if the fast-forward key were held (SIM_FAST_FORWARD_SPEED x 60 fps)
++//   SIM_DEBUG_DUMP_FRAME=<frame>                            prints the 2D display/blend registers and BG palette at that frame
++static int sDebugTouch = 0;   // SIM_DEBUG_KEYS holds the touch screen: the mouse does not override it
++static u32 SIM_DebugKeyMask(const char *s, u32 *xy) {
++  static const struct { const char *n; u32 bit; int isXY; } names[] = {
++    {"A", 1u << 0, 0}, {"B", 1u << 1, 0}, {"SELECT", 1u << 2, 0}, {"START", 1u << 3, 0}, {"RIGHT", 1u << 4, 0}, {"LEFT", 1u << 5, 0},
++    {"UP", 1u << 6, 0}, {"DOWN", 1u << 7, 0}, {"R", 1u << 8, 0}, {"L", 1u << 9, 0}, {"X", 1u << 10, 1}, {"Y", 1u << 11, 1}};
++  u32 m = 0; *xy = 0;
++  std::string str(s);
++  size_t start = 0;
++  while (start <= str.size()) {
++    size_t end = str.find('+', start); if (end == std::string::npos) end = str.size();
++    std::string k = str.substr(start, end - start);
++    for (auto &n : names) if (k == n.n) { if (n.isXY) *xy |= n.bit; else m |= n.bit; }
++    start = end + 1;
++  }
++  return m;
++}
++static void SIM_DebugFrame(void) {
++  static int init = 0; static const char *shotDir; static u32 shotEvery, exitFrame;
++  struct Step { u32 frame, hold, mask, xy; int touch, tx, ty; };
++  static std::vector<Step> steps; static u32 heldMask, heldXY;
++  if (!init) {
++    init = 1;
++    if (const char *ffs = getenv("SIM_FAST_FORWARD_SPEED")) { double v = atof(ffs); if (v >= 1.5 && v <= 16.0) sFastForwardSpeed = v; }
++#ifdef __APPLE__
++    {
++      // Opt out of App Nap: it coalesces the timers the frame pacing sleeps on (the game slows down whenever the window is not
++      // frontmost) - NSProcessInfo beginActivityWithOptions:(UserInitiatedAllowingIdleSystemSleep | LatencyCritical)
++      id info = ((id (*)(id, SEL))objc_msgSend)((id)objc_getClass("NSProcessInfo"), sel_registerName("processInfo"));
++      id reason = ((id (*)(id, SEL, const char *))objc_msgSend)((id)objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), "game frame pacing");
++      unsigned long long options = (0x00FFFFFFULL & ~(1ULL << 20)) | 0xFF00000000ULL;
++      static id activity;
++      activity = ((id (*)(id, SEL, unsigned long long, id))objc_msgSend)(info, sel_registerName("beginActivityWithOptions:reason:"), options, reason);
++      ((id (*)(id, SEL))objc_msgSend)(activity, sel_registerName("retain"));
++    }
++#endif
++    if (getenv("SIM_DEBUG_FF_HOLD")) { sFastForward = true; SDL_GL_SetSwapInterval(0); }   // automation: behave as if Space is held
++    if (getenv("SIM_DEBUG_FAST")) { sFastForward = true; sFastForwardUncapped = true; SDL_GL_SetSwapInterval(0); printf("SIM_DEBUG_FAST: uncapped\n"); }   // automation runs as fast as it renders
++    shotDir = getenv("SIM_DEBUG_SHOT_DIR");
++    const char *e = getenv("SIM_DEBUG_SHOT_EVERY"); shotEvery = e ? (u32)atoi(e) : 0;
++    e = getenv("SIM_DEBUG_EXIT_FRAME"); exitFrame = e ? (u32)atoi(e) : 0;
++    e = getenv("SIM_DEBUG_KEYS");
++    if (e) {
++      std::string all(e); size_t start = 0;
++      while (start < all.size()) {
++        size_t end = all.find(',', start); if (end == std::string::npos) end = all.size();
++        std::string item = all.substr(start, end - start);
++        size_t colon = item.find(':');
++        if (colon != std::string::npos) {
++          Step st; st.frame = (u32)atoi(item.c_str()); st.hold = 6;
++          std::string keys = item.substr(colon + 1);
++          size_t slash = keys.find('/');
++          if (slash != std::string::npos) { st.hold = (u32)atoi(keys.c_str() + slash + 1); keys = keys.substr(0, slash); }
++          st.touch = 0; st.tx = st.ty = 0;
++          size_t t = keys.find('T');   // T<x>;<y>: touch the bottom screen at DS coordinates
++          if (t != std::string::npos && t + 1 < keys.size() && isdigit((unsigned char)keys[t + 1])) {
++            st.touch = 1; st.tx = atoi(keys.c_str() + t + 1);
++            size_t semi = keys.find(';', t); st.ty = semi != std::string::npos ? atoi(keys.c_str() + semi + 1) : 0;
++          }
++          st.mask = SIM_DebugKeyMask(keys.c_str(), &st.xy);
++          steps.push_back(st);
++        }
++        start = end + 1;
++      }
++      printf("SIM_DEBUG_KEYS: %zu steps\n", steps.size());
++    }
++  }
++  u32 frame = *((u32 *)HW_VBLANK_COUNT_BUF);
++  if (!steps.empty()) {
++    u32 mask = 0, xy = 0;
++    int touch = 0, tx = 0, ty = 0;
++    for (auto &st : steps) if (frame >= st.frame && frame < st.frame + st.hold) { mask |= st.mask; xy |= st.xy; if (st.touch) { touch = 1; tx = st.tx; ty = st.ty; } }
++    if (touch) { s_tpData.x = (u16)tx; s_tpData.y = (u16)ty; s_tpData.touch = 1; s_tpData.validity = 0; sDebugTouch = 1; }
++    else if (sDebugTouch) { s_tpData.touch = 0; s_tpData.validity = 0; sDebugTouch = 0; }
++    // the pad registers are active low: release what this script pressed before, then press what it holds now
++    s_reg_PAD_KEYINPUT = (u16)((s_reg_PAD_KEYINPUT | heldMask) & ~mask);
++    *(vu16 *)HW_BUTTON_XY_BUF = (u16)((*(vu16 *)HW_BUTTON_XY_BUF | heldXY) & ~xy);
++    heldMask = mask; heldXY = xy;
++  }
++  if (shotDir && shotEvery && frame % shotEvery == 0) {
++    int w = 0, h = 0;
++    SDL_GL_GetDrawableSize(window, &w, &h);
++    std::vector<u8> px((size_t)w * h * 4);
++    glReadBuffer(GL_BACK);
++    glPixelStorei(GL_PACK_ALIGNMENT, 1);
++    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
++    std::vector<u8> flipped(px.size());
++    for (int y = 0; y < h; y++) memcpy(&flipped[(size_t)y * w * 4], &px[(size_t)(h - 1 - y) * w * 4], (size_t)w * 4);
++    SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormatFrom(flipped.data(), w, h, 32, w * 4, SDL_PIXELFORMAT_RGBA32);
++    if (surf) {
++      char path[1024]; snprintf(path, sizeof path, "%s/frame_%06u.bmp", shotDir, frame);
++      SDL_SaveBMP(surf, path); SDL_FreeSurface(surf);
++    }
++  }
++  { static int dumpAt = -2; if (dumpAt == -2) { const char *e = getenv("SIM_DEBUG_DUMP_FRAME"); dumpAt = e ? atoi(e) : -1; }
++    if (dumpAt >= 0 && frame == (u32)dumpAt) {
++      printf("DUMP frame %u DISPCNT %08x BG0-3CNT %04x %04x %04x %04x BLDCNT %04x BLDALPHA %04x BLDY %04x MASTER %04x POWCNT %04x | SUB DISPCNT %08x BLDCNT %04x BLDALPHA %04x\n", frame,
++        (unsigned)s_reg_GX_DISPCNT, s_reg_G2_BG0CNT, s_reg_G2_BG1CNT, s_reg_G2_BG2CNT, s_reg_G2_BG3CNT, s_reg_G2_BLDCNT, s_reg_G2_BLDALPHA, s_reg_G2_BLDY, s_reg_GX_MASTER_BRIGHT, s_reg_GX_POWCNT,
++        (unsigned)s_reg_GXS_DB_DISPCNT, s_reg_G2S_DB_BLDCNT, s_reg_G2S_DB_BLDALPHA);
++      const u16 *pl = (const u16 *)HW_BG_PLTT;
++      for (int r = 0; r < 16; r++) { printf("PLTT %2d:", r); for (int c = 0; c < 16; c++) printf(" %04x", pl[r * 16 + c]); printf("\n"); }
++      fflush(stdout);
++    } }
++  static struct timespec t100;
++  if (frame == 100) clock_gettime(CLOCK_MONOTONIC, &t100);
++  // SIM_DEBUG_PAUSE=<from>-<to>: paused for those frames (as with F8)
++  {
++    static const char *pz = getenv("SIM_DEBUG_PAUSE");
++    if (pz && strchr(pz, '-')) {
++      u32 from = (u32)atoi(pz), to = (u32)atoi(strchr(pz, '-') + 1);
++      if (frame == from) SIM::GUI::SetGameLogicPaused(true);
++      if (frame == to) SIM::GUI::SetGameLogicPaused(false);
++    }
++  }
++  // SIM_DEBUG_EXPORT_SAVE / SIM_DEBUG_IMPORT_SAVE="<frame>:<path>": export / import the save at that frame, without dialogs
++  {
++    static const char *exp = getenv("SIM_DEBUG_EXPORT_SAVE"), *imp = getenv("SIM_DEBUG_IMPORT_SAVE");
++    if (exp && (u32)atoi(exp) == frame && strchr(exp, ':')) SIM::Helpers::ExportSave(strchr(exp, ':') + 1);
++    if (imp && (u32)atoi(imp) == frame && strchr(imp, ':')) { SIM::Helpers::ImportSave(strchr(imp, ':') + 1); unsetenv("SIM_DEBUG_IMPORT_SAVE"); imp = nullptr; }   // once: the import restarts the game
++  }
++  if (exitFrame && frame >= exitFrame) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
++    if (frame > 100) printf("SIM_DEBUG_EXIT_FRAME: %.1f fps since frame 100\n", (frame - 100) / ((t.tv_sec - t100.tv_sec) + (t.tv_nsec - t100.tv_nsec) / 1e9));
++    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); fflush(stdout); _exit(0); }
++}
++
+ void *SIM_Render(void *arg) {
+ 
+   SDL_Event Event;
+@@ -1073,9 +1247,14 @@ void *SIM_Render(void *arg) {
+       s_SIM_SDLJoystick = SDL_JoystickOpen(0);
+     }
+ 
++    SIM::Helpers::Poll();   // restart after a save import
++
+     while (SDL_PollEvent(&Event)) {
+       SIM::GUI::ProcessEvent(&Event);
+ 
++      if (Event.type == SDL_QUIT) {
++        exit(0);   // Cmd+Q / Quit in the app menu
++      }
+       if (Event.type == SDL_WINDOWEVENT) {
+         switch (Event.window.event) {
+         case SDL_WINDOWEVENT_CLOSE:
+@@ -1083,6 +1262,18 @@ void *SIM_Render(void *arg) {
+           break;
+         }
+       }
++      if (Event.type == SDL_KEYDOWN && !Event.key.repeat &&
++          (Event.key.keysym.sym == SDLK_F8 || Event.key.keysym.sym == SDLK_AUDIOPLAY)) {
++        // F8 (fn+F8 on a Mac keyboard, where F8 is play/pause) pauses / resumes the game
++        SIM::GUI::SetGameLogicPaused(!SIM::GUI::IsGameLogicPaused());
++        continue;
++      }
++      if (Event.type == SDL_KEYDOWN && (Event.key.keysym.mod & KMOD_GUI)) {
++        // Cmd shortcuts (not passed to the game): Cmd+E export the save, Cmd+I import a save
++        if (Event.key.keysym.sym == SDLK_e && !Event.key.repeat) SIM::Helpers::ExportSave();
++        else if (Event.key.keysym.sym == SDLK_i && !Event.key.repeat) SIM::Helpers::ImportSave();
++        continue;
++      }
+       if (Event.type == SDL_KEYDOWN) {
+         int keyRead = Event.key.keysym.sym;
+         if (keyRead == s_SIM_config.padSettings.aKey) {
+@@ -1261,7 +1452,9 @@ void *SIM_Render(void *arg) {
+     SDL_GetMouseState(&x, &y);
+ 
+     // Convert touch coordinate to DS screen coordinates
+-    if (x >= s_TouchPanelCoords[0] && x <= s_TouchPanelCoords[2] &&
++    if (sDebugTouch) {
++      // SIM_DEBUG_KEYS is touching the screen
++    } else if (x >= s_TouchPanelCoords[0] && x <= s_TouchPanelCoords[2] &&
+         y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
+       s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
+                             SIM_NDS_SCREEN_WIDTH);
+@@ -1328,18 +1521,29 @@ void *SIM_Render(void *arg) {
+     TracyCZoneEnd(SimRenderZone);
+ #endif
+     // Limit framerate to 60 fps
+-    if (s_SIM_config.capFrameRate && !sFastForward) {
+-
+-      // 60 Fps
+-      if (frameNs < 16600000) {
+-        u64 frameTimeRemaining = 16600000 - frameNs;
+-        u64 frameTimeRemainingMs = frameTimeRemaining / 1000000;
+-        if (frameTimeRemainingMs > 1) {
+-          SDL_Delay(frameTimeRemainingMs - 1);
+-        }
++    // Frame pacing: 60 fps, or sFastForwardSpeed x 60 fps while the fast-forward key (Space) is held. Paced against a running
++    // deadline with sub-millisecond sleeps, so a sleep that overshoots is made up on the next frames.
++    if (s_SIM_config.capFrameRate && !(sFastForward && sFastForwardUncapped)) {
++      static struct timespec paceDeadline;
++      u64 target = (u64)(16600000.0 / (sFastForward && !SIM::GUI::IsGameLogicPaused() ? sFastForwardSpeed : 1.0));
++      struct timespec now;
++      clock_gettime(CLOCK_MONOTONIC, &now);
++      s64 behind = (s64)(now.tv_sec - paceDeadline.tv_sec) * 1000000000 + (now.tv_nsec - paceDeadline.tv_nsec);
++      if (behind > 50000000 || behind < -(s64)target) paceDeadline = now;   // first frame, speed change, or > 50 ms behind
++      paceDeadline.tv_nsec += (long)target;
++      while (paceDeadline.tv_nsec >= 1000000000) { paceDeadline.tv_nsec -= 1000000000; paceDeadline.tv_sec++; }
++      // Sleep in slices of at most 2 ms: macOS stretches longer sleeps of a background process (timer coalescing) by up to
++      // ~20 ms, which held the game at ~26 fps whenever its window was not frontmost.
++      for (;;) {
++        clock_gettime(CLOCK_MONOTONIC, &now);
++        s64 wait = (s64)(paceDeadline.tv_sec - now.tv_sec) * 1000000000 + (paceDeadline.tv_nsec - now.tv_nsec);
++        if (wait <= 0) break;
++        struct timespec ts = {0, (long)(wait < 2000000 ? wait : 2000000)};
++        nanosleep(&ts, NULL);
+       }
+     }
+ 
++    SIM_DebugFrame();
+     SDL_GL_SwapWindow(window);
+ 
+     if(sChangeInternalResAfterRender) {
+@@ -1369,6 +1573,12 @@ void *SIM_Render(void *arg) {
+     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+ 
++    // Pausing (F8 or the debug menu) also stops the sound: the audio callback drives the sound sequencer
++    {
++      static bool audioPaused = false;
++      bool paused = SIM::GUI::IsGameLogicPaused();
++      if (paused != audioPaused) { SDL_PauseAudio(paused ? 1 : 0); audioPaused = paused; }
++    }
+   } while (SIM::GUI::IsGameLogicPaused());
+   // Bind 3D Framebuffer & Renderbuffer
+   glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
+@@ -1398,6 +1608,12 @@ void *SIM_Render(void *arg) {
+ }
+ 
+ // Get the rendering time in nanoseconds
++int SIM_GetFastForward(double *speed) {
++  if (speed) *speed = sFastForwardSpeed;
++  if (!s_SIM_config.capFrameRate || (sFastForward && sFastForwardUncapped)) return 2;
++  return sFastForward ? 1 : 0;
++}
++
+ u64 SIM_GetRenderFrameTime() {
+   return sRenderFrameTime;
+ }
+diff --git a/libraries/sim/src/sim_vars.c b/libraries/sim/src/sim_vars.c
+index 81309fd..72be77a 100644
+--- a/libraries/sim/src/sim_vars.c
++++ b/libraries/sim/src/sim_vars.c
+@@ -385,12 +385,23 @@ u8 s_HW_ARENA_INFO_BUF[sizeof(OSArenaInfo)];
+ u8 s_HW_MAIN_MEM_SUB[0x400000];
+ 
+ //mmap_global
++#ifdef SDK_HW_PLTT_BLOCK
++SIM_HWPlttBlock s_HW_PLTT_BLOCK;
++#endif
+ u8 s_HW_MAIN_MEM[0x800000];
+ u8 s_HW_MAIN_MEM_EX[0x800000];
++#ifndef SDK_HW_PLTT_BLOCK
+ u8 s_HW_BG_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ u8 s_HW_OBJ_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ u8 s_HW_DB_BG_PLTT[0x200];
++#endif
++#ifndef SDK_HW_PLTT_BLOCK
+ u8 s_HW_DB_OBJ_PLTT[0x200];
++#endif
+ u8 s_HW_BG_VRAM[0x80000];
+ u8 s_HW_DB_BG_VRAM[0x20000];
+ u8 s_HW_OBJ_VRAM[0x40000];

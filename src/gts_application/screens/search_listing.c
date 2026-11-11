@@ -348,7 +348,11 @@ static int GTSSearchListing_ShowConfirmationMenu(GTSApplicationState *appState)
 
 static int GTSSearchListing_HandleConfirmationMenu(GTSApplicationState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int result = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #else
+    u64 result = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #endif
 
     if (result != MENU_NOTHING_CHOSEN) {
         if (result == MENU_CANCEL) {

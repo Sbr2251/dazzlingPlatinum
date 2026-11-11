@@ -51,6 +51,10 @@
 
 #include "res/battle/scripts/sub_seq.naix"
 
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#endif
+
 enum BattleControllerState {
     STATE_PROCESSING = 0,
     STATE_BREAK_OUT,
@@ -627,7 +631,7 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
             if (BattleContext_IOBufferVal(battleCtx, i) == PLAYER_INPUT_CANCEL) {
                 battleCtx->curCommandState[i] = COMMAND_SELECTION_INIT;
             } else if (BattleContext_IOBufferVal(battleCtx, i)) {
-                u32 *data = &battleCtx->ioBuffer[i][0];
+                u32 *data = (u32*)&battleCtx->ioBuffer[i][0];
                 battleCtx->battlerActions[i][BATTLE_ACTION_TEMP_VALUE] = *data;
                 battleCtx->curCommandState[i] = COMMAND_SELECTION_WAIT;
             }
@@ -667,19 +671,28 @@ static void BattleControllerPlayer_CommandSelectionInput(BattleSystem *battleSys
         case COMMAND_SELECTION_RUN_SELECT_INIT:
             if (battleType & BATTLE_TYPE_FRONTIER) {
                 // "Would you like to forfeit the match and quit now?"
-                BattleController_EmitShowYesNoMenu(battleSys, battleCtx, i, 955, 0, NULL, NULL);
+                BattleController_EmitShowYesNoMenu(battleSys, battleCtx, i, 955, 0, 0, 0);
                 battleCtx->curCommandState[i] = COMMAND_SELECTION_RUN_SELECT;
             } else if ((battleType & BATTLE_TYPE_TRAINER) && (battleType & BATTLE_TYPE_LINK) == FALSE) {
                 if (BattleSystem_GetBattleStatusMask(battleSys) & BATTLE_STATUS_RECORDING) {
                     BattleSystem_SetStopRecording(battleSys, 1);
                     BattleSystem_IsRecordingStopped(battleSys, BattleSystem_GetBattleContext(battleSys));
                 } else {
+                    #ifdef SDK_PORT
+                    SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
+                    if(myConfig->runFromTrainerBattles) {
+                        battleCtx->curCommandState[i] = COMMAND_SELECTION_RUN_SELECT;
+                    } else {
+                    #endif
                     msg.tags = 0;
                     msg.id = 793;
                     BattleController_EmitSetAlertMessage(battleSys, i, msg);
 
                     battleCtx->curCommandState[i] = COMMAND_SELECTION_ALERT_MESSAGE_WAIT;
                     battleCtx->nextCommandState[i] = COMMAND_SELECTION_INIT;
+                    #ifdef SDK_PORT
+                    }
+                    #endif
                 }
             } else if (BattleSystem_GetBattleStatusMask(battleSys) & BATTLE_STATUS_NO_RUNNING) {
                 msg.tags = TAG_NONE;

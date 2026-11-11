@@ -344,7 +344,7 @@ static WonderCardsAppWindowTemplate sWonderCardsAppWindows[NUM_WC_APP_WINDOWS] =
         .font = FONT_MESSAGE,
         .textColor = TEXT_COLOR(1, 2, 0),
         .bgColor = { .fontAttribute = -1 },
-        .entryID = NULL,
+        .entryID = 0,
         .setup = DetermineGiftStatus,
         .leftMarginSize = 0,
         .topMarginSize = 0,
@@ -358,7 +358,7 @@ static WonderCardsAppWindowTemplate sWonderCardsAppWindows[NUM_WC_APP_WINDOWS] =
         .font = FONT_MESSAGE,
         .textColor = TEXT_COLOR(15, 2, 0),
         .bgColor = { .fontAttribute = -1 },
-        .entryID = NULL,
+        .entryID = 0,
         .setup = PrintWondercardTitle,
         .leftMarginSize = 0,
         .topMarginSize = 0,
@@ -386,7 +386,7 @@ static WonderCardsAppWindowTemplate sWonderCardsAppWindows[NUM_WC_APP_WINDOWS] =
         .font = FONT_MESSAGE,
         .textColor = TEXT_COLOR(1, 2, 0),
         .bgColor = { .fontAttribute = -1 },
-        .entryID = NULL,
+        .entryID = 0,
         .setup = PrintWondercardDescription,
         .leftMarginSize = 0,
         .topMarginSize = 0,
@@ -428,7 +428,7 @@ static WonderCardsAppWindowTemplate sWonderCardsAppWindows[NUM_WC_APP_WINDOWS] =
         .font = FONT_MESSAGE,
         .textColor = TEXT_COLOR(1, 2, 0),
         .bgColor = { .colorIndex = 0x5 },
-        .entryID = NULL,
+        .entryID = 0,
         .setup = InitWondercardActionsMenu,
         .leftMarginSize = 0,
         .topMarginSize = 0,
@@ -442,7 +442,7 @@ static WonderCardsAppWindowTemplate sWonderCardsAppWindows[NUM_WC_APP_WINDOWS] =
         .font = FONT_MESSAGE,
         .textColor = TEXT_COLOR(1, 2, 0),
         .bgColor = { .colorIndex = 0x5 },
-        .entryID = NULL,
+        .entryID = 0,
         .setup = InitConfirmWondercardDeleteMenu,
         .leftMarginSize = 0,
         .topMarginSize = 0,
@@ -456,7 +456,7 @@ static WonderCardsAppWindowTemplate sWonderCardsAppWindows[NUM_WC_APP_WINDOWS] =
         .font = FONT_MESSAGE,
         .textColor = TEXT_COLOR(1, 2, 0),
         .bgColor = { .colorIndex = 0x5 },
-        .entryID = NULL,
+        .entryID = 0,
         .setup = InitConfirmWondercardShareMenu,
         .leftMarginSize = 0,
         .topMarginSize = 0,
@@ -541,7 +541,7 @@ static WonderCardsAppWindowTemplate sWonderCardsAppWindows[NUM_WC_APP_WINDOWS] =
         .font = FONT_SYSTEM,
         .textColor = TEXT_COLOR(1, 2, 0),
         .bgColor = { .fontAttribute = -1 },
-        .entryID = NULL,
+        .entryID = 0,
         .setup = DoNothing,
         .leftMarginSize = 0,
         .topMarginSize = 0,
@@ -693,7 +693,11 @@ static void MakeStateChangeListMenuFromEntryTemplates(WonderCardsAppData *appDat
     appData->msgLoader = MessageLoader_Init(MSG_LOADER_PRELOAD_ENTIRE_BANK, NARC_INDEX_MSGDATA__PL_MSG, TEXT_BANK_MYSTERY_GIFT_MENU, HEAP_ID_WONDER_CARDS_APP);
 
     for (int i = 0; i < numEntries; i++) {
+        #ifdef SDK_BUILD_ARM
         StringList_AddFromMessageBank(appData->strList, appData->msgLoader, entries[i].textEntryID, entries[i].stateChange.asU32);
+        #else
+        StringList_AddFromMessageBank(appData->strList, appData->msgLoader, entries[i].textEntryID, (u64)entries[i].stateChange.transitionFunc);
+        #endif
     }
 
     MessageLoader_Free(appData->msgLoader);
@@ -1120,7 +1124,11 @@ static void ProcessStateTransitionMenuInput(ApplicationManager *appMan, enum Won
     WonderCardsAppData *appData = ApplicationManager_Data(appMan);
     static StateTransitionFuncPtr optionStateTransitionFunc;
 
+    #ifdef SDK_BUILD_ARM
     u32 input = ListMenu_ProcessInput(appData->listMenu);
+    #else
+    u64 input = ListMenu_ProcessInput(appData->listMenu);
+    #endif
 
     switch (input) {
     case MENU_NOTHING_CHOSEN:
@@ -1655,7 +1663,7 @@ static int PrepareSelectedWCForSharing(WonderCardsAppData *appData)
 
     ov97_0222D1C4(&appData->mysteryGiftAppData, appData->saveData, 15);
 
-    return NULL;
+    return 0;
 }
 
 static int PopEarliestReturnNetId(int *orderNums)

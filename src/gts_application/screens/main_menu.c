@@ -1,4 +1,4 @@
-﻿#include "gts_application/screens/main_menu.h"
+#include "gts_application/screens/main_menu.h"
 
 #include <dwc.h>
 #include <nitro.h>
@@ -494,7 +494,11 @@ static int GTSMainMenu_ShowConfirmationMenu(GTSApplicationState *appState)
 
 static int GTSMainMenu_HandleConfirmationMenu(GTSApplicationState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int input = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #else
+    u64 input = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #endif
 
     if (input != MENU_NOTHING_CHOSEN) {
         if (input == MENU_CANCEL) {

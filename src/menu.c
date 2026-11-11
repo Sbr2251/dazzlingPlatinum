@@ -64,13 +64,13 @@ void Menu_Free(Menu *menu, u8 *outCursorPos)
     Heap_FreeExplicit(menu->heapID, menu);
 }
 
-u32 Menu_ProcessInput(Menu *menu)
+menu_selection_t Menu_ProcessInput(Menu *menu)
 {
     menu->lastAction = MENU_ACTION_NONE;
 
     if (JOY_NEW(PAD_BUTTON_A)) {
         Sound_PlayEffect(SE_CONFIRM_sseq_3);
-        return menu->template.choices[menu->cursorPos].callbackFunction;
+        return (menu_selection_t)menu->template.choices[menu->cursorPos].callbackFunction;
     }
 
     if (JOY_NEW(menu->cancelKeys)) {
@@ -113,7 +113,7 @@ u32 Menu_ProcessInput(Menu *menu)
     return MENU_NOTHING_CHOSEN;
 }
 
-u32 Menu_ProcessInputWithSound(Menu *menu, u16 sdatID)
+menu_selection_t Menu_ProcessInputWithSound(Menu *menu, u16 sdatID)
 {
     menu->lastAction = MENU_ACTION_NONE;
 
@@ -162,7 +162,7 @@ u32 Menu_ProcessInputWithSound(Menu *menu, u16 sdatID)
     return MENU_NOTHING_CHOSEN;
 }
 
-u32 Menu_ProcessExternalInput(Menu *menu, u8 input)
+menu_selection_t Menu_ProcessExternalInput(Menu *menu, u8 input)
 {
     switch (input) {
     case MENU_INPUT_CONFIRM:
@@ -171,7 +171,7 @@ u32 Menu_ProcessExternalInput(Menu *menu, u8 input)
 
     case MENU_INPUT_CANCEL:
         Sound_PlayEffect(SE_CONFIRM_sseq_3);
-        return 0xfffffffe;
+        return MENU_CANCEL;
 
     case MENU_INPUT_MOVE_UP:
         TryMovingCursorAndPlaySound(menu, SCROLL_DIRECTION_UP, SE_CONFIRM_sseq_3);
@@ -378,9 +378,9 @@ Menu *Menu_MakeYesNoChoice(BgConfig *bgConfig, const WindowTemplate *winTemplate
     return Menu_MakeYesNoChoiceWithCursorAt(bgConfig, winTemplate, borderTileStart, borderPalette, 0, heapID);
 }
 
-u32 Menu_ProcessInputAndHandleExit(Menu *menu, u32 heapID)
+menu_selection_t Menu_ProcessInputAndHandleExit(Menu *menu, u32 heapID)
 {
-    u32 result = Menu_ProcessInput(menu);
+    menu_selection_t result = Menu_ProcessInput(menu);
     if (result != MENU_NOTHING_CHOSEN) {
         Menu_DestroyForExit(menu, heapID);
     }
@@ -388,9 +388,9 @@ u32 Menu_ProcessInputAndHandleExit(Menu *menu, u32 heapID)
     return result;
 }
 
-u32 Menu_ProcessExternalInputAndHandleExit(Menu *menu, u8 input, u32 heapID)
+menu_selection_t Menu_ProcessExternalInputAndHandleExit(Menu *menu, u8 input, u32 heapID)
 {
-    u32 result = Menu_ProcessExternalInput(menu, input);
+    menu_selection_t result = Menu_ProcessExternalInput(menu, input);
     if (result != MENU_NOTHING_CHOSEN) {
         Menu_DestroyForExit(menu, heapID);
     }

@@ -214,15 +214,29 @@ void EndCreditsCommon_AnimatePlayerSprite(EndCreditsApp *endCreditsApp, ManagedS
             NNSG2dImageProxy *image = Sprite_GetImageProxy(managedSprite->sprite);
 
             if (endCreditsApp->clearGamePlayerInfo->gender == GENDER_MALE) {
+                #ifdef SDK_BUILD_ARM
                 MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2)], (void *)((u32)charPtr + 0x1d * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
                 MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 32], (void *)((u32)charPtr + 0x1e * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
                 MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 64], (void *)((u32)charPtr + 0x25 * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
                 MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 96], (void *)((u32)charPtr + 0x26 * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
+                #else
+                MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2)], (void *)((u64)charPtr + 0x1d * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
+                MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 32], (void *)((u64)charPtr + 0x1e * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
+                MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 64], (void *)((u64)charPtr + 0x25 * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
+                MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 96], (void *)((u64)charPtr + 0x26 * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
+                #endif
             } else {
+                #ifdef SDK_BUILD_ARM
                 MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2)], (void *)((u32)charPtr + 0x45 * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
                 MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 32], (void *)((u32)charPtr + 0x46 * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
                 MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 64], (void *)((u32)charPtr + 0x4d * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
                 MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 96], (void *)((u32)charPtr + 0x4e * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
+                #else
+                MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2)], (void *)((u64)charPtr + 0x45 * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
+                MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 32], (void *)((u64)charPtr + 0x46 * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
+                MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 64], (void *)((u64)charPtr + 0x4d * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
+                MI_CpuCopy32(&endCreditsApp->eyeCharData[endCreditsApp->playerAnimManager.blinkState * ((32 * 8) / 2) + 96], (void *)((u64)charPtr + 0x4e * 32 + image->vramLocation.baseAddrOfVram[NNS_G2D_VRAM_TYPE_2DMAIN]), 32);
+                #endif
             }
 
             if (endCreditsApp->playerAnimManager.blinkState == 0) {

@@ -119,7 +119,11 @@ ParticleSystem *ParticleSystem_New(SPLTexVRAMAllocFunc texAllocFunc, SPLPalVRAMA
     memset(heap, 0, heapSize);
     particleSystem->heapStart = heap;
     particleSystem->heap = heap;
+    #ifdef SDK_BUILD_ARM
     particleSystem->heapEnd = (void *)((u32)heap + heapSize);
+    #else
+    particleSystem->heapEnd = (void *)((u64)heap + heapSize);
+    #endif
     particleSystem->id = id;
     sParticleSystems[id] = particleSystem;
 
@@ -215,8 +219,13 @@ static inline void *ParticleSystem_AllocMemory(ParticleSystem *particleSystem, u
 {
     void *allocated = particleSystem->heap;
 
+    #ifdef SDK_PORT
+    u64 newHeapPos = (u64)particleSystem->heap + size;
+    u64 offset = newHeapPos % 4;
+    #else
     u32 newHeapPos = (u32)particleSystem->heap + size;
     u32 offset = newHeapPos % 4;
+    #endif
     if (offset > 0) {
         newHeapPos += 4 - offset;
     }

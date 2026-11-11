@@ -118,6 +118,6 @@ for script_file in "${SCRIPT_FILES[@]}" ; do
     if [ "$COMPILE_ONLY" -eq 0 ]; then
         "$OBJCOPY" -O binary --file-alignment 4 "$script_obj" "$script_bin"
         "$LD" "$script_obj" -o "$script_obj.dummy"
-        rm "$script_obj" "$script_obj.dummy"
+        rm "$script_obj" "$script_obj.dummy" || true
     fi
 done

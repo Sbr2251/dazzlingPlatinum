@@ -36,7 +36,7 @@ void StringList_Free(StringList *list)
     Heap_Free(list);
 }
 
-void StringList_AddFromMessageBank(StringList *list, const MessageLoader *loader, u32 bankEntry, u32 index)
+void StringList_AddFromMessageBank(StringList *list, const MessageLoader *loader, u32 bankEntry, list_index_t index)
 {
     u32 tmp;
     list = FindFirstEmptyEntry(list, &tmp);
@@ -47,7 +47,7 @@ void StringList_AddFromMessageBank(StringList *list, const MessageLoader *loader
     }
 }
 
-void StringList_AddFromString(StringList *list, const String *string, u32 index)
+void StringList_AddFromString(StringList *list, const String *string, list_index_t index)
 {
     u32 heapID;
     list = FindFirstEmptyEntry(list, &heapID);

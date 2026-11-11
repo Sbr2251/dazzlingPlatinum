@@ -48,8 +48,13 @@ enum ListMenuAttribute {
 
 typedef struct ListMenu ListMenu;
 
+#ifdef SDK_BUILD_ARM
 typedef void (*CursorCallback)(ListMenu *menu, u32 index, u8 onInit);
 typedef void (*PrintCallback)(ListMenu *menu, u32 index, u8 yOffset);
+#else
+typedef void (*CursorCallback)(ListMenu *menu, u64 index, u8 onInit);
+typedef void (*PrintCallback)(ListMenu *menu, u64 index, u8 yOffset);
+#endif
 
 typedef struct ListMenuTemplate {
     const StringList *choices;
@@ -95,7 +100,7 @@ struct ListMenu {
 };
 
 ListMenu *ListMenu_New(const ListMenuTemplate *template, u16 startListPos, u16 startCursorPos, u8 heapID);
-u32 ListMenu_ProcessInput(ListMenu *menu);
+list_index_t ListMenu_ProcessInput(ListMenu *menu);
 void ListMenu_Free(ListMenu *menu, u16 *outListPos, u16 *outCursorPos);
 void ListMenu_Draw(ListMenu *menu);
 void ListMenu_SetTextColors(ListMenu *menu, u8 fg, u8 bg, u8 shadow);
@@ -104,8 +109,12 @@ void ListMenu_SetAltTextColors(ListMenu *menu, u8 fg, u8 bg, u8 shadow);
 void ListMenu_CalcTrueCursorPos(ListMenu *menu, u16 *outPos);
 void ListMenu_GetListAndCursorPos(ListMenu *menu, u16 *outListPos, u16 *outCursorPos);
 u8 ListMenu_GetLastAction(ListMenu *menu);
-u32 ListMenu_GetIndexOfChoice(ListMenu *menu, u16 choice);
+list_index_t ListMenu_GetIndexOfChoice(ListMenu *menu, u16 choice);
+#ifdef SDK_PORT
+u64 ListMenu_GetAttribute(ListMenu *menu, u8 attribute);
+#else
 u32 ListMenu_GetAttribute(ListMenu *menu, u8 attribute);
+#endif
 void ListMenu_SetChoices(ListMenu *menu, StringList *choices);
 
 #endif // POKEPLATINUM_LIST_MENU_H

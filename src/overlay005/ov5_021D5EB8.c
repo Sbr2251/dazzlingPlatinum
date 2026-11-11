@@ -64,7 +64,11 @@ typedef struct UnkStruct_ov5_021D6FA8_tag {
     UnkStruct_ov5_021D6594 *unk_00;
     Sprite *unk_04;
     void *unk_08;
+    #ifdef SDK_BUILD_ARM
     s32 unk_0C[10];
+    #else
+    s64 unk_0C[10];
+    #endif
     struct UnkStruct_ov5_021D6FA8_tag *unk_34;
     struct UnkStruct_ov5_021D6FA8_tag *unk_38;
 } UnkStruct_ov5_021D6FA8;
@@ -174,18 +178,30 @@ typedef struct {
     UnkStruct_ov5_021D7210 unk_00;
     UnkStruct_ov5_021D7480 unk_1C;
     UnkStruct_ov5_021D7308 unk_4C;
+    #ifdef SDK_BUILD_ARM
     s32 unk_B4[10];
+    #else
+    s64 unk_B4[10];
+    #endif
 } UnkStruct_ov5_021D9984;
 
 typedef struct {
     UnkStruct_ov5_021D7210 unk_00;
+    #ifdef SDK_BUILD_ARM
     s32 unk_1C[10];
+    #else
+    s64 unk_1C[10];
+    #endif
 } UnkStruct_ov5_021DA8A0;
 
 typedef struct {
     UnkStruct_ov5_021D7480 unk_00;
     UnkStruct_ov5_021D7308 unk_30;
+    #ifdef SDK_BUILD_ARM
     s32 unk_98[10];
+    #else
+    s64 unk_98[10];
+    #endif
 } UnkStruct_ov5_021D84D4;
 
 typedef struct {
@@ -1186,6 +1202,11 @@ static void ov5_021D6868(UnkStruct_ov5_021D6594 *param0, int param1, u32 param2)
     UnkStruct_ov5_021D69B8 *v0 = param0->unk_00 + param1;
 
     if (v0->unk_10 == 3) {
+        #ifndef SDK_BUILD_ARM
+        if(!v0->unk_08) {
+            return;
+        }
+        #endif
         v0->unk_08->unk_BA6 = 5;
         v0->unk_08->unk_BA4 = param2;
     }
@@ -1253,6 +1274,12 @@ static void ov5_021D68B8(UnkStruct_ov5_021D6594 *param0, int param1)
         Heap_FreeExplicit(HEAP_ID_FIELD1, v0->unk_08);
         v0->unk_08 = NULL;
     }
+
+    #ifdef SDK_PORT
+    v0->unk_10 = 0;
+    v0->unk_12 = 0;
+    v0->unk_14 = NULL;
+    #endif
 
     FogManager_ApplyParameters(param0->fieldSystem->fogMan, FOG_PARAMETER_ENABLED, FALSE, GX_FOGBLEND_COLOR_ALPHA, GX_FOGSLOPE_0x8000, 0);
 }
@@ -2199,19 +2226,31 @@ static void ov5_021D78A4(UnkStruct_ov5_021DB4B8 *param0, int param1)
     int v0;
     UnkStruct_ov5_021D6FA8 *v1;
     int v2;
+    #ifdef SDK_PORT
+    s64 *v3;
+    #else
     s32 *v3;
+    #endif
     int v4;
     VecFx32 v5;
     u32 v6;
 
     for (v0 = 0; v0 < param1; v0++) {
+        #ifdef SDK_PORT
+        v1 = ov5_021D6F00(param0, sizeof(s64) * 8);
+        #else
         v1 = ov5_021D6F00(param0, sizeof(s32) * 8);
+        #endif
 
         if (v1 == NULL) {
             break;
         }
 
+        #ifdef SDK_PORT
+        v3 = (s64 *)v1->unk_08;
+        #else
         v3 = (s32 *)v1->unk_08;
+        #endif
         v6 = MTRNG_Next();
 
         v3[0] = 0;
@@ -2396,7 +2435,11 @@ static void ov5_021D7C40(UnkStruct_ov5_021DB4B8 *param0, int param1)
     int v1;
     UnkStruct_ov5_021D6FA8 *v2;
     UnkStruct_ov5_021D9984 *v3;
+    #ifdef SDK_BUILD_ARM
     s32 *v4;
+    #else
+    s64 *v4;
+    #endif
     int v5;
     VecFx32 v6;
 
@@ -2407,13 +2450,21 @@ static void ov5_021D7C40(UnkStruct_ov5_021DB4B8 *param0, int param1)
     }
 
     for (v0 = 0; v0 < param1; v0++) {
+        #ifdef SDK_BUILD_ARM
         v2 = ov5_021D6F00(param0, sizeof(s32) * 10);
+        #else
+        v2 = ov5_021D6F00(param0, sizeof(s64) * 10);
+        #endif
 
         if (v2 == NULL) {
             break;
         }
 
+        #ifdef SDK_BUILD_ARM
         v4 = (s32 *)v2->unk_08;
+        #else
+        v4 = (s64 *)v2->unk_08;
+        #endif
         v5 = MTRNG_Next() % 4;
 
         Sprite_SetAnimFrame(v2->unk_04, v5);
@@ -2435,8 +2486,13 @@ static void ov5_021D7C40(UnkStruct_ov5_021DB4B8 *param0, int param1)
 
         v4[2] = 4 + (MTRNG_Next() % 2);
         v4[3] = 1 + (MTRNG_Next() % 2);
+        #ifdef SDK_BUILD_ARM
         v4[0] = (s32)&v3->unk_B4[1];
         v4[7] = (s32)&v3->unk_B4[2];
+        #else
+        v4[0] = (s64)&v3->unk_B4[1];
+        v4[7] = (s64)&v3->unk_B4[2];
+        #endif
 
         v6.x = (-32 + (MTRNG_Next() % 414)) << FX32_SHIFT;
 
@@ -2450,7 +2506,11 @@ static void ov5_021D7C40(UnkStruct_ov5_021DB4B8 *param0, int param1)
     }
 }
 
+#ifdef SDK_BUILD_ARM
 static void ov5_021D7D54(UnkStruct_ov5_021D6FA8 *param0, s32 *param1)
+#else
+static void ov5_021D7D54(UnkStruct_ov5_021D6FA8 *param0, s64 *param1)
+#endif
 {
     VecFx32 v0;
     s32 *v1;
@@ -2499,8 +2559,13 @@ static void ov5_021D7D54(UnkStruct_ov5_021D6FA8 *param0, s32 *param1)
 static void ov5_021D7E20(UnkStruct_ov5_021D6FA8 *param0)
 {
     UnkStruct_ov5_021D6FA8 *v0 = (UnkStruct_ov5_021D6FA8 *)param0;
+    #ifdef SDK_BUILD_ARM
     s32 *v1 = (s32 *)v0->unk_08;
     s32 *v2 = (s32 *)v1[7];
+    #else
+    s64 *v1 = (s64 *)v0->unk_08;
+    s64 *v2 = (s64 *)v1[7];
+    #endif
 
     switch (v1[8]) {
     case 0:
@@ -2629,7 +2694,11 @@ static void ov5_021D8098(UnkStruct_ov5_021DB4B8 *param0, int param1)
     UnkStruct_ov5_021D6FA8 *v1;
     int v2;
     UnkStruct_ov5_021D9984 *v3;
+    #ifdef SDK_BUILD_ARM
     s32 *v4;
+    #else
+    s64 *v4;
+    #endif
     int v5[4] = { 16, 32, 16, 10 };
     int v6[4] = { 2, 2, 2, 2 };
     int v7;
@@ -2643,7 +2712,11 @@ static void ov5_021D8098(UnkStruct_ov5_021DB4B8 *param0, int param1)
             break;
         }
 
+        #ifdef SDK_BUILD_ARM
         v4 = (s32 *)v1->unk_08;
+        #else
+        v4 = (s64 *)v1->unk_08;
+        #endif
         v3->unk_B4[1]++;
 
         if (v3->unk_B4[1] >= (200 * 4)) {
@@ -2680,7 +2753,11 @@ static void ov5_021D8098(UnkStruct_ov5_021DB4B8 *param0, int param1)
 static void ov5_021D81BC(UnkStruct_ov5_021D6FA8 *param0)
 {
     UnkStruct_ov5_021D6FA8 *v0 = (UnkStruct_ov5_021D6FA8 *)param0;
+    #ifdef SDK_BUILD_ARM
     s32 *v1 = (s32 *)v0->unk_08;
+    #else
+    s64 *v1 = (s64 *)v0->unk_08;
+    #endif
     VecFx32 v2 = ov5_021D7010(v0);
 
     switch (v1[3]) {
@@ -3167,7 +3244,11 @@ static void ov5_021D8B88(UnkStruct_ov5_021DB4B8 *param0, int param1)
     int v2;
     int v3;
     UnkStruct_ov5_021D9984 *v4;
+    #ifdef SDK_BUILD_ARM
     s32 *v5;
+    #else
+    s64 *v5;
+    #endif
     int v6;
     static const int v7[8] = { -3, -5, -5, -4, -5, -6, -10, -6 };
     static const int v8[8] = { 2, 2, 2, 4, 4, 2, 2, 2 };
@@ -3177,7 +3258,11 @@ static void ov5_021D8B88(UnkStruct_ov5_021DB4B8 *param0, int param1)
     v2 = v4->unk_B4[1] / 40;
 
     for (v0 = 0; v0 < param1; v0++) {
+        #ifdef SDK_BUILD_ARM
         v1 = ov5_021D6F00(param0, sizeof(s32) * 8);
+        #else
+        v1 = ov5_021D6F00(param0, sizeof(s64) * 8);
+        #endif
 
         if (v1 == NULL) {
             break;
@@ -3221,7 +3306,11 @@ static void ov5_021D8B88(UnkStruct_ov5_021DB4B8 *param0, int param1)
 static void ov5_021D8C90(UnkStruct_ov5_021D6FA8 *param0)
 {
     UnkStruct_ov5_021D6FA8 *v0 = (UnkStruct_ov5_021D6FA8 *)param0;
+    #ifdef SDK_BUILD_ARM
     s32 *v1 = (s32 *)v0->unk_08;
+    #else
+    s64 *v1 = (s64 *)v0->unk_08;
+    #endif
     VecFx32 v2 = ov5_021D7010(v0);
 
     switch (v1[3]) {
@@ -4463,6 +4552,7 @@ static void ov5_021DA244(SysTask *param0, void *param1)
     }
 }
 
+// Volcanic Ash
 static void ov5_021DA5A0(UnkStruct_ov5_021DB4B8 *param0, int param1)
 {
     int v0;
@@ -4470,7 +4560,11 @@ static void ov5_021DA5A0(UnkStruct_ov5_021DB4B8 *param0, int param1)
     UnkStruct_ov5_021D6FA8 *v2;
     UnkStruct_ov5_021D9984 *v3;
     int v4;
+    #ifdef SDK_PORT
+    s64 *v5;
+    #else
     s32 *v5;
+    #endif
 
     v3 = param0->unk_B98;
 
@@ -4479,13 +4573,21 @@ static void ov5_021DA5A0(UnkStruct_ov5_021DB4B8 *param0, int param1)
     }
 
     for (v0 = 0; v0 < param1; v0++) {
+        #ifdef SDK_PORT
+        v2 = ov5_021D6F00(param0, sizeof(s64) * 8);
+        #else
         v2 = ov5_021D6F00(param0, sizeof(s32) * 8);
+        #endif
 
         if (v2 == NULL) {
             break;
         }
 
+        #ifdef SDK_PORT
+        v5 = (s64 *)v2->unk_08;
+        #else
         v5 = (s32 *)v2->unk_08;
+        #endif
         v4 = MTRNG_Next() % 4;
 
         Sprite_SetAnimFrame(v2->unk_04, v4);
@@ -4502,8 +4604,13 @@ static void ov5_021DA5A0(UnkStruct_ov5_021DB4B8 *param0, int param1)
         }
 
         v5[3] = 1 + (MTRNG_Next() % 1);
+        #ifdef SDK_PORT
+        v5[0] = (s64)&v3->unk_B4[1];
+        v5[6] = (s64)&v3->unk_B4[5];
+        #else
         v5[0] = (s32)&v3->unk_B4[1];
         v5[6] = (s32)&v3->unk_B4[5];
+        #endif
         v5[7] = 10 + (MTRNG_Next() % 20);
 
         {
@@ -4529,7 +4636,11 @@ static void ov5_021DA5A0(UnkStruct_ov5_021DB4B8 *param0, int param1)
 static void ov5_021DA6BC(UnkStruct_ov5_021D6FA8 *param0)
 {
     UnkStruct_ov5_021D6FA8 *v0 = (UnkStruct_ov5_021D6FA8 *)param0;
+    #ifdef SDK_BUILD_ARM
     s32 *v1 = (s32 *)v0->unk_08;
+    #else
+    s64 *v1 = (s64 *)v0->unk_08;
+    #endif
     VecFx32 v2 = ov5_021D7010(v0);
     BOOL v3 = 0;
 
@@ -4543,7 +4654,13 @@ static void ov5_021DA6BC(UnkStruct_ov5_021D6FA8 *param0)
     v1[5]++;
     v2.y >>= FX32_SHIFT;
 
-    if (*((s32 *)v1[6]) == 1) {
+    if (*(
+        #ifdef SDK_BUILD_ARMs
+        (s32 *)v1[6]
+        #else
+        (s64 *)v1[6]
+        #endif
+    ) == 1) {
         v1[7]--;
 
         if (v1[7] <= 0) {
@@ -4556,7 +4673,11 @@ static void ov5_021DA6BC(UnkStruct_ov5_021D6FA8 *param0)
     }
 
     if (v3 == 1) {
+        #ifdef SDK_BUILD_ARM
         *((s32 *)v1[0]) = 1;
+        #else
+        *((s64 *)v1[0]) = 1;
+        #endif
         ov5_021D6FA8(v0);
         return;
     }
@@ -4565,11 +4686,19 @@ static void ov5_021DA6BC(UnkStruct_ov5_021D6FA8 *param0)
 static void ov5_021DA748(SysTask *param0, void *param1)
 {
     UnkStruct_ov5_021DB4B8 *v0 = (UnkStruct_ov5_021DB4B8 *)param1;
+    #ifdef SDK_BUILD_ARM
     s32 *v1;
+    #else
+    s64 *v1;
+    #endif
     int v2;
     int v3;
 
+    #ifdef SDK_BUILD_ARM
     v1 = (s32 *)v0->unk_B98;
+    #else
+    v1 = (s64 *)v0->unk_B98;
+    #endif
 
     switch (v0->unk_BA2) {
     case 0:

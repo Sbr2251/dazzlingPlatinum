@@ -61,7 +61,7 @@ void ScreenScrollTask_Free(ScreenScrollTask *ssTask)
     ScreenScrollManager_Delete(ssTask->screenScrollMgr);
 }
 
-void ScreenScrollTask_Scroll(ScreenScrollTask *ssTask, u8 start, u8 end, u16 angleIncrement, fx32 amplitude, s16 speed, u32 bg, u32 initValue, u32 priority, int axis)
+void ScreenScrollTask_Scroll(ScreenScrollTask *ssTask, u8 start, u8 end, u16 angleIncrement, fx32 amplitude, s16 speed, uPtr bg, u32 initValue, u32 priority, int axis)
 {
     if (axis == 0) {
         ScreenScrollManager_ScrollX(ssTask->screenScrollMgr, start, end, angleIncrement, amplitude, speed, bg, initValue, priority);

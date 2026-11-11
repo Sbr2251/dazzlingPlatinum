@@ -702,7 +702,7 @@ static void MakePokemonSprite(PokemonSprite **sprite, ChooseStarterApp *app, int
     int gender = Pokemon_GetGenderOf(species, 0);
 
     PokemonSpriteTemplate spriteTemplate;
-    BuildPokemonSpriteTemplate(&spriteTemplate, species, gender, FACE_FRONT, FALSE, NULL, NULL);
+    BuildPokemonSpriteTemplate(&spriteTemplate, species, gender, FACE_FRONT, FALSE, 0, 0);
 
     *sprite = PokemonSpriteManager_CreateSprite(app->spriteManager,
         &spriteTemplate,
@@ -1119,7 +1119,12 @@ static void SetSelectionMatrixObjects(ChooseStarterApp *app)
 static void ChangePokeballChoice(ChooseStarterApp *app)
 {
     if (gSystem.pressedKeys & PAD_KEY_LEFT) {
-        if (app->cursorPosition - 1 >= 0) {
+        if (
+            #ifndef SDK_BUILD_ARM
+            // Fix an integer underflow
+            (int)
+            #endif
+            app->cursorPosition - 1 >= 0) {
             app->cursorPosition -= 1;
             Sound_PlayEffect(SE_CONFIRM_sseq_3);
         }
@@ -1242,7 +1247,11 @@ static void AdvancePokeballConfirmGraphics(ChooseStarterApp *app, enum HeapID he
         app->chooseStarterStep++;
         break;
     case CHOOSE_STARTER_STEP_PRINT_THESE_ARE_POKE_BALLS_TEXT:
+        #ifdef SDK_BUILD_ARM
         u32 menuResult = Menu_ProcessInputAndHandleExit(app->confirmationMenu, heapID);
+        #else
+        u64 menuResult = Menu_ProcessInputAndHandleExit(app->confirmationMenu, heapID);
+        #endif
 
         switch (menuResult) {
         case MENU_NOTHING_CHOSEN:

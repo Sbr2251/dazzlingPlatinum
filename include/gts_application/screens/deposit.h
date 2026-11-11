@@ -36,7 +36,11 @@ void GTS_SetLevelRequirement(GTSPokemonRequirements *requirements, int levelInde
 int GTS_FindLevelMessageIndex(int minLevel, int maxLevel, BOOL isRange);
 ListMenu *GTS_CreateCountryMenu(StringList **stringList, Window *window, MessageLoader *countryMessageLoader, MessageLoader *gtsMessageLoader);
 void GTS_SetSelectedCountry(GTSApplicationState *appState, int selectedCountryIndex);
+#ifdef SDK_BUILD_ARM
 u32 GTS_ProcessListMenuInput(ListMenu *menu, u16 *input);
+#else
+u64 GTS_ProcessListMenuInput(ListMenu *menu, u16 *input);
+#endif
 void GTS_InitTabScrollState(GTSCharpadScrollState *state);
 void GTS_SaveTabScrollState(GTSCharpadScrollState *state, int index, int cursorPos, int scrollPos);
 

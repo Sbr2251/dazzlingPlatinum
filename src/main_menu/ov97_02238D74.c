@@ -20,7 +20,7 @@
 static BOOL Unk_ov97_02240400;
 static int Unk_ov97_0224040C;
 static BOOL Unk_ov97_02240404;
-static Unk_ov97_02240408;
+static int Unk_ov97_02240408;
 static DWCNdFileInfo Unk_ov97_02240414[10];
 
 static void ov97_02238E88(void);
@@ -29,15 +29,30 @@ static void *ov97_02238D74(DWCAllocType param0, u32 param1, int param2)
 {
 #pragma unused(param0, param2)
     void *v0;
+    #ifdef SDK_BUILD_ARM
     u32 *v1;
+    #else
+    u64 *v1;
+    #endif
 
     param1 = (((param1 + sizeof(void *)) + 32) & ~31) + 32;
+    #ifndef SDK_BUILD_ARM
+    param1 += 32;
+    #endif
 
     v0 = Heap_Alloc(HEAP_ID_MYSTERY_GIFT_APP, param1);
+    #ifdef SDK_BUILD_ARM
     v1 = (u32 *)(((u32)v0 + 32) & ~31);
+    #else
+    v1 = (u64 *)(((u64)v0 + 32) & ~31) + 4;
+    #endif
 
     v1--;
+    #ifdef SDK_BUILD_ARM
     *v1 = (u32)v0;
+    #else
+    *v1 = (u64)v0;
+    #endif
     v1++;
 
     return v1;
@@ -46,13 +61,21 @@ static void *ov97_02238D74(DWCAllocType param0, u32 param1, int param2)
 static void ov97_02238D94(DWCAllocType param0, void *param1, u32 param2)
 {
 #pragma unused(param0, param2)
+    #ifdef SDK_BUILD_ARM
     u32 *v0;
+    #else
+    u64 *v0;
+    #endif
 
     if (!param1) {
         return;
     }
 
+    #ifdef SDK_BUILD_ARM
     v0 = (u32 *)((u32)param1 - 4);
+    #else
+    v0 = (u64 *)((u64)param1 - 8);
+    #endif
     Heap_Free((void *)*v0);
 }
 

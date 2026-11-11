@@ -4,6 +4,10 @@
 #include "easy3d.h"
 #include "heap.h"
 
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#endif
+
 enum BillboardAnimStatus {
     BILLBOARD_ANIM_STATUS_RUNNING = 0,
     BILLBOARD_ANIM_STATUS_FINISHED,
@@ -808,6 +812,13 @@ static fx32 GetAnimStartFrame(const Billboard *billboard, int animNum)
 
 static int GetAndAdvanceAnim(Billboard *billboard, fx32 numFrames)
 {
+#ifdef SDK_PORT
+    SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
+    if(myConfig->enable60fps && myConfig->enable60fpsSpeedFix) {
+        numFrames = numFrames >> 1;
+    }
+#endif
+
     const BillboardAnim *anim = Billboard_GetAnimAt(billboard->anims, billboard->animNum);
     return AdvanceAnim(anim, &billboard->frameNum, numFrames);
 }

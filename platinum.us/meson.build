@@ -1,13 +1,15 @@
 # Collect inputs for main.lcf
 main_lsf = files('main.lsf')
-main_lcf_template = subproject('NitroSDK').get_variable('main_lcf_template')
+main_lcf_template = libntr_prj.get_variable('main_lcf_template')
 
 # Generate main.lcf
+if(build_target == 'arm')
 main_lcf = custom_target('main.lcf',
     output: 'main.lcf',
     input: main_lsf + main_lcf_template,
     command: [makelcf_exe, '@INPUT@','@OUTPUT@']
 )
+endif
 
 # Collect ROM inputs and SHA-sums for later use
 filesys_csv = files('filesys.csv')
@@ -26,4 +28,23 @@ else
     rom_ini = files('rom_rev1.ini')
     sbins_for_rev_sha1 = files('sbins_rev1.sha1')
     rom_sha1 = files('rom_rev1.sha1')
+endif
+
+
+# EXE icon (win64 build only)
+if(build_target == 'win64')
+
+# EXE icon
+win64_icon_o = custom_target(
+    'win64_icon.o',
+    output: 'win64_icon.o',
+    input: files('win64_icon.rc'),
+    command: [
+        'windres',
+        '@INPUT@',
+        '@OUTPUT@'
+    ],
+)
+
+
 endif

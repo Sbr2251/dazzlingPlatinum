@@ -30,6 +30,10 @@
 #include "terrain_collision_manager.h"
 #include "unk_020655F4.h"
 
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#endif
+
 typedef BOOL (*TileBehaviorFunc)(u8);
 
 typedef struct {
@@ -139,6 +143,9 @@ static const DistortionWorldStepDirection sDistortionStepDirectionCeiling[4] = {
     { 0x1, 0x0, 0x0 }
 };
 
+#ifdef SDK_PORT
+static
+#endif
 const TileBehaviorCheck sTileBehaviorCheckTable[];
 static int (*const sTileMovementFunctions[6])(PlayerAvatar *, int);
 
@@ -1864,6 +1871,13 @@ static void PlayerAvatar_SetMovement(PlayerAvatar *playerAvatar, MapObject *mapO
  */
 u32 PlayerAvatar_CheckCollision(PlayerAvatar *playerAvatar, MapObject *mapObj, int direction)
 {
+    #ifdef SDK_PORT
+    SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
+
+    if(myConfig->walkThroughWalls) {
+        return 0;
+    }
+    #endif
     u32 collisionFlag = PLAYER_COLLISION_NONE;
     u32 objCollision = PlayerAvatar_CheckMapObjCollision(playerAvatar, mapObj, direction);
 

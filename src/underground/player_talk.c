@@ -214,12 +214,23 @@ static ResponseMenu *sCurrentResponseMenu = NULL;
 
 static const struct {
     u32 bankEntry;
+    #ifdef SDK_BUILD_ARM
     u32 callback;
+    #else
+    u64 callback;
+    #endif
 } sTalkOptions[] = {
+    #ifdef SDK_BUILD_ARM
     { UndergroundCommon_Text_Greet, (u32)UndergroundTalk_OfferExchangeTrainerCases },
     { UndergroundCommon_Text_Question, (u32)UndergroundTalk_StartAskingQuestions },
     { UndergroundCommon_Text_GiveGoods, (u32)UndergroundTalk_OpenGiveGiftMenu },
     { UndergroundCommon_Text_Exit, (u32)UndergroundTalk_CancelTalk }
+    #else
+    { UndergroundCommon_Text_Greet, (u64)UndergroundTalk_OfferExchangeTrainerCases },
+    { UndergroundCommon_Text_Question, (u64)UndergroundTalk_StartAskingQuestions },
+    { UndergroundCommon_Text_GiveGoods, (u64)UndergroundTalk_OpenGiveGiftMenu },
+    { UndergroundCommon_Text_Exit, (u64)UndergroundTalk_CancelTalk }
+    #endif
 };
 
 static const ListMenuTemplate sListMenuTemplate = {
@@ -421,7 +432,11 @@ static BOOL UndergroundTalk_HandleQuestionsMenu(SysTask *sysTask, void *data)
 {
     TalkMenu *menu = data;
 
+    #ifdef SDK_BUILD_ARM
     u32 input = ListMenu_ProcessInput(menu->listMenu);
+    #else
+    u64 input = ListMenu_ProcessInput(menu->listMenu);
+    #endif
     UndergroundTalk_UpdateCursorPos(menu);
 
     if (CommSys_CheckError()) {
@@ -486,7 +501,11 @@ static BOOL UndergroundTalk_HandleAnswersMenu(SysTask *sysTask, void *data)
 {
     TalkMenu *menu = data;
 
+    #ifdef SDK_BUILD_ARM
     u32 input = ListMenu_ProcessInput(menu->listMenu);
+    #else
+    u64 input = ListMenu_ProcessInput(menu->listMenu);
+    #endif
     UndergroundTalk_UpdateCursorPos(menu);
 
     if (CommSys_CheckError()) {
@@ -543,7 +562,11 @@ static void UndergroundTalk_PrintGiftConfirmPrompt(TalkMenu *unused, enum Good g
 
 static void UndergroundTalk_HandleGiftConfirmMenu(SysTask *unused, TalkMenu *menu)
 {
+    #ifdef SDK_BUILD_ARM
     u32 input = Menu_ProcessInputAndHandleExit(menu->menu, HEAP_ID_FIELD1);
+    #else
+    u64 input = Menu_ProcessInputAndHandleExit(menu->menu, HEAP_ID_FIELD1);
+    #endif
 
     if (input == MENU_NOTHING_CHOSEN) {
         return;
@@ -564,7 +587,11 @@ static void UndergroundTalk_HandleGiftConfirmMenu(SysTask *unused, TalkMenu *men
 static BOOL UndergroundTalk_HandleTalkMenu(SysTask *sysTask, void *data)
 {
     TalkMenu *menu = data;
+    #ifdef SDK_BUILD_ARM
     u32 input = ListMenu_ProcessInput(menu->listMenu);
+    #else
+    u64 input = ListMenu_ProcessInput(menu->listMenu);
+    #endif
     UndergroundTalk_UpdateCursorPos(menu);
 
     if (CommSys_CheckError()) {
@@ -931,7 +958,11 @@ static void UndergroundTalk_CancelTalk(TalkMenu *menu)
 
 static void UndergroundTalkResponse_HandleConfirmTrainerCaseMenu(SysTask *unused, ResponseMenu *menu)
 {
+    #ifdef SDK_BUILD_ARM
     u32 input = Menu_ProcessInputAndHandleExit(menu->menu, HEAP_ID_FIELD1);
+    #else
+    u64 input = Menu_ProcessInputAndHandleExit(menu->menu, HEAP_ID_FIELD1);
+    #endif
 
     if (input == MENU_NOTHING_CHOSEN) {
         return;
@@ -951,7 +982,11 @@ static void UndergroundTalkResponse_HandleConfirmTrainerCaseMenu(SysTask *unused
 
 static void UndergroundTalkResponse_HandleAcceptGiftMenu(SysTask *unused, ResponseMenu *menu)
 {
+    #ifdef SDK_BUILD_ARM
     u32 input = Menu_ProcessInputAndHandleExit(menu->menu, HEAP_ID_FIELD1);
+    #else
+    u64 input = Menu_ProcessInputAndHandleExit(menu->menu, HEAP_ID_FIELD1);
+    #endif
 
     if (input == MENU_NOTHING_CHOSEN) {
         return;
@@ -1061,7 +1096,11 @@ static BOOL UndergroundTalkResponse_HandleAnswersMenu(SysTask *sysTask, void *da
 {
     ResponseMenu *menu = data;
 
+    #ifdef SDK_BUILD_ARM
     u32 input = ListMenu_ProcessInput(menu->listMenu);
+    #else
+    u64 input = ListMenu_ProcessInput(menu->listMenu);
+    #endif
     u16 prevPos = menu->cursorPos;
 
     ListMenu_CalcTrueCursorPos(menu->listMenu, &menu->cursorPos);

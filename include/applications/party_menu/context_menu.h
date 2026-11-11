@@ -5,7 +5,11 @@
 
 typedef void (*PartyMenuAction)(PartyMenuApplication *application, int *partyMenuState);
 
+#ifdef SDK_BUILD_ARM
 u32 PartyMenu_GetAction(u8 action);
+#else
+u64 PartyMenu_GetAction(u8 action);
+#endif
 void PartyMenu_ClearContextWindow(PartyMenuApplication *application);
 
 void PartyMenu_ResetCursor(PartyMenuApplication *application);

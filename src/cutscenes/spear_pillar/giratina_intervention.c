@@ -281,7 +281,13 @@ void *GiratinaIntervention_Init(SpearPillarCutsceneData *cutscene)
     GiratinaIntervention_InitLakeGuardianLights(context);
 
     ScreenScrollTask_Init(&context->lights.scroll, HEAP_ID_SPEAR_PILLAR_CUTSCENE);
-    ScreenScrollTask_Scroll(&context->lights.scroll, 0, 191, (0xffff / 192) * 2, FX32_CONST(4), 1 * 100, REG_DB_BG1HOFS_ADDR, 0, 0x1000, 1);
+    ScreenScrollTask_Scroll(&context->lights.scroll, 0, 191, (0xffff / 192) * 2, FX32_CONST(4), 1 * 100, 
+    #ifdef SDK_BUILD_ARM
+    REG_DB_BG1HOFS_ADDR,
+    #else
+    (uPtr)REG_DB_BG1HOFS_ADDR,
+    #endif
+    0, 0x1000, 1);
 
     G2_SetBlendAlpha(GX_BLEND_PLANEMASK_BG2, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_OBJ | GX_BLEND_PLANEMASK_BD, 7, 8);
     G2S_SetBlendAlpha(GX_BLEND_PLANEMASK_BG0 | GX_BLEND_PLANEMASK_BG1, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_OBJ, 7, 10);

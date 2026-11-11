@@ -406,10 +406,14 @@ static int WifiBattleTower_State_InitialPrompt(WifiBattleTowerAppState *appState
 
 static int WifiBattleTower_State_InitialYesNoMenu(WifiBattleTowerAppState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int menuSelection = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_68);
+    #else
+    u64 menuSelection = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_68);
+    #endif
 
-    if (menuSelection != 0xffffffff) {
-        if (menuSelection == 0xfffffffe) {
+    if (menuSelection != MENU_NOTHING_CHOSEN) {
+        if (menuSelection == MENU_CANCEL) {
             CommManager_EndGlobalWifi();
             WifiBattleTower_SetExitMode(appState, 0, 0);
             appState->state = BT_STATE_END_SESSION;
@@ -433,10 +437,14 @@ static int WifiBattleTower_State_ConnectedPrompt(WifiBattleTowerAppState *appSta
 
 static int WifiBattleTower_State_ConnectedYesNoMenu(WifiBattleTowerAppState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int menuSelection = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_68);
+    #else
+    u64 menuSelection = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_68);
+    #endif
 
-    if (menuSelection != 0xffffffff) {
-        if (menuSelection == 0xfffffffe) {
+    if (menuSelection != MENU_NOTHING_CHOSEN) {
+        if (menuSelection == MENU_CANCEL) {
             if (!DWC_CheckInet()) {
                 appState->state = BT_STATE_INITIAL_PROMPT;
             } else {
@@ -1336,10 +1344,14 @@ static int WifiBattleTower_State_ExitPrompt(WifiBattleTowerAppState *appState)
 
 static int WifiBattleTower_State_ExitYesNo(WifiBattleTowerAppState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int menuSelection = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_68);
+    #else
+    u64 menuSelection = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_68);
+    #endif
 
-    if (menuSelection != 0xffffffff) {
-        if (menuSelection == 0xfffffffe) {
+    if (menuSelection != MENU_NOTHING_CHOSEN) {
+        if (menuSelection == MENU_CANCEL) {
             appState->state = BT_STATE_SELECT_OPPONENT_PROMPT;
         } else {
             appState->state = BT_STATE_GOODBYE_PROMPT;
@@ -1360,10 +1372,14 @@ static int WifiBattleTower_State_ExitMatchListPrompt(WifiBattleTowerAppState *ap
 
 static int WifiBattleTower_State_ExitMatchListYesNo(WifiBattleTowerAppState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int menuSelection = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_68);
+    #else
+    u64 menuSelection = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_68);
+    #endif
 
-    if (menuSelection != 0xffffffff) {
-        if (menuSelection == 0xfffffffe) {
+    if (menuSelection != MENU_NOTHING_CHOSEN) {
+        if (menuSelection == MENU_CANCEL) {
             appState->state = BT_STATE_SELECT_RANK_PROMPT;
         } else {
             appState->state = BT_STATE_GOODBYE_PROMPT;
@@ -1418,10 +1434,14 @@ static int WifiBattleTower_State_EndSession(WifiBattleTowerAppState *appState)
 
 static int WifiBattleTower_State_DisconnectYesNo(WifiBattleTowerAppState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int menuSelection = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_68);
+    #else
+    u64 menuSelection = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_68);
+    #endif
 
-    if (menuSelection != 0xffffffff) {
-        if (menuSelection == 0xfffffffe) {
+    if (menuSelection != MENU_NOTHING_CHOSEN) {
+        if (menuSelection == MENU_CANCEL) {
             appState->state = BT_STATE_INITIAL_PROMPT;
         } else {
             appState->state = BT_STATE_GOODBYE_PROMPT;

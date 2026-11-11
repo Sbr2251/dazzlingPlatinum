@@ -58,6 +58,10 @@
 #define WINDOW_BGLAYER              6
 #define WINDOW_PALETTE              11
 
+#ifdef SDK_PORT
+int SealManger_CapsuleMenuField(CapsuleAppManager *appMan, int index);
+#endif
+
 typedef struct {
     XYTransformContext transforms[9];
     ManagedSprite *sprites[8];
@@ -444,7 +448,11 @@ void CapsuleGraphics_OpenCapsuleSelectionMenu(BgConfig *bgConfig, Window *window
     for (int i = 0; i < ySize; i++) {
         string = MessageLoader_GetNewString(messageLoader, gSealListMenuEntries[stringIDs[i]].index);
 
+        #ifdef SDK_PORT
+        StringList_AddFromString(appMan->graphicsMan.stringList, string, (u64)gSealListMenuEntries[stringIDs[i]].func);
+        #else
         StringList_AddFromString(appMan->graphicsMan.stringList, string, gSealListMenuEntries[stringIDs[i]].func);
+        #endif
         String_Free(string);
     }
 

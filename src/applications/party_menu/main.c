@@ -69,6 +69,10 @@
 #include "res/graphics/party_menu/party_menu_graphics.naix"
 #include "res/text/bank/party_menu.h"
 
+#ifndef SDK_BUILD_ARM
+#include "unk_0208C098.h"
+#endif
+
 FS_EXTERN_OVERLAY(party_menu_form_change);
 
 typedef struct MemberPanelTemplate {
@@ -576,7 +580,11 @@ static int sub_0207E5F4(PartyMenuApplication *application)
 
 static int HandleContextMenuInput(PartyMenuApplication *application)
 {
+    #ifdef SDK_BUILD_ARM
     u32 input = Menu_ProcessInput(application->contextMenu);
+    #else
+    u64 input = Menu_ProcessInput(application->contextMenu);
+    #endif
     switch (input) {
     case MENU_NOTHING_CHOSEN:
         break;
@@ -633,7 +641,7 @@ static int sub_0207E714(PartyMenuApplication *application)
     switch (Menu_ProcessInputAndHandleExit(application->contextMenu, 12)) {
     case 0:
         return application->yesnoCallbacks.onYes(application);
-    case 0xfffffffe:
+    case MENU_CANCEL:
         return application->yesnoCallbacks.onNo(application);
     }
 
@@ -2441,12 +2449,24 @@ static int PartyMenu_GetTouchScreenPartyBallPressed(PartyMenuApplication *applic
 
 static u8 HandleWindowInputEvent(PartyMenuApplication *application, int *partyMenuState)
 {
+    #ifdef SDK_PORT
+    u64 v0 = Menu_ProcessInput(application->contextMenu);
+    #else
     u32 v0 = Menu_ProcessInput(application->contextMenu);
+    #endif
 
     switch (v0) {
+    #ifdef SDK_PORT
+    case 0xffffffffffffffff:
+    #else
     case 0xffffffff:
+    #endif
         break;
+    #ifdef SDK_PORT
+    case 0xfffffffffffffffe:
+    #else
     case 0xfffffffe:
+    #endif
         Window_EraseMessageBox(&application->windows[33], 1);
         PartyMenu_ClearContextWindow(application);
 
@@ -2937,7 +2957,7 @@ static int ProcessPokemonItemSwap(PartyMenuApplication *application)
         PartyMenu_AddLongMessagePrinter(application);
     }
         return v0;
-    case 0xfffffffe:
+    case MENU_CANCEL:
         return ResetWindowOnInput(application);
     }
 

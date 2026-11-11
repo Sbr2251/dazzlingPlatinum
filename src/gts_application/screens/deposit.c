@@ -754,7 +754,11 @@ static int GTSDeposit_ShowConfirmationMenu(GTSApplicationState *appState)
 
 static int GTSDeposit_HandleConfirmationInput(GTSApplicationState *appState)
 {
+    #ifdef SDK_BUILD_ARM
     int input = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #else
+    u64 input = Menu_ProcessInputAndHandleExit(appState->yesNoMenu, HEAP_ID_62);
+    #endif
 
     if (input != MENU_NOTHING_CHOSEN) {
         if (input == MENU_CANCEL) {
@@ -1115,7 +1119,11 @@ ListMenu *GTS_CreateSpeciesMenu(GTSApplicationState *appState, StringList **stri
     return ListMenu_New(&template, appState->charpadScrollState.cursorPos[charpad], appState->charpadScrollState.scrollPos[charpad], HEAP_ID_62);
 }
 
-static sGenderSelectionOptions[][2] = {
+static 
+#ifdef SDK_PORT
+int
+#endif
+sGenderSelectionOptions[][2] = {
     { GTS_Text_Either, 2 },
     { GTS_Text_MaleIcon, 0 },
     { GTS_Text_FemaleIcon, 1 },
@@ -1240,10 +1248,18 @@ void GTS_SetSelectedCountry(GTSApplicationState *appState, int selectedCountryIn
     }
 }
 
+#ifdef SDK_BUILD_ARM
 u32 GTS_ProcessListMenuInput(ListMenu *menu, u16 *input)
+#else
+u64 GTS_ProcessListMenuInput(ListMenu *menu, u16 *input)
+#endif
 {
     u16 pos;
+    #ifdef SDK_BUILD_ARM
     u32 menuInput = ListMenu_ProcessInput(menu);
+    #else
+    u64 menuInput = ListMenu_ProcessInput(menu);
+    #endif
 
     ListMenu_CalcTrueCursorPos(menu, &pos);
 

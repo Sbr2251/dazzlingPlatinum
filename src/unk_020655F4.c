@@ -24,7 +24,12 @@
 #include "unk_02069BE0.h"
 #include "unk_020EDBAC.h"
 
+
 #include "res/sound/pl_sound_data.naix"
+
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#endif
 
 typedef struct MoveAnimData {
     int state;
@@ -433,6 +438,13 @@ static BOOL MovementAction_FaceEast_Step0(MapObject *mapObj)
 
 static void MovementAction_InitWalk(MapObject *mapObj, int dir, fx32 distance, s16 duration, u16 param4)
 {
+    #ifdef SDK_PORT
+    SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
+    if(myConfig->enable60fps && myConfig->enable60fpsSpeedFix) {
+        duration = duration << 1;
+        distance = distance >> 1;
+    }
+    #endif
     WalkMovementData *data = MapObject_InitMovementData(mapObj, sizeof(WalkMovementData));
 
     data->unused = param4;

@@ -79,6 +79,36 @@ static void PoketchSystem_OnButtonEvent(u32 buttonID, u32 buttonEvent, u32 touch
 static BOOL PoketchSystem_StartTaskIfNotActive(PoketchGraphics_TaskData *taskData, u32 taskId);
 static inline BOOL PoketchSystem_InsideScreenBounds(u32 x, u32 y);
 
+#ifdef SDK_PORT
+static void (*PoketchOverlayLoadFunctions[])(void) = {
+    PoketchAppStaticInit_DigitalWatch,
+    PoketchAppStaticInit_Calculator,
+    PoketchAppStaticInit_MemoPad,
+    PoketchAppStaticInit_Pedometer,
+    PoketchAppStaticInit_PartyStatus,
+    PoketchAppStaticInit_FriendshipChecker,
+    PoketchAppStaticInit_DowsingMachine,
+    PoketchAppStaticInit_BerrySearcher,
+    PoketchAppStaticInit_DaycareChecker,
+    PoketchAppStaticInit_PokemonHistory,
+    PoketchAppStaticInit_Counter,
+    PoketchAppStaticInit_AnalogWatch,
+    PoketchAppStaticInit_MarkingMap,
+    PoketchAppStaticInit_LinkSearcher,
+    PoketchAppStaticInit_CoinToss,
+    PoketchAppStaticInit_MoveTester,
+    PoketchAppStaticInit_Calendar,
+    PoketchAppStaticInit_DotArtist,
+    PoketchAppStaticInit_Roulette,
+    PoketchAppStaticInit_TrainerCounter,
+    PoketchAppStaticInit_KitchenTimer,
+    PoketchAppStaticInit_ColorChanger,
+    PoketchAppStaticInit_MatchupChecker,
+    PoketchAppStaticInit_Stopwatch,
+    PoketchAppStaticInit_AlarmClock,
+};
+#endif
+
 // The order of this array determines the app order in the poketch.
 static const struct {
     int appID;
@@ -470,6 +500,10 @@ static void PoketchSystem_LoadApp(PoketchSystem *poketchSys, int appID)
             }
         }
     }
+
+    #ifdef SDK_PORT
+    PoketchOverlayLoadFunctions[appID]();
+    #endif
 }
 
 static void PoketchSystem_UnloadApp(PoketchSystem *poketchSys)

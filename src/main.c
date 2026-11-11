@@ -33,6 +33,15 @@
 #include "unk_02039A64.h"
 #include "unk_0209A74C.h"
 
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#include "char_transfer.h"
+#include "pltt_transfer.h"
+#ifdef SDK_BUILD_LINUX
+#include "port/sim_icon.h"
+#endif
+#endif
+
 #define RESET_COMBO (PAD_BUTTON_START | PAD_BUTTON_SELECT | PAD_BUTTON_L | PAD_BUTTON_R)
 
 FS_EXTERN_OVERLAY(game_start);
@@ -63,6 +72,12 @@ extern const ApplicationManagerTemplate gOpeningCutsceneAppTemplate;
 
 void NitroMain(void)
 {
+#ifdef SDK_PORT
+    SIM_Config_prj_init();
+    #ifdef SDK_BUILD_LINUX
+    SetPokeplatinumAppIcon();
+    #endif
+#endif
     InitSystem();
     InitVRAM();
     InitKeypadAndTouchpad();
@@ -118,6 +133,10 @@ void NitroMain(void)
 
     gIgnoreCartridgeForWake = FALSE;
 
+#ifdef SDK_PORT
+    SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
+#endif
+
     while (TRUE) {
         CheckHeapCanary();
         HandleConsoleFold();
@@ -133,7 +152,11 @@ void NitroMain(void)
             SysTaskManager_ExecuteTasks(gSystem.mainTaskMgr);
             SysTaskManager_ExecuteTasks(gSystem.printTaskMgr);
 
-            if (!gSystem.frameCounter) {
+            if (!gSystem.frameCounter
+#ifdef SDK_PORT
+             && myConfig && !(myConfig->enable60fps)
+#endif
+            ) {
                 OS_WaitIrq(TRUE, OS_IE_V_BLANK);
                 gSystem.vblankCounter++;
             }
@@ -248,6 +271,11 @@ static void SoftReset(enum OSResetParameter resetParam)
 {
     SetScreenColorBrightness(DS_SCREEN_MAIN, COLOR_WHITE);
     SetScreenColorBrightness(DS_SCREEN_SUB, COLOR_WHITE);
+
+    #ifdef SDK_PORT
+    CharTransfer_Free();
+    PlttTransfer_Free();
+    #endif
 
     if (CommManager_ExitOrReset()) {
         SaveData_SaveStateCancel(SaveData_Ptr());

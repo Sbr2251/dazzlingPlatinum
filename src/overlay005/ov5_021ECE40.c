@@ -335,7 +335,13 @@ static void ov5_021ED0A4(UnkStruct_ov5_021ED0A4 *param0, int param1)
         v3->unk_00 = 0xffff;
         v3->unk_04 = v2;
         v3++;
+        #ifdef SDK_BUILD_ARM
         (u8 *)v2 += v1;
+        #else
+        u8 * tmp = (u8*)v2;
+        tmp += v1;
+        v2 = (BillboardResources*)tmp;
+        #endif
         param1--;
     } while (param1);
 }
@@ -1791,7 +1797,11 @@ static void ov5_021EE2D0(UnkStruct_ov5_021ED0A4 *param0, UnkStruct_ov5_021EE294 
 
 static void ov5_021EE320(UnkStruct_ov5_021ED0A4 *param0, int param1, int param2)
 {
+    #ifdef SDK_PORT
+    u64 v0, v1, v2, v3, v4;
+    #else
     u32 v0, v1, v2, v3, v4;
+    #endif
     UnkStruct_ov5_021EDF3C *v5;
 
     v4 = (sizeof(UnkStruct_ov5_021EE294)) * param1;
@@ -1806,7 +1816,11 @@ static void ov5_021EE320(UnkStruct_ov5_021ED0A4 *param0, int param1, int param2)
     v5->unk_00 = param1;
     v5->unk_02 = param2;
 
+    #ifdef SDK_PORT
+    v0 = (u64)(v5) + (u64)(sizeof(UnkStruct_ov5_021EDF3C));
+    #else
     v0 = (u32)v5 + (sizeof(UnkStruct_ov5_021EDF3C));
+    #endif
     v5->unk_08 = (void *)v0;
 
     v0 += v4;

@@ -1,0 +1,10 @@
+[wrap-git]
+url = https://github.com/cybervisi0n/libntr.git
+revision = main
+depth = 1
+directory = libntr
+
+[provide]
+dependency_names = NitroSDK
+program_names = makelcf
+

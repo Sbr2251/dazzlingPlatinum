@@ -15,6 +15,10 @@
 #include "unk_0209A74C.h"
 #include "unk_0209AA74.h"
 
+#ifdef SDK_PORT
+#include "port/savedata_upgrade.h"
+#endif
+
 static void SaveTable_Clear(SaveDataBody *body, const SavePageInfo *pageInfo);
 static void SavePageInfo_Init(SavePageInfo *pageInfo);
 static void SaveBlockInfo_Init(SaveBlockInfo *blockInfo, const SavePageInfo *pageInfo);
@@ -91,6 +95,14 @@ SaveData *SaveData_Init(void)
     case LOAD_RESULT_ERROR:
         saveData->loadCheckStatus |= NORMAL_LOAD_ERROR;
     case LOAD_RESULT_EMPTY:
+        #ifdef SDK_PORT
+        // Attempt SaveData upgrade
+        BOOL upgraded = PCPORT_ProcessSaveDataUpgrades();
+        if(upgraded) {
+            // Soft reset now
+            OS_ResetSystem(0);
+        }
+        #endif
         SaveData_Clear(saveData);
         break;
     }
@@ -310,9 +322,17 @@ static u32 SaveData_SaveOffset(int sectorID, const SaveBlockInfo *blockInfo)
     return offset;
 }
 
+#ifdef SDK_PORT
+static SaveBlockFooter *SaveBlockFooter_Ptr(SaveData *saveData, u64 bodyAddress, int blockID)
+#else
 static SaveBlockFooter *SaveBlockFooter_Ptr(SaveData *saveData, u32 bodyAddress, int blockID)
+#endif
 {
+    #ifdef SDK_PORT
+    u64 footerAddress;
+    #else
     u32 footerAddress;
+    #endif
     const SaveBlockInfo *blockInfo = &saveData->blockInfo[blockID];
 
     footerAddress = bodyAddress + blockInfo->offset;
@@ -324,11 +344,19 @@ static SaveBlockFooter *SaveBlockFooter_Ptr(SaveData *saveData, u32 bodyAddress,
     return (SaveBlockFooter *)footerAddress;
 }
 
+#ifdef SDK_PORT
+static BOOL SaveBlockFooter_Validate(SaveData *saveData, u64 bodyAddress, int blockID)
+#else
 static BOOL SaveBlockFooter_Validate(SaveData *saveData, u32 bodyAddress, int blockID)
+#endif
 {
     const SaveBlockInfo *blockInfo = &saveData->blockInfo[blockID];
     SaveBlockFooter *footer = SaveBlockFooter_Ptr(saveData, bodyAddress, blockID);
+    #ifdef SDK_PORT
+    u64 startAddress = bodyAddress + blockInfo->offset;
+    #else
     u32 startAddress = bodyAddress + blockInfo->offset;
+    #endif
 
     if (footer->size != blockInfo->size) {
         return FALSE;
@@ -342,14 +370,18 @@ static BOOL SaveBlockFooter_Validate(SaveData *saveData, u32 bodyAddress, int bl
         return FALSE;
     }
 
-    if (footer->checksum != SaveData_CalculateFooterChecksum(saveData, startAddress, blockInfo->size)) {
+    if (footer->checksum != SaveData_CalculateFooterChecksum(saveData, (void*)startAddress, blockInfo->size)) {
         return FALSE;
     }
 
     return TRUE;
 }
 
+#ifdef SDK_PORT
+static void SaveBlockFooter_CheckInfo(SaveCheckInfo *checkInfo, SaveData *saveData, u64 bodyAddress, int blockID)
+#else
 static void SaveBlockFooter_CheckInfo(SaveCheckInfo *checkInfo, SaveData *saveData, u32 bodyAddress, int blockID)
+#endif
 {
     SaveBlockFooter *footer = SaveBlockFooter_Ptr(saveData, bodyAddress, blockID);
 
@@ -358,18 +390,26 @@ static void SaveBlockFooter_CheckInfo(SaveCheckInfo *checkInfo, SaveData *saveDa
     checkInfo->blockCounter = footer->blockCounter;
 }
 
+#ifdef SDK_PORT
+static void SaveBlockFooter_Set(SaveData *saveData, u64 bodyAddress, int blockID)
+#else
 static void SaveBlockFooter_Set(SaveData *saveData, u32 bodyAddress, int blockID)
+#endif
 {
     const SaveBlockInfo *blockInfo = &saveData->blockInfo[blockID];
     SaveBlockFooter *footer = SaveBlockFooter_Ptr(saveData, bodyAddress, blockID);
+    #ifdef SDK_PORT
+    u64 startAddress = bodyAddress + blockInfo->offset;
+    #else
     u32 startAddress = bodyAddress + blockInfo->offset;
+    #endif
 
     footer->saveCounter = saveData->globalCounter;
     footer->blockCounter = saveData->blockCounters[blockID];
     footer->size = blockInfo->size;
     footer->signature = SECTOR_SIGNATURE;
     footer->saveBlockID = blockID;
-    footer->checksum = SaveData_CalculateFooterChecksum(saveData, startAddress, blockInfo->size);
+    footer->checksum = SaveData_CalculateFooterChecksum(saveData, (void*)startAddress, blockInfo->size);
 }
 
 static int SaveCheckInfo_CompareCounters(u32 counter1, u32 counter2)
@@ -447,16 +487,26 @@ static int SaveData_LoadCheck(SaveData *saveData)
     SaveCheckInfo boxInfo[SECTOR_ID_MAX];
 
     if (SaveData_CardLoad(PRIMARY_SECTOR_START * SAVE_SECTOR_SIZE, primaryBuffer, SAVE_SECTOR_SIZE * SAVE_PAGE_MAX)) {
+        #ifdef SDK_PORT
+        SaveBlockFooter_CheckInfo(&normalInfo[SECTOR_ID_PRIMARY], saveData, (u64)primaryBuffer, SAVE_BLOCK_ID_NORMAL);
+        SaveBlockFooter_CheckInfo(&boxInfo[SECTOR_ID_PRIMARY], saveData, (u64)primaryBuffer, SAVE_BLOCK_ID_BOXES);
+        #else
         SaveBlockFooter_CheckInfo(&normalInfo[SECTOR_ID_PRIMARY], saveData, (u32)primaryBuffer, SAVE_BLOCK_ID_NORMAL);
         SaveBlockFooter_CheckInfo(&boxInfo[SECTOR_ID_PRIMARY], saveData, (u32)primaryBuffer, SAVE_BLOCK_ID_BOXES);
+        #endif
     } else {
         SaveData_CheckInfoInit(&normalInfo[SECTOR_ID_PRIMARY]);
         SaveData_CheckInfoInit(&boxInfo[SECTOR_ID_PRIMARY]);
     }
 
     if (SaveData_CardLoad(BACKUP_SECTOR_START * SAVE_SECTOR_SIZE, backupBuffer, SAVE_SECTOR_SIZE * SAVE_PAGE_MAX)) {
+        #ifdef SDK_PORT
+        SaveBlockFooter_CheckInfo(&normalInfo[SECTOR_ID_BACKUP], saveData, (u64)backupBuffer, SAVE_BLOCK_ID_NORMAL);
+        SaveBlockFooter_CheckInfo(&boxInfo[SECTOR_ID_BACKUP], saveData, (u64)backupBuffer, SAVE_BLOCK_ID_BOXES);
+        #else
         SaveBlockFooter_CheckInfo(&normalInfo[SECTOR_ID_BACKUP], saveData, (u32)backupBuffer, SAVE_BLOCK_ID_NORMAL);
         SaveBlockFooter_CheckInfo(&boxInfo[SECTOR_ID_BACKUP], saveData, (u32)backupBuffer, SAVE_BLOCK_ID_BOXES);
+        #endif
     } else {
         SaveData_CheckInfoInit(&normalInfo[SECTOR_ID_BACKUP]);
         SaveData_CheckInfoInit(&boxInfo[SECTOR_ID_BACKUP]);
@@ -587,9 +637,15 @@ static BOOL SaveDataState_Load(SaveData *saveData)
             return FALSE;
         }
 
+        #ifdef SDK_PORT
+        if (SaveBlockFooter_Validate(saveData, (u64)saveData->body.data, i) == FALSE) {
+            return FALSE;
+        }
+        #else
         if (SaveBlockFooter_Validate(saveData, (u32)saveData->body.data, i) == FALSE) {
             return FALSE;
         }
+        #endif
     }
 
     for (i = 0; i < SAVE_TABLE_ENTRY_MAX; i++) {
@@ -603,7 +659,11 @@ static s32 SaveDataState_InitBlock(SaveData *saveData, int blockID, u8 sectorID)
 {
     const SaveBlockInfo *blockInfo = &saveData->blockInfo[blockID];
 
+    #ifdef SDK_PORT
+    SaveBlockFooter_Set(saveData, (u64)saveData->body.data, blockID);
+    #else
     SaveBlockFooter_Set(saveData, (u32)saveData->body.data, blockID);
+    #endif
 
     u32 saveOffset = SaveData_SaveOffset(sectorID, blockInfo);
     u8 *bodyOffset = saveData->body.data + blockInfo->offset;

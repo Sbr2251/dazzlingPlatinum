@@ -11,6 +11,11 @@
 
 #include "res/words/word_bank.naix"
 
+#ifdef SDK_PORT
+#include "graphics.h"
+#include "heap.h"
+#endif
+
 PasswordWordBank *PasswordWordBank_New(enum HeapID heapID)
 {
     PasswordWordBank *wordBank = Heap_Alloc(heapID, sizeof(PasswordWordBank));

@@ -116,8 +116,13 @@ static void LoadCurrentPocketItemNames(BagController *controller);
 static void LimitItemListScroll(u16 *cursorScroll, u16 *cursorPos, u8 numEntries);
 static void RestrictItemListCursor(u16 *cursorScroll, u16 *cursorPos, u8 numEntries, u8 numVisibleSlots);
 static void CreateItemListMenu(BagController *controller, u16 initialScroll, u16 initialPos);
+#ifdef SDK_BUILD_ARM
 static void ItemListMenuCursorCB(ListMenu *menu, u32 index, u8 onInit);
 static void ItemListMenuPrintCB(ListMenu *menu, u32 index, u8 yOffset);
+#else
+static void ItemListMenuCursorCB(ListMenu *menu, u64 index, u8 onInit);
+static void ItemListMenuPrintCB(ListMenu *menu, u64 index, u8 yOffset);
+#endif
 static void FreeItemListMenu(BagController *controller);
 static void CountAccessiblePockets(BagController *controller);
 static void CalcPocketSelectorIconsPos(BagController *controller);
@@ -319,6 +324,7 @@ static const u8 sPocketSizes[POCKET_MAX] = {
     [POCKET_KEY_ITEMS] = KEY_ITEM_POCKET_SIZE
 };
 
+#ifdef SDK_BUILD_ARM
 static const u32 sItemActionFuncs[] = {
     [ITEM_ACTION_USE] = (u32)ItemActionFunc_Use,
     [ITEM_ACTION_WALK] = (u32)ItemActionFunc_Use,
@@ -333,6 +339,22 @@ static const u32 sItemActionFuncs[] = {
     [ITEM_ACTION_CONFIRM] = (u32)ItemActionFunc_Confirm,
     [ITEM_ACTION_CANCEL] = MENU_CANCEL
 };
+#else
+static const u64 sItemActionFuncs[] = {
+    [ITEM_ACTION_USE] = (u64)ItemActionFunc_Use,
+    [ITEM_ACTION_WALK] = (u64)ItemActionFunc_Use,
+    [ITEM_ACTION_CHECK] = (u64)ItemActionFunc_Use,
+    [ITEM_ACTION_PLANT] = (u64)ItemActionFunc_Use,
+    [ITEM_ACTION_OPEN] = (u64)ItemActionFunc_Use,
+    [ITEM_ACTION_TRASH] = (u64)ItemActionFunc_Trash,
+    [ITEM_ACTION_REGISTER] = (u64)ItemActionFunc_Register,
+    [ITEM_ACTION_DESELECT] = (u64)ItemActionFunc_Deselect,
+    [ITEM_ACTION_GIVE] = (u64)ItemActionFunc_Give,
+    [ITEM_ACTION_CHECK_TAG] = (u64)ItemActionFunc_CheckTag,
+    [ITEM_ACTION_CONFIRM] = (u64)ItemActionFunc_Confirm,
+    [ITEM_ACTION_CANCEL] = MENU_CANCEL
+};
+#endif
 
 // clang-format off
 static const u16 sItemSpriteBoxTiles[] = {
@@ -1082,7 +1104,11 @@ static void CreateItemListMenu(BagController *controller, u16 initialScroll, u16
     Window_ScheduleCopyToVRAM(&controller->windows[BAG_UI_WINDOW_ITEM_LIST]);
 }
 
+#ifdef SDK_BUILD_ARM
 static void ItemListMenuCursorCB(ListMenu *menu, u32 index, u8 onInit)
+#else
+static void ItemListMenuCursorCB(ListMenu *menu, u64 index, u8 onInit)
+#endif
 {
     BagController *controller = (BagController *)ListMenu_GetAttribute(menu, LIST_MENU_PARENT);
 
@@ -1129,7 +1155,11 @@ static void ItemListMenuCursorCB(ListMenu *menu, u32 index, u8 onInit)
     }
 }
 
+#ifdef SDK_BUILD_ARM
 static void ItemListMenuPrintCB(ListMenu *menu, u32 index, u8 yOffset)
+#else
+static void ItemListMenuPrintCB(ListMenu *menu, u64 index, u8 yOffset)
+#endif
 {
     BagController *controller = (BagController *)ListMenu_GetAttribute(menu, LIST_MENU_PARENT);
     BagApplicationPocket *pocket = &controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx];
@@ -1228,7 +1258,7 @@ static u8 ProcessItemListMenuInput(BagController *interface)
         }
     }
 
-    u32 selectedItem = ListMenu_ProcessInput(interface->itemList);
+    menu_selection_t selectedItem = ListMenu_ProcessInput(interface->itemList);
     u16 newCursorScroll, newCursorPos;
     ListMenu_GetListAndCursorPos(interface->itemList, &newCursorScroll, &newCursorPos);
 
@@ -1836,7 +1866,11 @@ static u8 ProcessItemListInput_MovingItem(BagController *controller)
         return TRUE;
     }
 
+    #ifdef SDK_BUILD_ARM
     u32 selectedItem = ListMenu_ProcessInput(controller->itemList);
+    #else
+    u64 selectedItem = ListMenu_ProcessInput(controller->itemList);
+    #endif
     u16 cursorScroll, cursorPos;
     ListMenu_GetListAndCursorPos(controller->itemList, &cursorScroll, &cursorPos);
 
@@ -2012,7 +2046,11 @@ static int ProcessMenuInput_SelectAction(BagController *controller)
         return BAG_APP_STATE_WAIT_SELECT_ITEM_ACTION;
     }
 
+    #ifdef SDK_BUILD_ARM
     u32 selectedOption = Menu_ProcessInput(controller->menu);
+    #else
+    u64 selectedOption = Menu_ProcessInput(controller->menu);
+    #endif
 
     if (selectedOption == MENU_NOTHING_CHOSEN) {
         if (CheckDialButtonPressed(controller) == TRUE) {
@@ -2062,7 +2100,11 @@ static void ToggleHideItemSprite(BagController *controller, u8 hide)
     Bg_ScheduleTilemapTransfer(controller->bgConfig, BG_LAYER_MAIN_1);
 }
 
+#ifdef SDK_BUILD_ARM
 const u32 BagApplication_GetItemActionFunc(enum ItemAction action)
+#else
+const u64 BagApplication_GetItemActionFunc(enum ItemAction action)
+#endif
 {
     return sItemActionFuncs[action];
 }
@@ -2188,7 +2230,11 @@ static int TMHMUseTask(BagController *controller)
         controller->itemUseTaskState = 3;
         break;
     case 3: {
+        #ifdef SDK_BUILD_ARM
         u32 selected;
+        #else
+        u64 selected;
+        #endif
 
         if (CheckDialScroll_Menu(controller) == TRUE) {
             break;
@@ -2410,7 +2456,11 @@ static int ProcessMenuInput_ConfirmTrash(BagController *controller)
         return BAG_APP_STATE_CONFIRM_TRASH;
     }
 
+    #ifdef SDK_BUILD_ARM
     u32 selectedOption;
+    #else
+    u64 selectedOption;
+    #endif
     if (CheckDialButtonPressed(controller) == TRUE) {
         selectedOption = Menu_ProcessExternalInputAndHandleExit(controller->menu, MENU_INPUT_CONFIRM, HEAP_ID_BAG);
         controller->dialButtonAnimStep = 1;
@@ -2748,7 +2798,11 @@ static int ProcessMenuInput_ConfirmSale(BagController *interface)
         return BAG_APP_STATE_CONFIRM_SALE;
     }
 
+    #ifdef SDK_BUILD_ARM
     u32 selected;
+    #else
+    u64 selected;
+    #endif
     if (CheckDialButtonPressed(interface) == TRUE) {
         selected = Menu_ProcessExternalInputAndHandleExit(interface->menu, MENU_INPUT_CONFIRM, HEAP_ID_BAG);
         interface->dialButtonAnimStep = 1;
