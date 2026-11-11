@@ -153,6 +153,8 @@ class GameClient:
         self.stderr_path = os.path.join(self.dir, "game.stderr.log")
         env = dict(os.environ)
         env.update({
+            # Never register in the owner's Dock/app switcher (team rule).
+            "SDL_MAC_BACKGROUND_APP": "1",
             "SIM_HEADLESS": "1", "SIM_CONTROL": "stdio",
             "SIM_FIXED_RTC": FIXED_RTC, "SIM_SEED": FIXED_SEED,
             "SIM_SAVE_PATH": self.save_path,
