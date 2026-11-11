@@ -4275,7 +4275,13 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
 
     ctx->accumulatedMovement.x += ctx->positionIncrementVecAbs.x;
 
-    if (ctx->accumulatedMovement.x >= MAP_OBJECT_TILE_SIZE) {
+    // while, not if: a rune jump may displace up to 9 tiles, so one tick's
+    // travel can cross the per-tile threshold more than once; `if` stranded
+    // the excess and the jump landed short (ceiling -> ground stopped at
+    // y=2, and the player was stuck). Stock jumps displace at most 6 tiles
+    // over 16 steps, so each tick stays below the threshold and `while` is
+    // equivalent to `if` for them.
+    while (ctx->accumulatedMovement.x >= MAP_OBJECT_TILE_SIZE) {
         ctx->accumulatedMovement.x -= MAP_OBJECT_TILE_SIZE;
 
         int playerX = MapObject_GetX(playerMapObj);
@@ -4291,7 +4297,8 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
 
     ctx->accumulatedMovement.y += ctx->positionIncrementVecAbs.y;
 
-    if (ctx->accumulatedMovement.y >= MAP_OBJECT_TILE_SIZE / 2) {
+    // while, not if (see x above).
+    while (ctx->accumulatedMovement.y >= MAP_OBJECT_TILE_SIZE / 2) {
         ctx->accumulatedMovement.y -= MAP_OBJECT_TILE_SIZE / 2;
 
         int playerY = MapObject_GetY(playerMapObj);
@@ -4307,7 +4314,8 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
 
     ctx->accumulatedMovement.z += ctx->positionIncrementVecAbs.z;
 
-    if (ctx->accumulatedMovement.z >= MAP_OBJECT_TILE_SIZE) {
+    // while, not if (see x above).
+    while (ctx->accumulatedMovement.z >= MAP_OBJECT_TILE_SIZE) {
         ctx->accumulatedMovement.z -= MAP_OBJECT_TILE_SIZE;
 
         int playerZ = MapObject_GetZ(playerMapObj);
@@ -10970,6 +10978,33 @@ BOOL DistWorld_ArePersistedFeaturesInit(FieldSystem *fieldSystem)
 BOOL DistWorld_CheckCollisionOnCurrentFloatingPlatform(FieldSystem *fieldSystem, int tileX, int tileY, int tileZ)
 {
     DistWorldSystem *distWorldSystem = fieldSystem->unk_04->dynamicMapFeaturesData;
+
+    // Puzzle tile overrides on the current platform surface, matching the
+    // base-ground path in DistWorld_DynamicMapFeaturesCheckCollision: a
+    // BLOCKED tile blocks (after a stone-push attempt on the step target),
+    // SOLID/VOID override the stock collision bit so the step hook can
+    // start the fall on a VOID tile.
+    {
+        u32 platformKind = GetCurrentFloatingPlatformKind(distWorldSystem);
+
+        if (platformKind != FLOATING_PLATFORM_KIND_INVALID) {
+            DwPuzzleTileState tileState = DwPuzzle_QueryTile(fieldSystem, tileX, tileY, tileZ, (int)platformKind);
+
+            if (tileState == DW_PUZZLE_TILE_BLOCKED) {
+                int playerX, playerY, playerZ;
+
+                GetPlayerPos(distWorldSystem, &playerX, &playerY, &playerZ);
+                tileState = DwPuzzle_Ov9TryPushTile(fieldSystem, tileX, tileY, tileZ, (int)platformKind, playerX, playerY, playerZ);
+            }
+
+            if (tileState == DW_PUZZLE_TILE_BLOCKED) {
+                return TRUE;
+            } else if (tileState == DW_PUZZLE_TILE_SOLID || tileState == DW_PUZZLE_TILE_VOID) {
+                return FALSE;
+            }
+        }
+    }
+
     u16 tileAttributes = GetCurrentFloatingPlatformTileAttributes(distWorldSystem, tileX, tileY, tileZ);
 
     if (tileAttributes == (u16)INVALID_TERRAIN_ATTRIBUTES || tileAttributes == (u16)OUT_OF_BOUNDS_TERRAIN_ATTRIBUTES) {
@@ -11047,7 +11082,7 @@ void DistWorld_LoadFloorOffsets(int mapHeaderID, int *offsetTileX, int *offsetAl
 
 static u32 DistWorldSystem_GetMapHeaderID(DistWorldSystem *system)
 {
-    return system->fieldSystem->location->mapHeaderID;
+    return system->mapHeaderID;
 }
 
 static enum AvatarDistortionState GetAvatarDistortionStateForFloatingPlatformKind(u32 platformKind)
