@@ -426,7 +426,8 @@ void ConvertPathToSdat(int argc, char **argv)
     uint32_t jsonLength;
     char *jsonString = (char*)ReadWholeFile(orderPath, &jsonLength);
 
-    cJSON *json = cJSON_Parse(jsonString);
+    // ReadWholeFile does not NUL-terminate: parse with an explicit length.
+    cJSON *json = cJSON_ParseWithLength(jsonString, jsonLength);
     if (json == NULL)
     {
         const char *errorPtr = cJSON_GetErrorPtr();
