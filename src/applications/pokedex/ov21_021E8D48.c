@@ -35,6 +35,8 @@
 #include "res/graphics/pokedex/zukan.naix"
 #include "res/text/bank/pokedex.h"
 
+#define POKEDEX_TYPE_ICON_BACKGROUND_BOX_CELL 0x12 // category plate; Fairy (0x11) was appended before it
+
 typedef struct {
     Sprite *unk_00;
     SpriteResource *unk_04[4];
@@ -523,7 +525,7 @@ static void ov21_021E9504(UnkStruct_ov21_021E95B0 *param0, SpriteList *param1, S
     param0->unk_00 = SpriteList_Add(&v0);
 
     GF_ASSERT(param0->unk_00);
-    Sprite_SetAnim(param0->unk_00, 0x11); // category plate (dazzling: POKEDEX_TYPE_ICON_ANIM_CATEGORY_PLATE)
+    Sprite_SetAnim(param0->unk_00, POKEDEX_TYPE_ICON_BACKGROUND_BOX_CELL);
 }
 
 static void ov21_021E9554(UnkStruct_ov21_021E95B0 *param0)
