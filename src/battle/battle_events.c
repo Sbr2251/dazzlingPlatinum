@@ -11,6 +11,7 @@
 #include "battle/battle_lib.h"
 #include "constants/battle.h"
 #include "constants/battle/moves.h"
+#include "port/sim_config_prj.h"
 
 #define MAX_EV 4096
 #define EV_LEN 512
@@ -25,13 +26,28 @@ static char sReplayPath[512];
 static char sExpected[256][EV_LEN]; static int sExpectedCount, sActualCount;
 static char sActualTypes[256][64];
 static int sFast = -1;
+static int sFastForce = -1;
+void BattleEvents_SetFastEnabled(int on) { sFastForce = on; }
+#define MAX_HIST 1024
+static char sHistory[MAX_HIST][EV_LEN]; static int sHistHead, sHistCount;
+static char sDecisionLog[128][256]; static int sDecisionLogCount;
+int BattleEvents_HistoryCount(void) { return sHistCount; }
+const char *BattleEvents_HistoryLine(int index) { if (index < 0 || index >= sHistCount) return ""; return sHistory[(sHistHead + index) % MAX_HIST]; }
+void BattleEvents_ClearHistory(void) { sHistHead = sHistCount = 0; sDecisionLogCount = 0; }
+int BattleEvents_SaveHistory(const char *path) { FILE *f = fopen(path, "w"); if (!f) return 0; for (int i = 0; i < sHistCount; i++) { fputs(BattleEvents_HistoryLine(i), f); fputc('\n', f); } fclose(f); return 1; }
+int BattleEvents_SaveReplay(const char *path) { FILE *f = fopen(path, "w"); if (!f) return 0; fprintf(f, "{\"v\":1,\"kind\":\"record_header\",\"seed\":\"%s\",\"battle_seed\":%u}\n", getenv("SIM_SEED") ? getenv("SIM_SEED") : "", BattleEvents_GetSeedOverride()); for (int i = 0; i < sDecisionLogCount; i++) { fputs(sDecisionLog[i], f); fputc('\n', f); } for (int i = 0; i < sHistCount; i++) { fputs(BattleEvents_HistoryLine(i), f); fputc('\n', f); } fclose(f); return 1; }
 static unsigned sSeedOverride = 0;
 void BattleEvents_SetSeedOverride(unsigned int s) { sSeedOverride = s; }
 unsigned int BattleEvents_GetSeedOverride(void) { if (!sSeedOverride) { const char *e = getenv("SIM_BATTLE_SEED"); if (e && e[0]) sSeedOverride = (unsigned)strtoul(e, NULL, 0); } return sSeedOverride; }
 
 int BattleEvents_FastEnabled(void) {
+    if (sFastForce >= 0) return sFastForce;
     if (sFast < 0) { const char *e = getenv("SIM_BATTLE_FAST"); sFast = (e && e[0] == '1') ? 1 : 0; }
-    return sFast;
+    if (sFast) return 1;
+#ifdef SDK_PORT
+    { SIM_Config_prj_type *cfg = SIM_Config_prj_GetConfig(); if (cfg && cfg->battleInstantAnimations) return 1; }
+#endif
+    return 0;
 }
 static void LoadReplay(void) {
     const char *p = getenv("SIM_BATTLE_REPLAY"); if (!p || !p[0]) return;
@@ -58,6 +74,7 @@ static void LoadReplay(void) {
     fclose(f);
 }
 static void EmitRaw(const char *line) {
+    if (sHistCount < MAX_HIST) { snprintf(sHistory[(sHistHead + sHistCount) % MAX_HIST], EV_LEN, "%s", line); sHistCount++; } else { snprintf(sHistory[sHistHead], EV_LEN, "%s", line); sHistHead = (sHistHead + 1) % MAX_HIST; }
     if (sCount < MAX_EV) { snprintf(sQueue[sTail], EV_LEN, "%s", line); sTail = (sTail + 1) % MAX_EV; sCount++; }
     if (sFile) { fputs(line, sFile); fputc('\n', sFile); fflush(sFile); }
     if (sRecord) { fputs(line, sRecord); fputc('\n', sRecord); fflush(sRecord); }
@@ -125,7 +142,7 @@ void BattleEvents_Poll(BattleSystem *sys) {
         if (sFile) { fclose(sFile); sFile = NULL; } if (sRecord) { fclose(sRecord); sRecord = NULL; } }
 }
 void BattleEvents_OnMoveUsed(BattleSystem *sys, BattleContext *ctx) { (void)sys; if (!ctx || !sStarted) return; Emit(ctx, "\"type\":\"move_used\",\"battler\":%d,\"move_id\":%d,\"target\":%d", ctx->attacker, (int)ctx->moveCur, ctx->defender); if (ctx->moveStatusFlags) Emit(ctx, "\"type\":\"hit\",\"battler\":%d,\"target\":%d,\"move_id\":%d", ctx->attacker, ctx->defender, (int)ctx->moveCur); }
-static void RecordDecision(BattleContext *ctx, int battler, const char *action, int moveId, int partySlot, int itemId) { if (sRecord) { fprintf(sRecord, "{\"v\":1,\"kind\":\"decision\",\"battler\":%d,\"action\":\"%s\",\"move_id\":%d,\"move_slot\":%d,\"party_slot\":%d,\"item_id\":%d,\"target\":%d,\"mega\":%s}\n", battler, action, moveId, moveId-1, partySlot, itemId, ctx ? ctx->defender : -1, (ctx && ctx->megaEvolutionTriggered[battler]) ? "true" : "false"); fflush(sRecord); } }
+static void RecordDecision(BattleContext *ctx, int battler, const char *action, int moveId, int partySlot, int itemId) { if (sDecisionLogCount < 128) { snprintf(sDecisionLog[sDecisionLogCount], 256, "{\"v\":1,\"kind\":\"decision\",\"battler\":%d,\"action\":\"%s\",\"move_id\":%d,\"move_slot\":%d,\"party_slot\":%d,\"item_id\":%d,\"target\":%d,\"mega\":%s}", battler, action, moveId, moveId-1, partySlot, itemId, ctx ? ctx->defender : -1, (ctx && ctx->megaEvolutionTriggered[battler]) ? "true" : "false"); sDecisionLogCount++; } if (sRecord) { fprintf(sRecord, "{\"v\":1,\"kind\":\"decision\",\"battler\":%d,\"action\":\"%s\",\"move_id\":%d,\"move_slot\":%d,\"party_slot\":%d,\"item_id\":%d,\"target\":%d,\"mega\":%s}\n", battler, action, moveId, moveId-1, partySlot, itemId, ctx ? ctx->defender : -1, (ctx && ctx->megaEvolutionTriggered[battler]) ? "true" : "false"); fflush(sRecord); } }
 void BattleEvents_OnSelectedMove(BattleSystem *sys, int battler, int command) { (void)sys; BattleContext *ctx = sys ? BattleSystem_GetBattleContext(sys) : NULL; if (!ctx || !sStarted) return; RecordDecision(ctx, battler, "move", command, 0, 0); Emit(ctx, "\"type\":\"move_chosen\",\"battler\":%d,\"move_id\":%d,\"target\":%d,\"mega\":%s", battler, command, ctx->defender, ctx->megaEvolutionTriggered[battler] ? "true" : "false"); if (sRecord) { /* decisions also in stream via EmitRaw record mirror */ } }
 void BattleEvents_OnSelectedCommand(BattleSystem *sys, int battler, int command) { (void)sys; BattleContext *ctx = sys ? BattleSystem_GetBattleContext(sys) : NULL; if (!ctx || !sStarted) return; Emit(ctx, "\"type\":\"move_chosen\",\"battler\":%d,\"move_id\":0,\"command\":%d,\"target\":%d,\"mega\":false", battler, command, ctx->defender); }
 void BattleEvents_OnBagItem(BattleSystem *sys, int battler, int itemId) { BattleContext *ctx = sys ? BattleSystem_GetBattleContext(sys) : NULL; if (!ctx || !sStarted) return; Emit(ctx, "\"type\":\"item\",\"battler\":%d,\"item_id\":%d", battler, itemId); }

@@ -12,6 +12,7 @@ static bool sCreateItemOpen = false;
 static bool sConfigPrjOpen = false;
 static bool sCheatsOpen = false;
 static bool sMapJumpOpen = false;
+static bool sBattleEngineOpen = false;
 
 void PrjMain(bool * openState) {
     ImGui::Begin("pokeplatinum", openState);
@@ -21,6 +22,7 @@ void PrjMain(bool * openState) {
     AppButton("Cheats", &sCheatsOpen, nullptr, CheatsMain);
     AppButton("Config", &sConfigPrjOpen, nullptr, ConfigPrjMain);
     AppButton("Gen Pokemon", &sCreateMonOpen, CreateMonInit, CreateMonMain);
+    AppButton("Battle Engine", &sBattleEngineOpen, nullptr, BattleEngineMain);
     AppButton("Gen Items", &sCreateItemOpen, CreateItemInit, CreateItemMain);
 
     if(DEBUG_GetFieldSystem() != nullptr) {
