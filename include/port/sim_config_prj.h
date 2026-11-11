@@ -12,6 +12,7 @@ typedef struct {
     BOOL enable60fpsSpeedFix; // When enabled, fixes things in the game that run at double speed due to being at 60fps
 	BOOL enableAsserts; //Should asserts cause a communication error?
     BOOL breakDebuggerOnGfAssert; // When true, break the debugger when a GF_ASSERT fails
+    BOOL megaCinematicShort; // Mega cinematic: false = full (~4.5s), true = short
 
 	// Cheats section
 	BOOL walkThroughWalls; // When enabled, allows the player to walk through walls

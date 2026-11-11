@@ -33,6 +33,9 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "EnableAsserts")) {
         config->enableAsserts = StringToBool(value);
     }
+    if(MATCH("General", "MegaCinematicShort")) {
+        config->megaCinematicShort = StringToBool(value);
+    }
 
     // Cheats section
     if(MATCH("Cheats", "WalkThroughWalls")) {
@@ -81,6 +84,7 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->enableAsserts = FALSE;
   aConfig->battleInstantAnimations = FALSE;
   aConfig->breakDebuggerOnGfAssert = FALSE;
+  aConfig->megaCinematicShort = FALSE;
 
   // Cheats section
   aConfig->walkThroughWalls = FALSE;
@@ -103,6 +107,7 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "EnableAsserts=%s\n", BoolToString(aConfig->enableAsserts));
     fprintf(configFile, "BreakDebuggerOnAssert=%s\n", BoolToString(aConfig->breakDebuggerOnGfAssert));
     fprintf(configFile, "BattleInstantAnimations=%s\n", BoolToString(aConfig->battleInstantAnimations));
+    fprintf(configFile, "MegaCinematicShort=%s\n", BoolToString(aConfig->megaCinematicShort));
     fprintf(configFile, "\n");
 
     fprintf(configFile, "[Cheats]\n");
