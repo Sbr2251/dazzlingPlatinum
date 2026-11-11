@@ -230,6 +230,7 @@ static const TouchScreenRect sRestoreMovePPScreenTouchRects[] = {
 
 void BattlePartyTask_Start(BattlePartyContext *context)
 {
+
     BattleParty *battleParty;
 
     if (context->selectedPartyIndex > 5) {
@@ -398,11 +399,11 @@ static u8 BattlePartyTask_PartyPokemonScreen(BattleParty *battleParty)
 
     // Decision queue (docs/battle_engine.md): select the queued slot and exit
     // through the task's own cleanup path, exactly as a Shift confirm does.
-    { BattleDecision dec; if (BattleDecisions_Peek(battleParty->context->battler, &dec) && dec.action == BATTLE_DECISION_ITEM && battleParty->context->battlePartyMode == BATTLE_PARTY_MODE_USE_ITEM) {
+    { BattleDecision dec; if (BattleDecisions_PeekAction(battleParty->context->battler, BATTLE_DECISION_ITEM, &dec) && battleParty->context->battlePartyMode == BATTLE_PARTY_MODE_USE_ITEM) {
         int want = dec.partySlot;
         for (int pi = 0; pi < MAX_PARTY_SIZE; pi++) if (battleParty->context->pokemonPartySlots[pi] == want) { battleParty->context->selectedPartyIndex = (u8)pi; return PartyUseItemScreen(battleParty); }
     } }
-    { BattleDecision dec; if (BattleDecisions_Peek(battleParty->context->battler, &dec) && dec.action == BATTLE_DECISION_SWITCH) {
+    { BattleDecision dec; if (BattleDecisions_PeekAction(battleParty->context->battler, BATTLE_DECISION_SWITCH, &dec)) {
         for (int pi = 0; pi < MAX_PARTY_SIZE; pi++) if (battleParty->context->pokemonPartySlots[pi] == dec.partySlot) {
             battleParty->context->selectedPartyIndex = (u8)pi;
             if (CheckCanSwitchPokemon(battleParty) == TRUE) return TASK_STATE_EXIT;
@@ -483,6 +484,16 @@ static u8 PartyUseItemScreen(BattleParty *battleParty)
 
 static u8 BattlePartyTask_SelectPokemonScreen(BattleParty *battleParty)
 {
+    // Decision queue: forced switches (after a faint) enter at this screen,
+    // not BattlePartyTask_PartyPokemonScreen. Select the queued slot and
+    // exit exactly as a SHIFT confirm does.
+    { BattleDecision dec; if (BattleDecisions_PeekAction(battleParty->context->battler, BATTLE_DECISION_SWITCH, &dec)) {
+        for (int pi = 0; pi < MAX_PARTY_SIZE; pi++) if (battleParty->context->pokemonPartySlots[pi] == dec.partySlot) {
+            battleParty->context->selectedPartyIndex = (u8)pi;
+            if (CheckCanSwitchPokemon(battleParty) == TRUE) return TASK_STATE_EXIT;
+            break;
+        }
+    } }
     enum BattleSelectPokemonScreenButton selectPokemonScreenButtonPressed = CheckSelectPokemonScreenButtonsPressed(battleParty);
 
     switch (selectPokemonScreenButtonPressed) {

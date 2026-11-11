@@ -119,6 +119,8 @@ class BattleRunner:
                     self._ev_unsupported = True
                 for ev in r.get("events", []) if r.get("ok") else []:
                     self.log(ev if isinstance(ev, dict) else {"type": "engine", "raw": ev})
+                    if isinstance(ev, dict) and ev.get("type") in ("move_chosen", "switch", "item") and ev.get("battler") == 0:
+                        self._pending_decide = False
             except Exception:
                 self._ev_unsupported = True
         if os.path.exists(self.events_file):
@@ -177,6 +179,8 @@ class BattleRunner:
                    "item": dec.get("item", "ITEM_POTION"), "party_slot": int(dec.get("party_slot", 0))}
         else:
             return False
+        if getattr(self, "_pending_decide", False):
+            return True  # one unconsumed decision already queued; do not stack
         try:
             r = self.game.cmd(cmd)
         except Exception:
@@ -184,6 +188,7 @@ class BattleRunner:
             return False
         if r.get("ok"):
             self.use_decide = True
+            self._pending_decide = True
             return True
         self.use_decide = False
         return False
@@ -287,7 +292,8 @@ class BattleRunner:
                     self.do_decision(dec)
             elif saw_battle and st.get("app") == "field":
                 break
-            if saw_battle and st.get("app") == "battle" and step_i % 8 == 7:
+            lead_fainted = bool((st.get("battle") or {}).get("battlers")) and (st["battle"]["battlers"][0].get("hp", 1) == 0)
+            if saw_battle and st.get("app") == "battle" and step_i % 8 == 7 and not lead_fainted:
                 # Party/target/text prompts are not always `waiting`.
                 # Doubles also has a SHIFT-position prompt (touch menu).
                 if self.is_double:

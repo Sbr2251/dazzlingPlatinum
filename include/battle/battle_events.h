@@ -29,6 +29,7 @@ typedef struct BattleDecision {
 } BattleDecision;
 void BattleDecisions_Push(const BattleDecision *d);
 int BattleDecisions_Peek(int battler, BattleDecision *out);
+int BattleDecisions_PeekAction(int battler, int action, BattleDecision *out); // first pending decision of this action (a stale move must not block a forced switch)
 void BattleDecisions_Complete(int battler);
 void BattleDecisions_MarkDone(int battler, int action); // mark first pending decision of this action done
 int BattleDecisions_Count(int battler);

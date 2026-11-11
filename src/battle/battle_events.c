@@ -174,6 +174,7 @@ int BattleEvents_TakePending(char *out, unsigned long cap) {
 static BattleDecision sDec[MAX_DEC]; static int sDecHead, sDecCount;
 void BattleDecisions_Push(const BattleDecision *d) { if (sDecCount < MAX_DEC) { sDec[(sDecHead + sDecCount) % MAX_DEC] = *d; sDecCount++; } }
 int BattleDecisions_Peek(int battler, BattleDecision *out) { for (int k = 0; k < sDecCount; k++) { BattleDecision *d = &sDec[(sDecHead + k) % MAX_DEC]; if (d->battler == battler && !d->done) { *out = *d; return 1; } } return 0; }
+int BattleDecisions_PeekAction(int battler, int action, BattleDecision *out) { for (int k = 0; k < sDecCount; k++) { BattleDecision *d = &sDec[(sDecHead + k) % MAX_DEC]; if (d->battler == battler && d->action == action && !d->done) { *out = *d; return 1; } } return 0; }
 void BattleDecisions_MarkDone(int battler, int action) { for (int k = 0; k < sDecCount; k++) { BattleDecision *d = &sDec[(sDecHead + k) % MAX_DEC]; if (d->battler == battler && !d->done && d->action == action) { d->done = 1; return; } } }
 void BattleDecisions_Complete(int battler) { for (int k = 0; k < sDecCount; k++) if (sDec[(sDecHead + k) % MAX_DEC].battler == battler) { for (int j = k; j + 1 < sDecCount; j++) sDec[(sDecHead + j) % MAX_DEC] = sDec[(sDecHead + j + 1) % MAX_DEC]; sDecCount--; return; } }
 int BattleDecisions_Count(int battler) { int n = 0; for (int k = 0; k < sDecCount; k++) { BattleDecision *d = &sDec[(sDecHead + k) % MAX_DEC]; if (d->battler == battler && !d->done) n++; } return n; }

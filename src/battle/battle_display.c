@@ -4704,6 +4704,7 @@ static void Task_RecordingShowBagMenu(SysTask *task, void *data)
 static void Task_PlayerShowPartyMenu(SysTask *task, void *data)
 {
     PartyMenuData *partyMenuData = data;
+
     PaletteData *paletteData = BattleSystem_GetPaletteData(partyMenuData->battleSys);
 
     switch (partyMenuData->state) {

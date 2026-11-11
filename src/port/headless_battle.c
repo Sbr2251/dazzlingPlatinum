@@ -19,6 +19,7 @@
 #include "constants/battle.h"
 #include "constants/heap.h"
 #include "generated/items.h"
+#include "generated/moves.h"
 
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
@@ -138,6 +139,10 @@ static Pokemon *BuildMon(const char *s, const char *e, FieldSystem *fsys) {
         if (JsonArrStr(s, e, "moves", i, name, sizeof(name))) {
             const HeadlessName *mv = Lookup(kHeadlessMoves, kHeadlessMovesCount, name, "MOVE_");
             if (mv) Pokemon_ResetMoveSlot(mon, (u16)mv->id, (u8)i);
+        } else {
+            // The spec's move list is the whole moveset: clear default
+            // learnset moves in unlisted slots or the AI uses them.
+            Pokemon_ResetMoveSlot(mon, MOVE_NONE, (u8)i);
         }
     }
     Pokemon_CalcLevelAndStats(mon);

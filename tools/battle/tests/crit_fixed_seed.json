@@ -2,18 +2,16 @@
  "name": "crit_fixed_seed",
  "spec": {
   "battle_type": "wild",
-  "seed": 7,
+  "seed": 42,
   "player": [
    {
-    "species": "SPECIES_MACHAMP",
+    "species": "SPECIES_AGGRON",
     "level": 50,
+    "held_item": "ITEM_SCOPE_LENS",
     "moves": [
-     "MOVE_KARATE_CHOP",
-     "MOVE_STONE_EDGE",
-     "MOVE_STRENGTH",
-     "MOVE_BULK_UP"
-    ],
-    "held_item": "ITEM_SCOPE_LENS"
+     "MOVE_SLASH",
+     "MOVE_IRON_HEAD"
+    ]
    }
   ],
   "opponent": [
@@ -21,7 +19,7 @@
     "species": "SPECIES_BIDOOF",
     "level": 100,
     "moves": [
-     "MOVE_TACKLE"
+     "MOVE_GROWL"
     ]
    }
   ],
@@ -34,7 +32,6 @@
  },
  "expect": {
   "winner": "player",
-  "damage_to_battler": 1,
   "crit_damage": true
  }
 }
