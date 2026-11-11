@@ -1,5 +1,6 @@
 {
-  "_note": "Mega Evolution in battle from the owner's mega-test save. Local-only. Battle inputs (Fight -> move, Mega trigger) need tuning on the real build; contract is: enter battle, party lead can Mega Evolve, no crash, back to field/battle-menu.",
+  "name": "core_mega_evolution_battle",
+  "_note": "Mega-test save (Infernape/Infernapite + Key Stone). Warp to Route 201 grass, find a wild battle, FIGHT, L on the move menu toggles Mega (battle_subscreen.c), pick the first move. wait_until stops the moment the engine reports battler 0 mega=true, then assert Mega + form.",
   "requires_exists": [
     "~/Downloads/dazzlingPlatinum-mega-test.sav"
   ],
@@ -248,166 +249,6 @@
       "frames": 20
     },
     {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
-      "press": "LEFT",
-      "frames": 20
-    },
-    {
-      "press": "RIGHT",
-      "frames": 20
-    },
-    {
       "wait_until": {
         "app": "battle"
       },
@@ -422,30 +263,52 @@
       "timeout_frames": 3600
     },
     {
-      "press": "A",
+      "step": 900
+    },
+    {
+      "touch": [
+        128,
+        110
+      ],
       "frames": 10
     },
     {
-      "step": 300
+      "step": 900
     },
     {
       "press": "L",
       "frames": 10
     },
     {
-      "press": "A",
+      "step": 300
+    },
+    {
+      "touch": [
+        64,
+        90
+      ],
       "frames": 10
     },
     {
-      "step": 1800
+      "wait_until": {
+        "path": "battle.battlers.0.mega",
+        "op": "eq",
+        "value": true
+      },
+      "timeout_frames": 7200
     }
   ],
   "assertions": [
     {
-      "path": "frame",
-      "op": "gt",
-      "value": 0
+      "battle.battlers.0.species": "SPECIES_INFERNAPE"
+    },
+    {
+      "battle.battlers.0.mega": true
+    },
+    {
+      "path": "battle.battlers.0.form",
+      "op": "ge",
+      "value": 1
     }
-  ],
-  "name": "core_mega_evolution_battle"
+  ]
 }
