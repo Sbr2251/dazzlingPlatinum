@@ -475,6 +475,26 @@ index 3be08a2..89915a2 100644
  #define HW_DB_OBJ_VRAM_SIZE     (HW_DB_OBJ_VRAM_END-HW_DB_OBJ_VRAM)
  //#define HW_LCDC_VRAM            0x06800000
  //#ifdef SDK_TS
+diff --git a/include/nitro/mi/memory.h b/include/nitro/mi/memory.h
+index b196b55..90df0dc 100644
+--- a/include/nitro/mi/memory.h
++++ b/include/nitro/mi/memory.h
+@@ -10,6 +10,7 @@ extern "C" {
+ 
+ #ifdef SDK_PORT
+ #include <string.h>
++#include <simulator/sim_g3_texnotify.h>
+ #endif
+ 
+ void MIi_CpuClear16(u16 data, void * destp, u32 size);
+@@ -92,6 +93,7 @@ static inline void MI_CpuFillFast (void * dest, u32 data, u32 size)
+ 
+   #ifdef SDK_PORT
+   memset( dest, data, size );
++  SIM_G3_NotifyTexVramWrite(dest, size);
+   #else
+ 	MIi_CpuClearFast(data, dest, size);
+   #endif
 diff --git a/include/simulator/sim.h b/include/simulator/sim.h
 index ad57dfa..312dae0 100644
 --- a/include/simulator/sim.h
