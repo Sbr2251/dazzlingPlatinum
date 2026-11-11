@@ -43,6 +43,9 @@ void PostFX_SetRegion(int screen);
 // glowing Key Stone, with a rainbow beam from the stone to (x, y).
 // progress 0-1 is the sweep position; alpha 0-1 fades it in/out.
 void PostFX_CutIn(float progress, float alpha, int x, int y);
+// Localised radial glow centred at (x, y): a soft rainbow halo that
+// decays over frames. Good for picking out one sprite or icon.
+void PostFX_GlowAt(int x, int y, float amount, int frames);
 // Title card, driven per frame: a dark violet gradient band with
 // rainbow edges slides across the middle of the main screen. Pair it
 // with a printed "MEGA <NAME>!" line (the shader draws no text).
