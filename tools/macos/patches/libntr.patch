@@ -1,3 +1,18 @@
+diff --git a/include/nitro/card/backup.h b/include/nitro/card/backup.h
+index 1b016ea..7d4e791 100644
+--- a/include/nitro/card/backup.h
++++ b/include/nitro/card/backup.h
+@@ -20,6 +20,10 @@ extern  "C"
+ 
+ #ifdef SDK_BUILD_PROSPERO
+ #define SAVE_BIN_FILE_PATH "/app0/save.bin"
++#elif defined(SDK_PORT)
++// SIM_SAVE_PATH redirects the save file (sim_headless.cpp); defaults to "save.bin".
++#include <simulator/sim_headless.h>
++#define SAVE_BIN_FILE_PATH SIM_GetSaveBinPath()
+ #else
+ #define SAVE_BIN_FILE_PATH "save.bin"
+ #endif
 diff --git a/include/nitro/gx/g3imm.h b/include/nitro/gx/g3imm.h
 index 0f07fc3..fd7b1af 100644
 --- a/include/nitro/gx/g3imm.h
@@ -694,6 +709,68 @@ index 285ed8d..d5a2519 100644
  void AppButton(const char * label, bool * state, void (*aInitFunc)(void), void (*aAppFunc)(bool *));
  
  
+diff --git a/include/simulator/sim_headless.h b/include/simulator/sim_headless.h
+new file mode 100644
+index 0000000..0c83729
+--- /dev/null
++++ b/include/simulator/sim_headless.h
+@@ -0,0 +1,56 @@
++#pragma once
++// Headless / lockstep test support for PC builds. See docs/headless_protocol.md in the game repo.
++// All of it is off unless the SIM_* environment variables are set; the interactive app is unchanged.
++#include <stddef.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++// Parse SIM_HEADLESS / SIM_SAVE_PATH / SIM_FIXED_RTC / SIM_SEED / SIM_CONTROL / SIM_WATCHDOG_SEC.
++// Call once at the top of main(), before SDL_Init. In SIM_CONTROL mode this also redirects
++// stdout to stderr and keeps the real stdout fd for protocol replies.
++void SIM_Headless_Init(void);
++
++int SIM_Headless_Enabled(void);   // SIM_HEADLESS=1
++int SIM_Control_Enabled(void);    // SIM_CONTROL=stdio
++
++// The save file the game reads and writes: SIM_SAVE_PATH if set, else "save.bin" (cwd-relative).
++const char *SIM_GetSaveBinPath(void);
++
++// 1 when SIM_FIXED_RTC is set: fills the broken-down time for the current frame
++// (base instant + frame * 1/60 s). Used by the RTC implementation.
++int SIM_Headless_GetFixedRTC(int *year, int *month, int *day, int *week, int *hour, int *minute, int *second);
++
++// SIM_SEED, or -1 when unset.
++long SIM_Headless_Seed(void);
++
++// Called once per rendered frame from SIM_DebugFrame (sim_main.cpp).
++void SIM_Headless_FrameHook(void);
++
++// Frame counter (frames completed since start, in lockstep also the protocol "frame").
++unsigned long long SIM_Headless_FrameCount(void);
++
++// Write the current frame to a BMP file. Returns 1 on success. Must be called on the render thread.
++int SIM_Headless_Screenshot(const char *path);
++
++// Print file:line, message and a symbolized backtrace to stderr, then _exit(134).
++// Used by GF_ASSERT (game side) and the signal handlers.
++void SIM_Headless_AssertFail(const char *file, int line, const char *msg);
++
++// Install best-effort SIGSEGV/SIGBUS/SIGABRT handlers (headless/control only).
++void SIM_Headless_InstallCrashHandlers(void);
++
++// Watchdog soft-freeze check: the control layer calls WatchdogInput() when a
++// step/press/touch command arrives, and WatchdogSample(hash) about once a second
++// with a combined framebuffer+state hash. If inputs keep arriving but the hash
++// does not change for SIM_WATCHDOG_SEC, the watchdog dumps state and exits 124.
++void SIM_Headless_WatchdogInput(void);
++void SIM_Headless_WatchdogSample(unsigned long long hash);
++
++// Best-effort state dump for the watchdog / crashes: writes JSON-ish state to stderr.
++void SIM_Headless_DumpState(const char *reason);
++
++#ifdef __cplusplus
++}
++#endif
 diff --git a/include/simulator/sim_helpers.hpp b/include/simulator/sim_helpers.hpp
 new file mode 100644
 index 0000000..c2b0286
@@ -1165,6 +1242,40 @@ index 876f6c4..36edb27 100644
  }
  
  void MI_CpuFill(void *dest, u8 data, u32 size) {
+diff --git a/libraries/rtc/src/external.c b/libraries/rtc/src/external.c
+index 4282214..3a340d6 100644
+--- a/libraries/rtc/src/external.c
++++ b/libraries/rtc/src/external.c
+@@ -181,8 +181,21 @@ RTCResult RTC_GetTimeAsync (RTCTime * time, RTCCallback callback, void * arg)
+ }
+ 
+ #ifdef SDK_PORT
++// SIM_FIXED_RTC (sim_headless.cpp): weak so non-simulator links keep wall-clock behaviour.
++__attribute__((weak)) extern int SIM_Headless_GetFixedRTC(int *year, int *month, int *day, int *week, int *hour, int *minute, int *second);
++static int getFixedRTC(RTCDate *date, RTCTime *time)
++{
++    if (!SIM_Headless_GetFixedRTC) return 0;
++    int y, mo, d, w, h, mi, s;
++    if (!SIM_Headless_GetFixedRTC(&y, &mo, &d, &w, &h, &mi, &s)) return 0;
++    if (date) { date->year = (u32)y; date->month = (u32)mo; date->day = (u32)d; date->week = (RTCWeek)w; }
++    if (time) { time->hour = (u32)h; time->minute = (u32)mi; time->second = (u32)s; }
++    return 1;
++}
++
+ static void getPCTime( RTCTime* theTime )
+ {
++    if (getFixedRTC(NULL, theTime)) return;
+     struct tm * timeinfo;
+     time_t currentTime = time( NULL );
+     timeinfo = localtime( &currentTime );
+@@ -193,6 +206,7 @@ static void getPCTime( RTCTime* theTime )
+ 
+ static void getPCDate( RTCDate* theDate )
+ {
++    if (getFixedRTC(theDate, NULL)) return;
+     struct tm * timeinfo;
+     time_t currentTime = time( NULL );
+     timeinfo = localtime( &currentTime );
 diff --git a/libraries/sim/include/sim_g2_gpu.h b/libraries/sim/include/sim_g2_gpu.h
 new file mode 100644
 index 0000000..cef4eb5
@@ -1206,7 +1317,7 @@ index d7a921e..240b2ac 100644
  if(build_target == 'linux' or build_target == 'win64')
  sdl2_lib = meson.get_compiler('c').find_library('SDL2')
 diff --git a/libraries/sim/src/config/sim_config.c b/libraries/sim/src/config/sim_config.c
-index 096e7fb..3178c6c 100644
+index 096e7fb..cd4a652 100644
 --- a/libraries/sim/src/config/sim_config.c
 +++ b/libraries/sim/src/config/sim_config.c
 @@ -348,7 +348,7 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
@@ -1218,6 +1329,16 @@ index 096e7fb..3178c6c 100644
      aConfig->windowHeight = 0;
      aConfig->windowWidth = 0;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_VERTICAL;
+@@ -410,7 +410,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+     aConfig->macAddr[5] = rand();
+ 
+     memset(&aConfig->osNvramConfig, 0, sizeof(NVRAMConfig));
+-    wcscpy((wchar_t*)aConfig->osNvramConfig.ncd.owner.nickname.str, L"Player");
++    // The nickname is UTF-16 (u16), not wchar_t: wcscpy writes 4-byte wchars on Linux/macOS and overruns the buffer.
++    { static const char nick[] = "Player"; int ni; for (ni = 0; nick[ni]; ni++) aConfig->osNvramConfig.ncd.owner.nickname.str[ni] = (u16)nick[ni]; aConfig->osNvramConfig.ncd.owner.nickname.length = (u16)ni; }
+     aConfig->osNvramConfig.ncd.option.input_nickname = TRUE;
+     aConfig->osNvramConfig.ncd.option.input_favoriteColor = TRUE;
+     aConfig->osNvramConfig.ncd.option.input_language = TRUE;
 diff --git a/libraries/sim/src/g3_handler.cpp b/libraries/sim/src/g3_handler.cpp
 index e638798..550c270 100644
 --- a/libraries/sim/src/g3_handler.cpp
@@ -1233,7 +1354,7 @@ index e638798..550c270 100644
      s_G3numInPoly = 0;
      s_G3drawPoly = 0;
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..6b39032 100644
+index 2d852bf..7bf88ce 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -18,6 +18,7 @@ libsim_srcs = files(
@@ -1244,10 +1365,13 @@ index 2d852bf..6b39032 100644
      'sim_g3_c_bridge.cpp',
      'sim_g3_CommandHandler.cpp',
      'sim_g3_CommandProcessor.cpp',
-@@ -31,6 +32,7 @@ libsim_srcs = files(
+@@ -31,6 +32,10 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
++    'sim_headless.cpp',
++    'sim_headless_control.cpp',
++    'sim_headless_watchdog.cpp',
 +    'sim_helpers.cpp',
      'sim_main.cpp',
      'sim_net.cpp',
@@ -1701,6 +1825,48 @@ index 0766447..2261dcc 100644
    // Zero out some registers
    s_reg_G2_BG0CNT = 0;
    s_reg_G2_BG1CNT = 0;
+diff --git a/libraries/sim/src/sim_assert.c b/libraries/sim/src/sim_assert.c
+index 4b2cbc7..8407945 100644
+--- a/libraries/sim/src/sim_assert.c
++++ b/libraries/sim/src/sim_assert.c
+@@ -1,6 +1,7 @@
+ #include <stdarg.h>
+ #include <stdio.h>
+ #include "simulator/assert.h"
++#include "simulator/sim_headless.h"
+ 
+ #ifdef SDK_BUILD_LINUX
+ #include <signal.h>
+@@ -11,6 +12,9 @@
+ #endif
+ 
+ void SIM_handleAssertionFailure(const char* filename, unsigned int lineno, const char* exp) {
++	if (SIM_Headless_Enabled() || SIM_Control_Enabled()) {
++		SIM_Headless_AssertFail(filename, (int)lineno, exp);   // backtrace + exit 134
++	}
+ 	printf("[SIM ASSERTION FAILED] %s:%d\n", filename, lineno);
+ 	if(exp[0] != 0) {
+ 		printf("%s\n", exp);
+@@ -19,12 +23,16 @@ void SIM_handleAssertionFailure(const char* filename, unsigned int lineno, const
+ }
+ 
+ void SIM_handleAssertionFailureMsg(const char* filename, unsigned int lineno, const char* fmt, ...) {
+-	printf("[SIM ASSERTION FAILED] %s:%d\n", filename, lineno);
++	char buf[1024];
+ 	va_list vlist;
+ 	va_start(vlist, fmt);
+-	vprintf(fmt, vlist);
++	vsnprintf(buf, sizeof buf, fmt, vlist);
+ 	va_end(vlist);
+-	printf("\n");
++	if (SIM_Headless_Enabled() || SIM_Control_Enabled()) {
++		SIM_Headless_AssertFail(filename, (int)lineno, buf);
++	}
++	printf("[SIM ASSERTION FAILED] %s:%d\n", filename, lineno);
++	printf("%s\n", buf);
+ 	SIM_debugBreak();
+ }
+ 
 diff --git a/libraries/sim/src/sim_g2.cpp b/libraries/sim/src/sim_g2.cpp
 index b67717b..cca40ac 100644
 --- a/libraries/sim/src/sim_g2.cpp
@@ -2531,12 +2697,629 @@ index 2c40e59..d13175a 100644
  // Generic button to open another GUI applet
  void AppButton(const char * label, bool * state, void (*initFunc)(void), void (*appFunc)(bool *)) {
      if(ImGui::Button(label, sButtonSize)) {
+diff --git a/libraries/sim/src/sim_headless.cpp b/libraries/sim/src/sim_headless.cpp
+new file mode 100644
+index 0000000..b2a430d
+--- /dev/null
++++ b/libraries/sim/src/sim_headless.cpp
+@@ -0,0 +1,166 @@
++// Headless / deterministic mode for PC builds (docs/headless_protocol.md).
++// Off unless SIM_HEADLESS / SIM_CONTROL / SIM_FIXED_RTC / SIM_SEED / SIM_SAVE_PATH is set.
++#include "simulator/sim_headless.h"
++
++#include <SDL2/SDL.h>
++#include <simulator/sim_opengl.h>
++
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <ctime>
++#include <string>
++#include <vector>
++
++#include <unistd.h>
++
++extern "C" void SIM_Headless_ControlFrame(void);   // sim_headless_control.cpp
++extern "C" void SIM_Headless_WatchdogFrame(void);  // sim_headless_watchdog.cpp
++
++static int s_headless = 0;
++static int s_control = 0;
++static std::string s_savePath;
++static long s_seed = -1;
++static unsigned long long s_frame = 0;
++static int s_replyFd = -1;   // real stdout in control mode (fd 1 is redirected to stderr)
++
++// Fixed RTC: base instant broken down, plus days-from-civil for weekday math.
++static int s_fixedSet = 0;
++static long long s_fixedDays = 0;   // days since 1970-01-01
++static long long s_fixedSecsOfDay = 0;
++static int s_fixedWeekBase = 0;     // weekday of the base date (0 = Sunday)
++
++static long long DaysFromCivil(int y, int m, int d) {
++    y -= m <= 2;
++    long long era = (y >= 0 ? y : y - 399) / 400;
++    long long yoe = y - era * 400;
++    long long doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
++    long long doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
++    return era * 146097 + doe - 719468;
++}
++
++static void CivilFromDays(long long z, int *yy, int *mm, int *dd) {
++    z += 719468;
++    long long era = (z >= 0 ? z : z - 146096) / 146097;
++    long long doe = z - era * 146097;
++    long long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
++    long long y = yoe + era * 400;
++    long long doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
++    long long mp = (5 * doy + 2) / 153;
++    *dd = (int)(doy - (153 * mp + 2) / 5 + 1);
++    *mm = (int)(mp + (mp < 10 ? 3 : -9));
++    *yy = (int)(y + (*mm <= 2));
++}
++
++extern "C" void SIM_Headless_Init(void) {
++    if (s_headless || s_control) return;
++    const char *e;
++    e = getenv("SIM_HEADLESS"); s_headless = (e && atoi(e)) ? 1 : 0;
++    e = getenv("SIM_CONTROL"); s_control = (e && strcmp(e, "stdio") == 0) ? 1 : 0;
++    if (s_control) s_headless = 1;
++    e = getenv("SIM_SAVE_PATH"); if (e && *e) s_savePath = e;
++    e = getenv("SIM_SEED"); if (e && *e) s_seed = atol(e);
++    e = getenv("SIM_FIXED_RTC");
++    if (e && *e) {
++        int Y, M, D, h, mi, s;
++        if (sscanf(e, "%d-%d-%dT%d:%d:%d", &Y, &M, &D, &h, &mi, &s) == 6) {
++            s_fixedDays = DaysFromCivil(Y, M, D);
++            s_fixedSecsOfDay = h * 3600LL + mi * 60LL + s;
++            s_fixedWeekBase = (int)((s_fixedDays + 4) % 7);   // 1970-01-01 was a Thursday
++            if (s_fixedWeekBase < 0) s_fixedWeekBase += 7;
++            s_fixedSet = 1;
++        } else {
++            fprintf(stderr, "SIM_FIXED_RTC: expected YYYY-MM-DDTHH:MM:SS, got '%s'\n", e);
++        }
++    }
++    if (s_headless) {
++        // No audio device and no visible window; rendering still happens (offscreen/hidden).
++        setenv("SDL_AUDIODRIVER", "dummy", 0);
++#if defined(__linux__)
++        if (!getenv("DISPLAY")) setenv("SDL_VIDEODRIVER", "offscreen", 0);
++#endif
++    }
++    if (s_control) {
++        // Protocol replies go to the real stdout; everything else (game printf) goes to stderr.
++        // The reply fd survives execv restarts (save import) via SIM_CONTROL_REPLY_FD.
++        const char *rfd = getenv("SIM_CONTROL_REPLY_FD");
++        fflush(stdout);
++        if (rfd && atoi(rfd) > 2) {
++            s_replyFd = atoi(rfd);
++        } else {
++            s_replyFd = dup(STDOUT_FILENO);
++            char buf[16]; snprintf(buf, sizeof buf, "%d", s_replyFd);
++            setenv("SIM_CONTROL_REPLY_FD", buf, 1);
++        }
++        dup2(STDERR_FILENO, STDOUT_FILENO);
++    }
++    if (s_headless || s_fixedSet || s_seed >= 0)
++        fprintf(stderr, "SIM headless=%d control=%d seed=%ld fixed_rtc=%d save_path=%s\n",
++                s_headless, s_control, s_seed, s_fixedSet, s_savePath.empty() ? "save.bin" : s_savePath.c_str());
++    SIM_Headless_InstallCrashHandlers();
++}
++
++extern "C" int SIM_Headless_Enabled(void) { return s_headless; }
++extern "C" int SIM_Control_Enabled(void) { return s_control; }
++extern "C" long SIM_Headless_Seed(void) { return s_seed; }
++extern "C" unsigned long long SIM_Headless_FrameCount(void) { return s_frame; }
++
++extern "C" const char *SIM_GetSaveBinPath(void) {
++    return s_savePath.empty() ? "save.bin" : s_savePath.c_str();
++}
++
++extern "C" int SIM_Headless_GetFixedRTC(int *year, int *month, int *day, int *week, int *hour, int *minute, int *second) {
++    if (!s_fixedSet) return 0;
++    // Advance exactly 1/60 s per frame: whole seconds = frame / 60.
++    long long total = s_fixedSecsOfDay + (long long)(s_frame / 60);
++    long long days = s_fixedDays + total / 86400;
++    long long sod = total % 86400;
++    if (sod < 0) { sod += 86400; days -= 1; }
++    int Y, M, D;
++    CivilFromDays(days, &Y, &M, &D);
++    *year = Y - 2000; *month = M; *day = D;
++    long long wd = (days + 4) % 7; if (wd < 0) wd += 7;
++    *week = (int)wd;
++    *hour = (int)(sod / 3600); *minute = (int)((sod % 3600) / 60); *second = (int)(sod % 60);
++    return 1;
++}
++
++extern "C" int SIM_Headless_Screenshot(const char *path) {
++    extern SDL_Window *SIM_GetSDLWindow(void);
++    SDL_Window *window = SIM_GetSDLWindow();
++    if (!window || !path) return 0;
++    int w = 0, h = 0;
++    SDL_GL_GetDrawableSize(window, &w, &h);
++    if (w <= 0 || h <= 0) { w = 512; h = 768; }
++    std::vector<unsigned char> px((size_t)w * h * 4);
++    glReadBuffer(GL_BACK);
++    glPixelStorei(GL_PACK_ALIGNMENT, 1);
++    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
++    std::vector<unsigned char> flipped(px.size());
++    for (int y = 0; y < h; y++) memcpy(&flipped[(size_t)y * w * 4], &px[(size_t)(h - 1 - y) * w * 4], (size_t)w * 4);
++    SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormatFrom(flipped.data(), w, h, 32, w * 4, SDL_PIXELFORMAT_RGBA32);
++    if (!surf) return 0;
++    int ok = SDL_SaveBMP(surf, path);
++    SDL_FreeSurface(surf);
++    return ok == 0;
++}
++
++// Reply writer for the control protocol (defined here so early commands can use it).
++extern "C" void SIM_Headless_Reply(const char *line) {
++    int fd = s_replyFd >= 0 ? s_replyFd : STDOUT_FILENO;
++    ssize_t ignored = write(fd, line, strlen(line));
++    ignored = write(fd, "\n", 1);
++    (void)ignored;
++}
++
++extern "C" void SIM_Headless_FrameHook(void) {
++    s_frame++;
++    // SIM_HEADLESS_SHOT_AT=<render frame>:<path> - one screenshot at an exact render frame
++    // (the SIM_DEBUG_* shot counter can skip frames; this one cannot).
++    { static long long shotAt = -2; static const char *shotPath = nullptr;
++      if (shotAt == -2) { const char *e = getenv("SIM_HEADLESS_SHOT_AT"); shotAt = -1;
++        if (e && strchr(e, ':')) { shotAt = atoll(e); shotPath = strchr(e, ':') + 1; } }
++      if (shotAt >= 0 && (long long)s_frame == shotAt && shotPath) { int ok = SIM_Headless_Screenshot(shotPath); fprintf(stderr, "SIM_HEADLESS_SHOT_AT frame=%lld ok=%d path=%s\n", shotAt, ok, shotPath); } }
++    SIM_Headless_ControlFrame();   // sim_headless_control.cpp; no-op unless SIM_CONTROL=stdio
++    SIM_Headless_WatchdogFrame();  // sim_headless_watchdog.cpp; no-op unless armed
++}
+diff --git a/libraries/sim/src/sim_headless_control.cpp b/libraries/sim/src/sim_headless_control.cpp
+new file mode 100644
+index 0000000..085796b
+--- /dev/null
++++ b/libraries/sim/src/sim_headless_control.cpp
+@@ -0,0 +1,255 @@
++// SIM_CONTROL=stdio lockstep protocol (docs/headless_protocol.md).
++// The game does not advance until told to: this runs at the end of each rendered frame
++// (from SIM_DebugFrame, before the swap) and blocks reading commands whenever no
++// frame budget remains. Each command is one line of JSON on stdin; each reply is one
++// line of JSON on the real stdout (fd 1 is redirected to stderr in control mode).
++#include "simulator/sim_headless.h"
++#include "simulator/sim_helpers.hpp"
++#include <simulator/sim_opengl.h>
++
++#include <nitro/hw/X86/mmap_shared.h>
++#include "simulator/simvariables.h"
++
++#include <chrono>
++
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <string>
++
++#include <sys/select.h>
++#include <unistd.h>
++
++extern "C" void SIM_Headless_Reply(const char *line);
++extern "C" void SIM_Headless_WatchdogTick(void);   // sim_headless_watchdog.cpp
++
++// Game-side handlers (src/port/headless_game.c); weak definitions so the
++// simulator links without the game, and the game's strong definitions (in
++// the main executable) override these. Weak *undefined* symbols link on ELF
++// but not with Apple ld, hence definitions here rather than externs.
++extern "C" __attribute__((weak)) int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
++    (void)line; (void)reply; (void)cap; return 0;
++}
++extern "C" __attribute__((weak)) int HeadlessGame_State(const char *line, char *reply, size_t cap) {
++    (void)line; (void)reply; (void)cap; return 0;
++}
++// `talk` asks for an A press over the next frames after its reply.
++extern "C" __attribute__((weak)) int HeadlessGame_TakeInjectedPress(unsigned *mask, unsigned *xy, int *frames) {
++    (void)mask; (void)xy; (void)frames; return 0;
++}
++
++static long long s_budget = 0;       // frames still allowed to run
++static int s_pendingReply = 0;       // a step/press/touch finished; reply when it completes
++static unsigned s_heldMask = 0, s_heldXY = 0;
++static int s_touchActive = 0, s_touchX = 0, s_touchY = 0;
++
++// ---- minimal JSON extraction (flat objects; string/int/bool/array-of-strings values) ----
++static bool JsonFind(const std::string &s, const char *key, size_t *pos) {
++    std::string pat = std::string("\"") + key + "\"";
++    size_t p = s.find(pat);
++    if (p == std::string::npos) return false;
++    p = s.find(':', p + pat.size());
++    if (p == std::string::npos) return false;
++    *pos = p + 1;
++    return true;
++}
++static bool JsonString(const std::string &s, const char *key, std::string *out) {
++    size_t p; if (!JsonFind(s, key, &p)) return false;
++    while (p < s.size() && (s[p] == ' ' || s[p] == '\t')) p++;
++    if (p >= s.size() || s[p] != '"') return false;
++    size_t e = s.find('"', p + 1);
++    if (e == std::string::npos) return false;
++    *out = s.substr(p + 1, e - p - 1);
++    return true;
++}
++static bool JsonInt(const std::string &s, const char *key, long long *out) {
++    size_t p; if (!JsonFind(s, key, &p)) return false;
++    *out = strtoll(s.c_str() + p, nullptr, 10);
++    return true;
++}
++static bool JsonBool(const std::string &s, const char *key, bool *out) {
++    size_t p; if (!JsonFind(s, key, &p)) return false;
++    while (p < s.size() && (s[p] == ' ' || s[p] == '\t')) p++;
++    *out = s.compare(p, 4, "true") == 0;
++    return true;
++}
++
++static void ReplyOk(const char *extra = nullptr) {
++    char buf[512];
++    if (extra) snprintf(buf, sizeof buf, "{\"ok\":true,\"frame\":%llu,%s}", SIM_Headless_FrameCount(), extra);
++    else snprintf(buf, sizeof buf, "{\"ok\":true,\"frame\":%llu}", SIM_Headless_FrameCount());
++    SIM_Headless_Reply(buf);
++}
++static void ReplyError(const char *msg) {
++    char buf[512];
++    snprintf(buf, sizeof buf, "{\"ok\":false,\"error\":\"%s\",\"frame\":%llu}", msg, SIM_Headless_FrameCount());
++    SIM_Headless_Reply(buf);
++}
++
++static const struct { const char *name; unsigned bit; int isXY; } kKeys[] = {
++    {"A", 1u << 0, 0}, {"B", 1u << 1, 0}, {"SELECT", 1u << 2, 0}, {"START", 1u << 3, 0},
++    {"RIGHT", 1u << 4, 0}, {"LEFT", 1u << 5, 0}, {"UP", 1u << 6, 0}, {"DOWN", 1u << 7, 0},
++    {"R", 1u << 8, 0}, {"L", 1u << 9, 0}, {"X", 1u << 10, 1}, {"Y", 1u << 11, 1},
++};
++
++static void ApplyHeld(void) {
++    // Pad registers are active low. Release everything we might hold, then press the held set.
++    static unsigned prevMask = 0, prevXY = 0;
++    s_reg_PAD_KEYINPUT = (u16)((s_reg_PAD_KEYINPUT | prevMask) & ~s_heldMask);
++    *(vu16 *)HW_BUTTON_XY_BUF = (u16)((*(vu16 *)HW_BUTTON_XY_BUF | prevXY) & ~s_heldXY);
++    prevMask = s_heldMask; prevXY = s_heldXY;
++    if (s_touchActive) {
++        s_tpData.x = (u16)s_touchX; s_tpData.y = (u16)s_touchY;
++        s_tpData.touch = 1; s_tpData.validity = 0;
++    }
++}
++static void ClearHeld(void) {
++    s_heldMask = 0; s_heldXY = 0;
++    s_touchActive = 0;
++    ApplyHeld();
++    s_tpData.touch = 0; s_tpData.validity = 0;
++}
++
++// Read one line from stdin, waiting in slices so a future watchdog can fire while blocked.
++// Returns false on EOF.
++static bool ReadLine(std::string *out) {
++    out->clear();
++    for (;;) {
++        fd_set rf; FD_ZERO(&rf); FD_SET(STDIN_FILENO, &rf);
++        struct timeval tv {0, 100000};
++        int r = select(STDIN_FILENO + 1, &rf, nullptr, nullptr, &tv);
++        if (r < 0) return false;
++        if (r == 0) { SIM_Headless_WatchdogTick(); continue; }
++        char c;
++        ssize_t n = read(STDIN_FILENO, &c, 1);
++        if (n <= 0) return false;
++        if (c == '\n') return true;
++        out->push_back(c);
++        if (out->size() > 65536) return true;   // overlong line: process what we have
++    }
++}
++
++static void HandleState(const std::string &line) {
++    char reply[16384];
++    if (HeadlessGame_State && HeadlessGame_State(line.c_str(), reply, sizeof reply)) {
++        SIM_Headless_Reply(reply);
++        return;
++    }
++    char buf[256];
++    snprintf(buf, sizeof buf, "{\"ok\":true,\"frame\":%llu,\"app\":\"unknown\"}", SIM_Headless_FrameCount());
++    SIM_Headless_Reply(buf);
++}
++
++// Process one command line. Returns true when a frame budget was granted (game may run).
++static bool HandleCommand(const std::string &line) {
++    std::string cmd;
++    if (!JsonString(line, "cmd", &cmd)) { ReplyError("missing cmd"); return false; }
++
++    if (cmd == "step" || cmd == "press" || cmd == "touch") {
++        SIM_Headless_WatchdogInput();
++        long long frames = 1;
++        JsonInt(line, "frames", &frames);
++        if (frames < 0) frames = 0;
++        ClearHeld();
++        if (cmd == "press") {
++            // keys: ["A","UP",...]
++            size_t p;
++            if (JsonFind(line, "keys", &p)) {
++                size_t e = line.find(']', p);
++                std::string arr = line.substr(p, e == std::string::npos ? std::string::npos : e - p);
++                for (auto &k : kKeys)
++                    if (arr.find(std::string("\"") + k.name + "\"") != std::string::npos) {
++                        if (k.isXY) s_heldXY |= k.bit; else s_heldMask |= k.bit;
++                    }
++            }
++        } else if (cmd == "touch") {
++            long long x = 0, y = 0;
++            JsonInt(line, "x", &x); JsonInt(line, "y", &y);
++            s_touchActive = 1; s_touchX = (int)x; s_touchY = (int)y;
++        }
++        s_budget = frames;
++        s_pendingReply = 1;
++        ApplyHeld();
++        if (s_budget == 0) { s_pendingReply = 0; ReplyOk(); return false; }
++        return true;
++    }
++    if (cmd == "screenshot") {
++        std::string path;
++        if (!JsonString(line, "path", &path)) { ReplyError("screenshot needs path"); return false; }
++        if (SIM_Headless_Screenshot(path.c_str())) ReplyOk();
++        else ReplyError("screenshot failed");
++        return false;
++    }
++    if (cmd == "state") { HandleState(line); return false; }
++    if (cmd == "import_save") {
++        std::string path;
++        if (!JsonString(line, "path", &path)) { ReplyError("import_save needs path"); return false; }
++        ReplyOk("\"restarting\":true");
++        SIM::Helpers::ImportSave(path);   // restarts the process (fds survive execv)
++        s_budget = 30;                    // let Poll() perform the restart
++        return true;
++    }
++    if (cmd == "quit") {
++        ReplyOk();
++        fflush(nullptr);
++        _exit(0);
++    }
++    // Game-side commands (warp, set_var, set_flag, give_item, talk, ...).
++    {
++        char reply[4096];
++        if (HeadlessGame_Command && HeadlessGame_Command(line.c_str(), reply, sizeof reply)) {
++            SIM_Headless_Reply(reply);
++            unsigned mask = 0, xy = 0; int frames = 0;
++            if (HeadlessGame_TakeInjectedPress(&mask, &xy, &frames) && frames > 0) {
++                ClearHeld();
++                s_heldMask = mask; s_heldXY = xy;
++                s_budget = frames;
++                ApplyHeld();
++                return true;   // run the injected press frames (no second reply)
++            }
++            return false;
++        }
++    }
++    ReplyError("unknown cmd");
++    return false;
++}
++
++// Once a second: hash a downsampled centre patch of the frame plus the state reply,
++// for the watchdog's soft-freeze check. Cheap: 48x32 readback, once a second.
++static void SampleForWatchdog(void) {
++    using namespace std::chrono;
++    static long long lastMs = 0;
++    long long now = duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
++    if (now - lastMs < 1000) return;
++    lastMs = now;
++    unsigned char px[48 * 32 * 4];
++    glReadBuffer(GL_BACK);
++    glPixelStorei(GL_PACK_ALIGNMENT, 1);
++    glReadPixels(112, 176, 48, 32, GL_RGBA, GL_UNSIGNED_BYTE, px);   // centre of the 512x768 frame
++    unsigned long long hash = 1469598103934665603ULL;
++    for (size_t i = 0; i < sizeof px; i += 16) { hash ^= px[i]; hash *= 1099511628211ULL; }
++    char state[4096];
++    state[0] = 0;
++    if (HeadlessGame_State) HeadlessGame_State("{\"cmd\":\"state\"}", state, sizeof state);
++    for (const char *p = state; *p; p++) { hash ^= (unsigned char)*p; hash *= 1099511628211ULL; }
++    SIM_Headless_WatchdogSample(hash);
++}
++
++extern "C" void SIM_Headless_ControlFrame(void) {
++    if (!SIM_Control_Enabled()) return;
++    SampleForWatchdog();
++    if (s_budget > 0) {
++        s_budget--;
++        ApplyHeld();
++        if (s_budget > 0) return;
++        // Budget just finished: fall through, reply, and block for the next command.
++    }
++    if (s_pendingReply) { s_pendingReply = 0; ReplyOk(); }
++    ClearHeld();
++    std::string line;
++    for (;;) {
++        if (!ReadLine(&line)) { fflush(nullptr); _exit(0); }   // stdin EOF: quit
++        if (line.empty()) continue;
++        if (HandleCommand(line)) return;   // frames granted: let the game run
++    }
++}
+diff --git a/libraries/sim/src/sim_headless_watchdog.cpp b/libraries/sim/src/sim_headless_watchdog.cpp
+new file mode 100644
+index 0000000..7bfcd2e
+--- /dev/null
++++ b/libraries/sim/src/sim_headless_watchdog.cpp
+@@ -0,0 +1,178 @@
++// Assert / crash reporting and the watchdog (docs/headless_protocol.md, step 4).
++// Headless: GF_ASSERT and fatal signals print file:line, message and a symbolized
++// backtrace to stderr, then exit 134. The watchdog exits 124 with a state dump when
++// no frame completes for SIM_WATCHDOG_SEC seconds (default 30 in headless mode).
++// Interactive (non-headless): assert info is appended to log.txt and shown in a
++// message box, then the process exits 134 instead of hanging silently.
++#include "simulator/sim_headless.h"
++
++#include <SDL2/SDL.h>
++
++#include <atomic>
++#include <chrono>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <thread>
++
++#include <csignal>
++#include <unistd.h>
++#if defined(__linux__) || defined(__APPLE__)
++#include <execinfo.h>
++#endif
++
++// Weak definition lives in sim_headless_control.cpp; overridden by the game.
++extern "C" int HeadlessGame_State(const char *line, char *reply, size_t cap);
++
++static std::atomic<long long> s_lastFrameMs{0};
++static std::atomic<bool> s_waitingForInput{false};
++static std::atomic<bool> s_armed{false};
++static long long s_timeoutMs = 30000;
++static bool s_started = false;
++
++static long long NowMs();
++
++// Soft-freeze check: combined framebuffer+state hash, sampled by the control layer.
++static std::atomic<unsigned long long> s_lastHash{0};
++static std::atomic<long long> s_lastHashChangeMs{0};
++static std::atomic<long long> s_lastInputMs{0};
++
++extern "C" void SIM_Headless_WatchdogInput(void) {
++    s_lastInputMs.store(NowMs());
++}
++
++extern "C" void SIM_Headless_WatchdogSample(unsigned long long hash) {
++    if (hash != s_lastHash.load()) {
++        s_lastHash.store(hash);
++        s_lastHashChangeMs.store(NowMs());
++    } else if (s_lastHashChangeMs.load() == 0) {
++        s_lastHashChangeMs.store(NowMs());
++    }
++}
++
++static long long NowMs() {
++    using namespace std::chrono;
++    return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
++}
++
++static void PrintBacktrace() {
++#if defined(__linux__) || defined(__APPLE__)
++    void *frames[64];
++    int n = backtrace(frames, 64);
++    if (n > 0) backtrace_symbols_fd(frames, n, STDERR_FILENO);
++#endif
++}
++extern "C" void SIM_Headless_DumpState(const char *reason) {
++    char buf[16384];
++    buf[0] = 0;
++    if (HeadlessGame_State) HeadlessGame_State("{\"cmd\":\"state\"}", buf, sizeof buf);
++    fprintf(stderr, "SIM state dump (%s): frame=%llu state=%s\n",
++            reason ? reason : "?", SIM_Headless_FrameCount(), buf[0] ? buf : "{}");
++    fflush(stderr);
++}
++
++extern "C" void SIM_Headless_AssertFail(const char *file, int line, const char *msg) {
++    if (SIM_Headless_Enabled() || SIM_Control_Enabled()) {
++        fprintf(stderr, "GF_ASSERT %s:%d: %s\n", file ? file : "?", line, msg ? msg : "");
++        SIM_Headless_DumpState("assert");
++        PrintBacktrace();
++        fflush(stderr);
++        _exit(134);
++    }
++    // Interactive: log.txt + message box instead of a silent hang.
++    char text[2048];
++    snprintf(text, sizeof text, "Assertion failed: %s:%d: %s", file ? file : "?", line, msg ? msg : "");
++    if (FILE *f = fopen("log.txt", "a")) { fprintf(f, "%s\n", text); fclose(f); }
++    fprintf(stderr, "%s\n", text);
++    PrintBacktrace();
++    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Dazzling Platinum", text, nullptr);
++    fflush(nullptr);
++    _exit(134);
++}
++
++// ---- watchdog ----
++
++static void WatchdogThread() {
++    for (;;) {
++        std::this_thread::sleep_for(std::chrono::milliseconds(200));
++        if (!s_armed.load()) continue;
++        if (s_waitingForInput.load()) continue;   // lockstep idle: legitimately blocked on stdin
++        long long last = s_lastFrameMs.load();
++        if (last == 0) continue;
++        if (NowMs() - last > s_timeoutMs) {
++            fprintf(stderr, "SIM watchdog: no frame completed for %lld ms (limit %lld ms)\n",
++                    NowMs() - last, s_timeoutMs);
++            SIM_Headless_DumpState("watchdog");
++            PrintBacktrace();
++            fflush(stderr);
++            _exit(124);
++        }
++        // Soft freeze: inputs are being sent, frames render, but screen+state never change.
++        long long lastInput = s_lastInputMs.load();
++        long long lastChange = s_lastHashChangeMs.load();
++        if (SIM_Control_Enabled() && lastInput > 0 && lastChange > 0 &&
++            lastInput > lastChange && NowMs() - lastChange > s_timeoutMs) {
++            fprintf(stderr, "SIM watchdog: screen and state frozen for %lld ms while inputs are being sent (limit %lld ms)\n",
++                    NowMs() - lastChange, s_timeoutMs);
++            SIM_Headless_DumpState("watchdog-soft-freeze");
++            PrintBacktrace();
++            fflush(stderr);
++            _exit(124);
++        }
++    }
++}
++
++static void StartWatchdogOnce() {
++    if (s_started) return;
++    s_started = true;
++    const char *e = getenv("SIM_WATCHDOG_SEC");
++    if (e) s_timeoutMs = atoll(e) * 1000;
++    if (s_timeoutMs < 0) s_timeoutMs = 0;
++    bool on = (SIM_Headless_Enabled() || SIM_Control_Enabled()) && s_timeoutMs > 0;
++    if (e && atoll(e) == 0) on = false;   // SIM_WATCHDOG_SEC=0 disables
++    s_armed.store(on);
++    s_lastFrameMs.store(NowMs());
++    if (on) {
++        std::thread(WatchdogThread).detach();
++        fprintf(stderr, "SIM watchdog: armed, %lld ms\n", s_timeoutMs);
++    }
++}
++
++extern "C" void SIM_Headless_WatchdogFrame(void) {
++    StartWatchdogOnce();
++    s_waitingForInput.store(false);
++    s_lastFrameMs.store(NowMs());
++}
++
++extern "C" void SIM_Headless_WatchdogTick(void) {
++    StartWatchdogOnce();
++    // Blocked reading commands: the game is idle by design, not frozen.
++    s_waitingForInput.store(true);
++}
++
++// ---- signal handlers (best effort) ----
++
++static void CrashHandler(int sig) {
++    const char *name = sig == SIGSEGV ? "SIGSEGV" : sig == SIGBUS ? "SIGBUS" : sig == SIGABRT ? "SIGABRT" : "signal";
++    char buf[128];
++    int n = snprintf(buf, sizeof buf, "SIM crash: %s (%d) at frame=%llu\n", name, sig, SIM_Headless_FrameCount());
++    if (n > 0) { ssize_t ignored = write(STDERR_FILENO, buf, (size_t)n); (void)ignored; }
++#if defined(__linux__) || defined(__APPLE__)
++    void *frames[48];
++    int count = backtrace(frames, 48);
++    if (count > 0) backtrace_symbols_fd(frames, count, STDERR_FILENO);
++#endif
++    _exit(134);
++}
++
++extern "C" void SIM_Headless_InstallCrashHandlers(void) {
++    if (!SIM_Headless_Enabled() && !SIM_Control_Enabled()) return;
++    struct sigaction sa;
++    memset(&sa, 0, sizeof sa);
++    sa.sa_handler = CrashHandler;
++    sigemptyset(&sa.sa_mask);
++    sa.sa_flags = 0;
++    sigaction(SIGSEGV, &sa, nullptr);
++    sigaction(SIGBUS, &sa, nullptr);
++    sigaction(SIGABRT, &sa, nullptr);
++}
 diff --git a/libraries/sim/src/sim_helpers.cpp b/libraries/sim/src/sim_helpers.cpp
 new file mode 100644
-index 0000000..74d53a8
+index 0000000..ad4cb80
 --- /dev/null
 +++ b/libraries/sim/src/sim_helpers.cpp
-@@ -0,0 +1,353 @@
+@@ -0,0 +1,360 @@
 +// Player helpers for PC builds: a fast-forward badge and short messages drawn over the game, and save import/export.
 +//
 +// Saves: the game reads and writes save.bin in its working directory, a raw image of the DS cartridge's 512 KB flash, so it is
@@ -2571,8 +3354,15 @@ index 0000000..74d53a8
 +
 +namespace SIM::Helpers {
 +
-+static const char * kSaveFile = "save.bin";
-+static const char * kBackupDir = "save-backups";
++#include "simulator/sim_headless.h"
++// SIM_SAVE_PATH (SIM_GetSaveBinPath) redirects the save; backups go in save-backups/ next to it.
++static const char * kSaveFileFallback = "save.bin";
++static std::string SaveFile() { return SIM_GetSaveBinPath(); }
++static std::string BackupDir() {
++    std::string p = SaveFile();
++    size_t slash = p.find_last_of('/');
++    return (slash == std::string::npos ? std::string("save-backups") : p.substr(0, slash) + "/save-backups");
++}
 +static const size_t kFlashSize = 512 * 1024;
 +static const unsigned kSectorSignature = 0x20060623;   // Gen 4 save block footer signature
 +static const char kDsvCookie[] = "|-DESMUME SAVE-|";
@@ -2764,7 +3554,7 @@ index 0000000..74d53a8
 +
 +static void DoExport(std::string path) {
 +    std::vector<unsigned char> data;
-+    if (!ReadFile(kSaveFile, data, 4 * kFlashSize) || data.empty()) {
++    if (!ReadFile(SaveFile(), data, 4 * kFlashSize) || data.empty()) {
 +        Toast("No save yet: save in the game first");
 +        return;
 +    }
@@ -2839,17 +3629,17 @@ index 0000000..74d53a8
 +    // Keep the current save
 +    std::vector<unsigned char> current;
 +    bool blank = true;   // the game creates an all-zero save.bin before anything is saved
-+    if (ReadFile(kSaveFile, current, 4 * kFlashSize))
++    if (ReadFile(SaveFile(), current, 4 * kFlashSize))
 +        for (unsigned char b : current) if (b != 0 && b != 0xFF) { blank = false; break; }
 +    if (!blank) {
-+        mkdir(kBackupDir, 0755);
-+        std::string backup = std::string(kBackupDir) + "/save-" + Timestamp() + ".sav";
++        mkdir(BackupDir().c_str(), 0755);
++        std::string backup = BackupDir() + "/save-" + Timestamp() + ".sav";
 +        if (!WriteFile(backup, current)) {
 +            Toast("Could not back up the current save; nothing imported");
 +            return;
 +        }
 +    }
-+    if (!WriteFile(kSaveFile, data)) {
++    if (!WriteFile(SaveFile(), data)) {
 +        Toast(std::string("Could not write the save: ") + strerror(errno));
 +        return;
 +    }
@@ -2891,7 +3681,7 @@ index 0000000..74d53a8
 +
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..263cfc4 100644
+index 910d7da..fb7de22 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -2899,11 +3689,12 @@ index 910d7da..263cfc4 100644
  extern "C" void NitroMain();
  extern "C" int NitroSpMain(void *arg);
  #define SDL_MAIN_HANDLED
-@@ -33,11 +34,19 @@ extern "C" int NitroSpMain(void *arg);
+@@ -33,11 +34,20 @@ extern "C" int NitroSpMain(void *arg);
  #include <simulator/simvariables.h>
  #include <simulator/sim_g3_CommandHandler.hpp>
  #include <simulator/sim_gui.hpp>
 +#include <simulator/sim_helpers.hpp>
++#include <simulator/sim_headless.h>
  #include <simulator/sim_RenderContextManager.hpp>
  #include <simulator/sim_NitroMainThread.hpp>
  
@@ -2919,7 +3710,7 @@ index 910d7da..263cfc4 100644
  
  #include "nds-extract.hpp"
  
-@@ -65,6 +74,7 @@ extern "C" int NitroSpMain(void *arg);
+@@ -65,6 +75,7 @@ extern "C" int NitroSpMain(void *arg);
  #endif
  
  #include "sim_g2.h"
@@ -2927,7 +3718,7 @@ index 910d7da..263cfc4 100644
  #include "git_info.h"
  
  // Simulator configuration
-@@ -96,6 +106,20 @@ static struct timespec s_SIM_lastFrameEnd;
+@@ -96,6 +107,20 @@ static struct timespec s_SIM_lastFrameEnd;
  static u64 sRenderFrameTime;
  static u64 sFullFrameTime;
  
@@ -2948,7 +3739,7 @@ index 910d7da..263cfc4 100644
  static constexpr auto SteamDeckWidth = 1280;
  static constexpr auto SteamDeckHeight = 800;
  
-@@ -178,6 +202,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +203,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -2959,7 +3750,7 @@ index 910d7da..263cfc4 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -298,6 +326,16 @@ void SIM_SetInternalResolution(int internalRes) {
+@@ -298,6 +327,16 @@ void SIM_SetInternalResolution(int internalRes) {
        SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
  }
  
@@ -2976,7 +3767,7 @@ index 910d7da..263cfc4 100644
  static bool sChangeInternalResAfterRender = false;
  static int sPendingInternalRes = 1;
  
-@@ -315,7 +353,13 @@ void *SIM_RenderInit(void *arg) {
+@@ -315,7 +354,13 @@ void *SIM_RenderInit(void *arg) {
    SIM_Audio_Init(44100);
  
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -2990,7 +3781,16 @@ index 910d7da..263cfc4 100644
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-@@ -401,8 +445,10 @@ void *SIM_RenderInit(void *arg) {
+@@ -378,7 +423,7 @@ void *SIM_RenderInit(void *arg) {
+ 
+   window = SDL_CreateWindow(
+       windowTitle.c_str(), 100, 100, windowWidth, windowHeight,
+-      SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL
++      (SIM_Headless_Enabled() ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN) | SDL_WINDOW_OPENGL
+       #if defined(SDK_BUILD_WIN64) || defined(SDK_BUILD_LINUX)
+       | SDL_WINDOW_RESIZABLE
+       #endif
+@@ -401,8 +446,10 @@ void *SIM_RenderInit(void *arg) {
    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -3001,7 +3801,7 @@ index 910d7da..263cfc4 100644
  
    GLenum glErrCode;
    GLint status;
-@@ -453,8 +499,14 @@ void *SIM_RenderInit(void *arg) {
+@@ -453,8 +500,14 @@ void *SIM_RenderInit(void *arg) {
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
                 GL_UNSIGNED_BYTE, NULL);
  
@@ -3017,7 +3817,7 @@ index 910d7da..263cfc4 100644
    glCompileShader(_id);                                                        \
    glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
    if (status != GL_TRUE) {                                                     \
-@@ -567,6 +619,7 @@ void *SIM_RenderInit(void *arg) {
+@@ -567,6 +620,7 @@ void *SIM_RenderInit(void *arg) {
  }
  
  static void DrawEngine(BOOL isSub) {
@@ -3025,7 +3825,7 @@ index 910d7da..263cfc4 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -610,7 +663,8 @@ static void DrawEngine(BOOL isSub) {
+@@ -610,7 +664,8 @@ static void DrawEngine(BOOL isSub) {
    backdropVec[2] = (float)backdropB / 255.0f;
    backdropVec[3] = 1.0f;
  
@@ -3035,7 +3835,7 @@ index 910d7da..263cfc4 100644
                 backdropVec);
  
    glProgramUniform4f(g2shaderProgramID,
-@@ -669,7 +723,12 @@ static void DrawEngine(BOOL isSub) {
+@@ -669,7 +724,12 @@ static void DrawEngine(BOOL isSub) {
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
  
@@ -3048,7 +3848,7 @@ index 910d7da..263cfc4 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -772,6 +831,19 @@ static void DrawEngine(BOOL isSub) {
+@@ -772,6 +832,19 @@ static void DrawEngine(BOOL isSub) {
                      SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
                      (void *)oamPixelBuf);
    }
@@ -3068,7 +3868,7 @@ index 910d7da..263cfc4 100644
  
    glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
  
-@@ -789,9 +861,10 @@ static void DrawEngine(BOOL isSub) {
+@@ -789,9 +862,10 @@ static void DrawEngine(BOOL isSub) {
    glActiveTexture(GL_TEXTURE0 + s_objWindowTexUnit);
    glBindTexture(GL_TEXTURE_2D, objWindowTextureId);
    u8 *objWindowBuf = isSub ? objWindowsTex : objWindowTex;
@@ -3082,7 +3882,7 @@ index 910d7da..263cfc4 100644
    glProgramUniform1i(
        g2shaderProgramID,
        glGetUniformLocation(g2shaderProgramID, "objWindowTexture"),
-@@ -859,6 +932,7 @@ static void DrawEngine(BOOL isSub) {
+@@ -859,6 +933,7 @@ static void DrawEngine(BOOL isSub) {
      glActiveTexture(GL_TEXTURE0 + s_objTexUnits[0]);
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
@@ -3090,7 +3890,7 @@ index 910d7da..263cfc4 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +1024,145 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1025,147 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -3123,6 +3923,7 @@ index 910d7da..263cfc4 100644
 +  return m;
 +}
 +static void SIM_DebugFrame(void) {
++  SIM_Headless_FrameHook();
 +  static int init = 0; static const char *shotDir; static u32 shotEvery, exitFrame;
 +  struct Step { u32 frame, hold, mask, xy; int touch, tx, ty; };
 +  static std::vector<Step> steps; static u32 heldMask, heldXY;
@@ -3143,6 +3944,7 @@ index 910d7da..263cfc4 100644
 +#endif
 +    if (getenv("SIM_DEBUG_FF_HOLD")) { sFastForward = true; SDL_GL_SetSwapInterval(0); }   // automation: behave as if Space is held
 +    if (getenv("SIM_DEBUG_FAST")) { sFastForward = true; sFastForwardUncapped = true; SDL_GL_SetSwapInterval(0); printf("SIM_DEBUG_FAST: uncapped\n"); }   // automation runs as fast as it renders
++    if (SIM_Headless_Enabled()) { sFastForward = true; sFastForwardUncapped = true; SDL_GL_SetSwapInterval(0); }   // headless: uncapped, never vsync
 +    shotDir = getenv("SIM_DEBUG_SHOT_DIR");
 +    const char *e = getenv("SIM_DEBUG_SHOT_EVERY"); shotEvery = e ? (u32)atoi(e) : 0;
 +    e = getenv("SIM_DEBUG_EXIT_FRAME"); exitFrame = e ? (u32)atoi(e) : 0;
@@ -3236,7 +4038,7 @@ index 910d7da..263cfc4 100644
  
    SDL_Event Event;
    char c;
-@@ -1073,9 +1285,14 @@ void *SIM_Render(void *arg) {
+@@ -1073,9 +1288,14 @@ void *SIM_Render(void *arg) {
        s_SIM_SDLJoystick = SDL_JoystickOpen(0);
      }
  
@@ -3251,7 +4053,7 @@ index 910d7da..263cfc4 100644
        if (Event.type == SDL_WINDOWEVENT) {
          switch (Event.window.event) {
          case SDL_WINDOWEVENT_CLOSE:
-@@ -1083,6 +1300,18 @@ void *SIM_Render(void *arg) {
+@@ -1083,6 +1303,18 @@ void *SIM_Render(void *arg) {
            break;
          }
        }
@@ -3270,7 +4072,7 @@ index 910d7da..263cfc4 100644
        if (Event.type == SDL_KEYDOWN) {
          int keyRead = Event.key.keysym.sym;
          if (keyRead == s_SIM_config.padSettings.aKey) {
-@@ -1261,7 +1490,9 @@ void *SIM_Render(void *arg) {
+@@ -1261,7 +1493,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -3281,7 +4083,7 @@ index 910d7da..263cfc4 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1328,18 +1559,29 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +1562,29 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -3320,7 +4122,7 @@ index 910d7da..263cfc4 100644
      SDL_GL_SwapWindow(window);
  
      if(sChangeInternalResAfterRender) {
-@@ -1369,6 +1611,12 @@ void *SIM_Render(void *arg) {
+@@ -1369,6 +1614,12 @@ void *SIM_Render(void *arg) {
      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
      glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -3333,7 +4135,7 @@ index 910d7da..263cfc4 100644
    } while (SIM::GUI::IsGameLogicPaused());
    // Bind 3D Framebuffer & Renderbuffer
    glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
-@@ -1394,10 +1642,17 @@ void *SIM_Render(void *arg) {
+@@ -1394,10 +1645,17 @@ void *SIM_Render(void *arg) {
    glCullFace(GL_FRONT);
    glFrontFace(GL_CW);
  
@@ -3351,6 +4153,15 @@ index 910d7da..263cfc4 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
+@@ -1465,6 +1723,8 @@ int main(int argc, char *argv[]) {
+   // TODO: This broke the linux AppImage build
+   //chdir(SDL_GetBasePath());
+ 
++  SIM_Headless_Init();   // SIM_HEADLESS / SIM_SAVE_PATH / SIM_FIXED_RTC / SIM_SEED / SIM_CONTROL
++
+   // Start up debug system
+   SIM_Dbg_Init();
+ 
 diff --git a/libraries/sim/src/sim_vars.c b/libraries/sim/src/sim_vars.c
 index 81309fd..72be77a 100644
 --- a/libraries/sim/src/sim_vars.c

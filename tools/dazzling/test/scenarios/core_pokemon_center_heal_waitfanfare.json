@@ -1,0 +1,102 @@
+{
+  "_note": "Regression: HealParty lines after WaitFanfare were dropped in rest/heal scripts. From the Veilstone Pokecenter save, talk to the nurse (talk target to confirm on real build) and require dialogue to complete back on the field without a crash; party HP assertion activates when state reports party hp.",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-59_veilstone_after_gym3.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-59_veilstone_after_gym3.sav"
+  },
+  "steps": [
+    {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "talk": "LOCALID_VEILSTONE_NURSE"
+    },
+    {
+      "press_until": {
+        "script": null
+      },
+      "keys": "A",
+      "press_frames": 10,
+      "interval_frames": 300,
+      "timeout_frames": 14400
+    }
+  ],
+  "assertions": [
+    {
+      "player.map": "MAP_HEADER_VEILSTONE_CITY_POKECENTER_1F"
+    },
+    {
+      "app": "field"
+    },
+    {
+      "script": null
+    },
+    {
+      "path": "party.0.hp",
+      "op": "ge",
+      "value": 1
+    }
+  ],
+  "name": "core_pokemon_center_heal_waitfanfare"
+}

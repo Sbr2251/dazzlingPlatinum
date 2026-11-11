@@ -1,0 +1,153 @@
+{
+  "_note": "Warp onto Route 202, talk to Youngster Tristan (talk resyncs the LandData lazy loader since 8be74187f5), advance his lines, require the battle action menu. Blocked after battle start by the particle heap assert (known_issue).",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+  },
+  "steps": [
+    {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "warp": {
+        "map": "MAP_HEADER_ROUTE_202",
+        "x": 160,
+        "z": 810,
+        "dir": "DIR_EAST"
+      }
+    },
+    {
+      "step": 300
+    },
+    {
+      "talk": "LOCALID_YOUNGSTER_TRISTAN"
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "wait_until": {
+        "app": "battle"
+      },
+      "timeout_frames": 3600
+    },
+    {
+      "wait_until": {
+        "path": "battle.waiting",
+        "op": "eq",
+        "value": true
+      },
+      "timeout_frames": 3600
+    }
+  ],
+  "assertions": [
+    {
+      "app": "battle"
+    },
+    {
+      "in_battle": true
+    }
+  ],
+  "name": "core_trainer_battle",
+  "known_issue": "battle start crashes: GF_ASSERT(FALSE) at src/particle_system.c:235 (particle heap exhausted) during the first trainer battle intro, frame ~4565, exit 134. Trainer (Youngster Tristan, Patrat) engages correctly and battle state reports battlers before the crash. Needs game/assert triage - likely blocks all battle scenarios."
+}

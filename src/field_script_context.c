@@ -1,6 +1,8 @@
 #include "field_script_context.h"
 
 #include <nitro.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 enum FieldScriptState {
@@ -28,6 +30,8 @@ void ScriptContext_Init(ScriptContext *ctx, const ScrCmdFunc *cmdTable, u32 cmdT
     }
 
     ctx->task = NULL;
+    ctx->scripts = NULL;
+    ctx->scriptArchiveId = 0;
 }
 
 BOOL ScriptContext_Start(ScriptContext *ctx, const u8 *ptr)
@@ -36,6 +40,28 @@ BOOL ScriptContext_Start(ScriptContext *ctx, const u8 *ptr)
     ctx->state = SCRIPT_STATE_RUNNING;
 
     return TRUE;
+}
+
+// Debug-suite script coverage: with SIM_SCRIPT_COVERAGE=<file>, append one
+// "<archive id> <offset>" line per script start (called by script_manager
+// after it jumps to the entry offset, so the offset is the entry's, not the
+// buffer base). The runner's coverage.py maps those to file:label.
+// Off unless the env var is set.
+void ScriptContext_LogCoverage(ScriptContext *ctx)
+{
+    static const char *coveragePath = NULL;
+    static BOOL coverageChecked = FALSE;
+    if (coverageChecked == FALSE) {
+        coveragePath = getenv("SIM_SCRIPT_COVERAGE");
+        coverageChecked = TRUE;
+    }
+    if (coveragePath != NULL && ctx->scripts != NULL && ctx->scriptPtr >= ctx->scripts) {
+        FILE *coverageFile = fopen(coveragePath, "a");
+        if (coverageFile != NULL) {
+            fprintf(coverageFile, "%u %u\n", ctx->scriptArchiveId, (u32)(ctx->scriptPtr - ctx->scripts));
+            fclose(coverageFile);
+        }
+    }
 }
 
 void ScriptContext_Pause(ScriptContext *ctx, ShouldResumeScriptFunc shouldResume)

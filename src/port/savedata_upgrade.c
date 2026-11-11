@@ -196,14 +196,14 @@ BOOL PCPORT_ProcessSaveDataUpgrades() {
 
     CARD_ReadBackup(0, saveBuf, SAVE_FLASH_SIZE);
 
-    // Backup old save
-    const char * bakPath = 
+    // Backup old save (next to the save file; SIM_SAVE_PATH-aware)
     #ifdef SDK_BUILD_PROSPERO
-    "/app0/save.bin.bak"
+    const char * bakPath = "/app0/save.bin.bak";
     #else
-    "save.bin.bak"
+    static char sBakPath[1024];
+    snprintf(sBakPath, sizeof(sBakPath), "%s.bak", SIM_GetSaveBinPath());
+    const char * bakPath = sBakPath;
     #endif
-    ;
 
     FILE * bakFile = fopen(bakPath, "wb");
     if(bakFile) {

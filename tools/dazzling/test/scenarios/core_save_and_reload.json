@@ -1,0 +1,148 @@
+{
+  "_note": "Load a save, move, re-import it (soft reset; same protocol client survives the restart), require the game alive and framing. Map equality is pending-step-3.",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
+  },
+  "steps": [
+    {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "press": "DOWN",
+      "frames": 10
+    },
+    {
+      "import_save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
+    },
+    {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    }
+  ],
+  "assertions": [
+    {
+      "player.map": "MAP_HEADER_TWINLEAF_TOWN"
+    }
+  ],
+  "name": "core_save_and_reload"
+}

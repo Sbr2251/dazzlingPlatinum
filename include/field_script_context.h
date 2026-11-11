@@ -25,6 +25,9 @@ struct ScriptContext {
     MessageLoader *loader;
     const u8 *scripts;
     FieldSystem *fieldSystem;
+    // SIM_SCRIPT_COVERAGE (debug-suite): scr_seq archive member id of
+    // `scripts`, set by the loaders in script_manager.c. 0 if unknown.
+    u32 scriptArchiveId;
 };
 
 extern const ScrCmdFunc gFieldScriptCommands[];
@@ -38,6 +41,7 @@ void ScriptContext_Pause(ScriptContext *ctx, ShouldResumeScriptFunc shouldResume
 void ScriptContext_Stop(ScriptContext *ctx);
 void ScriptContext_SetTask(ScriptContext *ctx, FieldTask *taskManager);
 BOOL ScriptContext_Run(ScriptContext *ctx);
+void ScriptContext_LogCoverage(ScriptContext *ctx);
 void ScriptContext_Jump(ScriptContext *ctx, const u8 *ptr);
 void ScriptContext_Call(ScriptContext *ctx, const u8 *ptr);
 void ScriptContext_Return(ScriptContext *ctx);

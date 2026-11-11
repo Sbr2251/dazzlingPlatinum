@@ -1,0 +1,79 @@
+{
+  "name": "save_load_A2-09_jubilife_after_confession",
+  "_note": "Import the save, press through title/Continue (10-frame presses), run on the field, assert the expected map (step-3 state).",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-09_jubilife_after_confession.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-09_jubilife_after_confession.sav"
+  },
+  "steps": [
+    {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    }
+  ],
+  "assertions": [
+    {
+      "player.map": "MAP_HEADER_JUBILIFE_CITY"
+    }
+  ]
+}

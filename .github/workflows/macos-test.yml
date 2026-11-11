@@ -1,0 +1,36 @@
+name: macos-test
+
+# Build the Mac app and run the debug-suite static checks + scenario suite.
+# The game files are built from this repo, so no ROM is needed.
+# Local-only scenarios (test saves in ~/Downloads) skip automatically.
+
+on:
+  push:
+    branches: [port/macos]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos-test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Mirrors tools/macos/build.sh's dependency setup (README_macOS.md).
+      - name: Install dependencies (Homebrew)
+        run: |
+          brew install sdl2-compat nasm ninja arm-none-eabi-gcc gcc@14 libpng pkg-config
+
+      - name: Static checks (no game build)
+        run: python3 tools/dazzling/test/static_checks.py
+
+      - name: Runner unit tests (mock game)
+        run: python3 tools/dazzling/test/test_runner.py
+
+      - name: Build the Mac app
+        run: tools/macos/build.sh
+
+      - name: Scenario suite (headless lockstep)
+        run: python3 tools/dazzling/test/run.py -j 4 --timeout 900

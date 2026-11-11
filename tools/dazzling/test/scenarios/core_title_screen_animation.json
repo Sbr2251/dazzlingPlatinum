@@ -1,0 +1,21 @@
+{
+  "_note": "Boot, run 3000 rendered frames (boot logos/intro play through; title logo is fully in by then), screenshot vs reference (record with --record). Basic state (step 2) has no app name yet, so this asserts frame progress + pixels, not app=='title'.",
+  "steps": [
+    {
+      "step": 3000
+    },
+    {
+      "screenshot": "title",
+      "reference": "../references/core_title_screen_animation.bmp",
+      "tolerance": 0.02
+    },
+    {
+      "assert": {
+        "path": "frame",
+        "op": "ge",
+        "value": 3000
+      }
+    }
+  ],
+  "name": "core_title_screen_animation"
+}

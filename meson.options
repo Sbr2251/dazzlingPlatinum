@@ -8,5 +8,5 @@ option('skip_anim_scripts', type : 'boolean', value : false, description : 'True
 #   dev     - the everyday build: GF_ASSERT live (PM_KEEP_ASSERTS defined), no optimisation
 #   release - -O3 + LTO on the game code, PM_KEEP_ASSERTS undefined so GF_ASSERT compiles
 #             out, no debug info. The switch debug-headless keys off is PM_KEEP_ASSERTS.
-#   asan    - AddressSanitizer + UBSan on the game code, GF_ASSERT live
+#   asan    - AddressSanitizer + UBSan on the whole PC build (game, simulator, build tools), GF_ASSERT live
 option('build_variant', type : 'combo', choices: ['dev', 'release', 'asan'], value : 'dev', description : 'Mac build variant: dev, release or asan')

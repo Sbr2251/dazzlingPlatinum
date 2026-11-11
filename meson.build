@@ -110,6 +110,20 @@ add_global_arguments(c_args,
     native: (build_target == 'linux' or build_target == 'win64')
 )
 
+if (build_target == 'linux' and host_machine.system() == 'linux')
+# Symbolized backtraces (backtrace_symbols) for the headless assert/crash reporter.
+add_global_link_arguments(['-rdynamic'], language: ['c', 'cpp'], native: true)
+endif
+
+if get_option('build_variant') == 'asan' and build_target != 'arm'
+# build_variant=asan: ASan + UBSan for the whole PC build (game, simulator and host tools).
+# See docs/headless_protocol.md.
+add_global_arguments(['-fsanitize=address,undefined', '-fno-omit-frame-pointer'],
+    language: ['c', 'cpp'], native: (build_target == 'linux' or build_target == 'win64'))
+add_global_link_arguments(['-fsanitize=address,undefined'],
+    language: ['c', 'cpp'], native: (build_target == 'linux' or build_target == 'win64'))
+endif
+
 add_global_arguments(cpp_args,
     language: 'cpp',
     native: (build_target == 'linux' or build_target == 'win64')
@@ -122,8 +136,8 @@ pokeplatinum_args = [
 
 # Build variant (Mac target): see meson.options. PM_KEEP_ASSERTS is the assert switch:
 # defined in dev and asan, absent in release, so GF_ASSERT (include/global/assert.h)
-# compiles out there. Optimisation/LTO/sanitisers apply to the game code only (these
-# args and the main executable's link line), not to the simulator subprojects.
+# compiles out there. Optimisation/LTO apply to the game code only (these args and the
+# main executable's link line); the asan variant instruments everything.
 build_variant = get_option('build_variant')
 if build_variant != 'release'
     pokeplatinum_args += '-DPM_KEEP_ASSERTS'
@@ -135,8 +149,8 @@ if build_target != 'arm'
         pokeplatinum_args += ['-O3', '-flto', '-g0']
         variant_link_args += ['-flto']
     elif build_variant == 'asan'
-        pokeplatinum_args += ['-O1', '-fsanitize=address,undefined', '-fno-omit-frame-pointer']
-        variant_link_args += ['-fsanitize=address,undefined']
+        # The sanitizer flags themselves are global (see above).
+        pokeplatinum_args += ['-O1']
     endif
 endif
 
@@ -372,6 +386,20 @@ trainer_ai_o = custom_target(
         meson.global_build_root(),
     ],
 )
+elif (host_machine.system() == 'linux' and build_target == 'linux')
+# Linux: the host assembler cannot assemble the ARM trainer AI script either; see tools/linux/trainer_ai_elf.sh
+trainer_ai_o = custom_target(
+    'trainer_ai_script.o',
+    output: 'trainer_ai_script.o',
+    input: trainer_ai_ss,
+    command: [
+        meson.global_source_root() / 'tools' / 'linux' / 'trainer_ai_elf.sh',
+        '@INPUT@', '@OUTPUT@',
+        enumproc_exe,
+        meson.global_source_root() / 'asm',
+        meson.global_build_root(),
+    ],
+)
 else
 trainer_ai_o = custom_target(
     'trainer_ai_script.o',
@@ -390,9 +418,27 @@ endif
 endif
 
 if(build_target != 'arm')
+# Symbolic name tables for the headless protocol, generated from the build's own data.
+headless_names = custom_target('headless_names',
+    output: ['headless_names.h', 'headless_names.c'],
+    input: [
+        'generated/map_headers.txt',
+        'generated/vars_flags.txt',
+        'generated/items.txt',
+        'generated/species.txt',
+    ],
+    command: [
+        find_program('python3'),
+        files('tools/dazzling/gen_headless_names.py'),
+        meson.global_source_root(),
+        '@OUTDIR@',
+    ],
+)
+
 pokeplatinum_port_c = files(
     'src/port/charcode_convert.c',
     'src/port/debug_field.c',
+    'src/port/headless_game.c',
     'src/port/savedata_upgrade.c',
     'src/port/sim_config_prj.c',
     'src/port/sim_gui_prj.cpp',
@@ -405,6 +451,8 @@ pokeplatinum_port_c = files(
     'src/port/gui_mapjump.cpp',
     'src/port/gui_mapjump_utils.c'
 )
+
+pokeplatinum_port_c += headless_names[1]
 
 if(build_target == 'linux')
 pokeplatinum_port_c += files(

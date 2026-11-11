@@ -30,6 +30,9 @@
 #include "battle/battle_io_command.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_main.h"
+#ifdef SDK_PORT
+#include "port/headless_game.h"
+#endif
 #include "battle/battle_subscreen.h"
 #include "battle/battle_system.h"
 #include "battle/common.h"
@@ -699,6 +702,9 @@ static int BattleMain_ExecuteBattlerCommands(ApplicationManager *appMan)
 
 static void BattleMain_CopyBattleSysToDTOAndFree(ApplicationManager *appMan)
 {
+#ifdef SDK_PORT
+    Headless_SetBattleSystem(NULL);   // headless protocol state
+#endif
     BattleSystem *battleSys = ApplicationManager_Data(appMan);
     FieldBattleDTO *dto = ApplicationManager_Args(appMan);
     int battlerId;
@@ -2038,6 +2044,9 @@ static BOOL BattleMain_InitPartnerIntro(ApplicationManager *appMan)
 
     MI_CpuClearFast(battleSys, sizeof(BattleSystem));
     BattleSys_New(battleSys, dto);
+#ifdef SDK_PORT
+    Headless_SetBattleSystem(battleSys);   // headless protocol state
+#endif
 
     if ((battleSys->battleType & BATTLE_TYPE_LINK) == FALSE
         || battleSys->battleStatusMask & BATTLE_STATUS_RECORDING

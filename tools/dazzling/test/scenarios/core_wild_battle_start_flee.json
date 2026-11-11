@@ -1,0 +1,456 @@
+{
+  "_note": "Warp to Route 201 grass, walk until a wild battle starts, then flee (B / menu input may need tuning on the real build).",
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+  },
+  "steps": [
+    {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "warp": {
+        "map": "MAP_HEADER_ROUTE_201",
+        "x": 125,
+        "z": 850,
+        "dir": "DIR_EAST"
+      }
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "DOWN",
+      "frames": 30
+    },
+    {
+      "step": 60
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "press": "LEFT",
+      "frames": 20
+    },
+    {
+      "press": "RIGHT",
+      "frames": 20
+    },
+    {
+      "wait_until": {
+        "app": "battle"
+      },
+      "timeout_frames": 1200
+    },
+    {
+      "wait_until": {
+        "path": "battle.waiting",
+        "op": "eq",
+        "value": true
+      },
+      "timeout_frames": 3600
+    },
+    {
+      "press": "DOWN",
+      "frames": 10
+    },
+    {
+      "press": "RIGHT",
+      "frames": 10
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 600
+    },
+    {
+      "wait_until": {
+        "app": "field"
+      },
+      "timeout_frames": 3600
+    }
+  ],
+  "name": "core_wild_battle_start_flee",
+  "assertions": [
+    {
+      "app": "field"
+    },
+    {
+      "in_battle": false
+    }
+  ],
+  "known_issue": "presumed same battle particle crash as core_trainer_battle (GF_ASSERT src/particle_system.c:235 at battle intro); verify after that is fixed."
+}

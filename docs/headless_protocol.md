@@ -1,0 +1,156 @@
+# Headless and lockstep protocol
+
+Engine side: `debug-headless`. Runner side: `debug-suite`. This document describes exactly
+what is implemented; it is updated in the same commits as the code.
+
+Status: step 1 (headless + save path + fixed RTC/seed) implemented and verified on Linux
+(devvm37887, Mesa llvmpipe). macOS verification is pending (lead runs it at integration);
+all platform-specific code is guarded so the same paths build on macOS.
+
+## Environment variables
+
+| Variable | Effect |
+|---|---|
+| `SIM_HEADLESS=1` | No visible window (hidden window; on Linux with no `DISPLAY`, SDL's `offscreen` video driver via EGL surfaceless), SDL dummy audio driver, uncapped frame rate, vsync off. Rendering still happens, so screenshots work. |
+| `SIM_SAVE_PATH=<file>` | The save file (`save.bin`) is read/written at this path instead of `./save.bin`. `save.bin.bak` is written next to it as `<file>.bak`, and import backups go in `save-backups/` next to it. Several instances can share one build directory with different save paths. |
+| `SIM_FIXED_RTC=YYYY-MM-DDTHH:MM:SS` | The RTC starts at that instant and advances exactly 1/60 s per rendered frame (whole seconds = frame/60), never by wall clock. Applies with or without headless. |
+| `SIM_SEED=<n>` | Seeds the game's RNGs (`MTRNG`/`LCRNG` in `InitRNG`) with `n` instead of the RTC/vblank-derived seed. Together with `SIM_FIXED_RTC` and identical inputs, runs are deterministic. |
+| `SIM_CONTROL=stdio` | Lockstep protocol (step 2). Implies `SIM_HEADLESS=1`. |
+| `SIM_WATCHDOG_SEC=<n>` | Watchdog timeout in seconds (step 4). On by default in headless mode. |
+
+Existing `SIM_DEBUG_*` automation (keys, screenshots, exit frame, save import/export) keeps
+working unchanged, including in headless mode.
+
+## Determinism
+
+With `SIM_HEADLESS=1 SIM_FIXED_RTC=... SIM_SEED=...`, the same save and the same inputs give
+identical screenshots across runs. Verified on Linux: two runs importing the same test save
+with the same `SIM_DEBUG_KEYS` script produced byte-identical BMP screenshots (md5 match).
+
+Note on frame numbering: protocol and `SIM_HEADLESS_SHOT_AT` frames count rendered frames (`SIM_Headless_FrameCount`). The older `SIM_DEBUG_*` frame numbers use the DS vblank counter, which can run ahead of rendered frames at uncapped rates, so two runs shot at the same vblank number are not necessarily the same rendered frame.
+
+Caveats:
+- The simulator's random MAC address (`srand(time(NULL))` in `SIM_Config_LoadDefaults`) is
+  not game-visible in single-player test scenarios.
+- Rendering goes through the host GL driver; pixel equality is guaranteed for the same
+  machine/driver, not across different GPUs/drivers.
+
+## Lockstep protocol (`SIM_CONTROL=stdio`)
+
+Implemented (step 2). `SIM_CONTROL=stdio` implies `SIM_HEADLESS=1`.
+
+- The game does not advance until told to. Control sits at the end of each rendered
+  frame (inside `SIM_Render`, before the swap): when no frame budget remains, the game
+  blocks reading stdin. The first rendered frame happens at boot; after that, frames
+  run only in response to `step`/`press`/`touch` (and a short run after `import_save`
+  so the restart can happen).
+- Each command is one line of JSON on stdin. Each reply is one line of JSON on stdout.
+  In this mode fd 1 is redirected to stderr, so all game `printf` output goes to stderr
+  and stdout carries only replies. EOF on stdin quits the game (exit 0).
+- Frames count *rendered* frames (`SIM_Headless_FrameCount`, also the `frame` field in
+  replies), not the DS vblank counter. One rendered frame is exactly one `SIM_Render`
+  call, which performs exactly one VBlank IRQ dispatch and one vblank-counter increment
+  (the only increment site in the PC build is in `SIM_Render`), so vblank processing
+  stays in lockstep with rendered frames: inputs applied for a step are sampled by the
+  game on the first of those frames, and `step N` advances exactly N rendered frames
+  and N vblanks.
+- `step`/`press`/`touch` reply *after* their frames have run, with the new frame count.
+  All other commands reply immediately. Every reply is an object with at least
+  `{"ok":true,"frame":N}` or `{"ok":false,"error":"...","frame":N}`.
+
+| Command | Effect |
+|---|---|
+| `{"cmd":"step","frames":N}` | Run N frames with no keys held. `frames` defaults to 1. |
+| `{"cmd":"press","keys":["A","UP"],"frames":N}` | Hold the named keys (`A B X Y L R START SELECT UP DOWN LEFT RIGHT`) for N frames while stepping. |
+| `{"cmd":"touch","x":X,"y":Y,"frames":N}` | Touch the bottom screen at DS coordinates (256x192) for N frames while stepping. |
+| `{"cmd":"screenshot","path":"..."}` | Write the last rendered frame to a BMP at `path`. |
+| `{"cmd":"state", ...}` | Game state (below; step 3 for the full fields). |
+| `{"cmd":"import_save","path":"..."}` | Import a raw `.sav`/`.dsv`, reply, then restart the process (stdin/stdout survive `execv`, so the same client keeps working; the reply carries `"restarting":true`). |
+| `{"cmd":"quit"}` | Reply, then exit 0. |
+
+Example client: `tools/dazzling/headless_client.py`.
+
+State (basic, step 2): without the game-side handler (step 3) `state` replies
+`{"ok":true,"frame":N,"app":"unknown"}`. Step 3 replaces this with the full state.
+
+## Game-side commands and state
+
+Implemented (step 3) in `src/port/headless_game.c`. All return
+`{"ok":true}` or `{"ok":false,"error":"..."}`.
+
+| Command | Effect |
+|---|---|
+| `{"cmd":"warp","map":"MAP_HEADER_X","x":X,"z":Z,"dir":"DIR_NORTH"}` | Fly-style map change to that tile (`dir` optional, default `DIR_SOUTH`). Needs the field. |
+| `{"cmd":"set_var","name":"VAR_X","value":V}` | Set a story var (field var pointer in the field, save vars otherwise). |
+| `{"cmd":"set_flag","name":"FLAG_X","value":true}` | Set/clear a flag (same storage choice as `set_var`). |
+| `{"cmd":"give_item","item":"ITEM_X","qty":N}` | Add items to the bag (`qty` defaults to 1). |
+| `{"cmd":"talk","localid":"LOCALID_X"}` or `{"cmd":"talk","object":N}` | Move the player to a free adjacent tile facing the object, then press A for 2 frames (the press runs after the reply, like a short `press`). Errors when no adjacent tile is free. |
+
+Names (`MAP_HEADER_*`, `VAR_*`, `FLAG_*`, `ITEM_*`, `SPECIES_*`, `DIR_*`,
+`LOCALID_*`) are resolved from the build's generated data
+(`generated/*.txt` enum sources, `res/field/maps/*/events.json`,
+`include/constants/map_object.h`) by `tools/dazzling/gen_headless_names.py`,
+which runs at build time and emits `headless_names.{h,c}`. Nothing is
+hand-maintained. `LOCALID_*` ids are scoped to the current map.
+
+`state` replies (step 3, full form):
+
+```json
+{"ok":true,"frame":N,"overlay":<FS overlay id>,
+ "app":"field"|"battle"|"other",
+ "map":"MAP_HEADER_X","map_id":N,
+ "player":{"x":X,"z":Z,"dir":"DIR_NORTH"},
+ "script":{"id":N,"offset":N} | null,
+ "message_waiting":true|false,
+ "party":[{"species":"SPECIES_X","species_id":N,"level":N,"hp":N,"max_hp":N,"held_item":"ITEM_X"}],
+ "battle":{"turn":N,"waiting":true|false,
+           "battlers":[{"battler":N,"species":"SPECIES_X","species_id":N,"level":N,"hp":N,"max_hp":N,"held_item":"ITEM_X"}]},
+ "vars":{"VAR_X":N},"flags":{"FLAG_X":true},"bag":{"ITEM_X":N}}
+```
+
+- `map`/`player`/`script` appear in the field; `battle` appears in battle
+  (`waiting` = the action menu is waiting for input); `party` is always present
+  once a save is loaded. `script.offset` is the byte offset of the running
+  script's program counter in its script data, or -1.
+- `vars`, `flags`, `bag` appear only when requested:
+  `{"cmd":"state","vars":["VAR_X"],"flags":["FLAG_X"],"bag":["ITEM_X"]}`.
+  Unknown names report -1/false rather than failing the whole reply.
+- `overlay` is the numeric FS overlay id (the application templates have no
+  string names in the binary); `app` is the semantic classification.
+- `talk`'s A press and `warp`'s map change take effect over the following
+  frames; step and re-read `state` to observe the result.
+
+## Asserts, crashes, watchdog
+
+Implemented (step 4).
+
+- `GF_ASSERT` carries file, line and the stringified expression
+  (`include/global/assert.h`). It is keyed off `PM_KEEP_ASSERTS`: defined in
+  dev/asan builds, absent in release, where `GF_ASSERT` compiles to nothing
+  (the `build_variant` option from perf-game controls this; currently the
+  port build defines it unconditionally).
+- On PC builds, a failure (`src/error_handling.c`) behaves as follows:
+  - Headless/control: always fails loudly - `GF_ASSERT <file>:<line>: <expr>`,
+    a state dump and a symbolized backtrace (`backtrace()`/
+    `backtrace_symbols_fd`; `-rdynamic` on Linux) to stderr, then exit 134.
+    The interactive `EnableAsserts` config does not gate this.
+  - Interactive with asserts enabled in the config: the same info is appended
+    to `log.txt`, shown in an SDL message box, and the process exits 134
+    instead of hanging silently. With asserts disabled in the config, the
+    old behaviour (return and continue) is kept.
+  - The simulator's own `SDK_ASSERT` (`SIM_handleAssertionFailure`) routes
+    through the same reporter in headless mode.
+- Best-effort signal handlers for SIGSEGV/SIGBUS/SIGABRT are installed in
+  headless/control mode: they print the signal, the frame count and a
+  backtrace to stderr, then exit 134. (Not installed interactively, so macOS
+  crash reports in `~/Library/Logs/DiagnosticReports` keep working there.)
+- Watchdog: `SIM_WATCHDOG_SEC=<n>`; on by default in headless/control mode
+  with n=30 (`SIM_WATCHDOG_SEC=0` disables). If no frame completes for n
+  seconds it dumps state (via the `state` handler) plus a backtrace to
+  stderr and exits 124. It never fires while lockstep control is blocked
+  waiting for a command, so an idle client is not a freeze; if inputs are
+  being sent (frames granted) and frames stop completing, it fires.
+
+## Sanitizer build
+
+Step 5. To be filled in.
