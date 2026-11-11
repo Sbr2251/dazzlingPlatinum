@@ -21,6 +21,8 @@ def check(result, events, expect):
         party=result.get("party_after") or []
         if not party or party[0].get("species")!=expect["party_species_after"]: errs.append("party species after battle mismatch (mega revert check)")
     if "max_turns" in expect and result.get("turns",999)>expect["max_turns"]: errs.append("too many turns")
+    if "events_contain" in expect and not any(e.get("type")==expect["events_contain"] for e in events): errs.append(f"no {expect['events_contain']} event")
+    if expect.get("crit_damage") and not any(e.get("type")=="damage" and e.get("critical") for e in events): errs.append("no critical damage event")
     return errs
 
 def main():

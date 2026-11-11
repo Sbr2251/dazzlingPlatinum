@@ -34,6 +34,7 @@
   ]
  },
  "expect": {
-  "winner": "player"
+  "winner": "player",
+  "events_contain": "status"
  }
 }

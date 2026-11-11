@@ -37,6 +37,7 @@
  "expect": {
   "winner": "player",
   "damage_to_battler": 1,
-  "party_species_after": "SPECIES_INFERNAPE"
+  "party_species_after": "SPECIES_INFERNAPE",
+  "events_contain": "mega_evolution"
  }
 }

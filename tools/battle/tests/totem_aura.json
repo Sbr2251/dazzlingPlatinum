@@ -43,6 +43,7 @@
   ]
  },
  "expect": {
-  "battle_ended": true
+  "battle_ended": true,
+  "events_contain": "battle_start"
  }
 }
