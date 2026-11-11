@@ -353,6 +353,20 @@ trainer_ai_o = custom_target(
         meson.global_build_root(),
     ],
 )
+elif (host_machine.system() == 'linux' and build_target == 'linux')
+# Linux: the host assembler cannot assemble the ARM trainer AI script either; see tools/linux/trainer_ai_elf.sh
+trainer_ai_o = custom_target(
+    'trainer_ai_script.o',
+    output: 'trainer_ai_script.o',
+    input: trainer_ai_ss,
+    command: [
+        meson.global_source_root() / 'tools' / 'linux' / 'trainer_ai_elf.sh',
+        '@INPUT@', '@OUTPUT@',
+        enumproc_exe,
+        meson.global_source_root() / 'asm',
+        meson.global_build_root(),
+    ],
+)
 else
 trainer_ai_o = custom_target(
     'trainer_ai_script.o',
