@@ -118,7 +118,7 @@ endif
 if get_option('build_variant') == 'asan' and build_target != 'arm'
 # build_variant=asan: ASan + UBSan for the whole PC build (game, simulator and host tools).
 # See docs/headless_protocol.md.
-add_global_arguments(['-fsanitize=address,undefined', '-fno-omit-frame-pointer'],
+add_global_arguments(['-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-Wno-error=format-overflow'],
     language: ['c', 'cpp'], native: (build_target == 'linux' or build_target == 'win64'))
 add_global_link_arguments(['-fsanitize=address,undefined'],
     language: ['c', 'cpp'], native: (build_target == 'linux' or build_target == 'win64'))

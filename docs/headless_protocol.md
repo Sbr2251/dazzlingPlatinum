@@ -84,7 +84,7 @@ Implemented (step 3) in `src/port/headless_game.c`. All return
 | `{"cmd":"set_var","name":"VAR_X","value":V}` | Set a story var (field var pointer in the field, save vars otherwise). |
 | `{"cmd":"set_flag","name":"FLAG_X","value":true}` | Set/clear a flag (same storage choice as `set_var`). |
 | `{"cmd":"give_item","item":"ITEM_X","qty":N}` | Add items to the bag (`qty` defaults to 1). |
-| `{"cmd":"talk","localid":"LOCALID_X"}` or `{"cmd":"talk","object":N}` | Move the player to a free adjacent tile facing the object, then press A for 2 frames (the press runs after the reply, like a short `press`). Errors when no adjacent tile is free. |
+| `{"cmd":"talk","localid":"LOCALID_X"}` or `{"cmd":"talk","object":N}` | Move the player to a free adjacent tile facing the object (matching its elevation), then start the object's script exactly as the A-button interaction does (`ScriptManager_Set`). Starting it directly, rather than pressing A, makes talk deterministic: a wandering NPC can step off the faced tile before a pressed A lands. Errors when no adjacent tile is free or a script is already running. The reply includes the object's and player's positions. |
 
 Names (`MAP_HEADER_*`, `VAR_*`, `FLAG_*`, `ITEM_*`, `SPECIES_*`, `DIR_*`,
 `LOCALID_*`) are resolved from the build's generated data

@@ -246,12 +246,30 @@ static void CmdTalk(const char *line, char *reply, size_t cap) {
         if (TerrainCollisionManager_CheckCollision(fsys, px, pz)) continue;
         if (!MapHeaderData_IsPosFreeOfObjectEvents(fsys, (u16)px, (u16)pz)) continue;
         PlayerAvatar_SetPosDirFromCoords(fsys->playerAvatar, px, pz, face[d]);
+        // Match the object's elevation: interaction requires the same height level
+        // (sub_0203C9B0), and the teleport otherwise leaves the player at Y=0.
+        Player_SetYPos(fsys->playerAvatar, MapObject_GetPosY(obj));
         // Resync the map lazy loader's tracked position with the teleported player,
         // or its next tick asserts on a diagonal "move" (land_data.c).
         if (fsys->landDataMan) LandDataManager_TrackTarget(PlayerAvatar_GetPos(fsys->playerAvatar), fsys->landDataMan);
-        sInjectMask = 1u << 0;   // A
-        sInjectFrames = 2;
-        snprintf(reply, cap, "{\"ok\":true}");
+        // Start the object's script exactly as the A-button interaction does
+        // (field_control.c: ScriptManager_Set with the object's script). Doing it
+        // directly, rather than pressing A and hoping, makes talk deterministic:
+        // a wandering NPC can step off the faced tile before a pressed A lands.
+        {
+            ScriptManager *sm = NULL;
+            if (fsys->task) {
+                void *env = FieldTask_GetEnv(fsys->task);
+                if (env && ((ScriptManager *)env)->magic == SCRIPT_MANAGER_MAGIC_NUMBER) sm = env;
+            }
+            if (sm) { ErrOut(reply, cap, "a script is already running"); return; }
+            // Push the script onto the field task stack (ScriptManager_Set would
+            // assert: the field always has a current task while idling).
+            if (fsys->task) ScriptManager_Start(fsys->task, MapObject_GetScript(obj), obj, NULL);
+            else ScriptManager_Set(fsys, MapObject_GetScript(obj), obj);
+        }
+        snprintf(reply, cap, "{\"ok\":true,\"object\":{\"localid\":%d,\"x\":%d,\"z\":%d},\"player\":{\"x\":%d,\"z\":%d,\"dir\":\"%s\"}}",
+                 localId, ox, oz, px, pz, DirName(face[d]));
         return;
     }
     ErrOut(reply, cap, "no free adjacent tile");
