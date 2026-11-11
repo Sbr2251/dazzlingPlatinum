@@ -1,0 +1,38 @@
+{
+ "name": "type_effectiveness_stab",
+ "spec": {
+  "battle_type": "wild",
+  "seed": 42,
+  "player": [
+   {
+    "species": "SPECIES_INFERNAPE",
+    "level": 50,
+    "moves": [
+     "MOVE_FLARE_BLITZ",
+     "MOVE_CLOSE_COMBAT",
+     "MOVE_MACH_PUNCH",
+     "MOVE_U_TURN"
+    ]
+   }
+  ],
+  "opponent": [
+   {
+    "species": "SPECIES_BIDOOF",
+    "level": 30,
+    "moves": [
+     "MOVE_TACKLE"
+    ]
+   }
+  ],
+  "decisions": [
+   {
+    "type": "move",
+    "index": 1
+   }
+  ]
+ },
+ "expect": {
+  "winner": "player",
+  "damage_to_battler": 1
+ }
+}

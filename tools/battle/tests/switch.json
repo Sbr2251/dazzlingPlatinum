@@ -1,0 +1,45 @@
+{
+ "name": "switch",
+ "spec": {
+  "battle_type": "wild",
+  "seed": 42,
+  "player": [
+   {
+    "species": "SPECIES_BIDOOF",
+    "level": 50,
+    "moves": [
+     "MOVE_TACKLE"
+    ]
+   },
+   {
+    "species": "SPECIES_INFERNAPE",
+    "level": 50,
+    "moves": [
+     "MOVE_FLARE_BLITZ",
+     "MOVE_CLOSE_COMBAT",
+     "MOVE_MACH_PUNCH",
+     "MOVE_U_TURN"
+    ]
+   }
+  ],
+  "opponent": [
+   {
+    "species": "SPECIES_BIDOOF",
+    "level": 20,
+    "moves": [
+     "MOVE_TACKLE"
+    ]
+   }
+  ],
+  "decisions": [
+   {
+    "type": "switch",
+    "slot": 2
+   }
+  ]
+ },
+ "expect": {
+  "winner": "player",
+  "active_species": "SPECIES_INFERNAPE"
+ }
+}

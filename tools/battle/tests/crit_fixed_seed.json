@@ -1,0 +1,36 @@
+{
+ "name": "crit_fixed_seed",
+ "spec": {
+  "battle_type": "wild",
+  "seed": 7,
+  "player": [
+   {
+    "species": "SPECIES_MACHAMP",
+    "level": 50,
+    "moves": [
+     "MOVE_KARATE_CHOP",
+     "MOVE_STRENGTH"
+    ]
+   }
+  ],
+  "opponent": [
+   {
+    "species": "SPECIES_BIDOOF",
+    "level": 30,
+    "moves": [
+     "MOVE_TACKLE"
+    ]
+   }
+  ],
+  "decisions": [
+   {
+    "type": "move",
+    "index": 0
+   }
+  ]
+ },
+ "expect": {
+  "winner": "player",
+  "damage_to_battler": 1
+ }
+}
