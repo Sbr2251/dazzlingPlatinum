@@ -2856,7 +2856,10 @@ static void GetTargetSlotFlags(BattleSubscreen *btlSubscreen, u8 *outFlags, BOOL
     TargetSelectData *targetSelectData = &btlSubscreen->activeMenuData.targetSelectData;
     BattleSystem_SetBattlersByType(btlSubscreen->battleSys, battlersByType);
 
-    for (int i = 0; i < SNELEMS(outFlags); i++) {
+    // 4 target slots. Not SNELEMS(outFlags): outFlags is a pointer, so on the
+    // 64-bit PC build that is 8, overrunning the callers' u8[4] stack arrays
+    // and reading past battlersByType[6] (on the DS it happened to be 4).
+    for (int i = 0; i < 4; i++) {
         int battlerIdx = battlersByType[2 + i];
 
         if (checkPresence == TRUE && !targetSelectData->targetMonData[battlerIdx].isPresent) {
@@ -2875,7 +2878,7 @@ static void GetBattlerTargetFlags(BattleSubscreen *btlSubscreen, int selectedTar
     case 9:
     case 10:
     case 11:
-        for (int i = 0; i < SNELEMS(outFlags); i++) {
+        for (int i = 0; i < 4; i++) { // 4 target slots; see GetTargetSlotFlags
             if (i == selectedTarget - 1) {
                 outFlags[i] = TRUE;
             } else {
