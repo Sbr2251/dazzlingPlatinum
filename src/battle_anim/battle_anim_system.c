@@ -279,6 +279,13 @@ static const s16 sBgWaveScrollSpeeds[] = {
 
 static void BattleAnimScript_WaitForDelay(BattleAnimSystem *system)
 {
+    // fps60: scriptDelay is deliberately NOT half-rate gated. Particle
+    // emitters advance every logic frame, ungated, and the script's Delay
+    // commands are timed against them; gating the script alone would
+    // leave finished emitters waiting and desync every move animation.
+    // Battle anims therefore still run at 60 Hz logic speed (consistent
+    // with each other); halving them needs emitter velocities halved in
+    // step, which is follow-up work.
     if (system->scriptDelay == 0) {
         system->executeAnimScriptFunc = BattleAnimScript_Execute;
     } else {

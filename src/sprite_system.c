@@ -20,6 +20,10 @@
 #include "sprite_util.h"
 #include "system.h"
 
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#endif
+
 static Sprite *CreateSpriteFromResourceHeader(SpriteSystem *spriteSys, SpriteManager *spriteMan, int resourceHeaderID, s16 x, s16 y, s16 z, u16 animIdx, int priority, int plttIdx, enum NNS_G2D_VRAM_TYPE vramType, int param10, int param11, int param12, int param13);
 static BOOL LoadResObjInternal(SpriteSystem *spriteSys, SpriteManager *spriteMan, enum NarcID narcID, int memberIdx, int compressed, int type, int resourceID);
 static BOOL LoadResObjFromNarcInternal(SpriteSystem *spriteSys, SpriteManager *spriteMan, NARC *narc, int memberIdx, BOOL compressed, int type, int resourceID);
@@ -734,6 +738,16 @@ static BOOL UnregisterLoadedPlttResource(SpriteResourceCollection *ownedResource
 
 void Sprite_TickFrame(Sprite *sprite)
 {
+#ifdef SDK_PORT
+    // fps60: one explicit tick per logic frame. Halve the advance so a
+    // manually-ticked sprite animates at the same real-time speed at
+    // 60 Hz logic. TickTwoFrames/TickNFrames are deliberate multi-frame
+    // jumps (rates or one-shot seeks) and are left alone.
+    if (SIM_Config_prj_DoubleStep()) {
+        Sprite_UpdateAnim(sprite, FX32_ONE / 2);
+        return;
+    }
+#endif
     Sprite_UpdateAnim(sprite, FX32_ONE);
 }
 

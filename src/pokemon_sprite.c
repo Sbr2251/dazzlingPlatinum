@@ -12,6 +12,21 @@
 #include "pokemon_sprite.h"
 #include "pokemon_sprite_stream.h"
 
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#include "system.h"
+
+// fps60: Pokemon sprite anims count integer frameDelay per tick, so they
+// cannot be halved smoothly. Tick on alternate renders only: in DoubleStep
+// mode one rendered frame = one logic frame, and gSystem.vblankCounter
+// advances once per render, so its parity is a per-logic-frame toggle
+// shared by every sprite ticked in the same frame (no per-sprite drift).
+static BOOL PokemonSprite_SkipHalfRateTick(void)
+{
+    return SIM_Config_prj_DoubleStep() && (gSystem.vblankCounter & 1);
+}
+#endif
+
 #include "res/pokemon/pl_otherpoke.naix"
 
 #define MAX_SPINDA_SPOTS       4
@@ -1148,6 +1163,11 @@ void PokemonSprite_CalcScaledYOffset(PokemonSprite *monSprite, int height)
 
 static inline void TickPokemonSpriteTaskAnim(u8 *active, u8 *currSpriteFrame, u8 *currAnimFrame, u8 *frameDelay, u8 *loopTimers, const SpriteAnimFrame *animFrames)
 {
+#ifdef SDK_PORT
+    if (PokemonSprite_SkipHalfRateTick()) {
+        return;
+    }
+#endif
     if (*active) {
         if (*frameDelay == 0) {
             (*currAnimFrame)++;
@@ -1179,6 +1199,11 @@ static inline void TickPokemonSpriteTaskAnim(u8 *active, u8 *currSpriteFrame, u8
 
 static void TickPokemonSpriteAnim(PokemonSprite *monSprite)
 {
+#ifdef SDK_PORT
+    if (PokemonSprite_SkipHalfRateTick()) {
+        return;
+    }
+#endif
     if (monSprite->animActive) {
         if (monSprite->animFrameDelay == 0) {
             monSprite->currAnimFrame++;

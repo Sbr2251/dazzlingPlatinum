@@ -7,6 +7,10 @@
 #include "fx_util.h"
 #include "heap.h"
 
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#endif
+
 #define CAMERA_DEFAULT_ASPECT_RATIO (FX32_ONE * 4 / 3)
 
 GXBufferMode gBufferMode = GX_BUFFERMODE_W;
@@ -109,6 +113,17 @@ void Camera_InitHistory(int historySize, int delay, int delayMask, enum HeapID h
     if (camera->targetPos == NULL) {
         return;
     }
+
+#ifdef SDK_PORT
+    // fps60: history is indexed in logic frames. At 60 Hz logic, double the
+    // delay (and buffer) so the camera lags the target by the same real
+    // time as at 30 Hz. delay+1 <= historySize is preserved (2d+1 <= 2s
+    // whenever d+1 <= s, and the GF_ASSERT below checks the doubled pair).
+    if (SIM_Config_prj_DoubleStep()) {
+        historySize *= 2;
+        delay *= 2;
+    }
+#endif
 
     GF_ASSERT(delay + 1 <= historySize);
 

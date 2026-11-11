@@ -5265,6 +5265,15 @@ static void Task_FlickerBattler(SysTask *task, void *data)
 
 static void Task_UpdateHPGauge(SysTask *task, void *data)
 {
+#ifdef SDK_PORT
+    // fps60: the gauge advances one integer step per task execution.
+    // Advance on alternate renders only (vblankCounter parity = per-logic
+    // frame toggle in DoubleStep mode), so HP bars drain in the same real
+    // time as at 30 Hz logic.
+    if (SIM_Config_prj_DoubleStep() && (gSystem.vblankCounter & 1)) {
+        return;
+    }
+#endif
     HealthBox *healthbox = data;
     int result;
 
@@ -5289,6 +5298,11 @@ static void Task_UpdateHPGauge(SysTask *task, void *data)
 
 static void Task_UpdateExpGauge(SysTask *task, void *data)
 {
+#ifdef SDK_PORT
+    if (SIM_Config_prj_DoubleStep() && (gSystem.vblankCounter & 1)) {
+        return;
+    }
+#endif
     HealthBox *healthbox = data;
     int result;
 

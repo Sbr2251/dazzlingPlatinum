@@ -140,6 +140,11 @@ void NitroMain(void)
     SIM_Config_prj_type * myConfig = SIM_Config_prj_GetConfig();
 #endif
 
+    // fps60: SoundSystem_Tick runs once per main-loop iteration. At 60 Hz
+    // logic there are twice as many iterations per real second as at
+    // 30 Hz, so it runs every other iteration (see below).
+    BOOL halfRateTick = FALSE;
+
     while (TRUE) {
         CheckHeapCanary();
         Heap_UpdatePeaks(); // lane heap: sample per-heap high-water once per frame
@@ -154,7 +159,17 @@ void NitroMain(void)
             CheckHeapCanary();
             RunApplication();
             SysTaskManager_ExecuteTasks(gSystem.mainTaskMgr);
+#ifdef SDK_PORT
+            // Text printing: print tasks run twice per iteration (here and
+            // below). At 30 Hz logic that is 60 executions/s. At 60 Hz logic
+            // one execution per iteration gives the same 60/s, so skip this
+            // one in DoubleStep mode; the unconditional one below still runs.
+            if (!SIM_Config_prj_DoubleStep()) {
+                SysTaskManager_ExecuteTasks(gSystem.printTaskMgr);
+            }
+#else
             SysTaskManager_ExecuteTasks(gSystem.printTaskMgr);
+#endif
 
             if (!gSystem.frameCounter
 #ifdef SDK_PORT
@@ -176,14 +191,35 @@ void NitroMain(void)
         gSystem.vblankCounter++;
         gSystem.frameCounter = 0;
 
+        // fps60: ExecScreenFade and BrightnessController_Update stay at
+        // logic rate, deliberately NOT half-rate gated. Cutscenes
+        // synchronize to them with exact logic-frame counts and asserts
+        // (e.g. game_opening: fade(4,1) must be done 5 frames after it
+        // starts; a brightness transition must complete by an exact frame),
+        // so stretching them to twice as many logic frames breaks those
+        // waiters. Their steps therefore complete in the same number of
+        // logic frames as at 30 Hz (faster in real time at 60 Hz, in step
+        // with the frame-counter-driven cutscenes that use them). Warp /
+        // map-change fades wait on IsScreenFadeDone() (polled), so they
+        // still complete correctly, just sooner.
         BrightnessController_Update();
         ExecScreenFade();
-
+#ifdef SDK_PORT
+        // SoundSystem_Tick IS half-rate gated: its fade/cry-delay counters
+        // are only ever polled (Sound_IsFadeActive), never waited on with
+        // a fixed frame count, so gating restores real-time sound fades
+        // without breaking any waiter. The sound sequencer itself advances
+        // per rendered frame / audio callback and is not gated here.
+        halfRateTick = !halfRateTick;
+        if (!SIM_Config_prj_DoubleStep() || halfRateTick) {
+            SoundSystem_Tick();
+        }
+#else
+        SoundSystem_Tick();
+#endif
         if (gSystem.vblankCallback != NULL) {
             gSystem.vblankCallback(gSystem.vblankCallbackData);
         }
-
-        SoundSystem_Tick();
         SysTaskManager_ExecuteTasks(gSystem.postVBlankTaskMgr);
     }
 }
