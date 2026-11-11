@@ -37,7 +37,41 @@ Caveats:
 
 ## Lockstep protocol (`SIM_CONTROL=stdio`)
 
-Step 2. To be filled in with the exact command/reply shapes as implemented.
+Implemented (step 2). `SIM_CONTROL=stdio` implies `SIM_HEADLESS=1`.
+
+- The game does not advance until told to. Control sits at the end of each rendered
+  frame (inside `SIM_Render`, before the swap): when no frame budget remains, the game
+  blocks reading stdin. The first rendered frame happens at boot; after that, frames
+  run only in response to `step`/`press`/`touch` (and a short run after `import_save`
+  so the restart can happen).
+- Each command is one line of JSON on stdin. Each reply is one line of JSON on stdout.
+  In this mode fd 1 is redirected to stderr, so all game `printf` output goes to stderr
+  and stdout carries only replies. EOF on stdin quits the game (exit 0).
+- Frames count *rendered* frames (`SIM_Headless_FrameCount`, also the `frame` field in
+  replies), not the DS vblank counter. One rendered frame is exactly one `SIM_Render`
+  call, which performs exactly one VBlank IRQ dispatch and one vblank-counter increment
+  (the only increment site in the PC build is in `SIM_Render`), so vblank processing
+  stays in lockstep with rendered frames: inputs applied for a step are sampled by the
+  game on the first of those frames, and `step N` advances exactly N rendered frames
+  and N vblanks.
+- `step`/`press`/`touch` reply *after* their frames have run, with the new frame count.
+  All other commands reply immediately. Every reply is an object with at least
+  `{"ok":true,"frame":N}` or `{"ok":false,"error":"...","frame":N}`.
+
+| Command | Effect |
+|---|---|
+| `{"cmd":"step","frames":N}` | Run N frames with no keys held. `frames` defaults to 1. |
+| `{"cmd":"press","keys":["A","UP"],"frames":N}` | Hold the named keys (`A B X Y L R START SELECT UP DOWN LEFT RIGHT`) for N frames while stepping. |
+| `{"cmd":"touch","x":X,"y":Y,"frames":N}` | Touch the bottom screen at DS coordinates (256x192) for N frames while stepping. |
+| `{"cmd":"screenshot","path":"..."}` | Write the last rendered frame to a BMP at `path`. |
+| `{"cmd":"state", ...}` | Game state (below; step 3 for the full fields). |
+| `{"cmd":"import_save","path":"..."}` | Import a raw `.sav`/`.dsv`, reply, then restart the process (stdin/stdout survive `execv`, so the same client keeps working; the reply carries `"restarting":true`). |
+| `{"cmd":"quit"}` | Reply, then exit 0. |
+
+Example client: `tools/dazzling/headless_client.py`.
+
+State (basic, step 2): without the game-side handler (step 3) `state` replies
+`{"ok":true,"frame":N,"app":"unknown"}`. Step 3 replaces this with the full state.
 
 ## Game-side commands and state
 

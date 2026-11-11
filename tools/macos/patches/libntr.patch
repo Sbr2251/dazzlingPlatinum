@@ -638,10 +638,10 @@ index 2c40e59..d13175a 100644
      if(ImGui::Button(label, sButtonSize)) {
 diff --git a/libraries/sim/src/sim_headless.cpp b/libraries/sim/src/sim_headless.cpp
 new file mode 100644
-index 0000000..c1904c1
+index 0000000..d4c8ecb
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless.cpp
-@@ -0,0 +1,157 @@
+@@ -0,0 +1,165 @@
 +// Headless / deterministic mode for PC builds (docs/headless_protocol.md).
 +// Off unless SIM_HEADLESS / SIM_CONTROL / SIM_FIXED_RTC / SIM_SEED / SIM_SAVE_PATH is set.
 +#include "simulator/sim_headless.h"
@@ -726,8 +726,16 @@ index 0000000..c1904c1
 +    }
 +    if (s_control) {
 +        // Protocol replies go to the real stdout; everything else (game printf) goes to stderr.
++        // The reply fd survives execv restarts (save import) via SIM_CONTROL_REPLY_FD.
++        const char *rfd = getenv("SIM_CONTROL_REPLY_FD");
 +        fflush(stdout);
-+        s_replyFd = dup(STDOUT_FILENO);
++        if (rfd && atoi(rfd) > 2) {
++            s_replyFd = atoi(rfd);
++        } else {
++            s_replyFd = dup(STDOUT_FILENO);
++            char buf[16]; snprintf(buf, sizeof buf, "%d", s_replyFd);
++            setenv("SIM_CONTROL_REPLY_FD", buf, 1);
++        }
 +        dup2(STDERR_FILENO, STDOUT_FILENO);
 +    }
 +    if (s_headless || s_fixedSet || s_seed >= 0)
@@ -801,18 +809,226 @@ index 0000000..c1904c1
 +}
 diff --git a/libraries/sim/src/sim_headless_control.cpp b/libraries/sim/src/sim_headless_control.cpp
 new file mode 100644
-index 0000000..2866ea8
+index 0000000..34b0c03
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_control.cpp
-@@ -0,0 +1,2 @@
-+// SIM_CONTROL=stdio lockstep protocol. Implemented in step 2; see docs/headless_protocol.md.
-+extern "C" void SIM_Headless_ControlFrame(void) {}
+@@ -0,0 +1,210 @@
++// SIM_CONTROL=stdio lockstep protocol (docs/headless_protocol.md).
++// The game does not advance until told to: this runs at the end of each rendered frame
++// (from SIM_DebugFrame, before the swap) and blocks reading commands whenever no
++// frame budget remains. Each command is one line of JSON on stdin; each reply is one
++// line of JSON on the real stdout (fd 1 is redirected to stderr in control mode).
++#include "simulator/sim_headless.h"
++#include "simulator/sim_helpers.hpp"
++
++#include <nitro/hw/X86/mmap_shared.h>
++#include "simulator/simvariables.h"
++
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <string>
++
++#include <sys/select.h>
++#include <unistd.h>
++
++extern "C" void SIM_Headless_Reply(const char *line);
++extern "C" void SIM_Headless_WatchdogTick(void);   // sim_headless_watchdog.cpp
++
++// Game-side handlers (src/port/headless_game.c); weak so the simulator links without the game.
++extern "C" __attribute__((weak)) int HeadlessGame_Command(const char *line, char *reply, size_t cap);
++extern "C" __attribute__((weak)) int HeadlessGame_State(const char *line, char *reply, size_t cap);
++
++static long long s_budget = 0;       // frames still allowed to run
++static int s_pendingReply = 0;       // a step/press/touch finished; reply when it completes
++static unsigned s_heldMask = 0, s_heldXY = 0;
++static int s_touchActive = 0, s_touchX = 0, s_touchY = 0;
++
++// ---- minimal JSON extraction (flat objects; string/int/bool/array-of-strings values) ----
++static bool JsonFind(const std::string &s, const char *key, size_t *pos) {
++    std::string pat = std::string("\"") + key + "\"";
++    size_t p = s.find(pat);
++    if (p == std::string::npos) return false;
++    p = s.find(':', p + pat.size());
++    if (p == std::string::npos) return false;
++    *pos = p + 1;
++    return true;
++}
++static bool JsonString(const std::string &s, const char *key, std::string *out) {
++    size_t p; if (!JsonFind(s, key, &p)) return false;
++    while (p < s.size() && (s[p] == ' ' || s[p] == '\t')) p++;
++    if (p >= s.size() || s[p] != '"') return false;
++    size_t e = s.find('"', p + 1);
++    if (e == std::string::npos) return false;
++    *out = s.substr(p + 1, e - p - 1);
++    return true;
++}
++static bool JsonInt(const std::string &s, const char *key, long long *out) {
++    size_t p; if (!JsonFind(s, key, &p)) return false;
++    *out = strtoll(s.c_str() + p, nullptr, 10);
++    return true;
++}
++static bool JsonBool(const std::string &s, const char *key, bool *out) {
++    size_t p; if (!JsonFind(s, key, &p)) return false;
++    while (p < s.size() && (s[p] == ' ' || s[p] == '\t')) p++;
++    *out = s.compare(p, 4, "true") == 0;
++    return true;
++}
++
++static void ReplyOk(const char *extra = nullptr) {
++    char buf[512];
++    if (extra) snprintf(buf, sizeof buf, "{\"ok\":true,\"frame\":%llu,%s}", SIM_Headless_FrameCount(), extra);
++    else snprintf(buf, sizeof buf, "{\"ok\":true,\"frame\":%llu}", SIM_Headless_FrameCount());
++    SIM_Headless_Reply(buf);
++}
++static void ReplyError(const char *msg) {
++    char buf[512];
++    snprintf(buf, sizeof buf, "{\"ok\":false,\"error\":\"%s\",\"frame\":%llu}", msg, SIM_Headless_FrameCount());
++    SIM_Headless_Reply(buf);
++}
++
++static const struct { const char *name; unsigned bit; int isXY; } kKeys[] = {
++    {"A", 1u << 0, 0}, {"B", 1u << 1, 0}, {"SELECT", 1u << 2, 0}, {"START", 1u << 3, 0},
++    {"RIGHT", 1u << 4, 0}, {"LEFT", 1u << 5, 0}, {"UP", 1u << 6, 0}, {"DOWN", 1u << 7, 0},
++    {"R", 1u << 8, 0}, {"L", 1u << 9, 0}, {"X", 1u << 10, 1}, {"Y", 1u << 11, 1},
++};
++
++static void ApplyHeld(void) {
++    // Pad registers are active low. Release everything we might hold, then press the held set.
++    static unsigned prevMask = 0, prevXY = 0;
++    s_reg_PAD_KEYINPUT = (u16)((s_reg_PAD_KEYINPUT | prevMask) & ~s_heldMask);
++    *(vu16 *)HW_BUTTON_XY_BUF = (u16)((*(vu16 *)HW_BUTTON_XY_BUF | prevXY) & ~s_heldXY);
++    prevMask = s_heldMask; prevXY = s_heldXY;
++    if (s_touchActive) {
++        s_tpData.x = (u16)s_touchX; s_tpData.y = (u16)s_touchY;
++        s_tpData.touch = 1; s_tpData.validity = 0;
++    }
++}
++static void ClearHeld(void) {
++    s_heldMask = 0; s_heldXY = 0;
++    s_touchActive = 0;
++    ApplyHeld();
++    s_tpData.touch = 0; s_tpData.validity = 0;
++}
++
++// Read one line from stdin, waiting in slices so a future watchdog can fire while blocked.
++// Returns false on EOF.
++static bool ReadLine(std::string *out) {
++    out->clear();
++    for (;;) {
++        fd_set rf; FD_ZERO(&rf); FD_SET(STDIN_FILENO, &rf);
++        struct timeval tv {0, 100000};
++        int r = select(STDIN_FILENO + 1, &rf, nullptr, nullptr, &tv);
++        if (r < 0) return false;
++        if (r == 0) { SIM_Headless_WatchdogTick(); continue; }
++        char c;
++        ssize_t n = read(STDIN_FILENO, &c, 1);
++        if (n <= 0) return false;
++        if (c == '\n') return true;
++        out->push_back(c);
++        if (out->size() > 65536) return true;   // overlong line: process what we have
++    }
++}
++
++static void HandleState(const std::string &line) {
++    char reply[16384];
++    if (HeadlessGame_State && HeadlessGame_State(line.c_str(), reply, sizeof reply)) {
++        SIM_Headless_Reply(reply);
++        return;
++    }
++    char buf[256];
++    snprintf(buf, sizeof buf, "{\"ok\":true,\"frame\":%llu,\"app\":\"unknown\"}", SIM_Headless_FrameCount());
++    SIM_Headless_Reply(buf);
++}
++
++// Process one command line. Returns true when a frame budget was granted (game may run).
++static bool HandleCommand(const std::string &line) {
++    std::string cmd;
++    if (!JsonString(line, "cmd", &cmd)) { ReplyError("missing cmd"); return false; }
++
++    if (cmd == "step" || cmd == "press" || cmd == "touch") {
++        long long frames = 1;
++        JsonInt(line, "frames", &frames);
++        if (frames < 0) frames = 0;
++        ClearHeld();
++        if (cmd == "press") {
++            // keys: ["A","UP",...]
++            size_t p;
++            if (JsonFind(line, "keys", &p)) {
++                size_t e = line.find(']', p);
++                std::string arr = line.substr(p, e == std::string::npos ? std::string::npos : e - p);
++                for (auto &k : kKeys)
++                    if (arr.find(std::string("\"") + k.name + "\"") != std::string::npos) {
++                        if (k.isXY) s_heldXY |= k.bit; else s_heldMask |= k.bit;
++                    }
++            }
++        } else if (cmd == "touch") {
++            long long x = 0, y = 0;
++            JsonInt(line, "x", &x); JsonInt(line, "y", &y);
++            s_touchActive = 1; s_touchX = (int)x; s_touchY = (int)y;
++        }
++        s_budget = frames;
++        s_pendingReply = 1;
++        ApplyHeld();
++        if (s_budget == 0) { s_pendingReply = 0; ReplyOk(); return false; }
++        return true;
++    }
++    if (cmd == "screenshot") {
++        std::string path;
++        if (!JsonString(line, "path", &path)) { ReplyError("screenshot needs path"); return false; }
++        if (SIM_Headless_Screenshot(path.c_str())) ReplyOk();
++        else ReplyError("screenshot failed");
++        return false;
++    }
++    if (cmd == "state") { HandleState(line); return false; }
++    if (cmd == "import_save") {
++        std::string path;
++        if (!JsonString(line, "path", &path)) { ReplyError("import_save needs path"); return false; }
++        ReplyOk("\"restarting\":true");
++        SIM::Helpers::ImportSave(path);   // restarts the process (fds survive execv)
++        s_budget = 30;                    // let Poll() perform the restart
++        return true;
++    }
++    if (cmd == "quit") {
++        ReplyOk();
++        fflush(nullptr);
++        _exit(0);
++    }
++    // Game-side commands (warp, set_var, set_flag, give_item, talk, ...).
++    {
++        char reply[4096];
++        if (HeadlessGame_Command && HeadlessGame_Command(line.c_str(), reply, sizeof reply)) {
++            SIM_Headless_Reply(reply);
++            return false;
++        }
++    }
++    ReplyError("unknown cmd");
++    return false;
++}
++
++extern "C" void SIM_Headless_ControlFrame(void) {
++    if (!SIM_Control_Enabled()) return;
++    if (s_budget > 0) {
++        s_budget--;
++        ApplyHeld();
++        if (s_budget > 0) return;
++        // Budget just finished: fall through, reply, and block for the next command.
++    }
++    if (s_pendingReply) { s_pendingReply = 0; ReplyOk(); }
++    ClearHeld();
++    std::string line;
++    for (;;) {
++        if (!ReadLine(&line)) { fflush(nullptr); _exit(0); }   // stdin EOF: quit
++        if (line.empty()) continue;
++        if (HandleCommand(line)) return;   // frames granted: let the game run
++    }
++}
 diff --git a/libraries/sim/src/sim_headless_watchdog.cpp b/libraries/sim/src/sim_headless_watchdog.cpp
 new file mode 100644
-index 0000000..5fc6d9d
+index 0000000..d199ca9
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_watchdog.cpp
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,19 @@
 +// Watchdog + assert/crash reporting. Implemented in step 4; see docs/headless_protocol.md.
 +#include "simulator/sim_headless.h"
 +#include <cstdio>
@@ -820,6 +1036,7 @@ index 0000000..5fc6d9d
 +#include <unistd.h>
 +
 +extern "C" void SIM_Headless_WatchdogFrame(void) {}
++extern "C" void SIM_Headless_WatchdogTick(void) {}
 +
 +extern "C" void SIM_Headless_DumpState(const char *reason) {
 +    fprintf(stderr, "SIM state dump (%s): frame=%llu\n", reason ? reason : "?",
