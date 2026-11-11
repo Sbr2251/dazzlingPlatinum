@@ -29,6 +29,8 @@ class HeadlessGame:
             "SIM_CONTROL": "stdio",
             "SIM_FIXED_RTC": rtc,
             "SIM_SEED": str(seed),
+            # macOS: never show the game in the Dock/app switcher
+            "SDL_MAC_BACKGROUND_APP": "1",
         })
         if save:
             env["SIM_SAVE_PATH"] = os.path.join(run_dir, "save.bin")
@@ -53,11 +55,24 @@ class HeadlessGame:
         return json.loads(reply)
 
     def close(self):
+        """Quit the game and always reap it (kill if it does not exit)."""
         try:
             self.cmd({"cmd": "quit"})
         except Exception:
             pass
-        self.proc.wait(timeout=10)
+        try:
+            self.proc.wait(timeout=10)
+        except Exception:
+            self.proc.kill()
+            self.proc.wait()
+
+    def __del__(self):
+        try:
+            if self.proc.poll() is None:
+                self.proc.kill()
+                self.proc.wait()
+        except Exception:
+            pass
 
 
 def main():
