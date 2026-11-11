@@ -1,0 +1,46 @@
+{
+ "name": "double_battle",
+ "spec": {
+  "battle_type": "double",
+  "seed": 42,
+  "player": [
+   {
+    "species": "SPECIES_INFERNAPE",
+    "level": 50,
+    "moves": [
+     "MOVE_FLARE_BLITZ",
+     "MOVE_CLOSE_COMBAT",
+     "MOVE_MACH_PUNCH",
+     "MOVE_U_TURN"
+    ]
+   },
+   {
+    "species": "SPECIES_GARCHOMP",
+    "level": 50,
+    "moves": [
+     "MOVE_EARTHQUAKE",
+     "MOVE_DRAGON_CLAW"
+    ]
+   }
+  ],
+  "opponent": [
+   {
+    "species": "SPECIES_BIDOOF",
+    "level": 20,
+    "moves": [
+     "MOVE_TACKLE"
+    ]
+   },
+   {
+    "species": "SPECIES_STARLY",
+    "level": 20,
+    "moves": [
+     "MOVE_QUICK_ATTACK"
+    ]
+   }
+  ]
+ },
+ "expect": {
+  "battle_ended": true
+ }
+}

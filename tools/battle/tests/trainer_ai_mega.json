@@ -1,0 +1,34 @@
+{
+ "name": "trainer_ai_mega",
+ "spec": {
+  "battle_type": "trainer",
+  "trainer_id": 1,
+  "seed": 42,
+  "player": [
+   {
+    "species": "SPECIES_GARCHOMP",
+    "level": 50,
+    "moves": [
+     "MOVE_EARTHQUAKE",
+     "MOVE_DRAGON_CLAW"
+    ]
+   }
+  ],
+  "opponent": [
+   {
+    "species": "SPECIES_INFERNAPE",
+    "level": 50,
+    "moves": [
+     "MOVE_FLARE_BLITZ",
+     "MOVE_CLOSE_COMBAT",
+     "MOVE_MACH_PUNCH",
+     "MOVE_U_TURN"
+    ],
+    "held_item": "ITEM_INFERNAPITE"
+   }
+  ]
+ },
+ "expect": {
+  "battle_ended": true
+ }
+}

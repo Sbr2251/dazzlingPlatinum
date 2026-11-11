@@ -1,0 +1,42 @@
+{
+ "name": "mega_evolution",
+ "spec": {
+  "battle_type": "wild",
+  "seed": 42,
+  "key_stone": true,
+  "player": [
+   {
+    "species": "SPECIES_INFERNAPE",
+    "level": 50,
+    "moves": [
+     "MOVE_FLARE_BLITZ",
+     "MOVE_CLOSE_COMBAT",
+     "MOVE_MACH_PUNCH",
+     "MOVE_U_TURN"
+    ],
+    "held_item": "ITEM_INFERNAPITE"
+   }
+  ],
+  "opponent": [
+   {
+    "species": "SPECIES_BIDOOF",
+    "level": 20,
+    "moves": [
+     "MOVE_TACKLE"
+    ]
+   }
+  ],
+  "decisions": [
+   {
+    "type": "move",
+    "index": 0,
+    "mega": true
+   }
+  ]
+ },
+ "expect": {
+  "winner": "player",
+  "damage_to_battler": 1,
+  "party_species_after": "SPECIES_INFERNAPE"
+ }
+}
