@@ -32,6 +32,7 @@
 #include "vars_flags.h"
 
 #include "battle/battle_controller_player.h"
+#include "battle/battle_lib.h"
 #include "battle/battle_system.h"
 
 #include "gui_createitem_utils.h"
@@ -287,8 +288,10 @@ int HeadlessGame_State(const char *line, char *reply, size_t cap) {
             if (!mon || mon->species == 0) continue;
             const char *sp = Headless_NameOf(kHeadlessSpecies, kHeadlessSpeciesCount, mon->species);
             const char *held = Headless_NameOf(kHeadlessItems, kHeadlessItemsCount, mon->heldItem);
-            OutFmt(&o, "%s{\"battler\":%d,\"species\":\"%s\",\"species_id\":%d,\"level\":%d,\"hp\":%d,\"max_hp\":%d,\"held_item\":\"%s\"}",
-              i ? "," : "", i, sp ? sp : "SPECIES_?", mon->species, mon->level, mon->curHP, (int)mon->maxHP, held ? held : "ITEM_NONE");
+            OutFmt(&o, "%s{\"battler\":%d,\"species\":\"%s\",\"species_id\":%d,\"level\":%d,\"hp\":%d,\"max_hp\":%d,\"held_item\":\"%s\",\"form\":%d,\"mega\":%s,\"can_mega\":%s}",
+              i ? "," : "", i, sp ? sp : "SPECIES_?", mon->species, mon->level, mon->curHP, (int)mon->maxHP, held ? held : "ITEM_NONE",
+              mon->formNum, ctx->megaEvolutionUsed[i] ? "true" : "false",
+              (sBattleSys && Battler_CanMegaEvolve(sBattleSys, ctx, i)) ? "true" : "false");
         }
         OutFmt(&o, "]}");
     } else if (fsys) {
