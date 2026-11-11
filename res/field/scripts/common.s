@@ -409,7 +409,8 @@ CommonScript_QuickSaveAskOverwrite:
 
 CommonScript_StartSave:
     ScrCmd_258
-    WaitTime 2, VAR_RESULT
+    // Port: the save is one in-memory flush (see sim_save_flash.cpp), so the
+    // DS-era WaitTime 2 pause before writing flash is not needed.
     Call CommonScript_DoSave
     ScrCmd_259
     GoTo CommonScript_SaveComplete
@@ -424,9 +425,11 @@ CommonScript_DoSave:
 CommonScript_SaveComplete:
     GoToIfEq VAR_RESULT, 0, CommonScript_SaveError
     BufferPlayerName 0
-    Message CommonStrings_Text_PlayerSavedTheGame
+    // Port: show the saved text at once and give it a short beat while the
+    // fanfare plays (WaitABPressTime 30, A-skippable). The DS script waited
+    // for the whole SE (WaitSE) on top of that beat.
+    MessageInstant CommonStrings_Text_PlayerSavedTheGame
     PlaySE SEQ_SE_DP_SAVE_sseq
-    WaitSE SEQ_SE_DP_SAVE_sseq
     WaitABPressTime 30
     CloseSaveInfo
     Return
