@@ -809,10 +809,10 @@ index 0000000..d4c8ecb
 +}
 diff --git a/libraries/sim/src/sim_headless_control.cpp b/libraries/sim/src/sim_headless_control.cpp
 new file mode 100644
-index 0000000..34b0c03
+index 0000000..c004300
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_control.cpp
-@@ -0,0 +1,210 @@
+@@ -0,0 +1,216 @@
 +// SIM_CONTROL=stdio lockstep protocol (docs/headless_protocol.md).
 +// The game does not advance until told to: this runs at the end of each rendered frame
 +// (from SIM_DebugFrame, before the swap) and blocks reading commands whenever no
@@ -836,8 +836,14 @@ index 0000000..34b0c03
 +extern "C" void SIM_Headless_WatchdogTick(void);   // sim_headless_watchdog.cpp
 +
 +// Game-side handlers (src/port/headless_game.c); weak so the simulator links without the game.
-+extern "C" __attribute__((weak)) int HeadlessGame_Command(const char *line, char *reply, size_t cap);
-+extern "C" __attribute__((weak)) int HeadlessGame_State(const char *line, char *reply, size_t cap);
++// Mach-O has no ELF-style weak undefined symbols: weak_import resolves to NULL instead.
++#if defined(__APPLE__)
++#define SIM_WEAK_UNDEFINED __attribute__((weak_import))
++#else
++#define SIM_WEAK_UNDEFINED __attribute__((weak))
++#endif
++extern "C" SIM_WEAK_UNDEFINED int HeadlessGame_Command(const char *line, char *reply, size_t cap);
++extern "C" SIM_WEAK_UNDEFINED int HeadlessGame_State(const char *line, char *reply, size_t cap);
 +
 +static long long s_budget = 0;       // frames still allowed to run
 +static int s_pendingReply = 0;       // a step/press/touch finished; reply when it completes
