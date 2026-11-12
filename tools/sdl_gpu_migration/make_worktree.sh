@@ -3,7 +3,7 @@
 # Creates /data/repos/dp-wt/sdl-<name> (branch sdl/<name>) from main, a libntr clone on branch sdl/<name> at the
 # revision matching tools/macos/patches/libntr.patch, applies optional saved WIP patches, and builds build_linux.
 # Based on the team-2 setup script (/data/repos/dp-wt/team2/setup.sh), which built ten trees this way.
-# Not yet run in this form (written with the v2 plan, 2026-11-11): the integrator runs it once and fixes it first.
+# Used for every migration tree since 2026-11-11 (about 50 s per tree including the build).
 set -euo pipefail
 n=$1; shift; LIBNTR_PATCH=; GAME_PATCH=; BASE=main
 while [ $# -gt 0 ]; do case $1 in
@@ -25,6 +25,11 @@ SYSREV=$(awk '$1=="libntrsystem"{print $2}' tools/macos/patches/REVISIONS)
 if [ -n "$SYSREV" ]; then
   git -C subprojects/libntrsystem checkout -q -- . && git -C subprojects/libntrsystem checkout -q "$SYSREV"
   git -C subprojects/libntrsystem apply "$W/tools/macos/patches/libntrsystem.patch"
+fi
+WREV=$(awk '$1=="libntrwifi"{print $2}' tools/macos/patches/REVISIONS)
+if [ -n "$WREV" ] && [ -f tools/macos/patches/libntrwifi.patch ]; then
+  git -C subprojects/libntrwifi checkout -q -- . && git -C subprojects/libntrwifi checkout -q "$WREV"
+  git -C subprojects/libntrwifi apply "$W/tools/macos/patches/libntrwifi.patch"
 fi
 [ -n "$LIBNTR_PATCH" ] && git -C subprojects/libntr apply --3way "$LIBNTR_PATCH"
 [ -n "$GAME_PATCH" ] && git apply --3way "$GAME_PATCH"

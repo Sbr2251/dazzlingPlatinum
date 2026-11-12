@@ -94,8 +94,7 @@ Tested with `git apply --3way` on the current libntr head (2026-11-11):
 **Devserver** (`devvm37887`, shared, 166 cores): one git worktree per workstream under `/data/repos/dp-wt/`, each
 with its own `build_linux` (see `briefs/COMMON.md`). Needed once (integrator, `sudo dnf`): `mesa-vulkan-drivers`
 (lavapipe), `vulkan-loader-devel`, `vulkan-tools`, `glslang`, `spirv-tools`; `spirv-cross` and SDL 3.4.16 built from
-source into `/data/repos/dp-wt/sdl3-deps/prefix` (`tools/sdl_gpu_migration/install_deps_devserver.sh`; both it and
-`make_worktree.sh` are new with this plan and have not been run yet: the integrator runs them first). GL runs on
+source into `/data/repos/dp-wt/sdl3-deps/prefix` (`tools/sdl_gpu_migration/install_deps_devserver.sh`, done on devvm37887). GL runs on
 llvmpipe, Vulkan on lavapipe, both headless (SDL `offscreen` driver). Run games with `LP_NUM_THREADS=2`.
 
 **Owner's Mac** (node `sreddy9-mac-DL9J95427J`, Apple M4 Max): Metal. Homebrew `sdl3` 3.4.16 is installed;

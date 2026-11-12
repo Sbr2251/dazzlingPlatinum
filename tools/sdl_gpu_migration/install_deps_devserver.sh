@@ -2,12 +2,14 @@
 # One-time devserver setup for the SDL GPU migration (integrator; needs sudo for dnf).
 # Installs lavapipe (Vulkan on the CPU), the Vulkan loader and shader tools, and builds SDL 3.4.16 and spirv-cross
 # from source into /data/repos/dp-wt/sdl3-deps/prefix. Safe to run again: finished steps are skipped.
-# Not yet run: written 2026-11-11 with the v2 plan; adjust package names if dnf reports them missing.
+# Run on devvm37887 2026-11-11 (SDL needs the X11 headers even for offscreen builds).
 set -euo pipefail
 DEPS=/data/repos/dp-wt/sdl3-deps
 SDL_TAG=${SDL_TAG:-release-3.4.16}
 mkdir -p "$DEPS"
-sudo dnf install -y mesa-vulkan-drivers vulkan-loader vulkan-loader-devel vulkan-tools glslang spirv-tools cmake ninja-build
+sudo dnf install -y mesa-vulkan-drivers vulkan-loader vulkan-loader-devel vulkan-tools glslang spirv-tools cmake ninja-build \
+  libX11-devel libXext-devel libXrandr-devel libXcursor-devel libXi-devel libXfixes-devel libXScrnSaver-devel libXtst-devel \
+  libxkbcommon-devel alsa-lib-devel pulseaudio-libs-devel
 if [ ! -f "$DEPS/prefix/lib64/libSDL3.so" ] && [ ! -f "$DEPS/prefix/lib/libSDL3.so" ]; then
   [ -d "$DEPS/SDL" ] || git clone -q --depth 1 -b "$SDL_TAG" https://github.com/libsdl-org/SDL.git "$DEPS/SDL"
   cmake -S "$DEPS/SDL" -B "$DEPS/SDL/build" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
