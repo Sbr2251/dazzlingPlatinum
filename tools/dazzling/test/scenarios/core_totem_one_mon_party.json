@@ -45,9 +45,12 @@
    "timeout_frames": 7200
   },
   {
-   "assert": {
-    "battle.battlers.0.species": "SPECIES_CHIMCHAR"
-   }
+   "wait_until": {
+    "path": "battle.battlers.0.species",
+    "op": "eq",
+    "value": "SPECIES_CHIMCHAR"
+   },
+   "timeout_frames": 1200
   },
   {
    "assert": {
