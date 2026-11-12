@@ -385,6 +385,14 @@ BOOL FieldSystem_FindCollidingLoadedMapPropByModelID(const FieldSystem *fieldSys
         int mapMatrixIndex = LandDataManager_GetLoadedMapMatrixIndex(fieldSystem->landDataMan, i);
         int mapMatrixWidth = MapMatrix_GetWidth(fieldSystem->mapMatrix);
 
+        // A slot whose map was unloaded keeps its prop manager but has
+        // INVALID_MAP_MATRIX_INDEX (-1); -1 % width is -1, which wraps
+        // to 65535 in the u16 below and overflows the origin math. An
+        // unpositioned map cannot collide, so skip the slot.
+        if (mapMatrixIndex == INVALID_MAP_MATRIX_INDEX) {
+            continue;
+        }
+
         VecFx32 mapAbsoluteOrigin;
         TerrainCollisionManager_GetMapAbsoluteOrigin(mapMatrixIndex, mapMatrixWidth, &mapAbsoluteOrigin);
 
@@ -421,6 +429,14 @@ BOOL FieldSystem_FindCollidingLoadedMapPropByModelIDs(const FieldSystem *fieldSy
 
         int mapMatrixIndex = LandDataManager_GetLoadedMapMatrixIndex(fieldSystem->landDataMan, i);
         int mapMatrixWidth = MapMatrix_GetWidth(fieldSystem->mapMatrix);
+
+        // A slot whose map was unloaded keeps its prop manager but has
+        // INVALID_MAP_MATRIX_INDEX (-1); -1 % width is -1, which wraps
+        // to 65535 in the u16 below and overflows the origin math. An
+        // unpositioned map cannot collide, so skip the slot.
+        if (mapMatrixIndex == INVALID_MAP_MATRIX_INDEX) {
+            continue;
+        }
 
         VecFx32 mapAbsoluteOrigin;
         TerrainCollisionManager_GetMapAbsoluteOrigin(mapMatrixIndex, mapMatrixWidth, &mapAbsoluteOrigin);
@@ -518,6 +534,10 @@ BOOL FieldSystem_FindLoadedMapPropByModelIDs(const FieldSystem *fieldSystem, con
 
 void TerrainCollisionManager_GetMapAbsoluteOrigin(const int mapMatrixIndex, const int mapMatrixWidth, VecFx32 *mapAbsoluteOrigin)
 {
+    // Callers must not pass INVALID_MAP_MATRIX_INDEX (-1): it wraps to
+    // 65535 in the u16 below and overflows the origin math.
+    GF_ASSERT(mapMatrixIndex >= 0);
+
     mapAbsoluteOrigin->x = (MAP_TILES_COUNT_X / 2) * MAP_OBJECT_TILE_SIZE;
     mapAbsoluteOrigin->z = (MAP_TILES_COUNT_Z / 2) * MAP_OBJECT_TILE_SIZE;
 
