@@ -870,12 +870,18 @@ index dfd081d..818b665 100644
  	*((REGType16 *)((u32)REG_TM0CNT_H_ADDR + id * 4)) = control;
      #endif
 diff --git a/include/simulator/config/sim_config.h b/include/simulator/config/sim_config.h
-index ce31436..de5c2e2 100644
+index ce31436..bbb7ca8 100644
 --- a/include/simulator/config/sim_config.h
 +++ b/include/simulator/config/sim_config.h
-@@ -53,6 +53,7 @@ typedef struct {
+@@ -51,8 +51,13 @@ typedef struct {
+     char serverIp[16]; /* IP of the last server connected to through Net */
+ } SIM_config_net_settings_type;
  
++#define SIM_CONFIG_RENDERER_GL 0 /* OpenGL renderer (default) */
++#define SIM_CONFIG_RENDERER_GPU 1 /* SDL3 GPU renderer (Metal on macOS/iOS, Vulkan elsewhere) */
++
  typedef struct {
++    u8 renderer; /* Render backend: SIM_CONFIG_RENDERER_GL or SIM_CONFIG_RENDERER_GPU; SIM_RENDERER env wins */
      u32 internalResolutionScale; /* 3D rendering internal resolution scale factor */
 +    u8 upscale2D; /* hiresui: 2D composite upscale: 0 = nearest (native), 1 = sharp bilinear, 2 = bilinear */
      u32 windowWidth; /* Initial width of the window. If set to 0, will use the default width for the screen layout */
@@ -2577,10 +2583,10 @@ index 0000000..ed3801a
 +#endif
 diff --git a/include/simulator/sim_render_backend.hpp b/include/simulator/sim_render_backend.hpp
 new file mode 100644
-index 0000000..600795e
+index 0000000..5b7b03c
 --- /dev/null
 +++ b/include/simulator/sim_render_backend.hpp
-@@ -0,0 +1,536 @@
+@@ -0,0 +1,537 @@
 +#ifndef LIBNTR_SIM_RENDER_BACKEND_HPP
 +#define LIBNTR_SIM_RENDER_BACKEND_HPP
 +
@@ -2590,8 +2596,8 @@ index 0000000..600795e
 +// The DS emulation code (G3 command processing, 2D register decoding,
 +// PostFX effect timing, display capture) decides WHAT is drawn and fills
 +// the plain structs below; a backend only turns them into GPU work.
-+// One backend is selected at startup (SIM_RENDERER=gl|gpu, read once,
-+// default gl):
++// One backend is selected at startup (SIM_RENDERER env wins, else the
++// sim_config.ini Renderer key, read once, default gl):
 +//   gl   OpenGL 4.1/4.2 core (libraries/sim/src/render_gl), the reference renderer.
 +//   gpu  SDL3 GPU API (libraries/sim/src/render_gpu, on libraries/sim/src/gpu).
 +//        Until it is implemented it reports so and the GL backend is used.
@@ -3104,7 +3110,8 @@ index 0000000..600795e
 +  virtual void DebugMarker(const char *message, int length) = 0;
 +};
 +
-+// Selects the backend from SIM_RENDERER (once; later calls return the same one). Called by SIM_RenderInit.
++// Selects the backend from SIM_RENDERER (env wins) or the sim_config.ini
++// Renderer key (once; later calls return the same one). Called by SIM_RenderInit.
 +Backend &Select();
 +
 +namespace detail {
@@ -5281,7 +5288,7 @@ index d7a921e..d89ab34 100644
      libsim_dependencies += enet_dep
  endif
 diff --git a/libraries/sim/src/config/sim_config.c b/libraries/sim/src/config/sim_config.c
-index 096e7fb..125a634 100644
+index 096e7fb..217dcf8 100644
 --- a/libraries/sim/src/config/sim_config.c
 +++ b/libraries/sim/src/config/sim_config.c
 @@ -1,4 +1,4 @@
@@ -5299,7 +5306,17 @@ index 096e7fb..125a634 100644
  
  #include <stdlib.h>
  
-@@ -36,6 +36,18 @@ static int IniHandler(void* user, const char* section, const char* name,
+@@ -33,9 +33,28 @@ static int IniHandler(void* user, const char* section, const char* name,
+     SIM_config_type * config = (SIM_config_type *)user;
+ 
+     // General section
++    if(MATCH("General", "Renderer")) {
++        if(strcmp(value, "gpu") == 0) {
++            config->renderer = SIM_CONFIG_RENDERER_GPU;
++        } else if(strcmp(value, "gl") == 0) {
++            config->renderer = SIM_CONFIG_RENDERER_GL;
++        }
++    }
      if(MATCH("General", "InternalResolutionScale")) {
          config->internalResolutionScale = atoi(value);
      }
@@ -5318,7 +5335,7 @@ index 096e7fb..125a634 100644
      if(MATCH("General", "WindowHeight")) {
          config->windowHeight = atoi(value);
      }
-@@ -348,11 +360,12 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -348,11 +367,13 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->windowWidth = 1920;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_LARGE;
  #else
@@ -5328,11 +5345,12 @@ index 096e7fb..125a634 100644
      aConfig->windowWidth = 0;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_VERTICAL;
  #endif
++    aConfig->renderer = SIM_CONFIG_RENDERER_GL;
 +    aConfig->upscale2D = 0; // hiresui: nearest (crisp DS pixels) by default; Sharp/Bilinear are opt-in
      aConfig->fullScreen = FALSE;
      aConfig->swapScreens = FALSE;
      aConfig->vsyncInterval = 1;
-@@ -360,19 +373,19 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -360,19 +381,19 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->masterVolume = 127;
  
      aConfig->padSettings.joyAxisDeadzone = 32767 / 4;
@@ -5359,7 +5377,7 @@ index 096e7fb..125a634 100644
      aConfig->padSettings.frameCapToggleKey = SDLK_TAB;
      aConfig->padSettings.frameCapKey = SDLK_SPACE;
      aConfig->padSettings.aJoyKey = 0;
-@@ -410,7 +423,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -410,7 +431,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->macAddr[5] = rand();
  
      memset(&aConfig->osNvramConfig, 0, sizeof(NVRAMConfig));
@@ -5369,9 +5387,11 @@ index 096e7fb..125a634 100644
      aConfig->osNvramConfig.ncd.option.input_nickname = TRUE;
      aConfig->osNvramConfig.ncd.option.input_favoriteColor = TRUE;
      aConfig->osNvramConfig.ncd.option.input_language = TRUE;
-@@ -428,6 +442,7 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
+@@ -427,7 +449,9 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
+     FILE * configFile = fopen(SIM_CONFIG_FILE_PATH, "w");
      
      fprintf(configFile, "[General]\n");
++    fprintf(configFile, "Renderer=%s\n", aConfig->renderer == SIM_CONFIG_RENDERER_GPU ? "gpu" : "gl");
      fprintf(configFile, "InternalResolutionScale=%d\n", aConfig->internalResolutionScale);
 +    fprintf(configFile, "Upscale2DFilter=%s\n", aConfig->upscale2D == 1 ? "Sharp" : aConfig->upscale2D == 2 ? "Bilinear" : "Nearest");
      fprintf(configFile, "WindowHeight=%d\n", aConfig->windowHeight);
@@ -14019,10 +14039,10 @@ index 0000000..8e615e1
 +#endif
 diff --git a/libraries/sim/src/render_gl/sim_render_gl.cpp b/libraries/sim/src/render_gl/sim_render_gl.cpp
 new file mode 100644
-index 0000000..42d682b
+index 0000000..2992307
 --- /dev/null
 +++ b/libraries/sim/src/render_gl/sim_render_gl.cpp
-@@ -0,0 +1,1033 @@
+@@ -0,0 +1,1045 @@
 +// OpenGL render backend: the first SIM::Render::Backend. Every GL call
 +// of the simulator lives in this directory (plus glad and the vendored
 +// ImGui OpenGL backend). The code is the pre-seam renderer, moved here
@@ -15044,13 +15064,25 @@ index 0000000..42d682b
 +
 +Backend &Select() {
 +  if (detail::gBackend) return *detail::gBackend;
++  // SIM_RENDERER env wins; otherwise the sim_config.ini Renderer key
++  // (loaded before SIM_RenderInit); otherwise gl. The config value is
++  // only ever gl or gpu: the parser ignores any other string.
 +  const char *env = getenv("SIM_RENDERER");
-+  if (env && strcmp(env, "gpu") == 0) {
++  const char *choice = env;
++  const char *source = "SIM_RENDERER";
++  if (!choice) {
++    SIM_config_type *config = SIM_GetConfigPtr();
++    choice = (config && config->renderer == SIM_CONFIG_RENDERER_GPU) ? "gpu" : "gl";
++    source = "sim_config.ini Renderer";
++  }
++  printf("Renderer: %s (from %s)\n", choice, source);
++  fflush(stdout);
++  if (strcmp(choice, "gpu") == 0) {
 +    detail::gBackend = CreateGpuBackend();
 +    return *detail::gBackend;
 +  }
-+  if (env && strcmp(env, "gl") != 0)
-+    printf("SIM_RENDERER=%s: unknown backend, falling back to gl\n", env);
++  if (strcmp(choice, "gl") != 0)
++    printf("SIM_RENDERER=%s: unknown backend, falling back to gl\n", choice);
 +  detail::gBackend = gGlBackend;
 +  return *detail::gBackend;
 +}
@@ -27988,7 +28020,7 @@ index 2c40e59..f07e0a8 100644
  void AppButton(const char * label, bool * state, void (*initFunc)(void), void (*appFunc)(bool *)) {
      if(ImGui::Button(label, sButtonSize)) {
 diff --git a/libraries/sim/src/sim_gui_config.cpp b/libraries/sim/src/sim_gui_config.cpp
-index 4cc4aa3..1bf1c6f 100644
+index 4cc4aa3..6a79fff 100644
 --- a/libraries/sim/src/sim_gui_config.cpp
 +++ b/libraries/sim/src/sim_gui_config.cpp
 @@ -1,5 +1,6 @@
@@ -28007,7 +28039,7 @@ index 4cc4aa3..1bf1c6f 100644
  
  namespace SIM::GUI {
  
-@@ -51,6 +52,19 @@ void AppConfigMain(bool *openState) {
+@@ -51,6 +52,32 @@ void AppConfigMain(bool *openState) {
          SIM_SetInternalResolutionAfterRender(sConfig->internalResolutionScale);
      }
  
@@ -28017,6 +28049,19 @@ index 4cc4aa3..1bf1c6f 100644
 +        "Sharp bilinear",
 +        "Bilinear (smooth)"
 +    };
++    // Renderer: saved to sim_config.ini; takes effect on restart (the
++    // backend is selected once at startup). SIM_RENDERER env wins.
++    static constexpr const char * RendererStrings[] = {
++        "OpenGL",
++        "SDL GPU (Metal / Vulkan)"
++    };
++    int renderer = sConfig->renderer == SIM_CONFIG_RENDERER_GPU ? 1 : 0;
++    ImGui::Text("Renderer (restart to apply)");
++    if(ImGui::Combo("   ", &renderer, RendererStrings, 2, 2)) {
++        sConfig->renderer = renderer ? SIM_CONFIG_RENDERER_GPU : SIM_CONFIG_RENDERER_GL;
++        configChanged = true;
++    }
++
 +    int upscale2D = sConfig->upscale2D <= 2 ? sConfig->upscale2D : 0;
 +    ImGui::Text("2D Upscale");
 +    if(ImGui::Combo("  ", &upscale2D, UpscaleStrings, 3, 3)) {
@@ -28027,7 +28072,7 @@ index 4cc4aa3..1bf1c6f 100644
      if(ImGui::Checkbox("Fullscreen", &fullScreen)) {
          configChanged = true;
      }
-@@ -80,14 +94,13 @@ void AppConfigMain(bool *openState) {
+@@ -80,14 +107,13 @@ void AppConfigMain(bool *openState) {
          sConfig->swapScreens = swapScreens;
          sConfig->fullScreen = fullScreen;
          if(sConfig->fullScreen) {
