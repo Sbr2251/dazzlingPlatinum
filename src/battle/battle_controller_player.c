@@ -4741,7 +4741,7 @@ static BOOL BattleControllerPlayer_AnyFainted(BattleContext *battleCtx, int next
 static BOOL BattleControllerPlayer_AnyExpPayout(BattleContext *battleCtx, int nextCmd, int nextCmdNoExp)
 {
     if (battleCtx->battleStatusMask2 & SYSCTL_PAYOUT_EXP) {
-        int battler = 1 << SYSCTL_PAYOUT_EXP_SHIFT;
+        u32 battler = 1u << SYSCTL_PAYOUT_EXP_SHIFT;
         while ((battleCtx->battleStatusMask2 & battler) == FALSE) {
             battler = battler << 1;
         }
