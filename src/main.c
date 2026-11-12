@@ -204,12 +204,16 @@ void NitroMain(void)
         // still complete correctly, just sooner.
         BrightnessController_Update();
         ExecScreenFade();
+        if (gSystem.vblankCallback != NULL) {
+            gSystem.vblankCallback(gSystem.vblankCallbackData);
+        }
 #ifdef SDK_PORT
         // SoundSystem_Tick IS half-rate gated: its fade/cry-delay counters
         // are only ever polled (Sound_IsFadeActive), never waited on with
         // a fixed frame count, so gating restores real-time sound fades
         // without breaking any waiter. The sound sequencer itself advances
         // per rendered frame / audio callback and is not gated here.
+        // Order kept as in base: vblank callback first, then the tick.
         halfRateTick = !halfRateTick;
         if (!SIM_Config_prj_DoubleStep() || halfRateTick) {
             SoundSystem_Tick();
@@ -217,9 +221,6 @@ void NitroMain(void)
 #else
         SoundSystem_Tick();
 #endif
-        if (gSystem.vblankCallback != NULL) {
-            gSystem.vblankCallback(gSystem.vblankCallbackData);
-        }
         SysTaskManager_ExecuteTasks(gSystem.postVBlankTaskMgr);
     }
 }
