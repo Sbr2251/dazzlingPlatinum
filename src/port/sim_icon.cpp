@@ -1,6 +1,6 @@
 #include "port/sim_icon.h"
 #include <cstdint>
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include "simulator/sim.h"
 
 #ifndef ICON_IMG_ATTRIBUTE
@@ -49,9 +49,9 @@ static const ICON_IMG_ATTRIBUTE uint8_t icon_img_map[] =
 
 
 void SetPokeplatinumAppIcon() {
-    SDL_Surface * iconSurface = SDL_CreateRGBSurfaceFrom((void*)icon_img_map, IconWidth, IconHeight, IconBitsPerPixel, 4 * IconWidth, 0xFF, 0xFF00, 0xFF0000, 0xFF000000);
+    SDL_Surface * iconSurface = SDL_CreateSurfaceFrom(IconWidth, IconHeight, SDL_PIXELFORMAT_RGBA32, (void*)icon_img_map, 4 * IconWidth);
     auto * window = SIM_GetSDLWindow();
     SDL_SetWindowIcon(window, iconSurface);
-    SDL_FreeSurface(iconSurface);
+    SDL_DestroySurface(iconSurface);
 }
 

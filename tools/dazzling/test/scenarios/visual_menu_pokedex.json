@@ -1,0 +1,46 @@
+{
+ "name": "visual_menu_pokedex",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "press": "X",
+   "frames": 10
+  },
+  {
+   "step": 120
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_menu_pokedex",
+   "reference": "../references/visual/visual_menu_pokedex.bmp",
+   "tolerance": 0.0
+  }
+ ],
+ "_note": "Start menu (X), first item: Sinnoh Pokedex. Full frame: list on top, buttons on bottom."
+}

@@ -155,5 +155,56 @@ class TestRunnerEndToEnd(unittest.TestCase):
                           {"assert": {"app": "battle", "battle.battlers.0.mega": True}}]})
             self.assertTrue(ok, msg)
 
+
+    def test_tolerance_gpu_overrides_tolerance(self):
+        # Record a screenshot at frame 40, then re-run with an extra step so
+        # the frame (and pixels) differ: tolerance 0.0 fails, but
+        # tolerance_gpu 1.0 passes when use_gpu_tolerance is set.
+        with tempfile.TemporaryDirectory() as d:
+            sc = {"name": "case", "steps": [{"step": 40},
+                  {"screenshot": "shot", "reference": "ref.bmp", "tolerance": 0.0, "tolerance_gpu": 1.0}]}
+            ok, msg = self.run_one(d, sc, record=True)
+            self.assertTrue(ok, msg)
+            p2 = write_scenario(d, "case2", {"name": "case",
+                "steps": [{"step": 100},
+                          {"screenshot": "shot", "reference": "ref.bmp", "tolerance": 0.0, "tolerance_gpu": 1.0}]})
+            name, ok, msg, client = runner.run_scenario(p2, FAKE, timeout=30, work_root=d)
+            client.close()
+            self.assertFalse(ok, "tolerance 0.0 should fail on a different frame")
+            name, ok, msg, client = runner.run_scenario(p2, FAKE, timeout=30, work_root=d, use_gpu_tolerance=True)
+            client.close()
+            self.assertTrue(ok, msg)
+
+    def test_scenario_env_and_config(self):
+        with tempfile.TemporaryDirectory() as d:
+            pth = write_scenario(d, "case", {"name": "case",
+                "env": {"SIM_HIRESTEXT": "1"}, "config": {"ScreenLayout": "Horizontal"},
+                "steps": [{"step": 10}]})
+            name, ok, msg, client = runner.run_scenario(pth, FAKE, timeout=30, work_root=d)
+            self.assertTrue(ok, msg)
+            # Fake game returns early from make_run_dir, so no config file is
+            # written for it; the scenario still runs (env/config accepted).
+            client.close()
+
+    def test_reload_config_step(self):
+        with tempfile.TemporaryDirectory() as d:
+            save = os.path.join(d, "s.sav")
+            open(save, "w").write("x")
+            pth = write_scenario(d, "case", {"name": "case",
+                "start": {"save": save},
+                "steps": [{"step": 10}, {"reload_config": {"InternalResolutionScale": "4"}}, {"step": 10}]})
+            name, ok, msg, client = runner.run_scenario(pth, FAKE, timeout=30, work_root=d)
+            self.assertTrue(ok, msg)
+            with open(os.path.join(client.dir, "sim_config.ini")) as f:
+                self.assertIn("InternalResolutionScale=4", f.read())
+            client.close()
+
+    def test_compare_backends_mock(self):
+        with tempfile.TemporaryDirectory() as d:
+            pth = write_scenario(d, "case", {"name": "case", "steps": [{"step": 10}]})
+            rc = runner.main(["--mock", "--compare-backends", "--jobs", "1",
+                              "--work-root", os.path.join(d, "work"), pth])
+            self.assertEqual(rc, 0)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

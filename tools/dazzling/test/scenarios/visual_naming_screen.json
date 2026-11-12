@@ -1,0 +1,442 @@
+{
+ "name": "visual_naming_screen",
+ "_note": "Naming screen via the wild-catch flow (same steps as core_wild_catch_pokedex_entry up to the Pokedex entry, split into at most 500-frame steps so no single step command hits the runner's 120s reply timeout): after the entry, A advances to the Yes/No nickname prompt, A selects Yes, A opens the naming screen (empty, cursor on A). Screenshot before any letter is typed. Ends on the naming screen.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 500
+  },
+  {
+   "step": 400
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 100
+  },
+  {
+   "give_item": "ITEM_POKE_BALL",
+   "qty": 5
+  },
+  {
+   "step": 120
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_ROUTE_201",
+    "x": 125,
+    "z": 850,
+    "dir": "DIR_EAST"
+   }
+  },
+  {
+   "step": 300
+  },
+  {
+   "press": "DOWN",
+   "frames": 30
+  },
+  {
+   "step": 60
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "LEFT",
+   "frames": 40
+  },
+  {
+   "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "wait_until": {
+    "app": "battle"
+   },
+   "timeout_frames": 1200
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 3600
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 400
+  },
+  {
+   "touch": [
+    128,
+    110
+   ],
+   "frames": 10
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 400
+  },
+  {
+   "touch": [
+    64,
+    90
+   ],
+   "frames": 10
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 400
+  },
+  {
+   "touch": [
+    40,
+    163
+   ],
+   "frames": 10
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 400
+  },
+  {
+   "touch": [
+    192,
+    43
+   ],
+   "frames": 10
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 400
+  },
+  {
+   "touch": [
+    64,
+    32
+   ],
+   "frames": 20
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 200
+  },
+  {
+   "touch": [
+    109,
+    180
+   ],
+   "frames": 20
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 500
+  },
+  {
+   "step": 100
+  },
+  {
+   "screenshot": "dex_entry",
+   "reference": "../references/core_wild_catch_pokedex_entry.bmp",
+   "tolerance": 0.06,
+   "optional_reference": true
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 300
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 300
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 300
+  },
+  {
+   "screenshot": "visual_naming_screen",
+   "reference": "../references/visual/visual_naming_screen.bmp",
+   "tolerance": 0.0
+  }
+ ]
+}

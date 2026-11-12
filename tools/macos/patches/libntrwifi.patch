@@ -1,11 +1,25 @@
 diff --git a/libraries/cps/src/network.c b/libraries/cps/src/network.c
-index a2d17e8..1704dc8 100644
+index a2d17e8..19c34a6 100644
 --- a/libraries/cps/src/network.c
 +++ b/libraries/cps/src/network.c
-@@ -29,6 +29,18 @@ static SDL_mutex * s_SocketSharedMutex = NULL;
- static SDL_mutex * s_SocketThreadStartupMutex = NULL;
+@@ -18,15 +18,26 @@
  #endif
  
+ #ifndef SDK_BUILD_ARM
+-#include <SDL2/SDL.h>
+-#include <SDL2/SDL_thread.h>
++#include <SDL3/SDL.h>
+ #endif
+ 
+ #include "nitroWiFi/cps.h"
+ 
+ #ifndef SDK_BUILD_ARM
+-static SDL_mutex * s_SocketSharedMutex = NULL;
+-static SDL_mutex * s_SocketThreadStartupMutex = NULL;
++static SDL_Mutex * s_SocketSharedMutex = NULL;
++static SDL_Mutex * s_SocketThreadStartupMutex = NULL;
++#endif
++
 +#ifdef SDK_BUILD_MACOS
 +// macOS has no SOCK_NONBLOCK: set O_NONBLOCK after creating the socket
 +#include <fcntl.h>
@@ -16,12 +30,10 @@ index a2d17e8..1704dc8 100644
 +}
 +#elif defined(SDK_BUILD_LINUX)
 +#define CPS_SOCKET_NONBLOCK(domain, type, protocol) socket(domain, (type) | SOCK_NONBLOCK, protocol)
-+#endif
-+
+ #endif
+ 
  static char * analyze_format(char *param_1,char *param_2,undefined4 param_3,char *param_4);
- static int arprequest(undefined4 param_1);
- static char * byte2a(char *param_1,uint param_2);
-@@ -3390,7 +3402,7 @@ void CPS_SocBind(u16 local_port, u16 remote_port, CPSInAddr remote_ip)
+@@ -3390,7 +3401,7 @@ void CPS_SocBind(u16 local_port, u16 remote_port, CPSInAddr remote_ip)
        setsockopt(mySoc->WIN_socket, SOL_SOCKET, SO_REUSEADDR, &setting, sizeof(int));
        #endif
        #ifdef SDK_BUILD_LINUX
@@ -30,7 +42,7 @@ index a2d17e8..1704dc8 100644
        setsockopt(mySoc->WIN_socket, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
        #endif
      } else {
-@@ -3399,7 +3411,7 @@ void CPS_SocBind(u16 local_port, u16 remote_port, CPSInAddr remote_ip)
+@@ -3399,7 +3410,7 @@ void CPS_SocBind(u16 local_port, u16 remote_port, CPSInAddr remote_ip)
        mySoc->WIN_socket = socket(AF_INET, SOCK_STREAM, 0);
        #endif
        #ifdef SDK_BUILD_LINUX
@@ -39,7 +51,7 @@ index a2d17e8..1704dc8 100644
        #endif
      }
  
-@@ -3476,7 +3488,7 @@ void CPS_SocDatagramMode(void)
+@@ -3476,7 +3487,7 @@ void CPS_SocDatagramMode(void)
      //mySoc->WIN_socket = socket(AF_INET, SOCK_DGRAM, 0);
      //#endif
      //#ifdef SDK_BUILD_LINUX
@@ -48,3 +60,24 @@ index a2d17e8..1704dc8 100644
      //#endif
    }
    return;
+diff --git a/libraries/soc/src/socl_list.c b/libraries/soc/src/socl_list.c
+index a2411c7..614dc7a 100644
+--- a/libraries/soc/src/socl_list.c
++++ b/libraries/soc/src/socl_list.c
+@@ -1,13 +1,13 @@
+ #include <nitroWiFi/socl.h>
+ #ifdef SDK_PORT
+-#include <SDL2/SDL.h>
++#include <SDL3/SDL.h>
+ #endif
+ 
+ SOCLSocket * SOCLiSocketList = NULL;
+ SOCLSocket * SOCLiSocketListTrash = NULL;
+ #ifdef SDK_PORT
+-SDL_mutex * SOCLiSocketListMutex = NULL;
+-SDL_mutex * SOCLiSocketListTrashMutex = NULL;
++SDL_Mutex * SOCLiSocketListMutex = NULL;
++SDL_Mutex * SOCLiSocketListTrashMutex = NULL;
+ #endif
+ 
+ static SOCLSocket ** SOCLi_SocketGetNextPtr(SOCLSocket ** start, SOCLSocket * socket);

@@ -1,0 +1,68 @@
+{
+ "name": "visual_capture_totem_mamoswine",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_ACUITY_LAKEFRONT",
+    "x": 310,
+    "z": 245,
+    "dir": "DIR_SOUTH"
+   }
+  },
+  {
+   "step": 600
+  },
+  {
+   "talk": "LOCALID_TOTEM_MAMOSWINE_4"
+  },
+  {
+   "step": 150
+  },
+  {
+   "screenshot": "visual_capture_totem_150",
+   "reference": "../references/visual/visual_capture_totem_150.bmp",
+   "tolerance": 0.0,
+   "tolerance_gpu": 0.01
+  },
+  {
+   "step": 30
+  },
+  {
+   "screenshot": "visual_capture_totem_180",
+   "reference": "../references/visual/visual_capture_totem_180.bmp",
+   "tolerance": 0.0,
+   "tolerance_gpu": 0.01
+  },
+  {
+   "step": 30
+  },
+  {
+   "screenshot": "visual_capture_totem_210",
+   "reference": "../references/visual/visual_capture_totem_210.bmp",
+   "tolerance": 0.0,
+   "tolerance_gpu": 0.01
+  }
+ ],
+ "_note": "Totem Mamoswine encounter at Acuity Lakefront (3-mon party, A1-04 save): the DISPCAPCNT motion-blur / white-flash window after talking to the Totem. Screenshots at +150, +180, +210 rendered frames after talk; the game is mid battle-transition at the last one, so no post assertions. tolerance_gpu 0.01: the capture path is a GPU-to-CPU readback, so wave 3 may allow a small threshold there."
+}

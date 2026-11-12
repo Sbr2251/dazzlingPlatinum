@@ -169,7 +169,27 @@ class GameError(Exception):
 
 SKIP_ENTRIES = ("save.bin", "save-backups", "build.ninja", "compile_commands.json", "sim_config.ini")
 
-def make_run_dir(game_path, work_root, name):
+def write_sim_config(run_dir, config_extra):
+    """Return sim_config.ini lines for a run dir. Without config_extra this keeps
+    the historical behaviour byte for byte (a bare InternalResolutionScale=2
+    line, no section header). With config_extra the overrides go under a
+    [General] header, which the inih parser requires to match them; the
+    runner's intended InternalResolutionScale=2 is then honoured too, so a
+    scenario that sets config also pins the scale explicitly (pass it in
+    config_extra to choose another scale). A [General] header is only ever
+    added for scenarios that opt into config, so existing scenarios and
+    their references are unaffected."""
+    # Pure: returns the lines; the caller writes them (one open per file).
+    if not config_extra:
+        return ["InternalResolutionScale=2\n"]
+    lines = ["[General]\n"]
+    if "InternalResolutionScale" not in config_extra:
+        lines.append("InternalResolutionScale=2\n")
+    for k, v in config_extra.items():
+        lines.append(f"{k}={v}\n")
+    return lines
+
+def make_run_dir(game_path, work_root, name, config_extra=None):
     """Per-scenario run dir: symlinks to the build dir's contents (the game
     reads its files relative to cwd), plus our OWN sim_config.ini (a copy,
     never a symlink) with InternalResolutionScale=2 so several parallel
@@ -183,13 +203,26 @@ def make_run_dir(game_path, work_root, name):
             continue
         src = os.path.join(game_dir, entry)
         os.symlink(src, os.path.join(run_dir, entry))
-    config_lines = ["InternalResolutionScale=2\n"]
-    src_cfg = os.path.join(game_dir, "sim_config.ini")
-    if os.path.exists(src_cfg):
-        config_lines = [l for l in open(src_cfg) if not l.startswith("InternalResolutionScale=")]
-        config_lines.append("InternalResolutionScale=2\n")
-    with open(os.path.join(run_dir, "sim_config.ini"), "w") as f:
-        f.writelines(config_lines)
+    if config_extra:
+        # Overrides replace same-named keys from a build-dir config, if any.
+        src_cfg = os.path.join(game_dir, "sim_config.ini")
+        if os.path.exists(src_cfg):
+            kept = [l for l in open(src_cfg)
+                    if not any(l.startswith(f"{k}=") for k in config_extra)]
+            with open(os.path.join(run_dir, "sim_config.ini"), "w") as f:
+                f.writelines(kept)
+                f.writelines(write_sim_config(run_dir, config_extra))
+        else:
+            with open(os.path.join(run_dir, "sim_config.ini"), "w") as f:
+                f.writelines(write_sim_config(run_dir, config_extra))
+    else:
+        config_lines = ["InternalResolutionScale=2\n"]
+        src_cfg = os.path.join(game_dir, "sim_config.ini")
+        if os.path.exists(src_cfg):
+            config_lines = [l for l in open(src_cfg) if not l.startswith("InternalResolutionScale=")]
+            config_lines.append("InternalResolutionScale=2\n")
+        with open(os.path.join(run_dir, "sim_config.ini"), "w") as f:
+            f.writelines(config_lines)
     return run_dir, ["./main"]
 
 class GameClient:
@@ -199,9 +232,9 @@ class GameClient:
     def live_count(cls):
         return len([p for p in cls._live if p.poll() is None])
 
-    def __init__(self, game_path, work_root, name, record_env_extra=None, env_extra=None):
+    def __init__(self, game_path, work_root, name, record_env_extra=None, env_extra=None, config_extra=None):
         self.name = name
-        self.dir, argv = make_run_dir(game_path, work_root, name)
+        self.dir, argv = make_run_dir(game_path, work_root, name, config_extra=config_extra)
         self.save_path = os.path.join(self.dir, "save.bin")
         self.coverage_path = os.path.join(self.dir, "coverage.txt")
         self.stderr_path = os.path.join(self.dir, "game.stderr.log")
@@ -351,9 +384,12 @@ def platform_reference(ref_path):
     return os.path.join(d + "_mac", f)
 
 
-def run_scenario(path, game_path, record=False, timeout=600, work_root=None, mock=False, env_extra=None, update=False):
+def run_scenario(path, game_path, record=False, timeout=600, work_root=None, mock=False, env_extra=None, update=False, use_gpu_tolerance=False):
     with open(path, encoding="utf-8") as f:
         sc = json.load(f)
+    # A scenario may declare its own timeout floor (e.g. the naming
+    # scenario replays the whole catch flow, ~750s on llvmpipe).
+    timeout = max(timeout, int(sc.get("timeout") or 0))
     name = sc.get("name") or os.path.splitext(os.path.basename(path))[0]
     scen_dir = os.path.dirname(os.path.abspath(path))
     if sc.get("pending_step3"):
@@ -366,12 +402,16 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
             rp = os.path.join(scen_dir, rp)
         if not os.path.exists(rp):
             return name, True, f"SKIP (missing {req}; local-only scenario)", None
-    # A scenario may carry its own env (e.g. SIM_FX_* to enable a
-    # feature under SIM_HEADLESS for a golden). CLI / --compare-renderers
-    # env wins over the scenario's.
-    merged_env = dict(sc.get("env") or {})
-    merged_env.update(env_extra or {})
-    client = GameClient(game_path, work_root, name, env_extra=merged_env)
+    # Scenario-level env/config: "env" sets process env (e.g. SIM_HIRESTEXT,
+    # SIM_2D_UPSCALE, SIM_RENDERER for a single scenario); "config" sets
+    # sim_config.ini [General] keys (e.g. ScreenLayout, SwapScreens,
+    # Upscale2DFilter, InternalResolutionScale). Caller env_extra wins on
+    # conflict (it carries the --compare-* variant being run).
+    scen_env = dict(sc.get("env") or {})
+    if env_extra:
+        scen_env.update(env_extra)
+    client = GameClient(game_path, work_root, name, env_extra=scen_env,
+                        config_extra=sc.get("config") or None)
     started = time.time()
     try:
         def resolve(p):
@@ -471,7 +511,10 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                                 raise ScenarioFailure(idx, step, f"reference screenshot missing: {ref_path} (run with --record)",
                                                       client.last_state, out)
                             crop = step.get("crop") or (step["screenshot"].get("crop") if isinstance(step["screenshot"], dict) else None)
-                            ok, _frac, msg = compare_images(out, ref_path, step.get("tolerance", 0.01), crop=crop)
+                            tol = step.get("tolerance", 0.01)
+                            if use_gpu_tolerance and "tolerance_gpu" in step:
+                                tol = step["tolerance_gpu"]
+                            ok, _frac, msg = compare_images(out, ref_path, tol, crop=crop)
                             if not ok:
                                 ep, ap, dp = write_diff_images(out, ref_path, client.dir, shot_name, crop=crop)
                                 raise ScenarioFailure(idx, step,
@@ -543,6 +586,26 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                     client.cmd({"cmd": "set_flag", "name": step["set_flag"], "value": bool(step.get("value", True))})
                 elif "give_item" in step:
                     client.cmd({"cmd": "give_item", "item": step["give_item"], "qty": step.get("qty", 1)})
+                elif "reload_config" in step:
+                    # Mid-run config change. The headless protocol has no
+                    # set-config command, so this rewrites sim_config.ini in
+                    # the run dir and re-imports the scenario's start save:
+                    # import_save restarts the process (fds survive execv),
+                    # so the new config is read at startup. The scenario
+                    # must re-establish its position afterwards (press
+                    # through title/Continue, warp, ...), exactly as after
+                    # start. Requires a start.save.
+                    cfg = step["reload_config"]
+                    if not isinstance(cfg, dict):
+                        raise ScenarioFailure(idx, step, "reload_config needs a {key: value} mapping",
+                                              client.last_state, client.last_screenshot)
+                    with open(os.path.join(client.dir, "sim_config.ini"), "w") as f:
+                        f.writelines(write_sim_config(client.dir, cfg))
+                    start_save = (sc.get("start") or {}).get("save")
+                    if not start_save:
+                        raise ScenarioFailure(idx, step, "reload_config needs start.save to restart from",
+                                              client.last_state, client.last_screenshot)
+                    client.cmd({"cmd": "import_save", "path": os.path.abspath(resolve(start_save))})
                 elif "import_save" in step:
                     client.cmd({"cmd": "import_save", "path": os.path.abspath(resolve(step["import_save"]))})
                 else:
@@ -595,6 +658,11 @@ def main(argv=None):
     ap.add_argument("--update", action="store_true", help="accept current output as new references (same writes as --record; use after reviewing diffs)")
     ap.add_argument("--compare-renderers", action="store_true",
                     help="run each scenario twice, SIM_G2_GPU=0 (CPU 2D) and =1 (GPU 2D), both against the same references")
+    ap.add_argument("--compare-backends", action="store_true",
+                    help="run each scenario twice, SIM_RENDERER=gl and =gpu, both against the same references; "
+                    "the gpu run uses each screenshot step's tolerance_gpu when present, else its tolerance. "
+                    "Until the gpu backend exists the game falls back to gl, so both runs must pass. "
+                    "Combinable with --compare-renderers (four runs: gl/gpu x CPU/GPU 2D)")
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--work-root", default=None)
     args = ap.parse_args(argv)
@@ -612,16 +680,31 @@ def main(argv=None):
     def one(p):
         client = None
         try:
-            if args.compare_renderers and not (args.record or args.update):
+            if (args.compare_renderers or args.compare_backends) and not (args.record or args.update):
+                # Variant list: (label, env_extra, use_gpu_tolerance).
+                backends = (("gl", "gpu") if args.compare_backends else ("gl",))
+                g2s = (("0", "1") if args.compare_renderers else ("0",))
+                if not args.compare_renderers:
+                    g2s = (None,)
                 msgs, ok_all = [], True
-                for gpu in ("0", "1"):
-                    name, ok, msg, client = run_scenario(p, game, record=False,
-                                                         timeout=args.timeout, work_root=work_root, mock=args.mock,
-                                                         env_extra={"SIM_G2_GPU": gpu})
-                    msgs.append(f"SIM_G2_GPU={gpu}: {'ok' if ok else msg}")
-                    ok_all = ok_all and ok
-                    if client is not None:
-                        client.close(); client = None
+                for backend in backends:
+                    for g2 in g2s:
+                        env = {}
+                        label_parts = []
+                        if backend is not None:
+                            env["SIM_RENDERER"] = backend
+                            label_parts.append(f"SIM_RENDERER={backend}")
+                        if g2 is not None:
+                            env["SIM_G2_GPU"] = g2
+                            label_parts.append(f"SIM_G2_GPU={g2}")
+                        name, ok, msg, client = run_scenario(p, game, record=False,
+                                                             timeout=args.timeout, work_root=work_root, mock=args.mock,
+                                                             env_extra=env,
+                                                             use_gpu_tolerance=(backend == "gpu"))
+                        msgs.append(f"{', '.join(label_parts) or 'default'}: {'ok' if ok else msg}")
+                        ok_all = ok_all and ok
+                        if client is not None:
+                            client.close(); client = None
                 return name, ok_all, "; ".join(msgs)
             name, ok, msg, client = run_scenario(p, game, record=args.record,
                                                  timeout=args.timeout, work_root=work_root, mock=args.mock,

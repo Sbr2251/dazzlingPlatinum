@@ -1,0 +1,84 @@
+{
+ "name": "visual_menu_town_map",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "press": "X",
+   "frames": 10
+  },
+  {
+   "step": 120
+  },
+  {
+   "press": "DOWN",
+   "frames": 10
+  },
+  {
+   "step": 60
+  },
+  {
+   "press": "DOWN",
+   "frames": 10
+  },
+  {
+   "step": 60
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 240
+  },
+  {
+   "touch": [
+    222,
+    38
+   ],
+   "frames": 10
+  },
+  {
+   "step": 120
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 180
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 180
+  },
+  {
+   "screenshot": "visual_menu_town_map",
+   "reference": "../references/visual/visual_menu_town_map.bmp",
+   "tolerance": 0.0
+  }
+ ],
+ "_note": "Start menu (X) -> Bag -> touch the key-item wheel icon (DS coords [222,38], Key Items pocket, Town Map selected) -> A (USE menu) -> A (USE): town map screen, Jubilife City. Full frame."
+}

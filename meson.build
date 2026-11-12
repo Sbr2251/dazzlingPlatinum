@@ -129,6 +129,17 @@ add_global_arguments(cpp_args,
     native: (build_target == 'linux' or build_target == 'win64')
 )
 
+# SDL3 headers for the whole build: libntr's OS/FS libraries and the game's port code include <SDL3/SDL.h>,
+# and only libntr's simulator library links SDL (see subprojects/libntr/libraries/sim/meson.build).
+if (build_target == 'linux' or build_target == 'win64')
+sdl3_headers_dep = dependency('sdl3', native: true, required: false)
+if sdl3_headers_dep.found()
+sdl3_include_arg = '-I' + sdl3_headers_dep.get_variable(pkgconfig: 'includedir')
+add_global_arguments(sdl3_include_arg, language: ['c', 'cpp'], native: true)
+add_global_arguments(sdl3_include_arg, language: ['c', 'cpp'], native: false)
+endif
+endif
+
 pokeplatinum_args = [
     '-DGAME_VERSION=VERSION_PLATINUM',
     '-DGAME_LANGUAGE=LANGUAGE_ENGLISH'

@@ -1,0 +1,47 @@
+{
+ "name": "visual_layout_horizontal_swapped",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_layout_horizontal_swapped",
+   "reference": "../references/visual/visual_layout_horizontal_swapped.bmp",
+   "tolerance": 0.0
+  }
+ ],
+ "_note": "Horizontal layout with swapped screens: full 1024x384 frame.",
+ "config": {
+  "ScreenLayout": "horizontal",
+  "SwapScreens": "true"
+ },
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_JUBILIFE_CITY"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}

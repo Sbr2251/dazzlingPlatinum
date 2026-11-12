@@ -1,0 +1,48 @@
+{
+ "name": "visual_distortion_world",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_DISTORTION_WORLD_1F",
+    "x": 20,
+    "z": 20,
+    "dir": "DIR_SOUTH"
+   }
+  },
+  {
+   "step": 600
+  },
+  {
+   "screenshot": "visual_distortion_world",
+   "reference": "../references/visual/visual_distortion_world.bmp",
+   "tolerance": 0.0
+  }
+ ],
+ "_note": "Distortion World 1F: single warp to (20,20) - do NOT warp again in this scenario (a second warp while the map-transition script is still running asserts in FieldSystem_CreateTask). Screenshot after 600f settle. Bottom screen shows the Poketch.",
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_DISTORTION_WORLD_1F"
+  }
+ ]
+}

@@ -1,0 +1,2644 @@
+diff --git a/include/simulator/gpu/coords.hpp b/include/simulator/gpu/coords.hpp
+new file mode 100644
+index 0000000..3ee9c47
+--- /dev/null
++++ b/include/simulator/gpu/coords.hpp
+@@ -0,0 +1,78 @@
++#pragma once
++// Coordinate conventions: SDL_GPU versus the OpenGL code this renderer replaces.
++//
++//                        OpenGL (current code)                SDL_GPU (Vulkan and Metal alike)
++//  NDC x, y              +Y up, (-1,-1) bottom-left           same: +Y up, (-1,-1) bottom-left
++//  NDC z / depth range   clip z in [-w, w], depth = z*0.5+0.5 clip z in [0, w], depth = z
++//                        (glDepthRange 0..1)                  (viewport min/max depth 0..1)
++//  Viewport / scissor    origin bottom-left, +Y up            origin top-left, +Y down
++//  Framebuffer memory    row 0 = bottom row (glReadPixels     row 0 = top row (downloads are
++//                        returns bottom-up, code flips it)    top-down, no flip needed)
++//  Texture upload        row 0 of the data -> t = 0           row 0 of the data -> v = 0
++//  Texture sampling      t = 0 reads data row 0               v = 0 reads data row 0
++//  Render-to-texture     NDC +Y lands in the LAST row, so a   NDC +Y lands in row 0, so a render
++//                        render target is sampled with t = 1  target is sampled with v = 0 at its
++//                        at its visual top                    visual top
++//  Front face            glFrontFace(GL_CW / GL_CCW), judged  SDL_GPU_FRONTFACE_CLOCKWISE / _COUNTER_
++//                        on the image as it appears on screen CLOCKWISE, judged the same way (SDL
++//                                                             compensates for Vulkan's flipped NDC)
++//  Cull                  GL_FRONT / GL_BACK / GL_FRONT_AND_BACK  FRONT / BACK only: skip the draw
++//                                                             for FRONT_AND_BACK
++//
++// What a port from GL has to change, and nothing else:
++//  1. Depth: a vertex shader that outputs GL clip-space z must remap it, or every z < 0 is clipped:
++//     gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5   (SIM_GL_TO_GPU_DEPTH in sim_gpu.glsl).
++//     Depth compares (LESS, EQUAL, ...) keep working because the remap is monotonic and exact for
++//     the same input. Feed the original z to anything else that reads it (e.g. fog).
++//  2. Viewport and scissor rectangles: y_gpu = targetHeight - y_gl - height (GlViewport/GlScissor).
++//  3. Sampling a texture that was RENDERED (not uploaded) with GL-style coordinates: use
++//     v_gpu = 1 - v_gl (SIM_RT_UV in sim_gpu.glsl, or flip the quad's texture coordinates).
++//     CPU-uploaded textures need no change.
++//  4. Readback: drop the bottom-up row flip the GL code does after glReadPixels.
++//  5. gl_FragCoord.y in a fragment shader counts from the top in SDL_GPU and from the bottom in GL:
++//     y_gl = targetHeight - gl_FragCoord.y (only matters for shaders that use gl_FragCoord.y).
++
++#include <SDL3/SDL.h>
++
++namespace SIM::Gpu {
++
++// GL glViewport(x, y, w, h) on a target of the given height, as an SDL_GPU viewport (depth 0..1).
++inline SDL_GPUViewport GlViewport(int x, int y, int w, int h, int targetHeight) {
++    SDL_GPUViewport v;
++    v.x = (float)x;
++    v.y = (float)(targetHeight - y - h);
++    v.w = (float)w;
++    v.h = (float)h;
++    v.min_depth = 0.0f;
++    v.max_depth = 1.0f;
++    return v;
++}
++
++// GL glScissor(x, y, w, h) on a target of the given height, as an SDL_GPU scissor rectangle.
++inline SDL_Rect GlScissor(int x, int y, int w, int h, int targetHeight) {
++    SDL_Rect r;
++    r.x = x;
++    r.y = targetHeight - y - h;
++    r.w = w;
++    r.h = h;
++    return r;
++}
++
++// Full-target viewport with the standard 0..1 depth range.
++inline SDL_GPUViewport FullViewport(Uint32 w, Uint32 h) {
++    SDL_GPUViewport v = { 0.0f, 0.0f, (float)w, (float)h, 0.0f, 1.0f };
++    return v;
++}
++
++// GL window-space depth for an NDC z in [-1, 1] equals SDL_GPU's NDC z after this remap.
++inline float GlNdcDepthToGpu(float zNdcGl) { return zNdcGl * 0.5f + 0.5f; }
++
++// Texture coordinate for sampling a render target with a GL-convention t.
++inline float GlRenderTargetV(float tGl) { return 1.0f - tGl; }
++
++// GL front-face winding to SDL_GPU (same meaning; see the table above).
++inline SDL_GPUFrontFace GlFrontFace(bool glClockwise) {
++    return glClockwise ? SDL_GPU_FRONTFACE_CLOCKWISE : SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
++}
++
++} // namespace SIM::Gpu
+diff --git a/include/simulator/gpu/device.hpp b/include/simulator/gpu/device.hpp
+new file mode 100644
+index 0000000..32f0716
+--- /dev/null
++++ b/include/simulator/gpu/device.hpp
+@@ -0,0 +1,135 @@
++#pragma once
++// SDL_GPU device lifetime, window/swapchain, caches and synchronous readback.
++//
++// Error policy: every SDL_GPU call that can fail is checked; failures are logged as
++//   "SIM_GPU: <context>: <SDL_GetError()>"
++// and make the call return false/nullptr; Device::Failed() and Frame::End() report them.
++// SIM_GPU_FATAL=1 aborts on the first failure instead (for tests and debugging).
++//
++// Environment:
++//   SIM_GPU_DEBUG=1     SDL_GPU debug mode (SDL's own validation; Vulkan validation layers when installed)
++//   SIM_GPU_DRIVER=x    force an SDL_GPU driver ("vulkan", "metal")
++//   SIM_GPU_FATAL=1     abort() on the first SDL_GPU failure
++
++#include <SDL3/SDL.h>
++#include <simulator/gpu/frame.hpp>
++#include <simulator/gpu/pipeline.hpp>
++#include <simulator/gpu/shader_blob.hpp>
++#include <simulator/gpu/texture.hpp>
++#include <memory>
++#include <unordered_map>
++#include <vector>
++
++namespace SIM::Gpu {
++
++// Logs "SIM_GPU: <context>: <SDL_GetError()>" (or just the context when detail is false).
++void LogError(const char *context, bool withSdlError = true);
++void LogInfo(const char *fmt, ...) SDL_PRINTF_VARARG_FUNC(1);
++
++struct DeviceConfig {
++    bool debug = false;              // SDL_GPU debug mode; SIM_GPU_DEBUG=1 also enables it
++    const char *driver = nullptr;    // nullptr = SDL's choice (Vulkan, or Metal on Apple)
++    bool preferLowPower = false;
++    bool requireHardware = false;    // true refuses software Vulkan (lavapipe)
++    // Optional Vulkan features SDL enables by default. Off widens Android support. Depth clamping
++    // stays on by default because pipelines with enable_depth_clip = false need it (Dear ImGui's
++    // SDL_GPU backend creates one); every pipeline this library creates clips instead.
++    bool depthClamping = true;
++    Uint32 framesInFlight = 2;       // 1..3
++    Uint32 initialStreamBytes = 1u << 20;    // first size of the per-frame streamed vertex buffer
++    Uint32 initialTransferBytes = 4u << 20;  // first size of the upload staging buffer
++};
++
++class Device {
++public:
++    Device();
++    ~Device();
++    Device(const Device &) = delete;
++    Device &operator=(const Device &) = delete;
++
++    // Creates the GPU device without a window: everything except presentation works (render to
++    // textures, read back). Initializes SDL's video subsystem when nobody has (SDL needs it to load
++    // Vulkan), falling back to the "offscreen" video driver when no display is available.
++    bool Create(const DeviceConfig &config = {});
++    void Destroy();
++    bool IsValid() const { return mDevice != nullptr; }
++
++    // Swapchain. AttachWindow claims the window (SDR composition, current vsync setting).
++    bool AttachWindow(SDL_Window *window);
++    void DetachWindow();
++    SDL_Window *Window() const { return mWindow; }
++    // Vsync on = SDL_GPU_PRESENTMODE_VSYNC. Off = MAILBOX if supported (no tearing, no frame cap),
++    // else IMMEDIATE, else stays VSYNC (logged). Callable any time; applied between frames.
++    bool SetVsync(bool enabled);
++    bool Vsync() const { return mVsync; }
++    SDL_GPUPresentMode PresentMode() const { return mPresentMode; }
++    SDL_GPUTextureFormat SwapchainFormat() const;  // INVALID when windowless
++
++    SDL_GPUDevice *Handle() const { return mDevice; }
++    const char *DriverName() const;
++    SDL_GPUShaderFormat ShaderFormat() const { return mShaderFormat; }  // SPIRV or MSL
++    SDL_GPUTextureFormat DepthFormat() const { return mDepthFormat; }   // D24_UNORM or D32_FLOAT
++    bool SupportsTexture(SDL_GPUTextureFormat format, SDL_GPUTextureUsageFlags usage) const;
++    const DeviceConfig &Config() const { return mConfig; }
++
++    // Shader for the active backend, created once per blob and cached.
++    SDL_GPUShader *Shader(const ShaderBlob &blob);
++    PipelineCache &Pipelines() { return *mPipelines; }
++    SamplerCache &Samplers() { return *mSamplers; }
++    SDL_GPUGraphicsPipeline *Pipeline(const PipelineKey &key) { return mPipelines->Get(key); }
++    SDL_GPUSampler *Sampler(const SamplerKey &key) { return mSamplers->Get(key); }
++
++    // Frames. One at a time; BeginFrame returns nullptr on failure.
++    Frame *BeginFrame();
++    Frame *CurrentFrame() { return mFrame && mFrame->mActive ? mFrame.get() : nullptr; }
++
++    // Uploads requested outside a frame are queued and run at the start of the next frame's
++    // first pass (or by FlushUploads). Inside a frame these forward to the frame.
++    void UploadTexture(const Texture &texture, const void *data, Uint32 rowPitch = 0);
++    void UploadTexture(const Texture &texture, Uint32 x, Uint32 y, Uint32 w, Uint32 h, const void *data, Uint32 rowPitch = 0);
++    void UploadBuffer(SDL_GPUBuffer *buffer, Uint32 offset, const void *data, Uint32 bytes);
++    // Submits queued uploads now on their own command buffer (outside a frame only).
++    bool FlushUploads();
++
++    // GPU buffer helper (vertex/index/storage); nullptr (logged) on failure.
++    SDL_GPUBuffer *CreateBuffer(SDL_GPUBufferUsageFlags usage, Uint32 bytes, const char *name = nullptr);
++
++    // Synchronous readback (outside a frame): copies the region into `out` and waits for the GPU.
++    // ReadbackRGBA8: RGBA8 rows, top row first, for R8G8B8A8 and B8G8R8A8 (UNORM/SRGB) textures.
++    // ReadbackRaw: the texels as stored, tightly packed, top row first.
++    bool ReadbackRGBA8(SDL_GPUTexture *texture, SDL_GPUTextureFormat format, Uint32 x, Uint32 y, Uint32 w, Uint32 h,
++                       std::vector<Uint8> &out);
++    bool ReadbackRGBA8(const Texture &texture, std::vector<Uint8> &out);
++    bool ReadbackRaw(SDL_GPUTexture *texture, SDL_GPUTextureFormat format, Uint32 x, Uint32 y, Uint32 w, Uint32 h,
++                     std::vector<Uint8> &out);
++
++    bool WaitIdle();
++    bool Failed() const { return mFailed; }
++    void ClearFailed() { mFailed = false; }
++    void ReportFailure(const char *context, bool withSdlError = true);
++
++private:
++    friend class Frame;
++    bool ApplyPresentMode();
++    bool EnsureDownload(Uint32 bytes);
++
++    DeviceConfig mConfig;
++    SDL_GPUDevice *mDevice = nullptr;
++    SDL_GPUShaderFormat mShaderFormat = SDL_GPU_SHADERFORMAT_INVALID;
++    SDL_GPUTextureFormat mDepthFormat = SDL_GPU_TEXTUREFORMAT_INVALID;
++    bool mInitedVideo = false;
++    bool mFailed = false;
++    SDL_Window *mWindow = nullptr;
++    bool mVsync = true;
++    bool mPresentModeDirty = false;
++    SDL_GPUPresentMode mPresentMode = SDL_GPU_PRESENTMODE_VSYNC;
++    std::unordered_map<const ShaderBlob *, SDL_GPUShader *> mShaders;
++    std::unique_ptr<PipelineCache> mPipelines;
++    std::unique_ptr<SamplerCache> mSamplers;
++    std::unique_ptr<Frame> mFrame;
++    Uint64 mFrameIndex = 0;
++    SDL_GPUTransferBuffer *mDownload = nullptr;
++    Uint32 mDownloadSize = 0;
++};
++
++} // namespace SIM::Gpu
+diff --git a/include/simulator/gpu/frame.hpp b/include/simulator/gpu/frame.hpp
+new file mode 100644
+index 0000000..c3c6085
+--- /dev/null
++++ b/include/simulator/gpu/frame.hpp
+@@ -0,0 +1,245 @@
++#pragma once
++// One frame = one SDL_GPU command buffer, built in recording order.
++//
++//   Frame *f = device.BeginFrame();
++//   f->BeginPass(Phase::Scene3D, pass);   // targets + load ops
++//   f->BindPipeline(...); f->SetViewport(...); f->BindFragmentSampler(...);
++//   f->PushFragmentUniform(0, block); f->DrawStreamed(verts, n, sizeof(Vertex));
++//   f->EndPass();
++//   ... more passes in phase order ...
++//   f->Present(frameTexture);              // optional: blit to the window's swapchain
++//   f->End();                              // submit (and present)
++//
++// Draw calls are recorded and replayed into a real SDL render pass when the pass closes, so
++// uploads and streamed vertex data can be requested at any time, including in the middle of a
++// pass, and still run in a copy pass before the draws that use them:
++//  - an upload to a texture/buffer the open pass has not referenced yet is executed before the
++//    pass (invisible to the pass's earlier draws, which do not use it);
++//  - an upload to a resource the open pass already references (sampled, bound or as a target)
++//    splits the pass: the part recorded so far is submitted, the upload runs, and the pass
++//    continues with LOAD ops and the same bound state, so earlier draws see the old data and later
++//    draws the new data, exactly as with glTexSubImage2D between two GL draws.
++// Uniform data pushed with Push*Uniform is copied at the call and stays in effect for later
++// draws in this frame (SDL_GPU keeps uniform slots for the whole command buffer). It does not
++// carry over to the next frame: push again after BeginFrame.
++//
++// Phases only order the frame: BeginPass() must be called with non-decreasing phases, and any
++// number of passes may share a phase. A backend can issue draws as they happen or keep its own
++// list and issue it later in the frame; both end up in the same recorded order.
++
++#include <SDL3/SDL.h>
++#include <cstddef>
++#include <functional>
++#include <unordered_set>
++#include <vector>
++
++namespace SIM::Gpu {
++
++class Device;
++class Texture;
++
++enum class Phase : Uint8 {
++    Scene3D = 0,      // 3D scene into an offscreen colour + depth target at the internal resolution
++    Composite2D = 1,  // 2D layers + 3D into the offscreen frame target (both DS screens)
++    Post = 2,         // post effects into the present target (or straight into the swapchain)
++    Overlay = 3,      // ImGui and other debug overlays
++    Count = 4
++};
++const char *PhaseName(Phase phase);
++
++struct ColorTargetDesc {
++    SDL_GPUTexture *texture = nullptr;
++    SDL_GPULoadOp load = SDL_GPU_LOADOP_CLEAR;
++    SDL_FColor clear = { 0.0f, 0.0f, 0.0f, 0.0f };
++    bool cycle = false;  // true when the pass overwrites every pixel (load != LOAD) and the old
++                         // contents may still be read by an earlier frame in flight
++};
++
++struct DepthTargetDesc {
++    SDL_GPUTexture *texture = nullptr;  // nullptr: no depth target
++    SDL_GPULoadOp load = SDL_GPU_LOADOP_CLEAR;
++    SDL_GPUStoreOp store = SDL_GPU_STOREOP_STORE;  // DONT_CARE when nothing reads the depth later
++    float clearDepth = 1.0f;
++    bool cycle = false;
++};
++
++constexpr Uint32 kMaxColorTargets = 4;
++
++struct PassDesc {
++    ColorTargetDesc color[kMaxColorTargets];
++    Uint32 numColorTargets = 1;
++    DepthTargetDesc depth;
++    const char *label = nullptr;  // debug group name (must outlive the frame)
++
++    static PassDesc Color(SDL_GPUTexture *target, SDL_GPULoadOp load = SDL_GPU_LOADOP_CLEAR,
++                          SDL_FColor clear = { 0.0f, 0.0f, 0.0f, 0.0f });
++    static PassDesc ColorDepth(SDL_GPUTexture *target, SDL_GPUTexture *depth, SDL_FColor clear = { 0.0f, 0.0f, 0.0f, 0.0f },
++                               float clearDepth = 1.0f);
++};
++
++struct FrameStats {
++    Uint32 renderPasses = 0;   // SDL render passes begun (pass splits included)
++    Uint32 passSplits = 0;     // passes split by an upload to a resource they already used
++    Uint32 copyPasses = 0;
++    Uint32 draws = 0;
++    Uint32 pipelineBinds = 0;
++    Uint64 uploadBytes = 0;    // texture/buffer upload bytes executed this frame
++    Uint64 streamBytes = 0;    // streamed vertex bytes
++    Uint32 streamBufferGrowths = 0;
++};
++
++class Frame {
++public:
++    explicit Frame(Device &device);
++    ~Frame();
++    Frame(const Frame &) = delete;
++    Frame &operator=(const Frame &) = delete;
++
++    // ---- passes -----------------------------------------------------------------------------
++    bool BeginPass(Phase phase, const PassDesc &desc);
++    void EndPass();
++    bool InPass() const { return mPassOpen; }
++    Phase CurrentPhase() const { return mPhase; }
++
++    // ---- state and draws (inside a pass) --------------------------------------------------------
++    void BindPipeline(SDL_GPUGraphicsPipeline *pipeline);
++    void SetViewport(const SDL_GPUViewport &viewport);
++    void SetScissor(const SDL_Rect &scissor);
++    void SetBlendConstants(SDL_FColor constants);
++    void BindVertexBuffer(SDL_GPUBuffer *buffer, Uint32 offset = 0, Uint32 slot = 0);
++    void BindIndexBuffer(SDL_GPUBuffer *buffer, Uint32 offset, SDL_GPUIndexElementSize size);
++    void BindVertexSampler(Uint32 slot, SDL_GPUTexture *texture, SDL_GPUSampler *sampler);
++    void BindFragmentSampler(Uint32 slot, SDL_GPUTexture *texture, SDL_GPUSampler *sampler);
++    void Draw(Uint32 vertexCount, Uint32 firstVertex = 0, Uint32 instanceCount = 1);
++    void DrawIndexed(Uint32 indexCount, Uint32 firstIndex = 0, Sint32 vertexOffset = 0, Uint32 instanceCount = 1);
++
++    // Streamed vertices: copies `bytes` into this frame's vertex stream and returns its offset
++    // in the stream. BindStream(offset) binds it at vertex slot 0; the data is valid until End().
++    Uint32 StreamVertices(const void *data, Uint32 bytes);
++    void BindStream(Uint32 streamOffset, Uint32 slot = 0);
++    // StreamVertices + BindStream + Draw for one batch of non-indexed vertices.
++    void DrawStreamed(const void *vertices, Uint32 vertexCount, Uint32 stride);
++
++    // Uniform data (std140, at most 32 KiB per push), slot = GLSL binding in set 1 (vertex) or 3 (fragment).
++    // Allowed inside and outside passes.
++    void PushVertexUniform(Uint32 slot, const void *data, Uint32 bytes);
++    void PushFragmentUniform(Uint32 slot, const void *data, Uint32 bytes);
++    template <typename T> void PushVertexUniform(Uint32 slot, const T &block) { PushVertexUniform(slot, &block, (Uint32)sizeof(T)); }
++    template <typename T> void PushFragmentUniform(Uint32 slot, const T &block) { PushFragmentUniform(slot, &block, (Uint32)sizeof(T)); }
++
++    // Escape hatches, run when the recording is replayed:
++    // InPass: inside the current SDL render pass (raw SDL draws, e.g. ImGui_ImplSDLGPU3_RenderDrawData).
++    //   Resources it uses are not tracked for upload ordering.
++    // OutsidePass: between passes, on the frame's command buffer (e.g. ImGui_ImplSDLGPU3_PrepareDrawData,
++    //   SDL_BlitGPUTexture, SDL_GenerateMipmapsForGPUTexture). Not allowed while a pass is open.
++    void InPass(std::function<void(SDL_GPUCommandBuffer *, SDL_GPURenderPass *)> fn);
++    bool OutsidePass(std::function<void(SDL_GPUCommandBuffer *)> fn);
++
++    // ---- uploads (any time) ---------------------------------------------------------------------
++    // rowPitch = bytes between rows in `data` (0 = tightly packed). wholeTexture = the region covers
++    // the entire texture, which lets SDL give the upload fresh storage instead of waiting for
++    // earlier frames that still read the texture.
++    void UploadTexture(SDL_GPUTexture *texture, SDL_GPUTextureFormat format, Uint32 x, Uint32 y, Uint32 w, Uint32 h,
++                       const void *data, Uint32 rowPitch = 0, bool wholeTexture = false, Uint32 layer = 0, Uint32 mipLevel = 0);
++    void UploadTexture(const Texture &texture, const void *data, Uint32 rowPitch = 0);  // whole texture
++    void UploadTexture(const Texture &texture, Uint32 x, Uint32 y, Uint32 w, Uint32 h, const void *data, Uint32 rowPitch = 0);
++    void UploadBuffer(SDL_GPUBuffer *buffer, Uint32 offset, const void *data, Uint32 bytes, bool wholeBuffer = false);
++
++    // ---- presentation -----------------------------------------------------------------------------
++    // The window's swapchain texture for a pass that renders straight into it (acquired on first
++    // call; nullptr when windowless or the window is minimized). Format: Device::SwapchainFormat().
++    SDL_GPUTexture *AcquireSwapchain(Uint32 *width = nullptr, Uint32 *height = nullptr);
++    // At End(): blit `source` (any size, filtered) onto the whole swapchain texture. No-op when
++    // windowless. Keep `source` for headless readback: the swapchain itself cannot be read.
++    void Present(SDL_GPUTexture *source, Uint32 width, Uint32 height, SDL_GPUFilter filter = SDL_GPU_FILTER_NEAREST);
++
++    // Closes an open pass, runs remaining uploads, presents and submits. Returns false when
++    // anything in the frame failed (already logged). The Frame object is reused by the device.
++    bool End();
++
++    SDL_GPUCommandBuffer *CommandBuffer() const { return mCmd; }
++    const FrameStats &Stats() const { return mStats; }
++    Uint64 Index() const { return mIndex; }
++    bool Failed() const { return mFailed; }
++
++private:
++    friend class Device;
++
++    struct Cmd;
++    struct PendingUpload;
++    struct StreamChunk {
++        SDL_GPUBuffer *buffer;
++        Uint32 streamBegin, streamEnd;  // range of the frame stream held by this chunk
++        Uint32 gpuBase;                 // byte offset of streamBegin inside buffer
++    };
++    struct BoundState {
++        SDL_GPUGraphicsPipeline *pipeline = nullptr;
++        bool hasViewport = false, hasScissor = false, hasBlend = false;
++        SDL_GPUViewport viewport{};
++        SDL_Rect scissor{};
++        SDL_FColor blend{};
++        SDL_GPUBuffer *vertexBuffers[4] = {};
++        Uint32 vertexOffsets[4] = {};
++        bool vertexIsStream[4] = {};
++        SDL_GPUBuffer *indexBuffer = nullptr;
++        Uint32 indexOffset = 0;
++        SDL_GPUIndexElementSize indexSize = SDL_GPU_INDEXELEMENTSIZE_16BIT;
++        SDL_GPUTextureSamplerBinding vsSamplers[16] = {};
++        SDL_GPUTextureSamplerBinding fsSamplers[16] = {};
++    };
++
++    bool Begin(Uint64 index);
++    void Fail(const char *what);
++    void FailSdl(const char *what);
++    bool Require(bool inPass, const char *what);
++    void Reference(void *resource);
++    void SplitIfReferenced(void *resource);
++    void CloseSegment(bool continuing);
++    bool FlushCopies();
++    bool EnsureTransfer(Uint32 bytes);
++    bool ResolveStream(Uint32 streamOffset, SDL_GPUBuffer **buffer, Uint32 *offset) const;
++    void Replay(SDL_GPURenderPass *pass);
++    void RecordBoundState();
++    Uint32 Arena(const void *data, Uint32 bytes);
++
++    Device &mDevice;
++    SDL_GPUCommandBuffer *mCmd = nullptr;
++    Uint64 mIndex = 0;
++    bool mActive = false;
++    bool mFailed = false;
++    bool mPassOpen = false;
++    Phase mPhase = Phase::Scene3D;
++    PassDesc mPass;
++    FrameStats mStats;
++
++    std::vector<Cmd> mCmds;
++    std::vector<Uint8> mArena;                       // uniform/viewport payloads of the open segment
++    std::vector<std::function<void(SDL_GPUCommandBuffer *, SDL_GPURenderPass *)>> mInPassFns;
++    std::unordered_set<void *> mReferenced;          // resources the open segment uses
++    BoundState mBound;
++
++    std::vector<PendingUpload> mUploads;
++    std::vector<Uint8> mUploadBytes;
++
++    std::vector<Uint8> mStream;                      // CPU copy of this frame's vertex stream
++    Uint32 mStreamUploaded = 0;                      // bytes of mStream already in a GPU chunk
++    std::vector<StreamChunk> mChunks;
++    SDL_GPUBuffer *mStreamBuffer = nullptr;          // kept across frames, cycled on first use per frame
++    Uint32 mStreamCapacity = 0;
++    Uint32 mStreamGpuUsed = 0;                       // bytes of mStreamBuffer written this frame
++    std::vector<SDL_GPUBuffer *> mRetiredStream;     // outgrown buffers still referenced this frame
++    SDL_GPUTransferBuffer *mTransfer = nullptr;      // upload staging, cycled on every map
++    Uint32 mTransferSize = 0;
++
++    bool mContinuation = false;                      // the open segment continues a split pass
++    Uint32 mSegmentDraws = 0;
++
++    SDL_GPUTexture *mSwapchain = nullptr;
++    Uint32 mSwapchainW = 0, mSwapchainH = 0;
++    bool mSwapchainAcquired = false;
++    SDL_GPUTexture *mPresentSource = nullptr;
++    Uint32 mPresentW = 0, mPresentH = 0;
++    SDL_GPUFilter mPresentFilter = SDL_GPU_FILTER_NEAREST;
++};
++
++} // namespace SIM::Gpu
+diff --git a/include/simulator/gpu/gpu.hpp b/include/simulator/gpu/gpu.hpp
+new file mode 100644
+index 0000000..774f9f6
+--- /dev/null
++++ b/include/simulator/gpu/gpu.hpp
+@@ -0,0 +1,9 @@
++#pragma once
++// SDL_GPU foundation for the simulator's renderers. See libraries/sim/src/gpu/README.md.
++#include <simulator/gpu/coords.hpp>
++#include <simulator/gpu/device.hpp>
++#include <simulator/gpu/frame.hpp>
++#include <simulator/gpu/pipeline.hpp>
++#include <simulator/gpu/shader_blob.hpp>
++#include <simulator/gpu/std140.hpp>
++#include <simulator/gpu/texture.hpp>
+diff --git a/include/simulator/gpu/pipeline.hpp b/include/simulator/gpu/pipeline.hpp
+new file mode 100644
+index 0000000..7b9c8c8
+--- /dev/null
++++ b/include/simulator/gpu/pipeline.hpp
+@@ -0,0 +1,84 @@
++#pragma once
++// Graphics pipelines keyed by a small value struct. SDL_GPU bakes into a pipeline what GL sets as
++// dynamic state (cull mode, depth test/compare/write, blending, target formats), so a renderer
++// describes each draw's state with a PipelineKey and asks the cache for the matching pipeline.
++// Viewport, scissor, blend constants and stencil reference stay dynamic (set on the pass).
++
++#include <SDL3/SDL.h>
++#include <simulator/gpu/shader_blob.hpp>
++#include <cstddef>
++#include <unordered_map>
++
++namespace SIM::Gpu {
++
++class Device;
++
++constexpr Uint32 kMaxVertexAttributes = 8;
++
++struct VertexAttribute {
++    Uint32 location = 0;                                            // GLSL layout(location = n)
++    SDL_GPUVertexElementFormat format = SDL_GPU_VERTEXELEMENTFORMAT_INVALID;
++    Uint32 offset = 0;                                              // bytes from the vertex start
++    bool operator==(const VertexAttribute &) const = default;
++};
++
++// One interleaved vertex buffer at slot 0. stride 0 / no attributes = no vertex input
++// (shaders that build vertices from gl_VertexIndex).
++struct VertexLayout {
++    Uint32 stride = 0;
++    Uint32 numAttributes = 0;
++    VertexAttribute attributes[kMaxVertexAttributes] = {};
++    VertexLayout &Add(Uint32 location, SDL_GPUVertexElementFormat format, Uint32 offset) {
++        if (numAttributes < kMaxVertexAttributes) attributes[numAttributes++] = { location, format, offset };
++        return *this;
++    }
++    bool operator==(const VertexLayout &) const = default;
++};
++
++enum class Blend : Uint8 {
++    Opaque,         // no blending
++    Alpha,          // GL glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA), applied to alpha too
++    Premultiplied,  // ONE, ONE_MINUS_SRC_ALPHA
++    Additive,       // ONE, ONE
++};
++
++struct PipelineKey {
++    const ShaderBlob *vertex = nullptr;
++    const ShaderBlob *fragment = nullptr;
++    VertexLayout layout;
++    SDL_GPUPrimitiveType primitive = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
++    SDL_GPUCullMode cull = SDL_GPU_CULLMODE_NONE;
++    SDL_GPUFrontFace frontFace = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
++    bool depthTest = false;
++    bool depthWrite = false;  // ignored (off) when depthTest is false, as in SDL_GPU and GL
++    SDL_GPUCompareOp depthCompare = SDL_GPU_COMPAREOP_LESS;
++    Blend blend = Blend::Opaque;
++    Uint8 colorWriteMask = 0xF;  // SDL_GPU_COLORCOMPONENT_* bits
++    SDL_GPUTextureFormat colorFormat = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;  // INVALID: no colour target
++    SDL_GPUTextureFormat depthFormat = SDL_GPU_TEXTUREFORMAT_INVALID;         // INVALID: no depth target
++    bool operator==(const PipelineKey &) const = default;
++};
++
++struct PipelineKeyHash {
++    size_t operator()(const PipelineKey &k) const;
++};
++
++class PipelineCache {
++public:
++    explicit PipelineCache(Device &device) : mDevice(device) {}
++    ~PipelineCache();
++    PipelineCache(const PipelineCache &) = delete;
++    PipelineCache &operator=(const PipelineCache &) = delete;
++
++    // Returns the pipeline for this state, creating it on first use; nullptr (logged) on failure.
++    // The pointer stays valid until Clear() or device destruction.
++    SDL_GPUGraphicsPipeline *Get(const PipelineKey &key);
++    size_t Size() const { return mPipelines.size(); }
++    void Clear();
++
++private:
++    Device &mDevice;
++    std::unordered_map<PipelineKey, SDL_GPUGraphicsPipeline *, PipelineKeyHash> mPipelines;
++};
++
++} // namespace SIM::Gpu
+diff --git a/include/simulator/gpu/shader_blob.hpp b/include/simulator/gpu/shader_blob.hpp
+new file mode 100644
+index 0000000..0353b5c
+--- /dev/null
++++ b/include/simulator/gpu/shader_blob.hpp
+@@ -0,0 +1,26 @@
++#pragma once
++// One shader stage compiled offline for every SDL_GPU backend this project ships.
++// Instances are generated by libraries/sim/tools/gpu_shaderc.py into <name>.vert.h / <name>.frag.h
++// (namespace SIM::Gpu::Shaders) and passed to SIM::Gpu::Device::Shader().
++
++#include <SDL3/SDL.h>
++#include <cstddef>
++
++namespace SIM::Gpu {
++
++struct ShaderBlob {
++    const char *name;                 // C identifier, also used as the debug name
++    SDL_GPUShaderStage stage;
++    const unsigned char *spirv;       // SPIR-V module, entry point "main" (Vulkan)
++    size_t spirvSize;
++    const unsigned char *mslMacos;    // MSL source, entry point "main0" (Metal on macOS)
++    size_t mslMacosSize;              // without the terminating NUL
++    const unsigned char *mslIos;      // MSL source for iOS/tvOS (may alias mslMacos)
++    size_t mslIosSize;
++    Uint32 numSamplers;               // reflection-derived counts for SDL_GPUShaderCreateInfo
++    Uint32 numStorageTextures;
++    Uint32 numStorageBuffers;
++    Uint32 numUniformBuffers;
++};
++
++} // namespace SIM::Gpu
+diff --git a/include/simulator/gpu/std140.hpp b/include/simulator/gpu/std140.hpp
+new file mode 100644
+index 0000000..2b69977
+--- /dev/null
++++ b/include/simulator/gpu/std140.hpp
+@@ -0,0 +1,44 @@
++#pragma once
++// C++ mirrors for std140 uniform blocks (the only layout SDL_GPU uniform buffers accept).
++//
++// std140 rules that bite when porting loose GL uniforms into a block:
++//  - every array element is padded to 16 bytes: `int a[4]` and `float f[32]` take 64 and 512 bytes;
++//    mirror them with Std140Array<int, 4> / Std140Array<float, 32>, or pack scalars four to a
++//    vec4/ivec4 in the shader (`vec4 f[8]`, read as f[i >> 2][i & 3]) and use plain C arrays;
++//  - vec3 is aligned to 16 bytes but only 12 long: a following scalar fills its 4th lane;
++//  - vec2/ivec2 align to 8, vec4/ivec4/mat4 columns to 16, a struct to 16;
++//  - the block size is rounded up to 16.
++// static_assert the offsets of every member against the GLSL declaration (the generated
++// reflection JSON from gpu_shaderc.py --keep lists them).
++
++#include <cstddef>
++#include <cstdint>
++
++namespace SIM::Gpu {
++
++// One std140 array element: a scalar or vector padded out to 16 bytes.
++template <typename T>
++struct alignas(16) Std140Element {
++    static_assert(sizeof(T) <= 16, "std140 array elements are at most one vec4");
++    T value;
++};
++
++template <typename T, size_t N>
++struct alignas(16) Std140Array {
++    Std140Element<T> items[N];
++    T &operator[](size_t i) { return items[i].value; }
++    const T &operator[](size_t i) const { return items[i].value; }
++    static constexpr size_t size() { return N; }
++    // Copy N tightly packed values in (e.g. a 32-float fog table).
++    void Assign(const T *src) { for (size_t i = 0; i < N; i++) items[i].value = src[i]; }
++};
++
++struct alignas(16) Std140Vec4 { float x, y, z, w; };
++struct alignas(16) Std140IVec4 { int32_t x, y, z, w; };
++struct alignas(8) Std140Vec2 { float x, y; };
++struct alignas(8) Std140IVec2 { int32_t x, y; };
++// vec3 has no wrapper type: a C++ type aligned to 16 would also be 16 long and push the next
++// member out of the vec3's 4th lane. Declare it as `alignas(16) float v[3];` instead, so a
++// following `float` lands at +12 exactly as in std140.
++
++} // namespace SIM::Gpu
+diff --git a/include/simulator/gpu/texture.hpp b/include/simulator/gpu/texture.hpp
+new file mode 100644
+index 0000000..2d0e270
+--- /dev/null
++++ b/include/simulator/gpu/texture.hpp
+@@ -0,0 +1,129 @@
++#pragma once
++// Textures, render targets and samplers.
++//
++// Sampler state lives in SDL_GPUSampler objects bound next to each texture at draw time; a texture
++// has no wrap or filter state of its own (GL's glTexParameteri has no equivalent). Ask the
++// SamplerCache for the combination a draw needs.
++//
++// GL_CLAMP_TO_BORDER has no SDL_GPU address mode (Metal on iOS lacks border colours). For the
++// DS "no repeat" case (transparent outside the texture) sample with CLAMP_TO_EDGE and, in the
++// fragment shader, return the border colour when the coordinate is outside [0, 1):
++//     if (any(lessThan(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0)))) c = vec4(0.0);
++// Do the test per axis that clamps (repeat/mirror axes keep their wrap mode in the sampler).
++// With NEAREST filtering this matches GL exactly; with LINEAR the edge texels blend toward the
++// edge colour instead of the border colour.
++
++#include <SDL3/SDL.h>
++#include <unordered_map>
++
++namespace SIM::Gpu {
++
++class Device;
++
++struct TextureDesc {
++    Uint32 width = 0;
++    Uint32 height = 0;
++    SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
++    SDL_GPUTextureUsageFlags usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
++    Uint32 layers = 1;
++    Uint32 levels = 1;
++    const char *name = nullptr;  // debug name (must outlive the texture)
++
++    // Sampled RGBA8 (CPU-decoded DS textures, palettes as colours, UI images).
++    static TextureDesc Rgba8(Uint32 w, Uint32 h, const char *name = nullptr);
++    // Integer data textures read with texelFetch through usampler2D (VRAM bytes, OAM/palette words).
++    static TextureDesc R8Uint(Uint32 w, Uint32 h, const char *name = nullptr);
++    static TextureDesc R16Uint(Uint32 w, Uint32 h, const char *name = nullptr);
++    // Colour render target that can also be sampled and read back.
++    static TextureDesc ColorTarget(Uint32 w, Uint32 h, SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
++                                   const char *name = nullptr);
++    // Depth target in the device's preferred depth format (Device::DepthFormat()).
++    static TextureDesc DepthTarget(const Device &device, Uint32 w, Uint32 h, const char *name = nullptr);
++};
++
++// Owning handle (move-only). Release is deferred by SDL until the GPU no longer uses the texture.
++class Texture {
++public:
++    Texture() = default;
++    ~Texture() { Release(); }
++    Texture(Texture &&o) noexcept;
++    Texture &operator=(Texture &&o) noexcept;
++    Texture(const Texture &) = delete;
++    Texture &operator=(const Texture &) = delete;
++
++    bool Create(Device &device, const TextureDesc &desc);
++    // Recreates the texture at a new size with the same description when the size differs;
++    // the contents are undefined afterwards. Returns true if the texture is valid.
++    bool Resize(Uint32 width, Uint32 height);
++    void Release();
++
++    SDL_GPUTexture *Handle() const { return mTexture; }
++    explicit operator bool() const { return mTexture != nullptr; }
++    const TextureDesc &Desc() const { return mDesc; }
++    Uint32 Width() const { return mDesc.width; }
++    Uint32 Height() const { return mDesc.height; }
++    SDL_GPUTextureFormat Format() const { return mDesc.format; }
++
++private:
++    Device *mDevice = nullptr;
++    SDL_GPUTexture *mTexture = nullptr;
++    TextureDesc mDesc;
++};
++
++// Colour target plus optional depth target of the same size, resized together
++// (e.g. the 3D scene at the internal resolution).
++class RenderTarget {
++public:
++    bool Create(Device &device, Uint32 width, Uint32 height,
++                SDL_GPUTextureFormat colorFormat = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, bool withDepth = true,
++                const char *name = nullptr);
++    // Returns true if the size changed (the contents are then undefined: clear on next use).
++    bool Resize(Uint32 width, Uint32 height);
++    void Release();
++
++    Texture &Color() { return mColor; }
++    Texture &Depth() { return mDepth; }
++    const Texture &Color() const { return mColor; }
++    const Texture &Depth() const { return mDepth; }
++    Uint32 Width() const { return mColor.Width(); }
++    Uint32 Height() const { return mColor.Height(); }
++    bool HasDepth() const { return (bool)mDepth; }
++
++private:
++    Texture mColor;
++    Texture mDepth;
++};
++
++enum class Wrap : Uint8 { Repeat, Mirror, ClampToEdge };
++enum class Filter : Uint8 { Nearest, Linear };
++
++struct SamplerKey {
++    Filter filter = Filter::Nearest;  // min and mag filter; mipmaps are not used
++    Wrap wrapU = Wrap::ClampToEdge;
++    Wrap wrapV = Wrap::ClampToEdge;
++    bool operator==(const SamplerKey &) const = default;
++
++    static SamplerKey Nearest(Wrap u = Wrap::ClampToEdge, Wrap v = Wrap::ClampToEdge) { return { Filter::Nearest, u, v }; }
++    static SamplerKey Linear(Wrap u = Wrap::ClampToEdge, Wrap v = Wrap::ClampToEdge) { return { Filter::Linear, u, v }; }
++};
++
++struct SamplerKeyHash {
++    size_t operator()(const SamplerKey &k) const { return (size_t)k.filter | ((size_t)k.wrapU << 2) | ((size_t)k.wrapV << 4); }
++};
++
++class SamplerCache {
++public:
++    explicit SamplerCache(Device &device) : mDevice(device) {}
++    ~SamplerCache();
++    SamplerCache(const SamplerCache &) = delete;
++    SamplerCache &operator=(const SamplerCache &) = delete;
++
++    SDL_GPUSampler *Get(const SamplerKey &key);  // nullptr (logged) on failure
++    void Clear();
++
++private:
++    Device &mDevice;
++    std::unordered_map<SamplerKey, SDL_GPUSampler *, SamplerKeyHash> mSamplers;
++};
++
++} // namespace SIM::Gpu
+diff --git a/libraries/sim/src/gpu/gpu_device.cpp b/libraries/sim/src/gpu/gpu_device.cpp
+new file mode 100644
+index 0000000..ca7879e
+--- /dev/null
++++ b/libraries/sim/src/gpu/gpu_device.cpp
+@@ -0,0 +1,439 @@
++#include <simulator/gpu/device.hpp>
++
++#include <cstdarg>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++
++namespace SIM::Gpu {
++
++static bool EnvFlag(const char *name) {
++    const char *v = SDL_getenv(name);
++    return v && *v && strcmp(v, "0") != 0;
++}
++
++void LogError(const char *context, bool withSdlError) {
++    if (withSdlError) {
++        const char *err = SDL_GetError();
++        SDL_LogError(SDL_LOG_CATEGORY_GPU, "SIM_GPU: %s: %s", context, (err && *err) ? err : "(no SDL error)");
++    } else {
++        SDL_LogError(SDL_LOG_CATEGORY_GPU, "SIM_GPU: %s", context);
++    }
++    if (EnvFlag("SIM_GPU_FATAL")) {
++        SDL_LogError(SDL_LOG_CATEGORY_GPU, "SIM_GPU: SIM_GPU_FATAL is set, aborting");
++        abort();
++    }
++}
++
++void LogInfo(const char *fmt, ...) {
++    char buf[1024];
++    va_list ap;
++    va_start(ap, fmt);
++    SDL_vsnprintf(buf, sizeof buf, fmt, ap);
++    va_end(ap);
++    SDL_LogInfo(SDL_LOG_CATEGORY_GPU, "SIM_GPU: %s", buf);
++}
++
++Device::Device() = default;
++
++Device::~Device() { Destroy(); }
++
++void Device::ReportFailure(const char *context, bool withSdlError) {
++    mFailed = true;
++    LogError(context, withSdlError);
++}
++
++bool Device::Create(const DeviceConfig &config) {
++    if (mDevice) return true;
++    mConfig = config;
++    if (EnvFlag("SIM_GPU_DEBUG")) mConfig.debug = true;
++    const char *envDriver = SDL_getenv("SIM_GPU_DRIVER");
++    if (envDriver && *envDriver) mConfig.driver = envDriver;
++
++    // SDL loads Vulkan through the video subsystem, so it must be up even without a window.
++    if (!SDL_WasInit(SDL_INIT_VIDEO)) {
++        if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
++            const char *hint = SDL_GetHint(SDL_HINT_VIDEO_DRIVER);
++            if (hint && *hint) {
++                ReportFailure("SDL_InitSubSystem(VIDEO)");
++                return false;
++            }
++            LogInfo("no display video driver (%s); using the offscreen video driver", SDL_GetError());
++            SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "offscreen");
++            if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
++                ReportFailure("SDL_InitSubSystem(VIDEO) with the offscreen driver");
++                return false;
++            }
++        }
++        mInitedVideo = true;
++    }
++
++    SDL_PropertiesID props = SDL_CreateProperties();
++    SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN, true);
++    SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true);
++    SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, mConfig.debug);
++    SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_VERBOSE_BOOLEAN, mConfig.debug);
++    SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN, mConfig.preferLowPower);
++    SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_VULKAN_REQUIRE_HARDWARE_ACCELERATION_BOOLEAN, mConfig.requireHardware);
++    // Optional Vulkan features nothing here uses; leaving them off keeps older Android devices eligible.
++    SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_FEATURE_CLIP_DISTANCE_BOOLEAN, false);
++    SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_FEATURE_INDIRECT_DRAW_FIRST_INSTANCE_BOOLEAN, false);
++    SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_FEATURE_ANISOTROPY_BOOLEAN, false);
++    SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_FEATURE_DEPTH_CLAMPING_BOOLEAN, mConfig.depthClamping);
++    if (mConfig.driver) SDL_SetStringProperty(props, SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING, mConfig.driver);
++    mDevice = SDL_CreateGPUDeviceWithProperties(props);
++    SDL_DestroyProperties(props);
++    if (!mDevice) {
++        ReportFailure("SDL_CreateGPUDeviceWithProperties");
++        Destroy();
++        return false;
++    }
++
++    SDL_GPUShaderFormat formats = SDL_GetGPUShaderFormats(mDevice);
++    if (formats & SDL_GPU_SHADERFORMAT_SPIRV) {
++        mShaderFormat = SDL_GPU_SHADERFORMAT_SPIRV;
++    } else if (formats & SDL_GPU_SHADERFORMAT_MSL) {
++        mShaderFormat = SDL_GPU_SHADERFORMAT_MSL;
++    } else {
++        ReportFailure("the GPU driver accepts neither SPIR-V nor MSL shaders", false);
++        Destroy();
++        return false;
++    }
++
++    // D24 matches the GL renderer's depth precision; Apple GPUs only offer D32_FLOAT (and D16).
++    const SDL_GPUTextureUsageFlags depthUsage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
++    if (SDL_GPUTextureSupportsFormat(mDevice, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTURETYPE_2D, depthUsage)) {
++        mDepthFormat = SDL_GPU_TEXTUREFORMAT_D24_UNORM;
++    } else if (SDL_GPUTextureSupportsFormat(mDevice, SDL_GPU_TEXTUREFORMAT_D32_FLOAT, SDL_GPU_TEXTURETYPE_2D, depthUsage)) {
++        mDepthFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
++    } else {
++        mDepthFormat = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
++    }
++
++    Uint32 fif = mConfig.framesInFlight < 1 ? 1 : (mConfig.framesInFlight > 3 ? 3 : mConfig.framesInFlight);
++    if (fif != 2 && !SDL_SetGPUAllowedFramesInFlight(mDevice, fif)) ReportFailure("SDL_SetGPUAllowedFramesInFlight");
++
++    mPipelines = std::make_unique<PipelineCache>(*this);
++    mSamplers = std::make_unique<SamplerCache>(*this);
++    mFrame = std::make_unique<Frame>(*this);
++
++    SDL_PropertiesID dp = SDL_GetGPUDeviceProperties(mDevice);
++    LogInfo("device: driver %s, %s (%s), shaders %s, depth %s%s", SDL_GetGPUDeviceDriver(mDevice),
++            dp ? SDL_GetStringProperty(dp, SDL_PROP_GPU_DEVICE_NAME_STRING, "?") : "?",
++            dp ? SDL_GetStringProperty(dp, SDL_PROP_GPU_DEVICE_DRIVER_INFO_STRING, "?") : "?",
++            mShaderFormat == SDL_GPU_SHADERFORMAT_SPIRV ? "SPIR-V" : "MSL",
++            mDepthFormat == SDL_GPU_TEXTUREFORMAT_D24_UNORM ? "D24" : (mDepthFormat == SDL_GPU_TEXTUREFORMAT_D32_FLOAT ? "D32F" : "D16"),
++            mConfig.debug ? ", debug mode" : "");
++    return true;
++}
++
++void Device::Destroy() {
++    if (mDevice) {
++        if (mFrame && mFrame->mActive) {
++            LogError("Device::Destroy with a frame in progress; submitting it", false);
++            mFrame->End();
++        }
++        SDL_WaitForGPUIdle(mDevice);
++        mFrame.reset();
++        if (mPipelines) mPipelines->Clear();
++        if (mSamplers) mSamplers->Clear();
++        mPipelines.reset();
++        mSamplers.reset();
++        for (auto &kv : mShaders) SDL_ReleaseGPUShader(mDevice, kv.second);
++        mShaders.clear();
++        if (mDownload) SDL_ReleaseGPUTransferBuffer(mDevice, mDownload);
++        mDownload = nullptr;
++        mDownloadSize = 0;
++        DetachWindow();
++        SDL_DestroyGPUDevice(mDevice);
++        mDevice = nullptr;
++    }
++    if (mInitedVideo) {
++        SDL_QuitSubSystem(SDL_INIT_VIDEO);
++        mInitedVideo = false;
++    }
++}
++
++const char *Device::DriverName() const { return mDevice ? SDL_GetGPUDeviceDriver(mDevice) : "none"; }
++
++bool Device::SupportsTexture(SDL_GPUTextureFormat format, SDL_GPUTextureUsageFlags usage) const {
++    return mDevice && SDL_GPUTextureSupportsFormat(mDevice, format, SDL_GPU_TEXTURETYPE_2D, usage);
++}
++
++bool Device::AttachWindow(SDL_Window *window) {
++    if (!mDevice || !window) return false;
++    if (mWindow == window) return true;
++    DetachWindow();
++    if (!SDL_ClaimWindowForGPUDevice(mDevice, window)) {
++        ReportFailure("SDL_ClaimWindowForGPUDevice");
++        return false;
++    }
++    mWindow = window;
++    mPresentModeDirty = true;
++    return ApplyPresentMode();
++}
++
++void Device::DetachWindow() {
++    if (mDevice && mWindow) {
++        SDL_WaitForGPUIdle(mDevice);
++        SDL_ReleaseWindowFromGPUDevice(mDevice, mWindow);
++    }
++    mWindow = nullptr;
++}
++
++SDL_GPUTextureFormat Device::SwapchainFormat() const {
++    return (mDevice && mWindow) ? SDL_GetGPUSwapchainTextureFormat(mDevice, mWindow) : SDL_GPU_TEXTUREFORMAT_INVALID;
++}
++
++bool Device::SetVsync(bool enabled) {
++    mVsync = enabled;
++    mPresentModeDirty = true;
++    if (CurrentFrame()) return true;  // applied when the frame ends
++    return ApplyPresentMode();
++}
++
++bool Device::ApplyPresentMode() {
++    if (!mPresentModeDirty) return true;
++    mPresentModeDirty = false;
++    if (!mWindow) return true;
++    SDL_GPUPresentMode mode = SDL_GPU_PRESENTMODE_VSYNC;
++    if (!mVsync) {
++        if (SDL_WindowSupportsGPUPresentMode(mDevice, mWindow, SDL_GPU_PRESENTMODE_MAILBOX)) {
++            mode = SDL_GPU_PRESENTMODE_MAILBOX;
++        } else if (SDL_WindowSupportsGPUPresentMode(mDevice, mWindow, SDL_GPU_PRESENTMODE_IMMEDIATE)) {
++            mode = SDL_GPU_PRESENTMODE_IMMEDIATE;
++        } else {
++            LogInfo("vsync off requested but the swapchain only supports VSYNC");
++        }
++    }
++    if (!SDL_SetGPUSwapchainParameters(mDevice, mWindow, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, mode)) {
++        ReportFailure("SDL_SetGPUSwapchainParameters");
++        return false;
++    }
++    mPresentMode = mode;
++    return true;
++}
++
++SDL_GPUShader *Device::Shader(const ShaderBlob &blob) {
++    auto it = mShaders.find(&blob);
++    if (it != mShaders.end()) return it->second;
++    if (!mDevice) return nullptr;
++    SDL_GPUShaderCreateInfo info;
++    SDL_zero(info);
++    if (mShaderFormat == SDL_GPU_SHADERFORMAT_SPIRV) {
++        info.code = blob.spirv;
++        info.code_size = blob.spirvSize;
++        info.entrypoint = "main";
++    } else {
++#if defined(SDL_PLATFORM_IOS) || defined(SDL_PLATFORM_TVOS)
++        info.code = blob.mslIos;
++        info.code_size = blob.mslIosSize;
++#else
++        info.code = blob.mslMacos;
++        info.code_size = blob.mslMacosSize;
++#endif
++        info.entrypoint = "main0";
++    }
++    info.format = mShaderFormat;
++    info.stage = blob.stage;
++    info.num_samplers = blob.numSamplers;
++    info.num_storage_textures = blob.numStorageTextures;
++    info.num_storage_buffers = blob.numStorageBuffers;
++    info.num_uniform_buffers = blob.numUniformBuffers;
++    SDL_PropertiesID props = SDL_CreateProperties();
++    SDL_SetStringProperty(props, SDL_PROP_GPU_SHADER_CREATE_NAME_STRING, blob.name);
++    info.props = props;
++    SDL_GPUShader *shader = SDL_CreateGPUShader(mDevice, &info);
++    SDL_DestroyProperties(props);
++    if (!shader) {
++        char ctx[256];
++        SDL_snprintf(ctx, sizeof ctx, "SDL_CreateGPUShader(%s)", blob.name);
++        ReportFailure(ctx);
++        return nullptr;
++    }
++    mShaders[&blob] = shader;
++    return shader;
++}
++
++Frame *Device::BeginFrame() {
++    if (!mDevice) return nullptr;
++    if (mFrame->mActive) {
++        ReportFailure("BeginFrame while a frame is in progress", false);
++        return nullptr;
++    }
++    ApplyPresentMode();
++    if (!mFrame->Begin(++mFrameIndex)) return nullptr;
++    return mFrame.get();
++}
++
++void Device::UploadTexture(const Texture &texture, const void *data, Uint32 rowPitch) {
++    if (mFrame) mFrame->UploadTexture(texture, data, rowPitch);
++}
++
++void Device::UploadTexture(const Texture &texture, Uint32 x, Uint32 y, Uint32 w, Uint32 h, const void *data, Uint32 rowPitch) {
++    if (mFrame) mFrame->UploadTexture(texture, x, y, w, h, data, rowPitch);
++}
++
++void Device::UploadBuffer(SDL_GPUBuffer *buffer, Uint32 offset, const void *data, Uint32 bytes) {
++    if (mFrame) mFrame->UploadBuffer(buffer, offset, data, bytes);
++}
++
++bool Device::FlushUploads() {
++    if (!mDevice) return false;
++    if (mFrame->mActive) {
++        ReportFailure("FlushUploads inside a frame (uploads run before the next pass automatically)", false);
++        return false;
++    }
++    if (mFrame->mUploads.empty()) return true;
++    SDL_GPUCommandBuffer *cmd = SDL_AcquireGPUCommandBuffer(mDevice);
++    if (!cmd) {
++        ReportFailure("SDL_AcquireGPUCommandBuffer (FlushUploads)");
++        return false;
++    }
++    mFrame->mCmd = cmd;
++    bool ok = mFrame->FlushCopies();
++    mFrame->mCmd = nullptr;
++    if (!SDL_SubmitGPUCommandBuffer(cmd)) {
++        ReportFailure("SDL_SubmitGPUCommandBuffer (FlushUploads)");
++        ok = false;
++    }
++    return ok;
++}
++
++SDL_GPUBuffer *Device::CreateBuffer(SDL_GPUBufferUsageFlags usage, Uint32 bytes, const char *name) {
++    if (!mDevice) return nullptr;
++    SDL_GPUBufferCreateInfo info;
++    SDL_zero(info);
++    info.usage = usage;
++    info.size = bytes;
++    SDL_PropertiesID props = 0;
++    if (name) {
++        props = SDL_CreateProperties();
++        SDL_SetStringProperty(props, SDL_PROP_GPU_BUFFER_CREATE_NAME_STRING, name);
++        info.props = props;
++    }
++    SDL_GPUBuffer *buffer = SDL_CreateGPUBuffer(mDevice, &info);
++    if (props) SDL_DestroyProperties(props);
++    if (!buffer) ReportFailure("SDL_CreateGPUBuffer");
++    return buffer;
++}
++
++bool Device::EnsureDownload(Uint32 bytes) {
++    if (mDownload && mDownloadSize >= bytes) return true;
++    if (mDownload) SDL_ReleaseGPUTransferBuffer(mDevice, mDownload);
++    SDL_GPUTransferBufferCreateInfo info;
++    SDL_zero(info);
++    info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
++    info.size = bytes;
++    mDownload = SDL_CreateGPUTransferBuffer(mDevice, &info);
++    mDownloadSize = mDownload ? bytes : 0;
++    if (!mDownload) ReportFailure("SDL_CreateGPUTransferBuffer (download)");
++    return mDownload != nullptr;
++}
++
++bool Device::ReadbackRaw(SDL_GPUTexture *texture, SDL_GPUTextureFormat format, Uint32 x, Uint32 y, Uint32 w, Uint32 h,
++                         std::vector<Uint8> &out) {
++    out.clear();
++    if (!mDevice || !texture || w == 0 || h == 0) {
++        ReportFailure("Readback: no device, texture or region", false);
++        return false;
++    }
++    if (mFrame->mActive) {
++        ReportFailure("Readback inside a frame: call Frame::End() first", false);
++        return false;
++    }
++    const Uint32 bytes = SDL_CalculateGPUTextureFormatSize(format, w, h, 1);
++    if (bytes == 0 || !EnsureDownload(bytes)) return false;
++
++    // Queued uploads may target the texture being read: run them first.
++    if (!mFrame->mUploads.empty() && !FlushUploads()) return false;
++
++    SDL_GPUCommandBuffer *cmd = SDL_AcquireGPUCommandBuffer(mDevice);
++    if (!cmd) {
++        ReportFailure("SDL_AcquireGPUCommandBuffer (readback)");
++        return false;
++    }
++    SDL_GPUCopyPass *copy = SDL_BeginGPUCopyPass(cmd);
++    if (!copy) {
++        ReportFailure("SDL_BeginGPUCopyPass (readback)");
++        SDL_CancelGPUCommandBuffer(cmd);
++        return false;
++    }
++    SDL_GPUTextureRegion src;
++    SDL_zero(src);
++    src.texture = texture;
++    src.x = x;
++    src.y = y;
++    src.w = w;
++    src.h = h;
++    src.d = 1;
++    SDL_GPUTextureTransferInfo dst;
++    SDL_zero(dst);
++    dst.transfer_buffer = mDownload;
++    dst.offset = 0;
++    dst.pixels_per_row = w;
++    dst.rows_per_layer = h;
++    SDL_DownloadFromGPUTexture(copy, &src, &dst);
++    SDL_EndGPUCopyPass(copy);
++    SDL_GPUFence *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmd);
++    if (!fence) {
++        ReportFailure("SDL_SubmitGPUCommandBufferAndAcquireFence (readback)");
++        return false;
++    }
++    bool ok = SDL_WaitForGPUFences(mDevice, true, &fence, 1);
++    SDL_ReleaseGPUFence(mDevice, fence);
++    if (!ok) {
++        ReportFailure("SDL_WaitForGPUFences (readback)");
++        return false;
++    }
++    const Uint8 *mapped = (const Uint8 *)SDL_MapGPUTransferBuffer(mDevice, mDownload, false);
++    if (!mapped) {
++        ReportFailure("SDL_MapGPUTransferBuffer (readback)");
++        return false;
++    }
++    out.assign(mapped, mapped + bytes);
++    SDL_UnmapGPUTransferBuffer(mDevice, mDownload);
++    return true;
++}
++
++bool Device::ReadbackRGBA8(SDL_GPUTexture *texture, SDL_GPUTextureFormat format, Uint32 x, Uint32 y, Uint32 w, Uint32 h,
++                           std::vector<Uint8> &out) {
++    bool swap;
++    switch (format) {
++    case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM:
++    case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB:
++        swap = false;
++        break;
++    case SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM:
++    case SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB:
++        swap = true;
++        break;
++    default:
++        ReportFailure("ReadbackRGBA8: the texture is not an RGBA8/BGRA8 format (use ReadbackRaw)", false);
++        return false;
++    }
++    if (!ReadbackRaw(texture, format, x, y, w, h, out)) return false;
++    if (swap) {
++        for (size_t i = 0; i + 3 < out.size(); i += 4) {
++            Uint8 t = out[i];
++            out[i] = out[i + 2];
++            out[i + 2] = t;
++        }
++    }
++    return true;
++}
++
++bool Device::ReadbackRGBA8(const Texture &texture, std::vector<Uint8> &out) {
++    return ReadbackRGBA8(texture.Handle(), texture.Format(), 0, 0, texture.Width(), texture.Height(), out);
++}
++
++bool Device::WaitIdle() {
++    if (!mDevice) return false;
++    if (!SDL_WaitForGPUIdle(mDevice)) {
++        ReportFailure("SDL_WaitForGPUIdle");
++        return false;
++    }
++    return true;
++}
++
++} // namespace SIM::Gpu
+diff --git a/libraries/sim/src/gpu/gpu_frame.cpp b/libraries/sim/src/gpu/gpu_frame.cpp
+new file mode 100644
+index 0000000..565aebd
+--- /dev/null
++++ b/libraries/sim/src/gpu/gpu_frame.cpp
+@@ -0,0 +1,752 @@
++#include <simulator/gpu/device.hpp>
++#include <simulator/gpu/frame.hpp>
++#include <simulator/gpu/texture.hpp>
++
++#include <cstring>
++
++namespace SIM::Gpu {
++
++static inline Uint32 AlignUp(Uint32 v, Uint32 a) { return (v + a - 1) & ~(a - 1); }
++
++const char *PhaseName(Phase phase) {
++    switch (phase) {
++    case Phase::Scene3D: return "Scene3D";
++    case Phase::Composite2D: return "Composite2D";
++    case Phase::Post: return "Post";
++    case Phase::Overlay: return "Overlay";
++    default: return "?";
++    }
++}
++
++PassDesc PassDesc::Color(SDL_GPUTexture *target, SDL_GPULoadOp load, SDL_FColor clear) {
++    PassDesc d;
++    d.color[0].texture = target;
++    d.color[0].load = load;
++    d.color[0].clear = clear;
++    d.numColorTargets = 1;
++    return d;
++}
++
++PassDesc PassDesc::ColorDepth(SDL_GPUTexture *target, SDL_GPUTexture *depth, SDL_FColor clear, float clearDepth) {
++    PassDesc d = Color(target, SDL_GPU_LOADOP_CLEAR, clear);
++    d.depth.texture = depth;
++    d.depth.load = SDL_GPU_LOADOP_CLEAR;
++    d.depth.clearDepth = clearDepth;
++    return d;
++}
++
++// One recorded command of the open pass segment. Payloads (viewports, uniform data) live in mArena.
++struct Frame::Cmd {
++    enum Type : Uint8 {
++        Pipeline, Viewport, Scissor, BlendConstants, VertexBuffer, StreamBinding, IndexBuffer,
++        VertexSampler, FragmentSampler, VertexUniform, FragmentUniform, Draw, DrawIndexed, InPassFn
++    };
++    Type type;
++    Uint32 a, b, c, d;
++    Sint32 e;
++    void *p, *q;
++};
++
++struct Frame::PendingUpload {
++    SDL_GPUTexture *texture;  // texture upload when set, else buffer upload
++    SDL_GPUBuffer *buffer;
++    Uint32 srcOffset;         // in mUploadBytes
++    Uint32 x, y, w, h, layer, mip;
++    Uint32 dstOffset, size;   // buffer uploads
++    bool cycle;
++};
++
++Frame::Frame(Device &device) : mDevice(device) {}
++
++Frame::~Frame() {
++    SDL_GPUDevice *dev = mDevice.Handle();
++    if (!dev) return;
++    for (SDL_GPUBuffer *b : mRetiredStream) SDL_ReleaseGPUBuffer(dev, b);
++    if (mStreamBuffer) SDL_ReleaseGPUBuffer(dev, mStreamBuffer);
++    if (mTransfer) SDL_ReleaseGPUTransferBuffer(dev, mTransfer);
++}
++
++void Frame::Fail(const char *what) {
++    mFailed = true;
++    mDevice.ReportFailure(what, false);
++}
++
++void Frame::FailSdl(const char *what) {
++    mFailed = true;
++    mDevice.ReportFailure(what, true);
++}
++
++bool Frame::Require(bool inPass, const char *what) {
++    char buf[160];
++    if (!mActive) {
++        SDL_snprintf(buf, sizeof buf, "%s outside a frame", what);
++        Fail(buf);
++        return false;
++    }
++    if (inPass && !mPassOpen) {
++        SDL_snprintf(buf, sizeof buf, "%s outside a pass", what);
++        Fail(buf);
++        return false;
++    }
++    return true;
++}
++
++bool Frame::Begin(Uint64 index) {
++    mCmd = SDL_AcquireGPUCommandBuffer(mDevice.Handle());
++    if (!mCmd) {
++        mDevice.ReportFailure("SDL_AcquireGPUCommandBuffer");
++        return false;
++    }
++    mIndex = index;
++    mActive = true;
++    mFailed = false;
++    mPassOpen = false;
++    mPhase = Phase::Scene3D;
++    mStats = FrameStats();
++    mStream.clear();
++    mStreamUploaded = 0;
++    mChunks.clear();
++    mStreamGpuUsed = 0;
++    mSwapchain = nullptr;
++    mSwapchainAcquired = false;
++    mPresentSource = nullptr;
++    return true;
++}
++
++void Frame::Reference(void *resource) {
++    if (resource) mReferenced.insert(resource);
++}
++
++void Frame::SplitIfReferenced(void *resource) {
++    if (!mPassOpen || !resource || !mReferenced.count(resource)) return;
++    mStats.passSplits++;
++    CloseSegment(true);
++}
++
++Uint32 Frame::Arena(const void *data, Uint32 bytes) {
++    Uint32 off = AlignUp((Uint32)mArena.size(), 16);
++    mArena.resize(off + bytes);
++    if (bytes) memcpy(mArena.data() + off, data, bytes);
++    return off;
++}
++
++// ---- passes -------------------------------------------------------------------------------------
++
++bool Frame::BeginPass(Phase phase, const PassDesc &desc) {
++    if (!Require(false, "BeginPass")) return false;
++    if (mPassOpen) {
++        Fail("BeginPass while a pass is open (EndPass first)");
++        return false;
++    }
++    if (phase < mPhase) {
++        char buf[128];
++        SDL_snprintf(buf, sizeof buf, "BeginPass(%s) after phase %s: phases must not go backwards", PhaseName(phase),
++                     PhaseName(mPhase));
++        Fail(buf);
++        return false;
++    }
++    if (desc.numColorTargets > kMaxColorTargets || (desc.numColorTargets == 0 && !desc.depth.texture)) {
++        Fail("BeginPass: needs 1-4 colour targets or a depth target");
++        return false;
++    }
++    for (Uint32 i = 0; i < desc.numColorTargets; i++) {
++        if (!desc.color[i].texture) {
++            Fail("BeginPass: null colour target");
++            return false;
++        }
++    }
++    mPhase = phase;
++    mPass = desc;
++    mPassOpen = true;
++    mContinuation = false;
++    mSegmentDraws = 0;
++    mBound = BoundState();
++    mCmds.clear();
++    mArena.clear();
++    mInPassFns.clear();
++    mReferenced.clear();
++    for (Uint32 i = 0; i < desc.numColorTargets; i++) Reference(desc.color[i].texture);
++    Reference(desc.depth.texture);
++    return true;
++}
++
++void Frame::EndPass() {
++    if (!Require(true, "EndPass")) return;
++    CloseSegment(false);
++}
++
++// Emits the recorded segment as copy pass (pending uploads, new stream data) + render pass.
++// continuing: the logical pass goes on in a new segment that loads the targets and rebinds state.
++void Frame::CloseSegment(bool continuing) {
++    bool hasClear = false;
++    if (!mContinuation) {
++        for (Uint32 i = 0; i < mPass.numColorTargets; i++) hasClear |= mPass.color[i].load == SDL_GPU_LOADOP_CLEAR;
++        hasClear |= mPass.depth.texture && mPass.depth.load == SDL_GPU_LOADOP_CLEAR;
++    }
++    const bool emit = mSegmentDraws > 0 || hasClear || !mInPassFns.empty();
++
++    if (emit && FlushCopies()) {
++        SDL_GPUColorTargetInfo colors[kMaxColorTargets];
++        SDL_zero(colors);
++        for (Uint32 i = 0; i < mPass.numColorTargets; i++) {
++            const ColorTargetDesc &c = mPass.color[i];
++            colors[i].texture = c.texture;
++            colors[i].clear_color = c.clear;
++            colors[i].load_op = mContinuation ? SDL_GPU_LOADOP_LOAD : c.load;
++            colors[i].store_op = SDL_GPU_STOREOP_STORE;
++            colors[i].cycle = !mContinuation && c.cycle && c.load != SDL_GPU_LOADOP_LOAD;
++        }
++        SDL_GPUDepthStencilTargetInfo depth;
++        SDL_zero(depth);
++        if (mPass.depth.texture) {
++            depth.texture = mPass.depth.texture;
++            depth.clear_depth = mPass.depth.clearDepth;
++            depth.load_op = mContinuation ? SDL_GPU_LOADOP_LOAD : mPass.depth.load;
++            // A split pass needs the depth it wrote so far.
++            depth.store_op = continuing ? SDL_GPU_STOREOP_STORE : mPass.depth.store;
++            depth.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
++            depth.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
++            depth.cycle = !mContinuation && mPass.depth.cycle && mPass.depth.load != SDL_GPU_LOADOP_LOAD;
++        }
++        if (mPass.label) SDL_PushGPUDebugGroup(mCmd, mPass.label);
++        SDL_GPURenderPass *pass = SDL_BeginGPURenderPass(mCmd, colors, mPass.numColorTargets,
++                                                         mPass.depth.texture ? &depth : nullptr);
++        if (!pass) {
++            FailSdl("SDL_BeginGPURenderPass");
++        } else {
++            mStats.renderPasses++;
++            Replay(pass);
++            SDL_EndGPURenderPass(pass);
++        }
++        if (mPass.label) SDL_PopGPUDebugGroup(mCmd);
++    }
++
++    mCmds.clear();
++    mArena.clear();
++    mInPassFns.clear();
++    mReferenced.clear();
++    mSegmentDraws = 0;
++    if (continuing) {
++        // Without an emitted render pass the targets still hold their pre-pass contents, so a
++        // pass that never emitted keeps its own load ops.
++        if (emit) mContinuation = true;
++        for (Uint32 i = 0; i < mPass.numColorTargets; i++) Reference(mPass.color[i].texture);
++        Reference(mPass.depth.texture);
++        RecordBoundState();
++    } else {
++        mPassOpen = false;
++        mContinuation = false;
++        mBound = BoundState();
++    }
++}
++
++void Frame::RecordBoundState() {
++    BoundState s = mBound;
++    mBound = BoundState();
++    if (s.pipeline) BindPipeline(s.pipeline);
++    if (s.hasViewport) SetViewport(s.viewport);
++    if (s.hasScissor) SetScissor(s.scissor);
++    if (s.hasBlend) SetBlendConstants(s.blend);
++    for (Uint32 i = 0; i < 4; i++) {
++        if (s.vertexIsStream[i]) BindStream(s.vertexOffsets[i], i);
++        else if (s.vertexBuffers[i]) BindVertexBuffer(s.vertexBuffers[i], s.vertexOffsets[i], i);
++    }
++    if (s.indexBuffer) BindIndexBuffer(s.indexBuffer, s.indexOffset, s.indexSize);
++    for (Uint32 i = 0; i < 16; i++) {
++        if (s.vsSamplers[i].texture) BindVertexSampler(i, s.vsSamplers[i].texture, s.vsSamplers[i].sampler);
++        if (s.fsSamplers[i].texture) BindFragmentSampler(i, s.fsSamplers[i].texture, s.fsSamplers[i].sampler);
++    }
++}
++
++void Frame::Replay(SDL_GPURenderPass *pass) {
++    for (const Cmd &c : mCmds) {
++        switch (c.type) {
++        case Cmd::Pipeline:
++            SDL_BindGPUGraphicsPipeline(pass, (SDL_GPUGraphicsPipeline *)c.p);
++            break;
++        case Cmd::Viewport:
++            SDL_SetGPUViewport(pass, (const SDL_GPUViewport *)(mArena.data() + c.a));
++            break;
++        case Cmd::Scissor:
++            SDL_SetGPUScissor(pass, (const SDL_Rect *)(mArena.data() + c.a));
++            break;
++        case Cmd::BlendConstants:
++            SDL_SetGPUBlendConstants(pass, *(const SDL_FColor *)(mArena.data() + c.a));
++            break;
++        case Cmd::VertexBuffer: {
++            SDL_GPUBufferBinding b = { (SDL_GPUBuffer *)c.p, c.b };
++            SDL_BindGPUVertexBuffers(pass, c.a, &b, 1);
++            break;
++        }
++        case Cmd::StreamBinding: {
++            SDL_GPUBufferBinding b;
++            if (ResolveStream(c.b, &b.buffer, &b.offset)) {
++                SDL_BindGPUVertexBuffers(pass, c.a, &b, 1);
++            } else {
++                Fail("stream offset not uploaded (BindStream with an offset from StreamVertices of this frame only)");
++            }
++            break;
++        }
++        case Cmd::IndexBuffer: {
++            SDL_GPUBufferBinding b = { (SDL_GPUBuffer *)c.p, c.b };
++            SDL_BindGPUIndexBuffer(pass, &b, (SDL_GPUIndexElementSize)c.c);
++            break;
++        }
++        case Cmd::VertexSampler: {
++            SDL_GPUTextureSamplerBinding b = { (SDL_GPUTexture *)c.p, (SDL_GPUSampler *)c.q };
++            SDL_BindGPUVertexSamplers(pass, c.a, &b, 1);
++            break;
++        }
++        case Cmd::FragmentSampler: {
++            SDL_GPUTextureSamplerBinding b = { (SDL_GPUTexture *)c.p, (SDL_GPUSampler *)c.q };
++            SDL_BindGPUFragmentSamplers(pass, c.a, &b, 1);
++            break;
++        }
++        case Cmd::VertexUniform:
++            SDL_PushGPUVertexUniformData(mCmd, c.a, mArena.data() + c.b, c.c);
++            break;
++        case Cmd::FragmentUniform:
++            SDL_PushGPUFragmentUniformData(mCmd, c.a, mArena.data() + c.b, c.c);
++            break;
++        case Cmd::Draw:
++            SDL_DrawGPUPrimitives(pass, c.a, c.d, c.b, 0);
++            break;
++        case Cmd::DrawIndexed:
++            SDL_DrawGPUIndexedPrimitives(pass, c.a, c.d, c.b, c.e, 0);
++            break;
++        case Cmd::InPassFn:
++            mInPassFns[c.a](mCmd, pass);
++            break;
++        }
++    }
++}
++
++// ---- state and draws ----------------------------------------------------------------------------
++
++void Frame::BindPipeline(SDL_GPUGraphicsPipeline *pipeline) {
++    if (!Require(true, "BindPipeline")) return;
++    if (!pipeline) {
++        Fail("BindPipeline(nullptr): pipeline creation failed earlier");
++        return;
++    }
++    if (mBound.pipeline == pipeline) return;
++    mBound.pipeline = pipeline;
++    mCmds.push_back({ Cmd::Pipeline, 0, 0, 0, 0, 0, pipeline, nullptr });
++    mStats.pipelineBinds++;
++}
++
++void Frame::SetViewport(const SDL_GPUViewport &viewport) {
++    if (!Require(true, "SetViewport")) return;
++    mBound.hasViewport = true;
++    mBound.viewport = viewport;
++    mCmds.push_back({ Cmd::Viewport, Arena(&viewport, sizeof viewport), 0, 0, 0, 0, nullptr, nullptr });
++}
++
++void Frame::SetScissor(const SDL_Rect &scissor) {
++    if (!Require(true, "SetScissor")) return;
++    mBound.hasScissor = true;
++    mBound.scissor = scissor;
++    mCmds.push_back({ Cmd::Scissor, Arena(&scissor, sizeof scissor), 0, 0, 0, 0, nullptr, nullptr });
++}
++
++void Frame::SetBlendConstants(SDL_FColor constants) {
++    if (!Require(true, "SetBlendConstants")) return;
++    mBound.hasBlend = true;
++    mBound.blend = constants;
++    mCmds.push_back({ Cmd::BlendConstants, Arena(&constants, sizeof constants), 0, 0, 0, 0, nullptr, nullptr });
++}
++
++void Frame::BindVertexBuffer(SDL_GPUBuffer *buffer, Uint32 offset, Uint32 slot) {
++    if (!Require(true, "BindVertexBuffer")) return;
++    if (slot >= 4 || !buffer) {
++        Fail("BindVertexBuffer: slot >= 4 or null buffer");
++        return;
++    }
++    mBound.vertexBuffers[slot] = buffer;
++    mBound.vertexOffsets[slot] = offset;
++    mBound.vertexIsStream[slot] = false;
++    Reference(buffer);
++    mCmds.push_back({ Cmd::VertexBuffer, slot, offset, 0, 0, 0, buffer, nullptr });
++}
++
++void Frame::BindIndexBuffer(SDL_GPUBuffer *buffer, Uint32 offset, SDL_GPUIndexElementSize size) {
++    if (!Require(true, "BindIndexBuffer")) return;
++    mBound.indexBuffer = buffer;
++    mBound.indexOffset = offset;
++    mBound.indexSize = size;
++    Reference(buffer);
++    mCmds.push_back({ Cmd::IndexBuffer, 0, offset, (Uint32)size, 0, 0, buffer, nullptr });
++}
++
++void Frame::BindVertexSampler(Uint32 slot, SDL_GPUTexture *texture, SDL_GPUSampler *sampler) {
++    if (!Require(true, "BindVertexSampler")) return;
++    if (slot >= 16 || !texture || !sampler) {
++        Fail("BindVertexSampler: slot >= 16 or null texture/sampler");
++        return;
++    }
++    mBound.vsSamplers[slot] = { texture, sampler };
++    Reference(texture);
++    mCmds.push_back({ Cmd::VertexSampler, slot, 0, 0, 0, 0, texture, sampler });
++}
++
++void Frame::BindFragmentSampler(Uint32 slot, SDL_GPUTexture *texture, SDL_GPUSampler *sampler) {
++    if (!Require(true, "BindFragmentSampler")) return;
++    if (slot >= 16 || !texture || !sampler) {
++        Fail("BindFragmentSampler: slot >= 16 or null texture/sampler");
++        return;
++    }
++    mBound.fsSamplers[slot] = { texture, sampler };
++    Reference(texture);
++    mCmds.push_back({ Cmd::FragmentSampler, slot, 0, 0, 0, 0, texture, sampler });
++}
++
++void Frame::Draw(Uint32 vertexCount, Uint32 firstVertex, Uint32 instanceCount) {
++    if (!Require(true, "Draw")) return;
++    if (!mBound.pipeline) {
++        Fail("Draw without a bound pipeline");
++        return;
++    }
++    if (vertexCount == 0 || instanceCount == 0) return;
++    mCmds.push_back({ Cmd::Draw, vertexCount, firstVertex, 0, instanceCount, 0, nullptr, nullptr });
++    mSegmentDraws++;
++    mStats.draws++;
++}
++
++void Frame::DrawIndexed(Uint32 indexCount, Uint32 firstIndex, Sint32 vertexOffset, Uint32 instanceCount) {
++    if (!Require(true, "DrawIndexed")) return;
++    if (!mBound.pipeline || !mBound.indexBuffer) {
++        Fail("DrawIndexed without a bound pipeline or index buffer");
++        return;
++    }
++    if (indexCount == 0 || instanceCount == 0) return;
++    mCmds.push_back({ Cmd::DrawIndexed, indexCount, firstIndex, 0, instanceCount, vertexOffset, nullptr, nullptr });
++    mSegmentDraws++;
++    mStats.draws++;
++}
++
++Uint32 Frame::StreamVertices(const void *data, Uint32 bytes) {
++    if (!Require(false, "StreamVertices")) return 0;
++    // mStream stays 16-byte aligned in size, so every batch starts 16-byte aligned on the GPU too.
++    Uint32 off = (Uint32)mStream.size();
++    mStream.resize(off + AlignUp(bytes, 16));
++    if (bytes) memcpy(mStream.data() + off, data, bytes);
++    mStats.streamBytes += bytes;
++    return off;
++}
++
++void Frame::BindStream(Uint32 streamOffset, Uint32 slot) {
++    if (!Require(true, "BindStream")) return;
++    if (slot >= 4) {
++        Fail("BindStream: slot >= 4");
++        return;
++    }
++    mBound.vertexBuffers[slot] = nullptr;
++    mBound.vertexOffsets[slot] = streamOffset;
++    mBound.vertexIsStream[slot] = true;
++    mCmds.push_back({ Cmd::StreamBinding, slot, streamOffset, 0, 0, 0, nullptr, nullptr });
++}
++
++void Frame::DrawStreamed(const void *vertices, Uint32 vertexCount, Uint32 stride) {
++    if (!Require(true, "DrawStreamed") || vertexCount == 0) return;
++    Uint32 off = StreamVertices(vertices, vertexCount * stride);
++    BindStream(off, 0);
++    Draw(vertexCount, 0, 1);
++}
++
++bool Frame::ResolveStream(Uint32 streamOffset, SDL_GPUBuffer **buffer, Uint32 *offset) const {
++    for (const StreamChunk &c : mChunks) {
++        if (streamOffset >= c.streamBegin && streamOffset < c.streamEnd) {
++            *buffer = c.buffer;
++            *offset = c.gpuBase + (streamOffset - c.streamBegin);
++            return true;
++        }
++    }
++    return false;
++}
++
++void Frame::PushVertexUniform(Uint32 slot, const void *data, Uint32 bytes) {
++    if (!Require(false, "PushVertexUniform")) return;
++    if (slot >= 4 || bytes > 32768) {
++        Fail("PushVertexUniform: slot >= 4 or more than 32 KiB");
++        return;
++    }
++    if (mPassOpen) {
++        mCmds.push_back({ Cmd::VertexUniform, slot, Arena(data, bytes), bytes, 0, 0, nullptr, nullptr });
++    } else {
++        SDL_PushGPUVertexUniformData(mCmd, slot, data, bytes);
++    }
++}
++
++void Frame::PushFragmentUniform(Uint32 slot, const void *data, Uint32 bytes) {
++    if (!Require(false, "PushFragmentUniform")) return;
++    if (slot >= 4 || bytes > 32768) {
++        Fail("PushFragmentUniform: slot >= 4 or more than 32 KiB");
++        return;
++    }
++    if (mPassOpen) {
++        mCmds.push_back({ Cmd::FragmentUniform, slot, Arena(data, bytes), bytes, 0, 0, nullptr, nullptr });
++    } else {
++        SDL_PushGPUFragmentUniformData(mCmd, slot, data, bytes);
++    }
++}
++
++void Frame::InPass(std::function<void(SDL_GPUCommandBuffer *, SDL_GPURenderPass *)> fn) {
++    if (!Require(true, "InPass")) return;
++    mCmds.push_back({ Cmd::InPassFn, (Uint32)mInPassFns.size(), 0, 0, 0, 0, nullptr, nullptr });
++    mInPassFns.push_back(std::move(fn));
++}
++
++bool Frame::OutsidePass(std::function<void(SDL_GPUCommandBuffer *)> fn) {
++    if (!Require(false, "OutsidePass")) return false;
++    if (mPassOpen) {
++        Fail("OutsidePass while a pass is open");
++        return false;
++    }
++    if (!FlushCopies()) return false;  // keep queued uploads ahead of the callback's work
++    fn(mCmd);
++    return true;
++}
++
++// ---- uploads ------------------------------------------------------------------------------------
++
++void Frame::UploadTexture(SDL_GPUTexture *texture, SDL_GPUTextureFormat format, Uint32 x, Uint32 y, Uint32 w, Uint32 h,
++                          const void *data, Uint32 rowPitch, bool wholeTexture, Uint32 layer, Uint32 mipLevel) {
++    if (!texture || !data || w == 0 || h == 0) {
++        Fail("UploadTexture: null texture/data or empty region");
++        return;
++    }
++    const Uint32 texel = SDL_GPUTextureFormatTexelBlockSize(format);
++    if (texel == 0) {
++        Fail("UploadTexture: unknown texel size");
++        return;
++    }
++    SplitIfReferenced(texture);
++    const Uint32 row = w * texel;
++    if (rowPitch == 0) rowPitch = row;
++    const Uint32 off = AlignUp((Uint32)mUploadBytes.size(), 16);
++    mUploadBytes.resize(off + row * h);
++    const Uint8 *src = (const Uint8 *)data;
++    if (rowPitch == row) {
++        memcpy(mUploadBytes.data() + off, src, (size_t)row * h);
++    } else {
++        for (Uint32 r = 0; r < h; r++) memcpy(mUploadBytes.data() + off + r * row, src + (size_t)r * rowPitch, row);
++    }
++    PendingUpload u;
++    SDL_zero(u);
++    u.texture = texture;
++    u.srcOffset = off;
++    u.x = x;
++    u.y = y;
++    u.w = w;
++    u.h = h;
++    u.layer = layer;
++    u.mip = mipLevel;
++    u.cycle = wholeTexture;
++    mUploads.push_back(u);
++}
++
++void Frame::UploadTexture(const Texture &texture, const void *data, Uint32 rowPitch) {
++    UploadTexture(texture.Handle(), texture.Format(), 0, 0, texture.Width(), texture.Height(), data, rowPitch,
++                  texture.Desc().layers <= 1 && texture.Desc().levels <= 1);
++}
++
++void Frame::UploadTexture(const Texture &texture, Uint32 x, Uint32 y, Uint32 w, Uint32 h, const void *data, Uint32 rowPitch) {
++    if (x + w > texture.Width() || y + h > texture.Height()) {
++        Fail("UploadTexture: region outside the texture");
++        return;
++    }
++    const bool whole = x == 0 && y == 0 && w == texture.Width() && h == texture.Height() &&
++                       texture.Desc().layers <= 1 && texture.Desc().levels <= 1;
++    UploadTexture(texture.Handle(), texture.Format(), x, y, w, h, data, rowPitch, whole);
++}
++
++void Frame::UploadBuffer(SDL_GPUBuffer *buffer, Uint32 offset, const void *data, Uint32 bytes, bool wholeBuffer) {
++    if (!buffer || !data || bytes == 0) {
++        Fail("UploadBuffer: null buffer/data or zero size");
++        return;
++    }
++    SplitIfReferenced(buffer);
++    const Uint32 off = AlignUp((Uint32)mUploadBytes.size(), 16);
++    mUploadBytes.resize(off + bytes);
++    memcpy(mUploadBytes.data() + off, data, bytes);
++    PendingUpload u;
++    SDL_zero(u);
++    u.buffer = buffer;
++    u.srcOffset = off;
++    u.dstOffset = offset;
++    u.size = bytes;
++    u.cycle = wholeBuffer;
++    mUploads.push_back(u);
++}
++
++bool Frame::EnsureTransfer(Uint32 bytes) {
++    if (mTransfer && mTransferSize >= bytes) return true;
++    SDL_GPUDevice *dev = mDevice.Handle();
++    Uint32 size = mTransferSize ? mTransferSize : mDevice.Config().initialTransferBytes;
++    while (size < bytes) size *= 2;
++    if (mTransfer) SDL_ReleaseGPUTransferBuffer(dev, mTransfer);
++    SDL_GPUTransferBufferCreateInfo info;
++    SDL_zero(info);
++    info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
++    info.size = size;
++    mTransfer = SDL_CreateGPUTransferBuffer(dev, &info);
++    mTransferSize = mTransfer ? size : 0;
++    if (!mTransfer) FailSdl("SDL_CreateGPUTransferBuffer (upload)");
++    return mTransfer != nullptr;
++}
++
++// Runs queued uploads and not yet uploaded stream data in one copy pass on mCmd.
++bool Frame::FlushCopies() {
++    const Uint32 streamPending = (Uint32)mStream.size() - mStreamUploaded;
++    if (mUploads.empty() && streamPending == 0) return true;
++    const Uint32 uploadBytes = AlignUp((Uint32)mUploadBytes.size(), 16);
++    if (!EnsureTransfer(uploadBytes + streamPending)) return false;
++
++    SDL_GPUDevice *dev = mDevice.Handle();
++    Uint8 *mapped = (Uint8 *)SDL_MapGPUTransferBuffer(dev, mTransfer, true);
++    if (!mapped) {
++        FailSdl("SDL_MapGPUTransferBuffer (upload)");
++        return false;
++    }
++    if (!mUploadBytes.empty()) memcpy(mapped, mUploadBytes.data(), mUploadBytes.size());
++    if (streamPending) memcpy(mapped + uploadBytes, mStream.data() + mStreamUploaded, streamPending);
++    SDL_UnmapGPUTransferBuffer(dev, mTransfer);
++
++    // Stream data goes into the current stream buffer, or a bigger one when it does not fit.
++    bool streamCycle = false;
++    if (streamPending) {
++        if (!mStreamBuffer || mStreamGpuUsed + streamPending > mStreamCapacity) {
++            Uint32 cap = mStreamCapacity ? mStreamCapacity : mDevice.Config().initialStreamBytes;
++            while (cap < streamPending * 2 || cap < mStreamGpuUsed + streamPending) cap *= 2;
++            if (mStreamBuffer) {
++                if (mStreamGpuUsed > 0) mRetiredStream.push_back(mStreamBuffer);
++                else SDL_ReleaseGPUBuffer(dev, mStreamBuffer);
++                mStats.streamBufferGrowths++;
++            }
++            mStreamBuffer = mDevice.CreateBuffer(SDL_GPU_BUFFERUSAGE_VERTEX, cap, "SIM_GPU vertex stream");
++            mStreamCapacity = mStreamBuffer ? cap : 0;
++            mStreamGpuUsed = 0;
++            if (!mStreamBuffer) {
++                mFailed = true;
++                return false;
++            }
++        }
++        // First write of the frame into this buffer: give it fresh storage instead of waiting for
++        // the frames in flight that still draw from it.
++        streamCycle = mStreamGpuUsed == 0;
++    }
++
++    SDL_GPUCopyPass *copy = SDL_BeginGPUCopyPass(mCmd);
++    if (!copy) {
++        FailSdl("SDL_BeginGPUCopyPass");
++        return false;
++    }
++    for (const PendingUpload &u : mUploads) {
++        if (u.texture) {
++            SDL_GPUTextureTransferInfo src;
++            SDL_zero(src);
++            src.transfer_buffer = mTransfer;
++            src.offset = u.srcOffset;
++            src.pixels_per_row = u.w;
++            src.rows_per_layer = u.h;
++            SDL_GPUTextureRegion dst;
++            SDL_zero(dst);
++            dst.texture = u.texture;
++            dst.mip_level = u.mip;
++            dst.layer = u.layer;
++            dst.x = u.x;
++            dst.y = u.y;
++            dst.w = u.w;
++            dst.h = u.h;
++            dst.d = 1;
++            SDL_UploadToGPUTexture(copy, &src, &dst, u.cycle);
++        } else {
++            SDL_GPUTransferBufferLocation src = { mTransfer, u.srcOffset };
++            SDL_GPUBufferRegion dst = { u.buffer, u.dstOffset, u.size };
++            SDL_UploadToGPUBuffer(copy, &src, &dst, u.cycle);
++        }
++    }
++    if (streamPending) {
++        SDL_GPUTransferBufferLocation src = { mTransfer, uploadBytes };
++        SDL_GPUBufferRegion dst = { mStreamBuffer, mStreamGpuUsed, streamPending };
++        SDL_UploadToGPUBuffer(copy, &src, &dst, streamCycle);
++        mChunks.push_back({ mStreamBuffer, mStreamUploaded, (Uint32)mStream.size(), mStreamGpuUsed });
++        mStreamGpuUsed += streamPending;
++        mStreamUploaded = (Uint32)mStream.size();
++    }
++    SDL_EndGPUCopyPass(copy);
++    mStats.copyPasses++;
++    mStats.uploadBytes += mUploadBytes.size();
++    mUploads.clear();
++    mUploadBytes.clear();
++    return true;
++}
++
++// ---- presentation and submission ----------------------------------------------------------------
++
++SDL_GPUTexture *Frame::AcquireSwapchain(Uint32 *width, Uint32 *height) {
++    if (!Require(false, "AcquireSwapchain")) return nullptr;
++    if (!mSwapchainAcquired) {
++        mSwapchainAcquired = true;
++        mSwapchain = nullptr;
++        mSwapchainW = mSwapchainH = 0;
++        if (mDevice.Window() &&
++            !SDL_WaitAndAcquireGPUSwapchainTexture(mCmd, mDevice.Window(), &mSwapchain, &mSwapchainW, &mSwapchainH)) {
++            FailSdl("SDL_WaitAndAcquireGPUSwapchainTexture");
++            mSwapchain = nullptr;
++        }
++    }
++    if (width) *width = mSwapchainW;
++    if (height) *height = mSwapchainH;
++    return mSwapchain;
++}
++
++void Frame::Present(SDL_GPUTexture *source, Uint32 width, Uint32 height, SDL_GPUFilter filter) {
++    if (!Require(false, "Present")) return;
++    mPresentSource = source;
++    mPresentW = width;
++    mPresentH = height;
++    mPresentFilter = filter;
++}
++
++bool Frame::End() {
++    if (!mActive) {
++        mDevice.ReportFailure("Frame::End without BeginFrame", false);
++        return false;
++    }
++    if (mPassOpen) {
++        Fail("Frame::End with a pass still open (closing it)");
++        CloseSegment(false);
++    }
++    FlushCopies();
++
++    if (mPresentSource && mDevice.Window()) {
++        Uint32 sw = 0, sh = 0;
++        SDL_GPUTexture *swap = AcquireSwapchain(&sw, &sh);
++        if (swap) {
++            SDL_GPUBlitInfo blit;
++            SDL_zero(blit);
++            blit.source.texture = mPresentSource;
++            blit.source.w = mPresentW;
++            blit.source.h = mPresentH;
++            blit.destination.texture = swap;
++            blit.destination.w = sw;
++            blit.destination.h = sh;
++            blit.load_op = SDL_GPU_LOADOP_DONT_CARE;
++            blit.filter = mPresentFilter;
++            SDL_BlitGPUTexture(mCmd, &blit);
++        }
++    }
++
++    if (!SDL_SubmitGPUCommandBuffer(mCmd)) FailSdl("SDL_SubmitGPUCommandBuffer");
++    mCmd = nullptr;
++    mActive = false;
++    SDL_GPUDevice *dev = mDevice.Handle();
++    for (SDL_GPUBuffer *b : mRetiredStream) SDL_ReleaseGPUBuffer(dev, b);  // freed once the GPU is done
++    mRetiredStream.clear();
++    mChunks.clear();
++    mDevice.ApplyPresentMode();
++    return !mFailed;
++}
++
++} // namespace SIM::Gpu
+diff --git a/libraries/sim/src/gpu/gpu_pipeline.cpp b/libraries/sim/src/gpu/gpu_pipeline.cpp
+new file mode 100644
+index 0000000..698e4c7
+--- /dev/null
++++ b/libraries/sim/src/gpu/gpu_pipeline.cpp
+@@ -0,0 +1,147 @@
++#include <simulator/gpu/device.hpp>
++#include <simulator/gpu/pipeline.hpp>
++
++#include <cstdint>
++
++namespace SIM::Gpu {
++
++static inline void HashMix(size_t &h, size_t v) {
++    h ^= v + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
++}
++
++size_t PipelineKeyHash::operator()(const PipelineKey &k) const {
++    size_t h = 0;
++    HashMix(h, (size_t)(uintptr_t)k.vertex);
++    HashMix(h, (size_t)(uintptr_t)k.fragment);
++    HashMix(h, k.layout.stride);
++    HashMix(h, k.layout.numAttributes);
++    for (Uint32 i = 0; i < k.layout.numAttributes && i < kMaxVertexAttributes; i++) {
++        const VertexAttribute &a = k.layout.attributes[i];
++        HashMix(h, a.location | ((size_t)a.format << 8) | ((size_t)a.offset << 16));
++    }
++    HashMix(h, (size_t)k.primitive | ((size_t)k.cull << 4) | ((size_t)k.frontFace << 8) | ((size_t)k.depthTest << 10) |
++                   ((size_t)k.depthWrite << 11) | ((size_t)k.depthCompare << 12) | ((size_t)k.blend << 16) |
++                   ((size_t)k.colorWriteMask << 20));
++    HashMix(h, (size_t)k.colorFormat | ((size_t)k.depthFormat << 16));
++    return h;
++}
++
++static SDL_GPUColorTargetBlendState BlendState(Blend blend, Uint8 writeMask) {
++    SDL_GPUColorTargetBlendState s;
++    SDL_zero(s);
++    s.color_write_mask = writeMask;
++    s.enable_color_write_mask = writeMask != 0xF;
++    s.color_blend_op = SDL_GPU_BLENDOP_ADD;
++    s.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
++    switch (blend) {
++    case Blend::Opaque:
++        s.enable_blend = false;
++        s.src_color_blendfactor = s.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
++        s.dst_color_blendfactor = s.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ZERO;
++        break;
++    case Blend::Alpha:
++        s.enable_blend = true;
++        s.src_color_blendfactor = s.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
++        s.dst_color_blendfactor = s.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
++        break;
++    case Blend::Premultiplied:
++        s.enable_blend = true;
++        s.src_color_blendfactor = s.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
++        s.dst_color_blendfactor = s.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
++        break;
++    case Blend::Additive:
++        s.enable_blend = true;
++        s.src_color_blendfactor = s.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
++        s.dst_color_blendfactor = s.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
++        break;
++    }
++    return s;
++}
++
++PipelineCache::~PipelineCache() { Clear(); }
++
++void PipelineCache::Clear() {
++    if (mDevice.Handle()) {
++        for (auto &kv : mPipelines) SDL_ReleaseGPUGraphicsPipeline(mDevice.Handle(), kv.second);
++    }
++    mPipelines.clear();
++}
++
++SDL_GPUGraphicsPipeline *PipelineCache::Get(const PipelineKey &key) {
++    auto it = mPipelines.find(key);
++    if (it != mPipelines.end()) return it->second;
++    if (!key.vertex || !key.fragment) {
++        mDevice.ReportFailure("PipelineCache::Get: key without vertex or fragment shader", false);
++        return nullptr;
++    }
++    SDL_GPUShader *vs = mDevice.Shader(*key.vertex);
++    SDL_GPUShader *fs = mDevice.Shader(*key.fragment);
++    if (!vs || !fs) return nullptr;
++
++    SDL_GPUGraphicsPipelineCreateInfo info;
++    SDL_zero(info);
++    info.vertex_shader = vs;
++    info.fragment_shader = fs;
++
++    SDL_GPUVertexBufferDescription vb;
++    SDL_zero(vb);
++    SDL_GPUVertexAttribute attrs[kMaxVertexAttributes];
++    if (key.layout.numAttributes > 0) {
++        vb.slot = 0;
++        vb.pitch = key.layout.stride;
++        vb.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
++        for (Uint32 i = 0; i < key.layout.numAttributes; i++) {
++            attrs[i].location = key.layout.attributes[i].location;
++            attrs[i].buffer_slot = 0;
++            attrs[i].format = key.layout.attributes[i].format;
++            attrs[i].offset = key.layout.attributes[i].offset;
++        }
++        info.vertex_input_state.vertex_buffer_descriptions = &vb;
++        info.vertex_input_state.num_vertex_buffers = 1;
++        info.vertex_input_state.vertex_attributes = attrs;
++        info.vertex_input_state.num_vertex_attributes = key.layout.numAttributes;
++    }
++    info.primitive_type = key.primitive;
++    info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
++    info.rasterizer_state.cull_mode = key.cull;
++    info.rasterizer_state.front_face = key.frontFace;
++    info.rasterizer_state.enable_depth_clip = true;  // GL behaviour; also needs no depthClamp feature
++    info.multisample_state.sample_count = SDL_GPU_SAMPLECOUNT_1;
++    info.depth_stencil_state.enable_depth_test = key.depthTest;
++    info.depth_stencil_state.enable_depth_write = key.depthTest && key.depthWrite;
++    info.depth_stencil_state.compare_op = key.depthTest ? key.depthCompare : SDL_GPU_COMPAREOP_ALWAYS;
++
++    SDL_GPUColorTargetDescription color;
++    SDL_zero(color);
++    if (key.colorFormat != SDL_GPU_TEXTUREFORMAT_INVALID) {
++        color.format = key.colorFormat;
++        color.blend_state = BlendState(key.blend, key.colorWriteMask);
++        info.target_info.color_target_descriptions = &color;
++        info.target_info.num_color_targets = 1;
++    }
++    if (key.depthFormat != SDL_GPU_TEXTUREFORMAT_INVALID) {
++        info.target_info.has_depth_stencil_target = true;
++        info.target_info.depth_stencil_format = key.depthFormat;
++    } else if (key.depthTest) {
++        mDevice.ReportFailure("PipelineCache::Get: depth test without a depth format", false);
++        return nullptr;
++    }
++
++    char name[160];
++    SDL_snprintf(name, sizeof name, "%s+%s", key.vertex->name, key.fragment->name);
++    SDL_PropertiesID props = SDL_CreateProperties();
++    SDL_SetStringProperty(props, SDL_PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING, name);
++    info.props = props;
++    SDL_GPUGraphicsPipeline *pipeline = SDL_CreateGPUGraphicsPipeline(mDevice.Handle(), &info);
++    SDL_DestroyProperties(props);
++    if (!pipeline) {
++        char ctx[256];
++        SDL_snprintf(ctx, sizeof ctx, "SDL_CreateGPUGraphicsPipeline(%s)", name);
++        mDevice.ReportFailure(ctx);
++        return nullptr;
++    }
++    mPipelines.emplace(key, pipeline);
++    return pipeline;
++}
++
++} // namespace SIM::Gpu
+diff --git a/libraries/sim/src/gpu/gpu_texture.cpp b/libraries/sim/src/gpu/gpu_texture.cpp
+new file mode 100644
+index 0000000..f4d8057
+--- /dev/null
++++ b/libraries/sim/src/gpu/gpu_texture.cpp
+@@ -0,0 +1,177 @@
++#include <simulator/gpu/device.hpp>
++#include <simulator/gpu/texture.hpp>
++
++#include <utility>
++
++namespace SIM::Gpu {
++
++TextureDesc TextureDesc::Rgba8(Uint32 w, Uint32 h, const char *name) {
++    TextureDesc d;
++    d.width = w;
++    d.height = h;
++    d.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
++    d.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
++    d.name = name;
++    return d;
++}
++
++TextureDesc TextureDesc::R8Uint(Uint32 w, Uint32 h, const char *name) {
++    TextureDesc d = Rgba8(w, h, name);
++    d.format = SDL_GPU_TEXTUREFORMAT_R8_UINT;
++    return d;
++}
++
++TextureDesc TextureDesc::R16Uint(Uint32 w, Uint32 h, const char *name) {
++    TextureDesc d = Rgba8(w, h, name);
++    d.format = SDL_GPU_TEXTUREFORMAT_R16_UINT;
++    return d;
++}
++
++TextureDesc TextureDesc::ColorTarget(Uint32 w, Uint32 h, SDL_GPUTextureFormat format, const char *name) {
++    TextureDesc d = Rgba8(w, h, name);
++    d.format = format;
++    d.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
++    return d;
++}
++
++TextureDesc TextureDesc::DepthTarget(const Device &device, Uint32 w, Uint32 h, const char *name) {
++    TextureDesc d = Rgba8(w, h, name);
++    d.format = device.DepthFormat();
++    d.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
++    return d;
++}
++
++Texture::Texture(Texture &&o) noexcept : mDevice(o.mDevice), mTexture(o.mTexture), mDesc(o.mDesc) {
++    o.mTexture = nullptr;
++}
++
++Texture &Texture::operator=(Texture &&o) noexcept {
++    if (this != &o) {
++        Release();
++        mDevice = o.mDevice;
++        mTexture = o.mTexture;
++        mDesc = o.mDesc;
++        o.mTexture = nullptr;
++    }
++    return *this;
++}
++
++bool Texture::Create(Device &device, const TextureDesc &desc) {
++    Release();
++    mDevice = &device;
++    mDesc = desc;
++    if (!device.Handle() || desc.width == 0 || desc.height == 0) {
++        device.ReportFailure("Texture::Create: no device or zero size", false);
++        return false;
++    }
++    if (!SDL_GPUTextureSupportsFormat(device.Handle(), desc.format, SDL_GPU_TEXTURETYPE_2D, desc.usage)) {
++        char ctx[160];
++        SDL_snprintf(ctx, sizeof ctx, "Texture::Create(%s): format %d does not support usage 0x%x on this device",
++                     desc.name ? desc.name : "unnamed", (int)desc.format, (unsigned)desc.usage);
++        device.ReportFailure(ctx, false);
++        return false;
++    }
++    SDL_GPUTextureCreateInfo info;
++    SDL_zero(info);
++    info.type = desc.layers > 1 ? SDL_GPU_TEXTURETYPE_2D_ARRAY : SDL_GPU_TEXTURETYPE_2D;
++    info.format = desc.format;
++    info.usage = desc.usage;
++    info.width = desc.width;
++    info.height = desc.height;
++    info.layer_count_or_depth = desc.layers ? desc.layers : 1;
++    info.num_levels = desc.levels ? desc.levels : 1;
++    info.sample_count = SDL_GPU_SAMPLECOUNT_1;
++    SDL_PropertiesID props = 0;
++    if (desc.name) {
++        props = SDL_CreateProperties();
++        SDL_SetStringProperty(props, SDL_PROP_GPU_TEXTURE_CREATE_NAME_STRING, desc.name);
++        info.props = props;
++    }
++    mTexture = SDL_CreateGPUTexture(device.Handle(), &info);
++    if (props) SDL_DestroyProperties(props);
++    if (!mTexture) {
++        char ctx[160];
++        SDL_snprintf(ctx, sizeof ctx, "SDL_CreateGPUTexture(%s %ux%u)", desc.name ? desc.name : "unnamed", desc.width, desc.height);
++        device.ReportFailure(ctx);
++        return false;
++    }
++    return true;
++}
++
++bool Texture::Resize(Uint32 width, Uint32 height) {
++    if (!mDevice) return false;
++    if (mTexture && mDesc.width == width && mDesc.height == height) return true;
++    TextureDesc d = mDesc;
++    d.width = width;
++    d.height = height;
++    Device *device = mDevice;
++    return Create(*device, d);
++}
++
++void Texture::Release() {
++    if (mTexture && mDevice && mDevice->Handle()) SDL_ReleaseGPUTexture(mDevice->Handle(), mTexture);
++    mTexture = nullptr;
++}
++
++bool RenderTarget::Create(Device &device, Uint32 width, Uint32 height, SDL_GPUTextureFormat colorFormat, bool withDepth,
++                          const char *name) {
++    Release();
++    if (!mColor.Create(device, TextureDesc::ColorTarget(width, height, colorFormat, name))) return false;
++    if (withDepth && !mDepth.Create(device, TextureDesc::DepthTarget(device, width, height, name))) {
++        mColor.Release();
++        return false;
++    }
++    return true;
++}
++
++bool RenderTarget::Resize(Uint32 width, Uint32 height) {
++    if (mColor && mColor.Width() == width && mColor.Height() == height) return false;
++    mColor.Resize(width, height);
++    if (mDepth.Desc().width != 0) mDepth.Resize(width, height);
++    return true;
++}
++
++void RenderTarget::Release() {
++    mColor.Release();
++    mDepth.Release();
++}
++
++static SDL_GPUSamplerAddressMode ToAddress(Wrap w) {
++    switch (w) {
++    case Wrap::Repeat: return SDL_GPU_SAMPLERADDRESSMODE_REPEAT;
++    case Wrap::Mirror: return SDL_GPU_SAMPLERADDRESSMODE_MIRRORED_REPEAT;
++    default: return SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
++    }
++}
++
++SamplerCache::~SamplerCache() { Clear(); }
++
++void SamplerCache::Clear() {
++    if (mDevice.Handle()) {
++        for (auto &kv : mSamplers) SDL_ReleaseGPUSampler(mDevice.Handle(), kv.second);
++    }
++    mSamplers.clear();
++}
++
++SDL_GPUSampler *SamplerCache::Get(const SamplerKey &key) {
++    auto it = mSamplers.find(key);
++    if (it != mSamplers.end()) return it->second;
++    SDL_GPUSamplerCreateInfo info;
++    SDL_zero(info);
++    info.min_filter = info.mag_filter = key.filter == Filter::Linear ? SDL_GPU_FILTER_LINEAR : SDL_GPU_FILTER_NEAREST;
++    info.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
++    info.address_mode_u = ToAddress(key.wrapU);
++    info.address_mode_v = ToAddress(key.wrapV);
++    info.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
++    info.min_lod = 0.0f;
++    info.max_lod = 1000.0f;
++    SDL_GPUSampler *s = SDL_CreateGPUSampler(mDevice.Handle(), &info);
++    if (!s) {
++        mDevice.ReportFailure("SDL_CreateGPUSampler");
++        return nullptr;
++    }
++    mSamplers.emplace(key, s);
++    return s;
++}
++
++} // namespace SIM::Gpu
+diff --git a/libraries/sim/tools/gpu_shaderc.py b/libraries/sim/tools/gpu_shaderc.py
+new file mode 100644
+index 0000000..8aeda79
+--- /dev/null
++++ b/libraries/sim/tools/gpu_shaderc.py
+@@ -0,0 +1,301 @@
++#!/usr/bin/env python3
++"""Compile one GLSL shader for SDL_GPU and emit a C++ header that embeds it.
++
++Input: a Vulkan-flavoured GLSL file (#version 450) named <name>.vert or <name>.frag.
++Output: a header defining SIM::Gpu::Shaders::<name>_<stage> (a SIM::Gpu::ShaderBlob) holding
++  - the SPIR-V module (for SDL_GPU's Vulkan backend),
++  - MSL source for macOS and for iOS (for SDL_GPU's Metal backend; entry point "main0"),
++  - the resource counts SDL_CreateGPUShader needs.
++
++Tools: glslangValidator (GLSL -> SPIR-V) and spirv-cross (reflection, SPIR-V -> MSL).
++Python 3 standard library only.
++
++Resource binding rules enforced here (from SDL_gpu.h, SDL_CreateGPUShader):
++  SPIR-V vertex shaders:   set 0 = sampled textures, then storage textures, then storage buffers
++                           set 1 = uniform buffers
++  SPIR-V fragment shaders: set 2 = sampled textures, then storage textures, then storage buffers
++                           set 3 = uniform buffers
++  Within each set the bindings must be 0..n-1 with no gaps, in that order. Textures must be
++  combined image samplers (sampler2D / usampler2D ...); SDL_GPU has no separate samplers.
++
++Metal mapping (derived from SDL/src/gpu/metal/SDL_gpu_metal.m, METAL_INTERNAL_BindGraphicsResources):
++  uniform buffer slot i          -> [[buffer(i)]]
++  storage buffer j               -> [[buffer(num_uniform_buffers + j)]]
++  sampled texture k              -> [[texture(k)]] and [[sampler(k)]]
++  storage texture j              -> [[texture(num_samplers + j)]]
++  vertex buffer slot s           -> [[buffer(14 + s)]] (reached through [[stage_in]], never declared here)
++  entry point                    -> "main0" (SDL's default when entrypoint is NULL; spirv-cross renames main)
++The SPIR-V bindings already equal these indices for uniform buffers, sampled textures and
++storage textures; storage buffers differ, so the script rewrites their Binding decorations in
++a private copy of the module before running spirv-cross --msl-decoration-binding, then checks
++every [[buffer/texture/sampler(n)]] in the generated entry point against the rule above.
++(spirv-cross omits resources a shader never reads, so the check is that each emitted index
++is one the rule allows and none repeats.)
++"""
++
++import argparse
++import json
++import os
++import re
++import shutil
++import struct
++import subprocess
++import sys
++import tempfile
++
++# MSL 2.1: the oldest language version SDL_GPU's Metal backend supports (macOS 10.14, iOS 12/13),
++# enough for everything these shaders use; newer OS releases compile older MSL unchanged.
++MSL_VERSION = "20100"
++
++STAGES = {
++    ".vert": ("vert", "SDL_GPU_SHADERSTAGE_VERTEX", 0, 1),
++    ".frag": ("frag", "SDL_GPU_SHADERSTAGE_FRAGMENT", 2, 3),
++}
++
++INSTALL_HINT = ("install it (macOS: brew install glslang spirv-cross; "
++                "Ubuntu/Debian: apt install glslang-tools spirv-cross)")
++
++
++def fail(msg):
++    sys.stderr.write("gpu_shaderc: error: %s\n" % msg)
++    sys.exit(1)
++
++
++def find_tool(explicit, name):
++    path = explicit or shutil.which(name)
++    if not path or not (os.path.isfile(path) or shutil.which(path)):
++        fail("%s not found; %s" % (name, INSTALL_HINT))
++    return path
++
++
++def run(cmd):
++    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
++    if proc.returncode != 0:
++        fail("command failed (%d): %s\n%s%s" % (proc.returncode, " ".join(cmd),
++                                               proc.stdout.decode(errors="replace"),
++                                               proc.stderr.decode(errors="replace")))
++    return proc.stdout
++
++
++def check_set(src, kind_lists, set_index, what):
++    """kind_lists: ordered list of (kind, [resources]) that share one descriptor set.
++    Returns the count per kind after checking bindings are 0..n-1 in kind order."""
++    expected = 0
++    counts = {}
++    for kind, res in kind_lists:
++        res = sorted(res, key=lambda r: r["binding"])
++        counts[kind] = len(res)
++        for r in res:
++            if r.get("set", 0) != set_index:
++                fail("%s: %s '%s' is in set %d; %s must use set %d (SDL_GPU resource-set rules)"
++                     % (src, kind, r["name"], r.get("set", 0), what, set_index))
++            if r["binding"] != expected:
++                fail("%s: %s '%s' has binding %d, expected %d: set %d must hold sampled textures, "
++                     "then storage textures, then storage buffers, numbered 0..n-1 without gaps"
++                     % (src, kind, r["name"], r["binding"], expected, set_index))
++            if r.get("array"):
++                fail("%s: %s '%s' is an array; declare one binding per resource" % (src, kind, r["name"]))
++            expected += 1
++    return counts
++
++
++def patch_spirv_bindings(spv, remap):
++    """remap: {(set, binding): new_binding}. Rewrites OpDecorate Binding literals in place."""
++    words = list(struct.unpack("<%dI" % (len(spv) // 4), spv))
++    if words[0] != 0x07230203:
++        fail("not a little-endian SPIR-V module")
++    OP_DECORATE, DEC_BINDING, DEC_SET = 71, 33, 34
++    sets, bindings = {}, {}
++    i = 5
++    while i < len(words):
++        count, op = words[i] >> 16, words[i] & 0xFFFF
++        if count == 0:
++            fail("malformed SPIR-V")
++        if op == OP_DECORATE and count >= 4:
++            target, dec = words[i + 1], words[i + 2]
++            if dec == DEC_SET:
++                sets[target] = words[i + 3]
++            elif dec == DEC_BINDING:
++                bindings[target] = (i + 3, words[i + 3])
++        i += count
++    for target, (pos, b) in bindings.items():
++        key = (sets.get(target, 0), b)
++        if key in remap:
++            words[pos] = remap[key]
++    return struct.pack("<%dI" % len(words), *words)
++
++
++def entry_signature(msl):
++    m = re.search(r"\b(vertex|fragment)\s+\w+\s+main0\s*\((.*?)\)\s*\{", msl, re.S)
++    if not m:
++        fail("generated MSL has no main0 entry point")
++    return m.group(2)
++
++
++def c_bytes(data, per_line=24):
++    out = []
++    for i in range(0, len(data), per_line):
++        out.append("    " + ",".join("0x%02x" % b for b in data[i:i + per_line]) + ",")
++    return "\n".join(out)
++
++
++def main():
++    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
++    ap.add_argument("input", help="GLSL source, .vert or .frag")
++    ap.add_argument("-o", "--output", required=True, help="generated header")
++    ap.add_argument("--depfile", help="write a Makefile-style depfile for the build system")
++    ap.add_argument("-I", dest="includes", action="append", default=[], help="GLSL include directory")
++    ap.add_argument("-D", dest="defines", action="append", default=[], help="preprocessor define")
++    ap.add_argument("--name", help="C++ identifier (default: <basename>_<stage>)")
++    ap.add_argument("--glslang", help="path to glslangValidator")
++    ap.add_argument("--spirv-cross", dest="spirv_cross", help="path to spirv-cross")
++    ap.add_argument("--keep", help="also write <keep>.spv / <keep>.metal / <keep>.ios.metal / <keep>.json")
++    args = ap.parse_args()
++
++    src = args.input
++    base, ext = os.path.splitext(os.path.basename(src))
++    if ext not in STAGES:
++        fail("%s: the file extension must be .vert or .frag" % src)
++    stage, sdl_stage, res_set, ubo_set = STAGES[ext]
++    name = args.name or re.sub(r"[^A-Za-z0-9_]", "_", "%s_%s" % (base, stage))
++    if name[0].isdigit():
++        name = "_" + name
++
++    glslang = find_tool(args.glslang, "glslangValidator")
++    spirv_cross = find_tool(args.spirv_cross, "spirv-cross")
++
++    with tempfile.TemporaryDirectory() as tmp:
++        spv_path = os.path.join(tmp, "shader.spv")
++        cmd = [glslang, "-V", "--target-env", "vulkan1.0", "-S", stage, "-o", spv_path]
++        cmd += ["-I" + d for d in args.includes]
++        cmd += ["-D" + d for d in args.defines]
++        dep_path = os.path.join(tmp, "shader.d")
++        cmd += ["--depfile", dep_path, src]
++        run(cmd)
++        with open(spv_path, "rb") as f:
++            spv = f.read()
++
++        refl = json.loads(run([spirv_cross, spv_path, "--reflect"]).decode())
++        for bad, why in (("separate_images", "separate textures"), ("separate_samplers", "separate samplers"),
++                         ("push_constants", "push constants"), ("subpass_inputs", "subpass inputs"),
++                         ("acceleration_structures", "acceleration structures")):
++            if refl.get(bad):
++                fail("%s: %s are not supported by SDL_GPU (%s)" % (src, why, refl[bad][0].get("name")))
++        samplers = refl.get("textures", [])
++        storage_tex = refl.get("images", [])
++        storage_buf = refl.get("ssbos", [])
++        ubos = refl.get("ubos", [])
++        for r in samplers:
++            if r.get("type", "").startswith(("sampler2DMS", "isampler2DMS", "usampler2DMS")):
++                fail("%s: multisample textures cannot be sampled through SDL_GPU" % src)
++        counts = check_set(src, [("sampled texture", samplers), ("storage texture", storage_tex),
++                                 ("storage buffer", storage_buf)], res_set,
++                           "%s shader textures/storage" % stage)
++        ubo_counts = check_set(src, [("uniform buffer", ubos)], ubo_set, "%s shader uniform buffers" % stage)
++        n_samp, n_stex, n_sbuf = counts["sampled texture"], counts["storage texture"], counts["storage buffer"]
++        n_ubo = ubo_counts["uniform buffer"]
++        if n_samp > 16 or n_stex > 8 or n_sbuf > 8 or n_ubo > 4:
++            fail("%s: over SDL_GPU's per-stage limits (16 samplers, 8 storage textures, "
++                 "8 storage buffers, 4 uniform buffers)" % src)
++        for u in ubos:
++            if u.get("block_size", 0) > 32768:
++                fail("%s: uniform block '%s' is %d bytes; SDL_GPU pushes at most 32 KiB per slot"
++                     % (src, u["name"], u["block_size"]))
++
++        # Storage buffer j sits at SPIR-V binding n_samp + n_stex + j but at Metal [[buffer(n_ubo + j)]].
++        remap = {}
++        for r in storage_buf:
++            remap[(res_set, r["binding"])] = n_ubo + (r["binding"] - n_samp - n_stex)
++        msl_spv_path = os.path.join(tmp, "shader_msl.spv")
++        with open(msl_spv_path, "wb") as f:
++            f.write(patch_spirv_bindings(spv, remap))
++
++        expected = sorted([("buffer", i) for i in range(n_ubo)] +
++                          [("buffer", n_ubo + j) for j in range(n_sbuf)] +
++                          [("texture", k) for k in range(n_samp)] +
++                          [("sampler", k) for k in range(n_samp)] +
++                          [("texture", n_samp + j) for j in range(n_stex)])
++        msl = {}
++        for plat, extra in (("macos", []), ("ios", ["--msl-ios"])):
++            text = run([spirv_cross, msl_spv_path, "--msl", "--msl-version", MSL_VERSION,
++                        "--msl-decoration-binding"] + extra).decode()
++            # spirv-cross only declares resources the shader reads; an unused declared resource
++            # leaves a hole that SDL still binds, which is harmless, so compare against used ones.
++            sig = entry_signature(text)
++            present = sorted((k, int(n)) for k, n in re.findall(r"\[\[(buffer|texture|sampler)\((\d+)\)\]\]", sig))
++            if not set(present) <= set(expected) or len(present) != len(set(present)):
++                fail("%s: MSL resource indices %s do not follow SDL_GPU's Metal binding rule %s"
++                     % (src, present, expected))
++            msl[plat] = text.encode()
++
++        deps = []
++        if os.path.exists(dep_path):
++            with open(dep_path) as f:
++                content = f.read().replace("\\\n", " ")
++            if ":" in content:
++                deps = content.split(":", 1)[1].split()
++
++        if args.keep:
++            with open(args.keep + ".spv", "wb") as f:
++                f.write(spv)
++            with open(args.keep + ".metal", "wb") as f:
++                f.write(msl["macos"])
++            with open(args.keep + ".ios.metal", "wb") as f:
++                f.write(msl["ios"])
++            with open(args.keep + ".json", "w") as f:
++                json.dump(refl, f, indent=2)
++
++    ios_same = msl["ios"] == msl["macos"]
++    lines = []
++    lines.append("// Generated by gpu_shaderc.py from %s. Do not edit." % os.path.basename(src))
++    lines.append("// Resources: %d sampled textures, %d storage textures, %d storage buffers, %d uniform buffers."
++                 % (n_samp, n_stex, n_sbuf, n_ubo))
++    lines.append("#pragma once")
++    lines.append("#include <simulator/gpu/shader_blob.hpp>")
++    lines.append("")
++    lines.append("namespace SIM::Gpu::Shaders {")
++    lines.append("")
++    lines.append("inline constexpr unsigned char %s_spirv[] = {" % name)
++    lines.append(c_bytes(spv))
++    lines.append("};")
++    lines.append("")
++    lines.append("inline constexpr unsigned char %s_msl_macos[] = {" % name)
++    lines.append(c_bytes(msl["macos"] + b"\0"))
++    lines.append("};")
++    if not ios_same:
++        lines.append("")
++        lines.append("inline constexpr unsigned char %s_msl_ios[] = {" % name)
++        lines.append(c_bytes(msl["ios"] + b"\0"))
++        lines.append("};")
++    ios_name = "%s_msl_%s" % (name, "macos" if ios_same else "ios")
++    lines.append("")
++    lines.append("inline constexpr ShaderBlob %s = {" % name)
++    lines.append("    \"%s\"," % name)
++    lines.append("    %s," % sdl_stage)
++    lines.append("    %s_spirv, sizeof(%s_spirv)," % (name, name))
++    lines.append("    %s_msl_macos, sizeof(%s_msl_macos) - 1," % (name, name))
++    lines.append("    %s, sizeof(%s) - 1," % (ios_name, ios_name))
++    lines.append("    %du, %du, %du, %du," % (n_samp, n_stex, n_sbuf, n_ubo))
++    lines.append("};")
++    lines.append("")
++    lines.append("} // namespace SIM::Gpu::Shaders")
++    lines.append("")
++    text = "\n".join(lines)
++
++    os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
++    old = None
++    if os.path.exists(args.output):
++        with open(args.output) as f:
++            old = f.read()
++    if old != text:
++        with open(args.output, "w") as f:
++            f.write(text)
++
++    if args.depfile:
++        with open(args.depfile, "w") as f:
++            f.write("%s: %s\n" % (args.output.replace(" ", "\\ "),
++                                  " ".join(d.replace(" ", "\\ ") for d in ([src] + deps))))
++
++
++if __name__ == "__main__":
++    main()

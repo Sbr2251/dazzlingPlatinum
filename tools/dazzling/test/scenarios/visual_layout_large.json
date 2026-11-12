@@ -1,0 +1,46 @@
+{
+ "name": "visual_layout_large",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_layout_large",
+   "reference": "../references/visual/visual_layout_large.bmp",
+   "tolerance": 0.0
+  }
+ ],
+ "_note": "Large layout (one large + one small screen): full 1536x768 frame.",
+ "config": {
+  "ScreenLayout": "large"
+ },
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_JUBILIFE_CITY"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}
