@@ -23,6 +23,11 @@ This branch adds the cybervisi0n PC port (`pc_port`) and a native macOS target o
 - After editing field scripts, run `tools/dazzling/check_script_targets.py`. It catches a GoTo/Call or movement command whose target isn't a label in the file; such scripts assemble but crash the Mac app and misbehave on the DS.
 - Headless testing works with the debug automation variables listed in `README_macOS.md`, e.g. `SIM_DEBUG_FAST=1 SIM_DEBUG_IMPORT_SAVE=20:<save> SIM_DEBUG_KEYS=... SIM_DEBUG_SHOT_DIR=... SIM_DEBUG_EXIT_FRAME=...`.
 
+## Renderer migration to the SDL3 GPU API (in progress)
+
+- The simulator's OpenGL renderer is being replaced by one on the SDL3 GPU API (Metal and Vulkan) for the Mac, iOS and Android targets.
+- Plan, status, verification method and per-workstream briefs: `docs/sdl_gpu_migration/PLAN.md`. Linux container setup and parallel-tree scripts: `tools/sdl_gpu_migration/`.
+
 ## Test suite (tools/dazzling/test/)
 
 - Static checks (no game build): `python3 tools/dazzling/test/static_checks.py`
