@@ -1989,7 +1989,7 @@ void Window_FillTilemap(Window *window, u8 val)
         val = (val << 4) | val;
     }
 
-    u32 fill = (val << 24) | (val << 16) | (val << 8) | val;
+    u32 fill = ((u32)val << 24) | ((u32)val << 16) | ((u32)val << 8) | (u32)val;
     u32 size = window->bgConfig->bgs[window->bgLayer].tileSize * window->width * window->height;
 
     MI_CpuFillFast(window->pixels, fill, size);
@@ -2178,7 +2178,11 @@ void Window_CopyGlyph(Window *window, const u8 *glyphPixels, u16 srcWidth, u16 s
             return;
         }
     } else {
-        u8 *convertedSrc = Convert4bppTo8bpp(glyphPixels, srcWidth * 4 * srcHeight * 8, window->palette, window->bgConfig->heapID);
+        // The glyph bitmap is a grid of 8x8 4bpp tiles (32 bytes/tile),
+        // so its size is ceil(W/8) * ceil(H/8) * 32 -- NOT
+        // W*4*H*8 (64x too big), which read far past the 128-byte glyph
+        // buffer (and past the font work struct) in Copy4bppTo8bpp.
+        u8 *convertedSrc = Convert4bppTo8bpp(glyphPixels, ((srcWidth + 7) / 8) * ((srcHeight + 7) / 8) * 32, window->palette, window->bgConfig->heapID);
         switch (glyphSizeParam) {
         case 0: // 1x1
             CopyGlyph8bpp(convertedSrc, 0, 0, srcRight, srcBottom, windowPixels, destX, destY, ConvertPixelsToTiles(destWidth), table);
@@ -2218,7 +2222,7 @@ static void ScrollWindow4bpp(Window *window, u8 direction, u8 distance, u8 fillV
 {
     u8 *pixels = window->pixels;
     int y0, y1, y2;
-    int fill = (fillVal << 24) | (fillVal << 16) | (fillVal << 8) | (fillVal << 0);
+    u32 fill = ((u32)fillVal << 24) | ((u32)fillVal << 16) | ((u32)fillVal << 8) | ((u32)fillVal << 0);
     int size = window->height * window->width * TILE_SIZE_4BPP;
     u32 width = window->width;
     int i, j;
@@ -2275,7 +2279,7 @@ static void ScrollWindow8bpp(Window *window, u8 direction, u8 distance, u8 fillV
 {
     u8 *pixels = window->pixels;
     int y0, y1, y2;
-    int fill = (fillVal << 24) | (fillVal << 16) | (fillVal << 8) | fillVal;
+    u32 fill = ((u32)fillVal << 24) | ((u32)fillVal << 16) | ((u32)fillVal << 8) | (u32)fillVal;
     int size = window->height * window->width * TILE_SIZE_8BPP;
     u32 width = window->width;
     int i, j;
