@@ -4733,10 +4733,10 @@ index 0000000..5796e5c
 +}
 diff --git a/libraries/sim/src/sim_headless_watchdog.cpp b/libraries/sim/src/sim_headless_watchdog.cpp
 new file mode 100644
-index 0000000..7bfcd2e
+index 0000000..91f1ac3
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_watchdog.cpp
-@@ -0,0 +1,178 @@
+@@ -0,0 +1,182 @@
 +// Assert / crash reporting and the watchdog (docs/headless_protocol.md, step 4).
 +// Headless: GF_ASSERT and fatal signals print file:line, message and a symbolized
 +// backtrace to stderr, then exit 134. The watchdog exits 124 with a state dump when
@@ -4892,7 +4892,7 @@ index 0000000..7bfcd2e
 +// ---- signal handlers (best effort) ----
 +
 +static void CrashHandler(int sig) {
-+    const char *name = sig == SIGSEGV ? "SIGSEGV" : sig == SIGBUS ? "SIGBUS" : sig == SIGABRT ? "SIGABRT" : "signal";
++    const char *name = sig == SIGSEGV ? "SIGSEGV" : sig == SIGBUS ? "SIGBUS" : sig == SIGABRT ? "SIGABRT" : sig == SIGFPE ? "SIGFPE" : "signal";
 +    char buf[128];
 +    int n = snprintf(buf, sizeof buf, "SIM crash: %s (%d) at frame=%llu\n", name, sig, SIM_Headless_FrameCount());
 +    if (n > 0) { ssize_t ignored = write(STDERR_FILENO, buf, (size_t)n); (void)ignored; }
@@ -4914,6 +4914,10 @@ index 0000000..7bfcd2e
 +    sigaction(SIGSEGV, &sa, nullptr);
 +    sigaction(SIGBUS, &sa, nullptr);
 +    sigaction(SIGABRT, &sa, nullptr);
++    // Integer division by zero (e.g. a particle anim curve with a zero
++    // interpolation span) kills x86 builds with SIGFPE but is silent on
++    // ARM; without a handler the headless process just vanishes.
++    sigaction(SIGFPE, &sa, nullptr);
 +}
 diff --git a/libraries/sim/src/sim_helpers.cpp b/libraries/sim/src/sim_helpers.cpp
 new file mode 100644
