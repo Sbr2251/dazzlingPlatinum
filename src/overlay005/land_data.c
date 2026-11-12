@@ -30,6 +30,7 @@
 
 #ifdef SDK_PORT
 #include "port/sim_config_prj.h"
+#include <stdlib.h>
 #endif
 
 #define MAP_LAZY_LOADER_SLOT_COUNT            2
@@ -1658,6 +1659,14 @@ static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const
             for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
                 if (landDataMan->extraMaps[i]->mapMatrixIndex == INVALID_MAP_MATRIX_INDEX) {
                     LandDataManager_LoadIntoMap(landDataMan->extraMaps[i], mapMatrixIndex, landDataMan->areaDataMan, landDataMan->mapMatrix, landDataMan->mapMatrixWidth, landDataMan->mapMatrixHeight, AreaDataManager_IsOutdoorsLighting(landDataMan->areaDataMan), landDataMan);
+#ifdef SDK_PORT
+                    {
+                        const char *fxDebug = getenv("SIM_FX_WIDE_DEBUG");
+                        if (fxDebug != NULL && fxDebug[0] == '1') {
+                            fprintf(stderr, "[fx-wide] extra map loaded: centre=%d index=%d slot=%d\n", centreMapMatrixIndex, mapMatrixIndex, i);
+                        }
+                    }
+#endif
                     break;
                 }
             }

@@ -182,15 +182,24 @@ void FieldCamera_Create(const VecFx32 *_target, FieldSystem *fieldSystem, enum C
         // Debug wide view: 16:9 aspect, pulled back and with a farther clip
         // plane, so the land blocks loaded around the DS 2x2 window (see
         // FieldLoadRadius) are visible on the current screen.
-        distance = distance + distance / 2;
-        // 1500 stays inside fx32 range in MTX_PerspectiveW (2 * near * far).
-        farPlaneDist = FX32_ONE * 1500;
+        distance = distance + distance;
+        // Near 100 / far 1700 stays inside fx32 range in MTX_PerspectiveW
+        // (2 * near * far) while keeping the pulled-back target in range.
+        farPlaneDist = FX32_ONE * 1700;
     }
 #endif
 
     Camera_InitWithTarget(target, distance, &config->cameraAngle, config->verticalFov, config->projection, TRUE, fieldSystem->camera);
     Camera_SetAsActive(fieldSystem->camera);
-    Camera_SetClipping(config->nearPlaneDist, farPlaneDist, fieldSystem->camera);
+    {
+        fx32 nearPlaneDist = config->nearPlaneDist;
+#ifdef SDK_PORT
+        if (SIM_Config_prj_DebugWideCamera()) {
+            nearPlaneDist = FX32_ONE * 100;
+        }
+#endif
+        Camera_SetClipping(nearPlaneDist, farPlaneDist, fieldSystem->camera);
+    }
 
 #ifdef SDK_PORT
     if (SIM_Config_prj_DebugWideCamera()) {
