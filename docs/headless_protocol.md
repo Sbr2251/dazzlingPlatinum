@@ -215,7 +215,7 @@ Implemented (step 4).
     old behaviour (return and continue) is kept.
   - The simulator's own `SDK_ASSERT` (`SIM_handleAssertionFailure`) routes
     through the same reporter in headless mode.
-- Best-effort signal handlers for SIGSEGV/SIGBUS/SIGABRT are installed in
+- Best-effort signal handlers for SIGSEGV/SIGBUS/SIGABRT/SIGFPE are installed in
   headless/control mode: they print the signal, the frame count and a
   backtrace to stderr, then exit 134. (Not installed interactively, so macOS
   crash reports in `~/Library/Logs/DiagnosticReports` keep working there.)
