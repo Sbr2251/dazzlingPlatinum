@@ -136,10 +136,19 @@ function of save + seed + spec + decisions (`docs/headless_protocol.md`).
 
 Coverage: Intimidate stat drop, Swords Dance stat raise, Growl enemy stat
 drop, Thunder Wave status, super-effective Flamethrower hit, Mega Evolution
-('reacting' text + cinematic close-up), Totem aura flare-up + persistent
+('reacting' text + cinematic flash), Totem aura flare-up + persistent
 aura, double-battle target select (bottom-screen battler buttons), wild
-encounter transition, and overworld frames on 6 story-save maps (Lake
+battle opening, and overworld frames on 6 story-save maps (Lake
 Verity, Twinleaf, Jubilife, Oreburgh City, Eterna Forest, Solaceon).
+
+Battle screenshots are **event-anchored**, not fixed-frame (fps60 changed
+presentation timing and moved every fixed offset): each waits for an engine
+event via `wait_battle_event` (`stat_stage`, `status`, `damage`,
+`move_chosen` with `mega:true`, `mega_evolution`, the Totem aura's first
+`stat_stage` boost, `battle_start` for the wild opening) and then takes a
+short fixed settle (30-400 rendered frames) into the animation. References
+are per-platform: Linux `references/visual/`, macOS `references/visual_mac/`
+(picked automatically on darwin); both sets verified 3x in a row.
 
 ```sh
 python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --filter visual   # check
