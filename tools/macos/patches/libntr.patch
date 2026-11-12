@@ -1381,12 +1381,14 @@ index 78cf25d..dcc43a4 100644
  #define HW_MAIN_MEM_EX_SIZE     0x00800000
  #define HW_MAIN_MEM_END (HW_MAIN_MEM + HW_MAIN_MEM_SIZE)
 diff --git a/libraries/fs/src/fs_file.c b/libraries/fs/src/fs_file.c
-index 3150bf0..d46d5be 100644
+index 3150bf0..fcc5d23 100644
 --- a/libraries/fs/src/fs_file.c
 +++ b/libraries/fs/src/fs_file.c
-@@ -18,7 +18,7 @@
+@@ -17,8 +17,9 @@
+ #include "../include/command.h"
  
  #ifdef SDK_PORT
++#include <ctype.h>
  #include <string.h>
 -#include <SDL2/SDL.h>
 +#include <SDL3/SDL.h>
