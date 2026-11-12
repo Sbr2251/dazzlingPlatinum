@@ -100,7 +100,7 @@
   },
   {
    "screenshot": "bug_trainer_card",
-   "reference": "../references/bug_trainer_card.bmp",
+   "reference": "../references/visual/bug_trainer_card.bmp",
    "tolerance": 0.0,
    "crop": [
     0,
