@@ -417,8 +417,19 @@ LakeVerity_Arc1OnFrameRoofLanding:
     // Cyrus's event position is (28,24) for the castle-top scene; OnTransition moved it to (32,30)
     ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
     AddObject LOCALID_CYRUS
+    // Cinematic (lane cine): while the screen is still white, cut to a wide
+    // establishing shot north over the lake, fade in on it, push in slowly,
+    // turn toward Cyrus at the portal, then return to the follow camera
+    // exactly before he speaks. No-ops when OverworldCinematics is off.
+    CineCamTo 0, -8, 1050, 36, 0, 14, 1, 0
     FadeScreenIn FADE_SCREEN_SPEED_SLOW, COLOR_WHITE
     WaitFadeScreen
+    CineCamTo 0, 0, 515, 55, 0, 10, 120, 1
+    CineWaitCamera
+    CineCamTo 0, -1, 430, 50, 25, 11, 75, 1
+    CineWaitCamera
+    CineCamReturn 45, 1
+    CineWaitCamera
     WaitTime 45, VAR_RESULT
     ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1CyrusLookAround
     WaitMovement

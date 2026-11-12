@@ -7,6 +7,7 @@
 
 InitScriptFrameTable:
     InitScriptGoToIfEqual VAR_CELESTIC_TOWN_STATE, 1, 5
+    InitScriptGoToIfEqual VAR_CINE_CITY_PENDING, 1, 14
     InitScriptFrameTableEnd
 
     InitScriptEnd

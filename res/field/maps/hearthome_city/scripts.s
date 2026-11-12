@@ -38,9 +38,11 @@
     ScriptEntry HearthomeCity_BlackBelt2
     ScriptEntry HearthomeCity_GymClosed
     ScriptEntry HearthomeCity_GariusBattle
+    ScriptEntry HearthomeCity_CineCityEntry
     ScriptEntryEnd
 
 HearthomeCity_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     SetFlag FLAG_HIDE_HEARTHOME_CITY_ROUTE_209_BLOCKADE
     SetFlag FLAG_MAP_LOCAL_HIDE_OBSTACLE_17
     SetFlag FLAG_MAP_LOCAL_HIDE_OBSTACLE_18
@@ -787,3 +789,19 @@ HearthomeCity_Movement_GariusLeaveEast:
     WalkNormalEast 5
     EndMovement
 
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+HearthomeCity_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_HEARTHOME, HearthomeCity_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_HEARTHOME
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+HearthomeCity_CineCityEntryDone:
+    End

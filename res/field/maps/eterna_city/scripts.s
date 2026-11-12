@@ -37,9 +37,11 @@
     ScriptEntry EternaCity_Arc2GariusScene
     ScriptEntry EternaCity_Arc2HavenArrival
     ScriptEntry EternaCity_Arc2GardeniaHavenTalk
+    ScriptEntry EternaCity_CineCityEntry
     ScriptEntryEnd
 
 EternaCity_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     Call EternaCity_Arc2SetObjects
     CallIfEq VAR_ETERNA_CITY_STATE, 4, EternaCity_SetCynthiaPositionForGiveEgg
     CheckItem ITEM_BICYCLE, 1, VAR_MAP_LOCAL_0x00
@@ -1531,3 +1533,19 @@ EternaCity_Arc2Movement_FaceNorth:
 EternaCity_Arc2Movement_FaceWest:
     WalkOnSpotNormalWest
     EndMovement
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+EternaCity_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_ETERNA, EternaCity_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_ETERNA
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+EternaCity_CineCityEntryDone:
+    End

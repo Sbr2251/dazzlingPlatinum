@@ -22,9 +22,11 @@
     ScriptEntry SunyshoreCity_SealMerchant_Unused
     ScriptEntry SunyshoreCity_Flint
     ScriptEntry SunyshoreCity_OnTransition
+    ScriptEntry SunyshoreCity_CineCityEntry
     ScriptEntryEnd
 
 SunyshoreCity_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     CallIfEq VAR_SANDGEM_TOWN_LAB_STATE, 2, SunyshoreCity_HideSandgemTownLabCounterpart
     CallIfEq VAR_SANDGEM_TOWN_LAB_STATE, 3, SunyshoreCity_HideSandgemTownLabCounterpart
     GoToIfEq VAR_SUNYSHORE_CITY_STATE, 0, SunyshoreCity_SetFlintPositionAtGate
@@ -689,3 +691,19 @@ SunyshoreCity_Movement_PlayerWatchFlintLeaveWest:
     WalkOnSpotNormalSouth
     WalkOnSpotNormalEast
     EndMovement
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+SunyshoreCity_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_SUNYSHORE, SunyshoreCity_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_SUNYSHORE
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+SunyshoreCity_CineCityEntryDone:
+    End

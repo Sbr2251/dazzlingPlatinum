@@ -10,6 +10,7 @@ InitScriptFrameTable:
     InitScriptGoToIfEqual VAR_CANALAVE_CITY_STATE, 2, 4
     InitScriptGoToIfEqual VAR_CANALAVE_CITY_STATE, 4, 5
     InitScriptGoToIfEqual VAR_DARKRAI_EVENT_STATE, 3, 23
+    InitScriptGoToIfEqual VAR_CINE_CITY_PENDING, 1, 26
     InitScriptFrameTableEnd
 
     InitScriptEnd

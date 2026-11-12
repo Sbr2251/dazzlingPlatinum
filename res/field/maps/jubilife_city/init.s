@@ -9,6 +9,7 @@
 // Trainers' School, script 49). 1 arms 2.1 (script 48), a coord event in the plaza, not on frame.
 InitScriptFrameTable:
     InitScriptGoToIfEqual VAR_MAP_LOCAL_0x02, 3, 49
+    InitScriptGoToIfEqual VAR_CINE_CITY_PENDING, 1, 53
     InitScriptFrameTableEnd
 
     InitScriptEnd

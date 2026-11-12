@@ -14,9 +14,11 @@
     ScriptEntry FloaromaTown_SignboardFloaromaMeadow
     ScriptEntry FloaromaTown_Beauty
     ScriptEntry FloaromaTown_Arc2EveningScene
+    ScriptEntry FloaromaTown_CineCityEntry
     ScriptEntryEnd
 
 FloaromaTown_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     SetFlag FLAG_HIDE_FLOAROMA_TOWN_GRUNTS
     SetVar VAR_OBJ_GFX_ID_0, OBJ_EVENT_GFX_DP_PLAYER_F /* Ruth placeholder (D1) */
     SetFlag FLAG_MAP_LOCAL_HIDE_OBSTACLE_17
@@ -250,3 +252,19 @@ FloaromaTown_Movement_Arc2GariusLeave:
 FloaromaTown_Movement_Arc2CyrusLeave:
     WalkNormalEast 9
     EndMovement
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+FloaromaTown_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_FLOAROMA, FloaromaTown_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_FLOAROMA
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+FloaromaTown_CineCityEntryDone:
+    End

@@ -30,9 +30,11 @@
     ScriptEntry CanalaveCity_OnFrame_AfterDarkrai
     ScriptEntry CanalaveCity_OnLoad
     ScriptEntry CanalaveCity_RivalLibrary
+    ScriptEntry CanalaveCity_CineCityEntry
     ScriptEntryEnd
 
 CanalaveCity_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     SetFlag FLAG_HIDE_CELESTIC_TOWN_CYNTHIA
     CallIfEq VAR_DARKRAI_EVENT_STATE, 2, CanalaveCity_ResetDarkraiEventState
     CallIfEq VAR_DARKRAI_EVENT_STATE, 3, CanalaveCity_SetSailorEldritchPositionAfterDarkrai
@@ -721,3 +723,19 @@ CanalaveCity_Movement_EnterDoor:
     WalkNormalNorth
     SetInvisible
     EndMovement
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+CanalaveCity_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_CANALAVE, CanalaveCity_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_CANALAVE
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+CanalaveCity_CineCityEntryDone:
+    End

@@ -7,6 +7,7 @@
 
 HearthomeCity_FrameTable:
     InitScriptGoToIfEqual VAR_ARC2_PROGRESS, 91, 34
+    InitScriptGoToIfEqual VAR_CINE_CITY_PENDING, 1, 35
     InitScriptFrameTableEnd
 
     InitScriptEnd

@@ -15,9 +15,11 @@
     ScriptEntry SnowpointCity_MapSignpost
     ScriptEntry SnowpointCity_GymSignpost
     ScriptEntry SnowpointCity_SailorSSSpiral
+    ScriptEntry SnowpointCity_CineCityEntry
     ScriptEntryEnd
 
 SnowpointCity_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     GoToIfGe VAR_SNOWPOINT_CITY_STATE, 1, SnowpointCity_HideCandice
     End
 
@@ -309,3 +311,19 @@ SnowpointCity_Movement_PlayerWalkToShip:
     WalkNormalSouth
     Delay15
     EndMovement
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+SnowpointCity_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_SNOWPOINT, SnowpointCity_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_SNOWPOINT
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+SnowpointCity_CineCityEntryDone:
+    End

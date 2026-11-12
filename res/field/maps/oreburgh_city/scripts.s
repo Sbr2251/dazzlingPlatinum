@@ -42,6 +42,7 @@
     ScriptEntry OreburghCity_HumAlleyFaint
     ScriptEntry OreburghCity_HumAlleyLoud
     ScriptEntry OreburghCity_HumAlleyFound
+    ScriptEntry OreburghCity_CineCityEntry
     ScriptEntryEnd
 
 OreburghCity_Rival:
@@ -647,6 +648,7 @@ OreburghCity_Movement_Arc1PlayerNoticeRunner:
 // Arc 1: the runner miner (object 30) only exists during the scene 14 frame script, which clears this flag and
 // adds him itself. Keep him hidden on every load (his hide flag starts clear in every save).
 OreburghCity_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     SetFlag FLAG_HIDE_ARC1_OREBURGH_RUNNER
     // Arc 1 r3 (hum): the miner's Machop is home once it's calmed; the reader's buzz coords are live while
     // it's missing (VAR_MAP_LOCAL_0x00: coal-tower yard, VAR_MAP_LOCAL_0x01: back street; 1 armed, 2 faint,
@@ -898,3 +900,19 @@ OreburghCity_Movement_HumMachopHop:
 OreburghCity_Movement_HumExclamation:
     EmoteExclamationMark
     EndMovement
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+OreburghCity_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_OREBURGH, OreburghCity_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_OREBURGH
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+OreburghCity_CineCityEntryDone:
+    End

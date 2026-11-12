@@ -16,9 +16,11 @@
     ScriptEntry SandgemTown_SignboardPokeMart
     ScriptEntry SandgemTown_SignboardPokemonCenter
     ScriptEntry SandgemTown_Arc1RuthTalk
+    ScriptEntry SandgemTown_CineCityEntry
     ScriptEntryEnd
 
 SandgemTown_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     CallIfEq VAR_SANDGEM_TOWN_STATE, 1, SandgemTown_SetCounterpartPositionExitLab
     // Arc 1: Ruth (local 4) waits by the lab door at 10 until the arrival scene runs.
     CallIfEq VAR_ARC1_PROGRESS, 10, SandgemTown_Arc1ShowRuthAtLab
@@ -777,3 +779,19 @@ SandgemTown_Movement_Arc1PlayerFollowNorth:
     EndMovement
 
     .balign 4, 0
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+SandgemTown_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_SANDGEM, SandgemTown_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_SANDGEM
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+SandgemTown_CineCityEntryDone:
+    End

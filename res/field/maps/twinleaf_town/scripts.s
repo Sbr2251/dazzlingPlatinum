@@ -12,9 +12,11 @@
     ScriptEntry TwinleafTown_MapSignpost
     ScriptEntry TwinleafTown_MailboxPlayer
     ScriptEntry TwinleafTown_MailboxRival
+    ScriptEntry TwinleafTown_CineCityEntry
     ScriptEntryEnd
 
 TwinleafTown_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     CallIfEq VAR_DUMMY_0x40F4, 1, TwinleafTown_IncreaseDummyVar
     CallIfEq VAR_PLAYER_HOUSE_STATE, 4, TwinleafTown_SetPlayerHouseState5
     CallIfEq VAR_PLAYER_HOUSE_STATE, 6, TwinleafTown_SetPlayerHouseState7
@@ -513,3 +515,19 @@ TwinleafTown_MailboxRival:
     End
 
     .balign 4, 0
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+TwinleafTown_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_TWINLEAF, TwinleafTown_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_TWINLEAF
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+TwinleafTown_CineCityEntryDone:
+    End

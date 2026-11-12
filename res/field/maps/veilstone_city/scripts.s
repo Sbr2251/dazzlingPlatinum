@@ -40,9 +40,11 @@
     ScriptEntry VeilstoneCity_Arc2Maylene
     ScriptEntry VeilstoneCity_Arc2Cyrus
     ScriptEntry VeilstoneCity_Arc2StoneBox
+    ScriptEntry VeilstoneCity_CineCityEntry
     ScriptEntryEnd
 
 VeilstoneCity_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     Call VeilstoneCity_Arc2OnTransition
     CallIfSet FLAG_VEILSTONE_CITY_GRUNT_DROPPED_STORAGE_KEY, VeilstoneCity_SetLookerPositionAtGalacticBuilding
     CallIfGe VAR_VEILSTONE_CITY_COUNTERPART_NEEDS_HELP_STATE, 2, VeilstoneCity_SetCounterpartPositionAtWarehouse
@@ -1746,3 +1748,19 @@ VeilstoneCity_Arc2Movement_LookerLeave:
     Delay8
     WalkNormalSouth 6
     EndMovement
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+VeilstoneCity_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_VEILSTONE, VeilstoneCity_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_VEILSTONE
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+VeilstoneCity_CineCityEntryDone:
+    End

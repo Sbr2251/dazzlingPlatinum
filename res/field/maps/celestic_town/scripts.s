@@ -16,9 +16,11 @@
     ScriptEntry CelesticTown_EtchingDialga
     ScriptEntry CelesticTown_EtchingPalkia
     ScriptEntry CelesticTown_Arc2CyrusBattle
+    ScriptEntry CelesticTown_CineCityEntry
     ScriptEntryEnd
 
 CelesticTown_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     SetFlag FLAG_UNLOCKED_VS_SEEKER_LVL_2
     SetFlag FLAG_HIDE_CELESTIC_TOWN_GRUNT_M
     SetFlag FLAG_HIDE_CELESTIC_TOWN_ELDER
@@ -371,3 +373,19 @@ CelesticTown_Arc2Movement_CyrusLeave:
     WalkNormalEast 4
     EndMovement
 
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+CelesticTown_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_CELESTIC, CelesticTown_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_CELESTIC
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+CelesticTown_CineCityEntryDone:
+    End

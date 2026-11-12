@@ -28,9 +28,11 @@
     ScriptEntry PastoriaCity_CoordEvent_FaceBoard
     ScriptEntry PastoriaCity_Arc2LookerFrame
     ScriptEntry PastoriaCity_Arc2LookerTalk
+    ScriptEntry PastoriaCity_CineCityEntry
     ScriptEntryEnd
 
 PastoriaCity_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     Call PastoriaCity_Arc2Transition
     SetVar VAR_PASTORIA_CITY_CROAGUNK_SCENE_STATE, 0
     SetFlag FLAG_HIDE_ROUTE_212_BLOCKADE
@@ -1071,3 +1073,19 @@ PastoriaCity_Arc2Movement_LookerToGym:
 PastoriaCity_Arc2Movement_FaceEast:
     FaceEast
     EndMovement
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+PastoriaCity_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_PASTORIA, PastoriaCity_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_PASTORIA
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+PastoriaCity_CineCityEntryDone:
+    End

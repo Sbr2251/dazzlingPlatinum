@@ -60,9 +60,11 @@
     ScriptEntry JubilifeCity_Arc2Cast
     ScriptEntry JubilifeCity_QuestsOldMan
     ScriptEntry JubilifeCity_QuestsDuchess
+    ScriptEntry JubilifeCity_CineCityEntry
     ScriptEntryEnd
 
 JubilifeCity_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     // Dazzling Platinum Arc 1: object LOCALID_ARC1_SAROS is never shown (Saros is only a voice on the TV,
     // playtest bug 11). Its events slot is kept so the crowd's local IDs (and saves made in Jubilife) don't
     // shift, and its hide flag is set at every load because a new game starts with it clear. The rally cast and
@@ -3553,3 +3555,19 @@ JubilifeCity_QuestsMovement_DuchessHop:
     JumpOnSpotFastNorth
     JumpOnSpotFastNorth
     EndMovement
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+JubilifeCity_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_JUBILIFE, JubilifeCity_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_JUBILIFE
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+JubilifeCity_CineCityEntryDone:
+    End

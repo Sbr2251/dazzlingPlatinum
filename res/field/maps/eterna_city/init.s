@@ -9,6 +9,7 @@
 InitScriptFrameTable:
     InitScriptGoToIfEqual VAR_ARC2_PROGRESS, 31, 31
     InitScriptGoToIfEqual VAR_MAP_LOCAL_0x02, 1, 32
+    InitScriptGoToIfEqual VAR_CINE_CITY_PENDING, 1, 34
     InitScriptFrameTableEnd
 
     InitScriptEnd

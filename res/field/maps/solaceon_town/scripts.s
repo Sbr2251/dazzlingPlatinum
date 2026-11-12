@@ -22,6 +22,7 @@
     ScriptEntry SolaceonTown_Arc2WallTeo
     ScriptEntry SolaceonTown_Arc2IndraCutaway
     ScriptEntry SolaceonTown_QuestsRowanBanner
+    ScriptEntry SolaceonTown_CineCityEntry
     ScriptEntryEnd
 
 // Arc 2 (s-celestic), 2.16a: the memorial wall (P1: sign events on the fence west of the main road,
@@ -37,6 +38,7 @@ SolaceonTown_OnResume:
     End
 
 SolaceonTown_OnTransition:
+    SetVar VAR_CINE_CITY_PENDING, 1
     SetFlag FLAG_MAP_LOCAL_HIDE_OBSTACLE_16
     Call SolaceonTown_QuestsOnTransition
     CallIfGe VAR_ARC2_PROGRESS, 1, SolaceonTown_Arc2NoBarry
@@ -322,4 +324,20 @@ SolaceonTown_QuestsRowanBanner:
     WaitABPadPress
     CloseMessage
     ReleaseAll
+    End
+
+// City-entry cinematic (lane cine): on the first entry per save, a short
+// pull-back and slow return while player input waits (LockAll). No-ops
+// when OverworldCinematics is off.
+SolaceonTown_CineCityEntry:
+    SetVar VAR_CINE_CITY_PENDING, 0
+    GoToIfSet FLAG_CINE_VISITED_SOLACEON, SolaceonTown_CineCityEntryDone
+    SetFlag FLAG_CINE_VISITED_SOLACEON
+    LockAll
+    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineWaitCamera
+    CineCamReturn 70, 1
+    CineWaitCamera
+    ReleaseAll
+SolaceonTown_CineCityEntryDone:
     End
