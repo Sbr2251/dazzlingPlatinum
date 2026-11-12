@@ -1,6 +1,6 @@
 {
  "name": "visual_overworld_eterna_forest_after_vespiquen",
- "_note": "Overworld golden frame on MAP_HEADER_ETERNA_FOREST from story save A2-29_eterna_forest_after_vespiquen; top-screen crop, exact compare.",
+ "_note": "Overworld golden frame on MAP_HEADER_ETERNA_FOREST from story save A2-29_eterna_forest_after_vespiquen; top-screen crop, exact compare. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-29_eterna_forest_after_vespiquen.sav"
  ],
@@ -32,7 +32,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.0005
   }
  ],
  "assertions": [

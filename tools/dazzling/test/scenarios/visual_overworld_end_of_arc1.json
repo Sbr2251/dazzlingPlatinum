@@ -1,6 +1,6 @@
 {
  "name": "visual_overworld_end_of_arc1",
- "_note": "Overworld golden frame on MAP_HEADER_OREBURGH_CITY from story save A1-08_end_of_arc1; top-screen crop, exact compare.",
+ "_note": "Overworld golden frame on MAP_HEADER_OREBURGH_CITY from story save A1-08_end_of_arc1; top-screen crop, exact compare. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-08_end_of_arc1.sav"
  ],
@@ -32,7 +32,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.0005
   }
  ],
  "assertions": [

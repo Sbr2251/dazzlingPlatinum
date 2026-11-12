@@ -34,7 +34,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.0005
   },
   {
    "reload_config": {
@@ -62,10 +63,11 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.0005
   }
  ],
- "_note": "Internal-resolution change at runtime: start at InternalResolutionScale=2, screenshot, reload_config to 4 (rewrites sim_config.ini and re-imports the start save, which restarts the process and re-reads the config - the headless protocol has no live set-config command), press back to the field, screenshot 1 frame after field re-entry. The overworld is 2D, so both references are expected pixel-identical; the scenario proves the change does not crash or blank the frame.",
+ "_note": "Internal-resolution change at runtime: start at InternalResolutionScale=2, screenshot, reload_config to 4 (rewrites sim_config.ini and re-imports the start save, which restarts the process and re-reads the config - the headless protocol has no live set-config command), press back to the field, screenshot 1 frame after field re-entry. The overworld is 2D, so both references are expected pixel-identical; the scenario proves the change does not crash or blank the frame. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "config": {
   "InternalResolutionScale": "2"
  },

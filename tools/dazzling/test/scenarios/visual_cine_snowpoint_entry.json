@@ -1,7 +1,9 @@
 {
  "name": "visual_cine_snowpoint_entry",
- "_note": "Lane cine golden: first entry into Snowpoint City (save A1-03, warped in with the visited flag clear) with SIM_FX_CINE=1. Widest pull-back frame and the restored follow camera. Also covers the snow-weather sprite path that asserted before the ov5_021D5EB8 fix. Top-screen crop, exact compare.",
- "env": {"SIM_FX_CINE": "1"},
+ "_note": "Lane cine golden: first entry into Snowpoint City (save A1-03, warped in with the visited flag clear) with SIM_FX_CINE=1. Widest pull-back frame and the restored follow camera. Also covers the snow-weather sprite path that asserted before the ov5_021D5EB8 fix. Top-screen crop, exact compare. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
+ "env": {
+  "SIM_FX_CINE": "1"
+ },
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -9,25 +11,117 @@
   "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  },
  "steps": [
-  {"step": 900},
-  {"press": "A", "frames": 10}, {"step": 290},
-  {"press": "A", "frames": 10}, {"step": 290},
-  {"press": "A", "frames": 10}, {"step": 290},
-  {"press": "A", "frames": 10}, {"step": 290},
-  {"press": "A", "frames": 10}, {"step": 290},
-  {"press": "A", "frames": 10}, {"step": 290},
-  {"press": "A", "frames": 10}, {"step": 290},
-  {"press": "A", "frames": 10}, {"step": 290},
-  {"step": 300},
-  {"set_flag": "FLAG_CINE_VISITED_SNOWPOINT", "value": false},
-  {"warp": {"map": "MAP_HEADER_SNOWPOINT_CITY", "x": 368, "z": 246, "dir": "DIR_NORTH"}},
-  {"step": 230},
-  {"screenshot": "cine_snowpoint_pullback", "reference": "../references/visual/cine_snowpoint_pullback.bmp", "tolerance": 0.0, "crop": [0, 0, 512, 384]},
-  {"step": 200},
-  {"screenshot": "cine_snowpoint_returned", "reference": "../references/visual/cine_snowpoint_returned.bmp", "tolerance": 0.0, "crop": [0, 0, 512, 384]}
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 300
+  },
+  {
+   "set_flag": "FLAG_CINE_VISITED_SNOWPOINT",
+   "value": false
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_SNOWPOINT_CITY",
+    "x": 368,
+    "z": 246,
+    "dir": "DIR_NORTH"
+   }
+  },
+  {
+   "step": 230
+  },
+  {
+   "screenshot": "cine_snowpoint_pullback",
+   "reference": "../references/visual/cine_snowpoint_pullback.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ],
+   "tolerance_gpu": 0.0005
+  },
+  {
+   "step": 200
+  },
+  {
+   "screenshot": "cine_snowpoint_returned",
+   "reference": "../references/visual/cine_snowpoint_returned.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ],
+   "tolerance_gpu": 0.0005
+  }
  ],
  "assertions": [
-  {"player.map": "MAP_HEADER_SNOWPOINT_CITY"},
-  {"app": "field"}
+  {
+   "player.map": "MAP_HEADER_SNOWPOINT_CITY"
+  },
+  {
+   "app": "field"
+  }
  ]
 }

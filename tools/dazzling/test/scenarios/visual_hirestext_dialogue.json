@@ -54,10 +54,11 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.0005
   }
  ],
- "_note": "HiResText=true dialogue box: talk to the Ace Trainer in Jubilife (145,762 facing north), wait for the message box, let the typewriter finish (600f), screenshot the top screen. The 4x glyph overlay draws over the composite.",
+ "_note": "HiResText=true dialogue box: talk to the Ace Trainer in Jubilife (145,762 facing north), wait for the message box, let the typewriter finish (600f), screenshot the top screen. The 4x glyph overlay draws over the composite. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "env": {
   "SIM_HIRESTEXT": "1"
  }

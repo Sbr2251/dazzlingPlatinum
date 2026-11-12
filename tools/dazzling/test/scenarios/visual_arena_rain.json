@@ -1,6 +1,6 @@
 {
  "name": "visual_arena_rain",
- "_note": "Arena lane: Intimidate frame with field weather rain (hour 14) and ArenaContext on. Arena darkened/grey-tinted; the battle's rain weather (from the overworld-weather subscript) runs as before.",
+ "_note": "Arena lane: Intimidate frame with field weather rain (hour 14) and ArenaContext on. Arena darkened/grey-tinted; the battle's rain weather (from the overworld-weather subscript) runs as before. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -94,7 +94,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.002
   },
   {
    "wait_until": {

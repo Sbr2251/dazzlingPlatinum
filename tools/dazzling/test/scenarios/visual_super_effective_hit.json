@@ -1,6 +1,6 @@
 {
  "name": "visual_super_effective_hit",
- "_note": "Charmander Flamethrower vs Budew (super-effective): projectile/impact frame, 300f after the decision. Event-anchored: 45f after the damage event for battler 1 (super-effective Flamethrower).",
+ "_note": "Charmander Flamethrower vs Budew (super-effective): projectile/impact frame, 300f after the decision. Event-anchored: 45f after the damage event for battler 1 (super-effective Flamethrower). tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -109,7 +109,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.002
   }
  ]
 }

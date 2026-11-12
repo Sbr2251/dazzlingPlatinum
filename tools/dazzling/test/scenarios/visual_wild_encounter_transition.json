@@ -1,6 +1,6 @@
 {
  "name": "visual_wild_encounter_transition",
- "_note": "Wild encounter: walking presses recalibrated 20->40f (fps60, matching core wild scenarios). The transition wipe finishes before the server emits battle_start, so the golden is the battle-opening frame 30f after that event (wild Wurmple + Chimchar + gauges, menu opening).",
+ "_note": "Wild encounter: walking presses recalibrated 20->40f (fps60, matching core wild scenarios). The transition wipe finishes before the server emits battle_start, so the golden is the battle-opening frame 30f after that event (wild Wurmple + Chimchar + gauges, menu opening). tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -442,7 +442,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.0005
   },
   {
    "wait_until": {

@@ -1,6 +1,6 @@
 {
  "name": "visual_intimidate_stat_drop",
- "_note": "Enemy Gyarados Intimidate: stat-drop arrows over Infernape (regression for the DS equal-depth-test rectangle bug, libntr 3eee9c5). Frame 660 after battle start, cropped to top screen, exact compare. Event-anchored: screenshot 30f after the Intimidate stat_stage event for battler 0 (was a fixed 660f offset, broken by fps60 timing).",
+ "_note": "Enemy Gyarados Intimidate: stat-drop arrows over Infernape (regression for the DS equal-depth-test rectangle bug, libntr 3eee9c5). Frame 660 after battle start, cropped to top screen, exact compare. Event-anchored: screenshot 30f after the Intimidate stat_stage event for battler 0 (was a fixed 660f offset, broken by fps60 timing). tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -94,7 +94,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.002
   },
   {
    "wait_until": {

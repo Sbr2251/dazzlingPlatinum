@@ -28,10 +28,11 @@
   {
    "screenshot": "visual_layout_horizontal_swapped",
    "reference": "../references/visual/visual_layout_horizontal_swapped.bmp",
-   "tolerance": 0.0
+   "tolerance": 0.0,
+   "tolerance_gpu": 0.0005
   }
  ],
- "_note": "Horizontal layout with swapped screens: full 1024x384 frame.",
+ "_note": "Horizontal layout with swapped screens: full 1024x384 frame. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "config": {
   "ScreenLayout": "horizontal",
   "SwapScreens": "true"

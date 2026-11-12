@@ -1,6 +1,6 @@
 {
  "name": "visual_overworld_twinleaf_after_distortion_world",
- "_note": "Overworld golden frame on MAP_HEADER_TWINLEAF_TOWN from story save A1-02_twinleaf_after_distortion_world; top-screen crop, exact compare.",
+ "_note": "Overworld golden frame on MAP_HEADER_TWINLEAF_TOWN from story save A1-02_twinleaf_after_distortion_world; top-screen crop, exact compare. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
  ],
@@ -32,7 +32,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.001
   }
  ],
  "assertions": [

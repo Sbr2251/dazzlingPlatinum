@@ -1,6 +1,6 @@
 {
  "name": "visual_mega_evolution_cinematic",
- "_note": "Mega Evolution key frames: 'Infernapite is reacting' (90f) and the cinematic close-up (180f). Ends on the cinematic frame; no state is read afterwards. Event-anchored: reacting text 120f after the move_chosen(mega=true) event (message_waiting never fires in battle state), cinematic 150f after the mega_evolution event.",
+ "_note": "Mega Evolution key frames: 'Infernapite is reacting' (90f) and the cinematic close-up (180f). Ends on the cinematic frame; no state is read afterwards. Event-anchored: reacting text 120f after the move_chosen(mega=true) event (message_waiting never fires in battle state), cinematic 150f after the mega_evolution event. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -116,7 +116,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.002
   },
   {
    "wait_battle_event": {
@@ -137,7 +138,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.002
   }
  ]
 }

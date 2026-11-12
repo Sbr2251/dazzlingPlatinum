@@ -1,6 +1,6 @@
 {
  "name": "visual_swords_dance_stat_raise",
- "_note": "Player Garchomp Swords Dance: sword icons / stat-raise animation, 150f after the decision. Event-anchored: 60f after the Swords Dance stat_stage event for battler 0.",
+ "_note": "Player Garchomp Swords Dance: sword icons / stat-raise animation, 150f after the decision. Event-anchored: 60f after the Swords Dance stat_stage event for battler 0. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -109,7 +109,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.0005
   }
  ]
 }

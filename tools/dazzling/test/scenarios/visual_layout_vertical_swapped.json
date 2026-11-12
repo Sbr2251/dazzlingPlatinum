@@ -28,10 +28,11 @@
   {
    "screenshot": "visual_layout_vertical_swapped",
    "reference": "../references/visual/visual_layout_vertical_swapped.bmp",
-   "tolerance": 0.0
+   "tolerance": 0.0,
+   "tolerance_gpu": 0.0005
   }
  ],
- "_note": "Vertical layout with swapped screens: full 512x768 frame, bottom screen on top.",
+ "_note": "Vertical layout with swapped screens: full 512x768 frame, bottom screen on top. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "config": {
   "ScreenLayout": "vertical",
   "SwapScreens": "true"

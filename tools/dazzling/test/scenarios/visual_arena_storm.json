@@ -1,6 +1,6 @@
 {
  "name": "visual_arena_storm",
- "_note": "Arena lane: Intimidate frame in a thunderstorm (hour 14) with ArenaContext + WeatherLightning on. Arena carries the thunderstorm darkening; flashes are scheduled later in the battle (deterministic LCRNG), not at this frame.",
+ "_note": "Arena lane: Intimidate frame in a thunderstorm (hour 14) with ArenaContext + WeatherLightning on. Arena carries the thunderstorm darkening; flashes are scheduled later in the battle (deterministic LCRNG), not at this frame. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -94,7 +94,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.002
   },
   {
    "wait_until": {

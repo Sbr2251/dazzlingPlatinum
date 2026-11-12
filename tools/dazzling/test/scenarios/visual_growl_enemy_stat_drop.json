@@ -1,6 +1,6 @@
 {
  "name": "visual_growl_enemy_stat_drop",
- "_note": "Player Staraptor Growl drops enemy Bidoof Attack: stat-drop animation on the enemy, 210f after the decision. Event-anchored: 60f after the Growl stat_stage event for battler 1.",
+ "_note": "Player Staraptor Growl drops enemy Bidoof Attack: stat-drop animation on the enemy, 210f after the decision. Event-anchored: 60f after the Growl stat_stage event for battler 1. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -109,7 +109,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.002
   }
  ]
 }

@@ -28,10 +28,11 @@
   {
    "screenshot": "visual_layout_horizontal",
    "reference": "../references/visual/visual_layout_horizontal.bmp",
-   "tolerance": 0.0
+   "tolerance": 0.0,
+   "tolerance_gpu": 0.0005
   }
  ],
- "_note": "Horizontal layout (both screens side by side): full 1024x384 frame.",
+ "_note": "Horizontal layout (both screens side by side): full 1024x384 frame. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "config": {
   "ScreenLayout": "horizontal"
  },

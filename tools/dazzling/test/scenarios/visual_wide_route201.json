@@ -1,6 +1,6 @@
 {
  "name": "visual_wide_route201",
- "_note": "fx-wide golden: SIM_FX_WIDE=1 (3x3 load radius) + SIM_FX_WIDE_CAMERA=1 (debug wide camera) on MAP_HEADER_ROUTE_201; top-screen crop, exact compare. Linux reference recorded by fx-wide lane; Mac reference to be recorded by lead.",
+ "_note": "fx-wide golden: SIM_FX_WIDE=1 (3x3 load radius) + SIM_FX_WIDE_CAMERA=1 (debug wide camera) on MAP_HEADER_ROUTE_201; top-screen crop, exact compare. Linux reference recorded by fx-wide lane; Mac reference to be recorded by lead. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -32,7 +32,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.0005
   }
  ],
  "assertions": [

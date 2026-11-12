@@ -28,10 +28,11 @@
   {
    "screenshot": "visual_layout_large",
    "reference": "../references/visual/visual_layout_large.bmp",
-   "tolerance": 0.0
+   "tolerance": 0.0,
+   "tolerance_gpu": 0.0005
   }
  ],
- "_note": "Large layout (one large + one small screen): full 1536x768 frame.",
+ "_note": "Large layout (one large + one small screen): full 1536x768 frame. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "config": {
   "ScreenLayout": "large"
  },

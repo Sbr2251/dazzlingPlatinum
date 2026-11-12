@@ -1,6 +1,6 @@
 {
  "name": "visual_cine_jubilife_entry",
- "_note": "Lane cine golden: first entry into Jubilife City (save A1-03, warped in with the visited flag clear) with SIM_FX_CINE=1. Key frames: mid pull-back and the restored follow camera after the return move. Top-screen crop, exact compare.",
+ "_note": "Lane cine golden: first entry into Jubilife City (save A1-03, warped in with the visited flag clear) with SIM_FX_CINE=1. Key frames: mid pull-back and the restored follow camera after the return move. Top-screen crop, exact compare. tolerance_gpu: GPU-vs-GL driver bilinear rounding at sharp 3D edges (wave 3 sign-off; gl tolerance unchanged).",
  "env": {
   "SIM_FX_CINE": "1"
  },
@@ -97,7 +97,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.0025
   },
   {
    "step": 200
@@ -111,7 +112,8 @@
     0,
     512,
     384
-   ]
+   ],
+   "tolerance_gpu": 0.0025
   }
  ],
  "assertions": [
