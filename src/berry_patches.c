@@ -35,7 +35,11 @@ void BerryPatches_Init(BerryPatch *patches, enum HeapID heapID, const u16 *initP
 {
     BerryGrowthData *growthData = BerryGrowthData_Init(heapID);
 
-    for (int i = 0; i < MAX_BERRY_PATCHES || i < initSize; i++) {
+    // Stop at whichever limit is smaller: || ran to max(128, 118) = 128
+    // and read 20 u16s past the 118-entry init table (into the
+    // following rodata), seeding patches 118-127 with garbage berries
+    // on every new game.
+    for (int i = 0; i < MAX_BERRY_PATCHES && i < initSize; i++) {
         ZeroBerryPatch(&patches[i]);
 
         patches[i].berryID = initPatches[i * 2] - FIRST_BERRY_IDX + 1;
