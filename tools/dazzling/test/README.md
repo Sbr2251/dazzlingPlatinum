@@ -160,3 +160,8 @@ python3 tools/dazzling/test/run.py --game build_linux/main --compare-renderers -
   on the current build (e.g. Intimidate at 660 rendered frames after
   `start_battle`). The Mega scenario ends on the cinematic frame and reads
   no state afterwards.
+
+### Per-platform references (macOS)
+3D rasterization differs by a few pixels between Apple's OpenGL and Mesa llvmpipe, so golden images are per platform:
+Linux uses `references/<dir>/`, macOS uses `references/<dir>_mac/` (e.g. `references/visual_mac/`). Record the Mac set on a
+Mac with `run.py --update --filter visual_`; Linux CI keeps using the base set.

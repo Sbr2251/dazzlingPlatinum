@@ -330,6 +330,19 @@ def as_keys(value):
         return [value]
     return list(value)
 
+def platform_reference(ref_path):
+    """Per-platform golden images. 3D output differs by a few pixels between GL
+    drivers (Apple GL vs Mesa llvmpipe rasterization), so on macOS a reference
+    under references/<dir>/ is looked up in references/<dir>_mac/ instead
+    (recorded there with --record/--update on a Mac). Linux keeps the base dir."""
+    d, f = os.path.split(ref_path)
+    # Only subdirectories of references/ (e.g. visual/) are per platform; the
+    # legacy top-level references (title, dex entry) match on both.
+    if sys.platform != "darwin" or os.path.basename(d) == "references":
+        return ref_path
+    return os.path.join(d + "_mac", f)
+
+
 def run_scenario(path, game_path, record=False, timeout=600, work_root=None, mock=False, env_extra=None, update=False):
     with open(path, encoding="utf-8") as f:
         sc = json.load(f)
@@ -428,7 +441,7 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                     client.last_screenshot = out
                     ref = step.get("reference") or (step["screenshot"].get("reference") if isinstance(step["screenshot"], dict) else None)
                     if ref:
-                        ref_path = resolve(ref)
+                        ref_path = platform_reference(resolve(ref))
                         if record or update:
                             os.makedirs(os.path.dirname(ref_path), exist_ok=True)
                             crop = step.get("crop") or (step["screenshot"].get("crop") if isinstance(step["screenshot"], dict) else None)
