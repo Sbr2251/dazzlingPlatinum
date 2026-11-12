@@ -5522,7 +5522,12 @@ static int DistWorldMapFile_GetFloatingPlatformSectionSize(DistWorldMapFile *fil
 
 static int DistWorldMapFile_GetFloatingPlatformCount(DistWorldMapFile *file)
 {
-    return file->floatingPlatformSection->count;
+    // The file section is only 4-aligned, but the section struct type
+    // requires 8 (its templates member is a pointer); read the count
+    // with memcpy instead of through the struct pointer.
+    int count;
+    memcpy(&count, file->floatingPlatformSection, sizeof(count));
+    return count;
 }
 
 static DistWorldFloatingPlatformTemplate *DistWorldMapFile_GetFloatingPlatformSectionTemplates(DistWorldMapFile *file)
@@ -5540,7 +5545,10 @@ static int DistWorldMapFile_GetFloatingPlatformJumpPointSectionSize(DistWorldMap
 
 static int DistWorldMapFile_GetFloatingPlatformJumpPointCount(DistWorldMapFile *file)
 {
-    return file->floatingPlatformJumpPointSection->count;
+    // See GetFloatingPlatformCount: the file section is 4-aligned.
+    int count;
+    memcpy(&count, file->floatingPlatformJumpPointSection, sizeof(count));
+    return count;
 }
 
 static DistWorldFloatingPlatformJumpPointTemplate *DistWorldMapFile_GetFloatingPlatformJumpPointTemplates(DistWorldMapFile *file)
@@ -5558,7 +5566,10 @@ static int DistWorldMapFile_GetCameraAngleSectionSize(DistWorldMapFile *file)
 
 static int DistWorldMapFile_GetCameraAngleCount(DistWorldMapFile *file)
 {
-    return file->cameraAngleSection->count;
+    // See GetFloatingPlatformCount: the file section is 4-aligned.
+    int count;
+    memcpy(&count, file->cameraAngleSection, sizeof(count));
+    return count;
 }
 
 static DistWorldCameraAngleTemplate *DistWorldMapFile_GetCameraAngleTemplates(DistWorldMapFile *file)
@@ -8226,9 +8237,9 @@ static BOOL DistWorldGiratinaShadowProp_AnimInit(OverworldAnimManager *animMan, 
     giratinaProp->rotAngles = sGiratinaShadowPropRotAngles[template->rotAnglesIndex];
 
     VecFx32 pos;
-    pos.x = (template->initialTileX << 4) * FX32_ONE;
-    pos.y = (template->initialTileY << 4) * FX32_ONE;
-    pos.z = (template->initialTileZ << 4) * FX32_ONE;
+    pos.x = (fx32)((u32)template->initialTileX << 4) * FX32_ONE;
+    pos.y = (fx32)((u32)template->initialTileY << 4) * FX32_ONE;
+    pos.z = (fx32)((u32)template->initialTileZ << 4) * FX32_ONE;
 
     if (template->rotAnglesIndex == 4) {
         pos.x += FX32_ONE * 8;
