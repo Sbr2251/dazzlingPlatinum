@@ -1269,8 +1269,8 @@ static void SetTexMtx(StageArena *arena, const StageMesh *mesh, int bg3X, int bg
 
     // Texel (s, t) shows at the screen pixel BG3 would show it at
     if (mesh->flags & BATTLE_STAGE_MESH_FOLLOW_BG3_SCROLL) {
-        s = bg3X << 16;
-        t = bg3Y << 16;
+        s = (fx32)((u32)bg3X << 16);
+        t = (fx32)((u32)bg3Y << 16);
     }
 
     if (mesh->flags & BATTLE_STAGE_MESH_SCROLL) {
