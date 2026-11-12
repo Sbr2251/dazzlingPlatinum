@@ -255,7 +255,7 @@ class GameClient:
         if not line:
             raise GameError(f"game closed stdout on {obj}; stderr: {self.stderr_path}")
         reply = json.loads(line)
-        if isinstance(reply, dict) and reply.get("ok") is False:
+        if isinstance(reply, dict) and reply.get("ok") is False and not obj.pop("_expect_error", False):
             raise GameError(f"command {obj} failed: {reply.get('error')}")
         if isinstance(reply, dict) and "state" in reply:
             self.last_state = reply["state"]
@@ -524,7 +524,19 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                                               client.last_state, client.last_screenshot)
                 elif "warp" in step:
                     w = step["warp"]
-                    client.cmd({"cmd": "warp", "map": w["map"], "x": w.get("x", 0), "z": w.get("z", 0), "dir": w.get("dir", "DIR_SOUTH")})
+                    req = {"cmd": "warp", "map": w["map"], "x": w.get("x", 0), "z": w.get("z", 0), "dir": w.get("dir", "DIR_SOUTH")}
+                    # "expect_error": true asserts the warp is refused (ok:false)
+                    # and the game stays alive, instead of raising on the refusal.
+                    # Used by the Distortion World regression: a warp issued
+                    # while the entry script is still running must be refused,
+                    # not crash the game on the CreateTask assert.
+                    if w.get("expect_error"):
+                        req["_expect_error"] = True
+                        reply = client.cmd(req)
+                        if reply.get("ok") is not False:
+                            raise ScenarioFailure(idx, step, f"expected warp to be refused, got {reply}", client.last_state, client.last_screenshot)
+                    else:
+                        client.cmd(req)
                 elif "set_var" in step:
                     client.cmd({"cmd": "set_var", "name": step["set_var"], "value": step.get("value", 0)})
                 elif "set_flag" in step:

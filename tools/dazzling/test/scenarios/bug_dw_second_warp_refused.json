@@ -1,0 +1,143 @@
+{
+ "name": "bug_dw_second_warp_refused",
+ "_note": "Distortion World: a warp issued while the first entry's OnFrame script is still running must be refused (ok:false) instead of asserting in FieldSystem_CreateTask (field_task.c:34, task==NULL). Before the fix the game exited 134 on the second warp. After the fix the game stays alive, the entry script finishes, and a later clean warp out/in works.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_DISTORTION_WORLD_1F",
+    "x": 10,
+    "z": 10,
+    "dir": "DIR_SOUTH"
+   }
+  },
+  {
+   "step": 60
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_DISTORTION_WORLD_1F",
+    "x": 10,
+    "z": 10,
+    "dir": "DIR_SOUTH",
+    "expect_error": true
+   }
+  },
+  {
+   "assert": {
+    "player.map": "MAP_HEADER_DISTORTION_WORLD_1F"
+   }
+  },
+  {
+   "press_until": {
+    "script": null
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_TWINLEAF_TOWN",
+    "x": 10,
+    "z": 10,
+    "dir": "DIR_SOUTH"
+   }
+  },
+  {
+   "step": 300
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_DISTORTION_WORLD_1F",
+    "x": 10,
+    "z": 10,
+    "dir": "DIR_SOUTH"
+   }
+  },
+  {
+   "step": 300
+  },
+  {
+   "assert": {
+    "player.map": "MAP_HEADER_DISTORTION_WORLD_1F"
+   }
+  }
+ ],
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_DISTORTION_WORLD_1F"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}

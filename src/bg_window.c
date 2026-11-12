@@ -2178,11 +2178,21 @@ void Window_CopyGlyph(Window *window, const u8 *glyphPixels, u16 srcWidth, u16 s
             return;
         }
     } else {
-        // The glyph bitmap is a grid of 8x8 4bpp tiles (32 bytes/tile),
-        // so its size is ceil(W/8) * ceil(H/8) * 32 -- NOT
-        // W*4*H*8 (64x too big), which read far past the 128-byte glyph
-        // buffer (and past the font work struct) in Copy4bppTo8bpp.
-        u8 *convertedSrc = Convert4bppTo8bpp(glyphPixels, ((srcWidth + 7) / 8) * ((srcHeight + 7) / 8) * 32, window->palette, window->bgConfig->heapID);
+        // The glyph bitmap is a 2-column grid of 8x8 4bpp tiles (32 bytes
+        // per tile) with a 64-byte row stride: tile (row, col) sits at
+        // row * 64 + col * 32. The converted size must span that grid,
+        // not just pack the used tiles contiguously: for an 8x16 glyph
+        // the lower tile lives at offset 64, so converting only
+        // ceil(W/8) * ceil(H/8) * 32 = 64 bytes left the lower half of
+        // every system-font glyph reading heap garbage past the converted
+        // buffer (the Trainer Card's garbled text). Still never reads
+        // past the 128-byte glyph buffer: the span below is at most 128.
+        u32 tileCols = (srcWidth + 7) / 8;
+        u32 tileRows = (srcHeight + 7) / 8;
+        if (tileCols == 0) tileCols = 1;
+        if (tileRows == 0) tileRows = 1;
+        u32 convertSize = (tileRows - 1) * 64 + tileCols * 32;
+        u8 *convertedSrc = Convert4bppTo8bpp(glyphPixels, convertSize, window->palette, window->bgConfig->heapID);
         switch (glyphSizeParam) {
         case 0: // 1x1
             CopyGlyph8bpp(convertedSrc, 0, 0, srcRight, srcBottom, windowPixels, destX, destY, ConvertPixelsToTiles(destWidth), table);

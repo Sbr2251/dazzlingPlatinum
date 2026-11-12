@@ -194,6 +194,16 @@ static void CmdWarp(const char *line, char *reply, size_t cap) {
     if (!m) { ErrOut(reply, cap, "unknown map"); return; }
     FieldSystem *fsys = DEBUG_GetFieldSystem();
     if (!fsys) { ErrOut(reply, cap, "not in the field"); return; }
+    // Refuse while a field task (a running script, a map change, ...) is
+    // active: FieldTask_StartMapChangeFly creates a new field task, whose
+    // precondition is that none is running, and asserting there kills the
+    // game. This is what bit a second warp into the Distortion World: the
+    // first warp starts the map's OnFrame entry script, and a warp issued
+    // while it is still running asserted in FieldSystem_CreateTask.
+    // In-game this cannot happen (field input is only processed with no
+    // task running), so refusing here matches the game; the caller waits
+    // for the script to finish and retries.
+    if (FieldSystem_IsRunningTask(fsys)) { ErrOut(reply, cap, "a field task is already running; warp deferred until it finishes"); return; }
     JsonLong(line, "x", &x); JsonLong(line, "z", &z);
     JsonStr(line, "dir", dirName, sizeof(dirName));
     const HeadlessName *d = Headless_Lookup(kHeadlessDirs, kHeadlessDirsCount, dirName);
@@ -405,6 +415,11 @@ int HeadlessGame_State(const char *line, char *reply, size_t cap) {
         } else {
             OutFmt(&o, ",\"script\":null,\"message_waiting\":false");
         }
+        // Signpost dialogue (signboards, town maps, gym signs) does not use
+        // the message box, so message_waiting stays false while it is on
+        // screen and a scenario waiting on it would time out concluding
+        // the talk opened nothing. Report the signpost window state too.
+        OutFmt(&o, ",\"signpost_active\":%s", (fsys->signpost && fsys->signpost->active) ? "true" : "false");
     } else {
         OutFmt(&o, ",\"app\":\"other\"");
     }

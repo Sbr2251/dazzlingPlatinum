@@ -113,7 +113,7 @@ Implemented (step 3) in `src/port/headless_game.c`. All return
 
 | Command | Effect |
 |---|---|
-| `{"cmd":"warp","map":"MAP_HEADER_X","x":X,"z":Z,"dir":"DIR_NORTH"}` | Fly-style map change to that tile (`dir` optional, default `DIR_SOUTH`). Needs the field. |
+| `{"cmd":"warp","map":"MAP_HEADER_X","x":X,"z":Z,"dir":"DIR_NORTH"}` | Fly-style map change to that tile (`dir` optional, default `DIR_SOUTH`). Needs the field. Refused (`ok:false`) while a field task/script is running; retry after it finishes. |
 | `{"cmd":"set_var","name":"VAR_X","value":V}` | Set a story var (field var pointer in the field, save vars otherwise). |
 | `{"cmd":"set_flag","name":"FLAG_X","value":true}` | Set/clear a flag (same storage choice as `set_var`). |
 | `{"cmd":"give_item","item":"ITEM_X","qty":N}` | Add items to the bag (`qty` defaults to 1). |
@@ -135,6 +135,7 @@ hand-maintained. `LOCALID_*` ids are scoped to the current map.
  "player":{"x":X,"z":Z,"dir":"DIR_NORTH"},
  "script":{"id":N,"offset":N} | null,
  "message_waiting":true|false,
+ "signpost_active":true|false,
  "party":[{"species":"SPECIES_X","species_id":N,"level":N,"hp":N,"max_hp":N,"held_item":"ITEM_X"}],
  "battle":{"turn":N,"waiting":true|false,
            "battlers":[{"battler":N,"species":"SPECIES_X","species_id":N,"level":N,"hp":N,"max_hp":N,"held_item":"ITEM_X"}]},

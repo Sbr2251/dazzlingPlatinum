@@ -1,0 +1,134 @@
+{
+ "name": "bug_signboard_talk_opens_dialogue",
+ "_note": "Signboard talk: the Route 201 Trainer Tips signpost opens a scrolling-sign dialogue (not a message box), so message_waiting stays false; state now reports signpost_active. Before the fix the state had no signpost field, so a scenario waiting on dialogue could not see it open. Also covers a Message-style signboard (Sandgem Pokemon Center) opening a real message box.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "talk": "LOCALID_TRAINER_TIPS_SIGNPOST"
+  },
+  {
+   "wait_until": {
+    "signpost_active": true
+   },
+   "timeout_frames": 600
+  },
+  {
+   "press_until": {
+    "script": null
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_SANDGEM_TOWN",
+    "x": 179,
+    "z": 844,
+    "dir": "DIR_SOUTH"
+   }
+  },
+  {
+   "step": 300
+  },
+  {
+   "talk": "LOCALID_SIGNBOARD_POKEMON_CENTER"
+  },
+  {
+   "wait_until": {
+    "message_waiting": true
+   },
+   "timeout_frames": 600
+  },
+  {
+   "press_until": {
+    "script": null
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "assert": {
+    "player.map": "MAP_HEADER_SANDGEM_TOWN"
+   }
+  }
+ ],
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_SANDGEM_TOWN"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}
