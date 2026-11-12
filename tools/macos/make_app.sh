@@ -24,16 +24,13 @@ for f in header.bin firmware.bin language.csv; do cp "$BUILDDIR/$f" "$C/Resource
 # Battle Lab specs (debug GUI): copied next to the game files at build time
 [ -d "$BUILDDIR/battle_specs" ] && cp -R "$BUILDDIR/battle_specs" "$C/Resources/game/battle_specs"
 
-# The executable and the SDL it links (sdl2-compat over SDL3 from Homebrew), relinked to the bundle's copies
+# The executable and the SDL3 it links (Homebrew), relinked to the bundle's copy
 cp "$BUILDDIR/main" "$C/MacOS/pokeplatinum"
-sdl2=$(otool -L "$C/MacOS/pokeplatinum" | awk '/libSDL2/ { print $1 }')
-if [ -n "$sdl2" ] && [ -f "$sdl2" ]; then
-  cp "$sdl2" "$C/Frameworks/libSDL2-2.0.0.dylib"
-  install_name_tool -change "$sdl2" "@executable_path/../Frameworks/libSDL2-2.0.0.dylib" "$C/MacOS/pokeplatinum"
-  install_name_tool -id "@executable_path/../Frameworks/libSDL2-2.0.0.dylib" "$C/Frameworks/libSDL2-2.0.0.dylib"
-  # sdl2-compat loads SDL3 at run time (dlopen), first as @loader_path/libSDL3.dylib: ship it beside it
-  sdl3=$(ls /opt/homebrew/opt/sdl3/lib/libSDL3.0.dylib 2>/dev/null || true)
-  [ -n "$sdl3" ] && cp -L "$sdl3" "$C/Frameworks/libSDL3.dylib"
+sdl3=$(otool -L "$C/MacOS/pokeplatinum" | awk '/libSDL3/ { print $1 }')
+if [ -n "$sdl3" ] && [ -f "$sdl3" ]; then
+  cp -L "$sdl3" "$C/Frameworks/libSDL3.0.dylib"
+  install_name_tool -change "$sdl3" "@executable_path/../Frameworks/libSDL3.0.dylib" "$C/MacOS/pokeplatinum"
+  install_name_tool -id "@executable_path/../Frameworks/libSDL3.0.dylib" "$C/Frameworks/libSDL3.0.dylib"
 fi
 chmod u+w "$C/Frameworks/"*.dylib 2>/dev/null || true
 

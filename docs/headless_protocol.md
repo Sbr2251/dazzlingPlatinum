@@ -43,7 +43,7 @@ logic can observe advances at wall-clock rate in this mode:
   e.g. the title screen waited a render-speed-dependent number of frames for the
   Giratina cry and every later input landed at a different phase.
 - `OS_GetTick` is derived from the rendered frame count
-  (`frame * (OS_SYSTEM_CLOCK/64) / 60`), not `SDL_GetTicks64`.
+  (`frame * (OS_SYSTEM_CLOCK/64) / 60`), not `SDL_GetTicks`.
 - OS alarms fire from the frame hook when the deterministic tick reaches them;
   no `SDL_AddTimer` is created in control mode.
 - `import_save` is synchronous on the game thread, so the `execv` restart always

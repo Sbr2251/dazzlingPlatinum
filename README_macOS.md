@@ -6,7 +6,7 @@ AI-assisted; not for upstream (that project does not accept AI-written pull requ
 ## Build
 
 ```sh
-brew install sdl2-compat nasm ninja arm-none-eabi-gcc gcc@14 libpng pkg-config
+brew install sdl3 nasm ninja arm-none-eabi-gcc gcc@14 libpng pkg-config
 tools/macos/build.sh
 open "build_macos/Pokemon Platinum.app"
 ```

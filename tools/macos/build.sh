@@ -2,7 +2,7 @@
 # Build the macOS (Apple silicon) PC port from a fresh clone: fetch the subprojects, pin them to the revisions the macOS patches
 # were made against, apply the patches, build enet, configure, compile, and wrap the result in "Dazzling Platinum.app".
 #   tools/macos/build.sh [dev|release|asan]   # dev (default) → build_macos, release → build_macos_release, asan → build_macos_asan
-# Needs: Xcode command line tools; Homebrew sdl2-compat (brings SDL3), nasm, ninja, arm-none-eabi-gcc, gcc@14, libpng, pkg-config, python3.
+# Needs: Xcode command line tools; Homebrew sdl3, nasm, ninja, arm-none-eabi-gcc, gcc@14, libpng, pkg-config, python3.
 # The game's own files are built from this source tree (no ROM needed).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
