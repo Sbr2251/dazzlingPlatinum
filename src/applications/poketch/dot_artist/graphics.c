@@ -113,7 +113,7 @@ static void GenerateDotTiles(BgConfig *bgConfig)
         u32 tileFillValue;
 
         for (int i = 0; i < PALETTE_SIZE; i++) {
-            tileFillValue = (i << 28) | (i << 24) | (i << 20) | (i << 16) | (i << 12) | (i << 8) | (i << 4) | i;
+            tileFillValue = ((u32)i << 28) | ((u32)i << 24) | ((u32)i << 20) | ((u32)i << 16) | ((u32)i << 12) | ((u32)i << 8) | ((u32)i << 4) | (u32)i;
             MI_CpuFillFast(tiles + i * TILE_SIZE_4BPP, tileFillValue, TILE_SIZE_4BPP);
         }
 
