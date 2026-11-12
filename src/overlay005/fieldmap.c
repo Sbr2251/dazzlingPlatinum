@@ -41,6 +41,8 @@
 #include "overlay005/signpost.h"
 #include "overlay005/struct_ov5_021ED0A4.h"
 #include "overlay005/texture_resource_manager.h"
+
+#include "port/sim_config_prj.h"
 #include "overlay009/ov9_02249960.h"
 
 #include "berry_patch_manager.h"
@@ -174,6 +176,11 @@ static BOOL FieldMap_Init(ApplicationManager *appMan, int *state)
 
     fieldSystem = ApplicationManager_Args(appMan);
 
+    // fieldkeep (FieldFastRebuild): RESET/LOAD/BOTTOM_SCREEN complete synchronously;
+    // the frame gaps between them were idle waits, not loads (overlay ASYNC loads
+    // wait synchronously in LoadOverlayNoInitAsync). Chain them in one Exec call;
+    // DONE still waits for the bottom-screen dummy when it is not running yet.
+    for (;;) {
     switch (*state) {
     case FIELD_MAP_INIT_STATE_RESET:
         SetVBlankCallback(NULL, NULL);
@@ -258,11 +265,16 @@ static BOOL FieldMap_Init(ApplicationManager *appMan, int *state)
             fieldSystem->runningFieldMap = TRUE;
             ret = TRUE;
         }
-        break;
+        // DONE either finished or is waiting on the bottom screen: do not advance
+        // past it, so the next Exec retries the check.
+        return ret;
     }
 
     (*state)++;
-    return ret;
+    if (!SIM_Config_prj_GetConfig()->fieldFastRebuild) {
+        return ret;
+    }
+    }
 }
 
 static BOOL FieldMap_Main(ApplicationManager *appMan, int *param1)
@@ -291,6 +303,12 @@ static BOOL FieldMap_Exit(ApplicationManager *appMan, int *param1)
     FieldSystem *fieldSystem = ApplicationManager_Args(appMan);
     LandDataManager_Tick(fieldSystem, fieldSystem->landDataMan);
 
+    // fieldkeep (FieldFastRebuild): same teardown, chained when the next state is
+    // already ready. State 0 always completes; states 1/2 still wait on the lazy
+    // loader ending / bottom screen finishing when those are not done yet.
+    // LandDataManager_Tick runs once per Exec call, as before, not per chained state.
+    for (;;) {
+    int prevState = *param1;
     switch (*param1) {
     case 0:
         DynamicMapFeatures_Free(fieldSystem);
@@ -379,7 +397,15 @@ static BOOL FieldMap_Exit(ApplicationManager *appMan, int *param1)
         break;
     }
 
-    return FALSE;
+    if (*param1 == prevState) {
+        // A waiting state (lazy loader not ended, or bottom screen not done)
+        // did not advance: yield to the next frame.
+        return FALSE;
+    }
+    if (!SIM_Config_prj_GetConfig()->fieldFastRebuild) {
+        return FALSE;
+    }
+    }
 }
 
 const ApplicationManagerTemplate gFieldMapTemplate = {
