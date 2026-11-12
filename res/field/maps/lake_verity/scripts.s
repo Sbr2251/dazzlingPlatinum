@@ -421,7 +421,7 @@ LakeVerity_Arc1OnFrameRoofLanding:
     // establishing shot north over the lake, fade in on it, push in slowly,
     // turn toward Cyrus at the portal, then return to the follow camera
     // exactly before he speaks. No-ops when OverworldCinematics is off.
-    CineCamTo 0, -8, 1050, 36, 0, 14, 1, 0
+    CineCamTo 0, -6, 950, 48, 0, 13, 1, 0
     FadeScreenIn FADE_SCREEN_SPEED_SLOW, COLOR_WHITE
     WaitFadeScreen
     CineCamTo 0, 0, 515, 55, 0, 10, 120, 1

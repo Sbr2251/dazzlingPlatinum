@@ -746,7 +746,8 @@
     //
     // CineCamTo targetOffsetX, targetOffsetZ, distance, pitchDeg, yawDeg, fovDeg, frames, easing
     //   targetOffsetX/Z: camera target offset from the current target, in
-    //     tiles (negative allowed); the target height is kept.
+    //     tiles (-256..255, encoded biased by +256); the target height is
+    //     kept. pitchDeg/yawDeg use the same bias.
     //   distance: camera distance in world units (stock follow is ~667;
     //     smaller pushes in, larger pulls back).
     //   pitchDeg: camera pitch in degrees (stock ~59; smaller is flatter).
@@ -756,11 +757,11 @@
     //   easing: 0 linear, 1 ease in-out, 2 ease out, 3 ease in.
     .macro CineCamTo targetOffsetX, targetOffsetZ, distance, pitchDeg, yawDeg, fovDeg, frames, easing
     .short SCRCMD_CINECAMTO
-    .short \targetOffsetX
-    .short \targetOffsetZ
+    .short (\targetOffsetX) + 256
+    .short (\targetOffsetZ) + 256
     .short \distance
-    .short \pitchDeg
-    .short \yawDeg
+    .short (\pitchDeg) + 256
+    .short (\yawDeg) + 256
     .short \fovDeg
     .short \frames
     .short \easing

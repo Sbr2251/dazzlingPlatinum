@@ -64,6 +64,7 @@ runner, the fake game and the protocol all already speak JSON.
 }
 ```
 
+- `env`: extra environment variables for the game process (merged over the runner environment), e.g. `{"SIM_FX_CINE": "1"}` to enable a feature that is off by default in headless runs.
 - `start`: a save (`import_save`), or nothing (new game / title), plus
   optional `warp`/`vars`/`flags`/`items` applied after loading.
 - Steps: `press`/`hold` (key or list, held `frames`), `step` (frames),

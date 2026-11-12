@@ -2541,11 +2541,13 @@ static BOOL ScrCmd_CineCamTo(ScriptContext *ctx)
 {
     FieldSystem *fieldSystem = ctx->fieldSystem;
 
-    s16 targetOffsetX = (s16)ScriptContext_GetVar(ctx);
-    s16 targetOffsetZ = (s16)ScriptContext_GetVar(ctx);
+    // Signed parameters travel biased by +256: a negative literal would be
+    // read back as a script-local variable ID by ScriptContext_GetVar.
+    s16 targetOffsetX = (s16)ScriptContext_GetVar(ctx) - 256;
+    s16 targetOffsetZ = (s16)ScriptContext_GetVar(ctx) - 256;
     u16 distance = ScriptContext_GetVar(ctx);
-    s16 pitchDeg = (s16)ScriptContext_GetVar(ctx);
-    s16 yawDeg = (s16)ScriptContext_GetVar(ctx);
+    s16 pitchDeg = (s16)ScriptContext_GetVar(ctx) - 256;
+    s16 yawDeg = (s16)ScriptContext_GetVar(ctx) - 256;
     u16 fovDeg = ScriptContext_GetVar(ctx);
     u16 frames = ScriptContext_GetVar(ctx);
     u16 easing = ScriptContext_GetVar(ctx);
