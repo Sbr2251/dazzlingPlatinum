@@ -1,6 +1,6 @@
 {
   "name": "core_wild_battle_start_flee",
-  "_note": "Warp to Route 201 tall grass, walk until a wild battle, then flee with the menu cursor: DOWN (to Pokemon row) LEFT (to Run) A - the first directional press also activates the cursor, and touch on Run mis-hits (see STATUS). Assert back on the field on the same map.",
+  "_note": "Warp to Route 201 tall grass, walk until a wild battle, then flee. Flee sequence is LEFT, LEFT, RIGHT, A: the walk's directional presses can keep arriving after the encounter triggers and spill into the battle menu, so the cursor may start inactive, on FIGHT, or anywhere on the bottom row. From every reachable cursor state, first LEFT lands on BAG or RUN, second LEFT lands on BAG, RIGHT lands on RUN. (A single DOWN/LEFT assumed the spill parity; it fled on one build and opened BAG on another.) Touch on Run mis-hits (see STATUS). Assert back on the field on the same map.",
   "requires_exists": [
     "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
   ],
@@ -266,7 +266,7 @@
       "step": 900
     },
     {
-      "press": "DOWN",
+      "press": "LEFT",
       "frames": 10
     },
     {
@@ -274,6 +274,13 @@
     },
     {
       "press": "LEFT",
+      "frames": 10
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "RIGHT",
       "frames": 10
     },
     {
