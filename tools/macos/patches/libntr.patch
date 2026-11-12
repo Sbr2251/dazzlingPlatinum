@@ -415,10 +415,28 @@ index 0f07fc3..fd7b1af 100644
  	reg_G3_SWAP_BUFFERS = GX_PACK_SWAPBUFFERS_PARAM(am, zw);
      #endif
 diff --git a/include/nitro/hw/X86/mmap_global.h b/include/nitro/hw/X86/mmap_global.h
-index 3be08a2..89915a2 100644
+index 3be08a2..268e3d5 100644
 --- a/include/nitro/hw/X86/mmap_global.h
 +++ b/include/nitro/hw/X86/mmap_global.h
-@@ -46,17 +46,34 @@ extern u8 s_HW_MAIN_MEM_EX[0x800000];
+@@ -27,12 +27,13 @@ extern u32 SDK_AUTOLOAD_DTCM_START[];
+ #define HW_DTCM_SIZE            0x4000
+ #define HW_DTCM_END             (HW_DTCM + HW_DTCM_SIZE)
+ //----------------------------- MAIN
+-//PC Port: Doubled the size of HW_MAIN_MEM from 0x400000 to 0x800000
+-extern u8 s_HW_MAIN_MEM[0x800000];
++//PC Port: emulated main RAM is 32 MB (DS 4 MB -> port 8 MB -> lane heap
++// 32 MB), backing the 4x-scaled game heaps. Heap pointers stay inside
++// emulated RAM, so DMA/GX address translation is unchanged.
++extern u8 s_HW_MAIN_MEM[0x2000000];
+ //#define HW_MAIN_MEM             0x02000000
+ #define HW_MAIN_MEM (u64)(s_HW_MAIN_MEM)
+-//PC Port: Doubled HW_MAIN_MEM_SIZE from 0x400000 to 0x800000
+-#define HW_MAIN_MEM_SIZE        0x00800000
++#define HW_MAIN_MEM_SIZE        0x02000000
+ extern u8 s_HW_MAIN_MEM_EX[0x800000];
+ #define HW_MAIN_MEM_EX_SIZE     0x00800000
+ #define HW_MAIN_MEM_END         (HW_MAIN_MEM + HW_MAIN_MEM_SIZE)
+@@ -46,17 +47,34 @@ extern u8 s_HW_MAIN_MEM_EX[0x800000];
  #define HW_IOREG_END            0x05000000
  #define HW_REG_BASE             HW_IOREG        // alias
  //----------------------------- VRAMs
@@ -453,7 +471,7 @@ index 3be08a2..89915a2 100644
  #define HW_OBJ_PLTT             ((u64)s_HW_OBJ_PLTT)
  #define HW_OBJ_PLTT_END         ((u64)s_HW_OBJ_PLTT + 0x200)
  #define HW_OBJ_PLTT_SIZE        (HW_OBJ_PLTT_END-HW_OBJ_PLTT)
-@@ -67,14 +84,18 @@ extern u8 s_HW_OBJ_PLTT[0x200];
+@@ -67,14 +85,18 @@ extern u8 s_HW_OBJ_PLTT[0x200];
  //#define HW_DB_BG_PLTT           0x05000400
  //#define HW_DB_BG_PLTT_END       0x05000600
  //#define HW_DB_BG_PLTT_SIZE      (HW_DB_BG_PLTT_END-HW_DB_BG_PLTT)
@@ -472,7 +490,7 @@ index 3be08a2..89915a2 100644
  #define HW_DB_OBJ_PLTT            ((u64)s_HW_DB_OBJ_PLTT)
  #define HW_DB_OBJ_PLTT_END        ((u64)s_HW_DB_OBJ_PLTT + 0x200)
  #define HW_DB_OBJ_PLTT_SIZE     (HW_DB_OBJ_PLTT_END-HW_DB_OBJ_PLTT)
-@@ -94,7 +115,7 @@ extern u8 s_HW_BG_VRAM[0x80000];
+@@ -94,7 +116,7 @@ extern u8 s_HW_BG_VRAM[0x80000];
  extern u8 s_HW_DB_BG_VRAM[0x20000];
  #define HW_DB_BG_VRAM              ((u64)s_HW_DB_BG_VRAM)
  #define HW_DB_BG_VRAM_END          ((u64)s_HW_DB_BG_VRAM + 0x20000)
@@ -481,7 +499,7 @@ index 3be08a2..89915a2 100644
  
  //#define HW_OBJ_VRAM             0x06400000
  //#define HW_OBJ_VRAM_END         0x06440000
-@@ -109,7 +130,7 @@ extern u8 s_HW_DB_OBJ_VRAM[0x20000];
+@@ -109,7 +131,7 @@ extern u8 s_HW_DB_OBJ_VRAM[0x20000];
  //#define HW_DB_OBJ_VRAM          0x06600000
  //#define HW_DB_OBJ_VRAM_END      0x06620000
  #define HW_DB_OBJ_VRAM             ((u64)s_HW_DB_OBJ_VRAM)
@@ -490,6 +508,22 @@ index 3be08a2..89915a2 100644
  #define HW_DB_OBJ_VRAM_SIZE     (HW_DB_OBJ_VRAM_END-HW_DB_OBJ_VRAM)
  //#define HW_LCDC_VRAM            0x06800000
  //#ifdef SDK_TS
+diff --git a/include/nitro/hw/X86/mmap_main.h b/include/nitro/hw/X86/mmap_main.h
+index d5ebc79..d6cae7f 100644
+--- a/include/nitro/hw/X86/mmap_main.h
++++ b/include/nitro/hw/X86/mmap_main.h
+@@ -56,8 +56,9 @@ extern "C" {
+ // HW_MAIN_MEM_MAIN_SIZE is able to be changed, but need to arrange ARM7 module.
+ // If you use the Mongoose as ARM7 module, maybe 0x3e0000 is almost maximum size.
+ #ifdef SDK_PORT
+-//Doubled the size for SDK_PORT
+-#define HW_MAIN_MEM_MAIN_SIZE           0x7C0000
++//PC Port: main arena is 31.5 MB of the 32 MB emulated RAM (lane heap).
++//SUB + SHARED = 0x80000 (512 KB), matching OS_InitArenaEx's table.
++#define HW_MAIN_MEM_MAIN_SIZE           0x1F80000
+ #else
+ #ifdef SDK_TS
+ #define HW_MAIN_MEM_MAIN_SIZE           0x3E0000
 diff --git a/include/nitro/mi/memory.h b/include/nitro/mi/memory.h
 index b196b55..90df0dc 100644
 --- a/include/nitro/mi/memory.h
@@ -511,7 +545,7 @@ index b196b55..90df0dc 100644
  	MIi_CpuClearFast(data, dest, size);
    #endif
 diff --git a/include/simulator/sim.h b/include/simulator/sim.h
-index ad57dfa..312dae0 100644
+index ad57dfa..c4e164b 100644
 --- a/include/simulator/sim.h
 +++ b/include/simulator/sim.h
 @@ -74,6 +74,8 @@ void SIM_u16ToRGB( u16 in, u8 * r, u8 *g, u8 * b );
@@ -523,6 +557,15 @@ index ad57dfa..312dae0 100644
  const char * SIM_GetLibntrGitHash();
  const char * SIM_GetProjectGitHash();
  SDL_Window * SIM_GetSDLWindow();
+@@ -81,6 +83,8 @@ const char * SIM_GetExeName();
+ 
+ extern GXVRamBGExtPltt s_SIM_GXBgExtPltt;
+ extern GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
++extern GXVRamOBJExtPltt s_SIM_GXOBJExtPltt;
++extern GXVRamSubOBJExtPltt s_SIM_GXSubOBJExtPltt;
+ 
+ extern SNDSharedWork * win_SNDi_SharedWork;
+ 
 diff --git a/include/simulator/sim_audio.h b/include/simulator/sim_audio.h
 index 4c50209..80b5956 100644
 --- a/include/simulator/sim_audio.h
@@ -835,12 +878,15 @@ index 918fea4..e88b503 100644
  
  
 diff --git a/include/simulator/simvariables.h b/include/simulator/simvariables.h
-index 6e41f75..01e76a9 100644
+index 6e41f75..c31df2e 100644
 --- a/include/simulator/simvariables.h
 +++ b/include/simulator/simvariables.h
-@@ -390,10 +390,18 @@ extern u8 s_HW_MAIN_MEM_SUB[0x400000];
+@@ -388,12 +388,20 @@ extern u8 s_HW_ARENA_INFO_BUF[sizeof(OSArenaInfo)];
+ extern u8 s_HW_MAIN_MEM_SUB[0x400000];
+ 
  //mmap_global
- extern u8 s_HW_MAIN_MEM[0x800000];
+-extern u8 s_HW_MAIN_MEM[0x800000];
++extern u8 s_HW_MAIN_MEM[0x2000000]; // 32 MB (lane heap)
  extern u8 s_HW_MAIN_MEM_EX[0x800000];
 +#ifndef SDK_HW_PLTT_BLOCK
  extern u8 s_HW_BG_PLTT[0x200];
@@ -857,6 +903,25 @@ index 6e41f75..01e76a9 100644
  extern u8 s_HW_BG_VRAM[0x80000];
  extern u8 s_HW_DB_BG_VRAM[0x20000];
  extern u8 s_HW_OBJ_VRAM[0x40000];
+diff --git a/include/twl/hw/X86/mmap_global.h b/include/twl/hw/X86/mmap_global.h
+index 78cf25d..dcc43a4 100644
+--- a/include/twl/hw/X86/mmap_global.h
++++ b/include/twl/hw/X86/mmap_global.h
+@@ -23,11 +23,11 @@ extern u32 SDK_AUTOLOAD_DTCM_START[];
+ #endif
+ #define HW_DTCM_SIZE 0x4000
+ #define HW_DTCM_END (HW_DTCM + HW_DTCM_SIZE)
+-//PC Port: Doubled the size of HW_MAIN_MEM from 0x400000 to 0x800000
+-extern u8 s_HW_MAIN_MEM[0x800000];
++//PC Port: 32 MB emulated main RAM (lane heap)
++extern u8 s_HW_MAIN_MEM[0x2000000];
+ 
+ #define HW_MAIN_MEM (u64)(s_HW_MAIN_MEM)
+-#define HW_MAIN_MEM_SIZE        0x00800000
++#define HW_MAIN_MEM_SIZE        0x02000000
+ extern u8 s_HW_MAIN_MEM_EX[0x800000];
+ #define HW_MAIN_MEM_EX_SIZE     0x00800000
+ #define HW_MAIN_MEM_END (HW_MAIN_MEM + HW_MAIN_MEM_SIZE)
 diff --git a/libraries/gx/src/g3_util.c b/libraries/gx/src/g3_util.c
 index 5cf84ea..35b85e4 100644
 --- a/libraries/gx/src/g3_util.c
@@ -1034,6 +1099,32 @@ index c866e53..23f783c 100644
 -}
 \ No newline at end of file
 +}
+diff --git a/libraries/gx/src/gx_vramcnt.c b/libraries/gx/src/gx_vramcnt.c
+index 7449e2b..dc1e978 100644
+--- a/libraries/gx/src/gx_vramcnt.c
++++ b/libraries/gx/src/gx_vramcnt.c
+@@ -834,6 +834,10 @@ static inline void GxSetBankForOBJExtPltt (GXVRamOBJExtPltt objExtPltt)
+ {
+ 	GX_VRAM_OBJEXTPLTT_ASSERT(objExtPltt);
+ 
++    #ifdef SDK_PORT
++    s_SIM_GXOBJExtPltt = objExtPltt;
++    #endif
++
+ 	gGXState.vramCnt.lcdc = (u16)(~objExtPltt & (gGXState.vramCnt.lcdc | gGXState.vramCnt.objExtPltt));
+ 	gGXState.vramCnt.objExtPltt = objExtPltt;
+ 
+@@ -1118,6 +1122,10 @@ static inline void GxSetBankForSubOBJExtPltt (GXVRamSubOBJExtPltt sub_objExtPltt
+ {
+ 	GX_VRAM_SUB_OBJEXTPLTT_ASSERT(sub_objExtPltt);
+ 
++    #ifdef SDK_PORT
++    s_SIM_GXSubOBJExtPltt = sub_objExtPltt;
++    #endif
++
+ 	gGXState.vramCnt.lcdc = (u16)(~sub_objExtPltt & (gGXState.vramCnt.lcdc | gGXState.vramCnt.sub_objExtPltt));
+ 	gGXState.vramCnt.sub_objExtPltt = sub_objExtPltt;
+ 
 diff --git a/libraries/mi/src/mi_dma.c b/libraries/mi/src/mi_dma.c
 index 165e004..3114382 100644
 --- a/libraries/mi/src/mi_dma.c
@@ -1394,6 +1485,17 @@ index 4282214..3a340d6 100644
      struct tm * timeinfo;
      time_t currentTime = time( NULL );
      timeinfo = localtime( &currentTime );
+diff --git a/libraries/sim/include/sim_g2.h b/libraries/sim/include/sim_g2.h
+index 400cde3..c3e778a 100644
+--- a/libraries/sim/include/sim_g2.h
++++ b/libraries/sim/include/sim_g2.h
+@@ -4,4 +4,5 @@
+ void G2SIM_DrawBG( u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub );
+ void G2SIM_DrawOBJ( u32 line, u8 isSub, int bgnum );
+ void G2SIM_PlotPixel(u8 * screenBuf, u8 r, u8 g, u8 b, u32 x, u32 y, BOOL isSub);
++void G2SIM_PlotPixelA(u8 * screenBuf, u8 r, u8 g, u8 b, u8 a, u32 x, u32 y, BOOL isSub);
+ #endif
+\ No newline at end of file
 diff --git a/libraries/sim/include/sim_g2_gpu.h b/libraries/sim/include/sim_g2_gpu.h
 new file mode 100644
 index 0000000..542109f
@@ -1495,10 +1597,20 @@ index 2d852bf..7bf88ce 100644
      'sim_net.cpp',
      'sim_RenderContextManager.cpp',
 diff --git a/libraries/sim/src/shaders/g2_fragment.glsl b/libraries/sim/src/shaders/g2_fragment.glsl
-index b652bd5..f816f23 100644
+index b652bd5..c5d593b 100644
 --- a/libraries/sim/src/shaders/g2_fragment.glsl
 +++ b/libraries/sim/src/shaders/g2_fragment.glsl
-@@ -21,6 +21,22 @@ smooth in vec2 fragTexCoord;
+@@ -13,7 +13,9 @@ uniform int bldy;
+ uniform int topScreen;
+ uniform vec4 backdropColor;
+ uniform int dispcnt;
++uniform int winin;
+ uniform int winout;
++uniform int win0h; uniform int win0v; uniform int win1h; uniform int win1v;
+ uniform int bg0as3d;
+ 
+ smooth in vec2 fragTexCoord;
+@@ -21,6 +23,50 @@ smooth in vec2 fragTexCoord;
  uniform float inMasterBrightFactor;
  uniform int inMasterBrightMode;
  out vec4 color;
@@ -1518,27 +1630,100 @@ index b652bd5..f816f23 100644
 +    if (n == 3) return texture(objTexture[3], uv);
 +    return texture(objTexture[4], uv);
 +}
++// Composite one OBJ pixel over the accumulated colour (bottom-up order).
++// OBJ layer alpha encodes the pixel kind: 1 = opaque, 0.0314 = semi-
++// transparent (XLU) marker, anything else in (0.05, 1) = bitmap OBJ
++// per-sprite alpha, 0 = absent/blocking (already filtered by the caller).
++void drawObjPixel(vec4 obj, bool effectOn, inout vec4 color, inout int currentBgDrawn) {
++    float oa = obj.a;
++    if (oa <= 0.01) return;
++    if (oa >= 0.999) { color = obj; currentBgDrawn = 4; return; }
++    vec3 below = (currentBgDrawn == 5) ? backdropColor.rgb : color.rgb;
++    if (oa <= 0.05) {
++        // Semi-transparent (XLU): alpha-blend with the pixel below using
++        // BLDALPHA, if the below layer is a 2nd target and the window
++        // effect is on; otherwise opaque.
++        bool belowIsTarget2 = ((bldcnt >> (8 + currentBgDrawn)) & 1) == 1;
++        if (effectOn && belowIsTarget2) {
++            float eva = min(16.0, float(bldalpha & 31)) / 16.0;
++            float evb = min(16.0, float((bldalpha >> 8) & 31)) / 16.0;
++            color.rgb = min(vec3(1.0), obj.rgb * eva + below * evb);
++            color.a = 1.0;
++            currentBgDrawn = 4;
++            return;
++        }
++        color = vec4(obj.rgb, 1.0); currentBgDrawn = 4; return;
++    }
++    // Bitmap OBJ per-sprite alpha: blend with the pixel below by alpha.
++    color.rgb = obj.rgb * oa + below * (1.0 - oa);
++    color.a = 1.0; currentBgDrawn = 4;
++}
  void main()
  {
      int oamsDrawn = 0;
-@@ -40,8 +56,8 @@ void main()
+@@ -35,85 +81,108 @@ void main()
+             discard;
+         }
+     }
++    // GBATEK window priority for this pixel: WIN0 > WIN1 > OBJ window >
++    // outside. Layer passes already applied WIN0/WIN1 to the BG textures,
++    // but the OBJ window and the outside mask were not applied there (they
++    // need the OBJ window texture), and OBJs / colour effects were not
++    // window-gated at all. Resolve the full mask here. With no window
++    // enabled the masks are irrelevant: everything shows.
++    int px = int(fragTexCoord.s * 256.0);
++    int py = topScreen == 1 ? int(383.5 - fragTexCoord.t * 384.0) : int(191.5 - fragTexCoord.t * 384.0);
++    bool inWin0 = ((dispcnt >> 13) & 1) == 1
++        && px >= ((win0h >> 8) & 255) && px < (win0h & 255)
++        && py >= ((win0v >> 8) & 255) && py < (win0v & 255);
++    bool inWin1 = ((dispcnt >> 14) & 1) == 1
++        && px >= ((win1h >> 8) & 255) && px < (win1h & 255)
++        && py >= ((win1v >> 8) & 255) && py < (win1v & 255);
++    bool inObjWin = objWindowEnabled && texture(objWindowTexture, fragTexCoord).a > 0.1;
++    int winMask;   // BG + colour-effect enables for this pixel
++    int objWinMask; // OBJ enable for this pixel (the OBJ window never gates OBJs)
++    if (((dispcnt >> 13) & 7) == 0) { winMask = 63; objWinMask = 63; }
++    else if (inWin0) { winMask = winin & 63; objWinMask = winin & 63; }
++    else if (inWin1) { winMask = (winin >> 8) & 63; objWinMask = (winin >> 8) & 63; }
++    else if (inObjWin) { winMask = (winout >> 8) & 63; objWinMask = winout & 63; }
++    else { winMask = winout & 63; objWinMask = winout & 63; }
++    bool effectOn = ((winMask >> 5) & 1) == 1;
+     for(int i=0; i<4; i++) {
+         int bgNum = bgOrder[i];
          int curPrio = bgPriorities[bgNum];
          // Draw the OBJs that are at or below the current BG priority
          for(int j=3-oamsDrawn; j>curPrio; j--) {
 -            if(texture(objTexture[j], fragTexCoord).a > 0.1) {
 -                color = texture(objTexture[j], fragTexCoord);
-+            if(sampleObj(j, fragTexCoord).a > 0.1) {
-+                color = sampleObj(j, fragTexCoord);
-                 currentBgDrawn = 4;
+-                currentBgDrawn = 4;
++            if((((objWinMask >> 4) & 1) == 1)) {
++                drawObjPixel(sampleObj(j, fragTexCoord), effectOn, color, currentBgDrawn);
              }
              oamsDrawn++;
-@@ -61,59 +77,68 @@ void main()
-             }
+         }
+-        
+-        // Check obj window
+-        if(objWindowEnabled && texture(objWindowTexture, fragTexCoord).a > 0.1)
+-        {
+-            // Inside the window
+-            if(((winout >> (bgNum+8)) & 1) == 0) {
+-                continue;
+-            }
+-        } else if (objWindowEnabled) {
+-            // Outside the window
+-            if(((winout >> bgNum) & 1) == 0) {
+-                continue;
+-            }
++
++        // Window: BG visibility for this pixel (layer passes handled
++        // WIN0/WIN1; the OBJ-window / outside choice is made here).
++        if(((winMask >> bgNum) & 1) == 0) {
++            continue;
          }
          // Draw the current bg
 -        if(texture(bgTexture[bgNum], fragTexCoord).a > 0.1) {
 +        vec4 bg3d = sampleBg(0, fragTexCoord);
-+        if(bgNum == 0 && bg0as3d != 0 && bg3d.a > 0.004 && bg3d.a < 0.99 && (((bldcnt >> (8+currentBgDrawn)) & 1) == 1)) {
++        if(effectOn && bgNum == 0 && bg0as3d != 0 && bg3d.a > 0.004 && bg3d.a < 0.99 && (((bldcnt >> (8+currentBgDrawn)) & 1) == 1)) {
 +            // DS special case: translucent 3D pixels are alpha blended with the layer below whenever that layer is a 2nd
 +            // target, whatever the blend mode and 1st targets are (particles, glows). The 3D buffer holds colour already
 +            // weighted by its alpha (it is drawn over a transparent clear with SRC_ALPHA blending).
@@ -1548,7 +1733,8 @@ index b652bd5..f816f23 100644
 +            currentBgDrawn = bgNum;
 +        } else if(sampleBg(bgNum, fragTexCoord).a > 0.1) {
              //Handle blending
-             if( (((bldcnt >> 6) & 0x3) == 1) && ((bldcnt >> bgNum & 1) == 1) ){
+-            if( (((bldcnt >> 6) & 0x3) == 1) && ((bldcnt >> bgNum & 1) == 1) ){
++            if (effectOn && ((bldcnt >> 6) & 0x3) == 1 && ((bldcnt >> bgNum) & 1) == 1) {
                  // Alpha Blending Mode. bgNum is Target 1.
                  float alphaA = min(16.0, float(bldalpha & 31)) / 16.0;
                  float alphaB = min(16.0, float((bldalpha >> 8) & 31)) / 16.0;
@@ -1589,7 +1775,8 @@ index b652bd5..f816f23 100644
 +                    color = sampleBg(bgNum, fragTexCoord);
                      currentBgDrawn = bgNum;
                  }
-             } else if((((bldcnt >> 6) & 0x3) == 2) && ((bldcnt >> bgNum & 1) == 1)) {
+-            } else if((((bldcnt >> 6) & 0x3) == 2) && ((bldcnt >> bgNum & 1) == 1)) {
++            } else if (effectOn && ((bldcnt >> 6) & 0x3) == 2 && ((bldcnt >> bgNum) & 1) == 1) {
                  // Brightness Increase Mode. bgNum is Target 1.
                  float brightFactor = min(16.0, float(bldy & 31)) / 16.0;
 -                //color.r = min(1.0, ( texture(bgTexture[bgNum], fragTexCoord).r + ((1.0 - texture(bgTexture[bgNum], fragTexCoord).r)*brightFactor)) );
@@ -1606,7 +1793,8 @@ index b652bd5..f816f23 100644
 +                color.b = sampleBg(bgNum, fragTexCoord).b + (1.0 - sampleBg(bgNum, fragTexCoord).b)*brightFactor;
                  color.a = 1.0;
                  currentBgDrawn = bgNum;
-             } else if((((bldcnt >> 6) & 0x3) == 3) && ((bldcnt >> bgNum & 1) == 1)) {
+-            } else if((((bldcnt >> 6) & 0x3) == 3) && ((bldcnt >> bgNum & 1) == 1)) {
++            } else if (effectOn && ((bldcnt >> 6) & 0x3) == 3 && ((bldcnt >> bgNum) & 1) == 1) {
                  // Brightness Decrease Mode. bgNum is Target 1.
                  float brightFactor = min(16.0, float(bldy & 31)) / 16.0;
 -                color.r = max(0.0, ( texture(bgTexture[bgNum], fragTexCoord).r - ((texture(bgTexture[bgNum], fragTexCoord).r)*brightFactor)) );
@@ -1623,23 +1811,24 @@ index b652bd5..f816f23 100644
                  color.a = 1.0;
                  currentBgDrawn = bgNum;
              }
-@@ -121,8 +146,8 @@ void main()
+@@ -121,9 +190,8 @@ void main()
      }
      //Draw the remaining objs
      for(int i=3-oamsDrawn; i>=0; i--) {
 -        if(texture(objTexture[i], fragTexCoord).a > 0.1) {
 -            color = texture(objTexture[i], fragTexCoord);
-+        if(sampleObj(i, fragTexCoord).a > 0.1) {
-+            color = sampleObj(i, fragTexCoord);
-             currentBgDrawn = 4;
+-            currentBgDrawn = 4;
++        if((((objWinMask >> 4) & 1) == 1)) {
++            drawObjPixel(sampleObj(i, fragTexCoord), effectOn, color, currentBgDrawn);
          }
      }
+     if(currentBgDrawn == 5) {
 diff --git a/libraries/sim/src/shaders/g2gpu_fragment.glsl b/libraries/sim/src/shaders/g2gpu_fragment.glsl
 new file mode 100644
-index 0000000..999904e
+index 0000000..dbd9d2f
 --- /dev/null
 +++ b/libraries/sim/src/shaders/g2gpu_fragment.glsl
-@@ -0,0 +1,275 @@
+@@ -0,0 +1,340 @@
 +R""(
 +#version 420 core
 +// GPU 2D layer renderer (perf-g2gpu). One pass renders one layer (a BG, an
@@ -1647,7 +1836,9 @@ index 0000000..999904e
 +// 256x384 texture; g2_fragment.glsl compositing is unchanged afterwards.
 +// All inputs are plain data textures / int uniforms so a Metal port only
 +// has to translate the fetch helpers. This replicates sim_g2.cpp/sim_main
-+// CPU behaviour exactly, including its quirks (see sim_g2_gpu.cpp header).
++// CPU behaviour exactly: mosaic, WIN0/WIN1 windows, OBJ extended
++// palettes, bitmap OBJ direct colour, and XLU/bitmap alpha in the OBJ
++// layer alpha channel (see sim_g2_gpu.cpp header).
 +uniform usampler2D bgVramTex;   // R8UI, 2048 wide
 +uniform usampler2D objVramTex;  // R8UI, 1024 wide
 +uniform usampler2D lcdcTex;     // R8UI, 2048 wide (extended palettes)
@@ -1664,12 +1855,21 @@ index 0000000..999904e
 +uniform int affX[4]; uniform int affY[4];
 +uniform int bgMode;
 +uniform int extPlttBase;        // byte offset into lcdcTex for BG ext palettes
-+uniform int win0h; uniform int win0v; uniform int winin; uniform int winout;
++uniform int win0h; uniform int win0v; uniform int win1h; uniform int win1v; uniform int winin; uniform int winout;
++uniform int mosaic;           // MOSAIC register: BG H/V (bits 0-7), OBJ H/V (bits 8-15); block size = value + 1
++uniform int objExtPlttBase;   // byte offset into lcdcTex for this engine's OBJ ext palettes (LCDC F/G main, I sub)
 +uniform int dbgEnable;          // GUI debug enable for this layer
 +uniform int objList[128];       // candidate sprite indices for this pass (ascending)
 +uniform int objCount;
++uniform int singleMode;         // 1 = one sprite per draw (objList[0]); miss discards, transparent-but-blocking writes depth
 +out vec4 outColor;
 +
++// Safe sign extension (no signed-overflow UB: left-shifting a signed int
++// past its width, or converting an out-of-range uint to int, is
++// undefined in GLSL, and Apple's Metal translation does not wrap the
++// way Mesa does, so rot/scale sprites vanished there).
++int signExtend9(uint v) { uint x = v & 0x1FFu; return x >= 256u ? int(x) - 512 : int(x); }
++int signExtend16(uint v) { return v >= 32768u ? int(v) - 65536 : int(v); }
 +uint bgByte(int a) { a &= isSub == 1 ? 0x1FFFF : 0x7FFFF; return texelFetch(bgVramTex, ivec2(a & 2047, a >> 11), 0).r; }
 +uint objByte(int a) { a &= isSub == 1 ? 0x1FFFF : 0x3FFFF; return texelFetch(objVramTex, ivec2(a & 1023, a >> 10), 0).r; }
 +uint lcdcByte(int a) { return texelFetch(lcdcTex, ivec2(a & 2047, a >> 11), 0).r; }
@@ -1692,6 +1892,15 @@ index 0000000..999904e
 +    uint b = (((c >> 10) & 31u) * 527u + 23u) >> 6;
 +    return vec3(float(r), float(g), float(b)) / 255.0;
 +}
++vec3 rgb555(uint c) {
++    uint r = ((c & 31u) * 527u + 23u) >> 6;
++    uint g = (((c >> 5) & 31u) * 527u + 23u) >> 6;
++    uint b = (((c >> 10) & 31u) * 527u + 23u) >> 6;
++    return vec3(float(r), float(g), float(b)) / 255.0;
++}
++vec3 objExtPalColor(int palNum, int idx) {
++    return rgb555(lcdcWord(objExtPlttBase + palNum * 512 + idx * 2));
++}
 +int bgKind() { // 0 text, 1 affine, 2 extended, -1 none ( mirrors G2SIM_DrawBG dispatch )
 +    if (layer == 0 || layer == 1) return 0;
 +    if (layer == 2) {
@@ -1705,17 +1914,30 @@ index 0000000..999904e
 +    if (bgMode >= 3 && bgMode <= 5) return 2;
 +    return -1;
 +}
-+bool textWindowPass(int x, int y) { // CPU text BG: only WIN0 is consulted
-+    if (((dispcnt >> 13) & 1) == 0) return true;
-+    int left = (win0h >> 8) & 255; int right = win0h & 255;
-+    int top = (win0v >> 8) & 255; int bottom = win0v & 255;
-+    if (x >= left && x < right && y >= top && y < bottom) return ((winin >> layer) & 1) == 1;
-+    return ((winout >> layer) & 1) == 1;
++bool windowPass(int x, int y) { // GBATEK window priority: WIN0 > WIN1 > OBJ window > outside.
++    // This pass only resolves WIN0/WIN1; pixels outside both pass through
++    // and the composite (g2_fragment.glsl) applies the OBJ-window vs
++    // outside mask, which needs the OBJ window texture.
++    if (((dispcnt >> 13) & 1) == 1) {
++        int left = (win0h >> 8) & 255; int right = win0h & 255;
++        int top = (win0v >> 8) & 255; int bottom = win0v & 255;
++        if (x >= left && x < right && y >= top && y < bottom) return ((winin >> layer) & 1) == 1;
++    }
++    if (((dispcnt >> 14) & 1) == 1) {
++        int left = (win1h >> 8) & 255; int right = win1h & 255;
++        int top = (win1v >> 8) & 255; int bottom = win1v & 255;
++        if (x >= left && x < right && y >= top && y < bottom) return ((winin >> (8 + layer)) & 1) == 1;
++    }
++    return true;
 +}
 +vec4 renderTextBG(int px, int py) {
 +    int cnt = bgcnt[layer];
-+    int xoff = (bgofs[layer] & 0x1FF) + px;
-+    int yoff = ((bgofs[layer] >> 16) & 0x1FF) + py;
++    // BG mosaic (this BG's BGCNT mosaic bit): the fetched BG pixel is the
++    // one at the mosaic block's origin (screen-space blocks).
++    int qx = px; int qy = py;
++    if ((cnt & 0x40) != 0) { qx = px - px % ((mosaic & 15) + 1); qy = py - py % (((mosaic >> 4) & 15) + 1); }
++    int xoff = (bgofs[layer] & 0x1FF) + qx;
++    int yoff = ((bgofs[layer] >> 16) & 0x1FF) + qy;
 +    int tileset = isSub == 1 ? ((cnt & 0x3C) << 12)
 +                             : (((dispcnt >> 24) & 7) << 16) + ((cnt & 0x3C) << 12);
 +    int tilemap = isSub == 1 ? ((cnt & 0x1F00) << 3)
@@ -1732,7 +1954,7 @@ index 0000000..999904e
 +    int ty = (tile & 0x800u) != 0u ? 7 - (yoff & 7) : (yoff & 7);
 +    if ((cnt & 0x80) != 0) { // 256 colour
 +        uint idx = bgByte(tileset + (tileNum << 6) + (ty << 3) + tx);
-+        if (idx == 0u || !textWindowPass(px, py)) return vec4(0.0);
++        if (idx == 0u || !windowPass(px, py)) return vec4(0.0);
 +        if ((dispcnt & 0x40000000) != 0) {
 +            int slot = (layer < 2 && (cnt & 0x2000) != 0) ? 2 + layer : layer;
 +            return vec4(extPalColor(slot, int(tile >> 12), int(idx)), 1.0);
@@ -1740,15 +1962,19 @@ index 0000000..999904e
 +        return vec4(palColor(isSub == 1 ? 2 : 0, int(idx)), 1.0);
 +    }
 +    int addr = tileset + (tileNum << 5) + (ty << 2) + (tx >> 1);
-+    uint packed = bgByte(addr);
-+    uint idx = (tx & 1) != 0 ? (packed >> 4) : (packed & 15u);
-+    if (idx == 0u || !textWindowPass(px, py)) return vec4(0.0);
++    uint packedByte = bgByte(addr);
++    uint idx = (tx & 1) != 0 ? (packedByte >> 4) : (packedByte & 15u);
++    if (idx == 0u || !windowPass(px, py)) return vec4(0.0);
 +    return vec4(palColor(isSub == 1 ? 2 : 0, int(((tile & 0xF000u) >> 8) | idx)), 1.0);
 +}
 +vec4 renderAffineBG(int px, int py, bool extended) {
++    if (!windowPass(px, py)) return vec4(0.0);
 +    int cnt = bgcnt[layer];
-+    int fx = affX[layer] + py * affB[layer] + px * affA[layer];
-+    int fy = affY[layer] + py * affD[layer] + px * affC[layer];
++    // BG mosaic: affine transform is evaluated at the mosaic block origin.
++    int qx = px; int qy = py;
++    if ((cnt & 0x40) != 0) { qx = px - px % ((mosaic & 15) + 1); qy = py - py % (((mosaic >> 4) & 15) + 1); }
++    int fx = affX[layer] + qy * affB[layer] + qx * affA[layer];
++    int fy = affY[layer] + qy * affD[layer] + qx * affC[layer];
 +    int tileset = isSub == 1 ? ((cnt & 0x3C) << 12)
 +                             : (((dispcnt >> 24) & 7) << 16) + ((cnt & 0x3C) << 12);
 +    int tilemap = isSub == 1 ? ((cnt & 0x1F00) << 3)
@@ -1803,19 +2029,27 @@ index 0000000..999904e
 +    int palRow = isSub == 1 ? 3 : 1;
 +    bool rot = (a0 & 0x100u) != 0u;
 +    int palByte = -1; bool hit = false;
++    bool palExt = false; int palNum = 0; // 256-colour OBJ with DISPCNT bit 31 (extended palettes)
++    bool bmp = false; vec3 bmpRgb = vec3(0.0); int bmpA = 16; // bitmap OBJ (mode 3): direct colour + per-sprite alpha
 +    if (rot) {
 +        int bw = w; int bh = h;
 +        if ((a0 & 0x200u) != 0u) { bw <<= 1; bh <<= 1; }
 +        int syB = (py - int(a0 & 0xFFu)) & 0xFF;
 +        if (syB >= bh) return vec4(0.0);
-+        int sxB = px - ((int(a1 << 23)) >> 23);
++        int sxB = px - signExtend9(a1);
 +        if (sxB < 0 || sxB >= bw) return vec4(0.0);
 +        int grp = int((a1 >> 9) & 0x1Fu) * 16 + 3;
-+        int rA = (int(oamWord(grp)) << 16) >> 16; int rB = (int(oamWord(grp + 4)) << 16) >> 16;
-+        int rC = (int(oamWord(grp + 8)) << 16) >> 16; int rD = (int(oamWord(grp + 12)) << 16) >> 16;
++        int rA = signExtend16(oamWord(grp)); int rB = signExtend16(oamWord(grp + 4));
++        int rC = signExtend16(oamWord(grp + 8)); int rD = signExtend16(oamWord(grp + 12));
 +        int rotX = (sxB - (bw >> 1)) * rA + (syB - (bh >> 1)) * rB + (w << 7);
 +        int rotY = (sxB - (bw >> 1)) * rC + (syB - (bh >> 1)) * rD + (h << 7);
 +        if (uint(rotX) >= uint(w << 8) || uint(rotY) >= uint(h << 8)) return vec4(0.0);
++        // OBJ mosaic (ATTR0 bit 12): sample the sprite pixel at the
++        // mosaic block origin in sprite space. Window sprites ignore it.
++        if (((a0 & 0x1000u) != 0u) && !wantWindow) {
++            rotX = ((rotX >> 8) - ((rotX >> 8) % (((mosaic >> 8) & 15) + 1))) << 8;
++            rotY = ((rotY >> 8) - ((rotY >> 8) % (((mosaic >> 12) & 15) + 1))) << 8;
++        }
 +        if (mode == 3) {
 +            if ((a2 >> 12) == 0u) return vec4(0.0);
 +            int addr;
@@ -1824,13 +2058,13 @@ index 0000000..999904e
 +                addr = tileNum << (7 + ((dispcnt >> 22) & 1));
 +                int ytf = w * 2;
 +                uint c = objWord(addr + ((rotY >> 8) * ytf) + ((rotX >> 8) << 1));
-+                if ((c & 0x8000u) != 0u) { hit = true; palByte = int(c & 0xFFu); }
++                if ((c & 0x8000u) != 0u) { hit = true; bmp = true; bmpRgb = rgb555(c & 0x7FFFu); bmpA = int((a2 >> 12) & 15u) + 1; }
 +            } else {
 +                int ytf = (dispcnt & 0x20) != 0 ? 512 : 256;
 +                int base = (dispcnt & 0x20) != 0 ? ((tileNum & 0x1F) << 4) + ((tileNum & 0x3E0) << 7)
 +                                                 : ((tileNum & 0xF) << 4) + ((tileNum & 0x3F0) << 7);
 +                uint c = objWord(base + ((rotY >> 8) * ytf) + ((rotX >> 8) << 1));
-+                if ((c & 0x8000u) != 0u) { hit = true; palByte = int(c & 0xFFu); }
++                if ((c & 0x8000u) != 0u) { hit = true; bmp = true; bmpRgb = rgb555(c & 0x7FFFu); bmpA = int((a2 >> 12) & 15u) + 1; }
 +            }
 +        } else if ((a0 & 0x2000u) != 0u) { // 8bpp
 +            int ytf;
@@ -1839,25 +2073,30 @@ index 0000000..999904e
 +            else ytf = 0x20 << 5;
 +            base <<= 5;
 +            uint idx = objByte(base + ((rotY >> 11) * ytf) + ((rotY & 0x700) >> 5) + ((rotX >> 11) * 64) + ((rotX & 0x700) >> 8));
-+            if (idx != 0u) { hit = true; palByte = int(idx); }
++            if (idx != 0u) { hit = true; palByte = int(idx); if ((dispcnt & 0x80000000) != 0) { palExt = true; palNum = int((a2 >> 12) & 15u); } }
 +        } else {
 +            int ytf;
 +            int base = tileNum;
 +            if ((dispcnt & 0x10) != 0) { base <<= ((dispcnt >> 20) & 3); ytf = (w >> 3) << 5; }
 +            else ytf = 0x20 << 5;
 +            base <<= 5;
-+            uint packed = objByte(base + ((rotY >> 11) * ytf) + ((rotY & 0x700) >> 6) + ((rotX >> 11) * 32) + ((rotX & 0x700) >> 9));
-+            uint idx = (rotX & 0x100) != 0 ? (packed >> 4) : (packed & 15u);
++            uint packedByte = objByte(base + ((rotY >> 11) * ytf) + ((rotY & 0x700) >> 6) + ((rotX >> 11) * 32) + ((rotX & 0x700) >> 9));
++            uint idx = (rotX & 0x100) != 0 ? (packedByte >> 4) : (packedByte & 15u);
 +            if (idx != 0u) { hit = true; palByte = int(((a2 & 0xF000u) >> 8) | idx); }
 +        }
 +    } else {
 +        if ((a0 & 0x200u) != 0u) return vec4(0.0); // disabled
 +        int sy = (py - int(a0 & 0xFFu)) & 0xFF;
 +        if (sy >= h) return vec4(0.0);
-+        int sx = px - ((int(a1 << 23)) >> 23);
++        int sx = px - signExtend9(a1);
 +        if (sx < 0 || sx >= w) return vec4(0.0);
 +        int sxF = (a1 & 0x1000u) != 0u ? w - 1 - sx : sx;
 +        int syF = (a1 & 0x2000u) != 0u ? h - 1 - sy : sy;
++        // OBJ mosaic (ATTR0 bit 12, sprite space, post-flip). Window sprites ignore it.
++        if (((a0 & 0x1000u) != 0u) && !wantWindow) {
++            sxF = sxF - sxF % (((mosaic >> 8) & 15) + 1);
++            syF = syF - syF % (((mosaic >> 12) & 15) + 1);
++        }
 +        if (mode == 3) {
 +            if ((a2 >> 12) == 0u) return vec4(0.0);
 +            int addr;
@@ -1870,31 +2109,46 @@ index 0000000..999904e
 +                addr = ((tileNum & 0xF) << 4) + ((tileNum & 0x3F0) << 7) + syF * 256 + sxF * 2;
 +            }
 +            uint c = objWord(addr);
-+            if ((c & 0x8000u) != 0u) { hit = true; palByte = int(c & 0xFFu); }
++            if ((c & 0x8000u) != 0u) { hit = true; bmp = true; bmpRgb = rgb555(c & 0x7FFFu); bmpA = int((a2 >> 12) & 15u) + 1; }
 +        } else if ((a0 & 0x2000u) != 0u) { // 8bpp
 +            int t = tileNum;
 +            if ((dispcnt & 0x10) != 0) { t <<= ((dispcnt >> 20) & 3); t += ((syF >> 3) * (w >> 3)) << 1; }
 +            else t += (syF >> 3) * 0x20;
 +            uint idx = objByte((t << 5) + ((syF & 7) << 3) + ((sxF >> 3) << 6) + (sxF & 7));
-+            if (idx != 0u) { hit = true; palByte = int(idx); }
++            if (idx != 0u) { hit = true; palByte = int(idx); if ((dispcnt & 0x80000000) != 0) { palExt = true; palNum = int((a2 >> 12) & 15u); } }
 +        } else {
 +            int t = tileNum;
 +            if ((dispcnt & 0x10) != 0) { t <<= ((dispcnt >> 20) & 3); t += (syF >> 3) * (w >> 3); }
 +            else t += (syF >> 3) * 0x20;
-+            uint packed = objByte((t << 5) + ((syF & 7) << 2) + ((sxF >> 3) << 5) + ((sxF & 7) >> 1));
-+            uint idx = (sxF & 1) != 0 ? (packed >> 4) : (packed & 15u);
++            uint packedByte = objByte((t << 5) + ((syF & 7) << 2) + ((sxF >> 3) << 5) + ((sxF & 7) >> 1));
++            uint idx = (sxF & 1) != 0 ? (packedByte >> 4) : (packedByte & 15u);
 +            if (idx != 0u) { hit = true; palByte = int(((a2 & 0xF000u) >> 8) | idx); }
 +        }
 +    }
 +    if (!hit) return vec4(0.0);
 +    if (wantWindow) return vec4(1.0);
-+    if (palByte == 0) return vec4(0.0, 0.0, 0.0, 2.0); // CPU: blocks lower sprites, plots nothing
-+    return vec4(palColor(palRow, palByte), 1.0);
++    if (palByte == 0 && !bmp) return vec4(0.0, 0.0, 0.0, 2.0); // CPU: blocks lower sprites, plots nothing
++    vec3 rgb;
++    float a = 1.0;
++    if (bmp) { rgb = bmpRgb; a = float(bmpA) / 16.0; }
++    else if (palExt) rgb = objExtPalColor(palNum, palByte);
++    else rgb = palColor(palRow, palByte);
++    if (mode == 1) a = 0.0314; // semi-transparent (XLU): composite blends with BLDALPHA
++    return vec4(rgb, a);
 +}
 +vec4 renderOBJ(int px, int py, bool wantWindow) {
++    if (singleMode == 1) {
++        // One sprite per draw, scissored to its bounding box; the depth
++        // buffer (LEQUAL, ascending OAM index) resolves priority. A miss
++        // must not write depth (lower sprites still draw); a transparent
++        // pixel that blocks lower sprites writes depth with alpha 0.
++        vec4 s = sampleSprite(objList[0], px, py, wantWindow);
++        if (s.a > 0.01) return s.a > 1.5 ? vec4(0.0) : s;
++        discard;
++    }
 +    for (int i = 0; i < objCount; i++) {
 +        vec4 s = sampleSprite(objList[i], px, py, wantWindow);
-+        if (s.a > 0.5) return s.a > 1.5 ? vec4(0.0) : s;
++        if (s.a > 0.01) return s.a > 1.5 ? vec4(0.0) : s;
 +    }
 +    return vec4(0.0);
 +}
@@ -1917,15 +2171,16 @@ index 0000000..999904e
 +)""
 diff --git a/libraries/sim/src/shaders/g2gpu_vertex.glsl b/libraries/sim/src/shaders/g2gpu_vertex.glsl
 new file mode 100644
-index 0000000..5aebeb1
+index 0000000..3ad4db3
 --- /dev/null
 +++ b/libraries/sim/src/shaders/g2gpu_vertex.glsl
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,8 @@
 +R""(
 +#version 420 core
++uniform float uDepth; // per-sprite depth for OBJ passes (lowest OAM index wins via LEQUAL); 0 for BG passes
 +void main() {
 +    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
-+    gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
++    gl_Position = vec4(p * 2.0 - 1.0, uDepth * 2.0 - 1.0, 1.0);
 +}
 +)""
 diff --git a/libraries/sim/src/shaders/post_fragment.glsl b/libraries/sim/src/shaders/post_fragment.glsl
@@ -2246,10 +2501,212 @@ index 44b9acf..1cded7d 100644
  {
      if((s_SIM_sndcnt[chNo]>>29)&0x3 == 3) {
 diff --git a/libraries/sim/src/sim_g2.cpp b/libraries/sim/src/sim_g2.cpp
-index b67717b..cca40ac 100644
+index b67717b..667ef31 100644
 --- a/libraries/sim/src/sim_g2.cpp
 +++ b/libraries/sim/src/sim_g2.cpp
-@@ -520,13 +520,11 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+@@ -57,11 +57,56 @@ static void DrawOBJ_Normal(u32 num, u32 width, u32 height, s32 xpos, s32 ypos,
+                            u8 isSub, u8 isWin);
+ static void *getBgExtPlttVramBank(BOOL isSub);
+ 
++// GBATEK window priority for a BG pixel: WIN0 > WIN1 > OBJ window >
++// outside. This helper resolves WIN0/WIN1 only; pixels outside both
++// pass through and the composite (g2_fragment.glsl) applies the
++// OBJ-window vs outside mask, which needs the OBJ window texture.
++static bool G2SIM_WindowPassBG(u32 dispcnt, u16 win0H, u16 win0V, u16 win1H, u16 win1V, u16 winIn, u32 bgnum, u32 x, u32 line) {
++  if (dispcnt & 0x2000) {
++    u8 left = (u8)(win0H >> 8), right = (u8)(win0H & 0xFF);
++    u8 top = (u8)(win0V >> 8), bottom = (u8)(win0V & 0xFF);
++    if (x >= left && x < right && line >= top && line < bottom) return (winIn >> bgnum) & 1;
++  }
++  if (dispcnt & 0x4000) {
++    u8 left = (u8)(win1H >> 8), right = (u8)(win1H & 0xFF);
++    u8 top = (u8)(win1V >> 8), bottom = (u8)(win1V & 0xFF);
++    if (x >= left && x < right && line >= top && line < bottom) return (winIn >> (8 + bgnum)) & 1;
++  }
++  return true;
++}
++
++// Is BG mosaic active for this BG? BGCNT bit 6 enables it and the MOSAIC
++// register must have a nonzero BG H or V size.
++static u8 G2SIM_BGMosaicActive(u32 bgNum, u8 isSub) {
++  u16 mosaicReg = isSub ? s_reg_G2S_DB_MOSAIC : s_reg_G2_MOSAIC;
++  if (!(mosaicReg & 0xFF)) return 0;
++  u16 bgcnt = 0;
++  if (isSub) {
++    switch (bgNum) {
++    case 0: bgcnt = s_reg_G2S_DB_BG0CNT; break;
++    case 1: bgcnt = s_reg_G2S_DB_BG1CNT; break;
++    case 2: bgcnt = s_reg_G2S_DB_BG2CNT; break;
++    case 3: bgcnt = s_reg_G2S_DB_BG3CNT; break;
++    default: break;
++    }
++  } else {
++    switch (bgNum) {
++    case 0: bgcnt = s_reg_G2_BG0CNT; break;
++    case 1: bgcnt = s_reg_G2_BG1CNT; break;
++    case 2: bgcnt = s_reg_G2_BG2CNT; break;
++    case 3: bgcnt = s_reg_G2_BG3CNT; break;
++    default: break;
++    }
++  }
++  return (bgcnt & 0x40) ? 1 : 0;
++}
++
+ void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
+ #ifdef SDK_TRACY_ENABLE
+   TracyCZone(ctx, 1);
+ #endif
+   char zoneNameBuf[50] = {0};
++  u8 mosaic = G2SIM_BGMosaicActive(bgNum, isSub);
+   snprintf(zoneNameBuf, 49, "G2SIM_DrawBG%s%d %s", isSub ? "S" : "", bgNum,
+            (bgNum == 0) && !isSub && bg03D ? "(3D)" : "");
+ #ifdef SDK_TRACY_ENABLE
+@@ -99,7 +144,7 @@ void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
+       } else {
+         // Text Mode
+         for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
+-          DrawBGLine_Text(j, bgNum, 0, isSub);
++          DrawBGLine_Text(j, bgNum, mosaic, isSub);
+         }
+       }
+       break;
+@@ -124,7 +169,7 @@ void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
+       // Modes 0-5 on BG1 are always text
+       // Text Mode
+       for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
+-        DrawBGLine_Text(j, bgNum, 0, isSub);
++        DrawBGLine_Text(j, bgNum, mosaic, isSub);
+       }
+       break;
+     case 6:
+@@ -144,35 +189,35 @@ void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
+       // Modes 0 and 1 are text on BG2
+       // Text Mode
+       for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
+-        DrawBGLine_Text(j, bgNum, 0, isSub);
++        DrawBGLine_Text(j, bgNum, mosaic, isSub);
+       }
+       break;
+     case 2:
+       // Mode 2 is affine on BG2
+       // Affine Mode
+       for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
+-        DrawBGLine_Affine(j, bgNum, 0, isSub);
++        DrawBGLine_Affine(j, bgNum, mosaic, isSub);
+       }
+       break;
+     case 3:
+       // Mode 3 is text on BG2
+       // Text Mode
+       for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
+-        DrawBGLine_Text(j, bgNum, 0, isSub);
++        DrawBGLine_Text(j, bgNum, mosaic, isSub);
+       }
+       break;
+     case 4:
+       // Mode 5 is affine on BG2
+       // Affine Mode
+       for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
+-        DrawBGLine_Affine(j, bgNum, 0, isSub);
++        DrawBGLine_Affine(j, bgNum, mosaic, isSub);
+       }
+       break;
+     case 5:
+       // Mode 5 is "Extended" on BG2
+       // Extended Mode
+       for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
+-        DrawBGLine_Extended(j, bgNum, 0, isSub);
++        DrawBGLine_Extended(j, bgNum, mosaic, isSub);
+       }
+       break;
+     case 6:
+@@ -195,7 +240,7 @@ void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
+       // Mode 0 and is text on BG3
+       // Text Mode
+       for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
+-        DrawBGLine_Text(j, bgNum, 0, isSub);
++        DrawBGLine_Text(j, bgNum, mosaic, isSub);
+       }
+       break;
+     case 1:
+@@ -203,7 +248,7 @@ void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
+       // Modes 1 and 2 are affine on BG3
+       // Affine Mode
+       for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
+-        DrawBGLine_Affine(j, bgNum, 0, isSub);
++        DrawBGLine_Affine(j, bgNum, mosaic, isSub);
+       }
+       break;
+     case 3:
+@@ -212,7 +257,7 @@ void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
+       // Modes 3-5 are "Extended" on BG3
+       // Extended Mode
+       for (int j = 0; j < SIM_NDS_SCREEN_HEIGHT; j++) {
+-        DrawBGLine_Extended(j, bgNum, 0, isSub);
++        DrawBGLine_Extended(j, bgNum, mosaic, isSub);
+       }
+       break;
+     case 6:
+@@ -315,7 +360,7 @@ void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum) {
+       }
+       ypos = (sprline - ypos) & 0xFF;
+ 
+-      s32 xpos = (s32)(attrib[1] << 23) >> 23;
++      s32 xpos = (attrib[1] & 0x100) ? (s32)(attrib[1] & 0x1FF) - 0x200 : (s32)(attrib[1] & 0x1FF); // safe sign-extend 9-bit (<< 23 is signed-overflow UB)
+       if (xpos <= -boundwidth) {
+         continue;
+       }
+@@ -339,7 +384,7 @@ void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum) {
+       }
+       ypos = (sprline - ypos) & 0xFF;
+ 
+-      s32 xpos = (s32)(attrib[1] << 23) >> 23;
++      s32 xpos = (attrib[1] & 0x100) ? (s32)(attrib[1] & 0x1FF) - 0x200 : (s32)(attrib[1] & 0x1FF); // safe sign-extend 9-bit (<< 23 is signed-overflow UB)
+       if (xpos <= -width) {
+         continue;
+       }
+@@ -355,8 +400,8 @@ void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum) {
+ // Draws a pixel to the screenBuf. X and Y coordinates are in local DS screen
+ // coordinates Pixel will be plotted on the correct screen based on dispsel and
+ // isSub
+-void G2SIM_PlotPixel(u8 *screenBuf, u8 r, u8 g, u8 b, u32 x, u32 y,
+-                     BOOL isSub) {
++void G2SIM_PlotPixelA(u8 *screenBuf, u8 r, u8 g, u8 b, u8 a, u32 x, u32 y,
++                      BOOL isSub) {
+   u32 dispSel = s_reg_GX_POWCNT >> 15;
+ 
+   BOOL topScreen = dispSel ? !isSub : isSub;
+@@ -377,7 +422,12 @@ void G2SIM_PlotPixel(u8 *screenBuf, u8 r, u8 g, u8 b, u32 x, u32 y,
+   screenBufBase[0] = r;
+   screenBufBase[1] = g;
+   screenBufBase[2] = b;
+-  screenBufBase[3] = 255;
++  screenBufBase[3] = a;
++}
++
++void G2SIM_PlotPixel(u8 *screenBuf, u8 r, u8 g, u8 b, u32 x, u32 y,
++                     BOOL isSub) {
++  G2SIM_PlotPixelA(screenBuf, r, g, b, 255, x, y, isSub);
+ }
+ 
+ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+@@ -396,8 +446,14 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+ 
+   u8 color;
+ 
++  // BG mosaic sizes from the MOSAIC register (block = size + 1). Vertical
++  // mosaic quantizes the scanline before the VOFS is added.
++  u16 mosaicReg = isSub ? s_reg_G2S_DB_MOSAIC : s_reg_G2_MOSAIC;
++  u8 bgMosaicH = (u8)(mosaicReg & 0xF);
++  u8 bgMosaicV = (u8)((mosaicReg >> 4) & 0xF);
++
+   u16 xoff = 0;
+-  u16 yoff = line;
++  u16 yoff = mosaic ? (u16)(line - line % (bgMosaicV + 1)) : (u16)line;
+ 
+   u32 widexmask;
+ 
+@@ -520,13 +576,11 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
          const u32 PaletteSize = 256 * 2;
          const u32 SlotSize = PaletteSize * 16;
  
@@ -2268,7 +2725,16 @@ index b67717b..cca40ac 100644
        } else {
          curpal = pal;
        }
-@@ -557,13 +555,9 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+@@ -542,7 +596,7 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+     for (i = 0; i < 256; i++) {
+       u32 xpos;
+       if (mosaic) {
+-        xpos = xoff - s_mosaicTable[7][i];
++        xpos = xoff - s_mosaicTable[bgMosaicH][i];
+       } else {
+         xpos = xoff;
+       }
+@@ -557,13 +611,9 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
            const u32 PaletteSize = 256 * 2;
            const u32 SlotSize = PaletteSize * 16;
  
@@ -2285,12 +2751,421 @@ index b67717b..cca40ac 100644
          } else {
            curpal = pal;
          }
+@@ -579,8 +629,6 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+ 
+       // Determine if we are inside/outside the window, and if the current bg
+       // should be drawn based on that
+-      u8 win0Enabled = (dispcnt >> 13) & 1;
+-      u8 win1Enabled = (dispcnt >> 14) & 1;
+ 
+       u16 win0H = isSub ? s_reg_G2S_DB_WIN0H : s_reg_G2_WIN0H;
+       u16 win1H = isSub ? s_reg_G2S_DB_WIN1H : s_reg_G2_WIN1H;
+@@ -589,24 +637,8 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+       u16 win1V = isSub ? s_reg_G2S_DB_WIN1V : s_reg_G2_WIN1V;
+ 
+       u16 winIn = isSub ? s_reg_G2S_DB_WININ : s_reg_G2_WININ;
+-      u16 winOut = isSub ? s_reg_G2S_DB_WINOUT : s_reg_G2_WINOUT;
+ 
+-      u8 windowPass = TRUE;
+-
+-      if (win0Enabled) {
+-        u8 windowRight = win0H & 0b11111111;
+-        u8 windowLeft = (win0H >> 8) & 0b11111111;
+-        u8 windowBottom = win0V & 0b11111111;
+-        u8 windowTop = (win0V >> 8) & 0b11111111;
+-
+-        if (i >= windowLeft && i < windowRight && line >= windowTop &&
+-            line < windowBottom) {
+-          // Inside window
+-          windowPass = ((winIn >> bgnum) & 1);
+-        } else {
+-          windowPass = ((winOut >> bgnum) & 1);
+-        }
+-      }
++      u8 windowPass = G2SIM_WindowPassBG(dispcnt, win0H, win0V, win1H, win1V, winIn, bgnum, i, line);
+ 
+       if (windowPass) {
+         u32 tilexoff = (curtile & 0x0400) ? (7 - (xpos & 0x7)) : (xpos & 0x7);
+@@ -641,7 +673,7 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+     for (i = 0; i < 256; i++) {
+       u32 xpos;
+       if (mosaic) {
+-        xpos = xoff - s_mosaicTable[7][i];
++        xpos = xoff - s_mosaicTable[bgMosaicH][i];
+       } else {
+         xpos = xoff;
+       }
+@@ -674,8 +706,6 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+ 
+       // Determine if we are inside/outside the window, and if the current bg
+       // should be drawn based on that
+-      u8 win0Enabled = (dispcnt >> 13) & 1;
+-      u8 win1Enabled = (dispcnt >> 14) & 1;
+ 
+       u16 win0H = isSub ? s_reg_G2S_DB_WIN0H : s_reg_G2_WIN0H;
+       u16 win1H = isSub ? s_reg_G2S_DB_WIN1H : s_reg_G2_WIN1H;
+@@ -684,24 +714,8 @@ static void DrawBGLine_Text(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+       u16 win1V = isSub ? s_reg_G2S_DB_WIN1V : s_reg_G2_WIN1V;
+ 
+       u16 winIn = isSub ? s_reg_G2S_DB_WININ : s_reg_G2_WININ;
+-      u16 winOut = isSub ? s_reg_G2S_DB_WINOUT : s_reg_G2_WINOUT;
+ 
+-      u8 windowPass = TRUE;
+-
+-      if (win0Enabled) {
+-        u8 windowRight = win0H & 0b11111111;
+-        u8 windowLeft = (win0H >> 8) & 0b11111111;
+-        u8 windowBottom = win0V & 0b11111111;
+-        u8 windowTop = (win0V >> 8) & 0b11111111;
+-
+-        if (i >= windowLeft && i < windowRight && line >= windowTop &&
+-            line < windowBottom) {
+-          // Inside window
+-          windowPass = ((winIn >> bgnum) & 1);
+-        } else {
+-          windowPass = ((winOut >> bgnum) & 1);
+-        }
+-      }
++      u8 windowPass = G2SIM_WindowPassBG(dispcnt, win0H, win0V, win1H, win1V, winIn, bgnum, i, line);
+ 
+       if (color) {
+         u8 r;
+@@ -736,6 +750,13 @@ static void DrawBGLine_Affine(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+   u8 dispSel;
+   dispSel = s_reg_GX_POWCNT >> 15;
+ 
++  u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
++  u16 win0H = isSub ? s_reg_G2S_DB_WIN0H : s_reg_G2_WIN0H;
++  u16 win0V = isSub ? s_reg_G2S_DB_WIN0V : s_reg_G2_WIN0V;
++  u16 win1H = isSub ? s_reg_G2S_DB_WIN1H : s_reg_G2_WIN1H;
++  u16 win1V = isSub ? s_reg_G2S_DB_WIN1V : s_reg_G2_WIN1V;
++  u16 winIn = isSub ? s_reg_G2S_DB_WININ : s_reg_G2_WININ;
++
+   REGType16v bgcnt;
+ 
+   s16 rotA;
+@@ -889,15 +910,19 @@ static void DrawBGLine_Affine(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+       s32 finalX;
+       s32 finalY;
+       if (mosaic) {
+-        int im;
+-        im = 7;
+-        finalX = rotX - (im * rotA);
+-        finalY = rotY - (im * rotC);
++        // BG mosaic: affine transform evaluated at the mosaic block
++        // origin (screen-space blocks): (effX, effY) = quantized (i, line).
++        u16 mosaicReg = isSub ? s_reg_G2S_DB_MOSAIC : s_reg_G2_MOSAIC;
++        int effX = (int)i - (int)i % (((mosaicReg & 0xF)) + 1);
++        int effY = (int)line - (int)line % (((mosaicReg >> 4) & 0xF) + 1);
++        finalX = rotX + (effX - (int)i) * rotA + (effY - (int)line) * rotB;
++        finalY = rotY + (effX - (int)i) * rotC + (effY - (int)line) * rotD;
+       } else {
+         finalX = rotX;
+         finalY = rotY;
+       }
+-      if ((!((finalX | finalY) & overflowmask))) {
++      bool winPass = G2SIM_WindowPassBG(dispcnt, win0H, win0V, win1H, win1V, winIn, bgnum, (u32)i, line);
++      if (winPass && (!((finalX | finalY) & overflowmask))) {
+         curtile =
+             bgvram[(tilemapaddr + ((((finalY & coordmask) >> 11) << yshift) +
+                                    ((finalX & coordmask) >> 11))) &
+@@ -953,6 +978,11 @@ static void DrawBGLine_Extended(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+ 
+   REGType16v bgcnt;
+   REGType32v dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
++  u16 win0H = isSub ? s_reg_G2S_DB_WIN0H : s_reg_G2_WIN0H;
++  u16 win0V = isSub ? s_reg_G2S_DB_WIN0V : s_reg_G2_WIN0V;
++  u16 win1H = isSub ? s_reg_G2S_DB_WIN1H : s_reg_G2_WIN1H;
++  u16 win1V = isSub ? s_reg_G2S_DB_WIN1V : s_reg_G2_WIN1V;
++  u16 winIn = isSub ? s_reg_G2S_DB_WININ : s_reg_G2_WININ;
+   u32 extpal = dispcnt & 0x40000000;
+   u32 extpalslot;
+   if (extpal) {
+@@ -1110,16 +1140,19 @@ static void DrawBGLine_Extended(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+         if ((1 << bgnum)) {
+           s32 finalX, finalY;
+           if (mosaic) {
+-            int im;
+-            im = 7;
+-            finalX = rotX - (im * rotA);
+-            finalY = rotY - (im * rotC);
++            // BG mosaic: affine transform evaluated at the mosaic block origin.
++            u16 mosaicReg = isSub ? s_reg_G2S_DB_MOSAIC : s_reg_G2_MOSAIC;
++            int effX = (int)i - (int)i % (((mosaicReg & 0xF)) + 1);
++            int effY = (int)line - (int)line % (((mosaicReg >> 4) & 0xF) + 1);
++            finalX = rotX + (effX - (int)i) * rotA + (effY - (int)line) * rotB;
++            finalY = rotY + (effX - (int)i) * rotC + (effY - (int)line) * rotD;
+           } else {
+             finalX = rotX;
+             finalY = rotY;
+           }
+ 
+-          if (!(finalX & ofxmask) && !(finalY & ofymask)) {
++          bool winPass = G2SIM_WindowPassBG(dispcnt, win0H, win0V, win1H, win1V, winIn, bgnum, (u32)i, line);
++          if (winPass && !(finalX & ofxmask) && !(finalY & ofymask)) {
+             color = *(u16 *)&bgvram[(tilemapaddr +
+                                      (((((finalY & ymask) >> 8) << yshift) +
+                                        ((finalX & xmask) >> 8))
+@@ -1127,10 +1160,12 @@ static void DrawBGLine_Extended(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+                                     bgvrammask];
+ 
+             if (color & 0x8000) {
++              // Direct colour: bits 0-14 are the RGB555 pixel itself, not
++              // a palette index (the old pal[color] read out of bounds).
+               u8 r;
+               u8 g;
+               u8 b;
+-              SIM_u16ToRGB(pal[color], &r, &g, &b);
++              SIM_u16ToRGB(color & 0x7FFF, &r, &g, &b);
+               G2SIM_PlotPixel(pixelBuf, r, g, b, i, line, isSub);
+             }
+           }
+@@ -1153,16 +1188,19 @@ static void DrawBGLine_Extended(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+         if ((1 << bgnum)) {
+           s32 finalX, finalY;
+           if (mosaic) {
+-            int im;
+-            im = 7;
+-            finalX = rotX - (im * rotA);
+-            finalY = rotY - (im * rotC);
++            // BG mosaic: affine transform evaluated at the mosaic block origin.
++            u16 mosaicReg = isSub ? s_reg_G2S_DB_MOSAIC : s_reg_G2_MOSAIC;
++            int effX = (int)i - (int)i % (((mosaicReg & 0xF)) + 1);
++            int effY = (int)line - (int)line % (((mosaicReg >> 4) & 0xF) + 1);
++            finalX = rotX + (effX - (int)i) * rotA + (effY - (int)line) * rotB;
++            finalY = rotY + (effX - (int)i) * rotC + (effY - (int)line) * rotD;
+           } else {
+             finalX = rotX;
+             finalY = rotY;
+           }
+ 
+-          if (!(finalX & ofxmask) && !(finalY & ofymask)) {
++          bool winPass = G2SIM_WindowPassBG(dispcnt, win0H, win0V, win1H, win1V, winIn, bgnum, (u32)i, line);
++          if (winPass && !(finalX & ofxmask) && !(finalY & ofymask)) {
+             color = bgvram[(tilemapaddr + (((finalY & ymask) >> 8) << yshift) +
+                             ((finalX & xmask) >> 8)) &
+                            bgvrammask];
+@@ -1231,15 +1269,19 @@ static void DrawBGLine_Extended(u32 line, u32 bgnum, u8 mosaic, u8 isSub) {
+       if ((1 << bgnum)) {
+         s32 finalX, finalY;
+         if (mosaic) {
+-          int im = 7;
+-          finalX = rotX - (im * rotA);
+-          finalY = rotY - (im * rotC);
++          // BG mosaic: affine transform evaluated at the mosaic block origin.
++          u16 mosaicReg = isSub ? s_reg_G2S_DB_MOSAIC : s_reg_G2_MOSAIC;
++          int effX = (int)i - (int)i % (((mosaicReg & 0xF)) + 1);
++          int effY = (int)line - (int)line % (((mosaicReg >> 4) & 0xF) + 1);
++          finalX = rotX + (effX - (int)i) * rotA + (effY - (int)line) * rotB;
++          finalY = rotY + (effX - (int)i) * rotC + (effY - (int)line) * rotD;
+         } else {
+           finalX = rotX;
+           finalY = rotY;
+         }
+ 
+-        if ((!((finalX | finalY) & overflowmask))) {
++        bool winPass = G2SIM_WindowPassBG(dispcnt, win0H, win0V, win1H, win1V, winIn, bgnum, (u32)i, line);
++        if (winPass && (!((finalX | finalY) & overflowmask))) {
+           curtile =
+               *(u16 *)&bgvram[(tilemapaddr +
+                                (((((finalY & coordmask) >> 11) << yshift) +
+@@ -1336,6 +1378,13 @@ static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
+   u32 tilenum = attrib[2] & 0x03FF;
+   u32 spritemode = window ? 0 : ((attrib[0] >> 10) & 0x3);
+ 
++  // OBJ mosaic (ATTR0 bit 12): sample at the mosaic block origin in
++  // sprite space. Window sprites ignore mosaic.
++  u16 mosaicReg = isSub ? s_reg_G2S_DB_MOSAIC : s_reg_G2_MOSAIC;
++  bool objMosaic = !window && (attrib[0] & 0x1000) && (mosaicReg & 0xFF00);
++  int objMosH = ((mosaicReg >> 8) & 0xF) + 1;
++  int objMosV = ((mosaicReg >> 12) & 0xF) + 1;
++
+   u32 ytilefactor;
+ 
+   u32 *objLine = OBJLine[isSub];
+@@ -1405,8 +1454,13 @@ static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
+ 
+     for (; xoff < boundwidth;) {
+       if ((u32)rotX < width && (u32)rotY < height) {
+-        color = *(u16 *)&objvram[(pixelsaddr + ((rotY >> 8) * ytilefactor) +
+-                                  ((rotX >> 8) << 1)) &
++        s32 qX = rotX, qY = rotY;
++        if (objMosaic) {
++          qX = (((rotX >> 8) - ((rotX >> 8) % objMosH)) << 8);
++          qY = (((rotY >> 8) - ((rotY >> 8) % objMosV)) << 8);
++        }
++        color = *(u16 *)&objvram[(pixelsaddr + ((qY >> 8) * ytilefactor) +
++                                  ((qX >> 8) << 1)) &
+                                  objvrammask];
+ 
+         if (color & 0x8000) {
+@@ -1454,9 +1508,14 @@ static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
+ 
+       for (; xoff < boundwidth;) {
+         if ((u32)rotX < width && (u32)rotY < height) {
+-          color = objvram[(pixelsaddr + ((rotY >> 11) * ytilefactor) +
+-                           ((rotY & 0x700) >> 5) + ((rotX >> 11) * 64) +
+-                           ((rotX & 0x700) >> 8)) &
++          s32 qX = rotX, qY = rotY;
++          if (objMosaic) {
++            qX = (((rotX >> 8) - ((rotX >> 8) % objMosH)) << 8);
++            qY = (((rotY >> 8) - ((rotY >> 8) % objMosV)) << 8);
++          }
++          color = objvram[(pixelsaddr + ((qY >> 11) * ytilefactor) +
++                           ((qY & 0x700) >> 5) + ((qX >> 11) * 64) +
++                           ((qX & 0x700) >> 8)) &
+                           objvrammask];
+ 
+           if (color) {
+@@ -1484,11 +1543,16 @@ static void DrawOBJ_RotScale(u32 num, u32 boundwidth, u32 boundheight,
+ 
+       for (; xoff < boundwidth;) {
+         if ((u32)rotX < width && (u32)rotY < height) {
+-          color = objvram[(pixelsaddr + ((rotY >> 11) * ytilefactor) +
+-                           ((rotY & 0x700) >> 6) + ((rotX >> 11) * 32) +
+-                           ((rotX & 0x700) >> 9)) &
++          s32 qX = rotX, qY = rotY;
++          if (objMosaic) {
++            qX = (((rotX >> 8) - ((rotX >> 8) % objMosH)) << 8);
++            qY = (((rotY >> 8) - ((rotY >> 8) % objMosV)) << 8);
++          }
++          color = objvram[(pixelsaddr + ((qY >> 11) * ytilefactor) +
++                           ((qY & 0x700) >> 6) + ((qX >> 11) * 32) +
++                           ((qX & 0x700) >> 9)) &
+                           objvrammask];
+-          if (rotX & 0x100)
++          if (qX & 0x100)
+             color >>= 4;
+           else
+             color &= 0x0F;
+@@ -1573,6 +1637,121 @@ static void DrawOBJ_Normal(u32 num, u32 width, u32 height, s32 xpos, s32 ypos,
+ 
+   u16 color = 0;
+ 
++  // OBJ mosaic (ATTR0 bit 12, sprite space, post-flip): sample the
++  // sprite pixel at the mosaic block origin. Closed-form addressing
++  // from the quantized (sx, sy); the striding loops below cannot
++  // express it (their address advances 1:1 with xoff).
++  if (!window && (attrib[0] & 0x1000)) {
++    u16 mosaicReg = isSub ? s_reg_G2S_DB_MOSAIC : s_reg_G2_MOSAIC;
++    if (mosaicReg & 0xFF00) {
++      int mosH = ((mosaicReg >> 8) & 0xF) + 1;
++      int mosV = ((mosaicReg >> 12) & 0xF) + 1;
++      u32 syQ = (u32)ypos - (u32)ypos % (u32)mosV;
++      bool flipH = (attrib[1] & 0x1000) != 0;
++      if (spritemode == 3) {
++        u32 alpha = attrib[2] >> 12;
++        if (!alpha) {
++#ifdef SDK_TRACY_ENABLE
++          TracyCZoneEnd(ctx);
++#endif
++          return;
++        }
++        alpha++;
++        pixelattr |= (0xC0000000 | (alpha << 24));
++        u32 rowBase;
++        if (dispcnt & 0x40) {
++          if (dispcnt & 0x20) {
++#ifdef SDK_TRACY_ENABLE
++            TracyCZoneEnd(ctx);
++#endif
++            return;
++          }
++          rowBase = (tilenum << (7 + ((dispcnt >> 22) & 0x1))) + (syQ * (u32)width * 2);
++        } else if (dispcnt & 0x20) {
++          rowBase = ((tilenum & 0x01F) << 4) + ((tilenum & 0x3E0) << 7) + syQ * 512;
++        } else {
++          rowBase = ((tilenum & 0x00F) << 4) + ((tilenum & 0x3F0) << 7) + syQ * 256;
++        }
++        for (; xoff < xend;) {
++          u32 sxSrc = flipH ? (u32)width - 1 - xoff : xoff;
++          u32 sxQ = sxSrc - sxSrc % (u32)mosH;
++          color = *(u16 *)&objvram[(rowBase + sxQ * 2) & objvrammask];
++          if (color & 0x8000) {
++            objLine[xpos] = color | pixelattr;
++          } else {
++            if (objLine[xpos] == 0)
++              objLine[xpos] = pixelattr & 0x180000;
++          }
++          xoff++;
++          xpos++;
++        }
++      } else {
++        if (spritemode == 1)
++          pixelattr |= 0x80000000;
++        else
++          pixelattr |= 0x10000000;
++        if (attrib[0] & 0x2000) {
++          // 256-colour
++          if (!(dispcnt & 0x80000000))
++            pixelattr |= 0x1000;
++          else
++            pixelattr |= ((attrib[2] & 0xF000) >> 4);
++          u32 t = tilenum;
++          if (dispcnt & 0x10) {
++            t <<= ((dispcnt >> 20) & 0x3);
++            t += ((syQ >> 3) * (width >> 3)) << 1;
++          } else {
++            t += (syQ >> 3) * 0x20;
++          }
++          u32 base = (t << 5) + ((syQ & 0x7) << 3);
++          for (; xoff < xend;) {
++            u32 sxSrc = flipH ? (u32)width - 1 - xoff : xoff;
++            u32 sxQ = sxSrc - sxSrc % (u32)mosH;
++            color = objvram[(base + ((sxQ >> 3) << 6) + (sxQ & 7)) & objvrammask];
++            if (color) {
++              objLine[xpos] = color | pixelattr;
++            } else {
++              if (objLine[xpos] == 0)
++                objLine[xpos] = pixelattr & 0x180000;
++            }
++            xoff++;
++            xpos++;
++          }
++        } else {
++          // 16-colour
++          pixelattr |= 0x1000;
++          pixelattr |= ((attrib[2] & 0xF000) >> 8);
++          u32 t = tilenum;
++          if (dispcnt & 0x10) {
++            t <<= ((dispcnt >> 20) & 0x3);
++            t += (syQ >> 3) * (width >> 3);
++          } else {
++            t += (syQ >> 3) * 0x20;
++          }
++          u32 base = (t << 5) + ((syQ & 0x7) << 2);
++          for (; xoff < xend;) {
++            u32 sxSrc = flipH ? (u32)width - 1 - xoff : xoff;
++            u32 sxQ = sxSrc - sxSrc % (u32)mosH;
++            u8 byte = objvram[(base + ((sxQ >> 3) << 5) + ((sxQ & 7) >> 1)) & objvrammask];
++            color = (sxQ & 1) ? (byte >> 4) : (byte & 0x0F);
++            if (color) {
++              objLine[xpos] = color | pixelattr;
++            } else {
++              if (objLine[xpos] == 0)
++                objLine[xpos] = pixelattr & 0x180000;
++            }
++            xoff++;
++            xpos++;
++          }
++        }
++      }
++#ifdef SDK_TRACY_ENABLE
++      TracyCZoneEnd(ctx);
++#endif
++      return;
++    }
++  }
++
+   if (spritemode == 3) {
+ 
+     u32 alpha = attrib[2] >> 12;
 diff --git a/libraries/sim/src/sim_g2_gpu.cpp b/libraries/sim/src/sim_g2_gpu.cpp
 new file mode 100644
-index 0000000..86e5cea
+index 0000000..16e14b9
 --- /dev/null
 +++ b/libraries/sim/src/sim_g2_gpu.cpp
-@@ -0,0 +1,311 @@
+@@ -0,0 +1,384 @@
 +// GPU 2D layer renderer (perf-g2gpu).
 +//
 +// Renders each BG layer, each OBJ priority layer and the OBJ window mask
@@ -2298,12 +3173,13 @@ index 0000000..86e5cea
 +// the existing g2_fragment.glsl compositing already samples. The CPU path
 +// in sim_g2.cpp stays as the reference and fallback (SIM_G2_GPU=0).
 +//
-+// Replicated CPU quirks (for pixel-exactness against the reference):
-+// mosaic has no effect, text BG windows consult only WIN0, affine/extended
-+// BGs ignore windows, OBJ extended palettes are ignored, bitmap OBJ pixels
-+// are palette-looked-up by low byte, OBJ translucency is dropped.
++// Both paths implement the same GBATEK behaviour: BG + OBJ mosaic,
++// WIN0/WIN1 windows on all BG kinds (the composite resolves the full
++// WIN0 > WIN1 > OBJ window > outside priority), 256-colour OBJ extended
++// palettes (DISPCNT bit 31), bitmap OBJ direct colour + per-sprite alpha,
++// and semi-transparent (XLU) OBJ blending via BLDALPHA in the composite.
 +// Fallbacks (whole engine, logged once): extended direct-color bitmap
-+// (CPU reads through an uninitialized palette pointer), BG mode 6.
++// (the CPU reads the RGB555 pixel directly), BG mode 6.
 +//
 +// Shader inputs are plain data textures (R8UI/R16UI) and int uniforms so a
 +// Metal port is mechanical. GL 4.1 core only.
@@ -2322,6 +3198,8 @@ index 0000000..86e5cea
 +extern u8 s_SIM_DBG_OAMSenable;
 +extern GXVRamBGExtPltt s_SIM_GXBgExtPltt;
 +extern GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
++extern GXVRamOBJExtPltt s_SIM_GXOBJExtPltt;
++extern GXVRamSubOBJExtPltt s_SIM_GXSubOBJExtPltt;
 +
 +static const char *kVertSrc =
 +#include "shaders/g2gpu_vertex.glsl"
@@ -2330,7 +3208,7 @@ index 0000000..86e5cea
 +#include "shaders/g2gpu_fragment.glsl"
 +;
 +
-+static GLuint sProg = 0, sFbo = 0, sVao = 0;
++static GLuint sProg = 0, sFbo = 0, sVao = 0, sDepthRb = 0;
 +static GLuint sBgVramTex[2] = {0, 0}, sObjVramTex[2] = {0, 0}, sLcdcTex = 0, sOamTex = 0, sPalTex = 0;
 +static int sInitFailed = 0;
 +static int sLoggedFallback = 0;
@@ -2387,6 +3265,13 @@ index 0000000..86e5cea
 +  }
 +  glGenFramebuffers(1, &sFbo);
 +  glGenVertexArrays(1, &sVao);
++  // Depth buffer for the per-sprite OBJ passes (lowest OAM index wins).
++  glBindFramebuffer(GL_FRAMEBUFFER, sFbo);
++  glGenRenderbuffers(1, &sDepthRb);
++  glBindRenderbuffer(GL_RENDERBUFFER, sDepthRb);
++  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, SIM_NDS_SCREEN_WIDTH, SIM_NDS_SCREEN_HEIGHT * 2);
++  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, sDepthRb);
++  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 +  auto mkTex = [](GLuint &t, GLenum internal, int w, int h, GLenum fmt) {
 +    glGenTextures(1, &t);
 +    glBindTexture(GL_TEXTURE_2D, t);
@@ -2502,6 +3387,11 @@ index 0000000..86e5cea
 +  else if (s_SIM_GXBgExtPltt == GX_VRAM_BGEXTPLTT_01_F || s_SIM_GXBgExtPltt == GX_VRAM_BGEXTPLTT_0123_FG) extBase = 0x90000;
 +  else extBase = 0x80000; // E (also NONE: matches the CPU helper)
 +
++  int objExtBase;
++  if (isSub) objExtBase = 0xA0000; // LCDC bank I (also NONE: ext entries are then never selected)
++  else if (s_SIM_GXOBJExtPltt == GX_VRAM_OBJEXTPLTT_0_G) objExtBase = 0x94000;
++  else objExtBase = 0x90000; // F (also NONE)
++
 +  u32 ofs[4], aX[4] = {0}, aY[4] = {0};
 +  s16 pA[4] = {0}, pB[4] = {0}, pC[4] = {0}, pD[4] = {0};
 +  if (isSub) {
@@ -2535,6 +3425,7 @@ index 0000000..86e5cea
 +  glUniform1i(glGetUniformLocation(sProg, "dispcnt"), (int)dispcnt);
 +  glUniform1i(glGetUniformLocation(sProg, "bgMode"), bgMode);
 +  glUniform1i(glGetUniformLocation(sProg, "extPlttBase"), extBase);
++  glUniform1i(glGetUniformLocation(sProg, "objExtPlttBase"), objExtBase);
 +  GLint cntI[4] = {cnt[0], cnt[1], cnt[2], cnt[3]};
 +  glUniform1iv(glGetUniformLocation(sProg, "bgcnt"), 4, cntI);
 +  GLint ofsI[4] = {(GLint)ofs[0], (GLint)ofs[1], (GLint)ofs[2], (GLint)ofs[3]};
@@ -2549,6 +3440,9 @@ index 0000000..86e5cea
 +  glUniform1iv(glGetUniformLocation(sProg, "affY"), 4, vY);
 +  glUniform1i(glGetUniformLocation(sProg, "win0h"), isSub ? s_reg_G2S_DB_WIN0H : s_reg_G2_WIN0H);
 +  glUniform1i(glGetUniformLocation(sProg, "win0v"), isSub ? s_reg_G2S_DB_WIN0V : s_reg_G2_WIN0V);
++  glUniform1i(glGetUniformLocation(sProg, "win1h"), isSub ? s_reg_G2S_DB_WIN1H : s_reg_G2_WIN1H);
++  glUniform1i(glGetUniformLocation(sProg, "win1v"), isSub ? s_reg_G2S_DB_WIN1V : s_reg_G2_WIN1V);
++  glUniform1i(glGetUniformLocation(sProg, "mosaic"), isSub ? s_reg_G2S_DB_MOSAIC : s_reg_G2_MOSAIC);
 +  glUniform1i(glGetUniformLocation(sProg, "winin"), isSub ? s_reg_G2S_DB_WININ : s_reg_G2_WININ);
 +  glUniform1i(glGetUniformLocation(sProg, "winout"), isSub ? s_reg_G2S_DB_WINOUT : s_reg_G2_WINOUT);
 +
@@ -2582,11 +3476,65 @@ index 0000000..86e5cea
 +    if (((a0 >> 10) & 3) == 2) { lists[4][counts[4]++] = i; continue; }
 +    lists[(a2 >> 10) & 3][counts[(a2 >> 10) & 3]++] = i;
 +  }
++  // Per-sprite OBJ passes: one scissored draw per sprite (ascending OAM
++  // index) instead of a fullscreen pass that samples every sprite at
++  // every pixel. Depth (LEQUAL, cleared to 1) resolves priority: the
++  // lowest-index sprite wins, including its transparent-but-blocking
++  // pixels (alpha 0, depth written); misses discard and write no depth.
++  static const int kSprW[16] = {8, 16, 8, 8, 16, 32, 8, 8, 32, 32, 16, 8, 64, 64, 32, 8};
++  static const int kSprH[16] = {8, 8, 16, 8, 16, 8, 32, 8, 32, 16, 32, 8, 64, 32, 64, 8};
 +  auto drawObjPass = [&](GLuint target, int mode, int layer, int listIdx) {
-+    if (!objEnabled || counts[listIdx] == 0) { drawPass(target, mode, layer, 0); return; } // clear only
-+    glUniform1iv(glGetUniformLocation(sProg, "objList"), counts[listIdx], lists[listIdx]);
-+    glUniform1i(glGetUniformLocation(sProg, "objCount"), counts[listIdx]);
-+    drawPass(target, mode, layer, 1);
++    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
++    glEnable(GL_SCISSOR_TEST);
++    glScissor(0, halfY, SIM_NDS_SCREEN_WIDTH, SIM_NDS_SCREEN_HEIGHT);
++    glClearColor(0, 0, 0, 0);
++    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
++    glDisable(GL_SCISSOR_TEST);
++    if (!objEnabled || counts[listIdx] == 0) return; // cleared only
++    glEnable(GL_DEPTH_TEST);
++    glDepthFunc(GL_LEQUAL);
++    glDepthMask(GL_TRUE);
++    glUniform1i(glGetUniformLocation(sProg, "singleMode"), 1);
++    glUniform1i(glGetUniformLocation(sProg, "passMode"), mode);
++    glUniform1i(glGetUniformLocation(sProg, "layer"), layer);
++    glUniform1i(glGetUniformLocation(sProg, "dbgEnable"), 1);
++    for (int li = 0; li < counts[listIdx]; li++) {
++      int idx = lists[listIdx][li];
++      u16 a0 = oam[idx * 4], a1 = oam[idx * 4 + 1], a2 = oam[idx * 4 + 2];
++      bool rot = (a0 & 0x100) != 0;
++      if (!rot && (a0 & 0x200)) continue; // disabled
++      if (((a0 >> 10) & 3) == 3 && (a2 >> 12) == 0) continue; // bitmap, alpha 0
++      int sizeParam = (a0 >> 14) | ((a1 & 0xC000) >> 12);
++      int bw = kSprW[sizeParam], bh = kSprH[sizeParam];
++      if (rot && (a0 & 0x200)) { bw <<= 1; bh <<= 1; }
++      int xpos = (a1 & 0x100) ? (int)(a1 & 0x1FF) - 0x200 : (int)(a1 & 0x1FF);
++      int ypos = a0 & 0xFF;
++      int xLo = xpos < 0 ? 0 : xpos, xHi = xpos + bw > 256 ? 256 : xpos + bw;
++      if (xLo >= xHi) continue;
++      // Vertical bands: [ypos, ypos+bh) and the wrap-around band when it
++      // crosses 256 (shader wraps (py - ypos) & 0xFF the same way).
++      int bands[2][2] = {{ypos, ypos + bh}, {0, ypos + bh - 256}};
++      int nBands = (ypos + bh > 256) ? 2 : 1;
++      GLint one[1] = {idx};
++      glUniform1iv(glGetUniformLocation(sProg, "objList"), 1, one);
++      glUniform1i(glGetUniformLocation(sProg, "objCount"), 1);
++      glUniform1f(glGetUniformLocation(sProg, "uDepth"), (float)(idx + 1) / 128.0f);
++      for (int b = 0; b < nBands; b++) {
++        int pyLo = bands[b][0] < 0 ? 0 : bands[b][0];
++        int pyHi = bands[b][1] > 192 ? 192 : bands[b][1];
++        if (pyLo >= pyHi) continue;
++        // gl_FragCoord.y for this engine's half: top py = 383 - rb,
++        // bottom py = 191 - rb.
++        int rbLo = topScreen ? (383 - (pyHi - 1)) : (191 - (pyHi - 1));
++        glEnable(GL_SCISSOR_TEST);
++        glScissor(xLo, rbLo, xHi - xLo, pyHi - pyLo);
++        glDrawArrays(GL_TRIANGLES, 0, 3);
++        glDisable(GL_SCISSOR_TEST);
++      }
++    }
++    glDisable(GL_DEPTH_TEST);
++    glUniform1i(glGetUniformLocation(sProg, "singleMode"), 0);
++    glUniform1f(glGetUniformLocation(sProg, "uDepth"), 0.0f);
 +  };
 +  for (int p = 0; p < 4; p++) drawObjPass(objTexIds[p], 1, p, p);
 +  drawObjPass(objWindowTexId, 2, 0, 4);
@@ -3295,10 +4243,10 @@ index 0000000..5d04f98
 +}
 diff --git a/libraries/sim/src/sim_headless_control.cpp b/libraries/sim/src/sim_headless_control.cpp
 new file mode 100644
-index 0000000..085796b
+index 0000000..5796e5c
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_control.cpp
-@@ -0,0 +1,255 @@
+@@ -0,0 +1,266 @@
 +// SIM_CONTROL=stdio lockstep protocol (docs/headless_protocol.md).
 +// The game does not advance until told to: this runs at the end of each rendered frame
 +// (from SIM_DebugFrame, before the swap) and blocks reading commands whenever no
@@ -3343,6 +4291,7 @@ index 0000000..085796b
 +static int s_pendingReply = 0;       // a step/press/touch finished; reply when it completes
 +static unsigned s_heldMask = 0, s_heldXY = 0;
 +static int s_touchActive = 0, s_touchX = 0, s_touchY = 0;
++static int s_touchPulse = 0;   // frames since the touch command started (press-edge pulsing)
 +
 +// ---- minimal JSON extraction (flat objects; string/int/bool/array-of-strings values) ----
 +static bool JsonFind(const std::string &s, const char *key, size_t *pos) {
@@ -3401,12 +4350,22 @@ index 0000000..085796b
 +    prevMask = s_heldMask; prevXY = s_heldXY;
 +    if (s_touchActive) {
 +        s_tpData.x = (u16)s_touchX; s_tpData.y = (u16)s_touchY;
-+        s_tpData.touch = 1; s_tpData.validity = 0;
++        // The game derives touchPressed from the touch 0->1 edge, so a touch
++        // held for the whole command would register only on its first frame
++        // - before a touch-only battle menu (party SHIFT card, Yes/No
++        // buttons) has finished opening, and the tap is lost. Pulse the
++        // panel (2 frames down, 14 frames up): a fresh press edge lands
++        // every 16 frames for the duration of a long touch, while a normal
++        // short tap (<=10 frames, as every current caller sends) still
++        // produces exactly one press - a faster pulse double-taps through
++        // chained menus whose buttons overlap (fight -> move selection).
++        s_tpData.touch = ((s_touchPulse++ % 16) < 2) ? 1 : 0;
++        s_tpData.validity = 0;
 +    }
 +}
 +static void ClearHeld(void) {
 +    s_heldMask = 0; s_heldXY = 0;
-+    s_touchActive = 0;
++    s_touchActive = 0; s_touchPulse = 0;
 +    ApplyHeld();
 +    s_tpData.touch = 0; s_tpData.validity = 0;
 +}
@@ -4111,7 +5070,7 @@ index 0000000..f464d50
 +
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..c081976 100644
+index 910d7da..eb74c4d 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -4169,7 +5128,16 @@ index 910d7da..c081976 100644
  static constexpr auto SteamDeckWidth = 1280;
  static constexpr auto SteamDeckHeight = 800;
  
-@@ -147,6 +172,134 @@ static GLint s_objWindowTexUnit = 9;
+@@ -125,6 +150,8 @@ u8 OBJWindow[2][256];
+ 
+ GXVRamBGExtPltt s_SIM_GXBgExtPltt;
+ GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
++GXVRamOBJExtPltt s_SIM_GXOBJExtPltt;
++GXVRamSubOBJExtPltt s_SIM_GXSubOBJExtPltt;
+ 
+ // FBOs
+ static GLuint g3FrameBuffer;
+@@ -147,6 +174,134 @@ static GLint s_objWindowTexUnit = 9;
  static GLuint g3shaderProgramID;
  static GLuint g2shaderProgramID;
  
@@ -4304,7 +5272,7 @@ index 910d7da..c081976 100644
  // VAOs
  static GLuint g2vertexArray;
  
-@@ -178,6 +331,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +333,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -4315,7 +5283,7 @@ index 910d7da..c081976 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -298,6 +455,16 @@ void SIM_SetInternalResolution(int internalRes) {
+@@ -298,6 +457,16 @@ void SIM_SetInternalResolution(int internalRes) {
        SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
  }
  
@@ -4332,7 +5300,7 @@ index 910d7da..c081976 100644
  static bool sChangeInternalResAfterRender = false;
  static int sPendingInternalRes = 1;
  
-@@ -315,7 +482,13 @@ void *SIM_RenderInit(void *arg) {
+@@ -315,7 +484,13 @@ void *SIM_RenderInit(void *arg) {
    SIM_Audio_Init(44100);
  
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -4346,7 +5314,7 @@ index 910d7da..c081976 100644
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-@@ -378,7 +551,7 @@ void *SIM_RenderInit(void *arg) {
+@@ -378,7 +553,7 @@ void *SIM_RenderInit(void *arg) {
  
    window = SDL_CreateWindow(
        windowTitle.c_str(), 100, 100, windowWidth, windowHeight,
@@ -4355,7 +5323,7 @@ index 910d7da..c081976 100644
        #if defined(SDK_BUILD_WIN64) || defined(SDK_BUILD_LINUX)
        | SDL_WINDOW_RESIZABLE
        #endif
-@@ -401,8 +574,10 @@ void *SIM_RenderInit(void *arg) {
+@@ -401,8 +576,10 @@ void *SIM_RenderInit(void *arg) {
    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -4366,7 +5334,7 @@ index 910d7da..c081976 100644
  
    GLenum glErrCode;
    GLint status;
-@@ -453,8 +628,14 @@ void *SIM_RenderInit(void *arg) {
+@@ -453,8 +630,14 @@ void *SIM_RenderInit(void *arg) {
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
                 GL_UNSIGNED_BYTE, NULL);
  
@@ -4382,7 +5350,7 @@ index 910d7da..c081976 100644
    glCompileShader(_id);                                                        \
    glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
    if (status != GL_TRUE) {                                                     \
-@@ -549,6 +730,31 @@ void *SIM_RenderInit(void *arg) {
+@@ -549,6 +732,31 @@ void *SIM_RenderInit(void *arg) {
    glUniform1iv(glGetUniformLocation(g2shaderProgramID, "objTexture"), 5,
                 s_objTexUnits);
  
@@ -4414,15 +5382,38 @@ index 910d7da..c081976 100644
    glGenVertexArrays(1, &g2vertexArray);
    glBindVertexArray(g2vertexArray);
    glGenBuffers(1, &g2vertexBuffer);
-@@ -567,6 +773,7 @@ void *SIM_RenderInit(void *arg) {
+@@ -566,7 +774,30 @@ void *SIM_RenderInit(void *arg) {
+   return nullptr;
  }
  
++// OBJ extended-palette bank for this engine (LCDC F/G main, I sub), or
++// nullptr if none is assigned (DISPCNT bit 31 then stays clear and the
++// ext entries are never selected).
++static u16 *getObjExtPlttVramBank(BOOL isSub) {
++  if (isSub) {
++    switch (s_SIM_GXSubOBJExtPltt) {
++    case GX_VRAM_SUB_OBJEXTPLTT_0_I:
++      return (u16 *)HW_LCDC_VRAM_I;
++    default:
++      return nullptr;
++    }
++  }
++  switch (s_SIM_GXOBJExtPltt) {
++  case GX_VRAM_OBJEXTPLTT_0_F:
++    return (u16 *)HW_LCDC_VRAM_F;
++  case GX_VRAM_OBJEXTPLTT_0_G:
++    return (u16 *)HW_LCDC_VRAM_G;
++  default:
++    return nullptr;
++  }
++}
++
  static void DrawEngine(BOOL isSub) {
 +  u64 profT0 = ProfOn() ? ProfNowNs() : 0;
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -610,7 +817,8 @@ static void DrawEngine(BOOL isSub) {
+@@ -610,7 +841,8 @@ static void DrawEngine(BOOL isSub) {
    backdropVec[2] = (float)backdropB / 255.0f;
    backdropVec[3] = 1.0f;
  
@@ -4432,7 +5423,7 @@ index 910d7da..c081976 100644
                 backdropVec);
  
    glProgramUniform4f(g2shaderProgramID,
-@@ -669,7 +877,12 @@ static void DrawEngine(BOOL isSub) {
+@@ -669,7 +901,12 @@ static void DrawEngine(BOOL isSub) {
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
  
@@ -4445,7 +5436,51 @@ index 910d7da..c081976 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -772,6 +985,19 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +952,38 @@ static void DrawEngine(BOOL isSub) {
+       u8 a;
+       for (int j = 0; j < 256; j++) {
+         if (OBJLine[isSub][j]) {
+-          u8 colorIdx = OBJLine[isSub][j] & 0xFF;
++          u32 raw = OBJLine[isSub][j];
++          // OBJLine encoding (see sim_g2.cpp): bitmap pixels carry
++          // 0xC0000000 + alpha<<24 + the RGB555 pixel; tiled pixels
++          // carry the palette index in the low byte, palette-selected
++          // by bit 12 (standard) or bits 8-11 (256-colour extended),
++          // and bit 31 marks semi-transparent (XLU) mode-1 sprites.
++          if ((raw & 0xC0000000) == 0xC0000000) {
++            // Bitmap OBJ: direct colour, per-sprite alpha 1..16.
++            u16 color = (u16)(raw & 0x7FFF);
++            SIM_u16ToRGB(color, &r, &g, &b);
++            a = (u8)(((raw >> 24) & 0x1F) * 255 / 16);
++            G2SIM_PlotPixelA(pixelBuf, r, g, b, a, j, i, isSub);
++            continue;
++          }
++          u8 colorIdx = raw & 0xFF;
+           if (colorIdx) {
+-            u16 *objPltt =
+-                isSub ? (u16 *)s_HW_DB_OBJ_PLTT : (u16 *)s_HW_OBJ_PLTT;
+-            u16 color = objPltt[colorIdx];
++            u16 color;
++            if (raw & 0x1000) {
++              u16 *objPltt =
++                  isSub ? (u16 *)s_HW_DB_OBJ_PLTT : (u16 *)s_HW_OBJ_PLTT;
++              color = objPltt[colorIdx];
++            } else {
++              // 256-colour extended palette: palettes live in the LCDC
++              // OBJ ext bank (F/G main, I sub), 256 entries each.
++              u16 *extPltt = getObjExtPlttVramBank(isSub);
++              color = extPltt ? extPltt[((raw >> 8) & 0xF) * 256 + colorIdx] : 0;
++            }
+             SIM_u16ToRGB(color, &r, &g, &b);
+-            G2SIM_PlotPixel(pixelBuf, r, g, b, j, i, isSub);
++            // Semi-transparent (XLU) sprites get the marker alpha the
++            // composite blends with BLDALPHA; everything else is opaque.
++            a = (raw & 0x80000000) ? 8 : 255;
++            G2SIM_PlotPixelA(pixelBuf, r, g, b, a, j, i, isSub);
+           }
+         }
+         if (OBJWindow[isSub][j]) {
+@@ -772,6 +1034,19 @@ static void DrawEngine(BOOL isSub) {
                      SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
                      (void *)oamPixelBuf);
    }
@@ -4465,7 +5500,7 @@ index 910d7da..c081976 100644
  
    glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
  
-@@ -789,9 +1015,10 @@ static void DrawEngine(BOOL isSub) {
+@@ -789,9 +1064,10 @@ static void DrawEngine(BOOL isSub) {
    glActiveTexture(GL_TEXTURE0 + s_objWindowTexUnit);
    glBindTexture(GL_TEXTURE_2D, objWindowTextureId);
    u8 *objWindowBuf = isSub ? objWindowsTex : objWindowTex;
@@ -4479,7 +5514,39 @@ index 910d7da..c081976 100644
    glProgramUniform1i(
        g2shaderProgramID,
        glGetUniformLocation(g2shaderProgramID, "objWindowTexture"),
-@@ -859,6 +1086,7 @@ static void DrawEngine(BOOL isSub) {
+@@ -814,13 +1090,30 @@ static void DrawEngine(BOOL isSub) {
+                      glGetUniformLocation(g2shaderProgramID, "topScreen"),
+                      topScreen);
+ 
+-  // Pass DISPCNT and WINOUT to the shader
++  // Pass DISPCNT and the window registers to the shader (the composite
++  // resolves the full GBATEK window priority: WIN0 > WIN1 > OBJ window >
++  // outside; see g2_fragment.glsl).
+   glProgramUniform1i(g2shaderProgramID,
+                      glGetUniformLocation(g2shaderProgramID, "dispcnt"),
+                      dispcnt);
++  u16 winin = isSub ? s_reg_G2S_DB_WININ : s_reg_G2_WININ;
++  glProgramUniform1i(g2shaderProgramID,
++                     glGetUniformLocation(g2shaderProgramID, "winin"), winin);
+   u16 winout = isSub ? s_reg_G2S_DB_WINOUT : s_reg_G2_WINOUT;
+   glProgramUniform1i(g2shaderProgramID,
+                      glGetUniformLocation(g2shaderProgramID, "winout"), winout);
++  glProgramUniform1i(g2shaderProgramID,
++                     glGetUniformLocation(g2shaderProgramID, "win0h"),
++                     isSub ? s_reg_G2S_DB_WIN0H : s_reg_G2_WIN0H);
++  glProgramUniform1i(g2shaderProgramID,
++                     glGetUniformLocation(g2shaderProgramID, "win0v"),
++                     isSub ? s_reg_G2S_DB_WIN0V : s_reg_G2_WIN0V);
++  glProgramUniform1i(g2shaderProgramID,
++                     glGetUniformLocation(g2shaderProgramID, "win1h"),
++                     isSub ? s_reg_G2S_DB_WIN1H : s_reg_G2_WIN1H);
++  glProgramUniform1i(g2shaderProgramID,
++                     glGetUniformLocation(g2shaderProgramID, "win1v"),
++                     isSub ? s_reg_G2S_DB_WIN1V : s_reg_G2_WIN1V);
+ 
+   // Pass bg0as3d to the shader
+   glProgramUniform1i(g2shaderProgramID,
+@@ -859,6 +1152,7 @@ static void DrawEngine(BOOL isSub) {
      glActiveTexture(GL_TEXTURE0 + s_objTexUnits[0]);
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
@@ -4487,7 +5554,7 @@ index 910d7da..c081976 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +1178,147 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1244,147 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -4635,7 +5702,7 @@ index 910d7da..c081976 100644
  
    SDL_Event Event;
    char c;
-@@ -1021,6 +1389,38 @@ void *SIM_Render(void *arg) {
+@@ -1021,6 +1455,38 @@ void *SIM_Render(void *arg) {
  
      glViewport(viewX, viewY, viewWidth, viewHeight);
  
@@ -4674,7 +5741,7 @@ index 910d7da..c081976 100644
      // Set up the bounding box of the touch panel
      if (s_SIM_config.swapScreens) {
        switch (s_SIM_config.screenLayout) {
-@@ -1073,9 +1473,14 @@ void *SIM_Render(void *arg) {
+@@ -1073,9 +1539,14 @@ void *SIM_Render(void *arg) {
        s_SIM_SDLJoystick = SDL_JoystickOpen(0);
      }
  
@@ -4689,7 +5756,7 @@ index 910d7da..c081976 100644
        if (Event.type == SDL_WINDOWEVENT) {
          switch (Event.window.event) {
          case SDL_WINDOWEVENT_CLOSE:
-@@ -1083,6 +1488,18 @@ void *SIM_Render(void *arg) {
+@@ -1083,6 +1554,18 @@ void *SIM_Render(void *arg) {
            break;
          }
        }
@@ -4708,7 +5775,7 @@ index 910d7da..c081976 100644
        if (Event.type == SDL_KEYDOWN) {
          int keyRead = Event.key.keysym.sym;
          if (keyRead == s_SIM_config.padSettings.aKey) {
-@@ -1261,7 +1678,9 @@ void *SIM_Render(void *arg) {
+@@ -1261,7 +1744,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -4719,7 +5786,7 @@ index 910d7da..c081976 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1303,6 +1722,9 @@ void *SIM_Render(void *arg) {
+@@ -1303,6 +1788,9 @@ void *SIM_Render(void *arg) {
      // SUB engine
      DrawEngine(TRUE);
  
@@ -4729,7 +5796,7 @@ index 910d7da..c081976 100644
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1328,18 +1750,29 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +1816,29 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -4768,7 +5835,7 @@ index 910d7da..c081976 100644
      SDL_GL_SwapWindow(window);
  
      if(sChangeInternalResAfterRender) {
-@@ -1369,6 +1802,12 @@ void *SIM_Render(void *arg) {
+@@ -1369,6 +1868,12 @@ void *SIM_Render(void *arg) {
      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
      glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -4781,7 +5848,7 @@ index 910d7da..c081976 100644
    } while (SIM::GUI::IsGameLogicPaused());
    // Bind 3D Framebuffer & Renderbuffer
    glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
-@@ -1394,10 +1833,17 @@ void *SIM_Render(void *arg) {
+@@ -1394,10 +1899,17 @@ void *SIM_Render(void *arg) {
    glCullFace(GL_FRONT);
    glFrontFace(GL_CW);
  
@@ -4799,7 +5866,7 @@ index 910d7da..c081976 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1465,6 +1911,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +1977,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -4827,17 +5894,18 @@ index 51a5263..aae72de 100644
  }
  
 diff --git a/libraries/sim/src/sim_vars.c b/libraries/sim/src/sim_vars.c
-index 81309fd..72be77a 100644
+index 81309fd..03629bc 100644
 --- a/libraries/sim/src/sim_vars.c
 +++ b/libraries/sim/src/sim_vars.c
 @@ -385,12 +385,23 @@ u8 s_HW_ARENA_INFO_BUF[sizeof(OSArenaInfo)];
  u8 s_HW_MAIN_MEM_SUB[0x400000];
  
  //mmap_global
+-u8 s_HW_MAIN_MEM[0x800000];
 +#ifdef SDK_HW_PLTT_BLOCK
 +SIM_HWPlttBlock s_HW_PLTT_BLOCK;
 +#endif
- u8 s_HW_MAIN_MEM[0x800000];
++u8 s_HW_MAIN_MEM[0x2000000]; // 32 MB emulated main RAM (lane heap)
  u8 s_HW_MAIN_MEM_EX[0x800000];
 +#ifndef SDK_HW_PLTT_BLOCK
  u8 s_HW_BG_PLTT[0x200];
