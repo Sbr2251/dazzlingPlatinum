@@ -14,6 +14,7 @@ typedef struct {
     BOOL breakDebuggerOnGfAssert; // When true, break the debugger when a GF_ASSERT fails
     BOOL megaCinematicShort; // Mega cinematic: false = full (~4.5s), true = short
     BOOL hiResText; // Hi-res dialogue text overlay prototype (hiresui); false = DS text only
+    BOOL overworldCinematics; // Overworld cinematics (lane cine): scripted field-camera moves; true = on
 
 	// Cheats section
 	BOOL walkThroughWalls; // When enabled, allows the player to walk through walls

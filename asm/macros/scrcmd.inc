@@ -737,6 +737,48 @@
     .short \z
     .endm
 
+    // Overworld cinematics (src/overlay005/field_cinematics.c). The first
+    // CineCamTo of a cinematic snapshots the follow camera; CineCamReturn
+    // moves back and restores that snapshot exactly, so frames after the
+    // cinematic match frames with no cinematic. All three commands are
+    // no-ops when OverworldCinematics is off (always off in headless runs
+    // unless SIM_FX_CINE=1), so script timing never changes.
+    //
+    // CineCamTo targetOffsetX, targetOffsetZ, distance, pitchDeg, yawDeg, fovDeg, frames, easing
+    //   targetOffsetX/Z: camera target offset from the current target, in
+    //     tiles (negative allowed); the target height is kept.
+    //   distance: camera distance in world units (stock follow is ~667;
+    //     smaller pushes in, larger pulls back).
+    //   pitchDeg: camera pitch in degrees (stock ~59; smaller is flatter).
+    //   yawDeg: camera yaw in degrees (0 = stock view from the south).
+    //   fovDeg: vertical field of view in degrees (stock ~8).
+    //   frames: move duration in frames (60 = ~2 s at 30 fps logic).
+    //   easing: 0 linear, 1 ease in-out, 2 ease out, 3 ease in.
+    .macro CineCamTo targetOffsetX, targetOffsetZ, distance, pitchDeg, yawDeg, fovDeg, frames, easing
+    .short SCRCMD_CINECAMTO
+    .short \targetOffsetX
+    .short \targetOffsetZ
+    .short \distance
+    .short \pitchDeg
+    .short \yawDeg
+    .short \fovDeg
+    .short \frames
+    .short \easing
+    .endm
+
+    // CineCamReturn frames, easing: move back to the camera snapshot taken
+    // by the first CineCamTo and restore it exactly on arrival.
+    .macro CineCamReturn frames, easing
+    .short SCRCMD_CINECAMRETURN
+    .short \frames
+    .short \easing
+    .endm
+
+    // CineWaitCamera: pause the script until the current camera move ends.
+    .macro CineWaitCamera
+    .short SCRCMD_CINEWAITCAMERA
+    .endm
+
     .macro SetObjectFlagIsPersistent localID, flag
     .short SCRCMD_SETOBJECTFLAGISPERSISTENT
     .short \localID

@@ -854,6 +854,9 @@ ScriptCommand(SCRCMD_DWACTORSRESOLVEPAD,                                   ScrCm
 ScriptCommand(SCRCMD_DWACTORSCONFIRMCARRYDONE,                             ScrCmd_DwActorsConfirmCarryDone)
 ScriptCommand(SCRCMD_DWACTORSTAKEPENDINGCUTIN,                             ScrCmd_DwActorsTakePendingCutin)
 ScriptCommand(SCRCMD_DWACTORSGRANTGRACE,                                   ScrCmd_DwActorsGrantGrace)
+ScriptCommand(SCRCMD_CINECAMTO,                                            ScrCmd_CineCamTo)
+ScriptCommand(SCRCMD_CINECAMRETURN,                                        ScrCmd_CineCamReturn)
+ScriptCommand(SCRCMD_CINEWAITCAMERA,                                       ScrCmd_CineWaitCamera)
 
 // clang-format on
 

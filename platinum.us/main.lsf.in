@@ -480,6 +480,7 @@ Overlay overlay5
 	Object src/overlay005/model_attributes.c
 	Object src/overlay005/field_camera.c
 	Object src/overlay005/field_camera_zones.c
+	Object src/overlay005/field_cinematics.c
 	Object src/overlay005/ov5_021D5BC0.c
 	Object src/overlay005/texture_resource_manager.c
 	Object src/overlay005/ov5_021D5EB8.c

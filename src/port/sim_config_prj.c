@@ -48,6 +48,9 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "WeatherLightning")) {
         config->weatherLightning = StringToBool(value);
     }
+    if(MATCH("General", "OverworldCinematics")) {
+        config->overworldCinematics = StringToBool(value);
+    }
 
     // Cheats section
     if(MATCH("Cheats", "WalkThroughWalls")) {
@@ -105,6 +108,7 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->arenaContext = TRUE;
   aConfig->battleSwoop = TRUE;
   aConfig->weatherLightning = TRUE;
+  aConfig->overworldCinematics = TRUE;
 
   // Cheats section
   aConfig->walkThroughWalls = FALSE;
@@ -133,6 +137,7 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "ArenaContext=%s\n", BoolToString(aConfig->arenaContext));
     fprintf(configFile, "BattleSwoop=%s\n", BoolToString(aConfig->battleSwoop));
     fprintf(configFile, "WeatherLightning=%s\n", BoolToString(aConfig->weatherLightning));
+    fprintf(configFile, "OverworldCinematics=%s\n", BoolToString(aConfig->overworldCinematics));
     fprintf(configFile, "\n");
 
     fprintf(configFile, "[Cheats]\n");

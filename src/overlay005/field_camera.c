@@ -4,6 +4,7 @@
 
 #include "field/field_system.h"
 #include "overlay005/field_camera_zones.h"
+#include "overlay005/field_cinematics.h"
 
 #include "camera.h"
 #include "math_util.h"
@@ -178,6 +179,7 @@ void FieldCamera_Create(const VecFx32 *_target, FieldSystem *fieldSystem, enum C
     }
 
     FieldCameraZones_Reset();
+    FieldCinematics_Reset();
 }
 
 void FieldCamera_Delete(FieldSystem *fieldSystem)

@@ -24,6 +24,7 @@
 #include "overlay005/honey_tree.h"
 #include "overlay005/land_data.h"
 #include "overlay005/field_camera_zones.h"
+#include "overlay005/field_cinematics.h"
 #include "overlay005/map_name_popup.h"
 #include "overlay005/map_prop.h"
 #include "overlay005/map_prop_animation.h"
@@ -731,6 +732,7 @@ static void ov5_021D15F4(FieldSystem *fieldSystem)
     MtxFx44 v0, v1;
 
     G3_ResetG3X();
+    FieldCinematics_Update(fieldSystem);
     FieldCameraZones_Update(fieldSystem);
 
     if (fieldSystem->unk_20 == 1) {

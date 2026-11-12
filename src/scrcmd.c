@@ -51,6 +51,7 @@
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
 #include "overlay005/enable_poketch_task.h"
+#include "overlay005/field_cinematics.h"
 #include "overlay005/field_menu.h"
 #include "overlay005/fieldmap.h"
 #include "overlay005/footprint_type.h"
@@ -348,6 +349,10 @@ static BOOL ScrCmd_GetPlayerMapPos(ScriptContext *ctx);
 static BOOL ScrCmd_Unused_06A(ScriptContext *ctx);
 static BOOL ScrCmd_GetPlayerDir(ScriptContext *ctx);
 static BOOL ScrCmd_MoveCamera(ScriptContext *ctx);
+static BOOL ScrCmd_CineCamTo(ScriptContext *ctx);
+static BOOL ScrCmd_CineCamReturn(ScriptContext *ctx);
+static BOOL ScrCmd_CineWaitCamera(ScriptContext *ctx);
+static BOOL ScriptContext_CineCameraDone(ScriptContext *ctx);
 static BOOL ScrCmd_SetObjectFlagIsPersistent(ScriptContext *ctx);
 static BOOL ScrCmd_SetMovementType(ScriptContext *ctx);
 static BOOL ScrCmd_GetMovementType(ScriptContext *ctx);
@@ -2527,6 +2532,58 @@ static BOOL ScrCmd_MoveCamera(ScriptContext *ctx)
     Camera_Move(&pos, ctx->fieldSystem->camera);
 
     return FALSE;
+}
+
+// Overworld cinematics (include/overlay005/field_cinematics.h). All three
+// commands are no-ops when cinematics are disabled, so scripts keep their
+// logic and timing in headless runs.
+static BOOL ScrCmd_CineCamTo(ScriptContext *ctx)
+{
+    FieldSystem *fieldSystem = ctx->fieldSystem;
+
+    s16 targetOffsetX = (s16)ScriptContext_GetVar(ctx);
+    s16 targetOffsetZ = (s16)ScriptContext_GetVar(ctx);
+    u16 distance = ScriptContext_GetVar(ctx);
+    s16 pitchDeg = (s16)ScriptContext_GetVar(ctx);
+    s16 yawDeg = (s16)ScriptContext_GetVar(ctx);
+    u16 fovDeg = ScriptContext_GetVar(ctx);
+    u16 frames = ScriptContext_GetVar(ctx);
+    u16 easing = ScriptContext_GetVar(ctx);
+
+    if (FieldCinematics_IsEnabled() == TRUE) {
+        FieldCinematics_StartMove(fieldSystem, targetOffsetX, targetOffsetZ, distance * FX32_ONE, pitchDeg, yawDeg, fovDeg, frames, (u8)easing);
+    }
+
+    return FALSE;
+}
+
+static BOOL ScrCmd_CineCamReturn(ScriptContext *ctx)
+{
+    FieldSystem *fieldSystem = ctx->fieldSystem;
+
+    u16 frames = ScriptContext_GetVar(ctx);
+    u16 easing = ScriptContext_GetVar(ctx);
+
+    if (FieldCinematics_IsEnabled() == TRUE) {
+        FieldCinematics_ReturnMove(fieldSystem, frames, (u8)easing);
+    }
+
+    return FALSE;
+}
+
+static BOOL ScrCmd_CineWaitCamera(ScriptContext *ctx)
+{
+    if (FieldCinematics_IsEnabled() == FALSE || FieldCinematics_IsActive() == FALSE) {
+        return FALSE;
+    }
+
+    ScriptContext_Pause(ctx, ScriptContext_CineCameraDone);
+    return TRUE;
+}
+
+static BOOL ScriptContext_CineCameraDone(ScriptContext *ctx)
+{
+    return FieldCinematics_IsActive() == FALSE;
 }
 
 static BOOL ScrCmd_SetObjectFlagIsPersistent(ScriptContext *ctx)
