@@ -271,6 +271,14 @@ class GameClient:
     def cmd(self, obj, timeout=120):
         if self.proc.poll() is not None:
             raise GameError(f"game exited with {self.proc.returncode}; stderr: {self.stderr_path}")
+        # A long step/press legitimately takes wall-clock time proportional
+        # to its frames (a 3000-frame battle step can exceed the 120s reply
+        # timeout under -j4 llvmpipe load, which used to fail core_trainer
+        # and core_wild_catch identically on gl and gpu). Scale the reply
+        # timeout with frames, capped; a truly hung game is still caught by
+        # the game-side watchdog, which closes stdout.
+        if obj.get("cmd") in ("step", "press", "touch") and obj.get("frames"):
+            timeout = max(timeout, min(1200, obj["frames"] / 10 + 120))
         self.proc.stdin.write(json.dumps(obj) + "\n")
         self.proc.stdin.flush()
         ready, _, _ = select.select([self.proc.stdout], [], [], timeout)
