@@ -379,6 +379,9 @@ def platform_reference(ref_path):
 def run_scenario(path, game_path, record=False, timeout=600, work_root=None, mock=False, env_extra=None, update=False, use_gpu_tolerance=False):
     with open(path, encoding="utf-8") as f:
         sc = json.load(f)
+    # A scenario may declare its own timeout floor (e.g. the naming
+    # scenario replays the whole catch flow, ~750s on llvmpipe).
+    timeout = max(timeout, int(sc.get("timeout") or 0))
     name = sc.get("name") or os.path.splitext(os.path.basename(path))[0]
     scen_dir = os.path.dirname(os.path.abspath(path))
     if sc.get("pending_step3"):

@@ -89,6 +89,8 @@ runner, the fake game and the protocol all already speak JSON.
   the historical bare `InternalResolutionScale=2` line). A screenshot step
   may also carry `"tolerance_gpu"` (used in place of `tolerance` for the
   `gpu` run under `--compare-backends`, e.g. for the capture readback).
+- `"timeout": 1200` raises the per-scenario wall-clock timeout floor
+  (default 600s, from `--timeout`); long scenarios declare what they need.
 - `{"reload_config": {"InternalResolutionScale": "4"}}` changes the config
   mid-run: it rewrites `sim_config.ini` and re-imports the scenario's
   `start.save` (import_save restarts the process, so the new config is read
