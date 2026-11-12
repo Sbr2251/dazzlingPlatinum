@@ -141,7 +141,17 @@ Queue: `BattleDecisions_Push/P peek/Complete` in `battle_events.h`.
 Consumption is client-side: the player command/move/target menu tasks in
 `battle_display.c` read the queue when they would poll input, set their
 input (and `megaEvolutionTriggered` for mega), then emit and clean up
-normally - so no menu task is orphaned. Bag/party sub-menus are hooked inside their own tasks (round 4):
+normally - so no menu task is orphaned. The forced-switch prompt after a
+faint is *not* the party menu: `subscript_replace_fainted` first asks
+"Use next Pokemon?" through the Yes/No subscreen task
+(`Task_PlayerShowYesNoMenu`, `YES_NO_NEXT_MON` / `YES_NO_CHANGE_MON`),
+which is hooked to answer a queued switch with Yes (a queued run with
+Flee); the party menu that follows then consumes the party slot.
+Headless touch is pulsed on long holds (a fresh press edge every 16
+frames; short taps produce exactly one press) so touch-only battle-menu
+buttons (the party SHIFT card, the Yes/No buttons) can be reached even
+when a tap starts before the menu has finished opening.
+Bag/party sub-menus are hooked inside their own tasks (round 4):
 BattlePartyTask_PartyPokemonScreen selects the queued party slot and exits
 through its own cleanup (also serves the forced-switch party menu and the
 party USE_ITEM target for bag items), and BattleBagTask MenuScreen /

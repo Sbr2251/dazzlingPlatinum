@@ -268,18 +268,28 @@ class BattleRunner:
                 self.diff_events(prev, cur)
                 prev = cur
                 self.last_battle = cur
-                if cur.get("waiting"):
+                if cur.get("battlers") and cur["battlers"][0].get("hp", 1) == 0 and not self.is_double:
+                    # Forced switch after a faint. This prompt does not set
+                    # `waiting`: it is the "Use next Pokemon?" Yes/No task,
+                    # not the command menu, so queue the switch as soon as
+                    # the faint is seen - the Yes/No and party tasks consume
+                    # it whenever they open. The state's party HP is the
+                    # save party's (battle damage lives in the battle party),
+                    # so pick the first slot that is not the fainted active
+                    # battler (matched by species), not the first HP>0 slot,
+                    # which is the fainted lead itself.
+                    party = st.get("party") or []
+                    active_species = (cur["battlers"][0] or {}).get("species")
+                    active_slot = next((i for i, m in enumerate(party) if m.get("species") == active_species), 0)
+                    slot = next((i + 1 for i, m in enumerate(party) if i != active_slot), 2)
+                    self.do_decision({"type": "switch", "slot": slot})
+                elif cur.get("waiting"):
                     if self.is_double:
                         # Decisions are pre-queued; A only confirms target /
                         # forced-switch prompts and advances text.
                         press(self.game, "A", 40)
                         continue
-                    if cur.get("battlers") and cur["battlers"][0].get("hp", 1) == 0:
-                        # Forced switch after a faint: send the next alive party mon.
-                        party = st.get("party") or []
-                        slot = next((i + 1 for i, m in enumerate(party) if m.get("hp", 0) > 0), 2)
-                        dec = {"type": "switch", "slot": slot}
-                    elif decisions:
+                    if decisions:
                         dec = decisions.pop(0)
                     elif policy == "random":
                         dec = {"type": "move", "index": rng.randrange(moves_count)}

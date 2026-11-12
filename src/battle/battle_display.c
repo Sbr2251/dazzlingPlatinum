@@ -23,6 +23,7 @@
 #include "struct_defs/sprite_animation_frame.h"
 #include "struct_defs/trainer.h"
 
+#include "battle/btlcmd.h"
 #include "battle/battle_anim_battler_context.h"
 #include "battle/battle_context.h"
 #include "battle/battle_controller.h"
@@ -5018,6 +5019,29 @@ static void Task_PlayerShowYesNoMenu(SysTask *task, void *data)
         }
         break;
     case 2:
+        // Decision queue: the forced-switch prompts are served by this
+        // Yes/No task, not by the party menu (subscript_replace_fainted:
+        // "Use next Pokemon?" YES_NO_NEXT_MON, and "Will you switch your
+        // Pokemon?" YES_NO_CHANGE_MON). A queued switch answers Yes here;
+        // the party menu that follows consumes the queued party slot in
+        // BattlePartyTask. A queued run answers Flee on the next-mon prompt.
+        if (yesNoMenuData->yesNoType == YES_NO_NEXT_MON || yesNoMenuData->yesNoType == YES_NO_CHANGE_MON) {
+            BattleDecision dec;
+            if (BattleDecisions_PeekAction(yesNoMenuData->battler, BATTLE_DECISION_SWITCH, &dec)) {
+                yesNoMenuData->input = 1;
+                Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
+                yesNoMenuData->state = 3;
+                break;
+            }
+            if (yesNoMenuData->yesNoType == YES_NO_NEXT_MON && BattleDecisions_PeekAction(yesNoMenuData->battler, BATTLE_DECISION_RUN, &dec)) {
+                BattleDecisions_MarkDone(yesNoMenuData->battler, BATTLE_DECISION_RUN);
+                yesNoMenuData->input = 0xFF;
+                Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
+                yesNoMenuData->state = 3;
+                break;
+            }
+        }
+
         yesNoMenuData->input = BattleSystem_MenuInput(btlSubscreen);
 
         if (yesNoMenuData->input != 0xFFFFFFFF) {
