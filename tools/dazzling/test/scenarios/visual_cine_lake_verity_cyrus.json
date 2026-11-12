@@ -1,0 +1,35 @@
+{
+ "name": "visual_cine_lake_verity_cyrus",
+ "_note": "Lane cine golden: Lake Verity Arc 1 roof landing (save A1-01, warped to the terrace with VAR_ARC1_PROGRESS 1) with SIM_FX_CINE=1. Key frames: wide establishing shot during the push-in, the turn toward Cyrus, and the restored follow camera after CineCamReturn. Top-screen crop, exact compare.",
+ "env": {"SIM_FX_CINE": "1"},
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-01_lake_verity_arrival.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-01_lake_verity_arrival.sav"
+ },
+ "steps": [
+  {"step": 900},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"step": 300},
+  {"set_var": "VAR_ARC1_PROGRESS", "value": 1},
+  {"warp": {"map": "MAP_HEADER_LAKE_VERITY", "x": 32, "z": 31, "dir": "DIR_NORTH"}},
+  {"step": 300},
+  {"screenshot": "cine_lv_wide", "reference": "../references/visual/cine_lv_wide.bmp", "tolerance": 0.0, "crop": [0, 0, 512, 384]},
+  {"step": 180},
+  {"screenshot": "cine_lv_turn", "reference": "../references/visual/cine_lv_turn.bmp", "tolerance": 0.0, "crop": [0, 0, 512, 384]},
+  {"step": 240},
+  {"screenshot": "cine_lv_returned", "reference": "../references/visual/cine_lv_returned.bmp", "tolerance": 0.0, "crop": [0, 0, 512, 384]}
+ ],
+ "assertions": [
+  {"player.map": "MAP_HEADER_LAKE_VERITY"},
+  {"app": "field"}
+ ]
+}
