@@ -2475,9 +2475,20 @@ index 1472f43..54a582c 100644
  }
  
 diff --git a/libraries/os/src/os_arena.c b/libraries/os/src/os_arena.c
-index 0a015d0..abf4e0c 100644
+index 0a015d0..1c9ceab 100644
 --- a/libraries/os/src/os_arena.c
 +++ b/libraries/os/src/os_arena.c
+@@ -1,8 +1,8 @@
+ #include <nitro.h>
+ 
+ #ifdef SDK_PORT
+-#define OSi_TRUNC(n, a)     (((u64) (n)) & ~((a) - 1))
+-#define OSi_ROUND(n, a)     (((u64) (n) + (a) - 1) & ~((a) - 1))
++#define OSi_TRUNC(n, a)     (((u64) (n)) & ~((u64) (a) - 1))
++#define OSi_ROUND(n, a)     (((u64) (n) + (a) - 1) & ~((u64) (a) - 1))
+ #else
+ #define OSi_TRUNC(n, a)              (((u32) (n)) & ~((a) - 1))
+ #define OSi_ROUND(n, a)              (((u32) (n) + (a) - 1) & ~((a) - 1))
 @@ -423,15 +423,16 @@ void * OS_AllocFromArenaLo (OSArenaId id, u32 size, u32 align)
          return NULL;
      }
