@@ -524,7 +524,7 @@ TwinleafTown_CineCityEntry:
     GoToIfSet FLAG_CINE_VISITED_TWINLEAF, TwinleafTown_CineCityEntryDone
     SetFlag FLAG_CINE_VISITED_TWINLEAF
     LockAll
-    CineCamTo 0, 0, 1000, 42, 0, 13, 80, 1
+    CineCamTo 0, 0, 700, 53, 0, 11, 80, 1
     CineWaitCamera
     CineCamReturn 70, 1
     CineWaitCamera
