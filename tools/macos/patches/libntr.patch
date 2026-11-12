@@ -73,6 +73,122 @@ index 1b016ea..28cf758 100644
      if( callback != NULL )
      {
        callback(arg);
+diff --git a/include/nitro/gx/g2.h b/include/nitro/gx/g2.h
+index 65bdc0f..d534bec 100644
+--- a/include/nitro/gx/g2.h
++++ b/include/nitro/gx/g2.h
+@@ -128,14 +128,14 @@ static inline void G2_SetBG0Offset (int hOffset, int vOffset)
+ 	SDK_WARNING(0 == (reg_GX_DISPCNT & REG_GX_DISPCNT_BG02D3D_MASK),
+ 	            "BG0 is in 3D mode now. call \'G3X_SetHOffset\'\n");
+ 
+-	reg_G2_BG0OFS = (u32)(((hOffset << REG_G2_BG0OFS_HOFFSET_SHIFT) & REG_G2_BG0OFS_HOFFSET_MASK) |
+-	                      ((vOffset << REG_G2_BG0OFS_VOFFSET_SHIFT) & REG_G2_BG0OFS_VOFFSET_MASK));
++	reg_G2_BG0OFS = (u32)((((u32)hOffset << REG_G2_BG0OFS_HOFFSET_SHIFT) & REG_G2_BG0OFS_HOFFSET_MASK) |
++	                      (((u32)vOffset << REG_G2_BG0OFS_VOFFSET_SHIFT) & REG_G2_BG0OFS_VOFFSET_MASK));
+ }
+ 
+ static inline void G2_SetBG1Offset (int hOffset, int vOffset)
+ {
+-	reg_G2_BG1OFS = (u32)(((hOffset << REG_G2_BG1OFS_HOFFSET_SHIFT) & REG_G2_BG1OFS_HOFFSET_MASK) |
+-	                      ((vOffset << REG_G2_BG1OFS_VOFFSET_SHIFT) & REG_G2_BG1OFS_VOFFSET_MASK));
++	reg_G2_BG1OFS = (u32)((((u32)hOffset << REG_G2_BG1OFS_HOFFSET_SHIFT) & REG_G2_BG1OFS_HOFFSET_MASK) |
++	                      (((u32)vOffset << REG_G2_BG1OFS_VOFFSET_SHIFT) & REG_G2_BG1OFS_VOFFSET_MASK));
+ }
+ 
+ static inline void G2_SetBG2Offset (int hOffset, int vOffset)
+@@ -147,8 +147,8 @@ static inline void G2_SetBG2Offset (int hOffset, int vOffset)
+ 		            "G2_SetBG2Offset requires BG #2 to be text mode. Use G2_SetBG2Affine instead.");
+ 	}
+ #endif
+-	reg_G2_BG2OFS = (u32)(((hOffset << REG_G2_BG2OFS_HOFFSET_SHIFT) & REG_G2_BG2OFS_HOFFSET_MASK) |
+-	                      ((vOffset << REG_G2_BG2OFS_VOFFSET_SHIFT) & REG_G2_BG2OFS_VOFFSET_MASK));
++	reg_G2_BG2OFS = (u32)((((u32)hOffset << REG_G2_BG2OFS_HOFFSET_SHIFT) & REG_G2_BG2OFS_HOFFSET_MASK) |
++	                      (((u32)vOffset << REG_G2_BG2OFS_VOFFSET_SHIFT) & REG_G2_BG2OFS_VOFFSET_MASK));
+ }
+ 
+ static inline void G2_SetBG3Offset (int hOffset, int vOffset)
+@@ -160,8 +160,8 @@ static inline void G2_SetBG3Offset (int hOffset, int vOffset)
+ 		            "G2_SetBG3Offset requires BG #3 to be text mode. Use G2_SetBG3Affine instead.");
+ 	}
+ #endif
+-	reg_G2_BG3OFS = (u32)(((hOffset << REG_G2_BG3OFS_HOFFSET_SHIFT) & REG_G2_BG3OFS_HOFFSET_MASK) |
+-	                      ((vOffset << REG_G2_BG3OFS_VOFFSET_SHIFT) & REG_G2_BG3OFS_VOFFSET_MASK));
++	reg_G2_BG3OFS = (u32)((((u32)hOffset << REG_G2_BG3OFS_HOFFSET_SHIFT) & REG_G2_BG3OFS_HOFFSET_MASK) |
++	                      (((u32)vOffset << REG_G2_BG3OFS_VOFFSET_SHIFT) & REG_G2_BG3OFS_VOFFSET_MASK));
+ }
+ 
+ static inline void G2_SetWnd0InsidePlane (int wnd, BOOL effect)
+@@ -374,15 +374,15 @@ static inline void G2_ChangeBlendBrightness (int brightness)
+ static inline void G2S_SetBG0Offset (int hOffset, int vOffset)
+ {
+ 	reg_G2S_DB_BG0OFS =
+-		(u32)(((hOffset << REG_G2S_DB_BG0OFS_HOFFSET_SHIFT) & REG_G2S_DB_BG0OFS_HOFFSET_MASK) |
+-		      ((vOffset << REG_G2S_DB_BG0OFS_VOFFSET_SHIFT) & REG_G2S_DB_BG0OFS_VOFFSET_MASK));
++		(u32)((((u32)hOffset << REG_G2S_DB_BG0OFS_HOFFSET_SHIFT) & REG_G2S_DB_BG0OFS_HOFFSET_MASK) |
++		      (((u32)vOffset << REG_G2S_DB_BG0OFS_VOFFSET_SHIFT) & REG_G2S_DB_BG0OFS_VOFFSET_MASK));
+ }
+ 
+ static inline void G2S_SetBG1Offset (int hOffset, int vOffset)
+ {
+ 	reg_G2S_DB_BG1OFS =
+-		(u32)(((hOffset << REG_G2S_DB_BG1OFS_HOFFSET_SHIFT) & REG_G2S_DB_BG1OFS_HOFFSET_MASK) |
+-		      ((vOffset << REG_G2S_DB_BG1OFS_VOFFSET_SHIFT) & REG_G2S_DB_BG1OFS_VOFFSET_MASK));
++		(u32)((((u32)hOffset << REG_G2S_DB_BG1OFS_HOFFSET_SHIFT) & REG_G2S_DB_BG1OFS_HOFFSET_MASK) |
++		      (((u32)vOffset << REG_G2S_DB_BG1OFS_VOFFSET_SHIFT) & REG_G2S_DB_BG1OFS_VOFFSET_MASK));
+ }
+ 
+ static inline void G2S_SetBG2Offset (int hOffset, int vOffset)
+@@ -399,8 +399,8 @@ static inline void G2S_SetBG2Offset (int hOffset, int vOffset)
+ #endif
+ 
+ 	reg_G2S_DB_BG2OFS =
+-		(u32)(((hOffset << REG_G2S_DB_BG2OFS_HOFFSET_SHIFT) & REG_G2S_DB_BG2OFS_HOFFSET_MASK) |
+-		      ((vOffset << REG_G2S_DB_BG2OFS_VOFFSET_SHIFT) & REG_G2S_DB_BG2OFS_VOFFSET_MASK));
++		(u32)((((u32)hOffset << REG_G2S_DB_BG2OFS_HOFFSET_SHIFT) & REG_G2S_DB_BG2OFS_HOFFSET_MASK) |
++		      (((u32)vOffset << REG_G2S_DB_BG2OFS_VOFFSET_SHIFT) & REG_G2S_DB_BG2OFS_VOFFSET_MASK));
+ }
+ 
+ static inline void G2S_SetBG3Offset (int hOffset, int vOffset)
+@@ -416,8 +416,8 @@ static inline void G2S_SetBG3Offset (int hOffset, int vOffset)
+ #endif
+ 
+ 	reg_G2S_DB_BG3OFS =
+-		(u32)(((hOffset << REG_G2S_DB_BG3OFS_HOFFSET_SHIFT) & REG_G2S_DB_BG3OFS_HOFFSET_MASK) |
+-		      ((vOffset << REG_G2S_DB_BG3OFS_VOFFSET_SHIFT) & REG_G2S_DB_BG3OFS_VOFFSET_MASK));
++		(u32)((((u32)hOffset << REG_G2S_DB_BG3OFS_HOFFSET_SHIFT) & REG_G2S_DB_BG3OFS_HOFFSET_MASK) |
++		      (((u32)vOffset << REG_G2S_DB_BG3OFS_VOFFSET_SHIFT) & REG_G2S_DB_BG3OFS_VOFFSET_MASK));
+ }
+ 
+ static inline void G2S_SetWnd0InsidePlane (int wnd, BOOL effect)
+diff --git a/include/nitro/gx/g3.h b/include/nitro/gx/g3.h
+index 3102fbe..2bec909 100644
+--- a/include/nitro/gx/g3.h
++++ b/include/nitro/gx/g3.h
+@@ -377,13 +377,13 @@ typedef u32 VecVtxDiff;
+ 
+ #define GX_FX16ST(x)                   ((s16)((x) >> 8))
+ 
+-#define GX_ST(s, t)                    ((GXSt)((u16)GX_FX16ST(s) | ((u16)GX_FX16ST(t) << 16)))
++#define GX_ST(s, t)                    ((GXSt)((u16)GX_FX16ST(s) | ((u32)(u16)GX_FX16ST(t) << 16)))
+ 
+ #define GX_COMP4x4_PLTT_IDX(image)                                                      \
+ 	((u32)(0x20000 + (((image) & 0x1ffff) >> 1) + (((image) & 0x40000) >> 2)))
+ 
+ #define GX_PACK_OP(op1, op2, op3, op4)                                                  \
+-	((u32)((op1) | ((op2) << 8) | ((op3) << 16) | ((op4) << 24)))
++	((u32)((u32)(op1) | ((u32)(op2) << 8) | ((u32)(op3) << 16) | ((u32)(op4) << 24)))
+ 
+ #define GX_PACK_SWAPBUFFERS_PARAM(am, zw)                                               \
+ 	((u32) (((am) << REG_G3_SWAP_BUFFERS_XS_SHIFT) |                                    \
+@@ -446,7 +446,7 @@ typedef u32 VecVtxDiff;
+ 	((u32)((addr) >> (4 - ((texFmt) == GX_TEXFMT_PLTT4))))
+ 
+ #define GX_PACK_VIEWPORT_PARAM(x1, y1, x2, y2)                                          \
+-	((u32)((x1) | ((y1) << 8) | ((x2) << 16) | ((y2) << 24)))
++	((u32)((u32)(x1) | ((u32)(y1) << 8) | ((u32)(x2) << 16) | ((u32)(y2) << 24)))
+ 
+ #define GX_PACK_VECTORTEST_PARAM(x, y, z) ((u32)GX_VECFX10((x), (y), (z)))
+ 
 diff --git a/include/nitro/gx/g3imm.h b/include/nitro/gx/g3imm.h
 index 0f07fc3..fd7b1af 100644
 --- a/include/nitro/gx/g3imm.h
@@ -475,7 +591,7 @@ index 0f07fc3..fd7b1af 100644
  	reg_G3_SWAP_BUFFERS = GX_PACK_SWAPBUFFERS_PARAM(am, zw);
      #endif
 diff --git a/include/nitro/hw/X86/mmap_global.h b/include/nitro/hw/X86/mmap_global.h
-index 3be08a2..268e3d5 100644
+index 3be08a2..f83a0a3 100644
 --- a/include/nitro/hw/X86/mmap_global.h
 +++ b/include/nitro/hw/X86/mmap_global.h
 @@ -27,12 +27,13 @@ extern u32 SDK_AUTOLOAD_DTCM_START[];
@@ -496,15 +612,17 @@ index 3be08a2..268e3d5 100644
  extern u8 s_HW_MAIN_MEM_EX[0x800000];
  #define HW_MAIN_MEM_EX_SIZE     0x00800000
  #define HW_MAIN_MEM_END         (HW_MAIN_MEM + HW_MAIN_MEM_SIZE)
-@@ -46,17 +47,34 @@ extern u8 s_HW_MAIN_MEM_EX[0x800000];
+@@ -46,17 +47,36 @@ extern u8 s_HW_MAIN_MEM_EX[0x800000];
  #define HW_IOREG_END            0x05000000
  #define HW_REG_BASE             HW_IOREG        // alias
  //----------------------------- VRAMs
 +
 +// The DS's palette RAM is one block: BG then OBJ palettes for the main screen, then the sub screen's. HW_PLTT and HW_DB_PLTT span two
 +// of them (HW_PLTT_END is HW_OBJ_PLTT_END), so they must be adjacent. Separate arrays were adjacent only by the linker's choice
-+// (GNU ld keeps definition order; Apple's ld does not), so on macOS they are fields of one struct.
-+#ifdef SDK_BUILD_MACOS
++// (GNU ld keeps definition order; Apple's ld does not), and under ASan each array gets its own redzone even with GNU ld, so
++// a 1024-byte HW_PLTT clear overflows the 512-byte BG array. Keep all four palettes as fields of one struct on every
++// simulator build (macOS already did this; the Linux build used to rely on link order).
++#if defined(SDK_BUILD_MACOS) || defined(SDK_PORT)
 +#define SDK_HW_PLTT_BLOCK 1
 +typedef struct SIM_HWPlttBlock { u8 bg[0x200]; u8 obj[0x200]; u8 db_bg[0x200]; u8 db_obj[0x200]; } SIM_HWPlttBlock;
 +extern SIM_HWPlttBlock s_HW_PLTT_BLOCK;
@@ -531,7 +649,7 @@ index 3be08a2..268e3d5 100644
  #define HW_OBJ_PLTT             ((u64)s_HW_OBJ_PLTT)
  #define HW_OBJ_PLTT_END         ((u64)s_HW_OBJ_PLTT + 0x200)
  #define HW_OBJ_PLTT_SIZE        (HW_OBJ_PLTT_END-HW_OBJ_PLTT)
-@@ -67,14 +85,18 @@ extern u8 s_HW_OBJ_PLTT[0x200];
+@@ -67,14 +87,18 @@ extern u8 s_HW_OBJ_PLTT[0x200];
  //#define HW_DB_BG_PLTT           0x05000400
  //#define HW_DB_BG_PLTT_END       0x05000600
  //#define HW_DB_BG_PLTT_SIZE      (HW_DB_BG_PLTT_END-HW_DB_BG_PLTT)
@@ -550,7 +668,7 @@ index 3be08a2..268e3d5 100644
  #define HW_DB_OBJ_PLTT            ((u64)s_HW_DB_OBJ_PLTT)
  #define HW_DB_OBJ_PLTT_END        ((u64)s_HW_DB_OBJ_PLTT + 0x200)
  #define HW_DB_OBJ_PLTT_SIZE     (HW_DB_OBJ_PLTT_END-HW_DB_OBJ_PLTT)
-@@ -94,7 +116,7 @@ extern u8 s_HW_BG_VRAM[0x80000];
+@@ -94,7 +118,7 @@ extern u8 s_HW_BG_VRAM[0x80000];
  extern u8 s_HW_DB_BG_VRAM[0x20000];
  #define HW_DB_BG_VRAM              ((u64)s_HW_DB_BG_VRAM)
  #define HW_DB_BG_VRAM_END          ((u64)s_HW_DB_BG_VRAM + 0x20000)
@@ -559,7 +677,7 @@ index 3be08a2..268e3d5 100644
  
  //#define HW_OBJ_VRAM             0x06400000
  //#define HW_OBJ_VRAM_END         0x06440000
-@@ -109,7 +131,7 @@ extern u8 s_HW_DB_OBJ_VRAM[0x20000];
+@@ -109,7 +133,7 @@ extern u8 s_HW_DB_OBJ_VRAM[0x20000];
  //#define HW_DB_OBJ_VRAM          0x06600000
  //#define HW_DB_OBJ_VRAM_END      0x06620000
  #define HW_DB_OBJ_VRAM             ((u64)s_HW_DB_OBJ_VRAM)
@@ -584,6 +702,42 @@ index d5ebc79..d6cae7f 100644
  #else
  #ifdef SDK_TS
  #define HW_MAIN_MEM_MAIN_SIZE           0x3E0000
+diff --git a/include/nitro/mi/dma.h b/include/nitro/mi/dma.h
+index 3a46232..90ca243 100644
+--- a/include/nitro/mi/dma.h
++++ b/include/nitro/mi/dma.h
+@@ -84,16 +84,29 @@ extern "C" {
+ #define MI_DMA_COUNT_MASK          (REG_MI_DMA0CNT_WORDCNT_MASK)
+ #define MI_DMA_COUNT_SHIFT         (REG_MI_DMA0CNT_WORDCNT_SHIFT)
+ 
+-#if SDK_VERSION_MAJOR == 5
++/* DMA channel register layout (SAD/DAD/CNT, 3 words per channel). Used by
++ * both the v4 and v5 DMA code, so it lives outside the v5 guard below. */
+ #define MI_DMA_NUM_WOFFSET(ndmaNo) (ndmaNo * 3)
+ #define MI_DMA_REG_SAD_WOFFSET 0
+ #define MI_DMA_REG_DAD_WOFFSET 1
+ #define MI_DMA_REG_CNT_WOFFSET 2
+ 
++#if defined(SDK_PORT)
++/* Simulator (X86) target: the DMA registers are separate globals
++ * (s_reg_MI_DMA0SAD, ... in sim_vars.c), NOT a contiguous hardware register
++ * block, so indexing off REG_DMA0SAD_ADDR walks off a single 4-byte global
++ * (ASan global-buffer-overflow, e.g. MI_StopDma at boot). Select each
++ * channel's register by its own address instead. */
++#define MI_DMA_REGADDR(dmaNo, reg)                                             \
++  (((vu32 *[]){REG_DMA0SAD_ADDR, REG_DMA0DAD_ADDR, REG_DMA0CNT_ADDR,          \
++               REG_DMA1SAD_ADDR, REG_DMA1DAD_ADDR, REG_DMA1CNT_ADDR,          \
++               REG_DMA2SAD_ADDR, REG_DMA2DAD_ADDR, REG_DMA2CNT_ADDR,          \
++               REG_DMA3SAD_ADDR, REG_DMA3DAD_ADDR, REG_DMA3CNT_ADDR})[(dmaNo) * 3 + (reg)])
++#else
+ #define MI_DMA_REGADDR(dmaNo, reg)                                             \
+   (((vu32 *)REG_DMA0SAD_ADDR) + MI_DMA_NUM_WOFFSET(dmaNo) + (reg))
+-#define MI_DMA_REG(dmaNo, reg) (*(MI_DMA_REGADDR(dmaNo, reg)))
+ #endif
++#define MI_DMA_REG(dmaNo, reg) (*(MI_DMA_REGADDR(dmaNo, reg)))
+ 
+ #define MI_DMA_SINC_DINC_16        (MI_DMA_SRC_INC | MI_DMA_DEST_INC | MI_DMA_16BIT_BUS)
+ #define MI_DMA_SFIX_DINC_16        (MI_DMA_SRC_FIX | MI_DMA_DEST_INC | MI_DMA_16BIT_BUS)
 diff --git a/include/nitro/mi/memory.h b/include/nitro/mi/memory.h
 index b196b55..90df0dc 100644
 --- a/include/nitro/mi/memory.h
@@ -604,6 +758,47 @@ index b196b55..90df0dc 100644
    #else
  	MIi_CpuClearFast(data, dest, size);
    #endif
+diff --git a/include/nitro/os/common/timer.h b/include/nitro/os/common/timer.h
+index dfd081d..818b665 100644
+--- a/include/nitro/os/common/timer.h
++++ b/include/nitro/os/common/timer.h
+@@ -34,11 +34,26 @@ typedef enum {
+ 	OS_TIMER48_123 = 1
+ } OSTimer48;
+ 
++#ifdef SDK_PORT
++/* Simulator: the timer registers are separate globals (s_reg_OS_TM0CNT_L,
++ * ...), NOT a contiguous hardware block. REG_TM0CNT_L_ADDR is a pointer to
++ * one u16 global, so REG_TM0CNT_L_ADDR + id * 4 advanced 8 bytes per timer
++ * (pointer scaling) instead of the 4-byte hardware stride -- timer 1..3
++ * writes landed on the wrong timer's registers (or past them entirely).
++ * Select each timer's register by its own address. */
++#define OSi_TM_CNT_L_ADDR(id)                                                  \
++    (((REGType16v *[]){REG_TM0CNT_L_ADDR, REG_TM1CNT_L_ADDR,                  \
++                       REG_TM2CNT_L_ADDR, REG_TM3CNT_L_ADDR})[(id)])
++#define OSi_TM_CNT_H_ADDR(id)                                                  \
++    (((REGType16v *[]){REG_TM0CNT_H_ADDR, REG_TM1CNT_H_ADDR,                  \
++                       REG_TM2CNT_H_ADDR, REG_TM3CNT_H_ADDR})[(id)])
++#endif
++
+ static inline void OS_SetTimerCount (OSTimer id, u16 count)
+ {
+ 	SDK_ASSERT(OS_TIMER_0 <= id && id <= OS_TIMER_3);
+     #ifdef SDK_PORT
+-    *((REGType16 *)(REG_TM0CNT_L_ADDR + id * 4)) = count;
++    *OSi_TM_CNT_L_ADDR(id) = count;
+     #else
+ 	*((REGType16 *)((u32)REG_TM0CNT_L_ADDR + id * 4)) = count;
+     #endif
+@@ -48,7 +63,7 @@ static inline void OS_SetTimerControl (OSTimer id, u16 control)
+ {
+ 	SDK_ASSERT(OS_TIMER_0 <= id && id <= OS_TIMER_3);
+     #ifdef SDK_PORT
+-    *((REGType16 *)(REG_TM0CNT_H_ADDR + id * 4)) = control;
++    *OSi_TM_CNT_H_ADDR(id) = control;
+     #else
+ 	*((REGType16 *)((u32)REG_TM0CNT_H_ADDR + id * 4)) = control;
+     #endif
 diff --git a/include/simulator/config/sim_config.h b/include/simulator/config/sim_config.h
 index ce31436..de5c2e2 100644
 --- a/include/simulator/config/sim_config.h
@@ -944,6 +1139,46 @@ index 0000000..c2b0286
 +void Poll();
 +
 +}  // namespace SIM::Helpers
+diff --git a/include/simulator/sim_regblock.h b/include/simulator/sim_regblock.h
+new file mode 100644
+index 0000000..ed3801a
+--- /dev/null
++++ b/include/simulator/sim_regblock.h
+@@ -0,0 +1,34 @@
++#ifndef SIMULATOR_SIM_REGBLOCK_H_
++#define SIMULATOR_SIM_REGBLOCK_H_
++
++// Single-byte access into a DS hardware register block on the simulator.
++// Same rationale as GXi_FillRegBlock in libraries/gx (see gx_regblock.h):
++// on real hardware a register table is one contiguous region, but on the
++// simulator each register is a separate host global (s_reg_* in
++// sim_vars.c), so a block read/write rooted at one register walks off the
++// end of that single global -- a global-buffer-overflow under ASan, and
++// technically UB even though the simulator lays the globals out in DS
++// offset order so the bytes land on the intended registers. The volatile
++// byte access below is not ASan-instrumented (no_sanitize) and cannot be
++// re-folded into a memcpy/memset call (whose interceptor would flag the
++// same access). Use only for DS register blocks, never for RAM/VRAM.
++#ifdef __cplusplus
++#include <cstdint>
++extern "C" {
++#else
++#include <stdint.h>
++#endif
++
++// The 32 fog densities, kept as a real array. On hardware they live in
++// the FOG_TABLE register block, but in the simulator the FOG_TABLE_n
++// registers are separate globals, so a byte walk across them (base + idx)
++// reads past a 4-byte object -- UBSan's object-size check flags it, and
++// the read only works by link-order luck. G3X_SetFogTable keeps this array
++// in sync with the register block; the SIM renderer reads from here.
++extern volatile uint8_t SIM_FogTable[32];
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
 diff --git a/include/simulator/sim_shaders.hpp b/include/simulator/sim_shaders.hpp
 index 918fea4..e88b503 100644
 --- a/include/simulator/sim_shaders.hpp
@@ -1003,6 +1238,226 @@ index 78cf25d..dcc43a4 100644
  extern u8 s_HW_MAIN_MEM_EX[0x800000];
  #define HW_MAIN_MEM_EX_SIZE     0x00800000
  #define HW_MAIN_MEM_END (HW_MAIN_MEM + HW_MAIN_MEM_SIZE)
+diff --git a/libraries/fx/src/fx_cp.c b/libraries/fx/src/fx_cp.c
+index 6e95062..9992865 100644
+--- a/libraries/fx/src/fx_cp.c
++++ b/libraries/fx/src/fx_cp.c
+@@ -115,7 +115,7 @@ void FX_DivAsync (fx32 numer, fx32 denom)
+ 	FX_DIVISION_BY_ZERO(numer, denom);
+ 
+     #ifdef SDK_PORT
+-    CP_SetDiv64_32((s64)numer << 32, (s32)denom);
++    CP_SetDiv64_32((u64)numer << 32, (u32)denom);
+     #else
+ 	CP_SetDiv64_32((u64)numer << 32, (u32)denom);
+     #endif
+diff --git a/libraries/gx/include/gx_regblock.h b/libraries/gx/include/gx_regblock.h
+new file mode 100644
+index 0000000..c5f7ffa
+--- /dev/null
++++ b/libraries/gx/include/gx_regblock.h
+@@ -0,0 +1,96 @@
++#ifndef NITRO_GX_REGBLOCK_H_
++#define NITRO_GX_REGBLOCK_H_
++
++#include <nitro/types.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#ifdef SDK_PORT
++
++/* Simulator-only access to a block of DS hardware registers.
++ *
++ * On real hardware a register table (the 2D BG register block, the edge
++ * colour / fog / toon tables, the matrix-result registers, ...) is one
++ * contiguous region, so the SDK clears / copies it with a single DMA or
++ * CPU block transfer rooted at the first register. On the simulator each
++ * register is a separate host global (s_reg_* in sim_vars.c), so a block
++ * transfer rooted at one register walks off the end of that single global
++ * -- a global-buffer-overflow under ASan, and technically UB even though
++ * the simulator lays the globals out in DS offset order so the writes land
++ * on the intended registers.
++ *
++ * These helpers perform the same byte-for-byte writes with explicit
++ * volatile byte loops instead of memcpy/memset. They are marked
++ * no_sanitize("address") because ASan cannot see the register block as
++ * one object; the suppression is narrow (only these three helpers, only
++ * on the simulator) and every call site names the register block it
++ * touches. Do NOT use them for RAM/VRAM buffers, which stay sanitized
++ * through the normal MI_* functions.
++ *
++ * The loops use volatile pointers so the compiler cannot re-fold them
++ * into a memcpy/memset call (whose interceptor would flag the same
++ * access). Fill repeats the low byte of `value`, matching memset, which
++ * is what the MI_* block-fill implementations do on the simulator.
++ */
++static inline __attribute__((no_sanitize("address"))) void GXi_FillRegBlock(void *dest, u32 value, u32 size)
++{
++    volatile u8 *d = (volatile u8 *)dest;
++    u32 i;
++    for (i = 0; i < size; i++) {
++        d[i] = (u8)value;
++    }
++}
++
++static inline __attribute__((no_sanitize("address"))) void GXi_CopyToRegBlock(void *dest, const void *src, u32 size)
++{
++    volatile u8 *d = (volatile u8 *)dest;
++    const u8 *s = (const u8 *)src;
++    u32 i;
++    for (i = 0; i < size; i++) {
++        d[i] = s[i];
++    }
++}
++
++static inline __attribute__((no_sanitize("address"))) void GXi_CopyFromRegBlock(void *dest, const void *src, u32 size)
++{
++    u8 *d = (u8 *)dest;
++    const volatile u8 *s = (const volatile u8 *)src;
++    u32 i;
++    for (i = 0; i < size; i++) {
++        d[i] = s[i];
++    }
++}
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* SDK_PORT */
++
++/* Indexed register-block access, e.g. the G2x_ blend/affine helpers, which
++ * write a register pair as one u32 (BLDCNT+BLDALPHA) or a field at a
++ * halfword offset into a register block. The base address names a single
++ * (often u16) register global on the simulator, so `*((vu32 *)addr + n)`
++ * overflows that global under ASan even though the write lands on the
++ * intended following registers. These helpers do the same volatile store
++ * / load at the same byte offset without ASan instrumentation; on real
++ * hardware they compile to the identical access. Use only for DS register
++ * blocks, never for RAM/VRAM. */
++static inline __attribute__((no_sanitize("address"))) void GXi_RegWrite32(uPtr addr, u32 idx, u32 value)
++{
++    *(volatile u32 *)((volatile u8 *)addr + idx * 4) = value;
++}
++
++static inline __attribute__((no_sanitize("address"))) void GXi_RegWrite16(uPtr addr, u32 idx, u16 value)
++{
++    *(volatile u16 *)((volatile u8 *)addr + idx * 2) = value;
++}
++
++static inline __attribute__((no_sanitize("address"))) u16 GXi_RegRead16(uPtr addr, u32 idx)
++{
++    return *(volatile u16 *)((volatile u8 *)addr + idx * 2);
++}
++
++#endif /* NITRO_GX_REGBLOCK_H_ */
+diff --git a/libraries/gx/src/g2.c b/libraries/gx/src/g2.c
+index 3459993..1307939 100644
+--- a/libraries/gx/src/g2.c
++++ b/libraries/gx/src/g2.c
+@@ -1,6 +1,8 @@
+ #include <nitro/gx/g2.h>
+ #include <nitro/fx/fx_const.h>
+ 
++#include "../include/gx_regblock.h"
++
+ #include <nitro/code32.h>
+ 
+ #ifdef SDK_PORT
+@@ -18,8 +20,8 @@ void G2x_SetBGyAffine_ (u32 addr, const MtxFx22 *mtx, int centerX, int centerY,
+ 	SDK_MINMAX_ASSERT(mtx->_10, -128 * FX32_ONE, 128 * FX32_ONE - 1);
+ 	SDK_MINMAX_ASSERT(mtx->_11, -128 * FX32_ONE, 128 * FX32_ONE - 1);
+ 
+-	*((vu32 *)addr + 0) = (u32)((u16)(s16)(mtx->_00 >> 4) | (u16)(s16)(mtx->_01 >> 4) << 16);
+-	*((vu32 *)addr + 1) = (u32)((u16)(s16)(mtx->_10 >> 4) | (u16)(s16)(mtx->_11 >> 4) << 16);
++	GXi_RegWrite32(addr, 0, (u32)((u16)(s16)(mtx->_00 >> 4) | (u16)(s16)(mtx->_01 >> 4) << 16));
++	GXi_RegWrite32(addr, 1, (u32)((u16)(s16)(mtx->_10 >> 4) | (u16)(s16)(mtx->_11 >> 4) << 16));
+ 
+ 	dx = x1 - centerX;
+ 	dy = y1 - centerY;
+@@ -27,8 +29,8 @@ void G2x_SetBGyAffine_ (u32 addr, const MtxFx22 *mtx, int centerX, int centerY,
+ 	x2 = mtx->_00 * dx + mtx->_01 * dy + (centerX << FX32_SHIFT);
+ 	y2 = mtx->_10 * dx + mtx->_11 * dy + (centerY << FX32_SHIFT);
+ 
+-	*((vu32 *)addr + 2) = (u32)(x2 >> 4);
+-	*((vu32 *)addr + 3) = (u32)(y2 >> 4);
++	GXi_RegWrite32(addr, 2, (u32)(x2 >> 4));
++	GXi_RegWrite32(addr, 3, (u32)(y2 >> 4));
+ }
+ 
+ #include <nitro/codereset.h>
+@@ -51,7 +53,7 @@ void G2x_SetBlendAlpha_ (u32 addr, int plane1, int plane2, int ev1, int ev2)
+ 	SDK_MINMAX_ASSERT(ev1, 0, 31);
+ 	SDK_MINMAX_ASSERT(ev2, 0, 31);
+ 
+-	*((vu32 *)addr + 0) = (u32)((G2_BLENDTYPE_ALPHA | plane1 | plane2 << 8) | ((ev1 | ev2 << 8) << 16));
++	GXi_RegWrite32(addr, 0, (u32)((G2_BLENDTYPE_ALPHA | plane1 | plane2 << 8) | ((ev1 | ev2 << 8) << 16)));
+ }
+ 
+ #ifdef SDK_PORT
+@@ -64,11 +66,11 @@ void G2x_SetBlendBrightness_ (u32 addr, int plane, int brightness)
+ 	SDK_MINMAX_ASSERT(plane, 0, 0x40 - 1);
+ 
+ 	if (brightness < 0) {
+-		*((vu16 *)addr + 0) = (u16)(G2_BLENDTYPE_FADEOUT | plane);
+-		*((vu16 *)addr + 2) = (u16) - brightness;
++		GXi_RegWrite16(addr, 0, (u16)(G2_BLENDTYPE_FADEOUT | plane));
++		GXi_RegWrite16(addr, 2, (u16) - brightness);
+ 	} else {
+-		*((vu16 *)addr + 0) = (u16)(G2_BLENDTYPE_FADEIN | plane);
+-		*((vu16 *)addr + 2) = (u16)brightness;
++		GXi_RegWrite16(addr, 0, (u16)(G2_BLENDTYPE_FADEIN | plane));
++		GXi_RegWrite16(addr, 2, (u16)brightness);
+ 	}
+ }
+ 
+@@ -84,14 +86,14 @@ void G2x_SetBlendBrightnessExt_ (u32 addr, int plane1, int plane2, int ev1, int
+ 	SDK_MINMAX_ASSERT(ev1, 0, 31);
+ 	SDK_MINMAX_ASSERT(ev2, 0, 31);
+ 
+-	*((vu16 *)addr + 1) = (u16)(ev1 | (ev2 << 8));
++	GXi_RegWrite16(addr, 1, (u16)(ev1 | (ev2 << 8)));
+ 
+ 	if (brightness < 0) {
+-		*((vu16 *)addr + 0) = (u16)(G2_BLENDTYPE_FADEOUT | plane1 | (plane2 << 8));
+-		*((vu16 *)addr + 2) = (u16) - brightness;
++		GXi_RegWrite16(addr, 0, (u16)(G2_BLENDTYPE_FADEOUT | plane1 | (plane2 << 8)));
++		GXi_RegWrite16(addr, 2, (u16) - brightness);
+ 	} else {
+-		*((vu16 *)addr + 0) = (u16)(G2_BLENDTYPE_FADEIN | plane1 | (plane2 << 8));
+-		*((vu16 *)addr + 2) = (u16)brightness;
++		GXi_RegWrite16(addr, 0, (u16)(G2_BLENDTYPE_FADEIN | plane1 | (plane2 << 8)));
++		GXi_RegWrite16(addr, 2, (u16)brightness);
+ 	}
+ }
+ 
+@@ -104,19 +106,19 @@ void G2x_ChangeBlendBrightness_ (u32 addr, int brightness)
+ 	u16 tmp;
+ 	SDK_MINMAX_ASSERT(brightness, -31, 31);
+ 
+-	tmp = *((vu16 *)addr + 0);
++	tmp = GXi_RegRead16(addr, 0);
+ 
+ 	if (brightness < 0) {
+ 		if (G2_BLENDTYPE_FADEIN == (tmp & REG_G2_BLDCNT_EFFECT_MASK)) {
+-			*((vu16 *)addr + 0) = (u16)((tmp & ~REG_G2_BLDCNT_EFFECT_MASK) | G2_BLENDTYPE_FADEOUT);
++			GXi_RegWrite16(addr, 0, (u16)((tmp & ~REG_G2_BLDCNT_EFFECT_MASK) | G2_BLENDTYPE_FADEOUT));
+ 		}
+ 
+-		*((vu16 *)addr + 2) = (u16) - brightness;
++		GXi_RegWrite16(addr, 2, (u16) - brightness);
+ 	} else {
+ 		if (G2_BLENDTYPE_FADEOUT == (tmp & REG_G2_BLDCNT_EFFECT_MASK)) {
+-			*((vu16 *)addr + 0) = (u16)((tmp & ~REG_G2_BLDCNT_EFFECT_MASK) | G2_BLENDTYPE_FADEIN);
++			GXi_RegWrite16(addr, 0, (u16)((tmp & ~REG_G2_BLDCNT_EFFECT_MASK) | G2_BLENDTYPE_FADEIN));
+ 		}
+ 
+-		*((vu16 *)addr + 2) = (u16)brightness;
++		GXi_RegWrite16(addr, 2, (u16)brightness);
+ 	}
+ }
 diff --git a/libraries/gx/src/g3_util.c b/libraries/gx/src/g3_util.c
 index 5cf84ea..35b85e4 100644
 --- a/libraries/gx/src/g3_util.c
@@ -1113,6 +1568,192 @@ index b8cf1f4..813a18c 100644
      #else
  
  	reg_G3X_GXFIFO = G3OP_MTX_MULT_4x3;
+diff --git a/libraries/gx/src/g3x.c b/libraries/gx/src/g3x.c
+index ed41f27..523ef91 100644
+--- a/libraries/gx/src/g3x.c
++++ b/libraries/gx/src/g3x.c
+@@ -9,6 +9,8 @@
+ #include <nitro/fx/fx_const.h>
+ #include <nitro/mi/dma.h>
+ #include <nitro/mi/memory.h>
++#include <string.h>
++#include <simulator/sim_regblock.h>
+ #elif SDK_VERSION_MAJOR == 5
+ #include <nitro/gx/g3x.h>
+ #include <nitro/gx/g3imm.h>
+@@ -46,6 +48,7 @@
+ #endif
+ 
+ #include "gxasm.h"
++#include "../include/gx_regblock.h"
+ 
+ #if defined( SDK_PORT )
+ static void GXi_NopClearFifo128_( register void* pDest );
+@@ -236,7 +239,11 @@ int G3X_GetClipMtx (MtxFx44 *m)
+ 	if (G3X_IsGeometryBusy()) {
+ 		return -1;
+ 	} else {
++#ifdef SDK_PORT
++		GXi_CopyFromRegBlock(&m->_00, (const void *)REG_CLIPMTX_RESULT_0_ADDR, 64);
++#else
+ 		MI_Copy64B((void *)REG_CLIPMTX_RESULT_0_ADDR, &m->_00);
++#endif
+ 		return 0;
+ 	}
+ }
+@@ -248,7 +255,11 @@ int G3X_GetVectorMtx (MtxFx33 *m)
+ 	if (G3X_IsGeometryBusy()) {
+ 		return -1;
+ 	} else {
++#ifdef SDK_PORT
++		GXi_CopyFromRegBlock(&m->_00, (const void *)REG_VECMTX_RESULT_0_ADDR, 36);
++#else
+ 		MI_Copy36B((void *)(REG_VECMTX_RESULT_0_ADDR), &m->_00);
++#endif
+ 		return 0;
+ 	}
+ }
+@@ -256,19 +267,32 @@ int G3X_GetVectorMtx (MtxFx33 *m)
+ void G3X_SetEdgeColorTable (const GXRgb *rgb_8)
+ {
+ 	SDK_NULL_ASSERT(rgb_8);
++#ifdef SDK_PORT
++	GXi_CopyToRegBlock((void *)REG_EDGE_COLOR_0_L_ADDR, rgb_8, 16);
++#else
+ 	MI_CpuCopy16(rgb_8, (void *)REG_EDGE_COLOR_0_L_ADDR, 16);
++#endif
+ }
+ 
+ void G3X_SetFogTable (const u32 *fogTable)
+ {
+ 	SDK_NULL_ASSERT(fogTable);
++#ifdef SDK_PORT
++	GXi_CopyToRegBlock((void *)REG_FOG_TABLE_0_ADDR, &fogTable[0], 32);
++	memcpy(SIM_FogTable, &fogTable[0], 32);
++#else
+ 	MI_Copy32B(&fogTable[0], (void *)REG_FOG_TABLE_0_ADDR);
++#endif
+ }
+ 
+ void G3X_SetToonTable (const GXRgb *rgb_32)
+ {
+ 	SDK_NULL_ASSERT(rgb_32);
++#ifdef SDK_PORT
++	GXi_CopyToRegBlock((void *)REG_TOON_TABLE_0_L_ADDR, rgb_32, 64);
++#else
+ 	MI_CpuCopy16(rgb_32, (void *)REG_TOON_TABLE_0_L_ADDR, 64);
++#endif
+ }
+ 
+ void G3X_SetClearColor (GXRgb rgb, int alpha, int depth, int polygonID, BOOL fog)
+@@ -292,7 +316,15 @@ void G3X_InitTable (void)
+ {
+ 	int i;
+ 
++#ifdef SDK_PORT
++	memset(SIM_FogTable, 0, sizeof(SIM_FogTable));
++#endif
++
+ 	if (GXi_DmaId != GX_DMA_NOT_USE) {
++#ifdef SDK_PORT
++		GXi_FillRegBlock((void *)REG_EDGE_COLOR_0_L_ADDR, 0, 16);
++		GXi_FillRegBlock((void *)REG_FOG_TABLE_0_ADDR, 0, 96);
++#else
+ #if SDK_VERSION_MAJOR == 5 && defined(SDK_TWL)
+     if (GXi_DmaId > 3) {
+       MI_NDmaFillAsync(GXi_DmaId - 4, (void *)REG_EDGE_COLOR_0_L_ADDR, 0, 16,
+@@ -304,10 +336,16 @@ void G3X_InitTable (void)
+ 		MI_DmaFill32(GXi_DmaId, (void *)REG_FOG_TABLE_0_ADDR, 0, 96);
+ #if SDK_VERSION_MAJOR == 5 && defined(SDK_TWL)
+ 		}
++#endif
+ #endif
+ 	} else {
++#ifdef SDK_PORT
++		GXi_FillRegBlock((void *)REG_EDGE_COLOR_0_L_ADDR, 0, 16);
++		GXi_FillRegBlock((void *)REG_FOG_TABLE_0_ADDR, 0, 96);
++#else
+ 		MI_CpuFill32((void *)REG_EDGE_COLOR_0_L_ADDR, 0, 16);
+ 		MI_CpuFill32((void *)REG_FOG_TABLE_0_ADDR, 0, 96);
++#endif
+ 	}
+ 
+ 	for (i = 0; i < 32; ++i) {
+diff --git a/libraries/gx/src/gx.c b/libraries/gx/src/gx.c
+index ff250dd..59336f9 100644
+--- a/libraries/gx/src/gx.c
++++ b/libraries/gx/src/gx.c
+@@ -1,6 +1,7 @@
+ #include <nitro/gx/gx.h>
+ #include <nitro/mi/dma.h>
+ #include "../include/gxstate.h"
++#include "../include/gx_regblock.h"
+ 
+ #if SDK_VERSION_MAJOR == 5
+ #ifdef SDK_TWL
+@@ -61,8 +62,8 @@ void GX_Init (void)
+ #if SDK_VERSION_MAJOR == 5 && defined(SDK_TWL)
+     if (GXi_DmaId > 3) {
+       #ifdef SDK_PORT
+-		  MI_NDmaFill(GXi_DmaId, (void *)REG_BG0CNT_ADDR, 0,
+-		             REG_DISP_MMEM_FIFO_OFFSET - REG_BG0CNT_OFFSET);
++		  GXi_FillRegBlock((void *)REG_BG0CNT_ADDR, 0,
++		                    REG_DISP_MMEM_FIFO_OFFSET - REG_BG0CNT_OFFSET);
+       #else
+       MI_NDmaFill(GXi_DmaId - 4, (void *)REG_BG0CNT_ADDR, 0,
+                   REG_DISP_MMEM_FIFO_ADDR - REG_BG0CNT_ADDR);
+@@ -70,8 +71,8 @@ void GX_Init (void)
+       reg_GX_MASTER_BRIGHT = 0;
+ 
+       #ifdef SDK_PORT
+-      MI_NDmaFill(GXi_DmaId - 4, (void *)REG_DB_DISPCNT_ADDR, 0,
+-                  REG_DB_MASTER_BRIGHT_OFFSET - REG_DB_DISPCNT_OFFSET + 4);
++      GXi_FillRegBlock((void *)REG_DB_DISPCNT_ADDR, 0,
++                       REG_DB_MASTER_BRIGHT_OFFSET - REG_DB_DISPCNT_OFFSET + 4);
+       #else
+       MI_NDmaFill(GXi_DmaId - 4, (void *)REG_DB_DISPCNT_ADDR, 0,
+                   REG_DB_MASTER_BRIGHT_ADDR - REG_DB_DISPCNT_ADDR + 4);
+@@ -79,8 +80,8 @@ void GX_Init (void)
+     } else {
+ #endif
+         #ifdef SDK_PORT
+-		MI_DmaFill32(GXi_DmaId, (void *)REG_BG0CNT_ADDR, 0,
+-		             REG_DISP_MMEM_FIFO_OFFSET - REG_BG0CNT_OFFSET);
++		GXi_FillRegBlock((void *)REG_BG0CNT_ADDR, 0,
++		                  REG_DISP_MMEM_FIFO_OFFSET - REG_BG0CNT_OFFSET);
+         #else
+ 		MI_DmaFill32(GXi_DmaId, (void *)REG_BG0CNT_ADDR, 0,
+ 		             REG_DISP_MMEM_FIFO_ADDR - REG_BG0CNT_ADDR);
+@@ -88,8 +89,8 @@ void GX_Init (void)
+ 		reg_GX_MASTER_BRIGHT = 0;
+ 
+         #ifdef SDK_PORT
+-		MI_DmaFill32(GXi_DmaId, (void *)REG_DB_DISPCNT_ADDR, 0,
+-		             REG_DB_MASTER_BRIGHT_OFFSET - REG_DB_DISPCNT_OFFSET + 4);
++		GXi_FillRegBlock((void *)REG_DB_DISPCNT_ADDR, 0,
++		                  REG_DB_MASTER_BRIGHT_OFFSET - REG_DB_DISPCNT_OFFSET + 4);
+         #else
+ 		MI_DmaFill32(GXi_DmaId, (void *)REG_DB_DISPCNT_ADDR, 0,
+ 		             REG_DB_MASTER_BRIGHT_ADDR - REG_DB_DISPCNT_ADDR + 4);
+@@ -99,15 +100,15 @@ void GX_Init (void)
+ #endif
+ 	} else {
+         #ifdef SDK_PORT
+-		MI_CpuFill32((void *)REG_BG0CNT_ADDR, 0, REG_DISP_MMEM_FIFO_OFFSET - REG_BG0CNT_OFFSET);
++		GXi_FillRegBlock((void *)REG_BG0CNT_ADDR, 0, REG_DISP_MMEM_FIFO_OFFSET - REG_BG0CNT_OFFSET);
+         #else
+ 		MI_CpuFill32((void *)REG_BG0CNT_ADDR, 0, REG_DISP_MMEM_FIFO_ADDR - REG_BG0CNT_ADDR);
+         #endif
+ 		reg_GX_MASTER_BRIGHT = 0;
+ 
+         #ifdef SDK_PORT
+-		MI_CpuFill32((void *)REG_DB_DISPCNT_ADDR, 0,
+-		             REG_DB_MASTER_BRIGHT_OFFSET - REG_DB_DISPCNT_OFFSET + 4);
++		GXi_FillRegBlock((void *)REG_DB_DISPCNT_ADDR, 0,
++		                  REG_DB_MASTER_BRIGHT_OFFSET - REG_DB_DISPCNT_OFFSET + 4);
+         #else
+ 		MI_CpuFill32((void *)REG_DB_DISPCNT_ADDR, 0,
+ 		             REG_DB_MASTER_BRIGHT_ADDR - REG_DB_DISPCNT_ADDR + 4);
 diff --git a/libraries/gx/src/gx_load3d.c b/libraries/gx/src/gx_load3d.c
 index c866e53..23f783c 100644
 --- a/libraries/gx/src/gx_load3d.c
@@ -1206,8 +1847,96 @@ index 7449e2b..dc1e978 100644
  	gGXState.vramCnt.lcdc = (u16)(~sub_objExtPltt & (gGXState.vramCnt.lcdc | gGXState.vramCnt.sub_objExtPltt));
  	gGXState.vramCnt.sub_objExtPltt = sub_objExtPltt;
  
+diff --git a/libraries/mi/include/mi_dma.h b/libraries/mi/include/mi_dma.h
+index cb374f8..0375d40 100644
+--- a/libraries/mi/include/mi_dma.h
++++ b/libraries/mi/include/mi_dma.h
+@@ -27,6 +27,22 @@ typedef union {
+     u16 b16;
+ } MIiDmaClearSrc;
+ 
++/* Per-channel clear-data register. On the simulator the CLR_DATA registers
++ * are separate globals, not a contiguous block, and (u32) casts of their
++ * addresses truncate pointers on 64-bit hosts, so neither
++ * MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4 (16-byte stride, off the end of one
++ * global) nor (u32)MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4 is correct there. */
++#ifdef SDK_PORT
++#define MIi_DMA_CLEAR_DATA_PTR(dmaNo)                                          \
++    ((MIiDmaClearSrc *)((vu32 *[]){REG_DMA0_CLR_DATA_ADDR,                     \
++                                   REG_DMA1_CLR_DATA_ADDR,                     \
++                                   REG_DMA2_CLR_DATA_ADDR,                     \
++                                   REG_DMA3_CLR_DATA_ADDR})[(dmaNo)])
++#else
++#define MIi_DMA_CLEAR_DATA_PTR(dmaNo)                                          \
++    ((MIiDmaClearSrc *)((u32)MIi_DMA_CLEAR_DATA_BUF + (dmaNo) * 4))
++#endif
++
+ #if SDK_VERSION_MAJOR == 5
+ #define MIi_DMA_MODE_NOINT 1
+ #define MIi_DMA_MODE_WAIT 2
+@@ -97,11 +113,7 @@ static inline void MIi_DmaSetParams_src32 (u32 dmaNo, u32 data, u32 dest, u32 ct
+ {
+     OSIntrMode enabled = OS_DisableInterrupts();
+ 
+-    #ifdef SDK_PORT
+-    MIiDmaClearSrc * srcp = (MIiDmaClearSrc *) (MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
+-    #else
+-    MIiDmaClearSrc * srcp = (MIiDmaClearSrc *) ((u32)MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
+-    #endif
++    MIiDmaClearSrc * srcp = MIi_DMA_CLEAR_DATA_PTR(dmaNo);
+     srcp->b32 = data;
+     MIi_DmaSetParams_noInt(dmaNo, (u32)srcp, dest, ctrl);
+ 
+@@ -112,11 +124,7 @@ static inline void MIi_DmaSetParams_src16 (u32 dmaNo, u16 data, u32 dest, u32 ct
+ {
+     OSIntrMode enabled = OS_DisableInterrupts();
+ 
+-    #ifdef SDK_PORT
+-    MIiDmaClearSrc * srcp = (MIiDmaClearSrc *) (MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
+-    #else
+-    MIiDmaClearSrc * srcp = (MIiDmaClearSrc *) ((u32)MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
+-    #endif
++    MIiDmaClearSrc * srcp = MIi_DMA_CLEAR_DATA_PTR(dmaNo);
+     srcp->b16 = data;
+     MIi_DmaSetParams_noInt(dmaNo, (u32)srcp, dest, ctrl);
+ 
+@@ -127,11 +135,7 @@ static inline void MIi_DmaSetParams_wait_src32 (u32 dmaNo, u32 data, u32 dest, u
+ {
+     OSIntrMode enabled = OS_DisableInterrupts();
+ 
+-    #ifdef SDK_PORT
+-    MIiDmaClearSrc * srcp = (MIiDmaClearSrc *) (MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
+-    #else
+-    MIiDmaClearSrc * srcp = (MIiDmaClearSrc *) ((u32)MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
+-    #endif
++    MIiDmaClearSrc * srcp = MIi_DMA_CLEAR_DATA_PTR(dmaNo);
+     srcp->b32 = data;
+     MIi_DmaSetParams_wait_noInt(dmaNo, (u32)srcp, dest, ctrl);
+ 
+@@ -142,11 +146,7 @@ static inline void MIi_DmaSetParams_wait_src16 (u32 dmaNo, u16 data, u32 dest, u
+ {
+     OSIntrMode enabled = OS_DisableInterrupts();
+ 
+-    #ifdef SDK_PORT
+-    MIiDmaClearSrc * srcp = (MIiDmaClearSrc *) (MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
+-    #else
+-    MIiDmaClearSrc * srcp = (MIiDmaClearSrc *) ((u32)MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
+-    #endif
++    MIiDmaClearSrc * srcp = MIi_DMA_CLEAR_DATA_PTR(dmaNo);
+     srcp->b16 = data;
+     MIi_DmaSetParams_wait_noInt(dmaNo, (u32)srcp, dest, ctrl);
+ 
+@@ -164,7 +164,7 @@ static inline void MIi_CallCallback (MIDmaCallback callback, void * arg)
+ 
+ #define MIi_Wait_BeforeDMA(dmaCntp, dmaNo)                       \
+     do {                                                         \
+-        dmaCntp = &((vu32 *)REG_DMA0SAD_ADDR)[dmaNo * 3 + 2];    \
++        dmaCntp = MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET); \
+         MIi_ASSERT_DMANO(dmaNo);                                 \
+         while ( *dmaCntp & REG_MI_DMA0CNT_E_MASK ) {}            \
+     } while (0)
 diff --git a/libraries/mi/src/mi_dma.c b/libraries/mi/src/mi_dma.c
-index 165e004..3114382 100644
+index 165e004..bfead22 100644
 --- a/libraries/mi/src/mi_dma.c
 +++ b/libraries/mi/src/mi_dma.c
 @@ -6,6 +6,7 @@
@@ -1218,7 +1947,185 @@ index 165e004..3114382 100644
  #endif
  
  #if SDK_VERSION_MAJOR == 5
-@@ -228,6 +229,7 @@ void MIi_DmaFill32(u32 dmaNo, void *dest, u32 data, u32 size, BOOL dmaEnable)
+@@ -14,29 +15,25 @@
+ 
+ void MIi_DmaSetParameters(u32 dmaNo, u32 src, u32 dest, u32 ctrl, u32 mode) {
+   OSIntrMode enabled;
+-  vu32 *p;
+ 
+   if (!(mode & MIi_DMA_MODE_NOINT)) {
+     enabled = OS_DisableInterrupts();
+   }
+ 
+-  p = (vu32 *)MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET);
+ 
+   if (mode & MIi_DMA_MODE_SRC32) {
+-    MIiDmaClearSrc *srcp =
+-        (MIiDmaClearSrc *)((u32)MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
++    MIiDmaClearSrc *srcp = MIi_DMA_CLEAR_DATA_PTR(dmaNo);
+     srcp->b32 = src;
+     src = (u32)srcp;
+   } else if (mode & MIi_DMA_MODE_SRC16) {
+-    MIiDmaClearSrc *srcp =
+-        (MIiDmaClearSrc *)((u32)MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
++    MIiDmaClearSrc *srcp = MIi_DMA_CLEAR_DATA_PTR(dmaNo);
+     srcp->b16 = (u16)src;
+     src = (u32)srcp;
+   }
+ 
+-  *p = (vu32)src;
+-  *(p + 1) = (vu32)dest;
+-  *(p + 2) = (vu32)ctrl;
++  *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)src;
++  *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)dest;
++  *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)ctrl;
+ 
+   if (mode & MIi_DMA_MODE_WAIT) {
+ 
+@@ -50,9 +47,9 @@ void MIi_DmaSetParameters(u32 dmaNo, u32 src, u32 dest, u32 ctrl, u32 mode) {
+     if (!(mode & MIi_DMA_MODE_NOCLEAR)) {
+ 
+       if (dmaNo == MIi_DUMMY_DMA_NO) {
+-        *p = (vu32)MIi_DUMMY_SRC;
+-        *(p + 1) = (vu32)MIi_DUMMY_DEST;
+-        *(p + 2) = (vu32)MIi_DUMMY_CNT;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)MIi_DUMMY_SRC;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)MIi_DUMMY_DEST;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)MIi_DUMMY_CNT;
+       }
+     }
+   }
+@@ -75,29 +72,25 @@ void MIi_DmaSetParameters(u32 dmaNo, u32 src, u32 dest, u32 ctrl, u32 mode) {
+ #else // ifdef SDK_ARM9
+ void MIi_DmaSetParameters(u32 dmaNo, u32 src, u32 dest, u32 ctrl, u32 mode) {
+   OSIntrMode enabled;
+-  vu32 *p;
+ 
+   if (!(mode & MIi_DMA_MODE_NOINT)) {
+     enabled = OS_DisableInterrupts();
+   }
+ 
+-  p = (vu32 *)MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET);
+ 
+   if (mode & MIi_DMA_MODE_SRC32) {
+-    MIiDmaClearSrc *srcp =
+-        (MIiDmaClearSrc *)((u32)MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
++    MIiDmaClearSrc *srcp = MIi_DMA_CLEAR_DATA_PTR(dmaNo);
+     srcp->b32 = src;
+     src = (u32)srcp;
+   } else if (mode & MIi_DMA_MODE_SRC16) {
+-    MIiDmaClearSrc *srcp =
+-        (MIiDmaClearSrc *)((u32)MIi_DMA_CLEAR_DATA_BUF + dmaNo * 4);
++    MIiDmaClearSrc *srcp = MIi_DMA_CLEAR_DATA_PTR(dmaNo);
+     srcp->b16 = (u16)src;
+     src = (u32)srcp;
+   }
+ 
+-  *p = (vu32)src;
+-  *(p + 1) = (vu32)dest;
+-  *(p + 2) = (vu32)ctrl;
++  *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)src;
++  *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)dest;
++  *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)ctrl;
+ 
+   if (mode & MIi_DMA_MODE_WAIT) {
+ 
+@@ -117,14 +110,9 @@ void MIi_DmaSetParameters(u32 dmaNo, u32 src, u32 dest, u32 ctrl, u32 mode) {
+     void MIi_DmaSetParams (u32 dmaNo, u32 src, u32 dest, u32 ctrl)
+     {
+         OSIntrMode enabled = OS_DisableInterrupts();
+-        #ifdef SDK_PORT
+-        vu32 * p = (vu32 *)((u64)REG_DMA0SAD_ADDR + dmaNo * 12);
+-        #else
+-        vu32 * p = (vu32 *)((u32)REG_DMA0SAD_ADDR + dmaNo * 12);
+-        #endif
+-        *p = (vu32)src;
+-        *(p + 1) = (vu32)dest;
+-        *(p + 2) = (vu32)ctrl;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)src;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)dest;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)ctrl;
+         (void)OS_RestoreInterrupts(enabled);
+     }
+ 
+@@ -135,14 +123,9 @@ void MIi_DmaSetParameters(u32 dmaNo, u32 src, u32 dest, u32 ctrl, u32 mode) {
+     #endif
+     {
+         OSIntrMode enabled = OS_DisableInterrupts();
+-        #ifdef SDK_PORT
+-        vu32 * p = (vu32 *)((u64)REG_DMA0SAD_ADDR + dmaNo * 12);
+-        #else
+-        vu32 * p = (vu32 *)((u32)REG_DMA0SAD_ADDR + dmaNo * 12);
+-        #endif
+-        *p = (vu32)src;
+-        *(p + 1) = (vu32)dest;
+-        *(p + 2) = (vu32)ctrl;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)src;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)dest;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)ctrl;
+ 
+         {
+             u32 dummy = reg_MI_DMA0SAD;
+@@ -152,9 +135,9 @@ void MIi_DmaSetParameters(u32 dmaNo, u32 src, u32 dest, u32 ctrl, u32 mode) {
+         }
+ 
+         if (dmaNo == MIi_DUMMY_DMA_NO) {
+-            *p = (vu32)MIi_DUMMY_SRC;
+-            *(p + 1) = (vu32)MIi_DUMMY_DEST;
+-            *(p + 2) = (vu32)MIi_DUMMY_CNT;
++            *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)MIi_DUMMY_SRC;
++            *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)MIi_DUMMY_DEST;
++            *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)MIi_DUMMY_CNT;
+         }
+ 
+         (void)OS_RestoreInterrupts(enabled);
+@@ -162,26 +145,16 @@ void MIi_DmaSetParameters(u32 dmaNo, u32 src, u32 dest, u32 ctrl, u32 mode) {
+ 
+     void MIi_DmaSetParams_noInt (u32 dmaNo, u32 src, u32 dest, u32 ctrl)
+     {
+-        #ifdef SDK_PORT
+-        vu32 * p = (vu32 *)((u64)REG_DMA0SAD_ADDR + dmaNo * 12);
+-        #else
+-        vu32 * p = (vu32 *)((u32)REG_DMA0SAD_ADDR + dmaNo * 12);
+-        #endif
+-        *p = (vu32)src;
+-        *(p + 1) = (vu32)dest;
+-        *(p + 2) = (vu32)ctrl;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)src;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)dest;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)ctrl;
+     }
+ 
+     void MIi_DmaSetParams_wait_noInt (u32 dmaNo, u32 src, u32 dest, u32 ctrl)
+     {
+-        #ifdef SDK_PORT
+-        vu32 * p = (vu32 *)((u64)REG_DMA0SAD_ADDR + dmaNo * 12);
+-        #else
+-        vu32 * p = (vu32 *)((u32)REG_DMA0SAD_ADDR + dmaNo * 12);
+-        #endif
+-        *p = (vu32)src;
+-        *(p + 1) = (vu32)dest;
+-        *(p + 2) = (vu32)ctrl;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)src;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)dest;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)ctrl;
+ 
+         {
+             u32 dummy = reg_MI_DMA0SAD;
+@@ -191,9 +164,9 @@ void MIi_DmaSetParameters(u32 dmaNo, u32 src, u32 dest, u32 ctrl, u32 mode) {
+         }
+ 
+         if (dmaNo == MIi_DUMMY_DMA_NO) {
+-            *p = (vu32)MIi_DUMMY_SRC;
+-            *(p + 1) = (vu32)MIi_DUMMY_DEST;
+-            *(p + 2) = (vu32)MIi_DUMMY_CNT;
++            *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)MIi_DUMMY_SRC;
++            *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)MIi_DUMMY_DEST;
++            *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)MIi_DUMMY_CNT;
+         }
+ 
+         {
+@@ -228,6 +201,7 @@ void MIi_DmaFill32(u32 dmaNo, void *dest, u32 data, u32 size, BOOL dmaEnable)
      #ifdef SDK_PORT
      SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaFill32 with a size of %d bytes, which is larger than the DS memory.", size);
      memset(dest, data, size);
@@ -1226,7 +2133,7 @@ index 165e004..3114382 100644
      #else
      MIi_Wait_BeforeDMA(dmaCntp, dmaNo);
      #if SDK_VERSION_MAJOR == 4
-@@ -272,6 +274,7 @@ void MIi_DmaCopy32(u32 dmaNo, const void *src, void *dest, u32 size, BOOL dmaEna
+@@ -272,6 +246,7 @@ void MIi_DmaCopy32(u32 dmaNo, const void *src, void *dest, u32 size, BOOL dmaEna
      #ifdef SDK_PORT
      SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaCopy32 with a size of %d bytes, which is larger than the DS memory.", size);
      memcpy( dest, src, size );
@@ -1234,7 +2141,7 @@ index 165e004..3114382 100644
      #else
      MIi_Wait_BeforeDMA(dmaCntp, dmaNo);
      #if SDK_VERSION_MAJOR == 4
-@@ -315,6 +318,7 @@ void MIi_DmaSend32(u32 dmaNo, const void *src, volatile void *dest, u32 size, BO
+@@ -315,6 +290,7 @@ void MIi_DmaSend32(u32 dmaNo, const void *src, volatile void *dest, u32 size, BO
      #ifdef SDK_PORT
      SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaSend32 with a size of %d bytes, which is larger than the DS memory.", size);
      memcpy(dest, src, size);
@@ -1242,7 +2149,7 @@ index 165e004..3114382 100644
      #else
      MIi_Wait_BeforeDMA(dmaCntp, dmaNo);
      #if SDK_VERSION_MAJOR == 4
-@@ -402,6 +406,7 @@ void MIi_DmaCopy16(u32 dmaNo, const void *src, void *dest, u32 size, BOOL dmaEna
+@@ -402,6 +378,7 @@ void MIi_DmaCopy16(u32 dmaNo, const void *src, void *dest, u32 size, BOOL dmaEna
      #ifdef SDK_PORT
      SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaCopy16 with a size of %d bytes, which is larger than the DS memory.", size);
      memcpy( dest, src, size );
@@ -1250,7 +2157,7 @@ index 165e004..3114382 100644
      #else
      MIi_Wait_BeforeDMA(dmaCntp, dmaNo);
      #if SDK_VERSION_MAJOR == 4
-@@ -445,6 +450,7 @@ void MIi_DmaSend16(u32 dmaNo, const void *src, volatile void *dest, u32 size, BO
+@@ -445,6 +422,7 @@ void MIi_DmaSend16(u32 dmaNo, const void *src, volatile void *dest, u32 size, BO
      #ifdef SDK_PORT
      SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaSend16 with a size of %d bytes, which is larger than the DS memory.", size);
      memcpy( dest, src, size );
@@ -1258,7 +2165,7 @@ index 165e004..3114382 100644
      #else
      MIi_Wait_BeforeDMA(dmaCntp, dmaNo);
      MIi_DmaSetParams_wait(dmaNo, (u32)src, (u32)dest, MI_CNT_SEND16(size));
-@@ -514,6 +520,7 @@ void MIi_DmaCopy32Async(u32 dmaNo, const void *src, void *dest, u32 size, MIDmaC
+@@ -514,6 +492,7 @@ void MIi_DmaCopy32Async(u32 dmaNo, const void *src, void *dest, u32 size, MIDmaC
          #ifdef SDK_PORT
          SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaCopy32Async with a size of %d bytes, which is larger than the DS memory.", size);
          memcpy(dest, src, size);
@@ -1266,7 +2173,7 @@ index 165e004..3114382 100644
          if( callback )
          {
              OSi_EnterDmaCallback(dmaNo, callback, arg);
-@@ -633,6 +640,7 @@ void MIi_DmaCopy16Async(u32 dmaNo, const void *src, void *dest, u32 size, MIDmaC
+@@ -633,6 +612,7 @@ void MIi_DmaCopy16Async(u32 dmaNo, const void *src, void *dest, u32 size, MIDmaC
          #ifdef SDK_PORT
          SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaCopy16Async with a size of %d bytes, which is larger than the DS memory.", size);
          memcpy(dest, src, size);
@@ -1274,7 +2181,7 @@ index 165e004..3114382 100644
          if( callback )
          {
              OSi_EnterDmaCallback(dmaNo, callback, arg);
-@@ -673,6 +681,7 @@ void MIi_DmaSend16Async(u32 dmaNo, const void * src, volatile void * dest, u32 s
+@@ -673,6 +653,7 @@ void MIi_DmaSend16Async(u32 dmaNo, const void * src, volatile void * dest, u32 s
          #ifdef SDK_PORT
          SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_DmaSend16Async with a size of %d bytes, which is larger than the DS memory.", size);
          memcpy( dest, src, size );
@@ -1282,7 +2189,74 @@ index 165e004..3114382 100644
          if( callback )
          {
              OSi_EnterDmaCallback(dmaNo, callback, arg);
-@@ -1013,4 +1022,4 @@ void MIi_SetDmaSize32(u32 dmaNo, u32 size) {
+@@ -793,7 +774,7 @@ void MIi_DmaPipe16Async(u32 dmaNo, volatile const void *src,
+ 
+ BOOL MI_IsDmaBusy (u32 dmaNo)
+ {
+-    vu32 * dmaCntp = &((vu32 *)REG_DMA0SAD_ADDR)[dmaNo * 3 + 2];
++    vu32 * dmaCntp = MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET);
+ 
+     MIi_ASSERT_DMANO(dmaNo);
+     #ifdef SDK_PORT
+@@ -807,17 +788,16 @@ void MI_WaitDma (u32 dmaNo)
+ {
+     #ifndef SDK_PORT
+     OSIntrMode enabled = OS_DisableInterrupts();
+-    vu32 * dmaCntp = &((vu32 *)REG_DMA0SAD_ADDR)[dmaNo * 3 + 2];
++    vu32 * dmaCntp = MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET);
+ 
+     MIi_ASSERT_DMANO(dmaNo);
+     while (*dmaCntp & REG_MI_DMA0CNT_E_MASK) {
+     }
+ 
+     if (dmaNo == MIi_DUMMY_DMA_NO) {
+-        vu32 * p = (vu32 *)((u32)REG_DMA0SAD_ADDR + dmaNo * 12);
+-        *p = (vu32)MIi_DUMMY_SRC;
+-        *(p + 1) = (vu32)MIi_DUMMY_DEST;
+-        *(p + 2) = (vu32)MIi_DUMMY_CNT;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)MIi_DUMMY_SRC;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)MIi_DUMMY_DEST;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)MIi_DUMMY_CNT;
+     }
+ 
+     (void)OS_RestoreInterrupts(enabled);
+@@ -827,7 +807,7 @@ void MI_WaitDma (u32 dmaNo)
+ void MI_StopDma (u32 dmaNo)
+ {
+     OSIntrMode enabled = OS_DisableInterrupts();
+-    vu16 * dmaCntp = &((vu16 *)REG_DMA0SAD_ADDR)[dmaNo * 6 + 5];
++    vu16 * dmaCntp = (vu16 *)MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) + 1;
+ 
+     MIi_ASSERT_DMANO(dmaNo);
+ 
+@@ -842,14 +822,9 @@ void MI_StopDma (u32 dmaNo)
+     }
+ 
+     if (dmaNo == MIi_DUMMY_DMA_NO) {
+-        #ifdef SDK_PORT
+-        vu32 * p = (vu32 *)(REG_DMA0SAD_ADDR + dmaNo * 12);
+-        #else
+-        vu32 * p = (vu32 *)((u32)REG_DMA0SAD_ADDR + dmaNo * 12);
+-        #endif
+-        *p = (vu32)MIi_DUMMY_SRC;
+-        *(p + 1) = (vu32)MIi_DUMMY_DEST;
+-        *(p + 2) = (vu32)MIi_DUMMY_CNT;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_SAD_WOFFSET) = (vu32)MIi_DUMMY_SRC;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_DAD_WOFFSET) = (vu32)MIi_DUMMY_DEST;
++        *MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET) = (vu32)MIi_DUMMY_CNT;
+     }
+ 
+     (void)OS_RestoreInterrupts(enabled);
+@@ -883,7 +858,7 @@ void MI_DmaRestart(u32 dmaNo) {
+                 continue;
+             }
+ 
+-            dmaCnt = *(REGType32v *)(REG_DMA0CNT_ADDR + n * 12);
++            dmaCnt = *MI_DMA_REGADDR(n, MI_DMA_REG_CNT_WOFFSET);
+ 
+             if ((dmaCnt & MI_DMA_ENABLE) == 0) {
+                 continue;
+@@ -1013,4 +988,4 @@ void MIi_SetDmaSize32(u32 dmaNo, u32 size) {
    p = (vu32 *)MI_DMA_REGADDR(dmaNo, MI_DMA_REG_CNT_WOFFSET);
    *p = (*p & ~REG_MI_DMA0CNT_WORDCNT_MASK) | (size / 4);
  }
@@ -1328,10 +2302,10 @@ index 4aa90f9..91e2325 100644
  
  		MIi_FIFOCallback();
 diff --git a/libraries/mi/src/mi_memory.c b/libraries/mi/src/mi_memory.c
-index 876f6c4..36edb27 100644
+index 876f6c4..95b5d1a 100644
 --- a/libraries/mi/src/mi_memory.c
 +++ b/libraries/mi/src/mi_memory.c
-@@ -56,11 +56,13 @@
+@@ -56,19 +56,22 @@
  #ifdef SDK_PORT
  #include <string.h>
  #include <nitro/fx/fx.h>
@@ -1345,9 +2319,11 @@ index 876f6c4..36edb27 100644
  }
  
  void MI_CpuFill8( void *dstp, u8 data, u32 size )
-@@ -69,6 +71,7 @@ void MI_CpuFill8( void *dstp, u8 data, u32 size )
+ {
+     SIM_assert_msg(size < HW_MAIN_MEM_MAIN_SIZE, "Attempt to call MI_CpuFill8 with a size of %d bytes, which is larger than the DS memory.", size);
      u32 myData;
-     myData = data | (data << 8) | (data << 16) | (data << 24);
+-    myData = data | (data << 8) | (data << 16) | (data << 24);
++    myData = (u32)data | ((u32)data << 8) | ((u32)data << 16) | ((u32)data << 24);
      memset( dstp, myData, size );
 +    SIM_G3_NotifyTexVramWrite(dstp, size);
  }
@@ -1498,8 +2474,35 @@ index 1472f43..54a582c 100644
  #endif
  }
  
+diff --git a/libraries/os/src/os_arena.c b/libraries/os/src/os_arena.c
+index 0a015d0..abf4e0c 100644
+--- a/libraries/os/src/os_arena.c
++++ b/libraries/os/src/os_arena.c
+@@ -423,15 +423,16 @@ void * OS_AllocFromArenaLo (OSArenaId id, u32 size, u32 align)
+         return NULL;
+     }
+ 
+-    #ifdef SDK_PORT
+-    arenaLo = ptr = (void *)(ptr);
+-    arenaLo += size;
+-    arenaLo = (u8 *)(arenaLo);
+-    #else
++    /* The simulator branch used to ignore `align` and just bump the
++     * pointer, so arena allocations came back at whatever alignment the
++     * running arena Lo happened to have -- including odd addresses.
++     * Every heap base, task-manager store and FS table on the port comes
++     * from here, so their pointer-containing structs were misaligned
++     * (UBSan) even when callers asked for 8. Round exactly like the
++     * hardware branch (the PORT OSi_ROUND is the u64 one, above). */
+     arenaLo = ptr = (void *)OSi_ROUND(ptr, align);
+     arenaLo += size;
+     arenaLo = (u8 *)OSi_ROUND(arenaLo, align);
+-    #endif
+ 
+     if (arenaLo > OS_GetArenaHi(id)) {
+         return NULL;
 diff --git a/libraries/os/src/os_tick.c b/libraries/os/src/os_tick.c
-index f8d7968..06bb0a4 100644
+index f8d7968..95274d0 100644
 --- a/libraries/os/src/os_tick.c
 +++ b/libraries/os/src/os_tick.c
 @@ -8,6 +8,12 @@ static u16 OSi_UseTick = FALSE;
@@ -1532,6 +2535,15 @@ index f8d7968..06bb0a4 100644
      u64 milliseconds = SDL_GetTicks64();
      return ((OSTick)( ((OS_SYSTEM_CLOCK/1000) * (u64)(milliseconds)) / 64 ));
      #else
+@@ -129,7 +145,7 @@ u16 OS_GetTickLo (void)
+ {
+     SDK_ASSERT(OSi_UseTick);
+     #ifdef SDK_PORT
+-    return *(REGType16 *)(REG_TM0CNT_L_ADDR + OSi_TICK_TIMER * 4);
++    return *OSi_TM_CNT_L_ADDR(OSi_TICK_TIMER);
+     #else
+     return *(REGType16 *)((u32)REG_TM0CNT_L_ADDR + OSi_TICK_TIMER * 4);
+     #endif
 diff --git a/libraries/rtc/src/external.c b/libraries/rtc/src/external.c
 index 4282214..3a340d6 100644
 --- a/libraries/rtc/src/external.c
@@ -1715,11 +2727,64 @@ index 096e7fb..bc48c44 100644
      fprintf(configFile, "WindowHeight=%d\n", aConfig->windowHeight);
      fprintf(configFile, "WindowWidth=%d\n", aConfig->windowWidth);
      fprintf(configFile, "FullScreen=%s\n", BoolToString(aConfig->fullScreen));
+diff --git a/libraries/sim/src/g3_draw.cpp b/libraries/sim/src/g3_draw.cpp
+index 0e5b64f..5d796b5 100644
+--- a/libraries/sim/src/g3_draw.cpp
++++ b/libraries/sim/src/g3_draw.cpp
+@@ -12,6 +12,7 @@
+ #include <nitro/gx/gx_vramcnt.h>
+ #include <unordered_map>
+ #include <simulator/sim_crc32.h>
++#include <simulator/sim_regblock.h>
+ #include "simulator/sim_g3_TextureCache.hpp"
+ #include "simulator/sim_g3_Texture.hpp"
+ 
+@@ -314,10 +315,11 @@ void G3SIM_FlushArray()
+ 
+ 		float fogDepthBoundary[32];
+ 		float fogDensity[32];
+-		u8 * fogTablePtr = (u8*)&s_reg_G3X_FOG_TABLE_0;
+ 		for(int i=0; i < 32; i++) {
+ 			fogDepthBoundary[i] = ((float)(fogOffset + fogStep*(i+1)) / 32767.0f) * 2.0f - 1.0f;
+-			fogDensity[i] = (float)fogTablePtr[i] / 127.0f;
++			// Fog densities are the 32 bytes of the FOG_TABLE register
++			// block, mirrored in SIM_FogTable (see sim_regblock.h).
++			fogDensity[i] = (float)SIM_FogTable[i] / 127.0f;
+ 		}
+ 
+ 		GLint fogDepthBoundaryLoc = glGetUniformLocation(g3shaderProgramID, "fogDepthBoundary");
 diff --git a/libraries/sim/src/g3_handler.cpp b/libraries/sim/src/g3_handler.cpp
-index e638798..550c270 100644
+index e638798..421a647 100644
 --- a/libraries/sim/src/g3_handler.cpp
 +++ b/libraries/sim/src/g3_handler.cpp
-@@ -410,7 +410,9 @@ void G3SIM_Begin(GXBegin type)
+@@ -327,7 +327,25 @@ static void calculateClipMatrix()
+     fxMtx._32 = currentClipMatrix.nums[3][2];
+     fxMtx._33 = currentClipMatrix.nums[3][3];
+ 
+-    memcpy( (void*)&s_reg_G3X_CLIPMTX_RESULT_0, &fxMtx, sizeof( MtxFx44 ) );
++    // One assignment per result register: the 16 result registers are
++    // separate globals on the simulator, so a 64-byte memcpy rooted at
++    // _0 walks off the end of that single global (ASan).
++    s_reg_G3X_CLIPMTX_RESULT_0 = fxMtx._00;
++    s_reg_G3X_CLIPMTX_RESULT_1 = fxMtx._01;
++    s_reg_G3X_CLIPMTX_RESULT_2 = fxMtx._02;
++    s_reg_G3X_CLIPMTX_RESULT_3 = fxMtx._03;
++    s_reg_G3X_CLIPMTX_RESULT_4 = fxMtx._10;
++    s_reg_G3X_CLIPMTX_RESULT_5 = fxMtx._11;
++    s_reg_G3X_CLIPMTX_RESULT_6 = fxMtx._12;
++    s_reg_G3X_CLIPMTX_RESULT_7 = fxMtx._13;
++    s_reg_G3X_CLIPMTX_RESULT_8 = fxMtx._20;
++    s_reg_G3X_CLIPMTX_RESULT_9 = fxMtx._21;
++    s_reg_G3X_CLIPMTX_RESULT_10 = fxMtx._22;
++    s_reg_G3X_CLIPMTX_RESULT_11 = fxMtx._23;
++    s_reg_G3X_CLIPMTX_RESULT_12 = fxMtx._30;
++    s_reg_G3X_CLIPMTX_RESULT_13 = fxMtx._31;
++    s_reg_G3X_CLIPMTX_RESULT_14 = fxMtx._32;
++    s_reg_G3X_CLIPMTX_RESULT_15 = fxMtx._33;
+ 
+ 
+     return;
+@@ -410,7 +428,9 @@ void G3SIM_Begin(GXBegin type)
      }
      snprintf(debugMessage, 50, "GX_Begin %s", typeString);
  
@@ -3961,20 +5026,21 @@ index 77300c2..b2b2704 100644
 \ No newline at end of file
 +}
 diff --git a/libraries/sim/src/sim_g3_GlobalState.cpp b/libraries/sim/src/sim_g3_GlobalState.cpp
-index c6d82f5..efa4ec5 100644
+index c6d82f5..f55987f 100644
 --- a/libraries/sim/src/sim_g3_GlobalState.cpp
 +++ b/libraries/sim/src/sim_g3_GlobalState.cpp
-@@ -4,6 +4,9 @@
+@@ -4,6 +4,10 @@
  
  #include "simulator/sim_g3_Utilities.hpp"
  #include "simulator/sim_crc32.h"
++#include "simulator/sim_regblock.h"
 +#include <chrono>
 +#include <cstdio>
 +#include <cstdlib>
  
  #include <nitro/fx/fx.h>
  #include <nitro/fx/fx_const.h>
-@@ -14,6 +17,23 @@ static SIM::G3::GlobalState sG3GlobalState;
+@@ -14,6 +18,23 @@ static SIM::G3::GlobalState sG3GlobalState;
  
  namespace SIM::G3 {
  
@@ -3998,7 +5064,7 @@ index c6d82f5..efa4ec5 100644
  static constexpr MtxFx44 Identity44 = {
  {
      FX32_ONE, 0, 0, 0,
-@@ -189,6 +209,12 @@ void GlobalState::SubmitPolygon(int numVerts) {
+@@ -189,6 +210,12 @@ void GlobalState::SubmitPolygon(int numVerts) {
  }
  
  void GlobalState::FlushDrawCall() {
@@ -4011,7 +5077,7 @@ index c6d82f5..efa4ec5 100644
      // Handle texture info from current drawCall
      u8 * texBuf = nullptr;
  	std::shared_ptr<Texture> texture = nullptr;
-@@ -201,10 +227,7 @@ void GlobalState::FlushDrawCall() {
+@@ -201,10 +228,7 @@ void GlobalState::FlushDrawCall() {
  		GLuint g3TextureId;
  		u16 * colorAddr = (u16*)vramPltt;
  
@@ -4022,7 +5088,7 @@ index c6d82f5..efa4ec5 100644
  		if(texImageParam.textureFormat == GX_TEXFMT_PLTT4) {
  			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize) >> 2;
  		} else if(texImageParam.textureFormat == GX_TEXFMT_PLTT16) {
-@@ -213,9 +236,65 @@ void GlobalState::FlushDrawCall() {
+@@ -213,9 +237,65 @@ void GlobalState::FlushDrawCall() {
  			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize);
  		}
  
@@ -4090,7 +5156,7 @@ index c6d82f5..efa4ec5 100644
  			// decode texture and create it in the cache
  			//Convert the DS texture data into a format opengl can understand
  			u8 * outTexBuf = new u8[4*texImageParam.textureSSize * texImageParam.textureTSize];
-@@ -250,7 +329,7 @@ void GlobalState::FlushDrawCall() {
+@@ -250,7 +330,7 @@ void GlobalState::FlushDrawCall() {
  			// This creates a GL texture and uploads it to the GPU with glTexImage2D
  			texture = std::make_shared<SIM::G3::Texture>(texImageParam.textureTSize, texImageParam.textureSSize, outTexBuf);
  
@@ -4099,6 +5165,45 @@ index c6d82f5..efa4ec5 100644
  
  			// Texture buffer can be freed now, it has been sent to the GPU
  			delete[] outTexBuf;
+@@ -284,10 +364,11 @@ void GlobalState::FlushDrawCall() {
+ 
+ 		float fogDepthBoundary[32];
+ 		float fogDensity[32];
+-		u8 * fogTablePtr = (u8*)&s_reg_G3X_FOG_TABLE_0;
+ 		for(int i=0; i < 32; i++) {
+ 			fogDepthBoundary[i] = ((float)(fogOffset + fogStep*(i+1)) / 32767.0f) * 2.0f - 1.0f;
+-			fogDensity[i] = (float)fogTablePtr[i] / 127.0f;
++			// Fog densities are the 32 bytes of the FOG_TABLE register
++			// block, mirrored in SIM_FogTable (see sim_regblock.h).
++			fogDensity[i] = (float)SIM_FogTable[i] / 127.0f;
+ 		}
+ 
+         mCurrentDrawCall->SetFogDepthTable(fogDepthBoundary);
+@@ -546,7 +627,23 @@ void GlobalState::SetPositionMatrix(const MtxFx44& matrix) {
+ void GlobalState::UpdateClipMatrix() {
+     mCurrentClipMatrix = Util::MultiplyMtxFx44(mCurrentPositionMatrix, mCurrentProjectionMatrix);
+ 
+-    memcpy( (void*)&s_reg_G3X_CLIPMTX_RESULT_0, &mCurrentClipMatrix, sizeof( MtxFx44 ) );
++    // One assignment per result register: see the note in g3_handler.cpp.
++    s_reg_G3X_CLIPMTX_RESULT_0 = mCurrentClipMatrix._00;
++    s_reg_G3X_CLIPMTX_RESULT_1 = mCurrentClipMatrix._01;
++    s_reg_G3X_CLIPMTX_RESULT_2 = mCurrentClipMatrix._02;
++    s_reg_G3X_CLIPMTX_RESULT_3 = mCurrentClipMatrix._03;
++    s_reg_G3X_CLIPMTX_RESULT_4 = mCurrentClipMatrix._10;
++    s_reg_G3X_CLIPMTX_RESULT_5 = mCurrentClipMatrix._11;
++    s_reg_G3X_CLIPMTX_RESULT_6 = mCurrentClipMatrix._12;
++    s_reg_G3X_CLIPMTX_RESULT_7 = mCurrentClipMatrix._13;
++    s_reg_G3X_CLIPMTX_RESULT_8 = mCurrentClipMatrix._20;
++    s_reg_G3X_CLIPMTX_RESULT_9 = mCurrentClipMatrix._21;
++    s_reg_G3X_CLIPMTX_RESULT_10 = mCurrentClipMatrix._22;
++    s_reg_G3X_CLIPMTX_RESULT_11 = mCurrentClipMatrix._23;
++    s_reg_G3X_CLIPMTX_RESULT_12 = mCurrentClipMatrix._30;
++    s_reg_G3X_CLIPMTX_RESULT_13 = mCurrentClipMatrix._31;
++    s_reg_G3X_CLIPMTX_RESULT_14 = mCurrentClipMatrix._32;
++    s_reg_G3X_CLIPMTX_RESULT_15 = mCurrentClipMatrix._33;
+ }
+ 
+ 
 diff --git a/libraries/sim/src/sim_g3_TextureCache.cpp b/libraries/sim/src/sim_g3_TextureCache.cpp
 index de145a7..6a2b5da 100644
 --- a/libraries/sim/src/sim_g3_TextureCache.cpp
@@ -6852,19 +7957,43 @@ index 51a5263..f6d1303 100644
  }
  
 diff --git a/libraries/sim/src/sim_vars.c b/libraries/sim/src/sim_vars.c
-index 81309fd..03629bc 100644
+index 81309fd..94c9270 100644
 --- a/libraries/sim/src/sim_vars.c
 +++ b/libraries/sim/src/sim_vars.c
-@@ -385,12 +385,23 @@ u8 s_HW_ARENA_INFO_BUF[sizeof(OSArenaInfo)];
- u8 s_HW_MAIN_MEM_SUB[0x400000];
+@@ -1,5 +1,9 @@
+ #include <nitro/os/common/arena.h>
+ #include <nitro/spi/ARM9/tp.h>
++#include <simulator/sim_regblock.h>
++
++// Fog densities (see sim_regblock.h).
++volatile uint8_t SIM_FogTable[32];
+ #define HW_MAIN_MEM_SYSTEM_SIZE         0x400
+ 
+ u32 SDK_AUTOLOAD_DTCM_START[2];
+@@ -380,17 +384,33 @@ REGType16v s_reg_SPI_SPICNT;
+ REGType16v s_reg_SPI_SPID;
+ 
+ //mmap_shared
+-u8 s_HW_MAIN_MEM_SYSTEM[HW_MAIN_MEM_SYSTEM_SIZE];
+-u8 s_HW_ARENA_INFO_BUF[sizeof(OSArenaInfo)];
+-u8 s_HW_MAIN_MEM_SUB[0x400000];
++// These arrays back the OS arenas (MAIN arena Lo = MAIN_MEM + 0xe3e0, a
++// multiple of 8) and the arena-info struct, which holds pointers. As
++// plain u8 arrays they have alignment 1, so the linker may place them
++// 4-aligned -- and every heap created in them then starts 4-aligned,
++// tripping UBSan on pointer-containing heap headers. Align them to 8.
++__attribute__((aligned(8))) u8 s_HW_MAIN_MEM_SYSTEM[HW_MAIN_MEM_SYSTEM_SIZE];
++__attribute__((aligned(8))) u8 s_HW_ARENA_INFO_BUF[sizeof(OSArenaInfo)];
++__attribute__((aligned(8))) u8 s_HW_MAIN_MEM_SUB[0x400000];
  
  //mmap_global
 -u8 s_HW_MAIN_MEM[0x800000];
+-u8 s_HW_MAIN_MEM_EX[0x800000];
 +#ifdef SDK_HW_PLTT_BLOCK
 +SIM_HWPlttBlock s_HW_PLTT_BLOCK;
 +#endif
-+u8 s_HW_MAIN_MEM[0x2000000]; // 32 MB emulated main RAM (lane heap)
- u8 s_HW_MAIN_MEM_EX[0x800000];
++__attribute__((aligned(8))) u8 s_HW_MAIN_MEM[0x2000000]; // 32 MB emulated main RAM (lane heap)
++__attribute__((aligned(8))) u8 s_HW_MAIN_MEM_EX[0x800000];
 +#ifndef SDK_HW_PLTT_BLOCK
  u8 s_HW_BG_PLTT[0x200];
 +#endif
@@ -6880,3 +8009,181 @@ index 81309fd..03629bc 100644
  u8 s_HW_BG_VRAM[0x80000];
  u8 s_HW_DB_BG_VRAM[0x20000];
  u8 s_HW_OBJ_VRAM[0x40000];
+diff --git a/libraries/sim7/src/snd/snd_channel.c b/libraries/sim7/src/snd/snd_channel.c
+index 623964b..5942ead 100644
+--- a/libraries/sim7/src/snd/snd_channel.c
++++ b/libraries/sim7/src/snd/snd_channel.c
+@@ -134,11 +134,13 @@ void SND_SetupChannelPsg7(int chNo,
+     pan = 127 - pan;
+ #endif
+ 
++    #ifdef SDK_BUILD_ARM
+     *((REGType32v *)(REG_SOUND0CNT_ADDR + offset)) = REG_SND_SOUND0CNT_FIELD(FALSE, SND_WAVE_FORMAT_PSG, 0,
+                                                                              duty, pan, 0,
+                                                                              shift, volume);
+ 
+     *((REGType16v *)(REG_SOUND0TMR_ADDR + offset)) = (u16)(0x10000 - timer);
++    #endif
+ 
+     #ifdef SDK_PORT
+     s_SIM_sndcnt[chNo] = REG_SND_SOUND0CNT_FIELD(FALSE, SND_WAVE_FORMAT_PSG, 0,
+@@ -171,12 +173,14 @@ void SND_SetupChannelNoise7(int chNo, int volume, SNDChannelDataShift shift, int
+     pan = 127 - pan;
+ #endif
+ 
++    #ifdef SDK_BUILD_ARM
+     *((REGType32v *)(REG_SOUND0CNT_ADDR + offset)) = REG_SND_SOUND0CNT_FIELD(FALSE, SND_WAVE_FORMAT_NOISE, 0,
+                                                                              0,
+                                                                              pan, 0,
+                                                                              shift, volume);
+ 
+     *((REGType16v *)(REG_SOUND0TMR_ADDR + offset)) = (u16)(0x10000 - timer);
++    #endif
+ 
+     #ifdef SDK_PORT
+     s_SIM_sndcnt[chNo] = REG_SND_SOUND0CNT_FIELD(FALSE, SND_WAVE_FORMAT_NOISE, 0,
+@@ -219,14 +223,20 @@ void SND_SetChannelVolume7(int chNo, int volume, SNDChannelDataShift shift)
+     sOrgVolume[chNo] = (u8)volume;
+     if (sSurroundDecay > 0 && ((1 << chNo) & SURROUND_CHANNEL_MASK))
+     {
++#ifdef SDK_BUILD_ARM
+         pan = *((REGType8v *)(REG_SOUND0CNT_PAN_ADDR + SND_CHANNEL_REG_OFFSET(chNo)));
++#else
++        pan = (int)((s_SIM_sndcnt[chNo] >> 16) & 0x7f);
++#endif
+         volume = CalcSurroundDecay(volume, pan);
+     }
+ 
++    #ifdef SDK_BUILD_ARM
+     *((REGType16v *)(REG_SOUND0CNT_VOL_16_ADDR + SND_CHANNEL_REG_OFFSET(chNo))) = REG_SND_SOUND0CNT_VOL_16_FIELD(0,
+                                                                                                                  shift,
+                                                                                                                  volume);
+-    
++    #endif
++
+     #ifdef SDK_PORT
+     u32 reg = s_SIM_sndcnt[chNo];
+ 
+@@ -251,7 +261,9 @@ void SND_SetChannelTimer7(int chNo, int timer)
+     SDK_MINMAX_ASSERT(chNo, SND_CHANNEL_MIN, SND_CHANNEL_MAX);
+     SDK_MINMAX_ASSERT(timer, SND_CHANNEL_TIMER_MIN, SND_CHANNEL_TIMER_MAX);
+ 
++    #ifdef SDK_BUILD_ARM
+     *((REGType16v *)(REG_SOUND0TMR_ADDR + SND_CHANNEL_REG_OFFSET(chNo))) = (u16)(0x10000 - timer);
++    #endif
+ 
+     #ifdef SDK_PORT
+     s_SIM_sndtmr[chNo] = (0x10000 - timer) & 0xFFFF;
+@@ -286,7 +298,16 @@ void SND_SetChannelPan7(int chNo, int pan)
+     if (sSurroundDecay > 0 && ((1 << chNo) & SURROUND_CHANNEL_MASK))
+     {
+         volume = CalcSurroundDecay(sOrgVolume[chNo], pan);
++        #ifdef SDK_BUILD_ARM
+         *((REGType8v *)(REG_SOUND0CNT_VOL_ADDR + SND_CHANNEL_REG_OFFSET(chNo))) = (u8)volume;
++        #else
++        {
++            u32 reg = s_SIM_sndcnt[chNo];
++            reg &= ~(0b1111111);
++            reg |= ((u32)volume & 0b1111111);
++            s_SIM_sndcnt[chNo] = reg;
++        }
++        #endif
+         #ifdef SDK_PORT
+         //sndcnt_p->volumeMul = volume & 0b1111111;
+         //sndcnt_p->volumeDiv = (volume > 8) & 0b11;
+@@ -342,7 +363,16 @@ void SND_SetMasterPan7(int pan)
+         for (chNo = 0; chNo < SND_CHANNEL_NUM; chNo++)
+         {
+             offset = SND_CHANNEL_REG_OFFSET(chNo);
++            #ifdef SDK_BUILD_ARM
+             *((REGType8v *)(REG_SOUND0CNT_PAN_ADDR + offset)) = (u8)pan;
++            #else
++            {
++                u32 reg = s_SIM_sndcnt[chNo];
++                reg &= ~(0b1111111 << 16);
++                reg |= ((u32)pan << 16);
++                s_SIM_sndcnt[chNo] = reg;
++            }
++            #endif
+         }
+     }
+     else
+@@ -350,7 +380,16 @@ void SND_SetMasterPan7(int pan)
+         for (chNo = 0; chNo < SND_CHANNEL_NUM; chNo++)
+         {
+             offset = SND_CHANNEL_REG_OFFSET(chNo);
++            #ifdef SDK_BUILD_ARM
+             *((REGType8v *)(REG_SOUND0CNT_PAN_ADDR + offset)) = sOrgPan[chNo];
++            #else
++            {
++                u32 reg = s_SIM_sndcnt[chNo];
++                reg &= ~(0b1111111 << 16);
++                reg |= ((u32)sOrgPan[chNo] << 16);
++                s_SIM_sndcnt[chNo] = reg;
++            }
++            #endif
+         }
+     }
+ }
+@@ -381,11 +420,25 @@ void SNDi_SetSurroundDecay7(int decay)
+         if ((1 << chNo) & SURROUND_CHANNEL_MASK)
+         {
+             offset = SND_CHANNEL_REG_OFFSET(chNo);
++            (void)offset;
++#ifdef SDK_BUILD_ARM
+             pan = *((REGType8v *)(REG_SOUND0CNT_PAN_ADDR + offset));
+ 
+             volume = CalcSurroundDecay(sOrgVolume[chNo], pan);
+ 
+             *((REGType8v *)(REG_SOUND0CNT_VOL_ADDR + offset)) = (u8)volume;
++#else
++            pan = (int)((s_SIM_sndcnt[chNo] >> 16) & 0x7f);
++
++            volume = CalcSurroundDecay(sOrgVolume[chNo], pan);
++
++            {
++                u32 reg = s_SIM_sndcnt[chNo];
++                reg &= ~(0b1111111);
++                reg |= ((u32)volume & 0b1111111);
++                s_SIM_sndcnt[chNo] = reg;
++            }
++#endif
+         }
+     }
+ }
+diff --git a/libraries/sim7/src/snd/snd_exchannel.c b/libraries/sim7/src/snd/snd_exchannel.c
+index 6f43a29..c75d6e2 100644
+--- a/libraries/sim7/src/snd/snd_exchannel.c
++++ b/libraries/sim7/src/snd/snd_exchannel.c
+@@ -19,7 +19,9 @@
+ 
+ #define SND_ENV_DECAY_RATIO ( 1 << SND_EX_CHANNEL_ENV_DECAY_SHIFT )
+ 
+-#define SND_EX_CHANNEL_ENVDECAY_INIT ( SND_VOLUME_DB_MIN << SND_EX_CHANNEL_ENV_DECAY_SHIFT )
++/* Shift in unsigned: SND_VOLUME_DB_MIN is negative, and left-shifting
++ * a negative value is UB in C; the bit pattern is what is wanted. */
++#define SND_EX_CHANNEL_ENVDECAY_INIT ((s32)((u32)SND_VOLUME_DB_MIN << SND_EX_CHANNEL_ENV_DECAY_SHIFT))
+ #define SND_EX_CHANNEL_KEY_INIT          60
+ #define SND_EX_CHANNEL_ORIGINAL_KEY_INIT 60
+ #define SND_EX_CHANNEL_VELOCITY_INIT    127
+@@ -192,7 +194,7 @@ void SND_ExChannelMain(BOOL doPeriodicProc)
+ 
+         decay += SND_CalcDecibelSquare(ch_p->velocity);
+ 
+-        pitch += (ch_p->key - ch_p->original_key) << SND_PITCH_DIVISION_BIT;
++        pitch += (s32)((u32)(ch_p->key - ch_p->original_key) << SND_PITCH_DIVISION_BIT);
+ 
+         decay += SND_UpdateExChannelEnvelope(ch_p, doPeriodicProc);
+ 
+@@ -361,7 +363,10 @@ s32 SND_UpdateExChannelEnvelope(SNDExChannel *ch_p, BOOL doPeriodicProc)
+         case SND_ENV_DECAY:
+             {
+                 const s32 sustain_decay =
+-                    SND_CalcDecibelSquare(ch_p->sustain) << SND_EX_CHANNEL_ENV_DECAY_SHIFT;
++                    /* Shift in unsigned: shifting the (possibly negative)
++                     * decibel value left is UB in C; the bit pattern is
++                     * what the envelope math wants. */
++                    (s32)((u32)SND_CalcDecibelSquare(ch_p->sustain) << SND_EX_CHANNEL_ENV_DECAY_SHIFT);
+ 
+                 ch_p->env_decay -= ch_p->decay;
+                 if (ch_p->env_decay > sustain_decay)

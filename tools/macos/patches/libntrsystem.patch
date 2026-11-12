@@ -1,0 +1,84 @@
+diff --git a/libraries/g2d/src/g2d_Animation.c b/libraries/g2d/src/g2d_Animation.c
+index 24b8b0f..cef19e3 100644
+--- a/libraries/g2d/src/g2d_Animation.c
++++ b/libraries/g2d/src/g2d_Animation.c
+@@ -151,7 +151,16 @@ static NNS_G2D_INLINE void SequenceEdgeHandleCommon_ (NNSG2dAnimController * pAn
+     }
+ 
+     #ifdef SDK_PORT
+-    if( pAnimCtrl->pCurrent->frames == 0 || pAnimCtrl->pActiveCurrent->frames == 0 )
++    /* pCurrent may be one past the end of the frame array here: the tick
++     * loop advances it past the last frame, then the edge handler clamps
++     * it back (ValidateAnimFrame_) -- but only after this guard runs.
++     * Dereferencing a one-past-end frame is a heap-buffer-overflow read
++     * under ASan, so only apply the zero-length-frame check in range;
++     * out-of-range pCurrent falls through to the stop/reset below, as
++     * in the unpatched code. */
++    if ( pAnimCtrl->pCurrent >= GetFrameBegin_(pAnimCtrl->pAnimSequence)
++         && pAnimCtrl->pCurrent < GetFrameEnd_(pAnimCtrl->pAnimSequence)
++         && (pAnimCtrl->pCurrent->frames == 0 || pAnimCtrl->pActiveCurrent->frames == 0) )
+     {
+         NNS_G2dStopAnimCtrl( pAnimCtrl );
+         return;
+diff --git a/libraries/g2d/src/g2d_Renderer.c b/libraries/g2d/src/g2d_Renderer.c
+index 0d6f214..6c1e841 100644
+--- a/libraries/g2d/src/g2d_Renderer.c
++++ b/libraries/g2d/src/g2d_Renderer.c
+@@ -56,7 +56,7 @@ static NNS_G2D_INLINE void FlipTranslate_ (int x, int y)
+     const int x_ = NNS_G2dIsRndCoreFlipH(&pCurrentInstance_->rendererCore) ? -x : x;
+     const int y_ = NNS_G2dIsRndCoreFlipV(&pCurrentInstance_->rendererCore) ? -y : y;
+ 
+-    NNS_G2dTranslate(x_ << FX32_SHIFT, y_ << FX32_SHIFT, 0);
++    NNS_G2dTranslate((fx32)((u32)x_ << FX32_SHIFT), (fx32)((u32)y_ << FX32_SHIFT), 0);
+ }
+ 
+ static NNS_G2D_INLINE void SetSrtControlToMtxStack_ (const NNSG2dSRTControl * pSrtCtrl)
+diff --git a/libraries/g3d/src/cgtool/maya.c b/libraries/g3d/src/cgtool/maya.c
+index 18d3839..76b86dd 100644
+--- a/libraries/g3d/src/cgtool/maya.c
++++ b/libraries/g3d/src/cgtool/maya.c
+@@ -174,8 +174,8 @@ static void texmtxCalc_flagRS_ (MtxFx44 * m, const NNSG3dMatAnmResult * anm)
+ 
+     m->_01 = 0;
+ 
+-    m->_30 = -(anm->transS * anm->origWidth) << 4;
+-    m->_31 = (anm->transT * anm->origHeight) << 4;
++    m->_30 = (fx32)(0u - ((u32)(anm->transS * anm->origWidth) << 4));
++    m->_31 = (fx32)((u32)(anm->transT * anm->origHeight) << 4);
+ 
+     m->_10 = 0;
+ }
+diff --git a/libraries/g3d/src/gecom.c b/libraries/g3d/src/gecom.c
+index 4db9e01..33f4c04 100644
+--- a/libraries/g3d/src/gecom.c
++++ b/libraries/g3d/src/gecom.c
+@@ -165,7 +165,9 @@ void NNS_G3dGeBufferOP_N (u32 op, const u32 * args, u32 num)
+     msg->type = DRAW_CMD_G3_CMD_LIST;
+     u8 * cmdBuf = malloc( (sizeof(u8) * num << 2) + sizeof(u32) );
+     *(u32*)cmdBuf = op;
+-    memcpy(cmdBuf+4, args, num << 2);
++    if (num > 0) {
++        memcpy(cmdBuf+4, args, num << 2);
++    }
+     msg->data.ptr = cmdBuf;
+     msg->size = (num << 2) + 4;
+     SIM_HandleG3Command( msg );
+diff --git a/libraries/g3d/src/sbc.c b/libraries/g3d/src/sbc.c
+index 0485258..289f448 100644
+--- a/libraries/g3d/src/sbc.c
++++ b/libraries/g3d/src/sbc.c
+@@ -1219,12 +1219,12 @@ void NNSi_G3dFuncSbc_CALLDL (NNSG3dRS * rs, u32)
+         rel_addr = (u32)((*(rs->c + 1) << 0) |
+                          (*(rs->c + 2) << 8) |
+                          (*(rs->c + 3) << 16) |
+-                         (*(rs->c + 4) << 24));
++                         ((u32)*(rs->c + 4) << 24));
+ 
+         size = (u32)((*(rs->c + 5) << 0) |
+                      (*(rs->c + 6) << 8) |
+                      (*(rs->c + 7) << 16) |
+-                     (*(rs->c + 8) << 24));
++                     ((u32)*(rs->c + 8) << 24));
+ 
+         NNS_G3dGeSendDL(rs->c + rel_addr, size);
+     }
