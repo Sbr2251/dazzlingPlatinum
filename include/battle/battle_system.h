@@ -221,6 +221,8 @@ int BattleSystem_GetVisitedContestHall(BattleSystem *battleSys);
 u16 *BattleSystem_GetSavedBgPalettes(BattleSystem *battleSys);
 u16 *BattleSystem_GetSavedObjPalettes(BattleSystem *battleSys);
 int BattleSystem_GetFieldWeather(BattleSystem *battleSys);
+int BattleSystem_GetFieldHour(BattleSystem *battleSys);
+int BattleSystem_GetFieldMinute(BattleSystem *battleSys);
 u8 BattleSystem_GetCatchingTutorialLowHP(BattleSystem *battleSys);
 void BattleSystem_SetCatchingTutorialLowHP(BattleSystem *battleSys, u8 value);
 int BattleSystem_GetMetBebe(BattleSystem *battleSys);

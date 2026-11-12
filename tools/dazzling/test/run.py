@@ -358,7 +358,12 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
             rp = os.path.join(scen_dir, rp)
         if not os.path.exists(rp):
             return name, True, f"SKIP (missing {req}; local-only scenario)", None
-    client = GameClient(game_path, work_root, name, env_extra=env_extra)
+    # A scenario may carry its own env (e.g. SIM_FX_* to enable a
+    # feature under SIM_HEADLESS for a golden). CLI / --compare-renderers
+    # env wins over the scenario's.
+    merged_env = dict(sc.get("env") or {})
+    merged_env.update(env_extra or {})
+    client = GameClient(game_path, work_root, name, env_extra=merged_env)
     started = time.time()
     try:
         def resolve(p):

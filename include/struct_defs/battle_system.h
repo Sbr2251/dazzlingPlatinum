@@ -114,6 +114,8 @@ struct BattleSystem {
     int mapHeader;
     u32 battleStatusMask;
     enum TimeOfDay time;
+    int fieldHour;
+    int fieldMinute;
     int safariBalls;
     u8 battleParticipantMask[MAX_BATTLERS];
     u32 rulesetMask;

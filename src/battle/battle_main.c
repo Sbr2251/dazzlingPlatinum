@@ -1099,6 +1099,8 @@ static void BattleSys_New(BattleSystem *battleSys, FieldBattleDTO *dto)
     battleSys->background = dto->background;
     battleSys->mapHeader = dto->mapLabelTextID;
     battleSys->time = dto->timeOfDay;
+    battleSys->fieldHour = dto->fieldHour;
+    battleSys->fieldMinute = dto->fieldMinute;
     battleSys->rulesetMask = dto->rulesetMask;
     battleSys->visitedContestHall = dto->visitedContestHall;
     battleSys->metBebe = dto->metBebe;

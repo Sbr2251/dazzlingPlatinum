@@ -21,6 +21,9 @@ typedef struct {
     BOOL runFromTrainerBattles; // When enabled, allows running away from trainer battles
     BOOL battleInstantAnimations; // Battle Engine fast mode: skip text/gauge/move-animation waits (docs/battle_engine.md)
     BOOL fieldFastRebuild; // fieldkeep: collapse already-ready FieldMap Init/Exit states into one frame (same teardown/rebuild, fewer idle frames)
+    BOOL arenaContext; // Lane arena: battle arena takes the overworld time of day, weather and terrain as lighting/tint
+    BOOL battleSwoop; // Lane arena: camera dive into battle (field) + high/far settle to home (battle)
+    BOOL weatherLightning; // Lane arena: lightning flashes in thunderstorm weather, field and battle
 } SIM_Config_prj_type;
 
 // True when the game runs logic at 60 Hz AND time-based quantities must be

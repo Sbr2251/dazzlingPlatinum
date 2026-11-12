@@ -9,8 +9,10 @@
 #include "overlay005/encounter_effect.h"
 #include "overlay005/map_name_popup.h"
 
+#include "camera.h"
 #include "field_system.h"
 #include "field_task.h"
+#include "fx_arena.h"
 #include "heap.h"
 #include "screen_fade.h"
 #include "sound.h"
@@ -20,7 +22,37 @@ typedef struct EncounterEffectTaskData {
     BOOL done;
     int encEffectID;
     int battleBGM;
+    // Lane arena: field-side swoop state (taskState 10)
+    int swoopFrame;
+    fx32 swoopStartDistance;
 } EncounterEffectTaskData;
+
+#define ARENA_SWOOP_FRAMES 30 // ~0.5 s
+
+// Lane arena: the field-side swoop. The field camera tracks the player, so
+// closing its distance dives toward the player. Smoothstep over
+// ARENA_SWOOP_FRAMES, ending at 62% of the starting distance; the
+// encounter effect then runs as before, and the map reload after the battle
+// restores the camera.
+static void ArenaSwoop_Advance(FieldSystem *fieldSystem, EncounterEffectTaskData *data)
+{
+    fx32 t, smooth, start, target;
+
+    data->swoopFrame++;
+
+    if (data->swoopFrame > ARENA_SWOOP_FRAMES) {
+        data->swoopFrame = ARENA_SWOOP_FRAMES;
+    }
+
+    t = data->swoopFrame * FX32_ONE / ARENA_SWOOP_FRAMES;
+    smooth = FX_Mul(t, t);
+    smooth = FX_Mul(smooth, 3 * FX32_ONE - 2 * t); // 3t^2 - 2t^3
+
+    start = data->swoopStartDistance;
+    target = start * 62 / 100;
+
+    Camera_SetDistance(start + FX_Mul(target - start, smooth), fieldSystem->camera);
+}
 
 static BOOL FieldTask_RunEncounterEffect(FieldTask *task)
 {
@@ -29,9 +61,25 @@ static BOOL FieldTask_RunEncounterEffect(FieldTask *task)
 
     switch (data->taskState) {
     case 0:
-        EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
-        Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
-        data->taskState++;
+        if (FxArena_BattleSwoopEnabled() && fieldSystem->camera != NULL) {
+            data->swoopFrame = 0;
+            data->swoopStartDistance = Camera_GetDistance(fieldSystem->camera);
+            data->taskState = 10;
+        } else {
+            EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
+            Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
+            data->taskState++;
+        }
+        break;
+
+    case 10:
+        ArenaSwoop_Advance(fieldSystem, data);
+
+        if (data->swoopFrame >= ARENA_SWOOP_FRAMES) {
+            EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
+            Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
+            data->taskState = 1;
+        }
         break;
 
     case 1:

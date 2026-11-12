@@ -69,6 +69,7 @@ pokeplatinum_c = files(
     'grid_menu_cursor_position.c',
     'ascii_util.c',
     'fx_util.c',
+    'fx_arena.c',
     'int_distance.c',
     'touch_pad.c',
     'char_transfer.c',

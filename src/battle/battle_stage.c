@@ -17,9 +17,11 @@
 #include "battle/terrain.h"
 
 #include "bg_window.h"
+#include "fx_arena.h"
 #include "heap.h"
 #include "narc.h"
 #include "palette.h"
+#include "port/postfx.h"
 #include "vram_transfer.h"
 
 #define STAGE_MAX_TEXTURES 8
@@ -135,6 +137,12 @@ typedef struct BattleStage {
     BOOL curtainOn; // BattleStage_SetCurtain
     int curtainLeft;
     int curtainRight;
+    // Lane arena: per-channel arena tint (1/256) and the atmosphere lighting
+    // with it applied. Feature off: 256, 256, 256 and the lighting copy is
+    // the atmosphere lighting unchanged. After every other field, so the
+    // critic's offsets above do not move.
+    int arenaTint[3];
+    BattleStageFileLighting tintedLighting;
 } BattleStage;
 
 // What was last written to the fog registers
@@ -150,6 +158,8 @@ static void UpdatePlatforms(BOOL visible);
 static void SyncPalettes(StageArena *arena);
 static void DrawArena(StageArena *arena, const MtxFx43 *view, const MtxFx44 *projection);
 static const BattleStageFileLighting *CurrentLighting(StageArena *arena);
+static void UpdateArenaTint(void);
+static void UpdateBattleLightning(void);
 static const BattleStageFileLighting *DayLighting(StageArena *arena);
 static void UpdateFog(StageArena *arena);
 static void FogOff(void);
@@ -229,6 +239,26 @@ void BattleStage_Init(BattleSystem *battleSys)
     } else {
         BattleStageCamera_Init(battleSys, &sBattleStage.camera, &sBattleStage.cutGuard, NULL, &sBattleStage.sprites.debugFlags);
     }
+
+    UpdateArenaTint();
+
+    // Lightning restarts with each battle, seeded from the battle's own
+    // context (clock, weather, place), so the flashes are deterministic for
+    // the same battle.
+    if (FxArena_WeatherLightningEnabled() && sBattleStage.battleSys != NULL) {
+        u32 seed = (u32)(BattleSystem_GetFieldHour(battleSys) * 3600 + BattleSystem_GetFieldMinute(battleSys) * 60)
+            + (u32)BattleSystem_GetFieldWeather(battleSys) * 1000003u
+            + (u32)BattleSystem_GetBackground(battleSys) * 9176u
+            + (u32)BattleSystem_GetTerrain(battleSys) * 131u;
+        FxArena_LightningReset(seed);
+    }
+
+    // Battle-side swoop: start from a high/far pose and settle to home over
+    // the first drawn frames. Move animations still start at home: the
+    // script-start guard snaps the camera home if one starts mid-settle.
+    if (FxArena_BattleSwoopEnabled()) {
+        BattleStageCamera_StartSwoop();
+    }
 }
 
 void BattleStage_Free(void)
@@ -260,6 +290,11 @@ void BattleStage_Draw(void)
     const MtxFx43 *view;
     const MtxFx44 *projection;
 
+    if (sBattleStage.battleSys != NULL) {
+        UpdateArenaTint();
+        UpdateBattleLightning();
+    }
+
     if (sBattleStage.battleSys == NULL || sBattleStage.arena == NULL) {
         BattleStageSprites_BeginFrame(FALSE, NULL, NULL, NULL);
         return;
@@ -279,7 +314,7 @@ void BattleStage_Draw(void)
         projection = BattleStageCamera_Projection();
     }
 
-    BattleStageSprites_BeginFrame(visible, CurrentLighting(sBattleStage.arena), DayLighting(sBattleStage.arena), view);
+    BattleStageSprites_BeginFrame(visible, &sBattleStage.tintedLighting, DayLighting(sBattleStage.arena), view);
     UpdatePlatforms(visible);
 
     if (visible) {
@@ -1217,6 +1252,78 @@ static void SendDL(const u32 *dl, u32 size)
     }
 }
 
+// A GX_RGB colour with each channel scaled by tint[c] / 256, clamped to 31
+static u16 TintColor(u16 color, const int tint[3])
+{
+    int r = ((color >> 0) & 31) * tint[0] / 256;
+    int g = ((color >> 5) & 31) * tint[1] / 256;
+    int b = ((color >> 10) & 31) * tint[2] / 256;
+
+    if (r > 31) {
+        r = 31;
+    }
+    if (g > 31) {
+        g = 31;
+    }
+    if (b > 31) {
+        b = 31;
+    }
+
+    return (u16)GX_RGB(r, g, b);
+}
+
+// Lane arena: the arena lighting with the exact-time / weather / terrain
+// tint applied (battle_stage.h, BattleStage_GetSpriteTint follows it, so 2D
+// copies get the same tint). With the feature off the tint is neutral and
+// the copy is the atmosphere lighting unchanged.
+static void UpdateArenaTint(void)
+{
+    const BattleStageFileLighting *base;
+    BattleSystem *battleSys = sBattleStage.battleSys;
+
+    if (sBattleStage.arena != NULL) {
+        base = CurrentLighting(sBattleStage.arena);
+    } else {
+        base = &sDefaultLighting;
+    }
+
+    sBattleStage.tintedLighting = *base;
+
+    if (battleSys != NULL && FxArena_ArenaContextEnabled()) {
+        FxArena_ArenaTint(BattleSystem_GetFieldHour(battleSys), BattleSystem_GetFieldMinute(battleSys),
+            BattleSystem_GetFieldWeather(battleSys), BattleSystem_GetTerrain(battleSys),
+            BattleSystem_GetBackground(battleSys), &sBattleStage.arenaTint[0], &sBattleStage.arenaTint[1], &sBattleStage.arenaTint[2]);
+    } else {
+        sBattleStage.arenaTint[0] = 256;
+        sBattleStage.arenaTint[1] = 256;
+        sBattleStage.arenaTint[2] = 256;
+    }
+
+    sBattleStage.tintedLighting.lightColor = TintColor(base->lightColor, sBattleStage.arenaTint);
+    sBattleStage.tintedLighting.diffuse = TintColor(base->diffuse, sBattleStage.arenaTint);
+    sBattleStage.tintedLighting.ambient = TintColor(base->ambient, sBattleStage.arenaTint);
+    sBattleStage.tintedLighting.emission = TintColor(base->emission, sBattleStage.arenaTint);
+    sBattleStage.tintedLighting.fogColor = TintColor(base->fogColor, sBattleStage.arenaTint);
+}
+
+// Lane arena: one lightning-scheduler step per drawn frame. The flash is a
+// PostFX glow, so it needs no simulator change and never touches the Mega
+// pulse's BattleStage_SetBrightness.
+static void UpdateBattleLightning(void)
+{
+    int strength;
+
+    if (!FxArena_WeatherLightningEnabled() || sBattleStage.battleSys == NULL) {
+        return;
+    }
+
+    strength = FxArena_LightningUpdate(BattleSystem_GetFieldWeather(sBattleStage.battleSys));
+
+    if (strength > 0) {
+        PostFX_Glow((float)strength / 256.0f * 0.9f, 2);
+    }
+}
+
 // Time-of-day column of the atmosphere: 0 day, 1 twilight, 2 night
 static int LightingColumn(void)
 {
@@ -1245,7 +1352,7 @@ static const BattleStageFileLighting *DayLighting(StageArena *arena)
 
 static void SetLight(StageArena *arena)
 {
-    const BattleStageFileLighting *lighting = CurrentLighting(arena);
+    const BattleStageFileLighting *lighting = &sBattleStage.tintedLighting;
 
     // Transformed by the current vector matrix (the view), so lightDir is in world space
     G3_LightVector(GX_LIGHTID_0, lighting->lightDir[0], lighting->lightDir[1], lighting->lightDir[2]);
@@ -1445,7 +1552,7 @@ static void UpdateFog(StageArena *arena)
             table[i] = density * 0x01010101;
         }
     } else if (arena->hasAtmosphere && arena->atmosphere.fogEnabled) {
-        const BattleStageFileLighting *lighting = &arena->atmosphere.lighting[LightingColumn()];
+        const BattleStageFileLighting *lighting = &sBattleStage.tintedLighting;
 
         // The fog stands for the backdrop's distance, so it fades with the backdrop
         color = BackdropFadeActive() ? BackdropFadeColor(lighting->fogColor) : lighting->fogColor;

@@ -757,6 +757,32 @@ void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fi
     ParticleSystem_SetProjectionHook(ParticleProjectionHook);
 }
 
+// Lane arena (fx_arena): the battle-side swoop. Starts the camera at a
+// high/far pose and eases it home over 20 drawn frames. A later StartIntroFocus,
+// sweep or script-start guard takes over from wherever the camera is, so
+// there is no jump; the guard snaps home if a move animation starts first.
+void BattleStageCamera_StartSwoop(void)
+{
+    CameraPose high;
+
+    if (!sStageCamera.hasHome || sStageCamera.fields == NULL) {
+        return;
+    }
+
+    high = sStageCamera.homePose;
+    high.distance = FX32_ONE * 145 / 100;
+    high.yaw = -14 * FX32_ONE;
+    high.pitch = 12 * FX32_ONE;
+
+    sStageCamera.cur = high;
+    sStageCamera.from = high;
+    sStageCamera.goal = high;
+    sStageCamera.easeFrame = 0;
+    sStageCamera.easeFrames = 0;
+
+    EaseTo(&sStageCamera.homePose, 20);
+}
+
 void BattleStageCamera_Free(void)
 {
     if (sStageCamera.hasHome) {

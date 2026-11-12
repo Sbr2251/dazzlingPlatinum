@@ -39,6 +39,15 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "HiResText")) {
         config->hiResText = StringToBool(value);
     }
+    if(MATCH("General", "ArenaContext")) {
+        config->arenaContext = StringToBool(value);
+    }
+    if(MATCH("General", "BattleSwoop")) {
+        config->battleSwoop = StringToBool(value);
+    }
+    if(MATCH("General", "WeatherLightning")) {
+        config->weatherLightning = StringToBool(value);
+    }
 
     // Cheats section
     if(MATCH("Cheats", "WalkThroughWalls")) {
@@ -93,6 +102,9 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->breakDebuggerOnGfAssert = FALSE;
   aConfig->megaCinematicShort = FALSE;
   aConfig->hiResText = FALSE;
+  aConfig->arenaContext = TRUE;
+  aConfig->battleSwoop = TRUE;
+  aConfig->weatherLightning = TRUE;
 
   // Cheats section
   aConfig->walkThroughWalls = FALSE;
@@ -118,6 +130,9 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "FieldFastRebuild=%s\n", BoolToString(aConfig->fieldFastRebuild));
     fprintf(configFile, "MegaCinematicShort=%s\n", BoolToString(aConfig->megaCinematicShort));
     fprintf(configFile, "HiResText=%s\n", BoolToString(aConfig->hiResText));
+    fprintf(configFile, "ArenaContext=%s\n", BoolToString(aConfig->arenaContext));
+    fprintf(configFile, "BattleSwoop=%s\n", BoolToString(aConfig->battleSwoop));
+    fprintf(configFile, "WeatherLightning=%s\n", BoolToString(aConfig->weatherLightning));
     fprintf(configFile, "\n");
 
     fprintf(configFile, "[Cheats]\n");

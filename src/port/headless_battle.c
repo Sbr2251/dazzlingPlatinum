@@ -30,6 +30,7 @@
 #include "field_battle_data_transfer.h"
 #include "heap.h"
 #include "party.h"
+#include "rtc.h"
 #include "pokemon.h"
 #include "savedata.h"
 #include "trainer_data.h"
@@ -225,6 +226,14 @@ static BOOL FieldTask_HeadlessBattle(FieldTask *task) {
         if (isDouble) battleType |= BATTLE_TYPE_DOUBLES;
         FieldBattleDTO *dto = FieldBattleDTO_New(HEAP_ID_FIELD2, battleType);
         FieldBattleDTO_Init(dto, fsys);
+        // Lab overrides for the arena lane's goldens: "hour" (0-23) shifts
+        // the battle's exact clock (and its time-of-day bucket);
+        // "field_weather" is an OVERWORLD_WEATHER_* value (e.g. 2 rain,
+        // 4 thunderstorm) for the battle's weather context.
+        { long hour = -1; if (JsonLong(s, e, "hour", &hour) && hour >= 0 && hour < 24) {
+            dto->fieldHour = (int)hour; dto->fieldMinute = 0; dto->timeOfDay = TimeOfDayForHour((int)hour);
+        } }
+        { long weather = -1; if (JsonLong(s, e, "field_weather", &weather) && weather >= 0) { dto->fieldWeather = (int)weather; } }
         // Seed the battle RNG from the spec, not from elapsed field frames:
         // the same spec+seed+decisions must be deterministic (see docs).
         { long seed = 0; if (JsonLong(s, e, "seed", &seed)) { dto->seed = (u32)seed; BattleEvents_SetSeedOverride((u32)seed); } }

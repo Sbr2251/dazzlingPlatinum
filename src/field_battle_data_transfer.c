@@ -115,6 +115,8 @@ FieldBattleDTO *FieldBattleDTO_New(enum HeapID heapID, u32 battleType)
     dto->terrain = TERRAIN_MAX;
     dto->mapLabelTextID = LocationNames_Text_MysteryZone;
     dto->timeOfDay = TIMEOFDAY_MORNING;
+    dto->fieldHour = 12;
+    dto->fieldMinute = 0;
     dto->mapEvolutionMethod = 0;
     dto->visitedContestHall = TRUE;
     dto->metBebe = TRUE;
@@ -280,6 +282,8 @@ void FieldBattleDTO_InitFromGameState(FieldBattleDTO *dto, const FieldSystem *fi
     if (fieldSystem != NULL) {
         SetBackgroundAndTerrain(dto, fieldSystem);
         dto->timeOfDay = FieldSystem_GetTimeOfDay(fieldSystem);
+        dto->fieldHour = FieldSystem_GetHour(fieldSystem);
+        dto->fieldMinute = FieldSystem_GetMinute(fieldSystem);
 
 #if DEBUG_BATTLE_TOOLS
         // One-shot, like the background override.
@@ -294,6 +298,8 @@ void FieldBattleDTO_InitFromGameState(FieldBattleDTO *dto, const FieldSystem *fi
 
         GameTime *gameTime = SaveData_GetGameTime(saveData);
         dto->timeOfDay = TimeOfDayForHour(gameTime->time.hour);
+        dto->fieldHour = gameTime->time.hour;
+        dto->fieldMinute = gameTime->time.minute;
     }
 
     FieldBattleDTO_CopyTrainerInfoToBattler(dto, trainerInfo, BATTLER_PLAYER_1);
@@ -364,6 +370,8 @@ void FieldBattleDTO_InitWithNormalizedMonLevels(FieldBattleDTO *dto, const Field
 
     dto->pcBoxes = SaveData_GetPCBoxes(fieldSystem->saveData);
     dto->timeOfDay = FieldSystem_GetTimeOfDay(fieldSystem);
+    dto->fieldHour = FieldSystem_GetHour(fieldSystem);
+    dto->fieldMinute = FieldSystem_GetMinute(fieldSystem);
     dto->bagCursor = fieldSystem->bagCursor;
     dto->subscreenCursorOn = fieldSystem->battleSubscreenCursorOn;
     dto->poketch = SaveData_GetPoketch(fieldSystem->saveData);
@@ -430,6 +438,8 @@ void FieldBattleDTO_InitWithPartyOrder(FieldBattleDTO *dto, const FieldSystem *f
 
     dto->pcBoxes = SaveData_GetPCBoxes(fieldSystem->saveData);
     dto->timeOfDay = FieldSystem_GetTimeOfDay(fieldSystem);
+    dto->fieldHour = FieldSystem_GetHour(fieldSystem);
+    dto->fieldMinute = FieldSystem_GetMinute(fieldSystem);
     dto->bagCursor = fieldSystem->bagCursor;
     dto->subscreenCursorOn = fieldSystem->battleSubscreenCursorOn;
     dto->wiFiHistory = SaveData_WiFiHistory(fieldSystem->saveData);

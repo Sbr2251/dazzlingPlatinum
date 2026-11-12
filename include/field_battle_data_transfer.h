@@ -68,6 +68,8 @@ typedef struct FieldBattleDTO {
     int mapLabelTextID;
     int mapHeaderID;
     enum TimeOfDay timeOfDay;
+    int fieldHour; // exact clock hour for the arena tint (timeOfDay is bucketed)
+    int fieldMinute;
     enum EvolutionMethod mapEvolutionMethod;
     BOOL visitedContestHall;
     BOOL metBebe;

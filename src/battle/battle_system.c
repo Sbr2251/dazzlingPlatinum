@@ -1102,6 +1102,16 @@ int BattleSystem_GetFieldWeather(BattleSystem *battleSys)
     return battleSys->fieldWeather;
 }
 
+int BattleSystem_GetFieldHour(BattleSystem *battleSys)
+{
+    return battleSys->fieldHour;
+}
+
+int BattleSystem_GetFieldMinute(BattleSystem *battleSys)
+{
+    return battleSys->fieldMinute;
+}
+
 u8 BattleSystem_GetCatchingTutorialLowHP(BattleSystem *battleSys)
 {
     return battleSys->catchingTutorialLowHP;

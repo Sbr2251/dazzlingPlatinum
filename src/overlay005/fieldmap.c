@@ -58,6 +58,7 @@
 #include "field_message.h"
 #include "field_overworld_state.h"
 #include "field_system.h"
+#include "fx_arena.h"
 #include "field_task.h"
 #include "game_overlay.h"
 #include "graphics.h"
@@ -280,6 +281,10 @@ static BOOL FieldMap_Init(ApplicationManager *appMan, int *state)
 static BOOL FieldMap_Main(ApplicationManager *appMan, int *param1)
 {
     FieldSystem *fieldSystem = ApplicationManager_Args(appMan);
+
+    // Lane arena: lightning flashes in thunderstorm weather (PostFX glow,
+    // deterministic scheduler). Off unless the feature is enabled.
+    FxArena_FieldLightningUpdate(FieldOverworldState_GetWeather(SaveData_GetFieldOverworldState(fieldSystem->saveData)));
 
     if (FieldSystem_UpdateLocationToPlayerPosition(fieldSystem)) {
         BerryPatches_UpdateGrowthStates(fieldSystem);
