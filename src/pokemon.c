@@ -409,7 +409,7 @@ static void sub_02073E18(BoxPokemon *boxMon, int monSpecies, int monLevel, int m
     BOOL reencrypt = BoxPokemon_EnterDecryptionContext(boxMon);
 
     if (!useMonPersonalityParam) {
-        monPersonality = (LCRNG_Next() | (LCRNG_Next() << 16));
+        monPersonality = (LCRNG_Next() | ((u32)LCRNG_Next() << 16));
     }
 
     BoxPokemon_SetValue(boxMon, MON_DATA_PERSONALITY, &monPersonality);
@@ -495,7 +495,7 @@ void sub_02074044(Pokemon *mon, u16 monSpecies, u8 monLevel, u8 monIVs, u8 monNa
     u32 monPersonality;
 
     do {
-        monPersonality = (LCRNG_Next() | (LCRNG_Next() << 16));
+        monPersonality = (LCRNG_Next() | ((u32)LCRNG_Next() << 16));
     } while (monNature != Pokemon_GetNatureOf(monPersonality));
 
     Pokemon_InitWith(mon, monSpecies, monLevel, monIVs, TRUE, monPersonality, OTID_NOT_SET, 0);
@@ -509,7 +509,7 @@ void sub_02074088(Pokemon *mon, u16 monSpecies, u8 monLevel, u8 monIVs, u8 gende
     // TODO enum value
     if (param6 && param6 < 29) {
         do {
-            monPersonality = (LCRNG_Next() | (LCRNG_Next() << 16));
+            monPersonality = (LCRNG_Next() | ((u32)LCRNG_Next() << 16));
             unownLetter = (((monPersonality & 0x3000000) >> 18) | ((monPersonality & 0x30000) >> 12) | ((monPersonality & 0x300) >> 6) | (monPersonality & 0x3)) % 28;
         } while (param5 != Pokemon_GetNatureOf(monPersonality) || gender != Pokemon_GetGenderOf(monSpecies, monPersonality) || unownLetter != param6 - 1);
     } else {
@@ -768,6 +768,22 @@ u32 BoxPokemon_GetValue(BoxPokemon *boxMon, enum PokemonDataParam param, void *d
     }
 
     return result;
+}
+
+// ribbonsDS2 is a u64 inside save-format Pokemon data, which the DS save
+// format packs at 4-byte alignment. On 64-bit hosts a direct u64 access
+// through a 4-aligned BoxPokemon* is UB (and can fault on strict hosts),
+// so read/write it with memcpy, which is alignment-agnostic.
+static inline u64 BoxPokemon_GetRibbonsDS2(PokemonDataBlockC *blockC)
+{
+    u64 value;
+    memcpy(&value, &blockC->ribbonsDS2, sizeof(value));
+    return value;
+}
+
+static inline void BoxPokemon_SetRibbonsDS2(PokemonDataBlockC *blockC, u64 value)
+{
+    memcpy(&blockC->ribbonsDS2, &value, sizeof(value));
 }
 
 static inline u32 GetRibbon(u64 mask, enum PokemonDataParam param, enum PokemonDataParam ribbonStart)
@@ -1130,7 +1146,7 @@ static u32 BoxPokemon_GetDataInternal(BoxPokemon *boxMon, enum PokemonDataParam 
     case MON_DATA_SUPER_TOUGH_RIBBON_ULTRA:
     case MON_DATA_SUPER_TOUGH_RIBBON_MASTER:
     case MON_DATA_UNUSED_RIBBON_143:
-        result = GetRibbon(monDataBlockC->ribbonsDS2, param, MON_DATA_SUPER_COOL_RIBBON);
+        result = GetRibbon(BoxPokemon_GetRibbonsDS2(monDataBlockC), param, MON_DATA_SUPER_COOL_RIBBON);
         break;
 
     case MON_DATA_OT_NAME:
@@ -1693,12 +1709,15 @@ static void BoxPokemon_SetDataInternal(BoxPokemon *boxMon, enum PokemonDataParam
     case MON_DATA_SUPER_TOUGH_RIBBON_MASTER:
     case MON_DATA_UNUSED_RIBBON_143: {
         u64 bit = 1 << (param - MON_DATA_SUPER_COOL_RIBBON);
+        u64 ribbons = BoxPokemon_GetRibbonsDS2(monDataBlockC);
 
         if (*u8Value) {
-            monDataBlockC->ribbonsDS2 |= bit;
+            ribbons |= bit;
         } else {
-            monDataBlockC->ribbonsDS2 &= (bit ^ 0xFFFFFFFFFFFFFFFF);
+            ribbons &= (bit ^ 0xFFFFFFFFFFFFFFFF);
         }
+
+        BoxPokemon_SetRibbonsDS2(monDataBlockC, ribbons);
 
         break;
     }
