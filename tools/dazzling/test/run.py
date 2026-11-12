@@ -209,6 +209,12 @@ class GameClient:
         # llvmpipe spawns a thread per core per game; cap it (team rule,
         # shared devserver load). Does not affect pixels (lockstep).
         env.setdefault("LP_NUM_THREADS", "2")
+        # On Linux the GPU 2D path runs on llvmpipe (software GL), where it is
+        # several times slower than CPU 2D and long scenarios time out. The two
+        # paths are byte-identical (see --compare-renderers), and the Mac (the
+        # target) keeps the GPU default; so default to CPU 2D on Linux only.
+        if sys.platform.startswith("linux"):
+            env.setdefault("SIM_G2_GPU", "0")
         env.update({
             # Never register in the owner's Dock/app switcher (team rule).
             "SDL_MAC_BACKGROUND_APP": "1",
