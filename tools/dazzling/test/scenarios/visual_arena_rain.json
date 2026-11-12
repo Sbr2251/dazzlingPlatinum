@@ -1,0 +1,111 @@
+{
+ "name": "visual_arena_rain",
+ "_note": "Arena lane: Intimidate frame with field weather rain (hour 14) and ArenaContext on. Arena darkened/grey-tinted; the battle's rain weather (from the overworld-weather subscript) runs as before.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/visual_arena_rain.json"
+   }
+  },
+  {
+   "wait_battle_event": {
+    "type": "stat_stage",
+    "battler": 0
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 80
+  },
+  {
+   "screenshot": "visual_arena_rain",
+   "reference": "../references/visual/visual_arena_rain.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 7200
+  }
+ ],
+ "env": {
+  "SIM_FX_ARENA": "1"
+ }
+}
