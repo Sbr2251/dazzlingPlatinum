@@ -287,6 +287,20 @@
       "step": 300
     },
     {
+      "press": "LEFT",
+      "frames": 10
+    },
+    {
+      "step": 300
+    },
+    {
+      "press": "RIGHT",
+      "frames": 10
+    },
+    {
+      "step": 300
+    },
+    {
       "press": "A",
       "frames": 10
     },
