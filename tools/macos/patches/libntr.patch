@@ -1,5 +1,5 @@
 diff --git a/include/nitro/card/backup.h b/include/nitro/card/backup.h
-index 1b016ea..7d4e791 100644
+index 1b016ea..28cf758 100644
 --- a/include/nitro/card/backup.h
 +++ b/include/nitro/card/backup.h
 @@ -20,6 +20,10 @@ extern  "C"
@@ -13,6 +13,66 @@ index 1b016ea..7d4e791 100644
  #else
  #define SAVE_BIN_FILE_PATH "save.bin"
  #endif
+@@ -120,25 +124,11 @@ u32 CARD_GetBackupPageSize(void);
+                                    MIDmaCallback callback, void *arg, BOOL is_async)
+   {
+     #ifdef SDK_PORT
+-    FILE * backupFilePtr;
+-    backupFilePtr = fopen(SAVE_BIN_FILE_PATH, "rb");
+-    if(!backupFilePtr) {
+-      // File does not exist. Create the file
+-      backupFilePtr = fopen(SAVE_BIN_FILE_PATH, "wb");
+-
+-      // Zero out the file with the len
+-      u8 * buf = (u8*)malloc(len + src);
+-      memset(buf, 0, len + src);
+-      fwrite(buf, 1, len + src, backupFilePtr);
+-      fclose(backupFilePtr);
+-      free(buf);
+-
+-      // Reopen file
+-      backupFilePtr = fopen(SAVE_BIN_FILE_PATH, "rb");
++    // Instant atomic save (sim_save_flash.cpp): buffered 512 KB image, one
++    // tmp+fsync+rename flush per save transaction, previous file as .bak.
++    if (!SIM_SaveFlash_Read(src, dst, len)) {
++      return FALSE;
+     }
+-    fseek(backupFilePtr, src, SEEK_SET);
+-    fread(dst, 1, len, backupFilePtr);
+-    fclose(backupFilePtr);
+     if( callback != NULL )
+     {
+       callback(arg);
+@@ -170,11 +160,9 @@ u32 CARD_GetBackupPageSize(void);
+                                     MIDmaCallback callback, void *arg, BOOL is_async)
+   {
+     #ifdef SDK_PORT
+-    FILE * backupFilePtr;
+-    backupFilePtr = fopen(SAVE_BIN_FILE_PATH, "rb+");
+-    fseek(backupFilePtr, dst, SEEK_SET);
+-    fwrite(src, 1, len, backupFilePtr);
+-    fclose(backupFilePtr);
++    if (!SIM_SaveFlash_Write(dst, src, len)) {
++      return FALSE;
++    }
+     if( callback != NULL )
+     {
+       callback(arg);
+@@ -217,11 +205,9 @@ u32 CARD_GetBackupPageSize(void);
+                                              MIDmaCallback callback, void *arg, BOOL is_async)
+   {
+     #ifdef SDK_PORT
+-    FILE * backupFilePtr;
+-    backupFilePtr = fopen(SAVE_BIN_FILE_PATH, "rb+");
+-    fseek(backupFilePtr, dst, SEEK_SET);
+-    fwrite(src, 1, len, backupFilePtr);
+-    fclose(backupFilePtr);
++    if (!SIM_SaveFlash_Write(dst, src, len)) {
++      return CARD_RESULT_FAILURE;
++    }
+     if( callback != NULL )
+     {
+       callback(arg);
 diff --git a/include/nitro/gx/g3imm.h b/include/nitro/gx/g3imm.h
 index 0f07fc3..fd7b1af 100644
 --- a/include/nitro/gx/g3imm.h
@@ -771,10 +831,10 @@ index 285ed8d..d5a2519 100644
  
 diff --git a/include/simulator/sim_headless.h b/include/simulator/sim_headless.h
 new file mode 100644
-index 0000000..0c83729
+index 0000000..378b778
 --- /dev/null
 +++ b/include/simulator/sim_headless.h
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,65 @@
 +#pragma once
 +// Headless / lockstep test support for PC builds. See docs/headless_protocol.md in the game repo.
 +// All of it is off unless the SIM_* environment variables are set; the interactive app is unchanged.
@@ -794,6 +854,15 @@ index 0000000..0c83729
 +
 +// The save file the game reads and writes: SIM_SAVE_PATH if set, else "save.bin" (cwd-relative).
 +const char *SIM_GetSaveBinPath(void);
++
++// Instant atomic save backing (sim_save_flash.cpp): the 512 KB flash image lives in
++// memory; writes flush atomically (tmp + fsync + rename, previous file kept as
++// "<save>.bak"). Between Begin and Commit, writes are coalesced into one flush.
++int SIM_SaveFlash_Read(unsigned int src, void *dst, unsigned int len);
++int SIM_SaveFlash_Write(unsigned int dst, const void *src, unsigned int len);
++void SIM_SaveFlash_Begin(void);
++int SIM_SaveFlash_Commit(void);
++void SIM_SaveFlash_Rollback(void);
 +
 +// 1 when SIM_FIXED_RTC is set: fills the broken-down time for the current frame
 +// (base instant + frame * 1/60 s). Used by the RTC implementation.
@@ -1574,7 +1643,7 @@ index e638798..550c270 100644
      s_G3numInPoly = 0;
      s_G3drawPoly = 0;
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..7bf88ce 100644
+index 2d852bf..e1aa5c4 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -18,6 +18,7 @@ libsim_srcs = files(
@@ -1585,13 +1654,14 @@ index 2d852bf..7bf88ce 100644
      'sim_g3_c_bridge.cpp',
      'sim_g3_CommandHandler.cpp',
      'sim_g3_CommandProcessor.cpp',
-@@ -31,6 +32,10 @@ libsim_srcs = files(
+@@ -31,6 +32,11 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
 +    'sim_headless.cpp',
 +    'sim_headless_control.cpp',
 +    'sim_headless_watchdog.cpp',
++    'sim_save_flash.cpp',
 +    'sim_helpers.cpp',
      'sim_main.cpp',
      'sim_net.cpp',
@@ -5070,7 +5140,7 @@ index 0000000..f464d50
 +
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..eb74c4d 100644
+index 910d7da..4738804 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -5137,7 +5207,7 @@ index 910d7da..eb74c4d 100644
  
  // FBOs
  static GLuint g3FrameBuffer;
-@@ -147,6 +174,134 @@ static GLint s_objWindowTexUnit = 9;
+@@ -147,6 +174,162 @@ static GLint s_objWindowTexUnit = 9;
  static GLuint g3shaderProgramID;
  static GLuint g2shaderProgramID;
  
@@ -5155,6 +5225,34 @@ index 910d7da..eb74c4d 100644
 +static int sPostW, sPostH;
 +static int sPostViewX, sPostViewY, sPostViewW, sPostViewH;
 +static int sPostWinW, sPostWinH;
++
++// ---- Display capture (DISPCAPCNT) + VRAM display mode ----
++// Hardware capture takes the main engine's frame (source A: the 2D+3D
++// composite, or 3D only), optionally blends it with VRAM (source B) by
++// EVA/EVB, and writes RGB555+alpha pixels into a VRAM bank A-D; the enable
++// bit then clears. Motion blur / Spear Pillar display that bank back with
++// DISPCNT display mode 2 (GX_DISPMODE_VRAM_*). The simulator keeps BG VRAM
++// and LCDC VRAM in separate arrays, so a capture writes the LCDC array and
++// also the main/sub BG view of the same bank (see CaptureFrame).
++static GLuint sCapFBO, sCapTex, sCapDispTex, sCapProg;
++static const char *sCapFragSrc = R""(
++#version 420 core
++uniform sampler2D capTex;
++uniform int topScreen;
++uniform float brightFactor;
++uniform int brightMode;
++smooth in vec2 fragTexCoord;
++out vec4 color;
++void main()
++{
++    if (topScreen == 1) { if (fragTexCoord.t < 0.5) discard; }
++    else { if (fragTexCoord.t >= 0.5) discard; }
++    color = texture(capTex, fragTexCoord);
++    if (brightMode == 1) color.rgb += (1.0 - color.rgb) * (brightFactor / 16.0);
++    else if (brightMode == 2) color.rgb -= color.rgb * (brightFactor / 16.0);
++    color.a = 1.0;
++}
++)"";
 +
 +namespace {
 +struct PostFXEffect {
@@ -5272,7 +5370,7 @@ index 910d7da..eb74c4d 100644
  // VAOs
  static GLuint g2vertexArray;
  
-@@ -178,6 +333,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +361,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -5283,7 +5381,7 @@ index 910d7da..eb74c4d 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -298,6 +457,16 @@ void SIM_SetInternalResolution(int internalRes) {
+@@ -298,6 +485,16 @@ void SIM_SetInternalResolution(int internalRes) {
        SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
  }
  
@@ -5300,7 +5398,7 @@ index 910d7da..eb74c4d 100644
  static bool sChangeInternalResAfterRender = false;
  static int sPendingInternalRes = 1;
  
-@@ -315,7 +484,13 @@ void *SIM_RenderInit(void *arg) {
+@@ -315,7 +512,13 @@ void *SIM_RenderInit(void *arg) {
    SIM_Audio_Init(44100);
  
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -5314,7 +5412,7 @@ index 910d7da..eb74c4d 100644
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-@@ -378,7 +553,7 @@ void *SIM_RenderInit(void *arg) {
+@@ -378,7 +581,7 @@ void *SIM_RenderInit(void *arg) {
  
    window = SDL_CreateWindow(
        windowTitle.c_str(), 100, 100, windowWidth, windowHeight,
@@ -5323,7 +5421,7 @@ index 910d7da..eb74c4d 100644
        #if defined(SDK_BUILD_WIN64) || defined(SDK_BUILD_LINUX)
        | SDL_WINDOW_RESIZABLE
        #endif
-@@ -401,8 +576,10 @@ void *SIM_RenderInit(void *arg) {
+@@ -401,8 +604,10 @@ void *SIM_RenderInit(void *arg) {
    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -5334,7 +5432,7 @@ index 910d7da..eb74c4d 100644
  
    GLenum glErrCode;
    GLint status;
-@@ -453,8 +630,14 @@ void *SIM_RenderInit(void *arg) {
+@@ -453,8 +658,14 @@ void *SIM_RenderInit(void *arg) {
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
                 GL_UNSIGNED_BYTE, NULL);
  
@@ -5350,7 +5448,7 @@ index 910d7da..eb74c4d 100644
    glCompileShader(_id);                                                        \
    glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
    if (status != GL_TRUE) {                                                     \
-@@ -549,6 +732,31 @@ void *SIM_RenderInit(void *arg) {
+@@ -549,6 +760,58 @@ void *SIM_RenderInit(void *arg) {
    glUniform1iv(glGetUniformLocation(g2shaderProgramID, "objTexture"), 5,
                 s_objTexUnits);
  
@@ -5379,10 +5477,37 @@ index 910d7da..eb74c4d 100644
 +    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
 +  }
 +
++  // Display capture: FBO the main engine is re-rendered into at DS
++  // resolution (both screen halves, like the layer textures), the VRAM
++  // display texture in the same combined layout, and its shader.
++  {
++    glGenFramebuffers(1, &sCapFBO);
++    glGenTextures(1, &sCapTex);
++    glBindTexture(GL_TEXTURE_2D, sCapTex);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, SIM_NDS_SCREEN_WIDTH,
++                 SIM_NDS_SCREEN_HEIGHT * 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++    glBindFramebuffer(GL_FRAMEBUFFER, sCapFBO);
++    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sCapTex, 0);
++    glBindFramebuffer(GL_FRAMEBUFFER, 0);
++    glGenTextures(1, &sCapDispTex);
++    glBindTexture(GL_TEXTURE_2D, sCapDispTex);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, SIM_NDS_SCREEN_WIDTH,
++                 SIM_NDS_SCREEN_HEIGHT * 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++    GLint capVertexShader, capFragmentShader;
++    sCapProg = glCreateProgram();
++    CompileVertexShader(capVertexShader, SIM::PostVertexShader);
++    CompileFragmentShader(capFragmentShader, sCapFragSrc);
++    LinkShader(sCapProg, capVertexShader, capFragmentShader);
++  }
++
    glGenVertexArrays(1, &g2vertexArray);
    glBindVertexArray(g2vertexArray);
    glGenBuffers(1, &g2vertexBuffer);
-@@ -566,7 +774,30 @@ void *SIM_RenderInit(void *arg) {
+@@ -566,7 +829,30 @@ void *SIM_RenderInit(void *arg) {
    return nullptr;
  }
  
@@ -5413,7 +5538,7 @@ index 910d7da..eb74c4d 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -610,7 +841,8 @@ static void DrawEngine(BOOL isSub) {
+@@ -610,7 +896,8 @@ static void DrawEngine(BOOL isSub) {
    backdropVec[2] = (float)backdropB / 255.0f;
    backdropVec[3] = 1.0f;
  
@@ -5423,7 +5548,7 @@ index 910d7da..eb74c4d 100644
                 backdropVec);
  
    glProgramUniform4f(g2shaderProgramID,
-@@ -669,7 +901,12 @@ static void DrawEngine(BOOL isSub) {
+@@ -669,7 +956,12 @@ static void DrawEngine(BOOL isSub) {
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
  
@@ -5436,7 +5561,7 @@ index 910d7da..eb74c4d 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -715,13 +952,38 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +1007,38 @@ static void DrawEngine(BOOL isSub) {
        u8 a;
        for (int j = 0; j < 256; j++) {
          if (OBJLine[isSub][j]) {
@@ -5480,7 +5605,7 @@ index 910d7da..eb74c4d 100644
            }
          }
          if (OBJWindow[isSub][j]) {
-@@ -772,6 +1034,19 @@ static void DrawEngine(BOOL isSub) {
+@@ -772,6 +1089,19 @@ static void DrawEngine(BOOL isSub) {
                      SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
                      (void *)oamPixelBuf);
    }
@@ -5500,7 +5625,7 @@ index 910d7da..eb74c4d 100644
  
    glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
  
-@@ -789,9 +1064,10 @@ static void DrawEngine(BOOL isSub) {
+@@ -789,9 +1119,10 @@ static void DrawEngine(BOOL isSub) {
    glActiveTexture(GL_TEXTURE0 + s_objWindowTexUnit);
    glBindTexture(GL_TEXTURE_2D, objWindowTextureId);
    u8 *objWindowBuf = isSub ? objWindowsTex : objWindowTex;
@@ -5514,7 +5639,7 @@ index 910d7da..eb74c4d 100644
    glProgramUniform1i(
        g2shaderProgramID,
        glGetUniformLocation(g2shaderProgramID, "objWindowTexture"),
-@@ -814,13 +1090,30 @@ static void DrawEngine(BOOL isSub) {
+@@ -814,13 +1145,30 @@ static void DrawEngine(BOOL isSub) {
                       glGetUniformLocation(g2shaderProgramID, "topScreen"),
                       topScreen);
  
@@ -5546,7 +5671,7 @@ index 910d7da..eb74c4d 100644
  
    // Pass bg0as3d to the shader
    glProgramUniform1i(g2shaderProgramID,
-@@ -859,6 +1152,7 @@ static void DrawEngine(BOOL isSub) {
+@@ -859,6 +1207,7 @@ static void DrawEngine(BOOL isSub) {
      glActiveTexture(GL_TEXTURE0 + s_objTexUnits[0]);
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
@@ -5554,7 +5679,7 @@ index 910d7da..eb74c4d 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +1244,147 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1299,317 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -5696,13 +5821,183 @@ index 910d7da..eb74c4d 100644
 +    printf("SIM_DEBUG_EXIT_FRAME: exiting at frame %u\n", frame); ProfPrint(); fflush(stdout); SIM::G3::G3StatsDump("exit"); _exit(0); }
 +}
 +
++// Perform a pending display capture: read back the main engine's frame at
++// DS resolution, blend with source B, write RGB555+alpha into the target
++// VRAM bank, then clear the one-shot enable bit (as hardware does).
++// Source B is VRAM in the destination bank at the DISPCAPCNT source offset
++// (the motion-blur feedback layout every in-game user sets up); the main
++// memory FIFO source is approximated by the FIFO register value, as no
++// in-game user selects it.
++static void CaptureFrame() {
++  u32 cap = s_reg_GX_DISPCAPCNT;
++  if (!(cap & 0x80000000u) || !sCapFBO) return;
++  static const int kW[4] = {128, 256, 256, 256};
++  static const int kH[4] = {128, 64, 128, 192};
++  int sizeSel = (cap >> 20) & 3;
++  int w = kW[sizeSel], h = kH[sizeSel];
++  int mode = (cap >> 29) & 3;          // 0=A, 1=B, 2=blend
++  int srcA3D = (cap >> 24) & 1;
++  int srcBMem = (cap >> 25) & 1;
++  int srcBOfs = ((cap >> 26) & 3) * 0x8000;
++  int destBank = (cap >> 16) & 3;
++  int destOfs = ((cap >> 18) & 3) * 0x8000;
++  int eva = cap & 31; if (eva > 16) eva = 16;
++  int evb = (cap >> 8) & 31; if (evb > 16) evb = 16;
++
++  // Source A, RGBA8, DS top-left origin, 256x192.
++  static u8 srcA[256 * 192 * 4];
++  if (srcA3D) {
++    int scale = s_SIM_config.internalResolutionScale;
++    if (scale < 1) scale = 1;
++    static u8 big[256 * 192 * 16 * 4]; // up to scale 4
++    if (scale > 4) scale = 4;
++    GLint prevFbo = 0;
++    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
++    glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
++    glPixelStorei(GL_PACK_ALIGNMENT, 1);
++    int yOff = (s_reg_GX_POWCNT >> 15) ? SIM_NDS_SCREEN_HEIGHT * scale : 0;
++    glReadPixels(0, yOff, 256 * scale, 192 * scale, GL_RGBA, GL_UNSIGNED_BYTE, big);
++    glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
++    for (int y = 0; y < 192; y++)
++      for (int x = 0; x < 256; x++) {
++        const u8 *p = &big[(((191 - y) * scale + scale / 2) * 256 * scale + x * scale + scale / 2) * 4];
++        u8 *q = &srcA[(y * 256 + x) * 4];
++        q[0] = p[0]; q[1] = p[1]; q[2] = p[2]; q[3] = p[3];
++      }
++  } else {
++    GLint prevFbo = 0, prevProg = 0, prevViewport[4] = {0, 0, 0, 0};
++    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
++    glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
++    glGetIntegerv(GL_VIEWPORT, prevViewport);
++    glBindFramebuffer(GL_FRAMEBUFFER, sCapFBO);
++    glViewport(0, 0, SIM_NDS_SCREEN_WIDTH, SIM_NDS_SCREEN_HEIGHT * 2);
++    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++    glClear(GL_COLOR_BUFFER_BIT);
++    glUseProgram(g2shaderProgramID);
++    DrawEngine(FALSE);
++    int y0 = (s_reg_GX_POWCNT >> 15) ? SIM_NDS_SCREEN_HEIGHT : 0;
++    static u8 raw[256 * 192 * 4];
++    glPixelStorei(GL_PACK_ALIGNMENT, 1);
++    glReadPixels(0, y0, 256, 192, GL_RGBA, GL_UNSIGNED_BYTE, raw);
++    glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
++    glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
++    glUseProgram((GLuint)prevProg);
++    for (int y = 0; y < 192; y++)
++      memcpy(&srcA[(y * 256) * 4], &raw[((191 - y) * 256) * 4], 256 * 4);
++  }
++
++  u16 *lcdc = (u16 *)s_HW_LCDC_VRAM;
++  int destIdx = (destBank * 0x20000 + destOfs) / 2;
++  int srcBIdx = (destBank * 0x20000 + srcBOfs) / 2;
++
++  // BG views of the destination bank, for games that re-map the captured
++  // bank as a BG (the encounter transition reads it as BG3 DC bitmap).
++  // VRAMCNT A-D: bit7 enable, MST bits0-2 (1=main BG, 4=sub BG for C),
++  // OFS bits3-4 in 128K units (main BG).
++  const u8 vramcnt[4] = {s_reg_GX_VRAMCNT_A, s_reg_GX_VRAMCNT_B, s_reg_GX_VRAMCNT_C, s_reg_GX_VRAMCNT_D};
++  u8 *bgAlias = nullptr, *subBgAlias = nullptr;
++  {
++    u8 vc = vramcnt[destBank];
++    int mst = vc & 7, ofs = ((vc >> 3) & 3) * 0x20000;
++    if ((vc & 0x80) && mst == 1) bgAlias = (u8 *)s_HW_BG_VRAM + ofs + destOfs;
++    if ((vc & 0x80) && mst == 4) subBgAlias = (u8 *)s_HW_DB_BG_VRAM + destOfs;
++    if (!bgAlias) {
++      // Not BG-mapped yet: the game maps it right after capturing. Use the
++      // layouts the capture users set up (C as the second 128K of a 256K
++      // main BG, A at 0) unless another bank already owns that BG range.
++      int want = destBank == 0 ? 0 : destBank == 2 ? 0x20000 : -1;
++      if (want >= 0) {
++        bool covered = false;
++        for (int b = 0; b < 4; b++) {
++          u8 o = vramcnt[b];
++          if ((o & 0x80) && (o & 7) == 1) {
++            int oo = ((o >> 3) & 3) * 0x20000;
++            if (want >= oo && want < oo + 0x20000) covered = true;
++          }
++        }
++        if (!covered) bgAlias = (u8 *)s_HW_BG_VRAM + want + destOfs;
++      }
++    }
++  }
++
++  if (srcBMem) {
++    static int logged = 0;
++    if (!logged) { logged = 1; printf("SIM capture: main-memory FIFO source B approximated by DISP_MMEM_FIFO value\n"); }
++  }
++  for (int y = 0; y < h; y++) {
++    for (int x = 0; x < w; x++) {
++      int i = y * w + x;
++      const u8 *a = &srcA[(y * 256 + x) * 4];
++      int ar = (a[0] * 31 + 127) / 255, ag = (a[1] * 31 + 127) / 255, ab = (a[2] * 31 + 127) / 255;
++      u16 bpx = srcBMem ? (u16)s_reg_GX_DISP_MMEM_FIFO : lcdc[srcBIdx + i];
++      int br = bpx & 31, bg = (bpx >> 5) & 31, bb = (bpx >> 10) & 31;
++      int r, g, b;
++      if (mode == 0) { r = ar; g = ag; b = ab; }
++      else if (mode == 1) { r = br; g = bg; b = bb; }
++      else {
++        r = (ar * eva + br * evb + 8) >> 4;
++        g = (ag * eva + bg * evb + 8) >> 4;
++        b = (ab * eva + bb * evb + 8) >> 4;
++        if (r > 31) r = 31; if (g > 31) g = 31; if (b > 31) b = 31;
++      }
++      int alpha = mode == 1 ? ((bpx >> 15) & 1) : 1;
++      u16 out = (u16)(r | (g << 5) | (b << 10) | (alpha << 15));
++      lcdc[destIdx + i] = out;
++      if (bgAlias) *(u16 *)(bgAlias + i * 2) = out;
++      if (subBgAlias) *(u16 *)(subBgAlias + i * 2) = out;
++    }
++  }
++  s_reg_GX_DISPCAPCNT = cap & ~0x80000000u;
++  if (getenv("SIM_DEBUG_CAPTURE"))
++    printf("SIM capture: %dx%d mode=%d srcA=%s eva=%d evb=%d dest=VRAM_%c+0x%x\n",
++           w, h, mode, srcA3D ? "3D" : "2D3D", eva, evb, 'A' + destBank, destOfs);
++}
++
++// Display the main screen from a VRAM bank (DISPCNT display mode 2,
++// GX_DISPMODE_VRAM_A-D): a 256x192 RGB555 bitmap at the bank base.
++static void DrawVramDisplay() {
++  if (!sCapProg) return;
++  u32 dispcnt = s_reg_GX_DISPCNT;
++  int bank = (dispcnt >> 18) & 3;
++  const u16 *lcdc = (const u16 *)s_HW_LCDC_VRAM;
++  static u8 buf[256 * 384 * 4];
++  memset(buf, 0, sizeof(buf));
++  int topScreen = (s_reg_GX_POWCNT >> 15) ? 1 : 0;
++  for (int y = 0; y < 192; y++) {
++    int memRow = topScreen ? (383 - y) : (191 - y);
++    for (int x = 0; x < 256; x++) {
++      u8 r, g, b;
++      SIM_u16ToRGB(lcdc[bank * 0x10000 + y * 256 + x], &r, &g, &b);
++      u8 *q = &buf[(memRow * 256 + x) * 4];
++      q[0] = r; q[1] = g; q[2] = b; q[3] = 255;
++    }
++  }
++  GLint prevProg = 0, prevActive = 0;
++  glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
++  glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActive);
++  glActiveTexture(GL_TEXTURE0);
++  glBindTexture(GL_TEXTURE_2D, sCapDispTex);
++  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 384, GL_RGBA, GL_UNSIGNED_BYTE, buf);
++  glUseProgram(sCapProg);
++  glProgramUniform1i(sCapProg, glGetUniformLocation(sCapProg, "capTex"), 0);
++  glProgramUniform1i(sCapProg, glGetUniformLocation(sCapProg, "topScreen"), topScreen);
++  float bright = (float)(s_reg_GX_MASTER_BRIGHT & 31);
++  if (bright > 16.0f) bright = 16.0f;
++  glProgramUniform1f(sCapProg, glGetUniformLocation(sCapProg, "brightFactor"), bright);
++  glProgramUniform1i(sCapProg, glGetUniformLocation(sCapProg, "brightMode"),
++                     (s_reg_GX_MASTER_BRIGHT >> 14) & 3);
++  DrawScreenQuad();
++  glUseProgram((GLuint)prevProg);
++  glActiveTexture((GLenum)prevActive);
++}
++
  void *SIM_Render(void *arg) {
 +  u64 profRenderT0 = ProfOn() ? ProfNowNs() : 0;
 +  (void)profRenderT0;
  
    SDL_Event Event;
    char c;
-@@ -1021,6 +1455,38 @@ void *SIM_Render(void *arg) {
+@@ -1021,6 +1680,38 @@ void *SIM_Render(void *arg) {
  
      glViewport(viewX, viewY, viewWidth, viewHeight);
  
@@ -5741,7 +6036,7 @@ index 910d7da..eb74c4d 100644
      // Set up the bounding box of the touch panel
      if (s_SIM_config.swapScreens) {
        switch (s_SIM_config.screenLayout) {
-@@ -1073,9 +1539,14 @@ void *SIM_Render(void *arg) {
+@@ -1073,9 +1764,14 @@ void *SIM_Render(void *arg) {
        s_SIM_SDLJoystick = SDL_JoystickOpen(0);
      }
  
@@ -5756,7 +6051,7 @@ index 910d7da..eb74c4d 100644
        if (Event.type == SDL_WINDOWEVENT) {
          switch (Event.window.event) {
          case SDL_WINDOWEVENT_CLOSE:
-@@ -1083,6 +1554,18 @@ void *SIM_Render(void *arg) {
+@@ -1083,6 +1779,18 @@ void *SIM_Render(void *arg) {
            break;
          }
        }
@@ -5775,7 +6070,7 @@ index 910d7da..eb74c4d 100644
        if (Event.type == SDL_KEYDOWN) {
          int keyRead = Event.key.keysym.sym;
          if (keyRead == s_SIM_config.padSettings.aKey) {
-@@ -1261,7 +1744,9 @@ void *SIM_Render(void *arg) {
+@@ -1261,7 +1969,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -5786,7 +6081,23 @@ index 910d7da..eb74c4d 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1303,6 +1788,9 @@ void *SIM_Render(void *arg) {
+@@ -1297,12 +2007,23 @@ void *SIM_Render(void *arg) {
+     memset(bg3stex, 0,
+            sizeof(u8) * 4 * SIM_NDS_SCREEN_WIDTH * SIM_NDS_SCREEN_HEIGHT * 2);
+ 
+-    // Draw MAIN engine
+-    DrawEngine(FALSE);
++    // Draw MAIN engine. In VRAM display mode the main screen shows a
++    // captured VRAM bank instead of the BG/OBJ layers; a pending capture
++    // still takes the (undisplayed) engine output as source A first.
++    if (((s_reg_GX_DISPCNT >> 16) & 3) == 2) {
++      if (s_reg_GX_DISPCAPCNT & 0x80000000u) CaptureFrame();
++      DrawVramDisplay();
++    } else {
++      DrawEngine(FALSE);
++      if (s_reg_GX_DISPCAPCNT & 0x80000000u) CaptureFrame();
++    }
+ 
      // SUB engine
      DrawEngine(TRUE);
  
@@ -5796,7 +6107,7 @@ index 910d7da..eb74c4d 100644
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1328,18 +1816,29 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +2049,29 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -5835,7 +6146,7 @@ index 910d7da..eb74c4d 100644
      SDL_GL_SwapWindow(window);
  
      if(sChangeInternalResAfterRender) {
-@@ -1369,6 +1868,12 @@ void *SIM_Render(void *arg) {
+@@ -1369,6 +2101,12 @@ void *SIM_Render(void *arg) {
      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
      glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -5848,7 +6159,7 @@ index 910d7da..eb74c4d 100644
    } while (SIM::GUI::IsGameLogicPaused());
    // Bind 3D Framebuffer & Renderbuffer
    glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
-@@ -1394,10 +1899,17 @@ void *SIM_Render(void *arg) {
+@@ -1394,10 +2132,17 @@ void *SIM_Render(void *arg) {
    glCullFace(GL_FRONT);
    glFrontFace(GL_CW);
  
@@ -5866,7 +6177,7 @@ index 910d7da..eb74c4d 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1465,6 +1977,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +2210,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -5875,6 +6186,167 @@ index 910d7da..eb74c4d 100644
    // Start up debug system
    SIM_Dbg_Init();
  
+diff --git a/libraries/sim/src/sim_save_flash.cpp b/libraries/sim/src/sim_save_flash.cpp
+new file mode 100644
+index 0000000..f3201c3
+--- /dev/null
++++ b/libraries/sim/src/sim_save_flash.cpp
+@@ -0,0 +1,155 @@
++// Instant, atomic save-file backing for the PC port's DS flash (512 KB save.bin).
++//
++// Previously every CARD write opened save.bin, fseek+fwrite+fclose'd one chunk
++// (block data, secondary footer, footer, per block, plus extra-save sectors and
++// new-game footer erases): many non-atomic writes, no fsync, no backup. A kill
++// or crash mid-save could leave a torn file, and only the game's dual-sector
++// logic stood a chance of recovering it.
++//
++// Now the flash is a 512 KB in-memory image. Reads and writes operate on the
++// image. Outside a transaction a write flushes immediately; inside a
++// transaction (SIM_SaveFlash_Begin/Commit, used by the game's top-level save
++// paths) all chunk writes are coalesced and the file is written exactly once,
++// on Commit:
++//   1. the previous save.bin (if non-blank) is copied to save.bin.bak,
++//   2. the new image goes to save.bin.tmp, is fsync'd, then rename()d over
++//      save.bin (atomic on POSIX), and the directory is fsync'd.
++// A kill at any point therefore leaves either the old or the new complete
++// save; a leftover .tmp is ignored. The bytes in the image are exactly the
++// bytes the old chunked writes produced (same offsets, same contents), so
++// save files stay byte-identical and DeSmuME/melonDS compatible.
++#include "simulator/sim_headless.h"
++
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <string>
++#include <vector>
++
++#include <fcntl.h>
++#include <sys/stat.h>
++#include <time.h>
++#include <unistd.h>
++
++namespace {
++
++const size_t kFlashSize = 512 * 1024;
++
++std::vector<unsigned char> s_image;
++bool s_loaded = false;
++bool s_dirty = false;
++int s_txnDepth = 0;
++unsigned s_bufferedWrites = 0;  // writes coalesced in the current/last flush
++
++std::string SavePath() { return SIM_GetSaveBinPath(); }
++
++bool LoadImage() {
++    if (s_loaded) return true;
++    s_image.assign(kFlashSize, 0);
++    std::string path = SavePath();
++    FILE *f = fopen(path.c_str(), "rb");
++    if (f) {
++        size_t n = fread(s_image.data(), 1, kFlashSize, f);
++        (void)n;  // short file: remainder stays 0, as a fseek/fwrite gap would read
++        fclose(f);
++    }
++    s_loaded = true;
++    return true;
++}
++
++bool WriteFileAtomic(const std::string &path, const unsigned char *data, size_t size) {
++    std::string tmp = path + ".tmp";
++    int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
++    if (fd < 0) return false;
++    size_t off = 0;
++    while (off < size) {
++        ssize_t w = write(fd, data + off, size - off);
++        if (w <= 0) { close(fd); unlink(tmp.c_str()); return false; }
++        off += (size_t)w;
++    }
++    if (fsync(fd) != 0) { close(fd); unlink(tmp.c_str()); return false; }
++    if (close(fd) != 0) { unlink(tmp.c_str()); return false; }
++    if (rename(tmp.c_str(), path.c_str()) != 0) { unlink(tmp.c_str()); return false; }
++    // fsync the directory so the rename itself survives a crash.
++    std::string dir = ".";
++    size_t slash = path.find_last_of('/');
++    if (slash != std::string::npos) dir = (slash == 0) ? "/" : path.substr(0, slash);
++    int dfd = open(dir.c_str(), O_RDONLY);
++    if (dfd >= 0) { fsync(dfd); close(dfd); }
++    return true;
++}
++
++bool Flush() {
++    if (!s_loaded || !s_dirty) return true;
++    std::string path = SavePath();
++    // Rolling backup: keep the previous (complete) file as <path>.bak.
++    std::vector<unsigned char> cur;
++    FILE *f = fopen(path.c_str(), "rb");
++    if (f) {
++        unsigned char buf[65536]; size_t n;
++        while ((n = fread(buf, 1, sizeof buf, f)) > 0) cur.insert(cur.end(), buf, buf + n);
++        fclose(f);
++    }
++    bool blank = true;
++    for (unsigned char b : cur) if (b != 0 && b != 0xFF) { blank = false; break; }
++    if (!cur.empty() && !blank)
++        WriteFileAtomic(path + ".bak", cur.data(), cur.size());  // best effort
++    struct timespec t0, t1;
++    clock_gettime(CLOCK_MONOTONIC, &t0);
++    if (!WriteFileAtomic(path, s_image.data(), kFlashSize)) return false;
++    clock_gettime(CLOCK_MONOTONIC, &t1);
++    double ms = (double)(t1.tv_sec - t0.tv_sec) * 1e3 + (double)(t1.tv_nsec - t0.tv_nsec) / 1e6;
++    fprintf(stderr, "SIM instant-save: wrote %zu bytes in %.1f ms (%u buffered writes coalesced, bak=%s)\n",
++            kFlashSize, ms, s_bufferedWrites, (!cur.empty() && !blank) ? "yes" : "no");
++    s_dirty = false;
++    s_bufferedWrites = 0;
++    return true;
++}
++
++}  // namespace
++
++extern "C" int SIM_SaveFlash_Read(unsigned int src, void *dst, unsigned int len) {
++    if (!LoadImage()) return 0;
++    if (src >= kFlashSize) { memset(dst, 0, len); return 1; }
++    size_t avail = kFlashSize - src;
++    size_t n = len < avail ? len : avail;
++    memcpy(dst, s_image.data() + src, n);
++    if (n < len) memset((unsigned char *)dst + n, 0, len - n);
++    return 1;
++}
++
++extern "C" int SIM_SaveFlash_Write(unsigned int dst, const void *src, unsigned int len) {
++    if (!LoadImage()) return 0;
++    if (dst >= kFlashSize) return 0;
++    size_t avail = kFlashSize - dst;
++    size_t n = len < avail ? len : avail;
++    if (memcmp(s_image.data() + dst, src, n) != 0) {
++        memcpy(s_image.data() + dst, src, n);
++        s_dirty = true;
++    }
++    s_bufferedWrites++;
++    if (s_txnDepth == 0) return Flush() ? 1 : 0;
++    return 1;
++}
++
++extern "C" void SIM_SaveFlash_Begin(void) {
++    LoadImage();
++    s_txnDepth++;
++}
++
++extern "C" int SIM_SaveFlash_Commit(void) {
++    if (s_txnDepth > 0) s_txnDepth--;
++    if (s_txnDepth == 0) return Flush() ? 1 : 0;
++    return 1;
++}
++
++extern "C" void SIM_SaveFlash_Rollback(void) {
++    if (s_txnDepth > 0) s_txnDepth--;
++    if (s_txnDepth == 0) {
++        // Discard buffered writes: reload from the file on next access.
++        s_loaded = false;
++        s_dirty = false;
++        s_bufferedWrites = 0;
++        s_image.clear();
++    }
++}
 diff --git a/libraries/sim/src/sim_shaders.cpp b/libraries/sim/src/sim_shaders.cpp
 index 51a5263..aae72de 100644
 --- a/libraries/sim/src/sim_shaders.cpp
