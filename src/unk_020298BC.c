@@ -190,8 +190,8 @@ static void BackdropFlags_SetCount(u32 *flags, u8 count, u8 backdropID)
 
     v1 *= 8;
 
-    flags[v0] &= ~(0xff << v1);
-    flags[v0] |= (count << v1);
+    flags[v0] &= ~(0xffu << v1);
+    flags[v0] |= ((u32)count << v1);
 }
 
 static u8 BackdropFlags_GetCount(const u32 *flags, u8 backdropID)
