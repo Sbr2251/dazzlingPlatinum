@@ -1,0 +1,76 @@
+{
+ "name": "core_totem_one_mon_party",
+ "_note": "Regression: starting a Totem battle (a double, player battler 2 permanently inactive) with a one-Pokemon party asserted in Party_GetPokemonBySlotIndex (party.c): the doubles setup left party slot 1 in the inactive player slot and BattleMain_InitTerrains fetched it. The inactive slot now carries the MAX_PARTY_SIZE sentinel from setup, and party-order/terrain init skip sentinel slots. The lone Chimchar must reach the Mamoswine Totem battle, lose, black out, and return to the field.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_ACUITY_LAKEFRONT",
+    "x": 310,
+    "z": 245,
+    "dir": "DIR_SOUTH"
+   }
+  },
+  {
+   "step": 600
+  },
+  {
+   "assert": {
+    "player.map": "MAP_HEADER_ACUITY_LAKEFRONT"
+   }
+  },
+  {
+   "assert": {
+    "party.0.species": "SPECIES_CHIMCHAR"
+   }
+  },
+  {
+   "talk": "LOCALID_TOTEM_MAMOSWINE_4"
+  },
+  {
+   "wait_until": {
+    "app": "battle"
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "assert": {
+    "battle.battlers.0.species": "SPECIES_CHIMCHAR"
+   }
+  },
+  {
+   "assert": {
+    "battle.battlers.1.species": "SPECIES_MAMOSWINE"
+   }
+  },
+  {
+   "battle_decide": {
+    "battler": 0,
+    "action": "move",
+    "move_index": 0
+   }
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "timeout_frames": 30000
+  }
+ ],
+ "assertions": [
+  {
+   "app": "field"
+  }
+ ]
+}

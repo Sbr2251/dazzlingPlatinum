@@ -6592,7 +6592,12 @@ void BattleSystem_InitPartyOrder(BattleSystem *battleSys, BattleContext *battleC
             battleCtx->partyOrder[i][j] = j;
         }
 
-        BattleSystem_SwitchSlots(battleSys, battleCtx, i, battleCtx->selectedPartySlot[i]);
+        // Empty-slot sentinel (an inactive Totem-side battler): there is no
+        // party slot to move to the front, and SwitchSlots would walk off
+        // the end of partyOrder looking for it.
+        if (battleCtx->selectedPartySlot[i] < MAX_PARTY_SIZE) {
+            BattleSystem_SwitchSlots(battleSys, battleCtx, i, battleCtx->selectedPartySlot[i]);
+        }
     }
 }
 

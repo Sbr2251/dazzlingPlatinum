@@ -3173,9 +3173,13 @@ static void Task_ThrowTrainerBall(SysTask *task, void *data)
                 if (battleType & BATTLE_TYPE_DOUBLES && (battleType & BATTLE_TYPE_2vs2) == 0) {
                     BattlerData *battlerData = BattleSystem_GetBattlerData(trainerThrowBallData->battleSys, BattleSystem_GetPartner(trainerThrowBallData->battleSys, trainerThrowBallData->battler));
 
-                    ov12_02237E0C(battlerData->ballRotation, 1);
-                    ov12_0223786C(battlerData->ballRotation, 0);
-                    ov12_02237E4C(battlerData->ballRotation, 12);
+                    // An inactive partner (Totem battles: the second player
+                    // slot never sends out) has no ball in flight.
+                    if (battlerData->ballRotation != NULL) {
+                        ov12_02237E0C(battlerData->ballRotation, 1);
+                        ov12_0223786C(battlerData->ballRotation, 0);
+                        ov12_02237E4C(battlerData->ballRotation, 12);
+                    }
                 }
             } else if (x >= (256 + 40)) {
                 SpriteManager *spriteMan = BattleSystem_GetSpriteManager(trainerThrowBallData->battleSys);
@@ -3213,10 +3217,12 @@ static void Task_ThrowTrainerBall(SysTask *task, void *data)
                     if (battleType & BATTLE_TYPE_DOUBLES && (battleType & BATTLE_TYPE_2vs2) == 0) {
                         BattlerData *battlerData = BattleSystem_GetBattlerData(trainerThrowBallData->battleSys, BattleSystem_GetPartner(trainerThrowBallData->battleSys, trainerThrowBallData->battler));
 
-                        ov12_02237E18(battlerData->ballRotation, x + v5[trainerThrowBallData->backSpriteIdx][animFrame][0], y + v5[trainerThrowBallData->backSpriteIdx][animFrame][1]);
-                        ov12_02237E0C(battlerData->ballRotation, 1);
-                        ov12_0223786C(battlerData->ballRotation, 0);
-                        ov12_02237E30(battlerData->ballRotation, 1);
+                        if (battlerData->ballRotation != NULL) {
+                            ov12_02237E18(battlerData->ballRotation, x + v5[trainerThrowBallData->backSpriteIdx][animFrame][0], y + v5[trainerThrowBallData->backSpriteIdx][animFrame][1]);
+                            ov12_02237E0C(battlerData->ballRotation, 1);
+                            ov12_0223786C(battlerData->ballRotation, 0);
+                            ov12_02237E30(battlerData->ballRotation, 1);
+                        }
                     }
                 }
             }

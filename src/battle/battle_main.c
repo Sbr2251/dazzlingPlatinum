@@ -963,6 +963,12 @@ static void BattleMain_InitTerrains(BattleSystem *battleSys)
 
     for (int battler = 0; battler < battleSys->maxBattlers; battler++) {
         selectedPartySlot = BattleContext_Get(battleSys, battleCtx, BATTLECTX_SELECTED_PARTY_SLOT, battler);
+        if (selectedPartySlot >= MAX_PARTY_SIZE) {
+            // Inactive battler (e.g. the second player slot in a Totem
+            // battle, doubly so with a one-Pokemon party): no mon is sent
+            // out here, and the slot is not a party index.
+            continue;
+        }
         mon = BattleSystem_GetPartyPokemon(battleSys, battler, selectedPartySlot);
         BattlerData_InitSendOutBallThrow(battleSys, battleSys->battlers[battler], Pokemon_GetValue(mon, MON_DATA_POKEBALL, NULL), selectedPartySlot);
     }
@@ -1358,6 +1364,16 @@ static void BattleSys_New(BattleSystem *battleSys, FieldBattleDTO *dto)
             }
 
             BattleContext_Set(battleSys, battleSys->battleCtx, BATTLECTX_SELECTED_PARTY_SLOT, i, slot);
+        }
+
+        if (battleSys->battleStatusMask & BATTLE_STATUS_TOTEM) {
+            // Totem battles are one player battler against the Totem + ally:
+            // the second player slot is permanently inactive (as
+            // BattleControllerPlayer_InitBattleMons also sets). Use the
+            // empty-slot sentinel from the start so a one-Pokemon party -
+            // which has no second slot to assign above - does not leave a
+            // bogus party index (1) in the slot for terrain/send-out setup.
+            BattleContext_Set(battleSys, battleSys->battleCtx, BATTLECTX_SELECTED_PARTY_SLOT, BATTLER_PLAYER_2, MAX_PARTY_SIZE);
         }
 
         BattleSystem_InitPartyOrder(battleSys, battleSys->battleCtx);
