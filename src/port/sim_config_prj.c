@@ -36,6 +36,9 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "MegaCinematicShort")) {
         config->megaCinematicShort = StringToBool(value);
     }
+    if(MATCH("General", "HiResText")) {
+        config->hiResText = StringToBool(value);
+    }
 
     // Cheats section
     if(MATCH("Cheats", "WalkThroughWalls")) {
@@ -89,6 +92,7 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->fieldFastRebuild = TRUE;
   aConfig->breakDebuggerOnGfAssert = FALSE;
   aConfig->megaCinematicShort = FALSE;
+  aConfig->hiResText = FALSE;
 
   // Cheats section
   aConfig->walkThroughWalls = FALSE;
@@ -113,6 +117,7 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "BattleInstantAnimations=%s\n", BoolToString(aConfig->battleInstantAnimations));
     fprintf(configFile, "FieldFastRebuild=%s\n", BoolToString(aConfig->fieldFastRebuild));
     fprintf(configFile, "MegaCinematicShort=%s\n", BoolToString(aConfig->megaCinematicShort));
+    fprintf(configFile, "HiResText=%s\n", BoolToString(aConfig->hiResText));
     fprintf(configFile, "\n");
 
     fprintf(configFile, "[Cheats]\n");

@@ -24,6 +24,7 @@ void ConfigPrjMain(bool * openState) {
     ConfigCheckBox("60 FPS Speed Fix", (bool*)&myConfig->enable60fpsSpeedFix, configChanged);
     ConfigCheckBox("Enable GF_Asserts", (bool*)&myConfig->enableAsserts, configChanged);
     ConfigCheckBox("DebugBreak on GF assertion fail", (bool*)&myConfig->breakDebuggerOnGfAssert, configChanged);
+    ConfigCheckBox("Hi-res dialogue text (prototype)", (bool*)&myConfig->hiResText, configChanged);
 
     if(configChanged) {
         SIM_Config_prj_SaveConfigFile(myConfig);
