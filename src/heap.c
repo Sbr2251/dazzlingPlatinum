@@ -81,11 +81,14 @@ void Heap_InitSystem(const HeapParam *templates, u32 nTemplates, u32 totalNumHea
         HEAP_ALIGNMENT);
     sHeapInfo.parentHeapHandles = sHeapInfo.heapHandles + (usableHeaps + 1);
     sHeapInfo.subHeapRawPtrs = (void **)(sHeapInfo.parentHeapHandles + usableHeaps);
-    sHeapInfo.numMemBlocks = (u16 *)(sHeapInfo.subHeapRawPtrs + usableHeaps);
-    sHeapInfo.heapSizes = (u32 *)(sHeapInfo.numMemBlocks + totalNumHeaps);
+    // Widest element type first (pointers, then u32, u16, u8) so every array
+    // is naturally aligned; the u32 arrays used to follow the u16 array and
+    // were misaligned whenever totalNumHeaps was odd.
+    sHeapInfo.heapSizes = (u32 *)(sHeapInfo.subHeapRawPtrs + usableHeaps);
     sHeapInfo.heapPeaks = sHeapInfo.heapSizes + totalNumHeaps;
     sHeapInfo.heapPeakSizes = sHeapInfo.heapPeaks + totalNumHeaps;
-    sHeapInfo.heapIdxs = (u8 *)(sHeapInfo.heapPeakSizes + totalNumHeaps);
+    sHeapInfo.numMemBlocks = (u16 *)(sHeapInfo.heapPeakSizes + totalNumHeaps);
+    sHeapInfo.heapIdxs = (u8 *)(sHeapInfo.numMemBlocks + totalNumHeaps);
     sHeapInfo.totalNumHeaps = (u16)totalNumHeaps;
     sHeapInfo.nTemplates = (u16)nTemplates;
     sHeapInfo.unallocatedHeapID = (u16)usableHeaps;
