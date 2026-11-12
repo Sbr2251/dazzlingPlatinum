@@ -44,7 +44,10 @@ static u64 CalculateCurrentTimestamp(void)
     OSIntrMode irqState = OS_DisableInterrupts();
 
     #ifdef SDK_PORT
-    timerLow = *(REGType16 *)((u64)REG_TM0CNT_L_ADDR + (OS_TIMER_3) * 4);
+    /* The timer registers are separate globals on the simulator, so the
+     * hardware byte arithmetic (TM0 base + timer * 4) walks off the end of
+     * the TM0CNT_L global under ASan. Select timer 3's register directly. */
+    timerLow = *OSi_TM_CNT_L_ADDR(OS_TIMER_3);
     #else
     timerLow = *(REGType16 *)((u32)REG_TM0CNT_L_ADDR + (OS_TIMER_3) * 4);
     #endif
