@@ -604,6 +604,18 @@ index b196b55..90df0dc 100644
    #else
  	MIi_CpuClearFast(data, dest, size);
    #endif
+diff --git a/include/simulator/config/sim_config.h b/include/simulator/config/sim_config.h
+index ce31436..de5c2e2 100644
+--- a/include/simulator/config/sim_config.h
++++ b/include/simulator/config/sim_config.h
+@@ -53,6 +53,7 @@ typedef struct {
+ 
+ typedef struct {
+     u32 internalResolutionScale; /* 3D rendering internal resolution scale factor */
++    u8 upscale2D; /* hiresui: 2D composite upscale: 0 = nearest (native), 1 = sharp bilinear, 2 = bilinear */
+     u32 windowWidth; /* Initial width of the window. If set to 0, will use the default width for the screen layout */
+     u32 windowHeight; /* Initial height of the window. If set to 0, will use default height for the screen layout */
+     u8 fullScreen; /* TRUE to enable fullscreen */
 diff --git a/include/simulator/sim.h b/include/simulator/sim.h
 index ad57dfa..c4e164b 100644
 --- a/include/simulator/sim.h
@@ -1589,6 +1601,51 @@ index 0000000..542109f
 +                        GLuint objWindowTexId);
 +
 +#endif
+diff --git a/libraries/sim/include/sim_hirestext.h b/libraries/sim/include/sim_hirestext.h
+new file mode 100644
+index 0000000..a497377
+--- /dev/null
++++ b/libraries/sim/include/sim_hirestext.h
+@@ -0,0 +1,39 @@
++#ifndef SIM_HIRESTEXT_H
++#define SIM_HIRESTEXT_H
++
++// Hi-res text overlay (lane hiresui, prototype).
++//
++// The game still renders all text through the DS tile pipeline; for the main
++// dialogue box it additionally reports every glyph it prints (see
++// include/port/hirestext.h in the game repo, which declares the same C API).
++// This simulator side expands those glyphs at 4x into a combined-display
++// RGBA buffer (1024x1536) and draws it over the composited frame, just
++// before the PostFX pass, so the text is crisp at window scale while
++// positions, colours, scrolling and text speed stay the game's.
++//
++// Only the vertical, unswapped screen layout is mapped; other layouts skip
++// the overlay (the DS text underneath is untouched either way).
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++// gfx is the decompressed 4bpp glyph bitmap from TextGlyph (128 bytes,
++// 8x8 tiles of 32 bytes). (x, y) is the glyph position in DS screen pixels.
++// palette is the window's 16-colour palette slot; fgColor/shadowColor are
++// the palette indices of the letter/shadow pixels inside the glyph.
++void HiResText_Glyph(int isSub, int x, int y, int w, int h,
++                     const unsigned char *gfx, int palette,
++                     int fgColor, int shadowColor);
++void HiResText_ClearRect(int isSub, int x, int y, int w, int h);
++void HiResText_ScrollRectUp(int isSub, int x, int y, int w, int h, int dy);
++
++#ifdef __cplusplus
++}
++#endif
++
++// Simulator-internal: draw the overlay into the currently bound framebuffer
++// (the PostFX offscreen frame, viewport = combined-display rect).
++void HiResText_DrawOverlay(void);
++
++#endif
 diff --git a/libraries/sim/meson.build b/libraries/sim/meson.build
 index d7a921e..240b2ac 100644
 --- a/libraries/sim/meson.build
@@ -1606,10 +1663,27 @@ index d7a921e..240b2ac 100644
  if(build_target == 'linux' or build_target == 'win64')
  sdl2_lib = meson.get_compiler('c').find_library('SDL2')
 diff --git a/libraries/sim/src/config/sim_config.c b/libraries/sim/src/config/sim_config.c
-index 096e7fb..cd4a652 100644
+index 096e7fb..bc48c44 100644
 --- a/libraries/sim/src/config/sim_config.c
 +++ b/libraries/sim/src/config/sim_config.c
-@@ -348,7 +348,7 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -36,6 +36,16 @@ static int IniHandler(void* user, const char* section, const char* name,
+     if(MATCH("General", "InternalResolutionScale")) {
+         config->internalResolutionScale = atoi(value);
+     }
++    if(MATCH("General", "Upscale2D")) {
++        // hiresui: Nearest/0, Sharp/1 (default), Bilinear/2
++        if(strcmp(value, "Nearest") == 0 || strcmp(value, "0") == 0) {
++            config->upscale2D = 0;
++        } else if(strcmp(value, "Bilinear") == 0 || strcmp(value, "2") == 0) {
++            config->upscale2D = 2;
++        } else {
++            config->upscale2D = 1;
++        }
++    }
+     if(MATCH("General", "WindowHeight")) {
+         config->windowHeight = atoi(value);
+     }
+@@ -348,11 +358,12 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->windowWidth = 1920;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_LARGE;
  #else
@@ -1618,7 +1692,12 @@ index 096e7fb..cd4a652 100644
      aConfig->windowHeight = 0;
      aConfig->windowWidth = 0;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_VERTICAL;
-@@ -410,7 +410,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+ #endif
++    aConfig->upscale2D = 1; // hiresui: sharp bilinear by default (interactive); headless forces nearest unless SIM_2D_UPSCALE is set
+     aConfig->fullScreen = FALSE;
+     aConfig->swapScreens = FALSE;
+     aConfig->vsyncInterval = 1;
+@@ -410,7 +421,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->macAddr[5] = rand();
  
      memset(&aConfig->osNvramConfig, 0, sizeof(NVRAMConfig));
@@ -1628,6 +1707,14 @@ index 096e7fb..cd4a652 100644
      aConfig->osNvramConfig.ncd.option.input_nickname = TRUE;
      aConfig->osNvramConfig.ncd.option.input_favoriteColor = TRUE;
      aConfig->osNvramConfig.ncd.option.input_language = TRUE;
+@@ -428,6 +440,7 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
+     
+     fprintf(configFile, "[General]\n");
+     fprintf(configFile, "InternalResolutionScale=%d\n", aConfig->internalResolutionScale);
++    fprintf(configFile, "Upscale2D=%d\n", aConfig->upscale2D);
+     fprintf(configFile, "WindowHeight=%d\n", aConfig->windowHeight);
+     fprintf(configFile, "WindowWidth=%d\n", aConfig->windowWidth);
+     fprintf(configFile, "FullScreen=%s\n", BoolToString(aConfig->fullScreen));
 diff --git a/libraries/sim/src/g3_handler.cpp b/libraries/sim/src/g3_handler.cpp
 index e638798..550c270 100644
 --- a/libraries/sim/src/g3_handler.cpp
@@ -1643,7 +1730,7 @@ index e638798..550c270 100644
      s_G3numInPoly = 0;
      s_G3drawPoly = 0;
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..e1aa5c4 100644
+index 2d852bf..cd259f8 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -18,6 +18,7 @@ libsim_srcs = files(
@@ -1654,7 +1741,7 @@ index 2d852bf..e1aa5c4 100644
      'sim_g3_c_bridge.cpp',
      'sim_g3_CommandHandler.cpp',
      'sim_g3_CommandProcessor.cpp',
-@@ -31,6 +32,11 @@ libsim_srcs = files(
+@@ -31,6 +32,12 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
@@ -1662,15 +1749,16 @@ index 2d852bf..e1aa5c4 100644
 +    'sim_headless_control.cpp',
 +    'sim_headless_watchdog.cpp',
 +    'sim_save_flash.cpp',
++    'sim_hirestext.cpp',
 +    'sim_helpers.cpp',
      'sim_main.cpp',
      'sim_net.cpp',
      'sim_RenderContextManager.cpp',
 diff --git a/libraries/sim/src/shaders/g2_fragment.glsl b/libraries/sim/src/shaders/g2_fragment.glsl
-index b652bd5..c5d593b 100644
+index b652bd5..74d5cca 100644
 --- a/libraries/sim/src/shaders/g2_fragment.glsl
 +++ b/libraries/sim/src/shaders/g2_fragment.glsl
-@@ -13,7 +13,9 @@ uniform int bldy;
+@@ -13,14 +13,76 @@ uniform int bldy;
  uniform int topScreen;
  uniform vec4 backdropColor;
  uniform int dispcnt;
@@ -1678,27 +1766,43 @@ index b652bd5..c5d593b 100644
  uniform int winout;
 +uniform int win0h; uniform int win0v; uniform int win1h; uniform int win1v;
  uniform int bg0as3d;
++uniform int upscaleMode; // hiresui: 0 = nearest (native, byte-identical), 1 = sharp bilinear, 2 = plain texture() with linear filtering
++uniform vec2 upscaleW; // hiresui: input texels per output pixel (256/viewportW, 384/viewportH)
  
  smooth in vec2 fragTexCoord;
-@@ -21,6 +23,50 @@ smooth in vec2 fragTexCoord;
+ //uniform float inAlpha;
  uniform float inMasterBrightFactor;
  uniform int inMasterBrightMode;
  out vec4 color;
 +
 +// Sampler arrays may only be indexed with dynamically uniform expressions; currentBgDrawn differs per fragment, and macOS's
 +// OpenGL (on Metal) returns black for such a lookup, so blended text and logos came out black there. Index with constants instead.
++// hiresui: sharp bilinear: snap the sample position towards the texel centre by the
++// magnification factor, so 2D pixel art stays crisp (no nearest stair-stepping, no
++// bilinear blur) at window scale. Mode 0/2 fall back to plain texture() (the caller
++// selects NEAREST or LINEAR texture filtering), so mode 0 is byte-identical to before.
++vec4 sampleUpscaled(sampler2D tex, vec2 uv) {
++    if (upscaleMode != 1) return texture(tex, uv);
++    vec2 sz = vec2(256.0, 384.0); // all layer textures (BG/OBJ/dummy) are native DS size
++    vec2 p = uv * sz;
++    vec2 c = floor(p - 0.5) + 0.5;
++    vec2 f = p - c;
++    vec2 off = clamp(f / max(upscaleW, vec2(0.0001)), vec2(-0.5), vec2(0.5));
++    return texture(tex, (c + off) / sz);
++}
 +vec4 sampleBg(int n, vec2 uv) {
-+    if (n == 0) return texture(bgTexture[0], uv);
-+    if (n == 1) return texture(bgTexture[1], uv);
-+    if (n == 2) return texture(bgTexture[2], uv);
-+    return texture(bgTexture[3], uv);
++    if (n == 0 && bg0as3d != 0) return texture(bgTexture[0], uv); // hiresui: 3D stays at its native internal resolution
++    if (n == 0) return sampleUpscaled(bgTexture[0], uv);
++    if (n == 1) return sampleUpscaled(bgTexture[1], uv);
++    if (n == 2) return sampleUpscaled(bgTexture[2], uv);
++    return sampleUpscaled(bgTexture[3], uv);
 +}
 +vec4 sampleObj(int n, vec2 uv) {
-+    if (n == 0) return texture(objTexture[0], uv);
-+    if (n == 1) return texture(objTexture[1], uv);
-+    if (n == 2) return texture(objTexture[2], uv);
-+    if (n == 3) return texture(objTexture[3], uv);
-+    return texture(objTexture[4], uv);
++    if (n == 0) return sampleUpscaled(objTexture[0], uv);
++    if (n == 1) return sampleUpscaled(objTexture[1], uv);
++    if (n == 2) return sampleUpscaled(objTexture[2], uv);
++    if (n == 3) return sampleUpscaled(objTexture[3], uv);
++    return sampleUpscaled(objTexture[4], uv);
 +}
 +// Composite one OBJ pixel over the accumulated colour (bottom-up order).
 +// OBJ layer alpha encodes the pixel kind: 1 = opaque, 0.0314 = semi-
@@ -1731,7 +1835,7 @@ index b652bd5..c5d593b 100644
  void main()
  {
      int oamsDrawn = 0;
-@@ -35,85 +81,108 @@ void main()
+@@ -35,85 +97,108 @@ void main()
              discard;
          }
      }
@@ -1881,7 +1985,7 @@ index b652bd5..c5d593b 100644
                  color.a = 1.0;
                  currentBgDrawn = bgNum;
              }
-@@ -121,9 +190,8 @@ void main()
+@@ -121,9 +206,8 @@ void main()
      }
      //Draw the remaining objs
      for(int i=3-oamsDrawn; i>=0; i--) {
@@ -2251,6 +2355,26 @@ index 0000000..3ad4db3
 +void main() {
 +    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
 +    gl_Position = vec4(p * 2.0 - 1.0, uDepth * 2.0 - 1.0, 1.0);
++}
++)""
+diff --git a/libraries/sim/src/shaders/hirestext_fragment.glsl b/libraries/sim/src/shaders/hirestext_fragment.glsl
+new file mode 100644
+index 0000000..d1ff33d
+--- /dev/null
++++ b/libraries/sim/src/shaders/hirestext_fragment.glsl
+@@ -0,0 +1,14 @@
++R""(
++#version 420 core
++
++// Hi-res text overlay (hiresui): plain textured quad; the texture holds the
++// 4x dialogue glyphs with transparent background, alpha-blended over the frame.
++uniform sampler2D overlayTex;
++smooth in vec2 fragTexCoord;
++out vec4 color;
++
++void main()
++{
++    color = texture(overlayTex, fragTexCoord);
 +}
 +)""
 diff --git a/libraries/sim/src/shaders/post_fragment.glsl b/libraries/sim/src/shaders/post_fragment.glsl
@@ -4128,6 +4252,30 @@ index 2c40e59..d13175a 100644
  // Generic button to open another GUI applet
  void AppButton(const char * label, bool * state, void (*initFunc)(void), void (*appFunc)(bool *)) {
      if(ImGui::Button(label, sButtonSize)) {
+diff --git a/libraries/sim/src/sim_gui_config.cpp b/libraries/sim/src/sim_gui_config.cpp
+index 4cc4aa3..6a30b4e 100644
+--- a/libraries/sim/src/sim_gui_config.cpp
++++ b/libraries/sim/src/sim_gui_config.cpp
+@@ -51,6 +51,19 @@ void AppConfigMain(bool *openState) {
+         SIM_SetInternalResolutionAfterRender(sConfig->internalResolutionScale);
+     }
+ 
++    // hiresui: 2D-only upscale at composite (3D keeps its internal resolution)
++    static constexpr const char * UpscaleStrings[] = {
++        "Nearest (native)",
++        "Sharp bilinear",
++        "Bilinear (smooth)"
++    };
++    int upscale2D = sConfig->upscale2D <= 2 ? sConfig->upscale2D : 1;
++    ImGui::Text("2D Upscale");
++    if(ImGui::Combo("  ", &upscale2D, UpscaleStrings, 3, 3)) {
++        sConfig->upscale2D = static_cast<u8>(upscale2D);
++        configChanged = true;
++    }
++
+     if(ImGui::Checkbox("Fullscreen", &fullScreen)) {
+         configChanged = true;
+     }
 diff --git a/libraries/sim/src/sim_headless.cpp b/libraries/sim/src/sim_headless.cpp
 new file mode 100644
 index 0000000..5d04f98
@@ -5139,8 +5287,206 @@ index 0000000..f464d50
 +}
 +
 +}  // namespace SIM::Helpers
+diff --git a/libraries/sim/src/sim_hirestext.cpp b/libraries/sim/src/sim_hirestext.cpp
+new file mode 100644
+index 0000000..377484d
+--- /dev/null
++++ b/libraries/sim/src/sim_hirestext.cpp
+@@ -0,0 +1,192 @@
++// Hi-res text overlay (lane hiresui, prototype). See sim_hirestext.h.
++//
++// Game code reports dialogue glyphs as it prints them; this file expands
++// them at HIRES_SCALE into a CPU RGBA buffer covering the combined display
++// (256x384 DS pixels), uploads it when dirty and draws it over the
++// composited frame. New file on purpose: nothing here touches the G2 layer
++// renderers or the composite shader, so it merges independently.
++#include <nitro.h>
++#include <simulator/sim.h>
++#include <simulator/sim_opengl.h>
++#include <simulator/simvariables.h>
++#include <simulator/config/sim_config.h>
++#include <stdio.h>
++#include <string.h>
++#include "sim_hirestext.h"
++
++namespace SIM {
++extern const char *PostVertexShader;
++extern const char *HiResTextFragmentShader;
++}
++
++extern "C" void SIM_u16ToRGB(u16 in, u8 *r, u8 *g, u8 *b);
++SIM_config_type *SIM_GetConfigPtr();
++
++static constexpr int kScale = 4;
++static constexpr int kBufW = SIM_NDS_SCREEN_WIDTH * kScale;   // 1024
++static constexpr int kBufH = SIM_NDS_SCREEN_HEIGHT * 2 * kScale; // 1536
++
++static u8 sBuf[kBufW * kBufH * 4];
++static bool sHasContent = false;
++static bool sDirty = false;
++
++static GLuint sProg = 0, sTex = 0, sVao = 0, sVbo = 0;
++static int sInitFailed = 0;
++
++static GLuint Compile(GLenum type, const char *src) {
++  char *tmp = nullptr;
++  const char *use = src;
++#ifdef SDK_BUILD_MACOS
++  if (strncmp(src, "\n#version 420", 13) == 0 || strncmp(src, "#version 420", 12) == 0) {
++    tmp = strdup(src);
++    char *p = strstr(tmp, "#version 420");
++    if (p) memcpy(p, "#version 410", 12);
++    use = tmp;
++  }
++#endif
++  GLuint s = glCreateShader(type);
++  glShaderSource(s, 1, &use, nullptr);
++  glCompileShader(s);
++  GLint ok = 0;
++  glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
++  if (!ok) {
++    GLint len = 0;
++    glGetShaderiv(s, GL_INFO_LOG_LENGTH, &len);
++    char *log = new char[len + 1]();
++    glGetShaderInfoLog(s, len, nullptr, log);
++    printf("HiResText: shader compile failed: %s\n", log);
++    delete[] log;
++  }
++  if (tmp) free(tmp);
++  return ok ? s : 0;
++}
++
++static bool Init() {
++  if (sProg || sInitFailed) return sProg != 0;
++  GLuint vs = Compile(GL_VERTEX_SHADER, SIM::PostVertexShader);
++  GLuint fs = Compile(GL_FRAGMENT_SHADER, SIM::HiResTextFragmentShader);
++  if (!vs || !fs) { sInitFailed = 1; return false; }
++  sProg = glCreateProgram();
++  glAttachShader(sProg, vs);
++  glAttachShader(sProg, fs);
++  glLinkProgram(sProg);
++  GLint ok = 0;
++  glGetProgramiv(sProg, GL_LINK_STATUS, &ok);
++  if (!ok) { sInitFailed = 1; printf("HiResText: link failed\n"); return false; }
++  glGenTextures(1, &sTex);
++  glBindTexture(GL_TEXTURE_2D, sTex);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, kBufW, kBufH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
++  glGenVertexArrays(1, &sVao);
++  glGenBuffers(1, &sVbo);
++  // Fullscreen quad; v is flipped so buffer row 0 (main-screen top) lands
++  // at the top of the viewport.
++  static const float quad[] = {
++      -1.0f, -1.0f, 0.0f, 0.0f, 1.0f,  1.0f, -1.0f, 0.0f, 1.0f, 1.0f,
++       1.0f,  1.0f, 0.0f, 1.0f, 0.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
++       1.0f,  1.0f, 0.0f, 1.0f, 0.0f, -1.0f,  1.0f, 0.0f, 0.0f, 0.0f,
++  };
++  glBindVertexArray(sVao);
++  glBindBuffer(GL_ARRAY_BUFFER, sVbo);
++  glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
++  glEnableVertexAttribArray(0);
++  glEnableVertexAttribArray(1);
++  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
++  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
++  glProgramUniform1i(sProg, glGetUniformLocation(sProg, "overlayTex"), 0);
++  printf("HiResText: overlay enabled (dialogue prototype)\n");
++  return true;
++}
++
++// DS-pixel rect -> clamped buffer-space rect for one screen.
++static bool ClipRect(int isSub, int x, int y, int w, int h,
++                     int *bx, int *by, int *bw, int *bh) {
++  int ox = x, oy = y + (isSub ? SIM_NDS_SCREEN_HEIGHT : 0);
++  if (ox < 0) { w += ox; ox = 0; }
++  if (oy < 0) { h += oy; oy = 0; }
++  if (ox + w > SIM_NDS_SCREEN_WIDTH) w = SIM_NDS_SCREEN_WIDTH - ox;
++  int screenBottom = (isSub ? SIM_NDS_SCREEN_HEIGHT * 2 : SIM_NDS_SCREEN_HEIGHT);
++  if (oy + h > screenBottom) h = screenBottom - oy;
++  if (w <= 0 || h <= 0) return false;
++  *bx = ox; *by = oy; *bw = w; *bh = h;
++  return true;
++}
++
++extern "C" void HiResText_Glyph(int isSub, int x, int y, int w, int h,
++                                const unsigned char *gfx, int palette,
++                                int fgColor, int shadowColor) {
++  if (!gfx || w <= 0 || h <= 0 || w > 32 || h > 32) return;
++  int bx, by, bw, bh;
++  if (!ClipRect(isSub, x, y, w, h, &bx, &by, &bw, &bh)) return;
++  const u16 *pal = (const u16 *)(isSub ? s_HW_DB_BG_PLTT : s_HW_BG_PLTT);
++  u8 fgR, fgG, fgB, shR, shG, shB;
++  SIM_u16ToRGB(pal[((palette & 0xF) << 4) + (fgColor & 0xF)], &fgR, &fgG, &fgB);
++  SIM_u16ToRGB(pal[((palette & 0xF) << 4) + (shadowColor & 0xF)], &shR, &shG, &shB);
++  for (int sy = 0; sy < h; sy++) {
++    for (int sx = 0; sx < w; sx++) {
++      int off = (sy >> 3) * 64 + (sx >> 3) * 32 + (sy & 7) * 4 + ((sx & 7) >> 1);
++      u8 byte = gfx[off];
++      int nib = (sx & 1) ? (byte >> 4) : (byte & 0xF);
++      const u8 *col;
++      if (nib == (fgColor & 0xF)) col = &fgR;
++      else if (nib == (shadowColor & 0xF)) col = &shR;
++      else continue; // background pixels: the DS box underneath already shows
++      int dx = (x + sx) * kScale;
++      int dy = (y + (isSub ? SIM_NDS_SCREEN_HEIGHT : 0) + sy) * kScale;
++      for (int ky = 0; ky < kScale; ky++) {
++        u8 *row = &sBuf[((dy + ky) * kBufW + dx) * 4];
++        for (int kx = 0; kx < kScale; kx++, row += 4) {
++          row[0] = col[0]; row[1] = col[1]; row[2] = col[2]; row[3] = 255;
++        }
++      }
++    }
++  }
++  sHasContent = true;
++  sDirty = true;
++}
++
++extern "C" void HiResText_ClearRect(int isSub, int x, int y, int w, int h) {
++  int bx, by, bw, bh;
++  if (!ClipRect(isSub, x, y, w, h, &bx, &by, &bw, &bh)) return;
++  for (int row = 0; row < bh * kScale; row++)
++    memset(&sBuf[((by * kScale + row) * kBufW + bx * kScale) * 4], 0, (size_t)bw * kScale * 4);
++  sDirty = true;
++}
++
++extern "C" void HiResText_ScrollRectUp(int isSub, int x, int y, int w, int h, int dy) {
++  if (dy <= 0) return;
++  int bx, by, bw, bh;
++  if (!ClipRect(isSub, x, y, w, h, &bx, &by, &bw, &bh)) return;
++  if (dy >= bh) { HiResText_ClearRect(isSub, x, y, w, h); return; }
++  int pxY = by * kScale, pxH = bh * kScale, pxDy = dy * kScale, pxX = bx * kScale, pxW = bw * kScale;
++  for (int row = 0; row < pxH - pxDy; row++)
++    memmove(&sBuf[((pxY + row) * kBufW + pxX) * 4], &sBuf[((pxY + row + pxDy) * kBufW + pxX) * 4], (size_t)pxW * 4);
++  for (int row = pxH - pxDy; row < pxH; row++)
++    memset(&sBuf[((pxY + row) * kBufW + pxX) * 4], 0, (size_t)pxW * 4);
++  sDirty = true;
++}
++
++void HiResText_DrawOverlay(void) {
++  if (!sHasContent) return;
++  SIM_config_type *cfg = SIM_GetConfigPtr();
++  if (cfg && (cfg->screenLayout != SIM_CONFIG_SCREEN_LAYOUT_VERTICAL || cfg->swapScreens)) return;
++  if (!Init()) return;
++  GLint prevProg = 0, prevVao = 0;
++  glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
++  glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
++  glUseProgram(sProg);
++  glActiveTexture(GL_TEXTURE0);
++  glBindTexture(GL_TEXTURE_2D, sTex);
++  if (sDirty) {
++    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, kBufW, kBufH, GL_RGBA, GL_UNSIGNED_BYTE, sBuf);
++    sDirty = false;
++  }
++  glBindVertexArray(sVao);
++  glDisable(GL_DEPTH_TEST);
++  glDrawArrays(GL_TRIANGLES, 0, 6);
++  glBindVertexArray((GLuint)prevVao);
++  glUseProgram((GLuint)prevProg);
++}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..4738804 100644
+index 910d7da..e462e0a 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -5169,15 +5515,16 @@ index 910d7da..4738804 100644
  
  #include "nds-extract.hpp"
  
-@@ -65,6 +75,7 @@ extern "C" int NitroSpMain(void *arg);
+@@ -65,6 +75,8 @@ extern "C" int NitroSpMain(void *arg);
  #endif
  
  #include "sim_g2.h"
 +#include "sim_g2_gpu.h"
++#include "sim_hirestext.h"
  #include "git_info.h"
  
  // Simulator configuration
-@@ -96,6 +107,20 @@ static struct timespec s_SIM_lastFrameEnd;
+@@ -96,6 +108,20 @@ static struct timespec s_SIM_lastFrameEnd;
  static u64 sRenderFrameTime;
  static u64 sFullFrameTime;
  
@@ -5198,7 +5545,7 @@ index 910d7da..4738804 100644
  static constexpr auto SteamDeckWidth = 1280;
  static constexpr auto SteamDeckHeight = 800;
  
-@@ -125,6 +150,8 @@ u8 OBJWindow[2][256];
+@@ -125,6 +151,8 @@ u8 OBJWindow[2][256];
  
  GXVRamBGExtPltt s_SIM_GXBgExtPltt;
  GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
@@ -5207,7 +5554,7 @@ index 910d7da..4738804 100644
  
  // FBOs
  static GLuint g3FrameBuffer;
-@@ -147,6 +174,162 @@ static GLint s_objWindowTexUnit = 9;
+@@ -147,6 +175,162 @@ static GLint s_objWindowTexUnit = 9;
  static GLuint g3shaderProgramID;
  static GLuint g2shaderProgramID;
  
@@ -5370,7 +5717,7 @@ index 910d7da..4738804 100644
  // VAOs
  static GLuint g2vertexArray;
  
-@@ -178,6 +361,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +362,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -5381,7 +5728,7 @@ index 910d7da..4738804 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -298,6 +485,16 @@ void SIM_SetInternalResolution(int internalRes) {
+@@ -298,6 +486,16 @@ void SIM_SetInternalResolution(int internalRes) {
        SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
  }
  
@@ -5398,7 +5745,65 @@ index 910d7da..4738804 100644
  static bool sChangeInternalResAfterRender = false;
  static int sPendingInternalRes = 1;
  
-@@ -315,7 +512,13 @@ void *SIM_RenderInit(void *arg) {
+@@ -308,6 +506,57 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
+   sPendingInternalRes = internalRes;
+ }
+ 
++// ---- hiresui: 2D upscale mode (config Upscale2D / env SIM_2D_UPSCALE) ----
++// Effective mode: env wins; headless/lockstep runs default to nearest so
++// regression screenshots stay byte-identical unless explicitly opted in;
++// otherwise the config value (default sharp bilinear). 3D is never touched:
++// it keeps its native internal-resolution texture and sampling.
++static int HiRes_UpscaleEnvMode() {
++  static int cached = -2;
++  if (cached != -2) return cached;
++  const char *e = getenv("SIM_2D_UPSCALE");
++  cached = -1;
++  if (e && e[0]) {
++    if (!strcmp(e, "0") || !strcmp(e, "Nearest") || !strcmp(e, "nearest")) cached = 0;
++    else if (!strcmp(e, "2") || !strcmp(e, "Bilinear") || !strcmp(e, "bilinear")) cached = 2;
++    else cached = 1;
++  }
++  return cached;
++}
++static int HiRes_EffectiveUpscale2D() {
++  int env = HiRes_UpscaleEnvMode();
++  if (env >= 0) return env;
++  if (SIM_Headless_Enabled()) return 0;
++  int m = s_SIM_config.upscale2D;
++  return (m >= 0 && m <= 2) ? m : 1;
++}
++static int sUpscaleApplied = -1;
++static void HiRes_ApplyUpscaleFilter(int mode) {
++  if (mode == sUpscaleApplied) return;
++  sUpscaleApplied = mode;
++  GLenum f = (mode == 0) ? GL_NEAREST : GL_LINEAR;
++  GLint prevActive = 0;
++  glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActive);
++  for (int i = 0; i < 4; i++) {
++    glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[i]);
++    glBindTexture(GL_TEXTURE_2D, s_bgTextureId[i]);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, f);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, f);
++  }
++  for (int i = 0; i < 5; i++) {
++    glActiveTexture(GL_TEXTURE0 + s_objTexUnits[i]);
++    glBindTexture(GL_TEXTURE_2D, s_objTextureId[i]);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, f);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, f);
++  }
++  glActiveTexture(GL_TEXTURE0);
++  glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, f);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, f);
++  // objWindowTextureId stays NEAREST: it is a mask, tested with > 0.1.
++  glActiveTexture((GLenum)prevActive);
++}
++
+ void *SIM_RenderInit(void *arg) {
+ 
+   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER |
+@@ -315,7 +564,13 @@ void *SIM_RenderInit(void *arg) {
    SIM_Audio_Init(44100);
  
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -5412,7 +5817,7 @@ index 910d7da..4738804 100644
    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-@@ -378,7 +581,7 @@ void *SIM_RenderInit(void *arg) {
+@@ -378,7 +633,7 @@ void *SIM_RenderInit(void *arg) {
  
    window = SDL_CreateWindow(
        windowTitle.c_str(), 100, 100, windowWidth, windowHeight,
@@ -5421,7 +5826,7 @@ index 910d7da..4738804 100644
        #if defined(SDK_BUILD_WIN64) || defined(SDK_BUILD_LINUX)
        | SDL_WINDOW_RESIZABLE
        #endif
-@@ -401,8 +604,10 @@ void *SIM_RenderInit(void *arg) {
+@@ -401,8 +656,10 @@ void *SIM_RenderInit(void *arg) {
    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -5432,7 +5837,7 @@ index 910d7da..4738804 100644
  
    GLenum glErrCode;
    GLint status;
-@@ -453,8 +658,14 @@ void *SIM_RenderInit(void *arg) {
+@@ -453,8 +710,14 @@ void *SIM_RenderInit(void *arg) {
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
                 GL_UNSIGNED_BYTE, NULL);
  
@@ -5448,7 +5853,7 @@ index 910d7da..4738804 100644
    glCompileShader(_id);                                                        \
    glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
    if (status != GL_TRUE) {                                                     \
-@@ -549,6 +760,58 @@ void *SIM_RenderInit(void *arg) {
+@@ -549,6 +812,58 @@ void *SIM_RenderInit(void *arg) {
    glUniform1iv(glGetUniformLocation(g2shaderProgramID, "objTexture"), 5,
                 s_objTexUnits);
  
@@ -5507,7 +5912,7 @@ index 910d7da..4738804 100644
    glGenVertexArrays(1, &g2vertexArray);
    glBindVertexArray(g2vertexArray);
    glGenBuffers(1, &g2vertexBuffer);
-@@ -566,7 +829,30 @@ void *SIM_RenderInit(void *arg) {
+@@ -566,7 +881,30 @@ void *SIM_RenderInit(void *arg) {
    return nullptr;
  }
  
@@ -5538,7 +5943,7 @@ index 910d7da..4738804 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -610,7 +896,8 @@ static void DrawEngine(BOOL isSub) {
+@@ -610,7 +948,8 @@ static void DrawEngine(BOOL isSub) {
    backdropVec[2] = (float)backdropB / 255.0f;
    backdropVec[3] = 1.0f;
  
@@ -5548,7 +5953,7 @@ index 910d7da..4738804 100644
                 backdropVec);
  
    glProgramUniform4f(g2shaderProgramID,
-@@ -669,7 +956,12 @@ static void DrawEngine(BOOL isSub) {
+@@ -669,7 +1008,12 @@ static void DrawEngine(BOOL isSub) {
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
  
@@ -5561,7 +5966,7 @@ index 910d7da..4738804 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -715,13 +1007,38 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +1059,38 @@ static void DrawEngine(BOOL isSub) {
        u8 a;
        for (int j = 0; j < 256; j++) {
          if (OBJLine[isSub][j]) {
@@ -5605,7 +6010,7 @@ index 910d7da..4738804 100644
            }
          }
          if (OBJWindow[isSub][j]) {
-@@ -772,6 +1089,19 @@ static void DrawEngine(BOOL isSub) {
+@@ -772,6 +1141,19 @@ static void DrawEngine(BOOL isSub) {
                      SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
                      (void *)oamPixelBuf);
    }
@@ -5625,7 +6030,7 @@ index 910d7da..4738804 100644
  
    glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
  
-@@ -789,9 +1119,10 @@ static void DrawEngine(BOOL isSub) {
+@@ -789,9 +1171,10 @@ static void DrawEngine(BOOL isSub) {
    glActiveTexture(GL_TEXTURE0 + s_objWindowTexUnit);
    glBindTexture(GL_TEXTURE_2D, objWindowTextureId);
    u8 *objWindowBuf = isSub ? objWindowsTex : objWindowTex;
@@ -5639,7 +6044,7 @@ index 910d7da..4738804 100644
    glProgramUniform1i(
        g2shaderProgramID,
        glGetUniformLocation(g2shaderProgramID, "objWindowTexture"),
-@@ -814,13 +1145,30 @@ static void DrawEngine(BOOL isSub) {
+@@ -814,19 +1197,51 @@ static void DrawEngine(BOOL isSub) {
                       glGetUniformLocation(g2shaderProgramID, "topScreen"),
                       topScreen);
  
@@ -5671,7 +6076,28 @@ index 910d7da..4738804 100644
  
    // Pass bg0as3d to the shader
    glProgramUniform1i(g2shaderProgramID,
-@@ -859,6 +1207,7 @@ static void DrawEngine(BOOL isSub) {
+                      glGetUniformLocation(g2shaderProgramID, "bg0as3d"),
+                      bg0as3d);
+ 
++  // hiresui: 2D upscale mode for this composite (sampling only; logic unchanged)
++  {
++    int upMode = HiRes_EffectiveUpscale2D();
++    HiRes_ApplyUpscaleFilter(upMode);
++    glProgramUniform1i(g2shaderProgramID,
++                       glGetUniformLocation(g2shaderProgramID, "upscaleMode"),
++                       upMode);
++    GLint upVp[4] = {0, 0, 512, 768};
++    glGetIntegerv(GL_VIEWPORT, upVp);
++    glProgramUniform2f(g2shaderProgramID,
++                       glGetUniformLocation(g2shaderProgramID, "upscaleW"),
++                       upVp[2] > 0 ? 256.0f / (float)upVp[2] : 0.5f,
++                       upVp[3] > 0 ? 384.0f / (float)upVp[3] : 0.5f);
++  }
++
+   // Pass master bright info to the shader
+   float masterBrightFactor = isSub
+                                  ? (float)(s_reg_GXS_DB_MASTER_BRIGHT & 0b11111)
+@@ -859,6 +1274,7 @@ static void DrawEngine(BOOL isSub) {
      glActiveTexture(GL_TEXTURE0 + s_objTexUnits[0]);
      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
    }
@@ -5679,7 +6105,7 @@ index 910d7da..4738804 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +1299,317 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1366,317 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -5997,7 +6423,7 @@ index 910d7da..4738804 100644
  
    SDL_Event Event;
    char c;
-@@ -1021,6 +1680,38 @@ void *SIM_Render(void *arg) {
+@@ -1021,6 +1747,38 @@ void *SIM_Render(void *arg) {
  
      glViewport(viewX, viewY, viewWidth, viewHeight);
  
@@ -6036,7 +6462,7 @@ index 910d7da..4738804 100644
      // Set up the bounding box of the touch panel
      if (s_SIM_config.swapScreens) {
        switch (s_SIM_config.screenLayout) {
-@@ -1073,9 +1764,14 @@ void *SIM_Render(void *arg) {
+@@ -1073,9 +1831,14 @@ void *SIM_Render(void *arg) {
        s_SIM_SDLJoystick = SDL_JoystickOpen(0);
      }
  
@@ -6051,7 +6477,7 @@ index 910d7da..4738804 100644
        if (Event.type == SDL_WINDOWEVENT) {
          switch (Event.window.event) {
          case SDL_WINDOWEVENT_CLOSE:
-@@ -1083,6 +1779,18 @@ void *SIM_Render(void *arg) {
+@@ -1083,6 +1846,18 @@ void *SIM_Render(void *arg) {
            break;
          }
        }
@@ -6070,7 +6496,7 @@ index 910d7da..4738804 100644
        if (Event.type == SDL_KEYDOWN) {
          int keyRead = Event.key.keysym.sym;
          if (keyRead == s_SIM_config.padSettings.aKey) {
-@@ -1261,7 +1969,9 @@ void *SIM_Render(void *arg) {
+@@ -1261,7 +2036,9 @@ void *SIM_Render(void *arg) {
      SDL_GetMouseState(&x, &y);
  
      // Convert touch coordinate to DS screen coordinates
@@ -6081,7 +6507,7 @@ index 910d7da..4738804 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1297,12 +2007,23 @@ void *SIM_Render(void *arg) {
+@@ -1297,12 +2074,27 @@ void *SIM_Render(void *arg) {
      memset(bg3stex, 0,
             sizeof(u8) * 4 * SIM_NDS_SCREEN_WIDTH * SIM_NDS_SCREEN_HEIGHT * 2);
  
@@ -6101,13 +6527,17 @@ index 910d7da..4738804 100644
      // SUB engine
      DrawEngine(TRUE);
  
++    // hiresui: hi-res dialogue glyphs over the composited frame (no-op unless
++    // the game reported glyphs this session; see sim_hirestext.cpp).
++    HiResText_DrawOverlay();
++
 +    // PostFX post pass: draw the composited frame to the window with effects.
 +    PostFX_TickAndDraw();
 +
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1328,18 +2049,29 @@ void *SIM_Render(void *arg) {
+@@ -1328,18 +2120,29 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -6146,7 +6576,7 @@ index 910d7da..4738804 100644
      SDL_GL_SwapWindow(window);
  
      if(sChangeInternalResAfterRender) {
-@@ -1369,6 +2101,12 @@ void *SIM_Render(void *arg) {
+@@ -1369,6 +2172,12 @@ void *SIM_Render(void *arg) {
      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
      glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
  
@@ -6159,7 +6589,7 @@ index 910d7da..4738804 100644
    } while (SIM::GUI::IsGameLogicPaused());
    // Bind 3D Framebuffer & Renderbuffer
    glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
-@@ -1394,10 +2132,17 @@ void *SIM_Render(void *arg) {
+@@ -1394,10 +2203,17 @@ void *SIM_Render(void *arg) {
    glCullFace(GL_FRONT);
    glFrontFace(GL_CW);
  
@@ -6177,7 +6607,7 @@ index 910d7da..4738804 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1465,6 +2210,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +2281,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -6348,10 +6778,10 @@ index 0000000..f3201c3
 +    }
 +}
 diff --git a/libraries/sim/src/sim_shaders.cpp b/libraries/sim/src/sim_shaders.cpp
-index 51a5263..aae72de 100644
+index 51a5263..f6d1303 100644
 --- a/libraries/sim/src/sim_shaders.cpp
 +++ b/libraries/sim/src/sim_shaders.cpp
-@@ -20,5 +20,13 @@ const char * G2FragmentShader =
+@@ -20,5 +20,17 @@ const char * G2FragmentShader =
  #include "shaders/g2_fragment.glsl"
  ;
  
@@ -6361,6 +6791,10 @@ index 51a5263..aae72de 100644
 +
 +const char * PostFragmentShader =
 +#include "shaders/post_fragment.glsl"
++;
++
++const char * HiResTextFragmentShader =
++#include "shaders/hirestext_fragment.glsl"
 +;
 +
  }
