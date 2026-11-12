@@ -402,7 +402,12 @@ void FxArena_FieldLightningUpdate(int weather)
     strength = FxArena_LightningUpdate(weather);
 
     if (strength > 0) {
+        // Bloom on the bright parts plus a white vignette that lifts the
+        // whole frame (a glow alone is nearly invisible in a dark storm
+        // scene). Both decay in 2 frames; the next flash frame refreshes
+        // them, and the vignette colour is only touched while flashing.
         PostFX_Glow((float)strength / 256.0f * 0.9f, 2);
+        PostFX_Vignette(1.0f, 1.0f, 1.0f, (float)strength / 256.0f * 0.35f, 2);
     }
 }
 

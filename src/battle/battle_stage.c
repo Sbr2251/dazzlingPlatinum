@@ -143,6 +143,11 @@ typedef struct BattleStage {
     // critic's offsets above do not move.
     int arenaTint[3];
     BattleStageFileLighting tintedLighting;
+    // Lane arena: this frame's lightning flash brightness, 0..16, separate
+    // from brightness (the Mega pulse channel the critic reads). UpdateFog
+    // uses the larger of the two, so a flash whitens the arena without
+    // clobbering a Mega pulse's value.
+    int lightningBrightness;
 } BattleStage;
 
 // What was last written to the fog registers
@@ -199,6 +204,7 @@ void BattleStage_Init(BattleSystem *battleSys)
     sBattleStage.blendAdded = 0;
     sBattleStage.blendWritten = 0;
     sBattleStage.blendHold = 0;
+    sBattleStage.lightningBrightness = 0;
     sBattleStage.backdropFadeColor = 0;
     sBattleStage.backdropFadeAlpha = 0;
     sBattleStage.backdropGrayscale = FALSE;
@@ -278,6 +284,7 @@ void BattleStage_Free(void)
     sBattleStage.battleSys = NULL;
     sBattleStage.debugView = 0;
     sBattleStage.brightness = 0;
+    sBattleStage.lightningBrightness = 0;
     sBattleStage.backdropFadeAlpha = 0;
     sBattleStage.backdropGrayscale = FALSE;
     sBattleStage.curtainOn = FALSE;
@@ -1319,8 +1326,16 @@ static void UpdateBattleLightning(void)
 
     strength = FxArena_LightningUpdate(BattleSystem_GetFieldWeather(sBattleStage.battleSys));
 
+    // The arena fog flash (UpdateFog reads this) is the part the player
+    // sees: PostFX glow alone only lifts pixels above 0.55, nearly
+    // invisible in a dark storm scene.
+    // Max 10/16: a full-white arena for a frame reads as a camera flash,
+    // not lightning, and strobes. 10/16 is a strong but readable flash.
+    sBattleStage.lightningBrightness = strength * 10 / 256;
+
     if (strength > 0) {
         PostFX_Glow((float)strength / 256.0f * 0.9f, 2);
+        PostFX_Vignette(1.0f, 1.0f, 1.0f, (float)strength / 256.0f * 0.35f, 2);
     }
 }
 
@@ -1537,13 +1552,26 @@ static void UpdateFog(StageArena *arena)
     GXRgb color;
     int alpha, shift, offset;
 
-    if (sBattleStage.brightness != 0) {
-        int magnitude = sBattleStage.brightness < 0 ? -sBattleStage.brightness : sBattleStage.brightness;
-        u32 density = magnitude * 8 > 127 ? 127 : magnitude * 8;
+    // A lightning flash whitens the arena through the fog, like the
+    // Mega pulse does, without touching the pulse's own brightness value:
+    // the larger of the two wins for this frame.
+    if (sBattleStage.brightness != 0 || sBattleStage.lightningBrightness != 0) {
+        int brightness = sBattleStage.brightness;
+        int magnitude;
+        u32 density;
         int i;
 
+        // Only while a flash is active: lightning 0 must never cancel a
+        // Mega dim (a negative brightness).
+        if (sBattleStage.lightningBrightness > 0 && sBattleStage.lightningBrightness > brightness) {
+            brightness = sBattleStage.lightningBrightness;
+        }
+
+        magnitude = brightness < 0 ? -brightness : brightness;
+        density = magnitude * 8 > 127 ? 127 : magnitude * 8;
+
         // (fog * d + pixel * (128 - d)) / 128 is the 2D brightness formula at d = |b| * 8
-        color = sBattleStage.brightness < 0 ? GX_RGB(0, 0, 0) : GX_RGB(31, 31, 31);
+        color = brightness < 0 ? GX_RGB(0, 0, 0) : GX_RGB(31, 31, 31);
         alpha = 31;
         shift = GX_FOGSLOPE_0x8000;
         offset = 0;
