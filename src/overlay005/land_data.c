@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "constants/battle.h"
+#include "constants/field/bdhc.h"
 #include "constants/communication/comm_error.h"
 #include "constants/field/map.h"
 #include "constants/heap.h"
@@ -27,7 +28,20 @@
 #include "sys_task_manager.h"
 #include "system.h"
 
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#endif
+
 #define MAP_LAZY_LOADER_SLOT_COUNT            2
+
+// fx-wide: with FieldLoadRadius=3 the field keeps the 3x3 of land blocks
+// centred on the tracked target's block loaded. The DS 2x2 window stays in
+// loadedMaps[QUADRANT_COUNT] and keeps its quadrant/lazy-load behaviour; the
+// remaining blocks of the 3x3 live in extraMaps, are loaded synchronously
+// when the centre block changes, and only add rendering, map props and
+// terrain/BDHC lookups a block further out. At radius 2 no extra map is
+// allocated and every path below is the DS one.
+#define LAND_DATA_EXTRA_MAP_COUNT_LOCAL 5
 #define MAP_LAZY_LOADER_MANAGER_COUNT         2
 #define MAP_MODEL_LAZY_LOADER_DATA_CHUNK_SIZE 0xE000
 
@@ -112,6 +126,8 @@ struct LandDataManager {
     MapLazyLoaderPending lazyLoaderPending;
     BOOL mapQuadrantsToCancelLazyLoad[QUADRANT_COUNT];
     LoadedMap *loadedMaps[QUADRANT_COUNT];
+    LoadedMap *extraMaps[LAND_DATA_EXTRA_MAP_COUNT_LOCAL];
+    int loadRadius;
     u8 runningLazyLoaderManCount;
     u8 nextLazyLoaderManIndex;
     u8 activeLazyLoaderManIndex;
@@ -204,6 +220,10 @@ static void LandDataHeader_Load(NARC *landDataNARC, const int landDataID, LandDa
 static void LandDataManager_LazyLoad(const u8 index, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, LandDataManager *landDataMan, MapLazyLoader *loader);
 static void LandDataManager_LazyLoadWithoutAttributes(const u8 index, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, LandDataManager *landDataMan, MapLazyLoader *loader);
 static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
+static void LandDataManager_LoadIntoMap(LoadedMap *loadedMap, const int mapMatrixIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
+static void LandDataManager_NewExtraMaps(LandDataManager *landDataMan);
+static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const int centreMapMatrixIndex);
+static void LandDataManager_RenderLoadedMapPtr(const LoadedMap *loadedMap, const LandDataManager *landDataMan, ModelAttributes *const modelAttrs);
 static void LandDataManager_LoadWithoutAttributes(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
 static void LandDataManager_LoadWithoutModel(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
 static void LandDataManager_QueueLazyLoadNextMapPair(const int trackedTargetMapMatrixIndex, const u8 trackedTargetDirection, LandDataManager *landDataMan);
@@ -560,7 +580,7 @@ static void LandDataManager_LazyLoadWithoutAttributesAndProps(const u8 index, co
     loader->mapModelLoadSysTask = LandDataManager_LazyLoadMapModel(landDataMan->landDataNARC, landDataHeader.mapModelSize, &loader->loadSlots[index]->mapRenderObj, &loader->loadSlots[index]->mapModelFile, AreaDataManager_GetMapTexture(areaDataMan), &loader->loadSlots[index]->valid, &loader->mapLoadTasksState.mapModelTaskRunning);
 }
 
-static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan)
+static void LandDataManager_LoadIntoMap(LoadedMap *loadedMap, const int mapMatrixIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan)
 {
     LAND_DATA_LOADER_ASSERT_MAP_MATRIX_INDEX(mapMatrixIndex, mapMatrixWidth, mapMatrixHeight);
 
@@ -570,30 +590,36 @@ static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapInd
     LandDataHeader landDataHeader;
     LandDataHeader_Load(landDataMan->landDataNARC, landDataID, &landDataHeader);
 
-    void *terrainAttributes = landDataMan->loadedMaps[loadedMapIndex]->terrainAttributes;
+    void *terrainAttributes = loadedMap->terrainAttributes;
     NARC_ReadFile(landDataMan->landDataNARC, landDataHeader.terrainAttributesSize, terrainAttributes);
-    LandDataManager_ApplyTerrainAttributeOverrides(landDataMan, landDataMan->loadedMaps[loadedMapIndex]->terrainAttributes, mapMatrixIndex);
+    LandDataManager_ApplyTerrainAttributeOverrides(landDataMan, loadedMap->terrainAttributes, mapMatrixIndex);
 
-    if (landDataMan->loadedMaps[loadedMapIndex]->mapPropManager != NULL) {
-        MapPropManager_Load(landDataMan->landDataNARC, landDataHeader.mapPropsSize, areaDataMan, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager, landDataMan->mapPropAnimMan);
-        LandDataManager_HideMapProps(landDataMan, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager);
+    if (loadedMap->mapPropManager != NULL) {
+        MapPropManager_Load(landDataMan->landDataNARC, landDataHeader.mapPropsSize, areaDataMan, loadedMap->mapPropManager, landDataMan->mapPropAnimMan);
+        LandDataManager_HideMapProps(landDataMan, loadedMap->mapPropManager);
     }
 
-    NNSG3dResMdl *mapModel = LandDataManager_LoadMapModel(landDataMan->landDataNARC, landDataHeader.mapModelSize, &landDataMan->loadedMaps[loadedMapIndex]->mapRenderObj, &landDataMan->loadedMaps[loadedMapIndex]->mapModelFile, AreaDataManager_GetMapTexture(areaDataMan));
+    NNSG3dResMdl *mapModel = LandDataManager_LoadMapModel(landDataMan->landDataNARC, landDataHeader.mapModelSize, &loadedMap->mapRenderObj, &loadedMap->mapModelFile, AreaDataManager_GetMapTexture(areaDataMan));
 
     if (isOutdoorsLighting == TRUE) {
         AreaLight_UseGlobalModelAttributes(mapModel);
     }
 
-    landDataMan->loadedMaps[loadedMapIndex]->valid = TRUE;
+    loadedMap->valid = TRUE;
 
-    BDHC_Load(landDataMan->landDataNARC, landDataHeader.bdhcSize, landDataMan->loadedMaps[loadedMapIndex]->bdhc, landDataMan->loadedMaps[loadedMapIndex]->bdhcFile);
+    BDHC_Load(landDataMan->landDataNARC, landDataHeader.bdhcSize, loadedMap->bdhc, loadedMap->bdhcFile);
 
-    landDataMan->loadedMaps[loadedMapIndex]->mapMatrixIndex = mapMatrixIndex;
+    loadedMap->mapMatrixIndex = mapMatrixIndex;
 
     if (landDataMan->mapLoadedCb != NULL) {
-        landDataMan->mapLoadedCb(landDataMan->mapLoadedCbUserData, mapMatrixIndex, landDataMan->loadedMaps[loadedMapIndex]->mapPropManager);
+        landDataMan->mapLoadedCb(landDataMan->mapLoadedCbUserData, mapMatrixIndex, loadedMap->mapPropManager);
     }
+}
+
+
+static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan)
+{
+    LandDataManager_LoadIntoMap(landDataMan->loadedMaps[loadedMapIndex], mapMatrixIndex, areaDataMan, mapMatrix, mapMatrixWidth, mapMatrixHeight, isOutdoorsLighting, landDataMan);
 }
 
 static void LandDataManager_LoadWithoutAttributes(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan)
@@ -688,6 +714,8 @@ static BOOL LandDataManager_SetMapsToLazyLoaderManager(LandDataManager *landData
 
 void LandDataManager_Tick(FieldSystem *fieldSystem, LandDataManager *landDataMan)
 {
+    LandDataManager_RefreshExtraMaps(landDataMan, (int)landDataMan->trackedTargetMapMatrixIndex);
+
     MapLazyLoader *activeLazyLoader = &landDataMan->mapLazyLoaderMan[landDataMan->activeLazyLoaderManIndex].loader;
     MapLazyLoaderTrackedTarget *trackedTarget = &landDataMan->lazyLoaderTrackedTarget;
 
@@ -1225,26 +1253,32 @@ static void LandDataManager_QueueLazyLoadNextMapPair(const int trackedTargetMapM
     }
 }
 
-static void LandDataManager_RenderLoadedMap(const u8 index, const LandDataManager *landDataMan, ModelAttributes *const modelAttrs)
+static void LandDataManager_RenderLoadedMapPtr(const LoadedMap *loadedMap, const LandDataManager *landDataMan, ModelAttributes *const modelAttrs)
 {
     VecFx32 position = { 0, 0, 0 };
 
-    LandDataManager_CalculateRenderingPosition(landDataMan->loadedMaps[index]->mapMatrixIndex, landDataMan->mapMatrixWidth, landDataMan->mapMatrix, &position);
+    LandDataManager_CalculateRenderingPosition(loadedMap->mapMatrixIndex, landDataMan->mapMatrixWidth, landDataMan->mapMatrix, &position);
 
     position.x += landDataMan->offset.x;
     position.y += landDataMan->offset.y;
     position.z += landDataMan->offset.z;
 
-    if (landDataMan->loadedMaps[index]->valid == TRUE) {
+    if (loadedMap->valid == TRUE) {
         VecFx32 scale = { FX32_ONE, FX32_ONE, FX32_ONE };
         MtxFx33 rotationMatrix = { FX32_ONE, 0, 0, 0, FX32_ONE, 0, 0, 0, FX32_ONE };
 
-        Easy3D_DrawRenderObj(&landDataMan->loadedMaps[index]->mapRenderObj, &position, &rotationMatrix, &scale);
+        Easy3D_DrawRenderObj(&loadedMap->mapRenderObj, &position, &rotationMatrix, &scale);
     }
 
-    if (landDataMan->loadedMaps[index]->valid == TRUE && landDataMan->loadedMaps[index]->mapPropManager != NULL) {
-        MapPropManager_Render(&position, landDataMan->areaDataMan, AreaDataManager_IsOutdoorsLighting(landDataMan->areaDataMan), modelAttrs, landDataMan->loadedMaps[index]->mapPropManager);
+    if (loadedMap->valid == TRUE && loadedMap->mapPropManager != NULL) {
+        MapPropManager_Render(&position, landDataMan->areaDataMan, AreaDataManager_IsOutdoorsLighting(landDataMan->areaDataMan), modelAttrs, loadedMap->mapPropManager);
     }
+}
+
+
+static void LandDataManager_RenderLoadedMap(const u8 index, const LandDataManager *landDataMan, ModelAttributes *const modelAttrs)
+{
+    LandDataManager_RenderLoadedMapPtr(landDataMan->loadedMaps[index], landDataMan, modelAttrs);
 }
 
 static int LandData_CalculateMapMatrixIndex(const u32 tileIndex, const int mapMatrixWidth, const int mapMatrixWidthTiles)
@@ -1510,6 +1544,127 @@ static void LandDataManager_CancelMapQuadrantsToLazyLoad(const u8 trackedTargetD
     }
 }
 
+static BOOL LandDataManager_IsCoreMapMatrixIndex(const LandDataManager *landDataMan, const int mapMatrixIndex)
+{
+    for (u8 i = 0; i < QUADRANT_COUNT; i++) {
+        if (landDataMan->loadedMaps[i] != NULL && landDataMan->loadedMaps[i]->mapMatrixIndex == mapMatrixIndex) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static void LandDataManager_ResetExtraMap(LoadedMap *loadedMap, LandDataManager *landDataMan)
+{
+    (void)landDataMan;
+    loadedMap->valid = FALSE;
+
+    if (loadedMap->bdhc != NULL) {
+        BDHC_Reset(loadedMap->bdhc);
+    }
+
+    if (loadedMap->mapPropManager != NULL) {
+        MapPropManager_Init(loadedMap->mapPropManager);
+    }
+
+    loadedMap->mapMatrixIndex = INVALID_MAP_MATRIX_INDEX;
+    MI_CpuFillFast(loadedMap->terrainAttributes, INVALID_TERRAIN_ATTRIBUTES, sizeof(u16) * MAP_TILES_COUNT_X * MAP_TILES_COUNT_Z);
+}
+
+static void LandDataManager_NewExtraMaps(LandDataManager *landDataMan)
+{
+    for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
+        LoadedMap *loadedMap = Heap_Alloc(HEAP_ID_FIELD1, sizeof(LoadedMap));
+        landDataMan->extraMaps[i] = loadedMap;
+        loadedMap->valid = FALSE;
+        // The four static model buffers belong to the DS window; extras own
+        // heap buffers (MAP_MODEL_FILE_SIZE / BDHC_BUFFER_SIZE each).
+        loadedMap->mapModelFile = Heap_Alloc(HEAP_ID_FIELD1, MAP_MODEL_FILE_SIZE);
+        loadedMap->bdhcFile = Heap_Alloc(HEAP_ID_FIELD1, BDHC_BUFFER_SIZE);
+        MI_CpuClear8(loadedMap->mapModelFile, MAP_MODEL_FILE_SIZE);
+        MI_CpuClear8(loadedMap->bdhcFile, BDHC_BUFFER_SIZE);
+
+        if (landDataMan->skipMapProps == FALSE) {
+            loadedMap->mapPropManager = MapPropManager_New(HEAP_ID_FIELD1);
+        } else {
+            loadedMap->mapPropManager = NULL;
+        }
+
+        loadedMap->bdhc = BDHC_New();
+        BDHC_MarkNotLoaded(loadedMap->bdhc);
+        loadedMap->mapMatrixIndex = INVALID_MAP_MATRIX_INDEX;
+        MI_CpuFillFast(loadedMap->terrainAttributes, INVALID_TERRAIN_ATTRIBUTES, sizeof(u16) * MAP_TILES_COUNT_X * MAP_TILES_COUNT_Z);
+    }
+}
+
+static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const int centreMapMatrixIndex)
+{
+    if (landDataMan->extraMaps[0] == NULL || centreMapMatrixIndex == INVALID_MAP_MATRIX_INDEX) {
+        return;
+    }
+
+    if (centreMapMatrixIndex < 0 || centreMapMatrixIndex >= landDataMan->mapMatrixWidth * landDataMan->mapMatrixHeight) {
+        return;
+    }
+
+    int centreX = centreMapMatrixIndex % landDataMan->mapMatrixWidth;
+    int centreZ = centreMapMatrixIndex / landDataMan->mapMatrixWidth;
+
+    for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
+        LoadedMap *loadedMap = landDataMan->extraMaps[i];
+        int index = loadedMap->mapMatrixIndex;
+
+        if (index == INVALID_MAP_MATRIX_INDEX) {
+            continue;
+        }
+
+        int x = index % landDataMan->mapMatrixWidth;
+        int z = index / landDataMan->mapMatrixWidth;
+
+        if (x < centreX - 1 || x > centreX + 1 || z < centreZ - 1 || z > centreZ + 1 || LandDataManager_IsCoreMapMatrixIndex(landDataMan, index)) {
+            LandDataManager_ResetExtraMap(loadedMap, landDataMan);
+        }
+    }
+
+    for (int dz = -1; dz <= 1; dz++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            int x = centreX + dx;
+            int z = centreZ + dz;
+
+            if (x < 0 || x >= landDataMan->mapMatrixWidth || z < 0 || z >= landDataMan->mapMatrixHeight) {
+                continue;
+            }
+
+            int mapMatrixIndex = z * landDataMan->mapMatrixWidth + x;
+
+            if (LandDataManager_IsCoreMapMatrixIndex(landDataMan, mapMatrixIndex)) {
+                continue;
+            }
+
+            BOOL alreadyLoaded = FALSE;
+
+            for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
+                if (landDataMan->extraMaps[i]->mapMatrixIndex == mapMatrixIndex) {
+                    alreadyLoaded = TRUE;
+                    break;
+                }
+            }
+
+            if (alreadyLoaded) {
+                continue;
+            }
+
+            for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
+                if (landDataMan->extraMaps[i]->mapMatrixIndex == INVALID_MAP_MATRIX_INDEX) {
+                    LandDataManager_LoadIntoMap(landDataMan->extraMaps[i], mapMatrixIndex, landDataMan->areaDataMan, landDataMan->mapMatrix, landDataMan->mapMatrixWidth, landDataMan->mapMatrixHeight, AreaDataManager_IsOutdoorsLighting(landDataMan->areaDataMan), landDataMan);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 static void LandDataManager_InitAndLoad(LandDataManager *landDataMan, const int trackedTargetTileX, const int trackedTargetTileZ, const int offsetTileX, const int offsetTileZ, const int mapMatrixWidthTiles)
 {
     int loadedMapMatrixIndexes[QUADRANT_COUNT];
@@ -1522,6 +1677,13 @@ static void LandDataManager_InitAndLoad(LandDataManager *landDataMan, const int 
 
         BDHC_MarkNotLoaded(landDataMan->loadedMaps[i]->bdhc);
         LandDataManager_Load(loadedMapMatrixIndexes[i], i, landDataMan->areaDataMan, landDataMan->mapMatrix, landDataMan->mapMatrixWidth, landDataMan->mapMatrixHeight, AreaDataManager_IsOutdoorsLighting(landDataMan->areaDataMan), landDataMan);
+    }
+
+    if (landDataMan->loadRadius >= 3) {
+        int centreX = (trackedTargetTileX - offsetTileX) / MAP_TILES_COUNT_X;
+        int centreZ = (trackedTargetTileZ - offsetTileZ) / MAP_TILES_COUNT_Z;
+        LandDataManager_NewExtraMaps(landDataMan);
+        LandDataManager_RefreshExtraMaps(landDataMan, centreZ * landDataMan->mapMatrixWidth + centreX);
     }
 }
 
@@ -1614,6 +1776,11 @@ LandDataManager *LandDataManager_New(MapMatrix *mapMatrix, AreaDataManager *area
         GF_ASSERT(FALSE);
     }
 
+#ifdef SDK_PORT
+    landDataMan->loadRadius = SIM_Config_prj_FieldLoadRadius();
+#else
+    landDataMan->loadRadius = 2;
+#endif
     landDataMan->loadedMapBufs = LoadedMapBuffers_New(allocBDHCFiles);
     landDataMan->areaDataMan = areaDataMan;
     landDataMan->mapMatrix = mapMatrix;
@@ -1664,6 +1831,12 @@ void LandDataManager_RenderLoadedMaps(const LandDataManager *landDataMan, ModelA
             LandDataManager_RenderLoadedMap(i, landDataMan, modelAttrs);
         }
     }
+
+    for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
+        if (landDataMan->extraMaps[i] != NULL && landDataMan->extraMaps[i]->mapMatrixIndex != INVALID_MAP_MATRIX_INDEX) {
+            LandDataManager_RenderLoadedMapPtr(landDataMan->extraMaps[i], landDataMan, modelAttrs);
+        }
+    }
 }
 
 void LandData_ObjectPosToTilePos(fx32 objectPositionX, fx32 objectPositionZ, int *tileX, int *tileZ)
@@ -1674,6 +1847,22 @@ void LandData_ObjectPosToTilePos(fx32 objectPositionX, fx32 objectPositionZ, int
 
 void LandDataManager_End(LandDataManager *landDataMan)
 {
+    for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
+        if (landDataMan->extraMaps[i] != NULL) {
+            landDataMan->extraMaps[i]->valid = FALSE;
+            BDHC_Free(landDataMan->extraMaps[i]->bdhc);
+
+            if (landDataMan->extraMaps[i]->mapPropManager != NULL) {
+                MapPropManager_Free(landDataMan->extraMaps[i]->mapPropManager);
+            }
+
+            Heap_Free(landDataMan->extraMaps[i]->mapModelFile);
+            Heap_Free(landDataMan->extraMaps[i]->bdhcFile);
+            Heap_Free(landDataMan->extraMaps[i]);
+            landDataMan->extraMaps[i] = NULL;
+        }
+    }
+
     ClearUnusedSystemCache();
 
     NNS_GfdResetLnkTexVramState();
@@ -1826,6 +2015,14 @@ u8 LandDataManager_GetRelativeLoadedMapsQuadrant(const int mapMatrixIndex, const
         mapMatrixIndexQuadrant = QUADRANT_INVALID;
     }
 
+    if (mapMatrixIndexQuadrant == QUADRANT_INVALID) {
+        for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
+            if (landDataMan->extraMaps[i] != NULL && landDataMan->extraMaps[i]->mapMatrixIndex == mapMatrixIndex) {
+                return LAND_DATA_FIRST_EXTRA_INDEX + i;
+            }
+        }
+    }
+
     return mapMatrixIndexQuadrant;
 }
 
@@ -1859,7 +2056,7 @@ BOOL LandDataManager_GetRelativeLoadedMapsQuadrantOfTile(const LandDataManager *
         *result = loadedMapsQuadrant;
     }
 
-    if (loadedMapsQuadrant > QUADRANT_INVALID - 1) {
+    if (loadedMapsQuadrant == QUADRANT_INVALID) {
         return FALSE;
     } else {
         return TRUE;
@@ -1868,11 +2065,21 @@ BOOL LandDataManager_GetRelativeLoadedMapsQuadrantOfTile(const LandDataManager *
 
 const BDHC *LandDataManager_GetLoadedMapBDHC(const LandDataManager *landDataMan, const u8 loadedMapIndex)
 {
+    if (loadedMapIndex >= LAND_DATA_FIRST_EXTRA_INDEX) {
+        GF_ASSERT(loadedMapIndex < LAND_DATA_LOADED_MAP_COUNT);
+        return landDataMan->extraMaps[loadedMapIndex - LAND_DATA_FIRST_EXTRA_INDEX]->bdhc;
+    }
+
     return landDataMan->loadedMaps[loadedMapIndex]->bdhc;
 }
 
 u16 const *LandDataManager_GetLoadedMapTerrainAttributes(const LandDataManager *landDataMan, const u8 loadedMapIndex)
 {
+    if (loadedMapIndex >= LAND_DATA_FIRST_EXTRA_INDEX) {
+        GF_ASSERT(loadedMapIndex < LAND_DATA_LOADED_MAP_COUNT);
+        return landDataMan->extraMaps[loadedMapIndex - LAND_DATA_FIRST_EXTRA_INDEX]->terrainAttributes;
+    }
+
     return landDataMan->loadedMaps[loadedMapIndex]->terrainAttributes;
 }
 
@@ -1931,6 +2138,22 @@ void LandDataManager_SetHiddenMapPropModel(LandDataManager *landDataMan, int mod
     for (u8 i = 0; i < QUADRANT_COUNT; i++) {
         if (landDataMan->loadedMaps[i] != NULL) {
             LandDataManager_HideMapProps(landDataMan, landDataMan->loadedMaps[i]->mapPropManager);
+        }
+    }
+
+    for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
+        if (landDataMan->extraMaps[i] != NULL) {
+            if (prevModelID != 0 && landDataMan->extraMaps[i]->mapPropManager != NULL) {
+                for (u8 j = 0; j < MAX_LOADED_MAP_PROPS; j++) {
+                    MapProp *mapProp = MapPropManager_GetLoadedProp(landDataMan->extraMaps[i]->mapPropManager, j);
+
+                    if (mapProp->loaded && MapProp_GetModelID(mapProp) == prevModelID) {
+                        MapProp_SetHidden(mapProp, FALSE);
+                    }
+                }
+            }
+
+            LandDataManager_HideMapProps(landDataMan, landDataMan->extraMaps[i]->mapPropManager);
         }
     }
 }
@@ -1994,12 +2217,24 @@ void LandDataManager_SetTerrainAttributeOverrides(LandDataManager *landDataMan, 
         }
     }
 
+    for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
+        if (landDataMan->extraMaps[i] != NULL) {
+            LandDataManager_RevertTerrainAttributeOverrides(landDataMan, landDataMan->extraMaps[i]->terrainAttributes, landDataMan->extraMaps[i]->mapMatrixIndex);
+        }
+    }
+
     landDataMan->terrainAttrOverrides = overrides;
     landDataMan->terrainAttrOverrideCount = overrides != NULL ? count : 0;
 
     for (u8 i = 0; i < QUADRANT_COUNT; i++) {
         if (landDataMan->loadedMaps[i] != NULL) {
             LandDataManager_ApplyTerrainAttributeOverrides(landDataMan, landDataMan->loadedMaps[i]->terrainAttributes, landDataMan->loadedMaps[i]->mapMatrixIndex);
+        }
+    }
+
+    for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
+        if (landDataMan->extraMaps[i] != NULL) {
+            LandDataManager_ApplyTerrainAttributeOverrides(landDataMan, landDataMan->extraMaps[i]->terrainAttributes, landDataMan->extraMaps[i]->mapMatrixIndex);
         }
     }
 }

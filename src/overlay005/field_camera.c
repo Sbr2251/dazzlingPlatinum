@@ -9,6 +9,10 @@
 #include "camera.h"
 #include "math_util.h"
 
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#endif
+
 // History size must be greater than the delay, so we add 1 to the delay to get the minimum acceptable size.
 #define FIELD_CAMERA_DELAY        6
 #define FIELD_CAMERA_HISTORY_SIZE (FIELD_CAMERA_DELAY + 1)
@@ -170,9 +174,28 @@ void FieldCamera_Create(const VecFx32 *_target, FieldSystem *fieldSystem, enum C
 
     fieldSystem->camera = Camera_Alloc(HEAP_ID_FIELD1);
 
-    Camera_InitWithTarget(target, config->distance, &config->cameraAngle, config->verticalFov, config->projection, TRUE, fieldSystem->camera);
+    fx32 distance = config->distance;
+    fx32 farPlaneDist = config->farPlaneDist;
+
+#ifdef SDK_PORT
+    if (SIM_Config_prj_DebugWideCamera()) {
+        // Debug wide view: 16:9 aspect, pulled back and with a farther clip
+        // plane, so the land blocks loaded around the DS 2x2 window (see
+        // FieldLoadRadius) are visible on the current screen.
+        distance = distance + distance / 2;
+        farPlaneDist = FX32_ONE * 1800;
+    }
+#endif
+
+    Camera_InitWithTarget(target, distance, &config->cameraAngle, config->verticalFov, config->projection, TRUE, fieldSystem->camera);
     Camera_SetAsActive(fieldSystem->camera);
-    Camera_SetClipping(config->nearPlaneDist, config->farPlaneDist, fieldSystem->camera);
+    Camera_SetClipping(config->nearPlaneDist, farPlaneDist, fieldSystem->camera);
+
+#ifdef SDK_PORT
+    if (SIM_Config_prj_DebugWideCamera()) {
+        Camera_SetAspectRatio(FX32_ONE * 16 / 9, fieldSystem->camera);
+    }
+#endif
 
     if (withHistory) {
         Camera_InitHistory(FIELD_CAMERA_HISTORY_SIZE, FIELD_CAMERA_DELAY, CAMERA_DELAY_Y, HEAP_ID_FIELD1, fieldSystem->camera);

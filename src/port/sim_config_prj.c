@@ -1,4 +1,5 @@
 #include <nitro.h>
+#include <stdlib.h>
 #include <simulator/config/ini.h>
 
 #include "port/sim_config_prj.h"
@@ -67,6 +68,12 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "FieldFastRebuild")) {
         config->fieldFastRebuild = StringToBool(value);
     }
+    if(MATCH("General", "FieldLoadRadius")) {
+        config->fieldLoadRadius = atoi(value);
+    }
+    if(MATCH("General", "DebugWideCamera")) {
+        config->debugWideCamera = StringToBool(value);
+    }
     if(MATCH("Cheats", "RunFromTrainerBattles")) {
         config->runFromTrainerBattles = StringToBool(value);
     }
@@ -109,6 +116,8 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->battleSwoop = TRUE;
   aConfig->weatherLightning = TRUE;
   aConfig->overworldCinematics = TRUE;
+  aConfig->fieldLoadRadius = 3;
+  aConfig->debugWideCamera = FALSE;
 
   // Cheats section
   aConfig->walkThroughWalls = FALSE;
@@ -138,6 +147,8 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "BattleSwoop=%s\n", BoolToString(aConfig->battleSwoop));
     fprintf(configFile, "WeatherLightning=%s\n", BoolToString(aConfig->weatherLightning));
     fprintf(configFile, "OverworldCinematics=%s\n", BoolToString(aConfig->overworldCinematics));
+    fprintf(configFile, "FieldLoadRadius=%d\n", aConfig->fieldLoadRadius);
+    fprintf(configFile, "DebugWideCamera=%s\n", BoolToString(aConfig->debugWideCamera));
     fprintf(configFile, "\n");
 
     fprintf(configFile, "[Cheats]\n");
@@ -167,4 +178,42 @@ SIM_Config_prj_type * SIM_Config_prj_GetConfig()
 BOOL SIM_Config_prj_DoubleStep(void)
 {
   return s_SIM_config_prj.enable60fps && s_SIM_config_prj.enable60fpsSpeedFix;
+}
+
+static BOOL SIM_Config_prj_EnvIsSet(const char *name)
+{
+    const char *value = getenv(name);
+    return value != NULL && value[0] == '1';
+}
+
+int SIM_Config_prj_FieldLoadRadius(void)
+{
+    int radius = s_SIM_config_prj.fieldLoadRadius;
+
+    if (radius < 2) {
+        radius = 2;
+    }
+
+    if (radius > 3) {
+        radius = 3;
+    }
+
+    if (SIM_Config_prj_EnvIsSet("SIM_HEADLESS") && !SIM_Config_prj_EnvIsSet("SIM_FX_WIDE")) {
+        return 2;
+    }
+
+    return radius;
+}
+
+BOOL SIM_Config_prj_DebugWideCamera(void)
+{
+    if (SIM_Config_prj_EnvIsSet("SIM_FX_WIDE_CAMERA")) {
+        return TRUE;
+    }
+
+    if (SIM_Config_prj_EnvIsSet("SIM_HEADLESS")) {
+        return FALSE;
+    }
+
+    return s_SIM_config_prj.debugWideCamera;
 }

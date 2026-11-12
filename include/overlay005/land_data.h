@@ -4,6 +4,8 @@
 #include <nitro/fx/fx.h>
 #include <nitro/types.h>
 
+#include "constants/quadrant.h"
+
 #include "field/field_system_decl.h"
 #include "overlay005/area_data.h"
 #include "overlay005/bdhc.h"
@@ -16,6 +18,12 @@
 #include "narc.h"
 
 typedef void (*MapLoadedCallback)(void *, const int, MapPropManager *const);
+
+// fx-wide extra loaded maps (3x3 load radius) are indexed after the DS
+// quadrants and QUADRANT_INVALID, so existing quadrant checks stay valid.
+#define LAND_DATA_EXTRA_MAP_COUNT 5
+#define LAND_DATA_FIRST_EXTRA_INDEX (QUADRANT_INVALID + 1)
+#define LAND_DATA_LOADED_MAP_COUNT (LAND_DATA_FIRST_EXTRA_INDEX + LAND_DATA_EXTRA_MAP_COUNT)
 
 // Maximum number of tiles a LandDataManager can override the terrain attributes of.
 #define MAX_TERRAIN_ATTRIBUTE_OVERRIDES 48

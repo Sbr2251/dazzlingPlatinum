@@ -25,6 +25,8 @@ typedef struct {
     BOOL arenaContext; // Lane arena: battle arena takes the overworld time of day, weather and terrain as lighting/tint
     BOOL battleSwoop; // Lane arena: camera dive into battle (field) + high/far settle to home (battle)
     BOOL weatherLightning; // Lane arena: lightning flashes in thunderstorm weather, field and battle
+    int fieldLoadRadius; // fx-wide: loaded land-block window width (2 = DS 2x2, 3 = 3x3); app default 3
+    BOOL debugWideCamera; // fx-wide: 16:9 aspect, zoomed-out field camera so the extra loaded blocks are visible
 } SIM_Config_prj_type;
 
 // True when the game runs logic at 60 Hz AND time-based quantities must be
@@ -32,6 +34,11 @@ typedef struct {
 // This is the single predicate every 60 fps speed fix uses, so the two
 // config flags are never re-checked ad-hoc at call sites.
 BOOL SIM_Config_prj_DoubleStep(void);
+// fx-wide: effective values after the headless rule (under SIM_HEADLESS the
+// load radius stays 2 and the wide camera stays off unless SIM_FX_WIDE=1 /
+// SIM_FX_WIDE_CAMERA=1 is set, so existing golden screenshots stay identical).
+int SIM_Config_prj_FieldLoadRadius(void);
+BOOL SIM_Config_prj_DebugWideCamera(void);
 void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig);
 BOOL SIM_Config_prj_LoadConfigFile(SIM_Config_prj_type * aConfig);
 void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig);

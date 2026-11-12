@@ -400,6 +400,21 @@ void Camera_SetFOV(const u16 fovY, Camera *camera)
     Camera_ComputeProjectionMatrix(camera->projection, camera);
 }
 
+// Sets the projection aspect ratio. The horizontal FOV follows from the
+// vertical FOV and this ratio (tan(hfov/2) = tan(vfov/2) * aspect), so a
+// 16:9 caller passes FX32_ONE * 16 / 9 here without touching the vertical
+// FOV the DS camera tables were tuned with.
+void Camera_SetAspectRatio(const fx32 aspectRatio, Camera *camera)
+{
+    camera->perspective.aspectRatio = aspectRatio;
+    Camera_ComputeProjectionMatrix(camera->projection, camera);
+}
+
+fx32 Camera_GetAspectRatio(const Camera *camera)
+{
+    return camera->perspective.aspectRatio;
+}
+
 void Camera_AdjustFOV(const u16 amount, Camera *camera)
 {
     camera->fovY += amount;

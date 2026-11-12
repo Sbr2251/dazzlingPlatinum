@@ -87,6 +87,8 @@ void Camera_InitWithPosition(const VecFx32 *position, const fx32 distance, const
 void Camera_InitWithTargetAndPosition(const VecFx32 *target, const VecFx32 *position, const u16 fovY, const u8 projection, const BOOL trackTarget, Camera *camera);
 void Camera_ComputeProjectionMatrix(const u8 projection, Camera *camera);
 void Camera_SetFOV(const u16 fovY, Camera *camera);
+void Camera_SetAspectRatio(const fx32 aspectRatio, Camera *camera);
+fx32 Camera_GetAspectRatio(const Camera *camera);
 void Camera_AdjustFOV(const u16 amount, Camera *camera);
 void Camera_Move(const VecFx32 *delta, Camera *camera);
 void Camera_SetAngleAroundSelf(const CameraAngle *angle, Camera *camera);

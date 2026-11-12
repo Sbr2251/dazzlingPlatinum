@@ -87,7 +87,7 @@ static const fx32 GetHeight(const FieldSystem *fieldSystem, const fx32 objectHei
     u8 tileMapQuadrant = LandDataManager_CalculateMapQuadrantOfTile(tileIndex, mapMatrixWidthTiles);
     u32 loadedMapIndex = LandDataManager_GetRelativeLoadedMapsQuadrant(mapMatrixIndex, tileMapQuadrant, landDataMan);
 
-    if (loadedMapIndex > QUADRANT_COUNT - 1) {
+    if (loadedMapIndex == QUADRANT_INVALID || loadedMapIndex >= LAND_DATA_LOADED_MAP_COUNT) {
         bdhcHeightValid = FALSE;
     } else {
         const BDHC *bdhc = LandDataManager_GetLoadedMapBDHC(landDataMan, loadedMapIndex);
