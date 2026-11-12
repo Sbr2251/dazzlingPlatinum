@@ -83,7 +83,7 @@
    "timeout_frames": 7200
   },
   {
-   "step": 60
+   "step": 80
   },
   {
    "screenshot": "visual_intimidate_stat_drop",

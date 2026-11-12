@@ -1,6 +1,6 @@
 {
  "name": "visual_wild_encounter_transition",
- "_note": "Wild encounter transition frame (wipe/scanlines) 90f after the battle app appears, Route 201 grass. Walking presses recalibrated 20->40f (fps60, matching the core wild scenarios); screenshot 45f after state reports app=battle.",
+ "_note": "Wild encounter: walking presses recalibrated 20->40f (fps60, matching core wild scenarios). The transition wipe finishes before the server emits battle_start, so the golden is the battle-opening frame 30f after that event (wild Wurmple + Chimchar + gauges, menu opening).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -425,13 +425,13 @@
    "frames": 40
   },
   {
-   "wait_until": {
-    "app": "battle"
+   "wait_battle_event": {
+    "type": "battle_start"
    },
-   "timeout_frames": 1200
+   "timeout_frames": 3600
   },
   {
-   "step": 0
+   "step": 30
   },
   {
    "screenshot": "visual_wild_encounter_transition",

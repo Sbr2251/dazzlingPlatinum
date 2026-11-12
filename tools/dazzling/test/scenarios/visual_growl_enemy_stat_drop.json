@@ -98,7 +98,7 @@
    "timeout_frames": 7200
   },
   {
-   "step": 150
+   "step": 240
   },
   {
    "screenshot": "visual_growl_enemy_stat_drop",
