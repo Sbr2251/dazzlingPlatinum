@@ -1,0 +1,80 @@
+{
+ "name": "visual_internal_resolution_change",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_internal_resolution_scale2",
+   "reference": "../references/visual/visual_internal_resolution_scale2.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  },
+  {
+   "reload_config": {
+    "InternalResolutionScale": "4"
+   }
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 1
+  },
+  {
+   "screenshot": "visual_internal_resolution_scale4",
+   "reference": "../references/visual/visual_internal_resolution_scale4.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  }
+ ],
+ "_note": "Internal-resolution change at runtime: start at InternalResolutionScale=2, screenshot, reload_config to 4 (rewrites sim_config.ini and re-imports the start save, which restarts the process and re-reads the config - the headless protocol has no live set-config command), press back to the field, screenshot 1 frame after field re-entry. The overworld is 2D, so both references are expected pixel-identical; the scenario proves the change does not crash or blank the frame.",
+ "config": {
+  "InternalResolutionScale": "2"
+ },
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_JUBILIFE_CITY"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}

@@ -1,0 +1,52 @@
+{
+ "name": "visual_upscale_sharp_overworld",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_upscale_sharp_overworld",
+   "reference": "../references/visual/visual_upscale_sharp_overworld.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  }
+ ],
+ "_note": "Upscale2DFilter=Sharp overworld frame (SIM_2D_UPSCALE=Sharp): 2D layers sampled Sharp at the composite; 3D is untouched. Same scene as visual_overworld_jubilife_before_rally, different sampling.",
+ "env": {
+  "SIM_2D_UPSCALE": "Sharp"
+ },
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_JUBILIFE_CITY"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}

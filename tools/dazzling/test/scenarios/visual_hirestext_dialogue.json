@@ -1,0 +1,64 @@
+{
+ "name": "visual_hirestext_dialogue",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_JUBILIFE_CITY",
+    "x": 145,
+    "z": 762,
+    "dir": "DIR_NORTH"
+   }
+  },
+  {
+   "step": 60
+  },
+  {
+   "talk": "LOCALID_ACE_TRAINER_F"
+  },
+  {
+   "wait_until": {
+    "message_waiting": true
+   },
+   "timeout_frames": 1200
+  },
+  {
+   "step": 600
+  },
+  {
+   "screenshot": "visual_hirestext_dialogue",
+   "reference": "../references/visual/visual_hirestext_dialogue.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  }
+ ],
+ "_note": "HiResText=true dialogue box: talk to the Ace Trainer in Jubilife (145,762 facing north), wait for the message box, let the typewriter finish (600f), screenshot the top screen. The 4x glyph overlay draws over the composite.",
+ "env": {
+  "SIM_HIRESTEXT": "1"
+ }
+}

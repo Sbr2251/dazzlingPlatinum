@@ -81,6 +81,20 @@ runner, the fake game and the protocol all already speak JSON.
   with `tolerance` = allowed fraction of differing pixels. `--record`
   writes references instead of comparing. `optional_reference: true` skips
   a missing reference (used until a reference is recorded on the real build).
+- Per-scenario environment and config: `"env": {"SIM_HIRESTEXT": "1"}` sets
+  process env for that scenario (e.g. `SIM_2D_UPSCALE=Sharp`, `SIM_RENDERER`);
+  `"config": {"ScreenLayout": "Horizontal", "SwapScreens": "true"}` writes
+  those keys under `[General]` in the run dir's `sim_config.ini` (the
+  inih parser needs the section header; a scenario without `config` keeps
+  the historical bare `InternalResolutionScale=2` line). A screenshot step
+  may also carry `"tolerance_gpu"` (used in place of `tolerance` for the
+  `gpu` run under `--compare-backends`, e.g. for the capture readback).
+- `{"reload_config": {"InternalResolutionScale": "4"}}` changes the config
+  mid-run: it rewrites `sim_config.ini` and re-imports the scenario's
+  `start.save` (import_save restarts the process, so the new config is read
+  at startup). The scenario must re-establish its position afterwards, as
+  after `start`. There is no live set-config headless command; this is the
+  only runtime config change the protocol supports.
 - `requires_exists`: if a listed path is missing the scenario is a SKIP,
   not a failure. The 18 test saves and the Mega save live in
   `~/Downloads` (BRIEF.md), not the repo, so those scenarios are local-only
@@ -140,6 +154,14 @@ drop, Thunder Wave status, super-effective Flamethrower hit, Mega Evolution
 aura, double-battle target select (bottom-screen battler buttons), wild
 battle opening, and overworld frames on 6 story-save maps (Lake
 Verity, Twinleaf, Jubilife, Oreburgh City, Eterna Forest, Solaceon).
+Plus the migration-coverage set (workstream 1d'): Totem Mamoswine display
+capture (3 frames in the motion-blur/flash window), HiResText dialogue,
+Upscale2DFilter=Sharp overworld, the three screen layouts plus swapped
+vertical/horizontal, the Distortion World, the Pokedex / party / bag /
+town-map menus (start menu X, DOWN to the item, A; town map via Bag ->
+touch the key-item wheel icon -> USE), and an internal-resolution change
+at runtime (2 -> 4 via `reload_config`; the overworld is 2D, so both
+references are expected pixel-identical).
 
 Battle screenshots are **event-anchored**, not fixed-frame (fps60 changed
 presentation timing and moved every fixed offset): each waits for an engine
@@ -155,6 +177,8 @@ python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --filter visual 
 python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --record --filter visual  # re-record all
 python3 tools/dazzling/test/run.py --game build_linux/main --update --filter visual_intimidate  # accept new reference(s) after reviewing a diff
 python3 tools/dazzling/test/run.py --game build_linux/main --compare-renderers --filter visual_intimidate  # CPU vs GPU 2D
+python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --compare-backends --filter visual_totem  # SIM_RENDERER=gl vs =gpu, same references (gpu run uses tolerance_gpu)
+python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --compare-backends --compare-renderers --filter visual  # four runs: gl/gpu x CPU/GPU 2D
 ```
 
 - On mismatch the failure prints `expected:` / `actual:` / `diff:` BMP
