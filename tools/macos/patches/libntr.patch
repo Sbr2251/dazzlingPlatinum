@@ -2686,15 +2686,17 @@ index d7a921e..240b2ac 100644
  if(build_target == 'linux' or build_target == 'win64')
  sdl2_lib = meson.get_compiler('c').find_library('SDL2')
 diff --git a/libraries/sim/src/config/sim_config.c b/libraries/sim/src/config/sim_config.c
-index 096e7fb..bc48c44 100644
+index 096e7fb..cf37997 100644
 --- a/libraries/sim/src/config/sim_config.c
 +++ b/libraries/sim/src/config/sim_config.c
-@@ -36,6 +36,16 @@ static int IniHandler(void* user, const char* section, const char* name,
+@@ -36,6 +36,18 @@ static int IniHandler(void* user, const char* section, const char* name,
      if(MATCH("General", "InternalResolutionScale")) {
          config->internalResolutionScale = atoi(value);
      }
-+    if(MATCH("General", "Upscale2D")) {
-+        // hiresui: Nearest/0, Sharp/1 (default), Bilinear/2
++    // hiresui: Nearest/0 (default), Sharp/1, Bilinear/2. The key was
++    // "Upscale2D" while Sharp was the default; it is renamed so configs
++    // auto-saved by that build fall back to the new Nearest default.
++    if(MATCH("General", "Upscale2DFilter")) {
 +        if(strcmp(value, "Nearest") == 0 || strcmp(value, "0") == 0) {
 +            config->upscale2D = 0;
 +        } else if(strcmp(value, "Bilinear") == 0 || strcmp(value, "2") == 0) {
@@ -2706,7 +2708,7 @@ index 096e7fb..bc48c44 100644
      if(MATCH("General", "WindowHeight")) {
          config->windowHeight = atoi(value);
      }
-@@ -348,11 +358,12 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -348,11 +360,12 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->windowWidth = 1920;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_LARGE;
  #else
@@ -2716,11 +2718,11 @@ index 096e7fb..bc48c44 100644
      aConfig->windowWidth = 0;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_VERTICAL;
  #endif
-+    aConfig->upscale2D = 1; // hiresui: sharp bilinear by default (interactive); headless forces nearest unless SIM_2D_UPSCALE is set
++    aConfig->upscale2D = 0; // hiresui: nearest (crisp DS pixels) by default; Sharp/Bilinear are opt-in
      aConfig->fullScreen = FALSE;
      aConfig->swapScreens = FALSE;
      aConfig->vsyncInterval = 1;
-@@ -410,7 +421,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -410,7 +423,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->macAddr[5] = rand();
  
      memset(&aConfig->osNvramConfig, 0, sizeof(NVRAMConfig));
@@ -2730,11 +2732,11 @@ index 096e7fb..bc48c44 100644
      aConfig->osNvramConfig.ncd.option.input_nickname = TRUE;
      aConfig->osNvramConfig.ncd.option.input_favoriteColor = TRUE;
      aConfig->osNvramConfig.ncd.option.input_language = TRUE;
-@@ -428,6 +440,7 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
+@@ -428,6 +442,7 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
      
      fprintf(configFile, "[General]\n");
      fprintf(configFile, "InternalResolutionScale=%d\n", aConfig->internalResolutionScale);
-+    fprintf(configFile, "Upscale2D=%d\n", aConfig->upscale2D);
++    fprintf(configFile, "Upscale2DFilter=%s\n", aConfig->upscale2D == 1 ? "Sharp" : aConfig->upscale2D == 2 ? "Bilinear" : "Nearest");
      fprintf(configFile, "WindowHeight=%d\n", aConfig->windowHeight);
      fprintf(configFile, "WindowWidth=%d\n", aConfig->windowWidth);
      fprintf(configFile, "FullScreen=%s\n", BoolToString(aConfig->fullScreen));
@@ -5384,7 +5386,7 @@ index 2c40e59..d13175a 100644
  void AppButton(const char * label, bool * state, void (*initFunc)(void), void (*appFunc)(bool *)) {
      if(ImGui::Button(label, sButtonSize)) {
 diff --git a/libraries/sim/src/sim_gui_config.cpp b/libraries/sim/src/sim_gui_config.cpp
-index 4cc4aa3..6a30b4e 100644
+index 4cc4aa3..21243f1 100644
 --- a/libraries/sim/src/sim_gui_config.cpp
 +++ b/libraries/sim/src/sim_gui_config.cpp
 @@ -51,6 +51,19 @@ void AppConfigMain(bool *openState) {
@@ -5397,7 +5399,7 @@ index 4cc4aa3..6a30b4e 100644
 +        "Sharp bilinear",
 +        "Bilinear (smooth)"
 +    };
-+    int upscale2D = sConfig->upscale2D <= 2 ? sConfig->upscale2D : 1;
++    int upscale2D = sConfig->upscale2D <= 2 ? sConfig->upscale2D : 0;
 +    ImGui::Text("2D Upscale");
 +    if(ImGui::Combo("  ", &upscale2D, UpscaleStrings, 3, 3)) {
 +        sConfig->upscale2D = static_cast<u8>(upscale2D);
@@ -6621,7 +6623,7 @@ index 0000000..377484d
 +  glUseProgram((GLuint)prevProg);
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..cfd7b1e 100644
+index 910d7da..5c7af51 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -6887,7 +6889,7 @@ index 910d7da..cfd7b1e 100644
 +// ---- hiresui: 2D upscale mode (config Upscale2D / env SIM_2D_UPSCALE) ----
 +// Effective mode: env wins; headless/lockstep runs default to nearest so
 +// regression screenshots stay byte-identical unless explicitly opted in;
-+// otherwise the config value (default sharp bilinear). 3D is never touched:
++// otherwise the config value (default nearest; Sharp/Bilinear opt-in). 3D is never touched:
 +// it keeps its native internal-resolution texture and sampling.
 +static int HiRes_UpscaleEnvMode() {
 +  static int cached = -2;
@@ -6906,7 +6908,7 @@ index 910d7da..cfd7b1e 100644
 +  if (env >= 0) return env;
 +  if (SIM_Headless_Enabled()) return 0;
 +  int m = s_SIM_config.upscale2D;
-+  return (m >= 0 && m <= 2) ? m : 1;
++  return (m >= 0 && m <= 2) ? m : 0;
 +}
 +static int sUpscaleApplied = -1;
 +// hiresui fix: only ever called outside DrawEngine (SIM_Render, before the

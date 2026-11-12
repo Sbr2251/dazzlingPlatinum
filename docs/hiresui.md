@@ -13,7 +13,7 @@ through `sampleUpscaled()`:
 
 - Mode 0 `Nearest (native)`: plain `texture()` with NEAREST filtering.
   Byte-identical to the old output.
-- Mode 1 `Sharp bilinear` (default in the app): LINEAR filtering with the
+- Mode 1 `Sharp bilinear` (opt-in; Nearest is the default): LINEAR filtering with the
   sample position snapped towards the texel centre by the magnification
   factor (`fwidth`-based sharp-bilinear). Pixel art and text stay crisp
   without nearest stair-stepping or bilinear blur.
@@ -29,7 +29,7 @@ Configuration (first match wins):
 1. `SIM_2D_UPSCALE=0|1|2` (or `Nearest`/`Sharp`/`Bilinear`) environment.
 2. The headless/lockstep default: Nearest, so regression screenshots stay
    byte-identical unless a run explicitly opts in.
-3. `sim_config.ini` `[General] Upscale2D=1`, also in the backtick Config
+3. `sim_config.ini` `[General] Upscale2DFilter=Sharp`, also in the backtick Config
    window ("2D Upscale"). Default config value is 1 (Sharp).
 
 FPS cost is one `fwidth` + a few ALU ops per composite sample; see the
