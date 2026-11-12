@@ -8,6 +8,7 @@
 #include "bg_window.h"
 #include "charcode.h"
 #include "font.h"
+#include "port/hirestext.h"
 #include "render_text.h"
 #include "sound_playback.h"
 #include "system.h"
@@ -28,6 +29,48 @@ typedef struct RenderControlFlags {
 } RenderControlFlags;
 
 static RenderControlFlags sRenderControlFlags;
+
+// ---- Hi-res text prototype (hiresui): report dialogue glyphs to the
+// simulator overlay. The DS tile rendering below is untouched; this only
+// mirrors it. Scope: FONT_MESSAGE on a wide main-screen window (the field
+// and battle dialogue box). BG scroll offsets are assumed 0 (true for the
+// dialogue BGs); the 200% glyph-table scale mode is not mirrored.
+static BOOL HiRes_IsDialogueWindow(TextPrinter *printer)
+{
+    Window *window = printer->template.window;
+
+    if (!HiResText_IsEnabled() || window == NULL) {
+        return FALSE;
+    }
+    if (printer->template.fontID != FONT_MESSAGE) {
+        return FALSE;
+    }
+    if (window->bgLayer > BG_LAYER_MAIN_3 || window->width < 16) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static void HiRes_WindowRect(TextPrinter *printer, int *x, int *y, int *w, int *h)
+{
+    Window *window = printer->template.window;
+
+    *x = window->tilemapLeft * 8;
+    *y = window->tilemapTop * 8;
+    *w = window->width * 8;
+    *h = window->height * 8;
+}
+
+static void HiRes_ClearWindow(TextPrinter *printer)
+{
+    int x, y, w, h;
+
+    if (!HiRes_IsDialogueWindow(printer)) {
+        return;
+    }
+    HiRes_WindowRect(printer, &x, &y, &w, &h);
+    HiResText_ClearRect(0, x, y, w, h);
+}
 
 enum RenderState {
     RENDER_STATE_HANDLE_CHAR = 0,
@@ -74,6 +117,7 @@ enum RenderResult RenderText(TextPrinter *printer)
 
         switch (currChar) {
         case CHAR_EOS:
+            HiRes_ClearWindow(printer);
             return RENDER_FINISH;
 
         case CHAR_CR:
@@ -203,6 +247,20 @@ enum RenderResult RenderText(TextPrinter *printer)
             printer->template.currY,
             printer->template.glyphTable);
 
+        if (HiRes_IsDialogueWindow(printer)) {
+            Window *window = printer->template.window;
+
+            HiResText_Glyph(0,
+                window->tilemapLeft * 8 + printer->template.currX,
+                window->tilemapTop * 8 + printer->template.currY,
+                glyph->width,
+                glyph->height,
+                glyph->gfx,
+                window->palette,
+                printer->template.fgColor,
+                printer->template.shadowColor);
+        }
+
         printer->template.currX += glyph->width + printer->template.letterSpacing;
         return RENDER_PRINT;
 
@@ -217,6 +275,7 @@ enum RenderResult RenderText(TextPrinter *printer)
     case RENDER_STATE_CLEAR:
         if (TextPrinter_WaitWithScrollArrow(printer)) {
             TextPrinter_ClearScrollArrow(printer);
+            HiRes_ClearWindow(printer);
             Window_FillTilemap(printer->template.window, printer->template.bgColor);
 
             printer->template.currX = printer->template.x;
@@ -241,10 +300,24 @@ enum RenderResult RenderText(TextPrinter *printer)
         if (printer->scrollDistance) {
             // This cast here is ugly, but is necessary to match without declaring a separate variable just for 4.
             if ((int)printer->scrollDistance < 4) {
-                Window_Scroll(printer->template.window, 0, printer->scrollDistance, (printer->template.bgColor << 4) | printer->template.bgColor);
+                u8 dist = printer->scrollDistance;
+
+                Window_Scroll(printer->template.window, 0, dist, (printer->template.bgColor << 4) | printer->template.bgColor);
+                if (HiRes_IsDialogueWindow(printer)) {
+                    int x, y, w, h;
+
+                    HiRes_WindowRect(printer, &x, &y, &w, &h);
+                    HiResText_ScrollRectUp(0, x, y, w, h, dist);
+                }
                 printer->scrollDistance = 0;
             } else {
                 Window_Scroll(printer->template.window, 0, 4, (printer->template.bgColor << 4) | printer->template.bgColor);
+                if (HiRes_IsDialogueWindow(printer)) {
+                    int x, y, w, h;
+
+                    HiRes_WindowRect(printer, &x, &y, &w, &h);
+                    HiResText_ScrollRectUp(0, x, y, w, h, 4);
+                }
                 printer->scrollDistance -= 4;
             }
 
