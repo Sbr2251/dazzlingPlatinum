@@ -223,8 +223,8 @@ void sub_02012938(FontOAM *param0)
     GF_ASSERT(param0);
 
     if (param0->unk_08) {
-        v3 = param0->x << FX32_SHIFT;
-        v4 = param0->y << FX32_SHIFT;
+        v3 = (fx32)((u32)param0->x << FX32_SHIFT);
+        v4 = (fx32)((u32)param0->y << FX32_SHIFT);
         v2 = Sprite_GetPosition(param0->unk_08);
 
         v3 += v2->x;
@@ -746,8 +746,8 @@ static Sprite *sub_02013100(const UnkStruct_020127E8 *param0, const UnkStruct_02
         v0.position = *v2;
     }
 
-    v0.position.x += (param0->unk_18 << FX32_SHIFT) + ((param1->unk_00 * 8) << FX32_SHIFT);
-    v0.position.y += (param0->unk_1C << FX32_SHIFT) + ((param1->unk_04 * 8) << FX32_SHIFT);
+    v0.position.x += (fx32)((u32)param0->unk_18 << FX32_SHIFT) + (fx32)((u32)(param1->unk_00 * 8) << FX32_SHIFT);
+    v0.position.y += (fx32)((u32)param0->unk_1C << FX32_SHIFT) + (fx32)((u32)(param1->unk_04 * 8) << FX32_SHIFT);
 
     return SpriteList_Add(&v0);
 }
