@@ -10,7 +10,7 @@
 u32 GetGBAPlayerTrainerId(void)
 {
     GBASaveBlock2 *saveBlock2 = GetGBASaveBlock2();
-    return saveBlock2->playerTrainerId[3] << 24 | saveBlock2->playerTrainerId[2] << 16 | saveBlock2->playerTrainerId[1] << 8 | saveBlock2->playerTrainerId[0];
+    return (u32)saveBlock2->playerTrainerId[3] << 24 | (u32)saveBlock2->playerTrainerId[2] << 16 | (u32)saveBlock2->playerTrainerId[1] << 8 | (u32)saveBlock2->playerTrainerId[0];
 }
 
 u8 *GetGBAPlayerName(void)

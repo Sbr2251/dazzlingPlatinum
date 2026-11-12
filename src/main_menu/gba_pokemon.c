@@ -659,7 +659,7 @@ u32 GBABoxPokemon_GetData(GBABoxPokemon *gbaBoxMon, int field, u8 *param2)
 
 #define SET8(lhs)  (lhs) = *dataArg
 #define SET16(lhs) (lhs) = dataArg[0] + (dataArg[1] << 8)
-#define SET32(lhs) (lhs) = dataArg[0] + (dataArg[1] << 8) + (dataArg[2] << 16) + (dataArg[3] << 24)
+#define SET32(lhs) (lhs) = dataArg[0] + (dataArg[1] << 8) + (dataArg[2] << 16) + ((u32)dataArg[3] << 24)
 
 void GBABoxPokemon_SetData(GBABoxPokemon *gbaBoxMon, int field, const u8 *dataArg)
 {
