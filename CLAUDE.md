@@ -103,8 +103,8 @@ The hack was merged onto current pret (branch `sync/pret-2026-11`). pret's layou
    - `hidden_flag` must be an unused flag. Name a free slot in `generated/vars_flags.txt`; never shift existing entries, because flag numbers are stored in saves.
    - Use coordinates near existing items on the same map.
 
-## Renderer migration to the SDL3 GPU API (planned)
+## Renderer migration to the SDL3 GPU API (merged, gpu opt-in)
 
-- The simulator's OpenGL renderer is to be replaced by one on the SDL3 GPU API (Metal and Vulkan) for the Mac, iOS and Android targets.
-- Plan (v2, rebased on the team-2 work), status, verification method and per-workstream briefs: `docs/sdl_gpu_migration/PLAN.md`. Devserver setup and worktree scripts: `tools/sdl_gpu_migration/`.
-- While it runs, the simulator's render files are frozen on `main` except through the migration.
+- The simulator has two render backends: the SDL3 GPU API (Metal on macOS/iOS, Vulkan on Windows/Linux/Android; default) and OpenGL (fallback). Pick OpenGL with `Renderer=gl` in `sim_config.ini` `[General]`, or in the config window (restart to apply); `SIM_RENDERER=gl` env still wins, and a requested GPU backend with no creatable GPU device falls back to OpenGL with a log line. The test runner pins `SIM_RENDERER=gl` on Linux (lavapipe is slow); on the Mac the suite runs the GPU default.
+- Plan (v2), status, verification method and per-workstream briefs: `docs/sdl_gpu_migration/PLAN.md`. Devserver setup and worktree scripts: `tools/sdl_gpu_migration/`. The migration's A/B proof is `python3 tools/dazzling/test/run.py --compare-backends` (same references for both backends; per-scenario `tolerance_gpu` records the small gpu allowances).
+- The simulator's render files are frozen on `main` except through the migration until wave 3 signs off.

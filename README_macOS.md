@@ -37,6 +37,18 @@ The DS ROM still builds from the same tree with `make release` as before.
 
 While fast-forwarding, a badge in the top-right corner shows the speed (`MAX` when the frame cap is off); while paused it shows PAUSED.
 
+## Renderer (SDL GPU / OpenGL)
+
+The simulator has two render backends. The SDL3 GPU backend (Metal on
+macOS, Vulkan elsewhere) is the default. OpenGL is the fallback: set
+`Renderer=gl` in `sim_config.ini` under `[General]`, or pick "OpenGL" in
+the config window (grave-accent menu, restart to apply). `SIM_RENDERER=gl`
+still wins over the config key when set, and a requested GPU backend with
+no creatable GPU device falls back to OpenGL with a log line. The GPU
+backend is pixel-near-identical to OpenGL (a few pixels differ at sharp
+3D edges from driver bilinear rounding; the scenario suite records the
+allowances as `tolerance_gpu`).
+
 **Saves.** The game keeps its save in `~/Library/Application Support/Pokemon Platinum/save.bin`, a raw image of the cartridge's
 512 KB flash: the same format as a `.sav` from DeSmuME (File > Export/Import Backup Memory), melonDS or a cartridge dump, so an
 exported save opens in those emulators and theirs open here. Import also reads DeSmuME/OpenEmu `.dsv` files (OpenEmu keeps them in

@@ -248,6 +248,15 @@ class GameClient:
         # target) keeps the GPU default; so default to CPU 2D on Linux only.
         if sys.platform.startswith("linux"):
             env.setdefault("SIM_G2_GPU", "0")
+            # The game defaults to the GPU renderer now (Metal on the Mac),
+            # but on Linux it runs on lavapipe (software Vulkan), where the
+            # suite is several times slower and long scenarios time out.
+            # Keep the suite's default run on gl on Linux (the reference);
+            # --compare-backends sets SIM_RENDERER explicitly per run and
+            # wins over this pin, and a SIM_RENDERER already in the
+            # environment wins over both. On the Mac the suite runs the
+            # game's default (gpu).
+            env.setdefault("SIM_RENDERER", "gl")
         env.update({
             # Never register in the owner's Dock/app switcher (team rule).
             "SDL_MAC_BACKGROUND_APP": "1",

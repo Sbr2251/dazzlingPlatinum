@@ -870,14 +870,14 @@ index dfd081d..818b665 100644
  	*((REGType16 *)((u32)REG_TM0CNT_H_ADDR + id * 4)) = control;
      #endif
 diff --git a/include/simulator/config/sim_config.h b/include/simulator/config/sim_config.h
-index ce31436..bbb7ca8 100644
+index ce31436..02126de 100644
 --- a/include/simulator/config/sim_config.h
 +++ b/include/simulator/config/sim_config.h
 @@ -51,8 +51,13 @@ typedef struct {
      char serverIp[16]; /* IP of the last server connected to through Net */
  } SIM_config_net_settings_type;
  
-+#define SIM_CONFIG_RENDERER_GL 0 /* OpenGL renderer (default) */
++#define SIM_CONFIG_RENDERER_GL 0 /* OpenGL renderer (fallback) */
 +#define SIM_CONFIG_RENDERER_GPU 1 /* SDL3 GPU renderer (Metal on macOS/iOS, Vulkan elsewhere) */
 +
  typedef struct {
@@ -1178,10 +1178,10 @@ index 0000000..3ee9c47
 +} // namespace SIM::Gpu
 diff --git a/include/simulator/gpu/device.hpp b/include/simulator/gpu/device.hpp
 new file mode 100644
-index 0000000..32f0716
+index 0000000..04fe2ba
 --- /dev/null
 +++ b/include/simulator/gpu/device.hpp
-@@ -0,0 +1,135 @@
+@@ -0,0 +1,136 @@
 +#pragma once
 +// SDL_GPU device lifetime, window/swapchain, caches and synchronous readback.
 +//
@@ -1242,8 +1242,9 @@ index 0000000..32f0716
 +    bool AttachWindow(SDL_Window *window);
 +    void DetachWindow();
 +    SDL_Window *Window() const { return mWindow; }
-+    // Vsync on = SDL_GPU_PRESENTMODE_VSYNC. Off = MAILBOX if supported (no tearing, no frame cap),
-+    // else IMMEDIATE, else stays VSYNC (logged). Callable any time; applied between frames.
++    // Vsync on = SDL_GPU_PRESENTMODE_VSYNC. Off = IMMEDIATE if supported (uncapped:
++    // MAILBOX still presents at the refresh rate), else MAILBOX, else stays VSYNC
++    // (logged). Callable any time; applied between frames.
 +    bool SetVsync(bool enabled);
 +    bool Vsync() const { return mVsync; }
 +    SDL_GPUPresentMode PresentMode() const { return mPresentMode; }
@@ -2583,10 +2584,10 @@ index 0000000..ed3801a
 +#endif
 diff --git a/include/simulator/sim_render_backend.hpp b/include/simulator/sim_render_backend.hpp
 new file mode 100644
-index 0000000..5b7b03c
+index 0000000..dbc069e
 --- /dev/null
 +++ b/include/simulator/sim_render_backend.hpp
-@@ -0,0 +1,537 @@
+@@ -0,0 +1,542 @@
 +#ifndef LIBNTR_SIM_RENDER_BACKEND_HPP
 +#define LIBNTR_SIM_RENDER_BACKEND_HPP
 +
@@ -2597,7 +2598,8 @@ index 0000000..5b7b03c
 +// PostFX effect timing, display capture) decides WHAT is drawn and fills
 +// the plain structs below; a backend only turns them into GPU work.
 +// One backend is selected at startup (SIM_RENDERER env wins, else the
-+// sim_config.ini Renderer key, read once, default gl):
++// sim_config.ini Renderer key, read once, default gpu; a requested gpu
++// backend with no creatable GPU device falls back to gl):
 +//   gl   OpenGL 4.1/4.2 core (libraries/sim/src/render_gl), the reference renderer.
 +//   gpu  SDL3 GPU API (libraries/sim/src/render_gpu, on libraries/sim/src/gpu).
 +//        Until it is implemented it reports so and the GL backend is used.
@@ -3112,7 +3114,11 @@ index 0000000..5b7b03c
 +
 +// Selects the backend from SIM_RENDERER (env wins) or the sim_config.ini
 +// Renderer key (once; later calls return the same one). Called by SIM_RenderInit.
++// When the choice is gpu but no GPU device can be created, it falls back to
++// gl with a log line (a probe device in the GPU backend; the real backend
++// creates its own device in Init).
 +Backend &Select();
++bool GpuDeviceAvailable();
 +
 +namespace detail {
 +extern Backend *gBackend;
@@ -5288,7 +5294,7 @@ index d7a921e..d89ab34 100644
      libsim_dependencies += enet_dep
  endif
 diff --git a/libraries/sim/src/config/sim_config.c b/libraries/sim/src/config/sim_config.c
-index 096e7fb..217dcf8 100644
+index 096e7fb..0bebc0f 100644
 --- a/libraries/sim/src/config/sim_config.c
 +++ b/libraries/sim/src/config/sim_config.c
 @@ -1,4 +1,4 @@
@@ -5345,7 +5351,7 @@ index 096e7fb..217dcf8 100644
      aConfig->windowWidth = 0;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_VERTICAL;
  #endif
-+    aConfig->renderer = SIM_CONFIG_RENDERER_GL;
++    aConfig->renderer = SIM_CONFIG_RENDERER_GPU;
 +    aConfig->upscale2D = 0; // hiresui: nearest (crisp DS pixels) by default; Sharp/Bilinear are opt-in
      aConfig->fullScreen = FALSE;
      aConfig->swapScreens = FALSE;
@@ -8031,10 +8037,10 @@ index 0000000..058feae
 +  are the integration points.
 diff --git a/libraries/sim/src/gpu/gpu_device.cpp b/libraries/sim/src/gpu/gpu_device.cpp
 new file mode 100644
-index 0000000..ca7879e
+index 0000000..c5d6f98
 --- /dev/null
 +++ b/libraries/sim/src/gpu/gpu_device.cpp
-@@ -0,0 +1,439 @@
+@@ -0,0 +1,443 @@
 +#include <simulator/gpu/device.hpp>
 +
 +#include <cstdarg>
@@ -8235,10 +8241,14 @@ index 0000000..ca7879e
 +    if (!mWindow) return true;
 +    SDL_GPUPresentMode mode = SDL_GPU_PRESENTMODE_VSYNC;
 +    if (!mVsync) {
-+        if (SDL_WindowSupportsGPUPresentMode(mDevice, mWindow, SDL_GPU_PRESENTMODE_MAILBOX)) {
-+            mode = SDL_GPU_PRESENTMODE_MAILBOX;
-+        } else if (SDL_WindowSupportsGPUPresentMode(mDevice, mWindow, SDL_GPU_PRESENTMODE_IMMEDIATE)) {
++        // Uncapped means uncapped: MAILBOX still presents at the display
++        // refresh (its acquire fence waits for the previous frame's
++        // present), so it caps fast-forward at the refresh rate. Take
++        // IMMEDIATE when the driver offers it, MAILBOX only as a fallback.
++        if (SDL_WindowSupportsGPUPresentMode(mDevice, mWindow, SDL_GPU_PRESENTMODE_IMMEDIATE)) {
 +            mode = SDL_GPU_PRESENTMODE_IMMEDIATE;
++        } else if (SDL_WindowSupportsGPUPresentMode(mDevice, mWindow, SDL_GPU_PRESENTMODE_MAILBOX)) {
++            mode = SDL_GPU_PRESENTMODE_MAILBOX;
 +        } else {
 +            LogInfo("vsync off requested but the swapchain only supports VSYNC");
 +        }
@@ -8476,10 +8486,10 @@ index 0000000..ca7879e
 +} // namespace SIM::Gpu
 diff --git a/libraries/sim/src/gpu/gpu_frame.cpp b/libraries/sim/src/gpu/gpu_frame.cpp
 new file mode 100644
-index 0000000..8eb904b
+index 0000000..481fd1a
 --- /dev/null
 +++ b/libraries/sim/src/gpu/gpu_frame.cpp
-@@ -0,0 +1,823 @@
+@@ -0,0 +1,831 @@
 +#include <simulator/gpu/device.hpp>
 +#include <simulator/gpu/frame.hpp>
 +#include <simulator/gpu/texture.hpp>
@@ -9273,7 +9283,15 @@ index 0000000..8eb904b
 +    }
 +    FlushCopies();
 +
-+    if (mPresentSource && mDevice.Window()) {
++    // Never present to a hidden window (headless): acquiring its swapchain
++    // texture waits on a present fence gated by the display refresh, which
++    // pins even headless, uncapped runs to the refresh rate. The frame
++    // still lands in the offscreen present target, which is what readback
++    // reads. A window shown later is never presented to either; the app
++    // never shows a headless window.
++    SDL_Window *presentWindow = mDevice.Window();
++    bool windowHidden = presentWindow && (SDL_GetWindowFlags(presentWindow) & SDL_WINDOW_HIDDEN) != 0;
++    if (mPresentSource && presentWindow && !windowHidden) {
 +        Uint32 sw = 0, sh = 0;
 +        SDL_GPUTexture *swap = AcquireSwapchain(&sw, &sh);
 +        if (swap) {
@@ -14039,10 +14057,10 @@ index 0000000..8e615e1
 +#endif
 diff --git a/libraries/sim/src/render_gl/sim_render_gl.cpp b/libraries/sim/src/render_gl/sim_render_gl.cpp
 new file mode 100644
-index 0000000..2992307
+index 0000000..55ce4fb
 --- /dev/null
 +++ b/libraries/sim/src/render_gl/sim_render_gl.cpp
-@@ -0,0 +1,1045 @@
+@@ -0,0 +1,1051 @@
 +// OpenGL render backend: the first SIM::Render::Backend. Every GL call
 +// of the simulator lives in this directory (plus glad and the vendored
 +// ImGui OpenGL backend). The code is the pre-seam renderer, moved here
@@ -15078,7 +15096,13 @@ index 0000000..2992307
 +  printf("Renderer: %s (from %s)\n", choice, source);
 +  fflush(stdout);
 +  if (strcmp(choice, "gpu") == 0) {
-+    detail::gBackend = CreateGpuBackend();
++    if (GpuDeviceAvailable()) {
++      detail::gBackend = CreateGpuBackend();
++      return *detail::gBackend;
++    }
++    printf("Renderer: gpu requested but no GPU device could be created, falling back to gl\n");
++    fflush(stdout);
++    detail::gBackend = gGlBackend;
 +    return *detail::gBackend;
 +  }
 +  if (strcmp(choice, "gl") != 0)
@@ -23620,10 +23644,10 @@ index 0000000..31bf0b0
 +} // namespace SIM::Gpu::Shaders
 diff --git a/libraries/sim/src/render_gpu/sim_render_gpu.cpp b/libraries/sim/src/render_gpu/sim_render_gpu.cpp
 new file mode 100644
-index 0000000..04d7632
+index 0000000..1f16843
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/sim_render_gpu.cpp
-@@ -0,0 +1,555 @@
+@@ -0,0 +1,572 @@
 +// SDL3 GPU render backend: frame skeleton, post pass, present, readback,
 +// capture, hi-res overlay and ImGui glue. The 3D and 2D layer work lives
 +// in the sibling workstreams; until those draws land, G3 draws are
@@ -23712,10 +23736,18 @@ index 0000000..04d7632
 +      std::printf("SIM_RENDERER=gpu: GPU device creation failed\n");
 +      return false;
 +    }
-+    if (window) {
-+      // A hidden (headless) window may refuse the claim or yield a null
-+      // swapchain; either way the offscreen present target carries the
-+      // frame and readback, so a failed claim is not fatal here.
++    if (window && (SDL_GetWindowFlags(window) & SDL_WINDOW_HIDDEN) != 0) {
++      // Headless: do not claim the hidden window for the GPU device. The
++      // swapchain acquire waits on a present fence gated by the display
++      // refresh, which would pin even uncapped headless runs to the
++      // refresh rate; nobody sees this window, so there is nothing to
++      // present. The offscreen present target carries the frame and
++      // readback, and Frame::End also skips the blit for a hidden window.
++      std::printf("SIM_RENDERER=gpu: hidden window, no swapchain (offscreen present target only)\n");
++    } else if (window) {
++      // A window may refuse the claim or yield a null swapchain; either
++      // way the offscreen present target carries the frame and readback,
++      // so a failed claim is not fatal here.
 +      if (!mDevice.AttachWindow(window))
 +        std::printf("SIM_RENDERER=gpu: window claim failed, running windowless\n");
 +      mDevice.SetVsync(mSwapInterval != 0);
@@ -24177,6 +24209,15 @@ index 0000000..04d7632
 +} // namespace
 +
 +Backend *CreateGpuBackend() { return gGpuBackend; }
++
++// Probes GPU device creation without a window (a scratch device, created
++// and destroyed here): Select() falls back to gl before the window is
++// created when the device cannot be created, instead of leaving a black
++// window. The real backend creates its own device in Init.
++bool GpuDeviceAvailable() {
++  SIM::Gpu::Device probe;
++  return probe.Create();
++}
 +
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/sim_render_gpu_g2.cpp b/libraries/sim/src/render_gpu/sim_render_gpu_g2.cpp
