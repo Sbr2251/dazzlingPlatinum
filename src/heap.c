@@ -46,6 +46,13 @@ static HeapInfo sHeapInfo;
 
 static BOOL CreateHeapInternal(enum HeapID parent, enum HeapID child, u32 size, s32 alignment);
 
+// Heap alignment floor on the PC port. The DS heap used 4-byte
+// alignment (32-bit pointers); on 64-bit hosts, structs containing
+// pointers require 8-byte alignment, so every game heap allocation is
+// 8-aligned. (The NNS allocator still rounds block sizes to 4
+// internally; its own headers are covered by ubsan_suppressions.txt.)
+#define HEAP_ALIGNMENT 8
+
 void Heap_InitSystem(const HeapParam *templates, u32 nTemplates, u32 totalNumHeaps, u32 preSize)
 {
     void *ptr;
@@ -58,10 +65,10 @@ void Heap_InitSystem(const HeapParam *templates, u32 nTemplates, u32 totalNumHea
 
     if (preSize != 0) {
         // force align
-        while (preSize % 4 != 0) {
+        while (preSize % HEAP_ALIGNMENT != 0) {
             preSize++;
         }
-        OS_AllocFromMainArenaLo(preSize, 4);
+        OS_AllocFromMainArenaLo(preSize, HEAP_ALIGNMENT);
     }
 
     sHeapInfo.heapHandles = OS_AllocFromMainArenaLo(
@@ -71,7 +78,7 @@ void Heap_InitSystem(const HeapParam *templates, u32 nTemplates, u32 totalNumHea
             + totalNumHeaps * sizeof(u16)
             + totalNumHeaps * sizeof(u32) * 3
             + totalNumHeaps,
-        4);
+        HEAP_ALIGNMENT);
     sHeapInfo.parentHeapHandles = sHeapInfo.heapHandles + (usableHeaps + 1);
     sHeapInfo.subHeapRawPtrs = (void **)(sHeapInfo.parentHeapHandles + usableHeaps);
     sHeapInfo.numMemBlocks = (u16 *)(sHeapInfo.subHeapRawPtrs + usableHeaps);
@@ -95,10 +102,10 @@ void Heap_InitSystem(const HeapParam *templates, u32 nTemplates, u32 totalNumHea
         switch (templates[i].arena) {
         case OS_ARENA_MAIN:
         default:
-            ptr = OS_AllocFromMainArenaLo(effSize, 4);
+            ptr = OS_AllocFromMainArenaLo(effSize, HEAP_ALIGNMENT);
             break;
         case OS_ARENA_MAINEX:
-            ptr = OS_AllocFromMainExArenaHi(effSize, 4);
+            ptr = OS_AllocFromMainExArenaHi(effSize, HEAP_ALIGNMENT);
             break;
         }
 
@@ -145,12 +152,12 @@ static s32 FindFirstAvailableHeapHandle(void)
 
 BOOL Heap_Create(enum HeapID parent, enum HeapID child, u32 size)
 {
-    return CreateHeapInternal(parent, child, size, 4);
+    return CreateHeapInternal(parent, child, size, HEAP_ALIGNMENT);
 }
 
 BOOL Heap_CreateAtEnd(enum HeapID parent, enum HeapID child, u32 size)
 {
-    return CreateHeapInternal(parent, child, size, -4);
+    return CreateHeapInternal(parent, child, size, -HEAP_ALIGNMENT);
 }
 
 static BOOL CreateHeapInternal(enum HeapID parent, enum HeapID child, u32 size, s32 alignment)
@@ -257,7 +264,7 @@ void *Heap_Alloc(u32 heapID, u32 size)
 
     if ((u32)heapID < sHeapInfo.totalNumHeaps) {
         u8 index = sHeapInfo.heapIdxs[heapID];
-        ptr = AllocFromHeapInternal(sHeapInfo.heapHandles[index], size, 4, heapID);
+        ptr = AllocFromHeapInternal(sHeapInfo.heapHandles[index], size, HEAP_ALIGNMENT, heapID);
     }
 
     if (ptr != NULL) {
@@ -275,7 +282,7 @@ void *Heap_AllocAtEnd(u32 heapID, u32 size)
 
     if ((u32)heapID < sHeapInfo.totalNumHeaps) {
         u8 index = sHeapInfo.heapIdxs[heapID];
-        ptr = AllocFromHeapInternal(sHeapInfo.heapHandles[index], size, -4, heapID);
+        ptr = AllocFromHeapInternal(sHeapInfo.heapHandles[index], size, -HEAP_ALIGNMENT, heapID);
     }
 
     if (ptr != NULL) {
@@ -350,6 +357,15 @@ u32 HeapExp_FndGetTotalFreeSize(u32 heapID)
 
 void HeapExp_FndInitAllocator(NNSFndAllocator *pAllocator, u32 heapID, int alignment)
 {
+    // Floor: NNS allocations may hold pointers (e.g. NNSG3dAnmObj), which
+    // need 8-byte alignment on 64-bit hosts; several callers still pass
+    // the DS-era 4 (and the tail-allocating negative form).
+    if (alignment >= 0 && alignment < HEAP_ALIGNMENT) {
+        alignment = HEAP_ALIGNMENT;
+    } else if (alignment < 0 && alignment > -HEAP_ALIGNMENT) {
+        alignment = -HEAP_ALIGNMENT;
+    }
+
     if ((u32)heapID < sHeapInfo.totalNumHeaps) {
         u8 index = sHeapInfo.heapIdxs[heapID];
         NNS_FndInitAllocatorForExpHeap(pAllocator, sHeapInfo.heapHandles[index], alignment);

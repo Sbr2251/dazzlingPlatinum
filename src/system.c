@@ -149,10 +149,10 @@ void InitSystem(void)
     OS_InitTick();
     InitHeapSystem();
 
-    gSystem.mainTaskMgr = SysTaskManager_Init(MAIN_TASK_MAX, OS_AllocFromMainArenaLo(SysTaskManager_GetRequiredSize(MAIN_TASK_MAX), 4));
-    gSystem.vBlankTaskMgr = SysTaskManager_Init(VBLANK_TASK_MAX, OS_AllocFromMainArenaLo(SysTaskManager_GetRequiredSize(VBLANK_TASK_MAX), 4));
-    gSystem.postVBlankTaskMgr = SysTaskManager_Init(POST_VBLANK_TASK_MAX, OS_AllocFromMainArenaLo(SysTaskManager_GetRequiredSize(POST_VBLANK_TASK_MAX), 4));
-    gSystem.printTaskMgr = SysTaskManager_Init(PRINT_TASK_MAX, OS_AllocFromMainArenaLo(SysTaskManager_GetRequiredSize(PRINT_TASK_MAX), 4));
+    gSystem.mainTaskMgr = SysTaskManager_Init(MAIN_TASK_MAX, OS_AllocFromMainArenaLo(SysTaskManager_GetRequiredSize(MAIN_TASK_MAX), 8));
+    gSystem.vBlankTaskMgr = SysTaskManager_Init(VBLANK_TASK_MAX, OS_AllocFromMainArenaLo(SysTaskManager_GetRequiredSize(VBLANK_TASK_MAX), 8));
+    gSystem.postVBlankTaskMgr = SysTaskManager_Init(POST_VBLANK_TASK_MAX, OS_AllocFromMainArenaLo(SysTaskManager_GetRequiredSize(POST_VBLANK_TASK_MAX), 8));
+    gSystem.printTaskMgr = SysTaskManager_Init(PRINT_TASK_MAX, OS_AllocFromMainArenaLo(SysTaskManager_GetRequiredSize(PRINT_TASK_MAX), 8));
 
     GX_DispOff();
     GXS_DispOff();
@@ -167,7 +167,7 @@ void InitSystem(void)
     CheckForMemoryTampering();
 
     u32 fsTableSize = FS_GetTableSize();
-    void *fsTable = OS_AllocFromMainArenaLo(fsTableSize, 4);
+    void *fsTable = OS_AllocFromMainArenaLo(fsTableSize, 8);
 
     GF_ASSERT(fsTable != NULL);
     FS_LoadTable(fsTable, fsTableSize);
