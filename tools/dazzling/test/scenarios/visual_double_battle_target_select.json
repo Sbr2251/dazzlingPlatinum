@@ -114,13 +114,14 @@
   {
    "screenshot": "visual_double_target_select",
    "reference": "../references/visual/visual_double_target_select.bmp",
-   "tolerance": 0.0,
+   "tolerance": 0.005,
    "crop": [
     0,
     384,
     512,
     384
-   ]
+   ],
+   "_note": "Tolerance covers the target cursor corner bounce: on the Mac its phase occasionally differs by one step (336 px); a real layout regression changes far more."
   }
  ]
 }
