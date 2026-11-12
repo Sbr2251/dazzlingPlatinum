@@ -301,7 +301,7 @@ static void ShowArrowTask(SysTask *task, void *data)
         s16 x, y;
 
         ManagedSprite_GetPositionXY(arrow->managedSprite, &x, &y);
-        arrow->x = x << 8;
+        arrow->x = (s32)((u32)(s16)x << 8);
         arrow->state++;
         // fall-through
     case SHOW_ARROW_DRAW:
@@ -362,7 +362,7 @@ static void HideArrowTask(SysTask *task, void *data)
         s16 x, y;
 
         ManagedSprite_GetPositionXY(arrow->managedSprite, &x, &y);
-        arrow->x = x << 8;
+        arrow->x = (s32)((u32)(s16)x << 8);
 
         ManagedSprite_SetExplicitOamMode(arrow->managedSprite, GX_OAM_MODE_XLU);
         arrow->alpha = 16 << 8;
@@ -470,7 +470,7 @@ static void ShowPokeballsStartOfBattleTask(SysTask *task, void *data)
     case SHOW_POKEBALLS_INIT:
         s16 x, y;
         ManagedSprite_GetPositionXY(pokeballs->managedSprite, &x, &y);
-        pokeballs->xStart = x << 8;
+        pokeballs->xStart = (s32)((u32)(s16)x << 8);
 
         pokeballs->state++;
         // fall-through
@@ -574,7 +574,7 @@ static void ShowPokeballsMidBattleTask(SysTask *task, void *data)
     case SHOW_POKEBALLS_INIT:
         s16 x, y;
         ManagedSprite_GetPositionXY(pokeballs->managedSprite, &x, &y);
-        pokeballs->xStart = x << 8;
+        pokeballs->xStart = (s32)((u32)(s16)x << 8);
 
         Sprite_SetAnimFrame(pokeballs->managedSprite->sprite, 0);
         pokeballs->state++;
@@ -654,7 +654,7 @@ static void HidePokeballsStartOfBattleTask(SysTask *task, void *data)
         s16 x, y;
 
         ManagedSprite_GetPositionXY(pokeballs->managedSprite, &x, &y);
-        pokeballs->xStart = x << 8;
+        pokeballs->xStart = (s32)((u32)(s16)x << 8);
 
         ManagedSprite_SetExplicitOamMode(pokeballs->managedSprite, GX_OAM_MODE_XLU);
         pokeballs->state++;
