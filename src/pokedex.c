@@ -429,10 +429,10 @@ static void UpdateForms_ThreeForms(Pokedex *pokedexData, u32 species, int form)
 static void WriteBit_Deoxys(u32 *array, u8 value, u8 bitIndex)
 {
     u32 bitOffset = (24 + (bitIndex * 4));
-    u32 emptyBits = ~(0x0F << bitOffset);
+    u32 emptyBits = ~(0x0Fu << bitOffset);
 
     array[DEX_SIZE_U32 - 1] &= emptyBits;
-    array[DEX_SIZE_U32 - 1] |= (value << bitOffset);
+    array[DEX_SIZE_U32 - 1] |= ((u32)value << bitOffset);
 }
 
 static void UpdateFormArray_Deoxys(Pokedex *pokedexData, u8 form, u8 bitIndex)
