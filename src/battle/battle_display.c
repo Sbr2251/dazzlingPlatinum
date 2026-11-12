@@ -986,6 +986,7 @@ void BattleDisplay_InitTaskShowYesNoMenu(BattleSystem *battleSys, BattlerData *b
     yesNoMenuData->healthbox = &battlerData->healthbox;
     yesNoMenuData->promptMsg = message->promptMsg;
     yesNoMenuData->yesNoType = message->yesNoType;
+    yesNoMenuData->msgIdx = 0;
     yesNoMenuData->move = message->move;
     yesNoMenuData->nickname = message->nickname;
 
@@ -3206,7 +3207,11 @@ static void Task_ThrowTrainerBall(SysTask *task, void *data)
         if (trainerThrowBallData->battlerData->ballRotation) {
             animFrame = ManagedSprite_GetAnimationFrame(trainerThrowBallData->battlerData->managedSprite);
 
-            if (v5[trainerThrowBallData->backSpriteIdx][animFrame][0] != 0x7FFF) {
+            // animFrame can run past the 6-entry table (the ball animation
+            // has more frames than the table); index 6 reads the next row of
+            // the table, and past the end of the last row. Treat it as the
+            // end-of-table sentinel: no rotation update.
+            if (animFrame < 6 && v5[trainerThrowBallData->backSpriteIdx][animFrame][0] != 0x7FFF) {
                 ov12_02237E0C(trainerThrowBallData->battlerData->ballRotation, 1);
                 ov12_02237E18(trainerThrowBallData->battlerData->ballRotation, x + v5[trainerThrowBallData->backSpriteIdx][animFrame][0], y + v5[trainerThrowBallData->backSpriteIdx][animFrame][1]);
 
@@ -3249,7 +3254,7 @@ static void Task_ThrowTrainerBall(SysTask *task, void *data)
             trainerThrowBallData->delay = 8;
             trainerThrowBallData->state = 4;
         } else if (trainerThrowBallData->battlerData->ballRotation != NULL) {
-            if (v5[trainerThrowBallData->backSpriteIdx][animFrame][0] != 0x7FFF) {
+            if (animFrame < 6 && v5[trainerThrowBallData->backSpriteIdx][animFrame][0] != 0x7FFF) {
                 ov12_02237E18(trainerThrowBallData->battlerData->ballRotation, x + v5[trainerThrowBallData->backSpriteIdx][animFrame][0], y + v5[trainerThrowBallData->backSpriteIdx][animFrame][1]);
 
                 if (animFrame == 3 && ov12_02237890(trainerThrowBallData->battlerData->ballRotation) != trainerThrowBallData->ballTargetState) {
@@ -3536,18 +3541,21 @@ static void Task_PlayerSetCommandSelection(SysTask *task, void *data)
             break;
         }
 
-        ActionSelectData actionData;
+        // Full union, zero-initialised: BattleSubscreen_SetupBackground
+        // copies sizeof(ActiveMenuData) from this, so a bare
+        // ActionSelectData (10 bytes) would over-read the stack.
+        ActiveMenuData actionData = { 0 };
 
         NARC *bgNarc = NARC_ctor(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, HEAP_ID_BATTLE);
         NARC *objNarc = NARC_ctor(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_OBJ, HEAP_ID_BATTLE);
 
-        actionData.battler = commandSetData->battler;
-        actionData.battlerType = commandSetData->battlerType;
-        actionData.partySlot = commandSetData->partySlot;
-        actionData.curHp = commandSetData->curHP;
-        actionData.maxHp = commandSetData->maxHP;
-        actionData.ballStatusBattler = commandSetData->ballStatusBattler;
-        actionData.isWaitingForPartner = BattleSystem_IsSlot2WaitingForPartner(commandSetData->battleSys, commandSetData->battler, commandSetData->switchingOrCanPickCommandMask);
+        actionData.actionData.battler = commandSetData->battler;
+        actionData.actionData.battlerType = commandSetData->battlerType;
+        actionData.actionData.partySlot = commandSetData->partySlot;
+        actionData.actionData.curHp = commandSetData->curHP;
+        actionData.actionData.maxHp = commandSetData->maxHP;
+        actionData.actionData.ballStatusBattler = commandSetData->ballStatusBattler;
+        actionData.actionData.isWaitingForPartner = BattleSystem_IsSlot2WaitingForPartner(commandSetData->battleSys, commandSetData->battler, commandSetData->switchingOrCanPickCommandMask);
 
         if (battlerData->commandUIReady) {
             ov16_Dummy3(btlSubscreen, 1);
@@ -3559,7 +3567,7 @@ static void Task_PlayerSetCommandSelection(SysTask *task, void *data)
                 BattleSubscreen_SetupBackground(bgNarc, objNarc, btlSubscreen, 10, 0, &actionData);
             } else if (BattleSystem_GetBattleType(commandSetData->battleSys) & BATTLE_TYPE_SAFARI) {
                 BattleSubscreen_SetupBackground(bgNarc, objNarc, btlSubscreen, 8, 0, &actionData);
-            } else if (actionData.battlerType == 4 && (BattleSystem_GetBattleType(commandSetData->battleSys) & BATTLE_TYPE_2vs2) == FALSE) {
+            } else if (actionData.actionData.battlerType == 4 && (BattleSystem_GetBattleType(commandSetData->battleSys) & BATTLE_TYPE_2vs2) == FALSE) {
                 BattleSubscreen_SetupBackground(bgNarc, objNarc, btlSubscreen, 4, 0, &actionData);
             } else {
                 BattleSubscreen_SetupBackground(bgNarc, objNarc, btlSubscreen, 3, 0, &actionData);
@@ -3574,7 +3582,7 @@ static void Task_PlayerSetCommandSelection(SysTask *task, void *data)
                 BattleSubscreen_SetupBackground(bgNarc, objNarc, btlSubscreen, 9, 0, &actionData);
             } else if (BattleSystem_GetBattleType(commandSetData->battleSys) & BATTLE_TYPE_SAFARI) {
                 BattleSubscreen_SetupBackground(bgNarc, objNarc, btlSubscreen, 7, 0, &actionData);
-            } else if (actionData.battlerType != 4) {
+            } else if (actionData.actionData.battlerType != 4) {
                 BattleSubscreen_SetupBackground(bgNarc, objNarc, btlSubscreen, 1, 0, &actionData);
             } else {
                 BattleSubscreen_SetupBackground(bgNarc, objNarc, btlSubscreen, 2, 0, &actionData);
@@ -3825,18 +3833,19 @@ static void Task_PlayerShowMoveSelectMenu(SysTask *task, void *data)
 
         BattleSubscreen_HideBallSprites(btlSubscreen);
 
-        MoveSelectData moveSelectData;
+        // Full union, zero-initialised (see actionData above).
+        ActiveMenuData moveSelectData = { 0 };
         NARC *bgNarc = NARC_ctor(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, HEAP_ID_BATTLE);
         NARC *objNarc = NARC_ctor(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_OBJ, HEAP_ID_BATTLE);
 
         for (int i = 0; i < LEARNED_MOVES_MAX; i++) {
-            moveSelectData.moveIDs[i] = moveSelectMenuData->moves[i];
-            moveSelectData.currPP[i] = moveSelectMenuData->ppCur[i];
-            moveSelectData.maxPP[i] = moveSelectMenuData->ppMax[i];
+            moveSelectData.moveData.moveIDs[i] = moveSelectMenuData->moves[i];
+            moveSelectData.moveData.currPP[i] = moveSelectMenuData->ppCur[i];
+            moveSelectData.moveData.maxPP[i] = moveSelectMenuData->ppMax[i];
         }
 
-        moveSelectData.battlerType = moveSelectMenuData->battlerType;
-        moveSelectData.megaEvolutionAvailable = Battler_CanMegaEvolve(moveSelectMenuData->battleSys, BattleSystem_GetBattleContext(moveSelectMenuData->battleSys), moveSelectMenuData->battler);
+        moveSelectData.moveData.battlerType = moveSelectMenuData->battlerType;
+        moveSelectData.moveData.megaEvolutionAvailable = Battler_CanMegaEvolve(moveSelectMenuData->battleSys, BattleSystem_GetBattleContext(moveSelectMenuData->battleSys), moveSelectMenuData->battler);
 
         BattleSubscreen_SetupBackground(bgNarc, objNarc, btlSubscreen, 11, 0, &moveSelectData);
         NARC_dtor(bgNarc);
@@ -3981,16 +3990,17 @@ static void Task_PlayerShowTargetSelectMenu(SysTask *task, void *data)
             break;
         }
 
-        TargetSelectData targetSelectData;
+        // Full union, zero-initialised (see actionData above).
+        ActiveMenuData targetSelectData = { 0 };
         NARC *bgNarc = NARC_ctor(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, HEAP_ID_BATTLE);
         NARC *objNarc = NARC_ctor(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_OBJ, HEAP_ID_BATTLE);
 
         for (int i = 0; i < 4; i++) {
-            targetSelectData.targetMonData[i] = targetSelectMenuData->targetMon[i];
+            targetSelectData.targetSelectData.targetMonData[i] = targetSelectMenuData->targetMon[i];
         }
 
-        targetSelectData.battlerType = targetSelectMenuData->battlerType;
-        targetSelectData.targetingLayout = GetTargetSelectLayout(targetSelectMenuData->range, targetSelectMenuData->battlerType);
+        targetSelectData.targetSelectData.battlerType = targetSelectMenuData->battlerType;
+        targetSelectData.targetSelectData.targetingLayout = GetTargetSelectLayout(targetSelectMenuData->range, targetSelectMenuData->battlerType);
 
         BattleSubscreen_SetupBackground(bgNarc, objNarc, btlSubscreen, 12, 0, &targetSelectData);
         NARC_dtor(bgNarc);
@@ -4987,14 +4997,19 @@ static void Task_PlayerShowYesNoMenu(SysTask *task, void *data)
         yesNoMenuData->state = 1;
         break;
     case 1:
-        if (Text_IsPrinterActive(yesNoMenuData->msgIdx) == FALSE || yesNoMenuData->promptMsg == NULL) {
+        // Check promptMsg first: when there is no prompt message no
+        // printer was ever created, and msgIdx is meaningless -- querying
+        // it reads the printer table out of bounds (msgIdx is only set by
+        // BattleMessage_Print in case 0).
+        if (yesNoMenuData->promptMsg == NULL || Text_IsPrinterActive(yesNoMenuData->msgIdx) == FALSE) {
             NARC *bgNarc = NARC_ctor(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, HEAP_ID_BATTLE);
             NARC *objNarc = NARC_ctor(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_OBJ, HEAP_ID_BATTLE);
-            GiveUpMoveData giveUpMoveData;
+            // Full union, zero-initialised (see actionData above).
+            ActiveMenuData giveUpMoveData = { 0 };
 
             BattleSubscreen_HideBallSprites(btlSubscreen);
 
-            giveUpMoveData.move = yesNoMenuData->move;
+            giveUpMoveData.giveUpMoveData.move = yesNoMenuData->move;
 
             switch (yesNoMenuData->yesNoType) {
             case 0:
