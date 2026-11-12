@@ -1,0 +1,47 @@
+# UBSan suppressions for the sanitizer gate (tools/dazzling/test/sanitize.sh).
+# Pass with UBSAN_OPTIONS=suppressions=<this file>. Only the entries below
+# are suppressed; everything else (signed overflow, bad shifts, bad casts,
+# out-of-bounds, and misalignment in game code) still reports and, with
+# halt_on_error=1, still fails the run.
+#
+# The NNS heap allocator (libntrsystem, fnd/) lays out its own block
+# headers with the DS's 4-byte alignment: the DS is a 32-bit machine, so
+# 4-byte-aligned headers were always correctly aligned there. On 64-bit
+# hosts the headers contain pointers, so UBSan flags every header access
+# as misaligned. The allocator's block sizes are still rounded to 4
+# internally (MIN_ALIGNMENT in expheap.c / frameheap.c / unitheap.c),
+# so no game-side alignment floor can fix the allocator's own headers;
+# fixing it would mean changing the allocator's block layout in
+# libntrsystem. The accesses are benign on x86_64 and ARM64 (both
+# tolerate misaligned ordinary loads/stores, and the game ships this
+# allocator on Mac/ARM64), so the alignment check is suppressed for the
+# allocator's own files only. Game code is NOT suppressed: the game's
+# heap floor is 8 (src/heap.c HEAP_ALIGNMENT), so misalignment in game
+# files is a real bug and still reports.
+alignment:heapcommon.c
+alignment:heapcommoni.h
+alignment:expheap.c
+alignment:frameheap.c
+alignment:unitheap.c
+alignment:list.c
+# Pokemon data in saves is packed at 4-byte alignment by the DS save
+# format (which this port must keep reading/writing byte-for-byte), but
+# BoxPokemon's alignment is 8 on 64-bit hosts because data block C holds
+# a u64 (ribbonsDS2). Every member access through a save Pokemon then
+# trips the alignment check, even for u32/u16 members. The one genuine
+# 8-byte access (ribbonsDS2) is fixed with memcpy in pokemon.c; the
+# remaining struct-level reports are the save-format DS-ism. This does
+# mask other alignment issues in pokemon.c; that file is almost
+# entirely save-format struct accessors.
+alignment:pokemon.c
+# MigratedPokemon (Pal Park transfer sector of the save) embeds Pokemon
+# and s64 timestamps; the save sector is 4-aligned by the DS save format,
+# same DS-ism as pokemon.c above.
+alignment:pal_park_transfers.c
+# NNSG2dAnimDataSRT (cell animation contents in .nanr files) requires
+# 4-byte alignment, but the game's .nanr files pack animation contents at
+# 2-byte alignment, so ApplyCurrentAnimResult_ reads SRT frames through a
+# 2-aligned pointer. The reads return correct data on x86/ARM64 (both
+# tolerate unaligned loads); the format cannot change without rebuilding
+# every .nanr. Narrow to this one NNS file (cell-animation tick only).
+alignment:g2d_CellAnimation.c

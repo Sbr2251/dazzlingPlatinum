@@ -15,6 +15,18 @@ python3 tools/dazzling/test/static_checks.py
 # scenario suite (needs build_macos/main with SIM_HEADLESS/SIM_CONTROL)
 python3 tools/dazzling/test/run.py -j 4
 
+# sanitizer gate (ASan + UBSan across the whole suite): builds the `asan`
+# variant in `build_asan` (configure it once; see the header of the script
+# and docs/headless_protocol.md "Sanitizer build") and runs the scenario
+# suite, the battle tests, and short soaks under it. Exits non-zero on any
+# sanitizer report. UBSan suppressions for the NNS allocator's own
+# 4-byte-aligned block headers live in `ubsan_suppressions.txt` (see its
+# header); misalignment in game code still reports.
+bash tools/dazzling/test/sanitize.sh
+
+# random-input soak (overworld + menus) against any headless build:
+#   LP_NUM_THREADS=2 python3 tools/dazzling/test/soak.py --game build_asan/main --frames 6000 --seed 7
+
 # (re)record reference screenshots
 python3 tools/dazzling/test/run.py --record --filter title
 ```
