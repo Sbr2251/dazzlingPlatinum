@@ -1,6 +1,6 @@
 {
  "name": "visual_wild_encounter_transition",
- "_note": "Wild encounter transition frame (wipe/scanlines) 90f after the battle app appears, Route 201 grass.",
+ "_note": "Wild encounter transition frame (wipe/scanlines) 90f after the battle app appears, Route 201 grass. Walking presses recalibrated 20->40f (fps60, matching the core wild scenarios); screenshot 45f after state reports app=battle.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -90,339 +90,339 @@
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 20
+   "frames": 40
   },
   {
    "press": "RIGHT",
-   "frames": 20
+   "frames": 40
   },
   {
    "wait_until": {
@@ -431,7 +431,7 @@
    "timeout_frames": 1200
   },
   {
-   "step": 90
+   "step": 0
   },
   {
    "screenshot": "visual_wild_encounter_transition",

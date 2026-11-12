@@ -1,6 +1,6 @@
 {
  "name": "visual_mega_evolution_cinematic",
- "_note": "Mega Evolution key frames: 'Infernapite is reacting' (90f) and the cinematic close-up (180f). Ends on the cinematic frame; no state is read afterwards.",
+ "_note": "Mega Evolution key frames: 'Infernapite is reacting' (90f) and the cinematic close-up (180f). Ends on the cinematic frame; no state is read afterwards. Event-anchored: reacting text 120f after the move_chosen(mega=true) event (message_waiting never fires in battle state), cinematic 30f after the mega_evolution event.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -97,7 +97,15 @@
    }
   },
   {
-   "step": 90
+   "wait_battle_event": {
+    "type": "move_chosen",
+    "battler": 0,
+    "mega": true
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 120
   },
   {
    "screenshot": "visual_mega_react",
@@ -111,7 +119,14 @@
    ]
   },
   {
-   "step": 90
+   "wait_battle_event": {
+    "type": "mega_evolution",
+    "battler": 0
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 30
   },
   {
    "screenshot": "visual_mega_cinematic",

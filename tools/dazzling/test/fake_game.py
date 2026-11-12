@@ -117,7 +117,7 @@ class Fake:
                 self.battle["battlers"][0]["form"] = 1
             return {"ok": True}, False
         if cmd == "battle_events":
-            return {"ok": True, "events": [{"type": "battle_start"}, {"type": "move_used", "move": "MOVE_TACKLE"}]}, False
+            return {"ok": True, "events": [{"type": "battle_start"}, {"type": "move_used", "move": "MOVE_TACKLE"}, {"type": "stat_stage", "battler": 0, "delta": -1}]}, False
         if cmd == "talk":
             self.message_waiting, self.script = True, {"archive": 1, "offset": 64}
             return {"ok": True}, False

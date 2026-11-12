@@ -136,6 +136,15 @@ class TestRunnerEndToEnd(unittest.TestCase):
             runner.save_bmp(b, img[0], img[1], img[2])
             self.assertTrue(runner.compare_images(a, b, crop=[0, 0, 8, 8])[0])
 
+    def test_wait_battle_event_step(self):
+        with tempfile.TemporaryDirectory() as d:
+            ok, msg = self.run_one(d, {
+                "name": "case",
+                "steps": [{"start_battle": {"spec": "nope.json"}},
+                          {"wait_battle_event": {"type": "stat_stage", "battler": 0}, "timeout_frames": 100},
+                          {"battle_event": {"type": "battle_start"}}]})
+            self.assertTrue(ok, msg)
+
     def test_start_battle_and_decide_steps(self):
         with tempfile.TemporaryDirectory() as d:
             ok, msg = self.run_one(d, {

@@ -389,6 +389,7 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                 req.update({k: v for k, v in sb.items() if k not in ("spec", "spec_path")})
             client.cmd(req)
         state = client.state()
+        seen_events = []  # battle_events drains on read; accumulate for event-anchored steps
         # ---- steps
         for idx, step in enumerate(sc.get("steps") or []):
             if time.time() - started > timeout:
@@ -482,13 +483,31 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                     req = {"cmd": "battle_decide", "battler": 0, "action": "move"}
                     req.update(step["battle_decide"] if isinstance(step["battle_decide"], dict) else {})
                     client.cmd(req)
+                elif "wait_battle_event" in step:
+                    # Event-anchored wait: step until the engine emits a matching
+                    # event (stat_stage/status/damage/mega_evolution/totem_aura...).
+                    # Timing-proof: presentation-speed changes (fps60) move frames,
+                    # not the rules event. A short fixed settle after it is fine.
+                    want = step["wait_battle_event"]
+                    budget = step.get("timeout_frames", 7200)
+                    waited = 0
+                    while True:
+                        reply = client.cmd({"cmd": "battle_events"})
+                        seen_events.extend(reply.get("events") or [])
+                        if any(isinstance(ev, dict) and all(ev.get(k) == v for k, v in want.items()) for ev in seen_events):
+                            break
+                        if waited >= budget:
+                            raise ScenarioFailure(idx, step, f"wait_battle_event {want} not seen within {budget} frames (last events: {seen_events[-8:]})",
+                                                  client.last_state, client.last_screenshot)
+                        client.cmd({"cmd": "step", "frames": 10})
+                        waited += 10
                 elif "battle_event" in step:
                     # Drain engine events and require one matching {type:..., ...}
                     reply = client.cmd({"cmd": "battle_events"})
-                    events = reply.get("events") or []
+                    seen_events.extend(reply.get("events") or [])
                     want = step["battle_event"]
-                    if not any(all(ev.get(k) == v for k, v in want.items()) for ev in events if isinstance(ev, dict)):
-                        raise ScenarioFailure(idx, step, f"no battle event matching {want} in {events[-8:]}",
+                    if not any(isinstance(ev, dict) and all(ev.get(k) == v for k, v in want.items()) for ev in seen_events):
+                        raise ScenarioFailure(idx, step, f"no battle event matching {want} in {seen_events[-8:]}",
                                               client.last_state, client.last_screenshot)
                 elif "warp" in step:
                     w = step["warp"]

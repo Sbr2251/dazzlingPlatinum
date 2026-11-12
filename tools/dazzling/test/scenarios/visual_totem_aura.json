@@ -1,6 +1,6 @@
 {
  "name": "visual_totem_aura",
- "_note": "Totem Hitmonlee: aura flare-up close-up 360f after battle start, then the persistent aura at the first command menu (+150f).",
+ "_note": "Totem Hitmonlee: aura flare-up close-up 360f after battle start, then the persistent aura at the first command menu (+150f). Event-anchored: flare screenshot 120f after the first aura stat_stage boost (battler 1; this build emits the Totem aura as stat_stage events, no totem_aura event); persistent aura still anchored on battle.waiting.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -76,7 +76,14 @@
    }
   },
   {
-   "step": 360
+   "wait_battle_event": {
+    "type": "stat_stage",
+    "battler": 1
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 120
   },
   {
    "screenshot": "visual_totem_flare",

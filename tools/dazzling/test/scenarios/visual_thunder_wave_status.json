@@ -1,6 +1,6 @@
 {
  "name": "visual_thunder_wave_status",
- "_note": "Thunder Wave paralysis on enemy Bidoof: status animation/icon, 300f after the decision.",
+ "_note": "Thunder Wave paralysis on enemy Bidoof: status animation/icon, 300f after the decision. Event-anchored: 90f after the paralysis status event for battler 1.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -91,7 +91,14 @@
    }
   },
   {
-   "step": 300
+   "wait_battle_event": {
+    "type": "status",
+    "battler": 1
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 90
   },
   {
    "screenshot": "visual_thunder_wave_status",
