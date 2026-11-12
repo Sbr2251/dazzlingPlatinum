@@ -1,6 +1,6 @@
 {
  "name": "bug_signboard_talk_opens_dialogue",
- "_note": "Signboard talk: the Route 201 Trainer Tips signpost opens a scrolling-sign dialogue (not a message box), so message_waiting stays false; state now reports signpost_active. Before the fix the state had no signpost field, so a scenario waiting on dialogue could not see it open. Also covers a Message-style signboard (Sandgem Pokemon Center) opening a real message box.",
+ "_note": "Signboard talk: signboards open signpost dialogue (scrolling sign on Route 201, landmark sign in Sandgem), not a message box, so message_waiting stays false while they are on screen; state now reports signpost_active. Before the fix the state had no signpost field, so a scenario waiting on dialogue could not see it open.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -104,7 +104,7 @@
   },
   {
    "wait_until": {
-    "message_waiting": true
+    "signpost_active": true
    },
    "timeout_frames": 600
   },

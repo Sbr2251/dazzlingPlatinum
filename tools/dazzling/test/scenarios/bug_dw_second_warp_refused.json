@@ -79,7 +79,7 @@
    }
   },
   {
-   "step": 60
+   "step": 300
   },
   {
    "warp": {
@@ -103,6 +103,9 @@
    "press_frames": 10,
    "interval_frames": 300,
    "timeout_frames": 7200
+  },
+  {
+   "step": 120
   },
   {
    "warp": {
