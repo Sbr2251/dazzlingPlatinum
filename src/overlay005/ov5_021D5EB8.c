@@ -1564,7 +1564,10 @@ static void ov5_021D6EC8(UnkStruct_ov5_021D6FA8 *param0, int param1)
 {
     GF_ASSERT(param0->unk_08 == NULL);
     GF_ASSERT(param1 > 0);
-    GF_ASSERT(param1 <= (sizeof(s32) * 10));
+    // The buffer holds 10 elements of the port's element type (s32 on ARM,
+    // s64 in the 64-bit port), so cap by its real size: callers in the port
+    // pass sizeof(s64) counts, which exceed the ARM byte size.
+    GF_ASSERT(param1 <= (int)sizeof(param0->unk_0C));
 
     param0->unk_08 = param0->unk_0C;
 }
@@ -1572,7 +1575,7 @@ static void ov5_021D6EC8(UnkStruct_ov5_021D6FA8 *param0, int param1)
 static void ov5_021D6EF0(UnkStruct_ov5_021D6FA8 *param0)
 {
     param0->unk_08 = NULL;
-    memset(param0->unk_0C, 0, (sizeof(s32) * 10));
+    memset(param0->unk_0C, 0, sizeof(param0->unk_0C));
 }
 
 static UnkStruct_ov5_021D6FA8 *ov5_021D6F00(UnkStruct_ov5_021DB4B8 *param0, int param1)
@@ -2706,7 +2709,11 @@ static void ov5_021D8098(UnkStruct_ov5_021DB4B8 *param0, int param1)
     v3 = (UnkStruct_ov5_021D9984 *)param0->unk_B98;
 
     for (v0 = 0; v0 < param1; v0++) {
+        #ifdef SDK_BUILD_ARM
         v1 = ov5_021D6F00(param0, sizeof(s32) * 8);
+        #else
+        v1 = ov5_021D6F00(param0, sizeof(s64) * 8);
+        #endif
 
         if (v1 == NULL) {
             break;

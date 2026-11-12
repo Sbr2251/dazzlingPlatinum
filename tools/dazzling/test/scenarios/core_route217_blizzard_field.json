@@ -1,0 +1,28 @@
+{
+ "name": "core_route217_blizzard_field",
+ "_note": "Regression: entering Route 217 (blizzard weather sprites) must not assert. Before the fix, ov5_021D78A4 passed sizeof(s64)*8 into ov5_021D6EC8's sizeof(s32)*10 cap on the 64-bit port and the game died on entry (GF_ASSERT ov5_021D5EB8.c:1567). Warps in and runs ~300 field frames.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {"step": 900},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"press": "A", "frames": 10}, {"step": 290},
+  {"step": 300},
+  {"warp": {"map": "MAP_HEADER_ROUTE_217", "x": 318, "z": 344, "dir": "DIR_NORTH"}},
+  {"step": 300}
+ ],
+ "assertions": [
+  {"player.map": "MAP_HEADER_ROUTE_217"},
+  {"app": "field"}
+ ]
+}
