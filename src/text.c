@@ -76,6 +76,10 @@ static void Text_DestroyPrinterTask(u8 printerID)
 
 static BOOL Text_IsPrinterTaskActive(u8 printerID)
 {
+    if (printerID >= MAX_TEXT_PRINTERS) {
+        return FALSE;
+    }
+
     return sTextPrinterTasks[printerID] != NULL;
 }
 
