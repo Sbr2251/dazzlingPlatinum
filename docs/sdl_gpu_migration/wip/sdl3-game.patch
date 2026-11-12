@@ -1,0 +1,138 @@
+diff --git a/.github/workflows/macos-test.yml b/.github/workflows/macos-test.yml
+index e8802fff..d61ca84a 100644
+--- a/.github/workflows/macos-test.yml
++++ b/.github/workflows/macos-test.yml
+@@ -21,7 +21,7 @@ jobs:
+       # Mirrors tools/macos/build.sh's dependency setup (README_macOS.md).
+       - name: Install dependencies (Homebrew)
+         run: |
+-          brew install sdl2-compat nasm ninja arm-none-eabi-gcc gcc@14 libpng pkg-config
++          brew install sdl3 nasm ninja arm-none-eabi-gcc gcc@14 libpng pkg-config
+ 
+       - name: Static checks (no game build)
+         run: python3 tools/dazzling/test/static_checks.py
+diff --git a/README_macOS.md b/README_macOS.md
+index ac9ff17d..da261c01 100644
+--- a/README_macOS.md
++++ b/README_macOS.md
+@@ -6,7 +6,7 @@ AI-assisted; not for upstream (that project does not accept AI-written pull requ
+ ## Build
+ 
+ ```sh
+-brew install sdl2-compat nasm ninja arm-none-eabi-gcc gcc@14 libpng pkg-config
++brew install sdl3 nasm ninja arm-none-eabi-gcc gcc@14 libpng pkg-config
+ tools/macos/build.sh
+ open "build_macos/Pokemon Platinum.app"
+ ```
+diff --git a/docs/headless_protocol.md b/docs/headless_protocol.md
+index 276291de..4a47ebf3 100644
+--- a/docs/headless_protocol.md
++++ b/docs/headless_protocol.md
+@@ -43,7 +43,7 @@ logic can observe advances at wall-clock rate in this mode:
+   e.g. the title screen waited a render-speed-dependent number of frames for the
+   Giratina cry and every later input landed at a different phase.
+ - `OS_GetTick` is derived from the rendered frame count
+-  (`frame * (OS_SYSTEM_CLOCK/64) / 60`), not `SDL_GetTicks64`.
++  (`frame * (OS_SYSTEM_CLOCK/64) / 60`), not `SDL_GetTicks`.
+ - OS alarms fire from the frame hook when the deterministic tick reaches them;
+   no `SDL_AddTimer` is created in control mode.
+ - `import_save` is synchronous on the game thread, so the `execv` restart always
+diff --git a/meson.build b/meson.build
+index ad346196..dfa490c7 100644
+--- a/meson.build
++++ b/meson.build
+@@ -129,6 +129,17 @@ add_global_arguments(cpp_args,
+     native: (build_target == 'linux' or build_target == 'win64')
+ )
+ 
++# SDL3 headers for the whole build: libntr's OS/FS libraries and the game's port code include <SDL3/SDL.h>,
++# and only libntr's simulator library links SDL (see subprojects/libntr/libraries/sim/meson.build).
++if (build_target == 'linux' or build_target == 'win64')
++sdl3_headers_dep = dependency('sdl3', native: true, required: false)
++if sdl3_headers_dep.found()
++sdl3_include_arg = '-I' + sdl3_headers_dep.get_variable(pkgconfig: 'includedir')
++add_global_arguments(sdl3_include_arg, language: ['c', 'cpp'], native: true)
++add_global_arguments(sdl3_include_arg, language: ['c', 'cpp'], native: false)
++endif
++endif
++
+ pokeplatinum_args = [
+     '-DGAME_VERSION=VERSION_PLATINUM',
+     '-DGAME_LANGUAGE=LANGUAGE_ENGLISH'
+diff --git a/src/port/savedata_upgrade.c b/src/port/savedata_upgrade.c
+index a48ee01e..a5fac018 100644
+--- a/src/port/savedata_upgrade.c
++++ b/src/port/savedata_upgrade.c
+@@ -2,7 +2,7 @@
+ 
+ #include <stdlib.h>
+ #include <stdio.h>
+-#include <SDL2/SDL.h>
++#include <SDL3/SDL.h>
+ 
+ #include <nitro/card/backup.h>
+ 
+diff --git a/src/port/sim_icon.cpp b/src/port/sim_icon.cpp
+index b31fe11c..5ad7dbf2 100644
+--- a/src/port/sim_icon.cpp
++++ b/src/port/sim_icon.cpp
+@@ -1,6 +1,6 @@
+ #include "port/sim_icon.h"
+ #include <cstdint>
+-#include <SDL2/SDL.h>
++#include <SDL3/SDL.h>
+ #include "simulator/sim.h"
+ 
+ #ifndef ICON_IMG_ATTRIBUTE
+@@ -49,9 +49,9 @@ static const ICON_IMG_ATTRIBUTE uint8_t icon_img_map[] =
+ 
+ 
+ void SetPokeplatinumAppIcon() {
+-    SDL_Surface * iconSurface = SDL_CreateRGBSurfaceFrom((void*)icon_img_map, IconWidth, IconHeight, IconBitsPerPixel, 4 * IconWidth, 0xFF, 0xFF00, 0xFF0000, 0xFF000000);
++    SDL_Surface * iconSurface = SDL_CreateSurfaceFrom(IconWidth, IconHeight, SDL_PIXELFORMAT_RGBA32, (void*)icon_img_map, 4 * IconWidth);
+     auto * window = SIM_GetSDLWindow();
+     SDL_SetWindowIcon(window, iconSurface);
+-    SDL_FreeSurface(iconSurface);
++    SDL_DestroySurface(iconSurface);
+ }
+ 
+diff --git a/tools/macos/build.sh b/tools/macos/build.sh
+index dcc877ca..f052fe2a 100755
+--- a/tools/macos/build.sh
++++ b/tools/macos/build.sh
+@@ -2,7 +2,7 @@
+ # Build the macOS (Apple silicon) PC port from a fresh clone: fetch the subprojects, pin them to the revisions the macOS patches
+ # were made against, apply the patches, build enet, configure, compile, and wrap the result in "Dazzling Platinum.app".
+ #   tools/macos/build.sh [dev|release|asan]   # dev (default) → build_macos, release → build_macos_release, asan → build_macos_asan
+-# Needs: Xcode command line tools; Homebrew sdl2-compat (brings SDL3), nasm, ninja, arm-none-eabi-gcc, gcc@14, libpng, pkg-config, python3.
++# Needs: Xcode command line tools; Homebrew sdl3, nasm, ninja, arm-none-eabi-gcc, gcc@14, libpng, pkg-config, python3.
+ # The game's own files are built from this source tree (no ROM needed).
+ set -euo pipefail
+ cd "$(dirname "$0")/../.."
+diff --git a/tools/macos/make_app.sh b/tools/macos/make_app.sh
+index 695116e0..1d96d339 100755
+--- a/tools/macos/make_app.sh
++++ b/tools/macos/make_app.sh
+@@ -24,16 +24,13 @@ for f in header.bin firmware.bin language.csv; do cp "$BUILDDIR/$f" "$C/Resource
+ # Battle Lab specs (debug GUI): copied next to the game files at build time
+ [ -d "$BUILDDIR/battle_specs" ] && cp -R "$BUILDDIR/battle_specs" "$C/Resources/game/battle_specs"
+ 
+-# The executable and the SDL it links (sdl2-compat over SDL3 from Homebrew), relinked to the bundle's copies
++# The executable and the SDL3 it links (Homebrew), relinked to the bundle's copy
+ cp "$BUILDDIR/main" "$C/MacOS/pokeplatinum"
+-sdl2=$(otool -L "$C/MacOS/pokeplatinum" | awk '/libSDL2/ { print $1 }')
+-if [ -n "$sdl2" ] && [ -f "$sdl2" ]; then
+-  cp "$sdl2" "$C/Frameworks/libSDL2-2.0.0.dylib"
+-  install_name_tool -change "$sdl2" "@executable_path/../Frameworks/libSDL2-2.0.0.dylib" "$C/MacOS/pokeplatinum"
+-  install_name_tool -id "@executable_path/../Frameworks/libSDL2-2.0.0.dylib" "$C/Frameworks/libSDL2-2.0.0.dylib"
+-  # sdl2-compat loads SDL3 at run time (dlopen), first as @loader_path/libSDL3.dylib: ship it beside it
+-  sdl3=$(ls /opt/homebrew/opt/sdl3/lib/libSDL3.0.dylib 2>/dev/null || true)
+-  [ -n "$sdl3" ] && cp -L "$sdl3" "$C/Frameworks/libSDL3.dylib"
++sdl3=$(otool -L "$C/MacOS/pokeplatinum" | awk '/libSDL3/ { print $1 }')
++if [ -n "$sdl3" ] && [ -f "$sdl3" ]; then
++  cp -L "$sdl3" "$C/Frameworks/libSDL3.0.dylib"
++  install_name_tool -change "$sdl3" "@executable_path/../Frameworks/libSDL3.0.dylib" "$C/MacOS/pokeplatinum"
++  install_name_tool -id "@executable_path/../Frameworks/libSDL3.0.dylib" "$C/Frameworks/libSDL3.0.dylib"
+ fi
+ chmod u+w "$C/Frameworks/"*.dylib 2>/dev/null || true
+ 

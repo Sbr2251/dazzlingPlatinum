@@ -1,0 +1,3177 @@
+diff --git a/include/simulator/sim_g3_CommandHandler.hpp b/include/simulator/sim_g3_CommandHandler.hpp
+index a7ff270..9d43ef4 100644
+--- a/include/simulator/sim_g3_CommandHandler.hpp
++++ b/include/simulator/sim_g3_CommandHandler.hpp
+@@ -3,7 +3,6 @@
+ #include <nitro/hw/X86/mmap_shared.h>
+ #include <nitro/fx/fx.h>
+ #include <nitro/fx/fx_const.h>
+-#include "simulator/sim_opengl.h"
+ #include "simulator/sim_g3_GlobalState.hpp"
+ 
+ #ifndef SIM_G3_HANDLER_H
+@@ -61,12 +60,12 @@ typedef struct {
+         fx32 nums[4];
+     };
+     // TODO: eventually keep these in fixed point format
+-    GLfloat s;
+-    GLfloat t;
+-    GLfloat r;
+-    GLfloat g;
+-    GLfloat b;
+-    GLfloat a;
++    float s;
++    float t;
++    float r;
++    float g;
++    float b;
++    float a;
+ } G3SIM_FxVtx_t;
+ 
+ #ifdef __cplusplus
+diff --git a/include/simulator/sim_g3_DrawCall.hpp b/include/simulator/sim_g3_DrawCall.hpp
+index f4fbe01..9db9db0 100644
+--- a/include/simulator/sim_g3_DrawCall.hpp
++++ b/include/simulator/sim_g3_DrawCall.hpp
+@@ -3,27 +3,12 @@
+ 
+ #include <nitro/types.h>
+ #include "simulator/sim_g3_Texture.hpp"
++#include "simulator/sim_render_backend.hpp"
+ 
+ #include <memory>
+ 
+ namespace SIM::G3 {
+ 
+-struct RenderVertex {
+-	//Position
+-	float x;
+-	float y;
+-	float z;
+-	float w;
+-	//TexCoord
+-	float s;
+-	float t;
+-	//Color
+-	float r;
+-	float g;
+-	float b;
+-	float a;
+-};
+-
+ struct TexImageParam {
+     u32 textureOffset;
+     u8 repeatS;
+diff --git a/include/simulator/sim_g3_GlRenderer.hpp b/include/simulator/sim_g3_GlRenderer.hpp
+deleted file mode 100644
+index 3f84b26..0000000
+--- a/include/simulator/sim_g3_GlRenderer.hpp
++++ /dev/null
+@@ -1,45 +0,0 @@
+-#include <nitro/types.h>
+-#include <simulator/sim_opengl.h>
+-#include <simulator/sim_g3_DrawCall.hpp>
+-
+-#ifndef LIBNTR_SIM_G3_GL_RENDERER_HPP
+-#define LIBNTR_SIM_G3_GL_RENDERER_HPP
+-
+-namespace SIM::G3 {
+-
+-class GlRenderer {
+- public:
+-  GlRenderer();
+-  ~GlRenderer();
+-
+-  void Init();
+-
+-  inline void SetShaderProgramId(unsigned int id) { mShaderProgramId = id; mUniformsCached = false; }
+-
+-  void Draw(std::shared_ptr<DrawCall> drawCall);
+-
+- private:
+-  void CacheUniformLocations();
+-  unsigned int mVertexArray;
+-  unsigned int mVertexBuffer;
+-  unsigned int mShaderProgramId;
+-  int mVertexBufferCount = 0;
+-  // Cached uniform locations (valid once per shader program) and the last
+-  // values uploaded, so unchanged uniforms are not re-sent every draw.
+-  bool mUniformsCached = false;
+-  int mLocUseTexture = -1, mLocMyTexture = -1, mLocPolygonMode = -1;
+-  int mLocUseFog = -1, mLocFogColor = -1, mLocFogDepthBoundary = -1, mLocFogDensity = -1;
+-  int mLastUseTexture = -1, mLastPolygonMode = -1, mLastUseFog = -1;
+-  unsigned int mLastWrapTexture = 0;
+-  int mLastWrapS = -1, mLastWrapT = -1;
+-  bool mFogUploaded = false;
+-  float mLastFogColor[4] = {};
+-  float mLastFogDepth[32] = {};
+-  float mLastFogDensity[32] = {};
+-};
+-
+-}
+-
+-
+-
+-#endif
+\ No newline at end of file
+diff --git a/include/simulator/sim_g3_GlobalState.hpp b/include/simulator/sim_g3_GlobalState.hpp
+index 17e1bf4..c24dc30 100644
+--- a/include/simulator/sim_g3_GlobalState.hpp
++++ b/include/simulator/sim_g3_GlobalState.hpp
+@@ -6,7 +6,6 @@
+ #include <nitro/gx/g3.h>
+ #include <nitro/gx/gx_vramcnt.h>
+ #include "simulator/sim_g3_DrawCall.hpp"
+-#include "simulator/sim_g3_GlRenderer.hpp"
+ #include "simulator/sim_g3_TextureCache.hpp"
+ 
+ #include <array>
+@@ -57,7 +56,6 @@ class GlobalState {
+   ~GlobalState();
+ 
+   void Init();
+-  void InitGlRenderer();
+ 
+   void SubmitPolygon(int numVerts);
+ 
+@@ -102,7 +100,6 @@ class GlobalState {
+   inline GXVRamTexPltt GetVramTexPalette() { return mVramTexPalette; }
+   void * GetTexturePointer();
+   void * GetTexturePalettePointer();
+-  inline std::shared_ptr<GlRenderer> GetGlRenderer() { return mGlRenderer; }
+ 
+   inline void SetMatrixMode(GXMtxMode mode) { mCurrentMatrixMode = mode; }
+   void SetCurrentMatrix(const MtxFx44& matrix);
+@@ -132,6 +129,7 @@ class GlobalState {
+ 
+  private:
+   void UpdateClipMatrix();
++  void SubmitDrawCall(DrawCall& drawCall);
+   GXMtxMode mCurrentMatrixMode = GX_MTXMODE_PROJECTION;
+   GXBegin mCurrentPrimitiveType = GX_BEGIN_TRIANGLES;
+ 
+@@ -171,7 +169,6 @@ class GlobalState {
+   
+   std::shared_ptr<DrawCall> mCurrentDrawCall = nullptr;
+   std::vector<std::shared_ptr<DrawCall>> mTransparentDrawCalls = {};
+-  std::shared_ptr<GlRenderer> mGlRenderer = nullptr;
+ 
+   float mNextTexCoordS = 0.0f;
+   float mNextTexCoordT = 0.0f;
+diff --git a/include/simulator/sim_g3_Texture.hpp b/include/simulator/sim_g3_Texture.hpp
+index 8381456..373b073 100644
+--- a/include/simulator/sim_g3_Texture.hpp
++++ b/include/simulator/sim_g3_Texture.hpp
+@@ -2,6 +2,7 @@
+ #define LIBNTR_SIM_G3_TEXTURE_HPP
+ 
+ #include <nitro/types.h>
++#include <simulator/sim_render_backend.hpp>
+ 
+ namespace SIM::G3 {
+ 
+@@ -10,11 +11,10 @@ class Texture {
+   Texture(u16 height, u16 width, u8 * data);
+   ~Texture();
+ 
+-  void Activate();
+-  inline unsigned int GetTextureID() {return mGlTextureId;};
++  inline Render::TextureHandle GetHandle() { return mHandle; }
+ 
+  private:
+-  unsigned int mGlTextureId;
++  Render::TextureHandle mHandle;
+ };
+ 
+ }
+diff --git a/include/simulator/sim_gui.hpp b/include/simulator/sim_gui.hpp
+index d5a2519..23c0ea0 100644
+--- a/include/simulator/sim_gui.hpp
++++ b/include/simulator/sim_gui.hpp
+@@ -8,7 +8,7 @@
+ 
+ namespace SIM::GUI {
+ 
+-void Init(SDL_Window * window, SDL_GLContext context);
++void Init(SDL_Window * window);
+ void Main();
+ void NewFrame();
+ void ProcessEvent(SDL_Event * event);
+diff --git a/include/simulator/sim_render_backend.hpp b/include/simulator/sim_render_backend.hpp
+new file mode 100644
+index 0000000..dd83550
+--- /dev/null
++++ b/include/simulator/sim_render_backend.hpp
+@@ -0,0 +1,321 @@
++#ifndef LIBNTR_SIM_RENDER_BACKEND_HPP
++#define LIBNTR_SIM_RENDER_BACKEND_HPP
++
++// Render backend interface of the simulator.
++//
++// Every GPU API call of the simulator goes through SIM::Render::Backend. The DS emulation code (G3 command processing,
++// 2D register decoding, PostFX effect timing) decides WHAT is drawn and fills the plain structs below; a backend only
++// turns them into GPU work. One backend is selected at startup (SIM_RENDERER=gl|gpu, read once, default gl):
++//   gl   OpenGL 4.1/4.2 core (libraries/sim/src/render_gl), the reference renderer.
++//   gpu  SDL3 GPU API (libraries/sim/src/render_gpu). Until it is implemented it reports so and the GL backend is used.
++//
++// ---------------------------------------------------------------------------------------------------------------
++// THREADING
++//   All methods are called from one thread: the thread that runs NitroMain. On the PC targets that is the process main
++//   thread, which also calls SIM_RenderInit before NitroMain starts and runs SIM_Render from OS_WaitIrq (VBlank). No
++//   method is ever called concurrently. The GL backend needs its context current on that thread
++//   (SIM::AcquireRenderContext / ReleaseRenderContext do that; they are no-ops for a backend without a GL context).
++//
++// FRAME LIFECYCLE (one emulated VBlank = one SIM_Render call)
++//   startup:  PreWindowCreate -> (window is created with WindowFlags()) -> Init -> ImGuiInit
++//   3D:       G3BeginFrame ... G3Draw* / G3ClearTarget* / CreateTexture / UpdateTexture / DestroyTexture ... G3EndFrame
++//             The game issues G3 work at any time while its frame runs. G3BeginFrame is called at the end of SIM_Render,
++//             G3EndFrame at the start of the next SIM_Render (after the last pending draws, including the deferred
++//             translucent ones, were submitted). G3ClearTarget is normally called right after G3BeginFrame (from
++//             SIM_PostRenderVBlank, only on frames where the game swapped its 3D buffers), but may come at any point
++//             inside the 3D frame and must then be ordered with the draws around it. The 3D target is NOT cleared
++//             otherwise: frames without a G3 swap draw over the previous contents.
++//   2D:       BeginFrame -> ImGuiNewFrame -> CompositeEngine(main) -> CompositeEngine(sub) -> RenderPost -> ImGuiRender
++//             -> [ReadPixels*] -> Present
++//             CompositeEngine samples the 3D target as BG0, so everything submitted before G3EndFrame must be visible
++//             to it. While the game is paused the 2D sequence repeats (several BeginFrame..Present rounds) without a 3D
++//             frame in between. ReadPixels is only valid between ImGuiRender and Present and returns the image Present
++//             is about to show (composite + post + ImGui).
++//   any time: SetSwapInterval, GetSwapInterval, GetFrameSize, DebugMarker. SetInternalResolution is called between
++//             Present and G3BeginFrame.
++//   Outside a 3D frame: the game can submit G3 work before the first G3BeginFrame (during boot) and from its VBlank
++//   handler (which runs inside SIM_Render, between CompositeEngine and Present). The GL backend executes such draws
++//   against whatever is currently bound (legacy behaviour); a recording backend should append them to the next 3D
++//   frame. Texture create/destroy can happen at any time.
++//
++// OWNERSHIP
++//   Every pointer passed in (vertices, fog tables, layer pixels, VRAM/OAM/palette data, uniform structs, screen quad)
++//   is owned by the caller and valid only for the duration of the call. A backend that defers work must copy what it
++//   needs. Pixel buffers returned by ReadPixels are caller-allocated (w * h * 4 bytes). Texture handles are owned by the
++//   caller until DestroyTexture; a backend that records work must keep the texture alive until recorded draws that use
++//   it have executed.
++//
++// COORDINATE CONVENTIONS (shared by both backends; the shaders in libraries/sim/src/shaders depend on them)
++//   - "Combined display" = 256 x 384, the two DS screens stacked. Every 256 x 384 layer image and the 3D target store
++//     the TOP screen in the upper half of the image as sampled with v in [0.5, 1] (v = 0 is the bottom edge). CPU layer
++//     pixels (G2CpuLayers) are rows bottom-up: row 0 is the bottom line of the bottom screen, row 383 the top line of
++//     the top screen.
++//   - G3 vertices are in clip space with +y up (GL / SDL_GPU NDC). Window winding is evaluated in that space.
++//   - FrameParams::view and ReadPixels use window pixels with a TOP-LEFT origin.
++//   - PostFXParams UVs use v = 0 at the BOTTOM of the window (the post shader's fragTexCoord convention).
++// ---------------------------------------------------------------------------------------------------------------
++
++#include <nitro/types.h>
++
++#include <cstddef>
++#include <cstdint>
++
++struct SDL_Window;
++struct ImDrawData;
++
++namespace SIM::G3 {
++
++// One G3 vertex as the backend receives it (40 bytes, tightly packed). Position is clip space after the DS viewport
++// transform and depth mapping (x, y, z used; w is carried but not read by the shaders), texcoord in texture UVs
++// (0..1 per texture repeat), colour 0..1.
++struct RenderVertex {
++	//Position
++	float x;
++	float y;
++	float z;
++	float w;
++	//TexCoord
++	float s;
++	float t;
++	//Color
++	float r;
++	float g;
++	float b;
++	float a;
++};
++
++}
++
++namespace SIM::Render {
++
++// Backend-neutral 3D texture handle. 0 is "no texture".
++using TextureHandle = std::uint64_t;
++constexpr TextureHandle kNoTexture = 0;
++
++enum class Screen : u8 { Bottom = 0, Top = 1 };
++
++// ---- 3D ----------------------------------------------------------------------------------------------------------
++
++// Texture addressing. ClampToBorder = transparent black (0,0,0,0) outside [0,1]; SDL_GPU has no border colour, so
++// that backend emulates it (a border texel has alpha 0 and is discarded by the shader's alpha < 0.05 test).
++enum class WrapMode : u8 { Repeat, MirroredRepeat, ClampToBorder };
++
++// Which triangles are NOT drawn, by window winding in +y-up clip space. All = nothing is drawn (DS GX_CULL_ALL).
++enum class CullWinding : u8 { None, Clockwise, CounterClockwise, All };
++
++enum class DepthFunc : u8 { Less, Equal };
++
++// Fully specified state of one G3 draw. Fixed for every draw (not in the struct): triangle list, blending
++// src*srcAlpha + dst*(1-srcAlpha) on colour AND alpha (the compositor relies on the resulting alpha), depth test on,
++// G3 shader (shaders/g3_*.glsl), target = the 3D target at the screen/scale of the enclosing G3BeginFrame.
++struct G3DrawState {
++  TextureHandle texture = kNoTexture;  // kNoTexture: untextured (vertex colour only)
++  WrapMode wrapS = WrapMode::Repeat;   // only meaningful with a texture
++  WrapMode wrapT = WrapMode::Repeat;
++  u8 polygonMode = 0;                  // DS polygon mode: 0 modulate (texel * vertex colour), else texel only
++  CullWinding cull = CullWinding::None;
++  DepthFunc depthFunc = DepthFunc::Less;
++  bool depthWrite = true;
++  bool fogEnabled = false;
++  const float *fogColor = nullptr;          // 4 floats (rgba 0..1), valid when fogEnabled
++  const float *fogDepthBoundary = nullptr;  // 32 floats, clip-space z boundaries, valid when fogEnabled
++  const float *fogDensity = nullptr;        // 32 floats, 0..1, valid when fogEnabled
++};
++
++// The 3D target is 256*scale x 384*scale; each frame renders into one screen half of it (viewport 256*scale x
++// 192*scale). screen and scale are latched once per frame (POWCNT bit 15 and the internal resolution at the end of
++// SIM_Render), so every draw of the frame uses them.
++struct G3FrameParams {
++  Screen screen = Screen::Bottom;
++  int scale = 1;
++};
++
++// ---- 2D compositing ----------------------------------------------------------------------------------------------
++
++// Uniforms of the compositing shader (shaders/g2_fragment.glsl), one engine.
++struct G2CompositeUniforms {
++  float backdropColor[4];
++  s32 bgOrder[4];
++  s32 bgPriorities[4];
++  s32 bldcnt;
++  s32 bldalpha;
++  s32 bldy;
++  s32 topScreen;     // 1: this engine is the top screen (the shader keeps v >= 0.5), 0: bottom (v < 0.5)
++  s32 dispcnt;
++  s32 winout;
++  s32 bg0as3d;
++  float masterBrightFactor;
++  s32 masterBrightMode;
++};
++
++// What the compositor samples as bgTexture[i].
++enum class LayerSource : u8 {
++  Empty,     // transparent black
++  Layer,     // the engine's BG layer image i (as uploaded by G2CpuLayers or rendered by the GPU 2D pass)
++  G3Target,  // the 3D target (BG0 as 3D)
++};
++
++// CPU-rendered layers: 256 x 384 RGBA8, rows bottom-up (see COORDINATE CONVENTIONS). nullptr = leave that layer
++// image as it is. Layer images are shared by both engines: each engine only ever samples its own screen half.
++struct G2CpuLayers {
++  const u8 *bg[4];
++  const u8 *obj[4];      // OBJ layers by priority 0..3
++  const u8 *objWindow;   // OBJ window mask (alpha > 0.1 = inside)
++};
++
++// GPU 2D layer pass (shaders/g2gpu_*.glsl): renders BG 0-3, OBJ priority 0-3 and the OBJ window mask of one engine
++// from VRAM/OAM/palette data into the layer images, before compositing. Each pass first clears this engine's screen
++// half of its layer image to (0,0,0,0) and only touches that half.
++struct G2GpuLayerParams {
++  // shader uniforms
++  s32 isSub;
++  s32 topScreen;
++  s32 dispcnt;
++  s32 bgMode;
++  s32 extPlttBase;   // byte offset of the BG extended palettes in lcdc
++  s32 bgcnt[4];
++  s32 bgofs[4];      // HOFS | VOFS << 16
++  s32 affA[4], affB[4], affC[4], affD[4];
++  s32 affX[4], affY[4];
++  s32 win0h, win0v, winin, winout;
++  // passes
++  s32 bgRender[4];       // 0: BG layer i is only cleared
++  s32 objEnabled;        // 0: OBJ layers and window are only cleared
++  s32 objCount[5];       // candidate sprites per OBJ priority 0..3, [4] = OBJ window sprites
++  s32 objList[5][128];   // ascending OAM indices, objCount[n] valid entries each
++  // data, uploaded before the passes (the backend may skip uploads of unchanged data)
++  const void *bgVram;    // this engine's BG VRAM, bgVramSize bytes (multiple of 2048)
++  u32 bgVramSize;
++  const void *objVram;   // this engine's OBJ VRAM, objVramSize bytes (multiple of 1024)
++  u32 objVramSize;
++  const void *lcdc;      // 0xA4000 bytes of LCDC VRAM (extended palettes), nullptr = not used by this engine
++  const void *oam;       // this engine's OAM, 1024 bytes (row isSub of the OAM data)
++  const void *palettes[4];  // 512 bytes each: BG main, OBJ main, BG sub, OBJ sub (all four, every pass)
++};
++
++// Composite one engine into the frame's composite image, inside FrameParams::view. Exactly one of cpu / gpu is set.
++// The draw is alpha-blended (src*srcAlpha + dst*(1-srcAlpha)) over the composite image; the shader discards the other
++// engine's screen half.
++struct G2CompositeInput {
++  bool isSub = false;
++  LayerSource bgSource[4] = {};
++  const G2CpuLayers *cpu = nullptr;
++  const G2GpuLayerParams *gpu = nullptr;
++  G2CompositeUniforms uniforms = {};
++  // Display quad(s) for the current screen layout, triangle list in clip space; x, y, z and s, t are used.
++  const G3::RenderVertex *screenQuad = nullptr;
++  int screenQuadVertexCount = 0;
++};
++
++// ---- frame, post pass, present -----------------------------------------------------------------------------------
++
++struct Rect {
++  int x, y, w, h;
++};
++
++struct FrameParams {
++  int frameWidth;   // window size in pixels (GetFrameSize); the composite image has this size
++  int frameHeight;
++  Rect view;        // where the combined display is composited, window pixels, top-left origin
++};
++
++// Uniforms of the post shader (shaders/post_fragment.glsl). The post pass draws the composite image over the whole
++// window, alpha-blended over opaque black.
++struct PostFXParams {
++  float texelSize[2];
++  float shakeOffset[2];
++  float shockCenter[2];
++  float shockRadius;
++  float shockStrength;
++  float zoomCenter[2];
++  float zoomBlur;
++  float vignetteColor[3];
++  float vignetteAmount;
++  float chromaAmount;
++  float glowAmount;
++  float letterbox;
++  s32 fxRegion;
++  float beamTarget[2];
++  float cutinProgress;
++  float cutinAlpha;
++  float titleProgress;
++  float titleAlpha;
++  float glowCenter[2];
++  float glowAtAmount;
++};
++
++// ---- backend -----------------------------------------------------------------------------------------------------
++
++struct InitParams {
++  int windowWidth;     // initial window size
++  int windowHeight;
++  int internalScale;   // initial internal resolution scale of the 3D target
++};
++
++class Backend {
++ public:
++  virtual ~Backend() = default;
++
++  virtual const char *Name() const = 0;
++
++  // -- startup
++  // Before the window exists (GL: context attributes).
++  virtual void PreWindowCreate(int swapInterval) = 0;
++  // SDL window flags the window must be created with (SDL_WindowFlags value, e.g. SDL_WINDOW_OPENGL).
++  virtual std::uint64_t WindowFlags() const = 0;
++  // Creates the device/context for the window and all fixed resources. Ends by presenting one black frame.
++  virtual bool Init(SDL_Window *window, const InitParams &params) = 0;
++
++  // -- 3D
++  virtual void G3BeginFrame(const G3FrameParams &params) = 0;
++  virtual void G3EndFrame() = 0;
++  // Clears the whole 3D target (both halves): colour (0,0,0,0), depth 1.0.
++  virtual void G3ClearTarget() = 0;
++  // verts: count vertices, a triangle list. count > 0.
++  virtual void G3Draw(const G3DrawState &state, const G3::RenderVertex *verts, std::size_t count) = 0;
++  // 3D textures: RGBA8, rows in upload order (row 0 = t 0), nearest filtering.
++  virtual TextureHandle CreateTexture(int width, int height, const void *rgba8) = 0;
++  virtual void UpdateTexture(TextureHandle texture, int width, int height, const void *rgba8) = 0;
++  virtual void DestroyTexture(TextureHandle texture) = 0;
++  // Reallocates the 3D target for a new internal resolution scale (contents undefined afterwards).
++  virtual void SetInternalResolution(int scale) = 0;
++
++  // -- 2D / frame
++  // Starts the frame's composite image (resized to the frame size if needed) and clears it to opaque black.
++  virtual void BeginFrame(const FrameParams &params) = 0;
++  // GPU 2D layer pass availability (creates its resources on first call; false if they failed to build).
++  virtual bool G2GpuAvailable() = 0;
++  virtual void CompositeEngine(const G2CompositeInput &input) = 0;
++  virtual void RenderPost(const PostFXParams &params) = 0;
++  // Shows the frame, then clears the window image to opaque black for the next post pass.
++  virtual void Present() = 0;
++  // Window size in pixels (drawable size; can differ from the window size in points on high-DPI displays).
++  virtual void GetFrameSize(int *width, int *height) = 0;
++  // RGBA8, rows top-down, rect in window pixels with a top-left origin. out holds w * h * 4 bytes.
++  virtual bool ReadPixels(int x, int y, int w, int h, u8 *out) = 0;
++
++  // -- ImGui (Dear ImGui renderer backend + the SDL platform backend's init for this API)
++  virtual void ImGuiInit(SDL_Window *window) = 0;
++  virtual void ImGuiNewFrame() = 0;
++  virtual void ImGuiRender(ImDrawData *drawData) = 0;
++
++  // -- misc
++  virtual void SetSwapInterval(int interval) = 0;
++  virtual int GetSwapInterval() = 0;
++  // Debugger annotation (GL debug output / GPU debug label); may be ignored.
++  virtual void DebugMarker(const char *message, int length) = 0;
++};
++
++// Selects the backend from SIM_RENDERER (once; later calls return the same one). Called by SIM_RenderInit.
++Backend &Select();
++
++namespace detail {
++extern Backend *gBackend;
++}
++
++// The selected backend. Only valid after Select().
++inline Backend &Get() { return *detail::gBackend; }
++
++}
++
++#endif
+diff --git a/libraries/sim/include/sim_g2.h b/libraries/sim/include/sim_g2.h
+index 400cde3..860627c 100644
+--- a/libraries/sim/include/sim_g2.h
++++ b/libraries/sim/include/sim_g2.h
+@@ -1,7 +1,8 @@
+ #ifndef SIM_G2_H
+ #define SIM_G2_H
+ #include <nitro/types.h>
+-void G2SIM_DrawBG( u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub );
++// Renders BG bgNum of one engine into its CPU layer buffer and returns it (NULL when the debug GUI disabled the BG).
++const u8 *G2SIM_DrawBG( u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub );
+ void G2SIM_DrawOBJ( u32 line, u8 isSub, int bgnum );
+ void G2SIM_PlotPixel(u8 * screenBuf, u8 r, u8 g, u8 b, u32 x, u32 y, BOOL isSub);
+ #endif
+\ No newline at end of file
+diff --git a/libraries/sim/include/sim_g2_gpu.h b/libraries/sim/include/sim_g2_gpu.h
+index 542109f..c15a222 100644
+--- a/libraries/sim/include/sim_g2_gpu.h
++++ b/libraries/sim/include/sim_g2_gpu.h
+@@ -1,18 +1,16 @@
+ #ifndef SIM_G2_GPU_H
+ #define SIM_G2_GPU_H
+ #include <nitro/types.h>
+-#include <simulator/sim_opengl.h>
++#include <simulator/sim_render_backend.hpp>
+ 
+-// GPU 2D layer renderer (perf-g2gpu). Renders BG and OBJ layers directly
+-// from VRAM/palette/OAM data textures into the existing layer textures
+-// (s_bgTextureId / s_objTextureId / objWindowTextureId), after which the
+-// existing g2_fragment.glsl compositing runs unchanged.
++// GPU 2D layer renderer (perf-g2gpu). Fills the inputs of the backend's GPU 2D layer pass for one engine: BG and OBJ
++// layers are then rendered from VRAM/palette/OAM data into the layer images, after which the g2_fragment.glsl
++// compositing runs unchanged.
+ //
+ // GPU path is the default; SIM_G2_GPU=0 forces the CPU reference path in sim_g2.cpp.
+-// Returns FALSE when the GPU path is disabled or the engine uses a feature
++// Returns FALSE when the GPU path is disabled or unavailable, or the engine uses a feature
+ // the GPU path does not replicate (extended direct-color bitmap, mode 6);
+ // the caller then runs the CPU path for that engine.
+-BOOL G2GPU_RenderLayers(BOOL isSub, GLuint *bgTexIds, GLuint *objTexIds,
+-                        GLuint objWindowTexId);
++BOOL G2GPU_BuildLayerParams(BOOL isSub, SIM::Render::G2GpuLayerParams *out);
+ 
+ #endif
+diff --git a/libraries/sim/src/render_gl/sim_render_gl.cpp b/libraries/sim/src/render_gl/sim_render_gl.cpp
+new file mode 100644
+index 0000000..1522e32
+--- /dev/null
++++ b/libraries/sim/src/render_gl/sim_render_gl.cpp
+@@ -0,0 +1,614 @@
++// OpenGL render backend: context, compositor, post pass, present, readback, ImGui.
++#include "sim_render_gl.hpp"
++
++#include <SDL2/SDL.h>
++
++#include <simulator/sim.h>
++#include <simulator/sim_shaders.hpp>
++#include <simulator/sim_RenderContextManager.hpp>
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <string>
++#include <vector>
++
++#include "imgui_impl_opengl3.h"
++#include "imgui_impl_sdl2.h"
++
++#ifdef SDK_TRACY_ENABLE
++#include "tracy/TracyC.h"
++#endif
++
++namespace SIM::Render {
++
++Backend *CreateGlBackend() { return new GlBackend(); }
++
++static const GLint sBgTexUnits[] = {0, 1, 2, 3};
++static const GLint sObjTexUnits[] = {4, 5, 6, 7, 8};
++static const GLint sObjWindowTexUnit = 9;
++
++static void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
++                                GLenum severity, GLsizei length,
++                                const GLchar *message, const void *userParam) {
++  // fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message =
++  // %s\n",
++  //          ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
++  //           type, severity, message );
++}
++
++#ifdef SDK_BUILD_MACOS
++// The shaders say #version 420 core; macOS's OpenGL 4.1 compiles them as 410 (they use nothing past 4.1)
++static const char *SIM_MacShaderSource(const char *src) {
++  std::string *s = new std::string(src);
++  size_t at = s->find("#version 420");
++  if (at != std::string::npos) s->replace(at, 12, "#version 410");
++  return s->c_str();
++}
++#endif
++
++void GlBackend::PreWindowCreate(int swapInterval) {
++  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
++#ifdef SDK_BUILD_MACOS
++  // macOS stops at OpenGL 4.1 core, and only gives a core context that is forward compatible
++  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
++  SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
++#else
++  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
++#endif
++  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
++  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
++  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
++  // No context exists yet, so this has no effect; the interval is applied when it is next changed.
++  SDL_GL_SetSwapInterval(swapInterval);
++}
++
++std::uint64_t GlBackend::WindowFlags() const { return SDL_WINDOW_OPENGL; }
++
++bool GlBackend::Init(SDL_Window *window, const InitParams &params) {
++  mWindow = window;
++  SDL_GLContext context = SDL_GL_CreateContext(window);
++  mContext = context;
++
++  SIM::InitRenderContextManager(window, context);
++
++  #ifndef SDK_BUILD_PROSPERO
++  //OpenGL is static linked on PS5
++  gladLoadGLLoader(SDL_GL_GetProcAddress);
++  #endif
++
++  glViewport(0, 0, params.windowWidth, params.windowHeight);
++
++  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++  glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
++
++#ifndef SDK_BUILD_MACOS
++  glEnable(GL_DEBUG_OUTPUT);
++  glDebugMessageCallback(MessageCallback, 0);
++#endif   // GL 4.3 / KHR_debug: not on macOS
++
++  GLenum glErrCode;
++  GLint status;
++  GLint logSize = 0;
++
++  GLchar *errorBuf;
++
++  GLint g2VertexShader;
++  GLint g2FragmentShader;
++  GLint myVertexShader;
++  GLint myFragmentShader;
++
++  glGenTextures(4, mBgTexture);
++  glActiveTexture(GL_TEXTURE0);
++
++  for (int i = 0; i < 4; i++) {
++    glActiveTexture(GL_TEXTURE0 + sBgTexUnits[i]);
++    glBindTexture(GL_TEXTURE_2D, mBgTexture[i]);
++
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
++
++    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, SIM_NDS_SCREEN_WIDTH,
++                 SIM_NDS_SCREEN_HEIGHT * 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++  }
++
++  glGenTextures(5, mObjTexture);
++  glActiveTexture(GL_TEXTURE0);
++
++  for (int i = 0; i < 5; i++) {
++    glActiveTexture(GL_TEXTURE0 + sObjTexUnits[i]);
++    glBindTexture(GL_TEXTURE_2D, mObjTexture[i]);
++
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
++
++    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, SIM_NDS_SCREEN_WIDTH,
++                 SIM_NDS_SCREEN_HEIGHT * 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++  }
++
++#define GenerateTexture(_id, _width, _height)                                  \
++  glGenTextures(1, &_id);                                                      \
++  glActiveTexture(GL_TEXTURE0);                                                \
++  glBindTexture(GL_TEXTURE_2D, _id);                                           \
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);           \
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);           \
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);                \
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);                \
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
++               GL_UNSIGNED_BYTE, NULL);
++
++#ifdef SDK_BUILD_MACOS
++#define SIM_SHADER_SOURCE(_source) SIM_MacShaderSource(_source)
++#else
++#define SIM_SHADER_SOURCE(_source) (_source)
++#endif
++#define CompileShaderCommon(_id, _source)                                      \
++  { const char *_src = SIM_SHADER_SOURCE(_source);                             \
++  glShaderSource(_id, 1, &_src, NULL); }                                       \
++  glCompileShader(_id);                                                        \
++  glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
++  if (status != GL_TRUE) {                                                     \
++    glGetShaderiv(g2FragmentShader, GL_INFO_LOG_LENGTH, &logSize);             \
++    errorBuf = static_cast<GLchar *>(malloc(logSize * sizeof(GLchar)));        \
++    glGetShaderInfoLog(_id, logSize, &logSize, (GLchar *)errorBuf);            \
++    printf("ERROR COMPILING _source SHADER:\n%s\n", errorBuf);                 \
++    free(errorBuf);                                                            \
++  }
++
++#define CompileVertexShader(_id, _source)                                      \
++  _id = glCreateShader(GL_VERTEX_SHADER);                                      \
++  CompileShaderCommon(_id, _source);
++
++#define CompileFragmentShader(_id, _source)                                    \
++  _id = glCreateShader(GL_FRAGMENT_SHADER);                                    \
++  CompileShaderCommon(_id, _source);
++
++#define LinkShader(_id, _vertex, _fragment)                                    \
++  glAttachShader(_id, _vertex);                                                \
++  glAttachShader(_id, _fragment);                                              \
++  glLinkProgram(_id);                                                          \
++  glErrCode = glGetError();                                                    \
++  glGetProgramiv(_id, GL_LINK_STATUS, &status);                                \
++  if (status != GL_TRUE) {                                                     \
++    glGetProgramiv(_id, GL_INFO_LOG_LENGTH, &logSize);                         \
++    errorBuf = (GLchar *)malloc(logSize * sizeof(GLchar));                     \
++    glGetProgramInfoLog(_id, logSize, &logSize, (GLchar *)errorBuf);           \
++    glErrCode = glGetError();                                                  \
++    printf("ERROR LINKING _id SHADER:\n%s\n", errorBuf);                       \
++    free(errorBuf);                                                            \
++  }                                                                            \
++  glValidateProgram(_id);                                                      \
++  glUseProgram(_id);
++
++  GenerateTexture(mDummyTexture, SIM_NDS_SCREEN_WIDTH,
++                  SIM_NDS_SCREEN_HEIGHT * 2);
++  GenerateTexture(mObjWindowTexture, SIM_NDS_SCREEN_WIDTH,
++                  SIM_NDS_SCREEN_HEIGHT * 2);
++
++  // 3D Framebuffer render texture
++  glGenFramebuffers(1, &mG3FrameBuffer);
++  glBindFramebuffer(GL_FRAMEBUFFER, mG3FrameBuffer);
++  glGenTextures(1, &mG3RenderTexture);
++  glActiveTexture(GL_TEXTURE0);
++  glBindTexture(GL_TEXTURE_2D, mG3RenderTexture);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
++  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
++                         mG3RenderTexture, 0);
++  glGenRenderbuffers(1, &mG3RenderBuffer);
++  glBindRenderbuffer(GL_RENDERBUFFER, mG3RenderBuffer);
++  SetInternalResolution(params.internalScale);
++  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
++                            GL_RENDERBUFFER, mG3RenderBuffer);
++
++  // Check FBO status
++  int fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
++  if (fboStatus != GL_FRAMEBUFFER_COMPLETE) {
++    printf("Framebuffer error: %d\n", fboStatus);
++  }
++
++  // Unbind all that stuff
++  glBindFramebuffer(GL_FRAMEBUFFER, 0);
++  glBindRenderbuffer(GL_RENDERBUFFER, 0);
++
++  glBindTexture(GL_TEXTURE_2D, mG2Texture);
++
++  glGenFramebuffers(1, &mG2FrameBuffer);
++  glBindFramebuffer(GL_FRAMEBUFFER, 0);
++
++  // Setup G3 Shader Program
++  mG3Program = glCreateProgram();
++  CompileVertexShader(myVertexShader, SIM::G3VertexShader);
++  CompileFragmentShader(myFragmentShader, SIM::G3FragmentShader);
++  LinkShader(mG3Program, myVertexShader, myFragmentShader);
++
++  // Setup G2 Shader Program
++  mG2Program = glCreateProgram();
++  CompileVertexShader(g2VertexShader, SIM::G2VertexShader);
++  CompileFragmentShader(g2FragmentShader, SIM::G2FragmentShader);
++  LinkShader(mG2Program, g2VertexShader, g2FragmentShader);
++
++  GLint texUnitLoc = glGetUniformLocation(mG2Program, "myTexture");
++  glProgramUniform1i(mG2Program, texUnitLoc, 0);
++
++  // Set up the texture units in the shader
++  glUniform1iv(glGetUniformLocation(mG2Program, "bgTexture"), 4,
++               sBgTexUnits);
++  glUniform1iv(glGetUniformLocation(mG2Program, "objTexture"), 5,
++               sObjTexUnits);
++
++  // PostFX post pass: offscreen composited frame + fullscreen quad. The texture is (re)sized in BeginFrame.
++  {
++    GLint postVertexShader, postFragmentShader;
++    mPostProgram = glCreateProgram();
++    CompileVertexShader(postVertexShader, SIM::PostVertexShader);
++    CompileFragmentShader(postFragmentShader, SIM::PostFragmentShader);
++    LinkShader(mPostProgram, postVertexShader, postFragmentShader);
++    glGenFramebuffers(1, &mPostFBO);
++    glGenTextures(1, &mPostTex);
++    glGenVertexArrays(1, &mPostVAO);
++    glGenBuffers(1, &mPostVBO);
++    static const float quad[] = {
++      -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,  1.0f, -1.0f, 0.0f, 1.0f, 0.0f,  1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
++      -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,  1.0f,  1.0f, 0.0f, 1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
++    };
++    glBindVertexArray(mPostVAO);
++    glBindBuffer(GL_ARRAY_BUFFER, mPostVBO);
++    glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
++    glEnableVertexAttribArray(0);
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
++    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
++  }
++
++  glGenVertexArrays(1, &mG2VertexArray);
++  glBindVertexArray(mG2VertexArray);
++  glGenBuffers(1, &mG2VertexBuffer);
++
++  glEnable(GL_BLEND);
++  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
++
++  SDL_GL_SwapWindow(window);
++
++  (void)glErrCode;
++  G3Init();
++  return true;
++}
++
++void GlBackend::SetInternalResolution(int scale) {
++  glBindTexture(GL_TEXTURE_2D, mG3RenderTexture);
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
++               SIM_NDS_SCREEN_WIDTH * scale,
++               SIM_NDS_SCREEN_HEIGHT * 2 * scale,
++               0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++
++  glBindRenderbuffer(GL_RENDERBUFFER, mG3RenderBuffer);
++  glRenderbufferStorage(
++      GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
++      SIM_NDS_SCREEN_WIDTH * scale,
++      SIM_NDS_SCREEN_HEIGHT * 2 * scale);
++}
++
++void GlBackend::G3BeginFrame(const G3FrameParams &params) {
++  // Bind 3D Framebuffer & Renderbuffer
++  glBindFramebuffer(GL_FRAMEBUFFER, mG3FrameBuffer);
++  glBindRenderbuffer(GL_RENDERBUFFER, mG3RenderBuffer);
++
++  // Setup 3D Viewport
++  if (params.screen == Screen::Top) {
++    glViewport(0, SIM_NDS_SCREEN_HEIGHT * params.scale,
++               SIM_NDS_SCREEN_WIDTH * params.scale,
++               SIM_NDS_SCREEN_HEIGHT * params.scale);
++  } else {
++    glViewport(0, 0,
++               SIM_NDS_SCREEN_WIDTH * params.scale,
++               SIM_NDS_SCREEN_HEIGHT * params.scale);
++  }
++
++  // Activate 3D shader
++  glUseProgram(mG3Program);
++
++  glEnable(GL_DEPTH_TEST);
++  glEnable(GL_CULL_FACE);
++
++  glCullFace(GL_FRONT);
++  glFrontFace(GL_CW);
++}
++
++void GlBackend::G3EndFrame() {}
++
++void GlBackend::G3ClearTarget() {
++  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
++  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
++}
++
++void GlBackend::BeginFrame(const FrameParams &params) {
++  // Unbind 3D Framebuffer
++  glBindFramebuffer(GL_FRAMEBUFFER, 0);
++  glBindRenderbuffer(GL_RENDERBUFFER, 0);
++  glUseProgram(mG2Program);
++
++  glDisable(GL_DEPTH_TEST);
++  glDisable(GL_CULL_FACE);
++
++  if (mPostFBO && (params.frameWidth != mPostW || params.frameHeight != mPostH)) {
++    mPostW = params.frameWidth; mPostH = params.frameHeight;
++    glBindTexture(GL_TEXTURE_2D, mPostTex);
++    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, mPostW, mPostH, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++    glBindFramebuffer(GL_FRAMEBUFFER, mPostFBO);
++    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mPostTex, 0);
++  }
++  if (mPostFBO) {
++    // view has a top-left origin; GL viewports count from the bottom
++    const int viewYFromBottom = mPostH - params.view.y - params.view.h;
++    glBindFramebuffer(GL_FRAMEBUFFER, mPostFBO);
++    glViewport(params.view.x, viewYFromBottom, params.view.w, params.view.h);
++    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++    glClear(GL_COLOR_BUFFER_BIT);
++  }
++}
++
++void GlBackend::CompositeEngine(const G2CompositeInput &in) {
++  const G2CompositeUniforms &u = in.uniforms;
++  const bool gpuLayers = in.gpu != nullptr;
++
++  glUseProgram(mG2Program);
++
++  // backdropColor is a vec4: glUniform1fv with a count of 4 is GL_INVALID_OPERATION and left it unset
++  glUniform4fv(glGetUniformLocation(mG2Program, "backdropColor"), 1,
++               u.backdropColor);
++
++  glProgramUniform4f(mG2Program,
++                     glGetUniformLocation(mG2Program, "backdropColor"),
++                     u.backdropColor[0], u.backdropColor[1],
++                     u.backdropColor[2], u.backdropColor[3]);
++
++  // Set up the BGPriorities in the shader
++  glUniform1iv(glGetUniformLocation(mG2Program, "bgPriorities"), 4,
++               u.bgPriorities);
++
++  // Set up the BGOrder in the shader
++  glUniform1iv(glGetUniformLocation(mG2Program, "bgOrder"), 4, u.bgOrder);
++
++  // Clear out the textures
++  for (int i = 0; i < 4; i++) {
++    glActiveTexture(GL_TEXTURE0 + sBgTexUnits[0]);
++    glBindTexture(GL_TEXTURE_2D, mDummyTexture);
++  }
++
++  for (int i = 0; i < 5; i++) {
++    glActiveTexture(GL_TEXTURE0 + sObjTexUnits[0]);
++    glBindTexture(GL_TEXTURE_2D, mDummyTexture);
++  }
++
++  // GPU 2D layers: renders BG/OBJ/window layers into the same layer textures; the compositing below is shared.
++  if (gpuLayers) G2GpuRenderLayers(*in.gpu);
++
++  if (!gpuLayers) {
++    // Upload the CPU-rendered BG layers and bind every layer the compositor samples
++    for (int i = 0; i < 4; i++) {
++      if (in.cpu->bg[i]) {
++        glActiveTexture(GL_TEXTURE0 + sBgTexUnits[i]);
++        glBindTexture(GL_TEXTURE_2D, mBgTexture[i]);
++        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SIM_NDS_SCREEN_WIDTH,
++                        SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
++                        (void *)in.cpu->bg[i]);
++      }
++    }
++    for (int i = 0; i < 4; i++) {
++      if (in.bgSource[i] == LayerSource::Empty) {
++        glActiveTexture(GL_TEXTURE0 + sBgTexUnits[i]);
++        glBindTexture(GL_TEXTURE_2D, mDummyTexture);
++      } else if (!in.cpu->bg[i]) {
++        glActiveTexture(GL_TEXTURE0 + sBgTexUnits[i]);
++        glBindTexture(GL_TEXTURE_2D, mBgTexture[i]);
++      }
++    }
++
++    // write all OAMs to the textures based on their priorities
++    for (int i = 0; i < 4; i++) {
++      glActiveTexture(GL_TEXTURE0 + sObjTexUnits[i]);
++      glBindTexture(GL_TEXTURE_2D, mObjTexture[i]);
++      if (in.cpu->obj[i])
++        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SIM_NDS_SCREEN_WIDTH,
++                        SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
++                        (void *)in.cpu->obj[i]);
++    }
++  }
++
++  if (gpuLayers) {
++    for (int i = 0; i < 4; i++) {
++      glActiveTexture(GL_TEXTURE0 + sBgTexUnits[i]);
++      glBindTexture(GL_TEXTURE_2D, in.bgSource[i] != LayerSource::Empty ? mBgTexture[i] : mDummyTexture);
++    }
++    for (int i = 0; i < 4; i++) {
++      glActiveTexture(GL_TEXTURE0 + sObjTexUnits[i]);
++      glBindTexture(GL_TEXTURE_2D, mObjTexture[i]);
++    }
++  }
++
++  glActiveTexture(GL_TEXTURE0 + sBgTexUnits[0]);
++
++  if (in.bgSource[0] == LayerSource::G3Target) {
++    glBindTexture(GL_TEXTURE_2D, mG3RenderTexture);
++  } else if (in.bgSource[0] == LayerSource::Layer) {
++    glBindTexture(GL_TEXTURE_2D, mBgTexture[0]);
++  } else {
++    glBindTexture(GL_TEXTURE_2D, mDummyTexture);
++  }
++
++  // Setup the OBJWindow texture
++  glActiveTexture(GL_TEXTURE0 + sObjWindowTexUnit);
++  glBindTexture(GL_TEXTURE_2D, mObjWindowTexture);
++  if (!gpuLayers && in.cpu->objWindow)
++    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SIM_NDS_SCREEN_WIDTH,
++                    SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
++                    (void *)in.cpu->objWindow);
++  glProgramUniform1i(
++      mG2Program,
++      glGetUniformLocation(mG2Program, "objWindowTexture"),
++      sObjWindowTexUnit);
++
++  glProgramUniform1i(mG2Program,
++                     glGetUniformLocation(mG2Program, "bldcnt"), u.bldcnt);
++  glProgramUniform1i(mG2Program,
++                     glGetUniformLocation(mG2Program, "bldalpha"),
++                     u.bldalpha);
++  glProgramUniform1i(mG2Program,
++                     glGetUniformLocation(mG2Program, "bldy"), u.bldy);
++  glProgramUniform1i(mG2Program,
++                     glGetUniformLocation(mG2Program, "topScreen"),
++                     u.topScreen);
++  glProgramUniform1i(mG2Program,
++                     glGetUniformLocation(mG2Program, "dispcnt"),
++                     u.dispcnt);
++  glProgramUniform1i(mG2Program,
++                     glGetUniformLocation(mG2Program, "winout"), u.winout);
++  glProgramUniform1i(mG2Program,
++                     glGetUniformLocation(mG2Program, "bg0as3d"),
++                     u.bg0as3d);
++  glProgramUniform1f(
++      mG2Program,
++      glGetUniformLocation(mG2Program, "inMasterBrightFactor"),
++      u.masterBrightFactor);
++  glProgramUniform1i(
++      mG2Program,
++      glGetUniformLocation(mG2Program, "inMasterBrightMode"),
++      u.masterBrightMode);
++
++  // Draw the screen quad(s)
++  {
++#ifdef SDK_TRACY_ENABLE
++    TracyCZone(ctx, 1);
++#endif
++    glBindVertexArray(mG2VertexArray);
++    glBindBuffer(GL_ARRAY_BUFFER, mG2VertexBuffer);
++
++    glBufferData(GL_ARRAY_BUFFER, sizeof(G3::RenderVertex) * in.screenQuadVertexCount, in.screenQuad,
++                 GL_STATIC_DRAW);
++
++    glEnableVertexAttribArray(0);
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(G3::RenderVertex),
++                          (void *)offsetof(G3::RenderVertex, x));
++    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(G3::RenderVertex),
++                          (void *)offsetof(G3::RenderVertex, s));
++
++    glDrawArrays(GL_TRIANGLES, 0, in.screenQuadVertexCount);
++#ifdef SDK_TRACY_ENABLE
++    TracyCZoneEnd(ctx);
++#endif
++  }
++
++  // Clear out the textures
++  for (int i = 0; i < 4; i++) {
++    glActiveTexture(GL_TEXTURE0 + sBgTexUnits[0]);
++    glBindTexture(GL_TEXTURE_2D, mDummyTexture);
++  }
++
++  for (int i = 0; i < 5; i++) {
++    glActiveTexture(GL_TEXTURE0 + sObjTexUnits[0]);
++    glBindTexture(GL_TEXTURE_2D, mDummyTexture);
++  }
++}
++
++void GlBackend::RenderPost(const PostFXParams &p) {
++  if (!mPostProgram || mPostW <= 0) return;
++  const GLuint prog = mPostProgram;
++  glBindFramebuffer(GL_FRAMEBUFFER, 0);
++  glViewport(0, 0, mPostW, mPostH);
++  glUseProgram(prog);
++  glActiveTexture(GL_TEXTURE0);
++  glBindTexture(GL_TEXTURE_2D, mPostTex);
++  glProgramUniform1i(prog, glGetUniformLocation(prog, "sceneTex"), 0);
++  glProgramUniform2f(prog, glGetUniformLocation(prog, "texelSize"), p.texelSize[0], p.texelSize[1]);
++  glProgramUniform2f(prog, glGetUniformLocation(prog, "shakeOffset"), p.shakeOffset[0], p.shakeOffset[1]);
++  glProgramUniform2f(prog, glGetUniformLocation(prog, "shockCenter"), p.shockCenter[0], p.shockCenter[1]);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "shockRadius"), p.shockRadius);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "shockStrength"), p.shockStrength);
++  glProgramUniform2f(prog, glGetUniformLocation(prog, "zoomCenter"), p.zoomCenter[0], p.zoomCenter[1]);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "zoomBlur"), p.zoomBlur);
++  glProgramUniform3f(prog, glGetUniformLocation(prog, "vignetteColor"),
++                     p.vignetteColor[0], p.vignetteColor[1], p.vignetteColor[2]);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "vignetteAmount"), p.vignetteAmount);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "chromaAmount"), p.chromaAmount);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "glowAmount"), p.glowAmount);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "letterbox"), p.letterbox);
++  glProgramUniform1i(prog, glGetUniformLocation(prog, "fxRegion"), p.fxRegion);
++  glProgramUniform2f(prog, glGetUniformLocation(prog, "beamTarget"), p.beamTarget[0], p.beamTarget[1]);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "cutinProgress"), p.cutinProgress);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "cutinAlpha"), p.cutinAlpha);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "titleProgress"), p.titleProgress);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "titleAlpha"), p.titleAlpha);
++  glProgramUniform2f(prog, glGetUniformLocation(prog, "glowCenter"), p.glowCenter[0], p.glowCenter[1]);
++  glProgramUniform1f(prog, glGetUniformLocation(prog, "glowAtAmount"), p.glowAtAmount);
++  glBindVertexArray(mPostVAO);
++  glDrawArrays(GL_TRIANGLES, 0, 6);
++}
++
++void GlBackend::Present() {
++  SDL_GL_SwapWindow(mWindow);
++  // The default framebuffer stays bound: clear it for the next frame's post pass, which blends over it.
++  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++  glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
++}
++
++void GlBackend::GetFrameSize(int *width, int *height) {
++  int w = 0, h = 0;
++  SDL_GL_GetDrawableSize(mWindow, &w, &h);
++  if (width) *width = w;
++  if (height) *height = h;
++}
++
++bool GlBackend::ReadPixels(int x, int y, int w, int h, u8 *out) {
++  if (w <= 0 || h <= 0 || !out) return false;
++  int frameH = 0;
++  GetFrameSize(nullptr, &frameH);
++  if (frameH <= 0) frameH = y + h;
++  std::vector<u8> px((size_t)w * h * 4);
++  glReadBuffer(GL_BACK);
++  glPixelStorei(GL_PACK_ALIGNMENT, 1);
++  glReadPixels(x, frameH - y - h, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
++  // GL returns the bottom row first
++  for (int row = 0; row < h; row++)
++    memcpy(&out[(size_t)row * w * 4], &px[(size_t)(h - 1 - row) * w * 4], (size_t)w * 4);
++  return true;
++}
++
++void GlBackend::ImGuiInit(SDL_Window *window) {
++	ImGui_ImplSDL2_InitForOpenGL(window, mContext);
++#ifdef SDK_BUILD_MACOS
++	const char * glsl_version = "#version 410";   // macOS: OpenGL 4.1
++#else
++	const char * glsl_version = "#version 420";
++#endif
++  	ImGui_ImplOpenGL3_Init(glsl_version);
++}
++
++void GlBackend::ImGuiNewFrame() { ImGui_ImplOpenGL3_NewFrame(); }
++
++void GlBackend::ImGuiRender(ImDrawData *drawData) { ImGui_ImplOpenGL3_RenderDrawData(drawData); }
++
++void GlBackend::SetSwapInterval(int interval) { SDL_GL_SetSwapInterval(interval); }
++
++int GlBackend::GetSwapInterval() { return SDL_GL_GetSwapInterval(); }
++
++void GlBackend::DebugMarker(const char *message, int length) {
++#ifndef SDK_BUILD_MACOS
++  glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 1337, GL_DEBUG_SEVERITY_NOTIFICATION, length, message);
++#else
++  (void)message; (void)length;
++#endif
++}
++
++}
+diff --git a/libraries/sim/src/render_gl/sim_render_gl.hpp b/libraries/sim/src/render_gl/sim_render_gl.hpp
+new file mode 100644
+index 0000000..6a998ab
+--- /dev/null
++++ b/libraries/sim/src/render_gl/sim_render_gl.hpp
+@@ -0,0 +1,115 @@
++#ifndef LIBNTR_SIM_RENDER_GL_HPP
++#define LIBNTR_SIM_RENDER_GL_HPP
++
++// OpenGL render backend (see include/simulator/sim_render_backend.hpp for the contract).
++//
++// GL state model: the backend keeps GL's global state "ambient" the way the renderer always has. G3BeginFrame binds the
++// 3D framebuffer, the G3 program and depth/cull state, and G3 draws are issued straight into it; BeginFrame rebinds the
++// composite framebuffer and the G2 program. Texture units used by the compositor: 0-3 bgTexture, 4-8 objTexture,
++// 9 objWindowTexture; by the GPU 2D pass: 10-14 data textures (saved and restored around the pass). G3 textures are
++// bound on unit 0.
++
++#include <simulator/sim_render_backend.hpp>
++#include <simulator/sim_opengl.h>
++
++#include <cstddef>
++
++namespace SIM::Render {
++
++class GlBackend final : public Backend {
++ public:
++  const char *Name() const override { return "gl"; }
++
++  void PreWindowCreate(int swapInterval) override;
++  std::uint64_t WindowFlags() const override;
++  bool Init(SDL_Window *window, const InitParams &params) override;
++
++  void G3BeginFrame(const G3FrameParams &params) override;
++  void G3EndFrame() override;
++  void G3ClearTarget() override;
++  void G3Draw(const G3DrawState &state, const G3::RenderVertex *verts, std::size_t count) override;
++  TextureHandle CreateTexture(int width, int height, const void *rgba8) override;
++  void UpdateTexture(TextureHandle texture, int width, int height, const void *rgba8) override;
++  void DestroyTexture(TextureHandle texture) override;
++  void SetInternalResolution(int scale) override;
++
++  void BeginFrame(const FrameParams &params) override;
++  bool G2GpuAvailable() override;
++  void CompositeEngine(const G2CompositeInput &input) override;
++  void RenderPost(const PostFXParams &params) override;
++  void Present() override;
++  void GetFrameSize(int *width, int *height) override;
++  bool ReadPixels(int x, int y, int w, int h, u8 *out) override;
++
++  void ImGuiInit(SDL_Window *window) override;
++  void ImGuiNewFrame() override;
++  void ImGuiRender(ImDrawData *drawData) override;
++
++  void SetSwapInterval(int interval) override;
++  int GetSwapInterval() override;
++  void DebugMarker(const char *message, int length) override;
++
++ private:
++  // sim_render_gl_g3.cpp
++  void G3Init();
++  void G3CacheUniformLocations();
++  // sim_render_gl_g2gpu.cpp
++  bool G2GpuInit();
++  void G2GpuRenderLayers(const G2GpuLayerParams &p);
++
++  SDL_Window *mWindow = nullptr;
++  void *mContext = nullptr;  // SDL_GLContext
++
++  // 3D target
++  GLuint mG3FrameBuffer = 0;
++  GLuint mG3RenderTexture = 0;
++  GLuint mG3RenderBuffer = 0;
++  GLuint mG3Program = 0;
++
++  // compositor
++  GLuint mG2Program = 0;
++  GLuint mG2FrameBuffer = 0;
++  GLuint mG2Texture = 0;
++  GLuint mG2VertexArray = 0;
++  GLuint mG2VertexBuffer = 0;
++  GLuint mBgTexture[4] = {};
++  GLuint mObjTexture[5] = {};
++  GLuint mDummyTexture = 0;
++  GLuint mObjWindowTexture = 0;
++
++  // post pass
++  GLuint mPostProgram = 0;
++  GLuint mPostFBO = 0;
++  GLuint mPostTex = 0;
++  GLuint mPostVAO = 0;
++  GLuint mPostVBO = 0;
++  int mPostW = 0, mPostH = 0;
++
++  // G3 draw path
++  GLuint mG3VertexArray = 0;
++  GLuint mG3VertexBuffer = 0;
++  std::size_t mG3VertexBufferCount = 0;
++  // Cached uniform locations (valid once per program) and the last values uploaded, so unchanged uniforms are not
++  // re-sent every draw.
++  bool mG3UniformsCached = false;
++  int mLocUseTexture = -1, mLocMyTexture = -1, mLocPolygonMode = -1;
++  int mLocUseFog = -1, mLocFogColor = -1, mLocFogDepthBoundary = -1, mLocFogDensity = -1;
++  int mLastUseTexture = -1, mLastPolygonMode = -1, mLastUseFog = -1;
++  GLuint mLastWrapTexture = 0;
++  int mLastWrapS = -1, mLastWrapT = -1;
++  bool mFogUploaded = false;
++  float mLastFogColor[4] = {};
++  float mLastFogDepth[32] = {};
++  float mLastFogDensity[32] = {};
++
++  // GPU 2D layer pass
++  GLuint mG2gProg = 0, mG2gFbo = 0, mG2gVao = 0;
++  GLuint mG2gBgVramTex[2] = {0, 0}, mG2gObjVramTex[2] = {0, 0}, mG2gLcdcTex = 0, mG2gOamTex = 0, mG2gPalTex = 0;
++  bool mG2gInitFailed = false;
++};
++
++Backend *CreateGlBackend();
++
++}
++
++#endif
+diff --git a/libraries/sim/src/render_gl/sim_render_gl_g2gpu.cpp b/libraries/sim/src/render_gl/sim_render_gl_g2gpu.cpp
+new file mode 100644
+index 0000000..c6d202c
+--- /dev/null
++++ b/libraries/sim/src/render_gl/sim_render_gl_g2gpu.cpp
+@@ -0,0 +1,222 @@
++// OpenGL render backend: GPU 2D layer pass (shaders/g2gpu_*.glsl). The DS-side inputs (registers, sprite lists,
++// fallback decision) are built in sim_g2_gpu.cpp; this file uploads them and runs the passes.
++//
++// Shader inputs are plain data textures (R8UI/R16UI) and int uniforms. GL 4.1 core only.
++#include "sim_render_gl.hpp"
++
++#include <simulator/sim.h>
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++namespace SIM::Render {
++
++static const char *kVertSrc =
++#include "../shaders/g2gpu_vertex.glsl"
++;
++static const char *kFragSrc =
++#include "../shaders/g2gpu_fragment.glsl"
++;
++
++static GLuint Compile(GLenum type, const char *src) {
++  // macOS: rewrite the leading "#version 420" to "#version 410" (GL 4.1).
++  char *tmp = nullptr;
++  const char *use = src;
++#ifdef SDK_BUILD_MACOS
++  if (strncmp(src, "\n#version 420", 13) == 0 || strncmp(src, "#version 420", 12) == 0) {
++    tmp = strdup(src);
++    char *p = strstr(tmp, "#version 420");
++    if (p) memcpy(p, "#version 410", 12);
++    use = tmp;
++  }
++#endif
++  GLuint s = glCreateShader(type);
++  glShaderSource(s, 1, &use, nullptr);
++  glCompileShader(s);
++  GLint ok = 0;
++  glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
++  if (!ok) {
++    GLint len = 0;
++    glGetShaderiv(s, GL_INFO_LOG_LENGTH, &len);
++    char *log = new char[len + 1]();
++    glGetShaderInfoLog(s, len, nullptr, log);
++    printf("SIM_G2_GPU: shader compile failed: %s\n", log);
++    delete[] log;
++  }
++  if (tmp) free(tmp);
++  return ok ? s : 0;
++}
++
++bool GlBackend::G2GpuAvailable() { return G2GpuInit(); }
++
++bool GlBackend::G2GpuInit() {
++  if (mG2gProg || mG2gInitFailed) return mG2gProg != 0;
++  GLuint vs = Compile(GL_VERTEX_SHADER, kVertSrc);
++  GLuint fs = Compile(GL_FRAGMENT_SHADER, kFragSrc);
++  if (!vs || !fs) { mG2gInitFailed = true; return false; }
++  mG2gProg = glCreateProgram();
++  glAttachShader(mG2gProg, vs);
++  glAttachShader(mG2gProg, fs);
++  glLinkProgram(mG2gProg);
++  GLint ok = 0;
++  glGetProgramiv(mG2gProg, GL_LINK_STATUS, &ok);
++  if (!ok) {
++    GLint len = 0;
++    glGetProgramiv(mG2gProg, GL_INFO_LOG_LENGTH, &len);
++    char *log = new char[len + 1]();
++    glGetProgramInfoLog(mG2gProg, len, nullptr, log);
++    printf("SIM_G2_GPU: link failed: %s\n", log);
++    delete[] log;
++    mG2gInitFailed = true;
++    return false;
++  }
++  glGenFramebuffers(1, &mG2gFbo);
++  glGenVertexArrays(1, &mG2gVao);
++  auto mkTex = [](GLuint &t, GLenum internal, int w, int h, GLenum fmt) {
++    glGenTextures(1, &t);
++    glBindTexture(GL_TEXTURE_2D, t);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++    glTexImage2D(GL_TEXTURE_2D, 0, internal, w, h, 0, fmt, GL_UNSIGNED_BYTE, nullptr);
++  };
++  mkTex(mG2gBgVramTex[0], GL_R8UI, 2048, 256, GL_RED_INTEGER);
++  mkTex(mG2gBgVramTex[1], GL_R8UI, 2048, 256, GL_RED_INTEGER);
++  mkTex(mG2gObjVramTex[0], GL_R8UI, 1024, 256, GL_RED_INTEGER);
++  mkTex(mG2gObjVramTex[1], GL_R8UI, 1024, 256, GL_RED_INTEGER);
++  mkTex(mG2gLcdcTex, GL_R8UI, 2048, 328, GL_RED_INTEGER);
++  glGenTextures(1, &mG2gOamTex);
++  glBindTexture(GL_TEXTURE_2D, mG2gOamTex);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, 512, 2, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, nullptr);
++  glGenTextures(1, &mG2gPalTex);
++  glBindTexture(GL_TEXTURE_2D, mG2gPalTex);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, 256, 4, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, nullptr);
++  glUseProgram(mG2gProg);
++  glUniform1i(glGetUniformLocation(mG2gProg, "bgVramTex"), 10);
++  glUniform1i(glGetUniformLocation(mG2gProg, "objVramTex"), 11);
++  glUniform1i(glGetUniformLocation(mG2gProg, "lcdcTex"), 12);
++  glUniform1i(glGetUniformLocation(mG2gProg, "oamTex"), 13);
++  glUniform1i(glGetUniformLocation(mG2gProg, "palTex"), 14);
++  printf("SIM_G2_GPU: GPU 2D layer renderer enabled\n");
++  return true;
++}
++
++void GlBackend::G2GpuRenderLayers(const G2GpuLayerParams &p) {
++  const int isSub = p.isSub;
++
++  // Save texture bindings on the data units (10-14) and the active unit:
++  // the 3D renderer's state cache tracks bindings, so leave them as found.
++  GLint prevActiveTex = 0;
++  glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTex);
++  GLuint savedBind[5] = {0, 0, 0, 0, 0};
++  for (int i = 0; i < 5; i++) {
++    glActiveTexture(GL_TEXTURE10 + i);
++    GLint b = 0;
++    glGetIntegerv(GL_TEXTURE_BINDING_2D, &b);
++    savedBind[i] = (GLuint)b;
++  }
++
++  // Upload data textures for this engine. A shadow copy is kept per
++  // buffer and the upload is skipped when nothing changed (most screens
++  // reuse VRAM for many frames); the LCDC extended palettes are only
++  // uploaded when this engine has extended palettes enabled.
++  static u8 sShadowBg[2][0x80000], sShadowObj[2][0x40000], sShadowLcdc[0xA4000];
++  static bool sShadowBgValid[2] = {false, false}, sShadowObjValid[2] = {false, false}, sShadowLcdcValid = false;
++  auto uploadIfChanged = [](GLuint tex, int unit, int w, int h, const void *data, size_t size, u8 *shadow, bool *valid) {
++    glActiveTexture(GL_TEXTURE0 + unit);
++    glBindTexture(GL_TEXTURE_2D, tex);
++    if (*valid && memcmp(shadow, data, size) == 0) return;
++    memcpy(shadow, data, size);
++    *valid = true;
++    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RED_INTEGER, GL_UNSIGNED_BYTE, data);
++  };
++  uploadIfChanged(mG2gBgVramTex[isSub], 10, 2048, (int)(p.bgVramSize / 2048), p.bgVram,
++                  p.bgVramSize, sShadowBg[isSub], &sShadowBgValid[isSub]);
++  uploadIfChanged(mG2gObjVramTex[isSub], 11, 1024, (int)(p.objVramSize / 1024), p.objVram,
++                  p.objVramSize, sShadowObj[isSub], &sShadowObjValid[isSub]);
++  if (p.lcdc)
++    uploadIfChanged(mG2gLcdcTex, 12, 2048, 328, p.lcdc, 0xA4000, sShadowLcdc, &sShadowLcdcValid);
++  glActiveTexture(GL_TEXTURE13);
++  glBindTexture(GL_TEXTURE_2D, mG2gOamTex);
++  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, isSub ? 1 : 0, 512, 1, GL_RED_INTEGER, GL_UNSIGNED_SHORT, p.oam);
++  glActiveTexture(GL_TEXTURE14);
++  glBindTexture(GL_TEXTURE_2D, mG2gPalTex);
++  for (int r = 0; r < 4; r++)
++    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, r, 256, 1, GL_RED_INTEGER, GL_UNSIGNED_SHORT, p.palettes[r]);
++
++  GLint prevProg = 0;
++  glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
++  GLint prevViewport[4] = {0};
++  glGetIntegerv(GL_VIEWPORT, prevViewport);
++  // Restore whatever framebuffer was bound (the composite image, not always the window)
++  GLint prevFbo = 0;
++  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
++  const GLuint prog = mG2gProg;
++  glUseProgram(prog);
++  glBindVertexArray(mG2gVao);
++  glBindFramebuffer(GL_FRAMEBUFFER, mG2gFbo);
++  glViewport(0, 0, SIM_NDS_SCREEN_WIDTH, SIM_NDS_SCREEN_HEIGHT * 2);
++  glDisable(GL_BLEND);
++  glDisable(GL_DEPTH_TEST);
++  glUniform1i(glGetUniformLocation(prog, "isSub"), p.isSub);
++  glUniform1i(glGetUniformLocation(prog, "topScreen"), p.topScreen);
++  glUniform1i(glGetUniformLocation(prog, "dispcnt"), p.dispcnt);
++  glUniform1i(glGetUniformLocation(prog, "bgMode"), p.bgMode);
++  glUniform1i(glGetUniformLocation(prog, "extPlttBase"), p.extPlttBase);
++  glUniform1iv(glGetUniformLocation(prog, "bgcnt"), 4, p.bgcnt);
++  glUniform1iv(glGetUniformLocation(prog, "bgofs"), 4, p.bgofs);
++  glUniform1iv(glGetUniformLocation(prog, "affA"), 4, p.affA);
++  glUniform1iv(glGetUniformLocation(prog, "affB"), 4, p.affB);
++  glUniform1iv(glGetUniformLocation(prog, "affC"), 4, p.affC);
++  glUniform1iv(glGetUniformLocation(prog, "affD"), 4, p.affD);
++  glUniform1iv(glGetUniformLocation(prog, "affX"), 4, p.affX);
++  glUniform1iv(glGetUniformLocation(prog, "affY"), 4, p.affY);
++  glUniform1i(glGetUniformLocation(prog, "win0h"), p.win0h);
++  glUniform1i(glGetUniformLocation(prog, "win0v"), p.win0v);
++  glUniform1i(glGetUniformLocation(prog, "winin"), p.winin);
++  glUniform1i(glGetUniformLocation(prog, "winout"), p.winout);
++
++  int halfY = p.topScreen ? SIM_NDS_SCREEN_HEIGHT : 0;
++  auto drawPass = [&](GLuint target, int mode, int layer, int dbg) {
++    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
++    glEnable(GL_SCISSOR_TEST);
++    glScissor(0, halfY, SIM_NDS_SCREEN_WIDTH, SIM_NDS_SCREEN_HEIGHT);
++    glClearColor(0, 0, 0, 0);
++    glClear(GL_COLOR_BUFFER_BIT);
++    glDisable(GL_SCISSOR_TEST);
++    glUniform1i(glGetUniformLocation(prog, "passMode"), mode);
++    glUniform1i(glGetUniformLocation(prog, "layer"), layer);
++    glUniform1i(glGetUniformLocation(prog, "dbgEnable"), dbg);
++    glDrawArrays(GL_TRIANGLES, 0, 3);
++  };
++  for (int i = 0; i < 4; i++) {
++    // Render (or clear) every layer; compositing binds dummy for disabled BGs anyway.
++    drawPass(mBgTexture[i], 0, i, p.bgRender[i] ? 1 : 0);
++  }
++  auto drawObjPass = [&](GLuint target, int mode, int layer, int listIdx) {
++    if (!p.objEnabled || p.objCount[listIdx] == 0) { drawPass(target, mode, layer, 0); return; } // clear only
++    glUniform1iv(glGetUniformLocation(prog, "objList"), p.objCount[listIdx], p.objList[listIdx]);
++    glUniform1i(glGetUniformLocation(prog, "objCount"), p.objCount[listIdx]);
++    drawPass(target, mode, layer, 1);
++  };
++  for (int pri = 0; pri < 4; pri++) drawObjPass(mObjTexture[pri], 1, pri, pri);
++  drawObjPass(mObjWindowTexture, 2, 0, 4);
++
++  glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
++  glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
++  for (int i = 0; i < 5; i++) {
++    glActiveTexture(GL_TEXTURE10 + i);
++    glBindTexture(GL_TEXTURE_2D, savedBind[i]);
++  }
++  glActiveTexture(prevActiveTex);
++  glEnable(GL_BLEND);
++  glUseProgram(prevProg);
++}
++
++}
+diff --git a/libraries/sim/src/render_gl/sim_render_gl_g3.cpp b/libraries/sim/src/render_gl/sim_render_gl_g3.cpp
+new file mode 100644
+index 0000000..82d6ccb
+--- /dev/null
++++ b/libraries/sim/src/render_gl/sim_render_gl_g3.cpp
+@@ -0,0 +1,154 @@
++// OpenGL render backend: G3 (3D) draws and textures.
++#include "sim_render_gl.hpp"
++
++#include <simulator/sim_g3_GlobalState.hpp>
++
++#include <string.h>
++#include <stddef.h>
++
++namespace SIM::Render {
++
++void GlBackend::G3Init() {
++    glGenVertexArrays(1, &mG3VertexArray);
++    glBindVertexArray(mG3VertexArray);
++
++    glGenBuffers(1, &mG3VertexBuffer);
++
++    glBindBuffer(GL_ARRAY_BUFFER, mG3VertexBuffer);
++
++    glEnableVertexAttribArray(0);
++    glEnableVertexAttribArray(1);
++    glEnableVertexAttribArray(2);
++    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(G3::RenderVertex), (void*)offsetof(G3::RenderVertex, x));
++    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(G3::RenderVertex), (void*)offsetof(G3::RenderVertex, s));
++    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(G3::RenderVertex), (void*)offsetof(G3::RenderVertex, r));
++
++    glBindVertexArray(0);
++    glDisableVertexAttribArray(0);
++    glDisableVertexAttribArray(1);
++    glDisableVertexAttribArray(2);
++}
++
++void GlBackend::G3CacheUniformLocations() {
++    if(mG3UniformsCached) return;
++    mLocUseTexture = glGetUniformLocation(mG3Program, "useTexture");
++    mLocMyTexture = glGetUniformLocation(mG3Program, "myTexture");
++    mLocPolygonMode = glGetUniformLocation(mG3Program, "polygonMode");
++    mLocUseFog = glGetUniformLocation(mG3Program, "useFog");
++    mLocFogColor = glGetUniformLocation(mG3Program, "fogColor");
++    mLocFogDepthBoundary = glGetUniformLocation(mG3Program, "fogDepthBoundary");
++    mLocFogDensity = glGetUniformLocation(mG3Program, "fogDensity");
++    if(mLocMyTexture >= 0) glProgramUniform1i(mG3Program, mLocMyTexture, 0);
++    mLastUseTexture = -1; mLastPolygonMode = -1; mLastUseFog = -1;
++    mG3UniformsCached = true;
++    if(G3::gG3Stats.enabled) G3::gG3Stats.uniformLocCalls += 7;
++}
++
++static GLint GlWrap(WrapMode mode) {
++    switch(mode) {
++        case WrapMode::MirroredRepeat: return GL_MIRRORED_REPEAT;
++        case WrapMode::Repeat:         return GL_REPEAT;
++        default:                       return GL_CLAMP_TO_BORDER;
++    }
++}
++
++void GlBackend::G3Draw(const G3DrawState &state, const G3::RenderVertex *verts, std::size_t vertsCount) {
++    G3CacheUniformLocations();
++    if(vertsCount == 0) return;
++
++    glBindVertexArray(mG3VertexArray);
++    glBindBuffer(GL_ARRAY_BUFFER, mG3VertexBuffer);
++
++    if(mG3VertexBufferCount >= vertsCount) {
++        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(G3::RenderVertex) * vertsCount, verts);
++    } else {
++        glBufferData(GL_ARRAY_BUFFER, sizeof(G3::RenderVertex) * vertsCount, verts, GL_DYNAMIC_DRAW);
++        mG3VertexBufferCount = vertsCount;
++    }
++
++    // Handle texture
++    if(state.texture == kNoTexture) {
++        if(mLastUseTexture != 0) { glProgramUniform1i(mG3Program, mLocUseTexture, 0); mLastUseTexture = 0; }
++    } else {
++        const GLuint texId = (GLuint)state.texture;
++        glActiveTexture(GL_TEXTURE0);
++        glBindTexture(GL_TEXTURE_2D, texId);
++
++        // Wrap modes are texture state in GL: re-set them only when the texture or the modes change
++        const int wrapS = GlWrap(state.wrapS);
++        const int wrapT = GlWrap(state.wrapT);
++        const bool wrapChanged = (texId != mLastWrapTexture || wrapS != mLastWrapS || wrapT != mLastWrapT);
++        if(wrapChanged) {
++            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
++            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
++            mLastWrapTexture = texId; mLastWrapS = wrapS; mLastWrapT = wrapT;
++        }
++        if(mLastUseTexture != 1) { glProgramUniform1i(mG3Program, mLocUseTexture, 1); mLastUseTexture = 1; }
++    }
++
++    if(mLastPolygonMode != (int)state.polygonMode) {
++        glProgramUniform1i(mG3Program, mLocPolygonMode, state.polygonMode);
++        mLastPolygonMode = (int)state.polygonMode;
++    }
++    // Fog uniforms: re-upload only when a value actually changed
++    // (the two 32-float tables repeat unchanged on most draws).
++    if(mLastUseFog != (int)state.fogEnabled) {
++        glProgramUniform1i(mG3Program, mLocUseFog, state.fogEnabled);
++        mLastUseFog = (int)state.fogEnabled;
++    }
++    if(state.fogEnabled) {
++        const float * fogColor = state.fogColor;
++        if(!mFogUploaded || memcmp(mLastFogColor, fogColor, sizeof(mLastFogColor)) != 0 ||
++           memcmp(mLastFogDepth, state.fogDepthBoundary, sizeof(mLastFogDepth)) != 0 ||
++           memcmp(mLastFogDensity, state.fogDensity, sizeof(mLastFogDensity)) != 0) {
++            glProgramUniform4f(mG3Program, mLocFogColor, fogColor[0], fogColor[1], fogColor[2], fogColor[3]);
++            glProgramUniform1fv(mG3Program, mLocFogDepthBoundary, 32, state.fogDepthBoundary);
++            glProgramUniform1fv(mG3Program, mLocFogDensity, 32, state.fogDensity);
++            memcpy(mLastFogColor, fogColor, sizeof(mLastFogColor));
++            memcpy(mLastFogDepth, state.fogDepthBoundary, sizeof(mLastFogDepth));
++            memcpy(mLastFogDensity, state.fogDensity, sizeof(mLastFogDensity));
++            mFogUploaded = true;
++        }
++    }
++
++    // Front faces are clockwise (glFrontFace(GL_CW) in G3BeginFrame)
++    switch(state.cull) {
++        case CullWinding::All:              glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); break;
++        case CullWinding::CounterClockwise: glEnable(GL_CULL_FACE); glCullFace(GL_BACK); break;
++        case CullWinding::Clockwise:        glEnable(GL_CULL_FACE); glCullFace(GL_FRONT); break;
++        default:                            glDisable(GL_CULL_FACE); break;
++    }
++    glDepthFunc(state.depthFunc == DepthFunc::Equal ? GL_EQUAL : GL_LESS);
++    if(!state.depthWrite) glDepthMask(GL_FALSE);
++
++    glDrawArrays(GL_TRIANGLES, 0, vertsCount);
++
++    if(!state.depthWrite) glDepthMask(GL_TRUE);
++}
++
++TextureHandle GlBackend::CreateTexture(int width, int height, const void *rgba8) {
++  GLuint id = 0;
++  glGenTextures(1, &id);
++  glActiveTexture(GL_TEXTURE0);
++  glBindTexture(GL_TEXTURE_2D, id);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA,
++               GL_UNSIGNED_BYTE, rgba8);
++  return (TextureHandle)id;
++}
++
++void GlBackend::UpdateTexture(TextureHandle texture, int width, int height, const void *rgba8) {
++  glActiveTexture(GL_TEXTURE0);
++  glBindTexture(GL_TEXTURE_2D, (GLuint)texture);
++  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba8);
++}
++
++void GlBackend::DestroyTexture(TextureHandle texture) {
++  GLuint id = (GLuint)texture;
++  glDeleteTextures(1, &id);
++}
++
++}
+diff --git a/libraries/sim/src/render_gpu/sim_render_gpu.cpp b/libraries/sim/src/render_gpu/sim_render_gpu.cpp
+new file mode 100644
+index 0000000..a5d3b80
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/sim_render_gpu.cpp
+@@ -0,0 +1,51 @@
++// SDL3 GPU render backend (SIM_RENDERER=gpu). Not implemented yet: every method is an empty stub, and
++// CreateGpuBackend reports that and returns nullptr so that Select() falls back to the OpenGL backend.
++#include "sim_render_gpu.hpp"
++
++#include <stdio.h>
++
++namespace SIM::Render {
++
++static constexpr bool kImplemented = false;
++
++Backend *CreateGpuBackend() {
++  if (!kImplemented) {
++    fprintf(stderr, "SIM_RENDERER=gpu: the SDL_GPU renderer is not implemented yet, falling back to gl\n");
++    return nullptr;
++  }
++  return new GpuBackend();
++}
++
++void GpuBackend::PreWindowCreate(int) {}
++std::uint64_t GpuBackend::WindowFlags() const { return 0; }
++bool GpuBackend::Init(SDL_Window *, const InitParams &) { return false; }
++
++void GpuBackend::G3BeginFrame(const G3FrameParams &) {}
++void GpuBackend::G3EndFrame() {}
++void GpuBackend::G3ClearTarget() {}
++void GpuBackend::G3Draw(const G3DrawState &, const G3::RenderVertex *, std::size_t) {}
++TextureHandle GpuBackend::CreateTexture(int, int, const void *) { return kNoTexture; }
++void GpuBackend::UpdateTexture(TextureHandle, int, int, const void *) {}
++void GpuBackend::DestroyTexture(TextureHandle) {}
++void GpuBackend::SetInternalResolution(int) {}
++
++void GpuBackend::BeginFrame(const FrameParams &) {}
++bool GpuBackend::G2GpuAvailable() { return false; }
++void GpuBackend::CompositeEngine(const G2CompositeInput &) {}
++void GpuBackend::RenderPost(const PostFXParams &) {}
++void GpuBackend::Present() {}
++void GpuBackend::GetFrameSize(int *width, int *height) {
++  if (width) *width = 0;
++  if (height) *height = 0;
++}
++bool GpuBackend::ReadPixels(int, int, int, int, u8 *) { return false; }
++
++void GpuBackend::ImGuiInit(SDL_Window *) {}
++void GpuBackend::ImGuiNewFrame() {}
++void GpuBackend::ImGuiRender(ImDrawData *) {}
++
++void GpuBackend::SetSwapInterval(int) {}
++int GpuBackend::GetSwapInterval() { return 0; }
++void GpuBackend::DebugMarker(const char *, int) {}
++
++}
+diff --git a/libraries/sim/src/render_gpu/sim_render_gpu.hpp b/libraries/sim/src/render_gpu/sim_render_gpu.hpp
+new file mode 100644
+index 0000000..4510716
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/sim_render_gpu.hpp
+@@ -0,0 +1,49 @@
++#ifndef LIBNTR_SIM_RENDER_GPU_HPP
++#define LIBNTR_SIM_RENDER_GPU_HPP
++
++// SDL3 GPU render backend (SIM_RENDERER=gpu). See include/simulator/sim_render_backend.hpp for the contract.
++
++#include <simulator/sim_render_backend.hpp>
++
++namespace SIM::Render {
++
++class GpuBackend final : public Backend {
++ public:
++  const char *Name() const override { return "gpu"; }
++
++  void PreWindowCreate(int swapInterval) override;
++  std::uint64_t WindowFlags() const override;
++  bool Init(SDL_Window *window, const InitParams &params) override;
++
++  void G3BeginFrame(const G3FrameParams &params) override;
++  void G3EndFrame() override;
++  void G3ClearTarget() override;
++  void G3Draw(const G3DrawState &state, const G3::RenderVertex *verts, std::size_t count) override;
++  TextureHandle CreateTexture(int width, int height, const void *rgba8) override;
++  void UpdateTexture(TextureHandle texture, int width, int height, const void *rgba8) override;
++  void DestroyTexture(TextureHandle texture) override;
++  void SetInternalResolution(int scale) override;
++
++  void BeginFrame(const FrameParams &params) override;
++  bool G2GpuAvailable() override;
++  void CompositeEngine(const G2CompositeInput &input) override;
++  void RenderPost(const PostFXParams &params) override;
++  void Present() override;
++  void GetFrameSize(int *width, int *height) override;
++  bool ReadPixels(int x, int y, int w, int h, u8 *out) override;
++
++  void ImGuiInit(SDL_Window *window) override;
++  void ImGuiNewFrame() override;
++  void ImGuiRender(ImDrawData *drawData) override;
++
++  void SetSwapInterval(int interval) override;
++  int GetSwapInterval() override;
++  void DebugMarker(const char *message, int length) override;
++};
++
++// Returns nullptr when the SDL_GPU backend cannot be used (the caller then falls back to OpenGL).
++Backend *CreateGpuBackend();
++
++}
++
++#endif
+diff --git a/libraries/sim/src/sim_g2.cpp b/libraries/sim/src/sim_g2.cpp
+index cca40ac..5cf5c52 100644
+--- a/libraries/sim/src/sim_g2.cpp
++++ b/libraries/sim/src/sim_g2.cpp
+@@ -1,6 +1,5 @@
+ #include <nitro.h>
+ #include <simulator/sim.h>
+-#include <simulator/sim_opengl.h>
+ 
+ #ifdef SDK_TRACY_ENABLE
+ #include "tracy/TracyC.h"
+@@ -35,10 +34,6 @@ extern u8 s_SIM_DBG_OAMSenable;
+ 
+ extern u8 s_mosaicTable[16][256];
+ 
+-extern GLuint s_bgTextureId[4];
+-extern GLuint s_objTextureId[5];
+-extern GLint s_bgTexUnits[];
+-
+ extern u32 OBJLine[2][256];
+ extern u8 OBJWindow[2][256];
+ 
+@@ -57,7 +52,7 @@ static void DrawOBJ_Normal(u32 num, u32 width, u32 height, s32 xpos, s32 ypos,
+                            u8 isSub, u8 isWin);
+ static void *getBgExtPlttVramBank(BOOL isSub);
+ 
+-void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
++const u8 *G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
+ #ifdef SDK_TRACY_ENABLE
+   TracyCZone(ctx, 1);
+ #endif
+@@ -72,13 +67,13 @@ void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
+     if (!s_SIM_DBG_BGSenable[bgNum]) {
+       // Return early if the BgNum has been disabled
+       // via debugging GUI
+-      return;
++      return NULL;
+     }
+   } else {
+     if (!s_SIM_DBG_BGenable[bgNum]) {
+       // Return early if the BgNum has been disabled
+       // via debugging GUI
+-      return;
++      return NULL;
+     }
+   }
+ 
+@@ -236,15 +231,11 @@ void G2SIM_DrawBG(u8 bgNum, u8 bgMode, u8 bg03D, u8 isSub) {
+     bgTexBuf = bgTexTable[bgNum];
+   }
+ 
+-  glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[bgNum]);
+-  glBindTexture(GL_TEXTURE_2D, s_bgTextureId[bgNum]);
+-
+-  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SIM_NDS_SCREEN_WIDTH,
+-                  SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
+-                  (void *)bgTexBuf);
+ #ifdef SDK_TRACY_ENABLE
+   TracyCZoneEnd(ctx);
+ #endif
++  // The caller uploads the finished layer
++  return bgTexBuf;
+ }
+ 
+ void G2SIM_DrawOBJ(u32 line, u8 isSub, int bgnum) {
+diff --git a/libraries/sim/src/sim_g2_gpu.cpp b/libraries/sim/src/sim_g2_gpu.cpp
+index 86e5cea..29f6d8c 100644
+--- a/libraries/sim/src/sim_g2_gpu.cpp
++++ b/libraries/sim/src/sim_g2_gpu.cpp
+@@ -1,9 +1,9 @@
+-// GPU 2D layer renderer (perf-g2gpu).
++// GPU 2D layer renderer (perf-g2gpu): DS side.
+ //
+-// Renders each BG layer, each OBJ priority layer and the OBJ window mask
+-// directly from VRAM / palette / OAM data textures into the layer textures
+-// the existing g2_fragment.glsl compositing already samples. The CPU path
+-// in sim_g2.cpp stays as the reference and fallback (SIM_G2_GPU=0).
++// Builds the inputs of the GPU 2D layer pass (SIM::Render::G2GpuLayerParams): each BG layer, each OBJ priority layer
++// and the OBJ window mask are rendered by the backend directly from VRAM / palette / OAM data into the layer images
++// the compositor (g2_fragment.glsl) samples. The CPU path in sim_g2.cpp stays as the reference and fallback
++// (SIM_G2_GPU=0).
+ //
+ // Replicated CPU quirks (for pixel-exactness against the reference):
+ // mosaic has no effect, text BG windows consult only WIN0, affine/extended
+@@ -11,15 +11,12 @@
+ // are palette-looked-up by low byte, OBJ translucency is dropped.
+ // Fallbacks (whole engine, logged once): extended direct-color bitmap
+ // (CPU reads through an uninitialized palette pointer), BG mode 6.
+-//
+-// Shader inputs are plain data textures (R8UI/R16UI) and int uniforms so a
+-// Metal port is mechanical. GL 4.1 core only.
+ #include <nitro.h>
+ #include <simulator/sim.h>
+-#include <simulator/sim_opengl.h>
+ #include <simulator/simvariables.h>
+ #include <nitro/gx/gx_vramcnt.h>
+ #include <stdio.h>
++#include <stdlib.h>
+ #include <string.h>
+ #include "sim_g2_gpu.h"
+ 
+@@ -30,104 +27,8 @@ extern u8 s_SIM_DBG_OAMSenable;
+ extern GXVRamBGExtPltt s_SIM_GXBgExtPltt;
+ extern GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
+ 
+-static const char *kVertSrc =
+-#include "shaders/g2gpu_vertex.glsl"
+-;
+-static const char *kFragSrc =
+-#include "shaders/g2gpu_fragment.glsl"
+-;
+-
+-static GLuint sProg = 0, sFbo = 0, sVao = 0;
+-static GLuint sBgVramTex[2] = {0, 0}, sObjVramTex[2] = {0, 0}, sLcdcTex = 0, sOamTex = 0, sPalTex = 0;
+-static int sInitFailed = 0;
+ static int sLoggedFallback = 0;
+ 
+-static GLuint Compile(GLenum type, const char *src) {
+-  // macOS: rewrite the leading "#version 420" to "#version 410" (GL 4.1).
+-  char *tmp = nullptr;
+-  const char *use = src;
+-#ifdef SDK_BUILD_MACOS
+-  if (strncmp(src, "\n#version 420", 13) == 0 || strncmp(src, "#version 420", 12) == 0) {
+-    tmp = strdup(src);
+-    char *p = strstr(tmp, "#version 420");
+-    if (p) memcpy(p, "#version 410", 12);
+-    use = tmp;
+-  }
+-#endif
+-  GLuint s = glCreateShader(type);
+-  glShaderSource(s, 1, &use, nullptr);
+-  glCompileShader(s);
+-  GLint ok = 0;
+-  glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
+-  if (!ok) {
+-    GLint len = 0;
+-    glGetShaderiv(s, GL_INFO_LOG_LENGTH, &len);
+-    char *log = new char[len + 1]();
+-    glGetShaderInfoLog(s, len, nullptr, log);
+-    printf("SIM_G2_GPU: shader compile failed: %s\n", log);
+-    delete[] log;
+-  }
+-  if (tmp) free(tmp);
+-  return ok ? s : 0;
+-}
+-
+-static bool Init() {
+-  if (sProg || sInitFailed) return sProg != 0;
+-  GLuint vs = Compile(GL_VERTEX_SHADER, kVertSrc);
+-  GLuint fs = Compile(GL_FRAGMENT_SHADER, kFragSrc);
+-  if (!vs || !fs) { sInitFailed = 1; return false; }
+-  sProg = glCreateProgram();
+-  glAttachShader(sProg, vs);
+-  glAttachShader(sProg, fs);
+-  glLinkProgram(sProg);
+-  GLint ok = 0;
+-  glGetProgramiv(sProg, GL_LINK_STATUS, &ok);
+-  if (!ok) {
+-    GLint len = 0;
+-    glGetProgramiv(sProg, GL_INFO_LOG_LENGTH, &len);
+-    char *log = new char[len + 1]();
+-    glGetProgramInfoLog(sProg, len, nullptr, log);
+-    printf("SIM_G2_GPU: link failed: %s\n", log);
+-    delete[] log;
+-    sInitFailed = 1;
+-    return false;
+-  }
+-  glGenFramebuffers(1, &sFbo);
+-  glGenVertexArrays(1, &sVao);
+-  auto mkTex = [](GLuint &t, GLenum internal, int w, int h, GLenum fmt) {
+-    glGenTextures(1, &t);
+-    glBindTexture(GL_TEXTURE_2D, t);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+-    glTexImage2D(GL_TEXTURE_2D, 0, internal, w, h, 0, fmt, GL_UNSIGNED_BYTE, nullptr);
+-  };
+-  mkTex(sBgVramTex[0], GL_R8UI, 2048, 256, GL_RED_INTEGER);
+-  mkTex(sBgVramTex[1], GL_R8UI, 2048, 256, GL_RED_INTEGER);
+-  mkTex(sObjVramTex[0], GL_R8UI, 1024, 256, GL_RED_INTEGER);
+-  mkTex(sObjVramTex[1], GL_R8UI, 1024, 256, GL_RED_INTEGER);
+-  mkTex(sLcdcTex, GL_R8UI, 2048, 328, GL_RED_INTEGER);
+-  glGenTextures(1, &sOamTex);
+-  glBindTexture(GL_TEXTURE_2D, sOamTex);
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-  glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, 512, 2, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, nullptr);
+-  glGenTextures(1, &sPalTex);
+-  glBindTexture(GL_TEXTURE_2D, sPalTex);
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-  glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, 256, 4, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, nullptr);
+-  glUseProgram(sProg);
+-  glUniform1i(glGetUniformLocation(sProg, "bgVramTex"), 10);
+-  glUniform1i(glGetUniformLocation(sProg, "objVramTex"), 11);
+-  glUniform1i(glGetUniformLocation(sProg, "lcdcTex"), 12);
+-  glUniform1i(glGetUniformLocation(sProg, "oamTex"), 13);
+-  glUniform1i(glGetUniformLocation(sProg, "palTex"), 14);
+-  printf("SIM_G2_GPU: GPU 2D layer renderer enabled\n");
+-  return true;
+-}
+-
+ static bool EngineFallback(int isSub, int bgMode, const u16 cnt[4], const u8 enabled[4], int bg0as3d) {
+   for (int i = 0; i < 4; i++) {
+     if (!enabled[i]) continue;
+@@ -141,14 +42,14 @@ static bool EngineFallback(int isSub, int bgMode, const u16 cnt[4], const u8 ena
+   return false;
+ }
+ 
+-BOOL G2GPU_RenderLayers(BOOL isSub, GLuint *bgTexIds, GLuint *objTexIds, GLuint objWindowTexId) {
++BOOL G2GPU_BuildLayerParams(BOOL isSub, SIM::Render::G2GpuLayerParams *out) {
+   static int enabled = -1;
+   if (enabled < 0) {
+     const char *e = getenv("SIM_G2_GPU");
+     enabled = (!e || atoi(e)) ? 1 : 0; // GPU is the default; SIM_G2_GPU=0 forces the CPU path
+   }
+   if (!enabled) return FALSE;
+-  if (!Init()) return FALSE;
++  if (!SIM::Render::Get().G2GpuAvailable()) return FALSE;
+ 
+   u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
+   int bgMode = dispcnt & 7;
+@@ -161,47 +62,19 @@ BOOL G2GPU_RenderLayers(BOOL isSub, GLuint *bgTexIds, GLuint *objTexIds, GLuint
+     return FALSE;
+   }
+ 
+-  // Save texture bindings on the data units (10-14) and the active unit:
+-  // the 3D renderer's state cache tracks bindings, so leave them as found.
+-  GLint prevActiveTex = 0;
+-  glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTex);
+-  GLuint savedBind[5] = {0, 0, 0, 0, 0};
+-  for (int i = 0; i < 5; i++) {
+-    glActiveTexture(GL_TEXTURE10 + i);
+-    GLint b = 0;
+-    glGetIntegerv(GL_TEXTURE_BINDING_2D, &b);
+-    savedBind[i] = (GLuint)b;
+-  }
++  SIM::Render::G2GpuLayerParams &p = *out;
+ 
+-  // Upload data textures for this engine. A shadow copy is kept per
+-  // buffer and the upload is skipped when nothing changed (most screens
+-  // reuse VRAM for many frames); the LCDC extended palettes are only
+-  // uploaded when this engine has extended palettes enabled.
+-  static u8 sShadowBg[2][0x80000], sShadowObj[2][0x40000], sShadowLcdc[0xA4000];
+-  static bool sShadowBgValid[2] = {false, false}, sShadowObjValid[2] = {false, false}, sShadowLcdcValid = false;
+-  auto uploadIfChanged = [](GLuint tex, int unit, int w, int h, const void *data, size_t size, u8 *shadow, bool *valid) {
+-    glActiveTexture(GL_TEXTURE0 + unit);
+-    glBindTexture(GL_TEXTURE_2D, tex);
+-    if (*valid && memcmp(shadow, data, size) == 0) return;
+-    memcpy(shadow, data, size);
+-    *valid = true;
+-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RED_INTEGER, GL_UNSIGNED_BYTE, data);
+-  };
+-  uploadIfChanged(sBgVramTex[isSub], 10, 2048, isSub ? 64 : 256, isSub ? (void *)s_HW_DB_BG_VRAM : (void *)s_HW_BG_VRAM,
+-                  isSub ? 0x20000 : 0x80000, sShadowBg[isSub], &sShadowBgValid[isSub]);
+-  uploadIfChanged(sObjVramTex[isSub], 11, 1024, isSub ? 128 : 256, isSub ? (void *)s_HW_DB_OBJ_VRAM : (void *)s_HW_OBJ_VRAM,
+-                  isSub ? 0x20000 : 0x40000, sShadowObj[isSub], &sShadowObjValid[isSub]);
+-  if (dispcnt & 0x40000000)
+-    uploadIfChanged(sLcdcTex, 12, 2048, 328, (void *)s_HW_LCDC_VRAM, 0xA4000, sShadowLcdc, &sShadowLcdcValid);
+-  glActiveTexture(GL_TEXTURE13);
+-  glBindTexture(GL_TEXTURE_2D, sOamTex);
+-  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, isSub ? 1 : 0, 512, 1, GL_RED_INTEGER, GL_UNSIGNED_SHORT,
+-                  isSub ? (void *)s_HW_DB_OAM : (void *)s_HW_OAM);
+-  glActiveTexture(GL_TEXTURE14);
+-  glBindTexture(GL_TEXTURE_2D, sPalTex);
+-  const u16 *pals[4] = {(u16 *)s_HW_BG_PLTT, (u16 *)s_HW_OBJ_PLTT, (u16 *)s_HW_DB_BG_PLTT, (u16 *)s_HW_DB_OBJ_PLTT};
+-  for (int r = 0; r < 4; r++)
+-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, r, 256, 1, GL_RED_INTEGER, GL_UNSIGNED_SHORT, (void *)pals[r]);
++  // Data for this engine; the LCDC extended palettes only when this engine has extended palettes enabled.
++  p.bgVram = isSub ? (const void *)s_HW_DB_BG_VRAM : (const void *)s_HW_BG_VRAM;
++  p.bgVramSize = isSub ? 0x20000 : 0x80000;
++  p.objVram = isSub ? (const void *)s_HW_DB_OBJ_VRAM : (const void *)s_HW_OBJ_VRAM;
++  p.objVramSize = isSub ? 0x20000 : 0x40000;
++  p.lcdc = (dispcnt & 0x40000000) ? (const void *)s_HW_LCDC_VRAM : nullptr;
++  p.oam = isSub ? (const void *)s_HW_DB_OAM : (const void *)s_HW_OAM;
++  p.palettes[0] = (const void *)s_HW_BG_PLTT;
++  p.palettes[1] = (const void *)s_HW_OBJ_PLTT;
++  p.palettes[2] = (const void *)s_HW_DB_BG_PLTT;
++  p.palettes[3] = (const void *)s_HW_DB_OBJ_PLTT;
+ 
+   int extBase;
+   if (isSub) extBase = 0x98000; // LCDC bank H
+@@ -224,88 +97,36 @@ BOOL G2GPU_RenderLayers(BOOL isSub, GLuint *bgTexIds, GLuint *objTexIds, GLuint
+   }
+   int topScreen = (s_reg_GX_POWCNT >> 15) ? !isSub : isSub;
+ 
+-  GLint prevProg = 0;
+-  glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
+-  GLint prevViewport[4] = {0};
+-  glGetIntegerv(GL_VIEWPORT, prevViewport);
+-  // Restore whatever framebuffer was bound (the PostFX offscreen frame, not always the window)
+-  GLint prevFbo = 0;
+-  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
+-  glUseProgram(sProg);
+-  glBindVertexArray(sVao);
+-  glBindFramebuffer(GL_FRAMEBUFFER, sFbo);
+-  glViewport(0, 0, SIM_NDS_SCREEN_WIDTH, SIM_NDS_SCREEN_HEIGHT * 2);
+-  glDisable(GL_BLEND);
+-  glDisable(GL_DEPTH_TEST);
+-  glUniform1i(glGetUniformLocation(sProg, "isSub"), isSub);
+-  glUniform1i(glGetUniformLocation(sProg, "topScreen"), topScreen);
+-  glUniform1i(glGetUniformLocation(sProg, "dispcnt"), (int)dispcnt);
+-  glUniform1i(glGetUniformLocation(sProg, "bgMode"), bgMode);
+-  glUniform1i(glGetUniformLocation(sProg, "extPlttBase"), extBase);
+-  GLint cntI[4] = {cnt[0], cnt[1], cnt[2], cnt[3]};
+-  glUniform1iv(glGetUniformLocation(sProg, "bgcnt"), 4, cntI);
+-  GLint ofsI[4] = {(GLint)ofs[0], (GLint)ofs[1], (GLint)ofs[2], (GLint)ofs[3]};
+-  glUniform1iv(glGetUniformLocation(sProg, "bgofs"), 4, ofsI);
+-  GLint vA[4] = {0, 0, pA[2], pA[3]}, vB[4] = {0, 0, pB[2], pB[3]}, vC[4] = {0, 0, pC[2], pC[3]}, vD[4] = {0, 0, pD[2], pD[3]};
+-  glUniform1iv(glGetUniformLocation(sProg, "affA"), 4, vA);
+-  glUniform1iv(glGetUniformLocation(sProg, "affB"), 4, vB);
+-  glUniform1iv(glGetUniformLocation(sProg, "affC"), 4, vC);
+-  glUniform1iv(glGetUniformLocation(sProg, "affD"), 4, vD);
+-  GLint vX[4] = {0, 0, (GLint)aX[2], (GLint)aX[3]}, vY[4] = {0, 0, (GLint)aY[2], (GLint)aY[3]};
+-  glUniform1iv(glGetUniformLocation(sProg, "affX"), 4, vX);
+-  glUniform1iv(glGetUniformLocation(sProg, "affY"), 4, vY);
+-  glUniform1i(glGetUniformLocation(sProg, "win0h"), isSub ? s_reg_G2S_DB_WIN0H : s_reg_G2_WIN0H);
+-  glUniform1i(glGetUniformLocation(sProg, "win0v"), isSub ? s_reg_G2S_DB_WIN0V : s_reg_G2_WIN0V);
+-  glUniform1i(glGetUniformLocation(sProg, "winin"), isSub ? s_reg_G2S_DB_WININ : s_reg_G2_WININ);
+-  glUniform1i(glGetUniformLocation(sProg, "winout"), isSub ? s_reg_G2S_DB_WINOUT : s_reg_G2_WINOUT);
++  p.isSub = isSub;
++  p.topScreen = topScreen;
++  p.dispcnt = (s32)dispcnt;
++  p.bgMode = bgMode;
++  p.extPlttBase = extBase;
++  for (int i = 0; i < 4; i++) {
++    p.bgcnt[i] = cnt[i];
++    p.bgofs[i] = (s32)ofs[i];
++    p.affA[i] = pA[i]; p.affB[i] = pB[i]; p.affC[i] = pC[i]; p.affD[i] = pD[i];
++    p.affX[i] = (s32)aX[i]; p.affY[i] = (s32)aY[i];
++  }
++  p.win0h = isSub ? s_reg_G2S_DB_WIN0H : s_reg_G2_WIN0H;
++  p.win0v = isSub ? s_reg_G2S_DB_WIN0V : s_reg_G2_WIN0V;
++  p.winin = isSub ? s_reg_G2S_DB_WININ : s_reg_G2_WININ;
++  p.winout = isSub ? s_reg_G2S_DB_WINOUT : s_reg_G2_WINOUT;
+ 
+-  int halfY = topScreen ? SIM_NDS_SCREEN_HEIGHT : 0;
+-  auto drawPass = [&](GLuint target, int mode, int layer, int dbg) {
+-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
+-    glEnable(GL_SCISSOR_TEST);
+-    glScissor(0, halfY, SIM_NDS_SCREEN_WIDTH, SIM_NDS_SCREEN_HEIGHT);
+-    glClearColor(0, 0, 0, 0);
+-    glClear(GL_COLOR_BUFFER_BIT);
+-    glDisable(GL_SCISSOR_TEST);
+-    glUniform1i(glGetUniformLocation(sProg, "passMode"), mode);
+-    glUniform1i(glGetUniformLocation(sProg, "layer"), layer);
+-    glUniform1i(glGetUniformLocation(sProg, "dbgEnable"), dbg);
+-    glDrawArrays(GL_TRIANGLES, 0, 3);
+-  };
+   const u8 *dbgBg = isSub ? s_SIM_DBG_BGSenable : s_SIM_DBG_BGenable;
+   for (int i = 0; i < 4; i++) {
+-    int render = bgEnabled[i] && dbgBg[i] && !(i == 0 && bg0as3d && !isSub);
+-    // Render (or clear) every layer; compositing binds dummy for disabled BGs anyway.
+-    drawPass(bgTexIds[i], 0, i, render ? 1 : 0);
++    // Every layer is rendered or cleared; compositing samples an empty layer for disabled BGs anyway.
++    p.bgRender[i] = bgEnabled[i] && dbgBg[i] && !(i == 0 && bg0as3d && !isSub);
+   }
+-  int objEnabled = (dispcnt & 0x1000) && (isSub ? s_SIM_DBG_OAMSenable : s_SIM_DBG_OAMenable);
++  p.objEnabled = (dispcnt & 0x1000) && (isSub ? s_SIM_DBG_OAMSenable : s_SIM_DBG_OAMenable);
+   // Candidate sprite lists per priority (ascending OAM index, matching
+   // the CPU's lowest-index-wins result), plus the OBJ window list.
+   const u16 *oam = (const u16 *)(isSub ? s_HW_DB_OAM : s_HW_OAM);
+-  GLint lists[5][128];
+-  int counts[5] = {0, 0, 0, 0, 0};
++  for (int n = 0; n < 5; n++) p.objCount[n] = 0;
+   for (int i = 0; i < 128; i++) {
+     u16 a0 = oam[i * 4], a2 = oam[i * 4 + 2];
+-    if (((a0 >> 10) & 3) == 2) { lists[4][counts[4]++] = i; continue; }
+-    lists[(a2 >> 10) & 3][counts[(a2 >> 10) & 3]++] = i;
+-  }
+-  auto drawObjPass = [&](GLuint target, int mode, int layer, int listIdx) {
+-    if (!objEnabled || counts[listIdx] == 0) { drawPass(target, mode, layer, 0); return; } // clear only
+-    glUniform1iv(glGetUniformLocation(sProg, "objList"), counts[listIdx], lists[listIdx]);
+-    glUniform1i(glGetUniformLocation(sProg, "objCount"), counts[listIdx]);
+-    drawPass(target, mode, layer, 1);
+-  };
+-  for (int p = 0; p < 4; p++) drawObjPass(objTexIds[p], 1, p, p);
+-  drawObjPass(objWindowTexId, 2, 0, 4);
+-
+-  glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
+-  glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+-  for (int i = 0; i < 5; i++) {
+-    glActiveTexture(GL_TEXTURE10 + i);
+-    glBindTexture(GL_TEXTURE_2D, savedBind[i]);
++    if (((a0 >> 10) & 3) == 2) { p.objList[4][p.objCount[4]++] = i; continue; }
++    p.objList[(a2 >> 10) & 3][p.objCount[(a2 >> 10) & 3]++] = i;
+   }
+-  glActiveTexture(prevActiveTex);
+-  glEnable(GL_BLEND);
+-  glUseProgram(prevProg);
+   return TRUE;
+ }
+diff --git a/libraries/sim/src/sim_g3_CommandProcessor.cpp b/libraries/sim/src/sim_g3_CommandProcessor.cpp
+index a8e9b67..f0ae048 100644
+--- a/libraries/sim/src/sim_g3_CommandProcessor.cpp
++++ b/libraries/sim/src/sim_g3_CommandProcessor.cpp
+@@ -469,7 +469,7 @@ void HandleCommandMessage(draw_msg_t *msg) {
+       if (indexInPolygon == 0 || polygonReady == 1) {
+         polygonReady = 0;
+         g3State.SetPolygonReady(polygonReady);
+-        GLfloat myVerts[(3 * 6) + (2 * 6)];
++        float myVerts[(3 * 6) + (2 * 6)];
+         auto primType = GetGlobalState().GetPrimitiveType();
+         if (primType == GX_BEGIN_TRIANGLES ||
+             primType == GX_BEGIN_TRIANGLE_STRIP) {
+diff --git a/libraries/sim/src/sim_g3_GlRenderer.cpp b/libraries/sim/src/sim_g3_GlRenderer.cpp
+deleted file mode 100644
+index b2b2704..0000000
+--- a/libraries/sim/src/sim_g3_GlRenderer.cpp
++++ /dev/null
+@@ -1,174 +0,0 @@
+-#include <simulator/sim_g3_GlRenderer.hpp>
+-
+-#include <simulator/sim_g3_CommandHandler.hpp>
+-#include <simulator/sim_g3_GlobalState.hpp>
+-#include <simulator/assert.h>
+-#include <string.h>
+-#include <stddef.h>
+-#include <memory>
+-
+-#include <nitro.h>
+-#include <nitro/gx/g3.h>
+-#include <nitro/gx/gx_load.h>
+-#include <nitro/gx/gx_vramcnt.h>
+-#include <unordered_map>
+-#include <simulator/sim_crc32.h>
+-#include "simulator/sim_g3_TextureCache.hpp"
+-#include "simulator/sim_g3_Texture.hpp"
+-
+-#ifdef SDK_BUILD_LINUX
+-#include <signal.h>
+-#endif
+-
+-#ifdef SDK_TRACY_ENABLE
+-#include "tracy/TracyC.h"
+-#endif
+-
+-#define getbit(x,n) ( ( (x) >> (n) ) & 1 )
+-
+-namespace SIM::G3 {
+-
+-GlRenderer::GlRenderer() {}
+-
+-GlRenderer::~GlRenderer() {}
+-
+-void GlRenderer::Init() {
+-    glGenVertexArrays(1, &mVertexArray);
+-    glBindVertexArray(mVertexArray);
+-
+-    glGenBuffers(1, &mVertexBuffer);
+-
+-    glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+-
+-    glEnableVertexAttribArray(0);
+-    glEnableVertexAttribArray(1);
+-    glEnableVertexAttribArray(2);
+-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(RenderVertex), (void*)offsetof(RenderVertex, x));
+-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(RenderVertex), (void*)offsetof(RenderVertex, s));
+-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(RenderVertex), (void*)offsetof(RenderVertex, r));
+-
+-    glBindVertexArray(0);
+-    glDisableVertexAttribArray(0);
+-    glDisableVertexAttribArray(1);
+-    glDisableVertexAttribArray(2);
+-}
+-
+-void GlRenderer::CacheUniformLocations() {
+-    if(mUniformsCached) return;
+-    mLocUseTexture = glGetUniformLocation(mShaderProgramId, "useTexture");
+-    mLocMyTexture = glGetUniformLocation(mShaderProgramId, "myTexture");
+-    mLocPolygonMode = glGetUniformLocation(mShaderProgramId, "polygonMode");
+-    mLocUseFog = glGetUniformLocation(mShaderProgramId, "useFog");
+-    mLocFogColor = glGetUniformLocation(mShaderProgramId, "fogColor");
+-    mLocFogDepthBoundary = glGetUniformLocation(mShaderProgramId, "fogDepthBoundary");
+-    mLocFogDensity = glGetUniformLocation(mShaderProgramId, "fogDensity");
+-    if(mLocMyTexture >= 0) glProgramUniform1i(mShaderProgramId, mLocMyTexture, 0);
+-    mLastUseTexture = -1; mLastPolygonMode = -1; mLastUseFog = -1;
+-    mUniformsCached = true;
+-    if(gG3Stats.enabled) gG3Stats.uniformLocCalls += 7;
+-}
+-
+-void GlRenderer::Draw(std::shared_ptr<DrawCall> drawCall) {
+-    CacheUniformLocations();
+-    if(gG3Stats.enabled) { gG3Stats.draws++; gG3Stats.verts += drawCall->GetRenderVertsCount(); }
+-    size_t vertsCount = drawCall->GetRenderVertsCount();
+-    if( vertsCount != 0 )
+-    {
+-        glBindVertexArray(mVertexArray);
+-        glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+-
+-        if(mVertexBufferCount >= vertsCount) {
+-            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(RenderVertex) * vertsCount, drawCall->GetRenderVerts());
+-        } else {
+-            glBufferData(GL_ARRAY_BUFFER, sizeof(RenderVertex) * vertsCount, drawCall->GetRenderVerts(), GL_DYNAMIC_DRAW);
+-            mVertexBufferCount = vertsCount;
+-        }
+-
+-        // Handle texture
+-        if(drawCall->GetTexture() == nullptr) {
+-            if(mLastUseTexture != 0) { glProgramUniform1i(mShaderProgramId, mLocUseTexture, 0); mLastUseTexture = 0; }
+-        } else {
+-            drawCall->GetTexture()->Activate();
+-
+-            auto texImageParam = drawCall->GetTexImageParam();
+-            const int wrapS = texImageParam.repeatS ? (texImageParam.flipS ? GL_MIRRORED_REPEAT : GL_REPEAT) : GL_CLAMP_TO_BORDER;
+-            const int wrapT = texImageParam.repeatT ? (texImageParam.flipT ? GL_MIRRORED_REPEAT : GL_REPEAT) : GL_CLAMP_TO_BORDER;
+-            const unsigned int texId = drawCall->GetTexture()->GetTextureID();
+-            const bool wrapChanged = (texId != mLastWrapTexture || wrapS != mLastWrapS || wrapT != mLastWrapT);
+-            if(wrapChanged) {
+-            if(texImageParam.repeatS) {
+-                if(texImageParam.flipS)
+-                {
+-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+-                } else {
+-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+-                }
+-            } else {
+-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+-            }
+-
+-            if(texImageParam.repeatT) {
+-                if(texImageParam.flipT)
+-                {
+-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+-                } else {
+-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+-                }
+-            } else {
+-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+-            }
+-            mLastWrapTexture = texId; mLastWrapS = wrapS; mLastWrapT = wrapT;
+-            }
+-            if(mLastUseTexture != 1) { glProgramUniform1i(mShaderProgramId, mLocUseTexture, 1); mLastUseTexture = 1; }
+-        }
+-
+-        if(mLastPolygonMode != (int)drawCall->GetPolygonAttr().polygonMode) {
+-            glProgramUniform1i(mShaderProgramId, mLocPolygonMode, drawCall->GetPolygonAttr().polygonMode);
+-            mLastPolygonMode = (int)drawCall->GetPolygonAttr().polygonMode;
+-        }
+-        // Fog uniforms: re-upload only when a value actually changed
+-        // (the two 32-float tables repeat unchanged on most draws).
+-        if(mLastUseFog != (int)drawCall->GetFogEnabled()) {
+-            glProgramUniform1i(mShaderProgramId, mLocUseFog, drawCall->GetFogEnabled());
+-            mLastUseFog = (int)drawCall->GetFogEnabled();
+-        }
+-        if(drawCall->GetFogEnabled()) {
+-            float * fogColor = drawCall->GetFogColor();
+-            if(!mFogUploaded || memcmp(mLastFogColor, fogColor, sizeof(mLastFogColor)) != 0 ||
+-               memcmp(mLastFogDepth, drawCall->GetFogDepthTable(), sizeof(mLastFogDepth)) != 0 ||
+-               memcmp(mLastFogDensity, drawCall->GetFogDensityTable(), sizeof(mLastFogDensity)) != 0) {
+-                glProgramUniform4f(mShaderProgramId, mLocFogColor, fogColor[0], fogColor[1], fogColor[2], fogColor[3]);
+-                glProgramUniform1fv(mShaderProgramId, mLocFogDepthBoundary, 32, drawCall->GetFogDepthTable());
+-                glProgramUniform1fv(mShaderProgramId, mLocFogDensity, 32, drawCall->GetFogDensityTable());
+-                memcpy(mLastFogColor, fogColor, sizeof(mLastFogColor));
+-                memcpy(mLastFogDepth, drawCall->GetFogDepthTable(), sizeof(mLastFogDepth));
+-                memcpy(mLastFogDensity, drawCall->GetFogDensityTable(), sizeof(mLastFogDensity));
+-                mFogUploaded = true;
+-            }
+-        }
+-
+-        // Apply this draw call's own cull mode and depth test. PolygonAttrCommand also sets them on the GL state when the command
+-        // arrives, but translucent draw calls are deferred to the end of the frame (DrawTransparentItems), so they would otherwise
+-        // be drawn with whatever state the frame's last polygon attribute left behind (often GX_CULL_ALL: nothing drawn).
+-        const PolygonAttr attr = drawCall->GetPolygonAttr();
+-        switch(attr.cullMode) {
+-            case GX_CULL_ALL:   glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); break;
+-            case GX_CULL_FRONT: glEnable(GL_CULL_FACE); glCullFace(GL_BACK); break;
+-            case GX_CULL_BACK:  glEnable(GL_CULL_FACE); glCullFace(GL_FRONT); break;
+-            default:            glDisable(GL_CULL_FACE); break;
+-        }
+-        // DS depth test bit (POLYGON_ATTR bit 14): 0 = less, 1 = equal ("decal": only where a
+-        // polygon already wrote this exact depth, e.g. an overlay drawn on a sprite's own pixels).
+-        // LEQUAL let decal polygons cover everything behind them.
+-        glDepthFunc(attr.depthTest ? GL_EQUAL : GL_LESS);
+-        // As on the DS, translucent polygons only update the depth buffer when their attribute asks for it.
+-        const bool depthWrite = !drawCall->IsTransparent() || attr.translucentDepth;
+-        if(!depthWrite) glDepthMask(GL_FALSE);
+-
+-        glDrawArrays(GL_TRIANGLES, 0, vertsCount);
+-
+-        if(!depthWrite) glDepthMask(GL_TRUE);
+-    }
+-}
+-
+-}
+diff --git a/libraries/sim/src/sim_g3_GlobalState.cpp b/libraries/sim/src/sim_g3_GlobalState.cpp
+index 249e0d1..f5cb12e 100644
+--- a/libraries/sim/src/sim_g3_GlobalState.cpp
++++ b/libraries/sim/src/sim_g3_GlobalState.cpp
+@@ -54,7 +54,6 @@ GlobalState::~GlobalState() {
+ 
+ void GlobalState::Init() {
+     mCurrentDrawCall = std::make_shared<DrawCall>();
+-    mGlRenderer = std::make_shared<GlRenderer>();
+ 
+     // Initialize Matrix Stacks
+     for(auto& matrix : mPositionStack) {
+@@ -79,10 +78,6 @@ void GlobalState::Init() {
+     mCurrentClipMatrix = Identity44;
+ }
+ 
+-void GlobalState::InitGlRenderer() {
+-    mGlRenderer->Init();
+-}
+-
+ void GlobalState::SubmitPolygon(int numVerts) {
+     RenderVertex glVerts[6];
+     u8 addPolygon = TRUE;
+@@ -224,7 +219,6 @@ void GlobalState::FlushDrawCall() {
+ 	u8 * vramPltt = (u8*)((u64)GetTexturePalettePointer() + mCurrentDrawCall->GetTexPaletteBase());
+ 
+     if(texImageParam.textureFormat != GX_TEXFMT_NONE && vramTex != nullptr && GetTexturePointer() != nullptr) {
+-		GLuint g3TextureId;
+ 		u16 * colorAddr = (u16*)vramPltt;
+ 
+ 		u32 vramTexBufSize = 0;
+@@ -326,7 +320,7 @@ void GlobalState::FlushDrawCall() {
+ 					break;
+ 			}
+ 
+-			// This creates a GL texture and uploads it to the GPU with glTexImage2D
++			// This creates a backend texture and uploads the decoded pixels
+ 			texture = std::make_shared<SIM::G3::Texture>(texImageParam.textureTSize, texImageParam.textureSSize, outTexBuf);
+ 
+ 			mTextureCache.AddTexture(texKey, textureCRC, paletteCRC, texture);
+@@ -381,19 +375,61 @@ void GlobalState::FlushDrawCall() {
+         return;
+     }
+ 
+-    mGlRenderer->Draw(mCurrentDrawCall);
++    SubmitDrawCall(*mCurrentDrawCall);
+     mCurrentDrawCall->ClearVerts();
+ }
+ 
+ void GlobalState::DrawTransparentItems() {
+     for(auto drawCall : mTransparentDrawCalls) {
+-        mGlRenderer->Draw(drawCall);
++        SubmitDrawCall(*drawCall);
+     }
+ 
+     mTransparentDrawCalls.clear();
+ }
+ 
+ 
++// Turns a draw call into a fully specified backend draw: texture and wrap modes, polygon mode, fog, and the DS cull
++// mode / depth test / depth write of this draw call's own polygon attribute (translucent draw calls are deferred to the
++// end of the frame, so nothing may be taken from whatever attribute was current when they are drawn).
++void GlobalState::SubmitDrawCall(DrawCall& drawCall) {
++    if(gG3Stats.enabled) { gG3Stats.draws++; gG3Stats.verts += drawCall.GetRenderVertsCount(); }
++    const size_t vertsCount = drawCall.GetRenderVertsCount();
++    if(vertsCount == 0) return;
++
++    Render::G3DrawState state;
++    if(drawCall.GetTexture() != nullptr) {
++        state.texture = drawCall.GetTexture()->GetHandle();
++        const TexImageParam texImageParam = drawCall.GetTexImageParam();
++        state.wrapS = texImageParam.repeatS ? (texImageParam.flipS ? Render::WrapMode::MirroredRepeat : Render::WrapMode::Repeat)
++                                            : Render::WrapMode::ClampToBorder;
++        state.wrapT = texImageParam.repeatT ? (texImageParam.flipT ? Render::WrapMode::MirroredRepeat : Render::WrapMode::Repeat)
++                                            : Render::WrapMode::ClampToBorder;
++    }
++    const PolygonAttr attr = drawCall.GetPolygonAttr();
++    state.polygonMode = attr.polygonMode;
++    // Winding culled per DS cull mode (the mapping the renderer has always used: GX_CULL_FRONT culls counter-clockwise
++    // triangles, GX_CULL_BACK clockwise ones).
++    switch(attr.cullMode) {
++        case GX_CULL_ALL:   state.cull = Render::CullWinding::All; break;
++        case GX_CULL_FRONT: state.cull = Render::CullWinding::CounterClockwise; break;
++        case GX_CULL_BACK:  state.cull = Render::CullWinding::Clockwise; break;
++        default:            state.cull = Render::CullWinding::None; break;
++    }
++    // DS depth test bit (POLYGON_ATTR bit 14): 0 = less, 1 = equal ("decal": only where a
++    // polygon already wrote this exact depth, e.g. an overlay drawn on a sprite's own pixels).
++    // LEQUAL let decal polygons cover everything behind them.
++    state.depthFunc = attr.depthTest ? Render::DepthFunc::Equal : Render::DepthFunc::Less;
++    // As on the DS, translucent polygons only update the depth buffer when their attribute asks for it.
++    state.depthWrite = !drawCall.IsTransparent() || attr.translucentDepth;
++    state.fogEnabled = drawCall.GetFogEnabled();
++    if(state.fogEnabled) {
++        state.fogColor = drawCall.GetFogColor();
++        state.fogDepthBoundary = drawCall.GetFogDepthTable();
++        state.fogDensity = drawCall.GetFogDensityTable();
++    }
++    Render::Get().G3Draw(state, drawCall.GetRenderVerts(), vertsCount);
++}
++
+ void GlobalState::PushMatrix() {
+     if(mCurrentMatrixMode == GX_MTXMODE_POSITION 
+     || mCurrentMatrixMode == GX_MTXMODE_POSITION_VECTOR) {
+diff --git a/libraries/sim/src/sim_g3_Texture.cpp b/libraries/sim/src/sim_g3_Texture.cpp
+index dc39791..a701ca8 100644
+--- a/libraries/sim/src/sim_g3_Texture.cpp
++++ b/libraries/sim/src/sim_g3_Texture.cpp
+@@ -1,28 +1,13 @@
+ #include "simulator/sim_g3_Texture.hpp"
+ 
+-#include "simulator/sim_opengl.h"
+-
+ namespace SIM::G3 {
+ 
+ Texture::Texture(u16 height, u16 width, u8 * data) {
+-  glGenTextures(1, &mGlTextureId);                                                      
+-  glActiveTexture(GL_TEXTURE0);                                                
+-  glBindTexture(GL_TEXTURE_2D, mGlTextureId);                                           
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);           
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);           
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);                
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);                
+-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA,        
+-               GL_UNSIGNED_BYTE, data);
++  mHandle = Render::Get().CreateTexture(width, height, data);
+ }
+ 
+ Texture::~Texture() {
+-    glDeleteTextures(1, &mGlTextureId);
++  Render::Get().DestroyTexture(mHandle);
+ }
+ 
+-void Texture::Activate() {
+-    glActiveTexture(GL_TEXTURE0);
+-    glBindTexture(GL_TEXTURE_2D, mGlTextureId);
+ }
+-
+-}
+\ No newline at end of file
+diff --git a/libraries/sim/src/sim_gui.cpp b/libraries/sim/src/sim_gui.cpp
+index d13175a..c7f8ac8 100644
+--- a/libraries/sim/src/sim_gui.cpp
++++ b/libraries/sim/src/sim_gui.cpp
+@@ -1,10 +1,10 @@
+ #include "simulator/sim.h"
+ #include "simulator/sim_gui.hpp"
+ #include "simulator/sim_helpers.hpp"
++#include "simulator/sim_render_backend.hpp"
+ 
+ #include "simulator/imgui/imgui.hpp"
+ 
+-#include "imgui_impl_opengl3.h"
+ #include "imgui_impl_sdl2.h"
+ #include "gui_internal.hpp"
+ 
+@@ -14,7 +14,6 @@
+ 
+ namespace SIM::GUI {
+ static SDL_Window * sWindow;
+-static SDL_GLContext sContext;
+ static ImGuiContext * sImguiContext;
+ static bool sEnabled = false;
+ static bool sPauseGameLogic = false;
+@@ -38,9 +37,8 @@ void __attribute__((weak)) PrjMain(bool * openState) {
+     }
+ }
+ 
+-void Init(SDL_Window * window, SDL_GLContext context) {
++void Init(SDL_Window * window) {
+     sWindow = window;
+-    sContext = context;
+ 
+     sImguiContext = ImGui::CreateContext(NULL);
+ 
+@@ -51,13 +49,8 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+ 
+ 
+ 
+-	ImGui_ImplSDL2_InitForOpenGL(sWindow, sContext);
+-#ifdef SDK_BUILD_MACOS
+-	const char * glsl_version = "#version 410";   // macOS: OpenGL 4.1
+-#else
+-	const char * glsl_version = "#version 420";
+-#endif
+-  	ImGui_ImplOpenGL3_Init(glsl_version);
++	// Platform backend init for the render API + the ImGui renderer backend
++	SIM::Render::Get().ImGuiInit(sWindow);
+ 
+     ImGui::StyleColorsDark(NULL);
+ 
+@@ -126,7 +119,7 @@ void OpenFileDialog(std::function<void(std::string)> callback) {
+ }
+ 
+ void NewFrame() {
+-    ImGui_ImplOpenGL3_NewFrame();
++    SIM::Render::Get().ImGuiNewFrame();
+     ImGui_ImplSDL2_NewFrame();
+     ImGui::NewFrame();
+ }
+@@ -139,7 +132,7 @@ void ProcessEvent(SDL_Event * event) {
+ 
+ void Render() {
+     ImGui::Render();
+-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
++    SIM::Render::Get().ImGuiRender(ImGui::GetDrawData());
+ }
+ 
+ void Toggle() {
+diff --git a/libraries/sim/src/sim_gui_config.cpp b/libraries/sim/src/sim_gui_config.cpp
+index 4cc4aa3..e31fe29 100644
+--- a/libraries/sim/src/sim_gui_config.cpp
++++ b/libraries/sim/src/sim_gui_config.cpp
+@@ -3,6 +3,7 @@
+ 
+ #include "simulator/imgui/imgui.hpp"
+ #include "simulator/config/sim_config.h"
++#include "simulator/sim_render_backend.hpp"
+ 
+ #include "gui_internal.hpp"
+ 
+@@ -85,8 +86,8 @@ void AppConfigMain(bool *openState) {
+             SDL_SetWindowFullscreen(SIM_GetSDLWindow(), 0);
+         }
+         sConfig->vsyncInterval = vSyncInterval;
+-        if(vSyncInterval != SDL_GL_GetSwapInterval()) {
+-            SDL_GL_SetSwapInterval(vSyncInterval);
++        if(vSyncInterval != SIM::Render::Get().GetSwapInterval()) {
++            SIM::Render::Get().SetSwapInterval(vSyncInterval);
+         }
+         sConfig->capFrameRate = frameLimit;
+ 
+diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
+index c081976..01dc955 100644
+--- a/libraries/sim/src/sim_main.cpp
++++ b/libraries/sim/src/sim_main.cpp
+@@ -9,11 +9,10 @@ extern "C" int NitroSpMain(void *arg);
+ #include <SDL2/SDL.h>
+ #include <SDL2/SDL_events.h>
+ 
+-#include <simulator/sim_opengl.h>
+ #include <simulator/sim.h>
+ #include <simulator/sim_audio.h>
+ #include <simulator/sim_net.h>
+-#include <simulator/sim_shaders.hpp>
++#include <simulator/sim_render_backend.hpp>
+ #include <simulator/sim_g3_GlobalState.hpp>
+ 
+ #include <stdio.h>
+@@ -151,38 +150,13 @@ u8 OBJWindow[2][256];
+ GXVRamBGExtPltt s_SIM_GXBgExtPltt;
+ GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
+ 
+-// FBOs
+-static GLuint g3FrameBuffer;
+-static GLuint fboId;
+-static GLuint g2FrameBuffer;
+-
+-// Texture Objects
+-GLuint s_bgTextureId[4];
+-GLuint s_objTextureId[5];
+-static GLuint g2TextureId;
+-static GLuint g3RenderTextureId;
+-static GLuint dummyScreenTextureId;
+-static GLuint objWindowTextureId;
+-
+-GLint s_bgTexUnits[] = {0, 1, 2, 3};
+-static GLint s_objTexUnits[] = {4, 5, 6, 7, 8};
+-static GLint s_objWindowTexUnit = 9;
+-
+-// Shader Programs
+-static GLuint g3shaderProgramID;
+-static GLuint g2shaderProgramID;
+-
+ // ---- PostFX (include/port/postfx.h; docs/postfx.md) ----
+-// The composited frame is rendered into sPostTex through sPostFBO, then drawn
++// The composited frame is rendered into the backend's composite image, then drawn
+ // to the window through the post shader. Effects decay per rendered frame in
+ // PostFX_TickAndDraw. Coordinates from game code are combined-display pixels
+ // (256x384, top-left origin); they are converted against the viewport rect
+-// the 2D engines were drawn into (sPostView*), which SIM_Render refreshes.
+-static GLuint sPostProgramID;
+-static GLuint sPostFBO;
+-static GLuint sPostTex;
+-static GLuint sPostVAO;
+-static GLuint sPostVBO;
++// the 2D engines were drawn into (sPostView*, GL convention: y counted from the
++// bottom), which SIM_Render refreshes.
+ static int sPostW, sPostH;
+ static int sPostViewX, sPostViewY, sPostViewW, sPostViewH;
+ static int sPostWinW, sPostWinH;
+@@ -240,17 +214,12 @@ extern "C" void PostFX_Clear(void) {
+   sFxCutin.framesLeft = sFxTitle.framesLeft = sFxGlowAt.framesLeft = 0;
+ }
+ 
+-// Draw sPostTex to the default framebuffer with the active effects, then decay them.
++// Draw the composite image to the window with the active effects, then decay them.
+ static void PostFX_TickAndDraw() {
+-  if (!sPostProgramID || sPostW <= 0) return;
+-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+-  glViewport(0, 0, sPostW, sPostH);
+-  glUseProgram(sPostProgramID);
+-  glActiveTexture(GL_TEXTURE0);
+-  glBindTexture(GL_TEXTURE_2D, sPostTex);
+-  glProgramUniform1i(sPostProgramID, glGetUniformLocation(sPostProgramID, "sceneTex"), 0);
+-  glProgramUniform2f(sPostProgramID, glGetUniformLocation(sPostProgramID, "texelSize"),
+-                     sPostW > 0 ? 1.0f / (float)sPostW : 0.0f, sPostH > 0 ? 1.0f / (float)sPostH : 0.0f);
++  if (sPostW <= 0) return;
++  SIM::Render::PostFXParams p = {};
++  p.texelSize[0] = sPostW > 0 ? 1.0f / (float)sPostW : 0.0f;
++  p.texelSize[1] = sPostH > 0 ? 1.0f / (float)sPostH : 0.0f;
+   float shakeX = 0, shakeY = 0;
+   if (sFxShake.framesLeft > 0) {
+     // Cheap deterministic hash shake, so headless runs stay reproducible.
+@@ -258,66 +227,37 @@ static void PostFX_TickAndDraw() {
+     shakeX = (((h >> 8) & 0xFF) / 127.5f - 1.0f) * sFxShake.strength * FxFactor(sFxShake) * 8.0f / 256.0f;
+     shakeY = (((h >> 16) & 0xFF) / 127.5f - 1.0f) * sFxShake.strength * FxFactor(sFxShake) * 8.0f / 384.0f;
+   }
+-  glProgramUniform2f(sPostProgramID, glGetUniformLocation(sPostProgramID, "shakeOffset"), shakeX, shakeY);
++  p.shakeOffset[0] = shakeX; p.shakeOffset[1] = shakeY;
+   float su = 0.5f, sv = 0.5f; FxUV(sFxShock, &su, &sv);
+   float shockProgress = 1.0f - FxFactor(sFxShock);
+-  glProgramUniform2f(sPostProgramID, glGetUniformLocation(sPostProgramID, "shockCenter"), su, sv);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "shockRadius"), shockProgress * 0.7f);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "shockStrength"),
+-                     sFxShock.framesLeft > 0 ? sFxShock.strength * (1.0f - shockProgress * 0.5f) : 0.0f);
++  p.shockCenter[0] = su; p.shockCenter[1] = sv;
++  p.shockRadius = shockProgress * 0.7f;
++  p.shockStrength = sFxShock.framesLeft > 0 ? sFxShock.strength * (1.0f - shockProgress * 0.5f) : 0.0f;
+   float zu = 0.5f, zv = 0.5f; FxUV(sFxZoom, &zu, &zv);
+-  glProgramUniform2f(sPostProgramID, glGetUniformLocation(sPostProgramID, "zoomCenter"), zu, zv);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "zoomBlur"),
+-                     sFxZoom.framesLeft > 0 ? sFxZoom.strength * FxFactor(sFxZoom) : 0.0f);
+-  glProgramUniform3f(sPostProgramID, glGetUniformLocation(sPostProgramID, "vignetteColor"),
+-                     sFxVignette.r, sFxVignette.g, sFxVignette.b);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "vignetteAmount"),
+-                     sFxVignette.framesLeft > 0 ? sFxVignette.strength * FxFactor(sFxVignette) : 0.0f);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "chromaAmount"),
+-                     sFxChroma.framesLeft > 0 ? sFxChroma.strength * FxFactor(sFxChroma) : 0.0f);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "glowAmount"),
+-                     sFxGlow.framesLeft > 0 ? sFxGlow.strength * FxFactor(sFxGlow) : 0.0f);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "letterbox"),
+-                     sFxLetterbox.framesLeft > 0 ? sFxLetterbox.strength * FxFactor(sFxLetterbox) : 0.0f);
+-  glProgramUniform1i(sPostProgramID, glGetUniformLocation(sPostProgramID, "fxRegion"), sFxRegion);
++  p.zoomCenter[0] = zu; p.zoomCenter[1] = zv;
++  p.zoomBlur = sFxZoom.framesLeft > 0 ? sFxZoom.strength * FxFactor(sFxZoom) : 0.0f;
++  p.vignetteColor[0] = sFxVignette.r; p.vignetteColor[1] = sFxVignette.g; p.vignetteColor[2] = sFxVignette.b;
++  p.vignetteAmount = sFxVignette.framesLeft > 0 ? sFxVignette.strength * FxFactor(sFxVignette) : 0.0f;
++  p.chromaAmount = sFxChroma.framesLeft > 0 ? sFxChroma.strength * FxFactor(sFxChroma) : 0.0f;
++  p.glowAmount = sFxGlow.framesLeft > 0 ? sFxGlow.strength * FxFactor(sFxGlow) : 0.0f;
++  p.letterbox = sFxLetterbox.framesLeft > 0 ? sFxLetterbox.strength * FxFactor(sFxLetterbox) : 0.0f;
++  p.fxRegion = sFxRegion;
+   float bu = 0.5f, bv = 0.5f; FxUV(sFxCutin, &bu, &bv);
+-  glProgramUniform2f(sPostProgramID, glGetUniformLocation(sPostProgramID, "beamTarget"), bu, bv);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "cutinProgress"), sFxCutin.progress);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "cutinAlpha"),
+-                     sFxCutin.framesLeft > 0 ? sFxCutin.strength : 0.0f);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "titleProgress"), sFxTitle.progress);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "titleAlpha"),
+-                     sFxTitle.framesLeft > 0 ? sFxTitle.strength : 0.0f);
++  p.beamTarget[0] = bu; p.beamTarget[1] = bv;
++  p.cutinProgress = sFxCutin.progress;
++  p.cutinAlpha = sFxCutin.framesLeft > 0 ? sFxCutin.strength : 0.0f;
++  p.titleProgress = sFxTitle.progress;
++  p.titleAlpha = sFxTitle.framesLeft > 0 ? sFxTitle.strength : 0.0f;
+   float gu = 0.5f, gv = 0.5f; FxUV(sFxGlowAt, &gu, &gv);
+-  glProgramUniform2f(sPostProgramID, glGetUniformLocation(sPostProgramID, "glowCenter"), gu, gv);
+-  glProgramUniform1f(sPostProgramID, glGetUniformLocation(sPostProgramID, "glowAtAmount"),
+-                     sFxGlowAt.framesLeft > 0 ? sFxGlowAt.strength * FxFactor(sFxGlowAt) : 0.0f);
+-  glBindVertexArray(sPostVAO);
+-  glDrawArrays(GL_TRIANGLES, 0, 6);
++  p.glowCenter[0] = gu; p.glowCenter[1] = gv;
++  p.glowAtAmount = sFxGlowAt.framesLeft > 0 ? sFxGlowAt.strength * FxFactor(sFxGlowAt) : 0.0f;
++  SIM::Render::Get().RenderPost(p);
+   FxTick(sFxShock); FxTick(sFxVignette); FxTick(sFxZoom);
+   FxTick(sFxChroma); FxTick(sFxGlow); FxTick(sFxShake); FxTick(sFxLetterbox);
+   FxTick(sFxCutin); FxTick(sFxTitle); FxTick(sFxGlowAt);
+   sFxFrame++;
+ }
+ 
+-// VAOs
+-static GLuint g2vertexArray;
+-
+-// VBOs
+-static GLuint g2vertexBuffer;
+-
+-// RBOs
+-static GLuint g3RenderBufferId;
+-
+-// Shaders
+-static GLint g2VertexShader;
+-static GLint g2FragmentShader;
+-static GLint myVertexShader;
+-static GLint myFragmentShader;
+-
+-// GL Context
+-static SDL_GLContext context;
+-
+ static SDL_Window *window;
+ 
+ u8 s_SIM_dbg_dumpSound = 0;
+@@ -375,7 +315,6 @@ static u8 GetParamSizeFromCommandType(draw_command_type_t type);
+ static u8 isParamSigned(draw_command_type_t type);
+ static u64 map(u64 x, u64 in_min, u64 in_max, u64 out_min, u64 out_max);
+ static void process_nibble(unsigned char data4bit, int *Index, int *Pcm16bit);
+-static void DrawScreenQuad();
+ static void DrawEngine(BOOL isSub);
+ 
+ static u8 s_numG3CommandsThisFrame = 0;
+@@ -386,33 +325,6 @@ static SDL_sem *vcountVblankSemaphore;
+ 
+ SDL_Joystick *s_SIM_SDLJoystick = NULL;
+ 
+-static void DrawScreenQuad() {
+-#ifdef SDK_TRACY_ENABLE
+-  TracyCZone(ctx, 1);
+-#endif
+-  glBindVertexArray(g2vertexArray);
+-  glBindBuffer(GL_ARRAY_BUFFER, g2vertexBuffer);
+-  SIM::G3::RenderVertex *quadArray = SIM::GetScreenQuadArray(s_SIM_config.screenLayout,
+-                                                     s_SIM_config.swapScreens);
+-  int arrayCount = SIM::GetScreenQuadVertexCount(s_SIM_config.screenLayout,
+-                                                s_SIM_config.swapScreens);
+-
+-  glBufferData(GL_ARRAY_BUFFER, sizeof(SIM::G3::RenderVertex) * arrayCount, quadArray,
+-               GL_STATIC_DRAW);
+-
+-  glEnableVertexAttribArray(0);
+-  glEnableVertexAttribArray(1);
+-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(SIM::G3::RenderVertex),
+-                        (void *)offsetof(SIM::G3::RenderVertex, x));
+-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(SIM::G3::RenderVertex),
+-                        (void *)offsetof(SIM::G3::RenderVertex, s));
+-
+-  glDrawArrays(GL_TRIANGLES, 0, arrayCount);
+-#ifdef SDK_TRACY_ENABLE
+-  TracyCZoneEnd(ctx);
+-#endif
+-}
+-
+ SIM_config_type *SIM_GetConfigPtr() { return &s_SIM_config; }
+ 
+ SDL_Window * SIM_GetSDLWindow() {return window;}
+@@ -432,38 +344,9 @@ void *runVblankInterrupt(void *arg) {
+   return NULL;
+ }
+ 
+-void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
+-                                GLenum severity, GLsizei length,
+-                                const GLchar *message, const void *userParam) {
+-  // fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message =
+-  // %s\n",
+-  //          ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+-  //           type, severity, message );
+-}
+-
+ void SIM_SetInternalResolution(int internalRes) {
+-  glBindTexture(GL_TEXTURE_2D, g3RenderTextureId);
+-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
+-               SIM_NDS_SCREEN_WIDTH * s_SIM_config.internalResolutionScale,
+-               SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale,
+-               0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+-
+-  glBindRenderbuffer(GL_RENDERBUFFER, g3RenderBufferId);
+-  glRenderbufferStorage(
+-      GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
+-      SIM_NDS_SCREEN_WIDTH * s_SIM_config.internalResolutionScale,
+-      SIM_NDS_SCREEN_HEIGHT * 2 * s_SIM_config.internalResolutionScale);
+-}
+-
+-#ifdef SDK_BUILD_MACOS
+-// The shaders say #version 420 core; macOS's OpenGL 4.1 compiles them as 410 (they use nothing past 4.1)
+-static const char *SIM_MacShaderSource(const char *src) {
+-  std::string *s = new std::string(src);
+-  size_t at = s->find("#version 420");
+-  if (at != std::string::npos) s->replace(at, 12, "#version 410");
+-  return s->c_str();
++  SIM::Render::Get().SetInternalResolution(s_SIM_config.internalResolutionScale);
+ }
+-#endif
+ 
+ static bool sChangeInternalResAfterRender = false;
+ static int sPendingInternalRes = 1;
+@@ -481,18 +364,8 @@ void *SIM_RenderInit(void *arg) {
+            SDL_INIT_JOYSTICK);
+   SIM_Audio_Init(44100);
+ 
+-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+-#ifdef SDK_BUILD_MACOS
+-  // macOS stops at OpenGL 4.1 core, and only gives a core context that is forward compatible
+-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+-#else
+-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+-#endif
+-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+-  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+-  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+-  SDL_GL_SetSwapInterval(s_SIM_config.vsyncInterval);
++  SIM::Render::Backend &renderer = SIM::Render::Select();
++  renderer.PreWindowCreate(s_SIM_config.vsyncInterval);
+ 
+   u32 windowHeight;
+   u32 windowWidth;
+@@ -549,223 +422,26 @@ void *SIM_RenderInit(void *arg) {
+                   std::string(makerCode) + "]";
+   }
+ 
++  const u64 rendererWindowFlags = renderer.WindowFlags();
+   window = SDL_CreateWindow(
+       windowTitle.c_str(), 100, 100, windowWidth, windowHeight,
+-      (SIM_Headless_Enabled() ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN) | SDL_WINDOW_OPENGL
++      (SIM_Headless_Enabled() ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN) | rendererWindowFlags
+       #if defined(SDK_BUILD_WIN64) || defined(SDK_BUILD_LINUX)
+       | SDL_WINDOW_RESIZABLE
+       #endif
+     );
+-  context = SDL_GL_CreateContext(window);
+-
+-  SIM::InitRenderContextManager(window, context);
+-
+   if(s_SIM_config.fullScreen) {
+     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+   }
+ 
+-  #ifndef SDK_BUILD_PROSPERO
+-  //OpenGL is static linked on PS5
+-  gladLoadGLLoader(SDL_GL_GetProcAddress);
+-  #endif
+-
+-  glViewport(0, 0, windowWidth, windowHeight);
+-
+-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+-  glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+-
+-#ifndef SDK_BUILD_MACOS
+-  glEnable(GL_DEBUG_OUTPUT);
+-  glDebugMessageCallback(MessageCallback, 0);
+-#endif   // GL 4.3 / KHR_debug: not on macOS
+-
+-  GLenum glErrCode;
+-  GLint status;
+-  GLint logSize = 0;
+-
+-  GLchar *errorBuf;
+-
+-  glGenTextures(4, s_bgTextureId);
+-  glActiveTexture(GL_TEXTURE0);
+-
+-  for (int i = 0; i < 4; i++) {
+-    glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[i]);
+-    glBindTexture(GL_TEXTURE_2D, s_bgTextureId[i]);
+-
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+-
+-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, SIM_NDS_SCREEN_WIDTH,
+-                 SIM_NDS_SCREEN_HEIGHT * 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+-  }
+-
+-  glGenTextures(5, s_objTextureId);
+-  glActiveTexture(GL_TEXTURE0);
+-
+-  for (int i = 0; i < 5; i++) {
+-    glActiveTexture(GL_TEXTURE0 + s_objTexUnits[i]);
+-    glBindTexture(GL_TEXTURE_2D, s_objTextureId[i]);
+-
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+-
+-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, SIM_NDS_SCREEN_WIDTH,
+-                 SIM_NDS_SCREEN_HEIGHT * 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+-  }
+-
+-#define GenerateTexture(_id, _width, _height)                                  \
+-  glGenTextures(1, &_id);                                                      \
+-  glActiveTexture(GL_TEXTURE0);                                                \
+-  glBindTexture(GL_TEXTURE_2D, _id);                                           \
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);           \
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);           \
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);                \
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);                \
+-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, GL_RGBA,        \
+-               GL_UNSIGNED_BYTE, NULL);
+-
+-#ifdef SDK_BUILD_MACOS
+-#define SIM_SHADER_SOURCE(_source) SIM_MacShaderSource(_source)
+-#else
+-#define SIM_SHADER_SOURCE(_source) (_source)
+-#endif
+-#define CompileShaderCommon(_id, _source)                                      \
+-  { const char *_src = SIM_SHADER_SOURCE(_source);                             \
+-  glShaderSource(_id, 1, &_src, NULL); }                                       \
+-  glCompileShader(_id);                                                        \
+-  glGetShaderiv(_id, GL_COMPILE_STATUS, &status);                              \
+-  if (status != GL_TRUE) {                                                     \
+-    glGetShaderiv(g2FragmentShader, GL_INFO_LOG_LENGTH, &logSize);             \
+-    errorBuf = static_cast<GLchar *>(malloc(logSize * sizeof(GLchar)));        \
+-    glGetShaderInfoLog(_id, logSize, &logSize, (GLchar *)errorBuf);            \
+-    printf("ERROR COMPILING _source SHADER:\n%s\n", errorBuf);                 \
+-    free(errorBuf);                                                            \
+-  }
+-
+-#define CompileVertexShader(_id, _source)                                      \
+-  _id = glCreateShader(GL_VERTEX_SHADER);                                      \
+-  CompileShaderCommon(_id, _source);
+-
+-#define CompileFragmentShader(_id, _source)                                    \
+-  _id = glCreateShader(GL_FRAGMENT_SHADER);                                    \
+-  CompileShaderCommon(_id, _source);
+-
+-#define LinkShader(_id, _vertex, _fragment)                                    \
+-  glAttachShader(_id, _vertex);                                                \
+-  glAttachShader(_id, _fragment);                                              \
+-  glLinkProgram(_id);                                                          \
+-  glErrCode = glGetError();                                                    \
+-  glGetProgramiv(_id, GL_LINK_STATUS, &status);                                \
+-  if (status != GL_TRUE) {                                                     \
+-    glGetProgramiv(_id, GL_INFO_LOG_LENGTH, &logSize);                         \
+-    errorBuf = (GLchar *)malloc(logSize * sizeof(GLchar));                     \
+-    glGetProgramInfoLog(_id, logSize, &logSize, (GLchar *)errorBuf);           \
+-    glErrCode = glGetError();                                                  \
+-    printf("ERROR LINKING _id SHADER:\n%s\n", errorBuf);                       \
+-    free(errorBuf);                                                            \
+-  }                                                                            \
+-  glValidateProgram(_id);                                                      \
+-  glUseProgram(_id);
+-
+-  GenerateTexture(dummyScreenTextureId, SIM_NDS_SCREEN_WIDTH,
+-                  SIM_NDS_SCREEN_HEIGHT * 2);
+-  GenerateTexture(objWindowTextureId, SIM_NDS_SCREEN_WIDTH,
+-                  SIM_NDS_SCREEN_HEIGHT * 2);
+-
+-  // 3D Framebuffer render texture
+-  glGenFramebuffers(1, &g3FrameBuffer);
+-  glBindFramebuffer(GL_FRAMEBUFFER, g3FrameBuffer);
+-  glGenTextures(1, &g3RenderTextureId);
+-  glActiveTexture(GL_TEXTURE0);
+-  glBindTexture(GL_TEXTURE_2D, g3RenderTextureId);
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+-                         g3RenderTextureId, 0);
+-  glGenRenderbuffers(1, &g3RenderBufferId);
+-  glBindRenderbuffer(GL_RENDERBUFFER, g3RenderBufferId);
+-  SIM_SetInternalResolution(s_SIM_config.internalResolutionScale);
+-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+-                            GL_RENDERBUFFER, g3RenderBufferId);
+-
+-  // Check FBO status
+-  int fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+-  if (fboStatus != GL_FRAMEBUFFER_COMPLETE) {
+-    printf("Framebuffer error: %d\n", fboStatus);
+-  }
+-
+-  // Unbind all that stuff
+-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+-  glBindRenderbuffer(GL_RENDERBUFFER, 0);
+-
+-  glBindTexture(GL_TEXTURE_2D, g2TextureId);
+-
+-  glGenFramebuffers(1, &g2FrameBuffer);
+-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+-
+-  // Setup G3 Shader Program
+-  g3shaderProgramID = glCreateProgram();
+-  CompileVertexShader(myVertexShader, SIM::G3VertexShader);
+-  CompileFragmentShader(myFragmentShader, SIM::G3FragmentShader);
+-  LinkShader(g3shaderProgramID, myVertexShader, myFragmentShader);
+-
+-  // Setup G2 Shader Program
+-  g2shaderProgramID = glCreateProgram();
+-  CompileVertexShader(g2VertexShader, SIM::G2VertexShader);
+-  CompileFragmentShader(g2FragmentShader, SIM::G2FragmentShader);
+-  LinkShader(g2shaderProgramID, g2VertexShader, g2FragmentShader);
+-
+-  GLint texUnitLoc = glGetUniformLocation(g2shaderProgramID, "myTexture");
+-  glProgramUniform1i(g2shaderProgramID, texUnitLoc, 0);
+-
+-  // Set up the texture units in the shader
+-  glUniform1iv(glGetUniformLocation(g2shaderProgramID, "bgTexture"), 4,
+-               s_bgTexUnits);
+-  glUniform1iv(glGetUniformLocation(g2shaderProgramID, "objTexture"), 5,
+-               s_objTexUnits);
+-
+-  // PostFX post pass (see the PostFX block above): offscreen composited
+-  // frame + fullscreen quad. The texture is (re)sized per frame in SIM_Render.
+-  {
+-    GLint postVertexShader, postFragmentShader;
+-    sPostProgramID = glCreateProgram();
+-    CompileVertexShader(postVertexShader, SIM::PostVertexShader);
+-    CompileFragmentShader(postFragmentShader, SIM::PostFragmentShader);
+-    LinkShader(sPostProgramID, postVertexShader, postFragmentShader);
+-    glGenFramebuffers(1, &sPostFBO);
+-    glGenTextures(1, &sPostTex);
+-    glGenVertexArrays(1, &sPostVAO);
+-    glGenBuffers(1, &sPostVBO);
+-    static const float quad[] = {
+-      -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,  1.0f, -1.0f, 0.0f, 1.0f, 0.0f,  1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+-      -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,  1.0f,  1.0f, 0.0f, 1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+-    };
+-    glBindVertexArray(sPostVAO);
+-    glBindBuffer(GL_ARRAY_BUFFER, sPostVBO);
+-    glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
+-    glEnableVertexAttribArray(0);
+-    glEnableVertexAttribArray(1);
+-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+-  }
+-
+-  glGenVertexArrays(1, &g2vertexArray);
+-  glBindVertexArray(g2vertexArray);
+-  glGenBuffers(1, &g2vertexBuffer);
+-
+-  glEnable(GL_BLEND);
+-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+-
+-  SDL_GL_SwapWindow(window);
++  SIM::Render::InitParams renderInit;
++  renderInit.windowWidth = (int)windowWidth;
++  renderInit.windowHeight = (int)windowHeight;
++  renderInit.internalScale = s_SIM_config.internalResolutionScale;
++  renderer.Init(window, renderInit);
+ 
+   // Setup ImGui
+-  SIM::GUI::Init(window, context);
++  SIM::GUI::Init(window);
+ 
+   clock_gettime(CLOCK_MONOTONIC, &s_SIM_lastFrameEnd);
+ 
+@@ -1985,8 +1661,6 @@ int main(int argc, char *argv[]) {
+   SIM::G3::GetGlobalState().Init();
+ 
+   SIM_RenderInit(NULL);
+-  SIM::G3::GetGlobalState().InitGlRenderer();
+-  SIM::G3::GetGlobalState().GetGlRenderer()->SetShaderProgramId(g3shaderProgramID);
+ 
+ // Init Sockets (only needed on windows)
+ #ifdef SDK_BUILD_WIN64
+diff --git a/libraries/sim/src/sim_render_backend.cpp b/libraries/sim/src/sim_render_backend.cpp
+new file mode 100644
+index 0000000..d8f156a
+--- /dev/null
++++ b/libraries/sim/src/sim_render_backend.cpp
+@@ -0,0 +1,29 @@
++// Render backend selection (SIM_RENDERER=gl|gpu, read once).
++#include <simulator/sim_render_backend.hpp>
++
++#include "render_gl/sim_render_gl.hpp"
++#include "render_gpu/sim_render_gpu.hpp"
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++namespace SIM::Render {
++
++namespace detail {
++Backend *gBackend = nullptr;
++}
++
++Backend &Select() {
++  if (detail::gBackend) return *detail::gBackend;
++  const char *e = getenv("SIM_RENDERER");
++  if (e && strcmp(e, "gpu") == 0) {
++    detail::gBackend = CreateGpuBackend();
++  } else if (e && *e && strcmp(e, "gl") != 0) {
++    fprintf(stderr, "SIM_RENDERER=%s: unknown renderer, using gl\n", e);
++  }
++  if (!detail::gBackend) detail::gBackend = CreateGlBackend();
++  return *detail::gBackend;
++}
++
++}
