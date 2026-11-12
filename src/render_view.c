@@ -39,16 +39,20 @@ BOOL IsObjectInView(const NNSG2dCellData *cellData, const MtxFx32 *objectCoords,
     fx32 minX, maxX;
     fx32 tmp;
 
+    // Shift in unsigned: the bounding-rect coordinates can be negative
+    // and the radius is negated, and left-shifting a negative value is UB
+    // in C. Shifting the two's-complement bit pattern in u32 gives the
+    // same result the DS compiler produced.
     if (NNS_G2dCellHasBR(cellData) == TRUE) {
-        minY = boundingRect->minY << FX32_SHIFT;
-        maxY = boundingRect->maxY << FX32_SHIFT;
-        minX = boundingRect->minX << FX32_SHIFT;
-        maxX = boundingRect->maxX << FX32_SHIFT;
+        minY = (fx32)((u32)(s32)boundingRect->minY << FX32_SHIFT);
+        maxY = (fx32)((u32)(s32)boundingRect->maxY << FX32_SHIFT);
+        minX = (fx32)((u32)(s32)boundingRect->minX << FX32_SHIFT);
+        maxX = (fx32)((u32)(s32)boundingRect->maxX << FX32_SHIFT);
     } else {
-        minY = -boundingRadius << FX32_SHIFT;
-        maxY = boundingRadius << FX32_SHIFT;
-        minX = -boundingRadius << FX32_SHIFT;
-        maxX = boundingRadius << FX32_SHIFT;
+        minY = (fx32)(0u - ((u32)boundingRadius << FX32_SHIFT));
+        maxY = (fx32)((u32)boundingRadius << FX32_SHIFT);
+        minX = (fx32)(0u - ((u32)boundingRadius << FX32_SHIFT));
+        maxX = (fx32)((u32)boundingRadius << FX32_SHIFT);
     }
 
     minY = FX_Mul(minY, objectCoords->_01) + FX_Mul(minY, objectCoords->_11) + originY;
