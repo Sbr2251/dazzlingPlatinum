@@ -183,7 +183,8 @@ void FieldCamera_Create(const VecFx32 *_target, FieldSystem *fieldSystem, enum C
         // plane, so the land blocks loaded around the DS 2x2 window (see
         // FieldLoadRadius) are visible on the current screen.
         distance = distance + distance / 2;
-        farPlaneDist = FX32_ONE * 1800;
+        // 1500 stays inside fx32 range in MTX_PerspectiveW (2 * near * far).
+        farPlaneDist = FX32_ONE * 1500;
     }
 #endif
 

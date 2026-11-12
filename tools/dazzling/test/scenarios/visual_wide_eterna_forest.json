@@ -1,0 +1,50 @@
+{
+ "name": "visual_wide_eterna_forest",
+ "_note": "fx-wide golden: SIM_FX_WIDE=1 (3x3 load radius) + SIM_FX_WIDE_CAMERA=1 (debug wide camera) on MAP_HEADER_ETERNA_FOREST; top-screen crop, exact compare. Linux reference recorded by fx-wide lane; Mac reference to be recorded by lead.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-29_eterna_forest_after_vespiquen.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-29_eterna_forest_after_vespiquen.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_wide_eterna_forest",
+   "reference": "../references/visual/visual_wide_eterna_forest.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  }
+ ],
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_ETERNA_FOREST"
+  },
+  {
+   "app": "field"
+  }
+ ],
+ "env": {
+  "SIM_FX_WIDE": "1",
+  "SIM_FX_WIDE_CAMERA": "1"
+ }
+}
