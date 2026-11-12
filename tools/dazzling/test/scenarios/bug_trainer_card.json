@@ -1,0 +1,121 @@
+{
+ "name": "bug_trainer_card",
+ "_note": "Trainer Card (X menu -> Trainer Case): window text on the card must render cleanly. Before the fix the 8x16 system-font glyphs' lower halves rendered heap garbage (Window_CopyGlyph under-converted the glyph tile grid for 8bpp windows). Golden is the physical top screen (the app swaps displays, so the card is on top).",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "press": "X",
+   "frames": 10
+  },
+  {
+   "step": 180
+  },
+  {
+   "press": "DOWN",
+   "frames": 10
+  },
+  {
+   "step": 90
+  },
+  {
+   "press": "DOWN",
+   "frames": 10
+  },
+  {
+   "step": 90
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 300
+  },
+  {
+   "screenshot": "bug_trainer_card",
+   "reference": "../references/bug_trainer_card.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  }
+ ],
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_ROUTE_201"
+  },
+  {
+   "app": "field"
+  }
+ ]
+}
