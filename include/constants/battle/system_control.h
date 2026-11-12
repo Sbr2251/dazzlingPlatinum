@@ -26,7 +26,7 @@
 #define SYSCTL_APPLY_SECONDARY_EFFECT  (1 << 22)
 #define SYSCTL_APPLY_MOLD_BREAKER      (1 << 23)
 #define SYSCTL_MON_FAINTED             ((1 << 24) | (1 << 25) | (1 << 26) | (1 << 27))
-#define SYSCTL_MON_SELFDESTRUCTED      ((1 << 28) | (1 << 29) | (1 << 30) | (1 << 31))
+#define SYSCTL_MON_SELFDESTRUCTED      ((1 << 28) | (1 << 29) | (1 << 30) | (1u << 31))
 
 #define SYSCTL_INIT_P1 (SYSCTL_SKIP_ATTACK_MESSAGE | SYSCTL_CHECK_LOOP_ONLY_ONCE | SYSCTL_HIT_DURING_FLY \
     | SYSCTL_HIT_DURING_DIG | SYSCTL_HIT_DURING_DIVE | SYSCTL_FIRST_OF_MULTI_TURN                        \
@@ -55,7 +55,7 @@
 #define SYSCTL_RECALC_MON_STATS        (1 << 27)
 
 #define SYSCTL_LINK_WAITING ((1 << 24) | (1 << 25) | SYSCTL_FORM_CHANGE | SYSCTL_RECALC_MON_STATS)
-#define SYSCTL_PAYOUT_EXP   ((1 << 28) | (1 << 29) | (1 << 30) | (1 << 31))
+#define SYSCTL_PAYOUT_EXP   ((1 << 28) | (1 << 29) | (1 << 30) | (1u << 31))
 
 #define SYSCTL_INIT2 (~(SYSCTL_UPDATE_STAT_STAGES \
     | SYSCTL_ATTACK_MESSAGE_SHOWN                 \
