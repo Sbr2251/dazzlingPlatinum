@@ -172,5 +172,13 @@ HiddenItemTilePosition *FieldSystem_GetNearbyHiddenItems(FieldSystem *fieldSyste
 void FieldSystem_InitNewGameState(FieldSystem *fieldSystem);
 void FieldSystem_RunScript(FieldSystem *fieldSystem, u16 scriptID);
 BOOL FieldSystem_RunInitScript(FieldSystem *fieldSystem, u8 param1);
+// Debug script hot-reload (docs/headless_protocol.md): scripts and text are
+// loaded on demand from their NARC files for every new script context, so a
+// rebuild on disk is picked up by the next script that starts. The reload
+// entry point refuses while a script is running and otherwise re-reads the
+// current map's script member and text bank from disk to prove the rebuilt
+// files are readable, reporting their archive ids and sizes.
+BOOL ScriptManager_IsScriptRunning(FieldSystem *fieldSystem);
+BOOL ScriptManager_ReloadCurrentMapData(FieldSystem *fieldSystem, int *mapHeader, u32 *scriptArchive, u32 *textBank, u32 *scriptBytes, u32 *textBytes);
 
 #endif // POKEPLATINUM_SCRIPT_MANAGER_H

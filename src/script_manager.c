@@ -239,6 +239,54 @@ static void ScriptContext_LoadFromCurrentMap(FieldSystem *fieldSystem, ScriptCon
     ctx->loader = MessageLoader_Init(MSG_LOADER_LOAD_ON_DEMAND, NARC_INDEX_MSGDATA__PL_MSG, MapHeaderToMsgArchive(fieldSystem->location->mapHeaderID), HEAP_ID_FIELD2);
 }
 
+BOOL ScriptManager_IsScriptRunning(FieldSystem *fieldSystem)
+{
+    if (fieldSystem == NULL || fieldSystem->task == NULL) {
+        return FALSE;
+    }
+
+    void *env = FieldTask_GetEnv(fieldSystem->task);
+    return env != NULL && ((ScriptManager *)env)->magic == SCRIPT_MANAGER_MAGIC_NUMBER;
+}
+
+BOOL ScriptManager_ReloadCurrentMapData(FieldSystem *fieldSystem, int *mapHeader, u32 *scriptArchive, u32 *textBank, u32 *scriptBytes, u32 *textBytes)
+{
+    if (fieldSystem == NULL || fieldSystem->location == NULL) {
+        return FALSE;
+    }
+
+    if (ScriptManager_IsScriptRunning(fieldSystem) == TRUE) {
+        return FALSE;
+    }
+
+    int header = fieldSystem->location->mapHeaderID;
+    u32 archive = MapHeader_GetScriptsArchiveID(header);
+    u32 bank = MapHeaderToMsgArchive(header);
+
+    // Re-read the whole script member from disk (the same load a new script
+    // context performs), then drop it: no script is running, so nothing
+    // holds the old copy, and the next script start reads the rebuilt file.
+    void *scripts = ScriptContext_LoadScripts(header);
+    if (scripts == NULL) {
+        return FALSE;
+    }
+
+    u32 sBytes = NARC_GetMemberSizeByIndexPair(NARC_INDEX_FIELDDATA__SCRIPT__SCR_SEQ, (int)archive);
+    u32 tBytes = NARC_GetMemberSizeByIndexPair(NARC_INDEX_MSGDATA__PL_MSG, (int)bank);
+    Heap_Free(scripts);
+
+    if (sBytes == 0 || tBytes == 0) {
+        return FALSE;
+    }
+
+    if (mapHeader != NULL) *mapHeader = header;
+    if (scriptArchive != NULL) *scriptArchive = archive;
+    if (textBank != NULL) *textBank = bank;
+    if (scriptBytes != NULL) *scriptBytes = sBytes;
+    if (textBytes != NULL) *textBytes = tBytes;
+    return TRUE;
+}
+
 void *ScriptManager_GetMemberPtr(ScriptManager *scriptManager, u32 member)
 {
     ApproachingTrainer *trainer;

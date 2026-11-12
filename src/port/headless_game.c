@@ -308,10 +308,23 @@ static void CmdTalk(const char *line, char *reply, size_t cap) {
     ErrOut(reply, cap, "no free adjacent tile");
 }
 
+static void CmdReloadScripts(const char *line, char *reply, size_t cap) {
+    (void)line;
+    FieldSystem *fsys = DEBUG_GetFieldSystem();
+    if (!fsys) { ErrOut(reply, cap, "not in the field"); return; }
+    DebugReloadResult r = DEBUG_ReloadMapScripts();
+    if (r.scriptRunning) { ErrOut(reply, cap, "a script is running; reload deferred until it finishes"); return; }
+    if (!r.ok) { ErrOut(reply, cap, "reload failed: current map script or text bank unreadable"); return; }
+    const char *mapName = Headless_NameOf(kHeadlessMapHeaders, kHeadlessMapHeadersCount, r.mapHeader);
+    snprintf(reply, cap, "{\"ok\":true,\"map\":\"%s\",\"map_id\":%d,\"script_archive\":%u,\"text_bank\":%u,\"script_bytes\":%u,\"text_bytes\":%u}",
+             mapName ? mapName : "MAP_HEADER_?", r.mapHeader, r.scriptArchive, r.textBank, r.scriptBytes, r.textBytes);
+}
+
 int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
     char cmd[64];
     if (!JsonStr(line, "cmd", cmd, sizeof(cmd))) return 0;
     if (strcmp(cmd, "warp") == 0) CmdWarp(line, reply, cap);
+    else if (strcmp(cmd, "reload_scripts") == 0) CmdReloadScripts(line, reply, cap);
     else if (strcmp(cmd, "set_var") == 0) CmdSetVar(line, reply, cap);
     else if (strcmp(cmd, "set_flag") == 0) CmdSetFlag(line, reply, cap);
     else if (strcmp(cmd, "give_item") == 0) CmdGiveItem(line, reply, cap);

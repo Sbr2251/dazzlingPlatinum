@@ -93,7 +93,8 @@ Implemented (step 2). `SIM_CONTROL=stdio` implies `SIM_HEADLESS=1`.
 |---|---|
 | `{"cmd":"step","frames":N}` | Run N frames with no keys held. `frames` defaults to 1. |
 | `{"cmd":"press","keys":["A","UP"],"frames":N}` | Hold the named keys (`A B X Y L R START SELECT UP DOWN LEFT RIGHT`) for N frames while stepping. |
-| `{"cmd":"touch","x":X,"y":Y,"frames":N}` | Touch the bottom screen at DS coordinates (256x192) for N frames while stepping. |
+| `{"cmd":"touch","x":X,"y":Y,"frames":N}` | Touch the bottom screen at DS coordinates (256x192) for N frames while stepping. The panel is pulsed on long touches (2 frames down, 14 frames up), so the game - which only sees a touch on the 0->1 edge - gets a fresh press every 16 frames for the whole command; a single held touch would register only on its first frame, before a touch-only battle menu (party SHIFT card, Use-next-Pokemon buttons) has finished opening. Short taps (<=10 frames) produce exactly one press, so chained menus are not double-tapped. |
+| `{"cmd":"reload_scripts"}` | Script hot-reload (debug): re-read the current map's scripts and text bank from disk (see "Script hot-reload" below). Errors when not in the field or while a script is running. |
 | `{"cmd":"screenshot","path":"..."}` | Write the last rendered frame to a BMP at `path`. |
 | `{"cmd":"state", ...}` | Game state (below; step 3 for the full fields). |
 | `{"cmd":"import_save","path":"..."}` | Import a raw `.sav`/`.dsv`, reply, then restart the process (stdin/stdout survive `execv`, so the same client keeps working; the reply carries `"restarting":true`). |
@@ -163,6 +164,36 @@ hand-maintained. `LOCALID_*` ids are scoped to the current map.
   string names in the binary); `app` is the semantic classification.
 - `talk`'s A press and `warp`'s map change take effect over the following
   frames; step and re-read `state` to observe the result.
+
+## Script hot-reload (debug)
+
+Field scripts and their text are loaded on demand from their NARC files
+(`fielddata/script/scr_seq.narc`, `msgdata/pl_msg.narc`) every time a new
+script context starts - nothing is cached in RAM while no script is
+running. Editing a script therefore needs no game restart:
+
+1. Edit `res/field/maps/<map>/scripts.s` (and/or its text in `res/text/`).
+2. Rebuild the script/text targets and the file-copy step that lays them
+   out where the game reads them (`fielddata/script/scr_seq.narc`,
+   `msgdata/pl_msg.narc` under the build root):
+   `ninja -C build_linux pokeplatinum.us`
+   (on the Mac build tree: the same target under `build_macos`; a plain
+   incremental `ninja` does the same when only scripts/text changed).
+3. Reload: press **Reload Scripts** in the backtick GUI's pokeplatinum
+   window, or send `{"cmd":"reload_scripts"}` headless. The reply carries
+   the map name/id, script archive id, text bank id and the re-read sizes:
+   `{"ok":true,"map":"MAP_HEADER_...","map_id":N,"script_archive":N,"text_bank":N,"script_bytes":N,"text_bytes":N}`.
+   The next script that starts (talk, bg event, trainer sight) uses the
+   rebuilt files.
+
+The reload is refused while a script is running (`"a script is running;
+reload deferred until it finishes"`; the GUI shows the same as a deferred
+message) - a running script context owns the old script buffer and message
+loader, and swapping files under it would corrupt its program counter.
+New script *labels* are resolved by their ordinal in the map's script file,
+so appending entries keeps existing script ids valid; adding a new object
+event for a new label still needs the map itself to reload (warp away and
+back), because object events load with the map.
 
 ## Asserts, crashes, watchdog
 
