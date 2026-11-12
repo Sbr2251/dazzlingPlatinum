@@ -1605,6 +1605,15 @@ static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const
         return;
     }
 
+    // Extra maps load synchronously from the same NARC the lazy loader
+    // streams core maps from in chunks. Loading an extra while a core pair
+    // is mid-stream would move the NARC position under the lazy tasks, so
+    // extras only refresh once the lazy loader is idle; they catch up a
+    // few frames after the core pair lands.
+    if (landDataMan->runningLazyLoaderManCount != 0) {
+        return;
+    }
+
     if (centreMapMatrixIndex < 0 || centreMapMatrixIndex >= landDataMan->mapMatrixWidth * landDataMan->mapMatrixHeight) {
         return;
     }
