@@ -664,6 +664,13 @@ u32 Pokemon_GetValue(Pokemon *mon, enum PokemonDataParam param, void *dest)
         if (checksum != mon->box.checksum) {
             GF_ASSERT(checksum == mon->box.checksum);
             mon->box.checksumFailed = TRUE;
+        } else {
+            // The flag is in-RAM only, but it shares the save header's
+            // unused word: a stale TRUE saved by an earlier session must
+            // not brand a mon whose data verifies as a Bad Egg forever
+            // (MON_DATA_SPECIES then reports SPECIES_EGG, e.g. a Luxray
+            // in the owner's test saves).
+            mon->box.checksumFailed = FALSE;
         }
     }
 
@@ -749,6 +756,8 @@ u32 BoxPokemon_GetValue(BoxPokemon *boxMon, enum PokemonDataParam param, void *d
         if (checksum != boxMon->checksum) {
             GF_ASSERT(checksum == boxMon->checksum);
             boxMon->checksumFailed = TRUE;
+        } else {
+            boxMon->checksumFailed = FALSE;
         }
     }
 
@@ -1251,6 +1260,8 @@ void Pokemon_SetValue(Pokemon *mon, enum PokemonDataParam param, const void *val
             mon->box.checksumFailed = TRUE;
             Pokemon_EncryptData(mon->box.dataBlocks, sizeof(PokemonDataBlock) * 4, mon->box.checksum);
             return;
+        } else {
+            mon->box.checksumFailed = FALSE;
         }
     }
 
@@ -1335,6 +1346,8 @@ void BoxPokemon_SetValue(BoxPokemon *boxMon, enum PokemonDataParam param, const 
             boxMon->checksumFailed = TRUE;
             Pokemon_EncryptData(boxMon->dataBlocks, sizeof(PokemonDataBlock) * 4, boxMon->checksum);
             return;
+        } else {
+            boxMon->checksumFailed = FALSE;
         }
     }
 
@@ -1807,6 +1820,8 @@ void Pokemon_IncreaseValue(Pokemon *mon, enum PokemonDataParam param, int value)
             GF_ASSERT(checksum == mon->box.checksum);
             Pokemon_EncryptData(mon->box.dataBlocks, sizeof(PokemonDataBlock) * 4, mon->box.checksum);
             return;
+        } else {
+            mon->box.checksumFailed = FALSE;
         }
     }
 
