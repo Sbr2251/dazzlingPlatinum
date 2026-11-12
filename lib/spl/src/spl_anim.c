@@ -16,6 +16,12 @@ void SPLAnim_Scale(SPLParticle *ptcl, SPLResource *res, int lifeRate)
         ptcl->animScale = start + ((lifeRate * (mid - start)) / in);
     } else if (lifeRate < out) {
         ptcl->animScale = scaleAnim->mid;
+    } else if (out >= 255) {
+        // The out phase ends at the last life-rate value: there is no span
+        // left to interpolate over (255 - out == 0). Dividing here traps
+        // with SIGFPE on x86 (the DS/Mac ARM cores return 0 instead), which
+        // killed the Mega Evolution emblem particles on PC at lifeRate 255.
+        ptcl->animScale = scaleAnim->end;
     } else {
         fx16 mid = scaleAnim->mid;
         fx16 end = scaleAnim->end;
@@ -101,15 +107,13 @@ void SPLAnim_Alpha(SPLParticle *ptcl, SPLResource *res, int lifeRate)
     } else if (lifeRate < out) {
         value = alphaAnim->alpha.mid;
     } else {
-        #ifdef SDK_PORT
-        if(out != 0) {
-            value = ((lifeRate - 255) * (alphaAnim->alpha.end - alphaAnim->alpha.mid)) / (255 - out);
-        } else {
+        // Same 255-out trap as SPLAnim_Scale: at out == 255 the value is
+        // the end alpha (the old out != 0 guard did not cover it).
+        if (out >= 255) {
             value = 0;
+        } else {
+            value = ((lifeRate - 255) * (alphaAnim->alpha.end - alphaAnim->alpha.mid)) / (255 - out);
         }
-        #else
-        value = ((lifeRate - 255) * (alphaAnim->alpha.end - alphaAnim->alpha.mid)) / (255 - out);
-        #endif
         value += alphaAnim->alpha.end;
     }
 
