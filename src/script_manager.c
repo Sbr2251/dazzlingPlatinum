@@ -752,7 +752,7 @@ BOOL FieldSystem_RunInitScript(FieldSystem *fieldSystem, u8 initScriptType)
 
 #define GET8(bytes)  *bytes
 #define GET16(bytes) bytes[0] + (bytes[1] << 8)
-#define GET32(bytes) bytes[0] + (bytes[1] << 8) + (bytes[2] << 16) + (bytes[3] << 24)
+#define GET32(bytes) bytes[0] + (bytes[1] << 8) + (bytes[2] << 16) + ((u32)bytes[3] << 24)
 
 static u16 FieldSystem_GetFixedInitScriptID(const u8 *initScriptBytes, u8 initScriptType)
 {
