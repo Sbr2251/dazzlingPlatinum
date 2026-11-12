@@ -1636,7 +1636,7 @@ index b652bd5..f816f23 100644
      }
 diff --git a/libraries/sim/src/shaders/g2gpu_fragment.glsl b/libraries/sim/src/shaders/g2gpu_fragment.glsl
 new file mode 100644
-index 0000000..999904e
+index 0000000..2d8579a
 --- /dev/null
 +++ b/libraries/sim/src/shaders/g2gpu_fragment.glsl
 @@ -0,0 +1,275 @@
@@ -1740,8 +1740,8 @@ index 0000000..999904e
 +        return vec4(palColor(isSub == 1 ? 2 : 0, int(idx)), 1.0);
 +    }
 +    int addr = tileset + (tileNum << 5) + (ty << 2) + (tx >> 1);
-+    uint packed = bgByte(addr);
-+    uint idx = (tx & 1) != 0 ? (packed >> 4) : (packed & 15u);
++    uint packedByte = bgByte(addr);
++    uint idx = (tx & 1) != 0 ? (packedByte >> 4) : (packedByte & 15u);
 +    if (idx == 0u || !textWindowPass(px, py)) return vec4(0.0);
 +    return vec4(palColor(isSub == 1 ? 2 : 0, int(((tile & 0xF000u) >> 8) | idx)), 1.0);
 +}
@@ -1846,8 +1846,8 @@ index 0000000..999904e
 +            if ((dispcnt & 0x10) != 0) { base <<= ((dispcnt >> 20) & 3); ytf = (w >> 3) << 5; }
 +            else ytf = 0x20 << 5;
 +            base <<= 5;
-+            uint packed = objByte(base + ((rotY >> 11) * ytf) + ((rotY & 0x700) >> 6) + ((rotX >> 11) * 32) + ((rotX & 0x700) >> 9));
-+            uint idx = (rotX & 0x100) != 0 ? (packed >> 4) : (packed & 15u);
++            uint packedByte = objByte(base + ((rotY >> 11) * ytf) + ((rotY & 0x700) >> 6) + ((rotX >> 11) * 32) + ((rotX & 0x700) >> 9));
++            uint idx = (rotX & 0x100) != 0 ? (packedByte >> 4) : (packedByte & 15u);
 +            if (idx != 0u) { hit = true; palByte = int(((a2 & 0xF000u) >> 8) | idx); }
 +        }
 +    } else {
@@ -1881,8 +1881,8 @@ index 0000000..999904e
 +            int t = tileNum;
 +            if ((dispcnt & 0x10) != 0) { t <<= ((dispcnt >> 20) & 3); t += (syF >> 3) * (w >> 3); }
 +            else t += (syF >> 3) * 0x20;
-+            uint packed = objByte((t << 5) + ((syF & 7) << 2) + ((sxF >> 3) << 5) + ((sxF & 7) >> 1));
-+            uint idx = (sxF & 1) != 0 ? (packed >> 4) : (packed & 15u);
++            uint packedByte = objByte((t << 5) + ((syF & 7) << 2) + ((sxF >> 3) << 5) + ((sxF & 7) >> 1));
++            uint idx = (sxF & 1) != 0 ? (packedByte >> 4) : (packedByte & 15u);
 +            if (idx != 0u) { hit = true; palByte = int(((a2 & 0xF000u) >> 8) | idx); }
 +        }
 +    }
@@ -2804,7 +2804,7 @@ index 77300c2..b2b2704 100644
 \ No newline at end of file
 +}
 diff --git a/libraries/sim/src/sim_g3_GlobalState.cpp b/libraries/sim/src/sim_g3_GlobalState.cpp
-index c6d82f5..efa4ec5 100644
+index c6d82f5..249e0d1 100644
 --- a/libraries/sim/src/sim_g3_GlobalState.cpp
 +++ b/libraries/sim/src/sim_g3_GlobalState.cpp
 @@ -4,6 +4,9 @@
@@ -2942,6 +2942,19 @@ index c6d82f5..efa4ec5 100644
  
  			// Texture buffer can be freed now, it has been sent to the GPU
  			delete[] outTexBuf;
+@@ -546,7 +625,11 @@ void GlobalState::SetPositionMatrix(const MtxFx44& matrix) {
+ void GlobalState::UpdateClipMatrix() {
+     mCurrentClipMatrix = Util::MultiplyMtxFx44(mCurrentPositionMatrix, mCurrentProjectionMatrix);
+ 
+-    memcpy( (void*)&s_reg_G3X_CLIPMTX_RESULT_0, &mCurrentClipMatrix, sizeof( MtxFx44 ) );
++    // The 16 clip matrix result registers are consecutive variables (sim_vars.c). Copy through a pointer the compiler cannot
++    // size: _FORTIFY_SOURCE=3 (the default on Ubuntu's gcc) otherwise aborts on a 64-byte copy into a "4-byte object".
++    void *clipMtxRegs = (void*)&s_reg_G3X_CLIPMTX_RESULT_0;
++    __asm__("" : "+r"(clipMtxRegs));
++    memcpy( clipMtxRegs, &mCurrentClipMatrix, sizeof( MtxFx44 ) );
+ }
+ 
+ 
 diff --git a/libraries/sim/src/sim_g3_TextureCache.cpp b/libraries/sim/src/sim_g3_TextureCache.cpp
 index de145a7..6a2b5da 100644
 --- a/libraries/sim/src/sim_g3_TextureCache.cpp
