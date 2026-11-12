@@ -1,0 +1,143 @@
+{
+ "name": "core_mega_cinematic_finish",
+ "_note": "Regression: a start_battle Mega Evolution (battle_decide mega) crashed the headless game with SIGFPE ~200 frames into the cinematic on Linux (SPLAnim_Scale divided by 255-out with out=255 in the emblem particles; ARM cores do not trap the division). Unlike visual_mega steps that stop on the cinematic frame, this reads state after the cinematic (mega must be true) and finishes the battle back to the field.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/mega_infernape_vs_garchomp.json"
+   }
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "assert": {
+    "battle.battlers.0.can_mega": true
+   }
+  },
+  {
+   "battle_decide": {
+    "battler": 0,
+    "action": "move",
+    "move_index": 0,
+    "mega": true
+   }
+  },
+  {
+   "step": 1200
+  },
+  {
+   "assert": {
+    "battle.battlers.0.mega": true
+   }
+  },
+  {
+   "screenshot": "mega_cinematic_after"
+  },
+  {
+   "battle_decide": {
+    "battler": 0,
+    "action": "move",
+    "move_index": 0
+   }
+  },
+  {
+   "battle_decide": {
+    "battler": 0,
+    "action": "move",
+    "move_index": 0
+   }
+  },
+  {
+   "battle_decide": {
+    "battler": 0,
+    "action": "move",
+    "move_index": 0
+   }
+  },
+  {
+   "battle_decide": {
+    "battler": 0,
+    "action": "move",
+    "move_index": 0
+   }
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "timeout_frames": 30000
+  }
+ ],
+ "assertions": [
+  {
+   "app": "field"
+  }
+ ]
+}

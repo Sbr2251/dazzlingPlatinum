@@ -1,0 +1,45 @@
+{
+ "name": "mega_cinematic_garchomp",
+ "_note": "Regression for the Linux SIGFPE in the Mega cinematic (SPLAnim_Scale 255-out): unlike mega_evolution (Bidoof dies at once), Garchomp survives so the cinematic emblem particles live to lifeRate 255. Run without --fast for full coverage; the battle must end and the process must survive.",
+ "spec": {
+  "battle_type": "wild",
+  "seed": 42,
+  "key_stone": true,
+  "player": [
+   {
+    "species": "SPECIES_INFERNAPE",
+    "level": 50,
+    "held_item": "ITEM_INFERNAPITE",
+    "moves": [
+     "MOVE_FLARE_BLITZ",
+     "MOVE_CLOSE_COMBAT",
+     "MOVE_MACH_PUNCH",
+     "MOVE_U_TURN"
+    ]
+   }
+  ],
+  "opponent": [
+   {
+    "species": "SPECIES_GARCHOMP",
+    "level": 50,
+    "moves": [
+     "MOVE_EARTHQUAKE",
+     "MOVE_DRAGON_CLAW",
+     "MOVE_STONE_EDGE",
+     "MOVE_SWORDS_DANCE"
+    ]
+   }
+  ],
+  "decisions": [
+   {
+    "type": "move",
+    "index": 0,
+    "mega": true
+   }
+  ]
+ },
+ "expect": {
+  "battle_ended": true,
+  "events_contain": "mega_evolution"
+ }
+}

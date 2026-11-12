@@ -479,7 +479,7 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                         req.update({k: v for k, v in sb.items() if k not in ("spec", "spec_path")})
                     client.cmd(req)
                 elif "battle_decide" in step:
-                    req = {"cmd": "battle_decide"}
+                    req = {"cmd": "battle_decide", "battler": 0, "action": "move"}
                     req.update(step["battle_decide"] if isinstance(step["battle_decide"], dict) else {})
                     client.cmd(req)
                 elif "battle_event" in step:
