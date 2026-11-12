@@ -508,11 +508,11 @@ void PokemonSpriteManager_DrawSprites(PokemonSpriteManager *monSpriteMan)
             PokemonSpriteStream_UpdateSprite(monSpriteMan, i, sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][0], sMonSpriteTextureCoords[i][monSpriteMan->sprites[i].currSpriteFrame][1]);
 
             G3_TexPlttBase(monSpriteMan->plttBaseAddr + PLTT_OFFSET_CAST(i), monSpriteMan->imageProxy.attr.fmt);
-            G3_Translate((monSpriteMan->sprites[i].transforms.xCenter + monSpriteMan->sprites[i].transforms.xPivot) << FX32_SHIFT, (monSpriteMan->sprites[i].transforms.yCenter + monSpriteMan->sprites[i].transforms.yPivot) << FX32_SHIFT, monSpriteMan->sprites[i].transforms.zCenter << FX32_SHIFT);
+            G3_Translate((fx32)((u32)(monSpriteMan->sprites[i].transforms.xCenter + monSpriteMan->sprites[i].transforms.xPivot) << FX32_SHIFT), (fx32)((u32)(monSpriteMan->sprites[i].transforms.yCenter + monSpriteMan->sprites[i].transforms.yPivot) << FX32_SHIFT), (fx32)((u32)monSpriteMan->sprites[i].transforms.zCenter << FX32_SHIFT));
             G3_RotX(FX_SinIdx(monSpriteMan->sprites[i].transforms.rotationX), FX_CosIdx(monSpriteMan->sprites[i].transforms.rotationX));
             G3_RotY(FX_SinIdx(monSpriteMan->sprites[i].transforms.rotationY), FX_CosIdx(monSpriteMan->sprites[i].transforms.rotationY));
             G3_RotZ(FX_SinIdx(monSpriteMan->sprites[i].transforms.rotationZ), FX_CosIdx(monSpriteMan->sprites[i].transforms.rotationZ));
-            G3_Translate(-((monSpriteMan->sprites[i].transforms.xCenter + monSpriteMan->sprites[i].transforms.xPivot) << FX32_SHIFT), -((monSpriteMan->sprites[i].transforms.yCenter + monSpriteMan->sprites[i].transforms.yPivot) << FX32_SHIFT), -(monSpriteMan->sprites[i].transforms.zCenter << FX32_SHIFT));
+            G3_Translate((fx32)(0u - ((u32)(monSpriteMan->sprites[i].transforms.xCenter + monSpriteMan->sprites[i].transforms.xPivot) << FX32_SHIFT)), (fx32)(0u - ((u32)(monSpriteMan->sprites[i].transforms.yCenter + monSpriteMan->sprites[i].transforms.yPivot) << FX32_SHIFT)), (fx32)(0u - ((u32)monSpriteMan->sprites[i].transforms.zCenter << FX32_SHIFT)));
             G3_MaterialColorDiffAmb(GX_RGB(monSpriteMan->sprites[i].transforms.diffuseR, monSpriteMan->sprites[i].transforms.diffuseG, monSpriteMan->sprites[i].transforms.diffuseB), GX_RGB(monSpriteMan->sprites[i].transforms.ambientR, monSpriteMan->sprites[i].transforms.ambientG, monSpriteMan->sprites[i].transforms.ambientB), TRUE);
             G3_MaterialColorSpecEmi(GX_RGB(16, 16, 16), GX_RGB(0, 0, 0), FALSE);
             G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, monSpriteMan->sprites[i].polygonID, monSpriteMan->sprites[i].transforms.alpha, 0);

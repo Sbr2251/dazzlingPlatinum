@@ -990,11 +990,11 @@ static void LoadClassicMatrix(const PokemonSpriteTransforms *transforms, const B
     NNS_G3dGeFlushBuffer();
     G3_Identity();
     LoadSimilarity(similarity);
-    G3_Translate((transforms->xCenter + transforms->xPivot) << FX32_SHIFT, (transforms->yCenter + transforms->yPivot) << FX32_SHIFT, transforms->zCenter << FX32_SHIFT);
+    G3_Translate((fx32)((u32)(transforms->xCenter + transforms->xPivot) << FX32_SHIFT), (fx32)((u32)(transforms->yCenter + transforms->yPivot) << FX32_SHIFT), (fx32)((u32)transforms->zCenter << FX32_SHIFT));
     G3_RotX(FX_SinIdx(transforms->rotationX), FX_CosIdx(transforms->rotationX));
     G3_RotY(FX_SinIdx(transforms->rotationY), FX_CosIdx(transforms->rotationY));
     G3_RotZ(FX_SinIdx(transforms->rotationZ), FX_CosIdx(transforms->rotationZ));
-    G3_Translate(-((transforms->xCenter + transforms->xPivot) << FX32_SHIFT), -((transforms->yCenter + transforms->yPivot) << FX32_SHIFT), -(transforms->zCenter << FX32_SHIFT));
+    G3_Translate((fx32)(0u - ((u32)(transforms->xCenter + transforms->xPivot) << FX32_SHIFT)), (fx32)(0u - ((u32)(transforms->yCenter + transforms->yPivot) << FX32_SHIFT)), (fx32)(0u - ((u32)transforms->zCenter << FX32_SHIFT)));
 }
 
 // The stat change overlay draws on this sprite this frame
@@ -1237,11 +1237,11 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         result |= MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX;
     }
 
-    G3_Translate((transforms->xCenter + transforms->xPivot) << FX32_SHIFT, (transforms->yCenter + transforms->yPivot) << FX32_SHIFT, transforms->zCenter << FX32_SHIFT);
+    G3_Translate((fx32)((u32)(transforms->xCenter + transforms->xPivot) << FX32_SHIFT), (fx32)((u32)(transforms->yCenter + transforms->yPivot) << FX32_SHIFT), (fx32)((u32)transforms->zCenter << FX32_SHIFT));
     G3_RotX(FX_SinIdx(transforms->rotationX), FX_CosIdx(transforms->rotationX));
     G3_RotY(FX_SinIdx(transforms->rotationY), FX_CosIdx(transforms->rotationY));
     G3_RotZ(FX_SinIdx(transforms->rotationZ), FX_CosIdx(transforms->rotationZ));
-    G3_Translate(-((transforms->xCenter + transforms->xPivot) << FX32_SHIFT), -((transforms->yCenter + transforms->yPivot) << FX32_SHIFT), -(transforms->zCenter << FX32_SHIFT));
+    G3_Translate((fx32)(0u - ((u32)(transforms->xCenter + transforms->xPivot) << FX32_SHIFT)), (fx32)(0u - ((u32)(transforms->yCenter + transforms->yPivot) << FX32_SHIFT)), (fx32)(0u - ((u32)transforms->zCenter << FX32_SHIFT)));
 
     // Rect centre; 1 vertex unit (fx16) = 1/256 px. The scale only goes to the position
     // matrix, so the normals stay unit length
