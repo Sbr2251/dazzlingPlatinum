@@ -30627,7 +30627,7 @@ index 0000000..4724782
 +    s_panelH = h;
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..f78218a 100644
+index 910d7da..4694036 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -31326,7 +31326,7 @@ index 910d7da..f78218a 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -578,8 +605,6 @@ static void DrawEngine(BOOL isSub) {
+@@ -578,10 +605,16 @@ static void DrawEngine(BOOL isSub) {
    u8 maxPriorityBG;
    u8 bgEnabled[4];
    u8 bgMode;
@@ -31334,8 +31334,18 @@ index 910d7da..f78218a 100644
 -  GLint bgPriorities[4];
  
    u32 dispSel = s_reg_GX_POWCNT >> 15;
++  // Wide layout: the full-width screen is whichever engine POWCNT puts
++  // on top this frame (the game toggles it during the title/intro), and
++  // the other engine is the panel. A closed panel draws nothing at all.
++  int thisTop = dispSel ? !isSub : isSub;
++  if (WideActive() && !sInCapture && SIM_Layout_GetScene() != SIM_LAYOUT_SCENE_MENU &&
++      !thisTop && sPanelAnim <= 0.0f) {
++    return;
++  }
  
-@@ -603,20 +628,6 @@ static void DrawEngine(BOOL isSub) {
+   // Get the enabled BGs
+   u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
+@@ -603,20 +636,6 @@ static void DrawEngine(BOOL isSub) {
    backdropColor =
        isSub ? *(u16 *)&s_HW_DB_BG_PLTT[0] : *(u16 *)&s_HW_BG_PLTT[0];
    SIM_u16ToRGB(backdropColor, &backdropR, &backdropG, &backdropB);
@@ -31356,7 +31366,7 @@ index 910d7da..f78218a 100644
  
    // Get the BG priorities
    u16 bg0cnt = isSub ? s_reg_G2S_DB_BG0CNT : s_reg_G2_BG0CNT;
-@@ -624,52 +635,44 @@ static void DrawEngine(BOOL isSub) {
+@@ -624,52 +643,44 @@ static void DrawEngine(BOOL isSub) {
    u16 bg2cnt = isSub ? s_reg_G2S_DB_BG2CNT : s_reg_G2_BG2CNT;
    u16 bg3cnt = isSub ? s_reg_G2S_DB_BG3CNT : s_reg_G2_BG3CNT;
  
@@ -31441,7 +31451,7 @@ index 910d7da..f78218a 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -715,13 +718,38 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +726,38 @@ static void DrawEngine(BOOL isSub) {
        u8 a;
        for (int j = 0; j < 256; j++) {
          if (OBJLine[isSub][j]) {
@@ -31485,7 +31495,7 @@ index 910d7da..f78218a 100644
            }
          }
          if (OBJWindow[isSub][j]) {
-@@ -735,130 +763,106 @@ static void DrawEngine(BOOL isSub) {
+@@ -735,130 +771,107 @@ static void DrawEngine(BOOL isSub) {
  
    // Draw the BGs
    for (int i = 0; i < 4; i++) {
@@ -31661,18 +31671,19 @@ index 910d7da..f78218a 100644
 +  uniforms.masterBrightMode = isSub ? ((s_reg_GXS_DB_MASTER_BRIGHT >> 14) & 3)
 +                                    : ((s_reg_GX_MASTER_BRIGHT >> 14) & 3);
 +  input.uniforms = uniforms;
-+  // Wide layout (GPU only): the main engine is one full-width composite
-+  // (wideMode 1: 3D across the whole 16:9, 2D centred 4:3, in one pass
-+  // so BG priorities stay correct); the sub engine, when the panel is
-+  // open, is a second composite into the panel rect. MENU uses the
-+  // classic horizontal quads inside the letterboxed view.
++  // Wide layout (GPU only): the top-screen engine is one full-width
++  // composite (wideMode 1: 3D across the whole 16:9, 2D centred 4:3,
++  // in one pass so BG priorities stay correct); the bottom-screen
++  // engine, when the panel is open, is a second composite into the
++  // panel rect. MENU uses the classic horizontal quads inside the
++  // letterboxed view.
 +  SIM::G3::RenderVertex wideQuad[6]; // Lives until CompositeEngine below.
 +  {
 +    bool wideQuadSet = false;
 +    if (WideActive() && !sInCapture && SIM_Layout_GetScene() != SIM_LAYOUT_SCENE_MENU) {
 +      float t0 = uniforms.topScreen ? 0.5f : 0.0f;
 +      float t1 = uniforms.topScreen ? 1.0f : 0.5f;
-+      if (!isSub) {
++      if (thisTop) {
 +        uniforms.wideMode = 1;
 +        input.uniforms = uniforms;
 +        WideBuildQuad(wideQuad, 0.0f, 0.0f, 1.0f, 1.0f, t0, t1);
@@ -31703,7 +31714,7 @@ index 910d7da..f78218a 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +954,281 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +963,281 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -31985,7 +31996,7 @@ index 910d7da..f78218a 100644
  
    SDL_Event Event;
    char c;
-@@ -965,6 +1243,7 @@ void *SIM_Render(void *arg) {
+@@ -965,6 +1252,7 @@ void *SIM_Render(void *arg) {
    auto& g3State = SIM::G3::GetGlobalState();
    g3State.FlushDrawCall();
    g3State.DrawTransparentItems();
@@ -31993,7 +32004,7 @@ index 910d7da..f78218a 100644
  
  
    do {
-@@ -976,14 +1255,6 @@ void *SIM_Render(void *arg) {
+@@ -976,14 +1264,6 @@ void *SIM_Render(void *arg) {
        SIM_Net_SendBeaconIndication();
      }
  
@@ -32008,7 +32019,7 @@ index 910d7da..f78218a 100644
      int windowHeight;
      int windowWidth;
      int viewHeight;
-@@ -1006,6 +1277,13 @@ void *SIM_Render(void *arg) {
+@@ -1006,6 +1286,13 @@ void *SIM_Render(void *arg) {
      case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
        aspectRatio = 768.0f / 384.0f;
        break;
@@ -32022,7 +32033,7 @@ index 910d7da..f78218a 100644
      }
  
      viewWidth = windowWidth;
-@@ -1019,10 +1297,103 @@ void *SIM_Render(void *arg) {
+@@ -1019,10 +1306,103 @@ void *SIM_Render(void *arg) {
        viewY = 0;
      }
  
@@ -32128,7 +32139,7 @@ index 910d7da..f78218a 100644
        switch (s_SIM_config.screenLayout) {
        default:
        case SIM_CONFIG_SCREEN_LAYOUT_VERTICAL:
-@@ -1069,23 +1440,46 @@ void *SIM_Render(void *arg) {
+@@ -1069,23 +1449,46 @@ void *SIM_Render(void *arg) {
      }
  
      // Check Joysticks
@@ -32186,7 +32197,7 @@ index 910d7da..f78218a 100644
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT & 0b1111111111111110;
          } else if (keyRead == s_SIM_config.padSettings.bKey) {
-@@ -1136,15 +1530,15 @@ void *SIM_Render(void *arg) {
+@@ -1136,15 +1539,15 @@ void *SIM_Render(void *arg) {
              s_SIM_config.vsyncInterval = 1; // Every V-Blank
            }
  
@@ -32206,7 +32217,7 @@ index 910d7da..f78218a 100644
          if (keyRead == s_SIM_config.padSettings.aKey) {
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000001;
-@@ -1185,16 +1579,16 @@ void *SIM_Render(void *arg) {
+@@ -1185,16 +1588,16 @@ void *SIM_Render(void *arg) {
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000100;
          } else if(keyRead == s_SIM_config.padSettings.frameCapKey) {
            sFastForward = false;
@@ -32227,7 +32238,7 @@ index 910d7da..f78218a 100644
          if (Event.jhat.value == SDL_HAT_CENTERED) {
            // send keyUp event for all hats
            HandleJoystickKeyUp(SIM_CONFIG_JOY_HAT_MASK | SDL_HAT_UP);
-@@ -1224,7 +1618,7 @@ void *SIM_Render(void *arg) {
+@@ -1224,7 +1627,7 @@ void *SIM_Render(void *arg) {
            }
          }
        }
@@ -32236,7 +32247,7 @@ index 910d7da..f78218a 100644
          if (Event.jaxis.value > s_SIM_config.padSettings.joyAxisDeadzone ||
              Event.jaxis.value <
                  (s_SIM_config.padSettings.joyAxisDeadzone * -1)) {
-@@ -1245,12 +1639,20 @@ void *SIM_Render(void *arg) {
+@@ -1245,12 +1648,20 @@ void *SIM_Render(void *arg) {
                                SIM_CONFIG_JOY_AXIS_MINUS_MASK);
          }
        }
@@ -32259,7 +32270,7 @@ index 910d7da..f78218a 100644
          isMouseDown = 0;
          s_tpData.validity = 0;
          s_tpData.touch = 0;
-@@ -1258,10 +1660,17 @@ void *SIM_Render(void *arg) {
+@@ -1258,10 +1669,17 @@ void *SIM_Render(void *arg) {
      }
      s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT;
  
@@ -32279,7 +32290,7 @@ index 910d7da..f78218a 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1297,11 +1706,33 @@ void *SIM_Render(void *arg) {
+@@ -1297,12 +1715,32 @@ void *SIM_Render(void *arg) {
      memset(bg3stex, 0,
             sizeof(u8) * 4 * SIM_NDS_SCREEN_WIDTH * SIM_NDS_SCREEN_HEIGHT * 2);
  
@@ -32301,23 +32312,21 @@ index 910d7da..f78218a 100644
 +    }
  
 -    // SUB engine
--    DrawEngine(TRUE);
-+    // SUB engine. In the wide FIELD/BATTLE composite the sub screen is
-+    // only drawn as the panel, and a fully closed panel draws nothing.
-+    if (!WideActive() || SIM_Layout_GetScene() == SIM_LAYOUT_SCENE_MENU || sPanelAnim > 0.0f) {
-+      DrawEngine(TRUE);
-+    }
-+
++    // SUB engine. DrawEngine decides the wide role (full-width top
++    // engine vs. panel) and skips a closed panel itself.
+     DrawEngine(TRUE);
+ 
 +    // hiresui: hi-res dialogue glyphs over the composited frame (no-op unless
 +    // the game reported glyphs this session; see sim_hirestext.cpp).
 +    HiResText_DrawOverlay();
 +
 +    // PostFX post pass: draw the composited frame to the window with effects.
 +    PostFX_TickAndDraw();
- 
++
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
-@@ -1328,19 +1759,30 @@ void *SIM_Render(void *arg) {
+ 
+@@ -1328,19 +1766,30 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -32358,7 +32367,7 @@ index 910d7da..f78218a 100644
  
      if(sChangeInternalResAfterRender) {
        SIM_SetInternalResolution(sPendingInternalRes);
-@@ -1359,45 +1801,40 @@ void *SIM_Render(void *arg) {
+@@ -1359,45 +1808,40 @@ void *SIM_Render(void *arg) {
  #endif
  
      s_numG3CommandsThisFrame = 0;
@@ -32427,7 +32436,7 @@ index 910d7da..f78218a 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1407,17 +1844,16 @@ u64 SIM_GetFullFrameTime() {
+@@ -1407,17 +1851,16 @@ u64 SIM_GetFullFrameTime() {
    return sFullFrameTime;
  }
  
@@ -32448,7 +32457,7 @@ index 910d7da..f78218a 100644
  }
  
  const char * SIM_GetLibntrGitHash() {
-@@ -1465,6 +1901,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +1908,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -32457,7 +32466,7 @@ index 910d7da..f78218a 100644
    // Start up debug system
    SIM_Dbg_Init();
  
-@@ -1537,8 +1975,6 @@ int main(int argc, char *argv[]) {
+@@ -1537,8 +1982,6 @@ int main(int argc, char *argv[]) {
    SIM::G3::GetGlobalState().Init();
  
    SIM_RenderInit(NULL);
