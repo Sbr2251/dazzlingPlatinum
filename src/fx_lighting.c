@@ -272,9 +272,10 @@ void FxLighting_Update(void)
             }
         }
         if (track.flash) {
-            // Electric: a short flash (2 of every 16 frames, bright),
-            // near-dark between, so it reads as a bolt strike.
-            flick = (sFrame % 16) < 2 ? 1.9f : 0.05f;
+            // Electric: fast crackle flicker, 0.75..1.75 every frame
+            // (no dark phase, so every frame of the bolt reads as a
+            // white-yellow flash; the LCG flicker changes per call).
+            flick = 0.75f + 1.0f * Flicker(sFrame);
         } else {
             // Fire and friends: warm flicker around the base level.
             flick = 0.78f + 0.42f * Flicker(sFrame);
