@@ -15424,10 +15424,10 @@ index 0000000..96407a0
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_texpack.cpp b/libraries/sim/src/render_gpu/fx_texpack.cpp
 new file mode 100644
-index 0000000..0eeb7a9
+index 0000000..3d7c80b
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_texpack.cpp
-@@ -0,0 +1,257 @@
+@@ -0,0 +1,259 @@
 +// fx_texpack implementation. See include/simulator/fx_texpack.hpp.
 +#include <simulator/fx_texpack.hpp>
 +
@@ -15623,6 +15623,8 @@ index 0000000..0eeb7a9
 +void SetPendingSource(const std::uint8_t *texels, std::size_t texelBytes,
 +                      const std::uint8_t *palette, std::size_t paletteBytes,
 +                      int format, int width, int height) {
++  const Config &c = Cfg();
++  if (!c.enabled && !c.dump) return; // no hashing cost when the lane is off
 +  std::uint64_t h = kFnvOffset;
 +  h = FnvInt(h, (std::uint64_t)(std::uint32_t)width);
 +  h = FnvInt(h, (std::uint64_t)(std::uint32_t)height);
