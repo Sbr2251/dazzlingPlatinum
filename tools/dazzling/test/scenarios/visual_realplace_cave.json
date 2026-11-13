@@ -1,6 +1,6 @@
 {
  "name": "visual_realplace_cave",
- "_note": "Arena2: Oreburgh Gate wild battle with RealPlaceArena on. Caves fall back to the classic backdrop, so this frame is the classic cave battle opening (Zubat/Psyduck/Geodude pool).",
+ "_note": "Arena2: Oreburgh Gate wild battle with RealPlaceArena on, walking from the save position. Caves fall back to the classic backdrop, so this frame is the classic cave battle opening.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-06_oreburgh_gate_arrival.sav"
  ],
@@ -78,14 +78,6 @@
    "step": 600
   },
   {
-   "warp": {
-    "map": "MAP_HEADER_OREBURGH_GATE_1F",
-    "x": 30,
-    "z": 30,
-    "dir": "DIR_EAST"
-   }
-  },
-  {
    "step": 300
   },
   {
@@ -96,7 +88,7 @@
    "step": 60
   },
   {
-   "press": "LEFT",
+   "press": "UP",
    "frames": 40
   },
   {
@@ -104,11 +96,7 @@
    "frames": 40
   },
   {
-   "press": "LEFT",
-   "frames": 40
-  },
-  {
-   "press": "RIGHT",
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -116,7 +104,15 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -124,7 +120,15 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -132,7 +136,15 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -140,7 +152,15 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -148,7 +168,15 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -156,7 +184,15 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -164,7 +200,15 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -172,7 +216,15 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -180,7 +232,15 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -188,7 +248,15 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
@@ -196,63 +264,19 @@
    "frames": 40
   },
   {
+   "press": "UP",
+   "frames": 40
+  },
+  {
    "press": "RIGHT",
+   "frames": 40
+  },
+  {
+   "press": "DOWN",
    "frames": 40
   },
   {
    "press": "LEFT",
-   "frames": 40
-  },
-  {
-   "press": "RIGHT",
-   "frames": 40
-  },
-  {
-   "press": "LEFT",
-   "frames": 40
-  },
-  {
-   "press": "RIGHT",
-   "frames": 40
-  },
-  {
-   "press": "LEFT",
-   "frames": 40
-  },
-  {
-   "press": "RIGHT",
-   "frames": 40
-  },
-  {
-   "press": "LEFT",
-   "frames": 40
-  },
-  {
-   "press": "RIGHT",
-   "frames": 40
-  },
-  {
-   "press": "LEFT",
-   "frames": 40
-  },
-  {
-   "press": "RIGHT",
-   "frames": 40
-  },
-  {
-   "press": "LEFT",
-   "frames": 40
-  },
-  {
-   "press": "RIGHT",
-   "frames": 40
-  },
-  {
-   "press": "LEFT",
-   "frames": 40
-  },
-  {
-   "press": "RIGHT",
    "frames": 40
   },
   {

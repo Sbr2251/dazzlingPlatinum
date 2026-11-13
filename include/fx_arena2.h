@@ -20,7 +20,9 @@
 // SIM_FX_REALPLACE=1, so existing golden screenshots stay byte-identical.
 // Eligible backgrounds are the outdoor ones (plain, water, city, forest,
 // mountain, snow); interiors, caves, Elite Four rooms, the Distortion
-// World and Frontier facilities fall back to the classic backdrop.
+// World and Frontier facilities fall back to the classic backdrop, as
+// does the wide layout: the simulator's display capture only covers
+// the left ~55% of the capture target in wide mode.
 
 #define FX_ARENA2_WIDTH 256
 #define FX_ARENA2_HEIGHT 192

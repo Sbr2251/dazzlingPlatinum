@@ -9,6 +9,7 @@
 #include "field_overworld_state.h"
 #include "map_header.h"
 #include "port/sim_config_prj.h"
+#include "port/sim_wide.h"
 #include "savedata.h"
 #include "struct_defs/player_data.h"
 
@@ -112,6 +113,15 @@ BOOL FxArena2_ShouldCapture(const FieldSystem *fieldSystem)
         return FALSE;
     }
 
+    // Wide layout: the simulator's display capture re-render only covers
+    // the left ~55% of the 256x192 capture target in wide mode, so a
+    // wide capture would show a black right half as the backdrop. Fall
+    // back to the classic backdrop there (the lane spec's "else" case);
+    // the wide stage stretches the prebuilt art correctly.
+    if (SIM_Wide_IsWideLayout()) {
+        return FALSE;
+    }
+
     return FxArena2_BackgroundEligible(FxArena2_FieldBackground(fieldSystem));
 }
 
@@ -185,6 +195,7 @@ void FxArena2_FinishCapture(void)
     // whatever was there, or the frame was blank): fall back instead
     // of showing a flat-colour backdrop.
     sCaptureValid = varied;
+
 }
 
 BOOL FxArena2_HasCapture(void)

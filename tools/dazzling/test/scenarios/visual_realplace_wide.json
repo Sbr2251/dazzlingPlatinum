@@ -1,6 +1,6 @@
 {
  "name": "visual_realplace_wide",
- "_note": "Arena2: Route 201 wild battle with RealPlaceArena on, wide layout (ScreenLayout=wide, GPU). The captured 256x192 field image is stretched by the wide stage projection exactly like the prebuilt art.",
+ "_note": "Arena2: Route 201 wild battle with RealPlaceArena on, wide layout (ScreenLayout=wide, GPU). The simulator display capture only covers ~55% of the target in wide mode, so wide falls back to the classic backdrop: this golden proves wide + RealPlace shows the classic wide battle with no black region and no regression.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],

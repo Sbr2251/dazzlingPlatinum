@@ -1,6 +1,6 @@
 {
  "name": "visual_realplace_lakeside",
- "_note": "Arena2: Route 213 wild battle with RealPlaceArena on. Route 213 uses the WATER backdrop, so the arena shows a capture of the real lakeside around the player instead of the prebuilt water backdrop.",
+ "_note": "Arena2: Route 213 wild battle with RealPlaceArena on. Route 213 uses the WATER backdrop; the player warps onto the lakeside grass patch (690,820) and walks until a wild battle, so the arena shows a capture of the real lakeside around the player instead of the prebuilt water backdrop.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -80,9 +80,9 @@
   {
    "warp": {
     "map": "MAP_HEADER_ROUTE_213",
-    "x": 125,
-    "z": 850,
-    "dir": "DIR_EAST"
+    "x": 690,
+    "z": 820,
+    "dir": "DIR_SOUTH"
    }
   },
   {
