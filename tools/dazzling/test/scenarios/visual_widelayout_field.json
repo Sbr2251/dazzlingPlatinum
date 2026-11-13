@@ -1,0 +1,33 @@
+{
+ "name": "visual_widelayout_field",
+ "config": {
+  "ScreenLayout": "wide"
+ },
+ "env": {
+  "SIM_RENDERER": "gpu"
+ },
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-01_lake_verity_arrival.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "widelayout_field",
+   "reference": "../references/visual/widelayout_field.bmp"
+  }
+ ]
+}

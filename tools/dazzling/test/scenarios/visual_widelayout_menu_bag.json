@@ -1,0 +1,66 @@
+{
+ "name": "visual_widelayout_menu_bag",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "press": "X",
+   "frames": 10
+  },
+  {
+   "step": 120
+  },
+  {
+   "press": "DOWN",
+   "frames": 10
+  },
+  {
+   "step": 60
+  },
+  {
+   "press": "DOWN",
+   "frames": 10
+  },
+  {
+   "step": 60
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "widelayout_menu_bag",
+   "reference": "../references/visual/widelayout_menu_bag.bmp",
+   "tolerance": 0.0
+  }
+ ],
+ "_note": "Start menu (X), DOWN twice, A: bag, Items pocket (Max Repel x99 on this save). Full frame.",
+ "config": {
+  "ScreenLayout": "wide"
+ },
+ "env": {
+  "SIM_RENDERER": "gpu"
+ }
+}
