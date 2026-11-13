@@ -54,6 +54,7 @@ static int IniHandler(void* user, const char* section, const char* name,
     }
     if(MATCH("General", "WaterReflections")) {
         config->waterReflections = StringToBool(value);
+    }
     if(MATCH("General", "SceneLights")) {
         config->sceneLights = StringToBool(value);
     }
