@@ -7,6 +7,8 @@
 #include <simulator/sim_particles.h>
 
 #include "constants/moves.h"
+#include "constants/pokemon.h"
+#include "move_table.h"
 #include "port/sim_config_prj.h"
 #include "spl_boost.h"
 
@@ -21,7 +23,6 @@
 typedef struct FxParticlesMoveTuning {
     int move;
     int extraDensity;
-    int trail256;
     int spread256;
 } FxParticlesMoveTuning;
 
@@ -29,19 +30,20 @@ typedef struct FxParticlesMoveTuning {
 // Fire Blast / Thunder / Blizzard / Draco Meteor get the strongest boost;
 // the golden moves Flamethrower / Thunderbolt get a clear but smaller one.
 static const FxParticlesMoveTuning sMoveTuning[] = {
-    { MOVE_FIRE_BLAST, 3, 384, 320 },
-    { MOVE_THUNDER, 3, 256, 384 },
-    { MOVE_BLIZZARD, 2, 320, 384 },
-    { MOVE_DRACO_METEOR, 3, 384, 384 },
-    { MOVE_FLAMETHROWER, 2, 320, 256 },
-    { MOVE_THUNDERBOLT, 2, 256, 320 },
+    { MOVE_FIRE_BLAST, 4, 320 },
+    { MOVE_THUNDER, 4, 384 },
+    { MOVE_BLIZZARD, 3, 384 },
+    { MOVE_DRACO_METEOR, 4, 384 },
+    { MOVE_FLAMETHROWER, 3, 256 },
+    { MOVE_THUNDERBOLT, 3, 320 },
 };
 
 static int sMoveRemaining = 0;
 static int sMoveExtraDensity = 0;
-static int sMoveTrail256 = 256;
 static int sMoveSpread256 = 256;
+static int sMoveType = SPL_BOOST_TYPE_GENERIC;
 static int sBurstRemaining = 0;
+static int sFrame = 0;
 
 static int EnvFlag(const char *name)
 {
@@ -105,13 +107,16 @@ void FxParticles_Tick(void)
 {
     SPLBoostParams params;
     int gpu;
+    int type;
+
+    sFrame++;
 
     if (sMoveRemaining > 0) {
         sMoveRemaining--;
         if (sMoveRemaining == 0) {
             sMoveExtraDensity = 0;
-            sMoveTrail256 = 256;
             sMoveSpread256 = 256;
+            sMoveType = SPL_BOOST_TYPE_GENERIC;
         }
     }
 
@@ -122,21 +127,37 @@ void FxParticles_Tick(void)
     gpu = SIM_Particles_IsGpu();
     memset(&params, 0, sizeof(params));
     params.enabled = (FxParticles_Enabled() && gpu) ? 1 : 0;
+    params.frame = sFrame;
+    type = sMoveType;
 
     if (sBurstRemaining > 0) {
         params.density = FX_PARTICLES_MAX_DENSITY;
-        params.trail256 = 512;
         params.spread256 = 192;
-        params.brighten256 = 128;
+        params.brighten256 = 160;
+        type = SPL_BOOST_TYPE_MEGA;
     } else {
         params.density = ClampDensity(FxParticles_Density() + sMoveExtraDensity);
-        params.trail256 = sMoveTrail256;
-        // Child jitter stays well inside the parent blob: the tuning
-        // table's spread is scaled to 3/8 here (256 -> 96), or the
-        // sparkles scatter into a cloud wider than the flame itself.
+        // Ember jitter stays near the parent: the tuning table's spread
+        // is scaled to 3/8 here (256 -> 96), or the embers scatter into
+        // a cloud wider than the effect itself.
         params.spread256 = sMoveSpread256 * 3 / 8;
-        params.brighten256 = 64;
+        switch (type) {
+        case SPL_BOOST_TYPE_FIRE:
+            params.brighten256 = 96;
+            break;
+        case SPL_BOOST_TYPE_ELECTRIC:
+            params.brighten256 = 192;
+            break;
+        case SPL_BOOST_TYPE_ICE:
+            params.brighten256 = 160;
+            break;
+        default:
+            params.brighten256 = 64;
+            break;
+        }
     }
+
+    params.type = type;
 
     if (!params.enabled) {
         params.density = 0;
@@ -148,20 +169,41 @@ void FxParticles_Tick(void)
 void FxParticles_SetMove(int move)
 {
     int i;
+    int moveType;
 
     sMoveRemaining = 0;
     sMoveExtraDensity = 0;
-    sMoveTrail256 = 256;
     sMoveSpread256 = 256;
+    sMoveType = SPL_BOOST_TYPE_GENERIC;
 
     if (move == MOVE_NONE) {
         return;
     }
 
+    // Element behaviour for the ember layer, from the move's type:
+    // Fire embers drift up, Electric sparks arc out, Ice shards glitter.
+    moveType = (int)MoveTable_LoadParam(move, MOVEATTRIBUTE_TYPE);
+    switch (moveType) {
+    case TYPE_FIRE:
+        sMoveType = SPL_BOOST_TYPE_FIRE;
+        break;
+    case TYPE_ELECTRIC:
+        sMoveType = SPL_BOOST_TYPE_ELECTRIC;
+        break;
+    case TYPE_ICE:
+        sMoveType = SPL_BOOST_TYPE_ICE;
+        break;
+    case TYPE_DRAGON:
+        sMoveType = SPL_BOOST_TYPE_MEGA;
+        break;
+    default:
+        sMoveType = SPL_BOOST_TYPE_GENERIC;
+        break;
+    }
+
     for (i = 0; i < (int)(sizeof(sMoveTuning) / sizeof(sMoveTuning[0])); i++) {
         if (sMoveTuning[i].move == move) {
             sMoveExtraDensity = sMoveTuning[i].extraDensity;
-            sMoveTrail256 = sMoveTuning[i].trail256;
             sMoveSpread256 = sMoveTuning[i].spread256;
             break;
         }

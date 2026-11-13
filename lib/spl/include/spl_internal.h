@@ -39,6 +39,7 @@ void SPLEmitter_EmitChildren(SPLParticle *ptcl, SPLEmitter *emtr, SPLParticleLis
 
 void SPLEmitter_Update(SPLManager *mgr, SPLEmitter *emtr);
 void SPLManager_DoDraw(SPLManager *mgr);
+void SPLManager_DrawBoostEmbers(SPLManager *mgr);
 void SPLEmitter_Init(SPLEmitter *emtr, SPLResource *res, const VecFx32 *pos);
 void SPLEmitter_Emit(SPLEmitter *emtr, SPLParticleList *list);
 

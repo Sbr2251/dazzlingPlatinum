@@ -153,6 +153,13 @@ ParticleSystem *ParticleSystem_New(SPLTexVRAMAllocFunc texAllocFunc, SPLPalVRAMA
         MIN_POLYGON_ID,
         MAX_POLYGON_ID);
 
+    // Lane particles (v2): the ember store lives in the game heap, not
+    // the SPL heap (it does not fit there; see SPLManager.boostStore).
+    particleSystem->manager->boostStore = Heap_Alloc(heapID, sizeof(SPLBoostStore));
+    if (particleSystem->manager->boostStore != NULL) {
+        memset(particleSystem->manager->boostStore, 0, sizeof(SPLBoostStore));
+    }
+
     ParticleSystem_SetCameraUp(particleSystem, &sParticleSystemDefaultCameraUp);
 
     return particleSystem;
@@ -201,6 +208,12 @@ void ParticleSystem_Free(ParticleSystem *particleSystem)
 
     if (particleSystem->camera != NULL) {
         Camera_Delete(particleSystem->camera);
+    }
+
+    // Lane particles (v2): free the ember store (see ParticleSystem_New).
+    if (particleSystem->manager != NULL && particleSystem->manager->boostStore != NULL) {
+        Heap_Free(particleSystem->manager->boostStore);
+        particleSystem->manager->boostStore = NULL;
     }
 
     Heap_Free(particleSystem);

@@ -4,6 +4,7 @@
 #include <nitro/gx/g3.h>
 #include <nitro/types.h>
 
+#include "spl_boost.h"
 #include "spl_emitter.h"
 #include "spl_particle.h"
 #include "spl_texture.h"
@@ -35,6 +36,11 @@ typedef struct SPLManager {
         u32 unused : 7;
     } polygonID;
     GXPolygonAttrMisc miscPolygonAttr;
+    // Lane particles (v2): this manager's persistent ember store. A
+    // pointer on purpose: the store (~32 KB) does not fit in the SPL
+    // heap (ParticleSystem_AllocMemory asserts), so the game allocates
+    // it from its own heap in ParticleSystem_New. NULL = no store.
+    SPLBoostStore *boostStore;
     struct {
         SPLEmitter *emitter; // current emitter being processed
         const MtxFx43 *viewMatrix; // current view matrix

@@ -324,6 +324,9 @@ void SPLManager_Draw(SPLManager *mgr, const MtxFx43 *viewMatrix)
             }
         }
     }
+
+    // fx_particles hook (v2): age and draw this manager's ember store.
+    SPLManager_DrawBoostEmbers(mgr);
 }
 
 SPLEmitter *SPLManager_CreateEmitter(SPLManager *mgr, int resourceID, const VecFx32 *pos)

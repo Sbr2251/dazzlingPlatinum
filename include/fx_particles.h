@@ -3,11 +3,14 @@
 
 #include <nitro.h>
 
-// Lane particles: GPU particle-density boost for move effects. For each
-// live SPL particle the SPL draw pass (lib/spl) draws extra child
-// sparkles that inherit the parent colour/texture/velocity with jitter,
-// a short trail and a brightened colour. Deterministic: child offsets
-// are seeded from particle position + age + child index, never the wall
+// Lane particles: GPU particle-density boost for move effects (v2).
+// Live SPL parents spawn persistent embers into their manager's store:
+// small (1-2 px at DS scale) square dots, sampled from the centre of
+// the parent texture and brightened, that drift by element type (Fire
+// embers rise and fade, Electric sparks arc out, Ice/Mega shards
+// glitter) and briefly outlive their parent. Large / ring / flash
+// parents never clone, so the Mega emblem rings stay single. Deterministic:
+// every random choice is a hash of (seed, frame, life), never the wall
 // clock. Zero change when off (density 0, GL backend, or headless
 // without SIM_FX_PARTICLES=1).
 //

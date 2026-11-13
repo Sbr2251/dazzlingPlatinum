@@ -10,6 +10,9 @@
 
 #include "spl_boost.h"
 #include "spl_internal.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 #include "spl_manager.h"
 #include "spl_particle.h"
 #include "spl_resource.h"
@@ -39,7 +42,7 @@ static void SPLUtil_SetTexture(SPLTexture *tex);
 static void SPLUtil_SetTexture_Stub(SPLTexture *tex);
 static void SPLManager_DrawParticles(SPLManager *mgr);
 static void SPLManager_DrawChildParticles(SPLManager *mgr);
-static void SPLManager_DrawBoostParticles(SPLManager *mgr);
+static void SPLManager_SpawnBoostEmbers(SPLManager *mgr);
 
 static void SPLUtil_SetTexture(SPLTexture *tex)
 {
@@ -418,48 +421,58 @@ void SPLManager_DoDraw(SPLManager *mgr)
         SPLManager_DrawChildParticles(mgr);
     }
 
-    // fx_particles hook: child-sparkle pass, right after the particle draw.
+    // fx_particles hook (v2): spawn embers from this emitter's parents.
+    // The persistent ember store is drawn once per manager in
+    // SPLManager_Draw (see SPLManager_DrawBoostEmbers below), so the
+    // embers briefly outlive their parent instead of dying with the frame.
     if (!header->flags.hideParent) {
-        SPLManager_DrawBoostParticles(mgr);
+        SPLManager_SpawnBoostEmbers(mgr);
     }
 }
 
-// Lane particles: for each live parent particle draw density small child
-// sparkles that inherit its colour/texture, trail behind its velocity
-// with deterministic jitter, and die with the frame (they are redrawn
-// fresh every frame, so there is no child state to simulate). They go
-// through the same G3 pipeline as the parents (same view/projection,
-// depth test and polygon ID), so they sit in the 3D layer exactly like
-// the particles. The per-frame parameters come from fx_particles.c;
-// with density 0 this draws nothing.
-static void SPLManager_DrawBoostParticles(SPLManager *mgr)
+// Lane particles (v2): spawn one ember per live parent, with probability
+// budget/8. Large / ring / flash parents are excluded: a parent whose
+// effective scale is over the cap, or whose texture is over 64 texels,
+// never spawns (that is what kept the Mega emblem rings from cloning
+// into ghost rings in v1). The ember inherits the parent colour and
+// texture, a share of its velocity, and the element behaviour for its
+// type; it then lives on its own in the manager's store.
+static void SPLManager_SpawnBoostEmbers(SPLManager *mgr)
 {
     SPLEmitter *emtr = mgr->renderState.emitter;
     SPLResourceHeader *header = emtr->resource->header;
     SPLBoostParams params;
     const MtxFx43 *cmr = mgr->renderState.viewMatrix;
-    int drawnParents = 0;
-    int drawnQuads = 0;
+    int budget;
+    int spawnedParents = 0;
 
     SPLBoost_GetParams(&params);
 
-    if (!params.enabled || params.density <= 0 || cmr == NULL) {
+    budget = params.density;
+    if (budget > 8) {
+        budget = 8;
+    }
+
+    if (!params.enabled || budget <= 0 || cmr == NULL || mgr->boostStore == NULL) {
         return;
     }
 
     for (SPLParticle *ptcl = emtr->particles.first; ptcl != NULL; ptcl = ptcl->next) {
-        VecFx32 world, trs, velView;
-        MtxFx33 rot33;
-        MtxFx43 load;
-        fx32 alpha, scl, sclX, aspect;
+        VecFx32 world;
+        fx32 alpha, scl;
+        int texIndex;
+        SPLTexture *tex;
         u32 seed, state;
-        int k, r, g, b;
+        SPLBoostEmber ember;
+        int r, g, b;
+        int jitterRange;
+        int debug;
 
-        if (drawnParents >= 96 || drawnQuads >= 512) {
+        if (spawnedParents >= 96) {
             break;
         }
 
-        drawnParents++;
+        spawnedParents++;
 
         alpha = (fx32)(ptcl->visibility.baseAlpha * (ptcl->visibility.animAlpha + 1)) >> 5;
         if (alpha == 0) {
@@ -476,23 +489,46 @@ static void SPLManager_DrawBoostParticles(SPLManager *mgr)
             world.z = ptcl->position.z + ptcl->emitterPos.z;
         }
 
-        MTX_MultVec43(&world, cmr, &trs);
-        MTX_Copy43To33(cmr, &rot33);
-        MTX_MultVec33(&ptcl->velocity, &rot33, &velView);
-
         scl = ptcl->baseScale;
         if (header->misc.scaleAnimDir != SPL_SCALE_ANIM_DIR_X) {
             scl = FX_MUL(scl, ptcl->animScale);
         }
 
-        aspect = header->aspectRatio;
-        sclX = FX_MUL(scl, aspect);
+        texIndex = header->flags.hasTexAnim ? ptcl->texture : (int)header->misc.textureIndex;
+        tex = &mgr->textures[texIndex];
 
-        if (header->flags.hasTexAnim) {
-            SPLUtil_SetTexture(mgr->textures + ptcl->texture);
-        } else {
-            SPLUtil_SetTexture(mgr->textures + header->misc.textureIndex);
+        // Exclusion: big parents (rings, flashes, emblems) and big
+        // textures never clone. Only small sparks/flames/embers do.
+        debug = getenv("SIM_PARTICLES_DEBUG") != NULL && (params.frame % 60) == 0 && spawnedParents <= 3;
+        if (debug) {
+            fprintf(stderr, "[particles-dbg] frame=%d res=%d scl=%d tex=%dx%d excl=%d type=%d\n",
+                params.frame, (int)(emtr->resource - mgr->resources), (int)scl,
+                (int)tex->width, (int)tex->height,
+                (scl > 12288 || tex->width > 64 || tex->height > 64) ? 1 : 0, params.type);
         }
+        if (scl > 12288 || tex->width > 64 || tex->height > 64) {
+            continue;
+        }
+
+        seed = (u32)(world.x ^ (world.y << 1) ^ (world.z >> 4) ^ ((u32)ptcl->age << 16) ^ (u32)(ptcl->position.x >> 8));
+        if ((int)(SPLBoost_Hash(seed ^ (u32)params.frame) % 8) >= budget) {
+            continue;
+        }
+
+        state = SPLBoost_Hash(seed);
+        memset(&ember, 0, sizeof(ember));
+
+        jitterRange = (int)FX_MUL(scl, (fx32)params.spread256 * 16);
+        ember.pos.x = world.x + SPLBoost_Jitter(&state, jitterRange);
+        ember.pos.y = world.y + SPLBoost_Jitter(&state, jitterRange);
+        ember.pos.z = world.z + SPLBoost_Jitter(&state, jitterRange >> 2);
+        ember.basePos = header->emitterBasePos;
+        ember.useViewSpace = header->flags.useViewSpace ? 1 : 0;
+        ember.texIndex = texIndex;
+        ember.texS = emtr->textureS;
+        ember.texT = emtr->textureT;
+        ember.type = params.type;
+        ember.seed = seed;
 
         r = GX_RGB_R_(ptcl->color) * GX_RGB_R_(emtr->color) >> 5;
         g = GX_RGB_G_(ptcl->color) * GX_RGB_G_(emtr->color) >> 15;
@@ -500,6 +536,49 @@ static void SPLManager_DrawBoostParticles(SPLManager *mgr)
         r += (31 - r) * params.brighten256 >> 8;
         g += (31 - g) * params.brighten256 >> 8;
         b += (31 - b) * params.brighten256 >> 8;
+
+        switch (params.type) {
+        case SPL_BOOST_TYPE_FIRE:
+            ember.vel.x = ptcl->velocity.x / 5 + SPLBoost_Jitter(&state, 328);
+            ember.vel.y = ptcl->velocity.y / 5 + 655 + (int)(SPLBoost_Hash(state) % 492);
+            ember.vel.z = ptcl->velocity.z / 5 + SPLBoost_Jitter(&state, 328);
+            ember.maxLife = 12 + (int)(SPLBoost_Hash(state) % 7);
+            r += 6;
+            break;
+        case SPL_BOOST_TYPE_ELECTRIC:
+            ember.vel.x = ptcl->velocity.x / 10 + SPLBoost_Jitter(&state, 2253);
+            ember.vel.y = ptcl->velocity.y / 10 + SPLBoost_Jitter(&state, 2253);
+            ember.vel.z = ptcl->velocity.z / 10 + SPLBoost_Jitter(&state, 1434);
+            ember.maxLife = 10 + (int)(SPLBoost_Hash(state) % 7);
+            r += 4;
+            g += 4;
+            break;
+        case SPL_BOOST_TYPE_ICE:
+            ember.vel.x = ptcl->velocity.x * 15 / 100 + SPLBoost_Jitter(&state, 410);
+            ember.vel.y = ptcl->velocity.y * 15 / 100 - 82 - (int)(SPLBoost_Hash(state) % 164);
+            ember.vel.z = ptcl->velocity.z * 15 / 100 + SPLBoost_Jitter(&state, 410);
+            ember.maxLife = 12 + (int)(SPLBoost_Hash(state) % 9);
+            r += 2;
+            g += 2;
+            b += 6;
+            break;
+        case SPL_BOOST_TYPE_MEGA:
+            ember.vel.x = ptcl->velocity.x / 10 + SPLBoost_Jitter(&state, 1024);
+            ember.vel.y = ptcl->velocity.y / 10 + 205 + (int)(SPLBoost_Hash(state) % 410);
+            ember.vel.z = ptcl->velocity.z / 10 + SPLBoost_Jitter(&state, 1024);
+            ember.maxLife = 14 + (int)(SPLBoost_Hash(state) % 9);
+            r += 4;
+            g += 4;
+            b += 4;
+            break;
+        default:
+            ember.vel.x = ptcl->velocity.x / 4 + SPLBoost_Jitter(&state, 492);
+            ember.vel.y = ptcl->velocity.y / 4 + SPLBoost_Jitter(&state, 492);
+            ember.vel.z = ptcl->velocity.z / 4 + SPLBoost_Jitter(&state, 328);
+            ember.maxLife = 10 + (int)(SPLBoost_Hash(state) % 7);
+            break;
+        }
+
         if (r > 31) {
             r = 31;
         }
@@ -509,77 +588,114 @@ static void SPLManager_DrawBoostParticles(SPLManager *mgr)
         if (b > 31) {
             b = 31;
         }
+        ember.r = r;
+        ember.g = g;
+        ember.b = b;
+        ember.life = ember.maxLife;
+        ember.sizeFx = (fx32)(7 + SPLBoost_Hash(state) % 7) * FX32_ONE / 100;
 
-        seed = (u32)(trs.x ^ (trs.y << 1) ^ (trs.z >> 4) ^ ((u32)ptcl->age << 16) ^ (u32)(ptcl->position.x >> 8));
-        state = SPLBoost_Hash(seed);
+        SPLBoost_SpawnEmber(mgr->boostStore, &ember);
+    }
+}
 
-        for (k = 0; k < params.density; k++) {
-            fx32 childScl, childSclX, sin, cos, lag;
-            fx32 cx, cy, cz;
+// Lane particles (v2): age and draw this manager's ember store. Called
+// once per manager per drawn frame from SPLManager_Draw. The dots are
+// tiny squares (1-2 px at DS scale) sampling the centre texel window of
+// the parent texture, so they read as pixel-styled sparks, not smooth
+// blobs. Polygon ID 63 keeps them out of the parents' translucency
+// grouping; they sit in the 3D layer, under the 2D text and healthboxes.
+void SPLManager_DrawBoostEmbers(SPLManager *mgr)
+{
+    SPLBoostParams params;
+    const MtxFx43 *cmr = mgr->renderState.viewMatrix;
+    int i;
 
-            if (drawnQuads >= 512) {
-                break;
-            }
+    SPLBoost_GetParams(&params);
 
-            drawnQuads++;
-
-            childScl = FX_MUL(scl, (fx32)(20 + SPLBoost_Hash(state) % 40) * 16);
-            childSclX = FX_MUL(childScl, aspect);
-            (void)sclX;
-
-            lag = (fx32)(k + 1) * (fx32)params.trail256 * 16;
-            cx = trs.x - FX_MUL(velView.x, lag);
-            cy = trs.y - FX_MUL(velView.y, lag);
-            cz = trs.z - FX_MUL(velView.z, lag);
-            cx += SPLBoost_Jitter(&state, (int)FX_MUL(scl, (fx32)params.spread256 * 16));
-            cy += SPLBoost_Jitter(&state, (int)FX_MUL(scl, (fx32)params.spread256 * 16));
-            cz += SPLBoost_Jitter(&state, (int)(FX_MUL(scl, (fx32)params.spread256 * 16) >> 2));
-
-            sin = FX_SinIdx((u16)(ptcl->rotation + SPLBoost_Jitter(&state, 4096)));
-            cos = FX_CosIdx((u16)(ptcl->rotation + SPLBoost_Jitter(&state, 4096)));
-
-            load.m[0][0] = FX_MUL(cos, childSclX);
-            load.m[0][1] = FX_MUL(sin, childSclX);
-            load.m[0][2] = 0;
-            load.m[1][0] = FX_MUL(-sin, childScl);
-            load.m[1][1] = FX_MUL(cos, childScl);
-            load.m[1][2] = 0;
-            load.m[2][0] = 0;
-            load.m[2][1] = 0;
-            load.m[2][2] = FX32_ONE;
-            load.m[3][0] = cx;
-            load.m[3][1] = cy;
-            load.m[3][2] = cz;
-
-            G3_PolygonAttr(
-                GX_LIGHTMASK_NONE,
-                GX_POLYGONMODE_MODULATE,
-                GX_CULL_NONE,
-                ptcl->visibility.currentPolygonID,
-                (u32)(alpha / 3 + 1),
-                mgr->miscPolygonAttr);
-
-            reg_G3_POLYGON_ATTR;
-
-            G3_Color(GX_RGB(r, g, b));
-
-            G3_Identity();
-            if (header->flags.useViewSpace) {
-                G3_Translate(header->emitterBasePos.x, header->emitterBasePos.y, header->emitterBasePos.z);
-            }
-            G3_MultMtx43(&load);
-
-            G3_Begin(GX_BEGIN_QUADS);
-            G3_TexCoord(0, 0);
-            G3_Vtx10(0 - FX32_ONE, 0 + FX32_ONE, 0);
-            G3_TexCoord(emtr->textureS, 0);
-            G3_Vtx10(0 + FX32_ONE, 0 + FX32_ONE, 0);
-            G3_TexCoord(emtr->textureS, emtr->textureT);
-            G3_Vtx10(0 + FX32_ONE, 0 - FX32_ONE, 0);
-            G3_TexCoord(0, emtr->textureT);
-            G3_Vtx10(0 - FX32_ONE, 0 - FX32_ONE, 0);
-            G3_End();
+    if (!params.enabled) {
+        if (mgr->boostStore != NULL) {
+            mgr->boostStore->count = 0;
+            mgr->boostStore->next = 0;
         }
+        return;
+    }
+
+    if (cmr == NULL || mgr->boostStore == NULL) {
+        return;
+    }
+
+    SPLBoost_Update(mgr->boostStore);
+
+    for (i = 0; i < mgr->boostStore->count; i++) {
+        SPLBoostEmber *ember = &mgr->boostStore->embers[i];
+        VecFx32 trs;
+        MtxFx43 load;
+        fx32 sin, cos;
+        int alpha;
+
+        if (ember->life <= 0 || ember->maxLife <= 0) {
+            continue;
+        }
+
+        alpha = 6 + 22 * ember->life / ember->maxLife;
+        if ((ember->type == SPL_BOOST_TYPE_ICE || ember->type == SPL_BOOST_TYPE_MEGA)
+            && ((ember->seed + (u32)ember->life) & 3) == 0) {
+            alpha /= 2; // glitter twinkle
+        }
+        if (alpha < 1) {
+            alpha = 1;
+        } else if (alpha > 31) {
+            alpha = 31;
+        }
+
+        MTX_MultVec43(&ember->pos, cmr, &trs);
+
+        sin = FX_SinIdx((u16)(ember->seed & 0xFFFF));
+        cos = FX_CosIdx((u16)(ember->seed & 0xFFFF));
+
+        load.m[0][0] = FX_MUL(cos, ember->sizeFx);
+        load.m[0][1] = FX_MUL(sin, ember->sizeFx);
+        load.m[0][2] = 0;
+        load.m[1][0] = FX_MUL(-sin, ember->sizeFx);
+        load.m[1][1] = FX_MUL(cos, ember->sizeFx);
+        load.m[1][2] = 0;
+        load.m[2][0] = 0;
+        load.m[2][1] = 0;
+        load.m[2][2] = FX32_ONE;
+        load.m[3][0] = trs.x;
+        load.m[3][1] = trs.y;
+        load.m[3][2] = trs.z;
+
+        SPLUtil_SetTexture(mgr->textures + ember->texIndex);
+
+        G3_PolygonAttr(
+            GX_LIGHTMASK_NONE,
+            GX_POLYGONMODE_MODULATE,
+            GX_CULL_NONE,
+            63,
+            (u32)alpha,
+            mgr->miscPolygonAttr);
+
+        reg_G3_POLYGON_ATTR;
+
+        G3_Color(GX_RGB(ember->r, ember->g, ember->b));
+
+        G3_Identity();
+        if (ember->useViewSpace) {
+            G3_Translate(ember->basePos.x, ember->basePos.y, ember->basePos.z);
+        }
+        G3_MultMtx43(&load);
+
+        G3_Begin(GX_BEGIN_QUADS);
+        G3_TexCoord(ember->texS * 45 / 100, ember->texT * 45 / 100);
+        G3_Vtx10(0 - FX32_ONE, 0 + FX32_ONE, 0);
+        G3_TexCoord(ember->texS * 55 / 100, ember->texT * 45 / 100);
+        G3_Vtx10(0 + FX32_ONE, 0 + FX32_ONE, 0);
+        G3_TexCoord(ember->texS * 55 / 100, ember->texT * 55 / 100);
+        G3_Vtx10(0 + FX32_ONE, 0 - FX32_ONE, 0);
+        G3_TexCoord(ember->texS * 45 / 100, ember->texT * 55 / 100);
+        G3_Vtx10(0 - FX32_ONE, 0 - FX32_ONE, 0);
+        G3_End();
     }
 }
 
