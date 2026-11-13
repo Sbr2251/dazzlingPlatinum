@@ -49,6 +49,7 @@
  ],
  "env": {
   "SIM_FX_WEATHER": "1",
-  "SIM_FX_WATER": "1"
+  "SIM_FX_WATER": "1",
+  "SIM_RENDERER": "gpu"
  }
 }

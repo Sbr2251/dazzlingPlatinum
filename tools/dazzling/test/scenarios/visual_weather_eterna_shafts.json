@@ -24,6 +24,17 @@
    "step": 240
   },
   {
+   "warp": {
+    "map": "MAP_HEADER_ETERNA_FOREST",
+    "x": 50,
+    "z": 60,
+    "dir": "DIR_NORTH"
+   }
+  },
+  {
+   "step": 300
+  },
+  {
    "screenshot": "visual_weather_eterna_shafts",
    "reference": "../references/visual/visual_weather_eterna_shafts.bmp",
    "tolerance": 0.0,
@@ -38,6 +49,7 @@
  ],
  "env": {
   "SIM_FX_WEATHER": "1",
-  "SIM_FX_WATER": "1"
+  "SIM_FX_WATER": "1",
+  "SIM_RENDERER": "gpu"
  }
 }

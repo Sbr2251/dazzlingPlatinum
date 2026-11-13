@@ -50,6 +50,7 @@
  "env": {
   "SIM_FX_WEATHER": "1",
   "SIM_FX_WEATHER_KIND": "5",
-  "SIM_FX_WEATHER_INTENSITY": "0.85"
+  "SIM_FX_WEATHER_INTENSITY": "0.85",
+  "SIM_RENDERER": "gpu"
  }
 }
