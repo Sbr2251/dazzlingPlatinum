@@ -16,6 +16,7 @@ all platform-specific code is guarded so the same paths build on macOS.
 | `SIM_FIXED_RTC=YYYY-MM-DDTHH:MM:SS` | The RTC starts at that instant and advances exactly 1/60 s per rendered frame (whole seconds = frame/60), never by wall clock. Applies with or without headless. |
 | `SIM_SEED=<n>` | Seeds the game's RNGs (`MTRNG`/`LCRNG` in `InitRNG`) with `n` instead of the RTC/vblank-derived seed. Together with `SIM_FIXED_RTC` and identical inputs, runs are deterministic. |
 | `SIM_CONTROL=stdio` | Lockstep protocol (step 2). Implies `SIM_HEADLESS=1`. |
+| `SIM_RENDERER=gl\|gpu` | Render backend: SDL3 GPU (Metal/Vulkan; the default) or OpenGL. Env wins over the `Renderer` key in `sim_config.ini` `[General]`; a `gpu` request with no creatable GPU device falls back to `gl` with a log line. |
 | `SIM_WATCHDOG_SEC=<n>` | Watchdog timeout in seconds (step 4). On by default in headless mode. |
 
 Existing `SIM_DEBUG_*` automation (keys, screenshots, exit frame, save import/export) keeps
@@ -31,8 +32,11 @@ with the same `SIM_DEBUG_KEYS` script produced byte-identical BMP screenshots (m
 
 In control mode, game state is a pure function of the save, `SIM_SEED`, `SIM_FIXED_RTC`,
 and the command sequence: identical commands give byte-identical `state` replies and
-screenshots regardless of the 2D renderer (`SIM_G2_GPU=0` or `1`), render speed, or
-machine load (including a second headless game running alongside). Nothing that game
+screenshots regardless of the 2D renderer (`SIM_G2_GPU=0` or `1`), the render
+backend (`SIM_RENDERER=gl` or `gpu`: state replies are identical, screenshots
+differ only by the per-scenario `tolerance_gpu` allowances for 3D edges),
+render speed, or machine load (including a second headless game running
+alongside). Nothing that game
 logic can observe advances at wall-clock rate in this mode:
 
 - Sound: the SDL audio callback emits silence and advances nothing. The sequencer
@@ -63,7 +67,7 @@ Note on frame numbering: protocol and `SIM_HEADLESS_SHOT_AT` frames count render
 Caveats:
 - The simulator's random MAC address (`srand(time(NULL))` in `SIM_Config_LoadDefaults`) is
   not game-visible in single-player test scenarios.
-- Rendering goes through the host GL driver; pixel equality is guaranteed for the same
+- Rendering goes through the host GL or SDL GPU driver; pixel equality is guaranteed for the same
   machine/driver, not across different GPUs/drivers.
 
 ## Lockstep protocol (`SIM_CONTROL=stdio`)
