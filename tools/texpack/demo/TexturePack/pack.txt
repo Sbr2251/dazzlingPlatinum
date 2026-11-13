@@ -1,0 +1,9 @@
+Demo pack: nearest-2x + detail pass by tools/texpack/make_demo_pack.py
+d564483074a71b3c
+3c4d33c827ae0904
+dd7a61ecf940b3c2
+702a99760efdc65d
+f03d56eb82caae4b
+59d917fe91842e78
+722591b8952a1fa0
+9ebe26f15034ea6d

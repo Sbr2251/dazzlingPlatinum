@@ -1,0 +1,51 @@
+{
+ "name": "visual_texpack_twinleaf",
+ "_note": "texpack lane: Twinleaf with the demo TexturePack (tools/texpack/demo) on the GPU backend; same frame as visual_overworld_twinleaf_after_distortion_world without the pack.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-02_twinleaf_after_distortion_world.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_texpack_twinleaf",
+   "reference": "../references/visual/visual_texpack_twinleaf.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ],
+   "tolerance_gpu": 0.001
+  }
+ ],
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_TWINLEAF_TOWN"
+  },
+  {
+   "app": "field"
+  }
+ ],
+ "env": {
+  "SIM_RENDERER": "gpu",
+  "SIM_FX_TEXPACK": "1"
+ }
+}
