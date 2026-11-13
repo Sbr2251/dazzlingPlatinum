@@ -1,6 +1,6 @@
 {
  "name": "visual_particles_flamethrower",
- "_note": "Lane particles golden: move_chosen + 120f (mid-animation) with SIM_FX_PARTICLES=1 on the GPU backend (SIM_RENDERER=gpu). GPU-ONLY: the gl leg of --compare-backends correctly shows the feature off and will differ; run in the plain suite only.",
+ "_note": "Lane particles golden: move_chosen + 180f (mid-animation flame jet / impact burst) with SIM_FX_PARTICLES=1 on the GPU backend (SIM_RENDERER=gpu). GPU-ONLY: the gl leg of --compare-backends correctly shows the feature off and will differ; run in the plain suite only.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -98,7 +98,7 @@
    "timeout_frames": 7200
   },
   {
-   "step": 120
+   "step": 180
   },
   {
    "screenshot": "visual_particles_flamethrower",
