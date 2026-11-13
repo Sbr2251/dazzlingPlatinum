@@ -49,6 +49,12 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "WeatherLightning")) {
         config->weatherLightning = StringToBool(value);
     }
+    if(MATCH("General", "WeatherFx")) {
+        config->weatherFx = StringToBool(value);
+    }
+    if(MATCH("General", "WaterReflections")) {
+        config->waterReflections = StringToBool(value);
+    }
     if(MATCH("General", "OverworldCinematics")) {
         config->overworldCinematics = StringToBool(value);
     }
@@ -119,6 +125,8 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->battleSwoop = TRUE;
   aConfig->weatherLightning = TRUE;
   aConfig->overworldCinematics = TRUE;
+  aConfig->weatherFx = TRUE;
+  aConfig->waterReflections = TRUE;
   aConfig->fieldLoadRadius = 3;
   aConfig->debugWideCamera = FALSE;
   aConfig->battleHud = TRUE;
@@ -151,6 +159,8 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "BattleSwoop=%s\n", BoolToString(aConfig->battleSwoop));
     fprintf(configFile, "WeatherLightning=%s\n", BoolToString(aConfig->weatherLightning));
     fprintf(configFile, "OverworldCinematics=%s\n", BoolToString(aConfig->overworldCinematics));
+    fprintf(configFile, "WeatherFx=%s\n", BoolToString(aConfig->weatherFx));
+    fprintf(configFile, "WaterReflections=%s\n", BoolToString(aConfig->waterReflections));
     fprintf(configFile, "FieldLoadRadius=%d\n", aConfig->fieldLoadRadius);
     fprintf(configFile, "DebugWideCamera=%s\n", BoolToString(aConfig->debugWideCamera));
     fprintf(configFile, "BattleHud=%s\n", BoolToString(aConfig->battleHud));

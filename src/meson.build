@@ -70,6 +70,7 @@ pokeplatinum_c = files(
     'ascii_util.c',
     'fx_util.c',
     'fx_arena.c',
+    'fx_weather.c',
     'int_distance.c',
     'touch_pad.c',
     'char_transfer.c',

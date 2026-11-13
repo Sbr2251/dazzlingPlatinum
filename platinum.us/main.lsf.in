@@ -85,6 +85,7 @@ Static main
 	Object src/ascii_util.c
 	Object src/fx_util.c
 	Object src/fx_arena.c
+	Object src/fx_weather.c
 	Object src/int_distance.c
 	Object src/touch_pad.c
 	Object src/char_transfer.c

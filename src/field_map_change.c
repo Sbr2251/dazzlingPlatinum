@@ -1,4 +1,5 @@
 #include "field_map_change.h"
+#include "fx_weather.h" // fx_weather hook
 
 #include <nitro.h>
 #include <string.h>
@@ -296,6 +297,7 @@ void FieldMapChange_UpdateGameData(FieldSystem *fieldSystem, BOOL noWarp)
     }
 
     FieldOverworldState_SetWeather(fieldState, weather);
+    FxWeather_OnMapChange(mapHeaderID, weather); // fx_weather hook
 
     if (noWarp) {
         int cam1 = FieldOverworldState_GetCameraType(fieldState);
