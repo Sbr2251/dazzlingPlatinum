@@ -3505,7 +3505,7 @@ static int BattleSystem_Cursor_Menu(BattleSubscreen *btlSubscreen, BOOL cursorHi
 {
     // Returns the ID of the menu button pressed, or -1 if nothing was pressed
     MenuCursor *cursor;
-    u32 button;
+    u32 button = 0; // UP on RUN skips MoveCursor; uninitialised before (could read as A and flee)
     int buttonId;
 
     cursor = &btlSubscreen->cursor;
@@ -3596,7 +3596,7 @@ static void SaveActionMenuCursorPos(BattleSubscreen *btlSubscreen, int selectedA
 
 static int BattleSystem_Cursor_PalPark(BattleSubscreen *btlSubscreen, BOOL isCursorHidden)
 {
-    u32 button;
+    u32 button = 0;
     int buttonIndex;
 
     MenuCursor *cursor = &btlSubscreen->cursor;
@@ -3631,7 +3631,7 @@ static int BattleSystem_Cursor_PalPark(BattleSubscreen *btlSubscreen, BOOL isCur
 
 static int BattleSystem_Cursor_Moves(BattleSubscreen *btlSubscreen, BOOL cursorHidden)
 {
-    u32 button;
+    u32 button = 0;
     int buttonIndex, i;
     u8 buttonLayout[3][2];
     SavedCursorPosition *savedCursorPos = BattlerData_GetSavedCursorPosition(BattleSystem_GetBattlerData(btlSubscreen->battleSys, BattleSystem_GetBattlerOfType(btlSubscreen->battleSys, btlSubscreen->battlerType)));
@@ -3735,7 +3735,7 @@ static void SaveMoveSelectMenuCursorPos(BattleSubscreen *btlSubscreen, int selec
 static int BattleSystem_Cursor_Battler(BattleSubscreen *btlSubscreen, BOOL isCursorHidden)
 {
     MenuCursor *cursor;
-    u32 button;
+    u32 button = 0;
     const BattleMenuConfig *battleMenuConfig;
     int isSingleTarget = 0;
     u8 targetSlotFlagsPresent[4], targetSlotFlags[4], buttonLayout[3][2];
