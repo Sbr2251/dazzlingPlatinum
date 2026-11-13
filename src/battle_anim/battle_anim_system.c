@@ -30,6 +30,7 @@
 #include "overlay017/ov17_022413D8.h"
 
 #include "bg_window.h"
+#include "fx_lighting.h"
 #include "graphics.h"
 #include "heap.h"
 #include "inlines.h"
@@ -963,6 +964,8 @@ BOOL BattleAnimSystem_Delete(BattleAnimSystem *system)
     }
 
     sStageBackdropShakeOk = FALSE;
+    // fx_lighting hook: battle is over, drop every light and the rim.
+    FxLighting_Clear();
 
     for (int i = 0; i < BATTLE_ANIM_SYSTEM_ARC_COUNT; i++) {
         NARC_dtor(system->arcs[i]);
@@ -1109,6 +1112,9 @@ BOOL BattleAnimSystem_StartMove(BattleAnimSystem *system, MoveAnimation *moveAni
 
     system->moveActive = TRUE;
 
+    // fx_lighting hook: start this move's light track.
+    FxLighting_StartMove(moveID, moveAnim->attacker, moveAnim->defender);
+
     return TRUE;
 }
 
@@ -1121,6 +1127,8 @@ BOOL BattleAnimSystem_ExecuteScript(BattleAnimSystem *system)
     system->executeAnimScriptFunc(system);
     BattleAnimSystem_UpdateBg2CopyLift(system);
     BattleAnimSystem_UpdateStageSuppress(system);
+    // fx_lighting hook: advance the move-light flicker / rim state.
+    FxLighting_Update();
     return TRUE;
 }
 
@@ -1814,6 +1822,8 @@ static void BattleAnimScriptCmd_End(BattleAnimSystem *system)
     Bg_SetOffset(system->bgConfig, BG_LAYER_MAIN_3, BG_OFFSET_UPDATE_SET_Y, 0);
 
     system->moveActive = FALSE;
+    // fx_lighting hook: drop the move lights, keep the rim.
+    FxLighting_EndMove();
 }
 
 static void BattleAnimScriptCmd_CreateEmitter(BattleAnimSystem *system)

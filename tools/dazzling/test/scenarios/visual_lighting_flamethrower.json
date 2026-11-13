@@ -1,0 +1,121 @@
+{
+ "name": "visual_lighting_flamethrower",
+ "_note": "Lighting lane: Flamethrower mid-frame with move lights on (SIM_FX_LIGHTS=1, SIM_FX_RIM=1, GPU). Warm flicker on attacker + target + arena, sprite rim. Event-anchored: 45f after the damage event for battler 1.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/visual_super_effective.json"
+   }
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "battle_decide": {
+    "battler": 0,
+    "action": "move",
+    "move_index": 0
+   }
+  },
+  {
+   "wait_battle_event": {
+    "type": "damage",
+    "battler": 1
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 45
+  },
+  {
+   "screenshot": "visual_lighting_flamethrower",
+   "reference": "../references/visual/visual_lighting_flamethrower.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ],
+   "tolerance_gpu": 0.002
+  }
+ ],
+ "env": {
+  "SIM_FX_LIGHTS": "1",
+  "SIM_FX_RIM": "1",
+  "SIM_RENDERER": "gpu"
+ }
+}

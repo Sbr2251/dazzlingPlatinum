@@ -1,0 +1,113 @@
+{
+ "name": "visual_lighting_rim_battle_start",
+ "_note": "Lighting lane: battle-start frame with rim light on (SIM_FX_LIGHTS=1, SIM_FX_RIM=1, GPU). Thin bright edge on both sprites from the key light. Event-anchored: 30f after battle_start.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/visual_super_effective.json"
+   }
+  },
+  {
+   "wait_battle_event": {
+    "type": "battle_start"
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 30
+  },
+  {
+   "screenshot": "visual_lighting_rim_battle_start",
+   "reference": "../references/visual/visual_lighting_rim_battle_start.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ],
+   "tolerance_gpu": 0.002
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 7200
+  }
+ ],
+ "env": {
+  "SIM_FX_LIGHTS": "1",
+  "SIM_FX_RIM": "1",
+  "SIM_RENDERER": "gpu"
+ }
+}

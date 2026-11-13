@@ -25,6 +25,8 @@ typedef struct {
     BOOL arenaContext; // Lane arena: battle arena takes the overworld time of day, weather and terrain as lighting/tint
     BOOL battleSwoop; // Lane arena: camera dive into battle (field) + high/far settle to home (battle)
     BOOL weatherLightning; // Lane arena: lightning flashes in thunderstorm weather, field and battle
+    BOOL sceneLights; // Lane lighting: per-pixel point lights in the G3 shader (move lights, ambient/key)
+    BOOL spriteRimLight; // Lane lighting: thin bright edge on battle sprites from the key light
     int fieldLoadRadius; // fx-wide: loaded land-block window width (2 = DS 2x2, 3 = 3x3); app default 3
     BOOL debugWideCamera; // fx-wide: 16:9 aspect, zoomed-out field camera so the extra loaded blocks are visible
     BOOL battleHud; // battlehud: battle menus mirrored on the top screen; app default on, headless off unless SIM_FX_BATTLEHUD=1
