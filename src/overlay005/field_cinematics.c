@@ -206,15 +206,20 @@ void FieldCinematics_StartMove(FieldSystem *fieldSystem, s16 targetOffsetXTiles,
     // 4:3 against the DS 2x2 loaded-block window (see fx-OUT/cine). At
     // 16:9 the same vertical FOV shows a third more horizontally, and
     // FieldLoadRadius=3 keeps terrain loaded a block further out, so
-    // widen the establishing moves a little instead of showing the
-    // narrower 4:3 framing floating in a wider frame: distance x9/8
-    // (city pull-backs 700 -> 787, Lake Verity 680 -> 765) and +1 degree
-    // of vertical FOV. The snapshot/return path is untouched, so the
-    // restore stays exact; when the layout is not wide the destinations
-    // are exactly the scripted ones.
+    // pull the establishing moves in slightly (distance x15/16: city
+    // pull-backs 700 -> 656, Lake Verity 680 -> 638). The scripted
+    // poses were tuned so the 4:3 frame top stays inside the loaded
+    // land; at 16:9 the frame corners reach further diagonally and
+    // showed void at the top corners even at the scripted distance
+    // (verified on Jubilife, worse at larger distances). Pulling in
+    // keeps the vertical/diagonal reach inside the tuned safe zone
+    // while the wide aspect still shows ~25% more horizontally than
+    // the 4:3 framing, into the FieldLoadRadius=3 ring. The FOV stays
+    // scripted, and the snapshot/return path is untouched, so the
+    // restore stays exact; when the layout is not wide the
+    // destinations are exactly the scripted ones.
     if (SIM_Wide_IsWideLayout()) {
-        dest.distance = distance + distance / 8;
-        fovDeg = (u16)(fovDeg + 1);
+        dest.distance = distance - distance / 16;
     }
 #endif
     dest.angle.x = (u16)-FX_DEG_TO_IDX(pitchDeg * FX32_ONE);
