@@ -42,6 +42,8 @@
 #ifdef SDK_PORT
 #include "port/debug_field.h"
 #include "port/sim_wide.h"
+#include "applications/party_menu/main.h"
+#include "constdata/const_020F410C.h"
 
 #include "constdata/const_020EA358.h"
 #endif
@@ -158,7 +160,7 @@ void FieldSystem_StartChildProcess(FieldSystem *fieldSystem, const ApplicationMa
     // the battle or a full-screen both-screens app (bag, party, Pokedex,
     // summary, PC, town map, naming, Poketch full apps, options, contests,
     // frontier, ...). This is the single entry point for all of them.
-    SIM_Wide_SetScene(appTemplate == &gBattleApplicationTemplate ? SIM_WIDE_SCENE_BATTLE : SIM_WIDE_SCENE_MENU);
+    SIM_Wide_SetScene(appTemplate == &gBattleApplicationTemplate ? SIM_WIDE_SCENE_BATTLE : (appTemplate == &gPokemonPartyAppTemplate || appTemplate == &gPokemonSummaryScreenApp) ? SIM_WIDE_SCENE_MENU_SINGLE : SIM_WIDE_SCENE_MENU);
 #endif
 }
 

@@ -1,0 +1,28 @@
+{
+ "name": "visual_widelayout_summary",
+ "requires_exists": ["~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"],
+ "start": {"save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"},
+ "steps": [
+  {"step": 900},
+  {"press_until": {"app": "field"}, "keys": "A", "press_frames": 10, "interval_frames": 300, "timeout_frames": 7200},
+  {"step": 240},
+  {"press": "X", "frames": 10},
+  {"step": 120},
+  {"press": "DOWN", "frames": 10},
+  {"step": 60},
+  {"press": "A", "frames": 10},
+  {"step": 240},
+  {"press": "A", "frames": 10},
+  {"step": 180},
+  {"screenshot": "widelayout_summary_ctx", "reference": "../references/visual/widelayout_summary_ctx.bmp", "tolerance": 0.0},
+  {"press": "A", "frames": 10},
+  {"step": 300},
+  {"screenshot": "widelayout_summary", "reference": "../references/visual/widelayout_summary.bmp", "tolerance": 0.0},
+  {"panel": {"open": true}},
+  {"step": 60},
+  {"screenshot": "widelayout_summary_panel", "reference": "../references/visual/widelayout_summary_panel.bmp", "tolerance": 0.0}
+ ],
+ "_note": "Wide GPU: party -> context menu (A) -> Summary (A). Summary single-screen centred 4:3; panel open shows its bottom screen + close handle.",
+ "config": {"ScreenLayout": "wide"},
+ "env": {"SIM_RENDERER": "gpu", "SIM_FX_WIDE": "1"}
+}

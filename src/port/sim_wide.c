@@ -25,6 +25,8 @@ extern int SIM_Layout_GetMainTouch(int *x, int *y) __attribute__((weak));
 
 static int sLastScene = -1;
 static int sLastTouchNeeded = -1;
+static int sSceneStack[8];
+static int sSceneDepth = 0;
 
 static BOOL WideDebugLog(void)
 {
@@ -37,6 +39,14 @@ void SIM_Wide_SetScene(enum SIMWideScene scene)
     if ((int)scene == sLastScene) {
         return;
     }
+    // A direct SetScene is a base transition (field/battle/menu entry);
+    // any pushed party/summary scenes are abandoned. Push/Pop bypass
+    // this by clearing sLastScene before calling, so detect that: only
+    // clear the stack when this is not a push/pop re-entry. Push/Pop set
+    // sLastScene=-1 first, so a -1 entry means push/pop.
+    if (sLastScene != -1) {
+        sSceneDepth = 0;
+    }
     sLastScene = (int)scene;
 
     if (WideDebugLog()) {
@@ -46,6 +56,28 @@ void SIM_Wide_SetScene(enum SIMWideScene scene)
     if (SIM_Layout_SetScene != NULL) {
         SIM_Layout_SetScene((int)scene);
     }
+}
+
+void SIM_Wide_PushScene(enum SIMWideScene scene)
+{
+    if (sSceneDepth < 8) {
+        sSceneStack[sSceneDepth++] = sLastScene;
+    }
+    // Force the forward even if the scene value repeats the saved one:
+    // SetScene below dedupes on sLastScene, so temporarily clear it.
+    sLastScene = -1;
+    SIM_Wide_SetScene(scene);
+}
+
+void SIM_Wide_PopScene(void)
+{
+    if (sSceneDepth <= 0) {
+        return;
+    }
+    int prev = sSceneStack[--sSceneDepth];
+    if (prev < 0) prev = (int)SIM_WIDE_SCENE_FIELD;
+    sLastScene = -1;
+    SIM_Wide_SetScene((enum SIMWideScene)prev);
 }
 
 void SIM_Wide_SetBattleTouchNeeded(int needsTouch)

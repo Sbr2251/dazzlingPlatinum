@@ -24,12 +24,18 @@
 enum SIMWideScene {
     SIM_WIDE_SCENE_FIELD = 1, // overworld / field
     SIM_WIDE_SCENE_BATTLE = 2, // battle
-    SIM_WIDE_SCENE_MENU = 3 // any full-screen app using both screens
+    SIM_WIDE_SCENE_MENU = 3, // any full-screen app using both screens
+    SIM_WIDE_SCENE_MENU_SINGLE = 4 // party/summary: main screen only + panel
 };
 
 // Tell the simulator which scene is active. Call at entry/exit points,
 // not per frame; repeat calls with the same scene are dropped here.
 void SIM_Wide_SetScene(enum SIMWideScene scene);
+// Push a scene, saving the current one; Pop restores it. Used by
+// party/summary so they show single-screen even when nested inside a
+// MENU app (PC box, battle sub-menus, another menu).
+void SIM_Wide_PushScene(enum SIMWideScene scene);
+void SIM_Wide_PopScene(void);
 
 // 1 while the battle awaits bottom-screen touch/menu input (command
 // selection). Drives the auto-show of the docked panel in BATTLE.

@@ -17,6 +17,9 @@
 #include "applications/pokemon_summary_screen/sprites.h"
 #include "applications/pokemon_summary_screen/subscreen.h"
 #include "applications/pokemon_summary_screen/window.h"
+#ifdef SDK_PORT
+#include "port/sim_wide.h"
+#endif
 
 #include "bg_window.h"
 #include "font.h"
@@ -204,6 +207,9 @@ BOOL PokemonSummaryScreen_ShowContestData(SaveData *saveData)
 
 static int PokemonSummaryScreen_Init(ApplicationManager *appMan, int *state)
 {
+#ifdef SDK_PORT
+    SIM_Wide_PushScene(SIM_WIDE_SCENE_MENU_SINGLE);
+#endif
     SetVBlankCallback(NULL, NULL);
     DisableHBlank();
     GXLayers_DisableEngineALayers();
@@ -339,6 +345,9 @@ static int PokemonSummaryScreen_Main(ApplicationManager *appMan, int *state)
 
 static int PokemonSummaryScreen_Exit(ApplicationManager *appMan, int *state)
 {
+#ifdef SDK_PORT
+    SIM_Wide_PopScene();
+#endif
     PokemonSummaryScreen *summaryScreen = ApplicationManager_Data(appMan);
 
     SetVBlankCallback(NULL, NULL);

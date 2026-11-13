@@ -1,0 +1,18 @@
+{
+ "name": "visual_widelayout_field_panel",
+ "config": {"ScreenLayout": "wide"},
+ "env": {"SIM_RENDERER": "gpu"},
+ "start": {"save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-01_lake_verity_arrival.sav"},
+ "steps": [
+  {"step": 900},
+  {"press_until": {"app": "field"}, "keys": "A", "press_frames": 10, "interval_frames": 300, "timeout_frames": 7200},
+  {"step": 240},
+  {"panel": {"open": true}},
+  {"step": 60},
+  {"screenshot": "widelayout_field_panel", "reference": "../references/visual/widelayout_field_panel.bmp", "tolerance": 0.0},
+  {"panel": {"open": false}},
+  {"step": 60},
+  {"screenshot": "widelayout_field_closed", "reference": "../references/visual/widelayout_field_closed.bmp", "tolerance": 0.0}
+ ],
+ "_note": "Wide GPU FIELD: panel open (bottom screen + close handle) then toggled closed."
+}

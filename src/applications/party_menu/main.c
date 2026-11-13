@@ -22,6 +22,9 @@
 #include "applications/party_menu/windows.h"
 #include "applications/pokemon_summary_screen/main.h"
 #include "field/field_system.h"
+#ifdef SDK_PORT
+#include "port/sim_wide.h"
+#endif
 
 #include "bag.h"
 #include "battle_regulation.h"
@@ -269,6 +272,9 @@ static const u16 sFieldMoves[FIELD_MOVE_MAX] = {
 
 static BOOL PartyMenu_Init(ApplicationManager *appMan, int *state)
 {
+#ifdef SDK_PORT
+    SIM_Wide_PushScene(SIM_WIDE_SCENE_MENU_SINGLE);
+#endif
     PartyMenuApplication *application; // must forward-declare to match
     NARC *narc;
 
@@ -674,6 +680,9 @@ static int HandleTeachMove(PartyMenuApplication *application)
 
 static BOOL PartyMenu_Exit(ApplicationManager *appMan, int *state)
 {
+#ifdef SDK_PORT
+    SIM_Wide_PopScene();
+#endif
     PartyMenuApplication *v0 = ApplicationManager_Data(appMan);
     u32 v1;
 

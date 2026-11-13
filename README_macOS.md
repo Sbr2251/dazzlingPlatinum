@@ -28,7 +28,8 @@ The DS ROM still builds from the same tree with `make release` as before.
 | Start / Select | Return / Right Shift |
 | Touch screen | Mouse on the bottom screen |
 | Fast-forward: hold for up to 4x (`SIM_FAST_FORWARD_SPEED=<1.5–16>` changes it) | Space |
-| Frame cap on/off (uncapped) | Tab |
+| Frame cap on/off (uncapped) | Tab (classic layout) |
+| Wide layout: toggle sub-screen panel | Tab or P (also click the tab handle at the right edge; click the chevron handle on the open panel to close) |
 | Settings and debug menu | ` (grave accent) |
 | Export the save (.sav) | Cmd+E (or Export save… in the ` menu) |
 | Import a save (.sav or DeSmuME .dsv), then restart | Cmd+I (or Import save… in the ` menu) |

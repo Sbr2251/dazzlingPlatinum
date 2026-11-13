@@ -2582,10 +2582,10 @@ index 0000000..c2b0286
 +}  // namespace SIM::Helpers
 diff --git a/include/simulator/sim_layout.h b/include/simulator/sim_layout.h
 new file mode 100644
-index 0000000..b3dd3a4
+index 0000000..4d83bd8
 --- /dev/null
 +++ b/include/simulator/sim_layout.h
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,93 @@
 +#ifndef SIMULATOR_SIM_LAYOUT_H
 +#define SIMULATOR_SIM_LAYOUT_H
 +
@@ -2605,7 +2605,8 @@ index 0000000..b3dd3a4
 +    SIM_LAYOUT_SCENE_UNKNOWN = 0, // No scene set yet; renders as FIELD.
 +    SIM_LAYOUT_SCENE_FIELD   = 1, // Overworld / field.
 +    SIM_LAYOUT_SCENE_BATTLE  = 2, // Battle.
-+    SIM_LAYOUT_SCENE_MENU    = 3  // Any full-screen app using both screens.
++    SIM_LAYOUT_SCENE_MENU    = 3, // Any full-screen app using both screens.
++    SIM_LAYOUT_SCENE_MENU_SINGLE = 4 // Party/summary: main screen only + panel.
 +} SIM_Layout_Scene;
 +
 +// Which scene is active. Call at transitions (entry/exit), NOT per frame.
@@ -2632,14 +2633,14 @@ index 0000000..b3dd3a4
 +// manual Tab-close. Ignored in other scenes. Default 0.
 +void SIM_Layout_SetBattleTouchNeeded(int needsTouch);
 +
-+// Force the sub-screen panel open (1) or closed (0). In FIELD this is
-+// the slide-in panel; in BATTLE it overrides the auto-show. No-op in
-+// MENU (both screens are already visible).
++// Force the sub-screen panel open (1) or closed (0). In FIELD and
++// MENU_SINGLE this is the slide-in panel; in BATTLE it overrides the
++// auto-show. No-op in MENU (both screens are already visible).
 +void SIM_Layout_SetPanelOpen(int open);
 +
-+// Effective panel visibility: FIELD follows SetPanelOpen, BATTLE is
-+// SetPanelOpen OR (battle-touch needed AND not manually closed),
-+// MENU is always closed.
++// Effective panel visibility: FIELD/MENU_SINGLE follow SetPanelOpen,
++// BATTLE is SetPanelOpen OR (battle-touch needed AND not manually
++// closed), MENU is always closed.
 +int SIM_Layout_IsPanelOpen(void);
 +
 +// Panel geometry, normalised window coordinates (top-left origin,
@@ -2669,6 +2670,9 @@ index 0000000..b3dd3a4
 +// window coordinates); the simulator draws the handle there.
 +void SIM_Layout_SetTabIconRect(int visible, float x, float y, float w, float h);
 +int SIM_Layout_GetTabIconRect(float *x, float *y, float *w, float *h);
++// Close handle for the open panel (mirror of the tab handle).
++void SIM_Layout_SetCloseIconRect(int visible, float x, float y, float w, float h);
++int SIM_Layout_GetCloseIconRect(float *x, float *y, float *w, float *h);
 +
 +#ifdef __cplusplus
 +}
@@ -31939,7 +31943,7 @@ index de145a7..6a2b5da 100644
 +    SIM::G3::TextureCache::NotifyWrite(dest, size);
 +}
 diff --git a/libraries/sim/src/sim_gui.cpp b/libraries/sim/src/sim_gui.cpp
-index 2c40e59..1fe1a7f 100644
+index 2c40e59..cdb99f9 100644
 --- a/libraries/sim/src/sim_gui.cpp
 +++ b/libraries/sim/src/sim_gui.cpp
 @@ -1,10 +1,12 @@
@@ -31987,7 +31991,7 @@ index 2c40e59..1fe1a7f 100644
  
      ImGui::StyleColorsDark(NULL);
  
-@@ -61,6 +59,36 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+@@ -61,6 +59,62 @@ void Init(SDL_Window * window, SDL_GLContext context) {
  }
  
  void Main() {
@@ -31996,6 +32000,32 @@ index 2c40e59..1fe1a7f 100644
 +    // Wide layout: the tab handle at the right window edge (solid
 +    // geometry, no font, so headless screenshots stay deterministic).
 +    // Clicks are handled by SIM_Render from the same rect.
++    // Close handle while panel is open (mirrored chevron).
++    if (SIM_Layout_IsWide() && SIM_Layout_IsPanelOpen()) {
++        float tx, ty, tw, th;
++        if (SIM_Layout_GetCloseIconRect(&tx, &ty, &tw, &th)) {
++            ImVec2 display = ImGui::GetIO().DisplaySize;
++            float x0 = tx * display.x, y0 = ty * display.y;
++            float x1 = (tx + tw) * display.x, y1 = (ty + th) * display.y;
++            ImGui::SetNextWindowPos(ImVec2(x0, y0));
++            ImGui::SetNextWindowSize(ImVec2(x1 - x0, y1 - y0));
++            if (ImGui::Begin("##wideclose", nullptr,
++                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
++                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
++                    ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs)) {
++                ImDrawList *draw = ImGui::GetWindowDrawList();
++                draw->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), IM_COL32(255, 255, 255, 70));
++                float cx = (x0 + x1) * 0.5f, cy = (y0 + y1) * 0.5f;
++                bool vertical = (x1 - x0) > (y1 - y0);
++                if (vertical) {
++                    draw->AddTriangleFilled(ImVec2(x0 + 10.0f, y1 - 8.0f), ImVec2(x1 - 10.0f, y1 - 8.0f), ImVec2(cx, y0 + 8.0f), IM_COL32(0, 0, 0, 200));
++                } else {
++                    draw->AddTriangleFilled(ImVec2(x0 + 8.0f, y0 + 10.0f), ImVec2(x0 + 8.0f, y1 - 10.0f), ImVec2(x1 - 8.0f, cy), IM_COL32(0, 0, 0, 200));
++                }
++            }
++            ImGui::End();
++        }
++    }
 +    if (SIM_Layout_IsWide() && !SIM_Layout_IsPanelOpen()) {
 +        float tx, ty, tw, th;
 +        if (SIM_Layout_GetTabIconRect(&tx, &ty, &tw, &th)) {
@@ -32024,7 +32054,7 @@ index 2c40e59..1fe1a7f 100644
      if(sEnabled) {
          ImGui::Begin("libntr", &sEnabled);
  
-@@ -96,6 +124,10 @@ void Main() {
+@@ -96,6 +150,10 @@ void Main() {
          }
          #endif
  
@@ -32035,7 +32065,7 @@ index 2c40e59..1fe1a7f 100644
          ImGui::Checkbox("Pause Game Logic", &sPauseGameLogic);
  
          ImGui::End();
-@@ -115,20 +147,19 @@ void OpenFileDialog(std::function<void(std::string)> callback) {
+@@ -115,20 +173,19 @@ void OpenFileDialog(std::function<void(std::string)> callback) {
  }
  
  void NewFrame() {
@@ -32059,7 +32089,7 @@ index 2c40e59..1fe1a7f 100644
  }
  
  void Toggle() {
-@@ -147,6 +178,10 @@ bool IsGameLogicPaused() {
+@@ -147,6 +204,10 @@ bool IsGameLogicPaused() {
      return sPauseGameLogic;
  }
  
@@ -32404,10 +32434,10 @@ index 0000000..c746508
 +}
 diff --git a/libraries/sim/src/sim_headless_control.cpp b/libraries/sim/src/sim_headless_control.cpp
 new file mode 100644
-index 0000000..6bb7b83
+index 0000000..401c70f
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_control.cpp
-@@ -0,0 +1,267 @@
+@@ -0,0 +1,275 @@
 +#include <simulator/sim_render_backend.hpp>
 +// SIM_CONTROL=stdio lockstep protocol (docs/headless_protocol.md).
 +// The game does not advance until told to: this runs at the end of each rendered frame
@@ -32415,6 +32445,7 @@ index 0000000..6bb7b83
 +// frame budget remains. Each command is one line of JSON on stdin; each reply is one
 +// line of JSON on the real stdout (fd 1 is redirected to stderr in control mode).
 +#include "simulator/sim_headless.h"
++#include "simulator/sim_layout.h"
 +#include "simulator/sim_helpers.hpp"
 +
 +#include <nitro/hw/X86/mmap_shared.h>
@@ -32593,6 +32624,13 @@ index 0000000..6bb7b83
 +        ApplyHeld();
 +        if (s_budget == 0) { s_pendingReply = 0; ReplyOk(); return false; }
 +        return true;
++    }
++    if (cmd == "panel") {
++        bool has=false, open=false; { size_t pp; has=JsonFind(line, "open", &pp); if (has) JsonBool(line, "open", &open); }
++        if (!has) SIM_Layout_SetPanelOpen(!SIM_Layout_IsPanelOpen());
++        else SIM_Layout_SetPanelOpen(open ? 1 : 0);
++        char extra[64]; snprintf(extra, sizeof extra, "\"panel_open\":%d", SIM_Layout_IsPanelOpen());
++        ReplyOk(extra); return false;
 +    }
 +    if (cmd == "screenshot") {
 +        std::string path;
@@ -33387,10 +33425,10 @@ index 0000000..75cdee1
 +
 diff --git a/libraries/sim/src/sim_layout.c b/libraries/sim/src/sim_layout.c
 new file mode 100644
-index 0000000..a4f1b3c
+index 0000000..d386176
 --- /dev/null
 +++ b/libraries/sim/src/sim_layout.c
-@@ -0,0 +1,174 @@
+@@ -0,0 +1,195 @@
 +#include <simulator/sim_layout.h>
 +
 +static SIM_Layout_Scene s_scene = SIM_LAYOUT_SCENE_UNKNOWN;
@@ -33404,6 +33442,11 @@ index 0000000..a4f1b3c
 +static float s_tabY = 0.0f;
 +static float s_tabW = 0.0f;
 +static float s_tabH = 0.0f;
++static int s_closeIconVisible = 0;
++static float s_closeX = 0.0f;
++static float s_closeY = 0.0f;
++static float s_closeW = 0.0f;
++static float s_closeH = 0.0f;
 +static float s_panelX = 0.0f;
 +static float s_panelY = 0.0f;
 +static float s_panelW = 0.0f;
@@ -33411,7 +33454,7 @@ index 0000000..a4f1b3c
 +
 +void SIM_Layout_SetScene(SIM_Layout_Scene scene)
 +{
-+    if (scene < SIM_LAYOUT_SCENE_UNKNOWN || scene > SIM_LAYOUT_SCENE_MENU) {
++    if (scene < SIM_LAYOUT_SCENE_UNKNOWN || scene > SIM_LAYOUT_SCENE_MENU_SINGLE) {
 +        scene = SIM_LAYOUT_SCENE_UNKNOWN;
 +    }
 +    s_scene = scene;
@@ -33495,6 +33538,22 @@ index 0000000..a4f1b3c
 +    if (y) *y = s_tabY;
 +    if (w) *w = s_tabW;
 +    if (h) *h = s_tabH;
++    return 1;
++}
++
++void SIM_Layout_SetCloseIconRect(int visible, float x, float y, float w, float h)
++{
++    s_closeIconVisible = visible ? 1 : 0;
++    s_closeX = x; s_closeY = y; s_closeW = w; s_closeH = h;
++}
++
++int SIM_Layout_GetCloseIconRect(float *x, float *y, float *w, float *h)
++{
++    if (!s_closeIconVisible) return 0;
++    if (x) *x = s_closeX;
++    if (y) *y = s_closeY;
++    if (w) *w = s_closeW;
++    if (h) *h = s_closeH;
 +    return 1;
 +}
 +
@@ -33642,7 +33701,7 @@ index 0000000..4b3f9e5
 +    return 1;
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..c6dc03a 100644
+index 910d7da..4a8b972 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -33700,7 +33759,7 @@ index 910d7da..c6dc03a 100644
  #include "git_info.h"
  
  // Simulator configuration
-@@ -75,6 +88,42 @@ extern OSThreadInfo OSi_ThreadInfo;
+@@ -75,6 +88,49 @@ extern OSThreadInfo OSi_ThreadInfo;
  
  static u32 s_TouchPanelCoords[4] = {}; // The bounding box of the touch screen
  
@@ -33721,6 +33780,13 @@ index 910d7da..c6dc03a 100644
 +static bool WidePanelTarget() {
 +  return WideActive() && SIM_Layout_IsPanelOpen();
 +}
++static bool WideSideBySideMenu() {
++  return SIM_Layout_GetScene() == SIM_LAYOUT_SCENE_MENU;
++}
++static bool WideSingleScreen() {
++  return !WideSideBySideMenu();
++}
++static int sCloseIconRect[4] = {}; // Close handle rect, window pixels (panel open).
 +
 +// One quad from normalised (top-left origin) rect + texture t range.
 +// NDC: x = rect.x * 2 - 1, y = 1 - rect.y * 2 (top edge) .. 1 - (rect.y + rect.h) * 2 (bottom edge);
@@ -33743,7 +33809,7 @@ index 910d7da..c6dc03a 100644
  // SND
  #include <nitro/snd/common/work.h>
  #include <nitro/snd/common/command.h>
-@@ -96,6 +145,20 @@ static struct timespec s_SIM_lastFrameEnd;
+@@ -96,6 +152,20 @@ static struct timespec s_SIM_lastFrameEnd;
  static u64 sRenderFrameTime;
  static u64 sFullFrameTime;
  
@@ -33764,7 +33830,7 @@ index 910d7da..c6dc03a 100644
  static constexpr auto SteamDeckWidth = 1280;
  static constexpr auto SteamDeckHeight = 800;
  
-@@ -125,45 +188,170 @@ u8 OBJWindow[2][256];
+@@ -125,45 +195,170 @@ u8 OBJWindow[2][256];
  
  GXVRamBGExtPltt s_SIM_GXBgExtPltt;
  GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
@@ -33857,7 +33923,7 @@ index 910d7da..c6dc03a 100644
 +    *v = 1.0f - ((float)sViewY + e.y / 384.0f * (float)sViewH) / (float)sViewWinH;
 +    return;
 +  }
-+  if (SIM_Layout_GetScene() == SIM_LAYOUT_SCENE_MENU) {
++  if (WideSideBySideMenu()) {
 +    float sx = e.y < 192.0f ? e.x / 256.0f * 0.5f : 0.5f + e.x / 256.0f * 0.5f;
 +    float sy = e.y < 192.0f ? e.y / 192.0f : (e.y - 192.0f) / 192.0f;
 +    *u = ((float)sViewX + sx * (float)sViewW) / (float)sViewWinW;
@@ -33941,7 +34007,7 @@ index 910d7da..c6dc03a 100644
 +  // Wide post geometry: the shader's wide branches apply to the wide
 +  // FIELD/BATTLE composite; MENU uses the classic path (its effects
 +  // decay within a couple of frames of the scene change anyway).
-+  p.wideMode = (WideActive() && SIM_Layout_GetScene() != SIM_LAYOUT_SCENE_MENU) ? 1 : 0;
++  p.wideMode = (WideActive() && !WideSideBySideMenu()) ? 1 : 0;
 +  if (sViewWinW > 0 && sViewWinH > 0) {
 +    p.viewU0 = (float)sViewX / (float)sViewWinW;
 +    p.viewV0 = 1.0f - (float)(sViewY + sViewH) / (float)sViewWinH;
@@ -33970,7 +34036,7 @@ index 910d7da..c6dc03a 100644
  
  static SDL_Window *window;
  
-@@ -178,6 +366,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +373,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -33981,7 +34047,7 @@ index 910d7da..c6dc03a 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -224,38 +416,11 @@ static void DrawEngine(BOOL isSub);
+@@ -224,38 +423,11 @@ static void DrawEngine(BOOL isSub);
  static u8 s_numG3CommandsThisFrame = 0;
  
  // Vcount stuff
@@ -34022,7 +34088,7 @@ index 910d7da..c6dc03a 100644
  SIM_config_type *SIM_GetConfigPtr() { return &s_SIM_config; }
  
  SDL_Window * SIM_GetSDLWindow() {return window;}
-@@ -275,27 +440,9 @@ void *runVblankInterrupt(void *arg) {
+@@ -275,27 +447,9 @@ void *runVblankInterrupt(void *arg) {
    return NULL;
  }
  
@@ -34052,7 +34118,7 @@ index 910d7da..c6dc03a 100644
  }
  
  static bool sChangeInternalResAfterRender = false;
-@@ -308,18 +455,63 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
+@@ -308,18 +462,63 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
    sPendingInternalRes = internalRes;
  }
  
@@ -34123,7 +34189,7 @@ index 910d7da..c6dc03a 100644
  
    u32 windowHeight;
    u32 windowWidth;
-@@ -352,6 +544,11 @@ void *SIM_RenderInit(void *arg) {
+@@ -352,6 +551,11 @@ void *SIM_RenderInit(void *arg) {
          windowHeight = SIM_NDS_SCREEN_HEIGHT * 2 * 2;
          windowWidth = (SIM_NDS_SCREEN_WIDTH * 2 * 2) + (SIM_NDS_SCREEN_WIDTH * 2);
          break;
@@ -34135,7 +34201,7 @@ index 910d7da..c6dc03a 100644
        }
      }
    } else {
-@@ -376,197 +573,63 @@ void *SIM_RenderInit(void *arg) {
+@@ -376,197 +580,63 @@ void *SIM_RenderInit(void *arg) {
                    std::string(makerCode) + "]";
    }
  
@@ -34377,7 +34443,7 @@ index 910d7da..c6dc03a 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -578,10 +641,16 @@ static void DrawEngine(BOOL isSub) {
+@@ -578,10 +648,16 @@ static void DrawEngine(BOOL isSub) {
    u8 maxPriorityBG;
    u8 bgEnabled[4];
    u8 bgMode;
@@ -34389,14 +34455,14 @@ index 910d7da..c6dc03a 100644
 +  // on top this frame (the game toggles it during the title/intro), and
 +  // the other engine is the panel. A closed panel draws nothing at all.
 +  int thisTop = dispSel ? !isSub : isSub;
-+  if (WideActive() && !sInCapture && SIM_Layout_GetScene() != SIM_LAYOUT_SCENE_MENU &&
++  if (WideActive() && !sInCapture && !WideSideBySideMenu() &&
 +      !thisTop && sPanelAnim <= 0.0f) {
 +    return;
 +  }
  
    // Get the enabled BGs
    u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
-@@ -603,20 +672,6 @@ static void DrawEngine(BOOL isSub) {
+@@ -603,20 +679,6 @@ static void DrawEngine(BOOL isSub) {
    backdropColor =
        isSub ? *(u16 *)&s_HW_DB_BG_PLTT[0] : *(u16 *)&s_HW_BG_PLTT[0];
    SIM_u16ToRGB(backdropColor, &backdropR, &backdropG, &backdropB);
@@ -34417,7 +34483,7 @@ index 910d7da..c6dc03a 100644
  
    // Get the BG priorities
    u16 bg0cnt = isSub ? s_reg_G2S_DB_BG0CNT : s_reg_G2_BG0CNT;
-@@ -624,52 +679,44 @@ static void DrawEngine(BOOL isSub) {
+@@ -624,52 +686,44 @@ static void DrawEngine(BOOL isSub) {
    u16 bg2cnt = isSub ? s_reg_G2S_DB_BG2CNT : s_reg_G2_BG2CNT;
    u16 bg3cnt = isSub ? s_reg_G2S_DB_BG3CNT : s_reg_G2_BG3CNT;
  
@@ -34502,7 +34568,7 @@ index 910d7da..c6dc03a 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -715,13 +762,38 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +769,38 @@ static void DrawEngine(BOOL isSub) {
        u8 a;
        for (int j = 0; j < 256; j++) {
          if (OBJLine[isSub][j]) {
@@ -34546,12 +34612,12 @@ index 910d7da..c6dc03a 100644
            }
          }
          if (OBJWindow[isSub][j]) {
-@@ -735,130 +807,107 @@ static void DrawEngine(BOOL isSub) {
+@@ -735,130 +814,107 @@ static void DrawEngine(BOOL isSub) {
  
    // Draw the BGs
    for (int i = 0; i < 4; i++) {
 -    u8 curBgNum = bgOrder[i];
--
+ 
 -    if (bgEnabled[bgOrder[i]]) {
 -      G2SIM_DrawBG(bgOrder[i], bgMode, bg0as3d, isSub);
 -    } else {
@@ -34559,7 +34625,7 @@ index 910d7da..c6dc03a 100644
 -      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
 -    }
 -  }
- 
+-
 -  // write all OAMs to the textures based on their priorities
 -  for (int i = 0; i < 4; i++) {
 -    glActiveTexture(GL_TEXTURE0 + s_objTexUnits[i]);
@@ -34731,7 +34797,7 @@ index 910d7da..c6dc03a 100644
 +  SIM::G3::RenderVertex wideQuad[6]; // Lives until CompositeEngine below.
 +  {
 +    bool wideQuadSet = false;
-+    if (WideActive() && !sInCapture && SIM_Layout_GetScene() != SIM_LAYOUT_SCENE_MENU) {
++    if (WideActive() && !sInCapture && !WideSideBySideMenu()) {
 +      float t0 = uniforms.topScreen ? 0.5f : 0.0f;
 +      float t1 = uniforms.topScreen ? 1.0f : 0.5f;
 +      if (thisTop) {
@@ -34765,7 +34831,7 @@ index 910d7da..c6dc03a 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +999,281 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1006,281 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -35047,7 +35113,7 @@ index 910d7da..c6dc03a 100644
  
    SDL_Event Event;
    char c;
-@@ -965,6 +1288,7 @@ void *SIM_Render(void *arg) {
+@@ -965,6 +1295,7 @@ void *SIM_Render(void *arg) {
    auto& g3State = SIM::G3::GetGlobalState();
    g3State.FlushDrawCall();
    g3State.DrawTransparentItems();
@@ -35055,7 +35121,7 @@ index 910d7da..c6dc03a 100644
  
  
    do {
-@@ -976,14 +1300,6 @@ void *SIM_Render(void *arg) {
+@@ -976,14 +1307,6 @@ void *SIM_Render(void *arg) {
        SIM_Net_SendBeaconIndication();
      }
  
@@ -35070,21 +35136,21 @@ index 910d7da..c6dc03a 100644
      int windowHeight;
      int windowWidth;
      int viewHeight;
-@@ -1006,6 +1322,13 @@ void *SIM_Render(void *arg) {
+@@ -1006,6 +1329,13 @@ void *SIM_Render(void *arg) {
      case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
        aspectRatio = 768.0f / 384.0f;
        break;
 +    case SIM_CONFIG_SCREEN_LAYOUT_WIDE:
 +      // FIELD/BATTLE: one 16:9 view. MENU: both screens side by side
 +      // (512x192) letterboxed inside 16:9.
-+      aspectRatio = SIM_Layout_GetScene() == SIM_LAYOUT_SCENE_MENU
++      aspectRatio = WideSideBySideMenu()
 +                        ? 512.0f / 192.0f
 +                        : 16.0f / 9.0f;
 +      break;
      }
  
      viewWidth = windowWidth;
-@@ -1019,10 +1342,103 @@ void *SIM_Render(void *arg) {
+@@ -1019,10 +1349,125 @@ void *SIM_Render(void *arg) {
        viewY = 0;
      }
  
@@ -35100,7 +35166,7 @@ index 910d7da..c6dc03a 100644
 +    // panel / tab-icon rects for this frame (window pixels, top-left
 +    // origin). The panel quad in DrawEngine and the touch mapping
 +    // below both read sPanelRectPx.
-+    if (WideActive() && SIM_Layout_GetScene() != SIM_LAYOUT_SCENE_MENU) {
++    if (WideActive() && !WideSideBySideMenu()) {
 +      float target = WidePanelTarget() ? 1.0f : 0.0f;
 +      if (SIM_Headless_Enabled()) {
 +        sPanelAnim = target;
@@ -35144,13 +35210,35 @@ index 910d7da..c6dc03a 100644
 +            windowHeight > 0 ? (float)sTabIconRect[1] / (float)windowHeight : 0.0f,
 +            windowWidth > 0 ? (float)(sTabIconRect[2] - sTabIconRect[0]) / (float)windowWidth : 0.0f,
 +            windowHeight > 0 ? (float)(sTabIconRect[3] - sTabIconRect[1]) / (float)windowHeight : 0.0f);
++        sCloseIconRect[0] = sCloseIconRect[1] = sCloseIconRect[2] = sCloseIconRect[3] = 0;
++        SIM_Layout_SetCloseIconRect(0, 0.0f, 0.0f, 0.0f, 0.0f);
 +      } else {
 +        sTabIconRect[0] = sTabIconRect[1] = sTabIconRect[2] = sTabIconRect[3] = 0;
 +        SIM_Layout_SetTabIconRect(0, 0.0f, 0.0f, 0.0f, 0.0f);
++        // Close handle on the panel's outer edge (mirror of open handle).
++        if (SIM_Layout_GetScene() == SIM_LAYOUT_SCENE_BATTLE) {
++          int pw = sPanelRectPx[2] - sPanelRectPx[0];
++          sCloseIconRect[0] = sPanelRectPx[0] + pw / 2 - 40;
++          sCloseIconRect[1] = sPanelRectPx[1] - 28;
++          sCloseIconRect[2] = sPanelRectPx[0] + pw / 2 + 40;
++          sCloseIconRect[3] = sPanelRectPx[1];
++        } else {
++          sCloseIconRect[0] = sPanelRectPx[0] - 28;
++          sCloseIconRect[1] = viewY + (int)(0.44f * (float)viewHeight);
++          sCloseIconRect[2] = sPanelRectPx[0];
++          sCloseIconRect[3] = viewY + (int)(0.56f * (float)viewHeight);
++        }
++        SIM_Layout_SetCloseIconRect(1,
++            windowWidth > 0 ? (float)sCloseIconRect[0] / (float)windowWidth : 0.0f,
++            windowHeight > 0 ? (float)sCloseIconRect[1] / (float)windowHeight : 0.0f,
++            windowWidth > 0 ? (float)(sCloseIconRect[2] - sCloseIconRect[0]) / (float)windowWidth : 0.0f,
++            windowHeight > 0 ? (float)(sCloseIconRect[3] - sCloseIconRect[1]) / (float)windowHeight : 0.0f);
 +      }
 +    } else {
 +      sTabIconRect[0] = sTabIconRect[1] = sTabIconRect[2] = sTabIconRect[3] = 0;
 +      SIM_Layout_SetTabIconRect(0, 0.0f, 0.0f, 0.0f, 0.0f);
++      sCloseIconRect[0] = sCloseIconRect[1] = sCloseIconRect[2] = sCloseIconRect[3] = 0;
++      SIM_Layout_SetCloseIconRect(0, 0.0f, 0.0f, 0.0f, 0.0f);
 +    }
 +    {
 +      SIM::Render::FrameParams frameParams;
@@ -35167,7 +35255,7 @@ index 910d7da..c6dc03a 100644
 +      // screen is the right half of the side-by-side view. FIELD /
 +      // BATTLE: only the panel (when open); the main screen is never
 +      // the touch screen. Panel closed: no touch surface at all.
-+      if (SIM_Layout_GetScene() == SIM_LAYOUT_SCENE_MENU) {
++      if (WideSideBySideMenu()) {
 +        s_TouchPanelCoords[0] = viewX + (viewWidth / 2);
 +        s_TouchPanelCoords[1] = viewY;
 +        s_TouchPanelCoords[2] = viewX + viewWidth;
@@ -35190,7 +35278,7 @@ index 910d7da..c6dc03a 100644
        switch (s_SIM_config.screenLayout) {
        default:
        case SIM_CONFIG_SCREEN_LAYOUT_VERTICAL:
-@@ -1068,24 +1484,85 @@ void *SIM_Render(void *arg) {
+@@ -1068,24 +1513,85 @@ void *SIM_Render(void *arg) {
        }
      }
  
@@ -35199,7 +35287,7 @@ index 910d7da..c6dc03a 100644
 +    {
 +      int mx0, my0, mx1, my1, mvis = 1;
 +      if (WideActive()) {
-+        if (SIM_Layout_GetScene() == SIM_LAYOUT_SCENE_MENU) {
++        if (WideSideBySideMenu()) {
 +          mx0 = viewX; my0 = viewY; mx1 = viewX + viewWidth / 2; my1 = viewY + viewHeight;
 +        } else {
 +          mx0 = viewX + (int)(0.125f * (float)viewWidth); my0 = viewY;
@@ -35280,14 +35368,14 @@ index 910d7da..c6dc03a 100644
 +        int keyRead = Event.key.key;
 +        // Wide layout: Tab toggles the sub-screen panel (it is also
 +        // the frame-cap toggle key, which is unavailable in wide).
-+        if (WideActive() && !Event.key.repeat && keyRead == SDLK_TAB &&
-+            SIM_Layout_GetScene() != SIM_LAYOUT_SCENE_MENU) {
++        if (WideActive() && !Event.key.repeat && (keyRead == SDLK_TAB || keyRead == SDLK_P) &&
++            !WideSideBySideMenu()) {
 +          SIM_Layout_SetPanelOpen(!SIM_Layout_IsPanelOpen());
 +        } else if (keyRead == s_SIM_config.padSettings.aKey) {
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT & 0b1111111111111110;
          } else if (keyRead == s_SIM_config.padSettings.bKey) {
-@@ -1136,15 +1613,15 @@ void *SIM_Render(void *arg) {
+@@ -1136,15 +1642,15 @@ void *SIM_Render(void *arg) {
              s_SIM_config.vsyncInterval = 1; // Every V-Blank
            }
  
@@ -35307,7 +35395,7 @@ index 910d7da..c6dc03a 100644
          if (keyRead == s_SIM_config.padSettings.aKey) {
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000001;
-@@ -1185,16 +1662,16 @@ void *SIM_Render(void *arg) {
+@@ -1185,16 +1691,16 @@ void *SIM_Render(void *arg) {
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000100;
          } else if(keyRead == s_SIM_config.padSettings.frameCapKey) {
            sFastForward = false;
@@ -35328,7 +35416,7 @@ index 910d7da..c6dc03a 100644
          if (Event.jhat.value == SDL_HAT_CENTERED) {
            // send keyUp event for all hats
            HandleJoystickKeyUp(SIM_CONFIG_JOY_HAT_MASK | SDL_HAT_UP);
-@@ -1224,7 +1701,7 @@ void *SIM_Render(void *arg) {
+@@ -1224,7 +1730,7 @@ void *SIM_Render(void *arg) {
            }
          }
        }
@@ -35337,7 +35425,7 @@ index 910d7da..c6dc03a 100644
          if (Event.jaxis.value > s_SIM_config.padSettings.joyAxisDeadzone ||
              Event.jaxis.value <
                  (s_SIM_config.padSettings.joyAxisDeadzone * -1)) {
-@@ -1245,12 +1722,29 @@ void *SIM_Render(void *arg) {
+@@ -1245,12 +1751,37 @@ void *SIM_Render(void *arg) {
                                SIM_CONFIG_JOY_AXIS_MINUS_MASK);
          }
        }
@@ -35351,8 +35439,16 @@ index 910d7da..c6dc03a 100644
 +            (int)Event.button.y >= sTabIconRect[1] && (int)Event.button.y <= sTabIconRect[3]) {
 +          SIM_Layout_SetPanelOpen(1);
 +        }
++        // Wide layout: a click on the close handle (panel open) closes it.
++        bool wideCloseClicked = false;
++        if (WideActive() && sPanelAnim > 0.0f && sCloseIconRect[2] > sCloseIconRect[0] &&
++            (int)Event.button.x >= sCloseIconRect[0] && (int)Event.button.x <= sCloseIconRect[2] &&
++            (int)Event.button.y >= sCloseIconRect[1] && (int)Event.button.y <= sCloseIconRect[3]) {
++          SIM_Layout_SetPanelOpen(0);
++          wideCloseClicked = true;
++        }
 +        // battlehud hook: opt-in main-screen click routing.
-+        if (SIM_Layout_MainTouchEnabled() &&
++        if (!wideCloseClicked && SIM_Layout_MainTouchEnabled() &&
 +            (int)Event.button.x >= sMainRectPx[0] && (int)Event.button.x <= sMainRectPx[2] &&
 +            (int)Event.button.y >= sMainRectPx[1] && (int)Event.button.y <= sMainRectPx[3] &&
 +            sMainRectPx[2] > sMainRectPx[0] && sMainRectPx[3] > sMainRectPx[1]) {
@@ -35369,7 +35465,7 @@ index 910d7da..c6dc03a 100644
          isMouseDown = 0;
          s_tpData.validity = 0;
          s_tpData.touch = 0;
-@@ -1258,10 +1752,17 @@ void *SIM_Render(void *arg) {
+@@ -1258,10 +1789,17 @@ void *SIM_Render(void *arg) {
      }
      s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT;
  
@@ -35389,7 +35485,7 @@ index 910d7da..c6dc03a 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1297,12 +1798,55 @@ void *SIM_Render(void *arg) {
+@@ -1297,12 +1835,55 @@ void *SIM_Render(void *arg) {
      memset(bg3stex, 0,
             sizeof(u8) * 4 * SIM_NDS_SCREEN_WIDTH * SIM_NDS_SCREEN_HEIGHT * 2);
  
@@ -35423,7 +35519,7 @@ index 910d7da..c6dc03a 100644
 +    if (WideActive()) {
 +      HiResOverlayWideRect mainRect, subRect;
 +      bool subVisible;
-+      if (SIM_Layout_GetScene() == SIM_LAYOUT_SCENE_MENU) {
++      if (WideSideBySideMenu()) {
 +        mainRect = {(float)viewX / (float)windowWidth, (float)viewY / (float)windowHeight,
 +                    0.5f * (float)viewWidth / (float)windowWidth, (float)viewHeight / (float)windowHeight};
 +        subRect = {(float)(viewX + viewWidth / 2) / (float)windowWidth, (float)viewY / (float)windowHeight,
@@ -35448,7 +35544,7 @@ index 910d7da..c6dc03a 100644
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1328,19 +1872,30 @@ void *SIM_Render(void *arg) {
+@@ -1328,19 +1909,30 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -35489,7 +35585,7 @@ index 910d7da..c6dc03a 100644
  
      if(sChangeInternalResAfterRender) {
        SIM_SetInternalResolution(sPendingInternalRes);
-@@ -1359,45 +1914,40 @@ void *SIM_Render(void *arg) {
+@@ -1359,45 +1951,40 @@ void *SIM_Render(void *arg) {
  #endif
  
      s_numG3CommandsThisFrame = 0;
@@ -35558,7 +35654,7 @@ index 910d7da..c6dc03a 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1407,17 +1957,16 @@ u64 SIM_GetFullFrameTime() {
+@@ -1407,17 +1994,16 @@ u64 SIM_GetFullFrameTime() {
    return sFullFrameTime;
  }
  
@@ -35579,7 +35675,7 @@ index 910d7da..c6dc03a 100644
  }
  
  const char * SIM_GetLibntrGitHash() {
-@@ -1465,6 +2014,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +2051,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -35588,7 +35684,7 @@ index 910d7da..c6dc03a 100644
    // Start up debug system
    SIM_Dbg_Init();
  
-@@ -1537,8 +2088,6 @@ int main(int argc, char *argv[]) {
+@@ -1537,8 +2125,6 @@ int main(int argc, char *argv[]) {
    SIM::G3::GetGlobalState().Init();
  
    SIM_RenderInit(NULL);

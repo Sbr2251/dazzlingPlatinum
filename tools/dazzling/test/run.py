@@ -464,7 +464,11 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
             if time.time() - started > timeout:
                 raise ScenarioFailure(idx, step, f"scenario timeout ({timeout}s)", client.last_state, client.last_screenshot)
             try:
-                if "press" in step or "hold" in step:
+                if "panel" in step:
+                    req={"cmd":"panel"}
+                    if isinstance(step["panel"], dict) and "open" in step["panel"]: req["open"]=bool(step["panel"]["open"])
+                    client.cmd(req)
+                elif "press" in step or "hold" in step:
                     keys = as_keys(step.get("press", step.get("hold")))
                     client.cmd({"cmd": "press", "keys": keys, "frames": step.get("frames", 1)})
                 elif "step" in step:
