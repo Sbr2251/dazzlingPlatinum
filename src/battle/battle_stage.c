@@ -22,6 +22,9 @@
 #include "narc.h"
 #include "palette.h"
 #include "port/postfx.h"
+#ifdef SDK_PORT
+#include "port/sim_wide.h"
+#endif
 #include "vram_transfer.h"
 
 #define STAGE_MAX_TEXTURES 8
@@ -906,7 +909,15 @@ void BattleStage_BuildProjection(fx32 fovySin, fx32 fovyCos, fx32 nearClip, fx32
         scaleW = 16;
     }
 
-    MTX_PerspectiveW(fovySin, fovyCos, FX32_ONE * 4 / 3, nearClip, farClip, scaleW * FX32_ONE, m);
+    // Wide layout (wide-OUT/API.md): the battle arena renders at the wide
+    // aspect; battler sprite anchors are projected through this same
+    // matrix (battle_stage_camera.c), so sprites stay on their platforms.
+    // Not wide: exactly the classic 4/3, byte-identical at the home pose.
+    fx32 aspect = FX32_ONE * 4 / 3;
+#ifdef SDK_PORT
+    aspect = SIM_Wide_AspectRatio();
+#endif
+    MTX_PerspectiveW(fovySin, fovyCos, aspect, nearClip, farClip, scaleW * FX32_ONE, m);
 
     // z' = a * z + b * w, so NDC z lands in [STAGE_DEPTH_NEAR, STAGE_DEPTH_FAR]
     m->_02 = FX_Mul(a, m->_02) + FX_Mul(b, m->_03);

@@ -11,6 +11,7 @@
 
 #ifdef SDK_PORT
 #include "port/sim_config_prj.h"
+#include "port/sim_wide.h"
 #endif
 
 // History size must be greater than the delay, so we add 1 to the delay to get the minimum acceptable size.
@@ -204,6 +205,17 @@ void FieldCamera_Create(const VecFx32 *_target, FieldSystem *fieldSystem, enum C
 #ifdef SDK_PORT
     if (SIM_Config_prj_DebugWideCamera()) {
         Camera_SetAspectRatio(FX32_ONE * 16 / 9, fieldSystem->camera);
+    }
+
+    // Wide layout (wide-OUT/API.md): render the field at the wide aspect
+    // so the simulator's 16:9 composite has correct proportions. The
+    // renderer's frustum cull follows this projection, and NPCs are
+    // map-header objects with no game-side draw range, so this (with
+    // FieldLoadRadius=3 terrain) is the whole wider-frustum fix: nothing
+    // pops at the old 4:3 edges. DebugWideCamera above already sets the
+    // same aspect, plus its pulled-back distance/clip for debugging.
+    if (SIM_Wide_IsWideLayout()) {
+        Camera_SetAspectRatio(SIM_Wide_AspectRatio(), fieldSystem->camera);
     }
 #endif
 

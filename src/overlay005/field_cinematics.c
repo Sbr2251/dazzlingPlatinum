@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include "port/sim_config_prj.h"
+#include "port/sim_wide.h"
 #endif
 
 #include "field/field_system.h"
@@ -200,6 +201,22 @@ void FieldCinematics_StartMove(FieldSystem *fieldSystem, s16 targetOffsetXTiles,
     dest.target.x += targetOffsetXTiles * CINE_TILE_SIZE;
     dest.target.z += targetOffsetZTiles * CINE_TILE_SIZE;
     dest.distance = distance;
+#ifdef SDK_PORT
+    // Wide layout (wide-OUT/API.md): the scripted poses were tuned for
+    // 4:3 against the DS 2x2 loaded-block window (see fx-OUT/cine). At
+    // 16:9 the same vertical FOV shows a third more horizontally, and
+    // FieldLoadRadius=3 keeps terrain loaded a block further out, so
+    // widen the establishing moves a little instead of showing the
+    // narrower 4:3 framing floating in a wider frame: distance x9/8
+    // (city pull-backs 700 -> 787, Lake Verity 680 -> 765) and +1 degree
+    // of vertical FOV. The snapshot/return path is untouched, so the
+    // restore stays exact; when the layout is not wide the destinations
+    // are exactly the scripted ones.
+    if (SIM_Wide_IsWideLayout()) {
+        dest.distance = distance + distance / 8;
+        fovDeg = (u16)(fovDeg + 1);
+    }
+#endif
     dest.angle.x = (u16)-FX_DEG_TO_IDX(pitchDeg * FX32_ONE);
     dest.angle.y = (u16)FX_DEG_TO_IDX(yawDeg * FX32_ONE);
     dest.angle.z = 0;
