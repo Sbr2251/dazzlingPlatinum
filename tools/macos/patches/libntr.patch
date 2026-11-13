@@ -2768,6 +2768,31 @@ index 79616fa..3705ae2 100644
  } SIM_Net_t;
  
  typedef struct {
+diff --git a/include/simulator/sim_particles.h b/include/simulator/sim_particles.h
+new file mode 100644
+index 0000000..2ee6c73
+--- /dev/null
++++ b/include/simulator/sim_particles.h
+@@ -0,0 +1,19 @@
++#ifndef LIBNTR_SIM_PARTICLES_H
++#define LIBNTR_SIM_PARTICLES_H
++
++// Particle boost (lane particles): the game draws GPU child sparkles for
++// live SPL particles only on the GPU backend. This query is the gate:
++// 1 when the selected render backend is the SDL GPU backend, 0 under
++// Renderer=gl and before a backend is selected.
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++int SIM_Particles_IsGpu(void);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
 diff --git a/include/simulator/sim_regblock.h b/include/simulator/sim_regblock.h
 new file mode 100644
 index 0000000..ed3801a
@@ -14220,7 +14245,7 @@ index 0000000..9c495bf
 +
 +#endif // #ifndef IMGUI_DISABLE
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..7bd4986 100644
+index 2d852bf..ccaf154 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -8,7 +8,8 @@ libsim_srcs = files(
@@ -14233,7 +14258,7 @@ index 2d852bf..7bd4986 100644
      'imgui/imgui_tables.cpp',
      'imgui/imgui_widgets.cpp',
      'queue.c',
-@@ -18,12 +19,20 @@ libsim_srcs = files(
+@@ -18,12 +19,21 @@ libsim_srcs = files(
      'sim_debug.cpp',
      'sim_NitroMainThread.cpp',
      'sim_g2.cpp',
@@ -14252,10 +14277,11 @@ index 2d852bf..7bd4986 100644
 +    'render_gpu/fx_texpack.cpp',
 +    'render_gpu/fx_weather.cpp',
 +    'render_gpu/fx_lighting.cpp',
++    'render_gpu/fx_particles.cpp',
      'sim_g3_Texture.cpp',
      'sim_g3_TextureCache.cpp',
      'sim_g3_Utilities.cpp',
-@@ -31,6 +40,14 @@ libsim_srcs = files(
+@@ -31,6 +41,14 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
@@ -14270,7 +14296,7 @@ index 2d852bf..7bd4986 100644
      'sim_main.cpp',
      'sim_net.cpp',
      'sim_RenderContextManager.cpp',
-@@ -51,3 +68,10 @@ endif
+@@ -51,3 +69,10 @@ endif
  if(build_target != 'prospero' and build_target != 'nx')
  libsim_srcs += files('ImGuiFileDialog/ImGuiFileDialog.cpp')
  endif
@@ -15802,6 +15828,27 @@ index 0000000..1ea9cf7
 +void FxLighting_Push(SIM::Gpu::Frame *frame);
 +
 +} // namespace SIM::Render
+diff --git a/libraries/sim/src/render_gpu/fx_particles.cpp b/libraries/sim/src/render_gpu/fx_particles.cpp
+new file mode 100644
+index 0000000..6f15546
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/fx_particles.cpp
+@@ -0,0 +1,15 @@
++// Particle boost gate (lane particles, see include/simulator/sim_particles.h).
++// The boost quads go through the existing G3 pipeline, so the backend in
++// force decides whether they are GPU-drawn; the game asks here and draws
++// nothing when the answer is no, keeping the GL backend byte-identical.
++
++#include <simulator/sim_particles.h>
++#include <simulator/sim_render_backend.hpp>
++
++#include <cstring>
++
++extern "C" int SIM_Particles_IsGpu(void) {
++  if (SIM::Render::detail::gBackend == nullptr) return 0;
++  const char *name = SIM::Render::detail::gBackend->Name();
++  return name != nullptr && std::strcmp(name, "gpu") == 0 ? 1 : 0;
++}
 diff --git a/libraries/sim/src/render_gpu/fx_texpack.cpp b/libraries/sim/src/render_gpu/fx_texpack.cpp
 new file mode 100644
 index 0000000..2becad3

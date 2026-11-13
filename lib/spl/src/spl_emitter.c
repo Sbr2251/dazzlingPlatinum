@@ -523,7 +523,7 @@ static void SPLManager_DrawBoostParticles(SPLManager *mgr)
 
             drawnQuads++;
 
-            childScl = FX_MUL(scl, (fx32)(48 + SPLBoost_Hash(state) % 80) * 16);
+            childScl = FX_MUL(scl, (fx32)(20 + SPLBoost_Hash(state) % 40) * 16);
             childSclX = FX_MUL(childScl, aspect);
             (void)sclX;
 
@@ -556,7 +556,7 @@ static void SPLManager_DrawBoostParticles(SPLManager *mgr)
                 GX_POLYGONMODE_MODULATE,
                 GX_CULL_NONE,
                 ptcl->visibility.currentPolygonID,
-                (u32)(alpha * 2 / 3 + 1),
+                (u32)(alpha / 3 + 1),
                 mgr->miscPolygonAttr);
 
             reg_G3_POLYGON_ATTR;

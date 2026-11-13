@@ -1,6 +1,6 @@
 {
  "name": "visual_particles_thunderbolt",
- "_note": "Lane particles golden: Pikachu Thunderbolt vs Budew, 20f after the damage event, with SIM_FX_PARTICLES=1 on the GPU backend (SIM_RENDERER=gpu). GPU-ONLY: see visual_particles_flamethrower note.",
+ "_note": "Lane particles golden: move_chosen + 120f (mid-animation) with SIM_FX_PARTICLES=1 on the GPU backend (SIM_RENDERER=gpu). GPU-ONLY: the gl leg of --compare-backends correctly shows the feature off and will differ; run in the plain suite only.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -92,13 +92,13 @@
   },
   {
    "wait_battle_event": {
-    "type": "damage",
-    "battler": 1
+    "type": "move_chosen",
+    "battler": 0
    },
    "timeout_frames": 7200
   },
   {
-   "step": 20
+   "step": 120
   },
   {
    "screenshot": "visual_particles_thunderbolt",

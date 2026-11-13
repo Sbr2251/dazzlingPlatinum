@@ -4,14 +4,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <simulator/sim_particles.h>
+
 #include "constants/moves.h"
 #include "port/sim_config_prj.h"
 #include "spl_boost.h"
 
-// Simulator gate (libntr render_gpu/fx_particles.cpp): weak until
-// libntr provides it, so this tree builds on its own; a missing
-// definition means the boost stays off.
-extern int SIM_Particles_IsGpu(void) __attribute__((weak));
+// Simulator gate (libntr render_gpu/fx_particles.cpp). A strong
+// reference, like PostFX: a weak reference would not pull the object
+// out of the simulator's static archive, and the gate would stay 0.
 
 #define FX_PARTICLES_MOVE_FRAMES 240
 #define FX_PARTICLES_BURST_FRAMES 150
@@ -118,20 +119,23 @@ void FxParticles_Tick(void)
         sBurstRemaining--;
     }
 
-    gpu = (SIM_Particles_IsGpu != NULL) ? SIM_Particles_IsGpu() : 0;
+    gpu = SIM_Particles_IsGpu();
     memset(&params, 0, sizeof(params));
     params.enabled = (FxParticles_Enabled() && gpu) ? 1 : 0;
 
     if (sBurstRemaining > 0) {
         params.density = FX_PARTICLES_MAX_DENSITY;
         params.trail256 = 512;
-        params.spread256 = 512;
-        params.brighten256 = 224;
+        params.spread256 = 192;
+        params.brighten256 = 128;
     } else {
         params.density = ClampDensity(FxParticles_Density() + sMoveExtraDensity);
         params.trail256 = sMoveTrail256;
-        params.spread256 = sMoveSpread256;
-        params.brighten256 = 128;
+        // Child jitter stays well inside the parent blob: the tuning
+        // table's spread is scaled to 3/8 here (256 -> 96), or the
+        // sparkles scatter into a cloud wider than the flame itself.
+        params.spread256 = sMoveSpread256 * 3 / 8;
+        params.brighten256 = 64;
     }
 
     if (!params.enabled) {

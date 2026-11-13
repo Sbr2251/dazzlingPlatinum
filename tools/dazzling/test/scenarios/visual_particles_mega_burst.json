@@ -1,6 +1,6 @@
 {
  "name": "visual_particles_mega_burst",
- "_note": "Lane particles golden: Mega Evolution burst beat, 60f after the mega_evolution event, with SIM_FX_PARTICLES=1 on the GPU backend (SIM_RENDERER=gpu). GPU-ONLY: see visual_particles_flamethrower note.",
+ "_note": "Lane particles golden: Mega Evolution burst beat, 300f after the mega_evolution event (orb + emblem particles), with SIM_FX_PARTICLES=1 on the GPU backend (SIM_RENDERER=gpu). GPU-ONLY: see visual_particles_flamethrower note.",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -115,7 +115,7 @@
    "timeout_frames": 7200
   },
   {
-   "step": 60
+   "step": 300
   },
   {
    "screenshot": "visual_particles_mega_burst",
