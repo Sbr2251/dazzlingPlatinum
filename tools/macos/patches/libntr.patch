@@ -29205,10 +29205,10 @@ index 0000000..f464d50
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_hirestext.cpp b/libraries/sim/src/sim_hirestext.cpp
 new file mode 100644
-index 0000000..28d22a1
+index 0000000..1c2f848
 --- /dev/null
 +++ b/libraries/sim/src/sim_hirestext.cpp
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,117 @@
 +// Hi-res text overlay (lane hiresui, prototype). See sim_hirestext.h.
 +//
 +// Game code reports dialogue glyphs as it prints them; this file expands
@@ -29263,17 +29263,20 @@ index 0000000..28d22a1
 +  int bx, by, bw, bh;
 +  if (!ClipRect(isSub, x, y, w, h, &bx, &by, &bw, &bh)) return;
 +  const u16 *pal = (const u16 *)(isSub ? s_HW_DB_BG_PLTT : s_HW_BG_PLTT);
-+  u8 fgR, fgG, fgB, shR, shG, shB;
-+  SIM_u16ToRGB(pal[((palette & 0xF) << 4) + (fgColor & 0xF)], &fgR, &fgG, &fgB);
-+  SIM_u16ToRGB(pal[((palette & 0xF) << 4) + (shadowColor & 0xF)], &shR, &shG, &shB);
++  // Arrays, not three scalars: col[1]/col[2] below read the green/blue
++  // channels, and indexing past a scalar (col = &fgR) is UBSan
++  // object-size UB even though the scalars happened to sit adjacently.
++  u8 fg[3], sh[3];
++  SIM_u16ToRGB(pal[((palette & 0xF) << 4) + (fgColor & 0xF)], &fg[0], &fg[1], &fg[2]);
++  SIM_u16ToRGB(pal[((palette & 0xF) << 4) + (shadowColor & 0xF)], &sh[0], &sh[1], &sh[2]);
 +  for (int sy = 0; sy < h; sy++) {
 +    for (int sx = 0; sx < w; sx++) {
 +      int off = (sy >> 3) * 64 + (sx >> 3) * 32 + (sy & 7) * 4 + ((sx & 7) >> 1);
 +      u8 byte = gfx[off];
 +      int nib = (sx & 1) ? (byte >> 4) : (byte & 0xF);
 +      const u8 *col;
-+      if (nib == (fgColor & 0xF)) col = &fgR;
-+      else if (nib == (shadowColor & 0xF)) col = &shR;
++      if (nib == (fgColor & 0xF)) col = fg;
++      else if (nib == (shadowColor & 0xF)) col = sh;
 +      else continue; // background pixels: the DS box underneath already shows
 +      int dx = (x + sx) * kScale;
 +      int dy = (y + (isSub ? SIM_NDS_SCREEN_HEIGHT : 0) + sy) * kScale;
