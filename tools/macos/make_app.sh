@@ -23,6 +23,8 @@ done
 for f in header.bin firmware.bin language.csv; do cp "$BUILDDIR/$f" "$C/Resources/game/$f"; done
 # Battle Lab specs (debug GUI): copied next to the game files at build time
 [ -d "$BUILDDIR/battle_specs" ] && cp -R "$BUILDDIR/battle_specs" "$C/Resources/game/battle_specs"
+# Texture pack (docs/texture_pack.md): ship the demo pack; the launcher links it into the data folder as ./TexturePack
+[ -d "$ROOT/tools/texpack/demo/TexturePack" ] && cp -R "$ROOT/tools/texpack/demo/TexturePack" "$C/Resources/game/TexturePack"
 
 # The executable and the SDL3 it links (Homebrew), relinked to the bundle's copy
 cp "$BUILDDIR/main" "$C/MacOS/pokeplatinum"
