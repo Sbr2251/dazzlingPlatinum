@@ -1,0 +1,120 @@
+{
+ "name": "visual_particles_thunderbolt",
+ "_note": "Lane particles golden: Pikachu Thunderbolt vs Budew, 20f after the damage event, with SIM_FX_PARTICLES=1 on the GPU backend (SIM_RENDERER=gpu). GPU-ONLY: see visual_particles_flamethrower note.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/visual_particles_thunderbolt.json"
+   }
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "battle_decide": {
+    "battler": 0,
+    "action": "move",
+    "move_index": 0
+   }
+  },
+  {
+   "wait_battle_event": {
+    "type": "damage",
+    "battler": 1
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 20
+  },
+  {
+   "screenshot": "visual_particles_thunderbolt",
+   "reference": "../references/visual/visual_particles_thunderbolt.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ],
+   "tolerance_gpu": 0.002
+  }
+ ],
+ "env": {
+  "SIM_FX_PARTICLES": "1",
+  "SIM_RENDERER": "gpu"
+ }
+}

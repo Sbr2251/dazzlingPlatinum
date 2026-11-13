@@ -26,6 +26,7 @@ libspl_srcs = files(
     'src/spl_manager.c',
     'src/spl_emitter.c',
     'src/spl_draw.c',
+    'src/spl_boost.c',
     'src/spl_emit.c',
     'src/spl_anim.c',
     'src/spl_behavior.c',

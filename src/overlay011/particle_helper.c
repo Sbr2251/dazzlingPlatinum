@@ -1,6 +1,7 @@
 #include "overlay011/particle_helper.h"
 
 #include "camera.h"
+#include "fx_particles.h"
 #include "heap.h"
 #include "particle_system.h"
 #include "unk_0202419C.h"
@@ -60,6 +61,10 @@ void ParticleHelper_FreeParticleSystem(ParticleSystem *ps)
 
 void ParticleHelper_DrawParticleSystems(void)
 {
+    // fx_particles hook: decay the move/burst windows and push the
+    // resolved boost parameters to the SPL pass before it draws.
+    FxParticles_Tick();
+
     G3_ResetG3X();
 
     if (ParticleSystem_GetActiveAmount() == 0) {

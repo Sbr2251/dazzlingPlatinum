@@ -63,6 +63,12 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "OverworldCinematics")) {
         config->overworldCinematics = StringToBool(value);
     }
+    if(MATCH("General", "ParticleBoost")) {
+        config->particleBoost = StringToBool(value);
+    }
+    if(MATCH("General", "ParticleBoostDensity")) {
+        config->particleBoostDensity = atoi(value);
+    }
 
     // Cheats section
     if(MATCH("Cheats", "WalkThroughWalls")) {
@@ -134,6 +140,8 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->overworldCinematics = TRUE;
   aConfig->weatherFx = TRUE;
   aConfig->waterReflections = TRUE;
+  aConfig->particleBoost = TRUE;
+  aConfig->particleBoostDensity = 3;
   aConfig->fieldLoadRadius = 3;
   aConfig->debugWideCamera = FALSE;
   aConfig->battleHud = TRUE;
@@ -170,6 +178,8 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "OverworldCinematics=%s\n", BoolToString(aConfig->overworldCinematics));
     fprintf(configFile, "WeatherFx=%s\n", BoolToString(aConfig->weatherFx));
     fprintf(configFile, "WaterReflections=%s\n", BoolToString(aConfig->waterReflections));
+    fprintf(configFile, "ParticleBoost=%s\n", BoolToString(aConfig->particleBoost));
+    fprintf(configFile, "ParticleBoostDensity=%d\n", aConfig->particleBoostDensity);
     fprintf(configFile, "FieldLoadRadius=%d\n", aConfig->fieldLoadRadius);
     fprintf(configFile, "DebugWideCamera=%s\n", BoolToString(aConfig->debugWideCamera));
     fprintf(configFile, "BattleHud=%s\n", BoolToString(aConfig->battleHud));

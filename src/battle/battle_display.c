@@ -55,6 +55,7 @@
 #include "battle_sub_menus/battle_party.h"
 
 #include "assert.h"
+#include "fx_particles.h"
 #include "gx_layers.h"
 #include "port/postfx.h"
 #include "port/sim_config_prj.h"
@@ -6198,6 +6199,8 @@ static void MegaCine_Burst(AffinePulseTaskData *data)
 {
     int cx, cy;
     MegaCine_Center(data, &cx, &cy);
+    // fx_particles hook: dense bright sparkles over the emblem particles.
+    FxParticles_SetMegaBurst();
     PostFX_Shockwave(cx, cy, 0.90f, 26);
     PostFX_Shake(0.85f, 16);
     PostFX_ChromaticAberration(0.80f, 20);
@@ -7225,6 +7228,11 @@ static void BattleDisplay_PlayMoveAnimation(BattleSystem *battleSys, BattlerData
 {
     BattleAnimBattlerContext battlerContext;
     int move;
+
+    // fx_particles hook: signature-move tuning for this move's particles.
+    if (animation->animMode == 0) {
+        FxParticles_SetMove(animation->move);
+    }
 
     if (animation->animMode == 0) {
         battlerContext.moveArcID = NARC_INDEX_WAZAEFFECT__WE;

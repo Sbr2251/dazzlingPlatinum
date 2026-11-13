@@ -2,9 +2,13 @@
 
 #include <nitro/fx/fx.h>
 #include <nitro/fx/fx_const.h>
+#include <nitro/fx/fx_mtx33.h>
+#include <nitro/fx/fx_mtx43.h>
+#include <nitro/fx/fx_trig.h>
 #include <nitro/gx/g3.h>
 #include <nitro/gx/g3imm.h>
 
+#include "spl_boost.h"
 #include "spl_internal.h"
 #include "spl_manager.h"
 #include "spl_particle.h"
@@ -35,6 +39,7 @@ static void SPLUtil_SetTexture(SPLTexture *tex);
 static void SPLUtil_SetTexture_Stub(SPLTexture *tex);
 static void SPLManager_DrawParticles(SPLManager *mgr);
 static void SPLManager_DrawChildParticles(SPLManager *mgr);
+static void SPLManager_DrawBoostParticles(SPLManager *mgr);
 
 static void SPLUtil_SetTexture(SPLTexture *tex)
 {
@@ -411,6 +416,170 @@ void SPLManager_DoDraw(SPLManager *mgr)
         }
 
         SPLManager_DrawChildParticles(mgr);
+    }
+
+    // fx_particles hook: child-sparkle pass, right after the particle draw.
+    if (!header->flags.hideParent) {
+        SPLManager_DrawBoostParticles(mgr);
+    }
+}
+
+// Lane particles: for each live parent particle draw density small child
+// sparkles that inherit its colour/texture, trail behind its velocity
+// with deterministic jitter, and die with the frame (they are redrawn
+// fresh every frame, so there is no child state to simulate). They go
+// through the same G3 pipeline as the parents (same view/projection,
+// depth test and polygon ID), so they sit in the 3D layer exactly like
+// the particles. The per-frame parameters come from fx_particles.c;
+// with density 0 this draws nothing.
+static void SPLManager_DrawBoostParticles(SPLManager *mgr)
+{
+    SPLEmitter *emtr = mgr->renderState.emitter;
+    SPLResourceHeader *header = emtr->resource->header;
+    SPLBoostParams params;
+    const MtxFx43 *cmr = mgr->renderState.viewMatrix;
+    int drawnParents = 0;
+    int drawnQuads = 0;
+
+    SPLBoost_GetParams(&params);
+
+    if (!params.enabled || params.density <= 0 || cmr == NULL) {
+        return;
+    }
+
+    for (SPLParticle *ptcl = emtr->particles.first; ptcl != NULL; ptcl = ptcl->next) {
+        VecFx32 world, trs, velView;
+        MtxFx33 rot33;
+        MtxFx43 load;
+        fx32 alpha, scl, sclX, aspect;
+        u32 seed, state;
+        int k, r, g, b;
+
+        if (drawnParents >= 96 || drawnQuads >= 512) {
+            break;
+        }
+
+        drawnParents++;
+
+        alpha = (fx32)(ptcl->visibility.baseAlpha * (ptcl->visibility.animAlpha + 1)) >> 5;
+        if (alpha == 0) {
+            continue;
+        }
+
+        if (header->flags.useViewSpace) {
+            world.x = ptcl->position.x + ptcl->emitterPos.x - header->emitterBasePos.x;
+            world.y = ptcl->position.y + ptcl->emitterPos.y - header->emitterBasePos.y;
+            world.z = ptcl->position.z + ptcl->emitterPos.z - header->emitterBasePos.z;
+        } else {
+            world.x = ptcl->position.x + ptcl->emitterPos.x;
+            world.y = ptcl->position.y + ptcl->emitterPos.y;
+            world.z = ptcl->position.z + ptcl->emitterPos.z;
+        }
+
+        MTX_MultVec43(&world, cmr, &trs);
+        MTX_Copy43To33(cmr, &rot33);
+        MTX_MultVec33(&ptcl->velocity, &rot33, &velView);
+
+        scl = ptcl->baseScale;
+        if (header->misc.scaleAnimDir != SPL_SCALE_ANIM_DIR_X) {
+            scl = FX_MUL(scl, ptcl->animScale);
+        }
+
+        aspect = header->aspectRatio;
+        sclX = FX_MUL(scl, aspect);
+
+        if (header->flags.hasTexAnim) {
+            SPLUtil_SetTexture(mgr->textures + ptcl->texture);
+        } else {
+            SPLUtil_SetTexture(mgr->textures + header->misc.textureIndex);
+        }
+
+        r = GX_RGB_R_(ptcl->color) * GX_RGB_R_(emtr->color) >> 5;
+        g = GX_RGB_G_(ptcl->color) * GX_RGB_G_(emtr->color) >> 15;
+        b = GX_RGB_B_(ptcl->color) * GX_RGB_B_(emtr->color) >> 25;
+        r += (31 - r) * params.brighten256 >> 8;
+        g += (31 - g) * params.brighten256 >> 8;
+        b += (31 - b) * params.brighten256 >> 8;
+        if (r > 31) {
+            r = 31;
+        }
+        if (g > 31) {
+            g = 31;
+        }
+        if (b > 31) {
+            b = 31;
+        }
+
+        seed = (u32)(trs.x ^ (trs.y << 1) ^ (trs.z >> 4) ^ ((u32)ptcl->age << 16) ^ (u32)(ptcl->position.x >> 8));
+        state = SPLBoost_Hash(seed);
+
+        for (k = 0; k < params.density; k++) {
+            fx32 childScl, childSclX, sin, cos, lag;
+            fx32 cx, cy, cz;
+
+            if (drawnQuads >= 512) {
+                break;
+            }
+
+            drawnQuads++;
+
+            childScl = FX_MUL(scl, (fx32)(48 + SPLBoost_Hash(state) % 80) * 16);
+            childSclX = FX_MUL(childScl, aspect);
+            (void)sclX;
+
+            lag = (fx32)(k + 1) * (fx32)params.trail256 * 16;
+            cx = trs.x - FX_MUL(velView.x, lag);
+            cy = trs.y - FX_MUL(velView.y, lag);
+            cz = trs.z - FX_MUL(velView.z, lag);
+            cx += SPLBoost_Jitter(&state, (int)FX_MUL(scl, (fx32)params.spread256 * 16));
+            cy += SPLBoost_Jitter(&state, (int)FX_MUL(scl, (fx32)params.spread256 * 16));
+            cz += SPLBoost_Jitter(&state, (int)(FX_MUL(scl, (fx32)params.spread256 * 16) >> 2));
+
+            sin = FX_SinIdx((u16)(ptcl->rotation + SPLBoost_Jitter(&state, 4096)));
+            cos = FX_CosIdx((u16)(ptcl->rotation + SPLBoost_Jitter(&state, 4096)));
+
+            load.m[0][0] = FX_MUL(cos, childSclX);
+            load.m[0][1] = FX_MUL(sin, childSclX);
+            load.m[0][2] = 0;
+            load.m[1][0] = FX_MUL(-sin, childScl);
+            load.m[1][1] = FX_MUL(cos, childScl);
+            load.m[1][2] = 0;
+            load.m[2][0] = 0;
+            load.m[2][1] = 0;
+            load.m[2][2] = FX32_ONE;
+            load.m[3][0] = cx;
+            load.m[3][1] = cy;
+            load.m[3][2] = cz;
+
+            G3_PolygonAttr(
+                GX_LIGHTMASK_NONE,
+                GX_POLYGONMODE_MODULATE,
+                GX_CULL_NONE,
+                ptcl->visibility.currentPolygonID,
+                (u32)(alpha * 2 / 3 + 1),
+                mgr->miscPolygonAttr);
+
+            reg_G3_POLYGON_ATTR;
+
+            G3_Color(GX_RGB(r, g, b));
+
+            G3_Identity();
+            if (header->flags.useViewSpace) {
+                G3_Translate(header->emitterBasePos.x, header->emitterBasePos.y, header->emitterBasePos.z);
+            }
+            G3_MultMtx43(&load);
+
+            G3_Begin(GX_BEGIN_QUADS);
+            G3_TexCoord(0, 0);
+            G3_Vtx10(0 - FX32_ONE, 0 + FX32_ONE, 0);
+            G3_TexCoord(emtr->textureS, 0);
+            G3_Vtx10(0 + FX32_ONE, 0 + FX32_ONE, 0);
+            G3_TexCoord(emtr->textureS, emtr->textureT);
+            G3_Vtx10(0 + FX32_ONE, 0 - FX32_ONE, 0);
+            G3_TexCoord(0, emtr->textureT);
+            G3_Vtx10(0 - FX32_ONE, 0 - FX32_ONE, 0);
+            G3_End();
+        }
     }
 }
 

@@ -23,6 +23,8 @@ typedef struct {
     BOOL battleInstantAnimations; // Battle Engine fast mode: skip text/gauge/move-animation waits (docs/battle_engine.md)
     BOOL fieldFastRebuild; // fieldkeep: collapse already-ready FieldMap Init/Exit states into one frame (same teardown/rebuild, fewer idle frames)
     BOOL arenaContext; // Lane arena: battle arena takes the overworld time of day, weather and terrain as lighting/tint
+    BOOL particleBoost; // Lane particles: GPU child sparkles for live SPL particles
+    int particleBoostDensity; // Lane particles: child sparkles per live particle, 0-8
     BOOL battleSwoop; // Lane arena: camera dive into battle (field) + high/far settle to home (battle)
     BOOL weatherLightning; // Lane arena: lightning flashes in thunderstorm weather, field and battle
     BOOL sceneLights; // Lane lighting: per-pixel point lights in the G3 shader (move lights, ambient/key)
