@@ -205,10 +205,15 @@ def make_run_dir(game_path, work_root, name, config_extra=None):
         os.symlink(src, os.path.join(run_dir, entry))
     if config_extra:
         # Overrides replace same-named keys from a build-dir config, if any.
+        # A build-dir sim_config.ini is a stale artifact of a direct game
+        # run, not a test input: never inherit its Renderer (it would pin
+        # the backend for every scenario). A scenario that wants one sets
+        # it in config_extra, which write_sim_config writes below.
         src_cfg = os.path.join(game_dir, "sim_config.ini")
         if os.path.exists(src_cfg):
             kept = [l for l in open(src_cfg)
-                    if not any(l.startswith(f"{k}=") for k in config_extra)]
+                    if not l.startswith("Renderer=")
+                    and not any(l.startswith(f"{k}=") for k in config_extra)]
             with open(os.path.join(run_dir, "sim_config.ini"), "w") as f:
                 f.writelines(kept)
                 f.writelines(write_sim_config(run_dir, config_extra))
@@ -219,7 +224,9 @@ def make_run_dir(game_path, work_root, name, config_extra=None):
         config_lines = ["InternalResolutionScale=2\n"]
         src_cfg = os.path.join(game_dir, "sim_config.ini")
         if os.path.exists(src_cfg):
-            config_lines = [l for l in open(src_cfg) if not l.startswith("InternalResolutionScale=")]
+            config_lines = [l for l in open(src_cfg)
+                            if not l.startswith("InternalResolutionScale=")
+                            and not l.startswith("Renderer=")]
             config_lines.append("InternalResolutionScale=2\n")
         with open(os.path.join(run_dir, "sim_config.ini"), "w") as f:
             f.writelines(config_lines)
