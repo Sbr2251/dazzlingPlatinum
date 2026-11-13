@@ -15424,10 +15424,10 @@ index 0000000..96407a0
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_texpack.cpp b/libraries/sim/src/render_gpu/fx_texpack.cpp
 new file mode 100644
-index 0000000..3d7c80b
+index 0000000..2becad3
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_texpack.cpp
-@@ -0,0 +1,259 @@
+@@ -0,0 +1,286 @@
 +// fx_texpack implementation. See include/simulator/fx_texpack.hpp.
 +#include <simulator/fx_texpack.hpp>
 +
@@ -15435,6 +15435,11 @@ index 0000000..3d7c80b
 +
 +#include <cstdio>
 +#include <cstdlib>
++#include <limits.h>
++#include <unistd.h>
++#ifdef __APPLE__
++#include <mach-o/dyld.h>
++#endif
 +#include <cstring>
 +#include <string>
 +#include <unordered_map>
@@ -15515,15 +15520,37 @@ index 0000000..3d7c80b
 +         info.type == SDL_PATHTYPE_DIRECTORY;
 +}
 +
++// Directory of the real executable (resolving the symlink the test
++// runner launches through), or "" when it cannot be determined.
++std::string ExeDir() {
++  char raw[PATH_MAX];
++#ifdef __APPLE__
++  std::uint32_t size = sizeof(raw);
++  if (_NSGetExecutablePath(raw, &size) != 0) return "";
++#else
++  ssize_t n = ::readlink("/proc/self/exe", raw, sizeof(raw) - 1);
++  if (n <= 0) return "";
++  raw[n] = '\0';
++#endif
++  char resolved[PATH_MAX];
++  if (!::realpath(raw, resolved)) return "";
++  std::string path = resolved;
++  std::size_t slash = path.find_last_of('/');
++  return slash == std::string::npos ? "" : path.substr(0, slash);
++}
++
 +std::string ProbeDir() {
 +  if (const char *env = std::getenv("SIM_TEXPACK_DIR")) {
 +    if (env[0]) return env; // explicit: use even for dump (created there)
 +  }
 +  const char *base = SDL_GetBasePath(); // executable directory
++  std::string exe = ExeDir();
 +  std::string candidates[] = {
 +      "TexturePack",
 +      base ? Join(base, "TexturePack") : "",
++      Join(exe, "TexturePack"),
 +      base ? Join(base, "../tools/texpack/demo/TexturePack") : "",
++      Join(exe, "../tools/texpack/demo/TexturePack"),
 +      "tools/texpack/demo/TexturePack",
 +      "../tools/texpack/demo/TexturePack",
 +  };
