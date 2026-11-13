@@ -27,6 +27,7 @@ typedef struct {
     BOOL weatherLightning; // Lane arena: lightning flashes in thunderstorm weather, field and battle
     int fieldLoadRadius; // fx-wide: loaded land-block window width (2 = DS 2x2, 3 = 3x3); app default 3
     BOOL debugWideCamera; // fx-wide: 16:9 aspect, zoomed-out field camera so the extra loaded blocks are visible
+    BOOL battleHud; // battlehud: battle menus mirrored on the top screen; app default on, headless off unless SIM_FX_BATTLEHUD=1
 } SIM_Config_prj_type;
 
 // True when the game runs logic at 60 Hz AND time-based quantities must be

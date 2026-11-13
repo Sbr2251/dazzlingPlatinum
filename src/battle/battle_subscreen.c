@@ -1,3 +1,4 @@
+#include "battle/battle_hud.h" // battlehud hook
 #include "battle/battle_subscreen.h"
 
 #include <nitro.h>
@@ -1182,6 +1183,7 @@ void BattleSubscreen_SetupBackground(NARC *unused, NARC *spriteNarc, BattleSubsc
 
     SpriteSystem_LoadPaletteBufferFromOpenNarc(BattleSystem_GetPaletteData(btlSubscreen->battleSys), 3, spriteSys, spriteMan, spriteNarc, 72, 0, 7, NNS_G2D_VRAM_TYPE_2DSUB, 20023);
     btlSubscreen->activeMenuConfigIndex = menuConfigIndex;
+    if (menuConfigIndex == 0) { BattleHud_Hide(btlSubscreen); } // battlehud hook
 
     G2S_SetBlendAlpha(GX_BLEND_PLANEMASK_BG1, GX_BLEND_BGALL, 8, 12);
     BattleSubscreen_FreeAllSprites(btlSubscreen);
@@ -1394,6 +1396,7 @@ int BattleSystem_MenuInput(BattleSubscreen *btlSubscreen)
     int isKeyInput = 0;
     GF_ASSERT(btlSubscreen->activeMenuConfigIndex != -1);
 
+    BattleHud_Update(btlSubscreen); // battlehud hook
     const BattleMenuConfig *battleMenuConfig = &sBattleMenuConfigs[btlSubscreen->activeMenuConfigIndex];
 
     if (!battleMenuConfig->touchScreenRects || btlSubscreen->isPanelSliding == TRUE) {

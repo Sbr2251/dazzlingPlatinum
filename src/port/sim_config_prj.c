@@ -71,6 +71,9 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "FieldLoadRadius")) {
         config->fieldLoadRadius = atoi(value);
     }
+    if(MATCH("General", "BattleHud")) {
+        config->battleHud = StringToBool(value);
+    }
     if(MATCH("General", "DebugWideCamera")) {
         config->debugWideCamera = StringToBool(value);
     }
@@ -118,6 +121,7 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->overworldCinematics = TRUE;
   aConfig->fieldLoadRadius = 3;
   aConfig->debugWideCamera = FALSE;
+  aConfig->battleHud = TRUE;
 
   // Cheats section
   aConfig->walkThroughWalls = FALSE;
@@ -149,6 +153,7 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "OverworldCinematics=%s\n", BoolToString(aConfig->overworldCinematics));
     fprintf(configFile, "FieldLoadRadius=%d\n", aConfig->fieldLoadRadius);
     fprintf(configFile, "DebugWideCamera=%s\n", BoolToString(aConfig->debugWideCamera));
+    fprintf(configFile, "BattleHud=%s\n", BoolToString(aConfig->battleHud));
     fprintf(configFile, "\n");
 
     fprintf(configFile, "[Cheats]\n");
