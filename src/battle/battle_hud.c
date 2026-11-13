@@ -87,7 +87,7 @@ static void HudEnsureWindow(BattleSubscreen *btlSubscreen)
     // Anchored to the main-screen edges in tiles (32x24 screen), not to
     // 256px assumptions beyond the tile grid the message box itself uses.
     Window_Add(BattleSystem_GetBgConfig(btlSubscreen->battleSys), &sHud.window,
-        BG_LAYER_MAIN_1, 1, 13, 30, 5, 11, 600);
+        BG_LAYER_MAIN_1, 1, 12, 19, 6, 11, 600);
     sHud.windowAdded = TRUE;
     sHud.lastMenu = -2;
 }
@@ -133,11 +133,13 @@ static void HudDrawAction(BattleSubscreen *btlSubscreen)
         btlSubscreen->activeMenuData.actionData.isWaitingForPartner
             ? BattleStrings_Text_Cancel : BattleStrings_Text_Run);
 
-    // 2x2 grid, later-game style: FIGHT top-left big, others around.
-    HudPrint(btlSubscreen, fight, 16, 4, cx == 0 && cy == 0);
-    HudPrint(btlSubscreen, party, 128, 4, cx == 1 && cy == 0);
-    HudPrint(btlSubscreen, bag, 16, 22, cx == 0 && cy == 1);
-    HudPrint(btlSubscreen, run, 128, 22, cx == 1 && cy == 1);
+    // Single-column list on the left, clear of both healthbox stacks.
+    // Order matches the bottom-screen 2x2 (FIGHT, POKEMON / BAG, RUN)
+    // read row by row; the cursor highlight tracks the same cursor.
+    HudPrint(btlSubscreen, fight, 16, 2, cx == 0 && cy == 0);
+    HudPrint(btlSubscreen, party, 16, 13, cx == 1 && cy == 0);
+    HudPrint(btlSubscreen, bag, 16, 24, cx == 0 && cy == 1);
+    HudPrint(btlSubscreen, run, 16, 35, cx == 1 && cy == 1);
 
     String_Free(fight);
     String_Free(bag);
@@ -154,8 +156,8 @@ static void HudDrawMoves(BattleSubscreen *btlSubscreen)
     int i;
 
     for (i = 0; i < 4; i++) {
-        int x = (i & 1) ? 128 : 16;
-        int y = (i & 2) ? 20 : 4;
+        int x = 16;
+        int y = 2 + i * 9;
         BOOL selected = (cx == (i & 1) && cy == (i >> 1));
         if (moveData->moveIDs[i] == 0) {
             continue;
@@ -171,7 +173,7 @@ static void HudDrawMoves(BattleSubscreen *btlSubscreen)
             StringTemplate_SetNumber(template, 0, moveData->currPP[i], 2, 1, 0);
             StringTemplate_SetNumber(template, 1, moveData->maxPP[i], 2, 1, 0);
             StringTemplate_Format(template, pp, fmt);
-            Text_AddPrinterWithParams(&sHud.window, FONT_SYSTEM, pp, x + 64, y + 8, 0, NULL);
+            Text_AddPrinterWithParams(&sHud.window, FONT_SYSTEM, pp, x + 80, y, 0, NULL);
             String_Free(fmt);
             String_Free(pp);
         }
@@ -183,7 +185,7 @@ static void HudDrawMoves(BattleSubscreen *btlSubscreen)
         int battler = BattleSystem_GetBattlerOfType(btlSubscreen->battleSys, btlSubscreen->battlerType);
         int on = ctx->megaEvolutionTriggered[battler] ? 1 : 0;
         String *mega = MessageLoader_GetNewString(msgLoader, 1272); // "MEGA"
-        Text_AddPrinterWithParams(&sHud.window, FONT_SYSTEM, mega, 16, 34, 0, NULL);
+        Text_AddPrinterWithParams(&sHud.window, FONT_SYSTEM, mega, 16, 40, 0, NULL);
         String_Free(mega);
         {
             String *state = String_Init(8, HEAP_ID_BATTLE);
@@ -194,7 +196,7 @@ static void HudDrawMoves(BattleSubscreen *btlSubscreen)
                 (void)fmt;
                 String_Free(fmt);
             }
-            Text_AddPrinterWithParams(&sHud.window, FONT_SYSTEM, state, 64, 34, 0, NULL);
+            Text_AddPrinterWithParams(&sHud.window, FONT_SYSTEM, state, 64, 40, 0, NULL);
             String_Free(state);
         }
         sHud.lastMega = on;
@@ -214,8 +216,8 @@ static void HudDrawTarget(BattleSubscreen *btlSubscreen)
 
     for (i = 0; i < 4; i++) {
         int battlerIndex = battlersByType[2 + i];
-        int x = (i & 1) ? 128 : 16;
-        int y = (i & 2) ? 20 : 4;
+        int x = 16;
+        int y = 2 + i * 10;
         BOOL selected = (btlSubscreen->cursor.x == (i & 1) && btlSubscreen->cursor.y == (i >> 1));
         if (!data->targetMonData[battlerIndex].isPresent) {
             continue;
@@ -239,8 +241,8 @@ static void HudDrawYesNo(BattleSubscreen *btlSubscreen)
     String *no = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_No);
     int cy = btlSubscreen->cursor.y;
 
-    HudPrint(btlSubscreen, yes, 96, 6, cy == 0);
-    HudPrint(btlSubscreen, no, 96, 22, cy == 1);
+    HudPrint(btlSubscreen, yes, 16, 8, cy == 0);
+    HudPrint(btlSubscreen, no, 16, 24, cy == 1);
 
     String_Free(yes);
     String_Free(no);
@@ -318,12 +320,16 @@ int BattleHud_TopTouchButton(BattleSubscreen *btlSubscreen, int x, int y)
         return -1;
     }
     menu = btlSubscreen->activeMenuConfigIndex;
-    // HUD window at tiles (1,13) size 30x5 -> pixels x 8..248, y 104..144.
-    if (x < 8 || x >= 248 || y < 104 || y >= 144) {
+    // HUD window at tiles (1,12) size 19x6 -> pixels x 8..160, y 96..144.
+    if (x < 8 || x >= 160 || y < 96 || y >= 144) {
         return -1;
     }
-    col = x < 128 ? 0 : 1;
-    row = y < 124 ? 0 : 1;
+    col = 0;
+    row = (y - 96) / 12;
+    if (row > 3) {
+        row = 3;
+    }
+    (void)col;
 
     if (menu >= 13 && menu <= 17) {
         return row; // yes=0, no=1 in cursor terms

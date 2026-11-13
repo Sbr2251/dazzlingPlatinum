@@ -1,0 +1,102 @@
+{
+ "name": "visual_battlehud_wide_command",
+ "_note": "Battle HUD in wide layout: command menu on the top screen, bottom panel suppressed (SIM_Layout_SetBattleTouchNeeded(0)), SIM_FX_BATTLEHUD=1 + ScreenLayout=wide on GPU.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/visual_double.json"
+   }
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 120
+  },
+  {
+   "screenshot": "visual_battlehud_wide_command",
+   "reference": "../references/visual/visual_battlehud_wide_command.bmp",
+   "tolerance": 0.01
+  }
+ ],
+ "env": {
+  "SIM_FX_BATTLEHUD": "1",
+  "SIM_RENDERER": "gpu"
+ },
+ "config": {
+  "ScreenLayout": "wide"
+ }
+}
