@@ -1,0 +1,43 @@
+{
+ "name": "visual_weather_eterna_shafts",
+ "_note": "weather lane: Eterna Forest light shafts (GPU post, kind 4) via real map hook + SIM_FX_WEATHER gate.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-29_eterna_forest_after_vespiquen.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A2-29_eterna_forest_after_vespiquen.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "screenshot": "visual_weather_eterna_shafts",
+   "reference": "../references/visual/visual_weather_eterna_shafts.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ],
+   "tolerance_gpu": 0.005
+  }
+ ],
+ "env": {
+  "SIM_FX_WEATHER": "1",
+  "SIM_FX_WATER": "1"
+ }
+}

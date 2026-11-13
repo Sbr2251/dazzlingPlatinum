@@ -1,0 +1,55 @@
+{
+ "name": "visual_weather_heat_stark",
+ "_note": "weather lane: heat haze (kind 5) warped to Stark Mountain Outside.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_STARK_MOUNTAIN_OUTSIDE",
+    "x": 750,
+    "z": 231,
+    "dir": "DIR_NORTH"
+   }
+  },
+  {
+   "step": 300
+  },
+  {
+   "screenshot": "visual_weather_heat_stark",
+   "reference": "../references/visual/visual_weather_heat_stark.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ],
+   "tolerance_gpu": 0.005
+  }
+ ],
+ "env": {
+  "SIM_FX_WEATHER": "1",
+  "SIM_FX_WEATHER_KIND": "5",
+  "SIM_FX_WEATHER_INTENSITY": "0.85"
+ }
+}

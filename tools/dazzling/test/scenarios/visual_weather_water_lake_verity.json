@@ -1,0 +1,54 @@
+{
+ "name": "visual_weather_water_lake_verity",
+ "_note": "weather lane: pixelated water reflection + shoreline foam at Lake Verity.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-01_lake_verity_arrival.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-01_lake_verity_arrival.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_LAKE_VERITY",
+    "x": 38,
+    "z": 36,
+    "dir": "DIR_NORTH"
+   }
+  },
+  {
+   "step": 300
+  },
+  {
+   "screenshot": "visual_weather_water_lake_verity",
+   "reference": "../references/visual/visual_weather_water_lake_verity.bmp",
+   "tolerance": 0.0,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ],
+   "tolerance_gpu": 0.005
+  }
+ ],
+ "env": {
+  "SIM_FX_WEATHER": "1",
+  "SIM_FX_WATER": "1"
+ }
+}
