@@ -26,6 +26,12 @@ void FxLighting_EndMove(void);
 // With no move active it pushes the rim-only state, so battle-start
 // frames already show the sprite rim.
 void FxLighting_Update(void);
+// Once per battle-stage frame (called from BattleStageSprites_BeginFrame,
+// which runs every drawn battle frame including send-out and the command
+// menu, when the anim system is not ticking): pushes the rim-only state,
+// unless a move is active (then the anim system owns the state, so this
+// does nothing and never double-advances the flicker envelope).
+void FxLighting_UpdateBattleFrame(void);
 // Battle is over / leaving battle: drop every light and the rim.
 void FxLighting_Clear(void);
 

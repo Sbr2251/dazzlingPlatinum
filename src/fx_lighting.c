@@ -203,6 +203,33 @@ void FxLighting_EndMove(void)
     FxLighting_Update();
 }
 
+void FxLighting_UpdateBattleFrame(void)
+{
+    SIM_LightsState state;
+
+    // A move is active: the anim system owns the state this frame.
+    if (sMoveActive) {
+        return;
+    }
+
+    if (!FxLighting_SceneLightsEnabled() && !FxLighting_SpriteRimLightEnabled()) {
+        SIM_Lights_Clear();
+        return;
+    }
+
+    state.ambientR = 1.0f;
+    state.ambientG = 1.0f;
+    state.ambientB = 1.0f;
+    state.keyDirX = -0.5f;
+    state.keyDirY = 0.8f;
+    state.keyR = 1.0f;
+    state.keyG = 0.98f;
+    state.keyB = 0.90f;
+    state.count = 0;
+    state.rimStrength = FxLighting_SpriteRimLightEnabled() ? 0.38f : 0.0f;
+    SIM_Lights_Set(&state);
+}
+
 void FxLighting_Update(void)
 {
     SIM_LightsState state;

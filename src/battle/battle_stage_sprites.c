@@ -17,6 +17,7 @@
 #include "battle/battle_system.h"
 #include "battle_anim/ov12_022380BC.h"
 
+#include "fx_lighting.h"
 #include "graphics.h"
 #include "heap.h"
 #include "palette.h"
@@ -319,6 +320,8 @@ void BattleStageSprites_BeginFrame(BOOL visible, const BattleStageFileLighting *
 
     if (sStageSprites.visible) {
         UpdateTint(dayLighting);
+        // fx_lighting hook: rim light every drawn battle frame.
+        FxLighting_UpdateBattleFrame();
     }
 
     fields->spriteMeshes = 0;
