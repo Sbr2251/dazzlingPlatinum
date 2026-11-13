@@ -60,6 +60,7 @@ static int IniHandler(void* user, const char* section, const char* name,
     }
     if(MATCH("General", "SpriteRimLight")) {
         config->spriteRimLight = StringToBool(value);
+    }
     if(MATCH("General", "RealPlaceArena")) {
         config->realPlaceArena = StringToBool(value);
     }
