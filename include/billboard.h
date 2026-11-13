@@ -103,6 +103,12 @@ void Billboard_Reset(Billboard *billboard);
 void BillboardLists_Create(int count, enum HeapID heapID);
 void BillboardLists_Delete(void);
 void BillboardLists_Draw(void);
+// fx_arena2 hook: suspend drawing every billboard list for the capture
+// frame (covers billboards not owned by a MapObject, e.g. script-driven
+// actors), and restore them. SuspendDraw returns the previous per-list
+// draw flags; ResumeDraw takes them back.
+u32 BillboardLists_SuspendDraw(void);
+void BillboardLists_ResumeDraw(u32 prevDrawMask);
 BillboardList *BillboardList_New(const BillboardListParams *params);
 BOOL BillboardList_Delete(BillboardList *list);
 BOOL BillboardList_DeleteAll(BillboardList *list);

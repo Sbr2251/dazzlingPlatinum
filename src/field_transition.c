@@ -65,6 +65,11 @@ static void Arena2_BeginEncounterEffect(FieldSystem *fieldSystem, EncounterEffec
 {
     if (FxArena2_ShouldCapture(fieldSystem)) {
         data->captureFrame = 0;
+        // Lane arena2: hide the map objects and drop to the low,
+        // battle-like camera for the capture frame, then restore both.
+        FxArena2_SaveCamera(fieldSystem);
+        FxArena2_HideMapObjects(fieldSystem);
+        FxArena2_SetCaptureCamera(fieldSystem);
         FxArena2_StartCapture(fieldSystem);
         data->taskState = 20;
     } else {
@@ -107,6 +112,8 @@ static BOOL FieldTask_RunEncounterEffect(FieldTask *task)
 
         if (data->captureFrame >= 3) {
             FxArena2_FinishCapture();
+            FxArena2_RestoreCamera(fieldSystem);
+            FxArena2_RestoreMapObjects(fieldSystem);
             EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
             Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
             data->taskState = 1;
