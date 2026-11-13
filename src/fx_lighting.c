@@ -140,6 +140,12 @@ static int sAttacker = BATTLER_PLAYER_1;
 static int sDefender = BATTLER_ENEMY_1;
 static u32 sFrame = 0;
 static u32 sSeed = 0;
+// Afterglow: after the animation script ends, the light decays over
+// this many Update calls instead of cutting out (embers / a fading
+// flash read naturally, and the light is still on for the damage
+// frames that follow the animation).
+static int sTail = 0;
+#define FX_LIGHTING_TAIL_FRAMES 60
 
 // Deterministic flicker in [0, 1): an LCG stepped from the move seed,
 // so the same move and frame give the same light under lockstep.
@@ -186,13 +192,14 @@ void FxLighting_StartMove(int move, int attacker, int defender)
     sAttacker = attacker;
     sDefender = defender;
     sFrame = 0;
+    sTail = 0;
     sSeed = (u32)(move * 2654435761u + 12345u);
 }
 
 void FxLighting_EndMove(void)
 {
-    sMoveActive = FALSE;
-    sFrame = 0;
+    // Start the afterglow tail; Update clears the move when it runs out.
+    sTail = FX_LIGHTING_TAIL_FRAMES;
     FxLighting_Update();
 }
 
@@ -223,8 +230,16 @@ void FxLighting_Update(void)
     if (sMoveActive && FxLighting_SceneLightsEnabled()) {
         track = MoveLightForType(sMoveType);
         // Fade in over the first 6 frames so the light grows with the
-        // move animation instead of popping on.
+        // move animation instead of popping on. In the tail, fade out
+        // linearly over the remaining tail frames.
         fade = sFrame < 6 ? (float)(sFrame + 1) / 6.0f : 1.0f;
+        if (sTail > 0) {
+            fade *= (float)sTail / (float)FX_LIGHTING_TAIL_FRAMES;
+            sTail--;
+            if (sTail == 0) {
+                sMoveActive = FALSE;
+            }
+        }
         if (track.flash) {
             // Electric: hard flash pulses, dark between (hard falloff
             // comes from the small radius in the table).
@@ -272,6 +287,7 @@ void FxLighting_Update(void)
 void FxLighting_Clear(void)
 {
     sMoveActive = FALSE;
+    sTail = 0;
     sFrame = 0;
     SIM_Lights_Clear();
 }

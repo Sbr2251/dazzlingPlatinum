@@ -1,6 +1,6 @@
 {
  "name": "visual_lighting_flamethrower",
- "_note": "Lighting lane: Flamethrower mid-frame with move lights on (SIM_FX_LIGHTS=1, SIM_FX_RIM=1, GPU). Warm flicker on attacker + target + arena, sprite rim. Event-anchored: 45f after the damage event for battler 1.",
+ "_note": "Lighting lane: Flamethrower mid-animation with move lights on (SIM_FX_LIGHTS=1, SIM_FX_RIM=1, GPU). Warm flickering glow on attacker + target + arena, sprite rim. Event-anchored: 360f after move_used (charge/flash phase, healthboxes visible).",
  "requires_exists": [
   "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
  ],
@@ -92,13 +92,12 @@
   },
   {
    "wait_battle_event": {
-    "type": "damage",
-    "battler": 1
+    "type": "move_used"
    },
    "timeout_frames": 7200
   },
   {
-   "step": 45
+   "step": 360
   },
   {
    "screenshot": "visual_lighting_flamethrower",
