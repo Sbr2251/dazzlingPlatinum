@@ -18,6 +18,7 @@
 
 #include "bg_window.h"
 #include "fx_arena.h"
+#include "fx_arena2.h"
 #include "heap.h"
 #include "narc.h"
 #include "palette.h"
@@ -109,6 +110,10 @@ typedef struct StageArena {
     BOOL hasTexMtxMesh; // FOLLOW_BG3_SCROLL or SCROLL
     BOOL hasLitMesh;
     BOOL hasAtmosphere;
+    BOOL realPlace; // Lane arena2: the backdrop textures hold a capture
+                    // of the real overworld, with its own palette, so
+                    // SyncPalettes must not overwrite SLOT_BG with the
+                    // classic backdrop palette
     u32 frame; // drawn frames, for SCROLL
     int dlAlpha; // arena alpha the DL's POLYGON_ATTR words are patched for
     BattleStageFileAtmosphere atmosphere;
@@ -291,6 +296,9 @@ void BattleStage_Free(void)
     sBattleStage.backdropFadeAlpha = 0;
     sBattleStage.backdropGrayscale = FALSE;
     sBattleStage.curtainOn = FALSE;
+    // Lane arena2: a battle is over; its capture must not leak into a
+    // later battle that did not go through an encounter (Frontier, link).
+    FxArena2_ClearCapture();
     FogOff();
 }
 
@@ -972,7 +980,64 @@ static void BuildCamera(StageArena *arena, const BattleStageFileHeader *backdrop
     }
 }
 
-static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes)
+// Lane arena2: overwrite the backdrop piece's two textures (rows 0..127
+// and 127..158) and their palettes with the waiting capture, in place,
+// before BuildArena uploads them. FALSE when the piece does not have
+// the expected layout; the caller then falls back to the classic art.
+static BOOL ApplyRealPlaceBackdrop(BattleStageFileHeader *piece, u32 size)
+{
+    const BattleStageFileTexture *textures;
+    int x, y, i;
+
+    if (piece->numTextures < 2) {
+        return FALSE;
+    }
+
+    textures = PieceData(piece, piece->texturesOffset);
+
+    for (i = 0; i < 2; i++) {
+        if (textures[i].format != GX_TEXFMT_PLTT256 || textures[i].paletteSize < 256 * sizeof(u16)
+            || !IsRangeValid(textures[i].dataOffset, textures[i].dataSize, size)
+            || !IsRangeValid(textures[i].paletteOffset, textures[i].paletteSize, size)) {
+            return FALSE;
+        }
+    }
+
+    if (textures[0].width != FX_ARENA2_WIDTH || textures[0].height != FX_ARENA2_TEX_A_ROWS
+        || textures[0].dataSize < FX_ARENA2_TEX_A_BYTES
+        || textures[1].width != FX_ARENA2_WIDTH || textures[1].height != FX_ARENA2_TEX_B_ROWS
+        || textures[1].dataSize < FX_ARENA2_TEX_B_BYTES) {
+        return FALSE;
+    }
+
+    for (y = 0; y < FX_ARENA2_TEX_A_ROWS; y++) {
+        u8 *row = (u8 *)PieceData(piece, textures[0].dataOffset) + y * FX_ARENA2_WIDTH;
+
+        for (x = 0; x < FX_ARENA2_WIDTH; x++) {
+            row[x] = FxArena2_CaptureIndex(x, y);
+        }
+    }
+
+    for (y = 0; y < FX_ARENA2_TEX_B_ROWS; y++) {
+        u8 *row = (u8 *)PieceData(piece, textures[1].dataOffset) + y * FX_ARENA2_WIDTH;
+
+        for (x = 0; x < FX_ARENA2_WIDTH; x++) {
+            row[x] = FxArena2_CaptureIndex(x, FX_ARENA2_TEX_B_FIRST_ROW + y);
+        }
+    }
+
+    for (i = 0; i < 2; i++) {
+        u16 *palette = (u16 *)PieceData(piece, textures[i].paletteOffset);
+
+        for (x = 0; x < 256; x++) {
+            palette[x] = FxArena2_PaletteEntry(x);
+        }
+    }
+
+    return TRUE;
+}
+
+static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes, BOOL realPlaceCandidate)
 {
     StageArena *arena;
     u32 texOffsets[STAGE_MAX_TEXTURES];
@@ -980,6 +1045,13 @@ static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes)
     u32 texBytes = 0, dlBytes = 0, plttBytes = 0, texAddr;
     int numTextures = 0, numMeshes = 0;
     int p, i;
+    BOOL realPlace = FALSE;
+
+    // Lane arena2: swap the captured field image into the backdrop piece
+    // before anything reads its textures or palettes.
+    if (realPlaceCandidate) {
+        realPlace = ApplyRealPlaceBackdrop(pieces[0], sizes[0]);
+    }
 
     for (p = 0; p < 2; p++) {
         const BattleStageFileTexture *textures = PieceData(pieces[p], pieces[p]->texturesOffset);
@@ -1010,6 +1082,7 @@ static StageArena *BuildArena(BattleStageFileHeader **pieces, const u32 *sizes)
     }
 
     memset(arena, 0, sizeof(StageArena));
+    arena->realPlace = realPlace;
     arena->dlAlpha = STAGE_ALPHA_MAX;
     arena->dl = Heap_Alloc(HEAP_ID_BATTLE, dlBytes);
 
@@ -1161,7 +1234,11 @@ static StageArena *LoadArena(BattleSystem *battleSys)
     NARC_dtor(narc);
 
     if (pieces[0] != NULL && pieces[1] != NULL) {
-        arena = BuildArena(pieces, sizes);
+        // Lane arena2: the capture belongs to this battle only when its
+        // background is the battle's background.
+        BOOL realPlaceCandidate = FxArena2_RealPlaceEnabled() && FxArena2_HasCapture()
+            && FxArena2_CaptureBackground() == background;
+        arena = BuildArena(pieces, sizes, realPlaceCandidate);
     }
 
     if (pieces[1] != NULL) {
@@ -1245,7 +1322,11 @@ static void SyncPalettes(StageArena *arena)
         }
     }
 
-    SyncPalette(arena, &arena->palettes[SLOT_BG], PaletteData_GetFadedBuffer(paletteSys, PLTTBUF_MAIN_BG));
+    // Lane arena2: the captured palette lives in SLOT_BG already; the
+    // classic backdrop palette would repaint the real place with the
+    // prebuilt art's colours. Upload the captured colours (source NULL)
+    // instead of syncing them.
+    SyncPalette(arena, &arena->palettes[SLOT_BG], arena->realPlace ? NULL : PaletteData_GetFadedBuffer(paletteSys, PLTTBUF_MAIN_BG));
     SyncPalette(arena, &arena->palettes[SLOT_PLATFORM_PLAYER], PlatformPalette(paletteSys, 0));
     SyncPalette(arena, &arena->palettes[SLOT_PLATFORM_ENEMY], PlatformPalette(paletteSys, 1));
 

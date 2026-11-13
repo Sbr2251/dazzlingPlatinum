@@ -25,6 +25,7 @@ typedef struct {
     BOOL arenaContext; // Lane arena: battle arena takes the overworld time of day, weather and terrain as lighting/tint
     BOOL particleBoost; // Lane particles: GPU child sparkles for live SPL particles
     int particleBoostDensity; // Lane particles: child sparkles per live particle, 0-8
+    BOOL realPlaceArena; // Lane arena2: battle backdrop is a capture of the real overworld around the player
     BOOL battleSwoop; // Lane arena: camera dive into battle (field) + high/far settle to home (battle)
     BOOL weatherLightning; // Lane arena: lightning flashes in thunderstorm weather, field and battle
     BOOL sceneLights; // Lane lighting: per-pixel point lights in the G3 shader (move lights, ambient/key)

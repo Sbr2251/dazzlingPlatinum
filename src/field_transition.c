@@ -13,6 +13,7 @@
 #include "field_system.h"
 #include "field_task.h"
 #include "fx_arena.h"
+#include "fx_arena2.h"
 #include "heap.h"
 #include "screen_fade.h"
 #include "sound.h"
@@ -25,6 +26,9 @@ typedef struct EncounterEffectTaskData {
     // Lane arena: field-side swoop state (taskState 10)
     int swoopFrame;
     fx32 swoopStartDistance;
+    // Lane arena2: real-place capture state (taskState 20). The capture
+    // runs after the swoop, while the field is still loaded and rendered.
+    int captureFrame;
 } EncounterEffectTaskData;
 
 #define ARENA_SWOOP_FRAMES 30 // ~0.5 s
@@ -54,6 +58,23 @@ static void ArenaSwoop_Advance(FieldSystem *fieldSystem, EncounterEffectTaskData
     Camera_SetDistance(start + FX_Mul(target - start, smooth), fieldSystem->camera);
 }
 
+// Lane arena2: start the encounter effect, or first arm the real-place
+// capture (taskState 20) when the field can supply one. The capture
+// reads back on the next rendered frames, then the effect runs as before.
+static void Arena2_BeginEncounterEffect(FieldSystem *fieldSystem, EncounterEffectTaskData *data)
+{
+    if (FxArena2_ShouldCapture(fieldSystem)) {
+        data->captureFrame = 0;
+        FxArena2_StartCapture(fieldSystem);
+        data->taskState = 20;
+    } else {
+        FxArena2_ClearCapture();
+        EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
+        Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
+        data->taskState = 1;
+    }
+}
+
 static BOOL FieldTask_RunEncounterEffect(FieldTask *task)
 {
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
@@ -66,9 +87,7 @@ static BOOL FieldTask_RunEncounterEffect(FieldTask *task)
             data->swoopStartDistance = Camera_GetDistance(fieldSystem->camera);
             data->taskState = 10;
         } else {
-            EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
-            Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
-            data->taskState++;
+            Arena2_BeginEncounterEffect(fieldSystem, data);
         }
         break;
 
@@ -76,6 +95,18 @@ static BOOL FieldTask_RunEncounterEffect(FieldTask *task)
         ArenaSwoop_Advance(fieldSystem, data);
 
         if (data->swoopFrame >= ARENA_SWOOP_FRAMES) {
+            Arena2_BeginEncounterEffect(fieldSystem, data);
+        }
+        break;
+
+    case 20:
+        // The capture is armed for the next rendered frame; wait three
+        // task invocations (frames) so the simulator's display capture
+        // has run, then copy VRAM C before the effect reuses it.
+        data->captureFrame++;
+
+        if (data->captureFrame >= 3) {
+            FxArena2_FinishCapture();
             EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
             Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
             data->taskState = 1;

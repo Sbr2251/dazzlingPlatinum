@@ -88,6 +88,7 @@ Static main
 	Object src/fx_weather.c
 	Object src/fx_lighting.c
 	Object src/fx_particles.c
+	Object src/fx_arena2.c
 	Object src/int_distance.c
 	Object src/touch_pad.c
 	Object src/char_transfer.c
