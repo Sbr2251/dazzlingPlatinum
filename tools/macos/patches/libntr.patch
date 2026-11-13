@@ -904,6 +904,58 @@ index ce31436..090476d 100644
      u32 windowWidth; /* Initial width of the window. If set to 0, will use the default width for the screen layout */
      u32 windowHeight; /* Initial height of the window. If set to 0, will use default height for the screen layout */
      u8 fullScreen; /* TRUE to enable fullscreen */
+diff --git a/include/simulator/fx_texpack.hpp b/include/simulator/fx_texpack.hpp
+new file mode 100644
+index 0000000..f6bb456
+--- /dev/null
++++ b/include/simulator/fx_texpack.hpp
+@@ -0,0 +1,46 @@
++// fx_texpack: hash-keyed texture replacement for the SDL GPU backend.
++//
++// Every G3 texture the game decodes gets a stable 64-bit hash. When a
++// pack is enabled, TexturePack/<hash>.png (1x-4x, same aspect) replaces
++// the decoded pixels; the replacement is sampled with the original
++// normalised UVs (DS texel coords are divided by the ORIGINAL size in
++// sim_g3_GlobalState), so a larger replacement just carries more detail.
++// Dump mode writes every distinct texture at 1x plus manifest.csv so an
++// artist can redraw it. No pack on disk = no per-texture file IO.
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++#include <vector>
++
++namespace SIM::Render::TexPack {
++
++// Records the raw DS source of the texture that is about to be created
++// (called from the decode path in sim_g3_GlobalState, immediately before
++// the Texture is constructed). The base hash covers the texel data,
++// format and size but NOT the palette; the palette is hashed separately,
++// so a palette animation (same texels, new colours) still maps to the
++// same replacement. Consumed by the next Resolve call.
++void SetPendingSource(const std::uint8_t *texels, std::size_t texelBytes,
++                      const std::uint8_t *palette, std::size_t paletteBytes,
++                      int format, int width, int height);
++
++bool Enabled();
++bool DumpEnabled();
++
++// Result of resolving one decoded texture: either the original pixels
++// (found == false) or the replacement image at its own (larger) size.
++struct Resolved {
++  bool found = false;
++  std::uint64_t hash = 0;
++  int width = 0;
++  int height = 0;
++  std::vector<std::uint8_t> pixels; // RGBA8, width*height*4, when found
++};
++
++// Hook for G3 texture create/update. Handles dump mode, pack lookup and
++// the by-hash cache. Cheap no-op when neither mode is on or no pack
++// directory exists.
++Resolved Resolve(int width, int height, const void *rgba8);
++
++} // namespace SIM::Render::TexPack
 diff --git a/include/simulator/g3_draw.h b/include/simulator/g3_draw.h
 deleted file mode 100644
 index ad30a79..0000000
@@ -13905,7 +13957,7 @@ index 0000000..9c495bf
 +
 +#endif // #ifndef IMGUI_DISABLE
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..0e8ca82 100644
+index 2d852bf..3e0041c 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -8,7 +8,8 @@ libsim_srcs = files(
@@ -13918,7 +13970,7 @@ index 2d852bf..0e8ca82 100644
      'imgui/imgui_tables.cpp',
      'imgui/imgui_widgets.cpp',
      'queue.c',
-@@ -18,12 +19,17 @@ libsim_srcs = files(
+@@ -18,12 +19,18 @@ libsim_srcs = files(
      'sim_debug.cpp',
      'sim_NitroMainThread.cpp',
      'sim_g2.cpp',
@@ -13934,10 +13986,11 @@ index 2d852bf..0e8ca82 100644
 +    'render_gpu/sim_render_gpu.cpp',
 +    'render_gpu/sim_render_gpu_g2.cpp',
 +    'render_gpu/sim_render_gpu_g3.cpp',
++    'render_gpu/fx_texpack.cpp',
      'sim_g3_Texture.cpp',
      'sim_g3_TextureCache.cpp',
      'sim_g3_Utilities.cpp',
-@@ -31,6 +37,13 @@ libsim_srcs = files(
+@@ -31,6 +38,13 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
@@ -13951,7 +14004,7 @@ index 2d852bf..0e8ca82 100644
      'sim_main.cpp',
      'sim_net.cpp',
      'sim_RenderContextManager.cpp',
-@@ -51,3 +64,10 @@ endif
+@@ -51,3 +65,10 @@ endif
  if(build_target != 'prospero' and build_target != 'nx')
  libsim_srcs += files('ImGuiFileDialog/ImGuiFileDialog.cpp')
  endif
@@ -15369,6 +15422,269 @@ index 0000000..96407a0
 +}
 +
 +} // namespace SIM::Render
+diff --git a/libraries/sim/src/render_gpu/fx_texpack.cpp b/libraries/sim/src/render_gpu/fx_texpack.cpp
+new file mode 100644
+index 0000000..0eeb7a9
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/fx_texpack.cpp
+@@ -0,0 +1,257 @@
++// fx_texpack implementation. See include/simulator/fx_texpack.hpp.
++#include <simulator/fx_texpack.hpp>
++
++#include <SDL3/SDL.h>
++
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <string>
++#include <unordered_map>
++#include <unordered_set>
++
++namespace SIM::Render::TexPack {
++namespace {
++
++constexpr std::uint64_t kFnvOffset = 1469598103934665603ULL;
++constexpr std::uint64_t kFnvPrime = 1099511628211ULL;
++
++std::uint64_t FnvMix(std::uint64_t h, const void *data, std::size_t size) {
++  const auto *p = static_cast<const std::uint8_t *>(data);
++  for (std::size_t i = 0; i < size; i++) {
++    h ^= p[i];
++    h *= kFnvPrime;
++  }
++  return h;
++}
++std::uint64_t FnvInt(std::uint64_t h, std::uint64_t v) {
++  return FnvMix(h, &v, sizeof(v));
++}
++
++bool EnvIs(const char *name, const char *want) {
++  const char *v = std::getenv(name);
++  return v && std::strcmp(v, want) == 0;
++}
++
++// Reads TexturePack / TexturePackDump from ./sim_config_prj.ini
++// [General], the same file the game config uses. Returns -1 when absent.
++int IniFlag(const char *key) {
++  FILE *f = std::fopen("./sim_config_prj.ini", "r");
++  if (!f) return -1;
++  char line[256];
++  int inGeneral = 0, result = -1;
++  while (std::fgets(line, sizeof(line), f)) {
++    if (line[0] == '[') inGeneral = std::strncmp(line, "[General]", 9) == 0;
++    if (!inGeneral) continue;
++    std::size_t klen = std::strlen(key);
++    if (std::strncmp(line, key, klen) == 0 && line[klen] == '=') {
++      const char *v = line + klen + 1;
++      if (std::strncmp(v, "true", 4) == 0) result = 1;
++      else if (std::strncmp(v, "false", 5) == 0) result = 0;
++    }
++  }
++  std::fclose(f);
++  return result;
++}
++
++// Feature switch (brief rule): ON by default in the app, OFF under
++// SIM_HEADLESS unless SIM_FX_TEXPACK=1 (dump: SIM_FX_TEXPACK_DUMP=1),
++// so existing goldens stay byte-identical. Env beats the ini file.
++bool SwitchOn(const char *envName, const char *iniKey) {
++  if (EnvIs(envName, "0")) return false;
++  if (std::getenv("SIM_HEADLESS") && !EnvIs(envName, "1")) return false;
++  if (EnvIs(envName, "1")) return true;
++  int ini = IniFlag(iniKey);
++  if (ini >= 0) return ini != 0;
++  return true; // app default
++}
++
++struct Config {
++  bool enabled = false;
++  bool dump = false;
++  std::string dir;      // pack / dump directory (empty = none found)
++  bool dirProbed = false;
++};
++Config gCfg;
++
++std::string Join(const std::string &a, const std::string &b) {
++  if (a.empty() || a.back() == '/') return a + b;
++  return a + "/" + b;
++}
++
++bool DirExists(const std::string &path) {
++  SDL_PathInfo info;
++  return !path.empty() && SDL_GetPathInfo(path.c_str(), &info) &&
++         info.type == SDL_PATHTYPE_DIRECTORY;
++}
++
++std::string ProbeDir() {
++  if (const char *env = std::getenv("SIM_TEXPACK_DIR")) {
++    if (env[0]) return env; // explicit: use even for dump (created there)
++  }
++  const char *base = SDL_GetBasePath(); // executable directory
++  std::string candidates[] = {
++      "TexturePack",
++      base ? Join(base, "TexturePack") : "",
++      base ? Join(base, "../tools/texpack/demo/TexturePack") : "",
++      "tools/texpack/demo/TexturePack",
++      "../tools/texpack/demo/TexturePack",
++  };
++  for (auto &c : candidates)
++    if (DirExists(c)) return c;
++  return "";
++}
++
++const Config &Cfg() {
++  if (!gCfg.dirProbed) {
++    gCfg.enabled = SwitchOn("SIM_FX_TEXPACK", "TexturePack");
++    gCfg.dump = SwitchOn("SIM_FX_TEXPACK_DUMP", "TexturePackDump");
++    gCfg.dir = ProbeDir();
++    gCfg.dirProbed = true;
++    if ((gCfg.enabled || gCfg.dump) && !gCfg.dir.empty())
++      std::fprintf(stderr, "texpack: dir=%s enabled=%d dump=%d\n",
++                   gCfg.dir.c_str(), (int)gCfg.enabled, (int)gCfg.dump);
++  }
++  return gCfg;
++}
++
++// Pending raw source (set by the decode path, consumed by Resolve).
++struct Pending {
++  bool set = false;
++  std::uint64_t baseHash = 0;
++  std::uint64_t paletteHash = 0;
++  int format = 0;
++};
++Pending gPending;
++
++std::string HashName(std::uint64_t h) {
++  char buf[17];
++  std::snprintf(buf, sizeof(buf), "%016llx", (unsigned long long)h);
++  return buf;
++}
++
++struct CacheEntry {
++  bool found = false;
++  int width = 0, height = 0;
++  std::vector<std::uint8_t> pixels;
++};
++std::unordered_map<std::uint64_t, CacheEntry> gCache;
++std::unordered_set<std::uint64_t> gDumped;
++
++void DumpOne(std::uint64_t hash, int w, int h, const void *rgba8, int format,
++             std::uint64_t paletteHash) {
++  const Config &c = Cfg();
++  if (c.dir.empty() || !rgba8 || w <= 0 || h <= 0) return;
++  if (!gDumped.insert(hash).second) return;
++  SDL_CreateDirectory(c.dir.c_str());
++  std::string name = HashName(hash);
++  SDL_Surface *surf = SDL_CreateSurfaceFrom(
++      w, h, SDL_PIXELFORMAT_RGBA32, const_cast<void *>(rgba8), w * 4);
++  if (surf) {
++    SDL_SavePNG(surf, Join(c.dir, name + ".png").c_str());
++    SDL_DestroySurface(surf);
++  }
++  FILE *m = std::fopen(Join(c.dir, "manifest.csv").c_str(), "a");
++  if (m) {
++    std::fprintf(m, "%s,%d,%d,%d,%016llx,unknown\n", name.c_str(), w, h,
++                 format, (unsigned long long)paletteHash);
++    std::fclose(m);
++  }
++}
++
++bool LoadReplacement(std::uint64_t hash, int origW, int origH,
++                     CacheEntry &out) {
++  const Config &c = Cfg();
++  std::string path = Join(c.dir, HashName(hash) + ".png");
++  SDL_Surface *surf = SDL_LoadPNG(path.c_str());
++  if (!surf) return false;
++  SDL_Surface *rgba = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA32);
++  SDL_DestroySurface(surf);
++  if (!rgba) return false;
++  bool ok = false;
++  // Any integer scale 1x-4x of the original, same aspect.
++  if (origW > 0 && origH > 0 && rgba->w % origW == 0 &&
++      rgba->h % origH == 0 && rgba->w / origW == rgba->h / origH &&
++      rgba->w / origW >= 1 && rgba->w / origW <= 4) {
++    out.found = true;
++    out.width = rgba->w;
++    out.height = rgba->h;
++    out.pixels.assign((std::uint8_t *)rgba->pixels,
++                      (std::uint8_t *)rgba->pixels +
++                          (std::size_t)rgba->w * rgba->h * 4);
++    ok = true;
++  } else {
++    std::fprintf(stderr, "texpack: %s is %dx%d, need 1x-4x of %dx%d\n",
++                 path.c_str(), rgba->w, rgba->h, origW, origH);
++  }
++  SDL_DestroySurface(rgba);
++  return ok;
++}
++
++} // namespace
++
++void SetPendingSource(const std::uint8_t *texels, std::size_t texelBytes,
++                      const std::uint8_t *palette, std::size_t paletteBytes,
++                      int format, int width, int height) {
++  std::uint64_t h = kFnvOffset;
++  h = FnvInt(h, (std::uint64_t)(std::uint32_t)width);
++  h = FnvInt(h, (std::uint64_t)(std::uint32_t)height);
++  h = FnvInt(h, (std::uint64_t)(std::uint32_t)format);
++  if (texels) h = FnvMix(h, texels, texelBytes);
++  gPending.baseHash = h;
++  std::uint64_t ph = kFnvOffset;
++  if (palette) ph = FnvMix(ph, palette, paletteBytes);
++  gPending.paletteHash = ph;
++  gPending.format = format;
++  gPending.set = true;
++}
++
++bool Enabled() { return Cfg().enabled; }
++bool DumpEnabled() { return Cfg().dump; }
++
++Resolved Resolve(int width, int height, const void *rgba8) {
++  Resolved out;
++  const Config &c = Cfg();
++  Pending pending = gPending;
++  gPending.set = false;
++  if (!c.enabled && !c.dump) return out;
++  if (width <= 0 || height <= 0 || !rgba8) return out;
++
++  std::uint64_t hash;
++  int format = 0;
++  std::uint64_t paletteHash = 0;
++  if (pending.set) {
++    hash = pending.baseHash;
++    format = pending.format;
++    paletteHash = pending.paletteHash;
++  } else {
++    // No raw source (direct backend update): fall back to the decoded
++    // RGBA pixels. Palette animations then hash differently, which only
++    // means the original texture is used for those frames.
++    std::uint64_t h = kFnvOffset;
++    h = FnvInt(h, (std::uint64_t)(std::uint32_t)width);
++    h = FnvInt(h, (std::uint64_t)(std::uint32_t)height);
++    h = FnvMix(h, rgba8, (std::size_t)width * height * 4);
++    hash = h;
++  }
++  out.hash = hash;
++
++  if (c.dump) DumpOne(hash, width, height, rgba8, format, paletteHash);
++  if (!c.enabled || c.dir.empty()) return out;
++
++  auto it = gCache.find(hash);
++  if (it == gCache.end()) {
++    CacheEntry entry;
++    LoadReplacement(hash, width, height, entry);
++    it = gCache.emplace(hash, std::move(entry)).first;
++  }
++  if (it->second.found) {
++    out.found = true;
++    out.width = it->second.width;
++    out.height = it->second.height;
++    out.pixels = it->second.pixels;
++  }
++  return out;
++}
++
++} // namespace SIM::Render::TexPack
 diff --git a/libraries/sim/src/render_gpu/generated/g2.frag.h b/libraries/sim/src/render_gpu/generated/g2.frag.h
 new file mode 100644
 index 0000000..10d921d
@@ -26204,10 +26520,10 @@ index 0000000..c69ddd9
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/sim_render_gpu_g3.cpp b/libraries/sim/src/render_gpu/sim_render_gpu_g3.cpp
 new file mode 100644
-index 0000000..3fee4ba
+index 0000000..525b6cd
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/sim_render_gpu_g3.cpp
-@@ -0,0 +1,391 @@
+@@ -0,0 +1,406 @@
 +// 3D part of the SDL GPU render backend (workstream 2a). See
 +// sim_render_gpu_g3.hpp. The GL behaviour this reproduces is in
 +// render_gl/sim_render_gl.cpp (G3Draw) with the draws issued by
@@ -26215,6 +26531,7 @@ index 0000000..3fee4ba
 +#include "sim_render_gpu_g3.hpp"
 +
 +#include <simulator/sim_g3_GlobalState.hpp>
++#include <simulator/fx_texpack.hpp> // fx_texpack hook
 +
 +#include <cstring>
 +
@@ -26400,7 +26717,14 @@ index 0000000..3fee4ba
 +  auto version = std::make_shared<TextureVersion>();
 +  version->width = width;
 +  version->height = height;
-+  if (rgba8 && width > 0 && height > 0) {
++  // fx_texpack hook: dump and/or swap in a TexturePack replacement.
++  auto repl = TexPack::Resolve(width, height, rgba8);
++  if (repl.found) {
++    version->width = repl.width;
++    version->height = repl.height;
++    version->pixels = std::move(repl.pixels);
++    version->needsUpload = true;
++  } else if (rgba8 && width > 0 && height > 0) {
 +    const auto *bytes = static_cast<const std::uint8_t *>(rgba8);
 +    version->pixels.assign(bytes, bytes + (std::size_t)width * height * 4);
 +    version->needsUpload = true;
@@ -26418,7 +26742,14 @@ index 0000000..3fee4ba
 +  auto version = std::make_shared<TextureVersion>();
 +  version->width = width;
 +  version->height = height;
-+  if (rgba8 && width > 0 && height > 0) {
++  // fx_texpack hook: dump and/or swap in a TexturePack replacement.
++  auto repl = TexPack::Resolve(width, height, rgba8);
++  if (repl.found) {
++    version->width = repl.width;
++    version->height = repl.height;
++    version->pixels = std::move(repl.pixels);
++    version->needsUpload = true;
++  } else if (rgba8 && width > 0 && height > 0) {
 +    const auto *bytes = static_cast<const std::uint8_t *>(rgba8);
 +    version->pixels.assign(bytes, bytes + (std::size_t)width * height * 4);
 +    version->needsUpload = true;
@@ -28995,10 +29326,10 @@ index 77300c2..0000000
 -}
 \ No newline at end of file
 diff --git a/libraries/sim/src/sim_g3_GlobalState.cpp b/libraries/sim/src/sim_g3_GlobalState.cpp
-index c6d82f5..d1da699 100644
+index c6d82f5..dfbf7f3 100644
 --- a/libraries/sim/src/sim_g3_GlobalState.cpp
 +++ b/libraries/sim/src/sim_g3_GlobalState.cpp
-@@ -1,9 +1,15 @@
+@@ -1,9 +1,16 @@
  #include "simulator/sim_g3_GlobalState.hpp"
 +#include <simulator/sim_render_backend.hpp>
 +#include <nitro/gx/g3.h>
@@ -29006,6 +29337,7 @@ index c6d82f5..d1da699 100644
  #include <cstring>
  
  #include "simulator/sim_g3_Utilities.hpp"
++#include <simulator/fx_texpack.hpp> // fx_texpack hook
  #include "simulator/sim_crc32.h"
 +#include "simulator/sim_regblock.h"
 +#include <chrono>
@@ -29014,7 +29346,7 @@ index c6d82f5..d1da699 100644
  
  #include <nitro/fx/fx.h>
  #include <nitro/fx/fx_const.h>
-@@ -14,6 +20,23 @@ static SIM::G3::GlobalState sG3GlobalState;
+@@ -14,6 +21,23 @@ static SIM::G3::GlobalState sG3GlobalState;
  
  namespace SIM::G3 {
  
@@ -29038,7 +29370,7 @@ index c6d82f5..d1da699 100644
  static constexpr MtxFx44 Identity44 = {
  {
      FX32_ONE, 0, 0, 0,
-@@ -34,7 +57,6 @@ GlobalState::~GlobalState() {
+@@ -34,7 +58,6 @@ GlobalState::~GlobalState() {
  
  void GlobalState::Init() {
      mCurrentDrawCall = std::make_shared<DrawCall>();
@@ -29046,7 +29378,7 @@ index c6d82f5..d1da699 100644
  
      // Initialize Matrix Stacks
      for(auto& matrix : mPositionStack) {
-@@ -59,12 +81,58 @@ void GlobalState::Init() {
+@@ -59,12 +82,58 @@ void GlobalState::Init() {
      mCurrentClipMatrix = Identity44;
  }
  
@@ -29108,7 +29440,7 @@ index c6d82f5..d1da699 100644
      u8 addPolygon = TRUE;
      int numFinalVerts = numVerts;
  
-@@ -92,14 +160,14 @@ void GlobalState::SubmitPolygon(int numVerts) {
+@@ -92,14 +161,14 @@ void GlobalState::SubmitPolygon(int numVerts) {
          screenX = (screenX / 128.0f) - 1.0f;
          screenY = (screenY / 96.0f) - 1.0f;
      
@@ -29131,7 +29463,7 @@ index c6d82f5..d1da699 100644
      }
  
      // Get the W size and remove the polygon if W is 0
-@@ -147,18 +215,18 @@ void GlobalState::SubmitPolygon(int numVerts) {
+@@ -147,18 +216,18 @@ void GlobalState::SubmitPolygon(int numVerts) {
          	z = 0xFFFFFF;
          }
          
@@ -29154,7 +29486,7 @@ index c6d82f5..d1da699 100644
          CopyVertex(0, 0);
          CopyVertex(1, 1);
          CopyVertex(2, 2);
-@@ -173,22 +241,28 @@ void GlobalState::SubmitPolygon(int numVerts) {
+@@ -173,22 +242,28 @@ void GlobalState::SubmitPolygon(int numVerts) {
      // Check if any of the verts are horribly out of bounds
      // TODO: This is a HACK and we should eventually remove it
      for(int i=0; i < numFinalVerts; i++) {
@@ -29186,7 +29518,7 @@ index c6d82f5..d1da699 100644
      // Handle texture info from current drawCall
      u8 * texBuf = nullptr;
  	std::shared_ptr<Texture> texture = nullptr;
-@@ -198,13 +272,9 @@ void GlobalState::FlushDrawCall() {
+@@ -198,13 +273,9 @@ void GlobalState::FlushDrawCall() {
  	u8 * vramPltt = (u8*)((u64)GetTexturePalettePointer() + mCurrentDrawCall->GetTexPaletteBase());
  
      if(texImageParam.textureFormat != GX_TEXFMT_NONE && vramTex != nullptr && GetTexturePointer() != nullptr) {
@@ -29200,7 +29532,7 @@ index c6d82f5..d1da699 100644
  		if(texImageParam.textureFormat == GX_TEXFMT_PLTT4) {
  			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize) >> 2;
  		} else if(texImageParam.textureFormat == GX_TEXFMT_PLTT16) {
-@@ -213,9 +283,65 @@ void GlobalState::FlushDrawCall() {
+@@ -213,9 +284,65 @@ void GlobalState::FlushDrawCall() {
  			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize);
  		}
  
@@ -29268,7 +29600,16 @@ index c6d82f5..d1da699 100644
  			// decode texture and create it in the cache
  			//Convert the DS texture data into a format opengl can understand
  			u8 * outTexBuf = new u8[4*texImageParam.textureSSize * texImageParam.textureTSize];
-@@ -250,7 +376,7 @@ void GlobalState::FlushDrawCall() {
+@@ -247,10 +374,16 @@ void GlobalState::FlushDrawCall() {
+ 					break;
+ 			}
+ 
++			// fx_texpack hook: record the raw source (palette hashed
++			// separately) so the GPU backend can name this texture.
++			SIM::Render::TexPack::SetPendingSource(
++			    vramTex, vramTexBufSize, (const u8 *)vramPltt,
++			    texKey.usePalette ? 512 : 0, (int)texImageParam.textureFormat,
++			    (int)texImageParam.textureSSize, (int)texImageParam.textureTSize);
  			// This creates a GL texture and uploads it to the GPU with glTexImage2D
  			texture = std::make_shared<SIM::G3::Texture>(texImageParam.textureTSize, texImageParam.textureSSize, outTexBuf);
  
@@ -29277,7 +29618,7 @@ index c6d82f5..d1da699 100644
  
  			// Texture buffer can be freed now, it has been sent to the GPU
  			delete[] outTexBuf;
-@@ -284,10 +410,11 @@ void GlobalState::FlushDrawCall() {
+@@ -284,10 +417,11 @@ void GlobalState::FlushDrawCall() {
  
  		float fogDepthBoundary[32];
  		float fogDensity[32];
@@ -29291,7 +29632,7 @@ index c6d82f5..d1da699 100644
  		}
  
          mCurrentDrawCall->SetFogDepthTable(fogDepthBoundary);
-@@ -302,13 +429,13 @@ void GlobalState::FlushDrawCall() {
+@@ -302,13 +436,13 @@ void GlobalState::FlushDrawCall() {
          return;
      }
  
@@ -29307,7 +29648,7 @@ index c6d82f5..d1da699 100644
      }
  
      mTransparentDrawCalls.clear();
-@@ -546,7 +673,23 @@ void GlobalState::SetPositionMatrix(const MtxFx44& matrix) {
+@@ -546,7 +680,23 @@ void GlobalState::SetPositionMatrix(const MtxFx44& matrix) {
  void GlobalState::UpdateClipMatrix() {
      mCurrentClipMatrix = Util::MultiplyMtxFx44(mCurrentPositionMatrix, mCurrentProjectionMatrix);
  
