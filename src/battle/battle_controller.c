@@ -14,6 +14,7 @@
 
 #include "battle/battle_context.h"
 #include "battle/battle_controller.h"
+#include "battle/battle_hud.h" // battlehud hook
 #include "battle/battle_controller_player.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_events.h"
@@ -2041,6 +2042,9 @@ void BattleController_EmitClearMessageBox(BattleSystem *battleSys)
  */
 void BattleController_EmitClearCommand(BattleSystem *battleSys, int battler, int command)
 {
+    // battlehud hook: every menu task (any input source, incl. the
+    // decision queue) ends through here; input is over, hide the HUD.
+    BattleHud_HideOnConfirm(BattleSystem_GetBattleSubscreen(battleSys));
     CommandClearMsg message;
 
     message.command = command;

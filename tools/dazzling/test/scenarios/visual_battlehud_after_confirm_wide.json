@@ -1,0 +1,116 @@
+{
+ "name": "visual_battlehud_after_confirm_wide",
+ "_note": "Battle HUD regression (wide, GPU): after confirming a move the HUD is GONE, healthboxes home, bottom panel hidden. Cloned from visual_super_effective_hit.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/visual_super_effective.json"
+   }
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "battle_decide": {
+    "battler": 0,
+    "action": "move",
+    "move_index": 0
+   }
+  },
+  {
+   "wait_battle_event": {
+    "type": "damage",
+    "battler": 1
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 45
+  },
+  {
+   "screenshot": "visual_battlehud_after_confirm_wide",
+   "reference": "../references/visual/visual_battlehud_after_confirm_wide.bmp",
+   "tolerance": 0.0
+  }
+ ],
+ "config": {
+  "ScreenLayout": "wide"
+ },
+ "env": {
+  "SIM_FX_BATTLEHUD": "1",
+  "SIM_RENDERER": "gpu"
+ }
+}

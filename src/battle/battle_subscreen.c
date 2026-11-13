@@ -1083,6 +1083,7 @@ static const u16 sBottomBarBorderInner[] = { 62, 94, 126, 126, 158 };
 
 void BattleSubscreen_Free(BattleSubscreen *btlSubscreen)
 {
+    BattleHud_Hide(btlSubscreen); // battlehud hook: battle end / sub-menu
     if (btlSubscreen->suppressActivationSfxPtr) {
         *btlSubscreen->suppressActivationSfxPtr = btlSubscreen->suppressActivationSfx;
     }
@@ -1432,6 +1433,7 @@ int BattleSystem_MenuInput(BattleSubscreen *btlSubscreen)
         buttonResult = battleMenuConfig->processInput(btlSubscreen, buttonResult, buttonSlot);
 
         if (buttonResult != 0xffffffff) {
+            BattleHud_HideOnConfirm(btlSubscreen); // battlehud hook: input ended (next menu redraws)
             if (battleMenuConfig->saveCursorPos) {
                 battleMenuConfig->saveCursorPos(btlSubscreen, buttonIndex);
             }

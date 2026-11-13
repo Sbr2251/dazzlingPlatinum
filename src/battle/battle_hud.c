@@ -146,9 +146,16 @@ static void HudLiftHealthboxes(BattleSubscreen *btlSubscreen, BOOL lift)
 static void HudHideInternal(BattleSubscreen *btlSubscreen)
 {
     if (sHud.windowAdded && btlSubscreen != NULL) {
-        // Clear the strip so no panel tiles linger over the scene.
-        Bg_FillTilemapRect(BattleSystem_GetBgConfig(btlSubscreen->battleSys), BG_LAYER_MAIN_1,
-            0xFF, HUD_TILE_X, HUD_TILE_Y, HUD_TILE_W, HUD_TILE_H, HUD_PALETTE);
+        // Clear the strip so no panel tiles linger over the scene: wipe
+        // the window bitmap to transparent and upload both the char
+        // tiles and the tilemap (a tilemap-buffer write alone never
+        // reaches VRAM).
+        BgConfig *bgConfig = BattleSystem_GetBgConfig(btlSubscreen->battleSys);
+        Window_FillRectWithColor(&sHud.window, 0, 0, 0, HUD_TILE_W * 8, HUD_TILE_H * 8);
+        Window_ScheduleCopyToVRAM(&sHud.window);
+        Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1,
+            0, HUD_TILE_X, HUD_TILE_Y, HUD_TILE_W, HUD_TILE_H, HUD_PALETTE);
+        Bg_ScheduleTilemapTransfer(bgConfig, BG_LAYER_MAIN_1);
         Window_Remove(&sHud.window);
         sHud.windowAdded = FALSE;
     }
@@ -165,6 +172,16 @@ void BattleHud_Hide(BattleSubscreen *btlSubscreen)
     if (BattleHud_IsEnabled()) {
         SIM_Wide_SetBattleTouchNeeded(1);
     }
+}
+
+// Confirm in BattleSystem_MenuInput: the panel goes away and the
+// healthboxes return, but the wide touch state is left alone (the next
+// menu, if any, keeps the bottom panel suppressed; the final hide via
+// menu config 0 / subscreen free restores it).
+void BattleHud_HideOnConfirm(BattleSubscreen *btlSubscreen)
+{
+    HudHideInternal(btlSubscreen);
+    SIM_Wide_SetMainTouchEnabled(0);
 }
 
 static void HudEnsureWindow(BattleSubscreen *btlSubscreen)

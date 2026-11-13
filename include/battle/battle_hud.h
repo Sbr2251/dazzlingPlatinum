@@ -36,6 +36,8 @@ BOOL BattleHud_IsEnabled(void);
 int BattleHud_Update(BattleSubscreen *btlSubscreen);
 // Call when the subscreen returns to the idle menu (config 0) / battle end.
 void BattleHud_Hide(BattleSubscreen *btlSubscreen);
+// Call when a menu input is confirmed: panel hides, healthboxes return.
+void BattleHud_HideOnConfirm(BattleSubscreen *btlSubscreen);
 
 // Main-screen click hit test (DS coords): returns the touch-array
 // button index for a click at (x, y), or -1. Clicks are routed by the
