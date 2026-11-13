@@ -72,58 +72,62 @@ static FxMoveLight MoveLightForType(int type)
 {
     FxMoveLight light = { 1.0f, 1.0f, 1.0f, 0.9f, 0.55f, 0 };
 
+    // Intensities are kept low enough that sprites keep their detail:
+    // the light tints the scene, it does not wash it to flat colour.
+    // Radii are local (a flame / a bolt), never full-screen.
     switch (type) {
     case TYPE_FIRE:
-        light.r = 1.0f; light.g = 0.55f; light.b = 0.20f; light.radius = 1.0f; light.intensity = 0.85f;
+        light.r = 1.0f; light.g = 0.55f; light.b = 0.20f; light.radius = 0.75f; light.intensity = 0.60f;
         break;
     case TYPE_ELECTRIC:
-        light.r = 0.90f; light.g = 0.95f; light.b = 1.0f; light.radius = 0.75f; light.intensity = 1.10f; light.flash = 1;
+        // Warm white-yellow, hard falloff (small radius), short flash.
+        light.r = 1.0f; light.g = 0.98f; light.b = 0.85f; light.radius = 0.55f; light.intensity = 0.90f; light.flash = 1;
         break;
     case TYPE_WATER:
-        light.r = 0.30f; light.g = 0.60f; light.b = 1.0f; light.radius = 0.95f; light.intensity = 0.70f;
+        light.r = 0.30f; light.g = 0.60f; light.b = 1.0f; light.radius = 0.80f; light.intensity = 0.55f;
         break;
     case TYPE_GRASS:
-        light.r = 0.45f; light.g = 1.0f; light.b = 0.45f; light.radius = 0.9f; light.intensity = 0.60f;
+        light.r = 0.45f; light.g = 1.0f; light.b = 0.45f; light.radius = 0.75f; light.intensity = 0.48f;
         break;
     case TYPE_ICE:
-        light.r = 0.75f; light.g = 0.95f; light.b = 1.0f; light.radius = 0.9f; light.intensity = 0.65f;
+        light.r = 0.75f; light.g = 0.95f; light.b = 1.0f; light.radius = 0.75f; light.intensity = 0.52f;
         break;
     case TYPE_PSYCHIC:
-        light.r = 1.0f; light.g = 0.55f; light.b = 0.85f; light.radius = 0.9f; light.intensity = 0.65f;
+        light.r = 1.0f; light.g = 0.55f; light.b = 0.85f; light.radius = 0.75f; light.intensity = 0.52f;
         break;
     case TYPE_DARK:
     case TYPE_GHOST:
-        light.r = 0.55f; light.g = 0.35f; light.b = 0.85f; light.radius = 0.85f; light.intensity = 0.50f;
+        light.r = 0.55f; light.g = 0.35f; light.b = 0.85f; light.radius = 0.70f; light.intensity = 0.42f;
         break;
     case TYPE_DRAGON:
-        light.r = 1.0f; light.g = 0.45f; light.b = 0.30f; light.radius = 1.0f; light.intensity = 0.80f;
+        light.r = 1.0f; light.g = 0.45f; light.b = 0.30f; light.radius = 0.85f; light.intensity = 0.62f;
         break;
     case TYPE_FAIRY:
-        light.r = 1.0f; light.g = 0.75f; light.b = 0.90f; light.radius = 0.9f; light.intensity = 0.60f;
+        light.r = 1.0f; light.g = 0.75f; light.b = 0.90f; light.radius = 0.75f; light.intensity = 0.48f;
         break;
     case TYPE_GROUND:
     case TYPE_ROCK:
-        light.r = 0.85f; light.g = 0.70f; light.b = 0.45f; light.radius = 0.85f; light.intensity = 0.50f;
+        light.r = 0.85f; light.g = 0.70f; light.b = 0.45f; light.radius = 0.70f; light.intensity = 0.42f;
         break;
     case TYPE_FLYING:
-        light.r = 0.80f; light.g = 0.90f; light.b = 1.0f; light.radius = 0.85f; light.intensity = 0.50f;
+        light.r = 0.80f; light.g = 0.90f; light.b = 1.0f; light.radius = 0.70f; light.intensity = 0.42f;
         break;
     case TYPE_POISON:
-        light.r = 0.70f; light.g = 0.40f; light.b = 0.90f; light.radius = 0.85f; light.intensity = 0.55f;
+        light.r = 0.70f; light.g = 0.40f; light.b = 0.90f; light.radius = 0.70f; light.intensity = 0.45f;
         break;
     case TYPE_BUG:
-        light.r = 0.70f; light.g = 0.95f; light.b = 0.40f; light.radius = 0.85f; light.intensity = 0.50f;
+        light.r = 0.70f; light.g = 0.95f; light.b = 0.40f; light.radius = 0.70f; light.intensity = 0.42f;
         break;
     case TYPE_STEEL:
-        light.r = 0.85f; light.g = 0.90f; light.b = 1.0f; light.radius = 0.85f; light.intensity = 0.55f;
+        light.r = 0.85f; light.g = 0.90f; light.b = 1.0f; light.radius = 0.70f; light.intensity = 0.45f;
         break;
     case TYPE_FIGHTING:
-        light.r = 1.0f; light.g = 0.70f; light.b = 0.40f; light.radius = 0.85f; light.intensity = 0.55f;
+        light.r = 1.0f; light.g = 0.70f; light.b = 0.40f; light.radius = 0.70f; light.intensity = 0.45f;
         break;
     case TYPE_NORMAL:
     case TYPE_MYSTERY:
     default:
-        light.r = 1.0f; light.g = 0.95f; light.b = 0.85f; light.radius = 0.8f; light.intensity = 0.40f;
+        light.r = 1.0f; light.g = 0.95f; light.b = 0.85f; light.radius = 0.65f; light.intensity = 0.34f;
         break;
     }
 
@@ -268,9 +272,9 @@ void FxLighting_Update(void)
             }
         }
         if (track.flash) {
-            // Electric: hard flash pulses, dark between (hard falloff
-            // comes from the small radius in the table).
-            flick = (sFrame % 12) < 3 ? 1.6f : 0.20f;
+            // Electric: a short flash (2 of every 16 frames, bright),
+            // near-dark between, so it reads as a bolt strike.
+            flick = (sFrame % 16) < 2 ? 1.9f : 0.05f;
         } else {
             // Fire and friends: warm flicker around the base level.
             flick = 0.78f + 0.42f * Flicker(sFrame);
@@ -280,27 +284,29 @@ void FxLighting_Update(void)
         BattlerPos(sAttacker, &atkX, &atkY);
         BattlerPos(sDefender, &defX, &defY);
 
-        // Attacker light.
+        // Three local lights, no full-screen wash: the attacker (a
+        // brief lit edge), the projectile/flame at the midpoint
+        // between attacker and target (the strongest light), and the
+        // target (the impact reads there). Light falls off well
+        // before the screen edge, so sprites keep their detail.
         state.lights[0].x = atkX;
         state.lights[0].y = atkY;
-        state.lights[0].radius = track.radius;
-        state.lights[0].intensity = intensity;
+        state.lights[0].radius = track.radius * 0.8f;
+        state.lights[0].intensity = intensity * 0.5f;
         state.lights[0].r = track.r;
         state.lights[0].g = track.g;
         state.lights[0].b = track.b;
-        // Target light, a little stronger (the impact reads there).
-        state.lights[1].x = defX;
-        state.lights[1].y = defY;
+        state.lights[1].x = (atkX + defX) * 0.5f;
+        state.lights[1].y = (atkY + defY) * 0.5f;
         state.lights[1].radius = track.radius;
-        state.lights[1].intensity = intensity * 1.15f;
+        state.lights[1].intensity = intensity * 0.9f;
         state.lights[1].r = track.r;
         state.lights[1].g = track.g;
         state.lights[1].b = track.b;
-        // Arena wash: a soft centre light so the stage itself glows.
-        state.lights[2].x = 0.0f;
-        state.lights[2].y = 0.0f;
-        state.lights[2].radius = 1.4f;
-        state.lights[2].intensity = intensity * 0.30f;
+        state.lights[2].x = defX;
+        state.lights[2].y = defY;
+        state.lights[2].radius = track.radius * 0.8f;
+        state.lights[2].intensity = intensity * 0.8f;
         state.lights[2].r = track.r;
         state.lights[2].g = track.g;
         state.lights[2].b = track.b;
