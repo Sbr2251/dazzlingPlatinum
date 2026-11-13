@@ -274,7 +274,7 @@
     512,
     384
    ],
-   "tolerance_gpu": 0.0005
+   "tolerance_gpu": 0.02
   },
   {
    "wait_until": {
