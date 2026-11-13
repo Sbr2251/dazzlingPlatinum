@@ -9,11 +9,8 @@
 #include "overlay005/encounter_effect.h"
 #include "overlay005/map_name_popup.h"
 
-#include "camera.h"
 #include "field_system.h"
 #include "field_task.h"
-#include "fx_arena.h"
-#include "fx_arena2.h"
 #include "heap.h"
 #include "screen_fade.h"
 #include "sound.h"
@@ -23,62 +20,7 @@ typedef struct EncounterEffectTaskData {
     BOOL done;
     int encEffectID;
     int battleBGM;
-    // Lane arena: field-side swoop state (taskState 10)
-    int swoopFrame;
-    fx32 swoopStartDistance;
-    // Lane arena2: real-place capture state (taskState 20). The capture
-    // runs after the swoop, while the field is still loaded and rendered.
-    int captureFrame;
 } EncounterEffectTaskData;
-
-#define ARENA_SWOOP_FRAMES 30 // ~0.5 s
-
-// Lane arena: the field-side swoop. The field camera tracks the player, so
-// closing its distance dives toward the player. Smoothstep over
-// ARENA_SWOOP_FRAMES, ending at 62% of the starting distance; the
-// encounter effect then runs as before, and the map reload after the battle
-// restores the camera.
-static void ArenaSwoop_Advance(FieldSystem *fieldSystem, EncounterEffectTaskData *data)
-{
-    fx32 t, smooth, start, target;
-
-    data->swoopFrame++;
-
-    if (data->swoopFrame > ARENA_SWOOP_FRAMES) {
-        data->swoopFrame = ARENA_SWOOP_FRAMES;
-    }
-
-    t = data->swoopFrame * FX32_ONE / ARENA_SWOOP_FRAMES;
-    smooth = FX_Mul(t, t);
-    smooth = FX_Mul(smooth, 3 * FX32_ONE - 2 * t); // 3t^2 - 2t^3
-
-    start = data->swoopStartDistance;
-    target = start * 62 / 100;
-
-    Camera_SetDistance(start + FX_Mul(target - start, smooth), fieldSystem->camera);
-}
-
-// Lane arena2: start the encounter effect, or first arm the real-place
-// capture (taskState 20) when the field can supply one. The capture
-// reads back on the next rendered frames, then the effect runs as before.
-static void Arena2_BeginEncounterEffect(FieldSystem *fieldSystem, EncounterEffectTaskData *data)
-{
-    if (FxArena2_ShouldCapture(fieldSystem)) {
-        data->captureFrame = 0;
-        // Lane arena2: hide the map objects and drop to the low,
-        // battle-like camera for the capture frame, then restore both.
-        FxArena2_SaveCamera(fieldSystem);
-        FxArena2_HideMapObjects(fieldSystem);
-        FxArena2_SetCaptureCamera(fieldSystem);
-        FxArena2_StartCapture(fieldSystem);
-        data->taskState = 20;
-    } else {
-        FxArena2_ClearCapture();
-        EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
-        Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
-        data->taskState = 1;
-    }
-}
 
 static BOOL FieldTask_RunEncounterEffect(FieldTask *task)
 {
@@ -87,37 +29,9 @@ static BOOL FieldTask_RunEncounterEffect(FieldTask *task)
 
     switch (data->taskState) {
     case 0:
-        if (FxArena_BattleSwoopEnabled() && fieldSystem->camera != NULL) {
-            data->swoopFrame = 0;
-            data->swoopStartDistance = Camera_GetDistance(fieldSystem->camera);
-            data->taskState = 10;
-        } else {
-            Arena2_BeginEncounterEffect(fieldSystem, data);
-        }
-        break;
-
-    case 10:
-        ArenaSwoop_Advance(fieldSystem, data);
-
-        if (data->swoopFrame >= ARENA_SWOOP_FRAMES) {
-            Arena2_BeginEncounterEffect(fieldSystem, data);
-        }
-        break;
-
-    case 20:
-        // The capture is armed for the next rendered frame; wait three
-        // task invocations (frames) so the simulator's display capture
-        // has run, then copy VRAM C before the effect reuses it.
-        data->captureFrame++;
-
-        if (data->captureFrame >= 3) {
-            FxArena2_FinishCapture();
-            FxArena2_RestoreCamera(fieldSystem);
-            FxArena2_RestoreMapObjects(fieldSystem);
-            EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
-            Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
-            data->taskState = 1;
-        }
+        EncounterEffect_Start(data->encEffectID, fieldSystem, &data->done);
+        Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, data->battleBGM, 1);
+        data->taskState++;
         break;
 
     case 1:

@@ -52,7 +52,6 @@
 #include "communication_system.h"
 #include "evolution.h"
 #include "field_battle_data_transfer.h"
-#include "fx_arena2.h" // fx_arena2 hook: BG3 shows the captured real place
 #include "flags.h"
 #include "font.h"
 #include "font_special_chars.h"
@@ -470,9 +469,6 @@ void BattleSystem_SetupBattleScreen(BattleSystem *battleSys)
     BattleTextbox_LoadCursorPalette(battleSys->paletteData);
     BattleTextbox_LoadTextPalette(battleSys->paletteData);
     Graphics_LoadTilemapToBgLayer(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, 2, battleSys->bgConfig, 3, 0, 0, 1, HEAP_ID_BATTLE);
-    // fx_arena2 hook: BG3 shows the captured real place, so a 2D move
-    // effect that swaps to BG3 does not pop back to the classic art.
-    FxArena2_ApplyToBattleBg(battleSys);
 
     GX_SetVisibleWnd(GX_WNDMASK_NONE);
     GXS_SetVisibleWnd(GX_WNDMASK_NONE);
@@ -945,9 +941,6 @@ static void BattleMain_InitBattleGraphics(BattleSystem *battleSys, BgConfig *bgC
     PaletteData_LoadBufferFromFileStart(battleSys->paletteData, NARC_INDEX_GRAPHIC__PL_WINFRAME, GetMessageBoxPaletteNARCMember(frame), HEAP_ID_BATTLE, PLTTBUF_MAIN_BG, PALETTE_SIZE_BYTES, PLTT_DEST(10));
     PaletteData_LoadBufferFromFileStart(battleSys->paletteData, NARC_INDEX_GRAPHIC__PL_FONT, 7, HEAP_ID_BATTLE, PLTTBUF_MAIN_BG, PALETTE_SIZE_BYTES, PLTT_DEST(11));
     Graphics_LoadTilemapToBgLayer(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, 2, bgConfig, 3, 0, 0, 1, HEAP_ID_BATTLE);
-    // fx_arena2 hook: BG3 shows the captured real place, so a 2D move
-    // effect that swaps to BG3 does not pop back to the classic art.
-    FxArena2_ApplyToBattleBg(battleSys);
 
     GX_SetVisibleWnd(GX_WNDMASK_NONE);
     GXS_SetVisibleWnd(GX_WNDMASK_NONE);

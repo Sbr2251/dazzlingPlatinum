@@ -103,11 +103,6 @@ UnkStruct_ov5_021ED0A4 *sub_0206285C(const MapObjectManager *mapObjMan);
 void MapObjectMan_SetMapObject(MapObjectManager *mapObjMan, MapObject *mapObj);
 const MapObject *MapObjectMan_GetMapObjectConst(const MapObjectManager *mapObjMan);
 MapObject *MapObjectMan_GetMapObject(const MapObjectManager *mapObjMan);
-// fx_arena2 hook: the object in the manager's array at the given slot,
-// or NULL. The lane's capture hide enumerates every object this way:
-// LocalMapObjByIndex matches by local ID and skips STATUS_25 objects,
-// so it can miss a story NPC.
-MapObject *MapObjectMan_GetMapObjectBySlot(const MapObjectManager *mapObjMan, int slot);
 void sub_02062880(const MapObject **mapObj);
 void MapObjectMan_SetFieldSystem(MapObjectManager *mapObjMan, FieldSystem *fieldSystem);
 FieldSystem *MapObjectMan_FieldSystem(const MapObjectManager *mapObjMan);

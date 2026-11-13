@@ -52,11 +52,6 @@ BOOL FxArena_ArenaContextEnabled(void)
     return FxEnabled(SIM_Config_prj_GetConfig()->arenaContext, "SIM_FX_ARENA");
 }
 
-BOOL FxArena_BattleSwoopEnabled(void)
-{
-    return FxEnabled(SIM_Config_prj_GetConfig()->battleSwoop, "SIM_FX_SWOOP");
-}
-
 BOOL FxArena_WeatherLightningEnabled(void)
 {
     return FxEnabled(SIM_Config_prj_GetConfig()->weatherLightning, "SIM_FX_LIGHTNING");

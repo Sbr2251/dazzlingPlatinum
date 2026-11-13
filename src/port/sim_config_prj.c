@@ -43,9 +43,6 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "ArenaContext")) {
         config->arenaContext = StringToBool(value);
     }
-    if(MATCH("General", "BattleSwoop")) {
-        config->battleSwoop = StringToBool(value);
-    }
     if(MATCH("General", "WeatherLightning")) {
         config->weatherLightning = StringToBool(value);
     }
@@ -60,9 +57,6 @@ static int IniHandler(void* user, const char* section, const char* name,
     }
     if(MATCH("General", "SpriteRimLight")) {
         config->spriteRimLight = StringToBool(value);
-    }
-    if(MATCH("General", "RealPlaceArena")) {
-        config->realPlaceArena = StringToBool(value);
     }
     if(MATCH("General", "OverworldCinematics")) {
         config->overworldCinematics = StringToBool(value);
@@ -137,11 +131,9 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->megaCinematicShort = FALSE;
   aConfig->hiResText = FALSE;
   aConfig->arenaContext = TRUE;
-  aConfig->battleSwoop = TRUE;
   aConfig->weatherLightning = TRUE;
   aConfig->sceneLights = TRUE;
   aConfig->spriteRimLight = TRUE;
-  aConfig->realPlaceArena = TRUE;
   aConfig->overworldCinematics = TRUE;
   aConfig->weatherFx = TRUE;
   aConfig->waterReflections = TRUE;
@@ -176,11 +168,9 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "MegaCinematicShort=%s\n", BoolToString(aConfig->megaCinematicShort));
     fprintf(configFile, "HiResText=%s\n", BoolToString(aConfig->hiResText));
     fprintf(configFile, "ArenaContext=%s\n", BoolToString(aConfig->arenaContext));
-    fprintf(configFile, "BattleSwoop=%s\n", BoolToString(aConfig->battleSwoop));
     fprintf(configFile, "WeatherLightning=%s\n", BoolToString(aConfig->weatherLightning));
     fprintf(configFile, "SceneLights=%s\n", BoolToString(aConfig->sceneLights));
     fprintf(configFile, "SpriteRimLight=%s\n", BoolToString(aConfig->spriteRimLight));
-    fprintf(configFile, "RealPlaceArena=%s\n", BoolToString(aConfig->realPlaceArena));
     fprintf(configFile, "OverworldCinematics=%s\n", BoolToString(aConfig->overworldCinematics));
     fprintf(configFile, "WeatherFx=%s\n", BoolToString(aConfig->weatherFx));
     fprintf(configFile, "WaterReflections=%s\n", BoolToString(aConfig->waterReflections));

@@ -141,34 +141,6 @@ void BillboardLists_Draw(void)
     }
 }
 
-// fx_arena2 hook: suspend/resume drawing all billboard lists (see the
-// header). The lists keep updating while suspended; only the draw is
-// skipped, so resuming shows them exactly where they would have been.
-u32 BillboardLists_SuspendDraw(void)
-{
-    u32 mask = 0;
-    int i;
-
-    for (i = 0; i < sBillboardListCount; i++) {
-        if (sBillboardLists[i].draw == TRUE) {
-            mask |= (1u << i);
-        }
-
-        sBillboardLists[i].draw = FALSE;
-    }
-
-    return mask;
-}
-
-void BillboardLists_ResumeDraw(u32 prevDrawMask)
-{
-    int i;
-
-    for (i = 0; i < sBillboardListCount; i++) {
-        sBillboardLists[i].draw = (prevDrawMask & (1u << i)) ? TRUE : FALSE;
-    }
-}
-
 BillboardList *BillboardList_New(const BillboardListParams *params)
 {
     BillboardList *list = FindFirstFreeBillboardList();

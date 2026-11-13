@@ -8,17 +8,16 @@
 
 // Lane arena: the battle takes the overworld's time of day (exact, not the
 // 3-palette bucket), weather and terrain as arena lighting/tint parameters;
-// a camera swoop into battle; lightning in thunderstorm weather.
+// lightning in thunderstorm weather.
 //
 // Presentation only: nothing here changes battle mechanics, RNG-visible
 // state or save data. Every feature is off under SIM_HEADLESS unless its
 // SIM_FX_* env var enables it, so existing golden screenshots stay
 // byte-identical.
 
-// Feature gates: sim_config_prj.ini [General] ArenaContext / BattleSwoop /
+// Feature gates: sim_config_prj.ini [General] ArenaContext /
 // WeatherLightning (all on by default in the app).
 BOOL FxArena_ArenaContextEnabled(void);
-BOOL FxArena_BattleSwoopEnabled(void);
 BOOL FxArena_WeatherLightningEnabled(void);
 
 // Combined arena tint multiplier per channel, in 1/256 (256 = unchanged),

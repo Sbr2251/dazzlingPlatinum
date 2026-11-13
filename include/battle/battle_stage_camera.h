@@ -74,10 +74,6 @@ void BattleStage_BuildProjection(fx32 fovySin, fx32 fovyCos, fx32 nearClip, fx32
 void BattleStageCamera_Init(BattleSystem *battleSys, BattleStageCameraFields *fields, BattleStageCutGuardFields *cutGuard, const BattleStageCameraHome *home, const u32 *debugFlags);
 // Snaps home and unhooks the particles
 void BattleStageCamera_Free(void);
-// Lane arena: start the battle camera at a high/far pose and ease home
-// over the first drawn frames (the battle-side swoop). It does not set the
-// camera-script flag: it is a transition, not a script command.
-void BattleStageCamera_StartSwoop(void);
 // Once per BattleStage_Draw while the arena exists, before anything is drawn
 void BattleStageCamera_Advance(BOOL visible, int debugView);
 // AT_HOME after the last Advance: draw with the arena's own view and projection

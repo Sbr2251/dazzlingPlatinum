@@ -1114,16 +1114,6 @@ MapObject *MapObjectMan_GetMapObject(const MapObjectManager *mapObjMan)
     return mapObjMan->mapObj;
 }
 
-// fx_arena2 hook: slot accessor for the capture hide (see the header).
-MapObject *MapObjectMan_GetMapObjectBySlot(const MapObjectManager *mapObjMan, int slot)
-{
-    if (mapObjMan == NULL || slot < 0 || slot >= MapObjectMan_GetMaxObjects(mapObjMan)) {
-        return NULL;
-    }
-
-    return MapObjectMan_GetMapObject(mapObjMan) + slot;
-}
-
 void sub_02062880(const MapObject **mapObj)
 {
     (*mapObj)++;
