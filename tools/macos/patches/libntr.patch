@@ -2530,10 +2530,10 @@ index 0000000..c2b0286
 +}  // namespace SIM::Helpers
 diff --git a/include/simulator/sim_layout.h b/include/simulator/sim_layout.h
 new file mode 100644
-index 0000000..d5d6ace
+index 0000000..b3dd3a4
 --- /dev/null
 +++ b/include/simulator/sim_layout.h
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,89 @@
 +#ifndef SIMULATOR_SIM_LAYOUT_H
 +#define SIMULATOR_SIM_LAYOUT_H
 +
@@ -2595,12 +2595,24 @@ index 0000000..d5d6ace
 +// updates the stored rect every frame from its view and animation.
 +int SIM_Layout_GetPanelRect(float *x, float *y, float *w, float *h);
 +
++// Main-screen touch (battlehud hook): opt-in routing of clicks on the
++// MAIN (top) screen area to the game, separate from the sub-screen TP
++// registers. Disabled by default; when disabled, main-area clicks keep
++// their classic behaviour (not touch). Coordinates are main-screen DS
++// pixels (0..255, 0..191). GetMainTouch returns 1 once per click.
++void SIM_Layout_SetMainTouchEnabled(int enabled);
++int SIM_Layout_GetMainTouch(int *x, int *y);
++
 +// --- Simulator-internal: called by sim_main, not by the game. ---
 +// Informs this module whether the wide layout is in effect (set once
 +// in SIM_RenderInit, after the render backend is selected).
 +void SIM_Layout_SetWideEnabled(int enabled);
 +// Stores the panel rect computed for the current frame.
 +void SIM_Layout_SetPanelRect(int visible, float x, float y, float w, float h);
++// battlehud hook: main-screen rect (normalised) + click injection.
++void SIM_Layout_SetMainRect(int visible, float x, float y, float w, float h);
++void SIM_Layout_PushMainTouch(int x, int y);
++int SIM_Layout_MainTouchEnabled(void);
 +// Stores the tab-handle rect computed for the current frame (normalised
 +// window coordinates); the simulator draws the handle there.
 +void SIM_Layout_SetTabIconRect(int visible, float x, float y, float w, float h);
@@ -30923,10 +30935,10 @@ index 0000000..75cdee1
 +
 diff --git a/libraries/sim/src/sim_layout.c b/libraries/sim/src/sim_layout.c
 new file mode 100644
-index 0000000..4724782
+index 0000000..a4f1b3c
 --- /dev/null
 +++ b/libraries/sim/src/sim_layout.c
-@@ -0,0 +1,120 @@
+@@ -0,0 +1,174 @@
 +#include <simulator/sim_layout.h>
 +
 +static SIM_Layout_Scene s_scene = SIM_LAYOUT_SCENE_UNKNOWN;
@@ -31047,8 +31059,62 @@ index 0000000..4724782
 +    s_panelW = w;
 +    s_panelH = h;
 +}
++
++// --- Main-screen touch (battlehud hook) ---
++static int s_mainTouchEnabled = 0;
++static int s_mainTouchPending = 0;
++static int s_mainTouchX = 0;
++static int s_mainTouchY = 0;
++static int s_mainRectVisible = 0;
++static float s_mainX = 0.0f;
++static float s_mainY = 0.0f;
++static float s_mainW = 0.0f;
++static float s_mainH = 0.0f;
++
++void SIM_Layout_SetMainTouchEnabled(int enabled)
++{
++    s_mainTouchEnabled = enabled ? 1 : 0;
++    if (!s_mainTouchEnabled) {
++        s_mainTouchPending = 0;
++    }
++}
++
++int SIM_Layout_MainTouchEnabled(void)
++{
++    return s_mainTouchEnabled;
++}
++
++int SIM_Layout_GetMainTouch(int *x, int *y)
++{
++    if (!s_mainTouchPending) {
++        return 0;
++    }
++    s_mainTouchPending = 0;
++    if (x) *x = s_mainTouchX;
++    if (y) *y = s_mainTouchY;
++    return 1;
++}
++
++void SIM_Layout_SetMainRect(int visible, float x, float y, float w, float h)
++{
++    s_mainRectVisible = visible ? 1 : 0;
++    s_mainX = x;
++    s_mainY = y;
++    s_mainW = w;
++    s_mainH = h;
++}
++
++void SIM_Layout_PushMainTouch(int x, int y)
++{
++    if (!s_mainTouchEnabled || !s_mainRectVisible) {
++        return;
++    }
++    s_mainTouchX = x;
++    s_mainTouchY = y;
++    s_mainTouchPending = 1;
++}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..e08dbad 100644
+index 910d7da..c6dc03a 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,3 +1,4 @@
@@ -31106,7 +31172,7 @@ index 910d7da..e08dbad 100644
  #include "git_info.h"
  
  // Simulator configuration
-@@ -75,6 +88,41 @@ extern OSThreadInfo OSi_ThreadInfo;
+@@ -75,6 +88,42 @@ extern OSThreadInfo OSi_ThreadInfo;
  
  static u32 s_TouchPanelCoords[4] = {}; // The bounding box of the touch screen
  
@@ -31119,6 +31185,7 @@ index 910d7da..e08dbad 100644
 +static float sPanelAnim = 0.0f; // 0 = panel closed, 1 = panel fully open (headless jumps straight to the target).
 +static int sPanelRectPx[4] = {}; // Panel rect, window pixels (current animation frame).
 +static int sTabIconRect[4] = {}; // Tab handle rect, window pixels (only when the panel is fully closed).
++static int sMainRectPx[4] = {}; // battlehud hook: main-screen rect, window pixels.
 +
 +static bool WideActive() {
 +  return s_SIM_config.screenLayout == SIM_CONFIG_SCREEN_LAYOUT_WIDE && SIM_Layout_IsWide();
@@ -31148,7 +31215,7 @@ index 910d7da..e08dbad 100644
  // SND
  #include <nitro/snd/common/work.h>
  #include <nitro/snd/common/command.h>
-@@ -96,6 +144,20 @@ static struct timespec s_SIM_lastFrameEnd;
+@@ -96,6 +145,20 @@ static struct timespec s_SIM_lastFrameEnd;
  static u64 sRenderFrameTime;
  static u64 sFullFrameTime;
  
@@ -31169,7 +31236,7 @@ index 910d7da..e08dbad 100644
  static constexpr auto SteamDeckWidth = 1280;
  static constexpr auto SteamDeckHeight = 800;
  
-@@ -125,45 +187,170 @@ u8 OBJWindow[2][256];
+@@ -125,45 +188,170 @@ u8 OBJWindow[2][256];
  
  GXVRamBGExtPltt s_SIM_GXBgExtPltt;
  GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
@@ -31375,7 +31442,7 @@ index 910d7da..e08dbad 100644
  
  static SDL_Window *window;
  
-@@ -178,6 +365,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +366,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -31386,7 +31453,7 @@ index 910d7da..e08dbad 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -224,38 +415,11 @@ static void DrawEngine(BOOL isSub);
+@@ -224,38 +416,11 @@ static void DrawEngine(BOOL isSub);
  static u8 s_numG3CommandsThisFrame = 0;
  
  // Vcount stuff
@@ -31427,7 +31494,7 @@ index 910d7da..e08dbad 100644
  SIM_config_type *SIM_GetConfigPtr() { return &s_SIM_config; }
  
  SDL_Window * SIM_GetSDLWindow() {return window;}
-@@ -275,27 +439,9 @@ void *runVblankInterrupt(void *arg) {
+@@ -275,27 +440,9 @@ void *runVblankInterrupt(void *arg) {
    return NULL;
  }
  
@@ -31457,7 +31524,7 @@ index 910d7da..e08dbad 100644
  }
  
  static bool sChangeInternalResAfterRender = false;
-@@ -308,18 +454,63 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
+@@ -308,18 +455,63 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
    sPendingInternalRes = internalRes;
  }
  
@@ -31528,7 +31595,7 @@ index 910d7da..e08dbad 100644
  
    u32 windowHeight;
    u32 windowWidth;
-@@ -352,6 +543,11 @@ void *SIM_RenderInit(void *arg) {
+@@ -352,6 +544,11 @@ void *SIM_RenderInit(void *arg) {
          windowHeight = SIM_NDS_SCREEN_HEIGHT * 2 * 2;
          windowWidth = (SIM_NDS_SCREEN_WIDTH * 2 * 2) + (SIM_NDS_SCREEN_WIDTH * 2);
          break;
@@ -31540,7 +31607,7 @@ index 910d7da..e08dbad 100644
        }
      }
    } else {
-@@ -376,197 +572,63 @@ void *SIM_RenderInit(void *arg) {
+@@ -376,197 +573,63 @@ void *SIM_RenderInit(void *arg) {
                    std::string(makerCode) + "]";
    }
  
@@ -31782,7 +31849,7 @@ index 910d7da..e08dbad 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -578,10 +640,16 @@ static void DrawEngine(BOOL isSub) {
+@@ -578,10 +641,16 @@ static void DrawEngine(BOOL isSub) {
    u8 maxPriorityBG;
    u8 bgEnabled[4];
    u8 bgMode;
@@ -31801,7 +31868,7 @@ index 910d7da..e08dbad 100644
  
    // Get the enabled BGs
    u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
-@@ -603,20 +671,6 @@ static void DrawEngine(BOOL isSub) {
+@@ -603,20 +672,6 @@ static void DrawEngine(BOOL isSub) {
    backdropColor =
        isSub ? *(u16 *)&s_HW_DB_BG_PLTT[0] : *(u16 *)&s_HW_BG_PLTT[0];
    SIM_u16ToRGB(backdropColor, &backdropR, &backdropG, &backdropB);
@@ -31822,7 +31889,7 @@ index 910d7da..e08dbad 100644
  
    // Get the BG priorities
    u16 bg0cnt = isSub ? s_reg_G2S_DB_BG0CNT : s_reg_G2_BG0CNT;
-@@ -624,52 +678,44 @@ static void DrawEngine(BOOL isSub) {
+@@ -624,52 +679,44 @@ static void DrawEngine(BOOL isSub) {
    u16 bg2cnt = isSub ? s_reg_G2S_DB_BG2CNT : s_reg_G2_BG2CNT;
    u16 bg3cnt = isSub ? s_reg_G2S_DB_BG3CNT : s_reg_G2_BG3CNT;
  
@@ -31907,7 +31974,7 @@ index 910d7da..e08dbad 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -715,13 +761,38 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +762,38 @@ static void DrawEngine(BOOL isSub) {
        u8 a;
        for (int j = 0; j < 256; j++) {
          if (OBJLine[isSub][j]) {
@@ -31951,12 +32018,12 @@ index 910d7da..e08dbad 100644
            }
          }
          if (OBJWindow[isSub][j]) {
-@@ -735,130 +806,107 @@ static void DrawEngine(BOOL isSub) {
+@@ -735,130 +807,107 @@ static void DrawEngine(BOOL isSub) {
  
    // Draw the BGs
    for (int i = 0; i < 4; i++) {
 -    u8 curBgNum = bgOrder[i];
- 
+-
 -    if (bgEnabled[bgOrder[i]]) {
 -      G2SIM_DrawBG(bgOrder[i], bgMode, bg0as3d, isSub);
 -    } else {
@@ -31964,7 +32031,7 @@ index 910d7da..e08dbad 100644
 -      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
 -    }
 -  }
--
+ 
 -  // write all OAMs to the textures based on their priorities
 -  for (int i = 0; i < 4; i++) {
 -    glActiveTexture(GL_TEXTURE0 + s_objTexUnits[i]);
@@ -32170,7 +32237,7 @@ index 910d7da..e08dbad 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +998,281 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +999,281 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -32452,7 +32519,7 @@ index 910d7da..e08dbad 100644
  
    SDL_Event Event;
    char c;
-@@ -965,6 +1287,7 @@ void *SIM_Render(void *arg) {
+@@ -965,6 +1288,7 @@ void *SIM_Render(void *arg) {
    auto& g3State = SIM::G3::GetGlobalState();
    g3State.FlushDrawCall();
    g3State.DrawTransparentItems();
@@ -32460,7 +32527,7 @@ index 910d7da..e08dbad 100644
  
  
    do {
-@@ -976,14 +1299,6 @@ void *SIM_Render(void *arg) {
+@@ -976,14 +1300,6 @@ void *SIM_Render(void *arg) {
        SIM_Net_SendBeaconIndication();
      }
  
@@ -32475,7 +32542,7 @@ index 910d7da..e08dbad 100644
      int windowHeight;
      int windowWidth;
      int viewHeight;
-@@ -1006,6 +1321,13 @@ void *SIM_Render(void *arg) {
+@@ -1006,6 +1322,13 @@ void *SIM_Render(void *arg) {
      case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
        aspectRatio = 768.0f / 384.0f;
        break;
@@ -32489,7 +32556,7 @@ index 910d7da..e08dbad 100644
      }
  
      viewWidth = windowWidth;
-@@ -1019,10 +1341,103 @@ void *SIM_Render(void *arg) {
+@@ -1019,10 +1342,103 @@ void *SIM_Render(void *arg) {
        viewY = 0;
      }
  
@@ -32595,9 +32662,48 @@ index 910d7da..e08dbad 100644
        switch (s_SIM_config.screenLayout) {
        default:
        case SIM_CONFIG_SCREEN_LAYOUT_VERTICAL:
-@@ -1069,23 +1484,46 @@ void *SIM_Render(void *arg) {
+@@ -1068,24 +1484,85 @@ void *SIM_Render(void *arg) {
+       }
      }
  
++    // battlehud hook: main-screen rect (the complement of the touch
++    // surface), for opt-in main-touch routing.
++    {
++      int mx0, my0, mx1, my1, mvis = 1;
++      if (WideActive()) {
++        if (SIM_Layout_GetScene() == SIM_LAYOUT_SCENE_MENU) {
++          mx0 = viewX; my0 = viewY; mx1 = viewX + viewWidth / 2; my1 = viewY + viewHeight;
++        } else {
++          mx0 = viewX + (int)(0.125f * (float)viewWidth); my0 = viewY;
++          mx1 = mx0 + (int)(0.75f * (float)viewWidth); my1 = viewY + viewHeight;
++        }
++      } else if (s_SIM_config.swapScreens) {
++        switch (s_SIM_config.screenLayout) {
++        case SIM_CONFIG_SCREEN_LAYOUT_HORIZONTAL:
++          mx0 = viewX + viewWidth / 2; my0 = viewY; mx1 = viewX + viewWidth; my1 = viewY + viewHeight; break;
++        case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
++          mx0 = viewX + (viewWidth / 3) * 2; my0 = viewY; mx1 = viewX + viewWidth; my1 = viewY + viewHeight / 2; break;
++        default:
++          mx0 = viewX; my0 = viewY + viewHeight / 2; mx1 = viewX + viewWidth; my1 = viewY + viewHeight; break;
++        }
++      } else {
++        switch (s_SIM_config.screenLayout) {
++        case SIM_CONFIG_SCREEN_LAYOUT_HORIZONTAL:
++          mx0 = viewX; my0 = viewY; mx1 = viewX + viewWidth / 2; my1 = viewY + viewHeight; break;
++        case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
++          mx0 = viewX; my0 = viewY; mx1 = viewX + (viewWidth / 3) * 2; my1 = viewY + viewHeight / 2; break;
++        default:
++          mx0 = viewX; my0 = viewY; mx1 = viewX + viewWidth; my1 = viewY + viewHeight / 2; break;
++        }
++      }
++      sMainRectPx[0] = mx0; sMainRectPx[1] = my0; sMainRectPx[2] = mx1; sMainRectPx[3] = my1;
++      SIM_Layout_SetMainRect(mvis && mx1 > mx0 && my1 > my0,
++          windowWidth > 0 ? (float)mx0 / (float)windowWidth : 0.0f,
++          windowHeight > 0 ? (float)my0 / (float)windowHeight : 0.0f,
++          windowWidth > 0 ? (float)(mx1 - mx0) / (float)windowWidth : 0.0f,
++          windowHeight > 0 ? (float)(my1 - my0) / (float)windowHeight : 0.0f);
++    }
++
      // Check Joysticks
 -    if (s_SIM_SDLJoystick == NULL && SDL_NumJoysticks() >= 1) {
 -      s_SIM_SDLJoystick = SDL_JoystickOpen(0);
@@ -32653,7 +32759,7 @@ index 910d7da..e08dbad 100644
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT & 0b1111111111111110;
          } else if (keyRead == s_SIM_config.padSettings.bKey) {
-@@ -1136,15 +1574,15 @@ void *SIM_Render(void *arg) {
+@@ -1136,15 +1613,15 @@ void *SIM_Render(void *arg) {
              s_SIM_config.vsyncInterval = 1; // Every V-Blank
            }
  
@@ -32673,7 +32779,7 @@ index 910d7da..e08dbad 100644
          if (keyRead == s_SIM_config.padSettings.aKey) {
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000001;
-@@ -1185,16 +1623,16 @@ void *SIM_Render(void *arg) {
+@@ -1185,16 +1662,16 @@ void *SIM_Render(void *arg) {
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000100;
          } else if(keyRead == s_SIM_config.padSettings.frameCapKey) {
            sFastForward = false;
@@ -32694,7 +32800,7 @@ index 910d7da..e08dbad 100644
          if (Event.jhat.value == SDL_HAT_CENTERED) {
            // send keyUp event for all hats
            HandleJoystickKeyUp(SIM_CONFIG_JOY_HAT_MASK | SDL_HAT_UP);
-@@ -1224,7 +1662,7 @@ void *SIM_Render(void *arg) {
+@@ -1224,7 +1701,7 @@ void *SIM_Render(void *arg) {
            }
          }
        }
@@ -32703,7 +32809,7 @@ index 910d7da..e08dbad 100644
          if (Event.jaxis.value > s_SIM_config.padSettings.joyAxisDeadzone ||
              Event.jaxis.value <
                  (s_SIM_config.padSettings.joyAxisDeadzone * -1)) {
-@@ -1245,12 +1683,20 @@ void *SIM_Render(void *arg) {
+@@ -1245,12 +1722,29 @@ void *SIM_Render(void *arg) {
                                SIM_CONFIG_JOY_AXIS_MINUS_MASK);
          }
        }
@@ -32717,6 +32823,15 @@ index 910d7da..e08dbad 100644
 +            (int)Event.button.y >= sTabIconRect[1] && (int)Event.button.y <= sTabIconRect[3]) {
 +          SIM_Layout_SetPanelOpen(1);
 +        }
++        // battlehud hook: opt-in main-screen click routing.
++        if (SIM_Layout_MainTouchEnabled() &&
++            (int)Event.button.x >= sMainRectPx[0] && (int)Event.button.x <= sMainRectPx[2] &&
++            (int)Event.button.y >= sMainRectPx[1] && (int)Event.button.y <= sMainRectPx[3] &&
++            sMainRectPx[2] > sMainRectPx[0] && sMainRectPx[3] > sMainRectPx[1]) {
++          SIM_Layout_PushMainTouch(
++              map((int)Event.button.x, sMainRectPx[0], sMainRectPx[2], 0, SIM_NDS_SCREEN_WIDTH),
++              map((int)Event.button.y, sMainRectPx[1], sMainRectPx[3], 0, SIM_NDS_SCREEN_HEIGHT));
++        }
          isMouseDown = 1;
          s_tpData.validity = 0;
          s_tpData.touch = 1;
@@ -32726,7 +32841,7 @@ index 910d7da..e08dbad 100644
          isMouseDown = 0;
          s_tpData.validity = 0;
          s_tpData.touch = 0;
-@@ -1258,10 +1704,17 @@ void *SIM_Render(void *arg) {
+@@ -1258,10 +1752,17 @@ void *SIM_Render(void *arg) {
      }
      s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT;
  
@@ -32746,7 +32861,7 @@ index 910d7da..e08dbad 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1297,12 +1750,55 @@ void *SIM_Render(void *arg) {
+@@ -1297,12 +1798,55 @@ void *SIM_Render(void *arg) {
      memset(bg3stex, 0,
             sizeof(u8) * 4 * SIM_NDS_SCREEN_WIDTH * SIM_NDS_SCREEN_HEIGHT * 2);
  
@@ -32755,7 +32870,8 @@ index 910d7da..e08dbad 100644
 +    // hiresui fix: apply any pending 2D-upscale filter change here, before
 +    // the engines set up their texture bindings for this frame.
 +    HiRes_ApplyUpscaleFilter(HiRes_EffectiveUpscale2D());
-+
+ 
+-    // SUB engine
 +    // Draw MAIN engine. In VRAM display mode the main screen shows a
 +    // captured VRAM bank instead of the BG/OBJ layers; a pending capture
 +    // still takes the (undisplayed) engine output as source A first.
@@ -32766,8 +32882,7 @@ index 910d7da..e08dbad 100644
 +      DrawEngine(FALSE);
 +      if (s_reg_GX_DISPCAPCNT & 0x80000000u) CaptureFrame();
 +    }
- 
--    // SUB engine
++
 +    // SUB engine. DrawEngine decides the wide role (full-width top
 +    // engine vs. panel) and skips a closed panel itself.
      DrawEngine(TRUE);
@@ -32805,7 +32920,7 @@ index 910d7da..e08dbad 100644
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1328,19 +1824,30 @@ void *SIM_Render(void *arg) {
+@@ -1328,19 +1872,30 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -32846,7 +32961,7 @@ index 910d7da..e08dbad 100644
  
      if(sChangeInternalResAfterRender) {
        SIM_SetInternalResolution(sPendingInternalRes);
-@@ -1359,45 +1866,40 @@ void *SIM_Render(void *arg) {
+@@ -1359,45 +1914,40 @@ void *SIM_Render(void *arg) {
  #endif
  
      s_numG3CommandsThisFrame = 0;
@@ -32915,7 +33030,7 @@ index 910d7da..e08dbad 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1407,17 +1909,16 @@ u64 SIM_GetFullFrameTime() {
+@@ -1407,17 +1957,16 @@ u64 SIM_GetFullFrameTime() {
    return sFullFrameTime;
  }
  
@@ -32936,7 +33051,7 @@ index 910d7da..e08dbad 100644
  }
  
  const char * SIM_GetLibntrGitHash() {
-@@ -1465,6 +1966,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +2014,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -32945,7 +33060,7 @@ index 910d7da..e08dbad 100644
    // Start up debug system
    SIM_Dbg_Init();
  
-@@ -1537,8 +2040,6 @@ int main(int argc, char *argv[]) {
+@@ -1537,8 +2088,6 @@ int main(int argc, char *argv[]) {
    SIM::G3::GetGlobalState().Init();
  
    SIM_RenderInit(NULL);
