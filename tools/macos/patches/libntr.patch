@@ -15851,7 +15851,7 @@ index 0000000..6f15546
 +}
 diff --git a/libraries/sim/src/render_gpu/fx_texpack.cpp b/libraries/sim/src/render_gpu/fx_texpack.cpp
 new file mode 100644
-index 0000000..2becad3
+index 0000000..fe7fcee
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_texpack.cpp
 @@ -0,0 +1,286 @@
@@ -15917,15 +15917,15 @@ index 0000000..2becad3
 +}
 +
 +// Feature switch (brief rule): ON by default in the app, OFF under
-+// SIM_HEADLESS unless SIM_FX_TEXPACK=1 (dump: SIM_FX_TEXPACK_DUMP=1),
++// SIM_HEADLESS unless SIM_FX_TEXPACK=1 (dump: off by default everywhere; SIM_FX_TEXPACK_DUMP=1 or TexturePackDump=true),
 +// so existing goldens stay byte-identical. Env beats the ini file.
-+bool SwitchOn(const char *envName, const char *iniKey) {
++bool SwitchOn(const char *envName, const char *iniKey, bool appDefault = true) {
 +  if (EnvIs(envName, "0")) return false;
 +  if (std::getenv("SIM_HEADLESS") && !EnvIs(envName, "1")) return false;
 +  if (EnvIs(envName, "1")) return true;
 +  int ini = IniFlag(iniKey);
 +  if (ini >= 0) return ini != 0;
-+  return true; // app default
++  return appDefault; // app default (dump is opt-in: it writes files)
 +}
 +
 +struct Config {
@@ -15989,7 +15989,7 @@ index 0000000..2becad3
 +const Config &Cfg() {
 +  if (!gCfg.dirProbed) {
 +    gCfg.enabled = SwitchOn("SIM_FX_TEXPACK", "TexturePack");
-+    gCfg.dump = SwitchOn("SIM_FX_TEXPACK_DUMP", "TexturePackDump");
++    gCfg.dump = SwitchOn("SIM_FX_TEXPACK_DUMP", "TexturePackDump", false);
 +    gCfg.dir = ProbeDir();
 +    gCfg.dirProbed = true;
 +    if ((gCfg.enabled || gCfg.dump) && !gCfg.dir.empty())
