@@ -16143,16 +16143,17 @@ index 0000000..2becad3
 +} // namespace SIM::Render::TexPack
 diff --git a/libraries/sim/src/render_gpu/fx_weather.cpp b/libraries/sim/src/render_gpu/fx_weather.cpp
 new file mode 100644
-index 0000000..b6697b7
+index 0000000..00afa0b
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_weather.cpp
-@@ -0,0 +1,115 @@
+@@ -0,0 +1,120 @@
 +// fx_weather lane: weather state (game-facing C API) plus the two GPU
 +// post passes (weather, water). GPU backend only; nothing here runs
 +// under Renderer=gl, and both passes are skipped when disabled so the
 +// default frame stays byte-identical.
 +#include "fx_weather.hpp"
 +#include <simulator/sim_weather.h>
++#include <simulator/sim_layout.h>
 +#include "generated/post.vert.h"
 +#include "generated/fx_weather.frag.h"
 +#include "generated/fx_water.frag.h"
@@ -16187,6 +16188,10 @@ index 0000000..b6697b7
 +// Headless gate (brief): features are off under SIM_HEADLESS unless the
 +// scenario opts in with SIM_FX_WEATHER=1 / SIM_FX_WATER=1 (or forces a
 +// kind with SIM_FX_WEATHER_KIND), so existing goldens stay identical.
++// Field-only gate: both passes are strict no-ops outside the field
++// scene (title, battles, menus), however they were enabled. The game
++// sets the scene through the wide-layout scene API at app transitions.
++bool InFieldScene() { return SIM_Layout_GetScene() == SIM_LAYOUT_SCENE_FIELD; }
 +bool HeadlessBlocked(const char *fxEnv) {
 +  return std::getenv("SIM_HEADLESS") && !EnvOn(fxEnv) &&
 +         !std::getenv("SIM_FX_WEATHER_KIND");
@@ -16233,7 +16238,7 @@ index 0000000..b6697b7
 +    inten = 0.8f;
 +    if (const char *i = std::getenv("SIM_FX_WEATHER_INTENSITY")) inten = (float)std::atof(i);
 +  }
-+  if (kind <= 0 || inten <= 0.001f || HeadlessBlocked("SIM_FX_WEATHER")) return false;
++  if (kind <= 0 || inten <= 0.001f || HeadlessBlocked("SIM_FX_WEATHER") || !InFieldScene()) return false;
 +  mFrame++;
 +  // Lightning: deterministic frame-hash pulses (same seed -> same frame,
 +  // like the PostFX shake), a double-blink every ~7 seconds at 60 fps.
@@ -16253,7 +16258,7 @@ index 0000000..b6697b7
 +                  SDL_GPUTexture *dst, SDL_GPUTextureFormat fmt,
 +                  std::uint32_t w, std::uint32_t h, int wideMode) {
 +  int on = gWater || EnvOn("SIM_FX_WATER");
-+  if (!on || HeadlessBlocked("SIM_FX_WATER")) return false;
++  if (!on || HeadlessBlocked("SIM_FX_WATER") || !InFieldScene()) return false;
 +  mFrame++;
 +  FxUniforms u{};
 +  u.texel[0] = w ? 1.0f / (float)w : 0; u.texel[1] = h ? 1.0f / (float)h : 0;
