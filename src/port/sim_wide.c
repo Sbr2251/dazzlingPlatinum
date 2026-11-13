@@ -20,6 +20,8 @@ extern void SIM_Layout_SetScene(int scene) __attribute__((weak));
 extern void SIM_Layout_SetBattleTouchNeeded(int needsTouch) __attribute__((weak));
 extern int SIM_Layout_IsWide(void) __attribute__((weak));
 extern float SIM_Layout_GetWideAspect(void) __attribute__((weak));
+extern void SIM_Layout_SetMainTouchEnabled(int enabled) __attribute__((weak));
+extern int SIM_Layout_GetMainTouch(int *x, int *y) __attribute__((weak));
 
 static int sLastScene = -1;
 static int sLastTouchNeeded = -1;
@@ -94,4 +96,20 @@ fx32 SIM_Wide_AspectRatio(void)
     }
 
     return FX32_ONE * 16 / 9;
+}
+
+// battlehud hook: main-touch facade (no-ops until libntr provides them).
+void SIM_Wide_SetMainTouchEnabled(int enabled)
+{
+    if (SIM_Layout_SetMainTouchEnabled != NULL) {
+        SIM_Layout_SetMainTouchEnabled(enabled);
+    }
+}
+
+int SIM_Wide_PollMainTouch(int *x, int *y)
+{
+    if (SIM_Layout_GetMainTouch != NULL) {
+        return SIM_Layout_GetMainTouch(x, y);
+    }
+    return 0;
 }

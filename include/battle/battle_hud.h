@@ -31,15 +31,15 @@ extern "C" {
 BOOL BattleHud_IsEnabled(void);
 
 // Call every frame a battle menu is up (from BattleSystem_MenuInput).
-void BattleHud_Update(BattleSubscreen *btlSubscreen);
+// Returns a touch-array button index when a main-screen click confirms
+// a button, else -1.
+int BattleHud_Update(BattleSubscreen *btlSubscreen);
 // Call when the subscreen returns to the idle menu (config 0) / battle end.
 void BattleHud_Hide(BattleSubscreen *btlSubscreen);
 
-// Top-screen click support: HUD hit rects in main-screen pixels
-// (256x192 classic; in wide the main 2D area is centred, the simulator
-// maps window clicks into this space before calling). Returns the menu
-// button index the click selects, or -1. Confirming still goes through
-// the normal A-button path once the cursor is placed; see STATUS file.
+// Main-screen click hit test (DS coords): returns the touch-array
+// button index for a click at (x, y), or -1. Clicks are routed by the
+// simulator only while the HUD has opted in (SIM_Layout main touch).
 int BattleHud_TopTouchButton(BattleSubscreen *btlSubscreen, int x, int y);
 
 #ifdef __cplusplus

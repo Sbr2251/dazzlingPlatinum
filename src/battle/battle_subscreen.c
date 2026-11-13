@@ -1396,7 +1396,7 @@ int BattleSystem_MenuInput(BattleSubscreen *btlSubscreen)
     int isKeyInput = 0;
     GF_ASSERT(btlSubscreen->activeMenuConfigIndex != -1);
 
-    BattleHud_Update(btlSubscreen); // battlehud hook
+    int hudButton = BattleHud_Update(btlSubscreen); // battlehud hook
     const BattleMenuConfig *battleMenuConfig = &sBattleMenuConfigs[btlSubscreen->activeMenuConfigIndex];
 
     if (!battleMenuConfig->touchScreenRects || btlSubscreen->isPanelSliding == TRUE) {
@@ -1407,7 +1407,9 @@ int BattleSystem_MenuInput(BattleSubscreen *btlSubscreen)
 
     int buttonResult, buttonIndex, buttonSlot;
 
-    if (BattleSystem_GetBattleType(btlSubscreen->battleSys) & BATTLE_TYPE_CATCH_TUTORIAL) {
+    if (hudButton >= 0) { // battlehud hook: main-screen click confirms
+        buttonIndex = hudButton;
+    } else if (BattleSystem_GetBattleType(btlSubscreen->battleSys) & BATTLE_TYPE_CATCH_TUTORIAL) {
         buttonIndex = GetCatchTutorialInput(btlSubscreen);
     } else {
         buttonIndex = TouchScreen_CheckRectanglePressed(battleMenuConfig->touchScreenRects);

@@ -40,6 +40,10 @@ void SIM_Wide_SetBattleTouchNeeded(int needsTouch);
 // (camera aspect, cinematic retune) on this; FALSE = exactly as today.
 BOOL SIM_Wide_IsWideLayout(void);
 
+// battlehud hook: opt-in main-screen click routing (sim_layout.h).
+void SIM_Wide_SetMainTouchEnabled(int enabled);
+int SIM_Wide_PollMainTouch(int *x, int *y);
+
 // Aspect ratio for game cameras: the wide aspect (16/9) when the wide
 // layout is in effect, else the classic 4/3.
 fx32 SIM_Wide_AspectRatio(void);

@@ -1,0 +1,118 @@
+{
+ "name": "visual_battlehud_mega",
+ "_note": "Battle HUD (top screen): Mega-capable Infernape move select with MEGA strip (SIM_FX_BATTLEHUD=1). L toggles Mega.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/mega_infernape_vs_garchomp.json"
+   }
+  },
+  {
+   "wait_until": {
+    "path": "battle.waiting",
+    "op": "eq",
+    "value": true
+   },
+   "timeout_frames": 7200
+  },
+  {
+   "step": 300
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 150
+  },
+  {
+   "press": "A",
+   "frames": 10
+  },
+  {
+   "step": 180
+  },
+  {
+   "screenshot": "visual_battlehud_mega",
+   "reference": "../references/visual/visual_battlehud_mega.bmp",
+   "tolerance": 0.01,
+   "crop": [
+    0,
+    0,
+    512,
+    384
+   ]
+  }
+ ],
+ "env": {
+  "SIM_FX_BATTLEHUD": "1"
+ }
+}

@@ -30,6 +30,7 @@
 #include "battle/battle_io_command.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_main.h"
+#include "port/sim_wide.h" // battlehud hook: wide scene for battle sub-menus
 #ifdef SDK_PORT
 #include "port/headless_game.h"
 #endif
@@ -315,6 +316,7 @@ BOOL Battle_Main(ApplicationManager *appMan, int *state)
 
 void BattleSystem_EnterSubMenu(BattleSystem *battleSys)
 {
+    SIM_Wide_SetScene(SIM_WIDE_SCENE_MENU); // battlehud hook (widegame note)
     BattleSubscreen_Free(battleSys->btlSubscreen);
     BattleSubscreenBg_Free(battleSys->bgConfig);
 
@@ -350,6 +352,7 @@ void BattleSystem_FreeGraphics(BattleSystem *battleSys)
 
 void BattleSystem_ExitSubMenu(BattleSystem *battleSys)
 {
+    SIM_Wide_SetScene(SIM_WIDE_SCENE_BATTLE); // battlehud hook (widegame note)
     Overlay_UnloadByID(FS_OVERLAY_ID(battle_sub_menus));
 
     if (battleSys->overlayFlags == FALSE) {
