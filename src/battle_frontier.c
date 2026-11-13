@@ -17,8 +17,12 @@
 #include "overlay104/struct_ov104_0223D3B0_sub1.h"
 #include "overlay104/struct_ov104_0223D8F0.h"
 
+#include "constdata/const_020EA358.h"
 #include "field_system.h"
 #include "game_overlay.h"
+#ifdef SDK_PORT
+#include "port/sim_wide.h"
+#endif
 #include "heap.h"
 #include "overlay_manager.h"
 #include "save_player.h"
@@ -141,6 +145,10 @@ int BattleFrontier_Main(ApplicationManager *appMan, int *state)
             frontier->appMan = NULL;
             frontier->finishCallback = NULL;
             frontier->appArgs = NULL;
+#ifdef SDK_PORT
+            // Wide layout: back to the frontier (a MENU app).
+            SIM_Wide_SetScene(SIM_WIDE_SCENE_MENU);
+#endif
 
             InitFrontierGraphics(frontier);
             ov104_0223C688(frontier->graphics);
@@ -249,6 +257,12 @@ void BattleFrontier_SetFacilityStruct(BattleFrontier *frontier, void *facilityDa
 void BattleFrontier_RunSubApp(BattleFrontier *frontier, const ApplicationManagerTemplate *appTemplate, void *appArgs, BOOL freeArgsAfter, BattleFrontierSubAppCallback finishCallback)
 {
     GF_ASSERT(frontier->appMan == NULL);
+#ifdef SDK_PORT
+    // Wide layout (wide-OUT/API.md): frontier sub-apps are battles or
+    // both-screens menu apps; the frontier itself is a MENU child of the
+    // field, restored in BattleFrontier_Main when the sub-app ends.
+    SIM_Wide_SetScene(appTemplate == &gBattleApplicationTemplate ? SIM_WIDE_SCENE_BATTLE : SIM_WIDE_SCENE_MENU);
+#endif
     frontier->appMan = ApplicationManager_New(appTemplate, appArgs, HEAP_ID_FIELD2);
     frontier->appArgs = appArgs;
     frontier->freeArgsAfter = freeArgsAfter;

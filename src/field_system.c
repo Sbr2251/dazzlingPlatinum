@@ -41,6 +41,9 @@
 
 #ifdef SDK_PORT
 #include "port/debug_field.h"
+#include "port/sim_wide.h"
+
+#include "constdata/const_020EA358.h"
 #endif
 
 FS_EXTERN_OVERLAY(overlay5);
@@ -119,6 +122,10 @@ void FieldSystem_StartFieldMapInner(FieldSystem *fieldSystem)
     fieldSystem->runningFieldMap = FALSE;
     fieldSystem->processManager->pause = FALSE;
     fieldSystem->processManager->parent = ApplicationManager_New(&gFieldMapTemplate, fieldSystem, HEAP_ID_FIELD2);
+#ifdef SDK_PORT
+    // Wide layout (wide-OUT/API.md): the overworld is the FIELD scene.
+    SIM_Wide_SetScene(SIM_WIDE_SCENE_FIELD);
+#endif
 }
 
 void FieldSystem_FlagNotRunningFieldMap(FieldSystem *fieldSystem)
@@ -146,6 +153,13 @@ void FieldSystem_StartChildProcess(FieldSystem *fieldSystem, const ApplicationMa
     GF_ASSERT(fieldSystem->processManager->child == NULL);
     FieldSystem_FlagNotRunningFieldMap(fieldSystem);
     fieldSystem->processManager->child = ApplicationManager_New(appTemplate, appArgs, HEAP_ID_FIELD2);
+#ifdef SDK_PORT
+    // Wide layout (wide-OUT/API.md): every field child process is either
+    // the battle or a full-screen both-screens app (bag, party, Pokedex,
+    // summary, PC, town map, naming, Poketch full apps, options, contests,
+    // frontier, ...). This is the single entry point for all of them.
+    SIM_Wide_SetScene(appTemplate == &gBattleApplicationTemplate ? SIM_WIDE_SCENE_BATTLE : SIM_WIDE_SCENE_MENU);
+#endif
 }
 
 static FieldSystem *InitFieldSystem(ApplicationManager *appMan)
@@ -224,6 +238,13 @@ static BOOL HandleInputsEventsAndProcesses(FieldSystem *fieldSystem)
         }
     } else if (fieldSystem->processManager->child) {
         ExecuteAndCleanupIfDone(&fieldSystem->processManager->child);
+#ifdef SDK_PORT
+        if (fieldSystem->processManager->child == NULL) {
+            // Wide layout (wide-OUT/API.md): a battle or menu app just
+            // ended; the field map restarts underneath, so restore FIELD.
+            SIM_Wide_SetScene(SIM_WIDE_SCENE_FIELD);
+        }
+#endif
     }
 
     // Does not match with return (expression)

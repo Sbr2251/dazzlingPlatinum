@@ -50,6 +50,12 @@
 #include "applications/trainer_case/main.h"
 #include "applications/wifi_earth.h"
 #include "battle/battle_main.h"
+#ifdef SDK_PORT
+#include "battle/battle_controller_player.h"
+#include "battle/battle_system.h"
+#include "port/headless_game.h"
+#include "port/sim_wide.h"
+#endif
 #include "choose_starter/choose_starter_app.h"
 #include "cutscenes/boat_cutscene.h"
 #include "cutscenes/end_credits/main.h"
@@ -222,11 +228,26 @@ static BOOL ApplicationInit_Battle(ApplicationManager *appMan, int *state)
 
 static BOOL ApplicationMain_Battle(ApplicationManager *appMan, int *state)
 {
-    if (Battle_Main(appMan, state)) {
-        return TRUE;
-    }
+    BOOL done = Battle_Main(appMan, state);
 
-    return FALSE;
+#ifdef SDK_PORT
+    // Wide layout (wide-OUT/API.md): tell the simulator while the battle
+    // awaits bottom-screen touch input (command selection), so the
+    // docked panel auto-shows; hidden again for animations/text. The
+    // wrapper forwards only on change. Bag/party opened inside the
+    // battle run under BattleSystem_EnterSubMenu (src/battle, owner's
+    // battle-HUD branch): switch those to MENU there when integrating.
+    {
+        BattleSystem *battleSys = Headless_GetBattleSystem();
+        BattleContext *ctx = battleSys != NULL ? BattleSystem_GetBattleContext(battleSys) : NULL;
+        SIM_Wide_SetBattleTouchNeeded(ctx != NULL && ctx->command == BATTLE_CONTROL_COMMAND_SELECTION_INPUT);
+        if (done) {
+            SIM_Wide_SetBattleTouchNeeded(0);
+        }
+    }
+#endif
+
+    return done;
 }
 
 static BOOL ApplicationExit_Battle(ApplicationManager *appMan, int *state)

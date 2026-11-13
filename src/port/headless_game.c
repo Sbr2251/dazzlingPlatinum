@@ -48,6 +48,7 @@ static BattleSystem *sBattleSys = NULL;
 static int sOverlayId = -1;
 
 void Headless_SetBattleSystem(BattleSystem *battleSys) { sBattleSys = battleSys; }
+BattleSystem *Headless_GetBattleSystem(void) { return sBattleSys; }
 void Headless_SetOverlay(int overlayId) { sOverlayId = overlayId; }
 
 // Injected press for `talk`: the control layer takes it after our reply.

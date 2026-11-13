@@ -30,6 +30,9 @@
 #include "wifi_overlays.h"
 
 #include "constdata/const_020EA358.h"
+#ifdef SDK_PORT
+#include "port/sim_wide.h"
+#endif
 #include "constdata/const_020F2FCC.h"
 #include "constdata/const_020F3050.h"
 #include "constdata/const_020F3060.h"
@@ -294,6 +297,12 @@ static BOOL sub_0208BC8C(UnkStruct_0208BC3C *param0, enum HeapID heapID)
             Sound_SetSceneAndPlayBGM(SOUND_SCENE_BATTLE, BATTLE_TRAINER_sseq, 1);
         }
     }
+#ifdef SDK_PORT
+        // Wide layout (wide-OUT/API.md): recorded-battle playback runs
+        // the battle app outside the field; the enclosing app's scene is
+        // set again by main.c when this app finishes.
+        SIM_Wide_SetScene(SIM_WIDE_SCENE_BATTLE);
+#endif
         param0->appMan = ApplicationManager_New(&gBattleApplicationTemplate, param0->unk_10, heapID);
         param0->unk_00++;
         break;

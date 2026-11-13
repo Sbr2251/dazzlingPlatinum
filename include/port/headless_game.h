@@ -11,6 +11,7 @@ extern "C" {
 
 struct BattleSystem;
 void Headless_SetBattleSystem(struct BattleSystem *battleSys);
+struct BattleSystem *Headless_GetBattleSystem(void);
 void Headless_SetOverlay(int overlayId);
 
 #ifdef __cplusplus

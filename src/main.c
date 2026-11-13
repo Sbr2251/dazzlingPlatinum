@@ -38,6 +38,10 @@
 #include <stdlib.h>
 #include "port/headless_game.h"
 #include "port/sim_config_prj.h"
+#include "port/sim_wide.h"
+
+#include "constdata/const_020EA10C.h"
+#include "constdata/const_020EA11C.h"
 #include "char_transfer.h"
 #include "pltt_transfer.h"
 #ifdef SDK_BUILD_LINUX
@@ -247,6 +251,13 @@ static void RunApplication(void)
         sApplication.currOverlayID = sApplication.nextOverlayID;
 #ifdef SDK_PORT
         Headless_SetOverlay((int)sApplication.currOverlayID);   // headless protocol state
+#endif
+#ifdef SDK_PORT
+        // Wide layout (wide-OUT/API.md): top-level applications are the
+        // field system (FIELD) or a full-screen both-screens app such as
+        // title / main menu / game start (MENU). Field child processes
+        // (battle, bag, ...) set their own scene in field_system.c.
+        SIM_Wide_SetScene((sApplication.nextApplication == &gFieldSystemNewGameTemplate || sApplication.nextApplication == &gFieldSystemContinueTemplate) ? SIM_WIDE_SCENE_FIELD : SIM_WIDE_SCENE_MENU);
 #endif
         sApplication.currApplication = ApplicationManager_New(sApplication.nextApplication, &sApplication.args, HEAP_ID_SYSTEM);
         sApplication.nextOverlayID = FS_OVERLAY_ID_NONE;
