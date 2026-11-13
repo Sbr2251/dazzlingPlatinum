@@ -715,9 +715,35 @@ def main(argv=None):
                         if client is not None:
                             client.close(); client = None
                 return name, ok_all, "; ".join(msgs)
+            # Plain run: the effective backend is the game's default
+            # (gpu) unless the scenario, the environment, or (on Linux)
+            # the runner's gl pin overrides it; use tolerance_gpu when
+            # the effective backend is gpu, so a plain suite on the Mac
+            # (gpu default) passes with the gpu allowances. Env wins
+            # over config in the game, and the runner's Linux gl pin
+            # wins over a scenario config Renderer (it is an env var).
+            use_gpu_tol = False
+            try:
+                with open(p, encoding="utf-8") as f:
+                    sc0 = json.load(f)
+            except Exception:
+                sc0 = {}
+            scen_env0 = sc0.get("env") or {}
+            scen_cfg0 = sc0.get("config") or {}
+            if scen_env0.get("SIM_RENDERER"):
+                use_gpu_tol = scen_env0["SIM_RENDERER"] == "gpu"
+            elif os.environ.get("SIM_RENDERER"):
+                use_gpu_tol = os.environ["SIM_RENDERER"] == "gpu"
+            elif sys.platform.startswith("linux"):
+                use_gpu_tol = False  # runner pins SIM_RENDERER=gl on Linux
+            elif scen_cfg0.get("Renderer"):
+                use_gpu_tol = scen_cfg0["Renderer"] == "gpu"
+            else:
+                use_gpu_tol = True  # game default is gpu
             name, ok, msg, client = run_scenario(p, game, record=args.record,
                                                  timeout=args.timeout, work_root=work_root, mock=args.mock,
-                                                 update=args.update)
+                                                 update=args.update,
+                                                 use_gpu_tolerance=use_gpu_tol)
             return name, ok, msg
         finally:
             if client is not None:
