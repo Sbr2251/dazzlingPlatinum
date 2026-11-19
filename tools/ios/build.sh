@@ -46,7 +46,9 @@ sed -e "s|@IOS_SDK_PATH@|$SDK_PATH|g" -e "s|@IOS_DEPS_PREFIX@|$DEPS|g" -e "s|@IO
 
 python3 tools/scripts/lsfgen.py platinum.us/main.lsf.in --prefix-dir main.nef.p/ --dest-lsf platinum.us/main.lsf --dest-c src/meson.build
 if [ ! -f "$BUILD/build.ninja" ]; then
-  $MESON setup -Dbuild_target=ios -Dbuild_variant=dev \
+  # meson does not inherit PKG_CONFIG_PATH for the build machine; pass it through
+  [ -n "${PKG_CONFIG_PATH:-}" ] && EXTRA_OPTS="-Dpkg_config_path=$PKG_CONFIG_PATH" || EXTRA_OPTS=""
+  $MESON setup -Dbuild_target=ios -Dbuild_variant=dev $EXTRA_OPTS \
     --native-file=meson/native_ios_host.ini --native-file="$BUILD/root.ini" \
     --cross-file="$BUILD/cross_ios.ini" --cross-file="$BUILD/root.ini" -- "$BUILD"
 fi
