@@ -293,7 +293,7 @@ class GameClient:
         # and core_wild_catch identically on gl and gpu). Scale the reply
         # timeout with frames, capped; a truly hung game is still caught by
         # the game-side watchdog, which closes stdout.
-        if obj.get("cmd") in ("step", "press", "touch") and obj.get("frames"):
+        if obj.get("cmd") in ("step", "press", "touch", "finger") and obj.get("frames"):
             timeout = max(timeout, min(1200, obj["frames"] / 10 + 120))
         self.proc.stdin.write(json.dumps(obj) + "\n")
         self.proc.stdin.flush()
@@ -476,6 +476,9 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                 elif "touch" in step:
                     x, y = step["touch"]
                     client.cmd({"cmd": "touch", "x": x, "y": y, "frames": step.get("frames", 1)})
+                elif "finger" in step:  # ios-controls hook: window-normalised finger through overlay/DS routing
+                    x, y = step["finger"]
+                    client.cmd({"cmd": "finger", "x": x, "y": y, "frames": step.get("frames", 1)})
                 elif "talk" in step:
                     req = {"cmd": "talk"}
                     req.update(step["talk"] if isinstance(step["talk"], dict) else {"localid": step["talk"]})

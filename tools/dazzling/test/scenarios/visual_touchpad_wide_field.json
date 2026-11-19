@@ -1,0 +1,55 @@
+{
+ "name": "visual_touchpad_wide_field",
+ "_note": "ios-controls: wide FIELD overlay, finger presses A.",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+ },
+ "env": {
+  "SIM_TOUCHPAD": "1",
+  "SIM_RENDERER": "gpu"
+ },
+ "config": {
+  "ScreenLayout": "wide"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 240
+  },
+  {
+   "finger": [
+    0.95,
+    0.84
+   ],
+   "frames": 10
+  },
+  {
+   "step": 30
+  },
+  {
+   "screenshot": "visual_touchpad_wide_field",
+   "reference": "../references/visual/visual_touchpad_wide_field.bmp",
+   "tolerance": 0.0,
+   "tolerance_gpu": 0.0005
+  }
+ ],
+ "assertions": [
+  {
+   "player.map": "MAP_HEADER_JUBILIFE_CITY"
+  }
+ ]
+}

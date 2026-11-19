@@ -81,6 +81,8 @@ class Fake:
             self.step(req.get("frames", 1), req.get("keys", [])); return {"ok": True}, False
         if cmd == "touch":
             self.step(req.get("frames", 1)); return {"ok": True}, False
+        if cmd == "finger":
+            self.step(req.get("frames", 1)); return {"ok": True}, False
         if cmd == "screenshot":
             write_bmp(req["path"], 16, 16, self.frame % 251)
             return {"ok": True}, False

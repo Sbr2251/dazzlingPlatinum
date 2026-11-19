@@ -905,7 +905,7 @@ index 7c77d5e..6a7a915 100644
  #else
  typedef signed long s32;
 diff --git a/include/simulator/config/sim_config.h b/include/simulator/config/sim_config.h
-index ce31436..090476d 100644
+index ce31436..49553f0 100644
 --- a/include/simulator/config/sim_config.h
 +++ b/include/simulator/config/sim_config.h
 @@ -6,9 +6,15 @@
@@ -939,6 +939,14 @@ index ce31436..090476d 100644
      u32 windowWidth; /* Initial width of the window. If set to 0, will use the default width for the screen layout */
      u32 windowHeight; /* Initial height of the window. If set to 0, will use default height for the screen layout */
      u8 fullScreen; /* TRUE to enable fullscreen */
+@@ -61,6 +72,7 @@ typedef struct {
+     BOOL swapScreens; /* Swap screen positions */
+     u8 vsyncInterval; /* Vertical sync interval. Set to 0 to disable vsync, 1 every vblank, 2 every second vblank etc*/
+     u8 capFrameRate; /* Should the frame rate be capped to 60 fps? */
++    u8 touchControls; /* ios-controls hook: 0=auto (iOS on, desktop off), 1=on, 2=off; SIM_TOUCHPAD env wins */
+     u8 macAddr[6]; /* MAC address */
+     SIM_config_pad_settings_type padSettings; /* Input pad settings */
+     NVRAMConfig osNvramConfig; /* OS NVRAM config */
 diff --git a/include/simulator/fx_texpack.hpp b/include/simulator/fx_texpack.hpp
 new file mode 100644
 index 0000000..f6bb456
@@ -2916,10 +2924,10 @@ index 0000000..ed3801a
 +#endif
 diff --git a/include/simulator/sim_render_backend.hpp b/include/simulator/sim_render_backend.hpp
 new file mode 100644
-index 0000000..946374a
+index 0000000..9495915
 --- /dev/null
 +++ b/include/simulator/sim_render_backend.hpp
-@@ -0,0 +1,572 @@
+@@ -0,0 +1,576 @@
 +#ifndef LIBNTR_SIM_RENDER_BACKEND_HPP
 +#define LIBNTR_SIM_RENDER_BACKEND_HPP
 +
@@ -3429,6 +3437,10 @@ index 0000000..946374a
 +  virtual void CompositeEngine(const G2CompositeInput &input) = 0;
 +  // Hi-res text overlay pass (no-op when the input has no pixels).
 +  virtual void DrawHiResOverlay(const HiResOverlayInput &input) = 0;
++  // ios-controls hook: on-screen gamepad, drawn after RenderPost onto the
++  // present target (GPU) / default framebuffer (GL). Default: not drawn.
++  struct TouchpadOverlayInput { const u8 *rgba8; int width; int height; bool dirty; };
++  virtual void DrawTouchpadOverlay(const TouchpadOverlayInput &input) { (void)input; }
 +  // Post pass: draws the composite image to the window with PostFX.
 +  virtual void RenderPost(const PostFXParams &params) = 0;
 +  // Applies the 2D upscale sampling mode to the layer textures.
@@ -5803,7 +5815,7 @@ index d7a921e..c5c0f38 100644
          '-DSIM_IMGUI_FILE_DIALOG_SUPPORT=1'
      ]
 diff --git a/libraries/sim/src/config/sim_config.c b/libraries/sim/src/config/sim_config.c
-index 096e7fb..97a8631 100644
+index 096e7fb..57f305b 100644
 --- a/libraries/sim/src/config/sim_config.c
 +++ b/libraries/sim/src/config/sim_config.c
 @@ -1,20 +1,21 @@
@@ -5869,7 +5881,19 @@ index 096e7fb..97a8631 100644
      if(MATCH("General", "SwapScreens")) {
          config->swapScreens = StringToBool(value);
      }
-@@ -312,6 +334,9 @@ static const char * ScreenLayoutTypeToString(SIM_config_screen_layout_type layou
+@@ -63,6 +85,11 @@ static int IniHandler(void* user, const char* section, const char* name,
+     if(MATCH("General", "CapFrameRate")) {
+         config->capFrameRate = StringToBool(value);
+     }
++    if(MATCH("General", "TouchControls")) { /* ios-controls hook */
++        if(strcmp(value, "on") == 0) config->touchControls = 1;
++        else if(strcmp(value, "off") == 0) config->touchControls = 2;
++        else config->touchControls = 0;
++    }
+ 
+     if(MATCH("General", "MacAddr")) {
+         char * pos = value;
+@@ -312,6 +339,9 @@ static const char * ScreenLayoutTypeToString(SIM_config_screen_layout_type layou
          case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
              ret = "large";
              break;
@@ -5879,7 +5903,7 @@ index 096e7fb..97a8631 100644
      }
      return ret;
  }
-@@ -326,6 +351,8 @@ static SIM_config_screen_layout_type StringToScreenLayoutType(const char * str)
+@@ -326,6 +356,8 @@ static SIM_config_screen_layout_type StringToScreenLayoutType(const char * str)
          ret = SIM_CONFIG_SCREEN_LAYOUT_HORIZONTAL;
      } else if (strcmp(str, "large") == 0) {
          ret = SIM_CONFIG_SCREEN_LAYOUT_LARGE;
@@ -5888,7 +5912,7 @@ index 096e7fb..97a8631 100644
      }
      
      return ret;
-@@ -348,11 +375,14 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -348,31 +380,35 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->windowWidth = 1920;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_LARGE;
  #else
@@ -5904,7 +5928,8 @@ index 096e7fb..97a8631 100644
      aConfig->fullScreen = FALSE;
      aConfig->swapScreens = FALSE;
      aConfig->vsyncInterval = 1;
-@@ -360,19 +390,19 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+     aConfig->capFrameRate = TRUE;
++    aConfig->touchControls = 0;
      aConfig->masterVolume = 127;
  
      aConfig->padSettings.joyAxisDeadzone = 32767 / 4;
@@ -5931,7 +5956,7 @@ index 096e7fb..97a8631 100644
      aConfig->padSettings.frameCapToggleKey = SDLK_TAB;
      aConfig->padSettings.frameCapKey = SDLK_SPACE;
      aConfig->padSettings.aJoyKey = 0;
-@@ -410,7 +440,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -410,7 +446,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->macAddr[5] = rand();
  
      memset(&aConfig->osNvramConfig, 0, sizeof(NVRAMConfig));
@@ -5941,7 +5966,7 @@ index 096e7fb..97a8631 100644
      aConfig->osNvramConfig.ncd.option.input_nickname = TRUE;
      aConfig->osNvramConfig.ncd.option.input_favoriteColor = TRUE;
      aConfig->osNvramConfig.ncd.option.input_language = TRUE;
-@@ -427,7 +458,9 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
+@@ -427,7 +464,9 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
      FILE * configFile = fopen(SIM_CONFIG_FILE_PATH, "w");
      
      fprintf(configFile, "[General]\n");
@@ -5951,6 +5976,14 @@ index 096e7fb..97a8631 100644
      fprintf(configFile, "WindowHeight=%d\n", aConfig->windowHeight);
      fprintf(configFile, "WindowWidth=%d\n", aConfig->windowWidth);
      fprintf(configFile, "FullScreen=%s\n", BoolToString(aConfig->fullScreen));
+@@ -438,6 +477,7 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
+     fprintf(configFile, "SwapScreens=%s\n", BoolToString(aConfig->swapScreens));
+     fprintf(configFile, "VsyncInterval=%d\n", aConfig->vsyncInterval);
+     fprintf(configFile, "CapFrameRate=%s\n", BoolToString(aConfig->capFrameRate));
++    fprintf(configFile, "TouchControls=%s\n", aConfig->touchControls == 1 ? "on" : aConfig->touchControls == 2 ? "off" : "auto");
+     fprintf(configFile, "MacAddr=%02x%02x%02x%02x%02x%02x\n", aConfig->macAddr[0],
+                                                               aConfig->macAddr[1],
+                                                               aConfig->macAddr[2],
 diff --git a/libraries/sim/src/g3_draw.cpp b/libraries/sim/src/g3_draw.cpp
 deleted file mode 100644
 index 0e5b64f..0000000
@@ -14469,7 +14502,7 @@ index 0000000..f1c4cec
 +
 +#endif // #ifndef IMGUI_DISABLE
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..b443712 100644
+index 2d852bf..2deac56 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -8,7 +8,8 @@ libsim_srcs = files(
@@ -14505,7 +14538,7 @@ index 2d852bf..b443712 100644
      'sim_g3_Texture.cpp',
      'sim_g3_TextureCache.cpp',
      'sim_g3_Utilities.cpp',
-@@ -31,7 +41,16 @@ libsim_srcs = files(
+@@ -31,7 +41,17 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
@@ -14519,10 +14552,11 @@ index 2d852bf..b443712 100644
 +    'sim_lights.c',
      'sim_main.cpp',
 +    'sim_platform.cpp',
++    'sim_touchpad.cpp',
      'sim_net.cpp',
      'sim_RenderContextManager.cpp',
      'sim_RomExtractor.cpp',
-@@ -48,6 +67,25 @@ if(build_target == 'prospero')
+@@ -48,6 +68,25 @@ if(build_target == 'prospero')
  libsim_srcs += files('ps5_heap.cpp')
  endif
  
@@ -14871,10 +14905,10 @@ index 0000000..8e615e1
 +#endif
 diff --git a/libraries/sim/src/render_gl/sim_render_gl.cpp b/libraries/sim/src/render_gl/sim_render_gl.cpp
 new file mode 100644
-index 0000000..96407a0
+index 0000000..5f952c6
 --- /dev/null
 +++ b/libraries/sim/src/render_gl/sim_render_gl.cpp
-@@ -0,0 +1,1081 @@
+@@ -0,0 +1,1106 @@
 +// OpenGL render backend: the first SIM::Render::Backend. Every GL call
 +// of the simulator lives in this directory (plus glad and the vendored
 +// ImGui OpenGL backend). The code is the pre-seam renderer, moved here
@@ -15524,6 +15558,30 @@ index 0000000..96407a0
 +    glDrawArrays(GL_TRIANGLES, 0, 6);
 +  }
 +
++  void DrawTouchpadOverlay(const TouchpadOverlayInput &input) override {
++    if (!input.rgba8 || input.width <= 0 || input.height <= 0) return;
++    InitHiRes();
++    if (!mHiResProgram) return;
++    // After RenderPost the default framebuffer holds the final image.
++    glBindFramebuffer(GL_FRAMEBUFFER, 0);
++    glViewport(0, 0, mPostW, mPostH);
++    glUseProgram(mHiResProgram);
++    glActiveTexture(GL_TEXTURE0);
++    if (!mTouchTex) { glGenTextures(1, &mTouchTex); glBindTexture(GL_TEXTURE_2D, mTouchTex); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); }
++    glBindTexture(GL_TEXTURE_2D, mTouchTex);
++    if (mTouchW != input.width || mTouchH != input.height) {
++      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, input.width, input.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, input.rgba8);
++      mTouchW = input.width; mTouchH = input.height;
++    } else if (input.dirty) {
++      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, input.width, input.height, GL_RGBA, GL_UNSIGNED_BYTE, input.rgba8);
++    }
++    glBindVertexArray(mHiResVao);
++    glDisable(GL_DEPTH_TEST);
++    glEnable(GL_BLEND);
++    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
++    glDrawArrays(GL_TRIANGLES, 0, 6);
++  }
++
 +  void RenderPost(const PostFXParams &p) override {
 +    if (!mPostProgram || mPostW <= 0) return;
 +    glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -15907,6 +15965,7 @@ index 0000000..96407a0
 +  // Hi-res text overlay (lazy, as before).
 +  GLuint mHiResProgram = 0, mHiResTex = 0, mHiResVao = 0, mHiResVbo = 0;
 +  bool mHiResInitFailed = false;
++  int mTouchW = 0, mTouchH = 0; GLuint mTouchTex = 0;  // ios-controls hook
 +};
 +
 +// The backend singleton is intentionally leaked (new, never delete):
@@ -27825,10 +27884,10 @@ index 0000000..9d46cd7
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/sim_render_gpu.cpp b/libraries/sim/src/render_gpu/sim_render_gpu.cpp
 new file mode 100644
-index 0000000..d56ccca
+index 0000000..4351ca7
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/sim_render_gpu.cpp
-@@ -0,0 +1,616 @@
+@@ -0,0 +1,654 @@
 +// SDL3 GPU render backend: frame skeleton, post pass, present, readback,
 +// capture, hi-res overlay and ImGui glue. The 3D and 2D layer work lives
 +// in the sibling workstreams; until those draws land, G3 draws are
@@ -27948,6 +28007,7 @@ index 0000000..d56ccca
 +               SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, true, "g3");
 +    mHiRes.Create(mDevice, TextureDesc::Rgba8(1024, 1536, "hires"));
 +    mVram.Create(mDevice, TextureDesc::Rgba8(kLayerW, kLayerH, "vram"));
++    mTouchpad.Create(mDevice, TextureDesc::Rgba8(64, 64, "touchpad"));  // ios-controls hook
 +    mG3Scale = params.internalScale < 1 ? 1 : params.internalScale;
 +    mG3Renderer.Attach(&mDevice, &mG3);
 +    mFxTempA.Create(mDevice, TextureDesc::ColorTarget(mFrameW, mFrameH, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, "fxA")); // fx_weather hook
@@ -28143,6 +28203,30 @@ index 0000000..d56ccca
 +        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
 +        1.0f,  1.0f, 0.0f, 1.0f, 1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
 +        1.0f,  1.0f, 0.0f, 1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
++    };
++    f->DrawStreamed(quad, 6, sizeof(float) * 5);
++  }
++
++  void DrawTouchpadOverlay(const TouchpadOverlayInput &input) override {
++    if (!mInited || !input.rgba8 || input.width <= 0 || input.height <= 0) return;
++    Frame *f = mDevice.CurrentFrame();
++    if (!f) return;
++    if ((int)mTouchpad.Width() != input.width || (int)mTouchpad.Height() != input.height)
++      mTouchpad.Resize(input.width, input.height);
++    if (input.dirty) f->UploadTexture(mTouchpad, input.rgba8);
++    if (f->InPass()) f->EndPass();
++    PassDesc d = PassDesc::Color(mPresent.Handle(), SDL_GPU_LOADOP_LOAD);
++    if (!f->BeginPass(Phase::Overlay, d)) return;
++    mPass = PassKind::Post;
++    SDL_GPUGraphicsPipeline *pipe = TexturedPipelinePresent(sizeof(float) * 5);
++    if (!pipe) return;
++    f->BindPipeline(pipe);
++    f->SetViewport(FullViewport(mPresent.Width(), mPresent.Height()));
++    f->BindFragmentSampler(0, mTouchpad.Handle(), mDevice.Sampler(SamplerKey::Nearest()));
++    static const float quad[] = {
++        -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 1.0f,
++        1.0f,  1.0f, 0.0f, 1.0f, 0.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
++        1.0f,  1.0f, 0.0f, 1.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
 +    };
 +    f->DrawStreamed(quad, 6, sizeof(float) * 5);
 +  }
@@ -28390,6 +28474,18 @@ index 0000000..d56ccca
 +    return info;
 +  }
 +
++  SDL_GPUGraphicsPipeline *TexturedPipelinePresent(Uint32 stride) {
++    PipelineKey key;
++    key.vertex = &Shaders::quad_vert;
++    key.fragment = &Shaders::textured_frag;
++    key.layout.Add(0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0);
++    key.layout.Add(1, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, 12);
++    key.layout.stride = stride;
++    key.blend = Blend::Alpha;
++    key.colorFormat = mPresent.Format();
++    return mDevice.Pipeline(key);
++  }
++
 +  SDL_GPUGraphicsPipeline *TexturedPipeline(Uint32 stride) {
 +    PipelineKey key;
 +    key.vertex = &Shaders::quad_vert;
@@ -28420,6 +28516,7 @@ index 0000000..d56ccca
 +  Rect mView{0, 0, 0, 0};
 +  TextureHandle mNextTexture = 0;
 +  Texture mComposite, mPresent, mCapture, mHiRes, mVram;
++  Texture mTouchpad;  // ios-controls hook
 +  Texture mFxTempA, mFxTempB; // fx_weather hook
 +  FxWeather mFxWeather; FxWater mFxWater; // fx_weather hook
 +  G2Compositor mG2;
@@ -32251,12 +32348,13 @@ index de145a7..6a2b5da 100644
 +    SIM::G3::TextureCache::NotifyWrite(dest, size);
 +}
 diff --git a/libraries/sim/src/sim_gui.cpp b/libraries/sim/src/sim_gui.cpp
-index 2c40e59..cdb99f9 100644
+index 2c40e59..f82d427 100644
 --- a/libraries/sim/src/sim_gui.cpp
 +++ b/libraries/sim/src/sim_gui.cpp
-@@ -1,10 +1,12 @@
+@@ -1,10 +1,13 @@
  #include "simulator/sim.h"
  #include "simulator/sim_gui.hpp"
++#include "simulator/sim_platform.h" // ios-platform hook
 +#include "simulator/sim_layout.h"
 +#include <simulator/sim_render_backend.hpp>
 +#include "imgui_impl_sdl3.h"
@@ -32269,7 +32367,7 @@ index 2c40e59..cdb99f9 100644
  #include "gui_internal.hpp"
  
  #if SIM_IMGUI_FILE_DIALOG_SUPPORT
-@@ -13,7 +15,6 @@
+@@ -13,7 +16,6 @@
  
  namespace SIM::GUI {
  static SDL_Window * sWindow;
@@ -32277,7 +32375,7 @@ index 2c40e59..cdb99f9 100644
  static ImGuiContext * sImguiContext;
  static bool sEnabled = false;
  static bool sPauseGameLogic = false;
-@@ -37,9 +38,8 @@ void __attribute__((weak)) PrjMain(bool * openState) {
+@@ -37,9 +39,8 @@ void __attribute__((weak)) PrjMain(bool * openState) {
      }
  }
  
@@ -32288,7 +32386,7 @@ index 2c40e59..cdb99f9 100644
  
      sImguiContext = ImGui::CreateContext(NULL);
  
-@@ -50,9 +50,7 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+@@ -50,9 +51,7 @@ void Init(SDL_Window * window, SDL_GLContext context) {
  
  
  
@@ -32299,7 +32397,7 @@ index 2c40e59..cdb99f9 100644
  
      ImGui::StyleColorsDark(NULL);
  
-@@ -61,6 +59,62 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+@@ -61,6 +60,62 @@ void Init(SDL_Window * window, SDL_GLContext context) {
  }
  
  void Main() {
@@ -32362,18 +32460,18 @@ index 2c40e59..cdb99f9 100644
      if(sEnabled) {
          ImGui::Begin("libntr", &sEnabled);
  
-@@ -96,6 +150,10 @@ void Main() {
+@@ -96,6 +151,10 @@ void Main() {
          }
          #endif
  
-+        if (ImGui::Button("Export save...", ImVec2(110, 20))) SIM::Helpers::ExportSave();
++        if (ImGui::Button("Export save...", ImVec2(110, 20))) { if (SIM_Platform_IsIOS()) SIM::Helpers::ExportSaveToDocuments(); else SIM::Helpers::ExportSave(); } // ios-platform hook
 +        ImGui::SameLine();
-+        if (ImGui::Button("Import save...", ImVec2(110, 20))) SIM::Helpers::ImportSave();
++        if (ImGui::Button("Import save...", ImVec2(110, 20))) { if (SIM_Platform_IsIOS()) SIM::Helpers::ImportSaveFromDocuments(); else SIM::Helpers::ImportSave(); } // ios-platform hook
 +
          ImGui::Checkbox("Pause Game Logic", &sPauseGameLogic);
  
          ImGui::End();
-@@ -115,20 +173,19 @@ void OpenFileDialog(std::function<void(std::string)> callback) {
+@@ -115,20 +174,19 @@ void OpenFileDialog(std::function<void(std::string)> callback) {
  }
  
  void NewFrame() {
@@ -32397,7 +32495,7 @@ index 2c40e59..cdb99f9 100644
  }
  
  void Toggle() {
-@@ -147,6 +204,10 @@ bool IsGameLogicPaused() {
+@@ -147,6 +205,10 @@ bool IsGameLogicPaused() {
      return sPauseGameLogic;
  }
  
@@ -32743,10 +32841,10 @@ index 0000000..c436fa8
 +}
 diff --git a/libraries/sim/src/sim_headless_control.cpp b/libraries/sim/src/sim_headless_control.cpp
 new file mode 100644
-index 0000000..401c70f
+index 0000000..fdf55e5
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_control.cpp
-@@ -0,0 +1,275 @@
+@@ -0,0 +1,287 @@
 +#include <simulator/sim_render_backend.hpp>
 +// SIM_CONTROL=stdio lockstep protocol (docs/headless_protocol.md).
 +// The game does not advance until told to: this runs at the end of each rendered frame
@@ -32756,6 +32854,7 @@ index 0000000..401c70f
 +#include "simulator/sim_headless.h"
 +#include "simulator/sim_layout.h"
 +#include "simulator/sim_helpers.hpp"
++#include "sim_touchpad.h" // ios-controls hook
 +
 +#include <nitro/hw/X86/mmap_shared.h>
 +#include "simulator/simvariables.h"
@@ -32793,6 +32892,7 @@ index 0000000..401c70f
 +static unsigned s_heldMask = 0, s_heldXY = 0;
 +static int s_touchActive = 0, s_touchX = 0, s_touchY = 0;
 +static int s_touchPulse = 0;   // frames since the touch command started (press-edge pulsing)
++static int s_fingerActive = 0; static float s_fingerNX = 0, s_fingerNY = 0;  // ios-controls hook
 +
 +// ---- minimal JSON extraction (flat objects; string/int/bool/array-of-strings values) ----
 +static bool JsonFind(const std::string &s, const char *key, size_t *pos) {
@@ -32906,6 +33006,16 @@ index 0000000..401c70f
 +    std::string cmd;
 +    if (!JsonString(line, "cmd", &cmd)) { ReplyError("missing cmd"); return false; }
 +
++    if (cmd == "finger") { // ios-controls hook: normalised window coords through the real finger path
++        double nx = 0, ny = 0; long long frames = 1;
++        { size_t pp; if (JsonFind(line, "x", &pp)) nx = strtod(line.c_str() + pp, nullptr); if (JsonFind(line, "y", &pp)) ny = strtod(line.c_str() + pp, nullptr); }
++        JsonInt(line, "frames", &frames); if (frames < 0) frames = 0;
++        SIM::Touchpad::InjectFinger((float)nx, (float)ny, 0);
++        s_fingerActive = 1; s_fingerNX = (float)nx; s_fingerNY = (float)ny;
++        s_budget = frames; s_pendingReply = 1;
++        if (s_budget == 0) { SIM::Touchpad::InjectFinger((float)nx, (float)ny, 2); s_pendingReply = 0; ReplyOk(); return false; }
++        return true;
++    }
 +    if (cmd == "step" || cmd == "press" || cmd == "touch") {
 +        SIM_Headless_WatchdogInput();
 +        long long frames = 1;
@@ -33013,7 +33123,7 @@ index 0000000..401c70f
 +        if (s_budget > 0) return;
 +        // Budget just finished: fall through, reply, and block for the next command.
 +    }
-+    if (s_pendingReply) { s_pendingReply = 0; ReplyOk(); }
++    if (s_pendingReply) { s_pendingReply = 0; if (s_fingerActive) { SIM::Touchpad::InjectFinger(s_fingerNX, s_fingerNY, 2); s_fingerActive = 0; } ReplyOk(); }
 +    ClearHeld();
 +    std::string line;
 +    for (;;) {
@@ -34042,7 +34152,7 @@ index 0000000..4b3f9e5
 +    return 1;
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..afe6ccc 100644
+index 910d7da..a9c95d6 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,14 +1,23 @@
@@ -34108,16 +34218,17 @@ index 910d7da..afe6ccc 100644
  
  #include "nds-extract.hpp"
  
-@@ -65,6 +86,8 @@ extern "C" int NitroSpMain(void *arg);
+@@ -65,6 +86,9 @@ extern "C" int NitroSpMain(void *arg);
  #endif
  
  #include "sim_g2.h"
++#include "sim_touchpad.h" // ios-controls hook
 +#include "sim_g2_gpu.h"
 +#include "sim_hirestext.h"
  #include "git_info.h"
  
  // Simulator configuration
-@@ -75,6 +98,49 @@ extern OSThreadInfo OSi_ThreadInfo;
+@@ -75,6 +99,49 @@ extern OSThreadInfo OSi_ThreadInfo;
  
  static u32 s_TouchPanelCoords[4] = {}; // The bounding box of the touch screen
  
@@ -34167,7 +34278,7 @@ index 910d7da..afe6ccc 100644
  // SND
  #include <nitro/snd/common/work.h>
  #include <nitro/snd/common/command.h>
-@@ -96,6 +162,20 @@ static struct timespec s_SIM_lastFrameEnd;
+@@ -96,6 +163,20 @@ static struct timespec s_SIM_lastFrameEnd;
  static u64 sRenderFrameTime;
  static u64 sFullFrameTime;
  
@@ -34188,7 +34299,7 @@ index 910d7da..afe6ccc 100644
  static constexpr auto SteamDeckWidth = 1280;
  static constexpr auto SteamDeckHeight = 800;
  
-@@ -125,45 +205,170 @@ u8 OBJWindow[2][256];
+@@ -125,45 +206,170 @@ u8 OBJWindow[2][256];
  
  GXVRamBGExtPltt s_SIM_GXBgExtPltt;
  GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
@@ -34394,7 +34505,7 @@ index 910d7da..afe6ccc 100644
  
  static SDL_Window *window;
  
-@@ -178,6 +383,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +384,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -34405,7 +34516,7 @@ index 910d7da..afe6ccc 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -224,38 +433,11 @@ static void DrawEngine(BOOL isSub);
+@@ -224,38 +434,11 @@ static void DrawEngine(BOOL isSub);
  static u8 s_numG3CommandsThisFrame = 0;
  
  // Vcount stuff
@@ -34446,7 +34557,7 @@ index 910d7da..afe6ccc 100644
  SIM_config_type *SIM_GetConfigPtr() { return &s_SIM_config; }
  
  SDL_Window * SIM_GetSDLWindow() {return window;}
-@@ -275,27 +457,9 @@ void *runVblankInterrupt(void *arg) {
+@@ -275,27 +458,9 @@ void *runVblankInterrupt(void *arg) {
    return NULL;
  }
  
@@ -34476,7 +34587,7 @@ index 910d7da..afe6ccc 100644
  }
  
  static bool sChangeInternalResAfterRender = false;
-@@ -308,18 +472,63 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
+@@ -308,18 +473,64 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
    sPendingInternalRes = internalRes;
  }
  
@@ -34517,8 +34628,10 @@ index 910d7da..afe6ccc 100644
  void *SIM_RenderInit(void *arg) {
  
 -  SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER |
+-           SDL_INIT_JOYSTICK);
 +  SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO |
-            SDL_INIT_JOYSTICK);
++           SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD); // ios-controls hook
++  SIM::Touchpad::Init(s_SIM_config.touchControls); // ios-controls hook
    SIM_Audio_Init(44100);
  
 -  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -34547,7 +34660,7 @@ index 910d7da..afe6ccc 100644
  
    u32 windowHeight;
    u32 windowWidth;
-@@ -352,6 +561,11 @@ void *SIM_RenderInit(void *arg) {
+@@ -352,6 +563,11 @@ void *SIM_RenderInit(void *arg) {
          windowHeight = SIM_NDS_SCREEN_HEIGHT * 2 * 2;
          windowWidth = (SIM_NDS_SCREEN_WIDTH * 2 * 2) + (SIM_NDS_SCREEN_WIDTH * 2);
          break;
@@ -34559,7 +34672,7 @@ index 910d7da..afe6ccc 100644
        }
      }
    } else {
-@@ -376,197 +590,63 @@ void *SIM_RenderInit(void *arg) {
+@@ -376,197 +592,63 @@ void *SIM_RenderInit(void *arg) {
                    std::string(makerCode) + "]";
    }
  
@@ -34801,7 +34914,7 @@ index 910d7da..afe6ccc 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -578,10 +658,16 @@ static void DrawEngine(BOOL isSub) {
+@@ -578,10 +660,16 @@ static void DrawEngine(BOOL isSub) {
    u8 maxPriorityBG;
    u8 bgEnabled[4];
    u8 bgMode;
@@ -34820,7 +34933,7 @@ index 910d7da..afe6ccc 100644
  
    // Get the enabled BGs
    u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
-@@ -603,20 +689,6 @@ static void DrawEngine(BOOL isSub) {
+@@ -603,20 +691,6 @@ static void DrawEngine(BOOL isSub) {
    backdropColor =
        isSub ? *(u16 *)&s_HW_DB_BG_PLTT[0] : *(u16 *)&s_HW_BG_PLTT[0];
    SIM_u16ToRGB(backdropColor, &backdropR, &backdropG, &backdropB);
@@ -34841,7 +34954,7 @@ index 910d7da..afe6ccc 100644
  
    // Get the BG priorities
    u16 bg0cnt = isSub ? s_reg_G2S_DB_BG0CNT : s_reg_G2_BG0CNT;
-@@ -624,52 +696,44 @@ static void DrawEngine(BOOL isSub) {
+@@ -624,52 +698,44 @@ static void DrawEngine(BOOL isSub) {
    u16 bg2cnt = isSub ? s_reg_G2S_DB_BG2CNT : s_reg_G2_BG2CNT;
    u16 bg3cnt = isSub ? s_reg_G2S_DB_BG3CNT : s_reg_G2_BG3CNT;
  
@@ -34926,7 +35039,7 @@ index 910d7da..afe6ccc 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -715,13 +779,38 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +781,38 @@ static void DrawEngine(BOOL isSub) {
        u8 a;
        for (int j = 0; j < 256; j++) {
          if (OBJLine[isSub][j]) {
@@ -34970,19 +35083,21 @@ index 910d7da..afe6ccc 100644
            }
          }
          if (OBJWindow[isSub][j]) {
-@@ -735,130 +824,107 @@ static void DrawEngine(BOOL isSub) {
+@@ -735,135 +826,203 @@ static void DrawEngine(BOOL isSub) {
  
    // Draw the BGs
    for (int i = 0; i < 4; i++) {
 -    u8 curBgNum = bgOrder[i];
--
+ 
 -    if (bgEnabled[bgOrder[i]]) {
 -      G2SIM_DrawBG(bgOrder[i], bgMode, bg0as3d, isSub);
 -    } else {
 -      glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[bgOrder[i]]);
 -      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
 -    }
--  }
++    if (bgEnabled[uniforms.bgOrder[i]]) {
++      G2SIM_DrawBG(uniforms.bgOrder[i], bgMode, bg0as3d, isSub);
+   }
  
 -  // write all OAMs to the textures based on their priorities
 -  for (int i = 0; i < 4; i++) {
@@ -35010,10 +35125,8 @@ index 910d7da..afe6ccc 100644
 -    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SIM_NDS_SCREEN_WIDTH,
 -                    SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
 -                    (void *)oamPixelBuf);
-+    if (bgEnabled[uniforms.bgOrder[i]]) {
-+      G2SIM_DrawBG(uniforms.bgOrder[i], bgMode, bg0as3d, isSub);
-   }
- 
+-  }
+-
 -  glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
 -
 -  if (bgEnabled[0]) {
@@ -35189,7 +35302,103 @@ index 910d7da..afe6ccc 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +1016,281 @@ static void HandleJoystickKeyUp(int aKey) {
+ }
+ 
++// ios-controls hook: unified DS button state for touchpad/gamepad injection.
++static void SetDSButton(u32 bit, bool down) {
++  if (bit < (1u << 10)) {
++    if (down) s_reg_PAD_KEYINPUT = (u16)(s_reg_PAD_KEYINPUT & ~(u16)bit);
++    else s_reg_PAD_KEYINPUT = (u16)(s_reg_PAD_KEYINPUT | (u16)bit);
++  } else {
++    vu16 *xy = (vu16 *)HW_BUTTON_XY_BUF;
++    if (down) *xy = (u16)(*xy & ~(u16)bit);
++    else *xy = (u16)(*xy | (u16)bit);
++  }
++}
++static u32 sTpPrevMask = 0;
++static bool sTpPrevFF = false;
++static void ApplyTouchpadState() {
++  u32 cur = SIM::Touchpad::HeldMask();
++  u32 changed = cur ^ sTpPrevMask;
++  for (int b = 0; b < 12; b++) if (changed & (1u << b)) SetDSButton(1u << b, (cur & (1u << b)) != 0);
++  sTpPrevMask = cur;
++  bool ff = SIM::Touchpad::FastForwardHeld();
++  if (ff != sTpPrevFF) {
++    sTpPrevFF = ff; sFastForward = ff;
++    SIM::Render::Get().SetSwapInterval(ff ? 0 : s_SIM_config.vsyncInterval);
++  }
++  if (SIM::Touchpad::TakePauseToggle()) SIM::GUI::SetGameLogicPaused(!SIM::GUI::IsGameLogicPaused());
++  if (SIM::Touchpad::TakePanelToggle() && WideActive() && !WideSideBySideMenu())
++    SIM_Layout_SetPanelOpen(!SIM_Layout_IsPanelOpen());
++}
++static struct { bool active; SDL_FingerID id; int x, y; } sFingerDS;
++static void HandleFingerPixel(SDL_FingerID finger, int phase, int px, int py, int winW, int winH) {
++  float nx = winW > 0 ? (float)px / (float)winW : 0.0f;
++  float ny = winH > 0 ? (float)py / (float)winH : 0.0f;
++  if (phase == 0) {
++    SIM::Touchpad::NoteTouch();
++    if (SIM::Touchpad::FingerDown((int64_t)finger, nx, ny, winW, winH)) return;
++    if (WideActive() && sPanelAnim <= 0.0f && px >= sTabIconRect[0] && px <= sTabIconRect[2] && py >= sTabIconRect[1] && py <= sTabIconRect[3]) { SIM_Layout_SetPanelOpen(1); return; }
++    if (WideActive() && sPanelAnim > 0.0f && sCloseIconRect[2] > sCloseIconRect[0] && px >= sCloseIconRect[0] && px <= sCloseIconRect[2] && py >= sCloseIconRect[1] && py <= sCloseIconRect[3]) { SIM_Layout_SetPanelOpen(0); return; }
++    if (SIM_Layout_MainTouchEnabled() && px >= sMainRectPx[0] && px <= sMainRectPx[2] && py >= sMainRectPx[1] && py <= sMainRectPx[3] && sMainRectPx[2] > sMainRectPx[0]) {
++      SIM_Layout_PushMainTouch(map(px, sMainRectPx[0], sMainRectPx[2], 0, SIM_NDS_SCREEN_WIDTH), map(py, sMainRectPx[1], sMainRectPx[3], 0, SIM_NDS_SCREEN_HEIGHT));
++    }
++    if (!sFingerDS.active) { sFingerDS.active = true; sFingerDS.id = finger; sFingerDS.x = px; sFingerDS.y = py; }
++  } else if (phase == 1) {
++    if (SIM::Touchpad::IsOverlayFinger((int64_t)finger)) SIM::Touchpad::FingerMotion((int64_t)finger, nx, ny, winW, winH);
++    else if (sFingerDS.active && sFingerDS.id == finger) { sFingerDS.x = px; sFingerDS.y = py; }
++  } else {
++    if (SIM::Touchpad::IsOverlayFinger((int64_t)finger)) SIM::Touchpad::FingerUp((int64_t)finger, nx, ny, winW, winH);
++    if (sFingerDS.active && sFingerDS.id == finger) sFingerDS.active = false;
++  }
++}
++// ios-controls hook: SDL_Gamepad standard mapping (fallback joystick keeps sim_config keys).
++static SDL_Gamepad *sGamepad = nullptr;
++static void HandleGamepadButton(SDL_GamepadButton b, bool down) {
++  using namespace SIM::Touchpad;
++  u32 bit = 0;
++  switch (b) {
++    case SDL_GAMEPAD_BUTTON_SOUTH: bit = kA; break;
++    case SDL_GAMEPAD_BUTTON_EAST: bit = kB; break;
++    case SDL_GAMEPAD_BUTTON_WEST: bit = kX; break;
++    case SDL_GAMEPAD_BUTTON_NORTH: bit = kY; break;
++    case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: bit = kL; break;
++    case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: bit = kR; break;
++    case SDL_GAMEPAD_BUTTON_START: bit = kStart; break;
++    case SDL_GAMEPAD_BUTTON_BACK: bit = kSelect; break;
++    case SDL_GAMEPAD_BUTTON_DPAD_UP: bit = kUp; break;
++    case SDL_GAMEPAD_BUTTON_DPAD_DOWN: bit = kDown; break;
++    case SDL_GAMEPAD_BUTTON_DPAD_LEFT: bit = kLeft; break;
++    case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: bit = kRight; break;
++    default: break;
++  }
++  if (bit) SetDSButton(bit, down);
++}
++static int sStickDirX = 0, sStickDirY = 0;
++static void HandleGamepadAxis(SDL_GamepadAxis axis, Sint16 value) {
++  using namespace SIM::Touchpad;
++  int dz = s_SIM_config.padSettings.joyAxisDeadzone;
++  if (axis == SDL_GAMEPAD_AXIS_LEFTX || axis == SDL_GAMEPAD_AXIS_LEFTY) {
++    int ndx = value > dz ? 1 : value < -dz ? -1 : 0;
++    if (axis == SDL_GAMEPAD_AXIS_LEFTX && ndx != sStickDirX) {
++      if (sStickDirX < 0) SetDSButton(kLeft, false); if (sStickDirX > 0) SetDSButton(kRight, false);
++      if (ndx < 0) SetDSButton(kLeft, true); if (ndx > 0) SetDSButton(kRight, true);
++      sStickDirX = ndx;
++    }
++    if (axis == SDL_GAMEPAD_AXIS_LEFTY && ndx != sStickDirY) {
++      if (sStickDirY < 0) SetDSButton(kUp, false); if (sStickDirY > 0) SetDSButton(kDown, false);
++      if (ndx < 0) SetDSButton(kUp, true); if (ndx > 0) SetDSButton(kDown, true);
++      sStickDirY = ndx;
++    }
++  } else if (axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) {
++    SetDSButton(axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? kL : kR, value > 16000);
++  }
++}
++
+ static void HandleJoystickKeyDown(int aKey) {
+   if (aKey == s_SIM_config.padSettings.aJoyKey) {
+     // A Button
+@@ -950,7 +1109,281 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -35471,7 +35680,7 @@ index 910d7da..afe6ccc 100644
  
    SDL_Event Event;
    char c;
-@@ -965,6 +1305,7 @@ void *SIM_Render(void *arg) {
+@@ -965,6 +1398,7 @@ void *SIM_Render(void *arg) {
    auto& g3State = SIM::G3::GetGlobalState();
    g3State.FlushDrawCall();
    g3State.DrawTransparentItems();
@@ -35479,7 +35688,7 @@ index 910d7da..afe6ccc 100644
  
  
    do {
-@@ -976,14 +1317,6 @@ void *SIM_Render(void *arg) {
+@@ -976,14 +1410,6 @@ void *SIM_Render(void *arg) {
        SIM_Net_SendBeaconIndication();
      }
  
@@ -35494,7 +35703,7 @@ index 910d7da..afe6ccc 100644
      int windowHeight;
      int windowWidth;
      int viewHeight;
-@@ -1006,6 +1339,13 @@ void *SIM_Render(void *arg) {
+@@ -1006,6 +1432,13 @@ void *SIM_Render(void *arg) {
      case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
        aspectRatio = 768.0f / 384.0f;
        break;
@@ -35508,7 +35717,7 @@ index 910d7da..afe6ccc 100644
      }
  
      viewWidth = windowWidth;
-@@ -1019,10 +1359,126 @@ void *SIM_Render(void *arg) {
+@@ -1019,10 +1452,126 @@ void *SIM_Render(void *arg) {
        viewY = 0;
      }
  
@@ -35637,10 +35846,13 @@ index 910d7da..afe6ccc 100644
        switch (s_SIM_config.screenLayout) {
        default:
        case SIM_CONFIG_SCREEN_LAYOUT_VERTICAL:
-@@ -1068,24 +1524,86 @@ void *SIM_Render(void *arg) {
+@@ -1068,24 +1617,92 @@ void *SIM_Render(void *arg) {
        }
      }
  
+-    // Check Joysticks
+-    if (s_SIM_SDLJoystick == NULL && SDL_NumJoysticks() >= 1) {
+-      s_SIM_SDLJoystick = SDL_JoystickOpen(0);
 +    // battlehud hook: main-screen rect (the complement of the touch
 +    // surface), for opt-in main-touch routing.
 +    {
@@ -35677,20 +35889,24 @@ index 910d7da..afe6ccc 100644
 +          windowHeight > 0 ? (float)my0 / (float)windowHeight : 0.0f,
 +          windowWidth > 0 ? (float)(mx1 - mx0) / (float)windowWidth : 0.0f,
 +          windowHeight > 0 ? (float)(my1 - my0) / (float)windowHeight : 0.0f);
-+    }
-+
-     // Check Joysticks
--    if (s_SIM_SDLJoystick == NULL && SDL_NumJoysticks() >= 1) {
--      s_SIM_SDLJoystick = SDL_JoystickOpen(0);
-+    if (s_SIM_SDLJoystick == NULL && SDL_HasJoystick()) {
-+      int numJoysticks = 0;
-+      SDL_JoystickID *joystickIds = SDL_GetJoysticks(&numJoysticks);
-+      if (joystickIds && numJoysticks >= 1) {
-+        s_SIM_SDLJoystick = SDL_OpenJoystick(joystickIds[0]);
-+      }
-+      SDL_free(joystickIds);
      }
  
++    // ios-controls hook: gamepads first, legacy joystick as fallback.
++    {
++      int nPad = 0; SDL_JoystickID *pads = SDL_GetGamepads(&nPad);
++      SIM::Touchpad::SetGamepadConnected(nPad > 0);
++      if (!sGamepad && pads && nPad >= 1) sGamepad = SDL_OpenGamepad(pads[0]);
++      SDL_free(pads);
++      if (!sGamepad && s_SIM_SDLJoystick == NULL && SDL_HasJoystick()) {
++        int numJoysticks = 0;
++        SDL_JoystickID *joystickIds = SDL_GetJoysticks(&numJoysticks);
++        if (joystickIds && numJoysticks >= 1 && !SDL_IsGamepad(joystickIds[0])) {
++          s_SIM_SDLJoystick = SDL_OpenJoystick(joystickIds[0]);
++        }
++        SDL_free(joystickIds);
++      }
++    }
++
 +    SIM::Helpers::Poll();   // restart after a save import
 +
      while (SDL_PollEvent(&Event)) {
@@ -35735,7 +35951,7 @@ index 910d7da..afe6ccc 100644
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT & 0b1111111111111110;
          } else if (keyRead == s_SIM_config.padSettings.bKey) {
-@@ -1136,15 +1654,15 @@ void *SIM_Render(void *arg) {
+@@ -1136,15 +1753,15 @@ void *SIM_Render(void *arg) {
              s_SIM_config.vsyncInterval = 1; // Every V-Blank
            }
  
@@ -35755,7 +35971,7 @@ index 910d7da..afe6ccc 100644
          if (keyRead == s_SIM_config.padSettings.aKey) {
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000001;
-@@ -1185,16 +1703,16 @@ void *SIM_Render(void *arg) {
+@@ -1185,16 +1802,16 @@ void *SIM_Render(void *arg) {
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000100;
          } else if(keyRead == s_SIM_config.padSettings.frameCapKey) {
            sFastForward = false;
@@ -35776,7 +35992,7 @@ index 910d7da..afe6ccc 100644
          if (Event.jhat.value == SDL_HAT_CENTERED) {
            // send keyUp event for all hats
            HandleJoystickKeyUp(SIM_CONFIG_JOY_HAT_MASK | SDL_HAT_UP);
-@@ -1224,7 +1742,7 @@ void *SIM_Render(void *arg) {
+@@ -1224,7 +1841,7 @@ void *SIM_Render(void *arg) {
            }
          }
        }
@@ -35785,11 +36001,22 @@ index 910d7da..afe6ccc 100644
          if (Event.jaxis.value > s_SIM_config.padSettings.joyAxisDeadzone ||
              Event.jaxis.value <
                  (s_SIM_config.padSettings.joyAxisDeadzone * -1)) {
-@@ -1245,12 +1763,37 @@ void *SIM_Render(void *arg) {
+@@ -1245,23 +1862,79 @@ void *SIM_Render(void *arg) {
                                SIM_CONFIG_JOY_AXIS_MINUS_MASK);
          }
        }
 -      if (Event.type == SDL_MOUSEBUTTONDOWN) {
++      // ios-controls hook: real finger events (never mouse emulation).
++      if (Event.type == SDL_EVENT_FINGER_DOWN || Event.type == SDL_EVENT_FINGER_MOTION || Event.type == SDL_EVENT_FINGER_UP) {
++        int ww = 0, wh = 0; SDL_GetWindowSize(window, &ww, &wh);
++        int phase = Event.type == SDL_EVENT_FINGER_DOWN ? 0 : Event.type == SDL_EVENT_FINGER_MOTION ? 1 : 2;
++        HandleFingerPixel(Event.tfinger.fingerID, phase, (int)(Event.tfinger.x * ww), (int)(Event.tfinger.y * wh), ww, wh);
++      }
++      if (Event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) HandleGamepadButton((SDL_GamepadButton)Event.gbutton.button, true);
++      if (Event.type == SDL_EVENT_GAMEPAD_BUTTON_UP) HandleGamepadButton((SDL_GamepadButton)Event.gbutton.button, false);
++      if (Event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION) HandleGamepadAxis((SDL_GamepadAxis)Event.gaxis.axis, Event.gaxis.value);
++      if (Event.type == SDL_EVENT_GAMEPAD_ADDED && !sGamepad) sGamepad = SDL_OpenGamepad(Event.gdevice.which);
++      if (Event.type == SDL_EVENT_GAMEPAD_REMOVED && sGamepad && Event.gdevice.which == SDL_GetGamepadID(sGamepad)) { SDL_CloseGamepad(sGamepad); sGamepad = nullptr; }
 +      if (Event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
 +        // Wide layout: a click on the tab handle opens the panel; it
 +        // is not a touch (the handle is outside the touch rect, so the
@@ -35825,8 +36052,14 @@ index 910d7da..afe6ccc 100644
          isMouseDown = 0;
          s_tpData.validity = 0;
          s_tpData.touch = 0;
-@@ -1258,10 +1801,17 @@ void *SIM_Render(void *arg) {
+       }
      }
++    { // ios-controls hook: headless finger injection, same path as SDL fingers.
++      float inx, iny; int iphase;
++      while (SIM::Touchpad::PollInjected(&inx, &iny, &iphase))
++        HandleFingerPixel(9999, iphase, (int)(inx * windowWidth), (int)(iny * windowHeight), windowWidth, windowHeight);
++    }
++    ApplyTouchpadState(); // ios-controls hook
      s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT;
  
 -    SDL_GetMouseState(&x, &y);
@@ -35839,13 +36072,20 @@ index 910d7da..afe6ccc 100644
  
      // Convert touch coordinate to DS screen coordinates
 -    if (x >= s_TouchPanelCoords[0] && x <= s_TouchPanelCoords[2] &&
-+    if (sDebugTouch) {
++    if (sFingerDS.active) { // ios-controls hook
++      int fx = sFingerDS.x, fy = sFingerDS.y;
++      if (fx >= (int)s_TouchPanelCoords[0] && fx <= (int)s_TouchPanelCoords[2] && fy >= (int)s_TouchPanelCoords[1] && fy <= (int)s_TouchPanelCoords[3] && s_TouchPanelCoords[2] > s_TouchPanelCoords[0]) {
++        s_tpData.x = (u16)map(fx, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0, SIM_NDS_SCREEN_WIDTH);
++        s_tpData.y = (u16)map(fy, s_TouchPanelCoords[1], s_TouchPanelCoords[3], 0, SIM_NDS_SCREEN_HEIGHT);
++        s_tpData.touch = 1; s_tpData.validity = 0;
++      } else { s_tpData.touch = 0; s_tpData.validity = 0; }
++    } else if (sDebugTouch) {
 +      // SIM_DEBUG_KEYS is touching the screen
 +    } else if (x >= s_TouchPanelCoords[0] && x <= s_TouchPanelCoords[2] &&
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1297,12 +1847,55 @@ void *SIM_Render(void *arg) {
+@@ -1297,12 +1970,63 @@ void *SIM_Render(void *arg) {
      memset(bg3stex, 0,
             sizeof(u8) * 4 * SIM_NDS_SCREEN_WIDTH * SIM_NDS_SCREEN_HEIGHT * 2);
  
@@ -35854,8 +36094,7 @@ index 910d7da..afe6ccc 100644
 +    // hiresui fix: apply any pending 2D-upscale filter change here, before
 +    // the engines set up their texture bindings for this frame.
 +    HiRes_ApplyUpscaleFilter(HiRes_EffectiveUpscale2D());
- 
--    // SUB engine
++
 +    // Draw MAIN engine. In VRAM display mode the main screen shows a
 +    // captured VRAM bank instead of the BG/OBJ layers; a pending capture
 +    // still takes the (undisplayed) engine output as source A first.
@@ -35866,7 +36105,8 @@ index 910d7da..afe6ccc 100644
 +      DrawEngine(FALSE);
 +      if (s_reg_GX_DISPCAPCNT & 0x80000000u) CaptureFrame();
 +    }
-+
+ 
+-    // SUB engine
 +    // SUB engine. DrawEngine decides the wide role (full-width top
 +    // engine vs. panel) and skips a closed panel itself.
      DrawEngine(TRUE);
@@ -35901,10 +36141,18 @@ index 910d7da..afe6ccc 100644
 +    // PostFX post pass: draw the composited frame to the window with effects.
 +    PostFX_TickAndDraw();
 +
++    // ios-controls hook: gamepad overlay on top of the game, after PostFX.
++    if (SIM::Touchpad::Visible(windowWidth, windowHeight)) {
++      bool tpDirty = false;
++      const std::vector<u8> &tpBmp = SIM::Touchpad::Bitmap(windowWidth, windowHeight, &tpDirty);
++      SIM::Render::Backend::TouchpadOverlayInput tpIn{tpBmp.data(), windowWidth, windowHeight, tpDirty};
++      SIM::Render::Get().DrawTouchpadOverlay(tpIn);
++    }
++
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1328,19 +1921,30 @@ void *SIM_Render(void *arg) {
+@@ -1328,19 +2052,30 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -35945,7 +36193,7 @@ index 910d7da..afe6ccc 100644
  
      if(sChangeInternalResAfterRender) {
        SIM_SetInternalResolution(sPendingInternalRes);
-@@ -1359,45 +1963,40 @@ void *SIM_Render(void *arg) {
+@@ -1359,45 +2094,40 @@ void *SIM_Render(void *arg) {
  #endif
  
      s_numG3CommandsThisFrame = 0;
@@ -36014,7 +36262,7 @@ index 910d7da..afe6ccc 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1407,17 +2006,16 @@ u64 SIM_GetFullFrameTime() {
+@@ -1407,17 +2137,16 @@ u64 SIM_GetFullFrameTime() {
    return sFullFrameTime;
  }
  
@@ -36035,7 +36283,7 @@ index 910d7da..afe6ccc 100644
  }
  
  const char * SIM_GetLibntrGitHash() {
-@@ -1465,6 +2063,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +2194,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -36044,7 +36292,7 @@ index 910d7da..afe6ccc 100644
    // Start up debug system
    SIM_Dbg_Init();
  
-@@ -1477,12 +2077,18 @@ int main(int argc, char *argv[]) {
+@@ -1477,12 +2208,18 @@ int main(int argc, char *argv[]) {
      SIM_Config_SaveConfigFile(&s_SIM_config);
    }
  
@@ -36064,7 +36312,7 @@ index 910d7da..afe6ccc 100644
    #endif
  
    if (romFile != NULL) {
-@@ -1537,8 +2143,6 @@ int main(int argc, char *argv[]) {
+@@ -1537,8 +2274,6 @@ int main(int argc, char *argv[]) {
    SIM::G3::GetGlobalState().Init();
  
    SIM_RenderInit(NULL);
@@ -36433,6 +36681,406 @@ index 51a5263..f6d1303 100644
 +
  }
  
+diff --git a/libraries/sim/src/sim_touchpad.cpp b/libraries/sim/src/sim_touchpad.cpp
+new file mode 100644
+index 0000000..587bd85
+--- /dev/null
++++ b/libraries/sim/src/sim_touchpad.cpp
+@@ -0,0 +1,335 @@
++// ios-controls hook: see sim_touchpad.h.
++#include "sim_touchpad.h"
++
++#include <SDL3/SDL.h>
++#include <algorithm>
++#include <cmath>
++#include <cstdlib>
++#include <cstring>
++#include <map>
++
++#if defined(__APPLE__)
++#include <TargetConditionals.h>
++#endif
++
++namespace SIM::Touchpad {
++namespace {
++
++int gMode = 0;  // 0 auto, 1 on, 2 off
++int gEnv = -1;  // -1 unset, 0 off, 1 on
++bool gGamepad = false;
++uint64_t gLastTouchMs = 0;
++uint64_t gInitMs = 0;
++bool gPauseToggle = false, gPanelToggle = false;
++
++struct FingerState {
++  bool overlay = false;
++  Btn btn = Btn::A;
++  float nx = 0, ny = 0;  // for the D-pad slide
++};
++std::map<int64_t, FingerState> gFingers;
++
++bool IsIOS() {
++#if defined(__APPLE__) && defined(TARGET_OS_IOS)
++  return TARGET_OS_IOS != 0;
++#else
++  return false;
++#endif
++}
++
++struct LBtn { Btn btn; float cx, cy, w, h; const char *label; bool circle; };
++std::vector<LBtn> gLayout;
++int gLayoutW = 0, gLayoutH = 0;
++
++void BuildLayout(int W, int H) {
++  if (W == gLayoutW && H == gLayoutH && !gLayout.empty()) return;
++  gLayoutW = W; gLayoutH = H; gLayout.clear();
++  if (W <= 0 || H <= 0) return;
++  float fw = (float)W, fh = (float)H;
++  float m = std::max(10.0f, std::min(fw, fh) * 0.025f);       // safe-area-ish margin
++  float big = std::min(fw, fh) * 0.115f;                      // A/B/X/Y diameter
++  float dpad = std::min(fw, fh) * 0.30f;                      // D-pad bounding box
++  float cyLow = fh - m - big * 1.15f;
++  // D-pad (one hit box, directions derived from the touch position).
++  gLayout.push_back({Btn::DPad, m + dpad * 0.5f, cyLow, dpad, dpad, "", false});
++  // ABXY diamond on the right, clear of the playfield centre.
++  float ax = fw - m - big * 0.55f, ay = cyLow;
++  gLayout.push_back({Btn::A, ax, ay, big, big, "A", true});
++  gLayout.push_back({Btn::B, ax - big * 0.62f, ay + big * 0.62f, big, big, "B", true});
++  gLayout.push_back({Btn::X, ax - big * 0.62f, ay - big * 0.62f, big, big, "X", true});
++  gLayout.push_back({Btn::Y, ax - big * 1.24f, ay, big, big, "Y", true});
++  // Shoulders above each cluster.
++  float shW = std::min(fw, fh) * 0.17f, shH = std::min(fw, fh) * 0.075f;
++  gLayout.push_back({Btn::L, m + shW * 0.5f, cyLow - dpad * 0.5f - shH, shW, shH, "L", false});
++  gLayout.push_back({Btn::R, fw - m - shW * 0.5f, cyLow - dpad * 0.5f - shH, shW, shH, "R", false});
++  // Small system pills: bottom centre (Start/Select) and top corners.
++  float pW = std::min(fw, fh) * 0.13f, pH = std::min(fw, fh) * 0.062f;
++  gLayout.push_back({Btn::Select, fw * 0.5f - pW * 0.55f, fh - m - pH * 0.5f, pW, pH, "SEL", false});
++  gLayout.push_back({Btn::Start, fw * 0.5f + pW * 0.55f, fh - m - pH * 0.5f, pW, pH, "STA", false});
++  float tW = std::min(fw, fh) * 0.11f, tH = std::min(fw, fh) * 0.06f;
++  gLayout.push_back({Btn::FastForward, m + tW * 0.5f, m + tH * 0.5f, tW, tH, "FF", false});
++  gLayout.push_back({Btn::Panel, fw * 0.5f, m + tH * 0.5f, tW, tH, "PNL", false});
++  gLayout.push_back({Btn::Pause, fw - m - tW * 0.5f, m + tH * 0.5f, tW, tH, "II", false});
++}
++
++bool Pressed(Btn b) {
++  for (auto &kv : gFingers) if (kv.second.overlay && kv.second.btn == b) return true;
++  return false;
++}
++
++uint32_t DPadMask(const FingerState &f, int W, int H) {
++  // Position inside the D-pad box -> 8-way (slide between directions).
++  const LBtn *d = nullptr;
++  for (auto &b : gLayout) if (b.btn == Btn::DPad) d = &b;
++  if (!d || W <= 0) return 0;
++  float dx = (f.nx * W - d->cx) / (d->w * 0.5f);
++  float dy = (f.ny * H - d->cy) / (d->h * 0.5f);
++  uint32_t m = 0;
++  if (dx < -0.33f) m |= kLeft; if (dx > 0.33f) m |= kRight;
++  if (dy < -0.33f) m |= kUp; if (dy > 0.33f) m |= kDown;
++  return m;
++}
++
++// ---- tiny 3x5 font (A-Z, space) ----
++const uint8_t *Glyph(char c) {
++  static const uint8_t f[][5] = {
++      {2,5,7,5,5},  // A
++      {6,5,6,5,6},  // B
++      {3,4,4,4,3},  // C
++      {6,5,5,5,6},  // D
++      {7,4,6,4,7},  // E
++      {7,4,6,4,4},  // F
++      {3,4,5,5,3},  // G
++      {5,5,7,5,5},  // H
++      {7,2,2,2,7},  // I
++      {1,1,1,5,2},  // J
++      {5,5,6,5,5},  // K
++      {4,4,4,4,7},  // L
++      {5,7,7,5,5},  // M
++      {5,7,7,5,5},  // N (approx: no diagonal in 3px)
++      {2,5,5,5,2},  // O
++      {6,5,6,4,4},  // P
++      {2,5,5,2,1},  // Q
++      {6,5,6,5,5},  // R
++      {3,4,2,1,6},  // S
++      {7,2,2,2,2},  // T
++      {5,5,5,5,7},  // U
++      {5,5,5,5,2},  // V
++      {5,5,7,7,5},  // W
++      {5,5,2,5,5},  // X
++      {5,5,2,2,2},  // Y
++      {7,1,2,4,7},  // Z
++  };
++  static const uint8_t blank[5] = {0, 0, 0, 0, 0};
++  if (c >= 'A' && c <= 'Z') return f[c - 'A'];
++  if (c == '2' || c == '|') { static const uint8_t bar[5] = {0x2,0x2,0x2,0x2,0x2}; return bar; }
++  return blank;
++}
++
++std::vector<uint8_t> gBmp;
++int gBmpW = 0, gBmpH = 0;
++uint64_t gBmpKey = 0;
++
++void PutPx(int x, int y, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
++  if (x < 0 || y < 0 || x >= gBmpW || y >= gBmpH) return;
++  uint8_t *p = &gBmp[((size_t)y * gBmpW + x) * 4];
++  // Source-over onto the (transparent or already drawn) pixel.
++  float sa = a / 255.0f, da = p[3] / 255.0f, oa = sa + da * (1 - sa);
++  if (oa <= 0) return;
++  for (int c = 0; c < 3; c++) {
++    float src = c == 0 ? r : c == 1 ? g : b;
++    p[c] = (uint8_t)((src * sa + p[c] * da * (1 - sa)) / oa);
++  }
++  p[3] = (uint8_t)(oa * 255);
++}
++void FillRect(int x0, int y0, int x1, int y1, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
++  for (int y = y0; y < y1; y++) for (int x = x0; x < x1; x++) PutPx(x, y, r, g, b, a);
++}
++void BorderRect(int x0, int y0, int x1, int y1, int t, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
++  FillRect(x0, y0, x1, y0 + t, r, g, b, a); FillRect(x0, y1 - t, x1, y1, r, g, b, a);
++  FillRect(x0, y0, x0 + t, y1, r, g, b, a); FillRect(x1 - t, y0, x1, y1, r, g, b, a);
++}
++void DrawLabel(const char *s, float cx, float cy, float scale) {
++  int n = (int)std::strlen(s);
++  float w = n * 4 * scale - scale;
++  float x = cx - w * 0.5f, y = cy - 2.5f * scale;
++  for (int i = 0; s[i]; i++) {
++    const uint8_t *gl = Glyph(s[i]);
++    for (int row = 0; row < 5; row++)
++      for (int col = 0; col < 3; col++)
++        if (gl[row] & (1 << (2 - col)))
++          FillRect((int)(x + i * 4 * scale + col * scale), (int)(y + row * scale),
++                   (int)(x + i * 4 * scale + (col + 1) * scale), (int)(y + (row + 1) * scale),
++                   255, 255, 255, 235);
++  }
++}
++
++struct Inj { float nx, ny; int phase; };
++std::vector<Inj> gInj;
++
++}  // namespace
++
++void Init(int configMode) {
++  gMode = configMode;
++  const char *e = std::getenv("SIM_TOUCHPAD");
++  gEnv = e ? (std::strcmp(e, "0") == 0 ? 0 : 1) : -1;
++  gInitMs = gLastTouchMs = SDL_GetTicks();
++}
++bool ForcedByEnv() { return gEnv == 1; }
++bool Enabled() {
++  if (gEnv >= 0) return gEnv == 1;
++  if (gMode == 1) return true;
++  if (gMode == 2) return false;
++  return IsIOS();
++}
++void SetGamepadConnected(bool c) { gGamepad = c; }
++bool GamepadConnected() { return gGamepad; }
++void NoteTouch() { gLastTouchMs = SDL_GetTicks(); }
++
++bool Visible(int W, int H) {
++  if (!Enabled() || W <= 0 || H <= 0) return false;
++  if (gGamepad && !ForcedByEnv()) return false;
++  if (ForcedByEnv()) return true;
++  uint64_t now = SDL_GetTicks();
++  if (!gFingers.empty()) return true;
++  return now - gLastTouchMs < 8000;  // auto-hide after 8 s without touch
++}
++
++int Layout(int W, int H, RectN *out, int maxOut) {
++  BuildLayout(W, H);
++  int n = 0;
++  for (auto &b : gLayout) {
++    if (n >= maxOut) break;
++    out[n++] = {(b.cx - b.w * 0.5f) / (float)W, (b.cy - b.h * 0.5f) / (float)H,
++                b.w / (float)W, b.h / (float)H, b.btn, b.label, Pressed(b.btn)};
++  }
++  return n;
++}
++
++bool HitTest(float nx, float ny, int W, int H) {
++  if (!Visible(W, H)) return false;
++  BuildLayout(W, H);
++  float x = nx * W, y = ny * H;
++  for (auto &b : gLayout) {
++    if (b.circle) {
++      float dx = x - b.cx, dy = y - b.cy;
++      if (dx * dx + dy * dy <= (b.w * 0.55f) * (b.w * 0.55f)) return true;
++    } else if (x >= b.cx - b.w * 0.5f && x <= b.cx + b.w * 0.5f &&
++               y >= b.cy - b.h * 0.5f && y <= b.cy + b.h * 0.5f) return true;
++  }
++  return false;
++}
++
++bool FingerDown(int64_t finger, float nx, float ny, int W, int H) {
++  NoteTouch();
++  if (!Visible(W, H) && !Enabled()) return false;
++  if (gGamepad && !ForcedByEnv()) return false;
++  BuildLayout(W, H);
++  float x = nx * W, y = ny * H;
++  // The overlay appears on any touch, so hit-test even while auto-hidden.
++  for (auto &b : gLayout) {
++    bool hit;
++    if (b.circle) {
++      float dx = x - b.cx, dy = y - b.cy;
++      hit = dx * dx + dy * dy <= (b.w * 0.55f) * (b.w * 0.55f);
++    } else {
++      hit = x >= b.cx - b.w * 0.5f && x <= b.cx + b.w * 0.5f &&
++            y >= b.cy - b.h * 0.5f && y <= b.cy + b.h * 0.5f;
++    }
++    if (!hit) continue;
++    FingerState f; f.overlay = true; f.btn = b.btn; f.nx = nx; f.ny = ny;
++    gFingers[finger] = f;
++    if (b.btn == Btn::Pause) gPauseToggle = true;
++    if (b.btn == Btn::Panel) gPanelToggle = true;
++    return true;
++  }
++  return false;
++}
++void FingerMotion(int64_t finger, float nx, float ny, int, int) {
++  auto it = gFingers.find(finger);
++  if (it != gFingers.end()) { it->second.nx = nx; it->second.ny = ny; NoteTouch(); }
++}
++void FingerUp(int64_t finger, float, float, int, int) { gFingers.erase(finger); }
++bool IsOverlayFinger(int64_t finger) {
++  auto it = gFingers.find(finger);
++  return it != gFingers.end() && it->second.overlay;
++}
++
++uint32_t HeldMask() {
++  uint32_t m = 0;
++  for (auto &kv : gFingers) {
++    if (!kv.second.overlay) continue;
++    switch (kv.second.btn) {
++      case Btn::DPad: m |= DPadMask(kv.second, gLayoutW, gLayoutH); break;
++      case Btn::A: m |= kA; break;
++      case Btn::B: m |= kB; break;
++      case Btn::X: m |= kX; break;
++      case Btn::Y: m |= kY; break;
++      case Btn::L: m |= kL; break;
++      case Btn::R: m |= kR; break;
++      case Btn::Start: m |= kStart; break;
++      case Btn::Select: m |= kSelect; break;
++      default: break;
++    }
++  }
++  return m;
++}
++bool FastForwardHeld() { return Pressed(Btn::FastForward); }
++bool TakePauseToggle() { bool v = gPauseToggle; gPauseToggle = false; return v; }
++bool TakePanelToggle() { bool v = gPanelToggle; gPanelToggle = false; return v; }
++
++void InjectFinger(float nx, float ny, int phase) { gInj.push_back({nx, ny, phase}); }
++bool PollInjected(float *nx, float *ny, int *phase) {
++  if (gInj.empty()) return false;
++  Inj i = gInj.front(); gInj.erase(gInj.begin());
++  *nx = i.nx; *ny = i.ny; *phase = i.phase; return true;
++}
++
++const std::vector<uint8_t> &Bitmap(int W, int H, bool *dirty) {
++  BuildLayout(W, H);
++  uint64_t key = ((uint64_t)(uint32_t)W << 32) | (uint32_t)H;
++  uint32_t pm = HeldMask();
++  key ^= (uint64_t)pm << 8 ^ (FastForwardHeld() ? 0x5A : 0);
++  if (dirty) *dirty = (W != gBmpW || H != gBmpH || key != gBmpKey);
++  if (W == gBmpW && H == gBmpH && key == gBmpKey) return gBmp;
++  gBmpW = W; gBmpH = H; gBmpKey = key;
++  gBmp.assign((size_t)W * H * 4, 0);
++  if (!Visible(W, H)) return gBmp;
++  for (auto &b : gLayout) {
++    bool pr = Pressed(b.btn);
++    if (b.btn == Btn::DPad) {
++      // Cross: vertical + horizontal bars, centre highlighted by held dirs.
++      float arm = b.w * 0.34f;
++      int vx0 = (int)(b.cx - arm * 0.5f), vx1 = (int)(b.cx + arm * 0.5f);
++      int vy0 = (int)(b.cy - b.h * 0.5f), vy1 = (int)(b.cy + b.h * 0.5f);
++      int hx0 = (int)(b.cx - b.w * 0.5f), hx1 = (int)(b.cx + b.w * 0.5f);
++      int hy0 = (int)(b.cy - arm * 0.5f), hy1 = (int)(b.cy + arm * 0.5f);
++      uint8_t a = pr ? 195 : 150;
++      FillRect(vx0, vy0, vx1, vy1, 22, 27, 38, a); FillRect(hx0, hy0, hx1, hy1, 22, 27, 38, a);
++      BorderRect(vx0, vy0, vx1, vy1, 2, 190, 205, 225, 190);
++      BorderRect(hx0, hy0, hx1, hy1, 2, 190, 205, 225, 190);
++      // Direction pips.
++      continue;
++    }
++    int x0 = (int)(b.cx - b.w * 0.5f), x1 = (int)(b.cx + b.w * 0.5f);
++    int y0 = (int)(b.cy - b.h * 0.5f), y1 = (int)(b.cy + b.h * 0.5f);
++    if (b.circle) {
++      float r = b.w * 0.5f;
++      for (int y = y0; y < y1; y++) for (int x = x0; x < x1; x++) {
++        float dx = x - b.cx, dy = y - b.cy;
++        if (dx * dx + dy * dy <= r * r)
++          PutPx(x, y, pr ? 70 : 22, pr ? 140 : 27, pr ? 220 : 38, pr ? 205 : 160);
++      }
++      // Pixel-style ring: redraw the bounding square corners transparent-ish.
++      BorderRect(x0 + (int)(r * 0.15f), y0 + (int)(r * 0.15f), x1 - (int)(r * 0.15f), y1 - (int)(r * 0.15f), 2, 190, 205, 225, 120);
++    } else {
++      FillRect(x0, y0, x1, y1, pr ? 70 : 22, pr ? 140 : 27, pr ? 220 : 38, pr ? 205 : 150);
++      BorderRect(x0, y0, x1, y1, 2, 190, 205, 225, 190);
++    }
++    float sc = std::max(1.5f, std::min(b.w, b.h) * 0.085f);
++    DrawLabel(b.btn == Btn::Pause ? "II" : b.label, b.cx, b.cy, sc);
++  }
++  return gBmp;
++}
++
++}  // namespace SIM::Touchpad
+diff --git a/libraries/sim/src/sim_touchpad.h b/libraries/sim/src/sim_touchpad.h
+new file mode 100644
+index 0000000..fb08035
+--- /dev/null
++++ b/libraries/sim/src/sim_touchpad.h
+@@ -0,0 +1,53 @@
++// ios-controls hook: on-screen gamepad overlay, finger routing and gamepad state.
++// Drawn by the render backend after PostFX (Backend::DrawTouchpadOverlay).
++#pragma once
++#include <cstdint>
++#include <vector>
++
++namespace SIM::Touchpad {
++
++// DS pad bits (same layout as SIM_DebugKeyMask): low 10 bits PAD, bits 10/11 XY.
++enum : uint32_t {
++  kA = 1u << 0, kB = 1u << 1, kSelect = 1u << 2, kStart = 1u << 3,
++  kRight = 1u << 4, kLeft = 1u << 5, kUp = 1u << 6, kDown = 1u << 7,
++  kR = 1u << 8, kL = 1u << 9, kX = 1u << 10, kY = 1u << 11,
++};
++
++enum class Btn { DPad, A, B, X, Y, L, R, Start, Select, FastForward, Pause, Panel };
++
++struct RectN { float x, y, w, h; Btn btn; const char *label; bool pressed; };
++
++// configMode: 0=auto (on for iOS), 1=on, 2=off. SIM_TOUCHPAD=1/0 env wins.
++void Init(int configMode);
++bool Enabled();
++bool ForcedByEnv();
++void SetGamepadConnected(bool connected);
++bool GamepadConnected();
++// Recomputes layout for the window size; returns true when the overlay should be drawn.
++bool Visible(int winW, int winH);
++int Layout(int winW, int winH, RectN *out, int maxOut);
++// True when (nx,ny) in [0,1] window space hits an overlay button.
++bool HitTest(float nx, float ny, int winW, int winH);
++
++// Finger lifecycle in window-normalised coordinates. Down returns true when
++// an overlay button consumed the finger (it must not reach the DS screen).
++bool FingerDown(int64_t finger, float nx, float ny, int winW, int winH);
++void FingerMotion(int64_t finger, float nx, float ny, int winW, int winH);
++void FingerUp(int64_t finger, float nx, float ny, int winW, int winH);
++bool IsOverlayFinger(int64_t finger);
++void NoteTouch();  // any finger down: show the overlay again
++
++uint32_t HeldMask();       // DS bits currently held by overlay fingers
++bool FastForwardHeld();
++bool TakePauseToggle();
++bool TakePanelToggle();
++
++// Headless injection queue (cmd "finger"): normalised window coords.
++void InjectFinger(float nx, float ny, int phase);  // 0=down 1=motion 2=up
++bool PollInjected(float *nx, float *ny, int *phase);
++
++// Rasterised overlay (RGBA8, winW x winH, top-down). Regenerated only when
++// size, pressed state or visibility changes; dirty is set then.
++const std::vector<uint8_t> &Bitmap(int winW, int winH, bool *dirty);
++
++}  // namespace SIM::Touchpad
 diff --git a/libraries/sim/src/sim_vars.c b/libraries/sim/src/sim_vars.c
 index 81309fd..94c9270 100644
 --- a/libraries/sim/src/sim_vars.c

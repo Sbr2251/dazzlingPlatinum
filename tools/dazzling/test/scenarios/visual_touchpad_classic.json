@@ -1,0 +1,28 @@
+{
+ "name": "visual_touchpad_classic",
+ "_note": "ios-controls: SIM_TOUCHPAD=1 overlay over classic vertical layout; finger step presses A on the overlay.",
+ "env": {
+  "SIM_TOUCHPAD": "1"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "finger": [
+    0.91,
+    0.89
+   ],
+   "frames": 10
+  },
+  {
+   "step": 60
+  },
+  {
+   "screenshot": "visual_touchpad_classic",
+   "reference": "../references/visual/visual_touchpad_classic.bmp",
+   "tolerance": 0.0,
+   "tolerance_gpu": 0.0005
+  }
+ ]
+}
