@@ -2479,10 +2479,10 @@ index 285ed8d..7db50b3 100644
  
 diff --git a/include/simulator/sim_headless.h b/include/simulator/sim_headless.h
 new file mode 100644
-index 0000000..378b778
+index 0000000..c18639f
 --- /dev/null
 +++ b/include/simulator/sim_headless.h
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,66 @@
 +#pragma once
 +// Headless / lockstep test support for PC builds. See docs/headless_protocol.md in the game repo.
 +// All of it is off unless the SIM_* environment variables are set; the interactive app is unchanged.
@@ -2511,6 +2511,7 @@ index 0000000..378b778
 +void SIM_SaveFlash_Begin(void);
 +int SIM_SaveFlash_Commit(void);
 +void SIM_SaveFlash_Rollback(void);
++int SIM_SaveFlash_Flush(void);
 +
 +// 1 when SIM_FIXED_RTC is set: fills the broken-down time for the current frame
 +// (base instant + frame * 1/60 s). Used by the RTC implementation.
@@ -2550,10 +2551,10 @@ index 0000000..378b778
 +#endif
 diff --git a/include/simulator/sim_helpers.hpp b/include/simulator/sim_helpers.hpp
 new file mode 100644
-index 0000000..c2b0286
+index 0000000..240e2b0
 --- /dev/null
 +++ b/include/simulator/sim_helpers.hpp
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,31 @@
 +#pragma once
 +
 +// Player helpers for PC builds: a fast-forward badge and short messages drawn over the game, and save import/export
@@ -2575,6 +2576,11 @@ index 0000000..c2b0286
 +// Import a save (.sav raw or DeSmuME .dsv), keeping a backup of the current one, then restart the game so it loads.
 +// With an empty path a file dialog asks which, and the player confirms (macOS). A given path is imported without asking.
 +void ImportSave(const std::string & path = "");
++
++// ios-platform hook: iOS Documents/Import + Documents/Export (Files app). Controls lane binds these to buttons.
++void ExportSaveToDocuments();
++bool ImportSaveFromDocuments();
++bool CheckImportOnBoot();
 +
 +// Called by the main loop each frame: restarts the game after an import.
 +void Poll();
@@ -2796,6 +2802,42 @@ index 0000000..2ee6c73
 +}
 +#endif
 +
++#endif
+diff --git a/include/simulator/sim_platform.h b/include/simulator/sim_platform.h
+new file mode 100644
+index 0000000..df6083c
+--- /dev/null
++++ b/include/simulator/sim_platform.h
+@@ -0,0 +1,30 @@
++#pragma once
++// Platform paths and app lifecycle for the simulator (platform lane, iOS port).
++// Read-only game data lives in the data dir; everything written goes to the
++// writable dir. On macOS/Linux both are the current directory, so existing
++// behaviour (cwd-relative files, the Mac launcher's symlinked data folder and
++// the headless suite) is unchanged. On iOS the data dir is the app bundle's
++// game folder and the writable dir is the app's Documents folder.
++// Overrides for tests/tools: SIM_DATA_DIR, SIM_WRITABLE_DIR (any platform).
++#include <SDL3/SDL.h>
++#ifdef __cplusplus
++extern "C" {
++#endif
++int SIM_Platform_IsIOS(void);
++const char *SIM_Platform_DataDir(void);
++const char *SIM_Platform_WritableDir(void);
++const char *SIM_Platform_SaveBinPath(void);
++const char *SIM_Platform_ConfigPath(void);
++const char *SIM_Platform_ConfigPrjPath(void);
++const char *SIM_Platform_LogPath(void);
++const char *SIM_Platform_JoinPath(const char *dir, const char *name);
++void SIM_Platform_EnsureWritableDirs(void);
++// Insets the window rect by the safe area; 0 when not applicable (non-iOS).
++int SIM_Platform_SafeArea(SDL_Window *window, SDL_Rect *out);
++// Handles background/foreground + audio-interruption events; call per event.
++void SIM_Platform_HandleEvent(const SDL_Event *event);
++// 2 on a >=100 Hz (ProMotion) display for 60 fps pacing, else 1; iOS only.
++int SIM_Platform_PacingSwapInterval(SDL_Window *window);
++#ifdef __cplusplus
++}
 +#endif
 diff --git a/include/simulator/sim_regblock.h b/include/simulator/sim_regblock.h
 new file mode 100644
@@ -5636,16 +5678,18 @@ index d7a921e..e00b716 100644
          '-DSIM_IMGUI_FILE_DIALOG_SUPPORT=1'
      ]
 diff --git a/libraries/sim/src/config/sim_config.c b/libraries/sim/src/config/sim_config.c
-index 096e7fb..1c59cce 100644
+index 096e7fb..97a8631 100644
 --- a/libraries/sim/src/config/sim_config.c
 +++ b/libraries/sim/src/config/sim_config.c
-@@ -1,4 +1,4 @@
+@@ -1,20 +1,21 @@
 -#include <SDL2/SDL_keycode.h>
 +#include <SDL3/SDL_keycode.h>
  #include <nitro.h>
  #include <simulator/sim.h>
  #include <simulator/config/ini.h>
-@@ -7,7 +7,7 @@
+ #include <simulator/config/sim_config.h>
++#include <simulator/sim_platform.h> // ios-platform hook
+ 
  #include <string.h>
  #include <wchar.h>
  
@@ -5654,7 +5698,15 @@ index 096e7fb..1c59cce 100644
  
  #include <stdlib.h>
  
-@@ -33,9 +33,28 @@ static int IniHandler(void* user, const char* section, const char* name,
+ #ifdef SDK_BUILD_PROSPERO
+ #define SIM_CONFIG_FILE_PATH "/app0/sim_config.ini"
+ #else
+-#define SIM_CONFIG_FILE_PATH "./sim_config.ini"
++#define SIM_CONFIG_FILE_PATH SIM_Platform_ConfigPath() // ios-platform hook
+ #endif
+ 
+ static int IniHandler(void* user, const char* section, const char* name,
+@@ -33,9 +34,28 @@ static int IniHandler(void* user, const char* section, const char* name,
      SIM_config_type * config = (SIM_config_type *)user;
  
      // General section
@@ -5683,7 +5735,7 @@ index 096e7fb..1c59cce 100644
      if(MATCH("General", "WindowHeight")) {
          config->windowHeight = atoi(value);
      }
-@@ -54,6 +73,8 @@ static int IniHandler(void* user, const char* section, const char* name,
+@@ -54,6 +74,8 @@ static int IniHandler(void* user, const char* section, const char* name,
      if(MATCH("General", "ScreenLayout")) {
          config->screenLayout = StringToScreenLayoutType(value);
      }
@@ -5692,7 +5744,7 @@ index 096e7fb..1c59cce 100644
      if(MATCH("General", "SwapScreens")) {
          config->swapScreens = StringToBool(value);
      }
-@@ -312,6 +333,9 @@ static const char * ScreenLayoutTypeToString(SIM_config_screen_layout_type layou
+@@ -312,6 +334,9 @@ static const char * ScreenLayoutTypeToString(SIM_config_screen_layout_type layou
          case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
              ret = "large";
              break;
@@ -5702,7 +5754,7 @@ index 096e7fb..1c59cce 100644
      }
      return ret;
  }
-@@ -326,6 +350,8 @@ static SIM_config_screen_layout_type StringToScreenLayoutType(const char * str)
+@@ -326,6 +351,8 @@ static SIM_config_screen_layout_type StringToScreenLayoutType(const char * str)
          ret = SIM_CONFIG_SCREEN_LAYOUT_HORIZONTAL;
      } else if (strcmp(str, "large") == 0) {
          ret = SIM_CONFIG_SCREEN_LAYOUT_LARGE;
@@ -5711,7 +5763,7 @@ index 096e7fb..1c59cce 100644
      }
      
      return ret;
-@@ -348,11 +374,13 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -348,11 +375,14 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->windowWidth = 1920;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_LARGE;
  #else
@@ -5722,11 +5774,12 @@ index 096e7fb..1c59cce 100644
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_VERTICAL;
  #endif
 +    aConfig->renderer = SIM_CONFIG_RENDERER_GPU;
++    if (SIM_Platform_IsIOS()) { aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_WIDE; aConfig->renderer = SIM_CONFIG_RENDERER_GPU; } // ios-platform hook
 +    aConfig->upscale2D = 0; // hiresui: nearest (crisp DS pixels) by default; Sharp/Bilinear are opt-in
      aConfig->fullScreen = FALSE;
      aConfig->swapScreens = FALSE;
      aConfig->vsyncInterval = 1;
-@@ -360,19 +388,19 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -360,19 +390,19 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->masterVolume = 127;
  
      aConfig->padSettings.joyAxisDeadzone = 32767 / 4;
@@ -5753,7 +5806,7 @@ index 096e7fb..1c59cce 100644
      aConfig->padSettings.frameCapToggleKey = SDLK_TAB;
      aConfig->padSettings.frameCapKey = SDLK_SPACE;
      aConfig->padSettings.aJoyKey = 0;
-@@ -410,7 +438,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -410,7 +440,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->macAddr[5] = rand();
  
      memset(&aConfig->osNvramConfig, 0, sizeof(NVRAMConfig));
@@ -5763,7 +5816,7 @@ index 096e7fb..1c59cce 100644
      aConfig->osNvramConfig.ncd.option.input_nickname = TRUE;
      aConfig->osNvramConfig.ncd.option.input_favoriteColor = TRUE;
      aConfig->osNvramConfig.ncd.option.input_language = TRUE;
-@@ -427,7 +456,9 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
+@@ -427,7 +458,9 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
      FILE * configFile = fopen(SIM_CONFIG_FILE_PATH, "w");
      
      fprintf(configFile, "[General]\n");
@@ -14273,7 +14326,7 @@ index 0000000..9c495bf
 +
 +#endif // #ifndef IMGUI_DISABLE
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..5659549 100644
+index 2d852bf..b443712 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -8,7 +8,8 @@ libsim_srcs = files(
@@ -14309,7 +14362,7 @@ index 2d852bf..5659549 100644
      'sim_g3_Texture.cpp',
      'sim_g3_TextureCache.cpp',
      'sim_g3_Utilities.cpp',
-@@ -31,6 +41,14 @@ libsim_srcs = files(
+@@ -31,7 +41,16 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
@@ -14322,9 +14375,11 @@ index 2d852bf..5659549 100644
 +    'sim_layout.c',
 +    'sim_lights.c',
      'sim_main.cpp',
++    'sim_platform.cpp',
      'sim_net.cpp',
      'sim_RenderContextManager.cpp',
-@@ -48,6 +66,25 @@ if(build_target == 'prospero')
+     'sim_RomExtractor.cpp',
+@@ -48,6 +67,25 @@ if(build_target == 'prospero')
  libsim_srcs += files('ps5_heap.cpp')
  endif
  
@@ -15895,12 +15950,13 @@ index 0000000..6f15546
 +}
 diff --git a/libraries/sim/src/render_gpu/fx_texpack.cpp b/libraries/sim/src/render_gpu/fx_texpack.cpp
 new file mode 100644
-index 0000000..fe7fcee
+index 0000000..1f94b72
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_texpack.cpp
-@@ -0,0 +1,286 @@
+@@ -0,0 +1,289 @@
 +// fx_texpack implementation. See include/simulator/fx_texpack.hpp.
 +#include <simulator/fx_texpack.hpp>
++#include <simulator/sim_platform.h> // ios-platform hook
 +
 +#include <SDL3/SDL.h>
 +
@@ -15942,7 +15998,7 @@ index 0000000..fe7fcee
 +// Reads TexturePack / TexturePackDump from ./sim_config_prj.ini
 +// [General], the same file the game config uses. Returns -1 when absent.
 +int IniFlag(const char *key) {
-+  FILE *f = std::fopen("./sim_config_prj.ini", "r");
++  FILE *f = std::fopen(SIM_Platform_ConfigPrjPath(), "r"); // ios-platform hook
 +  if (!f) return -1;
 +  char line[256];
 +  int inGeneral = 0, result = -1;
@@ -16011,12 +16067,14 @@ index 0000000..fe7fcee
 +}
 +
 +std::string ProbeDir() {
++  if (SIM_Platform_IsIOS() && gCfg.dump) return Join(SIM_Platform_WritableDir(), "TexturePackDump"); // ios-platform hook
 +  if (const char *env = std::getenv("SIM_TEXPACK_DIR")) {
 +    if (env[0]) return env; // explicit: use even for dump (created there)
 +  }
 +  const char *base = SDL_GetBasePath(); // executable directory
 +  std::string exe = ExeDir();
 +  std::string candidates[] = {
++      Join(SIM_Platform_DataDir(), "TexturePack"), // ios-platform hook
 +      "TexturePack",
 +      base ? Join(base, "TexturePack") : "",
 +      Join(exe, "TexturePack"),
@@ -30362,6 +30420,42 @@ index 44b9acf..ad56f7d 100644
  void SIM_Audio_StartChannel(int chNo)
  {
      if((s_SIM_sndcnt[chNo]>>29)&0x3 == 3) {
+diff --git a/libraries/sim/src/sim_debug.cpp b/libraries/sim/src/sim_debug.cpp
+index 9588236..86486e8 100644
+--- a/libraries/sim/src/sim_debug.cpp
++++ b/libraries/sim/src/sim_debug.cpp
+@@ -3,11 +3,12 @@
+ #include <time.h>
+ 
+ #include <nitro.h>
++#include <simulator/sim_platform.h> // ios-platform hook
+ 
+ #define NANO 1000000000L
+ #define MILLI_TO_NANO 1000000L
+ 
+-static const char * DebugPrintFilePath = "DbgLog.txt";
++static const char * DebugPrintFilePath = "DbgLog.txt"; // ios-platform: routed below
+ static const char * s_profileStartFile = "";
+ static int s_profileStartLine;
+ 
+@@ -16,7 +17,7 @@ static struct timespec s_profileStartTime;
+ void SIM_Dbg_Init() {
+     FILE * dbgPrintFile = NULL;
+ 
+-    dbgPrintFile = fopen(DebugPrintFilePath, "w");
++    dbgPrintFile = fopen(SIM_Platform_IsIOS() ? SIM_Platform_JoinPath(SIM_Platform_WritableDir(), DebugPrintFilePath) : DebugPrintFilePath, "w"); // ios-platform hook
+     if(dbgPrintFile) {
+         fclose(dbgPrintFile);
+     }
+@@ -26,7 +27,7 @@ void SIM_Dbg_Printf(const char * fmt, ...) {
+     va_list args;
+     FILE * dbgPrintFile = NULL;
+ 
+-    dbgPrintFile = fopen(DebugPrintFilePath, "a");
++    dbgPrintFile = fopen(SIM_Platform_IsIOS() ? SIM_Platform_JoinPath(SIM_Platform_WritableDir(), DebugPrintFilePath) : DebugPrintFilePath, "a"); // ios-platform hook
+     if(!dbgPrintFile) {
+         return;  
+     }
 diff --git a/libraries/sim/src/sim_g2.cpp b/libraries/sim/src/sim_g2.cpp
 index b67717b..2c381a5 100644
 --- a/libraries/sim/src/sim_g2.cpp
@@ -32326,13 +32420,14 @@ index 4b4d007..4e7444e 100644
                  || Event.jaxis.value < (sConfig->padSettings.joyAxisDeadzone*-1)) {
 diff --git a/libraries/sim/src/sim_headless.cpp b/libraries/sim/src/sim_headless.cpp
 new file mode 100644
-index 0000000..c746508
+index 0000000..c436fa8
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless.cpp
-@@ -0,0 +1,173 @@
+@@ -0,0 +1,174 @@
 +// Headless / deterministic mode for PC builds (docs/headless_protocol.md).
 +// Off unless SIM_HEADLESS / SIM_CONTROL / SIM_FIXED_RTC / SIM_SEED / SIM_SAVE_PATH is set.
 +#include "simulator/sim_headless.h"
++#include "simulator/sim_platform.h"
 +#include <simulator/sim_render_backend.hpp>
 +
 +#include <SDL3/SDL.h>
@@ -32444,7 +32539,7 @@ index 0000000..c746508
 +extern "C" unsigned long long SIM_Headless_FrameCount(void) { return s_frame; }
 +
 +extern "C" const char *SIM_GetSaveBinPath(void) {
-+    return s_savePath.empty() ? "save.bin" : s_savePath.c_str();
++    return s_savePath.empty() ? SIM_Platform_SaveBinPath() : s_savePath.c_str();
 +}
 +
 +extern "C" int SIM_Headless_GetFixedRTC(int *year, int *month, int *day, int *week, int *hour, int *minute, int *second) {
@@ -32786,10 +32881,10 @@ index 0000000..401c70f
 +}
 diff --git a/libraries/sim/src/sim_headless_watchdog.cpp b/libraries/sim/src/sim_headless_watchdog.cpp
 new file mode 100644
-index 0000000..b9b82da
+index 0000000..c5d0853
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_watchdog.cpp
-@@ -0,0 +1,182 @@
+@@ -0,0 +1,183 @@
 +// Assert / crash reporting and the watchdog (docs/headless_protocol.md, step 4).
 +// Headless: GF_ASSERT and fatal signals print file:line, message and a symbolized
 +// backtrace to stderr, then exit 134. The watchdog exits 124 with a state dump when
@@ -32797,6 +32892,7 @@ index 0000000..b9b82da
 +// Interactive (non-headless): assert info is appended to log.txt and shown in a
 +// message box, then the process exits 134 instead of hanging silently.
 +#include "simulator/sim_headless.h"
++#include "simulator/sim_platform.h" // ios-platform hook
 +
 +#include <SDL3/SDL.h>
 +
@@ -32874,7 +32970,7 @@ index 0000000..b9b82da
 +    // Interactive: log.txt + message box instead of a silent hang.
 +    char text[2048];
 +    snprintf(text, sizeof text, "Assertion failed: %s:%d: %s", file ? file : "?", line, msg ? msg : "");
-+    if (FILE *f = fopen("log.txt", "a")) { fprintf(f, "%s\n", text); fclose(f); }
++    if (FILE *f = fopen(SIM_Platform_LogPath(), "a")) { fprintf(f, "%s\n", text); fclose(f); } // ios-platform hook
 +    fprintf(stderr, "%s\n", text);
 +    PrintBacktrace();
 +    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Dazzling Platinum", text, nullptr);
@@ -32974,10 +33070,10 @@ index 0000000..b9b82da
 +}
 diff --git a/libraries/sim/src/sim_helpers.cpp b/libraries/sim/src/sim_helpers.cpp
 new file mode 100644
-index 0000000..f464d50
+index 0000000..7acb431
 --- /dev/null
 +++ b/libraries/sim/src/sim_helpers.cpp
-@@ -0,0 +1,366 @@
+@@ -0,0 +1,397 @@
 +// Player helpers for PC builds: a fast-forward badge and short messages drawn over the game, and save import/export.
 +//
 +// Saves: the game reads and writes save.bin in its working directory, a raw image of the DS cartridge's 512 KB flash, so it is
@@ -32987,6 +33083,8 @@ index 0000000..f464d50
 +#include "simulator/sim.h"
 +#include "simulator/sim_helpers.hpp"
 +#include "simulator/sim_gui.hpp"
++#include "simulator/sim_platform.h" // ios-platform hook
++#include <dirent.h> // ios-platform hook
 +
 +#include "simulator/imgui/imgui.hpp"
 +
@@ -33006,6 +33104,7 @@ index 0000000..f464d50
 +#include <unistd.h>
 +
 +#ifdef __APPLE__
++#include <TargetConditionals.h> // ios-platform hook
 +#include <crt_externs.h>
 +#include <mach-o/dyld.h>
 +#endif
@@ -33161,7 +33260,7 @@ index 0000000..f464d50
 +
 +// ---------------------------------------------------------------------------------------------------------------- dialogs
 +
-+#ifdef __APPLE__
++#if defined(__APPLE__) && defined(TARGET_OS_OSX) && TARGET_OS_OSX
 +static std::string AppleScriptString(const std::string & s) {
 +    std::string out = "\"";
 +    for (char c : s) {
@@ -33194,7 +33293,7 @@ index 0000000..f464d50
 +    return status == 0;
 +}
 +
-+static std::string DefaultFolder(bool forImport) {
++static std::string DefaultFolder(bool forImport) { // macOS only
 +    const char * home = getenv("HOME");
 +    if (!home) return "/";
 +    struct stat st;
@@ -33219,7 +33318,7 @@ index 0000000..f464d50
 +    if (data.size() < kFlashSize) data.resize(kFlashSize, 0xFF);   // erased flash reads as 0xFF
 +
 +    if (path.empty()) {
-+#ifdef __APPLE__
++#if defined(__APPLE__) && defined(TARGET_OS_OSX) && TARGET_OS_OSX // ios-platform hook
 +        std::string script = "activate\nPOSIX path of (choose file name with prompt " + AppleScriptString("Export the save (.sav)") +
 +                             " default name " + AppleScriptString("Pokemon Platinum " + Timestamp() + ".sav") +
 +                             " default location (POSIX file " + AppleScriptString(DefaultFolder(false)) + "))";
@@ -33242,7 +33341,7 @@ index 0000000..f464d50
 +
 +static void DoImport(std::string path) {
 +    bool interactive = path.empty();
-+#ifdef __APPLE__
++#if defined(__APPLE__) && defined(TARGET_OS_OSX) && TARGET_OS_OSX // ios-platform hook
 +    if (interactive) {
 +        std::string script = "activate\nPOSIX path of (choose file with prompt " +
 +                             AppleScriptString("Import a save (.sav, or a DeSmuME .dsv)") +
@@ -33273,7 +33372,7 @@ index 0000000..f464d50
 +        return;
 +    }
 +
-+#ifdef __APPLE__
++#if defined(__APPLE__) && defined(TARGET_OS_OSX) && TARGET_OS_OSX // ios-platform hook
 +    if (interactive) {
 +        std::string script = "activate\ndisplay dialog " +
 +                             AppleScriptString("Replace the current save with " + BaseName(path) +
@@ -33321,7 +33420,7 @@ index 0000000..f464d50
 +void Poll() {
 +    if (!sRestart) return;
 +    sRestart = false;
-+#ifdef __APPLE__
++ #if defined(__APPLE__) && defined(TARGET_OS_OSX) && TARGET_OS_OSX // ios-platform hook
 +    // Run this executable again with the same arguments, working directory and output
 +    char exe[PATH_MAX];
 +    uint32_t size = sizeof exe;
@@ -33343,6 +33442,34 @@ index 0000000..f464d50
 +    Toast("Imported; quit and reopen the game to load it", 8.0);
 +}
 +
++// ios-platform hook: iOS Files-app import/export for the controls lane.
++std::string ExportPathForDocuments() {
++    SIM_Platform_EnsureWritableDirs();
++    return std::string(SIM_Platform_WritableDir()) + "/Export/Pokemon Platinum " + Timestamp() + ".sav";
++}
++void ExportSaveToDocuments() { ExportSave(ExportPathForDocuments()); }
++bool ImportSaveFromDocuments() {
++    SIM_Platform_EnsureWritableDirs();
++    std::string dir = std::string(SIM_Platform_WritableDir()) + "/Import";
++    DIR *d = opendir(dir.c_str());
++    if (!d) return false;
++    std::string found;
++    while (auto *e = readdir(d)) {
++        std::string n = e->d_name;
++        if (n.size() > 4 && (n.compare(n.size()-4,4,".sav")==0 || n.compare(n.size()-4,4,".dsv")==0)) { found = dir + "/" + n; break; }
++    }
++    closedir(d);
++    if (found.empty()) return false;
++    ImportSave(found);
++    std::string done = found + ".imported";
++    rename(found.c_str(), done.c_str());
++    return true;
++}
++bool CheckImportOnBoot() {
++    if (!SIM_Platform_IsIOS()) return false;
++    if (ImportSaveFromDocuments()) { Toast("Imported save from Files; reopening load", 5.0); return true; }
++    return false;
++}
 +}  // namespace SIM::Helpers
 diff --git a/libraries/sim/src/sim_hirestext.cpp b/libraries/sim/src/sim_hirestext.cpp
 new file mode 100644
@@ -33772,7 +33899,7 @@ index 0000000..4b3f9e5
 +    return 1;
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..2472d08 100644
+index 910d7da..d0c371b 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,14 +1,23 @@
@@ -33802,22 +33929,19 @@ index 910d7da..2472d08 100644
  #include <simulator/sim.h>
  #include <simulator/sim_audio.h>
  #include <simulator/sim_net.h>
-@@ -18,6 +27,11 @@ extern "C" int NitroSpMain(void *arg);
- #include <stdio.h>
+@@ -19,6 +28,7 @@ extern "C" int NitroSpMain(void *arg);
  #include <stdlib.h>
  #include <unistd.h>
-+#if defined(__APPLE__) && TARGET_OS_IOS
-+// ios-build hook: bundle data dir setup (below, before main).
-+#include <dirent.h>
-+#include <sys/stat.h>
-+#endif
  
++
  #include <nitro/gx/g3.h>
  #include <nitro/gx/gx_load.h>
-@@ -28,16 +42,26 @@ extern "C" int NitroSpMain(void *arg);
+ #include <nitro/gx/gx_vramcnt.h>
+@@ -28,16 +38,27 @@ extern "C" int NitroSpMain(void *arg);
  #include <nitro/pxi/common/fifo.h>
  
  #include <simulator/config/sim_config.h>
++#include "simulator/sim_platform.h" // ios-platform hook
 +#include <simulator/sim_layout.h>
  #include <simulator/drawmsg.h>
  #include <simulator/queue.h>
@@ -33841,7 +33965,7 @@ index 910d7da..2472d08 100644
  
  #include "nds-extract.hpp"
  
-@@ -65,6 +89,8 @@ extern "C" int NitroSpMain(void *arg);
+@@ -65,6 +86,8 @@ extern "C" int NitroSpMain(void *arg);
  #endif
  
  #include "sim_g2.h"
@@ -33850,7 +33974,7 @@ index 910d7da..2472d08 100644
  #include "git_info.h"
  
  // Simulator configuration
-@@ -75,6 +101,49 @@ extern OSThreadInfo OSi_ThreadInfo;
+@@ -75,6 +98,49 @@ extern OSThreadInfo OSi_ThreadInfo;
  
  static u32 s_TouchPanelCoords[4] = {}; // The bounding box of the touch screen
  
@@ -33900,7 +34024,7 @@ index 910d7da..2472d08 100644
  // SND
  #include <nitro/snd/common/work.h>
  #include <nitro/snd/common/command.h>
-@@ -96,6 +165,20 @@ static struct timespec s_SIM_lastFrameEnd;
+@@ -96,6 +162,20 @@ static struct timespec s_SIM_lastFrameEnd;
  static u64 sRenderFrameTime;
  static u64 sFullFrameTime;
  
@@ -33921,7 +34045,7 @@ index 910d7da..2472d08 100644
  static constexpr auto SteamDeckWidth = 1280;
  static constexpr auto SteamDeckHeight = 800;
  
-@@ -125,45 +208,170 @@ u8 OBJWindow[2][256];
+@@ -125,45 +205,170 @@ u8 OBJWindow[2][256];
  
  GXVRamBGExtPltt s_SIM_GXBgExtPltt;
  GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
@@ -34127,7 +34251,7 @@ index 910d7da..2472d08 100644
  
  static SDL_Window *window;
  
-@@ -178,6 +386,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +383,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -34138,7 +34262,7 @@ index 910d7da..2472d08 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -224,38 +436,11 @@ static void DrawEngine(BOOL isSub);
+@@ -224,38 +433,11 @@ static void DrawEngine(BOOL isSub);
  static u8 s_numG3CommandsThisFrame = 0;
  
  // Vcount stuff
@@ -34179,7 +34303,7 @@ index 910d7da..2472d08 100644
  SIM_config_type *SIM_GetConfigPtr() { return &s_SIM_config; }
  
  SDL_Window * SIM_GetSDLWindow() {return window;}
-@@ -275,27 +460,9 @@ void *runVblankInterrupt(void *arg) {
+@@ -275,27 +457,9 @@ void *runVblankInterrupt(void *arg) {
    return NULL;
  }
  
@@ -34209,7 +34333,7 @@ index 910d7da..2472d08 100644
  }
  
  static bool sChangeInternalResAfterRender = false;
-@@ -308,18 +475,63 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
+@@ -308,18 +472,63 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
    sPendingInternalRes = internalRes;
  }
  
@@ -34280,7 +34404,7 @@ index 910d7da..2472d08 100644
  
    u32 windowHeight;
    u32 windowWidth;
-@@ -352,6 +564,11 @@ void *SIM_RenderInit(void *arg) {
+@@ -352,6 +561,11 @@ void *SIM_RenderInit(void *arg) {
          windowHeight = SIM_NDS_SCREEN_HEIGHT * 2 * 2;
          windowWidth = (SIM_NDS_SCREEN_WIDTH * 2 * 2) + (SIM_NDS_SCREEN_WIDTH * 2);
          break;
@@ -34292,7 +34416,7 @@ index 910d7da..2472d08 100644
        }
      }
    } else {
-@@ -376,197 +593,63 @@ void *SIM_RenderInit(void *arg) {
+@@ -376,197 +590,63 @@ void *SIM_RenderInit(void *arg) {
                    std::string(makerCode) + "]";
    }
  
@@ -34534,7 +34658,7 @@ index 910d7da..2472d08 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -578,10 +661,16 @@ static void DrawEngine(BOOL isSub) {
+@@ -578,10 +658,16 @@ static void DrawEngine(BOOL isSub) {
    u8 maxPriorityBG;
    u8 bgEnabled[4];
    u8 bgMode;
@@ -34553,7 +34677,7 @@ index 910d7da..2472d08 100644
  
    // Get the enabled BGs
    u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
-@@ -603,20 +692,6 @@ static void DrawEngine(BOOL isSub) {
+@@ -603,20 +689,6 @@ static void DrawEngine(BOOL isSub) {
    backdropColor =
        isSub ? *(u16 *)&s_HW_DB_BG_PLTT[0] : *(u16 *)&s_HW_BG_PLTT[0];
    SIM_u16ToRGB(backdropColor, &backdropR, &backdropG, &backdropB);
@@ -34574,7 +34698,7 @@ index 910d7da..2472d08 100644
  
    // Get the BG priorities
    u16 bg0cnt = isSub ? s_reg_G2S_DB_BG0CNT : s_reg_G2_BG0CNT;
-@@ -624,52 +699,44 @@ static void DrawEngine(BOOL isSub) {
+@@ -624,52 +696,44 @@ static void DrawEngine(BOOL isSub) {
    u16 bg2cnt = isSub ? s_reg_G2S_DB_BG2CNT : s_reg_G2_BG2CNT;
    u16 bg3cnt = isSub ? s_reg_G2S_DB_BG3CNT : s_reg_G2_BG3CNT;
  
@@ -34638,16 +34762,16 @@ index 910d7da..2472d08 100644
  
 -  // Set up the BGOrder in the shader
 -  glUniform1iv(glGetUniformLocation(g2shaderProgramID, "bgOrder"), 4, bgOrder);
-+  // GPU 2D layers (SIM_G2_GPU=1): renders BG/OBJ/window layers into the
-+  // layer images; the compositing below is shared. FALSE = CPU path.
-+  BOOL gpuLayers = G2GPU_RenderLayers(isSub);
- 
+-
 -  // Clear out the textures
 -  for (int i = 0; i < 4; i++) {
 -    glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
 -    glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
 -  }
--
++  // GPU 2D layers (SIM_G2_GPU=1): renders BG/OBJ/window layers into the
++  // layer images; the compositing below is shared. FALSE = CPU path.
++  BOOL gpuLayers = G2GPU_RenderLayers(isSub);
+ 
 -  for (int i = 0; i < 5; i++) {
 -    glActiveTexture(GL_TEXTURE0 + s_objTexUnits[0]);
 -    glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
@@ -34659,7 +34783,7 @@ index 910d7da..2472d08 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -715,13 +782,38 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +779,38 @@ static void DrawEngine(BOOL isSub) {
        u8 a;
        for (int j = 0; j < 256; j++) {
          if (OBJLine[isSub][j]) {
@@ -34703,7 +34827,7 @@ index 910d7da..2472d08 100644
            }
          }
          if (OBJWindow[isSub][j]) {
-@@ -735,130 +827,107 @@ static void DrawEngine(BOOL isSub) {
+@@ -735,130 +824,107 @@ static void DrawEngine(BOOL isSub) {
  
    // Draw the BGs
    for (int i = 0; i < 4; i++) {
@@ -34922,7 +35046,7 @@ index 910d7da..2472d08 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +1019,281 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1016,281 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -35204,7 +35328,7 @@ index 910d7da..2472d08 100644
  
    SDL_Event Event;
    char c;
-@@ -965,6 +1308,7 @@ void *SIM_Render(void *arg) {
+@@ -965,6 +1305,7 @@ void *SIM_Render(void *arg) {
    auto& g3State = SIM::G3::GetGlobalState();
    g3State.FlushDrawCall();
    g3State.DrawTransparentItems();
@@ -35212,7 +35336,7 @@ index 910d7da..2472d08 100644
  
  
    do {
-@@ -976,14 +1320,6 @@ void *SIM_Render(void *arg) {
+@@ -976,14 +1317,6 @@ void *SIM_Render(void *arg) {
        SIM_Net_SendBeaconIndication();
      }
  
@@ -35227,7 +35351,7 @@ index 910d7da..2472d08 100644
      int windowHeight;
      int windowWidth;
      int viewHeight;
-@@ -1006,6 +1342,13 @@ void *SIM_Render(void *arg) {
+@@ -1006,6 +1339,13 @@ void *SIM_Render(void *arg) {
      case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
        aspectRatio = 768.0f / 384.0f;
        break;
@@ -35241,7 +35365,7 @@ index 910d7da..2472d08 100644
      }
  
      viewWidth = windowWidth;
-@@ -1019,10 +1362,125 @@ void *SIM_Render(void *arg) {
+@@ -1019,10 +1359,126 @@ void *SIM_Render(void *arg) {
        viewY = 0;
      }
  
@@ -35250,6 +35374,7 @@ index 910d7da..2472d08 100644
 +    // pass draws it to the window after both engines. Record the
 +    // viewport rect so effect centres (combined-display pixels) can be
 +    // mapped to UVs by FxUV.
++{ SDL_Rect sa; if (SIM_Platform_SafeArea(window, &sa)) { viewX += sa.x; viewY += sa.y; if (viewWidth > sa.w) viewWidth = sa.w; if (viewHeight > sa.h) viewHeight = sa.h; } } // ios-platform hook
 +    sViewX = viewX; sViewY = viewY; sViewW = viewWidth; sViewH = viewHeight;
 +    sViewWinW = windowWidth; sViewWinH = windowHeight;
 +
@@ -35369,7 +35494,7 @@ index 910d7da..2472d08 100644
        switch (s_SIM_config.screenLayout) {
        default:
        case SIM_CONFIG_SCREEN_LAYOUT_VERTICAL:
-@@ -1068,24 +1526,85 @@ void *SIM_Render(void *arg) {
+@@ -1068,24 +1524,86 @@ void *SIM_Render(void *arg) {
        }
      }
  
@@ -35426,6 +35551,7 @@ index 910d7da..2472d08 100644
 +    SIM::Helpers::Poll();   // restart after a save import
 +
      while (SDL_PollEvent(&Event)) {
++      SIM_Platform_HandleEvent(&Event); // ios-platform hook
        SIM::GUI::ProcessEvent(&Event);
  
 -      if (Event.type == SDL_WINDOWEVENT) {
@@ -35466,7 +35592,7 @@ index 910d7da..2472d08 100644
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT & 0b1111111111111110;
          } else if (keyRead == s_SIM_config.padSettings.bKey) {
-@@ -1136,15 +1655,15 @@ void *SIM_Render(void *arg) {
+@@ -1136,15 +1654,15 @@ void *SIM_Render(void *arg) {
              s_SIM_config.vsyncInterval = 1; // Every V-Blank
            }
  
@@ -35486,7 +35612,7 @@ index 910d7da..2472d08 100644
          if (keyRead == s_SIM_config.padSettings.aKey) {
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000001;
-@@ -1185,16 +1704,16 @@ void *SIM_Render(void *arg) {
+@@ -1185,16 +1703,16 @@ void *SIM_Render(void *arg) {
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000100;
          } else if(keyRead == s_SIM_config.padSettings.frameCapKey) {
            sFastForward = false;
@@ -35507,7 +35633,7 @@ index 910d7da..2472d08 100644
          if (Event.jhat.value == SDL_HAT_CENTERED) {
            // send keyUp event for all hats
            HandleJoystickKeyUp(SIM_CONFIG_JOY_HAT_MASK | SDL_HAT_UP);
-@@ -1224,7 +1743,7 @@ void *SIM_Render(void *arg) {
+@@ -1224,7 +1742,7 @@ void *SIM_Render(void *arg) {
            }
          }
        }
@@ -35516,7 +35642,7 @@ index 910d7da..2472d08 100644
          if (Event.jaxis.value > s_SIM_config.padSettings.joyAxisDeadzone ||
              Event.jaxis.value <
                  (s_SIM_config.padSettings.joyAxisDeadzone * -1)) {
-@@ -1245,12 +1764,37 @@ void *SIM_Render(void *arg) {
+@@ -1245,12 +1763,37 @@ void *SIM_Render(void *arg) {
                                SIM_CONFIG_JOY_AXIS_MINUS_MASK);
          }
        }
@@ -35556,7 +35682,7 @@ index 910d7da..2472d08 100644
          isMouseDown = 0;
          s_tpData.validity = 0;
          s_tpData.touch = 0;
-@@ -1258,10 +1802,17 @@ void *SIM_Render(void *arg) {
+@@ -1258,10 +1801,17 @@ void *SIM_Render(void *arg) {
      }
      s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT;
  
@@ -35576,7 +35702,7 @@ index 910d7da..2472d08 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1297,12 +1848,55 @@ void *SIM_Render(void *arg) {
+@@ -1297,12 +1847,55 @@ void *SIM_Render(void *arg) {
      memset(bg3stex, 0,
             sizeof(u8) * 4 * SIM_NDS_SCREEN_WIDTH * SIM_NDS_SCREEN_HEIGHT * 2);
  
@@ -35585,7 +35711,8 @@ index 910d7da..2472d08 100644
 +    // hiresui fix: apply any pending 2D-upscale filter change here, before
 +    // the engines set up their texture bindings for this frame.
 +    HiRes_ApplyUpscaleFilter(HiRes_EffectiveUpscale2D());
-+
+ 
+-    // SUB engine
 +    // Draw MAIN engine. In VRAM display mode the main screen shows a
 +    // captured VRAM bank instead of the BG/OBJ layers; a pending capture
 +    // still takes the (undisplayed) engine output as source A first.
@@ -35596,8 +35723,7 @@ index 910d7da..2472d08 100644
 +      DrawEngine(FALSE);
 +      if (s_reg_GX_DISPCAPCNT & 0x80000000u) CaptureFrame();
 +    }
- 
--    // SUB engine
++
 +    // SUB engine. DrawEngine decides the wide role (full-width top
 +    // engine vs. panel) and skips a closed panel itself.
      DrawEngine(TRUE);
@@ -35635,7 +35761,7 @@ index 910d7da..2472d08 100644
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1328,19 +1922,30 @@ void *SIM_Render(void *arg) {
+@@ -1328,19 +1921,30 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -35676,7 +35802,7 @@ index 910d7da..2472d08 100644
  
      if(sChangeInternalResAfterRender) {
        SIM_SetInternalResolution(sPendingInternalRes);
-@@ -1359,45 +1964,40 @@ void *SIM_Render(void *arg) {
+@@ -1359,45 +1963,40 @@ void *SIM_Render(void *arg) {
  #endif
  
      s_numG3CommandsThisFrame = 0;
@@ -35745,7 +35871,7 @@ index 910d7da..2472d08 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1407,17 +2007,16 @@ u64 SIM_GetFullFrameTime() {
+@@ -1407,17 +2006,16 @@ u64 SIM_GetFullFrameTime() {
    return sFullFrameTime;
  }
  
@@ -35766,50 +35892,7 @@ index 910d7da..2472d08 100644
  }
  
  const char * SIM_GetLibntrGitHash() {
-@@ -1441,7 +2040,42 @@ int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline,
- }
- #endif
- 
-+#if defined(__APPLE__) && TARGET_OS_IOS
-+// ios-build hook: the bundle is read-only, so run from the writable pref dir with
-+// every bundle game entry linked in (the macOS launcher's job, in-process; the
-+// platform lane's path API replaces this). First run seeds the iOS default config.
-+static void IOS_SetupDataDir() {
-+  const char *base = SDL_GetBasePath();
-+  char *pref = SDL_GetPrefPath("local", "Dazzling Platinum");
-+  if (!base || !pref) return;
-+  std::string game = std::string(base) + "Resources/game";
-+  std::string data = pref;
-+  SDL_free(pref);
-+  if (DIR *d = opendir(game.c_str())) {
-+    while (dirent *e = readdir(d)) {
-+      if (e->d_name[0] == '.') continue;
-+      std::string link = data + e->d_name, target = game + "/" + e->d_name;
-+      struct stat st;
-+      if (lstat(link.c_str(), &st) != 0) symlink(target.c_str(), link.c_str());
-+    }
-+    closedir(d);
-+  }
-+  std::string cfg = data + "sim_config.ini";
-+  struct stat st;
-+  if (stat(cfg.c_str(), &st) != 0) {
-+    if (FILE *f = fopen(cfg.c_str(), "w")) {
-+      fputs("[General]\nScreenLayout=wide\nRenderer=gpu\n", f);
-+      fclose(f);
-+    }
-+  }
-+  chdir(data.c_str());
-+}
-+#endif
-+
- int main(int argc, char *argv[]) {
-+#if defined(__APPLE__) && TARGET_OS_IOS
-+  IOS_SetupDataDir(); // ios-build hook
-+#endif
- #ifdef SDK_BUILD_NX
-   // Start up libnx sockets
-   socketInitializeDefault();
-@@ -1465,6 +2099,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +2063,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -35818,7 +35901,22 @@ index 910d7da..2472d08 100644
    // Start up debug system
    SIM_Dbg_Init();
  
-@@ -1537,8 +2173,6 @@ int main(int argc, char *argv[]) {
+@@ -1477,12 +2077,13 @@ int main(int argc, char *argv[]) {
+     SIM_Config_SaveConfigFile(&s_SIM_config);
+   }
+ 
++  SIM_Platform_EnsureWritableDirs(); SIM::Helpers::CheckImportOnBoot(); // ios-platform hook
+   // Read the first 0x160 bytes of the rom and put it in the HW_ROM_HEADER_BUF
+   FILE *romFile;
+   #ifdef SDK_BUILD_PROSPERO
+   romFile = fopen("/app0/header.bin", "r");
+   #else
+-  romFile = fopen("header.bin", "r");
++  romFile = fopen(SIM_Platform_JoinPath(SIM_Platform_DataDir(), "header.bin"), "r"); // ios-platform hook
+   #endif
+ 
+   if (romFile != NULL) {
+@@ -1537,8 +2138,6 @@ int main(int argc, char *argv[]) {
    SIM::G3::GetGlobalState().Init();
  
    SIM_RenderInit(NULL);
@@ -35863,12 +35961,128 @@ index 83a6cc8..7347075 100644
                  net.curPlayer.aid = joinRespPacket->aid;
                  net.curPlayer.mpState = SIM_NET_MPSTATE_CHILD;
                  SendMyPlayer();
+diff --git a/libraries/sim/src/sim_platform.cpp b/libraries/sim/src/sim_platform.cpp
+new file mode 100644
+index 0000000..30093f0
+--- /dev/null
++++ b/libraries/sim/src/sim_platform.cpp
+@@ -0,0 +1,110 @@
++// Platform paths and lifecycle. See include/simulator/sim_platform.h.
++#include "simulator/sim_platform.h"
++#include "simulator/sim_audio.h"
++#include "simulator/sim_gui.hpp"
++#include "simulator/sim_headless.h"
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <string>
++#include <sys/stat.h>
++#if defined(__APPLE__)
++#include <TargetConditionals.h>
++#endif
++namespace {
++bool IsIOS() {
++#if defined(__APPLE__) && defined(TARGET_OS_IOS)
++  return TARGET_OS_IOS != 0;
++#else
++  return false;
++#endif
++}
++std::string JoinStr(const std::string &a, const std::string &b) {
++  if (a.empty() || a.back() == '/') return a + b;
++  return a + "/" + b;
++}
++bool DirExists(const std::string &p) { struct stat st; return stat(p.c_str(), &st) == 0 && S_ISDIR(st.st_mode); }
++const std::string &DataDir() {
++  static std::string d = [] {
++    if (const char *e = getenv("SIM_DATA_DIR"); e && e[0]) return std::string(e);
++    if (!IsIOS()) return std::string(".");
++    const char *base = SDL_GetBasePath();
++    std::string b = base ? base : ".";
++    // Agreed with build lane: game data at <bundle>/Resources/game (flat .app).
++    for (const char *c : {"Resources/game", "game"})
++      if (DirExists(JoinStr(b, c))) return JoinStr(b, c);
++    return b;
++  }();
++  return d;
++}
++const std::string &WritableDir() {
++  static std::string d = [] {
++    if (const char *e = getenv("SIM_WRITABLE_DIR"); e && e[0]) return std::string(e);
++    if (!IsIOS()) return std::string(".");
++    const char *docs = SDL_GetUserFolder(SDL_FOLDER_DOCUMENTS);
++    std::string r = docs ? docs : "";
++    if (r.empty()) { char *p = SDL_GetPrefPath("local", "DazzlingPlatinum"); r = p ? p : "."; SDL_free(p); }
++    while (r.size() > 1 && r.back() == '/') r.pop_back();
++    return r;
++  }();
++  return d;
++}
++std::string Cached(const std::string &name) { return IsIOS() || getenv("SIM_WRITABLE_DIR") ? JoinStr(WritableDir(), name) : name; }
++bool sAutoPaused = false;
++bool sWasPaused = false;
++}  // namespace
++extern "C" {
++int SIM_Platform_IsIOS(void) { return IsIOS() ? 1 : 0; }
++const char *SIM_Platform_DataDir(void) { return DataDir().c_str(); }
++const char *SIM_Platform_WritableDir(void) { return WritableDir().c_str(); }
++const char *SIM_Platform_SaveBinPath(void) { static std::string p = Cached("save.bin"); return p.c_str(); }
++const char *SIM_Platform_ConfigPath(void) { static std::string p = Cached("sim_config.ini"); return p.c_str(); }
++const char *SIM_Platform_ConfigPrjPath(void) { static std::string p = Cached("sim_config_prj.ini"); return p.c_str(); }
++const char *SIM_Platform_LogPath(void) { static std::string p = Cached("log.txt"); return p.c_str(); }
++const char *SIM_Platform_JoinPath(const char *dir, const char *name) {
++  static thread_local std::string buf;
++  buf = JoinStr(dir ? dir : "", name ? name : "");
++  return buf.c_str();
++}
++void SIM_Platform_EnsureWritableDirs(void) {
++  if (!IsIOS() && !getenv("SIM_WRITABLE_DIR")) return;
++  const std::string &w = WritableDir();
++  mkdir(w.c_str(), 0755);
++  mkdir(JoinStr(w, "Import").c_str(), 0755);
++  mkdir(JoinStr(w, "Export").c_str(), 0755);
++  mkdir(JoinStr(w, "TexturePackDump").c_str(), 0755);
++  mkdir(JoinStr(w, "Screenshots").c_str(), 0755);
++  mkdir(JoinStr(w, "save-backups").c_str(), 0755);
++}
++int SIM_Platform_SafeArea(SDL_Window *window, SDL_Rect *out) {
++  if (!IsIOS() || !window || !out) return 0;
++  return SDL_GetWindowSafeArea(window, out) ? 1 : 0;
++}
++int SIM_Platform_PacingSwapInterval(SDL_Window *window) {
++  if (!IsIOS() || !window) return 1;
++  SDL_DisplayID id = SDL_GetDisplayForWindow(window);
++  const SDL_DisplayMode *m = id ? SDL_GetCurrentDisplayMode(id) : nullptr;
++  return (m && m->refresh_rate >= 100.0f) ? 2 : 1;
++}
++void SIM_Platform_HandleEvent(const SDL_Event *event) {
++  if (!IsIOS() || !event) return;
++  switch (event->type) {
++    case SDL_EVENT_WILL_ENTER_BACKGROUND:
++    case SDL_EVENT_DID_ENTER_BACKGROUND:
++      if (!sAutoPaused) { sWasPaused = SIM::GUI::IsGameLogicPaused(); sAutoPaused = true; }
++      SIM::GUI::SetGameLogicPaused(true);
++      SIM_Audio_SetPaused(true);
++      SIM_SaveFlash_Flush();
++      break;
++    case SDL_EVENT_AUDIO_DEVICE_FORMAT_CHANGED:
++      SIM_Audio_SetPaused(SIM::GUI::IsGameLogicPaused() || sAutoPaused);
++      break;
++    case SDL_EVENT_WILL_ENTER_FOREGROUND:
++      break;
++    case SDL_EVENT_DID_ENTER_FOREGROUND:
++      if (sAutoPaused) { SIM::GUI::SetGameLogicPaused(sWasPaused); SIM_Audio_SetPaused(sWasPaused); sAutoPaused = false; }
++      break;
++    default: break;
++  }
++}
++}  // extern "C"
 diff --git a/libraries/sim/src/sim_save_flash.cpp b/libraries/sim/src/sim_save_flash.cpp
 new file mode 100644
-index 0000000..f3201c3
+index 0000000..c7bf3f3
 --- /dev/null
 +++ b/libraries/sim/src/sim_save_flash.cpp
-@@ -0,0 +1,155 @@
+@@ -0,0 +1,157 @@
 +// Instant, atomic save-file backing for the PC port's DS flash (512 KB save.bin).
 +//
 +// Previously every CARD write opened save.bin, fseek+fwrite+fclose'd one chunk
@@ -36002,6 +36216,8 @@ index 0000000..f3201c3
 +    if (s_txnDepth == 0) return Flush() ? 1 : 0;
 +    return 1;
 +}
++
++extern "C" int SIM_SaveFlash_Flush(void) { return Flush() ? 1 : 0; }
 +
 +extern "C" void SIM_SaveFlash_Begin(void) {
 +    LoadImage();

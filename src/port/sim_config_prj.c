@@ -3,11 +3,12 @@
 #include <simulator/config/ini.h>
 
 #include "port/sim_config_prj.h"
+#include <simulator/sim_platform.h> // ios-platform hook
 
 #ifdef SDK_BUILD_PROSPERO
 #define SIM_CONFIG_PRJ_FILE_PATH "/app0/sim_config_prj.ini"
 #else
-#define SIM_CONFIG_PRJ_FILE_PATH "./sim_config_prj.ini"
+#define SIM_CONFIG_PRJ_FILE_PATH SIM_Platform_ConfigPrjPath() // ios-platform hook
 #endif
 
 static int IniHandler(void* user, const char* section, const char* name,
