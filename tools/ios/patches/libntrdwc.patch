@@ -1,0 +1,31 @@
+diff --git a/meson.build b/meson.build
+index 0bf1115..d424656 100644
+--- a/meson.build
++++ b/meson.build
+@@ -99,6 +99,17 @@ if (build_target == 'linux')
+     ]
+ endif
+ 
++if (build_target == 'ios')
++    nitrodwc_args += [
++        '-DSDK_PORT',
++        '-DSDK_AARCH64',
++        '-DSDK_CODE_AARCH64',
++        '-DSDK_BUILD_IOS',
++        '-D_NITRO',
++        '-w'
++    ]
++endif
++
+ if get_option('link_ppwlobby')
+     nitrodwc_args += '-DLINK_PPWLOBBY'
+ endif
+@@ -111,7 +122,7 @@ add_project_arguments(nitrodwc_args,
+ else
+ add_project_arguments(nitrodwc_args,
+     language: 'c',
+-    native: true
++    native: build_target != 'ios'
+ )
+ endif
+ 

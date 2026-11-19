@@ -237,6 +237,14 @@ if host_machine.system() == 'darwin'
     run_command(find_program('python3'), files('tools/macos/gen_order.py'),
         meson.global_source_root() / 'subprojects' / 'libntr' / 'libraries' / 'sim' / 'src' / 'sim_vars.c', sim_vars_order, check: true)
     link_args += ['-Wl,-order_file,' + sim_vars_order, '-lobjc', '-framework', 'Foundation']
+    if build_target == 'ios' # ios-build hook: frameworks static SDL3 + the GPU (Metal) backend need at link
+        link_args += ['-framework', 'Metal', '-framework', 'MetalKit', '-framework', 'UIKit',
+            '-framework', 'QuartzCore', '-framework', 'CoreGraphics', '-framework', 'CoreHaptics',
+            '-framework', 'CoreMotion', '-framework', 'GameController', '-framework', 'AVFoundation',
+            '-framework', 'AudioToolbox', '-framework', 'CoreAudio', '-framework', 'CoreMedia',
+            '-framework', 'CoreVideo', '-framework', 'ImageIO', '-framework', 'MobileCoreServices',
+            '-framework', 'Security', '-framework', 'SystemConfiguration']
+    endif
 endif
 
 ############################################################
@@ -580,6 +588,51 @@ main = executable('main',
     native: true
 )
 endif
+if (build_target == 'ios') # ios-build hook: the linux target's sources, cross-compiled (native: false)
+main = executable('main',
+    sources: [
+        pokeplatinum_c,
+        pokeplatinum_port_c,
+        c_consts_generators,
+        naix_headers,
+        h_headers,
+        embed_headers,
+    ],
+    objects: trainer_ai_o,
+    c_args: [
+        pokeplatinum_args,
+    ],
+    c_pch: 'include/pch/global_pch.h',
+    include_directories: [
+        public_includes,
+        libcrypto_public_includes,
+        libgds_public_includes,
+        libspl_public_includes,
+        ppwlobby_public_includes,
+    ],
+    dependencies: [
+        nitrosdk_dep,
+        nitrosystem_dep,
+        nitrowifi_dep,
+        nitrodwc_dep,
+        libvct_dep,
+    ],
+    link_with: [
+        libspl,
+        libcrypto_ov97,
+        libcrypto_static,
+        libgds,
+        libdwcenc,
+        libdwcppwlobby,
+        libdwcilobby,
+    ],
+    link_args: [
+        link_args,
+        variant_link_args,
+    ],
+    native: false
+)
+endif
 if (build_target == 'win64')
 ws2_32_lib = meson.get_compiler('c').find_library('ws2_32')
 
@@ -866,7 +919,8 @@ pokeplatinum_nds = custom_target('pokeplatinum.us',
         copy_files_script,
         meson.global_build_root(),
         filesys_csv,
-        'pokeplatinum'
+        'pokeplatinum',
+        build_target == 'ios' ? '-ios' : '' # ios-build hook: no host .app wrapping; tools/ios/make_app.sh packages it
     ],
     build_by_default: true
 )

@@ -5564,16 +5564,16 @@ index 0000000..c229c3a
 +
 +#endif
 diff --git a/libraries/sim/meson.build b/libraries/sim/meson.build
-index d7a921e..d89ab34 100644
+index d7a921e..e00b716 100644
 --- a/libraries/sim/meson.build
 +++ b/libraries/sim/meson.build
-@@ -2,17 +2,29 @@ subdir('src')
+@@ -2,17 +2,37 @@ subdir('src')
  
  libsim_includes = include_directories('include')
  
 -sdl2_lib = library('SDL2')
 +# placeholders for targets that set neither below; macOS's ar refuses an archive with no members, so not on the PC targets
-+if(build_target != 'linux' and build_target != 'win64')
++if(build_target != 'linux' and build_target != 'win64' and build_target != 'ios') # ios-build hook: real static deps below
 +sdl3_lib = library('SDL3')
  enet_lib = library('enet')
 +endif
@@ -5595,6 +5595,14 @@ index d7a921e..d89ab34 100644
 -sdl2_lib = meson.get_compiler('c').find_library('SDL2', dirs: prospero_lib_dirs)
 +sdl3_lib = meson.get_compiler('c').find_library('SDL3', dirs: prospero_lib_dirs)
 +sdl3_dep = declare_dependency(dependencies: [sdl3_lib])
++elif(build_target == 'ios') # ios-build hook: static deps from the cross file's ios_deps_prefix
++ios_deps_prefix = meson.get_external_property('ios_deps_prefix')
++ios_deps_lib = [ios_deps_prefix / 'lib']
++sdl3_dep = declare_dependency(dependencies: [
++    meson.get_compiler('c').find_library('SDL3', dirs: ios_deps_lib),
++    meson.get_compiler('c').find_library('png', dirs: ios_deps_lib, required: false),
++    meson.get_compiler('c').find_library('z', dirs: ios_deps_lib, required: false),
++])
 +else
 +sdl3_dep = declare_dependency(dependencies: [sdl3_lib])
  endif
@@ -5602,15 +5610,31 @@ index d7a921e..d89ab34 100644
  
  if(build_target == 'linux' or build_target == 'win64')
  enet_lib = meson.get_compiler('c').find_library('enet')
-@@ -23,7 +35,7 @@ enet_dep = declare_dependency(dependencies: [enet_lib])
+@@ -20,11 +40,13 @@ enet_dep = declare_dependency(dependencies: [enet_lib])
+ elif(build_target == 'nx')
+ enet_lib = meson.get_compiler('c').find_library('enet', dirs: '/opt/devkitpro/portlibs/switch/lib/')
+ enet_dep = declare_dependency(dependencies: [enet_lib])
++elif(build_target == 'ios') # ios-build hook
++enet_dep = declare_dependency(dependencies: [meson.get_compiler('c').find_library('enet', dirs: ios_deps_lib)])
  endif
  
  
 -libsim_dependencies = [sdl2_dep]
+-if(build_target == 'linux' or build_target == 'win64' or build_target == 'nx')
 +libsim_dependencies = [sdl3_dep]
- if(build_target == 'linux' or build_target == 'win64' or build_target == 'nx')
++if(build_target == 'linux' or build_target == 'win64' or build_target == 'nx' or build_target == 'ios') # ios-build hook
      libsim_dependencies += enet_dep
  endif
+ 
+@@ -122,7 +144,7 @@ if(get_option('tracy_enable') == true)
+     ]
+ endif
+ 
+-if(build_target != 'prospero' and build_target != 'nx')
++if(build_target != 'prospero' and build_target != 'nx' and build_target != 'ios') # ios-build hook
+     libsim_args += [
+         '-DSIM_IMGUI_FILE_DIALOG_SUPPORT=1'
+     ]
 diff --git a/libraries/sim/src/config/sim_config.c b/libraries/sim/src/config/sim_config.c
 index 096e7fb..1c59cce 100644
 --- a/libraries/sim/src/config/sim_config.c
@@ -14249,7 +14273,7 @@ index 0000000..9c495bf
 +
 +#endif // #ifndef IMGUI_DISABLE
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..ccaf154 100644
+index 2d852bf..5659549 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -8,7 +8,8 @@ libsim_srcs = files(
@@ -14300,8 +14324,12 @@ index 2d852bf..ccaf154 100644
      'sim_main.cpp',
      'sim_net.cpp',
      'sim_RenderContextManager.cpp',
-@@ -51,3 +69,10 @@ endif
- if(build_target != 'prospero' and build_target != 'nx')
+@@ -48,6 +66,25 @@ if(build_target == 'prospero')
+ libsim_srcs += files('ps5_heap.cpp')
+ endif
+ 
+-if(build_target != 'prospero' and build_target != 'nx')
++if(build_target != 'prospero' and build_target != 'nx' and build_target != 'ios') # ios-build hook: no file dialog on iOS
  libsim_srcs += files('ImGuiFileDialog/ImGuiFileDialog.cpp')
  endif
 +
@@ -14311,6 +14339,18 @@ index 2d852bf..ccaf154 100644
 +# (plus the SDL3 dependency on libsim_dependencies).
 +subdir('gpu')
 +libsim_srcs += gpu_srcs
++
++if(build_target == 'ios') # ios-build hook: GPU (Metal) only; no OpenGL backend, glad or ImGui GL3
++libsim_srcs_ios = []
++foreach s : libsim_srcs
++  if s.full_path().endswith('imgui_impl_opengl3.cpp') or s.full_path().endswith('render_gl_g2gpu.cpp') or s.full_path().endswith('sim_render_gl.cpp')
++    # compiled out on iOS
++  else
++    libsim_srcs_ios += s
++  endif
++endforeach
++libsim_srcs = libsim_srcs_ios + files('render_gpu/sim_backend_select_ios.cpp')
++endif
 diff --git a/libraries/sim/src/render_gl/render_gl_g2gpu.cpp b/libraries/sim/src/render_gl/render_gl_g2gpu.cpp
 new file mode 100644
 index 0000000..2fbbeda
@@ -27551,6 +27591,37 @@ index 0000000..31bf0b0
 +};
 +
 +} // namespace SIM::Gpu::Shaders
+diff --git a/libraries/sim/src/render_gpu/sim_backend_select_ios.cpp b/libraries/sim/src/render_gpu/sim_backend_select_ios.cpp
+new file mode 100644
+index 0000000..9d46cd7
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/sim_backend_select_ios.cpp
+@@ -0,0 +1,25 @@
++// ios-build hook: backend selection for iOS. GPU (Metal through SDL GPU) only;
++// the OpenGL backend is compiled out, so there is no gl fallback. This file
++// replaces Select() from render_gl/sim_render_gl.cpp on iOS only.
++#include <simulator/sim_render_backend.hpp>
++
++#include <cstdio>
++
++namespace SIM::Render {
++
++namespace detail {
++Backend *gBackend = nullptr;
++} // namespace detail
++
++Backend *CreateGpuBackend();
++bool GpuDeviceAvailable();
++
++Backend &Select() {
++  if (detail::gBackend) return *detail::gBackend;
++  printf("Renderer: gpu (iOS, from ios-build hook)\n");
++  fflush(stdout);
++  detail::gBackend = CreateGpuBackend();
++  return *detail::gBackend;
++}
++
++} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/sim_render_gpu.cpp b/libraries/sim/src/render_gpu/sim_render_gpu.cpp
 new file mode 100644
 index 0000000..d56ccca
@@ -33701,15 +33772,23 @@ index 0000000..4b3f9e5
 +    return 1;
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..4a8b972 100644
+index 910d7da..2472d08 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
-@@ -1,3 +1,4 @@
+@@ -1,14 +1,23 @@
 +#include <vector>
  extern "C" void NitroMain();
  extern "C" int NitroSpMain(void *arg);
++#if defined(__APPLE__)
++#include <TargetConditionals.h>
++#endif
++#if defined(__APPLE__) && TARGET_OS_IOS
++// ios-build hook: SDL owns the iOS entry point (UIApplicationMain) and calls SDL_main.
++#include <SDL3/SDL_main.h>
++#else
  #define SDL_MAIN_HANDLED
-@@ -5,10 +6,10 @@ extern "C" int NitroSpMain(void *arg);
++#endif
+ 
  #include <string>
  #define _POSIX_C_SOURCE 199309L
  #include <pthread.h>
@@ -33723,7 +33802,19 @@ index 910d7da..4a8b972 100644
  #include <simulator/sim.h>
  #include <simulator/sim_audio.h>
  #include <simulator/sim_net.h>
-@@ -28,16 +29,26 @@ extern "C" int NitroSpMain(void *arg);
+@@ -18,6 +27,11 @@ extern "C" int NitroSpMain(void *arg);
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <unistd.h>
++#if defined(__APPLE__) && TARGET_OS_IOS
++// ios-build hook: bundle data dir setup (below, before main).
++#include <dirent.h>
++#include <sys/stat.h>
++#endif
+ 
+ #include <nitro/gx/g3.h>
+ #include <nitro/gx/gx_load.h>
+@@ -28,16 +42,26 @@ extern "C" int NitroSpMain(void *arg);
  #include <nitro/pxi/common/fifo.h>
  
  #include <simulator/config/sim_config.h>
@@ -33750,7 +33841,7 @@ index 910d7da..4a8b972 100644
  
  #include "nds-extract.hpp"
  
-@@ -65,6 +76,8 @@ extern "C" int NitroSpMain(void *arg);
+@@ -65,6 +89,8 @@ extern "C" int NitroSpMain(void *arg);
  #endif
  
  #include "sim_g2.h"
@@ -33759,7 +33850,7 @@ index 910d7da..4a8b972 100644
  #include "git_info.h"
  
  // Simulator configuration
-@@ -75,6 +88,49 @@ extern OSThreadInfo OSi_ThreadInfo;
+@@ -75,6 +101,49 @@ extern OSThreadInfo OSi_ThreadInfo;
  
  static u32 s_TouchPanelCoords[4] = {}; // The bounding box of the touch screen
  
@@ -33809,7 +33900,7 @@ index 910d7da..4a8b972 100644
  // SND
  #include <nitro/snd/common/work.h>
  #include <nitro/snd/common/command.h>
-@@ -96,6 +152,20 @@ static struct timespec s_SIM_lastFrameEnd;
+@@ -96,6 +165,20 @@ static struct timespec s_SIM_lastFrameEnd;
  static u64 sRenderFrameTime;
  static u64 sFullFrameTime;
  
@@ -33830,7 +33921,7 @@ index 910d7da..4a8b972 100644
  static constexpr auto SteamDeckWidth = 1280;
  static constexpr auto SteamDeckHeight = 800;
  
-@@ -125,45 +195,170 @@ u8 OBJWindow[2][256];
+@@ -125,45 +208,170 @@ u8 OBJWindow[2][256];
  
  GXVRamBGExtPltt s_SIM_GXBgExtPltt;
  GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
@@ -34036,7 +34127,7 @@ index 910d7da..4a8b972 100644
  
  static SDL_Window *window;
  
-@@ -178,6 +373,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +386,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -34047,7 +34138,7 @@ index 910d7da..4a8b972 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -224,38 +423,11 @@ static void DrawEngine(BOOL isSub);
+@@ -224,38 +436,11 @@ static void DrawEngine(BOOL isSub);
  static u8 s_numG3CommandsThisFrame = 0;
  
  // Vcount stuff
@@ -34088,7 +34179,7 @@ index 910d7da..4a8b972 100644
  SIM_config_type *SIM_GetConfigPtr() { return &s_SIM_config; }
  
  SDL_Window * SIM_GetSDLWindow() {return window;}
-@@ -275,27 +447,9 @@ void *runVblankInterrupt(void *arg) {
+@@ -275,27 +460,9 @@ void *runVblankInterrupt(void *arg) {
    return NULL;
  }
  
@@ -34118,7 +34209,7 @@ index 910d7da..4a8b972 100644
  }
  
  static bool sChangeInternalResAfterRender = false;
-@@ -308,18 +462,63 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
+@@ -308,18 +475,63 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
    sPendingInternalRes = internalRes;
  }
  
@@ -34189,7 +34280,7 @@ index 910d7da..4a8b972 100644
  
    u32 windowHeight;
    u32 windowWidth;
-@@ -352,6 +551,11 @@ void *SIM_RenderInit(void *arg) {
+@@ -352,6 +564,11 @@ void *SIM_RenderInit(void *arg) {
          windowHeight = SIM_NDS_SCREEN_HEIGHT * 2 * 2;
          windowWidth = (SIM_NDS_SCREEN_WIDTH * 2 * 2) + (SIM_NDS_SCREEN_WIDTH * 2);
          break;
@@ -34201,7 +34292,7 @@ index 910d7da..4a8b972 100644
        }
      }
    } else {
-@@ -376,197 +580,63 @@ void *SIM_RenderInit(void *arg) {
+@@ -376,197 +593,63 @@ void *SIM_RenderInit(void *arg) {
                    std::string(makerCode) + "]";
    }
  
@@ -34443,7 +34534,7 @@ index 910d7da..4a8b972 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -578,10 +648,16 @@ static void DrawEngine(BOOL isSub) {
+@@ -578,10 +661,16 @@ static void DrawEngine(BOOL isSub) {
    u8 maxPriorityBG;
    u8 bgEnabled[4];
    u8 bgMode;
@@ -34462,7 +34553,7 @@ index 910d7da..4a8b972 100644
  
    // Get the enabled BGs
    u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
-@@ -603,20 +679,6 @@ static void DrawEngine(BOOL isSub) {
+@@ -603,20 +692,6 @@ static void DrawEngine(BOOL isSub) {
    backdropColor =
        isSub ? *(u16 *)&s_HW_DB_BG_PLTT[0] : *(u16 *)&s_HW_BG_PLTT[0];
    SIM_u16ToRGB(backdropColor, &backdropR, &backdropG, &backdropB);
@@ -34483,7 +34574,7 @@ index 910d7da..4a8b972 100644
  
    // Get the BG priorities
    u16 bg0cnt = isSub ? s_reg_G2S_DB_BG0CNT : s_reg_G2_BG0CNT;
-@@ -624,52 +686,44 @@ static void DrawEngine(BOOL isSub) {
+@@ -624,52 +699,44 @@ static void DrawEngine(BOOL isSub) {
    u16 bg2cnt = isSub ? s_reg_G2S_DB_BG2CNT : s_reg_G2_BG2CNT;
    u16 bg3cnt = isSub ? s_reg_G2S_DB_BG3CNT : s_reg_G2_BG3CNT;
  
@@ -34568,7 +34659,7 @@ index 910d7da..4a8b972 100644
    if (isSub) {
      memset(oam0sTex, 0, sizeof(oam0sTex));
      memset(oam1sTex, 0, sizeof(oam1sTex));
-@@ -715,13 +769,38 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +782,38 @@ static void DrawEngine(BOOL isSub) {
        u8 a;
        for (int j = 0; j < 256; j++) {
          if (OBJLine[isSub][j]) {
@@ -34612,7 +34703,7 @@ index 910d7da..4a8b972 100644
            }
          }
          if (OBJWindow[isSub][j]) {
-@@ -735,130 +814,107 @@ static void DrawEngine(BOOL isSub) {
+@@ -735,130 +827,107 @@ static void DrawEngine(BOOL isSub) {
  
    // Draw the BGs
    for (int i = 0; i < 4; i++) {
@@ -34624,8 +34715,10 @@ index 910d7da..4a8b972 100644
 -      glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[bgOrder[i]]);
 -      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
 -    }
--  }
--
++    if (bgEnabled[uniforms.bgOrder[i]]) {
++      G2SIM_DrawBG(uniforms.bgOrder[i], bgMode, bg0as3d, isSub);
+   }
+ 
 -  // write all OAMs to the textures based on their priorities
 -  for (int i = 0; i < 4; i++) {
 -    glActiveTexture(GL_TEXTURE0 + s_objTexUnits[i]);
@@ -34652,10 +34745,8 @@ index 910d7da..4a8b972 100644
 -    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SIM_NDS_SCREEN_WIDTH,
 -                    SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
 -                    (void *)oamPixelBuf);
-+    if (bgEnabled[uniforms.bgOrder[i]]) {
-+      G2SIM_DrawBG(uniforms.bgOrder[i], bgMode, bg0as3d, isSub);
-   }
- 
+-  }
+-
 -  glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
 -
 -  if (bgEnabled[0]) {
@@ -34831,7 +34922,7 @@ index 910d7da..4a8b972 100644
  #ifdef SDK_TRACY_ENABLE
    TracyCZoneEnd(ctx);
  #endif
-@@ -950,7 +1006,281 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1019,281 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -35113,7 +35204,7 @@ index 910d7da..4a8b972 100644
  
    SDL_Event Event;
    char c;
-@@ -965,6 +1295,7 @@ void *SIM_Render(void *arg) {
+@@ -965,6 +1308,7 @@ void *SIM_Render(void *arg) {
    auto& g3State = SIM::G3::GetGlobalState();
    g3State.FlushDrawCall();
    g3State.DrawTransparentItems();
@@ -35121,7 +35212,7 @@ index 910d7da..4a8b972 100644
  
  
    do {
-@@ -976,14 +1307,6 @@ void *SIM_Render(void *arg) {
+@@ -976,14 +1320,6 @@ void *SIM_Render(void *arg) {
        SIM_Net_SendBeaconIndication();
      }
  
@@ -35136,7 +35227,7 @@ index 910d7da..4a8b972 100644
      int windowHeight;
      int windowWidth;
      int viewHeight;
-@@ -1006,6 +1329,13 @@ void *SIM_Render(void *arg) {
+@@ -1006,6 +1342,13 @@ void *SIM_Render(void *arg) {
      case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
        aspectRatio = 768.0f / 384.0f;
        break;
@@ -35150,7 +35241,7 @@ index 910d7da..4a8b972 100644
      }
  
      viewWidth = windowWidth;
-@@ -1019,10 +1349,125 @@ void *SIM_Render(void *arg) {
+@@ -1019,10 +1362,125 @@ void *SIM_Render(void *arg) {
        viewY = 0;
      }
  
@@ -35278,7 +35369,7 @@ index 910d7da..4a8b972 100644
        switch (s_SIM_config.screenLayout) {
        default:
        case SIM_CONFIG_SCREEN_LAYOUT_VERTICAL:
-@@ -1068,24 +1513,85 @@ void *SIM_Render(void *arg) {
+@@ -1068,24 +1526,85 @@ void *SIM_Render(void *arg) {
        }
      }
  
@@ -35375,7 +35466,7 @@ index 910d7da..4a8b972 100644
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT & 0b1111111111111110;
          } else if (keyRead == s_SIM_config.padSettings.bKey) {
-@@ -1136,15 +1642,15 @@ void *SIM_Render(void *arg) {
+@@ -1136,15 +1655,15 @@ void *SIM_Render(void *arg) {
              s_SIM_config.vsyncInterval = 1; // Every V-Blank
            }
  
@@ -35395,7 +35486,7 @@ index 910d7da..4a8b972 100644
          if (keyRead == s_SIM_config.padSettings.aKey) {
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000001;
-@@ -1185,16 +1691,16 @@ void *SIM_Render(void *arg) {
+@@ -1185,16 +1704,16 @@ void *SIM_Render(void *arg) {
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000100;
          } else if(keyRead == s_SIM_config.padSettings.frameCapKey) {
            sFastForward = false;
@@ -35416,7 +35507,7 @@ index 910d7da..4a8b972 100644
          if (Event.jhat.value == SDL_HAT_CENTERED) {
            // send keyUp event for all hats
            HandleJoystickKeyUp(SIM_CONFIG_JOY_HAT_MASK | SDL_HAT_UP);
-@@ -1224,7 +1730,7 @@ void *SIM_Render(void *arg) {
+@@ -1224,7 +1743,7 @@ void *SIM_Render(void *arg) {
            }
          }
        }
@@ -35425,7 +35516,7 @@ index 910d7da..4a8b972 100644
          if (Event.jaxis.value > s_SIM_config.padSettings.joyAxisDeadzone ||
              Event.jaxis.value <
                  (s_SIM_config.padSettings.joyAxisDeadzone * -1)) {
-@@ -1245,12 +1751,37 @@ void *SIM_Render(void *arg) {
+@@ -1245,12 +1764,37 @@ void *SIM_Render(void *arg) {
                                SIM_CONFIG_JOY_AXIS_MINUS_MASK);
          }
        }
@@ -35465,7 +35556,7 @@ index 910d7da..4a8b972 100644
          isMouseDown = 0;
          s_tpData.validity = 0;
          s_tpData.touch = 0;
-@@ -1258,10 +1789,17 @@ void *SIM_Render(void *arg) {
+@@ -1258,10 +1802,17 @@ void *SIM_Render(void *arg) {
      }
      s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT;
  
@@ -35485,7 +35576,7 @@ index 910d7da..4a8b972 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1297,12 +1835,55 @@ void *SIM_Render(void *arg) {
+@@ -1297,12 +1848,55 @@ void *SIM_Render(void *arg) {
      memset(bg3stex, 0,
             sizeof(u8) * 4 * SIM_NDS_SCREEN_WIDTH * SIM_NDS_SCREEN_HEIGHT * 2);
  
@@ -35494,8 +35585,7 @@ index 910d7da..4a8b972 100644
 +    // hiresui fix: apply any pending 2D-upscale filter change here, before
 +    // the engines set up their texture bindings for this frame.
 +    HiRes_ApplyUpscaleFilter(HiRes_EffectiveUpscale2D());
- 
--    // SUB engine
++
 +    // Draw MAIN engine. In VRAM display mode the main screen shows a
 +    // captured VRAM bank instead of the BG/OBJ layers; a pending capture
 +    // still takes the (undisplayed) engine output as source A first.
@@ -35506,7 +35596,8 @@ index 910d7da..4a8b972 100644
 +      DrawEngine(FALSE);
 +      if (s_reg_GX_DISPCAPCNT & 0x80000000u) CaptureFrame();
 +    }
-+
+ 
+-    // SUB engine
 +    // SUB engine. DrawEngine decides the wide role (full-width top
 +    // engine vs. panel) and skips a closed panel itself.
      DrawEngine(TRUE);
@@ -35544,7 +35635,7 @@ index 910d7da..4a8b972 100644
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1328,19 +1909,30 @@ void *SIM_Render(void *arg) {
+@@ -1328,19 +1922,30 @@ void *SIM_Render(void *arg) {
      TracyCZoneEnd(SimRenderZone);
  #endif
      // Limit framerate to 60 fps
@@ -35585,7 +35676,7 @@ index 910d7da..4a8b972 100644
  
      if(sChangeInternalResAfterRender) {
        SIM_SetInternalResolution(sPendingInternalRes);
-@@ -1359,45 +1951,40 @@ void *SIM_Render(void *arg) {
+@@ -1359,45 +1964,40 @@ void *SIM_Render(void *arg) {
  #endif
  
      s_numG3CommandsThisFrame = 0;
@@ -35654,7 +35745,7 @@ index 910d7da..4a8b972 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1407,17 +1994,16 @@ u64 SIM_GetFullFrameTime() {
+@@ -1407,17 +2007,16 @@ u64 SIM_GetFullFrameTime() {
    return sFullFrameTime;
  }
  
@@ -35675,7 +35766,50 @@ index 910d7da..4a8b972 100644
  }
  
  const char * SIM_GetLibntrGitHash() {
-@@ -1465,6 +2051,8 @@ int main(int argc, char *argv[]) {
+@@ -1441,7 +2040,42 @@ int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline,
+ }
+ #endif
+ 
++#if defined(__APPLE__) && TARGET_OS_IOS
++// ios-build hook: the bundle is read-only, so run from the writable pref dir with
++// every bundle game entry linked in (the macOS launcher's job, in-process; the
++// platform lane's path API replaces this). First run seeds the iOS default config.
++static void IOS_SetupDataDir() {
++  const char *base = SDL_GetBasePath();
++  char *pref = SDL_GetPrefPath("local", "Dazzling Platinum");
++  if (!base || !pref) return;
++  std::string game = std::string(base) + "Resources/game";
++  std::string data = pref;
++  SDL_free(pref);
++  if (DIR *d = opendir(game.c_str())) {
++    while (dirent *e = readdir(d)) {
++      if (e->d_name[0] == '.') continue;
++      std::string link = data + e->d_name, target = game + "/" + e->d_name;
++      struct stat st;
++      if (lstat(link.c_str(), &st) != 0) symlink(target.c_str(), link.c_str());
++    }
++    closedir(d);
++  }
++  std::string cfg = data + "sim_config.ini";
++  struct stat st;
++  if (stat(cfg.c_str(), &st) != 0) {
++    if (FILE *f = fopen(cfg.c_str(), "w")) {
++      fputs("[General]\nScreenLayout=wide\nRenderer=gpu\n", f);
++      fclose(f);
++    }
++  }
++  chdir(data.c_str());
++}
++#endif
++
+ int main(int argc, char *argv[]) {
++#if defined(__APPLE__) && TARGET_OS_IOS
++  IOS_SetupDataDir(); // ios-build hook
++#endif
+ #ifdef SDK_BUILD_NX
+   // Start up libnx sockets
+   socketInitializeDefault();
+@@ -1465,6 +2099,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -35684,7 +35818,7 @@ index 910d7da..4a8b972 100644
    // Start up debug system
    SIM_Dbg_Init();
  
-@@ -1537,8 +2125,6 @@ int main(int argc, char *argv[]) {
+@@ -1537,8 +2173,6 @@ int main(int argc, char *argv[]) {
    SIM::G3::GetGlobalState().Init();
  
    SIM_RenderInit(NULL);
@@ -37392,3 +37526,26 @@ index 6f43a29..c75d6e2 100644
  
                  ch_p->env_decay -= ch_p->decay;
                  if (ch_p->env_decay > sustain_decay)
+diff --git a/meson.build b/meson.build
+index d70db92..3f43b82 100644
+--- a/meson.build
++++ b/meson.build
+@@ -136,6 +136,18 @@ if (build_target == 'linux')
+     ]
+ endif
+ 
++if (build_target == 'ios') # ios-build hook: like nx (aarch64 port), no platform includes
++    nitrosdk_args += [
++        '-DSDK_PORT',
++        '-DSDK_AARCH64',
++        '-DSDK_CODE_AARCH64',
++        '-DSDK_BUILD_IOS',
++        '-DSDK_64BIT',
++        '-D_NITRO',
++        '-w',
++    ]
++endif
++
+ if (build_target == 'nx')
+     nitrosdk_args += [
+         '-DSDK_PORT',
