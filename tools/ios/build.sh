@@ -51,7 +51,7 @@ if [ ! -f "$BUILD/build.ninja" ]; then
   NATIVE=$BUILD/native_ios_host.ini
   cat meson/native_ios_host.ini > "$NATIVE"
   if [ -n "${PKG_CONFIG_PATH:-}" ]; then
-    printf "\n[built-in options]\npkg_config_path = ['%s']\n" "$PKG_CONFIG_PATH" >> "$NATIVE"
+    sed -i '' "s|\[built-in options\]|[built-in options]\npkg_config_path = ['$PKG_CONFIG_PATH']|" "$NATIVE"
   fi
   $MESON setup -Dbuild_target=ios -Dbuild_variant=dev \
     --native-file="$NATIVE" --native-file="$BUILD/root.ini" \
