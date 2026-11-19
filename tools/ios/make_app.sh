@@ -29,17 +29,20 @@ cp "$BUILDDIR/main" "$A/DazzlingPlatinum"
 chmod +x "$A/DazzlingPlatinum"
 cp "$ROOT/tools/ios/Info.plist" "$A/Info.plist"
 
-# Launch screen (compiled) and app icon PNGs from the Mac/Linux app icon
+# Launch screen (compiled) and the app icon asset catalog from the Mac/Linux app icon
 if command -v ibtool >/dev/null; then
   ibtool --errors --warnings --notices --module DazzlingPlatinum --target-device iphone --target-device ipad \
     --minimum-deployment-target 17.0 --output-format human-readable-text \
     --compile "$A/LaunchScreen.storyboardc" "$ROOT/tools/ios/LaunchScreen.storyboard" >/dev/null
 fi
 icon_png="$ROOT/tools/linuxdeploy/app.png"
-if [ -f "$icon_png" ]; then
-  for s in 40 58 60 80 87 120 180 1024; do
-    sips -z $s $s "$icon_png" --out "$A/AppIcon$s.png" >/dev/null 2>&1 || true
-  done
+if [ -f "$icon_png" ] && command -v actool >/dev/null; then
+  xc="$BUILDDIR/Assets.xcassets"; rm -rf "$xc"; cp -R "$ROOT/tools/ios/Assets.xcassets" "$xc"
+  sips -z 1024 1024 "$icon_png" --out "$xc/AppIcon.appiconset/icon1024.png" >/dev/null 2>&1 || true
+  plat=iphonesimulator; [ "$KIND" = device ] && plat=iphoneos
+  actool "$xc" --compile "$A" --platform $plat --minimum-deployment-target 17.0 \
+    --app-icon AppIcon --output-partial-info-plist "$BUILDDIR/asset-info.plist" >/dev/null 2>&1 || true
+  rm -rf "$xc"
 fi
 
 if [ "$KIND" = sim ]; then
