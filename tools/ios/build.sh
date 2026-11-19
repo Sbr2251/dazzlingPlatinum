@@ -23,10 +23,11 @@ MESON="python3 $ROOT/subprojects/meson-1.12.0/meson.py"
 [ -f "$DEPS/lib/libSDL3.a" ] || tools/ios/build_deps.sh "$SDK"
 
 # Subprojects at the patched revisions; macOS patches first, then the iOS ones
-$MESON subprojects download >/dev/null
+$MESON subprojects download >/dev/null 2>&1 || true # ios-build hook: offline trees ship the subprojects in place
 while read -r name rev; do
   [ -n "$name" ] || continue
   d=subprojects/$name
+  [ -d "$d/.git" ] || continue # ios-build hook: shipped tree without git; patches were applied before shipping
   if [ "$(git -C "$d" rev-parse HEAD)" != "$rev" ] && ! git -C "$d" merge-base --is-ancestor "$rev" HEAD 2>/dev/null; then
     git -C "$d" fetch -q --depth 1 origin "$rev" && git -C "$d" checkout -q "$rev"
   fi
