@@ -33934,7 +33934,7 @@ index 0000000..4b3f9e5
 +    return 1;
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..d0c371b 100644
+index 910d7da..afe6ccc 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,14 +1,23 @@
@@ -34867,16 +34867,14 @@ index 910d7da..d0c371b 100644
    // Draw the BGs
    for (int i = 0; i < 4; i++) {
 -    u8 curBgNum = bgOrder[i];
- 
+-
 -    if (bgEnabled[bgOrder[i]]) {
 -      G2SIM_DrawBG(bgOrder[i], bgMode, bg0as3d, isSub);
 -    } else {
 -      glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[bgOrder[i]]);
 -      glBindTexture(GL_TEXTURE_2D, dummyScreenTextureId);
 -    }
-+    if (bgEnabled[uniforms.bgOrder[i]]) {
-+      G2SIM_DrawBG(uniforms.bgOrder[i], bgMode, bg0as3d, isSub);
-   }
+-  }
  
 -  // write all OAMs to the textures based on their priorities
 -  for (int i = 0; i < 4; i++) {
@@ -34904,8 +34902,10 @@ index 910d7da..d0c371b 100644
 -    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SIM_NDS_SCREEN_WIDTH,
 -                    SIM_NDS_SCREEN_HEIGHT * 2, GL_RGBA, GL_UNSIGNED_BYTE,
 -                    (void *)oamPixelBuf);
--  }
--
++    if (bgEnabled[uniforms.bgOrder[i]]) {
++      G2SIM_DrawBG(uniforms.bgOrder[i], bgMode, bg0as3d, isSub);
+   }
+ 
 -  glActiveTexture(GL_TEXTURE0 + s_bgTexUnits[0]);
 -
 -  if (bgEnabled[0]) {
@@ -35936,11 +35936,16 @@ index 910d7da..d0c371b 100644
    // Start up debug system
    SIM_Dbg_Init();
  
-@@ -1477,12 +2077,13 @@ int main(int argc, char *argv[]) {
+@@ -1477,12 +2077,18 @@ int main(int argc, char *argv[]) {
      SIM_Config_SaveConfigFile(&s_SIM_config);
    }
  
 +  SIM_Platform_EnsureWritableDirs(); SIM::Helpers::CheckImportOnBoot(); // ios-platform hook
++#if defined(__APPLE__) && TARGET_OS_IOS
++  // ios-build hook: FS_OpenFile opens game data relative to the working directory;
++  // writable paths are routed to Documents by the platform path API.
++  chdir(SIM_Platform_DataDir());
++#endif
    // Read the first 0x160 bytes of the rom and put it in the HW_ROM_HEADER_BUF
    FILE *romFile;
    #ifdef SDK_BUILD_PROSPERO
@@ -35951,7 +35956,7 @@ index 910d7da..d0c371b 100644
    #endif
  
    if (romFile != NULL) {
-@@ -1537,8 +2138,6 @@ int main(int argc, char *argv[]) {
+@@ -1537,8 +2143,6 @@ int main(int argc, char *argv[]) {
    SIM::G3::GetGlobalState().Init();
  
    SIM_RenderInit(NULL);
