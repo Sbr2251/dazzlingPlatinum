@@ -5556,6 +5556,96 @@ index 0000000..f792aa6
 +#endif
 +
 +#endif // #ifndef IMGUI_DISABLE
+diff --git a/libraries/sim/include/imgui_impl_sdlgpu3_shaders_ios.h b/libraries/sim/include/imgui_impl_sdlgpu3_shaders_ios.h
+new file mode 100644
+index 0000000..50bb168
+--- /dev/null
++++ b/libraries/sim/include/imgui_impl_sdlgpu3_shaders_ios.h
+@@ -0,0 +1,84 @@
++#pragma once
++// ios-build hook: ImGui SDLGPU3 shaders as MSL source (generated from the vendored
++// SPIR-V with spirv-cross --msl-version 20100). The vendored metallib blob is built
++// for macOS and rejected on iOS; SDL_GPU_SHADERFORMAT_MSL compiles this at runtime.
++static const char imgui_msl_vertex[] =
++"#include <metal_stdlib>\n"
++"#include <simd/simd.h>\n"
++"\n"
++"using namespace metal;\n"
++"\n"
++"struct _9\n"
++"{\n"
++"    float4 Color;\n"
++"    float2 UV;\n"
++"};\n"
++"\n"
++"struct uPushConstant\n"
++"{\n"
++"    float2 uScale;\n"
++"    float2 uTranslate;\n"
++"};\n"
++"\n"
++"struct main0_out\n"
++"{\n"
++"    float4 Out_Color [[user(locn0)]];\n"
++"    float2 Out_UV [[user(locn1)]];\n"
++"    float4 gl_Position [[position]];\n"
++"};\n"
++"\n"
++"struct main0_in\n"
++"{\n"
++"    float2 aPos [[attribute(0)]];\n"
++"    float2 aUV [[attribute(1)]];\n"
++"    float4 aColor [[attribute(2)]];\n"
++"};\n"
++"\n"
++"vertex main0_out main0(main0_in in [[stage_in]], constant uPushConstant& pc [[buffer(0)]])\n"
++"{\n"
++"    main0_out out = {};\n"
++"    _9 Out = {};\n"
++"    Out.Color = in.aColor;\n"
++"    Out.UV = in.aUV;\n"
++"    out.gl_Position = float4((in.aPos * pc.uScale) + pc.uTranslate, 0.0, 1.0);\n"
++"    out.gl_Position.y *= (-1.0);\n"
++"    out.Out_Color = Out.Color;\n"
++"    out.Out_UV = Out.UV;\n"
++"    return out;\n"
++"}\n"
++"\n"
++"";
++static const char imgui_msl_fragment[] =
++"#include <metal_stdlib>\n"
++"#include <simd/simd.h>\n"
++"\n"
++"using namespace metal;\n"
++"\n"
++"struct _11\n"
++"{\n"
++"    float4 Color;\n"
++"    float2 UV;\n"
++"};\n"
++"\n"
++"struct main0_out\n"
++"{\n"
++"    float4 fColor [[color(0)]];\n"
++"};\n"
++"\n"
++"struct main0_in\n"
++"{\n"
++"    float4 In_Color [[user(locn0)]];\n"
++"    float2 In_UV [[user(locn1)]];\n"
++"};\n"
++"\n"
++"fragment main0_out main0(main0_in in [[stage_in]], texture2d<float> sTexture [[texture(0)]], sampler sTextureSmplr [[sampler(0)]])\n"
++"{\n"
++"    main0_out out = {};\n"
++"    _11 In = {};\n"
++"    In.Color = in.In_Color;\n"
++"    In.UV = in.In_UV;\n"
++"    out.fColor = In.Color * sTexture.sample(sTextureSmplr, In.UV);\n"
++"    return out;\n"
++"}\n"
++"\n"
++"";
 diff --git a/libraries/sim/include/sim_g2.h b/libraries/sim/include/sim_g2.h
 index 400cde3..c3e778a 100644
 --- a/libraries/sim/include/sim_g2.h
@@ -13692,10 +13782,10 @@ index 0000000..7676581
 +#endif // #ifndef IMGUI_DISABLE
 diff --git a/libraries/sim/src/imgui/imgui_impl_sdlgpu3.cpp b/libraries/sim/src/imgui/imgui_impl_sdlgpu3.cpp
 new file mode 100644
-index 0000000..9c495bf
+index 0000000..f1c4cec
 --- /dev/null
 +++ b/libraries/sim/src/imgui/imgui_impl_sdlgpu3.cpp
-@@ -0,0 +1,664 @@
+@@ -0,0 +1,682 @@
 +// dear imgui: Renderer Backend for SDL_GPU
 +// This needs to be used along with the SDL3 Platform Backend
 +
@@ -13736,6 +13826,12 @@ index 0000000..9c495bf
 +#ifndef IMGUI_DISABLE
 +#include "imgui_impl_sdlgpu3.h"
 +#include "imgui_impl_sdlgpu3_shaders.h"
++#if defined(__APPLE__)
++#include <TargetConditionals.h>
++#if TARGET_OS_IOS
++#include "imgui_impl_sdlgpu3_shaders_ios.h" // ios-build hook: MSL source (vendored metallib is macOS-only)
++#endif
++#endif
 +
 +// SDL_GPU Data
 +
@@ -14150,6 +14246,17 @@ index 0000000..9c495bf
 +#ifdef __APPLE__
 +    else
 +    {
++#if TARGET_OS_IOS
++        // ios-build hook: MSL source compiled by SDL at runtime (see shaders_ios.h)
++        vertex_shader_info.entrypoint = "main0";
++        vertex_shader_info.format = SDL_GPU_SHADERFORMAT_MSL;
++        vertex_shader_info.code = (const Uint8*)imgui_msl_vertex;
++        vertex_shader_info.code_size = sizeof(imgui_msl_vertex);
++        fragment_shader_info.entrypoint = "main0";
++        fragment_shader_info.format = SDL_GPU_SHADERFORMAT_MSL;
++        fragment_shader_info.code = (const Uint8*)imgui_msl_fragment;
++        fragment_shader_info.code_size = sizeof(imgui_msl_fragment);
++#else
 +        vertex_shader_info.entrypoint = "main0";
 +        vertex_shader_info.format = SDL_GPU_SHADERFORMAT_METALLIB;
 +        vertex_shader_info.code = metallib_vertex;
@@ -14158,6 +14265,7 @@ index 0000000..9c495bf
 +        fragment_shader_info.format = SDL_GPU_SHADERFORMAT_METALLIB;
 +        fragment_shader_info.code = metallib_fragment;
 +        fragment_shader_info.code_size = sizeof(metallib_fragment);
++#endif
 +    }
 +#endif
 +    bd->VertexShader = SDL_CreateGPUShader(v->Device, &vertex_shader_info);
