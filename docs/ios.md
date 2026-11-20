@@ -42,5 +42,15 @@ the app's Documents survives a refresh install over the top).
 ## Notes
 
 - Bundle id `local.dazzlingplatinum.ios`, minimum iOS 17.0, arm64.
-- First run seeds `ScreenLayout=wide` + `Renderer=gpu` in the writable dir.
+- iOS defaults are `ScreenLayout=wide` + `Renderer=gpu` (platform lane).
+- The bundle layout is a flat `.app` with `game/` at the root (the platform
+  path API probes `Resources/game`, then `game/`); iOS codesign rejects a
+  top-level `Resources` directory, so do not move it.
+- The game runs from the bundle data dir on iOS because `FS_OpenFile` opens
+  game data relative to the working directory; writable files are routed to
+  Documents by the platform path API.
+- Sandoq VM quirk (not on real Macs): its simulator GPU reports no Metal GPU
+  family, so SDL's `MTLGPUFamilyApple3` gate rejects it. For VM-only checks,
+  that one check was relaxed in the VM's local SDL build; device/real-Mac
+  builds pass the gate as-is.
 - The Mac (`tools/macos/build.sh`) and Linux builds are unchanged.
