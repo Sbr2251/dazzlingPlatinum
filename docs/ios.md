@@ -2,7 +2,7 @@
 
 GPU-only (Metal through SDL GPU) port of the Mac app. The OpenGL backend, glad and
 ImGui's GL3 backend are compiled out on iOS; there is no `Renderer=gl` fallback.
-Game data is read-only in the bundle (`Resources/game`, laid out exactly as the
+Game data is read-only in the bundle (`game/`, laid out exactly as the
 macOS app); everything written (save, configs, logs) goes to the app's writable
 dir. Landscape only, full screen, status bar hidden. Saves can be shared through
 the Files app (`UIFileSharingEnabled` + `LSSupportsOpeningDocumentsInPlace`).

@@ -1,7 +1,7 @@
 #!/bin/bash
 # iOS: wrap the built game in "Dazzling Platinum.app" (flat iOS bundle: executable +
-# Info.plist + Resources/game with the game files exactly as the macOS app lays them
-# out). Simulator builds are ad-hoc signed; device builds are left unsigned (the
+# Info.plist + game/ with the game files exactly as the macOS app lays them
+# out under Resources/game; flat here because iOS bundles reject a Resources dir). Simulator builds are ad-hoc signed; device builds are left unsigned (the
 # owner signs the .ipa from make_ipa.sh with Sideloadly).
 # usage: make_app.sh <build dir> [device|sim]
 set -euo pipefail
@@ -12,18 +12,18 @@ APP="$BUILDDIR/Dazzling Platinum.app"
 CSV="$ROOT/platinum.us/filesys.csv"
 
 rm -rf "$APP.tmp"
-mkdir -p "$APP.tmp/Resources/game"
+mkdir -p "$APP.tmp/game"
 A="$APP.tmp"
 
 # The game files, exactly as copy_pc_files.sh placed them (filesys.csv targets)
 grep -v '^#' "$CSV" | grep -v '^Source File' | grep -v '^[[:space:]]*$' | cut -d, -f2 | while read -r dest; do
   dest=${dest%$'\r'}
-  mkdir -p "$(dirname "$A/Resources/game$dest")"
-  cp "$BUILDDIR$dest" "$A/Resources/game$dest"
+  mkdir -p "$(dirname "$A/game$dest")"
+  cp "$BUILDDIR$dest" "$A/game$dest"
 done
-for f in header.bin firmware.bin language.csv; do cp "$BUILDDIR/$f" "$A/Resources/game/$f"; done
-[ -d "$BUILDDIR/battle_specs" ] && cp -R "$BUILDDIR/battle_specs" "$A/Resources/game/battle_specs"
-[ -d "$ROOT/tools/texpack/demo/TexturePack" ] && cp -R "$ROOT/tools/texpack/demo/TexturePack" "$A/Resources/game/TexturePack"
+for f in header.bin firmware.bin language.csv; do cp "$BUILDDIR/$f" "$A/game/$f"; done
+[ -d "$BUILDDIR/battle_specs" ] && cp -R "$BUILDDIR/battle_specs" "$A/game/battle_specs"
+[ -d "$ROOT/tools/texpack/demo/TexturePack" ] && cp -R "$ROOT/tools/texpack/demo/TexturePack" "$A/game/TexturePack"
 
 cp "$BUILDDIR/main" "$A/DazzlingPlatinum"
 chmod +x "$A/DazzlingPlatinum"
