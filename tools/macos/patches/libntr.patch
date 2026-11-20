@@ -883,7 +883,7 @@ index dfd081d..818b665 100644
  	*((REGType16 *)((u32)REG_TM0CNT_H_ADDR + id * 4)) = control;
      #endif
 diff --git a/include/nitro/types.h b/include/nitro/types.h
-index 7c77d5e..f175dd3 100644
+index 7c77d5e..6a7a915 100644
 --- a/include/nitro/types.h
 +++ b/include/nitro/types.h
 @@ -24,7 +24,7 @@ extern "C" {
@@ -895,6 +895,15 @@ index 7c77d5e..f175dd3 100644
  typedef unsigned int u32;
  #else
  typedef unsigned long u32;
+@@ -38,7 +38,7 @@ typedef unsigned long u32;
+ 
+ typedef signed char s8;
+ typedef signed short int s16;
+-#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO)
++#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO) || defined(SDK_BUILD_IOS)
+ typedef signed int s32;
+ #else
+ typedef signed long s32;
 diff --git a/include/simulator/config/sim_config.h b/include/simulator/config/sim_config.h
 index ce31436..090476d 100644
 --- a/include/simulator/config/sim_config.h
