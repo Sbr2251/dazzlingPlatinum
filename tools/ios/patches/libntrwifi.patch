@@ -82,3 +82,34 @@ index 19c34a6..a2d17e8 100644
      //#endif
    }
    return;
+diff --git a/libraries/cps/src/network.c b/libraries/cps/src/network.c
+index 19c34a6..29247e3 100644
+--- a/libraries/cps/src/network.c
++++ b/libraries/cps/src/network.c
+@@ -2,10 +2,14 @@
+ #include <nitroWiFi.h>
+ #include <nitroWiFi/decomp/decomp_defs_nitrowifi.h>
+ 
++#ifdef SDK_BUILD_IOS
++#define SDK_BUILD_LINUX 1 // ios-build hook: this file's POSIX socket backend serves iOS too
++#endif
++
+ #ifdef SDK_BUILD_WIN64
+ #include <winsock2.h>
+ #endif
+-#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO)
++#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO) || defined(SDK_BUILD_IOS)
+ #include <errno.h>
+ #include <sys/socket.h>
+ #include <sys/select.h>
+@@ -28,8 +32,8 @@ static SDL_Mutex * s_SocketSharedMutex = NULL;
+ static SDL_Mutex * s_SocketThreadStartupMutex = NULL;
+ #endif
+ 
+-#ifdef SDK_BUILD_MACOS
+-// macOS has no SOCK_NONBLOCK: set O_NONBLOCK after creating the socket
++#if defined(SDK_BUILD_MACOS) || defined(SDK_BUILD_IOS)
++// macOS/iOS has no SOCK_NONBLOCK: set O_NONBLOCK after creating the socket
+ #include <fcntl.h>
+ static int CPS_SOCKET_NONBLOCK(int domain, int type, int protocol) {
+   int s = socket(domain, type, protocol);
