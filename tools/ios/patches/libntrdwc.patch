@@ -29,3 +29,55 @@ index 0bf1115..d424656 100644
  )
  endif
  
+diff --git a/libraries/auth/src/dwc_auth.c b/libraries/auth/src/dwc_auth.c
+index 39fef9e..b025a55 100644
+--- a/libraries/auth/src/dwc_auth.c
++++ b/libraries/auth/src/dwc_auth.c
+@@ -11,7 +11,7 @@
+ 
+ #include "dwc_serverurl.h"
+ 
+-#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO)
++#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO) || defined(SDK_BUILD_IOS)
+ #include <errno.h>
+ #include <wchar.h>
+ #endif
+diff --git a/libraries/auth/src/dwc_cal.c b/libraries/auth/src/dwc_cal.c
+index 737569c..62716be 100644
+--- a/libraries/auth/src/dwc_cal.c
++++ b/libraries/auth/src/dwc_cal.c
+@@ -9,7 +9,7 @@
+ #include "auth/dwc_netcheck.h"
+ #include "decomp/decomp_defs.h"
+ 
+-#ifdef SDK_BUILD_LINUX
++#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_IOS)
+ #include <wchar.h>
+ #endif
+ 
+diff --git a/libraries/auth/src/dwc_nastime.c b/libraries/auth/src/dwc_nastime.c
+index 4497ae7..8cc8bda 100644
+--- a/libraries/auth/src/dwc_nastime.c
++++ b/libraries/auth/src/dwc_nastime.c
+@@ -13,7 +13,7 @@
+ 
+ #include <nitro/rtc.h>
+ 
+-#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO)
++#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO) || defined(SDK_BUILD_IOS)
+ #include <errno.h>
+ #include <wchar.h>
+ #endif
+diff --git a/libraries/auth/src/dwc_netcheck.c b/libraries/auth/src/dwc_netcheck.c
+index f185b23..829b23e 100644
+--- a/libraries/auth/src/dwc_netcheck.c
++++ b/libraries/auth/src/dwc_netcheck.c
+@@ -9,7 +9,7 @@
+ #include "auth/util_base64.h"
+ #include "decomp/decomp_defs.h"
+ 
+-#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO)
++#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO) || defined(SDK_BUILD_IOS)
+ #include <errno.h>
+ #endif
+ 
