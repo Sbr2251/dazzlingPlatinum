@@ -17,9 +17,10 @@ for rt,devs in json.load(sys.stdin)['devices'].items():
 ")
 if [ -z "$UDID" ]; then
   TYPE=$(xcrun simctl list devicetypes -j | python3 -c "
-import json,sys
-ts=[t for t in json.load(sys.stdin)['devicetypes'] if t['name'].startswith('iPhone')]
-print(sorted(ts, key=lambda t: t['name'])[-1]['identifier'])")
+import json,re,sys
+ts=[t for t in json.load(sys.stdin)['devicetypes'] if re.match(r'iPhone \d', t['name'])]
+ts.sort(key=lambda t: [int(n) for n in re.findall(r'\d+', t['name'])])
+print(ts[-1]['identifier'])")
   RUNTIME=$(xcrun simctl list runtimes -j | python3 -c "
 import json,sys
 rs=[r for r in json.load(sys.stdin)['runtimes'] if r['name'].startswith('iOS') and r['isAvailable']]
