@@ -758,6 +758,19 @@ index b196b55..90df0dc 100644
    #else
  	MIi_CpuClearFast(data, dest, size);
    #endif
+diff --git a/include/nitro/misc.h b/include/nitro/misc.h
+index a3aeb2b..184fee8 100644
+--- a/include/nitro/misc.h
++++ b/include/nitro/misc.h
+@@ -26,7 +26,7 @@ extern "C" {
+     #endif
+ #endif
+ 
+-#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_WIN64) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO)
++#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_WIN64) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO) || defined(SDK_BUILD_IOS)
+ #define SDK_COMPILER_ASSERT(expr)
+ #else
+ #define SDK_COMPILER_ASSERT(expr) \
 diff --git a/include/nitro/os/common/alarm.h b/include/nitro/os/common/alarm.h
 index 1032d78..b3b8298 100644
 --- a/include/nitro/os/common/alarm.h
@@ -869,6 +882,19 @@ index dfd081d..818b665 100644
      #else
  	*((REGType16 *)((u32)REG_TM0CNT_H_ADDR + id * 4)) = control;
      #endif
+diff --git a/include/nitro/types.h b/include/nitro/types.h
+index 7c77d5e..f175dd3 100644
+--- a/include/nitro/types.h
++++ b/include/nitro/types.h
+@@ -24,7 +24,7 @@ extern "C" {
+ typedef unsigned char u8;
+ typedef unsigned short int u16;
+ 
+-#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO)
++#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO) || defined(SDK_BUILD_IOS)
+ typedef unsigned int u32;
+ #else
+ typedef unsigned long u32;
 diff --git a/include/simulator/config/sim_config.h b/include/simulator/config/sim_config.h
 index ce31436..090476d 100644
 --- a/include/simulator/config/sim_config.h
