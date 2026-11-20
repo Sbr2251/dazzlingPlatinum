@@ -243,7 +243,8 @@ if host_machine.system() == 'darwin'
             '-framework', 'CoreMotion', '-framework', 'GameController', '-framework', 'AVFoundation',
             '-framework', 'AudioToolbox', '-framework', 'CoreAudio', '-framework', 'CoreMedia',
             '-framework', 'CoreVideo', '-framework', 'ImageIO', '-framework', 'MobileCoreServices',
-            '-framework', 'Security', '-framework', 'SystemConfiguration']
+            '-framework', 'Security', '-framework', 'SystemConfiguration', '-framework', 'CoreBluetooth',
+            '-framework', 'OpenGLES']
     endif
 endif
 
