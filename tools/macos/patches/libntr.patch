@@ -5815,7 +5815,7 @@ index d7a921e..c5c0f38 100644
          '-DSIM_IMGUI_FILE_DIALOG_SUPPORT=1'
      ]
 diff --git a/libraries/sim/src/config/sim_config.c b/libraries/sim/src/config/sim_config.c
-index 096e7fb..57f305b 100644
+index 096e7fb..929ecc9 100644
 --- a/libraries/sim/src/config/sim_config.c
 +++ b/libraries/sim/src/config/sim_config.c
 @@ -1,20 +1,21 @@
@@ -5912,7 +5912,20 @@ index 096e7fb..57f305b 100644
      }
      
      return ret;
-@@ -348,31 +380,35 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -336,7 +368,11 @@ static SIM_config_screen_layout_type StringToScreenLayoutType(const char * str)
+ // Loads the configuration file. If it does not exist, return false
+ BOOL SIM_Config_LoadConfigFile(SIM_config_type * aConfig)
+ {
+-    return (ini_parse(SIM_CONFIG_FILE_PATH, IniHandler, aConfig) >= 0);
++    BOOL ok = (ini_parse(SIM_CONFIG_FILE_PATH, IniHandler, aConfig) >= 0);
++    // ios-platform hook: iOS is always wide + GPU, even when a stale
++    // Documents config from an earlier build says otherwise.
++    if (SIM_Platform_IsIOS()) { aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_WIDE; aConfig->renderer = SIM_CONFIG_RENDERER_GPU; }
++    return ok;
+ }
+ 
+ // Initialize a SIM_config_type to default values
+@@ -348,31 +384,35 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->windowWidth = 1920;
      aConfig->screenLayout = SIM_CONFIG_SCREEN_LAYOUT_LARGE;
  #else
@@ -5956,7 +5969,7 @@ index 096e7fb..57f305b 100644
      aConfig->padSettings.frameCapToggleKey = SDLK_TAB;
      aConfig->padSettings.frameCapKey = SDLK_SPACE;
      aConfig->padSettings.aJoyKey = 0;
-@@ -410,7 +446,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
+@@ -410,7 +450,8 @@ void SIM_Config_LoadDefaults(SIM_config_type * aConfig)
      aConfig->macAddr[5] = rand();
  
      memset(&aConfig->osNvramConfig, 0, sizeof(NVRAMConfig));
@@ -5966,7 +5979,7 @@ index 096e7fb..57f305b 100644
      aConfig->osNvramConfig.ncd.option.input_nickname = TRUE;
      aConfig->osNvramConfig.ncd.option.input_favoriteColor = TRUE;
      aConfig->osNvramConfig.ncd.option.input_language = TRUE;
-@@ -427,7 +464,9 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
+@@ -427,7 +468,9 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
      FILE * configFile = fopen(SIM_CONFIG_FILE_PATH, "w");
      
      fprintf(configFile, "[General]\n");
@@ -5976,7 +5989,7 @@ index 096e7fb..57f305b 100644
      fprintf(configFile, "WindowHeight=%d\n", aConfig->windowHeight);
      fprintf(configFile, "WindowWidth=%d\n", aConfig->windowWidth);
      fprintf(configFile, "FullScreen=%s\n", BoolToString(aConfig->fullScreen));
-@@ -438,6 +477,7 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
+@@ -438,6 +481,7 @@ void SIM_Config_SaveConfigFile(SIM_config_type * aConfig)
      fprintf(configFile, "SwapScreens=%s\n", BoolToString(aConfig->swapScreens));
      fprintf(configFile, "VsyncInterval=%d\n", aConfig->vsyncInterval);
      fprintf(configFile, "CapFrameRate=%s\n", BoolToString(aConfig->capFrameRate));
@@ -36683,10 +36696,10 @@ index 51a5263..f6d1303 100644
  
 diff --git a/libraries/sim/src/sim_touchpad.cpp b/libraries/sim/src/sim_touchpad.cpp
 new file mode 100644
-index 0000000..587bd85
+index 0000000..e38b9e3
 --- /dev/null
 +++ b/libraries/sim/src/sim_touchpad.cpp
-@@ -0,0 +1,335 @@
+@@ -0,0 +1,338 @@
 +// ios-controls hook: see sim_touchpad.h.
 +#include "sim_touchpad.h"
 +
@@ -36735,30 +36748,33 @@ index 0000000..587bd85
 +  gLayoutW = W; gLayoutH = H; gLayout.clear();
 +  if (W <= 0 || H <= 0) return;
 +  float fw = (float)W, fh = (float)H;
-+  float m = std::max(10.0f, std::min(fw, fh) * 0.025f);       // safe-area-ish margin
-+  float big = std::min(fw, fh) * 0.115f;                      // A/B/X/Y diameter
-+  float dpad = std::min(fw, fh) * 0.30f;                      // D-pad bounding box
++  float m = std::max(10.0f, std::min(fw, fh) * 0.04f);        // safe-area-ish margin (notch/home-bar side)
++  float big = std::min(fw, fh) * 0.10f;                       // A/B/X/Y diameter (compact: edges only)
++  float dpad = std::min(fw, fh) * 0.27f;                      // D-pad bounding box
 +  float cyLow = fh - m - big * 1.15f;
 +  // D-pad (one hit box, directions derived from the touch position).
 +  gLayout.push_back({Btn::DPad, m + dpad * 0.5f, cyLow, dpad, dpad, "", false});
 +  // ABXY diamond on the right, clear of the playfield centre.
 +  float ax = fw - m - big * 0.55f, ay = cyLow;
 +  gLayout.push_back({Btn::A, ax, ay, big, big, "A", true});
-+  gLayout.push_back({Btn::B, ax - big * 0.62f, ay + big * 0.62f, big, big, "B", true});
-+  gLayout.push_back({Btn::X, ax - big * 0.62f, ay - big * 0.62f, big, big, "X", true});
-+  gLayout.push_back({Btn::Y, ax - big * 1.24f, ay, big, big, "Y", true});
++  gLayout.push_back({Btn::B, ax - big * 0.95f, ay + big * 0.95f, big, big, "B", true});
++  gLayout.push_back({Btn::X, ax - big * 0.95f, ay - big * 0.95f, big, big, "X", true});
++  gLayout.push_back({Btn::Y, ax - big * 1.90f, ay, big, big, "Y", true});
 +  // Shoulders above each cluster.
 +  float shW = std::min(fw, fh) * 0.17f, shH = std::min(fw, fh) * 0.075f;
 +  gLayout.push_back({Btn::L, m + shW * 0.5f, cyLow - dpad * 0.5f - shH, shW, shH, "L", false});
 +  gLayout.push_back({Btn::R, fw - m - shW * 0.5f, cyLow - dpad * 0.5f - shH, shW, shH, "R", false});
-+  // Small system pills: bottom centre (Start/Select) and top corners.
++  // Small system pills hugging the edges (nothing in the middle third):
++  // SEL under L on the left, STA under R on the right, FF/Pause in the top
++  // corners, Panel stacked under Pause on the right edge.
 +  float pW = std::min(fw, fh) * 0.13f, pH = std::min(fw, fh) * 0.062f;
-+  gLayout.push_back({Btn::Select, fw * 0.5f - pW * 0.55f, fh - m - pH * 0.5f, pW, pH, "SEL", false});
-+  gLayout.push_back({Btn::Start, fw * 0.5f + pW * 0.55f, fh - m - pH * 0.5f, pW, pH, "STA", false});
++  float shY = cyLow - dpad * 0.5f - shH;
++  gLayout.push_back({Btn::Select, m + pW * 0.5f, shY - pH * 1.3f, pW, pH, "SEL", false});
++  gLayout.push_back({Btn::Start, fw - m - pW * 0.5f, shY - pH * 1.3f, pW, pH, "STA", false});
 +  float tW = std::min(fw, fh) * 0.11f, tH = std::min(fw, fh) * 0.06f;
 +  gLayout.push_back({Btn::FastForward, m + tW * 0.5f, m + tH * 0.5f, tW, tH, "FF", false});
-+  gLayout.push_back({Btn::Panel, fw * 0.5f, m + tH * 0.5f, tW, tH, "PNL", false});
 +  gLayout.push_back({Btn::Pause, fw - m - tW * 0.5f, m + tH * 0.5f, tW, tH, "II", false});
++  gLayout.push_back({Btn::Panel, fw - m - tW * 0.5f, m + tH * 1.8f, tW, tH, "PNL", false});
 +}
 +
 +bool Pressed(Btn b) {
