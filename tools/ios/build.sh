@@ -17,6 +17,8 @@ esac
 DEPS_ROOT=${IOS_DEPS_ROOT:-$HOME/Documents/pokeplatinum-ios-deps}
 DEPS=$DEPS_ROOT/$SDK
 MIN=${IOS_MIN_VERSION:-17.0}
+# Target triple for tools/ios/trainer_ai_ios.sh (device vs simulator object format)
+if [ "$KIND" = sim ]; then export SIM_IOS_TARGET="arm64-apple-ios$MIN-simulator"; else export SIM_IOS_TARGET="arm64-apple-ios$MIN"; fi
 MESON="python3 $ROOT/subprojects/meson-1.12.0/meson.py"
 
 [ -d subprojects/meson-1.12.0 ] || git clone -q --depth=1 -b 1.12.0 https://github.com/mesonbuild/meson subprojects/meson-1.12.0

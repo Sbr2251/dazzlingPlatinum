@@ -5641,7 +5641,7 @@ index 0000000..c229c3a
 +
 +#endif
 diff --git a/libraries/sim/meson.build b/libraries/sim/meson.build
-index d7a921e..e00b716 100644
+index d7a921e..c5c0f38 100644
 --- a/libraries/sim/meson.build
 +++ b/libraries/sim/meson.build
 @@ -2,17 +2,37 @@ subdir('src')
@@ -5677,8 +5677,8 @@ index d7a921e..e00b716 100644
 +ios_deps_lib = [ios_deps_prefix / 'lib']
 +sdl3_dep = declare_dependency(dependencies: [
 +    meson.get_compiler('c').find_library('SDL3', dirs: ios_deps_lib),
-+    meson.get_compiler('c').find_library('png', dirs: ios_deps_lib, required: false),
-+    meson.get_compiler('c').find_library('z', dirs: ios_deps_lib, required: false),
++    meson.get_compiler('c').find_library('png', dirs: ios_deps_lib, required: false, static: true),
++    meson.get_compiler('c').find_library('z', dirs: ios_deps_lib, required: false, static: true),
 +])
 +else
 +sdl3_dep = declare_dependency(dependencies: [sdl3_lib])

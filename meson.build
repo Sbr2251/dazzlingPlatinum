@@ -392,7 +392,21 @@ trainer_ai_ss = custom_target(
     feed: true
 )
 
-if (host_machine.system() == 'darwin')
+if (build_target == 'ios')
+# ios-build hook: like macOS, but the wrapper object targets iOS ($SIM_IOS_TARGET)
+trainer_ai_o = custom_target(
+    'trainer_ai_script.o',
+    output: 'trainer_ai_script.o',
+    input: trainer_ai_ss,
+    command: [
+        meson.global_source_root() / 'tools' / 'ios' / 'trainer_ai_ios.sh',
+        '@INPUT@', '@OUTPUT@',
+        enumproc_exe,
+        meson.global_source_root() / 'asm',
+        meson.global_build_root(),
+    ],
+)
+elif (host_machine.system() == 'darwin')
 # macOS: Apple's assembler cannot fold the script's label arithmetic; see tools/macos/trainer_ai_macho.sh
 trainer_ai_o = custom_target(
     'trainer_ai_script.o',
