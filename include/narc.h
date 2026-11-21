@@ -15,6 +15,10 @@ typedef struct NARC {
     u32 fatbStart;
     u32 fimgStart;
     u16 numFiles;
+#ifdef SDK_PORT
+    const void *residentIndex;
+    u32 cursor;
+#endif
 } NARC;
 
 /*
@@ -38,6 +42,10 @@ void NARC_ReadWholeMemberByIndexPair(void *dest, enum NarcID narcID, int memberI
  */
 void *NARC_AllocAndReadWholeMemberByIndexPair(enum NarcID narcID, int memberIndex, enum HeapID heapID);
 void *NARC_AllocAtEndAndReadWholeMemberByIndexPair(enum NarcID narcID, int memberIndex, enum HeapID heapID);
+
+/* Fused allocation/read and cursor-independent positional read APIs. */
+void *NARC_AllocAndReadWholeMemberWithSize(enum NarcID narcID, int memberIndex, enum HeapID heapID, BOOL allocAtEnd, u32 *size);
+BOOL NARC_ReadMemberAt(const NARC *narc, u32 memberIndex, u32 offset, u32 size, void *dest);
 
 /*
  * Reads a portion of an archive member into an existing buffer
@@ -146,6 +154,8 @@ void NARC_ReadFromMember(NARC *narc, u32 memberIndex, u32 offset, u32 bytesToRea
 void NARC_ReadFile(NARC *narc, u32 bytesToRead, void *dest);
 
 void NARC_Seek(NARC *narc, u32 offset);
+u32 NARC_GetCursor(const NARC *narc);
+void NARC_SetCursor(NARC *narc, u32 offset);
 
 /*
  * Gets the total number of archive members

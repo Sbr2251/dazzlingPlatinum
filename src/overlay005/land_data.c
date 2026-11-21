@@ -223,7 +223,7 @@ static void LandDataManager_LazyLoadWithoutAttributes(const u8 index, AreaDataMa
 static void LandDataManager_Load(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
 static void LandDataManager_LoadIntoMap(LoadedMap *loadedMap, const int mapMatrixIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
 static void LandDataManager_NewExtraMaps(LandDataManager *landDataMan);
-static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const int centreMapMatrixIndex);
+static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const int centreMapMatrixIndex, u8 loadBudget);
 static void LandDataManager_RenderLoadedMapPtr(const LoadedMap *loadedMap, const LandDataManager *landDataMan, ModelAttributes *const modelAttrs);
 static void LandDataManager_LoadWithoutAttributes(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
 static void LandDataManager_LoadWithoutModel(const int mapMatrixIndex, const u8 loadedMapIndex, AreaDataManager *const areaDataMan, const MapMatrix *mapMatrix, const int mapMatrixWidth, const int mapMatrixHeight, const BOOL isOutdoorsLighting, LandDataManager *landDataMan);
@@ -715,7 +715,9 @@ static BOOL LandDataManager_SetMapsToLazyLoaderManager(LandDataManager *landData
 
 void LandDataManager_Tick(FieldSystem *fieldSystem, LandDataManager *landDataMan)
 {
-    LandDataManager_RefreshExtraMaps(landDataMan, (int)landDataMan->trackedTargetMapMatrixIndex);
+    // mmap-backed positional NARC reads do not disturb the core loader cursor;
+    // admit one nearest pending radius block per frame to cap walking spikes.
+    LandDataManager_RefreshExtraMaps(landDataMan, (int)landDataMan->trackedTargetMapMatrixIndex, 1);
 
     MapLazyLoader *activeLazyLoader = &landDataMan->mapLazyLoaderMan[landDataMan->activeLazyLoaderManIndex].loader;
     MapLazyLoaderTrackedTarget *trackedTarget = &landDataMan->lazyLoaderTrackedTarget;
@@ -1583,9 +1585,6 @@ static void LandDataManager_NewExtraMaps(LandDataManager *landDataMan)
         // heap buffers (MAP_MODEL_FILE_SIZE / BDHC_BUFFER_SIZE each).
         loadedMap->mapModelFile = Heap_Alloc(HEAP_ID_FIELD1, MAP_MODEL_FILE_SIZE);
         loadedMap->bdhcFile = Heap_Alloc(HEAP_ID_FIELD1, BDHC_BUFFER_SIZE);
-        MI_CpuClear8(loadedMap->mapModelFile, MAP_MODEL_FILE_SIZE);
-        MI_CpuClear8(loadedMap->bdhcFile, BDHC_BUFFER_SIZE);
-
         if (landDataMan->skipMapProps == FALSE) {
             loadedMap->mapPropManager = MapPropManager_New(HEAP_ID_FIELD1);
         } else {
@@ -1599,18 +1598,11 @@ static void LandDataManager_NewExtraMaps(LandDataManager *landDataMan)
     }
 }
 
-static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const int centreMapMatrixIndex)
+static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const int centreMapMatrixIndex, u8 loadBudget)
 {
-    if (landDataMan->extraMaps[0] == NULL || centreMapMatrixIndex == INVALID_MAP_MATRIX_INDEX) {
-        return;
-    }
+    u8 loadedThisTick = 0;
 
-    // Extra maps load synchronously from the same NARC the lazy loader
-    // streams core maps from in chunks. Loading an extra while a core pair
-    // is mid-stream would move the NARC position under the lazy tasks, so
-    // extras only refresh once the lazy loader is idle; they catch up a
-    // few frames after the core pair lands.
-    if (landDataMan->runningLazyLoaderManCount != 0) {
+    if (landDataMan->extraMaps[0] == NULL || centreMapMatrixIndex == INVALID_MAP_MATRIX_INDEX) {
         return;
     }
 
@@ -1637,8 +1629,12 @@ static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const
         }
     }
 
-    for (int dz = -1; dz <= 1; dz++) {
-        for (int dx = -1; dx <= 1; dx++) {
+    for (int distance = 0; distance <= 2 && loadedThisTick < loadBudget; distance++) {
+        for (int dz = -1; dz <= 1 && loadedThisTick < loadBudget; dz++) {
+            for (int dx = -1; dx <= 1 && loadedThisTick < loadBudget; dx++) {
+                if (abs(dx) + abs(dz) != distance) {
+                    continue;
+                }
             int x = centreX + dx;
             int z = centreZ + dz;
 
@@ -1667,7 +1663,9 @@ static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const
 
             for (u8 i = 0; i < LAND_DATA_EXTRA_MAP_COUNT_LOCAL; i++) {
                 if (landDataMan->extraMaps[i]->mapMatrixIndex == INVALID_MAP_MATRIX_INDEX) {
+                    u32 coreLoaderCursor = NARC_GetCursor(landDataMan->landDataNARC);
                     LandDataManager_LoadIntoMap(landDataMan->extraMaps[i], mapMatrixIndex, landDataMan->areaDataMan, landDataMan->mapMatrix, landDataMan->mapMatrixWidth, landDataMan->mapMatrixHeight, AreaDataManager_IsOutdoorsLighting(landDataMan->areaDataMan), landDataMan);
+                    NARC_SetCursor(landDataMan->landDataNARC, coreLoaderCursor);
 #ifdef SDK_PORT
                     {
                         const char *fxDebug = getenv("SIM_FX_WIDE_DEBUG");
@@ -1676,10 +1674,12 @@ static void LandDataManager_RefreshExtraMaps(LandDataManager *landDataMan, const
                         }
                     }
 #endif
+                    loadedThisTick++;
                     break;
                 }
             }
         }
+    }
     }
 }
 
@@ -1701,7 +1701,7 @@ static void LandDataManager_InitAndLoad(LandDataManager *landDataMan, const int 
         int centreX = (trackedTargetTileX - offsetTileX) / MAP_TILES_COUNT_X;
         int centreZ = (trackedTargetTileZ - offsetTileZ) / MAP_TILES_COUNT_Z;
         LandDataManager_NewExtraMaps(landDataMan);
-        LandDataManager_RefreshExtraMaps(landDataMan, centreZ * landDataMan->mapMatrixWidth + centreX);
+        LandDataManager_RefreshExtraMaps(landDataMan, centreZ * landDataMan->mapMatrixWidth + centreX, LAND_DATA_EXTRA_MAP_COUNT_LOCAL);
     }
 }
 

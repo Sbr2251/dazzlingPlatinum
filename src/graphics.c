@@ -3,6 +3,11 @@
 #include <nitro.h>
 #include <string.h>
 
+#ifdef SDK_PORT
+#include <pthread.h>
+#include <stdlib.h>
+#endif
+
 #include "bg_window.h"
 #include "heap.h"
 #include "narc.h"
@@ -19,6 +24,103 @@ static void *GetScreenData(void *nscrBuffer, NNSG2dScreenData **outScreenData);
 static void *GetPaletteData(void *nclrBuffer, NNSG2dPaletteData **outPaletteData);
 static void *GetCellBank(void *ncerBuffer, NNSG2dCellDataBank **outCellBank);
 static void *GetAnimBank(void *nanrBuffer, NNSG2dAnimBankData **outAnimBank);
+
+#ifdef SDK_PORT
+#define GRAPHICS_CACHE_SLOTS 128
+#define GRAPHICS_CACHE_LIMIT (64 * 1024 * 1024)
+
+typedef struct GraphicsCacheEntry {
+    enum NarcID narcID;
+    u32 memberIndex;
+    u32 size;
+    u32 lastUse;
+    void *data;
+} GraphicsCacheEntry;
+
+static GraphicsCacheEntry sGraphicsCache[GRAPHICS_CACHE_SLOTS];
+static size_t sGraphicsCacheBytes;
+static u32 sGraphicsCacheClock;
+static pthread_mutex_t sGraphicsCacheLock = PTHREAD_MUTEX_INITIALIZER;
+
+static void *Graphics_CopyCachedCompressed(enum NarcID narcID, u32 memberIndex, enum HeapID heapID, BOOL allocAtEnd)
+{
+    void *result = NULL;
+
+    pthread_mutex_lock(&sGraphicsCacheLock);
+    for (int i = 0; i < GRAPHICS_CACHE_SLOTS; i++) {
+        GraphicsCacheEntry *entry = &sGraphicsCache[i];
+        if (entry->data != NULL && entry->narcID == narcID && entry->memberIndex == memberIndex) {
+            result = allocAtEnd ? Heap_AllocAtEnd(heapID, entry->size) : Heap_Alloc(heapID, entry->size);
+            if (result != NULL) {
+                memcpy(result, entry->data, entry->size);
+            }
+            entry->lastUse = ++sGraphicsCacheClock;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&sGraphicsCacheLock);
+    return result;
+}
+
+static void Graphics_CacheCompressed(enum NarcID narcID, u32 memberIndex, const void *data, u32 size)
+{
+    int slot = -1;
+    u32 oldest = ~0u;
+    void *copy;
+
+    if (size > GRAPHICS_CACHE_LIMIT) {
+        return;
+    }
+    copy = malloc(size);
+    if (copy == NULL) {
+        return;
+    }
+    memcpy(copy, data, size);
+
+    pthread_mutex_lock(&sGraphicsCacheLock);
+    while (sGraphicsCacheBytes + size > GRAPHICS_CACHE_LIMIT) {
+        int victim = -1;
+        oldest = ~0u;
+        for (int i = 0; i < GRAPHICS_CACHE_SLOTS; i++) {
+            if (sGraphicsCache[i].data != NULL && sGraphicsCache[i].lastUse < oldest) {
+                oldest = sGraphicsCache[i].lastUse;
+                victim = i;
+            }
+        }
+        if (victim < 0) {
+            break;
+        }
+        sGraphicsCacheBytes -= sGraphicsCache[victim].size;
+        free(sGraphicsCache[victim].data);
+        memset(&sGraphicsCache[victim], 0, sizeof(sGraphicsCache[victim]));
+    }
+    for (int i = 0; i < GRAPHICS_CACHE_SLOTS; i++) {
+        if (sGraphicsCache[i].data == NULL) {
+            slot = i;
+            break;
+        }
+        if (sGraphicsCache[i].lastUse < oldest) {
+            oldest = sGraphicsCache[i].lastUse;
+            slot = i;
+        }
+    }
+    if (slot >= 0 && sGraphicsCache[slot].data != NULL) {
+        sGraphicsCacheBytes -= sGraphicsCache[slot].size;
+        free(sGraphicsCache[slot].data);
+    }
+    if (slot >= 0) {
+        sGraphicsCache[slot].narcID = narcID;
+        sGraphicsCache[slot].memberIndex = memberIndex;
+        sGraphicsCache[slot].size = size;
+        sGraphicsCache[slot].lastUse = ++sGraphicsCacheClock;
+        sGraphicsCache[slot].data = copy;
+        sGraphicsCacheBytes += size;
+        copy = NULL;
+    }
+    pthread_mutex_unlock(&sGraphicsCacheLock);
+    free(copy);
+}
+#endif
 
 u32 Graphics_LoadTilesToBgLayer(enum NarcID narcID, u32 narcMemberIdx, BgConfig *bgConfig, u32 bgLayer, u32 offset, u32 size, BOOL compressed, u32 heapID)
 {
@@ -105,32 +207,33 @@ void *LoadCompressedMemberFromNARC(enum NarcID narcID, u32 narcMemberIdx, u32 he
 void *LoadMemberFromNARC(enum NarcID narcID, u32 narcMemberIdx, BOOL compressed, enum HeapID heapID, BOOL allocAtEnd)
 {
     void *data;
+    u32 fileSize;
 
-    if (compressed || allocAtEnd == TRUE) {
-        data = Heap_AllocAtEnd(heapID, NARC_GetMemberSizeByIndexPair(narcID, narcMemberIdx));
-    } else {
-        data = Heap_Alloc(heapID, NARC_GetMemberSizeByIndexPair(narcID, narcMemberIdx));
-    }
-
-    if (data != NULL) {
-        NARC_ReadWholeMemberByIndexPair(data, narcID, narcMemberIdx);
-
-        if (compressed) {
-            void *uncompBuf;
-
-            if (allocAtEnd == FALSE) {
-                uncompBuf = Heap_Alloc(heapID, MI_GetUncompressedSize(data));
-            } else {
-                uncompBuf = Heap_AllocAtEnd(heapID, MI_GetUncompressedSize(data));
-            }
-
-            if (uncompBuf) {
-                MI_UncompressLZ8(data, uncompBuf);
-                Heap_Free(data);
-            }
-
-            data = uncompBuf;
+#ifdef SDK_PORT
+    if (compressed) {
+        data = Graphics_CopyCachedCompressed(narcID, narcMemberIdx, heapID, allocAtEnd);
+        if (data != NULL) {
+            return data;
         }
+    }
+#endif
+    data = NARC_AllocAndReadWholeMemberWithSize(narcID, narcMemberIdx, heapID,
+        compressed || allocAtEnd, &fileSize);
+
+    if (data != NULL && compressed) {
+        u32 uncompressedSize = MI_GetUncompressedSize(data);
+        void *uncompBuf = allocAtEnd
+            ? Heap_AllocAtEnd(heapID, uncompressedSize)
+            : Heap_Alloc(heapID, uncompressedSize);
+
+        if (uncompBuf != NULL) {
+            MI_UncompressLZ8(data, uncompBuf);
+            Heap_Free(data);
+#ifdef SDK_PORT
+            Graphics_CacheCompressed(narcID, narcMemberIdx, uncompBuf, uncompressedSize);
+#endif
+        }
+        data = uncompBuf;
     }
 
     return data;
@@ -138,17 +241,10 @@ void *LoadMemberFromNARC(enum NarcID narcID, u32 narcMemberIdx, BOOL compressed,
 
 void *LoadMemberFromNARC_OutFileSize(enum NarcID narcID, u32 narcMemberIdx, BOOL compressed, enum HeapID heapID, BOOL allocAtEnd, u32 *fileSize)
 {
-    void *data;
-    *fileSize = NARC_GetMemberSizeByIndexPair(narcID, narcMemberIdx);
-
-    if (compressed || allocAtEnd == TRUE) {
-        data = Heap_AllocAtEnd(heapID, *fileSize);
-    } else {
-        data = Heap_Alloc(heapID, *fileSize);
-    }
+    void *data = NARC_AllocAndReadWholeMemberWithSize(narcID, narcMemberIdx, heapID,
+        compressed || allocAtEnd, fileSize);
 
     if (data != NULL) {
-        NARC_ReadWholeMemberByIndexPair(data, narcID, narcMemberIdx);
 
         if (compressed) {
             *fileSize = MI_GetUncompressedSize(data);

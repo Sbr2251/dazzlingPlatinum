@@ -206,6 +206,274 @@ static const char *sNarcPaths[] = {
     [NARC_INDEX_BATTLE__GRAPHIC__MON_STREAM] = "battle/graphic/mon_stream.narc",
 };
 
+#ifdef SDK_PORT
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+extern int fileno(FILE *stream);
+
+typedef struct NarcMemberSpan {
+    u32 offset;
+    u32 size;
+} NarcMemberSpan;
+
+typedef struct NarcResidentIndex {
+    const u8 *bytes;
+    size_t length;
+    NarcMemberSpan *members;
+    u16 memberCount;
+    BOOL mapped;
+} NarcResidentIndex;
+
+static NarcResidentIndex *sResidentNarcs[sizeof(sNarcPaths) / sizeof(sNarcPaths[0])];
+static pthread_mutex_t sResidentNarcsLock = PTHREAD_MUTEX_INITIALIZER;
+
+static u16 ReadLE16(const u8 *p)
+{
+    return (u16)(p[0] | (p[1] << 8));
+}
+
+static u32 ReadLE32(const u8 *p)
+{
+    return (u32)p[0] | ((u32)p[1] << 8) | ((u32)p[2] << 16) | ((u32)p[3] << 24);
+}
+
+static NarcResidentIndex *NARC_LoadResident(enum NarcID narcID)
+{
+    NarcResidentIndex *index;
+    FILE *file;
+    struct stat st;
+    int fd;
+    u8 *fallback = NULL;
+    const u8 *bytes;
+    size_t length;
+    u32 fatbStart, fatbSize, btnfStart, btnfSize, fimgStart, fimgSize;
+    u16 memberCount;
+
+    GF_ASSERT((u32)narcID < sizeof(sResidentNarcs) / sizeof(sResidentNarcs[0]));
+    pthread_mutex_lock(&sResidentNarcsLock);
+    index = sResidentNarcs[narcID];
+    if (index != NULL) {
+        pthread_mutex_unlock(&sResidentNarcsLock);
+        return index;
+    }
+
+    file = fopen(sNarcPaths[narcID], "rb");
+    GF_ASSERT(file != NULL);
+    fd = fileno(file);
+    GF_ASSERT(fstat(fd, &st) == 0 && st.st_size >= 16);
+    length = (size_t)st.st_size;
+    bytes = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (bytes == MAP_FAILED) {
+        fallback = malloc(length);
+        GF_ASSERT(fallback != NULL);
+        GF_ASSERT(fread(fallback, 1, length, file) == length);
+        bytes = fallback;
+    }
+    fclose(file);
+
+    fatbStart = ReadLE16(bytes + 12);
+    GF_ASSERT(fatbStart + 12 <= length);
+    fatbSize = ReadLE32(bytes + fatbStart + 4);
+    memberCount = ReadLE16(bytes + fatbStart + 8);
+    btnfStart = fatbStart + fatbSize;
+    GF_ASSERT(btnfStart + 8 <= length);
+    btnfSize = ReadLE32(bytes + btnfStart + 4);
+    fimgStart = btnfStart + btnfSize;
+    GF_ASSERT(fimgStart + 8 <= length);
+    fimgSize = ReadLE32(bytes + fimgStart + 4);
+    GF_ASSERT(fimgStart + fimgSize <= length);
+
+    index = calloc(1, sizeof(*index));
+    GF_ASSERT(index != NULL);
+    index->members = malloc(sizeof(*index->members) * memberCount);
+    GF_ASSERT(index->members != NULL);
+    index->bytes = bytes;
+    index->length = length;
+    index->memberCount = memberCount;
+    index->mapped = fallback == NULL;
+
+    for (u32 i = 0; i < memberCount; i++) {
+        u32 start = ReadLE32(bytes + fatbStart + 12 + i * 8);
+        u32 end = ReadLE32(bytes + fatbStart + 16 + i * 8);
+        GF_ASSERT(end >= start && fimgStart + 8 + end <= length);
+        index->members[i].offset = fimgStart + 8 + start;
+        index->members[i].size = end - start;
+    }
+
+    sResidentNarcs[narcID] = index;
+    pthread_mutex_unlock(&sResidentNarcsLock);
+    return index;
+}
+
+static const NarcMemberSpan *NARC_GetSpan(const NarcResidentIndex *index, u32 memberIndex)
+{
+    GF_ASSERT(memberIndex < index->memberCount);
+    return &index->members[memberIndex];
+}
+
+static void *NARC_AllocRead(const NarcResidentIndex *index, u32 memberIndex, enum HeapID heapID,
+    u32 offset, u32 bytesToRead, BOOL allocAtEnd, u32 *wholeSize)
+{
+    const NarcMemberSpan *span = NARC_GetSpan(index, memberIndex);
+    void *dest;
+    u32 size;
+
+    if (bytesToRead != 0) {
+        size = bytesToRead;
+    } else {
+        GF_ASSERT(offset <= span->size);
+        size = span->size - offset;
+    }
+    GF_ASSERT(offset <= index->length - span->offset
+        && size <= index->length - span->offset - offset && size != 0);
+    if (wholeSize != NULL) {
+        *wholeSize = span->size;
+    }
+    dest = allocAtEnd ? Heap_AllocAtEnd(heapID, size) : Heap_Alloc(heapID, size);
+    if (dest != NULL) {
+        memcpy(dest, index->bytes + span->offset + offset, size);
+    }
+    return dest;
+}
+
+void NARC_ReadWholeMemberByIndexPair(void *dest, enum NarcID narcID, int memberIndex)
+{
+    NarcResidentIndex *index = NARC_LoadResident(narcID);
+    const NarcMemberSpan *span = NARC_GetSpan(index, memberIndex);
+    memcpy(dest, index->bytes + span->offset, span->size);
+}
+
+void *NARC_AllocAndReadWholeMemberWithSize(enum NarcID narcID, int memberIndex, enum HeapID heapID,
+    BOOL allocAtEnd, u32 *size)
+{
+    return NARC_AllocRead(NARC_LoadResident(narcID), memberIndex, heapID, 0, 0, allocAtEnd, size);
+}
+
+void *NARC_AllocAndReadWholeMemberByIndexPair(enum NarcID narcID, int memberIndex, enum HeapID heapID)
+{
+    return NARC_AllocAndReadWholeMemberWithSize(narcID, memberIndex, heapID, FALSE, NULL);
+}
+
+void *NARC_AllocAtEndAndReadWholeMemberByIndexPair(enum NarcID narcID, int memberIndex, enum HeapID heapID)
+{
+    return NARC_AllocAndReadWholeMemberWithSize(narcID, memberIndex, heapID, TRUE, NULL);
+}
+
+void NARC_ReadFromMemberByIndexPair(void *dest, enum NarcID narcID, int memberIndex, int offset, int bytesToRead)
+{
+    NarcResidentIndex *index = NARC_LoadResident(narcID);
+    const NarcMemberSpan *span = NARC_GetSpan(index, memberIndex);
+    u32 size = bytesToRead != 0 ? (u32)bytesToRead : span->size - offset;
+    GF_ASSERT(offset >= 0 && (u32)offset <= index->length - span->offset
+        && size <= index->length - span->offset - offset);
+    memcpy(dest, index->bytes + span->offset + offset, size);
+}
+
+void *NARC_AllocAndReadFromMemberByIndexPair(enum NarcID narcID, int memberIndex, enum HeapID heapID, int offset, int bytesToRead)
+{
+    return NARC_AllocRead(NARC_LoadResident(narcID), memberIndex, heapID, offset, bytesToRead, FALSE, NULL);
+}
+
+void *NARC_AllocAtEndAndReadFromMemberByIndexPair(enum NarcID narcID, int memberIndex, enum HeapID heapID, int offset, int bytesToRead)
+{
+    return NARC_AllocRead(NARC_LoadResident(narcID), memberIndex, heapID, offset, bytesToRead, TRUE, NULL);
+}
+
+u32 NARC_GetMemberSizeByIndexPair(enum NarcID narcID, int memberIndex)
+{
+    return NARC_GetSpan(NARC_LoadResident(narcID), memberIndex)->size;
+}
+
+NARC *NARC_ctor(enum NarcID narcID, enum HeapID heapID)
+{
+    NARC *narc = Heap_Alloc(heapID, sizeof(*narc));
+    if (narc != NULL) {
+        NarcResidentIndex *index = NARC_LoadResident(narcID);
+        memset(narc, 0, sizeof(*narc));
+        narc->residentIndex = index;
+        narc->numFiles = index->memberCount;
+    }
+    return narc;
+}
+
+void NARC_dtor(NARC *narc)
+{
+    Heap_Free(narc);
+}
+
+BOOL NARC_ReadMemberAt(const NARC *narc, u32 memberIndex, u32 offset, u32 size, void *dest)
+{
+    const NarcResidentIndex *index = narc->residentIndex;
+    const NarcMemberSpan *span = NARC_GetSpan(index, memberIndex);
+    if (offset > span->size || size > span->size - offset) {
+        return FALSE;
+    }
+    memcpy(dest, index->bytes + span->offset + offset, size);
+    return TRUE;
+}
+
+void *NARC_AllocAndReadWholeMember(NARC *narc, u32 memberIndex, enum HeapID heapID)
+{
+    return NARC_AllocRead(narc->residentIndex, memberIndex, heapID, 0, 0, FALSE, NULL);
+}
+
+void NARC_ReadWholeMember(NARC *narc, u32 memberIndex, void *dest)
+{
+    const NarcMemberSpan *span = NARC_GetSpan(narc->residentIndex, memberIndex);
+    memcpy(dest, ((NarcResidentIndex *)narc->residentIndex)->bytes + span->offset, span->size);
+    narc->cursor = span->offset + span->size;
+}
+
+u32 NARC_GetMemberSize(NARC *narc, u32 memberIndex)
+{
+    return NARC_GetSpan(narc->residentIndex, memberIndex)->size;
+}
+
+void NARC_ReadFromMember(NARC *narc, u32 memberIndex, u32 offset, u32 bytesToRead, void *dest)
+{
+    const NarcMemberSpan *span = NARC_GetSpan(narc->residentIndex, memberIndex);
+    NarcResidentIndex *index = narc->residentIndex;
+    GF_ASSERT(offset <= index->length - span->offset
+        && bytesToRead <= index->length - span->offset - offset);
+    memcpy(dest, index->bytes + span->offset + offset, bytesToRead);
+    narc->cursor = span->offset + offset + bytesToRead;
+}
+
+void NARC_ReadFile(NARC *narc, u32 bytesToRead, void *dest)
+{
+    NarcResidentIndex *index = narc->residentIndex;
+    GF_ASSERT(narc->cursor <= index->length && bytesToRead <= index->length - narc->cursor);
+    memcpy(dest, index->bytes + narc->cursor, bytesToRead);
+    narc->cursor += bytesToRead;
+}
+
+void NARC_Seek(NARC *narc, u32 offset)
+{
+    GF_ASSERT(offset <= ((NarcResidentIndex *)narc->residentIndex)->length - narc->cursor);
+    narc->cursor += offset;
+}
+
+u32 NARC_GetCursor(const NARC *narc)
+{
+    return narc->cursor;
+}
+
+void NARC_SetCursor(NARC *narc, u32 offset)
+{
+    GF_ASSERT(offset <= ((NarcResidentIndex *)narc->residentIndex)->length);
+    narc->cursor = offset;
+}
+
+u16 NARC_GetFileCount(NARC *narc)
+{
+    return narc->numFiles;
+}
+#else
 static void ReadFromNarcMemberByPathAndIndex(void *dest, const char *path, int memberIndex, int offset, int bytesToRead);
 
 static void ReadFromNarcMemberByPathAndIndex(void *dest, const char *path, int memberIndex, int offset, int bytesToRead)
@@ -497,7 +765,19 @@ void NARC_Seek(NARC *narc, u32 offset)
     FS_SeekFile(&narc->file, offset, FS_SEEK_CUR);
 }
 
+u32 NARC_GetCursor(const NARC *narc)
+{
+    return narc->file.prop.file.pos;
+}
+
+void NARC_SetCursor(NARC *narc, u32 offset)
+{
+    FS_SeekFile(&narc->file, offset, FS_SEEK_SET);
+}
+
 u16 NARC_GetFileCount(NARC *narc)
 {
     return narc->numFiles;
 }
+
+#endif // SDK_PORT
