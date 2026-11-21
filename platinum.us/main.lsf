@@ -84,6 +84,10 @@ Static main
 	Object main.nef.p/src_grid_menu_cursor_position.c.o
 	Object main.nef.p/src_ascii_util.c.o
 	Object main.nef.p/src_fx_util.c.o
+	Object main.nef.p/src_fx_arena.c.o
+	Object main.nef.p/src_fx_weather.c.o
+	Object main.nef.p/src_fx_lighting.c.o
+	Object main.nef.p/src_fx_particles.c.o
 	Object main.nef.p/src_int_distance.c.o
 	Object main.nef.p/src_touch_pad.c.o
 	Object main.nef.p/src_char_transfer.c.o
@@ -479,6 +483,7 @@ Overlay overlay5
 	Object main.nef.p/src_overlay005_model_attributes.c.o
 	Object main.nef.p/src_overlay005_field_camera.c.o
 	Object main.nef.p/src_overlay005_field_camera_zones.c.o
+	Object main.nef.p/src_overlay005_field_cinematics.c.o
 	Object main.nef.p/src_overlay005_ov5_021D5BC0.c.o
 	Object main.nef.p/src_overlay005_texture_resource_manager.c.o
 	Object main.nef.p/src_overlay005_ov5_021D5EB8.c.o
@@ -707,6 +712,8 @@ Overlay battle
 	Object main.nef.p/src_battle_battle_lib.c.o
 	Object main.nef.p/src_battle_battle_io_command.c.o
 	Object main.nef.p/src_battle_battle_display.c.o
+	Object main.nef.p/src_battle_battle_hud.c.o
+	Object main.nef.p/src_battle_battle_events.c.o
 	Object main.nef.p/src_battle_idle_bounce_anim.c.o
 	Object main.nef.p/src_battle_battle_controller.c.o
 	Object main.nef.p/src_battle_healthbox.c.o
