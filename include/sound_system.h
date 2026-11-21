@@ -142,7 +142,9 @@ typedef struct SoundSystem {
     #ifdef SDK_BUILD_ARM
     u8 heapBuffer[SOUND_SYSTEM_HEAP_SIZE]; // Main sound heap where sound data is loaded into
     #else
-    u8 heapBuffer[SOUND_SYSTEM_HEAP_SIZE*2]; 
+    // Port builds keep every decoded SDAT resource resident. This eliminates
+    // heap rollback disposal/reload stalls while preserving the DS heap size.
+    u8 heapBuffer[16 * 1024 * 1024];
     #endif
     NNSSndHandle soundHandles[SOUND_HANDLE_TYPE_COUNT];
     NNSSndWaveOutHandle waveOutHandles[2];

@@ -878,8 +878,6 @@ BOOL Sound_PlayWaveOutReversed(u16 waveArcID, int volume, int pan, enum WaveOutC
             return FALSE;
         }
 
-        memset(*reverseBuffer, 0, fileSize);
-
         if (NNS_SndArcReadFile(info->fileId, *reverseBuffer, fileSize, 0) == -1) {
             GF_ASSERT(FALSE);
             return FALSE;
@@ -1288,7 +1286,7 @@ static void Sound_Impl_FilterCallback(void *bufferL, void *bufferR, u32 length, 
     s16 *bufR = (s16 *)bufferR;
     SoundFilterCallbackParam *param = (SoundFilterCallbackParam *)arg;
     u8 *filterSize = SoundSystem_GetParam(SOUND_SYSTEM_PARAM_FILTER_SIZE);
-    int total, i, j; // Need to be declared here to match
+    int totalL, totalR, i;
 
     int sampleCount = (format == NNS_SND_CAPTURE_FORMAT_PCM8) ? length : (length >> 1);
 
@@ -1301,21 +1299,23 @@ static void Sound_Impl_FilterCallback(void *bufferL, void *bufferR, u32 length, 
         originalSamples[i][R] = bufR[sampleCount - *filterSize + i];
     }
 
-    // The following applies a simple moving average low-pass filter to the audio
+    // Apply the moving average with a rolling sum. Iterating backwards keeps
+    // every newly-added sample unfiltered, preserving the original result.
+    totalL = 0;
+    totalR = 0;
+    for (i = sampleCount - *filterSize; i < sampleCount; i++) {
+        totalL += bufL[i];
+        totalR += bufR[i];
+    }
     for (i = sampleCount - 1; i >= *filterSize - 1; i--) {
-        total = 0;
-        for (j = 0; j < *filterSize; j++) {
-            total += bufL[i - j];
+        s16 leavingL = bufL[i];
+        s16 leavingR = bufR[i];
+        bufL[i] = (s16)(totalL / *filterSize);
+        bufR[i] = (s16)(totalR / *filterSize);
+        if (i > *filterSize - 1) {
+            totalL += bufL[i - *filterSize] - leavingL;
+            totalR += bufR[i - *filterSize] - leavingR;
         }
-
-        bufL[i] = (s16)(total / *filterSize);
-
-        total = 0;
-        for (j = 0; j < *filterSize; j++) {
-            total += bufR[i - j];
-        }
-
-        bufR[i] = (s16)(total / (*filterSize));
     }
 
     for (i = 0; i < *filterSize; i++) {
