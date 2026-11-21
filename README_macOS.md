@@ -17,6 +17,10 @@ The game files are built from this source tree (no ROM needed). The app keeps it
 
 The DS ROM still builds from the same tree with `make release` as before.
 
+Build dirs configured before the iOS target was added (2026-11-21) crash meson's regenerate
+("Unhandled python exception" at `get_option('build_target')`). Run `tools/macos/build.sh` once: it recreates such a
+build dir. After that, `ninja -C build_macos` works again. The iOS build is described in `docs/ios.md`.
+
 ## Controls (defaults, `sim_config.ini`)
 
 | DS | Key |

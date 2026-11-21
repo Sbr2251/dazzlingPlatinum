@@ -49,6 +49,12 @@ done < tools/macos/patches/REVISIONS
 sed -i '' "s|/[^']*/pokeplatinum-macos-deps/prefix|$DEPS/prefix|g" meson/native_macos_port.ini
 
 export LIBRARY_PATH="/opt/homebrew/lib:$DEPS/prefix/lib" CPATH="/opt/homebrew/include:$DEPS/prefix/include"
+# A build dir configured before the 'ios' build_target choice existed crashes meson's regenerate
+# ("Unhandled python exception" at get_option('build_target')): recreate it once
+if [ -f "$BUILD/build.ninja" ] && ! grep -q '"ios"' "$BUILD/meson-info/intro-buildoptions.json" 2>/dev/null; then
+  echo "$BUILD predates the iOS build target; recreating it"
+  rm -rf "$BUILD"
+fi
 if [ ! -f "$BUILD/build.ninja" ]; then
   mkdir -p "$BUILD"
   printf "[constants]\nroot = '%s'\n" "$ROOT" > "$BUILD/root.ini"
