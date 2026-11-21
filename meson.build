@@ -159,13 +159,13 @@ if build_target != 'arm'
         # perf-build hook: buildtype=plain otherwise leaves subprojects unoptimized.
         # Global arguments cover libntr/libntrsystem/libntrwifi/libntrdwc/fx as well
         # as the game. Do not define NDEBUG: SDK assertions may contain side effects.
-        release_compile_args = ['-O3', '-g0', '-ffunction-sections', '-fdata-sections', '-DPM_RELEASE_BUILD']
-        if meson.get_compiler('c').get_id() == 'gcc'
-            # GCC 15 ICEs in libntr's UTEST_OS_KillThread_2 during the final RTL
-            # pass without this partitioning workaround; optimization remains O3.
-            release_compile_args += '-fno-inline-small-functions'
-        endif
-        add_global_arguments(release_compile_args, language: ['c', 'cpp'],
+        # -fno-strict-aliasing is required: DS/Nitro C code type-puns across u8/u16/u32.
+        # perf-build hook: optimize all game code with -O3 + DS-safe aliasing/section GC,
+        # and strip debug info + set PM_RELEASE_BUILD globally (libsim already builds at -O2;
+        # legacy 2005 libntrsystem C code miscompiles billboards under GCC -O2/-O3).
+        # Do not define NDEBUG: SDK/game assertions may contain side effects.
+        pokeplatinum_args += ['-O3', '-g0', '-fno-strict-aliasing', '-ffunction-sections', '-fdata-sections', '-DPM_RELEASE_BUILD']
+        add_global_arguments(['-g0', '-DPM_RELEASE_BUILD'], language: ['c', 'cpp'],
             native: (build_target == 'linux' or build_target == 'win64'))
         if host_machine.system() == 'darwin'
             release_gc_arg = '-Wl,-dead_strip'
