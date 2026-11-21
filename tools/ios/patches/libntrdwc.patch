@@ -1,34 +1,3 @@
-diff --git a/meson.build b/meson.build
-index 0bf1115..d424656 100644
---- a/meson.build
-+++ b/meson.build
-@@ -99,6 +99,17 @@ if (build_target == 'linux')
-     ]
- endif
- 
-+if (build_target == 'ios')
-+    nitrodwc_args += [
-+        '-DSDK_PORT',
-+        '-DSDK_AARCH64',
-+        '-DSDK_CODE_AARCH64',
-+        '-DSDK_BUILD_IOS',
-+        '-D_NITRO',
-+        '-w'
-+    ]
-+endif
-+
- if get_option('link_ppwlobby')
-     nitrodwc_args += '-DLINK_PPWLOBBY'
- endif
-@@ -111,7 +122,7 @@ add_project_arguments(nitrodwc_args,
- else
- add_project_arguments(nitrodwc_args,
-     language: 'c',
--    native: true
-+    native: build_target != 'ios'
- )
- endif
- 
 diff --git a/libraries/auth/src/dwc_auth.c b/libraries/auth/src/dwc_auth.c
 index 39fef9e..b025a55 100644
 --- a/libraries/auth/src/dwc_auth.c
@@ -80,4 +49,66 @@ index f185b23..829b23e 100644
 +#if defined(SDK_BUILD_LINUX) || defined(SDK_BUILD_NX) || defined(SDK_BUILD_PROSPERO) || defined(SDK_BUILD_IOS)
  #include <errno.h>
  #endif
+ 
+diff --git a/libraries/bm/src/dwc_backup.c b/libraries/bm/src/dwc_backup.c
+index 43ca65e..b3f8ec2 100644
+--- a/libraries/bm/src/dwc_backup.c
++++ b/libraries/bm/src/dwc_backup.c
+@@ -63,7 +63,9 @@ static FILE * s_SIM_dwcbackup_fptr = NULL;
+ #ifdef SDK_BUILD_PROSPERO
+ static const char * s_SIM_DWCBACKUP_FILEPATH = "/app0/firmware.bin";
+ #else
+-static const char * s_SIM_DWCBACKUP_FILEPATH = "firmware.bin";
++// ios-platform hook: firmware.bin must be writable ("rb+"); on iOS it lives in Documents (seeded from the bundle)
++extern const char *SIM_Platform_FirmwarePath(void);
++#define s_SIM_DWCBACKUP_FILEPATH SIM_Platform_FirmwarePath()
+ #endif
+ #endif
+ 
+@@ -293,6 +295,7 @@ static BOOL NVRAMm_ExecuteCommand( int nv_state, u32 adr, u16 size, u8 *srcp )
+ 					s_SIM_dwcbackup_fptr = fopen(s_SIM_DWCBACKUP_FILEPATH, "rb+");
+ 				}
+ 
++				if (s_SIM_dwcbackup_fptr == NULL) { nv_sending = FALSE; return FALSE; }
+ 				fseek(s_SIM_dwcbackup_fptr, adr, SEEK_SET);
+ 				fread(srcp, 1, size, s_SIM_dwcbackup_fptr);
+ 				cbNvram(PXI_FIFO_TAG_NVRAM, 0, 0);
+@@ -320,6 +323,7 @@ static BOOL NVRAMm_ExecuteCommand( int nv_state, u32 adr, u16 size, u8 *srcp )
+ 			  	if(s_SIM_dwcbackup_fptr == NULL) {
+ 					s_SIM_dwcbackup_fptr = fopen(s_SIM_DWCBACKUP_FILEPATH, "rb+");
+ 				}
++				if (s_SIM_dwcbackup_fptr == NULL) { nv_sending = FALSE; return FALSE; }
+ 				fseek(s_SIM_dwcbackup_fptr, adr, SEEK_SET);
+ 				fwrite(srcp, 1, size, s_SIM_dwcbackup_fptr);
+ 			  	nv_sending = TRUE;
+diff --git a/meson.build b/meson.build
+index 0bf1115..d424656 100644
+--- a/meson.build
++++ b/meson.build
+@@ -99,6 +99,17 @@ if (build_target == 'linux')
+     ]
+ endif
+ 
++if (build_target == 'ios')
++    nitrodwc_args += [
++        '-DSDK_PORT',
++        '-DSDK_AARCH64',
++        '-DSDK_CODE_AARCH64',
++        '-DSDK_BUILD_IOS',
++        '-D_NITRO',
++        '-w'
++    ]
++endif
++
+ if get_option('link_ppwlobby')
+     nitrodwc_args += '-DLINK_PPWLOBBY'
+ endif
+@@ -111,7 +122,7 @@ add_project_arguments(nitrodwc_args,
+ else
+ add_project_arguments(nitrodwc_args,
+     language: 'c',
+-    native: true
++    native: build_target != 'ios'
+ )
+ endif
  

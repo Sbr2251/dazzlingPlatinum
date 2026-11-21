@@ -2854,10 +2854,10 @@ index 0000000..2ee6c73
 +#endif
 diff --git a/include/simulator/sim_platform.h b/include/simulator/sim_platform.h
 new file mode 100644
-index 0000000..df6083c
+index 0000000..055b36a
 --- /dev/null
 +++ b/include/simulator/sim_platform.h
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +#pragma once
 +// Platform paths and app lifecycle for the simulator (platform lane, iOS port).
 +// Read-only game data lives in the data dir; everything written goes to the
@@ -2877,6 +2877,7 @@ index 0000000..df6083c
 +const char *SIM_Platform_ConfigPath(void);
 +const char *SIM_Platform_ConfigPrjPath(void);
 +const char *SIM_Platform_LogPath(void);
++const char *SIM_Platform_FirmwarePath(void); // writable firmware.bin (seeded from the bundle on iOS)
 +const char *SIM_Platform_JoinPath(const char *dir, const char *name);
 +void SIM_Platform_EnsureWritableDirs(void);
 +// Insets the window rect by the safe area; 0 when not applicable (non-iOS).
@@ -36434,10 +36435,10 @@ index 83a6cc8..7347075 100644
                  SendMyPlayer();
 diff --git a/libraries/sim/src/sim_platform.cpp b/libraries/sim/src/sim_platform.cpp
 new file mode 100644
-index 0000000..2803ff4
+index 0000000..ccc4335
 --- /dev/null
 +++ b/libraries/sim/src/sim_platform.cpp
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,132 @@
 +// Platform paths and lifecycle. See include/simulator/sim_platform.h.
 +#include "simulator/sim_platform.h"
 +#include "simulator/sim_audio.h"
@@ -36501,6 +36502,24 @@ index 0000000..2803ff4
 +const char *SIM_Platform_ConfigPath(void) { static std::string p = Cached("sim_config.ini"); return p.c_str(); }
 +const char *SIM_Platform_ConfigPrjPath(void) { static std::string p = Cached("sim_config_prj.ini"); return p.c_str(); }
 +const char *SIM_Platform_LogPath(void) { static std::string p = Cached("log.txt"); return p.c_str(); }
++// ios-platform hook: firmware.bin (DS NVRAM / WFC settings) is opened "rb+", so it must live in the writable
++// dir. On iOS the bundle copy is the seed: it is copied to Documents on first use. Elsewhere: "firmware.bin".
++const char *SIM_Platform_FirmwarePath(void) {
++  static std::string p = [] {
++    std::string w = Cached("firmware.bin");
++    if (w == "firmware.bin") return w;
++    if (FILE *f = fopen(w.c_str(), "rb")) { fclose(f); return w; }
++    std::string seed = JoinStr(DataDir(), "firmware.bin");
++    FILE *in = fopen(seed.c_str(), "rb");
++    if (!in) in = fopen("firmware.bin", "rb");
++    FILE *out = in ? fopen(w.c_str(), "wb") : nullptr;
++    if (in && out) { char buf[65536]; size_t n; while ((n = fread(buf, 1, sizeof buf, in)) > 0) fwrite(buf, 1, n, out); }
++    if (out) fclose(out);
++    if (in) fclose(in);
++    return w;
++  }();
++  return p.c_str();
++}
 +const char *SIM_Platform_JoinPath(const char *dir, const char *name) {
 +  static thread_local std::string buf;
 +  buf = JoinStr(dir ? dir : "", name ? name : "");
@@ -38620,6 +38639,34 @@ index 6f43a29..c75d6e2 100644
  
                  ch_p->env_decay -= ch_p->decay;
                  if (ch_p->env_decay > sustain_decay)
+diff --git a/libraries/sim7/src/spi/nvram/nvram_instruction.c b/libraries/sim7/src/spi/nvram/nvram_instruction.c
+index 752793a..b184f10 100644
+--- a/libraries/sim7/src/spi/nvram/nvram_instruction.c
++++ b/libraries/sim7/src/spi/nvram/nvram_instruction.c
+@@ -12,9 +12,11 @@
+ 
+ #ifndef SDK_BUILD_ARM
+ #include <stdio.h>
++#include <string.h>
+ 
+ static FILE * s_nvramFilePtr = NULL;
+-#define NVRAM_FILE_PATH "firmware.bin"
++extern const char *SIM_Platform_FirmwarePath(void); // ios-platform hook
++#define NVRAM_FILE_PATH SIM_Platform_FirmwarePath()
+ #endif
+ 
+ void NVRAM_WriteEnable(void)
+@@ -192,6 +194,10 @@ void NVRAM_ReadDataBytes(u32 address, u32 size, u8 *buf)
+     if(s_nvramFilePtr == NULL) {
+         s_nvramFilePtr = fopen(NVRAM_FILE_PATH, "rb+");
+     }
++    if (s_nvramFilePtr == NULL) { // no firmware.bin: read zeros instead of crashing
++        memset(buf, 0, size);
++        return;
++    }
+ 
+     fseek(s_nvramFilePtr, address, SEEK_SET);
+     fread(buf, 1, size, s_nvramFilePtr);
 diff --git a/meson.build b/meson.build
 index d70db92..3f43b82 100644
 --- a/meson.build
