@@ -145,10 +145,9 @@ pokeplatinum_args = [
     '-DGAME_LANGUAGE=LANGUAGE_ENGLISH'
 ]
 
-# Build variant (Mac target): see meson.options. PM_KEEP_ASSERTS is the assert switch:
-# defined in dev and asan, absent in release, so GF_ASSERT (include/global/assert.h)
-# compiles out there. Optimisation/LTO apply to the game code only (these args and the
-# main executable's link line); the asan variant instruments everything.
+# Build variant: see meson.options. PM_KEEP_ASSERTS is the assert switch:
+# defined in dev and asan, absent in release. GF_ASSERT still evaluates its
+# expression in release because game code relies on assertion side effects.
 build_variant = get_option('build_variant')
 if build_variant != 'release'
     pokeplatinum_args += '-DPM_KEEP_ASSERTS'
@@ -157,9 +156,24 @@ endif
 variant_link_args = []
 if build_target != 'arm'
     if build_variant == 'release'
-        # No LTO: with -flto the game soft-reset in a loop at boot (game code relies on
-        # DS-style global layout/initialisation that LTO reorders); -O3 alone is fine.
-        pokeplatinum_args += ['-O3', '-g0']
+        # perf-build hook: buildtype=plain otherwise leaves subprojects unoptimized.
+        # Global arguments cover libntr/libntrsystem/libntrwifi/libntrdwc/fx as well
+        # as the game. Do not define NDEBUG: SDK assertions may contain side effects.
+        release_compile_args = ['-O3', '-g0', '-ffunction-sections', '-fdata-sections', '-DPM_RELEASE_BUILD']
+        if meson.get_compiler('c').get_id() == 'gcc'
+            # GCC 15 ICEs in libntr's UTEST_OS_KillThread_2 during the final RTL
+            # pass without this partitioning workaround; optimization remains O3.
+            release_compile_args += '-fno-inline-small-functions'
+        endif
+        add_global_arguments(release_compile_args, language: ['c', 'cpp'],
+            native: (build_target == 'linux' or build_target == 'win64'))
+        if host_machine.system() == 'darwin'
+            release_gc_arg = '-Wl,-dead_strip'
+        else
+            release_gc_arg = '-Wl,--gc-sections'
+        endif
+        add_global_link_arguments(release_gc_arg, language: ['c', 'cpp'],
+            native: (build_target == 'linux' or build_target == 'win64'))
     elif build_variant == 'asan'
         # The sanitizer flags themselves are global (see above).
         pokeplatinum_args += ['-O1']

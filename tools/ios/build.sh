@@ -2,17 +2,25 @@
 # Build the iOS port (device or Simulator) from this tree, mirroring tools/macos/build.sh:
 # iOS deps, subprojects at the pinned revisions (macOS patches, then iOS patches),
 # host tools on the Mac, the game cross-compiled, packaged by tools/ios/make_app.sh.
-#   tools/ios/build.sh [device|sim]   # device (default) -> build_ios, sim -> build_ios_sim
+#   tools/ios/build.sh [device|sim] [--dev] # release by default; --dev opts into a developer build
 # Needs: Xcode, Homebrew ninja/pkg-config/arm-none-eabi-gcc, python3. Device output
 # also gets an unsigned .ipa (tools/ios/make_ipa.sh) for Sideloadly.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 ROOT=$PWD
-KIND=${1:-device}
+KIND=device
+BUILD_VARIANT=${BUILD_VARIANT:-release}
+for arg in "$@"; do
+  case "$arg" in
+    device|sim) KIND=$arg ;;
+    --dev) BUILD_VARIANT=dev ;;
+    --release) BUILD_VARIANT=release ;;
+    *) echo "usage: $0 [device|sim] [--dev|--release]" >&2; exit 2 ;;
+  esac
+done
 case "$KIND" in
   device) BUILD=${BUILD:-build_ios};     SDK=iphoneos;        TEMPLATE=meson/cross_pcport_ios.ini ;;
   sim)    BUILD=${BUILD:-build_ios_sim}; SDK=iphonesimulator; TEMPLATE=meson/cross_pcport_ios_sim.ini ;;
-  *) echo "usage: $0 [device|sim]" >&2; exit 2 ;;
 esac
 DEPS_ROOT=${IOS_DEPS_ROOT:-$HOME/Documents/pokeplatinum-ios-deps}
 DEPS=$DEPS_ROOT/$SDK
@@ -55,9 +63,11 @@ if [ ! -f "$BUILD/build.ninja" ]; then
   if [ -n "${PKG_CONFIG_PATH:-}" ]; then
     sed -i '' "s|\[built-in options\]|[built-in options]\npkg_config_path = ['$PKG_CONFIG_PATH']|" "$NATIVE"
   fi
-  $MESON setup -Dbuild_target=ios -Dbuild_variant=dev \
+  $MESON setup -Dbuild_target=ios -Dbuild_variant="$BUILD_VARIANT" \
     --native-file="$NATIVE" --native-file="$BUILD/root.ini" \
     --cross-file="$BUILD/cross_ios.ini" --cross-file="$BUILD/root.ini" -- "$BUILD"
+else
+  $MESON configure "$BUILD" -Dbuild_variant="$BUILD_VARIANT"
 fi
 ninja -j8 -C "$BUILD"
 tools/ios/make_app.sh "$BUILD" "$KIND"
