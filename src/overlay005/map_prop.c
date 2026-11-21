@@ -43,6 +43,8 @@ void MapPropManager_Free(MapPropManager *mapPropManager)
 
 void MapPropManager_Init(MapPropManager *mapPropManager)
 {
+    mapPropManager->activeCount = 0;
+
     for (u8 i = 0; i < MAX_LOADED_MAP_PROPS; i++) {
         VecFx32 nullVector = { 0, 0, 0 };
 
@@ -70,6 +72,14 @@ void MapPropManager_ClearOne(int index, MapPropManager *mapPropManager)
     mapPropManager->loadedProps[index].rotation = nullVector;
     mapPropManager->loadedProps[index].scale = nullVector;
     mapPropManager->loadedProps[index].model = NULL;
+
+    for (u8 i = 0; i < mapPropManager->activeCount; i++) {
+        if (mapPropManager->activeIndices[i] == index) {
+            mapPropManager->activeCount--;
+            mapPropManager->activeIndices[i] = mapPropManager->activeIndices[mapPropManager->activeCount];
+            break;
+        }
+    }
 }
 
 void MapPropManager_Load(NARC *landDataNARC, const int mapPropFilesSize, AreaDataManager *const areaDataManager, MapPropManager *mapPropManager, MapPropAnimationManager *mapPropAnimMan)
@@ -85,12 +95,15 @@ void MapPropManager_Load(NARC *landDataNARC, const int mapPropFilesSize, AreaDat
         mapPropFilesCount = 0;
     }
 
+    mapPropManager->activeCount = 0;
+
     for (int i = 0; i < MAX_LOADED_MAP_PROPS; i++) {
         MapProp *loadedProp = &mapPropManager->loadedProps[i];
 
         if (i < mapPropFilesCount) {
             loadedProp->modelID = mapPropFiles[i].modelID;
             loadedProp->loaded = TRUE;
+            mapPropManager->activeIndices[mapPropManager->activeCount++] = i;
             loadedProp->applyRotation = FALSE;
             loadedProp->position = mapPropFiles[i].position;
             loadedProp->rotation = mapPropFiles[i].rotation;
@@ -135,10 +148,10 @@ void MapPropManager_Render(const VecFx32 *positionOffset, const AreaDataManager 
         FX32_ONE,
     };
 
-    for (int i = 0; i < MAX_LOADED_MAP_PROPS; i++) {
-        MapProp *loadedProp = &mapPropManager->loadedProps[i];
+    for (u8 i = 0; i < mapPropManager->activeCount; i++) {
+        MapProp *loadedProp = &mapPropManager->loadedProps[mapPropManager->activeIndices[i]];
 
-        if (loadedProp->loaded != FALSE) {
+        {
             if (loadedProp->hidden) {
                 continue;
             }
@@ -210,10 +223,21 @@ MapProp *MapPropManager_GetLoadedProp(MapPropManager *mapPropManager, const u8 i
     return &mapPropManager->loadedProps[index];
 }
 
+u8 MapPropManager_GetActiveCount(const MapPropManager *mapPropManager)
+{
+    return mapPropManager->activeCount;
+}
+
+MapProp *MapPropManager_GetActiveProp(MapPropManager *mapPropManager, const u8 activeIndex)
+{
+    GF_ASSERT(activeIndex < mapPropManager->activeCount);
+    return &mapPropManager->loadedProps[mapPropManager->activeIndices[activeIndex]];
+}
+
 MapProp *MapPropManager_FindLoadedPropByModelID(MapPropManager *mapPropManager, const int modelID)
 {
-    for (int i = 0; i < MAX_LOADED_MAP_PROPS; i++) {
-        MapProp *loadedProp = &mapPropManager->loadedProps[i];
+    for (u8 i = 0; i < mapPropManager->activeCount; i++) {
+        MapProp *loadedProp = &mapPropManager->loadedProps[mapPropManager->activeIndices[i]];
 
         if (loadedProp->modelID == modelID) {
             return loadedProp;
@@ -278,6 +302,7 @@ u8 MapPropManager_LoadOne(MapPropManager *mapPropManager, AreaDataManager *const
 
         if (loadedProp->loaded == FALSE) {
             loadedProp->loaded = TRUE;
+            mapPropManager->activeIndices[mapPropManager->activeCount++] = i;
             loadedProp->position = (*position);
 
             if (rotation != NULL) {
@@ -315,10 +340,10 @@ void MapPropManager_Render2(MapPropManager *mapPropManager, AreaDataManager *con
         FX32_ONE,
     };
 
-    for (u8 i = 0; i < MAX_LOADED_MAP_PROPS; i++) {
-        MapProp *loadedProp = &mapPropManager->loadedProps[i];
+    for (u8 i = 0; i < mapPropManager->activeCount; i++) {
+        MapProp *loadedProp = &mapPropManager->loadedProps[mapPropManager->activeIndices[i]];
 
-        if (loadedProp->loaded) {
+        {
             if (loadedProp->hidden) {
                 continue;
             }

@@ -396,8 +396,8 @@ BOOL FieldSystem_FindCollidingLoadedMapPropByModelID(const FieldSystem *fieldSys
         VecFx32 mapAbsoluteOrigin;
         TerrainCollisionManager_GetMapAbsoluteOrigin(mapMatrixIndex, mapMatrixWidth, &mapAbsoluteOrigin);
 
-        for (u8 j = 0; j < MAX_LOADED_MAP_PROPS; j++) {
-            MapProp *mapProp = MapPropManager_GetLoadedProp(mapPropMan, j);
+        for (u8 j = 0; j < MapPropManager_GetActiveCount(mapPropMan); j++) {
+            MapProp *mapProp = MapPropManager_GetActiveProp(mapPropMan, j);
             BOOL collidesWithMapProp = TerrainCollisionHitbox_CollidesWithMapProp(mapProp, hitbox, &mapAbsoluteOrigin);
 
             if (collidesWithMapProp) {
@@ -441,8 +441,8 @@ BOOL FieldSystem_FindCollidingLoadedMapPropByModelIDs(const FieldSystem *fieldSy
         VecFx32 mapAbsoluteOrigin;
         TerrainCollisionManager_GetMapAbsoluteOrigin(mapMatrixIndex, mapMatrixWidth, &mapAbsoluteOrigin);
 
-        for (u8 j = 0; j < MAX_LOADED_MAP_PROPS; j++) {
-            MapProp *mapProp = MapPropManager_GetLoadedProp(mapPropMan, j);
+        for (u8 j = 0; j < MapPropManager_GetActiveCount(mapPropMan); j++) {
+            MapProp *mapProp = MapPropManager_GetActiveProp(mapPropMan, j);
             BOOL collidesWithMapProp = TerrainCollisionHitbox_CollidesWithMapProp(mapProp, hitbox, &mapAbsoluteOrigin);
 
             if (collidesWithMapProp) {
@@ -478,8 +478,8 @@ BOOL FieldSystem_FindLoadedMapPropByModelID(const FieldSystem *fieldSystem, cons
             continue;
         }
 
-        for (u8 j = 0; j < MAX_LOADED_MAP_PROPS; j++) {
-            MapProp *mapProp = MapPropManager_GetLoadedProp(mapPropMan, j);
+        for (u8 j = 0; j < MapPropManager_GetActiveCount(mapPropMan); j++) {
+            MapProp *mapProp = MapPropManager_GetActiveProp(mapPropMan, j);
             int mapPropModelID = MapProp_GetModelID(mapProp);
 
             if (mapPropModelID == targetMapPropModelID) {
@@ -509,8 +509,8 @@ BOOL FieldSystem_FindLoadedMapPropByModelIDs(const FieldSystem *fieldSystem, con
             continue;
         }
 
-        for (u8 j = 0; j < MAX_LOADED_MAP_PROPS; j++) {
-            MapProp *mapProp = MapPropManager_GetLoadedProp(mapPropMan, j);
+        for (u8 j = 0; j < MapPropManager_GetActiveCount(mapPropMan); j++) {
+            MapProp *mapProp = MapPropManager_GetActiveProp(mapPropMan, j);
             int mapPropModelID = MapProp_GetModelID(mapProp);
 
             for (u8 k = 0; k < mapPropModelIDsCount; k++) {

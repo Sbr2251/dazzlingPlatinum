@@ -28,6 +28,8 @@ typedef struct MapProp {
 
 typedef struct MapPropManager {
     MapProp loadedProps[MAX_LOADED_MAP_PROPS];
+    u8 activeIndices[MAX_LOADED_MAP_PROPS];
+    u8 activeCount;
 } MapPropManager;
 
 MapPropManager *MapPropManager_New(const u8 heapID);
@@ -44,6 +46,8 @@ int MapProp_GetModelID(const MapProp *mapProp);
 NNSG3dRenderObj *MapProp_GetRenderObj(const MapProp *mapProp);
 NNSG3dResMdl *MapProp_GetModel(const MapProp *mapProp);
 MapProp *MapPropManager_GetLoadedProp(MapPropManager *mapPropManager, const u8 index);
+u8 MapPropManager_GetActiveCount(const MapPropManager *mapPropManager);
+MapProp *MapPropManager_GetActiveProp(MapPropManager *mapPropManager, const u8 activeIndex);
 MapProp *MapPropManager_FindLoadedPropByModelID(MapPropManager *mapPropManager, const int modelID);
 MapProp *MapPropManager_GetLoadedPropSafely(MapPropManager *mapPropManager, const int index);
 u8 MapPropManager_LoadOne(MapPropManager *mapPropManager, AreaDataManager *const areaDataManager, const int modelID, const VecFx32 *position, const VecFx32 *rotation, MapPropAnimationManager *mapPropAnimMan);
