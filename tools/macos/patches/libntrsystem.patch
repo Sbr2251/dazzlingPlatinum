@@ -1,3 +1,10 @@
+diff --git a/.meson-subproject-wrap-hash.txt b/.meson-subproject-wrap-hash.txt
+new file mode 100644
+index 0000000..05f5a3d
+--- /dev/null
++++ b/.meson-subproject-wrap-hash.txt
+@@ -0,0 +1 @@
++c5d077bdb987786b831e1a827fa9fb704fd213078cebd48a63cc5a4014b88fc8
 diff --git a/libraries/g2d/src/g2d_Animation.c b/libraries/g2d/src/g2d_Animation.c
 index 24b8b0f..cef19e3 100644
 --- a/libraries/g2d/src/g2d_Animation.c
@@ -49,20 +56,60 @@ index 18d3839..76b86dd 100644
      m->_10 = 0;
  }
 diff --git a/libraries/g3d/src/gecom.c b/libraries/g3d/src/gecom.c
-index 4db9e01..33f4c04 100644
+index 4db9e01..a9cc0d6 100644
 --- a/libraries/g3d/src/gecom.c
 +++ b/libraries/g3d/src/gecom.c
-@@ -165,7 +165,9 @@ void NNS_G3dGeBufferOP_N (u32 op, const u32 * args, u32 num)
-     msg->type = DRAW_CMD_G3_CMD_LIST;
-     u8 * cmdBuf = malloc( (sizeof(u8) * num << 2) + sizeof(u32) );
-     *(u32*)cmdBuf = op;
+@@ -50,19 +50,16 @@ void NNS_G3dGeFlushBuffer (void)
+     if (NNS_G3dGeBuffer &&
+         NNS_G3dGeBuffer->idx > 0) {
+         #ifdef SDK_PORT
+-        draw_msg_t * msg;
+-        msg = malloc( sizeof( draw_msg_t ) );
+-        msg->type = DRAW_CMD_G3_CMD_LIST;
+-        u8 * cmdBuf = malloc( (NNS_G3dGeBuffer->idx << 2) );
+-        memcpy(cmdBuf, NNS_G3dGeBuffer->data, NNS_G3dGeBuffer->idx << 2);
+-        msg->data.ptr = cmdBuf;
+-        msg->size = (NNS_G3dGeBuffer->idx << 2);
+-        SIM_HandleG3Command( msg );
+-        free( msg );
++        SIM_ProcessGXDisplayList(NNS_G3dGeBuffer->data, NNS_G3dGeBuffer->idx << 2);
+         #else
+         sendNB(&NNS_G3dGeBuffer->data[0], (void *)&reg_G3X_GXFIFO, NNS_G3dGeBuffer->idx << 2);
+-        NNS_G3dGeBuffer->idx = 0;
+         #endif
++        // Preserve the historical command stream for deterministic golden
++        // captures; live GPU builds reset the flushed buffer correctly.
++        #ifdef SDK_PORT
++        if (getenv("SIM_HEADLESS") == NULL && getenv("SIM_CONTROL") == NULL)
++        #endif
++            NNS_G3dGeBuffer->idx = 0;
+     }
+ }
+ 
+@@ -160,16 +157,13 @@ void NNS_G3dGeBufferOP_N (u32 op, const u32 * args, u32 num)
+     }
+ 
+     #ifdef SDK_PORT
+-    draw_msg_t * msg;
+-    msg = malloc( sizeof( draw_msg_t ) );
+-    msg->type = DRAW_CMD_G3_CMD_LIST;
+-    u8 * cmdBuf = malloc( (sizeof(u8) * num << 2) + sizeof(u32) );
+-    *(u32*)cmdBuf = op;
 -    memcpy(cmdBuf+4, args, num << 2);
-+    if (num > 0) {
-+        memcpy(cmdBuf+4, args, num << 2);
-+    }
-     msg->data.ptr = cmdBuf;
-     msg->size = (num << 2) + 4;
-     SIM_HandleG3Command( msg );
+-    msg->data.ptr = cmdBuf;
+-    msg->size = (num << 2) + 4;
+-    SIM_HandleG3Command( msg );
+-    free( msg );
++    // Immediate commands have the opcode by value, so use the existing
++    // bounded command-buffer size as stack scratch rather than the heap.
++    u32 cmdBuf[NNS_G3D_SIZE_COMBUFFER];
++    NNS_G3D_ASSERT(num + 1 <= NNS_G3D_SIZE_COMBUFFER);
++    cmdBuf[0] = op;
++    if (num > 0) MI_CpuCopyFast(args, cmdBuf + 1, num << 2);
++    SIM_ProcessGXDisplayList(cmdBuf, (num + 1) << 2);
+     #else
+     reg_G3X_GXFIFO = op;
+     sendNB(args, (void *)&reg_G3X_GXFIFO, num << 2);
 diff --git a/libraries/g3d/src/sbc.c b/libraries/g3d/src/sbc.c
 index 0485258..289f448 100644
 --- a/libraries/g3d/src/sbc.c
@@ -82,3 +129,91 @@ index 0485258..289f448 100644
  
          NNS_G3dGeSendDL(rs->c + rel_addr, size);
      }
+diff --git a/libraries/snd/src/heap.c b/libraries/snd/src/heap.c
+index 7f34fab..6dfd956 100644
+--- a/libraries/snd/src/heap.c
++++ b/libraries/snd/src/heap.c
+@@ -178,6 +178,14 @@ int NNS_SndHeapSaveState (NNSSndHeapHandle heap)
+ 
+ void NNS_SndHeapLoadState (NNSSndHeapHandle heap, int level)
+ {
++#ifdef SDK_PORT
++    // Port sound archives are cached for the process lifetime. Keeping heap
++    // sections resident makes subsequent group/bank/wave loads address hits
++    // and avoids synchronous command flushes during scene transitions.
++    (void)heap;
++    (void)level;
++    return;
++#else
+     NNSSndHeapSection * section;
+     void * object = NULL;
+     BOOL result;
+@@ -217,6 +225,7 @@ void NNS_SndHeapLoadState (NNSSndHeapHandle heap, int level)
+ 
+     result = NewSection(heap);
+     NNS_ASSERTMSG(result, "NNS_SndHeapLoadState(): NewSection is Failed");
++#endif
+ }
+ 
+ int NNS_SndHeapGetCurrentLevel (NNSSndHeapHandle heap)
+diff --git a/libraries/snd/src/sndarc.c b/libraries/snd/src/sndarc.c
+index aa33154..52cfc47 100644
+--- a/libraries/snd/src/sndarc.c
++++ b/libraries/snd/src/sndarc.c
+@@ -36,6 +36,13 @@ void MI_CpuCopy32 (register const void * srcp, register void * destp, register u
+ 
+ static const char null_string = '\0';
+ static NNSSndArc * sCurrent = NULL;
++#ifdef SDK_PORT
++// The port has ample RAM; pin the complete SDAT once so all later resource
++// reads are memcpy operations rather than synchronous filesystem seeks.
++static NNSSndArc *sPinnedArc = NULL;
++static u8 *sPinnedArcData = NULL;
++static u32 sPinnedArcSize = 0;
++#endif
+ 
+ static const char * GetSymbol(const NNSSndArcOffsetTable * table, int index, const void * base);
+ static void * GetPtr(void * base, u32 offset);
+@@ -113,6 +120,25 @@ void NNS_SndArcInit (NNSSndArc * arc, const char * filePath, NNSSndHeapHandle he
+     NNS_ASSERT(result);
+     if (!result) return;
+ 
++#ifdef SDK_PORT
++    if (sPinnedArcData != NULL) {
++        free(sPinnedArcData);
++        sPinnedArcData = NULL;
++    }
++    sPinnedArcSize = FS_GetLength(&arc->file);
++    sPinnedArcData = (u8 *)malloc(sPinnedArcSize);
++    if (sPinnedArcData != NULL
++        && FS_SeekFile(&arc->file, 0, FS_SEEK_SET)
++        && FS_ReadFile(&arc->file, sPinnedArcData, (s32)sPinnedArcSize) == (s32)sPinnedArcSize) {
++        sPinnedArc = arc;
++    } else {
++        free(sPinnedArcData);
++        sPinnedArcData = NULL;
++        sPinnedArcSize = 0;
++        sPinnedArc = NULL;
++    }
++#endif
++
+     sCurrent = arc;
+ }
+ 
+@@ -588,6 +614,16 @@ s32 NNS_SndArcReadFile (u32 fileId, void * buffer, s32 size, s32 offset)
+     if (fileId >= arc->fat->count) return -1;
+     file = &arc->fat->files[ fileId ];
+ 
++#ifdef SDK_PORT
++    if (arc == sPinnedArc && sPinnedArcData != NULL) {
++        if (offset < 0 || offset > (s32)file->size) return -1;
++        if (size > (s32)file->size - offset) size = (s32)file->size - offset;
++        if ((u64)file->offset + (u32)offset + (u32)size > sPinnedArcSize) return -1;
++        MI_CpuCopy8(sPinnedArcData + file->offset + offset, buffer, (u32)size);
++        return size;
++    }
++#endif
++
+     currentOffset = offset;
+ 
+     blockSize = arc->loadBlockSize;
