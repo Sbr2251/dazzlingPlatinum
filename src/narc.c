@@ -225,6 +225,8 @@ typedef struct NarcResidentIndex {
     const u8 *bytes;
     size_t length;
     NarcMemberSpan *members;
+    u32 fatbStart;
+    u32 fimgStart;
     u16 memberCount;
     BOOL mapped;
 } NarcResidentIndex;
@@ -294,6 +296,8 @@ static NarcResidentIndex *NARC_LoadResident(enum NarcID narcID)
     GF_ASSERT(index->members != NULL);
     index->bytes = bytes;
     index->length = length;
+    index->fatbStart = fatbStart;
+    index->fimgStart = fimgStart;
     index->memberCount = memberCount;
     index->mapped = fallback == NULL;
 
@@ -395,6 +399,8 @@ NARC *NARC_ctor(enum NarcID narcID, enum HeapID heapID)
     if (narc != NULL) {
         NarcResidentIndex *index = NARC_LoadResident(narcID);
         memset(narc, 0, sizeof(*narc));
+        narc->fatbStart = index->fatbStart;
+        narc->fimgStart = index->fimgStart;
         narc->residentIndex = index;
         narc->numFiles = index->memberCount;
     }
@@ -419,6 +425,8 @@ BOOL NARC_ReadMemberAt(const NARC *narc, u32 memberIndex, u32 offset, u32 size, 
 
 void *NARC_AllocAndReadWholeMember(NARC *narc, u32 memberIndex, enum HeapID heapID)
 {
+    const NarcMemberSpan *span = NARC_GetSpan(narc->residentIndex, memberIndex);
+    narc->cursor = span->offset + span->size;
     return NARC_AllocRead(narc->residentIndex, memberIndex, heapID, 0, 0, FALSE, NULL);
 }
 

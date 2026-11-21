@@ -333,12 +333,6 @@ static BOOL AllocFrameBuffer(PokemonSpriteManager *monSpriteMan)
     return state->frameBuffer != NULL;
 }
 
-// The whole member into stream->data
-static BOOL ReadMember(struct PokemonSpriteStreamState *state, SpriteStream *stream, u32 size)
-{
-    return FS_SeekFile(&state->narc->file, stream->fileOffset, FS_SEEK_SET) && MonStream_ReadFile(&state->narc->file, stream->data, size);
-}
-
 // Reads the stream of sprite index: the whole member into memory. The Mac has RAM to
 // spare, so no frame is ever paged in from the filesystem while it is drawn; when the
 // heap cannot hold the member the sprite keeps its classic frames.
@@ -349,7 +343,7 @@ static void Load(PokemonSpriteManager *monSpriteMan, int index)
     const PokemonSpriteTemplate *template = &monSpriteMan->sprites[index].template;
     MonStreamHeader header;
     u16 member;
-    u32 size, headerSize, frameNeed, fatStart;
+    u32 size, headerSize, frameNeed;
     OSTick start;
 
     Unload(monSpriteMan, index);
@@ -394,11 +388,9 @@ static void Load(PokemonSpriteManager *monSpriteMan, int index)
         return;
     }
 
-    FS_SeekFile(&state->narc->file, state->narc->fatbStart + 12 + member * 8, FS_SEEK_SET);
-    FS_ReadFile(&state->narc->file, &fatStart, sizeof(fatStart));
-    stream->fileOffset = state->narc->fimgStart + 8 + fatStart;
-    FS_SeekFile(&state->narc->file, stream->fileOffset, FS_SEEK_SET);
-    FS_ReadFile(&state->narc->file, &header, sizeof(header));
+    if (!NARC_ReadMemberAt(state->narc, member, 0, sizeof(header), &header)) {
+        return;
+    }
     headerSize = MonStream_HeaderSize(&header);
     frameNeed = state->frameBuffer == NULL ? FRAME_BUFFER_SIZE : 0;
 
@@ -410,7 +402,7 @@ static void Load(PokemonSpriteManager *monSpriteMan, int index)
     if (HeapExp_FndGetTotalFreeSize(monSpriteMan->heapID) >= size + frameNeed + state->heapSpare) {
         stream->data = Heap_AllocAtEnd(monSpriteMan->heapID, size);
 
-        if (stream->data != NULL && !ReadMember(state, stream, size)) {
+        if (stream->data != NULL && !NARC_ReadMemberAt(state->narc, member, 0, size, stream->data)) {
             Heap_Free(stream->data);
             stream->data = NULL;
         }

@@ -210,7 +210,7 @@ static void Load(int index, const PokemonSpriteTemplate *template)
     BattlerStream *stream = &sStageStream.battlers[index];
     NARC *narc = sStageStream.narc;
     MonStreamHeader head;
-    u32 fat[2], headerSize;
+    u32 headerSize;
     u16 member;
     OSTick start;
 
@@ -226,15 +226,15 @@ static void Load(int index, const PokemonSpriteTemplate *template)
 
     start = OS_GetTick();
 
-    FS_SeekFile(&narc->file, narc->fatbStart + 12 + member * 8, FS_SEEK_SET);
-    FS_ReadFile(&narc->file, fat, sizeof(fat));
-    FS_SeekFile(&narc->file, narc->fimgStart + 8 + fat[0], FS_SEEK_SET);
-    FS_ReadFile(&narc->file, &head, sizeof(head));
-
-    stream->memberSize = fat[1] - fat[0];
+    stream->memberSize = NARC_GetMemberSize(narc, member);
+    if (stream->memberSize < sizeof(head)
+        || !NARC_ReadMemberAt(narc, member, 0, sizeof(head), &head)) {
+        sSpriteStreamStats.loadFailures++;
+        return;
+    }
     headerSize = MonStream_HeaderSize(&head);
 
-    if (stream->memberSize < sizeof(head) || headerSize > stream->memberSize) {
+    if (headerSize > stream->memberSize) {
         sSpriteStreamStats.loadFailures++;
         return;
     }
@@ -256,7 +256,7 @@ static void Load(int index, const PokemonSpriteTemplate *template)
     // The header was already read above; read the rest of the member in right behind it
     *stream->data = head;
 
-    if (!MonStream_ReadFile(&narc->file, stream->data->frameOffsets, stream->memberSize - sizeof(head))
+    if (!NARC_ReadMemberAt(narc, member, sizeof(head), stream->memberSize - sizeof(head), stream->data->frameOffsets)
         || !MonStream_IsValid(stream->data, stream->memberSize)) {
         sSpriteStreamStats.loadFailures++;
         Unload(index);
