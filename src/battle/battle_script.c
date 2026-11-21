@@ -72,6 +72,9 @@
 #include "touch_screen.h"
 #include "trainer_data.h"
 #include "trainer_info.h"
+#ifdef SDK_PORT
+#include "port/sim_config_prj.h"
+#endif
 #include "unk_02012744.h"
 #include "unk_0201567C.h"
 #include "unk_0208C098.h"
@@ -1874,6 +1877,13 @@ static BOOL BtlCmd_WaitButtonABTime(BattleSystem *battleSys, BattleContext *batt
         inc = 2;
     } else {
         inc = 1;
+#ifdef SDK_PORT
+        if ((battleSys->battleType & BATTLE_TYPE_LINK) == FALSE
+            && (battleSys->battleStatusMask & (BATTLE_STATUS_RECORDING | BATTLE_STATUS_RECORDED)) == FALSE
+            && SIM_Config_prj_BattleFastPacing()) {
+            inc = 2;
+        }
+#endif
     }
 
     // Go back through this command until the specified number of frames have elapsed
@@ -9454,6 +9464,13 @@ static BOOL BtlCmd_WaitTime(BattleSystem *battleSys, BattleContext *battleCtx)
         inc = 2;
     } else {
         inc = 1;
+#ifdef SDK_PORT
+        if ((battleSys->battleType & BATTLE_TYPE_LINK) == FALSE
+            && (battleSys->battleStatusMask & (BATTLE_STATUS_RECORDING | BATTLE_STATUS_RECORDED)) == FALSE
+            && SIM_Config_prj_BattleFastPacing()) {
+            inc = 2;
+        }
+#endif
     }
 
     if (wait > battleCtx->waitCounter) {

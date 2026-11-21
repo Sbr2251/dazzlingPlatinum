@@ -15,6 +15,7 @@ static int IniHandler(void* user, const char* section, const char* name,
                    const char* value);
 static const char * BoolToString(BOOL arg);
 static BOOL StringToBool(const char * str);
+static BOOL SIM_Config_prj_EnvIsSet(const char *name); // perf-game-cache hook
 
 static SIM_Config_prj_type s_SIM_config_prj;
 
@@ -81,6 +82,9 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "BattleInstantAnimations")) {
         config->battleInstantAnimations = StringToBool(value);
     }
+    if(MATCH("General", "BattleFastPacing")) { // perf-game-cache hook
+        config->battleFastPacing = StringToBool(value);
+    }
     if(MATCH("General", "FieldFastRebuild")) {
         config->fieldFastRebuild = StringToBool(value);
     }
@@ -127,6 +131,7 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->enable60fpsSpeedFix = TRUE;
   aConfig->enableAsserts = FALSE;
   aConfig->battleInstantAnimations = FALSE;
+  aConfig->battleFastPacing = FALSE; // perf-game-cache hook: preserve classic/headless pacing by default
   aConfig->fieldFastRebuild = TRUE;
   aConfig->breakDebuggerOnGfAssert = FALSE;
   aConfig->megaCinematicShort = FALSE;
@@ -165,6 +170,7 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "EnableAsserts=%s\n", BoolToString(aConfig->enableAsserts));
     fprintf(configFile, "BreakDebuggerOnAssert=%s\n", BoolToString(aConfig->breakDebuggerOnGfAssert));
     fprintf(configFile, "BattleInstantAnimations=%s\n", BoolToString(aConfig->battleInstantAnimations));
+    fprintf(configFile, "BattleFastPacing=%s\n", BoolToString(aConfig->battleFastPacing)); // perf-game-cache hook
     fprintf(configFile, "FieldFastRebuild=%s\n", BoolToString(aConfig->fieldFastRebuild));
     fprintf(configFile, "MegaCinematicShort=%s\n", BoolToString(aConfig->megaCinematicShort));
     fprintf(configFile, "HiResText=%s\n", BoolToString(aConfig->hiResText));
@@ -209,6 +215,17 @@ SIM_Config_prj_type * SIM_Config_prj_GetConfig()
 BOOL SIM_Config_prj_DoubleStep(void)
 {
   return s_SIM_config_prj.enable60fps && s_SIM_config_prj.enable60fpsSpeedFix;
+}
+
+BOOL SIM_Config_prj_BattleFastPacing(void) // perf-game-cache hook
+{
+    // Automation and replay goldens retain the exact classic frame counts even
+    // when a developer's interactive config enables fast pacing.
+    if (SIM_Config_prj_EnvIsSet("SIM_HEADLESS") || SIM_Config_prj_EnvIsSet("SIM_CONTROL")) {
+        return FALSE;
+    }
+
+    return s_SIM_config_prj.battleFastPacing;
 }
 
 static BOOL SIM_Config_prj_EnvIsSet(const char *name)

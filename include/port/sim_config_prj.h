@@ -21,6 +21,7 @@ typedef struct {
     BOOL disableRandomEncounters; // When enabled, all random encounters are turned off
     BOOL runFromTrainerBattles; // When enabled, allows running away from trainer battles
     BOOL battleInstantAnimations; // Battle Engine fast mode: skip text/gauge/move-animation waits (docs/battle_engine.md)
+    BOOL battleFastPacing; // perf-game-cache hook: shorten non-link waits and update gauges at 60 Hz
     BOOL fieldFastRebuild; // fieldkeep: collapse already-ready FieldMap Init/Exit states into one frame (same teardown/rebuild, fewer idle frames)
     BOOL arenaContext; // Lane arena: battle arena takes the overworld time of day, weather and terrain as lighting/tint
     BOOL particleBoost; // Lane particles: GPU child sparkles for live SPL particles
@@ -40,6 +41,7 @@ typedef struct {
 // This is the single predicate every 60 fps speed fix uses, so the two
 // config flags are never re-checked ad-hoc at call sites.
 BOOL SIM_Config_prj_DoubleStep(void);
+BOOL SIM_Config_prj_BattleFastPacing(void); // perf-game-cache hook
 // fx-wide: effective values after the headless rule (under SIM_HEADLESS the
 // load radius stays 2 and the wide camera stays off unless SIM_FX_WIDE=1 /
 // SIM_FX_WIDE_CAMERA=1 is set, so existing golden screenshots stay identical).
