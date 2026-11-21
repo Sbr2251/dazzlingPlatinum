@@ -167,13 +167,12 @@ if build_target != 'arm'
         pokeplatinum_args += ['-O3', '-g0', '-fno-strict-aliasing', '-ffunction-sections', '-fdata-sections', '-DPM_RELEASE_BUILD']
         add_global_arguments(['-g0', '-DPM_RELEASE_BUILD'], language: ['c', 'cpp'],
             native: (build_target == 'linux' or build_target == 'win64'))
-        if host_machine.system() == 'darwin'
-            release_gc_arg = '-Wl,-dead_strip'
-        else
-            release_gc_arg = '-Wl,--gc-sections'
+        if host_machine.system() != 'darwin'
+            # Apple ld64 -dead_strip triggers a boot soft-reset loop (same global
+            # layout/init issue as LTO on macOS/iOS); keep --gc-sections on ELF.
+            add_global_link_arguments('-Wl,--gc-sections', language: ['c', 'cpp'],
+                native: (build_target == 'linux' or build_target == 'win64'))
         endif
-        add_global_link_arguments(release_gc_arg, language: ['c', 'cpp'],
-            native: (build_target == 'linux' or build_target == 'win64'))
     elif build_variant == 'asan'
         # The sanitizer flags themselves are global (see above).
         pokeplatinum_args += ['-O1']
