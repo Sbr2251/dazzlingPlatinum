@@ -4,7 +4,8 @@
 #   tools/ios/build_deps.sh [iphoneos|iphonesimulator] [...]
 # SDL3 matches the Mac build's version: Homebrew's sdl3 when present, else 3.4.16.
 set -euo pipefail
-export https_proxy=${https_proxy:-http://fwdproxy:8080} http_proxy=${http_proxy:-http://fwdproxy:8080}
+# Meta devservers reach GitHub only through fwdproxy; a laptop goes direct
+if [ -z "${https_proxy:-}" ] && host fwdproxy >/dev/null 2>&1; then export https_proxy=http://fwdproxy:8080 http_proxy=http://fwdproxy:8080; fi
 DEPS_ROOT=${IOS_DEPS_ROOT:-$HOME/Documents/pokeplatinum-ios-deps}
 SRC=$DEPS_ROOT/src
 MIN=${IOS_MIN_VERSION:-17.0}
