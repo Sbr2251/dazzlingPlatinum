@@ -2,6 +2,9 @@
 
 #include <nitro.h>
 #include <string.h>
+#ifdef SDK_PORT
+#include <stdlib.h>
+#endif
 
 #include "constants/graphics.h"
 #include "constants/heap.h"
@@ -14,6 +17,29 @@
 #include "pokemon_sprite.h"
 
 #define SUB_REGION_ORDER { { 0x0, 0x0, 0x8, 0x8 }, { 0x8, 0x0, 0x2, 0x4 }, { 0x8, 0x4, 0x2, 0x4 }, { 0x0, 0x8, 0x4, 0x2 }, { 0x4, 0x8, 0x4, 0x2 }, { 0x8, 0x8, 0x2, 0x2 } }
+
+#ifdef SDK_PORT
+#define CHARACTER_SPRITE_CACHE_SIZE 128
+
+typedef struct CharacterSpriteCacheEntry {
+    enum NarcID narcID;
+    int member;
+    u32 stamp;
+    NNSG2dCharacterData character;
+    u8 *rawData;
+} CharacterSpriteCacheEntry;
+
+typedef struct CharacterPaletteCacheEntry {
+    enum NarcID narcID;
+    int member;
+    BOOL valid;
+    u8 data[PALETTE_SIZE_BYTES];
+} CharacterPaletteCacheEntry;
+
+static CharacterSpriteCacheEntry sCharacterSpriteCache[CHARACTER_SPRITE_CACHE_SIZE];
+static CharacterPaletteCacheEntry sCharacterPaletteCache[CHARACTER_SPRITE_CACHE_SIZE];
+static u32 sCharacterSpriteCacheClock;
+#endif
 
 static void CharacterSprite_CopyTileFromUntiledArray(const u8 *src, u8 *dest, int *srcOffset, int *destOffset, int tileWidth, int rowWidth)
 {
@@ -28,12 +54,57 @@ static void CharacterSprite_LoadSpriteData(enum NarcID narcID, int narcIdx, enum
 {
     BOOL success;
 
+#ifdef SDK_PORT
+    CharacterSpriteCacheEntry *entry = NULL;
+    CharacterSpriteCacheEntry *oldest = &sCharacterSpriteCache[0];
+
+    for (int i = 0; i < CHARACTER_SPRITE_CACHE_SIZE; i++) {
+        if (sCharacterSpriteCache[i].rawData != NULL
+            && sCharacterSpriteCache[i].narcID == narcID
+            && sCharacterSpriteCache[i].member == narcIdx) {
+            sCharacterSpriteCache[i].stamp = ++sCharacterSpriteCacheClock;
+            *charData = &sCharacterSpriteCache[i].character;
+            return;
+        }
+        if (sCharacterSpriteCache[i].rawData == NULL) {
+            entry = &sCharacterSpriteCache[i];
+            break;
+        }
+        if (sCharacterSpriteCache[i].stamp < oldest->stamp) {
+            oldest = &sCharacterSpriteCache[i];
+        }
+    }
+
+    if (entry == NULL) {
+        entry = oldest;
+        free(entry->rawData);
+        entry->rawData = NULL;
+    }
+#endif
+
     void *ngcrFile = NARC_AllocAndReadWholeMemberByIndexPair(narcID, narcIdx, heapID);
     GF_ASSERT(ngcrFile != NULL);
 
-    success = NNS_G2dGetUnpackedCharacterData(ngcrFile, &(*charData));
-    GF_ASSERT(charData != NULL);
+    NNSG2dCharacterData *unpacked;
+    success = NNS_G2dGetUnpackedCharacterData(ngcrFile, &unpacked);
+    GF_ASSERT(unpacked != NULL);
     GF_ASSERT(success != FALSE);
+
+#ifdef SDK_PORT
+    entry->rawData = malloc(unpacked->szByte);
+    GF_ASSERT(entry->rawData != NULL);
+    memcpy(entry->rawData, unpacked->pRawData, unpacked->szByte);
+    entry->character = *unpacked;
+    entry->character.pRawData = entry->rawData;
+    entry->narcID = narcID;
+    entry->member = narcIdx;
+    entry->stamp = ++sCharacterSpriteCacheClock;
+    PokemonSprite_Decrypt(entry->rawData, narcID);
+    *charData = &entry->character;
+#else
+    *charData = unpacked;
+    PokemonSprite_Decrypt(unpacked->pRawData, narcID);
+#endif
 
     Heap_Free(ngcrFile);
 }
@@ -92,12 +163,19 @@ static void CharacterSprite_LoadTiledPokemonSprite(enum NarcID narcID, int narcI
     NNSG2dCharacterData *monSpriteData = NULL;
 
     CharacterSprite_LoadSpriteData(narcID, narcIdx, heapID, &monSpriteData);
-    PokemonSprite_Decrypt(monSpriteData->pRawData, narcID);
 
     speciesIsSpinda = CharacterSprite_SpeciesIsSpinda(species);
 
     if ((face == FACE_FRONT) && (speciesIsSpinda == TRUE)) {
-        PokemonSprite_DrawSpindaSpots(monSpriteData->pRawData, personality, isAnimated);
+        // Spot placement is personality-specific. Mutate a working copy so
+        // the process cache always retains canonical decrypted Spinda pixels.
+        NNSG2dCharacterData workingData = *monSpriteData;
+        workingData.pRawData = Heap_Alloc(heapID, monSpriteData->szByte);
+        memcpy(workingData.pRawData, monSpriteData->pRawData, monSpriteData->szByte);
+        PokemonSprite_DrawSpindaSpots(workingData.pRawData, personality, isAnimated);
+        CharacterSprite_TileUntiledPokemonSprite(x, y, width, height, &workingData, buffer);
+        Heap_Free(workingData.pRawData);
+        return;
     }
 
     CharacterSprite_TileUntiledPokemonSprite(x, y, width, height, monSpriteData, buffer);
@@ -115,7 +193,6 @@ static void *CharacterSprite_GetTiledPokemonSprite(enum NarcID narcID, int narcI
 
 void CharacterSprite_LoadTiledData(enum NarcID narcID, int narcIdx, enum HeapID heapID, int x, int y, int width, int height, void *dest)
 {
-    void *ncgrFile = NULL;
     u8 *untiledSpriteData = NULL;
     u8 *tiledData = NULL;
     NNSG2dCharacterData *characterData = NULL;
@@ -123,20 +200,13 @@ void CharacterSprite_LoadTiledData(enum NarcID narcID, int narcIdx, enum HeapID 
     int spriteIndex;
     int tiledDataOffset;
     int spriteWidth;
-    BOOL success;
 
-    ncgrFile = NARC_AllocAndReadWholeMemberByIndexPair(narcID, narcIdx, heapID);
-    GF_ASSERT(ncgrFile != NULL);
-
-    success = NNS_G2dGetUnpackedCharacterData(ncgrFile, &characterData);
-    GF_ASSERT(success != FALSE);
+    CharacterSprite_LoadSpriteData(narcID, narcIdx, heapID, &characterData);
     GF_ASSERT(characterData->W >= (x + width));
     GF_ASSERT(characterData->H >= (y + height));
 
     tileWidth = TILE_WIDTH_4BPP;
     untiledSpriteData = characterData->pRawData;
-
-    PokemonSprite_Decrypt(untiledSpriteData, narcID);
 
     tiledData = dest;
     spriteWidth = (characterData->W * tileWidth);
@@ -151,7 +221,6 @@ void CharacterSprite_LoadTiledData(enum NarcID narcID, int narcIdx, enum HeapID 
         }
     }
 
-    Heap_Free(ncgrFile);
 }
 
 static void *CharacterSprite_GetTiledSprite(enum NarcID narcID, int characterIdx, enum HeapID heapID, int x, int y, int width, int height)
@@ -239,11 +308,25 @@ void *CharacterSprite_LoadPalette(enum NarcID narcID, int paletteIndex, enum Hea
     BOOL success;
 
     returnPtr = Heap_Alloc(heapID, PALETTE_SIZE_BYTES);
+#ifdef SDK_PORT
+    CharacterPaletteCacheEntry *cacheEntry = &sCharacterPaletteCache[((u32)narcID * 33 + paletteIndex) % CHARACTER_SPRITE_CACHE_SIZE];
+    if (cacheEntry->valid && cacheEntry->narcID == narcID && cacheEntry->member == paletteIndex) {
+        MI_CpuCopy16(cacheEntry->data, returnPtr, PALETTE_SIZE_BYTES);
+        return returnPtr;
+    }
+#endif
+
     nclrFile = NARC_AllocAndReadWholeMemberByIndexPair(narcID, paletteIndex, heapID);
     success = NNS_G2dGetUnpackedPaletteData(nclrFile, &paletteData);
 
     GF_ASSERT(success == TRUE);
     MI_CpuCopy16(paletteData->pRawData, returnPtr, PALETTE_SIZE_BYTES);
+#ifdef SDK_PORT
+    cacheEntry->narcID = narcID;
+    cacheEntry->member = paletteIndex;
+    cacheEntry->valid = TRUE;
+    MI_CpuCopy16(paletteData->pRawData, cacheEntry->data, PALETTE_SIZE_BYTES);
+#endif
 
     Heap_Free(nclrFile);
 
