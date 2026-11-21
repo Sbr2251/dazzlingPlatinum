@@ -150,8 +150,10 @@ void NitroMain(void)
     BOOL halfRateTick = FALSE;
 
     while (TRUE) {
+#ifndef PM_RELEASE_BUILD // perf-build hook: retain canary checks in dev/asan only
         CheckHeapCanary();
-        Heap_UpdatePeaks(); // lane heap: sample per-heap high-water once per frame
+#endif
+        Heap_UpdatePeaks(); // O(1): peaks are maintained at allocation sites
         HandleConsoleFold();
         ReadKeypadAndTouchpad();
 
@@ -160,7 +162,9 @@ void NitroMain(void)
         }
 
         if (CommSys_Update()) {
+#ifndef PM_RELEASE_BUILD // perf-build hook: retain canary checks in dev/asan only
             CheckHeapCanary();
+#endif
             RunApplication();
             SysTaskManager_ExecuteTasks(gSystem.mainTaskMgr);
 #ifdef SDK_PORT
