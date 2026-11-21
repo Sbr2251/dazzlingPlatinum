@@ -22,7 +22,6 @@ static void CopyToBgTilemapRectAffine(Background *bg, u8 destX, u8 destY, u8 des
 static void FillBgTilemapRectText(Background *bg, u16 fillVal, u8 x, u8 y, u8 width, u8 height, u8 palette);
 static void FillBgTilemapRectAffine(Background *bg, u8 fillVal, u8 x, u8 y, u8 width, u8 height);
 static void Copy4bppTo8bpp(const u8 *src, u32 size, u8 *dest, u8 palette);
-static void *Convert4bppTo8bpp(const u8 *src, u32 size, u8 palette, u32 heapID);
 static void CopyWindowToVramText(Window *window);
 static void ScheduleCopyWindowToVramText(Window *window);
 static void CopyWindowToVramAffine(Window *window);
@@ -1334,14 +1333,6 @@ static void Copy4bppTo8bpp(const u8 *src, u32 size, u8 *dest, u8 palette)
     }
 }
 
-static void *Convert4bppTo8bpp(const u8 *src, u32 size, u8 palette, u32 heapID)
-{
-    void *dest = Heap_Alloc(heapID, size * 2);
-    Copy4bppTo8bpp(src, size, dest, palette);
-
-    return dest;
-}
-
 void *Bg_GetTilemapBuffer(BgConfig *bgConfig, u8 bgLayer)
 {
     return bgConfig->bgs[bgLayer].tilemapBuffer;
@@ -2192,7 +2183,8 @@ void Window_CopyGlyph(Window *window, const u8 *glyphPixels, u16 srcWidth, u16 s
         if (tileCols == 0) tileCols = 1;
         if (tileRows == 0) tileRows = 1;
         u32 convertSize = (tileRows - 1) * 64 + tileCols * 32;
-        u8 *convertedSrc = Convert4bppTo8bpp(glyphPixels, convertSize, window->palette, window->bgConfig->heapID);
+        u8 convertedSrc[256];
+        Copy4bppTo8bpp(glyphPixels, convertSize, convertedSrc, window->palette);
         switch (glyphSizeParam) {
         case 0: // 1x1
             CopyGlyph8bpp(convertedSrc, 0, 0, srcRight, srcBottom, windowPixels, destX, destY, ConvertPixelsToTiles(destWidth), table);
@@ -2215,7 +2207,6 @@ void Window_CopyGlyph(Window *window, const u8 *glyphPixels, u16 srcWidth, u16 s
             CopyGlyph8bpp(convertedSrc, 8, 8, srcRight - 8, srcBottom - 8, windowPixels, destX, destY, ConvertPixelsToTiles(destWidth), table);
             break;
         }
-        Heap_Free(convertedSrc);
     }
 }
 

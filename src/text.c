@@ -8,6 +8,7 @@
 
 #include "bg_window.h"
 #include "font.h"
+#include "font_manager.h"
 #include "graphics.h"
 #include "heap.h"
 #include "render_text.h"
@@ -32,6 +33,7 @@ static u8 sPausePrinter = FALSE;
 static SysTask *sTextPrinterTasks[MAX_TEXT_PRINTERS] = { 0 };
 static u16 sFontHalfRowLookupTable[4 * 4 * 4 * 4];
 static u16 sBgColor, sFgColor, sShadowColor;
+static BOOL sFontHalfRowLookupTableValid = FALSE;
 
 void Text_SetFontAttributesPtr(const FontAttributes *fontAttributes)
 {
@@ -276,6 +278,13 @@ void Text_GenerateFontHalfRowLookupTable(u8 fgColor, u8 bgColor, u8 shadowColor)
 {
     u32 colors[4];
 
+    if (sFontHalfRowLookupTableValid
+        && sFgColor == fgColor
+        && sBgColor == bgColor
+        && sShadowColor == shadowColor) {
+        return;
+    }
+
     colors[0] = 0;
     colors[1] = fgColor;
     colors[2] = shadowColor;
@@ -284,6 +293,8 @@ void Text_GenerateFontHalfRowLookupTable(u8 fgColor, u8 bgColor, u8 shadowColor)
     sBgColor = bgColor;
     sFgColor = fgColor;
     sShadowColor = shadowColor;
+    sFontHalfRowLookupTableValid = TRUE;
+    FontManager_InvalidateDecodedGlyphCaches();
 
     u32 idx = 0;
     for (int i = 0; i < 4; i++) {

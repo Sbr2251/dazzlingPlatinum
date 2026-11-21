@@ -24,6 +24,16 @@ static void DecompressGlyph_FromNARC(const FontManager *fontManager, charcode_t 
 static u8 GlyphWidthFunc_VariableWidth(const FontManager *fontManager, u32 glyphIdx);
 static u8 GlyphWidthFunc_FixedWidth(const FontManager *fontManager, u32 glyphIdx);
 
+#define DECODED_GLYPH_CACHE_SIZE 64
+
+typedef struct DecodedGlyphCacheEntry {
+    u32 generation;
+    charcode_t glyph;
+    TextGlyph decoded;
+} DecodedGlyphCacheEntry;
+
+static u32 sDecodedGlyphCacheGeneration = 1;
+
 static const u8 sGlyphShapes[][2] = {
     {
         GLYPH_SHAPE_8x8,
@@ -51,6 +61,10 @@ FontManager *FontManager_New(enum NarcID narcID, u32 arcFileIdx, enum GlyphAcces
 
     if (fontManager) {
         FontManager_Init(fontManager, narcID, arcFileIdx, isMonospace, heapID);
+        fontManager->decodedGlyphCache = Heap_Alloc(heapID, sizeof(DecodedGlyphCacheEntry) * DECODED_GLYPH_CACHE_SIZE);
+        if (fontManager->decodedGlyphCache != NULL) {
+            memset(fontManager->decodedGlyphCache, 0, sizeof(DecodedGlyphCacheEntry) * DECODED_GLYPH_CACHE_SIZE);
+        }
         FontManager_LoadGlyphs(fontManager, glyphAccessMode, heapID);
     }
 
@@ -61,6 +75,9 @@ void FontManager_Delete(FontManager *fontManager)
 {
     FontManager_FreeGlyphs(fontManager);
     FontManager_FreeWidthsAndNARC(fontManager);
+    if (fontManager->decodedGlyphCache != NULL) {
+        Heap_Free(fontManager->decodedGlyphCache);
+    }
     Heap_Free(fontManager);
 }
 
@@ -159,7 +176,30 @@ void FontManager_TryLoadGlyph(const FontManager *fontManager, charcode_t c, Text
         c = CHAR_QUESTION - 1;
     }
 
+    if (fontManager->decodedGlyphCache != NULL) {
+        DecodedGlyphCacheEntry *entry = &fontManager->decodedGlyphCache[c % DECODED_GLYPH_CACHE_SIZE];
+
+        if (entry->generation == sDecodedGlyphCacheGeneration && entry->glyph == c) {
+            *outGlyph = entry->decoded;
+            return;
+        }
+
+        fontManager->glyphBitmapFunc(fontManager, c, outGlyph);
+        entry->glyph = c;
+        entry->decoded = *outGlyph;
+        entry->generation = sDecodedGlyphCacheGeneration;
+        return;
+    }
+
     fontManager->glyphBitmapFunc(fontManager, c, outGlyph);
+}
+
+void FontManager_InvalidateDecodedGlyphCaches(void)
+{
+    sDecodedGlyphCacheGeneration++;
+    if (sDecodedGlyphCacheGeneration == 0) {
+        sDecodedGlyphCacheGeneration = 1;
+    }
 }
 
 static void DecompressGlyph_FromRAM(const FontManager *fontManager, charcode_t c, TextGlyph *outGlyph)

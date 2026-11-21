@@ -103,7 +103,7 @@ void Font_InitManager(enum Font font, enum HeapID heapID)
 {
     sFontWork->fontManagers[font] = FontManager_New(NARC_INDEX_GRAPHIC__PL_FONT,
         sFontArchiveData[font].arcFileIdx,
-        GLYPH_ACCESS_MODE_LAZY,
+        GLYPH_ACCESS_MODE_IMMEDIATE,
         sFontArchiveData[font].isMonospace,
         heapID);
 }
@@ -121,7 +121,9 @@ void Font_UseLazyGlyphAccess(enum Font font)
     GF_ASSERT(font < FONT_MAX);
     GF_ASSERT(sFontWork->fontManagers[font]);
 
-    FontManager_SwitchGlyphAccessMode(sFontWork->fontManagers[font], GLYPH_ACCESS_MODE_LAZY, HEAP_ID_SYSTEM);
+    // Fonts stay resident on port builds; reverting to lazy access would reopen
+    // the font NARC for every rendered glyph.
+    (void)font;
 }
 
 void Font_Free(enum Font font)

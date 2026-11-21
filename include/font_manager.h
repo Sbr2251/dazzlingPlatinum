@@ -20,6 +20,7 @@ enum GlyphAccessMode {
 };
 
 typedef struct FontManager FontManager;
+typedef struct DecodedGlyphCacheEntry DecodedGlyphCacheEntry;
 
 typedef void (*GlyphBitmapFunc)(const FontManager *fontManager, charcode_t c, TextGlyph *outGlyph);
 typedef u8 (*GlyphWidthFunc)(const FontManager *fontManager, u32 glyph);
@@ -47,12 +48,14 @@ struct FontManager {
     BOOL isMonospace;
     GlyphWidthFunc glyphWidthFunc;
     u8 *glyphWidths;
+    DecodedGlyphCacheEntry *decodedGlyphCache;
 };
 
 FontManager *FontManager_New(enum NarcID narcID, u32 arcFileIdx, enum GlyphAccessMode glyphAccessMode, BOOL isMonospace, enum HeapID heapID);
 void FontManager_Delete(FontManager *fontManager);
 void FontManager_SwitchGlyphAccessMode(FontManager *fontManager, enum GlyphAccessMode glyphAccessMode, u32 heapID);
 void FontManager_TryLoadGlyph(const FontManager *fontManager, charcode_t c, TextGlyph *outGlyph);
+void FontManager_InvalidateDecodedGlyphCaches(void);
 u32 FontManager_CalcStringWidth(const FontManager *fontManager, const charcode_t *str, u32 letterSpacing);
 BOOL FontManager_AreAllCharsValid(const FontManager *fontManager, const charcode_t *str);
 u32 FontManager_CalcMaxLineWidth(const FontManager *fontManager, const charcode_t *str, u32 letterSpacing);
