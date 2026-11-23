@@ -1,0 +1,103 @@
+{
+  "start": {
+    "save": "../fixtures/fixture_field.sav"
+  },
+  "name": "smoke_self_contained_battle",
+  "_note": "Hermetic injected-battle decision and event smoke test.",
+  "steps": [
+    {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "start_battle": {
+        "spec": "../../../battle/specs/visual_super_effective.json"
+      }
+    },
+    {
+      "wait_until": {
+        "path": "battle.waiting",
+        "op": "eq",
+        "value": true
+      },
+      "timeout_frames": 7200
+    },
+    {
+      "battle_decide": {
+        "battler": 0,
+        "action": "move",
+        "move_index": 0
+      }
+    },
+    {
+      "wait_battle_event": {
+        "type": "damage",
+        "battler": 1
+      },
+      "timeout_frames": 7200
+    }
+  ],
+  "assertions": [
+    {
+      "app": "battle"
+    }
+  ]
+}

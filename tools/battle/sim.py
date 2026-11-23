@@ -26,7 +26,10 @@ import argparse, json, os, random, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "dazzling"))
 from headless_client import HeadlessGame  # noqa: E402
 
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DEFAULT_SAVES = [
+    # dbg-battle-fixtures hook: the checked-in save makes battle tests hermetic.
+    os.path.join(REPO_ROOT, "tools", "dazzling", "test", "fixtures", "fixture_field.sav"),
     "/data/repos/dp-wt/pret-sync-notes/saves/raw_sav/A1-03_route201_to_sandgem.sav",
     os.path.expanduser("~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"),
     os.path.expanduser("~/Downloads/dazzlingPlatinum-mega-test.sav"),
@@ -100,6 +103,16 @@ class BattleRunner:
         return self.game.cmd({"cmd": "state"})
 
     def to_field(self, timeout_steps=200):
+        # A completed injected battle returns to the field.  Keep that process
+        # warm rather than re-importing (which intentionally soft-resets).
+        st = self.state()
+        if st.get("app") == "field":
+            if getattr(self, "_battles_run", 0):
+                # Let the just-finished battle overlay/task tear down fully
+                # before injecting another battle into this warm process.
+                self.game.cmd({"cmd": "step", "frames": 300})
+                st = self.state()
+            return st
         if self.save:
             self.game.cmd({"cmd": "import_save", "path": os.path.abspath(self.save)})
         for _ in range(timeout_steps):
@@ -237,6 +250,13 @@ class BattleRunner:
 
     def run_battle(self, spec, policy="first", max_steps=1200):
         self.to_field()
+        # Per-battle state must not leak when run_tests uses a warm process.
+        self.events = []
+        self.turns = 0
+        self.last_battle = None
+        self.fled = False
+        self._pending_decide = False
+        self._forced_switch_queued_for = None
         self.is_double = bool(spec.get("double") or spec.get("battle_type") in ("double", "totem"))
         spec_path = os.path.join(self.work, "spec.json")
         with open(spec_path, "w") as f:
@@ -258,10 +278,30 @@ class BattleRunner:
         moves_count = max(1, len((spec.get("player") or [{}])[0].get("moves", ["MOVE_TACKLE"])))
         prev = None
         saw_battle = False
+        active_party_slot = 0
+        fainted_party_slots = set()
+        event_cursor = 0
+        player_team = spec.get("player") or []
         for step_i in range(max_steps):
             self.game.cmd({"cmd": "step", "frames": 45})
             st = self.state()
             self.poll_events()
+            # Engine faint/switch events are authoritative.  The field party
+            # in `state` is a stale pre-battle snapshot, so never use its HP
+            # to choose a forced replacement.
+            for ev in self.events[event_cursor:]:
+                if ev.get("battler") != 0:
+                    continue
+                if ev.get("type") == "faint":
+                    fainted_party_slots.add(active_party_slot)
+                elif ev.get("type") in ("switch", "switch_in"):
+                    species = ev.get("to") or ev.get("species")
+                    match = next((i for i, mon in enumerate(player_team)
+                                  if i not in fainted_party_slots and mon.get("species") == species), None)
+                    if match is not None:
+                        active_party_slot = match
+                    self._forced_switch_queued_for = None
+            event_cursor = len(self.events)
             if st.get("app") == "battle":
                 saw_battle = True
                 cur = st["battle"]
@@ -269,20 +309,15 @@ class BattleRunner:
                 prev = cur
                 self.last_battle = cur
                 if cur.get("battlers") and cur["battlers"][0].get("hp", 1) == 0 and not self.is_double:
-                    # Forced switch after a faint. This prompt does not set
-                    # `waiting`: it is the "Use next Pokemon?" Yes/No task,
-                    # not the command menu, so queue the switch as soon as
-                    # the faint is seen - the Yes/No and party tasks consume
-                    # it whenever they open. The state's party HP is the
-                    # save party's (battle damage lives in the battle party),
-                    # so pick the first slot that is not the fainted active
-                    # battler (matched by species), not the first HP>0 slot,
-                    # which is the fainted lead itself.
-                    party = st.get("party") or []
-                    active_species = (cur["battlers"][0] or {}).get("species")
-                    active_slot = next((i for i, m in enumerate(party) if m.get("species") == active_species), 0)
-                    slot = next((i + 1 for i, m in enumerate(party) if i != active_slot), 2)
-                    self.do_decision({"type": "switch", "slot": slot})
+                    # dbg-battle-fixtures hook: pick from live battle state,
+                    # not the save party's stale HP snapshot. Queue once for
+                    # this faint; the prompt consumes it when its task opens.
+                    fainted_party_slots.add(active_party_slot)
+                    slot = next((i for i in range(len(player_team))
+                                 if i != active_party_slot and i not in fainted_party_slots), None)
+                    if slot is not None and self._forced_switch_queued_for != active_party_slot:
+                        self._forced_switch_queued_for = active_party_slot
+                        self.do_decision({"type": "switch", "slot": slot + 1})
                 elif cur.get("waiting"):
                     if self.is_double:
                         # Decisions are pre-queued; A only confirms target /
@@ -335,6 +370,7 @@ class BattleRunner:
         result = {"winner": winner, "turns": self.turns, "events_count": len(self.events),
                   "final_battle": self.last_battle, "party_after": (st.get("party") if 'st' in dir() else None)}
         self.log({"type": "battle_end", "winner": winner, "turns": self.turns})
+        self._battles_run = getattr(self, "_battles_run", 0) + 1
         return result
 
     def close(self):

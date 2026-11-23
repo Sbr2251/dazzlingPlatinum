@@ -76,24 +76,15 @@ fi
 
 if [ "${SANITIZE_SKIP_BATTLE:-0}" != "1" ]; then
     echo "sanitize.sh: battle tests under ASan/UBSan"
-    # faint_forced_switch is a known test-DRIVER failure (lane testbugs):
-    # the driver picks the switch slot from a stale party-HP snapshot (the
-    # fainted lead still shows full HP), so it keeps sending the fainted mon
-    # and the battle never ends. It is not a sanitizer report (the game
-    # never aborts; the test fails on max_steps). Tolerate exactly that one
-    # FAIL; any other FAIL -- including a sanitizer abort (exit 134) --
-    # fails the gate. Also fail on any sanitizer report text, even if a
-    # test somehow still passed.
+    # dbg-battle-fixtures hook: every battle test is now a hard gate.
     BATTLE_LOG="$(mktemp)"
     trap 'rm -f "$BATTLE_LOG"' EXIT
-    python3 tools/battle/run_tests.py --build-dir "$BUILD_DIR" --fast >"$BATTLE_LOG" 2>&1 || true
-    cat "$BATTLE_LOG"
-    BAD_FAILS="$(grep '^FAIL' "$BATTLE_LOG" | grep -v 'faint_forced_switch' || true)"
-    if [ -n "$BAD_FAILS" ]; then
-        echo "sanitize.sh: battle tests failed:" >&2
-        printf '%s\n' "$BAD_FAILS" >&2
+    if ! python3 tools/battle/run_tests.py --build-dir "$BUILD_DIR" --fast >"$BATTLE_LOG" 2>&1; then
+        cat "$BATTLE_LOG"
+        echo "sanitize.sh: battle tests failed" >&2
         exit 1
     fi
+    cat "$BATTLE_LOG"
     if grep -q -e 'runtime error' -e 'AddressSanitizer' "$BATTLE_LOG"; then
         echo "sanitize.sh: sanitizer report in battle tests" >&2
         exit 1

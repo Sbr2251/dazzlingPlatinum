@@ -1,0 +1,99 @@
+{
+  "start": {
+    "save": "../fixtures/fixture_field.sav"
+  },
+  "name": "smoke_self_contained_field",
+  "_note": "Hermetic fixture load, warp, map and three-member party smoke test.",
+  "steps": [
+    {
+      "step": 900
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "press": "A",
+      "frames": 10
+    },
+    {
+      "step": 290
+    },
+    {
+      "step": 600
+    },
+    {
+      "warp": {
+        "map": "MAP_HEADER_TWINLEAF_TOWN",
+        "x": 10,
+        "z": 10,
+        "dir": "DIR_SOUTH"
+      }
+    },
+    {
+      "step": 300
+    }
+  ],
+  "assertions": [
+    {
+      "app": "field"
+    },
+    {
+      "player.map": "MAP_HEADER_TWINLEAF_TOWN"
+    },
+    {
+      "party.0.species": "SPECIES_CHIMCHAR"
+    },
+    {
+      "party.1.species": "SPECIES_STARLY"
+    },
+    {
+      "party.2.species": "SPECIES_SHINX"
+    }
+  ]
+}
