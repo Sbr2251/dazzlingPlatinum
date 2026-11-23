@@ -34,16 +34,20 @@ else
     cp_u /ucrt64/bin/libgcc_s_seh-1.dll $OUTPUTDIR/libgcc_s_seh-1.dll
     cp_u /ucrt64/bin/libstdc++-6.dll $OUTPUTDIR/libstdc++-6.dll
   else
-    mkdir -p $OUTPUTDIR/$3.AppDir
-    mkdir -p $OUTPUTDIR/$3.AppDir/usr/bin
-    mkdir -p $OUTPUTDIR/$3.AppDir/usr/lib
-    cp $BUILDDIR/main $OUTPUTDIR/$3.AppDir/usr/bin/app
-    if [ ! -f $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage ]; then
-      echo "Downloading linuxdeploy..."
-      wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -O $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage
-      chmod +x $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage
+    # dbg-fastboot hook: data above is always copied, but expensive AppImage
+    # deployment/packing is opt-in via Meson or a one-shot environment override.
+    if [[ "$5" == "1" || "${SIM_BUILD_APPIMAGE:-0}" == "1" ]]; then
+      mkdir -p $OUTPUTDIR/$3.AppDir
+      mkdir -p $OUTPUTDIR/$3.AppDir/usr/bin
+      mkdir -p $OUTPUTDIR/$3.AppDir/usr/lib
+      cp $BUILDDIR/main $OUTPUTDIR/$3.AppDir/usr/bin/app
+      if [ ! -f $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage ]; then
+        echo "Downloading linuxdeploy..."
+        wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -O $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage
+        chmod +x $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage
+      fi
+      $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage --appdir $OUTPUTDIR/$3.AppDir --executable=$OUTPUTDIR/main --desktop-file=$BUILDDIR/../tools/linuxdeploy/App.desktop --icon-file=$BUILDDIR/../tools/linuxdeploy/app.png --output appimage
+      mv pokeplatinum-x86_64.AppImage $OUTPUTDIR/pokeplatinum.AppImage
     fi
-    $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage --appdir $OUTPUTDIR/$3.AppDir --executable=$OUTPUTDIR/main --desktop-file=$BUILDDIR/../tools/linuxdeploy/App.desktop --icon-file=$BUILDDIR/../tools/linuxdeploy/app.png --output appimage
-    mv pokeplatinum-x86_64.AppImage $OUTPUTDIR/pokeplatinum.AppImage
   fi
 fi

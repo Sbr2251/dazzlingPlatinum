@@ -116,7 +116,19 @@ void NitroMain(void)
         switch (OS_GetResetParameter()) {
         case RESET_CLEAN:
             sApplication.args.error = FALSE;
-            EnqueueApplication(FS_OVERLAY_ID(game_opening), &gOpeningCutsceneAppTemplate);
+#ifdef SDK_PORT
+            // dbg-fastboot hook: use the normal game-start save loader so every
+            // continue-time initialization stays identical to selecting Continue.
+            // This is deliberately environment opt-in and has no DS/default effect.
+            const char *directBoot = getenv("SIM_BOOT_DIRECT_SAVE");
+            if (directBoot != NULL && directBoot[0] == '1' && directBoot[1] == '\0'
+                && SaveData_DataExists(sApplication.args.saveData)) {
+                EnqueueApplication(FS_OVERLAY_ID(game_start), &gGameStartLoadSaveAppTemplate);
+            } else
+#endif
+            {
+                EnqueueApplication(FS_OVERLAY_ID(game_opening), &gOpeningCutsceneAppTemplate);
+            }
             break;
 
         case RESET_ERROR:

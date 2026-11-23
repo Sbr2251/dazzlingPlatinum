@@ -948,7 +948,8 @@ pokeplatinum_nds = custom_target('pokeplatinum.us',
         meson.global_build_root(),
         filesys_csv,
         'pokeplatinum',
-        build_target == 'ios' ? '-ios' : '' # ios-build hook: no host .app wrapping; tools/ios/make_app.sh packages it
+        build_target == 'ios' ? '-ios' : '', # ios-build hook: no host .app wrapping; tools/ios/make_app.sh packages it
+        get_option('build_appimage') ? '1' : '0' # dbg-fastboot hook: Linux packaging is opt-in
     ],
     build_by_default: true
 )
