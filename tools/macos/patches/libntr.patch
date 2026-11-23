@@ -2678,10 +2678,10 @@ index 285ed8d..7db50b3 100644
  
 diff --git a/include/simulator/sim_headless.h b/include/simulator/sim_headless.h
 new file mode 100644
-index 0000000..c18639f
+index 0000000..6204afc
 --- /dev/null
 +++ b/include/simulator/sim_headless.h
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,86 @@
 +#pragma once
 +// Headless / lockstep test support for PC builds. See docs/headless_protocol.md in the game repo.
 +// All of it is off unless the SIM_* environment variables are set; the interactive app is unchanged.
@@ -2724,6 +2724,26 @@ index 0000000..c18639f
 +
 +// Frame counter (frames completed since start, in lockstep also the protocol "frame").
 +unsigned long long SIM_Headless_FrameCount(void);
++
++// Lightweight renderer telemetry. Producers only add integers; CommitFrame
++// latches the completed frame and updates totals for the control protocol.
++typedef struct SimPerfCounters {
++    unsigned long long cpu_frame_us, render_frame_us;
++    unsigned long long g3_draws, g3_verts, g3_flushes, g3_tex_decodes, g3_tex_uploads;
++    unsigned long long g2_passes, g2_vram_upload_bytes, g2_oam_sprites;
++    unsigned long long gpu_render_passes, gpu_copy_passes;
++    unsigned int audio_active_channels;
++} SimPerfCounters;
++void SIM_Perf_G3Draw(unsigned long long verts);
++void SIM_Perf_G3Flush(void);
++void SIM_Perf_G3Texture(int uploaded);
++void SIM_Perf_G2(unsigned long long passes, unsigned long long uploadBytes,
++                 unsigned long long sprites);
++void SIM_Perf_GPU(unsigned long long renderPasses, unsigned long long copyPasses);
++void SIM_Perf_AudioChannels(unsigned int active);
++void SIM_Perf_CommitFrame(unsigned long long cpuUs, unsigned long long renderUs);
++void SIM_Perf_Get(SimPerfCounters *last, SimPerfCounters *total);
++void SIM_Perf_ResetTotals(void);
 +
 +// Write the current frame to a BMP file. Returns 1 on success. Must be called on the render thread.
 +int SIM_Headless_Screenshot(const char *path);
@@ -6355,10 +6375,10 @@ index 400cde3..c3e778a 100644
 \ No newline at end of file
 diff --git a/libraries/sim/include/sim_g2_gpu.h b/libraries/sim/include/sim_g2_gpu.h
 new file mode 100644
-index 0000000..56dfcaf
+index 0000000..567aa7a
 --- /dev/null
 +++ b/libraries/sim/include/sim_g2_gpu.h
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,18 @@
 +#ifndef SIM_G2_GPU_H
 +#define SIM_G2_GPU_H
 +#include <nitro/types.h>
@@ -6372,6 +6392,9 @@ index 0000000..56dfcaf
 +// the GPU path does not replicate (extended direct-color bitmap, mode 6);
 +// the caller then runs the CPU path for that engine.
 +BOOL G2GPU_RenderLayers(BOOL isSub);
++// dbg-perf-sim hook: live-safe control-protocol toggle.
++void G2GPU_SetEnabled(BOOL enabled);
++BOOL G2GPU_IsEnabled(void);
 +
 +#endif
 diff --git a/libraries/sim/include/sim_hirestext.h b/libraries/sim/include/sim_hirestext.h
@@ -9766,13 +9789,14 @@ index 0000000..c5d6f98
 +} // namespace SIM::Gpu
 diff --git a/libraries/sim/src/gpu/gpu_frame.cpp b/libraries/sim/src/gpu/gpu_frame.cpp
 new file mode 100644
-index 0000000..481fd1a
+index 0000000..81c3975
 --- /dev/null
 +++ b/libraries/sim/src/gpu/gpu_frame.cpp
-@@ -0,0 +1,831 @@
+@@ -0,0 +1,833 @@
 +#include <simulator/gpu/device.hpp>
 +#include <simulator/gpu/frame.hpp>
 +#include <simulator/gpu/texture.hpp>
++#include <simulator/sim_headless.h> // dbg-perf-sim hook
 +
 +#include <cstring>
 +
@@ -10562,6 +10586,7 @@ index 0000000..481fd1a
 +        CloseSegment(false);
 +    }
 +    FlushCopies();
++    SIM_Perf_GPU(mStats.renderPasses, mStats.copyPasses);
 +
 +    // Never present to a hidden window (headless): acquiring its swapchain
 +    // texture waits on a present fence gated by the display refresh, which
@@ -30359,7 +30384,7 @@ index 4b2cbc7..8407945 100644
  }
  
 diff --git a/libraries/sim/src/sim_audio.cpp b/libraries/sim/src/sim_audio.cpp
-index 44b9acf..35ff99e 100644
+index 44b9acf..fa5961b 100644
 --- a/libraries/sim/src/sim_audio.cpp
 +++ b/libraries/sim/src/sim_audio.cpp
 @@ -1,8 +1,13 @@
@@ -30606,7 +30631,7 @@ index 44b9acf..35ff99e 100644
          s_outputLastLeftSample = left;
          s_outputLastRightSample = right;
  
-@@ -176,36 +245,149 @@ void SIM_Audio_Callback(void *userdata, Uint8 *stream, int len)
+@@ -176,36 +245,152 @@ void SIM_Audio_Callback(void *userdata, Uint8 *stream, int len)
      }
  
      int avail = blip_samples_avail(s_BlipLeft);
@@ -30702,6 +30727,9 @@ index 44b9acf..35ff99e 100644
 +            (void)SIM_Audio_RunChannel(512, chNo);
 +        }
 +    }
++    unsigned active = 0;
++    for (int chNo = 0; chNo < 16; chNo++) active += (s_SIM_sndcnt[chNo] >> 31) & 1;
++    SIM_Perf_AudioChannels(active); // dbg-perf-sim hook
 +}
 +
 +u32 SIM_Audio_GetChannelControl(int chNo)
@@ -30767,7 +30795,7 @@ index 44b9acf..35ff99e 100644
      if(type == 3) {
          if(chNo >= 14) {
              type = 4;
-@@ -225,7 +407,7 @@ s32 SIM_Audio_RunChannel(u32 cycles, int chNo)
+@@ -225,7 +410,7 @@ s32 SIM_Audio_RunChannel(u32 cycles, int chNo)
      s_SIM_internalSoundTimer[chNo] += cycles;
  
      while(s_SIM_internalSoundTimer[chNo] >> 16) {
@@ -30776,7 +30804,7 @@ index 44b9acf..35ff99e 100644
  
          switch(type) {
              case 0: SIM_Audio_NextSamplePCM8(chNo); break;
-@@ -237,8 +419,8 @@ s32 SIM_Audio_RunChannel(u32 cycles, int chNo)
+@@ -237,8 +422,8 @@ s32 SIM_Audio_RunChannel(u32 cycles, int chNo)
      }
  
      s32 ret = s_SIM_internalSoundSample[chNo];
@@ -30787,7 +30815,7 @@ index 44b9acf..35ff99e 100644
  
      ret = ret << (0x3) - volumeShift;
  
-@@ -255,12 +437,12 @@ void SIM_Audio_NextSamplePCM8(int chNo)
+@@ -255,12 +440,12 @@ void SIM_Audio_NextSamplePCM8(int chNo)
      }
      
      if(s_SIM_internalSoundPos[chNo] >= s_SIM_sndpnt[chNo] + s_SIM_sndlen[chNo]) {
@@ -30802,7 +30830,7 @@ index 44b9acf..35ff99e 100644
              return;
          }
      }
-@@ -279,12 +461,12 @@ void SIM_Audio_NextSamplePCM16(int chNo)
+@@ -279,12 +464,12 @@ void SIM_Audio_NextSamplePCM16(int chNo)
      }
  
      if((s_SIM_internalSoundPos[chNo]<<1) >= s_SIM_sndpnt[chNo] + s_SIM_sndlen[chNo]) {
@@ -30817,7 +30845,7 @@ index 44b9acf..35ff99e 100644
              return;
          }
      }
-@@ -317,7 +499,7 @@ void SIM_Audio_NextSampleADPCM(int chNo)
+@@ -317,7 +502,7 @@ void SIM_Audio_NextSampleADPCM(int chNo)
      }
  
      if((s_SIM_internalSoundPos[chNo] >> 1) >= (s_SIM_sndpnt[chNo] + s_SIM_sndlen[chNo])) {
@@ -30826,7 +30854,7 @@ index 44b9acf..35ff99e 100644
          if(repeat & 1) {
              s_SIM_internalSoundPos[chNo] = s_SIM_sndpnt[chNo]<<1;
              s_SIM_internalNextADPCMByte[chNo] = s_SIM_sndpnt[chNo];
-@@ -328,7 +510,7 @@ void SIM_Audio_NextSampleADPCM(int chNo)
+@@ -328,7 +513,7 @@ void SIM_Audio_NextSampleADPCM(int chNo)
              //s_SIM_internalADPCMCurByte[chNo] = ptr[s_SIM_internalSoundPos[chNo]>>1];
          } else if (repeat & 2) {
              s_SIM_internalSoundSample[chNo] = 0;
@@ -30835,7 +30863,7 @@ index 44b9acf..35ff99e 100644
              return;
          }
      } else {
-@@ -374,7 +556,7 @@ void SIM_Audio_NextSampleADPCM(int chNo)
+@@ -374,7 +559,7 @@ void SIM_Audio_NextSampleADPCM(int chNo)
  void SIM_Audio_NextSamplePSG(int chNo)
  {
      s_SIM_internalSoundPos[chNo]++;
@@ -30844,7 +30872,7 @@ index 44b9acf..35ff99e 100644
  }
  
  void SIM_Audio_NextSampleNoise(int chNo)
-@@ -398,7 +580,24 @@ static u8 GetNextADPCMByte(int chNo)
+@@ -398,7 +583,24 @@ static u8 GetNextADPCMByte(int chNo)
  
  static void PanOutput(s32 in, s32 * left, s32 * right, int chNo)
  {
@@ -31610,10 +31638,10 @@ index b67717b..2c381a5 100644
      u32 alpha = attrib[2] >> 12;
 diff --git a/libraries/sim/src/sim_g2_gpu.cpp b/libraries/sim/src/sim_g2_gpu.cpp
 new file mode 100644
-index 0000000..4585bdd
+index 0000000..f36ec25
 --- /dev/null
 +++ b/libraries/sim/src/sim_g2_gpu.cpp
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,198 @@
 +// GPU 2D layer renderer (perf-g2gpu), backend-neutral half.
 +//
 +// Fills G2GpuData from the DS registers and hands it to the backend,
@@ -31634,6 +31662,7 @@ index 0000000..4585bdd
 +#include <nitro.h>
 +#include <simulator/sim.h>
 +#include <simulator/sim_render_backend.hpp>
++#include <simulator/sim_headless.h> // dbg-perf-sim hook
 +#include <simulator/simvariables.h>
 +#include <nitro/gx/gx_vramcnt.h>
 +#include <stdio.h>
@@ -31650,6 +31679,15 @@ index 0000000..4585bdd
 +extern GXVRamSubOBJExtPltt s_SIM_GXSubOBJExtPltt;
 +
 +static int sLoggedFallback = 0;
++static int sGpuEnabled = -1; // dbg-perf-sim hook
++
++static void InitEnabled() {
++  if (sGpuEnabled >= 0) return;
++  const char *e = getenv("SIM_G2_GPU");
++  sGpuEnabled = (!e || atoi(e)) ? 1 : 0;
++}
++void G2GPU_SetEnabled(BOOL enabled) { sGpuEnabled = enabled ? 1 : 0; }
++BOOL G2GPU_IsEnabled(void) { InitEnabled(); return sGpuEnabled ? TRUE : FALSE; }
 +
 +static bool EngineFallback(int bgMode, const u16 cnt[4], const u8 enabled[4],
 +                           int bg0as3d) {
@@ -31666,12 +31704,8 @@ index 0000000..4585bdd
 +}
 +
 +BOOL G2GPU_RenderLayers(BOOL isSub) {
-+  static int enabled = -1;
-+  if (enabled < 0) {
-+    const char *e = getenv("SIM_G2_GPU");
-+    enabled = (!e || atoi(e)) ? 1 : 0; // GPU is the default; SIM_G2_GPU=0 forces the CPU path
-+  }
-+  if (!enabled) return FALSE;
++  InitEnabled();
++  if (!sGpuEnabled) return FALSE;
 +
 +  u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
 +  int bgMode = dispcnt & 7;
@@ -31801,6 +31835,9 @@ index 0000000..4585bdd
 +  data.palettes[1] = (const void *)s_HW_OBJ_PLTT;
 +  data.palettes[2] = (const void *)s_HW_DB_BG_PLTT;
 +  data.palettes[3] = (const void *)s_HW_DB_OBJ_PLTT;
++  unsigned sprites = 0;
++  for (int i = 0; i < 5; i++) sprites += data.spriteCount[i];
++  SIM_Perf_G2(9, data.bgVramSize + data.objVramSize + 1024 + 2048, sprites);
 +  return SIM::Render::Get().RenderGpuLayers(data) ? TRUE : FALSE;
 +}
 diff --git a/libraries/sim/src/sim_g3_CommandHandler.cpp b/libraries/sim/src/sim_g3_CommandHandler.cpp
@@ -32124,12 +32161,13 @@ index 77300c2..0000000
 -}
 \ No newline at end of file
 diff --git a/libraries/sim/src/sim_g3_GlobalState.cpp b/libraries/sim/src/sim_g3_GlobalState.cpp
-index c6d82f5..1f62a0d 100644
+index c6d82f5..37f1032 100644
 --- a/libraries/sim/src/sim_g3_GlobalState.cpp
 +++ b/libraries/sim/src/sim_g3_GlobalState.cpp
-@@ -1,9 +1,16 @@
+@@ -1,9 +1,17 @@
  #include "simulator/sim_g3_GlobalState.hpp"
 +#include <simulator/sim_render_backend.hpp>
++#include <simulator/sim_headless.h> // dbg-perf-sim hook
 +#include <nitro/gx/g3.h>
  
  #include <cstring>
@@ -32144,7 +32182,7 @@ index c6d82f5..1f62a0d 100644
  
  #include <nitro/fx/fx.h>
  #include <nitro/fx/fx_const.h>
-@@ -14,6 +21,23 @@ static SIM::G3::GlobalState sG3GlobalState;
+@@ -14,6 +22,23 @@ static SIM::G3::GlobalState sG3GlobalState;
  
  namespace SIM::G3 {
  
@@ -32168,7 +32206,7 @@ index c6d82f5..1f62a0d 100644
  static constexpr MtxFx44 Identity44 = {
  {
      FX32_ONE, 0, 0, 0,
-@@ -34,7 +58,6 @@ GlobalState::~GlobalState() {
+@@ -34,7 +59,6 @@ GlobalState::~GlobalState() {
  
  void GlobalState::Init() {
      mCurrentDrawCall = std::make_shared<DrawCall>();
@@ -32176,7 +32214,7 @@ index c6d82f5..1f62a0d 100644
  
      // Initialize Matrix Stacks
      for(auto& matrix : mPositionStack) {
-@@ -59,12 +82,59 @@ void GlobalState::Init() {
+@@ -59,12 +83,60 @@ void GlobalState::Init() {
      mCurrentClipMatrix = Identity44;
  }
  
@@ -32229,6 +32267,7 @@ index c6d82f5..1f62a0d 100644
 +  state.fogColor = drawCall->GetFogColor();
 +  state.fogDepthBoundary = drawCall->GetFogDepthTable();
 +  state.fogDensity = drawCall->GetFogDensityTable();
++  SIM_Perf_G3Draw(drawCall->GetRenderVertsCount());
 +  SIM::Render::Get().G3Draw(state, drawCall->GetRenderVerts(),
 +                            drawCall->GetRenderVertsCount());
  }
@@ -32239,7 +32278,7 @@ index c6d82f5..1f62a0d 100644
      u8 addPolygon = TRUE;
      int numFinalVerts = numVerts;
  
-@@ -92,14 +162,14 @@ void GlobalState::SubmitPolygon(int numVerts) {
+@@ -92,14 +164,14 @@ void GlobalState::SubmitPolygon(int numVerts) {
          screenX = (screenX / 128.0f) - 1.0f;
          screenY = (screenY / 96.0f) - 1.0f;
      
@@ -32262,7 +32301,7 @@ index c6d82f5..1f62a0d 100644
      }
  
      // Get the W size and remove the polygon if W is 0
-@@ -147,18 +217,18 @@ void GlobalState::SubmitPolygon(int numVerts) {
+@@ -147,18 +219,18 @@ void GlobalState::SubmitPolygon(int numVerts) {
          	z = 0xFFFFFF;
          }
          
@@ -32285,7 +32324,7 @@ index c6d82f5..1f62a0d 100644
          CopyVertex(0, 0);
          CopyVertex(1, 1);
          CopyVertex(2, 2);
-@@ -173,22 +243,28 @@ void GlobalState::SubmitPolygon(int numVerts) {
+@@ -173,22 +245,29 @@ void GlobalState::SubmitPolygon(int numVerts) {
      // Check if any of the verts are horribly out of bounds
      // TODO: This is a HACK and we should eventually remove it
      for(int i=0; i < numFinalVerts; i++) {
@@ -32308,6 +32347,7 @@ index c6d82f5..1f62a0d 100644
  }
  
  void GlobalState::FlushDrawCall() {
++    SIM_Perf_G3Flush();
 +    G3StatsInit();
 +    if(gG3Stats.enabled) gG3Stats.flushes++;
 +    // Nothing to draw: the texture/fog state is recomputed from the draw
@@ -32317,7 +32357,7 @@ index c6d82f5..1f62a0d 100644
      // Handle texture info from current drawCall
      u8 * texBuf = nullptr;
  	std::shared_ptr<Texture> texture = nullptr;
-@@ -198,24 +274,77 @@ void GlobalState::FlushDrawCall() {
+@@ -198,24 +277,78 @@ void GlobalState::FlushDrawCall() {
  	u8 * vramPltt = (u8*)((u64)GetTexturePalettePointer() + mCurrentDrawCall->GetTexPaletteBase());
  
      if(texImageParam.textureFormat != GX_TEXFMT_NONE && vramTex != nullptr && GetTexturePointer() != nullptr) {
@@ -32393,6 +32433,7 @@ index c6d82f5..1f62a0d 100644
 +		}
 +		if(gG3Stats.enabled && texture) gG3Stats.cacheHits++;
  		if(texture == nullptr) {
++            SIM_Perf_G3Texture(1);
 +			if(gG3Stats.enabled) gG3Stats.decodes++;
 +			if(!checkCRC) { // CRCs are only stored for the debug cross-check
 +				textureCRC = SIM_crc32buf(vramTex, vramTexBufSize);
@@ -32401,7 +32442,7 @@ index c6d82f5..1f62a0d 100644
  			// decode texture and create it in the cache
  			//Convert the DS texture data into a format opengl can understand
  			u8 * outTexBuf = new u8[4*texImageParam.textureSSize * texImageParam.textureTSize];
-@@ -247,10 +376,16 @@ void GlobalState::FlushDrawCall() {
+@@ -247,10 +380,16 @@ void GlobalState::FlushDrawCall() {
  					break;
  			}
  
@@ -32419,7 +32460,7 @@ index c6d82f5..1f62a0d 100644
  
  			// Texture buffer can be freed now, it has been sent to the GPU
  			delete[] outTexBuf;
-@@ -284,10 +419,11 @@ void GlobalState::FlushDrawCall() {
+@@ -284,10 +423,11 @@ void GlobalState::FlushDrawCall() {
  
  		float fogDepthBoundary[32];
  		float fogDensity[32];
@@ -32433,7 +32474,7 @@ index c6d82f5..1f62a0d 100644
  		}
  
          mCurrentDrawCall->SetFogDepthTable(fogDepthBoundary);
-@@ -302,13 +438,13 @@ void GlobalState::FlushDrawCall() {
+@@ -302,13 +442,13 @@ void GlobalState::FlushDrawCall() {
          return;
      }
  
@@ -32449,7 +32490,7 @@ index c6d82f5..1f62a0d 100644
      }
  
      mTransparentDrawCalls.clear();
-@@ -546,7 +682,23 @@ void GlobalState::SetPositionMatrix(const MtxFx44& matrix) {
+@@ -546,7 +686,23 @@ void GlobalState::SetPositionMatrix(const MtxFx44& matrix) {
  void GlobalState::UpdateClipMatrix() {
      mCurrentClipMatrix = Util::MultiplyMtxFx44(mCurrentPositionMatrix, mCurrentProjectionMatrix);
  
@@ -33133,10 +33174,10 @@ index 0000000..c436fa8
 +}
 diff --git a/libraries/sim/src/sim_headless_control.cpp b/libraries/sim/src/sim_headless_control.cpp
 new file mode 100644
-index 0000000..fdf55e5
+index 0000000..cb6f982
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_control.cpp
-@@ -0,0 +1,287 @@
+@@ -0,0 +1,410 @@
 +#include <simulator/sim_render_backend.hpp>
 +// SIM_CONTROL=stdio lockstep protocol (docs/headless_protocol.md).
 +// The game does not advance until told to: this runs at the end of each rendered frame
@@ -33146,7 +33187,10 @@ index 0000000..fdf55e5
 +#include "simulator/sim_headless.h"
 +#include "simulator/sim_layout.h"
 +#include "simulator/sim_helpers.hpp"
++#include <simulator/sim.h>
++#include <simulator/config/sim_config.h>
 +#include "sim_touchpad.h" // ios-controls hook
++#include "sim_g2_gpu.h"
 +
 +#include <nitro/hw/X86/mmap_shared.h>
 +#include "simulator/simvariables.h"
@@ -33186,6 +33230,40 @@ index 0000000..fdf55e5
 +static int s_touchPulse = 0;   // frames since the touch command started (press-edge pulsing)
 +static int s_fingerActive = 0; static float s_fingerNX = 0, s_fingerNY = 0;  // ios-controls hook
 +
++// dbg-perf-sim hook: counters are touched only by the control build's frame producers.
++static SimPerfCounters s_perfCurrent{}, s_perfLast{}, s_perfTotal{};
++#define PERF_ADD(field, value) do { if (SIM_Control_Enabled()) s_perfCurrent.field += (value); } while (0)
++extern "C" void SIM_Perf_G3Draw(unsigned long long verts) { PERF_ADD(g3_draws, 1); PERF_ADD(g3_verts, verts); }
++extern "C" void SIM_Perf_G3Flush(void) { PERF_ADD(g3_flushes, 1); }
++extern "C" void SIM_Perf_G3Texture(int uploaded) { PERF_ADD(g3_tex_decodes, 1); if (uploaded) PERF_ADD(g3_tex_uploads, 1); }
++extern "C" void SIM_Perf_G2(unsigned long long passes, unsigned long long bytes, unsigned long long sprites) {
++    PERF_ADD(g2_passes, passes); PERF_ADD(g2_vram_upload_bytes, bytes); PERF_ADD(g2_oam_sprites, sprites);
++}
++extern "C" void SIM_Perf_GPU(unsigned long long renderPasses, unsigned long long copyPasses) {
++    PERF_ADD(gpu_render_passes, renderPasses); PERF_ADD(gpu_copy_passes, copyPasses);
++}
++extern "C" void SIM_Perf_AudioChannels(unsigned int active) { if (SIM_Control_Enabled()) s_perfCurrent.audio_active_channels = active; }
++extern "C" void SIM_Perf_CommitFrame(unsigned long long cpuUs, unsigned long long renderUs) {
++    if (!SIM_Control_Enabled()) return;
++    s_perfCurrent.cpu_frame_us = cpuUs; s_perfCurrent.render_frame_us = renderUs;
++    s_perfLast = s_perfCurrent;
++#define PERF_TOTAL(field) s_perfTotal.field += s_perfCurrent.field
++    PERF_TOTAL(cpu_frame_us); PERF_TOTAL(render_frame_us);
++    PERF_TOTAL(g3_draws); PERF_TOTAL(g3_verts); PERF_TOTAL(g3_flushes); PERF_TOTAL(g3_tex_decodes); PERF_TOTAL(g3_tex_uploads);
++    PERF_TOTAL(g2_passes); PERF_TOTAL(g2_vram_upload_bytes); PERF_TOTAL(g2_oam_sprites);
++    PERF_TOTAL(gpu_render_passes); PERF_TOTAL(gpu_copy_passes);
++#undef PERF_TOTAL
++    s_perfTotal.audio_active_channels = s_perfCurrent.audio_active_channels;
++    s_perfCurrent = {};
++}
++extern "C" void SIM_Perf_Get(SimPerfCounters *last, SimPerfCounters *total) {
++    if (last) *last = s_perfLast; if (total) *total = s_perfTotal;
++}
++extern "C" void SIM_Perf_ResetTotals(void) { s_perfTotal = {}; }
++#undef PERF_ADD
++
++extern "C" void SIM_SetUpscale2DFilterLive(int mode);
++
 +// ---- minimal JSON extraction (flat objects; string/int/bool/array-of-strings values) ----
 +static bool JsonFind(const std::string &s, const char *key, size_t *pos) {
 +    std::string pat = std::string("\"") + key + "\"";
@@ -33218,7 +33296,7 @@ index 0000000..fdf55e5
 +}
 +
 +static void ReplyOk(const char *extra = nullptr) {
-+    char buf[512];
++    char buf[4096];
 +    if (extra) snprintf(buf, sizeof buf, "{\"ok\":true,\"frame\":%llu,%s}", SIM_Headless_FrameCount(), extra);
 +    else snprintf(buf, sizeof buf, "{\"ok\":true,\"frame\":%llu}", SIM_Headless_FrameCount());
 +    SIM_Headless_Reply(buf);
@@ -33282,15 +33360,94 @@ index 0000000..fdf55e5
 +    }
 +}
 +
++static void PerfJson(char *out, size_t cap) {
++    SimPerfCounters f{}, t{}; SIM_Perf_Get(&f, &t);
++    const char *renderer = SIM::Render::Get().Name();
++    SIM_config_type *cfg = SIM_GetConfigPtr();
++    snprintf(out, cap,
++      "{\"cpu_frame_us\":%llu,\"render_frame_us\":%llu,\"renderer\":\"%s\",\"g2_gpu\":%s,\"internal_scale\":%u,\"wide\":%s,"
++      "\"g3\":{\"draws\":%llu,\"verts\":%llu,\"flushes\":%llu,\"tex_decodes\":%llu,\"tex_uploads\":%llu,"
++      "\"total\":{\"draws\":%llu,\"verts\":%llu,\"flushes\":%llu,\"tex_decodes\":%llu,\"tex_uploads\":%llu}},"
++      "\"g2\":{\"passes\":%llu,\"vram_upload_bytes\":%llu,\"oam_sprites\":%llu,"
++      "\"total\":{\"passes\":%llu,\"vram_upload_bytes\":%llu,\"oam_sprites\":%llu}},"
++      "\"gpu\":{\"render_passes\":%llu,\"copy_passes\":%llu,\"total\":{\"render_passes\":%llu,\"copy_passes\":%llu}},"
++      "\"audio\":{\"active_channels\":%u}}",
++      f.cpu_frame_us, f.render_frame_us, renderer, G2GPU_IsEnabled() ? "true" : "false",
++      cfg->internalResolutionScale, SIM_Layout_IsWide() ? "true" : "false",
++      f.g3_draws, f.g3_verts, f.g3_flushes, f.g3_tex_decodes, f.g3_tex_uploads,
++      t.g3_draws, t.g3_verts, t.g3_flushes, t.g3_tex_decodes, t.g3_tex_uploads,
++      f.g2_passes, f.g2_vram_upload_bytes, f.g2_oam_sprites,
++      t.g2_passes, t.g2_vram_upload_bytes, t.g2_oam_sprites,
++      f.gpu_render_passes, f.gpu_copy_passes, t.gpu_render_passes, t.gpu_copy_passes,
++      f.audio_active_channels);
++}
++
 +static void HandleState(const std::string &line) {
 +    char reply[16384];
++    bool wantPerf = false; JsonBool(line, "perf", &wantPerf);
 +    if (HeadlessGame_State && HeadlessGame_State(line.c_str(), reply, sizeof reply)) {
++        if (wantPerf) {
++            char perf[2048]; PerfJson(perf, sizeof perf);
++            size_t n = strlen(reply);
++            if (n && reply[n - 1] == '}' && n + strlen(perf) + 9 < sizeof reply)
++                snprintf(reply + n - 1, sizeof reply - n + 1, ",\"perf\":%s}", perf);
++        }
 +        SIM_Headless_Reply(reply);
 +        return;
 +    }
-+    char buf[256];
-+    snprintf(buf, sizeof buf, "{\"ok\":true,\"frame\":%llu,\"app\":\"unknown\"}", SIM_Headless_FrameCount());
-+    SIM_Headless_Reply(buf);
++    char perf[2048]; PerfJson(perf, sizeof perf);
++    if (wantPerf) snprintf(reply, sizeof reply, "{\"ok\":true,\"frame\":%llu,\"app\":\"unknown\",\"perf\":%s}", SIM_Headless_FrameCount(), perf);
++    else snprintf(reply, sizeof reply, "{\"ok\":true,\"frame\":%llu,\"app\":\"unknown\"}", SIM_Headless_FrameCount());
++    SIM_Headless_Reply(reply);
++}
++
++static bool HandleSetConfig(const std::string &line) {
++    if (line.find("\"Renderer\"") != std::string::npos) { ReplyError("Renderer requires restart"); return false; }
++    SIM_config_type *cfg = SIM_GetConfigPtr();
++    std::string applied; bool any = false;
++    auto add = [&](const std::string &v) { if (any) applied += ','; applied += v; any = true; };
++    long long n;
++    if (JsonInt(line, "InternalResolutionScale", &n)) {
++        if (n < 1 || n > 8) { ReplyError("InternalResolutionScale must be 1..8"); return false; }
++        cfg->internalResolutionScale = (u32)n; SIM_SetInternalResolutionAfterRender((int)n);
++        add("\"InternalResolutionScale\":" + std::to_string(n));
++    }
++    std::string value;
++    if (JsonString(line, "ScreenLayout", &value)) {
++        int layout = -1;
++        if (value == "vertical") layout = SIM_CONFIG_SCREEN_LAYOUT_VERTICAL;
++        else if (value == "horizontal") layout = SIM_CONFIG_SCREEN_LAYOUT_HORIZONTAL;
++        else if (value == "wide") layout = SIM_CONFIG_SCREEN_LAYOUT_WIDE;
++        else { ReplyError("invalid ScreenLayout"); return false; }
++        if (layout == SIM_CONFIG_SCREEN_LAYOUT_WIDE && strcmp(SIM::Render::Get().Name(), "gpu")) { ReplyError("ScreenLayout wide requires gpu"); return false; }
++        cfg->screenLayout = (SIM_config_screen_layout_type)layout;
++        SIM_Layout_SetWideEnabled(layout == SIM_CONFIG_SCREEN_LAYOUT_WIDE);
++        add("\"ScreenLayout\":\"" + value + "\"");
++    }
++    bool b;
++    if (JsonBool(line, "SwapScreens", &b) && line.find("\"SwapScreens\"") != std::string::npos) {
++        cfg->swapScreens = b; add(std::string("\"SwapScreens\":") + (b ? "true" : "false"));
++    }
++    if (JsonString(line, "Upscale2DFilter", &value)) {
++        if (value == "Nearest") n = 0; else if (value == "Sharp") n = 1;
++        else if (value == "Linear") n = 2; else { ReplyError("invalid Upscale2DFilter"); return false; }
++        cfg->upscale2D = (u8)n; SIM_SetUpscale2DFilterLive((int)n);
++        add("\"Upscale2DFilter\":\"" + value + "\"");
++    } else if (JsonInt(line, "Upscale2DFilter", &n) && line.find("\"Upscale2DFilter\"") != std::string::npos) {
++        if (n < 0 || n > 2) { ReplyError("Upscale2DFilter must be 0..2"); return false; }
++        cfg->upscale2D = (u8)n; SIM_SetUpscale2DFilterLive((int)n); add("\"Upscale2DFilter\":" + std::to_string(n));
++    }
++    if (JsonString(line, "TouchControls", &value)) {
++        if (value == "auto") n = 0; else if (value == "on") n = 1; else if (value == "off") n = 2;
++        else { ReplyError("invalid TouchControls"); return false; }
++        cfg->touchControls = (u8)n; SIM::Touchpad::SetMode((int)n); add("\"TouchControls\":\"" + value + "\"");
++    }
++    if (JsonBool(line, "G2Gpu", &b) && line.find("\"G2Gpu\"") != std::string::npos) {
++        G2GPU_SetEnabled(b ? 1 : 0); add(std::string("\"G2Gpu\":") + (b ? "true" : "false"));
++    }
++    if (!any) { ReplyError("no live-safe config keys"); return false; }
++    ReplyOk((std::string("\"applied\":{") + applied + "}").c_str());
++    return false;
 +}
 +
 +// Process one command line. Returns true when a frame budget was granted (game may run).
@@ -33350,6 +33507,13 @@ index 0000000..fdf55e5
 +        else ReplyError("screenshot failed");
 +        return false;
 +    }
++    if (cmd == "perf") {
++        char perf[2048], extra[2112]; PerfJson(perf, sizeof perf);
++        snprintf(extra, sizeof extra, "\"perf\":%s", perf); ReplyOk(extra);
++        bool reset = false; if (JsonBool(line, "reset", &reset) && reset) SIM_Perf_ResetTotals();
++        return false;
++    }
++    if (cmd == "set_config") return HandleSetConfig(line);
 +    if (cmd == "state") { HandleState(line); return false; }
 +    if (cmd == "import_save") {
 +        std::string path;
@@ -33364,9 +33528,9 @@ index 0000000..fdf55e5
 +        fflush(nullptr);
 +        _exit(0);
 +    }
-+    // Game-side commands (warp, set_var, set_flag, give_item, talk, ...).
++    // Game-side commands (warp, set_var, set_flag, give_item, talk, inspect, ...).
 +    {
-+        char reply[4096];
++        char reply[16384];
 +        if (HeadlessGame_Command && HeadlessGame_Command(line.c_str(), reply, sizeof reply)) {
 +            SIM_Headless_Reply(reply);
 +            unsigned mask = 0, xy = 0; int frames = 0;
@@ -34444,7 +34608,7 @@ index 0000000..4b3f9e5
 +    return 1;
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..073f464 100644
+index 910d7da..0d24ce2 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,14 +1,23 @@
@@ -34891,7 +35055,7 @@ index 910d7da..073f464 100644
  }
  
  static bool sChangeInternalResAfterRender = false;
-@@ -308,18 +478,64 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
+@@ -308,18 +478,70 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
    sPendingInternalRes = internalRes;
  }
  
@@ -34912,7 +35076,9 @@ index 910d7da..073f464 100644
 +  }
 +  return cached;
 +}
++static int sUpscaleLive = -1; // dbg-perf-sim hook
 +static int HiRes_EffectiveUpscale2D() {
++  if (sUpscaleLive >= 0) return sUpscaleLive;
 +  int env = HiRes_UpscaleEnvMode();
 +  if (env >= 0) return env;
 +  if (SIM_Headless_Enabled()) return 0;
@@ -34927,6 +35093,10 @@ index 910d7da..073f464 100644
 +// unit 0 (and disabled-BG units) to the 2D layer textures.
 +static void HiRes_ApplyUpscaleFilter(int mode) {
 +  SIM::Render::Get().ApplyUpscaleFilter(mode);
++}
++extern "C" void SIM_SetUpscale2DFilterLive(int mode) {
++  sUpscaleLive = mode;
++  HiRes_ApplyUpscaleFilter(mode);
 +}
 +
  void *SIM_RenderInit(void *arg) {
@@ -34964,7 +35134,7 @@ index 910d7da..073f464 100644
  
    u32 windowHeight;
    u32 windowWidth;
-@@ -352,6 +568,11 @@ void *SIM_RenderInit(void *arg) {
+@@ -352,6 +574,11 @@ void *SIM_RenderInit(void *arg) {
          windowHeight = SIM_NDS_SCREEN_HEIGHT * 2 * 2;
          windowWidth = (SIM_NDS_SCREEN_WIDTH * 2 * 2) + (SIM_NDS_SCREEN_WIDTH * 2);
          break;
@@ -34976,7 +35146,7 @@ index 910d7da..073f464 100644
        }
      }
    } else {
-@@ -376,197 +597,66 @@ void *SIM_RenderInit(void *arg) {
+@@ -376,197 +603,66 @@ void *SIM_RenderInit(void *arg) {
                    std::string(makerCode) + "]";
    }
  
@@ -35221,7 +35391,7 @@ index 910d7da..073f464 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -578,10 +668,16 @@ static void DrawEngine(BOOL isSub) {
+@@ -578,10 +674,16 @@ static void DrawEngine(BOOL isSub) {
    u8 maxPriorityBG;
    u8 bgEnabled[4];
    u8 bgMode;
@@ -35240,7 +35410,7 @@ index 910d7da..073f464 100644
  
    // Get the enabled BGs
    u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
-@@ -603,20 +699,6 @@ static void DrawEngine(BOOL isSub) {
+@@ -603,20 +705,6 @@ static void DrawEngine(BOOL isSub) {
    backdropColor =
        isSub ? *(u16 *)&s_HW_DB_BG_PLTT[0] : *(u16 *)&s_HW_BG_PLTT[0];
    SIM_u16ToRGB(backdropColor, &backdropR, &backdropG, &backdropB);
@@ -35261,7 +35431,7 @@ index 910d7da..073f464 100644
  
    // Get the BG priorities
    u16 bg0cnt = isSub ? s_reg_G2S_DB_BG0CNT : s_reg_G2_BG0CNT;
-@@ -624,59 +706,60 @@ static void DrawEngine(BOOL isSub) {
+@@ -624,59 +712,60 @@ static void DrawEngine(BOOL isSub) {
    u16 bg2cnt = isSub ? s_reg_G2S_DB_BG2CNT : s_reg_G2_BG2CNT;
    u16 bg3cnt = isSub ? s_reg_G2S_DB_BG3CNT : s_reg_G2_BG3CNT;
  
@@ -35362,7 +35532,7 @@ index 910d7da..073f464 100644
      memset(oam0Tex, 0, sizeof(oam0Tex));
      memset(oam1Tex, 0, sizeof(oam1Tex));
      memset(oam2Tex, 0, sizeof(oam2Tex));
-@@ -715,13 +798,38 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +804,38 @@ static void DrawEngine(BOOL isSub) {
        u8 a;
        for (int j = 0; j < 256; j++) {
          if (OBJLine[isSub][j]) {
@@ -35406,7 +35576,7 @@ index 910d7da..073f464 100644
            }
          }
          if (OBJWindow[isSub][j]) {
-@@ -735,135 +843,219 @@ static void DrawEngine(BOOL isSub) {
+@@ -735,135 +849,219 @@ static void DrawEngine(BOOL isSub) {
  
    // Draw the BGs
    for (int i = 0; i < 4; i++) {
@@ -35737,7 +35907,7 @@ index 910d7da..073f464 100644
  static void HandleJoystickKeyDown(int aKey) {
    if (aKey == s_SIM_config.padSettings.aJoyKey) {
      // A Button
-@@ -950,7 +1142,281 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1148,281 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -36019,7 +36189,7 @@ index 910d7da..073f464 100644
  
    SDL_Event Event;
    char c;
-@@ -965,6 +1431,7 @@ void *SIM_Render(void *arg) {
+@@ -965,6 +1437,7 @@ void *SIM_Render(void *arg) {
    auto& g3State = SIM::G3::GetGlobalState();
    g3State.FlushDrawCall();
    g3State.DrawTransparentItems();
@@ -36027,7 +36197,7 @@ index 910d7da..073f464 100644
  
  
    do {
-@@ -976,14 +1443,6 @@ void *SIM_Render(void *arg) {
+@@ -976,14 +1449,6 @@ void *SIM_Render(void *arg) {
        SIM_Net_SendBeaconIndication();
      }
  
@@ -36042,7 +36212,7 @@ index 910d7da..073f464 100644
      int windowHeight;
      int windowWidth;
      int viewHeight;
-@@ -1006,6 +1465,13 @@ void *SIM_Render(void *arg) {
+@@ -1006,6 +1471,13 @@ void *SIM_Render(void *arg) {
      case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
        aspectRatio = 768.0f / 384.0f;
        break;
@@ -36056,7 +36226,7 @@ index 910d7da..073f464 100644
      }
  
      viewWidth = windowWidth;
-@@ -1019,10 +1485,126 @@ void *SIM_Render(void *arg) {
+@@ -1019,10 +1491,126 @@ void *SIM_Render(void *arg) {
        viewY = 0;
      }
  
@@ -36185,7 +36355,7 @@ index 910d7da..073f464 100644
        switch (s_SIM_config.screenLayout) {
        default:
        case SIM_CONFIG_SCREEN_LAYOUT_VERTICAL:
-@@ -1068,24 +1650,79 @@ void *SIM_Render(void *arg) {
+@@ -1068,24 +1656,79 @@ void *SIM_Render(void *arg) {
        }
      }
  
@@ -36277,7 +36447,7 @@ index 910d7da..073f464 100644
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT & 0b1111111111111110;
          } else if (keyRead == s_SIM_config.padSettings.bKey) {
-@@ -1136,15 +1773,15 @@ void *SIM_Render(void *arg) {
+@@ -1136,15 +1779,15 @@ void *SIM_Render(void *arg) {
              s_SIM_config.vsyncInterval = 1; // Every V-Blank
            }
  
@@ -36297,7 +36467,7 @@ index 910d7da..073f464 100644
          if (keyRead == s_SIM_config.padSettings.aKey) {
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000001;
-@@ -1185,16 +1822,16 @@ void *SIM_Render(void *arg) {
+@@ -1185,16 +1828,16 @@ void *SIM_Render(void *arg) {
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000100;
          } else if(keyRead == s_SIM_config.padSettings.frameCapKey) {
            sFastForward = false;
@@ -36318,7 +36488,7 @@ index 910d7da..073f464 100644
          if (Event.jhat.value == SDL_HAT_CENTERED) {
            // send keyUp event for all hats
            HandleJoystickKeyUp(SIM_CONFIG_JOY_HAT_MASK | SDL_HAT_UP);
-@@ -1224,7 +1861,7 @@ void *SIM_Render(void *arg) {
+@@ -1224,7 +1867,7 @@ void *SIM_Render(void *arg) {
            }
          }
        }
@@ -36327,7 +36497,7 @@ index 910d7da..073f464 100644
          if (Event.jaxis.value > s_SIM_config.padSettings.joyAxisDeadzone ||
              Event.jaxis.value <
                  (s_SIM_config.padSettings.joyAxisDeadzone * -1)) {
-@@ -1245,23 +1882,98 @@ void *SIM_Render(void *arg) {
+@@ -1245,23 +1888,98 @@ void *SIM_Render(void *arg) {
                                SIM_CONFIG_JOY_AXIS_MINUS_MASK);
          }
        }
@@ -36430,7 +36600,7 @@ index 910d7da..073f464 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1278,31 +1990,63 @@ void *SIM_Render(void *arg) {
+@@ -1278,31 +1996,63 @@ void *SIM_Render(void *arg) {
      SIM::GUI::Main();
      #endif
  
@@ -36516,7 +36686,7 @@ index 910d7da..073f464 100644
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1327,20 +2071,45 @@ void *SIM_Render(void *arg) {
+@@ -1327,23 +2077,51 @@ void *SIM_Render(void *arg) {
  #ifdef SDK_TRACY_ENABLE
      TracyCZoneEnd(SimRenderZone);
  #endif
@@ -36568,12 +36738,18 @@ index 910d7da..073f464 100644
      }
  
 -    SDL_GL_SwapWindow(window);
++    // dbg-perf-sim hook: latch before control blocks so perf observes this frame.
++    SIM_Perf_CommitFrame(sFullFrameTime / 1000, sRenderFrameTime / 1000);
 +    SIM_DebugFrame();
 +    SIM::Render::Get().Present();
  
      if(sChangeInternalResAfterRender) {
        SIM_SetInternalResolution(sPendingInternalRes);
-@@ -1359,45 +2128,40 @@ void *SIM_Render(void *arg) {
++      sChangeInternalResAfterRender = false;
+     }
+ 
+     //Calculate full frametime (after swap)
+@@ -1359,45 +2137,40 @@ void *SIM_Render(void *arg) {
  #endif
  
      s_numG3CommandsThisFrame = 0;
@@ -36642,7 +36818,7 @@ index 910d7da..073f464 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1407,17 +2171,15 @@ u64 SIM_GetFullFrameTime() {
+@@ -1407,17 +2180,15 @@ u64 SIM_GetFullFrameTime() {
    return sFullFrameTime;
  }
  
@@ -36662,7 +36838,7 @@ index 910d7da..073f464 100644
  }
  
  const char * SIM_GetLibntrGitHash() {
-@@ -1465,6 +2227,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +2236,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -36671,7 +36847,7 @@ index 910d7da..073f464 100644
    // Start up debug system
    SIM_Dbg_Init();
  
-@@ -1477,12 +2241,18 @@ int main(int argc, char *argv[]) {
+@@ -1477,12 +2250,18 @@ int main(int argc, char *argv[]) {
      SIM_Config_SaveConfigFile(&s_SIM_config);
    }
  
@@ -36691,7 +36867,7 @@ index 910d7da..073f464 100644
    #endif
  
    if (romFile != NULL) {
-@@ -1537,8 +2307,6 @@ int main(int argc, char *argv[]) {
+@@ -1537,8 +2316,6 @@ int main(int argc, char *argv[]) {
    SIM::G3::GetGlobalState().Init();
  
    SIM_RenderInit(NULL);
@@ -37116,10 +37292,10 @@ index 51a5263..f6d1303 100644
  
 diff --git a/libraries/sim/src/sim_touchpad.cpp b/libraries/sim/src/sim_touchpad.cpp
 new file mode 100644
-index 0000000..e38b9e3
+index 0000000..c757186
 --- /dev/null
 +++ b/libraries/sim/src/sim_touchpad.cpp
-@@ -0,0 +1,338 @@
+@@ -0,0 +1,339 @@
 +// ios-controls hook: see sim_touchpad.h.
 +#include "sim_touchpad.h"
 +
@@ -37300,6 +37476,7 @@ index 0000000..e38b9e3
 +  gEnv = e ? (std::strcmp(e, "0") == 0 ? 0 : 1) : -1;
 +  gInitMs = gLastTouchMs = SDL_GetTicks();
 +}
++void SetMode(int configMode) { gMode = configMode; gBmpKey = 0; }
 +bool ForcedByEnv() { return gEnv == 1; }
 +bool Enabled() {
 +  if (gEnv >= 0) return gEnv == 1;
@@ -37460,10 +37637,10 @@ index 0000000..e38b9e3
 +}  // namespace SIM::Touchpad
 diff --git a/libraries/sim/src/sim_touchpad.h b/libraries/sim/src/sim_touchpad.h
 new file mode 100644
-index 0000000..fb08035
+index 0000000..822d070
 --- /dev/null
 +++ b/libraries/sim/src/sim_touchpad.h
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,54 @@
 +// ios-controls hook: on-screen gamepad overlay, finger routing and gamepad state.
 +// Drawn by the render backend after PostFX (Backend::DrawTouchpadOverlay).
 +#pragma once
@@ -37485,6 +37662,7 @@ index 0000000..fb08035
 +
 +// configMode: 0=auto (on for iOS), 1=on, 2=off. SIM_TOUCHPAD=1/0 env wins.
 +void Init(int configMode);
++void SetMode(int configMode); // dbg-perf-sim hook: live set_config
 +bool Enabled();
 +bool ForcedByEnv();
 +void SetGamepadConnected(bool connected);
