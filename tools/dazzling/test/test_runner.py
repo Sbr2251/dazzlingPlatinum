@@ -2,9 +2,11 @@
 """Unit tests for run.py against fake_game.py. No game build needed.
 Run: python3 -m unittest tools.dazzling.test.test_runner  (or this file directly)
 """
-import json, os, sys, tempfile, unittest
+import json, os, struct, sys, tempfile, time, unittest
+from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import run as runner  # noqa: E402
+import gate  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FAKE = os.path.join(HERE, "fake_game.py")
@@ -31,6 +33,23 @@ class TestAssertions(unittest.TestCase):
             write_bmp(a, 16, 16, 7); write_bmp(b, 16, 16, 7); write_bmp(c, 16, 16, 100)
             self.assertTrue(runner.compare_images(a, b)[0])
             self.assertFalse(runner.compare_images(a, c, tolerance=0.0)[0])
+
+    def test_compare_exact_fast_path_avoids_pixel_loop(self):
+        image = (2, 2, bytes(range(12)))
+        with mock.patch.object(runner, "load_image", side_effect=[image, image]), \
+             mock.patch("builtins.abs", side_effect=AssertionError("pixel loop entered")):
+            ok, fraction, _ = runner.compare_images("a", "b")
+        self.assertTrue(ok)
+        self.assertEqual(fraction, 0.0)
+
+    def test_save_png_signature_and_dimensions(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "tiny.png")
+            runner.save_png(path, 2, 1, bytes((255, 0, 0, 0, 255, 0)))
+            with open(path, "rb") as f:
+                data = f.read()
+            self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
+            self.assertEqual(struct.unpack(">II", data[16:24]), (2, 1))
 
 class TestRunnerEndToEnd(unittest.TestCase):
     def run_one(self, tmp, data, record=False):
@@ -111,10 +130,26 @@ class TestRunnerEndToEnd(unittest.TestCase):
             a, b = os.path.join(d, "a.bmp"), os.path.join(d, "b.bmp")
             write_bmp(a, 16, 16, 7); write_bmp(b, 16, 16, 100)
             self.assertTrue(runner.compare_images(a, a)[0])
-            ep, ap, dp = runner.write_diff_images(a, b, d, "shot", crop=[0, 0, 8, 8])
-            for pth in (ep, ap, dp):
+            ep, ap, dp, cp, bbox, max_delta = runner.write_diff_images(a, b, d, "shot", crop=[0, 0, 8, 8])
+            for pth in (ep, ap, dp, cp):
                 self.assertTrue(os.path.exists(pth), pth)
             self.assertEqual(runner.load_image(ep)[:2], (8, 8))
+            self.assertEqual(bbox, (0, 0, 7, 7))
+            self.assertGreater(max_delta, 0)
+            with open(cp, "rb") as f:
+                data = f.read()
+            self.assertEqual(struct.unpack(">II", data[16:24]), (28, 8))
+
+    def test_diff_bbox_and_max_delta_are_exact(self):
+        with tempfile.TemporaryDirectory() as d:
+            a, b = os.path.join(d, "a.bmp"), os.path.join(d, "b.bmp")
+            base = bytearray(b"\x00" * (4 * 3 * 3))
+            changed = bytearray(base)
+            changed[(1 * 4 + 2) * 3 + 1] = 17
+            runner.save_bmp(a, 4, 3, bytes(changed)); runner.save_bmp(b, 4, 3, bytes(base))
+            result = runner.write_diff_images(a, b, d, "one")
+            self.assertEqual(result[4], (2, 1, 2, 1))
+            self.assertEqual(result[5], 17)
 
     def test_record_stores_cropped_reference(self):
         with tempfile.TemporaryDirectory() as d:
@@ -189,7 +224,8 @@ class TestRunnerEndToEnd(unittest.TestCase):
     def test_reload_config_step(self):
         with tempfile.TemporaryDirectory() as d:
             save = os.path.join(d, "s.sav")
-            open(save, "w").write("x")
+            with open(save, "w") as f:
+                f.write("x")
             pth = write_scenario(d, "case", {"name": "case",
                 "start": {"save": save},
                 "steps": [{"step": 10}, {"reload_config": {"InternalResolutionScale": "4"}}, {"step": 10}]})
@@ -205,6 +241,61 @@ class TestRunnerEndToEnd(unittest.TestCase):
             rc = runner.main(["--mock", "--compare-backends", "--jobs", "1",
                               "--work-root", os.path.join(d, "work"), pth])
             self.assertEqual(rc, 0)
+
+    def test_boot_loop_fast_fail_and_stderr_tail(self):
+        with tempfile.TemporaryDirectory() as d:
+            began = time.monotonic()
+            client = runner.GameClient(FAKE, d, "loop", env_extra={"FAKE_BOOT_LOOP": "1"})
+            try:
+                with self.assertRaisesRegex(runner.GameError, "boot soft-reset loop detected"):
+                    client.cmd({"cmd": "state"}, timeout=10)
+                self.assertLess(time.monotonic() - began, 2.0)
+                self.assertGreaterEqual(client.stderr_tail().count("SIM headless=1"), 3)
+            finally:
+                client.close()
+
+    def test_tier_tag_and_json_report(self):
+        with tempfile.TemporaryDirectory() as d:
+            scenarios = os.path.join(d, "scenarios"); os.mkdir(scenarios)
+            write_scenario(scenarios, "core_title_screen_animation",
+                           {"name": "title", "steps": [{"step": 1}]})
+            write_scenario(scenarios, "other",
+                           {"name": "other", "tags": ["menu"], "steps": [{"step": 1}]})
+            report = os.path.join(d, "report.json")
+            rc = runner.main(["--mock", "--tier", "smoke", "--scenarios-dir", scenarios,
+                              "--json-report", report, "-j", "1"])
+            self.assertEqual(rc, 0)
+            with open(report) as f:
+                data = json.load(f)
+            self.assertEqual([x["name"] for x in data["scenarios"]], ["title"])
+            self.assertEqual(data["passed"], 1)
+            self.assertTrue(data["scenarios"][0]["workdir"])
+            rc = runner.main(["--mock", "--tag", "menu", "--scenarios-dir", scenarios,
+                              "-j", "1"])
+            self.assertEqual(rc, 0)
+
+    def test_failure_report_has_stderr_tail_field(self):
+        with tempfile.TemporaryDirectory() as d:
+            report = os.path.join(d, "report.json")
+            pth = write_scenario(d, "bad", {"name": "bad", "steps": [{"assert": {"app": "nope"}}]})
+            self.assertEqual(runner.main(["--mock", "--json-report", report, pth]), 1)
+            with open(report) as f:
+                item = json.load(f)["scenarios"][0]
+            self.assertIn("stderr_tail", item)
+            self.assertEqual(item["failure_step"], 0)
+
+
+class TestGateMapping(unittest.TestCase):
+    def test_changed_path_mapping(self):
+        mapped = gate.map_changed_paths(["src/battle/foo.c", "src/applications/bag.c",
+                                         "src/render_gpu/pipeline.c"])
+        self.assertEqual(mapped["tags"], ["battle", "menu", "visual"])
+        self.assertTrue(mapped["battle"])
+        self.assertTrue(mapped["compare_backends_note"])
+        self.assertEqual(gate.map_changed_paths(["README.md"])["tags"], ["smoke"])
+        release = gate.map_changed_paths(["src/meson.build"])
+        self.assertEqual(release["tags"], ["smoke"])
+        self.assertTrue(release["release"])
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

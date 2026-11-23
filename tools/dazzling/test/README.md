@@ -12,8 +12,14 @@ unit tests.
 # static checks (no game build, ~seconds)
 python3 tools/dazzling/test/static_checks.py
 
-# scenario suite (needs build_macos/main with SIM_HEADLESS/SIM_CONTROL)
+# scenario suite (auto-detects build_linux/main or build_macos/main)
 python3 tools/dazzling/test/run.py -j 4
+
+# high-signal pre-submit gate (static checks + curated scenario smoke tier)
+python3 tools/dazzling/test/gate.py --tier smoke
+# changed-path selection; also supports --full, --release-game PATH,
+# --compare-backends, --json-report PATH, and --skip-{static,patches,battle}
+python3 tools/dazzling/test/gate.py --changed
 
 # sanitizer gate (ASan + UBSan across the whole suite): builds the `asan`
 # variant in `build_asan` (configure it once; see the header of the script
@@ -32,6 +38,15 @@ python3 tools/dazzling/test/run.py --record --filter title
 ```
 
 Runner unit tests (mock game, no build): `python3 tools/dazzling/test/test_runner.py`
+
+`run.py --tier smoke` selects ten fast, high-signal scenarios spanning title,
+save/reload, Lake Verity field, trainer battle and HUD, Bag, Totem capture,
+touchpad classic, fog, and the wide field panel. `--tier fast` selects core
+and smoke coverage; `--tier full` is the backward-compatible default. Use a
+repeatable `--tag battle --tag visual` to select the union of inferred or
+explicit JSON `"tags"`. `--json-report PATH` records per-scenario timing,
+skips, failure step, stderr tail, and image-diff diagnostics. On displayless
+Linux the runner selects SDL's `offscreen` driver automatically.
 
 ## Scenario format: JSON
 
@@ -185,8 +200,9 @@ python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --compare-backen
 ```
 
 - On mismatch the failure prints `expected:` / `actual:` / `diff:` BMP
-  paths inside the scenario workdir (diff = differing pixels in red over a
-  darkened actual). Review those three, then accept deliberately with
+  paths, exact `diff_bbox` / `max_delta`, and a `contact_png` containing
+  expected | actual | diff with dark dividers. The contact sheet is readable
+  in one image-tool call and uses a pure-stdlib PNG encoder. Review it, then accept deliberately with
   `--update --filter <name>` (never blanket-`--record` a red suite).
 - `--compare-renderers` runs each selected scenario twice,
   `SIM_G2_GPU=0` and `=1`, against the same references: real game scenes

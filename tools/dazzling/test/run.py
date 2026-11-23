@@ -11,7 +11,7 @@ Usage:
 Exit 1 if any scenario fails. On failure prints the step, the last game
 state, and the last screenshot path.
 """
-import argparse, concurrent.futures, json, os, select, shutil, struct, subprocess, sys, tempfile, time
+import argparse, concurrent.futures, json, os, re, select, shutil, struct, subprocess, sys, tempfile, time, zlib
 
 FIXED_RTC = "2026-01-01T12:00:00"
 FIXED_SEED = "12345"
@@ -68,6 +68,22 @@ def save_bmp(path, w, h, rgb):
         f.write(struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(body), 2835, 2835, 0, 0))
         f.write(bytes(body))
 
+def save_png(path, w, h, rgb):
+    """Write tightly packed top-down RGB bytes as a small stdlib-only PNG."""
+    if w <= 0 or h <= 0 or len(rgb) != w * h * 3:
+        raise ValueError(f"invalid PNG image {w}x{h} with {len(rgb)} RGB bytes")
+
+    def chunk(kind, payload):
+        return (struct.pack(">I", len(payload)) + kind + payload
+                + struct.pack(">I", zlib.crc32(kind + payload) & 0xffffffff))
+
+    scanlines = b"".join(b"\x00" + rgb[y * w * 3:(y + 1) * w * 3] for y in range(h))
+    data = (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(scanlines, 9)) + chunk(b"IEND", b""))
+    with open(path, "wb") as f:
+        f.write(data)
+
 def crop_image(img, crop):
     """crop=[x,y,w,h] in pixels; returns cropped (w,h,rgb)."""
     if not crop:
@@ -82,8 +98,12 @@ def crop_image(img, crop):
     return cw, ch, bytes(out)
 
 def write_diff_images(actual_path, ref_path, workdir, shot_name, crop=None):
-    """Write <shot>.expected/.actual/.diff.bmp into workdir; return paths.
-    Diff pixels: differing pixels bright red, matching pixels darkened actual."""
+    """Write BMP artifacts and an expected|actual|diff PNG contact sheet.
+
+    Returns ``(expected_bmp, actual_bmp, diff_bmp, contact_png, bbox,
+    max_delta)``.  The inclusive bbox and max channel delta use exact pixel
+    differences (not the comparison epsilon), making diagnostics unambiguous.
+    """
     a, b = load_image(actual_path), load_image(ref_path)
     if crop:
         a = crop_image(a, crop)  # references are stored already cropped
@@ -91,18 +111,53 @@ def write_diff_images(actual_path, ref_path, workdir, shot_name, crop=None):
             b = crop_image(b, crop)  # legacy full-size reference
     os.makedirs(workdir, exist_ok=True)
     ep, ap, dp = (os.path.join(workdir, f"{shot_name}.{k}.bmp") for k in ("expected", "actual", "diff"))
+    cp = os.path.join(workdir, f"{shot_name}.contact.png")
     save_bmp(ep, b[0], b[1], b[2]); save_bmp(ap, a[0], a[1], a[2])
+
+    pw, ph = max(a[0], b[0]), max(a[1], b[1])
+    dark = bytes((24, 24, 24))
+    expected_panel = bytearray(dark * (pw * ph))
+    actual_panel = bytearray(dark * (pw * ph))
+    diff_panel = bytearray(dark * (pw * ph))
+    for image, panel in ((b, expected_panel), (a, actual_panel)):
+        for y in range(image[1]):
+            panel[(y * pw) * 3:(y * pw + image[0]) * 3] = image[2][y * image[0] * 3:(y + 1) * image[0] * 3]
+
+    bbox = None
+    max_delta = 0
     if a[:2] == b[:2]:
         diff = bytearray()
+        x0, y0, x1, y1 = a[0], a[1], -1, -1
         for i in range(0, len(a[2]), 3):
-            if any(abs(a[2][i + c] - b[2][i + c]) > 8 for c in range(3)):
+            deltas = [abs(a[2][i + c] - b[2][i + c]) for c in range(3)]
+            delta = max(deltas)
+            if delta:
+                pixel = i // 3
+                x, y = pixel % a[0], pixel // a[0]
+                x0, y0, x1, y1 = min(x0, x), min(y0, y), max(x1, x), max(y1, y)
+                max_delta = max(max_delta, delta)
+            if delta > 8:
                 diff += bytes((255, 0, 0))
             else:
                 diff += bytes((a[2][i] // 3, a[2][i + 1] // 3, a[2][i + 2] // 3))
+        bbox = None if x1 < 0 else (x0, y0, x1, y1)
         save_bmp(dp, a[0], a[1], bytes(diff))
+        for y in range(a[1]):
+            diff_panel[(y * pw) * 3:(y * pw + a[0]) * 3] = diff[y * a[0] * 3:(y + 1) * a[0] * 3]
     else:
         dp = None
-    return ep, ap, dp
+        bbox = (0, 0, pw - 1, ph - 1)
+        max_delta = 255
+        # A red panel makes a dimension mismatch obvious at thumbnail size.
+        diff_panel[:] = bytes((255, 0, 0)) * (pw * ph)
+
+    divider = bytes((12, 12, 12)) * 2
+    contact = bytearray()
+    for y in range(ph):
+        lo, hi = y * pw * 3, (y + 1) * pw * 3
+        contact += expected_panel[lo:hi] + divider + actual_panel[lo:hi] + divider + diff_panel[lo:hi]
+    save_png(cp, pw * 3 + 4, ph, bytes(contact))
+    return ep, ap, dp, cp, bbox, max_delta
 
 def compare_images(actual_path, ref_path, tolerance=0.01, channel_eps=8, crop=None):
     """Return (ok, differing_fraction, message)."""
@@ -113,6 +168,12 @@ def compare_images(actual_path, ref_path, tolerance=0.01, channel_eps=8, crop=No
             b = crop_image(b, crop)  # legacy full-size reference
     if a[:2] != b[:2]:
         return False, 1.0, f"size differs: actual {a[0]}x{a[1]} vs reference {b[0]}x{b[1]}"
+    # Exact goldens are overwhelmingly the common case. bytes equality is a
+    # native memcmp-like operation and avoids hundreds of thousands of Python
+    # loop iterations.
+    if a[2] == b[2]:
+        total = len(a[2]) // 3
+        return True, 0.0, f"0/{total} pixels differ (0.0000%), tolerance {tolerance:.4%}"
     diff = total = 0
     for i in range(0, len(a[2]), 3):
         total += 1
@@ -283,6 +344,33 @@ class GameClient:
         GameClient._live.add(self.proc)
         self.last_state = None
         self.last_screenshot = None
+        self._reply_count = 0
+
+    def _boot_banner_count(self):
+        try:
+            self._stderr.flush()
+            with open(self.stderr_path, "r", encoding="utf-8", errors="replace") as f:
+                return f.read().count("SIM headless=1")
+        except OSError:
+            return 0
+
+    def _boot_loop_detected(self, count_at_command):
+        """Three resets without a protocol reply means boot never stabilised.
+
+        Successful import_save operations intentionally restart once, and a
+        scenario may import more than once, so banners accumulated over the
+        whole scenario must not be mistaken for a loop.
+        """
+        count = self._boot_banner_count()
+        return count >= 3 if self._reply_count == 0 else count - count_at_command >= 3
+
+    def stderr_tail(self, lines=20):
+        try:
+            self._stderr.flush()
+            with open(self.stderr_path, "r", encoding="utf-8", errors="replace") as f:
+                return "\n".join(f.read().splitlines()[-lines:])
+        except OSError as e:
+            return f"<unable to read stderr: {e}>"
 
     def cmd(self, obj, timeout=120):
         if self.proc.poll() is not None:
@@ -295,15 +383,27 @@ class GameClient:
         # the game-side watchdog, which closes stdout.
         if obj.get("cmd") in ("step", "press", "touch", "finger") and obj.get("frames"):
             timeout = max(timeout, min(1200, obj["frames"] / 10 + 120))
+        count_at_command = self._boot_banner_count()
         self.proc.stdin.write(json.dumps(obj) + "\n")
         self.proc.stdin.flush()
-        ready, _, _ = select.select([self.proc.stdout], [], [], timeout)
-        if not ready:
-            raise GameError(f"timeout ({timeout}s) waiting for reply to {obj}; stderr: {self.stderr_path}")
+        deadline = time.monotonic() + timeout
+        ready = []
+        while not ready:
+            if self.proc.poll() is not None:
+                raise GameError(f"game exited with {self.proc.returncode} waiting for {obj}; stderr: {self.stderr_path}")
+            if self._boot_loop_detected(count_at_command):
+                raise GameError(f"boot soft-reset loop detected (3+ 'SIM headless=1' banners); stderr: {self.stderr_path}")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise GameError(f"timeout ({timeout}s) waiting for reply to {obj}; stderr: {self.stderr_path}")
+            ready, _, _ = select.select([self.proc.stdout], [], [], min(0.5, remaining))
+        if self.proc.poll() is not None and not ready:
+            raise GameError(f"game exited with {self.proc.returncode} waiting for {obj}; stderr: {self.stderr_path}")
         line = self.proc.stdout.readline()
         if not line:
             raise GameError(f"game closed stdout on {obj}; stderr: {self.stderr_path}")
         reply = json.loads(line)
+        self._reply_count += 1
         if isinstance(reply, dict) and reply.get("ok") is False and not obj.pop("_expect_error", False):
             raise GameError(f"command {obj} failed: {reply.get('error')}")
         if isinstance(reply, dict) and "state" in reply:
@@ -371,6 +471,11 @@ class GameClient:
                     pass
         finally:
             GameClient._live.discard(self.proc)
+            for pipe in (self.proc.stdin, self.proc.stdout):
+                try:
+                    pipe.close()
+                except Exception:
+                    pass
             self._stderr.close()
 
 # ---------------------------------------------------------------- runner
@@ -539,9 +644,10 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                                 tol = step["tolerance_gpu"]
                             ok, _frac, msg = compare_images(out, ref_path, tol, crop=crop)
                             if not ok:
-                                ep, ap, dp = write_diff_images(out, ref_path, client.dir, shot_name, crop=crop)
+                                ep, ap, dp, cp, bbox, max_delta = write_diff_images(
+                                    out, ref_path, client.dir, shot_name, crop=crop)
                                 raise ScenarioFailure(idx, step,
-                                                      f"screenshot differs from {ref}: {msg}\n  expected: {ep}\n  actual:   {ap}\n  diff:     {dp}",
+                                                      f"screenshot differs from {ref}: {msg}\n  expected: {ep}\n  actual:   {ap}\n  diff:     {dp}\n  contact_png: {cp}\n  diff_bbox: {bbox}\n  max_delta: {max_delta}",
                                                       client.last_state, out)
                 elif "assert" in step:
                     st = client.state(step.get("state_request"))
@@ -661,21 +767,113 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
         suffix = ("; " + "; ".join(pending_notes)) if pending_notes else ""
         return name, True, f"ok ({time.time() - started:.1f}s, workdir {client.dir}){suffix}", client
     except ScenarioFailure as e:
+        tail = client.stderr_tail()
         return name, False, (f"FAIL step {e.step_idx}: {json.dumps(e.step)}\n  {e.message}\n"
                              f"  state: {json.dumps(e.state)[:600]}\n  last screenshot: {e.screenshot}\n"
-                             f"  workdir: {client.dir} (stderr + coverage there)"), client
+                             f"  workdir: {client.dir} (stderr + coverage there)\n"
+                             f"  stderr: {client.stderr_path}\n  stderr_tail:\n{tail}"), client
     except Exception as e:
+        tail = client.stderr_tail()
         return name, False, (f"FAIL (runner/start): {e}\n  state: {json.dumps(client.last_state)[:600]}\n"
                              f"  last screenshot: {client.last_screenshot}\n"
-                             f"  workdir: {client.dir} (stderr + coverage there)"), client
+                             f"  workdir: {client.dir} (stderr + coverage there)\n"
+                             f"  stderr: {client.stderr_path}\n  stderr_tail:\n{tail}"), client
+
+SMOKE_SCENARIOS = {
+    "core_title_screen_animation", "core_save_and_reload",
+    "visual_overworld_lake_verity_arrival", "core_trainer_battle",
+    "visual_battlehud_command", "visual_menu_bag",
+    "visual_capture_totem_mamoswine", "visual_touchpad_classic",
+    "visual_weather_fog_field", "visual_widelayout_field_panel",
+}
+
+
+def classify_tags(path, sc=None):
+    """Return explicit plus deterministic inferred scenario tags."""
+    if sc is None:
+        with open(path, encoding="utf-8") as f:
+            sc = json.load(f)
+    explicit = sc.get("tags") or []
+    if not isinstance(explicit, list) or not all(isinstance(x, str) for x in explicit):
+        raise ValueError(f"{path}: tags must be an array of strings")
+    tags = {x.lower() for x in explicit}
+    stem = os.path.splitext(os.path.basename(path))[0].lower()
+    text = stem + " " + json.dumps(sc, sort_keys=True).lower()
+    if stem in SMOKE_SCENARIOS:
+        tags.add("smoke")
+    if stem.startswith(("core_", "bug_")) or "title" in stem:
+        tags.add("core")
+    if stem.startswith("visual_") or "screenshot" in text or "reference" in text:
+        tags.add("visual")
+    inference = {
+        "battle": ("battle", "trainer", "totem", "mega", "intimidate", "swords_dance", "thunder_wave"),
+        "field": ("field", "overworld", "lake_verity", "route", "twinleaf", "jubilife", "eterna", "warp"),
+        "menu": ("menu", "bag", "party", "pokedex", "town_map", "summary"),
+        "save": ("save", "reload", "import_save"),
+        "touchpad": ("touchpad", "\"finger\""),
+        "wide": ("wide", "horizontal"),
+        "weather": ("weather", "fog", "rain", "storm", "blizzard", "shafts", "heat"),
+        "capture": ("capture", "catch", "naming"),
+        "particles": ("particles", "flamethrower", "thunderbolt", "mega_burst"),
+        "hirestext": ("hirestext", "sim_hirestext"),
+    }
+    for tag, needles in inference.items():
+        if any(n in text for n in needles):
+            tags.add(tag)
+    return tags
+
+
+def scenario_selected(path, tier, wanted_tags):
+    with open(path, encoding="utf-8") as f:
+        sc = json.load(f)
+    tags = classify_tags(path, sc)
+    stem = os.path.splitext(os.path.basename(path))[0].lower()
+    if tier == "smoke" and stem not in SMOKE_SCENARIOS and "smoke" not in tags:
+        return False
+    if tier == "fast" and not ({"smoke", "core"} & tags):
+        return False
+    return not wanted_tags or bool(tags & set(wanted_tags))
+
+
+def _result_details(name, ok, msg, elapsed):
+    skipped = ok and msg.startswith("SKIP")
+    def value(label):
+        match = re.search(rf"(?m)^\s*{label}:\s*(.+)$", msg)
+        return match.group(1).strip() if match else None
+    bbox_text = value("diff_bbox")
+    bbox = None
+    if bbox_text and bbox_text != "None":
+        nums = [int(x) for x in re.findall(r"-?\d+", bbox_text)]
+        bbox = nums[:4] if len(nums) >= 4 else None
+    step = re.search(r"FAIL step (\d+)", msg)
+    tail = msg.split("stderr_tail:\n", 1)[1] if "stderr_tail:\n" in msg else ""
+    workdir = value("workdir")
+    if workdir:
+        workdir = workdir.split(" (stderr", 1)[0]
+    else:
+        pass_workdir = re.search(r"\bworkdir ([^)]+)\)", msg)
+        workdir = pass_workdir.group(1) if pass_workdir else None
+    return {"name": name, "ok": bool(ok and not skipped), "skipped": skipped,
+            "elapsed_sec": round(elapsed, 3),
+            "failure_step": int(step.group(1)) if step else None,
+            "error": None if ok else msg, "diff_bbox": bbox,
+            "max_delta": int(value("max_delta")) if value("max_delta") else None,
+            "contact_png": value("contact_png"), "workdir": workdir,
+            "stderr_tail": tail}
+
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("scenarios", nargs="*")
-    ap.add_argument("--game", default="build_macos/main")
+    default_game = "build_macos/main" if sys.platform == "darwin" else "build_linux/main"
+    ap.add_argument("--game", default=default_game,
+                    help=f"game executable (auto-detected default: {default_game})")
     ap.add_argument("--mock", action="store_true", help="use tools/dazzling/test/fake_game.py")
     ap.add_argument("--scenarios-dir", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "scenarios"))
     ap.add_argument("--filter", default="")
+    ap.add_argument("--tier", choices=("smoke", "fast", "full"), default="full")
+    ap.add_argument("--tag", action="append", default=[], help="select scenarios with this tag (repeatable; tags are ORed)")
+    ap.add_argument("--json-report", help="write a machine-readable result report")
     ap.add_argument("-j", "--jobs", type=int, default=2, help="max live game processes (default 2 on this shared Mac)")
     ap.add_argument("--record", action="store_true", help="write reference screenshots")
     ap.add_argument("--update", action="store_true", help="accept current output as new references (same writes as --record; use after reviewing diffs)")
@@ -684,91 +882,97 @@ def main(argv=None):
     ap.add_argument("--compare-backends", action="store_true",
                     help="run each scenario twice, SIM_RENDERER=gl and =gpu, both against the same references; "
                     "the gpu run uses each screenshot step's tolerance_gpu when present, else its tolerance. "
-                    "Until the gpu backend exists the game falls back to gl, so both runs must pass. "
-                    "Combinable with --compare-renderers (four runs: gl/gpu x CPU/GPU 2D)")
+                    "Combinable with --compare-renderers")
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--work-root", default=None)
     args = ap.parse_args(argv)
+    started_all = time.monotonic()
+    if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
+        os.environ.setdefault("SDL_VIDEO_DRIVER", "offscreen")
     game = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fake_game.py") if args.mock else args.game
     paths = args.scenarios or sorted(
         os.path.join(args.scenarios_dir, f) for f in os.listdir(args.scenarios_dir) if f.endswith(".json"))
     if args.filter:
         paths = [p for p in paths if args.filter in os.path.basename(p)]
+    try:
+        paths = [p for p in paths if scenario_selected(p, args.tier, [t.lower() for t in args.tag])]
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        print(f"run.py: scenario selection failed: {e}"); return 2
     if not paths:
         print("run.py: no scenarios selected"); return 2
     work_root = args.work_root or tempfile.mkdtemp(prefix="dz-run-")
     os.makedirs(work_root, exist_ok=True)
-    print(f"run.py: {len(paths)} scenario(s), game={game}, jobs={args.jobs}, record={args.record}, work={work_root}")
-    failures = 0
+    print(f"run.py: {len(paths)} scenario(s), tier={args.tier}, tags={args.tag or '-'}, game={game}, jobs={args.jobs}, record={args.record}, work={work_root}")
+
     def one(p):
         client = None
+        began = time.monotonic()
         try:
             if (args.compare_renderers or args.compare_backends) and not (args.record or args.update):
-                # Variant list: (label, env_extra, use_gpu_tolerance).
                 backends = (("gl", "gpu") if args.compare_backends else ("gl",))
-                g2s = (("0", "1") if args.compare_renderers else ("0",))
-                if not args.compare_renderers:
-                    g2s = (None,)
-                msgs, ok_all = [], True
+                g2s = (("0", "1") if args.compare_renderers else (None,))
+                msgs, ok_all, name, last_workdir = [], True, os.path.basename(p), None
                 for backend in backends:
                     for g2 in g2s:
-                        env = {}
-                        label_parts = []
-                        if backend is not None:
-                            env["SIM_RENDERER"] = backend
-                            label_parts.append(f"SIM_RENDERER={backend}")
+                        env, labels = {"SIM_RENDERER": backend}, [f"SIM_RENDERER={backend}"]
                         if g2 is not None:
-                            env["SIM_G2_GPU"] = g2
-                            label_parts.append(f"SIM_G2_GPU={g2}")
-                        name, ok, msg, client = run_scenario(p, game, record=False,
-                                                             timeout=args.timeout, work_root=work_root, mock=args.mock,
-                                                             env_extra=env,
-                                                             use_gpu_tolerance=(backend == "gpu"))
-                        msgs.append(f"{', '.join(label_parts) or 'default'}: {'ok' if ok else msg}")
+                            env["SIM_G2_GPU"] = g2; labels.append(f"SIM_G2_GPU={g2}")
+                        name, ok, msg, client = run_scenario(
+                            p, game, timeout=args.timeout, work_root=work_root,
+                            env_extra=env, use_gpu_tolerance=(backend == "gpu"))
+                        msgs.append(f"{', '.join(labels)}: {'ok' if ok else msg}")
                         ok_all = ok_all and ok
                         if client is not None:
+                            last_workdir = client.dir
                             client.close(); client = None
-                return name, ok_all, "; ".join(msgs)
-            # Plain run: the effective backend is the game's default
-            # (gpu) unless the scenario, the environment, or (on Linux)
-            # the runner's gl pin overrides it; use tolerance_gpu when
-            # the effective backend is gpu, so a plain suite on the Mac
-            # (gpu default) passes with the gpu allowances. Env wins
-            # over config in the game, and the runner's Linux gl pin
-            # wins over a scenario config Renderer (it is an env var).
-            use_gpu_tol = False
+                msg = "; ".join(msgs)
+                details = _result_details(name, ok_all, msg, time.monotonic() - began)
+                details["workdir"] = details["workdir"] or last_workdir
+                return name, ok_all, msg, details
             try:
                 with open(p, encoding="utf-8") as f:
                     sc0 = json.load(f)
             except Exception:
                 sc0 = {}
-            scen_env0 = sc0.get("env") or {}
-            scen_cfg0 = sc0.get("config") or {}
+            scen_env0, scen_cfg0 = sc0.get("env") or {}, sc0.get("config") or {}
             if scen_env0.get("SIM_RENDERER"):
                 use_gpu_tol = scen_env0["SIM_RENDERER"] == "gpu"
             elif os.environ.get("SIM_RENDERER"):
                 use_gpu_tol = os.environ["SIM_RENDERER"] == "gpu"
             elif sys.platform.startswith("linux"):
-                use_gpu_tol = False  # runner pins SIM_RENDERER=gl on Linux
+                use_gpu_tol = False
             elif scen_cfg0.get("Renderer"):
                 use_gpu_tol = scen_cfg0["Renderer"] == "gpu"
             else:
-                use_gpu_tol = True  # game default is gpu
-            name, ok, msg, client = run_scenario(p, game, record=args.record,
-                                                 timeout=args.timeout, work_root=work_root, mock=args.mock,
-                                                 update=args.update,
-                                                 use_gpu_tolerance=use_gpu_tol)
-            return name, ok, msg
+                use_gpu_tol = True
+            name, ok, msg, client = run_scenario(
+                p, game, record=args.record, timeout=args.timeout,
+                work_root=work_root, update=args.update,
+                use_gpu_tolerance=use_gpu_tol)
+            return name, ok, msg, _result_details(name, ok, msg, time.monotonic() - began)
+        except Exception as e:
+            name, msg = os.path.splitext(os.path.basename(p))[0], f"FAIL (runner): {e}"
+            return name, False, msg, _result_details(name, False, msg, time.monotonic() - began)
         finally:
             if client is not None:
-                client.close()   # every scenario ends its game, on any outcome
+                client.close()
+
+    results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as ex:
-        futures = [ex.submit(one, p) for p in paths]
-        for fut in concurrent.futures.as_completed(futures):
-            name, ok, msg = fut.result()
-            print(f"[{ 'PASS' if ok else 'FAIL'}] {name}: {msg}" if ok else f"[FAIL] {name}\n{msg}", flush=True)
-            failures += 0 if ok else 1
-    print(f"run.py: {len(paths) - failures}/{len(paths)} passed")
+        for name, ok, msg, details in (f.result() for f in concurrent.futures.as_completed([ex.submit(one, p) for p in paths])):
+            print(f"[{'PASS' if ok else 'FAIL'}] {name}: {msg}" if ok else f"[FAIL] {name}\n{msg}", flush=True)
+            results.append(details)
+    failures = sum(not r["ok"] and not r["skipped"] for r in results)
+    skipped = sum(r["skipped"] for r in results)
+    report = {"passed": len(results) - failures - skipped, "failed": failures,
+              "skipped": skipped, "total_sec": round(time.monotonic() - started_all, 3),
+              "scenarios": sorted(results, key=lambda r: r["name"])}
+    if args.json_report:
+        parent = os.path.dirname(os.path.abspath(args.json_report))
+        os.makedirs(parent, exist_ok=True)
+        with open(args.json_report, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2, sort_keys=True); f.write("\n")
+    print(f"run.py: {report['passed']}/{len(paths)} passed, {skipped} skipped, {failures} failed")
     return 1 if failures else 0
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ State model (deliberately tiny):
   press UP/DOWN/LEFT/RIGHT moves on the field; A on the field sets
   message_waiting; START opens battle stub; B flees battle.
 """
-import json, os, struct, sys
+import json, os, struct, sys, time
 
 def write_bmp(path, w, h, seed):
     rows = []
@@ -126,6 +126,14 @@ class Fake:
         return {"ok": False, "error": f"unknown cmd {cmd}"}, False
 
 def main():
+    # Test-only simulation of Darwin's dead-strip soft-reset loop: stderr
+    # banners repeat while the control protocol never answers.
+    if os.environ.get("FAKE_BOOT_LOOP"):
+        for _ in range(3):
+            print("SIM headless=1 fake soft reset", file=sys.stderr, flush=True)
+            time.sleep(0.1)
+        time.sleep(30)
+        return 1
     fake = Fake()
     for line in sys.stdin:
         line = line.strip()
