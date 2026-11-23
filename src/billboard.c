@@ -128,6 +128,15 @@ void BillboardLists_Delete(void)
     sBillboardListCount = 0;
 }
 
+// dbg-inspect hook: expose the registry without transferring ownership.
+const BillboardList *BillboardLists_Inspect(int *count)
+{
+    if (count != NULL) {
+        *count = sBillboardListCount;
+    }
+    return sBillboardLists;
+}
+
 void BillboardLists_Draw(void)
 {
     for (int i = 0; i < sBillboardListCount; i++) {

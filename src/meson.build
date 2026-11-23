@@ -80,6 +80,7 @@ pokeplatinum_c = files(
     'gx_layers.c',
     'camera.c',
     'billboard.c',
+    'port/headless_inspect.c',
     'sprite.c',
     'touch_screen.c',
     'timer.c',

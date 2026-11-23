@@ -95,6 +95,7 @@ Static main
 	Object main.nef.p/src_gx_layers.c.o
 	Object main.nef.p/src_camera.c.o
 	Object main.nef.p/src_billboard.c.o
+	Object main.nef.p/src_port_headless_inspect.c.o # dbg-inspect hook
 	Object main.nef.p/src_sprite.c.o
 	Object main.nef.p/src_touch_screen.c.o
 	Object main.nef.p/src_timer.c.o

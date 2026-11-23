@@ -20,6 +20,9 @@
 #include "overlay005/land_data.h"
 #include "overlay005/map_name_popup.h"
 #include "field_map_change.h"
+#include "field_overworld_state.h"
+#include "field_overworld_weather.h"
+#include "fx_weather.h"
 #include "map_header_data.h"
 #include "map_object.h"
 #include "player_avatar.h"
@@ -28,6 +31,7 @@
 
 #include "bag.h"
 #include "heap.h"
+#include "item_use_pokemon.h"
 #include "party.h"
 #include "vram_stats.h"
 #include "pokemon.h"
@@ -41,6 +45,7 @@
 
 #include "gui_createitem_utils.h"
 #include "gui_mapjump_utils.h"
+#include "overlay005/ov5_021D5EB8.h"
 
 // ---------------------------------------------------------------- registry
 
@@ -50,6 +55,7 @@ static int sOverlayId = -1;
 void Headless_SetBattleSystem(BattleSystem *battleSys) { sBattleSys = battleSys; }
 BattleSystem *Headless_GetBattleSystem(void) { return sBattleSys; }
 void Headless_SetOverlay(int overlayId) { sOverlayId = overlayId; }
+int Headless_GetOverlay(void) { return sOverlayId; } // dbg-inspect hook
 
 // Injected press for `talk`: the control layer takes it after our reply.
 static unsigned sInjectMask = 0;
@@ -319,6 +325,71 @@ static void CmdTalk(const char *line, char *reply, size_t cap) {
     ErrOut(reply, cap, "no free adjacent tile");
 }
 
+// dbg-inspect hook: live setup commands intentionally mutate only loaded save/field state.
+static void CmdHealParty(char *reply, size_t cap) {
+    SaveData *save = SaveData_Ptr();
+    if (!save) { ErrOut(reply, cap, "no save data"); return; }
+    Party_HealAllMembers(SaveData_GetParty(save));
+    snprintf(reply, cap, "{\"ok\":true}");
+}
+
+static void CmdSetParty(const char *line, char *reply, size_t cap) {
+    char speciesName[128], itemName[128] = "ITEM_NONE";
+    long slot, level = 50;
+    SaveData *save = SaveData_Ptr();
+    if (!save) { ErrOut(reply, cap, "no save data"); return; }
+    if (!JsonLong(line, "slot", &slot) || slot < 0 || slot >= MAX_PARTY_SIZE
+        || !JsonStr(line, "species", speciesName, sizeof(speciesName))) {
+        ErrOut(reply, cap, "set_party needs slot 0..5 and species"); return;
+    }
+    const HeadlessName *species = Headless_Lookup(kHeadlessSpecies, kHeadlessSpeciesCount, speciesName);
+    if (!species) { ErrOut(reply, cap, "unknown species"); return; }
+    JsonLong(line, "level", &level);
+    if (level < 1 || level > 100) { ErrOut(reply, cap, "level must be 1..100"); return; }
+    JsonStr(line, "item", itemName, sizeof(itemName));
+    const HeadlessName *item = Headless_Lookup(kHeadlessItems, kHeadlessItemsCount, itemName);
+    if (!item) { ErrOut(reply, cap, "unknown item"); return; }
+    Party *party = SaveData_GetParty(save);
+    int count = Party_GetCurrentCount(party);
+    if (slot > count) { ErrOut(reply, cap, "slot would leave a party gap"); return; }
+    Pokemon *mon = Pokemon_New(HEAP_ID_SYSTEM);
+    if (!mon) { ErrOut(reply, cap, "could not allocate pokemon"); return; }
+    Pokemon_Init(mon);
+    Pokemon_InitWith(mon, species->id, (u8)level, INIT_IVS_RANDOM, FALSE, 0, OTID_NOT_SET, 0);
+    u32 held = (u32)item->id;
+    Pokemon_SetValue(mon, MON_DATA_HELD_ITEM, &held);
+    BOOL ok = TRUE;
+    if (slot == count) ok = Party_AddPokemon(party, mon);
+    else Party_AddPokemonBySlotIndex(party, (int)slot, mon);
+    Heap_Free(mon);
+    if (!ok) { ErrOut(reply, cap, "party update failed"); return; }
+    snprintf(reply, cap, "{\"ok\":true,\"slot\":%ld,\"species_id\":%d,\"level\":%ld,\"item_id\":%d}",
+        slot, species->id, level, item->id);
+}
+
+static void CmdSetWeather(const char *line, char *reply, size_t cap) {
+    long weather;
+    FieldSystem *fsys = DEBUG_GetFieldSystem();
+    if (!fsys) { ErrOut(reply, cap, "not in the field"); return; }
+    if (!JsonLong(line, "weather", &weather) || weather < 0 || weather > 0xffff) {
+        ErrOut(reply, cap, "set_weather needs weather 0..65535"); return;
+    }
+    FieldOverworldState_SetWeather(SaveData_GetFieldOverworldState(fsys->saveData), (u16)weather);
+    if (fsys->unk_04 && fsys->unk_04->unk_0C) ov5_021D5F24(fsys->unk_04->unk_0C, (int)weather);
+    FxWeather_OnMapChange(fsys->location ? fsys->location->mapHeaderID : -1, (u16)weather);
+    snprintf(reply, cap, "{\"ok\":true,\"weather\":%ld}", weather);
+}
+
+static void CmdRunScript(const char *line, char *reply, size_t cap) {
+    long id;
+    FieldSystem *fsys = DEBUG_GetFieldSystem();
+    if (!fsys) { ErrOut(reply, cap, "not in the field"); return; }
+    if (!JsonLong(line, "id", &id) || id < 0 || id > 0xffff) { ErrOut(reply, cap, "run_script needs id 0..65535"); return; }
+    if (FieldSystem_IsRunningTask(fsys)) { ErrOut(reply, cap, "a field task is already running"); return; }
+    ScriptManager_Set(fsys, (u16)id, NULL);
+    snprintf(reply, cap, "{\"ok\":true,\"script_id\":%ld}", id);
+}
+
 static void CmdReloadScripts(const char *line, char *reply, size_t cap) {
     (void)line;
     FieldSystem *fsys = DEBUG_GetFieldSystem();
@@ -334,8 +405,13 @@ static void CmdReloadScripts(const char *line, char *reply, size_t cap) {
 int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
     char cmd[64];
     if (!JsonStr(line, "cmd", cmd, sizeof(cmd))) return 0;
-    if (strcmp(cmd, "warp") == 0) CmdWarp(line, reply, cap);
+    if (strcmp(cmd, "inspect") == 0) return HeadlessInspect_Handle(line, reply, cap);
+    else if (strcmp(cmd, "warp") == 0) CmdWarp(line, reply, cap);
     else if (strcmp(cmd, "reload_scripts") == 0) CmdReloadScripts(line, reply, cap);
+    else if (strcmp(cmd, "heal_party") == 0) CmdHealParty(reply, cap);
+    else if (strcmp(cmd, "set_party") == 0) CmdSetParty(line, reply, cap);
+    else if (strcmp(cmd, "set_weather") == 0) CmdSetWeather(line, reply, cap);
+    else if (strcmp(cmd, "run_script") == 0) CmdRunScript(line, reply, cap);
     else if (strcmp(cmd, "set_var") == 0) CmdSetVar(line, reply, cap);
     else if (strcmp(cmd, "set_flag") == 0) CmdSetFlag(line, reply, cap);
     else if (strcmp(cmd, "give_item") == 0) CmdGiveItem(line, reply, cap);

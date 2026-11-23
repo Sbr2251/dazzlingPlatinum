@@ -95,6 +95,7 @@ Static main
 	Object src/gx_layers.c
 	Object src/camera.c
 	Object src/billboard.c
+	Object src/port/headless_inspect.c # dbg-inspect hook
 	Object src/sprite.c
 	Object src/touch_screen.c
 	Object src/timer.c

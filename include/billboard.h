@@ -103,6 +103,8 @@ void Billboard_Reset(Billboard *billboard);
 void BillboardLists_Create(int count, enum HeapID heapID);
 void BillboardLists_Delete(void);
 void BillboardLists_Draw(void);
+// dbg-inspect hook: borrowed read-only registry; valid until lists are deleted.
+const BillboardList *BillboardLists_Inspect(int *count);
 BillboardList *BillboardList_New(const BillboardListParams *params);
 BOOL BillboardList_Delete(BillboardList *list);
 BOOL BillboardList_DeleteAll(BillboardList *list);
