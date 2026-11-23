@@ -616,6 +616,168 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                                     "frames": step.get("press_frames", 10)})
                         client.cmd({"cmd": "step", "frames": step.get("interval_frames", 300)})
                         waited += step.get("press_frames", 10) + step.get("interval_frames", 300)
+                elif "advance_dialogue" in step:
+                    cfg = step["advance_dialogue"] if isinstance(step["advance_dialogue"], dict) else {}
+                    until = cfg.get("until", {"script": None})
+                    budget = int(cfg.get("timeout_frames", 14400))
+                    poll_f = int(cfg.get("poll_frames", 10))
+                    press_f = int(cfg.get("press_frames", 6))
+                    settle_f = int(cfg.get("settle_frames", 8))
+                    max_lines = int(cfg.get("max_lines", 250))
+                    captures = cfg.get("capture_on_text") or []
+                    captured_names = set()
+                    transcript = []
+                    waited = 0
+                    presses = 0
+                    # If the caller expects dialogue/cutscene lines and we are waiting for script==null,
+                    # give a just-triggered coord-event/talk a short window to start the script first.
+                    if (until == {"script": None} and (cfg.get("expect_min_lines", 0) > 0 or cfg.get("expect_text_contains"))):
+                        start_wait = int(cfg.get("start_timeout_frames", 60))
+                        sw = 0
+                        while sw < start_wait:
+                            st0 = client.state()
+                            if st0.get("script") is not None or st0.get("message_waiting") or st0.get("signpost_active"):
+                                break
+                            client.cmd({"cmd": "step", "frames": 4})
+                            sw += 4
+                    while True:
+                        st = client.state()
+                        if condition_met(st, until):
+                            break
+                        if waited >= budget:
+                            raise ScenarioFailure(
+                                idx, step,
+                                f"advance_dialogue did not reach {until} within {budget} frames "
+                                f"(presses={presses}, transcript={transcript[-6:]})",
+                                st, client.last_screenshot)
+                        if st.get("message_waiting") or st.get("signpost_active"):
+                            # Read decoded dialogue line from headless_inspect when available.
+                            txt = ""
+                            try:
+                                ir = client.cmd({"cmd": "inspect", "what": "text", "_expect_error": True})
+                                if isinstance(ir, dict) and ir.get("ok"):
+                                    txt = ((ir.get("data") or {}).get("text") or "").strip()
+                            except Exception:
+                                txt = ""
+                            if txt and (not transcript or transcript[-1] != txt):
+                                transcript.append(txt)
+                                for cap_spec in captures:
+                                    cname = cap_spec.get("name", f"line_{len(transcript)}")
+                                    needle = (cap_spec.get("contains") or "").lower()
+                                    if cname not in captured_names and needle and needle in txt.lower():
+                                        cap_delay = int(cap_spec.get("delay_frames", cfg.get("capture_delay_frames", 45)))
+                                        if cap_delay > 0:
+                                            client.cmd({"cmd": "step", "frames": cap_delay})
+                                            waited += cap_delay
+                                        bmp_tmp = os.path.join(client.dir, cname + ".bmp")
+                                        png_out = os.path.join(client.dir, cname + ".png")
+                                        client.cmd({"cmd": "screenshot", "path": bmp_tmp})
+                                        w_i, h_i, rgb_i = load_image(bmp_tmp)
+                                        save_png(png_out, w_i, h_i, rgb_i)
+                                        client.last_screenshot = png_out
+                                        captured_names.add(cname)
+                            if len(transcript) > max_lines:
+                                raise ScenarioFailure(
+                                    idx, step,
+                                    f"advance_dialogue exceeded max_lines={max_lines} (last={transcript[-4:]})",
+                                    st, client.last_screenshot)
+                            client.cmd({"cmd": "press", "keys": as_keys(cfg.get("keys", "A")), "frames": press_f})
+                            client.cmd({"cmd": "step", "frames": settle_f})
+                            waited += press_f + settle_f
+                            presses += 1
+                        else:
+                            client.cmd({"cmd": "step", "frames": poll_f})
+                            waited += poll_f
+                    min_lines = int(cfg.get("expect_min_lines", 0))
+                    if len(transcript) < min_lines:
+                        raise ScenarioFailure(
+                            idx, step,
+                            f"advance_dialogue expected >= {min_lines} lines, got {len(transcript)} ({transcript})",
+                            client.last_state, client.last_screenshot)
+                    joined = "\n".join(transcript).lower()
+                    for needle in (cfg.get("expect_text_contains") or []):
+                        if needle.lower() not in joined:
+                            raise ScenarioFailure(
+                                idx, step,
+                                f"advance_dialogue missing expected text {needle!r} in transcript ({len(transcript)} lines): {transcript}",
+                                client.last_state, client.last_screenshot)
+                elif "walk_to" in step:
+                    wt = step["walk_to"] if isinstance(step["walk_to"], dict) else {}
+                    tx, tz = int(wt["x"]), int(wt["z"])
+                    budget = int(wt.get("timeout_frames", 600))
+                    step_f = int(wt.get("step_frames", 8))
+                    stop_on_script = bool(wt.get("stop_on_script", True))
+                    prefer = wt.get("prefer_axis", "x")
+                    waited = 0
+                    stuck_tries = 0
+                    alt_axis = False
+                    while True:
+                        st = client.state()
+                        if stop_on_script and st.get("script") is not None:
+                            break
+                        pl = st.get("player") or {}
+                        cx, cz = pl.get("x"), pl.get("z")
+                        if cx is None or cz is None:
+                            raise ScenarioFailure(idx, step, "walk_to requires player.x and player.z in state", st, client.last_screenshot)
+                        if cx == tx and cz == tz:
+                            # Let the final tile's step animation finish so coord-events fire.
+                            settle = int(wt.get("settle_frames", 16))
+                            if settle > 0:
+                                client.cmd({"cmd": "step", "frames": settle})
+                            break
+                        if waited >= budget:
+                            raise ScenarioFailure(idx, step, f"walk_to ({tx},{tz}) timed out at ({cx},{cz}) after {budget} frames", st, client.last_screenshot)
+                        dx, dz = tx - cx, tz - cz
+                        x_key = "RIGHT" if dx > 0 else ("LEFT" if dx < 0 else None)
+                        z_key = "DOWN" if dz > 0 else ("UP" if dz < 0 else None)
+                        if alt_axis:
+                            key = (z_key if prefer == "x" else x_key) or (x_key if prefer == "x" else z_key)
+                        else:
+                            key = (x_key if prefer == "x" else z_key) or (z_key if prefer == "x" else x_key)
+                        client.cmd({"cmd": "press", "keys": [key], "frames": step_f})
+                        waited += step_f
+                        st2 = client.state()
+                        if stop_on_script and st2.get("script") is not None:
+                            break
+                        pl2 = st2.get("player") or {}
+                        if pl2.get("x") == cx and pl2.get("z") == cz:
+                            stuck_tries += 1
+                            if x_key and z_key and not alt_axis:
+                                alt_axis = True
+                            elif stuck_tries >= 6:
+                                raise ScenarioFailure(
+                                    idx, step,
+                                    f"walk_to ({tx},{tz}) stuck at ({cx},{cz}) pressing {key} (blocked by collision/object)",
+                                    st2, client.last_screenshot)
+                        else:
+                            stuck_tries = 0
+                            alt_axis = False
+                elif "inspect" in step:
+                    ins = step["inspect"]
+                    what = ins if isinstance(ins, str) else ins["what"]
+                    reply = client.cmd({"cmd": "inspect", "what": what})
+                    data = reply.get("data") if isinstance(reply, dict) else {}
+                    ins_assert = step.get("assert") if isinstance(ins, str) else ins.get("assert")
+                    if ins_assert:
+                        err = check_assertion(data, ins_assert)
+                        if err:
+                            raise ScenarioFailure(idx, step, f"inspect {what}: {err}", client.last_state, client.last_screenshot)
+                    present = step.get("expect_present") if isinstance(ins, str) else ins.get("expect_present")
+                    absent = step.get("expect_absent") if isinstance(ins, str) else ins.get("expect_absent")
+                    if present or absent:
+                        objs = (data or {}).get("objects") or []
+                        have = set()
+                        for o in objs:
+                            if o.get("name"):
+                                have.add(o["name"])
+                            if "localid" in o:
+                                have.add(o["localid"])
+                        for want_id in (present or []):
+                            if want_id not in have:
+                                raise ScenarioFailure(idx, step, f"inspect {what}: expected {want_id!r} to be present (have={sorted(str(h) for h in have)})", client.last_state, client.last_screenshot)
+                        for ban_id in (absent or []):
+                            if ban_id in have:
+                                raise ScenarioFailure(idx, step, f"inspect {what}: expected {ban_id!r} to be absent", client.last_state, client.last_screenshot)
                 elif "screenshot" in step:
                     shot_name = step["screenshot"] if isinstance(step["screenshot"], str) else step["screenshot"].get("name", f"step{idx}")
                     out = os.path.join(client.dir, shot_name + ".bmp")
@@ -807,7 +969,8 @@ def classify_tags(path, sc=None):
         tags.add("visual")
     inference = {
         "battle": ("battle", "trainer", "totem", "mega", "intimidate", "swords_dance", "thunder_wave"),
-        "field": ("field", "overworld", "lake_verity", "route", "twinleaf", "jubilife", "eterna", "warp"),
+        "field": ("field", "overworld", "lake_verity", "route", "twinleaf", "jubilife", "eterna", "warp", "story_"),
+        "story": ("story_", "rally", "advance_dialogue", "walk_to"),
         "menu": ("menu", "bag", "party", "pokedex", "town_map", "summary"),
         "save": ("save", "reload", "import_save"),
         "touchpad": ("touchpad", "\"finger\""),

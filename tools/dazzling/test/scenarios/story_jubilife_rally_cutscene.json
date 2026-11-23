@@ -1,0 +1,60 @@
+{
+  "name": "story_jubilife_rally_cutscene",
+  "_note": "End-to-end Jubilife Arc 1 rally cutscene via the (164, 754) coord-event trigger: verifies pre-rally cast/camera, event-driven dialogue transcript across all beats (Saros TV, crowd, flyer grunt, Garius, Cyrus), captures PNG beats, and verifies post-rally VAR_ARC1_PROGRESS==13, camera restore, and plaza NPC swap.",
+  "tags": ["story", "field"],
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+  },
+  "steps": [
+    {"step": 900},
+    {"press_until": {"app": "field"}, "keys": "A", "press_frames": 10, "interval_frames": 300, "timeout_frames": 7200},
+    {"step": 40},
+    {"assert": {"vars.VAR_ARC1_PROGRESS": 12}, "state_request": {"vars": ["VAR_ARC1_PROGRESS"]}},
+    {"inspect": "camera", "assert": {"active": true, "tracking_target": true}},
+    {
+      "inspect": "objects",
+      "expect_present": ["LOCALID_ARC1_GARIUS", "LOCALID_ARC1_CYRUS", "LOCALID_LOOKER", "LOCALID_ARC1_GRUNT_FLYER"],
+      "expect_absent": ["LOCALID_CLOWN_1", "LOCALID_CLOWN_2", "LOCALID_CLOWN_3"]
+    },
+    {"walk_to": {"x": 164, "z": 754, "timeout_frames": 400, "step_frames": 8, "stop_on_script": true}},
+    {
+      "advance_dialogue": {
+        "until": {"script": null},
+        "timeout_frames": 14400,
+        "poll_frames": 10,
+        "press_frames": 6,
+        "settle_frames": 8,
+        "expect_min_lines": 5,
+        "expect_text_contains": [
+          "Saros (on screen): Everyone here",
+          "bring them back",
+          "The crowd murmurs",
+          "Eclipse Grunt: Everybody's lost",
+          "just a flyer",
+          "Cyrus (to himself): Promising the"
+        ],
+        "capture_on_text": [
+          {"contains": "Saros (on screen): Everyone here", "name": "rally_saros_tv"},
+          {"contains": "just a flyer", "name": "rally_garius_flyer"},
+          {"contains": "Cyrus (to himself)", "name": "rally_cyrus"}
+        ]
+      }
+    },
+    {"step": 20},
+    {"assert": {"vars.VAR_ARC1_PROGRESS": 13}, "state_request": {"vars": ["VAR_ARC1_PROGRESS"]}},
+    {"inspect": "camera", "assert": {"active": true, "tracking_target": true}},
+    {
+      "inspect": "objects",
+      "expect_absent": ["LOCALID_ARC1_GARIUS", "LOCALID_ARC1_CYRUS"],
+      "expect_present": ["LOCALID_CLOWN_1", "LOCALID_CLOWN_2", "LOCALID_CLOWN_3"]
+    }
+  ],
+  "assertions": [
+    {"player.map": "MAP_HEADER_JUBILIFE_CITY"},
+    {"app": "field"},
+    {"script": null}
+  ]
+}

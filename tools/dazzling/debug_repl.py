@@ -77,7 +77,7 @@ class Game:
         env.update({"SIM_HEADLESS": "1", "SIM_CONTROL": "stdio", "SIM_FIXED_RTC": FIXED_RTC,
                     "SIM_SEED": "12345", "SIM_SAVE_PATH": save_path, "SDL_MAC_BACKGROUND_APP": "1"})
         if fast_boot:
-            env["SIM_FAST_BOOT"] = "1"
+            env["SIM_BOOT_DIRECT_SAVE"] = "1"
         stderr_path = paths(name)[2]
         self.stderr = open(stderr_path, "ab", buffering=0)
         self.proc = subprocess.Popen([game], cwd=self.work, stdin=subprocess.PIPE, stdout=subprocess.PIPE,

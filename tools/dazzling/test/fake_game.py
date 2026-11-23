@@ -33,6 +33,8 @@ class Fake:
         self.player = {"map": "MAP_HEADER_TWINLEAF_TOWN", "map_id": 0, "x": 10, "z": 10, "dir": "DIR_SOUTH"}
         self.script = None
         self.message_waiting = False
+        self.dialogue_queue = []
+        self.objects = [{"localid": 1, "name": "LOCALID_ARC1_GARIUS", "x": 12, "z": 10, "visible": True}]
         self.vars, self.flags = {}, {}
         self.battle = None
         cov = os.environ.get("SIM_SCRIPT_COVERAGE")
@@ -62,12 +64,25 @@ class Fake:
                     elif k == "DOWN": self.player["z"] += 1; self.player["dir"] = "DIR_SOUTH"
                     elif k == "LEFT": self.player["x"] -= 1; self.player["dir"] = "DIR_WEST"
                     elif k == "RIGHT": self.player["x"] += 1; self.player["dir"] = "DIR_EAST"
-                    elif k == "A": self.message_waiting = True
+                    elif k == "A":
+                        if self.script is not None and self.dialogue_queue:
+                            self.dialogue_queue.pop(0)
+                            if not self.dialogue_queue:
+                                self.message_waiting = False
+                                self.script = None
+                                self.vars["VAR_ARC1_PROGRESS"] = 13
+                                self.objects = [{"localid": 2, "name": "LOCALID_CLOWN_1", "x": 14, "z": 10, "visible": True}]
+                        else:
+                            self.message_waiting = True
                     elif k == "B": self.message_waiting = False
                     elif k == "START":
                         self.app = "battle"
                         self.battle = {"enemy_species": "SPECIES_STARLY", "enemy_hp": 20,
                                        "player_hp": 30, "action_menu_waiting": True, "turn": "player"}
+                    if self.app == "field" and self.script is None and self.vars.get("VAR_ARC1_PROGRESS", 0) < 13 and self.player["x"] == 12 and self.player["z"] == 10:
+                        self.script = {"id": 99, "offset": 0}
+                        self.dialogue_queue = ["Everyone has lost someone.", "Just a flyer."]
+                        self.message_waiting = True
             if keys and "B" in keys and self.app == "battle":
                 self.app, self.battle = "field", None
 
@@ -122,7 +137,23 @@ class Fake:
             return {"ok": True, "events": [{"type": "battle_start"}, {"type": "move_used", "move": "MOVE_TACKLE"}, {"type": "stat_stage", "battler": 0, "delta": -1}]}, False
         if cmd == "talk":
             self.message_waiting, self.script = True, {"archive": 1, "offset": 64}
+            self.dialogue_queue = ["Everyone has lost someone.", "Just a flyer."]
             return {"ok": True}, False
+        if cmd == "inspect":
+            what = req.get("what")
+            if what == "text":
+                txt = self.dialogue_queue[0] if self.dialogue_queue else ""
+                return {"ok": True, "frame": self.frame, "what": "text", "data": {
+                    "message_waiting": self.message_waiting, "signpost_active": False, "text": txt}}, False
+            if what == "objects":
+                return {"ok": True, "frame": self.frame, "what": "objects", "data": {
+                    "objects": list(self.objects), "count": len(self.objects)}}, False
+            if what == "camera":
+                return {"ok": True, "frame": self.frame, "what": "camera", "data": {
+                    "active": True, "position_fx": [0, 0, 0], "target_fx": [0, 0, 0],
+                    "distance": 1000, "angle": [0, 0, 0], "fov_y": 1400, "projection": 0,
+                    "tracking_target": True}}, False
+            return {"ok": False, "error": f"unknown inspect target {what}"}, False
         return {"ok": False, "error": f"unknown cmd {cmd}"}, False
 
 def main():

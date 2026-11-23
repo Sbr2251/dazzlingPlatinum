@@ -297,5 +297,44 @@ class TestGateMapping(unittest.TestCase):
         self.assertEqual(release["tags"], ["smoke"])
         self.assertTrue(release["release"])
 
+    def test_walk_to_advance_dialogue_and_inspect(self):
+        sc = {
+            "name": "story_mock_cutscene",
+            "steps": [
+                {"step": 35},
+                {"inspect": "objects", "expect_present": ["LOCALID_ARC1_GARIUS"], "expect_absent": ["LOCALID_CLOWN_1"]},
+                {"inspect": "camera", "assert": {"active": True, "tracking_target": True}},
+                {"walk_to": {"x": 12, "z": 10, "step_frames": 1, "stop_on_script": True}},
+                {"advance_dialogue": {
+                    "until": {"script": None},
+                    "press_frames": 1, "settle_frames": 1, "poll_frames": 1, "capture_delay_frames": 0,
+                    "expect_min_lines": 2,
+                    "expect_text_contains": ["lost someone", "flyer"],
+                    "capture_on_text": [{"contains": "lost someone", "name": "mock_beat"}],
+                }},
+                {"inspect": "objects", "expect_absent": ["LOCALID_ARC1_GARIUS"], "expect_present": ["LOCALID_CLOWN_1"]},
+            ],
+            "assertions": [{"vars.VAR_ARC1_PROGRESS": 13}],
+        }
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "story_mock_cutscene.json")
+            with open(p, "w") as f:
+                json.dump(sc, f)
+            # Check final assertion via state_request step as well
+            sc["steps"].append({"assert": {"vars.VAR_ARC1_PROGRESS": 13}, "state_request": {"vars": ["VAR_ARC1_PROGRESS"]}})
+            sc["assertions"] = [{"script": None}]
+            with open(p, "w") as f:
+                json.dump(sc, f)
+            name, ok, msg, client = runner.run_scenario(p, FAKE, work_root=td)
+            try:
+                self.assertTrue(ok, msg)
+                self.assertTrue(os.path.exists(os.path.join(client.dir, "mock_beat.png")))
+                tags = runner.classify_tags(p, sc)
+                self.assertIn("story", tags)
+            finally:
+                if client:
+                    client.close()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

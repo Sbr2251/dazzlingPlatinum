@@ -1,0 +1,35 @@
+{
+  "name": "story_jubilife_east_exit_gate",
+  "_note": "Verifies the Jubilife east-exit coord-event gate (x=188, z=757-760) while VAR_ARC1_PROGRESS==12: walking east triggers Garius calling the player back to the TV and pushes the player west.",
+  "tags": ["story", "field"],
+  "requires_exists": [
+    "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+  ],
+  "start": {
+    "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-04_jubilife_before_rally.sav"
+  },
+  "steps": [
+    {"step": 900},
+    {"press_until": {"app": "field"}, "keys": "A", "press_frames": 10, "interval_frames": 300, "timeout_frames": 7200},
+    {"step": 40},
+    {"warp": {"map": "MAP_HEADER_JUBILIFE_CITY", "x": 186, "z": 758, "dir": "DIR_EAST"}},
+    {"step": 180},
+    {"walk_to": {"x": 188, "z": 758, "timeout_frames": 400, "step_frames": 8, "stop_on_script": true}},
+    {
+      "advance_dialogue": {
+        "until": {"script": null},
+        "timeout_frames": 2400,
+        "expect_min_lines": 1,
+        "expect_text_contains": ["Over here"]
+      }
+    },
+    {"step": 10},
+    {"assert": {"vars.VAR_ARC1_PROGRESS": 12}, "state_request": {"vars": ["VAR_ARC1_PROGRESS"]}},
+    {"assert": {"path": "player.x", "op": "lt", "value": 188}}
+  ],
+  "assertions": [
+    {"player.map": "MAP_HEADER_JUBILIFE_CITY"},
+    {"app": "field"},
+    {"script": null}
+  ]
+}

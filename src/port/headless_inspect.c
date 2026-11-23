@@ -7,13 +7,16 @@
 
 #include "billboard.h"
 #include "bg_window.h"
+#include "camera.h"
 #include "constants/charcode.h"
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
 #include "field_overworld_state.h"
+#include "headless_names.h"
 #include "map_header.h"
 #include "map_object.h"
 #include "particle_system.h"
+#include "player_avatar.h"
 #include "port/debug_field.h"
 #include "port/headless_game.h"
 #include "savedata.h"
@@ -84,10 +87,18 @@ static char DecodeChar(charcode_t c)
     if (c >= CHAR_A && c <= CHAR_Z) return (char)('A' + c - CHAR_A);
     if (c >= CHAR_a && c <= CHAR_z) return (char)('a' + c - CHAR_a);
     if (c == CHAR_SPACE || c == CHAR_WIDE_SPACE) return ' ';
+    if (c == CHAR_CR) return '\n';
     if (c == CHAR_EXCLAMATION) return '!';
     if (c == CHAR_QUESTION) return '?';
     if (c == CHAR_PERIOD) return '.';
     if (c == CHAR_COMMA) return ',';
+    if (c == CHAR_SINGLE_QUOTE_OPEN || c == CHAR_SINGLE_QUOTE_CLOSE) return '\'';
+    if (c == CHAR_DOUBLE_QUOTE_OPEN || c == CHAR_DOUBLE_QUOTE_CLOSE || c == CHAR_DOUBLE_QUOTE_CLOSE_INVERTED) return '"';
+    if (c == CHAR_MINUS) return '-';
+    if (c == CHAR_COLON) return ':';
+    if (c == CHAR_SLASH) return '/';
+    if (c == CHAR_PAREN_OPEN) return '(';
+    if (c == CHAR_PAREN_CLOSE) return ')';
     return '?';
 }
 
@@ -96,28 +107,86 @@ static void PutString(InspectOut *out, const String *string)
     u32 i;
     Put(out, "\"");
     if (string != NULL) {
-        for (i = 0; i < string->size && i < 512; i++) PutJsonChar(out, DecodeChar(string->data[i]));
+        for (i = 0; i < string->size && i < 512; i++) {
+            charcode_t c = string->data[i];
+            if (c == CHAR_EOS) break;
+            if (c == CHAR_ELLIPSIS) {
+                Put(out, "...");
+            } else if (c == 0xFFFE) {
+                // Skip string format tag (tag + count + args)
+                if (i + 2 < string->size) {
+                    u16 argc = string->data[i + 2];
+                    i += 2 + argc;
+                }
+            } else {
+                PutJsonChar(out, DecodeChar(c));
+            }
+        }
     }
     Put(out, "\"");
+}
+
+static const char *LocalIdName(int mapHeader, int localId)
+{
+    for (int i = 0; i < kHeadlessLocalsCount; i++) {
+        if (kHeadlessLocals[i].mapHeader == mapHeader && kHeadlessLocals[i].localId == localId) {
+            return kHeadlessLocals[i].name;
+        }
+    }
+    return NULL;
 }
 
 static void InspectObjects(InspectOut *out, FieldSystem *field)
 {
     MapObject *object = NULL;
-    int index = 0, count = 0;
+    int index = 0, count = 0, emitted = 0;
+    BOOL truncated = FALSE;
+    int header = (field != NULL && field->location != NULL) ? field->location->mapHeaderID : -1;
     Put(out, "{\"objects\":[");
     if (field != NULL && field->mapObjMan != NULL) {
         while (MapObjectMan_FindObjectWithStatus(field->mapObjMan, &object, &index, MAP_OBJ_STATUS_0) == TRUE) {
-            Put(out, "%s{\"localid\":%u,\"gfx_id\":%u,\"x\":%d,\"y\":%d,\"z\":%d,"
-                "\"dir\":%d,\"visible\":%s,\"moving\":%s,\"script_id\":%u,\"movement_type\":%u}",
-                count ? "," : "", MapObject_GetLocalID(object), MapObject_GetEffectiveGraphicsID(object),
-                MapObject_GetX(object), MapObject_GetY(object), MapObject_GetZ(object), MapObject_GetFacingDir(object),
-                MapObject_IsHidden(object) ? "false" : "true", MapObject_IsMoving(object) ? "true" : "false",
-                MapObject_GetScript(object), MapObject_GetMovementType(object));
             count++;
+            if (out->cap > out->len + 256) {
+                u32 lid = MapObject_GetLocalID(object);
+                const char *name = LocalIdName(header, (int)lid);
+                Put(out, "%s{\"localid\":%u,\"name\":", emitted ? "," : "", lid);
+                if (name != NULL) Put(out, "\"%s\"", name); else Put(out, "null");
+                Put(out, ",\"gfx_id\":%u,\"x\":%d,\"y\":%d,\"z\":%d,"
+                    "\"dir\":%d,\"visible\":%s,\"moving\":%s,\"script_id\":%u,\"movement_type\":%u}",
+                    MapObject_GetEffectiveGraphicsID(object),
+                    MapObject_GetX(object), MapObject_GetY(object), MapObject_GetZ(object), MapObject_GetFacingDir(object),
+                    MapObject_IsHidden(object) ? "false" : "true", MapObject_IsMoving(object) ? "true" : "false",
+                    MapObject_GetScript(object), MapObject_GetMovementType(object));
+                emitted++;
+            } else {
+                truncated = TRUE;
+            }
         }
     }
-    Put(out, "],\"count\":%d}", count);
+    Put(out, "],\"count\":%d,\"truncated\":%s}", count, truncated ? "true" : "false");
+}
+
+static void InspectCamera(InspectOut *out, FieldSystem *field)
+{
+    if (field == NULL || field->camera == NULL) {
+        Put(out, "{\"active\":false}");
+        return;
+    }
+    const Camera *cam = field->camera;
+    VecFx32 pos = Camera_GetPosition(cam);
+    VecFx32 tgt = Camera_GetTarget(cam);
+    CameraAngle ang = Camera_GetAngle(cam);
+    const VecFx32 *ppos = field->playerAvatar != NULL ? PlayerAvatar_GetPos(field->playerAvatar) : NULL;
+    Put(out, "{\"active\":true,\"position_fx\":[%d,%d,%d],\"target_fx\":[%d,%d,%d],"
+        "\"distance\":%d,\"angle\":[%u,%u,%u],\"fov_y\":%u,\"projection\":%u,"
+        "\"tracking_target\":%s",
+        pos.x, pos.y, pos.z, tgt.x, tgt.y, tgt.z,
+        Camera_GetDistance(cam), ang.x, ang.y, ang.z, Camera_GetFOV(cam), (unsigned)cam->projection,
+        cam->targetPos != NULL ? "true" : "false");
+    if (ppos != NULL) {
+        Put(out, ",\"player_pos_fx\":[%d,%d,%d]", ppos->x, ppos->y, ppos->z);
+    }
+    Put(out, "}");
 }
 
 static void InspectBillboards(InspectOut *out)
@@ -229,6 +298,7 @@ int HeadlessInspect_Handle(const char *line, char *reply, size_t cap)
     else if (!strcmp(what, "text")) InspectText(&out, field);
     else if (!strcmp(what, "ui")) InspectUI(&out, field);
     else if (!strcmp(what, "weather")) InspectWeather(&out, field);
+    else if (!strcmp(what, "camera")) InspectCamera(&out, field);
     else {
         snprintf(reply, cap, "{\"ok\":false,\"error\":\"unknown inspect target\"}");
         return 1;

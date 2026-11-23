@@ -80,6 +80,16 @@
       "press_frames": 10,
       "interval_frames": 300,
       "timeout_frames": 14400
+    },
+    {
+      "assert": {
+        "vars.VAR_ARC1_PROGRESS": 13
+      },
+      "state_request": {
+        "vars": [
+          "VAR_ARC1_PROGRESS"
+        ]
+      }
     }
   ],
   "assertions": [
