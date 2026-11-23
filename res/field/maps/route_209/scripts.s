@@ -27,7 +27,7 @@ Route209_OnTransition:
     SetFlag FLAG_MAP_LOCAL_HIDE_OBSTACLE_16
     SetFlag FLAG_MAP_LOCAL_HIDE_OBSTACLE_17
     CallIfEq VAR_ARC2_PROGRESS, 95, Route209_ShowAftermath
-    GoTo Route209_OnTransition
+    GoTo Route209_OnTransitionStock
     End
 
 Route209_ShowAftermath:
