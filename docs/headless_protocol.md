@@ -103,7 +103,62 @@ Implemented (step 2). `SIM_CONTROL=stdio` implies `SIM_HEADLESS=1`.
 | `{"cmd":"state", ...}` | Game state (below; step 3 for the full fields). |
 | `{"cmd":"import_save","path":"..."}` | Import a raw `.sav`/`.dsv`, reply, then restart the process (stdin/stdout survive `execv`, so the same client keeps working; the reply carries `"restarting":true`). |
 | `{"cmd":"memory"}` | Heap peaks + VRAM usage (below). |
+| `{"cmd":"perf"}` | Last-frame renderer telemetry and cumulative counters (below). Add `"reset":true` to return the current snapshot and then zero cumulative totals. |
+| `{"cmd":"set_config", ...}` | Apply live-safe display/input settings without restarting (below). |
 | `{"cmd":"quit"}` | Reply, then exit 0. |
+
+### Performance telemetry
+
+`{"cmd":"perf"}` replies immediately with `{"ok":true,"frame":N,"perf":{...}}`.
+The same object can be embedded in a game-state reply with
+`{"cmd":"state","perf":true}`, independently of the optional `memory` object.
+Example (values abbreviated):
+
+```json
+{"ok":true,"frame":120,"perf":{
+  "cpu_frame_us":4100,"render_frame_us":3300,
+  "renderer":"gpu","g2_gpu":true,"internal_scale":4,"wide":false,
+  "g3":{"draws":48,"verts":912,"flushes":50,"tex_decodes":1,"tex_uploads":1,
+        "total":{"draws":5200,"verts":99000,"flushes":5400,"tex_decodes":31,"tex_uploads":31}},
+  "g2":{"passes":18,"vram_upload_bytes":1054720,"oam_sprites":24,
+        "total":{"passes":2160,"vram_upload_bytes":126566400,"oam_sprites":2700}},
+  "gpu":{"render_passes":27,"copy_passes":4,
+         "total":{"render_passes":3200,"copy_passes":490}},
+  "audio":{"active_channels":6}}}
+```
+
+`cpu_frame_us` and `render_frame_us` are the existing full-frame and render
+measurements converted to microseconds. The top-level mode fields describe the
+settings active when queried. Each renderer section reports the last completed
+frame plus a `total` accumulated since process boot or the last reset. SDL GPU
+pass counters are zero on the GL backend. `audio.active_channels` is a gauge,
+not an accumulated value. `{"cmd":"perf","reset":true}` returns the
+pre-reset snapshot; a following `perf` has zero totals until another frame runs.
+
+### Live configuration
+
+`set_config` accepts any subset of these live-safe keys and returns exactly what
+was applied in `{"ok":true,"frame":N,"applied":{...}}`:
+
+| Key | Accepted values | Effect |
+|---|---|---|
+| `InternalResolutionScale` | integer 1..8 | Updates the 3D target after the current render. |
+| `ScreenLayout` | `"vertical"`, `"horizontal"`, `"wide"` | Changes layout immediately. `wide` returns `ok:false` under the GL backend. |
+| `SwapScreens` | boolean | Swaps main/sub placement. |
+| `Upscale2DFilter` | `"Nearest"`, `"Sharp"`, `"Linear"`, or integer 0..2 | Changes the composite filter immediately. |
+| `TouchControls` | `"auto"`, `"on"`, `"off"` | Changes the on-screen touch controls without reinitialising SDL. `SIM_TOUCHPAD` still has environment-variable precedence. |
+| `G2Gpu` | boolean | Selects the GPU 2D compositor or CPU reference path for subsequent frames. |
+
+For example:
+
+```json
+{"cmd":"set_config","InternalResolutionScale":4,"ScreenLayout":"wide","SwapScreens":false,"Upscale2DFilter":"Sharp","TouchControls":"on","G2Gpu":true}
+```
+
+Invalid values fail cleanly. Startup-only keys are not silently ignored;
+for example `Renderer` returns `{"ok":false,"error":"Renderer requires restart",...}`.
+The command changes the running configuration only and does not rewrite
+`sim_config.ini`.
 
 Example client: `tools/dazzling/headless_client.py`.
 
