@@ -142,7 +142,10 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->spriteRimLight = TRUE;
   aConfig->overworldCinematics = TRUE;
   aConfig->weatherFx = TRUE;
-  aConfig->waterReflections = TRUE;
+  // Screen-space blue-color water mask false-positives on blue roofs (Poke Mart),
+  // player/NPC blue outfits, and night-tinted fences; keep off by default until
+  // replaced with a true terrain/material water mask (still opt-in via INI / SIM_FX_WATER=1).
+  aConfig->waterReflections = FALSE;
   aConfig->particleBoost = TRUE;
   aConfig->particleBoostDensity = 3;
   aConfig->fieldLoadRadius = 3;
