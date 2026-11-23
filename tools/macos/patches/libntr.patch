@@ -2678,10 +2678,10 @@ index 285ed8d..7db50b3 100644
  
 diff --git a/include/simulator/sim_headless.h b/include/simulator/sim_headless.h
 new file mode 100644
-index 0000000..6204afc
+index 0000000..cde8d6b
 --- /dev/null
 +++ b/include/simulator/sim_headless.h
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,87 @@
 +#pragma once
 +// Headless / lockstep test support for PC builds. See docs/headless_protocol.md in the game repo.
 +// All of it is off unless the SIM_* environment variables are set; the interactive app is unchanged.
@@ -2745,8 +2745,9 @@ index 0000000..6204afc
 +void SIM_Perf_Get(SimPerfCounters *last, SimPerfCounters *total);
 +void SIM_Perf_ResetTotals(void);
 +
-+// Write the current frame to a BMP file. Returns 1 on success. Must be called on the render thread.
++// Write the current frame (or a specific GPU pass stage) to a BMP file. Returns 1 on success.
 +int SIM_Headless_Screenshot(const char *path);
++int SIM_Headless_ScreenshotStage(const char *path, const char *stage);
 +
 +// Print file:line, message and a symbolized backtrace to stderr, then _exit(134).
 +// Used by GF_ASSERT (game side) and the signal handlers.
@@ -3103,10 +3104,10 @@ index 0000000..ed3801a
 +#endif
 diff --git a/include/simulator/sim_render_backend.hpp b/include/simulator/sim_render_backend.hpp
 new file mode 100644
-index 0000000..365540c
+index 0000000..25d2a4a
 --- /dev/null
 +++ b/include/simulator/sim_render_backend.hpp
-@@ -0,0 +1,578 @@
+@@ -0,0 +1,609 @@
 +#ifndef LIBNTR_SIM_RENDER_BACKEND_HPP
 +#define LIBNTR_SIM_RENDER_BACKEND_HPP
 +
@@ -3264,6 +3265,7 @@ index 0000000..365540c
 +
 +#include <cstddef>
 +#include <cstdint>
++#include <vector>
 +
 +struct SDL_Window;
 +struct ImDrawData;
@@ -3633,6 +3635,36 @@ index 0000000..365540c
 +  // RGBA8, rows top-down, rect in window pixels with a top-left origin. out holds w * h * 4 bytes.
 +  // Returns the image Present is about to show.
 +  virtual bool ReadPixels(int x, int y, int w, int h, u8 *out) = 0;
++
++  // Per-pass debug diagnostics (inspect render + screenshot stage).
++  struct RenderDebugInfo {
++    bool g2Gpu = false;
++    bool wide = false;
++    bool waterActive = false;
++    bool weatherActive = false;
++    bool postFxActive = false;
++    int internalScale = 1;
++    int frameW = 0;
++    int frameH = 0;
++    int g3W = 0;
++    int g3H = 0;
++  };
++  virtual void GetRenderDebugInfo(RenderDebugInfo &out) {
++    GetFrameSize(&out.frameW, &out.frameH);
++  }
++  virtual bool ReadStagePixels(const char *stage, int *outW, int *outH, std::vector<u8> &out) {
++    if (!stage || stage[0] == 0 || (stage[0] == 'p' && stage[1] == 'r')) {
++      int w = 0, h = 0;
++      GetFrameSize(&w, &h);
++      if (w <= 0 || h <= 0) return false;
++      out.resize((size_t)w * (size_t)h * 4);
++      if (!ReadPixels(0, 0, w, h, out.data())) return false;
++      if (outW) *outW = w;
++      if (outH) *outH = h;
++      return true;
++    }
++    return false;
++  }
 +
 +  // -- display capture
 +  // Binds the capture target (256 x 384) and clears it; saves the
@@ -27629,10 +27661,10 @@ index 0000000..9d46cd7
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/sim_render_gpu.cpp b/libraries/sim/src/render_gpu/sim_render_gpu.cpp
 new file mode 100644
-index 0000000..fd812ae
+index 0000000..e2408cb
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/sim_render_gpu.cpp
-@@ -0,0 +1,724 @@
+@@ -0,0 +1,786 @@
 +// SDL3 GPU render backend: frame skeleton, post pass, present, readback,
 +// capture, hi-res overlay and ImGui glue. The 3D and 2D layer work lives
 +// in the sibling workstreams; until those draws land, G3 draws are
@@ -27900,12 +27932,19 @@ index 0000000..fd812ae
 +    // perf-gpu2d hook: run optional effects before opening the final pass.
 +    // This avoids emitting an empty CLEAR pass which was immediately ended.
 +    SDL_GPUTexture *fxSrc = mComposite.Handle();
-+    if (mFxWater.Run(mDevice, f, fxSrc, mFxTempA, mPresent.Format(),
-+                     mPresent.Width(), mPresent.Height(), params.wideMode))
-+      fxSrc = mFxTempA.Handle();
-+    if (mFxWeather.Run(mDevice, f, fxSrc, mFxTempB, mPresent.Format(),
-+                       mPresent.Width(), mPresent.Height(), params.wideMode))
-+      fxSrc = mFxTempB.Handle();
++    mLastWaterRan = mFxWater.Run(mDevice, f, fxSrc, mFxTempA, mPresent.Format(),
++                                 mPresent.Width(), mPresent.Height(), params.wideMode);
++    if (mLastWaterRan) fxSrc = mFxTempA.Handle();
++    mLastWeatherRan = mFxWeather.Run(mDevice, f, fxSrc, mFxTempB, mPresent.Format(),
++                                     mPresent.Width(), mPresent.Height(), params.wideMode);
++    if (mLastWeatherRan) fxSrc = mFxTempB.Handle();
++    mLastPostActive = (params.vignetteAmount > 0.0f || params.chromaAmount > 0.0f ||
++                       params.glowAmount > 0.0f || params.glowAtAmount > 0.0f ||
++                       params.zoomBlur > 0.0f || params.shockStrength > 0.0f ||
++                       params.letterbox > 0.0f || params.cutinAlpha > 0.0f ||
++                       params.titleAlpha > 0.0f || params.shakeOffset[0] != 0.0f ||
++                       params.shakeOffset[1] != 0.0f);
++    mLastWideMode = params.wideMode != 0;
 +    PassDesc d = PassDesc::Color(mPresent.Handle(), SDL_GPU_LOADOP_CLEAR,
 +                                 {0.0f, 0.0f, 0.0f, 1.0f});
 +    if (!f->BeginPass(Phase::Post, d)) return;
@@ -28173,6 +28212,57 @@ index 0000000..fd812ae
 +  int GetSwapInterval() override { return mSwapInterval; }
 +  void DebugMarker(const char *, int) override {}
 +
++  void GetRenderDebugInfo(RenderDebugInfo &out) override {
++    out.g2Gpu = true;
++    out.wide = mLastWideMode;
++    out.waterActive = mLastWaterRan;
++    out.weatherActive = mLastWeatherRan;
++    out.postFxActive = mLastPostActive;
++    out.internalScale = mG3Scale;
++    out.frameW = mFrameW;
++    out.frameH = mFrameH;
++    out.g3W = (int)mG3.Width();
++    out.g3H = (int)mG3.Height();
++  }
++
++  bool ReadStagePixels(const char *stage, int *outW, int *outH, std::vector<u8> &out) override {
++    if (!mInited) return false;
++    if (!stage || stage[0] == 0 || std::strcmp(stage, "present") == 0) {
++      if (outW) *outW = mFrameW;
++      if (outH) *outH = mFrameH;
++      out.resize((size_t)mFrameW * (size_t)mFrameH * 4);
++      return ReadPixels(0, 0, mFrameW, mFrameH, out.data());
++    }
++    FlushFrameForReadback();
++    SDL_GPUTexture *tex = nullptr;
++    SDL_GPUTextureFormat fmt = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
++    int tw = 0, th = 0;
++    if (std::strcmp(stage, "g3") == 0) {
++      tex = mG3.Color().Handle(); fmt = mG3.Color().Format();
++      tw = (int)mG3.Width(); th = (int)mG3.Height();
++    } else if (std::strcmp(stage, "composite") == 0) {
++      tex = mComposite.Handle(); fmt = mComposite.Format();
++      tw = (int)mComposite.Width(); th = (int)mComposite.Height();
++    } else if (std::strcmp(stage, "water") == 0) {
++      if (!mLastWaterRan || !mFxTempA.Handle()) return false;
++      tex = mFxTempA.Handle(); fmt = mFxTempA.Format();
++      tw = (int)mFxTempA.Width(); th = (int)mFxTempA.Height();
++    } else if (std::strcmp(stage, "weather") == 0) {
++      if (!mLastWeatherRan || !mFxTempB.Handle()) return false;
++      tex = mFxTempB.Handle(); fmt = mFxTempB.Format();
++      tw = (int)mFxTempB.Width(); th = (int)mFxTempB.Height();
++    } else {
++      return false;
++    }
++    if (!tex || tw <= 0 || th <= 0) return false;
++    std::vector<Uint8> px;
++    if (!mDevice.ReadbackRGBA8(tex, fmt, 0, 0, (Uint32)tw, (Uint32)th, px)) return false;
++    out.assign(px.begin(), px.end());
++    if (outW) *outW = tw;
++    if (outH) *outH = th;
++    return true;
++  }
++
 + private:
 +  enum class PassKind { None, Composite, Capture, Post };
 +
@@ -28320,6 +28410,10 @@ index 0000000..fd812ae
 +  bool mPresented = false;
 +  bool mInCapture = false;
 +  bool mCaptureReadDone = false;
++  bool mLastWaterRan = false;
++  bool mLastWeatherRan = false;
++  bool mLastPostActive = false;
++  bool mLastWideMode = false;
 +  bool mHadComposite = true;
 +  PassKind mPass = PassKind::None;
 +  int mSwapInterval = 1;
@@ -32992,10 +33086,10 @@ index 4b4d007..4e7444e 100644
                  || Event.jaxis.value < (sConfig->padSettings.joyAxisDeadzone*-1)) {
 diff --git a/libraries/sim/src/sim_headless.cpp b/libraries/sim/src/sim_headless.cpp
 new file mode 100644
-index 0000000..c436fa8
+index 0000000..1e406bf
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless.cpp
-@@ -0,0 +1,174 @@
+@@ -0,0 +1,192 @@
 +// Headless / deterministic mode for PC builds (docs/headless_protocol.md).
 +// Off unless SIM_HEADLESS / SIM_CONTROL / SIM_FIXED_RTC / SIM_SEED / SIM_SAVE_PATH is set.
 +#include "simulator/sim_headless.h"
@@ -33054,6 +33148,9 @@ index 0000000..c436fa8
 +}
 +
 +extern "C" void SIM_Headless_Init(void) {
++    // Keep redirected log.txt line-buffered so interactive crashes/kills never lose log lines.
++    setvbuf(stdout, nullptr, _IOLBF, 0);
++    setvbuf(stderr, nullptr, _IONBF, 0);
 +    if (s_headless || s_control) return;
 +    const char *e;
 +    e = getenv("SIM_HEADLESS"); s_headless = (e && atoi(e)) ? 1 : 0;
@@ -33146,6 +33243,21 @@ index 0000000..c436fa8
 +    return ok;
 +}
 +
++extern "C" int SIM_Headless_ScreenshotStage(const char *path, const char *stage) {
++    if (!path) return 0;
++    if (!stage || stage[0] == 0 || strcmp(stage, "present") == 0) {
++        return SIM_Headless_Screenshot(path);
++    }
++    int w = 0, h = 0;
++    std::vector<u8> px;
++    if (!SIM::Render::Get().ReadStagePixels(stage, &w, &h, px) || w <= 0 || h <= 0) return 0;
++    SDL_Surface *surf = SDL_CreateSurfaceFrom(w, h, SDL_PIXELFORMAT_RGBA32, px.data(), w * 4);
++    if (!surf) return 0;
++    bool ok = SDL_SaveBMP(surf, path);
++    SDL_DestroySurface(surf);
++    return ok;
++}
++
 +// Reply writer for the control protocol (defined here so early commands can use it).
 +extern "C" void SIM_Headless_Reply(const char *line) {
 +    int fd = s_replyFd >= 0 ? s_replyFd : STDOUT_FILENO;
@@ -33172,10 +33284,10 @@ index 0000000..c436fa8
 +}
 diff --git a/libraries/sim/src/sim_headless_control.cpp b/libraries/sim/src/sim_headless_control.cpp
 new file mode 100644
-index 0000000..cb6f982
+index 0000000..44b8fdc
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_control.cpp
-@@ -0,0 +1,410 @@
+@@ -0,0 +1,432 @@
 +#include <simulator/sim_render_backend.hpp>
 +// SIM_CONTROL=stdio lockstep protocol (docs/headless_protocol.md).
 +// The game does not advance until told to: this runs at the end of each rendered frame
@@ -33499,11 +33611,33 @@ index 0000000..cb6f982
 +        ReplyOk(extra); return false;
 +    }
 +    if (cmd == "screenshot") {
-+        std::string path;
++        std::string path, stage;
 +        if (!JsonString(line, "path", &path)) { ReplyError("screenshot needs path"); return false; }
-+        if (SIM_Headless_Screenshot(path.c_str())) ReplyOk();
-+        else ReplyError("screenshot failed");
++        bool ok = JsonString(line, "stage", &stage)
++            ? SIM_Headless_ScreenshotStage(path.c_str(), stage.c_str())
++            : SIM_Headless_Screenshot(path.c_str());
++        if (ok) ReplyOk();
++        else ReplyError(stage.empty() ? "screenshot failed" : "screenshot stage unavailable");
 +        return false;
++    }
++    if (cmd == "inspect") {
++        std::string what;
++        if (JsonString(line, "what", &what) && what == "render") {
++            SIM::Render::Backend &b = SIM::Render::Get();
++            SIM::Render::Backend::RenderDebugInfo info;
++            b.GetRenderDebugInfo(info);
++            char extra[512];
++            snprintf(extra, sizeof extra,
++                "\"what\":\"render\",\"data\":{\"renderer\":\"%s\",\"g2_gpu\":%s,\"wide\":%s,"
++                "\"internal_scale\":%d,\"frame_size\":[%d,%d],\"g3_size\":[%d,%d],"
++                "\"fx_water_ran\":%s,\"fx_weather_ran\":%s,\"post_fx_active\":%s}",
++                b.Name(), info.g2Gpu ? "true" : "false", info.wide ? "true" : "false",
++                info.internalScale, info.frameW, info.frameH, info.g3W, info.g3H,
++                info.waterActive ? "true" : "false", info.weatherActive ? "true" : "false",
++                info.postFxActive ? "true" : "false");
++            ReplyOk(extra);
++            return false;
++        }
 +    }
 +    if (cmd == "perf") {
 +        char perf[2048], extra[2112]; PerfJson(perf, sizeof perf);
@@ -33588,10 +33722,10 @@ index 0000000..cb6f982
 +}
 diff --git a/libraries/sim/src/sim_headless_watchdog.cpp b/libraries/sim/src/sim_headless_watchdog.cpp
 new file mode 100644
-index 0000000..c5d0853
+index 0000000..2f56b39
 --- /dev/null
 +++ b/libraries/sim/src/sim_headless_watchdog.cpp
-@@ -0,0 +1,183 @@
+@@ -0,0 +1,229 @@
 +// Assert / crash reporting and the watchdog (docs/headless_protocol.md, step 4).
 +// Headless: GF_ASSERT and fatal signals print file:line, message and a symbolized
 +// backtrace to stderr, then exit 134. The watchdog exits 124 with a state dump when
@@ -33614,6 +33748,7 @@ index 0000000..c5d0853
 +#include <unistd.h>
 +#if defined(__linux__) || defined(__APPLE__)
 +#include <execinfo.h>
++#include <pthread.h>
 +#endif
 +
 +// Weak definition lives in sim_headless_control.cpp; overridden by the game.
@@ -33624,6 +33759,34 @@ index 0000000..c5d0853
 +static std::atomic<bool> s_armed{false};
 +static long long s_timeoutMs = 30000;
 +static bool s_started = false;
++#if defined(__linux__) || defined(__APPLE__)
++static pthread_t s_mainThread;
++static std::atomic<bool> s_haveMainThread{false};
++static std::atomic<bool> s_mainTraceDone{false};
++
++static void MainThreadTraceHandler(int sig) {
++    (void)sig;
++    const char hdr[] = "SIM watchdog main-thread backtrace:\n";
++    ssize_t ignored = write(STDERR_FILENO, hdr, sizeof(hdr) - 1);
++    (void)ignored;
++    void *frames[64];
++    int n = backtrace(frames, 64);
++    if (n > 0) backtrace_symbols_fd(frames, n, STDERR_FILENO);
++    s_mainTraceDone.store(true);
++}
++
++static void RequestMainThreadBacktrace() {
++    if (!s_haveMainThread.load()) return;
++    s_mainTraceDone.store(false);
++    if (pthread_kill(s_mainThread, SIGUSR1) == 0) {
++        for (int i = 0; i < 40 && !s_mainTraceDone.load(); ++i) {
++            std::this_thread::sleep_for(std::chrono::milliseconds(5));
++        }
++    }
++}
++#else
++static void RequestMainThreadBacktrace() {}
++#endif
 +
 +static long long NowMs();
 +
@@ -33698,7 +33861,7 @@ index 0000000..c5d0853
 +            fprintf(stderr, "SIM watchdog: no frame completed for %lld ms (limit %lld ms)\n",
 +                    NowMs() - last, s_timeoutMs);
 +            SIM_Headless_DumpState("watchdog");
-+            PrintBacktrace();
++            RequestMainThreadBacktrace();
 +            fflush(stderr);
 +            _exit(124);
 +        }
@@ -33710,7 +33873,7 @@ index 0000000..c5d0853
 +            fprintf(stderr, "SIM watchdog: screen and state frozen for %lld ms while inputs are being sent (limit %lld ms)\n",
 +                    NowMs() - lastChange, s_timeoutMs);
 +            SIM_Headless_DumpState("watchdog-soft-freeze");
-+            PrintBacktrace();
++            RequestMainThreadBacktrace();
 +            fflush(stderr);
 +            _exit(124);
 +        }
@@ -33720,6 +33883,15 @@ index 0000000..c5d0853
 +static void StartWatchdogOnce() {
 +    if (s_started) return;
 +    s_started = true;
++#if defined(__linux__) || defined(__APPLE__)
++    s_mainThread = pthread_self();
++    s_haveMainThread.store(true);
++    struct sigaction usr;
++    memset(&usr, 0, sizeof usr);
++    usr.sa_handler = MainThreadTraceHandler;
++    sigemptyset(&usr.sa_mask);
++    sigaction(SIGUSR1, &usr, nullptr);
++#endif
 +    const char *e = getenv("SIM_WATCHDOG_SEC");
 +    if (e) s_timeoutMs = atoll(e) * 1000;
 +    if (s_timeoutMs < 0) s_timeoutMs = 0;
@@ -33748,7 +33920,7 @@ index 0000000..c5d0853
 +// ---- signal handlers (best effort) ----
 +
 +static void CrashHandler(int sig) {
-+    const char *name = sig == SIGSEGV ? "SIGSEGV" : sig == SIGBUS ? "SIGBUS" : sig == SIGABRT ? "SIGABRT" : sig == SIGFPE ? "SIGFPE" : "signal";
++    const char *name = sig == SIGSEGV ? "SIGSEGV" : sig == SIGBUS ? "SIGBUS" : sig == SIGABRT ? "SIGABRT" : sig == SIGFPE ? "SIGFPE" : sig == SIGILL ? "SIGILL" : "signal";
 +    char buf[128];
 +    int n = snprintf(buf, sizeof buf, "SIM crash: %s (%d) at frame=%llu\n", name, sig, SIM_Headless_FrameCount());
 +    if (n > 0) { ssize_t ignored = write(STDERR_FILENO, buf, (size_t)n); (void)ignored; }
@@ -33757,11 +33929,18 @@ index 0000000..c5d0853
 +    int count = backtrace(frames, 48);
 +    if (count > 0) backtrace_symbols_fd(frames, count, STDERR_FILENO);
 +#endif
-+    _exit(134);
++    if (SIM_Headless_Enabled() || SIM_Control_Enabled()) {
++        _exit(134);
++    }
++    // Interactive: re-raise default signal so macOS still writes a .ips DiagnosticReport.
++    signal(sig, SIG_DFL);
++    raise(sig);
 +}
 +
 +extern "C" void SIM_Headless_InstallCrashHandlers(void) {
++#if defined(__SANITIZE_ADDRESS__)
 +    if (!SIM_Headless_Enabled() && !SIM_Control_Enabled()) return;
++#endif
 +    struct sigaction sa;
 +    memset(&sa, 0, sizeof sa);
 +    sa.sa_handler = CrashHandler;
@@ -33770,6 +33949,7 @@ index 0000000..c5d0853
 +    sigaction(SIGSEGV, &sa, nullptr);
 +    sigaction(SIGBUS, &sa, nullptr);
 +    sigaction(SIGABRT, &sa, nullptr);
++    sigaction(SIGILL, &sa, nullptr);
 +    // Integer division by zero (e.g. a particle anim curve with a zero
 +    // interpolation span) kills x86 builds with SIGFPE but is silent on
 +    // ARM; without a handler the headless process just vanishes.

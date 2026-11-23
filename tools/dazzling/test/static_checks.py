@@ -338,6 +338,42 @@ def check_waitfanfare(root):
                     errs.append(f"waitfanfare: {rel}:{j+1}: {op} after WaitFanfare targets '{target}', which is not a label in this file (constant used as jump target?)")
     return errs
 
+def check_self_loops(root):
+    """Flag any script label that jumps unconditionally back to itself
+    (GoTo <same label>) with no conditional branch or exit instruction first.
+    Catches bugs like Route209_OnTransition -> GoTo Route209_OnTransition."""
+    errs = []
+    branch_re = re.compile(
+        r"^(GoToIf\w*|Return|End|Warp\w*|Switch\w*|Jump\w*|WaitButton\w*|WaitABPadPress|Message\w*|YesNo\w*|MultiChoice\w*)\b"
+    )
+    goto_re = re.compile(r"^GoTo\s+([A-Za-z_]\w*)\b")
+    label_re = re.compile(r"^([A-Za-z_]\w*):$")
+    paths = sorted(glob.glob(os.path.join(root, "res/field/maps/*/scripts.s"))) + \
+            sorted(glob.glob(os.path.join(root, "res/field/scripts/*.s")))
+    for path in paths:
+        cur = None
+        has_exit = False
+        for lineno, line in enumerate(open(path, encoding="utf-8", errors="replace"), 1):
+            s = line.split("//", 1)[0].strip()
+            if not s:
+                continue
+            lm = label_re.match(s)
+            if lm:
+                cur = lm.group(1)
+                has_exit = False
+                continue
+            if not cur:
+                continue
+            if branch_re.match(s):
+                has_exit = True
+                continue
+            gm = goto_re.match(s)
+            if gm and gm.group(1) == cur and not has_exit:
+                rel = os.path.relpath(path, root)
+                errs.append(f"self_loops: {rel}:{lineno}: unconditional infinite self-loop '{cur} -> GoTo {cur}'")
+    return errs
+
+
 CHECKS = {
     "script_targets": check_script_targets,
     "text_labels": check_text_labels,
@@ -345,6 +381,7 @@ CHECKS = {
     "json_data": check_json_data,
     "curly": check_curly,
     "waitfanfare": check_waitfanfare,
+    "self_loops": check_self_loops,
 }
 
 def main(argv=None):

@@ -31,7 +31,9 @@ static BOOL FxEnabled(int configValue, const char *envName)
 
     if (sHeadless < 0) {
         const char *headless = getenv("SIM_HEADLESS");
-        sHeadless = (headless != NULL && headless[0] != 0 && headless[0] != '0') ? 1 : 0;
+        const char *interactiveFx = getenv("SIM_HEADLESS_INTERACTIVE_FX");
+        BOOL allowInteractive = (interactiveFx != NULL && interactiveFx[0] != 0 && interactiveFx[0] != '0');
+        sHeadless = (!allowInteractive && headless != NULL && headless[0] != 0 && headless[0] != '0') ? 1 : 0;
     }
 
     env = EnvFlag(envName);

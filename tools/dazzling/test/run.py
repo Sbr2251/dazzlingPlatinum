@@ -780,8 +780,12 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
                                 raise ScenarioFailure(idx, step, f"inspect {what}: expected {ban_id!r} to be absent", client.last_state, client.last_screenshot)
                 elif "screenshot" in step:
                     shot_name = step["screenshot"] if isinstance(step["screenshot"], str) else step["screenshot"].get("name", f"step{idx}")
+                    shot_stage = step.get("stage") or (step["screenshot"].get("stage") if isinstance(step["screenshot"], dict) else None)
                     out = os.path.join(client.dir, shot_name + ".bmp")
-                    client.cmd({"cmd": "screenshot", "path": out})
+                    shot_cmd = {"cmd": "screenshot", "path": out}
+                    if shot_stage:
+                        shot_cmd["stage"] = shot_stage
+                    client.cmd(shot_cmd)
                     client.last_screenshot = out
                     ref = step.get("reference") or (step["screenshot"].get("reference") if isinstance(step["screenshot"], dict) else None)
                     if ref:
@@ -1046,10 +1050,14 @@ def main(argv=None):
                     help="run each scenario twice, SIM_RENDERER=gl and =gpu, both against the same references; "
                     "the gpu run uses each screenshot step's tolerance_gpu when present, else its tolerance. "
                     "Combinable with --compare-renderers")
+    ap.add_argument("--interactive-fx", action="store_true",
+                    help="use interactive sim_config_prj.ini FX defaults even under SIM_HEADLESS")
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--work-root", default=None)
     args = ap.parse_args(argv)
     started_all = time.monotonic()
+    if args.interactive_fx:
+        os.environ["SIM_HEADLESS_INTERACTIVE_FX"] = "1"
     if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
         os.environ.setdefault("SDL_VIDEO_DRIVER", "offscreen")
     game = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fake_game.py") if args.mock else args.game

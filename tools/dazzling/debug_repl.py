@@ -67,7 +67,7 @@ def prepare_work(game, name, save=None):
 
 
 class Game:
-    def __init__(self, game, name, save=None, fast_boot=False):
+    def __init__(self, game, name, save=None, fast_boot=False, interactive_fx=False):
         game, self.work, save_path = prepare_work(game, name, save)
         env = dict(os.environ)
         env.setdefault("LP_NUM_THREADS", "2")
@@ -78,6 +78,8 @@ class Game:
                     "SIM_SEED": "12345", "SIM_SAVE_PATH": save_path, "SDL_MAC_BACKGROUND_APP": "1"})
         if fast_boot:
             env["SIM_BOOT_DIRECT_SAVE"] = "1"
+        if interactive_fx:
+            env["SIM_HEADLESS_INTERACTIVE_FX"] = "1"
         stderr_path = paths(name)[2]
         self.stderr = open(stderr_path, "ab", buffering=0)
         self.proc = subprocess.Popen([game], cwd=self.work, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -307,7 +309,7 @@ def cmd_list(_args):
 
 def cmd_run(args):
     name = "oneshot-%d" % os.getpid()
-    game = Game(args.game, name, args.save, args.fast_boot)
+    game = Game(args.game, name, args.save, args.fast_boot, getattr(args, "interactive_fx", False))
     replies = []
     try:
         game.command({"cmd": "state"})
@@ -327,7 +329,8 @@ def parser():
     sub = ap.add_subparsers(dest="subcommand", required=True)
     run = sub.add_parser("run", help="boot, execute commands, optionally shoot, then exit")
     run.add_argument("--game", default="build_linux/main"); run.add_argument("--save")
-    run.add_argument("--cmd", action="append", default=[]); run.add_argument("--shot"); run.add_argument("--fast-boot", action="store_true")
+    run.add_argument("--cmd", action="append", default=[]); run.add_argument("--shot")
+    run.add_argument("--fast-boot", action="store_true"); run.add_argument("--interactive-fx", action="store_true")
     run.set_defaults(func=cmd_run)
     start = sub.add_parser("start", help="start a persistent session")
     start.add_argument("name"); start.add_argument("--game", default="build_linux/main"); start.add_argument("--save")
