@@ -129,33 +129,6 @@ index 0485258..289f448 100644
  
          NNS_G3dGeSendDL(rs->c + rel_addr, size);
      }
-diff --git a/libraries/snd/src/heap.c b/libraries/snd/src/heap.c
-index 7f34fab..6dfd956 100644
---- a/libraries/snd/src/heap.c
-+++ b/libraries/snd/src/heap.c
-@@ -178,6 +178,14 @@ int NNS_SndHeapSaveState (NNSSndHeapHandle heap)
- 
- void NNS_SndHeapLoadState (NNSSndHeapHandle heap, int level)
- {
-+#ifdef SDK_PORT
-+    // Port sound archives are cached for the process lifetime. Keeping heap
-+    // sections resident makes subsequent group/bank/wave loads address hits
-+    // and avoids synchronous command flushes during scene transitions.
-+    (void)heap;
-+    (void)level;
-+    return;
-+#else
-     NNSSndHeapSection * section;
-     void * object = NULL;
-     BOOL result;
-@@ -217,6 +225,7 @@ void NNS_SndHeapLoadState (NNSSndHeapHandle heap, int level)
- 
-     result = NewSection(heap);
-     NNS_ASSERTMSG(result, "NNS_SndHeapLoadState(): NewSection is Failed");
-+#endif
- }
- 
- int NNS_SndHeapGetCurrentLevel (NNSSndHeapHandle heap)
 diff --git a/libraries/snd/src/sndarc.c b/libraries/snd/src/sndarc.c
 index aa33154..52cfc47 100644
 --- a/libraries/snd/src/sndarc.c

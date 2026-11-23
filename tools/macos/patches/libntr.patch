@@ -5630,7 +5630,7 @@ index f8d7968..8de4f76 100644
      return *(REGType16 *)((u32)REG_TM0CNT_L_ADDR + OSi_TICK_TIMER * 4);
      #endif
 diff --git a/libraries/pxi/src/pxi_fifo.c b/libraries/pxi/src/pxi_fifo.c
-index 19f9987..91c5462 100644
+index 19f9987..416747f 100644
 --- a/libraries/pxi/src/pxi_fifo.c
 +++ b/libraries/pxi/src/pxi_fifo.c
 @@ -3,8 +3,39 @@
@@ -5673,7 +5673,7 @@ index 19f9987..91c5462 100644
  #endif
  
  static u16 FifoCtrlInit = 0;
-@@ -172,13 +203,15 @@ int PXI_SendWordByFifo (int fifotag, uPtr data, BOOL err)
+@@ -172,12 +203,16 @@ int PXI_SendWordByFifo (int fifotag, uPtr data, BOOL err)
      fifomsg.e.data = data;
  
      #ifdef SDK_PORT
@@ -5686,14 +5686,14 @@ index 19f9987..91c5462 100644
      fifoMsgPtr->e.err = (u32)err;
      fifoMsgPtr->e.data = data;
 -    SIM_queue_write( pxiQueuePtr, (void *)fifoMsgPtr );
--    SIM_PostPxiThread();
 +    int queued = SIM_queue_write(pxiQueuePtr, fifoMsgPtr);
 +    if (queued < 0) { PXI_Release9To7Message(fifoMsgPtr); return PXI_FIFO_FAIL_SEND_FULL; }
-+    if (queued) SIM_PostPxiThread(); // empty -> nonempty: one batched wakeup
++    // Always signal: gating on head == tail races the consumer's tail update and
++    // can drop a wakeup permanently, deadlocking SND_WaitForCommandProc / RTC.
+     SIM_PostPxiThread();
      return PXI_FIFO_SUCCESS;
      #else
-     return PXIi_SetToFifo(fifomsg.raw);
-@@ -197,13 +230,15 @@ int PXI_SendWordByFifo7(int fifotag, uPtr data, BOOL err)
+@@ -197,12 +232,14 @@ int PXI_SendWordByFifo7(int fifotag, uPtr data, BOOL err)
      fifomsg.e.err = (u32)err;
      fifomsg.e.data = data;
  
@@ -5706,13 +5706,11 @@ index 19f9987..91c5462 100644
      fifoMsgPtr->e.err = (u32)err;
      fifoMsgPtr->e.data = data;
 -    SIM_queue_write( pxi7to9QueuePtr, (void *)fifoMsgPtr );
--    SIM_PostPxi7to9Thread();
 +    int queued = SIM_queue_write(pxi7to9QueuePtr, fifoMsgPtr);
 +    if (queued < 0) { PXI_Release7To9Message(fifoMsgPtr); return PXI_FIFO_FAIL_SEND_FULL; }
-+    if (queued) SIM_PostPxi7to9Thread(); // empty -> nonempty: one batched wakeup
+     SIM_PostPxi7to9Thread();
      return PXI_FIFO_SUCCESS;
  }
- #endif
 diff --git a/libraries/rtc/src/external.c b/libraries/rtc/src/external.c
 index 4282214..3a340d6 100644
 --- a/libraries/rtc/src/external.c
@@ -34608,7 +34606,7 @@ index 0000000..4b3f9e5
 +    return 1;
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..0d24ce2 100644
+index 910d7da..5483e33 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,14 +1,23 @@
@@ -36415,15 +36413,15 @@ index 910d7da..0d24ce2 100644
 -          exit(0);
 -          break;
 -        }
-+      if (Event.type == SDL_EVENT_QUIT) {
-+        exit(0);   // Cmd+Q / Quit in the app menu
++      if (Event.type == SDL_EVENT_QUIT || Event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
++        SIM_Audio_SetPaused(true);
++        SIM_SaveFlash_Flush();
++        fflush(nullptr);
++        _exit(0);   // Cmd+Q / Quit / window close: skip static dtors racing live audio/PXI threads
        }
 -      if (Event.type == SDL_KEYDOWN) {
 -        int keyRead = Event.key.keysym.sym;
 -        if (keyRead == s_SIM_config.padSettings.aKey) {
-+      if (Event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
-+        exit(0);
-+      }
 +      if (Event.type == SDL_EVENT_KEY_DOWN && !Event.key.repeat &&
 +          (Event.key.key == SDLK_F8 || Event.key.key == SDLK_MEDIA_PLAY)) {
 +        // F8 (fn+F8 on a Mac keyboard, where F8 is play/pause) pauses / resumes the game
@@ -36497,7 +36495,7 @@ index 910d7da..0d24ce2 100644
          if (Event.jaxis.value > s_SIM_config.padSettings.joyAxisDeadzone ||
              Event.jaxis.value <
                  (s_SIM_config.padSettings.joyAxisDeadzone * -1)) {
-@@ -1245,23 +1888,98 @@ void *SIM_Render(void *arg) {
+@@ -1245,23 +1888,103 @@ void *SIM_Render(void *arg) {
                                SIM_CONFIG_JOY_AXIS_MINUS_MASK);
          }
        }
@@ -36567,7 +36565,12 @@ index 910d7da..0d24ce2 100644
 +      if (!SDL_WaitEventTimeout(&suspendedEvent, 100)) continue;
 +      SIM_Platform_HandleEvent(&suspendedEvent);
 +      if (suspendedEvent.type == SDL_EVENT_QUIT ||
-+          suspendedEvent.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) exit(0);
++          suspendedEvent.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
++        SIM_Audio_SetPaused(true);
++        SIM_SaveFlash_Flush();
++        fflush(nullptr);
++        _exit(0);
++      }
 +    }
 +    { // ios-controls hook: headless finger injection, same path as SDL fingers.
 +      float inx, iny; int iphase;
@@ -36600,7 +36603,7 @@ index 910d7da..0d24ce2 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1278,31 +1996,63 @@ void *SIM_Render(void *arg) {
+@@ -1278,31 +2001,63 @@ void *SIM_Render(void *arg) {
      SIM::GUI::Main();
      #endif
  
@@ -36686,7 +36689,7 @@ index 910d7da..0d24ce2 100644
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1327,23 +2077,51 @@ void *SIM_Render(void *arg) {
+@@ -1327,23 +2082,51 @@ void *SIM_Render(void *arg) {
  #ifdef SDK_TRACY_ENABLE
      TracyCZoneEnd(SimRenderZone);
  #endif
@@ -36749,7 +36752,7 @@ index 910d7da..0d24ce2 100644
      }
  
      //Calculate full frametime (after swap)
-@@ -1359,45 +2137,40 @@ void *SIM_Render(void *arg) {
+@@ -1359,45 +2142,40 @@ void *SIM_Render(void *arg) {
  #endif
  
      s_numG3CommandsThisFrame = 0;
@@ -36818,7 +36821,7 @@ index 910d7da..0d24ce2 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1407,17 +2180,15 @@ u64 SIM_GetFullFrameTime() {
+@@ -1407,17 +2185,15 @@ u64 SIM_GetFullFrameTime() {
    return sFullFrameTime;
  }
  
@@ -36838,7 +36841,7 @@ index 910d7da..0d24ce2 100644
  }
  
  const char * SIM_GetLibntrGitHash() {
-@@ -1465,6 +2236,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +2241,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -36847,7 +36850,7 @@ index 910d7da..0d24ce2 100644
    // Start up debug system
    SIM_Dbg_Init();
  
-@@ -1477,12 +2250,18 @@ int main(int argc, char *argv[]) {
+@@ -1477,12 +2255,18 @@ int main(int argc, char *argv[]) {
      SIM_Config_SaveConfigFile(&s_SIM_config);
    }
  
@@ -36867,7 +36870,7 @@ index 910d7da..0d24ce2 100644
    #endif
  
    if (romFile != NULL) {
-@@ -1537,8 +2316,6 @@ int main(int argc, char *argv[]) {
+@@ -1537,8 +2321,6 @@ int main(int argc, char *argv[]) {
    SIM::G3::GetGlobalState().Init();
  
    SIM_RenderInit(NULL);
@@ -36914,7 +36917,7 @@ index 83a6cc8..7347075 100644
                  SendMyPlayer();
 diff --git a/libraries/sim/src/sim_platform.cpp b/libraries/sim/src/sim_platform.cpp
 new file mode 100644
-index 0000000..67c1abf
+index 0000000..1f73a0c
 --- /dev/null
 +++ b/libraries/sim/src/sim_platform.cpp
 @@ -0,0 +1,153 @@
@@ -37021,7 +37024,7 @@ index 0000000..67c1abf
 +  return SDL_GetWindowSafeArea(window, out) ? 1 : 0;
 +}
 +int SIM_Platform_PacingSwapInterval(SDL_Window *window) {
-+  if (!IsIOS() || !window) return 1;
++  if (!window) return 1;
 +  SDL_DisplayID id = SDL_GetDisplayForWindow(window);
 +  const SDL_DisplayMode *m = id ? SDL_GetCurrentDisplayMode(id) : nullptr;
 +  return (m && m->refresh_rate >= 100.0f) ? 2 : 1;
