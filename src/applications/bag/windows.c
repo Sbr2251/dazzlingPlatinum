@@ -138,9 +138,10 @@ void BagUI_ClearPocketNameBox(BagController *controller)
 {
     u16 baseTile = Bag_IsWidePixelMode() ? 505 : BASE_TILE_POCKET_NAMES;
     u16 width = Bag_IsWidePixelMode() ? 12 : POCKET_NAMES_WINDOW_WIDTH;
+    u16 xOffset = Bag_IsWidePixelMode() ? 0 : 12;
     for (u16 i = 0; i < 12; i++) {
-        Bg_FillTilemapRect(controller->bgConfig, BG_LAYER_MAIN_2, baseTile + 12 + i, i, 13, 1, 1, 3);
-        Bg_FillTilemapRect(controller->bgConfig, BG_LAYER_MAIN_2, baseTile + width + 12 + i, i, 13 + 1, 1, 1, 3);
+        Bg_FillTilemapRect(controller->bgConfig, BG_LAYER_MAIN_2, baseTile + xOffset + i, i, 13, 1, 1, 3);
+        Bg_FillTilemapRect(controller->bgConfig, BG_LAYER_MAIN_2, baseTile + width + xOffset + i, i, 13 + 1, 1, 1, 3);
     }
 }
 
@@ -159,6 +160,11 @@ void BagUI_PrintPocketNames(BagController *controller)
 
     BagPocketSelector *pocketSelector = &controller->pocketSelector;
     String *currentPocketName = controller->pocketNames[controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].pocketType];
+    if (Bag_IsWidePixelMode()) {
+        PrintPocketNameCentered(controller, currentPocketName, 48);
+        Window_LoadTiles(&controller->windows[BAG_UI_WINDOW_POCKET_NAMES]);
+        return;
+    }
     String *nextPocketName = controller->pocketNames[controller->bagCtx->accessiblePockets[pocketSelector->nextPocket].pocketType];
 
     u16 curPocketNamePos;
