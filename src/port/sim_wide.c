@@ -22,6 +22,7 @@ extern int SIM_Layout_IsWide(void) __attribute__((weak));
 extern float SIM_Layout_GetWideAspect(void) __attribute__((weak));
 extern void SIM_Layout_SetMainTouchEnabled(int enabled) __attribute__((weak));
 extern int SIM_Layout_GetMainTouch(int *x, int *y) __attribute__((weak));
+extern void SIM_Layout_SetWide2DWidth(int widthPx) __attribute__((weak));
 
 static int sLastScene = -1;
 static int sLastTouchNeeded = -1;
@@ -144,4 +145,11 @@ int SIM_Wide_PollMainTouch(int *x, int *y)
         return SIM_Layout_GetMainTouch(x, y);
     }
     return 0;
+}
+
+void SIM_Wide_SetWide2DWidth(int widthPx)
+{
+    if (SIM_Layout_SetWide2DWidth != NULL) {
+        SIM_Layout_SetWide2DWidth(widthPx);
+    }
 }

@@ -31,6 +31,7 @@
 #include "narc.h"
 #include "network_icon.h"
 #include "overlay_manager.h"
+#include "port/sim_wide.h"
 #include "render_text.h"
 #include "render_window.h"
 #include "save_player.h"
@@ -52,6 +53,13 @@
 
 #include "res/graphics/bag/bag_graphics.naix"
 #include "res/text/bank/bag.h"
+
+#ifdef SDK_PORT
+#include <simulator/sim_headless.h>
+#endif
+
+#define WIDE_BAG_WIDTH 342
+#define BAG_ITEM_CURSOR_X (Bag_IsWidePixelMode() ? 222 : 177)
 
 #define DIAL_CENTER_X      (HW_LCD_WIDTH / 2)
 #define DIAL_CENTER_Y      80
@@ -109,6 +117,8 @@ static void SetVRAMBanks(void);
 static void SetupBGLayers(BgConfig *bgConfig);
 static void FreeBGLayers(BgConfig *bgConfig);
 static void LoadGraphics(BagController *controller);
+static void Bag_ExtendTilemapToWide(BgConfig *bgConfig, u8 layer);
+static BOOL Bag_HandleWideTouch(BagController *controller, int *state);
 static u8 ProcessItemListMenuInput(BagController *interface);
 static u8 CheckPocketChange_DPad(BagController *controller);
 static int ProcessMenuInput_SelectAction(BagController *controller);
@@ -196,6 +206,23 @@ static BOOL CheckDialItemAmountChange(BagController *controller, s16 *amount, u1
 static BOOL DoItemListInput_Normal(BagController *interface, u16 input);
 static BOOL DoItemListInput_Sorting(BagController *interface, u16 input);
 static BOOL DoMenuInput(BagController *controller, u8 input);
+
+BOOL Bag_IsWidePixelMode(void)
+{
+#ifdef SDK_PORT
+    if (!SIM_Wide_IsWideLayout()) {
+        return FALSE;
+    }
+    if (!SIM_Headless_Enabled()) {
+        return TRUE;
+    }
+    const char *wideBag = getenv("SIM_FX_WIDEBAG");
+    const char *interactive = getenv("SIM_HEADLESS_INTERACTIVE_FX");
+    return (wideBag != NULL && wideBag[0] == '1') || (interactive != NULL && interactive[0] == '1');
+#else
+    return FALSE;
+#endif
+}
 
 const ApplicationManagerTemplate gBagApplicationTemplate = {
     BagApplication_Init,
@@ -434,6 +461,14 @@ int BagApplication_Init(ApplicationManager *appMan, int *state)
 {
     BagController *controller;
 
+#ifdef SDK_PORT
+    if (Bag_IsWidePixelMode()) {
+        SIM_Wide_PushScene(SIM_WIDE_SCENE_MENU_SINGLE);
+        SIM_Wide_SetWide2DWidth(WIDE_BAG_WIDTH);
+        SIM_Wide_SetMainTouchEnabled(TRUE);
+    }
+#endif
+
     SetVBlankCallback(NULL, NULL);
     DisableHBlank();
     GXLayers_DisableEngineALayers();
@@ -503,6 +538,8 @@ int BagApplication_Init(ApplicationManager *appMan, int *state)
 int BagApplication_Main(ApplicationManager *appMan, int *state)
 {
     BagController *controller = ApplicationManager_Data(appMan);
+
+    Bag_HandleWideTouch(controller, state);
 
     switch (*state) {
     case BAG_APP_STATE_WAIT_INITIAL_SCREEN_FADE:
@@ -617,6 +654,14 @@ int BagApplication_Exit(ApplicationManager *appMan, int *state)
 {
     BagController *controller = ApplicationManager_Data(appMan);
 
+#ifdef SDK_PORT
+    if (Bag_IsWidePixelMode()) {
+        SIM_Wide_SetMainTouchEnabled(FALSE);
+        SIM_Wide_SetWide2DWidth(0);
+        SIM_Wide_PopScene();
+    }
+#endif
+
     BagUI_FreeSprites(controller);
     FreeItemListMenu(controller);
     SaveCursorPosition(controller);
@@ -710,11 +755,11 @@ static void SetupBGLayers(BgConfig *bgConfig)
     BgTemplate layerMain0 = {
         .x = 0,
         .y = 0,
-        .bufferSize = 0x800,
+        .bufferSize = Bag_IsWidePixelMode() ? 0x1000 : 0x800,
         .baseTile = 0,
-        .screenSize = BG_SCREEN_SIZE_256x256,
+        .screenSize = Bag_IsWidePixelMode() ? BG_SCREEN_SIZE_512x256 : BG_SCREEN_SIZE_256x256,
         .colorMode = GX_BG_COLORMODE_16,
-        .screenBase = GX_BG_SCRBASE_0xf800,
+        .screenBase = Bag_IsWidePixelMode() ? GX_BG_SCRBASE_0x5000 : GX_BG_SCRBASE_0xf800,
         .charBase = GX_BG_CHARBASE_0x10000,
         .bgExtPltt = GX_BG_EXTPLTT_01,
         .priority = 0,
@@ -727,11 +772,11 @@ static void SetupBGLayers(BgConfig *bgConfig)
     BgTemplate layerMain1 = {
         .x = 0,
         .y = 0,
-        .bufferSize = 0x800,
+        .bufferSize = Bag_IsWidePixelMode() ? 0x1000 : 0x800,
         .baseTile = 0,
-        .screenSize = BG_SCREEN_SIZE_256x256,
+        .screenSize = Bag_IsWidePixelMode() ? BG_SCREEN_SIZE_512x256 : BG_SCREEN_SIZE_256x256,
         .colorMode = GX_BG_COLORMODE_16,
-        .screenBase = GX_BG_SCRBASE_0xf000,
+        .screenBase = Bag_IsWidePixelMode() ? GX_BG_SCRBASE_0x4000 : GX_BG_SCRBASE_0xf000,
         .charBase = GX_BG_CHARBASE_0x00000,
         .bgExtPltt = GX_BG_EXTPLTT_01,
         .priority = 1,
@@ -743,12 +788,12 @@ static void SetupBGLayers(BgConfig *bgConfig)
     BgTemplate layerMain2 = {
         .x = 0,
         .y = 0,
-        .bufferSize = 0x800,
+        .bufferSize = Bag_IsWidePixelMode() ? 0x1000 : 0x800,
         .baseTile = 0,
-        .screenSize = BG_SCREEN_SIZE_256x256,
+        .screenSize = Bag_IsWidePixelMode() ? BG_SCREEN_SIZE_512x256 : BG_SCREEN_SIZE_256x256,
         .colorMode = GX_BG_COLORMODE_16,
-        .screenBase = GX_BG_SCRBASE_0xe800,
-        .charBase = GX_BG_CHARBASE_0x10000,
+        .screenBase = Bag_IsWidePixelMode() ? GX_BG_SCRBASE_0x3000 : GX_BG_SCRBASE_0xe800,
+        .charBase = Bag_IsWidePixelMode() ? GX_BG_CHARBASE_0x08000 : GX_BG_CHARBASE_0x10000,
         .bgExtPltt = GX_BG_EXTPLTT_01,
         .priority = 2,
         .areaOver = 0,
@@ -760,11 +805,11 @@ static void SetupBGLayers(BgConfig *bgConfig)
     BgTemplate layerMain3 = {
         .x = 0,
         .y = 0,
-        .bufferSize = 0x800,
+        .bufferSize = Bag_IsWidePixelMode() ? 0x1000 : 0x800,
         .baseTile = 0,
-        .screenSize = BG_SCREEN_SIZE_256x256,
+        .screenSize = Bag_IsWidePixelMode() ? BG_SCREEN_SIZE_512x256 : BG_SCREEN_SIZE_256x256,
         .colorMode = GX_BG_COLORMODE_16,
-        .screenBase = GX_BG_SCRBASE_0xe000,
+        .screenBase = Bag_IsWidePixelMode() ? GX_BG_SCRBASE_0x2000 : GX_BG_SCRBASE_0xe000,
         .charBase = GX_BG_CHARBASE_0x00000,
         .bgExtPltt = GX_BG_EXTPLTT_01,
         .priority = 3,
@@ -850,6 +895,10 @@ static void LoadGraphics(BagController *controller)
     Graphics_LoadTilesToBgLayerFromOpenNARC(controller->bagGraphicsNARC, bag_ui_main_tileset_NCGR, controller->bgConfig, BG_LAYER_MAIN_1, 0, 0, FALSE, HEAP_ID_BAG);
     Graphics_LoadTilemapToBgLayerFromOpenNARC(controller->bagGraphicsNARC, bag_ui_main_NSCR, controller->bgConfig, BG_LAYER_MAIN_1, 0, 0, FALSE, HEAP_ID_BAG);
     Graphics_LoadTilemapToBgLayerFromOpenNARC(controller->bagGraphicsNARC, item_list_border_NSCR, controller->bgConfig, BG_LAYER_MAIN_3, 0, 0, FALSE, HEAP_ID_BAG);
+    if (Bag_IsWidePixelMode()) {
+        Bag_ExtendTilemapToWide(controller->bgConfig, BG_LAYER_MAIN_1);
+        Bag_ExtendTilemapToWide(controller->bgConfig, BG_LAYER_MAIN_3);
+    }
     Graphics_LoadPaletteFromOpenNARC(controller->bagGraphicsNARC, bag_ui_main_NCLR, PAL_LOAD_MAIN_BG, PLTT_OFFSET(0), 0, HEAP_ID_BAG);
     Graphics_LoadPaletteFromOpenNARC(controller->bagGraphicsNARC, pocket_selector_icons_NCLR, PAL_LOAD_MAIN_BG, PLTT_OFFSET(13), PALETTE_SIZE_BYTES, HEAP_ID_BAG);
     Font_LoadScreenIndicatorsPalette(PAL_LOAD_MAIN_BG, PLTT_OFFSET(11), HEAP_ID_BAG);
@@ -862,6 +911,40 @@ static void LoadGraphics(BagController *controller)
     Graphics_LoadTilemapToBgLayerFromOpenNARC(controller->bagGraphicsNARC, pokeball_inside_NSCR, controller->bgConfig, BG_LAYER_SUB_3, 0, 0, FALSE, HEAP_ID_BAG);
     Graphics_LoadTilesToBgLayerFromOpenNARC(controller->bagGraphicsNARC, buttons_NCGR, controller->bgConfig, BG_LAYER_SUB_0, 0, 0, FALSE, HEAP_ID_BAG);
     Graphics_LoadPaletteFromOpenNARC(controller->bagGraphicsNARC, buttons_NCLR, PAL_LOAD_SUB_BG, PLTT_OFFSET(2), PALETTE_SIZE_BYTES * 2, HEAP_ID_BAG);
+}
+
+static u16 Bag_GetWideMapTile(const u16 *map, int x, int y)
+{
+    return map[(x >= 32 ? 1024 : 0) + y * 32 + (x & 31)];
+}
+
+static void Bag_SetWideMapTile(u16 *map, int x, int y, u16 tile)
+{
+    map[(x >= 32 ? 1024 : 0) + y * 32 + (x & 31)] = tile;
+}
+
+static void Bag_ExtendTilemapToWide(BgConfig *bgConfig, u8 layer)
+{
+    u16 *map = Bg_GetTilemapBuffer(bgConfig, layer);
+    if (map == NULL) {
+        return;
+    }
+
+    for (int y = 0; y < 24; y++) {
+        if (y < 18) {
+            for (int x = 14; x <= 40; x++) {
+                Bag_SetWideMapTile(map, x, y, Bag_GetWideMapTile(map, 15 + (x - 14) % 15, y));
+            }
+            Bag_SetWideMapTile(map, 41, y, Bag_GetWideMapTile(map, 30, y));
+            Bag_SetWideMapTile(map, 42, y, Bag_GetWideMapTile(map, 31, y));
+        } else {
+            for (int x = 6; x <= 41; x++) {
+                Bag_SetWideMapTile(map, x, y, Bag_GetWideMapTile(map, 6 + (x - 6) % 25, y));
+            }
+            Bag_SetWideMapTile(map, 42, y, Bag_GetWideMapTile(map, 31, y));
+        }
+    }
+    Bg_ScheduleTilemapTransfer(bgConfig, layer);
 }
 
 static void SetupTextLoaders(BagController *controller)
@@ -1264,7 +1347,7 @@ static u8 ProcessItemListMenuInput(BagController *interface)
 
     if (pocket->cursorPos != newCursorPos) {
         ManagedSprite_SetPositionXY(
-            interface->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], 177, 24 + TEXT_LINES(newCursorPos - 1));
+            interface->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], BAG_ITEM_CURSOR_X, 24 + TEXT_LINES(newCursorPos - 1));
     }
 
     pocket->cursorScroll = newCursorScroll;
@@ -1307,6 +1390,80 @@ static u8 ProcessItemListMenuInput(BagController *interface)
     return ITEM_LIST_INPUT_NONE;
 }
 
+static BOOL Bag_HandleWideTouch(BagController *controller, int *state)
+{
+    int x, y;
+    if (!Bag_IsWidePixelMode() || !SIM_Wide_PollMainTouch(&x, &y)) {
+        return FALSE;
+    }
+    if (getenv("SIM_WIDE_DEBUG") != NULL) {
+        fprintf(stderr, "[widebag] touch %d,%d state=%d\n", x, y, *state);
+    }
+
+    // Pocket strip and its original arrow sprites live beneath the bag.
+    if (*state == BAG_APP_STATE_WAIT_SELECT_ITEM_GENERAL && y >= 88 && y < 112) {
+        int target = TOUCHSCREEN_INPUT_NONE;
+        if (x < 10) {
+            target = controller->bagCtx->currPocketIdx == 0 ? controller->numPockets - 1 : controller->bagCtx->currPocketIdx - 1;
+        } else if (x >= 94 && x < 106) {
+            target = controller->bagCtx->currPocketIdx + 1 < controller->numPockets ? controller->bagCtx->currPocketIdx + 1 : 0;
+        } else {
+            for (int i = 0; i < controller->numPockets; i++) {
+                int iconX = controller->pocketSelectorIconsX + controller->pocketSelectorIconsSpacing * i;
+                if (x >= iconX && x < iconX + 10) {
+                    target = i;
+                    break;
+                }
+            }
+        }
+        if (target != TOUCHSCREEN_INPUT_NONE && target != controller->bagCtx->currPocketIdx) {
+            Sound_PlayEffect(SEQ_SE_DP_BAG_030_sseq);
+            controller->pocketSelector.nextPocket = target;
+            controller->nextPocket = target;
+            controller->pocketSelector.nextPocketDirection = target < controller->bagCtx->currPocketIdx ? 0 : 1;
+            BagUI_StartMovingPocketHighlight(controller);
+            SetupPocketChangeFromDPad(controller);
+            *state = BAG_APP_STATE_SWITCH_POCKET;
+            return TRUE;
+        }
+    }
+
+    if (*state == BAG_APP_STATE_WAIT_SELECT_ITEM_GENERAL && x >= 108 && x < 337 && y >= 16 && y < 144) {
+        BagApplicationPocket *pocket = &controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx];
+        u16 touchedPos = 1 + (y - 16) / 16;
+        if (touchedPos < BAG_UI_NUM_VISIBLE_ITEMS && pocket->cursorScroll + touchedPos < pocket->listEntryCount) {
+            if (controller->itemList->cursorPos == touchedPos) {
+                gSystem.pressedKeys |= PAD_BUTTON_A;
+            } else {
+                controller->itemList->cursorPos = touchedPos;
+                pocket->cursorPos = touchedPos;
+                ListMenu_Draw(controller->itemList);
+                ManagedSprite_SetPositionXY(controller->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], BAG_ITEM_CURSOR_X, 24 + TEXT_LINES(touchedPos - 1));
+                ItemListMenuCursorCB(controller->itemList, ListMenu_GetIndexOfChoice(controller->itemList, pocket->cursorScroll + touchedPos), FALSE);
+            }
+            return TRUE;
+        }
+    }
+
+    // Menu structures expose their exact pixel window and row geometry.
+    if ((*state == BAG_APP_STATE_WAIT_SELECT_ITEM_ACTION || *state == BAG_APP_STATE_CONFIRM_TRASH || *state == BAG_APP_STATE_CONFIRM_SALE) && controller->menu != NULL) {
+        Window *window = controller->menu->template.window;
+        int left = window->tilemapLeft * 8;
+        int top = window->tilemapTop * 8;
+        int right = left + window->width * 8;
+        int bottom = top + window->height * 8;
+        if (x >= left && x < right && y >= top && y < bottom) {
+            int row = (y - top - controller->menu->yOffset) / controller->menu->lineHeight;
+            if (row >= 0 && row < controller->menu->template.ySize) {
+                controller->menu->cursorPos = row;
+                gSystem.pressedKeys |= PAD_BUTTON_A;
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
 static void CalcPocketSelectorIconsPos(BagController *controller)
 {
     controller->pocketSelectorIconsX = 6 + (90 - (10 * controller->numPockets)) / (controller->numPockets + 1);
@@ -1315,7 +1472,7 @@ static void CalcPocketSelectorIconsPos(BagController *controller)
 
 static u8 CheckPocketChange_DPad(BagController *controller)
 {
-    if (JOY_REPEAT(PAD_KEY_LEFT)) {
+    if (JOY_REPEAT(PAD_KEY_LEFT) || JOY_NEW(PAD_BUTTON_L)) {
         if (controller->numPockets == 1) {
             return FALSE;
         }
@@ -1337,7 +1494,7 @@ static u8 CheckPocketChange_DPad(BagController *controller)
 
         return TRUE;
     }
-    if (JOY_REPEAT(PAD_KEY_RIGHT)) {
+    if (JOY_REPEAT(PAD_KEY_RIGHT) || JOY_NEW(PAD_BUTTON_R)) {
         if (controller->numPockets == 1) {
             return FALSE;
         }
@@ -1468,7 +1625,7 @@ static u8 DoDPadPocketSwitch(BagController *controller)
 {
     BagPocketSelector *pocketSelector = &controller->pocketSelector;
 
-    if (gSystem.pressedKeys & PAD_KEY_LEFT) {
+    if (gSystem.pressedKeys & (PAD_KEY_LEFT | PAD_BUTTON_L)) {
         if (controller->numPockets == 1) {
             return TRUE;
         }
@@ -1501,7 +1658,7 @@ static u8 DoDPadPocketSwitch(BagController *controller)
         BagUI_StartMovingPocketHighlight(controller);
         return TRUE;
     }
-    if (gSystem.pressedKeys & PAD_KEY_RIGHT) {
+    if (gSystem.pressedKeys & (PAD_KEY_RIGHT | PAD_BUTTON_R)) {
         if (controller->numPockets == 1) {
             return TRUE;
         }
@@ -1566,7 +1723,7 @@ static u8 StepPocketSelectorAnim(BagController *controller)
             LimitItemListScroll(&controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].cursorScroll, &controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].cursorPos, controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].listEntryCount);
             RestrictItemListCursor(&controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].cursorScroll, &controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].cursorPos, controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].listEntryCount, BAG_UI_NUM_VISIBLE_ITEMS);
             CreateItemListMenu(controller, controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].cursorScroll, controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].cursorPos);
-            ManagedSprite_SetPositionXY(controller->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], 177, 24 + TEXT_LINES(controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].cursorPos - 1));
+            ManagedSprite_SetPositionXY(controller->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], BAG_ITEM_CURSOR_X, 24 + TEXT_LINES(controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].cursorPos - 1));
             ManagedSprite_SetDrawFlag(controller->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], TRUE);
 
             pocketSelector->animStage++;
@@ -1948,7 +2105,7 @@ static void SwitchSpritesForSorting(BagController *interface)
     BagApplicationPocket *pocket = &interface->bagCtx->accessiblePockets[interface->bagCtx->currPocketIdx];
 
     if (interface->isMovingItem == FALSE) {
-        ManagedSprite_SetPositionXY(interface->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], 177, 24 + TEXT_LINES(pocket->cursorPos - 1));
+        ManagedSprite_SetPositionXY(interface->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], BAG_ITEM_CURSOR_X, 24 + TEXT_LINES(pocket->cursorPos - 1));
         ManagedSprite_SetDrawFlag(interface->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], TRUE);
         ManagedSprite_SetDrawFlag(interface->sprites[BAG_SPRITE_MOVING_ITEM_POS_BAR], FALSE);
 
@@ -3058,7 +3215,7 @@ static BOOL DoItemListInput_Normal(BagController *interface, u16 input)
         return FALSE;
     }
 
-    ManagedSprite_SetPositionXY(interface->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], 177, 24 + TEXT_LINES(cursorPos - 1));
+    ManagedSprite_SetPositionXY(interface->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], BAG_ITEM_CURSOR_X, 24 + TEXT_LINES(cursorPos - 1));
 
     interface->bagCtx->accessiblePockets[interface->bagCtx->currPocketIdx].cursorScroll = cursorScroll;
     interface->bagCtx->accessiblePockets[interface->bagCtx->currPocketIdx].cursorPos = cursorPos;

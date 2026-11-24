@@ -3,6 +3,8 @@
 
 #include "applications/bag/defs.h"
 
+BOOL Bag_IsWidePixelMode(void);
+
 u16 BagInterface_GetItemSlotParam(BagController *controller, u16 slotIndex, u16 itemParam);
 #ifdef SDK_BUILD_ARM
 const u32 BagApplication_GetItemActionFunc(enum ItemAction action);
