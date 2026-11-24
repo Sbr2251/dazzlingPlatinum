@@ -3765,6 +3765,116 @@ index 0000000..a7e262a
 +#ifdef __cplusplus
 +}
 +#endif
+diff --git a/include/simulator/sim_wide_battle.h b/include/simulator/sim_wide_battle.h
+new file mode 100644
+index 0000000..d14eba6
+--- /dev/null
++++ b/include/simulator/sim_wide_battle.h
+@@ -0,0 +1,104 @@
++#pragma once
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++// Menu states mirrored from BattleSubscreen / BattleHud.
++enum SIM_WideBattleMenu {
++    SIM_WIDEBATTLE_MENU_IDLE = 0,     // animations / turn execution (healthboxes only)
++    SIM_WIDEBATTLE_MENU_ACTION = 1,   // FIGHT / POKEMON / BAG / RUN (or CANCEL)
++    SIM_WIDEBATTLE_MENU_MOVE = 2,     // 4 move cards + optional Mega toggle
++    SIM_WIDEBATTLE_MENU_TARGET = 3,   // spatial 2x2 double-battle target selector
++    SIM_WIDEBATTLE_MENU_YESNO = 4,    // YES / NO prompt
++};
++
++// Move category (matches DS RANGE_CLASS / MOVE_CLASS)
++enum SIM_WideBattleCategory {
++    SIM_WIDEBATTLE_CAT_PHYSICAL = 0,
++    SIM_WIDEBATTLE_CAT_SPECIAL = 1,
++    SIM_WIDEBATTLE_CAT_STATUS = 2,
++};
++
++// Effectiveness code (x4=0..4x encoded as fixed quarter-multipliers: 0=0x, 1=0.25x, 2=0.5x, 4=1x, 8=2x, 16=4x, -1=unknown/status)
++typedef struct SIM_WideBattleBattler {
++    int present;           // 1 if active on field
++    int battlerIndex;      // 0..3 (even = player side, odd = enemy side)
++    int isEnemy;           // 1 if enemy
++    int isActive;          // 1 if currently choosing an action (gold highlight!)
++    int isAllySlot2;       // 1 if slot 2 in doubles (top/bottom visual ordering)
++    char name[32];         // decoded ASCII nickname/species
++    int level;
++    int gender;            // 0=male, 1=female, 2=genderless
++    int curHP;
++    int maxHP;
++    float expFrac;         // 0.0..1.0 (player side only; <0 to hide)
++    char status[8];        // "", "BRN", "PAR", "PSN", "TOX", "SLP", "FRZ"
++    int caught;            // 1 if species caught (enemy wild battles)
++    int megaEvolved;       // 1 if currently Mega Evolved
++    int type1;             // 0..17 (-1 unknown)
++    int type2;             // 0..17 (-1 none/same)
++    // Stat stages relative to neutral (0 = neutral, +1..+6, -1..-6):
++    // [0]=ATK, [1]=DEF, [2]=SPA, [3]=SPD, [4]=SPE, [5]=ACC, [6]=EVA
++    signed char stages[7];
++} SIM_WideBattleBattler;
++
++typedef struct SIM_WideBattleMove {
++    int moveId;            // 0 if empty slot
++    char name[32];
++    int type;              // 0..17 Pokémon type enum
++    int category;          // SIM_WideBattleCategory
++    int power;             // 0 for status/variable
++    int accuracy;          // 0 for always-hit
++    int curPP;
++    int maxPP;
++    int effectiveness;     // singles foe effectiveness (-1=n/a, 0=0x, 1=0.25x, 2=0.5x, 4=1x, 8=2x, 16=4x)
++    int rangeMask;         // bitmask of target slots (0..3) hit simultaneously for spread moves, or 0
++    int hitsAlly;          // 1 if spread move also hits partner!
++} SIM_WideBattleMove;
++
++typedef struct SIM_WideBattleTargetSlot {
++    int valid;             // 1 if selectable target
++    int battlerIndex;      // 0..3
++    int isEnemy;
++    int isHitBySpread;     // 1 if highlighted as part of spread attack
++    int effectiveness;     // effectiveness of chosen move vs this battler (-1, 0, 1, 2, 4, 8, 16)
++    char name[32];
++    int curHP;
++    int maxHP;
++} SIM_WideBattleTargetSlot;
++
++typedef struct SIM_WideBattleState {
++    int active;            // 1 while battle HUD is active
++    int isDoubles;         // 1 in 2v2 doubles, 0 in 1v1 singles
++    int menu;              // SIM_WideBattleMenu
++    int cursorX;           // 0..1
++    int cursorY;           // 0..1
++    int activeBattler;     // battler index currently choosing (0 or 2)
++    int isPartnerTurn;     // 1 when choosing for 2nd ally (RUN -> CANCEL)
++    int isSafari;          // 1 in Safari Zone
++    int isPalPark;         // 1 in Pal Park
++    int megaAvailable;     // 1 if active battler can Mega Evolve
++    int megaArmed;         // 1 if Mega Evolution is toggled ON
++    char prompt[128];      // e.g. "What will INFERNAPE do?" or active move hint
++    char actionLabels[4][24]; // [0]=FIGHT, [1]=POKEMON, [2]=BAG, [3]=RUN/CANCEL
++    SIM_WideBattleBattler battlers[4]; // indexed by visual slot: 0=player1, 1=enemy1, 2=player2, 3=enemy2
++    SIM_WideBattleMove moves[4];
++    SIM_WideBattleTargetSlot targets[4]; // 2x2 spatial grid: [0]=enemyL, [1]=enemyR, [2]=allyL, [3]=allyR
++    int selectedTargetMask; // bitmask of battler indices (0..3) currently highlighted for targeting!
++} SIM_WideBattleState;
++
++// Touch/click event returned to BattleSubscreen (maps directly to BattleHud_Update touch button index!).
++typedef struct SIM_WideBattleEvent {
++    int buttonIndex;       // >= 0 maps directly to BattleHud_Update return value; -1 = none
++} SIM_WideBattleEvent;
++
++int SIM_WideBattle_IsEnabled(void);
++int SIM_WideBattle_IsActive(void);
++void SIM_WideBattle_SetState(const SIM_WideBattleState *state);
++void SIM_WideBattle_Clear(void);
++int SIM_WideBattle_PollEvent(SIM_WideBattleEvent *out);
++
++#ifdef __cplusplus
++}
++#endif
 diff --git a/include/simulator/simvariables.h b/include/simulator/simvariables.h
 index 6e41f75..c31df2e 100644
 --- a/include/simulator/simvariables.h
@@ -15284,7 +15394,7 @@ index 0000000..f1c4cec
 +
 +#endif // #ifndef IMGUI_DISABLE
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..2deac56 100644
+index 2d852bf..ff95d41 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -8,7 +8,8 @@ libsim_srcs = files(
@@ -15320,7 +15430,7 @@ index 2d852bf..2deac56 100644
      'sim_g3_Texture.cpp',
      'sim_g3_TextureCache.cpp',
      'sim_g3_Utilities.cpp',
-@@ -31,7 +41,17 @@ libsim_srcs = files(
+@@ -31,13 +41,24 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
@@ -15338,7 +15448,15 @@ index 2d852bf..2deac56 100644
      'sim_net.cpp',
      'sim_RenderContextManager.cpp',
      'sim_RomExtractor.cpp',
-@@ -48,6 +68,25 @@ if(build_target == 'prospero')
+     'sim_screenquads.cpp',
+     'sim_shaders.cpp',
+-    'sim_vars.c'
++    'sim_vars.c',
++    'sim_wide_battle.cpp'
+ )
+ 
+ if(build_target == 'linux' or build_target == 'win64')
+@@ -48,6 +69,25 @@ if(build_target == 'prospero')
  libsim_srcs += files('ps5_heap.cpp')
  endif
  
@@ -32944,15 +33062,17 @@ index de145a7..786b014 100644
 +    SIM::G3::TextureCache::NotifyWrite(dest, size);
 +}
 diff --git a/libraries/sim/src/sim_gui.cpp b/libraries/sim/src/sim_gui.cpp
-index 2c40e59..3449373 100644
+index 2c40e59..8180640 100644
 --- a/libraries/sim/src/sim_gui.cpp
 +++ b/libraries/sim/src/sim_gui.cpp
-@@ -1,10 +1,13 @@
+@@ -1,10 +1,15 @@
  #include "simulator/sim.h"
  #include "simulator/sim_gui.hpp"
 +#include "simulator/sim_platform.h" // ios-platform hook
 +#include "simulator/sim_layout.h"
 +#include <simulator/sim_render_backend.hpp>
++
++void SIM_WideBattle_Render(SDL_Window *window); // feat-wbhud hook
 +#include "imgui_impl_sdl3.h"
 +#include "simulator/sim_helpers.hpp"
  
@@ -32963,7 +33083,7 @@ index 2c40e59..3449373 100644
  #include "gui_internal.hpp"
  
  #if SIM_IMGUI_FILE_DIALOG_SUPPORT
-@@ -13,7 +16,6 @@
+@@ -13,7 +18,6 @@
  
  namespace SIM::GUI {
  static SDL_Window * sWindow;
@@ -32971,7 +33091,7 @@ index 2c40e59..3449373 100644
  static ImGuiContext * sImguiContext;
  static bool sEnabled = false;
  static bool sPauseGameLogic = false;
-@@ -37,9 +39,8 @@ void __attribute__((weak)) PrjMain(bool * openState) {
+@@ -37,9 +41,8 @@ void __attribute__((weak)) PrjMain(bool * openState) {
      }
  }
  
@@ -32982,7 +33102,7 @@ index 2c40e59..3449373 100644
  
      sImguiContext = ImGui::CreateContext(NULL);
  
-@@ -50,9 +51,7 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+@@ -50,9 +53,7 @@ void Init(SDL_Window * window, SDL_GLContext context) {
  
  
  
@@ -32993,11 +33113,12 @@ index 2c40e59..3449373 100644
  
      ImGui::StyleColorsDark(NULL);
  
-@@ -61,6 +60,64 @@ void Init(SDL_Window * window, SDL_GLContext context) {
+@@ -61,6 +62,65 @@ void Init(SDL_Window * window, SDL_GLContext context) {
  }
  
  void Main() {
 +    SIM::Helpers::DrawOverlay();
++    SIM_WideBattle_Render(sWindow); // feat-wbhud hook
 +
 +    // Wide layout: the tab handle at the right window edge (solid
 +    // geometry, no font, so headless screenshots stay deterministic).
@@ -33058,7 +33179,7 @@ index 2c40e59..3449373 100644
      if(sEnabled) {
          ImGui::Begin("libntr", &sEnabled);
  
-@@ -96,6 +153,10 @@ void Main() {
+@@ -96,6 +156,10 @@ void Main() {
          }
          #endif
  
@@ -33069,7 +33190,7 @@ index 2c40e59..3449373 100644
          ImGui::Checkbox("Pause Game Logic", &sPauseGameLogic);
  
          ImGui::End();
-@@ -115,20 +176,19 @@ void OpenFileDialog(std::function<void(std::string)> callback) {
+@@ -115,20 +179,19 @@ void OpenFileDialog(std::function<void(std::string)> callback) {
  }
  
  void NewFrame() {
@@ -33093,7 +33214,7 @@ index 2c40e59..3449373 100644
  }
  
  void Toggle() {
-@@ -147,6 +207,10 @@ bool IsGameLogicPaused() {
+@@ -147,6 +210,10 @@ bool IsGameLogicPaused() {
      return sPauseGameLogic;
  }
  
@@ -34975,7 +35096,7 @@ index 0000000..4b3f9e5
 +    return 1;
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..9bd2255 100644
+index 910d7da..37470de 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,14 +1,23 @@
@@ -35013,7 +35134,7 @@ index 910d7da..9bd2255 100644
  #include <nitro/gx/g3.h>
  #include <nitro/gx/gx_load.h>
  #include <nitro/gx/gx_vramcnt.h>
-@@ -28,16 +38,27 @@ extern "C" int NitroSpMain(void *arg);
+@@ -28,16 +38,30 @@ extern "C" int NitroSpMain(void *arg);
  #include <nitro/pxi/common/fifo.h>
  
  #include <simulator/config/sim_config.h>
@@ -35026,7 +35147,10 @@ index 910d7da..9bd2255 100644
  #include <simulator/sim_gui.hpp>
 +#include <simulator/sim_helpers.hpp>
 +#include <simulator/sim_headless.h>
++#include <simulator/sim_wide_battle.h>
  #include <simulator/sim_RenderContextManager.hpp>
++
++int SIM_WideBattle_HandleClick(SDL_Window *window, float x, float y); // feat-wbhud hook
  #include <simulator/sim_NitroMainThread.hpp>
  
  #include <math.h>
@@ -35041,7 +35165,7 @@ index 910d7da..9bd2255 100644
  
  #include "nds-extract.hpp"
  
-@@ -65,6 +86,9 @@ extern "C" int NitroSpMain(void *arg);
+@@ -65,6 +89,9 @@ extern "C" int NitroSpMain(void *arg);
  #endif
  
  #include "sim_g2.h"
@@ -35051,7 +35175,7 @@ index 910d7da..9bd2255 100644
  #include "git_info.h"
  
  // Simulator configuration
-@@ -75,6 +99,49 @@ extern OSThreadInfo OSi_ThreadInfo;
+@@ -75,6 +102,49 @@ extern OSThreadInfo OSi_ThreadInfo;
  
  static u32 s_TouchPanelCoords[4] = {}; // The bounding box of the touch screen
  
@@ -35101,7 +35225,7 @@ index 910d7da..9bd2255 100644
  // SND
  #include <nitro/snd/common/work.h>
  #include <nitro/snd/common/command.h>
-@@ -96,6 +163,20 @@ static struct timespec s_SIM_lastFrameEnd;
+@@ -96,6 +166,20 @@ static struct timespec s_SIM_lastFrameEnd;
  static u64 sRenderFrameTime;
  static u64 sFullFrameTime;
  
@@ -35122,7 +35246,7 @@ index 910d7da..9bd2255 100644
  static constexpr auto SteamDeckWidth = 1280;
  static constexpr auto SteamDeckHeight = 800;
  
-@@ -125,48 +206,181 @@ u8 OBJWindow[2][256];
+@@ -125,48 +209,181 @@ u8 OBJWindow[2][256];
  
  GXVRamBGExtPltt s_SIM_GXBgExtPltt;
  GXVRamSubBGExtPltt s_SIM_GXSubBgExtPltt;
@@ -35339,7 +35463,7 @@ index 910d7da..9bd2255 100644
  u8 s_SIM_dbg_dumpSound = 0;
  static u8 s_SIM_dbg_soundFileOpen = 0;
  static FILE *s_SIM_dbg_soundFile = NULL;
-@@ -178,6 +392,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
+@@ -178,6 +395,10 @@ WIN_snd_alarm_info win_snd_alarms[32] = {0};
  SNDSharedWork *win_SNDi_SharedWork;
  
  static bool sFastForward = false;
@@ -35350,7 +35474,7 @@ index 910d7da..9bd2255 100644
  
  OSIrqFunction OS_IRQTable[OS_IRQ_TABLE_MAX] = {
      OS_IrqDummy, // VBlank (for ARM9)
-@@ -222,40 +440,10 @@ static void DrawScreenQuad();
+@@ -222,40 +443,10 @@ static void DrawScreenQuad();
  static void DrawEngine(BOOL isSub);
  
  static u8 s_numG3CommandsThisFrame = 0;
@@ -35392,7 +35516,7 @@ index 910d7da..9bd2255 100644
  SIM_config_type *SIM_GetConfigPtr() { return &s_SIM_config; }
  
  SDL_Window * SIM_GetSDLWindow() {return window;}
-@@ -275,27 +463,9 @@ void *runVblankInterrupt(void *arg) {
+@@ -275,27 +466,9 @@ void *runVblankInterrupt(void *arg) {
    return NULL;
  }
  
@@ -35422,7 +35546,7 @@ index 910d7da..9bd2255 100644
  }
  
  static bool sChangeInternalResAfterRender = false;
-@@ -308,18 +478,70 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
+@@ -308,18 +481,70 @@ void SIM_SetInternalResolutionAfterRender(int internalRes) {
    sPendingInternalRes = internalRes;
  }
  
@@ -35501,7 +35625,7 @@ index 910d7da..9bd2255 100644
  
    u32 windowHeight;
    u32 windowWidth;
-@@ -352,6 +574,11 @@ void *SIM_RenderInit(void *arg) {
+@@ -352,6 +577,11 @@ void *SIM_RenderInit(void *arg) {
          windowHeight = SIM_NDS_SCREEN_HEIGHT * 2 * 2;
          windowWidth = (SIM_NDS_SCREEN_WIDTH * 2 * 2) + (SIM_NDS_SCREEN_WIDTH * 2);
          break;
@@ -35513,7 +35637,7 @@ index 910d7da..9bd2255 100644
        }
      }
    } else {
-@@ -376,197 +603,66 @@ void *SIM_RenderInit(void *arg) {
+@@ -376,197 +606,66 @@ void *SIM_RenderInit(void *arg) {
                    std::string(makerCode) + "]";
    }
  
@@ -35758,7 +35882,7 @@ index 910d7da..9bd2255 100644
    const char *zoneName;
    zoneName = isSub ? "DrawEngine (SUB)" : "DrawEngine (MAIN)";
  #ifdef SDK_TRACY_ENABLE
-@@ -578,10 +674,16 @@ static void DrawEngine(BOOL isSub) {
+@@ -578,10 +677,16 @@ static void DrawEngine(BOOL isSub) {
    u8 maxPriorityBG;
    u8 bgEnabled[4];
    u8 bgMode;
@@ -35777,7 +35901,7 @@ index 910d7da..9bd2255 100644
  
    // Get the enabled BGs
    u32 dispcnt = isSub ? s_reg_GXS_DB_DISPCNT : s_reg_GX_DISPCNT;
-@@ -603,20 +705,6 @@ static void DrawEngine(BOOL isSub) {
+@@ -603,20 +708,6 @@ static void DrawEngine(BOOL isSub) {
    backdropColor =
        isSub ? *(u16 *)&s_HW_DB_BG_PLTT[0] : *(u16 *)&s_HW_BG_PLTT[0];
    SIM_u16ToRGB(backdropColor, &backdropR, &backdropG, &backdropB);
@@ -35798,7 +35922,7 @@ index 910d7da..9bd2255 100644
  
    // Get the BG priorities
    u16 bg0cnt = isSub ? s_reg_G2S_DB_BG0CNT : s_reg_G2_BG0CNT;
-@@ -624,59 +712,60 @@ static void DrawEngine(BOOL isSub) {
+@@ -624,59 +715,60 @@ static void DrawEngine(BOOL isSub) {
    u16 bg2cnt = isSub ? s_reg_G2S_DB_BG2CNT : s_reg_G2_BG2CNT;
    u16 bg3cnt = isSub ? s_reg_G2S_DB_BG3CNT : s_reg_G2_BG3CNT;
  
@@ -35899,7 +36023,7 @@ index 910d7da..9bd2255 100644
      memset(oam0Tex, 0, sizeof(oam0Tex));
      memset(oam1Tex, 0, sizeof(oam1Tex));
      memset(oam2Tex, 0, sizeof(oam2Tex));
-@@ -715,13 +804,38 @@ static void DrawEngine(BOOL isSub) {
+@@ -715,13 +807,38 @@ static void DrawEngine(BOOL isSub) {
        u8 a;
        for (int j = 0; j < 256; j++) {
          if (OBJLine[isSub][j]) {
@@ -35943,7 +36067,7 @@ index 910d7da..9bd2255 100644
            }
          }
          if (OBJWindow[isSub][j]) {
-@@ -735,135 +849,231 @@ static void DrawEngine(BOOL isSub) {
+@@ -735,135 +852,232 @@ static void DrawEngine(BOOL isSub) {
  
    // Draw the BGs
    for (int i = 0; i < 4; i++) {
@@ -36196,6 +36320,7 @@ index 910d7da..9bd2255 100644
 +  float nx = winW > 0 ? (float)px / (float)winW : 0.0f;
 +  float ny = winH > 0 ? (float)py / (float)winH : 0.0f;
 +  if (phase == 0) {
++    if (SIM_WideBattle_IsActive() && SIM_WideBattle_HandleClick(window, (float)px, (float)py)) return; // feat-wbhud hook
 +    SIM::Touchpad::NoteTouch();
 +    // Native-wide 2D owns the complete main surface. Route it before the
 +    // optional iOS controls overlay so Bag pocket/item taps cannot be eaten
@@ -36286,7 +36411,7 @@ index 910d7da..9bd2255 100644
  static void HandleJoystickKeyDown(int aKey) {
    if (aKey == s_SIM_config.padSettings.aJoyKey) {
      // A Button
-@@ -950,7 +1160,281 @@ static void HandleJoystickKeyUp(int aKey) {
+@@ -950,7 +1164,281 @@ static void HandleJoystickKeyUp(int aKey) {
    }
  }
  
@@ -36568,7 +36693,7 @@ index 910d7da..9bd2255 100644
  
    SDL_Event Event;
    char c;
-@@ -965,6 +1449,7 @@ void *SIM_Render(void *arg) {
+@@ -965,6 +1453,7 @@ void *SIM_Render(void *arg) {
    auto& g3State = SIM::G3::GetGlobalState();
    g3State.FlushDrawCall();
    g3State.DrawTransparentItems();
@@ -36576,7 +36701,7 @@ index 910d7da..9bd2255 100644
  
  
    do {
-@@ -976,14 +1461,6 @@ void *SIM_Render(void *arg) {
+@@ -976,14 +1465,6 @@ void *SIM_Render(void *arg) {
        SIM_Net_SendBeaconIndication();
      }
  
@@ -36591,7 +36716,7 @@ index 910d7da..9bd2255 100644
      int windowHeight;
      int windowWidth;
      int viewHeight;
-@@ -1006,6 +1483,13 @@ void *SIM_Render(void *arg) {
+@@ -1006,6 +1487,13 @@ void *SIM_Render(void *arg) {
      case SIM_CONFIG_SCREEN_LAYOUT_LARGE:
        aspectRatio = 768.0f / 384.0f;
        break;
@@ -36605,7 +36730,7 @@ index 910d7da..9bd2255 100644
      }
  
      viewWidth = windowWidth;
-@@ -1019,10 +1503,126 @@ void *SIM_Render(void *arg) {
+@@ -1019,10 +1507,126 @@ void *SIM_Render(void *arg) {
        viewY = 0;
      }
  
@@ -36734,7 +36859,7 @@ index 910d7da..9bd2255 100644
        switch (s_SIM_config.screenLayout) {
        default:
        case SIM_CONFIG_SCREEN_LAYOUT_VERTICAL:
-@@ -1068,24 +1668,81 @@ void *SIM_Render(void *arg) {
+@@ -1068,24 +1672,81 @@ void *SIM_Render(void *arg) {
        }
      }
  
@@ -36828,7 +36953,7 @@ index 910d7da..9bd2255 100644
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT & 0b1111111111111110;
          } else if (keyRead == s_SIM_config.padSettings.bKey) {
-@@ -1136,15 +1793,15 @@ void *SIM_Render(void *arg) {
+@@ -1136,15 +1797,15 @@ void *SIM_Render(void *arg) {
              s_SIM_config.vsyncInterval = 1; // Every V-Blank
            }
  
@@ -36848,7 +36973,7 @@ index 910d7da..9bd2255 100644
          if (keyRead == s_SIM_config.padSettings.aKey) {
            // A Button
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000001;
-@@ -1185,16 +1842,16 @@ void *SIM_Render(void *arg) {
+@@ -1185,16 +1846,16 @@ void *SIM_Render(void *arg) {
            s_reg_PAD_KEYINPUT = s_reg_PAD_KEYINPUT | 0b0000000000000100;
          } else if(keyRead == s_SIM_config.padSettings.frameCapKey) {
            sFastForward = false;
@@ -36869,7 +36994,7 @@ index 910d7da..9bd2255 100644
          if (Event.jhat.value == SDL_HAT_CENTERED) {
            // send keyUp event for all hats
            HandleJoystickKeyUp(SIM_CONFIG_JOY_HAT_MASK | SDL_HAT_UP);
-@@ -1224,7 +1881,7 @@ void *SIM_Render(void *arg) {
+@@ -1224,7 +1885,7 @@ void *SIM_Render(void *arg) {
            }
          }
        }
@@ -36878,7 +37003,7 @@ index 910d7da..9bd2255 100644
          if (Event.jaxis.value > s_SIM_config.padSettings.joyAxisDeadzone ||
              Event.jaxis.value <
                  (s_SIM_config.padSettings.joyAxisDeadzone * -1)) {
-@@ -1245,23 +1902,105 @@ void *SIM_Render(void *arg) {
+@@ -1245,23 +1906,109 @@ void *SIM_Render(void *arg) {
                                SIM_CONFIG_JOY_AXIS_MINUS_MASK);
          }
        }
@@ -36905,6 +37030,9 @@ index 910d7da..9bd2255 100644
 +        SDL_CloseJoystick(s_SIM_SDLJoystick); s_SIM_SDLJoystick = nullptr; RefreshControllers();
 +      }
 +      if (Event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
++        bool wideBattleClicked = SIM_WideBattle_IsActive() &&
++            SIM_WideBattle_HandleClick(window, Event.button.x, Event.button.y); // feat-wbhud hook
++        if (!wideBattleClicked) {
 +        // Wide layout: a click on the tab handle opens the panel; it
 +        // is not a touch (the handle is outside the touch rect, so the
 +        // mapping below would clear the touch anyway).
@@ -36935,6 +37063,7 @@ index 910d7da..9bd2255 100644
          isMouseDown = 1;
          s_tpData.validity = 0;
          s_tpData.touch = 1;
++        }
        }
 -      if (Event.type == SDL_MOUSEBUTTONUP) {
 +      if (Event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
@@ -36988,7 +37117,7 @@ index 910d7da..9bd2255 100644
          y >= s_TouchPanelCoords[1] && y <= s_TouchPanelCoords[3]) {
        s_tpData.x = (u16)map(x, s_TouchPanelCoords[0], s_TouchPanelCoords[2], 0,
                              SIM_NDS_SCREEN_WIDTH);
-@@ -1278,31 +2017,63 @@ void *SIM_Render(void *arg) {
+@@ -1278,31 +2025,63 @@ void *SIM_Render(void *arg) {
      SIM::GUI::Main();
      #endif
  
@@ -37074,7 +37203,7 @@ index 910d7da..9bd2255 100644
      // Run HBlank Interrupt
      OS_IRQTable[OS_IE_H_BLANK - 1]();
  
-@@ -1327,23 +2098,51 @@ void *SIM_Render(void *arg) {
+@@ -1327,23 +2106,51 @@ void *SIM_Render(void *arg) {
  #ifdef SDK_TRACY_ENABLE
      TracyCZoneEnd(SimRenderZone);
  #endif
@@ -37137,7 +37266,7 @@ index 910d7da..9bd2255 100644
      }
  
      //Calculate full frametime (after swap)
-@@ -1359,45 +2158,40 @@ void *SIM_Render(void *arg) {
+@@ -1359,45 +2166,40 @@ void *SIM_Render(void *arg) {
  #endif
  
      s_numG3CommandsThisFrame = 0;
@@ -37206,7 +37335,7 @@ index 910d7da..9bd2255 100644
  u64 SIM_GetRenderFrameTime() {
    return sRenderFrameTime;
  }
-@@ -1407,17 +2201,15 @@ u64 SIM_GetFullFrameTime() {
+@@ -1407,17 +2209,15 @@ u64 SIM_GetFullFrameTime() {
    return sFullFrameTime;
  }
  
@@ -37226,7 +37355,7 @@ index 910d7da..9bd2255 100644
  }
  
  const char * SIM_GetLibntrGitHash() {
-@@ -1465,6 +2257,8 @@ int main(int argc, char *argv[]) {
+@@ -1465,6 +2265,8 @@ int main(int argc, char *argv[]) {
    // TODO: This broke the linux AppImage build
    //chdir(SDL_GetBasePath());
  
@@ -37235,7 +37364,7 @@ index 910d7da..9bd2255 100644
    // Start up debug system
    SIM_Dbg_Init();
  
-@@ -1477,12 +2271,18 @@ int main(int argc, char *argv[]) {
+@@ -1477,12 +2279,18 @@ int main(int argc, char *argv[]) {
      SIM_Config_SaveConfigFile(&s_SIM_config);
    }
  
@@ -37255,7 +37384,7 @@ index 910d7da..9bd2255 100644
    #endif
  
    if (romFile != NULL) {
-@@ -1537,8 +2337,6 @@ int main(int argc, char *argv[]) {
+@@ -1537,8 +2345,6 @@ int main(int argc, char *argv[]) {
    SIM::G3::GetGlobalState().Init();
  
    SIM_RenderInit(NULL);
@@ -38136,6 +38265,393 @@ index 81309fd..94c9270 100644
  u8 s_HW_BG_VRAM[0x80000];
  u8 s_HW_DB_BG_VRAM[0x20000];
  u8 s_HW_OBJ_VRAM[0x40000];
+diff --git a/libraries/sim/src/sim_wide_battle.cpp b/libraries/sim/src/sim_wide_battle.cpp
+new file mode 100644
+index 0000000..25cc05e
+--- /dev/null
++++ b/libraries/sim/src/sim_wide_battle.cpp
+@@ -0,0 +1,381 @@
++#include "simulator/sim_wide_battle.h"
++
++#include "simulator/imgui/imgui.hpp"
++#include "simulator/sim_headless.h"
++#include "simulator/sim_layout.h"
++#include "simulator/sim_platform.h"
++
++#include <SDL3/SDL.h>
++#include <algorithm>
++#include <cmath>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <deque>
++#include <mutex>
++#include <string>
++#include <vector>
++
++namespace {
++std::mutex sMutex;
++SIM_WideBattleState sState = {};
++std::deque<SIM_WideBattleEvent> sEvents;
++
++constexpr ImU32 kCard = IM_COL32(18, 30, 38, 228);
++constexpr ImU32 kCardStrong = IM_COL32(13, 23, 31, 246);
++constexpr ImU32 kBorder = IM_COL32(140, 165, 175, 220);
++constexpr ImU32 kText = IM_COL32(244, 248, 246, 255);
++constexpr ImU32 kMuted = IM_COL32(174, 190, 194, 255);
++constexpr ImU32 kGold = IM_COL32(255, 205, 72, 255);
++constexpr ImU32 kCoral = IM_COL32(242, 91, 85, 255);
++constexpr ImU32 kEmerald = IM_COL32(48, 190, 133, 255);
++constexpr ImU32 kAmber = IM_COL32(237, 170, 58, 255);
++constexpr ImU32 kCyan = IM_COL32(61, 190, 221, 255);
++
++struct Rect {
++    float x0, y0, x1, y1;
++    bool Contains(float x, float y) const { return x >= x0 && x <= x1 && y >= y0 && y <= y1; }
++};
++struct Layout {
++    Rect safe;
++    Rect dock;
++    Rect prompt;
++    Rect cells[4];
++    Rect extraLeft;
++    Rect extraRight;
++    Rect back;
++    float scale;
++};
++
++float Clamp01(float v) { return std::max(0.0f, std::min(1.0f, v)); }
++ImVec2 P(float x, float y) { return ImVec2(x, y); }
++std::string Ascii(const char *src, size_t cap) {
++    std::string out;
++    if (!src) return out;
++    for (size_t i = 0; i < cap && src[i]; ++i) {
++        unsigned char c = (unsigned char)src[i];
++        if (c >= 32 && c <= 126) out.push_back((char)c);
++    }
++    return out;
++}
++bool EnvOne(const char *name) {
++    const char *v = std::getenv(name);
++    return v && std::strcmp(v, "1") == 0;
++}
++SIM_WideBattleState Snapshot() {
++    std::lock_guard<std::mutex> lock(sMutex);
++    return sState;
++}
++Layout MakeLayout(SDL_Window *window, int menu) {
++    ImVec2 display = ImGui::GetIO().DisplaySize;
++    Rect safe = {0.0f, 0.0f, display.x, display.y};
++    SDL_Rect sa;
++    if (window && SIM_Platform_SafeArea(window, &sa))
++        safe = {(float)sa.x, (float)sa.y, (float)(sa.x + sa.w), (float)(sa.y + sa.h)};
++    float w = safe.x1 - safe.x0, h = safe.y1 - safe.y0;
++    float s = std::max(0.70f, std::min(1.45f, h / 720.0f));
++    float margin = 16.0f * s;
++    float dockW = w * 0.42f;
++    float dockH = h * 0.34f;
++    Rect dock = {safe.x1 - margin - dockW, safe.y1 - margin - dockH,
++                 safe.x1 - margin, safe.y1 - margin};
++    float promptH = 30.0f * s;
++    Rect prompt = {dock.x0, dock.y0 - promptH - 6.0f * s, dock.x1, dock.y0 - 6.0f * s};
++    Layout l = {safe, dock, prompt, {}, {}, {}, {}, s};
++    float pad = 10.0f * s, gap = 8.0f * s;
++    float top = dock.y0 + pad;
++    float bottom = dock.y1 - pad;
++    l.extraLeft = l.extraRight = l.back = {0, 0, 0, 0};
++    if (menu == SIM_WIDEBATTLE_MENU_MOVE) {
++        float stripH = 31.0f * s;
++        l.extraLeft = {dock.x0 + pad, top, dock.x0 + dockW * 0.68f, top + stripH};
++        l.extraRight = {l.extraLeft.x1 + gap, top, dock.x1 - pad, top + stripH};
++        top += stripH + gap;
++    } else if (menu == SIM_WIDEBATTLE_MENU_TARGET) {
++        float backH = 27.0f * s;
++        l.back = {dock.x0 + pad, bottom - backH, dock.x1 - pad, bottom};
++        bottom -= backH + gap;
++    }
++    float cellW = (dockW - pad * 2.0f - gap) * 0.5f;
++    float cellH = (bottom - top - gap) * 0.5f;
++    for (int i = 0; i < 4; ++i) {
++        int col = i & 1, row = i >> 1;
++        float x = dock.x0 + pad + col * (cellW + gap);
++        float y = top + row * (cellH + gap);
++        l.cells[i] = {x, y, x + cellW, y + cellH};
++    }
++    return l;
++}
++void Fill(ImDrawList *d, Rect r, ImU32 c, float round = 6.0f) {
++    d->AddRectFilled(P(r.x0, r.y0), P(r.x1, r.y1), c, round);
++}
++void Stroke(ImDrawList *d, Rect r, ImU32 c, float thick = 1.0f, float round = 6.0f) {
++    d->AddRect(P(r.x0, r.y0), P(r.x1, r.y1), c, round, 0, thick);
++}
++void Text(ImDrawList *d, float size, float x, float y, ImU32 c, const std::string &str) {
++    d->AddText(ImGui::GetFont(), size, P(x, y), c, str.c_str());
++}
++void CenterText(ImDrawList *d, float size, Rect r, ImU32 c, const std::string &str) {
++    ImVec2 z = ImGui::GetFont()->CalcTextSizeA(size, 10000.0f, 0.0f, str.c_str());
++    Text(d, size, r.x0 + (r.x1 - r.x0 - z.x) * 0.5f,
++         r.y0 + (r.y1 - r.y0 - z.y) * 0.5f, c, str);
++}
++void Pill(ImDrawList *d, float size, float x, float y, const std::string &label, ImU32 bg, ImU32 fg = kText) {
++    ImVec2 z = ImGui::GetFont()->CalcTextSizeA(size, 10000.0f, 0.0f, label.c_str());
++    Rect r = {x, y, x + z.x + 10.0f, y + size + 5.0f};
++    Fill(d, r, bg, (size + 5.0f) * 0.5f);
++    Text(d, size, x + 5.0f, y + 2.0f, fg, label);
++}
++ImU32 StatusColor(const std::string &s) {
++    if (s == "BRN") return IM_COL32(226, 111, 48, 255);
++    if (s == "PAR") return IM_COL32(226, 174, 42, 255);
++    if (s == "PSN" || s == "TOX") return IM_COL32(164, 78, 190, 255);
++    if (s == "FRZ") return IM_COL32(58, 182, 210, 255);
++    return IM_COL32(91, 111, 126, 255);
++}
++ImU32 HPColor(float frac) { return frac > 0.5f ? kEmerald : frac >= 0.2f ? kAmber : kCoral; }
++void Bar(ImDrawList *d, Rect r, float frac, ImU32 color, float round = 3.0f) {
++    Fill(d, r, IM_COL32(4, 12, 17, 245), round);
++    frac = Clamp01(frac);
++    if (frac > 0.0f) Fill(d, {r.x0, r.y0, r.x0 + (r.x1 - r.x0) * frac, r.y1}, color, round);
++    Stroke(d, r, IM_COL32(112, 133, 140, 125), 1.0f, round);
++}
++bool HasStages(const SIM_WideBattleBattler &b) {
++    for (int i = 0; i < 7; ++i) if (b.stages[i]) return true;
++    return false;
++}
++void DrawStages(ImDrawList *d, const SIM_WideBattleBattler &b, float x, float y, float fs) {
++    static const char *names[7] = {"ATK", "DEF", "SPA", "SPD", "SPE", "ACC", "EVA"};
++    for (int i = 0; i < 7; ++i) if (b.stages[i]) {
++        char tmp[16];
++        std::snprintf(tmp, sizeof(tmp), "%s %c%d", names[i], b.stages[i] > 0 ? '+' : '-', std::abs((int)b.stages[i]));
++        std::string label(tmp);
++        ImVec2 z = ImGui::GetFont()->CalcTextSizeA(fs, 1000, 0, label.c_str());
++        Pill(d, fs, x, y, label, b.stages[i] > 0 ? IM_COL32(30, 119, 79, 245) : IM_COL32(145, 51, 50, 245));
++        x += z.x + 14.0f;
++    }
++}
++void GlowBorder(ImDrawList *d, Rect r, ImU32 color, float pulse, float s) {
++    ImU32 glow = (color & 0x00ffffffu) | ((ImU32)(55 + 45 * pulse) << 24);
++    Stroke(d, {r.x0 - 3*s, r.y0 - 3*s, r.x1 + 3*s, r.y1 + 3*s}, glow, 5*s, 9*s);
++    Stroke(d, r, color, 2.2f*s, 7*s);
++}
++void DrawHealthbox(ImDrawList *d, const SIM_WideBattleState &state,
++                   const SIM_WideBattleBattler &b, Rect r, float s) {
++    Fill(d, r, kCard, 7*s);
++    Stroke(d, r, kBorder, 1.0f*s, 7*s);
++    Fill(d, {r.x0, r.y0, r.x0 + 5*s, r.y1}, b.isEnemy ? kCoral : kEmerald, 7*s);
++    bool selected = state.menu == SIM_WIDEBATTLE_MENU_TARGET && b.battlerIndex >= 0 &&
++                    b.battlerIndex < 31 && (state.selectedTargetMask & (1 << b.battlerIndex));
++    bool acting = !b.isEnemy && b.isActive && state.menu >= SIM_WIDEBATTLE_MENU_ACTION &&
++                  state.menu <= SIM_WIDEBATTLE_MENU_TARGET;
++    float pulse = 0.5f + 0.5f * std::sin((float)ImGui::GetTime() * 5.0f);
++    if (selected) GlowBorder(d, r, b.isEnemy ? kCoral : (b.isActive ? kAmber : kCyan), pulse, s);
++    else if (acting) GlowBorder(d, r, kGold, 0.45f, s);
++
++    float fs = 13*s, small = 10*s;
++    float x = r.x0 + 13*s, y = r.y0 + 8*s;
++    std::string name = Ascii(b.name, sizeof(b.name));
++    if (name.size() > 15) name.resize(15);
++    Text(d, fs, x, y, kText, name);
++    ImVec2 nz = ImGui::GetFont()->CalcTextSizeA(fs, 1000, 0, name.c_str());
++    float tx = x + nz.x + 7*s;
++    if (b.gender < 2) { Text(d, small, tx, y + 2*s, b.gender ? IM_COL32(255,119,166,255) : IM_COL32(91,180,255,255), b.gender ? "F" : "M"); tx += 14*s; }
++    char level[16]; std::snprintf(level, sizeof(level), "Lv.%d", b.level);
++    Text(d, small, tx, y + 2*s, kMuted, level); tx += 42*s;
++    if (b.isEnemy && b.caught) { Text(d, small, tx, y + 2*s, IM_COL32(180,220,225,255), "[o]"); tx += 22*s; }
++    std::string status = Ascii(b.status, sizeof(b.status));
++    if (!status.empty()) { Pill(d, small, tx, y, status, StatusColor(status)); tx += 38*s; }
++    if (b.megaEvolved) Pill(d, small, tx, y, "[MEGA]", IM_COL32(168, 86, 179, 255), kGold);
++
++    if (selected) Pill(d, small, r.x1 - 65*s, r.y0 - 12*s, b.isEnemy ? "[TARGET]" : (b.isActive ? "[HITS ALLY!]" : "[ALLY]"), b.isEnemy ? IM_COL32(170,45,43,255) : IM_COL32(40,105,155,255));
++    else if (acting) {
++        Text(d, 20*s, r.x0 - 14*s, r.y0 + (r.y1-r.y0)*0.5f - 10*s, kGold, ">");
++        Pill(d, small, r.x1 - 65*s, r.y0 - 12*s, "[ACTING]", IM_COL32(130,92,18,255), kGold);
++    }
++
++    float hp = b.maxHP > 0 ? (float)b.curHP / (float)b.maxHP : 0.0f;
++    float barY = r.y0 + 34*s;
++    Bar(d, {x, barY, r.x1 - 13*s, barY + 10*s}, hp, HPColor(hp), 4*s);
++    float nextY = barY + 14*s;
++    if (!b.isEnemy) {
++        char hpText[32]; std::snprintf(hpText, sizeof(hpText), "%d / %d", b.curHP, b.maxHP);
++        ImVec2 hz = ImGui::GetFont()->CalcTextSizeA(small, 1000, 0, hpText);
++        Text(d, small, r.x1 - 13*s - hz.x, nextY, kText, hpText);
++        nextY += 17*s;
++    }
++    if (HasStages(b)) DrawStages(d, b, x, nextY, 8.5f*s);
++    if (!b.isEnemy && b.expFrac >= 0.0f)
++        Bar(d, {r.x0 + 7*s, r.y1 - 4*s, r.x1 - 7*s, r.y1 - 1.5f*s}, b.expFrac, kCyan, 1*s);
++}
++
++static const ImU32 kTypeColors[19] = {
++    IM_COL32(168,168,120,255), IM_COL32(192,48,40,255), IM_COL32(168,144,240,255), IM_COL32(160,64,160,255),
++    IM_COL32(224,192,104,255), IM_COL32(184,160,56,255), IM_COL32(168,184,32,255), IM_COL32(112,88,152,255),
++    IM_COL32(184,184,208,255), IM_COL32(104,160,144,255), IM_COL32(240,128,48,255), IM_COL32(104,144,240,255),
++    IM_COL32(120,200,80,255), IM_COL32(248,208,48,255), IM_COL32(248,88,136,255), IM_COL32(152,216,216,255),
++    IM_COL32(112,56,248,255), IM_COL32(112,88,72,255), IM_COL32(238,153,172,255)
++};
++static const char *kTypeNames[19] = {"NORMAL","FIGHT","FLY","POISON","GROUND","ROCK","BUG","GHOST","STEEL","???","FIRE","WATER","GRASS","ELEC","PSYCH","ICE","DRAG","DARK","FAIRY"};
++std::string Effect(int e, bool verbose) {
++    if (e == 16) return verbose ? "4x SUPER" : "4x";
++    if (e == 8) return verbose ? "2x SUPER" : "2x";
++    if (e == 2) return "0.5x";
++    if (e == 1) return "0.25x";
++    if (e == 0) return verbose ? "0x IMMUNE" : "0x";
++    return "";
++}
++ImU32 EffectColor(int e) {
++    if (e >= 8) return IM_COL32(36,145,86,255);
++    if (e > 0 && e < 4) return IM_COL32(171,112,34,255);
++    return IM_COL32(83,96,105,255);
++}
++void DrawMove(ImDrawList *d, const SIM_WideBattleMove &m, Rect r, bool selected, float s) {
++    int type = m.type >= 0 && m.type < 19 ? m.type : 0;
++    ImU32 accent = kTypeColors[type];
++    Fill(d, r, selected ? IM_COL32(45,59,65,255) : kCardStrong, 6*s);
++    Fill(d, {r.x0, r.y0, r.x0 + 6*s, r.y1}, accent, 6*s);
++    Stroke(d, r, selected ? kGold : kBorder, selected ? 2.2f*s : 1*s, 6*s);
++    if (!m.moveId) { CenterText(d, 12*s, r, IM_COL32(105,120,126,255), "-- EMPTY --"); return; }
++    std::string name = Ascii(m.name, sizeof(m.name)); if (name.size() > 17) name.resize(17);
++    Text(d, 13*s, r.x0 + 13*s, r.y0 + 7*s, kText, name);
++    char pp[24]; std::snprintf(pp, sizeof(pp), "PP %d/%d", m.curPP, m.maxPP);
++    ImVec2 pz = ImGui::GetFont()->CalcTextSizeA(10*s, 1000, 0, pp);
++    Text(d, 10*s, r.x1 - 9*s - pz.x, r.y0 + 9*s, m.curPP ? kText : kCoral, pp);
++    Pill(d, 8.5f*s, r.x0 + 13*s, r.y0 + 28*s, kTypeNames[type], accent);
++    const char *cat = m.category == SIM_WIDEBATTLE_CAT_SPECIAL ? "SPEC" : m.category == SIM_WIDEBATTLE_CAT_STATUS ? "STAT" : "PHYS";
++    Pill(d, 8.5f*s, r.x0 + 76*s, r.y0 + 28*s, cat, IM_COL32(67,82,91,255));
++    char stats[32]; std::snprintf(stats, sizeof(stats), "PWR %s  ACC %s", m.power ? std::to_string(m.power).c_str() : "--", m.accuracy ? std::to_string(m.accuracy).c_str() : "--");
++    Text(d, 9*s, r.x0 + 13*s, r.y1 - 18*s, kMuted, stats);
++    std::string eff = Effect(m.effectiveness, true);
++    float badgeX = r.x1 - 78*s;
++    if (!eff.empty()) Pill(d, 8.5f*s, badgeX, r.y1 - 21*s, eff, EffectColor(m.effectiveness));
++    if (m.hitsAlly) Pill(d, 8*s, r.x1 - 77*s, r.y0 + 28*s, "[HITS ALLY]", IM_COL32(160,67,39,255));
++    else if (m.rangeMask) Pill(d, 8*s, r.x1 - 62*s, r.y0 + 28*s, "[SPREAD]", IM_COL32(43,105,125,255));
++}
++void DrawTarget(ImDrawList *d, const SIM_WideBattleTargetSlot &t, Rect r, bool selected, float s) {
++    ImU32 border = selected ? kGold : t.isHitBySpread ? kCyan : kBorder;
++    Fill(d, r, t.valid ? kCardStrong : IM_COL32(12,20,25,210), 7*s);
++    Stroke(d, r, border, (selected || t.isHitBySpread) ? 2.2f*s : 1*s, 7*s);
++    if (!t.valid) { CenterText(d, 11*s, r, IM_COL32(91,105,110,255), "-- NO TARGET --"); return; }
++    std::string name = Ascii(t.name, sizeof(t.name)); if (name.size() > 18) name.resize(18);
++    Text(d, 13*s, r.x0 + 11*s, r.y0 + 8*s, kText, name);
++    std::string eff = t.isEnemy ? Effect(t.effectiveness, false) : "ALLY";
++    if (!eff.empty()) Pill(d, 9*s, r.x1 - 52*s, r.y0 + 6*s, eff, t.isEnemy ? EffectColor(t.effectiveness) : IM_COL32(42,105,153,255));
++    float hp = t.maxHP > 0 ? (float)t.curHP / t.maxHP : 0.0f;
++    Bar(d, {r.x0 + 11*s, r.y1 - 18*s, r.x1 - 11*s, r.y1 - 10*s}, hp, HPColor(hp), 3*s);
++    if (t.isHitBySpread) Pill(d, 8*s, r.x0 + 11*s, r.y0 + 29*s, "[SPREAD]", IM_COL32(43,105,125,255));
++}
++void DrawButton(ImDrawList *d, Rect r, const std::string &label, ImU32 accent, bool selected, float s) {
++    Fill(d, r, selected ? accent : kCardStrong, 7*s);
++    Fill(d, {r.x0, r.y0, r.x0 + 7*s, r.y1}, accent, 7*s);
++    Stroke(d, r, selected ? kGold : kBorder, selected ? 2.4f*s : 1*s, 7*s);
++    CenterText(d, 15*s, r, selected ? IM_COL32(10,20,25,255) : kText, label);
++}
++void Queue(int index) {
++    std::lock_guard<std::mutex> lock(sMutex);
++    if (sEvents.size() >= 16) sEvents.pop_front();
++    sEvents.push_back({index});
++}
++} // namespace
++
++extern "C" int SIM_WideBattle_IsEnabled(void) {
++    return SIM_Layout_IsWide() && (!SIM_Headless_Enabled() || EnvOne("SIM_FX_WIDEBATTLE") || EnvOne("SIM_HEADLESS_INTERACTIVE_FX"));
++}
++extern "C" int SIM_WideBattle_IsActive(void) {
++    std::lock_guard<std::mutex> lock(sMutex);
++    return SIM_WideBattle_IsEnabled() && sState.active != 0;
++}
++extern "C" void SIM_WideBattle_SetState(const SIM_WideBattleState *state) {
++    if (!state) return;
++    std::lock_guard<std::mutex> lock(sMutex);
++    sState = *state;
++}
++extern "C" void SIM_WideBattle_Clear(void) {
++    std::lock_guard<std::mutex> lock(sMutex);
++    std::memset(&sState, 0, sizeof(sState));
++    sEvents.clear();
++}
++extern "C" int SIM_WideBattle_PollEvent(SIM_WideBattleEvent *out) {
++    if (!out) return 0;
++    std::lock_guard<std::mutex> lock(sMutex);
++    if (sEvents.empty()) { out->buttonIndex = -1; return 0; }
++    *out = sEvents.front(); sEvents.pop_front(); return 1;
++}
++
++// Internal renderer entry point; intentionally not part of the game-facing shared contract.
++void SIM_WideBattle_Render(SDL_Window *window) {
++    if (!SIM_WideBattle_IsActive()) return;
++    SIM_WideBattleState state = Snapshot();
++    ImDrawList *d = ImGui::GetForegroundDrawList();
++    Layout l = MakeLayout(window, state.menu);
++    float s = l.scale, margin = 16*s;
++
++    std::vector<const SIM_WideBattleBattler *> enemies, players;
++    for (const auto &b : state.battlers) if (b.present) (b.isEnemy ? enemies : players).push_back(&b);
++    auto order = [](const SIM_WideBattleBattler *a, const SIM_WideBattleBattler *b) { return a->isAllySlot2 < b->isAllySlot2; };
++    std::sort(enemies.begin(), enemies.end(), order); std::sort(players.begin(), players.end(), order);
++    float cardW = std::min((l.safe.x1-l.safe.x0)*0.34f, 390*s), gap = 6*s;
++    float y = l.safe.y0 + margin;
++    for (auto *b : enemies) {
++        float h = (HasStages(*b) ? 76 : 59)*s;
++        DrawHealthbox(d, state, *b, {l.safe.x0+margin, y, l.safe.x0+margin+cardW, y+h}, s); y += h+gap;
++    }
++    y = l.safe.y1 - margin;
++    for (auto *b : players) {
++        float h = (HasStages(*b) ? 94 : 77)*s;
++        DrawHealthbox(d, state, *b, {l.safe.x0+margin, y-h, l.safe.x0+margin+cardW, y}, s); y -= h+gap;
++    }
++    if (state.menu == SIM_WIDEBATTLE_MENU_IDLE) return;
++
++    Fill(d, l.dock, IM_COL32(8,16,22,244), 10*s); Stroke(d, l.dock, kBorder, 1.2f*s, 10*s);
++    Fill(d, l.prompt, kCardStrong, 14*s); Fill(d, {l.prompt.x0,l.prompt.y0,l.prompt.x0+6*s,l.prompt.y1}, kGold, 14*s);
++    std::string prompt = Ascii(state.prompt, sizeof(state.prompt)); if (prompt.size() > 68) prompt.resize(68);
++    Text(d, 13*s, l.prompt.x0+15*s, l.prompt.y0+7*s, kText, prompt);
++
++    if (state.menu == SIM_WIDEBATTLE_MENU_ACTION) {
++        const int mapIndex[4] = {0,3,1,2};
++        const ImU32 colors[4] = {kCoral,kEmerald,IM_COL32(68,157,206,255),kAmber};
++        for (int i=0;i<4;++i) {
++            int idx=mapIndex[i]; std::string label=Ascii(state.actionLabels[idx],sizeof(state.actionLabels[idx]));
++            if (label.empty()) { static const char *fallback[4]={"FIGHT","BAG","RUN","POKEMON"}; label=fallback[idx]; }
++            DrawButton(d,l.cells[i],label,colors[i],state.cursorX==(i&1)&&state.cursorY==(i>>1),s);
++        }
++    } else if (state.menu == SIM_WIDEBATTLE_MENU_MOVE) {
++        if (state.megaAvailable) DrawButton(d,l.extraLeft,state.megaArmed?"[M] MEGA ARMED":"[M] MEGA EVOLVE",state.megaArmed?IM_COL32(205,67,177,255):kGold,state.megaArmed,s);
++        else { Fill(d,l.extraLeft,IM_COL32(22,32,38,255),6*s); CenterText(d,10*s,l.extraLeft,kMuted,"MEGA UNAVAILABLE"); }
++        DrawButton(d,l.extraRight,"[B] BACK",IM_COL32(91,105,116,255),false,s);
++        for(int i=0;i<4;++i) DrawMove(d,state.moves[i],l.cells[i],state.cursorX==(i&1)&&state.cursorY==(i>>1),s);
++    } else if (state.menu == SIM_WIDEBATTLE_MENU_TARGET) {
++        for(int i=0;i<4;++i) DrawTarget(d,state.targets[i],l.cells[i],state.cursorX==(i&1)&&state.cursorY==(i>>1),s);
++        DrawButton(d,l.back,"[B] BACK",IM_COL32(91,105,116,255),false,s);
++    } else if (state.menu == SIM_WIDEBATTLE_MENU_YESNO) {
++        DrawButton(d,l.cells[0],"YES",kEmerald,state.cursorX==0,s);
++        DrawButton(d,l.cells[1],"NO",kCoral,state.cursorX!=0,s);
++    }
++}
++
++// Returns nonzero when the native HUD consumed the press.
++int SIM_WideBattle_HandleClick(SDL_Window *window, float x, float y) {
++    if (!SIM_WideBattle_IsActive()) return 0;
++    SIM_WideBattleState state = Snapshot();
++    if (state.menu == SIM_WIDEBATTLE_MENU_IDLE) return 0;
++    Layout l = MakeLayout(window, state.menu);
++    if (!l.dock.Contains(x,y)) return 0;
++    if (state.menu == SIM_WIDEBATTLE_MENU_ACTION) {
++        static const int index[4]={0,3,1,2};
++        for(int i=0;i<4;++i) if(l.cells[i].Contains(x,y)){Queue(index[i]);return 1;}
++    } else if (state.menu == SIM_WIDEBATTLE_MENU_MOVE) {
++        if(l.extraLeft.Contains(x,y)){if(state.megaAvailable)Queue(5);return 1;}
++        if(l.extraRight.Contains(x,y)){Queue(0);return 1;}
++        for(int i=0;i<4;++i) if(l.cells[i].Contains(x,y)){if(state.moves[i].moveId)Queue(i+1);return 1;}
++    } else if (state.menu == SIM_WIDEBATTLE_MENU_TARGET) {
++        static const int index[4]={3,1,0,2};
++        if(l.back.Contains(x,y)){Queue(4);return 1;}
++        for(int i=0;i<4;++i) if(l.cells[i].Contains(x,y)){if(state.targets[i].valid)Queue(index[i]);return 1;}
++    } else if (state.menu == SIM_WIDEBATTLE_MENU_YESNO) {
++        if(l.cells[0].Contains(x,y)){Queue(0);return 1;}
++        if(l.cells[1].Contains(x,y)){Queue(1);return 1;}
++    }
++    return 1;
++}
 diff --git a/libraries/sim/tools/gpu_selftest.cpp b/libraries/sim/tools/gpu_selftest.cpp
 new file mode 100644
 index 0000000..d5f2a52

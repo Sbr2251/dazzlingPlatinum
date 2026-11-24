@@ -39,6 +39,7 @@
 #include "battle/battle_events.h"
 #include "battle/common.h"
 #include "battle/healthbox.h"
+#include "battle/wide_battle_hud.h"
 #include "battle/stop_recording_task_data.h"
 #include "battle/terrain.h"
 #include "battle_anim/battle_anim_system.h"
@@ -316,6 +317,7 @@ BOOL Battle_Main(ApplicationManager *appMan, int *state)
 
 void BattleSystem_EnterSubMenu(BattleSystem *battleSys)
 {
+    WideBattleHud_Clear();
     SIM_Wide_SetScene(SIM_WIDE_SCENE_MENU); // battlehud hook (widegame note)
     BattleSubscreen_Free(battleSys->btlSubscreen);
     BattleSubscreenBg_Free(battleSys->bgConfig);
@@ -702,6 +704,7 @@ static int BattleMain_ExecuteBattlerCommands(ApplicationManager *appMan)
         }
     }
 
+    WideBattleHud_SyncFrame(battleSys, battleSys->btlSubscreen);
     return battleSys->commandIsEndWait;
 }
 
@@ -713,6 +716,8 @@ static void BattleMain_CopyBattleSysToDTOAndFree(ApplicationManager *appMan)
     BattleSystem *battleSys = ApplicationManager_Data(appMan);
     FieldBattleDTO *dto = ApplicationManager_Args(appMan);
     int battlerId;
+
+    WideBattleHud_Clear();
 
     dto->seed = battleSys->seedDTO;
     dto->battleStatusMask = battleSys->battleStatusMask;

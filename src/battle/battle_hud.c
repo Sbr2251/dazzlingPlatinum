@@ -27,6 +27,7 @@
 #include "battle/battle_context.h"
 #include "battle/battle_system.h"
 #include "battle/healthbox.h"
+#include "battle/wide_battle_hud.h"
 #include "port/sim_config_prj.h"
 #include "port/sim_wide.h"
 
@@ -395,6 +396,15 @@ static int HudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
 int BattleHud_Update(BattleSubscreen *btlSubscreen)
 {
     int menu, cx, cy, touchX, touchY;
+
+    if (btlSubscreen != NULL && WideBattleHud_IsActive()) {
+        /* Native 16:9 owns the menu and corner health UI completely. */
+        HudHideInternal(btlSubscreen);
+        SIM_Wide_SetBattleTouchNeeded(0);
+        SIM_Wide_SetMainTouchEnabled(0);
+        WideBattleHud_SyncFrame(btlSubscreen->battleSys, btlSubscreen);
+        return WideBattleHud_PollTouch();
+    }
 
     if (!BattleHud_IsEnabled() || btlSubscreen == NULL) {
         if (btlSubscreen != NULL) {

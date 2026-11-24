@@ -11,6 +11,7 @@
 #include "constants/string.h"
 
 #include "battle/battle_system.h"
+#include "battle/wide_battle_hud.h"
 
 #include "assert.h"
 #include "bg_window.h"
@@ -1027,6 +1028,9 @@ static void HealthBox_EnableArrow(HealthBox *battleSys, BOOL enable)
 
 void HealthBox_Enable(HealthBox *battleSys, BOOL enable)
 {
+    if (WideBattleHud_IsActive()) {
+        enable = FALSE;
+    }
     if (battleSys->mainSprite == NULL) {
         return;
     }

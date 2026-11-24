@@ -551,6 +551,7 @@ pokeplatinum_c = files(
     'battle/battle_io_command.c',
     'battle/battle_display.c',
     'battle/battle_hud.c',
+    'battle/wide_battle_hud.c',
     'battle/battle_events.c',
     'battle/idle_bounce_anim.c',
     'battle/battle_controller.c',
