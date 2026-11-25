@@ -35,9 +35,9 @@ sys.path.insert(0, os.path.join(ROOT, "tools", "lake_verity"))
 import nsbtx  # noqa: E402
 import png  # noqa: E402
 
-# Output path of set 010. On the devserver ROM tree it is res/field/maps/texture_sets/; on the macOS app branch
-# (solaceon-mac) it is res/field/mapmodels/texture_sets/map_texture_set_010.nsbtx. The bytes are the same.
-SET_REL = "res/field/maps/texture_sets/map_texture_set_010.nsbtx"
+# Output path of set 010: the macOS app branch (solaceon-mac) keeps it in res/field/mapmodels/texture_sets/ (the devserver
+# ROM tree used res/field/maps/texture_sets/; the stock bytes are the same).
+SET_REL = "res/field/mapmodels/texture_sets/map_texture_set_010.nsbtx"
 BASE_REV = "50482f890"          # arc2 merge: stock set 010 (with the memorial wall's sol_wall / sol_stone)
 BASE_SET_REL = "res/field/maps/texture_sets/map_texture_set_010.nsbtx"   # where set 010 lives at BASE_REV
 ASSET_DIR = os.path.join(ROOT, "tools", "solaceon_town", "assets", "textures")
@@ -49,8 +49,8 @@ NAME_MAX = 15
 ORDER = ["sol_hwall", "sol_hroof", "sol_htrim", "sol_hatlas", "sol_gate", "sol_steps", "sol_fcpave", "sol_emblem",
          "sol_plaza", "sol_border", "sol_furn", "sol_offer", "sol_banner", "sol_candle", "sol_canvas", "sol_awning",
          "sol_tent", "sol_scaff", "sol_wfence", "sol_tarp", "sol_exatlas", "sol_spoil", "sol_kwall", "sol_kroof",
-         "sol_yard", "sol_ruts", "sol_truck"]
-STRETCH = ["sol_truck", "sol_ruts", "sol_candle", "sol_tarp", "sol_border"]   # cut in this order if VRAM is needed
+         "sol_yard", "sol_ruts"]
+STRETCH = ["sol_ruts", "sol_candle", "sol_tarp", "sol_border"]   # sol_truck was cut by town-art (no terrain truck)   # cut in this order if VRAM is needed
 
 
 def git_bytes(rev, rel):

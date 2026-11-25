@@ -1,46 +1,40 @@
 {
  "format": "pltt16",
  "repeat": [
-  true,
-  true
+  false,
+  false
  ],
  "c0": 0,
  "color0_transparent": false,
  "group": "forecourt",
- "use": "eclipse emblem decal: quadrant, repeat+flip s/t, UV 0..2 over 4x4 tiles; its outer flags match sol_fcpave's grid",
+ "use": "eclipse inlay, 3x3 tiles: quadrant (texels 0..23) drawn as 4 quads with mirrored UVs; its flags match sol_fcpave's grid",
  "palette_names": [
   null,
-  "disc",
-  "violet5",
-  "violet3",
-  "violet2",
-  "violet1",
+  "lilac5",
+  "lilac4",
+  "gold2",
+  "lilac3",
   "gold1",
   "lilac2",
   "pave2",
   "pave1",
   "gold0",
+  "lilac1",
   "pave0",
-  "gold4",
   "stone0"
  ],
  "palette_sources": {
-  "disc": "blend ink/violet3 0.25",
-  "violet5": "blend violet3/ink 0.75",
-  "violet3": "areabm_texset 4 t3_h01_pl[1]",
-  "violet2": "areabm_texset 4 t3_h01_pl[2]",
-  "violet1": "areabm_texset 4 t3_h01_pl[3]",
+  "lilac5": "areabm_texset 6 r209s01_a_pl[0]",
+  "lilac4": "areabm_texset 6 r209s01_a_pl[1]",
+  "gold2": "areabm_texset 7 container_pl[0]",
+  "lilac3": "areabm_texset 6 r209s01_a_pl[2]",
   "gold1": "areabm_texset 7 container_pl[2]",
   "lilac2": "areabm_texset 6 r209s01_a_pl[3]",
   "pave2": "set010 blueglay[0]",
   "pave1": "set010 blueglay[2]",
   "gold0": "areabm_texset 7 container_pl[4]",
+  "lilac1": "areabm_texset 6 r209s01_a_pl[4]",
   "pave0": "set010 blueglay[1]",
-  "gold4": "blend gold0/white 0.5",
   "stone0": "areabm_texset 6 r209s01_a_pl[9]"
- },
- "flip": [
-  true,
-  true
- ]
+ }
 }

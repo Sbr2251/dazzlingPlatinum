@@ -1,4 +1,65 @@
 {
   "_doc": "Allowlist for tools/qa/walkcheck.py. Each entry silences one mismatch: {map, surface, class, x, y, z, severity, reason}. y is the wall tile's y for wall entries (wall tiles are (y, z)), the platform's y for ceiling/floor-platform entries, and null/absent for floor entries. severity is optional: an entry without it matches any severity, while one with it matches only that severity (so a HIGH<->MEDIUM change is not silently allowlisted). Only add entries with a design reason; never to hide a bug.",
-  "entries": []
+  "entries": [
+    {
+      "map": "MAP_HEADER_SOLACEON_TOWN",
+      "surface": "floor",
+      "class": "LOOKS_WALKABLE_BUT_BLOCKED",
+      "x": 576,
+      "y": null,
+      "z": 652,
+      "severity": "MEDIUM",
+      "reason": "Solaceon Sanctuary hall door row (layout.HALL, blocked by design): a 0.4-tile raised flower planter in front of the wing (tools/solaceon_town/build_art.py build_hall); low decoration like stock flower beds"
+    },
+    {
+      "map": "MAP_HEADER_SOLACEON_TOWN",
+      "surface": "floor",
+      "class": "LOOKS_WALKABLE_BUT_BLOCKED",
+      "x": 584,
+      "y": null,
+      "z": 652,
+      "severity": "MEDIUM",
+      "reason": "Solaceon Sanctuary hall door row (layout.HALL, blocked by design): a 0.4-tile raised flower planter in front of the wing (tools/solaceon_town/build_art.py build_hall); low decoration like stock flower beds"
+    },
+    {
+      "map": "MAP_HEADER_SOLACEON_TOWN",
+      "surface": "floor",
+      "class": "LOOKS_WALKABLE_BUT_BLOCKED",
+      "x": 592,
+      "y": null,
+      "z": 659,
+      "severity": "MEDIUM",
+      "reason": "Solaceon excavation warning fence (layout.DIG_FENCE_Z, blocked by design, gap at (595,659)): a 0.85-tile sol_wfence barrier drawn like the stock picket fence (tools/solaceon_town/build_art.py build_excavation)"
+    },
+    {
+      "map": "MAP_HEADER_SOLACEON_TOWN",
+      "surface": "floor",
+      "class": "LOOKS_WALKABLE_BUT_BLOCKED",
+      "x": 593,
+      "y": null,
+      "z": 659,
+      "severity": "MEDIUM",
+      "reason": "Solaceon excavation warning fence (layout.DIG_FENCE_Z, blocked by design, gap at (595,659)): a 0.85-tile sol_wfence barrier drawn like the stock picket fence (tools/solaceon_town/build_art.py build_excavation)"
+    },
+    {
+      "map": "MAP_HEADER_SOLACEON_TOWN",
+      "surface": "floor",
+      "class": "LOOKS_WALKABLE_BUT_BLOCKED",
+      "x": 596,
+      "y": null,
+      "z": 659,
+      "severity": "MEDIUM",
+      "reason": "Solaceon excavation warning fence (layout.DIG_FENCE_Z, blocked by design, gap at (595,659)): a 0.85-tile sol_wfence barrier drawn like the stock picket fence (tools/solaceon_town/build_art.py build_excavation)"
+    },
+    {
+      "map": "MAP_HEADER_SOLACEON_TOWN",
+      "surface": "floor",
+      "class": "LOOKS_WALKABLE_BUT_BLOCKED",
+      "x": 597,
+      "y": null,
+      "z": 659,
+      "severity": "MEDIUM",
+      "reason": "Solaceon excavation warning fence (layout.DIG_FENCE_Z, blocked by design, gap at (595,659)): a 0.85-tile sol_wfence barrier drawn like the stock picket fence (tools/solaceon_town/build_art.py build_excavation)"
+    }
+  ]
 }

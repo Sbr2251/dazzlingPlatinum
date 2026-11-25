@@ -86,7 +86,21 @@ def scallop_rows(w, h, cols):
 
 
 def hroof():
-    return scallop_rows(32, 32, ("violet0", "violet1", "violet2", "violet2", "violet3"))
+    """Hall roof slope, mapped once across the whole slope: v 0 at the ridge, v 1 at the eave, repeat s only (2 tiles
+    per repeat along the eave). Four rows of round tiles that darken from the ridge to the eave, the light-to-dark
+    band stock roofs bake in (pcloof's slope strip): a slope of about 2.7 tiles gives 12 texels per tile down the
+    slope, inside the stock roof range (6 to 13)."""
+    rows = [("mist2", "violet0", "violet1", "violet1", "violet2"),
+            ("violet0", "violet1", "violet2", "violet2", "violet3"),
+            ("violet1", "violet1", "violet2", "violet3", "violet3"),
+            ("violet1", "violet2", "violet3", "violet3", "violet4")]
+    g = G(32, 32, "violet1")
+    for r, cols in enumerate(rows):
+        band = scallop_rows(32, 32, cols)
+        for y in range(r * 8, r * 8 + 8):
+            for x in range(32):
+                g.set(x, y, band.get(x, y))
+    return g
 
 
 def htrim():
@@ -400,31 +414,60 @@ def fcpave():
     return g
 
 
+EMBLEM_R = 24          # emblem radius in texels: 3 tiles across at 16 texels per tile
+
+
 def emblem():
-    """Top-left quadrant of a 4x4-tile eclipse emblem set into the forecourt flags. Material repeat + flip on s and
-    t; UV 0..2 over the 4x4 tiles mirrors it into the full disc (centre at the texture's bottom-right corner)."""
+    """Top-left quadrant of the 3x3-tile eclipse inlay (toned down: the hall stays the focal point). The forecourt
+    flags show through most of it; the mark is a slate disc, a thin gold ring, 8 thin gold rays and 8 short lilac
+    ones, and a carved lilac double ring at the rim. Texels 0..23 are the quadrant (1.5 x 1.5 tiles, centre at texel
+    (24, 24), tile joint at texel 16, the same flags as sol_fcpave with its origin on the emblem's NW corner);
+    texels 24..31 mirror it, so a sample on the centre line never reads outside. The map draws it as four quads with
+    mirrored UVs (no flip material): NW u 0..0.75, NE u 0.75..0, and so on."""
+    R = EMBLEM_R
+    q = G(32, 32, "pave0")
+    flags(q, random.Random(3))
+    cx = cy = float(R)
+    for y in range(R):
+        for x in range(R):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            d = math.hypot(dx, dy)
+            a = math.atan2(-dy, -dx)                 # 0 .. pi/2 in this quadrant (towards the NW corner)
+            v = None
+            if d <= 8.4:
+                v = "lilac4"
+                if d > 7.5:
+                    v = "lilac5"
+            elif d <= 9.7:
+                v = "gold1" if a > 0.55 else "gold2"          # thin gold ring, lit from the upper left
+                if d > 9.1 and 0.6 < a < 1.2:
+                    v = "gold0"
+            elif 19.4 < d <= 20.3:
+                v = "lilac2"
+            elif 20.3 < d <= 21.2:
+                v = "lilac3"
+            else:
+                for k in range(-1, 5):                        # rays every 22.5 degrees; long ones on the axes
+                    ang = k * math.pi / 8
+                    off = abs(math.sin(a - ang)) * d          # distance from the ray's centre line
+                    along = math.cos(a - ang) * d
+                    long_ray = k % 2 == 0
+                    reach = 18.6 if long_ray else 14.5
+                    if along > 0 and along <= reach and off < (0.75 if long_ray else 0.6):
+                        v = "gold2" if long_ray else "lilac3"
+                        if long_ray and along < 13 and off < 0.45:
+                            v = "gold1"
+                        break
+                if v is None and d <= 11.6:
+                    v = "lilac1"                              # a faint corona just outside the ring
+                elif v is None and d <= 13.4 and q.get(x, y) in ("pave0", "pave1") and (x + y) % 2:
+                    v = "lilac1"
+            if v:
+                q.set(x, y, v)
     g = G(32, 32, "pave0")
-    flags(g, random.Random(3))
-    cx = cy = 32.0
     for y in range(32):
         for x in range(32):
-            d = math.hypot(x + 0.5 - cx, y + 0.5 - cy)
-            if 25.0 < d <= 26.4:
-                g.set(x, y, "lilac2")
-            elif 23.6 < d <= 25.0:
-                g.set(x, y, "violet3")
-            elif d <= 23.6:
-                g.set(x, y, "violet2")
-    eclipse(g, cx, cy, 10.2, 23.0, rays=16, ring="gold0", corona=("violet1", "violet2"), ray="gold1",
-            disc="disc", rim="violet5")
-    # gold ray tips and a flash on the bright ring
-    for y in range(32):
-        for x in range(32):
-            d = math.hypot(x + 0.5 - cx, y + 0.5 - cy)
-            if g.get(x, y) == "gold1" and d < 13.5:
-                g.set(x, y, "gold0")
-    for (x, y) in ((24, 23), (23, 24), (24, 24)):
-        g.set(x, y, "gold4")
+            g.set(x, y, q.get(x if x < R else 2 * R - 1 - x, y if y < R else 2 * R - 1 - y))
     return g
 
 
@@ -1007,95 +1050,6 @@ def ruts():
     return g
 
 
-def truck():
-    """64x64, colour 0 transparent. Side 64x32 at (0,0) (cab left, cargo box, wheels); cab front 24x24 at (0,32); box
-    rear doors 24x24 at (24,32); box roof 16x32 at (48,32); cab roof 24x8 at (0,56); bonnet 24x8 at (24,56)."""
-    g = G(64, 64, None)
-    # cargo box
-    g.rect(22, 1, 42, 22, "stone1")
-    g.hline(22, 1, 42, "white")
-    for x in range(26, 64, 6):
-        g.vline(x, 2, 20, "stone2")
-        g.vline(x + 1, 2, 20, "white")
-    g.rect(22, 13, 42, 3, "violet2")
-    g.hline(22, 13, 42, "violet1")
-    g.hline(22, 16, 42, "gold1")
-    g.hline(22, 22, 42, "stone4")
-    g.vline(22, 1, 22, "stone4")
-    # cab
-    g.rect(2, 6, 20, 17, "violet1")
-    g.hline(3, 5, 17, "violet1")
-    g.rect(3, 6, 1, 1, None)
-    g.rect(8, 7, 11, 6, "glass0")
-    g.line(10, 12, 15, 7, "white")
-    g.line(11, 12, 16, 7, "white")
-    g.vline(8, 7, 6, "ink2")
-    g.hline(8, 13, 11, "ink2")
-    g.rect(2, 13, 20, 3, "white")
-    g.hline(2, 13, 20, "white")
-    g.hline(2, 16, 20, "violet2")
-    g.vline(7, 7, 15, "ink2")
-    g.rect(16, 17, 3, 1, "ink2")
-    g.rect(1, 18, 2, 3, "glow0")
-    g.rect(1, 21, 21, 2, "steel1")
-    g.rect(19, 4, 2, 3, "ink2")
-    # chassis and wheels
-    g.rect(4, 23, 60, 2, "ink2")
-    for cx in (10.5, 50.5, 58.5):
-        g.disc(cx, 26.5, 5.2, "ink")
-        g.disc(cx, 26.5, 2.4, "steel1")
-        g.disc(cx - 0.4, 26.1, 1.0, "steel0")
-    g.rect(43, 20, 21, 3, "ink2") if False else None
-    # cab front
-    f = G(24, 24, "violet1")
-    f.rect(2, 1, 20, 9, "glass0")
-    f.line(4, 9, 11, 2, "white")
-    f.line(5, 9, 12, 2, "white")
-    f.rect(0, 10, 24, 3, "white")
-    f.hline(0, 10, 24, "white")
-    f.hline(0, 13, 24, "violet2")
-    f.rect(6, 14, 12, 5, "steel2")
-    for y in (15, 17):
-        f.hline(7, y, 10, "ink2")
-    f.rect(1, 14, 4, 3, "glow0")
-    f.rect(19, 14, 4, 3, "glow0")
-    f.rect(0, 20, 24, 4, "steel1")
-    f.hline(0, 20, 24, "steel0")
-    f.hline(0, 23, 24, "ink2")
-    g.blit(f, 0, 32)
-    # box rear doors
-    b = G(24, 24, "stone1")
-    b.hline(0, 0, 24, "white")
-    b.vline(11, 1, 21, "stone4")
-    b.vline(12, 1, 21, "white")
-    for x in (5, 18):
-        b.vline(x, 2, 19, "steel2")
-        b.vline(x + 1, 2, 19, "steel1")
-    b.rect(8, 10, 3, 2, "steel2")
-    b.rect(13, 10, 3, 2, "steel2")
-    b.rect(0, 13, 24, 2, "violet2")
-    b.rect(0, 20, 3, 2, "red1")
-    b.rect(21, 20, 3, 2, "red1")
-    b.rect(0, 22, 24, 2, "ink2")
-    g.blit(b, 24, 32)
-    # box roof
-    r = G(16, 32, "stone1")
-    for y in range(0, 32, 4):
-        r.hline(0, y, 16, "stone2")
-        r.hline(0, y + 1, 16, "white")
-    r.vline(0, 0, 32, "stone4")
-    r.vline(15, 0, 32, "stone4")
-    g.blit(r, 48, 32)
-    # cab roof, bonnet
-    g.rect(0, 56, 24, 8, "violet1")
-    g.hline(0, 56, 24, "white")
-    g.hline(0, 63, 24, "stone2")
-    g.rect(24, 56, 24, 8, "violet1")
-    g.rect(27, 57, 18, 1, "white")
-    g.hline(24, 63, 24, "stone2")
-    return g
-
-
 # ---------------------------------------------------------------------------------------------------------------
 # registry
 # ---------------------------------------------------------------------------------------------------------------
@@ -1105,8 +1059,9 @@ def truck():
 KIT = [
     dict(name="sol_hwall", fn=hwall, fmt="pltt16", repeat=(1, 1), c0=0, group="hall",
          use="Sanctuary hall + compound wall: pale ashlar, 2x2 tiles per repeat"),
-    dict(name="sol_hroof", fn=hroof, fmt="pltt16", repeat=(1, 1), c0=0, group="hall",
-         use="hall roof slopes: violet round tiles, 2x2 tiles per repeat (rows run along s)"),
+    dict(name="sol_hroof", fn=hroof, fmt="pltt16", repeat=(1, 0), c0=0, group="hall",
+         use="hall roof slopes: violet round tiles darkening ridge -> eave; v 0..1 across the whole slope, 2 tiles "
+             "per repeat along s"),
     dict(name="sol_htrim", fn=htrim, fmt="pltt16", repeat=(1, 0), c0=0, group="hall",
          use="bands, repeat s, 2 tiles per repeat: v 0-.25 ridge cap, .25-.5 eave + gold fascia, .5-.75 lilac "
              "plinth, .75-1 violet coping (compound wall top)"),
@@ -1118,9 +1073,9 @@ KIT = [
          use="iron gate leaves / railings, 2x2 tiles, repeat s, see-through"),
     dict(name="sol_fcpave", fn=fcpave, fmt="pltt16", repeat=(1, 1), c0=0, group="forecourt",
          use="forecourt flagstones, one flag per tile, 2x2 tiles per repeat"),
-    dict(name="sol_emblem", fn=emblem, fmt="pltt16", repeat=(1, 1), flip=(1, 1), c0=0, group="forecourt",
-         use="eclipse emblem decal: quadrant, repeat+flip s/t, UV 0..2 over 4x4 tiles; its outer flags match "
-             "sol_fcpave's grid"),
+    dict(name="sol_emblem", fn=emblem, fmt="pltt16", repeat=(0, 0), c0=0, group="forecourt",
+         use="eclipse inlay, 3x3 tiles: quadrant (texels 0..23) drawn as 4 quads with mirrored UVs; its flags "
+             "match sol_fcpave's grid"),
     dict(name="sol_plaza", fn=plaza, fmt="pltt16", repeat=(1, 1), c0=0, group="plaza",
          use="memorial plaza: warm basket-weave setts, 2x2 tiles per repeat"),
     dict(name="sol_border", fn=border, fmt="pltt16", repeat=(1, 0), c0=0, group="plaza",
@@ -1167,9 +1122,6 @@ KIT = [
     dict(name="sol_spoil", stock_texels="criffp", stock_palette="criff", fmt="pltt16", repeat=(1, 1), c0=0,
          group="excavation", lum_ramp=["ink", "wood5", "wood3", "dirt2", "dirt1"],
          use="fresh-dug pit face / spoil heap: stock criffp cliff texels in raw-earth browns (by luminance)"),
-    dict(name="sol_truck", fn=truck, fmt="pltt16", repeat=(0, 0), c0=1, group="ranch", fold={"gold1": "white"},
-         use="parked truck: side (0,0 64x32), cab front (0,32), rear doors (24,32), box roof (48,32 16x32), cab "
-             "roof (0,56), bonnet (24,56)"),
 ]
 
 SIZE_BYTES = {"pltt16": 0.5, "pltt4": 0.25, "a3i5": 1}

@@ -2,23 +2,27 @@
  "format": "pltt16",
  "repeat": [
   true,
-  true
+  false
  ],
  "c0": 0,
  "color0_transparent": false,
  "group": "hall",
- "use": "hall roof slopes: violet round tiles, 2x2 tiles per repeat (rows run along s)",
+ "use": "hall roof slopes: violet round tiles darkening ridge -> eave; v 0..1 across the whole slope, 2 tiles per repeat along s",
  "palette_names": [
   null,
+  "violet4",
   "violet3",
   "violet2",
   "violet1",
-  "violet0"
+  "violet0",
+  "mist2"
  ],
  "palette_sources": {
+  "violet4": "blend violet3/ink 0.45",
   "violet3": "areabm_texset 4 t3_h01_pl[1]",
   "violet2": "areabm_texset 4 t3_h01_pl[2]",
   "violet1": "areabm_texset 4 t3_h01_pl[3]",
-  "violet0": "blend violet1/mist1 0.45"
+  "violet0": "blend violet1/mist1 0.45",
+  "mist2": "areabm_texset 4 t3_h01_pl[4]"
  }
 }
