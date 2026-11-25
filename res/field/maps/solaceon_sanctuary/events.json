@@ -1,6 +1,261 @@
 {
-    "bg_events": [],
-    "object_events": [],
+    "bg_events": [
+        {
+            "script": "SolaceonSanctuary_Lectern",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 10,
+            "z": 9,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "SolaceonSanctuary_NoticeBoard",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 6,
+            "z": 18,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "SolaceonSanctuary_FilingDrawers",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 20,
+            "z": 7,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "SolaceonSanctuary_FilingDrawers",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 21,
+            "z": 7,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "SolaceonSanctuary_FilingDrawers",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 22,
+            "z": 7,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "SolaceonSanctuary_FilingDrawers",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 24,
+            "z": 7,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "SolaceonSanctuary_FilingDrawers",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 25,
+            "z": 7,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "SolaceonSanctuary_FilingDrawers",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 25,
+            "z": 9,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_EAST"
+        },
+        {
+            "script": "SolaceonSanctuary_Ledger",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 22,
+            "z": 10,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "SolaceonSanctuary_IndrasDesk",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 23,
+            "z": 10,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "SolaceonSanctuary_BackDoor",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 18,
+            "z": 6,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        }
+    ],
+    "object_events": [
+        {
+            "id": "LOCALID_SPEAKER",
+            "graphics_id": "OBJ_EVENT_GFX_MIDDLE_AGED_WOMAN",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_1",
+            "script": "SolaceonSanctuary_Speaker",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 10,
+            "z": 8,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_HALL_ATTENDANT",
+            "graphics_id": "OBJ_EVENT_GFX_LADY",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_2",
+            "script": "SolaceonSanctuary_HallAttendant",
+            "initial_dir": "DIR_EAST",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 7,
+            "z": 18,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_TESTIMONY_A",
+            "graphics_id": "OBJ_EVENT_GFX_OLD_MAN",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_3",
+            "script": "SolaceonSanctuary_TestimonyA",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 6,
+            "z": 12,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_TESTIMONY_B",
+            "graphics_id": "OBJ_EVENT_GFX_ACE_TRAINER_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_4",
+            "script": "SolaceonSanctuary_TestimonyB",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 14,
+            "z": 12,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_TESTIMONY_C",
+            "graphics_id": "OBJ_EVENT_GFX_SCHOOL_KID_M",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_5",
+            "script": "SolaceonSanctuary_TestimonyC",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 13,
+            "z": 16,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_RECORDS_CLERK",
+            "graphics_id": "OBJ_EVENT_GFX_SCIENTIST_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_6",
+            "script": "SolaceonSanctuary_RecordsClerk",
+            "initial_dir": "DIR_NORTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 21,
+            "z": 8,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_HALL_GRUNT",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_7",
+            "script": "SolaceonSanctuary_HallGrunt",
+            "initial_dir": "DIR_WEST",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 19,
+            "z": 13,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_BACK_DOOR_GRUNT",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_M",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_8",
+            "script": "SolaceonSanctuary_BackDoorGrunt",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 18,
+            "z": 7,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_LOOKER",
+            "graphics_id": "OBJ_EVENT_GFX_LOOKER",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_9",
+            "script": "SolaceonSanctuary_Looker",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 23,
+            "z": 9,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_IP_OFFICER_HALL",
+            "graphics_id": "OBJ_EVENT_GFX_POLICEMAN",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_10",
+            "script": "SolaceonSanctuary_IpOfficerHall",
+            "initial_dir": "DIR_WEST",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 11,
+            "z": 14,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_IP_OFFICER_OFFICE",
+            "graphics_id": "OBJ_EVENT_GFX_POLICEMAN",
+            "movement_type": "MOVEMENT_TYPE_LOOK_WEST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_11",
+            "script": "SolaceonSanctuary_IpOfficerOffice",
+            "initial_dir": "DIR_WEST",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 24,
+            "z": 11,
+            "y": 0
+        }
+    ],
     "warp_events": [
         {
             "id": "WARP_SOLACEON_TOWN",

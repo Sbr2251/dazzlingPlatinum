@@ -222,6 +222,1261 @@
         "WHO DID YOU LOSE?\n",
         "Team Eclipse"
       ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentClerkA_1",
+      "en_US": [
+        "Welcome. Are you here to register\n",
+        "someone?\r",
+        "Take your time. Nobody here is in\n",
+        "a hurry."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentClerkA_2",
+      "en_US": [
+        "Name, date, and place. That's all\n",
+        "we ask.\r",
+        "Some people talk for an hour.\n",
+        "I write it all down."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimFatherA",
+      "en_US": [
+        "I've seen you before. On the road\n",
+        "to Jubilife, I think.\r",
+        "I brought her drawing all this\n",
+        "way. It's on the wall now.\r",
+        "Right in the middle. The Ponyta\n",
+        "one. She'd like that."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimSailorA",
+      "en_US": [
+        "Third time in this line. I keep\n",
+        "getting to the front\r",
+        "and walking away.\r",
+        "How do you write down a Machoke\n",
+        "who hated boats?"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimSisterA",
+      "en_US": [
+        "They asked how old he was.\r",
+        "I said nineteen. Then I said he's\n",
+        "still nineteen.\r",
+        "The lady wrote that down too."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimSonA",
+      "en_US": [
+        "I'm putting up the thumb photo.\r",
+        "It's the only one with any of\n",
+        "Mom in it. Half a thumb counts."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolRoadGreeterA",
+      "en_US": [
+        "Welcome to Solaceon! Here, take a\n",
+        "flyer.\r",
+        "WHO DID YOU LOSE?\r",
+        "You don't have to answer. Most\n",
+        "people don't, the first time."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolWallWidowA",
+      "en_US": [
+        "That card at the top is my\n",
+        "husband's. First one up.\r",
+        "Every morning I come and say hello.\r",
+        "The Sanctuary people bring me tea.\n",
+        "They're so kind here."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGardenGirlA",
+      "en_US": [
+        "There are Yamask in the grass.\r",
+        "Grandma says each one carries a\n",
+        "face. The face of who it was.\r",
+        "I keep looking for Grandpa's."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolLanternManA",
+      "en_US": [
+        "Now it's lanterns. I light one for\n",
+        "every new card.\r",
+        "I've run out of oil twice this\n",
+        "month."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBelieverMotherA",
+      "en_US": [
+        "My boy would be about your age.\r",
+        "Team Eclipse says he can come home.\n",
+        "Not a memory. Him.\r",
+        "I know how that sounds. I don't\n",
+        "care how it sounds."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGateGreeterA",
+      "en_US": [
+        "The Sanctuary is open to everyone.\n",
+        "Come in, sit, stay as long as\r",
+        "you like.\r",
+        "Nobody in there will tell you to\n",
+        "move on."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolForecourtSweeperA",
+      "en_US": [
+        "The black sun in the paving. That's\n",
+        "the eclipse.\r",
+        "The sun goes dark for a while, and\n",
+        "then it comes back.\r",
+        "That's the whole idea, they told\n",
+        "me."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDigWorkerA",
+      "en_US": [
+        "The Sanctuary hired a few of us to\n",
+        "dig. Pays well.\r",
+        "We clear the first room. The deep\n",
+        "rooms are for their own people.\r",
+        "Lot of crates for an old ruin."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolRuinManiacA",
+      "en_US": [
+        "They fenced off MY ruins!\r",
+        "I've been digging a tunnel out of\n",
+        "there for years. Years!\r",
+        "Now I need a pass to visit my own\n",
+        "tunnel."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelKeeperA",
+      "en_US": [
+        "Their trainers passed away, so the\n",
+        "Sanctuary takes them in.\r",
+        "I feed them, brush them, tell them\n",
+        "their names.\r",
+        "Every week a truck comes and takes\n",
+        "some to new homes. In the city."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolRancherA",
+      "en_US": [
+        "Busy season. Pilgrims all week.\r",
+        "They all stop and watch the\n",
+        "Buneary. I think it helps."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSundayManA",
+      "en_US": [
+        "My wife's grave is up there.\r",
+        "The rest of the week, I come to the\n",
+        "wall. It's closer."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDoubterA",
+      "en_US": [
+        "My wife's card is on that wall.\n",
+        "I put it there myself.\r",
+        "I just keep wondering who pays for\n",
+        "all of this.\r",
+        "Hope doesn't run trucks."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentClerkB",
+      "en_US": [
+        "There are guards now. Did you see?\r",
+        "Someone broke into our depot in\n",
+        "Veilstone. Thieves.\r",
+        "Who steals from a place like this?"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimFatherB",
+      "en_US": [
+        "I meant to go home after I pinned\n",
+        "it up.\r",
+        "I keep finding reasons to stay one\n",
+        "more day."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolWallWidowB",
+      "en_US": [
+        "They've put guards at the gate.\n",
+        "Young ones. In robes.\r",
+        "One of them carried my chair to the\n",
+        "wall this morning."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolLanternManB",
+      "en_US": [
+        "They asked me to stop lighting the\n",
+        "lanterns by the gate.\r",
+        "Security. Whatever that means in\n",
+        "a town like this."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBelieverMotherB",
+      "en_US": [
+        "Rowan himself said it might be\n",
+        "possible. On the TV!\r",
+        "Even the professor who called them\n",
+        "con artists.\r",
+        "I knew. I always knew."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGateGruntLB",
+      "en_US": [
+        "The hall's open. The back rooms\n",
+        "aren't.\r",
+        "Go on in, if you're here to sit."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGateGruntRB",
+      "en_US": [
+        "There was a break-in at our depot.\n",
+        "So now there's us.\r",
+        "...You look like you've had a long\n",
+        "walk. Go sit down."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolForecourtSweeperB",
+      "en_US": [
+        "More trucks than pilgrims lately.\r",
+        "I sweep up after both."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolExcavationGruntMB",
+      "en_US": [
+        "The ruins are closed. Unstable.\n",
+        "Very unstable.\r",
+        "Go look at the wall or something."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolExcavationGruntFB",
+      "en_US": [
+        "Excavation business. Sanctuary\n",
+        "business.\r",
+        "Not your business."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolLoadingGruntB",
+      "en_US": [
+        "Back away from the truck, please.\r",
+        "It's donations. For the hall.\n",
+        "...Heavy donations."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelKeeperB",
+      "en_US": [
+        "The truck came at night this time.\n",
+        "Took four.\r",
+        "I didn't even get to say goodbye.\r",
+        "New homes, they said. That's good.\n",
+        "That's good, isn't it?"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolRancherB",
+      "en_US": [
+        "The trucks cut ruts through my\n",
+        "south pasture.\r",
+        "Nobody asked. Nobody here asks\n",
+        "anything anymore."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDoubterB",
+      "en_US": [
+        "Guards, for a grief hall.\r",
+        "I asked one what's in the crates.\n",
+        "He told me to have a nice day."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentClerkC",
+      "en_US": [
+        "Fewer people in line this week.\r",
+        "The professor went on TV and took\n",
+        "it all back.\r",
+        "I still write down every name.\n",
+        "That part was never his."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimFatherC",
+      "en_US": [
+        "The professor says he was wrong.\r",
+        "Maybe. But nobody else ever wrote\n",
+        "her name down.\r",
+        "I'm not taking the drawing back."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimSisterC",
+      "en_US": [
+        "I'm going home.\r",
+        "I watched the professor on TV, and\n",
+        "I thought about my brother.\r",
+        "If he came back because something\n",
+        "got hurt... he'd hate that.\r",
+        "He'd hate it so much."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolWallWidowC",
+      "en_US": [
+        "People are leaving. I heard them\n",
+        "packing last night.\r",
+        "I'm not going anywhere. My\n",
+        "husband's card is right there."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGardenGirlC",
+      "en_US": [
+        "Mom says we might move away.\r",
+        "I asked if the Yamask can come.\n",
+        "She didn't answer."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolLanternManC",
+      "en_US": [
+        "Half the lanterns are out. I didn't\n",
+        "put them out.\r",
+        "People take their candles with\n",
+        "them when they go."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBelieverMotherC",
+      "en_US": [
+        "He was wrong the first time,\n",
+        "calling them con artists.\r",
+        "He's wrong now.\r",
+        "Somebody scared that old man.\n",
+        "That's all this is."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGateGruntLC",
+      "en_US": [
+        "Hall's still open. Still free.\r",
+        "Whatever you heard on TV."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGateGruntRC",
+      "en_US": [
+        "They tore down the banners with the\n",
+        "professor's words on them.\r",
+        "Took me all morning to put them\n",
+        "up, too."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolForecourtSweeperC",
+      "en_US": [
+        "I sweep the same emblem every day.\r",
+        "Lately I sweep it slower. Gives me\n",
+        "time to think."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolExcavationGruntMC",
+      "en_US": [
+        "Some of the believers left this\n",
+        "week.\r",
+        "More shifts for us. Great."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolExcavationGruntFC",
+      "en_US": [
+        "Still closed. Still not your\n",
+        "business.\r",
+        "Go home, kid."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelKeeperC",
+      "en_US": [
+        "One left. Just the little Skitty.\r",
+        "I asked to see the new homes. They\n",
+        "said they'd send photos.\r",
+        "They haven't sent any photos."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolRancherC",
+      "en_US": [
+        "A family from the north road came\n",
+        "to say goodbye to the Buneary.\r",
+        "That's how I know who's leaving."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSundayManC",
+      "en_US": [
+        "I go to the Lost Tower on Sundays.\n",
+        "To the wall the rest of the week.\r",
+        "Now I just go to the tower.\r",
+        "At least a grave doesn't promise\n",
+        "anything."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDoubterC",
+      "en_US": [
+        "I'm going to my sister's in\n",
+        "Hearthome.\r",
+        "I'm leaving the card up. It's\n",
+        "still true. She's still gone.\r",
+        "I'm just done waiting for anyone to\n",
+        "say otherwise."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentClerkD",
+      "en_US": [
+        "The registry's closed. They said\n",
+        "every name is already kept.\r",
+        "They said to wait by the wall.\n",
+        "They said it's begun.\r",
+        "So we wait."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimFatherD",
+      "en_US": [
+        "They say the Return has started.\r",
+        "I keep looking down the road for a\n",
+        "little girl with a drawing.\r",
+        "I know. I know."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimSonD",
+      "en_US": [
+        "I came back to take the thumb photo\n",
+        "down.\r",
+        "Nobody's allowed near the tent.\n",
+        "So I'm just standing here."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolWallWidowD",
+      "en_US": [
+        "They told us to wait by the wall.\n",
+        "So I wait.\r",
+        "Forty years I waited for him to\n",
+        "come home from work.\r",
+        "I'm good at it."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolLanternManD",
+      "en_US": [
+        "They asked me to light every\n",
+        "lantern tonight. All of them.\r",
+        "For the Return.\r",
+        "I haven't got the heart to tell\n",
+        "them I'm out of oil."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBelieverMotherD",
+      "en_US": [
+        "It's started. Something happened at\n",
+        "a lake. A big thing.\r",
+        "They said it was the first step.\r",
+        "I made his bed this morning. Just\n",
+        "in case."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGateGruntLD",
+      "en_US": [
+        "Sanctuary's closed. For the Return.\r",
+        "Wait by the wall like everybody\n",
+        "else."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGateGruntRD",
+      "en_US": [
+        "Nobody goes in. Orders from the\n",
+        "registrar herself."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolExcavationGruntMD",
+      "en_US": [
+        "Trucks all night, from the south\n",
+        "road.\r",
+        "Don't ask what's in them. I don't."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolExcavationGruntFD",
+      "en_US": [
+        "The Return's coming. We're not\n",
+        "letting anybody spoil it.\r",
+        "Especially not you."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolLoadingGruntD",
+      "en_US": [
+        "Another load up from the Lost Tower\n",
+        "road.\r",
+        "Back off. This stuff hums."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelKeeperD",
+      "en_US": [
+        "They're all gone. Every one.\r",
+        "The last truck didn't even stop at\n",
+        "the kennel. It just drove past\r",
+        "with the crates rattling.\r",
+        "...I keep their bowls out anyway."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolRancherD",
+      "en_US": [
+        "Ruts so deep now I lost a Buneary\n",
+        "in one.\r",
+        "Found her. She was fine. I wasn't."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSundayManD",
+      "en_US": [
+        "Everybody's at the wall, waiting.\r",
+        "I went up the tower instead.\n",
+        "Somebody should be with the dead."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentClerkR",
+      "en_US": [
+        "The guards at the gate just...\n",
+        "left. Both of them.\r",
+        "I've never seen that gate open\n",
+        "with nobody in it."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolWallWidowR",
+      "en_US": [
+        "There was shouting by the ruins.\r",
+        "I'm staying right here. Whatever it\n",
+        "is, it's not for an old woman."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBelieverMotherR",
+      "en_US": [
+        "Something's wrong in the ruins.\n",
+        "The ground hums.\r",
+        "Is it the Return? Is it starting?\r",
+        "...Why are you looking at me like\n",
+        "that?"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentClerkE",
+      "en_US": [
+        "They took the registry. As\n",
+        "evidence.\r",
+        "A police officer told me what the\n",
+        "fourth column was.\r",
+        "...I wrote those names. Every one.\n",
+        "I was so careful."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimFatherE",
+      "en_US": [
+        "They're saying the kennel Pokemon\n",
+        "went into machines.\r",
+        "She wanted a Ponyta so badly.\n",
+        "Her own.\r",
+        "I'm glad she never had one to\n",
+        "leave behind."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolWallWidowE",
+      "en_US": [
+        "The police said the wall can stay.\n",
+        "That those are our cards.\r",
+        "Of course they're our cards.\r",
+        "He's still at the top. First one\n",
+        "up."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGardenGirlE",
+      "en_US": [
+        "Mom says we're staying after all.\r",
+        "I told the Yamask. I think it was\n",
+        "happy. It's hard to tell."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolLanternManE",
+      "en_US": [
+        "Nobody asked me to light the\n",
+        "lanterns tonight.\r",
+        "I'm lighting them anyway. One for\n",
+        "every card.\r",
+        "I bought more oil."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBelieverMotherE",
+      "en_US": [
+        "I made his bed again this morning.\r",
+        "I don't know how to stop doing\n",
+        "that.\r",
+        "...Don't. Don't say anything. I\n",
+        "know."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolIpOfficerGateE",
+      "en_US": [
+        "This building is closed by order of\n",
+        "the International Police.\r",
+        "The wall stays. The cards belong to\n",
+        "the families."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolIpOfficerCourtE",
+      "en_US": [
+        "Boxes and boxes of records.\r",
+        "Every person who walked in here\n",
+        "crying got a file."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolIpOfficerDigE",
+      "en_US": [
+        "The ruins are closed while we\n",
+        "search them.\r",
+        "We had every exit watched. Except,\n",
+        "it seems, the one she dug."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolRuinManiacE",
+      "en_US": [
+        "A woman in a black coat came out of\n",
+        "MY tunnel last night!\r",
+        "Out of the wall! Dust everywhere!\r",
+        "She didn't even say thank you."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelKeeperE",
+      "en_US": [
+        "The police found this Skitty in the\n",
+        "loading yard. In a crate.\r",
+        "The last one. They let me keep her\n",
+        "here.\r",
+        "I never asked where the trucks\n",
+        "went. I should have asked."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolRancherE",
+      "en_US": [
+        "The ruts are still there. I'm going\n",
+        "to plant over them.\r",
+        "Grass grows over anything, given\n",
+        "time."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSundayManE",
+      "en_US": [
+        "People came up the tower today.\n",
+        "Lots of them.\r",
+        "Easier to visit a grave than a wall\n",
+        "with a lie on top of it."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDoubterE",
+      "en_US": [
+        "I heard about the raid in Hearthome\n",
+        "and came straight back.\r",
+        "I didn't come back to say I told\n",
+        "you so.\r",
+        "I came back because she's still on\n",
+        "that wall."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGardenKeeperF",
+      "en_US": [
+        "I wrote down a thousand names for\n",
+        "them.\r",
+        "Now I just plant something for\n",
+        "each one.\r",
+        "No promises this time. Only\n",
+        "flowers."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimFatherF",
+      "en_US": [
+        "I planted a little tree by the\n",
+        "drawing.\r",
+        "Next year, I said. Like always.\n",
+        "...This time I mean it."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimSailorF",
+      "en_US": [
+        "Finally got to the front of the\n",
+        "line.\r",
+        "Wrote MACHOKE on a card and stuck\n",
+        "it in the garden.\r",
+        "He'd hate the flowers. I left them\n",
+        "anyway."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolPilgrimSisterF",
+      "en_US": [
+        "I came back for the garden.\r",
+        "I'm older than him now. By a lot.\r",
+        "I think he'd make fun of me for\n",
+        "that. I hope so."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolWallWidowF",
+      "en_US": [
+        "He's still at the top. First one\n",
+        "up.\r",
+        "They built a garden around him.\n",
+        "He'd have liked the bench."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGardenGirlF",
+      "en_US": [
+        "The Yamask live in the garden now.\r",
+        "I don't look for Grandpa's face\n",
+        "anymore.\r",
+        "I just say hi to all of them."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolLanternManF",
+      "en_US": [
+        "Every lantern, every night. Nobody\n",
+        "asks me to.\r",
+        "That's how I know it's for them."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBelieverMotherF",
+      "en_US": [
+        "I put his card in the garden.\r",
+        "I still talk to him. I just don't\n",
+        "wait for an answer."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDigWorkerF",
+      "en_US": [
+        "Real archaeologists now. From\n",
+        "Canalave.\r",
+        "They pay worse, but nobody tells\n",
+        "me not to look in the crates."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolRuinManiacF",
+      "en_US": [
+        "They gave me my tunnel back!\r",
+        "They even fixed the hole that\n",
+        "woman made. ...Mostly."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelKeeperF",
+      "en_US": [
+        "It's a real shelter now.\r",
+        "Every Pokemon here goes to a home\n",
+        "I've seen with my own eyes.\r",
+        "I visit every one."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolRancherF",
+      "en_US": [
+        "Planted over the ruts.\r",
+        "Grass came up thick. The Buneary\n",
+        "love it."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSundayManF",
+      "en_US": [
+        "Every Sunday, I visit the Lost\n",
+        "Tower...\r",
+        "And every other day, the garden.\r",
+        "Turns out I just like being near\n",
+        "her."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDoubterF",
+      "en_US": [
+        "I thought being right would feel\n",
+        "better.\r",
+        "Mostly I just sit with her card."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolIndraF_1",
+      "en_US": [
+        "Indra: ...You.\r",
+        "Don't worry. I'm not here for\n",
+        "anything."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolIndraF_2",
+      "en_US": [
+        "Indra: I wrote down everyone's\n",
+        "place. Every card on this wall.\r",
+        "Except his."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolIndraF_3",
+      "en_US": [
+        "Indra: I'm writing it now."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolWallTeoIndra",
+      "en_US": [
+        "TEO. A boy, smiling. A second card\n",
+        "beside it, in neat writing:\r",
+        "Go live. For both of us."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolFenceGruntMPost",
+      "en_US": [
+        "Go on, then. Go down there.\r",
+        "See how far you get."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolFenceGruntFPost",
+      "en_US": [
+        "Every night I stand at this fence.\n",
+        "Every night, nothing happens.\r",
+        "Then you."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGatePlaqueA",
+      "en_US": [
+        "THE SOLACEON SANCTUARY\n",
+        "Team Eclipse\r",
+        "No one you love is ever truly\n",
+        "gone."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGatePlaqueBC",
+      "en_US": [
+        "THE SOLACEON SANCTUARY\n",
+        "Team Eclipse\r",
+        "No one you love is ever truly\n",
+        "gone.\r",
+        "Visitors: the hall only, please."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGatePlaqueDR",
+      "en_US": [
+        "A notice over the plaque:\r",
+        "CLOSED FOR THE RETURN.\n",
+        "Keep your cards close.\r",
+        "Wait for us by the wall."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGatePlaqueE",
+      "en_US": [
+        "SEIZED BY ORDER OF THE\n",
+        "INTERNATIONAL POLICE.\r",
+        "The old plaque is still under the\n",
+        "notice."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolGatePlaqueF",
+      "en_US": [
+        "The plaque is gone. Four bolt\n",
+        "holes, and a small sign:\r",
+        "GARDEN OPEN. COME IN."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentSignABC",
+      "en_US": [
+        "REGISTRY OF THE DEPARTED\r",
+        "Tell us who you lost.\n",
+        "We will write down every name."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentSignDR",
+      "en_US": [
+        "REGISTRY CLOSED.\n",
+        "ALL NAMES ARE KEPT."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentSignE",
+      "en_US": [
+        "The tent is empty. A police notice\n",
+        "is taped to the post."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTentSignF",
+      "en_US": [
+        "WRITE A NAME. TAKE A CANDLE.\r",
+        "No charge. No promises."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDigSignA",
+      "en_US": [
+        "SOLACEON RUINS EXCAVATION\n",
+        "The Sanctuary\r",
+        "Visitors welcome in the first\n",
+        "room. Please mind the crates."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDigSignBCDR",
+      "en_US": [
+        "EXCAVATION. KEEP OUT.\r",
+        "Unstable ruins.\n",
+        "By order of the Sanctuary."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDigSignE",
+      "en_US": [
+        "EXCAVATION CLOSED.\n",
+        "International Police."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolDigSignF",
+      "en_US": [
+        "SOLACEON RUINS\r",
+        "Open to visitors.\n",
+        "Mind the rubble."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelSignA",
+      "en_US": [
+        "KENNEL OF THE DEPARTED\r",
+        "Their Pokemon wait here for new\n",
+        "homes. Ask the keeper.\r",
+        "The Sanctuary"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelSignBC",
+      "en_US": [
+        "KENNEL OF THE DEPARTED\r",
+        "Their Pokemon wait here for new\n",
+        "homes. Ask the keeper.\r",
+        "Adoptions paused."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelSignDR",
+      "en_US": [
+        "KENNEL OF THE DEPARTED\r",
+        "CLOSED."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelSignE",
+      "en_US": [
+        "KENNEL OF THE DEPARTED\r",
+        "Someone has scratched out the\n",
+        "last word."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolKennelSignF",
+      "en_US": [
+        "SOLACEON KENNEL\r",
+        "Every Pokemon here goes home."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolTornBanner",
+      "en_US": [
+        "A torn banner. Only one word is\n",
+        "left: POSSIBLE."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolWallBannerE",
+      "en_US": [
+        "The banner is down. Someone has\n",
+        "folded it and left it by the wall."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolWallBannerF",
+      "en_US": [
+        "The banner is gone. Fresh flowers\n",
+        "where it used to hang."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolHallDoorLocked",
+      "en_US": [
+        "The doors are locked. A card is\n",
+        "tucked in the handle:\r",
+        "CLOSED FOR THE RETURN."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolMemorialPlaque",
+      "en_US": [
+        "THE GARDEN OF NAMES\r",
+        "For everyone whose name was\n",
+        "written on this wall,\r",
+        "and for every Pokemon that was\n",
+        "taken in their name.\r",
+        "They are not coming back.\n",
+        "They are remembered."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBriefing_1",
+      "en_US": [
+        "Looker: Do not be alarmed. It is me.\r",
+        "I am in disguise. A pilgrim."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBriefing_2",
+      "en_US": [
+        "Cyrus: He bought a hat."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBriefing_3",
+      "en_US": [
+        "Looker: Ruth followed the readings\n",
+        "for me. From the Lost Tower,\r",
+        "up Route 209, to here. Every night\n",
+        "since the vein."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBriefing_4",
+      "en_US": [
+        "Looker: The shards come here.\r",
+        "Under the ruins. Under their\n",
+        "so-called excavation.\r",
+        "They keep them in a vault."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBriefing_5",
+      "en_US": [
+        "Looker: Kahn needs shards to hold\n",
+        "Palkia. A great many.\r",
+        "If we break the vault, we buy\n",
+        "time. Maybe enough."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBriefing_6",
+      "en_US": [
+        "Cyrus: The vault is sealed. I can\n",
+        "feel it from here.\r",
+        "Something under those ruins is\n",
+        "holding a door shut. It hums."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBriefing_7",
+      "en_US": [
+        "Looker: Then, the plan.\r",
+        "I go into the Sanctuary. The\n",
+        "registrar's office. Her records.\r",
+        "You two go into the ruins and open\n",
+        "that door."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBriefing_8",
+      "en_US": [
+        "Looker: The guards at the gate are\n",
+        "at lunch. A long lunch.\r",
+        "I arranged it."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolBriefing_9",
+      "en_US": [
+        "Looker: Ruth will listen on the\n",
+        "Poketch. If it goes badly, run.\r",
+        "It is a good plan. I made it this\n",
+        "morning."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolFence_1",
+      "en_US": [
+        "Eclipse Grunt: The dig's closed.\n",
+        "It's been closed for weeks.\r",
+        "Turn around."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolFence_2",
+      "en_US": [
+        "Eclipse Grunt: Hey. Wait.\r",
+        "That's him. The one who walked\n",
+        "out."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolFence_3",
+      "en_US": [
+        "Eclipse Grunt: Then nobody's\n",
+        "walking in. Get them!"
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolFenceCyrus_1",
+      "en_US": [
+        "Cyrus: They knew my face.\r",
+        "Garius told them everything. Of\n",
+        "course he did."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolFenceCyrus_2",
+      "en_US": [
+        "Cyrus: Come. The hum is louder\n",
+        "here."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSeizure_1",
+      "en_US": [
+        "Looker: It is done. The Sanctuary is\n",
+        "closed, by order of my office.\r",
+        "The wall stays. Those cards belong\n",
+        "to the families."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSeizure_2",
+      "en_US": [
+        "Looker: Take this. It was in the\n",
+        "vault. A stone. Not a shard.\r",
+        "I checked twice."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSeizure_3",
+      "en_US": [
+        "Looker: I will read every page of\n",
+        "this book. Every name.\r",
+        "...Somebody should."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSeizure_4",
+      "en_US": [
+        "Cyrus: She asked what stopped me.\n",
+        "I didn't tell her.\r",
+        "She'll look anyway. People like her\n",
+        "always do.\r",
+        "I would have."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSeizure_5",
+      "en_US": [
+        "The Poketch buzzes."
+      ]
+    },
+    {
+      "id": "SolaceonTown_Text_SolSeizure_6",
+      "en_US": [
+        "Ruth: The Professor says come back.\n",
+        "Canalave's next.\r",
+        "Byron will want to hear all this,\n",
+        "and Iron Island has a rift of its\r",
+        "own."
+      ]
     }
   ]
 }

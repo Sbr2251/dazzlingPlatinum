@@ -8,7 +8,7 @@
   "cameraType": "CAMERA_TYPE_DEFAULT",
   "battleBackground": "BACKGROUND_CITY",
   "mapType": "MAP_TYPE_TOWN_CITY",
-  "preloaded": 4,
+  "preloaded": 15,
   "musicDay": "SEQ_CITY06_D_sseq",
   "musicNight": "SEQ_CITY06_N_sseq",
   "isBikeAllowed": true,

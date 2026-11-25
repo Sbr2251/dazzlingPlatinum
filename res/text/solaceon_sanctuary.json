@@ -6,6 +6,293 @@
       "en_US": [
         "The Sanctuary is quiet."
       ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_SpeakerA",
+      "en_US": [
+        "Welcome. Sit anywhere.\r",
+        "Nobody here will tell you to let\n",
+        "go. Hold on as tight as you like.\r",
+        "Team Eclipse is working on the\n",
+        "rest."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_HallAttendantA",
+      "en_US": [
+        "Tea's at the back. Cards are by\n",
+        "the door, if you want one.\r",
+        "Write a name. Pin it on the wall\n",
+        "outside. It helps."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_TestimonyAA",
+      "en_US": [
+        "I stood up and talked about my\n",
+        "wife last night.\r",
+        "Forty minutes. Nobody looked at the\n",
+        "clock.\r",
+        "I didn't know I had forty minutes\n",
+        "in me."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_TestimonyBA",
+      "en_US": [
+        "My Luxray. Eight years together.\r",
+        "People say it was just a\n",
+        "Pokemon.\r",
+        "Nobody here says that."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_TestimonyCA",
+      "en_US": [
+        "My grandpa taught me to fish.\r",
+        "They said when he comes back, he\n",
+        "can teach me the rest.\r",
+        "I'm saving the hard parts for him."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_RecordsClerkA",
+      "en_US": [
+        "Every card on the wall has a twin\n",
+        "in here.\r",
+        "We copy them all into the ledger.\n",
+        "In case the rain gets them.\r",
+        "The registrar is very particular.\n",
+        "Every name. Every detail."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_SpeakerB",
+      "en_US": [
+        "Welcome. Sit anywhere.\r",
+        "Don't mind the guards. Someone\n",
+        "broke into our depot.\r",
+        "Grief makes people do strange\n",
+        "things. Even steal."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_TestimonyAB",
+      "en_US": [
+        "They locked the back rooms. Fine.\n",
+        "I only need the bench."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_TestimonyCB",
+      "en_US": [
+        "Professor Rowan said it might be\n",
+        "possible!\r",
+        "I'm telling Grandpa the second he's\n",
+        "back."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_HallGruntB",
+      "en_US": [
+        "Records office is closed. Staff\n",
+        "only.\r",
+        "The hall's open. Sit down. Have\n",
+        "some tea."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_BackDoorGruntB",
+      "en_US": [
+        "That door's for staff. Always has\n",
+        "been."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_SpeakerC",
+      "en_US": [
+        "The professor was frightened. That\n",
+        "is all.\r",
+        "Frightened men take things back.\r",
+        "We don't. We keep everything."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_TestimonyBC",
+      "en_US": [
+        "The professor said not to let his\n",
+        "name sell their promise.\r",
+        "I keep thinking about how they'd\n",
+        "bring my Luxray back.\r",
+        "What would it cost? Who would pay\n",
+        "it?\r",
+        "I'm going home."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_TestimonyCC",
+      "en_US": [
+        "Mom says the professor was wrong.\r",
+        "I don't care. I'm saving the hard\n",
+        "parts for Grandpa."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_LookerR_1",
+      "en_US": [
+        "Looker: Not now. I am reading.\r",
+        "This registrar keeps very good\n",
+        "records. Too good."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_LookerR_2",
+      "en_US": [
+        "Looker: Go. The door under the\n",
+        "ruins. I will find you."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_LastBelieverE",
+      "en_US": [
+        "I came to say my piece anyway. Like\n",
+        "every evening.\r",
+        "Forty minutes about my wife.\r",
+        "...Nobody's at the lectern. I'll\n",
+        "just talk to the bench."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_IpOfficerHallE",
+      "en_US": [
+        "We're cataloguing everything. It'll\n",
+        "take weeks.\r",
+        "They kept a file on every person\n",
+        "who ever cried in here."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_IpOfficerOfficeE",
+      "en_US": [
+        "The registrar's office. She left in\n",
+        "a hurry, but nothing was out of\r",
+        "place. Not one card."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_ReadingKeeperF",
+      "en_US": [
+        "I copied every card into that\n",
+        "ledger. I thought I was helping.\r",
+        "Now I give them back. One family at\n",
+        "a time.\r",
+        "It's slower. It's better."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_LecternABC",
+      "en_US": [
+        "A lectern with a black sun carved\n",
+        "in the front.\r",
+        "A note on it: TONIGHT, SHARE ONE\n",
+        "MEMORY. THAT'S ALL."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_LecternE",
+      "en_US": [
+        "The lectern is wrapped in police\n",
+        "tape."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_LecternF",
+      "en_US": [
+        "The black sun has been sanded off.\n",
+        "Someone carved a flower instead."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_NoticeBoardABC",
+      "en_US": [
+        "GRIEF CIRCLE, EVERY EVENING.\r",
+        "Tea after. Everyone welcome."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_FilingDrawersA",
+      "en_US": [
+        "Drawer after drawer of cards. Each\n",
+        "one has a name, a date, a place."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_FilingDrawersE",
+      "en_US": [
+        "The drawers are empty. Police\n",
+        "labels on every one."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_FilingDrawersF",
+      "en_US": [
+        "The drawers are open. A note:\r",
+        "TAKE YOUR CARD HOME IF YOU WANT\n",
+        "IT. ASK AT THE DESK."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_TheLedgerA",
+      "en_US": [
+        "A thick ledger. Names, dates and\n",
+        "places, in neat rows.\r",
+        "There's a fourth column, in smaller\n",
+        "writing.\r",
+        "The clerk closes the book before\n",
+        "you can read it."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_IndrasDeskA",
+      "en_US": [
+        "A tidy desk. One card on it, not\n",
+        "filed yet:\r",
+        "TEO. The date is written in.\r",
+        "The place is left blank."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_IndrasDeskE",
+      "en_US": [
+        "The desk is bare. The police took\n",
+        "everything but the chair."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_BackDoorA",
+      "en_US": [
+        "STAFF ONLY."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_BackDoorBCDR",
+      "en_US": [
+        "STAFF ONLY. KEEP OUT.\r",
+        "It's locked."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_BackDoorE",
+      "en_US": [
+        "Police seal. It's locked."
+      ]
+    },
+    {
+      "id": "SolaceonSanctuary_Text_BackDoorF",
+      "en_US": [
+        "Bricked up. Someone has chalked a\n",
+        "flower on the bricks."
+      ]
     }
   ]
 }
