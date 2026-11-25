@@ -23,7 +23,8 @@ Outputs (--write; every path is a constant below):
     none (mapproc then points the header at the empty init script); add one plus its scripts.order line when needed.
   registrations (append only): mapmodels/data meson.build + map_data.order + generated/maps.txt,
     mapmodels/texture_sets meson.build + map_texture_sets.order, area_data meson.build + area_data.order,
-    groups.json, generated/map_headers.txt, res/field/scripts.order, generated/text_banks.txt.
+    groups.json, include/constants/fieldmap.h (enum MapHeaderID, enum MapFileID) + generated/map_headers.txt +
+    generated/maps.txt (kept identical), res/field/scripts.order, generated/text_banks.txt.
   Idempotent: --write runs the write twice and fails if the second pass changes a byte.
 
 Checks (all must pass, else --write is refused): NSBMD/NSBTX/map_data round trips; textures decode to their PNGs;
@@ -68,9 +69,10 @@ GROUP_ID = "SolaceonSanctuary"
 GROUP_NAME = "m_sol_sanct"    # matrix name, at most 15 characters like stock
 PROP_SET = 21                 # prop_model_set_021: [078 exit mat, 152] (Verity Castle 1F's area 076 uses it too)
 LIGHTING_SET = 1              # lighting_set_001, the indoor light (Hearthome's Foreign Building uses it)
-HEADER = "MAP_HEADER_SOLACEON_SANCTUARY"
+HEADER = "MAP_HEADER_SOLACEON_SANCTUARY"  # enum 601
 NAME = "solaceon_sanctuary"   # the map folder and the text bank file (pret: lower-case header name)
 TEXT_BANK = "TEXT_BANK_SOLACEON_SANCTUARY"
+HEADER_ENUM = 601
 TEXT_KEY = 40231
 MODEL_NAME = "sol_sanctuary"
 EXIT_WARP_ID = "WARP_SOLACEON_TOWN"   # the Sanctuary's warp 0 (the name Solaceon Town's door uses as dest_warp_id)
@@ -84,6 +86,10 @@ MAPS_REL = "res/field/maps"
 MAPDIR_REL = f"{MAPS_REL}/{NAME}"
 TEXT_REL = f"res/text/{NAME}.json"
 SCRIPTS_ORDER_REL = "res/field/scripts.order"
+# enum MapHeaderID and enum MapFileID: mapgen/mapproc and the C code read these; generated/map_headers.txt and
+# generated/maps.txt hold the same lists (the headless name tables read those) and are kept in step
+FIELDMAP_REL = "include/constants/fieldmap.h"
+PREV_HEADER = "MAP_HEADER_DW_LOST_TOWER"   # the last header before ours
 PROP_SET_REL = f"res/field/props/model_sets/prop_model_set_{PROP_SET:03d}.json"
 PROP_MODELS_REL = "res/field/props/models"
 LIGHTING_REL = f"res/field/lighting/lighting_set_{LIGHTING_SET:03d}.json"
@@ -268,6 +274,31 @@ def line_append(path, new, before=None):
     return True
 
 
+def line_insert_after(path, new, after):
+    """Inserts the line `new` right after the line `after`, once."""
+    s = _read(path)
+    lines = s.split("\n")
+    if new in lines:
+        return False
+    k = lines.index(after)
+    lines[k + 1:k + 1] = [new]
+    _write(path, "\n".join(lines))
+    return True
+
+
+def enum_members(rel, tag):
+    """Member names of `enum <tag>` in a C header, in order (the C enums are the authority on solaceon-mac)."""
+    s = _read(P(rel))
+    body = s[s.index(f"enum {tag} {{"):]
+    body = body[body.index("{") + 1:body.index("};")]
+    out = []
+    for line in body.split("\n"):
+        line = line.split("//")[0].strip().rstrip(",")
+        if line:
+            out.append(line.split("=")[0].strip())
+    return out
+
+
 def group_append(path):
     """Appends the map group to groups.json in its own formatting (2-space indent, one row per line)."""
     s = _read(path)
@@ -298,6 +329,8 @@ REG = [  # (relative path, kind, args): every shared registry this builder touch
     (f"{AREA_REL}/meson.build", "meson", (f"area_data_{AREA_ID - 1:03d}.json", AREA_FILE)),
     (f"{AREA_REL}/area_data.order", "line", (f"area_data_{AREA_ID:03d}", None)),
     ("generated/map_headers.txt", "line", (HEADER, "MAP_HEADER_COUNT")),
+    (FIELDMAP_REL, "after", (f"    {HEADER},", f"    {PREV_HEADER},")),
+    (FIELDMAP_REL, "after", (f"    MAP_{MAP_ID},", f"    MAP_{MAP_ID - 1},")),
     (SCRIPTS_ORDER_REL, "line", (f"scripts_{NAME}", None)),
     ("generated/text_banks.txt", "line", (TEXT_BANK, None)),
     (GROUPS_REL, "group", ()),
@@ -320,6 +353,8 @@ def register():
             ch = meson_append(p, *args)
         elif kind == "line":
             ch = line_append(p, *args)
+        elif kind == "after":
+            ch = line_insert_after(p, *args)
         else:
             ch = group_append(p)
         if ch:
@@ -385,6 +420,23 @@ def index_check():
         bad.append(f"{GROUPS_REL}: group {GROUP_ID} at {gi}, want {GROUP_INDEX}")
     elif GROUP_ID in ids and groups[gi] != GROUP_JSON:
         bad.append(f"{GROUPS_REL}: group {GROUP_ID} differs from {GROUP_JSON}")
+    # the C enums: our header right after PREV_HEADER (601), MAP_680 at 680; the generated lists agree with them
+    hdr = enum_members(FIELDMAP_REL, "MapHeaderID")
+    txt = [x.split("=")[0].strip() for x in _read(P("generated/map_headers.txt")).split("\n") if x.strip()]
+    want_h = hdr.index(PREV_HEADER) + 1
+    if (hdr.index(HEADER) if HEADER in hdr else want_h) != HEADER_ENUM or want_h != HEADER_ENUM:
+        bad.append(f"{FIELDMAP_REL}: {HEADER} not at {HEADER_ENUM}")
+    # (compared without our own entry, so a dry run between the two writes also passes)
+    if [h for h in hdr if h not in ("MAP_HEADER_INVALID", "MAP_HEADER_DYNAMIC", HEADER)] != \
+            [h for h in txt if h not in ("MAP_HEADER_COUNT", "MAP_HEADER_INVALID", "MAP_HEADER_DYNAMIC", HEADER)]:
+        bad.append(f"{FIELDMAP_REL} enum MapHeaderID and generated/map_headers.txt differ")
+    maps = enum_members(FIELDMAP_REL, "MapFileID")
+    mtxt = [x.split("=")[0].strip() for x in _read(P("generated/maps.txt")).split("\n") if x.strip()]
+    if [m for m in maps if m != f"MAP_{MAP_ID}"] != [m for m in mtxt if m != f"MAP_{MAP_ID}"]:
+        bad.append(f"{FIELDMAP_REL} enum MapFileID and generated/maps.txt differ")
+    mi = maps.index(f"MAP_{MAP_ID}") if f"MAP_{MAP_ID}" in maps else maps.index(f"MAP_{MAP_ID - 1}") + 1
+    if mi != MAP_ID:
+        bad.append(f"{FIELDMAP_REL}: MAP_{MAP_ID} at {mi}")
     return bad
 
 
@@ -559,7 +611,7 @@ def main():
         print(f"note: entry not from this builder (another workstream?): {f}")
     bad_idx = index_check()
     ok &= check(f"new ids sit at their indices (map_data {MAP_ID}, set {SET_ID:03d}, area {AREA_ID:03d}, "
-                f"group {GROUP_INDEX})", not bad_idx, "; ".join(bad_idx))
+                f"group {GROUP_INDEX}, header {HEADER_ENUM}); C enums == generated lists", not bad_idx, "; ".join(bad_idx))
     for rel in (f"{MAPMODEL_DATA_REL}/{MAP_DATA_FILE}", f"{TEXSETS_REL}/{SET_FILE}", f"{AREA_REL}/{AREA_FILE}",
                 f"{MAPDIR_REL}/header.json", TEXT_REL):
         ok &= check(f"{rel} is new (not in {BASE_REV})", git_show(rel) is None)

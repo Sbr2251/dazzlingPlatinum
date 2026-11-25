@@ -650,6 +650,7 @@ enum MapHeaderID {
     MAP_HEADER_DW_ROUTE_214,
     MAP_HEADER_DW_ROUTE_213,
     MAP_HEADER_DW_LOST_TOWER,
+    MAP_HEADER_SOLACEON_SANCTUARY,
 
     // Add any new headers here, before the following entries
     MAP_HEADER_INVALID,
@@ -1339,6 +1340,7 @@ enum MapFileID {
     MAP_677,
     MAP_678,
     MAP_679,
+    MAP_680,
 
     MAP_NONE = 0xFFFF,
 };
