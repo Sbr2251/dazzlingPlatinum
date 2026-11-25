@@ -535,6 +535,8 @@ def scenario_run_cab(t):
 
 def scenario_post_raid(t):
     t.set(progress=50, flags="ABCDEFG")
+    # the town plays the seizure (3.4a part 7, town-scripts) on the first load at 50 unless it has been seen
+    t.cmd({"cmd": "set_flag", "name": "FLAG_SOL_TOWN_A", "value": True})
     enter_from_town(t)
     t.expect(R1, (5, 11), progress=50, absent=R1_CREW + ["LOCALID_R1_ROPE", "LOCALID_R1_CYRUS"],
              label="Room 1 after the raid: open and empty")
