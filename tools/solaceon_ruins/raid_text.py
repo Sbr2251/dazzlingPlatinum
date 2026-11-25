@@ -367,7 +367,7 @@ def main():
         for old_id, (new_id, text) in REPLACE.get(bank, {}).items():
             lines = to_lines(text)
             check(new_id, lines, problems)
-            if old_id in ids:
+            if old_id in ids and msgs[ids.index(old_id)] != {"id": new_id, "en_US": lines}:
                 i = ids.index(old_id)
                 msgs[i] = {"id": new_id, "en_US": lines}
                 ids[i] = new_id

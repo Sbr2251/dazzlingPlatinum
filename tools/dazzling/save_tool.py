@@ -3,8 +3,13 @@
 
     save_tool.py info  <save>
     save_tool.py edit  <save> -o <out.sav> [--lead SLOT] [--held SLOT:ITEM_X ...] [--give ITEM_X:QTY ...]
+                                       [--level LV | --level SLOT:LV ...] [--max-ivs] [--max-pp]
 
-SLOT is 1-6 (party order). Edits apply to both save copies and re-sign them (Pokemon checksums, block CRCs).
+SLOT is 1-6 (party order). --level (test saves only) sets party levels the way the game would have them: the
+experience becomes the minimum for that level (the species' growth rate), the party stats are recomputed with the
+Gen 4 formula (base stats from res/pokemon/<species>/data.json, the mon's IVs, EVs and nature), HP is full and
+the status is cleared and PP are full, so the next level-up or stat recalculation in game keeps them. --max-ivs sets all six IVs
+to 31 first (with --level, the stats use them); --max-pp gives every move 3 PP Ups. Edits apply to both save copies and re-sign them (Pokemon checksums, block CRCs).
 Item and species names come from generated/items.txt and generated/species.txt; an item's pocket from
 res/items/data/<name>.json.
 """
@@ -35,6 +40,7 @@ def names(path):
 
 ITEMS = names('generated/items.txt')
 SPECIES = names('generated/species.txt')
+MOVES = names('generated/moves.txt')
 
 
 def item_id(name):
@@ -78,6 +84,48 @@ class Mon:
         return self.pid != 0 and sum(struct.unpack('<64H', data)) & 0xFFFF == self.checksum
 
     species = property(lambda s: struct.unpack_from('<H', s.blocks['A'], 0)[0])
+
+    def set_level(self, level, max_ivs=False, max_pp=False):
+        """Sets exp (block A), optionally IVs (block B), and the party level/stats/HP (party block)."""
+        sp = SPECIES[self.species][len('SPECIES_'):].lower()
+        data = json.load(open(os.path.join(ROOT, 'res/pokemon', sp, 'data.json')))
+        struct.pack_into('<I', self.blocks['A'], 8, exp_for_level(data['exp_rate'], level))
+        iv_word = struct.unpack_from('<I', self.blocks['B'], 16)[0]
+        if max_ivs:
+            iv_word = (iv_word & 0xC0000000) | 0x3FFFFFFF
+            struct.pack_into('<I', self.blocks['B'], 16, iv_word)
+        ivs = [(iv_word >> (5 * i)) & 31 for i in range(6)]          # hp atk def spe spa spd
+        evs = list(self.blocks['A'][16:22])                            # hp atk def spe spa spd
+        b = data['base_stats']
+        base = [b['hp'], b['attack'], b['defense'], b['speed'], b['special_attack'], b['special_defense']]
+        nature = self.pid % 25
+        up, down = nature // 5, nature % 5                             # over atk def spe spa spd
+        stats = []
+        for i in range(6):
+            core = (2 * base[i] + ivs[i] + evs[i] // 4) * level // 100
+            if i == 0:
+                stats.append(1 if self.species == SPECIES.index('SPECIES_SHEDINJA') else core + level + 10)
+                continue
+            v = core + 5
+            if up != down:
+                if i - 1 == up:
+                    v = v * 110 // 100
+                elif i - 1 == down:
+                    v = v * 90 // 100
+            stats.append(v)
+        # PP back to full (base PP from res/moves/<move>/data.json, +20% per PP Up)
+        moves = struct.unpack_from('<4H', self.blocks['B'], 0)
+        for i, mv in enumerate(moves):
+            if mv:
+                if max_pp:
+                    self.blocks['B'][12 + i] = 3
+                base_pp = json.load(open(os.path.join(ROOT, 'res/moves', MOVES[mv][len('MOVE_'):].lower(),
+                                                      'data.json')))['pp']
+                self.blocks['B'][8 + i] = base_pp * (5 + self.blocks['B'][12 + i]) // 5
+        struct.pack_into('<I', self.party, 0, 0)                       # status
+        self.party[4] = level
+        # party layout: hp, max hp, atk, def, speed, sp atk, sp def
+        struct.pack_into('<7H', self.party, 6, stats[0], stats[0], stats[1], stats[2], stats[3], stats[4], stats[5])
     held = property(lambda s: struct.unpack_from('<H', s.blocks['A'], 2)[0])
     level = property(lambda s: s.party[4])
 
@@ -91,6 +139,35 @@ class Mon:
         order = ORDERS[((self.pid >> 13) & 31) % 24]
         shuffled = b''.join(self.blocks[order[i]] for i in range(4))
         return bytes(self.head) + bytes(prng_xor(shuffled, self.checksum)) + bytes(prng_xor(self.party, self.pid))
+
+
+def exp_for_level(rate, n):
+    """Minimum experience for level n (Gen 4 growth rates, as in src/pokemon.c's tables)."""
+    if n <= 1:
+        return 0
+    if rate == 'EXP_RATE_FAST':
+        return 4 * n ** 3 // 5
+    if rate == 'EXP_RATE_MEDIUM_FAST':
+        return n ** 3
+    if rate == 'EXP_RATE_MEDIUM_SLOW':
+        return 6 * n ** 3 // 5 - 15 * n ** 2 + 100 * n - 140
+    if rate == 'EXP_RATE_SLOW':
+        return 5 * n ** 3 // 4
+    if rate == 'EXP_RATE_ERRATIC':
+        if n <= 50:
+            return n ** 3 * (100 - n) // 50
+        if n <= 68:
+            return n ** 3 * (150 - n) // 100
+        if n <= 98:
+            return n ** 3 * ((1911 - 10 * n) // 3) // 500
+        return n ** 3 * (160 - n) // 100
+    if rate == 'EXP_RATE_FLUCTUATING':
+        if n <= 15:
+            return n ** 3 * ((n + 1) // 3 + 24) // 50
+        if n <= 36:
+            return n ** 3 * (n + 14) // 50
+        return n ** 3 * (n // 2 + 32) // 50
+    raise SystemExit(f'unknown growth rate {rate}')
 
 
 def load(path):
@@ -144,12 +221,15 @@ def info(data):
             print(f'  {name}: {", ".join(interesting) or "-"}')
 
 
-def edit(data, lead, held, give):
+def edit(data, lead, held, give, levels=(), max_ivs=False, max_pp=False):
     for base, _, _ in regions(data):
         party, count = find_party(data, base)
         mons = [data[party + 8 + i * MON_SIZE:party + 8 + (i + 1) * MON_SIZE] for i in range(count)]
-        if lead:
+        if lead and lead <= count:      # (an older backup copy can hold a shorter party)
             mons.insert(0, mons.pop(lead - 1))
+        for slot, level in levels:
+            for k in (range(count) if slot == 0 else [slot - 1]):
+                m = Mon(mons[k]); m.set_level(level, max_ivs, max_pp); mons[k] = m.encode()
         for slot, item in held:
             m = Mon(mons[slot - 1]); m.set_held(item); mons[slot - 1] = m.encode()
         for i, raw in enumerate(mons):
@@ -176,6 +256,9 @@ def main():
     ap.add_argument('--lead', type=int)
     ap.add_argument('--held', action='append', default=[])
     ap.add_argument('--give', action='append', default=[])
+    ap.add_argument('--level', action='append', default=[], help='LV (whole party) or SLOT:LV')
+    ap.add_argument('--max-ivs', action='store_true')
+    ap.add_argument('--max-pp', action='store_true', help='with --level: 3 PP Ups on every move')
     a = ap.parse_args()
     data = load(a.save)
     if a.cmd == 'info':
@@ -185,7 +268,8 @@ def main():
         sys.exit('edit needs -o')
     held = [(int(s), item_id(i)) for s, i in (h.split(':') for h in a.held)]
     give = [(item_id(i), int(q)) for i, q in (g.split(':') for g in a.give)]
-    edit(data, a.lead, held, give)
+    levels = [(0, int(l)) if ':' not in l else tuple(int(v) for v in l.split(':')) for l in a.level]
+    edit(data, a.lead, held, give, levels, a.max_ivs, a.max_pp)
     open(a.out, 'wb').write(data)
     info(data)
 

@@ -176,6 +176,7 @@ Implemented (step 3) in `src/port/headless_game.c`. All return
 | `{"cmd":"set_var","name":"VAR_X","value":V}` | Set a story var (field var pointer in the field, save vars otherwise). |
 | `{"cmd":"set_flag","name":"FLAG_X","value":true}` | Set/clear a flag (same storage choice as `set_var`). |
 | `{"cmd":"give_item","item":"ITEM_X","qty":N}` | Add items to the bag (`qty` defaults to 1). |
+| `{"cmd":"objects"}` | Read-only list of the map objects that exist now: `{"ok":true,"objects":[{"localid":N,"name":"LOCALID_X","gfx":N,"x":X,"z":Z}]}`. Objects hidden by their `hidden_flag` (or removed by a script) are not created, so they are absent; the player is included (local id 255, no name). For visibility asserts in story tests. |
 | `{"cmd":"talk","localid":"LOCALID_X"}` or `{"cmd":"talk","object":N}` | Move the player to a free adjacent tile facing the object (matching its elevation), then start the object's script exactly as the A-button interaction does (`ScriptManager_Set`). Starting it directly, rather than pressing A, makes talk deterministic: a wandering NPC can step off the faced tile before a pressed A lands. Errors when no adjacent tile is free or a script is already running. The reply includes the object's and player's positions. |
 
 Names (`MAP_HEADER_*`, `VAR_*`, `FLAG_*`, `ITEM_*`, `SPECIES_*`, `DIR_*`,

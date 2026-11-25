@@ -390,6 +390,29 @@ static void CmdRunScript(const char *line, char *reply, size_t cap) {
     snprintf(reply, cap, "{\"ok\":true,\"script_id\":%ld}", id);
 }
 
+// Read-only: the map objects that exist right now (hidden objects are not created, so they are absent), with
+// their local-id names on this map, graphics id and tile (kept short: the reply buffer is 4 KB). For visibility asserts in story tests.
+static void CmdObjects(const char *line, char *reply, size_t cap) {
+    (void)line;
+    FieldSystem *fsys = DEBUG_GetFieldSystem();
+    if (!fsys || !fsys->mapObjMan) { ErrOut(reply, cap, "not in the field"); return; }
+    int header = fsys->location ? fsys->location->mapHeaderID : -1;
+    Out o = { reply, cap, 0 };
+    OutFmt(&o, "{\"ok\":true,\"objects\":[");
+    MapObject *obj = NULL;
+    int idx = 0, first = 1;
+    while (MapObjectMan_FindObjectWithStatus(fsys->mapObjMan, &obj, &idx, MAP_OBJ_STATUS_0) == TRUE) {
+        int lid = (int)MapObject_GetLocalID(obj);
+        const char *name = NULL;
+        for (int i = 0; i < kHeadlessLocalsCount; i++)
+            if (kHeadlessLocals[i].mapHeader == header && kHeadlessLocals[i].localId == lid) { name = kHeadlessLocals[i].name; break; }
+        OutFmt(&o, "%s{\"localid\":%d,\"name\":\"%s\",\"gfx\":%u,\"x\":%d,\"z\":%d}", first ? "" : ",",
+               lid, name ? name : "", (unsigned)MapObject_GetGraphicsID(obj), MapObject_GetX(obj), MapObject_GetZ(obj));
+        first = 0;
+    }
+    OutFmt(&o, "]}");
+}
+
 static void CmdReloadScripts(const char *line, char *reply, size_t cap) {
     (void)line;
     FieldSystem *fsys = DEBUG_GetFieldSystem();
@@ -416,6 +439,7 @@ int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
     else if (strcmp(cmd, "set_flag") == 0) CmdSetFlag(line, reply, cap);
     else if (strcmp(cmd, "give_item") == 0) CmdGiveItem(line, reply, cap);
     else if (strcmp(cmd, "talk") == 0) CmdTalk(line, reply, cap);
+    else if (strcmp(cmd, "objects") == 0) CmdObjects(line, reply, cap);
     else if (strcmp(cmd, "battle_decide") == 0) {
         BattleDecision d; memset(&d, 0, sizeof(d)); d.target = -1; d.moveSlot = -1; long v;
         if (JsonLong(line, "battler", &v)) d.battler = (int)v;
