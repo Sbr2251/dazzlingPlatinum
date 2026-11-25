@@ -411,29 +411,29 @@
         },
         {
             "id": "WARP_SOLACEON_TOWN_NORTHEAST_HOUSE",
-            "x": 579,
-            "z": 648,
+            "x": 576,
+            "z": 645,
             "dest_header_id": "MAP_HEADER_SOLACEON_TOWN_NORTHEAST_HOUSE",
             "dest_warp_id": "WARP_SOLACEON_TOWN"
         },
         {
             "id": "WARP_SOLACEON_TOWN_POKEMON_NEWS_PRESS",
-            "x": 571,
-            "z": 656,
+            "x": 580,
+            "z": 652,
             "dest_header_id": "MAP_HEADER_SOLACEON_SANCTUARY",
             "dest_warp_id": "WARP_SOLACEON_TOWN"
         },
         {
             "id": "WARP_SOLACEON_TOWN_NORTH_HOUSE",
-            "x": 565,
-            "z": 646,
+            "x": 570,
+            "z": 645,
             "dest_header_id": "MAP_HEADER_SOLACEON_TOWN_NORTH_HOUSE",
             "dest_warp_id": "WARP_SOLACEON_TOWN"
         },
         {
             "id": "WARP_SOLACEON_TOWN_EAST_HOUSE",
-            "x": 581,
-            "z": 656,
+            "x": 577,
+            "z": 665,
             "dest_header_id": "MAP_HEADER_SOLACEON_TOWN_EAST_HOUSE",
             "dest_warp_id": "WARP_SOLACEON_TOWN"
         },
