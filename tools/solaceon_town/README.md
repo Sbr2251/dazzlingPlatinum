@@ -1,4 +1,35 @@
-# Solaceon Town: the memorial wall
+# Solaceon Town
+
+## The redesign layout and graybox (Solaceon redesign, town-layout workstream)
+
+The Sanctuary-town redesign (docs/solaceon_redesign/PLAN.md) rebuilds chunks 072/073 around the memorial wall. The
+tile contract, exact tiles for every door, sign and NPC spot, budgets and open issues are in
+`docs/solaceon_redesign/layout.md`. All tools read their stock inputs from git at `BASE_REV = 50482f890` (the stock
+town with the memorial wall below), so reruns never feed back; output paths are the constants `MAP_DATA_DIR` /
+`EVENTS_JSON` at the top of `layout.py`.
+
+| file | what |
+|---|---|
+| `layout.py` | The tile contract: collision, height and kind per tile, rebuilt regions, anchors, signs, NPC spots. `--ascii`, `--anchors`, `--check`. |
+| `collision.py` | Permissions and BDHC from layout.py (after tools/lake_verity/collision.py), and the checks against it. |
+| `build_graybox.py` | Writes map_data_072/073: stock terrain outside the rebuilt regions byte for byte (chunkedit), graybox terrain inside from stock set-010 textures, the props (Day Care, PC, Mart kept; three houses moved; the gym door on the hall), permissions and BDHC. Dry run by default, `--preview DIR`, `--write` (refuses if a check fails). |
+| `warps.py` | Moves the warps to layout.DOORS (x/z only, never reorders). `--write`. |
+| `dump_stock.py` | Stock 072/073 + neighbours to mesh.json, set-010 textures to PNG, a stock report. |
+| `preview.py` | blender_preview.py with Solaceon's real field camera (CAMERA_TYPE_DEFAULT); `SOL_PREVIEW_ENGINE=cycles` for a CPU render. |
+| `render.py` | Runs Blender for the top view and the game views (north, plaza, compound, dig, kennel, south). |
+| `compare_layout.py` | Layout colours / render / render with blocked tiles darkened, side by side. |
+
+```
+python3 tools/solaceon_town/layout.py --ascii --check
+python3 tools/solaceon_town/build_graybox.py --write
+python3 tools/solaceon_town/warps.py --write
+```
+
+The town-art workstream applies the art over this graybox later (set 010 is not touched here). `textures.py` and
+`build_wall.py` below are the earlier Arc 2 wall edit; their output is part of BASE_REV and is kept by the graybox
+(do not rerun build_wall.py over the graybox: it rebuilds 072 from the older stock).
+
+# The memorial wall (Arc 2)
 
 Arc 2 round 3 (workstream world-art), plan S4 / scene 2.16a: Team Eclipse's memorial wall, "every photo labelled with a
 name, a date and a place". s-celestic owns the scene and placed its five sign events on the white fence west of the
