@@ -242,6 +242,9 @@ headless_names = custom_target('headless_names',
         meson.global_source_root(),
         '@OUTDIR@',
     ],
+    # LOCALID_* names come from every res/field/maps/*/events.json, which are not listed as inputs:
+    # regenerate on every build so edited events never leave the headless protocol with stale names.
+    build_always_stale: true,
 )
 
 pokeplatinum_port_c = files(
