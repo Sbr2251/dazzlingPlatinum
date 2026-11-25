@@ -420,7 +420,7 @@
             "id": "WARP_SOLACEON_TOWN_POKEMON_NEWS_PRESS",
             "x": 571,
             "z": 656,
-            "dest_header_id": "MAP_HEADER_SOLACEON_TOWN_POKEMON_NEWS_PRESS",
+            "dest_header_id": "MAP_HEADER_SOLACEON_SANCTUARY",
             "dest_warp_id": "WARP_SOLACEON_TOWN"
         },
         {
