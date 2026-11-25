@@ -22,6 +22,7 @@
 #include "heap.h"
 #include "palette.h"
 #include "pokemon_sprite.h"
+#include "port/sim_battle3d.h"
 #include "unk_0208C098.h"
 #include "vram_transfer.h"
 
@@ -1082,15 +1083,57 @@ static BOOL DrawFlatStream(PokemonSpriteManager *monSpriteMan, int index, const 
     return TRUE;
 }
 
+static void BdspSpriteOffset(int index, fx32 *outDx, fx32 *outDy)
+{
+    int type;
+
+    *outDx = 0;
+    *outDy = 0;
+
+    if (!SIM_Battle3D_IsEnabled() || sStageSprites.battleSys == NULL) {
+        return;
+    }
+
+    if (index < 0 || index >= BattleSystem_GetMaxBattlers(sStageSprites.battleSys)) {
+        return;
+    }
+
+    type = BattleSystem_GetBattlerType(sStageSprites.battleSys, index);
+    switch (type) {
+    case BATTLER_TYPE_SOLO_PLAYER:
+        *outDx = 8 * FX32_ONE;
+        *outDy = 14 * FX32_ONE;
+        break;
+    case BATTLER_TYPE_SOLO_ENEMY:
+        *outDx = -16 * FX32_ONE;
+        *outDy = 14 * FX32_ONE;
+        break;
+    case BATTLER_TYPE_PLAYER_SIDE_SLOT_1:
+    case BATTLER_TYPE_PLAYER_SIDE_SLOT_2:
+        *outDx = 4 * FX32_ONE;
+        *outDy = 12 * FX32_ONE;
+        break;
+    case BATTLER_TYPE_ENEMY_SIDE_SLOT_1:
+    case BATTLER_TYPE_ENEMY_SIDE_SLOT_2:
+        *outDx = -12 * FX32_ONE;
+        *outDy = 12 * FX32_ONE;
+        break;
+    default:
+        break;
+    }
+}
+
 static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const PokemonSpriteDrawRect *rect)
 {
     PokemonSprite *sprite;
     const PokemonSpriteTransforms *transforms;
     BattleStageCameraSimilarity similarity;
     BOOL follow;
+    BOOL bdsp3d;
     u32 result;
     int width, height;
     fx32 breath, wobble;
+    fx32 bdspDx = 0, bdspDy = 0;
     int sy, sx, sway, bottom;
     int column[GRID_VERTICES]; // x of each column, 1/256 px
     int row[GRID_VERTICES]; // y of each row
@@ -1123,7 +1166,8 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         return 0;
     }
 
-    result = BlobsOn() ? MON_SPRITE_DRAW_HOOK_NO_SHADOW : 0;
+    bdsp3d = SIM_Battle3D_IsEnabled();
+    result = (BlobsOn() || (sStageSprites.visible && bdsp3d)) ? MON_SPRITE_DRAW_HOOK_NO_SHADOW : 0;
     sprite = &monSpriteMan->sprites[index];
     transforms = &sprite->transforms;
 
@@ -1238,6 +1282,13 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
     if (follow) {
         LoadSimilarity(&similarity);
         result |= MON_SPRITE_DRAW_HOOK_SHADOW_MATRIX;
+    }
+
+    if (bdsp3d) {
+        BdspSpriteOffset(index, &bdspDx, &bdspDy);
+        if (bdspDx != 0 || bdspDy != 0) {
+            G3_Translate(bdspDx, bdspDy, 0);
+        }
     }
 
     G3_Translate((fx32)((u32)(transforms->xCenter + transforms->xPivot) << FX32_SHIFT), (fx32)((u32)(transforms->yCenter + transforms->yPivot) << FX32_SHIFT), (fx32)((u32)transforms->zCenter << FX32_SHIFT));
@@ -1572,7 +1623,7 @@ void BattleStageSprites_DrawBlobs(const MtxFx44 *projection)
     PokemonSpriteManager *monSpriteMan;
     int numBattlers, i;
     BOOL started = FALSE;
-    BOOL blobsOn = BlobsOn();
+    BOOL blobsOn = BlobsOn() && !SIM_Battle3D_IsEnabled();
     BOOL holesOn = HolesOn();
 
     if (!blobsOn && !holesOn) {

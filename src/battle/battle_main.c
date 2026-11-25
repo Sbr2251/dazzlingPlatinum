@@ -31,6 +31,7 @@
 #include "battle/battle_io_command.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_main.h"
+#include "port/sim_battle3d.h"
 #include "port/sim_wide.h" // battlehud hook: wide scene for battle sub-menus
 #ifdef SDK_PORT
 #include "port/headless_game.h"
@@ -317,6 +318,7 @@ BOOL Battle_Main(ApplicationManager *appMan, int *state)
 
 void BattleSystem_EnterSubMenu(BattleSystem *battleSys)
 {
+    SIM_Battle3D_Reset();
     SIM_Wide_SetWide2DWidth(0);
     SIM_Wide_SetScene(SIM_WIDE_SCENE_MENU); // battlehud hook (widegame note)
     BattleSubscreen_Free(battleSys->btlSubscreen);
@@ -338,6 +340,7 @@ void BattleSystem_EnterSubMenu(BattleSystem *battleSys)
 
 void BattleSystem_FreeGraphics(BattleSystem *battleSys)
 {
+    SIM_Battle3D_Reset();
     SIM_Wide_SetWide2DWidth(0);
     SetVBlankCallback(NULL, NULL);
     BattleSubscreen_Free(battleSys->btlSubscreen);
@@ -496,9 +499,17 @@ void BattleSystem_SetupBattleScreen(BattleSystem *battleSys)
 
     battleSys->pendingBattleVRAMSetup = 1;
 
-    Window_Add(battleSys->bgConfig, battleSys->windows, 1, 2, 19, 27, 4, 11, (18 + 12) + 1);
+    if (SIM_Battle3D_IsEnabled()) {
+        Window_Add(battleSys->bgConfig, battleSys->windows, 1, 18, 19, 22, 4, 11, (18 + 12) + 1);
+    } else {
+        Window_Add(battleSys->bgConfig, battleSys->windows, 1, 2, 19, 27, 4, 11, (18 + 12) + 1);
+    }
     Window_FillTilemap(battleSys->windows, 0xFF);
-    if (widePixel) {
+    if (SIM_Battle3D_IsEnabled()) {
+        Window_DrawMessageBoxWithScrollCursor(&battleSys->windows[0], 0, 1, 10);
+        Bg_ClearTilemap(battleSys->bgConfig, BG_LAYER_MAIN_1);
+        Bg_ScheduleTilemapTransfer(battleSys->bgConfig, BG_LAYER_MAIN_1);
+    } else if (widePixel) {
         Window_DrawMessageBoxWithScrollCursor(&battleSys->windows[0], 0, 1, 10);
         BattleHud_DrawWideMessageFrame(battleSys);
     } else {
@@ -596,10 +607,17 @@ static void BattleMain_InitGraphics(ApplicationManager *appMan)
 
     BattleMain_InitBattleGraphics(battleSys, battleSys->bgConfig);
 
-    Window_Add(battleSys->bgConfig, &battleSys->windows[0], 1, 2, 0x13, 27, 4, 11, (18 + 12) + 1);
+    if (SIM_Battle3D_IsEnabled()) {
+        Window_Add(battleSys->bgConfig, &battleSys->windows[0], 1, 18, 0x13, 22, 4, 11, (18 + 12) + 1);
+    } else {
+        Window_Add(battleSys->bgConfig, &battleSys->windows[0], 1, 2, 0x13, 27, 4, 11, (18 + 12) + 1);
+    }
     Window_FillTilemap(&battleSys->windows[0], 0xFF);
     Window_DrawMessageBoxWithScrollCursor(&battleSys->windows[0], 0, 1, 10);
-    if (BattleHud_IsWidePixelMode()) {
+    if (SIM_Battle3D_IsEnabled()) {
+        Bg_ClearTilemap(battleSys->bgConfig, BG_LAYER_MAIN_1);
+        Bg_ScheduleTilemapTransfer(battleSys->bgConfig, BG_LAYER_MAIN_1);
+    } else if (BattleHud_IsWidePixelMode()) {
         BattleHud_DrawWideMessageFrame(battleSys);
     }
 
@@ -1641,6 +1659,51 @@ static void RaiseIntroSprites(BattleSystem *battleSys)
     }
 }
 
+static void BattleMain_SyncBdspMessageFrame(BattleSystem *battleSys)
+{
+    u16 *tilemap;
+    Window *msgWin;
+    u16 msgTile;
+    u16 frameTile;
+    u32 mx, my, fx, fy, mIdx, fIdx;
+
+    if (!SIM_Battle3D_IsEnabled() || battleSys == NULL || battleSys->bgConfig == NULL) {
+        return;
+    }
+
+    // Keep BG_LAYER_MAIN_1 unobstructed while the right-docked BDSP menu is visible.
+    if (BattleHud_IsWindowVisible()) {
+        return;
+    }
+
+    msgWin = BattleSystem_GetWindow(battleSys, 0);
+    if (msgWin == NULL || msgWin->bgConfig == NULL) {
+        return;
+    }
+
+    tilemap = Bg_GetTilemapBuffer(battleSys->bgConfig, BG_LAYER_MAIN_1);
+    if (tilemap == NULL) {
+        return;
+    }
+
+    // When BattleMessage_Print writes combat text, Window_CopyToVRAM maps
+    // windows[0] at (tilemapLeft, tilemapTop) in the 512x256 tilemap. Frame it
+    // cleanly with authentic Platinum PL_WINFRAME right beside the player healthbox.
+    mx = msgWin->tilemapLeft;
+    my = msgWin->tilemapTop;
+    fx = mx - 2;
+    fy = my - 1;
+    mIdx = ((my & 0x20) * 32) + ((mx & 0x20) * 32) + ((my & 0x1F) * 32) + (mx & 0x1F);
+    fIdx = ((fy & 0x20) * 32) + ((fx & 0x20) * 32) + ((fy & 0x1F) * 32) + (fx & 0x1F);
+    msgTile = (u16)(msgWin->baseTile | (msgWin->palette << 12));
+    frameTile = (u16)(1 | (10 << 12));
+    if (tilemap[mIdx] == msgTile && tilemap[fIdx] != frameTile) {
+        Window_DrawMessageBox(msgWin, 1, 10);
+        Window_PutToTilemap(msgWin);
+        Bg_ScheduleTilemapTransfer(battleSys->bgConfig, BG_LAYER_MAIN_1);
+    }
+}
+
 static void SysTask_DrawSprites(SysTask *task, void *inBattleSys)
 {
     BattleSystem *battleSys = inBattleSys;
@@ -1663,6 +1726,9 @@ static void SysTask_DrawSprites(SysTask *task, void *inBattleSys)
         SpriteSystem_UpdateTransfer();
         G3_RequestSwapBuffers(GX_SORTMODE_MANUAL, GX_BUFFERMODE_Z);
         BattleTextbox_Update();
+        if (battleSys->renderMode == 0) {
+            BattleMain_SyncBdspMessageFrame(battleSys);
+        }
     }
 }
 

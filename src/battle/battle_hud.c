@@ -36,6 +36,7 @@
 #include "battle/battle_context.h"
 #include "battle/battle_system.h"
 #include "battle/healthbox.h"
+#include "port/sim_battle3d.h"
 #include "port/sim_config_prj.h"
 #include "port/sim_wide.h"
 
@@ -48,6 +49,7 @@
 #include "render_window.h"
 #include "string_gf.h"
 #include "string_template.h"
+#include "system.h"
 #include "text.h"
 
 #include "res/text/bank/battle_strings.h"
@@ -84,6 +86,29 @@
 #define WIDE_HUD_FULL_W 43
 #define WIDE_HUD_YESNO_X 32
 #define WIDE_HUD_YESNO_W 11
+
+// Option A BDSP corner-docked authentic Platinum pixel-art HUD coordinates (342x192).
+// All windows use BG1 char base 500 (max 21x14 = 294 tiles -> 500..793 < 1024)
+// and palette slot 15, leaving 100% of the 3D clearing unobstructed.
+#define BDSP_HUD_ACTION_X 31
+#define BDSP_HUD_ACTION_Y 11
+#define BDSP_HUD_ACTION_W 12
+#define BDSP_HUD_ACTION_H 13
+
+#define BDSP_HUD_MOVE_X 22
+#define BDSP_HUD_MOVE_Y 10
+#define BDSP_HUD_MOVE_W 21
+#define BDSP_HUD_MOVE_H 14
+
+#define BDSP_HUD_TARGET_X 18
+#define BDSP_HUD_TARGET_Y 17
+#define BDSP_HUD_TARGET_W 25
+#define BDSP_HUD_TARGET_H 7
+
+#define BDSP_HUD_YESNO_X 32
+#define BDSP_HUD_YESNO_Y 12
+#define BDSP_HUD_YESNO_W 11
+#define BDSP_HUD_YESNO_H 6
 
 // Palette slot 15 indices (4bpp).
 #define WHUD_COL_TRANSPARENT 0
@@ -128,6 +153,7 @@ typedef struct BattleHudState {
     BOOL tilesLoaded;
     BOOL healthboxesLifted;
     BOOL wideModeWindow;
+    BOOL bdspModeWindow;
     u8 winX;
     u8 winY;
     u8 winW;
@@ -165,6 +191,9 @@ BOOL BattleHud_IsWidePixelMode(void)
 #ifdef SDK_PORT
     if (!SIM_Wide_IsWideLayout() || !BattleHud_IsEnabled()) {
         return FALSE;
+    }
+    if (SIM_Battle3D_IsEnabled()) {
+        return TRUE;
     }
     if (!SIM_Headless_Enabled()) {
         return TRUE;
@@ -292,7 +321,21 @@ static void HudHideInternal(BattleSubscreen *btlSubscreen)
 {
     if (sHud.windowAdded && btlSubscreen != NULL) {
         BgConfig *bgConfig = BattleSystem_GetBgConfig(btlSubscreen->battleSys);
-        if (sHud.wideModeWindow) {
+        if (sHud.bdspModeWindow) {
+            Window_FillRectWithColor(&sHud.window, 0, 0, 0, (u16)(sHud.winW * 8), (u16)(sHud.winH * 8));
+            Window_ScheduleCopyToVRAM(&sHud.window);
+            Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1,
+                0, sHud.winX, sHud.winY, sHud.winW, sHud.winH, WIDE_HUD_PALETTE);
+            if (sHud.lastMenu >= 13 && sHud.lastMenu <= 17) {
+                Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1,
+                    0, 0, 18, WIDE_HUD_FULL_W, 6, WIDE_HUD_PALETTE);
+            }
+            Bg_ScheduleTilemapTransfer(bgConfig, BG_LAYER_MAIN_1);
+            Window_Remove(&sHud.window);
+            sHud.windowAdded = FALSE;
+            sHud.wideModeWindow = FALSE;
+            sHud.bdspModeWindow = FALSE;
+        } else if (sHud.wideModeWindow) {
             Window_FillRectWithColor(&sHud.window, 0, 0, 0, (u16)(sHud.winW * 8), (u16)(sHud.winH * 8));
             Window_Remove(&sHud.window);
             sHud.windowAdded = FALSE;
@@ -596,15 +639,20 @@ static void WideHudFillPx(int x, int y, int w, int h, u8 color)
     Window_FillRectWithColor(&sHud.window, color, (u16)x, (u16)y, (u16)w, (u16)h);
 }
 
-static void WideHudDrawPanelFrame(int visW)
+static void WideHudDrawPanelFrameEx(int visW, int visH)
 {
     // Clear full tile-aligned window width (including 2px right of 342px edge)
     // to border color, then draw authentic Platinum olive-charcoal + mint-sage
-    // frame matching PL_WINFRAME's 4px bezel around the 40px button interior.
-    WideHudFillPx(0, 0, sHud.winW * 8, WIDE_HUD_BAR_H_PX, WHUD_COL_BORDER);
-    WideHudFillPx(1, 1, visW - 2, WIDE_HUD_BAR_H_PX - 2, WHUD_COL_MINT_TRIM);
-    WideHudFillPx(3, 3, visW - 6, WIDE_HUD_BAR_H_PX - 6, WHUD_COL_BORDER);
-    WideHudFillPx(4, 4, visW - 8, WIDE_HUD_BAR_H_PX - 8, WHUD_COL_PANEL_BG);
+    // frame matching PL_WINFRAME's 4px bezel around the button interior.
+    WideHudFillPx(0, 0, sHud.winW * 8, visH, WHUD_COL_BORDER);
+    WideHudFillPx(1, 1, visW - 2, visH - 2, WHUD_COL_MINT_TRIM);
+    WideHudFillPx(3, 3, visW - 6, visH - 6, WHUD_COL_BORDER);
+    WideHudFillPx(4, 4, visW - 8, visH - 8, WHUD_COL_PANEL_BG);
+}
+
+static void WideHudDrawPanelFrame(int visW)
+{
+    WideHudDrawPanelFrameEx(visW, WIDE_HUD_BAR_H_PX);
 }
 
 static void WideHudDrawVerticalDivider(int x)
@@ -713,12 +761,13 @@ static void WideHudEnsureWindow(BattleSubscreen *btlSubscreen, int menu)
         tw = WIDE_HUD_ACTION_W;
     }
 
-    if (sHud.windowAdded && (!sHud.wideModeWindow || sHud.winX != tx || sHud.winY != ty
+    if (sHud.windowAdded && (!sHud.wideModeWindow || sHud.bdspModeWindow || sHud.winX != tx || sHud.winY != ty
             || sHud.winW != tw || sHud.winH != th)) {
         Window_FillRectWithColor(&sHud.window, 0, 0, 0, (u16)(sHud.winW * 8), (u16)(sHud.winH * 8));
         Window_Remove(&sHud.window);
         sHud.windowAdded = FALSE;
         sHud.wideModeWindow = FALSE;
+        sHud.bdspModeWindow = FALSE;
         BattleHud_DrawWideMessageFrame(btlSubscreen->battleSys);
     }
 
@@ -1180,12 +1229,591 @@ static int WideHudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
     return -1;
 }
 
+// --- Option A: Authentic Platinum Pixel-Art BDSP Corner-Docked Battle HUD ---
+
+static BOOL BdspHudHasWildQuickBall(BattleSubscreen *btlSubscreen, int menu)
+{
+    u32 battleType;
+
+    if (menu < 1 || menu > 10 || menu == 5 || menu == 6 || menu == 9 || menu == 10) {
+        return FALSE;
+    }
+    battleType = BattleSystem_GetBattleType(btlSubscreen->battleSys);
+    if (battleType & (BATTLE_TYPE_TRAINER | BATTLE_TYPE_SAFARI | BATTLE_TYPE_PAL_PARK)) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static void BdspHudClearBg1Lower(BattleSystem *battleSys)
+{
+    BgConfig *bgConfig = BattleSystem_GetBgConfig(battleSys);
+
+    if (bgConfig == NULL) {
+        return;
+    }
+    // Keep BG_LAYER_MAIN_1 transparent outside the right-docked BDSP menu
+    // so 100% of the 3D clearing and bottom-left player healthbox show cleanly.
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 0, 0, 10, WIDE_HUD_FULL_W, 14, WIDE_HUD_PALETTE);
+}
+
+static void BdspHudEnsureWindow(BattleSubscreen *btlSubscreen, int menu)
+{
+    u8 tx, ty, tw, th;
+    BgConfig *bgConfig = BattleSystem_GetBgConfig(btlSubscreen->battleSys);
+    PaletteData *paletteData = BattleSystem_GetPaletteData(btlSubscreen->battleSys);
+
+    if (menu == HUD_MENU_MOVE) {
+        tx = BDSP_HUD_MOVE_X;
+        ty = BDSP_HUD_MOVE_Y;
+        tw = BDSP_HUD_MOVE_W;
+        th = BDSP_HUD_MOVE_H;
+    } else if (menu == HUD_MENU_TARGET) {
+        tx = BDSP_HUD_TARGET_X;
+        ty = BDSP_HUD_TARGET_Y;
+        tw = BDSP_HUD_TARGET_W;
+        th = BDSP_HUD_TARGET_H;
+    } else if (menu >= 13 && menu <= 17) {
+        tx = BDSP_HUD_YESNO_X;
+        ty = BDSP_HUD_YESNO_Y;
+        tw = BDSP_HUD_YESNO_W;
+        th = BDSP_HUD_YESNO_H;
+    } else {
+        tx = BDSP_HUD_ACTION_X;
+        ty = BDSP_HUD_ACTION_Y;
+        tw = BDSP_HUD_ACTION_W;
+        th = BDSP_HUD_ACTION_H;
+    }
+
+    if (sHud.windowAdded && (!sHud.bdspModeWindow || sHud.winX != tx || sHud.winY != ty
+            || sHud.winW != tw || sHud.winH != th)) {
+        Window_FillRectWithColor(&sHud.window, 0, 0, 0, (u16)(sHud.winW * 8), (u16)(sHud.winH * 8));
+        Window_ScheduleCopyToVRAM(&sHud.window);
+        Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 0, sHud.winX, sHud.winY, sHud.winW, sHud.winH, WIDE_HUD_PALETTE);
+        Window_Remove(&sHud.window);
+        sHud.windowAdded = FALSE;
+        sHud.wideModeWindow = FALSE;
+        sHud.bdspModeWindow = FALSE;
+    }
+
+    if (menu >= 13 && menu <= 17) {
+        // Yes/No prompts display a question in windows[0] below the Yes/No box.
+        Window *msgWin = BattleSystem_GetWindow(btlSubscreen->battleSys, 0);
+        if (msgWin != NULL && msgWin->bgConfig != NULL) {
+            Window_DrawMessageBox(msgWin, 1, 10);
+            Window_PutToTilemap(msgWin);
+            Bg_ScheduleTilemapTransfer(bgConfig, BG_LAYER_MAIN_1);
+        }
+    } else {
+        BdspHudClearBg1Lower(btlSubscreen->battleSys);
+    }
+
+    if (!sHud.windowAdded) {
+        Window_Add(bgConfig, &sHud.window, BG_LAYER_MAIN_1,
+            tx, ty, tw, th, WIDE_HUD_PALETTE, WIDE_HUD_CHAR_BASE);
+        sHud.windowAdded = TRUE;
+        sHud.wideModeWindow = TRUE;
+        sHud.bdspModeWindow = TRUE;
+        sHud.winX = tx;
+        sHud.winY = ty;
+        sHud.winW = tw;
+        sHud.winH = th;
+        sHud.lastMenu = -2;
+    }
+
+    Window_PutToTilemap(&sHud.window);
+
+    if (paletteData != NULL) {
+        PaletteData_LoadBuffer(paletteData, sWideHudPalette, PLTTBUF_MAIN_BG,
+            WIDE_HUD_PALETTE * 16, sizeof(sWideHudPalette));
+    }
+}
+
+static void BdspHudKeepTilemapIntact(BattleSubscreen *btlSubscreen, int menu)
+{
+    BgConfig *bgConfig;
+    u16 *tilemap;
+    u32 x, y, idx;
+    u16 expected;
+    BOOL needsRestore = FALSE;
+
+    if (!sHud.windowAdded || !sHud.bdspModeWindow) {
+        return;
+    }
+    bgConfig = BattleSystem_GetBgConfig(btlSubscreen->battleSys);
+    if (bgConfig == NULL) {
+        return;
+    }
+    tilemap = Bg_GetTilemapBuffer(bgConfig, BG_LAYER_MAIN_1);
+    if (tilemap == NULL) {
+        return;
+    }
+
+    x = sHud.winX;
+    y = sHud.winY + 1;
+    idx = ((y & 0x20) * 32) + ((x & 0x20) * 32) + ((y & 0x1F) * 32) + (x & 0x1F);
+    expected = (u16)((sHud.window.baseTile + sHud.winW) | (WIDE_HUD_PALETTE << 12));
+    if (tilemap[idx] != expected) {
+        needsRestore = TRUE;
+    }
+
+    // For Action, Move, and Target, ensure no message box tiles slipped back in.
+    if (menu >= 1 && menu <= 12 && tilemap[19 * 32 + 2] != 0) {
+        BdspHudClearBg1Lower(btlSubscreen->battleSys);
+        needsRestore = TRUE;
+    }
+
+    if (needsRestore) {
+        Window_PutToTilemap(&sHud.window);
+        Bg_ScheduleTilemapTransfer(bgConfig, BG_LAYER_MAIN_1);
+    }
+}
+
+static void BdspHudDrawQuickBallPill(int x, int y, int w, int h)
+{
+    String *xBadge = WideHudAsciiString("X");
+    String *ballLabel = WideHudAsciiString("BALL");
+    int bx = x + 6;
+    int by = y + 3;
+
+    // Compact slate/cerulean authentic Platinum beveled pill.
+    WideHudFillPx(x, y, w, h, WHUD_COL_BORDER);
+    WideHudFillPx(x + 1, y + 1, w - 2, h - 2, WHUD_COL_SLATE);
+    WideHudFillPx(x + 1, y + 1, w - 2, 1, WHUD_COL_CERULEAN);
+    WideHudFillPx(x + 1, y + 1, 1, h - 2, WHUD_COL_CERULEAN);
+    WideHudFillPx(x + 1, y + h - 2, w - 2, 1, WHUD_COL_PANEL_BG);
+    WideHudFillPx(x + w - 2, y + 1, 1, h - 2, WHUD_COL_PANEL_BG);
+    WideHudFillPx(x + 1, y + 1, 3, h - 2, WHUD_COL_CERULEAN);
+
+    // Miniature 9x9 pixel-art Poke Ball icon.
+    WideHudFillPx(bx + 2, by, 5, 1, WHUD_COL_BORDER);
+    WideHudFillPx(bx + 1, by + 1, 7, 1, WHUD_COL_BORDER);
+    WideHudFillPx(bx, by + 2, 9, 5, WHUD_COL_BORDER);
+    WideHudFillPx(bx + 1, by + 7, 7, 1, WHUD_COL_BORDER);
+    WideHudFillPx(bx + 2, by + 8, 5, 1, WHUD_COL_BORDER);
+    // Red upper dome + specular dot.
+    WideHudFillPx(bx + 2, by + 1, 5, 1, WHUD_COL_CRIMSON);
+    WideHudFillPx(bx + 1, by + 2, 7, 2, WHUD_COL_CRIMSON);
+    WideHudFillPx(bx + 2, by + 2, 1, 1, WHUD_COL_WHITE);
+    // White lower dome.
+    WideHudFillPx(bx + 1, by + 5, 7, 2, WHUD_COL_WHITE);
+    WideHudFillPx(bx + 2, by + 7, 5, 1, WHUD_COL_WHITE);
+    // Center band and white button.
+    WideHudFillPx(bx + 1, by + 4, 7, 1, WHUD_COL_BORDER);
+    WideHudFillPx(bx + 3, by + 3, 3, 3, WHUD_COL_BORDER);
+    WideHudFillPx(bx + 4, by + 4, 1, 1, WHUD_COL_WHITE);
+
+    // Gold "X" shortcut glyph + white "BALL" label.
+    Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, xBadge,
+        (u32)(x + 20), (u32)(y + 2), TEXT_SPEED_NO_TRANSFER,
+        TEXT_COLOR(WHUD_COL_MEGA_GOLD, WHUD_COL_BORDER, 0), NULL);
+    Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, ballLabel,
+        (u32)(x + 36), (u32)(y + 2), TEXT_SPEED_NO_TRANSFER,
+        TEXT_COLOR(WHUD_COL_WHITE, WHUD_COL_DARK_SHADOW, 0), NULL);
+
+    String_Free(xBadge);
+    String_Free(ballLabel);
+}
+
+static void BdspHudDrawAction(BattleSubscreen *btlSubscreen)
+{
+    MessageLoader *msgLoader = BattleSystem_GetMessageLoader(btlSubscreen->battleSys);
+    u32 battleType = BattleSystem_GetBattleType(btlSubscreen->battleSys);
+    int menu = btlSubscreen->activeMenuConfigIndex;
+    int cx = btlSubscreen->cursor.x;
+    int cy = btlSubscreen->cursor.y;
+
+    // Transparent backing so the 3D clearing shows right between the buttons.
+    WideHudFillPx(0, 0, sHud.winW * 8, sHud.winH * 8, WHUD_COL_TRANSPARENT);
+
+    if (menu == 5 || menu == 6) {
+        // First battle: FIGHT only (touch button 0).
+        String *fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Fight);
+        WideHudDrawButton(4, 76, 86, 26, WHUD_COL_CRIMSON, WHUD_COL_CRIMSON,
+            TRUE, TRUE, fight, TRUE, NULL);
+        String_Free(fight);
+        return;
+    }
+
+    if (menu == 9 || menu == 10) {
+        // Pal Park: BALL (cy==0, button 0) and RUN (cy==1, button 1).
+        String *ball = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_BallPalPark);
+        String *run = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Run);
+        WideHudDrawButton(4, 62, 86, 19, WHUD_COL_CRIMSON, WHUD_COL_CRIMSON,
+            cy == 0, TRUE, ball, TRUE, NULL);
+        WideHudDrawButton(4, 83, 86, 19, WHUD_COL_CERULEAN, WHUD_COL_CERULEAN,
+            cy == 1, TRUE, run, TRUE, NULL);
+        String_Free(ball);
+        String_Free(run);
+        return;
+    }
+
+    if (BdspHudHasWildQuickBall(btlSubscreen, menu)) {
+        BdspHudDrawQuickBallPill(4, 2, 86, 16);
+    }
+
+    {
+        String *fight, *bag, *party, *run;
+
+        if (battleType & BATTLE_TYPE_SAFARI) {
+            fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Ball);
+            bag = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Bait);
+            party = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Mud);
+        } else {
+            fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Fight);
+            bag = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Bag);
+            party = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Pokemon);
+        }
+        run = MessageLoader_GetNewString(msgLoader,
+            btlSubscreen->activeMenuData.actionData.isWaitingForPartner
+                ? BattleStrings_Text_Cancel : BattleStrings_Text_Run);
+
+        // BDSP vertical 4-button stack: FIGHT, POKeMON, BAG, RUN/CANCEL.
+        WideHudDrawButton(4, 20, 86, 19, WHUD_COL_CRIMSON, WHUD_COL_CRIMSON,
+            cy == 0, TRUE, fight, TRUE, NULL);
+        WideHudDrawButton(4, 41, 86, 19, WHUD_COL_EMERALD, WHUD_COL_EMERALD,
+            cy == 1 && cx == 2, TRUE, party, TRUE, NULL);
+        WideHudDrawButton(4, 62, 86, 19, WHUD_COL_MEGA_GOLD, WHUD_COL_AMBER,
+            cy == 1 && cx == 0, TRUE, bag, TRUE, NULL);
+        WideHudDrawButton(4, 83, 86, 19, WHUD_COL_CERULEAN, WHUD_COL_CERULEAN,
+            cy == 1 && cx == 1, TRUE, run, TRUE, NULL);
+
+        String_Free(fight);
+        String_Free(bag);
+        String_Free(party);
+        String_Free(run);
+    }
+}
+
+static void BdspHudDrawMoves(BattleSubscreen *btlSubscreen)
+{
+    MoveSelectData *moveData = &btlSubscreen->activeMenuData.moveData;
+    MessageLoader *msgLoader = BattleSystem_GetMessageLoader(btlSubscreen->battleSys);
+    StringTemplate *template = BattleSystem_GetStringTemplate(btlSubscreen->battleSys);
+    int cx = btlSubscreen->cursor.x;
+    int cy = btlSubscreen->cursor.y;
+    int visW = WIDE_HUD_WIDTH_PX - BDSP_HUD_MOVE_X * 8; // 166px
+    int visH = BDSP_HUD_MOVE_H * 8; // 112px
+    int i;
+
+    WideHudDrawPanelFrameEx(visW, visH);
+
+    if (cy >= 0 && cy < 2 && cx >= 0 && cx < 2) {
+        int focusIdx = cy * 2 + cx;
+        if (moveData->moveIDs[focusIdx] != 0) {
+            sHud.lastMoveSlot = focusIdx;
+        }
+    }
+    if (sHud.lastMoveSlot < 0 || sHud.lastMoveSlot >= 4 || moveData->moveIDs[sHud.lastMoveSlot] == 0) {
+        sHud.lastMoveSlot = 0;
+        for (i = 0; i < 4; i++) {
+            if (moveData->moveIDs[i] != 0) {
+                sHud.lastMoveSlot = i;
+                break;
+            }
+        }
+    }
+
+    // Stacked 4 move buttons: 158x19px each, 2px gaps (y = 4, 25, 46, 67).
+    for (i = 0; i < 4; i++) {
+        int col = i & 1;
+        int row = i >> 1;
+        int by = 4 + i * 21;
+        BOOL selected = (cx == col && cy == row);
+
+        sHud.lastMovePP[i] = moveData->currPP[i];
+
+        if (moveData->moveIDs[i] == 0) {
+            WideHudDrawRecessedPlaque(4, by, 158, 19, 0);
+            continue;
+        }
+        {
+            int moveType = (int)MoveTable_LoadParam(moveData->moveIDs[i], MOVEATTRIBUTE_TYPE);
+            u8 stripeCol = WideHudMoveTypeStripeColor(moveType);
+            u8 fillCol = WideHudMoveTypeFillColor(moveType);
+            String *name = MessageUtil_MoveName(moveData->moveIDs[i], HEAP_ID_BATTLE);
+            String *fmt = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_CurPPOutOfMaxPP);
+            String *pp = String_Init(16, HEAP_ID_BATTLE);
+
+            StringTemplate_SetNumber(template, 0, moveData->currPP[i], 2, 1, 0);
+            StringTemplate_SetNumber(template, 1, moveData->maxPP[i], 2, 1, 0);
+            StringTemplate_Format(template, pp, fmt);
+
+            WideHudDrawButton(4, by, 158, 19, stripeCol, fillCol,
+                selected, TRUE, name, FALSE, pp);
+
+            String_Free(name);
+            String_Free(fmt);
+            String_Free(pp);
+        }
+    }
+
+    // Bottom row (y = 88, h = 19): left = MEGA toggle or Type + Power plaque (w = 96),
+    // right = CANCEL (x = 102, w = 60).
+    if (moveData->megaEvolutionAvailable) {
+        BattleContext *ctx = BattleSystem_GetBattleContext(btlSubscreen->battleSys);
+        int battler = BattleSystem_GetBattlerOfType(btlSubscreen->battleSys, btlSubscreen->battlerType);
+        int on = ctx->megaEvolutionTriggered[battler] ? 1 : 0;
+        BOOL megaSel = (cy == 2 && cx == 0);
+        String *mega = MessageLoader_GetNewString(msgLoader, 1272); // "MEGA"
+        String *stateStr = on ? WideHudAsciiString("ON") : NULL;
+
+        if (on) {
+            WideHudFillPx(4, 88, 96, 19, WHUD_COL_BORDER);
+            WideHudFillPx(5, 89, 94, 17, megaSel ? WHUD_COL_WHITE : WHUD_COL_MEGA_GOLD);
+            WideHudFillPx(6, 90, 92, 15, WHUD_COL_AMBER);
+            WideHudFillPx(6, 90, 3, 15, WHUD_COL_MEGA_GOLD);
+            Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, mega,
+                12, 91, TEXT_SPEED_NO_TRANSFER,
+                TEXT_COLOR(WHUD_COL_WHITE, WHUD_COL_BORDER, 0), NULL);
+            if (stateStr != NULL) {
+                int sw = Font_CalcStringWidth(FONT_SYSTEM, stateStr, 0);
+                Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, stateStr,
+                    (u32)(4 + 96 - 5 - sw), 91, TEXT_SPEED_NO_TRANSFER,
+                    TEXT_COLOR(WHUD_COL_MEGA_GOLD, WHUD_COL_BORDER, 0), NULL);
+            }
+        } else {
+            WideHudDrawButton(4, 88, 96, 19, WHUD_COL_MEGA_GOLD, WHUD_COL_VIOLET,
+                megaSel, TRUE, mega, TRUE, NULL);
+        }
+
+        if (stateStr != NULL) {
+            String_Free(stateStr);
+        }
+        String_Free(mega);
+        sHud.lastMega = on;
+    } else {
+        u16 selMoveId = moveData->moveIDs[sHud.lastMoveSlot];
+        int moveType = selMoveId ? (int)MoveTable_LoadParam(selMoveId, MOVEATTRIBUTE_TYPE) : TYPE_NORMAL;
+        int movePower = selMoveId ? (int)MoveTable_LoadParam(selMoveId, MOVEATTRIBUTE_POWER) : 0;
+        u8 stripeCol = WideHudMoveTypeStripeColor(moveType);
+        MessageLoader *typeLoader = MessageLoader_Init(MSG_LOADER_LOAD_ON_DEMAND,
+            NARC_INDEX_MSGDATA__PL_MSG, TEXT_BANK_POKEMON_TYPE_NAMES, HEAP_ID_BATTLE);
+        String *typeName = MessageLoader_GetNewString(typeLoader, (u32)moveType);
+        char pwrBuf[8];
+        String *pwrStr;
+        int pwrW;
+
+        MessageLoader_Free(typeLoader);
+        if (movePower > 0) {
+            snprintf(pwrBuf, sizeof(pwrBuf), "%d", movePower);
+        } else {
+            snprintf(pwrBuf, sizeof(pwrBuf), "--");
+        }
+        pwrStr = WideHudAsciiString(pwrBuf);
+        pwrW = Font_CalcStringWidth(FONT_SYSTEM, pwrStr, 0);
+
+        WideHudDrawRecessedPlaque(4, 88, 96, 19, stripeCol);
+        Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, typeName,
+            9, 91, TEXT_SPEED_NO_TRANSFER,
+            TEXT_COLOR(WHUD_COL_WHITE, WHUD_COL_BORDER, 0), NULL);
+        Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, pwrStr,
+            (u32)(4 + 96 - 4 - pwrW), 91, TEXT_SPEED_NO_TRANSFER,
+            TEXT_COLOR(WHUD_COL_MEGA_GOLD, WHUD_COL_BORDER, 0), NULL);
+
+        String_Free(typeName);
+        String_Free(pwrStr);
+        sHud.lastMega = -1;
+    }
+
+    {
+        BOOL cancelSel = (cy == 2 && (cx == 1 || !moveData->megaEvolutionAvailable));
+        String *cancel = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Cancel2);
+        WideHudDrawButton(102, 88, 60, 19, WHUD_COL_SLATE, WHUD_COL_SLATE,
+            cancelSel, TRUE, cancel, TRUE, NULL);
+        String_Free(cancel);
+    }
+}
+
+static void BdspHudDrawTarget(BattleSubscreen *btlSubscreen)
+{
+    TargetSelectData *data = &btlSubscreen->activeMenuData.targetSelectData;
+    MessageLoader *msgLoader = BattleSystem_GetMessageLoader(btlSubscreen->battleSys);
+    StringTemplate *template = BattleSystem_GetStringTemplate(btlSubscreen->battleSys);
+    int cx = btlSubscreen->cursor.x;
+    int cy = btlSubscreen->cursor.y;
+    int layout = btlSubscreen->targetingLayout;
+    BOOL isMultiTarget = (layout == 1 || layout == 2 || layout == 3 || layout == 5 || layout == 7);
+    BOOL cancelSel = isMultiTarget ? (cy > 0) : (cy == 2);
+    String *cancel = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Cancel3);
+    String *message = String_Init(32, HEAP_ID_BATTLE);
+    u8 battlersByType[6];
+    static const u8 sGridTypeIdx[2][2] = {
+        { 5, 3 },
+        { 2, 4 }
+    };
+    int visW = WIDE_HUD_WIDTH_PX - BDSP_HUD_TARGET_X * 8; // 198px
+    int visH = BDSP_HUD_TARGET_H * 8; // 56px
+    int row, col;
+
+    BattleSystem_SetBattlersByType(btlSubscreen->battleSys, battlersByType);
+
+    // Compact 3px authentic Platinum border framing 3 rows of 16px buttons.
+    WideHudFillPx(0, 0, sHud.winW * 8, visH, WHUD_COL_BORDER);
+    WideHudFillPx(1, 1, visW - 2, visH - 2, WHUD_COL_MINT_TRIM);
+    WideHudFillPx(2, 2, visW - 4, visH - 4, WHUD_COL_BORDER);
+    WideHudFillPx(3, 3, visW - 6, visH - 6, WHUD_COL_PANEL_BG);
+
+    // Spatial 2x2 grid: Row 0 (Enemies, y=3..18), Row 1 (Allies, y=20..35).
+    for (row = 0; row < 2; row++) {
+        for (col = 0; col < 2; col++) {
+            int battlerIndex = battlersByType[sGridTypeIdx[row][col]];
+            int bx = col ? 100 : 4;
+            int by = row ? 20 : 3;
+            u8 accent = (row == 0) ? WHUD_COL_CRIMSON : WHUD_COL_EMERALD;
+            BOOL selected;
+
+            if (isMultiTarget) {
+                selected = (!cancelSel) && WideHudTargetMultiSelected(layout, row, col);
+            } else {
+                selected = (!cancelSel) && (cy == row && cx == col);
+            }
+
+            if (!data->targetMonData[battlerIndex].isPresent) {
+                WideHudDrawRecessedPlaque(bx, by, 94, 16, 0);
+                continue;
+            }
+            {
+                String *formatMsg = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_HealthBoxPokemonName);
+                Pokemon *partyMon = BattleSystem_GetPartyPokemon(btlSubscreen->battleSys,
+                    battlerIndex, data->targetMonData[battlerIndex].partySlot);
+                StringTemplate_SetNickname(template, 0, Pokemon_GetBoxPokemon(partyMon));
+                StringTemplate_Format(template, message, formatMsg);
+                WideHudDrawButton(bx, by, 94, 16, accent, accent,
+                    selected, TRUE, message, FALSE, NULL);
+                String_Free(formatMsg);
+            }
+        }
+    }
+
+    // Bottom CANCEL bar (y=37..52, button 4).
+    WideHudDrawButton(4, 37, 190, 16, WHUD_COL_SLATE, WHUD_COL_SLATE,
+        cancelSel, TRUE, cancel, TRUE, NULL);
+
+    String_Free(cancel);
+    String_Free(message);
+}
+
+static int BdspHudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
+{
+    int menu = btlSubscreen->activeMenuConfigIndex;
+
+    if (x < 0 || x >= WIDE_HUD_WIDTH_PX || y < 0 || y >= HW_LCD_HEIGHT) {
+        return -1;
+    }
+
+    if (menu >= 13 && menu <= 17) {
+        int wx = BDSP_HUD_YESNO_X * 8;
+        int wy = BDSP_HUD_YESNO_Y * 8;
+        if (x < wx || y < wy || y >= wy + BDSP_HUD_YESNO_H * 8) {
+            return -1;
+        }
+        return (y - wy) < 24 ? 0 : 1; // YES=0, NO=1
+    }
+
+    if (menu == HUD_MENU_MOVE) {
+        int wx = BDSP_HUD_MOVE_X * 8; // 176
+        int wy = BDSP_HUD_MOVE_Y * 8; // 80
+        int lx, ly;
+        if (x < wx || y < wy) {
+            return -1;
+        }
+        lx = x - wx; // 0..165
+        ly = y - wy; // 0..111
+        if (ly >= 87 && ly < 109) {
+            if (lx >= 101) {
+                return 0; // CANCEL
+            }
+            if (lx >= 4) {
+                return btlSubscreen->activeMenuData.moveData.megaEvolutionAvailable ? 5 : -1;
+            }
+            return -1;
+        }
+        if (lx >= 4 && lx < 162 && ly >= 4 && ly < 87) {
+            int moveIdx = (ly - 4) / 21;
+            if (moveIdx >= 0 && moveIdx < 4 && btlSubscreen->activeMenuData.moveData.moveIDs[moveIdx] != 0) {
+                return 1 + moveIdx; // moves 1..4 at touch indices 1..4
+            }
+        }
+        return -1;
+    }
+
+    if (menu == HUD_MENU_TARGET) {
+        int wx = BDSP_HUD_TARGET_X * 8; // 144
+        int wy = BDSP_HUD_TARGET_Y * 8; // 136
+        int lx, ly;
+        if (x < wx || y < wy) {
+            return -1;
+        }
+        lx = x - wx; // 0..197
+        ly = y - wy; // 0..55
+        if (ly >= 37) {
+            return 4; // CANCEL
+        }
+        if (ly >= 3 && lx >= 4 && lx < 194) {
+            static const u8 layout[2][2] = { { 3, 1 }, { 0, 2 } };
+            int row = ly < 20 ? 0 : 1;
+            int col = lx < 99 ? 0 : 1;
+            return layout[row][col];
+        }
+        return -1;
+    }
+
+    if (menu >= 1 && menu <= 10) {
+        int wx = BDSP_HUD_ACTION_X * 8; // 248
+        int wy = BDSP_HUD_ACTION_Y * 8; // 88
+        int lx, ly;
+        if (x < wx || y < wy) {
+            return -1;
+        }
+        lx = x - wx; // 0..93
+        ly = y - wy; // 0..103
+        if (lx < 3 || lx >= 91) {
+            return -1;
+        }
+        if (menu == 5 || menu == 6) {
+            return (ly >= 74 && ly < 103) ? 0 : -1; // First battle: FIGHT only
+        }
+        if (menu == 9 || menu == 10) {
+            if (ly >= 61 && ly < 82) {
+                return 0; // Pal Park: BALL
+            }
+            if (ly >= 82 && ly < 103) {
+                return 1; // Pal Park: RUN
+            }
+            return -1;
+        }
+        if (BdspHudHasWildQuickBall(btlSubscreen, menu) && ly >= 1 && ly < 19) {
+            return 1; // [X] BALL quick-bag pill
+        }
+        if (ly >= 20 && ly < 40) {
+            return 0; // FIGHT / BALL
+        }
+        if (ly >= 40 && ly < 61) {
+            return 2; // POKeMON / MUD
+        }
+        if (ly >= 61 && ly < 82) {
+            return 1; // BAG / BAIT
+        }
+        if (ly >= 82 && ly < 103) {
+            return 3; // RUN / CANCEL
+        }
+        return -1;
+    }
+
+    return -1;
+}
+
 // Map a main-touch click (DS coords) to a touch-array button index for
 // the current menu, mirroring the bottom screen's button layout.
 static int HudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
 {
     int menu = btlSubscreen->activeMenuConfigIndex;
     int col, row;
+
+    if (SIM_Battle3D_IsEnabled()) {
+        return BdspHudTouchButtonIndex(btlSubscreen, x, y);
+    }
 
     if (BattleHud_IsWidePixelMode()) {
         return WideHudTouchButtonIndex(btlSubscreen, x, y);
@@ -1225,6 +1853,7 @@ static int HudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
 int BattleHud_Update(BattleSubscreen *btlSubscreen)
 {
     int menu, cx, cy, touchX, touchY;
+    BOOL bdsp3d;
     BOOL widePixel;
 
     if (!BattleHud_IsEnabled() || btlSubscreen == NULL) {
@@ -1240,6 +1869,7 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
         return -1;
     }
 
+    bdsp3d = SIM_Battle3D_IsEnabled();
     widePixel = BattleHud_IsWidePixelMode();
 
     // Wide layout: HUD is up on the top screen, bottom panel not needed.
@@ -1247,6 +1877,13 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
         SIM_Wide_SetBattleTouchNeeded(0);
     }
     SIM_Wide_SetMainTouchEnabled(1);
+
+    // Wild quick-ball shortcut: X opens Bag immediately in BDSP corner HUD.
+    if (bdsp3d && !btlSubscreen->isPanelSliding
+        && BdspHudHasWildQuickBall(btlSubscreen, menu)
+        && (gSystem.pressedKeys & PAD_BUTTON_X)) {
+        return 1;
+    }
 
     // Main-screen click: confirm like a bottom-screen touch.
     if (SIM_Wide_PollMainTouch(&touchX, &touchY)) {
@@ -1260,17 +1897,19 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
     cx = btlSubscreen->cursor.x;
     cy = btlSubscreen->cursor.y;
 
-    if (sHud.windowAdded && sHud.wideModeWindow == widePixel
+    if (sHud.windowAdded && sHud.wideModeWindow == widePixel && sHud.bdspModeWindow == bdsp3d
         && menu == sHud.lastMenu && cx == sHud.lastCursorX && cy == sHud.lastCursorY
         && menu != HUD_MENU_MOVE) {
-        if (widePixel) {
+        if (bdsp3d) {
+            BdspHudKeepTilemapIntact(btlSubscreen, menu);
+        } else if (widePixel) {
             WideHudKeepTilemapIntact(btlSubscreen);
         } else {
             HudLiftHealthboxes(btlSubscreen, TRUE);
         }
         return -1;
     }
-    if (menu == HUD_MENU_MOVE && sHud.windowAdded && sHud.wideModeWindow == widePixel
+    if (menu == HUD_MENU_MOVE && sHud.windowAdded && sHud.wideModeWindow == widePixel && sHud.bdspModeWindow == bdsp3d
         && menu == sHud.lastMenu && cx == sHud.lastCursorX && cy == sHud.lastCursorY) {
         MoveSelectData *md = &btlSubscreen->activeMenuData.moveData;
         BattleContext *ctx = BattleSystem_GetBattleContext(btlSubscreen->battleSys);
@@ -1284,7 +1923,9 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
             }
         }
         if (same) {
-            if (widePixel) {
+            if (bdsp3d) {
+                BdspHudKeepTilemapIntact(btlSubscreen, menu);
+            } else if (widePixel) {
                 WideHudKeepTilemapIntact(btlSubscreen);
             } else {
                 HudLiftHealthboxes(btlSubscreen, TRUE);
@@ -1293,7 +1934,19 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
         }
     }
 
-    if (widePixel) {
+    if (bdsp3d) {
+        BdspHudEnsureWindow(btlSubscreen, menu);
+
+        if (menu == HUD_MENU_MOVE) {
+            BdspHudDrawMoves(btlSubscreen);
+        } else if (menu == HUD_MENU_TARGET) {
+            BdspHudDrawTarget(btlSubscreen);
+        } else if (menu >= 13 && menu <= 17) {
+            WideHudDrawYesNo(btlSubscreen);
+        } else {
+            BdspHudDrawAction(btlSubscreen);
+        }
+    } else if (widePixel) {
         WideHudEnsureWindow(btlSubscreen, menu);
 
         if (menu == HUD_MENU_MOVE) {
@@ -1330,6 +1983,11 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
     sHud.lastCursorX = cx;
     sHud.lastCursorY = cy;
     return -1;
+}
+
+BOOL BattleHud_IsWindowVisible(void)
+{
+    return sHud.windowAdded;
 }
 
 int BattleHud_TopTouchButton(BattleSubscreen *btlSubscreen, int x, int y)

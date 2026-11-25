@@ -1,5 +1,6 @@
 #include "battle/battle_stage.h"
 
+#include <math.h>
 #include <nitro.h>
 #include <nnsys.h>
 #include <string.h>
@@ -9,7 +10,9 @@
 #include "constants/graphics.h"
 #include "constants/heap.h"
 #include "constants/narc.h"
+#include "constants/overworld_weather.h"
 
+#include "battle/battle_context.h"
 #include "battle/battle_stage_camera.h"
 #include "battle/battle_stage_format.h"
 #include "battle/battle_stage_sprites.h"
@@ -21,11 +24,15 @@
 #include "heap.h"
 #include "narc.h"
 #include "palette.h"
+#include "pokemon_sprite.h"
 #include "port/postfx.h"
+#include "port/sim_battle3d.h"
 #ifdef SDK_PORT
 #include "port/sim_wide.h"
 #endif
 #include "vram_transfer.h"
+
+extern void BattleStageCamera_GetBdspDeltas(float *yawDeg, float *pitchDeg, float *distScale, float *fovScale, float *shakeX, float *shakeY, int *isIdle);
 
 #define STAGE_MAX_TEXTURES 8
 #define STAGE_MAX_MESHES   64
@@ -175,6 +182,7 @@ static void UpdateFade(void);
 static void PatchArenaAlpha(StageArena *arena, int alpha);
 static void UpdateFadeBlend(BOOL translucent);
 static void DrawCurtain(int alpha);
+static void SubmitBdspFrame(void);
 
 static BattleStage sBattleStage;
 static StageFog sStageFog;
@@ -266,6 +274,7 @@ void BattleStage_Init(BattleSystem *battleSys)
 
 void BattleStage_Free(void)
 {
+    SIM_Battle3D_Reset();
     BattleStageCamera_Free();
     BattleStageSprites_Free();
 
@@ -300,6 +309,7 @@ void BattleStage_Draw(void)
     }
 
     if (sBattleStage.battleSys == NULL || sBattleStage.arena == NULL) {
+        SIM_Battle3D_Reset();
         BattleStageSprites_BeginFrame(FALSE, NULL, NULL, NULL);
         return;
     }
@@ -321,7 +331,24 @@ void BattleStage_Draw(void)
     BattleStageSprites_BeginFrame(visible, &sBattleStage.tintedLighting, DayLighting(sBattleStage.arena), view);
     UpdatePlatforms(visible);
 
-    if (visible) {
+    if (SIM_Battle3D_IsEnabled()) {
+        if (visible && sBattleStage.fadePos > 0) {
+            int alpha = STAGE_ALPHA_MAX * sBattleStage.fadePos / STAGE_FADE_STEPS;
+
+            SubmitBdspFrame();
+            DrawCurtain(alpha);
+            FogOff();
+            sBattleStage.compat.arenaAlpha = alpha;
+        } else {
+            SIM_Battle3D_Reset();
+            FogOff();
+            sBattleStage.compat.arenaAlpha = 0;
+
+            if (sBattleStage.enabled) {
+                sBattleStage.compat.hiddenFrames++;
+            }
+        }
+    } else if (visible) {
         int alpha = STAGE_ALPHA_MAX * sBattleStage.fadePos / STAGE_FADE_STEPS;
 
         SyncPalettes(sBattleStage.arena);
@@ -362,6 +389,7 @@ void BattleStage_Suppress(u32 reasons, BOOL suppress)
         // again under it when the arena goes away
         if (reasons & BATTLE_STAGE_SUPPRESS_MENU) {
             sBattleStage.platformsHidden = FALSE;
+            SIM_Battle3D_Reset();
         }
     } else {
         sBattleStage.suppressed &= ~reasons;
@@ -1613,4 +1641,334 @@ static void UpdateFog(StageArena *arena)
     }
 
     sStageFog.on = TRUE;
+}
+
+static int BdspTimeOfDay(BattleSystem *battleSys)
+{
+    int offset = BattleSystem_GetBackgroundTimeOffset(battleSys);
+
+    if (offset <= 0) {
+        int hour = BattleSystem_GetFieldHour(battleSys);
+        if (hour >= 4 && hour < 10) {
+            return SIM_BATTLE3D_TOD_MORNING;
+        }
+        return SIM_BATTLE3D_TOD_DAY;
+    }
+    if (offset == 1) {
+        return SIM_BATTLE3D_TOD_EVENING;
+    }
+    return SIM_BATTLE3D_TOD_NIGHT;
+}
+
+static int BdspWeather(BattleSystem *battleSys)
+{
+    BattleContext *battleCtx = BattleSystem_GetBattleContext(battleSys);
+    int fieldWeather;
+
+    if (battleCtx != NULL) {
+        u32 cond = battleCtx->fieldConditionsMask;
+        if (cond & FIELD_CONDITION_RAINING) {
+            return SIM_BATTLE3D_WEATHER_RAIN;
+        }
+        if (cond & FIELD_CONDITION_SUNNY) {
+            return SIM_BATTLE3D_WEATHER_SUN;
+        }
+        if (cond & FIELD_CONDITION_HAILING) {
+            return SIM_BATTLE3D_WEATHER_HAIL;
+        }
+        if (cond & FIELD_CONDITION_SANDSTORM) {
+            return SIM_BATTLE3D_WEATHER_SAND;
+        }
+        if (cond & FIELD_CONDITION_DEEP_FOG) {
+            return SIM_BATTLE3D_WEATHER_FOG;
+        }
+    }
+
+    fieldWeather = BattleSystem_GetFieldWeather(battleSys);
+    switch (fieldWeather) {
+    case OVERWORLD_WEATHER_RAINING:
+    case OVERWORLD_WEATHER_HEAVY_RAIN:
+    case OVERWORLD_WEATHER_THUNDERSTORM:
+        return SIM_BATTLE3D_WEATHER_RAIN;
+    case OVERWORLD_WEATHER_HARSH_SUN:
+        return SIM_BATTLE3D_WEATHER_SUN;
+    case OVERWORLD_WEATHER_SNOWING:
+    case OVERWORLD_WEATHER_HEAVY_SNOW:
+    case OVERWORLD_WEATHER_BLIZZARD:
+    case OVERWORLD_WEATHER_HAILING:
+        return SIM_BATTLE3D_WEATHER_HAIL;
+    case OVERWORLD_WEATHER_SANDSTORM:
+        return SIM_BATTLE3D_WEATHER_SAND;
+    case OVERWORLD_WEATHER_FOG:
+    case OVERWORLD_WEATHER_DEEP_FOG:
+    case OVERWORLD_WEATHER_RIFT_MIST:
+        return SIM_BATTLE3D_WEATHER_FOG;
+    default:
+        return SIM_BATTLE3D_WEATHER_CLEAR;
+    }
+}
+
+static void SubmitBdspFrame(void)
+{
+    BattleSystem *battleSys = sBattleStage.battleSys;
+    StageArena *arena = sBattleStage.arena;
+    SIM_Battle3DFrame frame;
+    float alpha;
+    float timeSec;
+    float yawDeg = 0.0f;
+    float pitchDeg = 0.0f;
+    float distScale = 1.0f;
+    float fovScale = 1.0f;
+    float shakeX = 0.0f;
+    float shakeY = 0.0f;
+    int isIdle = 1;
+    int br;
+    float baseEye[3] = { -3.6f, 2.35f, 8.4f };
+    float baseTarget[3] = { 0.5f, 1.35f, -1.8f };
+    float off[3];
+    float target[3];
+    float eye[3];
+    float yawRad, pitchRad, cosY, sinY, cosP, sinP;
+    PokemonSpriteManager *monSpriteMan;
+    int maxBattlers;
+    int i;
+
+    if (battleSys == NULL || arena == NULL) {
+        SIM_Battle3D_Reset();
+        return;
+    }
+
+    alpha = (float)sBattleStage.fadePos / (float)STAGE_FADE_STEPS;
+    if (alpha <= 0.0f) {
+        SIM_Battle3D_Reset();
+        return;
+    }
+    if (alpha > 1.0f) {
+        alpha = 1.0f;
+    }
+
+    memset(&frame, 0, sizeof(frame));
+    timeSec = (float)arena->frame / 60.0f;
+    arena->frame++;
+
+    br = sBattleStage.brightness;
+    if (sBattleStage.lightningBrightness > 0 && sBattleStage.lightningBrightness > br) {
+        br = sBattleStage.lightningBrightness;
+    }
+
+    frame.active = 1;
+    frame.biome = SIM_Battle3D_BiomeFromBackground((int)BattleSystem_GetBackground(battleSys));
+    frame.timeOfDay = BdspTimeOfDay(battleSys);
+    frame.weather = BdspWeather(battleSys);
+    frame.alpha = alpha;
+    frame.timeSec = timeSec;
+    frame.brightness = (float)br / 16.0f;
+
+    BattleStageCamera_GetBdspDeltas(&yawDeg, &pitchDeg, &distScale, &fovScale, &shakeX, &shakeY, &isIdle);
+
+    // Subtle, alive BDSP over-the-shoulder camera sway combined with
+    // BattleStageCamera intro/idle/cinematic/shake deltas.
+    target[0] = baseTarget[0];
+    target[1] = baseTarget[1];
+    target[2] = baseTarget[2];
+
+    if (isIdle) {
+        yawDeg = yawDeg * 0.55f + 1.5f * sinf(timeSec * 0.42f);
+        pitchDeg = pitchDeg * 0.55f + 0.4f * sinf(timeSec * 0.65f);
+        target[0] += 0.12f * sinf(timeSec * 0.35f);
+        target[1] += 0.04f * cosf(timeSec * 0.52f);
+    } else {
+        yawDeg *= 0.65f;
+        pitchDeg *= 0.65f;
+    }
+
+    if (distScale < 0.65f) {
+        distScale = 0.65f;
+    } else if (distScale > 1.25f) {
+        distScale = 1.25f;
+    }
+
+    off[0] = baseEye[0] - baseTarget[0];
+    off[1] = baseEye[1] - baseTarget[1];
+    off[2] = baseEye[2] - baseTarget[2];
+
+    // Pitch around camera-right (same convention as BattleStageCamera PoseCamera)
+    pitchRad = pitchDeg * 0.0174532925f;
+    if (pitchRad != 0.0f) {
+        float rx = off[2];
+        float rz = -off[0];
+        float rlen = sqrtf(rx * rx + rz * rz);
+        if (rlen > 0.0001f) {
+            float lx, ly, lz;
+            rx /= rlen;
+            rz /= rlen;
+            // lift = cross(off, right) where right = (rx, 0, rz)
+            lx = off[1] * rz;
+            ly = off[2] * rx - off[0] * rz;
+            lz = -off[1] * rx;
+            cosP = cosf(pitchRad);
+            sinP = sinf(pitchRad);
+            off[0] = off[0] * cosP + lx * sinP;
+            off[1] = off[1] * cosP + ly * sinP;
+            off[2] = off[2] * cosP + lz * sinP;
+        }
+    }
+
+    // Yaw around world +Y
+    yawRad = yawDeg * 0.0174532925f;
+    if (yawRad != 0.0f) {
+        float ox = off[0];
+        cosY = cosf(yawRad);
+        sinY = sinf(yawRad);
+        off[0] = ox * cosY + off[2] * sinY;
+        off[2] = off[2] * cosY - ox * sinY;
+    }
+
+    off[0] *= distScale;
+    off[1] *= distScale;
+    off[2] *= distScale;
+
+    eye[0] = target[0] + off[0];
+    eye[1] = target[1] + off[1];
+    eye[2] = target[2] + off[2];
+
+    if (shakeX != 0.0f || shakeY != 0.0f) {
+        float rx = off[2];
+        float rz = -off[0];
+        float rlen = sqrtf(rx * rx + rz * rz);
+        float sx = shakeX * 0.045f;
+        float sy = shakeY * 0.045f;
+        if (rlen > 0.0001f) {
+            rx /= rlen;
+            rz /= rlen;
+            eye[0] += rx * sx;
+            eye[2] += rz * sx;
+            target[0] += rx * sx;
+            target[2] += rz * sx;
+        }
+        eye[1] += sy;
+        target[1] += sy;
+    }
+
+    if (eye[1] < 0.85f) {
+        eye[1] = 0.85f;
+    }
+
+    frame.camEye[0] = eye[0];
+    frame.camEye[1] = eye[1];
+    frame.camEye[2] = eye[2];
+    frame.camTarget[0] = target[0];
+    frame.camTarget[1] = target[1];
+    frame.camTarget[2] = target[2];
+
+    frame.camFovDeg = 36.0f * fovScale;
+    if (frame.camFovDeg < 18.0f) {
+        frame.camFovDeg = 18.0f;
+    } else if (frame.camFovDeg > 56.0f) {
+        frame.camFovDeg = 56.0f;
+    }
+    frame.camAspect = 16.0f / 9.0f;
+
+    monSpriteMan = BattleSystem_GetPokemonSpriteManager(battleSys);
+    maxBattlers = BattleSystem_GetMaxBattlers(battleSys);
+    if (maxBattlers > SIM_BATTLE3D_MAX_BATTLERS) {
+        maxBattlers = SIM_BATTLE3D_MAX_BATTLERS;
+    }
+
+    for (i = 0; i < maxBattlers; i++) {
+        int btype = BattleSystem_GetBattlerType(battleSys, i);
+        SIM_Battle3DBattler *dst = &frame.battlers[i];
+        float wx = 0.0f;
+        float wz = 0.0f;
+        float radius = 0.9f;
+        int isPlayer = 0;
+        int homeX = 128;
+
+        switch (btype) {
+        case BATTLER_TYPE_SOLO_PLAYER:
+            wx = -2.95f;
+            wz = 1.35f;
+            radius = 1.25f;
+            isPlayer = 1;
+            homeX = 64;
+            break;
+        case BATTLER_TYPE_SOLO_ENEMY:
+            wx = 6.95f;
+            wz = -7.80f;
+            radius = 1.45f;
+            isPlayer = 0;
+            homeX = 192;
+            break;
+        case BATTLER_TYPE_PLAYER_SIDE_SLOT_1:
+            wx = -3.35f;
+            wz = 0.70f;
+            radius = 1.15f;
+            isPlayer = 1;
+            homeX = 40;
+            break;
+        case BATTLER_TYPE_PLAYER_SIDE_SLOT_2:
+            wx = -2.25f;
+            wz = 1.90f;
+            radius = 1.15f;
+            isPlayer = 1;
+            homeX = 80;
+            break;
+        case BATTLER_TYPE_ENEMY_SIDE_SLOT_1:
+            wx = 9.90f;
+            wz = -7.75f;
+            radius = 1.35f;
+            isPlayer = 0;
+            homeX = 216;
+            break;
+        case BATTLER_TYPE_ENEMY_SIDE_SLOT_2:
+            wx = 7.75f;
+            wz = -11.35f;
+            radius = 1.35f;
+            isPlayer = 0;
+            homeX = 176;
+            break;
+        default:
+            continue;
+        }
+
+        dst->isPlayer = isPlayer;
+        dst->worldX = wx;
+        dst->worldY = 0.0f;
+        dst->worldZ = wz;
+        dst->shadowRadius = radius;
+        dst->alpha = 0.0f;
+        dst->visible = 0;
+
+        if (monSpriteMan != NULL && i < MAX_MON_SPRITES) {
+            const PokemonSprite *spr = &monSpriteMan->sprites[i];
+            const PokemonSpriteTransforms *tr = &spr->transforms;
+            if (spr->active && !tr->hide && !tr->hide2 && tr->alpha > 0) {
+                int dxPx = (tr->xCenter + tr->xOffset) - homeX;
+                int sc = tr->scaleX < 0 ? -tr->scaleX : tr->scaleX;
+                float elev = spr->shadow.height > 0 ? (float)spr->shadow.height * 0.04f : 0.0f;
+
+                if (dxPx < -96) {
+                    dxPx = -96;
+                } else if (dxPx > 96) {
+                    dxPx = 96;
+                }
+
+                dst->visible = 1;
+                dst->worldX = wx + (float)dxPx * 0.032f;
+                dst->worldY = elev;
+                dst->worldZ = wz;
+                dst->alpha = (float)tr->alpha / 31.0f;
+
+                if (sc < MON_AFFINE_SCALE(1)) {
+                    float sf = (float)sc / (float)MON_AFFINE_SCALE(1);
+                    if (sf < 0.0f) {
+                        sf = 0.0f;
+                    }
+                    dst->shadowRadius = radius * sf;
+                }
+            }
+        }
+    }
+
+    SIM_Battle3D_SubmitFrame(&frame);
 }

@@ -1,5 +1,6 @@
 #include "battle/party_gauge.h"
 #include "battle/battle_hud.h"
+#include "port/sim_battle3d.h"
 
 #include <nitro.h>
 #include <string.h>
@@ -95,17 +96,17 @@ static const SpriteTemplate sPokeballTemplate = {
 #define ARROW_TASK_PRIORITY    500
 #define POKEBALL_TASK_PRIORITY (ARROW_TASK_PRIORITY + 1)
 
-#define SCREEN_EDGE_RIGHT (BattleHud_IsWidePixelMode() ? 342 : 256)
+#define SCREEN_EDGE_RIGHT ((SIM_Battle3D_IsEnabled() || BattleHud_IsWidePixelMode()) ? 342 : 256)
 #define SCREEN_EDGE_LEFT  0
 
-#define ARROW_X_START_OURS   (BattleHud_IsWidePixelMode() ? 380 : (256 + 96)) // off-screen right without 9-bit OAM wrap
+#define ARROW_X_START_OURS   ((SIM_Battle3D_IsEnabled() || BattleHud_IsWidePixelMode()) ? 380 : (256 + 96)) // off-screen right without 9-bit OAM wrap
 #define ARROW_X_START_THEIRS (SCREEN_EDGE_LEFT - 96) // 96 pixels off-screen
 #define ARROW_X_END_OURS     (SCREEN_EDGE_RIGHT - 32)
 #define ARROW_X_END_THEIRS   (SCREEN_EDGE_LEFT + 32)
 #define ARROW_Y_POS_OURS     120
 #define ARROW_Y_POS_THEIRS   56
 
-#define POKEBALL_X_START_OURS   (BattleHud_IsWidePixelMode() ? 362 : (256 + 20))
+#define POKEBALL_X_START_OURS   ((SIM_Battle3D_IsEnabled() || BattleHud_IsWidePixelMode()) ? 362 : (256 + 20))
 #define POKEBALL_X_START_THEIRS (SCREEN_EDGE_LEFT - 20)
 #define POKEBALL_X_END_OURS     (SCREEN_EDGE_RIGHT - 128 + 34)
 #define POKEBALL_X_END_THEIRS   (SCREEN_EDGE_LEFT + 128 - 34)
@@ -152,6 +153,25 @@ __attribute__((aligned(4))) static const u16 sPokeballYPosTheirs[] = {
     [PARTY_GAUGE_POSITION_MIDDLE] = POKEBALL_Y_POS_THEIRS,
     [PARTY_GAUGE_POSITION_LOW] = POKEBALL_Y_POS_THEIRS
 };
+
+static int PartyGauge_ArrowY(enum PartyGaugeSide side, enum PartyGaugePosition pos)
+{
+    if (SIM_Battle3D_IsEnabled()) {
+        if (side == PARTY_GAUGE_OURS) {
+            return pos == PARTY_GAUGE_POSITION_HIGH ? 118 : 154;
+        }
+        return pos == PARTY_GAUGE_POSITION_HIGH ? 22 : 46;
+    }
+    return side == PARTY_GAUGE_OURS ? sArrowYPosOurs[pos] : sArrowYPosTheirs[pos];
+}
+
+static int PartyGauge_PokeballY(enum PartyGaugeSide side, enum PartyGaugePosition pos)
+{
+    if (SIM_Battle3D_IsEnabled()) {
+        return PartyGauge_ArrowY(side, pos) - 6;
+    }
+    return side == PARTY_GAUGE_OURS ? sPokeballYPosOurs[pos] : sPokeballYPosTheirs[pos];
+}
 
 // TODO: naix?
 #define PARTY_GAUGE_NCLR     110
@@ -276,10 +296,10 @@ static void ShowArrow(PartyGaugeArrow *arrow, enum PartyGaugeSide side, enum Par
     arrow->managedSprite = SpriteSystem_NewSprite(spriteSys, spriteMan, &sArrowTemplate);
 
     if (side == PARTY_GAUGE_OURS) {
-        ManagedSprite_SetPositionXY(arrow->managedSprite, ARROW_X_START_OURS, sArrowYPosOurs[pos]);
+        ManagedSprite_SetPositionXY(arrow->managedSprite, ARROW_X_START_OURS, PartyGauge_ArrowY(side, pos));
         Sprite_SetAnim(arrow->managedSprite->sprite, PGANM_ARROW_OURS);
     } else {
-        ManagedSprite_SetPositionXY(arrow->managedSprite, ARROW_X_START_THEIRS, sArrowYPosTheirs[pos]);
+        ManagedSprite_SetPositionXY(arrow->managedSprite, ARROW_X_START_THEIRS, PartyGauge_ArrowY(side, pos));
         Sprite_SetAnim(arrow->managedSprite->sprite, PGANM_ARROW_THEIRS);
     }
 
@@ -313,7 +333,7 @@ static void ShowArrowTask(SysTask *task, void *data)
                 arrow->state++;
             }
 
-            ManagedSprite_SetPositionXY(arrow->managedSprite, arrow->x >> 8, sArrowYPosOurs[arrow->position]);
+            ManagedSprite_SetPositionXY(arrow->managedSprite, arrow->x >> 8, PartyGauge_ArrowY(arrow->side, arrow->position));
         } else {
             arrow->x += ARROW_IN_SPEED;
             if (arrow->x >= ARROW_X_END_THEIRS << 8) {
@@ -321,7 +341,7 @@ static void ShowArrowTask(SysTask *task, void *data)
                 arrow->state++;
             }
 
-            ManagedSprite_SetPositionXY(arrow->managedSprite, arrow->x >> 8, sArrowYPosTheirs[arrow->position]);
+            ManagedSprite_SetPositionXY(arrow->managedSprite, arrow->x >> 8, PartyGauge_ArrowY(arrow->side, arrow->position));
         }
         break;
 
@@ -383,10 +403,10 @@ static void HideArrowTask(SysTask *task, void *data)
         if (arrow->hideType == HIDE_ARROW_FADE_AND_SCROLL) {
             if (arrow->side == PARTY_GAUGE_OURS) {
                 arrow->x -= ARROW_OUT_SPEED;
-                ManagedSprite_SetPositionXY(arrow->managedSprite, arrow->x >> 8, sArrowYPosOurs[arrow->position]);
+                ManagedSprite_SetPositionXY(arrow->managedSprite, arrow->x >> 8, PartyGauge_ArrowY(arrow->side, arrow->position));
             } else {
                 arrow->x += ARROW_OUT_SPEED;
-                ManagedSprite_SetPositionXY(arrow->managedSprite, arrow->x >> 8, sArrowYPosTheirs[arrow->position]);
+                ManagedSprite_SetPositionXY(arrow->managedSprite, arrow->x >> 8, PartyGauge_ArrowY(arrow->side, arrow->position));
             }
         }
 
@@ -427,9 +447,9 @@ static void ShowPokeballs(PartyGaugePokeballs *pokeballs, s8 *numBalls, enum Par
     pokeballs->managedSprite = SpriteSystem_NewSprite(spriteSys, spriteMan, &sPokeballTemplate);
 
     if (side == PARTY_GAUGE_OURS) {
-        ManagedSprite_SetPositionXY(pokeballs->managedSprite, POKEBALL_X_START_OURS, sPokeballYPosOurs[pos]);
+        ManagedSprite_SetPositionXY(pokeballs->managedSprite, POKEBALL_X_START_OURS, PartyGauge_PokeballY(side, pos));
     } else {
-        ManagedSprite_SetPositionXY(pokeballs->managedSprite, POKEBALL_X_START_THEIRS, sPokeballYPosTheirs[pos]);
+        ManagedSprite_SetPositionXY(pokeballs->managedSprite, POKEBALL_X_START_THEIRS, PartyGauge_PokeballY(side, pos));
     }
 
     Sprite_SetAnim(pokeballs->managedSprite->sprite, frame);
@@ -491,7 +511,7 @@ static void ShowPokeballsStartOfBattleTask(SysTask *task, void *data)
                 pokeballs->state++;
             }
 
-            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, sPokeballYPosOurs[pokeballs->position]);
+            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, PartyGauge_PokeballY(pokeballs->side, pokeballs->position));
         } else {
             pokeballs->xStart += POKEBALL_IN_SPEED;
 
@@ -500,7 +520,7 @@ static void ShowPokeballsStartOfBattleTask(SysTask *task, void *data)
                 pokeballs->state++;
             }
 
-            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, sPokeballYPosTheirs[pokeballs->position]);
+            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, PartyGauge_PokeballY(pokeballs->side, pokeballs->position));
         }
 
         Sprite_TickFrame(pokeballs->managedSprite->sprite);
@@ -545,7 +565,7 @@ static void ShowPokeballsStartOfBattleTask(SysTask *task, void *data)
                 pokeballs->state++;
             }
 
-            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, sPokeballYPosOurs[pokeballs->position]);
+            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, PartyGauge_PokeballY(pokeballs->side, pokeballs->position));
         } else {
             pokeballs->xStart -= POKEBALL_IN_SPEED_SLOW;
 
@@ -554,7 +574,7 @@ static void ShowPokeballsStartOfBattleTask(SysTask *task, void *data)
                 pokeballs->state++;
             }
 
-            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, sPokeballYPosTheirs[pokeballs->position]);
+            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, PartyGauge_PokeballY(pokeballs->side, pokeballs->position));
         }
 
         Sprite_TickFrame(pokeballs->managedSprite->sprite);
@@ -595,7 +615,7 @@ static void ShowPokeballsMidBattleTask(SysTask *task, void *data)
                 pokeballs->state++;
             }
 
-            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, sPokeballYPosOurs[pokeballs->position]);
+            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, PartyGauge_PokeballY(pokeballs->side, pokeballs->position));
         } else {
             pokeballs->xStart += POKEBALL_IN_SPEED;
 
@@ -604,7 +624,7 @@ static void ShowPokeballsMidBattleTask(SysTask *task, void *data)
                 pokeballs->state++;
             }
 
-            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, sPokeballYPosTheirs[pokeballs->position]);
+            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, PartyGauge_PokeballY(pokeballs->side, pokeballs->position));
         }
         break;
 
@@ -674,14 +694,14 @@ static void HidePokeballsStartOfBattleTask(SysTask *task, void *data)
     case HIDE_POKEBALLS_FADE:
         if (pokeballs->side == PARTY_GAUGE_OURS) {
             pokeballs->xStart -= POKEBALL_OUT_SPEED;
-            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, sPokeballYPosOurs[pokeballs->position]);
+            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, PartyGauge_PokeballY(pokeballs->side, pokeballs->position));
         } else {
             pokeballs->xStart += POKEBALL_OUT_SPEED;
-            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, sPokeballYPosTheirs[pokeballs->position]);
+            ManagedSprite_SetPositionXY(pokeballs->managedSprite, pokeballs->xStart >> 8, PartyGauge_PokeballY(pokeballs->side, pokeballs->position));
         }
 
         // Need some more documentation on this one
-        if (pokeballs->xStart < -16 * 0x100 || pokeballs->xStart > ((256 + 16) << 8)) {
+        if (pokeballs->xStart < -16 * 0x100 || pokeballs->xStart > ((SIM_Battle3D_IsEnabled() ? (SCREEN_EDGE_RIGHT + 16) : (256 + 16)) << 8)) {
             pokeballs->state++;
         }
 

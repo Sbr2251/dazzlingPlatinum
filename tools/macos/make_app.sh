@@ -25,6 +25,8 @@ for f in header.bin firmware.bin language.csv; do cp "$BUILDDIR/$f" "$C/Resource
 [ -d "$BUILDDIR/battle_specs" ] && cp -R "$BUILDDIR/battle_specs" "$C/Resources/game/battle_specs"
 # Texture pack (docs/texture_pack.md): ship the demo pack; the launcher links it into the data folder as ./TexturePack
 [ -d "$ROOT/tools/texpack/demo/TexturePack" ] && cp -R "$ROOT/tools/texpack/demo/TexturePack" "$C/Resources/game/TexturePack"
+# BDSP 3D battle arenas (docs/bdsp_battle_scene/PLAN.md): binary .b3d biome clearings
+[ -d "$ROOT/res/battle3d" ] && cp -R "$ROOT/res/battle3d" "$C/Resources/game/battle3d"
 
 # The executable and the SDL3 it links (Homebrew), relinked to the bundle's copy
 cp "$BUILDDIR/main" "$C/MacOS/pokeplatinum"

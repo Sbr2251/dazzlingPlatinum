@@ -30,6 +30,7 @@ extern "C" {
 
 BOOL BattleHud_IsEnabled(void);
 BOOL BattleHud_IsWidePixelMode(void);
+BOOL BattleHud_IsWindowVisible(void);
 
 // Wide pixel mode (342x192, 43x24 tiles): extend the authentic Platinum
 // message box frame cleanly across the bottom of the 16:9 screen.

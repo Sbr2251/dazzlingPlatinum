@@ -260,6 +260,7 @@ pokeplatinum_port_c = files(
     'src/port/savedata_upgrade.c',
     'src/port/sim_config_prj.c',
     'src/port/sim_wide.c',
+    'src/port/sim_battle3d.c',
     'src/port/hirestext.c',
     'src/port/sim_gui_prj.cpp',
     'src/port/vram_stats.c',
