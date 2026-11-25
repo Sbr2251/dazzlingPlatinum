@@ -2839,5 +2839,14 @@
     "maps": [
       ["MAP_677", "MAP_678"]
     ]
+  },
+  {
+    "id": "SolaceonSanctuary",
+    "name": "m_sol_sanct",
+    "headers": [],
+    "altitudes": [],
+    "maps": [
+      ["MAP_680"]
+    ]
   }
 ]
