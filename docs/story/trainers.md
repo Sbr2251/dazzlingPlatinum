@@ -313,3 +313,56 @@ The 14 trainers between Route 202 and Roark were rebuilt around the new Gen 3 an
 
 Story battles (Garius, Cyrus, Saros, Kahn, Indra) aren't in this tab yet. They can follow the same format next.
 
+## Story battles: the Solaceon raid (scene 3.4a)
+
+Text and placement: `docs/solaceon_redesign/screenplay.md` (Part 4 and Part 5). Data: `res/trainers/data/indra_sanctuary.json` and `eclipse_grunt_sol_01.json`..`_08.json` (slots 810-816, 833-834; raid-scripts writes them).
+
+**Where it sits.** After Gym 5 (Fantina 35-39) and Dialga's capture (3.3), before Gym 6 (Byron 40-44). The last Eclipse grunts before it are the Lost Tower pair (37-38), and Garius's Hearthome team is 35-38. So the raid grunts run 38-41 and Indra 40-43: a step up from the Lost Tower, with her ace one level under Byron's. If Saros (3.3) ends up above 42, raise everything here by the same amount.
+
+**Theme.** A town of grief, and a vault under old ruins. The fence pair and the main-path grunts are diggers and wiremen (Krokorok, Gurdurr, Klang); the three generator guards carry Ghost types (Dusclops, Lampent, Drifblim, Banette, Sableye, Haunter), more of them the deeper you go. Gen 5 species are ones already in this ROM (Krokorok, Gurdurr, Klang, Lampent, Cofagrigus).
+
+### Indra, battle 2: the vault (`TRAINER_INDRA_SANCTUARY`)
+
+**Levels:** 40-43. **Mega:** None (she isn't on the bible's Mega list). **Power:** 190. **Bag:** 2 Hyper Potions.
+
+**Strategy:** "Nobody gets through." Mightyena leads with Intimidate and Taunt, so you can't set up. Sableye and Cofagrigus burn physical attackers and wall (Cofagrigus's Rough Skin punishes contact, Haze wipes boosts). Then two Super Luck Pokemon with crit items and high-crit moves (Night Slash, Psycho Cut): a critical hit ignores your stat boosts and screens, so whatever you built behind her walls doesn't hold. Her depot team (Mightyena 29, Sableye 30, Honchkrow 31) is the core, grown up.
+
+**Where it comes from:** Super Luck Honchkrow and Absol with Razor Claw or Scope Lens (the Gen 4 "crit" sets), behind Gen 4 burn-and-wall support (Sableye and Spiritomb Will-O-Wisp teams).
+
+| Pokemon | Lv | Ability | Item | Moves | Role |
+|---|---|---|---|---|---|
+| Mightyena | 40 | Intimidate | Sitrus Berry | Taunt, Sucker Punch, Crunch, Roar | Lead: Intimidate; Taunt stops setup, Roar undoes boosts |
+| Sableye | 41 | Keen Eye | Leftovers | Will-O-Wisp, Knock Off, Recover, Shadow Sneak | Burner; Knock Off strips your items |
+| Cofagrigus | 41 | Rough Skin | Leftovers | Will-O-Wisp, Shadow Ball, Haze, Protect | Wall; Haze wipes your boosts |
+| Absol | 42 | Super Luck | Scope Lens | Night Slash, Psycho Cut, Swords Dance, Sucker Punch | Crit attacker |
+| Honchkrow | 43 | Super Luck | Razor Claw | Night Slash, Brave Bird, Sucker Punch, Roost | Ace: crit attacker |
+
+**AI flags:** BASIC, EVAL_ATTACK, EXPERT, CHECK_HP.
+
+**Messages:** `TRMSG_DEFEAT`: "...Fine. It was only ever / the leftovers." Optional `TRMSG_LAST_BATTLER`: "Nobody gets through. Nobody."
+
+### Eclipse grunts 01-08 (the raid)
+
+No held items (the grunt standard). AI flags BASIC, EVAL_ATTACK on all. Odd numbers male, even female (slot classes as registered). Every move is in the Gen 4 engine; abilities are set with the trainer `ability` field.
+
+| Trainer | Where | Pokemon (Lv, ability) | Moves | Power |
+|---|---|---|---|---|
+| `SOL_07` (M) | Town, the dig fence | Houndoom (38, Flash Fire) | Fire Fang, Faint Attack, Thunder Fang, Roar | 130 |
+| | | Golbat (38, Inner Focus) | Bite, Wing Attack, Confuse Ray, Air Cutter | 130 |
+| `SOL_08` (F) | Town, the dig fence | Liepard (38, Limber) | Fake Out, Slash, Taunt, Assurance | 130 |
+| | | Krokorok (38, Intimidate) | Crunch, Dig, Sand Tomb, Scary Face | 130 |
+| `SOL_01` (M) | Room 1, main path | Gurdurr (39, Guts) | Rock Slide, Low Kick, Bulk Up, Dynamic Punch | 130 |
+| | | Golbat (39, Inner Focus) | Poison Fang, Wing Attack, Confuse Ray, Air Cutter | 130 |
+| `SOL_02` (F) | Generator A | Lampent (39, Flash Fire) | Lava Plume, Ominous Wind, Confuse Ray, Memento | 140 |
+| | | Dusclops (40, Pressure) | Shadow Punch, Will-O-Wisp, Confuse Ray, Curse | 140 |
+| `SOL_03` (M) | Room 3, main path | Seviper (40, Shed Skin) | Crunch, Poison Tail, Glare, Night Slash | 140 |
+| | | Klang (40, Plus) | Charge Beam, Mirror Shot, Screech, Rock Polish | 140 |
+| `SOL_04` (F) | Generator B | Drifblim (40, Unburden) | Ominous Wind, Payback, Stockpile, Baton Pass | 140 |
+| | | Banette (40, Insomnia) | Shadow Ball, Will-O-Wisp, Sucker Punch, Faint Attack | 140 |
+| `SOL_05` (M) | Room 5, main path | Skuntank (41, Aftermath) | Flamethrower, Night Slash, Toxic, Screech | 140 |
+| | | Crobat (41, Inner Focus) | Cross Poison, Air Cutter, Confuse Ray, Bite | 140 |
+| `SOL_06` (F) | Generator C | Haunter (41, Levitate) | Shadow Ball, Hypnosis, Dream Eater, Curse | 150 |
+| | | Sableye (41, Keen Eye) | Shadow Claw, Power Gem, Knock Off, Fake Out | 150 |
+
+> Note: Grunts 07-08 are the dig pair at the town's excavation fence: non-battle guards from Arc 2 state 54, trainers when the raid starts (progress 20). The Sanctuary gate pair never battle.
+

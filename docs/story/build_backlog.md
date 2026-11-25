@@ -47,6 +47,18 @@ Suggested order: 1, then 2 (Arc 2 starts with the first totem and the Resonator)
 - Redesigns: the Valor Basin (old Lake Valor site); Route 218 meadow; Route 223; the Eclipse Haven interior; the Meteor Shrine; the Lake Verity castle folding effect.
 - Visible-change pass toward 40%: rift-scarred totem sites (8); rebuilt Galactic sites (Windworks, Veilstone depot, Fuego foundry, Spear Pillar ruin); Routes 216-217, Solaceon Town, Route 215, Routes 206-207, Sandgem annex, Route 222.
 
+## 6b. Solaceon redesign (contract: `docs/solaceon_redesign/PLAN.md`; text: `docs/solaceon_redesign/screenplay.md`)
+
+- Town layout and graybox for chunks 072-073 (pilgrim road and tent, memorial plaza and garden of names, the Sanctuary compound and hall, the excavation fence, the ranch with kennel and loading yard, believers' houses); exact tiles for every door, sign and NPC role in the screenplay's cast tables.
+- Textures (set 010 append only) and the town art pass; the postgame garden variant.
+- The Sanctuary hall interior map (public hall, records office, locked back door) with its exit warp.
+- Town scripts: seven state bands (A 44-53, B 54-85, C 86-98, D 99 before the raid, R 20-49, E 50, F postgame), every NPC's lines, the signs per band, the Rowan banners torn down from 86, the wall banner from 50; keep the 2.16a wall signs and Indra cutaway as built.
+- Scene 3.4a in the town: Looker's briefing (10 to 20), the dig fence battles (grunts 07-08), the seizure and the Dusk Stone (50).
+- Ruins raid: dress the rooms; three generators (order-free, `FLAG_SOL_RAID_A-C`, progress 31-33) and the barrier (`FLAG_SOL_RAID_D`); grunts 01-06; the vault scene with Indra (40, 45), her escape tunnel and rubble; Looker and the ledger; draining the racks (`FLAG_SOL_RAID_E`); warp to town at 50.
+- Trainer data for slots 810-816 and 833-834 (teams in `trainers.md`).
+- Arc 3 scene 3.4 (when Arc 3 is built) sets `VAR_SOLACEON_PROGRESS` 10.
+- Decide: the News Press (its lot becomes the compound) and the HM05 ball in Ruins Room 7.
+
 ## 7. Checks before building
 
 - Route 210 north: the stock fog comes before the fog-clearing power (Gym 5) in the new order. Remove it or turn it into rift mist.

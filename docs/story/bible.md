@@ -65,6 +65,16 @@ world. He's the only person here who remembers the other Sinnoh, apart from the 
   it drained years ago in a research accident. It was really Eclipse's first torture experiment: the portal
   it tore open swallowed the lake into the Distortion World and killed Garius's father, who had come to stop it. He fought Eclipse and was against all of their work. Valor Lakefront has a memorial plaque; one of the names is "Elias, of Twinleaf
   Town."
+- **Solaceon Town is the heart of Team Eclipse's public support** (not its headquarters; owner decision,
+  2026-11-24). Eclipse runs the **Sanctuary** there: a grief hall open to anyone, the memorial wall, a registry
+  tent where every death is written down (name, date, place), and a kennel "for the Pokemon of the departed".
+  Believers live there because they lost someone. Indra keeps the records. Under the Sanctuary's "excavation" of
+  the Solaceon Ruins, Eclipse keeps a **shard vault** in the last Ruins room, sealed by a barrier fed by three
+  generators. The vein's shards are trucked there from the Lost Tower up Route 209. The International Police seize
+  the Sanctuary after the raid (scene 3.4a); the wall stays and becomes a memorial garden in the postgame.
+  Scenes and every NPC line: `docs/solaceon_redesign/screenplay.md`.
+  - NEW (approved 2026-11-24): the registry's ledger has a fourth column, the Pokemon each dead person left behind and
+    where it went ("Kennel, then truck"). The kennel ships them to the frames, like the Eclipse Haven.
 - **Umbral Palace (NEEDS DESIGN):** Giratina's home deep under Mt. Coronet, past the molten depths, where the
   Distortion World portal is. The third ancient palace: Verity (Palkia), Valor (Dialga), Umbral (Giratina).
 - **Shards** (also called crystals; same thing). Eclipse tortures Pokemon at hidden sites all over Sinnoh.
@@ -180,6 +190,10 @@ Cyrus asks in Act 1: "Did the shadow cast me out?" The late answer: no, **it sen
 - **Arc 2, Veilstone:** no record of Cyrus anywhere. "This man does not exist." The player knows why.
 - **Arc 2, Pastoria (the proof):** a live Eclipse site on Route 213; they save the Pokemon in the frame, but the
   Lapras already pulled through is a totem. His evidence is Rowan's rejection beat.
+- **Arc 3, Solaceon (the raid, scene 3.4a; owner decision, 2026-11-24):** he traces the vein's shards to the
+  vault under the Solaceon Ruins and leads the raid. He takes the Sanctuary's records office while Darren and
+  Cyrus go through the Ruins. He recovers the registry ledger (every card on the wall was copied into it), and his
+  office seizes the Sanctuary. "We came to buy time. We bought a little. Not enough."
 
 ### Ruth (Rowan's assistant)
 A new character with a new sprite (not Dawn or Lucas). Runs the portal readings at the castle in Act 1. In the
@@ -246,6 +260,12 @@ an uneasy alliance with no single boss.
   from the player, shows her brother for a few seconds in a cutscene. He tells her to move on. She cries, accepts
   it, and lets the player catch Giratina.
 - Saros is the leader at Cynthia's grandma's warning in Celestic (scene 2.15).
+- **Indra's battles:** (1) the Veilstone depot (2.17a), covering the trucks; (2) the Solaceon vault (3.4a), guarding
+  what's left of the stockpile after Kahn took his share. She loses, asks Cyrus what stopped him in his world (he
+  doesn't answer), and escapes down a fresh tunnel toward the Maniac Tunnel. She is not caught (owner decision,
+  2026-11-24); (3) the Umbral Palace (3.11).
+  - NEW (approved 2026-11-24): she filed Elias's card on the Solaceon wall herself (the ledger page has "I." in the
+    margin; plants "I knew his father", 3.14), and her own card for Teo leaves the place blank.
 
 ## Story spine (3 arcs, then the League)
 
@@ -266,6 +286,10 @@ Gym order (changed from stock): 1 Oreburgh, 2 Eterna, 3 Veilstone, 4 Pastoria, 5
    - Opens with the reveal: "Darren, let's not play any more games. It was me all along."
    - **Dialga falls** at the Lake Valor clockwork palace: right after Gym 5, the chase runs from Hearthome onto
      Route 212 and through the entrance in its top-left corner.
+   - **The Solaceon raid (scene 3.4a).** Looker traces the vein's shards to the vault under the Solaceon Ruins.
+     Darren switches off the three generators that feed its barrier; Indra guards the vault, loses and escapes.
+     The stockpile is destroyed, but Kahn already left with enough for Palkia. Looker recovers the registry
+     ledger, and the International Police seize the Sanctuary.
    - **Gym 6** (Canalave), then the chase across the new fairy route (Route 218) to Lake Verity: **Palkia
      falls** at the castle.
    - **It looks too late:** Eclipse holds Dialga and Palkia and has everything it needs. Cyrus tells the player

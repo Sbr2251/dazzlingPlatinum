@@ -52,7 +52,18 @@ protagonist apart from Yes/No choices. Lines marked Note, and bracketed asides, 
 - **Rowan:** "He was a boy who lost his father, and someone promised him the one thing we couldn't. ...I should have seen it."
 - **Cyrus:** "He used what I was. He knew you'd look at me first. I would have done the same, once."
 - **Ruth:** "Eclipse has Dialga. Palkia's next. And the readings at Lake Verity are climbing, slowly. We have time, but not much."
-- **Rowan:** "Canalave first. Byron will want to hear this, and Iron Island has a rift of its own."
+- **Ruth:** "And the vein. I've followed its readings every night since the Lost Tower. The trucks take the shards up Route 209. To Solaceon."
+- **Rowan:** "Looker called this morning. He's in Solaceon, and he wants you and Cyrus there."
+- **Rowan:** "Then Canalave. Byron will want to hear all of this."
+- *Sets `VAR_SOLACEON_PROGRESS` 10.*
+
+## Scene 3.4a: Solaceon Town, the raid on the Sanctuary vault
+
+- *Full scene, NPC states and trainer text: `docs/solaceon_redesign/screenplay.md` (Part 4). Reads `VAR_SOLACEON_PROGRESS` 10, ends at 50.*
+- *In short: Looker meets Darren and Cyrus at the memorial wall and splits the party: he takes the Sanctuary's records office, they take the Ruins "excavation". Darren switches off the three generators that feed the vault's barrier while Cyrus reads the barrier and Ruth reads the shards on the Poketch. In the vault, Indra (her second battle) says Kahn already left at dawn with what he needs, asks Cyrus what stopped him in his world, and escapes down a fresh tunnel toward the Maniac Tunnel. Looker arrives with the registry ledger: every card on the wall, and beside each name the Pokemon left behind and where it went ("Kennel, then truck"). Darren runs the main rack backward and the stockpile goes grey. Lake Verity's readings keep climbing. The International Police seize the Sanctuary; the wall stays.*
+- **Looker:** "We came to buy time. We bought a little. Not enough."
+- **Ruth** (on the Poketch) "The Professor says come back. Canalave's next. Byron will want to hear all this, and Iron Island has a rift of its own."
+- > Note: Indra's question to Cyrus ("Something stopped you. What was it?") is what sends her looking; 3.7 is her finding it.
 
 ## Scene 3.5: Canalave City, Gym 6, Iron Island (fourth battle with Cyrus)
 

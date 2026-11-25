@@ -47,6 +47,7 @@ Rule: every plant needs a payoff. "?" means not decided yet. Facts live in `bibl
 | G3 | Arc 2, the Jubilife confession | Garius slips: "Some of us have actually lost-", then cuts himself off. |
 | G3b | Valor Basin, near Pastoria (scene 2.20) | Garius at the fence: "...Don't. Just don't, okay?" The plaque lists "Elias, of Twinleaf Town." |
 | G4 | Celestic Town (scene 2.15) | "It's easy to tell people to let go when you've never lost anything." The elder: "What have you lost?" Garius: "...Nothing." Also a leak clue in hindsight. |
+| G4b | Arc 3, the Solaceon raid (scene 3.4a) | The registry ledger page for ELIAS has "I." in the margin: Indra filed his card herself. Nobody comments. Payoff at G6 / 3.14 ("I knew his father"). Approved 2026-11-24. |
 | G5 | Arc 3, the clockwork palace (scene 3.3) | Saros: "I want one morning back. Is that so much?" Garius, quietly: "It's not." |
 | G6 | After Gym 8 | Indra tells Darren and Cyrus that his father fought Eclipse. Garius doesn't know. |
 | G7 | Route 223 | Cyrus tells Garius before the battle. He refuses to believe it and battles anyway. Payoff after he loses: he realizes he's betrayed what his father stood for. |
@@ -81,3 +82,13 @@ Rules for a fair twist:
 | Confrontation | Route 213 beach (scene 2.23) | Garius lists every leak and pushes Darren to battle Cyrus | Cyrus leaves for the Lost Tower rift | In hindsight, the informant is the one demanding a trial |
 | L-clear | Lost Tower (scenes 2.25 and 2.26) | Darren finds the first shard vein while searching for Cyrus and tells only Rowan and Garius. Next morning, grunts arrive to mine it | Cleared: he was lost in the Distortion World | Only one left |
 | Reveal | Start of Arc 3 | Garius admits it, then helps capture Dialga and Palkia | Cleared | Confirmed |
+
+## Track I: Indra (Solaceon, approved 2026-11-24)
+
+| # | Where | Beat | Tag |
+|---|---|---|---|
+| I1 | Arc 2, 2.4 cutaway | Indra asks what stopped Cyrus in his world. | plant (payoff: 3.7 she hears the Giratina plan) |
+| I2 | Arc 2, 2.16a Solaceon wall | She pins Teo's card and talks to him. | plant (payoff: 3.11 Giratina shows her Teo) |
+| I3 | Arc 3, 3.4a Sanctuary records | Her own card for Teo has the place left blank: she won't write where he died. | plant (payoff: 3.11, she accepts it) |
+| I4 | Arc 3, 3.4a | The ledger's fourth column ("Kennel. Then truck.") shows the believers' Pokemon fed the frames. | payoff of S4 for the town |
+

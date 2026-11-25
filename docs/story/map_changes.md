@@ -23,7 +23,8 @@ postgame or Battle Zone). "Visible" means the layout or look changes, not just t
 
 1. **Routes 216-217:** mountain pass with a memorial ridge (Teo's marker, scene 3.7) and Indra's camp. Arc 3.
 2. **Solaceon Town:** the heart of Eclipse's public support: banners, a memorial wall of photos, NPCs who joined
-   because they lost someone. Arc 2.
+   because they lost someone. Arcs 2-3 and the postgame. Sizable rebuild (owner decision, 2026-11-24; contract in
+   `docs/solaceon_redesign/PLAN.md`): see the Solaceon rows in the table below.
 3. **Route 215:** flooded lowland with boardwalks; rain runoff from the Route 214 rift; Eclipse truck ruts to the
    Veilstone depot. Arc 2.
 4. **Routes 206-207:** Eclipse's supply road into Mt. Coronet; staging yard at the Coronet south entrance; part of
@@ -50,6 +51,9 @@ fog-clearing power (Gym 5). Remove that fog or turn it into rift mist.
 | Valley Windworks | Eclipse site, packed up before the player arrives | Leak L1 | 2 | planned |
 | Veilstone meteorite garden | **Meteor Shrine:** the Mega Evolution shrine kept by Maylene's family | Key Stone trial after Gym 3 (Mega side plot) | 2 | planned: NEEDS DESIGN |
 | Veilstone Galactic HQ and warehouse | Eclipse shipping depot for the Haven's crates | Background for Looker's investigation | 2 | planned |
+| Solaceon Town (chunks 072-073) | **The Sanctuary town.** Pilgrim road from Route 210 between banner posts, with a registration tent; a paved memorial plaza around the existing wall (benches, lanterns, offerings) and a grass patch, the "garden of names" (Yamask, Duskull); the walled Sanctuary compound on the News Press and east-house lots, with a forecourt eclipse emblem and the Sanctuary hall (9x5, violet roof, pale stone); the fenced Ruins "excavation" (scaffolding, work lights, crates); the ranch keeps the Day Care and adds a kennel block and a loading yard with a truck and ruts to Route 209; believers' houses on the other lots. The Center, Mart, Day Care doors and the wall stay put. Postgame: the plaza becomes a memorial garden with a plaque. Every NPC per state: `docs/solaceon_redesign/screenplay.md` | Eclipse's public face; the Indra cutaway (2.16a); the raid (3.4a) | 2, 3, postgame | planned (`docs/solaceon_redesign/`) |
+| Solaceon Sanctuary hall (new interior) | Public hall (benches, lectern), Indra's records office (filing drawers, her desk, the ledger), a locked back door | Testimonies, the ledger and Teo's card (plants for 3.4a) | 2, 3, postgame | planned |
+| Solaceon Ruins | Dressed as Eclipse's dig: crates, cables, shard racks; three generators in dead-end rooms; a shard barrier and the vault in Room 7, with Indra's escape tunnel toward the Maniac Tunnel (rubble after 3.4a) | The playable raid, scene 3.4a | 3 | planned |
 | Fuego Ironworks | The foundry where Eclipse builds its shard machines | Optional side area | 2-3 | candidate |
 | Iron Island | Deep tunnels hold the Aggron totem rift | Gym 6's totem | 3 | planned |
 | Spear Pillar | Where the shards burn out Saros and Kahn, and Garius takes Dialga and Palkia | Arc 3 cutaway | 3 | planned |
