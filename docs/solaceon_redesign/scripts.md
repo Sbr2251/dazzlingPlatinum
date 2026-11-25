@@ -92,26 +92,31 @@ guest book stand (6,18), filing drawers = the shelves (20..22,7), (24..25,7) and
   is sealed" line.
 - **Part 2, the fence** (R): a coord trigger on the only way into the dig dirt (x 592, z 660-661, armed through
   `VAR_MAP_LOCAL_0x03` while SOL_08 is unbeaten) walks the player to (594,660); talking to either grunt runs the same
-  scene after a fade (the player is put on (594,660)). Cyrus walks up beside the player (594,661); the three grunt
+  scene (the player walks to (594,660) from (595,660), (596,661) or (597,660), the tiles a grunt can be talked to
+  from). Cyrus walks up beside the player (594,661); the three grunt
   lines; `TRAINER_ECLIPSE_GRUNT_SOL_07` then `_SOL_08` back to back (no heal; their trainer flags are set by the
   script after each win: `StartTrainerBattle` doesn't). Losing is `BlackOutFromBattle`; on the next load a beaten
   SOL_07 without SOL_08 is cleared (the pair reset). After both, F steps to (597,660), M to (596,661) (the gap and
   (595,660) are free), Cyrus's two lines, and he walks through the gap to the Room 1 entrance and is removed. From
   then on the pair stand aside with their post-battle lines (TRMSG_POST_BATTLE, duplicated in the town bank).
-- **Part 7, the seizure** (E): raid-scripts sets 50 and warps to town (Room 7, `SOL_RAID_TOWN_X/Z` = (571,657)). The
-  first load at 50 arms `VAR_MAP_LOCAL_0x02`, and the frame table (before the city-entry cinematic) runs
-  `SolaceonTown_Seizure`: `FLAG_SOL_TOWN_A`, fade, the player to (580,660) facing the gate, Looker in front of the
-  gate (580,659), Cyrus beside the player (579,660); Looker's lines; `ITEM_DUSK_STONE` x1 with the stock item-get
-  message (skipped if the bag is full); Looker, Cyrus; the Poketch beep and Ruth; Looker walks into the compound and
-  Cyrus off west, both removed. The landing tile doesn't matter (the scene places everyone), so raid-scripts' constants
-  can stay.
+- **Part 7, the seizure** (E): raid-scripts sets 50 and warps to town (Room 7; this workstream moved
+  `SOL_RAID_TOWN_X/Z` from (571,657) to (580,660), south of the gate). The first load at 50 arms
+  `VAR_MAP_LOCAL_0x02`, and the frame table (before the city-entry cinematic) runs `SolaceonTown_Seizure`: if the
+  player isn't on (580,660) it warps there (same map) and the reload plays it; then `FLAG_SOL_TOWN_A`, fade, Looker
+  in front of the gate (580,659), Cyrus beside the player (579,660); Looker's lines; `ITEM_DUSK_STONE` x1 with the
+  stock item-get message (skipped if the bag is full); Looker, Cyrus; the Poketch beep and Ruth; Looker walks into
+  the compound and Cyrus off west, both removed.
 - **Postgame Indra** (F, once): Indra (the 2.16a object) at (557,654); talking to her plays her three messages, she
   pins the card and leaves by the south road; `FLAG_SOL_TOWN_B`; the TEO sign reads her card from then on.
 
-Every teleport of the player in the town script (the 2.16a cutaway too) is `AddFreeCamera` at the target,
-`SetPosition`, `RestoreCamera`: `RestoreCamera` re-tracks the player in the map loader, which otherwise asserts on a
-jump in x and z at once (`land_data.c`, `LandDataManager_Tick`). On this tree the stock-written cutaway crashed the
-headless build (GF_ASSERT is fatal there) for that reason; its behaviour is otherwise unchanged.
+**No `SetPosition` of the player.** Moving the player to another row and column with `SetPosition` asserts in the map
+loader (`land_data.c`, `LandDataManager_Tick`: a jump in x and z at once; fatal in the headless build, and on the DS
+the loader stops following the player), and a locked player's sprite is not redrawn at the new tile (only its
+shadow moves). The `AddFreeCamera` / `RestoreCamera` resync keeps the loader quiet but leaves the camera behind
+(it follows by deltas). So the scripts walk the player (the fence) or use a same-map `Warp` behind the black screen
+(the seizure fallback, and the 2.16a cutaway: on this tree its `SetPosition` to the wall crashed the headless build;
+it now warps to (558,654) and steps back to the reading tile (557,654); what the player sees is unchanged). Arc 1/2
+scripts elsewhere (Jubilife, Route 213) still use `SetPosition` that way.
 
 ## Flags and vars
 
@@ -161,8 +166,8 @@ python3 tools/solaceon_town/town_test.py build_macos "/tmp/Solaceon Update/scrip
 
 It builds a level-100 test copy of the repo's Arc 2 save (`save_tool.py edit --level 100 --max-ivs --max-pp`; a
 level-5 copy for the loss), and per scenario boots it, sets the state, warps in and asserts with the headless
-`objects` command which objects exist (and where) for the band; talks to every object (`talk`; the tent clerk across
-the table), reads every sign, drives each to the idle field and screenshots every text box into
+`objects` command which objects exist (and where) for the band; talks to every object (`talk`, after a warp next to
+it so the headless teleport stays inside the loaded chunks; the tent clerk across the table), reads every sign, drives each to the idle field and screenshots every text box into
 `<out>/<scenario>/`. Scenarios: `cutaway` (44 -> 47 -> 49), `A` (+ the hall, the office, a wild battle in the
 garden), `B` (+ the blocked office), `C`, `D` (+ the blocked gate, the locked door, the empty hall and the gate grunt
 letting a player out), `briefing` (10 -> 20, the fence walk-in with both battles, the reload, Room 1, R townspeople,

@@ -25,8 +25,10 @@ Scenarios (all by default, in this order); screenshots go to <out dir>/<scenario
   fence_talk 20: talking to the fence grunt instead of walking in runs the same scene.
   fence_loss 20, a level 5 party: SOL_07 beaten without SOL_08 is reset on load; losing at the fence whites out
            and the pair (and Cyrus) are back in place.
-  E        50: the seizure (3.4a part 7) plays on the first load (Dusk Stone, FLAG_SOL_TOWN_A), not on the second;
-           band E objects, NPCs, signs, the Sanctuary.
+  E        50: the seizure (3.4a part 7) plays on the first load (Dusk Stone, FLAG_SOL_TOWN_A), not on the second
+           (entered at (571,657): the scene first warps the player to its spot); band E objects, NPCs, signs, the
+           Sanctuary.
+  seizure_shots  50, entered on raid-scripts' landing spot (580,660): every box of the seizure.
   F        FLAG_GAME_COMPLETED: band F objects, NPCs, signs (memorial plaque), Indra at the wall once (the TEO card
            gets her text), the Sanctuary.
 Every NPC talk and sign read is driven until the field is idle again (no script, no text box) and every text box
@@ -51,6 +53,10 @@ sys.path.insert(0, HERE)
 from smoke_test import Game, Failure  # noqa: E402
 from raid_test import Raid, make_save  # noqa: E402
 import screenplay_text  # noqa: E402
+import importlib.util  # noqa: E402
+_spec = importlib.util.spec_from_file_location("town_layout", os.path.join(HERE, "layout.py"))
+LAYOUT = importlib.util.module_from_spec(_spec)   # (tools/solaceon_town/layout.py; other dirs have a layout.py too)
+_spec.loader.exec_module(LAYOUT)
 
 TOWN = "MAP_HEADER_SOLACEON_TOWN"
 SANCT = "MAP_HEADER_SOLACEON_SANCTUARY"
@@ -174,11 +180,29 @@ class Town(Raid):
         self.ok(self.idle(st), f"{label}: back to the idle field at {self.where(st)[1]}")
         return st
 
-    def talk(self, name, shots=6):
+    def near(self, name):
+        """Warps next to a town object first (the free side `talk` picks: north, south, west, east), so `talk`'s own
+        teleport stays short: a long jump leaves the map loader on the old chunks (black terrain in screenshots)."""
+        if self.where()[0] != TOWN:
+            return
+        have = self.objects()
+        if L(name) not in have:
+            return
+        ox, oz = have[L(name)]
+        taken = {tuple(p) for n, p in have.items()}
+        t = LAYOUT.tiles()
+        for dx, dz, face in ((0, -1, "DIR_SOUTH"), (0, 1, "DIR_NORTH"), (-1, 0, "DIR_EAST"), (1, 0, "DIR_WEST")):
+            x, z = ox + dx, oz + dz
+            if LAYOUT.walkable(t, x, z) and (x, z) not in taken:
+                self.warp(TOWN, x, z, face)
+                return
+
+    def talk(self, name, shots=6, prefix=""):
+        self.near(name)
         r = self.cmd({"cmd": "talk", "localid": L(name)})
         self.ok(bool(r.get("ok")), f"talk {name}: {r.get('error', 'started')}")
         self.step(4)
-        self.drive(shots={i: f"{name.lower()}_{i}" for i in range(1, shots + 1)})
+        self.drive(shots={i: f"{prefix}{name.lower()}_{i}" for i in range(1, shots + 1)})
         self.after_battle()
         return self.idle_check(f"talk {name}")
 
@@ -233,7 +257,7 @@ class Town(Raid):
         have = self.objects()
         for n in SANCT_OBJS:
             if L(n) in have and not (band in "BC" and n == "RECORDS_CLERK"):
-                self.talk(n)
+                self.talk(n, prefix="sanct_")
                 self.warp(SANCT, 10, 19, "DIR_NORTH")
         for name, (tile, facing) in SANCT_SIGNS.items():
             if band in "BC" and (name in OFFICE_SIGNS or name == "back_door"):
@@ -292,8 +316,8 @@ def scenario_A(t):
     # wild encounter in the garden of names
     t.warp(TOWN, 565, 650, "DIR_EAST")
     species = None
-    for i in range(80):
-        t.press("RIGHT" if i % 8 < 4 else "LEFT", 8)
+    for i in range(300):
+        t.press("RIGHT" if i % 6 < 3 else "LEFT", 8)     # x 565 <-> 568, all tall grass
         t.step(10)
         st = t.state()
         if st.get("app") != "field":
@@ -421,6 +445,7 @@ def scenario_fence_talk(t):
     t.enter_town()
     t.check_band_objects("R", extra=("CYRUS",))
     t.talk("CYRUS")
+    t.near("EXCAVATION_GRUNT_F")
     r = t.cmd({"cmd": "talk", "localid": L("EXCAVATION_GRUNT_F")})
     t.ok(bool(r.get("ok")), f"talk to the fence grunt F: {r}")
     t.step(4)
@@ -442,8 +467,9 @@ def scenario_fence_loss(t):
     st = t.state()
     t.ok(not t.flag(BEAT07, st) and not t.flag(BEAT08, st), "pair reset: SOL_07's flag cleared on load (08 unbeaten)")
     t.check_band_objects("R", extra=("CYRUS",))
-    r = t.cmd({"cmd": "talk", "localid": L("EXCAVATION_GRUNT_M")})
-    t.ok(bool(r.get("ok")), f"talk to the fence grunt M: {r.get('error', 'started')}")
+    t.near("EXCAVATION_GRUNT_F")
+    r = t.cmd({"cmd": "talk", "localid": L("EXCAVATION_GRUNT_F")})
+    t.ok(bool(r.get("ok")), f"talk to the fence grunt F: {r.get('error', 'started')}")
     t.step(4)
     t.drive(shots={i: f"fence_loss_{i}" for i in range(1, 8)})
     t.after_battle()
@@ -462,7 +488,7 @@ def scenario_E(t):
     t.setstate(arc2=99, sol=50)
     st0 = t.state()
     stones = (st0.get("bag") or {}).get("ITEM_DUSK_STONE", 0)
-    t.warp(TOWN, 571, 657, "DIR_NORTH")    # raid-scripts' landing spot (Room 7 -> town)
+    t.warp(TOWN, 571, 657, "DIR_NORTH")    # not the landing spot: the scene warps the player to (580,660) first
     # the warp's drive() already ran the seizure scene; check its result
     st = t.state()
     have = t.objects()
@@ -481,11 +507,11 @@ def scenario_E(t):
 
 
 def scenario_seizure_shots(t):
-    """The seizure once more, driven with a screenshot of every box."""
+    """The seizure once more from raid-scripts' landing spot (580,660), a screenshot of every box."""
     t.setstate(arc2=99, sol=50)
     r = None
     for _ in range(40):
-        r = t.cmd({"cmd": "warp", "map": TOWN, "x": 571, "z": 657, "dir": "DIR_NORTH"})
+        r = t.cmd({"cmd": "warp", "map": TOWN, "x": 580, "z": 660, "dir": "DIR_NORTH"})
         if r.get("ok"):
             break
         t.press("A", 6)

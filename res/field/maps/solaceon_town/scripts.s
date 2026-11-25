@@ -436,17 +436,16 @@ SolaceonTown_Arc2WallEnd:
     End
 
 // 2.16a: shown to the player only. The player is put at the wall and hidden; Indra pins up Teo's card.
-// Every teleport of the player in this file goes AddFreeCamera (at the target) / SetPosition / RestoreCamera:
-// RestoreCamera re-tracks the player in the map loader, which otherwise asserts on a jump in x and z at once
-// (land_data.c, LandDataManager_Tick).
+// The player is moved to the wall with a same-map Warp behind the black screen, and back to the reading tile (557,654)
+// with a step: SetPosition of the player to another row and column asserts in the map loader (land_data.c,
+// LandDataManager_Tick: a jump in x and z at once), and a locked player's sprite is not redrawn at the new tile.
+// (Was SetPosition on main; same behaviour.)
 SolaceonTown_Arc2IndraCutaway:
     LockAll
     SetVar VAR_ARC2_PROGRESS, 47
     FadeScreenOut
     WaitFadeScreen
-    AddFreeCamera 558, 654
-    SetPosition LOCALID_PLAYER, 558, 0, 654, DIR_WEST
-    RestoreCamera
+    Warp MAP_HEADER_SOLACEON_TOWN, 558, 654, DIR_WEST
     ApplyMovement LOCALID_PLAYER, SolaceonTown_Arc2Movement_Hide
     WaitMovement
     ClearFlag FLAG_MAP_LOCAL_HIDE_OBSTACLE_16
@@ -472,9 +471,6 @@ SolaceonTown_Arc2IndraCutaway:
     WaitTime 20, VAR_RESULT
     FadeScreenOut
     WaitFadeScreen
-    AddFreeCamera 557, 654
-    SetPosition LOCALID_PLAYER, 557, 0, 654, DIR_WEST
-    RestoreCamera
     ApplyMovement LOCALID_PLAYER, SolaceonTown_Arc2Movement_Show
     WaitMovement
     FadeScreenIn
@@ -494,6 +490,7 @@ SolaceonTown_Arc2Movement_Hide:
     .balign 4, 0
 SolaceonTown_Arc2Movement_Show:
     SetVisible
+    WalkFastestWest
     FaceWest
     EndMovement
 
@@ -910,17 +907,56 @@ SolaceonTown_ExcavationGruntF:
     Message SolaceonTown_Text_SolFenceGruntFPost
     GoTo SolaceonTown_TalkEnd
 
+// Talked to: the player is on (595,660) (below M, or west of F), (596,661) or (597,660) (south or east of F); walk to
+// (594,660). (No teleport: see the 2.16a cutaway.)
 SolaceonTown_FenceTalk:
     SetVar VAR_MAP_LOCAL_0x03, 0
-    FadeScreenOut
-    WaitFadeScreen
-    AddFreeCamera 594, 660
-    SetPosition LOCALID_PLAYER, 594, 0, 660, DIR_EAST
-    RestoreCamera
-    FadeScreenIn
-    WaitFadeScreen
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    CallIfEq VAR_0x8005, 661, SolaceonTown_FenceTalkFromSouth
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    CallIfEq VAR_0x8004, 597, SolaceonTown_FenceTalkFromEast
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    CallIfEq VAR_0x8004, 595, SolaceonTown_FenceTalkFromWest
     GoTo SolaceonTown_FenceScene
     End
+
+SolaceonTown_FenceTalkFromSouth:
+    ApplyMovement LOCALID_PLAYER, SolaceonTown_Movement_FenceFromSouth
+    WaitMovement
+    Return
+
+SolaceonTown_FenceTalkFromEast:
+    ApplyMovement LOCALID_PLAYER, SolaceonTown_Movement_FenceFromEast
+    WaitMovement
+    Return
+
+SolaceonTown_FenceTalkFromWest:
+    GoToIfNe VAR_0x8005, 660, SolaceonTown_FenceTalkReturn
+    ApplyMovement LOCALID_PLAYER, SolaceonTown_Movement_FenceFromWest
+    WaitMovement
+SolaceonTown_FenceTalkReturn:
+    Return
+
+    .balign 4, 0
+SolaceonTown_Movement_FenceFromSouth:
+    WalkNormalWest 2
+    WalkNormalNorth
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+SolaceonTown_Movement_FenceFromEast:
+    WalkNormalSouth
+    WalkNormalWest 3
+    WalkNormalNorth
+    FaceEast
+    EndMovement
+
+    .balign 4, 0
+SolaceonTown_Movement_FenceFromWest:
+    WalkNormalWest
+    FaceEast
+    EndMovement
 
 SolaceonTown_FenceTrigger:
     LockAll
@@ -1034,17 +1070,20 @@ SolaceonTown_Movement_CyrusIntoRuins:
     EndMovement
 
 // ----------------------------------------------------------------- scene 3.4a part 7: the seizure (band E, once)
-// Raid-scripts warps the player here with 50 set (Room 7); the frame table runs this on the first load at 50. The
-// player stands south of the gate (580,660) facing north, Looker in front of the gate, Cyrus beside the player.
+// Raid-scripts warps the player here with 50 set (Room 7, SOL_RAID_TOWN_X/Z = (580,660)); the frame table runs this
+// on the first load at 50. The player stands south of the gate (580,660) facing north, Looker in front of the gate,
+// Cyrus beside the player.
 SolaceonTown_Seizure:
     LockAll
     SetVar VAR_MAP_LOCAL_0x02, 0
+    GetPlayerMapPos VAR_0x8004, VAR_0x8005
+    GoToIfNe VAR_0x8004, 580, SolaceonTown_SeizureWarp
+    GoToIfNe VAR_0x8005, 660, SolaceonTown_SeizureWarp
     SetFlag FLAG_SOL_TOWN_A
     FadeScreenOut
     WaitFadeScreen
-    AddFreeCamera 580, 660
-    SetPosition LOCALID_PLAYER, 580, 0, 660, DIR_NORTH
-    RestoreCamera
+    ApplyMovement LOCALID_PLAYER, SolaceonTown_Movement_FaceNorth
+    WaitMovement
     SetObjectEventPos LOCALID_LOOKER, 580, 659
     SetObjectEventDir LOCALID_LOOKER, DIR_SOUTH
     SetObjectEventMovementType LOCALID_LOOKER, MOVEMENT_TYPE_LOOK_SOUTH
@@ -1089,6 +1128,17 @@ SolaceonTown_SeizureNoRoom:
     RemoveObject LOCALID_CYRUS
     ApplyMovement LOCALID_PLAYER, SolaceonTown_Movement_FaceNorth
     WaitMovement
+    ReleaseAll
+    End
+
+// Not on the spot (raid-scripts lands the player on it; any other first entry at 50): a same-map warp there, and
+// the reload plays the scene (FLAG_SOL_TOWN_A is still clear).
+SolaceonTown_SeizureWarp:
+    FadeScreenOut
+    WaitFadeScreen
+    Warp MAP_HEADER_SOLACEON_TOWN, 580, 660, DIR_NORTH
+    FadeScreenIn
+    WaitFadeScreen
     ReleaseAll
     End
 

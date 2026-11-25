@@ -15,8 +15,8 @@
 //   _18 the cave-in rubble (shown from 45)
 // Map-local vars: _01 the vault trigger is armed (33, 40), _02 the barrier warning is armed (30-32)
 
-#define SOL_RAID_TOWN_X 571     // back in town: in front of the Sanctuary door (town warp 2 is (571,656))
-#define SOL_RAID_TOWN_Z 657
+#define SOL_RAID_TOWN_X 580     // back in town: south of the Sanctuary gate, where the seizure (3.4a part 7) plays
+#define SOL_RAID_TOWN_Z 660
 
     ScriptEntry SolaceonRuinsRoom7_Inscription
     ScriptEntry SolaceonRuinsRoom7_OnTransition
