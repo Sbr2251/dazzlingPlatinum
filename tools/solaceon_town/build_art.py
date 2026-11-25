@@ -511,22 +511,27 @@ def lantern(F, x, z):
 # ---------------------------------------------------------------------------------------------------------------
 
 def build_tent(F):
+    """The registration booth: an open-topped canvas stall. The clerk object stands at (566,643) behind the table;
+    the field camera looks down at about 59 degrees, so any canvas over the clerk's tile or between it and the
+    front sits on the lines of sight to the sprite and hides it (the first version's pitched roof did). So the
+    canvas is only behind and beside the clerk: a back wall with a ridged cap leaning back over the fence row, side
+    walls whose tops fall toward the front, and in front the striped valance and the REGISTRY board on poles, both
+    below the sight lines (CLERK_SIGHT checks this)."""
     x0, z0, x1, z1 = layout.TENT
-    # the back canvas stands just inside the fence row (z0 - 1) so the clerk's tile only has the roof over it;
-    # the front poles stand on the table row's south edge, not on the queue tiles
+    # the back canvas stands just inside the fence row (z0 - 1); the front poles on the table row's south edge
     X0, X1, ZB, ZF = x0 + 0.02, x1 + 0.98, z0 - 0.02, z1 + 1.02
-    wall_h, ridge, zr = G + 1.95, G + 2.7, (ZB + ZF) / 2
-    F.wall("sol_canvas", (X0, ZB), (X1, ZB), G, wall_h, (0, 0, (X1 - X0) / 2, 1.0))
-    F.wall("sol_canvas", (X0, ZB), (X0, ZF), G, wall_h, (0, 0, (ZF - ZB) / 2, 1.0))
-    F.wall("sol_canvas", (X1, ZF), (X1, ZB), G, wall_h, (0, 0, (ZF - ZB) / 2, 1.0))
-    for x, f in ((X0, -1), (X1, 1)):           # gable ends
-        pts = [(x, wall_h, ZB), (x, wall_h, ZF), (x, ridge, zr)]
-        F.add("sol_canvas", pts, [(0, 0.4), (1, 0.4), (0.5, 0)], (f, 0, 0))
-    sl = math.hypot(ZF + 0.1 - zr, ridge - wall_h) / 2
-    F.add("sol_canvas", [(X0 - 0.1, wall_h, ZF + 0.1), (X1 + 0.1, wall_h, ZF + 0.1), (X1 + 0.1, ridge, zr),
-                         (X0 - 0.1, ridge, zr)], [(0, sl), ((X1 - X0) / 2, sl), ((X1 - X0) / 2, 0), (0, 0)], (0, 1, 1))
-    F.add("sol_canvas", [(X1 + 0.1, wall_h, ZB - 0.1), (X0 - 0.1, wall_h, ZB - 0.1), (X0 - 0.1, ridge, zr),
-                         (X1 + 0.1, ridge, zr)], [(0, sl), ((X1 - X0) / 2, sl), ((X1 - X0) / 2, 0), (0, 0)], (0, 1, -1))
+    back_h, front_h, wall_h = G + 2.3, G + 1.6, G + 1.95
+    F.wall("sol_canvas", (X0, ZB), (X1, ZB), G, back_h, (0, 0, (X1 - X0) / 2, 1.0))
+    for x, f in ((X0, -1), (X1, 1)):           # side walls, tops falling toward the open front
+        pts = [(x, back_h, ZB), (x, front_h, ZF), (x, G, ZF), (x, G, ZB)]
+        F.add("sol_canvas", pts, [(0, 0), ((ZF - ZB) / 2, (back_h - front_h) / 2), ((ZF - ZB) / 2, 1.0), (0, 1.0)],
+              (f, 0, 0))
+    # ridged cap on the back wall, leaning back over the fence row (nothing over the clerk's tile)
+    cap = G + 2.62
+    for (za, zb, n) in ((ZB - 0.32, ZB, (0, 1, -1)), (ZB, ZB + 0.18, (0, 1, 1))):
+        ha, hb = (back_h - 0.05, cap) if n[2] < 0 else (cap, back_h - 0.02)
+        F.add("sol_canvas", [(X0 - 0.08, ha, za), (X1 + 0.08, ha, za), (X1 + 0.08, hb, zb), (X0 - 0.08, hb, zb)],
+              [(0, 0), ((X1 - X0) / 2, 0), ((X1 - X0) / 2, 0.3), (0, 0.3)], n)
     # striped valance across the open south front (bottom 1.45 tiles up, art.md rule >= 1.4)
     F.wall("sol_awning2", (X0 - 0.1, ZF + 0.11), (X1 + 0.1, ZF + 0.11), G + 1.45, wall_h + 0.06,
            (0, 0, (X1 - X0 + 0.2) / 2, 1 - E))
@@ -792,6 +797,7 @@ def candle_anim(kit):
 # checks
 # ---------------------------------------------------------------------------------------------------------------
 
+CLERK_SIGHT = (566.5, 643.5, 0.2, 2.0)     # clerk object (layout.NPC_SPOTS TENT_CLERK): x, z, sprite h above ground
 OVERHEAD_OK = []          # (x0, z0, x1, z1) tiles where something may hang over a walkable tile (none needed)
 
 
@@ -813,6 +819,28 @@ def clearance_check(F, t):
                 if not any(a <= x <= c and b <= z <= d for a, b, c, d in OVERHEAD_OK):
                     bad.add((tx, tz))
     return sorted(bad)
+
+
+def clerk_sight_check(F):
+    """No face of the tent between the clerk's sprite (x 566.5, z 643.5, h 0.2..2.0 above the ground) and the field
+    camera (CAMERA_TYPE_DEFAULT, pitch 59.05 degrees, sight lines rising 1.67 tiles per tile toward the south):
+    for every solid face, sample points within x 566.0..567.0 (the character in its 32-px sprite) south of the clerk and test they lie below the lowest
+    sight line or above the highest. -> list of offending sample points."""
+    cx, cz, s0, s1 = CLERK_SIGHT
+    k = math.tan(math.radians(B.CAMERAS[0][1]))
+    bad = []
+    for pts in F.solids:
+        n = len(pts)
+        samples = list(pts) + [tuple(sum(p[i] for p in pts) / n for i in range(3))]
+        if n >= 3:
+            samples += [tuple((pts[i][j] + pts[(i + 1) % n][j]) / 2 for j in range(3)) for i in range(n)]
+        for x, h, z in samples:
+            if not (cx - 0.5 <= x <= cx + 0.5 and cz < z <= cz + 3.0):
+                continue
+            lo, hi = G + s0 + k * (z - cz), G + s1 + k * (z - cz)
+            if lo < h < hi:
+                bad.append((round(x, 2), round(h, 2), round(z, 2)))
+    return bad
 
 
 def floor_check(out, t):
@@ -865,6 +893,9 @@ def run_checks(out, F, kit, anim_fails):
     results += B.door_checks(out, bm_files)
     fl = floor_check(out, t)
     results.append((f"every walkable rebuilt tile is drawn at its layout height ({len(fl)} off: {fl[:6]})", not fl))
+    cs = clerk_sight_check(F)
+    results.append((f"the tent clerk (566,643) is in clear view of the field camera ({len(cs)} blocking: {cs[:4]})",
+                    not cs))
     cl = clearance_check(F, t)
     results.append((f"nothing solid drawn low over a walkable tile ({len(cl)}: {cl[:8]})", not cl))
     # budgets

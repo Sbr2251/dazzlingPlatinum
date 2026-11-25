@@ -267,9 +267,10 @@ except the see-through cards (`<kit>_2s` materials, cull none):
   post on three faces, coping caps); the gate itself stands open; forecourt lanterns; Eclipse supply crates
   (`sol_exatlas`) in the west yard.
 - **Pilgrim road:** the four banner posts (`sol_banner` cards leaning back 18 degrees, like stock props lean toward
-  the camera); the registration tent: canvas back (just inside the fence row, so the clerk's tile only has the roof
-  over it), sides, gable ends and a pitched roof, the striped valance across the open south front with its bottom
-  1.45 tiles up, front poles on the table row's edge, the table (ledger and cards on top, eclipse front cloth),
+  the camera); the registration booth, open-topped so the TENT_CLERK object at (566,643) is visible (a pitched roof
+  over the clerk sat on the camera's sight lines and hid the sprite; `clerk_sight_check` now guards this): canvas back
+  just inside the fence row with a ridged cap leaning back over it, side walls whose tops fall toward the front, the
+  striped valance across the open south front with its bottom 1.45 tiles up, front poles on the table row's edge, the table (ledger and cards on top, eclipse front cloth),
   record boxes either side of the clerk and the REGISTRY board over the valance; the tent sign is the `sol_hatlas`
   sign board on a post.
 - **Plaza:** lanterns (`sol_furn`, 2 tiles, leaning 14 degrees so they do not cover the tile behind), the bench along
@@ -296,7 +297,7 @@ size and (frame 1) texels. After merging another branch that also appends to fld
 
 | chunk | polygons | stock kept | new | verts sent | model B | BDHC B | materials | props |
 |---|---|---|---|---|---|---|---|---|
-| 072 | 420 | 165 | 255 | 1676 | 26296 | 66 | 47 | 8 (391 polygons) |
+| 072 | 418 | 165 | 253 | 1670 | 26212 | 66 | 47 | 8 (391 polygons) |
 | 073 | 765 | 479 | 286 | 2609 | 38320 | 172 | 35 | 5 (188 polygons) |
 
 Limits: 1000 polygons and 45 KB (46080 B) of model per chunk, hard 0xF000. On screen (terrain of every loaded chunk
@@ -309,7 +310,8 @@ CAMERA_TYPE_DEFAULT and 354 with the zoomed-in camera; limit 2048. Set 010: 4595
 Permissions and BDHC equal layout.py in both chunks; all 93 layout checks (anchors, seams, edges, signs, NPC spots,
 reachability); every door tile has a building behind it and a door prop on it; props in area 0xA's list and identical
 to the graybox's; untouched stock shapes and all stock materials byte-identical; every walkable rebuilt tile is drawn
-at its layout height; nothing solid is drawn inside a walkable tile below 1.3 tiles (stock tree overhangs aside);
+at its layout height; nothing solid is drawn inside a walkable tile below 1.3 tiles (stock tree overhangs aside); no
+tent face lies on the camera's sight lines to the tent clerk's sprite;
 polygon / model / on-screen budgets; set 010 kit budget, ceiling and stock-unchanged checks (textures_kit.build); every
 kit entry is used by the town; the candle frames' palette, size and texels.
 
