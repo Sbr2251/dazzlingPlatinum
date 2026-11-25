@@ -3,19 +3,64 @@
     "class": "TRAINER_CLASS_ECLIPSE_GRUNT_M",
     "items": [],
     "ai_flags": [
-        "AI_FLAG_BASIC"
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK"
     ],
     "double_battle": false,
     "party": [
+        {
+            "species": "SPECIES_GURDURR",
+            "form": 0,
+            "level": 39,
+            "item": null,
+            "moves": [
+                "MOVE_ROCK_SLIDE",
+                "MOVE_LOW_KICK",
+                "MOVE_BULK_UP",
+                "MOVE_DYNAMIC_PUNCH"
+            ],
+            "iv_scale": 130,
+            "ball_seal": 0,
+            "ability": "ABILITY_GUTS"
+        },
         {
             "species": "SPECIES_GOLBAT",
             "form": 0,
             "level": 39,
             "item": null,
-            "moves": null,
-            "iv_scale": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_POISON_FANG",
+                "MOVE_WING_ATTACK",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_AIR_CUTTER"
+            ],
+            "iv_scale": 130,
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         }
     ],
-    "messages": []
+    "messages": [
+        {
+            "type": "TRMSG_PRE_BATTLE",
+            "en_US": [
+                "Hey! Nobody comes down here!\r",
+                "Who let you past the fence?"
+            ]
+        },
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": [
+                "Gah! I just dig here!\n",
+                "They don't pay me for this!"
+            ]
+        },
+        {
+            "type": "TRMSG_POST_BATTLE",
+            "en_US": [
+                "I was hired to dig. Dig, and not\n",
+                "ask what's in the crates.\r",
+                "...I didn't ask."
+            ]
+        }
+    ]
 }

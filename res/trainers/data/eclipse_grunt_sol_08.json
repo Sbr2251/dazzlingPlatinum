@@ -3,19 +3,63 @@
     "class": "TRAINER_CLASS_ECLIPSE_GRUNT_F",
     "items": [],
     "ai_flags": [
-        "AI_FLAG_BASIC"
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GOLBAT",
+            "species": "SPECIES_LIEPARD",
             "form": 0,
-            "level": 39,
+            "level": 38,
             "item": null,
-            "moves": null,
-            "iv_scale": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_FAKE_OUT",
+                "MOVE_SLASH",
+                "MOVE_TAUNT",
+                "MOVE_ASSURANCE"
+            ],
+            "iv_scale": 130,
+            "ball_seal": 0,
+            "ability": "ABILITY_LIMBER"
+        },
+        {
+            "species": "SPECIES_KROKOROK",
+            "form": 0,
+            "level": 38,
+            "item": null,
+            "moves": [
+                "MOVE_CRUNCH",
+                "MOVE_DIG",
+                "MOVE_SAND_TOMB",
+                "MOVE_SCARY_FACE"
+            ],
+            "iv_scale": 130,
+            "ball_seal": 0,
+            "ability": "ABILITY_INTIMIDATE"
         }
     ],
-    "messages": []
+    "messages": [
+        {
+            "type": "TRMSG_PRE_BATTLE",
+            "en_US": [
+                "Nobody's walking in."
+            ]
+        },
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": [
+                "Ugh! Krokorok, dig us out\n",
+                "of here!"
+            ]
+        },
+        {
+            "type": "TRMSG_POST_BATTLE",
+            "en_US": [
+                "Every night I stand at this fence.\n",
+                "Every night, nothing happens.\r",
+                "Then you."
+            ]
+        }
+    ]
 }

@@ -3,19 +3,65 @@
     "class": "TRAINER_CLASS_ECLIPSE_GRUNT_M",
     "items": [],
     "ai_flags": [
-        "AI_FLAG_BASIC"
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GOLBAT",
+            "species": "SPECIES_SEVIPER",
             "form": 0,
-            "level": 39,
+            "level": 40,
             "item": null,
-            "moves": null,
-            "iv_scale": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_CRUNCH",
+                "MOVE_POISON_TAIL",
+                "MOVE_GLARE",
+                "MOVE_NIGHT_SLASH"
+            ],
+            "iv_scale": 140,
+            "ball_seal": 0,
+            "ability": "ABILITY_SHED_SKIN"
+        },
+        {
+            "species": "SPECIES_KLANG",
+            "form": 0,
+            "level": 40,
+            "item": null,
+            "moves": [
+                "MOVE_CHARGE_BEAM",
+                "MOVE_MIRROR_SHOT",
+                "MOVE_SCREECH",
+                "MOVE_ROCK_POLISH"
+            ],
+            "iv_scale": 140,
+            "ball_seal": 0,
+            "ability": "ABILITY_PLUS"
         }
     ],
-    "messages": []
+    "messages": [
+        {
+            "type": "TRMSG_PRE_BATTLE",
+            "en_US": [
+                "I wired every machine down here.\r",
+                "You're not unplugging my work."
+            ]
+        },
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": [
+                "My wiring! Do you know how\n",
+                "long that took?"
+            ]
+        },
+        {
+            "type": "TRMSG_POST_BATTLE",
+            "en_US": [
+                "My Klang? Found it at that palace\n",
+                "by the new lake.\r",
+                "It was ticking. It followed me\n",
+                "home."
+            ]
+        }
+    ]
 }

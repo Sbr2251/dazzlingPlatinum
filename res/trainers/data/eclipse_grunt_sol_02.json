@@ -3,19 +3,63 @@
     "class": "TRAINER_CLASS_ECLIPSE_GRUNT_F",
     "items": [],
     "ai_flags": [
-        "AI_FLAG_BASIC"
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GOLBAT",
+            "species": "SPECIES_LAMPENT",
             "form": 0,
             "level": 39,
             "item": null,
-            "moves": null,
-            "iv_scale": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_LAVA_PLUME",
+                "MOVE_OMINOUS_WIND",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_MEMENTO"
+            ],
+            "iv_scale": 140,
+            "ball_seal": 0,
+            "ability": "ABILITY_FLASH_FIRE"
+        },
+        {
+            "species": "SPECIES_DUSCLOPS",
+            "form": 0,
+            "level": 40,
+            "item": null,
+            "moves": [
+                "MOVE_SHADOW_PUNCH",
+                "MOVE_WILL_O_WISP",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_CURSE"
+            ],
+            "iv_scale": 140,
+            "ball_seal": 0,
+            "ability": "ABILITY_PRESSURE"
         }
     ],
-    "messages": []
+    "messages": [
+        {
+            "type": "TRMSG_PRE_BATTLE",
+            "en_US": [
+                "Don't touch that machine!\r",
+                "It keeps the door shut!"
+            ]
+        },
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": [
+                "No! If that door opens,\n",
+                "Indra will..."
+            ]
+        },
+        {
+            "type": "TRMSG_POST_BATTLE",
+            "en_US": [
+                "Go ahead. Switch it off.\r",
+                "You'll never get past her anyway."
+            ]
+        }
+    ]
 }

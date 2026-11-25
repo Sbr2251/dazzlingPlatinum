@@ -3,19 +3,63 @@
     "class": "TRAINER_CLASS_ECLIPSE_GRUNT_M",
     "items": [],
     "ai_flags": [
-        "AI_FLAG_BASIC"
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GOLBAT",
+            "species": "SPECIES_SKUNTANK",
             "form": 0,
-            "level": 39,
+            "level": 41,
             "item": null,
-            "moves": null,
-            "iv_scale": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_FLAMETHROWER",
+                "MOVE_NIGHT_SLASH",
+                "MOVE_TOXIC",
+                "MOVE_SCREECH"
+            ],
+            "iv_scale": 140,
+            "ball_seal": 0,
+            "ability": "ABILITY_AFTERMATH"
+        },
+        {
+            "species": "SPECIES_CROBAT",
+            "form": 0,
+            "level": 41,
+            "item": null,
+            "moves": [
+                "MOVE_CROSS_POISON",
+                "MOVE_AIR_CUTTER",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_BITE"
+            ],
+            "iv_scale": 140,
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         }
     ],
-    "messages": []
+    "messages": [
+        {
+            "type": "TRMSG_PRE_BATTLE",
+            "en_US": [
+                "The vault's past this room.\r",
+                "Nobody gets that far. Nobody."
+            ]
+        },
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": [
+                "...Indra's going to hear\n",
+                "about this."
+            ]
+        },
+        {
+            "type": "TRMSG_POST_BATTLE",
+            "en_US": [
+                "She doesn't yell, you know.\r",
+                "She just writes it down."
+            ]
+        }
+    ]
 }

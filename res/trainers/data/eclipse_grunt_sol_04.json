@@ -3,19 +3,64 @@
     "class": "TRAINER_CLASS_ECLIPSE_GRUNT_F",
     "items": [],
     "ai_flags": [
-        "AI_FLAG_BASIC"
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK"
     ],
     "double_battle": false,
     "party": [
         {
-            "species": "SPECIES_GOLBAT",
+            "species": "SPECIES_DRIFBLIM",
             "form": 0,
-            "level": 39,
+            "level": 40,
             "item": null,
-            "moves": null,
-            "iv_scale": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_OMINOUS_WIND",
+                "MOVE_PAYBACK",
+                "MOVE_STOCKPILE",
+                "MOVE_BATON_PASS"
+            ],
+            "iv_scale": 140,
+            "ball_seal": 0,
+            "ability": "ABILITY_UNBURDEN"
+        },
+        {
+            "species": "SPECIES_BANETTE",
+            "form": 0,
+            "level": 40,
+            "item": null,
+            "moves": [
+                "MOVE_SHADOW_BALL",
+                "MOVE_WILL_O_WISP",
+                "MOVE_SUCKER_PUNCH",
+                "MOVE_FAINT_ATTACK"
+            ],
+            "iv_scale": 140,
+            "ball_seal": 0,
+            "ability": "ABILITY_INSOMNIA"
         }
     ],
-    "messages": []
+    "messages": [
+        {
+            "type": "TRMSG_PRE_BATTLE",
+            "en_US": [
+                "My sister's card is on that wall.\r",
+                "You don't get to switch her off."
+            ]
+        },
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": [
+                "...She'd have liked you.\n",
+                "That's the worst part."
+            ]
+        },
+        {
+            "type": "TRMSG_POST_BATTLE",
+            "en_US": [
+                "They promised me one more day with\n",
+                "her. Just one.\r",
+                "Is that so much to want?"
+            ]
+        }
+    ]
 }

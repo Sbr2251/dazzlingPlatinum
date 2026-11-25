@@ -3,19 +3,62 @@
     "class": "TRAINER_CLASS_ECLIPSE_GRUNT_M",
     "items": [],
     "ai_flags": [
-        "AI_FLAG_BASIC"
+        "AI_FLAG_BASIC",
+        "AI_FLAG_EVAL_ATTACK"
     ],
     "double_battle": false,
     "party": [
         {
+            "species": "SPECIES_HOUNDOOM",
+            "form": 0,
+            "level": 38,
+            "item": null,
+            "moves": [
+                "MOVE_FIRE_FANG",
+                "MOVE_FAINT_ATTACK",
+                "MOVE_THUNDER_FANG",
+                "MOVE_ROAR"
+            ],
+            "iv_scale": 130,
+            "ball_seal": 0,
+            "ability": "ABILITY_FLASH_FIRE"
+        },
+        {
             "species": "SPECIES_GOLBAT",
             "form": 0,
-            "level": 39,
+            "level": 38,
             "item": null,
-            "moves": null,
-            "iv_scale": 0,
-            "ball_seal": 0
+            "moves": [
+                "MOVE_BITE",
+                "MOVE_WING_ATTACK",
+                "MOVE_CONFUSE_RAY",
+                "MOVE_AIR_CUTTER"
+            ],
+            "iv_scale": 130,
+            "ball_seal": 0,
+            "ability": "ABILITY_INNER_FOCUS"
         }
     ],
-    "messages": []
+    "messages": [
+        {
+            "type": "TRMSG_PRE_BATTLE",
+            "en_US": [
+                "The dig's closed. Turn around."
+            ]
+        },
+        {
+            "type": "TRMSG_DEFEAT",
+            "en_US": [
+                "Tch.\n",
+                "Indra said nobody gets in."
+            ]
+        },
+        {
+            "type": "TRMSG_POST_BATTLE",
+            "en_US": [
+                "Go on, then. Go down there.\r",
+                "See how far you get."
+            ]
+        }
+    ]
 }
